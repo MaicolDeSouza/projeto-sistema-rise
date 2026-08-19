@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:17
+    container_name: rise-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:-sistema_rise}
+    ports:
+      # Publicado apenas em 127.0.0.1. Em VPS, "5432:5432" exporia o banco
+      # para a internet inteira — o Postgres nao deve ter porta publica.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - rise-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-rise} -d ${POSTGRES_DB:-sistema_rise}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  rise-pgdata:

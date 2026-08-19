@@ -1,0 +1,185 @@
+// Sistema Rise — schema do banco
+// Prisma 7: a URL do banco vem de prisma.config.ts, nao daqui.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Canal {
+  MERCADO_LIVRE
+  LOJA_INTEGRADA
+}
+
+enum Servico {
+  BLING
+  MERCADO_LIVRE
+  LOJA_INTEGRADA
+}
+
+enum StatusAnuncio {
+  RASCUNHO
+  GERADO
+  PUBLICANDO
+  PUBLICADO
+  ERRO
+}
+
+enum StatusJob {
+  PENDENTE
+  PROCESSANDO
+  CONCLUIDO
+  FALHOU
+}
+
+// ---------------------------------------------------------------------------
+// Catalogo
+// ---------------------------------------------------------------------------
+
+/// Dados do produto neutros de canal. O anuncio de cada canal deriva daqui.
+model Produto {
+  id            String   @id @default(cuid())
+  sku           String   @unique
+  ean           String?
+  marca         String?
+  modelo        String?
+  tituloBase    String
+  descricaoBase String?
+
+  custo      Decimal? @db.Decimal(12, 2)
+  precoVenda Decimal? @db.Decimal(12, 2)
+  estoque    Int      @default(0)
+
+  pesoKg        Decimal? @db.Decimal(10, 3)
+  alturaCm      Decimal? @db.Decimal(10, 2)
+  larguraCm     Decimal? @db.Decimal(10, 2)
+  comprimentoCm Decimal? @db.Decimal(10, 2)
+  garantiaMeses Int?
+
+  /// ID do produto no Bling, preenchido quando o produto e espelhado no ERP.
+  blingId String?
+  ativo   Boolean @default(true)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  imagens  ProdutoImagem[]
+  anuncios Anuncio[]
+
+  @@index([marca])
+  @@index([ativo])
+}
+
+model ProdutoImagem {
+  id        String  @id @default(cuid())
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  url   String
+  ordem Int    @default(0)
+
+  criadoEm DateTime @default(now())
+
+  @@index([produtoId, ordem])
+}
+
+// ---------------------------------------------------------------------------
+// Anuncios
+// ---------------------------------------------------------------------------
+
+/// Um anuncio por par (produto, canal). Guarda o conteudo gerado e o
+/// resultado da publicacao naquele canal, de forma independente dos outros.
+model Anuncio {
+  id        String  @id @default(cuid())
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  canal  Canal
+  status StatusAnuncio @default(RASCUNHO)
+
+  titulo    String?
+  descricao String?
+  /// Atributos/ficha tecnica no formato exigido pelo canal.
+  atributos Json?
+
+  categoriaExternaId String?
+  /// ID do anuncio no canal (ex.: MLB1234567890).
+  idExterno          String?
+  urlExterna         String?
+
+  erro        String?
+  publicadoEm DateTime?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([produtoId, canal])
+  @@index([status])
+  @@index([canal, status])
+}
+
+// ---------------------------------------------------------------------------
+// Integracoes
+// ---------------------------------------------------------------------------
+
+/// Credenciais de cada servico externo. Os tokens sao gravados cifrados
+/// (AES-256-GCM); estas colunas nunca guardam o valor em texto puro.
+model Conexao {
+  id      String  @id @default(cuid())
+  servico Servico @unique
+
+  contaExterna        String?
+  accessTokenCifrado  String?
+  refreshTokenCifrado String?
+  expiraEm            DateTime?
+  conectadoEm         DateTime?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+}
+
+/// Fila de trabalho processada pelo worker (publicacao, sincronizacao).
+model Job {
+  id      String    @id @default(cuid())
+  tipo    String
+  payload Json
+  status  StatusJob @default(PENDENTE)
+
+  tentativas         Int      @default(0)
+  maxTentativas      Int      @default(3)
+  proximaTentativaEm DateTime @default(now())
+  erro               String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([status, proximaTentativaEm])
+}
+
+/// Auditoria de toda chamada a API externa. E o que torna possivel depurar
+/// uma rejeicao do Mercado Livre depois que ela aconteceu.
+model LogIntegracao {
+  id      String  @id @default(cuid())
+  servico Servico
+
+  metodo     String
+  endpoint   String
+  statusHttp Int?
+  duracaoMs  Int?
+
+  requestResumo  String?
+  responseResumo String?
+  erro           String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([servico, criadoEm])
+}
