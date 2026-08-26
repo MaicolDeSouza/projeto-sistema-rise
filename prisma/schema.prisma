@@ -40,6 +40,13 @@ enum StatusJob {
   FALHOU
 }
 
+enum StatusConexao {
+  NAO_CONFIGURADO
+  CONECTADO
+  EXPIRADO
+  ERRO
+}
+
 // ---------------------------------------------------------------------------
 // Catalogo
 // ---------------------------------------------------------------------------
@@ -130,17 +137,31 @@ model Anuncio {
 // Integracoes
 // ---------------------------------------------------------------------------
 
-/// Credenciais de cada servico externo. Os tokens sao gravados cifrados
-/// (AES-256-GCM); estas colunas nunca guardam o valor em texto puro.
+/// Credenciais de cada servico externo.
+///
+/// `segredoCifrado` guarda UM JSON cifrado (AES-256-GCM) com tudo que e
+/// sigiloso daquele servico — cada conector conhece a forma do proprio JSON.
+/// Isso acomoda modelos de autenticacao diferentes (OAuth do Bling e do
+/// Mercado Livre, as duas chaves estaticas da Loja Integrada, e futuramente o
+/// partner_id/shop_id da Shopee) sem mudar o schema a cada canal novo.
+///
+/// Os demais campos sao metadados NAO sigilosos: existem para a tela mostrar
+/// situacao e expiracao sem precisar decifrar credencial nenhuma.
 model Conexao {
   id      String  @id @default(cuid())
   servico Servico @unique
 
-  contaExterna        String?
-  accessTokenCifrado  String?
-  refreshTokenCifrado String?
-  expiraEm            DateTime?
-  conectadoEm         DateTime?
+  segredoCifrado String?
+
+  status       StatusConexao @default(NAO_CONFIGURADO)
+  contaExterna String?
+  escopos      String?
+  expiraEm     DateTime?
+  conectadoEm  DateTime?
+
+  ultimoTesteEm DateTime?
+  ultimoTesteOk Boolean?
+  ultimoErro    String?
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt

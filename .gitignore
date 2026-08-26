@@ -49,3 +49,6 @@ next-env.d.ts
 /.agents/
 /.windsurf/
 /.claude/skills/
+
+# Certificados de HTTPS local (mkcert) - regeraveis, nunca versionar chave privada
+/certificates/

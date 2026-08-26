@@ -4,7 +4,7 @@ import {
   Megaphone,
   Package,
   PieChart,
-  Settings,
+  Cable,
   ShoppingCart,
   Wallet,
 } from "lucide-react";
@@ -74,11 +74,11 @@ export const blocos = [
     pronto: false,
   },
   {
-    href: "/configuracoes",
-    rotulo: "Configuracoes",
-    icone: Settings,
+    href: "/integracoes",
+    rotulo: "Integracoes",
+    icone: Cable,
     resumo: "Conexoes com Bling, Mercado Livre e Loja Integrada",
-    pronto: false,
+    pronto: true,
   },
 ];
 

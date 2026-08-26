@@ -2,8 +2,9 @@
   "name": "sistema-rise",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --experimental-https --experimental-https-key certificates/rise-key.pem --experimental-https-cert certificates/rise.pem",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -13,7 +14,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "seed": "prisma db seed"
+    "seed": "prisma db seed",
+    "diagnostico": "node scripts/diagnostico.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
