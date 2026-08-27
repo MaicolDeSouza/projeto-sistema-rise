@@ -33,10 +33,10 @@ export const blocos = [
   },
   {
     href: "/anuncios",
-    rotulo: "Criar Anuncios",
+    rotulo: "Anuncios",
     icone: Megaphone,
-    resumo: "Gerar e publicar anuncios no Mercado Livre e na Loja Integrada",
-    pronto: false,
+    resumo: "Criar, editar e acompanhar anuncios em todos os canais",
+    pronto: true,
   },
   {
     href: "/produtos",

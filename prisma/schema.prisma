@@ -15,8 +15,10 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 enum Canal {
+  BLING
   MERCADO_LIVRE
   LOJA_INTEGRADA
+  SHOPEE
 }
 
 enum Servico {
@@ -25,12 +27,24 @@ enum Servico {
   LOJA_INTEGRADA
 }
 
+/// Estado INTERNO do anuncio no Sistema Rise — o quanto ele avancou no nosso
+/// fluxo. Nao confundir com SituacaoCanal, que e o estado la fora.
 enum StatusAnuncio {
   RASCUNHO
-  GERADO
+  VALIDADO
   PUBLICANDO
   PUBLICADO
   ERRO
+}
+
+/// Estado do anuncio DENTRO do canal. Separado do status interno porque os dois
+/// divergem: o Mercado Livre pausa anuncios sozinho por falta de estoque, e sem
+/// essa distincao a tela continuaria dizendo "publicado, tudo certo".
+enum SituacaoCanal {
+  ATIVA
+  PAUSADA
+  ENCERRADA
+  DESCONHECIDA
 }
 
 enum StatusJob {
@@ -38,6 +52,13 @@ enum StatusJob {
   PROCESSANDO
   CONCLUIDO
   FALHOU
+}
+
+enum TipoArquivo {
+  IMAGEM
+  MANUAL
+  FICHA_TECNICA
+  CERTIFICADO
 }
 
 enum StatusConexao {
@@ -53,8 +74,8 @@ enum StatusConexao {
 
 /// Dados do produto neutros de canal. O anuncio de cada canal deriva daqui.
 model Produto {
-  id            String   @id @default(cuid())
-  sku           String   @unique
+  id            String  @id @default(cuid())
+  sku           String  @unique
   ean           String?
   marca         String?
   modelo        String?
@@ -65,11 +86,49 @@ model Produto {
   precoVenda Decimal? @db.Decimal(12, 2)
   estoque    Int      @default(0)
 
+  /// Onde a peca fica fisicamente no estoque (ex.: R14). Nao vai para canal
+  /// nenhum — existe para a separacao do pedido ser rapida.
+  localizacao String?
+
   pesoKg        Decimal? @db.Decimal(10, 3)
   alturaCm      Decimal? @db.Decimal(10, 2)
   larguraCm     Decimal? @db.Decimal(10, 2)
   comprimentoCm Decimal? @db.Decimal(10, 2)
   garantiaMeses Int?
+
+  /// Unidade de medida. Lista fechada porque o Bling valida esse valor ao
+  /// cadastrar o produto — com texto livre o mesmo item viraria "un", "UN" e
+  /// "unidade", e a publicacao falharia sem motivo aparente.
+  unidade String? @default("UN")
+
+  /// Numero da homologacao Anatel/INMETRO. O certificado em si e um arquivo do
+  /// tipo CERTIFICADO; o numero fica aqui porque e ele que o Mercado Livre pede.
+  numeroHomologacao String?
+
+  /// Link do video do produto (YouTube). O Mercado Livre aceita video no anuncio.
+  videoUrl String?
+
+  /// Pagina do produto na Loja Integrada. Preenchido a mao: as URLs da LI sao
+  /// baseadas no NOME do produto e editaveis item a item, entao nao ha como
+  /// deduzi-las a partir do id que o Bling devolve.
+  urlLojaIntegrada String?
+
+  /// Estoque desejado da loja (nao do fornecedor): o item tem um saldo so.
+  estoqueMinimo Int?
+  estoqueMaximo Int?
+
+  // --- Fiscais ---
+  // So os campos que IDENTIFICAM o produto e viajam com ele. Os valores
+  // calculados de imposto continuam no Bling, que emite a nota e tem as regras
+  // tributarias — duplica-los aqui criaria uma segunda fonte de verdade fiscal.
+  /// Origem da mercadoria, 0 a 8 (tabela da NF-e).
+  origem             Int?
+  ncm                String?
+  cest               String?
+  /// Tipo do item na tabela 4.3.1 do SPED PIS/COFINS.
+  spedTipoItem       String?
+  /// Percentual aproximado de tributos (Lei da Transparencia).
+  percentualTributos Decimal? @db.Decimal(5, 2)
 
   /// ID do produto no Bling, preenchido quando o produto e espelhado no ERP.
   blingId String?
@@ -78,24 +137,49 @@ model Produto {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  imagens  ProdutoImagem[]
-  anuncios Anuncio[]
+  arquivos     ProdutoArquivo[]
+  fornecedores ProdutoFornecedor[]
+  anuncios     Anuncio[]
 
   @@index([marca])
   @@index([ativo])
 }
 
-model ProdutoImagem {
+/// Arquivos do produto: imagens, manual, ficha tecnica e certificado.
+///
+/// Uma tabela para todos os tipos, e nao uma por tipo: envio, validacao,
+/// exibicao e exclusao sao identicos, entao um tipo novo passa a ser um valor
+/// de enum em vez de uma tabela nova.
+///
+/// O ENDERECO NAO E GRAVADO. Os arquivos moram em dados/produtos/<SKU>/<tipo>/,
+/// e o SKU pode mudar — uma URL gravada ficaria velha na primeira renomeacao.
+/// O endereco e calculado na leitura, a partir do SKU atual do produto.
+model ProdutoArquivo {
   id        String  @id @default(cuid())
   produtoId String
   produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
 
-  url   String
-  ordem Int    @default(0)
+  tipo    TipoArquivo @default(IMAGEM)
+  arquivo String
+
+  /// Nome que veio do usuario. Serve so para exibir — o arquivo em disco usa
+  /// nome gerado pelo sistema.
+  nomeOriginal String?
+  mimeType     String?
+  tamanhoBytes Int?
+
+  /// Imagem principal do produto.
+  ///
+  /// E uma MARCA, nao a posicao 0: se fosse posicao, escolher a principal
+  /// obrigaria a reordenar todas as outras — o que fazia as miniaturas
+  /// dancarem na tela e custava uma transacao no banco a cada clique.
+  principal Boolean @default(false)
+
+  ordem Int @default(0)
 
   criadoEm DateTime @default(now())
 
-  @@index([produtoId, ordem])
+  @@index([produtoId, tipo, ordem])
 }
 
 // ---------------------------------------------------------------------------
@@ -109,8 +193,12 @@ model Anuncio {
   produtoId String
   produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
 
-  canal  Canal
-  status StatusAnuncio @default(RASCUNHO)
+  canal         Canal
+  status        StatusAnuncio @default(RASCUNHO)
+  situacaoCanal SituacaoCanal @default(DESCONHECIDA)
+
+  /// Anuncio com venda tem campos travados pelo canal (no ML, o titulo).
+  temVendas Boolean @default(false)
 
   titulo    String?
   descricao String?
@@ -122,11 +210,22 @@ model Anuncio {
   idExterno          String?
   urlExterna         String?
 
-  erro        String?
-  publicadoEm DateTime?
+  /// O que foi enviado na ultima publicacao. Depurar uma rejeicao sem isso e
+  /// adivinhacao.
+  payloadEnviado Json?
+
+  /// Hash do conteudo no momento da publicacao. Se o Produto mudar depois, a
+  /// tela avisa "alteracoes nao publicadas" em vez de fingir que esta em dia.
+  hashConteudo String?
+
+  erro           String?
+  publicadoEm    DateTime?
+  sincronizadoEm DateTime?
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
+
+  logs LogIntegracao[]
 
   @@unique([produtoId, canal])
   @@index([status])
@@ -167,6 +266,47 @@ model Conexao {
   atualizadoEm DateTime @updatedAt
 }
 
+// ---------------------------------------------------------------------------
+// Fornecedores
+// ---------------------------------------------------------------------------
+
+/// Cadastro de fornecedores, reaproveitado entre produtos.
+model Fornecedor {
+  id   String @id @default(cuid())
+  nome String @unique
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  produtos ProdutoFornecedor[]
+}
+
+/// Vinculo produto x fornecedor: o mesmo item pode vir de varios fornecedores,
+/// cada um com o proprio codigo, preco e link.
+model ProdutoFornecedor {
+  id           String     @id @default(cuid())
+  produtoId    String
+  produto      Produto    @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  fornecedorId String
+  /// Restrict de proposito: apagar um fornecedor que ainda abastece produtos
+  /// levaria junto o historico de custo deles.
+  fornecedor   Fornecedor @relation(fields: [fornecedorId], references: [id], onDelete: Restrict)
+
+  descricao  String?
+  codigo     String?
+  precoCusto Decimal? @db.Decimal(12, 2)
+  /// Pagina do produto NO SITE do fornecedor.
+  link       String?
+  /// De qual fornecedor sai o custo do produto. Exatamente um por produto.
+  padrao     Boolean  @default(false)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([produtoId, fornecedorId])
+  @@index([fornecedorId])
+}
+
 /// Fila de trabalho processada pelo worker (publicacao, sincronizacao).
 model Job {
   id      String    @id @default(cuid())
@@ -191,6 +331,11 @@ model LogIntegracao {
   id      String  @id @default(cuid())
   servico Servico
 
+  /// Vincula a chamada ao anuncio que a originou, dando uma linha do tempo por
+  /// anuncio de graca.
+  anuncioId String?
+  anuncio   Anuncio? @relation(fields: [anuncioId], references: [id], onDelete: SetNull)
+
   metodo     String
   endpoint   String
   statusHttp Int?
@@ -203,4 +348,5 @@ model LogIntegracao {
   criadoEm DateTime @default(now())
 
   @@index([servico, criadoEm])
+  @@index([anuncioId])
 }

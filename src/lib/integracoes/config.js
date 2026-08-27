@@ -42,6 +42,9 @@ export const config = {
   lojaIntegrada: {
     chaveApi: ler("LI_CHAVE_API"),
     chaveAplicacao: ler("LI_CHAVE_APLICACAO"),
+    /// Endereco da loja. Nao monta a URL do produto (elas sao baseadas no nome
+    /// e editaveis), mas avisa quando o link colado for de outro dominio.
+    dominio: ler("LI_DOMINIO"),
   },
 
   // Travas de seguranca. Enquanto false, nada e escrito nas plataformas.

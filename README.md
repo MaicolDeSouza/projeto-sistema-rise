@@ -8,17 +8,31 @@ bloco cobre uma área da operação e é desenvolvido de forma independente.
 
 ## Estado atual
 
-Esta versão entrega a **fundação** — esqueleto visual, banco de dados e as conexões
-com os sistemas externos autenticadas e testadas. A criação de anúncios ainda não
-foi implementada.
+O **cadastro de produtos** é o coração do sistema: é dele que todo anúncio nos canais
+deriva. As conexões com Bling e Mercado Livre estão autenticadas e testadas, mas a
+**publicação ainda não foi ligada** — as travas `ML_PUBLICACAO` e `BLING_ESCRITA`
+seguem em `false`.
 
 | Bloco | Situação |
 | --- | --- |
+| Produtos | Cadastro completo: dados, imagens, documentos, fiscal e fornecedores |
+| Integrações | Bling e Mercado Livre conectados; Loja Integrada via Bling |
 | Painel | Indicadores lendo do banco |
-| Produtos | Listagem lendo do banco |
-| Integrações | Conectores de Bling, Mercado Livre e Loja Integrada |
-| Criar Anúncios | Em construção — próximo a ser desenvolvido |
+| Anúncios | Interface e validação por canal, sem publicar |
 | Pedidos, Estoque, Financeiro, Relatórios | Em construção |
+
+### Cadastro de produtos
+
+Visão geral com imagem principal e até 7 fotos, mais cinco abas: **Características**
+(marca, modelo, manual, ficha técnica, garantia, vídeo, homologação, EAN),
+**Descrição** (Markdown com pré-visualização), **Peso e dimensões**, **Tributação**
+(origem, NCM, CEST) e **Fornecedores**.
+
+Os arquivos ficam em `dados/produtos/<SKU>/`, separados por tipo. O SKU é validado
+como nome de caminho e a pasta acompanha quando ele muda.
+
+O **custo do produto vem do fornecedor marcado como padrão** — o dado entra onde
+nasce, na compra, em vez de ser digitado duas vezes.
 
 ## Stack
 

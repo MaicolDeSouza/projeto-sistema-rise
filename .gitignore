@@ -52,3 +52,7 @@ next-env.d.ts
 
 # Certificados de HTTPS local (mkcert) - regeraveis, nunca versionar chave privada
 /certificates/
+
+# Imagens enviadas pelo sistema. Ficam fora do build (public/ nao sobrevive a
+# deploy com Docker) e viram volume no VPS.
+/dados/
