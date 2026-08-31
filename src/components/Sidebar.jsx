@@ -4,7 +4,8 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 
-import { blocos, ehRotaAtiva, normalizar } from "@/lib/blocos";
+import { blocos, ehRotaAtiva } from "@/lib/blocos";
+import { normalizar } from "@/lib/texto";
 import {
   definirRecolhida,
   lerRecolhida,

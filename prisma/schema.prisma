@@ -350,3 +350,148 @@ model LogIntegracao {
   @@index([servico, criadoEm])
   @@index([anuncioId])
 }
+
+// ---------------------------------------------------------------------------
+// Mercados — dados coletados de concorrentes e fornecedores
+// ---------------------------------------------------------------------------
+//
+// Este conjunto NAO se liga ao catalogo proprio. Nenhuma das tabelas abaixo tem
+// referencia a Produto: a secao Mercados existe para olhar o que os outros
+// vendem, e uma chave estrangeira sem uso seria divida disfarcada de precaucao.
+
+enum TipoFonte {
+  CONCORRENTE
+  FORNECEDOR
+  OUTRO
+}
+
+/// Um site sendo acompanhado.
+///
+/// Fica em tabela, e nao em lista no codigo como src/lib/canais.js, porque o
+/// dono acrescenta loja pela tela — sem deploy.
+model FonteColeta {
+  id      String    @id @default(cuid())
+  nome    String
+  dominio String
+  tipo    TipoFonte
+
+  /// Limita a varredura a um trecho do site (ex.: "/informatica/"). O
+  /// concorrente pode vender de tudo, e varrer o supermercado inteiro para
+  /// achar eletronicos gasta uma hora por nada.
+  prefixoUrl String?
+
+  urlSitemap String?
+
+  /// Falso quando o robots.txt do site nos barra. A fonte continua cadastrada e
+  /// visivel com o motivo, mas nunca e varrida — bloqueio se respeita, nao se
+  /// dribla.
+  robotsPermite Boolean @default(true)
+
+  /// O que o cadastro conseguiu extrair da pagina de amostra. Guardado para a
+  /// tela poder dizer "extracao OK (titulo, preco, marca)" sem refazer o teste.
+  amostraResumo String?
+
+  /// Quantos produtos o SITE declara ter, contados no sitemap. E o denominador
+  /// da tela: sem ele, saber que coletamos 2732 paginas nao diz se falta muito.
+  produtosNoSite Int?
+
+  /// Verdadeiro quando a contagem parou no teto de leitura — o catalogo e MAIOR
+  /// que o numero guardado, e a tela precisa dizer isso em vez de mentir um total.
+  produtosNoSiteParcial Boolean @default(false)
+  ativa          Boolean @default(true)
+  intervaloHoras Int     @default(24)
+
+  /// O relogio da varredura mora aqui, e nao num setInterval: o sistema roda na
+  /// maquina do dono, que dorme e reinicia. Desligada dois dias, ela gera UMA
+  /// varredura ao voltar em vez de tres acumuladas.
+  proximaVarreduraEm DateTime @default(now())
+  ultimaVarreduraEm  DateTime?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  paginas PaginaColetada[]
+
+  @@unique([dominio, prefixoUrl])
+  @@index([ativa, proximaVarreduraEm])
+}
+
+/// Uma pagina de produto de uma das fontes.
+///
+/// ATUALIZADA NO LUGAR, nunca duplicada. Conteudo (titulo, descricao, ficha)
+/// muda raramente; preco muda todo dia. Gravar um retrato completo por
+/// varredura guardaria 365 copias da mesma descricao por ano so porque o preco
+/// mudou um real — por isso o preco tem tabela propria, e aqui fica uma versao
+/// corrente por URL.
+model PaginaColetada {
+  id      String      @id @default(cuid())
+  fonteId String
+  fonte   FonteColeta @relation(fields: [fonteId], references: [id], onDelete: Cascade)
+
+  /// Unica no sistema inteiro: duas fontes com trechos que se sobrepoem nao
+  /// podem produzir a mesma URL duas vezes na busca.
+  url String @unique
+
+  titulo    String?
+  descricao String?
+  marca     String?
+  modelo    String?
+
+  /// Codigo do fabricante declarado pela loja (schema.org/Product mpn).
+  mpn String?
+  /// Codigo interno da loja de origem (schema.org/Product sku).
+  skuFonte String?
+  ean      String?
+
+  /// So as URLs. As imagens em si nao sao baixadas.
+  imagens   Json?
+  atributos Json?
+
+  precoAtual Decimal? @db.Decimal(12, 2)
+  disponivel Boolean  @default(true)
+
+  /// Tudo que a busca varre, ja normalizado (sem acento, minusculo) na
+  /// ESCRITA. E o que faz "fone" achar "Fone" sem depender de extensao do
+  /// Postgres. A descricao fica de fora de proposito: casaria com quase tudo, e
+  /// procurar "preto" devolveria o catalogo inteiro.
+  ///
+  /// SEM INDICE de proposito. A busca usa ILIKE '%termo%', e indice btree nao
+  /// atende curinga a esquerda — seria custo de escrita sem nenhum ganho de
+  /// leitura. Nesta ordem de grandeza (dezenas de milhares de linhas) a varredura
+  /// sequencial responde em milissegundos; se um dia pesar, o caminho e um GIN
+  /// com pg_trgm, que exige a extensao e nao muda a consulta.
+  buscaTexto String?
+
+  /// Detectam que a pagina nao mudou sem precisar reprocessar: o ETag evita
+  /// baixar o corpo (304), e o hash cobre o servidor que nao manda ETag.
+  hashConteudo String?
+  etag         String?
+
+  statusHttp Int?
+  erro       String?
+  vistoEm    DateTime @default(now())
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  precos PrecoHistorico[]
+
+  @@index([fonteId, vistoEm])
+}
+
+/// Serie de preco por pagina.
+///
+/// So ganha linha QUANDO O PRECO MUDA. Uma linha por varredura engordaria a
+/// tabela em 20 mil registros por dia sem dizer nada de novo.
+model PrecoHistorico {
+  id       String         @id @default(cuid())
+  paginaId String
+  pagina   PaginaColetada @relation(fields: [paginaId], references: [id], onDelete: Cascade)
+
+  preco      Decimal? @db.Decimal(12, 2)
+  disponivel Boolean  @default(true)
+
+  coletadoEm DateTime @default(now())
+
+  @@index([paginaId, coletadoEm])
+}

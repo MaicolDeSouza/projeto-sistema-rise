@@ -7,7 +7,7 @@ import { urlDe } from "@/lib/arquivos";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
-import BuscaProdutos from "@/components/produtos/BuscaProdutos";
+import CampoBusca from "@/components/ui/CampoBusca";
 import LinhaProduto from "@/components/produtos/LinhaProduto";
 
 export const dynamic = "force-dynamic";
@@ -87,7 +87,7 @@ export default async function ProdutosPage({ searchParams }) {
 
       {!erro && (
         <>
-          <BuscaProdutos valorInicial={busca} />
+          <CampoBusca valorInicial={busca} rotulo="Buscar por nome ou codigo" />
 
           {linhas.length === 0 ? (
             <EmptyState

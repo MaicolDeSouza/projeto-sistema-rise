@@ -1,16 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 
 /**
- * Busca por nome ou codigo. O termo vive na URL para sobreviver a recarga e
- * poder ser compartilhado como link.
+ * Campo de busca com termo na URL.
+ *
+ * Nasceu na tela de Produtos e subiu para ca quando Mercados precisou do mesmo
+ * comportamento: era generico exceto pelo texto do rotulo, e duas copias ja
+ * nascem podendo divergir no tempo de espera ou no nome do parametro.
+ *
+ * O termo vive na URL, e nao em estado local, para sobreviver a recarga e poder
+ * ser compartilhado como link.
  */
-export default function BuscaProdutos({ valorInicial = "" }) {
+export default function CampoBusca({
+  valorInicial = "",
+  rotulo = "Buscar",
+  parametro = "q",
+  className = "mb-4 max-w-sm",
+}) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [termo, setTermo] = useState(valorInicial);
 
   // Espera a digitacao parar antes de consultar: sem isso, cada tecla dispara
@@ -19,14 +31,21 @@ export default function BuscaProdutos({ valorInicial = "" }) {
     if (termo === valorInicial) return;
 
     const relogio = setTimeout(() => {
-      router.push(termo ? `${pathname}?q=${encodeURIComponent(termo)}` : pathname);
+      // Preserva os outros parametros da URL — em Mercados convivem filtro de
+      // fonte e termo de busca, e reescrever a query inteira perderia um deles.
+      const params = new URLSearchParams(searchParams);
+      if (termo) params.set(parametro, termo);
+      else params.delete(parametro);
+
+      const query = params.toString();
+      router.push(query ? `${pathname}?${query}` : pathname);
     }, 300);
 
     return () => clearTimeout(relogio);
-  }, [termo, valorInicial, pathname, router]);
+  }, [termo, valorInicial, parametro, pathname, router, searchParams]);
 
   return (
-    <div className="mb-4 relative max-w-sm">
+    <div className={`relative ${className}`}>
       <Search
         size={15}
         className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-suave"
@@ -35,8 +54,8 @@ export default function BuscaProdutos({ valorInicial = "" }) {
         type="search"
         value={termo}
         onChange={(evento) => setTermo(evento.target.value)}
-        placeholder="Buscar por nome ou codigo"
-        aria-label="Buscar por nome ou codigo"
+        placeholder={rotulo}
+        aria-label={rotulo}
         className="w-full rounded border border-borda bg-superficie py-2 pr-8 pl-8 text-sm focus:border-acento focus:outline-none"
       />
       {termo && (

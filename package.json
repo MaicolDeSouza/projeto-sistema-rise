@@ -15,7 +15,12 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "seed": "prisma db seed",
-    "diagnostico": "node scripts/diagnostico.js"
+    "diagnostico": "node scripts/diagnostico.js",
+    "worker": "node scripts/worker.js",
+    "teste:coleta": "node scripts/teste-coleta.js",
+    "teste:extracao": "node scripts/teste-extracao.js",
+    "teste:fonte": "node scripts/testar-fonte.js",
+    "coletar": "node scripts/coletar.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

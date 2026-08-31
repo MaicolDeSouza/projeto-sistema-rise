@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Megaphone,
   Package,
+  Radar,
   PieChart,
   Cable,
   ShoppingCart,
@@ -46,6 +47,13 @@ export const blocos = [
     pronto: true,
   },
   {
+    href: "/mercados",
+    rotulo: "Mercados",
+    icone: Radar,
+    resumo: "Produtos, precos e codigos de concorrentes e fornecedores",
+    pronto: true,
+  },
+  {
     href: "/pedidos",
     rotulo: "Pedidos",
     icone: ShoppingCart,
@@ -81,15 +89,6 @@ export const blocos = [
     pronto: true,
   },
 ];
-
-/** Remove acentos e caixa para que a busca do menu ignore ambos. */
-export function normalizar(texto) {
-  return texto
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .trim();
-}
 
 export function ehRotaAtiva(pathname, href) {
   if (href === "/") return pathname === "/";

@@ -1,0 +1,442 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Boxes,
+  Check,
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  Loader,
+  Plus,
+  RotateCcw,
+  TestTube,
+  TriangleAlert,
+  X,
+} from "lucide-react";
+
+import { salvarFonte, testarFonteAcao } from "@/app/mercados/acoes";
+import PreviaProduto from "./PreviaProduto";
+
+const CAMPO =
+  "w-full rounded border border-borda bg-superficie px-2.5 py-2 text-sm focus:border-acento focus:outline-none";
+
+const TIPOS = [
+  { valor: "CONCORRENTE", rotulo: "Concorrente" },
+  { valor: "FORNECEDOR", rotulo: "Fornecedor" },
+  { valor: "OUTRO", rotulo: "Outro" },
+];
+
+const CABECALHO = {
+  SUCESSO: {
+    icone: CircleCheck,
+    titulo: "Fonte compativel",
+    classe: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  },
+  PARCIAL: {
+    icone: CircleAlert,
+    titulo: "Fonte parcialmente compativel",
+    classe: "border-amber-300 bg-amber-50 text-amber-900",
+  },
+  FALHA: {
+    icone: CircleX,
+    titulo: "Nao foi possivel validar a fonte",
+    classe: "border-red-200 bg-red-50 text-red-900",
+  },
+};
+
+const CONFIANCA = {
+  alta: { rotulo: "confianca alta", classe: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+  media: { rotulo: "confianca media", classe: "bg-amber-50 text-amber-800 border-amber-300" },
+  baixa: { rotulo: "confianca baixa", classe: "bg-amber-50 text-amber-800 border-amber-300" },
+  nenhuma: { rotulo: "nao identificada", classe: "bg-fundo text-suave border-borda" },
+};
+
+/**
+ * O que a plataforma da loja entrega, e como.
+ *
+ * Fica acima dos campos de proposito: e a resposta que explica os campos. "Nao
+ * disponiveis: Preco" nao diz nada sozinho; ao lado de "a Tray publica o preco
+ * num input escondido" vira uma pergunta com endereco — ou o site mudou, ou a
+ * nossa leitura falhou naquele ponto.
+ */
+function CartaoPlataforma({ teste }) {
+  const { plataforma, catalogoPublico } = teste;
+  const marca = CONFIANCA[plataforma.confianca] ?? CONFIANCA.nenhuma;
+  const entrega = plataforma.entrega ?? {};
+
+  return (
+    <div className="rounded border border-borda p-4">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <Boxes size={15} className="text-suave" />
+        <p className="text-sm font-medium">Plataforma: {plataforma.nome}</p>
+        <span className={`rounded border px-1.5 py-0.5 text-[11px] ${marca.classe}`}>
+          {marca.rotulo}
+        </span>
+        {plataforma.familia && (
+          <span className="text-xs text-suave">{plataforma.familia}</span>
+        )}
+      </div>
+
+      {plataforma.sinais.length > 0 && (
+        <p className="mb-2 text-xs text-suave">
+          Reconhecida por: {plataforma.sinais.join(" · ")}
+        </p>
+      )}
+
+      {entrega.resumo && <p className="text-sm">{entrega.resumo}</p>}
+
+      {typeof teste.produtosNoSite === "number" && (
+        <p className="mt-2 text-sm">
+          <span className="font-medium">Catalogo da loja: </span>
+          <span className="tabular-nums">
+            {teste.produtosNoSite.toLocaleString("pt-BR")}
+            {teste.produtosNoSiteParcial ? "+" : ""}
+          </span>{" "}
+          produto(s) publicados no sitemap
+          {teste.produtosNoSiteParcial
+            ? " — a leitura parou no teto, entao o catalogo e maior que isso"
+            : ""}
+        </p>
+      )}
+
+      <dl className="mt-2 space-y-1 text-xs">
+        {entrega.preco && (
+          <div>
+            <dt className="inline font-medium">Preco: </dt>
+            <dd className="inline text-suave">{entrega.preco}</dd>
+          </div>
+        )}
+        {entrega.imagens && (
+          <div>
+            <dt className="inline font-medium">Imagens: </dt>
+            <dd className="inline text-suave">{entrega.imagens}</dd>
+          </div>
+        )}
+        {entrega.sitemap && (
+          <div>
+            <dt className="inline font-medium">Sitemap: </dt>
+            <dd className="inline text-suave">{entrega.sitemap}</dd>
+          </div>
+        )}
+      </dl>
+
+      {catalogoPublico && (
+        <p
+          className={`mt-3 rounded border px-2.5 py-2 text-xs ${
+            catalogoPublico.disponivel
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-borda text-suave"
+          }`}
+        >
+          {catalogoPublico.disponivel ? (
+            <>
+              <span className="font-medium">
+                Esta loja publica o catalogo em JSON, sem credencial
+              </span>{" "}
+              — {catalogoPublico.url}
+              {catalogoPublico.total ? ` · ${catalogoPublico.total} produto(s)` : ""}. A coleta
+              atual nao usa esse caminho: ler o catalogo em vez de abrir pagina por pagina e
+              uma decisao a parte.
+            </>
+          ) : (
+            <>
+              A plataforma costuma publicar catalogo em {catalogoPublico.url}, mas nesta loja
+              nao respondeu ({catalogoPublico.motivo}).
+            </>
+          )}
+        </p>
+      )}
+
+      {(entrega.cuidados ?? []).length > 0 && (
+        <ul className="mt-3 space-y-0.5 text-xs text-suave">
+          {entrega.cuidados.map((cuidado) => (
+            <li key={cuidado} className="flex items-start gap-1.5">
+              <TriangleAlert size={12} className="mt-0.5 shrink-0" />
+              <span>{cuidado}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!plataforma.conferidaEm && plataforma.id !== "desconhecida" && (
+        <p className="mt-2 text-xs text-amber-700">
+          As regras desta plataforma ainda nao foram conferidas em loja real — confira a
+          previa antes de confiar.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Sugere um nome a partir do dominio: "loja.com.br" vira "Loja". */
+function nomeSugerido(endereco) {
+  try {
+    const alvo = new URL(/^https?:\/\//i.test(endereco) ? endereco : `https://${endereco}`);
+    const raiz = alvo.hostname.replace(/^www\./, "").split(".")[0];
+    return raiz.charAt(0).toUpperCase() + raiz.slice(1);
+  } catch {
+    return "";
+  }
+}
+
+export default function FormularioFonte() {
+  const router = useRouter();
+  const [testando, iniciarTeste] = useTransition();
+  const [salvando, iniciarSalvamento] = useTransition();
+
+  const [nome, setNome] = useState("");
+  const [tipo, setTipo] = useState("CONCORRENTE");
+  const [url, setUrl] = useState("");
+  const [secao, setSecao] = useState("");
+  const [teste, setTeste] = useState(null);
+  const [erro, setErro] = useState(null);
+
+  /**
+   * O resultado do teste e limpo a cada mudanca de endereco.
+   *
+   * Sem isso, editar a URL depois de testar deixaria na tela a aprovacao de
+   * OUTRO site — e o botao de cadastrar gravaria o endereco novo com o aval do
+   * antigo.
+   */
+  function mudarUrl(valor) {
+    setUrl(valor);
+    setTeste(null);
+    setErro(null);
+    if (!nome) setNome(nomeSugerido(valor));
+  }
+
+  function testar() {
+    setErro(null);
+    setTeste(null);
+    iniciarTeste(async () => {
+      setTeste(await testarFonteAcao({ url, secao, nome, tipo }));
+    });
+  }
+
+  function cadastrar() {
+    setErro(null);
+    iniciarSalvamento(async () => {
+      const resultado = await salvarFonte({
+        nome,
+        url,
+        tipo,
+        secao,
+        resumo: teste?.campos
+          ? `${teste.resultado} · ${teste.produtos.length} produto(s) testado(s) · ${teste.formatos?.join(", ")}`
+          : null,
+        produtosNoSite: teste?.produtosNoSite ?? null,
+        produtosNoSiteParcial: teste?.produtosNoSiteParcial ?? false,
+      });
+
+      if (!resultado.ok) {
+        setErro(resultado.erro);
+        return;
+      }
+
+      setUrl("");
+      setNome("");
+      setSecao("");
+      setTeste(null);
+      router.refresh();
+    });
+  }
+
+  const cabecalho = teste ? CABECALHO[teste.resultado] : null;
+  const Icone = cabecalho?.icone;
+  const podeCadastrar = teste && teste.resultado !== "FALHA";
+
+  return (
+    <div className="mb-6 rounded-lg border border-borda bg-superficie p-5">
+      <p className="mb-1 font-medium">Cadastrar uma fonte</p>
+      <p className="mb-4 text-sm text-suave">
+        Informe o site de um concorrente ou fornecedor. Antes de gravar, o sistema abre
+        algumas paginas de produto para confirmar que consegue extrair dados uteis dali.
+      </p>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label>
+          <span className="mb-1 block text-xs text-suave">Nome</span>
+          <input
+            type="text"
+            value={nome}
+            onChange={(evento) => setNome(evento.target.value)}
+            placeholder="UsinaInfo"
+            className={CAMPO}
+          />
+        </label>
+
+        <label>
+          <span className="mb-1 block text-xs text-suave">Tipo</span>
+          <select
+            value={tipo}
+            onChange={(evento) => setTipo(evento.target.value)}
+            className={CAMPO}
+          >
+            {TIPOS.map((item) => (
+              <option key={item.valor} value={item.valor}>
+                {item.rotulo}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="sm:col-span-2">
+          <span className="mb-1 block text-xs text-suave">URL</span>
+          <input
+            type="url"
+            value={url}
+            onChange={(evento) => mudarUrl(evento.target.value)}
+            placeholder="https://www.usinainfo.com.br/"
+            className={CAMPO}
+          />
+        </label>
+
+        <label className="sm:col-span-2">
+          <span className="mb-1 block text-xs text-suave">
+            Secao / categoria <span className="text-suave">(opcional)</span>
+          </span>
+          <input
+            type="text"
+            value={secao}
+            onChange={(evento) => {
+              setSecao(evento.target.value);
+              setTeste(null);
+            }}
+            placeholder="/arduino-74"
+            className={CAMPO}
+          />
+          <span className="mt-1 block text-xs text-suave">
+            Limita a coleta a um trecho do site. Em branco, cobre a loja inteira.
+          </span>
+        </label>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={testar}
+          disabled={testando || !url.trim()}
+          className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {testando ? <Loader size={15} className="animate-spin" /> : <TestTube size={15} />}
+          Testar fonte
+        </button>
+
+        {testando && (
+          <span className="text-xs text-suave">
+            Abrindo robots.txt, sitemap e algumas paginas de produto. As visitas sao
+            espacadas para nao pesar no site, entao leva de um a cinco minutos — sites que
+            pedem ritmo mais lento no robots.txt (Crawl-delay) demoram mais, e nos
+            respeitamos o que eles pedem.
+          </span>
+        )}
+      </div>
+
+      {teste && (
+        <div className="mt-4 space-y-4">
+          <div className={`rounded border px-4 py-3 ${cabecalho.classe}`}>
+            <p className="flex items-center gap-2 font-medium">
+              <Icone size={17} />
+              {cabecalho.titulo}
+            </p>
+
+            {teste.motivo && <p className="mt-1 text-sm">{teste.motivo}</p>}
+
+            <ul className="mt-2.5 space-y-0.5 text-xs">
+              {teste.passos.map((passo) => (
+                <li key={passo.nome} className="flex items-start gap-1.5">
+                  {passo.ok ? (
+                    <Check size={13} className="mt-0.5 shrink-0" />
+                  ) : (
+                    <X size={13} className="mt-0.5 shrink-0" />
+                  )}
+                  <span>
+                    {passo.nome}
+                    {passo.detalhe && <span className="opacity-75"> — {passo.detalhe}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {teste.plataforma && <CartaoPlataforma teste={teste} />}
+
+          {teste.campos && (
+            <div className="rounded border border-borda p-4">
+              <p className="mb-2 text-sm font-medium">Campos identificados</p>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                {teste.campos.encontrados.map((campo) => (
+                  <span key={campo} className="inline-flex items-center gap-1 text-emerald-700">
+                    <Check size={12} /> {campo}
+                  </span>
+                ))}
+              </div>
+
+              {teste.campos.ausentes.length > 0 && (
+                <>
+                  <p className="mt-3 mb-1.5 text-sm font-medium">
+                    Nao disponiveis neste site
+                  </p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                    {teste.campos.ausentes.map((campo) => (
+                      <span key={campo} className="inline-flex items-center gap-1 text-amber-700">
+                        <TriangleAlert size={12} /> {campo}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-suave">
+                    Campo ausente nao invalida a fonte: sites publicam informacoes
+                    diferentes, e o que falta fica null em vez de ser inventado.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          {teste.produtos.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium">
+                Previa dos produtos coletados ({teste.produtos.length})
+              </p>
+              {teste.produtos.map((produto, indice) => (
+                <PreviaProduto
+                  key={`${produto.url}-${produto.code ?? indice}`}
+                  produto={produto}
+                  indice={indice + 1}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {podeCadastrar ? (
+              <button
+                type="button"
+                onClick={cadastrar}
+                disabled={salvando || !nome.trim()}
+                className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {salvando ? <Loader size={15} className="animate-spin" /> : <Plus size={15} />}
+                Adicionar fonte
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={testar}
+                disabled={testando}
+                className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm font-medium hover:bg-fundo"
+              >
+                <RotateCcw size={15} />
+                Tentar novamente
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {erro && <p className="mt-3 text-sm text-red-700">{erro}</p>}
+    </div>
+  );
+}
