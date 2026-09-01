@@ -21,7 +21,11 @@ const USER_AGENT =
   process.env.COLETA_USER_AGENT ||
   "SistemaRise/1.0 (coleta de precos para uso proprio)";
 
-const TIMEOUT_MS = 20000;
+/// Teto por requisicao, cobrindo cabecalho E corpo. Configuravel porque 20s e
+/// pouco para loja lenta: a santanaimport serve 1,4 MB de home por tras da
+/// Cloudflare e variou de 0,4s a 26s em quatro tentativas seguidas — o mesmo
+/// endereco, no mesmo minuto.
+const TIMEOUT_MS = Number(process.env.COLETA_TIMEOUT_MS) || 20000;
 
 /// Teto de 2 MB. Pagina de produto honesta nao chega perto disso; o limite
 /// existe para que um endereco que devolva um dump gigante nao consuma a

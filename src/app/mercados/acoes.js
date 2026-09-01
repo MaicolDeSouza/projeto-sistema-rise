@@ -6,6 +6,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { podeVisitar } from "@/lib/coleta/buscar";
 import { coletarUrl } from "@/lib/coleta/coletar";
+import { juntarListas, lerArquivo } from "@/lib/coleta/arquivos";
+import { regrasDoFornecedor } from "@/lib/coleta/fornecedores";
 import { testarFonte } from "@/lib/coleta/testar";
 
 /**
@@ -52,6 +54,217 @@ export async function testarFonteAcao({ url, secao, nome, tipo }) {
   }
 }
 
+/**
+ * Indice do arquivo inteiro, por codigo, para a tela poder mesclar.
+ *
+ * A previa devolve tres produtos; o arquivo tem centenas. Sem este indice, a
+ * mesclagem com o site so aconteceria se um dos tres sorteados casasse com um
+ * dos tres do site — o que quase nunca acontece, e foi por isso que a
+ * mesclagem parecia nao funcionar.
+ *
+ * Vai SEM imagem e SEM descricao de proposito: sao os campos pesados, e o
+ * arquivo da Fortek tem 10 MB so de foto. O que atravessa e o que o site nao
+ * tem — preco, saldo e os codigos fiscais.
+ */
+function resumoPorCodigo(produtos) {
+  const indice = {};
+
+  for (const produto of produtos) {
+    if (!produto.code || produto.code === "N/A") continue;
+    if (indice[produto.code]) continue;
+
+    indice[produto.code] = {
+      code: produto.code,
+      prices: produto.prices,
+      stock: produto.stock,
+      taxes: produto.taxes,
+      ncm: produto.ncm,
+      ean: produto.ean,
+      category: produto.category,
+      specifications: produto.specifications,
+      images: [],
+      origens: produto.origens,
+    };
+  }
+
+  return indice;
+}
+/**
+ * Escolhe os produtos que a previa mostra.
+ *
+ * Nao sao os tres primeiros: num catalogo de mil itens, os primeiros costumam
+ * ser todos parecidos, e o operador nao ve o caso que precisa conferir. A
+ * amostra tenta comecar por quem tem PRONTA ENTREGA E RESERVA — e o produto
+ * que mostra as duas caixas e prova que as listas se juntaram.
+ *
+ * Depois completa com o resto, na ordem do arquivo.
+ */
+function amostraRepresentativa(produtos, quantos = 3) {
+  const temAmbos = (produto) =>
+    typeof produto.stock?.quantity === "number" &&
+    typeof produto.stock?.aChegar === "number";
+
+  const escolhidos = produtos.filter(temAmbos).slice(0, quantos);
+
+  for (const produto of produtos) {
+    if (escolhidos.length >= quantos) break;
+    if (!escolhidos.includes(produto)) escolhidos.push(produto);
+  }
+
+  return escolhidos;
+}
+/**
+ * Testa a fonte por um ARQUIVO trazido do fornecedor, em vez do site.
+ *
+ * Tem prioridade sobre a navegacao quando o operador sobe um arquivo: se ele
+ * ja trouxe o catalogo, abrir o site seria trabalho repetido — e, no caso que
+ * motivou isto, impossivel, porque o portal exige login.
+ *
+ * Recebe FormData porque Server Action nao aceita Uint8Array direto. O teto do
+ * corpo esta em 24 MB no next.config.mjs; acima disso o 413 vem ANTES daqui.
+ */
+export async function testarArquivoAcao(dados) {
+  const arquivos = dados.getAll("arquivo").filter((item) => typeof item !== "string");
+
+  if (arquivos.length === 0) {
+    return { resultado: "FALHA", motivo: "Nenhum arquivo recebido.", passos: [], produtos: [] };
+  }
+
+  const nome = dados.get("nome") || arquivos[0].name;
+  const tipo = dados.get("tipo") || "FORNECEDOR";
+
+  try {
+    const lidos = [];
+    const passos = [];
+    const avisos = [];
+
+    for (const arquivo of arquivos) {
+      const bytes = new Uint8Array(await arquivo.arrayBuffer());
+      const leitura = await lerArquivo({
+        nome: arquivo.name,
+        bytes,
+        fonte: { name: nome, type: tipo },
+      });
+
+      lidos.push(leitura);
+      avisos.push(...leitura.avisos);
+
+      const modalidade =
+        leitura.modalidade === "RESERVA"
+          ? " · lista de RESERVA"
+          : leitura.modalidade === "PRONTA_ENTREGA"
+            ? " · pronta entrega"
+            : "";
+
+      passos.push({
+        nome: "Arquivo recebido",
+        ok: true,
+        detalhe: `${arquivo.name} · ${(arquivo.size / 1024 / 1024).toFixed(1)} MB · ${leitura.formato.toUpperCase()}${modalidade}`,
+      });
+
+      passos.push({
+        nome: "Produtos lidos",
+        ok: leitura.produtos.length > 0,
+        detalhe:
+          leitura.produtos.length > 0
+            ? `${leitura.produtos.length} produto(s) · ${leitura.origem}`
+            : "nenhum produto reconhecido no arquivo",
+      });
+    }
+
+    // A pronta entrega vem primeiro: em juntarListas quem chega antes vence, e
+    // o preco a manter e o dela.
+    const ordenados = [...lidos].sort((a, b) =>
+      (a.modalidade === "RESERVA" ? 1 : 0) - (b.modalidade === "RESERVA" ? 1 : 0),
+    );
+
+    // Particularidades declaradas para este fornecedor, se houver. E onde mora
+    // a regra do sufixo de carga da Fortek ("02-268-A" e "02-268" sao o mesmo
+    // item), que nao vale como palpite geral.
+    const regras = regrasDoFornecedor({ nome, url: dados.get("url") });
+
+    const somados = ordenados.map((leitura) => leitura.produtos);
+    const produtos =
+      somados.length > 1
+        ? juntarListas(somados, { sufixoDeCarga: regras.sufixoDeCarga })
+        : somados[0] ?? [];
+
+    const formato = lidos[0]?.formato ?? "desconhecido";
+    const origem = lidos[0]?.origem ?? "arquivo do fornecedor";
+
+    if (somados.length > 1) {
+      const total = somados.reduce((soma, lista) => soma + lista.length, 0);
+      passos.push({
+        nome: "Listas juntadas",
+        ok: true,
+        detalhe:
+          `${total} linha(s) viraram ${produtos.length} produto(s)` +
+          (regras.sufixoDeCarga
+            ? ` — regra da ${regras.nome}: o sufixo do codigo e a carga, nao o produto`
+            : " — o mesmo codigo nas duas listas e um produto so"),
+      });
+    }
+
+    for (const aviso of avisos) {
+      passos.push({ nome: "Aviso", ok: false, detalhe: aviso });
+    }
+
+    if (produtos.length === 0) {
+      return {
+        resultado: "FALHA",
+        motivo:
+          "Nao foi possivel reconhecer produtos neste arquivo. " +
+          "Formatos lidos hoje: pagina salva (HTML), catalogo em PDF e JSON.",
+        passos,
+        produtos: [],
+        campos: null,
+        formatos: [formato],
+      };
+    }
+
+    // Os mesmos campos que o teste do site relata, para a tela nao precisar
+    // saber se o produto veio de arquivo ou de navegacao.
+    const { camposPreenchidos, ROTULOS_CAMPOS } = await import("@/lib/coleta/campos");
+
+    const presentes = {};
+    for (const produto of produtos) {
+      for (const [campo, tem] of Object.entries(camposPreenchidos(produto))) {
+        presentes[campo] = presentes[campo] || tem;
+      }
+    }
+
+    const encontrados = Object.entries(presentes)
+      .filter(([, tem]) => tem)
+      .map(([campo]) => ROTULOS_CAMPOS[campo]);
+    const ausentes = Object.entries(presentes)
+      .filter(([, tem]) => !tem)
+      .map(([campo]) => ROTULOS_CAMPOS[campo]);
+
+    return {
+      resultado: ausentes.length === 0 ? "SUCESSO" : "PARCIAL",
+      motivo: null,
+      passos,
+      // A previa mostra uma amostra escolhida; o arquivo inteiro entra na
+      // coleta. Ver so os tres primeiros esconderia o caso interessante.
+      produtos: amostraRepresentativa(produtos),
+      // O arquivo inteiro, so com o que a tela precisa para mesclar.
+      porCodigo: resumoPorCodigo(produtos),
+      totalNoArquivo: produtos.length,
+      campos: { encontrados, ausentes },
+      formatos: [formato],
+      produtosNoSite: produtos.length,
+      produtosNoSiteParcial: false,
+    };
+  } catch (erro) {
+    return {
+      resultado: "FALHA",
+      motivo: `Falha ao ler o arquivo: ${erro?.message ?? erro}`,
+      passos: [],
+      produtos: [],
+      campos: null,
+    };
+  }
+}
 // ---------------------------------------------------------------------------
 // Cadastro
 // ---------------------------------------------------------------------------

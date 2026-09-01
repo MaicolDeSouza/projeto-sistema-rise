@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Boxes,
+  FileUp,
   Check,
   CircleAlert,
   CircleCheck,
@@ -16,7 +17,14 @@ import {
   X,
 } from "lucide-react";
 
-import { salvarFonte, testarFonteAcao } from "@/app/mercados/acoes";
+import {
+  salvarFonte,
+  testarArquivoAcao,
+  testarFonteAcao,
+} from "@/app/mercados/acoes";
+import { regrasDoFornecedor } from "@/lib/coleta/fornecedores";
+import { mesclarNoExistente } from "@/lib/coleta/mesclar";
+
 import PreviaProduto from "./PreviaProduto";
 
 const CAMPO =
@@ -181,6 +189,169 @@ function nomeSugerido(endereco) {
   }
 }
 
+/// Melhor desfecho primeiro. Se um dos caminhos entrega produto, a fonte
+/// serve — mesmo que o outro tenha falhado.
+const ORDEM_DO_RESULTADO = { SUCESSO: 3, PARCIAL: 2, FALHA: 1 };
+
+/**
+ * Server Action nao aceita File solto: vai como FormData.
+ *
+ * Varios arquivos na MESMA chave, lidos com getAll() do outro lado. E o caso
+ * do fornecedor que manda a pronta entrega e a reserva separadas.
+ */
+function comArquivos(arquivos, nome, tipo, url) {
+  const dados = new FormData();
+  for (const arquivo of arquivos) dados.append("arquivo", arquivo);
+  dados.set("nome", nome);
+  dados.set("tipo", tipo);
+  // O endereco identifica o fornecedor no registro de regras, mesmo quando o
+  // cadastro entra so por arquivo.
+  if (url) dados.set("url", url);
+  return dados;
+}
+
+/**
+ * Junta o teste do site com o do arquivo num resultado so.
+ *
+ * Cada produto carrega de onde veio, e cada passo fica rotulado: sem isso,
+ * "Sitemap identificado" e "Arquivo recebido" cairiam na mesma lista sem dizer
+ * de quem sao, e a previa sugeriria que o site entrega o que so o arquivo
+ * entregou.
+ *
+ * Campo ausente e o que faltou nos DOIS. O que um traz e o outro nao, a fonte
+ * tem — e a pergunta do teste e sobre a fonte, nao sobre o caminho.
+ */
+/**
+ * Junta os produtos do site com os do arquivo num registro so, por codigo.
+ *
+ * Regra de fornecedor, nao geral: a Nightech descreve o mesmo produto nos dois
+ * lugares pela metade — o site tem foto grande, texto de venda e endereco; a
+ * planilha tem preco, saldo e previsao de chegada.
+ *
+ * A mesclagem usa o INDICE do arquivo inteiro, e nao a previa. A previa traz
+ * tres produtos e o arquivo tem centenas: casar so os tres sorteados com os
+ * tres do site quase nunca acerta, e foi por isso que a mesclagem parecia nao
+ * funcionar.
+ *
+ * O produto do site vem primeiro porque descreve melhor; a planilha entra com
+ * o que so ela tem. A mesclagem em si e a de mesclar.js, a mesma que junta
+ * duas listas de arquivo no servidor.
+ */
+function mesclarComArquivo(doSite, doArquivo, indice) {
+  const juntos = [];
+  const usados = new Set();
+
+  for (const produto of doSite) {
+    const copia = { ...produto };
+    const daPlanilha = copia.code ? indice?.[copia.code] : null;
+
+    if (daPlanilha) {
+      mesclarNoExistente(copia, daPlanilha);
+      usados.add(copia.code);
+
+      // Passou a vir dos dois lugares, e a previa precisa dizer isso — senao
+      // parece que o site sozinho entregou o saldo que so a planilha tem.
+      copia.origemDaLeitura = "Link + Upload";
+    }
+
+    juntos.push(copia);
+  }
+
+  // Os do arquivo que ja apareceram mesclados nao entram de novo.
+  for (const produto of doArquivo) {
+    if (produto.code && usados.has(produto.code)) continue;
+    juntos.push({ ...produto });
+  }
+
+  return { juntos, casados: usados.size };
+}
+
+/**
+ * Quantos produtos a fonte tem, somando site e arquivo.
+ *
+ * O mesmo codigo nos dois lugares e UM produto, entao a soma desconta o que
+ * casou. Mas o desconto so alcanca o que foi conferido: o teste abre tres
+ * paginas do site, e os outros produtos dele podem estar no arquivo tambem.
+ *
+ * Por isso o numero e um TETO, nao um total exato — e o passo na tela diz
+ * quantos casamentos foram confirmados, para o operador saber o quanto da
+ * sobreposicao ainda nao foi medida.
+ */
+function totalDaFonte(doLink, doArquivo, casados) {
+  const doSite = doLink?.produtosNoSite ?? 0;
+  const doFornecedor = doArquivo?.produtosNoSite ?? 0;
+
+  if (!doSite || !doFornecedor) return doSite || doFornecedor || null;
+  return doSite + doFornecedor - (casados ?? 0);
+}
+function juntarTestes(doLink, doArquivo, regras = {}) {
+  const presentes = [doLink, doArquivo].filter(Boolean);
+  if (presentes.length === 0) return null;
+  if (presentes.length === 1) return presentes[0];
+
+  const marcar = (teste, origem) =>
+    (teste?.produtos ?? []).map((produto) => ({ ...produto, origemDaLeitura: origem }));
+
+  const melhor = [...presentes].sort(
+    (a, b) =>
+      (ORDEM_DO_RESULTADO[b.resultado] ?? 0) - (ORDEM_DO_RESULTADO[a.resultado] ?? 0),
+  )[0];
+
+  const mesclado = regras.mesclarSiteComArquivo
+    ? mesclarComArquivo(
+        marcar(doLink, "Link"),
+        marcar(doArquivo, "Upload"),
+        doArquivo?.porCodigo,
+      )
+    : {
+        juntos: [...marcar(doLink, "Link"), ...marcar(doArquivo, "Upload")],
+        casados: 0,
+      };
+
+  const encontrados = new Set();
+  for (const teste of presentes) {
+    for (const campo of teste.campos?.encontrados ?? []) encontrados.add(campo);
+  }
+
+  const ausentes = new Set();
+  for (const teste of presentes) {
+    for (const campo of teste.campos?.ausentes ?? []) {
+      if (!encontrados.has(campo)) ausentes.add(campo);
+    }
+  }
+
+  return {
+    ...melhor,
+    passos: [
+      ...(doLink?.passos ?? []).map((passo) => ({ ...passo, origem: "Link" })),
+      ...(doArquivo?.passos ?? []).map((passo) => ({ ...passo, origem: "Upload" })),
+      ...(regras.mesclarSiteComArquivo
+        ? [
+            {
+              nome: "Site e arquivo mesclados",
+              ok: true,
+              detalhe:
+                `${doLink?.produtosNoSite ?? 0} do site + ${doArquivo?.produtosNoSite ?? 0} do arquivo` +
+                ` — ${mesclado.casados} codigo(s) conferido(s) nos dois viraram um produto so`,
+            },
+          ]
+        : []),
+    ],
+    produtos: mesclado.juntos,
+
+    // Site mais arquivo, descontando o mesmo codigo nos dois. Sem isso a tela
+    // mostrava so o total do site, ignorando as centenas de itens que so
+    // existem na planilha.
+    produtosNoSite: regras.mesclarSiteComArquivo
+      ? totalDaFonte(doLink, doArquivo, mesclado.casados)
+      : (doLink?.produtosNoSite ?? doArquivo?.produtosNoSite ?? null),
+    campos: { encontrados: [...encontrados], ausentes: [...ausentes] },
+  };
+}
+/** "Fornecedor", "Concorrente" ou "Outro", como o seletor escreve. */
+function rotuloDoTipo(valor) {
+  return TIPOS.find((item) => item.valor === valor)?.rotulo ?? "fonte";
+}
 export default function FormularioFonte() {
   const router = useRouter();
   const [testando, iniciarTeste] = useTransition();
@@ -191,6 +362,7 @@ export default function FormularioFonte() {
   const [url, setUrl] = useState("");
   const [secao, setSecao] = useState("");
   const [teste, setTeste] = useState(null);
+  const [arquivos, setArquivos] = useState([]);
   const [erro, setErro] = useState(null);
 
   /**
@@ -207,11 +379,36 @@ export default function FormularioFonte() {
     if (!nome) setNome(nomeSugerido(valor));
   }
 
+  /**
+   * Arquivo tem prioridade sobre o site.
+   *
+   * Se o operador ja trouxe o catalogo, navegar seria trabalho repetido — e
+   * no caso que motivou isto, impossivel: o portal do fornecedor exige login.
+   * Sem arquivo, segue o caminho de sempre.
+   */
+  /**
+   * Testa os DOIS caminhos quando os dois existem.
+   *
+   * Nao e um no lugar do outro: eles respondem coisas diferentes. O site diz o
+   * que o publico ve; o arquivo diz o que o fornecedor entrega a quem compra.
+   * Ver os dois lado a lado e o que permite comparar — e, no fornecedor de
+   * portal fechado, o site sozinho nao responde nada.
+   *
+   * Em paralelo porque sao independentes: ler o arquivo nao espera a rede.
+   */
   function testar() {
     setErro(null);
     setTeste(null);
+
     iniciarTeste(async () => {
-      setTeste(await testarFonteAcao({ url, secao, nome, tipo }));
+      const [doLink, doArquivo] = await Promise.all([
+        url.trim() ? testarFonteAcao({ url, secao, nome, tipo }) : null,
+        arquivos.length > 0 ? testarArquivoAcao(comArquivos(arquivos, nome, tipo, url)) : null,
+      ]);
+
+      // Particularidades declaradas para este fornecedor, se houver.
+      const regras = regrasDoFornecedor({ nome, url });
+      setTeste(juntarTestes(doLink, doArquivo, regras));
     });
   }
 
@@ -262,7 +459,7 @@ export default function FormularioFonte() {
             type="text"
             value={nome}
             onChange={(evento) => setNome(evento.target.value)}
-            placeholder="UsinaInfo"
+            placeholder="4hobby"
             className={CAMPO}
           />
         </label>
@@ -282,18 +479,18 @@ export default function FormularioFonte() {
           </select>
         </label>
 
-        <label className="sm:col-span-2">
+        <label>
           <span className="mb-1 block text-xs text-suave">URL</span>
           <input
             type="url"
             value={url}
             onChange={(evento) => mudarUrl(evento.target.value)}
-            placeholder="https://www.usinainfo.com.br/"
+            placeholder="https://www.4hobby.com.br/"
             className={CAMPO}
           />
         </label>
 
-        <label className="sm:col-span-2">
+        <label>
           <span className="mb-1 block text-xs text-suave">
             Secao / categoria <span className="text-suave">(opcional)</span>
           </span>
@@ -317,14 +514,109 @@ export default function FormularioFonte() {
         <button
           type="button"
           onClick={testar}
-          disabled={testando || !url.trim()}
+          disabled={testando || (arquivos.length === 0 && !url.trim())}
           className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {testando ? <Loader size={15} className="animate-spin" /> : <TestTube size={15} />}
-          Testar fonte
+          {arquivos.length > 0 && url.trim()
+            ? "Buscar dados do site e dos arquivos"
+            : arquivos.length > 0
+              ? `Ler ${arquivos.length} arquivo(s)`
+              : "Buscar dados"}
         </button>
 
-        {testando && (
+        {/*
+          Fornecedor de portal fechado nao tem vitrine para navegar: a Benser e a
+          Santana Import so mostram catalogo depois do login. O operador salva a
+          pagina ou baixa o catalogo, e o arquivo entra por aqui — nenhuma
+          credencial passa pelo sistema.
+        */}
+        {/*
+          So aparece para FORNECEDOR e OUTRO. Concorrente nao manda arquivo:
+          o que se acompanha nele e a vitrine publica, e oferecer upload ali
+          sugeriria um caminho que nao existe.
+        */}
+        {tipo !== "CONCORRENTE" && (
+        <label
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm hover:bg-fundo"
+          title="Ler de um arquivo do fornecedor (HTML salvo, PDF ou JSON)"
+        >
+          <FileUp size={15} />
+          {arquivos.length > 0 ? "Trocar arquivos" : "Upload de arquivo"}
+          {/*
+            Varios de uma vez: fornecedor que importa manda a pronta entrega e
+            a reserva em arquivos separados, e as duas listas precisam ser
+            lidas juntas para o mesmo produto reunir os dois estoques.
+          */}
+          <input
+            type="file"
+            multiple
+            accept=".html,.htm,.pdf,.json,.xlsx,.xlsm"
+            className="hidden"
+            onChange={(evento) => {
+              setArquivos([...(evento.target.files ?? [])]);
+              setTeste(null);
+              setErro(null);
+            }}
+          />
+        </label>
+        )}
+
+        {/*
+          Salvar fica AO LADO de buscar, e nao no fim do relatorio: depois de
+          um teste bom, a previa tem tres produtos e dezenas de campos, e o
+          botao ficava abaixo de tudo isso — quem acabou de ver que a fonte
+          serve tinha de rolar a tela para dizer sim.
+        */}
+        {podeCadastrar && (
+          <button
+            type="button"
+            onClick={cadastrar}
+            disabled={salvando || !nome.trim()}
+            className="inline-flex items-center gap-1.5 rounded bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {salvando ? <Loader size={15} className="animate-spin" /> : <Plus size={15} />}
+            Salvar {rotuloDoTipo(tipo).toLowerCase()}
+          </button>
+        )}
+
+        {teste && !podeCadastrar && (
+          <button
+            type="button"
+            onClick={testar}
+            disabled={testando}
+            className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm font-medium hover:bg-fundo"
+          >
+            <RotateCcw size={15} />
+            Tentar novamente
+          </button>
+        )}
+
+        {arquivos.length > 0 && (
+          <div className="flex w-full flex-col gap-1">
+            {arquivos.map((item, indice) => (
+              <span
+                key={`${item.name}-${item.size}`}
+                className="inline-flex items-center gap-2 text-xs text-suave"
+              >
+                <span className="font-mono">{item.name}</span>
+                <span>({(item.size / 1024 / 1024).toFixed(1)} MB)</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setArquivos((antes) => antes.filter((_, i) => i !== indice));
+                    setTeste(null);
+                  }}
+                  className="text-red-700 hover:underline"
+                >
+                  remover
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {testando && arquivos.length === 0 && (
           <span className="text-xs text-suave">
             Abrindo robots.txt, sitemap e algumas paginas de produto. As visitas sao
             espacadas para nao pesar no site, entao leva de um a cinco minutos — sites que
@@ -377,7 +669,7 @@ export default function FormularioFonte() {
               {teste.campos.ausentes.length > 0 && (
                 <>
                   <p className="mt-3 mb-1.5 text-sm font-medium">
-                    Nao disponiveis neste site
+                    Nao disponiveis nesta fonte
                   </p>
                   <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
                     {teste.campos.ausentes.map((campo) => (
@@ -410,29 +702,7 @@ export default function FormularioFonte() {
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2">
-            {podeCadastrar ? (
-              <button
-                type="button"
-                onClick={cadastrar}
-                disabled={salvando || !nome.trim()}
-                className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {salvando ? <Loader size={15} className="animate-spin" /> : <Plus size={15} />}
-                Adicionar fonte
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={testar}
-                disabled={testando}
-                className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm font-medium hover:bg-fundo"
-              >
-                <RotateCcw size={15} />
-                Tentar novamente
-              </button>
-            )}
-          </div>
+
         </div>
       )}
 

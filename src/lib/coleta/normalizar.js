@@ -1,4 +1,5 @@
 import { extrairProduto } from "./extrair";
+import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
 import {
   comoNumero,
@@ -22,6 +23,19 @@ import {
 
 /// Campos sem os quais a pagina nao conta como produto valido.
 const ESSENCIAIS = ["name", "url", "preco"];
+
+/**
+ * O mesmo, sem preco, para fonte do tipo FORNECEDOR.
+ *
+ * Atacadista publica catalogo aberto e preco so para cliente cadastrado — a
+ * Santana Import mostra nome, EAN, NCM, CEST, multiplo de venda e dimensoes,
+ * e nenhum preco. Exigir preco ali jogaria fora um catalogo inteiro de dados
+ * uteis por causa do unico campo que o site nao publica para quem nao compra.
+ *
+ * Para CONCORRENTE a exigencia continua: acompanhar concorrente sem preco nao
+ * responde a pergunta que o bloco existe para responder.
+ */
+const ESSENCIAIS_FORNECEDOR = ["name", "url"];
 
 /**
  * Marca do produto que a loja publica SEM codigo.
@@ -508,6 +522,28 @@ function daFichaTecnica(especificacoes, padrao) {
 }
 
 /**
+ * EAN escrito na ficha tecnica.
+ *
+ * Atacadista publica o codigo de barras com rotulo em portugues e nenhum gtin
+ * estruturado: a Santana Import escreve "Cod. Barras: 7899744030168".
+ *
+ * Exige 8 a 14 digitos porque o MESMO campo recebe "SEM GTIN" quando o produto
+ * nao tem codigo de barras — e isso nao e um EAN.
+ *
+ * O rotulo e ancorado nas pontas para deixar "EAN Caixa Mae" de fora: aquele e
+ * o codigo do FARDO, e usa-lo faria a peca aparecer com o identificador da
+ * caixa inteira, que e outro produto para quem le.
+ */
+function eanDaFicha(especificacoes) {
+  const bruto = daFichaTecnica(
+    especificacoes,
+    /^(c[oó]d(igo)?\.?\s*(de\s*)?barras|ean|gtin(-?1[34])?)$/i,
+  );
+
+  const digitos = String(bruto ?? "").replace(/\D/g, "");
+  return /^\d{8,14}$/.test(digitos) ? digitos : null;
+}
+/**
  * Dados de SEO da pagina do concorrente.
  *
  * Nao descrevem o produto: descrevem como a loja tenta ser achada. Sao o titulo
@@ -710,6 +746,58 @@ function decidirPrecos({ declaradoNormal, candidatos }) {
  * variacao, porque nao ha o que a distinga.
  */
 /**
+ * Codigo tirado do fim da URL, confirmado pelo nome do produto.
+ *
+ * A Santana Import publica o codigo no endereco e no titulo, e em nenhum
+ * formato estruturado: /cabo-usb-...-018-0071.htm com o nome
+ * "Cabo USB ... 018-0071". Sem isto o produto entrava como N/A, o que pela
+ * regra do dono o deixa fora da estrutura de acesso.
+ *
+ * A CONFIRMACAO PELO NOME e o que torna isto seguro. Slug tem numero de tudo
+ * quanto e tipo — medida, voltagem, metragem —, e adivinhar pelo endereco
+ * sozinho inventaria codigo. Exigir que o mesmo texto apareca no nome que a
+ * loja escreveu transforma o palpite em conferencia: a loja disse duas vezes.
+ *
+ * Fica por ULTIMO na ordem do codigo. Onde a pagina declara sku, mpn ou
+ * productID, o declarado vence — isto so atende quem nao declara nada.
+ */
+function codigoNaUrl(url, nome) {
+  if (!url || !nome) return null;
+
+  let arquivo;
+  try {
+    arquivo = new URL(url).pathname.split("/").filter(Boolean).at(-1) ?? "";
+  } catch {
+    return null;
+  }
+
+  // Fora a extensao (.htm, .html, .aspx), que nao faz parte do codigo.
+  const semExtensao = arquivo.replace(/\.[a-z0-9]{2,5}$/i, "");
+
+  // O codigo vive no FIM do slug, e nao no meio: no comeco esta o nome do
+  // produto, que tambem tem numero.
+  const candidato =
+    /(?:^|-)([a-z0-9]+-[a-z0-9]+)$/i.exec(semExtensao)?.[1] ??
+    /(?:^|-)([a-z]{2,}[0-9]{2,}[a-z0-9]*)$/i.exec(semExtensao)?.[1] ??
+    null;
+
+  if (!candidato) return null;
+
+  // Sem digito nao e codigo, e sim final de nome: "tipo-c", "pic-esp".
+  if (!/[0-9]/.test(candidato)) return null;
+
+  // A confirmacao: o mesmo texto tem de estar no nome, ignorando caixa,
+  // acento e separador. "AM26LS32" no nome casa com "am26ls32" na URL.
+  const achatar = (texto) =>
+    texto
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/gi, "")
+      .toLowerCase();
+
+  return achatar(nome).includes(achatar(candidato)) ? candidato : null;
+}
+/**
  * Separa um campo de codigo que traz mais de um.
  *
  * A Casa da Robotica publica reference="AF01 ou AF02": dois codigos num campo
@@ -891,6 +979,7 @@ export function normalizarPagina({
     [comoTexto(bruto?.productID), "json-ld productID"],
     [comoTexto(tray?.reference), "dataLayer da Tray"],
     [mpn, mpn ? `sem codigo proprio — usando o MPN (${origens.mpn})` : null],
+    [codigoNaUrl(url, name), "codigo no endereco, confirmado pelo nome"],
   );
 
   // MPN igual ao codigo quase nunca e numero de peca do fabricante: e a loja
@@ -976,6 +1065,7 @@ export function normalizarPagina({
     [micro?.ean, "itemprop=gtin"],
     [estruturado?.ean, estruturado?.fonte ?? "?"],
     [comoTexto(tray?.EAN), "dataLayer da Tray"],
+    [eanDaFicha(specifications), "ficha tecnica da descricao"],
   );
   // Marca e modelo caem para a ficha tecnica quando nao vem estruturados: nas
   // lojas menores eles so existem escritos ali.
@@ -994,6 +1084,14 @@ export function normalizarPagina({
     [comoTexto(tray?.model), "dataLayer da Tray"],
     [daFichaTecnica(specifications, /^(modelo|model|refer[eê]ncia)$/i), "ficha tecnica da descricao"],
   );
+
+  // A ficha tecnica e a unica fonte: rotulo conhecido (IPI, ICMS, ST) com
+  // percentual ao lado. Varrer atras de qualquer % traria garantia e desconto.
+  const impostos = impostosDaFicha(specifications);
+
+  // O que virou imposto sai da ficha: ele tem campo proprio ao lado do preco,
+  // e repetir a linha crua diria a mesma coisa sem o valor que ela produz.
+  const fichaSemImpostos = semImpostos(specifications);
 
   const ncm = primeiro(
     "ncm",
@@ -1039,15 +1137,26 @@ export function normalizarPagina({
     ncm,
     url: comoUrlAbsoluta(url, url),
     images,
-    prices,
+    prices: {
+      ...prices,
+      // Distribuidor cobra imposto por fora: o preco de tabela e um numero, o
+      // que se paga e outro. Guardados separados para dar para comparar
+      // fornecedor que embute imposto com fornecedor que nao embute.
+      comImpostos: precoComImpostos(prices.normal, impostos),
+    },
+    taxes: impostos,
     stock: {
       status,
       // Sem quantidade declarada, null — "em estoque" nao autoriza inventar um
       // numero. Zero so quando a loja diz que acabou.
       quantity: quantidade ?? (status === "OUT_OF_STOCK" ? 0 : null),
+      // Vitrine de loja nao anuncia o que ainda vai chegar: isso e informacao
+      // de fornecedor e vem por arquivo. Null aqui para o campo ter a mesma
+      // forma nos dois caminhos.
+      aChegar: null,
     },
     description,
-    specifications: specifications ?? {},
+    specifications: fichaSemImpostos ?? [],
     variants: opcoesDeVariacao(bruto),
     seo,
     // Quem serve a loja de onde este produto saiu. null quando nao foi possivel
@@ -1107,6 +1216,7 @@ export function normalizarPagina({
       stock: {
         status: situacaoDe(variacao.bruto?.offers?.availability) || status,
         quantity: null,
+        aChegar: null,
       },
       // Ja e um produto proprio: repetir as opcoes do grupo aqui sugeriria que
       // ele ainda pode virar outra coisa.
@@ -1118,8 +1228,11 @@ export function normalizarPagina({
 }
 
 /** Campos essenciais presentes? Sem eles a pagina nao conta como produto. */
-export function ehProdutoValido(produto) {
-  return ESSENCIAIS.every((campo) =>
+export function ehProdutoValido(produto, tipoDaFonte = null) {
+  const exigidos =
+    tipoDaFonte === "FORNECEDOR" ? ESSENCIAIS_FORNECEDOR : ESSENCIAIS;
+
+  return exigidos.every((campo) =>
     campo === "preco"
       ? typeof produto?.prices?.normal === "number" && produto.prices.normal > 0
       : Boolean(produto?.[campo]),

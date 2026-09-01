@@ -1,5 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // O pdf-parse usa o pdfjs por baixo, que carrega um WORKER em arquivo
+  // separado. Empacotado pelo Turbopack, o caminho do worker se perde e a
+  // leitura morre com "Cannot find module .../pdf.worker.mjs" — mesmo com a
+  // biblioteca instalada e funcionando fora do Next.
+  //
+  // Deixando fora do pacote, ele e carregado por require() nativo do Node e
+  // acha os proprios arquivos. E a saida que a documentacao indica para
+  // dependencia que usa recurso especifico de Node.
+  serverExternalPackages: ["pdf-parse"],
+
   experimental: {
     serverActions: {
       // O envio de arquivo passa por Server Action, e o limite padrao e 1 MB —

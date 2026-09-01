@@ -27,7 +27,7 @@ Organizado em **blocos** no menu lateral, cada um desenvolvido de forma independ
 | Integrações | Bling e ML conectados e testados; Loja Integrada via Bling |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
-| Mercados | Teste de fonte maduro em 5 lojas; identifica plataforma; coleta em lote **não ligada** |
+| Mercados | Teste de fonte em 6 sites + importação de arquivo (HTML/PDF/XLSX); coleta em lote **não ligada** |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
 **A publicação nunca foi ligada.** `ML_PUBLICACAO` e `BLING_ESCRITA` estão em `false`, e
@@ -41,6 +41,8 @@ npm run db:up && npm run dev      # https://localhost:3000
 npm run diagnostico               # testa as integrações pela linha de comando
 npm run teste:extracao            # 99 asserções da extração, SEM rede
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
+npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
+COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
 npm run coletar -- --limite=20 <url>   # colhe e grava em dados/coleta/<dominio>/
 ```
 
@@ -236,53 +238,107 @@ igual — catálogo público não é licença para atropelar o servidor.
   charset vem do cabeçalho e, na falta dele, do `<meta charset>` — lido numa prévia em
   latin1, onde todo byte é válido e a declaração, sendo ASCII, sobrevive intacta.
 
-**Fornecedor com portal fechado (combinado em 30/08/2026, a implementar):**
+### Fornecedores: importação de arquivo
 
-A Benser é um **portal de pedidos B2B atrás de login** — não tem vitrine pública, sitemap
-nem produto acessível. O bloco Mercados lê vitrine pública; portal fechado é outro
-problema, e forçar os dois no mesmo caminho complicaria os dois.
+Fornecedor não tem vitrine para varrer — a Fortek/Benser é um **portal B2B atrás de
+login**, a Santana Import só mostra preço a cliente cadastrado. O caminho é o operador
+trazer o arquivo (Ctrl+S na página, ou o catálogo baixado). **Nenhuma credencial passa
+pelo sistema**, e pedir a senha do dono foi recusado de propósito.
 
-O caminho combinado é **importação de arquivo**, não raspagem. O dono salva a página do
-portal (Ctrl+S) e o sistema lê o arquivo. Nenhuma credencial passa pelo sistema.
+Leitura em `src/lib/coleta/arquivos.js`. O produto sai no **mesmo formato da coleta** —
+muitos leitores, uma forma só, senão a tela passaria a precisar saber de onde veio a linha.
 
-- **O que o arquivo salvo da Benser contém** (medido): **1592 produtos** num array JSON
-  embutido num `<script>` de 10 MB, com `sku`, `desc`, `cat`, `preco`, `estoque`, `ncm`,
-  `ipi`, `loc`, `info` — **100% preenchidos** — e **1592 fotos** em base64, uma por SKU.
-  Muito melhor que qualquer raspagem: campos nomeados, sem heurística.
-- **A chamada `estoque-reserva`** (5 kB, 1 requisição) devolve `saldos` e `precos` por SKU
-  para 593 itens. Serve para atualizar preço e saldo depois, não para o cadastro.
-- **Os SKUs das duas fontes NÃO casam**: 44 exatos de 593. A API usa sufixos (`-A`, `-2`)
-  que o HTML não usa — provavelmente identificam a **carga** (lote de importação). Como
-  tratar isso é decisão de negócio do dono, não técnica.
+**Os três formatos, medidos em arquivos reais:**
 
-**Desenho combinado — o oposto do que vale para as lojas.** Loja pública tem padrão comum
-(`schema.org`), então o genérico ganha. Fornecedor não tem padrão nenhum: a planilha é o
-que o ERP dele exporta. Aqui a ramificação por fornecedor se justifica — mas como **dado,
-não como código**:
+| Arquivo | Formato | Produtos | Onde o dado estava |
+| --- | --- | --- | --- |
+| Benser (10,8 MB) | HTML | 1592 | array JSON num `<script>`, com 1592 fotos em base64 |
+| Santana (3,7 MB) | PDF | 989 | texto tabulado; `getTable()` volta **vazio** em 65 de 69 páginas |
+| Nightech (16 MB) | XLSX | 457 | cabeçalho na **linha 6**; 459 imagens **ancoradas**, fora das células |
 
-- **Poucos leitores de formato** (XLSX, CSV, JSON, HTML-com-JSON-embutido). Não crescem
-  com o número de fornecedores.
-- **Um mapeamento declarativo por fornecedor**, editável na tela. Cadastrar fornecedor não
-  pode virar tarefa de programação.
-- **Muitos leitores, um formato só na saída.** O produto importado cai na mesma forma do
-  coletado — senão a tela e a comparação passam a precisar saber de onde veio cada linha.
+- **PDF: ancore no código no início da linha.** O catálogo da Santana tem 9465 linhas e
+  só 989 são produto — sem âncora entram título de seção e texto de garantia.
+- **XLSX: procure o cabeçalho, não assuma a linha 1.** Planilha de fornecedor começa com
+  logo e total. E **casar coluna por PREFIXO**: a Nightech escreve `PREVISÃO 20/09` e
+  `VALOR UNIT. (R$)`, com data e moeda coladas no nome.
+- **Coluna que parece estoque e não é.** `QUANTIDADE DO PEDIDO` é o pedido do comprador —
+  lê-la como saldo mostraria zero num produto com 4618 em estoque. Lista `CAMPOS.ignorar`.
+- **Imagem no Excel flutua sobre a folha**, ancorada a uma posição. O caminho é
+  âncora → linha → código → foto, com o binário em `workbook.model.media[imageId]`.
 
-**Três decisões em aberto, todas do dono:**
+**Pronta entrega e reserva:**
 
-1. **O que o preço inclui.** A Benser publica *"preço unit. sem IPI"*. Se outro fornecedor
-   mandar com IPI e os dois caírem no mesmo campo, comparar fica sem sentido — e o erro é
-   invisível, porque os dois números são plausíveis. O mapeamento tem de declarar a base.
-2. **Unidade de venda.** Caixa, cento, rolo. Preço por embalagem comparado com varejo
-   engana.
-3. **Como o sistema sabe de quem é o arquivo.** Recomendado: o operador escolhe o
-   fornecedor ao subir. Detectar por impressão digital erra em silêncio, e o erro
-   sobrescreve custo com número de outro fornecedor.
+- `stock.quantity` é **sempre** a pronta entrega; `stock.aChegar` é o que está comprado e
+  em trânsito. **Nunca somados** — um número só prometeria entrega que não existe.
+- `prices.normal` é o de pronta entrega (decisão do dono); `prices.reserva` é o do que vai
+  chegar. Medido na Fortek: `65-276` custa **79,90 na reserva e 82,90 na pronta entrega** —
+  num campo só essa inversão sumiria.
+- **Dois arquivos** (Fortek) ou **duas colunas** (Nightech). O arquivo diz qual lista é pelo
+  `<title>`: *Benser · Lista de Reserva* contra *Benser · Portal de Pedidos*. O título veio
+  do fornecedor; o nome do arquivo o operador renomeia. Na dúvida, pronta entrega.
 
-Mais: o importador deve **comparar com a importação anterior e recusar desvio absurdo**
-(90% dos preços mudando de uma vez). Arquivo exportado à mão vem parcial, vem velho, vem
-da aba errada — melhor barrar e perguntar que gravar custo errado.
+**Regras por fornecedor** — `src/lib/coleta/fornecedores.js`, dado e não código:
 
-O arquivo de origem está em `C:/Users/pesso/Downloads/Benser · Portal de Pedidos.html`.
+- **Fortek — `sufixoDeCarga`.** `02-268-A` é o mesmo item que `02-268`; o sufixo é a carga.
+  Confirmado pelo dono em 31/08/2026. Junta 153 pares a mais (1911 contra 2064). **Vale só
+  para ela**: noutro catálogo `-2` pode ser voltagem ou versão, e juntar apagaria produto.
+- **Nightech — `mesclarSiteComArquivo`.** O site tem foto, texto de venda e endereço; a
+  planilha tem preço e saldo. Mesmo código = um produto.
+
+A mesclagem em si mora em `src/lib/coleta/mesclar.js`, **sem imports**, usada pelo servidor
+(duas listas) e pela tela (site + arquivo). Duplicá-la faria as duas divergirem em silêncio.
+
+- **Quem chega primeiro vence**, e quem chama decide a ordem: pronta entrega antes da
+  reserva; site antes da planilha.
+- **Descrição: vence a mais longa**, não a primeira.
+- **Fotos somam, a nova por último.** Site primeiro (resolução de venda), planilha depois
+  (miniatura de conferência). A primeira é a que vira miniatura na tela.
+- **`aChegar` SOMA** quando o mesmo produto vem em duas cargas. Manter só a primeira
+  descartava a segunda em silêncio — 13 casos com `65-361` e `65-361-2` na mesma lista.
+
+**A prévia mostra 3 produtos, o arquivo tem centenas.** Por isso a ação devolve também um
+`porCodigo` — índice do arquivo inteiro, **sem imagem e sem descrição** (são os campos
+pesados). Sem ele a mesclagem tentava casar 3 sorteados com 3 do site e quase nunca
+acertava, o que fazia a regra *parecer* quebrada.
+
+**O total da fonte é um TETO.** Site + arquivo − códigos conferidos nos dois. O teste abre
+três páginas, então só três casamentos são confirmados; os outros produtos do site podem
+estar no arquivo também. O passo na tela diz quantos foram conferidos, em vez de fingir
+precisão.
+
+**Impostos** — `src/lib/coleta/impostos.js`. Distribuidor cobra por fora: a Benser escreve
+*"Preço unit. sem IPI"*. `prices.comImpostos` guarda o valor somado, e `taxes` diz quais
+entraram. **Só rótulo conhecido** (IPI, ICMS, ICMS ST, FCP, PIS, COFINS) e alíquota entre 0
+e 100 — varrer atrás de qualquer `%` traria desconto e garantia para dentro do custo. O
+imposto sai das especificações: ele tem campo próprio, e repetir diria a mesma coisa duas
+vezes.
+
+**Ainda em aberto:** a unidade de venda (a Santana publica *Múltiplo de venda: 100*, e
+preço por embalagem comparado com varejo engana) e a conferência contra a importação
+anterior, recusando desvio absurdo — arquivo exportado à mão vem parcial, vem velho, vem
+da aba errada.
+
+Arquivos de origem em `C:/Users/pesso/Downloads/`.
+
+### Sites que exigiram tratamento próprio
+
+- **Makerhero: Cloudflare.** Desafio anti-bot em qualquer combinação de cabeçalho,
+  inclusive nenhum. **Não se contorna** — o `buscar.js` diz por escrito que user-agent
+  disfarçado de navegador é o oposto de educado. A mensagem na tela nomeia a proteção em
+  vez de dizer `HTTP 403` seco, senão parece erro de digitação.
+- **Santana Import: lenta e irregular.** 1,5 MB de home variando de 0,4s a 26s no mesmo
+  minuto. O teto era fixo em 20s e cortava no meio; virou `COLETA_TIMEOUT_MS`.
+- **Wix (Nightech): `ImageObject` com `contentUrl`.** O JSON-LD publica cada foto como
+  objeto completo, e ler só `url` trazia 1 de 6. As duas chaves são válidas no schema.org.
+- **Código na URL, confirmado pelo nome.** A Santana publica `018-0071` no endereço e no
+  título, e em nenhum formato estruturado. Exigir que apareça nos **dois** transforma o
+  palpite em conferência — slug tem número de tudo quanto é tipo.
+- **EAN na ficha técnica.** Rótulo em português (`Cód. Barras`), ancorado nas pontas para
+  deixar `EAN Caixa Mãe` de fora: aquele é o código do fardo, não da peça.
+- **Preço é opcional para `FORNECEDOR`.** Atacadista publica catálogo aberto e preço só a
+  cliente cadastrado; exigir preço jogaria fora um catálogo inteiro de dados úteis. Para
+  `CONCORRENTE` a exigência continua.
+
 **robots.txt e educação:**
 
 - Vários `User-agent:` seguidos formam **um** grupo. Tratando cada linha como grupo novo,
@@ -330,6 +386,19 @@ O arquivo de origem está em `C:/Users/pesso/Downloads/Benser · Portal de Pedid
   "inalterada". As assinaturas calculadas são idênticas e o caminho isolado funciona;
   reproduz só com dois ou mais produtos. Efeito: uma escrita a mais com valores iguais —
   **não** duplica linha nem cria histórico de preço falso.
+- **`pdf-parse` precisa ficar FORA do bundle.** Ele usa o pdfjs, que carrega um worker em
+  arquivo separado; empacotado pelo Turbopack o caminho se perde e a leitura morre com
+  `Cannot find module .../pdf.worker.mjs` — funcionando fora do Next o tempo todo. Está em
+  `serverExternalPackages` no `next.config.mjs`.
+- **`exceljs` foi escolhido no lugar de `xlsx`**: o `xlsx` no npm está parado na 0.18.5 com
+  vulnerabilidades sem correção, porque a SheetJS saiu do npm. O `exceljs` traz um aviso
+  **moderado** transitivo (`uuid` < 11.1.1, GHSA-w5hq-g745-h8pq), cujo caminho vulnerável
+  exige passar buffer próprio a `v3/v5/v6` — coisa que ler planilha não faz.
+- **`String.replace` interpreta `$` na string de substituição.** `` $` `` insere tudo que
+  vem ANTES do casamento: um patch com isso injetou 3120 caracteres no meio de
+  `normalizar.js`. Em substituição gerada por script, use função `() => novo`.
+- **Barra invertida some entre shell e JS.** Um `node -e` com `\d` gerou `d` no arquivo:
+  código válido que não fazia nada, e o lint passou. Patch com regex vai por arquivo.
 - **Não canalize teste com `| head`.** O SIGPIPE mata o processo antes da limpeza, deixa
   linhas no banco e envenena a execução seguinte. Redirecione para arquivo e leia depois.
 - **React 19 barra `setState` dentro de efeito.** Para ler `localStorage`, use

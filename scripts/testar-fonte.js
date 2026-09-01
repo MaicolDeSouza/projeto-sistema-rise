@@ -23,6 +23,12 @@ const { prisma } = await import("../src/lib/db.js");
 
 const alvos = process.argv.slice(2).filter((argumento) => !argumento.startsWith("-"));
 
+// O tipo muda o que conta como produto valido: fornecedor sem preco ainda e
+// cadastro util, concorrente sem preco nao responde nada.
+//   npm run teste:fonte -- --tipo=FORNECEDOR https://loja.com.br
+const tipo =
+  /--tipo=([A-Z]+)/i.exec(process.argv.join(" "))?.[1]?.toUpperCase() ?? "CONCORRENTE";
+
 if (alvos.length === 0) {
   console.error("Informe ao menos uma URL.\n  npm run teste:fonte -- https://loja.com.br");
   process.exit(1);
@@ -38,7 +44,7 @@ function coluna(texto, largura) {
 const resultados = await Promise.all(
   alvos.map(async (url) => {
     try {
-      return { url, ...(await testarFonte({ url })) };
+      return { url, ...(await testarFonte({ url, tipo })) };
     } catch (erro) {
       return { url, resultado: "FALHA", motivo: erro?.message, produtos: [], passos: [] };
     }

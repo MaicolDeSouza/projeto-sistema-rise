@@ -38,7 +38,13 @@ async function tentarUrl(url, fonte, plataforma, doCatalogo = null) {
     doCatalogo,
   });
 
-  return { produtos: produtos.filter(ehProdutoValido), formatos, erro: null };
+  // O tipo da fonte decide o que e produto valido: fornecedor sem preco ainda
+  // e um cadastro util; concorrente sem preco, nao.
+  return {
+    produtos: produtos.filter((p) => ehProdutoValido(p, fonte?.type)),
+    formatos,
+    erro: null,
+  };
 }
 
 /**
@@ -301,7 +307,7 @@ export async function colherProdutos({
           fonte,
           plataforma,
         });
-        guardar(produtos.filter(ehProdutoValido), fs);
+        guardar(produtos.filter((p) => ehProdutoValido(p, fonte?.type)), fs);
       },
       // O andamento vem do rastreador, e nao do aoAchar: contado la dentro, ele
       // so enxergaria pagina que RENDEU produto, e a barra ficaria parada

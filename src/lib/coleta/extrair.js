@@ -64,7 +64,15 @@ function imagensDe(valor) {
     .map((item) => {
       if (!item) return null;
       if (typeof item === "string") return item.trim();
-      return typeof item.url === "string" ? item.url.trim() : null;
+
+      // ImageObject aceita os dois nomes no schema.org, e loja usa os dois: a
+      // Nightech (Wix) publica seis fotos so em contentUrl, e lendo apenas url
+      // sobrava uma — a do og:image.
+      for (const chave of ["url", "contentUrl"]) {
+        if (typeof item[chave] === "string") return item[chave].trim();
+      }
+
+      return null;
     })
     .filter(Boolean);
 }

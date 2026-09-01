@@ -72,7 +72,13 @@ conferir("sem promocional", mouse.prices.promotional, null);
 conferir("descricao sem tags", mouse.description, "Mouse sem fio .");
 conferir("imagem relativa resolvida", mouse.images[0], "https://loja.com.br/img/a.jpg");
 conferir("especificacoes", mouse.specifications, [{ nome: "Cor", valor: "Cinza" }]);
-conferir("estoque", mouse.stock, { status: "AVAILABLE", quantity: null });
+conferir("estoque", mouse.stock, {
+  status: "AVAILABLE",
+  quantity: null,
+  // Vitrine nao informa o que esta por chegar: isso e dado de fornecedor e
+  // entra por arquivo. O campo existe nos dois caminhos, vazio aqui.
+  aChegar: null,
+});
 conferir("bloco quebrado nao derruba", ehProdutoValido(mouse), true);
 
 // ---------------------------------------------------------------------------

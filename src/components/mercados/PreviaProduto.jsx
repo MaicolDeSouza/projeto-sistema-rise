@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, ImageOff, Minus } from "lucide-react";
+import { Check, ImageOff, X } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
+import { precoComImpostos } from "@/lib/coleta/impostos";
 import { ROTULOS_CAMPOS, valoresDoProduto } from "@/lib/coleta/campos";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -86,6 +87,21 @@ function Campo({ rotulo, valor, origem, mono = false }) {
 }
 
 export default function PreviaProduto({ produto, indice }) {
+  // O que vai chegar so tem caixa quando o arquivo trouxe o dado.
+  const temReserva =
+    typeof produto.stock?.aChegar === "number" ||
+    typeof produto.prices?.reserva === "number";
+
+  // Sem preco proprio de reserva, vale o da pronta entrega: e o que o
+  // fornecedor cobra quando nao diferencia.
+  const reservaHerdada = typeof produto.prices?.reserva !== "number";
+  const precoDeReserva = reservaHerdada ? produto.prices?.normal : produto.prices.reserva;
+
+  const reservaComImpostos = precoComImpostos(precoDeReserva, produto.taxes);
+
+  const resumoDeImpostos = (produto.taxes ?? [])
+    .map((imposto) => `${imposto.nome} ${String(imposto.percentual).replace(".", ",")}%`)
+    .join(" + ");
   const situacao = SITUACAO[produto.stock?.status] ?? SITUACAO.UNKNOWN;
   const temPromocional = typeof produto.prices?.promotional === "number";
   const valores = valoresDoProduto(produto);
@@ -94,7 +110,19 @@ export default function PreviaProduto({ produto, indice }) {
   return (
     <div className="rounded-lg border border-borda bg-superficie p-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-xs tracking-wide text-suave uppercase">Produto {indice}</p>
+        <p className="text-xs tracking-wide text-suave uppercase">
+          Produto {indice}
+          {/*
+            Quando link e arquivo sao testados juntos, os produtos aparecem
+            lado a lado. Sem dizer de onde veio cada um, a previa sugeriria que
+            o site entrega o que so o arquivo entregou.
+          */}
+          {produto.origemDaLeitura && (
+            <span className="ml-2 rounded border border-borda px-1.5 py-0.5 text-[10px] normal-case">
+              {produto.origemDaLeitura}
+            </span>
+          )}
+        </p>
         <p className="text-xs text-suave">
           Coletado em{" "}
           {new Date(produto.collectedAt).toLocaleString("pt-BR", {
@@ -140,45 +168,146 @@ export default function PreviaProduto({ produto, indice }) {
             ))}
           </dl>
 
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
-            <div>
-              <p className="text-xs text-suave">{ROTULOS_CAMPOS.precoNormal}</p>
-              <p
-                className={
-                  temPromocional
-                    ? "text-sm text-suave line-through"
-                    : "text-lg font-semibold tabular-nums"
-                }
-              >
-                {MOEDA.format(produto.prices.normal)}
+          {/*
+            Duas caixas: o que da para despachar hoje e o que ainda vai chegar.
+            Cada uma com o preco e a quantidade DELA, porque sao decisoes de
+            compra diferentes — repor o que vendeu e planejar importacao nao se
+            comparam pelo mesmo numero.
+
+            A caixa de reserva so aparece quando o arquivo trouxe esse dado.
+            Mostra-la vazia sugeriria que o fornecedor nao tem nada a chegar,
+            quando a verdade e que a lista nao foi carregada.
+          */}
+          <div className="flex flex-wrap gap-3">
+            <div className="min-w-[15rem] flex-1 rounded border border-borda px-3 py-2.5">
+              <p className="mb-2 text-xs font-medium tracking-wide text-suave uppercase">
+                Pronta entrega
               </p>
-            </div>
 
-            <div>
-              <p className="text-xs text-suave">{ROTULOS_CAMPOS.precoPromocional}</p>
-              <p
-                className={`text-lg font-semibold tabular-nums ${
-                  temPromocional ? "text-emerald-700" : "text-sm font-normal text-suave"
-                }`}
-              >
-                {temPromocional ? MOEDA.format(produto.prices.promotional) : "—"}
-              </p>
-            </div>
+              <div className="flex flex-wrap items-start gap-x-5 gap-y-2">
+                <div>
+                  <p className="text-xs text-suave">Preco</p>
+                  <p
+                    className={
+                      temPromocional
+                        ? "text-sm text-suave line-through"
+                        : "text-lg font-semibold tabular-nums"
+                    }
+                  >
+                    {/*
+                      Preco ausente e travessao, nunca R$ 0,00: fornecedor de
+                      portal fechado nao publica preco, e formatar null como
+                      zero diria que o produto e de graca.
+                    */}
+                    {typeof produto.prices.normal === "number"
+                      ? MOEDA.format(produto.prices.normal)
+                      : "—"}
+                  </p>
+                </div>
 
-            <div>
-              <p className="text-xs text-suave">{ROTULOS_CAMPOS.status}</p>
-              <Badge tom={situacao.tom}>{situacao.rotulo}</Badge>
-            </div>
-
-            <div>
-              <p className="text-xs text-suave">{ROTULOS_CAMPOS.quantidade}</p>
-              <p className="text-sm">
-                {typeof produto.stock?.quantity === "number" ? (
-                  produto.stock.quantity
-                ) : (
-                  <span className="text-suave">nao informada</span>
+                {temPromocional && (
+                  <div>
+                    <p className="text-xs text-suave">{ROTULOS_CAMPOS.precoPromocional}</p>
+                    <p className="text-lg font-semibold tabular-nums text-emerald-700">
+                      {MOEDA.format(produto.prices.promotional)}
+                    </p>
+                  </div>
                 )}
-              </p>
+
+                {/*
+                  Imposto por fora: o preco de tabela e um numero, o que se
+                  paga e outro. O que entrou na conta vem entre parenteses —
+                  sem isso, o valor maior parece preco inflado sem explicacao.
+                */}
+                {typeof produto.prices?.comImpostos === "number" && (
+                  <div>
+                    <p className="text-xs text-suave">Com impostos</p>
+                    <p className="text-lg font-semibold tabular-nums">
+                      {MOEDA.format(produto.prices.comImpostos)}
+                    </p>
+                    {(produto.taxes ?? []).length > 0 && (
+                      <p className="text-xs text-suave">({resumoDeImpostos})</p>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs text-suave">Quantidade</p>
+                  <p className="text-lg font-semibold tabular-nums">
+                    {typeof produto.stock?.quantity === "number" ? (
+                      produto.stock.quantity
+                    ) : (
+                      <span className="text-sm font-normal text-suave">nao informada</span>
+                    )}
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+            {temReserva && (
+              <div className="min-w-[13rem] flex-1 rounded border border-amber-200 bg-amber-50/40 px-3 py-2.5">
+                <p className="mb-2 text-xs font-medium tracking-wide text-amber-800 uppercase">
+                  Reserva
+                </p>
+
+                <div className="flex flex-wrap items-start gap-x-5 gap-y-2">
+                  <div>
+                    <p className="text-xs text-suave">Preco</p>
+                    <p className="text-lg font-semibold tabular-nums">
+                      {typeof precoDeReserva === "number" ? MOEDA.format(precoDeReserva) : "—"}
+                    </p>
+                    {/*
+                      Fornecedor que nao publica preco separado para o que vai
+                      chegar cobra o mesmo da pronta entrega. Dizer de onde veio
+                      evita que o numero repetido pareca erro de leitura.
+                    */}
+                    {reservaHerdada && (
+                      <p className="text-xs text-suave">(mesmo da pronta entrega)</p>
+                    )}
+                  </div>
+
+                  {/*
+                    O imposto e do produto, nao da modalidade: a mesma aliquota
+                    incide sobre o que chega depois. Mostrar so na pronta
+                    entrega faria o custo da reserva parecer menor do que e.
+                  */}
+                  {typeof reservaComImpostos === "number" && (
+                    <div>
+                      <p className="text-xs text-suave">Com impostos</p>
+                      <p className="text-lg font-semibold tabular-nums">
+                        {MOEDA.format(reservaComImpostos)}
+                      </p>
+                      {resumoDeImpostos && (
+                        <p className="text-xs text-suave">({resumoDeImpostos})</p>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-xs text-suave">Quantidade</p>
+                    <p className="text-lg font-semibold tabular-nums">
+                      {typeof produto.stock?.aChegar === "number" ? (
+                        produto.stock.aChegar
+                      ) : (
+                        <span className="text-sm font-normal text-suave">nao informada</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/*
+            Status fica FORA das caixas: ele descreve o produto, nao a
+            modalidade. Dentro da pronta entrega, sugeria que a reserva teria um
+            status proprio — e o campo e um so.
+          */}
+          <div className="mt-3">
+            <p className="text-xs text-suave">{ROTULOS_CAMPOS.status}</p>
+            <div className="mt-0.5">
+              <Badge tom={situacao.tom}>{situacao.rotulo}</Badge>
             </div>
           </div>
         </div>
@@ -186,14 +315,23 @@ export default function PreviaProduto({ produto, indice }) {
 
       <div className="mt-4">
         <p className="mb-1 text-xs text-suave">{ROTULOS_CAMPOS.url}</p>
-        <a
-          href={produto.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block truncate text-xs text-acento hover:underline"
-        >
-          {produto.url}
-        </a>
+        {/*
+          Produto vindo de arquivo nao tem endereco: o catalogo do fornecedor
+          nao publica um. Campo vazio parecia falha de leitura; travessao diz
+          o mesmo que os outros campos ausentes dizem.
+        */}
+        {produto.url ? (
+          <a
+            href={produto.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block truncate text-xs text-acento hover:underline"
+          >
+            {produto.url}
+          </a>
+        ) : (
+          <p className="text-xs text-suave">—</p>
+        )}
       </div>
 
       <div className="mt-3">
@@ -313,21 +451,33 @@ export default function PreviaProduto({ produto, indice }) {
         LOJA publica em algum lugar; aqui diz o que ESTE item trouxe — e os dois
         divergem quando parte do catalogo e mais completa que o resto.
       */}
-      <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1 border-t border-borda pt-2.5 text-xs">
-        {Object.entries(ROTULOS_CAMPOS).map(([campo, rotulo]) => {
-          const presente = valores[campo] !== null;
-          return (
-            <span
-              key={campo}
-              className={`inline-flex items-center gap-1 ${
-                presente ? "text-emerald-700" : "text-suave"
-              }`}
-            >
-              {presente ? <Check size={12} /> : <Minus size={12} />}
-              {rotulo}
-            </span>
-          );
-        })}
+      <div className="mt-4 space-y-1.5 border-t border-borda pt-2.5 text-xs">
+        {/*
+          Achados e ausentes em linhas separadas. Misturados, era preciso ler
+          o icone de cada um para saber o que a fonte entregou; separados, a
+          resposta esta na primeira linha.
+        */}
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          {Object.entries(ROTULOS_CAMPOS)
+            .filter(([campo]) => valores[campo] !== null)
+            .map(([campo, rotulo]) => (
+              <span key={campo} className="inline-flex items-center gap-1 text-emerald-700">
+                <Check size={12} />
+                {rotulo}
+              </span>
+            ))}
+        </div>
+
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          {Object.entries(ROTULOS_CAMPOS)
+            .filter(([campo]) => valores[campo] === null)
+            .map(([campo, rotulo]) => (
+              <span key={campo} className="inline-flex items-center gap-1 text-red-300">
+                <X size={12} />
+                {rotulo}
+              </span>
+            ))}
+        </div>
       </div>
     </div>
   );
