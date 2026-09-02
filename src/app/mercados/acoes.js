@@ -416,9 +416,28 @@ export async function alternarFonte(id) {
     return { ok: false, erro: "O robots.txt deste site nos bloqueia." };
   }
 
+  const retomando = !fonte.ativa;
+
   await prisma.fonteColeta.update({
     where: { id },
-    data: { ativa: !fonte.ativa },
+    data: {
+      ativa: retomando,
+      /*
+        RETOMAR TAMBEM DEVOLVE A DATA DA PROXIMA VARREDURA.
+
+        A fonte nasce pausada com `proximaVarreduraEm` a cem anos, para que
+        salvar um cadastro nao dispare varredura sozinho. Mas "Retomar" so
+        ligava o `ativa` e deixava a data la em 2126 — e o ciclo automatico
+        filtra por ela. Resultado: fonte retomada aparecia "Ativa" na tela e
+        nunca era varrida. Foi o que aconteceu com a Fortek e a Nightech, que
+        passaram a sessao inteira ativas e com "ultima varredura: nunca"
+        enquanto as cinco concorrentes rodavam.
+
+        Pausar nao mexe na data: quem pausa quer parar, e a promessa da tela e
+        que pausar mantem tudo como esta.
+      */
+      ...(retomando ? { proximaVarreduraEm: new Date() } : {}),
+    },
   });
 
   revalidatePath("/mercados/fontes");

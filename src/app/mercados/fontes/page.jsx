@@ -121,8 +121,14 @@ export default async function FontesPage({ searchParams }) {
                   <tr className="divide-x divide-borda">
                     <th className="px-3 py-2.5 font-medium">Loja</th>
                     <th className="px-3 py-2.5 font-medium">Situacao</th>
+                    {/*
+                      "no site" sozinho mentia na aba de fornecedor: o catalogo
+                      da Fortek e da Nightech vem da LISTA que eles mandam, nao
+                      de vitrine — e onde o fornecedor tem os dois, o numero e a
+                      soma sem repetir o que aparece nos dois lugares.
+                    */}
                     <th className="px-3 py-2.5 text-right font-medium">
-                      Produtos no site
+                      {aba === "FORNECEDOR" ? "Produtos no site/arquivo" : "Produtos no site"}
                     </th>
                     <th className="px-3 py-2.5 text-right font-medium">
                       Produtos atualizados

@@ -153,8 +153,19 @@ async function processar(job) {
       }),
     ]);
 
+    /*
+      "X/Y" so faz sentido quando Y e a META DE PRODUTOS. Na via de arquivo o
+      `total` e a contagem de ARQUIVOS lidos, e a linha saia como
+      "Fortek: 1911/2 produto(s)" — numero que nao quer dizer nada. Na leitura
+      de lista nao ha meta: o catalogo tem o tamanho que o fornecedor mandou.
+    */
+    const viaArquivo = resultado.contagem !== undefined;
+    const quanto = viaArquivo
+      ? `${resultado.produtos} produto(s)`
+      : `${resultado.produtos}/${resultado.total} produto(s)`;
+
     console.log(
-      `[${agora()}] ${fonte.nome}: ${resultado.produtos}/${resultado.total} produto(s)` +
+      `[${agora()}] ${fonte.nome}: ${quanto}` +
         (resultado.arquivo ? ` · ${resultado.arquivo}` : "") +
         (resultado.erro ? ` · ${resultado.erro}` : ""),
     );

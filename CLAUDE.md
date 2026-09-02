@@ -191,6 +191,17 @@ São **20 produtos por fonte** (`PRODUTOS_POR_FONTE`).
 - **A fila aparece ao lado do andamento** ("e mais 4 fontes na fila"). Só a fonte da vez
   faz a varredura parecer quase pronta com cinco lojas pela frente, e há loja que pede 10s
   entre visitas — o Eletrogate leva 4min sozinho contra 49s da Smartkits.
+- **"Retomar" ligava a fonte e a deixava invisível para o ciclo automático.** A fonte nasce
+  pausada com `proximaVarreduraEm` a cem anos — para que salvar um cadastro não dispare
+  varredura sozinho —, e `alternarFonte` só virava o `ativa`, deixando a data em **2126**.
+  O ciclo filtra por ela, então a fonte aparecia **"Ativa" na tela e nunca era varrida**.
+  Foi o que houve com a Fortek e a Nightech: passaram a sessão inteira ativas, com
+  *"última varredura: nunca"*, enquanto as cinco concorrentes rodavam — e ninguém notou,
+  porque a tela não tinha como mostrar a diferença entre "ativa" e "agendada". Retomar
+  agora devolve a data; pausar não mexe nela, porque quem pausa quer parar.
+- **A coluna se chama "Produtos no site/arquivo" na aba de fornecedor.** "No site" mentia
+  ali: o catálogo da Fortek vem da **lista** que ela manda, não de vitrine — o portal dela
+  está atrás de login e varrer devolve zero.
 - **"Produtos no site" era gravado só no CADASTRO da fonte.** A colheita mede o tamanho do
   catálogo a cada varredura (`produtosNoSite` em `colher.js`) e o worker **descartava o
   número**: a coluna ficava congelada no que o teste viu no dia do cadastro, e fonte cujo
