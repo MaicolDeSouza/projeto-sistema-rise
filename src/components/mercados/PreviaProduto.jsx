@@ -106,6 +106,7 @@ export default function PreviaProduto({ produto, indice }) {
   const temPromocional = typeof produto.prices?.promotional === "number";
   const valores = valoresDoProduto(produto);
   const especificacoes = produto.specifications ?? [];
+  const documentos = produto.documentos ?? [];
 
   return (
     <div className="rounded-lg border border-borda bg-superficie p-4">
@@ -178,8 +179,15 @@ export default function PreviaProduto({ produto, indice }) {
             Mostra-la vazia sugeriria que o fornecedor nao tem nada a chegar,
             quando a verdade e que a lista nao foi carregada.
           */}
-          <div className="flex flex-wrap gap-3">
-            <div className="min-w-[15rem] flex-1 rounded border border-borda px-3 py-2.5">
+          {/*
+            As caixas acompanham o proprio conteudo, sem `flex-1`.
+            Esticando-as, a de pronta entrega ocupava a largura inteira da tela
+            quando vinha sozinha, e a moldura sugeria campos a direita que nao
+            existem. O `min-w` continua garantindo que preco e quantidade caibam
+            lado a lado antes de quebrar.
+          */}
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="min-w-[15rem] rounded border border-borda px-3 py-2.5">
               <p className="mb-2 text-xs font-medium tracking-wide text-suave uppercase">
                 Pronta entrega
               </p>
@@ -246,7 +254,7 @@ export default function PreviaProduto({ produto, indice }) {
             </div>
 
             {temReserva && (
-              <div className="min-w-[13rem] flex-1 rounded border border-amber-200 bg-amber-50/40 px-3 py-2.5">
+              <div className="min-w-[13rem] rounded border border-amber-200 bg-amber-50/40 px-3 py-2.5">
                 <p className="mb-2 text-xs font-medium tracking-wide text-amber-800 uppercase">
                   Reserva
                 </p>
@@ -394,6 +402,39 @@ export default function PreviaProduto({ produto, indice }) {
           <p className="text-sm text-suave">—</p>
         )}
       </div>
+
+      {/*
+        Documentos: o datasheet do concorrente, clicavel.
+
+        E o que permite conferir se o produto dele e o MESMO que o nosso — dois
+        modulos com nome diferente e o mesmo CI sao o mesmo item. So aparece
+        quando a pagina publica algum: secao vazia sugeriria que a loja nao tem
+        material tecnico, quando a verdade e que este produto nao tem.
+      */}
+      {documentos.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-1 text-xs text-suave">
+            {ROTULOS_CAMPOS.documentos}
+            <span className="ml-1">({documentos.length})</span>
+          </p>
+          <ul className="space-y-1">
+            {documentos.map((documento) => (
+              <li key={documento.url}>
+                <a
+                  href={documento.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex max-w-full items-center gap-1.5 text-xs text-acento hover:underline"
+                  title={documento.url}
+                >
+                  <span aria-hidden>↓</span>
+                  <span className="truncate">{documento.titulo}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/*
         SEO nao descreve o produto: descreve como a loja tenta ser achada. Fica

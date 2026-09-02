@@ -58,6 +58,7 @@ const resultados = await Promise.all(
     const nome = nomeDe(url);
     console.log(`[${nome}] iniciando...`);
 
+    const comecou = Date.now();
     try {
       const colheita = await colherProdutos({
         url,
@@ -92,6 +93,7 @@ const resultados = await Promise.all(
         },
         produtos: colheita.produtos,
         resumo,
+        duracaoMs: Date.now() - comecou,
       });
 
       console.log(`[${nome}] ${resumo}`);

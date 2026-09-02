@@ -102,7 +102,10 @@ function CartaoPlataforma({ teste }) {
             {teste.produtosNoSite.toLocaleString("pt-BR")}
             {teste.produtosNoSiteParcial ? "+" : ""}
           </span>{" "}
-          produto(s) publicados no sitemap
+          produto(s){" "}
+          {teste.produtosNoSiteFonte === "catalogo"
+            ? "no catalogo publico da loja"
+            : "publicados no sitemap"}
           {teste.produtosNoSiteParcial
             ? " — a leitura parou no teto, entao o catalogo e maior que isso"
             : ""}
@@ -352,13 +355,21 @@ function juntarTestes(doLink, doArquivo, regras = {}) {
 function rotuloDoTipo(valor) {
   return TIPOS.find((item) => item.valor === valor)?.rotulo ?? "fonte";
 }
-export default function FormularioFonte() {
+export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
   const router = useRouter();
   const [testando, iniciarTeste] = useTransition();
   const [salvando, iniciarSalvamento] = useTransition();
 
+  // FECHADO POR PADRAO: a tela existe para acompanhar as fontes ja cadastradas,
+  // e o cadastro e eventual. Aberto, o formulario empurrava a tabela inteira
+  // para baixo da dobra.
+  const [aberto, setAberto] = useState(false);
+
   const [nome, setNome] = useState("");
-  const [tipo, setTipo] = useState("CONCORRENTE");
+  // O tipo vem da aba em que o operador estava: quem clica em cadastrar dentro
+  // de "Fornecedores" quer cadastrar um fornecedor. Um passo a menos, e um erro
+  // a menos.
+  const [tipo, setTipo] = useState(tipoInicial);
   const [url, setUrl] = useState("");
   const [secao, setSecao] = useState("");
   const [teste, setTeste] = useState(null);
@@ -436,6 +447,10 @@ export default function FormularioFonte() {
       setNome("");
       setSecao("");
       setTeste(null);
+      setArquivos([]);
+      // Recolhe depois de salvar: o trabalho terminou, e a fonte nova ja
+      // aparece na tabela logo abaixo.
+      setAberto(false);
       router.refresh();
     });
   }
@@ -444,9 +459,47 @@ export default function FormularioFonte() {
   const Icone = cabecalho?.icone;
   const podeCadastrar = teste && teste.resultado !== "FALHA";
 
+  /**
+   * NAO RECOLHE COM TESTE RODANDO OU RESULTADO NA TELA.
+   *
+   * O teste demora — medido: 19s na Smartkits, 62s na Usinainfo, 82s no
+   * Eletrogate, que pede 10s entre visitas. Fechar sob os pes de quem esta
+   * esperando, ou lendo o relatorio, jogaria fora esse tempo com um clique.
+   */
+  const emUso = testando || Boolean(teste) || arquivos.length > 0;
+
+  if (!aberto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        className="mb-4 inline-flex items-center gap-1.5 rounded border border-borda bg-superficie px-3 py-2 text-sm font-medium hover:bg-fundo"
+      >
+        <Plus size={15} />
+        Cadastrar fonte
+      </button>
+    );
+  }
+
   return (
     <div className="mb-6 rounded-lg border border-borda bg-superficie p-5">
-      <p className="mb-1 font-medium">Cadastrar uma fonte</p>
+      <div className="mb-1 flex items-start justify-between gap-3">
+        <p className="font-medium">Cadastrar uma fonte</p>
+        <button
+          type="button"
+          onClick={() => setAberto(false)}
+          disabled={emUso}
+          title={
+            emUso
+              ? "Termine ou descarte o teste antes de recolher"
+              : "Recolher"
+          }
+          aria-label="Recolher o cadastro"
+          className="rounded p-1 text-suave hover:bg-fundo hover:text-texto disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <X size={16} />
+        </button>
+      </div>
       <p className="mb-4 text-sm text-suave">
         Informe o site de um concorrente ou fornecedor. Antes de gravar, o sistema abre
         algumas paginas de produto para confirmar que consegue extrair dados uteis dali.

@@ -3,39 +3,9 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Copy, EllipsisVertical, ImageOff } from "lucide-react";
+import { EllipsisVertical, ImageOff } from "lucide-react";
 
-/** Botao de copiar que confirma na propria interface, sem alert. */
-function Copiar({ texto, rotulo }) {
-  const [copiado, setCopiado] = useState(false);
-
-  async function copiar() {
-    try {
-      await navigator.clipboard.writeText(texto);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 1500);
-    } catch {
-      // Sem permissao de area de transferencia: nao ha o que fazer alem de
-      // nao quebrar a tela.
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={copiar}
-      title={`Copiar ${rotulo}`}
-      aria-label={`Copiar ${rotulo}`}
-      className="shrink-0 rounded p-1 text-suave opacity-0 transition group-hover:opacity-100 hover:bg-fundo hover:text-texto focus-visible:opacity-100"
-    >
-      {copiado ? (
-        <Check size={13} className="text-emerald-600" />
-      ) : (
-        <Copy size={13} />
-      )}
-    </button>
-  );
-}
+import Copiar from "@/components/ui/Copiar";
 
 /**
  * Imagem do produto.

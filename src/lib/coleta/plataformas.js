@@ -117,7 +117,31 @@ export const PLATAFORMAS = [
         "Os relacionados ficam DENTRO do escopo do itemtype=Product — o contrario da Loja Integrada. Recortar no bloco do produto nao resolve imagem aqui.",
         "O id do produto sai do dataLayer, e tambem do input ProductComment[product_id].",
         "A ficha tecnica vem com cada item em seu proprio paragrafo.",
+        "O codigo visivel na pagina ('REF: SK1244') e o reference do dataLayer. O sku do JSON-LD, quando existe, e o id INTERNO da Tray — nao serve para achar o produto na loja.",
       ],
+      // O preco a vista NAO esta na pagina.
+      //
+      // O bloco "Formas de Pagamento" e preenchido por AJAX: na Smartkits a
+      // pagina anuncia 52,15 no pix e a string "52,15" nao aparece uma vez
+      // sequer no HTML entregue. Este e o endereco que o proprio tema chama
+      // (formas_pagamento.min.js), com os tres parametros que ele passa.
+      //
+      // FORA do Disallow do robots.txt: o que esta barrado la e o endpoint
+      // ANTIGO (/loja/pag_parcelado.php) e os de carrinho. Responde em
+      // ISO-8859-1, entao quem le tem que passar por buscarPagina.
+      pagamento: {
+        caminho: "/mvc/store/product/payment_options",
+        conferidoEm: "2026-09-01",
+        conferidoEm_lojas: ["smartkits.com.br"],
+        // Medido em tres produtos da Smartkits: 59,90 -> 56,90; 8,90 -> 8,45;
+        // 54,90 -> 52,15. Os 5% sao da LOJA, nao do produto.
+        //
+        // Mesmo assim o valor e LIDO, nao calculado: a Tray TRUNCA o centavo em
+        // vez de arredondar (56,905 vira 56,90), e reproduzir esse truncamento
+        // seria derivar um preco de concorrente a partir de uma regra suposta.
+        observacao:
+          "Desconto a vista e da loja inteira, mas o valor sai do endpoint porque a Tray trunca o centavo em vez de arredondar.",
+      },
       // Medido em duas lojas independentes: responde 200 sem token nenhum.
       // /web_api/categories, na mesma loja, responde 401 — ou seja, e um
       // recorte deliberado da plataforma, nao um vazamento de uma loja so.
@@ -697,4 +721,19 @@ export function catalogoPublicoDe(plataforma, urlBase, html = "") {
   }
 
   return { ...catalogo, url: `${origem}${catalogo.caminho}` };
+}
+
+/**
+ * O endereco onde a plataforma publica as formas de pagamento.
+ *
+ * Mesmo desenho do catalogo: o registro guarda o caminho, quem visita e
+ * buscarPagina. Devolve null para plataforma que entrega o preco a vista na
+ * propria pagina — nao ha requisicao a fazer.
+ */
+export function pagamentoDe(plataforma, urlBase) {
+  const regras = regrasDaPlataforma(plataforma?.id ?? plataforma);
+  const pagamento = regras.entrega?.pagamento;
+  if (!pagamento) return null;
+
+  return { ...pagamento, url: `${new URL(urlBase).origin}${pagamento.caminho}` };
 }

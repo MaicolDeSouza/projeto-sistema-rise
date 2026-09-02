@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Ban, ExternalLink, Loader, Pause, Pencil, Play, Trash2 } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
+import ArquivosDaFonte from "@/components/mercados/ArquivosDaFonte";
 import {
   alternarFonte,
   contarPaginas,
@@ -12,9 +13,10 @@ import {
   excluirFonte,
 } from "@/app/mercados/acoes";
 
-/// Quantas colunas a tabela tem. As linhas de apoio (erro, confirmacao, edicao)
-/// abrem embaixo com colSpan, e um numero errado aqui desalinha a tabela toda.
-const COLUNAS = 6;
+/// Quantas colunas a tabela tem NESTA aba: a de fornecedor mostra a coluna da
+/// lista, a de concorrente nao. Numero errado aqui desalinha as linhas de apoio
+/// (erro, confirmacao, edicao), que abrem embaixo com colSpan.
+const COLUNAS_BASE = 6;
 
 function comoData(valor) {
   if (!valor) return "nunca";
@@ -30,7 +32,27 @@ function comoNumero(valor) {
   return typeof valor === "number" ? valor.toLocaleString("pt-BR") : "—";
 }
 
-export default function LinhaFonte({ fonte }) {
+/**
+ * Quanto a coleta demorou, em linguagem de gente.
+ *
+ * Segundos ate um minuto, minuto e segundo acima disso: "82s" faz o leitor
+ * dividir de cabeca, e "1min 22s" nao.
+ *
+ * Coleta antiga nao tem o numero guardado e nao ganha um inventado — devolve
+ * null, e a tela nao mostra nada.
+ */
+function comoDuracao(ms) {
+  if (typeof ms !== "number" || ms < 0) return null;
+
+  const segundos = Math.round(ms / 1000);
+  if (segundos < 60) return `${segundos}s`;
+
+  const minutos = Math.floor(segundos / 60);
+  const resto = segundos % 60;
+  return resto === 0 ? `${minutos}min` : `${minutos}min ${resto}s`;
+}
+
+export default function LinhaFonte({ fonte, mostrarLista = false }) {
   const router = useRouter();
   const [pendente, iniciarTransicao] = useTransition();
   const [confirmando, setConfirmando] = useState(null);
@@ -103,12 +125,12 @@ export default function LinhaFonte({ fonte }) {
         <td className="px-3 py-2.5">
           <div className="flex items-start gap-2">
             <div className="min-w-0">
-              <p className="font-medium">
-                {fonte.nome}{" "}
-                <span className="font-normal text-suave">
-                  ({fonte.tipo === "FORNECEDOR" ? "Fornecedor" : "Concorrente"})
-                </span>
-              </p>
+              {/*
+                Sem o tipo ao lado do nome: quem responde isso agora e a aba, e
+                repetir "(Fornecedor)" em toda linha de uma aba chamada
+                Fornecedores so gasta largura.
+              */}
+              <p className="font-medium">{fonte.nome}</p>
 
               <a
                 href={enderecoDoSite}
@@ -161,10 +183,45 @@ export default function LinhaFonte({ fonte }) {
         </td>
 
         <td className="px-3 py-2.5 text-right tabular-nums">
-          {comoNumero(fonte.coletados)}
+          {comoNumero(fonte.coleta?.total)}
         </td>
 
-        <td className="px-3 py-2.5 text-suave">{comoData(fonte.ultimaVarreduraEm)}</td>
+        {/*
+          A DATA DA COLETA GUARDADA, e nao a do banco.
+          `ultimaVarreduraEm` so e escrito pelo worker; reprocessar a lista pela
+          linha de comando nao mexe nele, e a fonte aparecia como "nunca" com
+          1.911 produtos em disco. O arquivo e quem sabe quando foi gravado.
+        */}
+        <td className="px-3 py-2.5 text-suave">
+          {comoData(fonte.coleta?.coletadoEm ?? fonte.ultimaVarreduraEm)}
+          {/*
+            QUANTO DEMOROU, ao lado da data. E o que explica por que uma fonte
+            demora quatro vezes mais que outra pelo mesmo trabalho — o
+            Eletrogate e o Impacto CNC pedem 10s entre visitas, e sem o numero
+            a lentidao parece defeito nosso.
+          */}
+          {comoDuracao(fonte.coleta?.duracaoMs) && (
+            <span> ({comoDuracao(fonte.coleta.duracaoMs)})</span>
+          )}
+          {/* Lista de fornecedor: o dado e do dia em que ELE mandou, nao do
+              reprocessamento. Sem isto, lista de tres semanas parece de hoje. */}
+          {fonte.coleta?.listaEnviadaEm && (
+            <span className="block text-xs">
+              lista de {comoData(fonte.coleta.listaEnviadaEm)}
+            </span>
+          )}
+        </td>
+
+        {/*
+          SO FORNECEDOR MANDA LISTA. Concorrente tem vitrine, e e por ela que se
+          varre — na aba dele a coluna nem aparece, em vez de ficar cinco linhas
+          de travessao ocupando largura.
+        */}
+        {mostrarLista && (
+          <td className="px-3 py-2.5">
+            <ArquivosDaFonte fonte={fonte} />
+          </td>
+        )}
 
         <td className="px-3 py-2.5">
           <div className="flex flex-wrap justify-end gap-1.5">
@@ -198,7 +255,7 @@ export default function LinhaFonte({ fonte }) {
 
       {editando && (
         <tr>
-          <td colSpan={COLUNAS} className="px-3 pb-3">
+          <td colSpan={COLUNAS_BASE + (mostrarLista ? 1 : 0)} className="px-3 pb-3">
             <form
               onSubmit={salvarEdicao}
               className="flex flex-wrap items-end gap-2 rounded border border-borda bg-fundo px-3 py-2.5"
@@ -252,7 +309,7 @@ export default function LinhaFonte({ fonte }) {
 
       {(confirmando !== null || erro) && (
         <tr>
-          <td colSpan={COLUNAS} className="px-3 pb-3">
+          <td colSpan={COLUNAS_BASE + (mostrarLista ? 1 : 0)} className="px-3 pb-3">
             {erro && <p className="text-xs text-red-700">{erro}</p>}
 
             {confirmando !== null && (

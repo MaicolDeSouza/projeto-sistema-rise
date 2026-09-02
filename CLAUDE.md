@@ -27,7 +27,7 @@ Organizado em **blocos** no menu lateral, cada um desenvolvido de forma independ
 | Integrações | Bling e ML conectados e testados; Loja Integrada via Bling |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
-| Mercados | Teste de fonte em 6 sites + importação de arquivo (HTML/PDF/XLSX); coleta em lote **não ligada** |
+| Mercados | Teste de fonte em 6 sites, importação de arquivo (HTML/PDF/XLSX) e coleta em lote gravando **em JSON**; banco parado de propósito |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
 **A publicação nunca foi ligada.** `ML_PUBLICACAO` e `BLING_ESCRITA` estão em `false`, e
@@ -39,11 +39,12 @@ requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue
 ```bash
 npm run db:up && npm run dev      # https://localhost:3000
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 99 asserções da extração, SEM rede
+npm run teste:extracao            # 137 asserções da extração e da conciliação, SEM rede
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
 npm run coletar -- --limite=20 <url>   # colhe e grava em dados/coleta/<dominio>/
+npm run worker                    # executa o que o botao "Atualizar tabelas" enfileira
 ```
 
 HTTPS é obrigatório (o OAuth do ML exige). Certificado em `certificates/`, gerado com
@@ -121,12 +122,76 @@ tentativa de coletar os 20 produtos direto do teste:
 gravar antes disso enche a tabela com o formato errado. Ligar o banco é passo separado,
 depois dos testes, com o dono presente.
 
-**O código ainda não reflete isso.** Foi escrito quando o rumo era o banco, e hoje:
-a tela `/mercados` lista de `paginaColetada`, o botão "Atualizar tabelas" enfileira
-`Job` e o `scripts/worker.js` grava no Postgres. `scripts/coletar.js` é o único caminho
-que grava em JSON. **Nada disso foi commitado** — o bloco inteiro está solto no working
-tree, sobre `d6a495b`. Reconciliar código e combinado é o primeiro trabalho da próxima
-sessão; até lá, JSON é o alvo e o Postgres nem precisa subir.
+**O botão "Atualizar tabelas" grava em JSON** — reconciliado em 01/09/2026. Ele
+**enfileira**, não executa: varrer seis lojas passa de dez minutos, o que não cabe numa
+requisição HTTP e morreria no primeiro hot reload. Quem executa é o `scripts/worker.js`
+(`npm run worker`), chamando `varrerFonteParaJson` → `colherProdutos` → `salvarColeta`.
+São **20 produtos por fonte** (`PRODUTOS_POR_FONTE`).
+
+- **O mesmo `colher.js` do "Testar fonte".** Era aqui que as duas trilhas divergiam: a tela
+  mostrava o que o normalizador completo extraía e a varredura gravava o que um extrator
+  antigo entendia. Agora o que o operador aprova no cadastro é o que fica guardado.
+- **`varrerFonte` (Postgres) continua de pé e parado**, com teste próprio
+  (`npm run teste:coleta`). Nada em produção o chama — ele volta quando o banco entrar.
+- **A fonte nasce pausada**, com `proximaVarreduraEm` a 100 anos: salvar um cadastro não
+  pode disparar varredura sozinho. O ciclo automático de 24 h está desligado de propósito
+  e o botão é o único gatilho — ele filtra por `ativa`, não por essa data. Fonte pausada dá
+  recado dizendo para usar "Retomar".
+- **A tela `/mercados` lê do JSON**, por `produtosColetados()` em `arquivo.js`; só o
+  cadastro das fontes continua no banco, que é onde ele sempre esteve. Quando o banco
+  entrar, mudam `produtosColetados()` e `detalhePagina()` — a tela não.
+- **O JSON não tem chave primária**, e a tela precisa de uma para abrir o detalhe. O id é
+  `dominio|codigo|url`, composto do que identifica o produto e **não da posição na lista**:
+  com o índice, uma varredura entre a listagem e o clique abriria o produto errado.
+- **Sem histórico de preço.** O arquivo guarda a última coleta e sobrescreve a anterior,
+  então `precoAnterior` é sempre `null` e a seta de variação não aparece. Série é assunto
+  do banco — mostrar movimento sem base seria inventá-lo.
+- **O teto da tabela subiu de 100 para 300.** A data é da **coleta inteira**, não de cada
+  produto, então a ordenação agrupa por fonte e um teto apertado corta a fonte mais antiga
+  **por completo**: com 100, a Casa da Robótica sumia da tela inteira tendo 20 produtos
+  coletados. **O teto agora é atingido de verdade** — com os 1.911 da Fortek em disco, a
+  tela tem 2.031 produtos e mostra 300. A busca filtra o acervo inteiro (o servidor filtra
+  antes de cortar), então achar produto continua funcionando; quem some é o resto da
+  rolagem. Paginar é o passo pendente, e o rodapé diz o que ficou de fora em vez de deixar
+  a lista parecer completa.
+- A **ficha técnica** no painel é lista ordenada, igual à prévia — linha sem rótulo aparece
+  com marcador, nunca com nome inventado. O campo `atributos` (objeto) era do caminho do
+  banco.
+- O bloco vive na branch **`bloco-mercados`**, ainda não fundida na principal.
+
+**As telas, e o vocabulário do dono** — ajustado ao longo de 01/09/2026:
+
+- **"Sites" virou "Fontes"**, "Atualizar tabelas" virou **"Atualizar dados"**, "Coletados"
+  virou **"Produtos atualizados"** e "Ficha Técnica" virou **"Características"**, para
+  casar com a aba Produtos. Nome de tela é vocabulário de quem opera, não do código.
+- **Fontes é dividida por abas** (Fornecedores / Concorrentes), por `?tipo=` na URL. Uma
+  primeira versão pôs os dois lado a lado como cartões de resumo e o dono recusou: ele quer
+  **a lista inteira de um tipo por vez**, não um resumo dos dois. Com a aba respondendo o
+  tipo, a coluna "Fornecedor/Concorrente" saiu — repetir o rótulo em toda linha de uma aba
+  que já se chama Fornecedores só gasta largura.
+- **A coluna da lista só aparece na aba de fornecedor.** Concorrente tem vitrine; cinco
+  linhas de travessão não são informação. Quem muda de colunas muda o `colSpan` das linhas
+  de apoio junto (`COLUNAS_BASE`), senão as linhas de erro e edição desalinham.
+- **"Última varredura" traz a duração entre parênteses.** É o que explica por que uma fonte
+  demora quatro vezes mais que outra pelo mesmo trabalho — o Eletrogate e o Impacto CNC
+  pedem 10s entre visitas, e sem o número a lentidão parece defeito nosso. Coleta antiga
+  não tem o campo e **não ganha um inventado**: `null`, e a tela não mostra nada.
+- **A data vem do arquivo, não do banco.** `ultimaVarreduraEm` só é escrito pelo worker;
+  reprocessar a lista pela linha de comando não mexe nele, e a Fortek aparecia como
+  "nunca" com 1.911 produtos em disco.
+- **O ⓘ guarda instruções de download/upload por fonte** (`FonteColeta.instrucoes`), porque
+  cada portal tem um caminho diferente e isso vive hoje na cabeça do dono. **Senha não vai
+  aí** — o campo é texto puro, aparece na tela e vai para o dump; credencial pertence à
+  `Conexao`, cifrada. A tela diz isso por escrito.
+- **O detalhe do produto de fornecedor espelha a prévia do teste de fonte:** duas caixas,
+  *Pronta entrega* e *Reserva*, cada uma com preço, preço com impostos e a **quantidade
+  dela**. Repor o que vendeu e planejar importação não se comparam pelo mesmo número, e na
+  Fortek a reserva chega a custar mais caro (`65-276`: 79,90 contra 82,90). O operador
+  aprova a fonte olhando aquelas caixas e depois consulta o produto aqui — dois desenhos
+  para o mesmo dado obrigariam a reaprender a ler. Fornecedor que não diferencia o preço da
+  reserva mostra o da pronta entrega com a nota *(mesmo da pronta entrega)*, e a caixa de
+  reserva **some** quando o arquivo não trouxe o dado: vazia, ela diria que não há nada a
+  chegar, quando a verdade é que a lista não informou.
 
 **Um caminho só.** `colher.js` é usado pelo teste e pela coleta em lote, mudando só o
 limite. Houve um período com duas trilhas — o teste usava o normalizador completo e a
@@ -146,10 +211,49 @@ JSON-LD nenhum; o impactocnc só tem Microdata. Escolher um formato devolve meta
   `"2.09"` e `"4.85"`, que eram **opções de frete**.
 - **`og:description` é resumo de SEO** (~155 caracteres). Vence a descrição **mais longa**
   entre as fontes, não a de um formato preferido: 138 contra 2946 na mesma página.
-- **Especificações**: seção declarada pelo site ("Especificações:", em qualquer caixa),
-  lida como **lista ordenada** de `{nome, valor}` — `nome: null` na linha sem rótulo,
-  porque objeto JSON não comporta isso sem inventar chave. Encerra no título seguinte, num
-  parágrafo, ou numa **linha em branco seguida de algo que não é par**.
+**Documentos: o datasheet do concorrente** — `documentos: [{titulo, url}]`, campo próprio e
+clicável na prévia, nunca endereço colado dentro da descrição. É o que permite conferir se
+o produto do concorrente é o **mesmo** que o nosso: dois módulos com nome diferente e o
+mesmo CI são o mesmo item.
+
+- **O que identifica documento é o TEXTO DO LINK**, mais extensão de arquivo (`.pdf`,
+  `.zip`, `.stl`…) e endpoint de anexo (`controller=attachment`, do PrestaShop).
+- **"Sai da loja" NÃO serve, e chegou a ser usado.** Parecia bom porque foi medido só no
+  bloco da descrição de uma loja. Varrendo a página inteira, esse critério devolve **30**
+  candidatos na Smartkits — WhatsApp vinte vezes, Instagram, TikTok, o selo da Loja
+  Protegida — e **6** na Usinainfo, todos redes sociais. Com texto + extensão + anexo, as
+  duas devolvem **um**: o datasheet.
+- **Os dois casos reais não se parecem, e nenhum critério sozinho pega os dois.** A
+  Smartkits hospeda no **Google Drive** — fora do domínio e sem extensão. A Usinainfo serve
+  pelo **anexo do PrestaShop** (`index.php?controller=attachment&id_attachment=101`) — no
+  próprio domínio e também sem extensão; responde `200` com
+  `Content-Disposition: filename="Datasheet DS18B20.pdf"`. O `get-file` é que está no
+  `Disallow` do robots; `attachment`, não — e de todo modo o endereço só é **guardado**,
+  nunca baixado.
+- **Varre a página inteira**, porque o link não mora num lugar só: na Tray fica dentro da
+  descrição, na Usinainfo numa aba própria (`li.download_produto`), fora dela.
+- Vocabulário de **documento**, não de página: "blog", "tutorial" e "projeto" ficam de fora
+  de propósito — a Usinainfo linka o próprio blog no meio da descrição.
+- **Especificações**: seção declarada pelo site, lida como **lista ordenada** de
+  `{nome, valor}` — `nome: null` na linha sem rótulo, porque objeto JSON não comporta isso
+  sem inventar chave. Encerra no título seguinte, num parágrafo, ou numa **linha em branco
+  seguida de algo que não é par**.
+- **O título da seção nem sempre tem dois-pontos.** A Smartkits escreve só
+  `Especificações` no JSN-SR04T, em caixa normal, e a ficha inteira — dez itens — era
+  descartada por causa de um caractere. A folga vale só para o título que o vocabulário já
+  reconhece, curto e de até três palavras: aceita-se a linha que **só anuncia** a seção,
+  nunca a frase que menciona a palavra.
+- **O marcador de lista vale mais que a heurística de tamanho.** Onde o site escreveu `-`,
+  ele está dizendo "isto ainda é ficha": o teto de palavras do rótulo sobe, e a regra de
+  parágrafo não se aplica. `- Diferença mínima entre a entrada e saída: 1. 5 V DC;` tem
+  sete palavras no rótulo (o teto era seis), então deixava de ser par, caía na regra de
+  parágrafo por ter doze palavras no total e **encerrava** a ficha do XL6009 no terceiro
+  item de onze. Quem limita rótulo é o tamanho em caracteres.
+- **Numa lista marcada, linha sem marcador encerra.** É o site mudando de assunto sem usar
+  dois-pontos no subtítulo: no JSN-SR04T a ficha é seguida de `Downloads`, `Acompanha` e
+  `Garantia` — sem marcador, sem dois-pontos e sem linha em branco antes. Nenhuma das
+  outras regras os alcançava, e os seis viravam especificação. O par escapa antes, então
+  item solto sem hífen no meio da lista continua sendo lido.
 - **Categoria**: breadcrumb em Microdata (só os `name` dentro de `itemListElement`) ou o
   **dataLayer do GA4** (`item_category`), casando por `item_sku` — a página empurra um
   objeto por produto, incluindo relacionados.
@@ -167,6 +271,16 @@ JSON-LD nenhum; o impactocnc só tem Microdata. Escolher um formato devolve meta
   de preço. O preço vive num campo oculto, `<input id="preco_atual" value="25.99">`, que é
   o único lugar legível por máquina: o preço visível quebra os centavos em `<span>`
   aninhados. Logo abaixo vem `precoAvista`, **menor** — é o do pix, não o de tabela.
+- **Tray: `preco_atual` vem `0.00` no produto esgotado.** A página do SK1089 mostra "Não
+  disponível" e zera o campo, enquanto o `dataLayer` segue anunciando 59,90. Quem lê só o
+  input perde o preço justamente onde a comparação interessa — o concorrente continua
+  publicando quanto cobra. A alternativa é `price`/`priceSell` do `dataLayer`.
+- **Tray: `priceSellDetails` vem STRING VAZIA quando não há parcelamento.** Não é lista
+  vazia nem campo ausente, e é assim na Smartkits inteira, inclusive num produto de
+  R$ 4.299,90 — enquanto `listSku` e `breadcrumbDetails` na mesma página são arrays de
+  verdade. O `?.` não alcança `""`, e `"".find` derrubava a validação da fonte com
+  `find is not a function` antes de qualquer preço ser lido. Campo de JSON de terceiro
+  quer `Array.isArray`, não encadeamento opcional.
 - **Loja Integrada** (Eletrogate): a galeria fica **fora** do escopo do `itemtype=Product`.
 - **Tray**: os relacionados ficam **dentro** desse escopo. As duas convenções são opostas,
   e é por isso que recortar no bloco do produto **não** serve de regra geral para imagem.
@@ -218,6 +332,49 @@ igual — catálogo público não é licença para atropelar o servidor.
   catálogo não completa a cota, e o passo "Sitemap identificado" só aparece quando a
   consulta aconteceu — dizer "não publicado" sem ter olhado é inventar um fato.
 
+**O preço à vista pode não estar na página:**
+
+Na Tray o bloco "Formas de Pagamento" é montado por AJAX. A Smartkits anuncia
+*"à vista R$ 52,15 — Desconto de 5 %"* e a string `52,15` **não existe uma vez sequer** no
+HTML entregue: o que vem é o preço de tabela, 54,90. Sem abrir
+`/mvc/store/product/payment_options?loja=<idLoja>&IdProd=<id>&preco=<preco>`, o desconto do
+pix não é coletado e a comparação usa um preço que ninguém paga. Leitura em
+`src/lib/coleta/pagamento.js`; o endereço é dado, no registro da plataforma.
+
+- **Fora do `Disallow`.** O robots.txt da Tray barra o endpoint **antigo**
+  (`/loja/pag_parcelado.php`) e os de carrinho — não este. Responde **ISO-8859-1**, então
+  tem que passar por `buscarPagina`.
+- **UMA requisição por FONTE, não por produto.** O ritmo é de uma visita a cada 2 s por
+  domínio, então perguntar item a item **dobrava** a colheita: numa fonte de 20 produtos,
+  40 s viravam 80 s. O desconto à vista não é do produto — é da **loja**: 5% em todos os
+  produtos medidos na Smartkits e na Casa da Robótica. A regra é aprendida no primeiro item
+  e aplicada ao resto (`novaMemoriaDePagamento`, uma por colheita — nunca global, senão uma
+  loja responde pela outra).
+- **O arredondamento do centavo NÃO é igual em toda loja Tray.** A Smartkits **trunca**
+  (8,90 −5% = 8,455 e ela cobra 8,45); a Casa da Robótica **arredonda** (4,89 −5% = 4,6455
+  e ela cobra 4,65). Supor um dos dois erra o outro em um centavo.
+- **Só adota a regra quando a amostra DISCRIMINA os dois modos.** Conferir que a regra
+  reproduz o valor lido não basta, e isso já custou um centavo errado: o primeiro produto
+  da Casa da Robótica (12,99 −5% = 12,3405) dá 12,34 truncando **ou** arredondando, então
+  não prova nada — e a regra escolhida ali errou o produto seguinte. Enquanto os dois modos
+  explicarem todas as amostras, continua perguntando. Na prática: Smartkits resolve em 1
+  leitura, Casa da Robótica em 2.
+- **A conta é em centavos inteiros.** Em ponto flutuante, 59,90 × 0,95 vira
+  56,90499999999999 e o meio-centavo some — fazendo os dois modos parecerem iguais
+  justamente na amostra que os separaria.
+- Modo nenhum explicando as amostras, ou percentual mudando entre produtos: `semRegra`, e a
+  fonte pergunta produto a produto até o fim. Preço errado de concorrente é pior que coleta
+  lenta.
+- `percentual: 0` é resposta legítima: loja sem desconto à vista. Guardar isso evita 19
+  requisições que devolveriam sempre o preço de tabela.
+- **A origem diz se foi lido ou calculado.** `origens.precoPromocional` sai como *"formas
+  de pagamento — desconto de 5%"* no primeiro e *"calculado: desconto de 5% da loja,
+  conferido em N leitura(s)"* nos demais. Sem isso, não haveria como saber em qual dos
+  dois casos um produto caiu.
+- **Só uma parcela conta**, a mesma regra do `priceSellDetails`. E o valor sai do `<b>`,
+  não de qualquer `R$` da linha: o cartão escreve *"Parcela Mínima de `<strong>`R$
+  30,00"* na mesma `<tr>`, e um leitor guloso gravaria 30,00 como preço do produto.
+
 **Códigos, imagens e charset:**
 
 - **O código é o ponto de acesso ao produto do concorrente.** Campo com mais de um código
@@ -225,6 +382,13 @@ igual — catálogo público não é licença para atropelar o servidor.
   registro com os dois dentro não é achado por nenhum dos dois. Separa em disjunção
   explícita (`ou`, vírgula, ponto-e-vírgula) — **nunca em hífen, ponto ou barra**, que
   fazem parte de códigos inteiros (`F30-004`, `HK-502`, `5V/3A`).
+- **Na Tray, o `sku` do JSON-LD é o id INTERNO, não o código da loja.** Medido em três
+  lojas: onde o JSON-LD publica `sku`, ele é sempre igual ao `idProduct` do `dataLayer`
+  (Smartkits 1079, Arduino Brasil Shop 1001), e o código que a página mostra ao cliente —
+  **`REF: SK1244`** — é o `reference`. A Casa da Robótica não publica `sku` nenhum, e por
+  isso já vinha certa. O desvio em `normalizar.js` só vale quando está **provado** que os
+  dois são o mesmo número: loja que um dia publicar `sku` próprio continua vencendo pela
+  ordem normal.
 - **Sem código na página, o produto entra como `N/A`** — decidido pelo dono, e é a única
   exceção à regra de nunca inventar valor. Por isso `origens.code` sempre registra que a
   marcação foi nossa. Constante `SEM_CODIGO` em `normalizar.js`.
@@ -313,10 +477,62 @@ e 100 — varrer atrás de qualquer `%` traria desconto e garantia para dentro d
 imposto sai das especificações: ele tem campo próprio, e repetir diria a mesma coisa duas
 vezes.
 
-**Ainda em aberto:** a unidade de venda (a Santana publica *Múltiplo de venda: 100*, e
-preço por embalagem comparado com varejo engana) e a conferência contra a importação
-anterior, recusando desvio absurdo — arquivo exportado à mão vem parcial, vem velho, vem
-da aba errada.
+**O arquivo entra pela tela, não pela linha de comando** — feito em 01/09/2026. O
+fornecedor manda a lista por e-mail ou WhatsApp; o operador anexa na linha da fonte, em
+`ArquivosDaFonte.jsx`, e "Atualizar dados" reprocessa **o último arquivo de cada tipo**.
+
+- Gravados em `dados/coleta/<domínio>/arquivos/`, com manifesto ao lado (`salvarArquivosDaFonte`,
+  `manifestoDaFonte`). Fora do git e fora de `public/`, igual às fotos de produto.
+- **O nome do arquivo vem do navegador e é dado de terceiro.** Passa por
+  `path.basename` e `replace(/[^\w.\- ]/g, "_")` antes de virar caminho: `../../.env` é um
+  nome de arquivo perfeitamente válido para quem envia, e sem isso seria um destino de
+  escrita perfeitamente válido para nós.
+- **Teto de 24 MB, conferido nos dois lados.** No cliente para dar recado, no
+  `next.config.mjs` porque acima disso o 413 vem **antes** do nosso código — a planilha da
+  Nightech tem 16 MB.
+- Reprocessar é `reprocessarArquivos`, o mesmo caminho da leitura de arquivo: a tela não
+  ganhou um segundo extrator.
+
+**Conciliação: o que some da lista não é apagado** — `src/lib/coleta/conciliar.js`, sem
+imports, testado em `npm run teste:extracao`. Combinado com o dono em 01/09/2026:
+
+- Novo entra; conhecido atualiza; **ausente fica, com o saldo a `null`**.
+- **Ausente não é zero, e a distinção é o ponto todo.** "Esgotou" é afirmação do
+  fornecedor; "não veio na lista" é observação nossa. Gravar `0` poria na boca dele um
+  número que ele não disse — contra a regra que vale no resto do sistema. O motivo fica em
+  `ausente.desde/motivo` e em `origens.quantidade`, para a tela dizer qual dos dois casos é.
+- Apagar jogaria fora código, descrição, fotos e NCM — caros de obter — por causa de uma
+  linha que não veio, e o item costuma voltar na semana seguinte.
+
+**A trava de queda: uma lista pela metade é recusada inteira.** `quedaSuspeita`, teto de
+50%. Não é hipótese: um upload parcial da Fortek chegou com 512 produtos contra 1.911
+guardados, e teria marcado **73% do catálogo como ausente sem um erro na tela**. Foi
+recusado, e os 1.911 ficaram intactos.
+
+- A causa concreta é a Fortek mandar **duas** listas — pronta entrega e reserva. Enviar só
+  uma marca como ausente todo produto que só existe na outra. Vale igual para exportação
+  truncada ou da aba errada.
+- **Só compara arquivo com arquivo.** A colheita do site traz 20 produtos e o arquivo traz
+  1.900: comparar os dois acusaria queda em toda troca de caminho, e o aviso viraria ruído
+  que se aprende a ignorar.
+
+**Ainda em aberto:** a unidade de venda — a Santana publica *Múltiplo de venda: 100*, e
+preço por embalagem comparado com varejo engana.
+
+**Fornecedores com conta, ainda não ligados** — `FORNECEDORES.md`, na raiz. São 32 contas
+que o dono já tem, registradas a partir de 01/09/2026.
+
+**Nomes não entram no código.** Uma primeira versão colocou a lista dentro de
+`src/lib/coleta/fornecedores.js` e o dono recusou em 01/09/2026: o arquivo de regras é
+lido pelo `regrasDoFornecedor` a cada coleta, e uma lista de intenção ali passa a parecer
+configuração ativa — alguém acabaria iterando sobre ela. O `.md` na raiz não tem `export`,
+ninguém o importa, e ele volta à conversa só quando o dono pedir um nome.
+
+Ter a conta não é ter o fornecedor ligado: implementar um deles começa por descobrir como
+o dado chega — vitrine pública, portal atrás de login ou arquivo exportado —, e só então
+decidir entre coleta e importação. **Site só está anotado onde o dono deu** (hoje doze). A
+**Solda Fria** é a mais adiantada — é a loja em que a plataforma OpenCart foi conferida em
+`plataformas.js`, então só falta cadastrá-la como fonte.
 
 Arquivos de origem em `C:/Users/pesso/Downloads/`.
 
@@ -358,6 +574,23 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   rotas de busca). Quando ele não entrega, a descoberta é por **navegação**, priorizando
   URLs com cara de produto (`.html`, id numérico no fim) — em largura pura o orçamento
   acaba nas categorias.
+- **ENDEREÇO NÃO É PRODUTO, e confundir os dois já enganou o dono.** O passo contava as
+  linhas do sitemap e as chamava de "produto": a Usinainfo aparecia com *"12 produto(s) no
+  sitemap"*, e o número ia para **"Catálogo da loja"** e ficava **gravado na fonte** — como
+  se a loja inteira tivesse doze itens. `usbuscaroute-sitemap.xml` é o único sitemap dela
+  (todos os outros caminhos dão 404) e traz 12 rotas de `/busca/...`.
+- **A coleta nunca esteve limitada** — o defeito era só de relatório. Medido: com limite
+  20, a Usinainfo entrega **20 produtos em 78 s**, abrindo 35 páginas, com 20 códigos
+  distintos. A navegação compensa o sitemap inútil por inteiro.
+- **Filtrar por "cara de produto" não resolveria.** Das 12 rotas, onze não têm cara de
+  produto e a décima segunda tem **por acidente**: `baterias-18650` casa com o padrão de id
+  numérico, e 18650 é o modelo da bateria.
+- Hoje o passo diz **"N endereço(s) no sitemap"**, que é o que foi contado, e o total só
+  vira "produtos da loja" depois de **provado** que aquele sitemap lista produto — ou seja,
+  quando pelo menos um endereço dele virou produto de verdade. Sem prova, `null` e
+  travessão na tela. E a frase distingue a origem: catálogo público da plataforma
+  (`produtosNoSiteFonte: "catalogo"`, o caso dos 2.296 da Casa da Robótica, que vêm do
+  `/web_api/products` e **não** do sitemap) ou sitemap.
 
 ---
 
@@ -368,9 +601,37 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   gravando em `prisma/migrations/<timestamp>_nome/migration.sql`, depois `migrate deploy`.
 - **Ele nem sempre regenera o client.** Depois de migrar: `npx prisma generate` **e
   reiniciar o servidor** — o dev server mantém o client antigo em memória e a tela mostra
-  "banco indisponível" com o Postgres saudável.
+  "banco indisponível" com o Postgres saudável. **Esta armadilha já estava escrita aqui e
+  ainda assim foi repetida** ao adicionar a coluna `instrucoes`: migration aplicada,
+  `generate` rodado, servidor não reiniciado — e o campo não salvava. O sintoma não é erro
+  de banco: o client em memória **não conhece a coluna**, então ela some do `update` em
+  silêncio e a tela volta como se tivesse salvado. Ler a regra não basta; reiniciar faz
+  parte do passo de migrar.
+- **Tela mostrando zero pode estar lendo a fonte errada, não contando errado.** A coluna
+  "Coletados" exibia 0 com 1.911 produtos em disco: ela lia `_count.paginas` do Postgres,
+  que está **vazio de propósito** enquanto a coleta grava em JSON. Trocar o rótulo teria
+  escondido o defeito. Enquanto duas origens convivem, número na tela pede a pergunta
+  "de onde este veio?" antes de "a conta está certa?".
 - **Renomear tabela**: escreva a migration à mão com `ALTER TABLE ... RENAME`. O
   `migrate diff` gera `DROP` + `CREATE` e apaga os dados.
+- **Erro de sintaxe envenena o cache do Turbopack, e o veneno sobrevive ao restart.** Um
+  arquivo salvo por instantes com erro de parse — no caso, uma aspa a mais deixada por um
+  `sed` em `mercados/page.jsx` — derrubou o manifesto de rotas da **subárvore inteira**:
+  depois de corrigido o arquivo, `/mercados/fontes` continuou devolvendo **404** enquanto
+  `/mercados` e `/integracoes` respondiam 200. O arquivo da rota estava intacto, com
+  `export default` no lugar, e **três reinícios do servidor não resolveram**. O que resolve
+  é apagar o cache:
+
+  ```bash
+  rm -rf .next && npm run dev
+  ```
+
+  O sintoma engana: parece rota apagada ou site fora do ar, e não é nenhum dos dois — o
+  layout renderiza normalmente em volta do 404. Antes de procurar no código, confira se a
+  rota some só numa subárvore e se o arquivo dela foi mesmo alterado (`git status`).
+- **Patch com `sed` em JSX cobra caro por isso.** Aspas dentro de atributo e de string
+  fazem o comando escapar do que se pretendia, e o estrago não aparece no arquivo editado —
+  aparece numa rota vizinha, minutos depois. Em JSX, prefira edição por trecho exato.
 - **Abas precisam ficar montadas e apenas ocultas.** Campo desmontado não entra no
   `FormData` — salvar por uma aba invalidava os campos das outras.
 - **Arquivo `"use server"` só exporta função assíncrona.** Uma constante exportada faz o

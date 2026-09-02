@@ -335,9 +335,19 @@ function especificacoesDeLista(texto) {
     (/:\s*$/.test(linha) ||
       (linha === linha.toUpperCase() && /[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(linha)));
 
-  const inicio = linhas.findIndex(
-    (linha) => ehTitulo(linha) && /especifica|ficha t[eé]cnica|dados t[eé]cnicos/i.test(linha),
-  );
+  // O titulo da secao as vezes vem SEM dois-pontos e em caixa normal — a
+  // Smartkits escreve so "Especificacoes" no JSN-SR04T, e a ficha inteira,
+  // dez itens, era descartada por causa de um caractere.
+  //
+  // A folga vale so para o titulo que o vocabulario ja reconhece, e so quando a
+  // linha e curta e nao passa de tres palavras: o que se aceita e a linha que
+  // SO anuncia a secao, nunca uma frase que menciona a palavra.
+  const ehSecaoDeFicha = (linha) =>
+    linha.length < 45 &&
+    /especifica|ficha t[eé]cnica|dados t[eé]cnicos/i.test(linha) &&
+    (ehTitulo(linha) || linha.split(/\s+/).length <= 3);
+
+  const inicio = linhas.findIndex(ehSecaoDeFicha);
 
   // Sem secao de especificacoes, nao ha o que ler. Varrer o texto inteiro atras
   // de "rotulo: valor" parecia mais generoso e nao era: numa pagina real isso
@@ -356,6 +366,9 @@ function especificacoesDeLista(texto) {
   const itens = [];
   let seguidasSemPar = 0;
   let houveBranco = false;
+  // A lista usa marcador? Quem responde e o PRIMEIRO item, nao um palpite:
+  // secao marcada e secao sem marcador terminam por sinais diferentes.
+  let listaMarcada = null;
 
   for (const linhaBruta of linhas.slice(inicio + 1)) {
     if (!linhaBruta) {
@@ -367,6 +380,7 @@ function especificacoesDeLista(texto) {
     // Marcador de lista dito pelo site. Guardado ANTES de ser removido, porque
     // e ele que distingue "mais um item da ficha" de "comecou outro assunto".
     const temMarcador = /^\s*[-•*]\s/.test(linhaBruta);
+    if (listaMarcada === null) listaMarcada = temMarcador;
 
     const linha = linhaBruta.replace(/^[\s\-•*]+/, "").replace(/[;.]\s*$/, "").trim();
     const separador = linha.indexOf(":");
@@ -376,12 +390,19 @@ function especificacoesDeLista(texto) {
 
     // O rotulo pode ter ponto: "Carga max." e abreviacao, nao fim de frase.
     // Quem separa rotulo de frase e o tamanho, nao a pontuacao.
+    //
+    // O TETO DE PALAVRAS DO ROTULO CEDE AO MARCADOR. "Diferenca minima entre a
+    // entrada e saida" tem sete palavras e e rotulo de verdade — com o teto
+    // fixo em seis, a linha deixava de ser par, caia na regra de paragrafo por
+    // ter doze palavras no total, e encerrava a ficha do XL6009 no terceiro
+    // item de onze. O que limita rotulo continua sendo o tamanho em caracteres;
+    // o numero de palavras so serve onde o site nao disse que aquilo e lista.
     const ehPar =
       rotulo &&
       valor &&
       separador <= 40 &&
       valor.length <= 120 &&
-      rotulo.split(/\s+/).length <= 6;
+      rotulo.split(/\s+/).length <= (temMarcador ? 10 : 6);
 
     // Ser par vem ANTES de julgar se e paragrafo. Ao contrario, uma
     // especificacao comprida — "Tensao de operacao: 3,3V (Pino 3.3) / 5 - 6V
@@ -394,8 +415,21 @@ function especificacoesDeLista(texto) {
       continue;
     }
 
-    // Nao e par: agora sim, paragrafo encerra a ficha.
-    if (ehParagrafo(linhaBruta)) break;
+    // Numa lista MARCADA, linha sem marcador encerra.
+    //
+    // E o site dizendo "mudei de assunto" sem usar dois-pontos no subtitulo: no
+    // JSN-SR04T a ficha e seguida de "Downloads", "Acompanha" e "Garantia" —
+    // todos sem marcador, sem dois-pontos e sem linha em branco antes. Nenhuma
+    // das outras regras os alcancava, e os seis viravam especificacao.
+    //
+    // O par ja escapou acima, entao o item solto sem hifen no meio de uma lista
+    // marcada continua sendo lido enquanto for "rotulo: valor". O que esta
+    // regra descarta e a linha que nao e nem marcada nem par.
+    if (listaMarcada && !temMarcador) break;
+
+    // Nao e par: agora sim, paragrafo encerra a ficha. Menos com marcador —
+    // item de lista comprido e ficha tecnica, nao texto corrido.
+    if (!temMarcador && ehParagrafo(linhaBruta)) break;
 
     // Linha que nao e par vinda DEPOIS de uma linha em branco: a ficha acabou.
     //
@@ -676,9 +710,17 @@ function daTray(html) {
  * So conta quando e UMA parcela: com duas ou mais, o valor e o da parcela e nao
  * o do produto — registrar 12x de 24,69 como preco daria 24,69 num produto de
  * 296,28.
+ *
+ * Loja sem parcelamento declarado publica o campo como STRING VAZIA, nao como
+ * lista vazia nem ausente — e assim na Smartkits inteira, inclusive num produto
+ * de R$ 4.299,90. O `?.` nao alcanca isso, e `"".find` derrubava a validacao da
+ * fonte com "find is not a function" antes de qualquer preco ser lido.
  */
 function aVistaDaTray(tray) {
-  const detalhe = tray?.priceSellDetails?.find(
+  const parcelas = tray?.priceSellDetails;
+  if (!Array.isArray(parcelas)) return null;
+
+  const detalhe = parcelas.find(
     (parcela) => String(parcela?.["installment.months"]) === "1",
   );
 
@@ -692,6 +734,10 @@ function aVistaDaTray(tray) {
  * de verdade — com a secao "Especificacoes:" dentro — mora num bloco de classe
  * "description". Como quem decide e melhorDescricao, pela MAIS LONGA, incluir
  * este bloco nao atropela loja nenhuma: so vence onde for realmente maior.
+ *
+ * O endereco dos documentos NAO fica aqui. A descricao e texto; o link do
+ * datasheet vira campo proprio, em documentosDaPagina — senao o mesmo endereco
+ * apareceria em dois lugares e nenhum deles clicavel.
  */
 function descricaoDoBloco(html) {
   const bloco =
@@ -700,6 +746,87 @@ function descricaoDoBloco(html) {
     );
 
   return bloco ? comoTexto(bloco[1]) : null;
+}
+
+/// Extensao que denuncia arquivo, e nao pagina. Vale no dominio da propria
+/// loja: datasheet hospedado em casa continua sendo documento.
+const EXTENSAO_DE_ARQUIVO =
+  /\.(pdf|zip|rar|7z|docx?|xlsx?|pptx?|csv|txt|stl|dxf|step|ino|hex)(?:[?#]|$)/i;
+
+/// Endpoint de anexo da plataforma. O PrestaShop serve o arquivo por
+/// `controller=attachment`, sem extensao nenhuma no endereco.
+const ENDPOINT_DE_ANEXO = /controller=attachment|\/attachments?\/|\/anexos?\//i;
+
+/// O que o link diz que é. Vocabulario de DOCUMENTO, nao de pagina: "blog",
+/// "tutorial" e "projeto" ficam de fora de proposito — sao conteudo da loja.
+const NOME_DE_DOCUMENTO =
+  /datasheet|data sheet|manual|esquem[aá]tico|esquema el[eé]trico|diagrama|cat[aá]logo|ficha t[eé]cnica|firmware|biblioteca|documenta[cç]/i;
+
+/// Teto por produto. Passando disso nao e a ficha do item, e um repositorio da
+/// loja inteira — guardar tudo encheria o campo de material de outro produto.
+const MAXIMO_DOCUMENTOS = 12;
+
+/**
+ * Documentos que o concorrente publica para download.
+ *
+ * O datasheet e o que permite conferir se o produto do concorrente e o MESMO
+ * que o nosso: dois modulos com nome diferente e o mesmo CI sao o mesmo item.
+ * Sem o endereco, sobrava a palavra "Datasheet" na descricao e o documento
+ * ficava inalcancavel.
+ *
+ * O QUE IDENTIFICA UM DOCUMENTO E O TEXTO DO LINK, mais a extensao e o endpoint
+ * de anexo. "Sai da loja" parecia servir e nao serve — medido na pagina INTEIRA,
+ * esse criterio devolveu 30 candidatos na Smartkits (WhatsApp vinte vezes,
+ * Instagram, TikTok, o selo da Loja Protegida) e 6 na Usinainfo, todos redes
+ * sociais. Com extensao, anexo e vocabulario, as duas devolvem UM: o datasheet.
+ *
+ * Os dois casos reais nao se parecem em nada, e nenhum criterio sozinho pega os
+ * dois: a Smartkits hospeda no Google Drive, endereco sem extensao e fora do
+ * dominio; a Usinainfo serve pelo anexo do PrestaShop, no proprio dominio e
+ * tambem sem extensao.
+ *
+ * Varre a pagina inteira porque o link nao mora num lugar so: na Tray ele esta
+ * dentro da descricao, na Usinainfo numa aba propria, fora dela.
+ */
+function documentosDaPagina(html, urlBase) {
+  if (!html) return [];
+
+  const achados = new Map();
+
+  for (const ancora of html.matchAll(
+    /<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+  )) {
+    const endereco = comoUrlAbsoluta(ancora[1], urlBase);
+    if (!endereco) continue;
+
+    const titulo = comoTexto(ancora[2]);
+    let caminho;
+    try {
+      caminho = new URL(endereco).pathname;
+    } catch {
+      continue;
+    }
+
+    const ehDocumento =
+      EXTENSAO_DE_ARQUIVO.test(caminho) ||
+      ENDPOINT_DE_ANEXO.test(endereco) ||
+      (titulo && NOME_DE_DOCUMENTO.test(titulo));
+
+    if (!ehDocumento || achados.has(endereco)) continue;
+
+    // O mesmo anexo aparece duas vezes na Usinainfo — uma dentro das
+    // caracteristicas, outra na aba de download — e so uma das duas tem texto.
+    // Sem titulo, o nome do arquivo no endereco; sem ele, rotulo generico:
+    // inventar um nome para o documento seria dizer o que a pagina nao disse.
+    achados.set(endereco, {
+      titulo: titulo || decodeURIComponent(caminho.split("/").pop() || "") || "Documento",
+      url: endereco,
+    });
+
+    if (achados.size >= MAXIMO_DOCUMENTOS) break;
+  }
+
+  return [...achados.values()];
 }
 
 /**
@@ -892,6 +1019,9 @@ export function normalizarPagina({
   // Campos vindos do catalogo publico da plataforma, quando ela publica um.
   // Sao poucos e escolhidos: ver camposDoCatalogo em catalogo.js.
   doCatalogo = null,
+  // Preco a vista lido do bloco de formas de pagamento, quando a plataforma o
+  // serve fora da pagina. Ver pagamento.js.
+  doPagamento = null,
 }) {
   if (!html) return { produtos: [], motivo: "pagina sem corpo", formatos: [] };
 
@@ -931,6 +1061,10 @@ export function normalizarPagina({
     // qual e o normal e qual e o promocional e decidirPrecos, com a mesma regra
     // que ja vale para as outras lojas.
     aVistaDaTray(tray),
+    // Mesma ideia, para a loja que serve o a vista fora da pagina: a Smartkits
+    // anuncia 52,15 no pix contra 54,90 de tabela, e nenhum dos dois numeros
+    // convive com o outro no HTML.
+    doPagamento?.aVista ?? null,
   ].filter((n) => typeof n === "number");
 
   const prices = decidirPrecos({ declaradoNormal, candidatos });
@@ -972,8 +1106,23 @@ export function normalizarPagina({
   // Eram dois, e na pratica a loja publica um numero unico: o SKU aparecia
   // repetido no "codigo", que era copia dele. Dois campos com o mesmo valor
   // davam a impressao de dois dados coletados onde havia um.
+  // O SKU DA TRAY NO JSON-LD E O ID INTERNO, nao o codigo da loja.
+  //
+  // Medido em tres lojas Tray: onde o JSON-LD publica sku, ele e sempre igual
+  // ao idProduct do dataLayer (Smartkits 1079, Arduino Brasil Shop 1001), e o
+  // codigo que a pagina mostra ao cliente — "REF: SK1244" — e o reference. A
+  // Casa da Robotica nao publica sku nenhum, e por isso ja vinha certa.
+  //
+  // Sao IGUAIS a proposito: o teste nao adivinha, confere. Loja que um dia
+  // publicar um sku proprio, diferente do id, continua vencendo pela ordem
+  // normal — este desvio so vale quando esta provado que o sku e o id.
+  const skuEhIdInterno =
+    tray?.idProduct &&
+    String(estruturado?.skuFonte ?? micro?.skuFonte ?? "") === String(tray.idProduct);
+
   const code = primeiro(
     "code",
+    [skuEhIdInterno ? comoTexto(tray?.reference) : null, "dataLayer da Tray (REF da loja)"],
     [micro?.skuFonte, "itemprop=sku"],
     [estruturado?.skuFonte, estruturado?.fonte ?? "?"],
     [comoTexto(bruto?.productID), "json-ld productID"],
@@ -1110,8 +1259,25 @@ export function normalizarPagina({
   if (prices.normal !== null) {
     origens.precoNormal = declaradoNormal ? "preco de tabela declarado" : "maior preco da pagina";
   }
-  if (prices.promotional !== null) origens.precoPromocional = "menor preco da pagina";
+  if (prices.promotional !== null) {
+    // Dizer QUAL bloco trouxe o desconto importa: o a vista da Tray nao esta na
+    // pagina, e um promocional sem essa nota pareceria lido do HTML por quem
+    // fosse conferir a mao e nao o encontrasse la.
+    //
+    // E dizer se foi LIDO ou CALCULADO importa mais ainda. O desconto e da
+    // loja, entao ele e perguntado uma vez por fonte e aplicado ao resto — quem
+    // conferir precisa saber em qual dos dois casos este produto caiu.
+    origens.precoPromocional =
+      doPagamento && prices.promotional === doPagamento.aVista
+        ? doPagamento.derivado
+          ? `calculado: desconto de ${doPagamento.desconto}% da loja, conferido em ${doPagamento.conferidoEm} leitura(s)`
+          : `formas de pagamento${doPagamento.desconto ? ` — desconto de ${doPagamento.desconto}%` : ""}`
+        : "menor preco da pagina";
+  }
+  const documentos = documentosDaPagina(html, url);
+
   if (description) origens.description = "texto mais longo entre as fontes";
+  if (documentos.length) origens.documentos = `${documentos.length} link(s) de download`;
   if (images.length) origens.images = `${images.length} endereco(s) na pagina`;
   if (status !== "UNKNOWN") origens.status = "availability declarada";
   if (typeof quantidade === "number") {
@@ -1157,6 +1323,7 @@ export function normalizarPagina({
     },
     description,
     specifications: fichaSemImpostos ?? [],
+    documentos,
     variants: opcoesDeVariacao(bruto),
     seo,
     // Quem serve a loja de onde este produto saiu. null quando nao foi possivel

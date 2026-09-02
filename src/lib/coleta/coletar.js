@@ -1,4 +1,9 @@
+import { lerArquivosDaFonte, lerColeta, salvarColeta } from "./arquivo";
+import { juntarListas, lerArquivo } from "./arquivos";
+import { conciliar, quedaSuspeita } from "./conciliar";
+import { regrasDoFornecedor } from "./fornecedores";
 import { buscarPagina, podeVisitar } from "./buscar";
+import { colherProdutos } from "./colher";
 import { acharUmProduto, rastrear } from "./descobrir";
 import { extrairProduto, resumirExtracao } from "./extrair";
 import { gravarPagina } from "./gravar";
@@ -186,6 +191,244 @@ export async function conferirSite(urlColada) {
 /// semente e o site vai sendo coberto aos poucos.
 const ORCAMENTO_NAVEGACAO = 5000;
 
+/// Quantos produtos cada fonte deve render numa varredura. Combinado com o
+/// dono: 20 por concorrente ou fornecedor — o bastante para conferir a
+/// extracao com material real, sem varrer catalogo inteiro enquanto os testes
+/// correm.
+export const PRODUTOS_POR_FONTE = 20;
+
+/**
+ * Reprocessa a ultima lista que o fornecedor mandou.
+ *
+ * ARQUIVO NAO SE ATUALIZA SOZINHO — ele e uma foto do dia em que o fornecedor
+ * mandou. O que a varredura faz e ler de novo o que esta guardado, com os
+ * leitores de hoje. Por isso o resumo diz a data da LISTA, e nao so a do
+ * reprocessamento: sem ela, uma lista de tres semanas atras parece tao fresca
+ * quanto a vitrine varrida agora.
+ */
+async function reprocessarArquivos(fonte, guardados, aoProgredir) {
+  const comecou = Date.now();
+  const regras = regrasDoFornecedor({ nome: fonte.nome, url: `https://${fonte.dominio}` });
+  const lidos = [];
+
+  for (const arquivo of guardados.arquivos) {
+    const leitura = await lerArquivo({
+      nome: arquivo.nome,
+      bytes: arquivo.bytes,
+      fonte: { name: fonte.nome, type: fonte.tipo },
+    });
+    lidos.push(leitura);
+
+    if (aoProgredir) {
+      await aoProgredir({ total: guardados.arquivos.length, feitas: lidos.length });
+    }
+  }
+
+  // A pronta entrega vem primeiro: em juntarListas quem chega antes vence, e o
+  // preco a manter e o dela — medido na Fortek, onde o 65-276 custa 79,90 na
+  // reserva e 82,90 na pronta entrega.
+  const ordenados = [...lidos].sort(
+    (a, b) => (a.modalidade === "RESERVA" ? 1 : 0) - (b.modalidade === "RESERVA" ? 1 : 0),
+  );
+
+  const listas = ordenados.map((leitura) => leitura.produtos);
+  let produtos =
+    listas.length > 1
+      ? juntarListas(listas, { sufixoDeCarga: regras.sufixoDeCarga })
+      : (listas[0] ?? []);
+
+  if (produtos.length === 0) {
+    return {
+      total: guardados.arquivos.length,
+      feitas: 0,
+      produtos: 0,
+      arquivo: null,
+      erro: "nenhum produto reconhecido nos arquivos guardados",
+    };
+  }
+
+  // Site + arquivo, quando a regra do fornecedor diz que sao o mesmo catalogo
+  // pela metade: a Nightech publica foto, texto e endereco no site e preco e
+  // saldo na planilha. Mesmo codigo = um produto.
+  if (regras.mesclarSiteComArquivo && fonte.robotsPermite) {
+    const doSite = await colherProdutos({
+      url: `https://${fonte.dominio}/`,
+      secao: fonte.prefixoUrl ?? undefined,
+      nome: fonte.nome,
+      tipo: fonte.tipo,
+      limite: PRODUTOS_POR_FONTE,
+    });
+
+    // Site ANTES do arquivo: quem chega primeiro vence, e a foto e a descricao
+    // de venda sao do site.
+    if (doSite.produtos.length > 0) {
+      produtos = juntarListas([doSite.produtos, produtos]);
+    }
+  }
+
+  const anterior = await lerColeta(fonte.dominio);
+
+  // TRAVA: lista muito menor que a anterior nao e aplicada.
+  const queda = quedaSuspeita({
+    anteriores: anterior?.produtos,
+    novos: produtos,
+    origemAnterior: anterior?.origem,
+  });
+
+  if (queda) {
+    return {
+      total: guardados.arquivos.length,
+      feitas: 0,
+      produtos: 0,
+      arquivo: null,
+      erro:
+        `a lista nova tem ${queda.agora} produto(s) contra ${queda.antes} da anterior — ` +
+        `${queda.percentual}% sumiriam. Confira se o conjunto esta completo ` +
+        `(a Fortek manda duas listas) e envie de novo.`,
+    };
+  }
+
+  const { produtos: conciliados, resumo: contagem } = conciliar({
+    anteriores: anterior?.produtos,
+    novos: produtos,
+    dataDaLista: guardados.manifesto?.enviadoEm,
+  });
+
+  const resumo =
+    `${conciliados.length} produto(s) · ${contagem.novos} novo(s), ` +
+    `${contagem.atualizados} atualizado(s), ${contagem.ausentes} ausente(s) da lista · ` +
+    `lista de ${new Date(guardados.manifesto?.enviadoEm ?? Date.now()).toLocaleDateString("pt-BR")}`;
+
+  const arquivo = await salvarColeta({
+    fonte: {
+      nome: fonte.nome,
+      dominio: fonte.dominio,
+      tipo: fonte.tipo,
+      url: `https://${fonte.dominio}/`,
+      secao: fonte.prefixoUrl ?? null,
+    },
+    produtos: conciliados,
+    resumo,
+    origem: "arquivo",
+    listaEnviadaEm: guardados.manifesto?.enviadoEm ?? null,
+    duracaoMs: Date.now() - comecou,
+  });
+
+  return {
+    total: guardados.arquivos.length,
+    feitas: guardados.arquivos.length,
+    produtos: conciliados.length,
+    visitas: 0,
+    arquivo,
+    resumo,
+    contagem,
+    erro: null,
+  };
+}
+
+/**
+ * Varredura de uma fonte GRAVANDO EM JSON.
+ *
+ * E o que o botao "Atualizar tabelas" faz hoje. O banco fica parado de
+ * proposito ate os testes terminarem: o schema e o `varrerFonte` abaixo
+ * continuam de pe, mas *o que* se guarda ainda nao foi decidido, e gravar antes
+ * disso enche a tabela com o formato errado.
+ *
+ * USA O MESMO CAMINHO DO "TESTAR FONTE" — colherProdutos —, mudando so o
+ * limite. Era aqui que as duas trilhas divergiam: a tela mostrava o que o
+ * normalizador completo extraia e a varredura gravava o que um extrator antigo
+ * entendia, entao o que o operador aprovava no cadastro nao era o que ficava
+ * guardado. Com uma funcao so, a divergencia deixa de ser possivel.
+ */
+export async function varrerFonteParaJson(fonte, aoProgredir) {
+  const comecou = Date.now();
+  // FORNECEDOR COM ARQUIVO NAO SE VARRE: reprocessa.
+  //
+  // A Fortek e um portal atras de login — varrer devolve zero. E onde ha lista
+  // enviada, ela e a fonte melhor de qualquer jeito: traz preco e saldo, que a
+  // vitrine de atacado nao publica.
+  if (fonte.tipo === "FORNECEDOR" && fonte.ativa) {
+    const guardados = await lerArquivosDaFonte(fonte.dominio);
+    if (guardados.arquivos.length > 0) {
+      return reprocessarArquivos(fonte, guardados, aoProgredir);
+    }
+  }
+
+  // Pausada e bloqueada nao se varre. "Pausar mantem tudo que ja foi coletado"
+  // e uma promessa da tela: varrer assim mesmo a quebraria.
+  if (!fonte.robotsPermite || !fonte.ativa) {
+    return {
+      total: PRODUTOS_POR_FONTE,
+      feitas: 0,
+      produtos: 0,
+      arquivo: null,
+      erro: fonte.robotsPermite ? "fonte pausada" : "robots.txt do site nos barra",
+    };
+  }
+
+  const colheita = await colherProdutos({
+    url: `https://${fonte.dominio}/`,
+    secao: fonte.prefixoUrl ?? undefined,
+    nome: fonte.nome,
+    tipo: fonte.tipo,
+    limite: PRODUTOS_POR_FONTE,
+    // O andamento e contado em PRODUTOS, nao em paginas abertas: e o numero que
+    // o operador pediu ("20 de cada"), e paginas abertas sobem sem parar em
+    // loja que exige muita navegacao ate achar produto.
+    aoProgredir: aoProgredir
+      ? ({ produtos }) => aoProgredir({ total: PRODUTOS_POR_FONTE, feitas: produtos })
+      : undefined,
+  });
+
+  if (colheita.produtos.length === 0) {
+    return {
+      total: PRODUTOS_POR_FONTE,
+      feitas: 0,
+      produtos: 0,
+      arquivo: null,
+      visitas: colheita.visitas,
+      erro: colheita.motivo ?? "nenhum produto valido",
+    };
+  }
+
+  const resumo =
+    `${colheita.produtos.length} produto(s) em ${colheita.visitas} pagina(s) · ` +
+    `formatos: ${colheita.formatos.join(", ")}` +
+    (colheita.ritmoMs ? ` · site pede ${colheita.ritmoMs / 1000}s entre visitas` : "");
+
+  const arquivo = await salvarColeta({
+    fonte: {
+      nome: fonte.nome,
+      dominio: fonte.dominio,
+      tipo: fonte.tipo,
+      url: `https://${fonte.dominio}/`,
+      secao: fonte.prefixoUrl ?? null,
+    },
+    produtos: colheita.produtos,
+    resumo,
+    duracaoMs: Date.now() - comecou,
+  });
+
+  return {
+    total: PRODUTOS_POR_FONTE,
+    feitas: colheita.produtos.length,
+    produtos: colheita.produtos.length,
+    visitas: colheita.visitas,
+    arquivo,
+    resumo,
+    // Colheita que ficou abaixo do pedido nao e erro: a loja pode nao ter 20
+    // produtos legiveis. Dizer quantos vieram e mais util que falhar.
+    erro: null,
+  };
+}
+
+/**
+ * Varredura gravando no BANCO. PARADA ate os testes terminarem.
+ *
+ * Continua de pe e com teste proprio (`npm run teste:coleta`), porque o banco
+ * volta depois — mas nada em producao a chama hoje: quem o botao e o worker
+ * usam e `varrerFonteParaJson`.
+ */
 export async function varrerFonte(fonte, paginasConhecidas, aoProgredir) {
   if (!fonte.robotsPermite || !fonte.ativa) {
     return { total: 0, feitas: 0, contagem: {}, erro: "fonte bloqueada ou pausada" };

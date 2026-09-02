@@ -2,7 +2,8 @@ import { buscarPagina, podeVisitar, ritmoPedido } from "./buscar";
 import { rastrear } from "./descobrir";
 import { ehProdutoValido, normalizarPagina } from "./normalizar";
 import { camposDoCatalogo, lerCatalogo, urlDoItem } from "./catalogo";
-import { catalogoPublicoDe, identificarPlataforma } from "./plataformas";
+import { catalogoPublicoDe, identificarPlataforma, pagamentoDe } from "./plataformas";
+import { lerAVista, novaMemoriaDePagamento } from "./pagamento";
 import { descobrirSitemaps, lerSitemaps } from "./sitemap";
 
 /**
@@ -24,11 +25,32 @@ function passo(nome, ok, detalhe = null) {
 }
 
 /** Abre uma pagina e normaliza. Pode render mais de um produto (variacoes). */
-async function tentarUrl(url, fonte, plataforma, doCatalogo = null) {
+async function tentarUrl(url, fonte, plataforma, doCatalogo = null, memoriaPagamento = null) {
   const resposta = await buscarPagina(url);
   if (!resposta.ok || !resposta.corpo) {
     return { produtos: [], formatos: [], erro: resposta.erro ?? "sem corpo" };
   }
+
+  // UMA requisicao a mais por FONTE, nao por produto.
+  //
+  // A Tray nao entrega o preco a vista no corpo da pagina — ele vem de um
+  // endereco proprio. Sem essa visita, o desconto do pix nao e coletado e a
+  // comparacao usa um preco que ninguem paga. Mas perguntar item a item
+  // dobrava a colheita: o ritmo e de uma visita a cada 2s por dominio, entao
+  // uma fonte de 20 produtos passava de 40s para 80s.
+  //
+  // O desconto e da LOJA, nao do produto. A memoria guarda a regra aprendida no
+  // primeiro item e o resto sai de conta — mas so quando a regra declarada pela
+  // loja reproduz exatamente o valor lido; ver regraDaLoja.
+  //
+  // Vem antes de normalizar porque o a vista entra como CANDIDATO a preco:
+  // quem decide normal e promocional continua sendo decidirPrecos, com a mesma
+  // regra de toda loja.
+  const doPagamento = await lerAVista(
+    pagamentoDe(plataforma, resposta.urlFinal ?? url),
+    resposta.corpo,
+    memoriaPagamento,
+  );
 
   const { produtos, formatos } = normalizarPagina({
     html: resposta.corpo,
@@ -36,6 +58,7 @@ async function tentarUrl(url, fonte, plataforma, doCatalogo = null) {
     fonte,
     plataforma,
     doCatalogo,
+    doPagamento,
   });
 
   // O tipo da fonte decide o que e produto valido: fornecedor sem preco ainda
@@ -161,6 +184,10 @@ export async function colherProdutos({
 
   const prefixo = secao?.trim() || null;
   const fonte = { name: nome ?? alvo.hostname, type: tipo ?? "OUTRO" };
+
+  // Uma memoria POR COLHEITA, nunca global: o desconto a vista e desta loja, e
+  // uma memoria compartilhada faria uma fonte responder pela outra.
+  const memoriaPagamento = novaMemoriaDePagamento();
   const encontrados = [];
   const formatos = new Set();
   const vistas = new Set();
@@ -179,7 +206,7 @@ export async function colherProdutos({
   };
 
   // 1) A propria URL ja e um produto?
-  const daPropria = await tentarUrl(alvo.toString(), fonte, plataforma);
+  const daPropria = await tentarUrl(alvo.toString(), fonte, plataforma, null, memoriaPagamento);
   visitas++;
   guardar(daPropria.produtos, daPropria.formatos);
 
@@ -222,6 +249,7 @@ export async function colherProdutos({
       fonte,
       plataforma,
       camposDoCatalogo(item, alvo.origin),
+      memoriaPagamento,
     );
     visitas++;
     guardar(tentativa.produtos, tentativa.formatos);
@@ -250,45 +278,64 @@ export async function colherProdutos({
     urlsSitemap = leitura.urls.map((item) => item.url);
   }
 
-  // Quantos produtos a loja tem, pelo que ela mesma declara no sitemap. E uma
-  // contagem de enderecos, nao de paginas abertas: nao custa requisicao nova.
+  const sitemapNoTeto = urlsSitemap.length === TETO_SITEMAP;
+
+  // ENDERECO NAO E PRODUTO.
   //
-  // Fica null quando nao ha sitemap — dizer zero seria afirmar que a loja nao
-  // tem catalogo, quando a verdade e que ela nao publica a lista.
-  // O total do catalogo e declarado pela loja; o do sitemap e o que coubemos
-  // ler. Quando os dois existem, o declarado vence — e nunca vem marcado como
-  // parcial, porque nao e estimativa nossa.
-  const produtosNoSite =
-    totalDoCatalogo ?? (sitemaps.length > 0 ? urlsSitemap.length : null);
-
-  const produtosNoSiteParcial =
-    totalDoCatalogo === null && produtosNoSite === TETO_SITEMAP;
-
-  // So relata o sitemap se ele foi mesmo consultado. Quando o catalogo ja
-  // completou a cota, nao olhamos — e dizer "nao publicado" ali seria afirmar
-  // sobre o site algo que nao medimos.
+  // O passo conta o que de fato foi contado: linhas no sitemap. Chamar isso de
+  // "produto" ja enganou — a Usinainfo declara no robots.txt um sitemap de
+  // ROTAS DE BUSCA, e a tela anunciava "12 produto(s) no sitemap" numa loja com
+  // milhares. Pior: o numero ia para "Catalogo da loja" e ficava gravado na
+  // fonte, como se a loja inteira tivesse doze itens.
+  //
+  // Filtrar por "cara de produto" nao resolveria: das 12 rotas, onze nao tem
+  // cara de produto e a decima segunda tem por acidente — "baterias-18650"
+  // casa com id numerico, e 18650 e o modelo da bateria.
   if (precisaDoSitemap) {
     passos.push(
       passo(
         "Sitemap identificado",
         sitemaps.length > 0,
         sitemaps.length > 0
-          ? `${urlsSitemap.length}${produtosNoSiteParcial ? "+" : ""} produto(s) no sitemap`
+          ? `${urlsSitemap.length}${sitemapNoTeto ? "+" : ""} endereco(s) no sitemap`
           : "nao publicado — vamos navegar pelo site",
       ),
     );
   }
 
+  // Quantos dos enderecos do sitemap viraram produto de verdade. E o que separa
+  // sitemap de catalogo de sitemap de qualquer outra coisa — e so a tentativa
+  // responde isso.
+  let produtosDoSitemap = 0;
+
   for (const candidata of urlsSitemap.slice(0, amostraSitemap)) {
     if (encontrados.length >= limite || visitas >= tetoVisitas) break;
     if (vistas.has(`|${candidata}`)) continue;
 
-    const tentativa = await tentarUrl(candidata, fonte, plataforma);
+    const antes = encontrados.length;
+    const tentativa = await tentarUrl(candidata, fonte, plataforma, null, memoriaPagamento);
     visitas++;
     guardar(tentativa.produtos, tentativa.formatos);
+    if (encontrados.length > antes) produtosDoSitemap++;
 
     if (aoProgredir) aoProgredir({ visitadas: visitas, produtos: encontrados.length });
   }
+
+  // Quantos produtos a loja tem.
+  //
+  // Tres respostas possiveis, e a ordem importa. O total do CATALOGO e
+  // declarado pela propria loja — vale como esta. O do SITEMAP so vale depois
+  // de provado que aquele sitemap lista produto: se nenhum dos enderecos
+  // abertos virou produto, ele nao e um indice de catalogo, e repetir o numero
+  // de linhas seria inventar um tamanho de loja.
+  //
+  // Sem nenhuma das duas, `null` — e a tela mostra travessao. Dizer zero
+  // afirmaria que a loja nao tem catalogo, quando a verdade e que ela nao
+  // publica a lista.
+  const produtosNoSite =
+    totalDoCatalogo ?? (produtosDoSitemap > 0 ? urlsSitemap.length : null);
+
+  const produtosNoSiteParcial = totalDoCatalogo === null && produtosNoSite === TETO_SITEMAP;
 
   // 3) Navegacao, quando o sitemap nao bastou. Nem toda loja publica sitemap de
   // produto: ha quem declare no robots.txt um sitemap de rotas de busca.
@@ -362,5 +409,9 @@ export async function colherProdutos({
     catalogo,
     produtosNoSite,
     produtosNoSiteParcial,
+    // De onde saiu a contagem. A tela dizia "publicados no sitemap" mesmo
+    // quando o numero vinha do catalogo da plataforma — os 2.296 da Casa da
+    // Robotica sao do /web_api/products, e nao do sitemap.
+    produtosNoSiteFonte: produtosNoSite === null ? null : totalDoCatalogo !== null ? "catalogo" : "sitemap",
   };
 }

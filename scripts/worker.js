@@ -24,7 +24,7 @@ const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
 const { prisma } = await import("../src/lib/db.js");
-const { varrerFonte } = await import("../src/lib/coleta/coletar.js");
+const { varrerFonteParaJson } = await import("../src/lib/coleta/coletar.js");
 
 /// De quanto em quanto o worker acorda para olhar a fila. Curto o bastante para
 /// o botao "Atualizar tabelas" parecer imediato, longo o bastante para nao
@@ -97,14 +97,21 @@ async function processar(job) {
   console.log(`[${agora()}] varrendo ${fonte.nome} (${fonte.dominio})...`);
 
   try {
-    // As paginas ja conhecidas viajam junto para que a visita possa mandar
-    // ETag e If-Modified-Since: pagina sem alteracao responde 304 sem corpo.
-    const conhecidas = await prisma.paginaColetada.findMany({
-      where: { fonteId: fonte.id },
-      select: { url: true, etag: true, vistoEm: true },
-    });
+    // GRAVA EM JSON, nao no banco — combinado com o dono enquanto os testes
+    // correm. O que o banco guarda ainda nao foi decidido, e gravar antes disso
+    // encheria a tabela com o formato errado.
+    //
+    // Some daqui o ETag/If-Modified-Since das paginas ja conhecidas: ele existia
+    // para a gravacao incremental no Postgres, e a colheita em JSON reescreve o
+    // arquivo inteiro a cada varredura. Volta junto com o banco.
+    let ultimoProgresso = 0;
 
-    const resultado = await varrerFonte(fonte, conhecidas, async ({ total, feitas }) => {
+    const resultado = await varrerFonteParaJson(fonte, async ({ total, feitas }) => {
+      // Uma escrita por produto novo, nao por pagina aberta: sao no maximo
+      // vinte por fonte, e o operador ve a barra andar de verdade.
+      if (feitas === ultimoProgresso) return;
+      ultimoProgresso = feitas;
+
       await prisma.job.update({
         where: { id: job.id },
         data: { payload: { ...job.payload, total, feitas } },
@@ -128,12 +135,10 @@ async function processar(job) {
       }),
     ]);
 
-    const resumo = Object.entries(resultado.contagem ?? {})
-      .map(([acao, quantas]) => `${quantas} ${acao}`)
-      .join(", ");
-
     console.log(
-      `[${agora()}] ${fonte.nome}: ${resultado.feitas}/${resultado.total} · ${resumo || "nada"}`,
+      `[${agora()}] ${fonte.nome}: ${resultado.produtos}/${resultado.total} produto(s)` +
+        (resultado.arquivo ? ` · ${resultado.arquivo}` : "") +
+        (resultado.erro ? ` · ${resultado.erro}` : ""),
     );
   } catch (erro) {
     const excedeu = job.tentativas + 1 >= job.maxTentativas;

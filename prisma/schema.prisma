@@ -398,6 +398,16 @@ model FonteColeta {
   /// Verdadeiro quando a contagem parou no teto de leitura — o catalogo e MAIOR
   /// que o numero guardado, e a tela precisa dizer isso em vez de mentir um total.
   produtosNoSiteParcial Boolean @default(false)
+  /// Anotacao livre do operador sobre esta fonte: onde baixar a lista, com que
+  /// login, qual aba da planilha exportar. E conhecimento que hoje mora na
+  /// cabeca de quem faz — a Fortek exige entrar no portal e salvar a pagina, a
+  /// Santana so mostra preco a cliente cadastrado — e some quando outra pessoa
+  /// assume a tarefa.
+  ///
+  /// SEM SENHA AQUI. O campo e texto simples e aparece na tela; credencial vai
+  /// para a tabela Conexao, que e cifrada.
+  instrucoes String?
+
   ativa          Boolean @default(true)
   intervaloHoras Int     @default(24)
 

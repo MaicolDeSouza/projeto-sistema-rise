@@ -20,6 +20,7 @@ const { comoNumero } = await import("../src/lib/coleta/texto-html.js");
 const { normalizarPagina, ehProdutoValido } = await import(
   "../src/lib/coleta/normalizar.js"
 );
+const { conciliar, quedaSuspeita } = await import("../src/lib/coleta/conciliar.js");
 
 let falhas = 0;
 
@@ -527,6 +528,274 @@ conferir(
   resumirExtracao({ encontrado: false }),
   "extracao falhou (sem dados estruturados)",
 );
+
+// ---------------------------------------------------------------------------
+// A ficha da Tray: titulo sem dois-pontos, rotulo comprido em item marcado, e
+// subtitulos que mudam de assunto sem dois-pontos nem linha em branco. Cada um
+// ja devolveu ficha vazia ou ficha com "Downloads" dentro.
+console.log("\n— ficha sem dois-pontos em lugar nenhum —");
+const fichaTray = [
+  "Sensor para medir distancia.",
+  "Especificações",
+  "- Tensão: 5V DC;",
+  "- Diferença mínima entre a entrada e saída: 1. 5 V DC;",
+  "- Peso: 50g.",
+  "Downloads",
+  "- Datasheet .",
+  "Acompanha",
+  "01 - Sensor.",
+  "Garantia",
+  "Garantia de 90 dias contra defeitos de fabricação.",
+].join("\n");
+
+const tray = normalizarPagina({
+  html: `<script type="application/ld+json">
+{"@type":"Product","name":"Sensor","sku":"1","offers":{"price":"54.90"},"description":${JSON.stringify(fichaTray)}}
+</script>`,
+  url: "https://loja.com.br/p/sensor",
+}).produtos[0];
+
+conferir(
+  "titulo 'Especificações' SEM dois-pontos e reconhecido",
+  tray.specifications.length > 0,
+  true,
+);
+conferir(
+  "rotulo de sete palavras em item marcado e par",
+  espec(tray, "Diferença mínima entre a entrada e saída"),
+  "1. 5 V DC",
+);
+conferir("a ficha para no subtitulo sem dois-pontos", nomesEspec(tray), [
+  "Tensão",
+  "Diferença mínima entre a entrada e saída",
+  "Peso",
+]);
+conferir(
+  "'Downloads' e 'Garantia' nao viram especificacao",
+  tray.specifications.some((item) => /Downloads|Garantia|Acompanha/.test(item.valor ?? "")),
+  false,
+);
+
+// ---------------------------------------------------------------------------
+// O datasheet do concorrente. Os dois casos reais nao se parecem: a Smartkits
+// hospeda no Google Drive (fora do dominio, sem extensao) e a Usinainfo serve
+// pelo anexo do PrestaShop (no proprio dominio, tambem sem extensao). Junto
+// vem o que NAO e documento: rede social, WhatsApp e o blog da loja.
+console.log("\n— documentos para download —");
+const comLinks = `<html><body>
+<div itemtype="https://schema.org/Product" itemscope>
+  <span itemprop="name">Sensor</span>
+  <meta itemprop="price" content="54.90" />
+</div>
+<div class="description">
+<p>Sensor de distancia.</p>
+<p>Veja tambem o <a href="/outro-produto">sensor infravermelho</a> da loja.</p>
+<p>ACESSE O PROJETO NO BLOG: <a href="/blog/medindo-distancia/">Blog Loja - MEDINDO DISTANCIA</a></p>
+<p>- <a href="https://drive.google.com/file/d/abc/view">Datasheet</a>.</p>
+<p>- <a href="/arquivos/manual-do-sensor.pdf">Manual</a>.</p>
+</div>
+<ul id="idTab9"><li><a href="/index.php?controller=attachment&id_attachment=101">Datasheet DS18B20</a></li></ul>
+<a href="https://www.instagram.com/loja/"><img src="/i.png"/></a>
+<a href="https://api.whatsapp.com/send?phone=5585">Comprar no WhatsApp</a>
+</body></html>`;
+
+const doc = normalizarPagina({
+  html: comLinks,
+  url: "https://loja.com.br/p/sensor",
+}).produtos[0];
+
+conferir("so os documentos entram, e sem repetir", doc.documentos.length, 3);
+conferir(
+  "link fora do dominio e sem extensao entra pelo TEXTO",
+  doc.documentos.find((d) => d.titulo === "Datasheet")?.url,
+  "https://drive.google.com/file/d/abc/view",
+);
+conferir(
+  "anexo do PrestaShop entra mesmo sem extensao no endereco",
+  doc.documentos.find((d) => d.titulo === "Datasheet DS18B20")?.url,
+  "https://loja.com.br/index.php?controller=attachment&id_attachment=101",
+);
+conferir(
+  "arquivo no dominio da propria loja entra pela extensao",
+  doc.documentos.find((d) => d.titulo === "Manual")?.url,
+  "https://loja.com.br/arquivos/manual-do-sensor.pdf",
+);
+conferir(
+  "rede social, WhatsApp, blog e outro produto NAO sao documento",
+  doc.documentos.some((d) => /instagram|whatsapp|\/blog\/|outro-produto/i.test(d.url)),
+  false,
+);
+conferir(
+  "o endereco NAO polui a descricao",
+  doc.description.includes("https://drive.google.com"),
+  false,
+);
+conferir(
+  "pagina sem documento devolve lista vazia, nunca null",
+  normalizarPagina({
+    html: `<script type="application/ld+json">
+{"@type":"Product","name":"X","sku":"1","offers":{"price":"10"},"description":"Sem anexos."}
+</script>`,
+    url: "https://loja.com.br/p/x",
+  }).produtos[0].documentos,
+  [],
+);
+
+// ---------------------------------------------------------------------------
+// O preco a vista da Tray vem de um endereco proprio, e perguntar item a item
+// DOBRAVA a colheita (uma visita a cada 2s por dominio). Como o desconto e da
+// loja, a regra e aprendida no primeiro produto e o resto sai de conta — este
+// e o caminho derivado, que nao faz requisicao nenhuma e por isso cabe aqui.
+console.log("\n— preco a vista derivado da regra da loja —");
+const { lerAVista } = await import("../src/lib/coleta/pagamento.js");
+
+const paginaTray = (preco) =>
+  `<img src="//images.tcdn.com.br/img/img_prod/751846/foto.jpg">
+   <script>var dataLayer = [{"idProduct":"1079","reference":"SK1244"}];</script>
+   <input type="hidden" id="preco_atual" value="${preco}" />`;
+
+const endereco = { url: "https://loja.com.br/mvc/store/product/payment_options" };
+
+const truncando = { regra: { percentual: 5, modo: "truncar" } };
+const arredondando = { regra: { percentual: 5, modo: "arredondar" } };
+
+const derivado = await lerAVista(endereco, paginaTray("54.9"), truncando);
+conferir("aplica o desconto da loja sem nova requisicao", derivado?.aVista, 52.15);
+conferir("e diz que foi derivado, nao lido", derivado?.derivado, true);
+conferir("sem endereco de origem, porque nao houve visita", derivado?.url, null);
+
+// A Smartkits trunca e a Casa da Robotica arredonda. Supor uma das duas erra a
+// outra em um centavo — e foi exatamente o que aconteceu com 4,89.
+conferir(
+  "loja que TRUNCA: 8,90 -5% = 8,455 vira 8,45",
+  (await lerAVista(endereco, paginaTray("8.90"), truncando))?.aVista,
+  8.45,
+);
+conferir(
+  "loja que ARREDONDA: 4,89 -5% = 4,6455 vira 4,65",
+  (await lerAVista(endereco, paginaTray("4.89"), arredondando))?.aVista,
+  4.65,
+);
+conferir(
+  "a mesma loja truncando daria 4,64 — um centavo de diferenca",
+  (await lerAVista(endereco, paginaTray("4.89"), truncando))?.aVista,
+  4.64,
+);
+conferir(
+  "loja sem desconto a vista nao inventa promocional",
+  await lerAVista(endereco, paginaTray("54.9"), { regra: { percentual: 0 } }),
+  null,
+);
+
+// A regra so pode ser adotada quando a amostra SEPARA os dois modos. 12,99 -5%
+// da 12,3405: truncar e arredondar dao 12,34, entao esse produto nao prova
+// nada — e foi confiando nele que a Casa da Robotica errou o produto seguinte.
+const { aprenderParaTeste } = await import("../src/lib/coleta/pagamento.js");
+conferir(
+  "amostra que nao separa os modos NAO vira regra",
+  aprenderParaTeste([{ precoTabela: 12.99, aVista: 12.34, percentual: 5 }]).regra ?? null,
+  null,
+);
+conferir(
+  "amostra que separa vira regra: 4,89 -> 4,65 e arredondamento",
+  aprenderParaTeste([{ precoTabela: 4.89, aVista: 4.65, percentual: 5 }]).regra,
+  { percentual: 5, modo: "arredondar", conferidoEm: 1 },
+);
+conferir(
+  "as duas juntas continuam dizendo arredondar",
+  aprenderParaTeste([
+    { precoTabela: 12.99, aVista: 12.34, percentual: 5 },
+    { precoTabela: 4.89, aVista: 4.65, percentual: 5 },
+  ]).regra,
+  // Duas leituras: e o caso real da Casa da Robotica, onde a primeira nao
+  // separava os modos. `conferidoEm` acompanha isso na origem do preco.
+  { percentual: 5, modo: "arredondar", conferidoEm: 2 },
+);
+conferir(
+  "amostra que separa para o outro lado diz truncar",
+  aprenderParaTeste([{ precoTabela: 8.9, aVista: 8.45, percentual: 5 }]).regra,
+  { percentual: 5, modo: "truncar", conferidoEm: 1 },
+);
+conferir(
+  "modo nenhum explicando as amostras vira semRegra",
+  aprenderParaTeste([{ precoTabela: 10, aVista: 7, percentual: 5 }]).semRegra,
+  true,
+);
+conferir(
+  "percentual que muda entre produtos vira semRegra",
+  aprenderParaTeste([
+    { precoTabela: 8.9, aVista: 8.45, percentual: 5 },
+    { precoTabela: 10, aVista: 9, percentual: 10 },
+  ]).semRegra,
+  true,
+);
+
+// ---------------------------------------------------------------------------
+// A conciliacao decide o que acontece com produto que sumiu da lista do
+// fornecedor. Errar aqui nao quebra a tela: zera saldo de item que existe, em
+// silencio. Por isso e testado com lista de mentira, e nao so em arquivo real.
+console.log("\n— conciliacao da lista do fornecedor —");
+
+const item = (code, extras = {}) => ({
+  code,
+  name: `Produto ${code}`,
+  url: `https://f/${code}`,
+  prices: { normal: 10 },
+  stock: { quantity: 5, aChegar: 2, status: "IN_STOCK" },
+  ...extras,
+});
+
+const conciliacao = conciliar({
+  anteriores: [item("A1"), item("A2"), item("A3")],
+  novos: [item("A1", { prices: { normal: 12 } }), item("NOVO")],
+  dataDaLista: "2026-09-01T00:00:00.000Z",
+});
+
+const achar = (code) => conciliacao.produtos.find((p) => p.code === code);
+
+conferir("quem sumiu continua na lista", conciliacao.produtos.length, 4);
+conferir("preco novo vence o antigo", achar("A1").prices.normal, 12);
+conferir("resumo separa os tres destinos", conciliacao.resumo, {
+  novos: 1,
+  atualizados: 1,
+  ausentes: 2,
+});
+
+// O ponto da regra: ausente vai a NULL, nunca a zero. Zero seria o fornecedor
+// afirmando "esgotou", e ele nao afirmou nada — so nao mandou a linha.
+conferir("saldo do ausente vira null, nao zero", achar("A2").stock.quantity, null);
+conferir("a chegar do ausente tambem", achar("A2").stock.aChegar, null);
+conferir("ausente guarda desde quando", achar("A2").ausente.desde, "2026-09-01T00:00:00.000Z");
+conferir("a origem explica o null", achar("A2").origens.quantidade.includes("nao declarou zero"), true);
+conferir("quem veio na lista nao ganha marca de ausente", achar("A1").ausente, undefined);
+
+// Produto sem codigo nao tem chave: nao da para dizer se e o mesmo item da
+// lista passada, entao fica fora das contas em vez de virar "novo" toda semana.
+conferir(
+  "produto sem codigo nao entra na conta",
+  conciliar({ anteriores: [], novos: [item("N/A"), item(null)] }).resumo.novos,
+  0,
+);
+
+// ---------------------------------------------------------------------------
+// A trava que recusa a lista inteira. Foi ela que impediu um upload parcial da
+// Fortek de zerar 73% de 1911 produtos.
+console.log("\n— trava de queda suspeita —");
+
+const queda = (antes, agora, origem = "arquivo") =>
+  quedaSuspeita({
+    anteriores: Array.from({ length: antes }, (_, i) => item(`A${i}`)),
+    novos: Array.from({ length: agora }, (_, i) => item(`A${i}`)),
+    origemAnterior: origem,
+  });
+
+conferir("lista pela metade ainda passa", queda(1000, 500), null);
+conferir("abaixo da metade e recusada", queda(1911, 512)?.percentual, 73);
+conferir("a trava diz quantos sumiram", queda(1000, 100)?.sumiram, 900);
+// So arquivo contra arquivo: a colheita do site traz 20 produtos e o arquivo
+// traz 1900, entao comparar os dois acusaria queda em toda troca de caminho.
+conferir("coleta do site nao dispara a trava", queda(1911, 20, "site"), null);
+conferir("primeira lista nao dispara a trava", queda(0, 0), null);
 
 // ---------------------------------------------------------------------------
 console.log("\n— campos essenciais —");

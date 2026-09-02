@@ -25,7 +25,8 @@ export const ROTULOS_CAMPOS = {
   precoPromocional: "Preco promocional",
   precoComImpostos: "Preco com impostos",
   description: "Descricao",
-  specifications: "Especificacoes",
+  specifications: "Caracteristicas",
+  documentos: "Documentos",
   status: "Status",
   quantidade: "Pronta entrega",
   quantidadeAChegar: "A chegar",
@@ -55,6 +56,7 @@ export function camposPreenchidos(produto) {
     precoComImpostos: typeof produto?.prices?.comImpostos === "number",
     description: Boolean(produto?.description),
     specifications: (produto?.specifications?.length ?? 0) > 0,
+    documentos: (produto?.documentos?.length ?? 0) > 0,
     status: Boolean(produto?.stock?.status) && produto.stock.status !== "UNKNOWN",
     quantidade: typeof produto?.stock?.quantity === "number",
     quantidadeAChegar: typeof produto?.stock?.aChegar === "number",
@@ -106,6 +108,9 @@ export function valoresDoProduto(produto) {
       : null,
     specifications: produto?.specifications?.length
       ? `${produto.specifications.length} item(ns)`
+      : null,
+    documentos: produto?.documentos?.length
+      ? `${produto.documentos.length} arquivo(s)`
       : null,
     status: situacoes[produto?.stock?.status] ?? null,
     quantidade:

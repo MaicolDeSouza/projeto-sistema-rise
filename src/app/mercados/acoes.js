@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
+import {
+  apagarArquivosDaFonte,
+  manifestoDaFonte,
+  produtosColetados,
+  salvarArquivosDaFonte,
+} from "@/lib/coleta/arquivo";
 import { podeVisitar } from "@/lib/coleta/buscar";
 import { coletarUrl } from "@/lib/coleta/coletar";
 import { juntarListas, lerArquivo } from "@/lib/coleta/arquivos";
@@ -431,6 +437,77 @@ export async function excluirFonte(id) {
   return { ok: true };
 }
 
+/**
+ * Guarda a lista que o fornecedor mandou.
+ *
+ * NAO PROCESSA AGORA. Guardar e reprocessar sao momentos diferentes: o envio
+ * termina em segundos e a leitura de uma planilha de 15 MB com 459 imagens
+ * ancoradas leva bem mais que isso. Quem le e o worker, em "Atualizar tabelas",
+ * pelo mesmo caminho da varredura — um caminho so.
+ *
+ * Recebe FormData porque Server Action nao aceita Uint8Array direto. O teto do
+ * corpo esta em 24 MB no next.config.mjs; acima disso o 413 vem ANTES daqui, e
+ * por isso a tela confere o tamanho antes de enviar.
+ */
+export async function enviarArquivosDaFonte(fonteId, dados) {
+  const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId } });
+  if (!fonte) return { ok: false, erro: "Fonte nao encontrada." };
+
+  if (fonte.tipo !== "FORNECEDOR") {
+    return {
+      ok: false,
+      erro: "So fornecedor manda lista. Concorrente tem vitrine, e e por ela que se varre.",
+    };
+  }
+
+  const arquivos = dados.getAll("arquivo").filter((item) => typeof item !== "string");
+  if (arquivos.length === 0) return { ok: false, erro: "Nenhum arquivo recebido." };
+
+  const guardar = [];
+  for (const arquivo of arquivos) {
+    guardar.push({
+      nome: arquivo.name,
+      bytes: new Uint8Array(await arquivo.arrayBuffer()),
+    });
+  }
+
+  const manifesto = await salvarArquivosDaFonte(fonte.dominio, guardar);
+
+  revalidatePath("/mercados/fontes");
+  return { ok: true, manifesto };
+}
+
+/**
+ * Guarda a anotacao do operador sobre como obter a lista desta fonte.
+ *
+ * E conhecimento que hoje mora na cabeca de quem faz — a Fortek exige entrar no
+ * portal e salvar a pagina, a Nightech manda a planilha por e-mail — e some
+ * quando outra pessoa assume a tarefa.
+ */
+export async function salvarInstrucoes(fonteId, texto) {
+  const limpo = String(texto ?? "").trim().slice(0, 4000);
+
+  await prisma.fonteColeta.update({
+    where: { id: fonteId },
+    // Vazio vira null, e nao string vazia: a tela pergunta "tem anotacao?", e
+    // "" responderia que sim.
+    data: { instrucoes: limpo || null },
+  });
+
+  revalidatePath("/mercados/fontes");
+  return { ok: true };
+}
+
+/** Descarta a lista guardada, para a fonte voltar a ser varrida pelo site. */
+export async function apagarArquivosAcao(fonteId) {
+  const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId } });
+  if (!fonte) return { ok: false, erro: "Fonte nao encontrada." };
+
+  await apagarArquivosDaFonte(fonte.dominio);
+  revalidatePath("/mercados/fontes");
+  return { ok: true };
+}
+
 // ---------------------------------------------------------------------------
 // Detalhe da pagina coletada
 // ---------------------------------------------------------------------------
@@ -441,40 +518,66 @@ export async function excluirFonte(id) {
  * A descricao nao vem na listagem de proposito: sao uns 10 KB por linha, meio
  * megabyte para cinquenta resultados, e quase nada disso chega a ser lido.
  */
+/**
+ * O detalhe de um produto coletado, LIDO DO JSON.
+ *
+ * Buscado no clique, e nao junto com a listagem: descricao e especificacoes
+ * somam alguns KB por produto, e trazer isso para cem linhas seria quase tudo
+ * nunca lido.
+ *
+ * Quando o banco entrar, e aqui e em `produtosColetados` que a leitura muda —
+ * o painel continua igual.
+ */
 export async function detalhePagina(id) {
-  const pagina = await prisma.paginaColetada.findUnique({
-    where: { id },
-    include: {
-      fonte: { select: { nome: true, tipo: true, dominio: true } },
-      precos: { orderBy: { coletadoEm: "desc" }, take: 2 },
-    },
-  });
-
-  if (!pagina) return null;
+  const produto = (await produtosColetados()).find((item) => item.id === id);
+  if (!produto) return null;
 
   return {
-    id: pagina.id,
-    url: pagina.url,
-    titulo: pagina.titulo,
-    descricao: pagina.descricao,
-    marca: pagina.marca,
-    modelo: pagina.modelo,
-    mpn: pagina.mpn,
-    skuFonte: pagina.skuFonte,
-    ean: pagina.ean,
-    atributos: pagina.atributos ?? null,
-    imagens: Array.isArray(pagina.imagens) ? pagina.imagens : [],
-    // Decimal do Prisma nao atravessa a fronteira servidor/cliente.
-    precoAtual: pagina.precoAtual === null ? null : Number(pagina.precoAtual),
-    disponivel: pagina.disponivel,
-    vistoEm: pagina.vistoEm,
-    erro: pagina.erro,
-    fonte: pagina.fonte,
-    precoAnterior:
-      pagina.precos[1]?.preco === undefined || pagina.precos[1]?.preco === null
-        ? null
-        : Number(pagina.precos[1].preco),
-    mudouEm: pagina.precos[0]?.coletadoEm ?? null,
+    id: produto.id,
+    url: produto.url,
+    titulo: produto.name,
+    descricao: produto.description,
+    marca: produto.brand,
+    modelo: produto.model,
+    mpn: produto.mpn,
+    skuFonte: produto.code,
+    ean: produto.ean,
+    categoria: produto.category,
+    ncm: produto.ncm,
+    // Como o concorrente se apresenta ao buscador. E o texto que disputa a
+    // posicao com o nosso anuncio, entao vale ver o conteudo, e nao so saber
+    // que ele existe.
+    seo: produto.seo ?? null,
+    precoComImpostos: produto.prices?.comImpostos ?? null,
+    // O preco do que ainda vai chegar. Medido na Fortek: o 65-276 custa 79,90
+    // na reserva e 82,90 na pronta entrega — num campo so essa inversao sumiria.
+    precoReserva: produto.prices?.reserva ?? null,
+    taxes: produto.taxes ?? [],
+    // Pronta entrega e o que ja da para despachar; a chegar e o que esta
+    // comprado e em transito. NUNCA somados — um numero so prometeria entrega
+    // que nao existe.
+    quantidade:
+      typeof produto.stock?.quantity === "number" ? produto.stock.quantity : null,
+    aChegar: typeof produto.stock?.aChegar === "number" ? produto.stock.aChegar : null,
+    semEstoque: produto.stock?.status === "OUT_OF_STOCK",
+    estoqueConhecido: produto.stock?.status === "AVAILABLE",
+    // LISTA ORDENADA, nao objeto: a ficha tem linha sem rotulo, que objeto
+    // nenhum comporta sem inventar uma chave.
+    especificacoes: produto.specifications ?? [],
+    documentos: produto.documentos ?? [],
+    imagens: Array.isArray(produto.images) ? produto.images : [],
+    precoAtual: produto.prices?.normal ?? null,
+    precoPromocional: produto.prices?.promotional ?? null,
+    disponivel: produto.stock?.status !== "OUT_OF_STOCK",
+    vistoEm: produto.coletadoEm,
+    erro: null,
+    fonte: produto.fonte,
+    // Historico de preco e assunto do banco: o JSON guarda a ULTIMA coleta e
+    // sobrescreve a anterior. Sem serie, nao ha de onde tirar o preco de antes —
+    // e mostrar uma seta de variacao sem base seria inventar movimento.
+    precoAnterior: null,
+    mudouEm: null,
+    origens: produto.origens ?? null,
   };
 }
 
@@ -498,7 +601,17 @@ export async function atualizarTabelas(fonteId) {
   });
 
   if (fontes.length === 0) {
-    return { ok: false, erro: "Nenhuma fonte ativa para varrer." };
+    // Dizer so "nenhuma fonte ativa" mandava o operador procurar o que fazer.
+    // Fonte pausada e o caso comum aqui, e o botao de retomar esta na mesma
+    // tela, uma linha abaixo.
+    const pausadas = await prisma.fonteColeta.count({ where: { ativa: false } });
+
+    return {
+      ok: false,
+      erro: pausadas
+        ? `Nenhuma fonte ativa. ${pausadas} esta(o) pausada(s) — use "Retomar" na linha da fonte.`
+        : "Nenhuma fonte cadastrada para varrer.",
+    };
   }
 
   await prisma.job.createMany({
@@ -524,6 +637,17 @@ export async function situacaoVarredura() {
       job.status === "PENDENTE" && agora - job.criadoEm.getTime() > ESPERA_MAXIMA_MS,
   );
 
+  // A ULTIMA VARREDURA TERMINADA.
+  //
+  // Vinha `null` fixo, entao a varredura acabava em silencio: a tela some com a
+  // barra de andamento e nada diz o que foi colhido. Como a coleta grava em
+  // JSON e a tabela desta tela ainda le do banco, este e hoje o unico lugar
+  // onde o operador ve o resultado.
+  const ultimoJob = await prisma.job.findFirst({
+    where: { tipo: "coleta", status: { in: ["CONCLUIDO", "FALHOU"] } },
+    orderBy: { criadoEm: "desc" },
+  });
+
   return {
     emAndamento: jobs.length > 0,
     semWorker,
@@ -534,7 +658,15 @@ export async function situacaoVarredura() {
       total: job.payload?.total ?? 0,
       feitas: job.payload?.feitas ?? 0,
     })),
-    ultimo: null,
+    ultimo: ultimoJob
+      ? {
+          fonteNome: ultimoJob.payload?.fonteNome ?? "?",
+          status: ultimoJob.status,
+          produtos: ultimoJob.payload?.produtos ?? null,
+          arquivo: ultimoJob.payload?.arquivo ?? null,
+          erro: ultimoJob.erro ?? null,
+        }
+      : null,
   };
 }
 

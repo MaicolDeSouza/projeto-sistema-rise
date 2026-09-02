@@ -20,7 +20,7 @@ const INTERVALO_MS = 4000;
  * Este e o mesmo caminho do ciclo automatico de 24 horas — o botao so antecipa.
  * Nao existe "modo manual" com codigo proprio para divergir do automatico.
  */
-export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar tabelas" }) {
+export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) {
   const router = useRouter();
   const [pendente, iniciarTransicao] = useTransition();
   const [situacao, setSituacao] = useState(null);
@@ -107,10 +107,17 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar tabelas" }
 
       {erro && <p className="text-xs text-red-700">{erro}</p>}
 
+      {/*
+        A coleta grava em JSON e a tabela desta tela ainda le do banco, entao
+        esta linha e onde o operador ve o que a varredura rendeu. Dizer so
+        "concluida" nao respondia a pergunta que ele tem: quantos vieram.
+      */}
       {!emAndamento && !erro && situacao?.ultimo && (
-        <p className="text-xs text-suave">
+        <p className="text-right text-xs text-suave">
           Ultima varredura: {situacao.ultimo.fonteNome} ·{" "}
-          {situacao.ultimo.status === "CONCLUIDO" ? "concluida" : "falhou"}
+          {situacao.ultimo.status === "CONCLUIDO"
+            ? `${situacao.ultimo.produtos ?? 0} produto(s) em JSON`
+            : `falhou${situacao.ultimo.erro ? `: ${situacao.ultimo.erro}` : ""}`}
         </p>
       )}
     </div>
