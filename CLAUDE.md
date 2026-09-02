@@ -191,6 +191,19 @@ São **20 produtos por fonte** (`PRODUTOS_POR_FONTE`).
 - **A fila aparece ao lado do andamento** ("e mais 4 fontes na fila"). Só a fonte da vez
   faz a varredura parecer quase pronta com cinco lojas pela frente, e há loja que pede 10s
   entre visitas — o Eletrogate leva 4min sozinho contra 49s da Smartkits.
+- **"Produtos no site" era gravado só no CADASTRO da fonte.** A colheita mede o tamanho do
+  catálogo a cada varredura (`produtosNoSite` em `colher.js`) e o worker **descartava o
+  número**: a coluna ficava congelada no que o teste viu no dia do cadastro, e fonte cujo
+  teste não provou o total mostrava travessão para sempre — por mais varreduras que
+  rodasse. O worker agora persiste, e o catálogo público e o sitemap são reconsultados a
+  cada volta de qualquer jeito, então guardar sai de graça.
+- **Mas só escreve quando a varredura PROVOU o total.** Espalhar o resultado inteiro no
+  `update` gravaria `null` na varredura que não conseguiu medir, **apagando um número bom
+  da semana passada** — a loja continua tendo 2.296 produtos no dia em que o sitemap não
+  responde. Não saber quantos são não é o mesmo que saber que são zero.
+- **Para fornecedor que manda lista, o catálogo É a lista.** Não há vitrine para contar:
+  o total é o que a lista declara depois de conciliada, ausentes incluídos — eles
+  continuam sendo produtos dele, só sem saldo confirmado nesta remessa.
 - **A data vem do arquivo, não do banco.** `ultimaVarreduraEm` só é escrito pelo worker;
   reprocessar a lista pela linha de comando não mexe nele, e a Fortek aparecia como
   "nunca" com 1.911 produtos em disco.

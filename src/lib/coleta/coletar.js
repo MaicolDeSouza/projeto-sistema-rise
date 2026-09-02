@@ -322,6 +322,14 @@ async function reprocessarArquivos(fonte, guardados, aoProgredir) {
     arquivo,
     resumo,
     contagem,
+    /*
+      Para fornecedor que manda lista, O CATALOGO E A LISTA. Nao ha vitrine
+      para contar: o total do fornecedor e o que a lista declara, ja conciliado
+      com o que estava guardado — inclusive os ausentes, que continuam sendo
+      produtos dele, so sem saldo confirmado nesta remessa.
+    */
+    produtosNoSite: conciliados.length,
+    produtosNoSiteParcial: false,
     erro: null,
   };
 }
@@ -416,6 +424,21 @@ export async function varrerFonteParaJson(fonte, aoProgredir) {
     visitas: colheita.visitas,
     arquivo,
     resumo,
+    /*
+      O TAMANHO DO CATALOGO, que a colheita ja mede e vinha sendo descartado.
+
+      "Produtos no site" so era gravado no cadastro da fonte, entao ficava
+      congelado no que o teste viu naquele dia — e fonte cujo teste nao provou
+      o total mostrava travessao para sempre, por mais varreduras que rodasse.
+      A cada varredura o catalogo publico e o sitemap sao consultados de novo;
+      guardar o numero e de graca.
+
+      Vem `null` quando a varredura nao provou o total (ver `produtosNoSite` em
+      colher.js: endereco no sitemap nao e produto). Quem grava decide o que
+      fazer com o null — aqui nao se inventa numero.
+    */
+    produtosNoSite: colheita.produtosNoSite ?? null,
+    produtosNoSiteParcial: colheita.produtosNoSiteParcial ?? false,
     // Colheita que ficou abaixo do pedido nao e erro: a loja pode nao ter 20
     // produtos legiveis. Dizer quantos vieram e mais util que falhar.
     erro: null,

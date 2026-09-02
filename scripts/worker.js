@@ -131,7 +131,25 @@ async function processar(job) {
       }),
       prisma.fonteColeta.update({
         where: { id: fonte.id },
-        data: { ultimaVarreduraEm: new Date(), proximaVarreduraEm: proxima },
+        data: {
+          ultimaVarreduraEm: new Date(),
+          proximaVarreduraEm: proxima,
+          /*
+            SO ESCREVE QUANDO A VARREDURA PROVOU O TOTAL.
+
+            Espalhar o resultado inteiro aqui gravaria `null` na varredura que
+            nao conseguiu medir o catalogo, APAGANDO um numero bom da semana
+            passada — a loja continua tendo 2.296 produtos mesmo no dia em que
+            o sitemap nao respondeu. Nao saber quantos sao nao e o mesmo que
+            saber que sao zero, e a coluna diria travessao por um tropeco.
+          */
+          ...(typeof resultado.produtosNoSite === "number"
+            ? {
+                produtosNoSite: resultado.produtosNoSite,
+                produtosNoSiteParcial: resultado.produtosNoSiteParcial ?? false,
+              }
+            : {}),
+        },
       }),
     ]);
 
