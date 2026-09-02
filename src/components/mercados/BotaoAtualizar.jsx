@@ -28,6 +28,24 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
 
   const emAndamento = situacao?.emAndamento ?? false;
 
+  /*
+    PERGUNTA O ESTADO AO ABRIR A TELA, e nao so depois do clique.
+    Sem isto, `situacao` nasce null e o botao se mostra ocioso mesmo com o
+    worker varrendo: quem chega na tela no meio de uma varredura clica, leva a
+    recusa em vermelho e conclui que a atualizacao falhou — quando ela esta
+    correndo. Uma consulta na montagem faz o botao ja aparecer desabilitado,
+    com o nome da fonte e o quanto falta.
+  */
+  useEffect(() => {
+    let vivo = true;
+    situacaoVarredura().then((nova) => {
+      if (vivo) setSituacao(nova);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
   // Consulta o andamento enquanto ha varredura correndo. O efeito so agenda e
   // limpa o relogio; o estado e definido dentro do callback, nao na renderizacao.
   useEffect(() => {
@@ -53,17 +71,27 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
     setErro(null);
     iniciarTransicao(async () => {
       const resultado = await atualizarTabelas(fonteId);
-      if (!resultado.ok) {
-        setErro(resultado.erro);
-        return;
-      }
-      setSituacao(await situacaoVarredura());
+
+      /*
+        "Ja ha uma varredura em andamento" NAO E ERRO — e a resposta certa, e o
+        trabalho que o operador quer ja esta acontecendo. Mostrar em vermelho
+        dizia o contrario e assustou o dono. Aqui a recusa vira estado: a tela
+        troca para o andamento, com a fonte e o percentual, em vez de pintar uma
+        linha de erro. Erro de verdade (fonte pausada, banco fora) continua em
+        vermelho.
+      */
+      const nova = await situacaoVarredura();
+      setSituacao(nova);
+
+      if (!resultado.ok && !nova.emAndamento) setErro(resultado.erro);
     });
   }
 
   const emCurso = situacao?.jobs?.find((job) => job.status === "PROCESSANDO");
   const percentual =
     emCurso?.total > 0 ? Math.round((emCurso.feitas / emCurso.total) * 100) : null;
+  // Os que ainda nao comecaram. `jobs` ja vem so com PENDENTE e PROCESSANDO.
+  const fila = situacao?.jobs?.filter((job) => job.status === "PENDENTE").length ?? 0;
 
   return (
     <div className="flex flex-col items-end gap-1.5">
@@ -82,10 +110,22 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
       </button>
 
       {emCurso && (
-        <p className="text-xs text-suave">
+        <p className="text-right text-xs text-suave">
           {emCurso.fonteNome}: {emCurso.feitas}
           {emCurso.total > 0 && ` de ${emCurso.total}`}
           {percentual !== null && ` (${percentual}%)`}
+          {/*
+            QUANTAS FONTES AINDA FALTAM. Sem isto, a tela mostra so a fonte da
+            vez e a varredura parece quase pronta quando ainda tem cinco lojas
+            na fila — e ha loja que pede 10s entre visitas, entao a espera real
+            e de minutos. O numero e o que permite decidir entre esperar e
+            voltar depois.
+          */}
+          {fila > 0 && (
+            <span className="block">
+              e mais {fila} fonte{fila > 1 ? "s" : ""} na fila
+            </span>
+          )}
         </p>
       )}
 

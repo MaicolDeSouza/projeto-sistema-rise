@@ -632,10 +632,27 @@ export async function situacaoVarredura() {
   });
 
   const agora = Date.now();
-  const semWorker = jobs.some(
-    (job) =>
-      job.status === "PENDENTE" && agora - job.criadoEm.getTime() > ESPERA_MAXIMA_MS,
-  );
+
+  /*
+    JOB PROCESSANDO E PROVA DE QUE HA WORKER VIVO.
+
+    O aviso olhava so a idade do pendente, e o worker atende UM POR VEZ: com
+    sete fontes na fila, o ultimo espera as seis anteriores — e uma loja que
+    pede 10s entre visitas leva minutos sozinha. O pendente ficava velho por
+    definicao e a tela mandava rodar `npm run worker` com o worker varrendo na
+    frente, o que levaria o operador a subir um segundo processo para disputar
+    a mesma fila.
+
+    O alarme so faz sentido quando NINGUEM esta processando: aí um pendente
+    velho significa mesmo que nao ha quem atenda.
+  */
+  const alguemProcessando = jobs.some((job) => job.status === "PROCESSANDO");
+  const semWorker =
+    !alguemProcessando &&
+    jobs.some(
+      (job) =>
+        job.status === "PENDENTE" && agora - job.criadoEm.getTime() > ESPERA_MAXIMA_MS,
+    );
 
   // A ULTIMA VARREDURA TERMINADA.
   //

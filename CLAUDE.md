@@ -176,6 +176,21 @@ São **20 produtos por fonte** (`PRODUTOS_POR_FONTE`).
   demora quatro vezes mais que outra pelo mesmo trabalho — o Eletrogate e o Impacto CNC
   pedem 10s entre visitas, e sem o número a lentidão parece defeito nosso. Coleta antiga
   não tem o campo e **não ganha um inventado**: `null`, e a tela não mostra nada.
+- **O botão pergunta o estado ao ABRIR a tela, não só depois do clique.** `situacao`
+  nascia `null`, então quem chegasse no meio de uma varredura via o botão ocioso, clicava,
+  e levava *"Já há uma varredura em andamento"* **em vermelho** — concluindo que a
+  atualização falhou, quando ela estava correndo. Recusa não é erro: ela agora vira
+  estado (botão desabilitado, fonte da vez e percentual), e o vermelho fica para falha de
+  verdade.
+- **Job `PROCESSANDO` é prova de que há worker vivo.** O aviso "nenhum worker pegou o
+  trabalho" olhava só a idade do pendente, e o worker atende **um por vez**: com sete
+  fontes na fila, o último espera os seis anteriores e fica velho por definição. A tela
+  mandava rodar `npm run worker` com o worker varrendo na frente — e obedecer subiria um
+  segundo processo disputando a mesma fila. O alarme só vale quando ninguém está
+  processando.
+- **A fila aparece ao lado do andamento** ("e mais 4 fontes na fila"). Só a fonte da vez
+  faz a varredura parecer quase pronta com cinco lojas pela frente, e há loja que pede 10s
+  entre visitas — o Eletrogate leva 4min sozinho contra 49s da Smartkits.
 - **A data vem do arquivo, não do banco.** `ultimaVarreduraEm` só é escrito pelo worker;
   reprocessar a lista pela linha de comando não mexe nele, e a Fortek aparecia como
   "nunca" com 1.911 produtos em disco.
