@@ -37,6 +37,11 @@ export default function CampoBusca({
       if (termo) params.set(parametro, termo);
       else params.delete(parametro);
 
+      // Busca nova comeca na primeira pagina: a posicao valia para a lista
+      // anterior, e ficar na pagina 12 de um resultado com duas paginas nao
+      // significa nada. Inofensivo em tela sem paginacao — nao ha o parametro.
+      params.delete("pagina");
+
       const query = params.toString();
       router.push(query ? `${pathname}?${query}` : pathname);
     }, 300);

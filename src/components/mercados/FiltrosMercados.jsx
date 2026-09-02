@@ -3,6 +3,8 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Eraser } from "lucide-react";
 
+import FiltroFontes from "@/components/mercados/FiltroFontes";
+
 /**
  * Marcadores de filtro da tela de Mercados.
  *
@@ -33,7 +35,7 @@ function Marcador({ ativo, aoClicar, children, titulo }) {
   );
 }
 
-export default function FiltrosMercados({ tipo = "", ordem = "" }) {
+export default function FiltrosMercados({ tipo = "", ordem = "", fonte = [], fontes = [] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -51,6 +53,34 @@ export default function FiltrosMercados({ tipo = "", ordem = "" }) {
     if (!valor || params.get(chave) === valor) params.delete(chave);
     else params.set(chave, valor);
 
+    /*
+      TROCAR FILTRO VOLTA PARA A PAGINA 1.
+
+      Sem isto, quem esta na pagina 12 e filtra por uma fonte de 40 produtos
+      cai numa pagina que nao existe mais e ve tabela vazia — parecendo que o
+      filtro nao achou nada, quando achou quarenta. A posicao na lista so faz
+      sentido dentro da lista que a gerou.
+    */
+    params.delete("pagina");
+
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
+
+  /**
+   * As fontes escolhidas viram parametros REPETIDOS: ?fonte=A&fonte=B.
+   *
+   * Nao lista separada por virgula: nome de loja pode ter virgula, e "Casa da
+   * Robotica - Varejo" ja mostra que pontuacao no nome e normal. Repetir a
+   * chave e o que o proprio URLSearchParams sabe desfazer sem inventar regra de
+   * escape nossa.
+   */
+  function trocarFontes(nomes) {
+    const params = new URLSearchParams(searchParams);
+    params.delete("fonte");
+    for (const nome of nomes) params.append("fonte", nome);
+    params.delete("pagina");
+
     const query = params.toString();
     router.push(query ? `${pathname}?${query}` : pathname);
   }
@@ -59,10 +89,12 @@ export default function FiltrosMercados({ tipo = "", ordem = "" }) {
     router.push(pathname);
   }
 
-  const temFiltro = Boolean(tipo || ordem || searchParams.get("q"));
+  const temFiltro = Boolean(tipo || ordem || fonte.length > 0 || searchParams.get("q"));
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
+    // A margem de baixo e de quem posiciona: este bloco divide a linha com a
+    // navegacao entre paginas, e uma margem propria aqui desalinharia os dois.
+    <div className="flex flex-wrap items-center gap-2">
       <Marcador ativo={!tipo} aoClicar={() => trocar("tipo", "")}>
         Todos
       </Marcador>
@@ -78,6 +110,28 @@ export default function FiltrosMercados({ tipo = "", ordem = "" }) {
       >
         Fornecedores
       </Marcador>
+
+      {/*
+        A FONTE E UM SELETOR, NAO UM MARCADOR POR LOJA.
+
+        Sao sete hoje e serao dezenas — uma bolinha para cada varreria a linha
+        de filtros e empurraria a tabela para fora da tela. O tipo continua em
+        marcador porque sao tres opcoes fixas que nunca crescem.
+
+        A lista vem dos produtos coletados, nao do cadastro de fontes: fonte
+        cadastrada e ainda nao varrida so ofereceria um filtro que devolve
+        lista vazia.
+      */}
+      {fontes.length > 0 && (
+        <>
+          <span className="mx-1 h-5 w-px bg-borda" aria-hidden />
+          <FiltroFontes
+            fontes={fontes}
+            selecionadas={fonte}
+            aoMudar={(nomes) => trocarFontes(nomes)}
+          />
+        </>
+      )}
 
       {/* Separador: tipo e ordem sao perguntas diferentes e combinam entre si. */}
       <span className="mx-1 h-5 w-px bg-borda" aria-hidden />

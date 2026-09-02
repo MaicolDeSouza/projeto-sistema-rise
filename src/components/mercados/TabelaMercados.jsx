@@ -739,18 +739,34 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
             Abrir e copiar sao coisas diferentes: abrir e para conferir agora,
             copiar e para mandar o endereco a alguem ou guardar num chamado.
           */}
-          <div className="group flex items-center gap-1">
-            <a
-              href={dados.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-acento hover:underline"
-            >
-              <ExternalLink size={14} />
-              Abrir no site {dados.fonte.dominio}
-            </a>
-            {dados.url && <Copiar texto={dados.url} rotulo="o endereco" />}
-          </div>
+          {/*
+            SEM ENDERECO NAO HA LINK — havia um, e ele nao levava a lugar nenhum.
+
+            O <a> era montado sempre, e com `url` nulo o href sumia: sobrava um
+            texto azul que convidava ao clique e nao fazia nada. Acontece nos
+            1.911 produtos da Fortek, que vieram de um ARQUIVO de portal atras de
+            login — nao existe pagina publica para abrir, e nao e defeito de
+            coleta. Dizer isso e mais util que um link morto, e evita alguem
+            reportar de novo o mesmo "link quebrado".
+          */}
+          {dados.url ? (
+            <div className="group flex items-center gap-1">
+              <a
+                href={dados.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-acento hover:underline"
+              >
+                <ExternalLink size={14} />
+                Abrir no site {dados.fonte.dominio}
+              </a>
+              <Copiar texto={dados.url} rotulo="o endereco" />
+            </div>
+          ) : (
+            <p className="text-sm text-suave">
+              Sem pagina publica — este produto veio da lista enviada pelo fornecedor.
+            </p>
+          )}
         </div>
       </div>
 
@@ -1035,10 +1051,17 @@ export default function TabelaMercados({ linhas }) {
                     <SeloFonte tipo={linha.fonteTipo} />
                     <span className="truncate">{linha.fonteNome}</span>
                   </span>
+                  {/*
+                    "a chegar" so para FORNECEDOR: e a reserva que ele declara
+                    na lista. Concorrente nao publica isso, e o campo nunca vem
+                    preenchido — passar assim mesmo nao quebraria nada, mas
+                    deixaria a regra implicita no dado em vez de escrita.
+                  */}
                   <Estoque
                     semEstoque={linha.semEstoque}
                     disponivel={linha.estoqueConhecido}
                     quantidade={linha.quantidade}
+                    aChegar={linha.fonteTipo === "FORNECEDOR" ? linha.aChegar : null}
                   />
                 </td>
                 <td className="group px-3 py-2.5 font-mono text-xs">
@@ -1059,6 +1082,18 @@ export default function TabelaMercados({ linhas }) {
                   comparacao: o de tabela e referencia, o a vista e o que o
                   cliente do concorrente paga.
                 */}
+                {/*
+                  FORNECEDOR TEM UMA TERCEIRA COLUNA DE PRECO, e ela e a que
+                  importa: o distribuidor cobra imposto por fora — a Benser
+                  escreve "Preco unit. sem IPI" — entao os R$ 79,90 da lista nao
+                  sao o que se paga. Aqui o numero em destaque e o COM imposto,
+                  e o de lista fica em cima, menor, como referencia.
+
+                  E o mesmo desenho do concorrente com dois numeros, de
+                  proposito: em cima o preco anunciado, embaixo em destaque o
+                  que sai do bolso. So muda o motivo de o de baixo ser menor
+                  (desconto a vista) ou maior (imposto).
+                */}
                 <td className="px-3 py-2.5 text-right tabular-nums">
                   <span className="block text-xs text-red-600">
                     {comoMoeda(linha.precoAtual)}
@@ -1068,6 +1103,23 @@ export default function TabelaMercados({ linhas }) {
                       <span className="block font-medium text-emerald-700">
                         {comoMoeda(linha.precoPromocional)}
                       </span>
+                    )}
+                  {linha.fonteTipo === "FORNECEDOR" &&
+                    typeof linha.precoComImpostos === "number" && (
+                      <>
+                        <span className="block font-medium text-texto">
+                          {comoMoeda(linha.precoComImpostos)}
+                        </span>
+                        {/* QUAIS impostos entraram: "com impostos" sem dizer
+                            quais e numero que ninguem consegue conferir. */}
+                        {linha.impostos?.length > 0 && (
+                          <span className="block text-[10px] text-suave">
+                            {linha.impostos
+                              .map((imposto) => `${imposto.nome} ${imposto.percentual}%`)
+                              .join(" · ")}
+                          </span>
+                        )}
+                      </>
                     )}
                 </td>
                 {/*

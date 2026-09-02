@@ -154,6 +154,34 @@ São **20 produtos por fonte** (`PRODUTOS_POR_FONTE`).
   antes de cortar), então achar produto continua funcionando; quem some é o resto da
   rolagem. Paginar é o passo pendente, e o rodapé diz o que ficou de fora em vez de deixar
   a lista parecer completa.
+- **A lista é paginada, 100 por página.** O teto de 300 não cortava linhas: cortava o
+  acervo — com 2.469 produtos, **88% eram inalcançáveis** e o rodapé mandava "refinar a
+  busca" para ver o que já estava coletado. Navegação em setas (`«  ‹  [n]  ›  »`), no topo
+  e no rodapé; a de cima é compacta porque medido: filtros ocupam 772px e a barra completa
+  455px, e não cabem em 1165px.
+- **Trocar filtro ou busca zera a página.** Quem está na página 12 e filtra uma fonte de 40
+  produtos cairia numa página que não existe mais e veria tabela vazia — parecendo que o
+  filtro não achou nada. Além disso a página vinda da URL é **grampeada** ao intervalo
+  válido, porque link antigo e varredura que encolhe a lista produzem o mesmo efeito.
+- **O filtro de fontes aceita VÁRIAS**, por caixa de marcação (`?fonte=A&fonte=B`). Começou
+  como `<select>` de escolha única, e comparar Fortek com Nightech — que é o trabalho —
+  exigia carregar a tela duas vezes. Parâmetro repetido, nunca lista separada por vírgula:
+  "Casa da Robótica - Varejo" já mostra que pontuação em nome de loja é normal. **Nenhuma
+  marcada quer dizer todas**, e "Todas" limpa a escolha em vez de marcar as sete — marcar
+  todas prenderia o filtro ao conjunto de hoje, e a fonte cadastrada amanhã ficaria de fora
+  sem ninguém perceber.
+- **`IN_STOCK` e `AVAILABLE` são o mesmo fato com dois nomes**: os leitores de arquivo
+  gravam o primeiro, o raspador de site o segundo. A tela só conhecia `AVAILABLE`, e os
+  **1.592 produtos em estoque da Fortek não mostravam linha nenhuma** — nem disponível, nem
+  esgotado. Quem interpreta status tem que aceitar os dois.
+- **Na lista, produto de fornecedor mostra o preço COM imposto em destaque.** O
+  distribuidor cobra por fora — a Benser escreve *"Preço unit. sem IPI"* — então os R$ 44,90
+  não são o que se paga; embaixo vem R$ 47,82 com o rótulo `IPI 6.5%`. Sem dizer **quais**
+  impostos entraram, o número não tem como ser conferido.
+- **Sem endereço não há link, e havia um que não levava a lugar nenhum.** O `<a>` era
+  montado sempre; com `url` nulo o href sumia e sobrava texto azul convidando ao clique. São
+  os 1.911 da Fortek, que vieram de arquivo de portal atrás de login — não existe página
+  pública, e isso não é defeito de coleta. A tela diz a razão.
 - A **ficha técnica** no painel é lista ordenada, igual à prévia — linha sem rótulo aparece
   com marcador, nunca com nome inventado. O campo `atributos` (objeto) era do caminho do
   banco.

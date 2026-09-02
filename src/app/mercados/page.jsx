@@ -11,18 +11,21 @@ import CampoBusca from "@/components/ui/CampoBusca";
 import TabelaMercados from "@/components/mercados/TabelaMercados";
 import FiltrosMercados from "@/components/mercados/FiltrosMercados";
 import BotaoAtualizar from "@/components/mercados/BotaoAtualizar";
+import Paginacao from "@/components/mercados/Paginacao";
+import VoltarAoTopo from "@/components/ui/VoltarAoTopo";
 
 export const dynamic = "force-dynamic";
 
-/// Teto de resultados por consulta. A tela e para procurar um produto, nao para
-/// folhear vinte mil linhas.
+/// Linhas por pagina.
 ///
-/// FOLGADO O BASTANTE PARA NENHUMA FONTE SUMIR. Sao 20 produtos por fonte, e a
-/// data de coleta e da COLETA INTEIRA, nao de cada produto — entao a ordenacao
-/// agrupa por fonte, e um teto apertado corta a fonte mais antiga por completo,
-/// nao algumas linhas dela. Com 100, a Casa da Robotica desaparecia da tela
-/// inteira sendo que tinha 20 produtos coletados.
-const LIMITE = 300;
+/// Antes daqui havia um TETO de 300: o resto da lista simplesmente nao existia
+/// para a tela, e o rodape mandava "refinar a busca" para ver produtos que o
+/// operador tinha coletado. Com a Fortek e a Nightech em disco sao 2.469, entao
+/// o corte deixou de ser teorico — 88% do acervo estava inalcancavel.
+///
+/// Cem e o que cabe numa rolagem sem a pagina ficar pesada, e e o mesmo numero
+/// que o Bling usa, de onde veio o pedido.
+const POR_PAGINA = 100;
 
 /**
  * O texto onde a busca procura.
@@ -82,9 +85,51 @@ export default async function MercadosPage({ searchParams }) {
     erro = excecao;
   }
 
-  const selecionados = produtos
+  /*
+    AS FONTES QUE O FILTRO OFERECE saem dos produtos coletados, nao do cadastro:
+    fonte cadastrada e ainda nao varrida ofereceria um filtro que devolve lista
+    vazia. Respeitam o filtro de tipo — com "Fornecedores" ligado, listar
+    concorrentes no seletor so daria escolha que se anula.
+  */
+  const doTipo = produtos.filter((produto) => !tipo || produto.fonte?.tipo === tipo);
+
+  const contagemPorFonte = new Map();
+  for (const produto of doTipo) {
+    const nome = produto.fonte?.nome;
+    if (nome) contagemPorFonte.set(nome, (contagemPorFonte.get(nome) ?? 0) + 1);
+  }
+  const fontes = [...contagemPorFonte]
+    .map(([nome, quantidade]) => ({ nome, quantidade }))
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+  /*
+    VARIAS FONTES AO MESMO TEMPO: ?fonte=A&fonte=B.
+
+    O Next entrega uma string quando o parametro aparece uma vez e um array
+    quando repete — ler so um dos dois casos faria o filtro de uma fonte
+    funcionar e o de duas nao, ou o contrario. Nome que nao existe mais (fonte
+    excluida, link antigo) e descartado em silencio: manter travaria a tela numa
+    lista vazia sem explicacao.
+  */
+  const pedidas = params?.fonte === undefined ? [] : [params.fonte].flat();
+  const fonte = pedidas.filter((nome) => contagemPorFonte.has(nome));
+
+  const selecionados = doTipo
     .filter((produto) => combina(produto, busca))
-    .filter((produto) => !tipo || produto.fonte?.tipo === tipo);
+    .filter((produto) => fonte.length === 0 || fonte.includes(produto.fonte?.nome));
+
+  /*
+    A PAGINA E CORRIGIDA PARA DENTRO DA LISTA, nunca aceita como veio.
+
+    "?pagina=99" numa lista de tres paginas mostraria tabela vazia, e o mesmo
+    acontece sozinho quando a varredura seguinte encolhe a lista com o link
+    guardado. Aqui a pagina fora do intervalo vira a ultima valida, entao a tela
+    sempre tem o que mostrar.
+  */
+  const totalPaginas = Math.max(1, Math.ceil(selecionados.length / POR_PAGINA));
+  const pedida = Number.parseInt(params?.pagina ?? "1", 10);
+  const pagina = Math.min(Math.max(Number.isFinite(pedida) ? pedida : 1, 1), totalPaginas);
+  const inicio = (pagina - 1) * POR_PAGINA;
 
   const linhas = selecionados
     /**
@@ -109,7 +154,7 @@ export default async function MercadosPage({ searchParams }) {
       if (disponivelA !== disponivelB) return disponivelB - disponivelA;
       return String(b.coletadoEm).localeCompare(String(a.coletadoEm));
     })
-    .slice(0, LIMITE)
+    .slice(inicio, inicio + POR_PAGINA)
     .map((produto) => ({
       id: produto.id,
       titulo: produto.name,
@@ -127,9 +172,26 @@ export default async function MercadosPage({ searchParams }) {
       // lojas de luto sem que nenhuma tenha dito isso. So quem declarou
       // OutOfStock aparece como sem estoque.
       semEstoque: produto.stock?.status === "OUT_OF_STOCK",
-      estoqueConhecido: produto.stock?.status === "AVAILABLE",
+      /*
+        DOIS NOMES PARA O MESMO FATO: o raspador de site grava "AVAILABLE" e os
+        leitores de arquivo gravam "IN_STOCK". A tela so conhecia o primeiro, e
+        os 1.592 produtos EM ESTOQUE da Fortek apareciam sem linha nenhuma de
+        estoque — nem disponivel, nem esgotado, nada. Status desconhecido
+        continua nao virando indisponivel: so quem declarou OutOfStock aparece
+        como sem estoque.
+      */
+      estoqueConhecido: ["AVAILABLE", "IN_STOCK"].includes(produto.stock?.status),
       quantidade:
         typeof produto.stock?.quantity === "number" ? produto.stock.quantity : null,
+      // O que esta comprado e em transito. NUNCA somado a pronta entrega: um
+      // numero so prometeria entrega que nao existe.
+      aChegar: typeof produto.stock?.aChegar === "number" ? produto.stock.aChegar : null,
+      // Distribuidor cobra imposto por fora — a Benser escreve "Preco unit. sem
+      // IPI". Sem isto a lista compara o preco de vitrine do concorrente com um
+      // custo de fornecedor que ninguem paga.
+      precoComImpostos:
+        typeof produto.prices?.comImpostos === "number" ? produto.prices.comImpostos : null,
+      impostos: produto.taxes ?? [],
       vistoEm: produto.coletadoEm,
       fonteNome: produto.fonte?.nome ?? "?",
       fonteTipo: produto.fonte?.tipo ?? "OUTRO",
@@ -190,7 +252,22 @@ export default async function MercadosPage({ searchParams }) {
             </p>
           </div>
 
-          <FiltrosMercados tipo={tipo} ordem={ordem} />
+          {/*
+            Filtros a esquerda, navegacao a direita, na MESMA linha — foi onde o
+            dono pediu. Em tela estreita o `flex-wrap` poe a navegacao embaixo
+            em vez de espremer as duas.
+          */}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4">
+            <FiltrosMercados tipo={tipo} ordem={ordem} fonte={fonte} fontes={fontes} />
+            <Paginacao
+              compacto
+              pagina={pagina}
+              totalPaginas={totalPaginas}
+              primeiro={inicio + 1}
+              ultimo={inicio + linhas.length}
+              total={selecionados.length}
+            />
+          </div>
 
           {linhas.length === 0 ? (
             <EmptyState
@@ -226,17 +303,29 @@ export default async function MercadosPage({ searchParams }) {
           )}
 
           {linhas.length > 0 && (
-            // A contagem subiu para o lado da busca; aqui fica so o que o
-            // rodape ainda responde: como abrir o detalhe, e o aviso de que a
-            // lista foi cortada no teto.
-            <p className="mt-3 text-xs text-suave">
-              {selecionados.length > LIMITE
-                ? `Mostrando ${LIMITE} de ${selecionados.length}. Refine a busca para ver os outros.`
-                : "Clique numa linha para ver os detalhes"}
-            </p>
+            <>
+              {/*
+                A NAVEGACAO SE REPETE NO FIM. Quem chega ao rodape acabou de
+                rolar cem linhas; mandar rolar tudo de volta so para clicar em
+                "Proxima" desfaz o trabalho que a paginacao deveria poupar.
+              */}
+              <div className="border-t border-borda">
+                <Paginacao
+                  pagina={pagina}
+                  totalPaginas={totalPaginas}
+                  primeiro={inicio + 1}
+                  ultimo={inicio + linhas.length}
+                  total={selecionados.length}
+                />
+              </div>
+
+              <p className="text-xs text-suave">Clique numa linha para ver os detalhes</p>
+            </>
           )}
         </>
       )}
+
+      <VoltarAoTopo />
     </>
   );
 }
