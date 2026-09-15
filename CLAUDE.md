@@ -149,11 +149,8 @@ São **20 produtos por fonte** (`PRODUTOS_POR_FONTE`).
 - **O teto da tabela subiu de 100 para 300.** A data é da **coleta inteira**, não de cada
   produto, então a ordenação agrupa por fonte e um teto apertado corta a fonte mais antiga
   **por completo**: com 100, a Casa da Robótica sumia da tela inteira tendo 20 produtos
-  coletados. **O teto agora é atingido de verdade** — com os 1.911 da Fortek em disco, a
-  tela tem 2.031 produtos e mostra 300. A busca filtra o acervo inteiro (o servidor filtra
-  antes de cortar), então achar produto continua funcionando; quem some é o resto da
-  rolagem. Paginar é o passo pendente, e o rodapé diz o que ficou de fora em vez de deixar
-  a lista parecer completa.
+  coletados. Com a Fortek e a Nightech em disco o teto passou a ser atingido de verdade, e
+  foi substituído pela paginação (item seguinte).
 - **A lista é paginada, 100 por página.** O teto de 300 não cortava linhas: cortava o
   acervo — com 2.469 produtos, **88% eram inalcançáveis** e o rodapé mandava "refinar a
   busca" para ver o que já estava coletado. Navegação em setas (`«  ‹  [n]  ›  »`), no topo
@@ -186,6 +183,19 @@ São **20 produtos por fonte** (`PRODUTOS_POR_FONTE`).
   com marcador, nunca com nome inventado. O campo `atributos` (objeto) era do caminho do
   banco.
 - O bloco vive na branch **`bloco-mercados`**, ainda não fundida na principal.
+
+**Em aberto no Mercados** — estado ao fim da sessão de 02/09/2026:
+
+- **Conferir o campo Documentos na prévia do teste de fonte.** A extração está testada; o
+  que nunca foi visto é a tela desenhando o link clicável.
+- **O total da Nightech (458) não é a vitrine inteira.** É a planilha (457) somada à
+  amostra de 20 produtos do site, fundida por código. Produto que só existe no site e ficou
+  fora da amostra não conta. Varrer a vitrine inteira resolve e deixa "Atualizar dados"
+  mais lento — decisão do dono, ainda não tomada.
+- **Usinainfo sem total de catálogo é de propósito**, não pendência: o único sitemap dela
+  são 12 rotas de busca (ver "Sitemap", abaixo).
+- **Ligar o banco** continua sendo passo separado, com o dono presente.
+- A unidade de venda do fornecedor (ver "Ainda em aberto" em Fornecedores).
 
 **As telas, e o vocabulário do dono** — ajustado ao longo de 01/09/2026:
 
