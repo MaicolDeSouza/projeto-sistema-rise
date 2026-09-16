@@ -84,7 +84,13 @@ function partesSemDimensao(endereco) {
   return new URL(endereco).pathname
     .split("/")
     .filter(Boolean)
-    .filter((parte) => !/^\d{2,4}x\d{2,4}$/.test(parte));
+    .filter((parte) => !/^\d{2,4}x\d{2,4}$/.test(parte))
+    // O Magento poe o recorte num hash de 32 caracteres dentro de "cache/": a
+    // MESMA foto principal chega em tres enderecos (og:image, JSON-LD e o full
+    // da galeria), so com hashes diferentes. Sem tirar isso da identidade, uma
+    // foto contava como tres — na Saravati, as "2 imagens" coletadas eram a
+    // mesma foto duas vezes.
+    .filter((parte) => parte !== "cache" && !/^[0-9a-f]{32}$/i.test(parte));
 }
 
 /**
@@ -224,6 +230,37 @@ function galeriaDaPagina(html, principal, urlBase) {
   if (candidatas.length > TETO_DE_GALERIA) return [];
 
   return candidatas;
+}
+
+/**
+ * Galeria do Magento, que so existe dentro de um bloco JSON.
+ *
+ * Medido na Saravati: das tres fotos do produto, apenas a principal aparece como
+ * <img> na pagina. As outras duas vivem so na inicializacao da galeria
+ * (`"[data-gallery-role=gallery-placeholder]"`), como {thumb, img, full} — e por
+ * isso nenhuma regra baseada em <img> as alcancava.
+ *
+ * Fica com o `full`, que e a maior das tres versoes do MESMO arquivo. A ordem e
+ * a que a loja publicou, e a primeira e a principal (`isMain`).
+ */
+function galeriaDoMagento(html, urlBase) {
+  const marca = /"\[data-gallery-role=gallery-placeholder\]"/.exec(html);
+  if (!marca) return [];
+
+  // Ate o fim do script de inicializacao: sem esse limite, um "full" de outro
+  // bloco da pagina entraria na galeria deste produto.
+  const inicio = marca.index;
+  const fim = html.indexOf("</script>", inicio);
+  const bloco = html.slice(inicio, fim === -1 ? undefined : fim);
+
+  const fotos = [];
+  for (const achado of bloco.matchAll(/"full"\s*:\s*"([^"]+)"/g)) {
+    // O JSON vem dentro do HTML com as barras escapadas.
+    const endereco = comoUrlAbsoluta(achado[1].replace(/\\\//g, "/"), urlBase);
+    if (endereco) fotos.push(endereco);
+  }
+
+  return fotos.slice(0, TETO_DE_GALERIA);
 }
 
 function semRepetir(urls) {
@@ -524,6 +561,10 @@ function quantidadeNoTexto(html) {
     /qtde?[-_]?estoque[^>]*>\s*(\d{1,6})/i,
     /estoque\s*:?\s*(?:<[^>]*>\s*)*(\d{1,6})\s*(?:<[^>]*>\s*)*unidade/i,
     /(\d{1,6})\s*unidades?\s*(?:em|no)\s*estoque/i,
+    // Magento: <div class="availability only" title="2 itens"><strong>2</strong>
+    // itens</div>. O bloco e proprio do saldo — ancorar nele deixa de fora
+    // qualquer outro "N itens" da pagina, como o do carrinho.
+    /availability only[^>]*>\s*(?:<[^>]*>\s*)*(\d{1,6})\s*(?:<\/[^>]*>\s*)*\s*it(?:em|ens)/i,
   ];
 
   for (const padrao of padroes) {
@@ -1176,6 +1217,11 @@ export function normalizarPagina({
     ? galeriaDaTray(html, tray, url)
     : galeriaDaPagina(html, estruturadas[0], url);
 
+  // A galeria declarada do Magento vem ANTES das estruturadas: a primeira
+  // entrada dela ja e a foto principal, e o `full` e a maior versao — como
+  // endereco de Magento nao declara dimensao, quem chega primeiro e quem fica.
+  const doMagento = galeriaDoMagento(html, url);
+
   // O catalogo SOMA, nao substitui. Ele vem primeiro porque e declarado pela
   // loja e ja vem na ordem certa, mas nao pode calar a leitura da pagina: a
   // listagem da Tray trunca em QUATRO imagens por produto (medido: todo item
@@ -1183,6 +1229,7 @@ export function normalizarPagina({
   // vencer sozinho, cinco fotos que a pagina tinha eram perdidas.
   const images = semRepetir([
     ...(doCatalogo?.imagens ?? []),
+    ...doMagento,
     ...estruturadas,
     ...galeria,
   ]);

@@ -156,7 +156,7 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
         <p className="text-right text-xs text-suave">
           Ultima varredura: {situacao.ultimo.fonteNome} ·{" "}
           {situacao.ultimo.status === "CONCLUIDO"
-            ? `${situacao.ultimo.produtos ?? 0} produto(s) em JSON`
+            ? `${situacao.ultimo.produtos ?? 0} produto(s) gravado(s)`
             : `falhou${situacao.ultimo.erro ? `: ${situacao.ultimo.erro}` : ""}`}
         </p>
       )}

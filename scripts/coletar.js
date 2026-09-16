@@ -1,17 +1,19 @@
 import "dotenv/config";
 
 /**
- * Coleta produtos de uma ou mais fontes e grava em JSON.
+ * Coleta fontes CADASTRADAS pela linha de comando e grava no banco.
  *
- * Enquanto o banco nao entra, e assim que juntamos material real para conferir
- * a extracao. Usa o MESMO caminho do botao "Testar fonte" (colher.js), so com
- * limite maior — o que a previa mostra e o que este arquivo guarda.
+ * Mesmo caminho do botao "Atualizar dados" para colher (colher.js) e para gravar
+ * (banco.js) — so nao passa pela fila. Serve para conferir uma fonte sem subir o
+ * worker.
  *
  *   npm run coletar -- https://loja-a.com.br https://loja-b.com.br
  *   npm run coletar -- --limite=50 https://loja.com.br
- *   npm run coletar -- --secao=/informatica/ https://loja.com.br
  *
- * Grava em dados/coleta/<dominio>/produtos.json. Nada vai para o banco.
+ * O endereco precisa ser de uma fonte ja cadastrada em /mercados/fontes: todo
+ * produto pertence a uma fonte, e cadastrar por aqui pularia o teste que a tela
+ * exige. Sem --limite vale o da fonte: 20 para concorrente, catalogo inteiro para
+ * fornecedor.
  */
 
 const { register } = await import("node:module");
@@ -20,7 +22,9 @@ const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
 const { colherProdutos } = await import("../src/lib/coleta/colher.js");
-const { salvarColeta } = await import("../src/lib/coleta/arquivo.js");
+const { gravarColeta } = await import("../src/lib/coleta/banco.js");
+const { limiteDaFonte } = await import("../src/lib/coleta/coletar.js");
+const { prisma } = await import("../src/lib/db.js");
 
 const argumentos = process.argv.slice(2);
 const opcao = (nome, padrao) => {
@@ -28,44 +32,71 @@ const opcao = (nome, padrao) => {
   return achado ? achado.split("=").slice(1).join("=") : padrao;
 };
 
-const LIMITE = Number(opcao("limite", 20));
-const SECAO = opcao("secao", "");
-const TIPO = opcao("tipo", "CONCORRENTE");
+const LIMITE = opcao("limite", null);
 const alvos = argumentos.filter((a) => !a.startsWith("--"));
 
 if (alvos.length === 0) {
   console.error(
-    "Informe ao menos uma URL.\n" +
+    "Informe ao menos o endereco de uma fonte cadastrada.\n" +
       "  npm run coletar -- https://loja.com.br\n" +
-      "  npm run coletar -- --limite=20 --secao=/informatica/ https://loja.com.br",
+      "  npm run coletar -- --limite=50 https://loja.com.br",
   );
   process.exit(1);
 }
 
-function nomeDe(url) {
+async function fonteDe(url) {
+  let alvo;
   try {
-    const raiz = new URL(url).hostname.replace(/^www\./, "").split(".")[0];
-    return raiz.charAt(0).toUpperCase() + raiz.slice(1);
+    alvo = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
   } catch {
-    return url;
+    return { erro: "endereco invalido" };
   }
+
+  const fontes = await prisma.fonteColeta.findMany({ where: { dominio: alvo.hostname } });
+  if (fontes.length === 0) {
+    return { erro: `${alvo.hostname} nao e uma fonte cadastrada — cadastre em /mercados/fontes` };
+  }
+
+  // Mais de uma fonte no mesmo dominio e trecho diferente: vale a do caminho colado.
+  const fonte =
+    fontes.find((f) => f.prefixoUrl && alvo.pathname.startsWith(f.prefixoUrl)) ??
+    fontes.find((f) => !f.prefixoUrl) ??
+    fontes[0];
+
+  // Fornecedor com lista se atualiza reprocessando a lista. Gravar a vitrine por
+  // aqui marcaria a ultima coleta como "site", e a trava de queda — que so
+  // compara lista com lista — deixaria de proteger o proximo envio.
+  if (fonte.tipo === "FORNECEDOR" && fonte.listaArquivos?.length > 0) {
+    return {
+      erro: `${fonte.nome} tem lista enviada — use "Atualizar dados", que reprocessa a lista`,
+    };
+  }
+
+  return { fonte };
 }
 
 // Em paralelo: a fila de requisicoes e por dominio, entao lojas diferentes nao
 // se atrapalham e coletar de cinco leva o tempo de uma.
 const resultados = await Promise.all(
   alvos.map(async (url) => {
-    const nome = nomeDe(url);
-    console.log(`[${nome}] iniciando...`);
+    const { fonte, erro } = await fonteDe(url);
+    if (!fonte) {
+      console.log(`[${url}] ${erro}`);
+      return { nome: url, ok: false, total: 0 };
+    }
+
+    const nome = fonte.nome;
+    const limite = LIMITE ? Number(LIMITE) : limiteDaFonte();
+    console.log(`[${nome}] iniciando, ate ${limite} produto(s)...`);
 
     const comecou = Date.now();
     try {
       const colheita = await colherProdutos({
-        url,
-        secao: SECAO,
+        url: `https://${fonte.dominio}/`,
+        secao: fonte.prefixoUrl ?? undefined,
         nome,
-        tipo: TIPO,
-        limite: LIMITE,
+        tipo: fonte.tipo,
+        limite,
         aoProgredir: ({ visitadas, produtos }) => {
           if (visitadas % 10 === 0) {
             console.log(`[${nome}] ${produtos} produto(s) em ${visitadas} pagina(s)`);
@@ -73,9 +104,9 @@ const resultados = await Promise.all(
         },
       });
 
-      if (!colheita.ok) {
-        console.log(`[${nome}] FALHOU: ${colheita.motivo}`);
-        return { nome, url, ok: false, motivo: colheita.motivo, total: 0 };
+      if (!colheita.ok || colheita.produtos.length === 0) {
+        console.log(`[${nome}] FALHOU: ${colheita.motivo ?? "nenhum produto valido"}`);
+        return { nome, ok: false, total: 0 };
       }
 
       const resumo =
@@ -83,25 +114,23 @@ const resultados = await Promise.all(
         `formatos: ${colheita.formatos.join(", ")}` +
         (colheita.ritmoMs ? ` · site pede ${colheita.ritmoMs / 1000}s entre visitas` : "");
 
-      const destino = await salvarColeta({
-        fonte: {
-          nome,
-          dominio: colheita.dominio,
-          tipo: TIPO,
-          url,
-          secao: colheita.prefixoUrl,
-        },
+      const gravacao = await gravarColeta({
+        fonte,
         produtos: colheita.produtos,
+        origem: "site",
         resumo,
         duracaoMs: Date.now() - comecou,
       });
 
       console.log(`[${nome}] ${resumo}`);
-      console.log(`[${nome}] gravado em ${destino}`);
-      return { nome, url, ok: true, total: colheita.produtos.length, destino, colheita };
-    } catch (erro) {
-      console.log(`[${nome}] ERRO: ${erro?.message ?? erro}`);
-      return { nome, url, ok: false, motivo: String(erro?.message ?? erro), total: 0 };
+      console.log(
+        `[${nome}] ${gravacao.novos} novo(s), ${gravacao.atualizados} atualizado(s), ` +
+          `${gravacao.inalterados} sem mudanca, ${gravacao.precosMudaram} mudanca(s) de preco`,
+      );
+      return { nome, ok: true, total: gravacao.gravados, colheita };
+    } catch (excecao) {
+      console.log(`[${nome}] ERRO: ${excecao?.message ?? excecao}`);
+      return { nome, ok: false, total: 0 };
     }
   }),
 );
@@ -122,4 +151,6 @@ for (const r of resultados) {
 }
 
 const total = resultados.reduce((soma, r) => soma + r.total, 0);
-console.log(`\n${total} produto(s) gravado(s) em dados/coleta/`);
+console.log(`\n${total} produto(s) gravado(s) no banco`);
+
+await prisma.$disconnect();

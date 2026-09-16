@@ -1,201 +1,111 @@
-import { lerArquivosDaFonte, lerColeta, salvarColeta } from "./arquivo";
+import { lerArquivosOriginais } from "./arquivo";
 import { juntarListas, lerArquivo } from "./arquivos";
+import { gravarColeta, lerProdutosDaFonte } from "./banco";
+import { colherProdutos } from "./colher";
 import { conciliar, quedaSuspeita } from "./conciliar";
 import { regrasDoFornecedor } from "./fornecedores";
-import { buscarPagina, podeVisitar } from "./buscar";
-import { colherProdutos } from "./colher";
-import { acharUmProduto, rastrear } from "./descobrir";
-import { extrairProduto, resumirExtracao } from "./extrair";
-import { gravarPagina } from "./gravar";
-import { descobrirSitemaps, lerSitemaps } from "./sitemap";
 
 /**
- * Orquestracao: visitar, extrair, gravar.
+ * Orquestracao da coleta: colher ou reprocessar, conciliar, gravar no banco.
  *
- * Junta as pecas sem conhecer banco nem tela, para que a mesma sequencia sirva
- * ao botao "Atualizar tabelas", ao worker de 24 horas e a coleta de uma URL
- * avulsa no cadastro. Um caminho so — nao existe "modo manual" com codigo
- * proprio para divergir do automatico.
+ * Um caminho so para o botao "Atualizar dados", o worker e a linha de comando —
+ * nao existe "modo manual" com codigo proprio para divergir do automatico.
  */
 
-/// Quantos sitemaps ler ao conferir um site novo. Loja grande encadeia dezenas;
-/// ler todos deixaria o cadastro parado por minutos. Tres dao a ordem de
-/// grandeza, e a tela avisa que o total e "pelo menos" o contado.
-const SITEMAPS_NA_CONFERENCIA = 3;
+/// NINGUEM TEM COTA — o dono decidiu em 15/09/2026 que de toda fonte, fornecedor
+/// ou concorrente, se pega o catalogo inteiro. Antes eram 20 por concorrente.
+///
+/// O numero existe so para a colheita ter onde parar: loja que publique dezenas
+/// de milhares de itens nao pode prender o worker para sempre. Nao e politica, e
+/// freio — quem o encostar aparece na tela com "produtos no site" maior que o
+/// coletado.
+const TETO_POR_FONTE = 20000;
 
-/** Visita uma URL e grava o resultado. */
-export async function coletarUrl({ fonte, url, etag, vistoEm }) {
-  const resposta = await buscarPagina(url, { etag, vistoEm });
+/// Teto de paginas abertas numa varredura. Nem toda pagina aberta vira produto:
+/// categoria, busca e paginacao entram na conta. A 1 requisicao a cada 2 s sao
+/// umas onze horas no pior caso, e a loja que pede 10 s entre visitas (Eletrogate,
+/// Impacto CNC) chega ao teto muito antes disso — a varredura seguinte recomeca e
+/// o site vai sendo coberto aos poucos.
+const ORCAMENTO_PAGINAS = 20000;
 
-  const extraido =
-    resposta.ok && resposta.corpo
-      ? extrairProduto(resposta.corpo, resposta.urlFinal ?? url)
-      : null;
-
-  return gravarPagina({ fonte, url, resposta, extraido });
+/** Quantos produtos colher desta fonte. O mesmo para todas, desde 15/09/2026. */
+export function limiteDaFonte() {
+  return TETO_POR_FONTE;
 }
 
 /**
- * Confere um site antes de cadastra-lo.
+ * Aplica a lista de um fornecedor sobre o que ja esta no banco.
  *
- * E a parte mais valiosa do cadastro: descobrir em segundos que um site nao
- * publica dados estruturados — e precisaria de adaptador proprio — evita
- * esperar uma varredura inteira para receber nada. Nada e gravado aqui.
- *
- * O tipo da URL colada e decidido por EVIDENCIA, tentando extrair um produto
- * dela, e nao pelo formato do endereco: ha loja com produto na raiz e categoria
- * com barra no fim, e chutar pelo desenho da URL erra nos dois casos.
+ * Separado da leitura dos arquivos para ser testavel sem eles: e aqui que moram
+ * as duas regras que custaram caro — a trava de queda e o ausente que fica.
  */
-export async function conferirSite(urlColada) {
-  let alvo;
-  try {
-    alvo = new URL(
-      /^https?:\/\//i.test(urlColada) ? urlColada : `https://${urlColada}`,
-    );
-  } catch {
-    return { ok: false, erro: "Endereco invalido." };
-  }
+export async function aplicarListaDoFornecedor({
+  fonte,
+  produtos,
+  listaEnviadaEm,
+  comecou = Date.now(),
+  arquivos = 0,
+}) {
+  const anteriores = await lerProdutosDaFonte(fonte.id);
 
-  const origem = alvo.origin;
-  const dominio = alvo.hostname;
+  // TRAVA: lista muito menor que a anterior nao e aplicada. So compara lista com
+  // lista — `ultimaColetaOrigem` diz de onde veio a coleta guardada.
+  const queda = quedaSuspeita({
+    anteriores,
+    novos: produtos,
+    origemAnterior: fonte.ultimaColetaOrigem,
+  });
 
-  const permissao = await podeVisitar(alvo.toString());
-
-  // Bloqueio se respeita: nada mais e buscado neste site.
-  if (!permissao.permitido) {
+  if (queda) {
     return {
-      ok: true,
-      dominio,
-      origem,
-      url: alvo.toString(),
-      prefixoUrl: null,
-      robotsPermite: false,
-      robotsMotivo: permissao.motivo,
-      ehPaginaDeProduto: false,
-      sitemaps: [],
-      totalUrls: 0,
-      totalParcial: false,
-      amostra: null,
-      resumo: `robots.txt bloqueia — ${permissao.motivo}`,
+      total: arquivos,
+      feitas: 0,
+      produtos: 0,
+      erro:
+        `a lista nova tem ${queda.agora} produto(s) contra ${queda.antes} da anterior — ` +
+        `${queda.percentual}% sumiriam. Confira se o conjunto esta completo ` +
+        `(a Fortek manda duas listas) e envie de novo.`,
     };
   }
 
-  // 1) A URL colada e, ela mesma, uma pagina de produto?
-  const visita = await buscarPagina(alvo.toString());
-  const extraido =
-    visita.ok && visita.corpo
-      ? extrairProduto(visita.corpo, visita.urlFinal ?? alvo.toString())
-      : null;
+  const { produtos: conciliados, resumo: contagem } = conciliar({
+    anteriores,
+    novos: produtos,
+    dataDaLista: listaEnviadaEm ? new Date(listaEnviadaEm).toISOString() : undefined,
+  });
 
-  const ehPaginaDeProduto = Boolean(extraido?.encontrado);
+  const resumo =
+    `${conciliados.length} produto(s) · ${contagem.novos} novo(s), ` +
+    `${contagem.atualizados} atualizado(s), ${contagem.ausentes} ausente(s) da lista · ` +
+    `lista de ${new Date(listaEnviadaEm ?? Date.now()).toLocaleDateString("pt-BR")}`;
 
-  // Produto solto registra o dominio inteiro; secao vira prefixo. Raiz sem
-  // caminho nao tem prefixo nenhum.
-  const caminho = alvo.pathname.replace(/\/+$/, "");
-  const prefixoUrl = ehPaginaDeProduto || !caminho ? null : `${caminho}/`;
-
-  // 2) e 3) Sitemaps e dimensao da varredura.
-  const sitemaps = await descobrirSitemaps(origem);
-  let totalUrls = 0;
-  let totalParcial = false;
-  let primeiraUrl = null;
-
-  if (sitemaps.length > 0) {
-    const leitura = await lerSitemaps(sitemaps, {
-      prefixo: prefixoUrl ?? undefined,
-      maxSitemaps: SITEMAPS_NA_CONFERENCIA,
-    });
-    totalUrls = leitura.urls.length;
-    totalParcial = leitura.parcial;
-    primeiraUrl = leitura.urls[0]?.url ?? null;
-  }
-
-  // 4) Amostra: a propria pagina quando ela e produto; senao, a primeira do
-  // sitemap. Sem amostra nao da para afirmar que a extracao funciona.
-  let amostra = null;
-  let descoberta = "sitemap";
-
-  if (ehPaginaDeProduto) {
-    amostra = { url: alvo.toString(), dados: extraido, resumo: resumirExtracao(extraido) };
-  } else if (primeiraUrl) {
-    const visitaAmostra = await buscarPagina(primeiraUrl);
-    const dadosAmostra =
-      visitaAmostra.ok && visitaAmostra.corpo
-        ? extrairProduto(visitaAmostra.corpo, primeiraUrl)
-        : null;
-
-    if (dadosAmostra?.encontrado) {
-      amostra = { url: primeiraUrl, dados: dadosAmostra, resumo: resumirExtracao(dadosAmostra) };
-    }
-  }
-
-  // O sitemap declarado nem sempre lista produtos. A Usinainfo, por exemplo,
-  // aponta no robots.txt um sitemap de rotas de busca e nao tem /sitemap.xml —
-  // e ainda assim publica OpenGraph com preco em cada produto. Desistir aqui
-  // daria um site inteiramente aproveitavel como incompativel, entao a
-  // navegacao entra como segundo caminho.
-  if (!amostra) {
-    const achado = await acharUmProduto(alvo.toString(), prefixoUrl);
-    if (achado) {
-      descoberta = "navegacao";
-      amostra = {
-        url: achado.url,
-        dados: achado.dados,
-        resumo: resumirExtracao(achado.dados),
-      };
-    }
-  }
-
-  const extraiu = Boolean(amostra?.dados?.encontrado);
-
-  const ondeAchar =
-    descoberta === "navegacao"
-      ? "o sitemap nao lista produtos — a varredura vai navegar pelo site"
-      : sitemaps.length > 0
-        ? `${totalParcial ? "pelo menos " : ""}${totalUrls} endereco(s) no sitemap`
-        : "sitemap nao encontrado — a varredura vai navegar pelo site";
+  const gravacao = await gravarColeta({
+    fonte,
+    produtos: conciliados,
+    origem: "arquivo",
+    resumo,
+    duracaoMs: Date.now() - comecou,
+  });
 
   return {
-    ok: true,
-    dominio,
-    origem,
-    url: alvo.toString(),
-    prefixoUrl,
-    robotsPermite: true,
-    robotsMotivo: null,
-    ehPaginaDeProduto,
-    // Sitemap so fica gravado quando de fato leva a produto; senao a varredura
-    // seguiria uma lista que ja se provou inutil.
-    sitemaps: descoberta === "sitemap" ? sitemaps : [],
-    descoberta,
-    totalUrls: descoberta === "sitemap" ? totalUrls : 0,
-    totalParcial,
-    descobertaMostra: ondeAchar,
-    amostra,
-    resumo: [
-      ondeAchar,
-      "robots.txt permite",
-      extraiu ? resumirExtracao(amostra.dados) : "extracao falhou (sem dados estruturados)",
-    ].join(" · "),
+    total: arquivos,
+    feitas: arquivos,
+    produtos: gravacao.gravados,
+    visitas: 0,
+    resumo,
+    contagem,
+    gravacao,
+    /*
+      Para fornecedor que manda lista, O CATALOGO E A LISTA. Nao ha vitrine
+      para contar: o total do fornecedor e o que a lista declara, ja conciliado
+      com o que estava guardado — inclusive os ausentes, que continuam sendo
+      produtos dele, so sem saldo confirmado nesta remessa.
+    */
+    produtosNoSite: gravacao.gravados,
+    produtosNoSiteParcial: false,
+    erro: null,
   };
 }
-
-/**
- * Varre uma fonte inteira.
- *
- * `aoProgredir` recebe {total, feitas} para o worker registrar andamento no
- * payload do Job — e o que a tela le para mostrar a barra.
- */
-/// Teto de paginas visitadas numa varredura por navegacao. A 1 req/2s sao umas
-/// tres horas — muito para uma noite so, mas a varredura seguinte recomeca da
-/// semente e o site vai sendo coberto aos poucos.
-const ORCAMENTO_NAVEGACAO = 5000;
-
-/// Quantos produtos cada fonte deve render numa varredura. Combinado com o
-/// dono: 20 por concorrente ou fornecedor — o bastante para conferir a
-/// extracao com material real, sem varrer catalogo inteiro enquanto os testes
-/// correm.
-export const PRODUTOS_POR_FONTE = 20;
 
 /**
  * Reprocessa a ultima lista que o fornecedor mandou.
@@ -203,15 +113,25 @@ export const PRODUTOS_POR_FONTE = 20;
  * ARQUIVO NAO SE ATUALIZA SOZINHO — ele e uma foto do dia em que o fornecedor
  * mandou. O que a varredura faz e ler de novo o que esta guardado, com os
  * leitores de hoje. Por isso o resumo diz a data da LISTA, e nao so a do
- * reprocessamento: sem ela, uma lista de tres semanas atras parece tao fresca
- * quanto a vitrine varrida agora.
+ * reprocessamento.
  */
-async function reprocessarArquivos(fonte, guardados, aoProgredir) {
+async function reprocessarArquivos(fonte, aoProgredir) {
   const comecou = Date.now();
   const regras = regrasDoFornecedor({ nome: fonte.nome, url: `https://${fonte.dominio}` });
+  const guardados = await lerArquivosOriginais(fonte.dominio, fonte.listaArquivos);
+
+  if (guardados.length === 0) {
+    return {
+      total: fonte.listaArquivos?.length ?? 0,
+      feitas: 0,
+      produtos: 0,
+      erro: "os arquivos da lista nao estao mais em disco — envie a lista de novo",
+    };
+  }
+
   const lidos = [];
 
-  for (const arquivo of guardados.arquivos) {
+  for (const arquivo of guardados) {
     const leitura = await lerArquivo({
       nome: arquivo.nome,
       bytes: arquivo.bytes,
@@ -219,9 +139,7 @@ async function reprocessarArquivos(fonte, guardados, aoProgredir) {
     });
     lidos.push(leitura);
 
-    if (aoProgredir) {
-      await aoProgredir({ total: guardados.arquivos.length, feitas: lidos.length });
-    }
+    if (aoProgredir) await aoProgredir({ total: guardados.length, feitas: lidos.length });
   }
 
   // A pronta entrega vem primeiro: em juntarListas quem chega antes vence, e o
@@ -239,10 +157,9 @@ async function reprocessarArquivos(fonte, guardados, aoProgredir) {
 
   if (produtos.length === 0) {
     return {
-      total: guardados.arquivos.length,
+      total: guardados.length,
       feitas: 0,
       produtos: 0,
-      arquivo: null,
       erro: "nenhum produto reconhecido nos arquivos guardados",
     };
   }
@@ -256,7 +173,8 @@ async function reprocessarArquivos(fonte, guardados, aoProgredir) {
       secao: fonte.prefixoUrl ?? undefined,
       nome: fonte.nome,
       tipo: fonte.tipo,
-      limite: PRODUTOS_POR_FONTE,
+      limite: limiteDaFonte(),
+      orcamento: ORCAMENTO_PAGINAS,
     });
 
     // Site ANTES do arquivo: quem chega primeiro vence, e a foto e a descricao
@@ -266,134 +184,73 @@ async function reprocessarArquivos(fonte, guardados, aoProgredir) {
     }
   }
 
-  const anterior = await lerColeta(fonte.dominio);
-
-  // TRAVA: lista muito menor que a anterior nao e aplicada.
-  const queda = quedaSuspeita({
-    anteriores: anterior?.produtos,
-    novos: produtos,
-    origemAnterior: anterior?.origem,
+  return aplicarListaDoFornecedor({
+    fonte,
+    produtos,
+    listaEnviadaEm: fonte.listaEnviadaEm,
+    comecou,
+    arquivos: guardados.length,
   });
-
-  if (queda) {
-    return {
-      total: guardados.arquivos.length,
-      feitas: 0,
-      produtos: 0,
-      arquivo: null,
-      erro:
-        `a lista nova tem ${queda.agora} produto(s) contra ${queda.antes} da anterior — ` +
-        `${queda.percentual}% sumiriam. Confira se o conjunto esta completo ` +
-        `(a Fortek manda duas listas) e envie de novo.`,
-    };
-  }
-
-  const { produtos: conciliados, resumo: contagem } = conciliar({
-    anteriores: anterior?.produtos,
-    novos: produtos,
-    dataDaLista: guardados.manifesto?.enviadoEm,
-  });
-
-  const resumo =
-    `${conciliados.length} produto(s) · ${contagem.novos} novo(s), ` +
-    `${contagem.atualizados} atualizado(s), ${contagem.ausentes} ausente(s) da lista · ` +
-    `lista de ${new Date(guardados.manifesto?.enviadoEm ?? Date.now()).toLocaleDateString("pt-BR")}`;
-
-  const arquivo = await salvarColeta({
-    fonte: {
-      nome: fonte.nome,
-      dominio: fonte.dominio,
-      tipo: fonte.tipo,
-      url: `https://${fonte.dominio}/`,
-      secao: fonte.prefixoUrl ?? null,
-    },
-    produtos: conciliados,
-    resumo,
-    origem: "arquivo",
-    listaEnviadaEm: guardados.manifesto?.enviadoEm ?? null,
-    duracaoMs: Date.now() - comecou,
-  });
-
-  return {
-    total: guardados.arquivos.length,
-    feitas: guardados.arquivos.length,
-    produtos: conciliados.length,
-    visitas: 0,
-    arquivo,
-    resumo,
-    contagem,
-    /*
-      Para fornecedor que manda lista, O CATALOGO E A LISTA. Nao ha vitrine
-      para contar: o total do fornecedor e o que a lista declara, ja conciliado
-      com o que estava guardado — inclusive os ausentes, que continuam sendo
-      produtos dele, so sem saldo confirmado nesta remessa.
-    */
-    produtosNoSite: conciliados.length,
-    produtosNoSiteParcial: false,
-    erro: null,
-  };
 }
 
 /**
- * Varredura de uma fonte GRAVANDO EM JSON.
- *
- * E o que o botao "Atualizar tabelas" faz hoje. O banco fica parado de
- * proposito ate os testes terminarem: o schema e o `varrerFonte` abaixo
- * continuam de pe, mas *o que* se guarda ainda nao foi decidido, e gravar antes
- * disso enche a tabela com o formato errado.
+ * Varredura de uma fonte, gravando no banco.
  *
  * USA O MESMO CAMINHO DO "TESTAR FONTE" — colherProdutos —, mudando so o
- * limite. Era aqui que as duas trilhas divergiam: a tela mostrava o que o
- * normalizador completo extraia e a varredura gravava o que um extrator antigo
+ * limite. Houve um periodo com duas trilhas: a tela mostrava o que o
+ * normalizador completo extraia e a gravacao guardava o que um extrator antigo
  * entendia, entao o que o operador aprovava no cadastro nao era o que ficava
  * guardado. Com uma funcao so, a divergencia deixa de ser possivel.
  */
-export async function varrerFonteParaJson(fonte, aoProgredir) {
+export async function varrerFonte(fonte, aoProgredir) {
   const comecou = Date.now();
-  // FORNECEDOR COM ARQUIVO NAO SE VARRE: reprocessa.
+
+  // FORNECEDOR COM LISTA NAO SE VARRE: reprocessa.
   //
   // A Fortek e um portal atras de login — varrer devolve zero. E onde ha lista
   // enviada, ela e a fonte melhor de qualquer jeito: traz preco e saldo, que a
   // vitrine de atacado nao publica.
-  if (fonte.tipo === "FORNECEDOR" && fonte.ativa) {
-    const guardados = await lerArquivosDaFonte(fonte.dominio);
-    if (guardados.arquivos.length > 0) {
-      return reprocessarArquivos(fonte, guardados, aoProgredir);
-    }
+  if (fonte.tipo === "FORNECEDOR" && fonte.ativa && fonte.listaArquivos?.length > 0) {
+    return reprocessarArquivos(fonte, aoProgredir);
   }
+
+  const limite = limiteDaFonte();
 
   // Pausada e bloqueada nao se varre. "Pausar mantem tudo que ja foi coletado"
   // e uma promessa da tela: varrer assim mesmo a quebraria.
   if (!fonte.robotsPermite || !fonte.ativa) {
     return {
-      total: PRODUTOS_POR_FONTE,
+      total: limite,
       feitas: 0,
       produtos: 0,
-      arquivo: null,
       erro: fonte.robotsPermite ? "fonte pausada" : "robots.txt do site nos barra",
     };
   }
+
+  // A barra anda contra o tamanho conhecido do catalogo: contra o teto de 20.000,
+  // uma loja de 400 itens terminaria parecendo parada em 2%.
+  const esperado = fonte.produtosNoSite ?? limite;
 
   const colheita = await colherProdutos({
     url: `https://${fonte.dominio}/`,
     secao: fonte.prefixoUrl ?? undefined,
     nome: fonte.nome,
     tipo: fonte.tipo,
-    limite: PRODUTOS_POR_FONTE,
+    limite,
+    orcamento: ORCAMENTO_PAGINAS,
     // O andamento e contado em PRODUTOS, nao em paginas abertas: e o numero que
     // o operador pediu ("20 de cada"), e paginas abertas sobem sem parar em
     // loja que exige muita navegacao ate achar produto.
     aoProgredir: aoProgredir
-      ? ({ produtos }) => aoProgredir({ total: PRODUTOS_POR_FONTE, feitas: produtos })
+      ? ({ produtos }) => aoProgredir({ total: esperado, feitas: produtos })
       : undefined,
   });
 
   if (colheita.produtos.length === 0) {
     return {
-      total: PRODUTOS_POR_FONTE,
+      total: esperado,
       feitas: 0,
       produtos: 0,
-      arquivo: null,
       visitas: colheita.visitas,
       erro: colheita.motivo ?? "nenhum produto valido",
     };
@@ -404,34 +261,23 @@ export async function varrerFonteParaJson(fonte, aoProgredir) {
     `formatos: ${colheita.formatos.join(", ")}` +
     (colheita.ritmoMs ? ` · site pede ${colheita.ritmoMs / 1000}s entre visitas` : "");
 
-  const arquivo = await salvarColeta({
-    fonte: {
-      nome: fonte.nome,
-      dominio: fonte.dominio,
-      tipo: fonte.tipo,
-      url: `https://${fonte.dominio}/`,
-      secao: fonte.prefixoUrl ?? null,
-    },
+  const gravacao = await gravarColeta({
+    fonte,
     produtos: colheita.produtos,
+    origem: "site",
     resumo,
     duracaoMs: Date.now() - comecou,
   });
 
   return {
-    total: PRODUTOS_POR_FONTE,
+    total: esperado,
     feitas: colheita.produtos.length,
-    produtos: colheita.produtos.length,
+    produtos: gravacao.gravados,
     visitas: colheita.visitas,
-    arquivo,
     resumo,
+    gravacao,
     /*
-      O TAMANHO DO CATALOGO, que a colheita ja mede e vinha sendo descartado.
-
-      "Produtos no site" so era gravado no cadastro da fonte, entao ficava
-      congelado no que o teste viu naquele dia — e fonte cujo teste nao provou
-      o total mostrava travessao para sempre, por mais varreduras que rodasse.
-      A cada varredura o catalogo publico e o sitemap sao consultados de novo;
-      guardar o numero e de graca.
+      O TAMANHO DO CATALOGO, que a colheita ja mede a cada varredura.
 
       Vem `null` quando a varredura nao provou o total (ver `produtosNoSite` em
       colher.js: endereco no sitemap nao e produto). Quem grava decide o que
@@ -443,86 +289,4 @@ export async function varrerFonteParaJson(fonte, aoProgredir) {
     // produtos legiveis. Dizer quantos vieram e mais util que falhar.
     erro: null,
   };
-}
-
-/**
- * Varredura gravando no BANCO. PARADA ate os testes terminarem.
- *
- * Continua de pe e com teste proprio (`npm run teste:coleta`), porque o banco
- * volta depois — mas nada em producao a chama hoje: quem o botao e o worker
- * usam e `varrerFonteParaJson`.
- */
-export async function varrerFonte(fonte, paginasConhecidas, aoProgredir) {
-  if (!fonte.robotsPermite || !fonte.ativa) {
-    return { total: 0, feitas: 0, contagem: {}, erro: "fonte bloqueada ou pausada" };
-  }
-
-  const conhecidas = new Map(
-    (paginasConhecidas ?? []).map((pagina) => [pagina.url, pagina]),
-  );
-
-  const sitemaps = fonte.urlSitemap ? [fonte.urlSitemap] : [];
-
-  // Sem sitemap util, navega. E o caminho para as lojas que nao publicam
-  // sitemap de produto — a maioria das que nao usam plataforma grande.
-  if (sitemaps.length === 0) {
-    const semente = `https://${fonte.dominio}${fonte.prefixoUrl ?? "/"}`;
-    const contagemNav = {};
-
-    const resultado = await rastrear({
-      semente,
-      prefixo: fonte.prefixoUrl ?? undefined,
-      orcamento: ORCAMENTO_NAVEGACAO,
-      paginasConhecidas,
-      aoAchar: async ({ url, dados, resposta }) => {
-        const gravado = await gravarPagina({ fonte, url, resposta, extraido: dados });
-        contagemNav[gravado.acao] = (contagemNav[gravado.acao] ?? 0) + 1;
-      },
-      aoProgredir: aoProgredir
-        ? ({ visitadas, produtos }) =>
-            aoProgredir({ total: ORCAMENTO_NAVEGACAO, feitas: visitadas, produtos })
-        : undefined,
-    });
-
-    return {
-      total: resultado.visitadas,
-      feitas: resultado.visitadas,
-      contagem: contagemNav,
-      descoberta: "navegacao",
-      erro: null,
-    };
-  }
-
-  const { urls } = await lerSitemaps(sitemaps, {
-    prefixo: fonte.prefixoUrl ?? undefined,
-  });
-
-  const contagem = {};
-  let feitas = 0;
-
-  for (const item of urls) {
-    const anterior = conhecidas.get(item.url);
-
-    // O <lastmod> do sitemap NAO e usado para pular pagina, embora fosse
-    // tentador: loja muda preco sem mexer no lastmod com frequencia, e confiar
-    // nele faria a varredura ignorar justamente o que ela existe para vigiar —
-    // uma queda de preco do concorrente passaria em branco, sem erro nenhum na
-    // tela. O que da barateza aqui e o ETag/If-Modified-Since, que quem
-    // responde e o servidor, olhando o conteudo de verdade. O ganho de tempo
-    // seria pequeno de todo modo: a varredura e limitada pelo ritmo de uma
-    // requisicao a cada dois segundos, nao pela banda.
-    const resultado = await coletarUrl({
-      fonte,
-      url: item.url,
-      etag: anterior?.etag ?? undefined,
-      vistoEm: anterior?.vistoEm ?? undefined,
-    });
-    contagem[resultado.acao] = (contagem[resultado.acao] ?? 0) + 1;
-
-    feitas++;
-    if (aoProgredir && feitas % 25 === 0) await aoProgredir({ total: urls.length, feitas });
-  }
-
-  if (aoProgredir) await aoProgredir({ total: urls.length, feitas });
-  return { total: urls.length, feitas, contagem, erro: null };
 }

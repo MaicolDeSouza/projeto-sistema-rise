@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowLeft, Store } from "lucide-react";
 
 import { prisma } from "@/lib/db";
-import { lerColeta, manifestoDaFonte } from "@/lib/coleta/arquivo";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
@@ -26,40 +25,45 @@ export default async function FontesPage({ searchParams }) {
   try {
     fontes = await prisma.fonteColeta.findMany({
       orderBy: [{ ativa: "desc" }, { nome: "asc" }],
-      include: { _count: { select: { paginas: true } } },
     });
   } catch (excecao) {
     erro = excecao;
   }
 
-  // A lista guardada de cada fornecedor, lida do disco. So do fornecedor:
-  // concorrente tem vitrine e nao manda arquivo.
-  const linhas = await Promise.all(
-    (fontes ?? []).map(async (fonte) => ({
-      id: fonte.id,
-      nome: fonte.nome,
-      dominio: fonte.dominio,
-      prefixoUrl: fonte.prefixoUrl,
-      tipo: fonte.tipo,
-      ativa: fonte.ativa,
-      robotsPermite: fonte.robotsPermite,
-      ultimaVarreduraEm: fonte.ultimaVarreduraEm,
-      // Quantos a loja tem, e quantos ja pegamos. Os dois juntos: um sozinho
-      // nao responde se a coleta esta perto do fim ou mal comecou.
-      produtosNoSite: fonte.produtosNoSite,
-      produtosNoSiteParcial: fonte.produtosNoSiteParcial,
-      instrucoes: fonte.instrucoes,
-      manifesto:
-        fonte.tipo === "FORNECEDOR" ? await manifestoDaFonte(fonte.dominio) : null,
-      // QUANTOS PRODUTOS ESTA FONTE TEM HOJE, lido do JSON.
-      //
-      // Vinha de `_count.paginas`, a contagem da tabela `paginaColetada` — que
-      // esta vazia de proposito enquanto a coleta grava em arquivo. Por isso a
-      // Fortek aparecia com 0 tendo 1.911 produtos guardados. Mesmo defeito que
-      // a tela de Mercados ja teve, no outro lado do sistema.
-      coleta: await lerColeta(fonte.dominio),
-    })),
-  );
+  const linhas = (fontes ?? []).map((fonte) => ({
+    id: fonte.id,
+    nome: fonte.nome,
+    dominio: fonte.dominio,
+    prefixoUrl: fonte.prefixoUrl,
+    tipo: fonte.tipo,
+    ativa: fonte.ativa,
+    robotsPermite: fonte.robotsPermite,
+    ultimaVarreduraEm: fonte.ultimaVarreduraEm,
+    // Quantos a loja tem, e quantos ja pegamos. Os dois juntos: um sozinho
+    // nao responde se a coleta esta perto do fim ou mal comecou.
+    produtosNoSite: fonte.produtosNoSite,
+    produtosNoSiteParcial: fonte.produtosNoSiteParcial,
+    instrucoes: fonte.instrucoes,
+    // A lista guardada. So do fornecedor: concorrente tem vitrine e nao manda
+    // arquivo.
+    manifesto:
+      fonte.tipo === "FORNECEDOR" && fonte.listaArquivos
+        ? { arquivos: fonte.listaArquivos, enviadoEm: fonte.listaEnviadaEm }
+        : null,
+    // A ULTIMA COLETA GRAVADA: quantos produtos vieram nela, quando e quanto
+    // demorou. A data da lista so acompanha quando a coleta veio DELA — numa
+    // varredura de site, "lista de 01/09" apareceria ao lado de uma data que
+    // nada tem a ver com a lista.
+    coleta: fonte.ultimaColetaEm
+      ? {
+          total: fonte.ultimaColetaTotal,
+          coletadoEm: fonte.ultimaColetaEm,
+          duracaoMs: fonte.ultimaColetaDuracaoMs,
+          listaEnviadaEm:
+            fonte.ultimaColetaOrigem === "arquivo" ? fonte.listaEnviadaEm : null,
+        }
+      : null,
+  }));
 
   // A tabela mostra so o tipo da aba. "OUTRO" cai com os concorrentes: nao tem
   // lista para enviar, e a rotina dele e a mesma — varrer o site.

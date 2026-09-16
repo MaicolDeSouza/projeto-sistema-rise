@@ -27,7 +27,7 @@ Organizado em **blocos** no menu lateral, cada um desenvolvido de forma independ
 | Integrações | Bling e ML conectados e testados; Loja Integrada via Bling |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
-| Mercados | Teste de fonte em 6 sites, importação de arquivo (HTML/PDF/XLSX) e coleta em lote gravando **em JSON**; banco parado de propósito |
+| Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
 **A publicação nunca foi ligada.** `ML_PUBLICACAO` e `BLING_ESCRITA` estão em `false`, e
@@ -37,18 +37,50 @@ requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue
 ## Rodar
 
 ```bash
-npm run db:up && npm run dev      # https://localhost:3000
+npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
 npm run teste:extracao            # 137 asserções da extração e da conciliação, SEM rede
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
-npm run coletar -- --limite=20 <url>   # colhe e grava em dados/coleta/<dominio>/
+npm run teste:coleta              # 33 asserções da gravação no banco (usa o Postgres, SEM rede)
+npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # executa o que o botao "Atualizar tabelas" enfileira
 ```
 
 HTTPS é obrigatório (o OAuth do ML exige). Certificado em `certificates/`, gerado com
 mkcert, fora do git.
+
+- **`certificates/rootCA.pem` é obrigatório**, e é só a parte pública da CA do mkcert
+  (`%LOCALAPPDATA%\mkcert\rootCA.pem`) — a `rootCA-key.pem` **nunca** vem para cá. O
+  navegador confia no certificado porque a CA está no Windows; o **Node não olha lá**. Com
+  `--experimental-https-key/cert` e sem `--experimental-https-ca`, o `next dev` põe
+  `NODE_EXTRA_CA_CERTS` **indefinido** no processo filho. Nada falha até o Next precisar
+  **encaminhar uma Server Action** para outro worker — ele faz `fetch` no próprio
+  `https://localhost:3000` e leva `UNABLE_TO_VERIFY_LEAF_SIGNATURE`. No log aparece
+  `failed to forward action response`; na tela, botão que não responde em `/mercados/fontes`.
+
+**O banco é PostgreSQL 17 nativo, não mais Docker** — migrado em 15/09/2026 a pedido do dono:
+o Docker Desktop travava ao abrir e o sistema ficava sem banco.
+
+- Serviço do Windows `postgresql-x64-17`, **início automático** — liga com a máquina, sem
+  `npm run db:up`. Superusuário `rise` com a senha do `.env`, o mesmo arranjo do container,
+  então o `DATABASE_URL` não mudou.
+- **`listen_addresses = 'localhost'`**, posto à mão em
+  `C:\Program Files\PostgreSQL\17\data\postgresql.conf`. O instalador do Windows deixa `'*'`, e
+  o compose publicava só em 127.0.0.1 de propósito.
+- Banco criado com **`TEMPLATE template0`, UTF8, ICU `en-US`**: o `template1` do instalador herda
+  a codificação do Windows (WIN1252), e restaurar nele estragaria os acentos.
+- A cópia do banco do Docker está em `dados/backup/` (fora do git — leva os tokens cifrados).
+  Contagens conferidas tabela a tabela depois de restaurar, e o ML autenticou com o token
+  restaurado.
+- **O container `rise-postgres` foi parado, não apagado** (`docker compose stop`), e o
+  `docker-compose.yml` continua valendo para a VPS. Os dois ligados disputam a porta 5432.
+- **Não fechar o Docker Desktop à força.** `Stop-Process -Force` deixa sockets unix órfãos
+  (`%LOCALAPPDATA%\Docker\run\dockerInference`, `docker-secrets-engine\engine.sock`); na abertura
+  seguinte ele tenta apagá-los, o Windows devolve erro 1920 e o Docker fecha com *"unexpected
+  error"*. `Remove-Item`, `del` e `fsutil reparsepoint delete` falham; **renomear a pasta** que os
+  contém resolveu. **Nunca "Reset to factory defaults"** — apaga os volumes, e o banco com eles.
 
 ---
 
@@ -60,6 +92,9 @@ mkcert, fora do git.
 - Autorização em `https://www.bling.com.br/b/Api/v3/oauth/authorize` — **com `/b/`**.
   Token em `https://www.bling.com.br/Api/v3/oauth/token` — **sem `/b/`**.
   API em `https://www.bling.com.br/Api/v3` (não `api.bling.com.br`).
+  **Em 15/09/2026 isso inverteu**: o `npm run diagnostico` levou *"A URL 'www.bling.com.br' está
+  bloqueada para requisições de API. Por favor, utilize o endpoint oficial: 'api.bling.com.br'"*.
+  **Não corrigido.** Antes de trocar, conferir se autorização e token mudaram também.
 - O `code` vale **1 minuto**. O refresh token dura 30 dias e **rotaciona**.
 - **20 pedidos de token em 60s bloqueiam o IP por 60 minutos.** Nunca pedir token se o
   guardado ainda vale.
@@ -115,37 +150,77 @@ tentativa de coletar os 20 produtos direto do teste:
    concorrente ou fornecedor. Nunca disparar coleta a partir da tela de teste: são
    momentos diferentes do fluxo, e juntá-los já foi erro cometido uma vez.
 
-**Enquanto os testes não terminam, grava em JSON.** Destino
-`dados/coleta/<domínio>/produtos.json`, limite de **20 produtos por fonte**. O banco fica
-**parado de propósito**: o schema (`FonteColeta`, `PaginaColetada`, `PrecoHistorico`,
-`Job`) e o worker já existem no código, mas *o que* se guarda ainda não foi decidido, e
-gravar antes disso enche a tabela com o formato errado. Ligar o banco é passo separado,
-depois dos testes, com o dono presente.
+**A coleta grava no Postgres** — desde 15/09/2026, a pedido do dono ("não vamos mais usar
+JSON"). Até ali gravava em `dados/coleta/<domínio>/produtos.json`; os 7 arquivos foram
+carregados por `scripts/migrar-coleta-json.js` (2.471 produtos, contagem conferida fonte a
+fonte) e guardados em `dados/backup/coleta-json-20260915/`.
 
-**O botão "Atualizar tabelas" grava em JSON** — reconciliado em 01/09/2026. Ele
-**enfileira**, não executa: varrer seis lojas passa de dez minutos, o que não cabe numa
-requisição HTTP e morreria no primeiro hot reload. Quem executa é o `scripts/worker.js`
-(`npm run worker`), chamando `varrerFonteParaJson` → `colherProdutos` → `salvarColeta`.
-São **20 produtos por fonte** (`PRODUTOS_POR_FONTE`).
-
+- **Quanto se colhe: TUDO, de todas as fontes** — decidido pelo dono em 15/09/2026, no fim da
+  sessão (antes eram 20 por concorrente). `TETO_POR_FONTE` e `ORCAMENTO_PAGINAS` (20.000, em
+  `coletar.js`) não são cota: são freio para a loja gigante não prender o worker. Quem
+  encostar no freio aparece na tela com "produtos no site" maior que o coletado.
+- **Custo disso, medido nos números das fontes de hoje:** cada produto exige abrir a página
+  dele, a 1 requisição a cada 2 s por domínio — a Smartkits (3.780) leva ~2 h, a Casa da
+  Robótica (2.294) ~1,3 h. **Eletrogate e Impacto CNC pedem 10 s entre visitas**: 500
+  produtos já são ~1,4 h cada. A varredura completa das oito fontes é trabalho de uma noite,
+  e o worker **morre junto com a sessão** — fonte interrompida recomeça na próxima.
+- **O botão "Atualizar dados" enfileira**, não executa: varrer seis lojas passa de dez
+  minutos, o que não cabe numa requisição HTTP e morreria no primeiro hot reload. Quem
+  executa é o `scripts/worker.js` (`npm run worker`): `varrerFonte` → `colherProdutos` ou
+  `reprocessarArquivos` → `gravarColeta` (`banco.js`).
 - **O mesmo `colher.js` do "Testar fonte".** Era aqui que as duas trilhas divergiam: a tela
-  mostrava o que o normalizador completo extraía e a varredura gravava o que um extrator
-  antigo entendia. Agora o que o operador aprova no cadastro é o que fica guardado.
-- **`varrerFonte` (Postgres) continua de pé e parado**, com teste próprio
-  (`npm run teste:coleta`). Nada em produção o chama — ele volta quando o banco entrar.
+  mostrava o que o normalizador completo extraía e a gravação guardava o que um extrator
+  antigo entendia. O caminho antigo do banco (`gravar.js`, `coletarUrl`, `conferirSite`, a
+  tabela `PaginaColetada`) foi **removido**: gravava o formato do extrator antigo e exigia
+  URL, que os 1.911 da Fortek não têm.
+- **`ProdutoColetado` espelha o produto de `normalizar.js`**, e `linha.js` converte nos dois
+  sentidos. A conversão tem que **voltar igual**: conciliar lê do banco e grava de novo, e
+  assinatura diferente reescreveria a lista inteira a cada envio.
+- **O JSONB reordena as chaves.** `origens` e `seo` voltam do Postgres em outra ordem, e com
+  `JSON.stringify` comum o mesmo produto dava outra assinatura. A assinatura usa chaves
+  ordenadas; a ordem dos ITENS continua valendo, porque a ficha é ordenada.
+- **A chave é `fonteId + chave`**: `codigo:` quando há código (não `N/A`), senão `url:`,
+  senão `nome:` normalizado. A Usinainfo publica o mesmo produto (09109, id 6072) por dois
+  endereços; pelo código, é um só — por isso 20 no JSON viraram 19 no banco.
+- **Só escreve o que mudou.** Sem mudança de conteúdo, só `vistoEm` avança, num
+  `updateMany`. A série (`PrecoHistorico`) ganha linha quando **preço normal, promocional,
+  de reserva ou status de estoque** mudam — a quantidade fica de fora, senão todo
+  reprocessamento da Fortek viraria mudança. O detalhe mostra como anterior o **último
+  preço diferente**, e não a penúltima linha, que pode ser só mudança de estoque.
+- **Produto de site que some da amostra não é apagado** — fica com o `vistoEm` antigo.
+  Ficar fora de 20 não prova que saiu do ar, e o histórico de preço dele continua valendo.
+- **Mas a tabela mostra só a última coleta de cada fonte** (`produtosParaLista`), decidido
+  pelo dono em 15/09/2026. Loja sem sitemap de produto é varrida por **navegação**, e cada
+  varredura cai numa amostra diferente: a Usinainfo trouxe 19 produtos em 02/09 e outros 19
+  em 15/09, **sem repetir um endereço**. Listando todos, a loja cresceria vinte linhas por
+  varredura e misturaria preço de hoje com preço de duas semanas atrás. Para fornecedor não
+  muda nada: a lista conciliada inteira é regravada a cada reprocessamento, ausentes
+  incluídos.
+- **O saldo anterior fica guardado** (`quantidadeAnterior`, `quantidadeAnteriorEm`), pedido do
+  dono em 15/09/2026 para montar depois o histórico de venda: com os dois números e as duas
+  datas dá para dizer quanto saiu entre uma varredura e outra. **São dois campos porque um
+  só não serve** — "de 20 para 10" não diz se foi numa semana ou em seis meses. Só muda
+  quando a quantidade muda, e **saldo não informado não apaga o anterior**: produto fora da
+  lista do fornecedor fica sem saldo, e isso não é uma quantidade nova. O histórico em si
+  **ainda não existe** — por enquanto só se guarda o par.
+- **Ausente guarda a data da PRIMEIRA lista em que faltou.** A conciliação carimba a data da
+  lista atual; `gravarColeta` mantém a guardada, senão um produto fora há dois meses
+  pareceria ausente desde a semana passada.
+- **A última coleta mora na fonte** (`ultimaColetaEm`, `ultimaColetaOrigem`,
+  `ultimaColetaTotal`, `ultimaColetaDuracaoMs`, `ultimaColetaResumo`), escrita por quem
+  grava. A trava de queda compara com `ultimaColetaOrigem`.
+- **A lista enviada também**: `listaArquivos` e `listaEnviadaEm` substituíram o
+  `manifesto.json`. Os **originais** (HTML, planilha) continuam em
+  `dados/coleta/<domínio>/arquivos/` — não são JSON, e é deles que se reprocessa.
+- **A lista da tela é leve**: `produtosParaLista` traz tudo sem galeria, descrição nem
+  ficha, e filtra em memória; a miniatura (base64, na Fortek) vem só para as 100 da página.
+- **Json nulo no Prisma é `Prisma.DbNull`.** `null` puro num campo `Json?` é recusado.
 - **A fonte nasce pausada**, com `proximaVarreduraEm` a 100 anos: salvar um cadastro não
-  pode disparar varredura sozinho. O ciclo automático de 24 h está desligado de propósito
-  e o botão é o único gatilho — ele filtra por `ativa`, não por essa data. Fonte pausada dá
-  recado dizendo para usar "Retomar".
-- **A tela `/mercados` lê do JSON**, por `produtosColetados()` em `arquivo.js`; só o
-  cadastro das fontes continua no banco, que é onde ele sempre esteve. Quando o banco
-  entrar, mudam `produtosColetados()` e `detalhePagina()` — a tela não.
-- **O JSON não tem chave primária**, e a tela precisa de uma para abrir o detalhe. O id é
-  `dominio|codigo|url`, composto do que identifica o produto e **não da posição na lista**:
-  com o índice, uma varredura entre a listagem e o clique abriria o produto errado.
-- **Sem histórico de preço.** O arquivo guarda a última coleta e sobrescreve a anterior,
-  então `precoAnterior` é sempre `null` e a seta de variação não aparece. Série é assunto
-  do banco — mostrar movimento sem base seria inventá-lo.
+  pode disparar varredura sozinho. Fonte pausada dá recado dizendo para usar "Retomar".
+- **O ciclo automático de 24 h está LIGADO** — este arquivo dizia o contrário até
+  15/09/2026. Fonte ativa cuja `proximaVarreduraEm` venceu é enfileirada pelo worker a cada
+  volta (`enfileirarVencidas`), sem clique; foi o que varreu as seis fontes ao ligar o worker
+  naquele dia.
 - **O teto da tabela subiu de 100 para 300.** A data é da **coleta inteira**, não de cada
   produto, então a ordenação agrupa por fonte e um teto apertado corta a fonte mais antiga
   **por completo**: com 100, a Casa da Robótica sumia da tela inteira tendo 20 produtos
@@ -184,17 +259,33 @@ São **20 produtos por fonte** (`PRODUTOS_POR_FONTE`).
   banco.
 - O bloco vive na branch **`bloco-mercados`**, ainda não fundida na principal.
 
-**Em aberto no Mercados** — estado ao fim da sessão de 02/09/2026:
+**Em aberto no Mercados** — estado em 15/09/2026:
 
 - **Conferir o campo Documentos na prévia do teste de fonte.** A extração está testada; o
   que nunca foi visto é a tela desenhando o link clicável.
-- **O total da Nightech (458) não é a vitrine inteira.** É a planilha (457) somada à
-  amostra de 20 produtos do site, fundida por código. Produto que só existe no site e ficou
-  fora da amostra não conta. Varrer a vitrine inteira resolve e deixa "Atualizar dados"
-  mais lento — decisão do dono, ainda não tomada.
+- **A Nightech passa a varrer a vitrine inteira** (decidido em 15/09/2026). A primeira
+  varredura depois disso ainda não rodou: conferir o tempo e o total que ela dá.
 - **Usinainfo sem total de catálogo é de propósito**, não pendência: o único sitemap dela
   são 12 rotas de busca (ver "Sitemap", abaixo).
-- **Ligar o banco** continua sendo passo separado, com o dono presente.
+- **Job largado por worker que morreu travava a fila** — corrigido em 15/09/2026. A
+  Usinainfo ficou `PROCESSANDO` de 02/09 a 15/09: nunca mais varrida (fonte com job aberto
+  não é enfileirada de novo), com "Atualizar dados" bloqueado para **todas** as fontes e o
+  aviso de "nenhum worker" calado, porque `PROCESSANDO` era a prova de vida. Agora o worker,
+  a cada volta, devolve à fila o job `PROCESSANDO` **sem notícia há 30 min**
+  (`ORFAO_APOS_MS` em `src/lib/coleta/fila.js`), e a tela não conta esse job como worker
+  vivo. Não é todo `PROCESSANDO`: um segundo worker subido por engano devolveria à fila o
+  trabalho que o primeiro está fazendo.
+- **O Node derruba o worker sozinho.** Em 16/09/2026, uma hora dentro da Casa da Robótica, o
+  processo morreu com `AssertionError: assert(!this.paused)` vindo do **`undici`** — o cliente
+  HTTP interno do Node, em `Parser.finish`, ao fechar a conexão. Não é código nosso, e nenhum
+  `try/catch` alcança: a exceção sobe de um tick interno. Duas defesas: o worker devolve à
+  fila o job em andamento **já na partida** (`ORFAO_NA_PARTIDA_MS`, 10 min — quem acabou de
+  subir não está processando nada), e a varredura longa roda dentro de um laço de shell que
+  o religa quando ele cai.
+- **Queda no meio da varredura custa a varredura inteira.** `gravarColeta` só roda no FIM: a
+  Casa da Robótica tinha aberto 1.157 das 2.294 páginas e **nada** foi salvo. Gravar em lotes
+  durante a colheita é o conserto — ainda não feito, e é o que torna a coleta de catálogo
+  inteiro (horas por loja) arriscada numa máquina que dorme.
 - A unidade de venda do fornecedor (ver "Ainda em aberto" em Fornecedores).
 
 **As telas, e o vocabulário do dono** — ajustado ao longo de 01/09/2026:
@@ -253,9 +344,9 @@ São **20 produtos por fonte** (`PRODUTOS_POR_FONTE`).
 - **Para fornecedor que manda lista, o catálogo É a lista.** Não há vitrine para contar:
   o total é o que a lista declara depois de conciliada, ausentes incluídos — eles
   continuam sendo produtos dele, só sem saldo confirmado nesta remessa.
-- **A data vem do arquivo, não do banco.** `ultimaVarreduraEm` só é escrito pelo worker;
-  reprocessar a lista pela linha de comando não mexe nele, e a Fortek aparecia como
-  "nunca" com 1.911 produtos em disco.
+- **A data é a da última coleta gravada, não a da varredura.** `ultimaVarreduraEm` só é
+  escrito pelo worker; reprocessar a lista fora dele não mexia nele, e a Fortek aparecia
+  como "nunca" com 1.911 produtos guardados. Hoje é `ultimaColetaEm`, escrito por quem grava.
 - **O ⓘ guarda instruções de download/upload por fonte** (`FonteColeta.instrucoes`), porque
   cada portal tem um caminho diferente e isso vive hoje na cabeça do dono. **Senha não vai
   aí** — o campo é texto puro, aparece na tela e vai para o dump; credencial pertence à
@@ -342,6 +433,35 @@ mesmo CI são o mesmo item.
   de onde veio cada valor, para distinguir lido de derivado.
 
 **Plataformas, e o que cada uma esconde:**
+
+- **Magento 2 (Saravati): o JSON-LD não vem solto — vem dentro de `ItemPage`.** O bloco único
+  da página é um `ItemPage` com o produto em `mainEntity`, e o achatamento só descia por
+  `@graph`: a página inteira era lida como "sem JSON-LD", caía no OpenGraph e o código saía
+  **deduzido do endereço** (`4gb-ram` em vez de `srvt001158`). Em 15/09/2026.
+- **Três preços na mesma página, e só um é o que se paga.** `data-price-type="finalPrice"` e
+  o `product:price:amount` do OpenGraph trazem o do cartão (1.499,90); a oferta do JSON-LD
+  traz o do **pix/boleto** (1.349,91); e `data-price-type="oldPrice"` é o **riscado**
+  (1.599,90), que não é preço vigente e **não pode virar o normal** — o dono marcou o de
+  1.499,90 como o preço integral. A loja não publica Microdata nenhum, então o riscado não
+  entra como candidato; se um dia entrar, a regra do maior preço o elegeria.
+- **O saldo está só no texto**: `<div class="availability only" title="2 itens">`. Ancorar no
+  bloco é o que separa do "N itens" do carrinho.
+- **A galeria do Magento só existe num bloco JSON.** Das três fotos da página da Saravati,
+  só a principal é `<img>`; as outras duas vivem na inicialização
+  `"[data-gallery-role=gallery-placeholder]"`, como `{thumb, img, full}`. Nenhuma regra
+  baseada em `<img>` as alcançava. Fica o `full`, que é a maior das três versões do mesmo
+  arquivo, e a galeria entra **antes** das estruturadas — a primeira entrada é a principal, e
+  endereço de Magento não declara dimensão, então quem chega primeiro é quem fica.
+- **O `/cache/<hash>/` do Magento é recorte, não foto.** A mesma foto principal chega por três
+  caminhos (og:image, JSON-LD e o `full` da galeria), cada um com um hash diferente: a
+  Saravati aparecia com "2 imagens" que eram **a mesma foto duas vezes**. O hash de 32
+  caracteres e o segmento `cache` saem da identidade, como já saía o `/600x450/`.
+- **CDN citado num link não é CDN da loja.** A mesma página da Saravati saiu identificada
+  como **Loja Integrada**: ela cita `cdn.awsli.com.br` uma única vez, num `<a>` para o PDF do
+  datasheet hospedado no CDN de outra loja, e isso valia os 5 pontos de CDN próprio — empate
+  com o Magento (caminho 3 + marca 2), decidido pela ordem da lista. Agora o host só vale 5
+  quando **serve** a página (`src`, `<link href>`); citado num `<a href>` vale 2. Plataforma
+  errada não é detalhe: é ela que diz à tela onde procurar preço, código e imagens.
 
 - **Tray** (Casa da Robótica): o microdata declara **só o nome** — sem `price`, sem
   `offers`, sem `sku`. A página tinha nome e endereço e mesmo assim reprovava por falta
@@ -558,8 +678,9 @@ vezes.
 fornecedor manda a lista por e-mail ou WhatsApp; o operador anexa na linha da fonte, em
 `ArquivosDaFonte.jsx`, e "Atualizar dados" reprocessa **o último arquivo de cada tipo**.
 
-- Gravados em `dados/coleta/<domínio>/arquivos/`, com manifesto ao lado (`salvarArquivosDaFonte`,
-  `manifestoDaFonte`). Fora do git e fora de `public/`, igual às fotos de produto.
+- Os originais vão para `dados/coleta/<domínio>/arquivos/` (`guardarArquivosOriginais`);
+  quais são e quando chegaram, para `FonteColeta.listaArquivos` e `listaEnviadaEm`. Fora do
+  git e fora de `public/`, igual às fotos de produto.
 - **O nome do arquivo vem do navegador e é dado de terceiro.** Passa por
   `path.basename` e `replace(/[^\w.\- ]/g, "_")` antes de virar caminho: `../../.env` é um
   nome de arquivo perfeitamente válido para quem envia, e sem isso seria um destino de
@@ -636,6 +757,11 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
 
 - Vários `User-agent:` seguidos formam **um** grupo. Tratando cada linha como grupo novo,
   um arquivo com dezessete agentes era julgado pelo último e as regras eram ignoradas.
+- **`?` na regra é caractere, não curinga.** Ficou fora do escape em `caminhoCasa` e
+  `Disallow: /*?*` virava `/.*?.*`, que casa com tudo: a Saravati (Magento 2) apareceu
+  **inteira** bloqueada, home inclusive, quando só barra endereço com parâmetro. Em
+  15/09/2026. Regra é convertida em regex — todo metacaractere que não seja `*` e `$`
+  final precisa de escape.
 - **`Crawl-delay` é respeitado** (impactocnc pede 10s). Isso faz o teste levar minutos —
   a tela avisa.
 - Ritmo próprio: 1 requisição a cada 2s por domínio, via `limitar()` de `httpClient.js`.
@@ -684,6 +810,14 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   de banco: o client em memória **não conhece a coluna**, então ela some do `update` em
   silêncio e a tela volta como se tivesse salvado. Ler a regra não basta; reiniciar faz
   parte do passo de migrar.
+- **Renomear relação no schema deixa telas para trás, e o aviso genérico esconde isso por
+  semanas.** `Produto.imagens` virou `arquivos` em 27/08/2026; as duas telas de Anúncios
+  continuaram pedindo `imagens`, e a consulta falhava inteira. Como `AvisoBanco` dizia
+  "não foi possível conversar com o banco de dados" para **qualquer** exceção — e mandava
+  subir o Docker —, o dono passou a olhar o Postgres, que estava perfeito. Descoberto só em
+  16/09, quando alguém abriu o bloco. O aviso agora separa os dois casos: conexão
+  (`P1001`, `PrismaClientInitializationError`) fala do serviço `postgresql-x64-17`; o resto
+  diz que o defeito é da consulta e mostra a mensagem do Prisma, que nomeia o campo.
 - **Tela mostrando zero pode estar lendo a fonte errada, não contando errado.** A coluna
   "Coletados" exibia 0 com 1.911 produtos em disco: ela lia `_count.paginas` do Postgres,
   que está **vazio de propósito** enquanto a coleta grava em JSON. Trocar o rótulo teria
@@ -719,11 +853,6 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   externa inválida derruba a página. Use `<img>` para URL externa (ver `ehLocal`).
 - **Tailwind v4**: `divide-x` usa `border-inline-end`, e o utilitário de translação escreve
   a propriedade `translate`, não `transform`.
-- **`npm run teste:coleta` tem 1 asserção falhando**, conhecida e não resolvida: na
-  segunda varredura sem mudança, as páginas são marcadas "atualizada" em vez de
-  "inalterada". As assinaturas calculadas são idênticas e o caminho isolado funciona;
-  reproduz só com dois ou mais produtos. Efeito: uma escrita a mais com valores iguais —
-  **não** duplica linha nem cria histórico de preço falso.
 - **`pdf-parse` precisa ficar FORA do bundle.** Ele usa o pdfjs, que carrega um worker em
   arquivo separado; empacotado pelo Turbopack o caminho se perde e a leitura morre com
   `Cannot find module .../pdf.worker.mjs` — funcionando fora do Next o tempo todo. Está em

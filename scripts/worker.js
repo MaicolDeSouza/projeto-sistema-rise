@@ -24,7 +24,8 @@ const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
 const { prisma } = await import("../src/lib/db.js");
-const { varrerFonteParaJson } = await import("../src/lib/coleta/coletar.js");
+const { varrerFonte } = await import("../src/lib/coleta/coletar.js");
+const { ORFAO_APOS_MS, ORFAO_NA_PARTIDA_MS } = await import("../src/lib/coleta/fila.js");
 
 /// De quanto em quanto o worker acorda para olhar a fila. Curto o bastante para
 /// o botao "Atualizar tabelas" parecer imediato, longo o bastante para nao
@@ -97,18 +98,14 @@ async function processar(job) {
   console.log(`[${agora()}] varrendo ${fonte.nome} (${fonte.dominio})...`);
 
   try {
-    // GRAVA EM JSON, nao no banco — combinado com o dono enquanto os testes
-    // correm. O que o banco guarda ainda nao foi decidido, e gravar antes disso
-    // encheria a tabela com o formato errado.
-    //
-    // Some daqui o ETag/If-Modified-Since das paginas ja conhecidas: ele existia
-    // para a gravacao incremental no Postgres, e a colheita em JSON reescreve o
-    // arquivo inteiro a cada varredura. Volta junto com o banco.
+    // Grava no banco (src/lib/coleta/banco.js): so o que mudou e reescrito, e o
+    // preco ganha linha na serie quando muda.
     let ultimoProgresso = 0;
 
-    const resultado = await varrerFonteParaJson(fonte, async ({ total, feitas }) => {
-      // Uma escrita por produto novo, nao por pagina aberta: sao no maximo
-      // vinte por fonte, e o operador ve a barra andar de verdade.
+    const resultado = await varrerFonte(fonte, async ({ total, feitas }) => {
+      // Uma escrita por produto novo, nao por pagina aberta: o operador ve a
+      // barra andar de verdade, e nem o catalogo inteiro de um fornecedor passa
+      // de algumas centenas de escritas pequenas.
       if (feitas === ultimoProgresso) return;
       ultimoProgresso = feitas;
 
@@ -166,7 +163,9 @@ async function processar(job) {
 
     console.log(
       `[${agora()}] ${fonte.nome}: ${quanto}` +
-        (resultado.arquivo ? ` · ${resultado.arquivo}` : "") +
+        (resultado.gravacao
+          ? ` · ${resultado.gravacao.novos} novo(s), ${resultado.gravacao.precosMudaram} mudanca(s) de preco`
+          : "") +
         (resultado.erro ? ` · ${resultado.erro}` : ""),
     );
   } catch (erro) {
@@ -187,7 +186,52 @@ async function processar(job) {
   }
 }
 
+/**
+ * Devolve a fila o que um worker anterior largou pela metade.
+ *
+ * Job PROCESSANDO e a prova de worker vivo que a tela usa: ele bloqueia "Atualizar
+ * dados" e cala o aviso de "nenhum worker". Quando o processo morre no meio —
+ * terminal fechado, sessao encerrada —, o job fica PROCESSANDO para sempre. A
+ * Usinainfo ficou assim de 02/09 a 15/09/2026: nunca mais varrida, nunca mais
+ * enfileirada (fonte com job aberto nao entra de novo) e travando o botao de todas
+ * as fontes.
+ *
+ * So pega job PARADO ha mais de `ORFAO_APOS_MS`, e nao todo PROCESSANDO: um segundo
+ * worker subido por engano devolveria a fila o trabalho que o primeiro esta fazendo.
+ * O proprio job nunca e pego, porque esta volta so roda entre um job e outro.
+ */
+async function recuperarOrfaos(limiteMs = ORFAO_APOS_MS) {
+  const orfaos = await prisma.job.findMany({
+    where: {
+      tipo: "coleta",
+      status: "PROCESSANDO",
+      atualizadoEm: { lt: new Date(Date.now() - limiteMs) },
+    },
+  });
+
+  for (const job of orfaos) {
+    // A tentativa ja foi contada quando o job comecou: se era a ultima, desiste.
+    const esgotou = job.tentativas >= job.maxTentativas;
+
+    await prisma.job.update({
+      where: { id: job.id },
+      data: {
+        status: esgotou ? "FALHOU" : "PENDENTE",
+        erro: "o worker parou no meio desta varredura",
+        proximaTentativaEm: new Date(),
+        payload: { ...job.payload, total: 0, feitas: 0 },
+      },
+    });
+
+    console.log(
+      `[${agora()}] ${job.payload?.fonteNome ?? job.id}: largada pelo worker anterior — ` +
+        (esgotou ? "sem tentativas, marcada como falha" : "de volta a fila"),
+    );
+  }
+}
+
 async function volta() {
+  await recuperarOrfaos();
   await enfileirarVencidas();
 
   const job = await prisma.job.findFirst({
@@ -206,6 +250,11 @@ async function volta() {
 async function principal() {
   console.log(`[${agora()}] worker de coleta no ar (passo de ${PASSO_PROGRESSO} paginas)`);
   console.log("Ctrl+C para encerrar.\n");
+
+  // Na partida a espera e menor: quem acabou de subir nao esta processando nada,
+  // e o processo anterior pode ter MORRIDO em vez de ter sido encerrado — o Node
+  // derrubou o worker no meio de uma varredura com um assert interno do undici.
+  await recuperarOrfaos(ORFAO_NA_PARTIDA_MS);
 
   while (!encerrando) {
     let trabalhou = false;

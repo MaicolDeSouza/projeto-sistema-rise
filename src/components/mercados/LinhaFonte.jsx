@@ -8,7 +8,7 @@ import Badge from "@/components/ui/Badge";
 import ArquivosDaFonte from "@/components/mercados/ArquivosDaFonte";
 import {
   alternarFonte,
-  contarPaginas,
+  contarProdutos,
   editarFonte,
   excluirFonte,
 } from "@/app/mercados/acoes";
@@ -74,16 +74,16 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
   }
 
   /**
-   * Excluir apaga a fonte E as paginas dela. Pausar so interrompe a varredura.
+   * Excluir apaga a fonte E os produtos dela. Pausar so interrompe a varredura.
    *
-   * Sao coisas diferentes de proposito, e a contagem aparece antes: apagar tres
-   * mil paginas de historico porque alguem quis parar de acompanhar uma loja
-   * seria um estrago silencioso.
+   * Sao coisas diferentes de proposito, e a contagem aparece antes: apagar os
+   * 1.911 produtos da Fortek e o historico de preco porque alguem quis parar de
+   * acompanhar uma loja seria um estrago silencioso.
    */
   function pedirExclusao() {
     setErro(null);
     iniciarTransicao(async () => {
-      setConfirmando(await contarPaginas(fonte.id));
+      setConfirmando(await contarProdutos(fonte.id));
     });
   }
 
@@ -187,10 +187,10 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
         </td>
 
         {/*
-          A DATA DA COLETA GUARDADA, e nao a do banco.
+          A DATA DA ULTIMA COLETA GRAVADA, e nao a da varredura.
           `ultimaVarreduraEm` so e escrito pelo worker; reprocessar a lista pela
           linha de comando nao mexe nele, e a fonte aparecia como "nunca" com
-          1.911 produtos em disco. O arquivo e quem sabe quando foi gravado.
+          1.911 produtos guardados. `ultimaColetaEm` e escrito por quem grava.
         */}
         <td className="px-3 py-2.5 text-suave">
           {comoData(fonte.coleta?.coletadoEm ?? fonte.ultimaVarreduraEm)}
@@ -316,7 +316,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
               <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
                 <p>
                   Excluir <strong>{fonte.nome}</strong> apaga tambem{" "}
-                  <strong>{confirmando} pagina(s)</strong> coletada(s) e todo o historico de
+                  <strong>{confirmando} produto(s)</strong> coletado(s) e todo o historico de
                   preco delas. Para so parar de coletar, use Pausar.
                 </p>
                 <div className="mt-2 flex gap-2">

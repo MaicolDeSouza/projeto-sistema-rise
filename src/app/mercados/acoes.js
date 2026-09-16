@@ -3,15 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import {
-  apagarArquivosDaFonte,
-  manifestoDaFonte,
-  produtosColetados,
-  salvarArquivosDaFonte,
-} from "@/lib/coleta/arquivo";
+import { apagarArquivosOriginais, guardarArquivosOriginais } from "@/lib/coleta/arquivo";
+import { detalheDoProduto } from "@/lib/coleta/banco";
+import { jobOrfao } from "@/lib/coleta/fila";
 import { podeVisitar } from "@/lib/coleta/buscar";
-import { coletarUrl } from "@/lib/coleta/coletar";
 import { juntarListas, lerArquivo } from "@/lib/coleta/arquivos";
 import { regrasDoFornecedor } from "@/lib/coleta/fornecedores";
 import { testarFonte } from "@/lib/coleta/testar";
@@ -444,9 +441,9 @@ export async function alternarFonte(id) {
   return { ok: true };
 }
 
-/** Quantas paginas se perdem ao excluir — a tela avisa antes de apagar. */
-export async function contarPaginas(id) {
-  return prisma.paginaColetada.count({ where: { fonteId: id } });
+/** Quantos produtos se perdem ao excluir — a tela avisa antes de apagar. */
+export async function contarProdutos(id) {
+  return prisma.produtoColetado.count({ where: { fonteId: id } });
 }
 
 export async function excluirFonte(id) {
@@ -490,10 +487,22 @@ export async function enviarArquivosDaFonte(fonteId, dados) {
     });
   }
 
-  const manifesto = await salvarArquivosDaFonte(fonte.dominio, guardar);
+  // Os originais vao para o disco; QUAIS sao e QUANDO chegaram, para a fonte.
+  // A data e a do envio, que nao e a do reprocessamento: um preco de tres
+  // semanas atras parece atual na tela sem ela.
+  const listaArquivos = await guardarArquivosOriginais(fonte.dominio, guardar);
+  const listaEnviadaEm = new Date();
+
+  await prisma.fonteColeta.update({
+    where: { id: fonte.id },
+    data: { listaArquivos, listaEnviadaEm },
+  });
 
   revalidatePath("/mercados/fontes");
-  return { ok: true, manifesto };
+  return {
+    ok: true,
+    manifesto: { arquivos: listaArquivos, enviadoEm: listaEnviadaEm.toISOString() },
+  };
 }
 
 /**
@@ -522,37 +531,36 @@ export async function apagarArquivosAcao(fonteId) {
   const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId } });
   if (!fonte) return { ok: false, erro: "Fonte nao encontrada." };
 
-  await apagarArquivosDaFonte(fonte.dominio);
+  // Descarta so os arquivos. Os produtos que vieram da lista continuam no banco:
+  // apagar custaria codigo, descricao e fotos por causa de uma lista trocada.
+  await apagarArquivosOriginais(fonte.dominio);
+  await prisma.fonteColeta.update({
+    where: { id: fonte.id },
+    data: { listaArquivos: Prisma.DbNull, listaEnviadaEm: null },
+  });
   revalidatePath("/mercados/fontes");
   return { ok: true };
 }
 
 // ---------------------------------------------------------------------------
-// Detalhe da pagina coletada
+// Detalhe do produto coletado
 // ---------------------------------------------------------------------------
 
 /**
- * Dados completos de uma pagina, buscados no clique da linha.
+ * O detalhe de um produto coletado, buscado no clique da linha.
  *
- * A descricao nao vem na listagem de proposito: sao uns 10 KB por linha, meio
- * megabyte para cinquenta resultados, e quase nada disso chega a ser lido.
- */
-/**
- * O detalhe de um produto coletado, LIDO DO JSON.
- *
- * Buscado no clique, e nao junto com a listagem: descricao e especificacoes
- * somam alguns KB por produto, e trazer isso para cem linhas seria quase tudo
- * nunca lido.
- *
- * Quando o banco entrar, e aqui e em `produtosColetados` que a leitura muda —
- * o painel continua igual.
+ * Nao vem junto com a listagem: descricao, ficha e galeria somam alguns KB por
+ * produto — na Fortek, fotos em base64 —, e trazer isso para cem linhas seria
+ * quase tudo nunca lido.
  */
 export async function detalhePagina(id) {
-  const produto = (await produtosColetados()).find((item) => item.id === id);
-  if (!produto) return null;
+  const detalhe = await detalheDoProduto(id);
+  if (!detalhe) return null;
+
+  const { produto } = detalhe;
 
   return {
-    id: produto.id,
+    id: detalhe.id,
     url: produto.url,
     titulo: produto.name,
     descricao: produto.description,
@@ -579,7 +587,9 @@ export async function detalhePagina(id) {
       typeof produto.stock?.quantity === "number" ? produto.stock.quantity : null,
     aChegar: typeof produto.stock?.aChegar === "number" ? produto.stock.aChegar : null,
     semEstoque: produto.stock?.status === "OUT_OF_STOCK",
-    estoqueConhecido: produto.stock?.status === "AVAILABLE",
+    // Os dois nomes do mesmo fato: o raspador grava AVAILABLE, os leitores de
+    // arquivo IN_STOCK. A lista ja aceitava os dois; o painel so o primeiro.
+    estoqueConhecido: ["AVAILABLE", "IN_STOCK"].includes(produto.stock?.status),
     // LISTA ORDENADA, nao objeto: a ficha tem linha sem rotulo, que objeto
     // nenhum comporta sem inventar uma chave.
     especificacoes: produto.specifications ?? [],
@@ -588,14 +598,14 @@ export async function detalhePagina(id) {
     precoAtual: produto.prices?.normal ?? null,
     precoPromocional: produto.prices?.promotional ?? null,
     disponivel: produto.stock?.status !== "OUT_OF_STOCK",
-    vistoEm: produto.coletadoEm,
+    vistoEm: detalhe.vistoEm,
     erro: null,
-    fonte: produto.fonte,
-    // Historico de preco e assunto do banco: o JSON guarda a ULTIMA coleta e
-    // sobrescreve a anterior. Sem serie, nao ha de onde tirar o preco de antes —
-    // e mostrar uma seta de variacao sem base seria inventar movimento.
-    precoAnterior: null,
-    mudouEm: null,
+    fonte: detalhe.fonte,
+    // Da serie de preco: o ultimo preco DIFERENTE do atual, e quando mudou.
+    // Produto com uma coleta so nao tem anterior, e a seta nao aparece — nao se
+    // inventa movimento sem base.
+    precoAnterior: detalhe.precoAnterior,
+    mudouEm: detalhe.mudouEm,
     origens: produto.origens ?? null,
   };
 }
@@ -665,7 +675,13 @@ export async function situacaoVarredura() {
     O alarme so faz sentido quando NINGUEM esta processando: aí um pendente
     velho significa mesmo que nao ha quem atenda.
   */
-  const alguemProcessando = jobs.some((job) => job.status === "PROCESSANDO");
+  //
+  // MAS SO O PROCESSANDO COM NOTICIA RECENTE. Job largado por worker que morreu
+  // fica PROCESSANDO para sempre, e contava como prova de vida: a Usinainfo
+  // passou treze dias assim, com o alarme calado e ninguem atendendo a fila.
+  const alguemProcessando = jobs.some(
+    (job) => job.status === "PROCESSANDO" && !jobOrfao(job, agora),
+  );
   const semWorker =
     !alguemProcessando &&
     jobs.some(
@@ -676,12 +692,13 @@ export async function situacaoVarredura() {
   // A ULTIMA VARREDURA TERMINADA.
   //
   // Vinha `null` fixo, entao a varredura acabava em silencio: a tela some com a
-  // barra de andamento e nada diz o que foi colhido. Como a coleta grava em
-  // JSON e a tabela desta tela ainda le do banco, este e hoje o unico lugar
-  // onde o operador ve o resultado.
+  // barra de andamento e nada diz o que foi colhido.
+  // Pela hora em que TERMINOU, e nao em que foi criado: um job devolvido a fila
+  // depois de dias largado (a Usinainfo, criada em 02/09 e concluida em 15/09)
+  // terminava agora e a tela anunciava como "ultima" uma varredura de horas antes.
   const ultimoJob = await prisma.job.findFirst({
     where: { tipo: "coleta", status: { in: ["CONCLUIDO", "FALHOU"] } },
-    orderBy: { criadoEm: "desc" },
+    orderBy: { atualizadoEm: "desc" },
   });
 
   return {
@@ -699,19 +716,8 @@ export async function situacaoVarredura() {
           fonteNome: ultimoJob.payload?.fonteNome ?? "?",
           status: ultimoJob.status,
           produtos: ultimoJob.payload?.produtos ?? null,
-          arquivo: ultimoJob.payload?.arquivo ?? null,
           erro: ultimoJob.erro ?? null,
         }
       : null,
   };
-}
-
-/** Coleta uma URL avulsa, para conferir uma pagina especifica. */
-export async function coletarUma(fonteId, url) {
-  const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId } });
-  if (!fonte) return { ok: false, erro: "Fonte nao encontrada." };
-
-  const resultado = await coletarUrl({ fonte, url });
-  revalidatePath("/mercados");
-  return { ok: true, ...resultado };
 }

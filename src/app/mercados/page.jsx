@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Radar, Store } from "lucide-react";
 
 import { prisma } from "@/lib/db";
-import { produtosColetados } from "@/lib/coleta/arquivo";
+import { miniaturas, produtosParaLista } from "@/lib/coleta/banco";
 import { normalizar } from "@/lib/texto";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
@@ -28,30 +28,19 @@ export const dynamic = "force-dynamic";
 const POR_PAGINA = 100;
 
 /**
- * O texto onde a busca procura.
- *
- * Os mesmos campos que o `buscaTexto` do banco juntava na gravacao. A descricao
- * fica de fora de proposito: procurar nela devolveria o produto errado toda vez
- * que a loja citasse uma marca concorrente no texto de venda.
- */
-function textoDeBusca(produto) {
-  return normalizar(
-    [produto.name, produto.brand, produto.model, produto.code, produto.mpn, produto.ean]
-      .filter(Boolean)
-      .join(" "),
-  );
-}
-
-/**
  * O termo e quebrado em palavras e TODAS sao exigidas. Sem isso, "kingston nv2"
  * devolveria tudo da Kingston mais tudo que tem "nv2" — e o que o operador quer
  * e a intersecao, nao a uniao.
+ *
+ * Procura no `buscaTexto`, montado na gravacao com nome, marca, modelo e
+ * codigos. A descricao fica de fora de proposito: procurar nela devolveria o
+ * produto errado toda vez que a loja citasse uma marca concorrente no texto.
  */
 function combina(produto, termo) {
   const palavras = normalizar(termo).split(/\s+/).filter(Boolean);
   if (palavras.length === 0) return true;
 
-  const alvo = textoDeBusca(produto);
+  const alvo = produto.buscaTexto;
   return palavras.every((palavra) => alvo.includes(palavra));
 }
 
@@ -64,21 +53,16 @@ export default async function MercadosPage({ searchParams }) {
   const tipo = ["CONCORRENTE", "FORNECEDOR"].includes(params?.tipo) ? params.tipo : "";
   const ordem = ["menor", "maior"].includes(params?.ordem) ? params.ordem : "";
 
-  // OS PRODUTOS VEM DO JSON, as fontes vem do banco.
-  //
-  // Enquanto os testes correm, a coleta grava em dados/coleta/<dominio>/ e a
-  // tabela `paginaColetada` fica vazia — ler dela mostraria tela vazia depois de
-  // uma varredura bem-sucedida. O cadastro das fontes continua no banco, que e
-  // onde ele sempre esteve.
-  //
-  // Quando o banco entrar, e `produtosColetados()` que muda; esta tela nao.
+  // Os produtos vem do banco SEM os campos pesados (ver `produtosParaLista`):
+  // filtrar e ordenar alguns milhares de linhas leves aqui mantem a busca por
+  // todas as palavras, e a miniatura so e buscada para a pagina que aparece.
   let produtos = [];
   let totalFontes = 0;
   let erro = null;
 
   try {
     [produtos, totalFontes] = await Promise.all([
-      produtosColetados(),
+      produtosParaLista(),
       prisma.fonteColeta.count(),
     ]);
   } catch (excecao) {
@@ -131,7 +115,7 @@ export default async function MercadosPage({ searchParams }) {
   const pagina = Math.min(Math.max(Number.isFinite(pedida) ? pedida : 1, 1), totalPaginas);
   const inicio = (pagina - 1) * POR_PAGINA;
 
-  const linhas = selecionados
+  const paginaAtual = selecionados
     /**
      * Ordem pedida pelo operador; sem pedido, a de sempre.
      *
@@ -154,8 +138,13 @@ export default async function MercadosPage({ searchParams }) {
       if (disponivelA !== disponivelB) return disponivelB - disponivelA;
       return String(b.coletadoEm).localeCompare(String(a.coletadoEm));
     })
-    .slice(inicio, inicio + POR_PAGINA)
-    .map((produto) => ({
+    .slice(inicio, inicio + POR_PAGINA);
+
+  // So as cem da pagina ganham foto. Na Fortek a miniatura e base64: trazer a
+  // de todos os 2.400 produtos para mostrar cem seria carga que ninguem ve.
+  const fotos = await miniaturas(paginaAtual.map((produto) => produto.id));
+
+  const linhas = paginaAtual.map((produto) => ({
       id: produto.id,
       titulo: produto.name,
       marca: produto.brand,
@@ -163,7 +152,7 @@ export default async function MercadosPage({ searchParams }) {
       skuFonte: produto.code,
       // So a PRIMEIRA imagem: e a miniatura da linha, e mandar a galeria
       // inteira de cem produtos seria carga que ninguem le.
-      imagem: produto.images?.[0] ?? null,
+      imagem: fotos.get(produto.id) ?? null,
       url: produto.url,
       origem: produto.origem,
       precoAtual: produto.prices?.normal ?? null,

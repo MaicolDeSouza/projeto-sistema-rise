@@ -361,9 +361,18 @@ export const PLATAFORMAS = [
       cookie: [/^X-Magento-Vary$/i, /^mage-/i],
     },
     entrega: {
-      formatos: ["json-ld", "graphql publico"],
-      resumo: "O /graphql responde consulta de catalogo sem autenticacao.",
-      preco: "price_range.minimum_price.final_price no GraphQL; JSON-LD na pagina.",
+      formatos: ["json-ld (ItemPage > mainEntity)", "opengraph", "graphql publico"],
+      resumo:
+        "O /graphql responde consulta de catalogo sem autenticacao. Na pagina, o JSON-LD " +
+        "vem como ItemPage com o Product dentro de mainEntity, e NAO ha Microdata nenhum.",
+      preco:
+        "TRES precos na mesma pagina, medidos na Saravati: data-price-type=\"finalPrice\" e " +
+        "product:price:amount (OpenGraph) trazem o que se paga no cartao (1.499,90); " +
+        "data-price-type=\"oldPrice\" e o riscado (1.599,90), que NAO e o preco vigente; e a " +
+        "oferta do JSON-LD traz o do pix/boleto (1.349,91). price_range.minimum_price.final_price no GraphQL.",
+      codigo: 'sku no JSON-LD e no dataLayer; na tela, <div class="product attribute sku">.',
+      estoque:
+        'quantidade em <div class="availability only" title="2 itens"> — o schema.org da pagina nao traz inventoryLevel.',
       imagens: "/media/catalog/product/cache/{hash}/{caminho}",
       sitemap: "/sitemap.xml (gerado pelo painel; nem toda loja publica).",
       urlProduto: "/{url_key}.html",
@@ -554,13 +563,34 @@ export const DESCONHECIDA = {
   },
 };
 
-/** Hosts citados no HTML, para casar com os CDNs proprios de cada plataforma. */
+/**
+ * Hosts do HTML, separados por quem SERVE a pagina e quem so e citado.
+ *
+ * A diferenca decidiu a Saravati, em 15/09/2026: a pagina de produto cita UMA
+ * vez `cdn.awsli.com.br` — num `<a>` para o PDF do datasheet, hospedado no CDN
+ * de outra loja — e isso valia os mesmos 5 pontos de um CDN servindo a loja
+ * inteira. Deu empate com o Magento (caminho 3 + marca 2), e no empate venceu
+ * quem aparece antes na lista: a loja Magento saiu identificada como Loja
+ * Integrada, com os cuidados e os campos errados na tela do operador.
+ *
+ * `<link href>` conta como servico — folha de estilo e fonte sao da loja. So o
+ * `<a href>` e citacao.
+ */
 function hostsDoHtml(html) {
-  const hosts = new Set();
-  for (const achado of html.matchAll(/(?:src|href)=["']https?:\/\/([a-z0-9.-]+)/gi)) {
-    hosts.add(achado[1].toLowerCase());
+  const servem = new Set();
+  const citados = new Set();
+
+  for (const achado of html.matchAll(/(?:src|data-src)=["']https?:\/\/([a-z0-9.-]+)/gi)) {
+    servem.add(achado[1].toLowerCase());
   }
-  return [...hosts];
+  for (const achado of html.matchAll(/<link\b[^>]+href=["']https?:\/\/([a-z0-9.-]+)/gi)) {
+    servem.add(achado[1].toLowerCase());
+  }
+  for (const achado of html.matchAll(/<a\b[^>]+href=["']https?:\/\/([a-z0-9.-]+)/gi)) {
+    citados.add(achado[1].toLowerCase());
+  }
+
+  return { servem: [...servem], citados: [...citados] };
 }
 
 function generatorDoHtml(html) {
@@ -584,7 +614,7 @@ function generatorDoHtml(html) {
  *   pontos: number, sinais: string[], entrega: object, alternativas: object[]}}
  */
 export function identificarPlataforma({ html = "", cabecalhos = {}, cookies = [] } = {}) {
-  const hosts = hostsDoHtml(html);
+  const { servem, citados } = hostsDoHtml(html);
   const gerador = generatorDoHtml(html);
 
   const notas = [];
@@ -601,10 +631,19 @@ export function identificarPlataforma({ html = "", cabecalhos = {}, cookies = []
     }
 
     for (const padrao of plataforma.sinais.host ?? []) {
-      const casado = hosts.find((host) => padrao.test(host));
-      if (casado) {
+      const servindo = servem.find((host) => padrao.test(host));
+      if (servindo) {
         pontos += PESOS.host;
-        sinais.push(`CDN ${casado}`);
+        sinais.push(`CDN ${servindo}`);
+        continue;
+      }
+
+      // Citado num link, nao servindo a pagina: vale o mesmo que uma marca
+      // solta no HTML. Loja hospeda arquivo no CDN de terceiro o tempo todo.
+      const citado = citados.find((host) => padrao.test(host));
+      if (citado) {
+        pontos += PESOS.html;
+        sinais.push(`${citado} citado num link`);
       }
     }
 

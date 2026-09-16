@@ -1,152 +1,253 @@
 import "dotenv/config";
-import http from "node:http";
+
+/**
+ * Testes da gravacao da coleta NO BANCO, sem rede.
+ *
+ * Provam as regras que so aparecem na segunda coleta em diante — o que nenhum
+ * teste de extracao alcanca: coleta sem mudanca nao reescreve nada, preco que
+ * muda ganha linha na serie, ausente da lista fica com saldo nulo e a data da
+ * PRIMEIRA falta, e lista pela metade e recusada inteira.
+ *
+ * Cria duas fontes de teste e apaga as duas no fim (e no comeco, se uma
+ * execucao anterior morreu no meio).
+ *
+ *   npm run teste:coleta
+ */
 
 const { register } = await import("node:module");
 const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
-const { conferirSite, varrerFonte, coletarUrl } = await import("@/lib/coleta/coletar.js");
 const { prisma } = await import("@/lib/db.js");
+const { detalheDoProduto, gravarColeta, produtosParaLista } = await import(
+  "@/lib/coleta/banco.js"
+);
+const { aplicarListaDoFornecedor } = await import("@/lib/coleta/coletar.js");
+const { chaveDoProduto, linhaDoProduto, produtoDaLinha } = await import(
+  "@/lib/coleta/linha.js"
+);
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
   const ok = JSON.stringify(obtido) === JSON.stringify(esperado);
   if (!ok) falhas++;
-  console.log(`${ok ? "ok   " : "FALHA"} ${nome}${ok ? "" : `  obtido=${JSON.stringify(obtido)} esperado=${JSON.stringify(esperado)}`}`);
+  console.log(
+    `${ok ? "ok   " : "FALHA"} ${nome}${
+      ok ? "" : `\n        obtido=${JSON.stringify(obtido)}\n      esperado=${JSON.stringify(esperado)}`
+    }`,
+  );
 }
 
-// --- servidor de teste -----------------------------------------------------
-const PORTA = 8787;
-const BASE = `http://localhost:${PORTA}`;
-let precoMouse = "89,90";
+const DOMINIOS = ["teste-concorrente.local", "teste-fornecedor.local"];
 
-function paginaProduto({ nome, marca, modelo, mpn, sku, preco }) {
-  return `<!doctype html><html><head><script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Product","name":"${nome}",
- "description":"<p>Descricao de <b>${nome}</b>.</p>","brand":{"name":"${marca}"},
- "model":"${modelo}","mpn":"${mpn}","sku":"${sku}","image":["/img/${sku}.jpg"],
- "offers":{"@type":"Offer","price":"${preco}","availability":"https://schema.org/InStock"}}
-</script></head><body></body></html>`;
+function produto({ code, name, normal, promotional = null, status = "AVAILABLE", quantity = null, url = null }) {
+  return {
+    name,
+    code,
+    mpn: null,
+    ean: null,
+    brand: "Marca Teste",
+    model: null,
+    category: null,
+    ncm: null,
+    url,
+    images: [`https://img.local/${code}.jpg`],
+    prices: { normal, promotional, comImpostos: null },
+    taxes: [],
+    stock: { status, quantity, aChegar: null },
+    description: `Descricao de ${name}`,
+    specifications: [
+      { nome: "Tensao", valor: "5V" },
+      { nome: null, valor: "linha sem rotulo" },
+    ],
+    documentos: [],
+    variants: [],
+    seo: { title: name, description: "resumo", keywords: null, canonical: url },
+    plataforma: null,
+    collectedAt: new Date().toISOString(),
+    origens: { name: "teste", code: "teste", precoNormal: "teste" },
+  };
 }
 
-const rotas = {
-  "/robots.txt": () => ({
-    tipo: "text/plain",
-    corpo: `User-agent: *\nDisallow: /admin/\nAllow: /\n\nSitemap: ${BASE}/sitemap.xml\n`,
-  }),
-  "/sitemap.xml": () => ({
-    tipo: "application/xml",
-    corpo: `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-<url><loc>${BASE}/produto/mouse</loc><lastmod>2026-08-01</lastmod></url>
-<url><loc>${BASE}/produto/teclado</loc><lastmod>2026-08-01</lastmod></url>
-<url><loc>${BASE}/admin/secreto</loc></url>
-</urlset>`,
-  }),
-  "/produto/mouse": () => ({
-    tipo: "text/html",
-    corpo: paginaProduto({ nome: "Mouse Logitech M170", marca: "Logitech", modelo: "M170", mpn: "910-004940", sku: "MOU-1", preco: precoMouse }),
-  }),
-  "/produto/teclado": () => ({
-    tipo: "text/html",
-    corpo: paginaProduto({ nome: "Teclado Redragon K552", marca: "Redragon", modelo: "K552", mpn: "K552-RGB", sku: "TEC-1", preco: "249,90" }),
-  }),
-  "/admin/secreto": () => ({ tipo: "text/html", corpo: "<html>nao deveria ser lido</html>" }),
-};
+const segundos = (n) => new Date(Date.UTC(2026, 8, 15, 12, 0, n));
 
-const pedidos = [];
-const servidor = http.createServer((req, res) => {
-  pedidos.push(req.url);
-  const rota = rotas[req.url];
-  if (!rota) {
-    res.writeHead(404, { "Content-Type": "text/html" });
-    return res.end("<html>404</html>");
-  }
-  const { tipo, corpo } = rota();
-  res.writeHead(200, { "Content-Type": tipo });
-  res.end(corpo);
-});
-await new Promise((r) => servidor.listen(PORTA, r));
-console.log(`servidor de teste em ${BASE}\n`);
+await prisma.fonteColeta.deleteMany({ where: { dominio: { in: DOMINIOS } } });
 
-// --- 1. conferir o site (o que a tela de cadastro faz) ----------------------
-const conferencia = await conferirSite(BASE);
-conferir("conferir: robots permite", conferencia.robotsPermite, true);
-conferir("conferir: achou sitemap", conferencia.sitemaps.length, 1);
-conferir("conferir: contou os produtos (admin fora)", conferencia.totalUrls, 3);
-conferir("conferir: nao e pagina de produto", conferencia.ehPaginaDeProduto, false);
-conferir("conferir: amostra extraiu", conferencia.amostra?.dados?.marca, "Logitech");
-console.log("       resumo:", conferencia.resumo);
+// ---------------------------------------------------------------------------
+console.log("\n— conversao produto <-> linha —");
 
-// --- 2. colar a URL de um produto ------------------------------------------
-const doProduto = await conferirSite(`${BASE}/produto/teclado`);
-conferir("colar produto: reconhecido", doProduto.ehPaginaDeProduto, true);
-conferir("colar produto: sem prefixo", doProduto.prefixoUrl, null);
+conferir("chave: codigo", chaveDoProduto({ code: "AB-1" }), "codigo:AB-1");
+conferir("chave: N/A usa o endereco", chaveDoProduto({ code: "N/A", url: "https://x/p" }), "url:https://x/p");
+conferir("chave: sem codigo nem endereco usa o nome", chaveDoProduto({ code: null, name: "Módulo Relé" }), "nome:modulo rele");
+conferir("chave: nada que identifique", chaveDoProduto({ code: "N/A" }), null);
 
-// --- 3. colar a URL de uma secao -------------------------------------------
-const daSecao = await conferirSite(`${BASE}/produto`);
-conferir("colar secao: vira prefixo", daSecao.prefixoUrl, "/produto/");
-conferir("colar secao: so as paginas da secao", daSecao.totalUrls, 2);
+const base = produto({ code: "AB-1", name: "Módulo Relé", normal: 12.5 });
+const linha = linhaDoProduto(base, { origem: "site" });
+const volta = linhaDoProduto(produtoDaLinha(linha), { origem: "site" });
+conferir("ida e volta: mesma assinatura", volta.hashConteudo, linha.hashConteudo);
+conferir("ida e volta: ficha na mesma ordem, linha sem rotulo preservada", produtoDaLinha(linha).specifications, base.specifications);
+conferir(
+  "data da leitura nao muda a assinatura",
+  linhaDoProduto({ ...base, collectedAt: "2020-01-01T00:00:00.000Z" }, { origem: "site" }).hashConteudo,
+  linha.hashConteudo,
+);
+conferir(
+  "ordem das chaves de um objeto nao muda a assinatura (JSONB reordena)",
+  linhaDoProduto({ ...base, origens: { precoNormal: "teste", code: "teste", name: "teste" } }, { origem: "site" }).hashConteudo,
+  linha.hashConteudo,
+);
+conferir("buscaTexto sem acento", linha.buscaTexto, "modulo rele marca teste ab-1");
+conferir("miniatura e a primeira foto", linha.miniatura, "https://img.local/AB-1.jpg");
 
-// --- 4. varredura ----------------------------------------------------------
-await prisma.fonteColeta.deleteMany({ where: { dominio: "localhost" } });
-const fonte = await prisma.fonteColeta.create({
-  data: { nome: "Loja Teste", dominio: "localhost", tipo: "CONCORRENTE", urlSitemap: `${BASE}/sitemap.xml`, prefixoUrl: null },
+// ---------------------------------------------------------------------------
+console.log("\n— concorrente: coletas seguidas —");
+
+// PAUSADAS: o teste chama a gravacao direto, e fonte ativa seria enfileirada pelo
+// worker — que tentaria varrer um dominio que nao existe enquanto o teste roda.
+const concorrente = await prisma.fonteColeta.create({
+  data: { nome: "Concorrente Teste", dominio: DOMINIOS[0], tipo: "CONCORRENTE", ativa: false },
 });
 
-const primeira = await varrerFonte(fonte, [], null);
-conferir("varredura 1: criou as duas paginas", primeira.contagem.criada, 2);
+const mouse = (preco) => produto({ code: "MOU-1", name: "Mouse M170", normal: preco, url: "https://c/mouse" });
+const teclado = () => produto({ code: "TEC-1", name: "Teclado K552", normal: 249.9, url: "https://c/teclado" });
 
-let paginas = await prisma.paginaColetada.findMany({ where: { fonteId: fonte.id }, orderBy: { url: "asc" } });
-conferir("varredura 1: duas linhas", paginas.length, 2);
-conferir("varredura 1: admin NAO foi coletado", paginas.some((p) => p.url.includes("/admin/")), false);
-conferir("varredura 1: robots barrou o admin", pedidos.includes("/admin/secreto"), false);
-conferir("varredura 1: buscaTexto normalizado", paginas[0].buscaTexto, "mouse logitech m170 logitech m170 910-004940 mou-1 loja teste");
-conferir("varredura 1: preco", Number(paginas[0].precoAtual), 89.9);
+let gravacao = await gravarColeta({ fonte: concorrente, produtos: [mouse(89.9), teclado()], origem: "site", coletadoEm: segundos(1) });
+conferir("coleta 1: dois novos", [gravacao.novos, gravacao.atualizados], [2, 0]);
 
-let historico = await prisma.precoHistorico.count({ where: { pagina: { fonteId: fonte.id } } });
-conferir("varredura 1: historico com a linha de base", historico, 2);
+const serie = () => prisma.precoHistorico.count({ where: { produto: { fonteId: concorrente.id } } });
+conferir("coleta 1: serie com a linha de base de cada um", await serie(), 2);
 
-// --- 5. varrer de novo SEM mudanca (o teste que prova a estrutura) ---------
-const antes = paginas.map((p) => ({ url: p.url, visto: p.vistoEm }));
-const segunda = await varrerFonte(fonte, paginas, null);
-conferir("varredura 2: nada foi criado", segunda.contagem.criada ?? 0, 0);
-conferir("varredura 2: nada foi atualizado", segunda.contagem.atualizada ?? 0, 0);
+let fonte = await prisma.fonteColeta.findUnique({ where: { id: concorrente.id } });
+conferir("coleta 1: fonte registra a coleta", [fonte.ultimaColetaTotal, fonte.ultimaColetaOrigem], [2, "site"]);
 
-paginas = await prisma.paginaColetada.findMany({ where: { fonteId: fonte.id }, orderBy: { url: "asc" } });
-conferir("varredura 2: continua com duas linhas", paginas.length, 2);
+gravacao = await gravarColeta({ fonte: concorrente, produtos: [mouse(89.9), teclado()], origem: "site", coletadoEm: segundos(2) });
+conferir("coleta 2 sem mudanca: nada reescrito", [gravacao.novos, gravacao.atualizados, gravacao.inalterados], [0, 0, 2]);
+conferir("coleta 2: NENHUMA linha nova de preco", await serie(), 2);
 
-historico = await prisma.precoHistorico.count({ where: { pagina: { fonteId: fonte.id } } });
-conferir("varredura 2: NENHUMA linha nova de preco", historico, 2);
-conferir("varredura 2: vistoEm avancou", paginas[0].vistoEm > antes[0].visto, true);
+let linhaMouse = await prisma.produtoColetado.findFirst({ where: { fonteId: concorrente.id, codigo: "MOU-1" } });
+conferir("coleta 2: vistoEm avancou", linhaMouse.vistoEm.toISOString(), segundos(2).toISOString());
 
-// --- 6. mudanca de preco ---------------------------------------------------
-precoMouse = "79,90";
-const terceira = await varrerFonte(fonte, paginas, null);
-conferir("varredura 3: uma pagina atualizada", terceira.contagem.atualizada, 1);
+gravacao = await gravarColeta({ fonte: concorrente, produtos: [mouse(79.9), teclado()], origem: "site", coletadoEm: segundos(3) });
+conferir("coleta 3: preco do mouse caiu", [gravacao.atualizados, gravacao.precosMudaram], [1, 1]);
+conferir("coleta 3: uma linha nova na serie", await serie(), 3);
 
-paginas = await prisma.paginaColetada.findMany({ where: { fonteId: fonte.id }, orderBy: { url: "asc" } });
-conferir("varredura 3: precoAtual novo", Number(paginas[0].precoAtual), 79.9);
+let detalhe = await detalheDoProduto(linhaMouse.id);
+conferir("detalhe: preco anterior", detalhe.precoAnterior, 89.9);
+conferir("detalhe: quando mudou", new Date(detalhe.mudouEm).toISOString(), segundos(3).toISOString());
 
-historico = await prisma.precoHistorico.count({ where: { pagina: { fonteId: fonte.id } } });
-conferir("varredura 3: uma linha nova no historico", historico, 3);
+gravacao = await gravarColeta({ fonte: concorrente, produtos: [teclado()], origem: "site", coletadoEm: segundos(4) });
+conferir(
+  "coleta 4 sem o mouse: ele NAO e apagado (ficar fora da amostra nao prova nada)",
+  await prisma.produtoColetado.count({ where: { fonteId: concorrente.id } }),
+  2,
+);
+linhaMouse = await prisma.produtoColetado.findUnique({ where: { id: linhaMouse.id } });
+conferir("coleta 4: o mouse guarda a data em que foi visto", linhaMouse.vistoEm.toISOString(), segundos(3).toISOString());
 
-// --- 7. pagina que sumiu ---------------------------------------------------
-const sumida = await coletarUrl({ fonte, url: `${BASE}/produto/mouse-que-sumiu` });
-conferir("404 sem linha previa: ignorada", sumida.acao, "ignorada");
+// A tela mostra so a ultima coleta de cada fonte: o mouse continua no banco, com
+// o historico dele, e volta a aparecer quando cair numa amostra de novo.
+const naLista = (await produtosParaLista()).filter((item) => item.fonte.dominio === DOMINIOS[0]);
+conferir(
+  "lista da tela: so o que veio na ultima coleta, e sem galeria",
+  [naLista.length, naLista[0]?.code, "images" in (naLista[0] ?? {})],
+  [1, "TEC-1", false],
+);
 
-delete rotas["/produto/teclado"];
-const doTeclado = paginas.find((p) => p.url.includes("teclado"));
-const agoraSumiu = await coletarUrl({ fonte, url: doTeclado.url, etag: doTeclado.etag ?? undefined });
-conferir("404 com linha previa: marcada indisponivel", agoraSumiu.acao, "indisponivel");
+// ---------------------------------------------------------------------------
+console.log("\n— fornecedor: lista, ausente e trava de queda —");
 
-const tecladoDepois = await prisma.paginaColetada.findUnique({ where: { id: doTeclado.id } });
-conferir("404: linha NAO foi apagada", Boolean(tecladoDepois), true);
-conferir("404: disponivel false", tecladoDepois.disponivel, false);
-conferir("404: titulo preservado", tecladoDepois.titulo, "Teclado Redragon K552");
+const fornecedor = await prisma.fonteColeta.create({
+  data: { nome: "Fornecedor Teste", dominio: DOMINIOS[1], tipo: "FORNECEDOR", ativa: false },
+});
+const recarregar = () => prisma.fonteColeta.findUnique({ where: { id: fornecedor.id } });
 
-// --- limpeza ---------------------------------------------------------------
-await prisma.fonteColeta.delete({ where: { id: fonte.id } });
-servidor.close();
+const item = (code, quantity) => produto({ code, name: `Item ${code}`, normal: 10, status: "IN_STOCK", quantity });
+
+let resultado = await aplicarListaDoFornecedor({
+  fonte: await recarregar(),
+  produtos: [item("X", 5), item("Y", 7), item("Z", 9)],
+  listaEnviadaEm: segundos(10),
+});
+conferir("lista 1: tres produtos", [resultado.erro, resultado.produtos], [null, 3]);
+
+const dataLista2 = segundos(20);
+resultado = await aplicarListaDoFornecedor({
+  fonte: await recarregar(),
+  produtos: [item("X", 5), item("Y", 7)],
+  listaEnviadaEm: dataLista2,
+});
+conferir("lista 2 sem o Z: aceita (2 de 3 nao e queda)", resultado.erro, null);
+
+const linhaZ = () => prisma.produtoColetado.findFirst({ where: { fonteId: fornecedor.id, codigo: "Z" } });
+let z = await linhaZ();
+conferir("ausente: a linha FICA", Boolean(z), true);
+conferir("ausente: saldo nulo, e nao zero", z.quantidade, null);
+conferir("ausente: desde a lista em que faltou", z.ausenteDesde.toISOString(), dataLista2.toISOString());
+conferir(
+  "ausente: a mudanca de estoque entrou na serie",
+  await prisma.precoHistorico.count({ where: { produtoId: z.id } }),
+  2,
+);
+
+resultado = await aplicarListaDoFornecedor({
+  fonte: await recarregar(),
+  produtos: [item("X", 5), item("Y", 7)],
+  listaEnviadaEm: segundos(30),
+});
+z = await linhaZ();
+conferir("lista 3: o Z continua ausente desde a PRIMEIRA falta", z.ausenteDesde.toISOString(), dataLista2.toISOString());
+conferir("lista 3 igual a 2: nada reescrito, nem o ausente", resultado.gravacao.atualizados, 0);
+
+// ---------------------------------------------------------------------------
+console.log("\n— saldo anterior, para o historico de venda —");
+
+const linhaX = () => prisma.produtoColetado.findFirst({ where: { fonteId: fornecedor.id, codigo: "X" } });
+
+let x = await linhaX();
+conferir("primeira lista: nao ha saldo anterior", [x.quantidadeAnterior, x.quantidadeAnteriorEm], [null, null]);
+
+const dataLista4 = segundos(35);
+resultado = await aplicarListaDoFornecedor({
+  fonte: await recarregar(),
+  produtos: [item("X", 2), item("Y", 7)],
+  listaEnviadaEm: dataLista4,
+});
+x = await linhaX();
+conferir("saldo mudou de 5 para 2: guarda o 5", [x.quantidadeAnterior, x.quantidade], [5, 2]);
+conferir("e guarda quando o 5 foi visto", Boolean(x.quantidadeAnteriorEm), true);
+
+const quandoEra5 = x.quantidadeAnteriorEm;
+await aplicarListaDoFornecedor({
+  fonte: await recarregar(),
+  produtos: [item("X", 2), item("Y", 7)],
+  listaEnviadaEm: segundos(36),
+});
+x = await linhaX();
+conferir(
+  "lista sem mudanca de saldo: o anterior fica como estava",
+  [x.quantidadeAnterior, x.quantidadeAnteriorEm.toISOString()],
+  [5, quandoEra5.toISOString()],
+);
+
+// O Z esta ausente desde a lista 2, com saldo nulo: "nao veio" nao e saldo novo.
+z = await linhaZ();
+conferir("ausente nao vira saldo anterior", z.quantidadeAnterior, null);
+
+// ---------------------------------------------------------------------------
+resultado = await aplicarListaDoFornecedor({
+  fonte: await recarregar(),
+  produtos: [item("X", 1)],
+  listaEnviadaEm: segundos(40),
+});
+conferir("lista 4 com 1 de 3: recusada pela trava", /sumiriam/.test(resultado.erro ?? ""), true);
+conferir(
+  "lista recusada: nada foi tocado",
+  (await prisma.produtoColetado.findFirst({ where: { fonteId: fornecedor.id, codigo: "X" } })).quantidade,
+  2,
+);
+
+// ---------------------------------------------------------------------------
+await prisma.fonteColeta.deleteMany({ where: { dominio: { in: DOMINIOS } } });
 await prisma.$disconnect();
 
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);

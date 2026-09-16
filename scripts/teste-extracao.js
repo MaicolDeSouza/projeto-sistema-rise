@@ -798,6 +798,97 @@ conferir("coleta do site nao dispara a trava", queda(1911, 20, "site"), null);
 conferir("primeira lista nao dispara a trava", queda(0, 0), null);
 
 // ---------------------------------------------------------------------------
+// Magento 2, medido na Saravati: o JSON-LD nao vem solto, vem dentro de um
+// ItemPage; a pagina anuncia TRES precos; e a quantidade so existe no texto.
+console.log("\n— Magento: produto dentro de ItemPage, tres precos, saldo no texto —");
+
+const magento = `<html><head>
+<meta property="product:price:amount" content="1499.9"/>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"ItemPage",
+ "publisher":{"@type":"Organization","name":"Saravati"},
+ "mainEntity":{"@type":"Product","name":"Placa Raspberry Pi 4 Model B 4GB RAM",
+  "sku":"srvt001158","image":"https://loja.com.br/media/catalog/product/4/9/49b3.jpg",
+  "offers":{"@type":"Offer","url":"https://loja.com.br/placa.html","price":"1349.91",
+   "priceCurrency":"BRL","availability":"http://schema.org/InStock"}}}
+</script></head><body>
+<div class="price-box">
+  <span data-price-amount="1499.9" data-price-type="finalPrice"><span class="price">R$1.499,90</span></span>
+  <span data-price-amount="1599.9" data-price-type="oldPrice"><span class="price">R$1.599,90</span></span>
+</div>
+<div class="product-info-stock-sku">
+  <div class="stock available"><span>Em estoque</span></div>
+  <div class="availability only" title="2&#x20;itens"><strong>2</strong> itens</div>
+  <div class="product attribute sku"><strong class="type">CÓDIGO</strong><div class="value">srvt001158</div></div>
+</div>
+<img class="gallery-placeholder__image" src="https://loja.com.br/media/catalog/product/cache/ff61517d26ace703648229d56c081b52/4/9/49b3.jpg"/>
+<script type="text/x-magento-init">
+{"[data-gallery-role=gallery-placeholder]": {"mage/gallery/gallery": {"data": [
+ {"thumb":"https:\\/\\/loja.com.br\\/media\\/catalog\\/product\\/cache\\/ddbc\\/4\\/9\\/49b3.jpg","img":"https:\\/\\/loja.com.br\\/media\\/catalog\\/product\\/cache\\/ff61517d26ace703648229d56c081b52\\/4\\/9\\/49b3.jpg","full":"https:\\/\\/loja.com.br\\/media\\/catalog\\/product\\/cache\\/8ba61e6f43935f01927e65d3d5c2ff7a\\/4\\/9\\/49b3.jpg","isMain":true},
+ {"thumb":"https:\\/\\/loja.com.br\\/media\\/catalog\\/product\\/cache\\/ddbc\\/e\\/1\\/e190.jpg","full":"https:\\/\\/loja.com.br\\/media\\/catalog\\/product\\/cache\\/8ba61e6f43935f01927e65d3d5c2ff7a\\/e\\/1\\/e190.jpg"},
+ {"thumb":"https:\\/\\/loja.com.br\\/media\\/catalog\\/product\\/cache\\/ddbc\\/b\\/d\\/bd62.jpg","full":"https:\\/\\/loja.com.br\\/media\\/catalog\\/product\\/cache\\/8ba61e6f43935f01927e65d3d5c2ff7a\\/b\\/d\\/bd62.jpg"}
+]}}}
+</script></body></html>`;
+
+const placa = normalizarPagina({
+  html: magento,
+  // O endereco tem "4gb-ram" no fim: era dali que o codigo saia quando o
+  // JSON-LD passava despercebido.
+  url: "https://loja.com.br/placa-raspberry-pi-4-model-b-4gb-ram.html",
+}).produtos[0];
+
+conferir("produto achado dentro de mainEntity", placa.name, "Placa Raspberry Pi 4 Model B 4GB RAM");
+conferir("codigo lido do JSON-LD, nao deduzido do endereco", placa.code, "srvt001158");
+conferir("preco integral e o que se paga no cartao", placa.prices.normal, 1499.9);
+conferir("preco promocional e o do pix", placa.prices.promotional, 1349.91);
+conferir("o preco riscado NAO vira preco normal", placa.prices.normal !== 1599.9, true);
+conferir("quantidade lida do bloco de saldo", placa.stock.quantity, 2);
+// A galeria do Magento so existe no JSON de inicializacao: das tres fotos, so a
+// principal aparece como <img> na pagina.
+conferir("as tres fotos da galeria entram", placa.images.length, 3);
+conferir(
+  "a principal fica em primeiro, na maior versao",
+  placa.images[0],
+  "https://loja.com.br/media/catalog/product/cache/8ba61e6f43935f01927e65d3d5c2ff7a/4/9/49b3.jpg",
+);
+// og:image, JSON-LD e galeria trazem a MESMA foto principal com hashes de cache
+// diferentes. Sem tirar o hash da identidade, ela contava tres vezes.
+conferir(
+  "a mesma foto em caches diferentes conta uma vez",
+  placa.images.filter((foto) => foto.includes("49b3.jpg")).length,
+  1,
+);
+
+// ---------------------------------------------------------------------------
+// Identificacao da plataforma: o CDN que SERVE a pagina vale 5; o que so
+// aparece dentro de um link vale 2, como qualquer marca solta no HTML.
+console.log("\n— plataforma: CDN que serve x CDN citado num link —");
+
+const { identificarPlataforma } = await import("../src/lib/coleta/plataformas.js");
+
+const magentoComLinkDeTerceiro = `<html><head>
+<script src="https://loja.com.br/static/version1757/frontend/tema/pt_BR/requirejs/require.js"></script>
+</head><body>
+<script>require(["Magento_Catalog/js/product-view"], function () {});</script>
+<p>Datasheet: <a href="https://cdn.awsli.com.br/945/945993/arquivos/RB4B.pdf">RB4B.pdf</a></p>
+</body></html>`;
+
+const daSaravati = identificarPlataforma({ html: magentoComLinkDeTerceiro });
+conferir("CDN de terceiro num link nao rouba a plataforma", daSaravati.id, "magento2");
+// Dois pontos ficam abaixo do piso das alternativas (3): o CDN de terceiro nem
+// chega a ser oferecido como "pode ser esta outra plataforma".
+conferir("o link nao sustenta nem uma alternativa", daSaravati.alternativas, []);
+
+const lojaIntegrada = `<html><body>
+<img src="https://cdn.awsli.com.br/300x300/945/945993/produto/12345/foto.jpg">
+</body></html>`;
+conferir(
+  "CDN servindo a pagina continua identificando a loja",
+  identificarPlataforma({ html: lojaIntegrada }).id,
+  "loja-integrada",
+);
+
+// ---------------------------------------------------------------------------
 console.log("\n— campos essenciais —");
 conferir(
   "sem preco nao e valido",

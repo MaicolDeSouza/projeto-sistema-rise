@@ -27,10 +27,12 @@ export default async function AnunciosPage({ searchParams }) {
   try {
     produtos = await prisma.produto.findMany({
       orderBy: { atualizadoEm: "desc" },
-      include: {
-        imagens: { orderBy: { ordem: "asc" } },
-        anuncios: true,
-      },
+      // SO OS ANUNCIOS. A tabela mostra titulo, SKU, preco, estoque e a situacao
+      // por canal — imagem nenhuma. As fotos vinham junto sem serem usadas, e o
+      // campo `imagens` nem existe mais: virou `arquivos` em 27/08/2026, na
+      // reforma do cadastro de Produtos. A consulta falhava inteira, e a tela
+      // caia no aviso de banco indisponivel com o banco no ar.
+      include: { anuncios: true },
     });
   } catch (excecao) {
     erro = excecao;

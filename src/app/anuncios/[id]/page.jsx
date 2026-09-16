@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { prisma } from "@/lib/db";
+import { urlDe } from "@/lib/arquivos";
 import { canais, temAlteracoesNaoPublicadas } from "@/lib/anuncios/canais";
 import { validarAnuncio } from "@/lib/anuncios/validar";
 import { camposEditaveis, montarPayload } from "@/lib/anuncios/transformar";
@@ -17,7 +18,10 @@ export default async function AnuncioPage({ params }) {
   const produto = await prisma.produto.findUnique({
     where: { id },
     include: {
-      imagens: { orderBy: { ordem: "asc" } },
+      // `imagens` deixou de existir em 27/08/2026: virou `arquivos`, uma tabela
+      // so para imagem, ficha e manual. Aqui interessa a imagem, na ordem em
+      // que o operador as arrumou no cadastro.
+      arquivos: { where: { tipo: "IMAGEM" }, orderBy: { ordem: "asc" } },
       anuncios: true,
     },
   });
@@ -90,7 +94,12 @@ export default async function AnuncioPage({ params }) {
     estoque: produto.estoque,
     garantiaMeses: produto.garantiaMeses,
     ativo: produto.ativo,
-    imagens: produto.imagens.map((imagem) => imagem.url),
+    // O ENDERECO E CALCULADO, nunca lido de coluna: os arquivos moram em
+    // dados/produtos/<SKU>/, e uma URL gravada ficaria velha na primeira vez que
+    // o SKU mudasse. A mesma `urlDe` que o bloco de Produtos usa.
+    imagens: produto.arquivos.map((arquivo) =>
+      urlDe(produto.sku, arquivo.tipo, arquivo.arquivo),
+    ),
   };
 
   return (

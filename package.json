@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --experimental-https --experimental-https-key certificates/rise-key.pem --experimental-https-cert certificates/rise.pem",
+    "dev": "next dev --experimental-https --experimental-https-key certificates/rise-key.pem --experimental-https-cert certificates/rise.pem --experimental-https-ca certificates/rootCA.pem",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

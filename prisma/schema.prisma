@@ -417,68 +417,126 @@ model FonteColeta {
   proximaVarreduraEm DateTime @default(now())
   ultimaVarreduraEm  DateTime?
 
+  /// A ULTIMA COLETA GRAVADA, escrita por quem grava — worker, linha de comando
+  /// ou carga. `ultimaVarreduraEm` so o worker escreve, e reprocessar a lista
+  /// fora dele deixava a fonte "nunca varrida" com 1.911 produtos guardados.
+  ultimaColetaEm        DateTime?
+  /// "site" ou "arquivo". E o que deixa a trava de queda comparar lista com
+  /// lista: a colheita do site traz 20 produtos, e comparar com os 1.900 da
+  /// lista acusaria queda em toda troca de caminho.
+  ultimaColetaOrigem    String?
+  ultimaColetaTotal     Int?
+  /// Quanto a coleta demorou. Separa "o site e lento" de "o site pede 10s entre
+  /// visitas" — o Eletrogate leva quatro vezes a Smartkits pelo mesmo trabalho.
+  ultimaColetaDuracaoMs Int?
+  ultimaColetaResumo    String?
+
+  /// Quando o FORNECEDOR mandou a lista — nao quando ela foi reprocessada. Sem
+  /// isto, lista de tres semanas parece tao fresca quanto vitrine varrida agora.
+  listaEnviadaEm DateTime?
+  /// Os arquivos do ultimo envio, [{nome, bytes}]. Os ORIGINAIS ficam em
+  /// dados/coleta/<dominio>/arquivos/: sao eles que se reprocessam quando um
+  /// leitor melhora, sem pedir a lista de novo ao fornecedor.
+  listaArquivos  Json?
+
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  paginas PaginaColetada[]
+  produtos ProdutoColetado[]
 
   @@unique([dominio, prefixoUrl])
   @@index([ativa, proximaVarreduraEm])
 }
 
-/// Uma pagina de produto de uma das fontes.
+/// Um produto de uma das fontes, lido do site ou da lista do fornecedor.
 ///
-/// ATUALIZADA NO LUGAR, nunca duplicada. Conteudo (titulo, descricao, ficha)
-/// muda raramente; preco muda todo dia. Gravar um retrato completo por
-/// varredura guardaria 365 copias da mesma descricao por ano so porque o preco
-/// mudou um real — por isso o preco tem tabela propria, e aqui fica uma versao
-/// corrente por URL.
-model PaginaColetada {
+/// Espelha o produto que `normalizar.js` e os leitores de arquivo devolvem —
+/// uma forma so, venha de onde vier. Substituiu a PaginaColetada, que era do
+/// extrator antigo e exigia URL: os 1.911 produtos da Fortek vem de lista de
+/// portal atras de login e nao tem endereco nenhum.
+///
+/// ATUALIZADO NO LUGAR, nunca duplicado. O preco tem serie propria; aqui fica a
+/// versao corrente.
+model ProdutoColetado {
   id      String      @id @default(cuid())
   fonteId String
   fonte   FonteColeta @relation(fields: [fonteId], references: [id], onDelete: Cascade)
 
-  /// Unica no sistema inteiro: duas fontes com trechos que se sobrepoem nao
-  /// podem produzir a mesma URL duas vezes na busca.
-  url String @unique
+  /// O que identifica o produto DENTRO da fonte: o codigo da loja, que e o
+  /// ponto de acesso ao produto do concorrente; sem codigo, o endereco; sem
+  /// os dois, o nome. Nunca a posicao na lista — uma coleta nova embaralharia.
+  chave  String
+  /// "site" ou "arquivo". Produto de lista nao tem pagina publica, e a tela
+  /// diz isso em vez de montar link que nao leva a lugar nenhum.
+  origem String
 
-  titulo    String?
-  descricao String?
+  codigo    String?
+  nome      String?
   marca     String?
   modelo    String?
+  mpn       String?
+  ean       String?
+  categoria String?
+  ncm       String?
+  url       String?
 
-  /// Codigo do fabricante declarado pela loja (schema.org/Product mpn).
-  mpn String?
-  /// Codigo interno da loja de origem (schema.org/Product sku).
-  skuFonte String?
-  ean      String?
+  precoNormal      Decimal? @db.Decimal(12, 2)
+  precoPromocional Decimal? @db.Decimal(12, 2)
+  /// O preco do que ainda vai chegar. Na Fortek a reserva chega a custar MAIS
+  /// que a pronta entrega (65-276: 82,90 contra 79,90), e num campo so a
+  /// inversao sumiria.
+  precoReserva     Decimal? @db.Decimal(12, 2)
+  precoComImpostos Decimal? @db.Decimal(12, 2)
+  /// [{nome, percentual}] — quais impostos entraram no preco com impostos.
+  impostos         Json?
 
-  /// So as URLs. As imagens em si nao sao baixadas.
-  imagens   Json?
-  atributos Json?
+  /// Como a loja declarou: AVAILABLE, IN_STOCK, OUT_OF_STOCK... ou nada.
+  estoqueStatus String?
+  /// Pronta entrega. NUNCA somada ao que esta a chegar.
+  quantidade    Int?
+  aChegar       Int?
 
-  precoAtual Decimal? @db.Decimal(12, 2)
-  disponivel Boolean  @default(true)
-
-  /// Tudo que a busca varre, ja normalizado (sem acento, minusculo) na
-  /// ESCRITA. E o que faz "fone" achar "Fone" sem depender de extensao do
-  /// Postgres. A descricao fica de fora de proposito: casaria com quase tudo, e
-  /// procurar "preto" devolveria o catalogo inteiro.
+  /// O saldo que estava aqui ANTES da ultima mudanca, e quando ele foi visto.
   ///
-  /// SEM INDICE de proposito. A busca usa ILIKE '%termo%', e indice btree nao
-  /// atende curinga a esquerda — seria custo de escrita sem nenhum ganho de
-  /// leitura. Nesta ordem de grandeza (dezenas de milhares de linhas) a varredura
-  /// sequencial responde em milissegundos; se um dia pesar, o caminho e um GIN
-  /// com pg_trgm, que exige a extensao e nao muda a consulta.
-  buscaTexto String?
+  /// E a base do historico de venda que o dono vai montar: com os dois numeros e
+  /// as duas datas da para dizer quanto saiu entre uma varredura e outra. So
+  /// muda quando a quantidade muda; saldo nao informado (produto fora da lista
+  /// do fornecedor) nao apaga o que estava guardado.
+  quantidadeAnterior   Int?
+  quantidadeAnteriorEm DateTime?
 
-  /// Detectam que a pagina nao mudou sem precisar reprocessar: o ETag evita
-  /// baixar o corpo (304), e o hash cobre o servidor que nao manda ETag.
+  /// A primeira foto, em coluna propria: a lista de cem linhas le so ela, e
+  /// trazer a galeria inteira — na Fortek, fotos em base64 — seria carga que
+  /// ninguem ve.
+  miniatura      String?
+  imagens        Json?
+  descricao      String?
+  /// LISTA ORDENADA de {nome, valor}: a ficha tem linha sem rotulo, que objeto
+  /// nenhum comporta sem inventar chave.
+  especificacoes Json?
+  documentos     Json?
+  variantes      Json?
+  seo            Json?
+  plataforma     Json?
+  /// De onde veio cada valor — o que separa dado lido de dado calculado.
+  origens        Json?
+
+  /// Produto que saiu da lista do fornecedor FICA, com o saldo a null. Ausente
+  /// nao e zero: "esgotou" e afirmacao dele, "nao veio" e observacao nossa.
+  ausenteDesde  DateTime?
+  ausenteMotivo String?
+
+  /// Nome, marca, modelo e codigos, sem acento e minusculo, na ESCRITA. A
+  /// descricao fica de fora: procurar "preto" devolveria o catalogo inteiro.
+  buscaTexto   String?
+  /// Assinatura do conteudo: coleta sem mudanca so avanca o `vistoEm`, sem
+  /// reescrever a linha.
   hashConteudo String?
-  etag         String?
 
-  statusHttp Int?
-  erro       String?
+  /// Quando a pagina foi lida (ou a lista processada) na coleta que gravou.
+  coletadoEm DateTime?
+  /// A ultima coleta em que o produto apareceu. Produto de site que nao veio
+  /// numa amostra de 20 nao some: so fica com esta data mais antiga.
   vistoEm    DateTime @default(now())
 
   criadoEm     DateTime @default(now())
@@ -486,22 +544,27 @@ model PaginaColetada {
 
   precos PrecoHistorico[]
 
+  @@unique([fonteId, chave])
   @@index([fonteId, vistoEm])
 }
 
-/// Serie de preco por pagina.
+/// Serie de preco por produto.
 ///
-/// So ganha linha QUANDO O PRECO MUDA. Uma linha por varredura engordaria a
-/// tabela em 20 mil registros por dia sem dizer nada de novo.
+/// So ganha linha QUANDO PRECO OU ESTOQUE DECLARADO MUDAM. Uma linha por coleta
+/// engordaria a tabela com a lista inteira da Fortek a cada reprocessamento,
+/// sem dizer nada de novo. A quantidade fica de fora de proposito: muda todo
+/// dia no fornecedor e faria toda coleta parecer mudanca de preco.
 model PrecoHistorico {
-  id       String         @id @default(cuid())
-  paginaId String
-  pagina   PaginaColetada @relation(fields: [paginaId], references: [id], onDelete: Cascade)
+  id        String          @id @default(cuid())
+  produtoId String
+  produto   ProdutoColetado @relation(fields: [produtoId], references: [id], onDelete: Cascade)
 
-  preco      Decimal? @db.Decimal(12, 2)
-  disponivel Boolean  @default(true)
+  precoNormal      Decimal? @db.Decimal(12, 2)
+  precoPromocional Decimal? @db.Decimal(12, 2)
+  precoReserva     Decimal? @db.Decimal(12, 2)
+  estoqueStatus    String?
 
   coletadoEm DateTime @default(now())
 
-  @@index([paginaId, coletadoEm])
+  @@index([produtoId, coletadoEm])
 }

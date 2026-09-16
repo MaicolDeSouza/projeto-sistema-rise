@@ -123,8 +123,12 @@ function interpretarRobots(texto) {
 function caminhoCasa(regra, caminho) {
   // O robots.txt usa "*" como curinga e "$" como fim de linha. O resto e
   // escapado para que um "." ou "?" no caminho nao vire metacaractere.
+  // O "?" chegou a ficar de fora da lista, e "Disallow: /*?*" (a Saravati, que
+  // so queria barrar endereco com parametro) virava /.*?.* — quantificador
+  // preguicoso, que casa com qualquer caminho: a loja inteira aparecia
+  // bloqueada, a home inclusive.
   const padrao = regra
-    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
     .replace(/\*/g, ".*")
     .replace(/\\\$$/, "$");
 

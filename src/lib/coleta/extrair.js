@@ -31,6 +31,14 @@ function achatar(no, acumulado = []) {
 
   acumulado.push(no);
   if (no["@graph"]) achatar(no["@graph"], acumulado);
+
+  // O PRODUTO PODE ESTAR PENDURADO NUMA PAGINA, e nao solto no topo. A Saravati
+  // (Magento 2) publica um unico bloco `ItemPage` com o Product dentro de
+  // `mainEntity`: procurando so no topo e no @graph, a pagina inteira era lida
+  // como "sem JSON-LD" e caia no OpenGraph — sem sku, sem oferta, e o codigo
+  // acabava deduzido do endereco ("4gb-ram" em vez de srvt001158).
+  if (no.mainEntity) achatar(no.mainEntity, acumulado);
+
   return acumulado;
 }
 

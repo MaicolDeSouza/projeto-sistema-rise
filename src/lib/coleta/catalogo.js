@@ -20,7 +20,13 @@ import { buscarPagina } from "./buscar";
 
 /// Teto de paginas da listagem. Cada uma custa uma requisicao; sem limite, uma
 /// loja de cem mil itens prenderia o teste.
-const MAXIMO_PAGINAS = 60;
+///
+/// Subiu de 60 para 400 em 15/09/2026, quando a coleta passou a pegar o catalogo
+/// inteiro: a 50 itens por pagina, 60 paravam em 3.000 — menos que os 3.780 da
+/// Smartkits, e o resto teria de ser descoberto de novo pelo sitemap. Lendo a
+/// listagem, cada pagina traz 50 produtos por requisicao; abrindo produto a
+/// produto, cada requisicao traz um.
+const MAXIMO_PAGINAS = 400;
 
 /** Caminha por um objeto seguindo uma lista de chaves. */
 function em(objeto, caminho) {
