@@ -28,6 +28,11 @@ const TETO_POR_FONTE = 20000;
 /// o site vai sendo coberto aos poucos.
 const ORCAMENTO_PAGINAS = 20000;
 
+/// Produtos por gravacao durante a varredura — 10, escolha do dono em 16/09/2026.
+/// Numa loja que pede 10 s entre visitas, uns 2 minutos de trabalho: o que se
+/// perde, no maximo, se o worker cair.
+const LOTE_GRAVACAO = 10;
+
 /** Quantos produtos colher desta fonte. O mesmo para todas, desde 15/09/2026. */
 export function limiteDaFonte() {
   return TETO_POR_FONTE;
@@ -175,6 +180,14 @@ async function reprocessarArquivos(fonte, aoProgredir) {
       tipo: fonte.tipo,
       limite: limiteDaFonte(),
       orcamento: ORCAMENTO_PAGINAS,
+      // Sinal de vida durante a navegacao do site, que leva de minutos a horas:
+      // sem ele o job ficava sem noticia e a tela dava o worker por morto. O
+      // `feitas` continua sendo o de arquivos; so `visitadas` anda. Aqui NAO se
+      // grava em lotes: a trava de queda precisa da lista inteira, mesclada.
+      aoProgredir: aoProgredir
+        ? ({ visitadas }) =>
+            aoProgredir({ total: guardados.length, feitas: lidos.length, visitadas })
+        : undefined,
     });
 
     // Site ANTES do arquivo: quem chega primeiro vence, e a foto e a descricao
@@ -231,6 +244,44 @@ export async function varrerFonte(fonte, aoProgredir) {
   // uma loja de 400 itens terminaria parecendo parada em 2%.
   const esperado = fonte.produtosNoSite ?? limite;
 
+  /*
+    GRAVA EM LOTES, DURANTE A VARREDURA — pedido do dono em 16/09/2026.
+
+    Gravar so no fim custou varreduras inteiras: a Casa da Robotica tinha aberto
+    1.157 paginas quando o Node derrubou o worker, e nada foi salvo; o Eletrogate
+    passou de 2.000 produtos em memoria com dias de navegacao ainda pela frente.
+    Agora a queda perde no maximo o lote aberto.
+
+    Os lotes sao gravados EM FILA (`gravacoes`), um depois do outro: produto e
+    achado dentro de chamada que ninguem aguarda, e duas transacoes da mesma fonte
+    ao mesmo tempo tentariam criar a mesma chave. O lote sai do buffer ANTES de
+    gravar, entao nenhum produto entra em dois.
+  */
+  const inicio = new Date();
+  let buffer = [];
+  let gravacoes = Promise.resolve();
+  const acumulado = { novos: 0, atualizados: 0, inalterados: 0, precosMudaram: 0, semChave: 0 };
+  let gravadosEmLote = 0;
+
+  const gravarLote = (lote) => {
+    gravacoes = gravacoes.then(async () => {
+      try {
+        const parcial = await gravarColeta({
+          fonte,
+          produtos: lote,
+          origem: "site",
+          fecharColeta: false,
+        });
+        gravadosEmLote += parcial.gravados;
+        for (const campo of Object.keys(acumulado)) acumulado[campo] += parcial[campo] ?? 0;
+      } catch (erro) {
+        // Lote que falhou volta para a gravacao final, em vez de sumir.
+        console.error(`lote de ${lote.length} produto(s) nao gravado: ${erro.message}`);
+        buffer = lote.concat(buffer);
+      }
+    });
+  };
+
   const colheita = await colherProdutos({
     url: `https://${fonte.dominio}/`,
     secao: fonte.prefixoUrl ?? undefined,
@@ -241,10 +292,24 @@ export async function varrerFonte(fonte, aoProgredir) {
     // O andamento e contado em PRODUTOS, nao em paginas abertas: e o numero que
     // o operador pediu ("20 de cada"), e paginas abertas sobem sem parar em
     // loja que exige muita navegacao ate achar produto.
+    // `visitadas` vai junto: e o sinal de vida do worker no trecho em que ele
+    // abre pagina atras de pagina sem achar produto novo (ver worker.js).
     aoProgredir: aoProgredir
-      ? ({ produtos }) => aoProgredir({ total: esperado, feitas: produtos })
+      ? ({ produtos, visitadas }) =>
+          aoProgredir({ total: esperado, feitas: produtos, visitadas })
       : undefined,
+    aoGuardar: (produto) => {
+      buffer.push(produto);
+      if (buffer.length >= LOTE_GRAVACAO) {
+        const lote = buffer;
+        buffer = [];
+        gravarLote(lote);
+      }
+    },
   });
+
+  // Os lotes em voo terminam antes da gravacao final.
+  await gravacoes;
 
   if (colheita.produtos.length === 0) {
     return {
@@ -261,13 +326,26 @@ export async function varrerFonte(fonte, aoProgredir) {
     `formatos: ${colheita.formatos.join(", ")}` +
     (colheita.ritmoMs ? ` · site pede ${colheita.ritmoMs / 1000}s entre visitas` : "");
 
-  const gravacao = await gravarColeta({
+  // A gravacao final leva so o que sobrou no buffer, e FECHA a coleta com a data
+  // do inicio e o total da varredura inteira.
+  const final = await gravarColeta({
     fonte,
-    produtos: colheita.produtos,
+    produtos: buffer,
     origem: "site",
     resumo,
     duracaoMs: Date.now() - comecou,
+    inicioDaColeta: inicio,
+    totalDaColeta: gravadosEmLote + buffer.length,
   });
+
+  const gravacao = {
+    gravados: gravadosEmLote + final.gravados,
+    novos: acumulado.novos + final.novos,
+    atualizados: acumulado.atualizados + final.atualizados,
+    inalterados: acumulado.inalterados + final.inalterados,
+    precosMudaram: acumulado.precosMudaram + final.precosMudaram,
+    semChave: acumulado.semChave + final.semChave,
+  };
 
   return {
     total: esperado,

@@ -3,7 +3,7 @@ import { Radar, Store } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { miniaturas, produtosParaLista } from "@/lib/coleta/banco";
-import { normalizar } from "@/lib/texto";
+import { combina } from "@/lib/texto";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
@@ -26,23 +26,6 @@ export const dynamic = "force-dynamic";
 /// Cem e o que cabe numa rolagem sem a pagina ficar pesada, e e o mesmo numero
 /// que o Bling usa, de onde veio o pedido.
 const POR_PAGINA = 100;
-
-/**
- * O termo e quebrado em palavras e TODAS sao exigidas. Sem isso, "kingston nv2"
- * devolveria tudo da Kingston mais tudo que tem "nv2" — e o que o operador quer
- * e a intersecao, nao a uniao.
- *
- * Procura no `buscaTexto`, montado na gravacao com nome, marca, modelo e
- * codigos. A descricao fica de fora de proposito: procurar nela devolveria o
- * produto errado toda vez que a loja citasse uma marca concorrente no texto.
- */
-function combina(produto, termo) {
-  const palavras = normalizar(termo).split(/\s+/).filter(Boolean);
-  if (palavras.length === 0) return true;
-
-  const alvo = produto.buscaTexto;
-  return palavras.every((palavra) => alvo.includes(palavra));
-}
 
 export default async function MercadosPage({ searchParams }) {
   const params = await searchParams;
@@ -99,7 +82,7 @@ export default async function MercadosPage({ searchParams }) {
   const fonte = pedidas.filter((nome) => contagemPorFonte.has(nome));
 
   const selecionados = doTipo
-    .filter((produto) => combina(produto, busca))
+    .filter((produto) => combina(produto.buscaTexto, busca))
     .filter((produto) => fonte.length === 0 || fonte.includes(produto.fonte?.nome));
 
   /*

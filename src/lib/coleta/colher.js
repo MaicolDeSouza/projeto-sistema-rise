@@ -79,6 +79,8 @@ async function tentarUrl(url, fonte, plataforma, doCatalogo = null, memoriaPagam
  * @param {number} [entrada.limite]    quantos produtos colher
  * @param {number} [entrada.orcamento] teto de paginas abertas
  * @param {(a: {visitadas: number, produtos: number}) => void} [entrada.aoProgredir]
+ * @param {(produto: object) => void} [entrada.aoGuardar] chamado com cada produto
+ *   NOVO, no momento em que e achado — e o que permite gravar em lotes
  */
 export async function colherProdutos({
   url,
@@ -88,6 +90,7 @@ export async function colherProdutos({
   limite = 3,
   orcamento,
   aoProgredir,
+  aoGuardar,
 }) {
   // Sobra de visitas sobre o alvo: nem toda pagina aberta vira produto, e sem
   // folga a colheita para antes de completar o pedido.
@@ -201,6 +204,7 @@ export async function colherProdutos({
       if (vistas.has(chave)) continue;
       vistas.add(chave);
       encontrados.push(produto);
+      aoGuardar?.(produto);
     }
     formatosDaPagina?.forEach((f) => formatos.add(f));
   };

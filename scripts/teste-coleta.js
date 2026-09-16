@@ -8,7 +8,7 @@ import "dotenv/config";
  * muda ganha linha na serie, ausente da lista fica com saldo nulo e a data da
  * PRIMEIRA falta, e lista pela metade e recusada inteira.
  *
- * Cria duas fontes de teste e apaga as duas no fim (e no comeco, se uma
+ * Cria tres fontes de teste e apaga as tres no fim (e no comeco, se uma
  * execucao anterior morreu no meio).
  *
  *   npm run teste:coleta
@@ -38,7 +38,7 @@ function conferir(nome, obtido, esperado) {
   );
 }
 
-const DOMINIOS = ["teste-concorrente.local", "teste-fornecedor.local"];
+const DOMINIOS = ["teste-concorrente.local", "teste-fornecedor.local", "teste-lotes.local"];
 
 function produto({ code, name, normal, promotional = null, status = "AVAILABLE", quantity = null, url = null }) {
   return {
@@ -244,6 +244,58 @@ conferir(
   "lista recusada: nada foi tocado",
   (await prisma.produtoColetado.findFirst({ where: { fonteId: fornecedor.id, codigo: "X" } })).quantidade,
   2,
+);
+
+// ---------------------------------------------------------------------------
+console.log("\n— varredura gravada em lotes —");
+
+// A fonte ja tem uma coleta antiga; a varredura nova grava dois lotes sem fechar
+// e fecha no fim com a data do INICIO. A lista da tela precisa mostrar os tres
+// produtos da varredura nova — e so eles.
+const lotes = await prisma.fonteColeta.create({
+  data: { nome: "Lotes Teste", dominio: DOMINIOS[2], tipo: "CONCORRENTE", ativa: false },
+});
+const peca = (code) => produto({ code, name: `Peca ${code}`, normal: 10, url: `https://l/${code}` });
+
+await gravarColeta({ fonte: lotes, produtos: [peca("VELHA")], origem: "site", coletadoEm: segundos(50) });
+
+const inicioVarredura = segundos(60);
+await gravarColeta({ fonte: lotes, produtos: [peca("L1")], origem: "site", coletadoEm: segundos(61), fecharColeta: false });
+let fonteLotes = await prisma.fonteColeta.findUnique({ where: { id: lotes.id } });
+conferir(
+  "lote no meio da varredura nao mexe na ultima coleta",
+  [fonteLotes.ultimaColetaEm.toISOString(), fonteLotes.ultimaColetaTotal],
+  [segundos(50).toISOString(), 1],
+);
+
+await gravarColeta({ fonte: lotes, produtos: [peca("L2")], origem: "site", coletadoEm: segundos(62), fecharColeta: false });
+await gravarColeta({
+  fonte: lotes,
+  produtos: [peca("L3")],
+  origem: "site",
+  coletadoEm: segundos(63),
+  inicioDaColeta: inicioVarredura,
+  totalDaColeta: 3,
+});
+fonteLotes = await prisma.fonteColeta.findUnique({ where: { id: lotes.id } });
+conferir(
+  "fechamento: ultima coleta com a data do inicio e o total da varredura",
+  [fonteLotes.ultimaColetaEm.toISOString(), fonteLotes.ultimaColetaTotal],
+  [inicioVarredura.toISOString(), 3],
+);
+
+const naListaLotes = (await produtosParaLista())
+  .filter((item) => item.fonte.dominio === DOMINIOS[2])
+  .map((item) => item.code)
+  .sort();
+conferir("a lista mostra os tres lotes, e nao a coleta antiga", naListaLotes, ["L1", "L2", "L3"]);
+
+// Produto achado de novo num lote seguinte nao duplica.
+await gravarColeta({ fonte: lotes, produtos: [peca("L1")], origem: "site", coletadoEm: segundos(64), fecharColeta: false });
+conferir(
+  "produto repetido em outro lote: uma linha so",
+  await prisma.produtoColetado.count({ where: { fonteId: lotes.id, codigo: "L1" } }),
+  1,
 );
 
 // ---------------------------------------------------------------------------

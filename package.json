@@ -23,6 +23,7 @@
     "coletar": "node scripts/coletar.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.126.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "exceljs": "^4.4.0",

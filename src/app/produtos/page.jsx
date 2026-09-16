@@ -9,6 +9,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import CampoBusca from "@/components/ui/CampoBusca";
 import LinhaProduto from "@/components/produtos/LinhaProduto";
+import BotaoImportarBling from "@/components/produtos/BotaoImportarBling";
 
 export const dynamic = "force-dynamic";
 
@@ -73,13 +74,16 @@ export default async function ProdutosPage({ searchParams }) {
         titulo="Produtos"
         descricao="O cadastro base da loja. Todo anuncio nos canais deriva de um produto daqui."
         acao={
-          <Link
-            href="/produtos/novo"
-            className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90"
-          >
-            <Plus size={16} />
-            Novo produto
-          </Link>
+          <div className="flex items-start gap-3">
+            <BotaoImportarBling />
+            <Link
+              href="/produtos/novo"
+              className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              <Plus size={16} />
+              Novo produto
+            </Link>
+          </div>
         }
       />
 

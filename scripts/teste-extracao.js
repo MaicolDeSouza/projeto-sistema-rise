@@ -169,6 +169,21 @@ conferir(
   null,
 );
 
+// Usinainfo EMW3080V2: "- RAM: 256KB;" e toda maiuscula e era tomada por titulo,
+// encerrando a ficha antes de Dimensoes e Peso.
+const fichaComSigla = normalizarPagina({
+  html: `<script type="application/ld+json">
+{"@type":"Product","name":"Modulo WiFi","sku":"10197","offers":{"price":"45"},
+ "description":"ESPECIFICAÇÕES:\\n\\n- Chip: MX1290V2;\\n- RAM: 256KB;\\n- Memória Flash: 2MB;\\n- Dimensões(CxLxA): 18x33x3,2mm;\\n- Peso: 3g.\\n\\nEste conteúdo foi gerado por Inteligência Artificial e pode conter erros."}
+</script>`,
+  url: "https://loja.com.br/p/wifi",
+}).produtos[0];
+conferir(
+  "item em caixa alta com valor nao encerra a ficha",
+  fichaComSigla.specifications.map((item) => item.nome),
+  ["Chip", "RAM", "Memória Flash", "Dimensões(CxLxA)", "Peso"],
+);
+
 // ---------------------------------------------------------------------------
 console.log("\n— ficha com titulo em caixa normal e bullets sem par —");
 const fichaCaixaNormal = [
@@ -904,6 +919,83 @@ conferir(
   "sem url nao e valido",
   ehProdutoValido({ name: "X", url: null, prices: { normal: 10 } }),
   false,
+);
+
+// ---------------------------------------------------------------------------
+console.log("\n— peso, dimensoes e NCM das especificacoes (cadastro de produto) —");
+
+const { pesoEmKg, medidasDaEspecificacao, ncmFormatado } = await import("../src/lib/medidas.js");
+
+conferir("peso em gramas com virgula", pesoEmKg("12,3g"), 0.012);
+conferir("peso ja em kg", pesoEmKg("0,049 kg"), 0.049);
+conferir("peso abaixo de 1 g nao vira zero no campo", pesoEmKg("0,1g"), null);
+conferir("uma medida por campo, mm vira cm", medidasDaEspecificacao("Altura", "32mm"), { altura: 3.2 });
+conferir("aproximado (~) e lido", medidasDaEspecificacao("Comprimento", "~28cm"), { comprimento: 28 });
+conferir("comprimento do cabo NAO e do produto", medidasDaEspecificacao("Comprimento do cabo", "1m"), null);
+conferir(
+  "ordem no rotulo (CxLxA), unidade so no fim",
+  medidasDaEspecificacao("Dimensões (CxLxA)", "54 x 30,5 x 17mm"),
+  { comprimento: 5.4, largura: 3.05, altura: 1.7 },
+);
+conferir(
+  "ordem no rotulo invertida (AxLxC)",
+  medidasDaEspecificacao("Dimensões (AxLxC)", "13 x 30 x 46 mm"),
+  { altura: 1.3, largura: 3, comprimento: 4.6 },
+);
+conferir(
+  "ordem no valor, palavra entre parenteses; profundidade vale como comprimento",
+  medidasDaEspecificacao("Dimensões", "35mm (Altura) x 50mm (Largura) x 15mm (profundidade)"),
+  { altura: 3.5, largura: 5, comprimento: 1.5 },
+);
+conferir(
+  "sem ordem declarada: C x L x A presumida, e marcada",
+  medidasDaEspecificacao("Dimensões", "31 x 15 x 18mm"),
+  { comprimento: 3.1, largura: 1.5, altura: 1.8, presumida: true },
+);
+conferir("medida da embalagem fica de fora", medidasDaEspecificacao("Dimensões da embalagem", "10 x 10 x 5 cm"), null);
+conferir("texto sem numero fica de fora", medidasDaEspecificacao("Tamanho", "Diversos"), null);
+conferir("NCM so digitos ganha pontos", ncmFormatado("85423190"), "8542.31.90");
+conferir("NCM incompleto e descartado", ncmFormatado("8542"), null);
+
+const { linhaDeDimensoes, linhaDePeso, medidasDaDescricao } = await import("../src/lib/medidas.js");
+conferir(
+  "linha de dimensoes no padrao da descricao",
+  linhaDeDimensoes({ comprimentoCm: 6.8, larguraCm: 5.3, alturaCm: 1 }),
+  "Dimensões(CxLxA): 68x53x10mm",
+);
+conferir(
+  "medida faltando sai da letra do rotulo",
+  linhaDeDimensoes({ comprimentoCm: 3.05, alturaCm: 1.7 }),
+  "Dimensões(CxA): 30,5x17mm",
+);
+conferir("peso abaixo de 1 kg em gramas", linhaDePeso(0.055), "Peso: 55g");
+conferir("peso acima de 1 kg nao perde casa", linhaDePeso(1.25), "Peso: 1,25kg");
+conferir(
+  "a descricao gerada e lida de volta para os campos",
+  medidasDaDescricao(
+    "PLACA\n\nTexto.\n\nEspecificações técnicas:\n- Microcontrolador: ATmega328;\n" +
+      "- Dimensões(CxLxA): 68x53x10mm;\n- Peso: 55g;\n\nItens inclusos: (Cod:1)\n- 01 PLACA;",
+  ),
+  { pesoKg: 0.055, alturaCm: 1, larguraCm: 5.3, comprimentoCm: 6.8 },
+);
+conferir("texto sem as linhas nao inventa medida", medidasDaDescricao("Uma placa.\n- Tensão: 5V;"), {});
+
+// Usinainfo 10179: medida so no TEXTO da descricao, ficha sem nenhuma.
+const { medidasDoProdutoColetado } = await import("../src/lib/medidas.js");
+const usinainfo = medidasDoProdutoColetado({
+  especificacoes: [{ nome: "Tensão", valor: "5V" }],
+  descricao: "Especificações:\n- Dimensões (CxLxE): ~54x29x5mm; (ignorando-se os pinos);\n- Peso: 11g.",
+});
+conferir("peso lido do texto da descricao", usinainfo.peso[0]?.valor, 0.011);
+conferir(
+  "dimensoes lidas do texto da descricao",
+  [usinainfo.comprimento[0]?.valor, usinainfo.largura[0]?.valor, usinainfo.altura[0]?.valor],
+  [5.4, 2.9, 0.5],
+);
+conferir(
+  "ficha vem antes da descricao",
+  medidasDoProdutoColetado({ especificacoes: [{ nome: "Peso", valor: "6g" }], descricao: "- Peso: 9g;" }).peso.map((p) => p.valor),
+  [0.006, 0.009],
 );
 
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);

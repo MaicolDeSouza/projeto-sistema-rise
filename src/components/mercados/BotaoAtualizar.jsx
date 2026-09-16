@@ -17,7 +17,7 @@ const INTERVALO_MS = 4000;
  * nao cabe numa requisicao HTTP e morreria no primeiro hot reload. Quem executa
  * e o worker, em processo separado.
  *
- * Este e o mesmo caminho do ciclo automatico de 24 horas — o botao so antecipa.
+ * Este e o mesmo caminho do ciclo automatico de 30 dias — o botao so antecipa.
  * Nao existe "modo manual" com codigo proprio para divergir do automatico.
  */
 export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) {
@@ -88,8 +88,16 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
   }
 
   const emCurso = situacao?.jobs?.find((job) => job.status === "PROCESSANDO");
-  const percentual =
-    emCurso?.total > 0 ? Math.round((emCurso.feitas / emCurso.total) * 100) : null;
+  /*
+    O total e o que se SABIA do catalogo, e pode ser menor que o real: o sitemap
+    do Eletrogate lista 500 enderecos e a varredura achou 2.000 produtos, e a tela
+    dizia "2000 de 500 (400%)". Passou do total, o "de" e o percentual somem — o
+    numero de produtos continua certo, a estimativa e que estava errada.
+  */
+  const dentroDoTotal = emCurso?.total > 0 && emCurso.feitas <= emCurso.total;
+  const percentual = dentroDoTotal
+    ? Math.round((emCurso.feitas / emCurso.total) * 100)
+    : null;
   // Os que ainda nao comecaram. `jobs` ja vem so com PENDENTE e PROCESSANDO.
   const fila = situacao?.jobs?.filter((job) => job.status === "PENDENTE").length ?? 0;
 
@@ -112,8 +120,10 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
       {emCurso && (
         <p className="text-right text-xs text-suave">
           {emCurso.fonteNome}: {emCurso.feitas}
-          {emCurso.total > 0 && ` de ${emCurso.total}`}
+          {dentroDoTotal ? ` de ${emCurso.total}` : " produto(s)"}
           {percentual !== null && ` (${percentual}%)`}
+          {/* Paginas abertas: mostra que a varredura anda mesmo sem produto novo. */}
+          {emCurso.visitadas > 0 && ` · ${emCurso.visitadas.toLocaleString("pt-BR")} paginas`}
           {/*
             QUANTAS FONTES AINDA FALTAM. Sem isto, a tela mostra so a fonte da
             vez e a varredura parece quase pronta quando ainda tem cinco lojas

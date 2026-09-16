@@ -12,8 +12,12 @@ import FormularioProduto from "@/components/produtos/FormularioProduto";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditarProdutoPage({ params }) {
+export default async function EditarProdutoPage({ params, searchParams }) {
   const { id } = await params;
+  // Resultado da copia de imagens no cadastro por "Buscar por codigo".
+  const busca = await searchParams;
+  const imagensCopiadas = busca?.imagens !== undefined ? Number(busca.imagens) || 0 : null;
+  const imagensRecusadas = Number(busca?.recusadas) || 0;
 
   const registro = await prisma.produto.findUnique({
     where: { id },
@@ -115,6 +119,27 @@ export default async function EditarProdutoPage({ params }) {
             : `SKU ${registro.sku}`
         }
       />
+
+      {busca?.documentos === "falhou" && (
+        <p className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          O produto foi salvo, mas os documentos enviados antes de salvar nao foram gravados.
+          Envie de novo em Documentos tecnicos e Certificado de homologacao.
+        </p>
+      )}
+
+      {imagensCopiadas !== null && (
+        <p
+          className={`mb-4 rounded border p-3 text-sm ${
+            imagensRecusadas > 0
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : "border-emerald-200 bg-emerald-50 text-emerald-900"
+          }`}
+        >
+          {imagensCopiadas} imagem(ns) copiada(s) do produto de origem.
+          {imagensRecusadas > 0 &&
+            ` ${imagensRecusadas} ficaram de fora: fora de 500 a 1920 px, formato que o Mercado Livre nao aceita, ou o site nao respondeu.`}
+        </p>
+      )}
 
       <FormularioProduto
         produto={produto}

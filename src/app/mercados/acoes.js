@@ -710,6 +710,7 @@ export async function situacaoVarredura() {
       fonteNome: job.payload?.fonteNome ?? "?",
       total: job.payload?.total ?? 0,
       feitas: job.payload?.feitas ?? 0,
+      visitadas: job.payload?.visitadas ?? 0,
     })),
     ultimo: ultimoJob
       ? {

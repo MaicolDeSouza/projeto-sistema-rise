@@ -25,6 +25,8 @@ enum Servico {
   BLING
   MERCADO_LIVRE
   LOJA_INTEGRADA
+  /// Geracao de titulo e descricao por IA no cadastro de produto.
+  ANTHROPIC
 }
 
 /// Estado INTERNO do anuncio no Sistema Rise — o quanto ele avancou no nosso
@@ -56,8 +58,10 @@ enum StatusJob {
 
 enum TipoArquivo {
   IMAGEM
-  MANUAL
-  FICHA_TECNICA
+  /// Manual, datasheet, ficha tecnica: um tipo so desde 16/09/2026. Na pratica o
+  /// mesmo PDF traz especificacao e instrucao de uso, e dois campos viravam uma
+  /// escolha a cada cadastro.
+  DOCUMENTO
   CERTIFICADO
 }
 
@@ -145,7 +149,7 @@ model Produto {
   @@index([ativo])
 }
 
-/// Arquivos do produto: imagens, manual, ficha tecnica e certificado.
+/// Arquivos do produto: imagens, documentos tecnicos e certificado.
 ///
 /// Uma tabela para todos os tipos, e nao uma por tipo: envio, validacao,
 /// exibicao e exclusao sao identicos, entao um tipo novo passa a ser um valor
@@ -409,7 +413,10 @@ model FonteColeta {
   instrucoes String?
 
   ativa          Boolean @default(true)
-  intervaloHoras Int     @default(24)
+  /// 30 dias (720 h), decidido pelo dono em 16/09/2026. Era 24 h, mas com o
+  /// catalogo inteiro de cada loja uma varredura leva horas (o Eletrogate, 8.783
+  /// paginas a 10 s cada) e emendava na seguinte.
+  intervaloHoras Int     @default(720)
 
   /// O relogio da varredura mora aqui, e nao num setInterval: o sistema roda na
   /// maquina do dono, que dorme e reinicia. Desligada dois dias, ela gera UMA

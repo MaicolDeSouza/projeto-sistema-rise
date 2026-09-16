@@ -58,6 +58,13 @@ function emLotes(itens, tamanho = LOTE) {
  * @param {number} [entrada.duracaoMs]
  * @param {Date}   [entrada.coletadoEm] quando a coleta aconteceu (a carga dos
  *   JSON antigos passa a data deles, e nao a de hoje)
+ * @param {boolean} [entrada.fecharColeta] false grava so os produtos, sem mexer
+ *   na "ultima coleta" da fonte — e o lote gravado no meio da varredura
+ * @param {Date}   [entrada.inicioDaColeta] data que vale como ultima coleta. A
+ *   varredura gravada em lotes passa o INICIO: a lista da tela mostra quem tem
+ *   `vistoEm` a partir dela, e com a data do fim os lotes anteriores sumiriam
+ * @param {number} [entrada.totalDaColeta] produtos da varredura inteira, somados
+ *   os lotes (sem ele, valeria so o ultimo lote)
  */
 export async function gravarColeta({
   fonte,
@@ -66,6 +73,9 @@ export async function gravarColeta({
   resumo = null,
   duracaoMs = null,
   coletadoEm = new Date(),
+  fecharColeta = true,
+  inicioDaColeta = null,
+  totalDaColeta = null,
 }) {
   // Quem chega primeiro vence, a mesma regra de juntarListas: a pronta entrega
   // antes da reserva, o site antes da planilha.
@@ -198,16 +208,18 @@ export async function gravarColeta({
         });
       }
 
-      await tx.fonteColeta.update({
-        where: { id: fonte.id },
-        data: {
-          ultimaColetaEm: coletadoEm,
-          ultimaColetaOrigem: origem,
-          ultimaColetaTotal: porChave.size,
-          ultimaColetaDuracaoMs: duracaoMs,
-          ultimaColetaResumo: resumo,
-        },
-      });
+      if (fecharColeta) {
+        await tx.fonteColeta.update({
+          where: { id: fonte.id },
+          data: {
+            ultimaColetaEm: inicioDaColeta ?? coletadoEm,
+            ultimaColetaOrigem: origem,
+            ultimaColetaTotal: totalDaColeta ?? porChave.size,
+            ultimaColetaDuracaoMs: duracaoMs,
+            ultimaColetaResumo: resumo,
+          },
+        });
+      }
     },
     // A lista da Fortek na primeira carga sao 1.911 insercoes com foto em
     // base64; o padrao de 5 s do Prisma derrubaria a transacao no meio.

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, rename, rm, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { imageSize } from "image-size";
@@ -12,8 +12,7 @@ export { MAXIMO_IMAGENS };
  * Arquivos do produto, organizados por SKU:
  *
  *   dados/produtos/<SKU>/imagens/
- *                        manuais/
- *                        fichas-tecnicas/
+ *                        documentos/
  *                        certificados/
  *
  * Fica fora de public/ de proposito: arquivo gravado em public/ durante a
@@ -25,8 +24,7 @@ export const RAIZ = path.join(process.cwd(), "dados", "produtos");
 
 export const PASTAS = {
   IMAGEM: "imagens",
-  MANUAL: "manuais",
-  FICHA_TECNICA: "fichas-tecnicas",
+  DOCUMENTO: "documentos",
   CERTIFICADO: "certificados",
 };
 
@@ -118,6 +116,16 @@ export async function salvarArquivo(sku, tipo, arquivo) {
     };
   }
 
+  const resultado = await validarEGravar(path.join(RAIZ, sku), tipo, arquivo);
+  return resultado.ok ? { ...resultado, url: urlDe(sku, tipo, resultado.nome) } : resultado;
+}
+
+/**
+ * A validacao e a gravacao, em qualquer pasta-base: a do produto ou a
+ * temporaria do cadastro novo. Uma funcao so, para o arquivo enviado antes de
+ * salvar passar pelas MESMAS regras (formato, tamanho, nome gerado por nos).
+ */
+async function validarEGravar(base, tipo, arquivo) {
   if (!PASTAS[tipo]) return { ok: false, erro: `Tipo desconhecido: ${tipo}.` };
 
   if (!arquivo || typeof arquivo.arrayBuffer !== "function" || !arquivo.size) {
@@ -173,7 +181,7 @@ export async function salvarArquivo(sku, tipo, arquivo) {
   // O nome vem de nos, nunca do cliente: nome enviado pelo navegador e dado
   // nao confiavel.
   const nome = `${randomUUID().replaceAll("-", "")}${extensao}`;
-  const destino = path.join(RAIZ, sku, PASTAS[tipo]);
+  const destino = path.join(base, PASTAS[tipo]);
 
   await mkdir(destino, { recursive: true });
   await writeFile(path.join(destino, nome), bytes);
@@ -184,8 +192,109 @@ export async function salvarArquivo(sku, tipo, arquivo) {
     nomeOriginal: arquivo.name ?? null,
     mimeType: arquivo.type,
     tamanhoBytes: arquivo.size,
-    url: urlDe(sku, tipo, nome),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Pasta temporaria do cadastro novo
+// ---------------------------------------------------------------------------
+
+/**
+ * Documentos e certificado enviados ANTES de o produto existir — pedido do dono
+ * em 16/09/2026. O produto novo nao tem SKU gravado, e a pasta definitiva tem o
+ * nome do SKU; entao o arquivo espera em dados/temporarios/<lote>/ e e movido no
+ * Salvar. Fica dentro de dados/, fora de public/ e do git, como o resto.
+ */
+export const RAIZ_TEMPORARIA = path.join(process.cwd(), "dados", "temporarios");
+
+/// Tipos que podem ser enviados antes de salvar. Imagem fica de fora: no
+/// cadastro novo ela vem da busca por codigo, e a copia ja e feita no Salvar.
+export const TIPOS_TEMPORARIOS = ["DOCUMENTO", "CERTIFICADO"];
+
+/// Lote de cadastro abandonado (aba fechada sem salvar) e apagado depois disso.
+const VALIDADE_TEMPORARIO_MS = 24 * 60 * 60 * 1000;
+
+/** O lote e um UUID gerado pelo navegador: so esse formato vira nome de pasta. */
+export function loteValido(lote) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(lote ?? "");
+}
+
+const TIPO_POR_EXTENSAO = { ".pdf": "application/pdf", ".jpg": "image/jpeg", ".png": "image/png" };
+
+/** Apaga lotes com mais de 24 h. Falha aqui nunca derruba o envio. */
+async function limparTemporariosAntigos() {
+  try {
+    const lotes = await readdir(RAIZ_TEMPORARIA, { withFileTypes: true });
+    const agora = Date.now();
+    for (const lote of lotes) {
+      if (!lote.isDirectory() || !loteValido(lote.name)) continue;
+      const caminho = path.join(RAIZ_TEMPORARIA, lote.name);
+      const { mtimeMs } = await stat(caminho);
+      if (agora - mtimeMs > VALIDADE_TEMPORARIO_MS) {
+        await rm(caminho, { recursive: true, force: true });
+      }
+    }
+  } catch (erro) {
+    if (erro.code !== "ENOENT") console.error("Falha ao limpar temporarios:", erro.message);
+  }
+}
+
+export async function salvarArquivoTemporario(lote, tipo, arquivo) {
+  if (!loteValido(lote)) return { ok: false, erro: "Lote de envio invalido." };
+  if (!TIPOS_TEMPORARIOS.includes(tipo)) {
+    return { ok: false, erro: "Este tipo de arquivo so pode ser enviado depois de salvar." };
+  }
+  await limparTemporariosAntigos();
+  return validarEGravar(path.join(RAIZ_TEMPORARIA, lote), tipo, arquivo);
+}
+
+export async function apagarArquivoTemporario(lote, tipo, nome) {
+  if (!loteValido(lote) || !TIPOS_TEMPORARIOS.includes(tipo) || !nomeValido(nome)) return;
+  try {
+    await unlink(path.join(RAIZ_TEMPORARIA, lote, PASTAS[tipo], nome));
+  } catch (erro) {
+    if (erro.code !== "ENOENT") throw erro;
+  }
+}
+
+/**
+ * Move os arquivos do lote para a pasta do produto recem-criado.
+ *
+ * So entra o que EXISTE no lote com nome gerado por nos: a lista vem do
+ * navegador, entao cada item e conferido no disco, e tamanho e formato sao lidos
+ * daqui, nao do que o navegador disse. Ao fim o lote inteiro e apagado.
+ *
+ * @param {string} lote
+ * @param {string} sku
+ * @param {Array<{tipo: string, nome: string}>} itens
+ */
+export async function moverTemporarios(lote, sku, itens) {
+  if (!loteValido(lote) || !skuValido(sku)) return [];
+
+  const movidos = [];
+  for (const item of itens ?? []) {
+    if (!TIPOS_TEMPORARIOS.includes(item?.tipo) || !nomeValido(item?.nome)) continue;
+
+    const origem = path.join(RAIZ_TEMPORARIA, lote, PASTAS[item.tipo], item.nome);
+    const pasta = path.join(RAIZ, sku, PASTAS[item.tipo]);
+    try {
+      const { size } = await stat(origem);
+      await mkdir(pasta, { recursive: true });
+      await rename(origem, path.join(pasta, item.nome));
+      movidos.push({
+        tipo: item.tipo,
+        nome: item.nome,
+        tamanhoBytes: size,
+        mimeType: TIPO_POR_EXTENSAO[path.extname(item.nome)] ?? null,
+      });
+    } catch (erro) {
+      // Arquivo que sumiu do lote (limpeza, remocao em outra aba) so nao entra.
+      if (erro.code !== "ENOENT") throw erro;
+    }
+  }
+
+  await rm(path.join(RAIZ_TEMPORARIA, lote), { recursive: true, force: true });
+  return movidos;
 }
 
 export async function apagarArquivo(sku, tipo, nome) {

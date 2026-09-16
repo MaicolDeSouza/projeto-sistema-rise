@@ -1,0 +1,88 @@
+import { produtosParaLista } from "@/lib/coleta/banco";
+import { casaPalavra, indiceDePalavras, palavrasDoTermo } from "@/lib/texto";
+
+/**
+ * Referencias de mercado para o cadastro de produto: fornecedores e
+ * concorrentes parecidos com o titulo, do mais parecido para o menos.
+ *
+ * Le a mesma lista da tela Mercados (ultima coleta de cada fonte), mas NAO usa a
+ * regra dela. La o operador filtra, e todas as palavras sao exigidas; aqui ele
+ * cola um titulo inteiro, e ninguem repete as nove palavras de
+ * "PLACA COMPATIVEL ARDUINO UNO R3 CH340 COM CABO USB" — a busca nao achava
+ * nada, com 37 produtos tendo "arduino uno".
+ */
+
+/// Mais que isso nao se marca a mao, e a lista pesaria na tela.
+const TETO = 200;
+
+/// Fracao do peso do titulo que o produto precisa ter. Metade separa bem nos
+/// titulos medidos: a placa certa fica acima e o "Case Arduino Uno R3"
+/// (acessorio) fica abaixo.
+const NOTA_MINIMA = 0.5;
+
+const ORDEM = { FORNECEDOR: 0, CONCORRENTE: 1, OUTRO: 2 };
+
+export async function buscarReferencias(termo) {
+  const palavras = palavrasDoTermo(termo);
+  if (palavras.length === 0) return { total: 0, itens: [] };
+
+  const todos = await produtosParaLista();
+
+  // Quais palavras cada produto tem. Guardado para calcular o peso de cada
+  // palavra antes da nota.
+  const casamentos = todos.map((produto) => {
+    const formas = indiceDePalavras(produto.buscaTexto);
+    return palavras.map((palavra) => casaPalavra(formas, palavra));
+  });
+
+  /*
+    PESO PELA RARIDADE. "sensor" esta em centenas de produtos e nao diz qual e
+    a peca; "hcsr04" esta em poucos e diz. Com peso igual, a busca por
+    "SENSOR DE DISTANCIA ULTRASSONICO HC-SR04 5V" punha sensores ToF (sensor +
+    distancia + 5V) no mesmo nivel do HC-SR04. Palavra com digito ganha um
+    bonus a mais: e modelo, CI ou especificacao.
+  */
+  const pesos = palavras.map((palavra, indice) => {
+    const comEla = casamentos.filter((linha) => linha[indice]).length;
+    const raridade = Math.log((todos.length + 1) / (comEla + 1)) + 1;
+    return /\d/.test(palavra) ? raridade * 1.5 : raridade;
+  });
+  const pesoTotal = pesos.reduce((soma, peso) => soma + peso, 0);
+
+  // Com ate duas palavras todas precisam aparecer: "sensor" sozinho casaria com
+  // metade do acervo.
+  const minima = palavras.length <= 2 ? 1 : NOTA_MINIMA;
+
+  const achados = [];
+  todos.forEach((produto, indice) => {
+    const pesoCasado = casamentos[indice].reduce(
+      (soma, casou, posicao) => soma + (casou ? pesos[posicao] : 0),
+      0,
+    );
+    const nota = pesoCasado / pesoTotal;
+    // Margem de arredondamento: com duas palavras, 1 pode vir como 0,9999.
+    if (nota >= minima - 1e-9) achados.push({ produto, nota });
+  });
+
+  achados.sort(
+    (a, b) =>
+      b.nota - a.nota ||
+      (ORDEM[a.produto.fonte.tipo] ?? 9) - (ORDEM[b.produto.fonte.tipo] ?? 9) ||
+      (a.produto.name ?? "").localeCompare(b.produto.name ?? "", "pt-BR"),
+  );
+
+  return {
+    total: achados.length,
+    itens: achados.slice(0, TETO).map(({ produto, nota }) => ({
+      id: produto.id,
+      nome: produto.name,
+      codigo: produto.code,
+      tipo: produto.fonte.tipo,
+      fonte: produto.fonte.nome,
+      url: produto.url,
+      origem: produto.origem,
+      preco: produto.prices.promotional ?? produto.prices.normal,
+      relevancia: Math.round(nota * 100),
+    })),
+  };
+}

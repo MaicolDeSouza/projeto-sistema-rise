@@ -366,11 +366,17 @@ function especificacoesDeLista(texto) {
   //
   // Exigir caixa alta, como era antes, fazia a ficha inteira ser ignorada nas
   // lojas que escrevem o titulo em caixa normal — e a maioria escreve.
+  //
+  // Caixa alta so e titulo SEM valor depois dos dois-pontos: "- RAM: 256KB;" e
+  // toda maiuscula e e item. Tomada por titulo, encerrava a ficha da Usinainfo
+  // no EMW3080V2 (16/09/2026) e Dimensoes e Peso, que vinham depois, sumiam.
   const ehTitulo = (linha) =>
     linha.length > 2 &&
     linha.length < 45 &&
     (/:\s*$/.test(linha) ||
-      (linha === linha.toUpperCase() && /[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(linha)));
+      (linha === linha.toUpperCase() &&
+        /[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(linha) &&
+        !/:\s*\S/.test(linha)));
 
   // O titulo da secao as vezes vem SEM dois-pontos e em caixa normal — a
   // Smartkits escreve so "Especificacoes" no JSN-SR04T, e a ficha inteira,

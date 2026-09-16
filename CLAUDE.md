@@ -23,7 +23,7 @@ Organizado em **blocos** no menu lateral, cada um desenvolvido de forma independ
 
 | Bloco | Situação |
 | --- | --- |
-| Produtos | Cadastro completo — é a base de que todo anúncio deriva |
+| Produtos | Cadastro completo — é a base de que todo anúncio deriva. Cadastro novo com importação do Bling, busca por código, referências de mercado e título/descrição por IA (Anthropic) |
 | Integrações | Bling e ML conectados e testados; Loja Integrada via Bling |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
@@ -39,11 +39,11 @@ requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 137 asserções da extração e da conciliação, SEM rede
+npm run teste:extracao            # 169 asserções da extração, da conciliação e das medidas, SEM rede
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
-npm run teste:coleta              # 33 asserções da gravação no banco (usa o Postgres, SEM rede)
+npm run teste:coleta              # 42 asserções da gravação no banco (usa o Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # executa o que o botao "Atualizar tabelas" enfileira
 ```
@@ -90,11 +90,24 @@ o Docker Desktop travava ao abrir e o sistema ficava sem banco.
 
 - Credenciais no header **`Authorization: Basic`**, não no corpo.
 - Autorização em `https://www.bling.com.br/b/Api/v3/oauth/authorize` — **com `/b/`**.
-  Token em `https://www.bling.com.br/Api/v3/oauth/token` — **sem `/b/`**.
-  API em `https://www.bling.com.br/Api/v3` (não `api.bling.com.br`).
-  **Em 15/09/2026 isso inverteu**: o `npm run diagnostico` levou *"A URL 'www.bling.com.br' está
-  bloqueada para requisições de API. Por favor, utilize o endpoint oficial: 'api.bling.com.br'"*.
-  **Não corrigido.** Antes de trocar, conferir se autorização e token mudaram também.
+  Token em `https://api.bling.com.br/Api/v3/oauth/token` — **sem `/b/`**.
+  API em `https://api.bling.com.br/Api/v3`.
+  **Até 15/09/2026 a API era em `www`**; naquele dia passou a responder *"A URL
+  'www.bling.com.br' está bloqueada para requisições de API. Por favor, utilize o endpoint
+  oficial: 'api.bling.com.br'"*. Trocado em 16/09. O token foi conferido **sem credencial**
+  (um pedido por host, os dois devolvem `invalid_client`), para não gastar a cota de 20
+  pedidos que bloqueia o IP. A autorização continua em `www`: é a página que o navegador
+  abre. **A primeira renovação de token pelo host `api` ainda não aconteceu** — se falhar,
+  é o primeiro suspeito.
+- **`GET /produtos` não ordena por código.** A importação ("Importar do Bling", em
+  `src/lib/integracoes/importarBling.js`) lê o catálogo ativo inteiro — 1.834 produtos, 19
+  páginas de 100, ~10 s — e ordena na memória, em ordem natural (`100103` antes de
+  `100103_10`). Cada clique traz os **próximos 5** que ainda não existem aqui (por `blingId`
+  ou SKU), e cria junto o `Anuncio` BLING com `idExterno`: sem ele a lista oferece
+  "Cadastrar no Bling" e duplicaria o item no ERP. Código com barra (`900314_8/conector`)
+  não vira SKU, porque SKU é nome de pasta.
+- **Imagem do Bling é link do S3 que expira em uma semana** — por isso é baixada para
+  `dados/produtos`, não guardada como URL.
 - O `code` vale **1 minuto**. O refresh token dura 30 dias e **rotaciona**.
 - **20 pedidos de token em 60s bloqueiam o IP por 60 minutos.** Nunca pedir token se o
   guardado ainda vale.
@@ -217,10 +230,24 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
 - **Json nulo no Prisma é `Prisma.DbNull`.** `null` puro num campo `Json?` é recusado.
 - **A fonte nasce pausada**, com `proximaVarreduraEm` a 100 anos: salvar um cadastro não
   pode disparar varredura sozinho. Fonte pausada dá recado dizendo para usar "Retomar".
-- **O ciclo automático de 24 h está LIGADO** — este arquivo dizia o contrário até
-  15/09/2026. Fonte ativa cuja `proximaVarreduraEm` venceu é enfileirada pelo worker a cada
-  volta (`enfileirarVencidas`), sem clique; foi o que varreu as seis fontes ao ligar o worker
-  naquele dia.
+- **O ciclo automático está LIGADO, e desde 16/09/2026 é de 30 dias** (`intervaloHoras` = 720,
+  migration `20260916_intervalo_30_dias`). Era de 24 h, mas com o catálogo inteiro de cada loja
+  uma varredura leva horas (Eletrogate: 8.783 páginas a 10 s cada) e emendava na seguinte.
+  Fonte ativa cuja `proximaVarreduraEm` venceu é enfileirada pelo worker a cada volta
+  (`enfileirarVencidas`), sem clique. A migration levou a próxima varredura das fontes já
+  varridas para 30 dias depois da última. As que estavam na fila rodam uma vez e ganham a data
+  nova no fim.
+- **Um laço de shell de outra sessão pode religar o worker que você acabou de parar.** Em
+  16/09/2026, o `taskkill` no worker antigo foi seguido, um minuto depois, de um worker novo
+  subido pelo laço `while true; do npm run worker; done` de uma sessão anterior (um
+  `bash.exe` vivo desde as 03:13). Subir outro worker em seguida deixou **dois disputando a
+  fila**. Antes de subir worker, liste os processos com
+  `Get-CimInstance Win32_Process -Filter "Name='node.exe'"`, filtrando por `worker`, e procure
+  também o `bash.exe` pai. Parar a tarefa em segundo plano não mata o `node` filho no Windows:
+  é preciso `taskkill /T` no `cmd.exe` dele.
+- **Fornecedor com lista e site (Nightech) navega o site sem gravar em lotes**: a trava de queda
+  precisa da lista inteira, mesclada. Desde 16/09 esse trecho também manda sinal de vida
+  (`visitadas`), só em worker iniciado depois da mudança.
 - **O teto da tabela subiu de 100 para 300.** A data é da **coleta inteira**, não de cada
   produto, então a ordenação agrupa por fonte e um teto apertado corta a fonte mais antiga
   **por completo**: com 100, a Casa da Robótica sumia da tela inteira tendo 20 produtos
@@ -282,10 +309,22 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   fila o job em andamento **já na partida** (`ORFAO_NA_PARTIDA_MS`, 10 min — quem acabou de
   subir não está processando nada), e a varredura longa roda dentro de um laço de shell que
   o religa quando ele cai.
-- **Queda no meio da varredura custa a varredura inteira.** `gravarColeta` só roda no FIM: a
-  Casa da Robótica tinha aberto 1.157 das 2.294 páginas e **nada** foi salvo. Gravar em lotes
-  durante a colheita é o conserto — ainda não feito, e é o que torna a coleta de catálogo
-  inteiro (horas por loja) arriscada numa máquina que dorme.
+- **A varredura de site grava em lotes de 10 produtos** (`LOTE_GRAVACAO`), desde 16/09/2026, a pedido do dono (que escolheu 10, e não 50).
+  Antes `gravarColeta` só rodava no fim, e a queda custava a varredura inteira: a Casa da
+  Robótica tinha aberto 1.157 das 2.294 páginas e **nada** foi salvo, e o Eletrogate chegou a
+  2.000 produtos só em memória, com dias de navegação pela frente.
+  - `colherProdutos` chama `aoGuardar` a cada produto novo, e `varrerFonte` junta 10 e grava.
+  - Os lotes vão **em fila** (`gravacoes`): produto é achado dentro de chamada que ninguém
+    aguarda, e duas transações da mesma fonte criariam a mesma chave. O lote sai do buffer
+    antes de gravar; lote que falha volta para a gravação final.
+  - Lote grava com `fecharColeta: false` (não mexe na "última coleta"). A gravação final
+    fecha com **`inicioDaColeta`**: a tela lista quem tem `vistoEm` a partir dessa data, e
+    com a data do fim os lotes anteriores sumiriam da lista. O total é o da varredura inteira.
+  - **Lista de fornecedor continua gravando de uma vez**: a trava de queda precisa da lista
+    inteira para comparar.
+  - Se o worker cair, os lotes gravados ficam, mas a "última coleta" da fonte não avança. A
+    tela mostra a coleta anterior mais os lotes novos, até a próxima varredura fechar.
+  - **Nada disso vale para worker iniciado antes da mudança.** O Node carregou o código antigo.
 - A unidade de venda do fornecedor (ver "Ainda em aberto" em Fornecedores).
 
 **As telas, e o vocabulário do dono** — ajustado ao longo de 01/09/2026:
@@ -317,6 +356,19 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   mandava rodar `npm run worker` com o worker varrendo na frente — e obedecer subiria um
   segundo processo disputando a mesma fila. O alarme só vale quando ninguém está
   processando.
+- **"Sem notícia há 30 min" deu por morto um worker vivo** (16/09/2026). O worker só gravava
+  andamento quando achava **produto novo**. O Eletrogate chegou a 2.000 produtos às 08:46 e
+  passou as duas horas seguintes abrindo categoria sem achar nenhum (10 s por página): a tela
+  disse *"Nenhum worker pegou o trabalho, rode `npm run worker`"*. Conferido: o processo tinha
+  conexões abertas com `www.eletrogate.com` (CDN VTEX, 13.224.252.x). Obedecer subiria um
+  segundo worker, que na partida tomaria a varredura em andamento para si. Agora o worker grava
+  também **páginas abertas** (`visitadas`) a cada `SINAL_DE_VIDA_MS` (2 min, em `fila.js`), e o
+  rastreador reporta a cada 25 páginas. **Só vale para worker iniciado depois dessa mudança.**
+  Antes de dar um worker por morto, olhe o processo (`Get-NetTCPConnection -OwningProcess <pid>`),
+  e não só o banco.
+- **"2000 de 500 (400%)"**: o total é o que se sabia do catálogo, e o sitemap do Eletrogate
+  lista só 500 endereços. Quando a contagem passa do total, a tela mostra só "N produto(s)" e as
+  páginas abertas, sem percentual.
 - **A fila aparece ao lado do andamento** ("e mais 4 fontes na fila"). Só a fonte da vez
   faz a varredura parecer quase pronta com cinco lojas pela frente, e há loja que pede 10s
   entre visitas — o Eletrogate leva 4min sozinho contra 49s da Smartkits.
@@ -874,6 +926,245 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
 
 ---
 
+## Produtos: "Buscar por código" no cadastro novo
+
+Pedido do dono em 16/09/2026. O botão fica ao lado de Salvar/Cancelar, **só em produto novo**
+(num produto existente, sobrescrever o cadastro com um clique é arriscado demais). Procura por
+**igualdade** de código, EAN ou MPN em `Produto` (Rise) e `ProdutoColetado` (fornecedores e
+concorrentes), em `src/lib/buscaPorCodigo.js`.
+
+- **Um resultado preenche direto; mais de um vira lista** com a origem. O mesmo código em
+  fornecedor e concorrente traz nome e descrição diferentes, e quem escolhe é o operador.
+  Em 16/09 nenhum código se repetia entre fontes, então **a lista nunca foi vista com dado
+  real**.
+- **Os campos são não controlados** (`defaultValue`). Preencher é remontar o corpo do
+  formulário com `key={versao}`, partindo do `FormData` atual e sobrepondo só o que a busca
+  trouxe **com valor**. Remontar só com o resultado apagava o que já estava digitado.
+- **O preço de fornecedor ou concorrente não vai para "Preço venda"**: o primeiro é custo, e
+  o segundo é o preço do concorrente. Aparece na lista só para comparar. De produto da Rise
+  copia quase tudo, **menos a localização e o link da Loja Integrada**, que pertencem àquela
+  peça.
+- **O código do produto achado vai SEMPRE para o SKU**, inclusive por cima do que já estava no
+  campo (pedido do dono em 16/09/2026; antes só entrava com o campo vazio e o código livre).
+  Outro código, só pela varinha (25xxxx). Código repetido ou que não serve de nome de pasta
+  é recusado no Salvar, com o motivo.
+- **Marca e Modelo são sempre MAIÚSCULAS** (pedido do dono em 16/09/2026): a tela converte ao
+  digitar (sem mover o cursor), ao escolher da lista e ao vir da busca por código; o
+  `ProdutoSchema` converte de novo ao salvar, e a importação do Bling também. Os 5 produtos
+  já importados foram convertidos no banco ("Genérica" virou "GENÉRICA").
+- Marca igual ao nome da loja é descartada: a Casa da Robótica publica a si mesma em `brand`.
+- **As imagens vêm junto**, pedido do dono em 16/09/2026. O produto novo ainda não tem pasta,
+  então a tela mostra a **prévia** no lugar da imagem e a cópia acontece no **Salvar**
+  (`anexarImagens` em `src/lib/imagensImportadas.js`, que a importação do Bling também usa).
+  - **O formulário manda só a referência** (`importarImagensDe` = `rise:<id>` ou
+    `coletado:<id>`), e os endereços são lidos de novo no servidor. Aceitar endereço vindo do
+    navegador faria o servidor baixar o que alguém mandasse.
+  - **Passa pelo `salvarArquivo`**, com as regras do envio manual (JPEG/PNG, 500 a 1920 px).
+    O tipo é lido **pelos bytes**, porque CDN de loja devolve `octet-stream`. Foto recusada não
+    desfaz o cadastro: a tela do produto criado mostra quantas vieram e quantas ficaram de fora
+    (`?imagens=&recusadas=` na URL). Medido com o 06811 da Usinainfo: 4 copiadas e 1 recusada,
+    a `large_default` de 397 px.
+
+## Produtos: referências de mercado e texto por IA
+
+Pedido do dono em 16/09/2026, como etapa de criação de anúncio. A **lupa ao lado do Nome** abre
+uma **janela (pop-up)**, e não um painel no meio do formulário: o dono pediu a troca no mesmo
+dia. A janela lista fornecedores e concorrentes **parecidos** com o Nome
+(`src/lib/buscaPorPalavras.js`, lendo a mesma `produtosParaLista` da tela Mercados). O
+operador marca referências e pede **título** ou **descrição** à IA (`src/lib/ia/anuncio.js`).
+
+- **A busca é por relevância, não por "todas as palavras".** A primeira versão usava a
+  `combina` do Mercados, e o título inteiro `PLACA COMPATIVEL ARDUINO UNO R3 CH340 COM CABO USB`
+  **não achava nada**, com 37 produtos tendo "arduino uno": ninguém repete as nove palavras. A
+  nota vai de 0 a 1 e é a fração do peso do título que aparece no produto. Entra quem tem pelo
+  menos metade (com até 2 palavras, todas). A lista é ordenada pela nota, e a janela mostra a
+  coluna "Parecido".
+  - **Peso pela raridade** (log N/df), com bônus de 1,5× para palavra com dígito. Com peso
+    igual, "SENSOR DE DISTÂNCIA ULTRASSÔNICO HC-SR04 5V" punha sensores ToF (sensor +
+    distância + 5V) no nível do HC-SR04.
+  - **Compara por palavra, não por trecho** (`casaPalavra` em `texto.js`). Por trecho, o "4" de
+    "4 canais" casava com "RS485". Até 3 caracteres, a palavra precisa ser igual; mais longa
+    pode ser o começo ("ch340" em "ch340g").
+  - **Cada nome é indexado em várias formas** (`indiceDePalavras`): a palavra sem símbolo, os
+    pedaços dela e os pares de pedaços vizinhos. É o que junta "HCSR04" com "HC-SR04" e "5V"
+    com "5 V".
+  - A **tela Mercados continua com `combina`** (todas as palavras): lá o operador filtra, e
+    filtro não pode trazer linha que não tem o que se digitou.
+- **A marcação NÃO é gravada**, por decisão do dono: serve só para gerar o texto. O Mercados
+  continua sem vínculo com `Produto`.
+- **A janela só busca e marca; os botões de IA ficam no formulário**, pedido do dono no mesmo
+  dia. O título é **só o símbolo (✦) ao lado da lupa**, e só aparece com referências marcadas.
+  **"Criar descrição"** fica no topo da **aba Descrição** e abre uma janela própria
+  (`JanelaDescricao.jsx`): à esquerda, os produtos marcados **em abas lado a lado** (a cor do
+  ponto diz fornecedor ou concorrente; ficha, descrição da loja e link); à direita, a criação
+  com IA. Começou como seções empilhadas, e o dono redesenhou em abas. O texto gerado aparece **editável**, e só vai para
+  o campo em "Usar esta descrição".
+- **A descrição segue o padrão da loja**, que o dono definiu em 16/09/2026, em **texto puro**
+  (é exportada para várias plataformas): TÍTULO EM MAIÚSCULAS · **2 parágrafos sucintos, SEM
+  linha em branco entre eles** (o que é e o que diferencia; como usar e para quem; eram 2 ou 3
+  separados até a revisão do dono no mesmo dia), **cada um com no máximo 4 linhas**
+  (`LIMITE_PARAGRAFO` = 230 caracteres, medido nos ~57 por linha da caixa da janela). Parágrafo
+  mais longo volta uma vez para a IA encurtar, com o texto recusado. Se ainda passar, ficam
+  as frases inteiras que cabem (`frasesQueCabem`), nunca corte no meio da frase ·
+  `Especificações técnicas:` (era "Características") com `- Nome: valor;` ·
+  `Itens inclusos: (Cod:SKU)` com `- 01 ITEM;` · `Garantia:` com
+  `- Garantia Legal de 90 dias (contra defeitos de fabricação);`.
+  **As duas últimas linhas de "Especificações técnicas" são sempre `- Dimensões(CxLxA):
+  68x53x10mm;` (sem espaço antes do parêntese nem em volta do "x") e `- Peso: 55g;`** (pedido do dono em 16/09/2026), escritas pelo código
+  (`linhaDeDimensoes`/`linhaDePeso` em `medidas.js`) para serem **lidas de volta**
+  (`medidasDaDescricao`). A IA devolve `pesoGramas` e `dimensoesMm` como números, e
+  especificação de medida que ela puser na lista é descartada, para não aparecer duas vezes.
+  **Medida já preenchida no formulário vence a da IA**: o texto não pode dizer uma coisa e o
+  campo outra. Ao usar a descrição, e ao sair do campo Descrição (texto colado ou editado), as
+  medidas lidas vão **só para os campos vazios**, e o aviso diz quais. Medida faltando some da
+  letra do rótulo: `(CxA): 30,5 x 17mm`.
+  **O campo Descrição é um só, em texto puro e alto (40rem)**: as abas "Escrever" e
+  "Pré-visualizar" e o conversor de Markdown (`Markdown.jsx`) saíram, porque a prévia passou a
+  mostrar o mesmo texto do campo.
+  **Sem seção de documentos técnicos**: chegou a existir no mesmo dia, e o dono tirou. Texto puro
+  não tem link clicável, e os arquivos só terão endereço público na VPS. A lista com link será
+  feita na Loja Integrada, que aceita HTML, numa etapa própria.
+  **A ordem e a pontuação são do código** (`montarDescricao`), não da IA: a IA devolve JSON
+  (`paragrafos`, `caracteristicas`, `itensInclusos`), e o texto é montado aqui. O
+  `textoPuro` tira `**`, `#`, crase e emoji que escapem da instrução, e só os 2 primeiros
+  parágrafos entram. Pedir o texto
+  pronto dava variação a cada chamada. O título e o código saem do Nome e do Código do
+  formulário **na hora de gerar**, e a garantia é texto fixo (`GARANTIA_PADRAO`). O
+  `;`/`.` que vier no fim de um valor é removido antes de pôr o `;`, para não sair dobrado.
+  Medido em 16/09 com 3 referências de placa Uno: 14 s, 21 características.
+- **O título vem em 3 opções para escolher** (`gerarTitulos`, `OPCOES_DE_TITULO`). Com um
+  título só, o dono tinha que clicar de novo até sair um bom, e cada volta é uma chamada paga.
+  Nada vai para o Nome até ele clicar numa opção. Opção acima de 60 caracteres ou repetida é
+  descartada, e uma segunda chamada pede só as que faltaram, mostrando as recusadas.
+  O pedido manda variar **o que ganha espaço** (CI, especificação, o que acompanha), não só a
+  ordem: foi o que deu três opções realmente diferentes no teste do relé. Por isso a marcação
+  (`marcados`) mora no `FormularioProduto`, e não na janela: os botões precisam dela com a janela
+  fechada. As palavras enviadas à IA são as do Nome no momento do clique.
+- **A marcação fica fora dos trechos com `key={versao}`.** Preencher o Nome remonta os campos,
+  e ela sumiria junto. Por isso o formulário tem dois `Fragment` (`geral-` e `abas-`).
+  O `BotaoIA` pode ser remontado no meio da geração porque o estado da chamada também é do
+  formulário.
+- **A função que lê o formulário vai em prop separada (`aoCriarIA`)**, não dentro do objeto
+  `ia`. Um objeto que junta dados e uma função que lê `ref` faz o lint do React Compiler acusar
+  "Cannot access ref value during render" no primeiro uso de `ia.quantos`.
+- **Foto principal por rota própria**: `/api/mercados/miniatura/[id]`, com `<img loading="lazy">`.
+  A miniatura da Nightech é base64 no banco (média de 50 KB, a maior com 1 MB), e 200 linhas
+  com a foto embutida pesariam megabytes na resposta da busca. Foto de loja (http) vira
+  redirecionamento; base64 vira bytes, **só JPEG/PNG/WebP/GIF**. SVG é XML com script e seria
+  servido do nosso domínio.
+- **Foto: mouse em cima amplia, clique mostra grande.** A prévia (260 px) usa posição
+  `fixed` calculada da miniatura, porque a lista rola num contêiner com overflow que cortaria
+  um `absolute`. O clique na foto **não marca a linha**. O Esc da foto grande é ouvido na
+  captura da `window` e para ali; sem isso, o mesmo Esc fecharia também a janela de
+  referências, que escuta no `document`.
+- **Link aberto muda para "Aberto", em roxo**, por estado da tela (`abertos`), e não pelo
+  `:visited` do navegador: o histórico guarda visitas de meses atrás e não diz o que foi
+  conferido agora. O clique do meio é contado por `onAuxClick`.
+- **Medido na primeira chamada real** (16/09, 3 referências de placa Uno):
+  `PLACA UNO R3 CH340 COMPATÍVEL ARDUINO COM CABO USB`, com 50 caracteres, em 3,8 s e ~6,8 mil
+  tokens de entrada. A descrição levou 17 s, com ~6,2 mil tokens de entrada e 1,2 mil de saída.
+- **Padrão de título em `src/lib/ia/padraoTitulo.js`**: TIPO + FUNÇÃO + MODELO/CI +
+  ESPECIFICAÇÃO + COMPATIBILIDADE, **em MAIÚSCULAS**. A ordem foi medida nos concorrentes
+  (todos abrem pelo tipo da peça, com mediana de 41 a 57 caracteres). A caixa alta é decisão do
+  dono e é o que o Bling já usa. O código força maiúsculas e **recusa acima de 60**, pedindo
+  uma nova tentativa, em vez de cortar no meio da palavra.
+- **O cliente manda só ids.** O conteúdo das referências é lido do banco no servidor, e o
+  **nome da loja não entra no prompt**: o que não entra não vaza para o texto da Rise.
+- **Modelo `claude-opus-5`** com `fallbacks: "default"` (beta
+  `server-side-fallback-2026-07-01`), no máximo 20 referências.
+- **`baseURL` fixo em `https://api.anthropic.com`.** O SDK lê `ANTHROPIC_BASE_URL` do ambiente,
+  e nesta máquina essa variável existe (vem de outras ferramentas). Sem fixar, a chave da
+  loja iria para outro servidor.
+- **Precisa de `ANTHROPIC_API_KEY` no `.env`**, que o dono cria no console da Anthropic. Sem
+  ela, os botões dizem isso na tela.
+- **Auditoria:** `Servico` ganhou `ANTHROPIC` (migration `20260916_servico_anthropic`). Grava
+  modelo, `stop_reason`, uso de tokens e erro, nunca o texto.
+
+**Ícones dentro dos campos Código e Preço** — pedido do dono em 16/09/2026:
+
+- **Código automático na faixa 25xxxx** (`gerarSku`): o **maior já usado mais um**, a partir de
+  250001. Não reaproveita o buraco deixado por um produto excluído: anúncio antigo ou planilha
+  apontariam para outra peça. Dois cadastros abertos ao mesmo tempo podem receber o mesmo número,
+  e o SKU único recusa o segundo Salvar.
+- **Preço das referências marcadas na lupa**: a lista separa **"Fornecedor · custo"** de
+  concorrente (o preço do fornecedor é custo, e vender por ele é vender sem margem). Clicar
+  preenche o campo, que continua editável.
+- Os dois escrevem **direto no `<input>`** (campo não controlado) e marcam o formulário como
+  alterado, sem remontar os campos.
+- **Marca, Modelo e Número de homologação** usam o mesmo desenho (`CampoDeReferencias`). Cada
+  valor aparece uma vez, com as lojas que o publicam.
+- **Peso, Altura, Largura, Comprimento e NCM também vêm das referências** (16/09/2026). O NCM é
+  a coluna própria, publicada por Fortek, Casa da Robótica e Smartkits; Eletrogate, Saravati e
+  Usinainfo não publicam. Peso e medidas são lidos da ficha (`src/lib/medidas.js`, sem imports,
+  testado no `teste:extracao`) e convertidos para kg e cm. Cada loja escreve de um jeito:
+  `12,3g`; `Altura: 32mm`; `Dimensões (CxLxA): 54 x 30,5 x 17mm`, com a ordem no rótulo;
+  `35mm (Altura) x 50mm (Largura)`, com a ordem no valor; e `31 x 15 x 18mm`, sem ordem, que
+  vira C x L x A e fica marcado "ordem presumida". **Comprimento do cabo, largura do canal e
+  dimensões da embalagem ficam de fora**: não são o corpo da peça. Peso com embalagem entra,
+  com o rótulo à vista. Cada opção mostra o texto de onde saiu.
+- **Medida é lida da ficha E do texto da descrição** (`medidasDoProdutoColetado`, que usa
+  `linhasDeEspecificacao`). Tem loja que só escreve a medida no texto: a Usinainfo deixa
+  `- Dimensões (CxLxE): ~54x29x5mm;` e `- Peso: 11g.` na descrição e a ficha sem medida
+  nenhuma. Em 16/09/2026 a IA recebia esse texto solto e devolvia `null`, e a descrição saía
+  sem Dimensões e Peso. **Correção:** `gerarDescricao` manda a lista "Peso e medidas já
+  encontrados nas referências" já lida. Se a IA ainda assim devolver `null`, o código usa a
+  medida da referência cujo nome mais se parece com o título (`reservaDasReferencias`), para
+  não pegar a de outro produto marcado por engano. A ordem é: formulário > IA > reserva.
+- **Ficha lida da lista na descrição parava num item em caixa alta** (`especificacoesDeLista`
+  em `coleta/normalizar.js`). Linha curta toda maiúscula conta como título de seção, e
+  `- RAM: 256KB;` também é toda maiúscula. A leitura parava ali, e tudo o que vinha depois
+  (Dimensões e Peso, no EMW3080V2 da Usinainfo) sumia da aba Características. Agora caixa
+  alta só vale como título **sem valor depois dos dois-pontos**. Em 16/09/2026 eram cerca de
+  140 produtos cortados (99 da Usinainfo, 30 da Casa da Robótica, o resto espalhado). **Os
+  dados gravados só se corrigem na próxima varredura.** O cadastro já não depende disso,
+  porque lê a medida também do texto da descrição.
+- **Campos de número recusam `e`, `E`, `+` e `-`** (`propsDeNumero`). O `<input type="number">`
+  aceita essas teclas por causa da notação científica, e o dono achou `-e` na Garantia. Campo
+  inteiro (`step="1"`) recusa também ponto e vírgula. Ao testar com ferramenta de navegador,
+  saiba que o ponto e a vírgula chegam como tecla vazia (`key: ""`): o `005` no lugar de `0.05`
+  vem da ferramenta, não do bloqueio.
+- **Cor dos ícones = uso, e não disponibilidade** (pedido do dono em 16/09/2026, revisto no
+  mesmo dia): **azul enquanto não usado, verde depois** (`usos` no `FormularioProduto`, com
+  `COR_DE_USO` e `BORDA_DE_USO`). Lupa (verde quando há referências marcadas), ✦ título,
+  varinha do código e $ preço sempre aparecem. **Ícone de lista (marca, modelo, homologação,
+  peso, medidas, NCM) some quando as referências não trazem aquele dado.** Antes foi cinza e
+  sem dado, e chegou a ser vermelho quando não usado; o dono pediu azul. "Usado" é escolher um
+  valor pelo ícone, e digitar à mão não conta. **Sem aviso azul de "campos preenchidos"**: o
+  dono tirou, e a cor verde cumpre o papel.
+- **Contador no canto do ícone** (`Contador`), pedido do dono em 16/09/2026. No $ preço e nos
+  ícones de lista, mostra quantos valores **distintos** há para escolher, e por isso pode ser
+  menor que o número de marcados (a marca da loja é descartada, e valores iguais se juntam). Na
+  lupa, mostra quantos produtos estão marcados. A cor acompanha o ícone: azul enquanto não
+  usado, verde depois.
+- **Lista de um ícone abre sempre dentro da tela** (`ListaFlutuante`). Aberta sempre para baixo
+  e alinhada à direita, a do Peso (campo no pé da página e na primeira coluna) saía pela borda
+  de baixo e ficava atrás do menu lateral. Agora a posição é decidida em `useLayoutEffect`,
+  antes da pintura: abre **acima** quando não cabe embaixo e há espaço em cima, e alinha **à
+  esquerda** quando invadiria o `<main>`. O estilo é escrito direto no elemento, sem estado,
+  para não haver segunda renderização nem salto.
+- **O primeiro bloco do cadastro termina onde terminam os campos**: a coluna da imagem fica em
+  `absolute inset-0` dentro de um `relative`, então não dita a altura da linha do grid. A foto
+  grande encolhe (`flex-1 min-h-0`), as miniaturas ficam numa linha com rolagem lateral (44 px),
+  e a legenda "N imagem(ns) de X · Não importar" cabe em uma linha. Em tela estreita a coluna
+  tem altura fixa (`h-80`).
+- Para a cor e a presença dos ícones estarem certas **antes** do clique, os valores são lidos
+  (`lerCamposDasReferencias`) quando a **janela da lupa fecha** (`aoFechar`), e não ao abrir a
+  lista. A marcação só muda dentro da janela, então fechar é o momento certo. O Esc chega ao
+  `fechar` por `useEffectEvent`, sem recriar o ouvinte do teclado.
+  - **Marca igual ao nome da loja é descartada**: o Eletrogate põe "Eletrogate" nos 2.000
+    produtos, e a Casa da Robótica e a Impacto CNC fazem o mesmo.
+  - **Homologação quase nunca existe**: medido em 16/09, de 8.588 produtos só um publica o
+    número (Saravati, `4556-15-1209`). Os outros escrevem "certificado pela Anatel". Só entra o
+    que tem o **formato** do número (`0000-00-0000`), vindo de especificação com rótulo
+    Anatel/homologação/INMETRO, ou colado à palavra na descrição. Número solto com hífen pode ser
+    telefone.
+
+**O React 19 limpa o formulário depois da action**, e o que volta é o `defaultValue`, não o
+que foi digitado. Num Salvar recusado (SKU repetido), o SKU voltava **vazio** junto com a
+mensagem de erro. Agora a action guarda o que foi enviado como valor inicial
+(`setPreenchido`), e o reset devolve os mesmos valores. Vale para todo campo não controlado
+deste formulário.
+
 ## Decisões de arquitetura
 
 - **Produtos é o cadastro base.** Todo anúncio deriva dele. O `Anuncio` guarda só o que é
@@ -888,6 +1179,28 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   deploy com Docker). O SKU é validado como nome de caminho; a pasta acompanha quando ele
   muda; o endereço é **calculado na leitura**, nunca gravado.
 - **Custo do produto vem do fornecedor padrão.**
+- **Manual e ficha técnica são um tipo só, `DOCUMENTO`** ("Documentos técnicos", pasta
+  `documentos/`), desde 16/09/2026, decidido com o dono. Nada no sistema tratava um diferente do
+  outro, e o mesmo PDF de fabricante costuma ser as duas coisas. **O certificado de
+  homologação continua separado** (`CERTIFICADO`): anda com o número, e o Mercado Livre o pede
+  em algumas categorias. A migration `20260916_documentos_tecnicos` recria o enum, porque o
+  Postgres não remove valor de enum. Não havia nenhum arquivo dos tipos antigos.
+- **Documentos e certificado podem ser enviados no cadastro NOVO** (pedido do dono em
+  16/09/2026). Vão para `dados/temporarios/<lote>/`, onde o lote é um UUID criado no primeiro
+  envio, e são **movidos** para `dados/produtos/<SKU>/` no Salvar (`moverTemporarios`).
+  - O lote nasce no clique, e não na montagem: gerado na renderização, o valor do servidor e o
+    do navegador divergiriam.
+  - Passa pela **mesma validação** do envio normal (`validarEGravar`, extraída de
+    `salvarArquivo`).
+  - A lista (`arquivosTemporarios`) vem do navegador, mas **só entra o que existe no lote com
+    nome gerado por nós**. Tamanho e formato são lidos do disco. Testado: `../../../.env` na
+    lista é ignorado.
+  - Lote com mais de 24 h (cadastro abandonado) é apagado no envio seguinte.
+  - Sem link de abrir antes de salvar: a pasta temporária não tem rota pública, de propósito.
+  - **Falha ao gravar os documentos não derruba o Salvar.** Em 16/09, com o servidor sem
+    reiniciar após a migration, o produto foi criado e o registro dos arquivos falhou. A ação
+    devolvia erro, a tela ficava em "Novo produto" e o segundo Salvar daria "SKU já existe".
+    Agora o Salvar segue para o produto, com o aviso `?documentos=falhou`.
 - **Imagem principal é uma marca (`principal`), não a posição 0.** Reordenar a cada clique
   fazia as miniaturas dançarem e custava até 3s por clique.
 - **Toda chamada externa é auditada** em `LogIntegracao`, com credenciais mascaradas.

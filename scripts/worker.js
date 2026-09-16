@@ -25,7 +25,9 @@ register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
 const { prisma } = await import("../src/lib/db.js");
 const { varrerFonte } = await import("../src/lib/coleta/coletar.js");
-const { ORFAO_APOS_MS, ORFAO_NA_PARTIDA_MS } = await import("../src/lib/coleta/fila.js");
+const { ORFAO_APOS_MS, ORFAO_NA_PARTIDA_MS, SINAL_DE_VIDA_MS } = await import(
+  "../src/lib/coleta/fila.js"
+);
 
 /// De quanto em quanto o worker acorda para olhar a fila. Curto o bastante para
 /// o botao "Atualizar tabelas" parecer imediato, longo o bastante para nao
@@ -42,7 +44,7 @@ function agora() {
   return new Date().toLocaleTimeString("pt-BR");
 }
 
-/** Enfileira as fontes cujo intervalo venceu. E o ciclo automatico de 24 horas. */
+/** Enfileira as fontes cujo intervalo venceu. E o ciclo automatico de 30 dias (intervaloHoras). */
 async function enfileirarVencidas() {
   const vencidas = await prisma.fonteColeta.findMany({
     where: {
@@ -101,17 +103,27 @@ async function processar(job) {
     // Grava no banco (src/lib/coleta/banco.js): so o que mudou e reescrito, e o
     // preco ganha linha na serie quando muda.
     let ultimoProgresso = 0;
+    let ultimaEscrita = Date.now();
 
-    const resultado = await varrerFonte(fonte, async ({ total, feitas }) => {
-      // Uma escrita por produto novo, nao por pagina aberta: o operador ve a
-      // barra andar de verdade, e nem o catalogo inteiro de um fornecedor passa
-      // de algumas centenas de escritas pequenas.
-      if (feitas === ultimoProgresso) return;
+    const resultado = await varrerFonte(fonte, async ({ total, feitas, visitadas }) => {
+      /*
+        Escreve a cada produto novo E, sem produto novo, a cada SINAL_DE_VIDA_MS.
+
+        So "a cada produto novo" parecia bastar, e nao bastou: em 16/09/2026 o
+        Eletrogate chegou a 2.000 produtos as 08:46 e passou as duas horas
+        seguintes abrindo categoria sem achar nenhum novo (10 s por pagina). Sem
+        escrita, o job ficou "sem noticia ha 30 min", a tela disse que nenhum
+        worker atendia e mandou rodar `npm run worker` — o que subiria um
+        segundo processo que tomaria para si a varredura em andamento.
+      */
+      const produtoNovo = feitas !== ultimoProgresso;
+      if (!produtoNovo && Date.now() - ultimaEscrita < SINAL_DE_VIDA_MS) return;
       ultimoProgresso = feitas;
+      ultimaEscrita = Date.now();
 
       await prisma.job.update({
         where: { id: job.id },
-        data: { payload: { ...job.payload, total, feitas } },
+        data: { payload: { ...job.payload, total, feitas, visitadas: visitadas ?? null } },
       });
     });
 

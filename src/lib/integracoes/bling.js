@@ -16,9 +16,12 @@ import { lerConexao, lerSegredo, salvarConexao } from "./conexoes";
  */
 
 const SERVICO = "BLING";
+// Desde 15/09/2026 o Bling recusa chamadas de API em www.bling.com.br ("utilize
+// o endpoint oficial: api.bling.com.br"). O token responde igual nos dois hosts;
+// a autorizacao continua em www porque e a pagina que o navegador abre.
 const URL_AUTORIZAR = "https://www.bling.com.br/b/Api/v3/oauth/authorize";
-const URL_TOKEN = "https://www.bling.com.br/Api/v3/oauth/token";
-const API = "https://www.bling.com.br/Api/v3";
+const URL_TOKEN = "https://api.bling.com.br/Api/v3/oauth/token";
+const API = "https://api.bling.com.br/Api/v3";
 
 const MAX_POR_SEGUNDO = 3;
 const MARGEM_RENOVACAO_MS = 5 * 60 * 1000;
