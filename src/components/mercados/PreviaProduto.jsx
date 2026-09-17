@@ -3,6 +3,7 @@
 import { Check, ImageOff, X } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
+import RegrasDeCompra from "@/components/mercados/RegrasDeCompra";
 import { precoComImpostos } from "@/lib/coleta/impostos";
 import { ROTULOS_CAMPOS, valoresDoProduto } from "@/lib/coleta/campos";
 
@@ -10,6 +11,9 @@ const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 
 const SITUACAO = {
   AVAILABLE: { rotulo: "Disponivel", tom: "sucesso" },
+  // O mesmo fato com o nome dos leitores de fornecedor: sem esta linha, produto
+  // compravel na Santana aparecia "Indeterminado".
+  IN_STOCK: { rotulo: "Disponivel", tom: "sucesso" },
   OUT_OF_STOCK: { rotulo: "Sem estoque", tom: "alerta" },
   PAUSED: { rotulo: "Pausado", tom: "erro" },
   UNKNOWN: { rotulo: "Indeterminado", tom: "neutro" },
@@ -73,6 +77,12 @@ function Campo({ rotulo, valor, origem, mono = false }) {
       >
         {vazio ? "—" : valor}
       </dd>
+      {/* Vazio com origem: o site tem o dado, mas em outro lugar (o link do produto). */}
+      {vazio && origem && (
+        <p className="text-[10px] text-amber-700" title={origem}>
+          {origem}
+        </p>
+      )}
       {!vazio && origem && (
         <p
           className={`truncate text-[10px] ${derivado ? "text-amber-700" : "text-suave"}`}
@@ -305,6 +315,12 @@ export default function PreviaProduto({ produto, indice }) {
                 </div>
               </div>
             )}
+
+            <RegrasDeCompra
+              precoNormal={produto.prices?.normal}
+              precosPorQuantidade={produto.precosPorQuantidade}
+              multiploVenda={produto.multiploVenda}
+            />
           </div>
 
           {/*

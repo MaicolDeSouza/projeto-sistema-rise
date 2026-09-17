@@ -36,6 +36,12 @@ export function mesclarNoExistente(existente, novo) {
   existente.prices.reserva ??= novo.prices?.reserva;
   existente.prices.comImpostos ??= novo.prices?.comImpostos;
 
+  // Regras de compra: a planilha costuma ser quem as traz.
+  existente.multiploVenda ??= novo.multiploVenda;
+  if (!(existente.precosPorQuantidade?.length > 0) && novo.precosPorQuantidade?.length > 0) {
+    existente.precosPorQuantidade = novo.precosPorQuantidade;
+  }
+
   existente.stock ??= {};
   existente.stock.quantity ??= novo.stock?.quantity;
 

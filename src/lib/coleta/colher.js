@@ -226,6 +226,24 @@ export async function colherProdutos({
   const formatos = new Set();
   const vistas = new Set();
   let visitas = 0;
+
+  /*
+    ENDERECOS JA TRATADOS NESTA COLHEITA — abertos ou retomados.
+
+    O catalogo, o sitemap e a navegacao respondem a mesma pergunta e listam os
+    mesmos produtos. Sem este registro cada fase refazia o trabalho da anterior:
+    na Smartkits (16/09/2026) os 3.780 itens do catalogo eram abertos DE NOVO pelo
+    sitemap, e numa retomada cada produto ja gravado era contado duas vezes (7.249
+    "retomados" de 3.625 gravados).
+  */
+  const tratados = new Set();
+  /** true se o endereco ja foi tratado; senao o marca e devolve false. */
+  const jaTratado = (endereco) => {
+    const chave = enderecoComparavel(endereco);
+    if (tratados.has(chave)) return true;
+    tratados.add(chave);
+    return false;
+  };
   // Encontrados nesta passada mais os retomados de antes da queda.
   const achados = () => encontrados.length + retomados;
 
@@ -236,6 +254,7 @@ export async function colherProdutos({
       const chave = `${produto.code ?? ""}|${produto.url}`;
       if (vistas.has(chave)) continue;
       vistas.add(chave);
+      if (produto.url) tratados.add(enderecoComparavel(produto.url));
       encontrados.push(produto);
       aoGuardar?.(produto);
     }
@@ -282,7 +301,7 @@ export async function colherProdutos({
     conferirSinal();
 
     const enderecoItem = urlDoItem(item, alvo.origin);
-    if (!enderecoItem) continue;
+    if (!enderecoItem || jaTratado(enderecoItem)) continue;
     if (jaTenho(enderecoItem)) {
       retomados++;
       aoProgredir?.({ visitadas: visitas, produtos: achados(), retomados });
@@ -305,7 +324,17 @@ export async function colherProdutos({
   // 2) Sitemap
   // O sitemap so entra se o catalogo nao completou a cota: sao duas formas de
   // responder a mesma pergunta, e correr as duas gastaria requisicao a toa.
-  const precisaDoSitemap = achados() < limite;
+  //
+  // CATALOGO COMPLETO ENCERRA A COLHEITA. Quando a loja declara o total e todos os
+  // itens foram lidos, sitemap e navegacao so repetiriam os mesmos produtos — e
+  // a navegacao ia ate o teto de 20.000 paginas: a Smartkits, com o catalogo todo
+  // tratado, seguia abrindo categoria e achava um produto a cada ~280 paginas
+  // (564 s por produto na tela).
+  const catalogoCompleto =
+    typeof totalDoCatalogo === "number" &&
+    totalDoCatalogo > 0 &&
+    itensDoCatalogo.length >= totalDoCatalogo;
+  const precisaDoSitemap = achados() < limite && !catalogoCompleto;
 
   conferirSinal();
   const sitemaps = precisaDoSitemap ? await descobrirSitemaps(alvo.origin, { sinal }) : [];
@@ -328,8 +357,21 @@ export async function colherProdutos({
     // sitemap dentro de cada grupo. Sem isto a amostra do "Testar fonte" (8
     // enderecos) caia inteira nas categorias que o sitemap lista antes.
     const grupo = (endereco) => (pareceProduto(endereco) ? 0 : pareceListagem(endereco) ? 2 : 1);
+    // So enderecos da loja. O robots.txt da Mamute Eletronica declara tambem o
+    // sitemap do BLOG (outro subdominio): os posts entrariam na fila e na conta
+    // de "produtos no site". O arquivo do sitemap pode estar num CDN; o que ele
+    // lista, nao.
+    const semWww = (host) => host.replace(/^www\./i, "");
+    const daLoja = (endereco) => {
+      try {
+        return semWww(new URL(endereco).hostname) === semWww(alvo.hostname);
+      } catch {
+        return false;
+      }
+    };
     urlsSitemap = leitura.urls
       .map((item) => item.url)
+      .filter(daLoja)
       .map((endereco, ordem) => ({ endereco, ordem, grupo: grupo(endereco) }))
       .sort((a, b) => a.grupo - b.grupo || a.ordem - b.ordem)
       .map((item) => item.endereco);
@@ -367,7 +409,7 @@ export async function colherProdutos({
 
   for (const candidata of urlsSitemap.slice(0, amostraSitemap)) {
     if (achados() >= limite || visitas >= tetoVisitas) break;
-    if (vistas.has(`|${candidata}`)) continue;
+    if (jaTratado(candidata)) continue;
     conferirSinal();
     if (jaTenho(candidata)) {
       retomados++;
@@ -403,7 +445,7 @@ export async function colherProdutos({
 
   // 3) Navegacao, quando o sitemap nao bastou. Nem toda loja publica sitemap de
   // produto: ha quem declare no robots.txt um sitemap de rotas de busca.
-  if (achados() < limite && visitas < tetoVisitas) {
+  if (achados() < limite && visitas < tetoVisitas && !catalogoCompleto) {
     const abertasAntes = visitas;
     const retomadosAntes = retomados;
 
@@ -415,7 +457,18 @@ export async function colherProdutos({
       sinal,
       // Pagina de produto ja gravada nao e aberta de novo. Os links dela ficam de
       // fora — e a categoria que a listou continua sendo lida.
-      pular: jaColetadas ? jaTenho : null,
+      // Produto ja tratado nesta colheita (aberto pelo catalogo ou pelo sitemap)
+      // tambem nao e reaberto; so o retomado de verdade entra na conta.
+      pular: (endereco) => {
+        const chave = enderecoComparavel(endereco);
+        if (tratados.has(chave)) return true;
+        if (jaTenho(endereco)) {
+          tratados.add(chave);
+          retomados++;
+          return true;
+        }
+        return false;
+      },
       aoAchar: async ({ url: achada, html }) => {
         const { produtos, formatos: fs } = normalizarPagina({
           html,
@@ -429,11 +482,11 @@ export async function colherProdutos({
       // so enxergaria pagina que RENDEU produto, e a barra ficaria parada
       // durante toda a navegacao pelas categorias — justo o trecho demorado.
       aoProgredir: aoProgredir
-        ? async ({ visitadas, pulados }) =>
+        ? async ({ visitadas }) =>
             aoProgredir({
               visitadas: abertasAntes + visitadas,
-              produtos: encontrados.length + retomadosAntes + (pulados ?? 0),
-              retomados: retomadosAntes + (pulados ?? 0),
+              produtos: achados(),
+              retomados,
             })
         : undefined,
     });
@@ -442,7 +495,6 @@ export async function colherProdutos({
     // Somando dentro do aoAchar, o numero era o de acertos, nao o de visitas —
     // e e o de visitas que diz se a fonte e cara de varrer.
     visitas += varredura.visitadas;
-    retomados += varredura.pulados ?? 0;
   }
 
   // A navegacao sai do laco quando cancelada; aqui isso vira erro, e nao um

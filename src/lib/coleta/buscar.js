@@ -19,7 +19,7 @@ import { obter } from "./http";
 
 /// Identifica quem esta visitando. Site que quiser nos bloquear precisa saber
 /// o que bloquear — user-agent disfarcado de navegador e o oposto de educado.
-const USER_AGENT =
+export const USER_AGENT =
   process.env.COLETA_USER_AGENT ||
   "SistemaRise/1.0 (coleta de precos para uso proprio)";
 
@@ -58,6 +58,13 @@ function mensagemDeFalha(erro, sinal) {
 /// memoria do worker.
 const MAXIMO_BYTES = 2 * 1024 * 1024;
 
+/// Sitemap tem teto proprio: 50 MB, o maximo do protocolo (sitemaps.org).
+/// Com o teto de pagina, os dois arquivos principais da Mamute Eletronica (10 MB
+/// cada, 18 mil produtos) eram recusados, so o terceiro (0,7 MB) era lido, e a
+/// colheita caia na navegacao — que no Magento nao pagina categoria (`?p=` e
+/// parametro ruim). Em 17/09/2026 a varredura estava ha 4 h sem produto novo.
+const MAXIMO_BYTES_SITEMAP = 50 * 1024 * 1024;
+
 /// Uma requisicao a cada 2s por dominio.
 const REQUISICOES = 1;
 const JANELA_MS = 2000;
@@ -74,7 +81,7 @@ const JANELA_MS = 2000;
  * varredura viva atualiza isto a cada poucos segundos, em qualquer fase.
  */
 const ultimaRespostaPorDominio = new Map();
-const registrarResposta = (hostname) => ultimaRespostaPorDominio.set(hostname, Date.now());
+export const registrarResposta = (hostname) => ultimaRespostaPorDominio.set(hostname, Date.now());
 
 /** Quando o dominio respondeu pela ultima vez (ms), ou 0. */
 export function ultimaRespostaDe(hostname) {
@@ -563,19 +570,19 @@ async function requisitarBytes(alvo, sinal) {
     const resposta = await obter(alvo, {
       cabecalhos: { "User-Agent": USER_AGENT, Accept: "application/xml,text/xml,*/*" },
       sinal: sinalDaRequisicao(sinal),
-      tetoDoCorpo: (status) => (status >= 200 && status < 300 ? MAXIMO_BYTES + 1 : 0),
+      tetoDoCorpo: (status) => (status >= 200 && status < 300 ? MAXIMO_BYTES_SITEMAP + 1 : 0),
     });
 
     if (resposta.status < 200 || resposta.status >= 300) {
       return { ok: false, status: resposta.status, bytes: null, erro: `HTTP ${resposta.status}` };
     }
 
-    if (resposta.truncado || resposta.bytes.byteLength > MAXIMO_BYTES) {
+    if (resposta.truncado || resposta.bytes.byteLength > MAXIMO_BYTES_SITEMAP) {
       return {
         ok: false,
         status: resposta.status,
         bytes: null,
-        erro: `Resposta maior que o limite de ${MAXIMO_BYTES} bytes`,
+        erro: `Resposta maior que o limite de ${MAXIMO_BYTES_SITEMAP} bytes`,
       };
     }
 

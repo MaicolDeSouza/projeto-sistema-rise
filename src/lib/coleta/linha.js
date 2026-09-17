@@ -128,6 +128,12 @@ export function linhaDoProduto(produto, { origem }) {
     precoComImpostos: comoNumero(produto.prices?.comImpostos),
     impostos: comoLista(produto.taxes),
 
+    // So entram na linha quando existem: `undefined` fica fora da assinatura, e
+    // os produtos que nunca tiveram estes campos nao mudam de assinatura — senao
+    // a primeira varredura depois deles reescreveria todas as fontes.
+    precosPorQuantidade: comoLista(produto.precosPorQuantidade) ?? undefined,
+    multiploVenda: comoInteiro(produto.multiploVenda) ?? undefined,
+
     estoqueStatus: comoTexto(produto.stock?.status),
     quantidade: comoInteiro(produto.stock?.quantity),
     aChegar: comoInteiro(produto.stock?.aChegar),
@@ -183,6 +189,8 @@ export function produtoDaLinha(linha) {
       comImpostos: numeroDoBanco(linha.precoComImpostos),
     },
     taxes: linha.impostos ?? [],
+    precosPorQuantidade: linha.precosPorQuantidade ?? [],
+    multiploVenda: linha.multiploVenda ?? null,
     stock: {
       status: linha.estoqueStatus,
       quantity: linha.quantidade,

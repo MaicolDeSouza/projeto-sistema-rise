@@ -1137,5 +1137,92 @@ conferir(
   [0.006, 0.009],
 );
 
+// ---------------------------------------------------------------------------
+console.log("\n— portal com login (Santana, Add Suite) —");
+{
+  const { parametrosDaCategoria, produtosDaVitrine } = await import("../src/lib/coleta/portal-addsuite.js");
+
+  conferir(
+    "categoria de um nivel",
+    parametrosDaCategoria("https://santanaimport.com.br/componentes.html?p=1"),
+    {
+      origem: "https://santanaimport.com.br",
+      url: "https://santanaimport.com.br/componentes.html",
+      caminho: "componentes",
+      categoria: "componentes",
+      subcategoria: "",
+    },
+  );
+  const doisNiveis = parametrosDaCategoria("santanaimport.com.br/componentes/roboticos.html");
+  conferir(
+    "subcategoria: o penultimo trecho e a categoria",
+    [doisNiveis.categoria, doisNiveis.subcategoria],
+    ["componentes", "roboticos"],
+  );
+  const tresNiveis = parametrosDaCategoria(
+    "https://santanaimport.com.br/antenas/amplificadores-de-sinal/satelite-finder.html",
+  );
+  conferir(
+    "tres niveis: so os dois ultimos trechos contam",
+    [tresNiveis.categoria, tresNiveis.subcategoria],
+    ["amplificadores-de-sinal", "satelite-finder"],
+  );
+  conferir(
+    "link de produto (.htm) nao e categoria",
+    parametrosDaCategoria("https://santanaimport.com.br/x-010-0340.htm?sku=010-0340"),
+    null,
+  );
+
+  // Trecho real da vitrine (17/09/2026), com a foto em base64 encurtada.
+  const vitrine = [
+    '<li {##CLASSADDCARRINHO##}> <div class="produto"> <div class="imagem duasimagens">',
+    ' <a href="https://santanaimport.com.br/motor-30v-10mm-sem-clamp-075-3010.htm?sku=075-3010">',
+    ' <img src="https://santanaimport.com.br/imagens/produtos/media/sem_img.jpg" style="background:url(data:image/png;base64,iVBORw0KGgoAAAA=)"> </a> </div>',
+    ' <div class="titulo"> <a href="https://santanaimport.com.br/motor-30v-10mm-sem-clamp-075-3010.htm?sku=075-3010" title="Motor">Motor 3,0v 10mm Sem Clamp 075-3010</a>',
+    ' <div class="referencia">Ref: 075-3010</div> </div>',
+    ' <div class="preco"> <div class="preco-row"> <span class="valor">R$ 6,16</span> </div>',
+    ' <div class="tooltip"> <svg><path d="M0"/></svg> <div class="tooltiptext"> <h4>DETALHES DO PREÇO</h4>',
+    ' <div class="tooltip-row"> <span>PREÇO UNITÁRIO</span> <p>R$ 6,16</p> </div>',
+    ' <div class="tooltip-row"> <span >IPI &nbsp; <font color="#3D3D3D"><strong>7%</strong></font ></span > <p>R$ 0,40&nbsp;(Por unid.)</p> </div>',
+    ' <div class="tooltip-row"> <span>ST</span> <p>R$ 0,00&nbsp;(Por unid.)</p> </div>',
+    ' <div class="tooltip-row"> <span>PREÇO UNIT. COM IMP.</span> <p>R$ 6,56</p> </div>',
+    ' <div class="tooltip-col"> <div class="tooltip-row"> <span>CX. INNER</span> <p>0 Un.</p> </div>',
+    ' <div class="tooltip-row"> <span>CX. MASTER</span> <p>100 Un.</p> </div> </div> </div> </div>',
+    " <div class='tooltip'> <div class='tooltiptext'> <h4> PREÇOS ESPECIAIS </h4>",
+    " <div class='tooltip-row'><span>10 - 19 Unidades </span> <p>R$ 5,85 / Un. <span class='valorPorcentagemDesconto'> 5,03 % Desc. </span></p> </div>",
+    " <div class='tooltip-row'><span> >20 Unidades </span> <p>R$ 5,56 / Un. </p> </div></div></div> </div>",
+    ' <div class="botao"> <input type="button" value="+" id="lkbMais_075-3010" onclick="adicionarMaisVitrini(\'075-3010\', 5);" />',
+    ' <input type="text" value="5" data-sku="075-3010">',
+    ' <input type="button" value="Adicionar ao carrinho" id="bt_comprar_075-3010" /> </div> </div> </li>',
+    '<li {##CLASSADDCARRINHO##}> <div class="produto"> <div class="titulo">',
+    ' <a href="https://santanaimport.com.br/protoboard-1660-furos-010-0461.htm?sku=010-0461" title="Protoboard">Protoboard 1660 Furos 010-0461</a>',
+    ' <div class="referencia">Ref: 010-0461</div> </div>',
+    ' <div class="preco"> <div class="preco-row"> <span class="valor">R$ 0,00</span> </div> </div> </div> </li>',
+  ].join("");
+
+  const [motor, protoboard] = produtosDaVitrine(vitrine, {
+    categoria: "componentes",
+    fonte: { name: "Santana", type: "FORNECEDOR" },
+  });
+  conferir("codigo pelo data-sku", motor.code, "075-3010");
+  conferir("link com ?sku=", motor.url, "https://santanaimport.com.br/motor-30v-10mm-sem-clamp-075-3010.htm?sku=075-3010");
+  conferir("preco e preco com impostos do portal", [motor.prices.normal, motor.prices.comImpostos], [6.16, 6.56]);
+  conferir("IPI vira imposto; ST zero fica de fora", motor.taxes, [{ nome: "IPI", percentual: 7 }]);
+  conferir("com botao de comprar: em estoque", motor.stock.status, "IN_STOCK");
+  conferir("foto sem_img nao entra", motor.images, []);
+  // Faixa e multiplo sao regra de compra, NAO caracteristica (o dono, 17/09/2026).
+  conferir("so a caixa master fica nas caracteristicas", motor.specifications, [
+    { nome: "Caixa master", valor: "100 un." },
+  ]);
+  conferir("multiplo de venda em campo proprio", motor.multiploVenda, 5);
+  conferir("compra em lote em campo proprio, com os limites em numero", motor.precosPorQuantidade, [
+    { rotulo: "10 - 19 Unidades", minimo: 10, maximo: 19, preco: 5.85 },
+    { rotulo: ">20 Unidades", minimo: 20, maximo: null, preco: 5.56 },
+  ]);
+  conferir("sem data-sku: codigo pelo Ref", protoboard.code, "010-0461");
+  conferir("R$ 0,00 e sem preco, nao gratis", [protoboard.prices.normal, protoboard.prices.comImpostos], [null, null]);
+  conferir("sem botao de comprar: esgotado", protoboard.stock.status, "OUT_OF_STOCK");
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

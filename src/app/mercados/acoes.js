@@ -10,8 +10,10 @@ import { detalheDoProduto } from "@/lib/coleta/banco";
 import { enfileirar, jobLargado, workerNoAr } from "@/lib/coleta/fila";
 import { podeVisitar } from "@/lib/coleta/buscar";
 import { juntarListas, lerArquivo } from "@/lib/coleta/arquivos";
-import { regrasDoFornecedor } from "@/lib/coleta/fornecedores";
+import { portalDoEndereco, regrasDoFornecedor } from "@/lib/coleta/fornecedores";
 import { testarFonte } from "@/lib/coleta/testar";
+import { parametrosDaCategoria, testarPortal } from "@/lib/coleta/portal-addsuite";
+import { cifrar } from "@/lib/crypto";
 
 /**
  * Acoes da secao Mercados.
@@ -45,6 +47,27 @@ export async function testarFonteAcao({ url, secao, nome, tipo }) {
     return {
       resultado: "FALHA",
       motivo: erro?.message ?? "Falha inesperada ao testar a fonte.",
+      passos: [],
+      produtos: [],
+      campos: null,
+      plataforma: null,
+      catalogoPublico: null,
+    };
+  }
+}
+
+/**
+ * "Buscar dados" de fornecedor com PORTAL DE LOGIN (a Santana). O link e o de
+ * uma categoria, e o login vai so ate aqui: nada e gravado no teste, e a senha
+ * nao volta para a tela.
+ */
+export async function testarPortalAcao({ url, usuario, senha, nome, tipo }) {
+  try {
+    return await testarPortal({ url, usuario, senha, nome, tipo });
+  } catch (erro) {
+    return {
+      resultado: "FALHA",
+      motivo: erro?.message ?? "Falha inesperada ao testar o portal.",
       passos: [],
       produtos: [],
       campos: null,
@@ -284,6 +307,8 @@ export async function salvarFonte({
   resumo,
   produtosNoSite,
   produtosNoSiteParcial,
+  usuario,
+  senha,
 }) {
   const analise = FonteSchema.safeParse({ nome, url, tipo, secao });
   if (!analise.success) {
@@ -304,6 +329,30 @@ export async function salvarFonte({
 
   const prefixoUrl = analise.data.secao?.trim() || null;
 
+  /*
+    PORTAL COM LOGIN (Santana): o link salvo e a PRIMEIRA categoria, e o login vai
+    cifrado. Sem login nao ha fonte — o portal nao mostra preco a ninguem.
+  */
+  let doPortal = {};
+  if (portalDoEndereco(url)) {
+    const categoria = parametrosDaCategoria(url);
+    if (!categoria) return { ok: false, erro: "Informe o link de uma categoria do portal (terminado em .html)." };
+    if (!String(usuario ?? "").trim() || !senha) {
+      return { ok: false, erro: "Informe o e-mail e a senha do portal." };
+    }
+    doPortal = {
+      categorias: [
+        {
+          url: categoria.url,
+          total: typeof produtosNoSite === "number" ? produtosNoSite : null,
+          adicionadaEm: new Date().toISOString(),
+        },
+      ],
+      credencialCifrada: cifrar({ usuario: String(usuario).trim(), senha: String(senha) }),
+      credencialAtualizadaEm: new Date(),
+    };
+  }
+
   const existente = await prisma.fonteColeta.findFirst({
     where: { dominio: alvo.hostname, prefixoUrl },
   });
@@ -323,6 +372,7 @@ export async function salvarFonte({
       prefixoUrl,
       robotsPermite: true,
       amostraResumo: resumo ?? null,
+      ...doPortal,
       // Quantos produtos o site declarou ter no momento do teste. Guardado no
       // cadastro para a tela dizer o quanto do catalogo ja foi coletado sem
       // precisar reabrir o sitemap a cada renderizacao.
@@ -461,6 +511,85 @@ export async function varrerFonteAgora(fonteId) {
   revalidatePath("/mercados/fontes");
   revalidatePath("/mercados");
   if (enfileiradas === 0) return { ok: false, erro: "Esta fonte ja esta na fila ou em varredura." };
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Portal com login: categorias e login da fonte
+// ---------------------------------------------------------------------------
+
+async function fonteDePortal(fonteId) {
+  const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId } });
+  if (!fonte) return { erro: "Fonte nao encontrada." };
+  if (!portalDoEndereco(fonte.dominio)) {
+    return { erro: "Esta fonte nao e um portal varrido por categoria." };
+  }
+  return { fonte, categorias: Array.isArray(fonte.categorias) ? fonte.categorias : [] };
+}
+
+/**
+ * Acrescenta uma categoria ao portal. Nao abre o site: a conferencia de verdade
+ * e a proxima varredura, que registra quantos produtos a categoria tem. Aqui so
+ * se garante que o link e de categoria e do MESMO portal.
+ */
+export async function adicionarCategoria(fonteId, url) {
+  const { fonte, categorias, erro } = await fonteDePortal(fonteId);
+  if (erro) return { ok: false, erro };
+
+  const categoria = parametrosDaCategoria(String(url ?? "").trim());
+  if (!categoria) return { ok: false, erro: "Use o link de uma categoria, terminado em .html." };
+
+  const host = new URL(categoria.url).hostname.replace(/^www\./, "");
+  if (host !== fonte.dominio.replace(/^www\./, "")) {
+    return { ok: false, erro: `O link e de ${host}, e esta fonte e ${fonte.dominio}.` };
+  }
+  if (categorias.some((item) => item.url === categoria.url)) {
+    return { ok: false, erro: "Esta categoria ja esta na fonte." };
+  }
+
+  await prisma.fonteColeta.update({
+    where: { id: fonte.id },
+    data: {
+      categorias: [...categorias, { url: categoria.url, total: null, adicionadaEm: new Date().toISOString() }],
+    },
+  });
+  revalidatePath("/mercados/fontes");
+  return { ok: true };
+}
+
+/**
+ * Tira a categoria da varredura. Os produtos ja coletados dela FICAM: saem da
+ * tabela so quando a proxima varredura fechar sem eles.
+ */
+export async function removerCategoria(fonteId, url) {
+  const { fonte, categorias, erro } = await fonteDePortal(fonteId);
+  if (erro) return { ok: false, erro };
+  if (categorias.length <= 1) {
+    return { ok: false, erro: "A fonte precisa de pelo menos uma categoria. Para parar de varrer, use Pausar." };
+  }
+
+  await prisma.fonteColeta.update({
+    where: { id: fonte.id },
+    data: { categorias: categorias.filter((item) => item.url !== url) },
+  });
+  revalidatePath("/mercados/fontes");
+  return { ok: true };
+}
+
+/** Troca o login guardado. A senha entra aqui e nunca mais sai para a tela. */
+export async function salvarLoginDaFonte(fonteId, { usuario, senha }) {
+  const { fonte, erro } = await fonteDePortal(fonteId);
+  if (erro) return { ok: false, erro };
+  if (!String(usuario ?? "").trim() || !senha) return { ok: false, erro: "Informe o e-mail e a senha." };
+
+  await prisma.fonteColeta.update({
+    where: { id: fonte.id },
+    data: {
+      credencialCifrada: cifrar({ usuario: String(usuario).trim(), senha: String(senha) }),
+      credencialAtualizadaEm: new Date(),
+    },
+  });
+  revalidatePath("/mercados/fontes");
   return { ok: true };
 }
 
@@ -630,6 +759,9 @@ export async function detalhePagina(id) {
     precoAnterior: detalhe.precoAnterior,
     mudouEm: detalhe.mudouEm,
     origens: produto.origens ?? null,
+    // Regras de compra do fornecedor, com caixa propria (nao sao caracteristica).
+    precosPorQuantidade: produto.precosPorQuantidade ?? [],
+    multiploVenda: produto.multiploVenda ?? null,
   };
 }
 

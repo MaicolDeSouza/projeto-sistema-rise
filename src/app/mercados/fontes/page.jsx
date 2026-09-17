@@ -3,6 +3,7 @@ import { ArrowLeft, Store } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { jobLargado } from "@/lib/coleta/fila";
+import { portalDoEndereco } from "@/lib/coleta/fornecedores";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
@@ -69,6 +70,11 @@ export default async function FontesPage({ searchParams }) {
     produtosNoSite: fonte.produtosNoSite,
     produtosNoSiteParcial: fonte.produtosNoSiteParcial,
     instrucoes: fonte.instrucoes,
+    // PORTAL COM LOGIN (Santana): categorias e SE ha login — nunca o login em si.
+    portal: Boolean(portalDoEndereco(fonte.dominio)),
+    categorias: Array.isArray(fonte.categorias) ? fonte.categorias : [],
+    temLogin: Boolean(fonte.credencialCifrada),
+    credencialAtualizadaEm: fonte.credencialAtualizadaEm,
     // A lista guardada. So do fornecedor: concorrente tem vitrine e nao manda
     // arquivo.
     manifesto:

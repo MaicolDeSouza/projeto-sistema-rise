@@ -21,8 +21,9 @@ import {
   salvarFonte,
   testarArquivoAcao,
   testarFonteAcao,
+  testarPortalAcao,
 } from "@/app/mercados/acoes";
-import { regrasDoFornecedor } from "@/lib/coleta/fornecedores";
+import { portalDoEndereco, regrasDoFornecedor } from "@/lib/coleta/fornecedores";
 import { mesclarNoExistente } from "@/lib/coleta/mesclar";
 
 import PreviaProduto from "./PreviaProduto";
@@ -375,6 +376,17 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
   const [teste, setTeste] = useState(null);
   const [arquivos, setArquivos] = useState([]);
   const [erro, setErro] = useState(null);
+  // Login de PORTAL de fornecedor (a Santana): so existe no formulario enquanto
+  // o cadastro nao e salvo, e vai cifrado para a fonte.
+  const [usuario, setUsuario] = useState("");
+  const [senha, setSenha] = useState("");
+
+  /*
+    FORNECEDOR COM PORTAL DE LOGIN, reconhecido pelo endereco (fornecedores.js).
+    O link e o de uma CATEGORIA, o teste entra com o login e le a lista dela, e
+    as demais categorias entram depois, na linha da fonte.
+  */
+  const ehPortal = Boolean(portalDoEndereco(url));
 
   /**
    * O resultado do teste e limpo a cada mudanca de endereco.
@@ -412,6 +424,11 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
     setTeste(null);
 
     iniciarTeste(async () => {
+      if (ehPortal) {
+        setTeste(await testarPortalAcao({ url, usuario, senha, nome, tipo }));
+        return;
+      }
+
       const [doLink, doArquivo] = await Promise.all([
         url.trim() ? testarFonteAcao({ url, secao, nome, tipo }) : null,
         arquivos.length > 0 ? testarArquivoAcao(comArquivos(arquivos, nome, tipo, url)) : null,
@@ -436,6 +453,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
           : null,
         produtosNoSite: teste?.produtosNoSite ?? null,
         produtosNoSiteParcial: teste?.produtosNoSiteParcial ?? false,
+        ...(ehPortal ? { usuario, senha } : {}),
       });
 
       if (!resultado.ok) {
@@ -448,6 +466,8 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
       setSecao("");
       setTeste(null);
       setArquivos([]);
+      setUsuario("");
+      setSenha("");
       // Recolhe depois de salvar: o trabalho terminou, e a fonte nova ja
       // aparece na tabela logo abaixo.
       setAberto(false);
@@ -543,6 +563,41 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
           />
         </label>
 
+        {ehPortal ? (
+          <div className="grid gap-3">
+            <label>
+              <span className="mb-1 block text-xs text-suave">E-mail do portal</span>
+              <input
+                type="email"
+                autoComplete="off"
+                value={usuario}
+                onChange={(evento) => {
+                  setUsuario(evento.target.value);
+                  setTeste(null);
+                }}
+                className={CAMPO}
+              />
+            </label>
+            <label>
+              <span className="mb-1 block text-xs text-suave">Senha do portal</span>
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={senha}
+                onChange={(evento) => {
+                  setSenha(evento.target.value);
+                  setTeste(null);
+                }}
+                className={CAMPO}
+              />
+            </label>
+            <span className="text-xs text-suave">
+              Este fornecedor so mostra preco com login. Cole no campo URL o link de UMA
+              categoria (ex.: https://santanaimport.com.br/componentes.html); as outras voce
+              adiciona depois, em Categorias, na linha da fonte. O login fica cifrado.
+            </span>
+          </div>
+        ) : (
         <label>
           <span className="mb-1 block text-xs text-suave">
             Secao / categoria <span className="text-suave">(opcional)</span>
@@ -561,17 +616,24 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
             Limita a coleta a um trecho do site. Em branco, cobre a loja inteira.
           </span>
         </label>
+        )}
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={testar}
-          disabled={testando || (arquivos.length === 0 && !url.trim())}
+          disabled={
+            testando ||
+            (arquivos.length === 0 && !url.trim()) ||
+            (ehPortal && (!usuario.trim() || !senha))
+          }
           className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {testando ? <Loader size={15} className="animate-spin" /> : <TestTube size={15} />}
-          {arquivos.length > 0 && url.trim()
+          {ehPortal
+            ? "Entrar e ler a categoria"
+            : arquivos.length > 0 && url.trim()
             ? "Buscar dados do site e dos arquivos"
             : arquivos.length > 0
               ? `Ler ${arquivos.length} arquivo(s)`
@@ -589,7 +651,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
           o que se acompanha nele e a vitrine publica, e oferecer upload ali
           sugeriria um caminho que nao existe.
         */}
-        {tipo !== "CONCORRENTE" && (
+        {tipo !== "CONCORRENTE" && !ehPortal && (
         <label
           className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm hover:bg-fundo"
           title="Ler de um arquivo do fornecedor (HTML salvo, PDF ou JSON)"
@@ -669,7 +731,13 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
           </div>
         )}
 
-        {testando && arquivos.length === 0 && (
+        {testando && ehPortal && (
+          <span className="text-xs text-suave">
+            Entrando no portal e lendo a primeira pagina da categoria. Leva uns 15 segundos.
+          </span>
+        )}
+
+        {testando && arquivos.length === 0 && !ehPortal && (
           <span className="text-xs text-suave">
             Abrindo robots.txt, sitemap e algumas paginas de produto. As visitas sao
             espacadas para nao pesar no site, entao leva de um a cinco minutos — sites que

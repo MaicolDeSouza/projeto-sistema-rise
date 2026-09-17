@@ -38,7 +38,12 @@ function conferir(nome, obtido, esperado) {
   );
 }
 
-const DOMINIOS = ["teste-concorrente.local", "teste-fornecedor.local", "teste-lotes.local"];
+const DOMINIOS = [
+  "teste-concorrente.local",
+  "teste-fornecedor.local",
+  "teste-lotes.local",
+  "teste-primeira.local",
+];
 
 function produto({ code, name, normal, promotional = null, status = "AVAILABLE", quantity = null, url = null }) {
   return {
@@ -297,6 +302,20 @@ conferir(
   await prisma.produtoColetado.count({ where: { fonteId: lotes.id, codigo: "L1" } }),
   1,
 );
+
+// PRIMEIRA varredura, ainda sem fechar: a fonte nao tem `ultimaColetaEm`, e os
+// lotes gravados precisam aparecer na lista (a Mamute Eletronica, com 3.711
+// produtos no banco, sumia da tabela e do filtro de fontes em 17/09/2026).
+const primeira = await prisma.fonteColeta.create({
+  data: { nome: "Primeira Teste", dominio: DOMINIOS[3], tipo: "CONCORRENTE", ativa: false },
+});
+await gravarColeta({ fonte: primeira, produtos: [peca("P1")], origem: "site", coletadoEm: segundos(70), fecharColeta: false });
+await gravarColeta({ fonte: primeira, produtos: [peca("P2")], origem: "site", coletadoEm: segundos(71), fecharColeta: false });
+const naListaPrimeira = (await produtosParaLista())
+  .filter((item) => item.fonte.dominio === DOMINIOS[3])
+  .map((item) => item.code)
+  .sort();
+conferir("primeira varredura ainda aberta: os lotes ja aparecem na lista", naListaPrimeira, ["P1", "P2"]);
 
 // ---------------------------------------------------------------------------
 await prisma.fonteColeta.deleteMany({ where: { dominio: { in: DOMINIOS } } });

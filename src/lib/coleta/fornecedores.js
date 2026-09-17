@@ -52,6 +52,31 @@ export const FORNECEDORES = [
      */
     mesclarSiteComArquivo: true,
   },
+  {
+    id: "santana",
+    nome: "Santana",
+
+    dominios: ["santanaimport.com.br"],
+    nomes: [/santana/i],
+
+    /**
+     * PORTAL COM LOGIN, varrido por CATEGORIA (17/09/2026).
+     *
+     * Sem login a Santana mostra "Faca o login para visualizar o preco", e o
+     * dono nao trabalha com o catalogo inteiro (11 mil itens): cadastra os links
+     * das categorias que interessam. A lista da categoria ja traz preco, IPI, ST,
+     * faixas e multiplo, entao a pagina do produto nao e aberta. O leitor esta em
+     * portal-addsuite.js (plataforma Add Suite, ASP.NET WebForms).
+     *
+     * RITMO DE 30 s: a 2 s, ~150 pedidos no dia (listas de 1,5 a 15 MB) fizeram a
+     * Santana cortar a conexao do nosso user-agent. Voltou em menos de uma hora.
+     */
+    portal: {
+      plataforma: "addsuite",
+      ritmoMs: 30000,
+      porPagina: 50,
+    },
+  },
 ];
 
 /**
@@ -80,4 +105,17 @@ export function regrasDoFornecedor({ nome, url } = {}) {
   });
 
   return achado ?? {};
+}
+
+/**
+ * A configuracao de PORTAL COM LOGIN do fornecedor deste endereco, ou null.
+ *
+ * So pelo DOMINIO, nunca pelo nome: `regrasDoFornecedor` aceita o nome porque
+ * o cadastro por arquivo pode nao ter endereco, mas um concorrente chamado
+ * "Santana Eletronicos" viraria portal com login por engano.
+ */
+export function portalDoEndereco(url) {
+  if (!url) return null;
+  const regras = regrasDoFornecedor({ url });
+  return regras.portal ? { id: regras.id, nome: regras.nome, ...regras.portal } : null;
 }

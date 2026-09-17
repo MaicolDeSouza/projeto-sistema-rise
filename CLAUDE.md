@@ -43,12 +43,12 @@ npm run teste:extracao            # 169 asserções da extração, da conciliaç
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
-npm run teste:coleta              # 42 asserções da gravação no banco (usa o Postgres, SEM rede)
+npm run teste:coleta              # 43 asserções da gravação no banco (usa o Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
 npm run backup                    # dados/backup/sistema_rise-AAAAMMDD-HHMMSS.dump (pg_dump, conferido com pg_restore; guarda os 4 mais recentes)
-npm run teste:worker              # 40 asserções: rede, fila, retomada e o worker de verdade (~6 min)
+npm run teste:worker              # 44 asserções: rede, fila, retomada e o worker de verdade (~6 min)
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -223,6 +223,11 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   varredura e misturaria preço de hoje com preço de duas semanas atrás. Para fornecedor não
   muda nada: a lista conciliada inteira é regravada a cada reprocessamento, ausentes
   incluídos.
+- **Fonte que nunca fechou uma coleta entra com tudo o que já gravou** (17/09/2026). O filtro
+  era `ultimaColetaEm not null`, e essa data só é escrita no fim da varredura. Com os lotes, a
+  primeira varredura de uma loja grande grava por horas: a Mamute Eletrônica tinha 3.711
+  produtos no banco e **não aparecia na tabela nem no filtro de fontes** (o filtro sai dos
+  produtos listados). Sem coleta fechada não há "anterior" para misturar.
 - **O saldo anterior fica guardado** (`quantidadeAnterior`, `quantidadeAnteriorEm`), pedido do
   dono em 15/09/2026 para montar depois o histórico de venda: com os dois números e as duas
   datas dá para dizer quanto saiu entre uma varredura e outra. **São dois campos porque um
@@ -380,6 +385,15 @@ CPU.
 - **Validade:** 3 dias (`RETOMADA_VALE_MS`). Depois disso o preço gravado envelheceu, e a
   varredura começa de novo.
 - **Fornecedor com lista (Nightech) não retoma:** a trava de queda precisa da lista inteira.
+- **Cada endereço é tratado uma vez por colheita** (`tratados` em `colher.js`, 16/09/2026).
+  Catálogo, sitemap e navegação listam os mesmos produtos, e cada fase refazia a anterior.
+  - **Retomados em dobro:** na Smartkits a tela mostrou 7.249 retomados para 3.625 gravados.
+  - **Produtos reabertos:** os 3.780 itens do catálogo eram abertos de novo pelo sitemap, antes
+    mesmo da retomada existir.
+- **Catálogo completo encerra a colheita:** a loja declara o total e todos os itens foram
+  lidos, então sitemap e navegação não rodam. Antes, a navegação ia até o teto de 20.000
+  páginas atrás de produto que o catálogo já tinha dado; a tela marcava 564 s/produto. Com a
+  correção, a Smartkits fechou em 8 min (157 páginas).
 - **Teste:** queda no meio de uma loja de 25 produtos; o seguinte abre só o que faltava.
 
 **Tentativas numa queda.** Antes, o erro fatal devolvia todo job como PENDENTE, e o log mostrou
@@ -912,6 +926,64 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
 
 ### Sites que exigiram tratamento próprio
 
+- **Santana (santanaimport.com.br): portal B2B, preço SÓ com login, varrido POR CATEGORIA** —
+  implementado em 17/09/2026. Plataforma Add Suite, ASP.NET WebForms. Leitor em
+  `src/lib/coleta/portal-addsuite.js`, regra (ritmo, itens por página) em `fornecedores.js`
+  (`portal`), reconhecida **só pelo domínio** (`portalDoEndereco`): pelo nome, um concorrente
+  "Santana Eletrônicos" viraria portal.
+  - **Como o dono usa:** cadastra com o link de UMA categoria e o login. O teste entra e lê a
+    primeira página (12 itens). Depois, em **Categorias** na linha da fonte, adiciona ou remove
+    links e troca o login. A varredura lê só as categorias da lista.
+  - **Onde mora:** `FonteColeta.categorias` (`[{url, total, lidos, varridaEm, adicionadaEm}]`) e
+    `credencialCifrada` (`{usuario, senha}` com `lib/crypto.js`) + `credencialAtualizadaEm`,
+    migration `20260917_fonte_portal_login`. **Não em `Conexao`**: lá é uma linha por serviço
+    (enum único), e o login é de cada fornecedor. A tela só recebe `temLogin`.
+  - **Sem login:** nome, código, foto, NCM, EAN, peso e dimensões; no preço, *"Faça o Login para
+    visualizar o preço"*. Nenhum JSON-LD, Microdata ou OpenGraph com preço.
+  - **Login sem captcha:** GET em `/minhaconta/identificacao`, POST com os campos ocultos
+    (`__VIEWSTATE`...), `__EVENTTARGET=ctl00$ContentPlaceHolder1$lkEntrar`, `tblogin` e `tbSenha`.
+    302 para `PainelCliente`; sessão = cookie `ASP.NET_SessionId`. Quem prova que entrou é o link
+    `SAIR` (`PainelCliente` aparece também no anônimo). Por isso `obter` (`http.js`) ganhou
+    `metodo`, `corpo`, `seguir: false` e `setCookie`: o cookie chega na resposta do POST.
+  - **A lista da categoria dispensa a página do produto.** A página da categoria chama
+    `/handlers/departamento/CategoriaResult.ashx?categoria=&subcategoria=&qtdePorPagina=&paginaAtual=&ordenacao=`,
+    que devolve JSON com `html` e `total_registros`. Cada item traz link com `?sku=`, código
+    (`data-sku`; esgotado só tem `Ref:`), preço, IPI %, ST em R$, preço com impostos, caixa
+    inner/master, faixas de quantidade, múltiplo de venda (`adicionarMaisVitrini('sku', 5)`) e botão
+    de comprar. Sem quantidade em estoque, e sem marca (só na página do produto).
+  - **Link → parâmetros:** último trecho = `subcategoria`, penúltimo = `categoria`; um trecho só é
+    a `categoria`. Categoria termina em **`.html`**, produto em **`.htm`**: aceitar os dois
+    cadastraria página de produto como categoria (o teste pegou).
+  - **A paginação repete e pula produtos.** Empates na ordenação: na Componentes (7.068), a página
+    40 de 100 veio inteira com itens das 34 e 35. A leitura nunca para na página repetida, vai até
+    `ceil(total/porPagina)` e repassa nas ordenações 0, 1 e 2 enquanto a categoria não fechar o total.
+  - **Peso:** cada item traz foto em base64 (~150 KB); descartada antes de ler.
+  - **Compra em lote e múltiplo de venda NÃO são característica** (o dono, 17/09/2026, repetindo).
+    Campos próprios em `ProdutoColetado` — `precosPorQuantidade` (`[{rotulo, minimo, maximo, preco}]`)
+    e `multiploVenda` —, migration `20260917_compra_em_lote`, e caixas próprias ao lado de Pronta
+    entrega (`RegrasDeCompra.jsx`, na prévia e no detalhe). Vale também para o múltiplo das
+    planilhas (`arquivos.js`). Na assinatura, os dois só entram quando existem (`undefined`), senão
+    a primeira varredura depois deles reescreveria todas as fontes; no banco, ausência grava null.
+  - **Marca e EAN não vêm na lista** (só na página do produto, 1,5 MB cada). O dono decidiu NÃO abrir
+    a página na varredura: o leitor grava em `origens.brand/ean` o aviso *"nao vem na lista: veja no
+    link do produto"*, e a tela o mostra sob o campo vazio. Só este leitor grava o aviso — vale só
+    para a Santana.
+  - **Status:** o leitor grava `IN_STOCK`; a prévia só conhecia `AVAILABLE` e mostrava
+    "Indeterminado". Acrescentado ao mapa da `PreviaProduto`.
+  - **BLOQUEIO medido:** a 2 s entre pedidos, ~150 pedidos no dia (listas de 1,5 a 15 MB), a Santana
+    passou a cortar a conexão (`ECONNRESET`) **só para o user-agent do sistema**. Voltou em menos
+    de 1 h. **Não se troca o user-agent para contornar.** Ritmo agora **30 s**, 50 itens por página;
+    `ECONNRESET` encerra a varredura com recado. A 30 s, 500 produtos levaram 6,8 min, sem bloqueio.
+  - **Sem retomada:** paginação que repete não permite pular página já lida. A queda recomeça, mas
+    os lotes (uma página por lote) ficam gravados.
+  - **Sem `?sku=` a página do produto mostra o padrão do modelo** (R$ 0,00, "indisponível") — só
+    importa para quem abrir produto avulso; a coleta não abre.
+  - **Termos de uso:** site para clientes com login; proíbem reproduzir conteúdo "para fins
+    comerciais", sem falar de acesso automatizado. Uso decidido pelo dono.
+  - **Scripts de investigação** (`scripts/teste-login-santana.js`, `teste-categoria-santana.js`)
+    leem `SANTANA_USUARIO`/`SANTANA_SENHA` do `.env`. A coleta de verdade usa o login cifrado da
+    fonte; as linhas do `.env` podem sair quando os scripts não forem mais usados.
+
 - **Eletru's (eletruscomp.com.br): plataforma própria em ASP.NET MVC** (IIS,
   `x-aspnetmvc-version`), mapeada em 16/09/2026 como `aspnet-uploads` em `plataformas.js`.
   - **Formatos:** não tem JSON-LD. O Microdata traz só nome, preço e imagem, com `sku` **vazio**.
@@ -1010,6 +1082,20 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   inexistente.
 
 **Sitemap:**
+
+- **Sitemap tem teto de 50 MB** (`MAXIMO_BYTES_SITEMAP` em `buscar.js`, o máximo do
+  protocolo), e não os 2 MB de página. A Mamute Eletrônica (Magento) publica dois arquivos de
+  **10 MB** cada, com 18 mil produtos. Com o teto de página eles eram recusados (o erro não vai
+  ao log), só o terceiro (0,7 MB, 492 endereços) era lido, e a colheita caía na navegação.
+  No Magento a navegação **não pagina categoria**, porque `?p=` está em `PARAMETROS_RUINS`:
+  só acha produto pela primeira página de cada categoria e pelos relacionados. Em 17/09/2026
+  a varredura estava havia **4 h sem produto novo**, com 14.331 páginas abertas. O worker não
+  a cancelava porque o site respondia, e a tela mostrava 10,7 s/produto e "falta 18h44".
+  Com o teto novo, o sitemap entrega 18.951 endereços.
+- **Só entram endereços da loja** (mesmo host, com ou sem `www.`). O robots.txt da Mamute
+  declara também o sitemap do blog, e 68 posts iam para a fila de produtos.
+- **O "10.000" de "produtos no site" da Mamute não foi provado por varredura.** É o número do
+  cadastro, e a primeira varredura completa o substitui.
 
 - O índice pode listar a home como se fosse sitemap, e o de produtos pode não ser o
   primeiro. Priorizar quem tem cara de produto — mas **o padrão não pode conter "item"**:

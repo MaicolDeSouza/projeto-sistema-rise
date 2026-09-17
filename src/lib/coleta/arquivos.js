@@ -173,13 +173,12 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
   const aChegar = comoNumero(valorDe(bruto, CAMPOS.estoqueAChegar));
 
   const especificacoes = [];
-  for (const [campo, rotulo] of [
-    ["ipi", "IPI"],
-    ["multiplo", "Multiplo de venda"],
-  ]) {
-    const valor = valorDe(bruto, CAMPOS[campo]);
-    if (valor !== null) especificacoes.push({ nome: rotulo, valor: String(valor) });
-  }
+  const ipi = valorDe(bruto, CAMPOS.ipi);
+  if (ipi !== null) especificacoes.push({ nome: "IPI", valor: String(ipi) });
+
+  // Multiplo de venda e regra de COMPRA, nao caracteristica do produto (o dono,
+  // 17/09/2026): vai para `multiploVenda`, com caixa propria na tela.
+  const multiplo = comoNumero(valorDe(bruto, CAMPOS.multiplo));
 
   // O IPI da planilha ja virou especificacao acima; daqui ele vira imposto de
   // verdade, com percentual, e produz o preco com impostos.
@@ -211,6 +210,7 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
       comImpostos: deReserva ? null : precoComImpostos(preco, impostos),
     },
     taxes: impostos,
+    multiploVenda: multiplo > 0 ? Math.round(multiplo) : null,
     // Estoque negativo e informacao, nao erro: quer dizer vendido a descoberto.
     //
     // `quantity` e sempre a PRONTA ENTREGA — o que da para despachar hoje. O

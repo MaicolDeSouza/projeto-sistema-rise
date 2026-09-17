@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, ExternalLink, Loader, Pause, Pencil, Play, RefreshCw, Trash2 } from "lucide-react";
+import { Ban, ExternalLink, FolderTree, Loader, Pause, Pencil, Play, RefreshCw, Trash2 } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
 import ArquivosDaFonte from "@/components/mercados/ArquivosDaFonte";
+import CategoriasDaFonte from "@/components/mercados/CategoriasDaFonte";
 import {
   alternarFonte,
   contarProdutos,
@@ -74,6 +75,8 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [confirmando, setConfirmando] = useState(null);
   const [editando, setEditando] = useState(false);
+  // Portal com login (Santana): o painel de categorias e login abre embaixo da linha.
+  const [vendoCategorias, setVendoCategorias] = useState(false);
   const [erro, setErro] = useState(null);
 
   // O endereco completo, para o link abrir o site. O dominio guardado nao tem
@@ -249,12 +252,32 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
         */}
         {mostrarLista && (
           <td className="px-3 py-2.5">
-            <ArquivosDaFonte fonte={fonte} />
+            {/* Portal com login nao recebe lista: o preco vem do proprio portal. */}
+            {fonte.portal ? (
+              <span className="text-xs text-suave">
+                Portal com login · {fonte.categorias?.length ?? 0} categoria(s)
+                {!fonte.temLogin && <span className="block text-red-700">sem login guardado</span>}
+              </span>
+            ) : (
+              <ArquivosDaFonte fonte={fonte} />
+            )}
           </td>
         )}
 
         <td className="px-3 py-2.5">
           <div className="flex flex-wrap justify-end gap-1.5">
+            {fonte.portal && (
+              <button
+                type="button"
+                onClick={() => setVendoCategorias((antes) => !antes)}
+                className={botao}
+                title="Categorias varridas e login do portal"
+              >
+                <FolderTree size={12} />
+                Categorias ({fonte.categorias?.length ?? 0})
+              </button>
+            )}
+
             {/*
               VARREDURA SO DESTA FONTE, sem esperar o ciclo de 30 dias. Com a fonte
               ja na fila ou varrendo, o botao diz isso em vez de aceitar o clique.
@@ -313,6 +336,14 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
           </div>
         </td>
       </tr>
+
+      {vendoCategorias && fonte.portal && (
+        <tr>
+          <td colSpan={COLUNAS_BASE + (mostrarLista ? 1 : 0)} className="px-3 pb-3">
+            <CategoriasDaFonte fonte={fonte} />
+          </td>
+        </tr>
+      )}
 
       {editando && (
         <tr>

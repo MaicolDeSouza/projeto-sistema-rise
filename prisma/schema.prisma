@@ -471,6 +471,18 @@ model FonteColeta {
   /// leitor melhora, sem pedir a lista de novo ao fornecedor.
   listaArquivos  Json?
 
+  /// PORTAL COM LOGIN, varrido por categoria (a Santana, 17/09/2026). O dono nao
+  /// trabalha com o catalogo inteiro do fornecedor: informa os links das
+  /// categorias que interessam, e so elas sao varridas. [{url, total, adicionadaEm}].
+  categorias Json?
+
+  /// Usuario e senha do portal, CIFRADOS juntos ({usuario, senha}, AES-256-GCM de
+  /// lib/crypto.js). Moram na fonte, e nao em Conexao, porque Conexao tem uma
+  /// linha por SERVICO (enum unico) e o login e de cada fornecedor. A tela nunca
+  /// recebe o valor: so sabe que existe e quando mudou.
+  credencialCifrada     String?
+  credencialAtualizadaEm DateTime?
+
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
@@ -524,6 +536,13 @@ model ProdutoColetado {
 
   /// Como a loja declarou: AVAILABLE, IN_STOCK, OUT_OF_STOCK... ou nada.
   estoqueStatus String?
+  /// PRECO POR QUANTIDADE ("compra em lote"): [{rotulo, minimo, maximo, preco}].
+  /// Pedido do dono em 17/09/2026: faixa de preco e multiplo de venda sao regra de
+  /// COMPRA, nao caracteristica do produto, e tem caixa propria na tela.
+  precosPorQuantidade Json?
+  /// Vende-se de N em N (a Santana vende o motor 075-3010 de 5 em 5).
+  multiploVenda       Int?
+
   /// Pronta entrega. NUNCA somada ao que esta a chegar.
   quantidade    Int?
   aChegar       Int?

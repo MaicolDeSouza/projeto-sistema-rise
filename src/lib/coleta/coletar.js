@@ -1,9 +1,16 @@
 import { lerArquivosOriginais } from "./arquivo";
 import { juntarListas, lerArquivo } from "./arquivos";
-import { enderecosGravadosDesde, gravarColeta, lerProdutosDaFonte } from "./banco";
+import {
+  atualizarTotaisDasCategorias,
+  enderecosGravadosDesde,
+  gravarColeta,
+  lerProdutosDaFonte,
+} from "./banco";
 import { colherProdutos, enderecoComparavel } from "./colher";
 import { conciliar, quedaSuspeita } from "./conciliar";
-import { regrasDoFornecedor } from "./fornecedores";
+import { portalDoEndereco, regrasDoFornecedor } from "./fornecedores";
+import { colherPortal } from "./portal-addsuite";
+import { decifrar } from "@/lib/crypto";
 
 /**
  * Orquestracao da coleta: colher ou reprocessar, conciliar, gravar no banco.
@@ -240,8 +247,128 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
  *   no job. Numa retomada e a data da primeira tentativa: o que foi gravado desde
  *   entao nao e aberto de novo, e a coleta fecha com essa data.
  */
+/**
+ * Varredura de fornecedor com PORTAL DE LOGIN, pelas categorias cadastradas na
+ * fonte (a Santana, 17/09/2026). Grava em lotes como a varredura de site, e fecha
+ * a coleta com a data do inicio.
+ *
+ * SEM RETOMADA por enquanto: a lista da categoria e lida pagina a pagina, e
+ * pular pagina ja lida nao funciona num site cuja paginacao repete e pula
+ * produtos. Uma queda recomeca a categoria, mas os lotes gravados ficam.
+ */
+async function varrerPortal(fonte, portal, aoProgredir, { sinal, inicioDaVarredura }) {
+  const comecou = Date.now();
+  const inicio = inicioDaVarredura ?? new Date();
+  const categorias = Array.isArray(fonte.categorias) ? fonte.categorias : [];
+
+  if (categorias.length === 0) {
+    return { total: 0, feitas: 0, produtos: 0, erro: "nenhuma categoria cadastrada nesta fonte" };
+  }
+  if (!fonte.credencialCifrada) {
+    return { total: 0, feitas: 0, produtos: 0, erro: "fonte sem login guardado — informe em Categorias" };
+  }
+
+  let buffer = [];
+  let gravacoes = Promise.resolve();
+  let gravados = 0;
+  const acumulado = { novos: 0, atualizados: 0, inalterados: 0, precosMudaram: 0, semChave: 0 };
+  // Uma pagina da lista inteira por lote: com 30 s entre pedidos, a queda custa
+  // no maximo uma pagina.
+  const lote = portal.porPagina;
+
+  const gravarLote = (produtos) => {
+    gravacoes = gravacoes.then(async () => {
+      try {
+        const parcial = await gravarColeta({ fonte, produtos, origem: "site", fecharColeta: false });
+        gravados += parcial.gravados;
+        for (const campo of Object.keys(acumulado)) acumulado[campo] += parcial[campo] ?? 0;
+      } catch (erro) {
+        console.error(`lote de ${produtos.length} produto(s) nao gravado: ${erro.message}`);
+        buffer = produtos.concat(buffer);
+      }
+    });
+  };
+
+  let colheita;
+  try {
+    colheita = await colherPortal({
+      credencial: decifrar(fonte.credencialCifrada),
+      categorias,
+      fonte: { name: fonte.nome, type: fonte.tipo },
+      ritmoMs: portal.ritmoMs,
+      porPagina: portal.porPagina,
+      limite: limiteDaFonte(),
+      sinal,
+      aoGuardar: (produto) => {
+        buffer.push(produto);
+        if (buffer.length >= lote) {
+          const produtos = buffer;
+          buffer = [];
+          gravarLote(produtos);
+        }
+      },
+      aoProgredir: aoProgredir
+        ? ({ total, feitas, visitadas }) =>
+            aoProgredir({ total: total ?? fonte.produtosNoSite ?? 0, feitas, visitadas, retomados: 0 })
+        : undefined,
+    });
+  } catch (erro) {
+    // O que ja foi lido fica gravado; a coleta nao fecha.
+    await gravacoes;
+    if (buffer.length > 0) {
+      await gravarColeta({ fonte, produtos: buffer, origem: "site", fecharColeta: false }).catch((falha) =>
+        console.error(`lote final de ${buffer.length} nao gravado: ${falha.message}`),
+      );
+    }
+    throw erro;
+  }
+
+  await gravacoes;
+
+  const resumo =
+    `${colheita.produtos} produto(s) em ${categorias.length} categoria(s) · ${colheita.visitas} pedido(s) ao portal` +
+    ` · ${colheita.porCategoria.map((c) => `${c.url.split("/").pop()} ${c.lidos}/${c.total ?? "?"}`).join(", ")}`;
+
+  const final = await gravarColeta({
+    fonte,
+    produtos: buffer,
+    origem: "site",
+    resumo,
+    duracaoMs: Date.now() - comecou,
+    inicioDaColeta: inicio,
+    totalDaColeta: colheita.produtos,
+  });
+
+  await atualizarTotaisDasCategorias(fonte.id, colheita.porCategoria);
+
+  return {
+    total: colheita.produtosNoSite ?? colheita.produtos,
+    feitas: colheita.produtos,
+    produtos: colheita.produtos,
+    visitas: colheita.visitas,
+    resumo,
+    gravacao: {
+      gravados: gravados + final.gravados,
+      novos: acumulado.novos + final.novos,
+      atualizados: acumulado.atualizados + final.atualizados,
+      inalterados: acumulado.inalterados + final.inalterados,
+      precosMudaram: acumulado.precosMudaram + final.precosMudaram,
+      semChave: acumulado.semChave + final.semChave,
+    },
+    produtosNoSite: colheita.produtosNoSite,
+    produtosNoSiteParcial: false,
+  };
+}
+
 export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVarredura = null } = {}) {
   const comecou = Date.now();
+
+  // PORTAL COM LOGIN, por categoria: tem caminho proprio, e vem antes da lista
+  // de arquivo porque o portal ja traz preco.
+  const portal = portalDoEndereco(fonte.dominio);
+  if (portal && fonte.ativa && fonte.robotsPermite) {
+    return varrerPortal(fonte, portal, aoProgredir, { sinal, inicioDaVarredura });
+  }
 
   // FORNECEDOR COM LISTA NAO SE VARRE: reprocessa.
   //

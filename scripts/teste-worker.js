@@ -32,6 +32,7 @@ const path = await import("node:path");
 const { prisma } = await import("@/lib/db.js");
 const { buscarBytes, buscarPagina, ultimaRespostaDe } = await import("@/lib/coleta/buscar.js");
 const { rastrear } = await import("@/lib/coleta/descobrir.js");
+const { colherProdutos, enderecoComparavel } = await import("@/lib/coleta/colher.js");
 const fila = await import("@/lib/coleta/fila.js");
 
 let falhas = 0;
@@ -70,6 +71,8 @@ const loja = {
   travarProdutos: false,
 };
 const conexoes = new Set();
+/// Quantas vezes cada pagina de produto foi aberta.
+const aberturas = new Map();
 
 const servidor = http.createServer((pedido, resposta) => {
   const caminho = pedido.url.split("?")[0];
@@ -78,6 +81,16 @@ const servidor = http.createServer((pedido, resposta) => {
     resposta.writeHead(200, { "Content-Type": "text/html" });
     resposta.write("<html><body>comecou e parou");
     return; // nunca termina
+  }
+
+  if (caminho === "/sitemap.xml") {
+    const urls = Array.from(
+      { length: loja.produtos },
+      (_, i) => `<url><loc>http://${pedido.headers.host}/produto-${101 + i}.html</loc></url>`,
+    );
+    resposta.writeHead(200, { "Content-Type": "application/xml" });
+    resposta.end(`<?xml version="1.0"?><urlset>${urls.join("")}</urlset>`);
+    return;
   }
 
   if (caminho === "/") {
@@ -89,6 +102,7 @@ const servidor = http.createServer((pedido, resposta) => {
 
   const produto = /^\/produto-(\d+)\.html$/.exec(caminho);
   if (produto) {
+    aberturas.set(caminho, (aberturas.get(caminho) ?? 0) + 1);
     if (loja.travarProdutos) {
       resposta.writeHead(200, { "Content-Type": "text/html" });
       resposta.write("<html>");
@@ -150,6 +164,33 @@ conferir(
 
 const rastreio = await rastrear({ semente: `${BASE}/`, orcamento: 50, sinal: AbortSignal.abort() });
 conferir("rastreamento cancelado nao abre pagina", rastreio.visitadas, 0);
+
+// ---------------------------------------------------------------------------
+console.log("\n— colheita: cada produto uma vez so —");
+
+aberturas.clear();
+const colheita = await colherProdutos({ url: `${BASE}/`, nome: "Loja", tipo: "CONCORRENTE", limite: 1000, orcamento: 200 });
+conferir("sitemap e navegacao acham os 6 produtos", colheita.produtos.length, PRODUTOS);
+conferir(
+  "e nenhuma pagina de produto e aberta duas vezes (sitemap, depois navegacao)",
+  [...aberturas.values()].every((vezes) => vezes === 1),
+  true,
+);
+
+aberturas.clear();
+const jaGravados = new Set(
+  [101, 102, 103].map((numero) => enderecoComparavel(`${BASE}/produto-${numero}.html`)),
+);
+const retomada = await colherProdutos({
+  url: `${BASE}/`,
+  nome: "Loja",
+  tipo: "CONCORRENTE",
+  limite: 1000,
+  orcamento: 200,
+  jaColetadas: jaGravados,
+});
+conferir("retomada conta cada gravado UMA vez (sitemap e navegacao juntos)", retomada.retomados, 3);
+conferir("e abre so os que faltavam", [...aberturas.keys()].sort(), ["/produto-104.html", "/produto-105.html", "/produto-106.html"]);
 
 // ---------------------------------------------------------------------------
 console.log("\n— fila —");

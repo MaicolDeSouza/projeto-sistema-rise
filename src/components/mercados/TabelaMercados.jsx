@@ -19,6 +19,7 @@ import {
 
 import Badge from "@/components/ui/Badge";
 import Copiar from "@/components/ui/Copiar";
+import RegrasDeCompra from "@/components/mercados/RegrasDeCompra";
 import { precoComImpostos } from "@/lib/coleta/impostos";
 import { detalhePagina } from "@/app/mercados/acoes";
 
@@ -544,11 +545,11 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
   const identificadores = [
     ["Codigo / SKU", dados.skuFonte, true],
     ["MPN", dados.mpn, true],
-    ["EAN", dados.ean, true],
-    ["Marca", dados.marca],
+    ["EAN", dados.ean, true, "ean"],
+    ["Marca", dados.marca, false, "brand"],
     ["Modelo", dados.modelo],
     ["Categoria", dados.categoria],
-    ["NCM", dados.ncm, true],
+    ["NCM", dados.ncm, true, "ncm"],
     /**
      * SO PARA FORNECEDOR: sao campos de compra, nao de mercado.
      *
@@ -628,7 +629,7 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
 
         <div className="min-w-0 flex-1 space-y-3">
           <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3 lg:grid-cols-4">
-            {identificadores.map(([rotulo, valor, copiavel]) => (
+            {identificadores.map(([rotulo, valor, copiavel, campo]) => (
               <div key={rotulo} className="group min-w-0">
                 <dt className="text-xs text-suave">{rotulo}</dt>
                 <dd className="flex items-center gap-1">
@@ -641,6 +642,10 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
                   {/* Campo vazio nao ganha botao: nao ha o que copiar. */}
                   {copiavel && valor && <Copiar texto={valor} rotulo={rotulo} />}
                 </dd>
+                {/* Campo vazio que o site tem em outro lugar (Santana: so na pagina do produto). */}
+                {!valor && campo && dados.origens?.[campo] && (
+                  <p className="text-[10px] text-amber-700">{dados.origens[campo]}</p>
+                )}
               </div>
             ))}
 
@@ -697,6 +702,12 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
                   tom="amber"
                 />
               )}
+
+              <RegrasDeCompra
+                precoNormal={dados.precoAtual}
+                precosPorQuantidade={dados.precosPorQuantidade}
+                multiploVenda={dados.multiploVenda}
+              />
             </div>
           ) : (
             <div className="flex flex-wrap items-baseline gap-x-3 border-t border-borda pt-3">

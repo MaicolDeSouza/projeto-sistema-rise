@@ -20,6 +20,7 @@ const LOTE = 500;
 /// NULL do banco ou o valor JSON null —, e o que se quer e NULL do banco.
 const CAMPOS_JSON = [
   "impostos",
+  "precosPorQuantidade",
   "imagens",
   "especificacoes",
   "documentos",
@@ -34,6 +35,9 @@ function paraGravar(linha) {
   for (const campo of CAMPOS_JSON) {
     if (dados[campo] === null || dados[campo] === undefined) dados[campo] = Prisma.DbNull;
   }
+  // Fora da assinatura quando ausente (ver linha.js), mas no banco a ausencia
+  // precisa APAGAR o valor antigo: undefined num update deixaria o multiplo velho.
+  if (dados.multiploVenda === undefined) dados.multiploVenda = null;
   return dados;
 }
 
@@ -274,8 +278,17 @@ export async function lerProdutosDaFonte(fonteId) {
  * misturando preco de hoje com preco de duas semanas atras.
  */
 export async function produtosParaLista() {
+  /*
+    FONTE QUE NUNCA FECHOU UMA COLETA ENTRA COM TUDO O QUE JA GRAVOU.
+
+    O filtro era `ultimaColetaEm not null`, e a data so e escrita quando a
+    varredura termina. Com a gravacao em lotes (16/09/2026), a primeira varredura
+    de uma loja grande passa horas gravando: a Mamute Eletronica tinha 3.711
+    produtos no banco em 17/09/2026 e nao aparecia na tabela nem no filtro de
+    fontes. Sem coleta fechada nao ha "anterior" com que misturar — tudo o que
+    ela tem e da varredura em andamento.
+  */
   const fontes = await prisma.fonteColeta.findMany({
-    where: { ultimaColetaEm: { not: null } },
     select: { id: true, ultimaColetaEm: true },
   });
 
@@ -283,10 +296,11 @@ export async function produtosParaLista() {
 
   const linhas = await prisma.produtoColetado.findMany({
     where: {
-      OR: fontes.map((fonte) => ({
-        fonteId: fonte.id,
-        vistoEm: { gte: fonte.ultimaColetaEm },
-      })),
+      OR: fontes.map((fonte) =>
+        fonte.ultimaColetaEm
+          ? { fonteId: fonte.id, vistoEm: { gte: fonte.ultimaColetaEm } }
+          : { fonteId: fonte.id },
+      ),
     },
     select: {
       id: true,
@@ -381,4 +395,23 @@ export async function detalheDoProduto(id) {
     // A mudanca aconteceu na linha MAIS NOVA que ainda tinha o preco atual.
     mudouEm: indice > 0 ? linha.precos[indice - 1].coletadoEm : null,
   };
+}
+
+/**
+ * Guarda quantos produtos cada categoria do portal declarou na ultima varredura.
+ * A tela de Categorias mostra o numero ao lado do link. So escreve quando o
+ * portal respondeu o total: `null` apagaria o numero bom da vez anterior.
+ */
+export async function atualizarTotaisDasCategorias(fonteId, porCategoria) {
+  const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId }, select: { categorias: true } });
+  const atuais = Array.isArray(fonte?.categorias) ? fonte.categorias : [];
+  const medidos = new Map((porCategoria ?? []).map((item) => [item.url, item]));
+
+  const categorias = atuais.map((categoria) => {
+    const medido = medidos.get(categoria.url);
+    if (typeof medido?.total !== "number") return categoria;
+    return { ...categoria, total: medido.total, lidos: medido.lidos, varridaEm: new Date().toISOString() };
+  });
+
+  await prisma.fonteColeta.update({ where: { id: fonteId }, data: { categorias } });
 }

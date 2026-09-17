@@ -45,13 +45,20 @@ function descompactar(resposta) {
   return resposta;
 }
 
-/** Um GET, sem seguir redirecionamento. Resolve quando chegam os cabecalhos. */
-function pedir(url, { cabecalhos, sinal }) {
+/**
+ * Um pedido, sem seguir redirecionamento. Resolve quando chegam os cabecalhos.
+ * POST existe para o login de portal de fornecedor (Santana, 17/09/2026).
+ */
+function pedir(url, { cabecalhos, sinal, metodo = "GET", corpo = null }) {
   return new Promise((resolver, rejeitar) => {
     const cliente = url.protocol === "https:" ? https : http;
     const pedido = cliente.request(url, {
-      method: "GET",
-      headers: { "Accept-Encoding": "gzip, deflate, br", ...cabecalhos },
+      method: metodo,
+      headers: {
+        "Accept-Encoding": "gzip, deflate, br",
+        ...(corpo === null ? {} : { "Content-Length": Buffer.byteLength(corpo) }),
+        ...cabecalhos,
+      },
       agent: url.protocol === "https:" ? agenteHttps : agenteHttp,
     });
 
@@ -69,6 +76,7 @@ function pedir(url, { cabecalhos, sinal }) {
       sinal?.removeEventListener("abort", abortar);
       rejeitar(sinal?.aborted ? (sinal.reason ?? erro) : erro);
     });
+    if (corpo !== null) pedido.write(corpo);
     pedido.end();
   });
 }
@@ -148,23 +156,43 @@ function cabecalhosDe(resposta) {
  *   este status; 0 descarta o corpo sem ler
  * @param {boolean} [opcoes.mesmoDominio] redirecionamento para outro dominio NAO e
  *   seguido: devolve `redirecionouPara`
+ * @param {"GET"|"POST"} [opcoes.metodo]
+ * @param {string} [opcoes.corpo] corpo do POST, ja codificado
+ * @param {boolean} [opcoes.seguir] false devolve o 30x como veio, com
+ *   `localizacao`. Login precisa: o cookie de sessao chega NA resposta do POST,
+ *   e so quem guarda cookies sabe manda-lo no pedido seguinte.
  * @returns {Promise<{status: number, cabecalhos: Record<string,string>,
- *   cookies: string[], urlFinal: string, bytes: Buffer|null, truncado: boolean,
- *   redirecionouPara: string|null}>}
+ *   cookies: string[], setCookie: string[], urlFinal: string, bytes: Buffer|null,
+ *   truncado: boolean, redirecionouPara: string|null, localizacao: string|null}>}
  */
 export async function obter(
   endereco,
-  { cabecalhos = {}, sinal = null, tetoDoCorpo = () => 0, mesmoDominio = false } = {},
+  {
+    cabecalhos = {},
+    sinal = null,
+    tetoDoCorpo = () => 0,
+    mesmoDominio = false,
+    metodo = "GET",
+    corpo = null,
+    seguir = true,
+  } = {},
 ) {
   let url = new URL(endereco);
   const hostOriginal = url.hostname;
 
   for (let saltos = 0; ; saltos++) {
-    const { resposta } = await pedir(url, { cabecalhos, sinal });
+    // So o primeiro pedido leva o metodo e o corpo: redirecionamento de POST e
+    // seguido como GET, como o navegador faz com 301/302/303.
+    const { resposta } = await pedir(url, {
+      cabecalhos,
+      sinal,
+      metodo: saltos === 0 ? metodo : "GET",
+      corpo: saltos === 0 ? corpo : null,
+    });
     const status = resposta.statusCode ?? 0;
     const local = resposta.headers.location;
 
-    if (status >= 300 && status < 400 && status !== 304 && local) {
+    if (status >= 300 && status < 400 && status !== 304 && local && seguir) {
       // Redirecionamento nao tem corpo que interesse: descartado antes de seguir.
       resposta.resume();
       if (saltos >= MAXIMO_REDIRECIONAMENTOS) throw new Error("Redirecionamentos demais");
@@ -185,14 +213,13 @@ export async function obter(
       continue;
     }
 
-    const cookies = (resposta.headers["set-cookie"] ?? [])
-      .map((linha) => linha.split("=")[0].trim())
-      .filter(Boolean);
+    const setCookie = resposta.headers["set-cookie"] ?? [];
+    const cookies = setCookie.map((linha) => linha.split("=")[0].trim()).filter(Boolean);
 
     const teto = tetoDoCorpo(status);
-    let corpo = { bytes: null, truncado: false };
+    let lido = { bytes: null, truncado: false };
     if (teto > 0) {
-      corpo = await lerCorpo(resposta, { teto, sinal });
+      lido = await lerCorpo(resposta, { teto, sinal });
     } else {
       // Corpo que nao interessa e CONSUMIDO e descartado, nunca largado: resposta
       // sem leitor segura a conexao do pool aberta.
@@ -204,9 +231,11 @@ export async function obter(
       cabecalhos: cabecalhosDe(resposta),
       cookies,
       urlFinal: url.toString(),
-      bytes: corpo.bytes,
-      truncado: corpo.truncado,
+      bytes: lido.bytes,
+      truncado: lido.truncado,
       redirecionouPara: null,
+      setCookie,
+      localizacao: local ?? null,
     };
   }
 }
