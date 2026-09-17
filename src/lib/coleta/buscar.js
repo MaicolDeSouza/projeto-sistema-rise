@@ -1,5 +1,7 @@
 import { limitar } from "@/lib/integracoes/httpClient";
 
+import { obter } from "./http";
+
 /**
  * Busca educada de paginas para a secao Mercados.
  *
@@ -25,7 +27,31 @@ const USER_AGENT =
 /// pouco para loja lenta: a santanaimport serve 1,4 MB de home por tras da
 /// Cloudflare e variou de 0,4s a 26s em quatro tentativas seguidas — o mesmo
 /// endereco, no mesmo minuto.
+///
+/// O TETO VALE ATE O ULTIMO BYTE DO CORPO. Ate 16/09/2026 o relogio era desligado
+/// quando chegavam os cabecalhos, e o corpo era lido sem limite: loja que parasse
+/// de mandar bytes no meio da pagina prendia o worker PARA SEMPRE, sem erro e sem
+/// log. O sinal (AbortSignal.timeout) vale ate o ultimo byte do corpo.
+///
+/// As requisicoes NAO usam fetch: ver src/lib/coleta/http.js — o undici do Node
+/// derrubava o processo inteiro.
 const TIMEOUT_MS = Number(process.env.COLETA_TIMEOUT_MS) || 20000;
+
+/**
+ * O sinal de uma requisicao: o teto de tempo, somado ao cancelamento de quem
+ * pediu (o worker cancela a varredura ao encerrar ou quando ela para de andar).
+ */
+function sinalDaRequisicao(sinal) {
+  const teto = AbortSignal.timeout(TIMEOUT_MS);
+  return sinal ? AbortSignal.any([teto, sinal]) : teto;
+}
+
+/** Mensagem de erro de fetch, distinguindo tempo esgotado de cancelamento. */
+function mensagemDeFalha(erro, sinal) {
+  if (sinal?.aborted) return "Cancelado";
+  if (erro?.name === "TimeoutError" || erro?.name === "AbortError") return "Tempo esgotado";
+  return String(erro?.message ?? erro);
+}
 
 /// Teto de 2 MB. Pagina de produto honesta nao chega perto disso; o limite
 /// existe para que um endereco que devolva um dump gigante nao consuma a
@@ -35,6 +61,25 @@ const MAXIMO_BYTES = 2 * 1024 * 1024;
 /// Uma requisicao a cada 2s por dominio.
 const REQUISICOES = 1;
 const JANELA_MS = 2000;
+
+/**
+ * Quando cada dominio respondeu pela ultima vez — com sucesso, erro ou tempo
+ * esgotado, tanto faz: e o sinal de que a varredura ANDA.
+ *
+ * Existe para o vigia do worker. O andamento em produtos so aparece nos lacos de
+ * pagina, e antes deles ha fases longas sem nenhum: a leitura do catalogo e do
+ * sitemap levou mais de dois minutos na Smartkits em 16/09/2026, e numa loja que
+ * pede 10 s entre visitas passaria dos dez minutos do vigia — que cancelaria uma
+ * varredura legitima. Toda requisicao termina em no maximo TIMEOUT_MS, entao
+ * varredura viva atualiza isto a cada poucos segundos, em qualquer fase.
+ */
+const ultimaRespostaPorDominio = new Map();
+const registrarResposta = (hostname) => ultimaRespostaPorDominio.set(hostname, Date.now());
+
+/** Quando o dominio respondeu pela ultima vez (ms), ou 0. */
+export function ultimaRespostaDe(hostname) {
+  return ultimaRespostaPorDominio.get(hostname) ?? 0;
+}
 
 /// robots.txt muda raramente e vale para o dominio inteiro: reler a cada pagina
 /// dobraria o numero de requisicoes que fazemos ao site.
@@ -146,17 +191,14 @@ async function lerRobots(origem) {
   try {
     await limitar(new URL(origem).hostname, REQUISICOES, JANELA_MS);
 
-    const abortar = new AbortController();
-    const relogio = setTimeout(() => abortar.abort(), TIMEOUT_MS);
-    const resposta = await fetch(`${origem}/robots.txt`, {
-      headers: { "User-Agent": USER_AGENT, Accept: "text/plain" },
-      signal: abortar.signal,
-      cache: "no-store",
+    const resposta = await obter(`${origem}/robots.txt`, {
+      cabecalhos: { "User-Agent": USER_AGENT, Accept: "text/plain" },
+      sinal: AbortSignal.timeout(TIMEOUT_MS),
+      tetoDoCorpo: (status) => (status >= 200 && status < 300 ? MAXIMO_BYTES : 0),
     });
-    clearTimeout(relogio);
 
-    if (resposta.ok) {
-      const texto = await resposta.text();
+    if (resposta.status >= 200 && resposta.status < 300) {
+      const texto = new TextDecoder().decode(resposta.bytes ?? new Uint8Array());
       dados = { ...interpretarRobots(texto), acessivel: true };
     } else {
       // 404 em robots.txt significa "sem restricao declarada", que e diferente
@@ -168,6 +210,7 @@ async function lerRobots(origem) {
     dados = { regras: [], sitemaps: [], atrasoMs: null, acessivel: false };
   }
 
+  registrarResposta(new URL(origem).hostname);
   robotsPorOrigem.set(origem, { em: Date.now(), dados });
   return dados;
 }
@@ -268,7 +311,7 @@ const STATUS_DE_DESAFIO = new Set([401, 403, 429, 503]);
 function protecaoAntiBot(resposta, corpo) {
   if (!STATUS_DE_DESAFIO.has(resposta.status)) return null;
 
-  if (resposta.headers.get("cf-ray")) return "Cloudflare";
+  if (resposta.cabecalhos["cf-ray"]) return "Cloudflare";
 
   if (typeof corpo === "string") {
     for (const [marca, nome] of MARCAS_DESAFIO) {
@@ -285,8 +328,8 @@ const MAXIMO_BYTES_ERRO = 64 * 1024;
 
 /// Charset declarado no cabecalho da resposta. E a fonte mais confiavel: vem do
 /// servidor, antes de qualquer byte de conteudo.
-function charsetDoCabecalho(resposta) {
-  const tipo = resposta.headers.get("content-type") ?? "";
+function charsetDoCabecalho(cabecalhos) {
+  const tipo = cabecalhos["content-type"] ?? "";
   return /charset\s*=\s*["']?([\w-]+)/i.exec(tipo)?.[1]?.toLowerCase() ?? null;
 }
 
@@ -307,53 +350,25 @@ function charsetDoHtml(bytes) {
   );
 }
 
-/** Junta os pedacos da resposta num buffer so, respeitando o teto. */
-async function lerBytesLimitados(resposta) {
-  const leitor = resposta.body.getReader();
-  const pedacos = [];
-  let total = 0;
-
-  for (;;) {
-    const { done, value } = await leitor.read();
-    if (done) break;
-
-    if (total + value.byteLength > MAXIMO_BYTES) {
-      pedacos.push(value.subarray(0, MAXIMO_BYTES - total));
-      await leitor.cancel();
-      break;
-    }
-
-    pedacos.push(value);
-    total += value.byteLength;
-  }
-
-  const juntos = new Uint8Array(pedacos.reduce((soma, p) => soma + p.byteLength, 0));
-  let posicao = 0;
-  for (const pedaco of pedacos) {
-    juntos.set(pedaco, posicao);
-    posicao += pedaco.byteLength;
-  }
-
-  return juntos;
-}
-
 /**
  * Corpo da resposta como texto, no charset que a pagina realmente usa.
  *
  * Decodificar tudo como UTF-8 era o erro: a Casa da Robotica serve
- * "charset=ISO-8859-1", e "Modulo Rele" chegava como "M\uFFFDdulo Rel\uFFFD" —
- * o texto ficava assim no banco, nao so na tela. Loja brasileira em Latin-1
- * ainda e comum o bastante para isso nao ser caso raro.
+ * "charset=ISO-8859-1", e "Modulo Rele" chegava com caractere trocado — o texto
+ * ficava assim no banco, nao so na tela. Loja brasileira em Latin-1 ainda e comum
+ * o bastante para isso nao ser caso raro.
  *
  * Os bytes sao juntados antes de decodificar porque o charset so se descobre
  * depois de olhar o cabecalho e o inicio do documento.
+ *
+ * Cabecalhos e nomes de cookie vao junto na resposta (http.js) para a
+ * identificacao de plataforma: metade das lojas nao se declara no HTML e se
+ * entrega no cabecalho ou no cookie — "powered-by: Shopify", "OCSESSID" do
+ * OpenCart. So o NOME do cookie e guardado: o valor e sessao alheia.
  */
-async function lerCorpoLimitado(resposta) {
-  if (!resposta.body) return await resposta.text();
-
-  const bytes = await lerBytesLimitados(resposta);
-
-  const declarado = charsetDoCabecalho(resposta) ?? charsetDoHtml(bytes) ?? "utf-8";
+function textoDoCorpo(resposta) {
+  const bytes = resposta.bytes ?? new Uint8Array();
+  const declarado = charsetDoCabecalho(resposta.cabecalhos) ?? charsetDoHtml(bytes) ?? "utf-8";
 
   try {
     return new TextDecoder(declarado).decode(bytes);
@@ -362,29 +377,6 @@ async function lerCorpoLimitado(resposta) {
     // coleta: UTF-8 e o palpite menos pior.
     return new TextDecoder("utf-8").decode(bytes);
   }
-}
-
-/**
- * Cabecalhos e nomes de cookie da resposta.
- *
- * Existem para a identificacao de plataforma: metade das lojas nao se declara
- * no HTML e se entrega no cabecalho ou no cookie de sessao — "powered-by:
- * Shopify", "OCSESSID" do OpenCart, "PrestaShop-<hash>". Sem isto a resposta do
- * fetch era descartada e so restava adivinhar pelo corpo.
- *
- * So o NOME do cookie e guardado: o valor e sessao alheia e nao serve a nada
- * aqui.
- */
-function sinaisDaResposta(resposta) {
-  const cabecalhos = {};
-  for (const [nome, valor] of resposta.headers.entries()) {
-    cabecalhos[nome.toLowerCase()] = valor;
-  }
-
-  const brutos = resposta.headers.getSetCookie?.() ?? [];
-  const cookies = brutos.map((linha) => linha.split("=")[0].trim()).filter(Boolean);
-
-  return { cabecalhos, cookies };
 }
 
 /**
@@ -399,7 +391,7 @@ function sinaisDaResposta(resposta) {
  *   duracaoMs: number, urlFinal: string|null,
  *   cabecalhos: Record<string,string>, cookies: string[]}>}
  */
-export async function buscarPagina(url, { etag, vistoEm } = {}) {
+export async function buscarPagina(url, { etag, vistoEm, sinal } = {}) {
   const inicio = Date.now();
   const vazio = {
     ok: false,
@@ -426,10 +418,18 @@ export async function buscarPagina(url, { etag, vistoEm } = {}) {
   }
 
   await limitar(alvo.hostname, REQUISICOES, await janelaDe(alvo.origin));
+  if (sinal?.aborted) return { ...vazio, erro: "Cancelado", duracaoMs: Date.now() - inicio };
 
-  const abortar = new AbortController();
-  const relogio = setTimeout(() => abortar.abort(), TIMEOUT_MS);
+  const sinalDaBusca = sinalDaRequisicao(sinal);
 
+  try {
+    return await requisitarPagina(alvo, { etag, vistoEm, sinal, sinalDaBusca, inicio, vazio });
+  } finally {
+    registrarResposta(alvo.hostname);
+  }
+}
+
+async function requisitarPagina(alvo, { etag, vistoEm, sinal, sinalDaBusca, inicio, vazio }) {
   try {
     const cabecalhos = {
       "User-Agent": USER_AGENT,
@@ -441,25 +441,29 @@ export async function buscarPagina(url, { etag, vistoEm } = {}) {
       cabecalhos["If-Modified-Since"] = new Date(vistoEm).toUTCString();
     }
 
-    const resposta = await fetch(alvo, {
-      headers: cabecalhos,
-      signal: abortar.signal,
-      redirect: "follow",
-      cache: "no-store",
+    const resposta = await obter(alvo, {
+      cabecalhos,
+      sinal: sinalDaBusca,
+      mesmoDominio: true,
+      // So le o corpo que serve: a pagina, ou o trecho que reconhece o desafio.
+      tetoDoCorpo: (status) =>
+        status >= 200 && status < 300
+          ? MAXIMO_BYTES
+          : STATUS_DE_DESAFIO.has(status)
+            ? MAXIMO_BYTES_ERRO
+            : 0,
     });
-    clearTimeout(relogio);
 
     const duracaoMs = Date.now() - inicio;
 
     // Redirecionamento para fora do dominio escaparia do robots.txt que
     // acabamos de checar. Recusar e mais seguro que seguir: a URL nova pode ser
-    // cadastrada como fonte propria, com a checagem dela.
-    const destino = new URL(resposta.url || alvo);
-    if (destino.hostname !== alvo.hostname) {
+    // cadastrada como fonte propria, com a checagem dela. Nem chega a ser aberto.
+    if (resposta.redirecionouPara) {
       return {
         ...vazio,
         status: resposta.status,
-        erro: `Redirecionou para outro dominio (${destino.hostname})`,
+        erro: `Redirecionou para outro dominio (${resposta.redirecionouPara})`,
         duracaoMs,
       };
     }
@@ -473,22 +477,14 @@ export async function buscarPagina(url, { etag, vistoEm } = {}) {
         naoModificado: true,
         erro: null,
         duracaoMs,
-        urlFinal: destino.toString(),
+        urlFinal: resposta.urlFinal,
       };
     }
 
-    if (!resposta.ok) {
+    if (resposta.status < 200 || resposta.status >= 300) {
       // Um trecho do corpo basta para reconhecer o desafio, e so em status que
       // podem carrega-lo — ver STATUS_DE_DESAFIO.
-      let inicioDoCorpo = null;
-      if (STATUS_DE_DESAFIO.has(resposta.status)) {
-        try {
-          inicioDoCorpo = (await resposta.text()).slice(0, MAXIMO_BYTES_ERRO);
-        } catch {
-          // Corpo ilegivel nao muda o desfecho: segue como erro de status.
-        }
-      }
-
+      const inicioDoCorpo = resposta.bytes ? new TextDecoder().decode(resposta.bytes) : null;
       const protecao = protecaoAntiBot(resposta, inicioDoCorpo);
 
       return {
@@ -499,32 +495,26 @@ export async function buscarPagina(url, { etag, vistoEm } = {}) {
           : `HTTP ${resposta.status}`,
         protecaoAntiBot: protecao,
         duracaoMs,
-        urlFinal: destino.toString(),
+        urlFinal: resposta.urlFinal,
       };
     }
-
-    const sinais = sinaisDaResposta(resposta);
 
     return {
       ok: true,
       status: resposta.status,
-      corpo: await lerCorpoLimitado(resposta),
-      etag: resposta.headers.get("etag"),
+      corpo: textoDoCorpo(resposta),
+      etag: resposta.cabecalhos.etag ?? null,
       naoModificado: false,
       erro: null,
       duracaoMs,
-      urlFinal: destino.toString(),
-      cabecalhos: sinais.cabecalhos,
-      cookies: sinais.cookies,
+      urlFinal: resposta.urlFinal,
+      cabecalhos: resposta.cabecalhos,
+      cookies: resposta.cookies,
     };
   } catch (erro) {
-    clearTimeout(relogio);
     return {
       ...vazio,
-      erro:
-        erro?.name === "AbortError"
-          ? "Tempo esgotado"
-          : String(erro?.message ?? erro),
+      erro: mensagemDeFalha(erro, sinal),
       duracaoMs: Date.now() - inicio,
     };
   }
@@ -542,7 +532,7 @@ export async function buscarPagina(url, { etag, vistoEm } = {}) {
  * @returns {Promise<{ok: boolean, status: number|null, bytes: Buffer|null,
  *   erro: string|null}>}
  */
-export async function buscarBytes(url) {
+export async function buscarBytes(url, { sinal } = {}) {
   let alvo;
   try {
     alvo = new URL(url);
@@ -556,30 +546,31 @@ export async function buscarBytes(url) {
   }
 
   await limitar(alvo.hostname, REQUISICOES, await janelaDe(alvo.origin));
-
-  const abortar = new AbortController();
-  const relogio = setTimeout(() => abortar.abort(), TIMEOUT_MS);
+  if (sinal?.aborted) return { ok: false, status: null, bytes: null, erro: "Cancelado" };
 
   try {
-    const resposta = await fetch(alvo, {
-      headers: { "User-Agent": USER_AGENT, Accept: "application/xml,text/xml,*/*" },
-      signal: abortar.signal,
-      redirect: "follow",
-      cache: "no-store",
-    });
-    clearTimeout(relogio);
+    return await requisitarBytes(alvo, sinal);
+  } finally {
+    registrarResposta(alvo.hostname);
+  }
+}
 
-    if (!resposta.ok) {
-      return {
-        ok: false,
-        status: resposta.status,
-        bytes: null,
-        erro: `HTTP ${resposta.status}`,
-      };
+async function requisitarBytes(alvo, sinal) {
+  try {
+    // Aqui o redirecionamento para outro dominio E seguido, como sempre foi:
+    // sitemap servido por CDN e comum, e o robots.txt ja foi lido na origem.
+    // Um byte alem do teto basta para saber que passou, sem baixar o resto.
+    const resposta = await obter(alvo, {
+      cabecalhos: { "User-Agent": USER_AGENT, Accept: "application/xml,text/xml,*/*" },
+      sinal: sinalDaRequisicao(sinal),
+      tetoDoCorpo: (status) => (status >= 200 && status < 300 ? MAXIMO_BYTES + 1 : 0),
+    });
+
+    if (resposta.status < 200 || resposta.status >= 300) {
+      return { ok: false, status: resposta.status, bytes: null, erro: `HTTP ${resposta.status}` };
     }
 
-    const bruto = Buffer.from(await resposta.arrayBuffer());
-    if (bruto.byteLength > MAXIMO_BYTES) {
+    if (resposta.truncado || resposta.bytes.byteLength > MAXIMO_BYTES) {
       return {
         ok: false,
         status: resposta.status,
@@ -588,17 +579,8 @@ export async function buscarBytes(url) {
       };
     }
 
-    return { ok: true, status: resposta.status, bytes: bruto, erro: null };
+    return { ok: true, status: resposta.status, bytes: resposta.bytes, erro: null };
   } catch (erro) {
-    clearTimeout(relogio);
-    return {
-      ok: false,
-      status: null,
-      bytes: null,
-      erro:
-        erro?.name === "AbortError"
-          ? "Tempo esgotado"
-          : String(erro?.message ?? erro),
-    };
+    return { ok: false, status: null, bytes: null, erro: mensagemDeFalha(erro, sinal) };
   }
 }

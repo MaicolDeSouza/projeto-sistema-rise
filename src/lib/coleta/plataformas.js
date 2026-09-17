@@ -41,6 +41,40 @@ const PESOS = {
 export const PLATAFORMAS = [
   // -------------------------------------------------------------------------
   {
+    id: "aspnet-uploads",
+    nome: "Plataforma propria em ASP.NET (_uploads)",
+    familia: "front proprio",
+    conferidaEm: "2026-09-16",
+    conferidaEm_lojas: ["eletruscomp.com.br"],
+    sinais: {
+      cabecalho: [["x-aspnetmvc-version", /\d/]],
+      caminho: [["/_uploads/ProdutoDestaque/", /\/_uploads\/ProdutoDestaque\//i]],
+      html: [
+        ['class="detalhe_informacoes_cod_ref"', /detalhe_informacoes_cod_ref/],
+        ['class="produto__valor__parcelas"', /produto__valor__parcelas/],
+        ['class="loja__breadcrumb"', /loja__breadcrumb/],
+      ],
+    },
+    entrega: {
+      formatos: ["microdata parcial", "painel da pagina"],
+      resumo:
+        "Sem JSON-LD. O Microdata so tem nome, preco e imagem, com sku VAZIO; codigo, referencia, marca, a vista, descricao e ficha estao no HTML do painel e das abas.",
+      preco:
+        'itemprop="price" content="320.00" no painel. O a vista vem escrito: "Ou R$ 304,00 a vista ( - 5% )". Produto sem estoque nao tem preco — o botao vira "avise-me".',
+      imagens: "/_uploads/ProdutoDestaque/ProdutoDestaque_{id}_{n}__orig.jpg (tambem __thumb.webp e __facebook.webp).",
+      sitemap: "/sitemap.xml plano: /{slug}/p sao produtos (1.825 na Eletrus), /produtos/... sao categorias.",
+      urlProduto: "/{slug}/p",
+      cuidados: [
+        "A HOME e as listagens repetem itemtype=Product nos cards (produto__item--box): lidas como produto, viravam um item sem codigo com a URL da home.",
+        '"Cód: 53.00.1463" e o codigo da loja; "Ref:" as vezes e a referencia do fabricante (OBT500-18GM60-E5) e as vezes so o nome cortado em 30 letras ("LAMPADA VAPOR SODIO 250 W E-40").',
+        "Descricao e ficha tecnica em abas (#aba5000, #aba5001); a ficha e uma lista de 'Nome: valor'.",
+      ],
+      catalogo: null,
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  {
     id: "loja-integrada",
     nome: "Loja Integrada",
     familia: "SaaS brasileira",

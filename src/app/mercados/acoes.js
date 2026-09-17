@@ -7,7 +7,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { apagarArquivosOriginais, guardarArquivosOriginais } from "@/lib/coleta/arquivo";
 import { detalheDoProduto } from "@/lib/coleta/banco";
-import { jobOrfao } from "@/lib/coleta/fila";
+import { enfileirar, jobLargado, workerNoAr } from "@/lib/coleta/fila";
 import { podeVisitar } from "@/lib/coleta/buscar";
 import { juntarListas, lerArquivo } from "@/lib/coleta/arquivos";
 import { regrasDoFornecedor } from "@/lib/coleta/fornecedores";
@@ -19,9 +19,6 @@ import { testarFonte } from "@/lib/coleta/testar";
  * Este arquivo so exporta funcao assincrona: num modulo "use server", uma
  * constante exportada faz o Next recusar o modulo inteiro.
  */
-
-/// Um Job parado por mais que isso quer dizer que ninguem o pegou.
-const ESPERA_MAXIMA_MS = 60 * 1000;
 
 const FonteSchema = z.object({
   nome: z.string().trim().min(1, "Informe um nome para a fonte."),
@@ -441,6 +438,32 @@ export async function alternarFonte(id) {
   return { ok: true };
 }
 
+/**
+ * Varredura manual de UMA fonte, pelo botao "Varrer agora" da linha (pedido do
+ * dono em 16/09/2026). So enfileira: quem varre e o worker, pelo mesmo caminho do
+ * ciclo automatico, e ela entra ao lado das outras lojas em andamento.
+ *
+ * Fonte pausada ou barrada pelo robots.txt e recusada aqui, e nao no worker:
+ * enfileirada, ela viraria uma varredura "falhou: fonte pausada" na fila.
+ */
+export async function varrerFonteAgora(fonteId) {
+  const fonte = await prisma.fonteColeta.findUnique({
+    where: { id: fonteId },
+    select: { id: true, nome: true, ativa: true, robotsPermite: true },
+  });
+  if (!fonte) return { ok: false, erro: "Fonte nao encontrada." };
+  if (!fonte.robotsPermite) return { ok: false, erro: "O robots.txt deste site nos bloqueia." };
+  if (!fonte.ativa) return { ok: false, erro: "Fonte pausada. Use Retomar antes de varrer." };
+
+  // Fonte com job aberto fica de fora pelo indice unico da fila.
+  const enfileiradas = await enfileirar([fonte]);
+
+  revalidatePath("/mercados/fontes");
+  revalidatePath("/mercados");
+  if (enfileiradas === 0) return { ok: false, erro: "Esta fonte ja esta na fila ou em varredura." };
+  return { ok: true };
+}
+
 /** Quantos produtos se perdem ao excluir — a tela avisa antes de apagar. */
 export async function contarProdutos(id) {
   return prisma.produtoColetado.count({ where: { fonteId: id } });
@@ -611,19 +634,19 @@ export async function detalhePagina(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Varredura (fora do escopo desta etapa; a fila fica pronta para depois)
+// Varredura: enfileira e acompanha. Quem varre e o worker (scripts/worker.js).
 // ---------------------------------------------------------------------------
 
+/**
+ * Poe na fila as fontes pedidas (uma, ou todas as ativas).
+ *
+ * Fonte que ja esta na fila fica de fora, e as outras entram: com o worker
+ * varrendo tres lojas ao mesmo tempo, uma varredura em andamento nao e motivo para
+ * recusar as demais. Quem garante que a mesma loja nao entra duas vezes e o banco
+ * (indice "Job_fonte_aberta"), e nao esta conferencia — cinco cliques seguidos
+ * continuam sendo uma varredura so.
+ */
 export async function atualizarTabelas(fonteId) {
-  const emAndamento = await prisma.job.count({
-    where: { tipo: "coleta", status: { in: ["PENDENTE", "PROCESSANDO"] } },
-  });
-
-  // Sem esta guarda, cinco cliques viram cinco varreduras completas.
-  if (emAndamento > 0) {
-    return { ok: false, erro: "Ja ha uma varredura em andamento." };
-  }
-
   const fontes = await prisma.fonteColeta.findMany({
     where: fonteId ? { id: fonteId } : { ativa: true, robotsPermite: true },
     select: { id: true, nome: true },
@@ -643,67 +666,47 @@ export async function atualizarTabelas(fonteId) {
     };
   }
 
-  await prisma.job.createMany({
-    data: fontes.map((fonte) => ({
-      tipo: "coleta",
-      payload: { fonteId: fonte.id, fonteNome: fonte.nome, total: 0, feitas: 0 },
-    })),
-  });
+  const enfileiradas = await enfileirar(fontes);
 
   revalidatePath("/mercados");
-  return { ok: true, enfileiradas: fontes.length };
+  if (enfileiradas === 0) {
+    return { ok: false, erro: "Ja ha uma varredura em andamento." };
+  }
+  return { ok: true, enfileiradas };
 }
 
 export async function situacaoVarredura() {
-  const jobs = await prisma.job.findMany({
-    where: { tipo: "coleta", status: { in: ["PENDENTE", "PROCESSANDO"] } },
-    orderBy: { criadoEm: "asc" },
-  });
-
   const agora = Date.now();
+  const [jobs, worker, ultimoJob] = await Promise.all([
+    prisma.job.findMany({
+      where: { tipo: "coleta", status: { in: ["PENDENTE", "PROCESSANDO"] } },
+      orderBy: { criadoEm: "asc" },
+    }),
+    /*
+      HA QUEM ATENDA A FILA? Pergunta ao registro do worker, que da sinal por
+      relogio a cada 15 s.
 
-  /*
-    JOB PROCESSANDO E PROVA DE QUE HA WORKER VIVO.
+      Antes a tela deduzia isso da idade dos jobs, e errou para os dois lados: com
+      o worker varrendo uma loja lenta, mandou rodar `npm run worker` (o que subiria
+      um segundo processo); com um job largado "em andamento", calou o aviso por
+      treze dias.
+    */
+    workerNoAr(agora),
+    // A ULTIMA VARREDURA TERMINADA, pela hora em que TERMINOU: um job devolvido a
+    // fila depois de dias largado terminava agora e a tela anunciava como "ultima"
+    // uma varredura de horas antes.
+    prisma.job.findFirst({
+      where: { tipo: "coleta", status: { in: ["CONCLUIDO", "FALHOU"] } },
+      orderBy: { atualizadoEm: "desc" },
+    }),
+  ]);
 
-    O aviso olhava so a idade do pendente, e o worker atende UM POR VEZ: com
-    sete fontes na fila, o ultimo espera as seis anteriores — e uma loja que
-    pede 10s entre visitas leva minutos sozinha. O pendente ficava velho por
-    definicao e a tela mandava rodar `npm run worker` com o worker varrendo na
-    frente, o que levaria o operador a subir um segundo processo para disputar
-    a mesma fila.
-
-    O alarme so faz sentido quando NINGUEM esta processando: aí um pendente
-    velho significa mesmo que nao ha quem atenda.
-  */
-  //
-  // MAS SO O PROCESSANDO COM NOTICIA RECENTE. Job largado por worker que morreu
-  // fica PROCESSANDO para sempre, e contava como prova de vida: a Usinainfo
-  // passou treze dias assim, com o alarme calado e ninguem atendendo a fila.
-  const alguemProcessando = jobs.some(
-    (job) => job.status === "PROCESSANDO" && !jobOrfao(job, agora),
-  );
-  const semWorker =
-    !alguemProcessando &&
-    jobs.some(
-      (job) =>
-        job.status === "PENDENTE" && agora - job.criadoEm.getTime() > ESPERA_MAXIMA_MS,
-    );
-
-  // A ULTIMA VARREDURA TERMINADA.
-  //
-  // Vinha `null` fixo, entao a varredura acabava em silencio: a tela some com a
-  // barra de andamento e nada diz o que foi colhido.
-  // Pela hora em que TERMINOU, e nao em que foi criado: um job devolvido a fila
-  // depois de dias largado (a Usinainfo, criada em 02/09 e concluida em 15/09)
-  // terminava agora e a tela anunciava como "ultima" uma varredura de horas antes.
-  const ultimoJob = await prisma.job.findFirst({
-    where: { tipo: "coleta", status: { in: ["CONCLUIDO", "FALHOU"] } },
-    orderBy: { atualizadoEm: "desc" },
-  });
+  const semWorker = !worker && jobs.length > 0;
 
   return {
     emAndamento: jobs.length > 0,
     semWorker,
+    worker: worker ? { paralelo: worker.paralelo, iniciadoEm: worker.iniciadoEm.getTime() } : null,
     jobs: jobs.map((job) => ({
       id: job.id,
       status: job.status,
@@ -711,6 +714,17 @@ export async function situacaoVarredura() {
       total: job.payload?.total ?? 0,
       feitas: job.payload?.feitas ?? 0,
       visitadas: job.payload?.visitadas ?? 0,
+      // Ja gravados antes de uma interrupcao, contados sem reabrir a pagina.
+      retomados: job.payload?.retomados ?? 0,
+      // Medido pelo worker entre produtos NOVOS desta passada.
+      segundosPorProduto: job.payload?.segundosPorProduto ?? null,
+      // Largado por worker que parou de dar sinal: a tela nao o mostra como
+      // varredura em curso, e o worker o devolve a fila em ate dois minutos.
+      largado: jobLargado(job, agora),
+      iniciadoEm: job.iniciadoEm?.getTime() ?? null,
+      // Tentativa anterior que falhou: o motivo aparece enquanto espera a vez.
+      erro: job.status === "PENDENTE" ? job.erro : null,
+      tentativas: job.tentativas,
     })),
     ultimo: ultimoJob
       ? {

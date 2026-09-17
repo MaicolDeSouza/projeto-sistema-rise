@@ -20,7 +20,10 @@
     "teste:coleta": "node scripts/teste-coleta.js",
     "teste:extracao": "node scripts/teste-extracao.js",
     "teste:fonte": "node scripts/testar-fonte.js",
-    "coletar": "node scripts/coletar.js"
+    "coletar": "node scripts/coletar.js",
+    "teste:worker": "node scripts/teste-worker.js",
+    "worker:parar": "node scripts/parar-worker.js",
+    "backup": "node scripts/backup-banco.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

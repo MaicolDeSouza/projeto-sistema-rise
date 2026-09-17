@@ -59,9 +59,11 @@ function paginaDe(url, numero) {
  * @param {object} catalogo  o bloco `entrega.catalogo` do registro, ja com url
  * @param {object} [opcoes]
  * @param {number} [opcoes.limite]  quantos produtos bastam; 0 = so o total
+ * @param {AbortSignal} [opcoes.sinal] cancela entre paginas e a requisicao em voo;
+ *   cancelada, devolve o que ja leu (quem chamou confere o sinal e desiste)
  * @returns {Promise<{total: number|null, itens: object[], erro: string|null}>}
  */
-export async function lerCatalogo(catalogo, { limite = 0 } = {}) {
+export async function lerCatalogo(catalogo, { limite = 0, sinal = null } = {}) {
   if (!catalogo?.url || catalogo.formato !== "json") {
     return { total: null, itens: [], erro: "sem catalogo publico" };
   }
@@ -69,8 +71,8 @@ export async function lerCatalogo(catalogo, { limite = 0 } = {}) {
   const itens = [];
   let total = null;
 
-  for (let pagina = 1; pagina <= MAXIMO_PAGINAS; pagina++) {
-    const resposta = await buscarPagina(paginaDe(catalogo.url, pagina));
+  for (let pagina = 1; pagina <= MAXIMO_PAGINAS && !sinal?.aborted; pagina++) {
+    const resposta = await buscarPagina(paginaDe(catalogo.url, pagina), { sinal });
     if (!resposta.ok || !resposta.corpo) {
       // A primeira pagina falhar significa que nao ha catalogo; da segunda em
       // diante, ficamos com o que ja veio em vez de perder tudo.

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, ExternalLink, Loader, Pause, Pencil, Play, Trash2 } from "lucide-react";
+import { Ban, ExternalLink, Loader, Pause, Pencil, Play, RefreshCw, Trash2 } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
 import ArquivosDaFonte from "@/components/mercados/ArquivosDaFonte";
@@ -11,6 +11,7 @@ import {
   contarProdutos,
   editarFonte,
   excluirFonte,
+  varrerFonteAgora,
 } from "@/app/mercados/acoes";
 
 /// Quantas colunas a tabela tem NESTA aba: a de fornecedor mostra a coluna da
@@ -52,6 +53,22 @@ function comoDuracao(ms) {
   return resto === 0 ? `${minutos}min` : `${minutos}min ${resto}s`;
 }
 
+/**
+ * Quando e a proxima varredura, para ir entre parenteses ao lado da ultima.
+ *
+ * A fila vale mais que a data: fonte ja varrendo ou esperando a vez mostra isso,
+ * e nao uma data que ja passou. Fonte pausada nasce com a proxima a cem anos, e
+ * mostrar "2126" nao diria nada — diz "pausada".
+ */
+function proximaVarredura(fonte) {
+  if (fonte.varredura === "VARRENDO") return "varrendo agora";
+  if (fonte.varredura === "NA_FILA") return "na fila";
+  if (!fonte.ativa || !fonte.robotsPermite) return "pausada";
+  if (!fonte.proximaVarreduraEm) return null;
+  if (new Date(fonte.proximaVarreduraEm).getTime() <= Date.now()) return "proxima: agora";
+  return `proxima: ${comoData(fonte.proximaVarreduraEm)}`;
+}
+
 export default function LinhaFonte({ fonte, mostrarLista = false }) {
   const router = useRouter();
   const [pendente, iniciarTransicao] = useTransition();
@@ -63,6 +80,16 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
   // esquema, e <a href="www.loja.com"> vira caminho relativo do nosso proprio
   // site — o clique levaria a /mercados/www.loja.com.
   const enderecoDoSite = `https://${fonte.dominio}${fonte.prefixoUrl ?? ""}`;
+
+  /** Poe so esta fonte na fila; o worker a varre ao lado das outras. */
+  function varrer() {
+    setErro(null);
+    iniciarTransicao(async () => {
+      const resultado = await varrerFonteAgora(fonte.id);
+      if (!resultado.ok) setErro(resultado.erro);
+      router.refresh();
+    });
+  }
 
   function alternar() {
     setErro(null);
@@ -205,6 +232,9 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
           )}
           {/* Lista de fornecedor: o dado e do dia em que ELE mandou, nao do
               reprocessamento. Sem isto, lista de tres semanas parece de hoje. */}
+          {proximaVarredura(fonte) && (
+            <span className="block text-xs">({proximaVarredura(fonte)})</span>
+          )}
           {fonte.coleta?.listaEnviadaEm && (
             <span className="block text-xs">
               lista de {comoData(fonte.coleta.listaEnviadaEm)}
@@ -225,6 +255,37 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
 
         <td className="px-3 py-2.5">
           <div className="flex flex-wrap justify-end gap-1.5">
+            {/*
+              VARREDURA SO DESTA FONTE, sem esperar o ciclo de 30 dias. Com a fonte
+              ja na fila ou varrendo, o botao diz isso em vez de aceitar o clique.
+            */}
+            <button
+              type="button"
+              onClick={varrer}
+              disabled={pendente || !fonte.ativa || !fonte.robotsPermite || Boolean(fonte.varredura)}
+              className={botao}
+              title={
+                !fonte.robotsPermite
+                  ? "O robots.txt deste site nos bloqueia"
+                  : !fonte.ativa
+                    ? "Fonte pausada: use Retomar antes de varrer"
+                    : fonte.varredura
+                      ? "Esta fonte ja esta na fila ou em varredura"
+                      : "Varrer so esta fonte agora"
+              }
+            >
+              {fonte.varredura === "VARRENDO" ? (
+                <Loader size={12} className="animate-spin" />
+              ) : (
+                <RefreshCw size={12} />
+              )}
+              {fonte.varredura === "VARRENDO"
+                ? "Varrendo"
+                : fonte.varredura === "NA_FILA"
+                  ? "Na fila"
+                  : "Varrer agora"}
+            </button>
+
             <button
               type="button"
               onClick={alternar}

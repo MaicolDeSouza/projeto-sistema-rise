@@ -48,7 +48,9 @@ function blocos(xml, tag) {
 function comoTexto(bytes) {
   if (bytes.length > 1 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
     try {
-      return gunzipSync(bytes).toString("utf-8");
+      // Teto na descompactacao: 2 MB compactados podem virar gigabytes, e o
+      // excesso derrubaria o worker inteiro por falta de memoria.
+      return gunzipSync(bytes, { maxOutputLength: 64 * 1024 * 1024 }).toString("utf-8");
     } catch {
       return "";
     }
@@ -56,8 +58,8 @@ function comoTexto(bytes) {
   return bytes.toString("utf-8");
 }
 
-async function baixarXml(url) {
-  const resposta = await buscarBytes(url);
+async function baixarXml(url, sinal = null) {
+  const resposta = await buscarBytes(url, { sinal });
   if (!resposta.ok || !resposta.bytes) return { xml: null, erro: resposta.erro };
   return { xml: comoTexto(resposta.bytes), erro: null };
 }
@@ -68,7 +70,7 @@ async function baixarXml(url) {
  * O robots.txt e a fonte oficial; os caminhos habituais so entram quando ele
  * nao declara nada, para nao chutar endereco que o site ja informou.
  */
-export async function descobrirSitemaps(urlBase) {
+export async function descobrirSitemaps(urlBase, { sinal = null } = {}) {
   const origem = new URL(urlBase).origin;
 
   const declarados = await sitemapsDeclarados(origem);
@@ -76,8 +78,9 @@ export async function descobrirSitemaps(urlBase) {
 
   const achados = [];
   for (const caminho of CANDIDATOS) {
+    if (sinal?.aborted) break;
     const alvo = `${origem}${caminho}`;
-    const { xml } = await baixarXml(alvo);
+    const { xml } = await baixarXml(alvo, sinal);
     if (xml && /<(?:[a-z0-9]+:)?(urlset|sitemapindex)/i.test(xml)) {
       achados.push(alvo);
       break;
@@ -95,12 +98,13 @@ export async function descobrirSitemaps(urlBase) {
  * @param {object}   [opcoes]
  * @param {string}   [opcoes.prefixo] mantem so as URLs sob este trecho
  * @param {number}   [opcoes.limite]
+ * @param {AbortSignal} [opcoes.sinal] cancela entre arquivos e o download em voo
  * @returns {Promise<{urls: {url: string, alteradoEm: Date|null}[],
  *   sitemapsLidos: number, erros: string[]}>}
  */
 export async function lerSitemaps(
   urlsSitemap,
-  { prefixo, limite = MAXIMO_URLS, maxSitemaps = MAXIMO_SITEMAPS } = {},
+  { prefixo, limite = MAXIMO_URLS, maxSitemaps = MAXIMO_SITEMAPS, sinal = null } = {},
 ) {
   const fila = [...urlsSitemap];
   const jaVistos = new Set();
@@ -108,12 +112,12 @@ export async function lerSitemaps(
   const erros = [];
   let sitemapsLidos = 0;
 
-  while (fila.length > 0 && sitemapsLidos < maxSitemaps && porUrl.size < limite) {
+  while (fila.length > 0 && sitemapsLidos < maxSitemaps && porUrl.size < limite && !sinal?.aborted) {
     const alvo = fila.shift();
     if (!alvo || jaVistos.has(alvo)) continue;
     jaVistos.add(alvo);
 
-    const { xml, erro } = await baixarXml(alvo);
+    const { xml, erro } = await baixarXml(alvo, sinal);
     if (!xml) {
       erros.push(`${alvo}: ${erro ?? "vazio"}`);
       continue;

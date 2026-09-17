@@ -319,7 +319,27 @@ function melhorDescricao(candidatas) {
   const limpas = candidatas.filter((texto) => typeof texto === "string" && texto.trim());
   if (limpas.length === 0) return null;
 
-  return limparDescricao(limpas.sort((a, b) => b.length - a.length)[0]);
+  /*
+    MESMO TEXTO, COM PARAGRAFOS, VENCE (16/09/2026).
+
+    A Mamute publica a descricao duas vezes: no JSON-LD, tudo numa linha so
+    ("... Especificacoes Tecnicas Modelo: CJMCU-219 Interface de comunicacao: I2C
+    ..."), e no HTML da pagina, com titulos, paragrafos e listas. Pela regra da
+    mais longa, o JSON-LD ganhava por poucos caracteres, e a tela mostrava um
+    bloco ilegivel. O tamanho e comparado SEM espacos — quebras de linha e
+    marcadores nao sao conteudo —, e a versao com mais linhas vence quando traz
+    pelo menos 85% do texto da mais longa. Resumo de SEO continua perdendo: ele
+    nao chega perto disso.
+  */
+  const conteudo = (texto) => texto.replace(/[\s-]+/g, "").length;
+  const linhas = (texto) => texto.split("\n").filter((linha) => linha.trim()).length;
+  const maior = Math.max(...limpas.map(conteudo));
+
+  const escolhida = limpas
+    .filter((texto) => conteudo(texto) >= maior * 0.85)
+    .sort((a, b) => linhas(b) - linhas(a) || conteudo(b) - conteudo(a))[0];
+
+  return limparDescricao(escolhida);
 }
 
 /**
@@ -682,6 +702,253 @@ function especificacoesDeTabela(html) {
   return itens;
 }
 
+/// Titulo que anuncia a ficha tecnica escrita na descricao.
+const TITULO_DE_FICHA =
+  /^(especifica[cç](?:[õo]es|ao|ão)(?: t[eé]cnicas?)?|ficha t[eé]cnica|dados t[eé]cnicos|caracter[ií]sticas t[eé]cnicas)\s*:?$/i;
+
+/**
+ * Ficha tecnica escrita como LISTA HTML logo abaixo de um titulo:
+ * `<h2>Especificações Técnicas</h2><ul><li><strong>Formato:</strong> Tubular</li>`.
+ *
+ * Existe por causa da Mamute Eletronica (16/09/2026). A descricao do JSON-LD
+ * dela vem numa linha so, sem quebras, e a leitura por texto
+ * (especificacoesDeLista) nao tem onde separar um item do outro. No HTML a lista
+ * esta inteira e marcada. Le so a lista que vem colada ao titulo: a seguinte
+ * ("Aplicacoes Indicadas") e outro assunto.
+ */
+function especificacoesDeListaHtml(html) {
+  for (const titulo of html.matchAll(/<(h[1-6]|p|strong|b)\b[^>]*>([\s\S]{0,120}?)<\/\1>/gi)) {
+    if (!TITULO_DE_FICHA.test(comoTexto(titulo[2]) ?? "")) continue;
+
+    // Entre o titulo e a lista, so tags e espaco: texto no meio quer dizer que a
+    // lista e de outra coisa.
+    const depois = html.slice(titulo.index + titulo[0].length, titulo.index + titulo[0].length + 2000);
+    const lista = /^(?:\s|<(?!ul\b)[^>]*>)*<ul\b[^>]*>([\s\S]*?)<\/ul>/i.exec(depois);
+    if (!lista) continue;
+
+    const itens = [];
+    for (const item of lista[1].matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi)) {
+      const texto = comoTexto(item[1]);
+      if (!texto) continue;
+      const separador = texto.indexOf(":");
+      if (separador > 1 && separador <= 60) {
+        itens.push({ nome: texto.slice(0, separador).trim(), valor: texto.slice(separador + 1).trim() });
+      } else {
+        itens.push({ nome: null, valor: texto });
+      }
+    }
+    if (itens.length > 0) return itens;
+  }
+  return [];
+}
+
+/** Junta duas fichas sem repetir o mesmo rotulo; a primeira vence. */
+function juntarFichas(primeira, segunda) {
+  const rotulos = new Set(
+    primeira.filter((item) => item.nome).map((item) => item.nome.toLowerCase()),
+  );
+  return [
+    ...primeira,
+    ...segunda.filter((item) => !item.nome || !rotulos.has(item.nome.toLowerCase())),
+  ];
+}
+
+/**
+ * Preco a vista do modulo de parcelamento do Magento, calculado como a loja
+ * calcula.
+ *
+ * A Mamute mostra "R$ 46,46 — 5% OFF no PIX" e o numero NAO esta no HTML: o
+ * navegador o calcula a partir de uma configuracao `"installment"` com
+ * `"discounts": {"name": "PIX, Transferencia ou Deposito", "percentage": "5"}`.
+ * Sem isto o sistema so via os R$ 48,90.
+ *
+ * So vale desconto de pagamento a vista (pix, boleto, transferencia, deposito):
+ * desconto de outra natureza, no mesmo bloco, nao e o preco de quem paga a vista.
+ * Arredondamento em centavos inteiros, meio para cima: 48,90 x 0,95 = 46,455 ->
+ * 46,46, o que a pagina mostra.
+ */
+function aVistaDoMagento(html, preco) {
+  if (typeof preco !== "number" || preco <= 0 || !html.includes('"installment"')) return null;
+
+  const bloco = /"installment"\s*:\s*\{[\s\S]*?"discounts"\s*:\s*\{([\s\S]*?)\}\s*\}/.exec(html);
+  if (!bloco) return null;
+
+  let maior = 0;
+  for (const desconto of bloco[1].matchAll(/"name"\s*:\s*"([^"]*)"\s*,\s*"percentage"\s*:\s*"?(\d+(?:[.,]\d+)?)"?/g)) {
+    const nome = decodificarJson(desconto[1]);
+    const percentual = Number(desconto[2].replace(",", "."));
+    if (/pix|boleto|transfer|dep[oó]sito|[aà] vista/i.test(nome) && percentual > 0 && percentual < 100) {
+      maior = Math.max(maior, percentual);
+    }
+  }
+  if (maior === 0) return null;
+
+  const centavos = Math.round((Math.round(preco * 100) * (100 - maior)) / 100);
+  return { aVista: centavos / 100, desconto: maior };
+}
+
+/** "Transferência" -> "Transferência", para o nome lido por regex de JSON. */
+function decodificarJson(texto) {
+  try {
+    return JSON.parse(`"${texto}"`);
+  } catch {
+    return texto;
+  }
+}
+
+/** Nome ou referencia sem acento, caixa e pontuacao — so para comparar. */
+const soLetrasENumeros = (texto) =>
+  String(texto ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+/**
+ * O conteudo de um <div> ate o fechamento que o equilibra, a partir do primeiro
+ * caractere depois da tag de abertura. Sem fechamento, ate 20 mil caracteres.
+ */
+function conteudoDoDiv(html, inicio) {
+  const marcas = /<div\b|<\/div>/gi;
+  marcas.lastIndex = inicio;
+  let profundidade = 1;
+  let marca;
+  while ((marca = marcas.exec(html)) !== null) {
+    profundidade += marca[0].startsWith("</") ? -1 : 1;
+    if (profundidade === 0) return html.slice(inicio, marca.index);
+  }
+  return html.slice(inicio, inicio + 20000);
+}
+
+/**
+ * A pagina e uma LISTAGEM da plataforma ASP.NET (_uploads)? Home e categoria
+ * repetem itemtype=Product em cada card; sem o painel de detalhe, nao ha produto.
+ */
+function ehListagemAspNet(html) {
+  return (
+    /\/_uploads\/Produto/i.test(html) &&
+    /produto__item--box/.test(html) &&
+    !/detalhe_informacoes_cod_ref/.test(html)
+  );
+}
+
+/**
+ * Pagina de produto da plataforma propria em ASP.NET (Eletru's), 16/09/2026.
+ *
+ * Nao publica JSON-LD, e o Microdata tem so nome, preco e imagem — com o sku
+ * vazio. O resto esta escrito no painel e nas abas, e e lido de la:
+ *
+ *   <span>Ref: OBT500-18GM60-E5</span> <span>Cod: 53.00.1463</span>
+ *   <span itemprop="brand" content="Autonics">Marca: Autonics</span>
+ *   <span itemprop="price" content="320.00">  ...  "Ou R$ 304,00 a vista ( - 5% )"
+ *   botao "comprar" (em estoque) ou "avise-me" (sem estoque, e sem preco)
+ *   abas "Descricao" e "Caracteristicas Tecnicas" (lista de "Nome: valor")
+ *
+ * @returns {object|null} null quando a pagina nao e o detalhe desta plataforma
+ */
+function daVitrineAspNet(html, url) {
+  const inicioPainel = html.indexOf("detalhe__produto--info");
+  if (inicioPainel < 0 || !/detalhe_informacoes_cod_ref/.test(html)) return null;
+  const fimPainel = html.indexOf("detalhe_informacoes_frete", inicioPainel);
+  const painel = html.slice(inicioPainel, fimPainel > 0 ? fimPainel : inicioPainel + 8000);
+  const textoPainel = comoTexto(painel) ?? "";
+
+  const nome = comoTexto(/itemprop="name"[^>]*>([\s\S]*?)<\/h1>/.exec(painel)?.[1]);
+  const codigo = comoTexto(/<span>\s*C(?:ó|&#243;|o)d:\s*([^<]+)<\/span>/i.exec(painel)?.[1]);
+
+  // "Ref:" so vale como referencia de fabricante quando NAO e o nome cortado: o
+  // ERP da loja preenche o campo com a descricao em 30 letras quando nao ha
+  // numero de peca ("LAMPADA VAPOR SODIO 250 W E-40").
+  const refBruta = comoTexto(/<span>\s*Ref:\s*([^<]+)<\/span>/i.exec(painel)?.[1]);
+  const refEhNome =
+    refBruta &&
+    (soLetrasENumeros(nome).startsWith(soLetrasENumeros(refBruta)) ||
+      refBruta.trim().split(/\s+/).length >= 3);
+  const referencia = refEhNome ? null : refBruta;
+
+  const marca =
+    comoTexto(/itemprop="brand"[^>]*content="([^"]+)"/.exec(painel)?.[1]) ??
+    comoTexto(/Marca:\s*([^<]+)</.exec(painel)?.[1]);
+
+  const preco = comoNumero(/itemprop="price"[^>]*content="([\d.]+)"/.exec(painel)?.[1]);
+  const de = comoNumero(/\bDe:\s*R\$\s*([\d.,]+)/i.exec(textoPainel)?.[1]);
+  const aVista = comoNumero(/Ou\s*R\$\s*([\d.,]+)\s*(?:à|a)\s*vista/i.exec(textoPainel)?.[1]);
+
+  const disponibilidade = /comprar-btn/.test(painel)
+    ? "http://schema.org/InStock"
+    : /avise-btn|avise-me/i.test(painel)
+      ? "http://schema.org/OutOfStock"
+      : null;
+
+  // Categoria: o ultimo degrau do breadcrumb antes do proprio produto.
+  const trilha = /<ul class="loja__breadcrumb">([\s\S]*?)<\/ul>/.exec(html)?.[1] ?? "";
+  const degraus = [...trilha.matchAll(/<p class="content\s*([^"]*)">([\s\S]*?)<\/p>/g)]
+    .filter((degrau) => !/active/.test(degrau[1]))
+    .map((degrau) => comoTexto(degrau[2]))
+    .filter(Boolean);
+  const categoria = degraus.at(-1) ?? null;
+
+  // Fotos: so as da galeria do produto (antes do painel), na versao original.
+  // Duas pastas: ProdutoDestaque (a principal) e produtoArquivo (as demais) — o
+  // borne PT 2,5 tem 1 + 5, e so a principal vinha. Nome em "__orig" ou "_orig".
+  const galeria = html.slice(html.lastIndexOf('id="galeria"', inicioPainel) + 1 || 0, inicioPainel);
+  const imagens = [
+    ...new Set(
+      [...galeria.matchAll(/https?:\/\/[^"'\s]*\/_uploads\/(?:ProdutoDestaque|produtoArquivo)\/[^"'\s]+?_{1,2}orig\.(?:jpe?g|png|webp)/gi)].map(
+        (encontro) => comoUrlAbsoluta(encontro[0], url),
+      ),
+    ),
+  ].filter(Boolean);
+
+  // Abas: rotulo -> conteudo.
+  const abas = {};
+  for (const aba of html.matchAll(/data-bs-toggle="tab"\s+href="#(aba\d+)"[^>]*>([\s\S]*?)<\/a>/g)) {
+    const abertura = html.indexOf(`id="${aba[1]}"`);
+    if (abertura < 0) continue;
+    // O conteudo e o que esta DENTRO do <div> da aba, recortado pelo fechamento
+    // equilibrado. Cortar em "proxima aba ou relacionados" falhava na ultima aba
+    // de produto sem relacionados: ia ate o rodape, e o formulario "avise-me",
+    // o telefone e o CNPJ viravam 30 "especificacoes".
+    const inicio = html.indexOf(">", abertura) + 1;
+    abas[(comoTexto(aba[2]) ?? "").toLowerCase()] = conteudoDoDiv(html, inicio);
+  }
+  const abaDe = (padrao) => Object.entries(abas).find(([rotulo]) => padrao.test(rotulo))?.[1] ?? null;
+
+  const blocoDescricao = abaDe(/descri/);
+  const descricao = blocoDescricao
+    ? comoTexto(blocoDescricao.replace(/<li\b[^>]*>/gi, "\n- "))
+    : null;
+
+  const especificacoes = [];
+  const blocoFicha = abaDe(/caracter|especifica|ficha/);
+  if (blocoFicha) {
+    const linhas = (comoTexto(blocoFicha) ?? "").split("\n");
+    for (const linha of linhas.map((texto) => texto.replace(/^[-•*]\s*/, "").trim()).filter(Boolean)) {
+      const separador = linha.indexOf(":");
+      if (separador > 1 && separador <= 60) {
+        especificacoes.push({ nome: linha.slice(0, separador).trim(), valor: linha.slice(separador + 1).trim() });
+      } else {
+        especificacoes.push({ nome: null, valor: linha });
+      }
+    }
+  }
+
+  return {
+    nome,
+    codigo,
+    referencia,
+    marca,
+    preco,
+    de,
+    aVista,
+    disponibilidade,
+    categoria,
+    imagens,
+    descricao,
+    especificacoes: especificacoes.filter((item) => item.valor),
+  };
+}
+
 /**
  * Recorta um literal JSON equilibrado a partir de uma posicao.
  *
@@ -792,7 +1059,19 @@ function descricaoDoBloco(html) {
       html,
     );
 
-  return bloco ? comoTexto(bloco[1]) : null;
+  if (!bloco) return null;
+
+  // A ESTRUTURA DA PAGINA SOBREVIVE AO TEXTO: titulo ganha uma linha em branco
+  // antes, e item de lista vira "- item". Sem isto a lista de especificacoes da
+  // Mamute ("Modelo: CJMCU-219", "Interface: I2C" ...) virava linhas soltas, sem
+  // o marcador que diz que ainda sao lista.
+  const estruturado = bloco[1]
+    .replace(/<h[1-6]\b/gi, "\n\n$&")
+    .replace(/<li\b[^>]*>\s*(?:[-•*]\s+)?/gi, "\n- ");
+
+  // Item de lista colado ao anterior: o fechamento do <li> e o "\n- " do proximo
+  // deixavam uma linha em branco entre cada um.
+  return comoTexto(estruturado)?.replace(/\n{2,}- /g, "\n- ") ?? null;
 }
 
 /// Extensao que denuncia arquivo, e nao pagina. Vale no dominio da propria
@@ -854,12 +1133,18 @@ function documentosDaPagina(html, urlBase) {
       continue;
     }
 
-    const ehDocumento =
-      EXTENSAO_DE_ARQUIVO.test(caminho) ||
-      ENDPOINT_DE_ANEXO.test(endereco) ||
-      (titulo && NOME_DE_DOCUMENTO.test(titulo));
+    const ehArquivo = EXTENSAO_DE_ARQUIVO.test(caminho) || ENDPOINT_DE_ANEXO.test(endereco);
+    const ehDocumento = ehArquivo || (titulo && NOME_DE_DOCUMENTO.test(titulo));
 
     if (!ehDocumento || achados.has(endereco)) continue;
+
+    // SECAO DO SITE NAO E DOCUMENTO DO PRODUTO. Link reconhecido so pelo texto,
+    // curto, apontando para uma pagina de primeiro nivel — "Catalogos" ->
+    // /catalogos, no menu institucional da Eletrus (16/09/2026) — aparecia como
+    // documento em todo produto da loja. Arquivo de verdade tem extensao ou
+    // endpoint de anexo, e esse continua valendo onde estiver.
+    const paginaDePrimeiroNivel = /^\/[^/]+\/?$/.test(caminho);
+    if (!ehArquivo && paginaDePrimeiroNivel && titulo.split(/\s+/).length <= 2) continue;
 
     // O mesmo anexo aparece duas vezes na Usinainfo — uma dentro das
     // caracteristicas, outra na aba de download — e so uma das duas tem texto.
@@ -1077,6 +1362,13 @@ export function normalizarPagina({
   const meta = metaTags(html);
   const tray = daTray(html);
 
+  // Listagem da plataforma ASP.NET: a home da Eletrus virava "produto" com o
+  // primeiro card da vitrine, sem codigo e com a URL da home.
+  if (ehListagemAspNet(html)) {
+    return { produtos: [], motivo: "listagem de produtos, nao pagina de produto", formatos: [] };
+  }
+  const aspnet = daVitrineAspNet(html, url);
+
   const formatos = [
     estruturado?.fonte,
     micro ? "microdata" : null,
@@ -1090,12 +1382,22 @@ export function normalizarPagina({
 
   // --- precos ---------------------------------------------------------------
   const declaradoNormal =
+    aspnet?.de ??
     comoNumero(meta["product:original_price:amount"]) ??
     comoNumero(bruto?.offers?.priceSpecification?.listPrice) ??
     comoNumero(bruto?.offers?.highPrice) ??
     // PrestaShop publica o preco de tabela numa variavel de script; e o unico
     // lugar onde ele aparece em varias lojas.
     comoNumero(/productPriceWithoutReduction\s*=\s*'([\d.,]+)'/.exec(html)?.[1]);
+
+  // A BASE E O PRECO DE CARTAO (OpenGraph / finalPrice), nunca o do JSON-LD: na
+  // Saravati a oferta do JSON-LD ja e o preco do pix, e aplicar os 10% de novo
+  // sobre ela dava 12,07 onde a loja cobra 13,41.
+  const magentoAVista = aVistaDoMagento(
+    html,
+    comoNumero(meta["product:price:amount"]) ??
+      comoNumero(/data-price-amount="([\d.]+)"\s+data-price-type="finalPrice"/.exec(html)?.[1]),
+  );
 
   const candidatos = [
     estruturado?.preco,
@@ -1112,6 +1414,11 @@ export function normalizarPagina({
     // anuncia 52,15 no pix contra 54,90 de tabela, e nenhum dos dois numeros
     // convive com o outro no HTML.
     doPagamento?.aVista ?? null,
+    // Magento com desconto a vista calculado no navegador (Mamute).
+    magentoAVista?.aVista ?? null,
+    // ASP.NET (Eletrus): preco e a vista escritos no painel.
+    aspnet?.preco ?? null,
+    aspnet?.aVista ?? null,
   ].filter((n) => typeof n === "number");
 
   const prices = decidirPrecos({ declaradoNormal, candidatos });
@@ -1144,6 +1451,7 @@ export function normalizarPagina({
 
   const mpn = primeiro(
     "mpn",
+    [aspnet?.referencia, "painel da pagina (Ref:)"],
     [micro?.mpn, "itemprop=mpn"],
     [estruturado?.mpn, estruturado?.fonte ?? "?"],
   );
@@ -1169,6 +1477,7 @@ export function normalizarPagina({
 
   const code = primeiro(
     "code",
+    [aspnet?.codigo, "painel da pagina (Cod:)"],
     [skuEhIdInterno ? comoTexto(tray?.reference) : null, "dataLayer da Tray (REF da loja)"],
     [micro?.skuFonte, "itemprop=sku"],
     [estruturado?.skuFonte, estruturado?.fonte ?? "?"],
@@ -1188,6 +1497,7 @@ export function normalizarPagina({
 
   // --- estoque --------------------------------------------------------------
   const disponibilidade =
+    aspnet?.disponibilidade ??
     micro?.disponibilidade ??
     bruto?.offers?.availability ??
     meta["product:availability"] ??
@@ -1205,10 +1515,13 @@ export function normalizarPagina({
   const status = situacaoDe(disponibilidade);
 
   // --- imagens --------------------------------------------------------------
+  // Na plataforma ASP.NET o Microdata de imagem traz lixo ("Passe o mouse para
+  // dar zoom" virava endereco de foto): la vale so a galeria lida do HTML.
   const estruturadas = [
-    ...(estruturado?.imagens ?? []),
-    ...(micro?.imagens ?? []),
-    meta["og:image"],
+    ...(aspnet?.imagens ?? []),
+    ...(aspnet ? [] : (estruturado?.imagens ?? [])),
+    ...(aspnet ? [] : (micro?.imagens ?? [])),
+    aspnet ? null : meta["og:image"],
   ]
     .map((endereco) => comoUrlAbsoluta(endereco, url))
     .filter(Boolean);
@@ -1242,6 +1555,7 @@ export function normalizarPagina({
 
   // --- descricao ------------------------------------------------------------
   const description = melhorDescricao([
+    aspnet?.descricao,
     estruturado?.descricao,
     micro?.descricao,
     comoTexto(meta["og:description"]),
@@ -1260,7 +1574,13 @@ export function normalizarPagina({
 
   const declaradas = doJsonLd.length > 0 ? doJsonLd : especificacoesDeTabela(html);
 
-  const specifications = declaradas.length > 0 ? declaradas : especificacoesDeLista(description);
+  // A lista HTML SOMA a tabela, nao espera ela faltar: a Mamute tem uma tabela de
+  // atributos com UMA linha ("Fabricante: IMP") e a ficha de verdade na lista da
+  // descricao — com "tabela ou lista", as quatro especificacoes sumiam.
+  const daListaHtml = especificacoesDeListaHtml(html);
+  const juntas = juntarFichas(juntarFichas(aspnet?.especificacoes ?? [], declaradas), daListaHtml);
+
+  const specifications = juntas.length > 0 ? juntas : especificacoesDeLista(description);
 
   const ean = primeiro(
     "ean",
@@ -1273,6 +1593,7 @@ export function normalizarPagina({
   // lojas menores eles so existem escritos ali.
   const brand = primeiro(
     "brand",
+    [aspnet?.marca, "painel da pagina (Marca:)"],
     [micro?.marca, "itemprop=brand"],
     [estruturado?.marca, estruturado?.fonte ?? "?"],
     [comoTexto(meta["product:brand"]), "meta product:brand"],
@@ -1281,6 +1602,7 @@ export function normalizarPagina({
   );
   const model = primeiro(
     "model",
+    [aspnet?.referencia, "painel da pagina (Ref:)"],
     [estruturado?.modelo, estruturado?.fonte ?? "?"],
     [micro?.modelo, "itemprop=model"],
     [comoTexto(tray?.model), "dataLayer da Tray"],
@@ -1304,6 +1626,7 @@ export function normalizarPagina({
   if (Object.values(seo).some(Boolean)) origens.seo = "meta tags da pagina";
   const category = primeiro(
     "category",
+    [aspnet?.categoria, "breadcrumb da pagina"],
     [micro?.categoria, "breadcrumb"],
     [comoTexto(bruto?.category), "json-ld category"],
     [doDataLayer(html, code), "dataLayer de analytics"],
@@ -1325,7 +1648,11 @@ export function normalizarPagina({
         ? doPagamento.derivado
           ? `calculado: desconto de ${doPagamento.desconto}% da loja, conferido em ${doPagamento.conferidoEm} leitura(s)`
           : `formas de pagamento${doPagamento.desconto ? ` — desconto de ${doPagamento.desconto}%` : ""}`
-        : "menor preco da pagina";
+        : aspnet?.aVista && prices.promotional === aspnet.aVista
+          ? "a vista escrito na pagina"
+          : magentoAVista && prices.promotional === magentoAVista.aVista
+          ? `calculado: desconto a vista de ${magentoAVista.desconto}% do parcelamento da loja`
+          : "menor preco da pagina";
   }
   const documentos = documentosDaPagina(html, url);
 

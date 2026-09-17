@@ -1,5 +1,5 @@
 import { buscarPagina, podeVisitar, ritmoPedido } from "./buscar";
-import { rastrear } from "./descobrir";
+import { pareceListagem, pareceProduto, rastrear } from "./descobrir";
 import { ehProdutoValido, normalizarPagina } from "./normalizar";
 import { camposDoCatalogo, lerCatalogo, urlDoItem } from "./catalogo";
 import { catalogoPublicoDe, identificarPlataforma, pagamentoDe } from "./plataformas";
@@ -20,13 +20,29 @@ import { descobrirSitemaps, lerSitemaps } from "./sitemap";
  * sempre buscarPagina.
  */
 
+/**
+ * Endereco na forma de comparar: sem ancora, sem barra final, dominio minusculo.
+ * A retomada compara o endereco de agora com o gravado antes da queda, e
+ * "/produto/" e "/produto" sao a mesma pagina.
+ */
+export function enderecoComparavel(endereco) {
+  try {
+    const url = new URL(endereco);
+    url.hash = "";
+    const caminho = url.pathname.length > 1 ? url.pathname.replace(/\/+$/, "") : url.pathname;
+    return `${url.protocol}//${url.host.toLowerCase()}${caminho}${url.search}`;
+  } catch {
+    return String(endereco ?? "");
+  }
+}
+
 function passo(nome, ok, detalhe = null) {
   return { nome, ok, detalhe };
 }
 
 /** Abre uma pagina e normaliza. Pode render mais de um produto (variacoes). */
-async function tentarUrl(url, fonte, plataforma, doCatalogo = null, memoriaPagamento = null) {
-  const resposta = await buscarPagina(url);
+async function tentarUrl(url, fonte, plataforma, doCatalogo = null, memoriaPagamento = null, sinal = null) {
+  const resposta = await buscarPagina(url, { sinal });
   if (!resposta.ok || !resposta.corpo) {
     return { produtos: [], formatos: [], erro: resposta.erro ?? "sem corpo" };
   }
@@ -50,6 +66,7 @@ async function tentarUrl(url, fonte, plataforma, doCatalogo = null, memoriaPagam
     pagamentoDe(plataforma, resposta.urlFinal ?? url),
     resposta.corpo,
     memoriaPagamento,
+    sinal,
   );
 
   const { produtos, formatos } = normalizarPagina({
@@ -81,6 +98,14 @@ async function tentarUrl(url, fonte, plataforma, doCatalogo = null, memoriaPagam
  * @param {(a: {visitadas: number, produtos: number}) => void} [entrada.aoProgredir]
  * @param {(produto: object) => void} [entrada.aoGuardar] chamado com cada produto
  *   NOVO, no momento em que e achado — e o que permite gravar em lotes
+ * @param {Set<string>} [entrada.jaColetadas] RETOMADA: enderecos (enderecoComparavel)
+ *   de produtos ja gravados nesta varredura, antes de uma queda. Nao sao abertos de
+ *   novo e contam como encontrados (`retomados`). Sem isto, cada queda do worker
+ *   recomecava a loja do zero — a Smartkits, 3.780 produtos a ~2 s cada.
+ * @param {AbortSignal} [entrada.sinal] cancela a colheita: o worker o dispara ao
+ *   encerrar e quando a varredura para de andar. Conferido antes de cada pagina,
+ *   e a requisicao em voo tambem e interrompida (buscarPagina). Cancelada, a
+ *   colheita LANCA o motivo — nao devolve resultado parcial como se fosse inteiro.
  */
 export async function colherProdutos({
   url,
@@ -91,7 +116,13 @@ export async function colherProdutos({
   orcamento,
   aoProgredir,
   aoGuardar,
+  sinal = null,
+  jaColetadas = null,
 }) {
+  const conferirSinal = () => sinal?.throwIfAborted();
+  const jaTenho = (endereco) => Boolean(jaColetadas?.has(enderecoComparavel(endereco)));
+  let retomados = 0;
+
   // Sobra de visitas sobre o alvo: nem toda pagina aberta vira produto, e sem
   // folga a colheita para antes de completar o pedido.
   const tetoVisitas = orcamento ?? limite * 3 + 10;
@@ -114,7 +145,7 @@ export async function colherProdutos({
   }
   passos.push(passo("Endereco valido", true, alvo.origin));
 
-  const home = await buscarPagina(alvo.toString());
+  const home = await buscarPagina(alvo.toString(), { sinal });
   if (!home.ok && !home.corpo) {
     passos.push(passo("Site acessivel", false, home.erro));
     return {
@@ -195,6 +226,8 @@ export async function colherProdutos({
   const formatos = new Set();
   const vistas = new Set();
   let visitas = 0;
+  // Encontrados nesta passada mais os retomados de antes da queda.
+  const achados = () => encontrados.length + retomados;
 
   const guardar = (novos, formatosDaPagina) => {
     for (const produto of novos) {
@@ -210,7 +243,8 @@ export async function colherProdutos({
   };
 
   // 1) A propria URL ja e um produto?
-  const daPropria = await tentarUrl(alvo.toString(), fonte, plataforma, null, memoriaPagamento);
+  conferirSinal();
+  const daPropria = await tentarUrl(alvo.toString(), fonte, plataforma, null, memoriaPagamento, sinal);
   visitas++;
   guardar(daPropria.produtos, daPropria.formatos);
 
@@ -227,7 +261,8 @@ export async function colherProdutos({
   let totalDoCatalogo = null;
 
   if (catalogo) {
-    const leitura = await lerCatalogo(catalogo, { limite });
+    const leitura = await lerCatalogo(catalogo, { limite, sinal });
+    conferirSinal();
     totalDoCatalogo = leitura.total;
     itensDoCatalogo = leitura.itens;
 
@@ -243,10 +278,16 @@ export async function colherProdutos({
   }
 
   for (const item of itensDoCatalogo) {
-    if (encontrados.length >= limite || visitas >= tetoVisitas) break;
+    if (achados() >= limite || visitas >= tetoVisitas) break;
+    conferirSinal();
 
     const enderecoItem = urlDoItem(item, alvo.origin);
     if (!enderecoItem) continue;
+    if (jaTenho(enderecoItem)) {
+      retomados++;
+      aoProgredir?.({ visitadas: visitas, produtos: achados(), retomados });
+      continue;
+    }
 
     const tentativa = await tentarUrl(
       enderecoItem,
@@ -254,18 +295,20 @@ export async function colherProdutos({
       plataforma,
       camposDoCatalogo(item, alvo.origin),
       memoriaPagamento,
+      sinal,
     );
     visitas++;
     guardar(tentativa.produtos, tentativa.formatos);
 
-    if (aoProgredir) aoProgredir({ visitadas: visitas, produtos: encontrados.length });
+    if (aoProgredir) aoProgredir({ visitadas: visitas, produtos: achados(), retomados });
   }
   // 2) Sitemap
   // O sitemap so entra se o catalogo nao completou a cota: sao duas formas de
   // responder a mesma pergunta, e correr as duas gastaria requisicao a toa.
-  const precisaDoSitemap = encontrados.length < limite;
+  const precisaDoSitemap = achados() < limite;
 
-  const sitemaps = precisaDoSitemap ? await descobrirSitemaps(alvo.origin) : [];
+  conferirSinal();
+  const sitemaps = precisaDoSitemap ? await descobrirSitemaps(alvo.origin, { sinal }) : [];
   let urlsSitemap = [];
 
   // Teto da leitura. Nomeado porque a contagem do catalogo precisa saber se
@@ -278,8 +321,18 @@ export async function colherProdutos({
       prefixo: prefixo ?? undefined,
       maxSitemaps: 6,
       limite: TETO_SITEMAP,
+      sinal,
     });
-    urlsSitemap = leitura.urls.map((item) => item.url);
+    conferirSinal();
+    // Produto primeiro, listagem por ultimo, o resto no meio — na ordem do
+    // sitemap dentro de cada grupo. Sem isto a amostra do "Testar fonte" (8
+    // enderecos) caia inteira nas categorias que o sitemap lista antes.
+    const grupo = (endereco) => (pareceProduto(endereco) ? 0 : pareceListagem(endereco) ? 2 : 1);
+    urlsSitemap = leitura.urls
+      .map((item) => item.url)
+      .map((endereco, ordem) => ({ endereco, ordem, grupo: grupo(endereco) }))
+      .sort((a, b) => a.grupo - b.grupo || a.ordem - b.ordem)
+      .map((item) => item.endereco);
   }
 
   const sitemapNoTeto = urlsSitemap.length === TETO_SITEMAP;
@@ -313,16 +366,23 @@ export async function colherProdutos({
   let produtosDoSitemap = 0;
 
   for (const candidata of urlsSitemap.slice(0, amostraSitemap)) {
-    if (encontrados.length >= limite || visitas >= tetoVisitas) break;
+    if (achados() >= limite || visitas >= tetoVisitas) break;
     if (vistas.has(`|${candidata}`)) continue;
+    conferirSinal();
+    if (jaTenho(candidata)) {
+      retomados++;
+      produtosDoSitemap++;
+      aoProgredir?.({ visitadas: visitas, produtos: achados(), retomados });
+      continue;
+    }
 
     const antes = encontrados.length;
-    const tentativa = await tentarUrl(candidata, fonte, plataforma, null, memoriaPagamento);
+    const tentativa = await tentarUrl(candidata, fonte, plataforma, null, memoriaPagamento, sinal);
     visitas++;
     guardar(tentativa.produtos, tentativa.formatos);
     if (encontrados.length > antes) produtosDoSitemap++;
 
-    if (aoProgredir) aoProgredir({ visitadas: visitas, produtos: encontrados.length });
+    if (aoProgredir) aoProgredir({ visitadas: visitas, produtos: achados(), retomados });
   }
 
   // Quantos produtos a loja tem.
@@ -343,14 +403,19 @@ export async function colherProdutos({
 
   // 3) Navegacao, quando o sitemap nao bastou. Nem toda loja publica sitemap de
   // produto: ha quem declare no robots.txt um sitemap de rotas de busca.
-  if (encontrados.length < limite && visitas < tetoVisitas) {
+  if (achados() < limite && visitas < tetoVisitas) {
     const abertasAntes = visitas;
+    const retomadosAntes = retomados;
 
     const varredura = await rastrear({
       semente: alvo.toString(),
       prefixo: prefixo ?? undefined,
       orcamento: tetoVisitas - visitas,
-      pararApos: limite,
+      pararApos: limite - retomadosAntes,
+      sinal,
+      // Pagina de produto ja gravada nao e aberta de novo. Os links dela ficam de
+      // fora — e a categoria que a listou continua sendo lida.
+      pular: jaColetadas ? jaTenho : null,
       aoAchar: async ({ url: achada, html }) => {
         const { produtos, formatos: fs } = normalizarPagina({
           html,
@@ -364,10 +429,11 @@ export async function colherProdutos({
       // so enxergaria pagina que RENDEU produto, e a barra ficaria parada
       // durante toda a navegacao pelas categorias — justo o trecho demorado.
       aoProgredir: aoProgredir
-        ? async ({ visitadas }) =>
+        ? async ({ visitadas, pulados }) =>
             aoProgredir({
               visitadas: abertasAntes + visitadas,
-              produtos: encontrados.length,
+              produtos: encontrados.length + retomadosAntes + (pulados ?? 0),
+              retomados: retomadosAntes + (pulados ?? 0),
             })
         : undefined,
     });
@@ -376,7 +442,12 @@ export async function colherProdutos({
     // Somando dentro do aoAchar, o numero era o de acertos, nao o de visitas —
     // e e o de visitas que diz se a fonte e cara de varrer.
     visitas += varredura.visitadas;
+    retomados += varredura.pulados ?? 0;
   }
+
+  // A navegacao sai do laco quando cancelada; aqui isso vira erro, e nao um
+  // resultado parcial com cara de varredura completa.
+  conferirSinal();
 
   passos.push(
     passo(
@@ -391,12 +462,13 @@ export async function colherProdutos({
   }
 
   return {
-    ok: encontrados.length > 0,
+    ok: achados() > 0,
+    retomados,
     // Quando falha, a plataforma diz ONDE os dados deveriam estar. Sem isso a
     // recusa era generica ("nao publica JSON-LD, Microdata nem OpenGraph") e
     // nao ajudava ninguem a decidir se o problema era do site ou nosso.
     motivo:
-      encontrados.length > 0
+      achados() > 0
         ? null
         : "Nao foram encontrados produtos validos. O site nao publica JSON-LD, Microdata nem OpenGraph de produto nas paginas que abrimos." +
           (plataforma.id === "desconhecida"

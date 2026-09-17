@@ -236,6 +236,18 @@ export async function gravarColeta({
   };
 }
 
+/**
+ * Enderecos dos produtos desta fonte gravados a partir de uma data: o que uma
+ * varredura interrompida ja tinha salvo nos lotes. E a base da retomada.
+ */
+export async function enderecosGravadosDesde(fonteId, desde) {
+  const linhas = await prisma.produtoColetado.findMany({
+    where: { fonteId, vistoEm: { gte: desde }, url: { not: null } },
+    select: { url: true },
+  });
+  return linhas.map((linha) => linha.url);
+}
+
 /** Todos os produtos guardados de uma fonte, na forma de normalizar.js. */
 export async function lerProdutosDaFonte(fonteId) {
   const linhas = await prisma.produtoColetado.findMany({

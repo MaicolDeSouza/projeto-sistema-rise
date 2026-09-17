@@ -1,7 +1,7 @@
 import { lerArquivosOriginais } from "./arquivo";
 import { juntarListas, lerArquivo } from "./arquivos";
-import { gravarColeta, lerProdutosDaFonte } from "./banco";
-import { colherProdutos } from "./colher";
+import { enderecosGravadosDesde, gravarColeta, lerProdutosDaFonte } from "./banco";
+import { colherProdutos, enderecoComparavel } from "./colher";
 import { conciliar, quedaSuspeita } from "./conciliar";
 import { regrasDoFornecedor } from "./fornecedores";
 
@@ -32,6 +32,16 @@ const ORCAMENTO_PAGINAS = 20000;
 /// Numa loja que pede 10 s entre visitas, uns 2 minutos de trabalho: o que se
 /// perde, no maximo, se o worker cair.
 const LOTE_GRAVACAO = 10;
+
+/**
+ * Endereco inicial da fonte. O dominio e guardado sem protocolo e a loja e
+ * visitada por https; dominio gravado COM protocolo vale como esta — e o que deixa
+ * o teste do worker varrer uma loja falsa em http://127.0.0.1.
+ */
+function enderecoDaFonte(fonte) {
+  if (/^https?:\/\//i.test(fonte.dominio)) return `${fonte.dominio.replace(/\/+$/, "")}/`;
+  return `https://${fonte.dominio}/`;
+}
 
 /** Quantos produtos colher desta fonte. O mesmo para todas, desde 15/09/2026. */
 export function limiteDaFonte() {
@@ -120,7 +130,7 @@ export async function aplicarListaDoFornecedor({
  * leitores de hoje. Por isso o resumo diz a data da LISTA, e nao so a do
  * reprocessamento.
  */
-async function reprocessarArquivos(fonte, aoProgredir) {
+async function reprocessarArquivos(fonte, aoProgredir, sinal) {
   const comecou = Date.now();
   const regras = regrasDoFornecedor({ nome: fonte.nome, url: `https://${fonte.dominio}` });
   const guardados = await lerArquivosOriginais(fonte.dominio, fonte.listaArquivos);
@@ -137,6 +147,7 @@ async function reprocessarArquivos(fonte, aoProgredir) {
   const lidos = [];
 
   for (const arquivo of guardados) {
+    sinal?.throwIfAborted();
     const leitura = await lerArquivo({
       nome: arquivo.nome,
       bytes: arquivo.bytes,
@@ -173,13 +184,15 @@ async function reprocessarArquivos(fonte, aoProgredir) {
   // pela metade: a Nightech publica foto, texto e endereco no site e preco e
   // saldo na planilha. Mesmo codigo = um produto.
   if (regras.mesclarSiteComArquivo && fonte.robotsPermite) {
+    sinal?.throwIfAborted();
     const doSite = await colherProdutos({
-      url: `https://${fonte.dominio}/`,
+      url: enderecoDaFonte(fonte),
       secao: fonte.prefixoUrl ?? undefined,
       nome: fonte.nome,
       tipo: fonte.tipo,
       limite: limiteDaFonte(),
       orcamento: ORCAMENTO_PAGINAS,
+      sinal,
       // Sinal de vida durante a navegacao do site, que leva de minutos a horas:
       // sem ele o job ficava sem noticia e a tela dava o worker por morto. O
       // `feitas` continua sendo o de arquivos; so `visitadas` anda. Aqui NAO se
@@ -196,6 +209,9 @@ async function reprocessarArquivos(fonte, aoProgredir) {
       produtos = juntarListas([doSite.produtos, produtos]);
     }
   }
+
+  // Cancelada depois de ler tudo, a lista NAO e aplicada pela metade.
+  sinal?.throwIfAborted();
 
   return aplicarListaDoFornecedor({
     fonte,
@@ -215,7 +231,16 @@ async function reprocessarArquivos(fonte, aoProgredir) {
  * entendia, entao o que o operador aprovava no cadastro nao era o que ficava
  * guardado. Com uma funcao so, a divergencia deixa de ser possivel.
  */
-export async function varrerFonte(fonte, aoProgredir) {
+/**
+ * @param {object} fonte
+ * @param {Function} [aoProgredir]
+ * @param {object} [opcoes]
+ * @param {AbortSignal} [opcoes.sinal]
+ * @param {Date} [opcoes.inicioDaVarredura] quando ESTA varredura comecou, guardado
+ *   no job. Numa retomada e a data da primeira tentativa: o que foi gravado desde
+ *   entao nao e aberto de novo, e a coleta fecha com essa data.
+ */
+export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVarredura = null } = {}) {
   const comecou = Date.now();
 
   // FORNECEDOR COM LISTA NAO SE VARRE: reprocessa.
@@ -224,7 +249,7 @@ export async function varrerFonte(fonte, aoProgredir) {
   // enviada, ela e a fonte melhor de qualquer jeito: traz preco e saldo, que a
   // vitrine de atacado nao publica.
   if (fonte.tipo === "FORNECEDOR" && fonte.ativa && fonte.listaArquivos?.length > 0) {
-    return reprocessarArquivos(fonte, aoProgredir);
+    return reprocessarArquivos(fonte, aoProgredir, sinal);
   }
 
   const limite = limiteDaFonte();
@@ -257,7 +282,12 @@ export async function varrerFonte(fonte, aoProgredir) {
     ao mesmo tempo tentariam criar a mesma chave. O lote sai do buffer ANTES de
     gravar, entao nenhum produto entra em dois.
   */
-  const inicio = new Date();
+  const inicio = inicioDaVarredura ?? new Date();
+  // RETOMADA (16/09/2026): o que os lotes ja salvaram desde o inicio desta
+  // varredura. Com lote de 10, a queda custa no maximo 9 produtos, e nao a loja.
+  const jaColetadas = inicioDaVarredura
+    ? new Set((await enderecosGravadosDesde(fonte.id, inicioDaVarredura)).map(enderecoComparavel))
+    : null;
   let buffer = [];
   let gravacoes = Promise.resolve();
   const acumulado = { novos: 0, atualizados: 0, inalterados: 0, precosMudaram: 0, semChave: 0 };
@@ -282,36 +312,59 @@ export async function varrerFonte(fonte, aoProgredir) {
     });
   };
 
-  const colheita = await colherProdutos({
-    url: `https://${fonte.dominio}/`,
-    secao: fonte.prefixoUrl ?? undefined,
-    nome: fonte.nome,
-    tipo: fonte.tipo,
-    limite,
-    orcamento: ORCAMENTO_PAGINAS,
-    // O andamento e contado em PRODUTOS, nao em paginas abertas: e o numero que
-    // o operador pediu ("20 de cada"), e paginas abertas sobem sem parar em
-    // loja que exige muita navegacao ate achar produto.
-    // `visitadas` vai junto: e o sinal de vida do worker no trecho em que ele
-    // abre pagina atras de pagina sem achar produto novo (ver worker.js).
-    aoProgredir: aoProgredir
-      ? ({ produtos, visitadas }) =>
-          aoProgredir({ total: esperado, feitas: produtos, visitadas })
-      : undefined,
-    aoGuardar: (produto) => {
-      buffer.push(produto);
-      if (buffer.length >= LOTE_GRAVACAO) {
-        const lote = buffer;
-        buffer = [];
-        gravarLote(lote);
-      }
-    },
-  });
+  let colheita;
+  try {
+    colheita = await colherProdutos({
+      url: enderecoDaFonte(fonte),
+      secao: fonte.prefixoUrl ?? undefined,
+      nome: fonte.nome,
+      tipo: fonte.tipo,
+      limite,
+      orcamento: ORCAMENTO_PAGINAS,
+      sinal,
+      jaColetadas,
+      // O andamento e contado em PRODUTOS, nao em paginas abertas: e o numero que
+      // o operador pediu ("20 de cada"), e paginas abertas sobem sem parar em
+      // loja que exige muita navegacao ate achar produto.
+      // `visitadas` vai junto: e o sinal de vida do worker no trecho em que ele
+      // abre pagina atras de pagina sem achar produto novo (ver worker.js).
+      aoProgredir: aoProgredir
+        ? ({ produtos, visitadas, retomados }) =>
+            aoProgredir({ total: esperado, feitas: produtos, visitadas, retomados: retomados ?? 0 })
+        : undefined,
+      aoGuardar: (produto) => {
+        buffer.push(produto);
+        if (buffer.length >= LOTE_GRAVACAO) {
+          const lote = buffer;
+          buffer = [];
+          gravarLote(lote);
+        }
+      },
+    });
+  } catch (erro) {
+    /*
+      CANCELADA OU QUEBRADA NO MEIO: o que ja foi achado e gravado antes de sair.
+
+      Sem isto, o lote aberto (ate 9 produtos) sumia, e os lotes em voo terminavam
+      depois de o worker ja ter dado o job por encerrado — escrevendo no banco com
+      outra varredura da mesma fonte talvez ja em andamento. A coleta NAO e fechada
+      (`fecharColeta: false`): a lista da tela continua mostrando a anterior.
+    */
+    await gravacoes;
+    if (buffer.length > 0) {
+      await gravarColeta({ fonte, produtos: buffer, origem: "site", fecharColeta: false }).catch(
+        (falha) => console.error(`lote final de ${buffer.length} nao gravado: ${falha.message}`),
+      );
+    }
+    throw erro;
+  }
 
   // Os lotes em voo terminam antes da gravacao final.
   await gravacoes;
 
-  if (colheita.produtos.length === 0) {
+  const retomados = colheita.retomados ?? 0;
+
+  if (colheita.produtos.length === 0 && retomados === 0) {
     return {
       total: esperado,
       feitas: 0,
@@ -324,7 +377,8 @@ export async function varrerFonte(fonte, aoProgredir) {
   const resumo =
     `${colheita.produtos.length} produto(s) em ${colheita.visitas} pagina(s) · ` +
     `formatos: ${colheita.formatos.join(", ")}` +
-    (colheita.ritmoMs ? ` · site pede ${colheita.ritmoMs / 1000}s entre visitas` : "");
+    (colheita.ritmoMs ? ` · site pede ${colheita.ritmoMs / 1000}s entre visitas` : "") +
+    (retomados > 0 ? ` · ${retomados} retomado(s) de antes de uma interrupcao` : "");
 
   // A gravacao final leva so o que sobrou no buffer, e FECHA a coleta com a data
   // do inicio e o total da varredura inteira.
@@ -335,7 +389,7 @@ export async function varrerFonte(fonte, aoProgredir) {
     resumo,
     duracaoMs: Date.now() - comecou,
     inicioDaColeta: inicio,
-    totalDaColeta: gravadosEmLote + buffer.length,
+    totalDaColeta: gravadosEmLote + buffer.length + retomados,
   });
 
   const gravacao = {
@@ -349,8 +403,9 @@ export async function varrerFonte(fonte, aoProgredir) {
 
   return {
     total: esperado,
-    feitas: colheita.produtos.length,
-    produtos: gravacao.gravados,
+    feitas: colheita.produtos.length + retomados,
+    produtos: gravacao.gravados + retomados,
+    retomados,
     visitas: colheita.visitas,
     resumo,
     gravacao,

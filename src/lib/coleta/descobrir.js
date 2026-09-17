@@ -37,9 +37,24 @@ const PARAMETROS_RUINS = /[?&](orderby|orderway|tag|search_query|id_currency|bac
  * sem nunca ver um. Os dois sinais valem em quase toda loja: terminacao .html
  * (PrestaShop, Magento) e o id numerico no fim do slug.
  */
-function pareceProduto(url) {
+export function pareceProduto(url) {
   const caminho = url.split("?")[0];
-  return /\.html?$/i.test(caminho) || /-\d{3,}(\.|\/|$)/.test(caminho);
+  return (
+    /\.html?$/i.test(caminho) ||
+    /-\d{3,}(\.|\/|$)/.test(caminho) ||
+    // "/{slug}/p": a plataforma ASP.NET da Eletrus (16/09/2026) e a VTEX.
+    /\/[^/]+\/p\/?$/i.test(caminho)
+  );
+}
+
+/**
+ * A URL tem cara de LISTAGEM (categoria, departamento, marca)? Serve para mandar
+ * essas para o fim da fila do sitemap: o da Eletrus lista as 249 categorias antes
+ * dos 1.825 produtos, e a amostra do teste abria so categoria.
+ */
+export function pareceListagem(url) {
+  const caminho = url.split("?")[0];
+  return /\/(produtos|categorias?|category|categories|departamentos?|colecao|colecoes|marcas?|brands?)(\/|$)/i.test(caminho);
 }
 
 function ehSeguivel(url, origem, prefixo) {
@@ -84,6 +99,13 @@ function linksDe(html, urlBase, origem, prefixo) {
  * @param {number} [opcoes.orcamento]  teto de paginas VISITADAS
  * @param {(achado: {url: string, html: string, dados: object, resposta: object}) => Promise<void>} [opcoes.aoAchar]
  * @param {(andamento: {visitadas: number, produtos: number}) => Promise<void>} [opcoes.aoProgredir]
+ *   chamado a CADA pagina aberta. Quem grava em banco decide o proprio ritmo: o
+ *   worker guarda em memoria e grava por relogio. Chamado so a cada 25 paginas,
+ *   uma loja que pede 10 s entre visitas passava mais de quatro minutos sem dar
+ *   sinal, e o vigia de "varredura parada" nao teria como distinguir isso de
+ *   uma varredura travada.
+ * @param {AbortSignal} [opcoes.sinal] cancela o rastreamento entre paginas e a
+ *   requisicao em voo
  */
 export async function rastrear({
   semente,
@@ -93,6 +115,8 @@ export async function rastrear({
   aoAchar,
   aoProgredir,
   paginasConhecidas,
+  sinal = null,
+  pular = null,
 }) {
   const inicio = new URL(semente);
   const origem = inicio.origin;
@@ -105,15 +129,26 @@ export async function rastrear({
 
   let visitadas = 0;
   let produtos = 0;
+  // Paginas de produto ja gravadas antes de uma queda (retomada): contam como
+  // produto e nao sao abertas.
+  let pulados = 0;
   const urlsDeProduto = [];
 
-  while (fila.length > 0 && visitadas < orcamento && produtos < pararApos) {
+  while (fila.length > 0 && visitadas < orcamento && produtos < pararApos && !sinal?.aborted) {
     const url = fila.shift();
     const anterior = conhecidas.get(url);
+
+    if (pular?.(url)) {
+      produtos++;
+      pulados++;
+      if (aoProgredir) await aoProgredir({ visitadas, produtos, pulados });
+      continue;
+    }
 
     const resposta = await buscarPagina(url, {
       etag: anterior?.etag ?? undefined,
       vistoEm: anterior?.vistoEm ?? undefined,
+      sinal,
     });
     visitadas++;
 
@@ -149,16 +184,15 @@ export async function rastrear({
       else fila.push(link);
     }
 
-    if (aoProgredir && visitadas % 25 === 0) {
-      await aoProgredir({ visitadas, produtos });
-    }
+    if (aoProgredir) await aoProgredir({ visitadas, produtos, pulados });
   }
 
-  if (aoProgredir) await aoProgredir({ visitadas, produtos });
+  if (aoProgredir) await aoProgredir({ visitadas, produtos, pulados });
 
   return {
     visitadas,
     produtos,
+    pulados,
     urls: urlsDeProduto,
     // Sobrou fila: o orcamento acabou antes do site. A tela precisa saber para
     // nao dar o numero como total do catalogo.

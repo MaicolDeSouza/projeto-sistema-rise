@@ -225,7 +225,7 @@ export function parametrosDaPagina(html) {
  * @param {string} html            o HTML da pagina do produto
  * @returns {Promise<{aVista: number, desconto: number|null, url: string}|null>}
  */
-export async function lerAVista(pagamento, html, memoria = null) {
+export async function lerAVista(pagamento, html, memoria = null, sinal = null) {
   if (!pagamento?.url) return null;
 
   const parametros = parametrosDaPagina(html);
@@ -249,7 +249,7 @@ export async function lerAVista(pagamento, html, memoria = null) {
   alvo.searchParams.set("IdProd", parametros.idProduto);
   alvo.searchParams.set("preco", String(parametros.preco));
 
-  const resposta = await buscarPagina(alvo.toString());
+  const resposta = await buscarPagina(alvo.toString(), { sinal });
   if (!resposta.ok || !resposta.corpo) return null;
 
   const forma = menorAVista(lerFormasDePagamento(resposta.corpo));

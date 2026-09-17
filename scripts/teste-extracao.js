@@ -185,6 +185,145 @@ conferir(
 );
 
 // ---------------------------------------------------------------------------
+console.log("\n— Magento: a vista do parcelamento e ficha em lista HTML (Mamute) —");
+
+const paginaMagento = ({ precoJsonLd, precoCartao, descontos }) => `
+<script type="application/ld+json">{"@context":"https://schema.org/","@type":"ItemPage","mainEntity":{"@type":"Product","name":"Kit 100 Fusiveis de Vidro 5x20mm","sku":"31739","description":"Kit 100 Fusíveis Kit sortido com 100 fusíveis. Especificações Técnicas Formato: Tubular de vidro Dimensões: 5 x 20 mm Aplicações Indicadas Reposição em fontes de alimentação e mais texto","offers":{"@type":"Offer","price":"${precoJsonLd}","priceCurrency":"BRL","availability":"http://schema.org/InStock"}}}</script>
+<meta property="product:price:amount" content="${precoCartao}"/>
+<script type="text/x-magento-init">{"*":{"installment":{"enabled":true,"discounts":{${descontos}},"interest":{"1":0}}}}</script>
+<table class="data table additional-attributes"><tr><th>Fabricante</th><td>IMP</td></tr></table>
+<div class="product attribute description"><div class="value">
+<h2>Kit 100 Fusíveis</h2><p>Kit sortido com 100 fusíveis.</p>
+<h2 style="margin:16px 0 4px">Especificações Técnicas</h2>
+<ul style="padding-left:20px"><li><strong>Formato:</strong> Tubular de vidro</li><li><strong>Dimensões:</strong> 5 x 20 mm</li></ul>
+<h2>Aplicações Indicadas</h2><ul><li>Reposição em fontes de alimentação</li></ul>
+</div></div>`;
+
+const mamute = normalizarPagina({
+  html: paginaMagento({
+    precoJsonLd: "48.9",
+    precoCartao: "48.9",
+    descontos: '"_1":{"name":"PIX, Transfer\\u00eancia ou Dep\\u00f3sito","percentage":"5"}',
+  }),
+  url: "https://www.mamuteeletronica.com.br/kit-31739",
+  fonte: { name: "Mamute", type: "CONCORRENTE" },
+}).produtos[0];
+conferir("a vista calculado do desconto do parcelamento (48,90 - 5% = 46,46)", mamute.prices, {
+  normal: 48.9,
+  promotional: 46.46,
+  comImpostos: null,
+});
+conferir(
+  "descricao da pagina, com titulo e lista, vence a do JSON-LD numa linha so",
+  mamute.description.includes("Especificações Técnicas\n- Formato: Tubular de vidro\n- Dimensões: 5 x 20 mm"),
+  true,
+);
+conferir(
+  "ficha da lista HTML soma a tabela de atributos, sem a lista seguinte",
+  mamute.specifications.map((item) => item.nome),
+  ["Fabricante", "Formato", "Dimensões"],
+);
+
+const saravati = normalizarPagina({
+  html: paginaMagento({
+    precoJsonLd: "13.41",
+    precoCartao: "14.9",
+    descontos: '"_1":{"name":"Pix","percentage":"10"}',
+  }),
+  url: "https://www.saravati.com.br/p",
+  fonte: { name: "Saravati", type: "CONCORRENTE" },
+}).produtos[0];
+conferir(
+  "desconto aplicado sobre o preco de CARTAO, nao sobre o JSON-LD que ja e o do pix",
+  [saravati.prices.normal, saravati.prices.promotional],
+  [14.9, 13.41],
+);
+
+const semPix = normalizarPagina({
+  html: paginaMagento({
+    precoJsonLd: "48.9",
+    precoCartao: "48.9",
+    descontos: '"_1":{"name":"Cupom de primeira compra","percentage":"10"}',
+  }),
+  url: "https://loja.com.br/p",
+  fonte: { name: "Loja", type: "CONCORRENTE" },
+}).produtos[0];
+conferir("desconto que nao e de pagamento a vista nao vira promocional", semPix.prices.promotional, null);
+
+// ---------------------------------------------------------------------------
+console.log("\n— plataforma propria ASP.NET (Eletrus) —");
+
+const cardsEletrus = `<div class="produto__item--box" itemscope itemtype="https://schema.org/Product">
+<span itemprop="sku" content=""></span><span itemprop="name" content="Sensor da vitrine"></span>
+<div itemprop="offers" itemscope itemtype="http://schema.org/Offer"><span itemprop="price" content="700.00">700,00</span></div>
+<img data-src="https://www.eletruscomp.com.br/_uploads/ProdutoDestaque/X_1__thumb.webp"></div>`;
+
+const homeEletrus = normalizarPagina({
+  html: `<html><body><ul class="loja__breadcrumb"></ul>${cardsEletrus}</body></html>`,
+  url: "https://www.eletruscomp.com.br/",
+  fonte: { name: "Eletrus", type: "CONCORRENTE" },
+});
+conferir("listagem da plataforma nao vira produto", homeEletrus.produtos.length, 0);
+
+const paginaEletrus = (ref) => `<html><body>
+<nav><a href="https://www.eletruscomp.com.br/catalogos" class="dropdown-item">Cat&#225;logos</a></nav>
+<ul class="loja__breadcrumb"><li><a href="/"><i></i></a></li>
+<li><a href="/produtos?segmento1=a"><p class="content ">Automa&#231;&#227;o </p></a></li>
+<li><a href="/produtos?segmento1=a&segmento2=b"><p class="content ">Sensores </p></a></li>
+<li><a href="/x/p"><p class="content active">Sensor fotoeletrico obt500 </p></a></li></ul>
+<div class="container" itemscope itemtype="http://schema.org/Product">
+<span itemprop="image" itemscope itemtype="http://schema.org/ImageObject"><meta itemprop="contentUrl" content="https://www.eletruscomp.com.br/_uploads/ProdutoDestaque/ProdutoDestaque_749_3205__orig.jpg"></span>
+<img data-src="https://www.eletruscomp.com.br/_uploads/produtoArquivo/749_0_0710_orig.jpg">
+<figcaption itemprop="caption description"></figcaption><span>Passe o mouse para dar zoom</span>
+<div class="detalhe_informacoes detalhe__produto--info"><h1 class="produto__titulo--detalhe" itemprop="name">Sensor fotoeletrico obt500 </h1>
+<div class="detalhe_informacoes_cod_ref mb-3"><p><span>Ref: ${ref}</span> <span>C&#243;d: 53.00.1463</span> <span itemprop="brand" content="Autonics">Marca: Autonics</span></p></div>
+<span itemprop="sku" content=""></span>
+<div class="produto__valor" itemprop="offers" itemscope itemtype="http://schema.org/Offer"><span itemprop="price" content="320.00">320,00</span></div>
+<p class="produto__valor__parcelas">Ou R$ 304,00 &#224; vista ( - 5% ) </p>
+<a class="btn detalhe-compra-btn comprar-btn" href="#"><span>comprar</span></a></div>
+<div class="detalhe_informacoes_frete"></div>
+<ul class="nav nav-tabs"><li><a data-bs-toggle="tab" href="#aba5000" class="nav-link">Descri&#231;&#227;o</a></li>
+<li><a data-bs-toggle="tab" href="#aba5001" class="nav-link">Caracteristicas T&#233;cnicas</a></li></ul>
+<div class="tab-content"><div id="aba5000" class="tab-pane fade show active conteudo"><div class="categoria-descricao"><p>Sensor difuso M18.</p></div></div>
+<div id="aba5001" class="tab-pane fade conteudo"><div class="categoria-descricao"><ul><li> Modelo: <strong>OBT500-18GM60-E5</strong></li><li> Alimenta&#231;&#227;o: <strong>10 a 30 VCC</strong></li></ul></div></div></div>
+</div>
+<div class="modal" id="avise"><p>Avise-me!</p><p>Informe seu nome, e-mail e telefone</p></div>
+<footer><p>CNPJ 04.080.033/0001-40</p></footer></body></html>`;
+
+const eletrus = normalizarPagina({
+  html: paginaEletrus("OBT500-18GM60-E5"),
+  url: "https://www.eletruscomp.com.br/sensor-fotoeletrico-obt500/p",
+  fonte: { name: "Eletrus", type: "CONCORRENTE" },
+}).produtos[0];
+conferir("codigo e o 'Cod:' do painel", eletrus.code, "53.00.1463");
+conferir("Ref: de fabricante vira MPN e modelo", [eletrus.mpn, eletrus.model], ["OBT500-18GM60-E5", "OBT500-18GM60-E5"]);
+conferir("marca do painel", eletrus.brand, "Autonics");
+conferir("categoria e o ultimo degrau antes do produto", eletrus.category, "Sensores");
+conferir("preco e a vista escrito", [eletrus.prices.normal, eletrus.prices.promotional], [320, 304]);
+conferir("botao comprar = em estoque", eletrus.stock.status, "AVAILABLE");
+conferir("fotos da galeria nas duas pastas, sem o 'Passe o mouse'", eletrus.images, [
+  "https://www.eletruscomp.com.br/_uploads/ProdutoDestaque/ProdutoDestaque_749_3205__orig.jpg",
+  "https://www.eletruscomp.com.br/_uploads/produtoArquivo/749_0_0710_orig.jpg",
+]);
+conferir("link 'Catalogos' do menu do site nao e documento do produto", eletrus.documentos, []);
+conferir(
+  "ficha da aba, sem o formulario e o rodape que vem depois",
+  eletrus.specifications,
+  [
+    { nome: "Modelo", valor: "OBT500-18GM60-E5" },
+    { nome: "Alimentação", valor: "10 a 30 VCC" },
+  ],
+);
+conferir("descricao da aba", eletrus.description, "Sensor difuso M18.");
+
+const refEhNome = normalizarPagina({
+  html: paginaEletrus("SENSOR FOTOELETRICO OBT500"),
+  url: "https://www.eletruscomp.com.br/sensor-fotoeletrico-obt500/p",
+  fonte: { name: "Eletrus", type: "CONCORRENTE" },
+}).produtos[0];
+conferir("Ref: que e so o nome cortado nao vira MPN", refEhNome.mpn, null);
+
+// ---------------------------------------------------------------------------
 console.log("\n— ficha com titulo em caixa normal e bullets sem par —");
 const fichaCaixaNormal = [
   "Cantoneira em aluminio 28 x 35 p/ Perfil Estrutural 3030",

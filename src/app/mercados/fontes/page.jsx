@@ -2,14 +2,29 @@ import Link from "next/link";
 import { ArrowLeft, Store } from "lucide-react";
 
 import { prisma } from "@/lib/db";
+import { jobLargado } from "@/lib/coleta/fila";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import FormularioFonte from "@/components/mercados/FormularioFonte";
 import LinhaFonte from "@/components/mercados/LinhaFonte";
 import AbasDeFontes from "@/components/mercados/AbasDeFontes";
+import RecarregarEnquantoVarre from "@/components/mercados/RecarregarEnquantoVarre";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * O que a fila diz de cada fonte agora: varrendo, ou esperando a vez. Job largado
+ * por worker parado conta como fila — e para la que ele volta.
+ */
+function situacaoNaFila(jobs) {
+  return new Map(
+    jobs.map((job) => [
+      job.fonteId ?? job.payload?.fonteId,
+      job.status === "PROCESSANDO" && !jobLargado(job) ? "VARRENDO" : "NA_FILA",
+    ]),
+  );
+}
 
 export default async function FontesPage({ searchParams }) {
   const params = await searchParams;
@@ -20,15 +35,23 @@ export default async function FontesPage({ searchParams }) {
   const aba = params?.tipo === "CONCORRENTE" ? "CONCORRENTE" : "FORNECEDOR";
 
   let fontes = null;
+  let jobsAbertos = [];
   let erro = null;
 
   try {
-    fontes = await prisma.fonteColeta.findMany({
-      orderBy: [{ ativa: "desc" }, { nome: "asc" }],
-    });
+    [fontes, jobsAbertos] = await Promise.all([
+      prisma.fonteColeta.findMany({
+        orderBy: [{ ativa: "desc" }, { nome: "asc" }],
+      }),
+      prisma.job.findMany({
+        where: { tipo: "coleta", status: { in: ["PENDENTE", "PROCESSANDO"] } },
+      }),
+    ]);
   } catch (excecao) {
     erro = excecao;
   }
+
+  const varreduraPorFonte = situacaoNaFila(jobsAbertos);
 
   const linhas = (fontes ?? []).map((fonte) => ({
     id: fonte.id,
@@ -39,6 +62,8 @@ export default async function FontesPage({ searchParams }) {
     ativa: fonte.ativa,
     robotsPermite: fonte.robotsPermite,
     ultimaVarreduraEm: fonte.ultimaVarreduraEm,
+    proximaVarreduraEm: fonte.proximaVarreduraEm,
+    varredura: varreduraPorFonte.get(fonte.id) ?? null,
     // Quantos a loja tem, e quantos ja pegamos. Os dois juntos: um sozinho
     // nao responde se a coleta esta perto do fim ou mal comecou.
     produtosNoSite: fonte.produtosNoSite,
@@ -91,6 +116,7 @@ export default async function FontesPage({ searchParams }) {
       {!erro && (
         <>
           <FormularioFonte tipoInicial={aba} />
+          <RecarregarEnquantoVarre ativo={varreduraPorFonte.size > 0} />
 
           {linhas.length > 0 && (
             <AbasDeFontes

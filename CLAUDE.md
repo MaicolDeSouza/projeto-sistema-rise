@@ -45,8 +45,22 @@ npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
 npm run teste:coleta              # 42 asserções da gravação no banco (usa o Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
-npm run worker                    # executa o que o botao "Atualizar tabelas" enfileira
+npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
+npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
+npm run backup                    # dados/backup/sistema_rise-AAAAMMDD-HHMMSS.dump (pg_dump, conferido com pg_restore; guarda os 4 mais recentes)
+npm run teste:worker              # 40 asserções: rede, fila, retomada e o worker de verdade (~6 min)
 ```
+
+**Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
+Windows "Sistema Rise - Backup semanal do banco", toda segunda às 12:00. Com
+`StartWhenAvailable`, se o computador estiver desligado ela roda assim que ligar.
+- **Retenção:** o script mantém os **4** backups automáticos mais recentes (nome
+  `sistema_rise-AAAAMMDD-HHMMSS.dump`). Só apaga depois de o novo passar na conferência do
+  pg_restore, e backup com outro nome, feito à mão, nunca é apagado.
+- **Log:** `dados/logs/backup.log`.
+- **Senha:** vai por `PGPASSWORD` com `--no-password`. Pela URL, o pg_dump do Windows parou
+  esperando senha no terminal.
+- **Na VPS:** o agendamento não vai junto; lá vira um cron com `npm run backup`.
 
 HTTPS é obrigatório (o OAuth do ML exige). Certificado em `certificates/`, gerado com
 mkcert, fora do git.
@@ -176,7 +190,7 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   dele, a 1 requisição a cada 2 s por domínio — a Smartkits (3.780) leva ~2 h, a Casa da
   Robótica (2.294) ~1,3 h. **Eletrogate e Impacto CNC pedem 10 s entre visitas**: 500
   produtos já são ~1,4 h cada. A varredura completa das oito fontes é trabalho de uma noite,
-  e o worker **morre junto com a sessão** — fonte interrompida recomeça na próxima.
+  e desde 16/09/2026 corre com **3 lojas ao mesmo tempo** (ver "Worker da coleta").
 - **O botão "Atualizar dados" enfileira**, não executa: varrer seis lojas passa de dez
   minutos, o que não cabe numa requisição HTTP e morreria no primeiro hot reload. Quem
   executa é o `scripts/worker.js` (`npm run worker`): `varrerFonte` → `colherProdutos` ou
@@ -237,17 +251,8 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   (`enfileirarVencidas`), sem clique. A migration levou a próxima varredura das fontes já
   varridas para 30 dias depois da última. As que estavam na fila rodam uma vez e ganham a data
   nova no fim.
-- **Um laço de shell de outra sessão pode religar o worker que você acabou de parar.** Em
-  16/09/2026, o `taskkill` no worker antigo foi seguido, um minuto depois, de um worker novo
-  subido pelo laço `while true; do npm run worker; done` de uma sessão anterior (um
-  `bash.exe` vivo desde as 03:13). Subir outro worker em seguida deixou **dois disputando a
-  fila**. Antes de subir worker, liste os processos com
-  `Get-CimInstance Win32_Process -Filter "Name='node.exe'"`, filtrando por `worker`, e procure
-  também o `bash.exe` pai. Parar a tarefa em segundo plano não mata o `node` filho no Windows:
-  é preciso `taskkill /T` no `cmd.exe` dele.
 - **Fornecedor com lista e site (Nightech) navega o site sem gravar em lotes**: a trava de queda
-  precisa da lista inteira, mesclada. Desde 16/09 esse trecho também manda sinal de vida
-  (`visitadas`), só em worker iniciado depois da mudança.
+  precisa da lista inteira, mesclada.
 - **O teto da tabela subiu de 100 para 300.** A data é da **coleta inteira**, não de cada
   produto, então a ordenação agrupa por fonte e um teto apertado corta a fonte mais antiga
   **por completo**: com 100, a Casa da Robótica sumia da tela inteira tendo 20 produtos
@@ -286,6 +291,151 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   banco.
 - O bloco vive na branch **`bloco-mercados`**, ainda não fundida na principal.
 
+### Worker da coleta — reescrito em 16/09/2026
+
+Um dia inteiro de defeitos no mesmo lugar levou à reescrita:
+- job "em andamento" por horas sem ninguém varrendo;
+- dois workers disputando a fila;
+- worker preso para sempre;
+- loja que falhava voltando à fila na hora.
+
+A raiz era uma só: **a vida de um job era deduzida do andamento dele** (`atualizadoEm`), e as
+duas coisas não são a mesma.
+
+**Como rodar.**
+- `npm run worker` sobe o **supervisor** (`scripts/worker.js`), que sobe o worker
+  (`scripts/worker-processo.js`) e o religa quando cai, com espera de 5 s a 2 min.
+- **Não use mais laço de shell** (`until npm run worker; do ...`). Ele sobrevivia à sessão e
+  religou um worker enquanto outro rodava.
+- **Log em arquivo:** `dados/logs/worker-AAAA-MM-DD.log`. Quando uma varredura "para", é lá
+  que se vê por quê.
+- **Para parar:** Ctrl+C no terminal dele, ou `npm run worker:parar` de qualquer lugar (pedido
+  por arquivo, `dados/worker.parar`). Os dois devolvem as varreduras à fila **sem gastar
+  tentativa**, gravam o lote aberto e encerram em ~1 s. O supervisor sai junto, sem religar.
+- **Matar o processo (`taskkill /F`) não é parar.** No Windows o Node põe o filho num *job
+  object* que o mata junto com o pai, sem aviso (medido: até filho sem canal nenhum morre). Os
+  jobs ficam `PROCESSANDO` e o próximo worker os recolhe **na partida**, gastando uma
+  tentativa.
+
+**Três sinais, cada um com uma pergunta** (`src/lib/coleta/fila.js`):
+
+| Sinal | Pergunta | Como |
+| --- | --- | --- |
+| `WorkerColeta.sinalEm` | o processo está vivo? | relógio, a cada 15 s (`SINAL_MS`) |
+| `Job.sinalEm` + `workerId` | o dono ainda cuida do job? | relógio, a cada 15 s; sem sinal há 2 min = largado |
+| última resposta do site (`ultimaRespostaDe`) | a varredura anda? | o vigia cancela após 10 min sem resposta |
+
+Loja lenta não parece worker morto (o sinal é por relógio), e varredura travada não parece
+viva (o vigia olha a atividade).
+
+**O vigia olha a última RESPOSTA do site, e não o andamento em produtos.** O andamento só
+aparece nos laços de página. A leitura de catálogo e sitemap vem antes e passou de 2 min na
+Smartkits; numa loja com 10 s entre visitas passaria dos 10 min, e o vigia cancelaria uma
+varredura legítima. Toda requisição termina em até 20 s, com sucesso ou erro, então varredura
+viva responde a cada poucos segundos em qualquer fase.
+
+**Três garantias que o banco dá**, em vez de o código conferir antes de agir:
+- **Um worker por vez:** `pg_try_advisory_lock` numa conexão própria. A trava morre com a
+  conexão, então processo morto nunca a deixa presa. O segundo worker sai com código 3, e o
+  supervisor não insiste.
+- **Um job aberto por fonte:** índice único parcial `Job_fonte_aberta` (só `PENDENTE` e
+  `PROCESSANDO`), migration `20260916_worker_paralelo`. O Prisma não descreve índice parcial,
+  então ele mora só no SQL. `enfileirar` usa `createMany({ skipDuplicates })`, e o botão e o
+  ciclo de 30 dias podem enfileirar no mesmo instante.
+- **Um dono por job:** `pegarProximoJob` é um `UPDATE ... WHERE id = (SELECT ... FOR UPDATE
+  SKIP LOCKED)`. Antes era "achar, depois marcar", e dois workers pegavam o mesmo job.
+
+**5 lojas em paralelo** (`COLETA_PARALELO`, padrão 5, pedido do dono; eram 3 no mesmo dia).
+Cada domínio tem a própria fila de ritmo (`buscar.js`), então paralelo não aperta site nenhum.
+É um worker com cinco varreduras, e não cinco workers, porque a varredura é espera de rede, não
+CPU.
+
+**A coleta NÃO usa `fetch`** (`src/lib/coleta/http.js`, sobre `node:http`/`node:https`). O
+`fetch` do Node é o `undici`, e ele derruba o **processo inteiro** com
+`AssertionError: assert(!this.paused)` em `Parser.finish`, seguido de abort do libuv.
+- **Quando acontece:** o site responde com `Connection: close` e sem tamanho declarado, e fecha
+  a conexão no instante em que o leitor do corpo está pausado por contrapressão. Nenhum
+  try/catch alcança.
+- **Quanto custou:** derrubou o worker 4 vezes em 16/09/2026, e 3 delas vieram em 13 min com
+  três lojas em paralelo.
+- **Reprodução:** 12 conexões simultâneas lendo com pequenas pausas
+  (`dados/diag/repro4.mjs`, descartável). Cai no undici 7.29.0 do Node 24 **e** no 8.10.2, o
+  mais novo, então atualizar não resolve. O cliente nativo passou 3×1.500 requisições no mesmo
+  teste.
+- **O que `obter` refaz à mão:** segue redirecionamento (recusa outro domínio em página, aceita
+  em sitemap), descompacta gzip/deflate/br, aplica o teto de tempo até o último byte e o teto de
+  tamanho, e sempre consome ou descarta o corpo.
+- **Resto do sistema:** fora da coleta (integrações, IA, imagens) o `fetch` continua. Lá ele
+  roda no servidor do site, e não no worker.
+
+**Retomada: a varredura continua de onde parou** (pedido do dono em 16/09/2026).
+- **Como funciona:** o job guarda `payload.inicioDaColeta`, gravado ao começar e mantido em
+  queda, encerramento e recolhimento. A tentativa seguinte passa a data a `varrerFonte`, que
+  busca os endereços gravados pelos lotes desde então (`enderecosGravadosDesde`).
+  `colherProdutos({ jaColetadas })` não reabre essas páginas e as conta como `retomados`, no
+  catálogo, no sitemap e na navegação (`rastrear({ pular })`, que não segue os links delas).
+- **Fechamento:** a coleta fecha com a data da primeira tentativa e o total inclui os
+  retomados.
+- **Perda máxima numa queda:** o lote aberto, até 9 produtos.
+- **Validade:** 3 dias (`RETOMADA_VALE_MS`). Depois disso o preço gravado envelheceu, e a
+  varredura começa de novo.
+- **Fornecedor com lista (Nightech) não retoma:** a trava de queda precisa da lista inteira.
+- **Teste:** queda no meio de uma loja de 25 produtos; o seguinte abre só o que faltava.
+
+**Tentativas numa queda.** Antes, o erro fatal devolvia todo job como PENDENTE, e o log mostrou
+"tentativa 4/3".
+- **Erro fatal:** o job na última tentativa agora FALHA e a fonte é adiada.
+- **Pegar job:** `pegarProximoJob` não pega job com tentativas esgotadas.
+- **Na fila:** `fecharEsgotados` fecha os que já estavam nela.
+
+**Tela: botão de status** ao lado de "Varredura em andamento", com o número de lojas em
+varredura. Ao clicar abre a tabela: produtos, páginas, **segundos por produto** e quanto falta.
+- **Segundos por produto:** o worker mede entre o primeiro e o último produto **novo** desta
+  passada, sem contar descoberta nem retomados, e só com 2 ou mais produtos.
+- **"Falta" e o total:** só aparecem quando o total é o catálogo de verdade. `total` igual ao
+  teto (20.000) é loja que não publica quantos tem, e "falta 11h38" seria inventado.
+- **Vale a pena:** mostra por que uma loja demora. A Impacto CNC dá ~18–20 s/produto (10 s de
+  Crawl-delay mais as páginas de categoria no caminho); as outras, ~2 s.
+
+**Defeitos fechados, com a causa medida:**
+- **Worker preso para sempre numa página.** `buscarPagina` desligava o relógio de 20 s quando
+  chegavam os cabeçalhos, e o corpo era lido **sem teto**: loja que parasse de mandar bytes
+  prendia o worker sem erro e sem log. Agora o `AbortSignal.timeout` vale até o último byte (e
+  para robots.txt e sitemap). Teste: página que manda cabeçalho e para.
+- **Cancelar demorava até 60 s**, porque catálogo, sitemap e preço à vista não recebiam o
+  sinal. Hoje `sinal` chega a `colherProdutos`, `rastrear`, `lerCatalogo`, `descobrirSitemaps`,
+  `lerSitemaps`, `lerAVista` e à requisição em voo.
+- **Loja que esgotava as tentativas voltava à fila na volta seguinte**: continuava "vencida".
+  Agora `adiarFonte` a empurra 6 h (`ESPERA_APOS_ESGOTAR_MS`).
+- **Job largado só era recolhido entre um job e outro**: a Smartkits ficou 4 h "881 de 3780"
+  com o worker varrendo a Impacto CNC. `recolherLargados` roda a cada volta (5 s), esteja o
+  worker ocupado ou não.
+- **Erro fatal fora de qualquer `try`** (o `AssertionError` do `undici` que derrubou o worker
+  na Casa da Robótica): `uncaughtException`/`unhandledRejection` devolvem os jobs e saem com
+  código 1, e o supervisor religa.
+- **Varredura que não responde nem ao cancelamento** (60 s de graça): o job é devolvido e o
+  worker reinicia, porque a promessa viva ainda poderia escrever no banco.
+- **Andamento velho na tela**: o job pego zera `total/feitas/visitadas` no próprio `UPDATE`.
+
+**`NOW()` do Postgres está em `America/Sao_Paulo`, e as colunas são UTC.** As colunas são
+`TIMESTAMP` sem fuso, gravadas pelo Prisma em UTC. Comparado a elas, `NOW()` vira hora local,
+3 h atrás. Em SQL cru, use `(NOW() AT TIME ZONE 'UTC')`. O teste do worker pegou isso antes de
+ir ao ar: o job só seria pego 3 h depois, e todo sinal de vida nasceria velho.
+
+**`COLETA_FONTES=<id,id>`** restringe o worker a essas fontes, com **outra trava**. Serve para
+o teste (sobe ao lado do worker normal sem tocar na fila dele) e para varrer uma loja só ao
+investigar. Fonte com `dominio` gravado **com protocolo** (`http://127.0.0.1:porta`) é varrida
+como está; é assim que o teste usa uma loja falsa local.
+
+**O teste do worker roda com o worker real no ar.** Os jobs dele levam `payload.teste = true`,
+que o worker sem filtro não pega nem recolhe. Uma primeira versão criava uma fonte de teste já
+vencida, e o worker no ar a enfileirou para si no meio do teste. Hoje o ciclo automático é
+testado com um `agora` simulado (`enfileirarVencidas({ agora })`).
+
+**Tela Mercados:** depois da migration, o servidor do site precisa ser **reiniciado**. Sem isso,
+o cliente Prisma antigo na memória (`globalThis.prismaRise`) não tem `workerColeta`, e a consulta
+de andamento dá 500.
+
 **Em aberto no Mercados** — estado em 15/09/2026:
 
 - **Conferir o campo Documentos na prévia do teste de fonte.** A extração está testada; o
@@ -294,21 +444,6 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   varredura depois disso ainda não rodou: conferir o tempo e o total que ela dá.
 - **Usinainfo sem total de catálogo é de propósito**, não pendência: o único sitemap dela
   são 12 rotas de busca (ver "Sitemap", abaixo).
-- **Job largado por worker que morreu travava a fila** — corrigido em 15/09/2026. A
-  Usinainfo ficou `PROCESSANDO` de 02/09 a 15/09: nunca mais varrida (fonte com job aberto
-  não é enfileirada de novo), com "Atualizar dados" bloqueado para **todas** as fontes e o
-  aviso de "nenhum worker" calado, porque `PROCESSANDO` era a prova de vida. Agora o worker,
-  a cada volta, devolve à fila o job `PROCESSANDO` **sem notícia há 30 min**
-  (`ORFAO_APOS_MS` em `src/lib/coleta/fila.js`), e a tela não conta esse job como worker
-  vivo. Não é todo `PROCESSANDO`: um segundo worker subido por engano devolveria à fila o
-  trabalho que o primeiro está fazendo.
-- **O Node derruba o worker sozinho.** Em 16/09/2026, uma hora dentro da Casa da Robótica, o
-  processo morreu com `AssertionError: assert(!this.paused)` vindo do **`undici`** — o cliente
-  HTTP interno do Node, em `Parser.finish`, ao fechar a conexão. Não é código nosso, e nenhum
-  `try/catch` alcança: a exceção sobe de um tick interno. Duas defesas: o worker devolve à
-  fila o job em andamento **já na partida** (`ORFAO_NA_PARTIDA_MS`, 10 min — quem acabou de
-  subir não está processando nada), e a varredura longa roda dentro de um laço de shell que
-  o religa quando ele cai.
 - **A varredura de site grava em lotes de 10 produtos** (`LOTE_GRAVACAO`), desde 16/09/2026, a pedido do dono (que escolheu 10, e não 50).
   Antes `gravarColeta` só rodava no fim, e a queda custava a varredura inteira: a Casa da
   Robótica tinha aberto 1.157 das 2.294 páginas e **nada** foi salvo, e o Eletrogate chegou a
@@ -324,7 +459,9 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
     inteira para comparar.
   - Se o worker cair, os lotes gravados ficam, mas a "última coleta" da fonte não avança. A
     tela mostra a coleta anterior mais os lotes novos, até a próxima varredura fechar.
-  - **Nada disso vale para worker iniciado antes da mudança.** O Node carregou o código antigo.
+  - Varredura **cancelada** (worker encerrando, vigia) grava o lote aberto antes de sair.
+  - **Mudança no código da coleta só vale depois de reiniciar o worker**: o Node carregou o
+    código antigo. `npm run worker:parar` e `npm run worker`.
 - A unidade de venda do fornecedor (ver "Ainda em aberto" em Fornecedores).
 
 **As telas, e o vocabulário do dono** — ajustado ao longo de 01/09/2026:
@@ -350,22 +487,9 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   atualização falhou, quando ela estava correndo. Recusa não é erro: ela agora vira
   estado (botão desabilitado, fonte da vez e percentual), e o vermelho fica para falha de
   verdade.
-- **Job `PROCESSANDO` é prova de que há worker vivo.** O aviso "nenhum worker pegou o
-  trabalho" olhava só a idade do pendente, e o worker atende **um por vez**: com sete
-  fontes na fila, o último espera os seis anteriores e fica velho por definição. A tela
-  mandava rodar `npm run worker` com o worker varrendo na frente — e obedecer subiria um
-  segundo processo disputando a mesma fila. O alarme só vale quando ninguém está
-  processando.
-- **"Sem notícia há 30 min" deu por morto um worker vivo** (16/09/2026). O worker só gravava
-  andamento quando achava **produto novo**. O Eletrogate chegou a 2.000 produtos às 08:46 e
-  passou as duas horas seguintes abrindo categoria sem achar nenhum (10 s por página): a tela
-  disse *"Nenhum worker pegou o trabalho, rode `npm run worker`"*. Conferido: o processo tinha
-  conexões abertas com `www.eletrogate.com` (CDN VTEX, 13.224.252.x). Obedecer subiria um
-  segundo worker, que na partida tomaria a varredura em andamento para si. Agora o worker grava
-  também **páginas abertas** (`visitadas`) a cada `SINAL_DE_VIDA_MS` (2 min, em `fila.js`), e o
-  rastreador reporta a cada 25 páginas. **Só vale para worker iniciado depois dessa mudança.**
-  Antes de dar um worker por morto, olhe o processo (`Get-NetTCPConnection -OwningProcess <pid>`),
-  e não só o banco.
+- **Uma linha por loja em varredura** (até três), e "e mais N fontes na fila". O aviso
+  "Nenhum worker no ar" vem do registro do worker (`WorkerColeta`), não da idade dos jobs —
+  ver "Worker da coleta".
 - **"2000 de 500 (400%)"**: o total é o que se sabia do catálogo, e o sitemap do Eletrogate
   lista só 500 endereços. Quando a contagem passa do total, a tela mostra só "N produto(s)" e as
   páginas abertas, sem percentual.
@@ -787,6 +911,71 @@ decidir entre coleta e importação. **Site só está anotado onde o dono deu** 
 Arquivos de origem em `C:/Users/pesso/Downloads/`.
 
 ### Sites que exigiram tratamento próprio
+
+- **Eletru's (eletruscomp.com.br): plataforma própria em ASP.NET MVC** (IIS,
+  `x-aspnetmvc-version`), mapeada em 16/09/2026 como `aspnet-uploads` em `plataformas.js`.
+  - **Formatos:** não tem JSON-LD. O Microdata traz só nome, preço e imagem, com `sku` **vazio**.
+  - **Onde estão os dados:** `daVitrineAspNet` (`normalizar.js`) lê o painel e as abas.
+    - `Ref:` é a referência do fabricante e vira MPN e modelo. Descartada quando é só o nome
+      cortado em 30 letras ("LAMPADA VAPOR SODIO 250 W E-40"): começa como o nome ou tem 3+
+      palavras.
+    - `Cód: 53.00.1463` é o código.
+    - `itemprop="brand"`, quando há.
+    - Categoria: o último degrau do `loja__breadcrumb` antes do produto.
+    - Preço: `itemprop="price"`, e o à vista escrito "Ou R$ 304,00 à vista ( - 5% )".
+    - Estoque: botão `comprar-btn`; `avise-btn` é sem estoque, e aí não há preço (concorrente
+      sem preço é descartado).
+    - Descrição e ficha nas abas `#abaNNNN`; ficha em "Nome: valor".
+  - **A home virava produto:** os cards da vitrine repetem `itemtype=Product`. Com
+    `ehListagemAspNet`, página com cards e sem o painel de detalhe não rende produto.
+  - **Aba recortada pelo `</div>` que a equilibra** (`conteudoDoDiv`). Cortar em "próxima aba
+    ou relacionados" levava a última aba até o rodapé, e o formulário "avise-me", o telefone
+    e o CNPJ viravam 30 especificações.
+  - **Fotos:** a galeria usa **duas pastas**, `_uploads/ProdutoDestaque/` (a principal) e
+    `_uploads/produtoArquivo/` (as demais). O borne PT 2,5 tem 1 + 5, e só a principal vinha.
+    Só a versão `orig`, nomeada `__orig` ou `_orig`. O Microdata de imagem trazia "Passe o mouse
+    para dar zoom" como endereço.
+  - **"Catálogos" do menu virava documento de todo produto** (`/catalogos`, página
+    institucional). Em `documentosDaPagina`, link reconhecido **só pelo texto** (sem extensão
+    nem endpoint de anexo) que aponta para página de primeiro nível e tem até 2 palavras é
+    seção do site, e não documento. Conferido nas outras 6 concorrentes: nenhum documento real
+    se perdeu.
+  - **Sitemap plano:** 249 categorias (`/produtos/...`) **antes** de 1.825 produtos (`/{slug}/p`).
+    `colher.js` ordena o sitemap em produto (`pareceProduto`, que agora reconhece `/{slug}/p`),
+    resto e listagem (`pareceListagem`). Sem isso a amostra do teste abria só categoria.
+
+- **Mamute Eletrônica (Magento 2): o preço à vista não está no HTML** (16/09/2026). A página
+  mostra "R$ 46,46 — 5% OFF no PIX", mas o servidor só entrega R$ 48,90. O resto é calculado
+  no navegador a partir do módulo de parcelamento, num `text/x-magento-init` com
+  `"installment": {"discounts": {"name": "PIX, Transferência ou Depósito", "percentage": "5"}}`.
+  `aVistaDoMagento` refaz a conta em centavos, arredondando meio para cima
+  (48,90 × 0,95 = 46,455 → 46,46). Só vale desconto de pagamento à vista (pix, boleto,
+  transferência, depósito).
+  - **A base é o preço de CARTÃO** (`product:price:amount` / `finalPrice`), nunca o JSON-LD. Na
+    Saravati o JSON-LD já é o preço do pix, e aplicar os 10% de novo dava 12,07 onde a loja
+    cobra 13,41. A primeira versão errou assim, e a comparação com os produtos já gravados
+    pegou.
+- **Mamute: ficha técnica em lista HTML, com tabela de atributos de UMA linha.** A regra era
+  "tabela OU lista da descrição". A tabela (`Fabricante: IMP`) calava a lista, e a lista por
+  texto também não serviria: a descrição do JSON-LD vem numa linha só, sem quebras.
+  `especificacoesDeListaHtml` lê o `<ul>` colado a um título "Especificações Técnicas" /
+  "Ficha técnica" (`<li><strong>Nome:</strong> valor`), e `juntarFichas` soma com a tabela sem
+  repetir rótulo. Nas outras 6 concorrentes a contagem de especificações não mudou.
+- **Mamute: a descrição chegava num bloco só.** O JSON-LD dela vem numa linha ("...
+  Especificações Técnicas Modelo: CJMCU-219 Interface de comunicação: I2C ..."), e pela regra
+  da mais longa vencia o bloco HTML da página por poucos caracteres. Duas mudanças:
+  - `melhorDescricao` compara o tamanho **sem espaços nem marcadores**. Entre as que trazem
+    ao menos 85% do texto da mais longa, vence a que tem **mais linhas**. Resumo de SEO continua
+    perdendo.
+  - `descricaoDoBloco` mantém a estrutura: título ganha linha em branco antes, `<li>` vira
+    `- item`, e os itens ficam colados.
+
+  Nas outras 6 concorrentes o conteúdo ficou idêntico (conferido sem espaços e marcadores),
+  e só a disposição melhorou: a Casa da Robótica perdeu as linhas em branco entre itens, e a
+  Smartkits ganhou hífen nas listas.
+- **Mamute: a categoria do dataLayer vem errada da própria loja** (kit de fusíveis em
+  "Espaguetes Termo Retráteis"). O breadcrumb é montado por JavaScript, e não há outra fonte
+  na página. Não se corrige: é dado deles.
 
 - **Makerhero: Cloudflare.** Desafio anti-bot em qualquer combinação de cabeçalho,
   inclusive nenhum. **Não se contorna** — o `buscar.js` diz por escrito que user-agent

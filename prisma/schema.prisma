@@ -326,7 +326,32 @@ model Job {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
+  /// Fonte da coleta, em coluna: um indice unico PARCIAL (so em PENDENTE e
+  /// PROCESSANDO, na migration 20260916_worker_paralelo) garante um job aberto
+  /// por fonte. O Prisma nao descreve indice parcial — ele mora so no SQL.
+  fonteId    String?
+  /// Worker dono do job em andamento (WorkerColeta.id). So o dono escreve nele.
+  workerId   String?
+  /// Sinal de vida do job, escrito POR RELOGIO pelo dono, e nao pelo andamento:
+  /// job sem sinal ha mais de JOB_SEM_SINAL_MS foi largado (src/lib/coleta/fila.js).
+  sinalEm    DateTime?
+  iniciadoEm DateTime?
+
   @@index([status, proximaTentativaEm])
+  @@index([status, sinalEm])
+}
+
+/// Worker da coleta no ar. Um so por vez (trava consultiva no Postgres); a tela
+/// le daqui se ha quem atenda a fila.
+model WorkerColeta {
+  id          String    @id
+  pid         Int
+  maquina     String
+  /// Quantas varreduras ele faz ao mesmo tempo (COLETA_PARALELO).
+  paralelo    Int
+  iniciadoEm  DateTime  @default(now())
+  sinalEm     DateTime  @default(now())
+  encerradoEm DateTime?
 }
 
 /// Auditoria de toda chamada a API externa. E o que torna possivel depurar
