@@ -1711,18 +1711,35 @@ Desde 18/09/2026 o dono trabalha em **duas sessões ao mesmo tempo**, cada uma n
 (uma segunda cópia da pasta, ligada ao mesmo histórico do git, com branch própria). O que uma
 sessão edita não aparece na outra até o merge.
 
+**"Agente 1" e "Agente 2" são o nome que o dono dá às duas FRENTES de trabalho (as duas
+sessões), não a agentes de nuvem nem a subagentes.** O nome não diz a área: a área de cada uma é
+combinada a cada vez (até 18/09/2026, Agente 1 = Produtos e Agente 2 = Cadastros). Era
+`produtos`/`cadastros` no primeiro dia; renomeado a pedido dele no mesmo dia.
+
 | Pasta (em `C:\00-Dev\Projeto_sistema_Rise\`) | Branch | Frente | Servidor |
 | --- | --- | --- | --- |
 | `sistema-rise` | `main` | integração: merges, testes finais, **worker** | livre (usar 3002) |
-| `sistema-rise-produtos` | `produtos` | formulário e tabelas de Produtos, anúncios | **3000** (`sistema-rise`) |
-| `sistema-rise-cadastros` | `cadastros` | clientes, fornecedores, transportadoras e afins | **3001** (`sistema-rise-3001`) |
+| `sistema-rise-agente-1` | `agente-1` | frente 1 (hoje: Produtos, anúncios) | **3000** (`sistema-rise`) |
+| `sistema-rise-agente-2` | `agente-2` | frente 2 (hoje: Cadastros) | **3001** (`sistema-rise-3001`) |
+
+**Perguntas que ele já fez, com a resposta:**
+
+- **Quem altera o banco?** As duas podem, **uma de cada vez** (regra do schema, abaixo). Não há
+  uma frente "dona" do banco.
+- **Uma sessão depende da outra?** Não para trabalhar: cada uma edita, roda e testa sozinha. Só
+  se encontram no banco (regra do schema) e no merge final.
+- **Mudar na frente 1 altera o Rise da frente 2?** O **código não**: são pastas e branches
+  separadas, e só chega lá com o merge na `main` seguido de `git merge main` na outra. O **banco
+  e o `dados/` SIM**, na hora: são um só. O que uma frente grava aparece na outra, e uma migration
+  aplicada muda o banco das duas (a outra só não conhece as tabelas novas no código).
 
 - **O que é copiado e o que é compartilhado:** `.env` e `certificates/` são **cópias** (o git os
   ignora). O `ENCRYPTION_KEY` do `.env` tem que ser o mesmo nas três pastas, senão os tokens
   cifrados no banco viram lixo. `dados/` é um **atalho (junction) para o mesmo `dados/`**: o banco
   é um só, e as imagens de produto e os originais de fornecedor que ele aponta têm que ser os
   mesmos arquivos. `node_modules` e `src/generated` são de cada pasta (`npm ci` em cada uma).
-- **A porta 3000 é da frente de Produtos** porque o OAuth do Mercado Livre depende dela. Quem usa
+- **A porta 3000 é da frente 1** (que hoje cuida de Produtos e anúncios) porque o OAuth do
+  Mercado Livre depende dela. Quem usa
   a 3001 (`launch.json` → `sistema-rise-3001`) não consegue refazer OAuth, mas o resto funciona.
 - **REGRA DO SCHEMA — o banco é um só e o `migrate diff` compara o banco VIVO com o schema da
   sua pasta.** Se a sessão A aplicou uma migration e a B ainda não tem o schema dela, o diff da B
