@@ -14,6 +14,7 @@ import { portalDoEndereco, regrasDoFornecedor } from "@/lib/coleta/fornecedores"
 import { testarFonte } from "@/lib/coleta/testar";
 import { parametrosDaCategoria, testarPortal } from "@/lib/coleta/portal-addsuite";
 import { cifrar } from "@/lib/crypto";
+import { garantirCadastroDaFonte } from "@/lib/cadastros";
 
 /**
  * Acoes da secao Mercados.
@@ -364,29 +365,38 @@ export async function salvarFonte({
     };
   }
 
-  const fonte = await prisma.fonteColeta.create({
-    data: {
-      nome: analise.data.nome,
-      dominio: alvo.hostname,
-      tipo: analise.data.tipo,
-      prefixoUrl,
-      robotsPermite: true,
-      amostraResumo: resumo ?? null,
-      ...doPortal,
-      // Quantos produtos o site declarou ter no momento do teste. Guardado no
-      // cadastro para a tela dizer o quanto do catalogo ja foi coletado sem
-      // precisar reabrir o sitemap a cada renderizacao.
-      produtosNoSite: produtosNoSite ?? null,
-      produtosNoSiteParcial: produtosNoSiteParcial ?? false,
-      // Cadastrada PAUSADA: a coleta periodica nao faz parte desta etapa, e uma
-      // fonte que comeca a varrer sozinha ao ser salva seria uma surpresa.
-      ativa: false,
-      proximaVarreduraEm: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000),
-    },
+  // Numa transacao so: a fonte e o cadastro da empresa em Cadastros (pedido do
+  // dono em 18/09/2026) nascem juntos ou nenhum dos dois — fonte sem cadastro
+  // seria o buraco que este pedido veio fechar.
+  const fonte = await prisma.$transaction(async (tx) => {
+    const criada = await tx.fonteColeta.create({
+      data: {
+        nome: analise.data.nome,
+        dominio: alvo.hostname,
+        tipo: analise.data.tipo,
+        prefixoUrl,
+        robotsPermite: true,
+        amostraResumo: resumo ?? null,
+        ...doPortal,
+        // Quantos produtos o site declarou ter no momento do teste. Guardado no
+        // cadastro para a tela dizer o quanto do catalogo ja foi coletado sem
+        // precisar reabrir o sitemap a cada renderizacao.
+        produtosNoSite: produtosNoSite ?? null,
+        produtosNoSiteParcial: produtosNoSiteParcial ?? false,
+        // Cadastrada PAUSADA: a coleta periodica nao faz parte desta etapa, e uma
+        // fonte que comeca a varrer sozinha ao ser salva seria uma surpresa.
+        ativa: false,
+        proximaVarreduraEm: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    await garantirCadastroDaFonte(tx, criada);
+    return criada;
   });
 
   revalidatePath("/mercados/fontes");
   revalidatePath("/mercados");
+  revalidatePath("/cadastros", "layout");
   return { ok: true, id: fonte.id };
 }
 

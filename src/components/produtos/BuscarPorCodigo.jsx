@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Loader, Search, X } from "lucide-react";
 
 import { buscarPorCodigo } from "@/app/produtos/acoes";
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 
 const ROTULO_TIPO = {
   RISE: { texto: "Rise", classe: "bg-sky-100 text-sky-800" },
@@ -76,6 +77,7 @@ export default function BuscarPorCodigo({ codigoAtual, aoEscolher }) {
         <Search size={15} />
         Buscar por codigo
       </button>
+      <BolhaDeAjuda texto="Procura nos produtos da Rise, de fornecedores e de concorrentes pelo codigo, EAN ou MPN, e preenche o cadastro a partir do que achar." />
 
       {aberto && (
         <div className="absolute right-0 z-20 mt-2 w-[28rem] max-w-[calc(100vw-2rem)] rounded-lg border border-borda bg-superficie p-3 shadow-lg">

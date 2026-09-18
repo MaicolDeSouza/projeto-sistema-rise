@@ -31,10 +31,28 @@ export default function Sidebar() {
     if (proxima) setBusca("");
   }
 
+  // Cascatas que o operador abriu ou fechou a mao, por href. Sem escolha dele,
+  // a cascata segue a rota: aberta quando se esta dentro do bloco, fechada fora.
+  // So vale enquanto a pagina esta aberta — nao ha preferencia gravada.
+  const [escolhas, setEscolhas] = useState({});
+
+  function definirCascata(href, valor) {
+    setEscolhas((atual) => ({ ...atual, [href]: valor }));
+  }
+
+  // Bloco aparece se o proprio nome casa (com todos os filhos) ou se algum filho
+  // casar (so com os que casaram): quem procura "marcas" acha Cadastros > Marcas.
   const blocosFiltrados = useMemo(() => {
     const termo = normalizar(busca);
     if (!termo) return blocos;
-    return blocos.filter((bloco) => normalizar(bloco.rotulo).includes(termo));
+
+    return blocos.flatMap((bloco) => {
+      if (normalizar(bloco.rotulo).includes(termo)) return [bloco];
+      const filhos = (bloco.filhos ?? []).filter((filho) =>
+        normalizar(filho.rotulo).includes(termo),
+      );
+      return filhos.length > 0 ? [{ ...bloco, filhos }] : [];
+    });
   }, [busca]);
 
   return (
@@ -115,16 +133,37 @@ export default function Sidebar() {
           </div>
         )}
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-2 pb-4">
-          {blocosFiltrados.map((bloco) => (
-            <SidebarItem
-              key={bloco.href}
-              bloco={bloco}
-              ativo={ehRotaAtiva(pathname, bloco.href)}
-              recolhida={recolhida}
-              aoNavegar={() => setAberta(false)}
-            />
-          ))}
+        {/*
+          Sem barra de rolagem visivel (pedido do dono em 18/09/2026): a nativa,
+          clara, destoava do menu escuro. O menu continua rolando com a roda do
+          mouse, o toque e o teclado — so o desenho da barra some. Precisa das
+          duas regras: `scrollbar-width` e o pseudo-elemento cobrem navegadores
+          diferentes.
+        */}
+        <nav className="flex-1 space-y-1 overflow-y-auto px-2 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {blocosFiltrados.map((bloco) => {
+            const ativo = ehRotaAtiva(pathname, bloco.href);
+
+            return (
+              <SidebarItem
+                key={bloco.href}
+                bloco={bloco}
+                ativo={ativo}
+                recolhida={recolhida}
+                pathname={pathname}
+                // Pesquisando, a cascata abre sozinha para mostrar o que casou.
+                aberto={Boolean(busca) || (escolhas[bloco.href] ?? ativo)}
+                aoAlternar={() =>
+                  definirCascata(bloco.href, !(escolhas[bloco.href] ?? ativo))
+                }
+                aoNavegar={(peloBloco) => {
+                  setAberta(false);
+                  // Ir ao bloco pelo nome reabre a cascata que ele tenha fechado.
+                  if (peloBloco && bloco.filhos) definirCascata(bloco.href, true);
+                }}
+              />
+            );
+          })}
 
           {blocosFiltrados.length === 0 && (
             <p className="px-3 py-6 text-center text-xs text-menu-texto/60">

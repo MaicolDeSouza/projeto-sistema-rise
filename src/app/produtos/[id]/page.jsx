@@ -27,6 +27,14 @@ export default async function EditarProdutoPage({ params, searchParams }) {
         include: { fornecedor: { select: { nome: true } } },
         orderBy: { criadoEm: "asc" },
       },
+      concorrentes: {
+        include: {
+          produtoColetado: {
+            select: { nome: true, codigo: true, url: true, precoNormal: true, fonte: { select: { nome: true } } },
+          },
+        },
+        orderBy: { criadoEm: "asc" },
+      },
       anuncios: {
         select: {
           canal: true,
@@ -99,6 +107,35 @@ export default async function EditarProdutoPage({ params, searchParams }) {
 
   const catalogoFornecedores = await listarFornecedores();
 
+  // Vindo da lupa (produtoColetado preenchido): sempre o preco de HOJE, lido
+  // agora — pedido do dono em 18/09/2026, para acompanhar a proxima
+  // varredura sem o operador ter que remover e adicionar de novo. Digitado a
+  // mao: os campos *Manual, fixos.
+  const concorrentes = registro.concorrentes.map((vinculo) =>
+    vinculo.produtoColetado
+      ? {
+          id: vinculo.id,
+          manual: false,
+          produtoColetadoId: vinculo.produtoColetadoId,
+          fonte: vinculo.produtoColetado.fonte.nome,
+          nome: vinculo.produtoColetado.nome,
+          codigo: vinculo.produtoColetado.codigo,
+          preco: vinculo.produtoColetado.precoNormal
+            ? Number(vinculo.produtoColetado.precoNormal)
+            : null,
+          url: vinculo.produtoColetado.url,
+        }
+      : {
+          id: vinculo.id,
+          manual: true,
+          fonte: vinculo.fonteManual,
+          nome: vinculo.nomeManual,
+          codigo: vinculo.codigoManual,
+          preco: vinculo.precoManual ? Number(vinculo.precoManual) : null,
+          url: vinculo.linkManual,
+        },
+  );
+
   const { integrados } = separarCanais(registro.anuncios);
 
   return (
@@ -127,6 +164,20 @@ export default async function EditarProdutoPage({ params, searchParams }) {
         </p>
       )}
 
+      {busca?.fornecedores === "falhou" && (
+        <p className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          O produto foi salvo, mas os fornecedores adicionados antes de salvar nao foram
+          gravados. Adicione de novo na aba Fornecedores.
+        </p>
+      )}
+
+      {busca?.concorrentes === "falhou" && (
+        <p className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          O produto foi salvo, mas os concorrentes adicionados antes de salvar nao foram
+          gravados. Adicione de novo na aba Fornecedores.
+        </p>
+      )}
+
       {imagensCopiadas !== null && (
         <p
           className={`mb-4 rounded border p-3 text-sm ${
@@ -145,6 +196,7 @@ export default async function EditarProdutoPage({ params, searchParams }) {
         produto={produto}
         arquivos={arquivos}
         fornecedores={fornecedores}
+        concorrentes={concorrentes}
         catalogoFornecedores={catalogoFornecedores}
         dominioLojaIntegrada={config.lojaIntegrada.dominio}
       />

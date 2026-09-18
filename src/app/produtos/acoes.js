@@ -312,12 +312,35 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
         avisoArquivos = "O produto foi salvo, mas os documentos enviados antes de salvar nao foram gravados. Envie de novo.";
       }
 
+      // Fornecedores adicionados na aba antes de o produto existir: o mesmo
+      // motivo do try/catch acima — o produto ja foi criado, entao uma falha
+      // aqui vira aviso, nao erro do Salvar.
+      let avisoFornecedores = null;
+      try {
+        await gravarFornecedoresRascunho(produto, formData);
+      } catch (erro) {
+        console.error("Falha ao gravar fornecedores do cadastro novo:", erro.message);
+        avisoFornecedores = "O produto foi salvo, mas os fornecedores adicionados antes de salvar nao foram gravados. Adicione de novo.";
+      }
+
+      // Mesmo motivo de fornecedores: o produto ja existe, entao uma falha
+      // aqui vira aviso, nao erro do Salvar.
+      let avisoConcorrentes = null;
+      try {
+        await gravarConcorrentesRascunho(produto, formData);
+      } catch (erro) {
+        console.error("Falha ao gravar concorrentes do cadastro novo:", erro.message);
+        avisoConcorrentes = "O produto foi salvo, mas os concorrentes adicionados antes de salvar nao foram gravados. Adicione de novo.";
+      }
+
       revalidatePath("/produtos");
       return {
         ok: true,
         id: produto.id,
         imagens: imagens && { salvas: imagens.salvas, recusadas: imagens.recusadas.length },
         avisoArquivos,
+        avisoFornecedores,
+        avisoConcorrentes,
       };
     }
 
@@ -503,6 +526,28 @@ export async function excluirProduto(id) {
   return { ok: true };
 }
 
+/**
+ * Exclui varios produtos de uma vez (selecao por caixa na lista, pedido do
+ * dono em 18/09/2026, no padrao do Bling — substituiu o botao "Excluir
+ * produto" de dentro do cadastro). Cada um passa pela MESMA regra de
+ * `excluirProduto` (recusa produto com anuncio publicado): um produto
+ * bloqueado nao impede os outros de serem excluidos, e a tela recebe quais
+ * foram e quais nao, com o motivo.
+ */
+export async function excluirProdutos(ids) {
+  const resultados = [];
+  for (const id of ids) {
+    const resultado = await excluirProduto(id);
+    resultados.push({ id, ...resultado });
+  }
+
+  return {
+    ok: resultados.every((item) => item.ok),
+    excluidos: resultados.filter((item) => item.ok).length,
+    falhas: resultados.filter((item) => !item.ok).map(({ ok: _ok, ...falha }) => falha),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Fornecedores
 // ---------------------------------------------------------------------------
@@ -534,6 +579,57 @@ async function recalcularCusto(produtoId) {
     where: { id: produtoId },
     data: { custo: padrao?.precoCusto ?? null },
   });
+}
+
+/**
+ * Vincula os fornecedores adicionados na aba antes de o produto existir
+ * (`Fornecedores.jsx`, modo rascunho). Mesmo schema de `salvarFornecedorDoProduto`,
+ * uma linha por vez: linha invalida do rascunho e ignorada, e nao derruba o
+ * Salvar do produto — o operador ainda pode adicionar de novo na tela do
+ * produto ja criado.
+ */
+async function gravarFornecedoresRascunho(produto, formData) {
+  let lista = [];
+  try {
+    lista = JSON.parse(String(formData.get("fornecedoresRascunho") ?? "[]"));
+  } catch {
+    lista = [];
+  }
+  if (!Array.isArray(lista) || lista.length === 0) return;
+
+  const validos = [];
+  for (const item of lista) {
+    const resultado = FornecedorSchema.safeParse(item);
+    if (resultado.success) validos.push({ dados: resultado.data, padrao: Boolean(item?.padrao) });
+  }
+  if (validos.length === 0) return;
+
+  // Nenhum marcado como padrao (a linha marcada caiu na validacao)? O
+  // primeiro que sobrou assume, a mesma regra do primeiro fornecedor de um
+  // produto em salvarFornecedorDoProduto.
+  if (!validos.some((item) => item.padrao)) validos[0].padrao = true;
+
+  for (const { dados, padrao } of validos) {
+    const { nome, ...vinculo } = dados;
+    // Reaproveita o fornecedor se ja existir; cria se for nome novo — mesma
+    // regra de salvarFornecedorDoProduto, para nao duplicar "Ali"/"AliExpress".
+    const fornecedor = await prisma.fornecedor.upsert({
+      where: { nome },
+      update: {},
+      create: { nome },
+    });
+
+    // Upsert, e nao create: o mesmo fornecedor marcado duas vezes no rascunho
+    // (nome repetido) atualiza o vinculo em vez de esbarrar no
+    // unique(produtoId, fornecedorId).
+    await prisma.produtoFornecedor.upsert({
+      where: { produtoId_fornecedorId: { produtoId: produto.id, fornecedorId: fornecedor.id } },
+      update: { ...vinculo, padrao },
+      create: { ...vinculo, produtoId: produto.id, fornecedorId: fornecedor.id, padrao },
+    });
+  }
+
+  await recalcularCusto(produto.id);
 }
 
 export async function listarFornecedores() {
@@ -645,4 +741,101 @@ export async function removerFornecedorDoProduto(vinculoId) {
   await recalcularCusto(alvo.produtoId);
   revalidatePath(`/produtos/${alvo.produtoId}`);
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Concorrentes
+// ---------------------------------------------------------------------------
+
+/**
+ * Vindo da lupa (`produtoColetadoId` preenchido) OU digitado a mao (os campos
+ * `*Manual`) — pedido do dono em 18/09/2026. So um dos dois; `refine` exige
+ * pelo menos o concorrente digitado quando nao ha produto coletado por tras.
+ * O preco do que vem da lupa NAO passa por aqui: a tela le sempre o preco de
+ * HOJE em ProdutoColetado, para acompanhar a proxima varredura.
+ */
+const ConcorrenteSchema = z
+  .object({
+    produtoColetadoId: opcional(z.string().trim()),
+    fonteManual: opcional(z.string().trim()),
+    nomeManual: opcional(z.string().trim()),
+    codigoManual: opcional(z.string().trim()),
+    precoManual: decimal(),
+    linkManual: opcional(
+      z.string().trim().refine(ehUrlSegura, "Informe um endereco http ou https."),
+    ),
+  })
+  .refine((dados) => Boolean(dados.produtoColetadoId || dados.fonteManual), {
+    message: "Informe o concorrente.",
+    path: ["fonteManual"],
+  });
+
+export async function salvarConcorrenteDoProduto(produtoId, vinculoId, dados) {
+  const resultado = ConcorrenteSchema.safeParse(dados);
+  if (!resultado.success) {
+    return { ok: false, erros: errosPorCampo(resultado) };
+  }
+
+  try {
+    if (vinculoId) {
+      await prisma.produtoConcorrente.update({
+        where: { id: vinculoId },
+        data: resultado.data,
+      });
+    } else {
+      await prisma.produtoConcorrente.create({
+        data: { ...resultado.data, produtoId },
+      });
+    }
+
+    revalidatePath(`/produtos/${produtoId}`);
+    return { ok: true };
+  } catch (erro) {
+    // Unico caso pratico: o mesmo produto coletado marcado duas vezes.
+    if (erro.code === "P2002") {
+      return { ok: false, erro: "Este concorrente ja esta na lista." };
+    }
+    return { ok: false, erro: erro.message };
+  }
+}
+
+export async function removerConcorrenteDoProduto(vinculoId) {
+  const alvo = await prisma.produtoConcorrente.findUnique({
+    where: { id: vinculoId },
+    select: { produtoId: true },
+  });
+  if (!alvo) return { ok: false, erro: "Concorrente nao encontrado." };
+
+  await prisma.produtoConcorrente.delete({ where: { id: vinculoId } });
+
+  revalidatePath(`/produtos/${alvo.produtoId}`);
+  return { ok: true };
+}
+
+/**
+ * Concorrentes adicionados na aba antes de o produto existir (modo rascunho
+ * de `Concorrentes.jsx`). Mesmo padrao de `gravarFornecedoresRascunho`: linha
+ * invalida ou duplicada e ignorada, e nao derruba o Salvar do produto.
+ */
+async function gravarConcorrentesRascunho(produto, formData) {
+  let lista = [];
+  try {
+    lista = JSON.parse(String(formData.get("concorrentesRascunho") ?? "[]"));
+  } catch {
+    lista = [];
+  }
+  if (!Array.isArray(lista) || lista.length === 0) return;
+
+  for (const item of lista) {
+    const resultado = ConcorrenteSchema.safeParse(item);
+    if (!resultado.success) continue;
+
+    try {
+      await prisma.produtoConcorrente.create({
+        data: { ...resultado.data, produtoId: produto.id },
+      });
+    } catch (erro) {
+      if (erro.code !== "P2002") throw erro;
+    }
+  }
 }

@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useEffectEvent, useImperativeHandle, useState, useTransition } from "react";
-import { Check, ExternalLink, ImageOff, Loader, Search, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Check,
+  ExternalLink,
+  ImageOff,
+  Loader,
+  Search,
+  X,
+} from "lucide-react";
 
 import { buscarPorPalavras } from "@/app/produtos/acoes";
 
@@ -10,6 +20,67 @@ const ROTULO_TIPO = {
   CONCORRENTE: { texto: "Concorrente", classe: "bg-amber-100 text-amber-800" },
   OUTRO: { texto: "Outro", classe: "bg-slate-100 text-slate-700" },
 };
+
+/// Fornecedor antes de concorrente no primeiro clique em "Tipo" — pedido do
+/// dono em 18/09/2026.
+const ORDEM_TIPO = { FORNECEDOR: 0, CONCORRENTE: 1, OUTRO: 2 };
+
+/**
+ * Colunas ordenaveis da tabela (pedido do dono em 18/09/2026): clicar no
+ * cabecalho ordena por ela, ascendente na primeira vez e descendente na
+ * segunda — igual nas quatro colunas, so a comparacao muda. Sem coluna
+ * escolhida, a lista fica na ordem que o servidor mandou (por parecido).
+ */
+// `sinal` so inverte a comparacao de verdade — sem preco fica no fim nos dois
+// sentidos, senao o segundo clique (decrescente) traria "sem preco" para o
+// topo, como se fosse o mais caro.
+const COMPARADORES = {
+  tipo: (a, b, sinal) => sinal * ((ORDEM_TIPO[a.tipo] ?? 9) - (ORDEM_TIPO[b.tipo] ?? 9)),
+  fonte: (a, b, sinal) => sinal * (a.fonte ?? "").localeCompare(b.fonte ?? "", "pt-BR"),
+  preco: (a, b, sinal) => {
+    if (a.preco == null && b.preco == null) return 0;
+    if (a.preco == null) return 1;
+    if (b.preco == null) return -1;
+    return sinal * (a.preco - b.preco);
+  },
+  parecido: (a, b, sinal) => sinal * (a.relevancia - b.relevancia),
+};
+
+function ordenarItens(itens, ordenacao) {
+  if (!ordenacao) return itens;
+  const comparador = COMPARADORES[ordenacao.coluna];
+  const sinal = ordenacao.direcao === "asc" ? 1 : -1;
+  return [...itens].sort((a, b) => comparador(a, b, sinal));
+}
+
+/** Seta neutra sem ordenacao; para cima/baixo conforme a coluna ativa. */
+function IconeOrdenacao({ ativo, direcao }) {
+  if (!ativo) return <ArrowUpDown size={12} className="shrink-0 text-suave" />;
+  return direcao === "asc" ? (
+    <ArrowUp size={12} className="shrink-0 text-acento" />
+  ) : (
+    <ArrowDown size={12} className="shrink-0 text-acento" />
+  );
+}
+
+/** Cabecalho clicavel: ordena a tabela pela coluna, alternando o sentido. */
+function CabecalhoOrdenavel({ coluna, ordenacao, aoClicar, direita, titulo, children }) {
+  const ativo = ordenacao?.coluna === coluna;
+  return (
+    <th className={`px-3 py-2 font-medium ${direita ? "text-right" : ""}`} title={titulo}>
+      <button
+        type="button"
+        onClick={() => aoClicar(coluna)}
+        className={`inline-flex items-center gap-1 hover:text-texto ${
+          direita ? "flex-row-reverse" : ""
+        } ${ativo ? "text-texto" : ""}`}
+      >
+        {children}
+        <IconeOrdenacao ativo={ativo} direcao={ordenacao?.direcao} />
+      </button>
+    </th>
+  );
+}
 
 /// Espelha MAXIMO_REFERENCIAS de src/lib/ia/anuncio.js, que nao pode ser
 /// importado aqui (usa o SDK e o banco). O servidor confere de novo.
@@ -168,6 +239,15 @@ export default function ReferenciasDeMercado({ ref, marcados, aoAlternar, aoLimp
   const [abertos, setAbertos] = useState(() => new Set());
   const [fotoAmpliada, setFotoAmpliada] = useState(null);
   const [buscando, iniciarBusca] = useTransition();
+  const [ordenacao, setOrdenacao] = useState(null); // { coluna, direcao } | null
+
+  function alternarOrdenacao(coluna) {
+    setOrdenacao((atual) =>
+      atual?.coluna === coluna
+        ? { coluna, direcao: atual.direcao === "asc" ? "desc" : "asc" }
+        : { coluna, direcao: "asc" },
+    );
+  }
 
   function buscar(palavras) {
     const alvo = String(palavras ?? "").trim();
@@ -219,7 +299,7 @@ export default function ReferenciasDeMercado({ ref, marcados, aoAlternar, aoLimp
 
   if (!aberto) return null;
 
-  const itens = resposta?.ok ? resposta.itens : [];
+  const itens = ordenarItens(resposta?.ok ? resposta.itens : [], ordenacao);
 
   return (
     <div
@@ -309,16 +389,35 @@ export default function ReferenciasDeMercado({ ref, marcados, aoAlternar, aoLimp
                     <th className="w-10 px-3 py-2" />
                     <th className="px-3 py-2 font-medium">Foto</th>
                     <th className="px-3 py-2 font-medium">Produto</th>
-                    <th className="px-3 py-2 font-medium">Tipo</th>
-                    <th className="px-3 py-2 font-medium">Fonte</th>
-                    <th className="px-3 py-2 text-right font-medium">Preco</th>
+                    <CabecalhoOrdenavel
+                      coluna="tipo"
+                      ordenacao={ordenacao}
+                      aoClicar={alternarOrdenacao}
+                      titulo="Fornecedor primeiro; clique de novo para concorrente primeiro"
+                    >
+                      Tipo
+                    </CabecalhoOrdenavel>
+                    <CabecalhoOrdenavel coluna="fonte" ordenacao={ordenacao} aoClicar={alternarOrdenacao}>
+                      Fonte
+                    </CabecalhoOrdenavel>
+                    <CabecalhoOrdenavel
+                      coluna="preco"
+                      ordenacao={ordenacao}
+                      aoClicar={alternarOrdenacao}
+                      direita
+                    >
+                      Preco
+                    </CabecalhoOrdenavel>
                     <th className="px-3 py-2 font-medium">Link</th>
-                    <th
-                      className="px-3 py-2 text-right font-medium"
-                      title="Quanto do titulo buscado aparece no nome do produto, com peso maior para modelo e codigo"
+                    <CabecalhoOrdenavel
+                      coluna="parecido"
+                      ordenacao={ordenacao}
+                      aoClicar={alternarOrdenacao}
+                      direita
+                      titulo="Quanto do titulo buscado aparece no nome do produto, com peso maior para modelo e codigo"
                     >
                       Parecido
-                    </th>
+                    </CabecalhoOrdenavel>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-borda">

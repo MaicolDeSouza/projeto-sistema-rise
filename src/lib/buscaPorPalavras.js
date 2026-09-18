@@ -82,6 +82,10 @@ export async function buscarReferencias(termo) {
       url: produto.url,
       origem: produto.origem,
       preco: produto.prices.promotional ?? produto.prices.normal,
+      // Preco de tabela, sem desconto — pedido do dono em 18/09/2026 para a
+      // lista de Concorrentes da aba Fornecedores: promocional e temporario, e
+      // comparar por ele engana a referencia de custo/mercado do produto.
+      precoNormal: produto.prices.normal,
       relevancia: Math.round(nota * 100),
     })),
   };

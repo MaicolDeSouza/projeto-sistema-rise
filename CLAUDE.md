@@ -27,6 +27,7 @@ Organizado em **blocos** no menu lateral, cada um desenvolvido de forma independ
 | Integrações | Bling e ML conectados e testados; Loja Integrada via Bling |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
+| Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras, marcas e condições de pagamento; a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
@@ -44,6 +45,7 @@ npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
 npm run teste:coleta              # 43 asserções da gravação no banco (usa o Postgres, SEM rede)
+npm run teste:cadastros           # 43 asserções: CPF/CNPJ/CEP e a ligação fonte -> cadastro (Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
@@ -164,7 +166,9 @@ o Docker Desktop travava ao abrir e o sistema ficava sem banco.
 ### Mercados (coleta de concorrentes e fornecedores)
 
 Bloco que lê sites de terceiros. **Não tem vínculo com o catálogo próprio** — nada aqui
-lê ou escreve `Produto`, por decisão explícita do dono.
+lê ou escreve `Produto`, por decisão explícita do dono. **Uma exceção que não é `Produto`:**
+desde 18/09/2026 `salvarFonte` também grava o `Fornecedor` ou `Concorrente` da fonte em
+Cadastros (ver "Cadastros", abaixo).
 
 **Duas etapas que não se misturam** — combinado com o dono em 28/08/2026, depois de uma
 tentativa de coletar os 20 produtos direto do teste:
@@ -1494,6 +1498,25 @@ deste formulário.
   deploy com Docker). O SKU é validado como nome de caminho; a pasta acompanha quando ele
   muda; o endereço é **calculado na leitura**, nunca gravado.
 - **Custo do produto vem do fornecedor padrão.**
+- **Concorrente vinculado ao produto (`ProdutoConcorrente`, migration `20260918_produto_concorrente`)
+  não guarda cópia do preço quando vem da lupa do Nome — só a referência**
+  (`produtoColetadoId`). A tela lê o preço de HOJE em `ProdutoColetado` toda vez que abre o
+  produto, decidido com o dono em 18/09/2026: ele quer acompanhar a próxima varredura sem
+  precisar remover e adicionar de novo. Diferente do preço de custo do Fornecedor, que é o que
+  o operador negociou e por isso fica fixo. Concorrente digitado à mão (sem produto coletado
+  por trás) usa os campos `*Manual`, fixos — não há varredura para seguir.
+  Adicionar pela lupa manda **todas as chaves do schema explícitas, nunca omitidas**
+  (`fonteManual: null` em vez de ausente): o schema é `nullable`, não `optional`, e chave
+  ausente falha a validação **em silêncio** — foi o que aconteceu na primeira versão, sem
+  lançar exceção nem aparecer no log, e o concorrente simplesmente não entrava na lista.
+- **Concorrentes e Fornecedores entram sozinhos na aba ao fechar a janela da lupa**
+  (`sincronizarSugestoes`, via `ref` em `Fornecedores.jsx`/`Concorrentes.jsx`), pedido do dono
+  em 18/09/2026: sem precisar clicar em "Adicionar" para cada um. Fechar é o momento em que o
+  operador termina de escolher — sincronizar a cada marcação dentro da janela criaria linha a
+  cada clique, antes da escolha estar pronta. Fornecedor exclui candidato repetido pelo NOME
+  (é o `Fornecedor` real, único por loja); Concorrente exclui pela referência
+  (`produtoColetadoId`), porque duas linhas do mesmo concorrente com produtos diferentes são
+  legítimas — o Fornecedor é único por loja, o concorrente não.
 - **Manual e ficha técnica são um tipo só, `DOCUMENTO`** ("Documentos técnicos", pasta
   `documentos/`), desde 16/09/2026, decidido com o dono. Nada no sistema tratava um diferente do
   outro, e o mesmo PDF de fabricante costuma ser as duas coisas. **O certificado de
@@ -1516,9 +1539,170 @@ deste formulário.
     reiniciar após a migration, o produto foi criado e o registro dos arquivos falhou. A ação
     devolvia erro, a tela ficava em "Novo produto" e o segundo Salvar daria "SKU já existe".
     Agora o Salvar segue para o produto, com o aviso `?documentos=falhou`.
+- **Exclusão de produto é só pela lista, em lote** (`TabelaProdutos.jsx`, 18/09/2026, padrão
+  do Bling): caixa de seleção por linha, e a lixeira numa **caixinha fixa ao lado da busca**,
+  sempre visível (cinza sem seleção) — é ali que outros ícones de ação em lote vão entrar. O
+  botão "Excluir produto" saiu do cadastro. **A confirmação é um popup na tela listando nome e
+  SKU de cada produto**, não o `confirm()` nativo: um erro real de teste (excluído o produto
+  errado por reordenação da lista) mostrou que "Excluir estes 2 produtos?" não deixa ver o que
+  está marcado. Depois de excluir, um aviso confirma quantos saíram; produto com anúncio
+  publicado continua recusado (`excluirProdutos` reaproveita `excluirProduto` item a item, e um
+  bloqueado não impede os outros).
 - **Imagem principal é uma marca (`principal`), não a posição 0.** Reordenar a cada clique
   fazia as miniaturas dançarem e custava até 3s por clique.
 - **Toda chamada externa é auditada** em `LogIntegracao`, com credenciais mascaradas.
+- **Ajuda de campo é bolha "i" no hover, não texto sempre visível embaixo do campo**
+  (`BolhaDeAjuda.jsx`, `src/components/ui/`), padrão adotado em 18/09/2026 a partir do Bling,
+  "para deixar a tela mais limpa" (pedido do dono). Convenção para telas novas ou mexidas a
+  partir de agora — **não foi varrida em telas que não usam `Campo`/`CampoComIcone` deste
+  arquivo** (Mercados, por exemplo, ainda usa `title` nativo do navegador).
+  - Duas variantes: `"canto"` (padrão) para botão-ícone (lupa, Buscar por código, ✦) — bolinha
+    desprendida no canto **superior** direito, fora da borda. `"inline"` para o rótulo de um
+    campo comum — ao lado do texto, no lugar do parágrafo de ajuda.
+  - **O texto sempre abre para CIMA**, nunca para baixo — pedido explícito do dono depois de
+    ver a primeira versão abrindo para baixo.
+  - **Quando o ícone também tem um número** (`Contador`), o número vai para o canto
+    **inferior** direito, no MESMO `right` da bolha de ajuda — os dois alinhados na mesma
+    borda, nunca disputando o canto.
+  - Grupo `group/ajuda` **nomeado**, não `group` liso: vários botões da tela já vivem dentro
+    de outro `group` (imagem, linha de tabela), e um grupo sem nome acionaria a bolha errada
+    no hover de quem está em volta.
+  - `onClick` da bolha para a propagação — quando ela mora dentro de um botão maior (a lupa),
+    clicar em cima do "i" não pode disparar a ação do botão por baixo.
+
+## Cadastros: clientes, fornecedores, concorrentes, transportadoras, produtos, marcas e condições
+
+Pedido do dono em 18/09/2026: uma seção no menu para cadastrar fornecedores, concorrentes,
+produtos e o que mais fizesse falta. **Item de menu logo abaixo do Painel** (`blocos.js`),
+com as seções como **subitens em cascata** e uma seta para abrir/fechar. Ordem: Clientes,
+Fornecedores, Concorrentes, Transportadoras, Produtos, Marcas, Condições de pagamento.
+
+- **A primeira versão tinha abas dentro da tela** (`?aba=`, no desenho de Fontes) e o item
+  ficava acima de Mercados. O dono desenhou o pedido de novo no mesmo dia: subiu o item e
+  moveu as abas para o menu. As abas **saíram da tela**.
+- **Cada seção tem rota própria:** `/cadastros/clientes|fornecedores|concorrentes|transportadoras|produtos|marcas|condicoes`
+  (`[tipo]/page.jsx`), e `/cadastros` só redireciona para **Clientes** (era Fornecedores até
+  Clientes entrar na frente). É o que deixa o item ativo sair de `ehRotaAtiva(pathname, href)`,
+  sem `useSearchParams` na barra lateral (que está no layout de todas as páginas e exigiria
+  `Suspense`). Formulário: `[tipo]/novo` e `[tipo]/[id]`, só para clientes, fornecedores,
+  concorrentes e transportadoras (marcas, produtos e condições dão 404: marcas e condições
+  editam na linha, produtos usa a tela de Produtos).
+- **Fornecedores, concorrentes e transportadoras são UMA tela** (`PARCEIROS` em
+  `src/lib/cadastros.js`, `TabelaParceiros`, `FormularioParceiro`, `salvarParceiro`), e o que
+  muda vem da configuração: `tiposDeFonte` vazio esconde a ligação com fonte de Mercados
+  (transportadora não tem site varrido), `usos` dá o nome da coluna ("Produtos" do fornecedor,
+  "Clientes" da transportadora), `artigo`/`novo` acertam o gênero ("Ja existe uma
+  transportadora", "Nova transportadora"). **Marcas e Condições de pagamento** são uma tabela
+  só, `TabelaSimples` (nome + observação, edição na linha).
+- **CNPJ é conferido pelos dígitos verificadores** (`src/lib/documentos.js`, sem imports, usado
+  pela ação, pelo formulário e pelo teste) e guardado **formatado**, para "11222333000181" e
+  "11.222.333/0001-81" não virarem dois textos. Vale para fornecedor, transportadora e cliente.
+  Antes só se contava 14 dígitos no fornecedor.
+- **Cascata (`blocos.js` → `filhos`, `SidebarItem.jsx`):** um nível, cada filho é um link. A
+  seta é um botão **irmão** do link, não filho (botão dentro de `<a>` é HTML inválido e o clique
+  navegaria junto). Sem escolha do operador, a cascata **segue a rota** (aberta dentro do
+  bloco, fechada fora); depois de abrir/fechar na seta, vale a escolha, só até recarregar. Clicar
+  no **nome** do bloco reabre uma cascata fechada; clicar num **subitem** não grava escolha
+  (senão ela ficaria aberta depois de sair de Cadastros). Pesquisar no menu abre a cascata e
+  mostra só os filhos que casaram ("marc" acha Cadastros > Marcas). **Barra recolhida:** sem
+  seta, mas os filhos aparecem como ícones com tooltip, senão Marcas ficaria inalcançável.
+- **`revalidatePath("/cadastros", "layout")`**, e não `"/cadastros"`: a raiz só redireciona, e o
+  path simples não alcança as rotas de baixo.
+
+- **A EMPRESA é uma coisa e o SITE que o worker varre é outra.** `Fornecedor` e `Concorrente`
+  guardam contato, CNPJ, prazo, condições; `FonteColeta` continua sendo só o site. Há fornecedor
+  sem site e site sem negociação, então a ligação é opcional (`fonteId`, `onDelete: SetNull`) e
+  **a coleta não muda**. Excluir a fonte não apaga o cadastro: ele guarda a negociação.
+- **Salvar uma fonte em Mercados já cria o cadastro** (`garantirCadastroDaFonte`,
+  `src/lib/cadastros.js`), na **mesma transação** do `fonteColeta.create`. Nome que já existe
+  **só liga, nunca sobrescreve** (o fornecedor pode ter nascido no cadastro de um produto, ou o
+  operador já ter preenchido o contato), e cadastro ligado a outra fonte não é roubado. Tipo
+  `OUTRO` não gera cadastro. Renomear a fonte depois **não** renomeia o cadastro.
+- **`scripts/cadastros-das-fontes.js`** faz a carga das fontes que já existiam (repetível).
+  Rodada em 18/09/2026: 11 cadastros novos e a Fortek ligada ao que já existia.
+- **Produto NÃO tem formulário aqui, de propósito** (pedido do dono): a aba Produtos leva a
+  `/produtos/novo`, o mesmo `FormularioProduto`. Duas telas para o mesmo cadastro acabariam
+  divergindo. Um catálogo manual de produtos por fornecedor foi cogitado e descartado.
+- **Fornecedor usado por produto não é excluído** (`ProdutoFornecedor` é `Restrict`): a ação
+  conta os vínculos e devolve o recado em vez de deixar o banco estourar um erro de chave.
+- **Marca é sempre MAIÚSCULAS**, como o campo Marca do produto. O cadastro ainda **não** alimenta
+  esse campo (segue texto solto); é o próximo passo, junto de `ProdutoConcorrente.concorrenteId`
+  — ambos mexem em arquivos com trabalho não commitado.
+- **`opcional`, `decimal`, `ehUrlSegura`, `errosPorCampo`, `lerCampos`, `cnpjOpcional`** moram em
+  `src/lib/validacao.js` (arquivo `"use server"` só exporta função assíncrona, então
+  `produtos/acoes.js` não tinha como emprestá-los). `produtos/acoes.js` ainda tem a cópia dele.
+  **`opcional` trata `""` E campo ausente como nulo:** campo desabilitado (a Inscrição Estadual
+  com "IE isento" marcada) o navegador simplesmente não envia, e sem isso o formulário inteiro
+  era recusado com "expected string, received undefined".
+- **As migrations `20260918_tabelas_cadastros` e `20260918_tabelas_clientes` foram editadas à
+  mão:** o `migrate diff` propôs `DROP INDEX` do índice de trigramas e de
+  `ProdutoColetado_coletadoEm_idx`, que só existem no SQL, **nas duas vezes**. Aplicar o diff cru
+  derrubaria a busca de Mercados de 15 ms para 600 ms. O sufixo `t` mantém a ordem depois de
+  `20260918_produto_concorrente`.
+- Depois de migrar, `npx prisma generate` **e reiniciar o servidor** (a armadilha de sempre).
+- **Formulários daqui enviam a mão (`onSubmit` + `startTransition(() => acao(dados))`), não com
+  `<form action>`.** O React 19 limpa o formulário depois de uma action de formulário e devolve
+  cada campo ao valor inicial. Achado no primeiro teste do Cliente: num Salvar recusado (CNPJ
+  inválido) a lista "Tipo da Pessoa" voltava sozinha para "Física" enquanto a tela seguia
+  mostrando os campos de Jurídica — e reenviar gravaria o tipo errado. O truque do
+  `FormularioProduto` (guardar o enviado como valor inicial) não alcança lista nem caixa de
+  marcação. Também corrigido no `FormularioParceiro`, onde a lista de fonte de coleta voltava
+  ao valor salvo depois de um erro.
+
+### Clientes
+
+Pedido do dono em 18/09/2026, desenhado a partir da tela "Cliente ou Fornecedor" do Bling com
+caixas vermelhas no que aproveitar. **Cliente é só cliente, pessoa física OU jurídica — não se
+mistura com fornecedor** (o Bling junta os dois numa tela).
+
+- **Campos** (`Cliente`, `ClienteEndereco`, `ClienteContato`): Nome, Tipo da Pessoa, CPF ou CNPJ
+  (um campo só, rótulo e validação trocam com o tipo), Cliente desde (hoje por padrão),
+  telefone, e-mail, observações, situação. **Só pessoa física:** Sexo e Naturalidade. **Só
+  pessoa jurídica:** Fantasia, Código de regime tributário (1, 2, 3 da NF-e; nulo = "Não
+  definido"), Inscrição Estadual, IE Isento e Inscrição Municipal. O campo **Contribuinte** do
+  Bling estava fora das caixas e **não entrou**.
+- **Os campos dos dois tipos ficam montados e só ocultos (`hidden`)**: trocar de tipo e voltar não
+  perde o digitado. **O servidor zera o que não é do tipo salvo**, então nada de jurídica fica
+  gravado num cliente que virou física (conferido no banco). IE Isento marcada limpa a
+  Inscrição Estadual.
+- **Documento único por cliente** (`documento @unique`, guardado formatado). É opcional: vários
+  nulos não colidem. CPF e CNPJ inválidos, e sequência repetida (111.111.111-11), são recusados.
+- **Endereço em duas abas, Geral e Entrega** — o dono trocou a "Cobrança" do Bling porque o
+  endereço do cliente nem sempre é o de entrega. **"Mesmo endereço do Geral" vem marcada e, marcada,
+  NÃO se grava linha de Entrega** (uma cópia ficaria velha quando o Geral mudasse); desmarcada,
+  grava; marcar de novo e salvar apaga a linha. As duas abas ficam montadas, e um ponto vermelho
+  no título avisa de erro numa aba escondida.
+- **Lupa do CEP = ViaCEP** (`buscarCep` em `acoes-clientes.js`). **Só o CEP sai daqui.** O valor
+  vem do navegador, então é reduzido a 8 dígitos ANTES de entrar na URL (a base é fixa). É
+  auditado em `LogIntegracao` (`Servico.VIACEP`), **sem o CEP no log** — o endpoint gravado é o
+  modelo `/ws/{cep}/json/`. O ViaCEP responde 200 com `{"erro": true}` para CEP que não existe.
+  Falha nunca trava o cadastro: devolve o recado e o operador digita. Preenche UF, cidade,
+  bairro e endereço; **número e complemento ficam** com o operador.
+- **Contatos ficam dentro do cliente** (sem item de menu): a lista mora no estado da tela e vai
+  num campo oculto JSON; o servidor troca a lista inteira numa transação. **Contato digitado e
+  não incluído entra junto no Salvar** (com aviso na tela) — descartar em silêncio perderia o que
+  acabou de ser escrito.
+- **Transportadora preferida** é UMA, do cadastro de Transportadoras (`Restrict`); **condições de
+  pagamento preferidas** são VÁRIAS, do cadastro de Condições (m:n). **Transportadora ou condição
+  em uso por cliente não é excluída**, e o recado diz quantos clientes usam. Editar um cliente
+  mantém na lista a transportadora e as condições que ele já tem mesmo se estiverem inativas —
+  senão salvar apagaria uma preferência que a tela nem mostrou.
+- **Dado pessoal (LGPD):** CPF, endereço e telefone ficam só no Postgres local e entram nos
+  dumps do `npm run backup` (que ficam em `dados/`, fora do git). Nada vai a marketplace ou ERP.
+- `npm run teste:cadastros`: 43 asserções (CPF, CNPJ, CEP e a ligação fonte → cadastro; a parte
+  do banco usa fontes de teste e as apaga).
+
+**Pendências combinadas com o dono (não implementadas):**
+
+- **Sintegra para pessoa jurídica** ("faremos essa integração depois"): puxar os dados da
+  empresa pelo CNPJ. Encaixe pensado: botão ao lado do CNPJ (como a lupa do CEP), ação
+  `buscarCnpj` no molde de `buscarCep` (validar antes com `validarCnpj`, base fixa, teto de tempo,
+  `LogIntegracao` com um novo `Servico`, só o CNPJ sai daqui). **A decidir na hora:** qual
+  serviço (o Sintegra é por estado e, até onde se sabe, não tem API pública única; pode ser
+  preciso intermediário, com custo ou limite) e se o retorno sobrescreve ou só completa vazios.
+- **Cobrança como terceira aba de endereço**, se ele quiser; **Contribuinte**; e as ideias que
+  ficaram de fora do menu: Vendedores, Categorias de produto, Naturezas de operação (fiscal) e
+  Depósitos.
 
 ## Trabalhando neste projeto
 

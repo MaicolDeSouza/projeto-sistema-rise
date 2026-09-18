@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import { UNIDADES } from "@/lib/unidades";
@@ -34,6 +35,7 @@ import { ORIGENS, TIPOS_ITEM } from "@/lib/fiscal";
 import { LIMITE_TITULO_ML, MAXIMO_IMAGENS } from "@/lib/limites";
 import { medidasDaDescricao } from "@/lib/medidas";
 import BuscarPorCodigo from "./BuscarPorCodigo";
+import Concorrentes from "./Concorrentes";
 import EditorDescricao from "./EditorDescricao";
 import Fornecedores from "./Fornecedores";
 import JanelaDescricao from "./JanelaDescricao";
@@ -44,7 +46,6 @@ import {
   definirImagemPrincipal,
   enviarArquivo,
   enviarArquivoTemporario,
-  excluirProduto,
   gerarSku,
   removerArquivo,
   removerArquivoTemporario,
@@ -53,10 +54,11 @@ import {
 
 const ABAS = [
   { id: "caracteristicas", rotulo: "Caracteristicas" },
+  { id: "documentos", rotulo: "Documentos tecnicos" },
   { id: "descricao", rotulo: "Descricao" },
   { id: "dimensoes", rotulo: "Peso e dimensoes" },
   { id: "tributacao", rotulo: "Tributacao" },
-  { id: "fornecedores", rotulo: "Fornecedores" },
+  { id: "fornecedores", rotulo: "Fornecedores / Concorrentes" },
 ];
 
 /**
@@ -111,8 +113,9 @@ const CLASSE_CAMPO =
 function Campo({ nome, rotulo, erro, ajuda, children, ...props }) {
   return (
     <div>
-      <label htmlFor={nome} className="block text-sm font-semibold">
+      <label htmlFor={nome} className="flex items-center gap-1 text-sm font-semibold">
         {rotulo}
+        {ajuda && <BolhaDeAjuda texto={ajuda} variante="inline" />}
       </label>
       {children ?? (
         <input
@@ -125,7 +128,6 @@ function Campo({ nome, rotulo, erro, ajuda, children, ...props }) {
           {...propsDeNumero(props)}
         />
       )}
-      {ajuda && !erro && <p className="mt-1 text-[11px] text-suave">{ajuda}</p>}
       {erro && <p className="mt-1 text-[11px] text-red-700">{erro}</p>}
     </div>
   );
@@ -217,6 +219,9 @@ function BotaoTitulosIA({ ia, aoCriar, aoEscolher, aoFechar, usado }) {
           <Sparkles size={18} />
         )}
       </button>
+      <BolhaDeAjuda
+        texto={`Cria opcoes de titulo com IA usando os ${ia.quantos} produto(s) marcados na lupa do Nome.`}
+      />
 
       {opcoes && (
         <ListaFlutuante largura="w-[34rem]" espaco="mt-2" aoFechar={aoFechar}>
@@ -325,20 +330,27 @@ function CampoComIcone({
   ajuda,
   entrada,
   icone,
+  prefixo,
   children,
   ...props
 }) {
   return (
     <div className="relative">
-      <label htmlFor={nome} className="block text-sm font-semibold">
+      <label htmlFor={nome} className="flex items-center gap-1 text-sm font-semibold">
         {rotulo}
+        {ajuda && <BolhaDeAjuda texto={ajuda} variante="inline" />}
       </label>
       <div className="relative">
+        {prefixo && (
+          <span className="pointer-events-none absolute top-1/2 left-2.5 mt-0.5 -translate-y-1/2 text-[15px] font-medium text-suave">
+            {prefixo}
+          </span>
+        )}
         <input
           ref={entrada}
           id={nome}
           name={nome}
-          className={`${CLASSE_CAMPO} pr-11 ${
+          className={`${CLASSE_CAMPO} pr-11 ${prefixo ? "pl-9" : ""} ${
             erro ? "border-red-400" : "border-borda focus:border-acento"
           }`}
           {...props}
@@ -348,7 +360,6 @@ function CampoComIcone({
           {icone}
         </div>
       </div>
-      {ajuda && !erro && <p className="mt-1 text-[11px] text-suave">{ajuda}</p>}
       {erro && <p className="mt-1 text-[11px] text-red-700">{erro}</p>}
       {children}
     </div>
@@ -481,8 +492,10 @@ const ROTULO_PRECO = {
 function Contador({ quantidade, usado }) {
   if (!(quantidade > 0)) return null;
   return (
+    // Canto INFERIOR direito (pedido do dono em 18/09/2026): o superior e do
+    // botao de ajuda (BolhaDeAjuda), quando o icone tem um.
     <span
-      className={`absolute -top-1 -right-1 rounded-full px-1 text-[9px] leading-4 text-white ${
+      className={`absolute -bottom-1 -right-1 rounded-full px-1 text-[9px] leading-4 text-white ${
         usado ? "bg-emerald-600" : "bg-acento"
       }`}
     >
@@ -491,7 +504,15 @@ function Contador({ quantidade, usado }) {
   );
 }
 
-function CampoPreco({ inicial, erro, referencias, aoAlterar, usos }) {
+/** "49" -> "49.00"; vazio ou invalido fica como esta (o operador ainda digita). */
+function comDuasCasas(valor) {
+  const numero = Number(valor);
+  return valor === "" || valor === null || valor === undefined || Number.isNaN(numero)
+    ? valor
+    : numero.toFixed(2);
+}
+
+function CampoPreco({ inicial, erro, referencias, aoAlterar, aoMudarValor, usos }) {
   const entrada = useRef(null);
   const [aberto, setAberto] = useState(false);
 
@@ -502,10 +523,25 @@ function CampoPreco({ inicial, erro, referencias, aoAlterar, usos }) {
     );
 
   function escolher(preco) {
-    if (entrada.current) entrada.current.value = Number(preco).toFixed(2);
+    const valor = Number(preco).toFixed(2);
+    if (entrada.current) entrada.current.value = valor;
     aoAlterar();
+    aoMudarValor?.(valor);
     usos.marcar("precoVenda");
     setAberto(false);
+  }
+
+  /**
+   * Sempre duas casas apos a virgula (pedido do dono em 18/09/2026) — so ao
+   * SAIR do campo, e nao a cada tecla: reformatar durante a digitacao
+   * atropelaria "49.5" virando "49.50" antes do operador terminar.
+   */
+  function aoSair() {
+    if (!entrada.current) return;
+    const formatado = comDuasCasas(entrada.current.value);
+    if (formatado === entrada.current.value) return;
+    entrada.current.value = formatado;
+    aoMudarValor?.(formatado);
   }
 
   return (
@@ -516,7 +552,13 @@ function CampoPreco({ inicial, erro, referencias, aoAlterar, usos }) {
       step="0.01"
       min="0"
       entrada={entrada}
-      defaultValue={inicial}
+      defaultValue={comDuasCasas(inicial)}
+      prefixo="R$"
+      // So para a comparacao com concorrentes em Concorrentes.jsx: o campo
+      // continua nao controlado (o React nao decide o que aparece nele), isto
+      // so espelha o valor digitado numa variavel de estado, a parte.
+      onChange={(evento) => aoMudarValor?.(evento.target.value)}
+      onBlur={aoSair}
       erro={erro}
       icone={
         <button
@@ -802,6 +844,7 @@ function CampoNome({
           <Search size={18} />
           {/* Quantos produtos estao marcados como referencia. */}
           <Contador quantidade={ia.quantos} usado />
+          <BolhaDeAjuda texto="Marca produtos parecidos de fornecedores e concorrentes como referencia: preenche preco, marca, modelo e medidas, e cria titulo e descricao com IA." />
         </button>
         {/* Aparece depois que produtos foram marcados na janela da lupa. */}
         <BotaoTitulosIA
@@ -1105,7 +1148,10 @@ function Documento({ produtoId, tipo, rotulo, ajuda, arquivos }) {
 
   return (
     <div>
-      <span className="block text-sm font-semibold">{rotulo}</span>
+      <span className="flex items-center gap-1 text-sm font-semibold">
+        {rotulo}
+        {ajuda && <BolhaDeAjuda texto={ajuda} variante="inline" />}
+      </span>
 
       <div className="mt-1 space-y-1">
         {arquivos.map((arquivo) => (
@@ -1161,7 +1207,6 @@ function Documento({ produtoId, tipo, rotulo, ajuda, arquivos }) {
         className="hidden"
       />
 
-      {ajuda && !erro && <p className="mt-1 text-[11px] text-suave">{ajuda}</p>}
       {erro && (
         <p className="mt-1 rounded bg-red-50 p-2 text-[11px] text-red-800">
           {erro}
@@ -1203,7 +1248,10 @@ function DocumentoTemporario({
 
   return (
     <div>
-      <span className="block text-sm font-semibold">{rotulo}</span>
+      <span className="flex items-center gap-1 text-sm font-semibold">
+        {rotulo}
+        {ajuda && <BolhaDeAjuda texto={ajuda} variante="inline" />}
+      </span>
 
       <div className="mt-1 space-y-1">
         {lista.map((arquivo) => (
@@ -1252,10 +1300,9 @@ function DocumentoTemporario({
         className="hidden"
       />
 
-      {!erro && (
+      {!erro && lista.length > 0 && (
         <p className="mt-1 text-[11px] text-suave">
-          {ajuda ? `${ajuda} ` : ""}
-          {lista.length > 0 && "Os arquivos sao gravados no produto ao salvar."}
+          Os arquivos sao gravados no produto ao salvar.
         </p>
       )}
       {erro && (
@@ -1271,6 +1318,7 @@ export default function FormularioProduto({
   produto,
   arquivos = {},
   fornecedores = [],
+  concorrentes = [],
   catalogoFornecedores = [],
   dominioLojaIntegrada = "",
 }) {
@@ -1278,10 +1326,11 @@ export default function FormularioProduto({
   const [aba, setAba] = useState("caracteristicas");
   const [alterado, setAlterado] = useState(false);
   const [erroAcao, setErroAcao] = useState(null);
-  const [pendenteExcluir, iniciarExcluir] = useTransition();
   const formulario = useRef(null);
   const referencias = useRef(null);
   const janelaDescricao = useRef(null);
+  const fornecedoresRef = useRef(null);
+  const concorrentesRef = useRef(null);
 
   // Valores trazidos por "Buscar por codigo" ou pela IA. Os campos sao nao
   // controlados (defaultValue), entao preencher e remontar o corpo do
@@ -1318,6 +1367,26 @@ export default function FormularioProduto({
   const [loteTemporario, setLoteTemporario] = useState("");
   const [temporarios, setTemporarios] = useState([]);
 
+  // Fornecedores adicionados antes de o produto existir (pedido do dono em
+  // 18/09/2026, para poder cadastrar fornecedor junto com o produto novo, como
+  // no desenho). Viram vinculos de verdade so no Salvar
+  // (gravarFornecedoresRascunho), igual a documentos e certificado.
+  const [fornecedoresRascunho, setFornecedoresRascunho] = useState([]);
+
+  function mudarFornecedoresRascunho(atualizador) {
+    setFornecedoresRascunho(atualizador);
+    setAlterado(true);
+  }
+
+  // Mesma ideia para Concorrentes (pedido do dono em 18/09/2026, depois de
+  // Concorrentes ganhar tabela propria — ate entao nao gravava nada).
+  const [concorrentesRascunho, setConcorrentesRascunho] = useState([]);
+
+  function mudarConcorrentesRascunho(atualizador) {
+    setConcorrentesRascunho(atualizador);
+    setAlterado(true);
+  }
+
   async function enviarTemporario(tipo, arquivo) {
     const lote = loteTemporario || crypto.randomUUID();
     if (!loteTemporario) setLoteTemporario(lote);
@@ -1349,6 +1418,12 @@ export default function FormularioProduto({
   const [lendoRefs, iniciarLeituraRefs] = useTransition();
 
   function lerValoresRefs() {
+    // Fornecedor marcado entra sozinho na aba Fornecedores ao fechar a janela
+    // (pedido do dono em 18/09/2026): fechar e o momento em que o operador
+    // termina de escolher, e nao cada marcacao dentro da janela.
+    fornecedoresRef.current?.sincronizarSugestoes();
+    concorrentesRef.current?.sincronizarSugestoes();
+
     const ids = [...marcados.keys()];
     if (ids.length === 0) {
       setValoresRefs({
@@ -1499,6 +1574,8 @@ export default function FormularioProduto({
             busca.set("recusadas", resultado.imagens.recusadas);
           }
           if (resultado.avisoArquivos) busca.set("documentos", "falhou");
+          if (resultado.avisoFornecedores) busca.set("fornecedores", "falhou");
+          if (resultado.avisoConcorrentes) busca.set("concorrentes", "falhou");
           const sufixo = busca.size > 0 ? `?${busca}` : "";
           router.replace(`/produtos/${resultado.id}${sufixo}`);
         }
@@ -1515,6 +1592,43 @@ export default function FormularioProduto({
   const inicial = preenchido ?? produto;
   const v = (campo) => inicial?.[campo] ?? "";
   const novo = !produto;
+
+  // Preco venda ATUAL, para a comparacao com concorrentes em Concorrentes.jsx.
+  // O campo continua nao controlado (ver CampoPreco); isto so espelha o valor
+  // numa variavel de estado, atualizada ao digitar e ao escolher da lista de
+  // precos das referencias — os dois unicos jeitos de mudar este campo. Nasce
+  // depois de `v` existir, por isso nao esta com os outros `useState` do topo.
+  const [precoVendaTexto, setPrecoVendaTexto] = useState(v("precoVenda"));
+  const precoVendaAtual = precoVendaTexto !== "" ? Number(precoVendaTexto) : null;
+
+  // Referencias marcadas na lupa que ja servem de atalho na aba Fornecedores
+  // (pedido do dono em 18/09/2026): fornecedor vira sugestao de linha ali;
+  // concorrente so aparece para consulta, em Concorrentes.jsx — preco de
+  // concorrente nao e custo, entao nao entra na mesma tabela.
+  const nomesFornecedoresAtuais = new Set(
+    (novo ? fornecedoresRascunho : fornecedores).map((item) =>
+      item.nome.trim().toLocaleLowerCase("pt-BR"),
+    ),
+  );
+  const sugestoesFornecedor = [...marcados.values()].filter(
+    (item) =>
+      item.tipo === "FORNECEDOR" &&
+      item.fonte &&
+      !nomesFornecedoresAtuais.has(item.fonte.trim().toLocaleLowerCase("pt-BR")),
+  );
+
+  // Mesmo atalho para Concorrentes, pela referencia (produtoColetadoId), nao
+  // pelo nome da loja: duas linhas do mesmo concorrente com produtos
+  // diferentes sao legitimas (o Fornecedor e o unico por loja; o concorrente
+  // nao).
+  const idsConcorrentesAtuais = new Set(
+    (novo ? concorrentesRascunho : concorrentes)
+      .map((item) => item.produtoColetadoId)
+      .filter(Boolean),
+  );
+  const sugestoesConcorrente = [...marcados.values()].filter(
+    (item) => item.tipo === "CONCORRENTE" && !idsConcorrentesAtuais.has(item.id),
+  );
 
   /**
    * Parte do que JA esta digitado e sobrepoe so o que veio com valor. Remontar
@@ -1540,7 +1654,14 @@ export default function FormularioProduto({
         ]),
     );
 
-    setPreenchido({ ...atual, ...trazidos });
+    const mesclado = { ...atual, ...trazidos };
+    setPreenchido(mesclado);
+    // O campo Preco venda tambem remonta aqui (key={versao}), sem disparar o
+    // onChange de CampoPreco: sem isto, a Diferenca em Concorrentes.jsx ficava
+    // em travessao depois de "Buscar por codigo" trazer o preco, ate o
+    // operador escolher um preco da lista manualmente (achado do dono em
+    // 18/09/2026).
+    setPrecoVendaTexto(mesclado.precoVenda ?? "");
     setVersao((anterior) => anterior + 1);
     setAlterado(true);
   }
@@ -1559,35 +1680,12 @@ export default function FormularioProduto({
     aplicar(resultado.campos);
   }
 
+  // Sem confirmacao (pedido do dono em 18/09/2026): Cancelar sempre descarta e
+  // volta para a lista, direto.
   function cancelar() {
-    if (
-      alterado &&
-      !confirm(
-        "Descartar as alteracoes deste formulario?\n\n" +
-          "Imagens, documentos e fornecedores ja enviados NAO sao desfeitos — " +
-          "eles sao gravados no momento do envio.",
-      )
-    ) {
-      return;
-    }
     router.push("/produtos");
   }
 
-  function aoExcluir() {
-    if (
-      !confirm(
-        "Excluir este produto? Os arquivos enviados tambem serao apagados.",
-      )
-    ) {
-      return;
-    }
-
-    iniciarExcluir(async () => {
-      const resultado = await tentar(() => excluirProduto(produto.id));
-      if (resultado.ok) router.push("/produtos");
-      else setErroAcao(resultado.erro);
-    });
-  }
 
   return (
     <form
@@ -1602,6 +1700,18 @@ export default function FormularioProduto({
         type="hidden"
         name="arquivosTemporarios"
         value={JSON.stringify(temporarios)}
+      />
+      {/* Fornecedores adicionados antes de o produto existir (ver Fornecedores.jsx). */}
+      <input
+        type="hidden"
+        name="fornecedoresRascunho"
+        value={JSON.stringify(fornecedoresRascunho)}
+      />
+      {/* Concorrentes adicionados antes de o produto existir (ver Concorrentes.jsx). */}
+      <input
+        type="hidden"
+        name="concorrentesRascunho"
+        value={JSON.stringify(concorrentesRascunho)}
       />
 
       {/* ---------- Acoes no topo ---------- */}
@@ -1712,6 +1822,7 @@ export default function FormularioProduto({
                 erro={erros.precoVenda}
                 referencias={[...marcados.values()]}
                 aoAlterar={() => setAlterado(true)}
+                aoMudarValor={setPrecoVendaTexto}
                 usos={usos}
               />
               <Campo nome="unidade" rotulo="Unidade">
@@ -1825,37 +1936,6 @@ export default function FormularioProduto({
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
-                {/*
-                  UM campo so para manual, datasheet e ficha tecnica — decidido com o
-                  dono em 16/09/2026. Eram dois, e nada no sistema tratava um diferente
-                  do outro; o mesmo PDF de fabricante costuma ser as duas coisas. O
-                  certificado de homologacao continua separado: anda com o numero, e
-                  o Mercado Livre pede em algumas categorias.
-                */}
-                {novo ? (
-                  <div className="sm:col-span-2">
-                    <DocumentoTemporario
-                      tipo="DOCUMENTO"
-                      rotulo="Documentos tecnicos"
-                      ajuda="Manual, datasheet, ficha tecnica. PDF, JPG ou PNG, ate 20 MB cada."
-                      lista={temporarios.filter(
-                        (item) => item.tipo === "DOCUMENTO",
-                      )}
-                      aoEnviar={enviarTemporario}
-                      aoRemover={removerTemporario}
-                    />
-                  </div>
-                ) : (
-                  <div className="sm:col-span-2">
-                    <Documento
-                      produtoId={produto.id}
-                      tipo="DOCUMENTO"
-                      rotulo="Documentos tecnicos"
-                      ajuda="Manual, datasheet, ficha tecnica. PDF, JPG ou PNG, ate 20 MB cada."
-                      arquivos={arquivos.DOCUMENTO ?? []}
-                    />
-                  </div>
-                )}
                 <Campo
                   nome="garantiaMeses"
                   rotulo="Garantia (meses)"
@@ -1873,7 +1953,7 @@ export default function FormularioProduto({
                 placeholder="https://www.youtube.com/watch?v=..."
               />
 
-              <div className="grid gap-4 border-t border-borda pt-5 sm:grid-cols-3">
+              <div className="grid gap-4 border-t border-borda pt-5 sm:grid-cols-2">
                 <CampoDeReferencias
                   nome="numeroHomologacao"
                   rotulo="Numero de homologacao"
@@ -1886,43 +1966,81 @@ export default function FormularioProduto({
                   usos={usos}
                   vazio="Nenhuma referencia marcada publica o numero de homologacao. Poucas lojas publicam: a maioria escreve so 'certificado pela Anatel'."
                 />
-                {novo ? (
-                  <DocumentoTemporario
-                    tipo="CERTIFICADO"
-                    rotulo="Certificado de homologacao"
-                    lista={temporarios.filter(
-                      (item) => item.tipo === "CERTIFICADO",
-                    )}
-                    aoEnviar={enviarTemporario}
-                    aoRemover={removerTemporario}
-                  />
-                ) : (
-                  <Documento
-                    produtoId={produto.id}
-                    tipo="CERTIFICADO"
-                    rotulo="Certificado de homologacao"
-                    arquivos={arquivos.CERTIFICADO ?? []}
-                  />
-                )}
-                <Campo nome="ean" rotulo="GTIN / EAN" defaultValue={v("ean")} />
+                <Campo
+                  nome="ean"
+                  rotulo="GTIN / EAN"
+                  defaultValue={v("ean")}
+                  ajuda="Codigo de barras do produto."
+                />
               </div>
+            </div>
+
+            {/*
+              Aba propria para os envios de arquivo (pedido do dono em 18/09/2026),
+              tirados de Caracteristicas. Continua montada e so escondida, como as
+              outras: o envio de arquivo nao passa pelo FormData, mas a lista de
+              temporarios do cadastro novo vive no formulario.
+
+              UM campo so para manual, datasheet e ficha tecnica — decidido com o
+              dono em 16/09/2026; o certificado de homologacao continua separado:
+              anda com o numero, e o Mercado Livre pede em algumas categorias.
+            */}
+            <div className={aba === "documentos" ? "grid gap-5 sm:grid-cols-2" : "hidden"}>
+              {novo ? (
+                <DocumentoTemporario
+                  tipo="DOCUMENTO"
+                  rotulo="Documentos tecnicos"
+                  ajuda="Manual, datasheet, ficha tecnica. PDF, JPG ou PNG, ate 20 MB cada."
+                  lista={temporarios.filter((item) => item.tipo === "DOCUMENTO")}
+                  aoEnviar={enviarTemporario}
+                  aoRemover={removerTemporario}
+                />
+              ) : (
+                <Documento
+                  produtoId={produto.id}
+                  tipo="DOCUMENTO"
+                  rotulo="Documentos tecnicos"
+                  ajuda="Manual, datasheet, ficha tecnica. PDF, JPG ou PNG, ate 20 MB cada."
+                  arquivos={arquivos.DOCUMENTO ?? []}
+                />
+              )}
+              {novo ? (
+                <DocumentoTemporario
+                  tipo="CERTIFICADO"
+                  rotulo="Certificado de homologacao"
+                  lista={temporarios.filter((item) => item.tipo === "CERTIFICADO")}
+                  aoEnviar={enviarTemporario}
+                  aoRemover={removerTemporario}
+                />
+              ) : (
+                <Documento
+                  produtoId={produto.id}
+                  tipo="CERTIFICADO"
+                  rotulo="Certificado de homologacao"
+                  arquivos={arquivos.CERTIFICADO ?? []}
+                />
+              )}
             </div>
 
             <div className={aba === "descricao" ? "" : "hidden"}>
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => janelaDescricao.current?.abrir()}
-                  className="inline-flex items-center gap-1.5 rounded border border-acento bg-superficie px-3 py-2 text-sm font-medium text-acento hover:bg-fundo"
-                >
-                  <Sparkles size={15} />
-                  Criar descricao
-                </button>
-                <span className="text-xs text-suave">
-                  {ia.quantos > 0
-                    ? `Mostra os ${ia.quantos} produto(s) marcados na lupa do Nome e cria o texto com IA.`
-                    : "Marque produtos de referencia na lupa ao lado do Nome para ver as descricoes deles e criar com IA."}
-                </span>
+                <div className="relative inline-flex shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => janelaDescricao.current?.abrir()}
+                    className="inline-flex items-center gap-1.5 rounded border border-acento bg-superficie px-3 py-2 text-sm font-medium text-acento hover:bg-fundo"
+                  >
+                    <Sparkles size={15} />
+                    Criar descricao
+                  </button>
+                  <BolhaDeAjuda
+                    texto={
+                      ia.quantos > 0
+                        ? `Mostra os ${ia.quantos} produto(s) marcados na lupa do Nome e cria o texto com IA.`
+                        : "Marque produtos de referencia na lupa ao lado do Nome para ver as descricoes deles e criar com IA."
+                    }
+                  />
+                </div>
               </div>
               <EditorDescricao
                 nome="descricaoBase"
@@ -2011,6 +2129,7 @@ export default function FormularioProduto({
                     rotulo="Origem"
                     opcoes={ORIGENS}
                     inicial={inicial?.origem}
+                    ajuda="Origem fiscal da mercadoria (nacional, importada etc.), usada no calculo do ICMS."
                   />
                 </div>
                 <CampoDeReferencias
@@ -2075,36 +2194,32 @@ export default function FormularioProduto({
                 />
               </div>
 
-              {novo ? (
-                <p className="rounded border border-borda bg-fundo p-3 text-sm text-suave">
-                  Salve o produto para cadastrar fornecedores.
-                </p>
-              ) : (
-                <Fornecedores
-                  produtoId={produto.id}
-                  vinculos={fornecedores}
-                  catalogo={catalogoFornecedores}
-                  aoFalhar={setErroAcao}
-                />
-              )}
+              <Fornecedores
+                ref={fornecedoresRef}
+                produtoId={produto?.id ?? null}
+                vinculos={novo ? fornecedoresRascunho : fornecedores}
+                catalogo={catalogoFornecedores}
+                aoFalhar={setErroAcao}
+                modoRascunho={novo}
+                aoMudarRascunho={mudarFornecedoresRascunho}
+                sugestoes={sugestoesFornecedor}
+              />
+
+              <Concorrentes
+                ref={concorrentesRef}
+                produtoId={produto?.id ?? null}
+                vinculos={novo ? concorrentesRascunho : concorrentes}
+                aoFalhar={setErroAcao}
+                modoRascunho={novo}
+                aoMudarRascunho={mudarConcorrentesRascunho}
+                sugestoes={sugestoesConcorrente}
+                precoProduto={precoVendaAtual}
+              />
             </div>
           </div>
         </Card>
       </Fragment>
 
-      {/* ---------- Excluir fica no rodape, longe do Salvar ---------- */}
-      {produto && (
-        <div className="border-t border-borda pt-4">
-          <button
-            type="button"
-            onClick={aoExcluir}
-            disabled={pendenteExcluir}
-            className="rounded border border-borda px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
-          >
-            Excluir produto
-          </button>
-        </div>
-      )}
     </form>
   );
 }

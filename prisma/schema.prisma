@@ -27,6 +27,32 @@ enum Servico {
   LOJA_INTEGRADA
   /// Geracao de titulo e descricao por IA no cadastro de produto.
   ANTHROPIC
+  /// Consulta publica de CEP no cadastro de cliente. So o CEP sai daqui.
+  VIACEP
+}
+
+enum TipoPessoa {
+  FISICA
+  JURIDICA
+}
+
+enum Sexo {
+  MASCULINO
+  FEMININO
+}
+
+/// GERAL e o endereco do cliente; ENTREGA so existe quando e DIFERENTE dele —
+/// igual ao Geral, nao se grava linha (ver ClienteEndereco).
+enum TipoEndereco {
+  GERAL
+  ENTREGA
+}
+
+/// Codigo de regime tributario (CRT) da NF-e. Nulo no cliente = "Nao definido".
+enum RegimeTributario {
+  SIMPLES_NACIONAL
+  SIMPLES_EXCESSO_SUBLIMITE
+  REGIME_NORMAL
 }
 
 /// Estado INTERNO do anuncio no Sistema Rise — o quanto ele avancou no nosso
@@ -143,6 +169,7 @@ model Produto {
 
   arquivos     ProdutoArquivo[]
   fornecedores ProdutoFornecedor[]
+  concorrentes ProdutoConcorrente[]
   anuncios     Anuncio[]
 
   @@index([marca])
@@ -275,14 +302,200 @@ model Conexao {
 // ---------------------------------------------------------------------------
 
 /// Cadastro de fornecedores, reaproveitado entre produtos.
+///
+/// Os dados da EMPRESA (contato, prazo, condicoes) moram aqui; a FONTE de coleta
+/// (`FonteColeta`) e so o site que o worker varre. Sao coisas diferentes — ha
+/// fornecedor sem site e ha site sem negociacao nenhuma — por isso a ligacao e
+/// opcional (`fonteId`) e nenhum lado depende do outro para existir.
 model Fornecedor {
   id   String @id @default(cuid())
   nome String @unique
+
+  cnpj               String?
+  site               String?
+  contato            String?
+  telefone           String?
+  email              String?
+  prazoEntregaDias   Int?
+  condicoesPagamento String?
+  pedidoMinimo       Decimal? @db.Decimal(12, 2)
+  observacoes        String?
+  ativo              Boolean  @default(true)
+
+  /// SetNull: excluir a fonte nao pode levar junto o contato e a negociacao.
+  fonteId String?
+  fonte   FonteColeta? @relation(fields: [fonteId], references: [id], onDelete: SetNull)
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
   produtos ProdutoFornecedor[]
+
+  @@index([fonteId])
+}
+
+/// Cadastro de concorrentes (empresa). Antes so existia como `FonteColeta`
+/// tipo CONCORRENTE e como texto solto em `ProdutoConcorrente.fonteManual`.
+model Concorrente {
+  id   String @id @default(cuid())
+  nome String @unique
+
+  site        String?
+  telefone    String?
+  email       String?
+  observacoes String?
+  ativo       Boolean @default(true)
+
+  /// SetNull, pelo mesmo motivo do Fornecedor.
+  fonteId String?
+  fonte   FonteColeta? @relation(fields: [fonteId], references: [id], onDelete: SetNull)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([fonteId])
+}
+
+/// Cliente final, pessoa fisica ou juridica. NAO se mistura com Fornecedor
+/// (pedido do dono em 18/09/2026): o Bling junta os dois numa tela so, aqui sao
+/// cadastros separados.
+///
+/// Os campos de um tipo ficam nulos no outro: o servidor zera o que nao pertence
+/// ao tipo escolhido, para trocar Fisica por Juridica na tela e voltar atras nao
+/// deixar lixo gravado.
+model Cliente {
+  id   String @id @default(cuid())
+  nome String
+
+  tipoPessoa TipoPessoa @default(FISICA)
+  /// CPF ou CNPJ, guardado formatado. Nulo permitido (varios nulos nao colidem no
+  /// Postgres); quando preenchido, e unico.
+  documento  String?    @unique
+
+  clienteDesde DateTime @default(now()) @db.Date
+
+  // So pessoa fisica.
+  sexo        Sexo?
+  naturalidade String?
+
+  // So pessoa juridica.
+  nomeFantasia       String?
+  regimeTributario   RegimeTributario?
+  inscricaoEstadual  String?
+  /// Com a IE isenta marcada, a inscricao estadual fica vazia.
+  ieIsento           Boolean @default(false)
+  inscricaoMunicipal String?
+
+  telefone    String?
+  email       String?
+  observacoes String?
+  ativo       Boolean @default(true)
+
+  /// Restrict: apagar uma transportadora que ainda e preferida por cliente
+  /// esconderia a preferencia sem ninguem ver. A acao conta e avisa.
+  transportadoraId String?
+  transportadora   Transportadora? @relation(fields: [transportadoraId], references: [id], onDelete: Restrict)
+
+  /// As opcoes que o cliente prefere (varias).
+  condicoesPreferidas CondicaoPagamento[]
+
+  enderecos ClienteEndereco[]
+  contatos  ClienteContato[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([transportadoraId])
+}
+
+/// Endereco do cliente. Uma linha GERAL e, SO se a entrega for em outro lugar,
+/// uma ENTREGA. Cliente cuja entrega e no mesmo endereco NAO ganha linha de
+/// entrega: gravar uma copia deixaria o endereco de entrega velho quando o Geral
+/// mudasse.
+model ClienteEndereco {
+  id        String  @id @default(cuid())
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  tipo TipoEndereco
+
+  cep         String?
+  uf          String?
+  cidade      String?
+  bairro      String?
+  logradouro  String?
+  numero      String?
+  complemento String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([clienteId, tipo])
+}
+
+/// Pessoas do cliente (comprador, financeiro), com telefone e e-mail proprios.
+/// Sao gravadas TODAS juntas: a tela manda a lista inteira e o servidor a troca.
+model ClienteContato {
+  id        String  @id @default(cuid())
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  nome     String
+  cargo    String?
+  telefone String?
+  email    String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([clienteId])
+}
+
+/// Transportadoras, de onde o cliente escolhe a preferida.
+model Transportadora {
+  id   String @id @default(cuid())
+  nome String @unique
+
+  cnpj             String?
+  contato          String?
+  telefone         String?
+  email            String?
+  site             String?
+  prazoEntregaDias Int?
+  observacoes      String?
+  ativo            Boolean @default(true)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  clientes Cliente[]
+}
+
+/// Condicoes de pagamento ("A vista", "28 dias", "30/60/90"), de onde o cliente
+/// escolhe as que prefere.
+model CondicaoPagamento {
+  id   String @id @default(cuid())
+  nome String @unique
+
+  observacoes String?
+  ativo       Boolean @default(true)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  clientes Cliente[]
+}
+
+/// Marcas dos produtos. Hoje `Produto.marca` e texto solto; este cadastro evita
+/// "Elgin"/"ELGIN"/"Elgin " como tres marcas. Sempre em MAIUSCULAS, como o
+/// campo Marca do produto (pedido do dono em 16/09/2026).
+model Marca {
+  id   String @id @default(cuid())
+  nome String @unique
+
+  observacoes String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
 }
 
 /// Vinculo produto x fornecedor: o mesmo item pode vir de varios fornecedores,
@@ -309,6 +522,43 @@ model ProdutoFornecedor {
 
   @@unique([produtoId, fornecedorId])
   @@index([fornecedorId])
+}
+
+/// Concorrente vinculado ao produto para comparar preco na tela de cadastro
+/// (pedido do dono em 18/09/2026) — marcado na lupa do Nome ou digitado a mao.
+///
+/// QUANDO VEM DA LUPA (`produtoColetadoId` preenchido), NAO guarda copia do
+/// preco: a tela le fonte/nome/codigo/preco de HOJE em `ProdutoColetado` toda
+/// vez que abre o produto, para acompanhar a proxima varredura sem o operador
+/// precisar remover e adicionar de novo — decisao do dono em 18/09/2026, ao
+/// contrario do preco de custo do Fornecedor, que e o que o operador negociou
+/// e faz sentido ficar fixo.
+///
+/// QUANDO E DIGITADO A MAO (`produtoColetadoId` nulo, sem produto coletado por
+/// tras), os campos `*Manual` guardam o que foi escrito, fixo — nao ha
+/// varredura para seguir.
+model ProdutoConcorrente {
+  id        String  @id @default(cuid())
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  /// SetNull e nao Restrict: o Mercados nunca apaga produto coletado (fica
+  /// "ausente"), mas se um dia apagar, o vinculo cai para manual em vez de
+  /// travar a exclusao la.
+  produtoColetadoId String?
+  produtoColetado   ProdutoColetado? @relation(fields: [produtoColetadoId], references: [id], onDelete: SetNull)
+
+  fonteManual  String?
+  nomeManual   String?
+  codigoManual String?
+  precoManual  Decimal? @db.Decimal(12, 2)
+  linkManual   String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([produtoId, produtoColetadoId])
+  @@index([produtoColetadoId])
 }
 
 /// Fila de trabalho processada pelo worker (publicacao, sincronizacao).
@@ -488,6 +738,11 @@ model FonteColeta {
 
   produtos ProdutoColetado[]
 
+  /// Cadastro da empresa por tras desta fonte (Cadastros). Nasce junto com a
+  /// fonte em `salvarFonte`; um fornecedor OU um concorrente, conforme o tipo.
+  fornecedores Fornecedor[]
+  concorrentes Concorrente[]
+
   @@unique([dominio, prefixoUrl])
   @@index([ativa, proximaVarreduraEm])
 }
@@ -594,6 +849,8 @@ model ProdutoColetado {
   atualizadoEm DateTime @updatedAt
 
   precos PrecoHistorico[]
+  /// Produtos que marcaram este como concorrente, para comparar preco.
+  concorrenteDe ProdutoConcorrente[]
 
   @@unique([fonteId, chave])
   @@index([fonteId, vistoEm])

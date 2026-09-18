@@ -44,7 +44,13 @@ function Miniatura({ url, alt }) {
   );
 }
 
-export default function LinhaProduto({ produto, integrados, pendentes }) {
+export default function LinhaProduto({
+  produto,
+  integrados,
+  pendentes,
+  selecionado = false,
+  aoAlternarSelecao,
+}) {
   const [menuAberto, setMenuAberto] = useState(false);
 
   const moeda = new Intl.NumberFormat("pt-BR", {
@@ -53,7 +59,20 @@ export default function LinhaProduto({ produto, integrados, pendentes }) {
   });
 
   return (
-    <tr className="group divide-x divide-borda hover:bg-fundo/60">
+    <tr
+      className={`group divide-x divide-borda hover:bg-fundo/60 ${
+        selecionado ? "bg-sky-50" : ""
+      }`}
+    >
+      <td className="px-3 py-2.5 text-center">
+        <input
+          type="checkbox"
+          checked={selecionado}
+          onChange={aoAlternarSelecao}
+          aria-label={`Selecionar ${produto.tituloBase}`}
+          className="align-middle"
+        />
+      </td>
       <td className="px-3 py-2.5">
         <Miniatura url={produto.imagemUrl} alt={produto.tituloBase} />
       </td>
