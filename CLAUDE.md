@@ -316,7 +316,8 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
 - A **ficha técnica** no painel é lista ordenada, igual à prévia — linha sem rótulo aparece
   com marcador, nunca com nome inventado. O campo `atributos` (objeto) era do caminho do
   banco.
-- O bloco vive na branch **`bloco-mercados`**, ainda não fundida na principal.
+- O bloco foi fundido na **`main`** em 18/09/2026 (avanço simples, commit `73d813f`, 16 commits).
+  A branch `bloco-mercados` continua existindo, mas **não recebe mais trabalho**.
 
 ### Worker da coleta — reescrito em 16/09/2026
 
@@ -1703,6 +1704,42 @@ mistura com fornecedor** (o Bling junta os dois numa tela).
 - **Cobrança como terceira aba de endereço**, se ele quiser; **Contribuinte**; e as ideias que
   ficaram de fora do menu: Vendedores, Categorias de produto, Naturezas de operação (fiscal) e
   Depósitos.
+
+## Trabalho em paralelo: worktrees
+
+Desde 18/09/2026 o dono trabalha em **duas sessões ao mesmo tempo**, cada uma no seu **worktree**
+(uma segunda cópia da pasta, ligada ao mesmo histórico do git, com branch própria). O que uma
+sessão edita não aparece na outra até o merge.
+
+| Pasta (em `C:\00-Dev\Projeto_sistema_Rise\`) | Branch | Frente | Servidor |
+| --- | --- | --- | --- |
+| `sistema-rise` | `main` | integração: merges, testes finais, **worker** | livre (usar 3002) |
+| `sistema-rise-produtos` | `produtos` | formulário e tabelas de Produtos, anúncios | **3000** (`sistema-rise`) |
+| `sistema-rise-cadastros` | `cadastros` | clientes, fornecedores, transportadoras e afins | **3001** (`sistema-rise-3001`) |
+
+- **O que é copiado e o que é compartilhado:** `.env` e `certificates/` são **cópias** (o git os
+  ignora). O `ENCRYPTION_KEY` do `.env` tem que ser o mesmo nas três pastas, senão os tokens
+  cifrados no banco viram lixo. `dados/` é um **atalho (junction) para o mesmo `dados/`**: o banco
+  é um só, e as imagens de produto e os originais de fornecedor que ele aponta têm que ser os
+  mesmos arquivos. `node_modules` e `src/generated` são de cada pasta (`npm ci` em cada uma).
+- **A porta 3000 é da frente de Produtos** porque o OAuth do Mercado Livre depende dela. Quem usa
+  a 3001 (`launch.json` → `sistema-rise-3001`) não consegue refazer OAuth, mas o resto funciona.
+- **REGRA DO SCHEMA — o banco é um só e o `migrate diff` compara o banco VIVO com o schema da
+  sua pasta.** Se a sessão A aplicou uma migration e a B ainda não tem o schema dela, o diff da B
+  propõe **`DROP TABLE` das tabelas novas da A**. Portanto: (1) **só uma sessão mexe no schema por
+  vez**; (2) a que terminou faz o merge na `main`; (3) a outra faz `git merge main` **antes** de
+  gerar a migration dela; (4) depois de qualquer migration, `npx prisma generate` e **reiniciar o
+  servidor** nas outras pastas. Conferir o SQL do diff antes de aplicar (já pede edição à mão por
+  causa dos índices que só existem no SQL).
+- **Worker só sobe da pasta principal (`main`)**: ele roda o código da pasta onde foi iniciado, e
+  dois workers disputariam a fila (o segundo sai com código 3). Mudança em `src/lib/coleta/*` só
+  vale no worker depois de chegar à `main` e ele ser reiniciado.
+- **CLAUDE.md:** cada sessão escreve só na seção da sua frente, para o merge não gerar conflito.
+- **Cruzamentos das duas frentes**, feitos por UMA sessão só depois de a outra ter feito o merge:
+  o campo Marca do produto usando o cadastro de Marcas, `ProdutoConcorrente.concorrenteId`, e o
+  fornecedor do produto lendo o cadastro de Fornecedores.
+- **Ritual de fim de sessão:** cada sessão commita e dá push na **sua** branch; o merge na `main`
+  é feito na pasta principal.
 
 ## Trabalhando neste projeto
 
