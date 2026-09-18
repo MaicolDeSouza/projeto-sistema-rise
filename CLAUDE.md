@@ -458,6 +458,18 @@ varredura. Ao clicar abre a tabela: produtos, páginas, **segundos por produto**
 - **Varredura que não responde nem ao cancelamento** (60 s de graça): o job é devolvido e o
   worker reinicia, porque a promessa viva ainda poderia escrever no banco.
 - **Andamento velho na tela**: o job pego zera `total/feitas/visitadas` no próprio `UPDATE`.
+- **`NOT` sobre chave ausente de JSON nunca casa** (18/09/2026): `recolherLargados` e
+  `fecharEsgotados` filtravam com `NOT: { payload: { path: ["teste"], equals: true } }`. Em SQL
+  isso vira `NOT (payload->'teste' = true)`, que vale **NULL** para todo job *sem* a chave — e
+  NULL não passa no `WHERE`. As duas funções não achavam job real nenhum. Como o índice
+  `Job_fonte_aberta` só admite um job aberto por fonte, a fonte largada por worker morto ficava
+  presa em "varredura em andamento" **para sempre**: foi o que prendeu a Santana e a Eletrogate
+  depois de a máquina cair sem `worker:parar`. Hoje o descarte é em JS (`ehDeTeste`, poucos jobs
+  abertos por vez). `pegarProximoJob` sempre esteve certo: usa
+  `COALESCE(payload->>'teste','false') <> 'true'` em SQL cru.
+  Nenhum teste pegou porque **todos** passavam `fontes` — o caminho do worker de verdade
+  (`fontes = null`) não era exercitado. Ao testá-lo, o job de mentira não pode ser pegável pelo
+  worker que está no ar: nasce `PROCESSANDO` e com as tentativas esgotadas, numa escrita só.
 
 **`NOW()` do Postgres está em `America/Sao_Paulo`, e as colunas são UTC.** As colunas são
 `TIMESTAMP` sem fuso, gravadas pelo Prisma em UTC. Comparado a elas, `NOW()` vira hora local,

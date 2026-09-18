@@ -282,6 +282,20 @@ export async function adiarFonte(fonteId, agora = Date.now()) {
 }
 
 /**
+ * Job criado por teste automatizado (payload.teste), que o worker normal ignora.
+ *
+ * O filtro fica em JS DE PROPOSITO. No SQL, `NOT (payload->'teste' = true)` vale
+ * NULL para todo job SEM a chave "teste" — e NULL nao passa no WHERE. A consulta
+ * parecia certa e nao devolvia job real nenhum: jobs largados por worker morto
+ * ficavam "em andamento" para sempre, e como o indice Job_fonte_aberta so admite
+ * um job aberto por fonte, a fonte nunca mais voltava a fila. Foi o que prendeu a
+ * Santana e a Eletrogate em 18/09/2026, depois de a maquina cair sem parada limpa.
+ *
+ * Sao poucos jobs abertos por vez; filtrar em memoria nao custa nada.
+ */
+const ehDeTeste = (job) => job.payload?.teste === true;
+
+/**
  * Devolve a fila os jobs largados: PROCESSANDO sem sinal ha JOB_SEM_SINAL_MS.
  *
  * Roda a cada volta do worker, esteja ele ocupado ou nao — antes rodava so entre
@@ -306,16 +320,15 @@ export async function recolherLargados({
   fontes = null,
 } = {}) {
   const limite = new Date(agora - semSinalHaMs);
-  const largados = await prisma.job.findMany({
+  const abertos = await prisma.job.findMany({
     where: {
       tipo: "coleta",
       status: "PROCESSANDO",
-      ...(fontes
-        ? { fonteId: { in: fontes } }
-        : { NOT: { payload: { path: ["teste"], equals: true } } }),
+      ...(fontes ? { fonteId: { in: fontes } } : {}),
       OR: [{ sinalEm: { lte: limite } }, { sinalEm: null, atualizadoEm: { lte: limite } }],
     },
   });
+  const largados = fontes ? abertos : abertos.filter((job) => !ehDeTeste(job));
 
   const recolhidos = [];
   for (const job of largados) {
@@ -357,15 +370,15 @@ export async function fecharEsgotados({ fontes = null } = {}) {
     where: {
       tipo: "coleta",
       status: "PENDENTE",
-      ...(fontes
-        ? { fonteId: { in: fontes } }
-        : { NOT: { payload: { path: ["teste"], equals: true } } }),
+      ...(fontes ? { fonteId: { in: fontes } } : {}),
     },
     select: { id: true, tentativas: true, maxTentativas: true, fonteId: true, payload: true, erro: true },
   });
 
   const fechadas = [];
-  for (const job of pendentes.filter((item) => item.tentativas >= item.maxTentativas)) {
+  for (const job of pendentes.filter(
+    (item) => item.tentativas >= item.maxTentativas && (fontes || !ehDeTeste(item)),
+  )) {
     const { count } = await prisma.job.updateMany({
       where: { id: job.id, status: "PENDENTE" },
       data: { status: "FALHOU", erro: `tentativas esgotadas${job.erro ? `: ${job.erro}` : ""}`.slice(0, 500) },

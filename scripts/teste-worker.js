@@ -219,7 +219,7 @@ conferir("e abre so os que faltavam", [...aberturas.keys()].sort(), ["/produto-1
 // ---------------------------------------------------------------------------
 console.log("\n— fila —");
 
-const DOMINIOS = ["teste-fila-a.local", "teste-fila-b.local", "teste-fila-c.local", BASE];
+const DOMINIOS = ["teste-fila-a.local", "teste-fila-b.local", "teste-fila-c.local", BASE, "teste-fila-d.local"];
 async function limpar() {
   const antigas = await prisma.fonteColeta.findMany({
     where: { OR: [{ dominio: { in: DOMINIOS } }, { dominio: { startsWith: "http://127.0.0.1:" } }] },
@@ -270,6 +270,40 @@ const [aDepois] = await jobsDe(fonteA);
 conferir("o largado volta a fila, sem dono", [aDepois.status, aDepois.workerId], ["PENDENTE", null]);
 conferir("o job com sinal recente continua com o dono", (await jobsDe(fonteB))[0].status, "PROCESSANDO");
 conferir("o dono antigo perde a posse", await fila.sinalDoJob(jobA.id, jobA.workerId, null), false);
+
+// O worker de verdade chama recolherLargados() SEM lista de fontes. Esse caminho
+// tinha um filtro SQL que descartava todo job real (ver ehDeTeste em fila.js), e
+// nenhum teste passava por ele: todos informavam `fontes`. Resultado no dia
+// 18/09/2026: fontes presas em "varredura em andamento" para sempre.
+// Chamar sem lista e seguro — e o que o worker faz a cada 5 s, e o sinal de vida
+// protege o job de quem esta no ar.
+const fonteD = await criarFonte("Fila D", DOMINIOS[4]);
+soTeste.push(fonteD.id);
+// Nasce PROCESSANDO e sem tentativa sobrando, em UMA escrita. Sem `teste` no
+// payload ele e igualzinho a um job real — e o worker no ar, que le a fila toda,
+// o pegaria e sairia varrendo teste-fila-d.local. Assim ele nunca fica PENDENTE
+// nem com tentativa livre, os dois requisitos de pegarProximoJob.
+const jobD = await prisma.job.create({
+  data: {
+    tipo: "coleta",
+    fonteId: fonteD.id,
+    status: "PROCESSANDO",
+    workerId: "dono-morto",
+    tentativas: 3,
+    maxTentativas: 3,
+    sinalEm: new Date(Date.now() - 5 * 60 * 1000),
+    payload: { fonteId: fonteD.id, fonteNome: fonteD.nome, total: 0, feitas: 0 },
+  },
+});
+const semLista = await fila.recolherLargados();
+conferir(
+  "sem lista de fontes, recolhe o job real largado",
+  semLista.some((item) => item.fonteNome === "Fila D"),
+  true,
+);
+conferir("e ele sai de PROCESSANDO", (await prisma.job.findUnique({ where: { id: jobD.id } })).status, "FALHOU");
+await prisma.job.deleteMany({ where: { fonteId: fonteD.id } });
+await prisma.fonteColeta.delete({ where: { id: fonteD.id } });
 
 conferir(
   "encerrar sem culpa da loja devolve a tentativa",
