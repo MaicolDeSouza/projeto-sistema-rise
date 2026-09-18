@@ -100,6 +100,16 @@ const servidor = http.createServer((pedido, resposta) => {
     return;
   }
 
+  // Corredor infinito de categorias SEM produto nenhum: e o que o freio de
+  // secura tem que cortar (o Eletrogate abriu 6.111 paginas assim).
+  const categoria = /^\/categoria-(\d+)\.html$/.exec(caminho);
+  if (categoria) {
+    const proxima = Number(categoria[1]) + 1;
+    resposta.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    resposta.end(`<html><body><h1>Categoria</h1><a href="/categoria-${proxima}.html">proxima</a></body></html>`);
+    return;
+  }
+
   const produto = /^\/produto-(\d+)\.html$/.exec(caminho);
   if (produto) {
     aberturas.set(caminho, (aberturas.get(caminho) ?? 0) + 1);
@@ -164,6 +174,20 @@ conferir(
 
 const rastreio = await rastrear({ semente: `${BASE}/`, orcamento: 50, sinal: AbortSignal.abort() });
 conferir("rastreamento cancelado nao abre pagina", rastreio.visitadas, 0);
+
+// FREIO DE SECURA: site que so tem categoria nao prende a navegacao ate o teto.
+const seco = await rastrear({ semente: `${BASE}/categoria-1.html`, orcamento: 200, pararSemAchado: 5 });
+conferir(
+  "navegacao para depois de N paginas sem produto novo",
+  [seco.secou, seco.visitadas, seco.produtos],
+  [true, 5, 0],
+);
+const comProduto = await rastrear({ semente: `${BASE}/`, orcamento: 200, pararSemAchado: 5 });
+conferir(
+  "site com produto nao e cortado pelo freio",
+  [comProduto.secou, comProduto.produtos],
+  [false, PRODUTOS],
+);
 
 // ---------------------------------------------------------------------------
 console.log("\n— colheita: cada produto uma vez so —");

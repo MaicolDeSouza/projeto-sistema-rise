@@ -396,6 +396,16 @@ CPU.
   correção, a Smartkits fechou em 8 min (157 páginas).
 - **Teste:** queda no meio de uma loja de 25 produtos; o seguinte abre só o que faltava.
 
+**Freio de secura: 300 páginas seguidas sem produto novo encerram a navegação** (`SEM_ACHADO` em
+`descobrir.js`, 17/09/2026). O teto de 20.000 páginas não bastava. O Eletrogate declara **2.033** no
+catálogo público e a colheita fecha em **2.030**: por causa de três itens que a loja conta e não
+publica, a navegação saiu atrás deles e passou **6h40 abrindo 6.111 páginas sem gravar nada**. Loja
+com produto a achar acha bem antes disso — a Usinainfo, que só se varre por navegação, acha um a
+cada duas páginas. **Retomado não zera o contador:** não custou visita e não prova que ainda há o
+que achar. Quando o freio corta, a tela diz por quê ("N páginas seguidas sem produto novo"), senão
+"2.030 de 2.033" pareceria varredura interrompida por erro. Testado com um corredor infinito de
+categorias na loja falsa do `teste:worker`.
+
 **Tentativas numa queda.** Antes, o erro fatal devolvia todo job como PENDENTE, e o log mostrou
 "tentativa 4/3".
 - **Erro fatal:** o job na última tentativa agora FALHA e a fonte é adiada.

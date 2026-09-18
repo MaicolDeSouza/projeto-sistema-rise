@@ -91,6 +91,18 @@ function linksDe(html, urlBase, origem, prefixo) {
 }
 
 /**
+ * FREIO DE SECURA: paginas abertas em sequencia sem UM produto novo.
+ *
+ * O teto de 20.000 paginas nao bastava. O Eletrogate declara 2.033 produtos no
+ * catalogo publico e a colheita fecha em 2.030: por causa de TRES itens que a
+ * loja conta e nao publica, a navegacao saiu atras deles e passou 6h40 abrindo
+ * 6.111 paginas sem gravar nada (17/09/2026). Loja com produto a achar acha bem
+ * antes de trezentas paginas seguidas — a Usinainfo, que so se varre por
+ * navegacao, acha um produto a cada duas paginas.
+ */
+const SEM_ACHADO = 300;
+
+/**
  * Rastreia o site chamando `aoAchar` para cada pagina que extrai um produto.
  *
  * @param {object} opcoes
@@ -117,6 +129,7 @@ export async function rastrear({
   paginasConhecidas,
   sinal = null,
   pular = null,
+  pararSemAchado = SEM_ACHADO,
 }) {
   const inicio = new URL(semente);
   const origem = inicio.origin;
@@ -129,6 +142,10 @@ export async function rastrear({
 
   let visitadas = 0;
   let produtos = 0;
+  // Paginas abertas desde o ultimo produto NOVO. Retomado nao zera: ele nao
+  // custou visita e nao prova que ainda ha o que achar por aqui.
+  let semAchado = 0;
+  let secou = false;
   // Paginas de produto ja gravadas antes de uma queda (retomada): contam como
   // produto e nao sao abertas.
   let pulados = 0;
@@ -157,6 +174,7 @@ export async function rastrear({
     if (resposta.naoModificado) {
       if (anterior) {
         produtos++;
+        semAchado = 0;
         urlsDeProduto.push(url);
         if (aoAchar) await aoAchar({ url, html: null, dados: null, resposta });
       }
@@ -169,8 +187,14 @@ export async function rastrear({
 
     if (dados.encontrado && ehSeguivel(url, origem, prefixo)) {
       produtos++;
+      semAchado = 0;
       urlsDeProduto.push(url);
       if (aoAchar) await aoAchar({ url, html: resposta.corpo, dados, resposta });
+    } else if (++semAchado >= pararSemAchado) {
+      // O site ainda responde, mas nao ha mais o que achar por aqui.
+      secou = true;
+      if (aoProgredir) await aoProgredir({ visitadas, produtos, pulados });
+      break;
     }
 
     // Quem parece produto fura a fila; o resto vai para o fim. Sem isso, um
@@ -193,6 +217,9 @@ export async function rastrear({
     visitadas,
     produtos,
     pulados,
+    // Parou pelo freio de secura, e nao por acabar o site ou o orcamento.
+    secou,
+    semAchado,
     urls: urlsDeProduto,
     // Sobrou fila: o orcamento acabou antes do site. A tela precisa saber para
     // nao dar o numero como total do catalogo.

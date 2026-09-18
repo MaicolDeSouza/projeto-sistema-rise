@@ -495,6 +495,18 @@ export async function colherProdutos({
     // Somando dentro do aoAchar, o numero era o de acertos, nao o de visitas —
     // e e o de visitas que diz se a fonte e cara de varrer.
     visitas += varredura.visitadas;
+
+    // Parou pelo freio de secura: e resultado, nao defeito, e a tela precisa
+    // dizer isso — senao "2.030 de 2.033" parece varredura incompleta por erro.
+    if (varredura.secou) {
+      passos.push(
+        passo(
+          "Navegacao encerrada",
+          true,
+          `${varredura.semAchado} pagina(s) seguidas sem produto novo — o resto do site nao tem o que colher`,
+        ),
+      );
+    }
   }
 
   // A navegacao sai do laco quando cancelada; aqui isso vira erro, e nao um
