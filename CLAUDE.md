@@ -263,6 +263,24 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   **por completo**: com 100, a Casa da Robótica sumia da tela inteira tendo 20 produtos
   coletados. Com a Fortek e a Nightech em disco o teto passou a ser atingido de verdade, e
   foi substituído pela paginação (item seguinte).
+- **A tela filtra, ordena, conta e pagina NO BANCO** (`listarProdutos`, 17/09/2026). Antes lia a
+  lista inteira e fazia tudo em memória: com 2 mil produtos passava, com **35.226** eram **20 MB
+  montados em 2,3 s a cada clique** — marcar fonte, trocar de aba, limpar filtro. Hoje o Postgres
+  devolve as 100 linhas e as contagens, e a tela responde em 350–900 ms.
+  - **SQL cru** porque a ordenação não cabe no Prisma: o preço que ordena é `COALESCE(promocional,
+    normal)` com os sem preço no fim, e a ordem padrão põe o disponível na frente.
+  - **Cada contagem é uma varredura da tabela**, então só se conta o que não dá para somar: o total
+    filtrado sai da contagem por fonte, e o acervo inteiro só vira consulta quando há aba ou busca.
+  - **Índice de trigramas** (`pg_trgm`, migration `20260917_busca_trigrama`): a busca é
+    `LIKE '%palavra%'`, que índice comum não atende. Caiu de **600 ms para 15 ms**.
+- **A gravação lê só as chaves DO LOTE, não a fonte inteira** (17/09/2026). `gravarColeta` buscava
+  todos os produtos da fonte a cada lote, e a varredura grava de 10 em 10: na Mamute, **17.153 linhas
+  relidas a cada dez produtos**, por horas. Era a causa de a tela ficar lenta durante qualquer
+  varredura.
+- **Modo de desenvolvimento custa 2 a 4 vezes mais que o de produção.** Medido nas mesmas telas:
+  1,2–2,3 s no `next dev` contra 0,4–1,2 s no build. O sistema roda em `npm run dev` por causa do
+  `--experimental-https` (o OAuth do ML exige HTTPS), e `next start` não tem esse recurso — trocar
+  exigiria um proxy TLS na frente.
 - **A lista é paginada, 100 por página.** O teto de 300 não cortava linhas: cortava o
   acervo — com 2.469 produtos, **88% eram inalcançáveis** e o rodapé mandava "refinar a
   busca" para ver o que já estava coletado. Navegação em setas (`«  ‹  [n]  ›  »`), no topo

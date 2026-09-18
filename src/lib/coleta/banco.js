@@ -1,7 +1,12 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 
+import { normalizar } from "@/lib/texto";
+
 import { linhaDePreco, linhaDoProduto, mudouPreco, produtoDaLinha } from "./linha";
+
+/// Decimal do Prisma vira numero: a tela compara e formata precos.
+const numeroDoBanco = (valor) => (valor === null || valor === undefined ? null : Number(valor));
 
 /**
  * Gravacao e leitura da coleta no Postgres.
@@ -95,8 +100,17 @@ export async function gravarColeta({
     if (!porChave.has(linha.chave)) porChave.set(linha.chave, linha);
   }
 
+  /*
+    SO AS CHAVES DESTE LOTE, e nao a fonte inteira (17/09/2026).
+
+    Lia todos os produtos da fonte a cada gravacao, e a varredura grava de 10 em
+    10: na Mamute, 17.153 linhas relidas a cada dez produtos, durante horas. O
+    banco ficava ocupado com isso e as telas demoravam a responder enquanto
+    qualquer loja era varrida. O resto da funcao so consulta `guardadaPorChave`
+    para as chaves que vieram — o que estava fora do lote nunca era usado.
+  */
   const guardadas = await prisma.produtoColetado.findMany({
-    where: { fonteId: fonte.id },
+    where: { fonteId: fonte.id, chave: { in: [...porChave.keys()] } },
     select: {
       id: true,
       chave: true,
@@ -414,4 +428,168 @@ export async function atualizarTotaisDasCategorias(fonteId, porCategoria) {
   });
 
   await prisma.fonteColeta.update({ where: { id: fonteId }, data: { categorias } });
+}
+
+/**
+ * A LISTA DA TELA, filtrada, ordenada, contada e paginada NO BANCO.
+ *
+ * Antes a tela lia a lista inteira e fazia tudo em memoria. Funcionava com dois
+ * mil produtos; com 35.226 (a Mamute sozinha tem 17.153) eram 20 MB montados em
+ * ~2,3 s A CADA clique — marcar uma fonte, trocar de aba, limpar filtro. Agora
+ * o Postgres devolve as 100 linhas da pagina e as contagens.
+ *
+ * SQL cru porque a ordenacao nao cabe no Prisma: o preco que ordena e o
+ * promocional OU o normal (COALESCE), com os sem preco sempre no fim, e a ordem
+ * padrao poe o disponivel na frente.
+ *
+ * @param {object} opcoes
+ * @param {""|"CONCORRENTE"|"FORNECEDOR"} [opcoes.tipo]
+ * @param {string[]} [opcoes.fontes]   nomes marcados no filtro; vazio = todas
+ * @param {string} [opcoes.busca]      todas as palavras sao exigidas
+ * @param {""|"menor"|"maior"} [opcoes.ordem]
+ * @param {number} [opcoes.pagina]
+ * @param {number} [opcoes.porPagina]
+ */
+export async function listarProdutos({
+  tipo = "",
+  fontes = [],
+  busca = "",
+  ordem = "",
+  pagina = 1,
+  porPagina = 100,
+} = {}) {
+  const todasAsFontes = await prisma.fonteColeta.findMany({
+    select: { id: true, nome: true, tipo: true, ultimaColetaEm: true },
+  });
+
+  // A aba manda no conjunto: "OUTRO" fica com os concorrentes, como na tabela.
+  const doTipo = todasAsFontes.filter((fonte) =>
+    !tipo ? true : tipo === "FORNECEDOR" ? fonte.tipo === "FORNECEDOR" : fonte.tipo !== "FORNECEDOR",
+  );
+
+  if (doTipo.length === 0) {
+    return { linhas: [], total: 0, contagemPorFonte: [], fontesValidas: [] };
+  }
+
+  /*
+    MOSTRA SO A ULTIMA COLETA DE CADA FONTE (dono, 15/09/2026), e TUDO da fonte
+    que ainda nao fechou coleta nenhuma (17/09/2026) — ver `produtosParaLista`.
+  */
+  const daColeta = Prisma.join(
+    doTipo.map((fonte) =>
+      fonte.ultimaColetaEm
+        ? Prisma.sql`("fonteId" = ${fonte.id} AND "vistoEm" >= ${fonte.ultimaColetaEm})`
+        : Prisma.sql`"fonteId" = ${fonte.id}`,
+    ),
+    " OR ",
+  );
+
+  // Todas as palavras sao exigidas, a mesma regra de `combina` — aqui contra o
+  // `buscaTexto`, que ja foi normalizado na gravacao.
+  const palavras = normalizar(busca ?? "").split(/\s+/).filter(Boolean);
+  const filtroDaBusca =
+    palavras.length === 0
+      ? Prisma.empty
+      : Prisma.sql` AND ${Prisma.join(
+          palavras.map((palavra) => Prisma.sql`"buscaTexto" LIKE ${`%${palavra}%`}`),
+          " AND ",
+        )}`;
+
+  // O filtro de fontes NAO entra na contagem: o seletor precisa mostrar quantos
+  // cada fonte tem mesmo com outra marcada.
+  const semFonte = Prisma.sql`(${daColeta})${filtroDaBusca}`;
+
+  const escolhidas = doTipo.filter((fonte) => fontes.includes(fonte.nome));
+  const filtroDeFonte =
+    escolhidas.length === 0
+      ? Prisma.empty
+      : Prisma.sql` AND "fonteId" IN (${Prisma.join(escolhidas.map((fonte) => fonte.id))})`;
+  const onde = Prisma.sql`${semFonte}${filtroDeFonte}`;
+
+  const ordenacao =
+    ordem === "menor"
+      ? Prisma.sql`COALESCE("precoPromocional", "precoNormal") ASC NULLS LAST`
+      : ordem === "maior"
+        ? Prisma.sql`COALESCE("precoPromocional", "precoNormal") DESC NULLS LAST`
+        : Prisma.sql`("estoqueStatus" = 'AVAILABLE') DESC, "coletadoEm" DESC NULLS LAST`;
+
+  // O acervo inteiro, sem filtro nenhum: e o segundo numero do "20 de 100" da
+  // tela, que diz se o filtro escondeu muita coisa.
+  const todosOsIds = Prisma.join(
+    todasAsFontes.map((fonte) =>
+      fonte.ultimaColetaEm
+        ? Prisma.sql`("fonteId" = ${fonte.id} AND "vistoEm" >= ${fonte.ultimaColetaEm})`
+        : Prisma.sql`"fonteId" = ${fonte.id}`,
+    ),
+    " OR ",
+  );
+
+  /*
+    CADA CONTAGEM E UMA VARREDURA DA TABELA, entao so se conta o que nao da para
+    somar. O total filtrado sai da contagem por fonte (que ja respeita aba e
+    busca), e o acervo inteiro so precisa de consulta quando ha aba ou busca —
+    sem elas, ele E o total.
+  */
+  const [contagens, geral, linhas] = await Promise.all([
+    prisma.$queryRaw`
+      SELECT "fonteId", COUNT(*)::int AS quantos
+        FROM "ProdutoColetado" WHERE ${semFonte} GROUP BY "fonteId"`,
+    tipo || palavras.length > 0
+      ? prisma.$queryRaw`SELECT COUNT(*)::int AS total FROM "ProdutoColetado" WHERE (${todosOsIds})`
+      : Promise.resolve(null),
+    prisma.$queryRaw`
+      SELECT id, origem, codigo, nome, marca, mpn, url, "precoNormal", "precoPromocional",
+             "precoComImpostos", impostos, "estoqueStatus", quantidade, "aChegar", "coletadoEm",
+             "fonteId"
+        FROM "ProdutoColetado"
+       WHERE ${onde}
+       ORDER BY ${ordenacao}
+       LIMIT ${porPagina} OFFSET ${Math.max(0, (pagina - 1) * porPagina)}`,
+  ]);
+
+  const porId = new Map(doTipo.map((fonte) => [fonte.id, fonte]));
+  const quantosPorFonte = new Map(contagens.map((linha) => [linha.fonteId, linha.quantos]));
+
+  const somar = (ids) =>
+    [...quantosPorFonte].reduce(
+      (soma, [id, quantos]) => soma + (ids === null || ids.has(id) ? quantos : 0),
+      0,
+    );
+  const total = somar(escolhidas.length === 0 ? null : new Set(escolhidas.map((f) => f.id)));
+
+  return {
+    total,
+    totalGeral: geral ? (geral[0]?.total ?? 0) : somar(null),
+    // So fonte COM produto aparece no filtro: fonte cadastrada e nunca varrida
+    // ofereceria uma escolha que devolve lista vazia.
+    contagemPorFonte: [...quantosPorFonte]
+      .map(([id, quantidade]) => ({ nome: porId.get(id)?.nome ?? "?", quantidade }))
+      .filter((item) => item.nome !== "?")
+      .sort((a, b) => a.nome.localeCompare(b.nome)),
+    linhas: linhas.map((linha) => ({
+      id: linha.id,
+      origem: linha.origem,
+      name: linha.nome,
+      code: linha.codigo,
+      brand: linha.marca,
+      mpn: linha.mpn,
+      url: linha.url,
+      prices: {
+        normal: numeroDoBanco(linha.precoNormal),
+        promotional: numeroDoBanco(linha.precoPromocional),
+        comImpostos: numeroDoBanco(linha.precoComImpostos),
+      },
+      taxes: linha.impostos ?? [],
+      stock: {
+        status: linha.estoqueStatus,
+        quantity: linha.quantidade,
+        aChegar: linha.aChegar,
+      },
+      coletadoEm: linha.coletadoEm,
+      fonte: {
+        nome: porId.get(linha.fonteId)?.nome ?? "?",
+        tipo: porId.get(linha.fonteId)?.tipo ?? "OUTRO",
+      },
+    })),
+  };
 }

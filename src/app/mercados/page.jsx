@@ -2,8 +2,7 @@ import Link from "next/link";
 import { Radar, Store } from "lucide-react";
 
 import { prisma } from "@/lib/db";
-import { miniaturas, produtosParaLista } from "@/lib/coleta/banco";
-import { combina } from "@/lib/texto";
+import { listarProdutos, miniaturas } from "@/lib/coleta/banco";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
@@ -36,16 +35,40 @@ export default async function MercadosPage({ searchParams }) {
   const tipo = ["CONCORRENTE", "FORNECEDOR"].includes(params?.tipo) ? params.tipo : "";
   const ordem = ["menor", "maior"].includes(params?.ordem) ? params.ordem : "";
 
-  // Os produtos vem do banco SEM os campos pesados (ver `produtosParaLista`):
-  // filtrar e ordenar alguns milhares de linhas leves aqui mantem a busca por
-  // todas as palavras, e a miniatura so e buscada para a pagina que aparece.
-  let produtos = [];
+  /*
+    VARIAS FONTES AO MESMO TEMPO: ?fonte=A&fonte=B.
+
+    O Next entrega uma string quando o parametro aparece uma vez e um array
+    quando repete — ler so um dos dois casos faria o filtro de uma fonte
+    funcionar e o de duas nao, ou o contrario. Nome que nao existe mais (fonte
+    excluida, link antigo) e descartado em silencio mais abaixo: manter travaria
+    a tela numa lista vazia sem explicacao.
+  */
+  const pedidas = params?.fonte === undefined ? [] : [params.fonte].flat();
+  const pedida = Number.parseInt(params?.pagina ?? "1", 10);
+
+  /*
+    FILTRO, ORDEM, CONTAGEM E PAGINA SAO DO BANCO (17/09/2026).
+
+    A tela lia a lista inteira e fazia tudo em memoria. Com 2 mil produtos
+    passava; com 35.226 eram 20 MB montados em 2,3 s A CADA clique — marcar uma
+    fonte, trocar de aba, limpar filtro. Hoje o Postgres devolve as 100 linhas da
+    pagina e as contagens, e a miniatura vem so para essas cem.
+  */
+  let resultado = { linhas: [], total: 0, totalGeral: 0, contagemPorFonte: [] };
   let totalFontes = 0;
   let erro = null;
 
   try {
-    [produtos, totalFontes] = await Promise.all([
-      produtosParaLista(),
+    [resultado, totalFontes] = await Promise.all([
+      listarProdutos({
+        tipo,
+        fontes: pedidas,
+        busca,
+        ordem,
+        pagina: Math.max(Number.isFinite(pedida) ? pedida : 1, 1),
+        porPagina: POR_PAGINA,
+      }),
       prisma.fonteColeta.count(),
     ]);
   } catch (excecao) {
@@ -58,32 +81,9 @@ export default async function MercadosPage({ searchParams }) {
     vazia. Respeitam o filtro de tipo — com "Fornecedores" ligado, listar
     concorrentes no seletor so daria escolha que se anula.
   */
-  const doTipo = produtos.filter((produto) => !tipo || produto.fonte?.tipo === tipo);
-
-  const contagemPorFonte = new Map();
-  for (const produto of doTipo) {
-    const nome = produto.fonte?.nome;
-    if (nome) contagemPorFonte.set(nome, (contagemPorFonte.get(nome) ?? 0) + 1);
-  }
-  const fontes = [...contagemPorFonte]
-    .map(([nome, quantidade]) => ({ nome, quantidade }))
-    .sort((a, b) => a.nome.localeCompare(b.nome));
-
-  /*
-    VARIAS FONTES AO MESMO TEMPO: ?fonte=A&fonte=B.
-
-    O Next entrega uma string quando o parametro aparece uma vez e um array
-    quando repete — ler so um dos dois casos faria o filtro de uma fonte
-    funcionar e o de duas nao, ou o contrario. Nome que nao existe mais (fonte
-    excluida, link antigo) e descartado em silencio: manter travaria a tela numa
-    lista vazia sem explicacao.
-  */
-  const pedidas = params?.fonte === undefined ? [] : [params.fonte].flat();
-  const fonte = pedidas.filter((nome) => contagemPorFonte.has(nome));
-
-  const selecionados = doTipo
-    .filter((produto) => combina(produto.buscaTexto, busca))
-    .filter((produto) => fonte.length === 0 || fonte.includes(produto.fonte?.nome));
+  const fontes = resultado.contagemPorFonte;
+  const nomesValidos = new Set(fontes.map((item) => item.nome));
+  const fonte = pedidas.filter((nome) => nomesValidos.has(nome));
 
   /*
     A PAGINA E CORRIGIDA PARA DENTRO DA LISTA, nunca aceita como veio.
@@ -91,37 +91,32 @@ export default async function MercadosPage({ searchParams }) {
     "?pagina=99" numa lista de tres paginas mostraria tabela vazia, e o mesmo
     acontece sozinho quando a varredura seguinte encolhe a lista com o link
     guardado. Aqui a pagina fora do intervalo vira a ultima valida, entao a tela
-    sempre tem o que mostrar.
+    sempre tem o que mostrar — e so a pagina fora do intervalo custa uma segunda
+    consulta.
   */
-  const totalPaginas = Math.max(1, Math.ceil(selecionados.length / POR_PAGINA));
-  const pedida = Number.parseInt(params?.pagina ?? "1", 10);
+  const totalPaginas = Math.max(1, Math.ceil(resultado.total / POR_PAGINA));
   const pagina = Math.min(Math.max(Number.isFinite(pedida) ? pedida : 1, 1), totalPaginas);
+
+  if (!erro && pagina !== Math.max(Number.isFinite(pedida) ? pedida : 1, 1)) {
+    resultado = await listarProdutos({
+      tipo,
+      fontes: fonte,
+      busca,
+      ordem,
+      pagina,
+      porPagina: POR_PAGINA,
+    });
+  }
+
+  const paginaAtual = resultado.linhas;
   const inicio = (pagina - 1) * POR_PAGINA;
 
-  const paginaAtual = selecionados
-    /**
-     * Ordem pedida pelo operador; sem pedido, a de sempre.
-     *
-     * Produto SEM PRECO vai para o fim nas duas ordenacoes, nunca para o topo
-     * de "menor valor": fornecedor de atacado nao publica preco, e null tratado
-     * como zero poria os vinte da Nightech na frente de tudo.
-     */
-    .sort((a, b) => {
-      if (ordem === "menor" || ordem === "maior") {
-        const precoA = a.prices?.promotional ?? a.prices?.normal ?? null;
-        const precoB = b.prices?.promotional ?? b.prices?.normal ?? null;
-        if (precoA === null && precoB === null) return 0;
-        if (precoA === null) return 1;
-        if (precoB === null) return -1;
-        return ordem === "menor" ? precoA - precoB : precoB - precoA;
-      }
-
-      const disponivelA = a.stock?.status === "AVAILABLE" ? 1 : 0;
-      const disponivelB = b.stock?.status === "AVAILABLE" ? 1 : 0;
-      if (disponivelA !== disponivelB) return disponivelB - disponivelA;
-      return String(b.coletadoEm).localeCompare(String(a.coletadoEm));
-    })
-    .slice(inicio, inicio + POR_PAGINA);
+  /*
+    A ORDEM AGORA E DO BANCO (`listarProdutos`): "menor valor" ordena por
+    COALESCE(promocional, normal) com os SEM PRECO sempre no fim — fornecedor de
+    atacado nao publica preco, e null tratado como zero poria os da Nightech na
+    frente de tudo. Sem pedido, disponivel primeiro e coleta mais recente depois.
+  */
 
   // So as cem da pagina ganham foto. Na Fortek a miniatura e base64: trazer a
   // de todos os 2.400 produtos para mostrar cem seria carga que ninguem ve.
@@ -204,10 +199,10 @@ export default async function MercadosPage({ searchParams }) {
               className="w-full max-w-lg"
             />
             <p className="text-sm text-suave">
-              {selecionados.length === produtos.length ? (
+              {resultado.total === resultado.totalGeral ? (
                 <>
                   <span className="font-medium text-texto tabular-nums">
-                    {produtos.length}
+                    {resultado.totalGeral.toLocaleString("pt-BR")}
                   </span>{" "}
                   produto(s)
                 </>
@@ -216,9 +211,13 @@ export default async function MercadosPage({ searchParams }) {
                 // tem 20 ou se o filtro escondeu 100.
                 <>
                   <span className="font-medium text-texto tabular-nums">
-                    {selecionados.length}
+                    {resultado.total.toLocaleString("pt-BR")}
                   </span>{" "}
-                  de <span className="tabular-nums">{produtos.length}</span> produto(s)
+                  de{" "}
+                  <span className="tabular-nums">
+                    {resultado.totalGeral.toLocaleString("pt-BR")}
+                  </span>{" "}
+                  produto(s)
                 </>
               )}
             </p>
@@ -237,7 +236,7 @@ export default async function MercadosPage({ searchParams }) {
               totalPaginas={totalPaginas}
               primeiro={inicio + 1}
               ultimo={inicio + linhas.length}
-              total={selecionados.length}
+              total={resultado.total}
             />
           </div>
 
@@ -287,7 +286,7 @@ export default async function MercadosPage({ searchParams }) {
                   totalPaginas={totalPaginas}
                   primeiro={inicio + 1}
                   ultimo={inicio + linhas.length}
-                  total={selecionados.length}
+                  total={resultado.total}
                 />
               </div>
 
