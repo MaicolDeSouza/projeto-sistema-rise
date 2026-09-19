@@ -587,6 +587,10 @@ function quantidadeNoTexto(html) {
     /qtde?[-_]?estoque[^>]*>\s*(\d{1,6})/i,
     /estoque\s*:?\s*(?:<[^>]*>\s*)*(\d{1,6})\s*(?:<[^>]*>\s*)*unidade/i,
     /(\d{1,6})\s*unidades?\s*(?:em|no)\s*estoque/i,
+    // OpenCart (Solda Fria): `<b>Estoque Atual:</b> <span>317</span>`, sem a
+    // palavra "unidades" depois — o padrao acima exige ela e deixava a
+    // quantidade "nao informada" numa pagina que diz 317.
+    /estoque\s+atual\s*:?\s*(?:<[^>]*>\s*)*(\d{1,6})\b/i,
     // Magento: <div class="availability only" title="2 itens"><strong>2</strong>
     // itens</div>. O bloco e proprio do saldo — ancorar nele deixa de fora
     // qualquer outro "N itens" da pagina, como o do carrinho.
@@ -685,7 +689,15 @@ function acharNcm(especificacoes, descricao) {
 function especificacoesDeTabela(html) {
   const itens = [];
 
-  for (const tabela of html.matchAll(/<table[\s\S]*?<\/table>/gi)) {
+  // <script> e <style> saem antes: o JavaScript monta tabelas em strings
+  // ('<tr><th>Métodos de envio</th><th>Valor</th></tr>' no calculo de frete do
+  // OpenCart) e isso virava "Métodos de envio: Valor" na ficha tecnica, junto
+  // com um pedaço do proprio codigo.
+  const semCodigo = html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, "");
+
+  for (const tabela of semCodigo.matchAll(/<table[\s\S]*?<\/table>/gi)) {
     for (const linha of tabela[0].matchAll(/<tr[\s\S]*?<\/tr>/gi)) {
       const celulas = [...linha[0].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(
         (celula) => comoTexto(celula[1]),
@@ -706,6 +718,12 @@ function especificacoesDeTabela(html) {
 const TITULO_DE_FICHA =
   /^(especifica[cç](?:[õo]es|ao|ão)(?: t[eé]cnicas?)?|ficha t[eé]cnica|dados t[eé]cnicos|caracter[ií]sticas t[eé]cnicas)\s*:?$/i;
 
+/// "Características" sozinho tambem anuncia ficha na Solda Fria
+/// (`<h3>Características</h3><ul><li><strong>Tipo de Conector:</strong> ...`),
+/// mas em outras lojas e titulo de lista de marketing ("Alta durabilidade").
+/// Por isso este titulo so vale quando TODOS os itens sao pares "Nome: valor".
+const TITULO_DE_FICHA_CURTO = /^caracter[ií]sticas(?: do produto)?\s*:?$/i;
+
 /**
  * Ficha tecnica escrita como LISTA HTML logo abaixo de um titulo:
  * `<h2>Especificações Técnicas</h2><ul><li><strong>Formato:</strong> Tubular</li>`.
@@ -718,7 +736,9 @@ const TITULO_DE_FICHA =
  */
 function especificacoesDeListaHtml(html) {
   for (const titulo of html.matchAll(/<(h[1-6]|p|strong|b)\b[^>]*>([\s\S]{0,120}?)<\/\1>/gi)) {
-    if (!TITULO_DE_FICHA.test(comoTexto(titulo[2]) ?? "")) continue;
+    const textoDoTitulo = comoTexto(titulo[2]) ?? "";
+    const tituloCurto = TITULO_DE_FICHA_CURTO.test(textoDoTitulo);
+    if (!tituloCurto && !TITULO_DE_FICHA.test(textoDoTitulo)) continue;
 
     // Entre o titulo e a lista, so tags e espaco: texto no meio quer dizer que a
     // lista e de outra coisa.
@@ -737,6 +757,7 @@ function especificacoesDeListaHtml(html) {
         itens.push({ nome: null, valor: texto });
       }
     }
+    if (tituloCurto && itens.some((item) => !item.nome)) continue;
     if (itens.length > 0) return itens;
   }
   return [];
@@ -1059,19 +1080,49 @@ function descricaoDoBloco(html) {
       html,
     );
 
-  if (!bloco) return null;
+  return bloco ? textoDoBlocoDeDescricao(bloco[1]) : null;
+}
 
+function textoDoBlocoDeDescricao(blocoHtml) {
   // A ESTRUTURA DA PAGINA SOBREVIVE AO TEXTO: titulo ganha uma linha em branco
   // antes, e item de lista vira "- item". Sem isto a lista de especificacoes da
   // Mamute ("Modelo: CJMCU-219", "Interface: I2C" ...) virava linhas soltas, sem
   // o marcador que diz que ainda sao lista.
-  const estruturado = bloco[1]
+  const estruturado = blocoHtml
     .replace(/<h[1-6]\b/gi, "\n\n$&")
     .replace(/<li\b[^>]*>\s*(?:[-•*]\s+)?/gi, "\n- ");
 
   // Item de lista colado ao anterior: o fechamento do <li> e o "\n- " do proximo
   // deixavam uma linha em branco entre cada um.
   return comoTexto(estruturado)?.replace(/\n{2,}- /g, "\n- ") ?? null;
+}
+
+/**
+ * Descricao que mora na ABA "Descrição" do produto, quando a loja a monta como
+ * `<a data-toggle="tab" href="#painel">Descrição</a>` e um painel com esse id.
+ *
+ * Existe por causa da Solda Fria (OpenCart, 19/09/2026): o JSON-LD, o
+ * og:description e o Microdata trazem a descricao CORTADA em ~250 caracteres, no
+ * meio da frase, e o texto inteiro (introducao, caracteristicas, aplicacoes) so
+ * esta no painel da aba, sem classe "description". Como quem decide e
+ * melhorDescricao, pela mais longa, este candidato so vence onde de fato traz mais.
+ *
+ * Exige data-toggle="tab": link "#descricao" comum e ancora de rolagem, nao aba.
+ */
+function descricaoDaAba(html) {
+  for (const aba of html.matchAll(/<a\b([^>]*)>([\s\S]{0,60}?)<\/a>/gi)) {
+    if (!/data-(?:bs-)?toggle=["']tab["']/i.test(aba[1])) continue;
+    if (!/^descri[cç][aã]o(?: do produto)?$/i.test((comoTexto(aba[2]) ?? "").trim())) continue;
+
+    const alvo = /href=["']#([\w-]+)["']/i.exec(aba[1])?.[1];
+    if (!alvo) continue;
+
+    const painel = new RegExp(`\\bid=["']${alvo}["'][^>]*>`, "i").exec(html);
+    if (!painel) continue;
+
+    return textoDoBlocoDeDescricao(conteudoDoDiv(html, painel.index + painel[0].length));
+  }
+  return null;
 }
 
 /// Extensao que denuncia arquivo, e nao pagina. Vale no dominio da propria
@@ -1381,7 +1432,19 @@ export function normalizarPagina({
   const bruto = estruturado?.bruto ?? null;
 
   // --- precos ---------------------------------------------------------------
+  //
+  // Na Tray em promocao o dataLayer traz DOIS numeros: `price` e o RISCADO
+  // ("de R$ 6,05") e `priceSell` e o que a loja cobra ("R$ 5,75"). Como o riscado
+  // e o maior, entrava como candidato e virava o preco normal, e o 5,75 nem
+  // chegava a ser candidato — o WJ Componentes saia 6,05 -> 5,58 contra 5,75 ->
+  // 5,58 na tela. Riscado nao e preco vigente; o `preco_atual` da pagina
+  // confirma o priceSell.
+  const trayPrecoTabela = comoNumero(tray?.price);
+  const trayPrecoVenda = comoNumero(tray?.priceSell);
+  const trayComRiscado = trayPrecoVenda > 0 && trayPrecoTabela > trayPrecoVenda;
+
   const declaradoNormal =
+    (trayComRiscado ? trayPrecoVenda : null) ??
     aspnet?.de ??
     comoNumero(meta["product:original_price:amount"]) ??
     comoNumero(bruto?.offers?.priceSpecification?.listPrice) ??
@@ -1405,7 +1468,7 @@ export function normalizarPagina({
     ...(micro?.precos ?? []),
     comoNumero(meta["product:price:amount"]),
     comoNumero(meta["product:sale_price:amount"]),
-    comoNumero(tray?.price),
+    trayComRiscado ? trayPrecoVenda : trayPrecoTabela,
     // O a vista entra como candidato, nao como promocional direto: quem decide
     // qual e o normal e qual e o promocional e decidirPrecos, com a mesma regra
     // que ja vale para as outras lojas.
@@ -1560,6 +1623,8 @@ export function normalizarPagina({
     micro?.descricao,
     comoTexto(meta["og:description"]),
     descricaoDoBloco(html),
+    // A plataforma ASP.NET ja le a propria aba (aspnet.descricao).
+    aspnet ? null : descricaoDaAba(html),
   ]);
 
   // --- especificacoes -------------------------------------------------------
@@ -1633,7 +1698,11 @@ export function normalizarPagina({
   );
 
   if (prices.normal !== null) {
-    origens.precoNormal = declaradoNormal ? "preco de tabela declarado" : "maior preco da pagina";
+    origens.precoNormal = trayComRiscado
+      ? `dataLayer da Tray (priceSell); o price de R$ ${trayPrecoTabela.toFixed(2).replace(".", ",")} e o riscado`
+      : declaradoNormal
+        ? "preco de tabela declarado"
+        : "maior preco da pagina";
   }
   if (prices.promotional !== null) {
     // Dizer QUAL bloco trouxe o desconto importa: o a vista da Tray nao esta na

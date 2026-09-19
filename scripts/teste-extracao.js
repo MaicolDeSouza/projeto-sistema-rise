@@ -796,6 +796,124 @@ conferir(
 );
 
 // ---------------------------------------------------------------------------
+// Tray em promocao: o `price` do dataLayer e o RISCADO ("de R$ 6,05") e o
+// `priceSell` e o que a loja cobra. O WJ Componentes saia 6,05 -> 5,58 quando a
+// tela da loja mostra 5,75 e 5,58 no pix.
+console.log("\n— Tray: preco riscado nao e o preco normal —");
+const paginaTrayPromo = (price, priceSell) => `<html><body>
+<div itemscope itemtype="https://schema.org/Product"><span itemprop="name">Sensor Joystick</span></div>
+<script>var dataLayer = [{"idProduct":"101","reference":"WJ-48","priceSell":"${priceSell}","promotion":"YES","price":"${price}","priceSellDetails":[{"name":"","installment.months":"1","installment.amount":"5.58"}]}];</script>
+<input type="hidden" id="preco_atual" value="${priceSell}" />
+</body></html>`;
+
+const joystick = normalizarPagina({
+  html: paginaTrayPromo("6.05", "5.75"),
+  url: "https://loja.com.br/sensor-joystick",
+}).produtos[0];
+conferir("o normal e o priceSell (5,75), nao o riscado (6,05)", joystick.prices.normal, 5.75);
+conferir("o promocional continua sendo o pix (5,58)", joystick.prices.promotional, 5.58);
+conferir(
+  "a origem diz que o riscado foi descartado",
+  /riscado/.test(joystick.origens.precoNormal),
+  true,
+);
+
+const semPromocao = normalizarPagina({
+  html: paginaTrayPromo("5.75", "5.75"),
+  url: "https://loja.com.br/sensor-joystick",
+}).produtos[0];
+conferir("sem riscado (price = priceSell) o normal e o mesmo", semPromocao.prices.normal, 5.75);
+conferir("e o pix segue como promocional", semPromocao.prices.promotional, 5.58);
+conferir(
+  "sem riscado a origem nao fala em riscado",
+  /riscado/.test(semPromocao.origens.precoNormal),
+  false,
+);
+
+// ---------------------------------------------------------------------------
+// OpenCart (Solda Fria): tres defeitos na mesma pagina. O estoque vem como
+// "Estoque Atual: 317" sem a palavra "unidades"; o JSON-LD traz a descricao
+// cortada em ~250 caracteres e o texto inteiro esta na aba "Descrição"; e o
+// JavaScript do frete monta uma tabela em string, que virava ficha tecnica.
+console.log("\n— OpenCart: estoque, descricao em aba e tabela dentro de script —");
+const paginaOpenCart = `<html><head><title>Alojamento</title></head><body>
+<script type="application/ld+json">{"@type":"Product","name":"Alojamento KK 10 Vias","sku":"1874",
+"description":"Alojamento para Conector\\n\\nIntrodução\\nGarantia de conexão segura. Este alojamento",
+"offers":{"price":"0.30","availability":"http://schema.org/InStock"}}</script>
+<ul><li class="product-stock in-stock"><b>Estoque Atual:</b> <span>317</span></li></ul>
+<ul class="nav"><li><a
+href="#tab-desc-x" data-toggle="tab">Descrição</a></li><li><a href="#tab-esp-x" data-toggle="tab">Especificações</a></li></ul>
+<div class="tab-content"><div class="tab-pane active" id="tab-desc-x"><div class="block-content ">
+<h2>Alojamento KK</h2><h3>Introdução</h3><p>Garantia de conexão segura. Este alojamento robusto e de alta qualidade.</p>
+<h3>Conclusão/CTA Final</h3><p>Adquira agora mesmo.</p></div></div>
+<div class="tab-pane" id="tab-esp-x"><table><thead><tr><td colspan="2"><strong>Características do produto</strong></td></tr></thead>
+<tbody><tr><td>Unidade Venda</td><td>Peça</td></tr></tbody></table></div></div>
+<script>var html = '<tr>'; html += '<th scope="col">Métodos de envio</th>'; html += '<th scope="col" width="74">Valor</th>'; html += '</tr>';</script>
+</body></html>`;
+
+const opencart = normalizarPagina({
+  html: paginaOpenCart,
+  url: "https://loja.com.br/alojamento-p-1874.html",
+}).produtos[0];
+conferir("estoque em 'Estoque Atual: <span>317</span>'", opencart.stock?.quantity, 317);
+conferir(
+  "a descricao vem da aba, inteira, e nao do JSON-LD cortado",
+  opencart.description.includes("Conclusão/CTA Final"),
+  true,
+);
+conferir(
+  "tabela montada dentro de <script> NAO vira ficha tecnica",
+  opencart.specifications.some((s) => /m[eé]todos de envio|^valor$/i.test(`${s.nome} ${s.valor}`)),
+  false,
+);
+conferir(
+  "e a tabela de verdade continua sendo lida",
+  opencart.specifications.find((s) => s.nome === "Unidade Venda")?.valor,
+  "Peça",
+);
+// "Características" sozinho: ficha na Solda Fria, lista de marketing noutras.
+const listaSobTitulo = (titulo, itens) =>
+  normalizarPagina({
+    html: `<script type="application/ld+json">{"@type":"Product","name":"X","sku":"1","description":"Curta","offers":{"price":"1"}}</script>
+<h3>${titulo}</h3><ul>${itens.map((i) => `<li>${i}</li>`).join("")}</ul>`,
+    url: "https://loja.com.br/x",
+  }).produtos[0].specifications;
+
+const fichaCurta = listaSobTitulo("Características", [
+  "<strong>Tipo de Conector:</strong> KK 11 Vias",
+  "<strong>Compatibilidade:</strong> Molex 5051-11",
+]);
+conferir(
+  "'Características' com itens 'Nome: valor' vira ficha",
+  fichaCurta.map((s) => `${s.nome}=${s.valor}`),
+  ["Tipo de Conector=KK 11 Vias", "Compatibilidade=Molex 5051-11"],
+);
+conferir(
+  "'Características' com lista de marketing NAO vira ficha",
+  listaSobTitulo("Características", ["Alta durabilidade", "Fácil de instalar"]),
+  [],
+);
+conferir(
+  "uma linha sem rotulo entre os pares tambem recusa a lista",
+  listaSobTitulo("Características", ["<strong>Tipo:</strong> KK", "Alta durabilidade"]),
+  [],
+);
+conferir(
+  "sob 'Características Técnicas' o item sem rotulo continua entrando",
+  listaSobTitulo("Características Técnicas", ["<strong>Tipo:</strong> KK", "Acompanha trava"]).length,
+  2,
+);
+conferir(
+  "link '#descricao' sem data-toggle e ancora, nao aba",
+  normalizarPagina({
+    html: `<script type="application/ld+json">{"@type":"Product","name":"X","sku":"1","description":"Curta","offers":{"price":"1"}}</script>
+<a href="#tab-d">Descrição</a><div id="tab-d"><p>Texto que nao deve entrar porque o link nao e uma aba.</p></div>`,
+    url: "https://loja.com.br/x",
+  }).produtos[0].description,
+  "Curta",
+);
+
+// ---------------------------------------------------------------------------
 // O preco a vista da Tray vem de um endereco proprio, e perguntar item a item
 // DOBRAVA a colheita (uma visita a cada 2s por dominio). Como o desconto e da
 // loja, a regra e aprendida no primeiro produto e o resto sai de conta — este
