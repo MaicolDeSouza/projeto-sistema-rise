@@ -40,7 +40,7 @@ requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 169 asserções da extração, da conciliação e das medidas, SEM rede
+npm run teste:extracao            # 226 asserções da extração, da conciliação e das medidas, SEM rede
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
@@ -1094,6 +1094,30 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   "Espaguetes Termo Retráteis"). O breadcrumb é montado por JavaScript, e não há outra fonte
   na página. Não se corrige: é dado deles.
 
+- **Solda Fria (OpenCart), 19/09/2026 (Agente 1):** cinco defeitos na mesma página.
+  - **Estoque:** "Estoque Atual: 317" sem a palavra "unidades" depois deixava a quantidade como
+    "não informada".
+  - **Tabelas de especificação** vêm só do HTML da página: `<script>` e `<style>` saem antes
+    (`especificacoesDeTabela`). O JavaScript do cálculo de frete monta tabelas em strings, e isso
+    virava "Métodos de envio: Valor" na ficha técnica.
+  - **"Características" sozinho anuncia ficha, mas só se TODOS os itens forem pares "Nome: valor"**
+    (`TITULO_DE_FICHA_CURTO`): em outras lojas é título de lista de marketing ("Alta durabilidade").
+  - **Descrição na aba "Descrição"** (`descricaoDaAba`, exige `data-toggle="tab"`; link `#descricao`
+    comum é âncora de rolagem). O JSON-LD, o og:description e o Microdata trazem a descrição
+    cortada em ~250 caracteres, e o texto inteiro só está no painel da aba. Quem decide continua
+    sendo `melhorDescricao` (a mais longa). A plataforma ASP.NET já lê a própria aba.
+  - **Tray em promoção (WJ Componentes):** o `price` do dataLayer é o RISCADO ("de R$ 6,05") e o
+    `priceSell` é o que a loja cobra (R$ 5,75). O riscado entrava como preço normal (6,05 → 5,58
+    contra 5,75 → 5,58 na tela). Agora `origens.precoNormal` diz quando o riscado foi descartado.
+- **Curto Circuito (19/09/2026, Agente 2):** a ficha vem sob **"Principais Características:"**,
+  título que o vocabulário de seção não conhecia, e voltava vazia. "Características" só vale como
+  **segunda opção**: também é título de texto de venda e não pode disputar com "Especificações"
+  quando as duas existem (a propaganda trocaria a ficha de verdade). E item que o site quebrou
+  no meio de um parêntese ("Consumo: 70 mA (Standby) e Max 215 mA (802.11b, CCK" + "- 1Mbps,...);")
+  é **juntado ao anterior**: parêntese aberto e sem fechar prova que a linha é continuação.
+- **Depois de juntar mudança de coleta na `main`, reiniciar o worker** (`npm run worker:parar` e
+  `npm run worker`): ele carregou o código antigo. Varredura em curso grava com a regra velha até
+  lá — a WJ Componentes, por exemplo, com o preço riscado.
 - **Makerhero: Cloudflare.** Desafio anti-bot em qualquer combinação de cabeçalho,
   inclusive nenhum. **Não se contorna** — o `buscar.js` diz por escrito que user-agent
   disfarçado de navegador é o oposto de educado. A mensagem na tela nomeia a proteção em
