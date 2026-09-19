@@ -410,7 +410,22 @@ function especificacoesDeLista(texto) {
     /especifica|ficha t[eé]cnica|dados t[eé]cnicos/i.test(linha) &&
     (ehTitulo(linha) || linha.split(/\s+/).length <= 3);
 
-  const inicio = linhas.findIndex(ehSecaoDeFicha);
+  // A Curto Circuito escreve "Principais Caracteristicas:" (ESP-12E, 17 itens
+  // "- Nome: valor;") e a ficha inteira voltava vazia, porque o titulo nao tem
+  // nenhuma das palavras acima.
+  //
+  // So vale como SEGUNDA opcao. "Caracteristicas" tambem e titulo de texto de
+  // venda ("Caracteristicas: otima qualidade..."), entao nao pode disputar com
+  // "Especificacoes" quando as duas existem: a primeira linha achada venceria, e
+  // a ficha de verdade seria trocada pela propaganda. Assim a pagina que ja
+  // tinha secao reconhecida le exatamente como lia antes.
+  const ehSecaoDeCaracteristicas = (linha) =>
+    linha.length < 45 &&
+    /caracter[ií]sticas/i.test(linha) &&
+    (ehTitulo(linha) || linha.split(/\s+/).length <= 3);
+
+  let inicio = linhas.findIndex(ehSecaoDeFicha);
+  if (inicio === -1) inicio = linhas.findIndex(ehSecaoDeCaracteristicas);
 
   // Sem secao de especificacoes, nao ha o que ler. Varrer o texto inteiro atras
   // de "rotulo: valor" parecia mais generoso e nao era: numa pagina real isso
@@ -446,6 +461,19 @@ function especificacoesDeLista(texto) {
     if (listaMarcada === null) listaMarcada = temMarcador;
 
     const linha = linhaBruta.replace(/^[\s\-•*]+/, "").replace(/[;.]\s*$/, "").trim();
+
+    // Item que o site quebrou no meio do parentese. A Curto Circuito escreve
+    // "Consumo: 70 mA (Standby) e Max 215 mA (802.11b, CCK" e, na linha de baixo,
+    // "- 1Mbps,Pout=+19.5dBm);": o "- " e o hifen do proprio texto, nao um novo
+    // item. Sem juntar, o Consumo saia cortado e a sobra virava especificacao
+    // sem rotulo. Parentese aberto e sem fechar no item anterior e o que prova
+    // que a linha e continuacao.
+    const anterior = itens[itens.length - 1];
+    if (anterior && (anterior.valor.match(/\(/g) ?? []).length > (anterior.valor.match(/\)/g) ?? []).length) {
+      anterior.valor = `${anterior.valor}${temMarcador ? " - " : " "}${linha}`;
+      continue;
+    }
+
     const separador = linha.indexOf(":");
 
     const rotulo = separador > 1 ? linha.slice(0, separador).trim() : null;

@@ -731,6 +731,53 @@ conferir(
 );
 
 // ---------------------------------------------------------------------------
+// Curto Circuito: a ficha vem sob "Principais Caracteristicas:", palavra que o
+// vocabulario de secao nao conhecia, e a ficha inteira voltava vazia. O item
+// "Consumo" vem quebrado no meio de um parentese, com o resto numa linha marcada.
+console.log("\n— ficha sob 'Principais Caracteristicas:' —");
+const fichaCurto = [
+  "O modulo ESP-12E permite transmitir e receber informacoes pela Internet, tais como:",
+  "- Estacao meteorologica;",
+  "- Sistemas de monitoramento.",
+  "",
+  "Principais Características:",
+  "- Padrões wireless: IEEE 802.11b, IEEE 802.11g, IEEE 802.11n;",
+  "- Antena Embutida;",
+  "- Tensão de alimentação: 1,8 - 3,3 VDC;",
+  "- Consumo: 70 mA (Standby) e Máx 215 mA (802.11b, CCK",
+  "- 1Mbps,Pout=+19.5dBm);",
+  "- Peso: 3g;",
+].join("\n");
+
+const curto = normalizarPagina({
+  html: `<script type="application/ld+json">
+{"@type":"Product","name":"Modulo WiFi","sku":"WRL0006","offers":{"price":"16.65"},"description":${JSON.stringify(fichaCurto)}}
+</script>`,
+  url: "https://loja.com.br/p/esp12e",
+}).produtos[0];
+
+conferir("titulo 'Principais Características:' e reconhecido", curto.specifications.length, 5);
+conferir("o par de dentro da ficha e lido", espec(curto, "Padrões wireless"), "IEEE 802.11b, IEEE 802.11g, IEEE 802.11n");
+conferir(
+  "item quebrado no parentese volta inteiro",
+  espec(curto, "Consumo"),
+  "70 mA (Standby) e Máx 215 mA (802.11b, CCK - 1Mbps,Pout=+19.5dBm)",
+);
+conferir("a lista de aplicacoes antes do titulo nao entra", nomesEspec(curto).includes("Estacao meteorologica"), false);
+
+// "Caracteristicas" so vale quando nao ha "Especificacoes": a primeira linha achada
+// venceria, e a ficha de verdade seria trocada pelo texto de venda.
+const comAsDuas = normalizarPagina({
+  html: `<script type="application/ld+json">
+{"@type":"Product","name":"Sensor","sku":"2","offers":{"price":"9.90"},"description":${JSON.stringify(
+    "Características:\n- Muito bom: recomendado;\n\nEspecificações:\n- Tensão: 5V;\n- Peso: 10g;",
+  )}}
+</script>`,
+  url: "https://loja.com.br/p/duas",
+}).produtos[0];
+conferir("com as duas secoes, vale 'Especificacoes'", nomesEspec(comAsDuas), ["Tensão", "Peso"]);
+
+// ---------------------------------------------------------------------------
 // O datasheet do concorrente. Os dois casos reais nao se parecem: a Smartkits
 // hospeda no Google Drive (fora do dominio, sem extensao) e a Usinainfo serve
 // pelo anexo do PrestaShop (no proprio dominio, tambem sem extensao). Junto
