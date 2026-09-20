@@ -477,6 +477,10 @@ export const PLATAFORMAS = [
       imagens: "/image/cache/catalog/... — o sufixo -{largura}x{altura} e redimensionamento.",
       sitemap: "index.php?route=extension/feed/google_sitemap (quando a extensao esta ligada).",
       urlProduto: "index.php?route=product/product&product_id={id}, ou slug com SEO ligado",
+      // O MESMO produto tem um endereco por caminho de categoria (`/x`,
+      // `/arduino/x`, `/arduino/acessorios/x`) e o sitemap lista todos. Medido na
+      // Solda Fria (19/09/2026): 38.839 enderecos para ~8,6 mil produtos.
+      identidadePorProduto: "ultimo-segmento",
       cuidados: [],
       catalogo: null,
     },
@@ -752,6 +756,43 @@ export function identificarPlataforma({ html = "", cabecalhos = {}, cookies = []
 /** Regras de uma plataforma pelo id, para quem ja sabe qual e. */
 export function regrasDaPlataforma(id) {
   return PLATAFORMAS.find((plataforma) => plataforma.id === id) ?? DESCONHECIDA;
+}
+
+/**
+ * O que identifica o PRODUTO por tras de um endereco, ou null quando a plataforma
+ * nao repete produto por caminho de categoria (ou nao foi conferida).
+ *
+ * Existe por causa da Solda Fria (OpenCart, 19/09/2026): cada produto aparece em
+ * varios enderecos que so diferem pelo caminho de categoria, e o sitemap lista
+ * todos. O worker abria cada um a 2,3 s — na Solda Fria, 10.647 aberturas para
+ * 5.350 produtos — e a segunda abertura REESCREVIA a linha ja gravada (url e
+ * coletadoEm trocados pela ultima variante visitada).
+ *
+ * A chave e o id quando o endereco termina em `-p-<id>.html`; senao, o ULTIMO
+ * segmento do caminho, que as variantes de um mesmo produto compartilham. Medido
+ * no sitemap dela: 24.505 enderecos de slug puro dao 5.766 ultimos segmentos, e
+ * 14.333 com `-p-N.html` dao 2.877 ids. O `?` entra na chave: `/arduino?page=2` e
+ * `/arduino` sao paginas diferentes.
+ *
+ * So vale onde o registro declara `identidadePorProduto`: em loja generica o
+ * ultimo segmento pode repetir de verdade (`/produto/1` e `/servico/1`).
+ */
+export function identidadeDoEndereco(plataforma, endereco) {
+  const regra = regrasDaPlataforma(plataforma?.id ?? plataforma).entrega?.identidadePorProduto;
+  if (regra !== "ultimo-segmento") return null;
+
+  try {
+    const url = new URL(endereco);
+    const ultimo = url.pathname.split("/").filter(Boolean).at(-1);
+    if (!ultimo) return null;
+
+    const id = /-p-(\d+)\.html?$/i.exec(ultimo)?.[1];
+    if (id) return `p:${id}`;
+
+    return `${ultimo.toLowerCase()}${url.search}`;
+  } catch {
+    return null;
+  }
 }
 
 /**

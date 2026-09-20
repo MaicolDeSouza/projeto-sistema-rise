@@ -2,7 +2,13 @@ import { buscarPagina, podeVisitar, ritmoPedido } from "./buscar";
 import { pareceListagem, pareceProduto, rastrear } from "./descobrir";
 import { ehProdutoValido, normalizarPagina } from "./normalizar";
 import { camposDoCatalogo, lerCatalogo, urlDoItem } from "./catalogo";
-import { catalogoPublicoDe, identificarPlataforma, pagamentoDe } from "./plataformas";
+import { chaveDoProduto } from "./linha";
+import {
+  catalogoPublicoDe,
+  identidadeDoEndereco,
+  identificarPlataforma,
+  pagamentoDe,
+} from "./plataformas";
 import { lerAVista, novaMemoriaDePagamento } from "./pagamento";
 import { descobrirSitemaps, lerSitemaps } from "./sitemap";
 
@@ -120,7 +126,6 @@ export async function colherProdutos({
   jaColetadas = null,
 }) {
   const conferirSinal = () => sinal?.throwIfAborted();
-  const jaTenho = (endereco) => Boolean(jaColetadas?.has(enderecoComparavel(endereco)));
   let retomados = 0;
 
   // Sobra de visitas sobre o alvo: nem toda pagina aberta vira produto, e sem
@@ -237,24 +242,74 @@ export async function colherProdutos({
     "retomados" de 3.625 gravados).
   */
   const tratados = new Set();
+
+  /*
+    O MESMO PRODUTO POR OUTRO ENDERECO (19/09/2026).
+
+    Em plataforma que repete o produto por caminho de categoria (OpenCart), o
+    endereco nao identifica o produto e cada variante era aberta e contada: a
+    Solda Fria apontava 10.647 produtos para 5.350 no banco, a 2,3 s cada. Aqui a
+    identidade vem do registro da plataforma (`identidadeDoEndereco`); onde ela
+    nao existe, `identidade` devolve null e nada muda.
+
+    So entra em `identidadesTratadas` o que virou PRODUTO ou foi retomado —
+    categoria nunca marca, senao a navegacao deixaria de seguir os links dela.
+  */
+  const identidade = (endereco) => identidadeDoEndereco(plataforma, endereco);
+  const identidadesTratadas = new Set();
+  let variantesIgnoradas = 0;
+
+  // RETOMADA: o endereco gravado e o da ULTIMA variante visitada, e o sitemap
+  // pode trazer outra primeiro. Sem casar pela identidade, a retomada reabria
+  // produto que os lotes ja tinham salvo.
+  const identidadesColetadas = new Set(
+    [...(jaColetadas ?? [])].map((endereco) => identidade(endereco)).filter(Boolean),
+  );
+  const jaTenho = (endereco) => {
+    if (!jaColetadas) return false;
+    if (jaColetadas.has(enderecoComparavel(endereco))) return true;
+    const chave = identidade(endereco);
+    return Boolean(chave && identidadesColetadas.has(chave));
+  };
+  /** Conta o produto como retomado UMA vez e marca a identidade, para as variantes. */
+  const retomar = (endereco) => {
+    retomados++;
+    const chave = identidade(endereco);
+    if (chave) identidadesTratadas.add(chave);
+  };
+  /** true se este endereco e outra variante de um produto ja tratado. */
+  const ehVariante = (endereco) => {
+    const chave = identidade(endereco);
+    if (!chave || !identidadesTratadas.has(chave)) return false;
+    variantesIgnoradas++;
+    return true;
+  };
+
   /** true se o endereco ja foi tratado; senao o marca e devolve false. */
   const jaTratado = (endereco) => {
     const chave = enderecoComparavel(endereco);
     if (tratados.has(chave)) return true;
     tratados.add(chave);
-    return false;
+    return ehVariante(endereco);
   };
   // Encontrados nesta passada mais os retomados de antes da queda.
   const achados = () => encontrados.length + retomados;
 
   const guardar = (novos, formatosDaPagina) => {
     for (const produto of novos) {
-      // Variacao com codigo proprio divide a URL com o produto de origem, entao
-      // a chave de "ja tenho este" e codigo+URL, nao a URL sozinha.
-      const chave = `${produto.code ?? ""}|${produto.url}`;
+      // A mesma chave do BANCO (`chaveDoProduto`: codigo, senao endereco, senao
+      // nome). Antes era codigo+URL, e o produto aberto por dois enderecos contava
+      // duas vezes na tela enquanto o banco guardava uma linha so — e a segunda
+      // visita reescrevia a linha. Variacao com codigo proprio divide a URL com o
+      // produto de origem, mas o codigo dela e outro, entao continua separada.
+      const chave = chaveDoProduto(produto) ?? `${produto.code ?? ""}|${produto.url}`;
       if (vistas.has(chave)) continue;
       vistas.add(chave);
-      if (produto.url) tratados.add(enderecoComparavel(produto.url));
+      if (produto.url) {
+        tratados.add(enderecoComparavel(produto.url));
+        const id = identidade(produto.url);
+        if (id) identidadesTratadas.add(id);
+      }
       encontrados.push(produto);
       aoGuardar?.(produto);
     }
@@ -303,7 +358,7 @@ export async function colherProdutos({
     const enderecoItem = urlDoItem(item, alvo.origin);
     if (!enderecoItem || jaTratado(enderecoItem)) continue;
     if (jaTenho(enderecoItem)) {
-      retomados++;
+      retomar(enderecoItem);
       aoProgredir?.({ visitadas: visitas, produtos: achados(), retomados });
       continue;
     }
@@ -412,7 +467,7 @@ export async function colherProdutos({
     if (jaTratado(candidata)) continue;
     conferirSinal();
     if (jaTenho(candidata)) {
-      retomados++;
+      retomar(candidata);
       produtosDoSitemap++;
       aoProgredir?.({ visitadas: visitas, produtos: achados(), retomados });
       continue;
@@ -438,10 +493,18 @@ export async function colherProdutos({
   // Sem nenhuma das duas, `null` — e a tela mostra travessao. Dizer zero
   // afirmaria que a loja nao tem catalogo, quando a verdade e que ela nao
   // publica a lista.
+  //
+  // Onde a plataforma repete o produto por caminho de categoria, o sitemap conta
+  // ENDERECOS de um mesmo produto varias vezes (Solda Fria: 38.839 para ~8,6 mil).
+  // Conta-se por identidade; sem identidade, e cada endereco (como sempre foi).
   const produtosNoSite =
-    totalDoCatalogo ?? (produtosDoSitemap > 0 ? urlsSitemap.length : null);
+    totalDoCatalogo ??
+    (produtosDoSitemap > 0
+      ? new Set(urlsSitemap.map((endereco) => identidade(endereco) ?? endereco)).size
+      : null);
 
-  const produtosNoSiteParcial = totalDoCatalogo === null && produtosNoSite === TETO_SITEMAP;
+  const produtosNoSiteParcial =
+    totalDoCatalogo === null && produtosDoSitemap > 0 && sitemapNoTeto;
 
   // 3) Navegacao, quando o sitemap nao bastou. Nem toda loja publica sitemap de
   // produto: ha quem declare no robots.txt um sitemap de rotas de busca.
@@ -462,9 +525,15 @@ export async function colherProdutos({
       pular: (endereco) => {
         const chave = enderecoComparavel(endereco);
         if (tratados.has(chave)) return true;
+        // Outra variante de um produto ja tratado: nao reabre. Categoria nunca
+        // esta em `identidadesTratadas`, entao a navegacao continua nela.
+        if (ehVariante(endereco)) {
+          tratados.add(chave);
+          return true;
+        }
         if (jaTenho(endereco)) {
           tratados.add(chave);
-          retomados++;
+          retomar(endereco);
           return true;
         }
         return false;
@@ -520,6 +589,17 @@ export async function colherProdutos({
       `${encontrados.length} valido(s) em ${visitas} pagina(s) abertas`,
     ),
   );
+
+  // So diz quando aconteceu: sem variante, o passo seria ruido em toda loja.
+  if (variantesIgnoradas > 0) {
+    passos.push(
+      passo(
+        "Enderecos repetidos ignorados",
+        true,
+        `${variantesIgnoradas} endereco(s) eram o mesmo produto por outro caminho de categoria`,
+      ),
+    );
+  }
 
   if (encontrados.length > 0) {
     passos.push(passo("Extracao concluida", true, [...formatos].join(", ") || "—"));
