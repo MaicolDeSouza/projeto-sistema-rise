@@ -8,6 +8,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import FormularioCliente from "@/components/cadastros/FormularioCliente";
 import FormularioParceiro from "@/components/cadastros/FormularioParceiro";
+import FormularioTransportadora from "@/components/cadastros/FormularioTransportadora";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,8 @@ export default async function NovoCadastroPage({ params }) {
           // hidratacao reclamaria.
           hoje={new Date().toLocaleDateString("sv-SE")}
         />
+      ) : tipo === "transportadoras" ? (
+        <FormularioTransportadora transportadora={null} usos={0} />
       ) : (
         <FormularioParceiro slug={tipo} parceiro={null} fontes={fontes} usos={0} />
       )}

@@ -14,8 +14,12 @@ const ABAS = [
   { id: "entrega", titulo: "Entrega" },
 ];
 
-/** Os campos de UM endereco, com a lupa do CEP. `prefixo` compoe o `name` (`geral_cep`, `entrega_cep`...). */
-function CamposDeEndereco({ prefixo, valores, aoMudar, erros }) {
+/**
+ * Os campos de UM endereco, com a lupa do CEP. `prefixo` compoe o `name`
+ * (`geral_cep`, `entrega_cep`...). Exportado: a transportadora, que tem um endereco
+ * so, usa este mesmo bloco.
+ */
+export function CamposDeEndereco({ prefixo, valores, aoMudar, erros }) {
   const [consultando, iniciarConsulta] = useTransition();
   const [aviso, setAviso] = useState(null);
 

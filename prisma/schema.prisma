@@ -386,10 +386,15 @@ model Cliente {
   ieIsento           Boolean @default(false)
   inscricaoMunicipal String?
 
-  telefone    String?
-  email       String?
-  observacoes String?
-  ativo       Boolean @default(true)
+  /// O primeiro telefone/e-mail fica em `telefone`/`email` e os demais nas listas:
+  /// e o que o resto do sistema ja le, e a coluna antiga segue valendo para quem
+  /// ainda nao conhece as listas.
+  telefone            String?
+  telefonesAdicionais String[] @default([])
+  email               String?
+  emailsAdicionais    String[] @default([])
+  observacoes         String?
+  ativo               Boolean  @default(true)
 
   /// Restrict: apagar uma transportadora que ainda e preferida por cliente
   /// esconderia a preferencia sem ninguem ver. A acao conta e avisa.
@@ -450,24 +455,81 @@ model ClienteContato {
   @@index([clienteId])
 }
 
+/// Como a transportadora leva a encomenda. Serve para filtrar e, depois, para
+/// diferenciar regras de frete.
+enum ModalidadeTransporte {
+  CORREIOS
+  RODOVIARIA
+  ENTREGA_LOCAL
+  OUTRA
+}
+
 /// Transportadoras, de onde o cliente escolhe a preferida.
 model Transportadora {
   id   String @id @default(cuid())
+  /// Razao social; o nome pelo qual e conhecida fica em `nomeFantasia`.
   nome String @unique
 
-  cnpj             String?
+  nomeFantasia String?
+  cnpj         String?
+  /// Dado do transportador que a NF-e pede.
+  inscricaoEstadual String?
+  ieIsento          Boolean @default(false)
+
+  modalidade ModalidadeTransporte?
+  /// Endereco de consulta com `{codigo}` no lugar do codigo de rastreio; o bloco
+  /// Pedidos monta o link do cliente com ele.
+  urlRastreamento String?
+  site            String?
+
+  // Endereco (um so; o cliente e que tem Geral e Entrega).
+  cep         String?
+  uf          String?
+  cidade      String?
+  bairro      String?
+  logradouro  String?
+  numero      String?
+  complemento String?
+
+  /// O primeiro telefone/e-mail fica em `telefone`/`email` e os demais nas listas,
+  /// como no cliente.
+  telefone            String?
+  telefonesAdicionais String[] @default([])
+  email               String?
+  emailsAdicionais    String[] @default([])
+
+  observacoes String?
+  ativo       Boolean @default(true)
+
+  /// SEM USO desde 19/09/2026: o contato agora e a lista `contatos` e o prazo saiu do
+  /// cadastro. Ficam na tabela de proposito — a outra frente usa o mesmo banco com o
+  /// client antigo, e apagar a coluna quebraria o salvar dela. Apagar depois que
+  /// as duas frentes estiverem no mesmo schema.
   contato          String?
-  telefone         String?
-  email            String?
-  site             String?
   prazoEntregaDias Int?
-  observacoes      String?
-  ativo            Boolean @default(true)
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
   clientes Cliente[]
+  contatos TransportadoraContato[]
+}
+
+/// Pessoas da transportadora (atendimento, financeiro), com telefone e e-mail
+/// proprios. Gravadas TODAS juntas: a tela manda a lista inteira e o servidor a troca.
+model TransportadoraContato {
+  id               String         @id @default(cuid())
+  transportadoraId String
+  transportadora   Transportadora @relation(fields: [transportadoraId], references: [id], onDelete: Cascade)
+
+  nome     String
+  cargo    String?
+  telefone String?
+  email    String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([transportadoraId])
 }
 
 /// Condicoes de pagamento ("A vista", "28 dias", "30/60/90"), de onde o cliente

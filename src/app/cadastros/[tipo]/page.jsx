@@ -4,6 +4,7 @@ import { ArrowRight, Package, Plus } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PARCEIROS } from "@/lib/cadastros";
+import { formatarTelefone } from "@/lib/telefone";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import TabelaClientes from "@/components/cadastros/TabelaClientes";
@@ -131,7 +132,7 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
     } else if (tipo === "transportadoras") {
       const registros = await prisma.transportadora.findMany({
         where: busca
-          ? { OR: [contem("nome", busca), contem("contato", busca), contem("cnpj", busca), contem("site", busca)] }
+          ? { OR: [contem("nome", busca), contem("nomeFantasia", busca), contem("cnpj", busca), contem("site", busca)] }
           : undefined,
         orderBy: { nome: "asc" },
         include: { _count: { select: { clientes: true } } },
@@ -139,7 +140,9 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
       parceiros = registros.map((r) => ({
         id: r.id,
         nome: r.nome,
-        contato: [r.contato, r.telefone, r.email].filter(Boolean).join(" · "),
+        fantasia: r.nomeFantasia,
+        // O telefone e gravado so em digitos; a lista mostra "(54) 98899-0008".
+        contato: [formatarTelefone(r.telefone), r.email].filter(Boolean).join(" · "),
         site: r.site,
         ativo: r.ativo,
         fonte: null,

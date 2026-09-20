@@ -4,10 +4,12 @@ import { ArrowLeft } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PARCEIROS } from "@/lib/cadastros";
+import { formatarTelefone } from "@/lib/telefone";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import FormularioCliente from "@/components/cadastros/FormularioCliente";
 import FormularioParceiro from "@/components/cadastros/FormularioParceiro";
+import FormularioTransportadora from "@/components/cadastros/FormularioTransportadora";
 
 export const dynamic = "force-dynamic";
 
@@ -71,8 +73,10 @@ async function carregarCliente(id) {
       inscricaoEstadual: texto(cliente.inscricaoEstadual),
       ieIsento: cliente.ieIsento,
       inscricaoMunicipal: texto(cliente.inscricaoMunicipal),
-      telefone: texto(cliente.telefone),
-      email: texto(cliente.email),
+      // O principal vem primeiro; os adicionais, na ordem em que foram guardados.
+      // Grava-se so os digitos; a tela mostra "(54) 98899-0008" (src/lib/telefone.js).
+      telefones: [cliente.telefone, ...cliente.telefonesAdicionais].filter(Boolean).map(formatarTelefone),
+      emails: [cliente.email, ...cliente.emailsAdicionais].filter(Boolean),
       observacoes: texto(cliente.observacoes),
       ativo: cliente.ativo,
       transportadoraId: texto(cliente.transportadoraId),
@@ -84,7 +88,52 @@ async function carregarCliente(id) {
       contatos: cliente.contatos.map((contato) => ({
         nome: contato.nome,
         cargo: texto(contato.cargo),
-        telefone: texto(contato.telefone),
+        telefone: formatarTelefone(texto(contato.telefone)),
+        email: texto(contato.email),
+      })),
+    },
+  };
+}
+
+/**
+ * A transportadora em forma simples para a tela: sem `null` nos campos de texto, com
+ * o endereco agrupado e telefones e e-mails em UMA lista (o principal primeiro).
+ * Quantos clientes a usam vem junto: e o que impede a exclusao.
+ */
+async function carregarTransportadora(id) {
+  const transportadora = await prisma.transportadora.findUnique({
+    where: { id },
+    include: {
+      contatos: { orderBy: { criadoEm: "asc" } },
+      _count: { select: { clientes: true } },
+    },
+  });
+  if (!transportadora) return null;
+
+  return {
+    usos: transportadora._count.clientes,
+    transportadora: {
+      id: transportadora.id,
+      nome: transportadora.nome,
+      nomeFantasia: texto(transportadora.nomeFantasia),
+      cnpj: texto(transportadora.cnpj),
+      inscricaoEstadual: texto(transportadora.inscricaoEstadual),
+      ieIsento: transportadora.ieIsento,
+      modalidade: texto(transportadora.modalidade),
+      urlRastreamento: texto(transportadora.urlRastreamento),
+      site: texto(transportadora.site),
+      observacoes: texto(transportadora.observacoes),
+      ativo: transportadora.ativo,
+      endereco: enderecoParaTela(transportadora),
+      // Grava-se so os digitos; a tela mostra "(54) 98899-0008" (src/lib/telefone.js).
+      telefones: [transportadora.telefone, ...transportadora.telefonesAdicionais]
+        .filter(Boolean)
+        .map(formatarTelefone),
+      emails: [transportadora.email, ...transportadora.emailsAdicionais].filter(Boolean),
+      contatos: transportadora.contatos.map((contato) => ({
+        nome: contato.nome,
+        cargo: texto(contato.cargo),
+        telefone: formatarTelefone(texto(contato.telefone)),
         email: texto(contato.email),
       })),
     },
@@ -98,6 +147,7 @@ export default async function EditarCadastroPage({ params }) {
 
   let registro = null;
   let dadosDoCliente = null;
+  let dadosDaTransportadora = null;
   let fontes = [];
   let usos = 0;
   let erro = null;
@@ -105,6 +155,8 @@ export default async function EditarCadastroPage({ params }) {
   try {
     if (tipo === "clientes") {
       dadosDoCliente = await carregarCliente(id);
+    } else if (tipo === "transportadoras") {
+      dadosDaTransportadora = await carregarTransportadora(id);
     } else {
       registro = await prisma[config.modelo].findUnique({ where: { id } });
 
@@ -119,16 +171,13 @@ export default async function EditarCadastroPage({ params }) {
         if (tipo === "fornecedores") {
           usos = await prisma.produtoFornecedor.count({ where: { fornecedorId: id } });
         }
-        if (tipo === "transportadoras") {
-          usos = await prisma.cliente.count({ where: { transportadoraId: id } });
-        }
       }
     }
   } catch (excecao) {
     erro = excecao;
   }
 
-  if (!erro && !registro && !dadosDoCliente) notFound();
+  if (!erro && !registro && !dadosDoCliente && !dadosDaTransportadora) notFound();
 
   // Decimal do Prisma nao atravessa a fronteira servidor/cliente: converta aqui.
   const parceiro = registro && {
@@ -137,7 +186,8 @@ export default async function EditarCadastroPage({ params }) {
   };
 
   const plural = tipo === "clientes" ? "Clientes" : config.plural;
-  const titulo = dadosDoCliente?.cliente.nome ?? parceiro?.nome ?? plural;
+  const titulo =
+    dadosDoCliente?.cliente.nome ?? dadosDaTransportadora?.transportadora.nome ?? parceiro?.nome ?? plural;
   const singular = tipo === "clientes" ? "cliente" : config.singular;
 
   return (
@@ -160,6 +210,11 @@ export default async function EditarCadastroPage({ params }) {
           transportadoras={dadosDoCliente.transportadoras}
           condicoes={dadosDoCliente.condicoes}
           hoje={new Date().toLocaleDateString("sv-SE")}
+        />
+      ) : tipo === "transportadoras" ? (
+        <FormularioTransportadora
+          transportadora={dadosDaTransportadora.transportadora}
+          usos={dadosDaTransportadora.usos}
         />
       ) : (
         <FormularioParceiro slug={tipo} parceiro={parceiro} fontes={fontes} usos={usos} />

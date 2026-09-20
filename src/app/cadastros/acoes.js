@@ -54,17 +54,11 @@ const FornecedorSchema = BaseSchema.extend({
 // descarta o que nao esta no schema, entao um POST com "cnpj" nao grava nada.
 const ConcorrenteSchema = BaseSchema.extend({ fonteId: opcional(z.string()) });
 
-// Transportadora nao tem site varrido (sem fonteId), mas tem CNPJ, contato e prazo.
-const TransportadoraSchema = BaseSchema.extend({
-  cnpj: cnpjOpcional(),
-  contato: opcional(z.string()),
-  prazoEntregaDias,
-});
-
+// A transportadora NAO esta aqui: ganhou formulario em abas e a acao propria em
+// `acoes-transportadoras.js`.
 const ESQUEMAS = {
   fornecedores: FornecedorSchema,
   concorrentes: ConcorrenteSchema,
-  transportadoras: TransportadoraSchema,
 };
 
 /**
@@ -105,7 +99,7 @@ function revalidarCadastros() {
  */
 export async function salvarParceiro(slug, id, _anterior, formData) {
   const config = PARCEIROS[slug];
-  if (!config) return { ok: false, erro: "Cadastro desconhecido." };
+  if (!config || !ESQUEMAS[slug]) return { ok: false, erro: "Cadastro desconhecido." };
 
   const analise = ESQUEMAS[slug].safeParse(lerCampos(formData));
   if (!analise.success) return { ok: false, erros: errosPorCampo(analise) };
