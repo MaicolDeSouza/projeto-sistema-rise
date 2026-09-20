@@ -506,11 +506,14 @@ export async function listarProdutos({
       : Prisma.sql` AND "fonteId" IN (${Prisma.join(escolhidas.map((fonte) => fonte.id))})`;
   const onde = Prisma.sql`${semFonte}${filtroDeFonte}`;
 
+  // Ordena pelo preco NORMAL, e o promocional so na falta dele (regra do dono
+  // em 19/09/2026): o desconto a vista e temporario, e a ordem por ele mudaria
+  // a cada campanha da loja.
   const ordenacao =
     ordem === "menor"
-      ? Prisma.sql`COALESCE("precoPromocional", "precoNormal") ASC NULLS LAST`
+      ? Prisma.sql`COALESCE("precoNormal", "precoPromocional") ASC NULLS LAST`
       : ordem === "maior"
-        ? Prisma.sql`COALESCE("precoPromocional", "precoNormal") DESC NULLS LAST`
+        ? Prisma.sql`COALESCE("precoNormal", "precoPromocional") DESC NULLS LAST`
         : Prisma.sql`("estoqueStatus" = 'AVAILABLE') DESC, "coletadoEm" DESC NULLS LAST`;
 
   // O acervo inteiro, sem filtro nenhum: e o segundo numero do "20 de 100" da

@@ -81,10 +81,14 @@ export async function buscarReferencias(termo) {
       fonte: produto.fonte.nome,
       url: produto.url,
       origem: produto.origem,
-      preco: produto.prices.promotional ?? produto.prices.normal,
-      // Preco de tabela, sem desconto — pedido do dono em 18/09/2026 para a
-      // lista de Concorrentes da aba Fornecedores: promocional e temporario, e
-      // comparar por ele engana a referencia de custo/mercado do produto.
+      // Preco NORMAL primeiro (regra do dono em 19/09/2026, valida em todo o
+      // sistema): promocional e desconto a vista ou de campanha, e temporario —
+      // comparar ou copiar por ele engana a referencia de custo/mercado. So
+      // cai no promocional quando a loja nao publicou preco normal.
+      preco: produto.prices.normal ?? produto.prices.promotional,
+      // Estritamente o de tabela, sem cair no promocional: a lista de
+      // Concorrentes da aba Fornecedores (pedido do dono em 18/09/2026) prefere
+      // mostrar "—" a mostrar um preco que nao e o de tabela.
       precoNormal: produto.prices.normal,
       relevancia: Math.round(nota * 100),
     })),

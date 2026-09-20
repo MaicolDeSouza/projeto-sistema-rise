@@ -266,7 +266,20 @@ export default function ReferenciasDeMercado({ ref, marcados, aoAlternar, aoLimp
     });
   }
 
-  useImperativeHandle(ref, () => ({ buscar }));
+  // Volta a janela ao estado de recem-aberta: o formulario a chama quando um
+  // clone recomeca o cadastro, para a proxima abertura nao mostrar a busca, a
+  // ordem e os links "Aberto" do produto anterior. A marcacao em si e do
+  // formulario e ele mesmo a limpa.
+  function reiniciar() {
+    setAberto(false);
+    setTermo("");
+    setResposta(null);
+    setAbertos(new Set());
+    setFotoAmpliada(null);
+    setOrdenacao(null);
+  }
+
+  useImperativeHandle(ref, () => ({ buscar, reiniciar }));
 
   // Fechar avisa o formulario: e quando ele le marca, modelo e homologacao das
   // referencias marcadas, para os icones dos campos ja mostrarem se ha dado.

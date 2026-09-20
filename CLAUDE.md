@@ -15,6 +15,14 @@ Organizado em **blocos** no menu lateral, cada um desenvolvido de forma independ
 - **Interface e código em português**, sem acentos nos identificadores e comentários.
 - **Comentários explicam o porquê**, não o quê. Se um trecho parece estranho, o comentário
   diz que problema ele evita.
+- **Preço: sempre o NORMAL (de tabela), nunca o promocional** — regra do dono em 19/09/2026,
+  **valendo para todas as sessões** (Agente 1, Agente 2 e `main`). Vale para todo preço de
+  concorrente ou fornecedor que o sistema mostra, compara, ordena ou copia para outro campo. O
+  promocional (desconto à vista, pix, campanha) é temporário, e comparar ou ordenar por ele engana.
+  Só se usa o promocional **na falta do normal** (`normal ?? promocional`), e nunca no lugar dele
+  quando os dois existem. Onde a tela mostra os dois lado a lado (Mercados, prévia do teste de
+  fonte), o promocional aparece como informação, **não** como o número que decide. Ao escrever
+  código novo que escolhe um preço, siga isso e diga no comentário.
 - Fonte única para listas que a tela usa: `src/lib/blocos.js`, `src/lib/canais.js`,
   `src/lib/unidades.js`, `src/lib/limites.js`, `src/lib/fiscal.js`,
   `src/lib/integracoes/registro.js`.
@@ -271,8 +279,9 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   lista inteira e fazia tudo em memória: com 2 mil produtos passava, com **35.226** eram **20 MB
   montados em 2,3 s a cada clique** — marcar fonte, trocar de aba, limpar filtro. Hoje o Postgres
   devolve as 100 linhas e as contagens, e a tela responde em 350–900 ms.
-  - **SQL cru** porque a ordenação não cabe no Prisma: o preço que ordena é `COALESCE(promocional,
-    normal)` com os sem preço no fim, e a ordem padrão põe o disponível na frente.
+  - **SQL cru** porque a ordenação não cabe no Prisma: o preço que ordena é `COALESCE(normal,
+    promocional)` (era o contrário até 19/09/2026, ver "Preço: sempre o NORMAL" em Convenções) com
+    os sem preço no fim, e a ordem padrão põe o disponível na frente.
   - **Cada contagem é uma varredura da tabela**, então só se conta o que não dá para somar: o total
     filtrado sai da contagem por fonte, e o acervo inteiro só vira consulta quando há aba ou busca.
   - **Índice de trigramas** (`pg_trgm`, migration `20260917_busca_trigrama`): a busca é
@@ -1272,7 +1281,9 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
 
 ## Produtos: "Buscar por código" no cadastro novo
 
-Pedido do dono em 16/09/2026. O botão fica ao lado de Salvar/Cancelar, **só em produto novo**
+Pedido do dono em 16/09/2026. **Desde 19/09/2026 o botão se chama "Clonar a partir de um código"**
+(o arquivo e a ação continuam `BuscarPorCodigo`/`buscarPorCodigo`): é isso que ele faz, e o nome
+diz o que esperar. A explicação mora só na bolha "i", sem parágrafo fixo. O botão fica ao lado de Salvar/Cancelar, **só em produto novo**
 (num produto existente, sobrescrever o cadastro com um clique é arriscado demais). Procura por
 **igualdade** de código, EAN ou MPN em `Produto` (Rise) e `ProdutoColetado` (fornecedores e
 concorrentes), em `src/lib/buscaPorCodigo.js`.
@@ -1282,12 +1293,24 @@ concorrentes), em `src/lib/buscaPorCodigo.js`.
   Em 16/09 nenhum código se repetia entre fontes, então **a lista nunca foi vista com dado
   real**.
 - **Os campos são não controlados** (`defaultValue`). Preencher é remontar o corpo do
-  formulário com `key={versao}`, partindo do `FormData` atual e sobrepondo só o que a busca
-  trouxe **com valor**. Remontar só com o resultado apagava o que já estava digitado.
-- **O preço de fornecedor ou concorrente não vai para "Preço venda"**: o primeiro é custo, e
-  o segundo é o preço do concorrente. Aparece na lista só para comparar. De produto da Rise
-  copia quase tudo, **menos a localização e o link da Loja Integrada**, que pertencem àquela
-  peça.
+  formulário com `key={versao}`. **Clonar RECOMEÇA DO ZERO** (pedido do dono em 19/09/2026):
+  parte dos `valoresIniciais`, o `FormData` lido na montagem (Unidade "UN", Situação ativa, o
+  resto vazio), e sobrepõe só o que o produto achado trouxe **com valor**. Partir do que estava
+  na tela fazia a segunda busca herdar da primeira tudo o que a nova não traz (Marca, NCM, peso
+  e estoque de um produto misturados com o outro). Junto saem os ícones já usados (voltam a
+  azul) e as opções de título pedidas para o Nome antigo. **A lupa sai junto** (pedido do dono em
+  19/09/2026, depois de ver o contador da lupa ainda apontando para o primeiro clone): as
+  referências marcadas, os valores lidos delas (`valoresRefs`, que acendem os ícones de marca,
+  peso, NCM), a busca da janela (`reiniciar()` em `ReferenciasDeMercado`), as linhas de
+  fornecedores e concorrentes que entraram sozinhas a partir da marcação, e os documentos
+  enviados (apagados do lote temporário). O que foi digitado antes da busca **também some** — é
+  o preço de clonar sem confirmação. A **IA** (título, descrição, medidas) segue **somando** ao
+  que está na tela (`aplicar` sem `recomecar`).
+- **Preço de CONCORRENTE vai para "Preço venda"; o de fornecedor não** (19/09/2026). O
+  concorrente entra como ponto de partida, sempre o preço normal (ver "Preço: sempre o NORMAL"
+  em Convenções), e continua editável. O de fornecedor é custo, e vender por ele é vender sem
+  margem: aparece na lista só para comparar. De produto da Rise copia quase tudo, **menos a
+  localização e o link da Loja Integrada**, que pertencem àquela peça.
 - **O código do produto achado vai SEMPRE para o SKU**, inclusive por cima do que já estava no
   campo (pedido do dono em 16/09/2026; antes só entrava com o campo vazio e o código livre).
   Outro código, só pela varinha (25xxxx). Código repetido ou que não serve de nome de pasta

@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import {
   removerConcorrenteDoProduto,
   salvarConcorrenteDoProduto,
@@ -64,10 +65,19 @@ function porPrecoAscendente(a, b) {
   return a.preco - b.preco;
 }
 
+/** Como a coluna e medida — mostrado na bolha "i" do cabecalho. */
+const COMO_MEDE_A_DIFERENCA =
+  "Seu Preco venda contra o preco normal do concorrente: (seu preco - preco do concorrente) / preco do concorrente. " +
+  "A seta mostra onde o CONCORRENTE esta em relacao a voce: para baixo e vermelho, ele esta mais barato (voce perde venda); " +
+  "para cima e verde, ele esta mais caro.";
+
 /**
- * Quanto o preco de venda do produto esta acima (vermelho, seta pra cima) ou
- * abaixo (verde, seta pra baixo) do preco normal deste concorrente — pedido do
- * dono em 18/09/2026. Sem preco de um dos dois lados, nao ha o que comparar.
+ * Onde o concorrente esta em relacao ao preco de venda do produto — pedido do
+ * dono em 18/09/2026, que inverteu a seta e a cor da primeira versao: com o
+ * MESMO numero (seu preco sobre o dele), a seta agora aponta para o
+ * concorrente, e nao para o nosso preco. Concorrente mais barato = seta para
+ * baixo em VERMELHO, porque e o caso ruim para quem vende; mais caro = seta
+ * para cima em verde. Sem preco de um dos dois lados, nao ha o que comparar.
  */
 function Diferenca({ precoProduto, precoConcorrente }) {
   if (precoProduto == null || precoConcorrente == null || precoConcorrente === 0) {
@@ -79,18 +89,18 @@ function Diferenca({ precoProduto, precoConcorrente }) {
     return <span className="text-suave">Igual</span>;
   }
 
-  const acima = diferenca > 0;
-  const Seta = acima ? ArrowUp : ArrowDown;
+  const concorrenteMaisBarato = diferenca > 0;
+  const Seta = concorrenteMaisBarato ? ArrowDown : ArrowUp;
 
   return (
     <span
       className={`inline-flex items-center gap-1 font-medium tabular-nums ${
-        acima ? "text-red-700" : "text-emerald-700"
+        concorrenteMaisBarato ? "text-red-700" : "text-emerald-700"
       }`}
       title={
-        acima
-          ? "Seu preco esta acima do preco normal deste concorrente"
-          : "Seu preco esta abaixo do preco normal deste concorrente"
+        concorrenteMaisBarato
+          ? "Este concorrente esta mais barato que voce"
+          : "Este concorrente esta mais caro que voce"
       }
     >
       <Seta size={13} />
@@ -297,7 +307,11 @@ export default function Concorrentes({
         Marcados na lupa do Nome, ou adicionados aqui. So para consulta: preco de concorrente
         nao e custo e nao entra no calculo do produto.
       </p>
-      <div className="mt-2 overflow-x-auto rounded border border-borda">
+      {/* `md:overflow-visible`: a bolha "i" do cabecalho abre para CIMA, fora da
+          caixa da tabela, e `overflow-x-auto` a cortava por inteiro (overflow-x
+          diferente de visible tambem prende o eixo Y). A rolagem lateral fica so
+          nas telas estreitas, onde a tabela nao cabe. */}
+      <div className="mt-2 overflow-x-auto rounded border border-borda md:overflow-visible">
         <table className="w-full text-sm">
           <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
             <tr className="divide-x divide-borda">
@@ -305,11 +319,11 @@ export default function Concorrentes({
               <th className="px-3 py-2 font-medium">Produto</th>
               <th className="px-3 py-2 font-medium">Codigo</th>
               <th className="px-3 py-2 font-medium">Preco</th>
-              <th
-                className="px-3 py-2 font-medium"
-                title="Seu Preco venda contra o preco normal deste concorrente"
-              >
-                Diferenca
+              <th className="px-3 py-2 font-medium">
+                <span className="inline-flex items-center gap-1.5">
+                  Diferenca
+                  <BolhaDeAjuda texto={COMO_MEDE_A_DIFERENCA} variante="inline" />
+                </span>
               </th>
               <th className="px-3 py-2 font-medium">Link</th>
               <th className="w-16 px-3 py-2" />
