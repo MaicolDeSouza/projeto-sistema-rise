@@ -3,6 +3,7 @@
 import {
   Fragment,
   useActionState,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -279,6 +280,14 @@ const ROTULO_DE_MEDIDA = {
 /// confere de novo (ProdutoSchema), para nada chegar ao banco em caixa mista.
 const CAMPOS_MAIUSCULOS = ["marca", "modelo"];
 const maiusculas = (valor) => String(valor ?? "").toLocaleUpperCase("pt-BR");
+
+/// O que o formulario tem digitado agora, campo a campo. `ativo` e a unica caixa
+/// de marcacao: o FormData a devolve como "on" ou some, e a tela quer booleano.
+function lerFormulario(elemento) {
+  const dados = Object.fromEntries(new FormData(elemento).entries());
+  dados.ativo = dados.ativo === "on";
+  return dados;
+}
 
 /**
  * Converte para maiusculas ENQUANTO digita, sem jogar o cursor para o fim: quem
@@ -1339,6 +1348,15 @@ export default function FormularioProduto({
   const [preenchido, setPreenchido] = useState(null);
   const [versao, setVersao] = useState(0);
 
+  // Como o formulario NASCEU (Unidade "UN", Situacao ativa, o resto vazio). E a
+  // base de "Buscar por codigo": clonar outro produto recomeca daqui, em vez de
+  // somar ao que a busca anterior deixou. Lido da tela e nao escrito a mao, para
+  // acompanhar os padroes dos campos sem duplica-los.
+  const valoresIniciais = useRef(null);
+  useEffect(() => {
+    valoresIniciais.current = lerFormulario(formulario.current);
+  }, []);
+
   // Referencias marcadas na janela da lupa. Moram aqui, e nao na janela, porque
   // os botoes de IA ficam no formulario (ao lado da lupa e na aba Descricao) e
   // precisam delas com a janela fechada.
@@ -1400,6 +1418,19 @@ export default function FormularioProduto({
       setAlterado(true);
     }
     return resultado;
+  }
+
+  // Esquece os documentos enviados antes de salvar e apaga os arquivos do lote.
+  // Sem apagar, ficariam no disco ate a limpeza de 24 h, sem ninguem apontando
+  // para eles.
+  function limparTemporarios() {
+    for (const item of temporarios) {
+      tentar(() =>
+        removerArquivoTemporario(loteTemporario, item.tipo, item.nome),
+      );
+    }
+    setTemporarios([]);
+    setLoteTemporario("");
   }
 
   async function removerTemporario(item) {
@@ -1631,15 +1662,21 @@ export default function FormularioProduto({
   );
 
   /**
-   * Parte do que JA esta digitado e sobrepoe so o que veio com valor. Remontar
+   * Por padrao parte do que JA esta digitado e sobrepoe so o que veio com
+   * valor: e o que a IA (titulo, descricao, medidas) precisa, porque remontar
    * a partir apenas do resultado apagaria o SKU ou o preco que o operador
-   * escreveu antes de buscar.
+   * escreveu.
+   *
+   * `recomecar` parte do formulario em branco (como nasceu): e o "Buscar por
+   * codigo", que CLONA um produto. Somar ao que estava na tela misturava dois
+   * produtos — a segunda busca herdava da primeira tudo o que a nova nao traz
+   * (achado do dono em 19/09/2026).
    */
-  function aplicar(campos) {
-    const atual = Object.fromEntries(
-      new FormData(formulario.current).entries(),
-    );
-    atual.ativo = atual.ativo === "on";
+  function aplicar(campos, { recomecar = false } = {}) {
+    const atual =
+      recomecar && valoresIniciais.current
+        ? { ...valoresIniciais.current }
+        : lerFormulario(formulario.current);
 
     // O SKU trazido passa por cima do digitado: e o codigo do produto buscado,
     // pedido do dono em 16/09/2026. Outro codigo, so pela varinha.
@@ -1677,7 +1714,25 @@ export default function FormularioProduto({
           }
         : null,
     );
-    aplicar(resultado.campos);
+    // Recomeca do ZERO, e tudo o que era do cadastro anterior sai junto (pedido
+    // do dono em 19/09/2026, duas vezes: primeiro os campos, depois a lupa, que
+    // continuava apontando para o primeiro produto clonado):
+    //  - icones voltam a azul e as opcoes de titulo do Nome antigo deixam de valer;
+    //  - lupa: referencias marcadas, os valores lidos delas (que acendem os
+    //    icones de marca, peso, NCM...) e a busca da janela;
+    //  - fornecedores e concorrentes: as linhas entram sozinhas a partir da
+    //    marcacao da lupa, entao ficariam apontando para o produto velho;
+    //  - documentos enviados: apagados do lote temporario junto.
+    setUsados(new Set());
+    setOpcoesTitulo(null);
+    setErroIA(null);
+    setMarcados(new Map());
+    setValoresRefs(null);
+    referencias.current?.reiniciar();
+    setFornecedoresRascunho([]);
+    setConcorrentesRascunho([]);
+    limparTemporarios();
+    aplicar(resultado.campos, { recomecar: true });
   }
 
   // Sem confirmacao (pedido do dono em 18/09/2026): Cancelar sempre descarta e

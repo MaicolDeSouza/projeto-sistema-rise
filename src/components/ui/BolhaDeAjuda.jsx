@@ -21,6 +21,10 @@
  * a bolha abrindo para baixo na primeira versao): direcao fixa e
  * previsivel, sem depender de quanto espaco sobra abaixo.
  *
+ * O texto zera caixa, espacamento e peso herdados (`normal-case`,
+ * `tracking-normal`, `font-normal`): dentro de um <th> de tabela (uppercase,
+ * tracking largo) a explicacao inteira saia em MAIUSCULAS.
+ *
  * Grupo NOMEADO (`group/ajuda`) e nao `group` liso: varios botoes desta tela
  * ja estao dentro de outros `group` (imagem, linha de tabela), e um grupo sem
  * nome acionaria a bolha errada — ou a bolha de outro botao — no hover de
@@ -57,7 +61,7 @@ export default function BolhaDeAjuda({ texto, variante = "canto", className = ""
       </span>
       <span
         role="tooltip"
-        className={`pointer-events-none absolute bottom-full z-50 mb-1.5 w-max max-w-56 rounded-md bg-slate-800 px-2.5 py-1.5 text-left text-[11px] leading-snug text-white opacity-0 shadow-lg transition group-hover/ajuda:opacity-100 group-focus-within/ajuda:opacity-100 ${
+        className={`pointer-events-none absolute bottom-full z-50 mb-1.5 w-max max-w-56 rounded-md bg-slate-800 px-2.5 py-1.5 text-left text-[11px] leading-snug font-normal tracking-normal text-white normal-case opacity-0 shadow-lg transition group-hover/ajuda:opacity-100 group-focus-within/ajuda:opacity-100 ${
           inline ? "left-1/2 -translate-x-1/2" : "right-0"
         }`}
       >

@@ -82,17 +82,25 @@ export async function buscarProdutoPorCodigo(codigoBruto) {
       const marcaEhALoja =
         item.marca && normalizar(item.fonte.nome).startsWith(normalizar(item.marca));
 
+      // Sempre o preco NORMAL, e o promocional so na falta dele (regra do dono
+      // em 19/09/2026).
+      const preco = numero(item.precoNormal ?? item.precoPromocional);
+
       return {
         id: `coletado:${item.id}`,
         tipo: item.fonte.tipo,
         fonte: item.fonte.nome,
         codigo: item.codigo,
         nome: item.nome,
-        // Preco de fornecedor e custo e de concorrente e o preco dele: nenhum dos
-        // dois e o nosso preco de venda. Aparece na lista para comparar, mas nao
-        // e copiado para o campo.
-        preco: numero(item.precoPromocional ?? item.precoNormal),
+        preco,
         campos: {
+          // Clonar um CONCORRENTE traz o preco dele para o Preco venda, como ponto
+          // de partida (pedido do dono em 19/09/2026; antes so aparecia na lista).
+          // Preco de FORNECEDOR continua de fora: e custo, e vender por ele e
+          // vender sem margem.
+          ...(item.fonte.tipo === "CONCORRENTE" && preco !== null
+            ? { precoVenda: preco }
+            : {}),
           tituloBase: item.nome,
           descricaoBase: item.descricao,
           marca: marcaEhALoja ? null : maiusculas(item.marca),

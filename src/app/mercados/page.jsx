@@ -113,7 +113,7 @@ export default async function MercadosPage({ searchParams }) {
 
   /*
     A ORDEM AGORA E DO BANCO (`listarProdutos`): "menor valor" ordena por
-    COALESCE(promocional, normal) com os SEM PRECO sempre no fim — fornecedor de
+    COALESCE(normal, promocional) com os SEM PRECO sempre no fim — fornecedor de
     atacado nao publica preco, e null tratado como zero poria os da Nightech na
     frente de tudo. Sem pedido, disponivel primeiro e coleta mais recente depois.
   */

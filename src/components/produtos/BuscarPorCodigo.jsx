@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Loader, Search, X } from "lucide-react";
+import { Copy, Loader, Search, X } from "lucide-react";
 
 import { buscarPorCodigo } from "@/app/produtos/acoes";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
@@ -74,15 +74,15 @@ export default function BuscarPorCodigo({ codigoAtual, aoEscolher }) {
         onClick={() => (aberto ? setAberto(false) : abrir())}
         className="inline-flex items-center gap-1.5 rounded border border-acento bg-superficie px-4 py-2 text-sm font-medium text-acento hover:bg-fundo"
       >
-        <Search size={15} />
-        Buscar por codigo
+        <Copy size={15} />
+        Clonar a partir de um codigo
       </button>
-      <BolhaDeAjuda texto="Procura nos produtos da Rise, de fornecedores e de concorrentes pelo codigo, EAN ou MPN, e preenche o cadastro a partir do que achar." />
+      <BolhaDeAjuda texto="Copia o cadastro de um produto da Rise, de fornecedor ou de concorrente, pelo codigo, EAN ou MPN. Uma nova busca recomeca o cadastro do zero." />
 
       {aberto && (
         <div className="absolute right-0 z-20 mt-2 w-[28rem] max-w-[calc(100vw-2rem)] rounded-lg border border-borda bg-superficie p-3 shadow-lg">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-semibold">Buscar no banco de dados</span>
+            <span className="text-sm font-semibold">Clonar a partir de um codigo</span>
             <button
               type="button"
               onClick={() => setAberto(false)}
@@ -121,10 +121,6 @@ export default function BuscarPorCodigo({ codigoAtual, aoEscolher }) {
               Buscar
             </button>
           </div>
-          <p className="mt-1 text-[11px] text-suave">
-            Procura nos produtos da Rise, de fornecedores e de concorrentes.
-          </p>
-
           {resposta && !resposta.ok && (
             <p className="mt-2 text-xs text-red-700">{resposta.erro}</p>
           )}
@@ -138,8 +134,7 @@ export default function BuscarPorCodigo({ codigoAtual, aoEscolher }) {
           {resposta?.ok && resposta.resultados.length > 1 && (
             <div className="mt-3">
               <p className="mb-1.5 text-xs text-suave">
-                {resposta.resultados.length} produtos com este codigo. Escolha de onde
-                preencher:
+                {resposta.resultados.length} produtos com este codigo. Escolha qual clonar:
               </p>
               <ul className="max-h-80 divide-y divide-borda overflow-y-auto rounded border border-borda">
                 {resposta.resultados.map((resultado) => {
