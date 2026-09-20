@@ -19,10 +19,10 @@ cara de confirmado que não foi conferido; os demais ganham o seu na implementa�
 | --- | --- | --- | --- |
 | 1 | PoliComp | — | |
 | 2 | Eletropeças | — | |
-| 3 | Eletrus | — | |
+ok| 3 | Eletrus | — | |
 | 4 | Eletrônica Central | — | |
-| 5 | Mamuti Eletrônica | — | |
-| 6 | Savarati | — | |
+ok| 5 | Mamuti Eletrônica | — | |
+ok| 6 | Savarati | — | |
 | 7 | Patola | — | |
 | 8 | Neoyama | — | |
 | 9 | ImoBrás | — | |
@@ -31,17 +31,17 @@ cara de confirmado que não foi conferido; os demais ganham o seu na implementa�
 | 12 | Megamix | — | |
 | 13 | OBR | — | |
 | 14 | Prado Automação | — | |
-| 15 | Santana Import | — | catálogo em PDF já lido por `arquivos.js`; falta cadastrar como fonte |
+ok| 15 | Santana Import | — | catálogo em PDF já lido por `arquivos.js`; falta cadastrar como fonte |
 | 16 | Tespo | — | esteiras |
 | 17 | Unitel | — | transformadores |
-| 18 | WJ Componentes | — | |
+ok| 18 | WJ Componentes | — | |
 | 19 | Metaltex | — | |
 | 20 | Lukbox / Circuitronix | — | componentes eletrônicos; **um nome ou dois, a confirmar** |
-| 21 | Easytronics | https://www.easytronics.com.br/ | |
+ok| 21 | Easytronics | https://www.easytronics.com.br/ | |
 | 22 | Eletrodex | https://www.eletrodex.net/ | |
-| 23 | Curto Circuito | https://curtocircuito.com.br/ | |
+ok| 23 | Curto Circuito | https://curtocircuito.com.br/ | |
 | 24 | Ryndack Componentes | https://www.ryndackcomponentes.com.br/ | |
-| 25 | Solda Fria | https://www.soldafria.com.br/ | **OpenCart**, plataforma já conferida nesta loja em 30/08/2026 |
+ok| 25 | Solda Fria | https://www.soldafria.com.br/ | **OpenCart**, plataforma já conferida nesta loja em 30/08/2026 |
 | 26 | Cromatek | https://cromatek.com.br/ | |
 | 27 | PiscaLED | https://www.piscaled.com.br/ | |
 | 28 | Oceantech Automation | https://oceantech-automation.com.br/ | |
