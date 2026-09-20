@@ -19,6 +19,66 @@ Organizado em **blocos** no menu lateral, cada um desenvolvido de forma independ
   `src/lib/unidades.js`, `src/lib/limites.js`, `src/lib/fiscal.js`,
   `src/lib/integracoes/registro.js`.
 
+## Padrões do projeto
+
+Regras de **dado e de interface que valem em toda tela, de toda sessão** (Agente 1, Agente 2, a
+principal). Cada uma diz onde está o componente ou a função, para a próxima tela **reaproveitar** em
+vez de reinventar. Quando o dono decidir um padrão, ele entra aqui, com a data. Onde a regra já
+existe em texto corrido mais abaixo, esta seção só aponta para lá.
+
+**Dado**
+
+- **Telefone** (`src/lib/telefone.js`, decidido em 19/09/2026): **grava só os dígitos com DDD, sem
+  código de país** (`54988990008`); a tela e a digitação usam **`(54) 98899-0008`** (fixo:
+  `(54) 3333-4444`). Vale para todo campo de telefone.
+  - **Validação:** DDD real (lista fechada de 67; "10" e "23" não existem), celular com 11 dígitos e
+    9 depois do DDD, fixo com 10 dígitos começando de 2 a 5. Colar `+55 54 98899-0008` é aceito. Um
+    número com DDD que não existe é **recusado** com o texto digitado na mensagem.
+  - **Filtra a cada tecla** (some letra) e **formata ao sair do campo**, o mesmo momento do CPF/CNPJ.
+    Formatar a cada tecla trava o apagar: apagar o hífen não muda os dígitos e a máscara o devolve.
+  - **Por que dígitos, e não formatado como o CPF:** o telefone é *consumido* — vira link de
+    WhatsApp (`wa.me/55…`), vai para integração e é buscado por quem digita só o número. Formatado,
+    `(54)98899-0008` e `(54) 98899-0008` seriam dois textos para o mesmo número. O documento só é
+    exibido e conferido.
+  - **O dono sugeriu `(xx)9NNNNNNNN`** (sem espaço nem hífen). Ficou o formato usual de leitura
+    `(xx) 9NNNN-NNNN`; a entrada nesse formato é aceita. Trocar o de tela é uma linha em
+    `formatarTelefone` e **não muda o que está gravado**.
+- **CPF, CNPJ e CEP**: conferidos e gravados **formatados** (`src/lib/documentos.js`).
+- **Vários valores no mesmo campo** (`ListaDeValores`): o **primeiro é o principal** e fica na coluna
+  original (`telefone`, `email`); os demais vão para uma lista (`String[]`). Um `<input>` por linha
+  com o mesmo `name`, lido com `formData.getAll`. Linha em branco sai e repetido vira um só.
+- **Marca e Modelo** sempre em MAIÚSCULAS (ver "Produtos: Buscar por código").
+
+**Interface**
+
+- **Formulário de Cadastros:** `Campo` dentro de um `Card`. O envio é **manual** (`onSubmit` +
+  `startTransition`), porque o React 19 limpa o formulário depois de uma action. Campos de um tipo
+  ficam **montados e ocultos** (`hidden`) quando o outro tipo está escolhido, e o **servidor zera** o
+  que não é do tipo salvo.
+- **Abas para agrupar um formulário** (decidido em 19/09/2026 como padrão do sistema; **aplicado só
+  ao Cliente**, e o dono pediu para **não mexer no resto agora**). Abas lado a lado como as do
+  cadastro de Produto: `Card className="p-0"`, barra com `border-b-2`, a ativa em `border-acento`
+  e as demais em `text-suave`. Regras, todas em `FormularioCliente.jsx`:
+  - **Todas as abas ficam montadas e só escondidas (`hidden`)** (`Painel`): campo desmontado não
+    entra no `FormData`, e salvar de uma aba perderia o que foi digitado nas outras.
+  - **Erro do servidor leva à primeira aba com erro** e põe um **ponto vermelho** no título de cada
+    aba com erro. A tabela `ABA_DO_CAMPO` diz em que aba mora cada campo; campo novo entra nela.
+  - **Campo inválido para o navegador numa aba escondida abre a aba** (`onInvalidCapture`): o
+    navegador não consegue focar um campo `display: none`, e o Salvar — que fica fora das abas —
+    parecia não fazer nada.
+  - Formulários que ainda **não** seguem: Fornecedor, Concorrente e Transportadora
+    (`FormularioParceiro`), e os demais do sistema. Convertê-los é pedido do dono, não é dívida.
+- **Escolha entre poucas opções:** opções lado a lado com `<input type="radio">` de verdade
+  escondidos (`EscolhaDoTipo` em `FormularioCliente.jsx`). Entram no envio como um `<select>`
+  entraria, e o teclado continua funcionando.
+- **Ajuda de campo:** bolha "i" (`BolhaDeAjuda`), abre **para cima**; nunca texto fixo embaixo do
+  campo. Ver "Ajuda de campo é bolha".
+- **Exclusão:** popup listando nome e código de cada item, **nunca** `confirm()` nativo (Produtos).
+- **Lista longa:** paginada, 100 por página, filtro por parâmetro repetido (`?fonte=A&fonte=B`), e
+  nenhuma marcada quer dizer todas (Mercados).
+- **Texto da tela sem acento** (`Pessoa Fisica`, `Ultima varredura`, `Condicoes de pagamento`), como
+  as telas fazem hoje.
+
 ## Estado
 
 | Bloco | Situação |
@@ -40,17 +100,17 @@ requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 226 asserções da extração, da conciliação e das medidas, SEM rede
+npm run teste:extracao            # 235 asserções da extração, da conciliação e das medidas, SEM rede
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
 npm run teste:coleta              # 43 asserções da gravação no banco (usa o Postgres, SEM rede)
-npm run teste:cadastros           # 43 asserções: CPF/CNPJ/CEP e a ligação fonte -> cadastro (Postgres, SEM rede)
+npm run teste:cadastros           # 69 asserções: CPF/CNPJ/CEP/telefone e a ligação fonte -> cadastro (Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
 npm run backup                    # dados/backup/sistema_rise-AAAAMMDD-HHMMSS.dump (pg_dump, conferido com pg_restore; guarda os 4 mais recentes)
-npm run teste:worker              # 44 asserções: rede, fila, retomada e o worker de verdade (~6 min)
+npm run teste:worker              # 58 asserções: rede, fila, retomada e o worker de verdade (~6 min)
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -1109,6 +1169,33 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   - **Tray em promoção (WJ Componentes):** o `price` do dataLayer é o RISCADO ("de R$ 6,05") e o
     `priceSell` é o que a loja cobra (R$ 5,75). O riscado entrava como preço normal (6,05 → 5,58
     contra 5,75 → 5,58 na tela). Agora `origens.precoNormal` diz quando o riscado foi descartado.
+- **O mesmo produto por vários endereços (OpenCart, 19/09/2026, Agente 1).** O painel da Solda Fria
+  dizia **10.647 produtos** com **5.350 no banco**, e o dono achou que a coleta tinha perdido dado.
+  Não perdeu: o OpenCart lista cada produto por **um endereço por caminho de categoria** (`/x`,
+  `/arduino/x`, `/arduino/acessorios/x`), o sitemap traz todos (**38.839 endereços para ~8,6 mil
+  produtos**) e o worker abria cada um a 2,3 s.
+  - **Por que o banco parecia certo e o painel não:** o contador usava `código|endereço` (variante
+    = produto novo), e o banco identifica por **código** (`chaveDoProduto`). A segunda variante
+    **reescrevia a linha** já gravada, trocando `url` e `coletadoEm` pela da última visita: 3.286
+    linhas foram regravadas mais de 1 h depois de criadas. Por isso o `coletadoEm` **não** diz
+    quando a linha nasceu; `criadoEm` diz.
+  - **Identidade por endereço** (`identidadeDoEndereco`, `plataformas.js`): `p:<id>` quando termina em
+    `-p-<id>.html`, senão o **último segmento** do caminho, com o `?` (`/arduino?page=2` é outra
+    página). **Só onde o registro declara** `entrega.identidadePorProduto` — hoje só o OpenCart; em
+    loja genérica o último segmento pode repetir de verdade (`/produto/1`, `/servico/1`). Medido no
+    sitemap: 38.839 → **8.644** identidades (4,5×), e **nenhuma** das 5.352 linhas gravadas divide
+    identidade com outra, então a regra não junta produtos diferentes.
+  - **Marca só o que virou produto ou foi retomado** (`identidadesTratadas`). Categoria nunca marca,
+    senão a navegação deixaria de seguir os links dela. Vale no catálogo, no sitemap e no `pular` da
+    navegação.
+  - **Retomada casa por identidade:** o endereço gravado é o da última variante visitada, e o sitemap
+    pode trazer outra primeiro.
+  - **O contador usa a chave do banco** (`chaveDoProduto`), e "produtos no site" conta identidades,
+    não endereços do sitemap. A tela ganhou o passo "Endereços repetidos ignorados".
+  - **O `coletadoEm` e o `url` de linhas já gravadas só se acertam na próxima varredura.** Nada foi
+    perdido nem precisa de correção no banco.
+  - **Não se sabe se algum lote falhou:** o `console.error` do worker (`lote de N produto(s) nao
+    gravado`) vai para o terminal dele, não para `dados/logs/`. Nada indicou falha.
 - **Curto Circuito (19/09/2026, Agente 2):** a ficha vem sob **"Principais Características:"**,
   título que o vocabulário de seção não conhecia, e voltava vazia. "Características" só vale como
   **segunda opção**: também é título de texto de venda e não pode disputar com "Especificações"
@@ -1584,6 +1671,10 @@ deste formulário.
   - Duas variantes: `"canto"` (padrão) para botão-ícone (lupa, Buscar por código, ✦) — bolinha
     desprendida no canto **superior** direito, fora da borda. `"inline"` para o rótulo de um
     campo comum — ao lado do texto, no lugar do parágrafo de ajuda.
+  - **O "i" é um SVG desenhado** (19/09/2026, pedido do dono): círculo cheio + glifo branco de "i"
+    itálico com serifa no alto e rabo curvo embaixo, no lugar do texto "i". O círculo usa
+    `currentColor` (`text-acento`), então **segue a cor de destaque da loja** e o anel branco
+    (`ring-superficie`) e a sombra de antes. Tamanho e posição não mudaram (`h-4 w-4`).
   - **O texto sempre abre para CIMA**, nunca para baixo — pedido explícito do dono depois de
     ver a primeira versão abrindo para baixo.
   - **Quando o ícone também tem um número** (`Contador`), o número vai para o canto
@@ -1682,7 +1773,7 @@ mistura com fornecedor** (o Bling junta os dois numa tela).
 
 - **Campos** (`Cliente`, `ClienteEndereco`, `ClienteContato`): Nome, Tipo da Pessoa, CPF ou CNPJ
   (um campo só, rótulo e validação trocam com o tipo), Cliente desde (hoje por padrão),
-  telefone, e-mail, observações, situação. **Só pessoa física:** Sexo e Naturalidade. **Só
+  telefones, e-mails (vários, ver "Reorganização" abaixo), observações, situação. **Só pessoa física:** Sexo e Naturalidade. **Só
   pessoa jurídica:** Fantasia, Código de regime tributário (1, 2, 3 da NF-e; nulo = "Não
   definido"), Inscrição Estadual, IE Isento e Inscrição Municipal. O campo **Contribuinte** do
   Bling estava fora das caixas e **não entrou**.
@@ -1690,8 +1781,11 @@ mistura com fornecedor** (o Bling junta os dois numa tela).
   perde o digitado. **O servidor zera o que não é do tipo salvo**, então nada de jurídica fica
   gravado num cliente que virou física (conferido no banco). IE Isento marcada limpa a
   Inscrição Estadual.
-- **Documento único por cliente** (`documento @unique`, guardado formatado). É opcional: vários
-  nulos não colidem. CPF e CNPJ inválidos, e sequência repetida (111.111.111-11), são recusados.
+- **Documento único por cliente** (`documento @unique`, guardado formatado). **Obrigatório no
+  cadastro desde 19/09/2026**, assim como o nome: CPF para pessoa física e CNPJ para jurídica, e o
+  recado diz qual (`Informe o CPF.`). A regra é do formulário e da ação; a **coluna continua aceitando
+  nulo**, então um cliente antigo sem documento não quebra a leitura — só não salva de novo sem
+  preenchê-lo. CPF e CNPJ inválidos, e sequência repetida (111.111.111-11), são recusados.
 - **Endereço em duas abas, Geral e Entrega** — o dono trocou a "Cobrança" do Bling porque o
   endereço do cliente nem sempre é o de entrega. **"Mesmo endereço do Geral" vem marcada e, marcada,
   NÃO se grava linha de Entrega** (uma cópia ficaria velha quando o Geral mudasse); desmarcada,
@@ -1707,6 +1801,27 @@ mistura com fornecedor** (o Bling junta os dois numa tela).
   num campo oculto JSON; o servidor troca a lista inteira numa transação. **Contato digitado e
   não incluído entra junto no Salvar** (com aviso na tela) — descartar em silêncio perderia o que
   acabou de ser escrito.
+- **Reorganização do formulário, 19/09/2026 (pedido do dono, feito pela frente Agente 1):**
+  - **Quatro abas** — Dados cadastrais, Endereço, Contato, Dados adicionais —, no lugar dos quatro
+    cartões empilhados (ver "Abas para agrupar um formulário", em "Padrões do projeto").
+  - **Tipo da Pessoa** saiu da grade e virou **duas opções lado a lado no fim da barra das abas**
+    (`EscolhaDoTipo`), visíveis em todas elas: o tipo decide o que aparece em três abas (Fantasia e IE
+    na primeira, Sexo e Pessoas de contato em Contato). Foi pedido "ao lado do título" quando eram
+    cartões; com abas, a barra é o título. São `<input type="radio" name="tipoPessoa">` de verdade,
+    escondidos (`sr-only`), então entram no envio como o `<select>` entrava.
+  - **"Cliente desde"** foi para "Dados adicionais".
+  - **Vários telefones e e-mails** (`ListaDeValores`): um `<input>` por linha, todos com o mesmo
+    `name`, lidos com `formData.getAll`. **O primeiro é o principal** e continua em
+    `Cliente.telefone`/`email`; os demais vão para `telefonesAdicionais`/`emailsAdicionais`
+    (`String[]`, migration `20260919_cliente_telefones_emails`). **Aditiva de propósito:** a outra
+    frente usa o mesmo banco com o client antigo, e coluna nova com padrão não a quebra. Linha em
+    branco sai, e-mail repetido (sem diferenciar caixa) vira um só, e o limite é 10 de cada.
+    **Telefone segue o padrão de "Padrões do projeto"** (grava só dígitos, mostra `(54) 98899-0008`),
+    e vale também para o telefone da pessoa de contato.
+  - **Sexo e Naturalidade** foram para a seção **Contato** e só aparecem para pessoa física.
+  - **"Pessoas de contato" só existe para pessoa jurídica.** Fica montada e oculta na física, mas
+    **o servidor nem lê a lista e apaga a gravada** quando o tipo é física, como faz com os demais
+    campos do outro tipo. Trocar para física e salvar por engano perde os contatos.
 - **Transportadora preferida** é UMA, do cadastro de Transportadoras (`Restrict`); **condições de
   pagamento preferidas** são VÁRIAS, do cadastro de Condições (m:n). **Transportadora ou condição
   em uso por cliente não é excluída**, e o recado diz quantos clientes usam. Editar um cliente
@@ -1714,7 +1829,7 @@ mistura com fornecedor** (o Bling junta os dois numa tela).
   senão salvar apagaria uma preferência que a tela nem mostrou.
 - **Dado pessoal (LGPD):** CPF, endereço e telefone ficam só no Postgres local e entram nos
   dumps do `npm run backup` (que ficam em `dados/`, fora do git). Nada vai a marketplace ou ERP.
-- `npm run teste:cadastros`: 43 asserções (CPF, CNPJ, CEP e a ligação fonte → cadastro; a parte
+- `npm run teste:cadastros`: 69 asserções (CPF, CNPJ, CEP, telefone e a ligação fonte → cadastro; a parte
   do banco usa fontes de teste e as apaga).
 
 **Pendências combinadas com o dono (não implementadas):**

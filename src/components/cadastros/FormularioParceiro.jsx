@@ -25,9 +25,10 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
   const config = PARCEIROS[slug];
   // Concorrente nao e alguem com quem se negocia: sem CNPJ, contato nem prazo.
   // So o fornecedor tem pedido minimo e condicoes; so quem tem site varrido
-  // oferece a ligacao com uma fonte de Mercados.
+  // oferece a ligacao com uma fonte de Mercados. (A transportadora tem formulario
+  // proprio: `FormularioTransportadora`.)
   const ehFornecedor = slug === "fornecedores";
-  const temNegociacao = slug !== "concorrentes";
+  const temNegociacao = ehFornecedor;
   const temFonte = config.tiposDeFonte.length > 0;
   const inicial = parceiro ?? { ativo: true };
 
@@ -166,15 +167,11 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
         </label>
       </div>
 
-      {config.usos && parceiro && (
+      {ehFornecedor && parceiro && (
         <p className="text-xs text-suave">
-          {ehFornecedor
-            ? usos > 0
-              ? `Este fornecedor abastece ${usos} produto(s) do catalogo, por isso nao pode ser excluido enquanto houver vinculo.`
-              : "Nenhum produto do catalogo usa este fornecedor ainda."
-            : usos > 0
-              ? `Esta transportadora e a preferida de ${usos} cliente(s), por isso nao pode ser excluida enquanto houver vinculo.`
-              : "Nenhum cliente tem esta transportadora como preferida ainda."}
+          {usos > 0
+            ? `Este fornecedor abastece ${usos} produto(s) do catalogo, por isso nao pode ser excluido enquanto houver vinculo.`
+            : "Nenhum produto do catalogo usa este fornecedor ainda."}
         </p>
       )}
 

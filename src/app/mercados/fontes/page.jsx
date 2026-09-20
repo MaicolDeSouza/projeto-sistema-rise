@@ -42,7 +42,11 @@ export default async function FontesPage({ searchParams }) {
   try {
     [fontes, jobsAbertos] = await Promise.all([
       prisma.fonteColeta.findMany({
-        orderBy: [{ ativa: "desc" }, { nome: "asc" }],
+        // Do cadastro mais antigo para o mais novo, pedido do dono em 19/09/2026:
+        // a fonte que acabou de entrar fica no fim, onde se espera ve-la. O id
+        // desempata (cadastro em lote, como o de scripts/cadastros-das-fontes.js,
+        // pode repetir o instante) para a ordem nao dancar a cada recarga.
+        orderBy: [{ criadoEm: "asc" }, { id: "asc" }],
       }),
       prisma.job.findMany({
         where: { tipo: "coleta", status: { in: ["PENDENTE", "PROCESSANDO"] } },

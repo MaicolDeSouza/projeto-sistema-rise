@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
+import { filtrarDigitacaoDeTelefone, formatarTelefone, telefoneValido } from "@/lib/telefone";
+
 const VAZIO = { nome: "", cargo: "", telefone: "", email: "" };
 
 const CLASSE_INPUT =
@@ -34,12 +36,16 @@ export default function ContatosDoCliente({ inicial, erro }) {
     const contato = {
       nome: rascunho.nome.trim(),
       cargo: rascunho.cargo.trim(),
-      telefone: rascunho.telefone.trim(),
+      telefone: formatarTelefone(rascunho.telefone),
       email: rascunho.email.trim(),
     };
 
     if (!contato.nome) {
       setAviso("Informe o nome do contato.");
+      return;
+    }
+    if (contato.telefone && !telefoneValido(contato.telefone)) {
+      setAviso("Informe um telefone valido, com DDD: (54) 98899-0008.");
       return;
     }
     if (contato.email && !/^\S+@\S+\.\S+$/.test(contato.email)) {
@@ -75,7 +81,9 @@ export default function ContatosDoCliente({ inicial, erro }) {
     }
   };
 
-  const campo = (nome, rotulo, extras = {}) => (
+  // `filtrar` limpa a cada tecla e `formatar` arruma ao sair do campo (ver
+  // ListaDeValores: formatar a cada tecla trava o apagar).
+  const campo = (nome, rotulo, { filtrar, formatar, ...extras } = {}) => (
     <div>
       <label className="text-xs font-semibold" htmlFor={`contato-${nome}`}>
         {rotulo}
@@ -83,7 +91,17 @@ export default function ContatosDoCliente({ inicial, erro }) {
       <input
         id={`contato-${nome}`}
         value={rascunho[nome]}
-        onChange={(evento) => setRascunho({ ...rascunho, [nome]: evento.target.value })}
+        onChange={(evento) =>
+          setRascunho({
+            ...rascunho,
+            [nome]: filtrar ? filtrar(evento.target.value) : evento.target.value,
+          })
+        }
+        onBlur={
+          formatar
+            ? () => setRascunho((atual) => ({ ...atual, [nome]: formatar(atual[nome]) }))
+            : undefined
+        }
         onKeyDown={aoTeclar}
         className={`mt-1 ${CLASSE_INPUT}`}
         {...extras}
@@ -162,7 +180,13 @@ export default function ContatosDoCliente({ inicial, erro }) {
       <div className="grid gap-3 md:grid-cols-4">
         {campo("nome", "Nome do contato")}
         {campo("cargo", "Cargo ou setor")}
-        {campo("telefone", "Telefone / WhatsApp")}
+        {campo("telefone", "Telefone / WhatsApp", {
+          inputMode: "tel",
+          placeholder: "(00) 00000-0000",
+          maxLength: 20,
+          filtrar: filtrarDigitacaoDeTelefone,
+          formatar: formatarTelefone,
+        })}
         {campo("email", "E-mail", { type: "email" })}
       </div>
 

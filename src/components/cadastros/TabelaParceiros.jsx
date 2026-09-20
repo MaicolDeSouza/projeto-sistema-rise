@@ -81,6 +81,9 @@ export default function TabelaParceiros({ linhas, slug, busca }) {
                     >
                       {linha.nome}
                     </Link>
+                    {linha.fantasia && (
+                      <span className="ml-2 text-xs text-suave">{linha.fantasia}</span>
+                    )}
                     {!linha.ativo && (
                       <span className="ml-2 align-middle">
                         <Badge>Inativo</Badge>

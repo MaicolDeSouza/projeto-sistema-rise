@@ -69,6 +69,10 @@ const loja = {
   atrasoMs: 0,
   /// Pagina de produto manda o cabecalho e para de mandar o corpo.
   travarProdutos: false,
+  /// A home se apresenta como OpenCart (cookie OCSESSID + caminho do tema).
+  opencart: false,
+  /// O sitemap lista cada produto por 3 caminhos de categoria, como o da Solda Fria.
+  variantes: false,
 };
 const conexoes = new Set();
 /// Quantas vezes cada pagina de produto foi aberta.
@@ -84,9 +88,11 @@ const servidor = http.createServer((pedido, resposta) => {
   }
 
   if (caminho === "/sitemap.xml") {
-    const urls = Array.from(
-      { length: loja.produtos },
-      (_, i) => `<url><loc>http://${pedido.headers.host}/produto-${101 + i}.html</loc></url>`,
+    const prefixos = loja.variantes ? ["", "/cat-a", "/cat-a/cat-b"] : [""];
+    const urls = Array.from({ length: loja.produtos }, (_, i) =>
+      prefixos
+        .map((prefixo) => `<url><loc>http://${pedido.headers.host}${prefixo}/produto-${101 + i}.html</loc></url>`)
+        .join(""),
     );
     resposta.writeHead(200, { "Content-Type": "application/xml" });
     resposta.end(`<?xml version="1.0"?><urlset>${urls.join("")}</urlset>`);
@@ -95,8 +101,16 @@ const servidor = http.createServer((pedido, resposta) => {
 
   if (caminho === "/") {
     const links = Array.from({ length: loja.produtos }, (_, i) => `<a href="/produto-${101 + i}.html">P${i}</a>`);
-    resposta.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    resposta.end(`<html><body><h1>Loja teste</h1>${links.join(" ")}</body></html>`);
+    // Cookie + caminho do tema + rota: os tres sinais que fazem o OpenCart ser
+    // reconhecido (3 + 3 + 2 pontos, e mais de um sinal).
+    const sinaisOpenCart = loja.opencart
+      ? `<script src="/catalog/view/theme/default/js/app.js"></script><!-- index.php?route=product/product -->`
+      : "";
+    resposta.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      ...(loja.opencart ? { "Set-Cookie": "OCSESSID=abc123; path=/" } : {}),
+    });
+    resposta.end(`<html><body><h1>Loja teste</h1>${links.join(" ")}${sinaisOpenCart}</body></html>`);
     return;
   }
 
@@ -110,7 +124,9 @@ const servidor = http.createServer((pedido, resposta) => {
     return;
   }
 
-  const produto = /^\/produto-(\d+)\.html$/.exec(caminho);
+  // Aceita o caminho de categoria na frente (`/cat-a/cat-b/produto-101.html`): e a
+  // mesma pagina, como no OpenCart.
+  const produto = /^(?:\/cat-[a-z])*\/produto-(\d+)\.html$/.exec(caminho);
   if (produto) {
     aberturas.set(caminho, (aberturas.get(caminho) ?? 0) + 1);
     if (loja.travarProdutos) {
@@ -215,6 +231,49 @@ const retomada = await colherProdutos({
 });
 conferir("retomada conta cada gravado UMA vez (sitemap e navegacao juntos)", retomada.retomados, 3);
 conferir("e abre so os que faltavam", [...aberturas.keys()].sort(), ["/produto-104.html", "/produto-105.html", "/produto-106.html"]);
+
+// ---------------------------------------------------------------------------
+console.log("\n— o mesmo produto por varios enderecos (OpenCart) —");
+
+// A Solda Fria lista cada produto por varios caminhos de categoria: 10.647
+// "produtos" para 5.350 no banco, e a segunda abertura reescrevia a linha.
+const totalAberturas = () => [...aberturas.values()].reduce((soma, vezes) => soma + vezes, 0);
+const enderecoVariante = (numero) => enderecoComparavel(`${BASE}/cat-a/produto-${numero}.html`);
+const colherVariantes = (extra = {}) =>
+  colherProdutos({ url: `${BASE}/`, nome: "Loja", tipo: "CONCORRENTE", limite: 1000, orcamento: 200, ...extra });
+
+loja.variantes = true;
+
+// Sem a plataforma declarada, cada variante e uma pagina — e o contador ainda
+// assim conta PRODUTOS, porque a chave e a mesma do banco (o codigo).
+loja.opencart = false;
+aberturas.clear();
+const semIdentidade = await colherVariantes();
+conferir("loja generica abre as 18 variantes (o ultimo segmento pode repetir de verdade)", totalAberturas(), 18);
+conferir("mas conta 6 produtos, nao 18: a chave do contador e o codigo, como no banco", semIdentidade.produtos.length, PRODUTOS);
+
+loja.opencart = true;
+aberturas.clear();
+const comIdentidade = await colherVariantes();
+conferir("OpenCart: a plataforma e reconhecida", comIdentidade.plataforma?.id, "opencart");
+conferir("abre UMA variante por produto (6 aberturas, nao 18)", totalAberturas(), PRODUTOS);
+conferir("e acha os 6 produtos", comIdentidade.produtos.length, PRODUTOS);
+conferir(
+  "diz quantos enderecos eram repeticao (2 por produto)",
+  comIdentidade.passos.find((p) => p.nome === "Enderecos repetidos ignorados")?.detalhe?.startsWith("12 "),
+  true,
+);
+conferir("o total do site conta produtos, nao enderecos (18 no sitemap, 6 produtos)", comIdentidade.produtosNoSite, PRODUTOS);
+
+// RETOMADA: o gravado e a ULTIMA variante visitada, e o sitemap traz outra primeiro.
+aberturas.clear();
+const retomadaPorIdentidade = await colherVariantes({ jaColetadas: new Set([enderecoVariante(101)]) });
+conferir("retomada casa pela identidade: a variante gravada e outra que a do sitemap", retomadaPorIdentidade.retomados, 1);
+conferir("e nao reabre o produto retomado em variante nenhuma", [...aberturas.keys()].some((c) => c.endsWith("/produto-101.html")), false);
+conferir("abre so os 5 que faltavam", totalAberturas(), PRODUTOS - 1);
+
+loja.variantes = false;
+loja.opencart = false;
 
 // ---------------------------------------------------------------------------
 console.log("\n— fila —");

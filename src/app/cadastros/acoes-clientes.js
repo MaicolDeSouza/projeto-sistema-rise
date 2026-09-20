@@ -12,6 +12,7 @@ import {
   validarCnpj,
   validarCpf,
 } from "@/lib/documentos";
+import { lerContatos, lerEmails, lerEndereco, lerTelefones } from "@/lib/formularios";
 import { errosPorCampo, lerCampos, opcional } from "@/lib/validacao";
 
 /**
@@ -43,16 +44,25 @@ const ClienteSchema = z
     inscricaoEstadual: opcional(z.string()),
     inscricaoMunicipal: opcional(z.string()),
 
-    telefone: opcional(z.string()),
-    email: opcional(z.string().email("Informe um e-mail valido.")),
+    // Telefones e e-mails vem em listas (`telefones`, `emails`), lidas a parte em
+    // `lerLista`: o formulario manda um campo por linha, com o mesmo nome.
     observacoes: opcional(z.string()),
     transportadoraId: opcional(z.string()),
   })
-  // Documento conferido pelo tipo escolhido: um CNPJ digitado como pessoa fisica
-  // nao e CPF, e a mensagem diz qual dos dois estava sendo esperado.
+  // Documento OBRIGATORIO (19/09/2026) e conferido pelo tipo escolhido: um CNPJ
+  // digitado como pessoa fisica nao e CPF, e a mensagem diz qual dos dois estava
+  // sendo esperado. A coluna continua aceitando nulo: a regra e do cadastro, e
+  // cliente antigo sem documento nao deve quebrar a leitura.
   .superRefine((dados, contexto) => {
-    if (!dados.documento) return;
     const fisica = dados.tipoPessoa === "FISICA";
+    if (!dados.documento) {
+      contexto.addIssue({
+        code: "custom",
+        path: ["documento"],
+        message: fisica ? "Informe o CPF." : "Informe o CNPJ.",
+      });
+      return;
+    }
     if (fisica ? !validarCpf(dados.documento) : !validarCnpj(dados.documento)) {
       contexto.addIssue({
         code: "custom",
@@ -62,48 +72,14 @@ const ClienteSchema = z
     }
   });
 
-const ContatoSchema = z.object({
-  nome: z.string().trim().min(1, "Todo contato precisa de nome."),
-  cargo: opcional(z.string().trim()),
-  telefone: opcional(z.string().trim()),
-  email: opcional(z.string().trim().email("E-mail de contato invalido.")),
-});
-
-/**
- * Um dos dois enderecos, lido dos campos `<prefixo>_cep`, `_uf`... do formulario.
- * Devolve `dados` nulo quando o endereco esta em branco (nao se grava linha
- * vazia) e `erros` com a chave do campo ja prefixada, como a tela a usa.
- */
-function lerEndereco(campos, prefixo) {
-  const pegar = (nome) => campos[`${prefixo}_${nome}`] || null;
-  const dados = {
-    cep: pegar("cep"),
-    uf: pegar("uf"),
-    cidade: pegar("cidade"),
-    bairro: pegar("bairro"),
-    logradouro: pegar("logradouro"),
-    numero: pegar("numero"),
-    complemento: pegar("complemento"),
-  };
-  const erros = {};
-
-  if (dados.cep) {
-    if (dados.cep.replace(/\D/g, "").length !== 8) erros[`${prefixo}_cep`] = "O CEP tem 8 digitos.";
-    else dados.cep = formatarCep(dados.cep);
-  }
-  if (dados.uf && !UFS.includes(dados.uf)) erros[`${prefixo}_uf`] = "Escolha um estado da lista.";
-
-  const vazio = Object.values(dados).every((valor) => valor === null);
-  return { dados: vazio ? null : dados, erros };
-}
-
 /**
  * Cria (`id` nulo) ou atualiza um cliente, com seus enderecos, contatos e
  * condicoes preferidas, numa transacao so.
  *
  * O servidor ZERA o que nao pertence ao tipo escolhido: a tela mantem montados os
  * campos dos dois tipos (trocar Fisica por Juridica e voltar nao perde o que foi
- * digitado), entao o formulario chega com os dois conjuntos e so um vale.
+ * digitado), entao o formulario chega com os dois conjuntos e so um vale. Isso
+ * inclui as pessoas de contato, que so existem para pessoa juridica.
  */
 export async function salvarCliente(id, _anterior, formData) {
   const campos = lerCampos(formData);
@@ -116,21 +92,33 @@ export async function salvarCliente(id, _anterior, formData) {
   const entregaIgualGeral = campos.entregaIgualGeral === "on";
   Object.assign(erros, geral.erros, entregaIgualGeral ? {} : entrega.erros);
 
-  // A lista de contatos e montada na tela e vem como JSON num campo oculto.
+  // O primeiro valor de cada lista e o principal e fica em `telefone`/`email`; os
+  // demais vao para as listas. Assim quem le so o principal continua funcionando.
+  // Telefone: grava so os digitos (ver `src/lib/telefone.js`).
+  const { telefones, erro: erroTelefones } = lerTelefones(formData);
+  if (erroTelefones) erros.telefones = erroTelefones;
+  const { emails, erro: erroEmails } = lerEmails(formData);
+  if (erroEmails) erros.emails = erroEmails;
+
+  // So a pessoa juridica tem pessoas de contato: para fisica a lista nem e lida (ela
+  // pode chegar com o que ficou montado e oculto na tela), e a que estava gravada e
+  // apagada.
   let contatos = [];
-  try {
-    const bruto = JSON.parse(campos.contatos || "[]");
-    if (!Array.isArray(bruto) || bruto.length > 50) throw new Error("lista invalida");
-    const lido = z.array(ContatoSchema).safeParse(bruto);
-    if (lido.success) contatos = lido.data;
-    else erros.contatos = lido.error.issues[0].message;
-  } catch {
-    erros.contatos = "A lista de contatos veio invalida. Recarregue a pagina.";
+  if (campos.tipoPessoa === "JURIDICA") {
+    const lido = lerContatos(campos.contatos);
+    contatos = lido.contatos;
+    if (lido.erro) erros.contatos = lido.erro;
   }
 
   if (Object.keys(erros).length > 0) return { ok: false, erros };
 
-  const dados = { ...analise.data };
+  const dados = {
+    ...analise.data,
+    telefone: telefones[0] ?? null,
+    telefonesAdicionais: telefones.slice(1),
+    email: emails[0] ?? null,
+    emailsAdicionais: emails.slice(1),
+  };
   const fisica = dados.tipoPessoa === "FISICA";
 
   if (dados.documento) {

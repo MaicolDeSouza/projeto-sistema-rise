@@ -42,9 +42,18 @@ export default function BolhaDeAjuda({ texto, variante = "canto", className = ""
         role="img"
         aria-label="Ajuda"
         tabIndex={0}
-        className="flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-acento text-[10px] leading-none font-bold text-white shadow-md ring-2 ring-superficie"
+        className="block h-4 w-4 cursor-help rounded-full text-acento shadow-md ring-2 ring-superficie"
       >
-        i
+        {/* O "i" e desenhado (SVG), e nao escrito como texto: e o de serifa e cauda
+            curva do icone de informacao de referencia, e nao depende da fonte da
+            pagina. O circulo usa a cor de destaque da loja (`currentColor` = `text-acento`). */}
+        <svg viewBox="0 0 550 550" aria-hidden="true" className="block h-full w-full">
+          <circle cx="275" cy="275" r="275" fill="currentColor" />
+          <g fill="#fff">
+            <circle cx="307" cy="140" r="42" />
+            <path d="M200 240C214 232 236 220 268 214C292 210 316 212 322 222C325 232 320 270 316 300C312 335 302 370 300 392C300 398 305 402 316 402C328 402 340 400 345 404C348 410 340 416 330 420C305 430 278 440 255 441C236 442 222 430 220 412C219 392 230 350 238 320C246 292 254 272 254 264C244 260 224 254 214 250C206 247 201 244 200 240Z" />
+          </g>
+        </svg>
       </span>
       <span
         role="tooltip"

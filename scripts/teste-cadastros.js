@@ -66,6 +66,44 @@ conferir("ignora o que nao e digito", formatarCep("01.310-100x"), "01310-100");
 conferir("corta o excesso", formatarCep("013101009999"), "01310-100");
 
 // ---------------------------------------------------------------------------
+// Telefone: grava so os digitos, mostra "(54) 98899-0008"
+// ---------------------------------------------------------------------------
+
+console.log("\nTelefone");
+const { telefoneValido, telefoneParaGravar, formatarTelefone, filtrarDigitacaoDeTelefone } = await import(
+  "../src/lib/telefone.js"
+);
+conferir("celular com pontuacao", telefoneValido("(54) 98899-0008"), true);
+conferir("celular so digitos", telefoneValido("54988990008"), true);
+conferir("o formato pedido pelo dono, (xx)9NNNNNNNN, tambem e aceito na entrada", telefoneValido("(54)988990008"), true);
+conferir("fixo de 10 digitos", telefoneValido("(54) 3333-4444"), true);
+conferir("cola do WhatsApp, com +55", telefoneValido("+55 54 98899-0008"), true);
+conferir("DDD 55 com 11 digitos NAO e codigo de pais", telefoneParaGravar("55999998888"), "55999998888");
+conferir("13 digitos com 55 na frente: tira o codigo do pais", telefoneParaGravar("5554988990008"), "54988990008");
+conferir("sem DDD (9 digitos)", telefoneValido("988990008"), false);
+conferir("DDD que nao existe (10)", telefoneValido("10988990008"), false);
+conferir("DDD que nao existe (23)", telefoneValido("23988990008"), false);
+conferir("celular sem o 9 na frente do numero", telefoneValido("54888990008"), false);
+conferir("10 digitos comecando em 9 e celular antigo, sem o nono digito", telefoneValido("5498899000"), false);
+conferir("curto demais", telefoneValido("5498899"), false);
+conferir("letras no meio recusam (5488990p008u tem so 9 digitos)", telefoneValido("5488990p008u"), false);
+conferir("vazio nao e valido (o chamador ignora linha em branco)", telefoneValido(""), false);
+conferir("null nao quebra", telefoneValido(null), false);
+
+conferir("grava so os digitos", telefoneParaGravar("(54) 98899-0008"), "54988990008");
+conferir("as duas grafias do mesmo numero gravam igual", telefoneParaGravar("(54)98899-0008"), telefoneParaGravar("54 98899 0008"));
+conferir("invalido nao grava", telefoneParaGravar("123"), null);
+
+conferir("mostra o celular como (54) 98899-0008", formatarTelefone("54988990008"), "(54) 98899-0008");
+conferir("mostra o fixo como (54) 3333-4444", formatarTelefone("5433334444"), "(54) 3333-4444");
+conferir("formatar o que ja esta formatado nao muda", formatarTelefone("(54) 98899-0008"), "(54) 98899-0008");
+conferir("texto invalido volta como esta, aparado: nao inventa pontuacao", formatarTelefone("  5488 "), "5488");
+conferir("gravar e mostrar voltam ao mesmo lugar", formatarTelefone(telefoneParaGravar("(54)988990008")), "(54) 98899-0008");
+
+conferir("filtro tira letras", filtrarDigitacaoDeTelefone("5488990p008u"), "5488990008");
+conferir("filtro deixa a pontuacao de telefone", filtrarDigitacaoDeTelefone("+55 (54) 98899-0008"), "+55 (54) 98899-0008");
+
+// ---------------------------------------------------------------------------
 // Fonte -> cadastro (banco)
 // ---------------------------------------------------------------------------
 

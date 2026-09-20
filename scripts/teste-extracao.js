@@ -918,6 +918,54 @@ conferir(
   opencart.specifications.find((s) => s.nome === "Unidade Venda")?.valor,
   "Peça",
 );
+// O mesmo produto por varios enderecos (caminho de categoria): a identidade sai
+// do registro da plataforma, e so onde ele declara.
+console.log("\n— identidade do produto por endereco (OpenCart) —");
+const { identidadeDoEndereco } = await import("../src/lib/coleta/plataformas.js");
+const oc = { id: "opencart" };
+const IDS = "https://www.soldafria.com.br";
+conferir(
+  "variantes -p-N.html de um produto dao a mesma chave (id)",
+  new Set([
+    `${IDS}/2-pilhas-pequenas-aa-15v-alkalinas-modelo-lr6-p-5875.html`,
+    `${IDS}/componentes-eletronicos/2-pilhas-pequenas-aa-15v-alkalinas-modelo-lr6-p-5875.html`,
+    `${IDS}/componentes-eletronicos/bateria-e-pilha/2-pilhas-pequenas-aa-15v-alkalinas-modelo-lr6-p-5875.html`,
+  ].map((e) => identidadeDoEndereco(oc, e))).size,
+  1,
+);
+conferir(
+  "e a chave e o id",
+  identidadeDoEndereco(oc, `${IDS}/x/y-p-5875.html`),
+  "p:5875",
+);
+conferir(
+  "slug puro: /x, /arduino/x e /arduino/acessorios-arduino/x sao o mesmo produto",
+  new Set(
+    ["/attiny85-pu-dip", "/arduino/attiny85-pu-dip", "/arduino/acessorios-arduino/attiny85-pu-dip"].map((c) =>
+      identidadeDoEndereco(oc, `${IDS}${c}`),
+    ),
+  ).size,
+  1,
+);
+conferir(
+  "produtos diferentes NAO colidem",
+  identidadeDoEndereco(oc, `${IDS}/arduino/uno-r3`) === identidadeDoEndereco(oc, `${IDS}/arduino/nano-v3`),
+  false,
+);
+conferir(
+  "paginacao de categoria e outra pagina: o ? entra na chave",
+  identidadeDoEndereco(oc, `${IDS}/arduino?page=2`) === identidadeDoEndereco(oc, `${IDS}/arduino`),
+  false,
+);
+conferir("a home nao tem identidade", identidadeDoEndereco(oc, `${IDS}/`), null);
+conferir(
+  "plataforma que nao declara NAO ganha identidade (o ultimo segmento pode repetir de verdade)",
+  identidadeDoEndereco({ id: "tray" }, `${IDS}/arduino/uno-r3`),
+  null,
+);
+conferir("plataforma desconhecida tambem nao", identidadeDoEndereco({ id: "desconhecida" }, `${IDS}/uno-r3`), null);
+conferir("endereco invalido nao quebra", identidadeDoEndereco(oc, "nao e url"), null);
+
 // "Características" sozinho: ficha na Solda Fria, lista de marketing noutras.
 const listaSobTitulo = (titulo, itens) =>
   normalizarPagina({
