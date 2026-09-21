@@ -102,6 +102,50 @@ export async function anexarImagens(produtoId, sku, fontes) {
   return { salvas, ampliadas, recusadas };
 }
 
+/** Enderecos das fotos de um produto coletado; sem lista, a miniatura e a unica que existe. */
+function enderecosDaLinha(linha, limite) {
+  const lista = (Array.isArray(linha.imagens) ? linha.imagens : [])
+    .filter((item) => typeof item === "string" && item)
+    .slice(0, limite);
+  if (lista.length === 0 && linha.miniatura) lista.push(linha.miniatura);
+  return lista;
+}
+
+/**
+ * As fotos de VARIOS produtos coletados de uma vez: os marcados na lupa do Nome (pedido do dono
+ * em 21/09/2026: as fotos dos concorrentes e fornecedores escolhidos entram no painel de fotos).
+ *
+ * O navegador manda so os ids e os enderecos sao lidos aqui, do banco (ver `imagensDaOrigem`).
+ * Devolve na ordem dos ids, com o nome da loja e do produto para o dono saber de onde veio cada
+ * foto ao escolher.
+ *
+ * @param {string[]} ids
+ * @param {number} limite fotos por produto
+ * @returns {Promise<Array<{ ref: string, fonte: string, produto: string, fontes: Array<{ tipo: "endereco", endereco: string }> }>>}
+ */
+export async function fotosDasReferencias(ids, limite) {
+  const pedidos = [...new Set((ids ?? []).filter((id) => typeof id === "string" && id))];
+  if (pedidos.length === 0) return [];
+
+  const linhas = await prisma.produtoColetado.findMany({
+    where: { id: { in: pedidos } },
+    select: { id: true, nome: true, imagens: true, miniatura: true, fonte: { select: { nome: true } } },
+  });
+  const porId = new Map(linhas.map((linha) => [linha.id, linha]));
+
+  return pedidos
+    .filter((id) => porId.has(id))
+    .map((id) => {
+      const linha = porId.get(id);
+      return {
+        ref: id,
+        fonte: linha.fonte?.nome ?? "",
+        produto: linha.nome ?? "",
+        fontes: enderecosDaLinha(linha, limite).map((endereco) => ({ tipo: "endereco", endereco })),
+      };
+    });
+}
+
 /**
  * De onde vem as imagens de um produto que serviu de base ao cadastro:
  * `rise:<id>` (outro produto nosso) ou `coletado:<id>` (fornecedor/concorrente).
@@ -112,7 +156,7 @@ export async function anexarImagens(produtoId, sku, fontes) {
  *
  * Devolve as fontes (para gravar) e os enderecos de previa (para a tela).
  */
-export async function imagensDaOrigem(origem) {
+export async function imagensDaOrigem(origem, limite = MAXIMO_IMAGENS) {
   const [tipo, id] = String(origem ?? "").split(":");
   if (!id) return { fontes: [], previas: [] };
 
@@ -128,7 +172,7 @@ export async function imagensDaOrigem(origem) {
         },
       },
     });
-    const arquivos = (produto?.arquivos ?? []).slice(0, MAXIMO_IMAGENS);
+    const arquivos = (produto?.arquivos ?? []).slice(0, limite);
     return {
       fontes: arquivos.map((a) => ({ tipo: "arquivo", sku: produto.sku, nome: a.arquivo })),
       previas: arquivos.map((a) => urlDe(produto.sku, "IMAGEM", a.arquivo)),
@@ -142,10 +186,7 @@ export async function imagensDaOrigem(origem) {
     });
     if (!linha) return { fontes: [], previas: [] };
 
-    const lista = (Array.isArray(linha.imagens) ? linha.imagens : [])
-      .filter((item) => typeof item === "string" && item)
-      .slice(0, MAXIMO_IMAGENS);
-    if (lista.length === 0 && linha.miniatura) lista.push(linha.miniatura);
+    const lista = enderecosDaLinha(linha, limite);
 
     return {
       fontes: lista.map((endereco) => ({ tipo: "endereco", endereco })),

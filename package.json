@@ -19,6 +19,7 @@
     "worker": "node scripts/worker.js",
     "teste:coleta": "node scripts/teste-coleta.js",
     "teste:cadastros": "node scripts/teste-cadastros.js",
+    "teste:imagens": "node scripts/teste-imagens.js",
     "teste:extracao": "node scripts/teste-extracao.js",
     "teste:fonte": "node scripts/testar-fonte.js",
     "coletar": "node scripts/coletar.js",

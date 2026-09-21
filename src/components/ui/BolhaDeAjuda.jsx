@@ -35,7 +35,12 @@
  * a acao do botao por baixo.
  */
 export default function BolhaDeAjuda({ texto, variante = "canto", className = "" }) {
-  const inline = variante === "inline";
+  // "inline-direita": igual a "inline", mas o texto abre alinhado pela DIREITA do icone (para a
+  // esquerda). E a variante para icone que mora na borda direita de uma janela ou coluna: o texto
+  // centralizado no icone sairia do quadro e seria cortado (pedido do dono em 21/09/2026: toda
+  // mensagem informativa vira este icone, inclusive nas janelas de fotos).
+  const inline = variante === "inline" || variante === "inline-direita";
+  const direita = variante === "inline-direita";
 
   return (
     <span
@@ -62,13 +67,13 @@ export default function BolhaDeAjuda({ texto, variante = "canto", className = ""
       <span
         role="tooltip"
         className={`pointer-events-none absolute bottom-full z-50 mb-1.5 w-max max-w-56 rounded-md bg-slate-800 px-2.5 py-1.5 text-left text-[11px] leading-snug font-normal tracking-normal text-white normal-case opacity-0 shadow-lg transition group-hover/ajuda:opacity-100 group-focus-within/ajuda:opacity-100 ${
-          inline ? "left-1/2 -translate-x-1/2" : "right-0"
+          inline && !direita ? "left-1/2 -translate-x-1/2" : "right-0"
         }`}
       >
         {texto}
         <span
           className={`absolute top-full h-2 w-2 -translate-y-1 rotate-45 bg-slate-800 ${
-            inline ? "left-1/2 -translate-x-1/2" : "right-1"
+            inline && !direita ? "left-1/2 -translate-x-1/2" : "right-1"
           }`}
         />
       </span>

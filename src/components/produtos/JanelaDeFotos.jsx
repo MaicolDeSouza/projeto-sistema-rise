@@ -1,0 +1,746 @@
+"use client";
+
+import { useEffect, useEffectEvent, useState, useTransition } from "react";
+import { Check, ChevronLeft, ChevronRight, Loader, ShoppingCart, Sparkles, Trash2, X } from "lucide-react";
+
+import {
+  comprarPhotoroom,
+  estadoDoPhotoroom,
+  gerarPreviaPhotoroom,
+} from "@/app/produtos/acoes-imagens";
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import { MAXIMO_PIXELS_PARA_AMPLIAR } from "@/lib/limites";
+import { AmpliacaoDeFoto, ImagemComZoom } from "./ImagemComZoom";
+import TiraDeFotos from "./TiraDeFotos";
+
+/**
+ * Revisao das fotos do produto NOVO, uma a uma (pedido do dono em 21/09/2026).
+ *
+ * As fotos dos concorrentes e fornecedores marcados na lupa entram todas no painel, e aqui o dono
+ * passa por elas com as setas (ou as teclas esquerda e direita) e, em cada uma:
+ *  - olha a foto GRANDE, passa o mouse para ampliar a mesma area nas duas e clica para ver inteira;
+ *  - gera a PREVIA do Photoroom (gratis, com marca d'agua) com as opcoes que ficam EMBAIXO DELA;
+ *  - decide com o botao "Escolher essa", um EMBAIXO DE CADA FOTO: o da esquerda usa a original, o da
+ *    direita usa a melhorada. Escolhida, a foto ganha o selo "Finalizada" e o botao dela fica cinza,
+ *    fosco; o da outra fica verde, e clicar nele troca a escolha. Nenhuma escolhida: os dois verdes;
+ *  - ou exclui, e a janela segue para a proxima.
+ * A ordem das miniaturas (arrastar) e a ordem em que as fotos vao para o produto, e a primeira e
+ * a principal.
+ *
+ * O "Escolher essa" da PREVIA e a COMPRA: a previa tem marca d'agua e nao pode ir para o produto, entao
+ * escolher a melhorada e comprar a versao limpa. Por isso o botao mostra o valor (US$ 0,10) e pede uma
+ * confirmacao antes de chamar o Photoroom. Depois da compra as duas versoes ficam guardadas, e o dono
+ * alterna entre elas sem pagar de novo. Regras herdadas: so se compra o que foi visto (previa gerada
+ * com as MESMAS opcoes marcadas agora), e o botao fica cinza enquanto a compra estiver desligada
+ * (PHOTOROOM_COMPRA=false). O servidor confere tudo de novo: esta tela nao decide nada sozinha.
+ *
+ * A previa e as opcoes de cada foto moram no painel (`porFoto`), e nao aqui: fechar a janela nao
+ * pode perder uma previa ja gerada. O estado LOCAL de cada foto (erro, confirmacoes, zoom) reinicia
+ * ao trocar de foto, porque `FotoEmRevisao` e montada com `key` da foto.
+ */
+
+const OPCOES_INICIAIS = { removerFundo: true, iluminacao: false, ampliar: false };
+
+// Rotulos curtos: as tres opcoes, a previa e o "Escolher essa" tem que caber na largura da foto.
+const ROTULOS = [
+  {
+    chave: "removerFundo",
+    rotulo: "Remover fundo",
+    ajuda: "Deixa o fundo branco liso. Nao precisa em foto que ja esta sem fundo.",
+  },
+  {
+    chave: "iluminacao",
+    rotulo: "Iluminacao",
+    ajuda: "Melhora a iluminacao sem mudar a cor do produto.",
+  },
+  {
+    chave: "ampliar",
+    // Voltou a se chamar "Ampliar" (pedido do dono em 21/09/2026, "como no inicio do teste"). Toda
+    // foto ja e ajustada para 1024x1024 de graca, esticando os pixels; esta opcao e outra coisa: a IA
+    // refaz a foto PEQUENA com mais definicao, e so aceita foto de ate 1 megapixel.
+    rotulo: "Ampliar",
+    ajuda:
+      "Ampliar: a IA refaz uma foto pequena com mais definicao (o ajuste simples para 1024 px ja e automatico e gratis). So vale para foto de ate 1 megapixel, cerca de 1000x1000.",
+  },
+];
+
+const reais = (valor) => valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const dolares = (valor) => `US$ ${valor.toFixed(2).replace(".", ",")}`;
+
+/**
+ * O tamanho que a foto TINHA antes do ajuste, para a etiqueta do canto da original. Fotos com o lado
+ * maior abaixo de 1024 foram ampliadas (e ficam menos nitidas); acima, reduzidas.
+ */
+function tamanhoAnterior(origem) {
+  if (!origem?.largura || !origem?.altura) return null;
+  const { largura, altura } = origem;
+  const maior = Math.max(largura, altura);
+  if (largura === 1024 && altura === 1024) return null;
+  if (maior < 1024) return `era menor: ${largura}×${altura}`;
+  if (maior > 1024) return `era maior: ${largura}×${altura}`;
+  return `era ${largura}×${altura}`;
+}
+
+// O lado das fotos acompanha a ALTURA da tela: o que sobra depois do cabecalho, das linhas de baixo e
+// da tira de miniaturas. Assim as duas ficam o maior possivel sem empurrar os botoes para fora.
+const ALTURA_DA_FOTO = "max(240px, calc(100vh - 375px))";
+const LADO_DA_FOTO = `min(100%, ${ALTURA_DA_FOTO})`;
+// A janela tem a largura das duas fotos mais as setas e as margens, e nao a da tela: com o espaco
+// sobrando entre as fotos, o olho tem que atravessar a tela para comparar.
+const LARGURA_DA_JANELA = `min(97vw, calc(2 * ${ALTURA_DA_FOTO} + 190px))`;
+
+async function tentar(acao) {
+  try {
+    return await acao();
+  } catch (erro) {
+    return { ok: false, erro: erro?.message ?? "Falha inesperada." };
+  }
+}
+
+function Quadro({ titulo, legenda, acima, botoes, children }) {
+  return (
+    <figure className="mx-auto flex flex-col gap-1.5" style={{ width: LADO_DA_FOTO }}>
+      <p className="text-center text-xs font-medium text-suave">{titulo}</p>
+      <div className="relative aspect-square overflow-hidden rounded border border-borda bg-white">
+        {children}
+      </div>
+      {/* Origem, tamanho e o selo "Finalizada" moram AQUI, embaixo da foto, e nao por cima dela (pedido do
+          dono em 21/09/2026: em cima atrapalhavam a visualizacao da imagem). */}
+      <figcaption className="flex min-h-6 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-slate-600">
+        {legenda}
+      </figcaption>
+      <div className="flex min-h-8 flex-wrap items-center justify-center gap-1.5">{acima}</div>
+      <div className="flex min-h-9 flex-nowrap items-center justify-center gap-1.5">{botoes}</div>
+    </figure>
+  );
+}
+
+/**
+ * O selo "Finalizada" e tambem o jeito de DESFAZER a escolha (pedido do dono em 21/09/2026): clicar nele
+ * tira o "finalizada" e os dois botoes "Escolher essa" voltam a ficar verdes. O "×" no fim diz que da para
+ * clicar.
+ */
+function SeloFinalizada({ aoDesfazer, desativado }) {
+  return (
+    <button
+      type="button"
+      onClick={aoDesfazer}
+      disabled={desativado}
+      aria-label="Desfazer: tirar a marca de finalizada"
+      title="Desfazer"
+      className="group/selo inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+    >
+      <Check size={12} strokeWidth={3} /> Finalizada
+      <X size={12} className="opacity-70 group-hover/selo:opacity-100" />
+    </button>
+  );
+}
+
+/**
+ * "Escolher essa": verde quando da para clicar; CINZA FOSCO quando esta foi a escolhida; contorno
+ * apagado quando ainda nao ha o que escolher (a melhorada sem previa nem compra).
+ */
+function BotaoEscolher({ escolhida, indisponivel, aoClicar, rotulo, dica, compacto = false }) {
+  const estilo = escolhida
+    ? "cursor-default bg-slate-200 text-slate-500 opacity-70"
+    : indisponivel
+      ? "cursor-not-allowed border border-borda text-suave opacity-60"
+      : "bg-emerald-600 text-white hover:opacity-90";
+  return (
+    <button
+      type="button"
+      onClick={aoClicar}
+      disabled={escolhida || indisponivel}
+      title={dica}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded py-2 text-sm font-medium whitespace-nowrap ${
+        compacto ? "px-2.5" : "px-3"
+      } ${estilo}`}
+    >
+      <Check size={14} strokeWidth={3} /> {rotulo}
+    </button>
+  );
+}
+
+function FotoEmRevisao({
+  lote,
+  imagem,
+  dados,
+  mudarDados,
+  estado,
+  atualizarEstado,
+  ocupado,
+  aoComprar,
+  aoFinalizar,
+  aoExcluir,
+  aoEscolherVersao,
+}) {
+  const [erro, setErro] = useState(null);
+  const [confirmando, setConfirmando] = useState(false);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [zoom, setZoom] = useState(null);
+  const [ampliada, setAmpliada] = useState(null);
+  const [gerando, iniciarPrevia] = useTransition();
+  const [comprando, iniciarCompra] = useTransition();
+
+  const opcoes = dados?.opcoes ?? OPCOES_INICIAIS;
+  const previa = dados?.previa ?? null;
+  const algumaOpcao = Object.values(opcoes).some(Boolean);
+  const previaVale = Boolean(previa) && JSON.stringify(previa.opcoes) === JSON.stringify(opcoes);
+  const compra = estado?.compra;
+  const finalizada = Boolean(imagem.finalizada);
+  const temMelhorada = Boolean(imagem.temMelhorada);
+  const escolhida = finalizada ? (imagem.melhorada ? "melhorada" : "original") : null;
+  const parado = ocupado || gerando || comprando;
+
+  // O Photoroom so amplia foto de ate 1 megapixel, e o que ele recebe e o ARQUIVO QUE CHEGOU (nao a
+  // foto ja ajustada). Acima disso a opcao "Ampliar" fica desligada: melhor do que o dono descobrir
+  // pelo erro, e foto grande tambem nao precisa dela.
+  const pixelsDaOrigem = imagem.origem ? imagem.origem.largura * imagem.origem.altura : 0;
+  const grandeParaAmpliar = pixelsDaOrigem > MAXIMO_PIXELS_PARA_AMPLIAR;
+  const anterior = tamanhoAnterior(imagem.origem);
+
+  // Custo em reais (estimativa, pela cotacao de `cotacaoDolar.js`), com o dolar entre parenteses: o
+  // Photoroom cobra em dolar no cartao.
+  const custoEmReais = estado ? reais(estado.custoBrl) : null;
+  const custoCompleto = estado ? `${custoEmReais} (${dolares(estado.custoUsd)})` : "US$ 0,10";
+
+  // A esquerda mostra sempre a original ja padronizada; a direita, a previa quando existe e, sem ela,
+  // a melhorada ja comprada.
+  const urlDaOriginal = temMelhorada && imagem.originalUrl ? imagem.originalUrl : imagem.url;
+  const urlDaDireita = previa ? previa.url : temMelhorada ? imagem.melhoradaUrl : null;
+
+  function mudarOpcao(chave) {
+    mudarDados({ opcoes: { ...opcoes, [chave]: !opcoes[chave] } });
+    setConfirmando(false);
+  }
+
+  function gerar() {
+    setErro(null);
+    setConfirmando(false);
+    iniciarPrevia(async () => {
+      const resposta = await tentar(() => gerarPreviaPhotoroom(lote, imagem.base, opcoes));
+      if (!resposta.ok) {
+        setErro(resposta.erro);
+        return;
+      }
+      mudarDados({ previa: { url: resposta.previaUrl, opcoes: resposta.opcoes } });
+      // O contador de uso mudou: le de novo, sem esperar reabrir a janela.
+      atualizarEstado();
+    });
+  }
+
+  function comprar() {
+    setErro(null);
+    iniciarCompra(async () => {
+      const resposta = await tentar(() => comprarPhotoroom(lote, imagem.base, opcoes));
+      if (!resposta.ok) {
+        setErro(resposta.erro);
+        setConfirmando(false);
+        return;
+      }
+      mudarDados({ previa: null });
+      setConfirmando(false);
+      atualizarEstado();
+      aoComprar(resposta.imagem);
+    });
+  }
+
+  function excluir() {
+    // A melhorada foi paga: pede mais um clique antes de jogar fora.
+    if (temMelhorada && !confirmandoExclusao) {
+      setConfirmandoExclusao(true);
+      return;
+    }
+    aoExcluir(imagem);
+  }
+
+  // ----- Esquerda: escolher a original -----
+  const botoesEsquerda = (
+    <>
+      <BotaoEscolher
+        escolhida={escolhida === "original"}
+        indisponivel={parado}
+        aoClicar={() => (imagem.melhorada ? aoEscolherVersao(imagem, "original") : aoFinalizar(imagem.base, true))}
+        rotulo="Escolher essa"
+        dica={escolhida === "original" ? "Esta e a foto escolhida" : "Usar a original no produto"}
+      />
+      <button
+        type="button"
+        onClick={excluir}
+        disabled={parado}
+        title="Exclui a foto, a previa e a melhorada, e segue para a proxima"
+        className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+      >
+        <Trash2 size={14} /> Excluir
+      </button>
+    </>
+  );
+
+  // ----- Direita: com previa na tela, escolher e COMPRAR; sem previa, escolher a melhorada ja comprada -----
+  const escolherComprando = Boolean(previa);
+  const podeEscolherDireita = escolherComprando ? previaVale && Boolean(compra?.ok) && !ocupado : temMelhorada;
+
+  // O porque do botao da direita estar cinza (ou o que ele faz), no icone "i" ao lado dele. Antes era
+  // um texto fixo embaixo, e o dono nao sabia que precisava da previa para o botao ligar.
+  const explicacaoDireita = [];
+  if (estado && compra && !compra.ok) {
+    explicacaoDireita.push(compra.ligada ? compra.motivo : "Compra desligada (modo teste): so a previa gratis funciona.");
+  }
+  if (previa && !previaVale) explicacaoDireita.push("Voce mudou as opcoes: gere a previa de novo.");
+  else if (previa) explicacaoDireita.push(`Compra a foto sem marca d'agua por ${custoCompleto} e a usa no produto.`);
+  else if (temMelhorada) explicacaoDireita.push("Usa a melhorada que voce ja comprou, sem custo.");
+  else {
+    explicacaoDireita.push(
+      "Gere a previa (gratis) para habilitar este botao. Escolher a melhorada compra a foto sem marca d'agua.",
+    );
+  }
+  const dicaDireita = explicacaoDireita.join(" ");
+
+  const botoesDireita = confirmando ? (
+    <>
+      <button
+        type="button"
+        onClick={comprar}
+        disabled={!podeEscolherDireita || comprando}
+        className="inline-flex items-center gap-1.5 rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+      >
+        {comprando ? <Loader size={14} className="animate-spin" /> : <ShoppingCart size={14} />}
+        Sim, comprar
+      </button>
+      <button
+        type="button"
+        onClick={() => setConfirmando(false)}
+        disabled={comprando}
+        className="rounded border border-borda px-3 py-2 text-sm hover:bg-fundo disabled:opacity-50"
+      >
+        Voltar
+      </button>
+    </>
+  ) : (
+    <>
+      {/* "Gerar previa" e "Escolher essa" lado a lado, dentro da largura da foto (pedido do dono em
+          21/09/2026): o "(gratis)" saiu do botao e mora no "i" ao lado; a previa e sempre gratis. */}
+      <button
+        type="button"
+        onClick={gerar}
+        disabled={parado || !algumaOpcao || !estado?.previa.ok}
+        title="Gera uma previa gratis, com marca d'agua"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded border border-acento px-2.5 py-2 text-sm font-medium whitespace-nowrap text-acento hover:bg-fundo disabled:opacity-50"
+      >
+        {gerando ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
+        Gerar previa
+      </button>
+      <BotaoEscolher
+        escolhida={escolhida === "melhorada" && !previa}
+        indisponivel={!podeEscolherDireita || parado}
+        aoClicar={() => (escolherComprando ? setConfirmando(true) : aoEscolherVersao(imagem, "melhorada"))}
+        rotulo={escolherComprando && estado ? `Escolher essa (${custoEmReais})` : "Escolher essa"}
+        compacto
+      />
+      <BolhaDeAjuda texto={dicaDireita} variante="inline-direita" />
+    </>
+  );
+
+  // As tres opcoes e, no fim, o "i" que explica cada uma (e por que "Ampliar" esta desligada, se estiver).
+  const ajudaDasOpcoes = [
+    ...ROTULOS.map((item) => item.ajuda),
+    grandeParaAmpliar
+      ? `Ampliar esta desligada: esta foto tem ${imagem.origem.largura}×${imagem.origem.altura} e o Photoroom so amplia ate 1 megapixel.`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const opcoesEmbaixoDaPrevia = (
+    <>
+      {ROTULOS.map((item) => {
+        const desligada = item.chave === "ampliar" && grandeParaAmpliar;
+        return (
+          <label
+            key={item.chave}
+            className={`inline-flex items-center gap-1.5 rounded border border-borda px-2 py-1 text-xs ${
+              desligada ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-fundo"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={desligada ? false : opcoes[item.chave]}
+              onChange={() => mudarOpcao(item.chave)}
+              disabled={comprando || desligada}
+              className="h-3.5 w-3.5 accent-acento"
+            />
+            {item.rotulo}
+          </label>
+        );
+      })}
+      <BolhaDeAjuda texto={ajudaDasOpcoes} variante="inline-direita" />
+    </>
+  );
+
+  // Embaixo da foto da ESQUERDA: a origem (so a loja, o nome do produto ja esta na lista de referencias),
+  // o tamanho e, se a original foi a escolhida, o selo que tambem desfaz. O tamanho diz se a foto ficou
+  // esticada e menos nitida: uma de 397x300 a 1024 e outra coisa que uma de 1200x900.
+  const desfazerEscolha = () => aoFinalizar(imagem.base, false);
+  const legendaEsquerda = (
+    <>
+      <span>{imagem.fonte ? `Origem: ${imagem.fonte}` : "Enviada por voce"}</span>
+      <span aria-hidden="true">·</span>
+      <span>
+        1024×1024{anterior ? ` (${anterior})` : ""}
+      </span>
+      {escolhida === "original" && <SeloFinalizada aoDesfazer={desfazerEscolha} desativado={parado} />}
+    </>
+  );
+
+  // Embaixo da foto da DIREITA: o selo, se a melhorada foi a escolhida, e o aviso de que as opcoes mudaram.
+  // So o que pede uma acao fica escrito; o resto e explicado no "i".
+  const legendaDireita = (
+    <>
+      {previa && !previaVale && <span>Voce mudou as opcoes: gere a previa de novo.</span>}
+      {escolhida === "melhorada" && <SeloFinalizada aoDesfazer={desfazerEscolha} desativado={parado} />}
+    </>
+  );
+
+  const cabecalhoDireita = temMelhorada && !previa ? "Melhorada" : "Previa do Photoroom";
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Quadro
+          titulo={temMelhorada ? "Original" : "Foto atual"}
+          legenda={legendaEsquerda}
+          botoes={botoesEsquerda}
+        >
+          <ImagemComZoom
+            src={urlDaOriginal}
+            alt="Foto atual do produto"
+            zoom={zoom}
+            setZoom={setZoom}
+            aoAmpliar={() => setAmpliada({ src: urlDaOriginal, alt: "Foto atual do produto" })}
+            className="h-full w-full"
+          />
+        </Quadro>
+
+        <Quadro titulo={cabecalhoDireita} legenda={legendaDireita} acima={opcoesEmbaixoDaPrevia} botoes={botoesDireita}>
+          {urlDaDireita ? (
+            <ImagemComZoom
+              src={urlDaDireita}
+              alt={previa ? "Previa com marca d'agua" : "Foto melhorada"}
+              zoom={zoom}
+              setZoom={setZoom}
+              aoAmpliar={() => setAmpliada({ src: urlDaDireita, alt: cabecalhoDireita })}
+              className="h-full w-full"
+              opaca={Boolean(previa) && !previaVale}
+            />
+          ) : (
+            <span className="absolute inset-0 flex items-center justify-center px-6 text-center text-xs text-suave">
+              A previa aparece aqui, gratis e com marca d&apos;agua.
+            </span>
+          )}
+          {gerando && (
+            <span className="absolute inset-0 flex items-center justify-center gap-2 bg-white/80 text-sm text-suave">
+              <Loader size={16} className="animate-spin" /> Gerando a previa...
+            </span>
+          )}
+        </Quadro>
+      </div>
+
+      {estado && !estado.previa.ok && (
+        <p className="rounded bg-amber-50 p-2 text-xs text-amber-900">{estado.previa.motivo}</p>
+      )}
+      {confirmando && (
+        <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          Comprar esta foto por <strong>{custoEmReais}</strong> ({dolares(estado.custoUsd)}, a{" "}
+          {reais(estado.cotacao.valor)} por dolar) e usa-la no produto? O Photoroom cobra em dolar, no cartao: o
+          valor em reais e uma estimativa, sem IOF.
+        </p>
+      )}
+      {erro && <p className="rounded bg-red-50 p-2 text-xs text-red-800">{erro}</p>}
+      {confirmandoExclusao && (
+        <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          Esta foto foi melhorada (paga). Excluir joga fora as duas versoes. Clique em Excluir de novo para
+          confirmar.
+        </p>
+      )}
+      {ampliada && <AmpliacaoDeFoto src={ampliada.src} alt={ampliada.alt} aoFechar={() => setAmpliada(null)} />}
+    </div>
+  );
+}
+
+export default function JanelaDeFotos({
+  lote,
+  imagens,
+  atual,
+  porFoto,
+  setPorFoto,
+  ocupado,
+  erro,
+  alterado,
+  comprasNaJanela,
+  aoEscolher,
+  aoSalvar,
+  aoCancelar,
+  aoComprar,
+  aoFinalizar,
+  aoExcluir,
+  aoEscolherVersao,
+  aoReordenar,
+}) {
+  const [estado, setEstado] = useState(null);
+  // A faixa de pergunta antes de sair: "sair" (X, Esc ou clique fora, com alteracoes) ou "cancelar"
+  // (Cancelar, quando ha compra nesta janela, que nao tem volta).
+  const [barra, setBarra] = useState(null);
+
+  const total = imagens.length;
+  const indice = atual ? imagens.findIndex((imagem) => imagem.base === atual.base) : -1;
+  const finalizadas = imagens.filter((imagem) => imagem.finalizada).length;
+
+  // FECHAR sem escolher entre Salvar e Cancelar: sem alteracao fecha direto; com alteracao, pergunta.
+  // Perder a escolha de 20 fotos por um Esc sem querer seria pior do que um clique a mais.
+  function pedirParaFechar() {
+    if (!alterado) aoCancelar();
+    else setBarra("sair");
+  }
+
+  // CANCELAR desfaz tudo de graca, MENOS a compra. Se houve compra nesta janela, avisa antes.
+  function pedirCancelar() {
+    if (alterado && comprasNaJanela > 0) setBarra("cancelar");
+    else aoCancelar();
+  }
+
+  // Chaves, trava e uso, lidos do servidor ao abrir. A resposta chega depois do primeiro
+  // desenho, e por isso o setState fica no `then`, e nao no corpo do efeito.
+  useEffect(() => {
+    let vivo = true;
+    estadoDoPhotoroom().then((resposta) => {
+      if (vivo) setEstado(resposta);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  const atualizarEstado = () => {
+    estadoDoPhotoroom().then(setEstado);
+  };
+
+  // O ouvinte le sempre a foto de agora, sem ser refeito a cada desenho.
+  const aoTeclar = useEffectEvent((evento) => {
+    if (evento.key === "Escape") {
+      if (barra) setBarra(null);
+      else pedirParaFechar();
+    } else if (evento.key === "ArrowLeft" && indice > 0) aoEscolher(imagens[indice - 1].base);
+    else if (evento.key === "ArrowRight" && indice >= 0 && indice < total - 1) aoEscolher(imagens[indice + 1].base);
+  });
+
+  useEffect(() => {
+    const anterior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", aoTeclar);
+    return () => {
+      document.body.style.overflow = anterior;
+      document.removeEventListener("keydown", aoTeclar);
+    };
+  }, []);
+
+  const uso = estado?.uso;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3"
+      onClick={(evento) => {
+        if (evento.target === evento.currentTarget) pedirParaFechar();
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Fotos do produto"
+        style={{ width: LARGURA_DA_JANELA }}
+        className="flex max-h-[97vh] flex-col overflow-hidden rounded-lg border border-borda bg-superficie shadow-2xl"
+      >
+        <header className="flex items-center gap-2 border-b border-borda px-4 py-2.5">
+          <Sparkles size={16} className="text-acento" />
+          <h2 className="text-sm font-semibold">Fotos do produto</h2>
+          <span className="text-xs text-suave">
+            {atual
+              ? `Foto ${indice + 1} de ${total} · ${finalizadas} finalizada${finalizadas === 1 ? "" : "s"}`
+              : "Nenhuma foto"}
+          </span>
+          <button
+            type="button"
+            onClick={pedirParaFechar}
+            aria-label="Fechar"
+            className="ml-auto rounded p-1 text-suave hover:bg-fundo"
+          >
+            <X size={16} />
+          </button>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          {/* Erro de excluir ou de escolher a versao: acontece no painel, que esta atras desta janela. */}
+          {erro && <p className="mb-3 rounded bg-red-50 p-2 text-xs text-red-800">{erro}</p>}
+          {!atual && (
+            <p className="py-16 text-center text-sm text-suave">
+              Todas as fotos foram excluidas. Cancele para trazer de volta, ou salve para ficar sem elas.
+            </p>
+          )}
+          {atual && (
+          <div className="flex items-stretch gap-2">
+            <button
+              type="button"
+              onClick={() => aoEscolher(imagens[indice - 1].base)}
+              disabled={indice <= 0}
+              aria-label="Foto anterior"
+              title="Foto anterior (seta para a esquerda)"
+              className="flex w-9 shrink-0 items-center justify-center self-center rounded-full border border-borda py-6 text-suave hover:bg-fundo disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            <div className="min-w-0 flex-1">
+              <FotoEmRevisao
+                key={atual.base}
+                lote={lote}
+                imagem={atual}
+                dados={porFoto[atual.base]}
+                mudarDados={(parcial) =>
+                  setPorFoto((anterior) => ({
+                    ...anterior,
+                    [atual.base]: { ...anterior[atual.base], ...parcial },
+                  }))
+                }
+                estado={estado}
+                atualizarEstado={atualizarEstado}
+                ocupado={ocupado}
+                aoComprar={aoComprar}
+                aoFinalizar={aoFinalizar}
+                aoExcluir={aoExcluir}
+                aoEscolherVersao={aoEscolherVersao}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => aoEscolher(imagens[indice + 1].base)}
+              disabled={indice >= total - 1}
+              aria-label="Proxima foto"
+              title="Proxima foto (seta para a direita)"
+              className="flex w-9 shrink-0 items-center justify-center self-center rounded-full border border-borda py-6 text-suave hover:bg-fundo disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+          )}
+        </div>
+
+        {/* A pergunta antes de sair ou de cancelar. Fica escrita, e nao num "i": pede uma decisao. */}
+        {barra && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+            <span className="min-w-0 flex-1">
+              {barra === "sair"
+                ? "Voce fez alteracoes nas fotos. Salvar antes de fechar?"
+                : `Cancelar desfaz as escolhas, a ordem e as exclusoes desta janela, mas NAO devolve o valor ${
+                    comprasNaJanela === 1 ? "da foto comprada" : `das ${comprasNaJanela} fotos compradas`
+                  } agora: ${comprasNaJanela === 1 ? "ela fica guardada" : "elas ficam guardadas"}, so nao ${
+                    comprasNaJanela === 1 ? "sera usada" : "serao usadas"
+                  }. Desfazer mesmo?`}
+              {barra === "sair" && comprasNaJanela > 0 && (
+                <span>
+                  {" "}
+                  Descartar nao devolve o valor {comprasNaJanela === 1 ? "da foto comprada" : "das fotos compradas"}.
+                </span>
+              )}
+            </span>
+            {barra === "sair" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={aoSalvar}
+                  disabled={ocupado}
+                  className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  Salvar
+                </button>
+                <button
+                  type="button"
+                  onClick={aoCancelar}
+                  disabled={ocupado}
+                  className="rounded border border-amber-400 px-3 py-1.5 text-sm hover:bg-amber-100 disabled:opacity-50"
+                >
+                  Descartar
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={aoCancelar}
+                disabled={ocupado}
+                className="rounded bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                Sim, desfazer
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setBarra(null)}
+              className="rounded border border-amber-400 px-3 py-1.5 text-sm hover:bg-amber-100"
+            >
+              {barra === "sair" ? "Continuar editando" : "Voltar"}
+            </button>
+          </div>
+        )}
+
+        <footer className="flex items-center gap-3 border-t border-borda px-4 py-2">
+          <div className="min-w-0 flex-1">
+            <TiraDeFotos
+              imagens={imagens}
+              atualBase={atual?.base ?? null}
+              aoEscolher={aoEscolher}
+              aoReordenar={aoReordenar}
+              tamanho="h-12 w-12"
+            />
+          </div>
+
+          {/* Era uma frase fixa no rodape; e mensagem informativa, entao e o icone "i" (padrao do sistema). */}
+          <BolhaDeAjuda
+            texto="Arraste as miniaturas para mudar a ordem. A primeira da fila e a foto principal do produto."
+            variante="inline"
+          />
+
+          {/* Em DUAS linhas e mais curto (pedido do dono em 21/09/2026): o espaco que sobra vai para mais
+              miniaturas na tira. */}
+          {uso && (
+            <span className="hidden shrink-0 text-[10px] leading-tight text-suave md:block">
+              <span className="block">Previas hoje: {uso.previasHoje}/{uso.limiteDia}</span>
+              <span className="block">
+                Compras no mes: {reais(estado.gastoMesBrl ?? 0)}
+              </span>
+            </span>
+          )}
+
+          {/* Salvar guarda tudo o que foi feito nas fotos; Cancelar desfaz tudo e mantem as de antes. */}
+          <button
+            type="button"
+            onClick={pedirCancelar}
+            disabled={ocupado}
+            title="Desfaz o que foi feito nesta janela e mantem as fotos como estavam antes"
+            className="shrink-0 rounded border border-borda px-4 py-2 text-sm hover:bg-fundo disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={aoSalvar}
+            disabled={ocupado}
+            title="Guarda todas as alteracoes feitas nas fotos"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {ocupado && <Loader size={14} className="animate-spin" />}
+            Salvar
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}

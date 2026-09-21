@@ -1,6 +1,4 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { separarCanais } from "@/lib/canais";
@@ -14,10 +12,8 @@ export const dynamic = "force-dynamic";
 
 export default async function EditarProdutoPage({ params, searchParams }) {
   const { id } = await params;
-  // Resultado da copia de imagens no cadastro por "Buscar por codigo".
+  // Avisos do Salvar de um produto novo (documentos, fotos, fornecedores, concorrentes).
   const busca = await searchParams;
-  const imagensCopiadas = busca?.imagens !== undefined ? Number(busca.imagens) || 0 : null;
-  const imagensRecusadas = Number(busca?.recusadas) || 0;
 
   const registro = await prisma.produto.findUnique({
     where: { id },
@@ -140,16 +136,12 @@ export default async function EditarProdutoPage({ params, searchParams }) {
 
   return (
     <>
-      <Link
-        href="/produtos"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-suave hover:text-texto"
-      >
-        <ArrowLeft size={15} />
-        Voltar para produtos
-      </Link>
-
+      {/* A seta ao lado do titulo, como no produto novo (o dono aprovou em 21/09/2026); a descricao fica
+          porque traz o SKU e os canais integrados. */}
       <PageHeader
         titulo={registro.tituloBase}
+        voltarPara="/produtos"
+        voltarRotulo="Voltar para produtos"
         descricao={
           integrados.length
             ? `SKU ${registro.sku} · integrado com ${integrados.map((c) => c.nome).join(", ")}`
@@ -178,17 +170,10 @@ export default async function EditarProdutoPage({ params, searchParams }) {
         </p>
       )}
 
-      {imagensCopiadas !== null && (
-        <p
-          className={`mb-4 rounded border p-3 text-sm ${
-            imagensRecusadas > 0
-              ? "border-amber-200 bg-amber-50 text-amber-900"
-              : "border-emerald-200 bg-emerald-50 text-emerald-900"
-          }`}
-        >
-          {imagensCopiadas} imagem(ns) copiada(s) do produto de origem.
-          {imagensRecusadas > 0 &&
-            ` ${imagensRecusadas} ficaram de fora: fora de 500 a 1920 px, formato que o Mercado Livre nao aceita, ou o site nao respondeu.`}
+      {busca?.fotos === "falhou" && (
+        <p className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          O produto foi salvo, mas as fotos enviadas antes de salvar nao foram gravadas. Envie de
+          novo no bloco de imagens.
         </p>
       )}
 

@@ -8,7 +8,9 @@ import { buscarProdutoPorCodigo } from "@/lib/buscaPorCodigo";
 import { buscarReferencias } from "@/lib/buscaPorPalavras";
 import { lerCamposDasReferencias, lerDetalhesDasReferencias } from "@/lib/camposDasReferencias";
 import { gerarDescricao, gerarTitulos } from "@/lib/ia/anuncio";
-import { anexarImagens, imagensDaOrigem } from "@/lib/imagensImportadas";
+import { baseValida, descartarLote, moverImagensParaProduto } from "@/lib/imagens/lote";
+import { padronizarImagem } from "@/lib/imagens/padronizar";
+import { reconciliarImagensDoProduto } from "@/lib/imagens/produto";
 import { importarProximosDoBling } from "@/lib/integracoes/importarBling";
 import { UNIDADES } from "@/lib/unidades";
 import {
@@ -247,6 +249,83 @@ async function gravarTemporarios(produto, formData) {
   }
 }
 
+/**
+ * As fotos do painel de imagens do cadastro novo: saem do lote temporario (ja padronizadas)
+ * para a pasta do produto, NA ORDEM em que o painel mostra, com a principal marcada.
+ *
+ * O navegador manda so `[{ base, principal }]`. Cada `base` e conferida (UUID sem hifens) e
+ * so entra a foto que EXISTE no lote; tamanho e tipo sao lidos do disco, nao do que o
+ * navegador disse.
+ */
+async function gravarImagensDoLote(produto, formData) {
+  const lote = String(formData.get("loteTemporario") ?? "");
+  if (!lote) return;
+
+  let lista = [];
+  try {
+    lista = JSON.parse(String(formData.get("imagensDoLote") ?? "[]"));
+  } catch {
+    lista = [];
+  }
+  if (!Array.isArray(lista)) return;
+
+  const validas = lista.filter((item) => baseValida(item?.base)).slice(0, MAXIMO_IMAGENS);
+  if (validas.length === 0) return;
+
+  const movidas = await moverImagensParaProduto(
+    lote,
+    produto.sku,
+    validas.map((item) => item.base),
+  );
+  const marcada = validas.find((item) => item.principal === true)?.base;
+  const principal = movidas.find((m) => m.nome === `${marcada}.jpg`) ?? movidas[0];
+
+  for (const [ordem, movida] of movidas.entries()) {
+    await prisma.produtoArquivo.create({
+      data: {
+        produtoId: produto.id,
+        tipo: "IMAGEM",
+        principal: movida === principal,
+        arquivo: movida.nome,
+        nomeOriginal: null,
+        mimeType: movida.mimeType,
+        tamanhoBytes: movida.tamanhoBytes,
+        ordem,
+      },
+    });
+  }
+}
+
+/**
+ * As fotos do painel de um produto que JA EXISTE: o painel de fotos e o mesmo do cadastro novo (pedido do
+ * dono em 21/09/2026), e o Salvar aplica o resultado ao produto (ver `reconciliarImagensDoProduto`).
+ *
+ * So age quando o navegador diz que o painel CARREGOU (`fotosDoPainelProntas`). Sem isso, um painel que
+ * falhou ao abrir mandaria uma lista vazia, e o Salvar apagaria todas as fotos do produto.
+ */
+async function gravarImagensDoPainel(produto, formData) {
+  if (String(formData.get("fotosDoPainelProntas") ?? "") !== "1") return null;
+
+  const lote = String(formData.get("loteTemporario") ?? "");
+  if (!lote) return null;
+
+  const ler = (campo) => {
+    try {
+      const valor = JSON.parse(String(formData.get(campo) ?? "[]"));
+      return Array.isArray(valor) ? valor : [];
+    } catch {
+      return [];
+    }
+  };
+
+  return reconciliarImagensDoProduto({
+    produto,
+    lote,
+    itens: ler("imagensDoLote"),
+    preservar: ler("arquivosPreservados").filter((id) => typeof id === "string"),
+  });
+}
+
 /** Envio de documento ou certificado num produto que ainda nao foi salvo. */
 export async function enviarArquivoTemporario(lote, tipo, formData) {
   try {
@@ -287,14 +366,15 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     if (!id) {
       const produto = await prisma.produto.create({ data: dados });
 
-      // Imagens do produto usado em "Buscar por codigo". So agora ha pasta para
-      // elas. Foto recusada (tamanho, formato) nao desfaz o cadastro: e contada
-      // e a tela avisa.
-      let imagens = null;
-      const origem = formData.get("importarImagensDe");
-      if (origem) {
-        const { fontes } = await imagensDaOrigem(String(origem));
-        if (fontes.length > 0) imagens = await anexarImagens(produto.id, produto.sku, fontes);
+      // Fotos do painel de imagens (ja padronizadas, no lote temporario): saem do lote
+      // para a pasta do produto, que so agora tem nome (o SKU). Como os documentos abaixo,
+      // falha aqui NAO vira erro do Salvar: o produto ja existe.
+      let avisoImagens = null;
+      try {
+        await gravarImagensDoLote(produto, formData);
+      } catch (erro) {
+        console.error("Falha ao gravar as fotos do cadastro novo:", erro.message);
+        avisoImagens = "O produto foi salvo, mas as fotos nao foram gravadas. Envie de novo.";
       }
 
       // Documentos e certificado enviados antes de salvar: saem da pasta
@@ -311,6 +391,10 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
         console.error("Falha ao gravar documentos do cadastro novo:", erro.message);
         avisoArquivos = "O produto foi salvo, mas os documentos enviados antes de salvar nao foram gravados. Envie de novo.";
       }
+
+      // O lote acabou: os originais das fotos, as previas e o que sobrou dos documentos nao
+      // servem mais (o original so existe ate o Salvar, decisao do dono em 21/09/2026).
+      await descartarLote(String(formData.get("loteTemporario") ?? "")).catch(() => {});
 
       // Fornecedores adicionados na aba antes de o produto existir: o mesmo
       // motivo do try/catch acima — o produto ja foi criado, entao uma falha
@@ -337,7 +421,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       return {
         ok: true,
         id: produto.id,
-        imagens: imagens && { salvas: imagens.salvas, recusadas: imagens.recusadas.length },
+        avisoImagens,
         avisoArquivos,
         avisoFornecedores,
         avisoConcorrentes,
@@ -359,6 +443,21 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     }
 
     const produto = await prisma.produto.update({ where: { id }, data: dados });
+
+    // Fotos: o painel (ja padronizado, no lote temporario) vira o que o produto tem. A renomeacao da
+    // pasta veio antes, entao `produto.sku` ja e o nome da pasta certa. Diferente do cadastro novo, o
+    // produto ja existia, entao uma falha aqui e DEVOLVIDA como erro: o lote fica, e um segundo Salvar
+    // tenta de novo (a operacao refaz a comparacao com o que esta gravado, e nao duplica nada).
+    try {
+      await gravarImagensDoPainel(produto, formData);
+    } catch (erro) {
+      console.error("Falha ao gravar as fotos do produto:", erro.message);
+      return {
+        ok: false,
+        erro: "Os dados foram salvos, mas as fotos nao foram gravadas. Clique em Salvar de novo.",
+      };
+    }
+    await descartarLote(String(formData.get("loteTemporario") ?? "")).catch(() => {});
 
     revalidatePath("/produtos");
     revalidatePath(`/produtos/${id}`);
@@ -394,7 +493,18 @@ export async function enviarArquivo(produtoId, tipo, _estadoAnterior, formData) 
     }
   }
 
-  const resultado = await salvarArquivo(produto.sku, tipo, formData.get("arquivo"));
+  // Foto enviada DEPOIS de o produto existir tambem vai para o padrao (1024x1024, fundo
+  // branco, JPEG), decisao do dono em 21/09/2026: o mesmo produto nao pode ter uma foto no
+  // padrao e outra fora dele. Documento e certificado seguem sem mexer nos bytes.
+  let arquivo = formData.get("arquivo");
+  if (tipo === "IMAGEM" && arquivo && typeof arquivo.arrayBuffer === "function" && arquivo.size) {
+    const padrao = await padronizarImagem(Buffer.from(await arquivo.arrayBuffer()));
+    if (!padrao.ok) return { ok: false, erro: padrao.erro };
+    const nome = String(arquivo.name ?? "foto").replace(/\.[^.]+$/, "");
+    arquivo = new File([padrao.bytes], `${nome}.jpg`, { type: padrao.mimeType });
+  }
+
+  const resultado = await salvarArquivo(produto.sku, tipo, arquivo);
   if (!resultado.ok) return { ok: false, erro: resultado.erro };
 
   const ultimo = await prisma.produtoArquivo.findFirst({

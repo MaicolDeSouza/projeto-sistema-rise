@@ -29,6 +29,9 @@ enum Servico {
   ANTHROPIC
   /// Consulta publica de CEP no cadastro de cliente. So o CEP sai daqui.
   VIACEP
+  /// Tratamento da foto do produto novo (Photoroom). Cada previa (sandbox, gratis) e
+  /// cada compra (producao, cobra) e uma linha; o modo vai no `endpoint`.
+  PHOTOROOM
 }
 
 enum TipoPessoa {

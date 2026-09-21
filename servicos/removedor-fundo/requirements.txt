@@ -1,0 +1,6 @@
+# Ambiente do removedor de fundo (Python 3.12; o rembg exige >=3.11,<3.14).
+#   py -3.12 -m venv .venv
+#   .venv/Scripts/python.exe -m pip install -r requirements.txt
+#
+# Versao de CPU do onnxruntime: a maquina nao tem placa NVIDIA.
+rembg[cpu]==2.0.85

@@ -9,15 +9,12 @@ import {
   useState,
   useTransition,
 } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   BadgeDollarSign,
   ExternalLink,
   FileText,
   Hammer,
-  ImageOff,
-  ImagePlus,
   ListChecks,
   Loader,
   Search,
@@ -33,18 +30,25 @@ import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import { UNIDADES } from "@/lib/unidades";
 import { ORIGENS, TIPOS_ITEM } from "@/lib/fiscal";
-import { LIMITE_TITULO_ML, MAXIMO_IMAGENS } from "@/lib/limites";
+import { LIMITE_TITULO_ML, MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/limites";
 import { medidasDaDescricao } from "@/lib/medidas";
 import BuscarPorCodigo from "./BuscarPorCodigo";
 import Concorrentes from "./Concorrentes";
 import EditorDescricao from "./EditorDescricao";
 import Fornecedores from "./Fornecedores";
 import JanelaDescricao from "./JanelaDescricao";
+import PainelDeImagens from "./PainelDeImagens";
 import ReferenciasDeMercado, { MAXIMO_MARCADOS } from "./ReferenciasDeMercado";
+import {
+  descartarLoteDeArquivos,
+  importarFotosDasReferencias,
+  importarImagensDaOrigem,
+  prepararFotosDoProduto,
+  removerImagensDoLote,
+} from "@/app/produtos/acoes-imagens";
 import {
   camposDasReferencias,
   criarTitulosIA,
-  definirImagemPrincipal,
   enviarArquivo,
   enviarArquivoTemporario,
   gerarSku,
@@ -915,224 +919,6 @@ function LinkLojaIntegrada({ inicial, dominio, erro }) {
   );
 }
 
-/**
- * Imagem grande com miniaturas abaixo.
- *
- * Clicar numa miniatura troca a imagem grande em ESTADO DE CLIENTE — instantaneo
- * — e persiste a escolha em segundo plano. Antes, o clique ia ao servidor,
- * reordenava tudo e revalidava a rota: as miniaturas dancavam e cada clique
- * levava de 500ms a 3s.
- */
-function Imagens({ produtoId, imagens, aoFalhar }) {
-  const [pendente, iniciarTransicao] = useTransition();
-  const [erro, setErro] = useState(null);
-  const entrada = useRef(null);
-
-  const inicial =
-    imagens.find((imagem) => imagem.principal) ?? imagens[0] ?? null;
-  const [selecionada, setSelecionada] = useState(inicial?.id ?? null);
-
-  const emFoco =
-    imagens.find((imagem) => imagem.id === selecionada) ?? inicial ?? null;
-  const cheio = imagens.length >= MAXIMO_IMAGENS;
-
-  function escolher(imagem) {
-    setSelecionada(imagem.id); // troca visual imediata
-    iniciarTransicao(async () => {
-      const r = await tentar(() => definirImagemPrincipal(imagem.id));
-      if (!r.ok) aoFalhar?.(r.erro);
-    });
-  }
-
-  function aoEscolherArquivo(evento) {
-    const arquivo = evento.target.files?.[0];
-    if (!arquivo) return;
-
-    const dados = new FormData();
-    dados.set("arquivo", arquivo);
-
-    iniciarTransicao(async () => {
-      const resultado = await tentar(() =>
-        enviarArquivo(produtoId, "IMAGEM", null, dados),
-      );
-      setErro(resultado.ok ? null : resultado.erro);
-      if (entrada.current) entrada.current.value = "";
-    });
-  }
-
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded border border-borda bg-superficie">
-        {emFoco ? (
-          <Image
-            src={emFoco.url}
-            alt=""
-            fill
-            sizes="(max-width: 1024px) 100vw, 320px"
-            className="object-contain p-2"
-          />
-        ) : (
-          <span className="flex flex-col items-center gap-1 text-suave">
-            <ImageOff size={28} />
-            <span className="text-xs">Sem imagem</span>
-          </span>
-        )}
-      </div>
-
-      {/* Ordem fixa: a selecionada ganha borda, nunca muda de lugar. Uma linha so,
-          com rolagem lateral: quebrar em duas empurraria a foto grande. */}
-      <div className="mt-2 flex shrink-0 gap-1.5 overflow-x-auto pt-1.5 pr-1.5">
-        {imagens.map((imagem) => (
-          <div key={imagem.id} className="group relative">
-            <button
-              type="button"
-              onClick={() => escolher(imagem)}
-              title={
-                imagem.id === emFoco?.id
-                  ? "Imagem principal"
-                  : "Usar como imagem principal"
-              }
-              className={`relative block h-11 w-11 overflow-hidden rounded border-2 bg-superficie ${
-                imagem.id === emFoco?.id
-                  ? "border-acento"
-                  : "border-borda hover:border-acento/50"
-              }`}
-            >
-              <Image
-                src={imagem.url}
-                alt=""
-                fill
-                sizes="44px"
-                className="object-contain p-0.5"
-              />
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                iniciarTransicao(async () => {
-                  const r = await tentar(() => removerArquivo(imagem.id));
-                  if (!r.ok) setErro(r.erro);
-                })
-              }
-              aria-label="Remover imagem"
-              className="absolute -top-1.5 -right-1.5 rounded-full bg-red-600 p-0.5 text-white opacity-0 transition group-hover:opacity-100"
-            >
-              <Trash2 size={10} />
-            </button>
-          </div>
-        ))}
-
-        <button
-          type="button"
-          onClick={() => entrada.current?.click()}
-          disabled={pendente || cheio}
-          title={
-            cheio ? `Limite de ${MAXIMO_IMAGENS} imagens` : "Adicionar imagem"
-          }
-          className="flex h-11 w-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded border border-dashed border-borda text-suave hover:border-acento hover:text-acento disabled:opacity-40"
-        >
-          {pendente ? (
-            <Loader size={15} className="animate-spin" />
-          ) : (
-            <>
-              <ImagePlus size={15} />
-              <span className="text-[9px]">
-                {imagens.length}/{MAXIMO_IMAGENS}
-              </span>
-            </>
-          )}
-        </button>
-      </div>
-
-      <input
-        ref={entrada}
-        type="file"
-        accept="image/jpeg,image/png"
-        onChange={aoEscolherArquivo}
-        className="hidden"
-      />
-
-      {erro && (
-        <p
-          className="mt-1 shrink-0 truncate rounded bg-red-50 px-2 py-1 text-[11px] text-red-800"
-          title={erro}
-        >
-          {erro}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/**
- * Previa das imagens do produto escolhido em "Buscar por codigo".
- *
- * O produto novo ainda nao tem pasta, entao as fotos sao copiadas no Salvar. O
- * formulario manda so a REFERENCIA de origem (`importarImagensDe`); os enderecos
- * sao lidos de novo no servidor.
- *
- * <img> e nao next/image: a foto de concorrente vem de host externo, e o
- * next/image lanca excecao para host fora de remotePatterns.
- */
-function ImagensAImportar({ imagens, aoDescartar }) {
-  const [emFoco, setEmFoco] = useState(0);
-  const principal = imagens.previas[emFoco] ?? imagens.previas[0];
-
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <input type="hidden" name="importarImagensDe" value={imagens.origem} />
-      <div className="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded border border-borda bg-white">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={principal}
-          alt=""
-          className="h-full w-full object-contain p-2"
-        />
-      </div>
-
-      {imagens.previas.length > 1 && (
-        <div className="mt-2 flex shrink-0 gap-1.5 overflow-x-auto">
-          {imagens.previas.map((previa, indice) => (
-            <button
-              key={previa}
-              type="button"
-              onClick={() => setEmFoco(indice)}
-              className={`relative h-11 w-11 shrink-0 overflow-hidden rounded border-2 bg-white ${
-                indice === emFoco
-                  ? "border-acento"
-                  : "border-borda hover:border-acento/50"
-              }`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={previa}
-                alt=""
-                className="h-full w-full object-contain p-0.5"
-              />
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Uma linha so, para caber no bloco; a regra de tamanho fica no title. */}
-      <p
-        className="mt-1 shrink-0 truncate text-[11px] text-suave"
-        title="Copiadas ao salvar. Fotos fora de 500 a 1920 px (regra do Mercado Livre) ficam de fora."
-      >
-        {imagens.previas.length} imagem(ns) de <strong>{imagens.fonte}</strong>{" "}
-        ao salvar ·{" "}
-        <button
-          type="button"
-          onClick={aoDescartar}
-          className="text-red-700 underline"
-        >
-          Nao importar
-        </button>
-      </p>
-    </div>
-  );
-}
-
 /** Envio de documento (manual, ficha tecnica, certificado). */
 function Documento({ produtoId, tipo, rotulo, ajuda, arquivos }) {
   const [pendente, iniciarTransicao] = useTransition();
@@ -1365,7 +1151,27 @@ export default function FormularioProduto({
   const [iaEmCurso, setIaEmCurso] = useState(null);
   const [erroIA, setErroIA] = useState(null);
   const [opcoesTitulo, setOpcoesTitulo] = useState(null);
-  const [imagensAImportar, setImagensAImportar] = useState(null);
+  // Fotos do produto novo, ja padronizadas no servidor (lote temporario). A ordem e a da lista, e
+  // a PRIMEIRA e a principal (pedido do dono em 21/09/2026: ele ordena arrastando as miniaturas,
+  // e a mais a esquerda vira a principal). Nao ha estado proprio da principal.
+  const [imagensLote, setImagensLote] = useState([]);
+  const [importandoImagens, setImportandoImagens] = useState(false);
+  const [progressoDaImportacao, setProgressoDaImportacao] = useState(null);
+  // Produtos coletados cujas fotos ja foram trazidas para o painel (mesmo os que nao tinham foto
+  // nenhuma): fechar a janela da lupa de novo nao pode baixar tudo outra vez.
+  const refsComFotos = useRef(new Set());
+
+  // EDITAR um produto usa o MESMO painel do cadastro novo (pedido do dono em 21/09/2026): as fotos
+  // dele entram no painel ao abrir a tela, e o Salvar aplica o resultado.
+  //  - `carregandoFotosDoProduto`: enquanto elas entram, o Salvar espera (senao mandaria uma lista vazia);
+  //  - `fotosProntas`: o painel CARREGOU. Vai no envio (`fotosDoPainelProntas`), e sem ele o servidor
+  //    nao mexe nas fotos: se a carga falhar, salvar os dados do produto nao pode apagar as fotos dele;
+  //  - `fotosPreservadas`: fotos que nao abriram (arquivo sumido ou ilegivel). Voltam no envio para o
+  //    servidor NAO achar que foram excluidas.
+  const [carregandoFotosDoProduto, setCarregandoFotosDoProduto] = useState(Boolean(produto));
+  const [fotosProntas, setFotosProntas] = useState(false);
+  const [fotosPreservadas, setFotosPreservadas] = useState([]);
+  const carregouFotosDoProduto = useRef(false);
 
   // Funcoes de preenchimento ja usadas neste cadastro, para o icone mudar de cor
   // (pedido do dono em 16/09/2026): sem isso nao da para saber, olhando a tela,
@@ -1384,6 +1190,32 @@ export default function FormularioProduto({
   // servidor e o do navegador seriam diferentes e o React acusaria.
   const [loteTemporario, setLoteTemporario] = useState("");
   const [temporarios, setTemporarios] = useState([]);
+
+  // Produto existente: as fotos dele entram no painel ao abrir a tela (ver `carregandoFotosDoProduto`).
+  useEffect(() => {
+    if (!produto || carregouFotosDoProduto.current) return;
+    // Uma vez so: o modo estrito do desenvolvimento roda o efeito duas vezes, e duas copias das fotos
+    // no mesmo lote apareceriam em dobro.
+    carregouFotosDoProduto.current = true;
+
+    const novoLote = crypto.randomUUID();
+    tentar(() => prepararFotosDoProduto(novoLote, produto.id)).then((resposta) => {
+      if (resposta.ok) {
+        setLoteTemporario(novoLote);
+        setImagensLote(resposta.imagens);
+        setFotosPreservadas(resposta.naoCarregadas);
+        setFotosProntas(true);
+        if (resposta.naoCarregadas.length > 0) {
+          setErroAcao(
+            `${resposta.naoCarregadas.length} foto(s) do produto nao puderam ser abertas e ficam como estao.`,
+          );
+        }
+      } else {
+        setErroAcao(`As fotos do produto nao carregaram (${resposta.erro}). Salvar nao mexe nelas.`);
+      }
+      setCarregandoFotosDoProduto(false);
+    });
+  }, [produto]);
 
   // Fornecedores adicionados antes de o produto existir (pedido do dono em
   // 18/09/2026, para poder cadastrar fornecedor junto com o produto novo, como
@@ -1420,17 +1252,119 @@ export default function FormularioProduto({
     return resultado;
   }
 
-  // Esquece os documentos enviados antes de salvar e apaga os arquivos do lote.
-  // Sem apagar, ficariam no disco ate a limpeza de 24 h, sem ninguem apontando
+  // O lote (UUID) nasce no primeiro envio, de documento OU de foto. Devolve o lote para
+  // quem vai usa-lo agora mesmo: o estado so muda no proximo desenho.
+  function garantirLote() {
+    if (loteTemporario) return loteTemporario;
+    const novoLote = crypto.randomUUID();
+    setLoteTemporario(novoLote);
+    return novoLote;
+  }
+
+  // Esquece os documentos e as fotos enviados antes de salvar e apaga o lote inteiro no
+  // servidor. Sem apagar, ficariam no disco ate a limpeza de 24 h, sem ninguem apontando
   // para eles.
   function limparTemporarios() {
-    for (const item of temporarios) {
-      tentar(() =>
-        removerArquivoTemporario(loteTemporario, item.tipo, item.nome),
-      );
-    }
+    if (loteTemporario) tentar(() => descartarLoteDeArquivos(loteTemporario));
     setTemporarios([]);
+    setImagensLote([]);
     setLoteTemporario("");
+    refsComFotos.current.clear();
+  }
+
+  // As fotos dos fornecedores e concorrentes marcados na lupa entram no painel quando a janela
+  // fecha (pedido do dono em 21/09/2026: todas as fotos dos produtos escolhidos, para ele ficar
+  // so com as melhores). Fechar e o momento em que ele termina de escolher, como nos
+  // fornecedores e concorrentes da aba.
+  //  - marcado agora: traz as fotos, uma vez;
+  //  - desmarcado: saem as fotos que o dono nao tocou. As que ele ja finalizou ou melhorou (paga)
+  //    ficam, e as que vieram do "Clonar" tambem: o que ele pediu antes nao some por causa da lupa.
+  function trazerFotosDasReferencias() {
+    // Produto existente: so depois de o painel ter carregado as fotos dele (o lote nasce la).
+    if (produto && !fotosProntas) return;
+
+    const ids = [...marcados.keys()];
+    const marcadosAgora = new Set(ids);
+
+    const sairam = imagensLote.filter(
+      (imagem) =>
+        imagem.ref &&
+        !imagem.doClone &&
+        !marcadosAgora.has(imagem.ref) &&
+        !imagem.finalizada &&
+        !imagem.melhorada,
+    );
+    const basesQueSairam = new Set(sairam.map((imagem) => imagem.base));
+    if (sairam.length > 0) {
+      tentar(() => removerImagensDoLote(loteTemporario, [...basesQueSairam]));
+      setImagensLote((anteriores) => anteriores.filter((imagem) => !basesQueSairam.has(imagem.base)));
+    }
+
+    // Uma referencia so sai da lista de "ja trazidas" quando nao sobrou foto dela no painel; se
+    // sobrou (finalizada, melhorada), marcar de novo nao pode trazer tudo em dobro.
+    for (const ref of [...refsComFotos.current]) {
+      if (marcadosAgora.has(ref)) continue;
+      const sobrou = imagensLote.some((imagem) => imagem.ref === ref && !basesQueSairam.has(imagem.base));
+      if (!sobrou) refsComFotos.current.delete(ref);
+    }
+
+    const novas = ids.filter((id) => !refsComFotos.current.has(id));
+    if (novas.length === 0) return;
+    // Marca antes de esperar a resposta: duas aberturas seguidas da lupa nao podem baixar em dobro.
+    for (const id of novas) refsComFotos.current.add(id);
+
+    const lote = garantirLote();
+    let vagas = MAXIMO_FOTOS_NO_PAINEL - (imagensLote.length - basesQueSairam.size);
+    setImportandoImagens(true);
+
+    // UM PRODUTO POR VEZ, e as fotos dele ja entram no painel quando o servidor responde (pedido do
+    // dono em 21/09/2026): a espera e o download das lojas, que varia de 1 a 3 s por foto, e antes o
+    // painel ficava vazio ate a ultima chegar. O servidor nao baixa de novo a foto que ja esta no lote
+    // (pelo conteudo), entao trazer em chamadas separadas nao duplica.
+    (async () => {
+      let recusadas = 0;
+      let foraDoLimite = 0;
+      let trazidas = 0;
+      let falhou = null;
+
+      for (const [posicao, id] of novas.entries()) {
+        setProgressoDaImportacao(`Trazendo as fotos (produto ${posicao + 1} de ${novas.length})...`);
+        const resposta = await tentar(() => importarFotosDasReferencias(lote, [id], vagas));
+        if (!resposta.ok) {
+          refsComFotos.current.delete(id);
+          falhou = resposta.erro;
+          continue;
+        }
+        if (resposta.imagens.length > 0) {
+          // Entram no fim da fila: so viram a principal se nao havia nenhuma antes.
+          setImagensLote((anteriores) => [...anteriores, ...resposta.imagens]);
+          setAlterado(true);
+          vagas -= resposta.imagens.length;
+          trazidas += resposta.imagens.length;
+        }
+        recusadas += resposta.recusadas;
+        foraDoLimite += resposta.foraDoLimite;
+      }
+
+      const avisos = [];
+      if (falhou) avisos.push(falhou);
+      if (recusadas > 0) {
+        avisos.push(
+          `${recusadas} foto(s) dos produtos marcados nao puderam ser trazidas (ilegivel ou o site nao respondeu).`,
+        );
+      }
+      if (foraDoLimite > 0) {
+        avisos.push(
+          `O painel guarda ${MAXIMO_FOTOS_NO_PAINEL} fotos: ${foraDoLimite} dos produtos marcados ficaram de fora.`,
+        );
+      }
+      if (trazidas === 0 && avisos.length === 0) {
+        avisos.push("Os produtos marcados nao trouxeram nenhuma foto nova.");
+      }
+      setErroAcao(avisos.length > 0 ? avisos.join(" ") : null);
+      setImportandoImagens(false);
+      setProgressoDaImportacao(null);
+    })();
   }
 
   async function removerTemporario(item) {
@@ -1454,6 +1388,7 @@ export default function FormularioProduto({
     // termina de escolher, e nao cada marcacao dentro da janela.
     fornecedoresRef.current?.sincronizarSugestoes();
     concorrentesRef.current?.sincronizarSugestoes();
+    trazerFotosDasReferencias();
 
     const ids = [...marcados.keys()];
     if (ids.length === 0) {
@@ -1570,11 +1505,22 @@ export default function FormularioProduto({
   // cascata (e a regra do React 19 barra).
   const [estado, acao, enviando] = useActionState(
     async (anterior, formData) => {
-      const resultado = await salvarProduto(
-        produto?.id ?? null,
-        anterior,
-        formData,
-      );
+      // O painel guarda mais fotos do que o produto leva (as candidatas dos produtos marcados na
+      // lupa). Lido do que esta sendo ENVIADO, e nao do estado: a acao nao pode enxergar uma foto
+      // velha. Recusar aqui evita o servidor cortar as fotos que sobram sem o dono ver.
+      let fotosNoEnvio = 0;
+      try {
+        fotosNoEnvio = JSON.parse(formData.get("imagensDoLote") ?? "[]").length;
+      } catch {
+        // Campo ilegivel: o servidor ignora e o produto vai sem fotos do painel.
+      }
+      const resultado =
+        fotosNoEnvio > MAXIMO_IMAGENS
+          ? {
+              ok: false,
+              erro: `O painel tem ${fotosNoEnvio} fotos e o produto leva no maximo ${MAXIMO_IMAGENS}. Exclua ${fotosNoEnvio - MAXIMO_IMAGENS} (Melhorar > Excluir).`,
+            }
+          : await salvarProduto(produto?.id ?? null, anterior, formData);
 
       /*
       O REACT 19 LIMPA O FORMULARIO DEPOIS DA ACTION, e o que volta e o
@@ -1600,10 +1546,7 @@ export default function FormularioProduto({
           // Quantas imagens vieram vai na URL: a tela do produto ja criado e outra
           // pagina, e sem isso a foto recusada sumiria em silencio.
           const busca = new URLSearchParams();
-          if (resultado.imagens) {
-            busca.set("imagens", resultado.imagens.salvas);
-            busca.set("recusadas", resultado.imagens.recusadas);
-          }
+          if (resultado.avisoImagens) busca.set("fotos", "falhou");
           if (resultado.avisoArquivos) busca.set("documentos", "falhou");
           if (resultado.avisoFornecedores) busca.set("fornecedores", "falhou");
           if (resultado.avisoConcorrentes) busca.set("concorrentes", "falhou");
@@ -1704,16 +1647,6 @@ export default function FormularioProduto({
   }
 
   function preencher(resultado) {
-    // Imagens vao junto na previa; a copia so acontece no Salvar.
-    setImagensAImportar(
-      resultado.imagens?.length > 0
-        ? {
-            origem: resultado.id,
-            previas: resultado.imagens,
-            fonte: resultado.fonte,
-          }
-        : null,
-    );
     // Recomeca do ZERO, e tudo o que era do cadastro anterior sai junto (pedido
     // do dono em 19/09/2026, duas vezes: primeiro os campos, depois a lupa, que
     // continuava apontando para o primeiro produto clonado):
@@ -1733,11 +1666,45 @@ export default function FormularioProduto({
     setConcorrentesRascunho([]);
     limparTemporarios();
     aplicar(resultado.campos, { recomecar: true });
+
+    // As fotos do produto clonado entram no painel AGORA, baixadas e padronizadas no
+    // servidor, e nao so no Salvar: assim o dono ve a foto final e ja pode melhorar uma
+    // delas. Vem so a REFERENCIA (`resultado.id`); os enderecos sao lidos de novo la.
+    if (resultado.imagens?.length > 0) {
+      const novoLote = crypto.randomUUID();
+      setLoteTemporario(novoLote);
+      setImportandoImagens(true);
+      // Foto de produto coletado leva o id dele: se o mesmo produto for marcado na lupa depois,
+      // as fotos nao entram de novo. `doClone` a protege de sair quando ele nao estiver marcado.
+      const idColetado = String(resultado.id ?? "").startsWith("coletado:")
+        ? resultado.id.slice("coletado:".length)
+        : null;
+      if (idColetado) refsComFotos.current.add(idColetado);
+      tentar(() => importarImagensDaOrigem(novoLote, resultado.id)).then((resposta) => {
+        if (resposta.ok) {
+          setImagensLote(
+            idColetado
+              ? resposta.imagens.map((imagem) => ({ ...imagem, ref: idColetado, doClone: true }))
+              : resposta.imagens,
+          );
+          if (resposta.recusadas > 0) {
+            setErroAcao(
+              `${resposta.recusadas} foto(s) do produto de origem nao puderam ser trazidas (ilegivel ou o site nao respondeu).`,
+            );
+          }
+        } else {
+          setErroAcao(resposta.erro);
+        }
+        setImportandoImagens(false);
+      });
+    }
   }
 
   // Sem confirmacao (pedido do dono em 18/09/2026): Cancelar sempre descarta e
   // volta para a lista, direto.
   function cancelar() {
+    // O lote do painel (as fotos copiadas, as previas) nao serve mais.
+    if (loteTemporario) tentar(() => descartarLoteDeArquivos(loteTemporario));
     router.push("/produtos");
   }
 
@@ -1756,6 +1723,22 @@ export default function FormularioProduto({
         name="arquivosTemporarios"
         value={JSON.stringify(temporarios)}
       />
+      {/* Fotos do painel de imagens, na ordem, a principal marcada (ver PainelDeImagens). */}
+      <input
+        type="hidden"
+        name="imagensDoLote"
+        value={JSON.stringify(
+          imagensLote.map((imagem, posicao) => ({
+            base: imagem.base,
+            principal: posicao === 0,
+            // Da foto que ja era do produto: o servidor sabe qual linha ela substitui ou mantem.
+            arquivoId: imagem.arquivoId ?? null,
+          })),
+        )}
+      />
+      {/* Produto existente: so com o painel carregado o servidor mexe nas fotos (ver `fotosProntas`). */}
+      <input type="hidden" name="fotosDoPainelProntas" value={fotosProntas ? "1" : "0"} />
+      <input type="hidden" name="arquivosPreservados" value={JSON.stringify(fotosPreservadas)} />
       {/* Fornecedores adicionados antes de o produto existir (ver Fornecedores.jsx). */}
       <input
         type="hidden"
@@ -1773,7 +1756,7 @@ export default function FormularioProduto({
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="submit"
-          disabled={enviando}
+          disabled={enviando || carregandoFotosDoProduto}
           className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
           {enviando && <Loader size={14} className="animate-spin" />}
@@ -1836,25 +1819,18 @@ export default function FormularioProduto({
             */}
             <div className="relative h-80 lg:h-auto">
               <div className="absolute inset-0">
-                {novo && imagensAImportar ? (
-                  <ImagensAImportar
-                    imagens={imagensAImportar}
-                    aoDescartar={() => setImagensAImportar(null)}
-                  />
-                ) : novo ? (
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-1 rounded border border-dashed border-borda text-suave">
-                    <ImageOff size={26} />
-                    <span className="px-4 text-center text-xs">
-                      Salve o produto para enviar imagens
-                    </span>
-                  </div>
-                ) : (
-                  <Imagens
-                    produtoId={produto.id}
-                    imagens={arquivos.IMAGEM ?? []}
-                    aoFalhar={setErroAcao}
-                  />
-                )}
+                {/* O mesmo painel no produto novo e na edicao. */}
+                <PainelDeImagens
+                  lote={loteTemporario}
+                  garantirLote={garantirLote}
+                  imagens={imagensLote}
+                  setImagens={setImagensLote}
+                  importando={importandoImagens || carregandoFotosDoProduto}
+                  progressoDaImportacao={
+                    carregandoFotosDoProduto ? "Carregando as fotos do produto..." : progressoDaImportacao
+                  }
+                  aoAlterar={() => setAlterado(true)}
+                />
               </div>
             </div>
 

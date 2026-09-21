@@ -140,11 +140,15 @@ export async function padronizarImagem(bytes) {
       })
       .toColourspace("srgb");
 
+    // Codificador JPEG comum, e nao o mozjpeg: medido em 21/09/2026 com fotos reais, o mozjpeg
+    // levava ~340 ms por foto (so ~64 ms eram do redimensionamento) contra ~78 ms do comum, e o
+    // arquivo saia so 13% menor (137 contra 155 KB), muito abaixo do teto de 1 MB. Com 20 fotos
+    // entrando de uma vez pela lupa, eram segundos a mais para nenhum ganho que o dono note.
     let escolhido = null;
     for (const qualidade of QUALIDADES) {
       const saida = await base
         .clone()
-        .jpeg({ quality: qualidade, mozjpeg: true, chromaSubsampling: "4:4:4" })
+        .jpeg({ quality: qualidade, mozjpeg: false, chromaSubsampling: "4:4:4" })
         .toBuffer();
       escolhido = { saida, qualidade };
       if (saida.length <= PESO_ALVO_BYTES) break;

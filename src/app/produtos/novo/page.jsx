@@ -1,24 +1,12 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
 import PageHeader from "@/components/ui/PageHeader";
 import FormularioProduto from "@/components/produtos/FormularioProduto";
 
+// Sem a linha "Voltar para produtos" e sem a descricao (pedido do dono em 21/09/2026: a area de cima
+// ocupava espaco a toa). A seta ao lado do titulo volta para a lista.
 export default function NovoProdutoPage() {
   return (
     <>
-      <Link
-        href="/produtos"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-suave hover:text-texto"
-      >
-        <ArrowLeft size={15} />
-        Voltar para produtos
-      </Link>
-
-      <PageHeader
-        titulo="Novo produto"
-        descricao="Cadastre o produto uma vez. Todos os canais derivam deste cadastro."
-      />
+      <PageHeader titulo="Novo produto" voltarPara="/produtos" voltarRotulo="Voltar para produtos" />
 
       <FormularioProduto produto={null} />
     </>
