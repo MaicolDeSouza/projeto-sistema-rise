@@ -2,36 +2,26 @@ import { readFile } from "node:fs/promises";
 
 import { prisma } from "@/lib/db";
 import { MAXIMO_IMAGENS, caminhoDe, salvarArquivo, urlDe } from "@/lib/arquivos";
+import { padronizarImagem } from "@/lib/imagens/padronizar";
 
 /**
  * Imagens que vem de fora do formulario: do Bling, de outro produto da Rise ou
  * de um produto coletado de fornecedor/concorrente.
  *
- * Tudo passa por `salvarArquivo`, o mesmo caminho do envio manual, entao valem
- * as mesmas regras do Mercado Livre (JPEG/PNG, 500 a 1920 px). Foto fora delas e
- * pulada e contada — nunca derruba a gravacao do produto.
+ * Cada foto e PADRONIZADA (1024x1024, fundo branco, JPEG, ver `padronizarImagem`)
+ * antes de gravar, e a gravacao passa por `salvarArquivo`, o mesmo caminho do envio
+ * manual. Foto que nao da para tratar (ilegivel, formato que nao e JPEG/PNG/WebP,
+ * grande demais) e pulada e contada — nunca derruba a gravacao do produto. Nao ha
+ * tamanho minimo: foto pequena e ampliada e contada em `ampliadas`.
+ *
+ * So o cadastro de produto NOVO usa isto (decisao do dono em 20/09/2026): a coleta
+ * de fornecedor e concorrente guarda a foto como o site a publica.
  */
 
 const TIMEOUT_MS = 20 * 1000;
 
-/**
- * O tipo pelos primeiros bytes, e nao pelo cabecalho: CDN de loja devolve
- * `application/octet-stream` e base64 gravado na coleta pode declarar um tipo e
- * conter outro. WebP e GIF ficam sem tipo de proposito — o Mercado Livre nao
- * aceita, e a recusa sai com o motivo do `salvarArquivo`.
- */
-function tipoPelosBytes(bytes) {
-  if (bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-    return "image/jpeg";
-  }
-  if (bytes.length > 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
-    return "image/png";
-  }
-  return "";
-}
-
 /** Bytes de uma fonte: endereco http(s), data URI ou arquivo de outro produto. */
-async function bytesDe(fonte) {
+export async function bytesDe(fonte) {
   if (fonte.tipo === "arquivo") {
     const caminho = caminhoDe(fonte.sku, "IMAGEM", fonte.nome);
     if (!caminho) throw new Error("caminho de arquivo invalido");
@@ -70,13 +60,19 @@ export async function anexarImagens(produtoId, sku, fontes) {
   const vagas = Math.max(0, MAXIMO_IMAGENS - jaTem);
 
   let salvas = 0;
+  let ampliadas = 0;
   const recusadas = [];
 
   for (const fonte of fontes) {
     if (salvas >= vagas) break;
     try {
-      const bytes = await bytesDe(fonte);
-      const arquivo = new File([bytes], "importada", { type: tipoPelosBytes(bytes) });
+      const padrao = await padronizarImagem(await bytesDe(fonte));
+      if (!padrao.ok) {
+        recusadas.push(padrao.erro);
+        continue;
+      }
+
+      const arquivo = new File([padrao.bytes], "importada", { type: padrao.mimeType });
       const resultado = await salvarArquivo(sku, "IMAGEM", arquivo);
 
       if (!resultado.ok) {
@@ -97,12 +93,13 @@ export async function anexarImagens(produtoId, sku, fontes) {
         },
       });
       salvas++;
+      if (padrao.ampliada) ampliadas++;
     } catch (erro) {
       recusadas.push(erro.message);
     }
   }
 
-  return { salvas, recusadas };
+  return { salvas, ampliadas, recusadas };
 }
 
 /**

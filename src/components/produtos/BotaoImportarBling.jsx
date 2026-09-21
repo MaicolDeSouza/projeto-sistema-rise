@@ -25,6 +25,8 @@ export default function BotaoImportarBling() {
 
   const recusadas =
     resultado?.importados?.reduce((soma, item) => soma + item.recusadas.length, 0) ?? 0;
+  const ampliadas =
+    resultado?.importados?.reduce((soma, item) => soma + (item.ampliadas ?? 0), 0) ?? 0;
 
   return (
     <div className="flex flex-col items-end gap-1.5">
@@ -56,14 +58,19 @@ export default function BotaoImportarBling() {
                   .join(", ")}`}
           </p>
           {/*
-            Foto fora do tamanho aceito pelo Mercado Livre nao e trazida. Sem
-            dizer quantas, o produto aparece sem imagem e parece falha da
+            Foto ilegivel ou em formato que nao e JPEG, PNG ou WebP nao e trazida.
+            Sem dizer quantas, o produto aparece sem imagem e parece falha da
             importacao.
           */}
           {recusadas > 0 && (
             <p className="text-amber-700">
-              {recusadas} imagem(ns) nao trazida(s): fora de 500 a 1920px ou formato
-              nao aceito.
+              {recusadas} imagem(ns) nao trazida(s): ilegivel ou formato nao
+              aceito.
+            </p>
+          )}
+          {ampliadas > 0 && (
+            <p className="text-amber-700">
+              {ampliadas} imagem(ns) ampliada(s) para 1024px: podem ficar menos nitidas.
             </p>
           )}
           {resultado.falhas.map((falha) => (

@@ -222,7 +222,7 @@ export function loteValido(lote) {
 const TIPO_POR_EXTENSAO = { ".pdf": "application/pdf", ".jpg": "image/jpeg", ".png": "image/png" };
 
 /** Apaga lotes com mais de 24 h. Falha aqui nunca derruba o envio. */
-async function limparTemporariosAntigos() {
+export async function limparTemporariosAntigos() {
   try {
     const lotes = await readdir(RAIZ_TEMPORARIA, { withFileTypes: true });
     const agora = Date.now();
