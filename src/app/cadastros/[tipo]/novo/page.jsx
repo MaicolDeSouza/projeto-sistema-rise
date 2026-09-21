@@ -19,15 +19,15 @@ export default async function NovoCadastroPage({ params }) {
 
   let fontes = [];
   let transportadoras = [];
-  let condicoes = [];
   let erro = null;
 
   try {
     if (tipo === "clientes") {
-      [transportadoras, condicoes] = await Promise.all([
-        prisma.transportadora.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
-        prisma.condicaoPagamento.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
-      ]);
+      transportadoras = await prisma.transportadora.findMany({
+        where: { ativo: true },
+        orderBy: { nome: "asc" },
+        select: { id: true, nome: true },
+      });
     } else if (config.tiposDeFonte.length > 0) {
       fontes = await prisma.fonteColeta.findMany({
         where: { tipo: { in: config.tiposDeFonte } },
@@ -60,7 +60,6 @@ export default async function NovoCadastroPage({ params }) {
         <FormularioCliente
           cliente={null}
           transportadoras={transportadoras}
-          condicoes={condicoes}
           // Data de hoje calculada AQUI, no servidor, e nao no navegador: a mesma
           // conta nos dois lados perto da meia-noite daria datas diferentes e a
           // hidratacao reclamaria.

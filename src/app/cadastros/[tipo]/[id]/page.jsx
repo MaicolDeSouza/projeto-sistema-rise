@@ -27,9 +27,8 @@ function enderecoParaTela(endereco) {
  * Carrega o cliente com o que a tela precisa e o devolve em forma simples: sem
  * `Date` de banco nem `null` nos campos de texto.
  *
- * A transportadora e as condicoes que ele ja tem entram nas listas MESMO
- * inativas — senao editar um cliente apagaria, ao salvar, uma preferencia que a
- * tela nem chegou a mostrar.
+ * A transportadora que ele ja tem entra na lista MESMO inativa — senao editar um
+ * cliente apagaria, ao salvar, uma preferencia que a tela nem chegou a mostrar.
  */
 async function carregarCliente(id) {
   const cliente = await prisma.cliente.findUnique({
@@ -37,29 +36,18 @@ async function carregarCliente(id) {
     include: {
       enderecos: true,
       contatos: { orderBy: { criadoEm: "asc" } },
-      condicoesPreferidas: { select: { id: true } },
     },
   });
   if (!cliente) return null;
 
-  const condicoesIds = cliente.condicoesPreferidas.map((condicao) => condicao.id);
-
-  const [transportadoras, condicoes] = await Promise.all([
-    prisma.transportadora.findMany({
-      where: { OR: [{ ativo: true }, { id: cliente.transportadoraId ?? "" }] },
-      orderBy: { nome: "asc" },
-      select: { id: true, nome: true },
-    }),
-    prisma.condicaoPagamento.findMany({
-      where: { OR: [{ ativo: true }, { id: { in: condicoesIds } }] },
-      orderBy: { nome: "asc" },
-      select: { id: true, nome: true },
-    }),
-  ]);
+  const transportadoras = await prisma.transportadora.findMany({
+    where: { OR: [{ ativo: true }, { id: cliente.transportadoraId ?? "" }] },
+    orderBy: { nome: "asc" },
+    select: { id: true, nome: true },
+  });
 
   return {
     transportadoras,
-    condicoes,
     cliente: {
       id: cliente.id,
       nome: cliente.nome,
@@ -80,7 +68,6 @@ async function carregarCliente(id) {
       observacoes: texto(cliente.observacoes),
       ativo: cliente.ativo,
       transportadoraId: texto(cliente.transportadoraId),
-      condicoesIds,
       enderecos: {
         geral: enderecoParaTela(cliente.enderecos.find((e) => e.tipo === "GERAL")),
         entrega: enderecoParaTela(cliente.enderecos.find((e) => e.tipo === "ENTREGA")),
@@ -208,7 +195,6 @@ export default async function EditarCadastroPage({ params }) {
         <FormularioCliente
           cliente={dadosDoCliente.cliente}
           transportadoras={dadosDoCliente.transportadoras}
-          condicoes={dadosDoCliente.condicoes}
           hoje={new Date().toLocaleDateString("sv-SE")}
         />
       ) : tipo === "transportadoras" ? (

@@ -73,8 +73,8 @@ const ClienteSchema = z
   });
 
 /**
- * Cria (`id` nulo) ou atualiza um cliente, com seus enderecos, contatos e
- * condicoes preferidas, numa transacao so.
+ * Cria (`id` nulo) ou atualiza um cliente, com seus enderecos e contatos, numa
+ * transacao so.
  *
  * O servidor ZERA o que nao pertence ao tipo escolhido: a tela mantem montados os
  * campos dos dois tipos (trocar Fisica por Juridica e voltar nao perde o que foi
@@ -146,26 +146,14 @@ export async function salvarCliente(id, _anterior, formData) {
   if (dados.clienteDesde) dados.clienteDesde = new Date(`${dados.clienteDesde}T00:00:00.000Z`);
   else delete dados.clienteDesde;
 
-  // Ids vindos do navegador: so entra condicao que existe.
-  const idsCondicoes = [...new Set(formData.getAll("condicoes").map(String))];
-  const condicoes = idsCondicoes.length
-    ? await prisma.condicaoPagamento.findMany({
-        where: { id: { in: idsCondicoes } },
-        select: { id: true },
-      })
-    : [];
-  const preferidas = condicoes.map((condicao) => ({ id: condicao.id }));
-
+  // As condicoes de pagamento preferidas SAIRAM da tela (21/09/2026), mas a relacao
+  // continua no banco: nao mexer nela aqui. Gravar `set: []` apagaria em silencio o
+  // que ja estivesse ligado ao cliente.
   try {
     const cliente = await prisma.$transaction(async (tx) => {
       const salvo = id
-        ? await tx.cliente.update({
-            where: { id },
-            data: { ...dados, condicoesPreferidas: { set: preferidas } },
-          })
-        : await tx.cliente.create({
-            data: { ...dados, condicoesPreferidas: { connect: preferidas } },
-          });
+        ? await tx.cliente.update({ where: { id }, data: dados })
+        : await tx.cliente.create({ data: dados });
 
       // Geral: grava, atualiza ou apaga se ficou em branco.
       // Entrega: "mesmo endereco do Geral" NAO grava nada — uma copia ficaria velha

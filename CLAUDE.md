@@ -95,8 +95,9 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 | Integrações | Bling e ML conectados e testados; Loja Integrada via Bling |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
-| Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras, marcas e condições de pagamento; a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
+| Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
+| Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
 **A publicação nunca foi ligada.** `ML_PUBLICACAO` e `BLING_ESCRITA` estão em `false`, e
@@ -109,6 +110,8 @@ requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
 npm run teste:extracao            # 235 asserções da extração, da conciliação e das medidas, SEM rede
+npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
+npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
@@ -1652,6 +1655,13 @@ deste formulário.
   (é o `Fornecedor` real, único por loja); Concorrente exclui pela referência
   (`produtoColetadoId`), porque duas linhas do mesmo concorrente com produtos diferentes são
   legítimas — o Fornecedor é único por loja, o concorrente não.
+- **Coluna "Diferença" da lista de Concorrentes** (`Concorrentes.jsx`, 18 e 19/09/2026): o número é
+  `(nosso preço − preço normal do concorrente) ÷ preço normal do concorrente`, e **a seta e a cor
+  dizem onde está o CONCORRENTE em relação a nós**: mais barato = seta para baixo em **vermelho**
+  (o caso ruim para quem vende), mais caro = seta para cima em verde, igual = "Igual". A primeira
+  versão apontava para o nosso preço; o dono pediu a inversão em 19/09/2026 e o **número ficou o
+  mesmo** (39,90 contra 49,00 dá 22,8%). Como a coluna é medida vai numa bolha "i" no cabeçalho.
+  Se um dia a base passar a ser o NOSSO preço, o mesmo exemplo dá 18,6%: é uma linha em `Diferenca`.
 - **Manual e ficha técnica são um tipo só, `DOCUMENTO`** ("Documentos técnicos", pasta
   `documentos/`), desde 16/09/2026, decidido com o dono. Nada no sistema tratava um diferente do
   outro, e o mesmo PDF de fabricante costuma ser as duas coisas. **O certificado de
@@ -1708,36 +1718,46 @@ deste formulário.
     no hover de quem está em volta.
   - `onClick` da bolha para a propagação — quando ela mora dentro de um botão maior (a lupa),
     clicar em cima do "i" não pode disparar a ação do botão por baixo.
+  - **O texto zera a caixa herdada** (`normal-case tracking-normal font-normal`): dentro de um
+    `<th>` de tabela (`uppercase`, espaçamento largo) a explicação inteira saía em MAIÚSCULAS.
+  - **Bolha em cabeçalho de tabela é CORTADA por `overflow-x-auto`.** Qualquer `overflow` diferente
+    de `visible` prende também o eixo Y, e a bolha abre para cima, fora da caixa da tabela: no hover
+    não aparecia nada (conferido com `elementFromPoint`). Em `Concorrentes.jsx` o wrapper usa
+    `md:overflow-visible`, e a rolagem lateral fica só nas telas estreitas.
 
-## Cadastros: clientes, fornecedores, concorrentes, transportadoras, produtos, marcas e condições
+## Cadastros: clientes, fornecedores, concorrentes, transportadoras, produtos e marcas
 
 Pedido do dono em 18/09/2026: uma seção no menu para cadastrar fornecedores, concorrentes,
 produtos e o que mais fizesse falta. **Item de menu logo abaixo do Painel** (`blocos.js`),
-com as seções como **subitens em cascata** e uma seta para abrir/fechar. Ordem: Clientes,
-Fornecedores, Concorrentes, Transportadoras, Produtos, Marcas, Condições de pagamento.
+com as seções como **CARTÕES na própria página `/cadastros`** (desde 21/09/2026, pedido do dono, no
+desenho de Ferramentas; até ali eram subitens em cascata no menu). Ordem: Clientes, Fornecedores,
+Concorrentes, Transportadoras, Produtos, Marcas. A lista mora em `src/lib/secoesDeCadastros.js`; cada
+tela tem um link "← Cadastros" (`LinkDeVolta`, em `src/components/ui/`, usado também em Ferramentas).
+**Condições de pagamento saiu** (ver abaixo).
 
 - **A primeira versão tinha abas dentro da tela** (`?aba=`, no desenho de Fontes) e o item
   ficava acima de Mercados. O dono desenhou o pedido de novo no mesmo dia: subiu o item e
   moveu as abas para o menu. As abas **saíram da tela**.
-- **Cada seção tem rota própria:** `/cadastros/clientes|fornecedores|concorrentes|transportadoras|produtos|marcas|condicoes`
-  (`[tipo]/page.jsx`), e `/cadastros` só redireciona para **Clientes** (era Fornecedores até
-  Clientes entrar na frente). É o que deixa o item ativo sair de `ehRotaAtiva(pathname, href)`,
+- **Cada seção tem rota própria:** `/cadastros/clientes|fornecedores|concorrentes|transportadoras|produtos|marcas`
+  (`[tipo]/page.jsx`), e `/cadastros` mostra os cartões (até 21/09/2026 só redirecionava para
+  Clientes). É o que deixa o item ativo sair de `ehRotaAtiva(pathname, href)`,
   sem `useSearchParams` na barra lateral (que está no layout de todas as páginas e exigiria
   `Suspense`). Formulário: `[tipo]/novo` e `[tipo]/[id]`, só para clientes, fornecedores,
-  concorrentes e transportadoras (marcas, produtos e condições dão 404: marcas e condições
-  editam na linha, produtos usa a tela de Produtos).
+  concorrentes e transportadoras (marcas e produtos dão 404: marcas
+  edita na linha, produtos usa a tela de Produtos; `/cadastros/condicoes` também dá 404).
 - **Fornecedores, concorrentes e transportadoras são UMA tela** (`PARCEIROS` em
   `src/lib/cadastros.js`, `TabelaParceiros`, `FormularioParceiro`, `salvarParceiro`), e o que
   muda vem da configuração: `tiposDeFonte` vazio esconde a ligação com fonte de Mercados
   (transportadora não tem site varrido), `usos` dá o nome da coluna ("Produtos" do fornecedor,
   "Clientes" da transportadora), `artigo`/`novo` acertam o gênero ("Ja existe uma
-  transportadora", "Nova transportadora"). **Marcas e Condições de pagamento** são uma tabela
-  só, `TabelaSimples` (nome + observação, edição na linha).
+  transportadora", "Nova transportadora"). **Marcas** usa a `TabelaSimples` (nome +
+  observação, edição na linha), que continua genérica para o próximo cadastro simples.
 - **CNPJ é conferido pelos dígitos verificadores** (`src/lib/documentos.js`, sem imports, usado
   pela ação, pelo formulário e pelo teste) e guardado **formatado**, para "11222333000181" e
   "11.222.333/0001-81" não virarem dois textos. Vale para fornecedor, transportadora e cliente.
   Antes só se contava 14 dígitos no fornecedor.
-- **Cascata (`blocos.js` → `filhos`, `SidebarItem.jsx`):** um nível, cada filho é um link. A
+- **Cascata (`blocos.js` → `filhos`, `SidebarItem.jsx`) — hoje NENHUM bloco a usa**, mas o código do menu
+  continua suportando (Cadastros a usou até 21/09/2026): um nível, cada filho é um link. A
   seta é um botão **irmão** do link, não filho (botão dentro de `<a>` é HTML inválido e o clique
   navegaria junto). Sem escolha do operador, a cascata **segue a rota** (aberta dentro do
   bloco, fechada fora); depois de abrir/fechar na seta, vale a escolha, só até recarregar. Clicar
@@ -1745,7 +1765,7 @@ Fornecedores, Concorrentes, Transportadoras, Produtos, Marcas, Condições de pa
   (senão ela ficaria aberta depois de sair de Cadastros). Pesquisar no menu abre a cascata e
   mostra só os filhos que casaram ("marc" acha Cadastros > Marcas). **Barra recolhida:** sem
   seta, mas os filhos aparecem como ícones com tooltip, senão Marcas ficaria inalcançável.
-- **`revalidatePath("/cadastros", "layout")`**, e não `"/cadastros"`: a raiz só redireciona, e o
+- **`revalidatePath("/cadastros", "layout")`**, e não `"/cadastros"`: a raiz agora só mostra os cartões, e o
   path simples não alcança as rotas de baixo.
 
 - **A EMPRESA é uma coisa e o SITE que o worker varre é outra.** `Fornecedor` e `Concorrente`
@@ -1845,11 +1865,18 @@ mistura com fornecedor** (o Bling junta os dois numa tela).
   - **"Pessoas de contato" só existe para pessoa jurídica.** Fica montada e oculta na física, mas
     **o servidor nem lê a lista e apaga a gravada** quando o tipo é física, como faz com os demais
     campos do outro tipo. Trocar para física e salvar por engano perde os contatos.
-- **Transportadora preferida** é UMA, do cadastro de Transportadoras (`Restrict`); **condições de
-  pagamento preferidas** são VÁRIAS, do cadastro de Condições (m:n). **Transportadora ou condição
+- **Transportadora preferida** é UMA, do cadastro de Transportadoras (`Restrict`). **Transportadora
   em uso por cliente não é excluída**, e o recado diz quantos clientes usam. Editar um cliente
-  mantém na lista a transportadora e as condições que ele já tem mesmo se estiverem inativas —
-  senão salvar apagaria uma preferência que a tela nem mostrou.
+  mantém na lista a transportadora que ele já tem mesmo se estiver inativa — senão salvar apagaria
+  uma preferência que a tela nem mostrou.
+- **Condições de pagamento REMOVIDAS em 21/09/2026 (pedido do dono: "a seção pode ser removida").**
+  Saíram o cartão, a rota, a tabela, as ações `salvarCondicao`/`excluirCondicao` e **o campo "Condições
+  de pagamento preferidas" do cliente** (sem cadastro, ele ficaria com uma lista vazia para sempre). **O
+  banco NÃO mudou**: a tabela `CondicaoPagamento` e a relação `Cliente.condicoesPreferidas` continuam no
+  schema, sem uso, porque apagá-las é migration (regra do schema). **`salvarCliente` não toca mais na
+  relação**: gravar `set: []` apagaria em silêncio o que já estivesse ligado. Limpar o schema fica para a
+  próxima migration de quem mexer nele. **O campo de TEXTO "Condições de pagamento" do fornecedor
+  (`Fornecedor.condicoesPagamento`, o que ele negociou) é outra coisa e ficou.**
 - **Dado pessoal (LGPD):** CPF, endereço e telefone ficam só no Postgres local e entram nos
   dumps do `npm run backup` (que ficam em `dados/`, fora do git). Nada vai a marketplace ou ERP.
 - `npm run teste:cadastros`: 69 asserções (CPF, CNPJ, CEP, telefone e a ligação fonte → cadastro; a parte
@@ -1866,6 +1893,190 @@ mistura com fornecedor** (o Bling junta os dois numa tela).
 - **Cobrança como terceira aba de endereço**, se ele quiser; **Contribuinte**; e as ideias que
   ficaram de fora do menu: Vendedores, Categorias de produto, Naturezas de operação (fiscal) e
   Depósitos.
+
+## Ferramentas: imagem para SVG
+
+Pedido do dono em 20/09/2026: bloco novo no menu, `/ferramentas`. **A barra lateral só tem o ícone e
+o texto "Ferramentas", SEM cascata; as ferramentas aparecem como CARTÕES na própria página**
+(`src/lib/ferramentas/catalogo.js` é a lista; `CartaoDeAtalho`, em `src/components/ui/`, desenha o
+cartão, no desenho da grade "Personalizar" do Claude que o dono mostrou). É um **teste de desenho**:
+**se ficar bom, vira o padrão das páginas de bloco do sistema** (**o dono aprovou e Cadastros passou a usar o mesmo desenho em 21/09/2026**; os outros blocos não têm telas
+internas).
+Sem submenu, a tela de cada ferramenta tem um link "← Ferramentas" para voltar.
+
+O motivo imediato foi o **logo real do Mercado Livre**: `public/marcas/mercado-livre.svg` era um
+marcador (as letras "ML" sobre um quadrado amarelo, 349 bytes). Foi substituído pelo logo gerado
+**pela própria ferramenta**: 447×447, **fundo transparente** (o quadrado amarelo da imagem foi
+removido; sobra o oval com o aperto de mãos), 5 caminhos, 7,6 KB, cores exatas `#2D3277 #FFD100
+#FFFFFF`, erro médio de pixel 2,01 de 255. O `canais.js` o mostra via `next/image` a 22 e 16 px.
+
+**O que o dono decidiu (20/09/2026) — só para LOGOS:**
+- **Sem campos na tela.** Saíram o "Tipo de imagem" (logo, ilustração, foto, preto e branco), as
+  "Opções avançadas" (cores fixas, limite de cores, transparência) e o botão "Converter": a conversão
+  **começa ao escolher a imagem**. Só existe a receita de logo (`OPCOES_LOGO`).
+- **Fundo sempre transparente** e **cores exatas**, os dois automáticos (ver "Como é montado").
+- **Sem "Trocar cores"** e **sem redimensionar**. Só duas aparências: as **cores originais** e a
+  **fosca** (cinza + 50% de opacidade, um filtro CSS sobre o mesmo arquivo, sem segundo SVG), com um
+  botão "Cores originais | Fosco" na prévia. `LogoSvg` (`src/components/ui/`) tem o `estado`.
+  **Quando usar o fosco (por exemplo o logo do Bling com o canal em falha) o dono ainda vai decidir:
+  nenhuma tela existente o usa.** Quem já tem `<img>` ou `next/image` soma `CLASSE_LOGO_FOSCO`.
+- **Salvar no banco: implementar o resto e ESPERAR O AVISO DO DONO** ("quando tiver tudo pronto e
+  testado, eu te aviso"). Desenho combinado: tabela no Postgres com o texto do SVG (nome + busca,
+  **sem tipo/categoria**), biblioteca listada em Ferramentas, rota que serve o SVG por nome e
+  download. **Ainda NÃO existe** a tabela, a migration, o botão "Salvar" nem a biblioteca. **A
+  migration segue a regra do schema** (uma sessão por vez, `git merge main` antes, e o dono ainda
+  não confirmou que o Agente 1 não tem migration pendente).
+
+**O dono indicou três repositórios; nenhum serve** (GitHub API e npm, 20/09/2026). Nenhum tem script de
+instalação suspeito nem chamada de rede: o problema é utilidade e manutenção, não malícia.
+- `ialoig/nodejs-png2svg`: **não vetoriza**. Compacta o PNG em RLE e gera um retângulo de 1 px por
+  sequência de pixels iguais. Sem licença, 8 commits, parado desde set/2023.
+- `kagof/pixel-perfect-svg`: **não vetoriza**, troca cada pixel por um retângulo (é para pixel-art).
+  MIT, 5 commits, parado desde out/2021, dependências de 2021.
+- `rameez543/png-to-svg`: só uma **interface React sobre `potrace-wasm`**, que é **GPL-2.0** e de
+  **uma cor só** (silhueta): perderia as 4 cores do logo. Sem licença, sem testes, 9 commits. Exibe o
+  SVG com `dangerouslySetInnerHTML`.
+
+**Motor: `@visioncortex/vtracer` (WASM, sem binário nativo), no servidor.** Repositório oficial com
+7 mil estrelas e push do próprio dia; MIT OR Apache-2.0. Escolhido por benchmark (20/09/2026,
+rasterizando o SVG de volta contra o original com o `sharp`):
+
+| Amostra | VTracer | imagetracerjs (Unlicense, JS puro, parado desde nov/2023) |
+| --- | --- | --- |
+| Logo do ML, 447×447 | **8 KB, 6 a 8 caminhos**, erro 3,2 (**2,0 com paleta fixa**) | padrão: 72 KB, 490 caminhos, erro 3,0; detalhado: 489 KB, 3.444 caminhos |
+| Foto de produto, 700×700 | 3,6 a 4,5 s, 0,6 a 1,3 MB | 2,4 a 2,9 s, 1,9 a 7,3 MB |
+| Ícone com degradê e sombra translúcida | **pior**: erro ~11 (cores chapadas) | melhor: erro 2 a 4 |
+
+- **Limite conhecido:** degradê e sombra translúcida saem achatados (cores chapadas), porque a receita
+  é só a de logo e a paleta é fixada. Se um dia isso doer, o plano B é o `imagetracerjs` (**não instalado**).
+- **O pacote npm é ALFA** (`1.0.0-alpha.4`, 4 versões em jul-ago/2026, **sem atestado de procedência**).
+  Por isso: versão **exata**, sem `^`, instalada com `--ignore-scripts`; lidos os 8 arquivos
+  publicados. O JS só lê o próprio `.wasm`, e o WASM só importa funções de conferência de tipo
+  (nada de arquivo, rede, relógio ou aleatoriedade): fica isolado. **Ao atualizar, reler o que mudou.**
+- **Cores exatas: o vtracer sozinho as aproxima** (`#FEE500` em vez de `#FFE600`, `#FCFCFD` em vez de
+  branco, `#313676` em vez de `#2D3277`), e uma marca tem cor definida. A opção `palette` dele resolve, e
+  a ferramenta a alimenta **sozinha**, detectando as cores da própria imagem (`coresDaImagem`, em
+  `src/lib/ferramentas/pixels.js`). Descobertas que custaram caro:
+  - **Cada balde de 6 bits guarda a cor exata mais votada** (voto de maioria), e não a média: a média de
+    um balde que mistura `#FFFFFF` com pixels de borda daria um quase-branco.
+  - **Mistura de anti-aliasing não é cor** (`ehMistura`): a borda de um logo de 3 cores gera dezenas de
+    misturas, e no logo do ML seis delas (`#D7D8E4`, `#A5A7C4`, `#E3BC21`...) passaram como cor e o SVG saiu
+    com uma camada lilás fantasma. Descarta-se a cor que fica a até 40 da reta entre duas aceitas e tem
+    menos de 8% dos pixels da menor das pontas (o limite protege um laranja de detalhe entre amarelo e vermelho).
+  - **Tom parecido não é ruído** (`ehRuido`): até 16 de distância é a mesma cor; entre 16 e 48 só é ruído se
+    tiver menos de 10% dos pixels da vizinha. Uma regra só de distância engolia o dourado `#FFD100`, que fica a
+    21 do amarelo `#FFE600`.
+- **Fundo transparente** (`pixels.js`): se a imagem já tem transparência, nada é apagado. Se a **borda** é de
+  uma cor só (85% dos pixels da borda a até 36 da mais comum), apaga-se a região dessa cor **que toca a
+  borda**: o branco DENTRO de um contorno é da arte e fica. Fundo em degradê ou foto **não é apagado às
+  cegas** (apagar comeria o logo); a tela avisa "o fundo não é de uma cor só, então foi mantido".
+  - **A borda do anti-aliasing é desmisturada** (`refinarBorda`), e não apagada em camada fixa: o pixel entre
+    o fundo e o desenho é `fundo + p·(cor − fundo)`; acha-se a cor da paleta que melhor o explica e, se
+    `p ≥ 0,5`, ele fica com essa cor, senão vira transparente. Sem isso, um pixel meio azul e meio
+    amarelo-de-fundo caía no dourado e o logo de contorno azul ganhava um **filete dourado**; e uma camada
+    fixa de halo afinava o contorno.
+  - Imagem de uma cor só (tudo seria fundo) dá o recado "toda transparente".
+
+**Como é montado**
+- `src/lib/ferramentas/presetsSvg.js` (constantes e a receita de logo, sem imports: tela e servidor o
+  leem), `src/lib/ferramentas/pixels.js` (fundo e cores, sem imports, testável sozinho) e
+  `src/lib/ferramentas/imagemParaSvg.js` (só servidor: `sharp` e o WASM). A Server Action
+  (`src/app/ferramentas/acoes.js`) só confere o envelope; a tela é `src/components/ferramentas/ImagemParaSvg.jsx`.
+- **O vtracer nunca recebe o arquivo do usuário.** Quem decodifica é o `sharp` (libvips), que reduz o
+  lado maior a 2048 px (o WASM roda **na thread do servidor** e bloqueia durante a conversão: um logo leva
+  menos de 1 s, mas uma foto de 700 px levou 4 s) e aplica a orientação do EXIF. O WASM só vê RGBA.
+- **Tipo pelos BYTES** (PNG, JPEG, WebP), nunca pelo `type` do navegador nem pela extensão. Limite de
+  10 MB (o corpo de Server Action aceita 24 MB), conferido na tela, na action e na lógica.
+- **Teto de pixels (40 milhões) conferido pelo cabeçalho, ANTES de decodificar.** O `sharp` lê as
+  dimensões de um PNG falso de 50.000×50.000 sem reclamar e só recusa no decodificador, com um "arquivo
+  corrompido" que não diz o que houve. A bomba real do teste é um PNG **válido** de 7000×6000 que
+  comprime a 40 KB.
+- **O SVG de saída é conferido** (`motivoDeSvgInseguro`: sem `<script>`, `<foreignObject>`, `<image>`,
+  `<use>`, `on...=`, `href`, DOCTYPE) e mostrado só por `<img src="blob:...">`, **nunca**
+  `dangerouslySetInnerHTML`. Nada é gravado em disco nem no banco, e o download é um `Blob` no navegador.
+- **`sharp` e `@visioncortex/vtracer` estão em `serverExternalPackages`** (`next.config.mjs`): o pacote do
+  wasm-pack lê o próprio `.wasm` do disco, e empacotado o caminho se perde (o mesmo defeito do `pdf-parse`).
+- **`sharp` agora é dependência DECLARADA.** Antes só existia como opcional transitiva do `next` e
+  sumiria num deploy Linux/VPS. Fixado em **0.35.4**: a 0.35.3 tinha aviso ALTO (libheif).
+- **Testes:** `npm run teste:svg`, 60 asserções, sem rede e sem banco, com as imagens geradas pelo
+  próprio `sharp`. Cobre a bomba de descompressão, SVG e HTML disfarçados de imagem, PNG truncado,
+  foto girada por EXIF, fundo transparente (amarelo, branco, já transparente, degradê), o branco de
+  dentro do logo preservado, ausência de filete dourado na borda, cores exatas e SVG de saída perigoso.
+
+**`npm audit` (20/09/2026) acusou avisos que JÁ existiam, fora desta feature** (o `sharp` e o VTracer
+não aparecem): **`next` 16.3.1 com dois avisos CRÍTICOS de execução remota** (um específico de servidor
+Windows; correção 16.3.5, sem mudança de versão maior), `image-size` (alto, usado no upload de imagens de
+produto) e outros menores. Ficou como tarefa separada ("Atualizar next e image-size"). **O dev server
+também escuta na rede local** (`Network: https://<ip>:3001`).
+
+## Ferramentas: cotação do dólar
+
+Pedido do dono em 21/09/2026: uma tela em Ferramentas (`/ferramentas/cotacao-dolar`, cartão em
+`src/lib/ferramentas/catalogo.js`) que coleta o dólar do dia e o mostra em gráfico, para uso no sistema
+interno. **Por que interessa à loja:** o custo dos fornecedores (a "reserva" da Fortek é o que ainda vai
+chegar) e os preços dos concorrentes seguem o câmbio, e o sistema só tem valores em reais. **Bitcoin e
+euro ficaram de fora** (o dono ficou só com o dólar; bitcoin não tem ligação com o custo da loja).
+
+**O que o dono decidiu:** só o dólar; **não guardar no banco agora** (o BC guarda o histórico inteiro;
+sem migration e sem tocar no schema); **gráfico em SVG próprio, sem biblioteca** (nenhuma dependência
+nova). Guardar a cotação e usá-la em outras telas (custo do fornecedor, margem) fica para quando houver
+uma tela que a use.
+
+**Fontes (conferidas em 21/09/2026, todas sem chave):**
+- **PTAX do Banco Central** (Olinda, `CotacaoDolarPeriodo`): o dólar oficial, **um valor por dia útil**
+  (fecha por volta das 13h), com o histórico inteiro. Alimenta o gráfico (a **venda**) e a tabela dos
+  últimos dias. **A data na URL é `MM-DD-AAAA`**; fim de semana e feriado não têm linha, e por isso o
+  gráfico espaça os dias úteis por igual, sem eixo de calendário.
+- **AwesomeAPI** (`/json/last/USD-BRL`): a cotação de **agora**, em tempo real. **Passou a recusar com
+  429 (`QuotaExceeded`) depois de poucas consultas sem chave** — medido no mesmo dia em que a tela foi
+  feita, e o aviso de limites dela nem abre. Com chave gratuita (cadastro em awesomeapi.com.br) são 100 mil
+  consultas por mês, enviada no header `x-api-key`. **O token vai na linha `AWESOMEAPI_TOKEN` do `.env`** (ver
+  "O token da AwesomeAPI" abaixo).
+- **Reserva do "agora": o último boletim do PTAX** (`CotacaoMoedaPeriodo`, moeda USD). O BC divulga de hora
+  em hora, das 10h às 13h. Quando a AwesomeAPI falha, o cartão "Dólar agora" mostra o boletim e diz isso
+  ("boletim do BC de 21/09 13:06"), e a AwesomeAPI fica **10 minutos de lado** em vez de gastar 2 s de
+  espera a cada clique. **Depois das 13h o "agora" do boletim é igual ao PTAX do dia**: o tempo real só vem
+  com a chave. O boletim não traz máxima, mínima nem variação do dia, e o cartão não as mostra.
+
+**Como é montado**
+- `src/lib/ferramentas/cotacao.js` (**sem imports**, lido pela tela, pela Server Action e pelo teste):
+  períodos (7 dias, 30 dias, 90 dias, 1 ano), URLs, leitura das respostas, variação e a conta do gráfico.
+  **Linha do PTAX fora do formato é descartada** (zero, negativo, texto no lugar de número, data ruim), e
+  resposta sem nenhuma linha boa vira erro: nunca gráfico com lixo. `Number("")` é 0, então
+  `numeroPositivo` recusa vazio e espaço antes de converter.
+- `buscarCotacaoAcao(periodo, forcar)` em `src/app/ferramentas/acoes.js`. **Do navegador só vem o período**,
+  conferido contra a lista (`intervaloDoPeriodo`); os endereços são fixos. Tempo limite de 8 s e teto de
+  2 MB por resposta. As duas consultas são independentes: uma falhar não derruba a outra, e só as duas
+  juntas dão erro. **Memória de 1 h para o PTAX e de 60 s para o "agora"**, só de resposta boa (falha de rede
+  não fica grudada); o botão Atualizar ignora a memória. **A "data de hoje" é a de `America/Sao_Paulo`**:
+  perto da meia-noite o UTC já é o dia seguinte.
+- **A primeira carga vem pronta do servidor** (`page.jsx` chama a ação e passa o resultado): sem tela vazia
+  e sem `setState` em efeito. Depois só se consulta ao trocar o período ou apertar Atualizar.
+- **Sobe é vermelho, desce é verde**: é o que importa a quem compra em dólar (a alta encarece o custo do
+  fornecedor). O inverso de um gráfico de bolsa, e a tela diz isso.
+- **O gráfico é desenhado na largura real do quadro** (`ResizeObserver`), não num `viewBox` que encolhe:
+  no celular o texto dos eixos ficaria ilegível. **O eixo Y não começa do zero** (o dólar varia centavos e
+  a linha ficaria reta). Valor e data do ponto aparecem numa linha **acima** do gráfico, não num balão:
+  serve igual ao mouse e ao teclado (setas percorrem os dias, Esc volta ao último).
+- **O token da AwesomeAPI vai SÓ no `.env`** (`AWESOMEAPI_TOKEN=`, linha já criada vazia no `.env` e no
+  `.env.example`). **Pedido do dono em 21/09/2026**: ele pediu a linha no `.env`, e uma primeira versão
+  criou por engano um cartão na tela para colar o token, guardado cifrado em `dados/config/`; foi **removida**
+  a pedido dele, para não haver dois lugares onde o token possa estar. `buscarAgora` lê
+  `process.env.AWESOMEAPI_TOKEN` a cada consulta, mas **o `.env` só é relido na partida do servidor**:
+  depois de colar o token, reiniciar. Sem token (ou com token recusado), o "agora" cai no boletim do BC.
+  - **Lição que ficou da versão removida:** o `next dev` **imprime no terminal os argumentos de toda Server
+    Action** (`salvarTokenAcao("...")`), então segredo passado a uma ação sai inteiro no log. Mandar num
+    `FormData` faz o log mostrar só `({})`. Vale para qualquer segredo, em qualquer tela.
+- **`Card className="p-0"` NÃO zera o padding**: a classe `p-5` do próprio `Card` também vale e vence.
+  Para uma caixa sem padding (a tabela dos últimos dias), usar um `<div>` com as mesmas classes de borda.
+- **Sem `LogIntegracao`.** O enum `Servico` não tem valor para o BC nem para a AwesomeAPI, e acrescentar é
+  migration (o dono pediu sem schema). A regra "toda chamada externa é auditada" fica **em aberto** aqui e
+  entra junto com o banco, se um dia a cotação for guardada. Falha vai para o log do servidor
+  (`[cotacao] ...`).
+- **Testes:** `npm run teste:cotacao`, 86 asserções, sem rede e sem banco: datas (virada de mês e de ano,
+  bissexto, meia-noite em São Paulo), período fora da lista recusado, PTAX e boletim com resposta boa, fora
+  de ordem, repetida, com lixo e vazia, "agora", variação e as coordenadas do gráfico (um ponto só, série
+  reta, série vazia, 250 dias, quadro minúsculo).
 
 ## Trabalho em paralelo: worktrees
 

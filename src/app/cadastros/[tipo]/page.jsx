@@ -10,12 +10,8 @@ import AvisoBanco from "@/components/ui/AvisoBanco";
 import TabelaClientes from "@/components/cadastros/TabelaClientes";
 import TabelaParceiros from "@/components/cadastros/TabelaParceiros";
 import TabelaSimples from "@/components/cadastros/TabelaSimples";
-import {
-  excluirCondicao,
-  excluirMarca,
-  salvarCondicao,
-  salvarMarca,
-} from "@/app/cadastros/acoes";
+import LinkDeVolta from "@/components/ui/LinkDeVolta";
+import { excluirMarca, salvarMarca } from "@/app/cadastros/acoes";
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +22,9 @@ const SECOES = {
   ...PARCEIROS,
   produtos: { plural: "Produtos" },
   marcas: { plural: "Marcas" },
-  condicoes: { plural: "Condicoes de pagamento" },
 };
 
-/** Redacao de cada cadastro simples (nome + observacao), para a `TabelaSimples`. */
+/** Redacao do cadastro simples de marcas (nome + observacao), para a `TabelaSimples`. */
 const TEXTOS_MARCA = {
   item: "marca",
   coluna: "Marca",
@@ -40,20 +35,10 @@ const TEXTOS_MARCA = {
   avisoExcluir: "Produtos que ja usam esta marca nao sao alterados: o campo Marca deles e texto proprio.",
 };
 
-const TEXTOS_CONDICAO = {
-  item: "condicao",
-  coluna: "Condicao de pagamento",
-  nova: "Nova condicao",
-  buscar: "Buscar condicao",
-  vazio: "Nenhuma condicao de pagamento cadastrada ainda.",
-  tituloExcluir: "Excluir condicao de pagamento?",
-  avisoExcluir: "Condicao preferida por algum cliente nao pode ser excluida.",
-};
-
 /**
- * Uma secao de Cadastros, escolhida pelo subitem do menu (`/cadastros/<tipo>`).
- * Fornecedores, concorrentes e transportadoras compartilham tabela e formulario
- * (ver `PARCEIROS`); marcas e condicoes de pagamento compartilham a tabela com
+ * Uma secao de Cadastros, escolhida pelo cartao da pagina `/cadastros`
+ * (`/cadastros/<tipo>`). Fornecedores, concorrentes e transportadoras
+ * compartilham tabela e formulario (ver `PARCEIROS`); marcas usa a tabela com
  * edicao na linha; clientes e produtos tem tela propria.
  */
 export default async function SecaoDeCadastrosPage({ params, searchParams }) {
@@ -148,9 +133,8 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
         fonte: null,
         usos: r._count.clientes,
       }));
-    } else if (tipo === "marcas" || tipo === "condicoes") {
-      const modelo = tipo === "marcas" ? prisma.marca : prisma.condicaoPagamento;
-      itens = await modelo.findMany({
+    } else if (tipo === "marcas") {
+      itens = await prisma.marca.findMany({
         where: busca ? { OR: [contem("nome", busca), contem("observacoes", busca)] } : undefined,
         orderBy: { nome: "asc" },
         select: { id: true, nome: true, observacoes: true },
@@ -168,6 +152,8 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
 
   return (
     <>
+      <LinkDeVolta href="/cadastros" rotulo="Cadastros" />
+
       <PageHeader
         titulo={secao.plural}
         descricao={
@@ -204,16 +190,6 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
               excluir={excluirMarca}
               textos={TEXTOS_MARCA}
               maiusculas
-            />
-          )}
-
-          {tipo === "condicoes" && (
-            <TabelaSimples
-              itens={itens}
-              busca={busca}
-              salvar={salvarCondicao}
-              excluir={excluirCondicao}
-              textos={TEXTOS_CONDICAO}
             />
           )}
 
