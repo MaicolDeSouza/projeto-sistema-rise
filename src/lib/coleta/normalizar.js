@@ -219,6 +219,17 @@ function galeriaDaPagina(html, principal, urlBase) {
   // do item.
   if (diretorios.size < 2) return [];
 
+  // Cada ATRIBUTO (src, data-largeimg...) e cada tamanho servido (miniatura,
+  // zoom) do MESMO arquivo entram como candidatas separadas ate aqui. Uma
+  // pagina que repete a galeria inteira (tira visivel + bloco oculto do
+  // lightbox — medido na 4hobby/Loja Integrada, jquery.fancybox) facilmente
+  // passa de dez candidatas sem ter mais que 4 fotos de verdade: as 4 fotos
+  // saiam TODAS descartadas, sobrando so a principal. O teto de "balde
+  // compartilhado da loja" tem que valer sobre fotos UNICAS, e nao sobre
+  // ocorrencias — dedup primeiro (semRepetir, que ja escolhe a maior versao de
+  // cada uma), teto depois.
+  const unicas = semRepetir(candidatas);
+
   // Galeria de produto e pequena. Passando disso, o diretorio nao e do produto:
   // e balde compartilhado da loja. A Tray serve o catalogo inteiro de
   // "/img/img_prod/<loja>/", e de la vinham dezesseis imagens — duas do produto,
@@ -227,9 +238,9 @@ function galeriaDaPagina(html, principal, urlBase) {
   // Descartar tudo, e nao aparar a lista, porque nao ha como saber QUAIS das
   // dezesseis eram do produto. Sem galeria, a pagina fica com as imagens
   // estruturadas, que e o comportamento de antes desta funcao existir.
-  if (candidatas.length > TETO_DE_GALERIA) return [];
+  if (unicas.length > TETO_DE_GALERIA) return [];
 
-  return candidatas;
+  return unicas;
 }
 
 /**
@@ -785,7 +796,18 @@ function especificacoesDeListaHtml(html) {
         itens.push({ nome: null, valor: texto });
       }
     }
-    if (tituloCurto && itens.some((item) => !item.nome)) continue;
+    // "Características" sozinho tambem introduz ficha de verdade SEM pares
+    // "Nome: valor" — a Piscaled escreve "Alimentação 100-240 VAC - 3W;",
+    // "Dimensões 93x68x17 mm;" como frases soltas (22/09/2026). O que separa
+    // isso de uma lista de marketing ("Alta durabilidade") e a PRESENCA DE
+    // NUMERO: medida real tem unidade e digito, elogio nao. Exige maioria (nao
+    // 100%) porque nem todo item tecnico traz numero ("Suporte para trilho
+    // DIN;" nao tem, e ainda assim e ficha).
+    const semRotulo = itens.filter((item) => !item.nome);
+    if (tituloCurto && semRotulo.length > 0) {
+      const comNumero = semRotulo.filter((item) => /\d/.test(item.valor)).length;
+      if (comNumero / semRotulo.length < 0.5) continue;
+    }
     if (itens.length > 0) return itens;
   }
   return [];
@@ -1218,12 +1240,22 @@ function documentosDaPagina(html, urlBase) {
     if (!ehDocumento || achados.has(endereco)) continue;
 
     // SECAO DO SITE NAO E DOCUMENTO DO PRODUTO. Link reconhecido so pelo texto,
-    // curto, apontando para uma pagina de primeiro nivel — "Catalogos" ->
-    // /catalogos, no menu institucional da Eletrus (16/09/2026) — aparecia como
-    // documento em todo produto da loja. Arquivo de verdade tem extensao ou
-    // endpoint de anexo, e esse continua valendo onde estiver.
+    // apontando para uma pagina de primeiro nivel — "Catalogos" -> /catalogos,
+    // no menu institucional da Eletrus (16/09/2026) — aparecia como documento
+    // em todo produto da loja. Arquivo de verdade tem extensao ou endpoint de
+    // anexo, e esse continua valendo onde estiver.
+    //
+    // O teto de 2 palavras no titulo (de quando so a Eletrus tinha sido
+    // medida) deixava passar "Catálogo Completo IOT" — link de CATEGORIA no
+    // menu da Piscaled (`<li class="categoria-id-...">`, /catalogo-completo-iot),
+    // colado em todo produto da linha IOT (22/09/2026). Sem extensao nem
+    // endpoint de anexo, pagina de UM SO segmento ja e o sinal — quem serve
+    // documento de verdade sem extensao usa endpoint de anexo (varios
+    // segmentos) ou um dominio proprio de arquivo, nunca uma pagina solta do
+    // proprio site. O teto de palavras saiu: era o que ainda deixava passar
+    // esse caso.
     const paginaDePrimeiroNivel = /^\/[^/]+\/?$/.test(caminho);
-    if (!ehArquivo && paginaDePrimeiroNivel && titulo.split(/\s+/).length <= 2) continue;
+    if (!ehArquivo && paginaDePrimeiroNivel) continue;
 
     // O mesmo anexo aparece duas vezes na Usinainfo — uma dentro das
     // caracteristicas, outra na aba de download — e so uma das duas tem texto.

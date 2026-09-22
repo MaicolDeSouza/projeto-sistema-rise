@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { skuValido } from "@/lib/arquivos";
 import { decodificar } from "@/lib/coleta/texto-html";
@@ -11,18 +12,24 @@ import { blingGet } from "./bling";
  *
  * So LE o Bling (GET): nao passa pela trava BLING_ESCRITA e nao altera nada la.
  *
- * O Bling nao ordena a listagem por codigo, entao a ordem e feita aqui: le o
- * catalogo inteiro (paginas de 100, ~3 req/s) e ordena na memoria. Com ~1000
- * produtos sao uns 11 pedidos, poucos segundos.
+ * Em duas etapas, porque o catalogo tem centenas de produtos e cada um leva um
+ * pedido de detalhe mais o download das fotos: uma chamada so estouraria o tempo
+ * de resposta.
+ *   1. `planejarImportacaoDoBling` le o catalogo inteiro UMA vez (paginas de 100,
+ *      ~3 req/s), descarta o que ja existe aqui e devolve a fila de ids em ordem
+ *      de codigo (o Bling nao ordena a listagem, entao a ordem e feita aqui).
+ *   2. `importarLoteDoBling` importa uma fatia pequena dessa fila. A tela chama
+ *      em laco, mostra o progresso e pode parar entre um lote e outro.
  *
- * Cada clique traz os PROXIMOS da fila: produto que ja existe aqui (pelo id do
- * Bling ou pelo SKU) fica de fora. Sem isso, clicar de novo tentaria importar
- * os mesmos cinco e pararia no SKU repetido.
+ * Retomar e seguro: produto que ja existe aqui (pelo id do Bling ou pelo SKU) e
+ * pulado, entao um novo plano depois de uma parada so traz o que faltou.
  */
 
 const POR_PAGINA = 100;
-/// Trava contra laco infinito caso o Bling passe a devolver sempre a mesma pagina.
+/// Trava contra laco infinito caso o Bling passe a devolver sempre a pagina.
 const MAXIMO_PAGINAS = 200;
+/// Tamanho maximo de um lote: o navegador escolhe o tamanho, o servidor limita.
+export const MAXIMO_POR_LOTE = 10;
 
 /// "900403_100" antes de "920302_1.000", e "2" antes de "10".
 export const compararCodigos = (a, b) =>
@@ -45,9 +52,13 @@ async function listarCatalogo() {
       throw new Error(`Bling recusou a listagem de produtos: ${detalhe}`);
     }
 
-    const lote = dados?.data ?? [];
+    // O fim da paginacao e decidido pelo tamanho da pagina CRUA do Bling, nao do
+    // que sobra apos o filtro: uma pagina cheia de variacao/composicao teria poucos
+    // itens "S" e pareceria a ultima pagina, cortando o resto do catalogo.
+    const paginaCrua = dados?.data ?? [];
+    const lote = paginaCrua.filter((p) => p.formato === "S");
     produtos.push(...lote);
-    if (lote.length < POR_PAGINA) break;
+    if (paginaCrua.length < POR_PAGINA) break;
   }
 
   return produtos;
@@ -146,10 +157,12 @@ function importarImagens(produtoId, sku, bling) {
 }
 
 /**
- * Importa os proximos `quantidade` produtos do Bling, em ordem crescente de
- * codigo, que ainda nao existem no cadastro.
+ * Primeira etapa: le o catalogo inteiro (um pedido por pagina), filtra o que
+ * ja existe aqui e devolve a fila de ids em ordem de codigo. Recalcular a cada
+ * vez e seguro: produtos novos do Bling sao adicionados, os que ja existem sao
+ * pulados automaticamente.
  */
-export async function importarProximosDoBling(quantidade = 5) {
+export async function planejarImportacaoDoBling() {
   const catalogo = await listarCatalogo();
 
   const existentes = await prisma.produto.findMany({
@@ -158,8 +171,6 @@ export async function importarProximosDoBling(quantidade = 5) {
   const skus = new Set(existentes.map((produto) => produto.sku.toLowerCase()));
   const blingIds = new Set(existentes.map((produto) => produto.blingId).filter(Boolean));
 
-  // Codigo que nao serve de nome de pasta (espaco, barra) nao entra: o SKU daqui
-  // vira caminho em dados/produtos. Esses sao contados para a tela avisar.
   const semCodigoValido = catalogo.filter((produto) => !skuValido(produto.codigo?.trim()));
 
   const fila = catalogo
@@ -169,29 +180,93 @@ export async function importarProximosDoBling(quantidade = 5) {
         !blingIds.has(String(produto.id)) &&
         !skus.has(produto.codigo.trim().toLowerCase()),
     )
-    .sort((a, b) => compararCodigos(a.codigo.trim(), b.codigo.trim()));
+    .sort((a, b) => compararCodigos(a.codigo.trim(), b.codigo.trim()))
+    .map((produto) => produto.id);
 
+  return {
+    fila,
+    totalBling: catalogo.length,
+    totalParaImportar: fila.length,
+    semCodigoValido: semCodigoValido.length,
+  };
+}
+
+/**
+ * Fornecedor do Bling para o rascunho do produto: so RASCUNHO, nunca cria
+ * Fornecedor nem ProdutoFornecedor aqui (pedido do dono em 22/09/2026). Fica em
+ * Produto.fornecedorRascunho; a aba Fornecedores/Concorrentes mostra como linha
+ * editavel, e so vira vinculo de verdade quando o operador salvar o produto.
+ *
+ * DUAS chamadas, porque o Bling espalha o fornecedor em dois lugares (medido em
+ * 22/09/2026):
+ *  - `GET /produtos/{id}` traz o NOME, em fornecedor.contato.nome — nao em
+ *    fornecedor.nome, que nao existe.
+ *  - `GET /produtos/fornecedores?idProduto=` traz a DESCRICAO (na tela do Bling
+ *    "Descricao no fornecedor" — na pratica o link do produto no site do
+ *    fornecedor, ex. AliExpress), o codigo e o preco de custo. O `fornecedor` do
+ *    primeiro endpoint NAO tem esses campos (varias linhas de producao ja
+ *    confirmaram: sem telefone, email, link nem descricao ali).
+ * Falha na segunda chamada nao derruba a importacao do produto: o rascunho sai
+ * so com o que o primeiro endpoint ja deu (nome, e o codigo/preco resumidos).
+ */
+async function lerFornecedorBling(bling) {
+  const nome = textoOuNull(bling.fornecedor?.contato?.nome);
+  if (!nome) return null;
+
+  let linha = null;
+  try {
+    const { ok, dados } = await blingGet("/produtos/fornecedores", { idProduto: bling.id });
+    const linhas = ok ? (dados?.data ?? []) : [];
+    // O produto pode ter mais de um fornecedor cadastrado no Bling; o padrao e
+    // o mesmo que aparece resumido em bling.fornecedor.
+    linha = linhas.find((item) => item.padrao) ?? linhas[0] ?? null;
+  } catch {
+    // Sem sorte na segunda chamada: segue so com o resumo do primeiro endpoint.
+  }
+
+  return {
+    nome,
+    descricao: textoOuNull(linha?.descricao),
+    codigo: textoOuNull(linha?.codigo ?? bling.fornecedor.codigo),
+    precoCusto: positivoOuNull(
+      linha?.precoCusto ?? linha?.precoCompra ?? bling.fornecedor.precoCusto ?? bling.fornecedor.precoCompra,
+    ),
+  };
+}
+
+/**
+ * Segunda etapa: importa uma fatia da fila planejada. Cada produto leva um
+ * pedido de detalhe mais download das fotos; a tela chama isto em laco e
+ * mostra progresso.
+ */
+export async function importarLoteDoBling(fila, comeco = 0, quantidade = MAXIMO_POR_LOTE) {
+  if (!Array.isArray(fila) || fila.length === 0) {
+    return { importados: [], falhas: [], lotes: 0, total: 0, proximoComeco: 0 };
+  }
+
+  const lote = fila.slice(comeco, comeco + quantidade);
   const importados = [];
   const falhas = [];
 
-  for (const resumo of fila.slice(0, quantidade)) {
+  for (const idBling of lote) {
     try {
-      const { ok, status, dados } = await blingGet(`/produtos/${resumo.id}`);
+      const { ok, status, dados } = await blingGet(`/produtos/${idBling}`);
       if (!ok || !dados?.data) {
         throw new Error(dados?.error?.description ?? `HTTP ${status}`);
       }
 
       const bling = dados.data;
+      const fornecedorBling = await lerFornecedorBling(bling);
+
       const produto = await prisma.produto.create({
         data: {
           ...mapearProduto(bling),
-          // O produto ja existe no Bling: o selo "B" da lista e o id que liga os
-          // dois lados precisam nascer junto, senao a tela oferece "Cadastrar no
-          // Bling" e duplicaria o item no ERP.
+          // Json nulo no Prisma e Prisma.DbNull, nao null puro (ver CLAUDE.md).
+          fornecedorRascunho: fornecedorBling ?? Prisma.DbNull,
           anuncios: {
             create: {
               canal: "BLING",
-              status: "PUBLICADO",
+              status: "RASCUNHO",
               situacaoCanal: bling.situacao === "A" ? "ATIVA" : "PAUSADA",
               idExterno: String(bling.id),
               sincronizadoEm: new Date(),
@@ -201,17 +276,25 @@ export async function importarProximosDoBling(quantidade = 5) {
       });
 
       const imagens = await importarImagens(produto.id, produto.sku, bling);
-      importados.push({ sku: produto.sku, nome: produto.tituloBase, ...imagens });
+      importados.push({
+        sku: produto.sku,
+        nome: produto.tituloBase,
+        fornecedorBling,
+        ...imagens,
+      });
     } catch (erro) {
-      falhas.push({ sku: resumo.codigo, erro: erro.message });
+      falhas.push({ id: idBling, erro: erro.message });
     }
   }
+
+  const proximoComeco = comeco + lote.length;
+  const lotes = Math.ceil(proximoComeco / quantidade);
 
   return {
     importados,
     falhas,
-    totalBling: catalogo.length,
-    restantes: Math.max(0, fila.length - importados.length - falhas.length),
-    semCodigoValido: semCodigoValido.length,
+    lotes,
+    total: fila.length,
+    proximoComeco,
   };
 }

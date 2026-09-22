@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { buscarProdutoPorCodigo } from "@/lib/buscaPorCodigo";
 import { buscarReferencias } from "@/lib/buscaPorPalavras";
@@ -11,7 +12,11 @@ import { gerarDescricao, gerarTitulos } from "@/lib/ia/anuncio";
 import { baseValida, descartarLote, moverImagensParaProduto } from "@/lib/imagens/lote";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { reconciliarImagensDoProduto } from "@/lib/imagens/produto";
-import { importarProximosDoBling } from "@/lib/integracoes/importarBling";
+import {
+  planejarImportacaoDoBling,
+  importarLoteDoBling,
+  MAXIMO_POR_LOTE,
+} from "@/lib/integracoes/importarBling";
 import { UNIDADES } from "@/lib/unidades";
 import {
   MAXIMO_IMAGENS,
@@ -124,10 +129,27 @@ export async function criarDescricaoIA(ids, produto) {
   }
 }
 
-/** Traz os proximos 5 produtos do Bling, em ordem crescente de codigo. */
-export async function importarDoBling() {
+/**
+ * Planeja a importacao completa do Bling: le o catalogo inteiro e devolve a
+ * fila de ids pronta para importarLoteDoBling.
+ */
+export async function planejarImportacao() {
   try {
-    const resultado = await importarProximosDoBling(5);
+    const resultado = await planejarImportacaoDoBling();
+    return { ok: true, ...resultado };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
+}
+
+/**
+ * Importa um lote da fila planejada. A tela chama isto em laco ate o fim.
+ * `fila` vem do planejarImportacao, `comeco` marca onde retomou, `quantidade`
+ * (padrao 10) e o tamanho do lote.
+ */
+export async function importarLote(fila, comeco = 0, quantidade = MAXIMO_POR_LOTE) {
+  try {
+    const resultado = await importarLoteDoBling(fila, comeco, quantidade);
     revalidatePath("/produtos");
     return { ok: true, ...resultado };
   } catch (erro) {
@@ -459,6 +481,24 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     }
     await descartarLote(String(formData.get("loteTemporario") ?? "")).catch(() => {});
 
+    // Fornecedor em RASCUNHO (extraido na importacao do Bling, ou digitado na aba
+    // antes deste primeiro Salvar do produto existente): confirma em vinculo de
+    // verdade agora, e so agora — pedido do dono em 22/09/2026. Falha aqui nao
+    // derruba o Salvar (o produto ja esta gravado); o rascunho no Produto so e
+    // limpo se a confirmacao deu certo, senao ele reaparece na proxima abertura
+    // em vez de sumir sem ter sido gravado.
+    if (produto.fornecedorRascunho) {
+      try {
+        await gravarFornecedoresRascunho(produto, formData);
+        await prisma.produto.update({
+          where: { id },
+          data: { fornecedorRascunho: Prisma.DbNull },
+        });
+      } catch (erro) {
+        console.error("Falha ao confirmar o fornecedor em rascunho:", erro.message);
+      }
+    }
+
     revalidatePath("/produtos");
     revalidatePath(`/produtos/${id}`);
     return { ok: true, id: produto.id };
@@ -656,6 +696,21 @@ export async function excluirProdutos(ids) {
     excluidos: resultados.filter((item) => item.ok).length,
     falhas: resultados.filter((item) => !item.ok).map(({ ok: _ok, ...falha }) => falha),
   };
+}
+
+/**
+ * Liga/desliga "produto totalmente conferido" (pedido do dono em 22/09/2026).
+ * Antes vivia so no navegador (ConferidoProduto.jsx) e sumia ao recarregar;
+ * agora grava de verdade, para a contagem "(N verificados)" da lista ser real.
+ */
+export async function alternarConferido(id, valor) {
+  try {
+    await prisma.produto.update({ where: { id }, data: { conferido: Boolean(valor) } });
+    revalidatePath("/produtos");
+    return { ok: true };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
 }
 
 // ---------------------------------------------------------------------------

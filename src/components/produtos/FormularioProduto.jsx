@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import {
   BadgeDollarSign,
+  Calculator,
   ExternalLink,
   FileText,
   Hammer,
@@ -343,6 +344,11 @@ function CampoComIcone({
   ajuda,
   entrada,
   icone,
+  // Campo extra dentro da caixa, a ESQUERDA do icone (pedido do dono em
+  // 22/09/2026, para a margem % ao lado do Preco venda). So quando presente o
+  // input ganha mais espaco reservado (pr-24 em vez de pr-11) — os demais usos
+  // de CampoComIcone nao passam isto e ficam identicos a antes.
+  iconeExtra,
   prefixo,
   children,
   ...props
@@ -363,13 +369,14 @@ function CampoComIcone({
           ref={entrada}
           id={nome}
           name={nome}
-          className={`${CLASSE_CAMPO} pr-11 ${prefixo ? "pl-9" : ""} ${
+          className={`${CLASSE_CAMPO} ${iconeExtra ? "pr-56" : "pr-11"} ${prefixo ? "pl-9" : ""} ${
             erro ? "border-red-400" : "border-borda focus:border-acento"
           }`}
           {...props}
           {...propsDeNumero(props)}
         />
-        <div className="absolute top-1/2 right-1.5 mt-0.5 -translate-y-1/2">
+        <div className="absolute top-1/2 right-1.5 mt-0.5 flex -translate-y-1/2 items-center gap-1">
+          {iconeExtra}
           {icone}
         </div>
       </div>
@@ -525,9 +532,80 @@ function comDuasCasas(valor) {
     : numero.toFixed(2);
 }
 
-function CampoPreco({ inicial, erro, referencias, aoAlterar, aoMudarValor, usos }) {
+/**
+ * Imposto embutido no calculo de margem (pedido do dono em 22/09/2026): 6%
+ * sobre o preco de venda, FIXO por enquanto — "futuramente faremos esse valor
+ * dinamico" (virar campo por produto/categoria e ficar para depois; o painel
+ * de margem avisa que e fixo, para nao passar por definitivo).
+ */
+const IMPOSTO_PADRAO = 0.06;
+
+/**
+ * Margem LIQUIDA sobre o PRECO DE VENDA (pedido do dono em 22/09/2026):
+ * (preco * (1 - imposto) - custo) / preco — o lucro depois de tirar o custo
+ * do fornecedor E o imposto, nao so o custo. Custo vazio ou zero nao tem
+ * margem que calcular — o fornecedor padrao ainda nao foi escolhido, ou nao
+ * tem preco de custo.
+ */
+function calcularMargem(preco, custo) {
+  if (!(custo > 0) || !(preco > 0)) return null;
+  const liquido = preco * (1 - IMPOSTO_PADRAO) - custo;
+  return (liquido / preco) * 100;
+}
+
+/**
+ * Preco que da a margem pedida, isolando `preco` de
+ * `margem = (preco*(1-imposto) - custo) / preco`:
+ * `preco = custo / (1 - imposto - margem/100)`.
+ * Travado abaixo de `(1-imposto)*100`: acima disso nem um custo zero
+ * cobriria o imposto sozinho, e o preco explodiria (ou ficaria negativo).
+ */
+function calcularPrecoDaMargem(margem, custo) {
+  if (!(custo > 0)) return null;
+  const tetoMargem = (1 - IMPOSTO_PADRAO) * 100 - 1;
+  const m = Math.min(Math.max(Number(margem) || 0, 0), tetoMargem);
+  return custo / (1 - IMPOSTO_PADRAO - m / 100);
+}
+
+/**
+ * Preco que da o lucro EM REAIS pedido, isolando `preco` de
+ * `margemReais = preco*(1-imposto) - custo`: `preco = (margemReais + custo) / (1 - imposto)`.
+ */
+function calcularPrecoDaMargemReais(margemReais, custo) {
+  if (!(custo > 0)) return null;
+  const reais = Math.max(Number(margemReais) || 0, -custo);
+  return (custo + reais) / (1 - IMPOSTO_PADRAO);
+}
+
+/**
+ * Cor do indicador de margem (pedido do dono em 22/09/2026): vermelho quando o
+ * preco de venda fica ABAIXO do custo do fornecedor (prejuizo, nao margem
+ * baixa); amarelo com lucro abaixo de 60%; verde a partir de 60%.
+ */
+function corDaMargem(preco, custo) {
+  if (!(custo > 0) || !(preco > 0)) return "text-suave";
+  if (preco < custo) return "text-red-600";
+  const margem = calcularMargem(preco, custo);
+  if (margem === null) return "text-suave";
+  // "amber" (#b45309) e vermelho (#b91c1c) sao os dois tons queimados demais
+  // para diferenciar num texto pequeno — o dono viu 52% e leu como vermelho
+  // (pedido de correcao em 22/09/2026). "yellow-600" e amarelo de verdade.
+  return margem >= 60 ? "text-emerald-600" : "text-yellow-600";
+}
+
+function CampoPreco({ inicial, erro, referencias, custo, precoAtual, aoAlterar, aoMudarValor, usos }) {
   const entrada = useRef(null);
   const [aberto, setAberto] = useState(false);
+  const [abertoMargem, setAbertoMargem] = useState(false);
+
+  // Campos do PAINEL de margem (ListaFlutuante propria, ver abaixo): tres
+  // valores que descrevem o mesmo numero de tres jeitos — preco, % de lucro e
+  // lucro em reais — e se mantem sincronizados entre si e com o campo
+  // principal. Fornecedor (custo) e so leitura ali: quem muda o custo e o
+  // fornecedor padrao na aba Fornecedores, nao aqui.
+  const precoNoPainel = useRef(null);
+  const lucroPercentual = useRef(null);
+  const lucroReais = useRef(null);
 
   const comPreco = referencias
     .filter((item) => item.preco !== null && item.preco !== undefined)
@@ -535,12 +613,38 @@ function CampoPreco({ inicial, erro, referencias, aoAlterar, aoMudarValor, usos 
       a.tipo === b.tipo ? a.preco - b.preco : a.tipo === "CONCORRENTE" ? -1 : 1,
     );
 
-  function escolher(preco) {
-    const valor = Number(preco).toFixed(2);
-    if (entrada.current) entrada.current.value = valor;
+  /**
+   * Le o preco de UM lugar e escreve nos outros (campo principal + os dois do
+   * painel) — NUNCA no campo `origem`, que e o que o operador esta digitando
+   * agora. Escrever nele tambem reescrevia o proprio campo a cada tecla (
+   * bug visto pelo dono em 22/09/2026: digitar "60" em "% de lucro" calculava
+   * o preco a partir do "6" que ja tinha sido digitado, recalculava a margem
+   * de volta para "6.0" e GRAVAVA isso por cima do campo — o "0" seguinte
+   * "entrava" depois desse reset e o resultado ficava preso em 6%, nunca 60%.
+   */
+  function propagarPreco(novoPreco, origem = null) {
+    const formatado = Number(novoPreco).toFixed(2);
+    if (origem !== "preco" && entrada.current) entrada.current.value = formatado;
+    if (origem !== "precoPainel" && precoNoPainel.current) {
+      precoNoPainel.current.value = formatado;
+    }
+
+    const preco = Number(formatado);
+    const margem = calcularMargem(preco, custo);
+    if (origem !== "lucroPercentual" && lucroPercentual.current) {
+      lucroPercentual.current.value = margem === null ? "" : margem.toFixed(1);
+    }
+    if (origem !== "lucroReais" && lucroReais.current) {
+      lucroReais.current.value = custo > 0 ? (preco * (1 - IMPOSTO_PADRAO) - custo).toFixed(2) : "";
+    }
+
     aoAlterar();
-    aoMudarValor?.(valor);
+    aoMudarValor?.(formatado);
     usos.marcar("precoVenda");
+  }
+
+  function escolher(preco) {
+    propagarPreco(preco);
     setAberto(false);
   }
 
@@ -551,11 +655,61 @@ function CampoPreco({ inicial, erro, referencias, aoAlterar, aoMudarValor, usos 
    */
   function aoSair() {
     if (!entrada.current) return;
-    const formatado = comDuasCasas(entrada.current.value);
-    if (formatado === entrada.current.value) return;
-    entrada.current.value = formatado;
-    aoMudarValor?.(formatado);
+    propagarPreco(entrada.current.value || 0, "preco");
   }
+
+  /** Digitar o preco no campo principal so espelha nos outros — sem reformatar a cada tecla. */
+  function aoMudarPrecoPrincipal(evento) {
+    aoMudarValor?.(evento.target.value);
+    const preco = Number(evento.target.value);
+    const margem = calcularMargem(preco, custo);
+    if (precoNoPainel.current) precoNoPainel.current.value = evento.target.value;
+    if (lucroPercentual.current) {
+      lucroPercentual.current.value = margem === null ? "" : margem.toFixed(1);
+    }
+    if (lucroReais.current) {
+      lucroReais.current.value =
+        custo > 0 && preco > 0 ? (preco * (1 - IMPOSTO_PADRAO) - custo).toFixed(2) : "";
+    }
+  }
+
+  function aoMudarPrecoNoPainel(evento) {
+    propagarPreco(evento.target.value || 0, "precoPainel");
+  }
+
+  /** So reformata (2 casas) ao SAIR do campo — mesma regra do preco principal. */
+  function aoSairPrecoNoPainel() {
+    if (precoNoPainel.current) propagarPreco(precoNoPainel.current.value || 0);
+  }
+
+  function aoMudarLucroPercentual(evento) {
+    const novoPreco = calcularPrecoDaMargem(evento.target.value, custo);
+    if (novoPreco !== null) propagarPreco(novoPreco, "lucroPercentual");
+  }
+
+  function aoSairLucroPercentual() {
+    if (!lucroPercentual.current) return;
+    const novoPreco = calcularPrecoDaMargem(lucroPercentual.current.value, custo);
+    if (novoPreco !== null) propagarPreco(novoPreco);
+  }
+
+  function aoMudarLucroReais(evento) {
+    const novoPreco = calcularPrecoDaMargemReais(evento.target.value, custo);
+    if (novoPreco !== null) propagarPreco(novoPreco, "lucroReais");
+  }
+
+  function aoSairLucroReais() {
+    if (!lucroReais.current) return;
+    const novoPreco = calcularPrecoDaMargemReais(lucroReais.current.value, custo);
+    if (novoPreco !== null) propagarPreco(novoPreco);
+  }
+
+  const margemAtual = calcularMargem(precoAtual, custo);
+  const lucroAtual =
+    custo > 0 && precoAtual !== null ? precoAtual * (1 - IMPOSTO_PADRAO) - custo : null;
+  const impostoAtual = precoAtual !== null ? precoAtual * IMPOSTO_PADRAO : null;
+  const temCusto = custo > 0;
+  const corIndicador = corDaMargem(precoAtual, custo);
 
   return (
     <CampoComIcone
@@ -570,9 +724,41 @@ function CampoPreco({ inicial, erro, referencias, aoAlterar, aoMudarValor, usos 
       // So para a comparacao com concorrentes em Concorrentes.jsx: o campo
       // continua nao controlado (o React nao decide o que aparece nele), isto
       // so espelha o valor digitado numa variavel de estado, a parte.
-      onChange={(evento) => aoMudarValor?.(evento.target.value)}
+      onChange={aoMudarPrecoPrincipal}
       onBlur={aoSair}
       erro={erro}
+      iconeExtra={
+        <>
+          {/* Indicador (percentual de lucro / lucro em reais), pedido do dono
+              em 22/09/2026: vermelho abaixo do custo, amarelo com lucro
+              menor que 60%, verde a partir de 60%. So mostra o dado — quem
+              edita e o painel, abaixo. */}
+          {temCusto && margemAtual !== null && (
+            <button
+              type="button"
+              onClick={() => setAbertoMargem((atual) => !atual)}
+              title={`Percentual de lucro / lucro em reais, ja com ${(IMPOSTO_PADRAO * 100).toFixed(0)}% de imposto descontado — clique para editar`}
+              className={`shrink-0 text-sm font-semibold tabular-nums whitespace-nowrap hover:underline ${corIndicador}`}
+            >
+              ({margemAtual.toFixed(1)}% / {reais(lucroAtual)})
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setAbertoMargem((atual) => !atual)}
+            disabled={!temCusto}
+            title={
+              temCusto
+                ? "Calcular a partir do custo do fornecedor padrao"
+                : "Marque um fornecedor padrao com preco de custo para calcular a margem"
+            }
+            aria-label="Calcular margem a partir do custo do fornecedor"
+            className={`relative shrink-0 rounded p-1.5 hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-40 ${COR_DE_USO.funcao}`}
+          >
+            <Calculator size={16} />
+          </button>
+        </>
+      }
       icone={
         <button
           type="button"
@@ -648,6 +834,108 @@ function CampoPreco({ inicial, erro, referencias, aoAlterar, aoMudarValor, usos 
               })}
             </ul>
           )}
+        </ListaFlutuante>
+      )}
+
+      {/* Painel de margem (pedido do dono em 22/09/2026): Fornecedor (o custo
+          de compra, so leitura — quem muda e a aba Fornecedores), Preco de
+          venda, % de Lucro e Lucro em R$, os tres ultimos editaveis e presos
+          entre si pelo mesmo par de contas de calcularMargem/
+          calcularPrecoDaMargem. Sem custo do fornecedor padrao nao ha o que
+          calcular, e o botao que abre fica desabilitado. */}
+      {abertoMargem && temCusto && (
+        <ListaFlutuante largura="w-72" aoFechar={() => setAbertoMargem(false)}>
+          <div className="flex items-center justify-between px-2 pt-1 pb-2">
+            <span className="text-sm font-semibold">Margem</span>
+            <button
+              type="button"
+              onClick={() => setAbertoMargem(false)}
+              aria-label="Fechar margem"
+              className="rounded p-1 text-suave hover:bg-fundo"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <div className="space-y-2.5 px-2 pb-2">
+            <div>
+              <span className="block text-xs text-suave">Fornecedor (custo de compra)</span>
+              <p className="text-sm font-medium tabular-nums">{reais(custo)}</p>
+            </div>
+
+            <div>
+              <span className="block text-xs text-suave">
+                Imposto ({(IMPOSTO_PADRAO * 100).toFixed(0)}% do preco)
+              </span>
+              <p className="text-sm font-medium tabular-nums">
+                {impostoAtual !== null ? reais(impostoAtual) : "—"}
+              </p>
+            </div>
+
+            <label className="block">
+              <span className="block text-xs text-suave">Preco de venda</span>
+              <div className="relative mt-0.5">
+                <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-suave">
+                  R$
+                </span>
+                <input
+                  ref={precoNoPainel}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  defaultValue={comDuasCasas(precoAtual ?? inicial)}
+                  onChange={aoMudarPrecoNoPainel}
+                  onBlur={aoSairPrecoNoPainel}
+                  className="w-full rounded border border-borda py-1.5 pr-2 pl-7 text-sm tabular-nums focus:border-acento focus:outline-none"
+                />
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="block text-xs text-suave">% de lucro (liquido, ja com imposto)</span>
+              <div className="relative mt-0.5">
+                <input
+                  ref={lucroPercentual}
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="99"
+                  defaultValue={margemAtual !== null ? margemAtual.toFixed(1) : ""}
+                  onChange={aoMudarLucroPercentual}
+                  onBlur={aoSairLucroPercentual}
+                  className="w-full rounded border border-borda py-1.5 pr-6 pl-2 text-sm tabular-nums focus:border-acento focus:outline-none"
+                />
+                <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs text-suave">
+                  %
+                </span>
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="block text-xs text-suave">Margem financeira (liquida)</span>
+              <div className="relative mt-0.5">
+                <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-suave">
+                  R$
+                </span>
+                <input
+                  ref={lucroReais}
+                  type="number"
+                  step="0.01"
+                  defaultValue={lucroAtual !== null ? lucroAtual.toFixed(2) : ""}
+                  onChange={aoMudarLucroReais}
+                  onBlur={aoSairLucroReais}
+                  className="w-full rounded border border-borda py-1.5 pr-2 pl-7 text-sm tabular-nums focus:border-acento focus:outline-none"
+                />
+              </div>
+            </label>
+
+            {/* Nota pedida pelo dono em 22/09/2026: o imposto entra fixo por
+                enquanto, e a tela avisa disso em vez de parecer definitivo. */}
+            <p className="border-t border-borda pt-2 text-[11px] text-suave">
+              Imposto de {(IMPOSTO_PADRAO * 100).toFixed(0)}% ja descontado do lucro acima. Fixo
+              por enquanto — no futuro vira configuravel.
+            </p>
+          </div>
         </ListaFlutuante>
       )}
     </CampoComIcone>
@@ -1146,6 +1434,16 @@ export default function FormularioProduto({
   // Referencias marcadas na janela da lupa. Moram aqui, e nao na janela, porque
   // os botoes de IA ficam no formulario (ao lado da lupa e na aba Descricao) e
   // precisam delas com a janela fechada.
+  //
+  // COMECA VAZIA (pedido do dono em 22/09/2026, revertendo uma tentativa
+  // anterior de pre-marcar concorrentes ja vinculados ao abrir a pagina): pre-
+  // marcar disparava efeitos que so deviam acontecer por acao do operador —
+  // o painel de imagens tentou importar fotos de 20 produtos marcados sozinho,
+  // so de a pagina ter carregado. Carregar so quando ele clicar Buscar na
+  // lupa; a partir dai, ReferenciasDeMercado.jsx ja marca sozinho o que bate
+  // com os fornecedores/concorrentes salvos na aba (nomesFornecedoresAtuais/
+  // idsConcorrentesAtuais, passados como prop) — o pedido de comparar com o
+  // ja salvo continua valendo, so nao antes do clique.
   const [marcados, setMarcados] = useState(() => new Map());
   const [gerandoIA, iniciarIA] = useTransition();
   const [iaEmCurso, setIaEmCurso] = useState(null);
@@ -1221,7 +1519,32 @@ export default function FormularioProduto({
   // 18/09/2026, para poder cadastrar fornecedor junto com o produto novo, como
   // no desenho). Viram vinculos de verdade so no Salvar
   // (gravarFornecedoresRascunho), igual a documentos e certificado.
-  const [fornecedoresRascunho, setFornecedoresRascunho] = useState([]);
+  //
+  // Produto RECEM-IMPORTADO DO BLING (pedido do dono em 22/09/2026): o
+  // fornecedor extraido na importacao mora em `produto.fornecedorRascunho`,
+  // sem Fornecedor/ProdutoFornecedor criados. Aqui ele vira a MESMA lista de
+  // rascunho do produto novo — id fixo (nao aleatorio: entra no hidden field
+  // renderizado no servidor, e um id sorteado de novo na hidratacao do cliente
+  // desencontraria o HTML). So conta enquanto nao ha vinculo de verdade: depois
+  // de salvo uma vez, `fornecedores` deixa de vir vazio e o rascunho some.
+  const [fornecedoresRascunho, setFornecedoresRascunho] = useState(() =>
+    produto?.fornecedorRascunho?.nome && fornecedores.length === 0
+      ? [
+          {
+            id: "bling-rascunho",
+            nome: produto.fornecedorRascunho.nome,
+            descricao: produto.fornecedorRascunho.descricao ?? null,
+            codigo: produto.fornecedorRascunho.codigo ?? null,
+            precoCusto: produto.fornecedorRascunho.precoCusto ?? null,
+            // O Bling nao separa um "link" proprio — o que ele chama de
+            // "Descricao no fornecedor" e, na pratica, esse link (ver
+            // Produto.fornecedorRascunho); mora em `descricao`, nao aqui.
+            link: null,
+            padrao: true,
+          },
+        ]
+      : [],
+  );
 
   function mudarFornecedoresRascunho(atualizador) {
     setFornecedoresRascunho(atualizador);
@@ -1566,6 +1889,11 @@ export default function FormularioProduto({
   const inicial = preenchido ?? produto;
   const v = (campo) => inicial?.[campo] ?? "";
   const novo = !produto;
+  // Fornecedor do Bling ainda em rascunho (ver fornecedoresRascunho acima): a
+  // aba Fornecedores trata como produto novo, so para ela — o resto do
+  // formulario (fotos, documentos...) continua no modo de produto existente.
+  const usaFornecedorRascunho =
+    novo || Boolean(produto?.fornecedorRascunho?.nome && fornecedores.length === 0);
 
   // Preco venda ATUAL, para a comparacao com concorrentes em Concorrentes.jsx.
   // O campo continua nao controlado (ver CampoPreco); isto so espelha o valor
@@ -1575,12 +1903,21 @@ export default function FormularioProduto({
   const [precoVendaTexto, setPrecoVendaTexto] = useState(v("precoVenda"));
   const precoVendaAtual = precoVendaTexto !== "" ? Number(precoVendaTexto) : null;
 
+  // Custo do fornecedor PADRAO, para a margem ao lado do Preco venda (pedido
+  // do dono em 22/09/2026). Lido da mesma lista que a aba Fornecedores usa —
+  // rascunho ou vinculos de verdade — e nao de Produto.custo: aquele campo so
+  // e recalculado no Salvar, e ficaria um Salvar atrasado do que a tela mostra
+  // (ex.: acabou de marcar outro fornecedor como padrao, ainda nao salvou).
+  const custoPadrao =
+    (usaFornecedorRascunho ? fornecedoresRascunho : fornecedores).find((item) => item.padrao)
+      ?.precoCusto ?? null;
+
   // Referencias marcadas na lupa que ja servem de atalho na aba Fornecedores
   // (pedido do dono em 18/09/2026): fornecedor vira sugestao de linha ali;
   // concorrente so aparece para consulta, em Concorrentes.jsx — preco de
   // concorrente nao e custo, entao nao entra na mesma tabela.
   const nomesFornecedoresAtuais = new Set(
-    (novo ? fornecedoresRascunho : fornecedores).map((item) =>
+    (usaFornecedorRascunho ? fornecedoresRascunho : fornecedores).map((item) =>
       item.nome.trim().toLocaleLowerCase("pt-BR"),
     ),
   );
@@ -1852,6 +2189,8 @@ export default function FormularioProduto({
                 inicial={v("precoVenda")}
                 erro={erros.precoVenda}
                 referencias={[...marcados.values()]}
+                custo={custoPadrao}
+                precoAtual={precoVendaAtual}
                 aoAlterar={() => setAlterado(true)}
                 aoMudarValor={setPrecoVendaTexto}
                 usos={usos}
@@ -1892,6 +2231,8 @@ export default function FormularioProduto({
         aoAlternar={alternarReferencia}
         aoLimpar={() => setMarcados(new Map())}
         aoFechar={lerValoresRefs}
+        nomesFornecedoresLigados={nomesFornecedoresAtuais}
+        idsConcorrentesLigados={idsConcorrentesAtuais}
       />
 
       {/* Fora dos trechos remontados, pelo mesmo motivo da janela da lupa. */}
@@ -2228,10 +2569,10 @@ export default function FormularioProduto({
               <Fornecedores
                 ref={fornecedoresRef}
                 produtoId={produto?.id ?? null}
-                vinculos={novo ? fornecedoresRascunho : fornecedores}
+                vinculos={usaFornecedorRascunho ? fornecedoresRascunho : fornecedores}
                 catalogo={catalogoFornecedores}
                 aoFalhar={setErroAcao}
-                modoRascunho={novo}
+                modoRascunho={usaFornecedorRascunho}
                 aoMudarRascunho={mudarFornecedoresRascunho}
                 sugestoes={sugestoesFornecedor}
               />

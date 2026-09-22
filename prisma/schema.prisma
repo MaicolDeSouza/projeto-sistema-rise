@@ -167,6 +167,21 @@ model Produto {
   blingId String?
   ativo   Boolean @default(true)
 
+  /// Marca "produto totalmente conferido" (pedido do dono em 22/09/2026): antes
+  /// vivia so no navegador (ConferidoProduto.jsx) e sumia ao recarregar. Agora
+  /// grava de verdade, para a contagem "(N verificados)" da lista ser real.
+  conferido Boolean @default(false)
+
+  /// Fornecedor extraido do Bling na importacao, {nome, descricao, codigo,
+  /// precoCusto} — combinado de DUAS chamadas (ver lerFornecedorBling em
+  /// importarBling.js): o nome vem de GET /produtos/{id} (fornecedor.contato.
+  /// nome) e descricao/codigo/precoCusto de GET /produtos/fornecedores. SO
+  /// RASCUNHO, nunca cria Fornecedor/ProdutoFornecedor sozinho (pedido do dono
+  /// em 22/09/2026: "esses campos devem ser apenas rascunhos"). A aba
+  /// Fornecedores/Concorrentes mostra esta linha como editavel; salvarProduto a
+  /// confirma em vinculo de verdade e zera este campo.
+  fornecedorRascunho Json?
+
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 

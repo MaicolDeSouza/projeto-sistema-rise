@@ -351,8 +351,18 @@ export default function Concorrentes({
                 />
               ) : (
                 <tr key={item.id} className="divide-x divide-borda">
-                  <td className="px-3 py-2 font-medium">{item.fonte}</td>
-                  <td className="max-w-xs truncate px-3 py-2 text-suave">{item.nome || "—"}</td>
+                  <td className="px-3 py-2 font-medium" title={item.fonte}>
+                    {item.fonte}
+                  </td>
+                  {/* Corte so visual (o nome nao tem limite no banco); o texto
+                      inteiro aparece ao passar o mouse (pedido do dono em
+                      22/09/2026, mesmo ajuste ja feito em Fornecedores.jsx). */}
+                  <td
+                    className="max-w-xs truncate px-3 py-2 text-suave"
+                    title={item.nome || undefined}
+                  >
+                    {item.nome || "—"}
+                  </td>
                   <td className="px-3 py-2 font-mono text-xs">
                     {item.codigo && item.codigo !== "N/A" ? item.codigo : "—"}
                   </td>

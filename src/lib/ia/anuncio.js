@@ -458,11 +458,21 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
     "Escreva o conteúdo da descrição, em três partes. Tudo em TEXTO PURO: sem negrito, sem " +
     "asteriscos, sem '#', sem emoji e sem links.\n" +
     `- paragrafos: exatamente DOIS parágrafos, cada um com NO MÁXIMO ${LIMITE_PARAGRAFO} ` +
-    "caracteres contando espaços (cerca de quatro linhas). O primeiro diz o que é o produto e " +
-    "o que o diferencia (chip, frequência, potência, o dado que decide a compra); o segundo, " +
-    "como usar, onde e para quem é indicado. Com pouco espaço, cada palavra conta: frases " +
-    "diretas e informativas, sem adjetivo vazio (\"incrível\", \"ideal\", \"de alta qualidade\"), " +
-    "sem repetir o título e sem repetir o que a lista de especificações já diz em detalhe.\n" +
+    "caracteres contando espaços (cerca de quatro linhas), no padrão abaixo (\"técnico-" +
+    "comparativo\"), definido com o dono em 22/09/2026.\n" +
+    "  Primeiro parágrafo — identidade técnica: comece pelo NOME do produto como sujeito da " +
+    "frase (\"A Placa...\", \"A Célula de carga...\", \"O Sensor...\"), diga o que ele é e a " +
+    "especificação central que decide a compra (chip/CI, processador, clock — o dado técnico " +
+    "mais relevante), terminando com a tensão de operação/alimentação quando as referências " +
+    "trouxerem esse dado.\n" +
+    "  Segundo parágrafo — compatibilidade prática: o que o produto aceita ou exige junto " +
+    "(shields, bibliotecas, IDE, módulo complementar como o HX711) e, quando fizer sentido, o " +
+    "que acompanha.\n" +
+    "  Escreva em frases completas, com verbo ligando os fatos (\"possui\", \"é compatível " +
+    "com\", \"acompanha\"), NUNCA uma lista telegráfica separada só por vírgula. Tom acessível, " +
+    "como se explicasse para alguém leigo no assunto, mas sem perder precisão técnica: nenhum " +
+    "adjetivo de efeito (\"incrível\", \"ideal\", \"de alta qualidade\", \"a solução perfeita\"). " +
+    "Não repita o título nem o que a lista de especificações já diz em detalhe.\n" +
     "- caracteristicas: as especificações técnicas que as referências confirmam, cada uma com " +
     "nome curto e valor (ex.: nome \"Voltagem de Operação\", valor \"5V\"). Da mais importante para " +
     "a menos importante. Não repita a mesma especificação com nomes diferentes.\n" +

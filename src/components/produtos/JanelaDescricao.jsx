@@ -7,7 +7,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { ExternalLink, Loader, Sparkles, X } from "lucide-react";
+import { ExternalLink, Loader, Sparkles, Trash2, X } from "lucide-react";
 
 import { criarDescricaoIA, detalhesDasReferencias } from "@/app/produtos/acoes";
 
@@ -19,8 +19,17 @@ const ROTULO_TIPO = {
   OUTRO: { ponto: "bg-slate-400" },
 };
 
-/** O texto e a ficha que uma loja publica para o produto marcado. */
+/**
+ * O texto e a ficha que uma loja publica para o produto marcado, em DUAS
+ * sub-abas (pedido do dono em 22/09/2026): Descricao (o texto original da
+ * pagina) e Especificacoes, com a quantidade entre parenteses no rotulo —
+ * antes vinham empilhadas, e uma ficha longa empurrava a descricao para
+ * baixo da rolagem.
+ */
 function ConteudoReferencia({ item }) {
+  const [subaba, setSubaba] = useState("descricao");
+  const quantas = item.especificacoes.length;
+
   return (
     <div className="space-y-3 text-sm">
       <div className="flex items-start justify-between gap-3">
@@ -44,28 +53,46 @@ function ConteudoReferencia({ item }) {
         )}
       </div>
 
-      {item.especificacoes.length > 0 && (
-        <div>
-          <p className="mb-1 text-xs font-semibold text-suave uppercase">Especificacoes</p>
-          <ul className="space-y-0.5">
-            {item.especificacoes.map((linha, indice) => (
-              <li key={indice}>
-                - {linha.nome ? <strong>{linha.nome}: </strong> : null}
-                {linha.valor}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <div role="tablist" className="flex gap-1 border-b border-borda">
+        {[
+          { id: "descricao", rotulo: "Descricao" },
+          { id: "especificacoes", rotulo: `Especificacoes (${quantas})` },
+        ].map((aba) => (
+          <button
+            key={aba.id}
+            type="button"
+            role="tab"
+            aria-selected={subaba === aba.id}
+            onClick={() => setSubaba(aba.id)}
+            className={`-mb-px border-b-2 px-2.5 py-1.5 text-xs font-medium ${
+              subaba === aba.id
+                ? "border-acento text-texto"
+                : "border-transparent text-suave hover:text-texto"
+            }`}
+          >
+            {aba.rotulo}
+          </button>
+        ))}
+      </div>
 
-      <div>
-        <p className="mb-1 text-xs font-semibold text-suave uppercase">Descricao da loja</p>
-        {item.descricao ? (
+      {subaba === "descricao" ? (
+        item.descricao ? (
           <p className="whitespace-pre-wrap text-texto">{item.descricao}</p>
         ) : (
           <p className="text-suave">Esta loja nao publica descricao.</p>
-        )}
-      </div>
+        )
+      ) : quantas > 0 ? (
+        <ul className="space-y-0.5">
+          {item.especificacoes.map((linha, indice) => (
+            <li key={indice}>
+              - {linha.nome ? <strong>{linha.nome}: </strong> : null}
+              {linha.valor}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-suave">Esta loja nao publica ficha tecnica.</p>
+      )}
     </div>
   );
 }
@@ -75,7 +102,7 @@ function ConteudoReferencia({ item }) {
  * 16/09/2026 (antes era uma lista de secoes empilhadas, que obrigava a rolar
  * para achar a segunda loja). Cada aba diz o tipo pela cor e a loja pelo nome.
  */
-function AbasDeReferencias({ itens }) {
+function AbasDeReferencias({ itens, aoRemover }) {
   const [ativa, setAtiva] = useState(0);
   const item = itens[Math.min(ativa, itens.length - 1)];
 
@@ -86,23 +113,44 @@ function AbasDeReferencias({ itens }) {
           const tipo = ROTULO_TIPO[referencia.tipo] ?? ROTULO_TIPO.OUTRO;
           const selecionada = indice === ativa;
           return (
-            <button
+            <span
               key={referencia.id}
-              type="button"
-              role="tab"
-              aria-selected={selecionada}
-              onClick={() => setAtiva(indice)}
-              title={referencia.nome ?? ""}
-              className={`max-w-44 truncate rounded-md border px-2.5 py-1.5 text-xs font-medium ${
+              className={`group/aba inline-flex max-w-44 items-center gap-1 rounded-md border pl-2.5 text-xs font-medium ${
                 selecionada
                   ? "border-acento bg-sky-50 text-texto"
                   : "border-borda text-suave hover:border-acento/50 hover:text-texto"
               }`}
             >
-              <span className={`mr-1.5 inline-block h-2 w-2 rounded-full ${tipo.ponto}`} />
-              {referencia.fonte}
-              {referencia.codigo && <span className="ml-1 font-mono opacity-70">{referencia.codigo}</span>}
-            </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={selecionada}
+                onClick={() => setAtiva(indice)}
+                title={referencia.nome ?? ""}
+                className="min-w-0 truncate py-1.5"
+              >
+                <span className={`mr-1.5 inline-block h-2 w-2 rounded-full ${tipo.ponto}`} />
+                {referencia.fonte}
+                {referencia.codigo && (
+                  <span className="ml-1 font-mono opacity-70">{referencia.codigo}</span>
+                )}
+              </button>
+              {/* Excluir a referencia que o operador nao quer que entre no
+                  texto da IA (pedido do dono em 22/09/2026) — some so daqui,
+                  a marcacao continua so na tela. */}
+              <button
+                type="button"
+                onClick={() => {
+                  aoRemover(referencia);
+                  setAtiva((atual) => Math.max(0, Math.min(atual, itens.length - 2)));
+                }}
+                title={`Remover ${referencia.fonte} das referencias`}
+                aria-label={`Remover ${referencia.fonte} das referencias`}
+                className="shrink-0 rounded p-1 text-suave opacity-0 group-hover/aba:opacity-100 hover:bg-red-50 hover:text-red-700 focus:opacity-100"
+              >
+                <Trash2 size={11} />
+              </button>
+            </span>
           );
         })}
       </div>
@@ -136,12 +184,22 @@ export default function JanelaDescricao({ ref, ids, lerProduto, aoUsar }) {
   const [texto, setTexto] = useState("");
   const [erro, setErro] = useState(null);
   const [produto, setProduto] = useState({ titulo: "", sku: "" });
+  // Referencias tiradas so DESTA geracao (pedido do dono em 22/09/2026: "nao
+  // excluir fonte" — a marcacao de verdade continua na lupa, e reabrir a
+  // janela traz tudo de volta). Guarda so o id, resetado em `abrir()`.
+  const [excluidos, setExcluidos] = useState(() => new Set());
 
   function abrir() {
     setAberta(true);
     setErro(null);
     setProduto(lerProduto());
     setDetalhes(null);
+    // So desta ABERTURA (pedido do dono em 22/09/2026): excluir uma
+    // referencia aqui nao desmarca ela na lupa nem em lugar nenhum do
+    // formulario, so tira da geracao de agora. Reabrir a janela traz todas
+    // de volta — por isso reseta aqui, e nao junto de `detalhes` (que so
+    // muda quando a busca termina).
+    setExcluidos(new Set());
     if (ids.length === 0) {
       setDetalhes({ ok: true, itens: [] });
       return;
@@ -176,6 +234,15 @@ export default function JanelaDescricao({ ref, ids, lerProduto, aoUsar }) {
     };
   }, [aberta]);
 
+  /**
+   * Tira uma referencia SO DESTA geracao (pedido do dono em 22/09/2026: "nao
+   * excluir fonte" — nada e desmarcado no formulario nem na lupa). So soma o
+   * id a `excluidos`; `abrir()` reseta isso na proxima vez que a janela abre.
+   */
+  function removerReferencia(item) {
+    setExcluidos((atual) => new Set(atual).add(item.id));
+  }
+
   function gerar() {
     setErro(null);
     // Nome e Codigo lidos na hora de gerar: sao os que entram no texto.
@@ -183,7 +250,7 @@ export default function JanelaDescricao({ ref, ids, lerProduto, aoUsar }) {
     setProduto(atual);
     iniciarGeracao(async () => {
       try {
-        const resultado = await criarDescricaoIA(ids, atual);
+        const resultado = await criarDescricaoIA(idsParaGerar, atual);
         if (!resultado.ok) {
           setErro(resultado.erro);
           return;
@@ -196,13 +263,17 @@ export default function JanelaDescricao({ ref, ids, lerProduto, aoUsar }) {
   }
 
   function usar() {
-    aoUsar(texto, ids.length);
+    aoUsar(texto, idsParaGerar.length);
     setAberta(false);
   }
 
   if (!aberta) return null;
 
-  const itens = detalhes?.ok ? detalhes.itens : [];
+  // Removidas SO desta geracao ficam de fora da lista mostrada e do que vai
+  // para a IA — mas continuam marcadas de verdade (`ids` inteiro), entao
+  // reabrir a janela (que reseta `excluidos`) as traz de volta.
+  const itens = detalhes?.ok ? detalhes.itens.filter((item) => !excluidos.has(item.id)) : [];
+  const idsParaGerar = ids.filter((id) => !excluidos.has(id));
 
   return (
     <div
@@ -233,7 +304,8 @@ export default function JanelaDescricao({ ref, ids, lerProduto, aoUsar }) {
           {/* ---------- Referencias ---------- */}
           <div className="flex min-h-0 flex-col">
             <p className="mb-2 text-xs font-semibold tracking-wide text-suave uppercase">
-              Produtos marcados ({ids.length})
+              Produtos marcados ({itens.length}
+              {excluidos.size > 0 && ` de ${ids.length}`})
             </p>
             <div className="flex min-h-0 flex-1 flex-col">
               {lendo || !detalhes ? (
@@ -242,12 +314,23 @@ export default function JanelaDescricao({ ref, ids, lerProduto, aoUsar }) {
                 </p>
               ) : !detalhes.ok ? (
                 <p className="text-sm text-red-700">{detalhes.erro}</p>
+              ) : itens.length === 0 && ids.length > 0 ? (
+                <p className="text-sm text-suave">
+                  Todas as referencias foram removidas desta geracao.{" "}
+                  <button
+                    type="button"
+                    onClick={() => setExcluidos(new Set())}
+                    className="text-acento hover:underline"
+                  >
+                    Trazer de volta
+                  </button>
+                </p>
               ) : itens.length === 0 ? (
                 <p className="text-sm text-suave">
                   Nenhum produto marcado. Marque referencias na lupa ao lado do Nome.
                 </p>
               ) : (
-                <AbasDeReferencias itens={itens} />
+                <AbasDeReferencias itens={itens} aoRemover={removerReferencia} />
               )}
             </div>
           </div>
@@ -277,7 +360,7 @@ export default function JanelaDescricao({ ref, ids, lerProduto, aoUsar }) {
               <button
                 type="button"
                 onClick={gerar}
-                disabled={gerando || ids.length === 0}
+                disabled={gerando || idsParaGerar.length === 0}
                 className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {gerando ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}

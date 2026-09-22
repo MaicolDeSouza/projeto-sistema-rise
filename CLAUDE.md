@@ -788,6 +788,16 @@ mesmo CI são o mesmo item.
 - **Loja Integrada** (Eletrogate): a galeria fica **fora** do escopo do `itemtype=Product`.
 - **Tray**: os relacionados ficam **dentro** desse escopo. As duas convenções são opostas,
   e é por isso que recortar no bloco do produto **não** serve de regra geral para imagem.
+- **Loja Integrada (4hobby), 22/09/2026: galeria repetida na página derrubava o teto de
+  segurança e cortava fotos de verdade.** O produto tinha 4 fotos, mas só 1 era salva. A página
+  publica a galeria **duas vezes** (a tira visível + um bloco oculto para o zoom/lightbox,
+  `jquery.fancybox`), e cada foto aparece em várias resoluções (miniatura, zoom, tamanho médio)
+  — 4 fotos reais geravam **17 candidatas brutas**, acima do teto de 10 que existe para não
+  confundir "pasta compartilhada da loja" com galeria de verdade (`TETO_DE_GALERIA` em
+  `normalizar.js`). O teto descartava a galeria **inteira**, sobrando só a foto principal.
+  Corrigido: as candidatas são deduplicadas por foto única (`semRepetir`, que já escolhe a maior
+  resolução de cada uma) **antes** de aplicar o teto — ele agora compara fotos de verdade, não
+  ocorrências repetidas da mesma foto.
 - O **dataLayer é JSON lido por regex**, então os escapes chegam crus: a categoria aparecia
   como "Componentes Eletr\u00f4nicos" na tela. Decodificar só ali, onde se sabe que a
   origem é JSON — em `comoTexto` isso alcançaria texto de HTML, onde a sequência não é
@@ -1460,6 +1470,14 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
   (é exportada para várias plataformas): TÍTULO EM MAIÚSCULAS · **2 parágrafos sucintos, SEM
   linha em branco entre eles** (o que é e o que diferencia; como usar e para quem; eram 2 ou 3
   separados até a revisão do dono no mesmo dia), **cada um com no máximo 4 linhas**
+  — **padrão "técnico-comparativo" dos parágrafos, revisado com o dono em 22/09/2026**: o
+  primeiro começa pelo NOME do produto como sujeito ("A Placa...", "O Sensor..."), diz o que é e
+  a especificação central que decide a compra (chip/CI, processador, clock), terminando na tensão
+  de operação quando as referências trouxerem; o segundo é compatibilidade prática — o que o
+  produto aceita ou exige junto (shields, bibliotecas, módulo complementar) e o que acompanha.
+  Frases completas com verbo ligando os fatos ("possui", "é compatível com"), nunca lista
+  telegráfica separada só por vírgula; tom acessível, sem perder precisão técnica, sem adjetivo de
+  efeito.
   (`LIMITE_PARAGRAFO` = 230 caracteres, medido nos ~57 por linha da caixa da janela). Parágrafo
   mais longo volta uma vez para a IA encurtar, com o texto recusado. Se ainda passar, ficam
   as frases inteiras que cabem (`frasesQueCabem`), nunca corte no meio da frase ·
@@ -1621,6 +1639,82 @@ que foi digitado. Num Salvar recusado (SKU repetido), o SKU voltava **vazio** ju
 mensagem de erro. Agora a action guarda o que foi enviado como valor inicial
 (`setPreenchido`), e o reset devolve os mesmos valores. Vale para todo campo não controlado
 deste formulário.
+
+## Produtos: importação do Bling, margem de lucro e paginação (22/09/2026)
+
+Sessão de correções e funcionalidades pedidas pelo dono depois da primeira importação completa
+do catálogo do Bling (1.316 produtos de formato simples).
+
+**Importação do Bling — dois bugs achados testando com produtos de verdade:**
+- **A paginação do catálogo quebrava com o filtro de formato.** `listarCatalogo` decidia "acabou
+  a paginação" olhando o tamanho da lista **já filtrada** (só formato `S`), não da página crua do
+  Bling — uma página cheia de variação/composição tinha poucos itens `S` e parecia a última
+  página, cortando o resto do catálogo. Corrigido: o critério de parar usa o tamanho da página
+  crua (`importarBling.js`).
+- **O botão "Importar do Bling" travava aos 20 produtos numa fila grande.** `importarProximo`
+  encadeava só **um** lote extra (uma chamada aninhada), e parava em silêncio depois disso — sem
+  erro, sem "Importação completa". Numa fila de exatamente 10 (os primeiros testes) isso nunca
+  apareceu; numa fila de 1.266 ele parava aos 20. Reescrito como um laço de verdade
+  (`BotaoImportarBling.jsx`), com um `ref` (`rodandoRef`) para o Pausa interromper entre um lote e
+  o próximo — o estado do React sozinho leria o valor antigo, capturado no fechamento.
+- **Fornecedor do Bling, em RASCUNHO** (`Produto.fornecedorRascunho`, migration
+  `20260922_produto_fornecedor_rascunho`): a importação grava `{nome, descricao, codigo,
+  precoCusto}` sem criar `Fornecedor`/`ProdutoFornecedor` — pedido do dono: "esses campos devem
+  ser apenas rascunhos". A aba Fornecedores mostra essa linha como editável; **salvar o produto**
+  confirma em vínculo de verdade (reaproveitando `Fornecedor` existente pelo nome) e zera o
+  campo. Combinado de **duas chamadas** à API do Bling, porque o fornecedor vem espalhado:
+  `GET /produtos/{id}` traz só o nome (`fornecedor.contato.nome` — não `fornecedor.nome`, que não
+  existe), e `GET /produtos/fornecedores?idProduto=` traz descrição (o que o Bling chama
+  "Descrição no fornecedor" é, na prática, o link do produto no site do fornecedor, ex.
+  AliExpress), código e preço de custo. Quando o produto tem mais de um fornecedor cadastrado,
+  usa o marcado como `padrao`, igual ao Bling.
+
+**Margem de lucro no campo Preço venda** (`CampoPreco` em `FormularioProduto.jsx`): ícone de
+calculadora ao lado do ícone `$` abre um painel com Fornecedor (custo, só leitura — quem muda é a
+aba Fornecedores), Preço de venda, % de lucro e Margem financeira, os três últimos editáveis e
+sincronizados entre si (mudar um recalcula os outros dois e o campo principal). No campo
+principal, mostra `(X% / R$Y)` entre parênteses, colorido: vermelho se o preço fica abaixo do
+custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde a partir de 60%.
+- **Imposto de 6% embutido no lucro** (`IMPOSTO_PADRAO`, fixo por enquanto — pedido do dono:
+  "futuramente faremos esse valor dinâmico"): lucro líquido = `preço × (1 − 6%) − custo`. O
+  painel mostra o valor do imposto em R$ e uma nota avisando que é fixo.
+- **Bug corrigido no painel:** editar "% de lucro" ou "Margem financeira" **reescrevia o próprio
+  campo a cada tecla** (a função que propaga o novo preço também escrevia de volta no campo que
+  originou a mudança), e digitar "60" virava "6" — o "0" seguinte "entrava" depois do campo já
+  ter sido resetado para "6.0". Corrigido: cada campo tem um `origem` que nunca é sobrescrito por
+  si mesmo, só reformatado (2 casas / 1 casa) ao perder o foco.
+
+**Lista de Produtos, paginada e ordenável** (pedido do dono, mesmo padrão de Mercados):
+- **25 por página**, navegação compacta no topo (ao lado da busca) e completa embaixo
+  (`Paginacao`, reaproveitado de `src/components/mercados/`). Antes a lista carregava os 1.316
+  produtos de uma vez e ficava pesada para interagir.
+- **Cabeçalhos clicáveis** (Código, Localização, Preço, Estoque): ciclo nada → crescente →
+  decrescente, ordenado **no banco antes de paginar** — importante, senão "ordenar por preço" só
+  reorganizaria os 25 da página, sem tocar no resto do acervo.
+- **"Conferido" agora grava no banco** (`Produto.conferido`, migration `20260922_produto_conferido`)
+  — antes vivia só no navegador (`ConferidoProduto.jsx`) e sumia ao recarregar. A caixa ao lado da
+  busca mostra `N produto(s) (M verificados)`, contados no banco (todo o acervo, não só a página).
+
+**Lupa de referências de mercado (`ReferenciasDeMercado.jsx`):**
+- **Marca sozinha, ao BUSCAR, quem já está vinculado ao produto** (comparando por
+  `produtoColetadoId` para concorrente e por nome para fornecedor) — mas **só reage a uma busca
+  nova**, nunca ao abrir a página. Uma primeira versão pré-marcava no carregamento da página e
+  isso disparava efeitos que deviam ser só por ação do operador (o painel de imagens chegou a
+  tentar importar fotos de 20 produtos marcados sozinho, só de a página ter carregado) — revertido
+  a pedido do dono.
+- **Verde mais forte** nos itens marcados da busca (`bg-emerald-100`/`accent-emerald-600`, no
+  lugar do azul claro `bg-sky-50` de antes, que sumia na tela).
+- **Tooltip com o texto completo** ao passar o mouse nas colunas "Concorrente" e "Produto" da
+  tabela de Concorrentes, e "Descrição no fornecedor" da tabela de Fornecedores — o corte
+  (`truncate`) é só visual, os campos não têm limite de caracteres no banco.
+
+**Janela "Criar descrição" (`JanelaDescricao.jsx`):**
+- **Conteúdo de cada referência em DUAS sub-abas**: Descrição (o texto original da página) e
+  Especificações (com a quantidade entre parênteses no rótulo) — antes vinham empilhadas, e uma
+  ficha técnica longa empurrava a descrição para baixo da rolagem.
+- **Remover uma referência só DESTA geração** (lixeira em cada aba): não desmarca na lupa nem
+  mexe no que está salvo — pedido do dono: "não excluir fonte". Reabrir a janela (que reseta o
+  estado local `excluidos`) traz todas de volta.
 
 ## Decisões de arquitetura
 

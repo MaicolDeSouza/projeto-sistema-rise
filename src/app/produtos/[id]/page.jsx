@@ -69,6 +69,9 @@ export default async function EditarProdutoPage({ params, searchParams }) {
       : "",
     numeroHomologacao: registro.numeroHomologacao,
     videoUrl: registro.videoUrl,
+    // Fornecedor extraido do Bling na importacao — so RASCUNHO, ate o operador
+    // salvar o produto (ver FormularioProduto e salvarProduto).
+    fornecedorRascunho: registro.fornecedorRascunho ?? null,
     precoVenda: registro.precoVenda ? Number(registro.precoVenda) : "",
     pesoKg: registro.pesoKg ? Number(registro.pesoKg) : "",
     alturaCm: registro.alturaCm ? Number(registro.alturaCm) : "",

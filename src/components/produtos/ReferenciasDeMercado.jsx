@@ -230,7 +230,20 @@ function FotoAmpliada({ foto, aoFechar }) {
  * A marcacao NAO e gravada no banco (decisao do dono): serve so para gerar o
  * texto.
  */
-export default function ReferenciasDeMercado({ ref, marcados, aoAlternar, aoLimpar, aoFechar }) {
+export default function ReferenciasDeMercado({
+  ref,
+  marcados,
+  aoAlternar,
+  aoLimpar,
+  aoFechar,
+  // Quem ja esta vinculado ao produto (pedido do dono em 22/09/2026): nomes
+  // de fornecedor em minusculas e ids de ProdutoColetado de concorrente ja
+  // adicionados na aba Fornecedores/Concorrentes. Marca sozinho quando a
+  // busca traz um desses — o operador nao precisa lembrar e procurar de novo
+  // quem ja esta ligado.
+  nomesFornecedoresLigados = new Set(),
+  idsConcorrentesLigados = new Set(),
+}) {
   const [aberto, setAberto] = useState(false);
   const [termo, setTermo] = useState("");
   const [resposta, setResposta] = useState(null);
@@ -265,6 +278,32 @@ export default function ReferenciasDeMercado({ ref, marcados, aoAlternar, aoLimp
       }
     });
   }
+
+  /**
+   * Marca sozinho os itens da busca que ja estao vinculados ao produto
+   * (pedido do dono em 22/09/2026). `useEffectEvent` le `marcados`/`aoAlternar`
+   * sempre atualizados sem entrar como dependencia do efeito abaixo — sem
+   * isso, o efeito re-rodaria a cada marcacao (inclusive a que ELE MESMO
+   * acabou de fazer) e voltaria a chamar `aoAlternar` no mesmo item,
+   * DESMARCANDO o que tinha acabado de marcar (aoAlternar e um toggle).
+   */
+  const marcarJaLigados = useEffectEvent((itens) => {
+    for (const item of itens) {
+      if (marcados.has(item.id)) continue;
+      const jaLigado =
+        item.tipo === "FORNECEDOR"
+          ? item.fonte && nomesFornecedoresLigados.has(item.fonte.trim().toLocaleLowerCase("pt-BR"))
+          : item.tipo === "CONCORRENTE" && idsConcorrentesLigados.has(item.id);
+      if (jaLigado) aoAlternar(item);
+    }
+  });
+
+  // So dispara numa busca NOVA (resposta muda de referencia), nunca a cada
+  // render do formulario — os dois Sets de "ja ligados" sao recriados a cada
+  // digitacao em qualquer campo, e nao sao o gatilho certo para isto.
+  useEffect(() => {
+    if (resposta?.ok) marcarJaLigados(resposta.itens);
+  }, [resposta]);
 
   // Volta a janela ao estado de recem-aberta: o formulario a chama quando um
   // clone recomeca o cadastro, para a proxima abertura nao mostrar a busca, a
@@ -443,7 +482,10 @@ export default function ReferenciasDeMercado({ ref, marcados, aoAlternar, aoLimp
                       <tr
                         key={item.id}
                         onClick={() => !cheio && aoAlternar(item)}
-                        className={`cursor-pointer ${marcado ? "bg-sky-50" : "hover:bg-fundo"} ${
+                        // Verde mais forte nos marcados (pedido do dono em
+                        // 22/09/2026): o azul claro (sky-50) sumia perto do
+                        // resto da tela. emerald-100 fica visivel de longe.
+                        className={`cursor-pointer ${marcado ? "bg-emerald-100" : "hover:bg-fundo"} ${
                           cheio ? "cursor-not-allowed opacity-50" : ""
                         }`}
                       >
@@ -455,6 +497,7 @@ export default function ReferenciasDeMercado({ ref, marcados, aoAlternar, aoLimp
                             onChange={() => aoAlternar(item)}
                             onClick={(evento) => evento.stopPropagation()}
                             aria-label={`Marcar ${item.nome ?? "produto"}`}
+                            className="accent-emerald-600"
                           />
                         </td>
                         <td className="px-3 py-2">

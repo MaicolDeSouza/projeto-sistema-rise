@@ -5,7 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { EllipsisVertical, ImageOff } from "lucide-react";
 
+import { CANAIS } from "@/lib/canais";
 import Copiar from "@/components/ui/Copiar";
+import ConferidoProduto from "./ConferidoProduto";
 
 /**
  * Imagem do produto.
@@ -46,7 +48,6 @@ function Miniatura({ url, alt }) {
 
 export default function LinhaProduto({
   produto,
-  integrados,
   pendentes,
   selecionado = false,
   aoAlternarSelecao,
@@ -92,6 +93,10 @@ export default function LinhaProduto({
         )}
       </td>
 
+      <td className="px-3 py-2.5 text-center">
+        <ConferidoProduto produto={produto} />
+      </td>
+
       <td className="px-3 py-2.5">
         <div className="flex items-center gap-1">
           <span className="font-mono text-xs">{produto.sku}</span>
@@ -119,32 +124,21 @@ export default function LinhaProduto({
         {produto.estoque}
       </td>
 
-      {/* Canais integrados: cada canal aparece aqui OU no menu, nunca nos dois */}
+      {/* Provisorio, a pedido do dono: todos os logos em preto fosco, sem ligar ao
+          estado de integracao. A situacao real de cada canal volta aqui depois. */}
       <td className="px-3 py-2.5">
         <div className="flex items-center gap-1.5">
-          {integrados.length === 0 ? (
-            <span className="text-xs text-suave">—</span>
-          ) : (
-            integrados.map((canal) => (
-              <Link
-                key={canal.id}
-                href={`/produtos/${produto.id}/canais/${canal.id.toLowerCase()}`}
-                title={`${canal.nome} — ${canal.situacaoCanal === "ATIVA" ? "ativo" : canal.status.toLowerCase()}`}
-                className="relative transition hover:scale-110"
-              >
-                <Image
-                  src={canal.logo}
-                  alt={canal.nome}
-                  width={22}
-                  height={22}
-                  className="rounded"
-                />
-                {canal.status === "ERRO" && (
-                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-superficie" />
-                )}
-              </Link>
-            ))
-          )}
+          {CANAIS.map((canal) => (
+            <Image
+              key={canal.id}
+              src={canal.logo}
+              alt={canal.nome}
+              title={canal.nome}
+              width={22}
+              height={22}
+              className="shrink-0 rounded opacity-70 brightness-50 grayscale"
+            />
+          ))}
         </div>
       </td>
 

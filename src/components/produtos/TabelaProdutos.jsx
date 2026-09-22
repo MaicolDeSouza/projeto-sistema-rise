@@ -1,12 +1,55 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CircleCheck, Loader, Package, Trash2, X } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  CircleCheck,
+  Loader,
+  Package,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { excluirProdutos } from "@/app/produtos/acoes";
+import Paginacao from "@/components/mercados/Paginacao";
 import CampoBusca from "@/components/ui/CampoBusca";
 import EmptyState from "@/components/ui/EmptyState";
 import LinhaProduto from "./LinhaProduto";
+
+/// Rotulo de cada coluna ordenavel, na ordem da tabela.
+const COLUNAS_ORDENAVEIS = [
+  { campo: "codigo", rotulo: "Codigo" },
+  { campo: "localizacao", rotulo: "Localizacao" },
+  { campo: "preco", rotulo: "Preco" },
+  { campo: "estoque", rotulo: "Estoque" },
+];
+
+/**
+ * Cabecalho clicavel: liga a ordenacao por esta coluna (URL, como a busca —
+ * sobrevive a recarga e pode ser mandado como link, mesmo padrao do filtro de
+ * Mercados). Ciclo de 3 estados por coluna: nada -> crescente -> decrescente
+ * -> nada de novo, e trocar de coluna sempre comeca em crescente.
+ */
+function CabecalhoOrdenavel({ campo, rotulo, ordenar, direcao, aoClicar }) {
+  const ativa = ordenar === campo;
+  const Icone = !ativa ? ArrowUpDown : direcao === "asc" ? ArrowUp : ArrowDown;
+
+  return (
+    <th className="px-3 py-2.5 font-medium" aria-sort={ativa ? (direcao === "asc" ? "ascending" : "descending") : "none"}>
+      <button
+        type="button"
+        onClick={() => aoClicar(campo)}
+        className={`inline-flex items-center gap-1 hover:text-texto ${ativa ? "text-texto" : ""}`}
+      >
+        {rotulo}
+        <Icone size={12} className={ativa ? "text-acento" : "text-suave"} />
+      </button>
+    </th>
+  );
+}
 
 /**
  * Confirma a exclusao num POPUP na tela, listando cada produto (nome + SKU) —
@@ -92,11 +135,41 @@ function PopupConfirmacao({ produtos, pendente, aoConfirmar, aoCancelar }) {
  * onde outros icones de acao em lote vao entrar no futuro, e nao um botao que
  * aparece e desaparece.
  */
-export default function TabelaProdutos({ linhas, busca }) {
+export default function TabelaProdutos({
+  linhas,
+  busca,
+  ordenar = "",
+  direcao = "desc",
+  pagina = 1,
+  totalPaginas = 1,
+  total = linhas.length,
+  totalConferidos = 0,
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [selecionados, setSelecionados] = useState(() => new Set());
   const [confirmando, setConfirmando] = useState(false);
   const [pendente, iniciarTransicao] = useTransition();
   const [mensagem, setMensagem] = useState(null); // { tipo: "erro" | "sucesso", texto }
+
+  /** Nada -> crescente -> decrescente -> nada. Preserva busca e demais parametros. */
+  function trocarOrdenacao(campo) {
+    const params = new URLSearchParams(searchParams);
+
+    if (ordenar !== campo) {
+      params.set("ordenar", campo);
+      params.set("direcao", "asc");
+    } else if (direcao === "asc") {
+      params.set("direcao", "desc");
+    } else {
+      params.delete("ordenar");
+      params.delete("direcao");
+    }
+
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
 
   function alternarSelecao(id) {
     setSelecionados((atual) => {
@@ -156,6 +229,21 @@ export default function TabelaProdutos({ linhas, busca }) {
           rotulo="Buscar por nome ou codigo"
           className="max-w-sm flex-1"
         />
+
+        {/* Contagem da lista (pedido do dono em 22/09/2026): o TOTAL que casa
+            com a busca (nao so os 25 da pagina), com quantos ja foram
+            marcados como Conferido entre parenteses — as duas contadas no
+            banco (page.jsx), para valerem pelo acervo inteiro. */}
+        <span className="rounded border border-borda bg-superficie px-3 py-2 text-xs whitespace-nowrap text-suave">
+          {total} produto(s){" "}
+          <span className={totalConferidos > 0 ? "font-medium text-emerald-700" : ""}>
+            ({totalConferidos} verificado{totalConferidos === 1 ? "" : "s"})
+          </span>
+        </span>
+
+        {/* Navegacao compacta (mesmo padrao de Mercados): so aparece com mais
+            de uma pagina — Paginacao ja se esconde sozinha nesse caso. */}
+        <Paginacao compacto pagina={pagina} totalPaginas={totalPaginas} total={total} />
 
         {/* Caixa fixa de acoes em lote — outros icones entram aqui no futuro. */}
         <div className="flex items-center gap-1 rounded border border-borda bg-superficie p-1.5">
@@ -236,20 +324,28 @@ export default function TabelaProdutos({ linhas, busca }) {
                 </th>
                 <th className="px-3 py-2.5 font-medium">Imagem</th>
                 <th className="px-3 py-2.5 font-medium">Nome</th>
-                <th className="px-3 py-2.5 font-medium">Codigo</th>
-                <th className="px-3 py-2.5 font-medium">Localizacao</th>
-                <th className="px-3 py-2.5 font-medium">Preco</th>
-                <th className="px-3 py-2.5 font-medium">Estoque</th>
+                {/* "Conf." — nome curto pedido pelo dono em 22/09/2026 para a
+                    coluna de ConferidoProduto, que ate aqui nao tinha rotulo. */}
+                <th className="w-10 px-3 py-2.5" title="Conferido">Conf.</th>
+                {COLUNAS_ORDENAVEIS.map(({ campo, rotulo }) => (
+                  <CabecalhoOrdenavel
+                    key={campo}
+                    campo={campo}
+                    rotulo={rotulo}
+                    ordenar={ordenar}
+                    direcao={direcao}
+                    aoClicar={trocarOrdenacao}
+                  />
+                ))}
                 <th className="px-3 py-2.5 font-medium">Canais</th>
                 <th className="w-10 px-3 py-2.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
-              {linhas.map(({ produto, integrados, pendentes }) => (
+              {linhas.map(({ produto, pendentes }) => (
                 <LinhaProduto
                   key={produto.id}
                   produto={produto}
-                  integrados={integrados}
                   pendentes={pendentes}
                   selecionado={selecionados.has(produto.id)}
                   aoAlternarSelecao={() => alternarSelecao(produto.id)}

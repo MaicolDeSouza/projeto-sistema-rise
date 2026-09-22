@@ -301,8 +301,27 @@ export default function Fornecedores({
               ) : (
                 <tr key={vinculo.id} className="divide-x divide-borda">
                   <td className="px-3 py-2 font-medium">{vinculo.nome}</td>
-                  <td className="max-w-xs truncate px-3 py-2 text-suave">
-                    {vinculo.descricao || "—"}
+                  {/* O campo nao tem limite de caracteres (Text no banco); o corte
+                      aqui e so visual, para a linha nao esticar a tabela. O texto
+                      inteiro aparece ao passar o mouse (title), e vira link quando
+                      e uma URL — caso do Bling, que guarda ali o endereco do
+                      produto no site do fornecedor. */}
+                  <td
+                    className="max-w-xs truncate px-3 py-2 text-suave"
+                    title={vinculo.descricao || undefined}
+                  >
+                    {vinculo.descricao && ehUrlSegura(vinculo.descricao) ? (
+                      <a
+                        href={vinculo.descricao}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-acento hover:underline"
+                      >
+                        {vinculo.descricao}
+                      </a>
+                    ) : (
+                      vinculo.descricao || "—"
+                    )}
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">
                     {vinculo.codigo || "—"}
