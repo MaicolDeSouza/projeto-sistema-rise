@@ -116,7 +116,7 @@ function EscolhaDoTipo({ tipo, aoMudar }) {
  * invalido para o navegador numa aba escondida a abre (`aoInvalidar`): o Salvar
  * fica fora das abas, entao da para clicar nele de qualquer uma.
  */
-export default function FormularioCliente({ cliente, transportadoras, condicoes, hoje }) {
+export default function FormularioCliente({ cliente, transportadoras, hoje }) {
   const router = useRouter();
   const inicial = cliente ?? { ativo: true };
   const [tipo, setTipo] = useState(inicial.tipoPessoa ?? "FISICA");
@@ -359,36 +359,6 @@ export default function FormularioCliente({ cliente, transportadoras, condicoes,
               </p>
             )}
           </Campo>
-        </div>
-
-        <div className="mt-4">
-          <p className="flex items-center gap-1 text-sm font-semibold">Condicoes de pagamento preferidas</p>
-          {condicoes.length === 0 ? (
-            <p className="mt-1 text-sm text-suave">
-              Nenhuma condicao cadastrada.{" "}
-              <Link href="/cadastros/condicoes" className="text-acento hover:underline">
-                Cadastrar
-              </Link>
-            </p>
-          ) : (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {condicoes.map((condicao) => (
-                <label
-                  key={condicao.id}
-                  className="flex cursor-pointer items-center gap-2 rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
-                >
-                  <input
-                    type="checkbox"
-                    name="condicoes"
-                    value={condicao.id}
-                    defaultChecked={(inicial.condicoesIds ?? []).includes(condicao.id)}
-                    className="h-4 w-4 accent-acento"
-                  />
-                  {condicao.nome}
-                </label>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="mt-4">

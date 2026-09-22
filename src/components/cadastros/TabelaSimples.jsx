@@ -10,9 +10,9 @@ const VAZIO = { nome: "", observacoes: "" };
 
 /**
  * Cadastro de nome + observacao, com edicao na propria linha (nao ha pagina de
- * cadastro: sao dois campos). Serve a Marcas e a Condicoes de pagamento — eram
- * duas copias do mesmo codigo, e a segunda so mudava os textos. Mesmo desenho da
- * tabela de Fornecedores do cadastro de produto.
+ * cadastro: sao dois campos). Serviu a Marcas e a Condicoes de pagamento (a
+ * segunda saiu em 21/09/2026), e fica generica para o proximo cadastro simples.
+ * Mesmo desenho da tabela de Fornecedores do cadastro de produto.
  *
  * `salvar(id, dados)` e `excluir(id)` sao as acoes do servidor, passadas pela
  * pagina; devolvem `{ ok, erros | erro }`. `textos` traz a redacao de cada

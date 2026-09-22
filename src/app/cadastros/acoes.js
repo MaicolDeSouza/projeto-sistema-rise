@@ -15,8 +15,8 @@ import {
 } from "@/lib/validacao";
 
 /**
- * Acoes da secao Cadastros (fornecedores, concorrentes, transportadoras, marcas
- * e condicoes de pagamento). Clientes tem as suas em `acoes-clientes.js`.
+ * Acoes da secao Cadastros (fornecedores, concorrentes, transportadoras e
+ * marcas). Clientes tem as suas em `acoes-clientes.js`.
  *
  * Este arquivo so exporta funcao assincrona: num modulo "use server", uma
  * constante exportada faz o Next recusar o modulo inteiro.
@@ -62,10 +62,10 @@ const ESQUEMAS = {
 };
 
 /**
- * Cadastro simples de nome + observacao (marca, condicao de pagamento). Marca e
- * sempre em MAIUSCULAS, como o campo Marca do produto (pedido do dono em
- * 16/09/2026); condicao de pagamento ("A vista", "30/60/90") mantem o que foi
- * escrito.
+ * Cadastro simples de nome + observacao (marca). Marca e sempre em MAIUSCULAS,
+ * como o campo Marca do produto (pedido do dono em 16/09/2026). O parametro
+ * `maiusculas` sobrou de quando a condicao de pagamento (que mantinha o que foi
+ * escrito) usava o mesmo esquema.
  */
 const cadastroSimples = (mensagem, maiusculas) =>
   z.object({
@@ -78,11 +78,10 @@ const cadastroSimples = (mensagem, maiusculas) =>
   });
 
 const MarcaSchema = cadastroSimples("Informe o nome da marca.", true);
-const CondicaoSchema = cadastroSimples("Informe o nome da condicao de pagamento.", false);
 
 /**
  * Cada secao e uma rota (`/cadastros/fornecedores`, `/marcas`...). Revalidar so
- * "/cadastros" atingiria a raiz, que apenas redireciona; o tipo "layout" cobre
+ * "/cadastros" atingiria so a raiz (a pagina dos cartoes); o tipo "layout" cobre
  * tudo o que vive embaixo dela.
  */
 function revalidarCadastros() {
@@ -188,7 +187,7 @@ export async function excluirParceiro(slug, id) {
 }
 
 // ---------------------------------------------------------------------------
-// Marcas e condicoes de pagamento (nome + observacao, edicao na linha)
+// Marcas (nome + observacao, edicao na linha)
 // ---------------------------------------------------------------------------
 
 async function salvarSimples({ modelo, esquema, id, dados, jaExiste, naoExiste }) {
@@ -238,35 +237,4 @@ export async function salvarMarca(id, dados) {
 
 export async function excluirMarca(id) {
   return excluirSimples(prisma.marca, id);
-}
-
-/** Cria (`id` nulo) ou atualiza uma condicao de pagamento. */
-export async function salvarCondicao(id, dados) {
-  return salvarSimples({
-    modelo: prisma.condicaoPagamento,
-    esquema: CondicaoSchema,
-    id,
-    dados,
-    jaExiste: "Esta condicao de pagamento ja esta cadastrada.",
-    naoExiste: "Esta condicao nao existe mais. Atualize a pagina.",
-  });
-}
-
-/**
- * Condicao preferida por cliente NAO e excluida: a relacao e muitos-para-muitos e
- * o banco apagaria a preferencia de cada cliente em silencio. A contagem vira o
- * recado, no mesmo molde da transportadora.
- */
-export async function excluirCondicao(id) {
-  const usos = await prisma.cliente.count({
-    where: { condicoesPreferidas: { some: { id } } },
-  });
-  if (usos > 0) {
-    return {
-      ok: false,
-      erro: `Esta condicao e preferida de ${usos} cliente(s). Desmarque-a no cadastro deles antes de excluir.`,
-    };
-  }
-
-  return excluirSimples(prisma.condicaoPagamento, id);
 }

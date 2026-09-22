@@ -1,9 +1,6 @@
 import {
   BookUser,
   Boxes,
-  CreditCard,
-  Factory,
-  Globe,
   LayoutDashboard,
   Megaphone,
   Package,
@@ -11,10 +8,8 @@ import {
   PieChart,
   Cable,
   ShoppingCart,
-  Tag,
-  Truck,
-  Users,
   Wallet,
+  Wrench,
 } from "lucide-react";
 
 /**
@@ -42,26 +37,16 @@ export const blocos = [
     pronto: true,
   },
   {
-    // Logo abaixo do Painel (pedido do dono em 18/09/2026, depois de a primeira
-    // versao ficar acima de Mercados). As quatro secoes eram abas dentro da tela
-    // e viraram subitens em cascata, cada um com rota propria: assim o item ativo
-    // sai do caminho, sem depender de `?aba=` na URL.
+    // Logo abaixo do Painel (pedido do dono em 18/09/2026). Ate 21/09/2026 as
+    // secoes eram subitens em cascata aqui; agora so icone e texto, e as secoes
+    // aparecem como CARTOES na propria pagina (`src/lib/secoesDeCadastros.js`),
+    // como em Ferramentas. O item continua ativo em `/cadastros/<secao>`
+    // (`ehRotaAtiva`), e cada tela tem um link "← Cadastros" para voltar.
     href: "/cadastros",
     rotulo: "Cadastros",
     icone: BookUser,
     resumo: "Clientes, fornecedores, concorrentes, transportadoras, produtos e marcas",
     pronto: true,
-    filhos: [
-      { href: "/cadastros/clientes", rotulo: "Clientes", icone: Users },
-      // Fornecedores era Truck; virou Factory quando Transportadoras entrou, para
-      // os dois icones nao serem o mesmo caminhao.
-      { href: "/cadastros/fornecedores", rotulo: "Fornecedores", icone: Factory },
-      { href: "/cadastros/concorrentes", rotulo: "Concorrentes", icone: Globe },
-      { href: "/cadastros/transportadoras", rotulo: "Transportadoras", icone: Truck },
-      { href: "/cadastros/produtos", rotulo: "Produtos", icone: Package },
-      { href: "/cadastros/marcas", rotulo: "Marcas", icone: Tag },
-      { href: "/cadastros/condicoes", rotulo: "Condicoes de pagamento", icone: CreditCard },
-    ],
   },
   {
     href: "/anuncios",
@@ -117,6 +102,17 @@ export const blocos = [
     rotulo: "Integracoes",
     icone: Cable,
     resumo: "Conexoes com Bling, Mercado Livre e Loja Integrada",
+    pronto: true,
+  },
+  {
+    // Utilitarios que nao pertencem a um bloco de negocio. So icone e texto na
+    // barra lateral, SEM cascata (teste de desenho pedido pelo dono em
+    // 20/09/2026): as ferramentas aparecem como cartoes na propria pagina
+    // (`src/lib/ferramentas/catalogo.js`). Se ficar bom, vira o padrao.
+    href: "/ferramentas",
+    rotulo: "Ferramentas",
+    icone: Wrench,
+    resumo: "Utilitarios do dia a dia, como converter imagem em SVG",
     pronto: true,
   },
 ];

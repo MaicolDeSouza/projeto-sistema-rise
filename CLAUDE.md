@@ -63,12 +63,10 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   `startTransition`), porque o React 19 limpa o formulário depois de uma action. Campos de um tipo
   ficam **montados e ocultos** (`hidden`) quando o outro tipo está escolhido, e o **servidor zera** o
   que não é do tipo salvo.
-- **Abas para agrupar um formulário** (decidido em 19/09/2026 como padrão do sistema; **aplicado ao
-  Cliente e à Transportadora**, e o dono pediu para **não mexer no resto agora**). Abas lado a lado
-  como as do cadastro de Produto: `Card className="p-0"`, barra com `border-b-2`, a ativa em
-  `border-acento` e as demais em `text-suave`. **O componente é `src/components/cadastros/Abas.jsx`**
-  (`Painel`, `BarraDeAbas` e o hook `useAbasDoFormulario`); o formulário só declara `ABAS` e a tabela
-  `ABA_DO_CAMPO`. Regras:
+- **Abas para agrupar um formulário** (decidido em 19/09/2026 como padrão do sistema; **aplicado só
+  ao Cliente**, e o dono pediu para **não mexer no resto agora**). Abas lado a lado como as do
+  cadastro de Produto: `Card className="p-0"`, barra com `border-b-2`, a ativa em `border-acento`
+  e as demais em `text-suave`. Regras, todas em `FormularioCliente.jsx`:
   - **Todas as abas ficam montadas e só escondidas (`hidden`)** (`Painel`): campo desmontado não
     entra no `FormData`, e salvar de uma aba perderia o que foi digitado nas outras.
   - **Erro do servidor leva à primeira aba com erro** e põe um **ponto vermelho** no título de cada
@@ -76,19 +74,13 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   - **Campo inválido para o navegador numa aba escondida abre a aba** (`onInvalidCapture`): o
     navegador não consegue focar um campo `display: none`, e o Salvar — que fica fora das abas —
     parecia não fazer nada.
-  - Formulários que ainda **não** seguem: Fornecedor e Concorrente (`FormularioParceiro`), e os
-    demais do sistema. Convertê-los é pedido do dono, não é dívida.
+  - Formulários que ainda **não** seguem: Fornecedor, Concorrente e Transportadora
+    (`FormularioParceiro`), e os demais do sistema. Convertê-los é pedido do dono, não é dívida.
 - **Escolha entre poucas opções:** opções lado a lado com `<input type="radio">` de verdade
   escondidos (`EscolhaDoTipo` em `FormularioCliente.jsx`). Entram no envio como um `<select>`
   entraria, e o teclado continua funcionando.
 - **Ajuda de campo:** bolha "i" (`BolhaDeAjuda`), abre **para cima**; nunca texto fixo embaixo do
   campo. Ver "Ajuda de campo é bolha".
-- **Mensagem informativa é SEMPRE o ícone "i"** (`BolhaDeAjuda`), e não só a ajuda de campo (decidido em
-  21/09/2026, "sempre que quiser passar alguma mensagem"): explicação de botão, dica de uso, "por que este
-  botão está cinza", o que uma opção faz. Frase fixa embaixo ou ao lado da tela não; dica escondida em
-  `title` também não. **Ficam escritos, à vista, só os avisos que pedem uma ação** (erro, "você mudou as
-  opções: gere de novo", confirmação de compra). Perto da borda direita de uma janela ou coluna use
-  `variante="inline-direita"`: o texto abre para a esquerda, senão o centralizado sai do quadro.
 - **Exclusão:** popup listando nome e código de cada item, **nunca** `confirm()` nativo (Produtos).
 - **Lista longa:** paginada, 100 por página, filtro por parâmetro repetido (`?fonte=A&fonte=B`), e
   nenhuma marcada quer dizer todas (Mercados).
@@ -103,8 +95,9 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 | Integrações | Bling e ML conectados e testados; Loja Integrada via Bling |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
-| Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras, marcas e condições de pagamento; a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
+| Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
+| Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
 **A publicação nunca foi ligada.** `ML_PUBLICACAO` e `BLING_ESCRITA` estão em `false`, e
@@ -117,12 +110,13 @@ requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
 npm run teste:extracao            # 235 asserções da extração, da conciliação e das medidas, SEM rede
+npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
+npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
 npm run teste:coleta              # 43 asserções da gravação no banco (usa o Postgres, SEM rede)
 npm run teste:cadastros           # 69 asserções: CPF/CNPJ/CEP/telefone e a ligação fonte -> cadastro (Postgres, SEM rede)
-npm run teste:imagens             # 190 asserções: padronização 1024x1024, painel de fotos, fotos da lupa, Photoroom e a trava de compra (Postgres e dados/, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
@@ -1416,308 +1410,17 @@ concorrentes), em `src/lib/buscaPorCodigo.js`.
   `ProdutoSchema` converte de novo ao salvar, e a importação do Bling também. Os 5 produtos
   já importados foram convertidos no banco ("Genérica" virou "GENÉRICA").
 - Marca igual ao nome da loja é descartada: a Casa da Robótica publica a si mesma em `brand`.
-- **As imagens vêm junto**, pedido do dono em 16/09/2026. **Desde 21/09/2026 elas entram no PAINEL DE
-  IMAGENS assim que o "Clonar" termina**, baixadas e padronizadas no servidor, e não mais só no
-  Salvar (ver "Imagens do produto novo: 1024×1024", abaixo). A cópia direta no Salvar (`anexarImagens`
-  em `src/lib/imagensImportadas.js`) continua **só para a importação do Bling**, que não tem tela.
-  - **O formulário manda só a referência** (`rise:<id>` ou `coletado:<id>`, o `resultado.id` do
-    "Clonar"), e os endereços são lidos de novo no servidor (`importarImagensDaOrigem`). Aceitar
-    endereço vindo do navegador faria o servidor baixar o que alguém mandasse.
-  - **Foto que não entra não desfaz nada:** o painel mostra quantas ficaram de fora. Medido com o 06811
-    da Usinainfo em 16/09/2026: 4 copiadas e 1 recusada (a `large_default` de 397 px); **desde 20/09/2026
-    não há mínimo de tamanho**, e essa foto entra ampliada.
-
-### Imagens do produto novo: 1024×1024
-
-Pedido do dono em 20/09/2026, para servir Mercado Livre, Loja Integrada e Shopee com uma foto só
-(Shopee: 1:1, 1024 px ou mais, fundo branco liso; ML: fundo branco, 500 a 1920 px; Loja Integrada:
-JPG até 2500 px e 4 MB). **Vale para o cadastro de produto NOVO** (painel de imagens, "Clonar a partir
-de um código" e importação do Bling) **e, desde 21/09/2026, para a foto enviada DEPOIS num produto que
-já existe** (`enviarArquivo`): o mesmo produto não pode ter uma foto no padrão e outra fora dele.
-**Não vale** para a coleta de fornecedor e concorrente (a foto fica como o site a publica) nem para
-documento e certificado.
-
-- **`padronizarImagem`** (`src/lib/imagens/padronizar.js`, `sharp`, função pura sobre bytes): quadrado
-  de **1024×1024**, **fundo branco**, **JPEG**, peso alvo **1 MB** (qualidade 90 e, se não couber, desce
-  85, 80... até 50). O lado maior vai a 1024 e a foto fica **centrada** no quadrado (2000×1500 vira
-  1024×768 com faixa branca em cima e embaixo), sem cortar nada. PNG transparente é pousado no branco
-  (`flatten`); sem isso o JPEG sairia com fundo **preto**. A orientação EXIF é aplicada. **Codificador
-  JPEG comum, e não o mozjpeg** (21/09/2026): o mozjpeg levava ~340 ms por foto (só ~64 ms eram o
-  redimensionamento) contra ~78 ms do comum, e o arquivo saía só 13% menor (137 contra 155 KB, longe do
-  1 MB). A padronização caiu de 383 para 158 ms por foto na carga real; **o que domina a carga é o
-  download das lojas**, que varia muito (0,8 a 2,9 s por foto na Usinainfo em dois momentos do mesmo dia).
-- **Sem tamanho mínimo** (decisão do dono em 20/09/2026: "pode ser qualquer tamanho"). Foto com o lado
-  maior abaixo de 1024 px **é ampliada** e o cadastro avisa "ampliada" (ampliar não devolve detalhe).
-  Antes o menor lado precisava ter 500 px, e **o mínimo pode voltar**: é um `if` em `padronizar.js`
-  (há um comentário no lugar). Medido em 20/09/2026 com 10 fotos sorteadas de concorrentes com "arduino"
-  no título: 4 já em 1024 ou mais e 6 ampliadas (600 a 1000 px, e duas da Usinainfo com 397×300, que
-  com o mínimo antigo seriam recusadas).
-- **Aceita JPEG, PNG e WebP** na entrada (a saída é sempre JPEG, então o ML nunca vê WebP). GIF, SVG e
-  arquivo acima de 25 MB são recusados.
-- **Idempotente:** foto que já é JPEG 1024×1024 dentro do peso passa **com os mesmos bytes**. Copiar de
-  outro produto da Rise não recomprime, e repetir a operação não gasta uma geração de JPEG.
-- **`anexarImagens` devolve `{ salvas, ampliadas, recusadas }`**, e o número de ampliadas aparece no
-  aviso do produto criado e no botão "Importar do Bling".
-- **`sharp` está declarado no `package.json`** (antes só chegava de carona pelo Next).
-- **`npm run teste:imagens`:** 190 asserções, **sem rede** (as fotos são geradas com o `sharp`, e o
-  `fetch` do Photoroom é trocado por um falso): padronização, ampliação sem mínimo, transparência, EXIF,
-  peso, entradas inválidas, a gravação no produto, as regras e a **trava** do Photoroom, o lote, o fluxo
-  prévia → compra → voltar ao original → Salvar e as **fotos dos produtos marcados na lupa** (fotos como
-  data URI em produtos coletados de teste; usa o Postgres e `dados/`, e apaga o que criou).
-
-#### Painel de imagens do cadastro novo (21/09/2026)
-
-Pedido do dono: a maioria das fotos dele **já é sem fundo e bem iluminada**, então o caso comum é só
-**redimensionar**, de graça e sem pensar; o Photoroom é **exceção, foto por foto**.
-
-- **Toda foto entra e é padronizada na hora**, no servidor: enviada pelo dono (várias de uma vez ou
-  arrastando), vinda do Bling ou do "Clonar". O que a tela mostra já é a foto final. Componente
-  `PainelDeImagens.jsx`, que **substituiu** a prévia do "Clonar" e o "Salve o produto para enviar
-  imagens". O estado mora no `FormularioProduto` (o "Clonar" também alimenta o painel): `imagensLote`
-  e o campo oculto `imagensDoLote` (`[{base, principal}]`, na ordem da tela). **A PRIMEIRA da fila é a
-  principal** (pedido do dono em 21/09/2026): não há estado nem botão de "principal", e a ordem se muda
-  **arrastando as miniaturas**.
-- **O painel pequeno é só a vitrine** (pedido do dono em 21/09/2026): a foto com zoom, o contador
-  "3 / 23", as setas, a tira de miniaturas e os botões **"Melhorar"** e **"Excluir"**. Escolher e
-  melhorar ficam na janela (abaixo). **O "Excluir" do painel apaga NA HORA** (a padronizada, a original
-  guardada, a prévia e a melhorada, no servidor), sem Salvar; foto já paga pede um segundo clique
-  ("Confirmar (foto paga)").
-- **EDITAR um produto usa o MESMO painel de fotos do cadastro novo** (pedido do dono em 21/09/2026: a lupa
-  e as fotos das referências funcionam como no produto novo). Os **campos** já funcionavam assim (o ícone de
-  cada campo só preenche o que você escolhe, e o que já estava preenchido fica); faltavam as **fotos**.
-  - **Ao abrir a tela**, `prepararFotosDoProduto` copia as fotos do produto para um lote temporário
-    (padronizadas; cada uma volta com o `arquivoId` da linha de origem), na ordem em que o produto as
-    mostra (principal primeiro). Até terminar, o painel diz "Carregando as fotos do produto..." e o
-    **Salvar espera**. As das referências entram depois, como candidatas, pela lupa.
-  - **Nada toca o produto até o Salvar do formulário.** Antes, cada envio, exclusão e escolha de principal
-    gravavam na hora e **não tinham volta** (o `Imagens` antigo, removido). Agora o **Cancelar** do
-    formulário (e sair sem salvar) não muda nada no disco; conferido: excluir uma foto e cancelar deixou 9
-    linhas e 9 arquivos. O "Excluir" do painel, na edição, tira a foto do **lote**, não do produto.
-  - **O Salvar aplica o painel ao produto** (`reconciliarImagensDoProduto`, `src/lib/imagens/produto.js`,
-    testado sem o navegador), foto por foto, na ordem do painel, a **primeira é a principal**:
-    **mantida** (mesmos bytes do disco: só a ordem muda, o arquivo não é reescrito), **substituída** (foto
-    do produto que a padronização refez ou que foi melhorada: o arquivo novo entra, a linha aponta para
-    ele e o velho sai), **nova** (das referências ou de envio) e **removida** (não está mais no painel:
-    linha e arquivo saem). Ordem das operações: arquivos novos → linhas (numa transação) → arquivos
-    velhos, para uma falha não deixar o produto sem foto.
-  - **Foto antiga fora do padrão é padronizada no Salvar** (decidido em 21/09/2026, a mesma regra da foto
-    enviada depois). Foto que já está no padrão passa com os mesmos bytes e não é tocada.
-  - **Trava contra apagar tudo:** o navegador só manda `fotosDoPainelProntas=1` depois de o painel ter
-    carregado. Sem isso o servidor **não mexe nas fotos**: se a carga falhar, salvar os dados do produto
-    não pode apagar as fotos dele. A foto do produto que não abriu (arquivo sumido ou ilegível) volta em
-    `arquivosPreservados` e **fica como está**, no fim da ordem, em vez de parecer "excluída".
-  - **Falha ao gravar as fotos** devolve erro ("os dados foram salvos, mas as fotos não... Salvar de novo")
-    e **mantém o lote**; um segundo Salvar refaz a comparação e não duplica nada. Diferente do cadastro
-    novo, onde a falha vira aviso porque o produto acabou de nascer.
-  - **Ainda NÃO mudou (pedido do dono, etapa à parte):** na edição, fornecedores e concorrentes marcados na
-    lupa continuam **gravados na hora** ao fechar a janela (no produto novo ficam como rascunho até o
-    Salvar), e mexem no cálculo de custo.
-- **As fotos dos produtos da lupa chegam UM PRODUTO POR VEZ** (pedido do dono em 21/09/2026): o
-  formulário chama `importarFotosDasReferencias` para cada produto marcado, e as fotos dele já aparecem
-  quando o servidor responde (medido: 6, depois 20, depois 23 fotos), com o aviso "Trazendo as fotos
-  (produto 2 de 3)..." **que não cobre a foto**. Como as chamadas são separadas, o servidor parte do
-  conteúdo já no lote (`impressoesDoLote`, sha1 dos originais) para a mesma foto não entrar em dobro.
-  A espera é o download das lojas, que varia de 1 a 3 s por foto.
-- **O cabeçalho de "Novo produto" perdeu o link "Voltar para produtos" e a descrição** (pedido do dono em
-  21/09/2026, para subir o conjunto da página): a **seta ao lado do título** (`PageHeader`, prop
-  `voltarPara`) volta para a lista. **A tela de editar produto ganhou a mesma seta** (aprovada em
-  21/09/2026), mas **mantém a descrição** (SKU e canais integrados). As demais telas não mudaram.
-- **Zoom e ampliação** (`ImagemComZoom.jsx`): o mouse em cima mostra a área sob ele a 250%, e o clique abre
-  a foto grande (`AmpliacaoDeFoto`, que escuta o Esc na captura da `window` para não fechar a janela
-  junto). O zoom é **controlado por quem usa**: na janela, mover o mouse numa foto amplia **a mesma
-  área nas duas**, que é como se compara a original com a melhorada.
-- **Tira de miniaturas** (`TiraDeFotos.jsx`, no painel e na janela): **sem barra de rolagem**, com setinhas
-  que só aparecem quando há mais fotos do que cabem, e **arrastar para reordenar** (drag and drop nativo,
-  num `<div role="button">`: o Firefox não arrasta a partir de `<button>`). Uma barra na borda da
-  miniatura de destino mostra onde a foto vai entrar. Soltar uma miniatura não dispara o envio de arquivo
-  do painel (`stopPropagation`).
-- **Lote temporário** (`src/lib/imagens/lote.js`), o mesmo `dados/temporarios/<lote>/` dos documentos:
-  `imagens/<base>.jpg` (a padronizada, a que vai para o produto), `originais/<base>.<ext>` (como
-  chegou: é o que se manda ao Photoroom e o que "Escolher a original" restaura), `versoes/` (as duas
-  versões de uma foto já comprada, ver "Janela de revisão") e `previas/<base>.jpg` +
-  `.json` (a prévia e as opções pedidas). `<base>` é um UUID sem hifens gerado no servidor; **nenhum nome
-  vem do navegador** e cada segmento de caminho é conferido antes de tocar o disco. **Rota**
-  `/api/temporarios/<lote>/<pasta>/<nome>`, **sem cache** (o nome não muda depois de "Melhorar").
-- **No Salvar** (`gravarImagensDoLote`, em `acoes.js`) as fotos vão do lote para
-  `dados/produtos/<SKU>/imagens/`, **na ordem do painel, a principal marcada**, e o lote inteiro é
-  apagado: **o original só existe até o Salvar** (decisão do dono, 21/09/2026). Falha ao gravar as fotos
-  não derruba o Salvar (produto já existe): vira `?fotos=falhou` na tela. **Limite de 9 fotos**
-  (`MAXIMO_IMAGENS`; era 7 até 21/09/2026, ver "Quantas fotos os marketplaces aceitam").
-- **Clonar** apaga o lote antigo (`descartarLoteDeArquivos`) e importa as fotos do produto novo para o
-  painel (`importarImagensDaOrigem`, só com a referência `rise:`/`coletado:`).
-- **As fotos dos produtos MARCADOS NA LUPA entram no painel** (pedido do dono em 21/09/2026: todas as
-  fotos dos fornecedores e concorrentes escolhidos, para ele ficar só com as melhores). Acontece **quando
-  a janela da lupa fecha** (`trazerFotosDasReferencias`, em `lerValoresRefs`), o mesmo momento em que
-  fornecedores e concorrentes entram nas abas. `importarFotosDasReferencias` (`acoes-imagens.js`) recebe
-  **só ids** e lê os endereços do banco (`fotosDasReferencias`, em `imagensImportadas.js`); baixa 4 por
-  vez. **O mesmo endereço, e a mesma foto por outro endereço (hash do conteúdo), entram uma vez só.**
-  - **O painel guarda até 40 candidatas (`MAXIMO_FOTOS_NO_PAINEL`), o produto leva 9
-    (`MAXIMO_IMAGENS`).** O Salvar de produto novo **recusa** com "o painel tem N fotos e o produto leva no
-    máximo 9", lendo o `imagensDoLote` do que está sendo enviado (não do estado). O servidor cortaria as
-    que sobram em silêncio, e o dono nunca saberia quais ficaram de fora.
-  - **Cada foto leva `ref` (id do produto coletado), `fonte` e `produto`**: a janela diz de onde veio.
-    `refsComFotos` (ref no formulário) lembra quais já foram trazidas, mesmo as sem foto nenhuma, para
-    fechar a lupa de novo não baixar tudo outra vez.
-  - **Desmarcar** tira as fotos daquele produto que o dono **não tocou**. As finalizadas, as melhoradas
-    (pagas) e as do "Clonar" (`doClone`) ficam. Marcar de novo o mesmo produto não duplica o que sobrou.
-  - **Clonar também traz TODAS as fotos** (antes parava em 7).
-- **A janela trabalha num RASCUNHO, com "Salvar" e "Cancelar"** (pedido do dono em 21/09/2026; botões no
-  rodapé). `imagens` (o estado do formulário) **só muda no Salvar**, então ele é o retrato de antes da
-  janela, e o painel atrás dela **não muda** enquanto ela está aberta (conferido no navegador).
-  - **Salvar** guarda tudo o que foi feito (ordem, escolhas, versões, exclusões).
-  - **As exclusões da janela só MARCAM** (`excluida`) e o servidor só apaga no Salvar: senão o Cancelar
-    não teria o que devolver. Foto excluída na janela **continua no servidor** até lá (conferido: HTTP 200
-    antes do Salvar, arquivo apagado depois).
-  - **Cancelar** descarta o rascunho e devolve a ordem, as escolhas e a **versão** de cada foto (para a
-    versão o servidor volta a foto que estava: `escolherVersaoNoLote`). **A compra do Photoroom NÃO tem
-    volta**: a melhorada comprada fica guardada e a tela ainda sabe dela, só não é usada. Por isso o
-    Cancelar, quando houve compra nesta janela, **pergunta antes** e diz o valor que não volta.
-  - **X, Esc e clique fora**: sem alteração fecham direto; com alteração, uma faixa pergunta
-    "Salvar / Descartar / Continuar editando". Perder a escolha de 20 fotos por um Esc seria pior do que
-    um clique a mais. Esc com a faixa aberta fecha a faixa.
-- **Janela de revisão das fotos** (`JanelaDeFotos.jsx`, que **substituiu** `JanelaPhotoroom.jsx`): o botão
-  "Melhorar" abre a galeria. **Setas** (e as teclas esquerda e direita) passam de foto, o cabeçalho diz
-  "Foto 3 de 26 · 1 finalizada", e o rodapé tem a tira de miniaturas (com o check das finalizadas e o
-  arrastar). **As duas fotos ficam grandes** (o lado acompanha a altura da tela, `LADO_DA_FOTO`), porque
-  o dono aceita muita foto só olhando. Em cada foto:
-  - **"Escolher essa" fica EMBAIXO DE CADA FOTO** (pedido do dono em 21/09/2026): à esquerda usa a
-    original, à direita a melhorada. Escolhida, a foto ganha o selo verde **"Finalizada"** (e o check na
-    miniatura) e o botão dela fica **cinza fosco**; o da outra foto fica **verde**, e clicar nele troca a
-    escolha. Nenhuma escolhida: os dois verdes. **Não há botão "Editar"**: trocar a escolha é clicar no
-    outro, e **desfazer é clicar no próprio selo "Finalizada ×"** (aprovado em 21/09/2026): tira o
-    "finalizada" e os dois botões voltam a ficar verdes. **O selo mora EMBAIXO da foto**, na linha da
-    legenda, e não por cima dela. É só marca de TELA (`finalizada`): não vai para o servidor nem para o produto, e todas as
-    fotos que sobrarem no painel são gravadas, finalizadas ou não.
-  - **O "Escolher essa" da PRÉVIA é a COMPRA**: a prévia tem marca d'água e não pode ir para o produto.
-    Com prévia na tela o botão mostra o valor **em reais** ("Escolher essa (R$ 0,60)") e **pede
-    confirmação** (que diz também o dólar) antes de chamar o Photoroom; só liga com a prévia gerada com as
-    MESMAS opções marcadas e a compra ligada (`PHOTOROOM_COMPRA=true`). Comprou, a melhorada vira a foto
-    do produto e já fica finalizada. **Sem prévia na tela, o botão escolhe a melhorada JÁ comprada**, sem
-    custo. Enquanto a compra estiver desligada, ou não houver prévia, o botão da direita fica cinza; **o
-    porquê está no ícone "i" ao lado dele** (era um texto fixo, e o dono não sabia que precisava da prévia).
-  - **Valores em REAIS, com a cotação do dólar FIXA em R$ 6,00** (`src/lib/cotacaoDolar.js`, pedido do
-    dono em 21/09/2026). **PENDÊNCIA DO AGENTE 2:** a busca da cotação do dia será feita pelo **agente 2**,
-    e depois é só trocar o corpo de `cotacaoDoDolar()`, o ÚNICO ponto de troca (a tela e `emReais` leem de
-    lá). No arquivo estão anotados o endereço do PTAX do Banco Central, testado em 21/09/2026 (sem chave;
-    `cotacaoVenda` 5,1575 no boletim de 18/09) e o cuidado de fim de semana e feriado. O Photoroom cobra em
-    dólar, no cartão: o valor em reais é **estimativa** (sem IOF), e por isso a confirmação repete o dólar.
-  - **As duas versões ficam guardadas depois da compra** (`versoes/<base>.original.jpg` e
-    `.melhorada.jpg`, ambas padronizadas; `escolherVersao` em `lote.js`, `escolherVersaoNoLote` na ação):
-    `imagens/<base>.jpg` continua sendo a que vai para o produto, e alternar entre as duas **não chama o
-    Photoroom nem cobra de novo**. Antes a compra sobrescrevia a foto, e voltar ao original jogava a
-    paga fora. A tela recebe `temMelhorada`, `originalUrl` e `melhoradaUrl`. A esquerda mostra sempre a
-    original padronizada, e a direita a prévia (ou, sem ela, a melhorada). Comprar tira o check e o
-    refaz na melhorada, pois o conteúdo mudou.
-  - **As opções do Photoroom e "Gerar prévia" ficam embaixo da PRÉVIA**, com rótulos curtos ("Remover
-    fundo", "Iluminacao", "Ampliar") e tudo dentro da largura da foto; **o "i" no fim da linha explica cada
-    uma**. **"Gerar prévia" e "Escolher essa" ficam LADO A LADO**, dentro da largura da foto (o "(grátis)"
-    saiu do botão e mora no "i"; o rótulo mais largo, "Escolher essa (R$ 0,60)", mede 196 de 425 px).
-    **Origem, tamanho e o selo ficam numa linha EMBAIXO da foto, e NUNCA por cima dela** (pedido do dono em
-    21/09/2026: em cima atrapalhavam ver a imagem): "Origem: <loja> · 1024×1024 (era menor: 397×300)"
-    ("era maior" para foto reduzida), só a loja, sem o nome do produto (já está na lista de referências). O
-    tamanho diz se a foto ficou esticada e menos nítida; vem de `imagem.origem`, gravado na entrada da foto.
-  - **O rodapé da janela dá o máximo de espaço às miniaturas**: "Previas hoje: 26/100" e "Compras no mes:
-    R$ 0,00" ficam em **duas linhas** de 10 px (eram uma de 330 px), e a tira passou de ~6 para 11
-    miniaturas sem rolar (1280 px de tela).
-  - **A janela tem a largura das duas fotos** (`LARGURA_DA_JANELA`), e não a da tela: com espaço sobrando
-    entre elas, o olho atravessa a tela para comparar.
-  - **"Excluir" apaga a foto INTEIRA**: a padronizada, a original guardada, a prévia e a melhorada (o
-    servidor apaga as quatro), e a janela segue para a próxima da fila. Numa foto melhorada (paga) pede um
-    segundo clique.
-  - **A opção chama-se "Ampliar"** (o dono pediu para voltar ao nome do início do teste; passou por
-    "Nitidez IA" por um momento). Toda foto já é ajustada para 1024×1024 de graça, **esticando os
-    pixels**; a opção do Photoroom é outra coisa, a IA **refaz a foto pequena com mais definição**.
-  - **"Ampliar" só aceita foto de até 1 megapixel de entrada** (`MAXIMO_PIXELS_PARA_AMPLIAR`, em
-    `limites.js`). **Medido no sandbox em 21/09/2026:** 1000×1000 passou; 1024×1024 e 1192×900 voltaram
-    "too big" (HTTP 400). É o tamanho do arquivo que CHEGOU (é o que se manda), e não o da foto já
-    ajustada. A opção fica **desligada** na foto grande, e o "i" diz por quê, em vez de o dono descobrir
-    pelo erro (foi assim que apareceu: "A foto é grande demais para o Photoroom ampliar"). Ampliar é
-    **lento**: ~15 s aos 500 px, ~25 s aos 800 px e ~75 s aos 1000 px (o tempo limite é 120 s). Um HTTP
-    500 "error during image upscaling" apareceu uma vez e **passou na repetição**.
-  - **A prévia e as opções de cada foto moram no painel (`porFoto`)**, não na janela: fechar a janela não
-    pode perder uma prévia já gerada (o "Comprar" só liga para uma prévia vista).
-
-#### Quantas fotos os marketplaces aceitam (pesquisado em 21/09/2026, pedido do dono)
-
-**As páginas oficiais NÃO abriram para leitura** (Mercado Livre devolveu 403; a Central do Vendedor da
-Shopee é montada por JavaScript e voltou vazia). Os números abaixo vêm de resumos da busca e de guias de
-integradores (Ideris, Mainô, 1001 Clicks, Hub2b), **então conferir na conta antes de decidir em cima deles**.
-
-| | Mercado Livre | Shopee |
-| --- | --- | --- |
-| Máximo por anúncio | **12** (10 por variação em moda) | **9** |
-| Mínimo | 1 | 1 |
-| Quantidade recomendada | 4 a 8 (guias; não achei número oficial) | galeria completa; a 1ª é a capa, as 2 a 8 mostram detalhe e medida |
-| Tamanho | mín. 500×500; **recomendado 1200×1200** (zoom); máx. 1920×1920 | mín. 800×800 (alguns guias dizem 350); **recomendado 1024×1024** |
-| Proporção e fundo | quadrado, fundo branco recomendado | **1:1 estrito em toda a galeria**, fundo branco puro, produto ocupando 70 a 85% |
-| Peso e formato | JPG/PNG, até 10 MB | JPG/PNG, até 2 MB (o guia de 2026 fala em WebP ou JPG) |
-
-**O que isto diz do sistema:** `MAXIMO_IMAGENS` era 7, **abaixo dos dois máximos** (12 e 9), e **subiu para
-9 em 21/09/2026** (aprovado pelo dono): uma galeria só serve aos dois. Os 1024×1024 vieram da Shopee: passam do mínimo do Mercado Livre (500), mas ficam
-**abaixo dos 1200×1200 que ele recomenda para o zoom**. O peso de até 1 MB cabe nos 2 MB da Shopee. A Central
-da Shopee tem artigo sobre imagens em proporção **3:4**, cujo conteúdo não deu para ler: pode ter mudado a
-exigência de 1:1.
-
-#### Photoroom (previa gratis, compra só depois de ver)
-
-Decidido com o dono em 20-21/09/2026 depois de testar as fotos dele em **sandbox**. Código:
-`src/lib/integracoes/photoroom.js` (regras e rede, sem banco), `photoroomLog.js` (registro e contagem),
-`src/app/produtos/acoes-imagens.js` (ações), `JanelaDeFotos.jsx` (tela).
-
-- **Fluxo:** o botão **"Melhorar"** de uma foto abre a janela. Opções: remover fundo, melhorar iluminação,
-  ampliar. **"Gerar prévia (grátis)"** chama o **sandbox** (chave `sandbox_...`, gratuito, com marca
-  d'água) e mostra ao lado da foto atual, **sem mexer na foto do produto**. Só então o botão
-  **"Comprar (US$ 0,10)"** liga, com confirmação; a compra chama a **produção** e troca a foto (selo
-  "Melhorada"). **"Original"** volta a foto como chegou, sem custo.
-- **A prévia é a foto que se compra**, verificado: duas chamadas iguais dão a mesma imagem, e só a
-  posição da marca d'água muda. **Ainda NÃO conferido contra a produção** (sem gastar), então a primeira
-  compra real deve ser comparada com a prévia.
-- **NUNCA `beautify`.** No teste redesenhou o produto: numa foto de Arduino Uno com cabo e pinos devolveu
-  **outra placa e um cabo com USB-A nas duas pontas**. Não há caminho no código que o envie, e o teste
-  confere as 7 combinações. Iluminação é só a `ai.preserve-hue-and-saturation` (não muda a cor).
-- **Travas contra gasto** (no molde de `ML_PUBLICACAO`/`BLING_ESCRITA`), todas no servidor:
-  1. **`PHOTOROOM_COMPRA=true`** no `.env` para comprar. **Fica `false` enquanto se testa**, mesmo com a
-     chave de produção já colada (o dono deixou a linha pronta, 21/09/2026, com o aviso).
-  2. a chave de **prévia** (`PHOTOROOM_API_KEY`) **tem que começar com `sandbox_`**, senão a "prévia
-     grátis" cobraria; a de **compra** (`PHOTOROOM_API_KEY_PRODUCAO`) **não pode** começar com
-     `sandbox_`;
-  3. **só se compra o que foi visto**: o servidor exige uma prévia da mesma foto **com as mesmas
-     opções** (a prévia velha não vale se uma opção mudou);
-  4. o botão fica cinza dizendo por quê ("Compra desligada (modo teste)").
-- **Parâmetros:** `removeBackground`, fundo `FFFFFF`; com remover fundo e sem ampliar, `outputSize
-  1024x1024` e `padding 0.05`. **Ampliar não manda `outputSize`** (essa combinação deu erro 500) e usa
-  `upscale.mode=ai.fast` (o `ai.slow` recusa imagem acima de 262.144 pixels). O resultado, prévia ou
-  compra, passa pelo **mesmo padronizador** (1024×1024, 1 MB). O Photoroom exporta JPEG fixo em
-  qualidade 80, por isso se recebe PNG e se converte aqui.
-- **Registro:** cada chamada que **saiu** vira uma linha em `LogIntegracao` (`servico = PHOTOROOM`, o
-  modo no `endpoint`: `[previa]` ou `[producao]`; migration `20260921_servico_photoroom`, só um valor de
-  enum, aditiva). Chamada recusada antes de sair (chave, trava, opções) **não** conta. Sem chave nem
-  imagem no registro. A janela mostra **prévias de hoje (limite do sandbox: 100/dia, 1000/mês)** e
-  **compras no mês**, em reais (cotação fixa por ora, ver "Valores em REAIS").
-- **Preço:** US$ 0,10 por imagem (plano Plus, Image Editing API), segundo a documentação em 20/09/2026.
-  **Não se sabe** se ampliar ou iluminar têm cobrança extra: conferir na página de preços antes de ligar a
-  compra.
-- **Aprendido nos testes** (20/09/2026, 2 fotos do dono): fundo removido + iluminação separa **cada pino**
-  de uma tira (melhor que u2net e BiRefNet-lite); sem remover o fundo, o fundo original quase-branco vira
-  uma **emenda** dentro das barras de branco puro do quadrado; ampliar 4× (638×480 → 2552×1920) deixou a
-  foto bem mais nítida sem inventar detalhe visível.
-- **Sandbox:** só a Image Editing API (`v2/edit`). Precisa de **`PHOTOROOM_API_KEY` reiniciando o
-  servidor** (o Next lê o `.env` na partida).
-
-#### Remoção de fundo local (em Python): estacionada, NÃO usada
-
-Testada em 20/09/2026 e **substituída pelo Photoroom**; nada do cadastro a chama. Fica em
-`servicos/removedor-fundo/` (Python 3.12.10 instalado para o usuário; `.venv`, `modelos/` e `testes/`
-fora do git; `requirements.txt` fixa `rembg[cpu]`; `benchmark.py` e `baixar-amostras.mjs` reaproveitáveis).
-
-- **Licença decide o modelo:** ficam de fora o `bria-rmbg` (o padrão do rembg, CC BY-NC) e o
-  `isnet-general-use` (restrição comercial); candidatos: `u2net` (Apache-2.0) e BiRefNet (MIT).
-- **Máquina sem placa NVIDIA** (i7-1355U, 15,7 GB, muitas vezes com pouca memória livre). **u2net**: 3 a
-  4 s por foto, bom em peça opaca, **perde peça fina ou transparente** e cria halo cinza em pente de
-  pinos (a máscara é de baixa resolução). **birefnet-general-lite**: 55 a 160 s por foto **com a máquina
-  livre** (3 a 8 minutos com ela cheia), melhor que o u2net mas ainda com contorno cinza nos pinos.
-- `bria-rmbg`, `isnet-general-use` e o `@imgly/background-removal` (AGPL) não devem ser usados.
-- O **BiRefNet completo (973 MB) nunca foi baixado**: só vale se um dia se voltar ao caminho local.
+- **As imagens vêm junto**, pedido do dono em 16/09/2026. O produto novo ainda não tem pasta,
+  então a tela mostra a **prévia** no lugar da imagem e a cópia acontece no **Salvar**
+  (`anexarImagens` em `src/lib/imagensImportadas.js`, que a importação do Bling também usa).
+  - **O formulário manda só a referência** (`importarImagensDe` = `rise:<id>` ou
+    `coletado:<id>`), e os endereços são lidos de novo no servidor. Aceitar endereço vindo do
+    navegador faria o servidor baixar o que alguém mandasse.
+  - **Passa pelo `salvarArquivo`**, com as regras do envio manual (JPEG/PNG, 500 a 1920 px).
+    O tipo é lido **pelos bytes**, porque CDN de loja devolve `octet-stream`. Foto recusada não
+    desfaz o cadastro: a tela do produto criado mostra quantas vieram e quantas ficaram de fora
+    (`?imagens=&recusadas=` na URL). Medido com o 06811 da Usinainfo: 4 copiadas e 1 recusada,
+    a `large_default` de 397 px.
 
 ## Produtos: referências de mercado e texto por IA
 
@@ -1952,6 +1655,13 @@ deste formulário.
   (é o `Fornecedor` real, único por loja); Concorrente exclui pela referência
   (`produtoColetadoId`), porque duas linhas do mesmo concorrente com produtos diferentes são
   legítimas — o Fornecedor é único por loja, o concorrente não.
+- **Coluna "Diferença" da lista de Concorrentes** (`Concorrentes.jsx`, 18 e 19/09/2026): o número é
+  `(nosso preço − preço normal do concorrente) ÷ preço normal do concorrente`, e **a seta e a cor
+  dizem onde está o CONCORRENTE em relação a nós**: mais barato = seta para baixo em **vermelho**
+  (o caso ruim para quem vende), mais caro = seta para cima em verde, igual = "Igual". A primeira
+  versão apontava para o nosso preço; o dono pediu a inversão em 19/09/2026 e o **número ficou o
+  mesmo** (39,90 contra 49,00 dá 22,8%). Como a coluna é medida vai numa bolha "i" no cabeçalho.
+  Se um dia a base passar a ser o NOSSO preço, o mesmo exemplo dá 18,6%: é uma linha em `Diferenca`.
 - **Manual e ficha técnica são um tipo só, `DOCUMENTO`** ("Documentos técnicos", pasta
   `documentos/`), desde 16/09/2026, decidido com o dono. Nada no sistema tratava um diferente do
   outro, e o mesmo PDF de fabricante costuma ser as duas coisas. **O certificado de
@@ -2008,38 +1718,46 @@ deste formulário.
     no hover de quem está em volta.
   - `onClick` da bolha para a propagação — quando ela mora dentro de um botão maior (a lupa),
     clicar em cima do "i" não pode disparar a ação do botão por baixo.
+  - **O texto zera a caixa herdada** (`normal-case tracking-normal font-normal`): dentro de um
+    `<th>` de tabela (`uppercase`, espaçamento largo) a explicação inteira saía em MAIÚSCULAS.
+  - **Bolha em cabeçalho de tabela é CORTADA por `overflow-x-auto`.** Qualquer `overflow` diferente
+    de `visible` prende também o eixo Y, e a bolha abre para cima, fora da caixa da tabela: no hover
+    não aparecia nada (conferido com `elementFromPoint`). Em `Concorrentes.jsx` o wrapper usa
+    `md:overflow-visible`, e a rolagem lateral fica só nas telas estreitas.
 
-## Cadastros: clientes, fornecedores, concorrentes, transportadoras, produtos, marcas e condições
+## Cadastros: clientes, fornecedores, concorrentes, transportadoras, produtos e marcas
 
 Pedido do dono em 18/09/2026: uma seção no menu para cadastrar fornecedores, concorrentes,
 produtos e o que mais fizesse falta. **Item de menu logo abaixo do Painel** (`blocos.js`),
-com as seções como **subitens em cascata** e uma seta para abrir/fechar. Ordem: Clientes,
-Fornecedores, Concorrentes, Transportadoras, Produtos, Marcas, Condições de pagamento.
+com as seções como **CARTÕES na própria página `/cadastros`** (desde 21/09/2026, pedido do dono, no
+desenho de Ferramentas; até ali eram subitens em cascata no menu). Ordem: Clientes, Fornecedores,
+Concorrentes, Transportadoras, Produtos, Marcas. A lista mora em `src/lib/secoesDeCadastros.js`; cada
+tela tem um link "← Cadastros" (`LinkDeVolta`, em `src/components/ui/`, usado também em Ferramentas).
+**Condições de pagamento saiu** (ver abaixo).
 
 - **A primeira versão tinha abas dentro da tela** (`?aba=`, no desenho de Fontes) e o item
   ficava acima de Mercados. O dono desenhou o pedido de novo no mesmo dia: subiu o item e
   moveu as abas para o menu. As abas **saíram da tela**.
-- **Cada seção tem rota própria:** `/cadastros/clientes|fornecedores|concorrentes|transportadoras|produtos|marcas|condicoes`
-  (`[tipo]/page.jsx`), e `/cadastros` só redireciona para **Clientes** (era Fornecedores até
-  Clientes entrar na frente). É o que deixa o item ativo sair de `ehRotaAtiva(pathname, href)`,
+- **Cada seção tem rota própria:** `/cadastros/clientes|fornecedores|concorrentes|transportadoras|produtos|marcas`
+  (`[tipo]/page.jsx`), e `/cadastros` mostra os cartões (até 21/09/2026 só redirecionava para
+  Clientes). É o que deixa o item ativo sair de `ehRotaAtiva(pathname, href)`,
   sem `useSearchParams` na barra lateral (que está no layout de todas as páginas e exigiria
   `Suspense`). Formulário: `[tipo]/novo` e `[tipo]/[id]`, só para clientes, fornecedores,
-  concorrentes e transportadoras (marcas, produtos e condições dão 404: marcas e condições
-  editam na linha, produtos usa a tela de Produtos).
-- **Fornecedores, concorrentes e transportadoras dividem a LISTA** (`PARCEIROS` em
-  `src/lib/cadastros.js`, `TabelaParceiros`), e o que muda vem da configuração: `usos` dá o nome da
-  coluna ("Produtos" do fornecedor, "Clientes" da transportadora), `artigo`/`novo` acertam o gênero
-  ("Ja existe uma transportadora", "Nova transportadora"). **Só fornecedor e concorrente dividem o
-  formulário** (`FormularioParceiro`, `salvarParceiro`; `tiposDeFonte` liga o cadastro à fonte de
-  Mercados). **A transportadora tem formulário e ação próprios** desde 19/09/2026
-  (`FormularioTransportadora`, `acoes-transportadoras.js`), ver "Transportadoras" abaixo.
-  **Marcas e Condições de pagamento** são uma tabela só, `TabelaSimples` (nome + observação, edição
-  na linha).
+  concorrentes e transportadoras (marcas e produtos dão 404: marcas
+  edita na linha, produtos usa a tela de Produtos; `/cadastros/condicoes` também dá 404).
+- **Fornecedores, concorrentes e transportadoras são UMA tela** (`PARCEIROS` em
+  `src/lib/cadastros.js`, `TabelaParceiros`, `FormularioParceiro`, `salvarParceiro`), e o que
+  muda vem da configuração: `tiposDeFonte` vazio esconde a ligação com fonte de Mercados
+  (transportadora não tem site varrido), `usos` dá o nome da coluna ("Produtos" do fornecedor,
+  "Clientes" da transportadora), `artigo`/`novo` acertam o gênero ("Ja existe uma
+  transportadora", "Nova transportadora"). **Marcas** usa a `TabelaSimples` (nome +
+  observação, edição na linha), que continua genérica para o próximo cadastro simples.
 - **CNPJ é conferido pelos dígitos verificadores** (`src/lib/documentos.js`, sem imports, usado
   pela ação, pelo formulário e pelo teste) e guardado **formatado**, para "11222333000181" e
   "11.222.333/0001-81" não virarem dois textos. Vale para fornecedor, transportadora e cliente.
   Antes só se contava 14 dígitos no fornecedor.
-- **Cascata (`blocos.js` → `filhos`, `SidebarItem.jsx`):** um nível, cada filho é um link. A
+- **Cascata (`blocos.js` → `filhos`, `SidebarItem.jsx`) — hoje NENHUM bloco a usa**, mas o código do menu
+  continua suportando (Cadastros a usou até 21/09/2026): um nível, cada filho é um link. A
   seta é um botão **irmão** do link, não filho (botão dentro de `<a>` é HTML inválido e o clique
   navegaria junto). Sem escolha do operador, a cascata **segue a rota** (aberta dentro do
   bloco, fechada fora); depois de abrir/fechar na seta, vale a escolha, só até recarregar. Clicar
@@ -2047,7 +1765,7 @@ Fornecedores, Concorrentes, Transportadoras, Produtos, Marcas, Condições de pa
   (senão ela ficaria aberta depois de sair de Cadastros). Pesquisar no menu abre a cascata e
   mostra só os filhos que casaram ("marc" acha Cadastros > Marcas). **Barra recolhida:** sem
   seta, mas os filhos aparecem como ícones com tooltip, senão Marcas ficaria inalcançável.
-- **`revalidatePath("/cadastros", "layout")`**, e não `"/cadastros"`: a raiz só redireciona, e o
+- **`revalidatePath("/cadastros", "layout")`**, e não `"/cadastros"`: a raiz agora só mostra os cartões, e o
   path simples não alcança as rotas de baixo.
 
 - **A EMPRESA é uma coisa e o SITE que o worker varre é outra.** `Fornecedor` e `Concorrente`
@@ -2147,59 +1865,218 @@ mistura com fornecedor** (o Bling junta os dois numa tela).
   - **"Pessoas de contato" só existe para pessoa jurídica.** Fica montada e oculta na física, mas
     **o servidor nem lê a lista e apaga a gravada** quando o tipo é física, como faz com os demais
     campos do outro tipo. Trocar para física e salvar por engano perde os contatos.
-- **Transportadora preferida** é UMA, do cadastro de Transportadoras (`Restrict`); **condições de
-  pagamento preferidas** são VÁRIAS, do cadastro de Condições (m:n). **Transportadora ou condição
+- **Transportadora preferida** é UMA, do cadastro de Transportadoras (`Restrict`). **Transportadora
   em uso por cliente não é excluída**, e o recado diz quantos clientes usam. Editar um cliente
-  mantém na lista a transportadora e as condições que ele já tem mesmo se estiverem inativas —
-  senão salvar apagaria uma preferência que a tela nem mostrou.
+  mantém na lista a transportadora que ele já tem mesmo se estiver inativa — senão salvar apagaria
+  uma preferência que a tela nem mostrou.
+- **Condições de pagamento REMOVIDAS em 21/09/2026 (pedido do dono: "a seção pode ser removida").**
+  Saíram o cartão, a rota, a tabela, as ações `salvarCondicao`/`excluirCondicao` e **o campo "Condições
+  de pagamento preferidas" do cliente** (sem cadastro, ele ficaria com uma lista vazia para sempre). **O
+  banco NÃO mudou**: a tabela `CondicaoPagamento` e a relação `Cliente.condicoesPreferidas` continuam no
+  schema, sem uso, porque apagá-las é migration (regra do schema). **`salvarCliente` não toca mais na
+  relação**: gravar `set: []` apagaria em silêncio o que já estivesse ligado. Limpar o schema fica para a
+  próxima migration de quem mexer nele. **O campo de TEXTO "Condições de pagamento" do fornecedor
+  (`Fornecedor.condicoesPagamento`, o que ele negociou) é outra coisa e ficou.**
 - **Dado pessoal (LGPD):** CPF, endereço e telefone ficam só no Postgres local e entram nos
   dumps do `npm run backup` (que ficam em `dados/`, fora do git). Nada vai a marketplace ou ERP.
 - `npm run teste:cadastros`: 69 asserções (CPF, CNPJ, CEP, telefone e a ligação fonte → cadastro; a parte
   do banco usa fontes de teste e as apaga).
 
-### Transportadoras
-
-Pedido do dono em 19/09/2026 (Agente 1): mesmo desenho de abas do Cliente, sem o campo "prazo de
-entrega". Formulário próprio (`FormularioTransportadora.jsx`) e ação própria
-(`acoes-transportadoras.js`, `salvarTransportadora`); `salvarParceiro` **não** trata mais
-transportadora. Usa `Abas.jsx`, `ListaDeValores`, `ContatosDoCliente` (pessoas de contato),
-`CamposDeEndereco` e `src/lib/formularios.js` (`lerLista`, `lerTelefones`, `lerEmails`, `lerContatos`,
-`lerEndereco`), os mesmos do Cliente.
-
-- **Três abas:** Dados cadastrais, Endereço, Contato.
-- **Campos** (migration `20260919_transportadora_abas`): Nome (obrigatório, razão social), Nome
-  fantasia, CNPJ (**opcional**, conferido pelos dígitos quando preenchido, guardado formatado),
-  Inscrição Estadual + "IE isento" (marcada limpa a IE, que a NF-e pede do transportador),
-  **Modalidade** (`ModalidadeTransporte`: Correios, Rodoviária, Entrega local, Outra), **Link de
-  rastreamento** (com `{codigo}` no lugar do código; o bloco Pedidos vai montar o link do cliente
-  com ele), site, endereço (cep, uf, cidade, bairro, logradouro, número, complemento), telefone e
-  e-mail (vários, o primeiro é o principal, como no Cliente), pessoas de contato
-  (`TransportadoraContato`, uma linha por pessoa, apagadas em cascata) e observações.
-- **Colunas antigas ficam sem uso:** `contato` (texto solto, trocado pelas pessoas de contato) e
-  `prazoEntregaDias` (o dono mandou tirar o campo). Não foram apagadas: a migration é **aditiva**
-  porque a outra frente usa o mesmo banco com o client antigo. Nada as lê nem grava.
-- **Botão de busca pelo CNPJ existe e está DESLIGADO** (`disabled`, `aria-label` "Buscar dados pelo
-  CNPJ (Sintegra) - em breve"). A busca em si **não foi implementada**, por pedido do dono.
-- **Testado no navegador em 20/09/2026:** três abas, ponto vermelho na aba com erro, CNPJ inválido,
-  telefone com DDD inexistente (leva à aba Contato e cita o texto digitado), gravação (telefone só em
-  dígitos, CNPJ formatado) e reabertura da edição.
-
 **Pendências combinadas com o dono (não implementadas):**
 
-- **Busca de dados pelo CNPJ** (Cliente pessoa jurídica e Transportadora; "faremos essa integração
-  depois"). O botão da Transportadora já está no lugar; o do Cliente ainda não. **O que foi apurado
-  em 19/09/2026 sobre a fonte:**
-  - **Sintegra não serve:** não há API pública gratuita (os portais estaduais têm captcha), e os
-    intermediários pagos devolvem só Inscrição Estadual e situação cadastral.
-  - **BrasilAPI (CNPJ)** é gratuita e devolve o que a Receita publica: razão social, fantasia,
-    endereço, telefones, e-mail e situação. **Não traz Inscrição Estadual.**
-  - **Encaixe pensado:** ação `buscarCnpj` no molde de `buscarCep` (validar antes com
-    `validarCnpj`, base fixa, teto de tempo, `LogIntegracao` com um novo `Servico`, só o CNPJ sai
-    daqui). **A decidir na hora:** se o retorno sobrescreve ou só completa o que está vazio, e de
-    onde vem a IE.
+- **Sintegra para pessoa jurídica** ("faremos essa integração depois"): puxar os dados da
+  empresa pelo CNPJ. Encaixe pensado: botão ao lado do CNPJ (como a lupa do CEP), ação
+  `buscarCnpj` no molde de `buscarCep` (validar antes com `validarCnpj`, base fixa, teto de tempo,
+  `LogIntegracao` com um novo `Servico`, só o CNPJ sai daqui). **A decidir na hora:** qual
+  serviço (o Sintegra é por estado e, até onde se sabe, não tem API pública única; pode ser
+  preciso intermediário, com custo ou limite) e se o retorno sobrescreve ou só completa vazios.
 - **Cobrança como terceira aba de endereço**, se ele quiser; **Contribuinte**; e as ideias que
   ficaram de fora do menu: Vendedores, Categorias de produto, Naturezas de operação (fiscal) e
   Depósitos.
+
+## Ferramentas: imagem para SVG
+
+Pedido do dono em 20/09/2026: bloco novo no menu, `/ferramentas`. **A barra lateral só tem o ícone e
+o texto "Ferramentas", SEM cascata; as ferramentas aparecem como CARTÕES na própria página**
+(`src/lib/ferramentas/catalogo.js` é a lista; `CartaoDeAtalho`, em `src/components/ui/`, desenha o
+cartão, no desenho da grade "Personalizar" do Claude que o dono mostrou). É um **teste de desenho**:
+**se ficar bom, vira o padrão das páginas de bloco do sistema** (**o dono aprovou e Cadastros passou a usar o mesmo desenho em 21/09/2026**; os outros blocos não têm telas
+internas).
+Sem submenu, a tela de cada ferramenta tem um link "← Ferramentas" para voltar.
+
+O motivo imediato foi o **logo real do Mercado Livre**: `public/marcas/mercado-livre.svg` era um
+marcador (as letras "ML" sobre um quadrado amarelo, 349 bytes). Foi substituído pelo logo gerado
+**pela própria ferramenta**: 447×447, **fundo transparente** (o quadrado amarelo da imagem foi
+removido; sobra o oval com o aperto de mãos), 5 caminhos, 7,6 KB, cores exatas `#2D3277 #FFD100
+#FFFFFF`, erro médio de pixel 2,01 de 255. O `canais.js` o mostra via `next/image` a 22 e 16 px.
+
+**O que o dono decidiu (20/09/2026) — só para LOGOS:**
+- **Sem campos na tela.** Saíram o "Tipo de imagem" (logo, ilustração, foto, preto e branco), as
+  "Opções avançadas" (cores fixas, limite de cores, transparência) e o botão "Converter": a conversão
+  **começa ao escolher a imagem**. Só existe a receita de logo (`OPCOES_LOGO`).
+- **Fundo sempre transparente** e **cores exatas**, os dois automáticos (ver "Como é montado").
+- **Sem "Trocar cores"** e **sem redimensionar**. Só duas aparências: as **cores originais** e a
+  **fosca** (cinza + 50% de opacidade, um filtro CSS sobre o mesmo arquivo, sem segundo SVG), com um
+  botão "Cores originais | Fosco" na prévia. `LogoSvg` (`src/components/ui/`) tem o `estado`.
+  **Quando usar o fosco (por exemplo o logo do Bling com o canal em falha) o dono ainda vai decidir:
+  nenhuma tela existente o usa.** Quem já tem `<img>` ou `next/image` soma `CLASSE_LOGO_FOSCO`.
+- **Salvar no banco: implementar o resto e ESPERAR O AVISO DO DONO** ("quando tiver tudo pronto e
+  testado, eu te aviso"). Desenho combinado: tabela no Postgres com o texto do SVG (nome + busca,
+  **sem tipo/categoria**), biblioteca listada em Ferramentas, rota que serve o SVG por nome e
+  download. **Ainda NÃO existe** a tabela, a migration, o botão "Salvar" nem a biblioteca. **A
+  migration segue a regra do schema** (uma sessão por vez, `git merge main` antes, e o dono ainda
+  não confirmou que o Agente 1 não tem migration pendente).
+
+**O dono indicou três repositórios; nenhum serve** (GitHub API e npm, 20/09/2026). Nenhum tem script de
+instalação suspeito nem chamada de rede: o problema é utilidade e manutenção, não malícia.
+- `ialoig/nodejs-png2svg`: **não vetoriza**. Compacta o PNG em RLE e gera um retângulo de 1 px por
+  sequência de pixels iguais. Sem licença, 8 commits, parado desde set/2023.
+- `kagof/pixel-perfect-svg`: **não vetoriza**, troca cada pixel por um retângulo (é para pixel-art).
+  MIT, 5 commits, parado desde out/2021, dependências de 2021.
+- `rameez543/png-to-svg`: só uma **interface React sobre `potrace-wasm`**, que é **GPL-2.0** e de
+  **uma cor só** (silhueta): perderia as 4 cores do logo. Sem licença, sem testes, 9 commits. Exibe o
+  SVG com `dangerouslySetInnerHTML`.
+
+**Motor: `@visioncortex/vtracer` (WASM, sem binário nativo), no servidor.** Repositório oficial com
+7 mil estrelas e push do próprio dia; MIT OR Apache-2.0. Escolhido por benchmark (20/09/2026,
+rasterizando o SVG de volta contra o original com o `sharp`):
+
+| Amostra | VTracer | imagetracerjs (Unlicense, JS puro, parado desde nov/2023) |
+| --- | --- | --- |
+| Logo do ML, 447×447 | **8 KB, 6 a 8 caminhos**, erro 3,2 (**2,0 com paleta fixa**) | padrão: 72 KB, 490 caminhos, erro 3,0; detalhado: 489 KB, 3.444 caminhos |
+| Foto de produto, 700×700 | 3,6 a 4,5 s, 0,6 a 1,3 MB | 2,4 a 2,9 s, 1,9 a 7,3 MB |
+| Ícone com degradê e sombra translúcida | **pior**: erro ~11 (cores chapadas) | melhor: erro 2 a 4 |
+
+- **Limite conhecido:** degradê e sombra translúcida saem achatados (cores chapadas), porque a receita
+  é só a de logo e a paleta é fixada. Se um dia isso doer, o plano B é o `imagetracerjs` (**não instalado**).
+- **O pacote npm é ALFA** (`1.0.0-alpha.4`, 4 versões em jul-ago/2026, **sem atestado de procedência**).
+  Por isso: versão **exata**, sem `^`, instalada com `--ignore-scripts`; lidos os 8 arquivos
+  publicados. O JS só lê o próprio `.wasm`, e o WASM só importa funções de conferência de tipo
+  (nada de arquivo, rede, relógio ou aleatoriedade): fica isolado. **Ao atualizar, reler o que mudou.**
+- **Cores exatas: o vtracer sozinho as aproxima** (`#FEE500` em vez de `#FFE600`, `#FCFCFD` em vez de
+  branco, `#313676` em vez de `#2D3277`), e uma marca tem cor definida. A opção `palette` dele resolve, e
+  a ferramenta a alimenta **sozinha**, detectando as cores da própria imagem (`coresDaImagem`, em
+  `src/lib/ferramentas/pixels.js`). Descobertas que custaram caro:
+  - **Cada balde de 6 bits guarda a cor exata mais votada** (voto de maioria), e não a média: a média de
+    um balde que mistura `#FFFFFF` com pixels de borda daria um quase-branco.
+  - **Mistura de anti-aliasing não é cor** (`ehMistura`): a borda de um logo de 3 cores gera dezenas de
+    misturas, e no logo do ML seis delas (`#D7D8E4`, `#A5A7C4`, `#E3BC21`...) passaram como cor e o SVG saiu
+    com uma camada lilás fantasma. Descarta-se a cor que fica a até 40 da reta entre duas aceitas e tem
+    menos de 8% dos pixels da menor das pontas (o limite protege um laranja de detalhe entre amarelo e vermelho).
+  - **Tom parecido não é ruído** (`ehRuido`): até 16 de distância é a mesma cor; entre 16 e 48 só é ruído se
+    tiver menos de 10% dos pixels da vizinha. Uma regra só de distância engolia o dourado `#FFD100`, que fica a
+    21 do amarelo `#FFE600`.
+- **Fundo transparente** (`pixels.js`): se a imagem já tem transparência, nada é apagado. Se a **borda** é de
+  uma cor só (85% dos pixels da borda a até 36 da mais comum), apaga-se a região dessa cor **que toca a
+  borda**: o branco DENTRO de um contorno é da arte e fica. Fundo em degradê ou foto **não é apagado às
+  cegas** (apagar comeria o logo); a tela avisa "o fundo não é de uma cor só, então foi mantido".
+  - **A borda do anti-aliasing é desmisturada** (`refinarBorda`), e não apagada em camada fixa: o pixel entre
+    o fundo e o desenho é `fundo + p·(cor − fundo)`; acha-se a cor da paleta que melhor o explica e, se
+    `p ≥ 0,5`, ele fica com essa cor, senão vira transparente. Sem isso, um pixel meio azul e meio
+    amarelo-de-fundo caía no dourado e o logo de contorno azul ganhava um **filete dourado**; e uma camada
+    fixa de halo afinava o contorno.
+  - Imagem de uma cor só (tudo seria fundo) dá o recado "toda transparente".
+
+**Como é montado**
+- `src/lib/ferramentas/presetsSvg.js` (constantes e a receita de logo, sem imports: tela e servidor o
+  leem), `src/lib/ferramentas/pixels.js` (fundo e cores, sem imports, testável sozinho) e
+  `src/lib/ferramentas/imagemParaSvg.js` (só servidor: `sharp` e o WASM). A Server Action
+  (`src/app/ferramentas/acoes.js`) só confere o envelope; a tela é `src/components/ferramentas/ImagemParaSvg.jsx`.
+- **O vtracer nunca recebe o arquivo do usuário.** Quem decodifica é o `sharp` (libvips), que reduz o
+  lado maior a 2048 px (o WASM roda **na thread do servidor** e bloqueia durante a conversão: um logo leva
+  menos de 1 s, mas uma foto de 700 px levou 4 s) e aplica a orientação do EXIF. O WASM só vê RGBA.
+- **Tipo pelos BYTES** (PNG, JPEG, WebP), nunca pelo `type` do navegador nem pela extensão. Limite de
+  10 MB (o corpo de Server Action aceita 24 MB), conferido na tela, na action e na lógica.
+- **Teto de pixels (40 milhões) conferido pelo cabeçalho, ANTES de decodificar.** O `sharp` lê as
+  dimensões de um PNG falso de 50.000×50.000 sem reclamar e só recusa no decodificador, com um "arquivo
+  corrompido" que não diz o que houve. A bomba real do teste é um PNG **válido** de 7000×6000 que
+  comprime a 40 KB.
+- **O SVG de saída é conferido** (`motivoDeSvgInseguro`: sem `<script>`, `<foreignObject>`, `<image>`,
+  `<use>`, `on...=`, `href`, DOCTYPE) e mostrado só por `<img src="blob:...">`, **nunca**
+  `dangerouslySetInnerHTML`. Nada é gravado em disco nem no banco, e o download é um `Blob` no navegador.
+- **`sharp` e `@visioncortex/vtracer` estão em `serverExternalPackages`** (`next.config.mjs`): o pacote do
+  wasm-pack lê o próprio `.wasm` do disco, e empacotado o caminho se perde (o mesmo defeito do `pdf-parse`).
+- **`sharp` agora é dependência DECLARADA.** Antes só existia como opcional transitiva do `next` e
+  sumiria num deploy Linux/VPS. Fixado em **0.35.4**: a 0.35.3 tinha aviso ALTO (libheif).
+- **Testes:** `npm run teste:svg`, 60 asserções, sem rede e sem banco, com as imagens geradas pelo
+  próprio `sharp`. Cobre a bomba de descompressão, SVG e HTML disfarçados de imagem, PNG truncado,
+  foto girada por EXIF, fundo transparente (amarelo, branco, já transparente, degradê), o branco de
+  dentro do logo preservado, ausência de filete dourado na borda, cores exatas e SVG de saída perigoso.
+
+**`npm audit` (20/09/2026) acusou avisos que JÁ existiam, fora desta feature** (o `sharp` e o VTracer
+não aparecem): **`next` 16.3.1 com dois avisos CRÍTICOS de execução remota** (um específico de servidor
+Windows; correção 16.3.5, sem mudança de versão maior), `image-size` (alto, usado no upload de imagens de
+produto) e outros menores. Ficou como tarefa separada ("Atualizar next e image-size"). **O dev server
+também escuta na rede local** (`Network: https://<ip>:3001`).
+
+## Ferramentas: cotação do dólar
+
+Pedido do dono em 21/09/2026: uma tela em Ferramentas (`/ferramentas/cotacao-dolar`, cartão em
+`src/lib/ferramentas/catalogo.js`) que coleta o dólar do dia e o mostra em gráfico, para uso no sistema
+interno. **Por que interessa à loja:** o custo dos fornecedores (a "reserva" da Fortek é o que ainda vai
+chegar) e os preços dos concorrentes seguem o câmbio, e o sistema só tem valores em reais. **Bitcoin e
+euro ficaram de fora** (o dono ficou só com o dólar; bitcoin não tem ligação com o custo da loja).
+
+**O que o dono decidiu:** só o dólar; **não guardar no banco agora** (o BC guarda o histórico inteiro;
+sem migration e sem tocar no schema); **gráfico em SVG próprio, sem biblioteca** (nenhuma dependência
+nova). Guardar a cotação e usá-la em outras telas (custo do fornecedor, margem) fica para quando houver
+uma tela que a use.
+
+**Fontes (conferidas em 21/09/2026, todas sem chave):**
+- **PTAX do Banco Central** (Olinda, `CotacaoDolarPeriodo`): o dólar oficial, **um valor por dia útil**
+  (fecha por volta das 13h), com o histórico inteiro. Alimenta o gráfico (a **venda**) e a tabela dos
+  últimos dias. **A data na URL é `MM-DD-AAAA`**; fim de semana e feriado não têm linha, e por isso o
+  gráfico espaça os dias úteis por igual, sem eixo de calendário.
+- **AwesomeAPI** (`/json/last/USD-BRL`): a cotação de **agora**, em tempo real. **Passou a recusar com
+  429 (`QuotaExceeded`) depois de poucas consultas sem chave** — medido no mesmo dia em que a tela foi
+  feita, e o aviso de limites dela nem abre. Com chave gratuita (cadastro em awesomeapi.com.br) são 100 mil
+  consultas por mês, enviada no header `x-api-key`. **O token vai na linha `AWESOMEAPI_TOKEN` do `.env`** (ver
+  "O token da AwesomeAPI" abaixo).
+- **Reserva do "agora": o último boletim do PTAX** (`CotacaoMoedaPeriodo`, moeda USD). O BC divulga de hora
+  em hora, das 10h às 13h. Quando a AwesomeAPI falha, o cartão "Dólar agora" mostra o boletim e diz isso
+  ("boletim do BC de 21/09 13:06"), e a AwesomeAPI fica **10 minutos de lado** em vez de gastar 2 s de
+  espera a cada clique. **Depois das 13h o "agora" do boletim é igual ao PTAX do dia**: o tempo real só vem
+  com a chave. O boletim não traz máxima, mínima nem variação do dia, e o cartão não as mostra.
+
+**Como é montado**
+- `src/lib/ferramentas/cotacao.js` (**sem imports**, lido pela tela, pela Server Action e pelo teste):
+  períodos (7 dias, 30 dias, 90 dias, 1 ano), URLs, leitura das respostas, variação e a conta do gráfico.
+  **Linha do PTAX fora do formato é descartada** (zero, negativo, texto no lugar de número, data ruim), e
+  resposta sem nenhuma linha boa vira erro: nunca gráfico com lixo. `Number("")` é 0, então
+  `numeroPositivo` recusa vazio e espaço antes de converter.
+- `buscarCotacaoAcao(periodo, forcar)` em `src/app/ferramentas/acoes.js`. **Do navegador só vem o período**,
+  conferido contra a lista (`intervaloDoPeriodo`); os endereços são fixos. Tempo limite de 8 s e teto de
+  2 MB por resposta. As duas consultas são independentes: uma falhar não derruba a outra, e só as duas
+  juntas dão erro. **Memória de 1 h para o PTAX e de 60 s para o "agora"**, só de resposta boa (falha de rede
+  não fica grudada); o botão Atualizar ignora a memória. **A "data de hoje" é a de `America/Sao_Paulo`**:
+  perto da meia-noite o UTC já é o dia seguinte.
+- **A primeira carga vem pronta do servidor** (`page.jsx` chama a ação e passa o resultado): sem tela vazia
+  e sem `setState` em efeito. Depois só se consulta ao trocar o período ou apertar Atualizar.
+- **Sobe é vermelho, desce é verde**: é o que importa a quem compra em dólar (a alta encarece o custo do
+  fornecedor). O inverso de um gráfico de bolsa, e a tela diz isso.
+- **O gráfico é desenhado na largura real do quadro** (`ResizeObserver`), não num `viewBox` que encolhe:
+  no celular o texto dos eixos ficaria ilegível. **O eixo Y não começa do zero** (o dólar varia centavos e
+  a linha ficaria reta). Valor e data do ponto aparecem numa linha **acima** do gráfico, não num balão:
+  serve igual ao mouse e ao teclado (setas percorrem os dias, Esc volta ao último).
+- **O token da AwesomeAPI vai SÓ no `.env`** (`AWESOMEAPI_TOKEN=`, linha já criada vazia no `.env` e no
+  `.env.example`). **Pedido do dono em 21/09/2026**: ele pediu a linha no `.env`, e uma primeira versão
+  criou por engano um cartão na tela para colar o token, guardado cifrado em `dados/config/`; foi **removida**
+  a pedido dele, para não haver dois lugares onde o token possa estar. `buscarAgora` lê
+  `process.env.AWESOMEAPI_TOKEN` a cada consulta, mas **o `.env` só é relido na partida do servidor**:
+  depois de colar o token, reiniciar. Sem token (ou com token recusado), o "agora" cai no boletim do BC.
+  - **Lição que ficou da versão removida:** o `next dev` **imprime no terminal os argumentos de toda Server
+    Action** (`salvarTokenAcao("...")`), então segredo passado a uma ação sai inteiro no log. Mandar num
+    `FormData` faz o log mostrar só `({})`. Vale para qualquer segredo, em qualquer tela.
+- **`Card className="p-0"` NÃO zera o padding**: a classe `p-5` do próprio `Card` também vale e vence.
+  Para uma caixa sem padding (a tabela dos últimos dias), usar um `<div>` com as mesmas classes de borda.
+- **Sem `LogIntegracao`.** O enum `Servico` não tem valor para o BC nem para a AwesomeAPI, e acrescentar é
+  migration (o dono pediu sem schema). A regra "toda chamada externa é auditada" fica **em aberto** aqui e
+  entra junto com o banco, se um dia a cotação for guardada. Falha vai para o log do servidor
+  (`[cotacao] ...`).
+- **Testes:** `npm run teste:cotacao`, 86 asserções, sem rede e sem banco: datas (virada de mês e de ano,
+  bissexto, meia-noite em São Paulo), período fora da lista recusado, PTAX e boletim com resposta boa, fora
+  de ordem, repetida, com lixo e vazia, "agora", variação e as coordenadas do gráfico (um ponto só, série
+  reta, série vazia, 250 dias, quadro minúsculo).
 
 ## Trabalho em paralelo: worktrees
 
