@@ -7,6 +7,7 @@ import {
   lerProdutosDaFonte,
 } from "./banco";
 import { colherProdutos, enderecoComparavel } from "./colher";
+import { podeVisitar } from "./buscar";
 import { conciliar, quedaSuspeita } from "./conciliar";
 import { portalDoEndereco, regrasDoFornecedor } from "./fornecedores";
 import { colherPortal } from "./portal-addsuite";
@@ -190,7 +191,10 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
   // Site + arquivo, quando a regra do fornecedor diz que sao o mesmo catalogo
   // pela metade: a Nightech publica foto, texto e endereco no site e preco e
   // saldo na planilha. Mesmo codigo = um produto.
-  if (regras.mesclarSiteComArquivo && fonte.robotsPermite) {
+  const sitePermitido = regras.mesclarSiteComArquivo &&
+    !fonte.dominio.endsWith(".invalid") &&
+    (await podeVisitar(enderecoDaFonte(fonte))).permitido;
+  if (sitePermitido) {
     sinal?.throwIfAborted();
     const doSite = await colherProdutos({
       url: enderecoDaFonte(fonte),

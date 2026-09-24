@@ -83,6 +83,7 @@ enum StatusJob {
   PROCESSANDO
   CONCLUIDO
   FALHOU
+  CANCELADO
 }
 
 enum TipoArquivo {
@@ -773,10 +774,8 @@ model FonteColeta {
   /// paginas a 10 s cada) e emendava na seguinte.
   intervaloHoras Int     @default(720)
 
-  /// O relogio da varredura mora aqui, e nao num setInterval: o sistema roda na
-  /// maquina do dono, que dorme e reinicia. Desligada dois dias, ela gera UMA
-  /// varredura ao voltar em vez de tres acumuladas.
-  proximaVarreduraEm DateTime @default(now())
+  /// Sem agendamento automatico; a coleta so comeca pelo botao Atualizar dados.
+  proximaVarreduraEm DateTime?
   ultimaVarreduraEm  DateTime?
 
   /// A ULTIMA COLETA GRAVADA, escrita por quem grava — worker, linha de comando

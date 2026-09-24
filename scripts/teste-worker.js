@@ -29,6 +29,10 @@ const http = await import("node:http");
 const { fork } = await import("node:child_process");
 const path = await import("node:path");
 
+// O teste sobe um worker restrito a fontes ficticias. A pausa real do operador
+// permanece intacta; o processo filho herda este marcador isolado.
+process.env.COLETA_PAUSA_ARQUIVO = path.join(process.cwd(), "dados", `coleta.pausada-teste-${process.pid}`);
+
 const { prisma } = await import("@/lib/db.js");
 const { buscarBytes, buscarPagina, ultimaRespostaDe } = await import("@/lib/coleta/buscar.js");
 const { rastrear } = await import("@/lib/coleta/descobrir.js");
@@ -388,14 +392,9 @@ await prisma.job.update({
 await fila.recolherLargados({ fontes: soTeste });
 conferir("largado na ultima tentativa: falha", (await jobsDe(fonteA))[0].status, "FALHOU");
 const adiada = await prisma.fonteColeta.findUnique({ where: { id: fonteA.id } });
-conferir(
-  "e a fonte e adiada (nao volta a fila na volta seguinte)",
-  adiada.proximaVarreduraEm.getTime() > Date.now() + 5 * 60 * 60 * 1000,
-  true,
-);
-// A: adiada para muito alem do "agora" simulado abaixo.
+conferir("falha nao agenda uma nova varredura", adiada.proximaVarreduraEm, null);
 await prisma.fonteColeta.update({ where: { id: fonteA.id }, data: { proximaVarreduraEm: longe } });
-conferir("so a vencida entra pelo ciclo automatico", await fila.enfileirarVencidas({ fontes: soTeste, teste: true, agora: Date.now() + 200 * 24 * 3600 * 1000 }), 1);
+conferir("ciclo automatico nao enfileira fontes", await fila.enfileirarVencidas({ fontes: soTeste, teste: true, agora: Date.now() + 200 * 24 * 3600 * 1000 }), 0);
 conferir("com o job anterior fechado, a fonte A aceita um novo", await fila.enfileirar([fonteA], { teste: true }), 1);
 
 // ---------------------------------------------------------------------------
@@ -445,7 +444,7 @@ try {
   conferir("todos os produtos gravados", await produtosDaLoja(), PRODUTOS);
   conferir("job encerrado sem dono", [concluido.workerId, concluido.sinalEm], [null, null]);
   const fonteVarrida = await prisma.fonteColeta.findUnique({ where: { id: lojaFalsa.id } });
-  conferir("a fonte ganha a proxima varredura em 30 dias", fonteVarrida.proximaVarreduraEm.getTime() > Date.now() + 29 * 24 * 3600 * 1000, true);
+  conferir("a fonte fica sem proxima varredura", fonteVarrida.proximaVarreduraEm, null);
 
   // 3. Encerrar no meio: devolve sem gastar tentativa
   loja.atrasoMs = 1500;

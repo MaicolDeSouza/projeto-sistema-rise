@@ -144,17 +144,9 @@ export async function enfileirar(fontes, { teste = false } = {}) {
  * @param {number} [opcoes.agora] o teste simula o futuro, em vez de criar fonte
  *   vencida de verdade — que o worker no ar enfileiraria para si
  */
-export async function enfileirarVencidas({ fontes = null, teste = false, agora = Date.now() } = {}) {
-  const vencidas = await prisma.fonteColeta.findMany({
-    where: {
-      ativa: true,
-      robotsPermite: true,
-      proximaVarreduraEm: { lte: new Date(agora) },
-      ...(fontes ? { id: { in: fontes } } : {}),
-    },
-    select: { id: true, nome: true },
-  });
-  return enfileirar(vencidas, { teste });
+export async function enfileirarVencidas() {
+  // A coleta e manual. Mantido para chamadas antigas nao reativarem o ciclo.
+  return 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -273,11 +265,12 @@ export async function encerrarJob(jobId, workerId, desfecho) {
  * Adia a fonte cuja varredura esgotou as tentativas (ver ESPERA_APOS_ESGOTAR_MS).
  * Nao adianta nunca: se a proxima ja estava mais longe, fica como estava.
  */
-export async function adiarFonte(fonteId, agora = Date.now()) {
-  const depois = new Date(agora + ESPERA_APOS_ESGOTAR_MS);
+export async function adiarFonte(fonteId) {
+  // Falha nao cria uma proxima varredura: o operador decide quando tentar de novo.
+  // Limpa inclusive datas antigas de fontes criadas antes da coleta manual.
   await prisma.fonteColeta.updateMany({
-    where: { id: fonteId, proximaVarreduraEm: { lt: depois } },
-    data: { proximaVarreduraEm: depois },
+    where: { id: fonteId },
+    data: { proximaVarreduraEm: null },
   });
 }
 

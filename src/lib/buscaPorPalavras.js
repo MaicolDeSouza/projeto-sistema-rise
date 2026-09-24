@@ -22,11 +22,11 @@ const NOTA_MINIMA = 0.5;
 
 const ORDEM = { FORNECEDOR: 0, CONCORRENTE: 1, OUTRO: 2 };
 
-export async function buscarReferencias(termo) {
+export async function buscarReferencias(termo, { limite = TETO, fornecedoresLigados = [], idsConcorrentesLigados = [] } = {}) {
   const palavras = palavrasDoTermo(termo);
   if (palavras.length === 0) return { total: 0, itens: [] };
 
-  const todos = await produtosParaLista();
+  const todos = await produtosParaLista({ incluirIds: idsConcorrentesLigados });
 
   // Quais palavras cada produto tem. Guardado para calcular o peso de cada
   // palavra antes da nota.
@@ -54,12 +54,14 @@ export async function buscarReferencias(termo) {
   const minima = palavras.length <= 2 ? 1 : NOTA_MINIMA;
 
   const achados = [];
+  const notas = new Map();
   todos.forEach((produto, indice) => {
     const pesoCasado = casamentos[indice].reduce(
       (soma, casou, posicao) => soma + (casou ? pesos[posicao] : 0),
       0,
     );
     const nota = pesoCasado / pesoTotal;
+    notas.set(produto.id, nota);
     // Margem de arredondamento: com duas palavras, 1 pode vir como 0,9999.
     if (nota >= minima - 1e-9) achados.push({ produto, nota });
   });
@@ -71,10 +73,56 @@ export async function buscarReferencias(termo) {
       (a.produto.name ?? "").localeCompare(b.produto.name ?? "", "pt-BR"),
   );
 
+  // Fornecedor vinculado e uma EMPRESA, nao todos os produtos dessa empresa.
+  // Escolhe a referencia exata pelo link/codigo quando possivel; sem eles,
+  // so o produto mais parecido da loja pode representar esse vinculo.
+  const vinculados = new Set(idsConcorrentesLigados);
+  const texto = (valor) => String(valor ?? "").trim().toLocaleLowerCase("pt-BR");
+  const url = (valor) => {
+    try {
+      const endereco = new URL(valor);
+      return `${endereco.hostname.replace(/^www\./, "")}${endereco.pathname.replace(/\/$/, "")}`.toLocaleLowerCase("pt-BR");
+    } catch {
+      return String(valor ?? "").trim().toLocaleLowerCase("pt-BR");
+    }
+  };
+  for (const fornecedor of fornecedoresLigados) {
+    const temIdentificador = Boolean(fornecedor.link || fornecedor.codigo);
+    const candidatos = todos.filter(
+      (produto) =>
+        texto(produto.fonte.nome) === texto(fornecedor.nome) ||
+        (fornecedor.link && produto.url && url(fornecedor.link) === url(produto.url)),
+    );
+    const melhor = candidatos
+      .map((produto) => ({
+        produto,
+        nota: notas.get(produto.id) ?? 0,
+        exato: Boolean(
+          (fornecedor.link && produto.url && url(fornecedor.link) === url(produto.url)) ||
+          (fornecedor.codigo && produto.code && texto(fornecedor.codigo) === texto(produto.code)),
+        ),
+      }))
+      .sort((a, b) => Number(b.exato) - Number(a.exato) || b.nota - a.nota)[0];
+    if (melhor && (melhor.exato || (!temIdentificador && melhor.nota >= minima - 1e-9))) {
+      vinculados.add(melhor.produto.id);
+    }
+  }
+
+  // Vínculos podem estar fora dos 200 resultados ou abaixo do corte textual.
+  // Eles ainda precisam aparecer na lupa, antes dos achados novos.
+  const porId = new Map(todos.map((produto) => [produto.id, produto]));
+  const ligados = [...vinculados]
+    .map((id) => porId.get(id))
+    .filter(Boolean)
+    .map((produto) => ({ produto, nota: notas.get(produto.id) ?? 0 }));
+  const restantes = achados.filter(({ produto }) => !vinculados.has(produto.id));
+  const exibidos = [...ligados, ...restantes.slice(0, Math.max(0, limite - ligados.length))];
+
   return {
-    total: achados.length,
-    itens: achados.slice(0, TETO).map(({ produto, nota }) => ({
+    total: new Set([...achados.map(({ produto }) => produto.id), ...ligados.map(({ produto }) => produto.id)]).size,
+    itens: exibidos.map(({ produto, nota }) => ({
       id: produto.id,
+      vinculado: vinculados.has(produto.id),
       nome: produto.name,
       codigo: produto.code,
       tipo: produto.fonte.tipo,

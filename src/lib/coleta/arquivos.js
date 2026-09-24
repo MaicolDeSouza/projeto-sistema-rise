@@ -105,6 +105,8 @@ const CAMPOS = {
   ipi: ["ipi"],
   categoria: ["cat", "categoria", "category", "grupo", "linha"],
   multiplo: ["multiplo", "múltiplo", "multiplo_de_venda", "embalagem", "caixa", "pack"],
+  marca: ["marca", "brand", "fabricante"],
+  encapsulamento: ["encapsulamento"],
 };
 
 /**
@@ -175,6 +177,8 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
   const especificacoes = [];
   const ipi = valorDe(bruto, CAMPOS.ipi);
   if (ipi !== null) especificacoes.push({ nome: "IPI", valor: String(ipi) });
+  const encapsulamento = comoTexto(valorDe(bruto, CAMPOS.encapsulamento));
+  if (encapsulamento) especificacoes.push({ nome: "Encapsulamento", valor: encapsulamento });
 
   // Multiplo de venda e regra de COMPRA, nao caracteristica do produto (o dono,
   // 17/09/2026): vai para `multiploVenda`, com caixa propria na tela.
@@ -189,7 +193,7 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
     code: codigo ?? "N/A",
     mpn: null,
     ean: comoTexto(valorDe(bruto, CAMPOS.ean)),
-    brand: null,
+    brand: comoTexto(valorDe(bruto, CAMPOS.marca)),
     model: null,
     category: comoTexto(valorDe(bruto, CAMPOS.categoria)),
     ncm: comoTexto(valorDe(bruto, CAMPOS.ncm)),
@@ -525,16 +529,78 @@ function linhasDePdf(texto) {
   return itens;
 }
 
+/** Catalogos com colunas visuais podem perder todos os separadores no getText(). */
+async function linhasDeTabelaVisualPdf(leitor) {
+  const documento = await leitor.load();
+  const primeira = await documento.getPage(1);
+  const conteudo = await primeira.getTextContent();
+  const titulos = ["Item", "Encapsulamento", "Marca", "Embalagem"];
+  const colunas = titulos.map((titulo) =>
+    conteudo.items.find((item) => item.str?.trim() === titulo)?.transform?.[4],
+  );
+  if (colunas.some((x) => !Number.isFinite(x))) return [];
+  const [itemX, encapsulamentoX, marcaX, embalagemX] = colunas;
+  if (!(itemX < encapsulamentoX && encapsulamentoX < marcaX && marcaX < embalagemX)) return [];
+
+  const itens = [];
+  for (let numero = 1; numero <= documento.numPages; numero++) {
+    const pagina = await documento.getPage(numero);
+    const texto = numero === 1 ? conteudo : await pagina.getTextContent();
+    const linhas = [];
+    for (const trecho of texto.items) {
+      const valor = trecho.str?.trim();
+      if (!valor) continue;
+      const x = trecho.transform?.[4];
+      const y = trecho.transform?.[5];
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      let linha = linhas.find((atual) => Math.abs(atual.y - y) < 1.2);
+      if (!linha) {
+        linha = { y, colunas: [[], [], [], []] };
+        linhas.push(linha);
+      }
+      const indice = x >= embalagemX - 3 ? 3 : x >= marcaX - 3 ? 2 : x >= encapsulamentoX - 3 ? 1 : 0;
+      linha.colunas[indice].push({ x, valor });
+    }
+
+    for (const linha of linhas) {
+      const [item, encapsulamento, marca, embalagem] = linha.colunas.map((partes) =>
+        partes.sort((a, b) => a.x - b.x).map(({ valor }) => valor).join(" ").trim(),
+      );
+      // O numero da embalagem e multiplo de compra, nao quantidade em estoque.
+      const pacote = /^(\d+)\s*pe[cç]as$/i.exec(embalagem);
+      if (!item || !encapsulamento || !marca || !pacote) continue;
+      const primeiroTermo = item.split(/\s+/)[0];
+      const sku = /\d/.test(primeiroTermo) ? primeiroTermo : item;
+      itens.push({ sku, desc: item, encapsulamento, marca, multiplo: Number(pacote[1]) });
+    }
+    pagina.cleanup();
+  }
+  const ocorrencias = new Map();
+  for (const item of itens) ocorrencias.set(item.sku, (ocorrencias.get(item.sku) ?? 0) + 1);
+  for (const item of itens) {
+    if (ocorrencias.get(item.sku) > 1) {
+      // O catalogo reaproveita codigos para variantes SMD/DIP e fabricantes.
+      item.sku = `${item.desc} ${item.encapsulamento} ${item.marca}`;
+    }
+  }
+  return itens;
+}
+
 async function textoDoPdf(bytes) {
   const { PDFParse } = await import("pdf-parse");
   const leitor = new PDFParse({ data: new Uint8Array(bytes) });
 
   try {
     const { text } = await leitor.getText();
-    return text ?? "";
+    return { texto: text ?? "", tabela: await linhasDeTabelaVisualPdf(leitor) };
   } finally {
     await leitor.destroy?.();
   }
+}
+
+function sitePublicadoNoPdf(texto) {
+  const dominio = /\bwww\.([a-z0-9.-]+\.[a-z]{2,})\b/i.exec(texto)?.[0];
+  return dominio ? `https://${dominio}` : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -607,6 +673,7 @@ export async function lerArquivo({ nome, bytes, fonte }) {
   let origem = "arquivo do fornecedor";
   let imagensPorCodigo = null;
   let modalidade = null;
+  let siteSugerido = null;
 
   if (formato === "xlsx") {
     const { itens, imagens, aviso, folha, linhaCabecalho } = await lerPlanilha(bytes);
@@ -617,8 +684,9 @@ export async function lerArquivo({ nome, bytes, fonte }) {
       : "planilha do fornecedor";
     if (aviso) avisos.push(aviso);
   } else if (formato === "pdf") {
-    const texto = await textoDoPdf(bytes);
-    brutos = linhasDePdf(texto);
+    const { texto, tabela } = await textoDoPdf(bytes);
+    brutos = tabela.length ? tabela : linhasDePdf(texto);
+    siteSugerido = sitePublicadoNoPdf(texto);
     origem = "catalogo em PDF do fornecedor";
     if (brutos.length === 0 && texto.length > 0) {
       avisos.push(
@@ -685,7 +753,7 @@ export async function lerArquivo({ nome, bytes, fonte }) {
     )
     .filter(Boolean);
 
-  return { formato, produtos, avisos, origem, modalidade };
+  return { formato, produtos, avisos, origem, modalidade, siteSugerido };
 }
 
 /**

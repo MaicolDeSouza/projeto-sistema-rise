@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useImperativeHandle, useState, useTransition } from "react";
+import { useEffect, useEffectEvent, useImperativeHandle, useRef, useState, useTransition } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -234,14 +234,11 @@ export default function ReferenciasDeMercado({
   ref,
   marcados,
   aoAlternar,
+  aoMarcarLigados,
   aoLimpar,
   aoFechar,
-  // Quem ja esta vinculado ao produto (pedido do dono em 22/09/2026): nomes
-  // de fornecedor em minusculas e ids de ProdutoColetado de concorrente ja
-  // adicionados na aba Fornecedores/Concorrentes. Marca sozinho quando a
-  // busca traz um desses — o operador nao precisa lembrar e procurar de novo
-  // quem ja esta ligado.
-  nomesFornecedoresLigados = new Set(),
+  // Vinculos da aba sao enviados a busca para incluir as referencias exatas.
+  fornecedoresLigados = [],
   idsConcorrentesLigados = new Set(),
 }) {
   const [aberto, setAberto] = useState(false);
@@ -253,6 +250,9 @@ export default function ReferenciasDeMercado({
   const [fotoAmpliada, setFotoAmpliada] = useState(null);
   const [buscando, iniciarBusca] = useTransition();
   const [ordenacao, setOrdenacao] = useState(null); // { coluna, direcao } | null
+  // Desmarcar um vinculo e uma escolha do operador; uma busca posterior nao o
+  // deve marcar de novo automaticamente.
+  const excluidosPeloOperador = useRef(new Set());
 
   function alternarOrdenacao(coluna) {
     setOrdenacao((atual) =>
@@ -272,38 +272,34 @@ export default function ReferenciasDeMercado({
     }
     iniciarBusca(async () => {
       try {
-        setResposta(await buscarPorPalavras(alvo));
+        const resultado = await buscarPorPalavras(alvo, {
+          fornecedoresLigados: fornecedoresLigados.map(({ nome, codigo, link }) => ({ nome, codigo, link })),
+          idsConcorrentesLigados: [...idsConcorrentesLigados],
+        });
+        if (resultado.ok) {
+          aoMarcarLigados(
+            resultado.itens.filter((item) => item.vinculado && !excluidosPeloOperador.current.has(item.id)),
+          );
+        }
+        setResposta(resultado);
       } catch (erro) {
         setResposta({ ok: false, erro: erro?.message ?? "Falha ao buscar." });
       }
     });
   }
 
-  /**
-   * Marca sozinho os itens da busca que ja estao vinculados ao produto
-   * (pedido do dono em 22/09/2026). `useEffectEvent` le `marcados`/`aoAlternar`
-   * sempre atualizados sem entrar como dependencia do efeito abaixo — sem
-   * isso, o efeito re-rodaria a cada marcacao (inclusive a que ELE MESMO
-   * acabou de fazer) e voltaria a chamar `aoAlternar` no mesmo item,
-   * DESMARCANDO o que tinha acabado de marcar (aoAlternar e um toggle).
-   */
-  const marcarJaLigados = useEffectEvent((itens) => {
-    for (const item of itens) {
-      if (marcados.has(item.id)) continue;
-      const jaLigado =
-        item.tipo === "FORNECEDOR"
-          ? item.fonte && nomesFornecedoresLigados.has(item.fonte.trim().toLocaleLowerCase("pt-BR"))
-          : item.tipo === "CONCORRENTE" && idsConcorrentesLigados.has(item.id);
-      if (jaLigado) aoAlternar(item);
+  function alternar(item) {
+    if (item.vinculado) {
+      if (marcados.has(item.id)) excluidosPeloOperador.current.add(item.id);
+      else excluidosPeloOperador.current.delete(item.id);
     }
-  });
+    aoAlternar(item);
+  }
 
-  // So dispara numa busca NOVA (resposta muda de referencia), nunca a cada
-  // render do formulario — os dois Sets de "ja ligados" sao recriados a cada
-  // digitacao em qualquer campo, e nao sao o gatilho certo para isto.
-  useEffect(() => {
-    if (resposta?.ok) marcarJaLigados(resposta.itens);
-  }, [resposta]);
+  function limpar() {
+    for (const id of marcados.keys()) excluidosPeloOperador.current.add(id);
+    aoLimpar();
+  }
 
   // Volta a janela ao estado de recem-aberta: o formulario a chama quando um
   // clone recomeca o cadastro, para a proxima abertura nao mostrar a busca, a
@@ -316,6 +312,7 @@ export default function ReferenciasDeMercado({
     setAbertos(new Set());
     setFotoAmpliada(null);
     setOrdenacao(null);
+    excluidosPeloOperador.current.clear();
   }
 
   useImperativeHandle(ref, () => ({ buscar, reiniciar }));
@@ -481,11 +478,8 @@ export default function ReferenciasDeMercado({
                     return (
                       <tr
                         key={item.id}
-                        onClick={() => !cheio && aoAlternar(item)}
-                        // Verde mais forte nos marcados (pedido do dono em
-                        // 22/09/2026): o azul claro (sky-50) sumia perto do
-                        // resto da tela. emerald-100 fica visivel de longe.
-                        className={`cursor-pointer ${marcado ? "bg-emerald-100" : "hover:bg-fundo"} ${
+                        onClick={() => !cheio && alternar(item)}
+                        className={`cursor-pointer ${marcado ? "bg-emerald-50" : "hover:bg-fundo"} ${
                           cheio ? "cursor-not-allowed opacity-50" : ""
                         }`}
                       >
@@ -494,10 +488,10 @@ export default function ReferenciasDeMercado({
                             type="checkbox"
                             checked={marcado}
                             disabled={cheio}
-                            onChange={() => aoAlternar(item)}
+                            onChange={() => alternar(item)}
                             onClick={(evento) => evento.stopPropagation()}
                             aria-label={`Marcar ${item.nome ?? "produto"}`}
-                            className="accent-emerald-600"
+                            className="accent-emerald-500"
                           />
                         </td>
                         <td className="px-3 py-2">
@@ -505,6 +499,11 @@ export default function ReferenciasDeMercado({
                         </td>
                         <td className="px-3 py-2">
                           {item.nome ?? "(sem nome)"}
+                          {item.vinculado && (
+                            <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
+                              Salvo na aba
+                            </span>
+                          )}
                           {item.codigo && item.codigo !== "N/A" && (
                             <span className="ml-2 font-mono text-xs text-suave">
                               {item.codigo}
@@ -573,7 +572,7 @@ export default function ReferenciasDeMercado({
           {marcados.size > 0 && (
             <button
               type="button"
-              onClick={aoLimpar}
+              onClick={limpar}
               className="text-xs text-suave underline hover:text-texto"
             >
               Limpar marcacao

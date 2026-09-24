@@ -463,6 +463,9 @@ export default function PreviaProduto({ produto, indice }) {
           {ROTULOS_CAMPOS.seo}
           <span className="ml-1">(como o concorrente se apresenta ao buscador)</span>
         </p>
+        {produto.origens?.seo && (
+          <p className="mb-1 text-xs text-suave">{produto.origens.seo}</p>
+        )}
         {Object.values(produto.seo ?? {}).some(Boolean) ? (
           <dl className="space-y-0.5 rounded border border-borda bg-fundo p-2 text-xs">
             {[

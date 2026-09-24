@@ -7,8 +7,10 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { buscarProdutoPorCodigo } from "@/lib/buscaPorCodigo";
 import { buscarReferencias } from "@/lib/buscaPorPalavras";
+import { listarDocumentosDasReferencias } from "@/lib/documentosReferencias";
 import { lerCamposDasReferencias, lerDetalhesDasReferencias } from "@/lib/camposDasReferencias";
-import { gerarDescricao, gerarTitulos } from "@/lib/ia/anuncio";
+import { gerarDescricao, gerarTitulos, MAXIMO_REFERENCIAS } from "@/lib/ia/anuncio";
+import { normalizar } from "@/lib/texto";
 import { baseValida, descartarLote, moverImagensParaProduto } from "@/lib/imagens/lote";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { reconciliarImagensDoProduto } from "@/lib/imagens/produto";
@@ -91,9 +93,9 @@ export async function buscarPorCodigo(codigo) {
 }
 
 /** Fornecedores e concorrentes com todas as palavras, para marcar como referencia. */
-export async function buscarPorPalavras(termo) {
+export async function buscarPorPalavras(termo, vinculos = {}) {
   try {
-    return { ok: true, ...(await buscarReferencias(termo)) };
+    return { ok: true, ...(await buscarReferencias(termo, vinculos)) };
   } catch (erro) {
     return { ok: false, erro: erro.message };
   }
@@ -117,13 +119,133 @@ export async function detalhesDasReferencias(ids) {
   }
 }
 
+/** Busca leve para vincular um item coletado pela coluna Codigo. */
+export async function buscarItemColetadoPorCodigo(codigoBruto, tipo) {
+  const codigo = String(codigoBruto ?? "").trim().slice(0, 100);
+  if (!codigo) return { ok: false, erro: "Informe o codigo antes de buscar." };
+  const tipos = tipo === "FORNECEDOR" ? ["FORNECEDOR"] : ["CONCORRENTE", "OUTRO"];
+  try {
+    const itens = await prisma.produtoColetado.findMany({
+      where: {
+        OR: ["codigo", "ean", "mpn"].map((campo) => ({ [campo]: { equals: codigo, mode: "insensitive" } })),
+        fonte: { tipo: { in: tipos } },
+      },
+      select: {
+        id: true, nome: true, codigo: true, url: true,
+        precoNormal: true, precoPromocional: true,
+        fonte: { select: { nome: true, tipo: true } },
+      },
+      orderBy: { vistoEm: "desc" },
+      take: 30,
+    });
+    return { ok: true, itens: itens.map((item) => ({
+      id: item.id, fonte: item.fonte.nome, tipo: item.fonte.tipo,
+      nome: item.nome, codigo: item.codigo, url: item.url,
+      preco: item.fonte.tipo === "FORNECEDOR"
+        ? (item.precoNormal == null && item.precoPromocional == null ? null : Number(item.precoNormal ?? item.precoPromocional))
+        : (item.precoNormal == null ? null : Number(item.precoNormal)),
+    })) };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
+}
+
+/** Documentos publicados pelas referencias escolhidas na lupa. */
+export async function documentosDasReferencias(ids, produtoId = null) {
+  try {
+    const referencias = new Set();
+    if (produtoId) {
+      const produto = await prisma.produto.findUnique({
+        where: { id: produtoId },
+        select: {
+          tituloBase: true,
+          fornecedores: {
+            select: { codigo: true, link: true, fornecedor: { select: { nome: true } } },
+          },
+          concorrentes: { select: { produtoColetadoId: true } },
+        },
+      });
+      if (!produto) return { ok: false, erro: "Produto nao encontrado." };
+      const concorrentes = produto.concorrentes.map((item) => item.produtoColetadoId).filter(Boolean);
+      for (const id of concorrentes) referencias.add(id);
+      if (produto.tituloBase && produto.fornecedores.length) {
+        const ligados = await buscarReferencias(produto.tituloBase, {
+          limite: 0,
+          fornecedoresLigados: produto.fornecedores.map((item) => ({
+            nome: item.fornecedor.nome, codigo: item.codigo, link: item.link,
+          })),
+          idsConcorrentesLigados: concorrentes,
+        });
+        for (const item of ligados.itens) if (item.vinculado) referencias.add(item.id);
+      }
+    }
+    // Em produtos salvos, a aba de fornecedores/concorrentes e a fonte atual.
+    // Marcacoes antigas da lupa podem permanecer no estado do formulario apos uma exclusao.
+    if (!produtoId) {
+      for (const id of Array.isArray(ids) ? ids : []) referencias.add(id);
+    }
+    return { ok: true, itens: await listarDocumentosDasReferencias([...referencias]) };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
+}
+
+/** Procura no catalogo coletado o produto correspondente em cada loja cadastrada. */
+export async function buscarDescricoesParaProduto(titulo, idsMarcados = []) {
+  try {
+    const marcados = [...new Set((Array.isArray(idsMarcados) ? idsMarcados : []).map(String))]
+      .slice(0, MAXIMO_REFERENCIAS);
+    const termo = String(titulo ?? "").trim().slice(0, 300);
+    const familiaArduino = normalizar(termo).match(/\b(uno|nano|mega)\b/)?.[1];
+    const resultados = termo ? (await buscarReferencias(termo, { limite: Infinity })).itens : [];
+    // A busca ampla da lupa pode aproximar uma placa UNO de uma MEGA. Para
+    // escrever a descricao, essas familias nao sao intercambiaveis.
+    const candidatos = resultados.filter((item) =>
+      (item.tipo === "FORNECEDOR" || item.tipo === "CONCORRENTE") &&
+      (!familiaArduino || new RegExp(`\\b${familiaArduino}\\b`).test(normalizar(item.nome))));
+    // Uma loja pode ter varios acessorios parecidos. Ficamos com o produto
+    // mais relevante de cada loja para cobrir as fontes sem repetir conteudo.
+    const disponibilidade = candidatos.length
+      ? await prisma.produtoColetado.findMany({
+          where: { id: { in: candidatos.map((item) => item.id) } },
+          select: { id: true, descricao: true, especificacoes: true },
+        })
+      : [];
+    const comConteudo = new Set(disponibilidade
+      .filter((item) => item.descricao?.trim() ||
+        (Array.isArray(item.especificacoes) && item.especificacoes.length > 0))
+      .map((item) => item.id));
+    const elegiveis = candidatos.filter((item) => comConteudo.has(item.id));
+    const escolhidos = [...marcados];
+    const vistos = new Set(escolhidos);
+    const fontes = new Set();
+    for (const item of elegiveis) {
+      const fonte = `${item.tipo}:${item.fonte}`;
+      if (fontes.has(fonte)) continue;
+      fontes.add(fonte);
+      if (vistos.has(item.id) || escolhidos.length >= MAXIMO_REFERENCIAS) continue;
+      escolhidos.push(item.id);
+      vistos.add(item.id);
+    }
+    return {
+      ok: true,
+      itens: await lerDetalhesDasReferencias(escolhidos),
+      encontrados: elegiveis.length,
+      fontes: fontes.size,
+      limite: MAXIMO_REFERENCIAS,
+    };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
+}
+
 /**
  * Descricao no modelo da loja, escrita pela IA a partir das referencias marcadas.
  * `produto` leva o Nome e o Codigo do formulario: titulo e "Itens inclusos (Cod:)".
  */
 export async function criarDescricaoIA(ids, produto) {
   try {
-    return { ok: true, texto: await gerarDescricao(ids, produto) };
+    return { ok: true, ...(await gerarDescricao(ids, produto)) };
   } catch (erro) {
     return { ok: false, erro: erro.message };
   }
@@ -385,6 +507,45 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
   const dados = resultado.data;
 
   try {
+    let fornecedoresPendentes = [];
+    try {
+      fornecedoresPendentes = JSON.parse(String(formData.get("fornecedoresRascunho") ?? "[]"));
+    } catch {
+      return { ok: false, erro: "Revise os fornecedores antes de salvar." };
+    }
+    if (!Array.isArray(fornecedoresPendentes)) return { ok: false, erro: "Revise os fornecedores antes de salvar." };
+    for (const item of fornecedoresPendentes) {
+      const nome = String(item?.nome ?? "").trim();
+      if (!nome) continue;
+      const cadastrado = await prisma.fornecedor.findFirst({
+        where: { nome: { equals: nome, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (!cadastrado) return { ok: false, erro: `Cadastre o fornecedor "${nome}" antes de salvar o produto.` };
+    }
+    let concorrentesPendentes = [];
+    try {
+      concorrentesPendentes = JSON.parse(String(formData.get("concorrentesRascunho") ?? "[]"));
+    } catch {
+      return { ok: false, erro: "Revise os concorrentes antes de salvar." };
+    }
+    if (!Array.isArray(concorrentesPendentes)) return { ok: false, erro: "Revise os concorrentes antes de salvar." };
+    for (const item of concorrentesPendentes) {
+      if (!ConcorrenteSchema.safeParse(item).success) return { ok: false, erro: "Revise os dados dos concorrentes antes de salvar." };
+      const coletado = item?.produtoColetadoId
+        ? await prisma.produtoColetado.findUnique({
+            where: { id: item.produtoColetadoId },
+            select: { fonte: { select: { nome: true } } },
+          })
+        : null;
+      if (item?.produtoColetadoId && !coletado) return { ok: false, erro: "Um produto de concorrente nao foi encontrado. Revise a lista." };
+      const nome = String(coletado?.fonte.nome ?? item?.fonteManual ?? "").trim();
+      const cadastrado = await prisma.concorrente.findFirst({
+        where: { nome: { equals: nome, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (!cadastrado) return { ok: false, erro: `Cadastre o concorrente "${nome}" antes de salvar o produto.` };
+    }
     if (!id) {
       const produto = await prisma.produto.create({ data: dados });
 
@@ -776,13 +937,10 @@ async function gravarFornecedoresRascunho(produto, formData) {
 
   for (const { dados, padrao } of validos) {
     const { nome, ...vinculo } = dados;
-    // Reaproveita o fornecedor se ja existir; cria se for nome novo — mesma
-    // regra de salvarFornecedorDoProduto, para nao duplicar "Ali"/"AliExpress".
-    const fornecedor = await prisma.fornecedor.upsert({
-      where: { nome },
-      update: {},
-      create: { nome },
+    const fornecedor = await prisma.fornecedor.findFirst({
+      where: { nome: { equals: nome, mode: "insensitive" } },
     });
+    if (!fornecedor) throw new Error(`Cadastre o fornecedor "${nome}" antes de vincula-lo ao produto.`);
 
     // Upsert, e nao create: o mesmo fornecedor marcado duas vezes no rascunho
     // (nome repetido) atualiza o vinculo em vez de esbarrar no
@@ -804,6 +962,69 @@ export async function listarFornecedores() {
   });
 }
 
+/** Saldo da ultima coleta do item exato de cada fornecedor vinculado. */
+export async function consultarEstoqueFornecedores(vinculos) {
+  const lista = (Array.isArray(vinculos) ? vinculos : []).slice(0, 100)
+    .filter((item) => typeof item?.id === "string" && typeof item?.nome === "string");
+  const criterios = lista.flatMap((item) => {
+    const filtros = [];
+    if (item.link) filtros.push({ url: item.link });
+    if (item.codigo) filtros.push({
+      codigo: { equals: item.codigo, mode: "insensitive" },
+      fonte: { nome: { equals: item.nome, mode: "insensitive" }, tipo: "FORNECEDOR" },
+    });
+    return filtros;
+  });
+  if (!criterios.length) return { ok: true, itens: {} };
+  try {
+    const produtos = await prisma.produtoColetado.findMany({
+      where: { OR: criterios, fonte: { tipo: "FORNECEDOR" } },
+      select: {
+        codigo: true, url: true, quantidade: true, aChegar: true,
+        fonte: { select: { nome: true } },
+      },
+      orderBy: { vistoEm: "desc" },
+      take: 300,
+    });
+    const itens = Object.fromEntries(lista.map((item) => {
+      const nome = item.nome.toLocaleLowerCase("pt-BR");
+      const codigo = String(item.codigo ?? "").toLocaleLowerCase("pt-BR");
+      const produto = produtos.find((candidato) => item.link && candidato.url === item.link)
+        ?? produtos.find((candidato) => codigo && candidato.codigo?.toLocaleLowerCase("pt-BR") === codigo
+          && candidato.fonte.nome.toLocaleLowerCase("pt-BR") === nome);
+      return [item.id, produto ? { quantidade: produto.quantidade, aChegar: produto.aChegar } : null];
+    }));
+    return { ok: true, itens };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
+}
+
+export async function listarConcorrentesCadastrados() {
+  return prisma.concorrente.findMany({
+    orderBy: { nome: "asc" },
+    select: { id: true, nome: true },
+  });
+}
+
+export async function consultarSituacaoConcorrentes(ids) {
+  const lista = [...new Set((Array.isArray(ids) ? ids : []).filter((id) => typeof id === "string"))].slice(0, 100);
+  if (!lista.length) return { ok: true, itens: {} };
+  try {
+    const produtos = await prisma.produtoColetado.findMany({
+      where: { id: { in: lista } },
+      select: { id: true, ausenteDesde: true, quantidade: true, estoqueStatus: true },
+    });
+    return { ok: true, itens: Object.fromEntries(produtos.map((item) => [item.id, {
+      ativo: item.ausenteDesde === null,
+      quantidade: item.quantidade,
+      estoqueStatus: item.estoqueStatus,
+    }])) };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
+}
+
 export async function salvarFornecedorDoProduto(produtoId, vinculoId, dados) {
   const resultado = FornecedorSchema.safeParse(dados);
   if (!resultado.success) {
@@ -813,13 +1034,10 @@ export async function salvarFornecedorDoProduto(produtoId, vinculoId, dados) {
   const { nome, ...vinculo } = resultado.data;
 
   try {
-    // Reaproveita o fornecedor se ja existir; cria se for nome novo. E o que
-    // impede o mesmo fornecedor virar "Ali", "ali" e "AliExpress".
-    const fornecedor = await prisma.fornecedor.upsert({
-      where: { nome },
-      update: {},
-      create: { nome },
+    const fornecedor = await prisma.fornecedor.findFirst({
+      where: { nome: { equals: nome, mode: "insensitive" } },
     });
+    if (!fornecedor) return { ok: false, erros: { nome: "Fornecedor nao cadastrado. Cadastre-o antes de salvar." }, cadastroNecessario: true };
 
     if (vinculoId) {
       await prisma.produtoFornecedor.update({
@@ -942,6 +1160,26 @@ export async function salvarConcorrenteDoProduto(produtoId, vinculoId, dados) {
   }
 
   try {
+    const coletado = resultado.data.produtoColetadoId
+      ? await prisma.produtoColetado.findUnique({
+          where: { id: resultado.data.produtoColetadoId },
+          select: { fonte: { select: { nome: true } } },
+        })
+      : null;
+    if (resultado.data.produtoColetadoId && !coletado) {
+      return { ok: false, erro: "Produto coletado nao encontrado." };
+    }
+    const nomeConcorrente = coletado?.fonte.nome ?? resultado.data.fonteManual;
+    const cadastro = await prisma.concorrente.findFirst({
+      where: { nome: { equals: nomeConcorrente, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (!cadastro) return {
+      ok: false,
+      erros: { fonteManual: `Cadastre o concorrente "${nomeConcorrente}" antes de salvar.` },
+      cadastroNecessario: true,
+      nomeConcorrente,
+    };
     if (vinculoId) {
       await prisma.produtoConcorrente.update({
         where: { id: vinculoId },

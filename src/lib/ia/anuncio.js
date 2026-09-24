@@ -6,6 +6,8 @@ import { linhaDeDimensoes, linhaDePeso, medidasDoProdutoColetado } from "@/lib/m
 import { casaPalavra, indiceDePalavras, normalizar, palavrasDoTermo } from "@/lib/texto";
 
 import { PADRAO_TITULO } from "./padraoTitulo";
+import { idDaCaracteristica, identificarDivergencias } from "./divergencias";
+import { compactarUnidades, normalizarTerminologiaEletrica } from "./revisaoDescricao";
 
 /**
  * Titulo e descricao de produto escritos pela IA a partir de produtos de
@@ -51,6 +53,7 @@ async function lerReferencias(ids) {
   const linhas = await prisma.produtoColetado.findMany({
     where: { id: { in: lista } },
     select: {
+      id: true,
       nome: true,
       marca: true,
       modelo: true,
@@ -58,16 +61,20 @@ async function lerReferencias(ids) {
       ncm: true,
       descricao: true,
       especificacoes: true,
-      fonte: { select: { tipo: true } },
+      fonte: { select: { nome: true, tipo: true } },
     },
   });
-  if (linhas.length === 0) throw new Error("Os produtos marcados nao existem mais no banco.");
+  // O banco nao garante a ordem de um filtro IN. A primeira referencia e a
+  // mais parecida escolhida na busca e deve continuar primeira no prompt.
+  const porId = new Map(linhas.map((linha) => [linha.id, linha]));
+  const ordenadas = lista.map((id) => porId.get(id)).filter(Boolean);
+  if (ordenadas.length === 0) throw new Error("Os produtos marcados nao existem mais no banco.");
 
   // O nome da loja NAO vai para o prompt: o texto e da Rise e nao pode citar
   // concorrente, e o que nao entra nao tem como vazar.
   // Peso e medidas de cada referencia, JA LIDOS pelo sistema (ficha e texto da
   // descricao). Vao para o prompt e para a escolha de reserva em gerarDescricao.
-  const medidasPorReferencia = linhas.map((linha, indice) => {
+  const medidasPorReferencia = ordenadas.map((linha, indice) => {
     const achados = medidasDoProdutoColetado(linha);
     return {
       numero: indice + 1,
@@ -79,7 +86,7 @@ async function lerReferencias(ids) {
     };
   });
 
-  const texto = linhas
+  const texto = ordenadas
     .map((linha, indice) => {
       const partes = [`<referencia numero="${indice + 1}" tipo="${TIPO[linha.fonte.tipo] ?? "Outro"}">`];
       if (linha.nome) partes.push(`Nome: ${linha.nome}`);
@@ -98,7 +105,7 @@ async function lerReferencias(ids) {
     })
     .join("\n\n");
 
-  return { texto, quantidade: linhas.length, medidasPorReferencia };
+  return { texto, quantidade: ordenadas.length, medidasPorReferencia, referencias: ordenadas };
 }
 
 async function registrar({ tarefa, referencias, inicio, resposta, erro }) {
@@ -313,8 +320,21 @@ const FORMATO_DESCRICAO = {
         required: ["comprimento", "largura", "altura"],
         additionalProperties: false,
       },
+      decisoes: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            opcao: { type: ["integer", "null"] },
+            motivo: { type: "string" },
+          },
+          required: ["id", "opcao", "motivo"],
+          additionalProperties: false,
+        },
+      },
     },
-    required: ["paragrafos", "caracteristicas", "itensInclusos", "pesoGramas", "dimensoesMm"],
+    required: ["paragrafos", "caracteristicas", "itensInclusos", "pesoGramas", "dimensoesMm", "decisoes"],
     additionalProperties: false,
   },
 };
@@ -325,14 +345,14 @@ const FORMATO_DESCRICAO = {
  * Markdown e emoji que escapem da instrucao, e espacos repetidos.
  */
 function textoPuro(texto) {
-  return String(texto ?? "")
+  return normalizarTerminologiaEletrica(compactarUnidades(String(texto ?? "")
     .replace(/\*\*|__|`/g, "")
     .replace(/^#+\s*/gm, "")
     .replace(/\p{Extended_Pictographic}/gu, "")
     .replace(/[ \t]+/g, " ")
     // Emoji tirado antes do ponto deixava "otima ." com espaco sobrando.
     .replace(/ +([.,;:!?])/g, (_, sinal) => sinal)
-    .trim();
+    .trim()));
 }
 
 /// Tira o ";" ou "." que a IA ou a loja ja deixaram, para o item nao sair com dois.
@@ -393,7 +413,8 @@ export function montarDescricao({
   if (texto.length > 0) linhas.push(...texto, "");
 
   const especificacoes = caracteristicas.filter(
-    (item) => !ESPEC_DE_MEDIDA.test(String(item?.nome ?? "").trim()),
+    (item) => item?.nome?.trim() && item?.valor?.trim() &&
+      !ESPEC_DE_MEDIDA.test(String(item.nome).trim()),
   );
   const linhasDeMedida = [linhaDeDimensoes(medidas), linhaDePeso(medidas.pesoKg)].filter(Boolean);
 
@@ -428,7 +449,8 @@ export function montarDescricao({
  *   da IA: o texto nao pode dizer uma coisa e o campo outra.
  */
 export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} } = {}) {
-  const { texto: referencias, quantidade, medidasPorReferencia } = await lerReferencias(ids);
+  const { texto: referencias, quantidade, medidasPorReferencia, referencias: linhas } = await lerReferencias(ids);
+  const divergencias = identificarDivergencias(linhas);
 
   // As medidas vao ja lidas, numa lista: soltas no meio do texto de cada loja a IA
   // as deixava passar e devolvia null (visto em 16/09/2026, com peso e dimensoes
@@ -455,6 +477,15 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
     (listaDeMedidas.length > 0
       ? `Peso e medidas já encontrados nas referências:\n${listaDeMedidas.join("\n")}\n\n`
       : "") +
+    (divergencias.length > 0
+      ? `Divergências a revisar pelo operador (opcoes numeradas a partir de zero):\n${JSON.stringify(
+          divergencias.map(({ id, campo, opcoes }) => ({
+            id, campo, opcoes: opcoes.map(({ valor, fontes, aviso }) => ({
+              valor, aviso, fontes: fontes.map(({ nome, produto }) => `${nome}: ${produto}`),
+            })),
+          })),
+        )}\n\n`
+      : "") +
     "Escreva o conteúdo da descrição, em três partes. Tudo em TEXTO PURO: sem negrito, sem " +
     "asteriscos, sem '#', sem emoji e sem links.\n" +
     `- paragrafos: exatamente DOIS parágrafos, cada um com NO MÁXIMO ${LIMITE_PARAGRAFO} ` +
@@ -475,7 +506,16 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
     "Não repita o título nem o que a lista de especificações já diz em detalhe.\n" +
     "- caracteristicas: as especificações técnicas que as referências confirmam, cada uma com " +
     "nome curto e valor (ex.: nome \"Voltagem de Operação\", valor \"5V\"). Da mais importante para " +
-    "a menos importante. Não repita a mesma especificação com nomes diferentes.\n" +
+    "a menos importante. Não repita a mesma especificação com nomes diferentes. Para cada campo " +
+    "divergente listado acima, inclua também UMA característica com o nome do campo e valor \"\" " +
+    "na posição técnica correta entre as demais. Essa linha vazia serve somente para ordenar " +
+    "as opções que o operador escolherá; não aparecerá na descrição final. Dimensões e peso " +
+    "ficam por último, nessa ordem. Em TODAS as unidades de medida técnicas, escreva " +
+    "o número colado à unidade, sem espaço: 5V, 50mA, 1KB, 16MHz, 2GHz, 68mm. " +
+    "Aplique a regra também a miliampères, milímetros, kilobytes, megahertz, " +
+    "gigahertz e outras unidades equivalentes. Use sempre o termo TENSÃO, nunca " +
+    "voltagem; use CORRENTE, nunca amperagem. Vale para parágrafos e para nomes " +
+    "das especificações.\n" +
     "- itensInclusos: o que vem na embalagem. O primeiro item é o próprio produto, com o nome " +
     "dele em MAIÚSCULAS e sem os acessórios; depois os acessórios, em escrita normal " +
     "(ex.: {quantidade: 1, descricao: \"PLACA COMPATIVEL ARDUINO UNO R3 CH340\"}, " +
@@ -487,6 +527,15 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
     "use a mais parecida. Só fica null o que a lista não trouxer. Não use medida de cabo, fio ou " +
     "embalagem. NÃO coloque peso nem " +
     "dimensões em caracteristicas: essas linhas são escritas à parte.\n\n" +
+    "- decisoes: para CADA divergência, indique id, índice da opção recomendada (ou null se não " +
+    "houver evidência suficiente) e motivo breve. Prefira a variante do mesmo produto do título, " +
+    "a medida do corpo em vez da embalagem e dados corroborados por fontes independentes. " +
+    "Uma medida com ordem de eixos presumida é menos confiável que uma medida com eixos " +
+    "declarados. Para corrente, diferencie limite de pico e operação contínua: não recomende o pico " +
+    "como corrente contínua. Uma recomendação é uma hipótese para revisão, não uma certeza. " +
+    "Não invente opções. " +
+    "Não coloque valores divergentes nos parágrafos nem nas características; o operador " +
+    "escolherá esses valores na tela.\n" +
     "Não escreva garantia, preço, prazo nem nome de loja: essas partes são da loja.";
 
   // Paragrafo acima do limite volta para a IA encurtar, uma vez, dizendo quais
@@ -526,14 +575,73 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
   // Ainda longo na segunda vez: ficam as frases inteiras que cabem.
   paragrafos = paragrafos.map((paragrafo) => frasesQueCabem(textoPuro(paragrafo)));
 
-  return montarDescricao({
+  const idsDivergentes = new Set(divergencias.map((item) => item.id));
+  const caracteristicasDaIA = Array.isArray(conteudo.caracteristicas) ? conteudo.caracteristicas : [];
+  const posicoes = new Map();
+  let caracteristicasComuns = 0;
+  const comuns = [];
+  for (const item of caracteristicasDaIA) {
+    const id = idDaCaracteristica(item?.nome);
+    if (idsDivergentes.has(id)) posicoes.set(id, caracteristicasComuns);
+    else if (!ESPEC_DE_MEDIDA.test(String(item?.nome ?? "").trim()) && item?.nome && item?.valor) {
+      comuns.push(item);
+      caracteristicasComuns++;
+    }
+  }
+  const prioridade = (nome) => {
+    const chave = normalizar(String(nome ?? ""));
+    if (/modelo|chip de interface|microcontrolador|micro.controlador|processador/.test(chave)) return 10;
+    if (/usb|conversor/.test(chave)) return 20;
+    if (/clock|frequencia|velocidade/.test(chave)) return 30;
+    if (/tensao|voltagem|alimentacao/.test(chave)) return 40;
+    if (/pinos|portas|entrada|saida|gpio/.test(chave)) return 50;
+    if (/memoria|flash|sram|eeprom|rom|ram/.test(chave)) return 60;
+    if (/corrente/.test(chave)) return 70;
+    return 80;
+  };
+  const posicaoInferida = (campo) => {
+    const indice = comuns.findIndex((item) => prioridade(item.nome) > prioridade(campo));
+    return indice < 0 ? comuns.length : indice;
+  };
+  const medidasFinais = juntarMedidas(medidas, conteudo, reservaDasReferencias(medidasPorReferencia, titulo));
+  if (idsDivergentes.has("dimensoes")) {
+    for (const campo of ["comprimentoCm", "larguraCm", "alturaCm"]) medidasFinais[campo] = null;
+  }
+  if (idsDivergentes.has("peso")) medidasFinais.pesoKg = null;
+  const textoFinal = montarDescricao({
     titulo,
     sku,
     paragrafos,
-    caracteristicas: Array.isArray(conteudo.caracteristicas) ? conteudo.caracteristicas : [],
+    caracteristicas: caracteristicasDaIA
+      .filter((item) => !idsDivergentes.has(idDaCaracteristica(item?.nome))),
     itensInclusos: Array.isArray(conteudo.itensInclusos) ? conteudo.itensInclusos : [],
-    medidas: juntarMedidas(medidas, conteudo, reservaDasReferencias(medidasPorReferencia, titulo)),
+    medidas: medidasFinais,
   });
+  const decisoes = new Map((Array.isArray(conteudo.decisoes) ? conteudo.decisoes : [])
+    .map((item) => [item.id, item]));
+  return {
+    texto: textoFinal,
+    divergencias: divergencias.map((item) => {
+      const decisao = decisoes.get(item.id);
+      let recomendada = Number.isInteger(decisao?.opcao) &&
+        decisao.opcao >= 0 && decisao.opcao < item.opcoes.length ? decisao.opcao : null;
+      let motivo = String(decisao?.motivo ?? "").slice(0, 300);
+      if (/corrente/i.test(item.campo) && item.opcoes.some((opcao) =>
+        /pico/i.test(opcao.valor) && /cont[ií]nu/i.test(opcao.valor)) &&
+        recomendada !== null && !/cont[ií]nu/i.test(item.opcoes[recomendada].valor)) {
+        recomendada = null;
+        motivo = "As fontes misturam corrente de pico e corrente contínua. Confira o valor de operação antes de escolher.";
+      }
+      return {
+        ...item,
+        recomendada,
+        motivo,
+        posicao: item.id === "dimensoes" ? caracteristicasComuns :
+          item.id === "peso" ? caracteristicasComuns + 1 :
+            posicoes.get(item.id) ?? posicaoInferida(item.campo),
+      };
+    }),
+  };
 }
 
 /**

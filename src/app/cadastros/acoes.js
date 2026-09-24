@@ -88,6 +88,23 @@ function revalidarCadastros() {
   revalidatePath("/cadastros", "layout");
 }
 
+/** Opcoes da mesma lista "Fonte de coleta" do cadastro completo. */
+export async function fontesParaCadastroRapidoFornecedor() {
+  return prisma.fonteColeta.findMany({
+    where: { tipo: "FORNECEDOR" },
+    orderBy: { nome: "asc" },
+    select: { id: true, nome: true, dominio: true },
+  });
+}
+
+export async function fontesParaCadastroRapidoConcorrente() {
+  return prisma.fonteColeta.findMany({
+    where: { tipo: { in: ["CONCORRENTE", "OUTRO"] } },
+    orderBy: { nome: "asc" },
+    select: { id: true, nome: true, dominio: true },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Fornecedores, concorrentes e transportadoras
 // ---------------------------------------------------------------------------
@@ -119,6 +136,13 @@ export async function salvarParceiro(slug, id, _anterior, formData) {
   const modelo = prisma[config.modelo];
 
   try {
+    if ((slug === "fornecedores" || slug === "concorrentes") && !id) {
+      const existente = await modelo.findFirst({
+        where: { nome: { equals: dados.nome, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (existente) return { ok: false, erros: { nome: `Este ${config.singular} ja esta cadastrado. Selecione-o na lista.` } };
+    }
     const salvo = id
       ? await modelo.update({ where: { id }, data: dados })
       : await modelo.create({ data: dados });

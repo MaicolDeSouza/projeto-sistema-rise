@@ -57,15 +57,13 @@ function comoDuracao(ms) {
 /**
  * Quando e a proxima varredura, para ir entre parenteses ao lado da ultima.
  *
- * A fila vale mais que a data: fonte ja varrendo ou esperando a vez mostra isso,
- * e nao uma data que ja passou. Fonte pausada nasce com a proxima a cem anos, e
- * mostrar "2126" nao diria nada — diz "pausada".
+ * A fila vale mais que a data. Sem agendamento, a proxima e indefinida.
  */
 function proximaVarredura(fonte) {
   if (fonte.varredura === "VARRENDO") return "varrendo agora";
   if (fonte.varredura === "NA_FILA") return "na fila";
+  if (!fonte.proximaVarreduraEm) return "próxima: indefinida";
   if (!fonte.ativa || !fonte.robotsPermite) return "pausada";
-  if (!fonte.proximaVarreduraEm) return null;
   if (new Date(fonte.proximaVarreduraEm).getTime() <= Date.now()) return "proxima: agora";
   return `proxima: ${comoData(fonte.proximaVarreduraEm)}`;
 }
@@ -83,6 +81,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
   // esquema, e <a href="www.loja.com"> vira caminho relativo do nosso proprio
   // site — o clique levaria a /mercados/www.loja.com.
   const enderecoDoSite = `https://${fonte.dominio}${fonte.prefixoUrl ?? ""}`;
+  const somenteCatalogo = fonte.dominio.endsWith(".invalid");
 
   /** Poe so esta fonte na fila; o worker a varre ao lado das outras. */
   function varrer() {
@@ -162,7 +161,9 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
               */}
               <p className="font-medium">{fonte.nome}</p>
 
-              <a
+              {somenteCatalogo ? (
+                <span className="mt-0.5 block text-xs text-suave">Somente catálogo enviado</span>
+              ) : <a
                 href={enderecoDoSite}
                 target="_blank"
                 rel="noreferrer noopener"
@@ -171,7 +172,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
                 {fonte.dominio}
                 {fonte.prefixoUrl ?? ""}
                 <ExternalLink size={11} />
-              </a>
+              </a>}
             </div>
 
             <button

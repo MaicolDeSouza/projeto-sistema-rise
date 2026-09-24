@@ -45,6 +45,7 @@ const { default: pg } = await import("pg");
 
 const { prisma } = await import("../src/lib/db.js");
 const { varrerFonte } = await import("../src/lib/coleta/coletar.js");
+const { coletaPausada } = await import("../src/lib/coleta/controle.js");
 const { ultimaRespostaDe } = await import("../src/lib/coleta/buscar.js");
 const fila = await import("../src/lib/coleta/fila.js");
 
@@ -126,7 +127,6 @@ async function obterTrava() {
 // ---------------------------------------------------------------------------
 
 async function concluir(job, fonte, resultado) {
-  const proxima = new Date(Date.now() + fonte.intervaloHoras * 60 * 60 * 1000);
   const eraMeu = await fila.encerrarJob(job.id, WORKER_ID, {
     status: resultado.erro ? "FALHOU" : "CONCLUIDO",
     erro: resultado.erro ?? null,
@@ -141,7 +141,7 @@ async function concluir(job, fonte, resultado) {
     where: { id: fonte.id },
     data: {
       ultimaVarreduraEm: new Date(),
-      proximaVarreduraEm: proxima,
+      proximaVarreduraEm: null,
       /*
         SO ESCREVE QUANDO A VARREDURA PROVOU O TOTAL. Espalhar o resultado inteiro
         gravaria `null` na varredura que nao conseguiu medir o catalogo, APAGANDO
@@ -184,15 +184,17 @@ async function interromper(job, fonteNome, motivo, erro, payloadAtual = job.payl
     return;
   }
 
-  if (motivo?.tipo === "encerrando") {
+  if (motivo?.tipo === "encerrando" || motivo?.tipo === "pausa") {
     await fila.encerrarJob(job.id, WORKER_ID, {
       status: "PENDENTE",
-      erro: "worker encerrado no meio da varredura; recomeca na proxima partida",
+      erro: motivo?.tipo === "pausa"
+        ? "varredura pausada pelo operador; continua ao retomar"
+        : "worker encerrado no meio da varredura; recomeca na proxima partida",
       proximaTentativaEm: new Date(),
       devolverTentativa: true,
       payload: { ...payloadAtual, total: 0, feitas: 0 },
     });
-    log(`${fonteNome}: devolvida a fila (worker encerrando)`);
+    log(`${fonteNome}: devolvida a fila (${motivo?.tipo === "pausa" ? "pausada" : "worker encerrando"})`);
     return;
   }
 
@@ -342,6 +344,12 @@ async function sinalDeVida() {
   try {
     await fila.sinalDoWorker(WORKER_ID);
 
+    if (coletaPausada()) {
+      for (const { controle } of emCurso.values()) {
+        if (!controle.signal.aborted) controle.abort({ tipo: "pausa" });
+      }
+    }
+
     for (const [jobId, { controle, estado, fonteNome }] of emCurso) {
       if (controle.signal.aborted) continue;
 
@@ -372,22 +380,22 @@ async function sinalDeVida() {
 async function laco() {
   while (!encerrando) {
     try {
-      for (const { fonteNome, desfecho } of await fila.recolherLargados({ fontes: FONTES })) {
-        log(`${fonteNome}: largada sem sinal — ${desfecho}`);
-      }
+      if (!coletaPausada()) {
+        for (const { fonteNome, desfecho } of await fila.recolherLargados({ fontes: FONTES })) {
+          log(`${fonteNome}: largada sem sinal — ${desfecho}`);
+        }
 
-      for (const fonteNome of await fila.fecharEsgotados({ fontes: FONTES })) {
-        logErro(`${fonteNome}: tentativas esgotadas — marcada como falha, fonte adiada`);
-      }
+        for (const fonteNome of await fila.fecharEsgotados({ fontes: FONTES })) {
+          logErro(`${fonteNome}: tentativas esgotadas — marcada como falha`);
+        }
 
-      const enfileiradas = await fila.enfileirarVencidas({ fontes: FONTES });
-      if (enfileiradas > 0) log(`${enfileiradas} fonte(s) venceram e foram enfileiradas`);
-
-      while (!encerrando && !precisaReiniciar && emCurso.size < PARALELO) {
-        const job = await fila.pegarProximoJob(WORKER_ID, { fontes: FONTES });
-        if (!job) break;
-        // Nao aguardado: as varreduras correm juntas. `executar` nunca rejeita.
-        executar(job);
+        // O operador inicia as varreduras manualmente. Nao ha ciclo automatico.
+        while (!coletaPausada() && !encerrando && !precisaReiniciar && emCurso.size < PARALELO) {
+          const job = await fila.pegarProximoJob(WORKER_ID, { fontes: FONTES });
+          if (!job) break;
+          // Nao aguardado: as varreduras correm juntas. `executar` nunca rejeita.
+          executar(job);
+        }
       }
     } catch (erro) {
       logErro(`erro na volta do worker: ${mensagem(erro)}`);

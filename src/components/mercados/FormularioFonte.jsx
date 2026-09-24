@@ -19,6 +19,7 @@ import {
 
 import {
   salvarFonte,
+  salvarFonteComArquivos,
   testarArquivoAcao,
   testarFonteAcao,
   testarPortalAcao,
@@ -437,13 +438,14 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
       // Particularidades declaradas para este fornecedor, se houver.
       const regras = regrasDoFornecedor({ nome, url });
       setTeste(juntarTestes(doLink, doArquivo, regras));
+      if (!url.trim() && doArquivo?.siteSugerido) setUrl(doArquivo.siteSugerido);
     });
   }
 
   function cadastrar() {
     setErro(null);
     iniciarSalvamento(async () => {
-      const resultado = await salvarFonte({
+      const dados = {
         nome,
         url,
         tipo,
@@ -454,7 +456,17 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
         produtosNoSite: teste?.produtosNoSite ?? null,
         produtosNoSiteParcial: teste?.produtosNoSiteParcial ?? false,
         ...(ehPortal ? { usuario, senha } : {}),
-      });
+      };
+      let resultado;
+      if (arquivos.length > 0) {
+        const formulario = comArquivos(arquivos, nome, tipo, url);
+        formulario.set("secao", secao);
+        formulario.set("resumo", dados.resumo ?? "");
+        formulario.set("produtosNoSite", String(dados.produtosNoSite ?? ""));
+        resultado = await salvarFonteComArquivos(formulario);
+      } else {
+        resultado = await salvarFonte(dados);
+      }
 
       if (!resultado.ok) {
         setErro(resultado.erro);
@@ -558,7 +570,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
             type="url"
             value={url}
             onChange={(evento) => mudarUrl(evento.target.value)}
-            placeholder="https://www.4hobby.com.br/"
+            placeholder={arquivos.length > 0 ? "Opcional ao enviar um catálogo" : "https://site-do-fornecedor.com.br/"}
             className={CAMPO}
           />
         </label>
@@ -651,7 +663,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
           o que se acompanha nele e a vitrine publica, e oferecer upload ali
           sugeriria um caminho que nao existe.
         */}
-        {tipo !== "CONCORRENTE" && !ehPortal && (
+        {tipo === "FORNECEDOR" && !ehPortal && (
         <label
           className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm hover:bg-fundo"
           title="Ler de um arquivo do fornecedor (HTML salvo, PDF ou JSON)"
@@ -730,6 +742,8 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
             ))}
           </div>
         )}
+
+        {erro && <p role="alert" className="w-full text-sm text-red-700">{erro}</p>}
 
         {testando && ehPortal && (
           <span className="text-xs text-suave">
@@ -827,7 +841,6 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
         </div>
       )}
 
-      {erro && <p className="mt-3 text-sm text-red-700">{erro}</p>}
     </div>
   );
 }

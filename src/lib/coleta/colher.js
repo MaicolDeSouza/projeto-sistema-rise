@@ -1,4 +1,6 @@
 import { buscarPagina, podeVisitar, ritmoPedido } from "./buscar";
+import { backendDoMagentoPwa, colherMagentoPwa } from "./magento-pwa";
+import { colherWooCommerce } from "./woocommerce";
 import { pareceListagem, pareceProduto, rastrear } from "./descobrir";
 import { ehProdutoValido, normalizarPagina } from "./normalizar";
 import { camposDoCatalogo, lerCatalogo, urlDoItem } from "./catalogo";
@@ -174,11 +176,30 @@ export async function colherProdutos({
   //
   // Cabecalhos e cookies entram na conta junto com o HTML: metade das
   // plataformas nao se declara no corpo da pagina.
-  const plataforma = identificarPlataforma({
+  let plataforma = identificarPlataforma({
     html: home.corpo ?? "",
     cabecalhos: home.cabecalhos,
     cookies: home.cookies,
   });
+  const graphqlPwa = backendDoMagentoPwa(home.corpo ?? "", alvo.toString());
+  if (graphqlPwa) {
+    plataforma = {
+      id: "magento-pwa",
+      nome: "Magento 2 com vitrine Venia",
+      familia: "Magento 2 / Adobe Commerce",
+      confianca: "alta",
+      sinais: ["vitrine Venia no HTML", "endereco Magento GraphQL declarado pela loja"],
+      alternativas: [],
+      entrega: {
+        resumo: "A vitrine e carregada por JavaScript; os produtos estao no catalogo GraphQL publico.",
+        formatos: ["graphql"],
+        preco: "price_range.minimum_price.final_price",
+        codigo: "sku",
+        estoque: "stock_status",
+        imagens: "media_gallery",
+      },
+    };
+  }
 
   // Endereco, nao dados: quem visita e sempre buscarPagina, com robots e ritmo.
   const catalogo = catalogoPublicoDe(plataforma, alvo.toString(), home.corpo ?? "");
@@ -223,6 +244,69 @@ export async function colherProdutos({
 
   const prefixo = secao?.trim() || null;
   const fonte = { name: nome ?? alvo.hostname, type: tipo ?? "OUTRO" };
+
+  if (graphqlPwa) {
+    const leitura = await colherMagentoPwa({
+      graphql: graphqlPwa,
+      origem: alvo.origin,
+      secao: prefixo,
+      limite,
+      orcamento: orcamento ?? limite * 3 + 10,
+      fonte,
+      plataforma,
+      jaColetadas,
+      aoGuardar,
+      aoProgredir,
+      sinal,
+    });
+    passos.push(passo("Catalogo GraphQL lido", !leitura.erro, leitura.erro ?? `${leitura.total ?? "?"} produto(s) no catalogo`));
+    passos.push(passo("Produtos encontrados", leitura.produtos.length > 0, `${leitura.produtos.length} valido(s) em ${leitura.visitas} consulta(s)`));
+    return {
+      ok: leitura.produtos.length + leitura.retomados > 0,
+      motivo: leitura.erro ?? (leitura.produtos.length + leitura.retomados ? null : "O catalogo GraphQL nao retornou produtos validos."),
+      passos,
+      produtos: leitura.produtos,
+      formatos: leitura.produtos.length ? ["graphql"] : [],
+      visitas: leitura.visitas,
+      retomados: leitura.retomados,
+      dominio: alvo.hostname,
+      prefixoUrl: prefixo,
+      ritmoMs: ritmo,
+      plataforma,
+      catalogo: null,
+      produtosNoSite: leitura.total,
+      produtosNoSiteParcial: false,
+      produtosNoSiteFonte: leitura.total === null ? null : "catalogo",
+    };
+  }
+
+  if (plataforma.id === "woocommerce" && catalogo?.url) {
+    const leitura = await colherWooCommerce({
+      catalogo, origem: alvo.origin, secao: prefixo, limite,
+      orcamento: tetoVisitas, fonte, plataforma, jaColetadas,
+      aoGuardar, aoProgredir, sinal,
+    });
+    // Se a API caiu depois de alguns lotes, o worker precisa retomar; fechar
+    // uma coleta parcial como concluida esconderia os itens ainda nao lidos.
+    if (leitura.erro && (leitura.produtos.length || leitura.retomados)) {
+      throw new Error(`Catalogo WooCommerce interrompido: ${leitura.erro}`);
+    }
+    // Algumas lojas bloqueiam a Store API. Se nao veio nenhum produto, a
+    // navegacao HTML continua sendo a alternativa existente.
+    if (leitura.produtos.length || leitura.retomados) {
+      passos.push(passo("Catalogo WooCommerce lido", true, `${leitura.total ?? "?"} produto(s) no catalogo`));
+      passos.push(passo("Produtos encontrados", true, `${leitura.produtos.length} valido(s) em ${leitura.visitas} consulta(s)`));
+      return {
+        ok: true, motivo: null, passos, produtos: leitura.produtos,
+        formatos: ["woocommerce-store-api"], visitas: leitura.visitas + 1,
+        retomados: leitura.retomados, dominio: alvo.hostname, prefixoUrl: prefixo,
+        ritmoMs: ritmo, plataforma, catalogo,
+        produtosNoSite: leitura.total, produtosNoSiteParcial: false,
+        produtosNoSiteFonte: leitura.total === null ? null : "catalogo",
+      };
+    }
+    passos.push(passo("Catalogo WooCommerce lido", false, leitura.erro ?? "nenhum produto valido; seguindo pelas paginas"));
+  }
 
   // Uma memoria POR COLHEITA, nunca global: o desconto a vista e desta loja, e
   // uma memoria compartilhada faria uma fonte responder pela outra.

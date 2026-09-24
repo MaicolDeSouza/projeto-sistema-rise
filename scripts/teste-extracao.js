@@ -21,6 +21,7 @@ const { normalizarPagina, ehProdutoValido } = await import(
   "../src/lib/coleta/normalizar.js"
 );
 const { conciliar, quedaSuspeita } = await import("../src/lib/coleta/conciliar.js");
+const { produtoDoWooCommerce } = await import("../src/lib/coleta/woocommerce.js");
 
 let falhas = 0;
 
@@ -39,6 +40,18 @@ function conferir(nome, obtido, esperado) {
     }`,
   );
 }
+
+const woo = produtoDoWooCommerce({
+  name: "Placa &#8211; teste", sku: "ABC", permalink: "https://loja.exemplo.com/produto/abc/",
+  prices: { regular_price: "12990", price: "10990", currency_minor_unit: 2 },
+  is_in_stock: false, images: [{ src: "https://loja.exemplo.com/foto.webp" }],
+  attributes: [{ name: "Cor", terms: [{ name: "Azul" }] }],
+  description: "<p>Descricao do produto</p>",
+}, "https://loja.exemplo.com", { id: "woocommerce", nome: "WooCommerce", confianca: "alta" });
+conferir("WooCommerce decodifica o nome", woo.name, "Placa – teste");
+conferir("WooCommerce converte centavos em reais", woo.prices, { normal: 129.9, promotional: 109.9, comImpostos: null });
+conferir("WooCommerce preserva estoque e atributos", [woo.stock.status, woo.specifications], ["OUT_OF_STOCK", [{ nome: "Cor", valor: "Azul" }]]);
+conferir("WooCommerce nao inventa preco zerado", produtoDoWooCommerce({ prices: { price: "0", regular_price: "0", currency_minor_unit: 2 } }, "https://loja.exemplo.com", { id: "woocommerce" }).prices.normal, null);
 
 // ---------------------------------------------------------------------------
 console.log("\n— preco em formato brasileiro —");
@@ -1436,6 +1449,75 @@ console.log("\n— portal com login (Santana, Add Suite) —");
   conferir("R$ 0,00 e sem preco, nao gratis", [protoboard.prices.normal, protoboard.prices.comImpostos], [null, null]);
   conferir("sem botao de comprar: esgotado", protoboard.stock.status, "OUT_OF_STOCK");
 }
+
+// Tres lojas descrevem a mesma placa com medidas diferentes: nenhuma delas
+// pode virar uma unica linha automaticamente na descricao da Rise.
+{
+  const { identificarDivergencias } = await import("../src/lib/ia/divergencias.js");
+  const referencias = [
+    { id: "p", nome: "Arduino UNO", fonte: { nome: "Piscaled" }, especificacoes: [{ nome: "Dimensoes Aproximadas", valor: "45 mm x 19 mm" }] },
+    { id: "u", nome: "Arduino UNO", fonte: { nome: "Usinainfo" }, especificacoes: [{ nome: "Dimensões (CxLxE)", valor: "68x53x10mm" }] },
+    { id: "s", nome: "Arduino UNO", fonte: { nome: "Saravati" }, especificacoes: [{ nome: "Tamanho", valor: "68mm Largura x 53mm Profundidade x 12mm Altura" }] },
+  ];
+  const dimensoes = identificarDivergencias(referencias).find((item) => item.id === "dimensoes");
+  conferir("tres dimensoes divergentes ficam separadas para escolha", dimensoes.opcoes.map((item) => item.valor), ["45x19mm", "68x53x10mm", "53x68x12mm"]);
+  conferir("cada medida conserva a loja de origem", dimensoes.opcoes.map((item) => item.fontes[0].nome), ["Piscaled", "Usinainfo", "Saravati"]);
+  conferir("medida sem eixos declara a suposicao", Boolean(dimensoes.opcoes[0].aviso), true);
+  conferir("medida com eixos declarados nao recebe aviso", dimensoes.opcoes[2].aviso, null);
+  conferir("valores iguais nao criam escolha falsa", identificarDivergencias([referencias[0], { ...referencias[0], id: "p2", fonte: { nome: "Outra loja" } }]), []);
+  const correntes = identificarDivergencias([
+    { id: "a", nome: "UNO", fonte: { nome: "Loja A" }, especificacoes: [{ nome: "Corrente por pino I/O", valor: "40 mA" }] },
+    { id: "b", nome: "UNO", fonte: { nome: "Loja B" }, especificacoes: [{ nome: "Corrente por pino I/O", valor: "20mA" }] },
+  ]);
+  conferir("corrente divergente tambem pede escolha", correntes[0].opcoes.map((item) => item.valor), ["40 mA", "20mA"]);
+  conferir("mesma memoria com redacoes diferentes nao e conflito", identificarDivergencias([
+    { id: "a", nome: "UNO", fonte: { nome: "Loja A" }, especificacoes: [{ nome: "Memória Flash", valor: "32KB (0,5KB usados pelo bootloader)" }] },
+    { id: "b", nome: "UNO", fonte: { nome: "Loja B" }, especificacoes: [{ nome: "Memória Flash", valor: "32 KB (ATmega328P)" }] },
+  ]), []);
+}
+
+{
+  const { adicionarEspecificacao, compactarUnidades, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, normalizarTerminologiaEletrica, organizarDescricao, removerEspecificacao } = await import("../src/lib/ia/revisaoDescricao.js");
+  const original = "Titulo\n\nTexto introdutorio.\n\nEspecificações técnicas:\n- Clock: 16 MHz\n\n- RAM: 2 KB;\n\nItens inclusos: placa\nGarantia: 90 dias";
+  conferir("organizar limpa linhas vazias e termina cada especificacao com ponto e virgula", organizarDescricao(original),
+    "Titulo\n\nTexto introdutorio.\n\nEspecificações técnicas:\n- Clock: 16MHz;\n- RAM: 2KB;\n\nItens inclusos: placa\nGarantia: 90 dias");
+  const limpa = organizarDescricao(original);
+  conferir("seta da fonte insere linha na secao tecnica", adicionarEspecificacao(limpa, "Microcontrolador: ATmega328P"),
+    limpa.replace("\n\nItens inclusos", "\n- Microcontrolador: ATmega328P;\n\nItens inclusos"));
+  conferir("mesma linha da fonte nao duplica", adicionarEspecificacao(limpa, "Clock: 16MHz"), limpa);
+  conferir("arraste reordena somente linhas tecnicas", moverEspecificacao(limpa, 6, 5),
+    limpa.replace("- Clock: 16MHz;\n- RAM: 2KB;", "- RAM: 2KB;\n- Clock: 16MHz;"));
+  conferir("arraste fora da secao nao altera texto", moverEspecificacao(limpa, 0, 6), limpa);
+  conferir("botao subir move linha tecnica", moverEspecificacaoPorPasso(limpa, 6, -1),
+    limpa.replace("- Clock: 16MHz;\n- RAM: 2KB;", "- RAM: 2KB;\n- Clock: 16MHz;"));
+  conferir("botao descer move linha tecnica", moverEspecificacaoPorPasso(limpa, 5, 1),
+    limpa.replace("- Clock: 16MHz;\n- RAM: 2KB;", "- RAM: 2KB;\n- Clock: 16MHz;"));
+  conferir("lixeira retira somente linha tecnica", removerEspecificacao(limpa, 5), limpa.replace("- Clock: 16MHz;\n", ""));
+  conferir("opcao escolhida entra na posicao dada pelo prompt", inserirEspecificacaoNaPosicao(limpa, "- Microcontrolador: ATmega328P;", 0),
+    limpa.replace("- Clock: 16MHz;", "- Microcontrolador: ATmega328P;\n- Clock: 16MHz;"));
+  conferir("unidades tecnicas ficam coladas ao valor", compactarUnidades("5 V; 50 mA; 1 KB; 16 MHz; 2 GHz; 68 mm; 25 °C; 5 miliampères"),
+    "5V; 50mA; 1KB; 16MHz; 2GHz; 68mm; 25°C; 5miliampères");
+  conferir("termos eletricos preferidos preservam a caixa", normalizarTerminologiaEletrica("Voltagem, VOLTAGEM e amperagem; voltagens e Amperagens"),
+    "Tensão, TENSÃO e corrente; tensões e Correntes");
+  conferir("organizar corrige termos e unidades de linha escolhida", organizarDescricao("Título\n\nEspecificações técnicas:\n- Voltagem: 5 V\n- Amperagem: 50 mA\n\nGarantia:"),
+    "Título\n\nEspecificações técnicas:\n- Tensão: 5V;\n- Corrente: 50mA;\n\nGarantia:");
+  conferir("secao aparece mesmo se IA omitiu todas as especificacoes", garantirSecaoEspecificacoes("Titulo\n\nItens inclusos: placa"),
+    "Titulo\n\nEspecificações técnicas:\n\nItens inclusos: placa");
+}
+
+console.log("\n— Magento: atributos tecnicos em JSON —");
+const { especificacoesDosAtributosMagento } = await import("../src/lib/coleta/magento-pwa.js");
+const rotulosMagento = new Map([["comprimento", "Comprimento"], ["atributos_json", "Atributos JSON"]]);
+conferir("ficha JSON vira pares de especificacao", especificacoesDosAtributosMagento([
+  { code: "comprimento", value: "11,1cm" },
+  { code: "atributos_json", value: '[{"name":"Abertura máxima dos terminais","value":"1cm"}]' },
+], rotulosMagento), [
+  { nome: "Comprimento", valor: "11,1cm" },
+  { nome: "Abertura máxima dos terminais", valor: "1cm" },
+]);
+conferir("JSON invalido nao aparece como texto bruto", especificacoesDosAtributosMagento([
+  { code: "atributos_json", value: "[{quebrado}]" },
+], rotulosMagento), []);
 
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

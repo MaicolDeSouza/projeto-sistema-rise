@@ -291,7 +291,7 @@ export async function lerProdutosDaFonte(fonteId) {
  * valendo), mas listar todos faria a loja crescer vinte linhas por varredura,
  * misturando preco de hoje com preco de duas semanas atras.
  */
-export async function produtosParaLista() {
+export async function produtosParaLista({ incluirIds = [] } = {}) {
   /*
     FONTE QUE NUNCA FECHOU UMA COLETA ENTRA COM TUDO O QUE JA GRAVOU.
 
@@ -310,11 +310,14 @@ export async function produtosParaLista() {
 
   const linhas = await prisma.produtoColetado.findMany({
     where: {
-      OR: fontes.map((fonte) =>
-        fonte.ultimaColetaEm
-          ? { fonteId: fonte.id, vistoEm: { gte: fonte.ultimaColetaEm } }
-          : { fonteId: fonte.id },
-      ),
+      OR: [
+        ...fontes.map((fonte) =>
+          fonte.ultimaColetaEm
+            ? { fonteId: fonte.id, vistoEm: { gte: fonte.ultimaColetaEm } }
+            : { fonteId: fonte.id },
+        ),
+        ...(incluirIds.length ? [{ id: { in: incluirIds } }] : []),
+      ],
     },
     select: {
       id: true,

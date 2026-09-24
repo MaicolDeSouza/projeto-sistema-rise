@@ -43,7 +43,7 @@ ok| 23 | Curto Circuito | https://curtocircuito.com.br/ | |
 | 24 | Ryndack Componentes | https://www.ryndackcomponentes.com.br/ | |
 ok| 25 | Solda Fria | https://www.soldafria.com.br/ | **OpenCart**, plataforma já conferida nesta loja em 30/08/2026 |
 | 26 | Cromatek | https://cromatek.com.br/ | |
-| 27 | PiscaLED | https://www.piscaled.com.br/ | |
+OK| 27 | PiscaLED | https://www.piscaled.com.br/ | |
 | 28 | Oceantech Automation | https://oceantech-automation.com.br/ | |
 | 29 | Grupo MPC Distribuidora | https://grupompcdistribuidora.com.br/ | |
 | 30 | Sibratec | https://www.sibratec.ind.br/ | |

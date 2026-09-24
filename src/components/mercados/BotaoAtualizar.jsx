@@ -2,9 +2,9 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, AlertTriangle, Loader, RefreshCw, X } from "lucide-react";
+import { Activity, AlertTriangle, Loader, Pause, Play, RefreshCw, X } from "lucide-react";
 
-import { atualizarTabelas, situacaoVarredura } from "@/app/mercados/acoes";
+import { alternarPausaColeta, atualizarTabelas, situacaoVarredura } from "@/app/mercados/acoes";
 
 /// Ritmo da consulta de andamento. Uma varredura leva mais de uma hora, entao
 /// nao ha por que perguntar de segundo em segundo.
@@ -22,8 +22,7 @@ const TETO_POR_FONTE = 20000;
  * nao cabe numa requisicao HTTP e morreria no primeiro hot reload. Quem executa
  * e o worker, em processo separado.
  *
- * Este e o mesmo caminho do ciclo automatico de 30 dias — o botao so antecipa.
- * Nao existe "modo manual" com codigo proprio para divergir do automatico.
+ * A coleta comeca por este botao; nao existe agendamento automatico.
  */
 export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) {
   const router = useRouter();
@@ -46,7 +45,8 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
     if (excesso > 0) elemento.style.left = `${-excesso}px`;
   }, [statusAberto]);
 
-  const emAndamento = situacao?.emAndamento ?? false;
+  const pausada = situacao?.pausada ?? false;
+  const emAndamento = (situacao?.emAndamento ?? false) && !pausada;
 
   /*
     PERGUNTA O ESTADO AO ABRIR A TELA, e nao so depois do clique.
@@ -107,6 +107,19 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
     });
   }
 
+  function alternarPausa() {
+    setErro(null);
+    iniciarTransicao(async () => {
+      const resultado = await alternarPausaColeta();
+      if (!resultado.ok) {
+        setErro(resultado.erro);
+        return;
+      }
+      setSituacao(await situacaoVarredura());
+      router.refresh();
+    });
+  }
+
   /*
     AS VARREDURAS EM CURSO — ate cinco ao mesmo tempo, uma por loja (worker
     paralelo, 16/09/2026). Job largado por worker que parou de dar sinal nao entra:
@@ -130,7 +143,7 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
         <button
           type="button"
           onClick={disparar}
-          disabled={pendente || emAndamento}
+          disabled={pendente || emAndamento || pausada}
           className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pendente || emAndamento ? (
@@ -139,6 +152,16 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
             <RefreshCw size={16} />
           )}
           {emAndamento ? "Varredura em andamento" : rotulo}
+        </button>
+
+        <button
+          type="button"
+          onClick={alternarPausa}
+          disabled={pendente || situacao === null}
+          className="inline-flex items-center gap-1.5 rounded border border-borda bg-superficie px-3 py-2 text-sm font-medium hover:bg-fundo disabled:opacity-60"
+        >
+          {pausada ? <Play size={16} /> : <Pause size={16} />}
+          {pausada ? "Continuar" : "Pausar"}
         </button>
 
         {/* Status: quantas lojas estao sendo varridas, e a lista ao clicar. */}

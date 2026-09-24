@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import {
   BadgeDollarSign,
   Calculator,
+  Download,
   ExternalLink,
   FileText,
   Hammer,
@@ -53,6 +54,7 @@ import {
   enviarArquivo,
   enviarArquivoTemporario,
   gerarSku,
+  documentosDasReferencias,
   removerArquivo,
   removerArquivoTemporario,
   salvarProduto,
@@ -60,11 +62,11 @@ import {
 
 const ABAS = [
   { id: "caracteristicas", rotulo: "Caracteristicas" },
-  { id: "documentos", rotulo: "Documentos tecnicos" },
   { id: "descricao", rotulo: "Descricao" },
+  { id: "fornecedores", rotulo: "Fornecedores / Concorrentes" },
+  { id: "documentos", rotulo: "Documentos tecnicos" },
   { id: "dimensoes", rotulo: "Peso e dimensoes" },
   { id: "tributacao", rotulo: "Tributacao" },
-  { id: "fornecedores", rotulo: "Fornecedores / Concorrentes" },
 ];
 
 /**
@@ -1299,6 +1301,79 @@ function Documento({ produtoId, tipo, rotulo, ajuda, arquivos }) {
   );
 }
 
+/** Documentos encontrados nas referencias escolhidas na lupa do Nome. */
+function DocumentosDasReferencias({ ids, ativo, produtoId }) {
+  const [respostaDocumentos, setRespostaDocumentos] = useState({ chave: "", itens: [], erro: null });
+  const chave = `${produtoId ?? ""}|${ids.join("|")}`;
+  const temReferencias = Boolean(produtoId || ids.length);
+  const carregando = temReferencias && respostaDocumentos.chave !== chave;
+  const itens = carregando ? [] : respostaDocumentos.itens;
+  const erroBusca = carregando ? null : respostaDocumentos.erro;
+
+  useEffect(() => {
+    if (!ativo) return;
+    if (!temReferencias) return;
+    let cancelado = false;
+    const [idProduto, ...idsBusca] = chave.split("|");
+    documentosDasReferencias(idsBusca.filter(Boolean), idProduto || null)
+      .then((resultado) => {
+        if (cancelado) return;
+        setRespostaDocumentos({
+          chave,
+          itens: resultado.ok ? resultado.itens : [],
+          erro: resultado.ok ? null : resultado.erro,
+        });
+      })
+      .catch(() => {
+        if (!cancelado) setRespostaDocumentos({ chave, itens: [], erro: "Falha ao buscar documentos. Abra a aba novamente para tentar de novo." });
+      });
+    return () => { cancelado = true; };
+  }, [chave, ativo, temReferencias]);
+
+  return (
+    <div className="mt-5 border-t border-borda pt-4 sm:col-span-2">
+      <h3 className="text-sm font-semibold">Documentos dos fornecedores e concorrentes</h3>
+      <p className="mt-1 text-xs text-suave">
+        Arquivos dos fornecedores e concorrentes atuais. Baixe o arquivo ou acesse a pagina do produto na loja.
+      </p>
+      {!temReferencias && <p className="mt-3 text-sm text-suave">Marque referencias na lupa do Nome para buscar documentos.</p>}
+      {temReferencias && carregando && <p className="mt-3 text-sm text-suave">Buscando documentos...</p>}
+      {temReferencias && !carregando && itens.length === 0 && !erroBusca && (
+        <p className="mt-3 text-sm text-suave">Nenhum documento tecnico foi coletado dessas referencias.</p>
+      )}
+      {erroBusca && <p className="mt-3 rounded bg-red-50 p-2 text-xs text-red-800">{erroBusca}</p>}
+      {itens.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {itens.map((item) => (
+              <li key={`${item.referenciaId}:${item.indice}`} className="flex flex-wrap items-center gap-2 rounded border border-borda px-3 py-2">
+                <FileText size={16} className="shrink-0 text-suave" />
+                <div className="min-w-48 flex-1">
+                  <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                    <span>{item.titulo}</span>
+                    <span className="rounded bg-fundo px-1.5 py-0.5 text-[10px] font-semibold text-suave">{item.formato}</span>
+                  </div>
+                  <div className="truncate text-xs text-suave" title={item.produto}>
+                    {item.site ? (
+                      <a href={item.site} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-acento hover:underline">
+                        {item.fonte} <ExternalLink size={10} />
+                      </a>
+                    ) : item.fonte} · {item.produto}
+                  </div>
+                </div>
+                <a
+                  href={`/api/produtos/documento-referencia?referenciaId=${encodeURIComponent(item.referenciaId)}&indice=${item.indice}`}
+                  className="inline-flex items-center gap-1 rounded border border-borda px-2 py-1 text-xs hover:bg-fundo"
+                >
+                  <Download size={12} /> Baixar
+                </a>
+              </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /**
  * Envio de documento/certificado ANTES de o produto existir. Mesmo desenho do
  * `Documento`, mas o arquivo vai para a pasta temporaria e a lista e do
@@ -1407,6 +1482,7 @@ export default function FormularioProduto({
 }) {
   const router = useRouter();
   const [aba, setAba] = useState("caracteristicas");
+  const [aberturaDocumentos, setAberturaDocumentos] = useState(0);
   const [alterado, setAlterado] = useState(false);
   const [erroAcao, setErroAcao] = useState(null);
   const formulario = useRef(null);
@@ -1440,9 +1516,8 @@ export default function FormularioProduto({
   // marcar disparava efeitos que so deviam acontecer por acao do operador —
   // o painel de imagens tentou importar fotos de 20 produtos marcados sozinho,
   // so de a pagina ter carregado. Carregar so quando ele clicar Buscar na
-  // lupa; a partir dai, ReferenciasDeMercado.jsx ja marca sozinho o que bate
-  // com os fornecedores/concorrentes salvos na aba (nomesFornecedoresAtuais/
-  // idsConcorrentesAtuais, passados como prop) — o pedido de comparar com o
+  // lupa; a partir dai, ReferenciasDeMercado.jsx marca as referencias que
+  // correspondem aos fornecedores/concorrentes salvos na aba — comparar com o
   // ja salvo continua valendo, so nao antes do clique.
   const [marcados, setMarcados] = useState(() => new Map());
   const [gerandoIA, iniciarIA] = useTransition();
@@ -1754,6 +1829,16 @@ export default function FormularioProduto({
       const novo = new Map(atual);
       if (novo.has(item.id)) novo.delete(item.id);
       else if (novo.size < MAXIMO_MARCADOS) novo.set(item.id, item);
+      return novo;
+    });
+  }
+
+  function marcarReferenciasLigadas(itens) {
+    setMarcados((atual) => {
+      const novo = new Map(atual);
+      for (const item of itens) {
+        if (!novo.has(item.id) && novo.size < MAXIMO_MARCADOS) novo.set(item.id, item);
+      }
       return novo;
     });
   }
@@ -2229,9 +2314,10 @@ export default function FormularioProduto({
         ref={referencias}
         marcados={marcados}
         aoAlternar={alternarReferencia}
+        aoMarcarLigados={marcarReferenciasLigadas}
         aoLimpar={() => setMarcados(new Map())}
         aoFechar={lerValoresRefs}
-        nomesFornecedoresLigados={nomesFornecedoresAtuais}
+        fornecedoresLigados={usaFornecedorRascunho ? fornecedoresRascunho : fornecedores}
         idsConcorrentesLigados={idsConcorrentesAtuais}
       />
 
@@ -2239,6 +2325,7 @@ export default function FormularioProduto({
       <JanelaDescricao
         ref={janelaDescricao}
         ids={idsMarcados}
+        descricaoAtual={produto?.descricaoBase ?? null}
         lerProduto={() => ({
           titulo: valorDoCampo("tituloBase"),
           sku: valorDoCampo("sku"),
@@ -2251,9 +2338,9 @@ export default function FormularioProduto({
             ]),
           ),
         })}
-        aoUsar={(texto) => {
+        aoUsar={(texto, { camposEscolhidos = {} } = {}) => {
           const { campos } = medidasParaCamposVazios(texto);
-          aplicar({ descricaoBase: texto, ...campos });
+          aplicar({ descricaoBase: texto, ...campos, ...camposEscolhidos });
           setAba("descricao");
         }}
       />
@@ -2266,7 +2353,10 @@ export default function FormularioProduto({
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setAba(item.id)}
+                onClick={() => {
+                  if (item.id === "documentos") setAberturaDocumentos((atual) => atual + 1);
+                  setAba(item.id);
+                }}
                 className={`shrink-0 border-b-2 px-4 py-3 text-sm whitespace-nowrap ${
                   aba === item.id
                     ? "border-acento font-medium text-texto"
@@ -2392,6 +2482,12 @@ export default function FormularioProduto({
                   arquivos={arquivos.CERTIFICADO ?? []}
                 />
               )}
+              <DocumentosDasReferencias
+                key={aberturaDocumentos}
+                ids={idsMarcados}
+                ativo={aba === "documentos"}
+                produtoId={produto?.id ?? null}
+              />
             </div>
 
             <div className={aba === "descricao" ? "" : "hidden"}>
@@ -2407,9 +2503,7 @@ export default function FormularioProduto({
                   </button>
                   <BolhaDeAjuda
                     texto={
-                      ia.quantos > 0
-                        ? `Mostra os ${ia.quantos} produto(s) marcados na lupa do Nome e cria o texto com IA.`
-                        : "Marque produtos de referencia na lupa ao lado do Nome para ver as descricoes deles e criar com IA."
+                      "Busca descricoes dos produtos correspondentes nos fornecedores e concorrentes cadastrados e cria o texto com IA."
                     }
                   />
                 </div>
@@ -2569,6 +2663,7 @@ export default function FormularioProduto({
               <Fornecedores
                 ref={fornecedoresRef}
                 produtoId={produto?.id ?? null}
+                ativo={aba === "fornecedores"}
                 vinculos={usaFornecedorRascunho ? fornecedoresRascunho : fornecedores}
                 catalogo={catalogoFornecedores}
                 aoFalhar={setErroAcao}
@@ -2580,6 +2675,7 @@ export default function FormularioProduto({
               <Concorrentes
                 ref={concorrentesRef}
                 produtoId={produto?.id ?? null}
+                ativo={aba === "fornecedores"}
                 vinculos={novo ? concorrentesRascunho : concorrentes}
                 aoFalhar={setErroAcao}
                 modoRascunho={novo}

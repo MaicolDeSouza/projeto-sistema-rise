@@ -10,6 +10,7 @@ import { detalheDoProduto } from "@/lib/coleta/banco";
 import { enfileirar, jobLargado, workerNoAr } from "@/lib/coleta/fila";
 import { podeVisitar } from "@/lib/coleta/buscar";
 import { juntarListas, lerArquivo } from "@/lib/coleta/arquivos";
+import { coletaPausada, definirPausaColeta } from "@/lib/coleta/controle";
 import { portalDoEndereco, regrasDoFornecedor } from "@/lib/coleta/fornecedores";
 import { testarFonte } from "@/lib/coleta/testar";
 import { parametrosDaCategoria, testarPortal } from "@/lib/coleta/portal-addsuite";
@@ -278,6 +279,7 @@ export async function testarArquivoAcao(dados) {
       formatos: [formato],
       produtosNoSite: produtos.length,
       produtosNoSiteParcial: false,
+      siteSugerido: lidos.map((leitura) => leitura.siteSugerido).find(Boolean) ?? null,
     };
   } catch (erro) {
     return {
@@ -300,7 +302,7 @@ export async function testarArquivoAcao(dados) {
  * por uma hora — para que a permissao seja verificada no servidor e nao apenas
  * acreditada a partir do que a tela mandou.
  */
-export async function salvarFonte({
+async function salvarFonteInterna({
   nome,
   url,
   tipo,
@@ -310,7 +312,7 @@ export async function salvarFonte({
   produtosNoSiteParcial,
   usuario,
   senha,
-}) {
+}, { arquivoValidado = false } = {}) {
   const analise = FonteSchema.safeParse({ nome, url, tipo, secao });
   if (!analise.success) {
     return { ok: false, erro: analise.error.issues[0].message };
@@ -323,8 +325,11 @@ export async function salvarFonte({
     return { ok: false, erro: "Endereco invalido." };
   }
 
-  const permissao = await podeVisitar(alvo.toString());
-  if (!permissao.permitido) {
+  const somenteArquivo = alvo.hostname.endsWith(".invalid");
+  const permissao = somenteArquivo
+    ? { permitido: true }
+    : await podeVisitar(alvo.toString());
+  if (!permissao.permitido && !arquivoValidado) {
     return { ok: false, erro: `O robots.txt deste site nos bloqueia: ${permissao.motivo}` };
   }
 
@@ -375,7 +380,8 @@ export async function salvarFonte({
         dominio: alvo.hostname,
         tipo: analise.data.tipo,
         prefixoUrl,
-        robotsPermite: true,
+        // Catalogo enviado pelo operador pode ser reprocessado sem visitar o site.
+        robotsPermite: arquivoValidado || permissao.permitido,
         amostraResumo: resumo ?? null,
         ...doPortal,
         // Quantos produtos o site declarou ter no momento do teste. Guardado no
@@ -383,10 +389,9 @@ export async function salvarFonte({
         // precisar reabrir o sitemap a cada renderizacao.
         produtosNoSite: produtosNoSite ?? null,
         produtosNoSiteParcial: produtosNoSiteParcial ?? false,
-        // Cadastrada PAUSADA: a coleta periodica nao faz parte desta etapa, e uma
-        // fonte que comeca a varrer sozinha ao ser salva seria uma surpresa.
+        // A fonte nasce pausada. O operador decide quando inicia a coleta.
         ativa: false,
-        proximaVarreduraEm: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000),
+        proximaVarreduraEm: null,
       },
     });
 
@@ -398,6 +403,83 @@ export async function salvarFonte({
   revalidatePath("/mercados");
   revalidatePath("/cadastros", "layout");
   return { ok: true, id: fonte.id };
+}
+
+export async function salvarFonte(dados) {
+  return salvarFonteInterna(dados);
+}
+
+/** Cadastro por catalogo: valida e guarda os mesmos arquivos aprovados no teste. */
+export async function salvarFonteComArquivos(dados) {
+  const arquivos = dados.getAll("arquivo").filter((item) => typeof item !== "string");
+  const nome = String(dados.get("nome") ?? "").trim();
+  const tipo = String(dados.get("tipo") ?? "");
+  if (tipo !== "FORNECEDOR" || arquivos.length === 0) {
+    return { ok: false, erro: "Selecione um catalogo de fornecedor para salvar." };
+  }
+
+  const originais = [];
+  let siteSugerido = null;
+  for (const arquivo of arquivos) {
+    try {
+      const bytes = new Uint8Array(await arquivo.arrayBuffer());
+      const leitura = await lerArquivo({ nome: arquivo.name, bytes, fonte: { name: nome, type: tipo } });
+      if (leitura.produtos.length === 0) {
+        return { ok: false, erro: `Nenhum produto reconhecido em ${arquivo.name}.` };
+      }
+      originais.push({ nome: arquivo.name, bytes });
+      siteSugerido ??= leitura.siteSugerido;
+    } catch (erro) {
+      return { ok: false, erro: `Falha ao ler ${arquivo.name}: ${erro?.message ?? erro}` };
+    }
+  }
+
+  const urlInformada = String(dados.get("url") ?? "").trim();
+  const slug = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const url = urlInformada || siteSugerido || `https://catalogo-${slug}.invalid`;
+  let dominio;
+  try {
+    dominio = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname;
+  } catch {
+    return { ok: false, erro: "Endereco invalido." };
+  }
+  const secao = String(dados.get("secao") ?? "").trim() || null;
+  const existente = await prisma.fonteColeta.findFirst({ where: { dominio, prefixoUrl: secao } });
+  if (existente && existente.tipo === tipo && existente.nome.trim().toLowerCase() === nome.toLowerCase()) {
+    try {
+      const atualizado = await enviarArquivosDaFonte(existente.id, dados);
+      return atualizado.ok ? { ok: true, id: existente.id, atualizado: true } : atualizado;
+    } catch (erro) {
+      return { ok: false, erro: `Nao foi possivel atualizar o catalogo: ${erro?.message ?? erro}` };
+    }
+  }
+  let salvo;
+  try {
+    salvo = await salvarFonteInterna({
+      nome, url, tipo, secao,
+      resumo: String(dados.get("resumo") ?? "") || null,
+      produtosNoSite: Number(dados.get("produtosNoSite")) || null,
+      produtosNoSiteParcial: false,
+    }, { arquivoValidado: true });
+  } catch (erro) {
+    return { ok: false, erro: `Falha ao cadastrar a fonte: ${erro?.message ?? erro}` };
+  }
+  if (!salvo.ok) return salvo;
+
+  try {
+    const listaArquivos = await guardarArquivosOriginais(dominio, originais);
+    await prisma.fonteColeta.update({
+      where: { id: salvo.id },
+      data: { listaArquivos, listaEnviadaEm: new Date() },
+    });
+    revalidatePath("/mercados/fontes");
+    return salvo;
+  } catch (erro) {
+    await prisma.fonteColeta.delete({ where: { id: salvo.id } }).catch(() => {});
+    await apagarArquivosOriginais(dominio).catch(() => {});
+    return { ok: false, erro: `Nao foi possivel guardar o catalogo: ${erro?.message ?? erro}` };
+  }
 }
 
 /**
@@ -476,21 +558,8 @@ export async function alternarFonte(id) {
     where: { id },
     data: {
       ativa: retomando,
-      /*
-        RETOMAR TAMBEM DEVOLVE A DATA DA PROXIMA VARREDURA.
-
-        A fonte nasce pausada com `proximaVarreduraEm` a cem anos, para que
-        salvar um cadastro nao dispare varredura sozinho. Mas "Retomar" so
-        ligava o `ativa` e deixava a data la em 2126 — e o ciclo automatico
-        filtra por ela. Resultado: fonte retomada aparecia "Ativa" na tela e
-        nunca era varrida. Foi o que aconteceu com a Fortek e a Nightech, que
-        passaram a sessao inteira ativas e com "ultima varredura: nunca"
-        enquanto as cinco concorrentes rodavam.
-
-        Pausar nao mexe na data: quem pausa quer parar, e a promessa da tela e
-        que pausar mantem tudo como esta.
-      */
-      ...(retomando ? { proximaVarreduraEm: new Date() } : {}),
+      // Retomar habilita a fonte, mas nao agenda coleta automatica.
+      proximaVarreduraEm: null,
     },
   });
 
@@ -507,6 +576,7 @@ export async function alternarFonte(id) {
  * enfileirada, ela viraria uma varredura "falhou: fonte pausada" na fila.
  */
 export async function varrerFonteAgora(fonteId) {
+  if (coletaPausada()) return { ok: false, erro: "Varredura pausada. Clique em Continuar antes de atualizar." };
   const fonte = await prisma.fonteColeta.findUnique({
     where: { id: fonteId },
     select: { id: true, nome: true, ativa: true, robotsPermite: true },
@@ -696,9 +766,12 @@ export async function apagarArquivosAcao(fonteId) {
   // Descarta so os arquivos. Os produtos que vieram da lista continuam no banco:
   // apagar custaria codigo, descricao e fotos por causa de uma lista trocada.
   await apagarArquivosOriginais(fonte.dominio);
+  const permissao = fonte.dominio.endsWith(".invalid")
+    ? { permitido: false }
+    : await podeVisitar(`https://${fonte.dominio}/`);
   await prisma.fonteColeta.update({
     where: { id: fonte.id },
-    data: { listaArquivos: Prisma.DbNull, listaEnviadaEm: null },
+    data: { listaArquivos: Prisma.DbNull, listaEnviadaEm: null, robotsPermite: permissao.permitido, ativa: permissao.permitido && fonte.ativa },
   });
   revalidatePath("/mercados/fontes");
   return { ok: true };
@@ -789,6 +862,9 @@ export async function detalhePagina(id) {
  * continuam sendo uma varredura so.
  */
 export async function atualizarTabelas(fonteId) {
+  if (coletaPausada()) {
+    return { ok: false, erro: "Varredura pausada. Clique em Continuar antes de atualizar." };
+  }
   const fontes = await prisma.fonteColeta.findMany({
     where: fonteId ? { id: fonteId } : { ativa: true, robotsPermite: true },
     select: { id: true, nome: true },
@@ -846,6 +922,7 @@ export async function situacaoVarredura() {
   const semWorker = !worker && jobs.length > 0;
 
   return {
+    pausada: coletaPausada(),
     emAndamento: jobs.length > 0,
     semWorker,
     worker: worker ? { paralelo: worker.paralelo, iniciadoEm: worker.iniciadoEm.getTime() } : null,
@@ -877,4 +954,11 @@ export async function situacaoVarredura() {
         }
       : null,
   };
+}
+
+export async function alternarPausaColeta() {
+  const pausada = !coletaPausada();
+  await definirPausaColeta(pausada);
+  revalidatePath("/mercados");
+  return { ok: true, pausada };
 }

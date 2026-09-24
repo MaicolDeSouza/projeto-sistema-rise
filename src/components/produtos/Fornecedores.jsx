@@ -1,6 +1,6 @@
 "use client";
 
-import { useImperativeHandle, useState, useTransition } from "react";
+import { useEffect, useImperativeHandle, useState, useTransition } from "react";
 import {
   CheckSquare,
   ExternalLink,
@@ -13,9 +13,13 @@ import {
 
 import {
   definirFornecedorPadrao,
+  consultarEstoqueFornecedores,
+  listarFornecedores,
   removerFornecedorDoProduto,
   salvarFornecedorDoProduto,
 } from "@/app/produtos/acoes";
+import CadastroRapidoFornecedor from "./CadastroRapidoFornecedor";
+import BuscaColetadoPorCodigo from "./BuscaColetadoPorCodigo";
 
 const moeda = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -94,6 +98,7 @@ export default function Fornecedores({
   produtoId,
   vinculos,
   catalogo,
+  ativo = false,
   aoFalhar,
   modoRascunho = false,
   aoMudarRascunho,
@@ -103,6 +108,22 @@ export default function Fornecedores({
   const [editando, setEditando] = useState(null); // id do vinculo, ou "novo"
   const [rascunho, setRascunho] = useState(VAZIO);
   const [erros, setErros] = useState({});
+  const [catalogoAtual, setCatalogoAtual] = useState(catalogo);
+  const [estoques, setEstoques] = useState({});
+  const [popupNome, setPopupNome] = useState(null);
+
+  useEffect(() => {
+    if (!ativo) return;
+    let cancelado = false;
+    Promise.all([listarFornecedores(), consultarEstoqueFornecedores(vinculos)])
+      .then(([cadastros, saldos]) => {
+        if (cancelado) return;
+        setCatalogoAtual(cadastros);
+        setEstoques(saldos.ok ? saldos.itens : {});
+      })
+      .catch(() => { if (!cancelado) setEstoques({}); });
+    return () => { cancelado = true; };
+  }, [ativo, vinculos]);
 
   function abrirNovo() {
     setRascunho(VAZIO);
@@ -144,15 +165,24 @@ export default function Fornecedores({
     };
   }
 
-  function salvar() {
+  function salvarDados(dadosDoVinculo, cadastradoAgora = false) {
+    if (!dadosDoVinculo.nome.trim()) {
+      setErros({ nome: "Informe o fornecedor." });
+      return;
+    }
+    if (!cadastradoAgora && !catalogoAtual.some((item) => item.nome.toLocaleLowerCase("pt-BR") === dadosDoVinculo.nome.trim().toLocaleLowerCase("pt-BR"))) {
+      setErros({ nome: "Fornecedor nao cadastrado. Complete o cadastro rapido." });
+      setPopupNome(dadosDoVinculo.nome.trim());
+      return;
+    }
     if (modoRascunho) {
-      const erros = validarRascunho(rascunho);
+      const erros = validarRascunho(dadosDoVinculo);
       if (Object.keys(erros).length > 0) {
         setErros(erros);
         return;
       }
 
-      const dados = paraVinculo(rascunho);
+      const dados = paraVinculo(dadosDoVinculo);
       aoMudarRascunho((atual) =>
         editando === "novo"
           ? [...atual, { id: crypto.randomUUID(), ...dados, padrao: atual.length === 0 }]
@@ -167,7 +197,7 @@ export default function Fornecedores({
       const resultado = await salvarFornecedorDoProduto(
         produtoId,
         editando === "novo" ? null : editando,
-        rascunho,
+        dadosDoVinculo,
       );
 
       if (resultado.ok) {
@@ -175,9 +205,14 @@ export default function Fornecedores({
         setErros({});
       } else {
         setErros(resultado.erros ?? {});
+        if (resultado.cadastroNecessario) setPopupNome(dadosDoVinculo.nome.trim());
         if (resultado.erro) aoFalhar?.(resultado.erro);
       }
     });
+  }
+
+  function salvar() {
+    salvarDados(rascunho);
   }
 
   /**
@@ -188,6 +223,14 @@ export default function Fornecedores({
    */
   function adicionarSugestao(item) {
     const dados = dadosDaSugestao(item);
+
+    if (!catalogoAtual.some((cadastro) => cadastro.nome.toLocaleLowerCase("pt-BR") === dados.nome.trim().toLocaleLowerCase("pt-BR"))) {
+      setRascunho(dados);
+      setErros({ nome: "Fornecedor nao cadastrado. Complete o cadastro rapido." });
+      setEditando("novo");
+      setPopupNome(dados.nome.trim());
+      return;
+    }
 
     if (modoRascunho) {
       const erros = validarRascunho(dados);
@@ -272,6 +315,7 @@ export default function Fornecedores({
               <th className="px-3 py-2 font-medium">Descricao no fornecedor</th>
               <th className="px-3 py-2 font-medium">Codigo no fornecedor</th>
               <th className="px-3 py-2 font-medium">Preco de custo</th>
+              <th className="px-3 py-2 font-medium">Estoque fornecedor</th>
               <th className="px-3 py-2 font-medium">Link</th>
               <th className="px-3 py-2 font-medium">Padrao</th>
               <th className="w-20 px-3 py-2" />
@@ -281,7 +325,7 @@ export default function Fornecedores({
           <tbody className="divide-y divide-borda">
             {vinculos.length === 0 && editando !== "novo" && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-suave">
+                <td colSpan={8} className="px-3 py-6 text-center text-suave">
                   Nenhum fornecedor cadastrado para este produto.
                 </td>
               </tr>
@@ -292,7 +336,8 @@ export default function Fornecedores({
                 <LinhaEdicao
                   key={vinculo.id}
                   campo={campo}
-                  catalogo={catalogo}
+                  catalogo={catalogoAtual}
+                  aoEscolherCodigo={(item) => setRascunho(dadosDaSugestao(item))}
                   erros={erros}
                   pendente={pendente}
                   aoSalvar={salvar}
@@ -330,6 +375,12 @@ export default function Fornecedores({
                     {vinculo.precoCusto === null
                       ? "—"
                       : moeda.format(vinculo.precoCusto)}
+                  </td>
+                  <td className="px-3 py-2 tabular-nums">
+                    {estoques[vinculo.id]?.quantidade == null ? <span className="text-suave">—</span> : `${estoques[vinculo.id].quantidade} un.`}
+                    {estoques[vinculo.id]?.aChegar > 0 && (
+                      <div className="text-[11px] text-amber-700">+{estoques[vinculo.id].aChegar} a chegar</div>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     {vinculo.link ? (
@@ -403,7 +454,8 @@ export default function Fornecedores({
             {editando === "novo" && (
               <LinhaEdicao
                 campo={campo}
-                catalogo={catalogo}
+                catalogo={catalogoAtual}
+                aoEscolherCodigo={(item) => setRascunho(dadosDaSugestao(item))}
                 erros={erros}
                 pendente={pendente}
                 aoSalvar={salvar}
@@ -429,15 +481,30 @@ export default function Fornecedores({
         O custo do produto vem do fornecedor marcado como padrao.
       </p>
 
+      {popupNome !== null && (
+        <CadastroRapidoFornecedor
+          key={popupNome}
+          nomeInicial={popupNome}
+          aoFechar={() => setPopupNome(null)}
+          aoCadastrar={(cadastro) => {
+            setCatalogoAtual((atual) => [...atual, cadastro]);
+            setPopupNome(null);
+            const dados = { ...rascunho, nome: cadastro.nome };
+            setRascunho(dados);
+            salvarDados(dados, true);
+          }}
+        />
+      )}
+
     </div>
   );
 }
 
-function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar }) {
+function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, aoEscolherCodigo }) {
   return (
     <tr className="divide-x divide-borda bg-fundo/40">
       <td className="px-3 py-2">
-        {/* Lista dos ja cadastrados, mas aceita nome novo digitado */}
+        {/* O nome novo abre o cadastro rapido antes de gravar o vinculo. */}
         <input list="catalogo-fornecedores" {...campo("nome")} />
         <datalist id="catalogo-fornecedores">
           {catalogo.map((f) => (
@@ -452,7 +519,10 @@ function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar })
         <input {...campo("descricao")} />
       </td>
       <td className="px-3 py-2">
-        <input {...campo("codigo")} />
+        <div className="flex items-center gap-1">
+          <input {...campo("codigo")} />
+          <BuscaColetadoPorCodigo codigo={campo("codigo").value} tipo="FORNECEDOR" aoEscolher={aoEscolherCodigo} />
+        </div>
       </td>
       <td className="px-3 py-2">
         <input type="number" step="0.01" min="0" {...campo("precoCusto")} />
@@ -460,6 +530,7 @@ function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar })
           <p className="mt-1 text-[11px] text-red-700">{erros.precoCusto}</p>
         )}
       </td>
+      <td className="px-3 py-2 text-xs text-suave">—</td>
       <td className="px-3 py-2" colSpan={2}>
         <input placeholder="https://..." {...campo("link")} />
         {erros.link && (

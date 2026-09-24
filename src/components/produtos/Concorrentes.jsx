@@ -1,6 +1,6 @@
 "use client";
 
-import { useImperativeHandle, useState, useTransition } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, useTransition } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -13,9 +13,13 @@ import {
 
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import {
+  consultarSituacaoConcorrentes,
+  listarConcorrentesCadastrados,
   removerConcorrenteDoProduto,
   salvarConcorrenteDoProduto,
 } from "@/app/produtos/acoes";
+import BuscaColetadoPorCodigo from "./BuscaColetadoPorCodigo";
+import CadastroRapidoConcorrente from "./CadastroRapidoConcorrente";
 
 const moeda = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -27,7 +31,7 @@ const percentual = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 1,
 });
 
-const VAZIO = { fonte: "", nome: "", codigo: "", preco: "", url: "" };
+const VAZIO = { fonte: "", nome: "", codigo: "", preco: "", url: "", produtoColetadoId: null };
 
 /** Mesma regra de src/app/produtos/acoes.js: so http/https vira link. */
 function ehUrlSegura(valor) {
@@ -109,6 +113,20 @@ function Diferenca({ precoProduto, precoConcorrente }) {
   );
 }
 
+function EstoqueConcorrente({ situacao }) {
+  if (!situacao) return <span className="text-suave">Nao informado</span>;
+  if (situacao.quantidade === 0) return <span className="font-medium text-red-700">Sem estoque</span>;
+  if (!situacao.ativo) return <span className="text-suave">Fora da coleta</span>;
+  if (situacao.quantidade > 0) return (
+    <span className="font-medium text-emerald-700">Em estoque <span className="block font-normal text-suave">{situacao.quantidade} un.</span></span>
+  );
+  if (situacao.estoqueStatus === "OUT_OF_STOCK") return <span className="font-medium text-red-700">Sem estoque</span>;
+  if (situacao.estoqueStatus === "AVAILABLE" || situacao.estoqueStatus === "IN_STOCK") {
+    return <span className="font-medium text-emerald-700">Em estoque</span>;
+  }
+  return <span className="text-suave">Nao informado</span>;
+}
+
 /**
  * Concorrentes do produto — marcados na lupa do Nome ou adicionados a mao
  * (pedido do dono em 18/09/2026, no mesmo desenho de Fornecedores.jsx).
@@ -143,11 +161,35 @@ export default function Concorrentes({
   aoMudarRascunho,
   sugestoes = [],
   precoProduto,
+  ativo = false,
 }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [editando, setEditando] = useState(null); // id do vinculo, "novo", ou null
   const [rascunho, setRascunho] = useState(VAZIO);
   const [erros, setErros] = useState({});
+  const [catalogo, setCatalogo] = useState([]);
+  const [situacoes, setSituacoes] = useState({});
+  const [popupNome, setPopupNome] = useState(null);
+  const filaSugestoes = useRef([]);
+  const sugestaoAguardando = useRef(null);
+  const cadastradosAgora = useRef(new Set());
+
+  useEffect(() => {
+    let cancelado = false;
+    listarConcorrentesCadastrados().then((cadastros) => {
+      if (!cancelado) setCatalogo(cadastros);
+    }).catch(() => {});
+    return () => { cancelado = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!ativo) return;
+    let cancelado = false;
+    consultarSituacaoConcorrentes(vinculos.map((item) => item.produtoColetadoId).filter(Boolean))
+      .then((situacao) => { if (!cancelado) setSituacoes(situacao.ok ? situacao.itens : {}); })
+      .catch(() => { if (!cancelado) setSituacoes({}); });
+    return () => { cancelado = true; };
+  }, [ativo, vinculos]);
 
   function abrirNovo() {
     setRascunho(VAZIO);
@@ -162,6 +204,7 @@ export default function Concorrentes({
       codigo: item.codigo ?? "",
       preco: item.preco ?? "",
       url: item.url ?? "",
+      produtoColetadoId: null,
     });
     setErros({});
     setEditando(item.id);
@@ -169,6 +212,11 @@ export default function Concorrentes({
 
   /** Rascunho (strings) -> campos que o servidor espera (`*Manual`, nulos no lugar de ""). */
   function dadosParaServidor(dados) {
+    if (dados.produtoColetadoId) return {
+      produtoColetadoId: dados.produtoColetadoId,
+      fonteManual: null, nomeManual: null, codigoManual: null,
+      precoManual: null, linkManual: null,
+    };
     return {
       produtoColetadoId: null,
       fonteManual: dados.fonte.trim(),
@@ -179,22 +227,27 @@ export default function Concorrentes({
     };
   }
 
-  function salvar() {
-    const validacao = validar(rascunho);
+  function salvarDados(dados, cadastradoAgora = false) {
+    const validacao = validar(dados);
     if (Object.keys(validacao).length > 0) {
       setErros(validacao);
       return;
     }
+    if (!cadastradoAgora && !catalogo.some((item) => item.nome.toLocaleLowerCase("pt-BR") === dados.fonte.trim().toLocaleLowerCase("pt-BR"))) {
+      setErros({ fonte: "Concorrente nao cadastrado. Complete o cadastro rapido." });
+      setPopupNome(dados.fonte.trim());
+      return;
+    }
 
     if (modoRascunho) {
-      const servidor = dadosParaServidor(rascunho);
+      const servidor = dadosParaServidor(dados);
       const vinculo = {
-        manual: true,
-        fonte: servidor.fonteManual,
-        nome: servidor.nomeManual,
-        codigo: servidor.codigoManual,
-        preco: servidor.precoManual,
-        url: servidor.linkManual,
+        manual: !dados.produtoColetadoId,
+        fonte: dados.fonte.trim(),
+        nome: dados.nome.trim() || null,
+        codigo: dados.codigo.trim() || null,
+        preco: dados.preco === "" ? null : Number(dados.preco),
+        url: dados.url.trim() || null,
         ...servidor,
       };
       aoMudarRascunho((atual) =>
@@ -211,7 +264,7 @@ export default function Concorrentes({
       const resultado = await salvarConcorrenteDoProduto(
         produtoId,
         editando === "novo" ? null : editando,
-        dadosParaServidor(rascunho),
+        dadosParaServidor(dados),
       );
 
       if (resultado.ok) {
@@ -219,9 +272,23 @@ export default function Concorrentes({
         setErros({});
       } else {
         setErros(resultado.erros ?? {});
+        if (resultado.cadastroNecessario) setPopupNome(resultado.nomeConcorrente ?? dados.fonte.trim());
         if (resultado.erro) aoFalhar?.(resultado.erro);
       }
     });
+  }
+
+  function salvar() {
+    salvarDados(rascunho);
+  }
+
+  function escolherCodigo(item) {
+    setRascunho({
+      fonte: item.fonte ?? "", nome: item.nome ?? "", codigo: item.codigo ?? "",
+      preco: item.preco == null ? "" : String(item.preco),
+      url: item.url ?? "", produtoColetadoId: item.id,
+    });
+    setErros({});
   }
 
   /**
@@ -229,7 +296,31 @@ export default function Concorrentes({
    * linha de edicao, pedido do dono em 18/09/2026. `item` vem de
    * `buscaPorPalavras.js`: `item.id` e o id do ProdutoColetado.
    */
-  function adicionarSugestao(item) {
+  function proximaSugestaoSemCadastro() {
+    while (filaSugestoes.current.length) {
+      const item = filaSugestoes.current.shift();
+      if (cadastradosAgora.current.has(item.fonte.trim().toLocaleLowerCase("pt-BR"))) {
+        adicionarSugestao(item, true);
+        continue;
+      }
+      sugestaoAguardando.current = item;
+      escolherCodigo({ ...item, preco: item.precoNormal });
+      setEditando("novo");
+      setErros({ fonte: "Concorrente nao cadastrado. Complete o cadastro rapido." });
+      setPopupNome(item.fonte);
+      return;
+    }
+    sugestaoAguardando.current = null;
+  }
+
+  function adicionarSugestao(item, cadastradoAgora = false) {
+    const chave = item.fonte.trim().toLocaleLowerCase("pt-BR");
+    if (!cadastradoAgora && !cadastradosAgora.current.has(chave)
+      && !catalogo.some((cadastro) => cadastro.nome.toLocaleLowerCase("pt-BR") === chave)) {
+      filaSugestoes.current.push(item);
+      if (!sugestaoAguardando.current) proximaSugestaoSemCadastro();
+      return;
+    }
     if (modoRascunho) {
       aoMudarRascunho((atual) => [
         ...atual,
@@ -294,7 +385,9 @@ export default function Concorrentes({
   const campo = (chave) => ({
     value: rascunho[chave],
     onChange: (evento) =>
-      setRascunho((atual) => ({ ...atual, [chave]: evento.target.value })),
+      setRascunho((atual) => ({
+        ...atual, [chave]: evento.target.value, produtoColetadoId: null,
+      })),
     className: `w-full rounded border px-2 py-1.5 text-sm focus:outline-none ${
       erros[chave] ? "border-red-400" : "border-borda focus:border-acento"
     }`,
@@ -325,6 +418,12 @@ export default function Concorrentes({
                   <BolhaDeAjuda texto={COMO_MEDE_A_DIFERENCA} variante="inline" />
                 </span>
               </th>
+              <th className="w-28 px-3 py-2 font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Estoque
+                  <BolhaDeAjuda texto="Mostra se o concorrente tem estoque. Se informar a quantidade, zero significa sem estoque; quando nao informa, usamos a disponibilidade declarada pela loja." variante="inline" />
+                </span>
+              </th>
               <th className="px-3 py-2 font-medium">Link</th>
               <th className="w-16 px-3 py-2" />
             </tr>
@@ -333,7 +432,7 @@ export default function Concorrentes({
           <tbody className="divide-y divide-borda">
             {vinculosOrdenados.length === 0 && editando !== "novo" && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-suave">
+                <td colSpan={8} className="px-3 py-6 text-center text-suave">
                   Nenhum concorrente marcado ou adicionado.
                 </td>
               </tr>
@@ -346,6 +445,7 @@ export default function Concorrentes({
                   campo={campo}
                   erros={erros}
                   pendente={pendente}
+                  aoEscolherCodigo={escolherCodigo}
                   aoSalvar={salvar}
                   aoCancelar={() => setEditando(null)}
                 />
@@ -371,6 +471,9 @@ export default function Concorrentes({
                   </td>
                   <td className="px-3 py-2">
                     <Diferenca precoProduto={precoProduto} precoConcorrente={item.preco} />
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    <EstoqueConcorrente situacao={situacoes[item.produtoColetadoId]} />
                   </td>
                   <td className="px-3 py-2">
                     {item.url ? (
@@ -420,6 +523,7 @@ export default function Concorrentes({
                 campo={campo}
                 erros={erros}
                 pendente={pendente}
+                aoEscolherCodigo={escolherCodigo}
                 aoSalvar={salvar}
                 aoCancelar={() => setEditando(null)}
               />
@@ -438,11 +542,39 @@ export default function Concorrentes({
           Adicionar concorrente
         </button>
       )}
+      {popupNome !== null && (
+        <CadastroRapidoConcorrente
+          key={popupNome}
+          nomeInicial={popupNome}
+          nomeFixo={Boolean(rascunho.produtoColetadoId)}
+          aoFechar={() => {
+            setPopupNome(null);
+            sugestaoAguardando.current = null;
+            filaSugestoes.current = [];
+          }}
+          aoCadastrar={(cadastro) => {
+            setCatalogo((atual) => [...atual, cadastro]);
+            cadastradosAgora.current.add(cadastro.nome.trim().toLocaleLowerCase("pt-BR"));
+            setPopupNome(null);
+            if (sugestaoAguardando.current) {
+              const item = sugestaoAguardando.current;
+              sugestaoAguardando.current = null;
+              adicionarSugestao(item, true);
+              setEditando(null);
+              proximaSugestaoSemCadastro();
+              return;
+            }
+            const dados = { ...rascunho, fonte: cadastro.nome };
+            setRascunho(dados);
+            salvarDados(dados, true);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function LinhaEdicao({ campo, erros, pendente, aoSalvar, aoCancelar }) {
+function LinhaEdicao({ campo, erros, pendente, aoSalvar, aoCancelar, aoEscolherCodigo }) {
   return (
     <tr className="divide-x divide-borda bg-fundo/40">
       <td className="px-3 py-2">
@@ -453,13 +585,16 @@ function LinhaEdicao({ campo, erros, pendente, aoSalvar, aoCancelar }) {
         <input placeholder="Produto" {...campo("nome")} />
       </td>
       <td className="px-3 py-2">
-        <input placeholder="Codigo" {...campo("codigo")} />
+        <div className="flex items-center gap-1">
+          <input placeholder="Codigo" {...campo("codigo")} />
+          <BuscaColetadoPorCodigo codigo={campo("codigo").value} tipo="CONCORRENTE" aoEscolher={aoEscolherCodigo} />
+        </div>
       </td>
       <td className="px-3 py-2">
         <input type="number" step="0.01" min="0" placeholder="0,00" {...campo("preco")} />
         {erros.preco && <p className="mt-1 text-[11px] text-red-700">{erros.preco}</p>}
       </td>
-      <td className="px-3 py-2" colSpan={2}>
+      <td className="px-3 py-2" colSpan={3}>
         <input placeholder="https://..." {...campo("url")} />
         {erros.url && <p className="mt-1 text-[11px] text-red-700">{erros.url}</p>}
       </td>
