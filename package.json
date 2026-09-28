@@ -21,6 +21,8 @@
     "teste:cadastros": "node scripts/teste-cadastros.js",
     "teste:imagens": "node scripts/teste-imagens.js",
     "teste:extracao": "node scripts/teste-extracao.js",
+    "teste:indicadores": "node scripts/teste-indicadores.js",
+    "teste:robocore": "node scripts/teste-robocore.js",
     "teste:svg": "node scripts/teste-svg.js",
     "teste:cotacao": "node scripts/teste-cotacao.js",
     "teste:fonte": "node scripts/testar-fonte.js",

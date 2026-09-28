@@ -21,7 +21,9 @@ const { normalizarPagina, ehProdutoValido } = await import(
   "../src/lib/coleta/normalizar.js"
 );
 const { conciliar, quedaSuspeita } = await import("../src/lib/coleta/conciliar.js");
-const { produtoDoWooCommerce } = await import("../src/lib/coleta/woocommerce.js");
+const { produtoDoWooCommerce, colherWooCommerce } = await import("../src/lib/coleta/woocommerce.js");
+const { precosDaForseti } = await import("../src/lib/coleta/forseti.js");
+const { readFile } = await import("node:fs/promises");
 
 let falhas = 0;
 
@@ -52,6 +54,49 @@ conferir("WooCommerce decodifica o nome", woo.name, "Placa – teste");
 conferir("WooCommerce converte centavos em reais", woo.prices, { normal: 129.9, promotional: 109.9, comImpostos: null });
 conferir("WooCommerce preserva estoque e atributos", [woo.stock.status, woo.specifications], ["OUT_OF_STOCK", [{ nome: "Cor", valor: "Azul" }]]);
 conferir("WooCommerce nao inventa preco zerado", produtoDoWooCommerce({ prices: { price: "0", regular_price: "0", currency_minor_unit: 2 } }, "https://loja.exemplo.com", { id: "woocommerce" }).prices.normal, null);
+
+console.log("\n— Forseti: Store API, ficha na descricao e dois paineis de PIX —");
+const lerFixture = (nome) => readFile(new URL(`./fixtures/${nome}`, import.meta.url), "utf8");
+const forsetiItem = JSON.parse(await lerFixture("forseti-produto.json"));
+const coposItem = JSON.parse(await lerFixture("forseti-copos.json"));
+const forsetiHtml = await lerFixture("forseti-preco.html");
+const coposHtml = await lerFixture("forseti-copos-preco.html");
+const origemForseti = "https://loja.forsetisolucoes.com.br";
+const plataformaWoo = { id: "woocommerce" };
+const parafuso = produtoDoWooCommerce(forsetiItem, origemForseti, plataformaWoo, forsetiHtml);
+conferir("parafuso: normal e PIX lido da pagina", parafuso.prices, { normal: 25, promotional: 22.5, comImpostos: null });
+conferir("parafuso: todas as 12 especificacoes, sem marketing", parafuso.specifications.length, 12);
+conferir("parafuso: comprimento da rosca", espec(parafuso, "Comprimento da rosca"), "40 mm");
+conferir("atributos da API sao preservados sem duplicar a descricao", produtoDoWooCommerce({ ...forsetiItem, attributes: [{ name: "Rosca", terms: [{ name: "M24" }] }] }, origemForseti, plataformaWoo).specifications.length, 12);
+conferir("copos: link externo da API recebe PIX da Loja Integrada", produtoDoWooCommerce(coposItem, origemForseti, plataformaWoo, coposHtml).prices, { normal: 125, promotional: 112.5, comImpostos: null });
+conferir("sem pagina nao presume desconto", produtoDoWooCommerce(forsetiItem, origemForseti, plataformaWoo).prices.promotional, null);
+conferir("nao aplica painel da Forseti a outro dominio", precosDaForseti(forsetiHtml, "https://exemplo.com/produto"), null);
+conferir("nao confunde parcelas com PIX", precosDaForseti(coposHtml.replace(/via Pix/g, "no cartao"), coposItem.permalink), null);
+conferir("sem desconto no principal nao usa relacionado", precosDaForseti(coposHtml.replace(/via Pix/g, "no cartao") + coposHtml, coposItem.permalink), null);
+for (const [item, painel, esperado] of [[forsetiItem, forsetiHtml, 22.5], [coposItem, coposHtml, 112.5]]) {
+  const html = `<script type="application/ld+json">${JSON.stringify({ "@type": "Product", name: item.name, offers: { "@type": "Offer", price: Number(item.prices.price) / 100 } })}</script>${painel}`;
+  conferir(`leitura HTML tambem encontra PIX de ${esperado}`, normalizarPagina({ html, url: item.permalink }).produtos[0].prices.promotional, esperado);
+}
+const chamadasWoo = [];
+const guardadosWoo = [];
+const entradaWoo = {
+  catalogo: { url: `${origemForseti}/wp-json/wc/store/v1/products` }, origem: origemForseti,
+  limite: 2, orcamento: 3, fonte: { type: "CONCORRENTE" }, plataforma: plataformaWoo,
+  aoGuardar: (produto) => guardadosWoo.push(produto),
+  buscar: async (url) => {
+    chamadasWoo.push(url);
+    return { ok: true, corpo: url.includes("/wp-json/") ? JSON.stringify([forsetiItem, coposItem]) : url === forsetiItem.permalink ? forsetiHtml : coposHtml, cabecalhos: { "x-wp-total": "2" } };
+  },
+};
+const colheitaWoo = await colherWooCommerce(entradaWoo);
+conferir("coleta consulta catalogo e as duas paginas antes de salvar", [colheitaWoo.erro, colheitaWoo.visitas, chamadasWoo.length, guardadosWoo.map(p => p.prices.promotional)], [null, 3, 3, [22.5, 112.5]]);
+chamadasWoo.length = 0;
+await colherWooCommerce({ ...entradaWoo, jaColetadas: new Set([forsetiItem.permalink.replace(/\/+$/, ""), coposItem.permalink.replace(/\/+$/, "")]) });
+conferir("retomada nao reabre produtos ja salvos", chamadasWoo.length, 1);
+const limitadaWoo = await colherWooCommerce({ ...entradaWoo, orcamento: 1 });
+conferir("orcamento nao salva produto antes de conferir PIX", [limitadaWoo.produtos.length, Boolean(limitadaWoo.erro), limitadaWoo.visitas], [0, true, 1]);
+const falhouWoo = await colherWooCommerce({ ...entradaWoo, buscar: async (url) => url.includes("/wp-json/") ? { ok: true, corpo: JSON.stringify([forsetiItem]) } : { ok: false, erro: "HTTP 503" } });
+conferir("falha na pagina fica retomavel sem salvar preco incompleto", [falhouWoo.produtos.length, falhouWoo.erro], [0, "HTTP 503"]);
 
 // ---------------------------------------------------------------------------
 console.log("\n— preco em formato brasileiro —");

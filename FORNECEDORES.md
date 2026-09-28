@@ -1,6 +1,7 @@
 # Fornecedores com conta
 
-Lista de **nomes**, mantida a pedido do dono a partir de 01/09/2026. São **32 contas**.
+Lista de **nomes**, mantida a pedido do dono a partir de 01/09/2026. Eram **32 contas**; as
+marcadas "ok" (já cadastradas como fonte) saem da lista, e ficam **22** ainda por ligar.
 
 **Este arquivo não é código e não é importado por nada.** Não há `export`, não há
 `import` que aponte para cá, e nenhum leitor de `src/lib/coleta/` consulta esta lista.
@@ -19,10 +20,7 @@ cara de confirmado que não foi conferido; os demais ganham o seu na implementa�
 | --- | --- | --- | --- |
 | 1 | PoliComp | — | |
 | 2 | Eletropeças | — | |
-ok| 3 | Eletrus | — | |
 | 4 | Eletrônica Central | — | |
-ok| 5 | Mamuti Eletrônica | — | |
-ok| 6 | Savarati | — | |
 | 7 | Patola | — | |
 | 8 | Neoyama | — | |
 | 9 | ImoBrás | — | |
@@ -31,19 +29,12 @@ ok| 6 | Savarati | — | |
 | 12 | Megamix | — | |
 | 13 | OBR | — | |
 | 14 | Prado Automação | — | |
-ok| 15 | Santana Import | — | catálogo em PDF já lido por `arquivos.js`; falta cadastrar como fonte |
 | 16 | Tespo | — | esteiras |
 | 17 | Unitel | — | transformadores |
-ok| 18 | WJ Componentes | — | |
 | 19 | Metaltex | — | |
 | 20 | Lukbox / Circuitronix | — | componentes eletrônicos; **um nome ou dois, a confirmar** |
-ok| 21 | Easytronics | https://www.easytronics.com.br/ | |
 | 22 | Eletrodex | https://www.eletrodex.net/ | |
-ok| 23 | Curto Circuito | https://curtocircuito.com.br/ | |
-| 24 | Ryndack Componentes | https://www.ryndackcomponentes.com.br/ | |
-ok| 25 | Solda Fria | https://www.soldafria.com.br/ | **OpenCart**, plataforma já conferida nesta loja em 30/08/2026 |
 | 26 | Cromatek | https://cromatek.com.br/ | |
-OK| 27 | PiscaLED | https://www.piscaled.com.br/ | |
 | 28 | Oceantech Automation | https://oceantech-automation.com.br/ | |
 | 29 | Grupo MPC Distribuidora | https://grupompcdistribuidora.com.br/ | |
 | 30 | Sibratec | https://www.sibratec.ind.br/ | |

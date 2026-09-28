@@ -1,5 +1,6 @@
 import {
   BookUser,
+  ChartNoAxesCombined,
   Boxes,
   LayoutDashboard,
   Megaphone,
@@ -34,6 +35,13 @@ export const blocos = [
     rotulo: "Painel",
     icone: LayoutDashboard,
     resumo: "Visao geral da operacao",
+    pronto: true,
+  },
+  {
+    href: "/indicadores",
+    rotulo: "Indicadores",
+    icone: ChartNoAxesCombined,
+    resumo: "Numeros e resultados da loja",
     pronto: true,
   },
   {

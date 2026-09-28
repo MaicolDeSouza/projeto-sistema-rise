@@ -39,6 +39,27 @@ const PESOS = {
  * catalogo em JSON SEM exigir credencial — verificado, nao presumido.
  */
 export const PLATAFORMAS = [
+  {
+    id: "robocore",
+    nome: "RoboCore (plataforma propria)",
+    familia: "front proprio",
+    conferidaEm: "2026-09-28",
+    sinais: {
+      caminho: [
+        ["/themes/RC/", /\/themes\/RC\//],
+        ["/modules/GR_LojaVirtual/", /\/modules\/GR_LojaVirtual\//],
+      ],
+      html: [['application-name RoboCore', /name=["']application-name["']\s+content=["']RoboCore["']/i]],
+    },
+    entrega: {
+      formatos: ["microdata", "opengraph"],
+      resumo: "Catalogo proprio da RoboCore, com descoberta por categorias e paginas de produto.",
+      preco: "O painel valor_<codigo> publica o total no cartao e no PIX. O preco estruturado pode conter apenas o PIX.",
+      imagens: "Galeria do produto, agrupada por codigo e nome da foto.",
+      sitemap: "Quando nao ha sitemap, segue os links /categoria/produto.",
+      cuidados: ["A descricao visivel separa os paragrafos, itens inclusos e ficha tecnica."],
+    },
+  },
   // -------------------------------------------------------------------------
   {
     id: "aspnet-uploads",

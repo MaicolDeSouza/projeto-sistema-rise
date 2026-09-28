@@ -623,6 +623,7 @@ export async function colherProdutos({
         return false;
       },
       aoAchar: async ({ url: achada, html }) => {
+        const antes = encontrados.length;
         const { produtos, formatos: fs } = normalizarPagina({
           html,
           url: achada,
@@ -630,6 +631,7 @@ export async function colherProdutos({
           plataforma,
         });
         guardar(produtos.filter((p) => ehProdutoValido(p, fonte?.type)), fs);
+        return encontrados.length > antes;
       },
       // O andamento vem do rastreador, e nao do aoAchar: contado la dentro, ele
       // so enxergaria pagina que RENDEU produto, e a barra ficaria parada

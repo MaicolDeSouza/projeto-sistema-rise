@@ -1,4 +1,6 @@
 import { extrairProduto } from "./extrair";
+import { precosDaForseti } from "./forseti";
+import { descricaoDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
 import {
@@ -824,6 +826,12 @@ function juntarFichas(primeira, segunda) {
   ];
 }
 
+/** Reutiliza a leitura da ficha quando o catalogo entrega apenas a descricao HTML. */
+export function especificacoesDaDescricao(html, declaradas = []) {
+  const tabelaELista = juntarFichas(especificacoesDeTabela(html ?? ""), especificacoesDeListaHtml(html ?? ""));
+  return juntarFichas(declaradas, tabelaELista.length ? tabelaELista : especificacoesDeLista(comoTexto(html)));
+}
+
 /**
  * Preco a vista do modulo de parcelamento do Magento, calculado como a loja
  * calcula.
@@ -1502,10 +1510,14 @@ export function normalizarPagina({
   const trayPrecoTabela = comoNumero(tray?.price);
   const trayPrecoVenda = comoNumero(tray?.priceSell);
   const trayComRiscado = trayPrecoVenda > 0 && trayPrecoTabela > trayPrecoVenda;
+  const forseti = precosDaForseti(html, url);
+  const robocore = precosDaRoboCore(html, url, micro?.skuFonte ?? estruturado?.skuFonte);
 
   const declaradoNormal =
     (trayComRiscado ? trayPrecoVenda : null) ??
     aspnet?.de ??
+    forseti?.normal ??
+    robocore?.normal ??
     comoNumero(meta["product:original_price:amount"]) ??
     comoNumero(bruto?.offers?.priceSpecification?.listPrice) ??
     comoNumero(bruto?.offers?.highPrice) ??
@@ -1542,6 +1554,8 @@ export function normalizarPagina({
     // ASP.NET (Eletrus): preco e a vista escritos no painel.
     aspnet?.preco ?? null,
     aspnet?.aVista ?? null,
+    forseti?.aVista ?? null,
+    robocore?.aVista ?? null,
   ].filter((n) => typeof n === "number");
 
   const prices = decidirPrecos({ declaradoNormal, candidatos });
@@ -1677,7 +1691,7 @@ export function normalizarPagina({
   ]);
 
   // --- descricao ------------------------------------------------------------
-  const description = melhorDescricao([
+  const description = descricaoDaRoboCore(html, url) ?? melhorDescricao([
     aspnet?.descricao,
     estruturado?.descricao,
     micro?.descricao,
@@ -1777,6 +1791,10 @@ export function normalizarPagina({
         ? doPagamento.derivado
           ? `calculado: desconto de ${doPagamento.desconto}% da loja, conferido em ${doPagamento.conferidoEm} leitura(s)`
           : `formas de pagamento${doPagamento.desconto ? ` — desconto de ${doPagamento.desconto}%` : ""}`
+        : robocore && prices.promotional === robocore.aVista
+          ? "painel da RoboCore: preco a vista no PIX"
+        : forseti && prices.promotional === forseti.aVista
+          ? "painel da Forseti: preco a vista no PIX"
         : aspnet?.aVista && prices.promotional === aspnet.aVista
           ? "a vista escrito na pagina"
           : magentoAVista && prices.promotional === magentoAVista.aVista

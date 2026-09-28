@@ -1,5 +1,6 @@
 import { buscarPagina } from "./buscar";
 import { extrairProduto } from "./extrair";
+import { ehRoboCore } from "./robocore";
 
 /**
  * Descoberta de paginas de produto por navegacao.
@@ -39,6 +40,11 @@ const PARAMETROS_RUINS = /[?&](orderby|orderway|tag|search_query|id_currency|bac
  */
 export function pareceProduto(url) {
   const caminho = url.split("?")[0];
+  // RoboCore usa /categoria/produto, sem extensao nem id numerico no final.
+  if (ehRoboCore(url)) {
+    const endereco = new URL(url);
+    return /^\/(?!tutoriais\/|modules\/)[^/]+\/[^/]+\/?$/.test(endereco.pathname);
+  }
   return (
     /\.html?$/i.test(caminho) ||
     /-\d{3,}(\.|\/|$)/.test(caminho) ||
@@ -130,6 +136,7 @@ export async function rastrear({
   sinal = null,
   pular = null,
   pararSemAchado = SEM_ACHADO,
+  buscar = buscarPagina,
 }) {
   const inicio = new URL(semente);
   const origem = inicio.origin;
@@ -162,7 +169,7 @@ export async function rastrear({
       continue;
     }
 
-    const resposta = await buscarPagina(url, {
+    const resposta = await buscar(url, {
       etag: anterior?.etag ?? undefined,
       vistoEm: anterior?.vistoEm ?? undefined,
       sinal,
@@ -186,10 +193,16 @@ export async function rastrear({
     const dados = extrairProduto(resposta.corpo, resposta.urlFinal ?? url);
 
     if (dados.encontrado && ehSeguivel(url, origem, prefixo)) {
-      produtos++;
-      semAchado = 0;
-      urlsDeProduto.push(url);
-      if (aoAchar) await aoAchar({ url, html: resposta.corpo, dados, resposta });
+      const aceito = await aoAchar?.({ url, html: resposta.corpo, dados, resposta });
+      // O normalizador pode rejeitar uma pagina que so parecia produto.
+      // Ela nao pode consumir uma vaga na amostra solicitada.
+      if (aceito !== false) {
+        produtos++;
+        semAchado = 0;
+        urlsDeProduto.push(url);
+      } else {
+        semAchado++;
+      }
     } else if (++semAchado >= pararSemAchado) {
       // O site ainda responde, mas nao ha mais o que achar por aqui.
       secou = true;
