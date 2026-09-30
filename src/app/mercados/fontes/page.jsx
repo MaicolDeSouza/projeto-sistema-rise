@@ -3,6 +3,7 @@ import { ArrowLeft, Store } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { jobLargado } from "@/lib/coleta/fila";
+import { plataformasPorFonte } from "@/lib/coleta/banco";
 import { portalDoEndereco } from "@/lib/coleta/fornecedores";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
@@ -37,10 +38,11 @@ export default async function FontesPage({ searchParams }) {
 
   let fontes = null;
   let jobsAbertos = [];
+  let plataformas = new Map();
   let erro = null;
 
   try {
-    [fontes, jobsAbertos] = await Promise.all([
+    [fontes, jobsAbertos, plataformas] = await Promise.all([
       prisma.fonteColeta.findMany({
         // Do cadastro mais antigo para o mais novo, pedido do dono em 19/09/2026:
         // a fonte que acabou de entrar fica no fim, onde se espera ve-la. O id
@@ -51,6 +53,7 @@ export default async function FontesPage({ searchParams }) {
       prisma.job.findMany({
         where: { tipo: "coleta", status: { in: ["PENDENTE", "PROCESSANDO"] } },
       }),
+      plataformasPorFonte(),
     ]);
   } catch (excecao) {
     erro = excecao;
@@ -66,6 +69,10 @@ export default async function FontesPage({ searchParams }) {
     tipo: fonte.tipo,
     ativa: fonte.ativa,
     robotsPermite: fonte.robotsPermite,
+    // Do produto coletado mais recente que reconheceu uma (ver
+    // plataformasPorFonte): fonte sem produto ainda, ou cuja plataforma nao foi
+    // catalogada, fica sem esta informacao — nunca um palpite.
+    plataforma: plataformas.get(fonte.id)?.nome ?? null,
     ultimaVarreduraEm: fonte.ultimaVarreduraEm,
     proximaVarreduraEm: fonte.proximaVarreduraEm,
     varredura: varreduraPorFonte.get(fonte.id) ?? null,
@@ -113,7 +120,7 @@ export default async function FontesPage({ searchParams }) {
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-suave hover:text-texto"
       >
         <ArrowLeft size={15} />
-        Voltar para Mercados
+        Voltar para Scraper
       </Link>
 
       <PageHeader

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, ExternalLink, FolderTree, Loader, Pause, Pencil, Play, RefreshCw, Trash2 } from "lucide-react";
+import { Ban, ExternalLink, FolderTree, Info, Loader, Pause, Pencil, Play, RefreshCw, Trash2 } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
 import ArquivosDaFonte from "@/components/mercados/ArquivosDaFonte";
@@ -159,7 +159,25 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
                 repetir "(Fornecedor)" em toda linha de uma aba chamada
                 Fornecedores so gasta largura.
               */}
-              <p className="font-medium">{fonte.nome}</p>
+              <p className="flex items-center gap-1 font-medium">
+                {fonte.nome}
+                {/*
+                  Plataforma da loja (Tray, Loja Integrada...), do produto
+                  coletado mais recente que a reconheceu (plataformasPorFonte em
+                  banco.js) — a fonte nao tem campo proprio. So um "i" com title
+                  nativo, como o resto desta tela: uma coluna nova so para isso
+                  gastaria largura por um dado que nao muda a cada linha.
+                */}
+                <span
+                  title={
+                    fonte.plataforma
+                      ? `Plataforma: ${fonte.plataforma}`
+                      : "Plataforma nao identificada (fonte nova, ou plataforma ainda nao catalogada)"
+                  }
+                >
+                  <Info size={12} className="shrink-0 text-suave" />
+                </span>
+              </p>
 
               {somenteCatalogo ? (
                 <span className="mt-0.5 block text-xs text-suave">Somente catálogo enviado</span>

@@ -22,9 +22,9 @@ export const dynamic = "force-dynamic";
 /// operador tinha coletado. Com a Fortek e a Nightech em disco sao 2.469, entao
 /// o corte deixou de ser teorico — 88% do acervo estava inalcancavel.
 ///
-/// Cem e o que cabe numa rolagem sem a pagina ficar pesada, e e o mesmo numero
-/// que o Bling usa, de onde veio o pedido.
-const POR_PAGINA = 100;
+/// Era 100 (o mesmo numero do Bling, de onde veio o pedido original); baixado
+/// para 25 a pedido do dono em 29/09/2026, o mesmo numero da lista de Produtos.
+const POR_PAGINA = 25;
 
 export default async function MercadosPage({ searchParams }) {
   const params = await searchParams;
@@ -52,8 +52,8 @@ export default async function MercadosPage({ searchParams }) {
 
     A tela lia a lista inteira e fazia tudo em memoria. Com 2 mil produtos
     passava; com 35.226 eram 20 MB montados em 2,3 s A CADA clique — marcar uma
-    fonte, trocar de aba, limpar filtro. Hoje o Postgres devolve as 100 linhas da
-    pagina e as contagens, e a miniatura vem so para essas cem.
+    fonte, trocar de aba, limpar filtro. Hoje o Postgres devolve so as linhas da
+    pagina (POR_PAGINA) e as contagens, e a miniatura vem so para essas.
   */
   let resultado = { linhas: [], total: 0, totalGeral: 0, contagemPorFonte: [] };
   let totalFontes = 0;
@@ -167,7 +167,7 @@ export default async function MercadosPage({ searchParams }) {
   return (
     <>
       <PageHeader
-        titulo="Mercados"
+        titulo="Scraper"
         descricao="Produtos, precos e codigos coletados dos sites de concorrentes e fornecedores."
         acao={
           <div className="flex items-start gap-2">

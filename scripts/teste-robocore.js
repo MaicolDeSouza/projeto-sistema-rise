@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 const { normalizarPagina } = await import("../src/lib/coleta/normalizar.js");
-const { precosDaRoboCore } = await import("../src/lib/coleta/robocore.js");
+const { estoqueDaRoboCore, precosDaRoboCore } = await import("../src/lib/coleta/robocore.js");
 const { pareceProduto, rastrear } = await import("../src/lib/coleta/descobrir.js");
 const { identificarPlataforma } = await import("../src/lib/coleta/plataformas.js");
 
@@ -14,6 +14,9 @@ const url = `${origem}/acessorios-arduino/case-para-blackboard-mega-2560`;
 const html = await readFile(new URL("./fixtures/robocore-case.html", import.meta.url), "utf8");
 const produto = normalizarPagina({ html, url }).produtos[0];
 assert.deepEqual(produto.prices, { normal: 28.9, promotional: 27.45, comImpostos: null });
+// "(92 un. em estoque)" so existe dentro do JS que atualiza o painel — nunca no
+// texto visivel nem em inventoryLevel (a RoboCore nao declara).
+assert.equal(produto.stock.quantity, 92);
 assert.match(produto.description, /R3\./);
 assert.match(produto.description, /\n\nAcompanha 4 parafusos/);
 assert.match(produto.description, /\n\nItens Inclusos\n- 1 × Case Mega 2560/);
@@ -27,6 +30,31 @@ assert.equal(precosDaRoboCore(html.replace(/PIX/g, "cartao"), url, "1180"), null
 // Valor maior que mil e centavos divididos em spans; parcela nao vira preco.
 const painel = html.replace(/>28<span/g, ">1.028<span").replace(/>27<span/g, ">977<span");
 assert.deepEqual(precosDaRoboCore(painel, url, "1180"), { normal: 1028.9, aVista: 977.45 });
+
+// Estoque: variante unica (codigo = id do produto).
+assert.equal(estoqueDaRoboCore(html, url, "1180"), 92);
+assert.equal(estoqueDaRoboCore(html, "https://outra-loja.com/produto", "1180"), null);
+assert.equal(estoqueDaRoboCore(html, url, "9999"), null);
+
+// Estoque: produto com cores (HockeyBot). Varios blocos escrevem no MESMO id
+// (`estoque_3388`), um por opcao de `extras.value` — sem isolar pela variante,
+// o primeiro bloco da pagina venceria para qualquer cor.
+const multivariante = `<script>
+function ChecaEstoque(){
+if(document.forms['form_3388'].extras.value == '416'){
+if(8 <= 0){}
+else { document.getElementById('estoque_3388').innerHTML = '(8 un. em estoque)'; }
+}
+if(document.forms['form_3388'].extras.value == '414'){
+if(25 <= 0){}
+else { document.getElementById('estoque_3388').innerHTML = "(25 un. em estoque)"; }
+}
+}
+</script>`;
+const urlHockeyBot = `${origem}/kits-didaticos/hockeybot/preto`;
+assert.equal(estoqueDaRoboCore(multivariante, urlHockeyBot, "3388-416"), 8);
+assert.equal(estoqueDaRoboCore(multivariante, urlHockeyBot, "3388-414"), 25);
+assert.equal(estoqueDaRoboCore(multivariante, urlHockeyBot, "3388-999"), null);
 
 assert.equal(pareceProduto(url), true);
 assert.equal(pareceProduto(`${origem}/kits/kit-iniciante`), true);

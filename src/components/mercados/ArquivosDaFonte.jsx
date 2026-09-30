@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { FileUp, Info, Trash2 } from "lucide-react";
+import { Download, FileUp, Info, Trash2 } from "lucide-react";
 
 import {
   apagarArquivosAcao,
@@ -170,20 +170,40 @@ export default function ArquivosDaFonte({ fonte }) {
         fresca quanto a vitrine varrida agora.
       */}
       {quantos > 0 && (
-        <div className="mt-1 flex items-center gap-1.5 text-suave">
-          <span title={manifesto.arquivos.map((a) => a.nome).join(", ")}>
-            {quantos} arquivo(s) · {comoData(manifesto.enviadoEm)}
-          </span>
-          <button
-            type="button"
-            onClick={apagar}
-            disabled={pendente}
-            title="Descartar a lista guardada"
-            aria-label="Descartar a lista guardada"
-            className="rounded p-0.5 hover:bg-fundo hover:text-erro"
-          >
-            <Trash2 size={12} />
-          </button>
+        <div className="mt-1 text-suave">
+          <div className="flex items-center gap-1.5">
+            <span>
+              {quantos} arquivo(s) · {comoData(manifesto.enviadoEm)}
+            </span>
+            <button
+              type="button"
+              onClick={apagar}
+              disabled={pendente}
+              title="Descartar a lista guardada"
+              aria-label="Descartar a lista guardada"
+              className="rounded p-0.5 hover:bg-fundo hover:text-erro"
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+          {/* Um link por arquivo, para o operador conferir o original sem
+              reabrir o portal do fornecedor — o download SEMPRE serve o
+              conjunto atual: um envio novo substitui o anterior em disco. */}
+          <ul className="mt-0.5 space-y-0.5">
+            {manifesto.arquivos.map((arquivo) => (
+              <li key={arquivo.nome}>
+                <a
+                  href={`/api/mercados/arquivo-fonte/${fonte.id}/${encodeURIComponent(arquivo.nome)}`}
+                  download={arquivo.nome}
+                  title={`Baixar ${arquivo.nome}`}
+                  className="inline-flex max-w-48 items-center gap-1 truncate hover:text-acento hover:underline"
+                >
+                  <Download size={11} className="shrink-0" />
+                  <span className="truncate">{arquivo.nome}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

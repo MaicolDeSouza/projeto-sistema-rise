@@ -377,6 +377,29 @@ export async function miniaturas(ids) {
 }
 
 /**
+ * A plataforma de cada fonte (Loja Integrada, Tray, Shopify...), pela leitura
+ * do produto coletado MAIS RECENTE dela que reconheceu uma.
+ *
+ * Nao ha campo de plataforma na FonteColeta: quem identifica e a coleta de
+ * CADA produto (`identificarPlataforma`, no teste de fonte e na varredura), e
+ * o resultado fica em `ProdutoColetado.plataforma`. Como todo produto de uma
+ * mesma fonte vem do mesmo site, o mais recente que reconheceu algo vale para
+ * a fonte inteira — sem duplicar a deteccao nem mexer no schema.
+ *
+ * `DISTINCT ON` escolhe uma linha por fonte; sem produto reconhecido (fonte
+ * nova, ou plataforma nao catalogada), a fonte simplesmente nao entra no mapa.
+ */
+export async function plataformasPorFonte() {
+  const linhas = await prisma.$queryRaw`
+    SELECT DISTINCT ON ("fonteId") "fonteId", plataforma
+    FROM "ProdutoColetado"
+    WHERE plataforma IS NOT NULL
+    ORDER BY "fonteId", "vistoEm" DESC`;
+
+  return new Map(linhas.map((linha) => [linha.fonteId, linha.plataforma]));
+}
+
+/**
  * Um produto completo, com a fonte e o preco anterior.
  *
  * O PRECO ANTERIOR e o ultimo DIFERENTE do atual, e nao a penultima linha da
