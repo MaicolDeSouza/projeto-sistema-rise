@@ -27,7 +27,9 @@ Sucesso: o dono clica no ícone do ML de um Produto Conferido, preenche/ajusta a
 5. **Publicar** cria o item **pausado**, define preço, vincula ao Bling e então ativa, numa ação, com janela de confirmação (título, preço, estoque).
 6. Produto **sem `blingId` não publica** (botão desabilitado, com o motivo).
 7. **Vários anúncios por Produto só no ML e na Shopee** (Clássico, Premium…). Bling e Loja Integrada: um por Produto.
-8. **Versículo** no fim de cada anúncio: lista fixa da NVI (a mesma do artefato "Versículo Diário", 39 versículos de Provérbios e Salmos), sorteio sem repetir, sem relação com o produto, sem reflexão.
+8. **Versículo** no fim de cada anúncio, **sem limite de quantidade**: sorteado entre **todos os versículos de Salmos e de Provérbios** (Almeida Revista e Corrigida, 1898, domínio público; escolhida no lugar da NVI, que tem direitos autorais e não pode ser guardada inteira). Sorteio **sem repetir entre anúncios**, até esgotar; sem relação com o produto, sem reflexão. O método de sorteio é o do artefato "Versículo Diário"; o conjunto de versículos deixa de ser a lista fixa de 39.
+   - **Versículos que não cabem num anúncio** (maldições e similares, como Salmo 137:9 e trechos do Salmo 109) ficam numa **lista de exclusão** mantida no sistema.
+   - **Limite de tamanho:** versículo longo demais para fechar a descrição é descartado do sorteio.
 9. **Frases fixas** (ex.: "Todos os nossos produtos possuem nota fiscal") definidas pelo dono numa tela de configuração.
 10. **Custo** da aba de preço vem do **fornecedor padrão** do Produto.
 11. **Publicar roda como ação do servidor com etapas gravadas** (abordagem A): retoma da etapa que falhou.
@@ -62,7 +64,7 @@ A busca pública do ML (`/sites/MLB/search`) dá 403; a pesquisa de anúncios de
 
 **Ícone do ML** em `LinhaProduto.jsx`: cinza = sem anúncio; cinza com ponto âmbar = rascunho salvo; **verde = publicado e vinculado ao Bling**. Loja Integrada e Shopee continuam cinza.
 
-**Lógica pura, sem rede (testável):** margem e preço por margem; montagem da descrição; `src/lib/versiculos.js`; validações. Chamadas ao ML e ao Bling em arquivos separados, sempre via `httpClient.requisitar` com registro em `LogIntegracao`.
+**Lógica pura, sem rede (testável):** margem e preço por margem; montagem da descrição; `src/lib/versiculos.js` (sorteio sem repetir, lista de exclusão e limite de tamanho, recebendo o conjunto de versículos e o histórico como argumento); validações. Os versículos de Salmos e Provérbios (ARC) ficam num arquivo de dados local, versionado, sem depender de serviço externo. Chamadas ao ML e ao Bling em arquivos separados, sempre via `httpClient.requisitar` com registro em `LogIntegracao`.
 
 **Reaproveitar:** regras de `canais/mercadolivre.js`, `src/lib/margem.js` (`IMPOSTO_PADRAO`, 6%), `src/lib/ia/anuncio.js`, `BolhaDeAjuda`, `PageHeader`.
 
@@ -75,7 +77,7 @@ Todas nascem preenchidas a partir do Produto.
 1. **Geral:** título (60, contador), `family_name`, tipo (Clássico/Premium), condição, categoria. "Sugerir título" (IA com o padrão do Rise + termos da categoria). "Sugerir categoria": (1) `domain_discovery` com o título; (2) a IA confirma/escolhe com os dados do Produto; (3) se nada servir, a IA pesquisa o produto na internet. Sugestão sempre editável.
 2. **Preço e estoque:** custo (fornecedor padrão), preço, estoque e o bloco de custos do ML (comissão, tarifa fixa, frete do vendedor, imposto 6%). **Calculadora** (ícone, igual à do Produto): o dono escolhe margem (% ou R$) e o Rise mostra o preço necessário, resolvendo `P·(1 − comissão% − imposto%) − tarifa_fixa − frete − custo = margem`, iterando com `listing_prices` porque comissão e tarifa fixa dependem do preço.
 3. **Imagens:** as do Produto, escolha e ordem; envio binário (`POST /pictures/items/upload`).
-4. **Descrição:** texto do Produto + frases fixas + versículo sorteado (botão "outro versículo", fica gravado no rascunho). Texto puro.
+4. **Descrição:** texto do Produto + frases fixas + versículo sorteado entre todos os de Salmos e Provérbios (botão "outro versículo", fica gravado no rascunho; o versículo só entra no histórico de "já usados" quando o anúncio é publicado). Texto puro.
 5. **Ficha técnica:** atributos da categoria; IA preenche a partir do Produto; obrigatórios em destaque.
 6. **Envio:** peso/dimensões do Produto, tipo de logística, frete grátis, retirada.
 7. **Prévia e validação:** problemas por campo (bloqueantes e alertas), payload, e validação pelo validador de publicações do ML (sem criar anúncio).
@@ -104,14 +106,14 @@ Limite: o ML não recomenda preço antes de o anúncio existir; depois de public
 ## 8. Banco
 
 - `Anuncio`: remover `@@unique([produtoId, canal])`; índice `(produtoId, canal)`; **índice único parcial em SQL** só para Bling e Loja Integrada (no estilo do `Job_fonte_aberta`); coluna `dados Json?` (envio, tipo, condição, versículo, etapa, vínculo com o Bling).
-- Tabela de configuração por canal (frases fixas).
+- Tabela de configuração por canal (frases fixas e o histórico de versículos já usados, que reinicia quando todos os versículos elegíveis forem usados).
 - Regra do schema do CLAUDE.md: uma sessão por vez; a outra frente tem migrations ainda sem commit (`20260930_fotos_mensais`, `20260930_movimento_estoque`); antes de gerar a nossa, ela faz o merge e rodamos `git merge main`. Editar o SQL à mão (o `migrate diff` propõe `DROP INDEX` dos trigramas). Depois `prisma generate` e reiniciar o servidor.
 
 ## 9. Erros e testes
 
 **Erros:** mensagens em português, no campo certo; erro do ML/Bling com o texto original no `LogIntegracao`; falha de rede nunca apaga o rascunho; falha de IA só avisa.
 
-**Testes** (`npm run teste:anuncios-ml`, sem rede): Produto não Conferido recusado no servidor; sem `blingId` não publica; vários anúncios ML por produto e um só no Bling; preço por margem contra as taxas; descrição e versículo sem repetir; retomada de cada etapa. Mais `lint` e conferência no navegador.
+**Testes** (`npm run teste:anuncios-ml`, sem rede): Produto não Conferido recusado no servidor; sem `blingId` não publica; vários anúncios ML por produto e um só no Bling; preço por margem contra as taxas; descrição; versículo sem repetir entre anúncios, nunca da lista de exclusão e nunca acima do limite de tamanho; retomada de cada etapa. Mais `lint` e conferência no navegador.
 
 ## 10. Fases (cada uma com testes e aprovação antes da seguinte)
 
@@ -131,3 +133,4 @@ Listar/importar os 1.007 anúncios existentes; Loja Integrada e Shopee (só cart
 - O Bling pode sincronizar preço e estoque depois do vínculo: o preço do vínculo é o do anúncio; o estoque inicial é o do Produto.
 - Esta pasta (`main` worktree) hospeda o worker e o trabalho da outra frente sem commit; a branch `canais-de-venda` vive aqui por decisão do dono. Comitar só os arquivos desta feature, pelo nome; conferir a branch antes de reiniciar o worker.
 - Pesquisa na internet pela IA tem custo e pode errar: sempre sugestão editável, nunca preenchimento silencioso.
+- Versículos: sorteando entre Salmos e Provérbios inteiros, algum pode destoar de um anúncio de produto. Mitigação: lista de exclusão dos casos conhecidos, botão "outro versículo" e o texto visível na prévia antes de publicar. A **fonte do texto da ARC** (arquivo de Salmos e Provérbios) será definida no plano de implementação, conferindo que a licença permite guardá-lo; a revisão de trechos impróprios além dos conhecidos é do dono.
