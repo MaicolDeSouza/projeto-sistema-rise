@@ -24,14 +24,12 @@ cara de confirmado que não foi conferido; os demais ganham o seu na implementa�
 | 7 | Patola | — | |
 | 8 | Neoyama | — | |
 | 9 | ImoBrás | — | |
-| 10 | Forsetti | — | |
 | 11 | Karimex | — | impressora 3D |
 | 12 | Megamix | — | |
 | 13 | OBR | — | |
 | 14 | Prado Automação | — | |
 | 16 | Tespo | — | esteiras |
 | 17 | Unitel | — | transformadores |
-| 19 | Metaltex | — | |
 | 20 | Lukbox / Circuitronix | — | componentes eletrônicos; **um nome ou dois, a confirmar** |
 | 22 | Eletrodex | https://www.eletrodex.net/ | |
 | 26 | Cromatek | https://cromatek.com.br/ | |
@@ -40,6 +38,7 @@ cara de confirmado que não foi conferido; os demais ganham o seu na implementa�
 | 30 | Sibratec | https://www.sibratec.ind.br/ | |
 | 31 | Fermarc | https://www.fermarc.com/ | |
 | 32 | Kalatec | https://loja.kalatec.com.br/ | |
+https://loja.frontec.com.br/
 
 ## Pontos em aberto
 
