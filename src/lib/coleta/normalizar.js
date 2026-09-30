@@ -1,6 +1,6 @@
 import { extrairProduto } from "./extrair";
 import { precosDaForseti } from "./forseti";
-import { descricaoDaRoboCore, precosDaRoboCore } from "./robocore";
+import { categoriaDaRoboCore, descricaoDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
 import {
@@ -636,6 +636,10 @@ function quantidadeNoTexto(html) {
     // itens</div>. O bloco e proprio do saldo — ancorar nele deixa de fora
     // qualquer outro "N itens" da pagina, como o do carrinho.
     /availability only[^>]*>\s*(?:<[^>]*>\s*)*(\d{1,6})\s*(?:<\/[^>]*>\s*)*\s*it(?:em|ens)/i,
+    // RoboCore: <div id="estoque_3780" class="estoque_do_produto">(43 un. em
+    // estoque)</div>. "un." em vez de "unidade(s)" escapava dos padroes acima;
+    // o esgotado escreve o mesmo formato com 0, entao a leitura nao inventa nada.
+    /\(\s*(\d{1,6})\s*un\.?\s*em\s+estoque\s*\)/i,
   ];
 
   for (const padrao of padroes) {
@@ -740,19 +744,95 @@ function especificacoesDeTabela(html) {
 
   for (const tabela of semCodigo.matchAll(/<table[\s\S]*?<\/table>/gi)) {
     for (const linha of tabela[0].matchAll(/<tr[\s\S]*?<\/tr>/gi)) {
-      const celulas = [...linha[0].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(
-        (celula) => comoTexto(celula[1]),
-      );
+      const celulas = [...linha[0].matchAll(/<(t[dh])[^>]*>([\s\S]*?)<\/\1>/gi)].map((celula) => ({
+        tag: celula[1].toLowerCase(),
+        texto: comoTexto(celula[2]),
+      }));
 
       // So pares: tabela de tres colunas nao e ficha tecnica, e adivinhar qual
       // coluna e o valor produziria lixo.
-      if (celulas.length === 2 && celulas[0] && celulas[1]) {
-        itens.push({ nome: celulas[0].replace(/:$/, ""), valor: celulas[1] });
+      if (celulas.length !== 2) continue;
+
+      // Linha só de <th> é cabecalho de tabela (a "Lista de codigos" da
+      // Metaltex: <thead><tr><th>Codigo</th><th>Descricao</th></tr></thead>),
+      // nunca um par nome:valor — cabecalho nao e o valor de si mesmo. Rotulo
+      // em <th> com valor em <td> continua valendo (a Mamute: "Fabricante" em
+      // <th>, "IMP" em <td>).
+      if (celulas.every((celula) => celula.tag === "th")) continue;
+
+      if (celulas[0].texto && celulas[1].texto) {
+        itens.push({ nome: celulas[0].texto.replace(/:$/, ""), valor: celulas[1].texto });
       }
     }
   }
 
   return itens;
+}
+
+/**
+ * Tabela comparativa de variantes: a primeira linha traz o codigo de cada
+ * coluna, e as demais repetem o valor pro grupo inteiro (colspan, ja lido em
+ * especificacoesDeTabela) OU trazem um valor por coluna quando o parametro
+ * muda de variante para variante.
+ *
+ * Existe por causa da Metaltex (29/09/2026): "Saida (carga)" vai de 60A a
+ * 100A entre as variantes do mesmo rele, numa tabela com uma coluna por
+ * codigo. especificacoesDeTabela so aceita linha de DUAS celulas — de
+ * proposito, para nao adivinhar qual coluna e o valor — e descartava a linha
+ * inteira, junto com a de "Codigo": nenhuma das tres variantes ficava com o
+ * parametro que justamente diferencia elas.
+ *
+ * So reconhece a linha de cabecalho quando as celulas dela batem com os
+ * codigos DAS VARIANTES DE VERDADE (hasVariant[].sku, ja medidos em
+ * separarVariacoes) — nunca pela palavra "codigo", que muda de loja para
+ * loja e de idioma para idioma.
+ */
+function especificacoesPorVariante(html, codigosConhecidos) {
+  const porCodigo = new Map();
+  if (!codigosConhecidos || codigosConhecidos.length < 2) return porCodigo;
+
+  const semCodigo = html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, "");
+
+  for (const tabela of semCodigo.matchAll(/<table[\s\S]*?<\/table>/gi)) {
+    const linhas = [...tabela[0].matchAll(/<tr[\s\S]*?<\/tr>/gi)].map((linha) =>
+      [...linha[0].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((celula) =>
+        comoTexto(celula[1]),
+      ),
+    );
+
+    const cabecalho = linhas.find(
+      (celulas) =>
+        celulas.length >= 3 &&
+        celulas
+          .slice(1)
+          .every((valor) =>
+            codigosConhecidos.some(
+              (codigo) => valor && valor.toUpperCase() === codigo.toUpperCase(),
+            ),
+          ),
+    );
+    if (!cabecalho) continue;
+
+    const colunas = cabecalho.slice(1);
+
+    for (const celulas of linhas) {
+      if (celulas === cabecalho || celulas.length !== cabecalho.length) continue;
+
+      const nome = celulas[0]?.replace(/:$/, "");
+      if (!nome) continue;
+
+      celulas.slice(1).forEach((valor, indice) => {
+        if (!valor) return;
+        const codigo = colunas[indice];
+        if (!porCodigo.has(codigo)) porCodigo.set(codigo, []);
+        porCodigo.get(codigo).push({ nome, valor });
+      });
+    }
+  }
+
+  return porCodigo;
 }
 
 /// Titulo que anuncia a ficha tecnica escrita na descricao.
@@ -824,6 +904,27 @@ function juntarFichas(primeira, segunda) {
     ...primeira,
     ...segunda.filter((item) => !item.nome || !rotulos.has(item.nome.toLowerCase())),
   ];
+}
+
+/**
+ * Descarta linha de "especificacao" cujo NOME e literalmente o codigo de uma
+ * variante — nao e parametro tecnico, e sobra de uma tabela de referencia.
+ *
+ * A Metaltex publica, ao lado da ficha de verdade, uma "Lista de codigos"
+ * so com Codigo e Descricao (`<td>TZC-60AF/DT+V</td><td>60A</td>`).
+ * especificacoesDeTabela nao distingue essa tabela de uma ficha tecnica —
+ * as duas sao linhas de duas celulas — e cada codigo virava uma linha de
+ * especificacao ("TZC-60AF/DT+V: 60A") em TODOS os produtos da pagina. Um
+ * rotulo tecnico nunca e, ele mesmo, o codigo de uma variante.
+ */
+function semLinhasDeCodigo(lista, codigosConhecidos) {
+  if (!codigosConhecidos || codigosConhecidos.length === 0) return lista;
+
+  return lista.filter(
+    (item) =>
+      !item.nome ||
+      !codigosConhecidos.some((codigo) => item.nome.toUpperCase() === codigo.toUpperCase()),
+  );
 }
 
 /** Reutiliza a leitura da ficha quando o catalogo entrega apenas a descricao HTML. */
@@ -1202,6 +1303,32 @@ const NOME_DE_DOCUMENTO =
 const MAXIMO_DOCUMENTOS = 12;
 
 /**
+ * Recorta o HTML no elemento <product-info>...</product-info>, quando existe.
+ *
+ * E o escopoDoProduto (ver microdata.js) das lojas Shopify de tema novo
+ * (Dawn e derivados): o painel do produto principal — fotos, preco, ficha,
+ * "Material para Download" — vive dentro desse elemento customizado, e as
+ * vitrines de produtos relacionados ("Compare com as linhas", "voce tambem
+ * pode gostar") ficam FORA dele, em <section> irmas mais abaixo na mesma
+ * pagina. Sem o corte, um botao "Especificacoes" de um cartao de produto
+ * vizinho virava documento do produto errado — medido na Metaltex
+ * (29/09/2026): a ficha tecnica do TZD e a do TZCM, produtos diferentes,
+ * entravam junto com o material do TZC-F so por estarem na mesma pagina.
+ *
+ * Sem o elemento, devolve o HTML inteiro: e o comportamento de sempre,
+ * melhor que nao ler nada.
+ */
+function escopoDoProductInfo(html) {
+  const abertura = /<product-info\b/i.exec(html);
+  if (!abertura) return html;
+
+  const fechamento = html.indexOf("</product-info>", abertura.index);
+  if (fechamento === -1) return html;
+
+  return html.slice(abertura.index, fechamento + "</product-info>".length);
+}
+
+/**
  * Documentos que o concorrente publica para download.
  *
  * O datasheet e o que permite conferir se o produto do concorrente e o MESMO
@@ -1220,15 +1347,17 @@ const MAXIMO_DOCUMENTOS = 12;
  * dominio; a Usinainfo serve pelo anexo do PrestaShop, no proprio dominio e
  * tambem sem extensao.
  *
- * Varre a pagina inteira porque o link nao mora num lugar so: na Tray ele esta
- * dentro da descricao, na Usinainfo numa aba propria, fora dela.
+ * Varre a pagina INTEIRA (recortada no <product-info>, quando existe) porque
+ * o link nao mora num lugar so: na Tray ele esta dentro da descricao, na
+ * Usinainfo numa aba propria, fora dela.
  */
 function documentosDaPagina(html, urlBase) {
   if (!html) return [];
 
   const achados = new Map();
+  const escopo = escopoDoProductInfo(html);
 
-  for (const ancora of html.matchAll(
+  for (const ancora of escopo.matchAll(
     /<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
   )) {
     const endereco = comoUrlAbsoluta(ancora[1], urlBase);
@@ -1245,7 +1374,7 @@ function documentosDaPagina(html, urlBase) {
     const ehArquivo = EXTENSAO_DE_ARQUIVO.test(caminho) || ENDPOINT_DE_ANEXO.test(endereco);
     const ehDocumento = ehArquivo || (titulo && NOME_DE_DOCUMENTO.test(titulo));
 
-    if (!ehDocumento || achados.has(endereco)) continue;
+    if (!ehDocumento) continue;
 
     // SECAO DO SITE NAO E DOCUMENTO DO PRODUTO. Link reconhecido so pelo texto,
     // apontando para uma pagina de primeiro nivel — "Catalogos" -> /catalogos,
@@ -1265,8 +1394,21 @@ function documentosDaPagina(html, urlBase) {
     const paginaDePrimeiroNivel = /^\/[^/]+\/?$/.test(caminho);
     if (!ehArquivo && paginaDePrimeiroNivel) continue;
 
-    // O mesmo anexo aparece duas vezes na Usinainfo — uma dentro das
-    // caracteristicas, outra na aba de download — e so uma das duas tem texto.
+    // MESMO ARQUIVO, DOIS ROTULOS: junta, nao descarta o segundo. A Metaltex
+    // usa dois botoes para o mesmo PDF — "Certificado" e "Declaracao
+    // RoHS/REACH (da linha)" — porque o documento responde pelos dois nomes;
+    // o dono confirmou que quer os dois (29/09/2026). O mesmo anexo aparece
+    // duas vezes na Usinainfo tambem — uma dentro das caracteristicas, outra
+    // na aba de download — mas so uma das duas tem texto, entao ali a segunda
+    // passagem nao muda nada (titulo vazio nao junta).
+    if (achados.has(endereco)) {
+      const existente = achados.get(endereco);
+      if (titulo && titulo !== existente.titulo && !existente.titulo.includes(titulo)) {
+        existente.titulo = `${existente.titulo} — ${titulo}`;
+      }
+      continue;
+    }
+
     // Sem titulo, o nome do arquivo no endereco; sem ele, rotulo generico:
     // inventar um nome para o documento seria dizer o que a pagina nao disse.
     achados.set(endereco, {
@@ -1499,6 +1641,14 @@ export function normalizarPagina({
 
   const bruto = estruturado?.bruto ?? null;
 
+  // Codigo de cada variante de verdade deste produto (hasVariant[].sku), lido
+  // uma vez e usado tanto para nao ler uma tabela de referencia como ficha
+  // tecnica (semLinhasDeCodigo) quanto para casar a tabela comparativa de
+  // parametros por coluna (especificacoesPorVariante), mais abaixo.
+  const identificadoresDeVariante = separarVariacoes(bruto)
+    .map((variacao) => variacao.identificador)
+    .filter(Boolean);
+
   // --- precos ---------------------------------------------------------------
   //
   // Na Tray em promocao o dataLayer traz DOIS numeros: `price` e o RISCADO
@@ -1719,7 +1869,10 @@ export function normalizarPagina({
   const daListaHtml = especificacoesDeListaHtml(html);
   const juntas = juntarFichas(juntarFichas(aspnet?.especificacoes ?? [], declaradas), daListaHtml);
 
-  const specifications = juntas.length > 0 ? juntas : especificacoesDeLista(description);
+  const specifications = semLinhasDeCodigo(
+    juntas.length > 0 ? juntas : especificacoesDeLista(description),
+    identificadoresDeVariante,
+  );
 
   const ean = primeiro(
     "ean",
@@ -1756,6 +1909,12 @@ export function normalizarPagina({
   // e repetir a linha crua diria a mesma coisa sem o valor que ela produz.
   const fichaSemImpostos = semImpostos(specifications);
 
+  // Especificacao que muda por variante (a Metaltex: "Saida (carga)" vai de
+  // 60A a 100A entre os codigos do mesmo rele), lida da tabela comparativa da
+  // pagina. So roda quando ha mais de uma variante — tabela de uma coluna so
+  // nao compara nada.
+  const especPorVariante = especificacoesPorVariante(html, identificadoresDeVariante);
+
   const ncm = primeiro(
     "ncm",
     [doCatalogo?.ncm ?? null, "catalogo publico da plataforma"],
@@ -1766,6 +1925,7 @@ export function normalizarPagina({
   const category = primeiro(
     "category",
     [aspnet?.categoria, "breadcrumb da pagina"],
+    [categoriaDaRoboCore(html, url), "breadcrumb da pagina"],
     [micro?.categoria, "breadcrumb"],
     [comoTexto(bruto?.category), "json-ld category"],
     [doDataLayer(html, code), "dataLayer de analytics"],
@@ -1872,8 +2032,29 @@ export function normalizarPagina({
 
   const codigos = separarCodigos(codigoDoProduto);
 
-  const produtos =
-    codigos.length > 1
+  // Variacao com identificador proprio e DIFERENTE do produto de origem vira um
+  // registro independente.
+  const variacoesReais = separarVariacoes(bruto).filter(
+    (variacao) => variacao.identificador && variacao.identificador !== code,
+  );
+
+  // O node do ProductGroup pode ser so um involucro de variantes, sem ser ele
+  // mesmo um item compravel. A Metaltex publica "Rele TZC-F com Dissipador e
+  // Ventilador" com tres variantes (60A/80A/100A) e NENHUM sku nem oferta no
+  // proprio grupo — a pagina nem chega a marcar uma opcao ao carregar (o
+  // usuario mediu isso na tela: nenhuma amperagem vem selecionada). Sem
+  // codigo do grupo e com variante de verdade, o "N/A" nao e um produto: e
+  // so o rotulo da familia, e gravar ele criaria um item fantasma por
+  // produto com variante, sem forma de comprar aquele "N/A".
+  //
+  // Quando o grupo TEM codigo proprio (o ESP32 NodeMCU do teste, sku "08240"
+  // com oferta e preco no proprio grupo), ele continua sendo um produto de
+  // verdade, igual antes.
+  const grupoEhSoInvolucro = !code && variacoesReais.length > 0;
+
+  const produtos = grupoEhSoInvolucro
+    ? []
+    : codigos.length > 1
       ? codigos.map((umCodigo) => ({
           ...base,
           code: umCodigo,
@@ -1886,12 +2067,12 @@ export function normalizarPagina({
         }))
       : [base];
 
-  // Variacao com identificador proprio e DIFERENTE do produto de origem vira um
-  // registro independente.
-  for (const variacao of separarVariacoes(bruto)) {
-    if (!variacao.identificador || variacao.identificador === code) continue;
-
+  for (const variacao of variacoesReais) {
     const precoVariacao = comoNumero(variacao.bruto?.offers?.price);
+    // Parametro proprio da coluna desta variante (ex.: "Saida (carga): 60A")
+    // vence o valor compartilhado do grupo, que pode nem existir ou ser o
+    // texto generico ("48 a 440 VCA ou 48 a 530 VCA") lido da descricao.
+    const especDaVariacao = especPorVariante.get(variacao.identificador) ?? [];
 
     produtos.push({
       ...base,
@@ -1912,6 +2093,9 @@ export function normalizarPagina({
         quantity: null,
         aChegar: null,
       },
+      specifications: especDaVariacao.length
+        ? juntarFichas(especDaVariacao, base.specifications)
+        : base.specifications,
       // Ja e um produto proprio: repetir as opcoes do grupo aqui sugeriria que
       // ele ainda pode virar outra coisa.
       variants: [],

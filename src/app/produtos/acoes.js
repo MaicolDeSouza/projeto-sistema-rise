@@ -642,27 +642,41 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     }
     await descartarLote(String(formData.get("loteTemporario") ?? "")).catch(() => {});
 
-    // Fornecedor em RASCUNHO (extraido na importacao do Bling, ou digitado na aba
-    // antes deste primeiro Salvar do produto existente): confirma em vinculo de
-    // verdade agora, e so agora — pedido do dono em 22/09/2026. Falha aqui nao
-    // derruba o Salvar (o produto ja esta gravado); o rascunho no Produto so e
-    // limpo se a confirmacao deu certo, senao ele reaparece na proxima abertura
-    // em vez de sumir sem ter sido gravado.
+    // Fornecedores e concorrentes da aba: pedido do dono em 22/09/2026, "so
+    // quero que salve quando eu clicar no botao salvar do produto" — a tabela
+    // edita so em memoria, e AQUI e o unico lugar que grava, reconciliando
+    // com o que ja existe (soma, atualiza e REMOVE quem saiu da lista; ver as
+    // duas funcoes, abaixo). Falha aqui nao derruba o Salvar: o produto e as
+    // fotos ja estao gravados.
+    let avisoFornecedores = null;
+    try {
+      await gravarFornecedoresRascunho(produto, formData);
+    } catch (erro) {
+      console.error("Falha ao gravar os fornecedores do produto:", erro.message);
+      avisoFornecedores = "O produto foi salvo, mas os fornecedores nao foram atualizados. Confira a aba e salve de novo.";
+    }
+
+    let avisoConcorrentes = null;
+    try {
+      await gravarConcorrentesRascunho(produto, formData);
+    } catch (erro) {
+      console.error("Falha ao gravar os concorrentes do produto:", erro.message);
+      avisoConcorrentes = "O produto foi salvo, mas os concorrentes nao foram atualizados. Confira a aba e salve de novo.";
+    }
+
+    // O fornecedor extraido na importacao do Bling ja foi confirmado pela
+    // chamada acima (ele entra no MESMO rascunho, ver `fornecedoresRascunho`
+    // em FormularioProduto.jsx) — so falta limpar a marca no Produto, senao
+    // ele reaparece na proxima abertura como se ainda estivesse pendente.
     if (produto.fornecedorRascunho) {
-      try {
-        await gravarFornecedoresRascunho(produto, formData);
-        await prisma.produto.update({
-          where: { id },
-          data: { fornecedorRascunho: Prisma.DbNull },
-        });
-      } catch (erro) {
-        console.error("Falha ao confirmar o fornecedor em rascunho:", erro.message);
-      }
+      await prisma.produto
+        .update({ where: { id }, data: { fornecedorRascunho: Prisma.DbNull } })
+        .catch((erro) => console.error("Falha ao limpar o fornecedor em rascunho:", erro.message));
     }
 
     revalidatePath("/produtos");
     revalidatePath(`/produtos/${id}`);
-    return { ok: true, id: produto.id };
+    return { ok: true, id: produto.id, avisoFornecedores, avisoConcorrentes };
   } catch (erro) {
     // P2002 = violacao de unicidade; o unico campo unico aqui e o SKU.
     if (erro.code === "P2002") {
@@ -908,11 +922,16 @@ async function recalcularCusto(produtoId) {
 }
 
 /**
- * Vincula os fornecedores adicionados na aba antes de o produto existir
- * (`Fornecedores.jsx`, modo rascunho). Mesmo schema de `salvarFornecedorDoProduto`,
- * uma linha por vez: linha invalida do rascunho e ignorada, e nao derruba o
- * Salvar do produto — o operador ainda pode adicionar de novo na tela do
- * produto ja criado.
+ * Reconcilia os fornecedores do produto com a lista inteira que veio da aba
+ * (`Fornecedores.jsx`, sempre em modo rascunho desde 22/09/2026 — "so quero
+ * que salve quando eu clicar no botao salvar do produto"). Nao e mais so
+ * "somar": soma, atualiza e REMOVE. A lista enviada e a verdade inteira —
+ * fornecedor que saiu dela (o operador clicou na lixeira) e apagado aqui,
+ * nao antes; ate o Salvar, a lixeira so tira a linha da tela.
+ *
+ * Identidade = `fornecedorId` (achado pelo NOME, unico por loja) — nao o id
+ * local do vinculo, que pode ser um id de verdade (linha ja existia) ou um
+ * uuid do navegador (linha nova). Funciona igual nos dois casos.
  */
 async function gravarFornecedoresRascunho(produto, formData) {
   let lista = [];
@@ -921,20 +940,20 @@ async function gravarFornecedoresRascunho(produto, formData) {
   } catch {
     lista = [];
   }
-  if (!Array.isArray(lista) || lista.length === 0) return;
+  if (!Array.isArray(lista)) return;
 
   const validos = [];
   for (const item of lista) {
     const resultado = FornecedorSchema.safeParse(item);
     if (resultado.success) validos.push({ dados: resultado.data, padrao: Boolean(item?.padrao) });
   }
-  if (validos.length === 0) return;
 
   // Nenhum marcado como padrao (a linha marcada caiu na validacao)? O
   // primeiro que sobrou assume, a mesma regra do primeiro fornecedor de um
   // produto em salvarFornecedorDoProduto.
-  if (!validos.some((item) => item.padrao)) validos[0].padrao = true;
+  if (validos.length > 0 && !validos.some((item) => item.padrao)) validos[0].padrao = true;
 
+  const fornecedorIdsMantidos = [];
   for (const { dados, padrao } of validos) {
     const { nome, ...vinculo } = dados;
     const fornecedor = await prisma.fornecedor.findFirst({
@@ -950,7 +969,15 @@ async function gravarFornecedoresRascunho(produto, formData) {
       update: { ...vinculo, padrao },
       create: { ...vinculo, produtoId: produto.id, fornecedorId: fornecedor.id, padrao },
     });
+    fornecedorIdsMantidos.push(fornecedor.id);
   }
+
+  // `notIn: []` (lista vazia — todos os fornecedores foram removidos na
+  // tela) apaga TODOS os vinculos do produto: e o comportamento certo, a
+  // lista enviada e a verdade inteira.
+  await prisma.produtoFornecedor.deleteMany({
+    where: { produtoId: produto.id, fornecedorId: { notIn: fornecedorIdsMantidos } },
+  });
 
   await recalcularCusto(produto.id);
 }
@@ -962,7 +989,14 @@ export async function listarFornecedores() {
   });
 }
 
-/** Saldo da ultima coleta do item exato de cada fornecedor vinculado. */
+/**
+ * Saldo E PRECO da ultima coleta do item exato de cada fornecedor vinculado.
+ *
+ * O preco aqui e so REFERENCIA (22/09/2026, pedido do dono): "Preco de custo"
+ * continua sendo o que o operador negociou, digitado a mao — este preco nunca
+ * o sobrescreve, so aparece ao lado num icone (ver `Fornecedores.jsx`),
+ * para o operador notar quando o valor coletado mudou desde a negociacao.
+ */
 export async function consultarEstoqueFornecedores(vinculos) {
   const lista = (Array.isArray(vinculos) ? vinculos : []).slice(0, 100)
     .filter((item) => typeof item?.id === "string" && typeof item?.nome === "string");
@@ -980,8 +1014,10 @@ export async function consultarEstoqueFornecedores(vinculos) {
     const produtos = await prisma.produtoColetado.findMany({
       where: { OR: criterios, fonte: { tipo: "FORNECEDOR" } },
       select: {
-        codigo: true, url: true, quantidade: true, aChegar: true,
-        fonte: { select: { nome: true } },
+        codigo: true, url: true, quantidade: true, aChegar: true, estoqueStatus: true,
+        precoNormal: true, precoComImpostos: true, precoReserva: true, impostos: true,
+        precosPorQuantidade: true,
+        fonte: { select: { nome: true, dominio: true } },
       },
       orderBy: { vistoEm: "desc" },
       take: 300,
@@ -992,7 +1028,21 @@ export async function consultarEstoqueFornecedores(vinculos) {
       const produto = produtos.find((candidato) => item.link && candidato.url === item.link)
         ?? produtos.find((candidato) => codigo && candidato.codigo?.toLocaleLowerCase("pt-BR") === codigo
           && candidato.fonte.nome.toLocaleLowerCase("pt-BR") === nome);
-      return [item.id, produto ? { quantidade: produto.quantidade, aChegar: produto.aChegar } : null];
+      return [item.id, produto ? {
+        quantidade: produto.quantidade,
+        aChegar: produto.aChegar,
+        disponivel: ["AVAILABLE", "IN_STOCK"].includes(produto.estoqueStatus),
+        precoNormal: produto.precoNormal == null ? null : Number(produto.precoNormal),
+        precoComImpostos: produto.precoComImpostos == null ? null : Number(produto.precoComImpostos),
+        precoReserva: produto.precoReserva == null ? null : Number(produto.precoReserva),
+        impostos: produto.impostos ?? [],
+        precosPorQuantidade: produto.precosPorQuantidade ?? [],
+        // Sem URL propria (Fortek: portal fechado, sem pagina publica) o link
+        // da linha cai no dominio da fonte — mesma regra de `linkDaFonte` em
+        // Mercados (TabelaMercados.jsx), pedido do dono em 22/09/2026 para as
+        // duas telas concordarem.
+        fonteDominio: produto.fonte.dominio,
+      } : null];
     }));
     return { ok: true, itens };
   } catch (erro) {
@@ -1216,9 +1266,19 @@ export async function removerConcorrenteDoProduto(vinculoId) {
 }
 
 /**
- * Concorrentes adicionados na aba antes de o produto existir (modo rascunho
- * de `Concorrentes.jsx`). Mesmo padrao de `gravarFornecedoresRascunho`: linha
- * invalida ou duplicada e ignorada, e nao derruba o Salvar do produto.
+ * Reconcilia os concorrentes do produto com a lista inteira que veio da aba
+ * (`Concorrentes.jsx`, sempre em modo rascunho desde 22/09/2026 — mesmo
+ * pedido do dono que mudou Fornecedores: a tela so grava no Salvar do
+ * produto). Soma, atualiza e REMOVE quem saiu da lista.
+ *
+ * Identidade: vindo da lupa (`produtoColetadoId`), o unique(produtoId,
+ * produtoColetadoId) resolve upsert sozinho — duas linhas do mesmo
+ * concorrente com produtos diferentes continuam legitimas, cada uma com o
+ * proprio produtoColetadoId. Digitado a mao, NAO HA chave de negocio (o
+ * mesmo concorrente pode ter duas linhas de produtos diferentes tambem) —
+ * a identidade e o proprio id do vinculo, e so serve quando ele ja e um id
+ * de verdade (a tela semeia o rascunho com os vinculos existentes; linha
+ * nova ganha um uuid do navegador, que nunca bate com um id do banco).
  */
 async function gravarConcorrentesRascunho(produto, formData) {
   let lista = [];
@@ -1227,18 +1287,51 @@ async function gravarConcorrentesRascunho(produto, formData) {
   } catch {
     lista = [];
   }
-  if (!Array.isArray(lista) || lista.length === 0) return;
+  if (!Array.isArray(lista)) return;
 
+  const existentes = await prisma.produtoConcorrente.findMany({
+    where: { produtoId: produto.id },
+    select: { id: true },
+  });
+  const idsExistentes = new Set(existentes.map((item) => item.id));
+
+  const idsMantidos = [];
   for (const item of lista) {
     const resultado = ConcorrenteSchema.safeParse(item);
     if (!resultado.success) continue;
+    const dados = resultado.data;
+
+    if (dados.produtoColetadoId) {
+      const gravado = await prisma.produtoConcorrente.upsert({
+        where: {
+          produtoId_produtoColetadoId: { produtoId: produto.id, produtoColetadoId: dados.produtoColetadoId },
+        },
+        update: dados,
+        create: { ...dados, produtoId: produto.id },
+      });
+      idsMantidos.push(gravado.id);
+      continue;
+    }
+
+    if (typeof item?.id === "string" && idsExistentes.has(item.id)) {
+      const gravado = await prisma.produtoConcorrente.update({ where: { id: item.id }, data: dados });
+      idsMantidos.push(gravado.id);
+      continue;
+    }
 
     try {
-      await prisma.produtoConcorrente.create({
-        data: { ...resultado.data, produtoId: produto.id },
+      const gravado = await prisma.produtoConcorrente.create({
+        data: { ...dados, produtoId: produto.id },
       });
+      idsMantidos.push(gravado.id);
     } catch (erro) {
       if (erro.code !== "P2002") throw erro;
     }
   }
+
+  // A lista enviada e a verdade inteira: quem sumiu dela (lixeira na tela,
+  // ainda nao gravada ate agora) e removido aqui.
+  await prisma.produtoConcorrente.deleteMany({
+    where: { produtoId: produto.id, id: { notIn: idsMantidos } },
+  });
 }

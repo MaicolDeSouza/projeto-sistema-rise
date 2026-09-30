@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useState, useTransition } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, useTransition } from "react";
 import {
   CheckSquare,
+  Clock,
   ExternalLink,
   Pencil,
   Plus,
@@ -18,6 +19,8 @@ import {
   removerFornecedorDoProduto,
   salvarFornecedorDoProduto,
 } from "@/app/produtos/acoes";
+import { precoComImpostoTexto, precoDaFaixaTexto } from "@/components/mercados/precoTexto";
+import { precoComImpostos as precoComImpostosCalc } from "@/lib/coleta/impostos";
 import CadastroRapidoFornecedor from "./CadastroRapidoFornecedor";
 import BuscaColetadoPorCodigo from "./BuscaColetadoPorCodigo";
 
@@ -33,6 +36,21 @@ const VAZIO = {
   precoCusto: "",
   link: "",
 };
+
+/**
+ * Sem URL propria do produto (Fortek: portal fechado, sem pagina publica
+ * nenhuma), o link cai no dominio da fonte — mesma regra de `linkDaFonte`
+ * em TabelaMercados.jsx (Mercados), pedido do dono em 22/09/2026 para as
+ * duas telas concordarem.
+ */
+function linkDoFornecedor(vinculo, dado) {
+  if (vinculo.link) return { url: vinculo.link, titulo: vinculo.link };
+  if (!dado?.fonteDominio) return null;
+  const url = /^https?:\/\//i.test(dado.fonteDominio)
+    ? dado.fonteDominio
+    : `https://${dado.fonteDominio}`;
+  return { url, titulo: `Abrir o site de ${vinculo.nome} (sem link direto deste produto)` };
+}
 
 /** Mesma regra de src/app/produtos/acoes.js: so http/https vira link. */
 function ehUrlSegura(valor) {
@@ -74,6 +92,84 @@ function porCustoAscendente(a, b) {
 }
 
 /**
+ * Icone + popover "Custo ultima varredura" (22/09/2026, pedido do dono): o
+ * preco de custo continua so manual — este e o preco lido na ultima coleta,
+ * so como REFERENCIA, escondido atras do icone para a tabela nao ficar
+ * poluida.
+ *
+ * So aparece quando ha produto casado (`dado` truthy) — sem casamento nao ha
+ * referencia nenhuma para mostrar. A linha de reserva so entra quando o
+ * PRODUTO CASADO tem mesmo `precoReserva`: a Santana, por exemplo, nao tem
+ * essa modalidade, e mostrar "reserva: —" fixo insinuaria que ela poderia
+ * ter e so nao teve desta vez — o que nao e verdade.
+ *
+ * `overflow: visible` no pai (ver a tabela, mais abaixo) e o que evita a
+ * mesma armadilha ja paga em Concorrentes.jsx: `overflow-x-auto` tambem
+ * prende o eixo Y, e cortaria o popover pela metade.
+ */
+function CustoDaVarredura({ id, dado, aberto, aoAlternar }) {
+  if (!dado) return null;
+
+  const atualTexto = precoComImpostoTexto(dado.precoNormal, dado.precoComImpostos, dado.impostos);
+  const temReserva = typeof dado.precoReserva === "number";
+  const reservaTexto = temReserva
+    ? precoComImpostoTexto(dado.precoReserva, precoComImpostosCalc(dado.precoReserva, dado.impostos), dado.impostos)
+    : null;
+  const faixas = (dado.precosPorQuantidade ?? [])
+    .filter((faixa) => typeof faixa.preco === "number")
+    .sort((a, b) => (a.minimo ?? 0) - (b.minimo ?? 0));
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={(evento) => {
+          evento.stopPropagation();
+          aoAlternar(aberto ? null : id);
+        }}
+        title="Ver custo da ultima varredura"
+        aria-label="Ver custo da ultima varredura"
+        aria-expanded={aberto}
+        className={`inline-flex h-5 w-5 items-center justify-center rounded-full border ${
+          aberto
+            ? "border-acento bg-acento/10 text-acento"
+            : "border-borda text-suave hover:text-acento"
+        }`}
+      >
+        <Clock size={12} />
+      </button>
+
+      {aberto && (
+        <div
+          onClick={(evento) => evento.stopPropagation()}
+          className="absolute top-full left-0 z-20 mt-1.5 w-60 rounded border border-borda bg-superficie p-3 text-xs shadow-lg"
+        >
+          <p className="mb-1.5 text-[10px] font-medium tracking-wide text-suave uppercase">
+            Custo ultima varredura
+          </p>
+          <p className="text-texto">{atualTexto ?? "—"}</p>
+          {reservaTexto && (
+            <p className="mt-0.5 text-amber-700">
+              {reservaTexto}
+              <span className="ml-1 text-[10px] font-normal text-suave">reserva</span>
+            </p>
+          )}
+          {faixas.length > 0 && (
+            <div className="mt-1 space-y-0.5">
+              {faixas.map((faixa) => (
+                <p key={`${faixa.minimo}-${faixa.maximo}-${faixa.rotulo}`} className="text-suave">
+                  {precoDaFaixaTexto(faixa, dado.impostos)}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Fornecedores do produto.
  *
  * Os campos NAO levam atributo `name`: esta tabela vive dentro do <form> do
@@ -111,6 +207,9 @@ export default function Fornecedores({
   const [catalogoAtual, setCatalogoAtual] = useState(catalogo);
   const [estoques, setEstoques] = useState({});
   const [popupNome, setPopupNome] = useState(null);
+  // Id do vinculo cujo popover "Custo ultima varredura" esta aberto — um so
+  // por vez, como a Janela do detalhe de Mercados.
+  const [popoverAberto, setPopoverAberto] = useState(null);
 
   useEffect(() => {
     if (!ativo) return;
@@ -124,6 +223,20 @@ export default function Fornecedores({
       .catch(() => { if (!cancelado) setEstoques({}); });
     return () => { cancelado = true; };
   }, [ativo, vinculos]);
+
+  useEffect(() => {
+    if (popoverAberto === null) return undefined;
+    const fechar = (evento) => {
+      if (evento.type === "keydown" && evento.key !== "Escape") return;
+      setPopoverAberto(null);
+    };
+    document.addEventListener("mousedown", fechar);
+    document.addEventListener("keydown", fechar);
+    return () => {
+      document.removeEventListener("mousedown", fechar);
+      document.removeEventListener("keydown", fechar);
+    };
+  }, [popoverAberto]);
 
   function abrirNovo() {
     setRascunho(VAZIO);
@@ -307,7 +420,11 @@ export default function Fornecedores({
 
   return (
     <div>
-      <div className="overflow-x-auto rounded border border-borda">
+      {/* `md:overflow-visible`: o popover de "Custo ultima varredura" abre para
+          BAIXO, e `overflow-x-auto` prende tambem o eixo Y e o cortaria pela
+          metade — mesma armadilha ja paga em Concorrentes.jsx. A rolagem
+          lateral fica so nas telas estreitas. */}
+      <div className="overflow-x-auto rounded border border-borda md:overflow-visible">
         <table className="w-full text-sm">
           <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
             <tr className="divide-x divide-borda">
@@ -372,30 +489,48 @@ export default function Fornecedores({
                     {vinculo.codigo || "—"}
                   </td>
                   <td className="px-3 py-2 tabular-nums">
-                    {vinculo.precoCusto === null
-                      ? "—"
-                      : moeda.format(vinculo.precoCusto)}
+                    <div className="flex items-center gap-1.5">
+                      <span>{vinculo.precoCusto === null ? "—" : moeda.format(vinculo.precoCusto)}</span>
+                      <CustoDaVarredura
+                        id={vinculo.id}
+                        dado={estoques[vinculo.id]}
+                        aberto={popoverAberto === vinculo.id}
+                        aoAlternar={setPopoverAberto}
+                      />
+                    </div>
                   </td>
                   <td className="px-3 py-2 tabular-nums">
-                    {estoques[vinculo.id]?.quantidade == null ? <span className="text-suave">—</span> : `${estoques[vinculo.id].quantidade} un.`}
+                    {!estoques[vinculo.id] ? (
+                      <span className="text-suave">—</span>
+                    ) : estoques[vinculo.id].disponivel ? (
+                      <span className="text-emerald-700">
+                        estoque disponivel
+                        {typeof estoques[vinculo.id].quantidade === "number" && `: ${estoques[vinculo.id].quantidade}`}
+                      </span>
+                    ) : (
+                      <span className="text-red-600">sem estoque atual</span>
+                    )}
                     {estoques[vinculo.id]?.aChegar > 0 && (
                       <div className="text-[11px] text-amber-700">+{estoques[vinculo.id].aChegar} a chegar</div>
                     )}
                   </td>
                   <td className="px-3 py-2">
-                    {vinculo.link ? (
-                      <a
-                        href={vinculo.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        title={vinculo.link}
-                        className="inline-flex text-acento hover:underline"
-                      >
-                        <ExternalLink size={14} />
-                      </a>
-                    ) : (
-                      <span className="text-suave">—</span>
-                    )}
+                    {(() => {
+                      const link = linkDoFornecedor(vinculo, estoques[vinculo.id]);
+                      return link ? (
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={link.titulo}
+                          className="inline-flex text-acento hover:underline"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
+                      ) : (
+                        <span className="text-suave">—</span>
+                      );
+                    })()}
                   </td>
                   <td className="px-3 py-2">
                     <button

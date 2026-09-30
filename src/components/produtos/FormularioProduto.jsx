@@ -1590,18 +1590,25 @@ export default function FormularioProduto({
     });
   }, [produto]);
 
-  // Fornecedores adicionados antes de o produto existir (pedido do dono em
-  // 18/09/2026, para poder cadastrar fornecedor junto com o produto novo, como
-  // no desenho). Viram vinculos de verdade so no Salvar
-  // (gravarFornecedoresRascunho), igual a documentos e certificado.
+  // Fornecedores e Concorrentes SO editam em memoria enquanto o formulario
+  // esta aberto (pedido do dono em 22/09/2026: "so quero que salve quando eu
+  // clicar no botao salvar do produto... caso eu aperte cancelar, tudo deve
+  // ser desfeito"). Antes, isso so valia para produto NOVO (nascia sem
+  // vinculo nenhum, e o rascunho comecava vazio); agora a lista comeca com o
+  // que ja esta gravado — inclusive no produto existente — e vira vinculo de
+  // verdade so no Salvar (`gravarFornecedoresRascunho`/
+  // `gravarConcorrentesRascunho`, que agora tambem REMOVEM quem saiu da
+  // lista). Cancelar nao desfaz nada explicitamente: e so nunca ter gravado —
+  // o estado e local, e a pagina de produtos nem chega a ser recarregada.
   //
-  // Produto RECEM-IMPORTADO DO BLING (pedido do dono em 22/09/2026): o
-  // fornecedor extraido na importacao mora em `produto.fornecedorRascunho`,
-  // sem Fornecedor/ProdutoFornecedor criados. Aqui ele vira a MESMA lista de
-  // rascunho do produto novo — id fixo (nao aleatorio: entra no hidden field
-  // renderizado no servidor, e um id sorteado de novo na hidratacao do cliente
-  // desencontraria o HTML). So conta enquanto nao ha vinculo de verdade: depois
-  // de salvo uma vez, `fornecedores` deixa de vir vazio e o rascunho some.
+  // Produto RECEM-IMPORTADO DO BLING (pedido do dono em 22/09/2026, mais
+  // antigo que esta mudanca): o fornecedor extraido na importacao mora em
+  // `produto.fornecedorRascunho`, sem Fornecedor/ProdutoFornecedor criados.
+  // Aqui ele vira a MESMA lista de rascunho — id fixo (nao aleatorio: entra
+  // no hidden field renderizado no servidor, e um id sorteado de novo na
+  // hidratacao do cliente desencontraria o HTML). So conta enquanto nao ha
+  // vinculo de verdade: depois de salvo uma vez, `fornecedores` deixa de vir
+  // vazio e o rascunho do Bling some, substituido pelos vinculos reais.
   const [fornecedoresRascunho, setFornecedoresRascunho] = useState(() =>
     produto?.fornecedorRascunho?.nome && fornecedores.length === 0
       ? [
@@ -1618,7 +1625,7 @@ export default function FormularioProduto({
             padrao: true,
           },
         ]
-      : [],
+      : fornecedores,
   );
 
   function mudarFornecedoresRascunho(atualizador) {
@@ -1626,9 +1633,39 @@ export default function FormularioProduto({
     setAlterado(true);
   }
 
+  /**
+   * Concorrentes vem do servidor num formato "de tela" (`fonte`, `nome`,
+   * `codigo`, `preco`, `url`, ja resolvidos do produto coletado ou do
+   * manual). O rascunho precisa do formato "de gravacao" tambem
+   * (`produtoColetadoId`/`*Manual`), porque e o que `ConcorrenteSchema`
+   * espera ao reconciliar no Salvar — sem isto, um concorrente manual
+   * existente falharia a validacao no primeiro Salvar (sem `fonteManual`
+   * nenhum) e seria apagado pela reconciliacao, sem o operador ter tocado
+   * nele.
+   */
+  function paraRascunho(item) {
+    return {
+      id: item.id,
+      manual: item.manual,
+      produtoColetadoId: item.manual ? null : item.produtoColetadoId,
+      fonteManual: item.manual ? item.fonte : null,
+      nomeManual: item.manual ? item.nome : null,
+      codigoManual: item.manual ? item.codigo : null,
+      precoManual: item.manual ? item.preco : null,
+      linkManual: item.manual ? item.url : null,
+      fonte: item.fonte,
+      nome: item.nome,
+      codigo: item.codigo,
+      preco: item.preco,
+      url: item.url,
+    };
+  }
+
   // Mesma ideia para Concorrentes (pedido do dono em 18/09/2026, depois de
   // Concorrentes ganhar tabela propria — ate entao nao gravava nada).
-  const [concorrentesRascunho, setConcorrentesRascunho] = useState([]);
+  const [concorrentesRascunho, setConcorrentesRascunho] = useState(() =>
+    concorrentes.map(paraRascunho),
+  );
 
   function mudarConcorrentesRascunho(atualizador) {
     setConcorrentesRascunho(atualizador);
@@ -1974,11 +2011,10 @@ export default function FormularioProduto({
   const inicial = preenchido ?? produto;
   const v = (campo) => inicial?.[campo] ?? "";
   const novo = !produto;
-  // Fornecedor do Bling ainda em rascunho (ver fornecedoresRascunho acima): a
-  // aba Fornecedores trata como produto novo, so para ela — o resto do
-  // formulario (fotos, documentos...) continua no modo de produto existente.
-  const usaFornecedorRascunho =
-    novo || Boolean(produto?.fornecedorRascunho?.nome && fornecedores.length === 0);
+  // A aba Fornecedores agora SEMPRE le e edita a lista em memoria (rascunho),
+  // produto novo ou existente — ver o comentario junto de
+  // `fornecedoresRascunho`, acima.
+  const usaFornecedorRascunho = true;
 
   // Preco venda ATUAL, para a comparacao com concorrentes em Concorrentes.jsx.
   // O campo continua nao controlado (ver CampoPreco); isto so espelha o valor
@@ -2018,9 +2054,7 @@ export default function FormularioProduto({
   // diferentes sao legitimas (o Fornecedor e o unico por loja; o concorrente
   // nao).
   const idsConcorrentesAtuais = new Set(
-    (novo ? concorrentesRascunho : concorrentes)
-      .map((item) => item.produtoColetadoId)
-      .filter(Boolean),
+    concorrentesRascunho.map((item) => item.produtoColetadoId).filter(Boolean),
   );
   const sugestoesConcorrente = [...marcados.values()].filter(
     (item) => item.tipo === "CONCORRENTE" && !idsConcorrentesAtuais.has(item.id),
@@ -2676,9 +2710,9 @@ export default function FormularioProduto({
                 ref={concorrentesRef}
                 produtoId={produto?.id ?? null}
                 ativo={aba === "fornecedores"}
-                vinculos={novo ? concorrentesRascunho : concorrentes}
+                vinculos={concorrentesRascunho}
                 aoFalhar={setErroAcao}
-                modoRascunho={novo}
+                modoRascunho
                 aoMudarRascunho={mudarConcorrentesRascunho}
                 sugestoes={sugestoesConcorrente}
                 precoProduto={precoVendaAtual}

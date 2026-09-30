@@ -135,6 +135,10 @@ export default async function MercadosPage({ searchParams }) {
       origem: produto.origem,
       precoAtual: produto.prices?.normal ?? null,
       precoPromocional: produto.prices?.promotional ?? null,
+      // So preenchido quando ha reserva (o que vai chegar, comprado e em
+      // transito) — nunca substitui o normal, sao precos de coisas diferentes.
+      precoReserva:
+        typeof produto.prices?.reserva === "number" ? produto.prices.reserva : null,
       // Status desconhecido NAO e indisponivel: marcar assim poria metade das
       // lojas de luto sem que nenhuma tenha dito isso. So quem declarou
       // OutOfStock aparece como sem estoque.
@@ -159,9 +163,15 @@ export default async function MercadosPage({ searchParams }) {
       precoComImpostos:
         typeof produto.prices?.comImpostos === "number" ? produto.prices.comImpostos : null,
       impostos: produto.taxes ?? [],
+      // Faixas por quantidade (a Santana publica 3-4 e 5+ un., com desconto
+      // sobre a unidade): a lista mostra todas, o detalhe (RegrasDeCompra)
+      // repete a mesma tabela com o multiplo de venda ao lado.
+      precosPorQuantidade: produto.precosPorQuantidade ?? [],
       vistoEm: produto.coletadoEm,
       fonteNome: produto.fonte?.nome ?? "?",
       fonteTipo: produto.fonte?.tipo ?? "OUTRO",
+      // So para o link de fallback quando o produto nao tem URL propria.
+      fonteDominio: produto.fonte?.dominio ?? null,
     }));
 
   return (

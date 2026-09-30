@@ -20,6 +20,7 @@ import {
 import Badge from "@/components/ui/Badge";
 import Copiar from "@/components/ui/Copiar";
 import RegrasDeCompra from "@/components/mercados/RegrasDeCompra";
+import { precoComImpostoTexto, precoDaFaixaTexto } from "@/components/mercados/precoTexto";
 import { precoComImpostos } from "@/lib/coleta/impostos";
 import { detalhePagina } from "@/app/mercados/acoes";
 
@@ -276,83 +277,234 @@ function Estoque({ semEstoque, disponivel, quantidade, aChegar, semMargem }) {
     );
   }
 
+  // Pronta entrega desconhecida (produto que so veio na lista de RESERVA, sem
+  // linha na de pronta entrega) nao e o mesmo que "nada para mostrar": o
+  // fornecedor pode ter declarado quanto vai chegar, e esconder isso deixava a
+  // reserva invisivel na lista — o unico jeito de ve-la era abrir o detalhe.
   if (!disponivel) {
-    return semMargem ? <span className="text-sm text-suave">—</span> : null;
+    if (typeof aChegar !== "number") {
+      return semMargem ? <span className="text-sm text-suave">—</span> : null;
+    }
+    return (
+      <span className={`${margem}flex items-center gap-1 text-xs text-amber-700`}>
+        <PackageCheck size={12} /> Estoque a chegar: {aChegar}
+      </span>
+    );
   }
 
   return (
-    <span className={`${margem}flex items-center gap-1 text-xs text-emerald-700`}>
-      <PackageCheck size={12} />
-      {typeof quantidade === "number"
-        ? `estoque disponivel: ${quantidade}`
-        : "estoque disponivel"}
-      {/* A chegar NUNCA soma com a pronta entrega: um numero so prometeria
+    <div className={margem}>
+      <span className="flex items-center gap-1 text-xs text-emerald-700">
+        <PackageCheck size={12} />
+        {typeof quantidade === "number"
+          ? `Estoque disponivel: ${quantidade}`
+          : "Estoque disponivel"}
+      </span>
+      {/* Linha PROPRIA, nao mais "· N a chegar" na mesma linha (pedido do
+          dono, 22/09/2026) — pronta entrega e reserva sao numeros de
+          decisoes diferentes, e o rotulo repetido deixa isso explicito.
+          A chegar NUNCA soma com a pronta entrega: um numero so prometeria
           entrega que nao existe. */}
       {typeof aChegar === "number" && (
-        <span className="text-suave">· {aChegar} a chegar</span>
+        <span className="mt-1 flex items-center gap-1 text-xs text-amber-700">
+          <PackageCheck size={12} /> Estoque a chegar: {aChegar}
+        </span>
       )}
-    </span>
+    </div>
   );
 }
 
 /**
- * Uma modalidade de compra: pronta entrega ou reserva.
- *
- * Mesmo desenho da previa do teste de fonte, de proposito — o operador aprova a
- * fonte olhando aquelas caixas e depois consulta o produto aqui; duas formas
- * para o mesmo dado o obrigariam a reaprender a ler.
- *
- * O preco e a quantidade de CADA UMA. `aChegar` nunca soma com a pronta
- * entrega: um numero so prometeria entrega que nao existe.
+ * Coluna Estoque da lista (21/09/2026, pedido do dono): pronta entrega numa
+ * linha, a chegar (reserva) noutra, com um traco entre as duas SO quando as
+ * duas existem — produto com uma so (ex.: so na lista de reserva, ou
+ * concorrente, que nunca tem "a chegar") mostra ela sozinha, sem o traco
+ * insinuando uma segunda informacao que nao veio.
  */
-function CaixaDeCompra({ titulo, preco, comImpostos, impostos, quantidade, nota, tom }) {
-  const ehReserva = tom === "amber";
+function ColunaEstoque({ semEstoque, disponivel, quantidade, aChegar }) {
+  const linhaPronta = semEstoque
+    ? { cor: "text-red-600", Icone: PackageX, texto: "sem estoque" }
+    : disponivel
+      ? {
+          cor: "text-emerald-700",
+          Icone: PackageCheck,
+          texto: typeof quantidade === "number" ? String(quantidade) : "disponivel",
+        }
+      : null;
+  const temAChegar = typeof aChegar === "number";
+
+  if (!linhaPronta && !temAChegar) return <span className="text-sm text-suave">—</span>;
 
   return (
-    <div
-      className={`min-w-[14rem] flex-1 rounded border px-3 py-2.5 ${
-        ehReserva ? "border-amber-200 bg-amber-50/40" : "border-borda"
-      }`}
-    >
-      <p
-        className={`mb-2 text-xs font-medium tracking-wide uppercase ${
-          ehReserva ? "text-amber-800" : "text-suave"
-        }`}
-      >
-        {titulo}
-      </p>
+    <div className="text-xs">
+      {linhaPronta && (
+        <span className={`flex items-center gap-1 ${linhaPronta.cor}`}>
+          <linhaPronta.Icone size={12} /> {linhaPronta.texto}
+        </span>
+      )}
+      {linhaPronta && temAChegar && <div className="my-1 h-px bg-borda" />}
+      {temAChegar && (
+        <span className="flex items-center gap-1 text-amber-700">
+          <PackageCheck size={12} /> {aChegar} a chegar
+        </span>
+      )}
+    </div>
+  );
+}
 
-      <div className="flex flex-wrap items-start gap-x-5 gap-y-2">
-        <div>
-          <p className="text-xs text-suave">Preco</p>
-          <p className="text-lg font-semibold tabular-nums">{comoMoeda(preco)}</p>
+/**
+ * Link do SITE: a URL do proprio PRODUTO quando existe; sem ela — a Fortek e
+ * um portal fechado, nenhum produto de lá tem pagina publica —, cai na home
+ * da fonte (pedido do dono, 22/09/2026), para nao deixar so um traco sem
+ * nenhum jeito de conferir a loja. `dominio` vem da fonte, e a Santana ja o
+ * guarda com o protocolo em teste local, entao so prefixa quando falta.
+ */
+function linkDaFonte(linha) {
+  if (linha.url) return { url: linha.url, titulo: `Abrir em ${linha.fonteNome}` };
+  if (!linha.fonteDominio) return null;
+  const url = /^https?:\/\//i.test(linha.fonteDominio)
+    ? linha.fonteDominio
+    : `https://${linha.fonteDominio}`;
+  return { url, titulo: `Abrir o site de ${linha.fonteNome} (sem link direto deste produto)` };
+}
+
+/**
+ * Uma linha por faixa de quantidade (pedido do dono, 22/09/2026, depois de ver
+ * so a mais barata em uso: a Santana publica 3-4 e 5+ un., e ele quer as duas
+ * visiveis, nao so um resumo). Ordem CRESCENTE de quantidade — a de 1 unidade
+ * ja e a linha de cima (o preco normal do produto), entao nao repete aqui.
+ * Cada linha leva o MESMO imposto do produto, e termina dizendo quantas
+ * unidades pedem aquele preco.
+ */
+function DicaFaixas({ precosPorQuantidade, impostos }) {
+  const faixas = (precosPorQuantidade ?? [])
+    .filter((faixa) => typeof faixa.preco === "number")
+    .sort((a, b) => (a.minimo ?? 0) - (b.minimo ?? 0));
+  if (faixas.length === 0) return null;
+
+  return (
+    <div className="mt-1 space-y-0.5">
+      {faixas.map((faixa) => (
+        <span key={`${faixa.minimo}-${faixa.maximo}-${faixa.rotulo}`} className="block text-[10px] text-suave">
+          {precoDaFaixaTexto(faixa, impostos)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Coluna Valor do FORNECEDOR (22/09/2026, pedido do dono): preco total com o
+ * "sem imposto + imposto" entre parenteses, numa linha so, no lugar das tres
+ * linhas separadas de antes. Pronta entrega em cima, reserva embaixo com um
+ * traco entre as duas — mesma regra da coluna Estoque: uma so, sem traco,
+ * quando so uma existe.
+ *
+ * O "com impostos" da RESERVA nao e gravado no banco (so o da pronta entrega
+ * e) — o detalhe da tela ja calcula na hora com `precoComImpostos`, e aqui e
+ * o mesmo caminho: guardar um terceiro numero que e só a soma de outros dois
+ * arriscaria ficar desatualizado sem ninguem perceber.
+ */
+function ColunaValorFornecedor({ linha }) {
+  const prontaTexto = precoComImpostoTexto(linha.precoAtual, linha.precoComImpostos, linha.impostos);
+  const comImpostosDaReserva =
+    typeof linha.precoReserva === "number"
+      ? precoComImpostos(linha.precoReserva, linha.impostos)
+      : null;
+  const reservaTexto = precoComImpostoTexto(linha.precoReserva, comImpostosDaReserva, linha.impostos);
+
+  if (!prontaTexto && !reservaTexto) {
+    return <span className="block text-xs text-suave">—</span>;
+  }
+
+  return (
+    <div>
+      {prontaTexto && (
+        <span className="block text-xs font-medium text-texto">{prontaTexto}</span>
+      )}
+      {prontaTexto && reservaTexto && <div className="my-1 h-px bg-borda" />}
+      {reservaTexto && (
+        <span className="block text-xs font-medium text-amber-700">
+          {reservaTexto}
+          <span className="ml-1 text-[10px] font-normal text-suave">reserva</span>
+        </span>
+      )}
+      <DicaFaixas precosPorQuantidade={linha.precosPorQuantidade} impostos={linha.impostos} />
+    </div>
+  );
+}
+
+/**
+ * Preco do fornecedor no detalhe: UMA coluna, pedido do dono em 22/09/2026
+ * depois de ver a Pronta entrega e a Reserva cada uma com Preco/Com
+ * impostos/Quantidade em caixas separadas. "PRONTA ENTREGA" e "Quantidade"
+ * saem daqui — o titulo nao faz falta numa coluna so, e a quantidade foi
+ * para a caixa Estoque ao lado (ver `CaixaEstoque`).
+ *
+ * Cada linha usa o MESMO texto do preco normal ("R$ 17,24 (R$ 16,90 + 2%
+ * IPI)") — pronta entrega, reserva (se houver) e as faixas de lote, todas no
+ * mesmo formato, para nao repetir o mesmo dado em desenhos diferentes.
+ */
+function CaixaDePreco({
+  precoAtual,
+  precoComImpostos: totalComImposto,
+  taxes,
+  temReserva,
+  precoReserva,
+  reservaHerdada,
+  precosPorQuantidade,
+}) {
+  const prontaTexto = precoComImpostoTexto(precoAtual, totalComImposto, taxes);
+  const reservaTexto = temReserva
+    ? precoComImpostoTexto(precoReserva, precoComImpostos(precoReserva, taxes), taxes)
+    : null;
+
+  return (
+    <div className="min-w-[14rem] flex-1 rounded border border-borda px-3 py-2.5">
+      <p className="mb-2 text-xs font-medium tracking-wide text-suave uppercase">Preco</p>
+
+      {prontaTexto && <p className="text-lg font-semibold tabular-nums">{prontaTexto}</p>}
+
+      {reservaTexto && (
+        <p className="mt-1 text-lg font-semibold tabular-nums text-amber-700">
+          {reservaTexto}
           {/*
             Fornecedor que nao publica preco separado para o que vai chegar
             cobra o mesmo da pronta entrega. Dizer de onde veio evita que o
             numero repetido pareca erro de leitura.
           */}
-          {nota && <p className="text-xs text-suave">{nota}</p>}
-        </div>
+          <span className="ml-1 text-xs font-normal text-suave">
+            reserva{reservaHerdada ? " (mesmo da pronta entrega)" : ""}
+          </span>
+        </p>
+      )}
 
-        {typeof comImpostos === "number" && (
-          <div>
-            <p className="text-xs text-suave">Com impostos</p>
-            <p className="text-lg font-semibold tabular-nums">{comoMoeda(comImpostos)}</p>
-            {impostos && <p className="text-xs text-suave">({impostos})</p>}
-          </div>
-        )}
+      <DicaFaixas precosPorQuantidade={precosPorQuantidade} impostos={taxes} />
+    </div>
+  );
+}
 
-        <div>
-          <p className="text-xs text-suave">Quantidade</p>
-          <p className="text-lg font-semibold tabular-nums">
-            {typeof quantidade === "number" ? (
-              quantidade
-            ) : (
-              <span className="text-sm font-normal text-suave">nao informada</span>
-            )}
-          </p>
-        </div>
-      </div>
+/**
+ * Estoque do fornecedor no detalhe, ao lado da caixa Preco (22/09/2026,
+ * pedido do dono): antes vivia no campo Status, no alto — a seta do desenho
+ * dele mostrou que o lugar certo e aqui, no espaco vazio entre Preco e
+ * Multiplo de venda. So para FORNECEDOR: o concorrente nao tem essa fileira
+ * de caixas, e o Status dele continua no grid de identificadores.
+ *
+ * Reaproveita o mesmo componente `Estoque` do campo Status (mesma regra dos
+ * tres estados), so envolvido na caixa com titulo.
+ */
+function CaixaEstoque({ semEstoque, disponivel, quantidade, aChegar }) {
+  return (
+    <div className="min-w-[11rem] rounded border border-borda px-3 py-2.5">
+      <p className="mb-2 text-xs font-medium tracking-wide text-suave uppercase">Estoque</p>
+      <Estoque
+        semEstoque={semEstoque}
+        disponivel={disponivel}
+        quantidade={quantidade}
+        aChegar={aChegar}
+        semMargem
+      />
     </div>
   );
 }
@@ -653,23 +805,25 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
               Status com a mesma cara da lista: verde com o saldo, vermelho
               quando esgotou. Ler "Disponivel" em texto cinza aqui e o rotulo
               colorido la fazia parecer que eram dois campos diferentes.
+
+              SO PARA CONCORRENTE (22/09/2026): o fornecedor tem a caixa
+              Estoque propria, ao lado da caixa Preco — a seta do desenho do
+              dono mostrou que a quantidade sai DAQUI para la, e nao repete
+              nos dois lugares.
             */}
-            <div className="min-w-0">
-              <dt className="text-xs text-suave">Status</dt>
-              <dd>
-                {/*
-                  No fornecedor o saldo tem campo proprio ("Pronta entrega"),
-                  entao aqui fica so o estado — repetir o numero diria a mesma
-                  coisa duas vezes lado a lado.
-                */}
-                <Estoque
-                  semEstoque={dados.semEstoque}
-                  disponivel={dados.estoqueConhecido}
-                  quantidade={ehFornecedor ? null : dados.quantidade}
-                  semMargem
-                />
-              </dd>
-            </div>
+            {!ehFornecedor && (
+              <div className="min-w-0">
+                <dt className="text-xs text-suave">Status</dt>
+                <dd>
+                  <Estoque
+                    semEstoque={dados.semEstoque}
+                    disponivel={dados.estoqueConhecido}
+                    quantidade={dados.quantidade}
+                    semMargem
+                  />
+                </dd>
+              </div>
+            )}
           </dl>
 
           {/*
@@ -683,31 +837,30 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
           */}
           {ehFornecedor ? (
             <div className="flex flex-wrap gap-3 border-t border-borda pt-3">
-              <CaixaDeCompra
-                titulo="Pronta entrega"
-                preco={dados.precoAtual}
-                comImpostos={dados.precoComImpostos}
-                impostos={resumoDeImpostos}
-                quantidade={dados.quantidade}
-              />
-
-              {temReserva && (
-                <CaixaDeCompra
-                  titulo="Reserva"
-                  preco={precoDeReserva}
-                  comImpostos={precoComImpostos(precoDeReserva, dados.taxes)}
-                  impostos={resumoDeImpostos}
-                  quantidade={dados.aChegar}
-                  nota={reservaHerdada ? "(mesmo da pronta entrega)" : null}
-                  tom="amber"
-                />
-              )}
-
-              <RegrasDeCompra
-                precoNormal={dados.precoAtual}
+              <CaixaDePreco
+                precoAtual={dados.precoAtual}
+                precoComImpostos={dados.precoComImpostos}
+                taxes={dados.taxes}
+                temReserva={temReserva}
+                precoReserva={precoDeReserva}
+                reservaHerdada={reservaHerdada}
                 precosPorQuantidade={dados.precosPorQuantidade}
-                multiploVenda={dados.multiploVenda}
               />
+
+              <CaixaEstoque
+                semEstoque={dados.semEstoque}
+                disponivel={dados.estoqueConhecido}
+                quantidade={dados.quantidade}
+                aChegar={dados.aChegar}
+              />
+
+              {/*
+                So o Multiplo de venda: as faixas de lote saem daqui (ja
+                estao na CaixaDePreco, acima) — sem passar precosPorQuantidade
+                a caixa "Compra em lote" do RegrasDeCompra nao renderiza,
+                porque a lista de faixas vem vazia.
+              */}
+              <RegrasDeCompra multiploVenda={dados.multiploVenda} />
             </div>
           ) : (
             <div className="flex flex-wrap items-baseline gap-x-3 border-t border-borda pt-3">
@@ -1021,7 +1174,8 @@ export default function TabelaMercados({ linhas }) {
               <th className="w-16 px-3 py-2.5 text-center font-medium">Imagem</th>
               <th className="px-3 py-2.5 text-left font-medium">Nome</th>
               <th className="px-3 py-2.5 text-left font-medium">Codigo</th>
-              <th className="px-3 py-2.5 text-right font-medium">Valor</th>
+              <th className="w-32 px-3 py-2.5 text-left font-medium">Estoque</th>
+              <th className="px-3 py-2.5 text-left font-medium">Valor</th>
               <th className="w-12 px-3 py-2.5 text-center font-medium">Site</th>
               <th className="w-28 px-3 py-2.5 text-center font-medium">Atualizado</th>
             </tr>
@@ -1062,19 +1216,9 @@ export default function TabelaMercados({ linhas }) {
                     <SeloFonte tipo={linha.fonteTipo} />
                     <span className="truncate">{linha.fonteNome}</span>
                   </span>
-                  {/*
-                    "a chegar" so para FORNECEDOR: e a reserva que ele declara
-                    na lista. Concorrente nao publica isso, e o campo nunca vem
-                    preenchido — passar assim mesmo nao quebraria nada, mas
-                    deixaria a regra implicita no dado em vez de escrita.
-                  */}
-                  <Estoque
-                    semEstoque={linha.semEstoque}
-                    disponivel={linha.estoqueConhecido}
-                    quantidade={linha.quantidade}
-                    aChegar={linha.fonteTipo === "FORNECEDOR" ? linha.aChegar : null}
-                  />
                 </td>
+                {/* CODIGO antes de ESTOQUE (pedido do dono, 22/09/2026): e o
+                    ponto de acesso ao produto, lido primeiro que a quantidade. */}
                 <td className="group px-3 py-2.5 font-mono text-xs">
                   <span className="flex items-center gap-1">
                     {linha.skuFonte ?? linha.mpn ?? "—"}
@@ -1084,54 +1228,54 @@ export default function TabelaMercados({ linhas }) {
                   </span>
                 </td>
                 {/*
+                  Coluna propria (21/09/2026, pedido do dono): antes ficava
+                  embutido embaixo do nome, disputando espaco com titulo longo.
+                  "a chegar" so para FORNECEDOR: e a reserva que ele declara na
+                  lista. Concorrente nao publica isso, e o campo nunca vem
+                  preenchido — passar assim mesmo nao quebraria nada, mas
+                  deixaria a regra implicita no dado em vez de escrita.
+                */}
+                <td className="px-3 py-2.5">
+                  <ColunaEstoque
+                    semEstoque={linha.semEstoque}
+                    disponivel={linha.estoqueConhecido}
+                    quantidade={linha.quantidade}
+                    aChegar={linha.fonteTipo === "FORNECEDOR" ? linha.aChegar : null}
+                  />
+                </td>
+                {/*
                   Vermelho e o preco de tabela; verde e o que o cliente paga a
                   vista. Sem o traco: risco diz "este valor nao vale mais", e
                   nao e o caso — quem paga no cartao paga o de cima.
-                */}
-                {/*
+
                   O verde e maior que o vermelho porque e o numero que decide a
                   comparacao: o de tabela e referencia, o a vista e o que o
                   cliente do concorrente paga.
-                */}
-                {/*
-                  FORNECEDOR TEM UMA TERCEIRA COLUNA DE PRECO, e ela e a que
-                  importa: o distribuidor cobra imposto por fora — a Benser
-                  escreve "Preco unit. sem IPI" — entao os R$ 79,90 da lista nao
-                  sao o que se paga. Aqui o numero em destaque e o COM imposto,
-                  e o de lista fica em cima, menor, como referencia.
 
-                  E o mesmo desenho do concorrente com dois numeros, de
-                  proposito: em cima o preco anunciado, embaixo em destaque o
-                  que sai do bolso. So muda o motivo de o de baixo ser menor
-                  (desconto a vista) ou maior (imposto).
+                  FORNECEDOR TEM DESENHO PROPRIO (ColunaValorFornecedor,
+                  22/09/2026): o distribuidor cobra imposto por fora — a Benser
+                  escreve "Preco unit. sem IPI" — e o numero que decide e o
+                  total COM imposto, numa linha so ("R$ 8,06 (R$ 7,90 + 2%
+                  IPI)"), com pronta entrega e reserva divididas como na coluna
+                  Estoque.
                 */}
-                <td className="px-3 py-2.5 text-right tabular-nums">
-                  <span className="block text-xs text-red-600">
-                    {comoMoeda(linha.precoAtual)}
-                  </span>
-                  {linha.precoPromocional !== null &&
-                    linha.precoPromocional !== undefined && (
-                      <span className="block font-medium text-emerald-700">
-                        {comoMoeda(linha.precoPromocional)}
+                <td className="px-3 py-2.5 text-left tabular-nums">
+                  {linha.fonteTipo === "FORNECEDOR" ? (
+                    <ColunaValorFornecedor linha={linha} />
+                  ) : (
+                    <>
+                      <span className="block text-xs text-red-600">
+                        {comoMoeda(linha.precoAtual)}
                       </span>
-                    )}
-                  {linha.fonteTipo === "FORNECEDOR" &&
-                    typeof linha.precoComImpostos === "number" && (
-                      <>
-                        <span className="block font-medium text-texto">
-                          {comoMoeda(linha.precoComImpostos)}
-                        </span>
-                        {/* QUAIS impostos entraram: "com impostos" sem dizer
-                            quais e numero que ninguem consegue conferir. */}
-                        {linha.impostos?.length > 0 && (
-                          <span className="block text-[10px] text-suave">
-                            {linha.impostos
-                              .map((imposto) => `${imposto.nome} ${imposto.percentual}%`)
-                              .join(" · ")}
+                      {linha.precoPromocional !== null &&
+                        linha.precoPromocional !== undefined && (
+                          <span className="block font-medium text-emerald-700">
+                            {comoMoeda(linha.precoPromocional)}
                           </span>
                         )}
-                      </>
-                    )}
+                      <DicaFaixas precosPorQuantidade={linha.precosPorQuantidade} impostos={linha.impostos} />
+                    </>
+                  )}
                 </td>
                 {/*
                   O clique no link NAO pode abrir o detalhe junto: sao duas
@@ -1139,20 +1283,23 @@ export default function TabelaMercados({ linhas }) {
                   atras da aba nova toda vez.
                 */}
                 <td className="px-3 py-2.5 text-center">
-                  {linha.url ? (
-                    <a
-                      href={linha.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(evento) => evento.stopPropagation()}
-                      title={`Abrir em ${linha.fonteNome}`}
-                      className="inline-flex text-acento hover:opacity-70"
-                    >
-                      <ExternalLink size={15} />
-                    </a>
-                  ) : (
-                    <span className="text-suave">—</span>
-                  )}
+                  {(() => {
+                    const link = linkDaFonte(linha);
+                    return link ? (
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(evento) => evento.stopPropagation()}
+                        title={link.titulo}
+                        className="inline-flex text-acento hover:opacity-70"
+                      >
+                        <ExternalLink size={15} />
+                      </a>
+                    ) : (
+                      <span className="text-suave">—</span>
+                    );
+                  })()}
                 </td>
                 <td className="px-3 py-2.5 text-center text-suave">
                   {comoData(linha.vistoEm)}

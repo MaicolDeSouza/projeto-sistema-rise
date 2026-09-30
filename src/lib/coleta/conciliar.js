@@ -76,7 +76,16 @@ export function conciliar({ anteriores, novos, dataDaLista }) {
   const antigos = porCodigo(anteriores);
   const chegaram = porCodigo(novos);
 
-  const resultado = [...(novos ?? [])];
+  // Produto atualizado usa o objeto novo inteiro — mas se o leitor desta lista
+  // nao extrai foto (o PDF da Fortek nao tinha isso ate 29/09/2026), o produto
+  // ja tinha imagem guardada, e "nao trouxe foto desta vez" nao pode virar
+  // "produto ficou sem foto": e a mesma logica de nunca apagar dado caro por
+  // causa de um campo que a lista de agora nao cobre.
+  const resultado = (novos ?? []).map((produto) => {
+    if (produto.images?.length) return produto;
+    const antigo = produto.code && produto.code !== "N/A" ? antigos.get(produto.code) : null;
+    return antigo?.images?.length ? { ...produto, images: antigo.images } : produto;
+  });
   const ausentes = [];
 
   for (const [codigo, antigo] of antigos) {

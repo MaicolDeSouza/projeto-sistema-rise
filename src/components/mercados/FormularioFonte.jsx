@@ -12,6 +12,7 @@ import {
   Loader,
   Plus,
   RotateCcw,
+  Shuffle,
   TestTube,
   TriangleAlert,
   X,
@@ -377,6 +378,13 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
   const [teste, setTeste] = useState(null);
   const [arquivos, setArquivos] = useState([]);
   const [erro, setErro] = useState(null);
+  // AMOSTRA VARIADA: desligado, "Buscar dados" sempre volta aos mesmos tres
+  // produtos (o de sempre, pela ordem do catalogo/sitemap do site). Ligado,
+  // cada clique evita os produtos ja mostrados e traz tres novos — para
+  // revisar varios produtos da fonte, um trio de cada vez, antes de decidir
+  // se salva. produtosVistos so cresce enquanto o toggle esta ligado.
+  const [amostraVariada, setAmostraVariada] = useState(false);
+  const [produtosVistos, setProdutosVistos] = useState([]);
   // Login de PORTAL de fornecedor (a Santana): so existe no formulario enquanto
   // o cadastro nao e salvo, e vai cifrado para a fonte.
   const [usuario, setUsuario] = useState("");
@@ -400,6 +408,9 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
     setUrl(valor);
     setTeste(null);
     setErro(null);
+    // Site diferente: o que foi visto na fonte anterior nao tem por que ser
+    // evitado nesta.
+    setProdutosVistos([]);
     if (!nome) setNome(nomeSugerido(valor));
   }
 
@@ -431,14 +442,32 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
       }
 
       const [doLink, doArquivo] = await Promise.all([
-        url.trim() ? testarFonteAcao({ url, secao, nome, tipo }) : null,
+        url.trim()
+          ? testarFonteAcao({
+              url,
+              secao,
+              nome,
+              tipo,
+              // So manda evitar com o toggle ligado: desligado, o teste tem
+              // que voltar aos mesmos tres de sempre.
+              evitar: amostraVariada ? produtosVistos : undefined,
+            })
+          : null,
         arquivos.length > 0 ? testarArquivoAcao(comArquivos(arquivos, nome, tipo, url)) : null,
       ]);
 
       // Particularidades declaradas para este fornecedor, se houver.
       const regras = regrasDoFornecedor({ nome, url });
-      setTeste(juntarTestes(doLink, doArquivo, regras));
+      const resultado = juntarTestes(doLink, doArquivo, regras);
+      setTeste(resultado);
       if (!url.trim() && doArquivo?.siteSugerido) setUrl(doArquivo.siteSugerido);
+
+      // Acumula o que foi mostrado desta vez, para o proximo clique evitar e
+      // trazer outros tres.
+      if (amostraVariada && resultado?.produtos?.length) {
+        const enderecos = resultado.produtos.map((produto) => produto.url).filter(Boolean);
+        setProdutosVistos((atuais) => [...new Set([...atuais, ...enderecos])]);
+      }
     });
   }
 
@@ -651,6 +680,45 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
               ? `Ler ${arquivos.length} arquivo(s)`
               : "Buscar dados"}
         </button>
+
+        {/*
+          AMOSTRA VARIADA: portal de login nao usa colherProdutos (e uma
+          categoria paginada, nao amostra de tres), entao o toggle nao se
+          aplica ali.
+        */}
+        {!ehPortal && (
+          <button
+            type="button"
+            onClick={() => setAmostraVariada((atual) => !atual)}
+            disabled={testando}
+            role="switch"
+            aria-checked={amostraVariada}
+            title={
+              amostraVariada
+                ? "Ligado: cada Buscar dados traz tres produtos diferentes dos ja vistos"
+                : "Desligado: Buscar dados sempre traz os mesmos tres produtos"
+            }
+            className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Shuffle size={15} className={amostraVariada ? "text-acento" : "text-suave"} />
+            <span
+              className={amostraVariada ? "font-medium text-acento" : "text-suave"}
+            >
+              Amostra variada
+            </span>
+            <span
+              className={`relative ml-0.5 h-5 w-9 shrink-0 rounded-full transition ${
+                amostraVariada ? "bg-emerald-500" : "bg-slate-300"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
+                  amostraVariada ? "left-4.5" : "left-0.5"
+                }`}
+              />
+            </span>
+          </button>
+        )}
 
         {/*
           Fornecedor de portal fechado nao tem vitrine para navegar: a Benser e a

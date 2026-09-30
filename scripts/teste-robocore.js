@@ -14,11 +14,24 @@ const url = `${origem}/acessorios-arduino/case-para-blackboard-mega-2560`;
 const html = await readFile(new URL("./fixtures/robocore-case.html", import.meta.url), "utf8");
 const produto = normalizarPagina({ html, url }).produtos[0];
 assert.deepEqual(produto.prices, { normal: 28.9, promotional: 27.45, comImpostos: null });
+// "(12 un. em estoque)" so existe no HTML dentro de um script que faz
+// document.getElementById('estoque_1180').innerHTML = "..." — o coletor nao
+// executa JS, mas o texto do script entra no HTML bruto igual, e a leitura e
+// por texto (quantidadeNoTexto em normalizar.js), nao por DOM.
+assert.equal(produto.stock.quantity, 12);
+assert.equal(produto.stock.status, "AVAILABLE");
+// Categoria vem do <nav> simples do breadcrumb, sem Microdata nem dataLayer —
+// o ultimo degrau (mais especifico) e o que fica.
+assert.equal(produto.category, "Acessórios");
 assert.match(produto.description, /R3\./);
 assert.match(produto.description, /\n\nAcompanha 4 parafusos/);
 assert.match(produto.description, /\n\nItens Inclusos\n- 1 × Case Mega 2560/);
 assert.equal(produto.description.split("\n- ").length - 1, 6);
 assert.doesNotMatch(produto.description, /Este Kit|Documentação|Cor da Case/);
+// A RoboCore deixa secoes inteiras de outros produtos comentadas no HTML
+// (<!-- -->), invisiveis no navegador. Achado no BlackBoard Edge, com um
+// bloco de tutorial da "Vespa" vazando pro texto, ate ser filtrado.
+assert.doesNotMatch(produto.description, /Por onde come|Secao comentada|-->/);
 assert.equal(produto.specifications.length, 4);
 assert.equal(produto.documentos.length, 1);
 assert.equal(precosDaRoboCore(html, url, "9999"), null);

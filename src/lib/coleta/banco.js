@@ -462,7 +462,7 @@ export async function listarProdutos({
   porPagina = 100,
 } = {}) {
   const todasAsFontes = await prisma.fonteColeta.findMany({
-    select: { id: true, nome: true, tipo: true, ultimaColetaEm: true },
+    select: { id: true, nome: true, tipo: true, ultimaColetaEm: true, dominio: true },
   });
 
   // A aba manda no conjunto: "OUTRO" fica com os concorrentes, como na tabela.
@@ -545,8 +545,8 @@ export async function listarProdutos({
       : Promise.resolve(null),
     prisma.$queryRaw`
       SELECT id, origem, codigo, nome, marca, mpn, url, "precoNormal", "precoPromocional",
-             "precoComImpostos", impostos, "estoqueStatus", quantidade, "aChegar", "coletadoEm",
-             "fonteId"
+             "precoReserva", "precoComImpostos", impostos, "precosPorQuantidade", "estoqueStatus",
+             quantidade, "aChegar", "coletadoEm", "fonteId"
         FROM "ProdutoColetado"
        WHERE ${onde}
        ORDER BY ${ordenacao}
@@ -583,9 +583,11 @@ export async function listarProdutos({
       prices: {
         normal: numeroDoBanco(linha.precoNormal),
         promotional: numeroDoBanco(linha.precoPromocional),
+        reserva: numeroDoBanco(linha.precoReserva),
         comImpostos: numeroDoBanco(linha.precoComImpostos),
       },
       taxes: linha.impostos ?? [],
+      precosPorQuantidade: linha.precosPorQuantidade ?? [],
       stock: {
         status: linha.estoqueStatus,
         quantity: linha.quantidade,
@@ -595,6 +597,9 @@ export async function listarProdutos({
       fonte: {
         nome: porId.get(linha.fonteId)?.nome ?? "?",
         tipo: porId.get(linha.fonteId)?.tipo ?? "OUTRO",
+        // So para o link de fallback, quando o produto nao tem URL propria
+        // (a Fortek/Benser e portal fechado: nenhum produto tem pagina publica).
+        dominio: porId.get(linha.fonteId)?.dominio ?? null,
       },
     })),
   };
