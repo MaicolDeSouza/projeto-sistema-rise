@@ -21,6 +21,22 @@ export function precosDaRoboCore(html, url, codigo) {
   return null;
 }
 
+/**
+ * Categoria do breadcrumb: <nav><a href="/impressao-3d">Impressao 3D</a> >
+ * <a href="/filamentos-impressao-3d-petg">Filamentos PETG</a></nav>. Sem
+ * Microdata, JSON-LD nem dataLayer — so o link e o texto. O ultimo degrau e o
+ * mais especifico, a mesma regra das demais plataformas.
+ */
+export function categoriaDaRoboCore(html, url) {
+  if (!ehRoboCore(url)) return null;
+  const nav = /<nav>([\s\S]*?)<\/nav>/i.exec(html)?.[1];
+  if (!nav) return null;
+  const degraus = [...nav.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)]
+    .map((degrau) => comoTexto(degrau[1]))
+    .filter(Boolean);
+  return degraus.at(-1) ?? null;
+}
+
 /** Mantem os paragrafos e a lista visivel, sem repetir ficha e documentos. */
 export function descricaoDaRoboCore(html, url) {
   if (!ehRoboCore(url)) return null;
@@ -38,6 +54,10 @@ export function descricaoDaRoboCore(html, url) {
   if (fim < 0) return null;
   const bloco = html.slice(inicio, fim)
     .split(/<span\b[^>]*class=["'][^"']*customTab_bottom[^"']*["'][^>]*>\s*Documenta[cç][aã]o/i)[0]
+    // A RoboCore deixa secoes inteiras comentadas (achado no BlackBoard Edge: um
+    // bloco de tutorial de outro produto, "Vespa", dentro de <!-- -->). Invisivel
+    // no navegador, mas o corte por tag nao sabe disso e vazava pro texto.
+    .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<li\b[^>]*style=["'][^"']*display\s*:\s*none[^"']*["'][^>]*>[\s\S]*?<\/li>/gi, "")
     .replace(/<span\b[^>]*class=["']itemQuantidade["'][^>]*>([\s\S]*?)<\/span>/gi, "$1 × ")
     .replace(/<span\b[^>]*class=["'][^"']*customTab[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi, "<h3>$1</h3>")

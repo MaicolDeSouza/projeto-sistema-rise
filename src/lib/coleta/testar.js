@@ -84,7 +84,7 @@ async function conferirCatalogo(catalogo) {
   };
 }
 
-export async function testarFonte({ url, secao, nome, tipo }) {
+export async function testarFonte({ url, secao, nome, tipo, evitar }) {
   const colheita = await colherProdutos({
     url,
     secao,
@@ -95,6 +95,11 @@ export async function testarFonte({ url, secao, nome, tipo }) {
     // depois que a fonte e salva.
     limite: MINIMO_PRODUTOS,
     orcamento: 25,
+    // Toggle "Amostra variada" na tela: enderecos ja mostrados num teste
+    // anterior, para este pular e trazer tres DIFERENTES. Sem isto (toggle
+    // desligado), o teste sempre volta aos mesmos tres — e assim que "Testar
+    // fonte" sempre funcionou.
+    evitar: evitar && evitar.length > 0 ? new Set(evitar) : null,
   });
 
   const catalogoPublico = await conferirCatalogo(colheita.catalogo);

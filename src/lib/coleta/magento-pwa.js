@@ -142,7 +142,7 @@ function produtoDoMagentoPwa(item, origem, plataforma, rotulos) {
 }
 
 /** A mesma leitura serve para testar a fonte e para a varredura completa. */
-export async function colherMagentoPwa({ graphql, origem, secao, limite, orcamento, fonte, plataforma, jaColetadas, aoGuardar, aoProgredir, sinal }) {
+export async function colherMagentoPwa({ graphql, origem, secao, limite, orcamento, fonte, plataforma, jaColetadas, evitar, aoGuardar, aoProgredir, sinal }) {
   let categoriaId = null;
   let visitas = 0;
   let retomados = 0;
@@ -198,10 +198,14 @@ export async function colherMagentoPwa({ graphql, origem, secao, limite, orcamen
         if (!item) continue;
         const produto = produtoDoMagentoPwa(item, origem, plataforma, rotulos);
         if (!produto.name || !produto.url || !produto.code || (fonte.type !== "FORNECEDOR" && !produto.prices.normal)) continue;
-        if (jaColetadas?.has(produto.url.replace(/\/+$/, ""))) {
+        const enderecoSemBarra = produto.url.replace(/\/+$/, "");
+        if (jaColetadas?.has(enderecoSemBarra)) {
           retomados++;
           continue;
         }
+        // "Amostra variada": pula sem contar como achado, para a colheita
+        // seguir procurando ate achar `limite` produtos DIFERENTES.
+        if (evitar?.has(enderecoSemBarra)) continue;
         produtos.push(produto);
         await aoGuardar?.(produto);
       }

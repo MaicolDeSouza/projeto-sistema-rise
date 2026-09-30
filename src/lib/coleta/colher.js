@@ -110,6 +110,11 @@ async function tentarUrl(url, fonte, plataforma, doCatalogo = null, memoriaPagam
  *   de produtos ja gravados nesta varredura, antes de uma queda. Nao sao abertos de
  *   novo e contam como encontrados (`retomados`). Sem isto, cada queda do worker
  *   recomecava a loja do zero — a Smartkits, 3.780 produtos a ~2 s cada.
+ * @param {Set<string>} [entrada.evitar] enderecos a NAO abrir, sem contar como achado
+ *   — diferente de jaColetadas, que conta. Existe para "Testar fonte": o toggle
+ *   "Amostra variada" manda aqui os produtos ja mostrados num teste anterior, para
+ *   o proximo teste pular esses e mostrar tres DIFERENTES, em vez de recontar os
+ *   mesmos como se ja tivessem sido gravados.
  * @param {AbortSignal} [entrada.sinal] cancela a colheita: o worker o dispara ao
  *   encerrar e quando a varredura para de andar. Conferido antes de cada pagina,
  *   e a requisicao em voo tambem e interrompida (buscarPagina). Cancelada, a
@@ -122,6 +127,7 @@ export async function colherProdutos({
   tipo,
   limite = 3,
   orcamento,
+  evitar = null,
   aoProgredir,
   aoGuardar,
   sinal = null,
@@ -255,6 +261,7 @@ export async function colherProdutos({
       fonte,
       plataforma,
       jaColetadas,
+      evitar,
       aoGuardar,
       aoProgredir,
       sinal,
@@ -324,8 +331,17 @@ export async function colherProdutos({
     na Smartkits (16/09/2026) os 3.780 itens do catalogo eram abertos DE NOVO pelo
     sitemap, e numa retomada cada produto ja gravado era contado duas vezes (7.249
     "retomados" de 3.625 gravados).
+
+    PRE-MARCADO com `evitar` (29/09/2026): "Testar fonte" com o toggle "Amostra
+    variada" manda aqui os enderecos ja mostrados num teste anterior. Marcados
+    como tratados desde o inicio, o catalogo/sitemap/navegacao os pulam do
+    mesmo jeito que pulariam um endereco repetido — sem contar como achado
+    (isso e o `jaColetadas`, que soma em retomados), entao a colheita continua
+    procurando ate achar tres DIFERENTES.
   */
-  const tratados = new Set();
+  const tratados = new Set(
+    evitar ? [...evitar].map((endereco) => enderecoComparavel(endereco)) : [],
+  );
 
   /*
     O MESMO PRODUTO POR OUTRO ENDERECO (19/09/2026).
@@ -430,7 +446,14 @@ export async function colherProdutos({
         !leitura.erro && itensDoCatalogo.length > 0,
         leitura.erro
           ? `nao respondeu: ${leitura.erro}`
-          : `${totalDoCatalogo ?? itensDoCatalogo.length} produto(s) no catalogo da loja`,
+          : // totalDoCatalogo so vem preenchido quando a paginacao esgotou (ou a
+            // plataforma declara o total). No teste, o limite pequeno corta a
+            // leitura na primeira pagina, e itensDoCatalogo.length e so a
+            // amostra lida ate ali — dizer isso como "no catalogo da loja"
+            // afirmaria um tamanho de loja que nao foi provado.
+            totalDoCatalogo !== null
+            ? `${totalDoCatalogo} produto(s) no catalogo da loja`
+            : `${itensDoCatalogo.length} produto(s) lido(s) nesta amostra — a loja tem mais (total confirmado so na coleta completa)`,
       ),
     );
   }

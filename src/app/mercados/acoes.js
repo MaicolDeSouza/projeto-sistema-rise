@@ -42,9 +42,9 @@ const FonteSchema = z.object({
  * abre paginas de verdade e so aprova se conseguir montar produto com nome,
  * endereco e preco.
  */
-export async function testarFonteAcao({ url, secao, nome, tipo }) {
+export async function testarFonteAcao({ url, secao, nome, tipo, evitar }) {
   try {
-    return await testarFonte({ url, secao, nome, tipo });
+    return await testarFonte({ url, secao, nome, tipo, evitar });
   } catch (erro) {
     return {
       resultado: "FALHA",
