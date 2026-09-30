@@ -78,6 +78,23 @@ export async function lerArquivosOriginais(dominio, lista) {
   return arquivos;
 }
 
+/**
+ * Le UM arquivo original pelo nome, para download (verificacao rapida do
+ * operador, sem reabrir o portal do fornecedor).
+ *
+ * O nome passa pelo MESMO saneamento de `guardarArquivosOriginais`: o que foi
+ * gravado com esse saneamento so e reencontrado saneando de novo o nome
+ * pedido, e nunca abre caminho para "../../.env".
+ */
+export async function lerArquivoOriginal(dominio, nome) {
+  const seguro = path.basename(String(nome)).replace(/[^\w.\- ]/g, "_");
+  try {
+    return await readFile(path.join(pastaDeArquivos(dominio), seguro));
+  } catch {
+    return null;
+  }
+}
+
 /** Apaga os arquivos guardados de uma fonte. */
 export async function apagarArquivosOriginais(dominio) {
   await rm(pastaDeArquivos(dominio), { recursive: true, force: true });

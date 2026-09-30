@@ -37,6 +37,37 @@ export function categoriaDaRoboCore(html, url) {
   return degraus.at(-1) ?? null;
 }
 
+/**
+ * Quantidade em estoque, escrita so em JS.
+ *
+ * Nenhum produto da RoboCore declara `inventoryLevel`: o "(92 un. em estoque)"
+ * so existe dentro de `document.getElementById('estoque_<id base>').innerHTML
+ * = '(92 un. em estoque)'`, a mesma tecnica de `precosDaRoboCore`. Sem isso a
+ * coluna ESTOQUE mostrava so o status (disponivel/esgotado, que vem do
+ * Microdata) e nunca o numero.
+ *
+ * Produto de variante unica usa o proprio codigo como id (`estoque_1180`).
+ * Produto com cores (HockeyBot Preto, `3388-416`) tem VARIOS blocos que
+ * escrevem no MESMO id `estoque_3388` — um por opcao de `extras.value` — entao
+ * o numero certo so aparece isolando o bloco da variante (`416`) antes de ler.
+ */
+export function estoqueDaRoboCore(html, url, codigo) {
+  if (!ehRoboCore(url)) return null;
+  const texto = String(codigo ?? "");
+  const corte = texto.lastIndexOf("-");
+  const base = corte === -1 ? texto : texto.slice(0, corte);
+  const variante = corte === -1 ? null : texto.slice(corte + 1);
+  if (!/^\d+$/.test(base) || (variante !== null && !/^\d+$/.test(variante))) return null;
+
+  const escopo = variante ? `extras\\.value\\s*==\\s*['"]${variante}['"][\\s\\S]*?` : "";
+  const padrao = new RegExp(
+    `${escopo}getElementById\\(['"]estoque_${base}['"]\\)\\.innerHTML\\s*=\\s*["']\\(?\\s*(\\d{1,6})\\s*un\\.?\\s*em\\s*estoque`,
+    "i",
+  );
+  const achado = padrao.exec(html)?.[1];
+  return achado !== undefined ? Number(achado) : null;
+}
+
 /** Mantem os paragrafos e a lista visivel, sem repetir ficha e documentos. */
 export function descricaoDaRoboCore(html, url) {
   if (!ehRoboCore(url)) return null;

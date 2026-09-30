@@ -71,8 +71,13 @@ export const blocos = [
     pronto: true,
   },
   {
+    // Renomeado de "Mercados" para "Scraper" a pedido do dono em 29/09/2026:
+    // e o nome da ferramenta que varre os sites de concorrentes e fornecedores.
+    // So o rotulo mudou — a rota continua /mercados, e o codigo interno
+    // (TabelaMercados, listarProdutos...) tambem, pela mesma regra que ja valeu
+    // para "Sites" virar "Fontes": nome de tela e vocabulario de quem opera.
     href: "/mercados",
-    rotulo: "Mercados",
+    rotulo: "Scraper",
     icone: Radar,
     resumo: "Produtos, precos e codigos de concorrentes e fornecedores",
     pronto: true,

@@ -1224,6 +1224,20 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   quando as duas existem (a propaganda trocaria a ficha de verdade). E item que o site quebrou
   no meio de um parêntese ("Consumo: 70 mA (Standby) e Max 215 mA (802.11b, CCK" + "- 1Mbps,...);")
   é **juntado ao anterior**: parêntese aberto e sem fechar prova que a linha é continuação.
+- **RoboCore: a quantidade em estoque só existe dentro de JavaScript** (29/09/2026, Agente 2). A
+  coluna ESTOQUE mostrava o status (disponivel/esgotado, do Microdata) mas nunca o número: o
+  "(92 un. em estoque)" que a página exibe nunca está no texto visível nem em `inventoryLevel`
+  (a RoboCore não declara) — só existe em `document.getElementById('estoque_<id base>').innerHTML
+  = '(92 un. em estoque)'`, a mesma técnica já tratada para o preço (`precosDaRoboCore`). Corrigido
+  com `estoqueDaRoboCore` (`src/lib/coleta/robocore.js`).
+  - **Produto com cores (HockeyBot, código `3388-416`) tem VÁRIOS blocos escrevendo no MESMO id**
+    (`estoque_3388`), um por opção de `extras.value` (a cor escolhida): sem isolar o bloco da
+    variante antes de ler, a primeira cor da página venceria para qualquer código. O código é
+    dividido em id base + variante pelo último hífen, e a leitura busca a atribuição só dentro do
+    bloco `extras.value == '<variante>'`.
+  - **Produtos já coletados continuam com quantidade `null`** até a próxima varredura: a correção
+    vale só para coleta nova, e o worker precisa ser reiniciado para carregar o código (ver linha
+    abaixo).
 - **Depois de juntar mudança de coleta na `main`, reiniciar o worker** (`npm run worker:parar` e
   `npm run worker`): ele carregou o código antigo. Varredura em curso grava com a regra velha até
   lá — a WJ Componentes, por exemplo, com o preço riscado.

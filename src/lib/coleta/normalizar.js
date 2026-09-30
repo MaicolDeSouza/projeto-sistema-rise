@@ -1,6 +1,6 @@
 import { extrairProduto } from "./extrair";
 import { precosDaForseti } from "./forseti";
-import { categoriaDaRoboCore, descricaoDaRoboCore, precosDaRoboCore } from "./robocore";
+import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
 import {
@@ -1797,6 +1797,10 @@ export function normalizarPagina({
   const quantidade =
     comoNumero(bruto?.offers?.inventoryLevel?.value) ??
     comoNumero(bruto?.offers?.inventoryLevel) ??
+    // A RoboCore nunca declara inventoryLevel, e o "(92 un. em estoque)" so
+    // existe dentro do JS que atualiza o painel por variante — nao no texto
+    // visivel que quantidadeNoTexto varre.
+    estoqueDaRoboCore(html, url, code) ??
     quantidadeNoTexto(escopo);
 
   const status = situacaoDe(disponibilidade);
