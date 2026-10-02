@@ -282,12 +282,41 @@ try {
       [0.001, 1, 1, 2, ["img-a1", "img-a2"], true]);
     const editado = { ...misto, titulo: "Titulo do dono", preco: 9.9, categoriaId: "MLB1234", familyName: "Familia", tipoAnuncio: "gold_pro", condicao: "used", versiculo: sl23, atributos: { BRAND: "OUTRA", MODEL: "M1" } };
     conferir("desligar nao toca no que o dono editou",
-      (({ titulo, preco, categoriaId, familyName, tipoAnuncio, condicao, versiculo, atributos }) => ({ titulo, preco, categoriaId, familyName, tipoAnuncio, condicao, versiculo, atributos }))(aplicarComposicao(editado, null, { a, b })),
-      { titulo: "Titulo do dono", preco: 9.9, categoriaId: "MLB1234", familyName: "Familia", tipoAnuncio: "gold_pro", condicao: "used", versiculo: sl23, atributos: { BRAND: "OUTRA", MODEL: "M1" } });
-    const antes = JSON.stringify(misto);
+      (({ titulo, preco, categoriaId, familyName, tipoAnuncio, condicao, versiculo }) => ({ titulo, preco, categoriaId, familyName, tipoAnuncio, condicao, versiculo }))(aplicarComposicao(editado, null, { a, b })),
+      { titulo: "Titulo do dono", preco: 9.9, categoriaId: "MLB1234", familyName: "Familia", tipoAnuncio: "gold_pro", condicao: "used", versiculo: sl23 });
+
+    // O GTIN e do codigo de barras da peca avulsa: o kit nao o herda, e ao desligar o kit ele volta.
+    const umKit = { itens: [{ produtoId: "a", quantidade: 2 }], codigo: "", blingProdutoId: null };
+    conferir("GTIN: simples vira kit e perde o GTIN, a marca fica", aplicarComposicao(simples, umKit, { a }).atributos, { BRAND: "GENERICA" });
+    conferir("GTIN: kit volta a simples e recupera o GTIN do principal", aplicarComposicao(kit, null, { a }).atributos, { BRAND: "GENERICA", GTIN: "7890000000001" });
+    const simplesEditado = { ...simples, atributos: { BRAND: "OUTRA", MODEL: "M1", GTIN: "7890000000001" } };
+    const kitEditado = aplicarComposicao(simplesEditado, umKit, { a });
+    conferir("GTIN: marca e modelo do dono sobrevivem a ida e a volta",
+      [kitEditado.atributos, aplicarComposicao(kitEditado, null, { a }).atributos],
+      [{ BRAND: "OUTRA", MODEL: "M1" }, { BRAND: "OUTRA", MODEL: "M1", GTIN: "7890000000001" }]);
+    const simplesDeB = rascunhoInicial({ principal: b, produtosPorId: { b }, composicao: null, versiculo: null });
+    conferir("GTIN: principal sem EAN volta sem GTIN",
+      aplicarComposicao(aplicarComposicao(simplesDeB, { itens: [{ produtoId: "b", quantidade: 2 }], codigo: "", blingProdutoId: null }, { b }), null, { b }).atributos, { BRAND: "GENERICA" });
+    conferir("GTIN: o do kit, se o dono digitou, nao vai para a peca avulsa",
+      aplicarComposicao({ ...kit, atributos: { BRAND: "GENERICA", GTIN: "999" } }, null, { a }).atributos, { BRAND: "GENERICA", GTIN: "7890000000001" });
+
+    // A tela chama a cada tecla: a linha 1 pode estar sem produto por um instante.
+    const linhaVazia = aplicarComposicao(kit, { itens: [{ produtoId: "", quantidade: 5 }], codigo: "", blingProdutoId: null }, { a, b });
+    conferir("linha 1 sem produto: o produto do anuncio nao se perde", linhaVazia.produtoId, "a");
+    const desligadoDaVazia = aplicarComposicao(linhaVazia, null, { a, b });
+    conferir("linha 1 sem produto e depois desligar: volta ao principal inteiro",
+      [desligadoDaVazia.estoque, desligadoDaVazia.composicao, desligadoDaVazia.imagens, desligadoDaVazia.descricao === a.descricaoBase],
+      [100, null, ["img-a1", "img-a2"], true]);
+    conferir("linha 1 sem produto e a 2 preenchida: o primeiro produto escolhido manda",
+      (({ produtoId, imagens }) => [produtoId, imagens])(aplicarComposicao(misto, { ...misto.composicao, itens: [{ produtoId: "", quantidade: 2 }, { produtoId: "b", quantidade: 3 }] }, { a, b })),
+      ["b", ["img-b1"]]);
+
+    const antes = JSON.stringify([misto, simples]);
     aplicarComposicao(misto, null, { a, b });
     aplicarComposicao(misto, { ...misto.composicao, codigo: "Z" }, { a, b });
-    conferir("aplicarComposicao nao altera o rascunho recebido", JSON.stringify(misto), antes);
+    aplicarComposicao(simples, umKit, { a });
+    aplicarComposicao(simples, null, { a });
+    conferir("aplicarComposicao nao altera o rascunho recebido", JSON.stringify([misto, simples]), antes);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

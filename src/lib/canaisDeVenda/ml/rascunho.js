@@ -59,6 +59,33 @@ function atributosDoProduto(produto, { comGtin }) {
   return atributos;
 }
 
+// O GTIN e o codigo de barras da peca avulsa. Ao virar kit ele sai dos atributos; ao voltar a
+// ser anuncio simples, volta o do principal (ou nenhum, se o produto nao tem EAN). Os demais
+// atributos sao do dono e ficam como estao.
+function atributosSemGtin(atributos) {
+  return Object.fromEntries(Object.entries(atributos ?? {}).filter(([id]) => id !== "GTIN"));
+}
+
+function atributosComGtinDoProduto(atributos, produto) {
+  const ean = texto(produto.ean);
+  const resto = atributosSemGtin(atributos);
+  return ean ? { ...resto, GTIN: ean } : resto;
+}
+
+// O que um anuncio simples herda do produto: estoque, fotos, descricao inteira e as medidas
+// do envio. Serve ao anuncio novo e a quem desliga a composicao, para os dois nunca divergirem.
+function estadoDoProdutoSimples(produto, produtosPorId) {
+  return {
+    estoque: produto.estoque ?? 0,
+    imagens: fotosEmOrdem([produto.id], produtosPorId),
+    descricao: produto.descricaoBase ?? "",
+    pesoKg: produto.pesoKg ?? null,
+    alturaCm: produto.alturaCm ?? null,
+    larguraCm: produto.larguraCm ?? null,
+    comprimentoCm: produto.comprimentoCm ?? null,
+  };
+}
+
 // `family_name` e obrigatorio no modelo User Products do ML. Sem marca nem modelo,
 // o proprio titulo base serve de nome da familia.
 function familyNameDoProduto(produto) {
@@ -120,6 +147,7 @@ function camposDaComposicao({ composicao, principalId, produtosPorId, descricaoA
 export function rascunhoInicial({ principal, produtosPorId, composicao, versiculo }) {
   // O principal e sempre conhecido, mesmo que o chamador nao o tenha posto no mapa.
   const produtos = { ...produtosPorId, [principal.id]: principal };
+  const { estoque, imagens, descricao, ...medidas } = estadoDoProdutoSimples(principal, produtos);
 
   const rascunho = {
     produtoId: principal.id,
@@ -129,16 +157,13 @@ export function rascunhoInicial({ principal, produtosPorId, composicao, versicul
     condicao: "new",
     categoriaId: null,
     preco: composicao ? null : (principal.precoVenda ?? null),
-    estoque: principal.estoque ?? 0,
-    imagens: fotosEmOrdem([principal.id], produtos),
-    descricao: principal.descricaoBase ?? "",
+    estoque,
+    imagens,
+    descricao,
     versiculo: versiculoDoRascunho(versiculo),
     atributos: atributosDoProduto(principal, { comGtin: !composicao }),
     envio: {
-      pesoKg: principal.pesoKg ?? null,
-      alturaCm: principal.alturaCm ?? null,
-      larguraCm: principal.larguraCm ?? null,
-      comprimentoCm: principal.comprimentoCm ?? null,
+      ...medidas,
       modo: "me2",
       freteGratis: false,
       retirada: false,
@@ -162,37 +187,35 @@ export function rascunhoInicial({ principal, produtosPorId, composicao, versicul
 }
 
 // O dono desligou a composicao: o texto do kit falava de outro conteudo, entao a descricao
-// volta inteira da base do principal, junto com estoque, fotos, peso e medidas dele.
+// volta inteira da base do principal, junto com estoque, fotos, peso, medidas e GTIN dele.
 function voltarAoPrincipal(rascunho, produtosPorId) {
   const principal = produtosPorId?.[rascunho.produtoId];
   // Sem o produto nao ha o que restaurar; ao menos o anuncio deixa de ser kit.
   if (!principal) return { ...rascunho, composicao: null };
 
+  const { estoque, imagens, descricao, ...medidas } = estadoDoProdutoSimples(principal, produtosPorId);
   return {
     ...rascunho,
-    estoque: principal.estoque ?? 0,
-    imagens: fotosEmOrdem([principal.id], produtosPorId),
-    descricao: principal.descricaoBase ?? "",
-    envio: {
-      ...rascunho.envio,
-      pesoKg: principal.pesoKg ?? null,
-      alturaCm: principal.alturaCm ?? null,
-      larguraCm: principal.larguraCm ?? null,
-      comprimentoCm: principal.comprimentoCm ?? null,
-    },
+    estoque,
+    imagens,
+    descricao,
+    atributos: atributosComGtinDoProduto(rascunho.atributos, principal),
+    envio: { ...rascunho.envio, ...medidas },
     composicao: null,
   };
 }
 
 /**
  * Aplica ao rascunho uma composicao nova (a lista de itens mudou) e devolve outro rascunho.
- * O produto do anuncio passa a ser o primeiro item. Com `composicao` `null`, o anuncio volta
- * a ser simples, do produto que ele tinha.
+ * O produto do anuncio passa a ser o primeiro item que ja tem produto, e o kit perde o GTIN.
+ * Com `composicao` `null`, o anuncio volta a ser simples, do produto que ele tinha, com o GTIN dele.
  */
 export function aplicarComposicao(rascunho, composicao, produtosPorId) {
   if (!composicao) return voltarAoPrincipal(rascunho, produtosPorId);
 
-  const principalId = itensDaComposicao(composicao)[0]?.produtoId ?? rascunho.produtoId;
+  // A tela chama a cada tecla, e a linha 1 pode estar sem produto por um instante: o anuncio
+  // nao pode ficar sem produto, senao desligar a composicao depois nao teria a que voltar.
+  const principalId = itensDaComposicao(composicao).find((item) => item?.produtoId)?.produtoId ?? rascunho.produtoId;
   const { pesoKg, ...derivados } = camposDaComposicao({
     composicao,
     principalId,
@@ -203,6 +226,7 @@ export function aplicarComposicao(rascunho, composicao, produtosPorId) {
     ...rascunho,
     ...derivados,
     produtoId: principalId,
+    atributos: atributosSemGtin(rascunho.atributos),
     envio: { ...rascunho.envio, pesoKg },
   };
 }
