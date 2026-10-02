@@ -233,6 +233,12 @@ export async function salvarRascunhoML(anuncioId, entrada) {
 
       // A quantidade pode chegar como texto ("3"); gravada, e sempre numero.
       composicao.itens = itens.map(({ produtoId, quantidade }) => ({ produtoId, quantidade: Number(quantidade) }));
+      // O vinculo com o Bling e do servidor (a publicacao, na fase 3, o grava): o que vem da tela nao vale.
+      // Anuncio novo nasce sem vinculo. Na atualizacao ele fica enquanto o codigo do kit for o mesmo; com outro
+      // codigo e outro kit, e o vinculo antigo apontaria para o produto errado do Bling. Sem isso, um editor
+      // desatualizado apagaria o vinculo e a nova tentativa criaria o kit em duplicidade.
+      const guardada = existente?.dados?.composicao;
+      composicao.blingProdutoId = guardada && String(guardada.codigo ?? "").trim() === composicao.codigo ? (guardada.blingProdutoId ?? null) : null;
       const emUso = await codigoEmUso(composicao.codigo, { anuncioId, itens: composicao.itens });
       if (emUso) return { ok: false, erro: `O codigo ${composicao.codigo} ja esta em uso: ${emUso}.` };
       rascunho.composicao = composicao;

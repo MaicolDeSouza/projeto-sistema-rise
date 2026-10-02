@@ -786,6 +786,28 @@ try {
         const umMilhar = await salvarRascunhoML(null, { ...novo.rascunho, composicao: { itens: [{ produtoId: p1.id, quantidade: 1000 }], codigo: "", blingProdutoId: null } });
         conferir("kit de um produto: milhar com ponto", (await carregarAnuncioML(umMilhar.id)).rascunho.composicao.codigo, "ZZ-ML-1_1.000");
 
+        // O vinculo do kit com o Bling e do servidor (a publicacao da fase 3 o grava): o que a tela manda
+        // nao vale, e o que o servidor guardou sobrevive a um editor desatualizado que manda `null`.
+        const kitComBling = (codigo, bling) => ({ ...kitA, composicao: { ...kitA.composicao, codigo, blingProdutoId: bling } });
+        const blingDoKit = async (id) => (await carregarAnuncioML(id)).rascunho.composicao.blingProdutoId;
+        const gravarBlingDoKit = async (id, bling) => {
+          const { dados } = await anuncioDe(id);
+          await prisma.anuncio.update({ where: { id }, data: { dados: { ...dados, composicao: { ...dados.composicao, blingProdutoId: bling } } } });
+        };
+        const kitB = await salvarRascunhoML(null, kitComBling("ZZ-ML-KITB", "999"));
+        conferir("vinculo com o Bling: o que a tela manda ao criar nao e salvo", await blingDoKit(kitB.id), null);
+        await salvarRascunhoML(kitB.id, kitComBling("ZZ-ML-KITB", "999"));
+        conferir("vinculo com o Bling: o que a tela manda ao atualizar nao e salvo", await blingDoKit(kitB.id), null);
+        await gravarBlingDoKit(kitB.id, "777");
+        await salvarRascunhoML(kitB.id, kitComBling("ZZ-ML-KITB", null));
+        conferir("vinculo com o Bling: editor desatualizado (null) nao apaga o guardado", await blingDoKit(kitB.id), "777");
+        await salvarRascunhoML(kitB.id, kitComBling("ZZ-ML-KITB", "999"));
+        conferir("vinculo com o Bling: valor forjado nao troca o guardado", await blingDoKit(kitB.id), "777");
+        await salvarRascunhoML(kitB.id, kitComBling("ZZ-ML-KITB2", "777"));
+        conferir("vinculo com o Bling: outro codigo e outro kit, o vinculo antigo sai", await blingDoKit(kitB.id), null);
+        await salvarRascunhoML(kitB.id, kitComBling("ZZ-ML-KITB", "777"));
+        conferir("vinculo com o Bling: voltar ao codigo antigo nao traz o vinculo de volta", await blingDoKit(kitB.id), null);
+
         // Um anuncio gravado por fora do editor com o codigo do kit e outra composicao: ao abrir, o contexto avisa.
         const conflito = await prisma.anuncio.create({
           data: { produtoId: p1.id, canal: "MERCADO_LIVRE", titulo: "ZZ conflito", dados: { composicao: { itens: [{ produtoId: p1.id, quantidade: 9 }], codigo: "ZZ-ML-KIT", blingProdutoId: null } } },

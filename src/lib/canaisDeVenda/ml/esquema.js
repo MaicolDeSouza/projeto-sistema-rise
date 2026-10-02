@@ -59,6 +59,7 @@ export const RascunhoMLSchema = z.object({
     .object({
       itens: z.array(ItemDaComposicao),
       codigo: z.string(),
+      // So a forma: o servidor decide o valor (ver `salvarRascunhoML`), o que a tela mandar e ignorado.
       blingProdutoId: z.string().nullable(),
     })
     .nullable(),
