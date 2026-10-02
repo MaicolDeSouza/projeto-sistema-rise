@@ -33,6 +33,7 @@ Sucesso: o dono clica no ícone do ML de um Produto Conferido, preenche/ajusta a
 9. **Frases fixas** (ex.: "Todos os nossos produtos possuem nota fiscal") definidas pelo dono numa tela de configuração.
 10. **Custo** da aba de preço vem do **fornecedor padrão** do Produto.
 11. **Publicar roda como ação do servidor com etapas gravadas** (abordagem A): retoma da etapa que falhou.
+12. **Composição (ML e Shopee):** um anúncio pode ser uma composição de **N unidades do mesmo produto-base** (ex.: 5 peças do `100101`, código **`100101_5`**). A composição existe **só no anúncio**, não vira Produto no Rise. O **estoque é controlado pelo Bling**: o produto de composição do Bling baixa as N unidades do produto-base a cada venda. O anúncio de composição fica **pausado até o produto de composição existir no Bling**; **o Rise cria esse produto no Bling** (se não existir) e a saída de "pausado" é pelo botão **Verificar no Bling**. Detalhes nas seções 6.1 e 7.1.
 
 ## 4. O que a API do ML permite (conferido nas docs)
 
@@ -46,6 +47,7 @@ Sucesso: o dono clica no ícone do ML de um Produto Conferido, preenche/ajusta a
 | Frete grátis obrigatório | Tag no item | `shipping.tags: mandatory_free_shipping` |
 | Atributos da categoria | Sim | `GET /categories/{id}/attributes` |
 | Vínculo com o Bling | Sim | Bling `POST /produtos/lojas` com `{codigo: "<MLB>", preco, produto: {id: <blingId>}, loja: {id: 203593931}}` |
+| Produto de composição no Bling | Sim. Os kits atuais são `formato: "E"` com `estrutura.tipoEstoque: "V"` (virtual) e `componentes: [{produto: {id}, quantidade}]`; exemplo real: `920302_1.000` (1.000 × resistor). Procurar por código antes de criar; criar com `POST /produtos` (formato a modelar no kit existente). | Bling `GET /produtos` (filtro por código, a confirmar), `POST /produtos` |
 
 Nome de arquivo da foto: nenhuma fonte oficial indica efeito na busca do ML (o ML guarda a imagem com identificador próprio). Decisão: enviar com nome legível (`slug-do-produto-N.jpg`), sem prometer efeito.
 
@@ -62,7 +64,7 @@ A busca pública do ML (`/sites/MLB/search`) dá 403; a pesquisa de anúncios de
 
 **Componentes** (`src/components/anuncios/ml/`): `EditorAnuncioML` (abas, Salvar, Publicar) renderizado por `JanelaAnuncioML` (pop-up do ícone) e pela página. Uma aba por arquivo. Produto com vários anúncios ML: o pop-up começa numa lista + "Novo anúncio". Produto não Conferido: pop-up bloqueado, com aviso.
 
-**Ícone do ML** em `LinhaProduto.jsx`: cinza = sem anúncio; cinza com ponto âmbar = rascunho salvo; **verde = publicado e vinculado ao Bling**. Loja Integrada e Shopee continuam cinza.
+**Ícone do ML** em `LinhaProduto.jsx`: cinza = sem anúncio; cinza com ponto âmbar = rascunho salvo ou composição **aguardando o Bling**; **verde = publicado, vinculado ao Bling e ativo**. Loja Integrada e Shopee continuam cinza.
 
 **Lógica pura, sem rede (testável):** margem e preço por margem; montagem da descrição; `src/lib/versiculos.js` (sorteio sem repetir, lista de exclusão e limite de tamanho, recebendo o conjunto de versículos e o histórico como argumento); validações. Os versículos de Salmos e Provérbios (ARC) ficam num arquivo de dados local, versionado, sem depender de serviço externo. Chamadas ao ML e ao Bling em arquivos separados, sempre via `httpClient.requisitar` com registro em `LogIntegracao`.
 
@@ -84,6 +86,19 @@ Todas nascem preenchidas a partir do Produto.
 
 Limite: o ML não recomenda preço antes de o anúncio existir; depois de publicado, a sugestão aparece na tela de gerenciar.
 
+### 6.1 Anúncio de composição (ML e Shopee)
+
+Um anúncio pode ser **N unidades do mesmo produto-base** vendidas juntas. Exemplo: 5 peças do `100101` → código **`100101_5`**, o padrão `código_quantidade` que o Bling já usa (ex.: `920302_1.000`, com ponto no milhar).
+
+- **A composição existe só no anúncio** (`dados.composicao = {produtoBaseId, quantidade, codigo}`); não vira Produto no Rise. Conferido e `blingId` valem para o **produto-base**.
+- **A baixa de estoque é do Bling, não do Rise:** o produto de composição no Bling (estoque virtual, componente = produto-base × N) calcula o saldo do kit pelo produto-base e, a cada venda de `100101_5`, baixa N unidades do `100101`. O Rise não implementa lógica de estoque. Estoque inicial do anúncio = ⌊estoque do produto-base ÷ N⌋.
+- **Geral:** caixa "Composição" + quantidade; mostra o código gerado; título e descrição sugerem "Kit com N unidades".
+- **Preço:** custo = N × o custo do fornecedor padrão do produto-base; a calculadora de margem usa esse custo.
+- **Imagens:** fotos próprias do kit; enquanto só houver as do produto-base (que mostram 1 unidade), a aba avisa.
+- **Envio:** peso e dimensões editáveis, com sugestão de N × o peso do produto-base.
+- Vários anúncios da mesma composição (Clássico e Premium) compartilham o mesmo produto de composição no Bling.
+- Kit **misto** (produtos diferentes no mesmo anúncio) fica fora desta versão.
+
 ## 7. Publicar
 
 **Pré-checagens (servidor):** Produto Conferido; `blingId` existe; rascunho sem problema bloqueante; `ML_PUBLICACAO` e `BLING_ESCRITA` ligadas; confirmação do dono.
@@ -99,13 +114,21 @@ Limite: o ML não recomenda preço antes de o anúncio existir; depois de public
 
 **Falha:** o anúncio fica `PUBLICANDO` com erro e etapa gravados; "Retomar publicação" continua da etapa que falhou sem recriar o item.
 
+### 7.1 Variante de composição
+
+Mesmas pré-checagens (o `blingId` exigido é o do produto-base). Etapas 1 a 4 iguais: o item nasce **pausado**, com o código `100101_5` como SKU. Antes do vínculo entra a etapa **5a: garantir o produto de composição no Bling**:
+- procura o código no Bling; se existir (criado pelo dono ou numa tentativa anterior), **reaproveita**;
+- se não existir, **o Rise o cria** (`POST /produtos`, formato composição, estoque virtual, componente = produto-base × N, demais dados copiados do produto-base, modelado no kit real `920302_1.000`). A criação aparece **na janela de confirmação** do Publicar.
+
+Depois seguem 5b (vínculo), 6 (ativar) e 7 (gravar). **Se a 5a falhar**, o anúncio fica **pausado** em "aguardando Bling" (`dados.etapa`) e o botão **Verificar no Bling** (também disponível ao abrir o anúncio) repete a partir da 5a. O anúncio nunca é ativado sem o produto de composição existir e estar vinculado. Não há verificação automática pelo worker. O produto criado no Bling **não é apagado** se uma etapa seguinte falhar: a nova tentativa o reaproveita pelo código.
+
 **Depois:** o Bling controla estoque e venda. Campos travados pelo ML continuam travados (`camposEditaveis`).
 
 **Teste de escrita:** o primeiro Publicar real é com **um produto, acompanhado pelo dono**.
 
 ## 8. Banco
 
-- `Anuncio`: remover `@@unique([produtoId, canal])`; índice `(produtoId, canal)`; **índice único parcial em SQL** só para Bling e Loja Integrada (no estilo do `Job_fonte_aberta`); coluna `dados Json?` (envio, tipo, condição, versículo, etapa, vínculo com o Bling).
+- `Anuncio`: remover `@@unique([produtoId, canal])`; índice `(produtoId, canal)`; **índice único parcial em SQL** só para Bling e Loja Integrada (no estilo do `Job_fonte_aberta`); coluna `dados Json?` (envio, tipo, condição, versículo, etapa, vínculo com o Bling, composição `{produtoBaseId, quantidade, codigo, blingProdutoId}`). Sem coluna nem tabela nova para a composição.
 - Tabela de configuração por canal (frases fixas e o histórico de versículos já usados, que reinicia quando todos os versículos elegíveis forem usados).
 - Regra do schema do CLAUDE.md: uma sessão por vez; a outra frente tem migrations ainda sem commit (`20260930_fotos_mensais`, `20260930_movimento_estoque`); antes de gerar a nossa, ela faz o merge e rodamos `git merge main`. Editar o SQL à mão (o `migrate diff` propõe `DROP INDEX` dos trigramas). Depois `prisma generate` e reiniciar o servidor.
 
@@ -113,7 +136,7 @@ Limite: o ML não recomenda preço antes de o anúncio existir; depois de public
 
 **Erros:** mensagens em português, no campo certo; erro do ML/Bling com o texto original no `LogIntegracao`; falha de rede nunca apaga o rascunho; falha de IA só avisa.
 
-**Testes** (`npm run teste:anuncios-ml`, sem rede): Produto não Conferido recusado no servidor; sem `blingId` não publica; vários anúncios ML por produto e um só no Bling; preço por margem contra as taxas; descrição; versículo sem repetir entre anúncios, nunca da lista de exclusão e nunca acima do limite de tamanho; retomada de cada etapa. Mais `lint` e conferência no navegador.
+**Testes** (`npm run teste:anuncios-ml`, sem rede): Produto não Conferido recusado no servidor; sem `blingId` não publica; vários anúncios ML por produto e um só no Bling; preço por margem contra as taxas; descrição; versículo sem repetir entre anúncios, nunca da lista de exclusão e nunca acima do limite de tamanho; retomada de cada etapa; composição: código `100101_5` gerado (e `_1.000`), custo × N, estoque ⌊base ÷ N⌋, Bling sem o produto deixa o anúncio pausado, produto já existente no Bling é reaproveitado e não duplicado. Mais `lint` e conferência no navegador.
 
 ## 10. Fases (cada uma com testes e aprovação antes da seguinte)
 
@@ -121,11 +144,11 @@ Limite: o ML não recomenda preço antes de o anúncio existir; depois de public
 2. **Inteligência do ML (só leitura):** categoria, título, atributos, custos, calculadora, validador.
 3. **Publicar:** escrita no ML e no Bling, etapas e retomada. Só depois de o dono liberar as travas.
 
-Investigação inicial, antes da fase 2 (leituras seguras): `domain_discovery`, `categories/{id}/attributes`, `listing_prices` com e sem `logistic_type`, `shipping_options/free`, Tendências, validador de publicações, e `GET /produtos/lojas` num produto já vinculado (formato exato).
+Investigação inicial, antes da fase 2 (leituras seguras): `domain_discovery`, `categories/{id}/attributes`, `listing_prices` com e sem `logistic_type`, `shipping_options/free`, Tendências, validador de publicações, e `GET /produtos/lojas` num produto já vinculado (formato exato). Para a composição: confirmar o **filtro por código** do `GET /produtos` (a consulta de teste por `codigos[]` voltou vazia até para o `100101`), conferir se `100101` e `100101_5` já existem, e copiar o formato exato do kit `920302_1.000` (campos `estrutura`, `lancamentoEstoque`, categoria, unidade, NCM) para o `POST /produtos`.
 
 ## 11. Fora do escopo
 
-Listar/importar os 1.007 anúncios existentes; Loja Integrada e Shopee (só cartões); preço recomendado pelo ML antes de publicar (não existe); remover o menu Anúncios.
+Listar/importar os 1.007 anúncios existentes; Loja Integrada e Shopee (só cartões); preço recomendado pelo ML antes de publicar (não existe); remover o menu Anúncios; kit misto (produtos diferentes na mesma composição); a composição na Shopee (a regra vale para ela, mas a Shopee só é construída em spec própria).
 
 ## 12. Riscos
 
@@ -133,4 +156,5 @@ Listar/importar os 1.007 anúncios existentes; Loja Integrada e Shopee (só cart
 - O Bling pode sincronizar preço e estoque depois do vínculo: o preço do vínculo é o do anúncio; o estoque inicial é o do Produto.
 - Esta pasta (`main` worktree) hospeda o worker e o trabalho da outra frente sem commit; a branch `canais-de-venda` vive aqui por decisão do dono. Comitar só os arquivos desta feature, pelo nome; conferir a branch antes de reiniciar o worker.
 - Pesquisa na internet pela IA tem custo e pode errar: sempre sugestão editável, nunca preenchimento silencioso.
+- Composição: o Rise passa a **criar produtos no Bling** (escrita no ERP, sob `BLING_ESCRITA`). Mitigação: sempre procurar o código antes de criar, confirmar a criação na janela do Publicar, nunca apagar o produto criado, e fazer o primeiro teste real com um kit só, acompanhado pelo dono. Um produto de composição no Bling com configuração diferente do kit modelo (`920302_1.000`) pode não baixar o estoque do produto-base: conferir uma venda de teste ou o saldo virtual antes de ativar o primeiro kit em volume.
 - Versículos: sorteando entre Salmos e Provérbios inteiros, algum pode destoar de um anúncio de produto. Mitigação: lista de exclusão dos casos conhecidos, botão "outro versículo" e o texto visível na prévia antes de publicar. A **fonte do texto da ARC** (arquivo de Salmos e Provérbios) será definida no plano de implementação, conferindo que a licença permite guardá-lo; a revisão de trechos impróprios além dos conhecidos é do dono.
