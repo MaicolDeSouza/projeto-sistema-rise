@@ -174,6 +174,23 @@ function galeriaDaTray(html, tray, urlBase) {
   return achadas;
 }
 
+/// Titulo de secao de produtos relacionados ("Quem viu ...", "Produtos
+/// relacionados", "Veja tambem"). Vocabulario de SECAO, e so vale depois da foto
+/// principal.
+const TITULO_DE_RELACIONADOS =
+  /<h[1-6]\b[^>]*>(?:(?!<\/h[1-6]>)[\s\S]){0,300}?(?:quem viu|relacionad|veja tamb[eé]m|voc[eê] tamb[eé]m|tamb[eé]m compraram|produtos similares|produtos semelhantes)/i;
+
+/** Posicao do HTML em que a galeria acaba; `Infinity` quando nao ha secao de relacionados. */
+function fimDaGaleria(html, principal) {
+  const arquivo = new URL(principal, "https://x.invalid").pathname.split("/").pop() ?? "";
+  const daPrincipal = arquivo ? html.indexOf(arquivo) : -1;
+  if (daPrincipal < 0) return Infinity;
+
+  const resto = html.slice(daPrincipal);
+  const achado = TITULO_DE_RELACIONADOS.exec(resto);
+  return achado ? daPrincipal + achado.index : Infinity;
+}
+
 /// Acima disto nao e galeria de um produto. O maior caso legitimo medido tem
 /// cinco fotos (Usinainfo); o dobro disso ja e sinal de diretorio compartilhado.
 const TETO_DE_GALERIA = 10;
@@ -199,7 +216,16 @@ function galeriaDaPagina(html, principal, urlBase) {
   const candidatas = [];
   const diretorios = new Set();
 
-  for (const [tag] of html.matchAll(/<img[^>]+>/gi)) {
+  // A galeria termina onde comecam os RELACIONADOS. A Unitel (30/09/2026) serve
+  // as fotos de todos os produtos do MESMO diretorio, e a secao "Quem viu ..."
+  // trazia 5 fotos de outros transformadores e fontes: o mesmo diretorio nao
+  // distingue foto do produto de foto de vizinho. O corte so vale se o titulo
+  // da secao vier DEPOIS da foto principal — galeria nunca fica abaixo de
+  // "veja tambem".
+  const corte = fimDaGaleria(html, principal);
+
+  for (const achado of html.matchAll(/<img[^>]+>/gi)) {
+    const tag = achado[0];
     for (const atributo of ATRIBUTOS_DE_IMAGEM) {
       const valor = new RegExp(`\\b${atributo}=["']([^"']+)["']`, "i").exec(tag)?.[1];
       if (!valor) continue;
@@ -211,7 +237,7 @@ function galeriaDaPagina(html, principal, urlBase) {
       if (!diretorio) continue;
 
       diretorios.add(diretorio);
-      if (diretorio === alvo) candidatas.push(absoluta);
+      if (diretorio === alvo && achado.index < corte) candidatas.push(absoluta);
     }
   }
 
@@ -379,6 +405,50 @@ function limparDescricao(texto) {
 }
 
 /**
+ * Ficha tecnica escrita SEM titulo de secao: a Unitel (30/09/2026) poe direto
+ * na descricao "Corrente Máxima: 10A", "Tensão de saída: 24 + 24Vac", "Peso:
+ * 5,072kg", sem "Especificações" antes.
+ *
+ * E a leitura mais frouxa que existe aqui, entao o criterio e apertado, para nao
+ * trazer de volta o problema que fez a varredura do texto inteiro ser recusada
+ * (frases de marketing em forma de "rotulo: valor"): uma CORRIDA de pelo menos
+ * TRES linhas seguidas, cada uma com rotulo curto (ate 3 palavras, iniciado em
+ * maiuscula) e valor curto (ate 40 caracteres). Frase de propaganda tem valor
+ * comprido e nao passa. Linha em branco NAO quebra a corrida — o CMS poe cada
+ * paragrafo entre <p> —, mas qualquer linha que nao seja par quebra.
+ */
+function fichaSemTitulo(linhas) {
+  const par = (linha) => {
+    const limpa = linha.replace(/^[\s\-•*]+/, "").replace(/[;.]\s*$/, "").trim();
+    const separador = limpa.indexOf(":");
+    if (separador < 2 || separador > 30) return null;
+
+    const nome = limpa.slice(0, separador).trim();
+    const valor = limpa.slice(separador + 1).trim();
+    if (!valor || valor.length > 40 || nome.split(/\s+/).length > 3) return null;
+    if (!/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(nome)) return null;
+    return { nome, valor };
+  };
+
+  let corrida = [];
+  let melhor = [];
+  for (const linha of linhas) {
+    if (!linha) continue;
+
+    const item = par(linha);
+    if (item) {
+      corrida.push(item);
+    } else {
+      if (corrida.length > melhor.length) melhor = corrida;
+      corrida = [];
+    }
+  }
+  if (corrida.length > melhor.length) melhor = corrida;
+
+  return melhor.length >= 3 ? melhor : [];
+}
+
+/**
  * Especificacoes escritas como lista dentro da descricao.
  *
  * Muita loja nao usa tabela nem additionalProperty: escreve "ESPECIFICACOES:" e
@@ -445,7 +515,7 @@ function especificacoesDeLista(texto) {
   // trouxe vinte itens, dos quais doze eram frases de marketing da aba de
   // aplicacoes ("Custo baixo: boa solucao quando..."). Ficha tecnica com
   // propaganda dentro e pior que ficha tecnica vazia.
-  if (inicio === -1) return [];
+  if (inicio === -1) return fichaSemTitulo(linhas);
 
   // Paragrafo: linha longa ou com muitas palavras. E o que separa a ficha
   // tecnica do texto corrido que vem depois dela — no caso da Usinainfo, o
@@ -1257,6 +1327,27 @@ function textoDoBlocoDeDescricao(blocoHtml) {
 }
 
 /**
+ * og:title costuma vir com o nome da loja colado no fim, e as vezes com o
+ * PLACEHOLDER do CMS que ninguem trocou: a Unitel (30/09/2026) publica
+ * "Transformador - 24 + 24Vac - 10A - Bivolt - Ref. 903 - Nome da empresa",
+ * enquanto o <h1> da pagina traz so o titulo do produto.
+ *
+ * So corta quando o <h1> visivel e um PREFIXO proprio do og:title e o que sobra
+ * comeca por separador — o titulo que a loja mostra ao cliente vence o da
+ * meta tag, e nada e inventado. Titulo sem <h1> igual ao comeco fica como esta.
+ */
+function tituloSemSufixoDaLoja(titulo, html) {
+  if (!titulo) return titulo;
+
+  for (const [, interno] of html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)) {
+    const h1 = comoTexto(interno);
+    if (!h1 || h1.length < 8 || titulo.length <= h1.length) continue;
+    if (titulo.startsWith(h1) && /^\s*[-–—|:·]\s/.test(titulo.slice(h1.length))) return h1;
+  }
+  return titulo;
+}
+
+/**
  * Descricao que mora na ABA "Descrição" do produto, quando a loja a monta como
  * `<a data-toggle="tab" href="#painel">Descrição</a>` e um painel com esse id.
  *
@@ -1269,17 +1360,39 @@ function textoDoBlocoDeDescricao(blocoHtml) {
  * Exige data-toggle="tab": link "#descricao" comum e ancora de rolagem, nao aba.
  */
 function descricaoDaAba(html) {
+  const ROTULO = /^descri[cç][aã]o(?: do produto)?$/i;
+
+  const painelDe = (alvo) => {
+    const painel = new RegExp(`\\bid=["']${alvo}["'][^>]*>`, "i").exec(html);
+    return painel
+      ? textoDoBlocoDeDescricao(conteudoDoDiv(html, painel.index + painel[0].length))
+      : null;
+  };
+
   for (const aba of html.matchAll(/<a\b([^>]*)>([\s\S]{0,60}?)<\/a>/gi)) {
     if (!/data-(?:bs-)?toggle=["']tab["']/i.test(aba[1])) continue;
-    if (!/^descri[cç][aã]o(?: do produto)?$/i.test((comoTexto(aba[2]) ?? "").trim())) continue;
+    if (!ROTULO.test((comoTexto(aba[2]) ?? "").trim())) continue;
 
     const alvo = /href=["']#([\w-]+)["']/i.exec(aba[1])?.[1];
     if (!alvo) continue;
 
-    const painel = new RegExp(`\\bid=["']${alvo}["'][^>]*>`, "i").exec(html);
-    if (!painel) continue;
+    const texto = painelDe(alvo);
+    if (texto !== null) return texto;
+  }
 
-    return textoDoBlocoDeDescricao(conteudoDoDiv(html, painel.index + painel[0].length));
+  // Aba trocada por JavaScript proprio: a Unitel (30/09/2026) monta
+  // `<h2 onclick="openAba(event, 'desc')">Descrição</h2>` e um
+  // `<div id="desc" class="tabcontent">`. Sem data-toggle, so o onclick diz
+  // QUAL painel a aba abre — e o rotulo continua tendo de ser "Descrição", senao
+  // "Orçamento" e "Perguntas e respostas" (abas de outro assunto) entrariam.
+  for (const aba of html.matchAll(/<(a|h[1-6]|button|li|span)\b([^>]*)>([\s\S]{0,60}?)<\/\1>/gi)) {
+    if (!ROTULO.test((comoTexto(aba[3]) ?? "").trim())) continue;
+
+    const alvo = /onclick=["'][^"']*['"]([\w-]+)['"][^"']*["']/i.exec(aba[2])?.[1];
+    if (!alvo) continue;
+
+    const texto = painelDe(alvo);
+    if (texto !== null) return texto;
   }
   return null;
 }
@@ -1496,12 +1609,18 @@ function codigoNaUrl(url, nome) {
 
   // O codigo vive no FIM do slug, e nao no meio: no comeco esta o nome do
   // produto, que tambem tem numero.
-  const candidato =
+  const bruto =
     /(?:^|-)([a-z0-9]+-[a-z0-9]+)$/i.exec(semExtensao)?.[1] ??
     /(?:^|-)([a-z]{2,}[0-9]{2,}[a-z0-9]*)$/i.exec(semExtensao)?.[1] ??
     null;
 
-  if (!candidato) return null;
+  if (!bruto) return null;
+
+  // "ref-903" na URL e "Ref. 903" no nome: "ref" e o ROTULO do codigo, nao
+  // parte dele. A Unitel (30/09/2026) saia com codigo "ref-903" onde o
+  // fabricante chama o produto de "Ref. 903". So tira o rotulo quando sobra um
+  // trecho com digito: "ref-x" ou "cod-a" ficam como estao.
+  const candidato = bruto.replace(/^(?:ref|cod|codigo|sku)-(?=[a-z0-9]*\d)/i, "");
 
   // Sem digito nao e codigo, e sim final de nome: "tipo-c", "pic-esp".
   if (!/[0-9]/.test(candidato)) return null;
@@ -1732,7 +1851,7 @@ export function normalizarPagina({
     "name",
     [estruturado?.fonte === "json-ld" ? estruturado.titulo : null, "json-ld"],
     [micro?.titulo, "itemprop=name"],
-    [comoTexto(meta["og:title"]), "og:title"],
+    [tituloSemSufixoDaLoja(comoTexto(meta["og:title"]), html), "og:title"],
     [estruturado?.titulo, estruturado?.fonte ?? "?"],
   );
 
@@ -1845,14 +1964,23 @@ export function normalizarPagina({
   ]);
 
   // --- descricao ------------------------------------------------------------
+  // A plataforma ASP.NET ja le a propria aba (aspnet.descricao).
+  const daAba = aspnet ? null : descricaoDaAba(html);
+
+  // Com a aba "Descrição" lida, o og:description SAI da disputa. Ele e resumo de
+  // SEO — e na Unitel (30/09/2026) e o texto da EMPRESA colado ao titulo ("...
+  // A Unitel Transformadores e uma empresa do ramo eletroeletronico fundada em
+  // abril..."), o mesmo em todo produto. O cabo USB-C dela tem na aba so "Peso:
+  // 0,060kg": pela regra da mais longa, o texto da empresa vencia e a descricao
+  // do produto nunca chegava. O texto que a pagina mostra ao cliente vale mais
+  // que a meta tag; sem aba, o og:description continua entrando como antes.
   const description = descricaoDaRoboCore(html, url) ?? melhorDescricao([
     aspnet?.descricao,
     estruturado?.descricao,
     micro?.descricao,
-    comoTexto(meta["og:description"]),
+    daAba ? null : comoTexto(meta["og:description"]),
     descricaoDoBloco(html),
-    // A plataforma ASP.NET ja le a propria aba (aspnet.descricao).
-    aspnet ? null : descricaoDaAba(html),
+    daAba,
   ]);
 
   // --- especificacoes -------------------------------------------------------
