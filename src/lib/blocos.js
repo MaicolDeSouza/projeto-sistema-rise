@@ -9,6 +9,7 @@ import {
   PieChart,
   Cable,
   ShoppingCart,
+  Store,
   Wallet,
   Wrench,
 } from "lucide-react";
@@ -61,6 +62,17 @@ export const blocos = [
     rotulo: "Anuncios",
     icone: Megaphone,
     resumo: "Criar, editar e acompanhar anuncios em todos os canais",
+    pronto: true,
+  },
+  {
+    // Pedido do dono em 30/09/2026: criar e gerenciar anuncios por canal (Mercado Livre,
+    // Loja Integrada e Shopee). So icone e texto na barra lateral; os canais aparecem como
+    // CARTOES na propria pagina (`src/lib/canaisDeVenda/catalogo.js`), como em Ferramentas
+    // e Cadastros. O item continua ativo em `/canais-de-venda/<canal>` (`ehRotaAtiva`).
+    href: "/canais-de-venda",
+    rotulo: "Canais de Venda",
+    icone: Store,
+    resumo: "Criar e gerenciar anuncios no Mercado Livre, na Loja Integrada e na Shopee",
     pronto: true,
   },
   {
