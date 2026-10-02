@@ -32,7 +32,8 @@
     "backup": "node scripts/backup-banco.js",
     "foto:mensal": "node scripts/foto-mensal.js",
     "teste:fotos": "node scripts/teste-fotos.js",
-    "teste:estoque": "node scripts/teste-estoque.js"
+    "teste:estoque": "node scripts/teste-estoque.js",
+    "teste:anuncios-ml": "node scripts/teste-anuncios-ml.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

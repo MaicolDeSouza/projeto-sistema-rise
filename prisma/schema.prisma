@@ -277,8 +277,18 @@ model ProdutoArquivo {
 // Anuncios
 // ---------------------------------------------------------------------------
 
-/// Um anuncio por par (produto, canal). Guarda o conteudo gerado e o
-/// resultado da publicacao naquele canal, de forma independente dos outros.
+/// Guarda o conteudo gerado e o resultado da publicacao num canal, de forma
+/// independente dos outros.
+///
+/// O ML e a Shopee aceitam VARIOS anuncios do mesmo produto (Classico e Premium,
+/// por exemplo), entao o par (produto, canal) nao e unico. O Bling e a Loja
+/// Integrada continuam com UM so: quem garante isso e o indice unico parcial
+/// `Anuncio_um_por_produto` (migration 20261001_canais_de_venda_ml), que mora so no
+/// SQL porque o Prisma nao descreve indice parcial — como o `Job_fonte_aberta`.
+///
+/// `dados` guarda o que e proprio do canal e nao tem coluna: no ML, o rascunho do
+/// anuncio (tipo Classico/Premium, condicao, versiculo, etapa, vinculo com o Bling e
+/// composicao do kit). O formato e do codigo do canal; o banco so guarda o JSON.
 model Anuncio {
   id        String  @id @default(cuid())
   produtoId String
@@ -295,6 +305,9 @@ model Anuncio {
   descricao String?
   /// Atributos/ficha tecnica no formato exigido pelo canal.
   atributos Json?
+
+  /// Rascunho e escolhas proprias do canal (ver o comentario do modelo).
+  dados Json?
 
   categoriaExternaId String?
   /// ID do anuncio no canal (ex.: MLB1234567890).
@@ -318,9 +331,47 @@ model Anuncio {
 
   logs LogIntegracao[]
 
-  @@unique([produtoId, canal])
+  // Indice comum: a unicidade do Bling e da Loja Integrada e parcial e vive no SQL.
+  @@index([produtoId, canal])
   @@index([status])
   @@index([canal, status])
+}
+
+/// Configuracao de um canal de venda que vale para todos os anuncios dele.
+/// Uma linha por canal (a chave e o proprio canal).
+model ConfigCanal {
+  canal Canal @id
+
+  /// Frases fixas que o dono quer em toda descricao do canal (ex.: "Todos os
+  /// nossos produtos possuem nota fiscal").
+  frasesFixas String[] @default([])
+
+  /// Historico de versiculos ja usados em anuncios publicados, para nao repetir.
+  /// Reinicia quando todos os versiculos elegiveis foram usados.
+  versiculosUsados String[] @default([])
+
+  atualizadoEm DateTime @updatedAt
+}
+
+/// Versiculo da NVI para a descricao dos anuncios do ML.
+///
+/// A licenca da NVI limita o uso: no maximo 500 versiculos na lista (contando
+/// faixas, entao `3:5-6` vale 2), e o credito "(NVI)" tem que acompanhar o texto.
+/// Por isso o credito NAO e coluna: o codigo o escreve, nunca o operador. O teto de
+/// 500 e conferido pelo codigo (TETO_DE_VERSICULOS), nao pelo banco.
+model Versiculo {
+  id String @id @default(cuid())
+
+  livro    String
+  capitulo Int
+  /// Primeiro versiculo da faixa; igual a `fim` quando e um so.
+  inicio   Int
+  fim      Int
+  texto    String
+
+  criadoEm DateTime @default(now())
+
+  @@unique([livro, capitulo, inicio])
 }
 
 // ---------------------------------------------------------------------------
