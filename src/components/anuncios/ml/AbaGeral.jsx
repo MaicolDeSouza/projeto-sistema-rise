@@ -1,0 +1,219 @@
+"use client";
+
+import { useId } from "react";
+
+import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
+import Badge from "@/components/ui/Badge";
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import { LIMITE_TITULO } from "@/lib/anuncios/canais/mercadolivre";
+import { aplicarComposicao } from "@/lib/canaisDeVenda/ml/rascunho";
+import BlocoComposicao from "./BlocoComposicao";
+
+const TIPOS_DE_ANUNCIO = [
+  { valor: "gold_special", rotulo: "Classico" },
+  { valor: "gold_pro", rotulo: "Premium" },
+];
+
+const CONDICOES = [
+  { valor: "new", rotulo: "Novo" },
+  { valor: "used", rotulo: "Usado" },
+];
+
+// Ligar a caixa cria um kit de duas unidades do produto principal: a composicao precisa de ao
+// menos duas, e o dono ajusta a quantidade e inclui os demais itens.
+const composicaoDoKitNovo = (produtoId) => ({
+  itens: [{ produtoId, quantidade: 2 }],
+  codigo: "",
+  blingProdutoId: null,
+});
+
+function Mensagens({ lista }) {
+  return lista.map((item, posicao) => (
+    <p key={posicao} className={`mt-1 text-[11px] ${item.bloqueante ? "text-red-700" : "text-amber-700"}`}>
+      {item.problema}
+    </p>
+  ));
+}
+
+/**
+ * Duas ou tres opcoes lado a lado, como o `EscolhaDoTipo` do cadastro de Cliente: sao
+ * <input type="radio"> de verdade (escondidos, o rotulo e o alvo do clique), entao o teclado
+ * (setas, Tab) continua funcionando. O nome do grupo e gerado: o editor pode estar numa janela
+ * sobre uma tela que ja tenha outro grupo com o mesmo nome.
+ */
+function EscolhaEntre({ rotulo, opcoes, valor, aoMudar }) {
+  const nome = useId();
+  return (
+    <div>
+      <p id={`${nome}-rotulo`} className="text-sm font-semibold">
+        {rotulo}
+      </p>
+      <div
+        role="radiogroup"
+        aria-labelledby={`${nome}-rotulo`}
+        className="mt-1 inline-flex overflow-hidden rounded border border-borda text-sm"
+      >
+        {opcoes.map((opcao) => (
+          <label
+            key={opcao.valor}
+            className={`cursor-pointer px-4 py-2 font-medium has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-acento ${
+              valor === opcao.valor ? "bg-acento text-white" : "bg-superficie text-suave hover:bg-fundo"
+            }`}
+          >
+            <input
+              type="radio"
+              name={nome}
+              value={opcao.valor}
+              checked={valor === opcao.valor}
+              onChange={() => aoMudar(opcao.valor)}
+              className="sr-only"
+            />
+            {opcao.rotulo}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProdutoPrincipal({ produto, problemas }) {
+  const blingId = String(produto?.blingId ?? "").trim();
+  return (
+    <div className="rounded border border-borda bg-fundo p-3">
+      <p className="text-xs text-suave">Produto principal</p>
+      {produto ? (
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+          <span className="font-mono font-medium">{produto.sku}</span>
+          <span className="min-w-0 flex-1 truncate">{produto.tituloBase}</span>
+          <Badge tom={produto.conferido === true ? "sucesso" : "erro"}>
+            {produto.conferido === true ? "Conferido" : "Nao conferido"}
+          </Badge>
+          <span className={`text-xs ${blingId ? "text-suave" : "font-medium text-amber-700"}`}>
+            {blingId ? `Bling ${blingId}` : "sem blingId"}
+          </span>
+        </div>
+      ) : (
+        <p className="mt-1 text-sm text-red-700">Produto nao encontrado. Ele pode ter sido excluido.</p>
+      )}
+      <Mensagens lista={problemas} />
+    </div>
+  );
+}
+
+/**
+ * Aba Geral do editor: o produto principal, a caixa da composicao (kit) e os campos que
+ * identificam o anuncio. Cada problema da aba aparece embaixo do campo a que se refere.
+ */
+export default function AbaGeral({ rascunho, contexto, alterar, setContexto, problemas, anuncioId }) {
+  const produto = contexto.produtos[rascunho.produtoId];
+  const doCampo = (campo) => problemas.filter((problema) => problema.campo === campo);
+  const primeiro = (campo) => doCampo(campo)[0]?.problema;
+
+  const emKit = Boolean(rascunho.composicao);
+  const titulo = rascunho.titulo ?? "";
+  // O mesmo tamanho que a validacao confere (sem os brancos das pontas).
+  const tamanhoDoTitulo = titulo.trim().length;
+  const erroDoTitulo = primeiro("titulo");
+
+  function alternarComposicao(ligada) {
+    // O codigo em uso era de outra composicao (ou de nenhuma): nao pode acusar a nova.
+    setContexto((atual) => (atual.codigoEmUso === null ? atual : { ...atual, codigoEmUso: null }));
+    alterar((atual) =>
+      aplicarComposicao(atual, ligada ? composicaoDoKitNovo(atual.produtoId) : null, contexto.produtos),
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <ProdutoPrincipal produto={produto} problemas={[...doCampo("produto"), ...doCampo("blingId")]} />
+
+      <div>
+        <div className="flex items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={emKit}
+              onChange={(evento) => alternarComposicao(evento.target.checked)}
+              className="h-4 w-4 accent-acento"
+            />
+            Anuncio de composicao (kit)
+          </label>
+          <BolhaDeAjuda
+            variante="inline"
+            texto="Vende varias unidades, ou produtos diferentes, num anuncio so. Desligar devolve a descricao, o estoque, as fotos e as medidas do produto principal."
+          />
+        </div>
+        {emKit && (
+          <div className="mt-3">
+            <BlocoComposicao
+              rascunho={rascunho}
+              contexto={contexto}
+              alterar={alterar}
+              setContexto={setContexto}
+              problemas={problemas}
+              anuncioId={anuncioId}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <Campo nome="ml-titulo" rotulo="Titulo">
+            <input
+              id="ml-titulo"
+              value={titulo}
+              onChange={(evento) => alterar({ titulo: evento.target.value })}
+              className={`${CLASSE_CAMPO} ${bordaDoCampo(erroDoTitulo)}`}
+            />
+            <div className="mt-1 flex items-start gap-3">
+              {erroDoTitulo && <p className="text-[11px] text-red-700">{erroDoTitulo}</p>}
+              <span
+                className={`ml-auto shrink-0 text-[11px] tabular-nums ${
+                  tamanhoDoTitulo > LIMITE_TITULO ? "font-medium text-red-700" : "text-suave"
+                }`}
+              >
+                {tamanhoDoTitulo}/{LIMITE_TITULO}
+              </span>
+            </div>
+          </Campo>
+        </div>
+
+        <div className="md:col-span-2">
+          <Campo
+            nome="ml-familyName"
+            rotulo="Nome da familia (family_name)"
+            ajuda="Obrigatorio no modelo User Products do ML"
+            erro={primeiro("familyName")}
+            value={rascunho.familyName ?? ""}
+            onChange={(evento) => alterar({ familyName: evento.target.value })}
+          />
+        </div>
+
+        <EscolhaEntre
+          rotulo="Tipo de anuncio"
+          opcoes={TIPOS_DE_ANUNCIO}
+          valor={rascunho.tipoAnuncio}
+          aoMudar={(tipoAnuncio) => alterar({ tipoAnuncio })}
+        />
+        <EscolhaEntre
+          rotulo="Condicao"
+          opcoes={CONDICOES}
+          valor={rascunho.condicao}
+          aoMudar={(condicao) => alterar({ condicao })}
+        />
+
+        <Campo
+          nome="ml-categoria"
+          rotulo="Categoria do ML"
+          ajuda="A sugestao automatica entra na fase 2"
+          erro={primeiro("categoria")}
+          value={rascunho.categoriaId ?? ""}
+          // O codigo da categoria e sempre MLB em maiusculas: "mlb1234" so daria erro na validacao.
+          onChange={(evento) => alterar({ categoriaId: evento.target.value.toUpperCase() || null })}
+          placeholder="MLB1234"
+        />
+      </div>
+    </div>
+  );
+}
