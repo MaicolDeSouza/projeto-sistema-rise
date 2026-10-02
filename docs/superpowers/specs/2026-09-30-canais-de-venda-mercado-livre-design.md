@@ -33,7 +33,7 @@ Sucesso: o dono clica no ícone do ML de um Produto Conferido, preenche/ajusta a
 9. **Frases fixas** (ex.: "Todos os nossos produtos possuem nota fiscal") definidas pelo dono numa tela de configuração.
 10. **Custo** da aba de preço vem do **fornecedor padrão** do Produto.
 11. **Publicar roda como ação do servidor com etapas gravadas** (abordagem A): retoma da etapa que falhou.
-12. **Composição (ML e Shopee):** um anúncio pode ser uma composição de **N unidades do mesmo produto-base** (ex.: 5 peças do `100101`, código **`100101_5`**). A composição existe **só no anúncio**, não vira Produto no Rise. O **estoque é controlado pelo Bling**: o produto de composição do Bling baixa as N unidades do produto-base a cada venda. O anúncio de composição fica **pausado até o produto de composição existir no Bling**; **o Rise cria esse produto no Bling** (se não existir) e a saída de "pausado" é pelo botão **Verificar no Bling**. Detalhes nas seções 6.1 e 7.1.
+12. **Composição / kit (ML e Shopee):** um anúncio pode ser uma **composição de produtos**: **N unidades do mesmo produto** (ex.: 5 peças do `100101`, código **`100101_5`**) ou um **kit misto** (ex.: 2 do `100101` + 3 do `100102`). A composição é uma **lista de itens (produto + quantidade)** que existe **só no anúncio** e não vira Produto no Rise. O **estoque é controlado pelo Bling**: o produto de composição do Bling baixa a quantidade de cada componente a cada venda. O anúncio de composição fica **pausado até o produto de composição existir no Bling**; **o Rise cria esse produto no Bling** (se não existir) e a saída de "pausado" é pelo botão **Verificar no Bling**. **Código:** composição de um produto só = `{código}_{N}`, gerado pelo Rise; **kit misto = código digitado pelo dono**, com conferência de duplicidade no Rise e no Bling e sugestão do próximo livre da faixa 25xxxx (é como os kits mistos já funcionam no Bling: `129912`, `109905`…). Detalhes nas seções 6.1 e 7.1.
 
 ## 4. O que a API do ML permite (conferido nas docs)
 
@@ -47,7 +47,7 @@ Sucesso: o dono clica no ícone do ML de um Produto Conferido, preenche/ajusta a
 | Frete grátis obrigatório | Tag no item | `shipping.tags: mandatory_free_shipping` |
 | Atributos da categoria | Sim | `GET /categories/{id}/attributes` |
 | Vínculo com o Bling | Sim | Bling `POST /produtos/lojas` com `{codigo: "<MLB>", preco, produto: {id: <blingId>}, loja: {id: 203593931}}` |
-| Produto de composição no Bling | Sim. Os kits atuais são `formato: "E"` com `estrutura.tipoEstoque: "V"` (virtual) e `componentes: [{produto: {id}, quantidade}]`; exemplo real: `920302_1.000` (1.000 × resistor). Procurar por código antes de criar; criar com `POST /produtos` (formato a modelar no kit existente). | Bling `GET /produtos` (filtro por código, a confirmar), `POST /produtos` |
+| Produto de composição no Bling | Sim. Medido em 01/10/2026: **501 dos 1.834 produtos ativos são kits** (`formato: "E"`), com `estrutura.tipoEstoque: "V"` (virtual; 39 de 40 vistos, 1 físico) e `componentes: [{produto: {id}, quantidade}]`, de **1 a 16 componentes**. Kits de peça repetida usam `código_N` (`920302_1.000` = 1.000 × resistor; às vezes com sufixo `z`); **kits mistos têm código próprio** (`129912` com 4 componentes, `109905` com 16) e nome terminado em `*código`. Procurar por código antes de criar; criar com `POST /produtos` (formato a copiar dos kits reais). | Bling `GET /produtos` (filtro por código, a confirmar), `POST /produtos` |
 
 Nome de arquivo da foto: nenhuma fonte oficial indica efeito na busca do ML (o ML guarda a imagem com identificador próprio). Decisão: enviar com nome legível (`slug-do-produto-N.jpg`), sem prometer efeito.
 
@@ -88,16 +88,22 @@ Limite: o ML não recomenda preço antes de o anúncio existir; depois de public
 
 ### 6.1 Anúncio de composição (ML e Shopee)
 
-Um anúncio pode ser **N unidades do mesmo produto-base** vendidas juntas. Exemplo: 5 peças do `100101` → código **`100101_5`**, o padrão `código_quantidade` que o Bling já usa (ex.: `920302_1.000`, com ponto no milhar).
+Um anúncio pode ser uma **composição de produtos** vendidos juntos, em dois casos que usam o mesmo modelo: uma **lista de itens**, cada um com produto e quantidade.
+- **Um produto só × N:** 5 peças do `100101` → código **`100101_5`**, gerado pelo Rise no padrão `código_quantidade` que o Bling já usa (ex.: `920302_1.000`, com ponto no milhar).
+- **Kit misto:** 2 do `100101` + 3 do `100102`. O **código é digitado pelo dono** (é como os kits mistos já funcionam no Bling: `129912`, `109905`). O Rise confere se o código já existe no Rise (SKU de Produto e códigos de outras composições) e no Bling, e sugere o próximo livre da faixa 25xxxx.
 
-- **A composição existe só no anúncio** (`dados.composicao = {produtoBaseId, quantidade, codigo}`); não vira Produto no Rise. Conferido e `blingId` valem para o **produto-base**.
-- **A baixa de estoque é do Bling, não do Rise:** o produto de composição no Bling (estoque virtual, componente = produto-base × N) calcula o saldo do kit pelo produto-base e, a cada venda de `100101_5`, baixa N unidades do `100101`. O Rise não implementa lógica de estoque. Estoque inicial do anúncio = ⌊estoque do produto-base ÷ N⌋.
-- **Geral:** caixa "Composição" + quantidade; mostra o código gerado; título e descrição sugerem "Kit com N unidades".
-- **Preço:** custo = N × o custo do fornecedor padrão do produto-base; a calculadora de margem usa esse custo.
-- **Imagens:** fotos próprias do kit; enquanto só houver as do produto-base (que mostram 1 unidade), a aba avisa.
-- **Envio:** peso e dimensões editáveis, com sugestão de N × o peso do produto-base.
+Regras:
+- **A composição existe só no anúncio** (`dados.composicao = {itens: [{produtoId, quantidade}], codigo, blingProdutoId}`); não vira Produto no Rise. **Cada item** precisa ser um Produto Conferido e com `blingId`; só produtos simples entram como item (composição dentro de composição não). A composição tem no mínimo 2 unidades no total.
+- **Produto principal = o primeiro item** (reordenável): dele vêm a sugestão de categoria, a ficha técnica, a marca e a descrição-base.
+- **A baixa de estoque é do Bling, não do Rise:** o produto de composição no Bling (estoque virtual, um componente por item) calcula o saldo do kit pelos componentes e, a cada venda, baixa a quantidade de cada um (a venda de `100101_5` baixa 5 do `100101`). O Rise não implementa lógica de estoque. **Estoque inicial** do anúncio = o menor ⌊estoque do item ÷ quantidade do item⌋.
+- **Geral:** a composição fica no topo da aba (lista de itens com busca por código entre os Produtos Conferidos, quantidade por item e o código do kit). Título e descrição sugerem "Kit com …".
+- **Preço:** custo = soma de (quantidade × custo do fornecedor padrão) de cada item; item sem custo deixa a calculadora indisponível, com aviso. A soma dos preços avulsos aparece só como referência.
+- **Descrição:** vem do produto principal e ganha o bloco **"Itens inclusos"** com todos os componentes e quantidades.
+- **Imagens:** fotos próprias do kit; enquanto só houver as dos produtos (que mostram 1 unidade de cada), a aba avisa.
+- **Envio:** peso sugerido = soma de (peso × quantidade) dos itens; dimensões editáveis.
+- **Ficha técnica:** kit não exige EAN/GTIN (o validador não alerta sua falta; o motivo vai no atributo próprio do ML, a confirmar na investigação).
 - Vários anúncios da mesma composição (Clássico e Premium) compartilham o mesmo produto de composição no Bling.
-- Kit **misto** (produtos diferentes no mesmo anúncio) fica fora desta versão.
+- Pelo ícone do ML de um Produto, esse produto já entra como o primeiro item.
 
 ## 7. Publicar
 
@@ -116,9 +122,9 @@ Um anúncio pode ser **N unidades do mesmo produto-base** vendidas juntas. Exemp
 
 ### 7.1 Variante de composição
 
-Mesmas pré-checagens (o `blingId` exigido é o do produto-base). Etapas 1 a 4 iguais: o item nasce **pausado**, com o código `100101_5` como SKU. Antes do vínculo entra a etapa **5a: garantir o produto de composição no Bling**:
-- procura o código no Bling; se existir (criado pelo dono ou numa tentativa anterior), **reaproveita**;
-- se não existir, **o Rise o cria** (`POST /produtos`, formato composição, estoque virtual, componente = produto-base × N, demais dados copiados do produto-base, modelado no kit real `920302_1.000`). A criação aparece **na janela de confirmação** do Publicar.
+Mesmas pré-checagens, aplicadas a **todos os itens** (cada um Conferido e com `blingId`). Etapas 1 a 4 iguais: o item nasce **pausado**, com o código da composição (`100101_5`, `129912`…) como SKU. Antes do vínculo entra a etapa **5a: garantir o produto de composição no Bling**:
+- procura o código no Bling; se existir (criado pelo dono ou numa tentativa anterior), o Rise **compara os componentes e as quantidades** do produto do Bling com a composição do anúncio: **só reaproveita se forem idênticos**; se diferirem, **para com mensagem** e não vincula (vincular a um kit de conteúdo diferente baixaria o estoque dos produtos errados);
+- se não existir, **o Rise o cria** (`POST /produtos`, formato composição, estoque virtual, um componente por item, nome = título + ` *código` como nos kits atuais, demais dados copiados do produto principal, modelado nos kits reais `920302_1.000` e `129912`). A criação aparece **na janela de confirmação** do Publicar.
 
 Depois seguem 5b (vínculo), 6 (ativar) e 7 (gravar). **Se a 5a falhar**, o anúncio fica **pausado** em "aguardando Bling" (`dados.etapa`) e o botão **Verificar no Bling** (também disponível ao abrir o anúncio) repete a partir da 5a. O anúncio nunca é ativado sem o produto de composição existir e estar vinculado. Não há verificação automática pelo worker. O produto criado no Bling **não é apagado** se uma etapa seguinte falhar: a nova tentativa o reaproveita pelo código.
 
@@ -128,7 +134,7 @@ Depois seguem 5b (vínculo), 6 (ativar) e 7 (gravar). **Se a 5a falhar**, o anú
 
 ## 8. Banco
 
-- `Anuncio`: remover `@@unique([produtoId, canal])`; índice `(produtoId, canal)`; **índice único parcial em SQL** só para Bling e Loja Integrada (no estilo do `Job_fonte_aberta`); coluna `dados Json?` (envio, tipo, condição, versículo, etapa, vínculo com o Bling, composição `{produtoBaseId, quantidade, codigo, blingProdutoId}`). Sem coluna nem tabela nova para a composição.
+- `Anuncio`: remover `@@unique([produtoId, canal])`; índice `(produtoId, canal)`; **índice único parcial em SQL** só para Bling e Loja Integrada (no estilo do `Job_fonte_aberta`); coluna `dados Json?` (envio, tipo, condição, versículo, etapa, vínculo com o Bling, composição `{itens: [{produtoId, quantidade}], codigo, blingProdutoId}`). Sem coluna nem tabela nova para a composição.
 - Tabela de configuração por canal (frases fixas e o histórico de versículos já usados, que reinicia quando todos os versículos elegíveis forem usados).
 - Regra do schema do CLAUDE.md: uma sessão por vez; a outra frente tem migrations ainda sem commit (`20260930_fotos_mensais`, `20260930_movimento_estoque`); antes de gerar a nossa, ela faz o merge e rodamos `git merge main`. Editar o SQL à mão (o `migrate diff` propõe `DROP INDEX` dos trigramas). Depois `prisma generate` e reiniciar o servidor.
 
@@ -136,7 +142,7 @@ Depois seguem 5b (vínculo), 6 (ativar) e 7 (gravar). **Se a 5a falhar**, o anú
 
 **Erros:** mensagens em português, no campo certo; erro do ML/Bling com o texto original no `LogIntegracao`; falha de rede nunca apaga o rascunho; falha de IA só avisa.
 
-**Testes** (`npm run teste:anuncios-ml`, sem rede): Produto não Conferido recusado no servidor; sem `blingId` não publica; vários anúncios ML por produto e um só no Bling; preço por margem contra as taxas; descrição; versículo sem repetir entre anúncios, nunca da lista de exclusão e nunca acima do limite de tamanho; retomada de cada etapa; composição: código `100101_5` gerado (e `_1.000`), custo × N, estoque ⌊base ÷ N⌋, Bling sem o produto deixa o anúncio pausado, produto já existente no Bling é reaproveitado e não duplicado. Mais `lint` e conferência no navegador.
+**Testes** (`npm run teste:anuncios-ml`, sem rede): Produto não Conferido recusado no servidor; sem `blingId` não publica; vários anúncios ML por produto e um só no Bling; preço por margem contra as taxas; descrição; versículo sem repetir entre anúncios, nunca da lista de exclusão e nunca acima do limite de tamanho; retomada de cada etapa; composição: código `100101_5` gerado (e `_1.000`); kit misto com código digitado, recusado se duplicado no Rise ou no Bling; custo = soma de quantidade × custo; estoque = menor ⌊item ÷ quantidade⌋; item não Conferido ou sem `blingId` recusa o kit; Bling sem o produto deixa o anúncio pausado; produto existente no Bling com os mesmos componentes é reaproveitado e não duplicado; **com componentes ou quantidades diferentes é recusado**. Mais `lint` e conferência no navegador.
 
 ## 10. Fases (cada uma com testes e aprovação antes da seguinte)
 
@@ -144,11 +150,11 @@ Depois seguem 5b (vínculo), 6 (ativar) e 7 (gravar). **Se a 5a falhar**, o anú
 2. **Inteligência do ML (só leitura):** categoria, título, atributos, custos, calculadora, validador.
 3. **Publicar:** escrita no ML e no Bling, etapas e retomada. Só depois de o dono liberar as travas.
 
-Investigação inicial, antes da fase 2 (leituras seguras): `domain_discovery`, `categories/{id}/attributes`, `listing_prices` com e sem `logistic_type`, `shipping_options/free`, Tendências, validador de publicações, e `GET /produtos/lojas` num produto já vinculado (formato exato). Para a composição: confirmar o **filtro por código** do `GET /produtos` (a consulta de teste por `codigos[]` voltou vazia até para o `100101`), conferir se `100101` e `100101_5` já existem, e copiar o formato exato do kit `920302_1.000` (campos `estrutura`, `lancamentoEstoque`, categoria, unidade, NCM) para o `POST /produtos`.
+Investigação inicial, antes da fase 2 (leituras seguras): `domain_discovery`, `categories/{id}/attributes`, `listing_prices` com e sem `logistic_type`, `shipping_options/free`, Tendências, validador de publicações, e `GET /produtos/lojas` num produto já vinculado (formato exato). Para a composição: confirmar o **filtro por código** do `GET /produtos` (a consulta de teste por `codigos[]` voltou vazia até para o `100101`), conferir se `100101` e `100101_5` já existem, e copiar o formato exato dos kits reais `920302_1.000` (um componente) e `129912` (misto, 4 componentes) — campos `estrutura`, `lancamentoEstoque`, categoria, unidade, NCM — para o `POST /produtos`; entender o sufixo `z` de códigos como `120329_z`; confirmar se o Bling exige nome de produto único (os kits atuais terminam em ` *código`) e como o ML trata a ausência de EAN em kit.
 
 ## 11. Fora do escopo
 
-Listar/importar os 1.007 anúncios existentes; Loja Integrada e Shopee (só cartões); preço recomendado pelo ML antes de publicar (não existe); remover o menu Anúncios; kit misto (produtos diferentes na mesma composição); a composição na Shopee (a regra vale para ela, mas a Shopee só é construída em spec própria).
+Listar/importar os 1.007 anúncios existentes; Loja Integrada e Shopee (só cartões); preço recomendado pelo ML antes de publicar (não existe); remover o menu Anúncios; importar do Bling a composição de um kit que já existe (o dono declara a composição no anúncio e o Rise só confere que ela bate com a do Bling; ler os componentes do Bling para preencher a tela pode ser uma etapa futura); composição dentro de composição; a composição na Shopee (a regra vale para ela, mas a Shopee só é construída em spec própria).
 
 ## 12. Riscos
 
@@ -156,5 +162,5 @@ Listar/importar os 1.007 anúncios existentes; Loja Integrada e Shopee (só cart
 - O Bling pode sincronizar preço e estoque depois do vínculo: o preço do vínculo é o do anúncio; o estoque inicial é o do Produto.
 - Esta pasta (`main` worktree) hospeda o worker e o trabalho da outra frente sem commit; a branch `canais-de-venda` vive aqui por decisão do dono. Comitar só os arquivos desta feature, pelo nome; conferir a branch antes de reiniciar o worker.
 - Pesquisa na internet pela IA tem custo e pode errar: sempre sugestão editável, nunca preenchimento silencioso.
-- Composição: o Rise passa a **criar produtos no Bling** (escrita no ERP, sob `BLING_ESCRITA`). Mitigação: sempre procurar o código antes de criar, confirmar a criação na janela do Publicar, nunca apagar o produto criado, e fazer o primeiro teste real com um kit só, acompanhado pelo dono. Um produto de composição no Bling com configuração diferente do kit modelo (`920302_1.000`) pode não baixar o estoque do produto-base: conferir uma venda de teste ou o saldo virtual antes de ativar o primeiro kit em volume.
+- Composição: o Rise passa a **criar produtos no Bling** (escrita no ERP, sob `BLING_ESCRITA`). Mitigação: sempre procurar o código antes de criar, confirmar a criação na janela do Publicar, nunca apagar o produto criado, e fazer o primeiro teste real com um kit só, acompanhado pelo dono. Um produto de composição no Bling com configuração diferente dos kits modelo (`920302_1.000` e `129912`) pode não baixar o estoque dos componentes: conferir uma venda de teste ou o saldo virtual antes de ativar o primeiro kit em volume. No kit misto, a comparação de componentes e quantidades com o produto que já existe no Bling é a proteção contra baixar o estoque dos produtos errados; o Bling tem 501 kits ativos, então colisão de código é provável, e por isso o código digitado é sempre conferido.
 - Versículos: sorteando entre Salmos e Provérbios inteiros, algum pode destoar de um anúncio de produto. Mitigação: lista de exclusão dos casos conhecidos, botão "outro versículo" e o texto visível na prévia antes de publicar. A **fonte do texto da ARC** (arquivo de Salmos e Provérbios) será definida no plano de implementação, conferindo que a licença permite guardá-lo; a revisão de trechos impróprios além dos conhecidos é do dono.
