@@ -97,21 +97,29 @@ export function cabeNaDescricao(linha, resto) {
  * `excluir` (o que o operador acabou de recusar). Dos elegiveis, so entram no sorteio os
  * que ainda nao estao em `usados`; se todos ja foram usados, o ciclo recomeca
  * (`reiniciou: true`) em vez de falhar.
+ *
+ * Sem versiculo, o motivo diz de quem e a causa: nenhum cabe nos 25% (so um texto maior
+ * resolve) ou os que cabem ja foram todos recusados em `excluir` (o operador esgotou as
+ * opcoes de "outro versiculo"). Misturar os dois mandaria culpar a descricao por algo
+ * que ela nao fez.
  */
 export function sortearVersiculo({ lista, usados = [], excluir = [], resto, aleatorio = Math.random }) {
   if (!Array.isArray(lista) || lista.length === 0) {
     return { versiculo: null, motivo: "A lista de versiculos esta vazia. Carregue-a em Configuracoes." };
   }
 
-  const recusados = new Set(excluir);
-  const elegiveis = lista.filter(
-    (v) => !recusados.has(referenciaDoVersiculo(v)) && cabeNaDescricao(linhaDoVersiculo(v), resto),
-  );
-  if (elegiveis.length === 0) {
+  const queCabem = lista.filter((v) => cabeNaDescricao(linhaDoVersiculo(v), resto));
+  if (queCabem.length === 0) {
     return {
       versiculo: null,
       motivo: "Nenhum versiculo da lista cabe nesta descricao: a NVI pede que a citacao fique abaixo de 25% do texto.",
     };
+  }
+
+  const recusados = new Set(excluir);
+  const elegiveis = queCabem.filter((v) => !recusados.has(referenciaDoVersiculo(v)));
+  if (elegiveis.length === 0) {
+    return { versiculo: null, motivo: "Nao ha outro versiculo que caiba nesta descricao." };
   }
 
   const jaUsados = new Set(usados);
