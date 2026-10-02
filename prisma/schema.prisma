@@ -191,8 +191,49 @@ model Produto {
   concorrentes ProdutoConcorrente[]
   anuncios     Anuncio[]
 
+  movimentosEstoque MovimentoEstoque[]
+
   @@index([marca])
   @@index([ativo])
+}
+
+enum TipoMovimentoEstoque {
+  /// Soma ao saldo.
+  ENTRADA
+  /// Tira do saldo (nunca deixa negativo).
+  SAIDA
+  /// Define o saldo: o operador contou e informa quantas pecas ha de verdade.
+  BALANCO
+}
+
+/// Historico do ajuste de estoque feito na lista de Produtos (pedido do dono em
+/// 30/09/2026): entrada, saida e balanco. Cada linha guarda o saldo ANTES e DEPOIS,
+/// para o balanco (que so informa o total contado) mostrar a diferenca e para o
+/// historico se ler sem refazer a conta.
+///
+/// SO NESTE SISTEMA: nada e enviado ao Bling nem aos canais (a escrita esta
+/// desligada, e o Mercado Livre e a Loja Integrada leem o saldo pelo Bling). Quando
+/// ela for ligada, estas linhas sao o que ha para enviar.
+///
+/// Apagar o produto apaga o historico dele — a exclusao ja e explicita, e o popup
+/// lista nome e SKU de cada um antes.
+model MovimentoEstoque {
+  id        String  @id @default(cuid())
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  tipo TipoMovimentoEstoque
+  /// ENTRADA e SAIDA: quantas pecas se moveram. BALANCO: o total contado.
+  quantidade    Int
+  saldoAnterior Int
+  saldoNovo     Int
+
+  motivo     String?
+  observacao String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([produtoId, criadoEm])
 }
 
 /// Arquivos do produto: imagens, documentos tecnicos e certificado.
@@ -954,4 +995,98 @@ model PrecoHistorico {
   coletadoEm DateTime @default(now())
 
   @@index([produtoId, coletadoEm])
+}
+
+/// Qual preco a foto mensal guardou. O mesmo campo `preco` recebe valores de
+/// natureza diferente conforme a fonte, e sem dizer qual foi, a serie do mes
+/// seguinte misturaria "com IPI" e "sem IPI" sem ninguem perceber.
+enum TipoPrecoFoto {
+  /// Preco de tabela (a regra do sistema: nunca o promocional quando ha o normal).
+  NORMAL
+  /// Fornecedor: o que se paga de fato, com os impostos que ele cobra por fora.
+  COM_IMPOSTOS
+  /// So quando a loja nao publicou o normal (`normal ?? promocional`).
+  PROMOCIONAL
+}
+
+/// FOTO MENSAL de fornecedor e concorrente: uma linha por produto por mes, com
+/// preco e estoque como estavam no banco no dia 14 (pedido do dono em 30/09/2026,
+/// para guardar 12 meses de historico). Tirada por `fotos.js`.
+///
+/// Difere de `PrecoHistorico`, que so ganha linha quando o preco MUDA: aqui ha uma
+/// linha por mes mesmo sem mudanca, e o estoque entra. E o que separa "nao mudou"
+/// de "nao foi coletado".
+///
+/// SEM RELACAO com ProdutoColetado, de proposito: com `onDelete: Cascade`, apagar
+/// uma fonte levaria o historico dela junto. Por isso a foto copia fonte, codigo e
+/// nome — sobrevive a fonte e produto apagados.
+model FotoMensalColeta {
+  id        String   @id @default(cuid())
+  /// ProdutoColetado.id, sem chave estrangeira (ver acima).
+  produtoId String
+  /// Primeiro dia do mes da foto. A do dia 14 de setembro e "2026-09-01".
+  mes       DateTime @db.Date
+
+  fonteId   String
+  fonteNome String
+  tipoFonte TipoFonte
+  codigo    String?
+  nome      String?
+
+  preco     Decimal?       @db.Decimal(12, 2)
+  tipoPreco TipoPrecoFoto?
+
+  /// Pronta entrega e o que esta a chegar, nunca somados. Nulo = a fonte nao
+  /// informa (a maioria dos concorrentes so diz "disponivel"). NUNCA 0 no lugar de
+  /// "nao informado": esgotado e afirmacao da loja, "nao veio" e observacao nossa.
+  quantidade    Int?
+  aChegar       Int?
+  estoqueStatus String?
+  /// Fornecedor: o produto saiu da lista dele e ficou sem saldo confirmado.
+  ausente       Boolean @default(false)
+
+  /// Quando o dado foi LIDO — nao quando a foto foi tirada. A foto do dia 14 traz
+  /// dados da varredura anterior, e lista de fornecedor que ninguem reenviou traz
+  /// a data antiga: e essa data que diz o quanto o numero esta velho.
+  lidoEm   DateTime?
+  tiradaEm DateTime  @default(now())
+
+  @@unique([produtoId, mes])
+  @@index([mes, fonteId])
+}
+
+/// FOTO MENSAL dos produtos da loja (`Produto`): preco de venda, custo e estoque
+/// como estavam no banco no dia da foto. Sem relacao com `Produto`, pelo mesmo
+/// motivo da coleta: excluir um produto da lista nao apaga o que ele foi.
+///
+/// O ESTOQUE E O DA IMPORTACAO DO BLING, nao o do dia: nada aqui o atualiza depois
+/// (o sistema nao escreve no Bling nem le o saldo a cada foto — decisao do dono em
+/// 30/09/2026, "fotografar o que esta no banco"). `produtoAtualizadoEm` guarda a
+/// data da ultima mudanca do cadastro, para a foto dizer quao velho e o numero.
+model FotoMensalProduto {
+  id        String   @id @default(cuid())
+  produtoId String
+  mes       DateTime @db.Date
+
+  sku    String
+  titulo String
+  ativo  Boolean
+
+  precoVenda  Decimal? @db.Decimal(12, 2)
+  /// Do fornecedor padrao, ou do rascunho vindo do Bling enquanto o vinculo nao foi
+  /// confirmado, ou do proprio cadastro — nessa ordem. `custoOrigem` diz qual.
+  custo       Decimal? @db.Decimal(12, 2)
+  custoOrigem String?
+  estoque     Int
+
+  /// [{canal, status, situacaoCanal, idExterno}]: onde o produto tem anuncio. Nao ha
+  /// PRECO POR CANAL no banco — os tres conectores leem `Produto.precoVenda` —, e
+  /// so quando ele existir esta lista passa a carregar o preco de cada um.
+  canais Json
+
+  produtoAtualizadoEm DateTime
+  tiradaEm            DateTime @default(now())
+
+  @@unique([produtoId, mes])
+  @@index([mes])
 }

@@ -8,6 +8,7 @@ import { EllipsisVertical, ImageOff } from "lucide-react";
 import { CANAIS } from "@/lib/canais";
 import Copiar from "@/components/ui/Copiar";
 import ConferidoProduto from "./ConferidoProduto";
+import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPreco } from "./EdicaoRapida";
 
 /**
  * Imagem do produto.
@@ -53,6 +54,9 @@ export default function LinhaProduto({
   aoAlternarSelecao,
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
+  // Qual popup de edicao rapida esta aberto: "localizacao", "preco" ou "estoque".
+  const [editando, setEditando] = useState(null);
+  const fecharEdicao = () => setEditando(null);
 
   const moeda = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -104,16 +108,24 @@ export default function LinhaProduto({
         </div>
       </td>
 
-      <td className="px-3 py-2.5 text-suave">{produto.localizacao || "—"}</td>
+      {/* Localizacao, preco e estoque abrem a edicao rapida (pedido do dono em
+          30/09/2026): um popup por campo, gravando so neste sistema. */}
+      <td className="px-3 py-2.5 text-suave">
+        <CelulaEditavel titulo="Editar localizacao" aoClicar={() => setEditando("localizacao")}>
+          {produto.localizacao || "—"}
+        </CelulaEditavel>
+      </td>
 
       <td className="px-3 py-2.5 tabular-nums">
-        {produto.precoVenda === null ? (
-          "—"
-        ) : (
-          <span className="font-medium text-emerald-700">
-            {moeda.format(produto.precoVenda)}
-          </span>
-        )}
+        <CelulaEditavel titulo="Editar preco de venda" aoClicar={() => setEditando("preco")}>
+          {produto.precoVenda === null ? (
+            "—"
+          ) : (
+            <span className="font-medium text-emerald-700">
+              {moeda.format(produto.precoVenda)}
+            </span>
+          )}
+        </CelulaEditavel>
       </td>
 
       <td
@@ -121,7 +133,9 @@ export default function LinhaProduto({
           produto.estoque === 0 ? "font-medium text-red-700" : ""
         }`}
       >
-        {produto.estoque}
+        <CelulaEditavel titulo="Ajustar estoque" aoClicar={() => setEditando("estoque")}>
+          {produto.estoque}
+        </CelulaEditavel>
       </td>
 
       {/* Provisorio, a pedido do dono: todos os logos em preto fosco, sem ligar ao
@@ -143,6 +157,10 @@ export default function LinhaProduto({
       </td>
 
       <td className="relative px-3 py-2.5 text-right">
+        {editando === "localizacao" && <PopupLocalizacao produto={produto} aoFechar={fecharEdicao} />}
+        {editando === "preco" && <PopupPreco produto={produto} aoFechar={fecharEdicao} />}
+        {editando === "estoque" && <PopupEstoque produto={produto} aoFechar={fecharEdicao} />}
+
         {pendentes.length > 0 && (
           <>
             <button
