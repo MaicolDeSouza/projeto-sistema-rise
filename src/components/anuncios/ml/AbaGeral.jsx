@@ -8,6 +8,7 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { LIMITE_TITULO } from "@/lib/anuncios/canais/mercadolivre";
 import { aplicarComposicao } from "@/lib/canaisDeVenda/ml/rascunho";
 import BlocoComposicao from "./BlocoComposicao";
+import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 
 const TIPOS_DE_ANUNCIO = [
   { valor: "gold_special", rotulo: "Classico" },
@@ -26,14 +27,6 @@ const composicaoDoKitNovo = (produtoId) => ({
   codigo: "",
   blingProdutoId: null,
 });
-
-function Mensagens({ lista }) {
-  return lista.map((item, posicao) => (
-    <p key={posicao} className={`mt-1 text-[11px] ${item.bloqueante ? "text-red-700" : "text-amber-700"}`}>
-      {item.problema}
-    </p>
-  ));
-}
 
 /**
  * Duas ou tres opcoes lado a lado, como o `EscolhaDoTipo` do cadastro de Cliente: sao
@@ -95,7 +88,7 @@ function ProdutoPrincipal({ produto, problemas }) {
       ) : (
         <p className="mt-1 text-sm text-red-700">Produto nao encontrado. Ele pode ter sido excluido.</p>
       )}
-      <Mensagens lista={problemas} />
+      <MensagensDoCampo problemas={problemas} campo={["produto", "blingId"]} />
     </div>
   );
 }
@@ -106,8 +99,7 @@ function ProdutoPrincipal({ produto, problemas }) {
  */
 export default function AbaGeral({ rascunho, contexto, alterar, setContexto, problemas, anuncioId }) {
   const produto = contexto.produtos[rascunho.produtoId];
-  const doCampo = (campo) => problemas.filter((problema) => problema.campo === campo);
-  const primeiro = (campo) => doCampo(campo)[0]?.problema;
+  const primeiro = (campo) => problemasDoCampo(problemas, campo)[0]?.problema;
 
   const emKit = Boolean(rascunho.composicao);
   const titulo = rascunho.titulo ?? "";
@@ -125,7 +117,7 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
 
   return (
     <div className="space-y-4">
-      <ProdutoPrincipal produto={produto} problemas={[...doCampo("produto"), ...doCampo("blingId")]} />
+      <ProdutoPrincipal produto={produto} problemas={problemas} />
 
       <div>
         <div className="flex items-center gap-2">

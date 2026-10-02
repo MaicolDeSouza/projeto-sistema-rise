@@ -62,7 +62,8 @@ export default function EditorAnuncioML({
   const [contexto, setContexto] = useState(contextoInicial);
   const [aba, setAba] = useState(ABAS_ML[0].id);
   const [mensagem, setMensagem] = useState(null);
-  const [idAtual, setIdAtual] = useState(anuncioId);
+  // `null` e "anuncio novo"; as acoes recusam `undefined` (prop esquecida) como "Pedido invalido.".
+  const [idAtual, setIdAtual] = useState(anuncioId ?? null);
   // O que foi salvo por ultimo. "Alterado" e o rascunho ser outro objeto: assim, o dono que
   // continua digitando enquanto o Salvar espera o servidor segue com alteracao pendente.
   const [salvo, setSalvo] = useState(rascunhoInicial);
@@ -88,7 +89,8 @@ export default function EditorAnuncioML({
   useEffect(() => {
     if (!janela) return undefined;
     function aoTeclar(evento) {
-      if (evento.key !== "Escape") return;
+      // Esc segurado repete o evento: sem ignorar, o aviso abriria e fecharia a cada repeticao.
+      if (evento.key !== "Escape" || evento.repeat) return;
       // Esc fecha so o aviso quando ele esta aberto, e nao a janela inteira por baixo.
       if (confirmandoSaida) setConfirmandoSaida(false);
       else pedirFechamento();

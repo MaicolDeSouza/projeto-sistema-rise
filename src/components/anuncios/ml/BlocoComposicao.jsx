@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ChevronDown, ChevronUp, Loader, Plus, Trash2 } from "lucide-react";
 
 import {
@@ -12,6 +12,7 @@ import { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import Badge from "@/components/ui/Badge";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { aplicarComposicao } from "@/lib/canaisDeVenda/ml/rascunho";
+import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 
 const LIMITE_DO_CODIGO = 64;
 
@@ -30,14 +31,6 @@ async function chamar(acao, ...argumentos) {
   } catch {
     return { ok: false, erro: "Nao foi possivel falar com o servidor. Tente de novo." };
   }
-}
-
-function Mensagens({ lista }) {
-  return lista.map((item, posicao) => (
-    <p key={posicao} className={`mt-1 text-[11px] ${item.bloqueante ? "text-red-700" : "text-amber-700"}`}>
-      {item.problema}
-    </p>
-  ));
 }
 
 const BOTAO_DA_LINHA =
@@ -63,8 +56,23 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
   const conferencia = useRef(0);
   // Passar pelo campo da quantidade sem digitar nada nao muda o codigo: nao vale uma ida ao servidor.
   const quantidadeMudou = useRef(false);
+  // O ultimo render CONFIRMADO. Depois de um `await` (busca do produto, sugestao do codigo, conferencia)
+  // as variaveis deste render sao as do clique, e o dono pode ter mudado a lista nesse meio tempo: quem
+  // decide depois de esperar le daqui. Escrito num efeito, e nao no render, como a regra do React pede.
+  const ultimo = useRef({ rascunho, contexto });
+  // Desmontado = o dono desligou o kit enquanto o servidor respondia: a resposta nao tem mais a quem ir.
+  const montado = useRef(false);
 
-  const doCampo = (campo) => problemas.filter((problema) => problema.campo === campo);
+  useEffect(() => {
+    ultimo.current = { rascunho, contexto };
+  });
+
+  useEffect(() => {
+    montado.current = true;
+    return () => {
+      montado.current = false;
+    };
+  }, []);
 
   function limparCodigoEmUso() {
     setContexto((atual) => (atual.codigoEmUso === null ? atual : { ...atual, codigoEmUso: null }));
@@ -81,21 +89,28 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
       return;
     }
     chamar(conferirCodigoDeKit, codigo, anuncioId, proxima.itens).then((resultado) => {
-      if (minha !== conferencia.current) return;
+      if (!montado.current || minha !== conferencia.current) return;
       if (resultado.ok) setContexto((atual) => ({ ...atual, codigoEmUso: resultado.codigoEmUso }));
       else setAvisoDoCodigo(resultado.erro);
     });
   }
 
-  // `fazer` recebe a composicao ATUAL, nao a deste render: a busca de um produto demora, e o dono
-  // pode ter mexido no resto do rascunho nesse meio tempo (a mudanca seria desfeita).
-  function aplicar(fazer, { produtos = contexto.produtos, conferir = true } = {}) {
-    alterar((atual) => (atual.composicao ? aplicarComposicao(atual, fazer(atual.composicao), produtos) : atual));
-    if (conferir) conferirCodigo(aplicarComposicao(rascunho, fazer(composicao), produtos).composicao);
+  // Tudo o que `aplicar` usa e vem do render (`produtos`, a composicao do rascunho) e lido de `ultimo`
+  // na hora da chamada, e `fazer` recebe a composicao do estado ATUAL: a busca de um produto demora, e a
+  // mudanca feita com a lista do clique desfaria o que o dono fez nesse meio tempo. `produtos` so e
+  // passado quando acaba de entrar um produto que o ultimo render ainda nao conhece.
+  function aplicar(fazer, { produtos, conferir = true } = {}) {
+    const { rascunho: atual, contexto: lido } = ultimo.current;
+    const lista = produtos ?? lido.produtos;
+    alterar((agora) => (agora.composicao ? aplicarComposicao(agora, fazer(agora.composicao), lista) : agora));
+    // Sem composicao (kit desligado) nao ha o que conferir.
+    if (conferir && atual.composicao) conferirCodigo(aplicarComposicao(atual, fazer(atual.composicao), lista).composicao);
   }
 
   function mudarQuantidade(posicao, valor) {
     quantidadeMudou.current = true;
+    // A conferencia em voo falava da quantidade anterior.
+    conferencia.current += 1;
     aplicar(
       (atual) => ({ ...atual, itens: atual.itens.map((item, i) => (i === posicao ? { ...item, quantidade: valor } : item)) }),
       { conferir: false },
@@ -131,16 +146,19 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
     setErroDaBusca(null);
     iniciarBusca(async () => {
       const resultado = await chamar(buscarItemDeComposicao, codigo);
+      if (!montado.current) return;
       if (!resultado.ok) {
         setErroDaBusca(resultado.erro);
         return;
       }
       const { produto } = resultado;
-      if (itens.some((item) => item.produtoId === produto.id)) {
+      // A lista e as variaveis do clique estao velhas: vale o que o ultimo render mostra.
+      const { rascunho: atual, contexto: lido } = ultimo.current;
+      if (atual.composicao?.itens?.some((item) => item.produtoId === produto.id)) {
         setErroDaBusca(`O produto ${produto.sku} ja esta na composicao.`);
         return;
       }
-      const produtos = { ...contexto.produtos, [produto.id]: produto };
+      const produtos = { ...lido.produtos, [produto.id]: produto };
       setContexto((atual) => ({ ...atual, produtos: { ...atual.produtos, [produto.id]: produto } }));
       // O codigo gerado (`{sku}_{N}`) so vale para um produto so: com o segundo item o kit e misto
       // e o codigo e outro, digitado. Mante-lo gravaria um kit misto com cara de kit simples.
@@ -168,6 +186,7 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
     setAvisoDoCodigo(null);
     iniciarSugestao(async () => {
       const resultado = await chamar(sugerirCodigoKit);
+      if (!montado.current) return;
       if (!resultado.ok) {
         setAvisoDoCodigo(resultado.erro);
         return;
@@ -179,8 +198,7 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
     });
   }
 
-  const problemasDoCodigo = doCampo("codigoKit");
-  const erroDoCodigo = problemasDoCodigo.some((problema) => problema.bloqueante);
+  const erroDoCodigo = problemasDoCampo(problemas, "codigoKit").some((problema) => problema.bloqueante);
 
   return (
     <div className="rounded border border-borda p-3">
@@ -228,12 +246,12 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
                   </button>
                 </div>
               </div>
-              <Mensagens lista={doCampo(`item:${item.produtoId}`)} />
+              <MensagensDoCampo problemas={problemas} campo={`item:${item.produtoId}`} />
             </li>
           );
         })}
       </ul>
-      <Mensagens lista={doCampo("composicao")} />
+      <MensagensDoCampo problemas={problemas} campo="composicao" />
 
       <div className="mt-3">
         <label htmlFor="ml-incluir-produto" className="text-xs text-suave">
@@ -303,7 +321,7 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
             </button>
           )}
         </div>
-        <Mensagens lista={problemasDoCodigo} />
+        <MensagensDoCampo problemas={problemas} campo="codigoKit" />
         {avisoDoCodigo && <p className="mt-1 text-[11px] text-amber-700">{avisoDoCodigo}</p>}
       </div>
     </div>
