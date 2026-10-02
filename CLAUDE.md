@@ -122,6 +122,9 @@ npm run worker                    # supervisor + worker: varre o que "Atualizar 
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
 npm run backup                    # dados/backup/sistema_rise-AAAAMMDD-HHMMSS.dump (pg_dump, conferido com pg_restore; guarda os 4 mais recentes)
 npm run teste:worker              # 58 asserções: rede, fila, retomada e o worker de verdade (~6 min)
+npm run foto:mensal               # tira a foto mensal de preço e estoque (só se passou do dia 14 e o mês não tem foto); `-- --forcar` ignora o dia
+npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
+npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -324,7 +327,9 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
 - **Json nulo no Prisma é `Prisma.DbNull`.** `null` puro num campo `Json?` é recusado.
 - **A fonte nasce pausada**, com `proximaVarreduraEm` a 100 anos: salvar um cadastro não
   pode disparar varredura sozinho. Fonte pausada dá recado dizendo para usar "Retomar".
-- **O ciclo automático está LIGADO, e desde 16/09/2026 é de 30 dias** (`intervaloHoras` = 720,
+- **(DESATUALIZADO: desde 23/09/2026 a coleta é MANUAL — migration `20260923_coleta_manual`,
+  `enfileirarVencidas` devolve 0 — e o ciclo descrito abaixo não roda.)** O ciclo automático estava
+  LIGADO, e desde 16/09/2026 era de 30 dias (`intervaloHoras` = 720,
   migration `20260916_intervalo_30_dias`). Era de 24 h, mas com o catálogo inteiro de cada loja
   uma varredura leva horas (Eletrogate: 8.783 páginas a 10 s cada) e emendava na seguinte.
   Fonte ativa cuja `proximaVarreduraEm` venceu é enfileirada pelo worker a cada volta
@@ -390,6 +395,54 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   banco.
 - O bloco foi fundido na **`main`** em 18/09/2026 (avanço simples, commit `73d813f`, 16 commits).
   A branch `bloco-mercados` continua existindo, mas **não recebe mais trabalho**.
+
+### Fotos mensais de preço e estoque (30/09/2026)
+
+Pedido do dono: guardar **12 meses** de preço e estoque de fornecedores, concorrentes e dos produtos
+da loja, para análise futura. **Todo dia 14** o worker copia o que está no banco para duas tabelas
+novas (migration `20260930_fotos_mensais`), em `src/lib/coleta/fotos.js`.
+
+- **Por que o dia 14 e não o 15:** a varredura leva mais de um dia (o Eletrogate sozinho passa de 20 h)
+  e, no meio dela, o banco mistura lojas novas com antigas. No dia 14 todas as fontes já fecharam o
+  ciclo anterior. Consequência: a foto do dia 14 traz o **estoque do ciclo anterior**, com cerca de 30
+  dias — por isso cada linha guarda `lidoEm`, a data em que o número foi de fato lido.
+- **`FotoMensalColeta`** (fornecedor e concorrente), uma linha por produto por mês:
+  - **Preço:** fornecedor guarda o **com impostos** (o que se paga), e o normal na falta dele;
+    concorrente guarda o **normal**. O promocional só entra quando a loja não publicou o normal
+    (`normal ?? promocional`, a regra do sistema), e `tipoPreco` (`NORMAL`, `COM_IMPOSTOS`,
+    `PROMOCIONAL`) diz qual foi, para a série não misturar "com IPI" e "sem IPI".
+  - **Estoque:** `quantidade` e `aChegar` (nunca somados) e `estoqueStatus`. **Nulo é "a fonte não
+    informa"** — a maioria dos concorrentes só diz "disponível" —, nunca 0. `ausente` marca o produto
+    que saiu da lista do fornecedor.
+  - **Quem entra:** todo produto de fornecedor (a lista é regravada inteira) e o de concorrente **visto
+    desde a foto anterior**; sem foto anterior, os vistos nos últimos 45 dias. Sem isso, amostras
+    antigas (a Usinainfo traz 19 produtos diferentes a cada varredura) entrariam como se fossem do mês.
+- **`FotoMensalProduto`** (produtos da loja): `precoVenda`, `custo`, `estoque` e `canais` (onde tem
+  anúncio). **O estoque é o da importação do Bling, não o do dia** — o dono escolheu "fotografar o que
+  está no banco" em vez de reler o Bling antes de cada foto, e nada atualiza `Produto.estoque` depois
+  da importação. `produtoAtualizadoEm` mostra o quão velho é o número. O custo sai, nesta ordem, do
+  fornecedor padrão confirmado, do rascunho do Bling (`fornecedorRascunho.precoCusto`) e do cadastro;
+  `custoOrigem` diz qual.
+- **Preço por canal NÃO existe no banco:** os três conectores leem `Produto.precoVenda` (o dono pediu
+  "de cada canal — Mercado Livre e Loja Integrada"). A foto guarda o preço de venda único e a lista de
+  canais com anúncio; quando houver preço por canal, é nessa lista que ele entra.
+- **Sem chave estrangeira, de propósito:** com `onDelete: Cascade`, apagar uma fonte levaria o histórico
+  dela. A foto copia fonte, código e nome, e sobrevive à exclusão da fonte e do produto (testado).
+- **Idempotente e com recuperação:** uma foto por mês e por tabela (chave única produto + mês). O
+  worker confere de hora em hora; se ficou desligado no dia 14, a foto sai na primeira volta depois de
+  ligar, em qualquer dia a partir do 14. `npm run foto:mensal` faz o mesmo na mão.
+- **Fuso:** o dia 14 e o mês são os de **São Paulo** (perto da meia-noite o UTC já é o dia seguinte), o
+  `mes` vai para o SQL como texto `2026-09-01` (um `Date` cairia no fim do mês anterior no fuso do
+  Postgres) e `tiradaEm` é gravado em UTC explicitamente.
+- **Volume medido em 30/09/2026:** cerca de 61 mil linhas de coleta e 1.314 da loja por foto (~730 mil
+  por ano).
+- **A varredura NÃO é agendada:** desde 23/09/2026 a coleta é **manual** (migration
+  `20260923_coleta_manual`; `enfileirarVencidas` devolve 0). O "dia 15" é a rotina do operador, e a foto
+  do dia 14 funciona igual com a varredura manual ou automática.
+- **Em aberto:** retenção. Nada apaga foto antiga (guarda tudo); se o dono quiser cortar em 12 meses, é
+  um `deleteMany` no fim de `tirarFotoMensal`. O backup segue guardando só os 4 mais recentes (~1 mês);
+  para o histórico sobreviver a um disco perdido, falta um backup mensal com retenção maior.
+- **Depois de mudar `fotos.js` ou o worker, reiniciar o worker** (`npm run worker:parar` e `npm run worker`).
 
 ### Worker da coleta — reescrito em 16/09/2026
 
@@ -1729,6 +1782,45 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
 - **Remover uma referência só DESTA geração** (lixeira em cada aba): não desmarca na lupa nem
   mexe no que está salvo — pedido do dono: "não excluir fonte". Reabrir a janela (que reseta o
   estado local `excluidos`) traz todas de volta.
+
+## Produtos: edição rápida na lista (30/09/2026)
+
+Pedido do dono, a partir de um print da lista com três células marcadas: **localização, preço e estoque
+editáveis por popup**, sem abrir o cadastro. Clicar na célula abre o popup (o lápis aparece com o mouse em
+cima). O esboço foi mostrado e aprovado antes de implementar.
+
+- **Só neste sistema (a Opção 1 escolhida pelo dono):** nada é enviado ao Bling nem aos canais. A escrita
+  neles está desligada, e o Mercado Livre e a Loja Integrada leem estoque e preço **pelo Bling**, então o
+  número daqui pode divergir do dele. **Os popups de preço e estoque trazem esse aviso na tela.** Quando a
+  escrita no Bling for ligada, o histórico de movimentos é o que há para enviar (ainda sem coluna de "enviado").
+- **Estoque, três operações**, escolhidas em cartões: **Entrada** (soma), **Saída** (tira, nunca deixa
+  negativo) e **Balanço** (o operador conta e informa o total; o sistema calcula a diferença). Abaixo, a
+  quantidade (só inteiros, o campo recusa `e + - . ,`), a **prévia do saldo** ("5 → 8 (+3)"), o motivo e uma
+  observação. Motivos por operação em `src/lib/estoque.js`.
+- **Histórico:** tabela `MovimentoEstoque` (migration `20260930_movimento_estoque`), com tipo, quantidade,
+  **saldo antes e depois**, motivo e observação. O balanço guarda o total contado, e a diferença sai dos dois
+  saldos. Um balanço que confirma o mesmo número **também é gravado** (a contagem aconteceu). Apagar o produto
+  apaga o histórico dele (`Cascade`). **Ainda não há tela para ver o histórico**: só se grava.
+- **Sem corrida:** a linha do produto é travada (`FOR UPDATE`) antes de ler o saldo, dentro de uma transação
+  que grava o saldo novo e o movimento juntos. Testado com 20 saídas simultâneas de 1 sobre saldo 10: passam
+  exatamente 10, o estoque termina em 0 e cada saída guarda um saldo diferente.
+- **Preço:** um só por produto (`Produto.precoVenda`); **não existe preço por canal** no banco. O popup mostra
+  a margem líquida com o mesmo cálculo e as mesmas cores do cadastro (6% de imposto fixo; vermelho abaixo do
+  custo, amarelo abaixo de 60%, verde a partir daí), via `src/lib/margem.js`. **`FormularioProduto.jsx` ainda
+  tem a cópia própria** desse cálculo (arquivo da outra frente): mudar o imposto pede mudar nos dois. O
+  **custo** é o do cadastro e, na falta dele, o do rascunho do Bling (`page.jsx`), porque é lá que está o custo
+  de quase todos os produtos importados. Vazio não limpa o preço aqui (o cadastro completo faz isso).
+- **Localização:** texto de até 40 caracteres; vazio limpa. Não vai para canal nenhum.
+- **Onde mora:** a lógica de banco em `src/lib/ajusteRapido.js` e as Server Actions, finas, em
+  `src/app/produtos/acoes-edicao-rapida.js` — **fora de `acoes.js`**, o arquivo de maior conflito entre as
+  frentes. Separadas porque `revalidatePath` só existe dentro do Next e o teste chama a lógica direto.
+  Componentes em `src/components/produtos/EdicaoRapida.jsx`.
+- **O estoque da foto mensal** (`FotoMensalProduto`) passa a refletir esses ajustes, já que lê `Produto.estoque`.
+- **Ficou de fora, por decisão do dono** ("as ideias não vamos implementar neste momento"): ver o histórico de
+  movimentos, motivo obrigatório, alerta de estoque baixo e edição em lote.
+- **A migration está aplicada no banco compartilhado, mas o código só existe na `main`:** quem for gerar
+  migration nas outras worktrees precisa fazer `git merge main` antes, senão o `migrate diff` propõe apagar
+  `FotoMensalColeta`, `FotoMensalProduto` e `MovimentoEstoque` (regra do schema).
 
 ## Decisões de arquitetura
 

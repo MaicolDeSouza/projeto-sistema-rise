@@ -101,6 +101,13 @@ export default async function ProdutosPage({ searchParams }) {
       tituloBase: produto.tituloBase,
       localizacao: produto.localizacao,
       precoVenda: produto.precoVenda ? Number(produto.precoVenda) : null,
+      // So para a margem do popup de preco: o custo do cadastro e, na falta dele, o
+      // do rascunho do Bling (e la que esta o custo da maioria dos produtos importados).
+      custo: produto.custo
+        ? Number(produto.custo)
+        : Number(produto.fornecedorRascunho?.precoCusto) > 0
+          ? Number(produto.fornecedorRascunho.precoCusto)
+          : null,
       estoque: produto.estoque,
       ativo: produto.ativo,
       conferido: produto.conferido,

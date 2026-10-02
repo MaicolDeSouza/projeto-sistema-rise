@@ -48,6 +48,12 @@ const { varrerFonte } = await import("../src/lib/coleta/coletar.js");
 const { coletaPausada } = await import("../src/lib/coleta/controle.js");
 const { ultimaRespostaDe } = await import("../src/lib/coleta/buscar.js");
 const fila = await import("../src/lib/coleta/fila.js");
+const { tirarFotoMensal } = await import("../src/lib/coleta/fotos.js");
+
+/// De quanto em quanto tempo se confere se a foto mensal e devida. A foto e uma por
+/// mes, entao a conferencia e barata; a hora so evita consultar o banco a cada volta.
+const CONFERE_FOTO_MS = 60 * 60 * 1000;
+let fotoConferidaEm = 0;
 
 /// Codigo de saida quando ja ha outro worker no ar. O supervisor nao religa.
 const SAIDA_OUTRO_WORKER = 3;
@@ -395,6 +401,16 @@ async function laco() {
           if (!job) break;
           // Nao aguardado: as varreduras correm juntas. `executar` nunca rejeita.
           executar(job);
+        }
+      }
+
+      // Fora do `coletaPausada`: pausar a coleta nao pode custar a foto do mes. O
+      // worker de teste (COLETA_FONTES) nao a tira, para nao gravar no banco de verdade.
+      if (!FONTES && Date.now() - fotoConferidaEm >= CONFERE_FOTO_MS) {
+        fotoConferidaEm = Date.now();
+        const foto = await tirarFotoMensal();
+        if (foto.tirou) {
+          log(`foto mensal ${foto.mes}: ${foto.coleta} produto(s) de fornecedor/concorrente, ${foto.produtos} da loja`);
         }
       }
     } catch (erro) {

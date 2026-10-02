@@ -214,6 +214,39 @@ function categoriaDoBreadcrumb(trilha) {
 }
 
 /**
+ * Tira da trilha o degrau que e o PROPRIO produto.
+ *
+ * Na Usinainfo a trilha acaba na categoria; na Unitel (30/09/2026) ela acaba no
+ * produto — "Home » Produtos » Transformadores » Transformador - 24 + 24Vac ..."
+ * — e a categoria saia como o titulo inteiro. O degrau e o produto quando o
+ * texto dele e o COMECO de algum titulo da pagina (<h1>, og:title, <title>) e
+ * tem 12 letras ou mais: nome de categoria e curto, e nao abre o titulo do
+ * produto.
+ */
+function semOProduto(trilha, htmlCompleto) {
+  const chave = (texto) =>
+    String(texto ?? "")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+  const titulos = [
+    ...[...htmlCompleto.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].map((m) => comoTexto(m[1])),
+    /<meta[^>]+property=["']og:title["'][^>]*content=["']([^"']+)["']/i.exec(htmlCompleto)?.[1],
+    /<title[^>]*>([\s\S]*?)<\/title>/i.exec(htmlCompleto)?.[1],
+  ]
+    .map(chave)
+    .filter(Boolean);
+
+  const ultimo = trilha.at(-1);
+  const ehOProduto =
+    ultimo && chave(ultimo).length >= 12 && titulos.some((titulo) => titulo.startsWith(chave(ultimo)));
+
+  return ehOProduto ? trilha.slice(0, -1) : trilha;
+}
+
+/**
  * Le os dados de produto marcados com Microdata.
  *
  * Devolve `null` quando a pagina nao declara um schema.org/Product — sem essa
@@ -262,7 +295,7 @@ export function doMicrodata(htmlCompleto) {
       valoresDe(html, "gtin")[0] ??
       valoresDe(html, "gtin14")[0] ??
       null,
-    categoria: categoriaDoBreadcrumb(trilha),
+    categoria: categoriaDoBreadcrumb(semOProduto(trilha, htmlCompleto)),
     // Os precos ficam todos disponiveis: quem decide qual e o normal e qual e o
     // promocional e o normalizador, que ve tambem o que os outros formatos deram.
     // A pagina pode marcar varios precos (o do produto, o de um kit, o de um

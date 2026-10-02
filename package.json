@@ -29,7 +29,10 @@
     "coletar": "node scripts/coletar.js",
     "teste:worker": "node scripts/teste-worker.js",
     "worker:parar": "node scripts/parar-worker.js",
-    "backup": "node scripts/backup-banco.js"
+    "backup": "node scripts/backup-banco.js",
+    "foto:mensal": "node scripts/foto-mensal.js",
+    "teste:fotos": "node scripts/teste-fotos.js",
+    "teste:estoque": "node scripts/teste-estoque.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

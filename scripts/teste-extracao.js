@@ -1564,5 +1564,70 @@ conferir("JSON invalido nao aparece como texto bruto", especificacoesDosAtributo
   { code: "atributos_json", value: "[{quebrado}]" },
 ], rotulosMagento), []);
 
+console.log("\n— Unitel: codigo com rotulo, titulo com placeholder, categoria, aba e ficha sem titulo —");
+{
+  const unitel = normalizarPagina({
+    html: `<html><head>
+<title>Transformador - 24 + 24Vac - 10A - Bivolt - Ref. 903 - Nome da empresa</title>
+<meta property="og:title" content="Transformador - 24 + 24Vac - 10A - Bivolt - Ref. 903 - Nome da empresa" />
+<meta property="og:image" content="https://loja.com.br/up/2021/07/capa-transformador-903.jpg" />
+</head><body><img src="https://loja.com.br/logo/logo.png" />
+<section itemscope itemtype="https://schema.org/Products">
+<ul id="breadcrumb" itemscope itemtype="https://schema.org/BreadcrumbList">
+<li itemprop="itemListElement" itemscope><a href="/"><span itemprop="name">Home</span></a></li>
+<li itemprop="itemListElement" itemscope><a href="/produtos"><span itemprop="name">Produtos</span></a></li>
+<li itemprop="itemListElement" itemscope><a href="/produtos/transformadores"><span itemprop="name">Transformadores</span></a></li>
+<li itemprop="itemListElement" itemscope><span itemprop="name" class="bold">Transformador - 24 + 24Vac - 10A - Bivolt - Ref. 903</span></li>
+</ul>
+<h1>{{SHARE}}</h1>
+<h1 class="title">Transformador - 24 + 24Vac - 10A - Bivolt - Ref. 903 </h1>
+<a href="https://loja.com.br/up/2021/07/capa-transformador-903.jpg" class="lightbox"><img src="https://loja.com.br/up/2021/07/capa-transformador-903.jpg" /></a>
+<div class="prod-tab"><h2 onclick="openAba(event, 'desc')">Descrição</h2><h2 onclick="orcamento()">Orçamento</h2></div>
+<div id="desc" class="htmlchars tabcontent"><p>Indicado para uso residencial.</p><p>Produzido com núcleo de silício.<br />Corrente Máxima: 10A</p>
+<p>Tensão de saída: 24 + 24Vac<br />Tensão de entrada: 127/220Vac (Bivolt)<br />Peso: 5,072kg</p><p><strong>Observações:</strong></p></div>
+<h2 class="titulo">Quem viu Transformador - 24 + 24Vac também viu</h2>
+<img src="https://loja.com.br/up/2021/07/capa-outro-produto-1.jpg" /><img src="https://loja.com.br/up/2021/07/capa-outro-produto-2.jpg" />
+</section>
+<div itemprop="offers" itemscope><meta itemprop="price" content="100.00" /></div>
+</body></html>`,
+    url: "https://loja.com.br/produtos/transformadores/transformador-24-24vac-10a-bivolt-ref-903",
+    fonte: { name: "Unitel", type: "FORNECEDOR" },
+  }).produtos[0];
+
+  conferir("titulo sem o placeholder que sobra no og:title", unitel?.name, "Transformador - 24 + 24Vac - 10A - Bivolt - Ref. 903");
+  conferir("'ref-903' na URL vira o codigo 903", unitel?.code, "903");
+  conferir("categoria e o degrau ANTES do produto no breadcrumb", unitel?.category, "Transformadores");
+  conferir("relacionados abaixo de 'Quem viu' nao entram na galeria", unitel?.images, ["https://loja.com.br/up/2021/07/capa-transformador-903.jpg"]);
+  conferir(
+    "ficha sem titulo: corrida de 'Nome: valor' vira especificacao",
+    unitel?.specifications?.map((s) => `${s.nome}=${s.valor}`),
+    ["Corrente Máxima=10A", "Tensão de saída=24 + 24Vac", "Tensão de entrada=127/220Vac (Bivolt)", "Peso=5,072kg"],
+  );
+  conferir("descricao vem da aba (onclick)", /Indicado para uso residencial/.test(unitel?.description ?? ""), true);
+
+  const propaganda = normalizarPagina({
+    html: `<script type="application/ld+json">{"@type":"Product","name":"X","sku":"1","description":"Curta","offers":{"price":"1"}}</script>
+<div class="description"><p>Custo baixo: boa solução quando o orçamento é apertado e o prazo é curto</p>
+<p>Facilidade: ótima para quem está começando a estudar eletrônica</p>
+<p>Qualidade: material selecionado com muito cuidado pela equipe</p></div>`,
+    url: "https://loja.com.br/x",
+  }).produtos[0];
+  conferir("propaganda 'Rotulo: frase comprida' NAO vira ficha", propaganda?.specifications, []);
+
+  const curta = normalizarPagina({
+    html: `<html><head><title>Cabo USB-C - Ref. 1918</title>
+<meta property="og:title" content="Cabo USB-C - Ref. 1918" />
+<meta property="og:description" content="Cabo USB-C - Ref. 1918 - A Empresa X é uma empresa do ramo eletroeletrônico fundada em abril...Saiba mais." />
+<meta property="og:image" content="https://loja.com.br/up/capa-cabo.jpg" /></head><body>
+<div itemprop="offers" itemscope><meta itemprop="price" content="10.00" /></div>
+<h1 class="title">Cabo USB-C - Ref. 1918</h1>
+<div class="prod-tab"><h2 onclick="openAba(event, 'desc')">Descrição</h2></div>
+<div id="desc" class="tabcontent"><p>Peso: 0,060kg</p></div></body></html>`,
+    url: "https://loja.com.br/produtos/cabos/cabo-usb-c-ref-1918",
+    fonte: { name: "Unitel", type: "FORNECEDOR" },
+  }).produtos[0];
+  conferir("aba curta vence o og:description generico da empresa", curta?.description, "Peso: 0,060kg");
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
