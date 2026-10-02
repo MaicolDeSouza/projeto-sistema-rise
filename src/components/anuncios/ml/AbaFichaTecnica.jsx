@@ -26,22 +26,37 @@ export default function AbaFichaTecnica({ rascunho, alterar, problemas }) {
     });
   }
 
+  // Marca e Modelo sao sempre MAIUSCULAS (padrao de dado do CLAUDE.md), convertidos ENQUANTO se
+  // digita. Como em `aoDigitarMaiusculo` do cadastro de Produto, o texto convertido vai direto ao
+  // campo e a selecao e refeita: se so o React trocasse o valor depois, o cursor iria para o fim, e
+  // quem corrige uma letra no meio da marca continuaria digitando no lugar errado.
+  function digitarEmMaiusculas(evento, id) {
+    const campo = evento.currentTarget;
+    const convertido = campo.value.toLocaleUpperCase("pt-BR");
+    if (convertido !== campo.value) {
+      const { selectionStart: inicio, selectionEnd: fim } = campo;
+      campo.value = convertido;
+      campo.setSelectionRange(inicio, fim);
+    }
+    mudar(id, convertido);
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
         <Campo
           nome="ml-brand"
           rotulo="Marca (BRAND)"
-          ajuda="Comeca com a marca do cadastro do produto."
+          ajuda="Comeca com a marca do cadastro do produto. Sempre em maiusculas."
           value={atributos.BRAND ?? ""}
-          onChange={(evento) => mudar("BRAND", evento.target.value)}
+          onChange={(evento) => digitarEmMaiusculas(evento, "BRAND")}
         />
         <Campo
           nome="ml-model"
           rotulo="Modelo (MODEL)"
-          ajuda="Comeca com o modelo do cadastro do produto."
+          ajuda="Comeca com o modelo do cadastro do produto. Sempre em maiusculas."
           value={atributos.MODEL ?? ""}
-          onChange={(evento) => mudar("MODEL", evento.target.value)}
+          onChange={(evento) => digitarEmMaiusculas(evento, "MODEL")}
         />
 
         {emKit ? (

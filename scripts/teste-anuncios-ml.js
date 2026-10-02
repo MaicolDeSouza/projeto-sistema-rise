@@ -67,6 +67,7 @@ const {
   listarAnunciosML,
 } = await import("../src/lib/canaisDeVenda/ml/banco.js");
 const { separarCanais } = await import("../src/lib/canais.js");
+const { lerDecimal, textoDecimal, filtrarDecimal, mostrarDigitado, recusarSimbolosDeInteiro } = await import("../src/components/anuncios/ml/numeros.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -425,7 +426,12 @@ try {
     conferir("payload: titulo, familia, categoria, estoque, tipo e condicao",
       [payload.item.title, payload.item.family_name, payload.item.category_id, payload.item.available_quantity, payload.item.currency_id, payload.item.listing_type_id, payload.item.condition],
       ["Resistor 1K 1/4W", "GENERICA", "MLB1234", 100, "BRL", "gold_special", "new"]);
-    conferir("payload: titulo cortado em 60", montarPayloadML({ ...base, titulo: "X".repeat(70) }, ctx).item.title, "X".repeat(60));
+    // Marca e Modelo vao em MAIUSCULAS (acento incluso); os demais atributos ficam como foram digitados.
+    conferir("payload: marca e modelo em maiusculas, o resto intacto",
+      montarPayloadML({ ...base, atributos: { BRAND: "Arduino", MODEL: "uno r3 ação", COLOR: "Azul", GTIN: "7890000000001" } }, ctx).item.attributes,
+      [{ id: "BRAND", value_name: "ARDUINO" }, { id: "MODEL", value_name: "UNO R3 AÇÃO" }, { id: "COLOR", value_name: "Azul" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
+    conferir("payload: marca em branco continua fora", montarPayloadML({ ...base, atributos: { BRAND: "  ", MODEL: "m1" } }, ctx).item.attributes.map((x) => x.id), ["MODEL", "SELLER_SKU"]);
+    conferir("payload: titulo cortado em 60",montarPayloadML({ ...base, titulo: "X".repeat(70) }, ctx).item.title, "X".repeat(60));
     conferir("payload: envio com dimensoes em cm e peso em gramas", payload.item.shipping,
       { mode: "me2", free_shipping: false, local_pick_up: false, dimensions: "1x1x2,1" });
     conferir("payload: frete gratis e retirada", (({ free_shipping, local_pick_up }) => [free_shipping, local_pick_up])(montarPayloadML(comEnvio({ freteGratis: true, retirada: true }), ctx).item.shipping), [true, true]);
@@ -863,6 +869,59 @@ try {
         await prisma.configCanal.deleteMany({ where: { canal: "MERCADO_LIVRE" } });
       }
     }
+  }
+
+  {
+    console.log("\nNumeros dos campos");
+
+    // O que uma aba faz a cada tecla: filtra o texto, guarda o que ficou e manda o numero ao rascunho.
+    // O campo mostra o texto digitado enquanto ele ainda vale o numero (a virgula nao pode sumir).
+    const digitar = (bruto, casas) => {
+      const texto = filtrarDecimal(bruto, casas);
+      const numero = lerDecimal(texto);
+      return { texto, numero, mostra: mostrarDigitado(texto, numero) };
+    };
+
+    conferir("digitar 1, mantem a virgula (numero 1)", digitar("1,", 2), { texto: "1,", numero: 1, mostra: "1," });
+    conferir("digitar 0,0 mantem os dois caracteres (numero 0)", digitar("0,0", 2), { texto: "0,0", numero: 0, mostra: "0,0" });
+    conferir("digitar 10,5", digitar("10,5", 2), { texto: "10,5", numero: 10.5, mostra: "10,5" });
+    conferir("digitar 12.5 com ponto", digitar("12.5", 2), { texto: "12.5", numero: 12.5, mostra: "12.5" });
+    conferir("digitar 12,50 mantem o zero do fim", digitar("12,50", 2), { texto: "12,50", numero: 12.5, mostra: "12,50" });
+    conferir("colar 1.234,56 do Bling", digitar("1.234,56", 2), { texto: "1234,56", numero: 1234.56, mostra: "1234,56" });
+    conferir("colar 1,234.56", digitar("1,234.56", 2), { texto: "1234.56", numero: 1234.56, mostra: "1234.56" });
+    conferir("campo vazio e nulo", digitar("", 2), { texto: "", numero: null, mostra: "" });
+    conferir("so a virgula nao e numero", digitar(",", 2), { texto: ",", numero: null, mostra: "," });
+    conferir("letras, e, + e - somem", digitar("1e+5a-", 2), { texto: "15", numero: 15, mostra: "15" });
+    conferir("segunda virgula e descuido: vale a primeira", filtrarDecimal("1,2,", 2), "1,2");
+    conferir("casas a mais sao recusadas (preco: 2)", filtrarDecimal("12,567", 2), "12,56");
+    conferir("casas a mais sao recusadas (peso: 3)", filtrarDecimal("0,2501", 3), "0,250");
+    conferir("sem separador nao mexe", filtrarDecimal("1234", 2), "1234");
+    conferir("filtrar vazio e nulo", [filtrarDecimal("", 2), filtrarDecimal(null, 2)], ["", ""]);
+
+    conferir("ler 12,5 e 12.5", [lerDecimal("12,5"), lerDecimal("12.5")], [12.5, 12.5]);
+    conferir("ler 12, e ,5", [lerDecimal("12,"), lerDecimal(",5")], [12, 0.5]);
+    conferir("ler vazio, separador sozinho e nulo", [lerDecimal(""), lerDecimal(","), lerDecimal("."), lerDecimal(null)], [null, null, null, null]);
+    conferir("ler 0 e zero, nao vazio", [lerDecimal("0"), lerDecimal("0,0")], [0, 0]);
+
+    conferir("formato: virgula decimal", [textoDecimal(0.25), textoDecimal(5), textoDecimal(1.005, 2)], ["0,25", "5", "1,005"]);
+    conferir("formato: completa os zeros do preco", [textoDecimal(29.9, 2), textoDecimal(7.5, 2), textoDecimal(10, 2)], ["29,90", "7,50", "10,00"]);
+    conferir("formato: 0 nao e vazio", [textoDecimal(0), textoDecimal(0, 2)], ["0", "0,00"]);
+    conferir("formato: nulo e vazio", [textoDecimal(null), textoDecimal(undefined), textoDecimal("")], ["", "", ""]);
+
+    // Ao sair do campo a aba esquece o texto digitado, e o numero volta formatado.
+    conferir("sair do campo: 7,5 vira 7,50", mostrarDigitado(null, 7.5, 2), "7,50");
+    conferir("sair do campo: 5, vira 5", mostrarDigitado(null, 5), "5");
+    conferir("sair do campo: 0 continua 0", mostrarDigitado(null, 0), "0");
+    conferir("sair do campo: sem numero fica vazio", mostrarDigitado(null, null), "");
+    conferir("numero mudou por fora (kit): mostra o novo", mostrarDigitado("5,5", 0.3), "0,3");
+    conferir("texto digitado que ainda vale o numero", mostrarDigitado("12,", 12), "12,");
+
+    // Estoque: o campo inteiro barra as seis teclas e deixa digito e edicao passar.
+    const barradas = [];
+    for (const tecla of ["e", "E", "+", "-", ".", ",", "0", "5", "Backspace", "Tab"]) {
+      recusarSimbolosDeInteiro({ key: tecla, preventDefault: () => barradas.push(tecla) });
+    }
+    conferir("estoque barra e E + - . ,", barradas, ["e", "E", "+", "-", ".", ","]);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

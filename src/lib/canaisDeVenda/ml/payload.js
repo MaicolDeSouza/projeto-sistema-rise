@@ -14,6 +14,12 @@ import { medidasFaltando } from "./validacao";
 const LIMITE_DO_NOME_DA_FOTO = 60;
 
 const texto = (valor) => String(valor ?? "").trim();
+const maiusculas = (valor) => texto(valor).toLocaleUpperCase("pt-BR");
+
+// Marca e Modelo sao sempre MAIUSCULAS no sistema (padrao de dado do CLAUDE.md). A aba Ficha
+// tecnica ja converte ao digitar; aqui e a segunda barreira, para o que nao veio da tela (um
+// rascunho gravado antes, um produto que trouxe "Arduino") nunca seguir ao ML em caixa mista.
+const EM_MAIUSCULAS = new Set(["BRAND", "MODEL"]);
 
 /**
  * Nome legivel da foto no envio ao ML: o titulo sem acento, em minusculas, com `-` no lugar
@@ -55,7 +61,7 @@ export function montarPayloadML(rascunho, contexto) {
 
   const atributos = Object.entries(rascunho.atributos ?? {})
     .filter(([id, valor]) => id !== "SELLER_SKU" && texto(valor))
-    .map(([id, valor]) => ({ id, value_name: texto(valor) }));
+    .map(([id, valor]) => ({ id, value_name: EM_MAIUSCULAS.has(id) ? maiusculas(valor) : texto(valor) }));
   if (sku) atributos.push({ id: "SELLER_SKU", value_name: sku });
 
   const fotos = (rascunho.imagens ?? []).map((arquivoId, indice) => ({ arquivoId, nome: nomeDaFoto(titulo, indice) }));

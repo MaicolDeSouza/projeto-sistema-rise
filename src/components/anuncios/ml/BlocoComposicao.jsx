@@ -13,14 +13,9 @@ import Badge from "@/components/ui/Badge";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { aplicarComposicao } from "@/lib/canaisDeVenda/ml/rascunho";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
+import { recusarSimbolosDeInteiro } from "./numeros";
 
 const LIMITE_DO_CODIGO = 64;
-
-// A quantidade e inteira: o <input type="number"> aceita "e", "+" e "-" (notacao cientifica),
-// e o ponto e a virgula nao fazem sentido. Mesmo bloqueio dos campos inteiros do cadastro de Produto.
-function recusarSimbolos(evento) {
-  if (["e", "E", "+", "-", ".", ","].includes(evento.key)) evento.preventDefault();
-}
 
 // Excecao solta dentro de uma transicao vai para o error boundary e levaria o editor inteiro,
 // com tudo o que foi digitado. As acoes ja devolvem { ok: false } nas falhas do servidor; isto
@@ -228,7 +223,7 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
                     max="9999"
                     value={item.quantidade ?? ""}
                     onChange={(evento) => mudarQuantidade(posicao, evento.target.value)}
-                    onKeyDown={recusarSimbolos}
+                    onKeyDown={recusarSimbolosDeInteiro}
                     onBlur={sairDaQuantidade}
                     aria-label={`Quantidade de ${produto?.sku ?? "item"}`}
                     className="w-20 rounded border border-borda bg-superficie px-2 py-1 text-right text-sm text-texto focus:border-acento focus:outline-none"
