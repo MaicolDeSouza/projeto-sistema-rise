@@ -43,6 +43,10 @@ const {
 } = await import("../src/lib/canaisDeVenda/versiculos.js");
 const { montarDescricaoML, restoDaDescricao } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
 const { rascunhoInicial, aplicarComposicao } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
+const { ABAS_ML, validarRascunhoML } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
+const { montarPayloadML, nomeDaFoto } = await import("../src/lib/canaisDeVenda/ml/payload.js");
+const { estadoDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
+const { separarCanais } = await import("../src/lib/canais.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -317,6 +321,115 @@ try {
     aplicarComposicao(simples, umKit, { a });
     aplicarComposicao(simples, null, { a });
     conferir("aplicarComposicao nao altera o rascunho recebido", JSON.stringify([misto, simples]), antes);
+  }
+
+  {
+    console.log("\nValidacao, payload e icone");
+
+    // Os contextos de produto da Tarefa 4 nao trazem `blingId` nem `conferido`: este bloco
+    // monta os seus. A base nao pode ter problema nenhum, e cada caso muda uma coisa so.
+    const aOk = { ...a, blingId: "111", conferido: true };
+    const bOk = { ...b, blingId: "222", conferido: true };
+    const ctx = { produtos: { a: aOk, b: bOk }, frases: ["Nota fiscal."], codigoEmUso: null };
+    const base = { ...simples, categoriaId: "MLB1234" };
+    const kitOk = { ...kit, categoriaId: "MLB1234", preco: 2 };
+    const mistoOk = { ...misto, categoriaId: "MLB1234", preco: 2, composicao: { ...misto.composicao, codigo: "KIT-RESISTORES" } };
+
+    const problema = (rascunho, contexto, campo) => validarRascunhoML(rascunho, contexto).find((p) => p.campo === campo);
+    const onde = (p) => [p?.aba, p?.bloqueante];
+    const comProduto = (id, mudancas) => ({ ...ctx, produtos: { ...ctx.produtos, [id]: { ...ctx.produtos[id], ...mudancas } } });
+    const comEnvio = (mudancas) => ({ ...base, envio: { ...base.envio, ...mudancas } });
+
+    conferir("abas do editor", ABAS_ML.map((x) => x.id), ["geral", "preco", "imagens", "descricao", "ficha", "envio", "previa"]);
+    conferir("base simples: nenhum problema", validarRascunhoML(base, ctx), []);
+    conferir("kit pronto: nenhum problema bloqueante", validarRascunhoML(kitOk, ctx).filter((p) => p.bloqueante), []);
+    conferir("kit misto pronto: nenhum problema bloqueante", validarRascunhoML(mistoOk, ctx).filter((p) => p.bloqueante), []);
+
+    conferir("titulo vazio", onde(problema({ ...base, titulo: " " }, ctx, "titulo")), ["geral", true]);
+    conferir("titulo com 61", onde(problema({ ...base, titulo: "X".repeat(61) }, ctx, "titulo")), ["geral", true]);
+    conferir("titulo com 61: mensagem", problema({ ...base, titulo: "X".repeat(61) }, ctx, "titulo").problema, "O titulo tem 61 caracteres; o limite do Mercado Livre e 60.");
+    conferir("titulo com 60 serve", problema({ ...base, titulo: "X".repeat(60) }, ctx, "titulo"), undefined);
+    conferir("sem family_name", onde(problema({ ...base, familyName: "" }, ctx, "familyName")), ["geral", true]);
+    conferir("sem categoria", onde(problema({ ...base, categoriaId: null }, ctx, "categoria")), ["geral", true]);
+    conferir("categoria fora do formato", onde(problema({ ...base, categoriaId: "1234" }, ctx, "categoria")), ["geral", true]);
+    conferir("categoria em minuscula", onde(problema({ ...base, categoriaId: "mlb1234" }, ctx, "categoria")), ["geral", true]);
+    conferir("preco zero", onde(problema({ ...base, preco: 0 }, ctx, "preco")), ["preco", true]);
+    conferir("preco em branco", onde(problema({ ...base, preco: null }, ctx, "preco")), ["preco", true]);
+    conferir("estoque quebrado", onde(problema({ ...base, estoque: 1.5 }, ctx, "estoque")), ["preco", true]);
+    conferir("estoque negativo", onde(problema({ ...base, estoque: -1 }, ctx, "estoque")), ["preco", true]);
+    conferir("estoque zero e so alerta", onde(problema({ ...base, estoque: 0 }, ctx, "estoque")), ["preco", false]);
+    conferir("sem fotos", onde(problema({ ...base, imagens: [] }, ctx, "imagens")), ["imagens", true]);
+    conferir("descricao vazia", onde(problema({ ...base, descricao: "" }, ctx, "descricao")), ["descricao", true]);
+    conferir("sem versiculo e so alerta", onde(problema({ ...base, versiculo: null }, ctx, "versiculo")), ["descricao", false]);
+    conferir("versiculo passa de 25%", onde(problema({ ...base, descricao: "curta" }, { ...ctx, frases: [] }, "versiculo")), ["descricao", true]);
+    conferir("sem GTIN em produto simples", onde(problema({ ...base, atributos: { BRAND: "GENERICA" } }, ctx, "GTIN")), ["ficha", false]);
+    conferir("sem peso", onde(problema(comEnvio({ pesoKg: null }), ctx, "peso")), ["envio", true]);
+    conferir("sem dimensoes", onde(problema(comEnvio({ alturaCm: 0 }), ctx, "dimensoes")), ["envio", true]);
+    conferir("sem comprimento", onde(problema(comEnvio({ comprimentoCm: null }), ctx, "dimensoes")), ["envio", true]);
+    conferir("produto nao Conferido", onde(problema(base, comProduto("a", { conferido: false }), "produto")), ["geral", true]);
+    conferir("produto nao Conferido: mensagem", problema(base, comProduto("a", { conferido: false }), "produto").problema, "Este produto nao esta Conferido. So produto Conferido vira anuncio.");
+    conferir("produto sem blingId", onde(problema(base, comProduto("a", { blingId: null }), "blingId")), ["geral", true]);
+    conferir("produto sem blingId: mensagem", problema(base, comProduto("a", { blingId: null }), "blingId").problema, "Produto sem blingId: o anuncio nao podera ser publicado.");
+    conferir("produto que sumiu do contexto", onde(problema(base, { ...ctx, produtos: {} }, "produto")), ["geral", true]);
+
+    conferir("kit: codigo em uso", onde(problema(kitOk, { ...ctx, codigoEmUso: "o produto 100101_5 do cadastro" }, "codigoKit")), ["geral", true]);
+    conferir("kit: codigo em uso, mensagem", problema(kitOk, { ...ctx, codigoEmUso: "o produto 100101_5 do cadastro" }, "codigoKit").problema,
+      "O codigo 100101_5 ja e usado por o produto 100101_5 do cadastro.");
+    conferir("kit misto sem codigo", onde(problema(misto, ctx, "codigoKit")), ["geral", true]);
+    conferir("kit: item sem blingId", onde(problema(misto, comProduto("b", { blingId: null }), "item:b")), ["geral", true]);
+    conferir("kit: item nao Conferido", onde(problema(mistoOk, comProduto("b", { conferido: false }), "item:b")), ["geral", true]);
+    conferir("kit: item que sumiu do contexto", onde(problema(mistoOk, { ...ctx, produtos: { a: aOk } }, "item:b")), ["geral", true]);
+    conferir("kit: o principal e conferido como item, nao como produto",
+      [problema(kitOk, comProduto("a", { conferido: false }), "produto"), onde(problema(kitOk, comProduto("a", { conferido: false }), "item:a"))], [undefined, ["geral", true]]);
+    conferir("kit: menos de 2 unidades", onde(problema({ ...kitOk, composicao: { ...kitOk.composicao, itens: [{ produtoId: "a", quantidade: 1 }] } }, ctx, "composicao")), ["geral", true]);
+    conferir("kit sem foto propria alerta", problema(kitOk, ctx, "fotosDoKit")?.bloqueante, false);
+    conferir("kit sem foto propria: aba Imagens", problema(kitOk, ctx, "fotosDoKit")?.aba, "imagens");
+    conferir("kit sem GTIN nao gera alerta", validarRascunhoML(kitOk, ctx).some((p) => p.campo === "GTIN"), false);
+    conferir("produto simples nao tem aviso de foto do kit", problema(base, ctx, "fotosDoKit"), undefined);
+
+    const payload = montarPayloadML(base, ctx);
+    conferir("payload nasce pausado, sem preco no item", [payload.item.status, "price" in payload.item], ["paused", false]);
+    conferir("payload leva o SKU do produto", payload.item.attributes.find((x) => x.id === "SELLER_SKU").value_name, "100101");
+    conferir("payload do kit leva o codigo do kit", montarPayloadML(kitOk, ctx).item.attributes.find((x) => x.id === "SELLER_SKU").value_name, "100101_5");
+    conferir("payload do kit nao leva GTIN", montarPayloadML(kitOk, ctx).item.attributes.some((x) => x.id === "GTIN"), false);
+    conferir("payload: atributos da ficha e o SKU", payload.item.attributes,
+      [{ id: "BRAND", value_name: "GENERICA" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
+    conferir("preco vai a parte", payload.preco, { amount: 0.5, currency_id: "BRL" });
+    conferir("descricao final no payload", payload.descricao.plain_text, montarDescricaoML({ ...simples, frases: ctx.frases }));
+    conferir("payload: titulo, familia, categoria, estoque, tipo e condicao",
+      [payload.item.title, payload.item.family_name, payload.item.category_id, payload.item.available_quantity, payload.item.currency_id, payload.item.listing_type_id, payload.item.condition],
+      ["Resistor 1K 1/4W", "GENERICA", "MLB1234", 100, "BRL", "gold_special", "new"]);
+    conferir("payload: titulo cortado em 60", montarPayloadML({ ...base, titulo: "X".repeat(70) }, ctx).item.title, "X".repeat(60));
+    conferir("payload: envio com dimensoes em cm e peso em gramas", payload.item.shipping,
+      { mode: "me2", free_shipping: false, local_pick_up: false, dimensions: "1x1x2,1" });
+    conferir("payload: frete gratis e retirada", (({ free_shipping, local_pick_up }) => [free_shipping, local_pick_up])(montarPayloadML(comEnvio({ freteGratis: true, retirada: true }), ctx).item.shipping), [true, true]);
+    conferir("payload: peso do kit em gramas", montarPayloadML(kitOk, ctx).item.shipping.dimensions, "1x1x2,5");
+    conferir("payload: sem medida, sem dimensions", "dimensions" in montarPayloadML(comEnvio({ alturaCm: null }), ctx).item.shipping, false);
+    conferir("payload: sem peso, sem dimensions", "dimensions" in montarPayloadML(comEnvio({ pesoKg: null }), ctx).item.shipping, false);
+    conferir("payload: fotos com o nome legivel", payload.fotos,
+      [{ arquivoId: "img-a1", nome: "resistor-1k-1-4w-1.jpg" }, { arquivoId: "img-a2", nome: "resistor-1k-1-4w-2.jpg" }]);
+    conferir("payload: pictures so com os nomes", payload.item.pictures, [{ nome: "resistor-1k-1-4w-1.jpg" }, { nome: "resistor-1k-1-4w-2.jpg" }]);
+    conferir("nome legivel da foto", nomeDaFoto("Placa Uno R3 CH340 + Cabo", 0), "placa-uno-r3-ch340-cabo-1.jpg");
+    conferir("nome da foto: sem acento, indice a partir de 1", nomeDaFoto("Conexão  Ação", 2), "conexao-acao-3.jpg");
+    conferir("nome da foto: ate 60 caracteres, sem traco na ponta", nomeDaFoto(`${"a".repeat(59)} bbb`, 0), `${"a".repeat(59)}-1.jpg`);
+    conferir("nome da foto: titulo sem letra nem numero", nomeDaFoto(" +/ ", 0), "anuncio-1.jpg");
+
+    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, rascunho: false });
+    conferir("icone: publicado e rascunho juntos", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICADO" }, { canal: "MERCADO_LIVRE", status: "RASCUNHO" }, { canal: "BLING", status: "RASCUNHO" }]), { publicado: true, rascunho: true });
+    conferir("icone: so rascunho", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "RASCUNHO" }]), { publicado: false, rascunho: true });
+    conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "PUBLICADO" }, { canal: "LOJA_INTEGRADA", status: "RASCUNHO" }]), { publicado: false, rascunho: false });
+
+    const { integrados } = separarCanais([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB1" }, { canal: "MERCADO_LIVRE", status: "RASCUNHO", idExterno: null }]);
+    conferir("separarCanais nao esconde o publicado atras do rascunho", integrados.map((c) => c.idExterno), ["MLB1"]);
+    conferir("separarCanais: a ordem da lista nao importa",
+      separarCanais([{ canal: "MERCADO_LIVRE", status: "RASCUNHO", idExterno: null }, { canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB1" }]).integrados.map((c) => [c.id, c.status, c.idExterno]),
+      [["MERCADO_LIVRE", "PUBLICADO", "MLB1"]]);
+    conferir("separarCanais: so rascunho continua pendente", (({ integrados: i, pendentes }) => [i.length, pendentes.some((c) => c.id === "MERCADO_LIVRE")])(
+      separarCanais([{ canal: "MERCADO_LIVRE", status: "RASCUNHO", idExterno: null }])), [0, true]);
+    conferir("separarCanais: tentativa que falhou continua com o rotulo",
+      separarCanais([{ canal: "MERCADO_LIVRE", status: "ERRO", idExterno: null }]).pendentes.find((c) => c.id === "MERCADO_LIVRE").tentouEFalhou, true);
+    conferir("separarCanais: entre dois publicados vale o ultimo, como antes",
+      separarCanais([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB1" }, { canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB2" }]).integrados.map((c) => c.idExterno), ["MLB2"]);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

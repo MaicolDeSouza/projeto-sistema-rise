@@ -62,7 +62,16 @@ export function canalPorId(id) {
  * que impede clicar em "Cadastrar" num produto ja publicado e duplicar anuncio.
  */
 export function separarCanais(anuncios = []) {
-  const porCanal = new Map(anuncios.map((anuncio) => [anuncio.canal, anuncio]));
+  // Desde a fase 1 o Mercado Livre tem VARIOS anuncios por produto (Classico e Premium,
+  // kits). Com um Map montado direto da lista, o ultimo anuncio do canal vencia, e um
+  // rascunho listado depois escondia o que ja esta publicado. O que existe no canal
+  // (idExterno) tem prioridade; entre iguais continua valendo o ultimo, como antes.
+  const porCanal = new Map();
+  for (const anuncio of anuncios) {
+    const atual = porCanal.get(anuncio.canal);
+    if (atual?.idExterno && !anuncio.idExterno) continue;
+    porCanal.set(anuncio.canal, anuncio);
+  }
   const blingPublicado = Boolean(porCanal.get("BLING")?.idExterno);
 
   const integrados = [];
