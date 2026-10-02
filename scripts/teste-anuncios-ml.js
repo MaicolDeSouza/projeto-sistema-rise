@@ -41,6 +41,15 @@ const {
   cabeNaDescricao,
   sortearVersiculo,
 } = await import("../src/lib/canaisDeVenda/versiculos.js");
+const {
+  lerConfigML,
+  gravarFrases,
+  listarVersiculos,
+  adicionarVersiculo,
+  removerVersiculo,
+  carregarVersiculosIniciais,
+  sortearVersiculoDoBanco,
+} = await import("../src/lib/canaisDeVenda/configuracao.js");
 const { montarDescricaoML, restoDaDescricao } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
 const { rascunhoInicial, aplicarComposicao } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
 const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
@@ -450,6 +459,106 @@ try {
       separarCanais([{ canal: "MERCADO_LIVRE", status: "ERRO", idExterno: null }]).pendentes.find((c) => c.id === "MERCADO_LIVRE").tentouEFalhou, true);
     conferir("separarCanais: entre dois publicados vale o ultimo, como antes",
       separarCanais([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB1" }, { canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB2" }]).integrados.map((c) => c.idExterno), ["MLB2"]);
+  }
+
+  {
+    console.log("\nConfiguracao (banco)");
+    await limpar();
+
+    // A configuracao e a lista de versiculos sao dados REAIS do dono (banco compartilhado):
+    // a linha do canal e guardada aqui e devolvida no finally, e os unicos versiculos que o
+    // bloco cria sao os de teste abaixo, apagados no fim por texto (nunca se mexe nos outros).
+    const configAntes = await prisma.configCanal.findUnique({ where: { canal: "MERCADO_LIVRE" } });
+    const textosDeTeste = ["Texto de teste.", "Texto de carga.", "Teste de teto."];
+    const recusada = async (chamada) => {
+      try {
+        await chamada();
+        return null;
+      } catch (erro) {
+        return erro.message;
+      }
+    };
+    try {
+      if (!configAntes) {
+        // So aqui: apagar a linha do dono para testar a ausencia seria arriscar o dado real.
+        conferir("sem linha: listas vazias", await lerConfigML(), { frases: [], usados: [] });
+        conferir("sem linha: ler nao cria", await prisma.configCanal.count({ where: { canal: "MERCADO_LIVRE" } }), 0);
+      }
+
+      conferir("frases: uma por linha, aparadas e sem repetir", (await gravarFrases("  Nota fiscal em todos.\n\nNota fiscal em todos.\nEnvio no mesmo dia. ")).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
+      conferir("frases: lidas de volta", (await lerConfigML()).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
+      conferir("frases: mais de 10 e recusado", (await gravarFrases(Array.from({ length: 11 }, (_, i) => `F${i}`).join("\n"))).ok, false);
+      conferir("frases: frase acima de 200 caracteres e recusada", (await gravarFrases("x".repeat(201))).ok, false);
+      conferir("frases: o que foi recusado nao mexe no gravado", (await lerConfigML()).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
+      const dezDeDuzentos = Array.from({ length: 10 }, (_, i) => String.fromCharCode(97 + i).repeat(200));
+      conferir("frases: 10 frases de 200 caracteres cabem", (await gravarFrases(dezDeDuzentos.join("\n"))).frases, dezDeDuzentos);
+      conferir("frases: onze linhas iguais sao uma so", (await gravarFrases(Array(11).fill("Igual.").join("\n"))).frases, ["Igual."]);
+      conferir("frases: quebra de linha do Windows", (await gravarFrases("A\r\nB\r\n")).frases, ["A", "B"]);
+      conferir("frases: vazio limpa", (await gravarFrases("  \n ")).frases, []);
+
+      const atuais = await listarVersiculos();
+      const livre = Array.from({ length: 176 }, (_, i) => i + 1).find((n) => !atuais.some((v) => v.livro === "Salmos" && v.capitulo === 119 && v.inicio === n));
+
+      if (atuais.length === 0) {
+        // Tabela vazia (a carga real ainda nao aconteceu): so entao a carga inicial pode ser
+        // exercitada sem tocar em dado do dono. Tudo o que ela grava aqui e apagado por texto.
+        const grande = Array.from({ length: 501 }, (_, i) => ({ livro: "Salmos", capitulo: 119, inicio: i + 1, fim: i + 1, texto: "Teste de teto." }));
+        conferir("carga inicial: mais de 500 e recusada antes de gravar", [await recusada(() => carregarVersiculosIniciais(grande)), await prisma.versiculo.count()],
+          ["A carga tem 501 versiculos. O limite da NVI sem autorizacao da Biblica e 500.", 0]);
+        conferir("carga inicial: versiculo invalido e recusado antes de gravar", [await recusada(() => carregarVersiculosIniciais([{ livro: "Isaías", capitulo: 1, inicio: 1, fim: 1, texto: "x" }])), await prisma.versiculo.count()],
+          ["Isaías 1:1: Use Salmos ou Provérbios.", 0]);
+        // Fora de ordem, uma sem `fim`, uma faixa e uma repetida dentro da propria lista.
+        const carga = [
+          { livro: "Salmos", capitulo: 119, inicio: 3, texto: " Texto de\n carga. " },
+          { livro: "Provérbios", capitulo: 3, inicio: 5, fim: 6, texto: "Texto de carga." },
+          { livro: "Salmos", capitulo: 23, inicio: 1, fim: 1, texto: "Texto de carga." },
+          { livro: "Salmos", capitulo: 23, inicio: 1, fim: 1, texto: "Texto de carga." },
+        ];
+        conferir("carga inicial: tabela vazia carrega (repetido da propria lista e ignorado)", await carregarVersiculosIniciais(carga), { carregados: 3, existentes: 0 });
+        const carregados = await listarVersiculos();
+        conferir("lista: ordem livro, capitulo, inicio", carregados.map(referenciaDoVersiculo), ["Provérbios 3:5-6", "Salmos 23:1", "Salmos 119:3"]);
+        conferir("carga inicial: fim ausente vale o inicio e o texto e aparado", carregados.map((v) => [v.fim, v.texto]), [[6, "Texto de carga."], [1, "Texto de carga."], [3, "Texto de carga."]]);
+        conferir("carga inicial: segunda vez nao carrega", await carregarVersiculosIniciais([sl23]), { carregados: 0, existentes: 3 });
+        await prisma.versiculo.deleteMany({ where: { texto: "Texto de carga." } });
+      }
+
+      const novo = await adicionarVersiculo({ livro: "Salmos", capitulo: 119, inicio: livre, fim: livre, texto: "  Texto de\n  teste.  " });
+      conferir("versiculo entra", [novo.ok, (await listarVersiculos()).length], [true, atuais.length + 1]);
+      conferir("versiculo: o que a lista devolve (sem as datas do banco)", Object.keys((await listarVersiculos())[0]).sort(), ["capitulo", "fim", "id", "inicio", "livro", "texto"]);
+      conferir("versiculo: texto aparado e numa linha so", (await listarVersiculos()).find((v) => v.id === novo.id)?.texto, "Texto de teste.");
+      conferir("versiculo repetido e recusado", (await adicionarVersiculo({ livro: "Salmos", capitulo: 119, inicio: livre, fim: livre, texto: "Outro." })).erro, "Este versiculo ja esta na lista.");
+      conferir("versiculo invalido e recusado", (await adicionarVersiculo({ livro: "Isaías", capitulo: 1, inicio: 1, fim: 1, texto: "x" })).ok, false);
+      conferir("versiculo: livro sem o acento e recusado", (await adicionarVersiculo({ livro: "Proverbios", capitulo: 3, inicio: 5, fim: 5, texto: "x" })).ok, false);
+      conferir("versiculo: texto so de espacos e recusado", (await adicionarVersiculo({ livro: "Salmos", capitulo: 1, inicio: 1, fim: 1, texto: " \n " })).erro, "Cole o texto do versiculo.");
+      conferir("versiculo recusado nao entra", (await listarVersiculos()).length, atuais.length + 1);
+
+      const outros = (await listarVersiculos()).filter((v) => v.id !== novo.id).map(referenciaDoVersiculo);
+      conferir("sorteio do banco nunca devolve o excluido", (await sortearVersiculoDoBanco({ excluir: outros, resto: "r".repeat(2000) })).versiculo?.inicio, livre);
+      // Os usados vem da linha do canal; o ultimo gravar de frases ja a criou.
+      await prisma.configCanal.update({ where: { canal: "MERCADO_LIVRE" }, data: { versiculosUsados: outros } });
+      const sorteado = await sortearVersiculoDoBanco({ resto: "r".repeat(2000) });
+      conferir("sorteio do banco pula os usados do canal", [sorteado.versiculo?.inicio, sorteado.reiniciou], [livre, false]);
+      // Com a lista so de um versiculo (tabela vazia antes do teste), `outros` e vazio e o
+      // caso acima nao prova nada; usado o unico que sobra, o ciclo tem que recomecar.
+      await prisma.configCanal.update({ where: { canal: "MERCADO_LIVRE" }, data: { versiculosUsados: [...outros, `Salmos 119:${livre}`] } });
+      const recomecou = await sortearVersiculoDoBanco({ resto: "r".repeat(2000) });
+      conferir("sorteio do banco: todos usados, o ciclo recomeca", [recomecou.versiculo?.inicio, recomecou.reiniciou], [livre, true]);
+      conferir("sorteio do banco: nada cabe, sem versiculo", (await sortearVersiculoDoBanco({ resto: "curto" })).versiculo, null);
+
+      const antesDeRemover = (await listarVersiculos()).length;
+      conferir("remover id que nao existe", await removerVersiculo("id-que-nao-existe"), { ok: false, erro: "Versiculo nao encontrado." });
+      conferir("remover sem id nao apaga nada", [(await removerVersiculo(undefined)).ok, (await listarVersiculos()).length], [false, antesDeRemover]);
+      conferir("versiculo sai", [(await removerVersiculo(novo.id)).ok, (await listarVersiculos()).length], [true, atuais.length]);
+      if (atuais.length > 0) conferir("carga inicial nao mexe em lista que ja tem versiculo", (await carregarVersiculosIniciais([sl23])).carregados, 0);
+    } finally {
+      await prisma.versiculo.deleteMany({ where: { texto: { in: textosDeTeste } } });
+      if (configAntes) {
+        const dados = { frasesFixas: configAntes.frasesFixas, versiculosUsados: configAntes.versiculosUsados };
+        await prisma.configCanal.upsert({ where: { canal: "MERCADO_LIVRE" }, create: { canal: "MERCADO_LIVRE", ...dados }, update: dados });
+      } else {
+        await prisma.configCanal.deleteMany({ where: { canal: "MERCADO_LIVRE" } });
+      }
+    }
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.
