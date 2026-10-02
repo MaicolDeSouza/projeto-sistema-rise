@@ -55,6 +55,17 @@ const { rascunhoInicial, aplicarComposicao } = await import("../src/lib/canaisDe
 const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
 const { montarPayloadML, nomeDaFoto } = await import("../src/lib/canaisDeVenda/ml/payload.js");
 const { estadoDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
+const {
+  contextoDosProdutos,
+  buscarProdutoParaAnuncio,
+  novoRascunhoML,
+  carregarAnuncioML,
+  codigoEmUso,
+  sugerirCodigoDeKit,
+  salvarRascunhoML,
+  anunciosMLDoProduto,
+  listarAnunciosML,
+} = await import("../src/lib/canaisDeVenda/ml/banco.js");
 const { separarCanais } = await import("../src/lib/canais.js");
 
 let falhas = 0;
@@ -565,6 +576,262 @@ try {
         if (atuais.length > 0) conferir("carga inicial nao mexe em lista que ja tem versiculo", (await carregarVersiculosIniciais([sl23])).carregados, 0);
       } finally {
         await prisma.versiculo.deleteMany({ where: { texto: { in: textosDeTeste } } });
+      }
+    } finally {
+      if (configAntes) {
+        const dados = { frasesFixas: configAntes.frasesFixas, versiculosUsados: configAntes.versiculosUsados };
+        await prisma.configCanal.upsert({ where: { canal: "MERCADO_LIVRE" }, create: { canal: "MERCADO_LIVRE", ...dados }, update: dados });
+      } else {
+        await prisma.configCanal.deleteMany({ where: { canal: "MERCADO_LIVRE" } });
+      }
+    }
+  }
+
+  {
+    console.log("\nRascunho (banco)");
+    await limpar();
+
+    // O fornecedor e o versiculo de teste moram no banco de verdade (compartilhado): saem por nome
+    // e por texto, no comeco (sobra de uma execucao morta) e no fim. O produto vai antes do
+    // fornecedor, porque o vinculo ProdutoFornecedor e Restrict para o Fornecedor.
+    const textoDoVersiculo = "Texto de teste ML.";
+    const varrerExtras = async () => {
+      await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor ML" } });
+      await prisma.versiculo.deleteMany({ where: { texto: textoDoVersiculo } });
+    };
+    await varrerExtras();
+
+    // As frases do canal entram no resto da descricao e, com elas, no sorteio do versiculo: o teste
+    // fixa as dele, e a configuracao real do dono volta no finally.
+    const configAntes = await prisma.configCanal.findUnique({ where: { canal: "MERCADO_LIVRE" } });
+    // O rascunho volta do banco com as chaves em outra ordem; a comparacao e pelo conteudo.
+    const ordenado = (v) =>
+      Array.isArray(v) ? v.map(ordenado)
+        : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, ordenado(v[k])]))
+          : v;
+    const anuncioDe = (id) => prisma.anuncio.findUnique({ where: { id } });
+    // So os anuncios dos produtos de teste: o banco e compartilhado e outras frentes gravam anuncios.
+    const anunciosDeTeste = () => prisma.anuncio.count({ where: { produto: { sku: { startsWith: "ZZ-ML-" } } } });
+
+    try {
+      try {
+        await gravarFrases("Frase de teste ML.");
+        const fornecedor = await prisma.fornecedor.create({ data: { nome: "ZZ Fornecedor ML" } });
+        const p1 = await prisma.produto.create({
+          data: {
+            sku: "ZZ-ML-1", tituloBase: "ZZ Produto um", descricaoBase: "Texto da descricao. ".repeat(75),
+            marca: "ZZMARCA", modelo: "ZZ1", ean: "7891234567895",
+            conferido: true, blingId: "111", precoVenda: 10, estoque: 9,
+            pesoKg: 0.05, alturaCm: 2, larguraCm: 3, comprimentoCm: 4,
+          },
+        });
+        const p2 = await prisma.produto.create({ data: { sku: "ZZ-ML-2", tituloBase: "ZZ Produto dois", conferido: true, blingId: "222", estoque: 7 } });
+        // Sem Conferido, e com custo so no rascunho do Bling.
+        const p3 = await prisma.produto.create({ data: { sku: "ZZ-ML-3", tituloBase: "ZZ Produto tres", fornecedorRascunho: { nome: "ZZ", precoCusto: 2.5 } } });
+        const p4 = await prisma.produto.create({ data: { sku: "ZZ-ML-4", tituloBase: "ZZ Produto quatro", descricaoBase: "curta", conferido: true, custo: 3 } });
+        await prisma.produtoFornecedor.create({ data: { produtoId: p1.id, fornecedorId: fornecedor.id, precoCusto: 4, padrao: true } });
+        // A foto principal e a de ordem 1: a ordem do contexto e a do banco, a do rascunho poe a principal na frente.
+        const fotoA = await prisma.produtoArquivo.create({ data: { produtoId: p1.id, tipo: "IMAGEM", arquivo: `${"a".repeat(32)}.jpg`, ordem: 0 } });
+        const fotoB = await prisma.produtoArquivo.create({ data: { produtoId: p1.id, tipo: "IMAGEM", arquivo: `${"b".repeat(32)}.jpg`, ordem: 1, principal: true } });
+        // Documento nao e foto de anuncio.
+        await prisma.produtoArquivo.create({ data: { produtoId: p1.id, tipo: "DOCUMENTO", arquivo: `${"c".repeat(32)}.pdf`, ordem: 2 } });
+
+        const ctx = await contextoDosProdutos([p1.id, p2.id, p3.id, p4.id, "id-que-nao-existe"]);
+        conferir("contexto: so os produtos que existem", Object.keys(ctx).sort(), [p1.id, p2.id, p3.id, p4.id].sort());
+        conferir("contexto: sem ids devolve vazio", await contextoDosProdutos([]), {});
+        conferir("contexto: custo do fornecedor padrao", (await contextoDosProdutos([p1.id]))[p1.id].custo, { valor: 4, origem: "fornecedor padrao" });
+        conferir("contexto: custo do rascunho do Bling", ctx[p3.id].custo, { valor: 2.5, origem: "rascunho do Bling" });
+        conferir("contexto: custo do cadastro", ctx[p4.id].custo, { valor: 3, origem: "cadastro" });
+        conferir("contexto: sem custo", ctx[p2.id].custo, { valor: null, origem: null });
+        conferir("contexto: os campos que o rascunho le", Object.keys(ctx[p1.id]).sort(),
+          ["alturaCm", "blingId", "comprimentoCm", "conferido", "custo", "descricaoBase", "ean", "estoque", "id", "imagens", "larguraCm", "marca", "modelo", "pesoKg", "precoVenda", "sku", "tituloBase"]);
+        conferir("contexto: Decimal vira Number", [ctx[p1.id].precoVenda, ctx[p1.id].pesoKg, ctx[p1.id].alturaCm, ctx[p1.id].larguraCm, ctx[p1.id].comprimentoCm, ctx[p1.id].estoque], [10, 0.05, 2, 3, 4, 9]);
+        conferir("contexto: sem preco nem peso e null, nao zero", [ctx[p2.id].precoVenda, ctx[p2.id].pesoKg], [null, null]);
+        conferir("contexto: so fotos, na ordem do banco, com o endereco calculado", ctx[p1.id].imagens, [
+          { id: fotoA.id, url: `/api/arquivos/ZZ-ML-1/imagens/${fotoA.arquivo}`, principal: false },
+          { id: fotoB.id, url: `/api/arquivos/ZZ-ML-1/imagens/${fotoB.arquivo}`, principal: true },
+        ]);
+
+        conferir("busca por codigo acha o Conferido", (await buscarProdutoParaAnuncio("ZZ-ML-1")).produto.id, p1.id);
+        conferir("busca: o codigo e aparado", (await buscarProdutoParaAnuncio("  ZZ-ML-1 ")).produto.id, p1.id);
+        conferir("busca recusa o nao Conferido", (await buscarProdutoParaAnuncio("ZZ-ML-3")).erro, "O produto ZZ-ML-3 ainda nao foi Conferido. So produto Conferido vira anuncio.");
+        conferir("busca: codigo que nao existe", (await buscarProdutoParaAnuncio("ZZ-ML-NAO")).erro, "Nenhum produto com o codigo ZZ-ML-NAO.");
+        conferir("busca: o codigo e exato, nao parte dele", (await buscarProdutoParaAnuncio("ZZ-ML")).ok, false);
+        conferir("busca: codigo vazio", (await buscarProdutoParaAnuncio("   ")).erro, "Informe o codigo do produto.");
+
+        // Com a lista de versiculos ainda vazia (a carga real e da Tarefa 15) o rascunho nasce sem
+        // versiculo e sem erro. Com a lista ja carregada nao ha o que afirmar de um sorteio.
+        if ((await prisma.versiculo.count()) === 0) {
+          const semLista = await novoRascunhoML(p1.id);
+          conferir("lista de versiculos vazia: nasce sem versiculo e sem erro", [semLista.ok, semLista.rascunho.versiculo], [true, null]);
+        }
+        // Versiculo curto, que cabe em qualquer descricao do teste. Entra direto no banco (e nao por
+        // adicionarVersiculo) para o teto de 500 da lista real nao barrar o teste.
+        const versiculosAtuais = await listarVersiculos();
+        const livre = Array.from({ length: 176 }, (_, i) => i + 1).find((n) => !versiculosAtuais.some((v) => v.livro === "Salmos" && v.capitulo === 119 && v.inicio === n));
+        await prisma.versiculo.create({ data: { livro: "Salmos", capitulo: 119, inicio: livre, fim: livre, texto: textoDoVersiculo } });
+
+        const novo = await novoRascunhoML(p1.id);
+        conferir("novo rascunho nao grava nada", [novo.ok, await prisma.anuncio.count({ where: { produtoId: p1.id } })], [true, 0]);
+        conferir("novo rascunho: contexto com produtos, frases e codigo em uso", [Object.keys(novo.contexto).sort(), Object.keys(novo.contexto.produtos), novo.contexto.frases, novo.contexto.codigoEmUso],
+          [["codigoEmUso", "frases", "produtos"], [p1.id], ["Frase de teste ML."], null]);
+        conferir("novo rascunho: parte do produto", [novo.rascunho.produtoId, novo.rascunho.titulo, novo.rascunho.preco, novo.rascunho.estoque, novo.rascunho.atributos],
+          [p1.id, "ZZ Produto um", 10, 9, { BRAND: "ZZMARCA", MODEL: "ZZ1", GTIN: "7891234567895" }]);
+        conferir("novo rascunho: fotos com a principal na frente", novo.rascunho.imagens, [fotoB.id, fotoA.id]);
+        conferir("novo rascunho: o versiculo sorteado nao leva o id do banco", Object.keys(novo.rascunho.versiculo ?? {}).sort(), ["capitulo", "fim", "inicio", "livro", "texto"]);
+        conferir("novo rascunho nao Conferido e recusado", (await novoRascunhoML(p3.id)).ok, false);
+        conferir("novo rascunho nao Conferido: diz qual", (await novoRascunhoML(p3.id)).erro, "O produto ZZ-ML-3 ainda nao foi Conferido. So produto Conferido vira anuncio.");
+        conferir("novo rascunho: produto que nao existe", (await novoRascunhoML("id-que-nao-existe")).erro, "Produto nao encontrado.");
+        const curto = await novoRascunhoML(p4.id);
+        conferir("descricao curta: nasce sem versiculo e sem erro", [curto.ok, curto.rascunho.versiculo], [true, null]);
+
+        const salvo = await salvarRascunhoML(null, { ...novo.rascunho, tipoAnuncio: "gold_special" });
+        const premium = await salvarRascunhoML(null, { ...novo.rascunho, tipoAnuncio: "gold_pro" });
+        conferir("salva dois rascunhos do mesmo produto", [salvo.ok, premium.ok, (await anunciosMLDoProduto(p1.id)).length], [true, true, 2]);
+        conferir("salvo e RASCUNHO", (await anuncioDe(salvo.id)).status, "RASCUNHO");
+        conferir("salvo no Mercado Livre, no produto", [(await anuncioDe(salvo.id)).canal, (await anuncioDe(salvo.id)).produtoId], ["MERCADO_LIVRE", p1.id]);
+        conferir("anuncios do produto: a ficha de cada um, o mais recente primeiro", (await anunciosMLDoProduto(p1.id)).map((a) => [a.id, a.titulo, a.tipoAnuncio, a.codigo, a.status]),
+          [[premium.id, "ZZ Produto um", "gold_pro", "ZZ-ML-1", "RASCUNHO"], [salvo.id, "ZZ Produto um", "gold_special", "ZZ-ML-1", "RASCUNHO"]]);
+        conferir("anuncios do produto: tem a data da ultima alteracao", (await anunciosMLDoProduto(p1.id)).every((a) => a.atualizadoEm instanceof Date), true);
+        conferir("anuncios do produto: produto sem anuncio", await anunciosMLDoProduto(p2.id), []);
+
+        const lido = await carregarAnuncioML(salvo.id);
+        conferir("carregar devolve o que foi salvo", [lido.rascunho.titulo, lido.rascunho.tipoAnuncio, lido.rascunho.envio.pesoKg], [novo.rascunho.titulo, "gold_special", 0.05]);
+        conferir("carregar devolve o rascunho inteiro", ordenado(lido.rascunho), ordenado({ ...novo.rascunho, tipoAnuncio: "gold_special" }));
+        conferir("carregar: anuncio, status e contexto", [lido.anuncioId, lido.status, Object.keys(lido.contexto.produtos), lido.contexto.frases, lido.contexto.codigoEmUso],
+          [salvo.id, "RASCUNHO", [p1.id], ["Frase de teste ML."], null]);
+        conferir("carregar: anuncio que nao existe", (await carregarAnuncioML("id-que-nao-existe")).erro, "Anuncio nao encontrado.");
+        conferir("carregar: sem id nao devolve outro anuncio", (await carregarAnuncioML(undefined)).ok, false);
+
+        await prisma.produto.update({ where: { id: p1.id }, data: { conferido: false } });
+        conferir("produto que deixou de ser Conferido: salvar recusa", (await salvarRascunhoML(salvo.id, lido.rascunho)).erro, "O produto ZZ-ML-1 nao esta mais Conferido. Confira o cadastro antes de salvar o anuncio.");
+        conferir("produto que deixou de ser Conferido: o que estava salvo nao muda", [(await salvarRascunhoML(salvo.id, { ...lido.rascunho, titulo: "ZZ nao grava" })).ok, (await anuncioDe(salvo.id)).titulo], [false, novo.rascunho.titulo]);
+        conferir("produto que deixou de ser Conferido: novo anuncio tambem recusa", (await salvarRascunhoML(null, novo.rascunho)).ok, false);
+        conferir("produto que deixou de ser Conferido: o anuncio ainda abre", [(await carregarAnuncioML(salvo.id)).ok, (await carregarAnuncioML(salvo.id)).contexto.produtos[p1.id].conferido], [true, false]);
+        await prisma.produto.update({ where: { id: p1.id }, data: { conferido: true } });
+
+        // Produto excluido: o anuncio some junto (Cascade), entao so o rascunho ainda nao salvo, ou um item de kit, chega aqui.
+        const efemero = await prisma.produto.create({ data: { sku: "ZZ-ML-5", tituloBase: "ZZ Efemero", conferido: true } });
+        await prisma.produto.delete({ where: { id: efemero.id } });
+        conferir("produto excluido: salvar recusa", (await salvarRascunhoML(null, { ...novo.rascunho, produtoId: efemero.id })).erro, "O produto do anuncio foi excluido.");
+        conferir("item de kit excluido: salvar recusa", (await salvarRascunhoML(null, { ...novo.rascunho, composicao: { itens: [{ produtoId: p1.id, quantidade: 1 }, { produtoId: efemero.id, quantidade: 1 }], codigo: "250998", blingProdutoId: null } })).erro,
+          "Um dos produtos da composicao foi excluido.");
+        conferir("item de kit nao Conferido recusa", (await salvarRascunhoML(null, { ...novo.rascunho, composicao: { itens: [{ produtoId: p1.id, quantidade: 1 }, { produtoId: p3.id, quantidade: 1 }], codigo: "250999", blingProdutoId: null } })).ok, false);
+        conferir("item de kit nao Conferido: diz qual", (await salvarRascunhoML(null, { ...novo.rascunho, composicao: { itens: [{ produtoId: p1.id, quantidade: 1 }, { produtoId: p3.id, quantidade: 1 }], codigo: "250999", blingProdutoId: null } })).erro,
+          "O produto ZZ-ML-3 nao esta mais Conferido. Confira o cadastro antes de salvar o anuncio.");
+
+        // Cada campo do rascunho mora numa coluna; o que nao tem coluna vai para `dados`. O numero escrito
+        // como texto ("12,5") e o campo vazio chegam da tela e viram numero e null.
+        const completo = await salvarRascunhoML(null, { ...novo.rascunho, categoriaId: "MLB1234", preco: "12,5", estoque: "" });
+        const gravado = await anuncioDe(completo.id);
+        conferir("cada campo mora na sua coluna", [gravado.titulo, gravado.descricao, gravado.categoriaExternaId, gravado.produtoId, ordenado(gravado.atributos)],
+          [novo.rascunho.titulo, novo.rascunho.descricao, "MLB1234", p1.id, ordenado(novo.rascunho.atributos)]);
+        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["composicao", "condicao", "envio", "estoque", "familyName", "imagens", "preco", "tipoAnuncio", "versiculo"]);
+        conferir("numero escrito como texto vira numero, e vazio vira null", [gravado.dados.preco, gravado.dados.estoque], [12.5, null]);
+
+        // Atualizar: o mesmo anuncio, e o que o editor nao conhece (a etapa da fase 3) fica.
+        const antesDeAtualizar = await prisma.anuncio.count({ where: { produtoId: p1.id } });
+        const atualizado = await salvarRascunhoML(premium.id, { ...novo.rascunho, tipoAnuncio: "gold_pro", titulo: "ZZ Titulo novo" });
+        conferir("atualizar grava no mesmo anuncio, sem criar outro", [atualizado, (await anuncioDe(premium.id)).titulo, (await prisma.anuncio.count({ where: { produtoId: p1.id } })) - antesDeAtualizar],
+          [{ ok: true, id: premium.id }, "ZZ Titulo novo", 0]);
+        await prisma.anuncio.update({ where: { id: premium.id }, data: { dados: { ...(await anuncioDe(premium.id)).dados, etapa: "teste" } } });
+        await salvarRascunhoML(premium.id, { ...novo.rascunho, tipoAnuncio: "gold_pro", titulo: "ZZ Titulo novo" });
+        conferir("atualizar guarda o que o editor nao conhece", [(await anuncioDe(premium.id)).dados.etapa, (await anuncioDe(premium.id)).titulo], ["teste", "ZZ Titulo novo"]);
+        conferir("atualizar: anuncio que nao existe", (await salvarRascunhoML("id-que-nao-existe", novo.rascunho)).erro, "Anuncio nao encontrado.");
+        const antesDoIdVazio = await anunciosDeTeste();
+        conferir("atualizar: id vazio nao vira anuncio novo", [(await salvarRascunhoML("", novo.rascunho)).erro, await anunciosDeTeste()], ["Anuncio nao encontrado.", antesDoIdVazio]);
+        const doBling = await prisma.anuncio.create({ data: { produtoId: p2.id, canal: "BLING" } });
+        conferir("anuncio de outro canal nao e alterado aqui", (await salvarRascunhoML(doBling.id, { ...novo.rascunho, produtoId: p2.id })).erro, "Este anuncio nao pode ser alterado aqui.");
+        const publicado = await salvarRascunhoML(null, novo.rascunho);
+        await prisma.anuncio.update({ where: { id: publicado.id }, data: { status: "PUBLICADO" } });
+        conferir("anuncio publicado nao e alterado aqui", [(await salvarRascunhoML(publicado.id, { ...novo.rascunho, titulo: "ZZ nao grava" })).erro, (await anuncioDe(publicado.id)).titulo],
+          ["Este anuncio nao pode ser alterado aqui.", novo.rascunho.titulo]);
+
+        const kitA = { ...novo.rascunho, composicao: { itens: [{ produtoId: p1.id, quantidade: 2 }, { produtoId: p2.id, quantidade: 3 }], codigo: "ZZ-ML-KIT", blingProdutoId: null } };
+        const k1 = await salvarRascunhoML(null, kitA);
+        conferir("kit misto salva", k1.ok, true);
+        conferir("mesmo codigo, mesma composicao em outra ordem: aceito", (await salvarRascunhoML(null, { ...kitA, tipoAnuncio: "gold_pro", composicao: { ...kitA.composicao, itens: [...kitA.composicao.itens].reverse() } })).ok, true);
+        conferir("mesmo codigo, composicao diferente: recusado", (await codigoEmUso("ZZ-ML-KIT", { anuncioId: null, itens: [{ produtoId: p1.id, quantidade: 5 }] })) !== null, true);
+        conferir("codigo igual ao SKU de um produto: recusado", await codigoEmUso("ZZ-ML-2", { anuncioId: null, itens: kitA.composicao.itens }), "o produto ZZ-ML-2 do cadastro");
+        const k2 = await salvarRascunhoML(null, { ...kitA, composicao: { ...kitA.composicao, codigo: "ZZ-ML-KIT2" } });
+        conferir("o proprio anuncio nao conta como uso", await codigoEmUso("ZZ-ML-KIT2", { anuncioId: k2.id, itens: [{ produtoId: p1.id, quantidade: 5 }] }), null);
+        const umSo = await salvarRascunhoML(null, { ...novo.rascunho, composicao: { itens: [{ produtoId: p1.id, quantidade: 5 }], codigo: "qualquer", blingProdutoId: null } });
+        conferir("kit de um produto: o servidor refaz o codigo", (await carregarAnuncioML(umSo.id)).rascunho.composicao.codigo, "ZZ-ML-1_5");
+
+        const emUso = (codigo, itens) => codigoEmUso(codigo, { anuncioId: null, itens });
+        conferir("codigo em uso: a mensagem diz qual anuncio", await emUso("ZZ-ML-KIT", [{ produtoId: p1.id, quantidade: 5 }]), 'o anuncio "ZZ Produto um" com outra composicao');
+        conferir("codigo em uso: mesma composicao nao conta", await emUso("ZZ-ML-KIT", kitA.composicao.itens), null);
+        conferir("codigo em uso: a ordem dos itens nao importa", await emUso("ZZ-ML-KIT", [...kitA.composicao.itens].reverse()), null);
+        conferir("codigo em uso: quantidade escrita como texto", await emUso("ZZ-ML-KIT", [{ produtoId: p1.id, quantidade: "2" }, { produtoId: p2.id, quantidade: "3" }]), null);
+        conferir("codigo em uso: outra quantidade e outra composicao", (await emUso("ZZ-ML-KIT", [{ produtoId: p1.id, quantidade: 2 }, { produtoId: p2.id, quantidade: 4 }])) !== null, true);
+        conferir("codigo em uso: parte dos itens e outra composicao", (await emUso("ZZ-ML-KIT", [{ produtoId: p1.id, quantidade: 2 }])) !== null, true);
+        conferir("codigo em uso: codigo livre", await emUso("ZZ-ML-LIVRE", kitA.composicao.itens), null);
+        conferir("codigo em uso: codigo em branco nao conta", await emUso("  ", kitA.composicao.itens), null);
+        conferir("codigo em uso: o codigo e exato", await emUso("zz-ml-kit", [{ produtoId: p1.id, quantidade: 5 }]), null);
+
+        // O que o servidor recusa ao salvar o kit.
+        const kitComCodigo = (codigo, itens = kitA.composicao.itens) => ({ ...kitA, composicao: { ...kitA.composicao, codigo, itens } });
+        conferir("kit com codigo de outra composicao: salvar recusa", (await salvarRascunhoML(null, kitComCodigo("ZZ-ML-KIT", [{ produtoId: p1.id, quantidade: 5 }, { produtoId: p2.id, quantidade: 1 }]))).erro,
+          'O codigo ZZ-ML-KIT ja esta em uso: o anuncio "ZZ Produto um" com outra composicao.');
+        conferir("kit com codigo de um produto: salvar recusa", (await salvarRascunhoML(null, kitComCodigo("ZZ-ML-2"))).erro, "O codigo ZZ-ML-2 ja esta em uso: o produto ZZ-ML-2 do cadastro.");
+        conferir("kit com o proprio codigo: atualizar aceita", (await salvarRascunhoML(k2.id, kitComCodigo("ZZ-ML-KIT2"))).ok, true);
+        conferir("kit com menos de 2 unidades: salvar recusa", (await salvarRascunhoML(null, kitComCodigo("x", [{ produtoId: p1.id, quantidade: 1 }]))).erro, "A composicao precisa de ao menos 2 unidades.");
+        conferir("kit com quantidade fora do normal: salvar recusa", (await salvarRascunhoML(null, kitComCodigo("x", [{ produtoId: p1.id, quantidade: "abc" }, { produtoId: p2.id, quantidade: 1 }]))).erro,
+          "Item 1: a quantidade deve ser um numero inteiro de 1 a 9999.");
+        conferir("kit com item sem produto: salvar recusa", (await salvarRascunhoML(null, kitComCodigo("x", [{ produtoId: p1.id, quantidade: 2 }, { produtoId: null, quantidade: 1 }]))).erro, "Item 2: escolha o produto.");
+        conferir("kit sem codigo ainda e rascunho: salva", (await salvarRascunhoML(null, kitComCodigo(""))).ok, true);
+        const kitDoMeio = await salvarRascunhoML(null, { ...kitComCodigo("ZZ-ML-KIT", [{ produtoId: p1.id, quantidade: "2" }, { produtoId: p2.id, quantidade: "3" }]), produtoId: p2.id });
+        conferir("kit: o produto do anuncio e o primeiro item, e a quantidade vira numero", [(await anuncioDe(kitDoMeio.id)).produtoId, (await carregarAnuncioML(kitDoMeio.id)).rascunho.composicao.itens],
+          [p1.id, [{ produtoId: p1.id, quantidade: 2 }, { produtoId: p2.id, quantidade: 3 }]]);
+        const umMilhar = await salvarRascunhoML(null, { ...novo.rascunho, composicao: { itens: [{ produtoId: p1.id, quantidade: 1000 }], codigo: "", blingProdutoId: null } });
+        conferir("kit de um produto: milhar com ponto", (await carregarAnuncioML(umMilhar.id)).rascunho.composicao.codigo, "ZZ-ML-1_1.000");
+
+        // Um anuncio gravado por fora do editor com o codigo do kit e outra composicao: ao abrir, o contexto avisa.
+        const conflito = await prisma.anuncio.create({
+          data: { produtoId: p1.id, canal: "MERCADO_LIVRE", titulo: "ZZ conflito", dados: { composicao: { itens: [{ produtoId: p1.id, quantidade: 9 }], codigo: "ZZ-ML-KIT", blingProdutoId: null } } },
+        });
+        const kitAberto = await carregarAnuncioML(k1.id);
+        conferir("carregar kit: contexto com os itens e o codigo em uso", [Object.keys(kitAberto.contexto.produtos).sort(), kitAberto.contexto.codigoEmUso], [[p1.id, p2.id].sort(), 'o anuncio "ZZ conflito" com outra composicao']);
+        await prisma.anuncio.delete({ where: { id: conflito.id } });
+        conferir("carregar kit: sem conflito, codigo livre", (await carregarAnuncioML(k1.id)).contexto.codigoEmUso, null);
+
+        // O codigo sugerido vem depois do maior ja usado, tambem nos codigos de kit dos anuncios.
+        conferir("sugerir codigo de kit: na faixa 25xxxx", /^25\d{4}$/.test(await sugerirCodigoDeKit()), true);
+        await salvarRascunhoML(null, kitComCodigo("259990"));
+        conferir("sugerir codigo de kit: depois do maior codigo de kit", await sugerirCodigoDeKit(), "259991");
+
+        const totalDeTeste = await prisma.anuncio.count({ where: { canal: "MERCADO_LIVRE", produto: { sku: { startsWith: "ZZ-ML-" } } } });
+        const lista = await listarAnunciosML({ busca: "zz-ml" });
+        conferir("lista traz os anuncios de teste", lista.total >= 6, true);
+        conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["atualizadoEm", "codigo", "id", "preco", "status", "tipoAnuncio", "titulo"]);
+        conferir("lista: o mais recente primeiro", lista.linhas.every((l, i) => i === 0 || lista.linhas[i - 1].atualizadoEm >= l.atualizadoEm), true);
+        conferir("lista: acha pelo codigo do kit", (await listarAnunciosML({ busca: "zz-ml-kit2" })).linhas.map((l) => [l.id, l.codigo]), [[k2.id, "ZZ-ML-KIT2"]]);
+        conferir("lista: acha pelo titulo", (await listarAnunciosML({ busca: "ZZ TITULO NOVO" })).linhas.map((l) => [l.id, l.titulo, l.tipoAnuncio]), [[premium.id, "ZZ Titulo novo", "gold_pro"]]);
+        conferir("lista: o codigo da linha e o do kit, ou o SKU do produto", [lista.linhas.find((l) => l.id === umSo.id).codigo, lista.linhas.find((l) => l.id === salvo.id).codigo], ["ZZ-ML-1_5", "ZZ-ML-1"]);
+        conferir("lista: o preco da linha e o do rascunho", [lista.linhas.find((l) => l.id === salvo.id).preco, lista.linhas.find((l) => l.id === completo.id).preco], [10, 12.5]);
+        conferir("lista: sem resultado", await listarAnunciosML({ busca: "zz-ml-nao-existe" }), { linhas: [], total: 0, pagina: 1, totalPaginas: 1 });
+
+        await prisma.anuncio.createMany({ data: Array.from({ length: 101 }, (_, i) => ({ produtoId: p4.id, canal: "MERCADO_LIVRE", titulo: `ZZ massa ${i}`, dados: { tipoAnuncio: "gold_special" } })) });
+        const comMassa = totalDeTeste + 101;
+        const pagina1 = await listarAnunciosML({ busca: "zz-ml" });
+        const pagina2 = await listarAnunciosML({ busca: "zz-ml", pagina: 2 });
+        conferir("lista: 100 por pagina", [pagina1.linhas.length, pagina1.totalPaginas, pagina1.total], [100, 2, comMassa]);
+        conferir("lista: a segunda pagina traz o resto", [pagina2.pagina, pagina2.linhas.length], [2, comMassa - 100]);
+        conferir("lista: pagina alem do fim vai para a ultima", (({ pagina, linhas }) => [pagina, linhas.length])(await listarAnunciosML({ busca: "zz-ml", pagina: 99 })), [2, comMassa - 100]);
+        conferir("lista: pagina que nao e numero ou e menor que 1 vale 1", [await listarAnunciosML({ busca: "zz-ml", pagina: "abc" }), await listarAnunciosML({ busca: "zz-ml", pagina: 0 }), await listarAnunciosML({ busca: "zz-ml", pagina: -3 })].map((l) => l.pagina), [1, 1, 1]);
+        conferir("lista: pagina escrita como texto", (await listarAnunciosML({ busca: "zz-ml", pagina: "2" })).pagina, 2);
+
+        const antesDasRecusas = await anunciosDeTeste();
+        conferir("entrada fora da forma e recusada", (await salvarRascunhoML(null, { produtoId: p1.id, titulo: 42 })).ok, false);
+        conferir("entrada fora da forma: a mensagem", (await salvarRascunhoML(null, { produtoId: p1.id, titulo: 42 })).erro, "O rascunho chegou incompleto. Recarregue a tela.");
+        conferir("entrada que nao e um rascunho e recusada", (await Promise.all([null, undefined, "texto", 42, []].map((entrada) => salvarRascunhoML(null, entrada)))).map((r) => r.ok), Array(5).fill(false));
+        conferir("numero que nao e numero recusa o rascunho", (await salvarRascunhoML(null, { ...novo.rascunho, preco: "abc" })).ok, false);
+        conferir("tipo de anuncio desconhecido e recusado", (await salvarRascunhoML(null, { ...novo.rascunho, tipoAnuncio: "ouro" })).ok, false);
+        conferir("o que foi recusado nao grava nada", await anunciosDeTeste(), antesDasRecusas);
+      } finally {
+        await limpar();
+        await varrerExtras();
       }
     } finally {
       if (configAntes) {
