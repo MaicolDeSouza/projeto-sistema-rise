@@ -8,10 +8,20 @@ import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import AbaEmBreve from "./AbaEmBreve";
+import AbaEnvio from "./AbaEnvio";
+import AbaFichaTecnica from "./AbaFichaTecnica";
 import AbaGeral from "./AbaGeral";
+import AbaImagens from "./AbaImagens";
+import AbaPrecoEstoque from "./AbaPrecoEstoque";
 
-// As abas das Tarefas 10 e 11 entram aqui; a que ainda nao esta pronta mostra o marcador.
-const ABAS_PRONTAS = { geral: AbaGeral };
+// As abas da Tarefa 11 (descricao e previa) entram aqui; ate la mostram o marcador.
+const ABAS_PRONTAS = {
+  geral: AbaGeral,
+  preco: AbaPrecoEstoque,
+  imagens: AbaImagens,
+  ficha: AbaFichaTecnica,
+  envio: AbaEnvio,
+};
 
 const STATUS = {
   RASCUNHO: { rotulo: "Rascunho", tom: "neutro" },
