@@ -32,6 +32,15 @@ const {
   proximoCodigoDaFaixa,
 } = await import("../src/lib/canaisDeVenda/composicao.js");
 const { custoDoProduto } = await import("../src/lib/canaisDeVenda/custo.js");
+const {
+  referenciaDoVersiculo,
+  linhaDoVersiculo,
+  contarVersiculos,
+  errosDoVersiculo,
+  podeAcrescentar,
+  cabeNaDescricao,
+  sortearVersiculo,
+} = await import("../src/lib/canaisDeVenda/versiculos.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -108,6 +117,36 @@ try {
     conferir("sem padrao, rascunho do Bling", custoDoProduto({ fornecedores: [], fornecedorRascunho: { precoCusto: 9 }, custo: 7 }), { valor: 9, origem: "rascunho do Bling" });
     conferir("sem os dois, cadastro", custoDoProduto({ fornecedores: [], fornecedorRascunho: null, custo: 7 }), { valor: 7, origem: "cadastro" });
     conferir("sem custo nenhum", custoDoProduto({ fornecedores: [], fornecedorRascunho: null, custo: null }), { valor: null, origem: null });
+  }
+
+  // Fica no nivel do try porque as Tarefas 4, 5 e 6 reaproveitam este versiculo.
+  const sl23 = { livro: "Salmos", capitulo: 23, inicio: 1, fim: 1, texto: "O SENHOR é o meu pastor; de nada terei falta." };
+
+  {
+    console.log("\nVersiculos");
+
+    const pv3 = { livro: "Provérbios", capitulo: 3, inicio: 5, fim: 6, texto: "x".repeat(150) };
+    conferir("referencia de um versiculo", referenciaDoVersiculo(sl23), "Salmos 23:1");
+    conferir("referencia de faixa", referenciaDoVersiculo(pv3), "Provérbios 3:5-6");
+    conferir("linha com o credito da NVI", linhaDoVersiculo(sl23), "“O SENHOR é o meu pastor; de nada terei falta.” Salmos 23:1 (NVI)");
+    conferir("faixa conta cada versiculo", contarVersiculos([sl23, pv3]), 3);
+    conferir("versiculo valido", errosDoVersiculo(sl23), []);
+    conferir("livro fora da lista", errosDoVersiculo({ ...sl23, livro: "Isaías" }), ["Use Salmos ou Provérbios."]);
+    conferir("capitulo que nao existe", errosDoVersiculo({ ...sl23, livro: "Provérbios", capitulo: 32 }), ["Provérbios tem 31 capitulos."]);
+    conferir("fim antes do inicio", errosDoVersiculo({ ...sl23, inicio: 4, fim: 3 }), ["O versiculo final nao pode vir antes do inicial."]);
+    conferir("texto vazio", errosDoVersiculo({ ...sl23, texto: "  " }), ["Cole o texto do versiculo."]);
+    const cheia = Array.from({ length: 499 }, (_, i) => ({ ...sl23, capitulo: 1 + (i % 150), inicio: 1 + i }));
+    conferir("cabe o 500o", podeAcrescentar(cheia, sl23), { ok: true });
+    conferir("passa de 500", podeAcrescentar(cheia, pv3), { ok: false, erro: "A lista ficaria com 501 versiculos. O limite da NVI sem autorizacao da Biblica e 500." });
+    conferir("25%: cabe", cabeNaDescricao("v".repeat(100), "r".repeat(400)), true);
+    conferir("25%: nao cabe", cabeNaDescricao("v".repeat(100), "r".repeat(250)), false);
+    const lista = [sl23, { ...sl23, capitulo: 24 }, { ...sl23, capitulo: 25 }];
+    conferir("sorteio pula os ja usados", sortearVersiculo({ lista, usados: ["Salmos 23:1"], resto: "r".repeat(2000), aleatorio: () => 0 }).versiculo.capitulo, 24);
+    conferir("sorteio respeita o excluir", sortearVersiculo({ lista, usados: [], excluir: ["Salmos 23:1", "Salmos 24:1"], resto: "r".repeat(2000), aleatorio: () => 0 }).versiculo.capitulo, 25);
+    conferir("todos usados: recomeca", sortearVersiculo({ lista, usados: lista.map(referenciaDoVersiculo), resto: "r".repeat(2000), aleatorio: () => 0 }).reiniciou, true);
+    conferir("nenhum cabe", sortearVersiculo({ lista, usados: [], resto: "curto", aleatorio: () => 0 }),
+      { versiculo: null, motivo: "Nenhum versiculo da lista cabe nesta descricao: a NVI pede que a citacao fique abaixo de 25% do texto." });
+    conferir("lista vazia", sortearVersiculo({ lista: [], usados: [], resto: "r".repeat(2000) }), { versiculo: null, motivo: "A lista de versiculos esta vazia. Carregue-a em Configuracoes." });
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.
