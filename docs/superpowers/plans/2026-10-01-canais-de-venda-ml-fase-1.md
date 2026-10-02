@@ -55,8 +55,8 @@
 - [ ] **Step 1: Conferir que a pasta está pronta para mexer no schema**
 
 Run: `git branch --show-current` e `git status --short`
-Expected: `canais-de-venda`, e **nenhum** destes aparece como modificado ou não rastreado: `prisma/schema.prisma`, `prisma/migrations/20260930_fotos_mensais/`, `prisma/migrations/20260930_movimento_estoque/`, `src/components/produtos/LinhaProduto.jsx`, `src/app/produtos/page.jsx`, `package.json`, `CLAUDE.md`, `src/lib/coleta/normalizar.js`, `src/lib/coleta/microdata.js`, `scripts/teste-extracao.js`.
-Se algum aparecer: **PARE e avise o dono.** São da outra frente (fotos mensais, edição rápida) e das correções de coleta de 30/09; pela regra do schema, eles precisam ser comitados (na `main`) e trazidos com `git merge main` antes desta migration, senão o `migrate diff` propõe apagar `FotoMensalColeta`, `FotoMensalProduto` e `MovimentoEstoque`, e os commits desta feature levariam código que não é dela.
+Expected: `canais-de-venda` e o `git status --short` **vazio**. Em 01/10/2026 ele mostrava, entre outros, `prisma/schema.prisma`, `prisma/migrations/20260930_fotos_mensais/`, `prisma/migrations/20260930_movimento_estoque/`, `src/lib/margem.js` (que a Tarefa 10 usa), `src/components/produtos/LinhaProduto.jsx`, `src/app/produtos/page.jsx`, `package.json`, `CLAUDE.md`, `src/lib/coleta/normalizar.js`, `src/lib/coleta/microdata.js` e `scripts/teste-extracao.js`.
+Se aparecer qualquer linha: **PARE e avise o dono.** São da outra frente (fotos mensais, edição rápida) e das correções de coleta de 30/09; pela regra do schema, eles precisam ser comitados (na `main`) e trazidos com `git merge main` antes desta migration, senão o `migrate diff` propõe apagar `FotoMensalColeta`, `FotoMensalProduto` e `MovimentoEstoque`, e os commits desta feature levariam código que não é dela.
 
 - [ ] **Step 2: Escrever o teste do banco (falha)**
 
