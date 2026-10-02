@@ -43,7 +43,7 @@ const {
 } = await import("../src/lib/canaisDeVenda/versiculos.js");
 const { montarDescricaoML, restoDaDescricao } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
 const { rascunhoInicial, aplicarComposicao } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
-const { ABAS_ML, validarRascunhoML } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
+const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
 const { montarPayloadML, nomeDaFoto } = await import("../src/lib/canaisDeVenda/ml/payload.js");
 const { estadoDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
 const { separarCanais } = await import("../src/lib/canais.js");
@@ -366,6 +366,12 @@ try {
     conferir("sem peso", onde(problema(comEnvio({ pesoKg: null }), ctx, "peso")), ["envio", true]);
     conferir("sem dimensoes", onde(problema(comEnvio({ alturaCm: 0 }), ctx, "dimensoes")), ["envio", true]);
     conferir("sem comprimento", onde(problema(comEnvio({ comprimentoCm: null }), ctx, "dimensoes")), ["envio", true]);
+    conferir("dimensoes: a mensagem diz o que falta", problema(comEnvio({ alturaCm: 0, comprimentoCm: null }), ctx, "dimensoes").problema,
+      "Informe as medidas do pacote em cm. Faltam: altura, comprimento.");
+    conferir("peso faltando nao acusa dimensoes", [problema(comEnvio({ pesoKg: 0 }), ctx, "peso") !== undefined, problema(comEnvio({ pesoKg: 0 }), ctx, "dimensoes")], [true, undefined]);
+    conferir("medidasFaltando: tudo certo", medidasFaltando(base.envio), []);
+    conferir("medidasFaltando: na ordem do envio", medidasFaltando({ pesoKg: null, alturaCm: "abc", larguraCm: 2, comprimentoCm: -1 }), ["altura", "comprimento", "peso"]);
+    conferir("medidasFaltando: sem envio nenhum", medidasFaltando(undefined), ["altura", "largura", "comprimento", "peso"]);
     conferir("produto nao Conferido", onde(problema(base, comProduto("a", { conferido: false }), "produto")), ["geral", true]);
     conferir("produto nao Conferido: mensagem", problema(base, comProduto("a", { conferido: false }), "produto").problema, "Este produto nao esta Conferido. So produto Conferido vira anuncio.");
     conferir("produto sem blingId", onde(problema(base, comProduto("a", { blingId: null }), "blingId")), ["geral", true]);
@@ -374,7 +380,7 @@ try {
 
     conferir("kit: codigo em uso", onde(problema(kitOk, { ...ctx, codigoEmUso: "o produto 100101_5 do cadastro" }, "codigoKit")), ["geral", true]);
     conferir("kit: codigo em uso, mensagem", problema(kitOk, { ...ctx, codigoEmUso: "o produto 100101_5 do cadastro" }, "codigoKit").problema,
-      "O codigo 100101_5 ja e usado por o produto 100101_5 do cadastro.");
+      "O codigo 100101_5 ja esta em uso: o produto 100101_5 do cadastro.");
     conferir("kit misto sem codigo", onde(problema(misto, ctx, "codigoKit")), ["geral", true]);
     conferir("kit: item sem blingId", onde(problema(misto, comProduto("b", { blingId: null }), "item:b")), ["geral", true]);
     conferir("kit: item nao Conferido", onde(problema(mistoOk, comProduto("b", { conferido: false }), "item:b")), ["geral", true]);
@@ -415,9 +421,23 @@ try {
     conferir("nome da foto: titulo sem letra nem numero", nomeDaFoto(" +/ ", 0), "anuncio-1.jpg");
 
     conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, rascunho: false });
-    conferir("icone: publicado e rascunho juntos", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICADO" }, { canal: "MERCADO_LIVRE", status: "RASCUNHO" }, { canal: "BLING", status: "RASCUNHO" }]), { publicado: true, rascunho: true });
-    conferir("icone: so rascunho", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "RASCUNHO" }]), { publicado: false, rascunho: true });
-    conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "PUBLICADO" }, { canal: "LOJA_INTEGRADA", status: "RASCUNHO" }]), { publicado: false, rascunho: false });
+    conferir("icone: publicado e rascunho juntos", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA" }, { canal: "MERCADO_LIVRE", status: "RASCUNHO" }, { canal: "BLING", status: "RASCUNHO" }]), { publicado: true, rascunho: true });
+    conferir("icone: so publicado e ativo, sem ponto", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA" }]), { publicado: true, rascunho: false });
+    conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "PUBLICADO", situacaoCanal: "ATIVA" }, { canal: "LOJA_INTEGRADA", status: "RASCUNHO" }]), { publicado: false, rascunho: false });
+    // Cada status que nao e "publicado e ativo" liga o ponto ambar e nunca deixa o icone verde.
+    for (const status of ["RASCUNHO", "VALIDADO", "PUBLICANDO", "ERRO"]) {
+      conferir(`icone: ${status} so liga o ponto`, estadoDoIconeML([{ canal: "MERCADO_LIVRE", status }]), { publicado: false, rascunho: true });
+    }
+    conferir("icone: composicao aguardando o Bling (PUBLICANDO) tem ponto", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICANDO", situacaoCanal: "PAUSADA" }]), { publicado: false, rascunho: true });
+    // O ML pausa anuncio sozinho (falta de estoque): publicado, mas nao ativo, nao e verde.
+    for (const situacaoCanal of ["PAUSADA", "ENCERRADA", "DESCONHECIDA", undefined]) {
+      conferir(`icone: PUBLICADO com situacao ${situacaoCanal ?? "ausente"} nao e verde, liga o ponto`,
+        estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal }]), { publicado: false, rascunho: true });
+    }
+    conferir("icone: ativo num anuncio e pausado em outro, os dois acendem",
+      estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA" }, { canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "PAUSADA" }]), { publicado: true, rascunho: true });
+    conferir("icone: situacao ATIVA sem status publicado nao e verde", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "RASCUNHO", situacaoCanal: "ATIVA" }]), { publicado: false, rascunho: true });
+    conferir("icone: lista invalida", estadoDoIconeML(undefined), { publicado: false, rascunho: false });
 
     const { integrados } = separarCanais([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB1" }, { canal: "MERCADO_LIVRE", status: "RASCUNHO", idExterno: null }]);
     conferir("separarCanais nao esconde o publicado atras do rascunho", integrados.map((c) => c.idExterno), ["MLB1"]);

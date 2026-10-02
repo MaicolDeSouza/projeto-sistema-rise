@@ -29,10 +29,26 @@ const FORMATO_DA_CATEGORIA = /^MLB\d+$/;
 
 const texto = (valor) => String(valor ?? "").trim();
 
-// Mesmo criterio de `payload.js`: ausente, zerado ou quebrado vale como "nao informado".
+// Ausente, zerado ou quebrado vale como "nao informado".
 function positivo(valor) {
   const numero = Number(valor);
   return Number.isFinite(numero) && numero > 0 ? numero : null;
+}
+
+/**
+ * Nomes das medidas do envio que faltam, na ordem altura, largura, comprimento, peso. A
+ * validacao acusa a falta e `payload.js` so monta `shipping.dimensions` quando a lista e
+ * vazia: as duas leem esta regra, para a previa nunca discordar da aba Envio.
+ */
+export function medidasFaltando(envio) {
+  return [
+    ["altura", envio?.alturaCm],
+    ["largura", envio?.larguraCm],
+    ["comprimento", envio?.comprimentoCm],
+    ["peso", envio?.pesoKg],
+  ]
+    .filter(([, valor]) => positivo(valor) === null)
+    .map(([nome]) => nome);
 }
 
 /**
@@ -103,7 +119,7 @@ export function validarRascunhoML(rascunho, contexto) {
     if (!codigo) {
       acrescentar("codigoKit", "geral", "Informe o codigo do kit.");
     } else if (contexto?.codigoEmUso) {
-      acrescentar("codigoKit", "geral", `O codigo ${codigo} ja e usado por ${contexto.codigoEmUso}.`);
+      acrescentar("codigoKit", "geral", `O codigo ${codigo} ja esta em uso: ${contexto.codigoEmUso}.`);
     }
   }
 
@@ -148,16 +164,13 @@ export function validarRascunhoML(rascunho, contexto) {
   }
 
   // Envio
-  if (positivo(envio.pesoKg) === null) {
+  const faltando = medidasFaltando(envio);
+  if (faltando.includes("peso")) {
     acrescentar("peso", "envio", "Informe o peso do pacote em kg: o Mercado Envios precisa dele.");
   }
-  const semMedida = [
-    ["altura", envio.alturaCm],
-    ["largura", envio.larguraCm],
-    ["comprimento", envio.comprimentoCm],
-  ].filter(([, valor]) => positivo(valor) === null);
+  const semMedida = faltando.filter((nome) => nome !== "peso");
   if (semMedida.length > 0) {
-    acrescentar("dimensoes", "envio", `Informe as medidas do pacote em cm. Faltam: ${semMedida.map(([nome]) => nome).join(", ")}.`);
+    acrescentar("dimensoes", "envio", `Informe as medidas do pacote em cm. Faltam: ${semMedida.join(", ")}.`);
   }
 
   return problemas;

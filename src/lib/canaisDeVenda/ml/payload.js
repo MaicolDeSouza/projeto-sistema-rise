@@ -9,17 +9,11 @@
 
 import { LIMITE_TITULO } from "../../anuncios/canais/mercadolivre";
 import { montarDescricaoML } from "./descricao";
+import { medidasFaltando } from "./validacao";
 
 const LIMITE_DO_NOME_DA_FOTO = 60;
 
 const texto = (valor) => String(valor ?? "").trim();
-
-// Medida ausente, zerada ou quebrada vale como "nao informada". A validacao usa o mesmo
-// criterio: a previa so leva `dimensions` quando a aba Envio nao acusa falta de medida.
-function positivo(valor) {
-  const numero = Number(valor);
-  return Number.isFinite(numero) && numero > 0 ? numero : null;
-}
 
 /**
  * Nome legivel da foto no envio ao ML: o titulo sem acento, em minusculas, com `-` no lugar
@@ -41,13 +35,10 @@ export function nomeDaFoto(titulo, indice) {
 
 // "{altura}x{largura}x{comprimento},{gramas}", como o ML pede em `shipping.dimensions`.
 // Sem uma das quatro medidas o campo fica de fora: um valor pela metade seria recusado.
+// Quem diz o que falta e a validacao (aba Envio), para a previa nunca discordar dela.
 function dimensoesDoEnvio(envio) {
-  const altura = positivo(envio.alturaCm);
-  const largura = positivo(envio.larguraCm);
-  const comprimento = positivo(envio.comprimentoCm);
-  const pesoKg = positivo(envio.pesoKg);
-  if ([altura, largura, comprimento, pesoKg].includes(null)) return null;
-  return `${altura}x${largura}x${comprimento},${Math.round(pesoKg * 1000)}`;
+  if (medidasFaltando(envio).length > 0) return null;
+  return `${Number(envio.alturaCm)}x${Number(envio.larguraCm)}x${Number(envio.comprimentoCm)},${Math.round(Number(envio.pesoKg) * 1000)}`;
 }
 
 /**
