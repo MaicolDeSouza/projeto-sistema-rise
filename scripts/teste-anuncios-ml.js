@@ -41,6 +41,8 @@ const {
   cabeNaDescricao,
   sortearVersiculo,
 } = await import("../src/lib/canaisDeVenda/versiculos.js");
+const { montarDescricaoML, restoDaDescricao } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
+const { rascunhoInicial, aplicarComposicao } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -150,6 +152,142 @@ try {
     conferir("todos os que cabem foram excluidos", sortearVersiculo({ lista: [sl23], usados: [], excluir: ["Salmos 23:1"], resto: "r".repeat(2000), aleatorio: () => 0 }),
       { versiculo: null, motivo: "Nao ha outro versiculo que caiba nesta descricao." });
     conferir("lista vazia", sortearVersiculo({ lista: [], usados: [], resto: "r".repeat(2000) }), { versiculo: null, motivo: "A lista de versiculos esta vazia. Carregue-a em Configuracoes." });
+  }
+
+  // Ficam no nivel do try porque a Tarefa 5 reaproveita estes contextos e rascunhos. Sao
+  // contextos de produto (o que o servidor manda para a tela), sem `blingId` nem `conferido`.
+  const a = {
+    id: "a",
+    sku: "100101",
+    tituloBase: "Resistor 1K 1/4W",
+    descricaoBase: [
+      "RESISTOR 1K 1/4W",
+      "",
+      "O Resistor 1K 1/4W é um resistor de filme de carbono com resistência de 1K ohms e potência de 1/4W, indicado para limitar corrente em circuitos eletrônicos de baixa potência.",
+      "Pode ser usado em placas de ensaio e em projetos com Arduino, por exemplo para proteger LEDs ou compor divisores de tensão. Acompanha o código de cores impresso no corpo.",
+      "",
+      "Especificações técnicas:",
+      "- Resistência: 1K ohms;",
+      "- Potência: 1/4W;",
+      "- Tolerância: 5%;",
+      "- Dimensões(CxLxA): 6x2x2mm;",
+      "- Peso: 1g;",
+      "",
+      "Itens inclusos: (Cod:100101)",
+      "- 01 Resistor 1K 1/4W;",
+      "",
+      "Garantia:",
+      "- Garantia Legal de 90 dias (contra defeitos de fabricação);",
+    ].join("\n"),
+    marca: "GENERICA",
+    modelo: null,
+    ean: "7890000000001",
+    precoVenda: 0.5,
+    estoque: 100,
+    pesoKg: 0.001,
+    alturaCm: 1,
+    larguraCm: 1,
+    comprimentoCm: 2,
+    custo: { valor: 0.1, origem: "cadastro" },
+    imagens: [
+      { id: "img-a1", url: "/img/a1.jpg", principal: true },
+      { id: "img-a2", url: "/img/a2.jpg", principal: false },
+    ],
+  };
+  const b = {
+    id: "b",
+    sku: "100102",
+    tituloBase: "Resistor 2K2 1/4W",
+    descricaoBase: "Resistor de 2K2 ohms.",
+    marca: "GENERICA",
+    modelo: null,
+    ean: null,
+    precoVenda: 0.6,
+    estoque: 30,
+    pesoKg: 0.002,
+    alturaCm: 1,
+    larguraCm: 1,
+    comprimentoCm: 2,
+    custo: { valor: 0.12, origem: "cadastro" },
+    imagens: [{ id: "img-b1", url: "/img/b1.jpg", principal: true }],
+  };
+  const simples = rascunhoInicial({ principal: a, produtosPorId: { a }, composicao: null, versiculo: sl23 });
+  const kit = rascunhoInicial({ principal: a, produtosPorId: { a }, composicao: { itens: [{ produtoId: "a", quantidade: 5 }], codigo: "", blingProdutoId: null }, versiculo: null });
+  const misto = aplicarComposicao(kit, { itens: [{ produtoId: "a", quantidade: 2 }, { produtoId: "b", quantidade: 3 }], codigo: "", blingProdutoId: null }, { a, b });
+
+  {
+    console.log("\nDescricao e rascunho inicial");
+
+    conferir("descricao junta texto, frases e versiculo", montarDescricaoML({ descricao: "Texto.\n", frases: ["Nota fiscal.", " ", "Envio rapido."], versiculo: sl23 }),
+      "Texto.\n\nNota fiscal.\nEnvio rapido.\n\n“O SENHOR é o meu pastor; de nada terei falta.” Salmos 23:1 (NVI)");
+    conferir("sem versiculo nao sobra linha", montarDescricaoML({ descricao: "Texto.", frases: [], versiculo: null }), "Texto.");
+    conferir("resto e a descricao sem versiculo", restoDaDescricao({ descricao: "Texto.", frases: ["Nota fiscal."] }), "Texto.\n\nNota fiscal.");
+    conferir("sem descricao nem frases, so o versiculo", montarDescricaoML({ descricao: "  ", frases: undefined, versiculo: sl23 }),
+      "“O SENHOR é o meu pastor; de nada terei falta.” Salmos 23:1 (NVI)");
+    conferir("contexto de teste: descricao longa com Itens inclusos e Garantia",
+      [a.descricaoBase.length >= 400, a.descricaoBase.includes("Itens inclusos: (Cod:100101)"), a.descricaoBase.includes("Garantia:")], [true, true, true]);
+
+    conferir("simples: titulo, preco e estoque do produto", [simples.titulo, simples.preco, simples.estoque], ["Resistor 1K 1/4W", 0.5, 100]);
+    conferir("simples: Classico, novo, sem categoria", [simples.tipoAnuncio, simples.condicao, simples.categoriaId], ["gold_special", "new", null]);
+    conferir("simples: atributos da marca e do EAN", simples.atributos, { BRAND: "GENERICA", GTIN: "7890000000001" });
+    conferir("simples: fotos com a principal primeiro", simples.imagens, ["img-a1", "img-a2"]);
+    conferir("simples: family_name e a marca quando nao ha modelo", simples.familyName, "GENERICA");
+    conferir("simples: produto, versiculo e descricao inteira do produto", [simples.produtoId, simples.versiculo, simples.descricao], ["a", sl23, a.descricaoBase]);
+    conferir("simples: envio pelo Mercado Envios 2, com as medidas do produto", simples.envio,
+      { pesoKg: 0.001, alturaCm: 1, larguraCm: 1, comprimentoCm: 2, modo: "me2", freteGratis: false, retirada: false });
+    conferir("simples: sem composicao", simples.composicao, null);
+    conferir("simples: foto principal vem primeiro mesmo fora de ordem",
+      rascunhoInicial({ principal: { ...a, imagens: [...a.imagens].reverse() }, produtosPorId: {}, composicao: null, versiculo: null }).imagens, ["img-a1", "img-a2"]);
+    conferir("simples: sem marca, modelo nem EAN", rascunhoInicial({ principal: { ...a, marca: null, ean: "" }, produtosPorId: {}, composicao: null, versiculo: null }).atributos, {});
+    conferir("simples: family_name sem marca nem modelo e o titulo",
+      rascunhoInicial({ principal: { ...a, marca: null }, produtosPorId: {}, composicao: null, versiculo: null }).familyName, "Resistor 1K 1/4W");
+    conferir("simples: family_name com marca e modelo, e atributo MODEL",
+      (({ familyName, atributos }) => [familyName, atributos.MODEL])(rascunhoInicial({ principal: { ...a, modelo: "R1K" }, produtosPorId: {}, composicao: null, versiculo: null })),
+      ["GENERICA R1K", "R1K"]);
+    conferir("simples: versiculo do banco entra so com os 5 campos",
+      rascunhoInicial({ principal: a, produtosPorId: {}, composicao: null, versiculo: { ...sl23, id: "x1", ordem: 7 } }).versiculo, sl23);
+    conferir("simples: produto sem preco fica sem preco", rascunhoInicial({ principal: { ...a, precoVenda: null }, produtosPorId: {}, composicao: null, versiculo: null }).preco, null);
+
+    conferir("kit de um produto: codigo gerado", kit.composicao.codigo, "100101_5");
+    conferir("kit: preco em branco, estoque e peso calculados", [kit.preco, kit.estoque, kit.envio.pesoKg], [null, 20, 0.005]);
+    conferir("kit: sem GTIN", "GTIN" in kit.atributos, false);
+    conferir("kit: titulo sugere o kit", kit.titulo, "KIT COM 5 RESISTOR 1K 1/4W");
+    conferir("kit: bloco de itens inclusos na descricao", kit.descricao.includes("Itens inclusos: (Cod:100101_5)\n- 05 Resistor 1K 1/4W;"), true);
+    conferir("kit: a secao antiga sai e a Garantia fica",
+      [kit.descricao.includes("(Cod:100101)\n"), kit.descricao.includes("\n\nGarantia:\n- Garantia Legal de 90 dias")], [false, true]);
+    conferir("kit: composicao guardada com os itens", kit.composicao, { itens: [{ produtoId: "a", quantidade: 5 }], codigo: "100101_5", blingProdutoId: null });
+    conferir("kit: marca e fotos do produto", [kit.atributos.BRAND, kit.imagens], ["GENERICA", ["img-a1", "img-a2"]]);
+
+    conferir("misto: codigo fica para o dono digitar", misto.composicao.codigo, "");
+    conferir("misto: estoque e peso recalculados", [misto.estoque, misto.envio.pesoKg], [10, 0.008]);
+    conferir("misto: fotos dos dois produtos, sem repetir", misto.imagens, ["img-a1", "img-a2", "img-b1"]);
+    conferir("misto: titulo e preco que o dono ja mexeu ficam", [misto.titulo, misto.preco], [kit.titulo, kit.preco]);
+    conferir("misto: itens inclusos listam os dois produtos",
+      misto.descricao.includes("Itens inclusos:\n- 02 Resistor 1K 1/4W;\n- 03 Resistor 2K2 1/4W;\n\nGarantia:"), true);
+    conferir("misto: produto continua sendo o primeiro item", misto.produtoId, "a");
+    conferir("misto: codigo digitado e mantido", aplicarComposicao(misto, { ...misto.composicao, codigo: "KIT-RESISTORES" }, { a, b }).composicao.codigo, "KIT-RESISTORES");
+    conferir("misto: titulo sugerido pelo rascunho inicial",
+      rascunhoInicial({ principal: a, produtosPorId: { b }, composicao: { itens: [{ produtoId: "a", quantidade: 2 }, { produtoId: "b", quantidade: 3 }], codigo: "KIT-1", blingProdutoId: null }, versiculo: null })
+        .titulo,
+      "KIT RESISTOR 1K 1/4W");
+    conferir("misto: item sem peso deixa o peso do kit em branco", aplicarComposicao(kit, { ...misto.composicao }, { a, b: { ...b, pesoKg: null } }).envio.pesoKg, null);
+    conferir("misto: trocar o primeiro item muda o produto e poe as fotos dele na frente",
+      (({ produtoId, imagens }) => [produtoId, imagens])(aplicarComposicao(misto, { ...misto.composicao, itens: [{ produtoId: "b", quantidade: 3 }, { produtoId: "a", quantidade: 2 }] }, { a, b })),
+      ["b", ["img-b1", "img-a1", "img-a2"]]);
+
+    conferir("desligar a composicao volta ao principal", [aplicarComposicao(misto, null, { a, b }).estoque, aplicarComposicao(misto, null, { a, b }).composicao], [100, null]);
+    const desligado = aplicarComposicao(misto, null, { a, b });
+    conferir("desligar: peso, medidas, fotos e descricao do principal",
+      [desligado.envio.pesoKg, desligado.envio.alturaCm, desligado.envio.larguraCm, desligado.envio.comprimentoCm, desligado.imagens, desligado.descricao === a.descricaoBase],
+      [0.001, 1, 1, 2, ["img-a1", "img-a2"], true]);
+    const editado = { ...misto, titulo: "Titulo do dono", preco: 9.9, categoriaId: "MLB1234", familyName: "Familia", tipoAnuncio: "gold_pro", condicao: "used", versiculo: sl23, atributos: { BRAND: "OUTRA", MODEL: "M1" } };
+    conferir("desligar nao toca no que o dono editou",
+      (({ titulo, preco, categoriaId, familyName, tipoAnuncio, condicao, versiculo, atributos }) => ({ titulo, preco, categoriaId, familyName, tipoAnuncio, condicao, versiculo, atributos }))(aplicarComposicao(editado, null, { a, b })),
+      { titulo: "Titulo do dono", preco: 9.9, categoriaId: "MLB1234", familyName: "Familia", tipoAnuncio: "gold_pro", condicao: "used", versiculo: sl23, atributos: { BRAND: "OUTRA", MODEL: "M1" } });
+    const antes = JSON.stringify(misto);
+    aplicarComposicao(misto, null, { a, b });
+    aplicarComposicao(misto, { ...misto.composicao, codigo: "Z" }, { a, b });
+    conferir("aplicarComposicao nao altera o rascunho recebido", JSON.stringify(misto), antes);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.
