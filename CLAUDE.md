@@ -110,7 +110,7 @@ requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 235 asserções da extração, da conciliação e das medidas, SEM rede
+npm run teste:extracao            # 284 asserções da extração, da conciliação e das medidas, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
@@ -126,7 +126,7 @@ npm run teste:worker              # 58 asserções: rede, fila, retomada e o wor
 npm run foto:mensal               # tira a foto mensal de preço e estoque (só se passou do dia 14 e o mês não tem foto); `-- --forcar` ignora o dia
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
-npm run teste:anuncios-ml         # 328 asserções do rascunho de anúncio do Mercado Livre: composição, validação, payload, ícone, gravação e frases fixas (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 346 asserções do rascunho de anúncio do Mercado Livre: composição, validação, payload, ícone, gravação e frases fixas (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -1893,8 +1893,12 @@ nada escreve no Mercado Livre nem no Bling, o botão Publicar fica desabilitado 
 - **Página:** no primeiro Salvar de um anúncio novo a URL vira `/[id]` por `router.replace` dentro de
   `useTransition`, com o editor `inert` até a navegação acabar. Isso **remonta o editor** (a aba volta para Geral).
   `history.replaceState` para mantê-lo montado **foi tentado e não serve no Next 16**: a resposta da Server Action
-  (que revalida a lista) remonta o editor no meio do trabalho. **Residual conhecido:** o que se digita *durante* o
-  próprio primeiro Salvar se perde na remontagem e o rodapé diz "Tudo salvo".
+  (que revalida a lista) remonta o editor no meio do trabalho. **Enquanto o primeiro Salvar roda**, o editor
+  (barra e painéis) fica `inert` e o botão diz "Salvando...", então nada é digitado e perdido nesse intervalo
+  (`travado` em `EditorAnuncioML`; só anúncio novo na página, o pop-up e o anúncio já salvo não travam).
+- **Anúncio `PUBLICADO` abre só para leitura** (barra e painéis `inert`, Salvar desabilitado com o motivo no
+  `title` e em texto no rodapé; vale na página e no pop-up). Como a barra de abas também fica `inert`, só a aba Geral
+  é visível: se o dono quiser ler as outras abas, deixar a barra livre e travar só os painéis.
 
 **Frases fixas** (`mercado-livre/configuracoes`): uma por linha, **até 10, de até 200 caracteres**; linha vazia sai
 e repetida vira uma. As regras moram em `frases.js` (sem imports), lido pela tela e pelo servidor: copiá-las faria o
@@ -1909,6 +1913,9 @@ um bloco `{ ... }` por assunto, cada um começando em `await limpar()` (apaga pr
 `ConfigCanal` real é guardada e restaurada. Bloco novo entra antes do comentário-marcador, antes do `finally`.
 
 **Em aberto / fases 2 e 3**
+- **Excluir um produto apaga em silêncio os rascunhos de ML dele, os de kit incluídos** (`Anuncio.produto` é
+  `onDelete: Cascade`; `excluirProduto` só barra anúncio `PUBLICADO`), e o pop-up de exclusão da lista de Produtos
+  não menciona isso. Decidir na fase 3 se o pop-up avisa (e lista os anúncios) antes de apagar.
 - Investigação de leitura (03/10/2026, só GETs): `docs/superpowers/investigacoes/2026-10-01-ml-bling-para-fases-2-e-3.md`.
   Ela diz o que muda nos planos seguintes e lista **as decisões que dependem do dono** (validador do ML, criar o kit
   no Bling, logística do cálculo, o sufixo `z`, preço e medidas do kit, primeiro teste de escrita).
