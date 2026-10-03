@@ -39,6 +39,7 @@ const { rascunhoInicial, aplicarComposicao } = await import("../src/lib/canaisDe
 const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
 const { montarPayloadML, nomeDaFoto } = await import("../src/lib/canaisDeVenda/ml/payload.js");
 const { estadoDoIconeML, rotuloDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
+const { RascunhoMLSchema, LIMITES_ML } = await import("../src/lib/canaisDeVenda/ml/esquema.js");
 const {
   contextoDosProdutos,
   buscarProdutoParaAnuncio,
@@ -743,6 +744,36 @@ try {
         conferir("entrada que nao e um rascunho e recusada", (await Promise.all([null, undefined, "texto", 42, []].map((entrada) => salvarRascunhoML(null, entrada)))).map((r) => r.ok), Array(5).fill(false));
         conferir("numero que nao e numero recusa o rascunho", (await salvarRascunhoML(null, { ...novo.rascunho, preco: "abc" })).ok, false);
         conferir("tipo de anuncio desconhecido e recusado", (await salvarRascunhoML(null, { ...novo.rascunho, tipoAnuncio: "ouro" })).ok, false);
+        // Tetos de tamanho: a Server Action recebe o que o navegador mandar.
+        const texto = (n) => "x".repeat(n);
+        const comComposicao = (parcial) => ({ ...kitA, composicao: { ...kitA.composicao, ...parcial } });
+        const acimaDoTeto = [
+          ["titulo", { titulo: texto(LIMITES_ML.titulo + 1) }],
+          ["family_name", { familyName: texto(LIMITES_ML.familyName + 1) }],
+          ["descricao", { descricao: texto(LIMITES_ML.descricao + 1) }],
+          ["atributos demais", { atributos: Object.fromEntries(Array.from({ length: LIMITES_ML.atributos + 1 }, (_, i) => [`A${i}`, "v"])) }],
+          ["nome de atributo", { atributos: { [texto(LIMITES_ML.chaveDeAtributo + 1)]: "v" } }],
+          ["valor de atributo", { atributos: { BRAND: texto(LIMITES_ML.valorDeAtributo + 1) } }],
+          ["fotos demais", { imagens: Array.from({ length: LIMITES_ML.imagens + 1 }, (_, i) => `f${i}`) }],
+          ["id de foto", { imagens: [texto(LIMITES_ML.idDeImagem + 1)] }],
+          ["modo de envio", { envio: { ...novo.rascunho.envio, modo: texto(LIMITES_ML.modoDeEnvio + 1) } }],
+          ["codigo do kit", comComposicao({ codigo: texto(LIMITES_ML.codigoDoKit + 1) })],
+          ["itens do kit", comComposicao({ itens: Array.from({ length: LIMITES_ML.itensDaComposicao + 1 }, () => ({ produtoId: p1.id, quantidade: 1 })) })],
+        ];
+        for (const [nome, parcial] of acimaDoTeto) {
+          conferir(`tamanho: ${nome} acima do teto e recusado`, (await salvarRascunhoML(null, { ...novo.rascunho, ...parcial })).erro, "O rascunho chegou incompleto. Recarregue a tela.");
+        }
+        conferir("tamanho: no teto ainda e aceito (a forma, sem gravar)",
+          RascunhoMLSchema.safeParse({
+            ...novo.rascunho,
+            titulo: texto(LIMITES_ML.titulo),
+            familyName: texto(LIMITES_ML.familyName),
+            descricao: texto(LIMITES_ML.descricao),
+            atributos: Object.fromEntries(Array.from({ length: LIMITES_ML.atributos }, (_, i) => [texto(LIMITES_ML.chaveDeAtributo - 3) + String(i).padStart(3, "0"), texto(LIMITES_ML.valorDeAtributo)])),
+            imagens: Array.from({ length: LIMITES_ML.imagens }, () => texto(LIMITES_ML.idDeImagem)),
+            envio: { ...novo.rascunho.envio, modo: texto(LIMITES_ML.modoDeEnvio) },
+            composicao: { ...kitA.composicao, codigo: texto(LIMITES_ML.codigoDoKit), itens: Array.from({ length: LIMITES_ML.itensDaComposicao }, () => ({ produtoId: p1.id, quantidade: 1 })) },
+          }).success, true);
         conferir("o que foi recusado nao grava nada", await anunciosDeTeste(), antesDasRecusas);
       } finally {
         await limpar();
