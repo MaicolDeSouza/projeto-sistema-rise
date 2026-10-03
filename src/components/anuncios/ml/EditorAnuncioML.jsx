@@ -34,6 +34,8 @@ const CLASSE_DA_MENSAGEM = {
   ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
 };
 
+const MOTIVO_DO_PUBLICADO = "Anuncio publicado: nao editavel aqui.";
+
 const semBlingId = (produto) => Boolean(produto) && !String(produto.blingId ?? "").trim();
 
 /**
@@ -81,6 +83,13 @@ export default function EditorAnuncioML({
 
   const alterado = rascunho !== salvo;
   const janela = modo === "janela";
+  // Publicado so a fase 3 altera (o servidor recusa o Salvar): a tela nem finge que edita.
+  const publicado = status === "PUBLICADO";
+  // O primeiro Salvar de um anuncio novo na pagina troca a URL e remonta o editor a partir do
+  // banco: o que fosse digitado enquanto a acao do servidor roda se perderia, e o rodape diria
+  // "Tudo salvo". Travar so esse caso mantem o resto do editor livre (a janela volta a lista).
+  const travado = salvando && idAtual === null && modo === "pagina";
+  const bloqueado = publicado || travado;
   const problemas = useMemo(() => validarRascunhoML(rascunho, contexto), [rascunho, contexto]);
 
   // O erro aparece no topo: com o rodape fixo, o dono clica em Salvar com a pagina rolada.
@@ -164,27 +173,34 @@ export default function EditorAnuncioML({
     </div>
   );
 
+  // `inert` tira foco, clique e teclado da barra e dos paineis de uma vez (os campos continuam montados).
   const barra = (
-    <BarraDeAbas
-      abas={ABAS_ML}
-      aba={aba}
-      aoMudar={setAba}
-      comErro={(id) => problemas.some((problema) => problema.aba === id && problema.bloqueante)}
-    />
+    <div inert={bloqueado}>
+      <BarraDeAbas
+        abas={ABAS_ML}
+        aba={aba}
+        aoMudar={setAba}
+        comErro={(id) => problemas.some((problema) => problema.aba === id && problema.bloqueante)}
+      />
+    </div>
   );
 
-  const paineis = ABAS_ML.map(({ id }) => {
-    const Aba = ABAS_PRONTAS[id];
-    return (
-      <Painel key={id} id={id} aba={aba}>
-        <Aba
-          {...propsDasAbas}
-          problemas={problemas.filter((problema) => problema.aba === id)}
-          {...(id === "previa" ? { todosProblemas: problemas } : {})}
-        />
-      </Painel>
-    );
-  });
+  const paineis = (
+    <div inert={bloqueado} aria-busy={travado} className={bloqueado ? "opacity-70" : undefined}>
+      {ABAS_ML.map(({ id }) => {
+        const Aba = ABAS_PRONTAS[id];
+        return (
+          <Painel key={id} id={id} aba={aba}>
+            <Aba
+              {...propsDasAbas}
+              problemas={problemas.filter((problema) => problema.aba === id)}
+              {...(id === "previa" ? { todosProblemas: problemas } : {})}
+            />
+          </Painel>
+        );
+      })}
+    </div>
+  );
 
   const rodape = (
     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
@@ -195,16 +211,18 @@ export default function EditorAnuncioML({
         ) : (
           idAtual && <span className="text-suave">Tudo salvo</span>
         )}
+        {publicado && <span className="text-suave">{MOTIVO_DO_PUBLICADO}</span>}
       </div>
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={salvar}
-          disabled={salvando}
-          className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          disabled={salvando || publicado}
+          title={publicado ? MOTIVO_DO_PUBLICADO : undefined}
+          className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {salvando && <Loader size={14} className="animate-spin" />}
-          Salvar
+          {salvando ? "Salvando..." : "Salvar"}
         </button>
         <button
           type="button"
