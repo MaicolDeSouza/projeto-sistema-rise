@@ -155,11 +155,14 @@ export function blocoItensInclusos(codigo, itens, tituloPorId) {
 const abreItensInclusos = (linha) => linha.trim().toLowerCase().startsWith("itens inclusos");
 const abreGarantia = (linha) => /^garantia\s*:/i.test(linha.trim());
 const ehLinhaEmBranco = (linha) => linha.trim() === "";
+const ehItemDeLista = (linha) => linha.trim().startsWith("-");
 
 /**
  * Poe o bloco de itens inclusos no texto da descricao. A secao existente comeca na linha
- * "Itens inclusos" e vai ate a primeira linha em branco; sem ela, o bloco entra antes da
- * "Garantia:"; sem as duas, vai no fim.
+ * "Itens inclusos" e acaba na primeira linha em branco, ou numa linha "Garantia:", ou numa
+ * linha que nao e item de lista ("- ..."): descricao importada do Bling traz a lista colada na
+ * Garantia, sem linha em branco, e trocar ate o branco apagaria a garantia. Sem a secao, o
+ * bloco entra antes da "Garantia:"; sem as duas, vai no fim.
  */
 export function trocarItensInclusos(texto, bloco) {
   const original = String(texto ?? "");
@@ -171,8 +174,10 @@ export function trocarItensInclusos(texto, bloco) {
 
   const inicio = linhas.findIndex(abreItensInclusos);
   if (inicio !== -1) {
-    const brancoDepois = linhas.findIndex((linha, posicao) => posicao > inicio && ehLinhaEmBranco(linha));
-    const fim = brancoDepois === -1 ? linhas.length : brancoDepois;
+    const acabaDepois = linhas.findIndex(
+      (linha, posicao) => posicao > inicio && (ehLinhaEmBranco(linha) || abreGarantia(linha) || !ehItemDeLista(linha)),
+    );
+    const fim = acabaDepois === -1 ? linhas.length : acabaDepois;
     return [...linhas.slice(0, inicio), ...linhasDoBloco, ...linhas.slice(fim)].join(quebra);
   }
 

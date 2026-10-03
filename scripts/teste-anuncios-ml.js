@@ -118,7 +118,14 @@ try {
     const comSecao = "TITULO\n\nTexto.\n\nItens inclusos: (Cod:100101)\n- 01 Resistor;\n\nGarantia:\n- 90 dias;";
     conferir("troca a secao existente", trocarItensInclusos(comSecao, "Itens inclusos: (Cod:K1)\n- 02 X;"),
       "TITULO\n\nTexto.\n\nItens inclusos: (Cod:K1)\n- 02 X;\n\nGarantia:\n- 90 dias;");
-    conferir("sem secao, entra antes da Garantia", trocarItensInclusos("Texto.\n\nGarantia:\n- 90 dias;", "Itens inclusos:\n- 02 X;"),
+    // Descricao importada do Bling: a lista vem colada na Garantia, sem linha em branco.
+    conferir("troca a secao colada na Garantia sem apagar a garantia",
+      trocarItensInclusos("Texto.\n\nItens inclusos: (Cod:100101)\n- 01 Resistor;\n- 02 Led;\nGarantia:\n- 90 dias;", "Itens inclusos: (Cod:K1)\n- 02 X;"),
+      "Texto.\n\nItens inclusos: (Cod:K1)\n- 02 X;\nGarantia:\n- 90 dias;");
+    conferir("troca a secao colada em outro titulo sem apagar o que vem depois",
+      trocarItensInclusos("Itens inclusos: (Cod:100101)\n- 01 Resistor;\nEspecificacoes tecnicas:\n- Tensao: 5V;", "Itens inclusos: (Cod:K1)\n- 02 X;"),
+      "Itens inclusos: (Cod:K1)\n- 02 X;\nEspecificacoes tecnicas:\n- Tensao: 5V;");
+    conferir("sem secao, entra antes da Garantia",trocarItensInclusos("Texto.\n\nGarantia:\n- 90 dias;", "Itens inclusos:\n- 02 X;"),
       "Texto.\n\nItens inclusos:\n- 02 X;\n\nGarantia:\n- 90 dias;");
     conferir("sem secao nem Garantia, vai no fim", trocarItensInclusos("Texto.", "Itens inclusos:\n- 02 X;"), "Texto.\n\nItens inclusos:\n- 02 X;");
     conferir("proximo da faixa 25xxxx", proximoCodigoDaFaixa(["250001", "250010", "100101", "250010_5"]), "250011");
