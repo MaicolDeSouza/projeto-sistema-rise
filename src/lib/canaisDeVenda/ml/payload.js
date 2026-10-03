@@ -90,7 +90,7 @@ export function montarPayloadML(rascunho, contexto) {
       // Sem `price`: desde marco de 2026 o preco vai em `POST /items/{id}/prices/standard`.
     },
     descricao: {
-      plain_text: montarDescricaoML({ descricao: rascunho.descricao, frases: contexto?.frases, versiculo: rascunho.versiculo }),
+      plain_text: montarDescricaoML({ descricao: rascunho.descricao, frases: contexto?.frases }),
     },
     preco: { amount: Number(rascunho.preco ?? 0), currency_id: "BRL" },
     fotos,

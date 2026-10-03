@@ -40,7 +40,7 @@ export default function AbaPrevia({ rascunho, contexto, irPara, todosProblemas }
   const alertas = todosProblemas.length - bloqueantes;
 
   const json = jsonDoPayload(rascunho, contexto);
-  const descricaoFinal = montarDescricaoML({ descricao: rascunho.descricao, frases: contexto.frases, versiculo: rascunho.versiculo });
+  const descricaoFinal = montarDescricaoML({ descricao: rascunho.descricao, frases: contexto.frases });
 
   return (
     <div className="space-y-6">

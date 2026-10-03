@@ -99,18 +99,6 @@ function tituloDoKit(principal, itens) {
   return itens.length === 1 && unidades > 0 ? `KIT COM ${unidades} ${titulo}` : `KIT ${titulo}`;
 }
 
-// O versiculo do banco traz `id` e `ordem`; o rascunho guarda so o que a descricao usa.
-function versiculoDoRascunho(versiculo) {
-  if (!versiculo) return null;
-  return {
-    livro: versiculo.livro,
-    capitulo: versiculo.capitulo,
-    inicio: versiculo.inicio,
-    fim: versiculo.fim ?? versiculo.inicio,
-    texto: versiculo.texto,
-  };
-}
-
 /**
  * O que deriva dos itens da composicao: estoque, peso, fotos, codigo e o bloco "Itens
  * inclusos" da descricao. Titulo, preco, categoria, atributos e medidas ficam de fora:
@@ -144,7 +132,7 @@ function camposDaComposicao({ composicao, principalId, produtosPorId, descricaoA
  * numa composicao); `composicao` e `{ itens, codigo, blingProdutoId }` ou `null` (simples).
  * O preco do kit nasce em branco: nao sai da soma das pecas, e o dono decide pela margem.
  */
-export function rascunhoInicial({ principal, produtosPorId, composicao, versiculo }) {
+export function rascunhoInicial({ principal, produtosPorId, composicao }) {
   // O principal e sempre conhecido, mesmo que o chamador nao o tenha posto no mapa.
   const produtos = { ...produtosPorId, [principal.id]: principal };
   const { estoque, imagens, descricao, ...medidas } = estadoDoProdutoSimples(principal, produtos);
@@ -160,7 +148,6 @@ export function rascunhoInicial({ principal, produtosPorId, composicao, versicul
     estoque,
     imagens,
     descricao,
-    versiculo: versiculoDoRascunho(versiculo),
     atributos: atributosDoProduto(principal, { comGtin: !composicao }),
     envio: {
       ...medidas,

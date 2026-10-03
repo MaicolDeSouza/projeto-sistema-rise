@@ -1,9 +1,8 @@
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { codigoDaComposicao, errosDaComposicao, proximoCodigoDaFaixa } from "../composicao";
-import { lerConfigML, sortearVersiculoDoBanco } from "../configuracao";
+import { lerConfigML } from "../configuracao";
 import { custoDoProduto } from "../custo";
-import { restoDaDescricao } from "./descricao";
 import { RascunhoMLSchema } from "./esquema";
 import { rascunhoInicial } from "./rascunho";
 
@@ -99,15 +98,9 @@ export async function novoRascunhoML(produtoId) {
   if (!principal.conferido) return { ok: false, erro: aindaNaoConferido(principal.sku) };
 
   const { frases } = await lerConfigML();
-  // O versiculo tem que caber abaixo de 25% do texto final, que depende da descricao que o
-  // rascunho traz do produto: monta-se sem versiculo para ler a descricao, e de novo com ele.
-  const partida = { principal, produtosPorId: produtos, composicao: null };
-  const { descricao } = rascunhoInicial({ ...partida, versiculo: null });
-  const sorteio = await sortearVersiculoDoBanco({ resto: restoDaDescricao({ descricao, frases }) });
-
   return {
     ok: true,
-    rascunho: rascunhoInicial({ ...partida, versiculo: sorteio.versiculo }),
+    rascunho: rascunhoInicial({ principal, produtosPorId: produtos, composicao: null }),
     contexto: { produtos, frases, codigoEmUso: null },
   };
 }
@@ -126,7 +119,6 @@ function rascunhoDoAnuncio(anuncio) {
     estoque: dados.estoque ?? null,
     imagens: dados.imagens ?? [],
     descricao: anuncio.descricao ?? "",
-    versiculo: dados.versiculo ?? null,
     atributos: anuncio.atributos ?? {},
     envio: { pesoKg: null, alturaCm: null, larguraCm: null, comprimentoCm: null, modo: "me2", freteGratis: false, retirada: false, ...dados.envio },
     composicao: dados.composicao ?? null,

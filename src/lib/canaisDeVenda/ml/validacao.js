@@ -11,8 +11,6 @@
 
 import { LIMITE_TITULO } from "../../anuncios/canais/mercadolivre";
 import { errosDaComposicao } from "../composicao";
-import { cabeNaDescricao, linhaDoVersiculo } from "../versiculos";
-import { restoDaDescricao } from "./descricao";
 
 export const ABAS_ML = [
   { id: "geral", rotulo: "Geral" },
@@ -53,7 +51,7 @@ export function medidasFaltando(envio) {
 
 /**
  * @param {object} rascunho rascunho do anuncio (ver `rascunho.js`)
- * @param {{produtos: object, frases: string[], codigoEmUso: string|null}} contexto
+ * @param {{produtos: object, codigoEmUso: string|null}} contexto
  *   `produtos`: contexto de produto por id; `codigoEmUso`: quem ja usa o codigo do kit
  *   (a acao do servidor confere no banco), ou `null`.
  * @returns {{campo: string, aba: string, problema: string, bloqueante: boolean}[]}
@@ -148,14 +146,6 @@ export function validarRascunhoML(rascunho, contexto) {
   // Descricao
   if (!texto(rascunho.descricao)) {
     acrescentar("descricao", "descricao", "A descricao e obrigatoria.");
-  }
-  if (!rascunho.versiculo) {
-    acrescentar("versiculo", "descricao", "O anuncio esta sem versiculo na descricao.", false);
-  } else {
-    const resto = restoDaDescricao({ descricao: rascunho.descricao, frases: contexto?.frases });
-    if (!cabeNaDescricao(linhaDoVersiculo(rascunho.versiculo), resto)) {
-      acrescentar("versiculo", "descricao", "O versiculo passa de 25% da descricao: a NVI pede que a citacao fique abaixo disso. Aumente o texto ou troque o versiculo.");
-    }
   }
 
   // Ficha tecnica. O GTIN e o codigo de barras da peca avulsa: o kit nao o tem.

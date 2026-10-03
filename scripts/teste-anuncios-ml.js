@@ -2,8 +2,8 @@ import "dotenv/config";
 
 /**
  * Testes do Canais de Venda / Mercado Livre (fase 1): o banco (varios anuncios por
- * produto, dados do anuncio, configuracao do canal, versiculos) e, nas tarefas
- * seguintes, as regras puras e as acoes. Usa o Postgres, SEM rede.
+ * produto, dados do anuncio, configuracao do canal) e, nas tarefas seguintes, as
+ * regras puras e as acoes. Usa o Postgres, SEM rede.
  *
  *   npm run teste:anuncios-ml
  *
@@ -32,25 +32,8 @@ const {
   proximoCodigoDaFaixa,
 } = await import("../src/lib/canaisDeVenda/composicao.js");
 const { custoDoProduto } = await import("../src/lib/canaisDeVenda/custo.js");
-const {
-  referenciaDoVersiculo,
-  linhaDoVersiculo,
-  contarVersiculos,
-  errosDoVersiculo,
-  podeAcrescentar,
-  cabeNaDescricao,
-  sortearVersiculo,
-} = await import("../src/lib/canaisDeVenda/versiculos.js");
-const {
-  lerConfigML,
-  gravarFrases,
-  listarVersiculos,
-  adicionarVersiculo,
-  removerVersiculo,
-  carregarVersiculosIniciais,
-  sortearVersiculoDoBanco,
-} = await import("../src/lib/canaisDeVenda/configuracao.js");
-const { montarDescricaoML, restoDaDescricao } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
+const { lerConfigML, gravarFrases } = await import("../src/lib/canaisDeVenda/configuracao.js");
+const { montarDescricaoML } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
 const { rascunhoInicial, aplicarComposicao } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
 const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
 const { montarPayloadML, nomeDaFoto } = await import("../src/lib/canaisDeVenda/ml/payload.js");
@@ -146,39 +129,6 @@ try {
     conferir("sem custo nenhum", custoDoProduto({ fornecedores: [], fornecedorRascunho: null, custo: null }), { valor: null, origem: null });
   }
 
-  // Fica no nivel do try porque as Tarefas 4, 5 e 6 reaproveitam este versiculo.
-  const sl23 = { livro: "Salmos", capitulo: 23, inicio: 1, fim: 1, texto: "O SENHOR é o meu pastor; de nada terei falta." };
-
-  {
-    console.log("\nVersiculos");
-
-    const pv3 = { livro: "Provérbios", capitulo: 3, inicio: 5, fim: 6, texto: "x".repeat(150) };
-    conferir("referencia de um versiculo", referenciaDoVersiculo(sl23), "Salmos 23:1");
-    conferir("referencia de faixa", referenciaDoVersiculo(pv3), "Provérbios 3:5-6");
-    conferir("linha com o credito da NVI", linhaDoVersiculo(sl23), "“O SENHOR é o meu pastor; de nada terei falta.” Salmos 23:1 (NVI)");
-    conferir("faixa conta cada versiculo", contarVersiculos([sl23, pv3]), 3);
-    conferir("versiculo valido", errosDoVersiculo(sl23), []);
-    conferir("livro fora da lista", errosDoVersiculo({ ...sl23, livro: "Isaías" }), ["Use Salmos ou Provérbios."]);
-    conferir("capitulo que nao existe", errosDoVersiculo({ ...sl23, livro: "Provérbios", capitulo: 32 }), ["Provérbios tem 31 capitulos."]);
-    conferir("fim antes do inicio", errosDoVersiculo({ ...sl23, inicio: 4, fim: 3 }), ["O versiculo final nao pode vir antes do inicial."]);
-    conferir("texto vazio", errosDoVersiculo({ ...sl23, texto: "  " }), ["Cole o texto do versiculo."]);
-    const cheia = Array.from({ length: 499 }, (_, i) => ({ ...sl23, capitulo: 1 + (i % 150), inicio: 1 + i }));
-    conferir("cabe o 500o", podeAcrescentar(cheia, sl23), { ok: true });
-    conferir("passa de 500", podeAcrescentar(cheia, pv3), { ok: false, erro: "A lista ficaria com 501 versiculos. O limite da NVI sem autorizacao da Biblica e 500." });
-    conferir("25%: cabe", cabeNaDescricao("v".repeat(100), "r".repeat(400)), true);
-    conferir("25%: nao cabe", cabeNaDescricao("v".repeat(100), "r".repeat(250)), false);
-    const lista = [sl23, { ...sl23, capitulo: 24 }, { ...sl23, capitulo: 25 }];
-    conferir("sorteio pula os ja usados", sortearVersiculo({ lista, usados: ["Salmos 23:1"], resto: "r".repeat(2000), aleatorio: () => 0 }).versiculo.capitulo, 24);
-    conferir("sorteio respeita o excluir", sortearVersiculo({ lista, usados: [], excluir: ["Salmos 23:1", "Salmos 24:1"], resto: "r".repeat(2000), aleatorio: () => 0 }).versiculo.capitulo, 25);
-    conferir("todos usados: recomeca", sortearVersiculo({ lista, usados: lista.map(referenciaDoVersiculo), resto: "r".repeat(2000), aleatorio: () => 0 }).reiniciou, true);
-    conferir("nenhum cabe", sortearVersiculo({ lista, usados: [], resto: "curto", aleatorio: () => 0 }),
-      { versiculo: null, motivo: "Nenhum versiculo da lista cabe nesta descricao: a NVI pede que a citacao fique abaixo de 25% do texto." });
-    // Cabe nos 25%, mas o operador ja recusou o unico que havia: a causa nao e o tamanho do texto.
-    conferir("todos os que cabem foram excluidos", sortearVersiculo({ lista: [sl23], usados: [], excluir: ["Salmos 23:1"], resto: "r".repeat(2000), aleatorio: () => 0 }),
-      { versiculo: null, motivo: "Nao ha outro versiculo que caiba nesta descricao." });
-    conferir("lista vazia", sortearVersiculo({ lista: [], usados: [], resto: "r".repeat(2000) }), { versiculo: null, motivo: "A lista de versiculos esta vazia. Carregue-a em Configuracoes." });
-  }
-
   // Ficam no nivel do try porque a Tarefa 5 reaproveita estes contextos e rascunhos. Sao
   // contextos de produto (o que o servidor manda para a tela), sem `blingId` nem `conferido`.
   const a = {
@@ -236,19 +186,18 @@ try {
     custo: { valor: 0.12, origem: "cadastro" },
     imagens: [{ id: "img-b1", url: "/img/b1.jpg", principal: true }],
   };
-  const simples = rascunhoInicial({ principal: a, produtosPorId: { a }, composicao: null, versiculo: sl23 });
-  const kit = rascunhoInicial({ principal: a, produtosPorId: { a }, composicao: { itens: [{ produtoId: "a", quantidade: 5 }], codigo: "", blingProdutoId: null }, versiculo: null });
+  const simples = rascunhoInicial({ principal: a, produtosPorId: { a }, composicao: null });
+  const kit = rascunhoInicial({ principal: a, produtosPorId: { a }, composicao: { itens: [{ produtoId: "a", quantidade: 5 }], codigo: "", blingProdutoId: null } });
   const misto = aplicarComposicao(kit, { itens: [{ produtoId: "a", quantidade: 2 }, { produtoId: "b", quantidade: 3 }], codigo: "", blingProdutoId: null }, { a, b });
 
   {
     console.log("\nDescricao e rascunho inicial");
 
-    conferir("descricao junta texto, frases e versiculo", montarDescricaoML({ descricao: "Texto.\n", frases: ["Nota fiscal.", " ", "Envio rapido."], versiculo: sl23 }),
-      "Texto.\n\nNota fiscal.\nEnvio rapido.\n\n“O SENHOR é o meu pastor; de nada terei falta.” Salmos 23:1 (NVI)");
-    conferir("sem versiculo nao sobra linha", montarDescricaoML({ descricao: "Texto.", frases: [], versiculo: null }), "Texto.");
-    conferir("resto e a descricao sem versiculo", restoDaDescricao({ descricao: "Texto.", frases: ["Nota fiscal."] }), "Texto.\n\nNota fiscal.");
-    conferir("sem descricao nem frases, so o versiculo", montarDescricaoML({ descricao: "  ", frases: undefined, versiculo: sl23 }),
-      "“O SENHOR é o meu pastor; de nada terei falta.” Salmos 23:1 (NVI)");
+    conferir("descricao junta texto e frases, sem frase em branco", montarDescricaoML({ descricao: "Texto.\n", frases: ["Nota fiscal.", " ", "Envio rapido."] }),
+      "Texto.\n\nNota fiscal.\nEnvio rapido.");
+    conferir("sem frases nao sobra linha", montarDescricaoML({ descricao: "Texto.", frases: [] }), "Texto.");
+    conferir("sem descricao, so as frases", montarDescricaoML({ descricao: "  ", frases: ["Nota fiscal."] }), "Nota fiscal.");
+    conferir("sem descricao nem frases, texto vazio", montarDescricaoML({ descricao: "  ", frases: undefined }), "");
     conferir("contexto de teste: descricao longa com Itens inclusos e Garantia",
       [a.descricaoBase.length >= 400, a.descricaoBase.includes("Itens inclusos: (Cod:100101)"), a.descricaoBase.includes("Garantia:")], [true, true, true]);
 
@@ -257,21 +206,21 @@ try {
     conferir("simples: atributos da marca e do EAN", simples.atributos, { BRAND: "GENERICA", GTIN: "7890000000001" });
     conferir("simples: fotos com a principal primeiro", simples.imagens, ["img-a1", "img-a2"]);
     conferir("simples: family_name e a marca quando nao ha modelo", simples.familyName, "GENERICA");
-    conferir("simples: produto, versiculo e descricao inteira do produto", [simples.produtoId, simples.versiculo, simples.descricao], ["a", sl23, a.descricaoBase]);
+    conferir("simples: produto e descricao inteira do produto", [simples.produtoId, simples.descricao], ["a", a.descricaoBase]);
+    conferir("simples: os campos do rascunho", Object.keys(simples).sort(),
+      ["atributos", "categoriaId", "composicao", "condicao", "descricao", "envio", "estoque", "familyName", "imagens", "preco", "produtoId", "tipoAnuncio", "titulo"]);
     conferir("simples: envio pelo Mercado Envios 2, com as medidas do produto", simples.envio,
       { pesoKg: 0.001, alturaCm: 1, larguraCm: 1, comprimentoCm: 2, modo: "me2", freteGratis: false, retirada: false });
     conferir("simples: sem composicao", simples.composicao, null);
     conferir("simples: foto principal vem primeiro mesmo fora de ordem",
-      rascunhoInicial({ principal: { ...a, imagens: [...a.imagens].reverse() }, produtosPorId: {}, composicao: null, versiculo: null }).imagens, ["img-a1", "img-a2"]);
-    conferir("simples: sem marca, modelo nem EAN", rascunhoInicial({ principal: { ...a, marca: null, ean: "" }, produtosPorId: {}, composicao: null, versiculo: null }).atributos, {});
+      rascunhoInicial({ principal: { ...a, imagens: [...a.imagens].reverse() }, produtosPorId: {}, composicao: null }).imagens, ["img-a1", "img-a2"]);
+    conferir("simples: sem marca, modelo nem EAN", rascunhoInicial({ principal: { ...a, marca: null, ean: "" }, produtosPorId: {}, composicao: null }).atributos, {});
     conferir("simples: family_name sem marca nem modelo e o titulo",
-      rascunhoInicial({ principal: { ...a, marca: null }, produtosPorId: {}, composicao: null, versiculo: null }).familyName, "Resistor 1K 1/4W");
+      rascunhoInicial({ principal: { ...a, marca: null }, produtosPorId: {}, composicao: null }).familyName, "Resistor 1K 1/4W");
     conferir("simples: family_name com marca e modelo, e atributo MODEL",
-      (({ familyName, atributos }) => [familyName, atributos.MODEL])(rascunhoInicial({ principal: { ...a, modelo: "R1K" }, produtosPorId: {}, composicao: null, versiculo: null })),
+      (({ familyName, atributos }) => [familyName, atributos.MODEL])(rascunhoInicial({ principal: { ...a, modelo: "R1K" }, produtosPorId: {}, composicao: null })),
       ["GENERICA R1K", "R1K"]);
-    conferir("simples: versiculo do banco entra so com os 5 campos",
-      rascunhoInicial({ principal: a, produtosPorId: {}, composicao: null, versiculo: { ...sl23, id: "x1", ordem: 7 } }).versiculo, sl23);
-    conferir("simples: produto sem preco fica sem preco", rascunhoInicial({ principal: { ...a, precoVenda: null }, produtosPorId: {}, composicao: null, versiculo: null }).preco, null);
+    conferir("simples: produto sem preco fica sem preco", rascunhoInicial({ principal: { ...a, precoVenda: null }, produtosPorId: {}, composicao: null }).preco, null);
 
     conferir("kit de um produto: codigo gerado", kit.composicao.codigo, "100101_5");
     conferir("kit: preco em branco, estoque e peso calculados", [kit.preco, kit.estoque, kit.envio.pesoKg], [null, 20, 0.005]);
@@ -292,7 +241,7 @@ try {
     conferir("misto: produto continua sendo o primeiro item", misto.produtoId, "a");
     conferir("misto: codigo digitado e mantido", aplicarComposicao(misto, { ...misto.composicao, codigo: "KIT-RESISTORES" }, { a, b }).composicao.codigo, "KIT-RESISTORES");
     conferir("misto: titulo sugerido pelo rascunho inicial",
-      rascunhoInicial({ principal: a, produtosPorId: { b }, composicao: { itens: [{ produtoId: "a", quantidade: 2 }, { produtoId: "b", quantidade: 3 }], codigo: "KIT-1", blingProdutoId: null }, versiculo: null })
+      rascunhoInicial({ principal: a, produtosPorId: { b }, composicao: { itens: [{ produtoId: "a", quantidade: 2 }, { produtoId: "b", quantidade: 3 }], codigo: "KIT-1", blingProdutoId: null } })
         .titulo,
       "KIT RESISTOR 1K 1/4W");
     conferir("misto: item sem peso deixa o peso do kit em branco", aplicarComposicao(kit, { ...misto.composicao }, { a, b: { ...b, pesoKg: null } }).envio.pesoKg, null);
@@ -305,10 +254,10 @@ try {
     conferir("desligar: peso, medidas, fotos e descricao do principal",
       [desligado.envio.pesoKg, desligado.envio.alturaCm, desligado.envio.larguraCm, desligado.envio.comprimentoCm, desligado.imagens, desligado.descricao === a.descricaoBase],
       [0.001, 1, 1, 2, ["img-a1", "img-a2"], true]);
-    const editado = { ...misto, titulo: "Titulo do dono", preco: 9.9, categoriaId: "MLB1234", familyName: "Familia", tipoAnuncio: "gold_pro", condicao: "used", versiculo: sl23, atributos: { BRAND: "OUTRA", MODEL: "M1" } };
+    const editado = { ...misto, titulo: "Titulo do dono", preco: 9.9, categoriaId: "MLB1234", familyName: "Familia", tipoAnuncio: "gold_pro", condicao: "used", atributos: { BRAND: "OUTRA", MODEL: "M1" } };
     conferir("desligar nao toca no que o dono editou",
-      (({ titulo, preco, categoriaId, familyName, tipoAnuncio, condicao, versiculo }) => ({ titulo, preco, categoriaId, familyName, tipoAnuncio, condicao, versiculo }))(aplicarComposicao(editado, null, { a, b })),
-      { titulo: "Titulo do dono", preco: 9.9, categoriaId: "MLB1234", familyName: "Familia", tipoAnuncio: "gold_pro", condicao: "used", versiculo: sl23 });
+      (({ titulo, preco, categoriaId, familyName, tipoAnuncio, condicao }) => ({ titulo, preco, categoriaId, familyName, tipoAnuncio, condicao }))(aplicarComposicao(editado, null, { a, b })),
+      { titulo: "Titulo do dono", preco: 9.9, categoriaId: "MLB1234", familyName: "Familia", tipoAnuncio: "gold_pro", condicao: "used" });
 
     // O GTIN e do codigo de barras da peca avulsa: o kit nao o herda, e ao desligar o kit ele volta.
     const umKit = { itens: [{ produtoId: "a", quantidade: 2 }], codigo: "", blingProdutoId: null };
@@ -319,7 +268,7 @@ try {
     conferir("GTIN: marca e modelo do dono sobrevivem a ida e a volta",
       [kitEditado.atributos, aplicarComposicao(kitEditado, null, { a }).atributos],
       [{ BRAND: "OUTRA", MODEL: "M1" }, { BRAND: "OUTRA", MODEL: "M1", GTIN: "7890000000001" }]);
-    const simplesDeB = rascunhoInicial({ principal: b, produtosPorId: { b }, composicao: null, versiculo: null });
+    const simplesDeB = rascunhoInicial({ principal: b, produtosPorId: { b }, composicao: null });
     conferir("GTIN: principal sem EAN volta sem GTIN",
       aplicarComposicao(aplicarComposicao(simplesDeB, { itens: [{ produtoId: "b", quantidade: 2 }], codigo: "", blingProdutoId: null }, { b }), null, { b }).atributos, { BRAND: "GENERICA" });
     conferir("GTIN: o do kit, se o dono digitou, nao vai para a peca avulsa",
@@ -381,8 +330,7 @@ try {
     conferir("estoque zero e so alerta", onde(problema({ ...base, estoque: 0 }, ctx, "estoque")), ["preco", false]);
     conferir("sem fotos", onde(problema({ ...base, imagens: [] }, ctx, "imagens")), ["imagens", true]);
     conferir("descricao vazia", onde(problema({ ...base, descricao: "" }, ctx, "descricao")), ["descricao", true]);
-    conferir("sem versiculo e so alerta", onde(problema({ ...base, versiculo: null }, ctx, "versiculo")), ["descricao", false]);
-    conferir("versiculo passa de 25%", onde(problema({ ...base, descricao: "curta" }, { ...ctx, frases: [] }, "versiculo")), ["descricao", true]);
+    conferir("descricao curta serve: so a vazia e problema", validarRascunhoML({ ...base, descricao: "curta" }, { ...ctx, frases: [] }), []);
     conferir("sem GTIN em produto simples", onde(problema({ ...base, atributos: { BRAND: "GENERICA" } }, ctx, "GTIN")), ["ficha", false]);
     conferir("sem peso", onde(problema(comEnvio({ pesoKg: null }), ctx, "peso")), ["envio", true]);
     conferir("sem dimensoes", onde(problema(comEnvio({ alturaCm: 0 }), ctx, "dimensoes")), ["envio", true]);
@@ -423,6 +371,7 @@ try {
       [{ id: "BRAND", value_name: "GENERICA" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
     conferir("preco vai a parte", payload.preco, { amount: 0.5, currency_id: "BRL" });
     conferir("descricao final no payload", payload.descricao.plain_text, montarDescricaoML({ ...simples, frases: ctx.frases }));
+    conferir("descricao final no payload: descricao do produto e frases fixas", payload.descricao.plain_text, `${a.descricaoBase}\n\nNota fiscal.`);
     conferir("payload: titulo, familia, categoria, estoque, tipo e condicao",
       [payload.item.title, payload.item.family_name, payload.item.category_id, payload.item.available_quantity, payload.item.currency_id, payload.item.listing_type_id, payload.item.condition],
       ["Resistor 1K 1/4W", "GENERICA", "MLB1234", 100, "BRL", "gold_special", "new"]);
@@ -482,110 +431,29 @@ try {
     console.log("\nConfiguracao (banco)");
     await limpar();
 
-    // A configuracao e a lista de versiculos sao dados REAIS do dono (banco compartilhado):
-    // a linha do canal e guardada aqui e devolvida no finally, e os unicos versiculos que o
-    // bloco cria sao os de teste abaixo, apagados por texto (nunca se mexe nos outros).
-    // Todo versiculo que o bloco grava ou tenta gravar leva um destes textos: e o que deixa
-    // a limpeza achar tudo, mesmo o que um defeito deixasse passar da validacao.
-    const textosDeTeste = ["Texto de teste.", "Texto de carga.", "Teste de teto."];
-    const [textoDoTeste, textoDaCarga, textoDoTeto] = textosDeTeste;
-    // Sobras de uma execucao morta no meio (Ctrl+C, queda de energia) bloqueariam a carga real
-    // da Tarefa 15, que so roda com a tabela vazia.
-    await prisma.versiculo.deleteMany({ where: { texto: { in: textosDeTeste } } });
-
+    // A configuracao e dado REAL do dono (banco compartilhado): a linha do canal e guardada
+    // aqui e devolvida no finally.
     const configAntes = await prisma.configCanal.findUnique({ where: { canal: "MERCADO_LIVRE" } });
-    const recusada = async (chamada) => {
-      try {
-        await chamada();
-        return null;
-      } catch (erro) {
-        return erro.message;
-      }
-    };
-    // Dois finally encaixados: cada limpeza roda mesmo que a outra lance, e a da configuracao
-    // (dado real do dono) nunca fica atras de um erro na dos versiculos de teste.
     try {
-      try {
-        if (!configAntes) {
-          // So aqui: apagar a linha do dono para testar a ausencia seria arriscar o dado real.
-          conferir("sem linha: listas vazias", await lerConfigML(), { frases: [], usados: [] });
-          conferir("sem linha: ler nao cria", await prisma.configCanal.count({ where: { canal: "MERCADO_LIVRE" } }), 0);
-        }
-
-        conferir("frases: uma por linha, aparadas e sem repetir", (await gravarFrases("  Nota fiscal em todos.\n\nNota fiscal em todos.\nEnvio no mesmo dia. ")).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
-        conferir("frases: lidas de volta", (await lerConfigML()).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
-        conferir("frases: mais de 10 e recusado", (await gravarFrases(Array.from({ length: 11 }, (_, i) => `F${i}`).join("\n"))).ok, false);
-        conferir("frases: frase acima de 200 caracteres e recusada", (await gravarFrases("x".repeat(201))).ok, false);
-        conferir("frases: o que foi recusado nao mexe no gravado", (await lerConfigML()).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
-        const dezDeDuzentos = Array.from({ length: 10 }, (_, i) => String.fromCharCode(97 + i).repeat(200));
-        conferir("frases: 10 frases de 200 caracteres cabem", (await gravarFrases(dezDeDuzentos.join("\n"))).frases, dezDeDuzentos);
-        conferir("frases: onze linhas iguais sao uma so", (await gravarFrases(Array(11).fill("Igual.").join("\n"))).frases, ["Igual."]);
-        conferir("frases: quebra de linha do Windows", (await gravarFrases("A\r\nB\r\n")).frases, ["A", "B"]);
-        conferir("frases: vazio limpa", (await gravarFrases("  \n ")).frases, []);
-
-        const atuais = await listarVersiculos();
-        const livre = Array.from({ length: 176 }, (_, i) => i + 1).find((n) => !atuais.some((v) => v.livro === "Salmos" && v.capitulo === 119 && v.inicio === n));
-
-        if (atuais.length === 0) {
-          // Tabela vazia (a carga real ainda nao aconteceu): so entao a carga inicial pode ser
-          // exercitada sem tocar em dado do dono. Tudo o que ela grava aqui e apagado por texto.
-          const grande = Array.from({ length: 501 }, (_, i) => ({ livro: "Salmos", capitulo: 119, inicio: i + 1, fim: i + 1, texto: textoDoTeto }));
-          conferir("carga inicial: mais de 500 e recusada antes de gravar", [await recusada(() => carregarVersiculosIniciais(grande)), await prisma.versiculo.count()],
-            ["A carga tem 501 versiculos. O limite da NVI sem autorizacao da Biblica e 500.", 0]);
-          conferir("carga inicial: versiculo invalido e recusado antes de gravar", [await recusada(() => carregarVersiculosIniciais([{ livro: "Isaías", capitulo: 1, inicio: 1, fim: 1, texto: textoDoTeste }])), await prisma.versiculo.count()],
-            ["Isaías 1:1: Use Salmos ou Provérbios.", 0]);
-          // Fora de ordem, uma sem `fim`, uma faixa e uma repetida dentro da propria lista.
-          const carga = [
-            { livro: "Salmos", capitulo: 119, inicio: 3, texto: ` ${textoDaCarga.replace(" ", "\n ")} ` },
-            { livro: "Provérbios", capitulo: 3, inicio: 5, fim: 6, texto: textoDaCarga },
-            { livro: "Salmos", capitulo: 23, inicio: 1, fim: 1, texto: textoDaCarga },
-            { livro: "Salmos", capitulo: 23, inicio: 1, fim: 1, texto: textoDaCarga },
-          ];
-          conferir("carga inicial: tabela vazia carrega (repetido da propria lista e ignorado)", await carregarVersiculosIniciais(carga), { carregados: 3, existentes: 0 });
-          const carregados = await listarVersiculos();
-          conferir("lista: ordem livro, capitulo, inicio", carregados.map(referenciaDoVersiculo), ["Provérbios 3:5-6", "Salmos 23:1", "Salmos 119:3"]);
-          conferir("carga inicial: fim ausente vale o inicio e o texto e aparado", carregados.map((v) => [v.fim, v.texto]), [[6, textoDaCarga], [1, textoDaCarga], [3, textoDaCarga]]);
-          conferir("carga inicial: segunda vez nao carrega", await carregarVersiculosIniciais([sl23]), { carregados: 0, existentes: 3 });
-          await prisma.versiculo.deleteMany({ where: { texto: textoDaCarga } });
-        }
-
-        // Cada espaco vira quebra de linha com recuo: a entrada chega suja e tem que sair como `textoDoTeste`.
-        const novo = await adicionarVersiculo({ livro: "Salmos", capitulo: 119, inicio: livre, fim: livre, texto: `  ${textoDoTeste.replaceAll(" ", "\n  ")}  ` });
-        conferir("versiculo entra", [novo.ok, (await listarVersiculos()).length], [true, atuais.length + 1]);
-        conferir("versiculo: o que a lista devolve (sem as datas do banco)", Object.keys((await listarVersiculos())[0]).sort(), ["capitulo", "fim", "id", "inicio", "livro", "texto"]);
-        conferir("versiculo: texto aparado e numa linha so", (await listarVersiculos()).find((v) => v.id === novo.id)?.texto, textoDoTeste);
-        conferir("versiculo repetido e recusado", (await adicionarVersiculo({ livro: "Salmos", capitulo: 119, inicio: livre, fim: livre, texto: textoDoTeste })).erro, "Este versiculo ja esta na lista.");
-        conferir("versiculo invalido e recusado", (await adicionarVersiculo({ livro: "Isaías", capitulo: 1, inicio: 1, fim: 1, texto: textoDoTeste })).ok, false);
-        conferir("versiculo: livro sem o acento e recusado", (await adicionarVersiculo({ livro: "Proverbios", capitulo: 3, inicio: 5, fim: 5, texto: textoDoTeste })).ok, false);
-        conferir("versiculo: texto so de espacos e recusado", (await adicionarVersiculo({ livro: "Salmos", capitulo: 1, inicio: 1, fim: 1, texto: " \n " })).erro, "Cole o texto do versiculo.");
-        conferir("versiculo recusado nao entra", (await listarVersiculos()).length, atuais.length + 1);
-
-        const outros = (await listarVersiculos()).filter((v) => v.id !== novo.id).map(referenciaDoVersiculo);
-        conferir("sorteio do banco nunca devolve o excluido", (await sortearVersiculoDoBanco({ excluir: outros, resto: "r".repeat(2000) })).versiculo?.inicio, livre);
-        // Os usados vem da linha do canal; o ultimo gravar de frases ja a criou.
-        await prisma.configCanal.update({ where: { canal: "MERCADO_LIVRE" }, data: { versiculosUsados: outros } });
-        const sorteado = await sortearVersiculoDoBanco({ resto: "r".repeat(2000) });
-        conferir("sorteio do banco pula os usados do canal", [sorteado.versiculo?.inicio, sorteado.reiniciou], [livre, false]);
-        // Com a lista so de um versiculo (tabela vazia antes do teste), `outros` e vazio e o
-        // caso acima nao prova nada; usado o unico que sobra, o ciclo tem que recomecar. O
-        // `excluir: outros` deixa o de teste como unico elegivel, entao o resultado e o mesmo
-        // com a lista real carregada (sem ele o recomeco sortearia entre todos os versiculos).
-        await prisma.configCanal.update({ where: { canal: "MERCADO_LIVRE" }, data: { versiculosUsados: [...outros, `Salmos 119:${livre}`] } });
-        const recomecou = await sortearVersiculoDoBanco({ excluir: outros, resto: "r".repeat(2000) });
-        conferir("sorteio do banco: todos usados, o ciclo recomeca", [recomecou.versiculo?.inicio, recomecou.reiniciou], [livre, true]);
-        conferir("sorteio do banco: nada cabe, sem versiculo", (await sortearVersiculoDoBanco({ resto: "curto" })).versiculo, null);
-
-        const antesDeRemover = (await listarVersiculos()).length;
-        conferir("remover id que nao existe", await removerVersiculo("id-que-nao-existe"), { ok: false, erro: "Versiculo nao encontrado." });
-        conferir("remover sem id nao apaga nada", [(await removerVersiculo(undefined)).ok, (await listarVersiculos()).length], [false, antesDeRemover]);
-        conferir("versiculo sai", [(await removerVersiculo(novo.id)).ok, (await listarVersiculos()).length], [true, atuais.length]);
-        if (atuais.length > 0) conferir("carga inicial nao mexe em lista que ja tem versiculo", (await carregarVersiculosIniciais([sl23])).carregados, 0);
-      } finally {
-        await prisma.versiculo.deleteMany({ where: { texto: { in: textosDeTeste } } });
+      if (!configAntes) {
+        // So aqui: apagar a linha do dono para testar a ausencia seria arriscar o dado real.
+        conferir("sem linha: lista vazia", await lerConfigML(), { frases: [] });
+        conferir("sem linha: ler nao cria", await prisma.configCanal.count({ where: { canal: "MERCADO_LIVRE" } }), 0);
       }
+
+      conferir("frases: uma por linha, aparadas e sem repetir", (await gravarFrases("  Nota fiscal em todos.\n\nNota fiscal em todos.\nEnvio no mesmo dia. ")).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
+      conferir("frases: lidas de volta", (await lerConfigML()).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
+      conferir("frases: mais de 10 e recusado", (await gravarFrases(Array.from({ length: 11 }, (_, i) => `F${i}`).join("\n"))).ok, false);
+      conferir("frases: frase acima de 200 caracteres e recusada", (await gravarFrases("x".repeat(201))).ok, false);
+      conferir("frases: o que foi recusado nao mexe no gravado", (await lerConfigML()).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
+      const dezDeDuzentos = Array.from({ length: 10 }, (_, i) => String.fromCharCode(97 + i).repeat(200));
+      conferir("frases: 10 frases de 200 caracteres cabem", (await gravarFrases(dezDeDuzentos.join("\n"))).frases, dezDeDuzentos);
+      conferir("frases: onze linhas iguais sao uma so", (await gravarFrases(Array(11).fill("Igual.").join("\n"))).frases, ["Igual."]);
+      conferir("frases: quebra de linha do Windows", (await gravarFrases("A\r\nB\r\n")).frases, ["A", "B"]);
+      conferir("frases: vazio limpa", (await gravarFrases("  \n ")).frases, []);
     } finally {
       if (configAntes) {
-        const dados = { frasesFixas: configAntes.frasesFixas, versiculosUsados: configAntes.versiculosUsados };
+        const dados = { frasesFixas: configAntes.frasesFixas };
         await prisma.configCanal.upsert({ where: { canal: "MERCADO_LIVRE" }, create: { canal: "MERCADO_LIVRE", ...dados }, update: dados });
       } else {
         await prisma.configCanal.deleteMany({ where: { canal: "MERCADO_LIVRE" } });
@@ -597,18 +465,13 @@ try {
     console.log("\nRascunho (banco)");
     await limpar();
 
-    // O fornecedor e o versiculo de teste moram no banco de verdade (compartilhado): saem por nome
-    // e por texto, no comeco (sobra de uma execucao morta) e no fim. O produto vai antes do
-    // fornecedor, porque o vinculo ProdutoFornecedor e Restrict para o Fornecedor.
-    const textoDoVersiculo = "Texto de teste ML.";
-    const varrerExtras = async () => {
-      await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor ML" } });
-      await prisma.versiculo.deleteMany({ where: { texto: textoDoVersiculo } });
-    };
+    // O fornecedor de teste mora no banco de verdade (compartilhado): sai por nome, no comeco
+    // (sobra de uma execucao morta) e no fim. O produto vai antes do fornecedor, porque o vinculo
+    // ProdutoFornecedor e Restrict para o Fornecedor.
+    const varrerExtras = () => prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor ML" } });
     await varrerExtras();
 
-    // As frases do canal entram no resto da descricao e, com elas, no sorteio do versiculo: o teste
-    // fixa as dele, e a configuracao real do dono volta no finally.
+    // O teste fixa as frases do canal, e a configuracao real do dono volta no finally.
     const configAntes = await prisma.configCanal.findUnique({ where: { canal: "MERCADO_LIVRE" } });
     // O rascunho volta do banco com as chaves em outra ordem; a comparacao e pelo conteudo.
     const ordenado = (v) =>
@@ -665,18 +528,6 @@ try {
         conferir("busca: o codigo e exato, nao parte dele", (await buscarProdutoParaAnuncio("ZZ-ML")).ok, false);
         conferir("busca: codigo vazio", (await buscarProdutoParaAnuncio("   ")).erro, "Informe o codigo do produto.");
 
-        // Com a lista de versiculos ainda vazia (a carga real e da Tarefa 15) o rascunho nasce sem
-        // versiculo e sem erro. Com a lista ja carregada nao ha o que afirmar de um sorteio.
-        if ((await prisma.versiculo.count()) === 0) {
-          const semLista = await novoRascunhoML(p1.id);
-          conferir("lista de versiculos vazia: nasce sem versiculo e sem erro", [semLista.ok, semLista.rascunho.versiculo], [true, null]);
-        }
-        // Versiculo curto, que cabe em qualquer descricao do teste. Entra direto no banco (e nao por
-        // adicionarVersiculo) para o teto de 500 da lista real nao barrar o teste.
-        const versiculosAtuais = await listarVersiculos();
-        const livre = Array.from({ length: 176 }, (_, i) => i + 1).find((n) => !versiculosAtuais.some((v) => v.livro === "Salmos" && v.capitulo === 119 && v.inicio === n));
-        await prisma.versiculo.create({ data: { livro: "Salmos", capitulo: 119, inicio: livre, fim: livre, texto: textoDoVersiculo } });
-
         const novo = await novoRascunhoML(p1.id);
         conferir("novo rascunho nao grava nada", [novo.ok, await prisma.anuncio.count({ where: { produtoId: p1.id } })], [true, 0]);
         conferir("novo rascunho: contexto com produtos, frases e codigo em uso", [Object.keys(novo.contexto).sort(), Object.keys(novo.contexto.produtos), novo.contexto.frases, novo.contexto.codigoEmUso],
@@ -684,12 +535,11 @@ try {
         conferir("novo rascunho: parte do produto", [novo.rascunho.produtoId, novo.rascunho.titulo, novo.rascunho.preco, novo.rascunho.estoque, novo.rascunho.atributos],
           [p1.id, "ZZ Produto um", 10, 9, { BRAND: "ZZMARCA", MODEL: "ZZ1", GTIN: "7891234567895" }]);
         conferir("novo rascunho: fotos com a principal na frente", novo.rascunho.imagens, [fotoB.id, fotoA.id]);
-        conferir("novo rascunho: o versiculo sorteado nao leva o id do banco", Object.keys(novo.rascunho.versiculo ?? {}).sort(), ["capitulo", "fim", "inicio", "livro", "texto"]);
         conferir("novo rascunho nao Conferido e recusado", (await novoRascunhoML(p3.id)).ok, false);
         conferir("novo rascunho nao Conferido: diz qual", (await novoRascunhoML(p3.id)).erro, "O produto ZZ-ML-3 ainda nao foi Conferido. So produto Conferido vira anuncio.");
         conferir("novo rascunho: produto que nao existe", (await novoRascunhoML("id-que-nao-existe")).erro, "Produto nao encontrado.");
         const curto = await novoRascunhoML(p4.id);
-        conferir("descricao curta: nasce sem versiculo e sem erro", [curto.ok, curto.rascunho.versiculo], [true, null]);
+        conferir("descricao curta: nasce sem erro, com a descricao do produto", [curto.ok, curto.rascunho.descricao], [true, "curta"]);
 
         const salvo = await salvarRascunhoML(null, { ...novo.rascunho, tipoAnuncio: "gold_special" });
         const premium = await salvarRascunhoML(null, { ...novo.rascunho, tipoAnuncio: "gold_pro" });
@@ -732,7 +582,7 @@ try {
         const gravado = await anuncioDe(completo.id);
         conferir("cada campo mora na sua coluna", [gravado.titulo, gravado.descricao, gravado.categoriaExternaId, gravado.produtoId, ordenado(gravado.atributos)],
           [novo.rascunho.titulo, novo.rascunho.descricao, "MLB1234", p1.id, ordenado(novo.rascunho.atributos)]);
-        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["composicao", "condicao", "envio", "estoque", "familyName", "imagens", "preco", "tipoAnuncio", "versiculo"]);
+        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["composicao", "condicao", "envio", "estoque", "familyName", "imagens", "preco", "tipoAnuncio"]);
         conferir("numero escrito como texto vira numero, e vazio vira null", [gravado.dados.preco, gravado.dados.estoque], [12.5, null]);
 
         // Atualizar: o mesmo anuncio, e o que o editor nao conhece (a etapa da fase 3) fica.
@@ -863,7 +713,7 @@ try {
       }
     } finally {
       if (configAntes) {
-        const dados = { frasesFixas: configAntes.frasesFixas, versiculosUsados: configAntes.versiculosUsados };
+        const dados = { frasesFixas: configAntes.frasesFixas };
         await prisma.configCanal.upsert({ where: { canal: "MERCADO_LIVRE" }, create: { canal: "MERCADO_LIVRE", ...dados }, update: dados });
       } else {
         await prisma.configCanal.deleteMany({ where: { canal: "MERCADO_LIVRE" } });

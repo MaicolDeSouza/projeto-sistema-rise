@@ -25,14 +25,6 @@ const ItemDaComposicao = z.object({
   quantidade: z.unknown(),
 });
 
-const Versiculo = z.object({
-  livro: z.string(),
-  capitulo: z.number(),
-  inicio: z.number(),
-  fim: z.number().nullish(),
-  texto: z.string(),
-});
-
 export const RascunhoMLSchema = z.object({
   produtoId: z.string().min(1),
   titulo: z.string(),
@@ -44,7 +36,6 @@ export const RascunhoMLSchema = z.object({
   estoque: numeroOuNulo,
   imagens: z.array(z.string()),
   descricao: z.string(),
-  versiculo: Versiculo.nullable(),
   atributos: z.record(z.string(), z.string()),
   envio: z.object({
     pesoKg: numeroOuNulo,

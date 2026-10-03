@@ -2,12 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import {
-  adicionarVersiculo,
-  gravarFrases,
-  removerVersiculo,
-  sortearVersiculoDoBanco,
-} from "@/lib/canaisDeVenda/configuracao";
+import { gravarFrases } from "@/lib/canaisDeVenda/configuracao";
 import {
   anunciosMLDoProduto,
   buscarProdutoParaAnuncio,
@@ -119,25 +114,6 @@ export async function sugerirCodigoKit() {
   });
 }
 
-/**
- * Sorteia outro versiculo. `excluir` sao as referencias que o operador ja recusou nesta tela
- * e `resto` e a descricao sem o versiculo (a citacao tem que ficar abaixo de 25% do texto).
- * Sortear nao grava nem consome nada.
- */
-export async function outroVersiculo(excluir, resto) {
-  const recusados = Array.isArray(excluir) ? excluir.filter((referencia) => typeof referencia === "string") : [];
-  return protegendo(async () => ({ ok: true, ...(await sortearVersiculoDoBanco({ excluir: recusados, resto })) }));
-}
-
 export async function salvarFrasesFixas(texto) {
   return protegendo(async () => revalidando(await gravarFrases(texto)));
-}
-
-export async function incluirVersiculo(dados) {
-  return protegendo(async () => revalidando(await adicionarVersiculo(dados)));
-}
-
-export async function excluirVersiculo(id) {
-  if (!ehId(id)) return PEDIDO_INVALIDO;
-  return protegendo(async () => revalidando(await removerVersiculo(id)));
 }

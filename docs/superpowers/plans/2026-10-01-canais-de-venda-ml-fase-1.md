@@ -1,5 +1,7 @@
 # Canais de Venda — Mercado Livre, Fase 1 (Rascunho): plano de implementação
 
+> **Emenda de 03/10/2026:** os versículos foram removidos do projeto (decisão do dono); as partes de versículo das Tarefas 1, 3, 4, 5, 6, 7, 8, 11, 14 e 15 foram desfeitas pela Tarefa R.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Criar a seção Canais de Venda e, no Mercado Livre, montar e salvar o rascunho de anúncio (inclusive de composição) a partir de um Produto Conferido, pelo pop-up do ícone na lista de Produtos ou pela página inteira — sem escrever nada no ML nem no Bling.

@@ -287,8 +287,8 @@ model ProdutoArquivo {
 /// SQL porque o Prisma nao descreve indice parcial — como o `Job_fonte_aberta`.
 ///
 /// `dados` guarda o que e proprio do canal e nao tem coluna: no ML, o rascunho do
-/// anuncio (tipo Classico/Premium, condicao, versiculo, etapa, vinculo com o Bling e
-/// composicao do kit). O formato e do codigo do canal; o banco so guarda o JSON.
+/// anuncio (tipo Classico/Premium, condicao, etapa, vinculo com o Bling e composicao
+/// do kit). O formato e do codigo do canal; o banco so guarda o JSON.
 model Anuncio {
   id        String  @id @default(cuid())
   produtoId String
@@ -346,32 +346,7 @@ model ConfigCanal {
   /// nossos produtos possuem nota fiscal").
   frasesFixas String[] @default([])
 
-  /// Historico de versiculos ja usados em anuncios publicados, para nao repetir.
-  /// Reinicia quando todos os versiculos elegiveis foram usados.
-  versiculosUsados String[] @default([])
-
   atualizadoEm DateTime @updatedAt
-}
-
-/// Versiculo da NVI para a descricao dos anuncios do ML.
-///
-/// A licenca da NVI limita o uso: no maximo 500 versiculos na lista (contando
-/// faixas, entao `3:5-6` vale 2), e o credito "(NVI)" tem que acompanhar o texto.
-/// Por isso o credito NAO e coluna: o codigo o escreve, nunca o operador. O teto de
-/// 500 e conferido pelo codigo (TETO_DE_VERSICULOS), nao pelo banco.
-model Versiculo {
-  id String @id @default(cuid())
-
-  livro    String
-  capitulo Int
-  /// Primeiro versiculo da faixa; igual a `fim` quando e um so.
-  inicio   Int
-  fim      Int
-  texto    String
-
-  criadoEm DateTime @default(now())
-
-  @@unique([livro, capitulo, inicio])
 }
 
 // ---------------------------------------------------------------------------
