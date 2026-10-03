@@ -37,7 +37,7 @@ const { montarDescricaoML } = await import("../src/lib/canaisDeVenda/ml/descrica
 const { rascunhoInicial, aplicarComposicao } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
 const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
 const { montarPayloadML, nomeDaFoto } = await import("../src/lib/canaisDeVenda/ml/payload.js");
-const { estadoDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
+const { estadoDoIconeML, rotuloDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
 const {
   contextoDosProdutos,
   buscarProdutoParaAnuncio,
@@ -413,6 +413,11 @@ try {
       estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA" }, { canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "PAUSADA" }]), { publicado: true, rascunho: true });
     conferir("icone: situacao ATIVA sem status publicado nao e verde", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "RASCUNHO", situacaoCanal: "ATIVA" }]), { publicado: false, rascunho: true });
     conferir("icone: lista invalida", estadoDoIconeML(undefined), { publicado: false, rascunho: false });
+    // O texto do icone: cor e ponto sozinhos nao dizem o estado a leitor de tela nem ao mouse parado.
+    conferir("rotulo do icone: sem anuncio", rotuloDoIconeML({ publicado: false, rascunho: false }), "Anuncio no Mercado Livre: sem anuncio");
+    conferir("rotulo do icone: so rascunho", rotuloDoIconeML({ publicado: false, rascunho: true }), "Anuncio no Mercado Livre: anuncio pendente (rascunho, erro ou pausado)");
+    conferir("rotulo do icone: publicado e ativo", rotuloDoIconeML({ publicado: true, rascunho: false }), "Anuncio no Mercado Livre: publicado e ativo");
+    conferir("rotulo do icone: publicado e ativo mais um pendente", rotuloDoIconeML({ publicado: true, rascunho: true }), "Anuncio no Mercado Livre: publicado e ativo, com anuncio pendente");
 
     const { integrados } = separarCanais([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB1" }, { canal: "MERCADO_LIVRE", status: "RASCUNHO", idExterno: null }]);
     conferir("separarCanais nao esconde o publicado atras do rascunho", integrados.map((c) => c.idExterno), ["MLB1"]);

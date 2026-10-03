@@ -26,3 +26,15 @@ export function estadoDoIconeML(anuncios) {
     rascunho: doML.some((anuncio) => !estaPublicadoEAtivo(anuncio)),
   };
 }
+
+/**
+ * Texto do icone do ML (nome acessivel e dica ao passar o mouse). Verde/cinza e o ponto ambar so
+ * existem na cor, e cor sozinha nao chega a quem usa leitor de tela nem a quem so passa o mouse.
+ * @param {{publicado: boolean, rascunho: boolean}} estado o retorno de `estadoDoIconeML`
+ */
+export function rotuloDoIconeML({ publicado, rascunho }) {
+  const base = "Anuncio no Mercado Livre";
+  if (publicado) return `${base}: publicado e ativo${rascunho ? ", com anuncio pendente" : ""}`;
+  if (rascunho) return `${base}: anuncio pendente (rascunho, erro ou pausado)`;
+  return `${base}: sem anuncio`;
+}

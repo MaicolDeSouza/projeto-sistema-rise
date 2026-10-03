@@ -77,6 +77,7 @@ export default function EditorAnuncioML({
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
   const [salvando, iniciarSalvamento] = useTransition();
   const caixaDaMensagem = useRef(null);
+  const secaoDaJanela = useRef(null);
 
   const alterado = rascunho !== salvo;
   const janela = modo === "janela";
@@ -86,6 +87,11 @@ export default function EditorAnuncioML({
   useEffect(() => {
     if (mensagem?.tipo === "erro") caixaDaMensagem.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [mensagem]);
+
+  // No modo janela o foco entra no dialog ao abrir (sem prender o foco: so a entrada).
+  useEffect(() => {
+    if (janela) secaoDaJanela.current?.focus();
+  }, [janela]);
 
   const pedirFechamento = useCallback(() => {
     if (salvando) return;
@@ -235,10 +241,12 @@ export default function EditorAnuncioML({
       }}
     >
       <section
+        ref={secaoDaJanela}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label="Anuncio do Mercado Livre"
-        className="flex max-h-full w-full max-w-5xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl"
+        className="flex max-h-full w-full max-w-5xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl focus:outline-none"
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-5 py-3">
           <div className="min-w-0">

@@ -7,6 +7,7 @@ import { EllipsisVertical, ImageOff } from "lucide-react";
 
 import { CANAIS } from "@/lib/canais";
 import JanelaAnuncioML from "@/components/anuncios/ml/JanelaAnuncioML";
+import { rotuloDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import Copiar from "@/components/ui/Copiar";
 import ConferidoProduto from "./ConferidoProduto";
 import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPreco } from "./EdicaoRapida";
@@ -60,6 +61,8 @@ export default function LinhaProduto({
   // Qual popup de edicao rapida esta aberto: "localizacao", "preco" ou "estoque".
   const [editando, setEditando] = useState(null);
   const fecharEdicao = () => setEditando(null);
+  // Cor e ponto sozinhos nao dizem o estado: o mesmo texto vai no nome acessivel e na dica.
+  const rotuloML = rotuloDoIconeML(iconeML);
 
   const moeda = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -152,8 +155,8 @@ export default function LinhaProduto({
                 key={canal.id}
                 type="button"
                 onClick={() => setJanelaML(true)}
-                title="Anuncio no Mercado Livre"
-                aria-label="Anuncio no Mercado Livre"
+                title={rotuloML}
+                aria-label={rotuloML}
                 className="relative shrink-0 rounded hover:ring-2 hover:ring-sky-200 focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none"
               >
                 {/* Colorido so com anuncio publicado e ativo; o ponto ambar avisa que algum
@@ -166,7 +169,10 @@ export default function LinhaProduto({
                   className={`rounded ${iconeML.publicado ? "" : "opacity-70 brightness-50 grayscale"}`}
                 />
                 {iconeML.rascunho && (
-                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-superficie" />
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-superficie"
+                  />
                 )}
               </button>
             ) : (

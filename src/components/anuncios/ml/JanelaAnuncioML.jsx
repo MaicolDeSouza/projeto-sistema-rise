@@ -40,6 +40,13 @@ async function chamar(acao, argumento) {
 }
 
 function Moldura({ produto, aoFechar, children }) {
+  const secao = useRef(null);
+  // O foco vai para dentro da janela ao abrir (senao fica no icone, atras do fundo escuro e
+  // fora do alcance de quem usa o teclado). Sem prender o foco: so a entrada.
+  useEffect(() => {
+    secao.current?.focus();
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case"
@@ -48,10 +55,12 @@ function Moldura({ produto, aoFechar, children }) {
       }}
     >
       <section
+        ref={secao}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label="Anuncios do Mercado Livre"
-        className="flex max-h-full w-full max-w-2xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl"
+        className="flex max-h-full w-full max-w-2xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl focus:outline-none"
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-5 py-3">
           <div className="min-w-0">
@@ -85,15 +94,19 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
   const [aviso, setAviso] = useState(null);
   const [erro, setErro] = useState(null);
   const abertura = useRef(0);
+  // A nota ("Anuncio salvo.") que a proxima carga da lista mostra; guardada para o "Tentar de novo".
+  const notaDaLista = useRef(null);
   // As respostas chegam depois de um await: se a janela foi fechada nesse meio tempo, nada a fazer.
   const montada = useRef(false);
 
   const carregarLista = useCallback(
     async (nota) => {
+      notaDaLista.current = nota ?? null;
       const resultado = await chamar(listarAnunciosDoProdutoML, produtoId);
       if (!montada.current) return null;
       if (!resultado.ok) {
-        setErro(resultado.erro);
+        // O Salvar ja deu certo: a falha e so de recarregar a lista, e o texto nao pode sugerir o contrario.
+        setErro(nota?.tipo === "ok" ? `${nota.texto} Nao foi possivel recarregar a lista: ${resultado.erro}` : resultado.erro);
         setFase("erro");
         return null;
       }
@@ -146,17 +159,24 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
     setFase("editor");
   }, []);
 
+  const iniciar = useCallback(
+    async (nota) => {
+      const lista = await carregarLista(nota);
+      // Produto Conferido sem nenhum anuncio: nao ha o que listar, abre direto o editor de um novo.
+      if (lista?.produto.conferido && lista.anuncios.length === 0) await abrirNovo();
+    },
+    [carregarLista, abrirNovo],
+  );
+
   useEffect(() => {
     montada.current = true;
     (async () => {
-      const lista = await carregarLista();
-      // Produto Conferido sem nenhum anuncio: nao ha o que listar, abre direto o editor de um novo.
-      if (lista?.produto.conferido && lista.anuncios.length === 0) await abrirNovo();
+      await iniciar();
     })();
     return () => {
       montada.current = false;
     };
-  }, [carregarLista, abrirNovo]);
+  }, [iniciar]);
 
   // O editor ouve o proprio Esc (e tem o aviso de alteracao nao salva): aqui so as outras fases.
   useEffect(() => {
@@ -172,6 +192,11 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
   function aoSalvar() {
     setFase("carregando");
     carregarLista({ tipo: "ok", texto: "Anuncio salvo." });
+  }
+
+  function tentarDeNovo() {
+    setFase("carregando");
+    iniciar(notaDaLista.current);
   }
 
   if (fase === "editor" && editor) {
@@ -199,9 +224,18 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
       )}
 
       {fase === "erro" && (
-        <p role="alert" className={`rounded border px-3 py-2 text-sm ${CLASSE_DO_AVISO.erro}`}>
-          {erro}
-        </p>
+        <div className="space-y-3">
+          <p role="alert" className={`rounded border px-3 py-2 text-sm ${CLASSE_DO_AVISO.erro}`}>
+            {erro}
+          </p>
+          <button
+            type="button"
+            onClick={tentarDeNovo}
+            className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+          >
+            Tentar de novo
+          </button>
+        </div>
       )}
 
       {fase === "naoConferido" && (
