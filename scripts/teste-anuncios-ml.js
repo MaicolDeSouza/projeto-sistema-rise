@@ -716,7 +716,7 @@ try {
         // O codigo e o proximo livre da faixa AGORA (o mesmo calculo da funcao, lendo o banco): assim o teste
         // nao depende de nenhum SKU ou kit real perto do fim da faixa. Salvo ele, o seguinte tem que ser +1.
         const livreAgora = await sugerirCodigoDeKit();
-        conferir("sugerir codigo de kit: ainda ha codigo livre na faixa", /^25d{4}$/.test(livreAgora) && Number(livreAgora) < 259999, true);
+        conferir("sugerir codigo de kit: ainda ha codigo livre na faixa", /^25\d{4}$/.test(livreAgora) && Number(livreAgora) < 259999, true);
         await salvarRascunhoML(null, kitComCodigo(livreAgora));
         conferir("sugerir codigo de kit: depois do maior codigo de kit", await sugerirCodigoDeKit(), String(Number(livreAgora) + 1));
 
