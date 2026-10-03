@@ -713,8 +713,12 @@ try {
 
         // O codigo sugerido vem depois do maior ja usado, tambem nos codigos de kit dos anuncios.
         conferir("sugerir codigo de kit: na faixa 25xxxx", /^25\d{4}$/.test(await sugerirCodigoDeKit()), true);
-        await salvarRascunhoML(null, kitComCodigo("259990"));
-        conferir("sugerir codigo de kit: depois do maior codigo de kit", await sugerirCodigoDeKit(), "259991");
+        // O codigo e o proximo livre da faixa AGORA (o mesmo calculo da funcao, lendo o banco): assim o teste
+        // nao depende de nenhum SKU ou kit real perto do fim da faixa. Salvo ele, o seguinte tem que ser +1.
+        const livreAgora = await sugerirCodigoDeKit();
+        conferir("sugerir codigo de kit: ainda ha codigo livre na faixa", /^25d{4}$/.test(livreAgora) && Number(livreAgora) < 259999, true);
+        await salvarRascunhoML(null, kitComCodigo(livreAgora));
+        conferir("sugerir codigo de kit: depois do maior codigo de kit", await sugerirCodigoDeKit(), String(Number(livreAgora) + 1));
 
         const totalDeTeste = await prisma.anuncio.count({ where: { canal: "MERCADO_LIVRE", produto: { sku: { startsWith: "ZZ-ML-" } } } });
         const lista = await listarAnunciosML({ busca: "zz-ml" });
