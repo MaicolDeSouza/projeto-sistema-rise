@@ -7,13 +7,9 @@ import Badge from "@/components/ui/Badge";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { LIMITE_TITULO } from "@/lib/anuncios/canais/mercadolivre";
 import { aplicarComposicao } from "@/lib/canaisDeVenda/ml/rascunho";
+import { TIPOS_DE_ANUNCIO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import BlocoComposicao from "./BlocoComposicao";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
-
-const TIPOS_DE_ANUNCIO = [
-  { valor: "gold_special", rotulo: "Classico" },
-  { valor: "gold_pro", rotulo: "Premium" },
-];
 
 const CONDICOES = [
   { valor: "new", rotulo: "Novo" },
@@ -184,7 +180,7 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
 
         <EscolhaEntre
           rotulo="Tipo de anuncio"
-          opcoes={TIPOS_DE_ANUNCIO}
+          opcoes={TIPOS_DE_ANUNCIO_ML}
           valor={rascunho.tipoAnuncio}
           aoMudar={(tipoAnuncio) => alterar({ tipoAnuncio })}
         />

@@ -3,25 +3,13 @@ import { Handshake } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
+import { ROTULO_DO_TIPO_ML, STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 
 /**
  * Lista dos anuncios do Mercado Livre (so leitura; a busca e a paginacao moram na pagina).
  * Cada linha leva ao anuncio. Componente de servidor: o clique e um link comum no codigo e
- * no titulo, sem estado de cliente.
- *
- * O texto da situacao e do tipo repete o que o editor mostra (`EditorAnuncioML`, `AbaGeral`):
- * aquele arquivo e de cliente, e exportar dele para ca viraria referencia de cliente, nao o mapa.
+ * no titulo, sem estado de cliente. Situacao e tipo vem de `rotulos.js`, o mesmo do editor.
  */
-
-const SITUACOES = {
-  RASCUNHO: { rotulo: "Rascunho", tom: "neutro" },
-  VALIDADO: { rotulo: "Validado", tom: "info" },
-  PUBLICANDO: { rotulo: "Publicando", tom: "alerta" },
-  PUBLICADO: { rotulo: "Publicado", tom: "sucesso" },
-  ERRO: { rotulo: "Erro", tom: "erro" },
-};
-
-const TIPOS = { gold_special: "Classico", gold_pro: "Premium" };
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dataEHora = new Intl.DateTimeFormat("pt-BR", {
@@ -66,7 +54,7 @@ export default function TabelaAnunciosML({ linhas, busca }) {
         </thead>
         <tbody className="divide-y divide-borda">
           {linhas.map((linha) => {
-            const situacao = SITUACOES[linha.status] ?? SITUACOES.RASCUNHO;
+            const situacao = STATUS_ML[linha.status] ?? STATUS_ML.RASCUNHO;
             return (
               <tr key={linha.id} className="hover:bg-fundo">
                 <td className="px-3 py-2.5 font-mono whitespace-nowrap">
@@ -79,7 +67,7 @@ export default function TabelaAnunciosML({ linhas, busca }) {
                     {linha.titulo || <span className="text-suave italic">Sem titulo</span>}
                   </Link>
                 </td>
-                <td className="px-3 py-2.5">{TIPOS[linha.tipoAnuncio] ?? "-"}</td>
+                <td className="px-3 py-2.5">{ROTULO_DO_TIPO_ML[linha.tipoAnuncio] ?? "-"}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">
                   {typeof linha.preco === "number" ? moeda.format(linha.preco) : "-"}
                 </td>

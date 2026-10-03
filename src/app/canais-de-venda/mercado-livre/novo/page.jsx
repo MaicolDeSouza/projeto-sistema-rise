@@ -46,7 +46,7 @@ export default async function NovoAnuncioMLPage({ searchParams }) {
       <LinkDeVolta href="/canais-de-venda/mercado-livre" rotulo="Mercado Livre" />
       <PageHeader
         titulo="Novo anuncio"
-        descricao={sku ? `Anuncio do produto ${sku}. Nada e gravado ate clicar em Salvar.` : "Escolha o produto Conferido que vira anuncio."}
+        descricao={sku ? `Anuncio do produto ${sku}. Preencha as abas e clique em Salvar para guardar o rascunho.` : "Escolha o produto Conferido que vira anuncio."}
       />
 
       {erro && <AvisoBanco erro={erro} />}

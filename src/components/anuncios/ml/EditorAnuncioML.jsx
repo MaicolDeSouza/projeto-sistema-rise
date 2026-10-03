@@ -6,6 +6,7 @@ import { Loader, X } from "lucide-react";
 import { salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
+import { STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import AbaDescricao from "./AbaDescricao";
 import AbaEnvio from "./AbaEnvio";
@@ -24,14 +25,6 @@ const ABAS_PRONTAS = {
   ficha: AbaFichaTecnica,
   envio: AbaEnvio,
   previa: AbaPrevia,
-};
-
-const STATUS = {
-  RASCUNHO: { rotulo: "Rascunho", tom: "neutro" },
-  VALIDADO: { rotulo: "Validado", tom: "info" },
-  PUBLICANDO: { rotulo: "Publicando", tom: "alerta" },
-  PUBLICADO: { rotulo: "Publicado", tom: "sucesso" },
-  ERRO: { rotulo: "Erro", tom: "erro" },
 };
 
 const MOTIVO_DA_FASE = "A publicacao entra na fase 3.";
@@ -153,7 +146,7 @@ export default function EditorAnuncioML({
   ];
 
   const propsDasAbas = { rascunho, contexto, alterar, setContexto, irPara: setAba, anuncioId: idAtual };
-  const rotuloDoStatus = STATUS[status] ?? (idAtual ? STATUS.RASCUNHO : { rotulo: "Novo", tom: "neutro" });
+  const rotuloDoStatus = STATUS_ML[status] ?? (idAtual ? STATUS_ML.RASCUNHO : { rotulo: "Novo", tom: "neutro" });
 
   const aviso = mensagem && (
     <div
