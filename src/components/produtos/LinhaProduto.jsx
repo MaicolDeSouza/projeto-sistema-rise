@@ -6,6 +6,7 @@ import Link from "next/link";
 import { EllipsisVertical, ImageOff } from "lucide-react";
 
 import { CANAIS } from "@/lib/canais";
+import JanelaAnuncioML from "@/components/anuncios/ml/JanelaAnuncioML";
 import Copiar from "@/components/ui/Copiar";
 import ConferidoProduto from "./ConferidoProduto";
 import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPreco } from "./EdicaoRapida";
@@ -50,10 +51,12 @@ function Miniatura({ url, alt }) {
 export default function LinhaProduto({
   produto,
   pendentes,
+  iconeML = { publicado: false, rascunho: false },
   selecionado = false,
   aoAlternarSelecao,
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
+  const [janelaML, setJanelaML] = useState(false);
   // Qual popup de edicao rapida esta aberto: "localizacao", "preco" ou "estoque".
   const [editando, setEditando] = useState(null);
   const fecharEdicao = () => setEditando(null);
@@ -138,21 +141,46 @@ export default function LinhaProduto({
         </CelulaEditavel>
       </td>
 
-      {/* Provisorio, a pedido do dono: todos os logos em preto fosco, sem ligar ao
-          estado de integracao. A situacao real de cada canal volta aqui depois. */}
+      {/* Provisorio, a pedido do dono: Bling, Loja Integrada e Shopee em preto fosco, sem
+          ligar ao estado de integracao (a situacao real deles volta aqui depois). O Mercado
+          Livre ja reflete o anuncio: e um botao que abre o anuncio em pop-up. */}
       <td className="px-3 py-2.5">
         <div className="flex items-center gap-1.5">
-          {CANAIS.map((canal) => (
-            <Image
-              key={canal.id}
-              src={canal.logo}
-              alt={canal.nome}
-              title={canal.nome}
-              width={22}
-              height={22}
-              className="shrink-0 rounded opacity-70 brightness-50 grayscale"
-            />
-          ))}
+          {CANAIS.map((canal) =>
+            canal.id === "MERCADO_LIVRE" ? (
+              <button
+                key={canal.id}
+                type="button"
+                onClick={() => setJanelaML(true)}
+                title="Anuncio no Mercado Livre"
+                aria-label="Anuncio no Mercado Livre"
+                className="relative shrink-0 rounded hover:ring-2 hover:ring-sky-200 focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none"
+              >
+                {/* Colorido so com anuncio publicado e ativo; o ponto ambar avisa que algum
+                    anuncio do produto ainda pede atencao (rascunho, erro, pausado...). */}
+                <Image
+                  src={canal.logo}
+                  alt=""
+                  width={22}
+                  height={22}
+                  className={`rounded ${iconeML.publicado ? "" : "opacity-70 brightness-50 grayscale"}`}
+                />
+                {iconeML.rascunho && (
+                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-superficie" />
+                )}
+              </button>
+            ) : (
+              <Image
+                key={canal.id}
+                src={canal.logo}
+                alt={canal.nome}
+                title={canal.nome}
+                width={22}
+                height={22}
+                className="shrink-0 rounded opacity-70 brightness-50 grayscale"
+              />
+            ),
+          )}
         </div>
       </td>
 
@@ -160,6 +188,7 @@ export default function LinhaProduto({
         {editando === "localizacao" && <PopupLocalizacao produto={produto} aoFechar={fecharEdicao} />}
         {editando === "preco" && <PopupPreco produto={produto} aoFechar={fecharEdicao} />}
         {editando === "estoque" && <PopupEstoque produto={produto} aoFechar={fecharEdicao} />}
+        {janelaML && <JanelaAnuncioML produtoId={produto.id} aoFechar={() => setJanelaML(false)} />}
 
         {pendentes.length > 0 && (
           <>

@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { CANAIS, separarCanais } from "@/lib/canais";
 import { urlDe } from "@/lib/arquivos";
+import { estadoDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import Paginacao from "@/components/mercados/Paginacao";
@@ -116,6 +117,8 @@ export default async function ProdutosPage({ searchParams }) {
         : null,
     },
     ...separarCanais(produto.anuncios),
+    // O icone do ML mostra o anuncio (publicado e ativo, ou pendente), nao so o idExterno.
+    iconeML: estadoDoIconeML(produto.anuncios),
   }));
 
   return (
