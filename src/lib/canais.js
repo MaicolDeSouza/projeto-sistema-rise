@@ -49,6 +49,22 @@ export function canalPorId(id) {
 }
 
 /**
+ * Um anuncio por canal, num Map (canal -> anuncio). Desde a fase 1 o Mercado Livre tem VARIOS
+ * anuncios por produto (Classico e Premium, kits). Com um Map montado direto da lista, o ultimo
+ * anuncio do canal vencia, e um rascunho listado depois escondia o que ja esta publicado. O que
+ * existe no canal (idExterno) tem prioridade; entre iguais continua valendo o ultimo, como antes.
+ */
+export function anuncioPorCanal(anuncios = []) {
+  const porCanal = new Map();
+  for (const anuncio of anuncios) {
+    const atual = porCanal.get(anuncio.canal);
+    if (atual?.idExterno && !anuncio.idExterno) continue;
+    porCanal.set(anuncio.canal, anuncio);
+  }
+  return porCanal;
+}
+
+/**
  * Divide os canais entre integrados e pendentes.
  *
  * O criterio de "integrado" e ter `idExterno` — ou seja, o anuncio existe DE
@@ -62,16 +78,7 @@ export function canalPorId(id) {
  * que impede clicar em "Cadastrar" num produto ja publicado e duplicar anuncio.
  */
 export function separarCanais(anuncios = []) {
-  // Desde a fase 1 o Mercado Livre tem VARIOS anuncios por produto (Classico e Premium,
-  // kits). Com um Map montado direto da lista, o ultimo anuncio do canal vencia, e um
-  // rascunho listado depois escondia o que ja esta publicado. O que existe no canal
-  // (idExterno) tem prioridade; entre iguais continua valendo o ultimo, como antes.
-  const porCanal = new Map();
-  for (const anuncio of anuncios) {
-    const atual = porCanal.get(anuncio.canal);
-    if (atual?.idExterno && !anuncio.idExterno) continue;
-    porCanal.set(anuncio.canal, anuncio);
-  }
+  const porCanal = anuncioPorCanal(anuncios);
   const blingPublicado = Boolean(porCanal.get("BLING")?.idExterno);
 
   const integrados = [];

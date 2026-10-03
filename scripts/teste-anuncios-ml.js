@@ -50,7 +50,7 @@ const {
   anunciosMLDoProduto,
   listarAnunciosML,
 } = await import("../src/lib/canaisDeVenda/ml/banco.js");
-const { separarCanais } = await import("../src/lib/canais.js");
+const { separarCanais, anuncioPorCanal } = await import("../src/lib/canais.js");
 const { lerDecimal, textoDecimal, filtrarDecimal, mostrarDigitado, recusarSimbolosDeInteiro } = await import("../src/components/anuncios/ml/numeros.js");
 
 let falhas = 0;
@@ -438,6 +438,14 @@ try {
       separarCanais([{ canal: "MERCADO_LIVRE", status: "ERRO", idExterno: null }]).pendentes.find((c) => c.id === "MERCADO_LIVRE").tentouEFalhou, true);
     conferir("separarCanais: entre dois publicados vale o ultimo, como antes",
       separarCanais([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB1" }, { canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB2" }]).integrados.map((c) => c.idExterno), ["MLB2"]);
+    // O bloco antigo de Anuncios usa o mesmo Map: o publicado vence o rascunho, em qualquer ordem.
+    const publicado = { canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB1" };
+    const rascunhoSolto = { canal: "MERCADO_LIVRE", status: "RASCUNHO", idExterno: null };
+    conferir("anuncioPorCanal: o publicado vence o rascunho, em qualquer ordem",
+      [anuncioPorCanal([publicado, rascunhoSolto]).get("MERCADO_LIVRE"), anuncioPorCanal([rascunhoSolto, publicado]).get("MERCADO_LIVRE")], [publicado, publicado]);
+    conferir("anuncioPorCanal: um anuncio por canal continua igual",
+      [...anuncioPorCanal([{ canal: "BLING", status: "PUBLICADO", idExterno: "1" }, rascunhoSolto]).entries()].map(([canal, a]) => [canal, a.status]),
+      [["BLING", "PUBLICADO"], ["MERCADO_LIVRE", "RASCUNHO"]]);
   }
 
   {

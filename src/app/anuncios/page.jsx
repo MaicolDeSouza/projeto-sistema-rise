@@ -3,6 +3,7 @@ import { Megaphone, Plus, TriangleAlert } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { canais, temAlteracoesNaoPublicadas } from "@/lib/anuncios/canais";
+import { anuncioPorCanal } from "@/lib/canais";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
@@ -42,9 +43,7 @@ export default async function AnunciosPage({ searchParams }) {
   // estado derivado (comparacao de hash), nao uma coluna consultavel.
   const linhas = (produtos ?? [])
     .map((produto) => {
-      const porCanal = new Map(
-        produto.anuncios.map((anuncio) => [anuncio.canal, anuncio]),
-      );
+      const porCanal = anuncioPorCanal(produto.anuncios);
       const pendentes = produto.anuncios.filter((anuncio) =>
         temAlteracoesNaoPublicadas(produto, anuncio),
       );

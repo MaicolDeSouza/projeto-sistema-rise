@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { canais, temAlteracoesNaoPublicadas } from "@/lib/anuncios/canais";
+import { anuncioPorCanal } from "@/lib/canais";
 import { validarAnuncio } from "@/lib/anuncios/validar";
 import { camposEditaveis, montarPayload } from "@/lib/anuncios/transformar";
 import PageHeader from "@/components/ui/PageHeader";
@@ -28,9 +29,7 @@ export default async function AnuncioPage({ params }) {
 
   if (!produto) notFound();
 
-  const porCanal = new Map(
-    produto.anuncios.map((anuncio) => [anuncio.canal, anuncio]),
-  );
+  const porCanal = anuncioPorCanal(produto.anuncios);
   const blingPublicado = porCanal.get("BLING")?.status === "PUBLICADO";
 
   // Toda a validacao e a montagem de payload acontecem no servidor e viajam
