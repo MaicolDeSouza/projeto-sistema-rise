@@ -5,17 +5,7 @@ import { Loader, Save } from "lucide-react";
 
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { salvarFrasesFixas } from "@/app/canais-de-venda/mercado-livre/acoes";
-
-// Os mesmos limites de `lib/canaisDeVenda/configuracao.js`. Ficam aqui copiados porque aquele
-// arquivo importa o Prisma e nao pode ir para o navegador; o servidor continua sendo quem decide,
-// e o que esta aqui so avisa antes de enviar.
-const MAXIMO_DE_FRASES = 10;
-const MAXIMO_DA_FRASE = 200;
-
-// Mesma limpeza do servidor: uma frase por linha, vazia sai, repetida vira uma so.
-function frasesDoTexto(texto) {
-  return [...new Set(texto.split(/\r?\n/).map((linha) => linha.trim()).filter(Boolean))];
-}
+import { MAXIMO_DA_FRASE, MAXIMO_DE_FRASES, avisoDasFrases, frasesDoTexto } from "@/lib/canaisDeVenda/frases";
 
 const CLASSE_DA_MENSAGEM = {
   erro: "border-red-200 bg-red-50 text-red-800",
@@ -33,14 +23,12 @@ export default function FrasesFixas({ frasesIniciais }) {
   const [salvando, iniciarSalvamento] = useTransition();
 
   const frases = frasesDoTexto(texto);
-  const longa = frases.findIndex((frase) => frase.length > MAXIMO_DA_FRASE);
   const excede = frases.length > MAXIMO_DE_FRASES;
-  const avisoLocal =
-    longa >= 0
-      ? `A frase ${longa + 1} tem ${frases[longa].length} caracteres. O limite e ${MAXIMO_DA_FRASE}.`
-      : excede
-        ? `Use ate ${MAXIMO_DE_FRASES} frases.`
-        : null;
+  // O servidor aplica as mesmas regras (`frases.js`) e decide; aqui so se avisa antes de enviar.
+  const avisoLocal = avisoDasFrases(frases);
+  const erroDoServidor = mensagem?.tipo === "erro" ? mensagem.texto : null;
+  const mostraAvisoLocal = avisoLocal && avisoLocal !== erroDoServidor;
+  const invalido = Boolean(avisoLocal || erroDoServidor);
 
   function alterar(valor) {
     setTexto(valor);
@@ -71,23 +59,27 @@ export default function FrasesFixas({ frasesIniciais }) {
   return (
     <div className="space-y-3">
       <div>
-        <label htmlFor="ml-frases-fixas" className="flex items-center gap-1 text-sm font-semibold">
-          Frases fixas
+        <div className="flex items-center gap-1 text-sm font-semibold">
+          <label htmlFor="ml-frases-fixas">Frases fixas</label>
           <BolhaDeAjuda
             variante="inline"
             texto={`Uma frase por linha. Linha vazia e frase repetida sao descartadas. No maximo ${MAXIMO_DE_FRASES} frases de ${MAXIMO_DA_FRASE} caracteres cada.`}
           />
-        </label>
-        <p className="mt-0.5 text-sm text-suave">Estas frases entram em todo anuncio, depois da descricao do produto.</p>
+        </div>
+        <p id="ml-frases-nota" className="mt-0.5 text-sm text-suave">Estas frases entram em todo anuncio, depois da descricao do produto.</p>
       </div>
 
       <textarea
         id="ml-frases-fixas"
         value={texto}
         onChange={(evento) => alterar(evento.target.value)}
+        // Durante o Salvar o texto enviado e o que volta para a caixa: o que fosse digitado agora seria sobrescrito.
+        readOnly={salvando}
         rows={8}
+        aria-invalid={invalido}
+        aria-describedby={`ml-frases-nota${mostraAvisoLocal ? " ml-frases-aviso" : ""}${erroDoServidor ? " ml-frases-erro" : ""}`}
         className={`w-full resize-y rounded border px-3 py-2.5 text-[15px] leading-relaxed focus:outline-none ${
-          avisoLocal || mensagem?.tipo === "erro" ? "border-red-400" : "border-borda focus:border-acento"
+          invalido ? "border-red-400" : "border-borda focus:border-acento"
         }`}
       />
 
@@ -106,20 +98,24 @@ export default function FrasesFixas({ frasesIniciais }) {
         </button>
       </div>
 
-      {/* O servidor repete o mesmo texto ao recusar: um aviso so. */}
-      {avisoLocal && avisoLocal !== mensagem?.texto && (
-        <p role="alert" className="text-xs text-red-700">
+      {mostraAvisoLocal && (
+        <p id="ml-frases-aviso" role="alert" className="text-xs text-red-700">
           {avisoLocal}
         </p>
       )}
-      {mensagem && (
-        <p
-          role={mensagem.tipo === "erro" ? "alert" : "status"}
-          className={`rounded border px-3 py-2 text-sm ${CLASSE_DA_MENSAGEM[mensagem.tipo]}`}
-        >
-          {mensagem.texto}
+      {erroDoServidor && (
+        <p id="ml-frases-erro" role="alert" className={`rounded border px-3 py-2 text-sm ${CLASSE_DA_MENSAGEM.erro}`}>
+          {erroDoServidor}
         </p>
       )}
+      {/* Sempre montado: leitor de tela so anuncia texto que entra numa regiao que ja existia. */}
+      <p
+        role="status"
+        aria-live="polite"
+        className={mensagem?.tipo === "ok" ? `rounded border px-3 py-2 text-sm ${CLASSE_DA_MENSAGEM.ok}` : undefined}
+      >
+        {mensagem?.tipo === "ok" ? mensagem.texto : ""}
+      </p>
     </div>
   );
 }

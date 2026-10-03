@@ -115,5 +115,7 @@ export async function sugerirCodigoKit() {
 }
 
 export async function salvarFrasesFixas(texto) {
+  // Vem do navegador: `gravarFrases` converte qualquer coisa em texto (um objeto viraria "[object Object]") e gravaria lixo.
+  if (typeof texto !== "string") return PEDIDO_INVALIDO;
   return protegendo(async () => revalidando(await gravarFrases(texto)));
 }

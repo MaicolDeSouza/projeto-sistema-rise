@@ -33,6 +33,7 @@ const {
 } = await import("../src/lib/canaisDeVenda/composicao.js");
 const { custoDoProduto } = await import("../src/lib/canaisDeVenda/custo.js");
 const { lerConfigML, gravarFrases } = await import("../src/lib/canaisDeVenda/configuracao.js");
+const { MAXIMO_DA_FRASE, MAXIMO_DE_FRASES, avisoDasFrases, frasesDoTexto } = await import("../src/lib/canaisDeVenda/frases.js");
 const { montarDescricaoML } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
 const { rascunhoInicial, aplicarComposicao } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
 const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
@@ -456,6 +457,19 @@ try {
       conferir("frases: onze linhas iguais sao uma so", (await gravarFrases(Array(11).fill("Igual.").join("\n"))).frases, ["Igual."]);
       conferir("frases: quebra de linha do Windows", (await gravarFrases("A\r\nB\r\n")).frases, ["A", "B"]);
       conferir("frases: vazio limpa", (await gravarFrases("  \n ")).frases, []);
+
+      // As regras moram em frases.js, lidas pelo servidor e pela tela: os recados da recusa do
+      // servidor sao os mesmos que a tela mostra antes de enviar.
+      conferir("frases: limites", [MAXIMO_DE_FRASES, MAXIMO_DA_FRASE], [10, 200]);
+      conferir("frasesDoTexto: aparar, tirar vazias e repetidas, CRLF", frasesDoTexto("  A \r\n\r\nB\nA\n  "), ["A", "B"]);
+      conferir("frasesDoTexto: vazio, nulo e indefinido", [frasesDoTexto(""), frasesDoTexto(null), frasesDoTexto(undefined)], [[], [], []]);
+      conferir("avisoDasFrases: lista boa nao tem aviso", avisoDasFrases(dezDeDuzentos), null);
+      conferir("avisoDasFrases: 11 frases", avisoDasFrases(Array.from({ length: 11 }, (_, i) => `F${i}`)), "Use ate 10 frases.");
+      conferir("avisoDasFrases: frase de 201 aponta a posicao e o tamanho", avisoDasFrases(["curta", "x".repeat(201)]), "A frase 2 tem 201 caracteres. O limite e 200.");
+      conferir("avisoDasFrases: frase de 200 passa", avisoDasFrases(["x".repeat(200)]), null);
+      conferir("avisoDasFrases: acima de 10 vale antes do tamanho", avisoDasFrases([...Array.from({ length: 10 }, (_, i) => `F${i}`), "x".repeat(201)]), "Use ate 10 frases.");
+      conferir("gravarFrases: recado da recusa de 11 e o de avisoDasFrases", (await gravarFrases(Array.from({ length: 11 }, (_, i) => `F${i}`).join("\n"))).erro, "Use ate 10 frases.");
+      conferir("gravarFrases: recado da recusa de 201 e o de avisoDasFrases", (await gravarFrases(`curta\n${"x".repeat(201)}`)).erro, "A frase 2 tem 201 caracteres. O limite e 200.");
     } finally {
       if (configAntes) {
         const dados = { frasesFixas: configAntes.frasesFixas };

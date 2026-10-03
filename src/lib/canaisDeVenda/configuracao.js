@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { avisoDasFrases, frasesDoTexto } from "@/lib/canaisDeVenda/frases";
 
 /**
  * Configuracao do canal Mercado Livre no banco: as frases fixas das descricoes. Fica aqui, e
@@ -13,11 +14,6 @@ import { prisma } from "@/lib/db";
 
 const CANAL = "MERCADO_LIVRE";
 
-// A descricao tem que continuar sendo do produto: frase fixa demais ou longa demais a
-// transforma em texto da loja.
-const MAXIMO_DE_FRASES = 10;
-const MAXIMO_DA_FRASE = 200;
-
 function falha(erro) {
   console.error("[canais de venda]", erro);
   return { ok: false, erro: "Nao foi possivel salvar. Tente de novo." };
@@ -29,27 +25,11 @@ export async function lerConfigML() {
   return { frases: linha?.frasesFixas ?? [] };
 }
 
-/** Uma frase por linha. Linha vazia sai e frase repetida vira uma so. */
+/** Uma frase por linha, limpa e conferida por `frases.js` (as mesmas regras que a tela mostra). */
 export async function gravarFrases(texto) {
-  const frases = [
-    ...new Set(
-      String(texto ?? "")
-        .split(/\r?\n/)
-        .map((linha) => linha.trim())
-        .filter(Boolean),
-    ),
-  ];
-
-  if (frases.length > MAXIMO_DE_FRASES) {
-    return { ok: false, erro: `Use ate ${MAXIMO_DE_FRASES} frases.` };
-  }
-  const longa = frases.findIndex((frase) => frase.length > MAXIMO_DA_FRASE);
-  if (longa >= 0) {
-    return {
-      ok: false,
-      erro: `A frase ${longa + 1} tem ${frases[longa].length} caracteres. O limite e ${MAXIMO_DA_FRASE}.`,
-    };
-  }
+  const frases = frasesDoTexto(texto);
+  const aviso = avisoDasFrases(frases);
+  if (aviso) return { ok: false, erro: aviso };
 
   try {
     const linha = await prisma.configCanal.upsert({
