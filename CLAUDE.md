@@ -95,6 +95,7 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 | Integrações | Bling e ML conectados e testados; Loja Integrada via Bling |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
+| Canais de Venda | Mercado Livre: rascunho de anúncio simples e de composição/kit (salvar, pop-up pelo ícone na lista de Produtos e página própria, frases fixas), **sem publicar**. Loja Integrada e Shopee são só cartões "em breve" |
 | Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
@@ -125,6 +126,7 @@ npm run teste:worker              # 58 asserções: rede, fila, retomada e o wor
 npm run foto:mensal               # tira a foto mensal de preço e estoque (só se passou do dia 14 e o mês não tem foto); `-- --forcar` ignora o dia
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
+npm run teste:anuncios-ml         # 328 asserções do rascunho de anúncio do Mercado Livre: composição, validação, payload, ícone, gravação e frases fixas (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -1821,6 +1823,102 @@ cima). O esboço foi mostrado e aprovado antes de implementar.
 - **A migration está aplicada no banco compartilhado, mas o código só existe na `main`:** quem for gerar
   migration nas outras worktrees precisa fazer `git merge main` antes, senão o `migrate diff` propõe apagar
   `FotoMensalColeta`, `FotoMensalProduto` e `MovimentoEstoque` (regra do schema).
+
+## Canais de Venda: Mercado Livre (fase 1)
+
+Pedido do dono em 30/09/2026; construído de 01 a 03/10/2026 na branch `canais-de-venda`. Spec:
+`docs/superpowers/specs/2026-09-30-canais-de-venda-mercado-livre-design.md`; plano:
+`docs/superpowers/plans/2026-10-01-canais-de-venda-ml-fase-1.md`. **A fase 1 só monta e salva o rascunho**:
+nada escreve no Mercado Livre nem no Bling, o botão Publicar fica desabilitado com o motivo, e
+`ML_PUBLICACAO`/`BLING_ESCRITA` seguem `false`. As fases 2 (inteligência do ML, só leitura) e 3 (publicar) não existem.
+
+**Onde mora cada parte**
+- **Rotas** (`src/app/canais-de-venda/`): `page.jsx` (cartões de `src/lib/canaisDeVenda/catalogo.js`; Loja Integrada
+  e Shopee com `emBreve`, prop nova do `CartaoDeAtalho`), `mercado-livre/` com a lista (busca, 100 por página),
+  `novo/` (`?produto=<sku>`), `[id]/`, `configuracoes/` e `acoes.js` (Server Actions finas: conferem o que vem do
+  navegador, chamam a lib e revalidam). No menu, só ícone e texto (`blocos.js`), como Ferramentas.
+- **Componentes** (`src/components/anuncios/ml/`): `EditorAnuncioML` (estado controlado, sem `<form>`, as 7 abas
+  montadas e só escondidas, uma aba por arquivo), `BlocoComposicao`, `JanelaAnuncioML` (pop-up do ícone),
+  `EditorNaPagina`, `TabelaAnunciosML`, `FrasesFixas`.
+- **Lib** (`src/lib/canaisDeVenda/`, funções puras sem rede, lidas pela tela, pelas ações e pelo teste):
+  `composicao.js`, `custo.js` (fornecedor padrão), `frases.js`, `configuracao.js`; em `ml/`: `rascunho.js`,
+  `esquema.js` (zod), `validacao.js` (`ABAS_ML`, `validarRascunhoML`), `payload.js`, `descricao.js`, `icone.js`,
+  `rotulos.js` e `banco.js` (leitura e gravação no Postgres).
+- **Rascunho:** `{ produtoId, titulo, familyName, tipoAnuncio, condicao, categoriaId, preco, estoque, imagens,
+  descricao, atributos, envio, composicao }`. `tipoAnuncio` é `gold_special` (Clássico) ou `gold_pro` (Premium);
+  `imagens` guarda só o id da foto; `atributos` tem `BRAND`, `MODEL`, `GTIN` (o SKU vai em `SELLER_SKU` no payload).
+  Gravado em colunas de `Anuncio` (`produtoId`, `titulo`, `descricao`, `categoriaExternaId`, `atributos`) e no JSON
+  `Anuncio.dados` (o resto). Atualizar **mescla** sobre o `dados` existente, para a fase 3 guardar a etapa ali. As
+  frases fixas **não** vão no rascunho: ficam em `ConfigCanal.frasesFixas` e entram na prévia e no payload.
+- **Salvar não é barrado por problema de validação** (rascunho incompleto vale; a validação só impede publicar). O
+  servidor recusa o que a tela não garante: formato quebrado, produto excluído ou não Conferido, composição ruim,
+  código de kit de outro anúncio e anúncio já `PUBLICADO` (só a fase 3 o altera).
+
+**Vários anúncios por produto e o índice que só existe no SQL**
+- `@@unique([produtoId, canal])` saiu de `Anuncio`: o ML aceita vários (Clássico e Premium). Bling e Loja Integrada
+  seguem com um só, pelo índice único parcial **`Anuncio_um_por_produto`**, que o Prisma não descreve e **mora só
+  na migration `20261001_canais_de_venda_ml`**. O próximo `migrate diff` vai propor apagá-lo, junto com
+  `Job_fonte_aberta`, o índice de trigramas e `ProdutoColetado_coletadoEm_idx`: **tirar essas linhas de toda
+  migration gerada** (as duas desta feature já foram editadas assim).
+- **`separarCanais`** (`src/lib/canais.js`) deixava o último anúncio do canal vencer, e um rascunho listado depois
+  escondia o publicado. Agora o anúncio com `idExterno` (que existe no canal) tem prioridade.
+- **Ícone do ML** (`estadoDoIconeML`): **verde só com `status` PUBLICADO e `situacaoCanal` ATIVA** (o ML pausa
+  sozinho, e publicado pausado não é "tudo certo"); **ponto âmbar** para qualquer outro anúncio ML do produto
+  (rascunho, validado, publicando, erro, publicado pausado). Valem juntos. O texto acessível e o `title` vêm de
+  `rotuloDoIconeML`: cor sozinha não chega a leitor de tela.
+- **Só Produto Conferido vira anúncio, conferido no servidor** (ao abrir, ao incluir item de kit e em todo Salvar,
+  no principal e em cada item). Produto que deixou de ser Conferido abre normalmente, mas o Salvar recusa com o
+  motivo no topo do editor e o digitado fica. **BRAND e MODEL em MAIÚSCULAS** na tela e no payload.
+
+**Composição / kit** (`composicao.js`, `rascunho.js`, `banco.js`)
+- Existe só no anúncio: `dados.composicao = { itens: [{ produtoId, quantidade }], codigo, blingProdutoId }`. Mínimo de
+  2 unidades, quantidade inteira de 1 a 9999, sem produto repetido; o produto do anúncio é o primeiro item.
+- **Código:** um produto só = `{sku}_{N}` com milhar em ponto (`920302_1.000`), **sempre recalculado no servidor**;
+  kit misto = **digitado**, com sugestão do próximo livre da faixa 25xxxx. `codigoEmUso` recusa código igual a SKU
+  de Produto ou ao de outro anúncio **com composição diferente**; com a mesma é aceito (Clássico e Premium dividem o
+  kit do Bling). Conferir o código **no Bling** é fase 3.
+- **`blingProdutoId` é do servidor:** o que a tela mandar é ignorado; nasce `null` e, na atualização, só fica se o
+  código do kit for o mesmo do gravado.
+- **Estoque** = menor ⌊estoque do item ÷ quantidade⌋ (negativo conta 0); **custo** = soma de quantidade × custo, e
+  item sem custo deixa o total `null` (um parcial pareceria margem boa).
+- **`aplicarComposicao`** refaz a cada mudança nos itens: estoque, peso, fotos, código e o bloco "Itens inclusos" da
+  descrição. Não toca em título, preço (o do kit nasce em branco: não é a soma das peças), categoria e medidas (nascem
+  as do principal, editáveis na aba Envio). O **GTIN sai** ao virar kit e o `ean` do principal volta ao desligar a
+  composição, que devolve também descrição, estoque e fotos dele.
+
+**Editor: pop-up e página**
+- **Pop-up:** o editor desenha a própria janela (Esc, "Sair sem salvar?"). Sem anúncio abre direto um novo; com
+  anúncios, lista + "Novo anúncio"; não Conferido, só o aviso. Ao salvar volta à lista. O `key` do editor muda a cada
+  abertura, senão o anúncio anterior vazaria para o seguinte.
+- **Página:** no primeiro Salvar de um anúncio novo a URL vira `/[id]` por `router.replace` dentro de
+  `useTransition`, com o editor `inert` até a navegação acabar. Isso **remonta o editor** (a aba volta para Geral).
+  `history.replaceState` para mantê-lo montado **foi tentado e não serve no Next 16**: a resposta da Server Action
+  (que revalida a lista) remonta o editor no meio do trabalho. **Residual conhecido:** o que se digita *durante* o
+  próprio primeiro Salvar se perde na remontagem e o rodapé diz "Tudo salvo".
+
+**Frases fixas** (`mercado-livre/configuracoes`): uma por linha, **até 10, de até 200 caracteres**; linha vazia sai
+e repetida vira uma. As regras moram em `frases.js` (sem imports), lido pela tela e pelo servidor: copiá-las faria o
+aviso e a recusa divergirem. A descrição final é a do rascunho, uma linha em branco e as frases.
+
+**Versículo no anúncio: ideia descartada pelo dono em 03/10/2026; não há lista, tabela nem tela.** A migration
+`20261001_canais_de_venda_ml` chegou a criar `Versiculo` e `ConfigCanal.versiculosUsados`; a
+`20261003_remover_versiculos` os apagou (tabela em 0 linhas). Não reconstruir.
+
+**Testes:** `npm run teste:anuncios-ml` (`scripts/teste-anuncios-ml.js`), Postgres, SEM rede. Um `try/finally` com
+um bloco `{ ... }` por assunto, cada um começando em `await limpar()` (apaga produtos `ZZ-ML-*`); a linha
+`ConfigCanal` real é guardada e restaurada. Bloco novo entra antes do comentário-marcador, antes do `finally`.
+
+**Em aberto / fases 2 e 3**
+- Investigação de leitura (03/10/2026, só GETs): `docs/superpowers/investigacoes/2026-10-01-ml-bling-para-fases-2-e-3.md`.
+  Ela diz o que muda nos planos seguintes e lista **as decisões que dependem do dono** (validador do ML, criar o kit
+  no Bling, logística do cálculo, o sufixo `z`, preço e medidas do kit, primeiro teste de escrita).
+- Deixado para a fase 2 de propósito: categoria digitada (`MLB…`), ficha só com `BRAND`/`MODEL`/`GTIN` e margem de
+  `src/lib/margem.js` (6%, sem taxas do ML).
+- **Para carregar adiante:** (1) `gerarSku` (`src/app/produtos/acoes.js`) só lê `Produto.sku` e pode entregar um
+  25xxxx já usado como código de kit; resolver antes de criar kit no Bling. (2) Gravar o vínculo com o Bling e a
+  `etapa` tem que ser **atômico**: `salvarRascunhoML` lê e grava `dados` sem trava. (3) O vínculo do kit sobrevive a
+  edição de itens com o mesmo código: a conferência no Bling deve comparar a composição (id + quantidade), não só o
+  código. (4) `listarAnunciosML` carrega todos os anúncios ML em memória; com os 1.007 reais, filtrar e paginar no banco.
 
 ## Decisões de arquitetura
 
