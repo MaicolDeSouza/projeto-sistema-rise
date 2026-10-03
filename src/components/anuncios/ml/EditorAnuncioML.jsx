@@ -7,20 +7,23 @@ import { salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
-import AbaEmBreve from "./AbaEmBreve";
+import AbaDescricao from "./AbaDescricao";
 import AbaEnvio from "./AbaEnvio";
 import AbaFichaTecnica from "./AbaFichaTecnica";
 import AbaGeral from "./AbaGeral";
 import AbaImagens from "./AbaImagens";
 import AbaPrecoEstoque from "./AbaPrecoEstoque";
+import AbaPrevia from "./AbaPrevia";
 
-// As abas da Tarefa 11 (descricao e previa) entram aqui; ate la mostram o marcador.
+// Uma aba por id de `ABAS_ML`: aba nova na validacao pede o componente aqui.
 const ABAS_PRONTAS = {
   geral: AbaGeral,
   preco: AbaPrecoEstoque,
   imagens: AbaImagens,
+  descricao: AbaDescricao,
   ficha: AbaFichaTecnica,
   envio: AbaEnvio,
+  previa: AbaPrevia,
 };
 
 const STATUS = {
@@ -57,7 +60,8 @@ const semBlingId = (produto) => Boolean(produto) && !String(produto.blingId ?? "
  * Cada aba recebe `{ rascunho, contexto, alterar, setContexto, problemas, irPara, anuncioId }`.
  * `alterar(parcial)` mescla raso; `parcial` pode ser uma funcao `(atual) => parcial`, para quem
  * decide depois de esperar o servidor e nao pode desfazer o que foi digitado nesse meio tempo.
- * `problemas` ja vem filtrado pela aba.
+ * `problemas` ja vem filtrado pela aba. So a Previa recebe tambem `todosProblemas`, a lista
+ * inteira da validacao (ela mostra as de todas as abas).
  */
 export default function EditorAnuncioML({
   anuncioId,
@@ -171,10 +175,14 @@ export default function EditorAnuncioML({
   );
 
   const paineis = ABAS_ML.map(({ id }) => {
-    const Aba = ABAS_PRONTAS[id] ?? AbaEmBreve;
+    const Aba = ABAS_PRONTAS[id];
     return (
       <Painel key={id} id={id} aba={aba}>
-        <Aba {...propsDasAbas} problemas={problemas.filter((problema) => problema.aba === id)} />
+        <Aba
+          {...propsDasAbas}
+          problemas={problemas.filter((problema) => problema.aba === id)}
+          {...(id === "previa" ? { todosProblemas: problemas } : {})}
+        />
       </Painel>
     );
   });
