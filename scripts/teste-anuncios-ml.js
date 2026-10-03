@@ -375,6 +375,9 @@ try {
     conferir("payload leva o SKU do produto", payload.item.attributes.find((x) => x.id === "SELLER_SKU").value_name, "100101");
     conferir("payload do kit leva o codigo do kit", montarPayloadML(kitOk, ctx).item.attributes.find((x) => x.id === "SELLER_SKU").value_name, "100101_5");
     conferir("payload do kit nao leva GTIN", montarPayloadML(kitOk, ctx).item.attributes.some((x) => x.id === "GTIN"), false);
+    // O cliente tira o GTIN ao virar kit, mas o servidor aceita o que vier: o payload barra tambem.
+    conferir("payload do kit com GTIN no rascunho: o GTIN fica de fora",
+      montarPayloadML({ ...kitOk, atributos: { ...kitOk.atributos, GTIN: "7890000000001" } }, ctx).item.attributes.some((x) => x.id === "GTIN"), false);
     conferir("payload: atributos da ficha e o SKU", payload.item.attributes,
       [{ id: "BRAND", value_name: "GENERICA" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
     conferir("preco vai a parte", payload.preco, { amount: 0.5, currency_id: "BRL" });

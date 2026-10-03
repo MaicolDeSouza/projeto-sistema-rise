@@ -59,8 +59,10 @@ export function montarPayloadML(rascunho, contexto) {
   // O SKU do anuncio e o codigo do kit, quando ha composicao; senao, o do produto.
   const sku = rascunho.composicao ? texto(rascunho.composicao.codigo) : texto(contexto?.produtos?.[rascunho.produtoId]?.sku);
 
+  // GTIN e o codigo de barras da peca avulsa, e kit nao o leva: a tela o tira ao virar kit, mas o
+  // servidor grava o que chegar, e a previa e o envio saem daqui.
   const atributos = Object.entries(rascunho.atributos ?? {})
-    .filter(([id, valor]) => id !== "SELLER_SKU" && texto(valor))
+    .filter(([id, valor]) => id !== "SELLER_SKU" && !(rascunho.composicao && id === "GTIN") && texto(valor))
     .map(([id, valor]) => ({ id, value_name: EM_MAIUSCULAS.has(id) ? maiusculas(valor) : texto(valor) }));
   if (sku) atributos.push({ id: "SELLER_SKU", value_name: sku });
 
