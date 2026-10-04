@@ -65,7 +65,7 @@ async function listarCatalogo() {
 }
 
 /** Descricao do Bling vem em HTML; o cadastro base guarda texto. */
-function htmlParaTexto(html) {
+export function htmlParaTexto(html) {
   if (!html) return null;
   const texto = decodificar(
     html
@@ -85,7 +85,7 @@ function htmlParaTexto(html) {
  * A lista de unidades daqui e fechada. O Bling usa "PÇ", "Un", "pc" para a
  * mesma coisa; o que nao casar vira UN em vez de barrar a importacao.
  */
-function unidadeDe(valor) {
+export function unidadeDe(valor) {
   const unidade = (valor ?? "").trim().toUpperCase();
   if (UNIDADES.includes(unidade)) return unidade;
   if (["M", "METRO", "METROS"].includes(unidade)) return "MT";
@@ -93,7 +93,7 @@ function unidadeDe(valor) {
 }
 
 /// dimensoes.unidadeMedida do Bling: 0 = metros, 1 = centimetros, 2 = milimetros.
-function emCm(valor, unidadeMedida) {
+export function emCm(valor, unidadeMedida) {
   const numero = Number(valor);
   if (!numero || numero <= 0) return null;
   const fator = { 0: 100, 1: 1, 2: 0.1 }[unidadeMedida] ?? 1;
