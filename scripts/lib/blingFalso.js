@@ -18,6 +18,9 @@
  *   GET   /depositos
  *   GET   /estoques/saldos?codigos[]= | ?idsProdutos[]=             POST /estoques
  *
+ * Id inexistente: `GET /produtos/{id}` da 404 `RESOURCE_NOT_FOUND` (medido no Bling real em
+ * 04/10/2026), enquanto `GET /estoques/saldos?idsProdutos[]=` da 200 com `data: []`.
+ *
  * Endpoint que ele nao conhece LANCA um erro ("nao suportado"): e erro do teste ou do
  * falso, e esconder isso atras de um 404 faria o teste passar sem provar nada.
  */
@@ -74,7 +77,23 @@ function erro(status, tipo, descricao, campos = []) {
 }
 
 const validacao = (descricao, campos) => erro(400, "VALIDATION_ERROR", descricao, campos);
-const naoEncontrado = (descricao) => erro(404, "RESOURCE_NOT_FOUND", descricao);
+
+/**
+ * O 404 como o Bling real o devolve. Medido em 04/10/2026 com UM `GET /produtos/{id}` de id que
+ * nao existe (Step 0 da Tarefa 7, so leitura): status 404 e este corpo, sem `fields` e com a
+ * `message` curta diferente da `description`. So esse endpoint foi lido; o falso usa o mesmo corpo
+ * nos outros 404 (PATCH, vinculo, contato), que e o que o gateway do Bling devolve para id
+ * inexistente, mas la nao esta medido.
+ */
+const naoEncontrado = () =>
+  resposta(404, {
+    error: {
+      type: "RESOURCE_NOT_FOUND",
+      message: "Não encontrado.",
+      description:
+        "O recurso requisitado não foi encontrado. Verifique se o endpoint solicitado está correto ou se o ID informado realmente existe no sistema.",
+    },
+  });
 
 function ausente(valor) {
   return valor === undefined || valor === null || valor === "";
@@ -336,9 +355,9 @@ export function criarBlingFalso(opcoes = {}) {
       /^\/produtos\/(\d+)$/,
       ([, id]) => {
         const produto = produtos.get(Number(id));
-        // Pedido do controlador: id inexistente da `data` vazio. Nao esta medido o que o Bling
-        // real faz nesse caso (pode ser 404).
-        return resposta(200, { data: produto ? produtoCompleto(produto) : [] });
+        // Medido no Bling real: id que nao existe da 404. O `data: []` (200) e o formato de
+        // /estoques/saldos?idsProdutos[]=, nao deste endpoint.
+        return produto ? resposta(200, { data: produtoCompleto(produto) }) : naoEncontrado();
       },
     ],
     [
@@ -346,7 +365,7 @@ export function criarBlingFalso(opcoes = {}) {
       /^\/produtos\/(\d+)$/,
       ([, id], { corpo }) => {
         const produto = produtos.get(Number(id));
-        if (!produto) return naoEncontrado(`Produto ${id} nao encontrado.`);
+        if (!produto) return naoEncontrado();
         aplicarCampos(produto, corpo);
         // O Bling responde 200 sem corpo; o requisitar entrega `dados: null` nesse caso.
         return resposta(200, null);
@@ -396,7 +415,7 @@ export function criarBlingFalso(opcoes = {}) {
       /^\/produtos\/fornecedores\/(\d+)$/,
       ([, id], { corpo }) => {
         const atual = vinculos.get(Number(id));
-        if (!atual) return naoEncontrado(`Vinculo ${id} nao encontrado.`);
+        if (!atual) return naoEncontrado();
         if (ausente(corpo?.produto?.id)) return validacao("produto.id e obrigatorio.", ["produto.id"]);
         // Os campos informados trocam; o que nao veio fica (o que o PUT faz com o omitido nao esta
         // documentado, e a sincronizacao sempre manda o vinculo inteiro).
@@ -433,7 +452,7 @@ export function criarBlingFalso(opcoes = {}) {
       /^\/contatos\/(\d+)$/,
       ([, id]) => {
         const contato = contatos.get(Number(id));
-        return contato ? resposta(200, { data: copia(contato) }) : naoEncontrado(`Contato ${id} nao encontrado.`);
+        return contato ? resposta(200, { data: copia(contato) }) : naoEncontrado();
       },
     ],
     [
@@ -453,7 +472,7 @@ export function criarBlingFalso(opcoes = {}) {
       /^\/contatos\/(\d+)$/,
       ([, id], { corpo }) => {
         const atual = contatos.get(Number(id));
-        if (!atual) return naoEncontrado(`Contato ${id} nao encontrado.`);
+        if (!atual) return naoEncontrado();
         guardarContato({ ...atual, ...corpo, id: atual.id, tiposContato: corpo?.tiposContato ?? atual.tiposContato });
         return resposta(200, null);
       },

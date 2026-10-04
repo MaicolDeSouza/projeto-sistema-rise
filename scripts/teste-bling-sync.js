@@ -38,6 +38,7 @@ const { estadoDoIconeBling } = await import("../src/lib/blingSync/estado.js");
 const { config, separarLista } = await import("../src/lib/integracoes/config.js");
 const { blingGet, blingPatch, blingPost, blingPut, urlDoBling } = await import("../src/lib/integracoes/bling.js");
 const { clienteBling, exigirCodigoLiberado } = await import("../src/lib/blingSync/cliente.js");
+const { buscarNoBling, lerParaPopup, lerProdutoDoRise } = await import("../src/lib/blingSync/leitura.js");
 const { consultaDaChamada, criarBlingFalso } = await import("./lib/blingFalso.js");
 
 let falhas = 0;
@@ -815,8 +816,20 @@ try {
       conferir("falso: GET /produtos/{id} traz o produto inteiro, com os grupos e o saldo no estoque", [
         completo.id, completo.dimensoes, completo.estoque, completo.tributacao, completo.tipo, completo.formato,
       ], [111, { largura: 4, altura: 3, profundidade: 9, unidadeMedida: 1 }, { minimo: 1, maximo: 5, localizacao: "A1", saldoVirtualTotal: 10 }, { origem: 0, ncm: "85011019" }, "P", "S"]);
+      // Medido no Bling real em 04/10/2026 (um GET so de leitura, Step 0 da Tarefa 7): id que nao
+      // existe da 404 com este corpo, e NAO 200 com `data: []` (esse e o formato de /estoques/saldos).
       const inexistente = await falso.get("/produtos/999999");
-      conferir("falso: GET /produtos/{id} de id que nao existe da data vazio", [inexistente.ok, inexistente.dados.data], [true, []]);
+      conferir("falso: GET /produtos/{id} de id que nao existe da 404 RESOURCE_NOT_FOUND, como o Bling real", [inexistente.ok, inexistente.status, inexistente.dados], [
+        false,
+        404,
+        {
+          error: {
+            type: "RESOURCE_NOT_FOUND",
+            message: "Não encontrado.",
+            description: "O recurso requisitado não foi encontrado. Verifique se o endpoint solicitado está correto ou se o ID informado realmente existe no sistema.",
+          },
+        },
+      ]);
 
       // O que o chamador recebe e uma copia: mexer nela nao pode mudar o Bling falso.
       completo.nome = "Mudei fora";
@@ -1218,6 +1231,317 @@ try {
       const falso = criarBlingFalso({ produtos: [umProduto({ codigo: "ZZ-BS-2", nome: "Produto de teste", preco: 95 })] });
       const achado = await falso.get("/produtos", { "codigos[]": ["ZZ-BS-2"] });
       conferir("o falso devolve o produto cadastrado por codigo e registra a chamada", [achado.dados.data.map((p) => [p.codigo, p.preco]), falso.chamadas.map((c) => [c.metodo, c.caminho])], [[["ZZ-BS-2", 95]], [["GET", "/produtos"]]]);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Leitura do pop-up
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nLeitura do pop-up");
+    await limpar();
+
+    // `escrita` depende da trava do .env: o teste a fixa para nao depender do ambiente e a restaura
+    // no fim. Nada aqui escreve no Bling: o cliente e sempre o falso (ou um de mentira).
+    const travaOriginal = config.travas.blingEscrita;
+    const liberadosOriginais = config.travas.blingCodigosLiberados;
+    config.travas.blingEscrita = false;
+    config.travas.blingCodigosLiberados = [];
+
+    try {
+      const casaTexto = (texto, regex) => typeof texto === "string" && regex.test(texto);
+      // A mensagem com que a promessa foi rejeitada (ou null se ela deu certo).
+      const rejeicaoDeLeitura = async (promessa) => {
+        try {
+          await promessa;
+          return null;
+        } catch (erro) {
+          return erro.message;
+        }
+      };
+      const resumo = (diferenca) => ({ campo: diferenca.campo, tipo: diferenca.tipo, rise: diferenca.rise, bling: diferenca.bling });
+      const chamadasDe = (falso) => falso.chamadas.map((chamada) => `${chamada.metodo} ${chamada.caminho}`);
+      const CNPJ_BOM = "11.222.333/0001-81";
+      const novoFornecedor = (nome, cnpj) => prisma.fornecedor.create({ data: { nome: `ZZ Teste BS ${nome}`, ...(cnpj ? { cnpj } : {}) } });
+      // O produto como o Bling o guarda: igual ao do Rise, menos o preco (95 contra 90).
+      const umNoBling = (extra = {}) => ({
+        id: 15000000101,
+        codigo: "ZZ-BS-2",
+        nome: "Motor de teste da leitura",
+        preco: 95,
+        descricaoCurta: "<p>Linha 1<br>Linha 2</p>",
+        marca: "Generica",
+        unidade: "Un",
+        pesoBruto: 0.25,
+        dimensoes: { altura: 30, largura: 45, profundidade: 100, unidadeMedida: 2 },
+        tributacao: { ncm: "85011019", origem: 0 },
+        estoque: { minimo: 0, maximo: 0, localizacao: "A1" },
+        ...extra,
+      });
+
+      const comCnpj = await novoFornecedor("Com CNPJ", CNPJ_BOM);
+      const semCnpj = await novoFornecedor("Sem CNPJ");
+      const cnpjInvalido = await novoFornecedor("CNPJ invalido", "11.111.111/1111-11");
+      const mesmoCnpj = await novoFornecedor("Mesmo CNPJ", "11222333000181");
+
+      // Os movimentos entram fora de ordem (o mais novo primeiro) e um deles ja foi enviado.
+      const produto = await prisma.produto.create({
+        data: {
+          sku: "ZZ-BS-2",
+          tituloBase: "Motor de teste da leitura",
+          descricaoBase: "Linha 1\nLinha 2",
+          precoVenda: "90.00",
+          marca: "GENERICA",
+          unidade: "UN",
+          pesoKg: "0.25",
+          alturaCm: "3",
+          larguraCm: "4.5",
+          comprimentoCm: "10",
+          ncm: "85011019",
+          origem: 0,
+          localizacao: "A1",
+          estoque: 7,
+          blingSaldo: 20,
+          fornecedores: {
+            create: [
+              { fornecedorId: comCnpj.id, codigo: "F-1", precoCusto: "10.00", padrao: true },
+              { fornecedorId: semCnpj.id },
+              { fornecedorId: cnpjInvalido.id },
+              { fornecedorId: mesmoCnpj.id, codigo: "F-2" },
+            ],
+          },
+          movimentosEstoque: {
+            create: [
+              { tipo: "SAIDA", quantidade: 1, saldoAnterior: 8, saldoNovo: 7, criadoEm: new Date("2026-10-01T11:00:00Z") },
+              { tipo: "ENTRADA", quantidade: 3, saldoAnterior: 5, saldoNovo: 8, criadoEm: new Date("2026-10-01T10:00:00Z") },
+              { tipo: "ENTRADA", quantidade: 2, saldoAnterior: 3, saldoNovo: 5, criadoEm: new Date("2026-09-30T10:00:00Z"), enviadoAoBlingEm: new Date("2026-09-30T12:00:00Z") },
+            ],
+          },
+        },
+      });
+      // Produto quase vazio, para o fallback do saldo (nunca lido) e os campos "vazio no Rise".
+      const minimo = await prisma.produto.create({ data: { sku: "ZZ-BS-3", tituloBase: "Minimo", precoVenda: "50.00" } });
+
+      // --- buscarNoBling: a busca por codigo ---
+      {
+        const falso = criarBlingFalso();
+        conferir("busca: codigo sem produto no Bling = nao_existe, sem id nem produto", await buscarNoBling(falso, "ZZ-BS-2"), { situacao: "nao_existe" });
+        conferir(
+          "busca: foi UMA chamada, GET /produtos com codigos[] (Emenda 8)",
+          [falso.chamadas.length, falso.chamadas[0].metodo, falso.chamadas[0].caminho, falso.consulta(falso.chamadas[0])],
+          [1, "GET", "/produtos", { "codigos[]": ["ZZ-BS-2"] }],
+        );
+      }
+      {
+        const falso = criarBlingFalso({ produtos: [umNoBling({ codigo: "zz-bs-2" })], saldos: { "zz-bs-2": 12 } });
+        const achado = await buscarNoBling(falso, "ZZ-BS-2");
+        conferir(
+          "busca: um produto = existe, com o id, a quantidade e o produto COMPLETO (grupos e saldo)",
+          [achado.situacao, achado.id, achado.quantidade, achado.produto.codigo, achado.produto.dimensoes.altura, achado.produto.estoque.saldoVirtualTotal],
+          ["existe", 15000000101, 1, "zz-bs-2", 30, 12],
+        );
+        conferir("busca: le o completo por GET /produtos/{id} com o id da PROPRIA busca, e nada mais", chamadasDe(falso), ["GET /produtos", "GET /produtos/15000000101"]);
+      }
+      {
+        const falso = criarBlingFalso({ produtos: [umNoBling({ id: 15000000111 }), umNoBling({ id: 15000000112, codigo: "zz-bs-2" })] });
+        conferir("busca: dois produtos com o mesmo codigo = duplicado, com a quantidade e SEM id nem produto (nao escolhe)", await buscarNoBling(falso, "ZZ-BS-2"), { situacao: "duplicado", quantidade: 2 });
+        conferir("busca: duplicado nao le produto nenhum, so a busca", chamadasDe(falso), ["GET /produtos"]);
+      }
+      {
+        const falso = criarBlingFalso({ produtos: [umNoBling()] });
+        conferir(
+          "busca: codigo vazio, so espaco ou ausente = nao_existe SEM chamar o Bling (a chave vazia sai da URL e listaria o catalogo)",
+          [await buscarNoBling(falso, ""), await buscarNoBling(falso, "   "), await buscarNoBling(falso, undefined), falso.chamadas.length],
+          [{ situacao: "nao_existe" }, { situacao: "nao_existe" }, { situacao: "nao_existe" }, 0],
+        );
+        conferir("busca: o codigo pedido vai aparado e o do Bling casa sem diferenciar caixa", (await buscarNoBling(falso, "  zz-bs-2 ")).situacao, "existe");
+      }
+      {
+        // Respostas que o falso nao produz: item de outro codigo e produto que some entre a busca e a leitura.
+        const resposta = (dados, status = 200) => ({ ok: status < 300, status, duracaoMs: 0, dados });
+        const clienteDeMentira = ({ busca, completo }) => {
+          const chamadas = [];
+          return {
+            chamadas,
+            get: async (caminho) => {
+              chamadas.push(caminho);
+              return caminho === "/produtos" ? busca : completo;
+            },
+          };
+        };
+
+        const outroCodigo = clienteDeMentira({ busca: resposta({ data: [{ id: 1, codigo: "OUTRO-COD" }] }) });
+        conferir("busca: item devolvido com OUTRO codigo = nao_existe, e nao le nada (Emenda 11)", [await buscarNoBling(outroCodigo, "ZZ-BS-2"), outroCodigo.chamadas], [{ situacao: "nao_existe" }, ["/produtos"]]);
+
+        const completoDeOutro = clienteDeMentira({ busca: resposta({ data: [{ id: 7, codigo: "ZZ-BS-2" }] }), completo: resposta({ data: { id: 7, codigo: "OUTRO-COD" } }) });
+        conferir("busca: o completo lido com outro codigo que o pedido = nao_existe (nunca devolve um produto que nao e o do sku)", (await buscarNoBling(completoDeOutro, "ZZ-BS-2")).situacao, "nao_existe");
+
+        const sumiu = clienteDeMentira({ busca: resposta({ data: [{ id: 7, codigo: "ZZ-BS-2" }] }), completo: resposta({ error: { type: "RESOURCE_NOT_FOUND" } }, 404) });
+        conferir("busca: 404 ao ler o completo (o produto sumiu depois da busca) = nao_existe", [(await buscarNoBling(sumiu, "ZZ-BS-2")).situacao, sumiu.chamadas], ["nao_existe", ["/produtos", "/produtos/7"]]);
+
+        const comIntruso = clienteDeMentira({
+          busca: resposta({ data: [{ id: 7, codigo: "ZZ-BS-2" }, { id: 8, codigo: "OUTRO-COD" }] }),
+          completo: resposta({ data: { id: 7, codigo: "ZZ-BS-2", nome: "x" } }),
+        });
+        const intruso = await buscarNoBling(comIntruso, "ZZ-BS-2");
+        conferir("busca: um item de outro codigo no meio nao conta (so os do codigo pedido: 1 = existe)", [intruso.situacao, intruso.id, intruso.quantidade], ["existe", 7, 1]);
+
+        const comErro = clienteDeMentira({ busca: resposta({ error: { description: "x" } }, 429) });
+        conferir("busca: falha do Bling LANCA com mensagem em portugues (quem chama decide), nao devolve 'nao_existe'", casaTexto(await rejeicaoDeLeitura(buscarNoBling(comErro, "ZZ-BS-2")), /limite de chamadas/), true);
+      }
+
+      // --- lerParaPopup: o caso feliz, com diferenca ---
+      {
+        const falso = criarBlingFalso({ produtos: [umNoBling({ codigo: "zz-bs-2" })], saldos: { "zz-bs-2": 12 } });
+        const existe = await lerParaPopup(produto.id, falso);
+        conferir("popup existe: ok, sku e situacao (o Bling guarda o codigo em outra caixa e ainda assim e o mesmo)", [existe.ok, existe.sku, existe.situacao], [true, "ZZ-BS-2", "existe"]);
+        conferir("popup existe: sem a chave erro, e todas as outras", Object.keys(existe).sort(), ["avisos", "diferencas", "escrita", "estoque", "iguais", "ok", "situacao", "sku"]);
+        conferir("popup existe: so o preco difere (90 no Rise, 95 no Bling); o resto bate depois de normalizar", existe.diferencas.map(resumo), [{ campo: "preco", tipo: "diferente", rise: 90, bling: 95 }]);
+        conferir("popup existe: a diferenca traz o rotulo da tela", existe.diferencas[0].rotulo, "Preco");
+        conferir("popup existe: iguais conta os campos iguais (18 menos o preco)", [existe.iguais, existe.iguais + existe.diferencas.length === CAMPOS_DE_ENVIO.length], [17, true]);
+        conferir(
+          "popup existe: estoque = saldo virtual do produto LIDO (12, nao o 20 guardado), estoque do Rise e os 2 pendentes (o enviado nao conta)",
+          existe.estoque,
+          { blingSaldo: 12, riseEstoque: 7, pendentes: 2 },
+        );
+        conferir(
+          "popup existe: aviso para o fornecedor sem CNPJ e para o de CNPJ invalido, nesta ordem; o com CNPJ e o repetido nao avisam",
+          existe.avisos,
+          ["Fornecedor ZZ Teste BS Sem CNPJ sem CNPJ valido: nao sera enviado ao Bling.", "Fornecedor ZZ Teste BS CNPJ invalido sem CNPJ valido: nao sera enviado ao Bling."],
+        );
+        conferir("popup existe: com a trava desligada a escrita nao esta liberada e o motivo diz qual trava", [existe.escrita.liberada, casaTexto(existe.escrita.motivo, /BLING_ESCRITA esta false/)], [false, true]);
+        conferir("popup existe: so le: GET da busca e GET do completo, nenhuma escrita e nenhum exigirEscrita", [chamadasDe(falso), falso.escritasExigidas], [["GET /produtos", "GET /produtos/15000000101"], []]);
+        const depois = await prisma.produto.findUnique({ where: { id: produto.id } });
+        conferir("popup existe: ler nao grava nada no Rise (blingSaldo segue 20, nunca sincronizado)", [depois.blingSaldo, depois.blingSincronizadoEm, depois.blingAssinatura], [20, null, null]);
+        conferir("lerParaPopup: o cliente e opcional (o padrao e o clienteBling())", lerParaPopup.length, 1);
+      }
+
+      // --- lerParaPopup: campo vazio no Rise e saldo negativo ---
+      {
+        const falso = criarBlingFalso({
+          produtos: [umNoBling({ id: 15000000103, codigo: "ZZ-BS-3", nome: "Minimo", preco: 50, descricaoCurta: "", marca: "X", unidade: "UN", pesoBruto: 0, dimensoes: undefined, tributacao: undefined, estoque: { localizacao: "B2" } })],
+          saldos: { "ZZ-BS-3": -8 },
+        });
+        const lido = await lerParaPopup(minimo.id, falso);
+        conferir("popup vazio no Rise: marca e localizacao do Bling aparecem como vazioNoRise (nao sao divergencia)", lido.diferencas.map(resumo), [
+          { campo: "marca", tipo: "vazioNoRise", rise: null, bling: "X" },
+          { campo: "localizacao", tipo: "vazioNoRise", rise: null, bling: "B2" },
+        ]);
+        conferir("popup vazio no Rise: nenhuma divergencia de verdade, e iguais = 18 menos as 2 listadas", [contarDivergencias(lido.diferencas), lido.iguais], [0, 16]);
+        conferir("popup saldo negativo do Bling (Emenda 6): blingSaldo -8 cru, e o estoque do Rise sem pendente e 0", lido.estoque, { blingSaldo: -8, riseEstoque: 0, pendentes: 0 });
+        conferir("popup sem fornecedor nem aviso: lista vazia", lido.avisos, []);
+      }
+
+      // --- lerParaPopup: codigo que nao existe no Bling ---
+      {
+        const falso = criarBlingFalso();
+        const naoExiste = await lerParaPopup(produto.id, falso);
+        conferir("popup nao_existe: ok (o pop-up oferece 'Cadastrar no Bling'), sem diferencas e sem iguais", [naoExiste.ok, naoExiste.situacao, naoExiste.diferencas, naoExiste.iguais], [true, "nao_existe", [], 0]);
+        conferir("popup nao_existe: sem Bling para ler, o saldo e o ultimo guardado (20); o estoque do Rise e os avisos seguem", [naoExiste.estoque, naoExiste.avisos.length], [{ blingSaldo: 20, riseEstoque: 7, pendentes: 2 }, 2]);
+        conferir("popup nao_existe: foi so a busca", chamadasDe(falso), ["GET /produtos"]);
+        const nuncaLido = await lerParaPopup(minimo.id, criarBlingFalso());
+        conferir("popup nao_existe: produto nunca lido do Bling fica com blingSaldo null", nuncaLido.estoque, { blingSaldo: null, riseEstoque: 0, pendentes: 0 });
+      }
+
+      // --- lerParaPopup: mais de um produto com o codigo ---
+      {
+        const falso = criarBlingFalso({ produtos: [umNoBling({ id: 15000000111 }), umNoBling({ id: 15000000112, codigo: "zz-bs-2" })] });
+        const dup = await lerParaPopup(produto.id, falso);
+        conferir("popup duplicado: ok false, situacao duplicado, erro cita 'mais de um', sem diferencas", [dup.ok, dup.situacao, casaTexto(dup.erro, /mais de um/), dup.diferencas, dup.iguais], [false, "duplicado", true, [], 0]);
+        conferir("popup duplicado: o erro diz o codigo e quantos, e nao le produto nenhum", [String(dup.erro).includes("ZZ-BS-2"), String(dup.erro).includes("2"), chamadasDe(falso)], [true, true, ["GET /produtos"]]);
+        conferir("popup duplicado: o estoque e os avisos do Rise seguem", [dup.estoque, dup.avisos.length], [{ blingSaldo: 20, riseEstoque: 7, pendentes: 2 }, 2]);
+      }
+
+      // --- lerParaPopup: falhas (nunca lancam para a tela) ---
+      {
+        const lerComFalha = (falha) => lerParaPopup(produto.id, criarBlingFalso({ produtos: [umNoBling()], falhas: [falha] }));
+        const limite = await lerComFalha({ metodo: "GET", caminho: "/produtos", status: 429, mensagem: "Muitas chamadas" });
+        conferir("popup falha 429: ok false, situacao null e erro em portugues que fala do limite de chamadas", [limite.ok, limite.situacao, casaTexto(limite.erro, /limite de chamadas/)], [false, null, true]);
+        conferir("popup falha: o resultado mantem todas as chaves e o que o Rise ja sabia (estoque e avisos)", [Object.keys(limite).sort(), limite.estoque, limite.avisos.length], [
+          ["avisos", "diferencas", "erro", "escrita", "estoque", "iguais", "ok", "situacao", "sku"],
+          { blingSaldo: 20, riseEstoque: 7, pendentes: 2 },
+          2,
+        ]);
+        const acesso = await lerComFalha({ metodo: "GET", caminho: "/produtos", status: 401, mensagem: "invalid_token" });
+        conferir("popup falha 401: o erro fala do token", [acesso.ok, casaTexto(acesso.erro, /token/)], [false, true]);
+        const proibido = await lerComFalha({ metodo: "GET", caminho: "/produtos", status: 403, mensagem: "sem escopo" });
+        conferir("popup falha 403: tambem fala de acesso/token", [proibido.ok, casaTexto(proibido.erro, /token/)], [false, true]);
+        const fora = await lerComFalha({ metodo: "GET", caminho: "/produtos", status: 500, mensagem: "boom" });
+        conferir("popup falha 500: o erro diz o HTTP", [fora.ok, casaTexto(fora.erro, /HTTP 500/)], [false, true]);
+        const recusa = await lerComFalha({ metodo: "GET", caminho: "/produtos", status: 400, mensagem: "Parametro invalido" });
+        conferir("popup falha 400: o erro diz o HTTP e a descricao do Bling", [recusa.ok, casaTexto(recusa.erro, /HTTP 400/), casaTexto(recusa.erro, /Parametro invalido/)], [false, true, true]);
+
+        // A falha na SEGUNDA chamada (ler o completo): o caminho com barra so casa o GET /produtos/{id}.
+        const falsoNoCompleto = criarBlingFalso({ produtos: [umNoBling()], falhas: [{ metodo: "GET", caminho: "/produtos/", status: 500, mensagem: "boom" }] });
+        const noCompleto = await lerParaPopup(produto.id, falsoNoCompleto);
+        conferir("popup falha ao ler o completo: ok false com o HTTP, depois de a busca ter dado certo", [noCompleto.ok, casaTexto(noCompleto.erro, /HTTP 500/), chamadasDe(falsoNoCompleto)], [false, true, ["GET /produtos", "GET /produtos/15000000101"]]);
+
+        // Falha que LANCA (token ausente, rede): vira ok false, nao excecao.
+        const semToken = { get: async () => { throw new Error('Bling nao conectado. Use "Conectar" na tela Integracoes.'); } };
+        const semConexao = await lerParaPopup(produto.id, semToken);
+        conferir("popup excecao do cliente (token ausente): ok false com o texto, sem lancar", [semConexao.ok, casaTexto(semConexao.erro, /Nao foi possivel ler o Bling: Bling nao conectado/)], [false, true]);
+
+        // O produto do Rise nao existe (id velho na tela): ok false, nada e chamado.
+        const falsoSemUso = criarBlingFalso();
+        const semProduto = await lerParaPopup("id-que-nao-existe", falsoSemUso);
+        conferir("popup produto que nao existe no Rise: ok false, erro em portugues, o Bling nem e chamado", [semProduto.ok, casaTexto(semProduto.erro, /Produto nao encontrado/), falsoSemUso.chamadas.length, semProduto.estoque], [false, true, 0, { blingSaldo: null, riseEstoque: 0, pendentes: 0 }]);
+        conferir("popup id ausente: tambem ok false, sem lancar", (await lerParaPopup(undefined, falsoSemUso)).ok, false);
+      }
+
+      // --- lerParaPopup: a segunda trava (a lista de codigos liberados), sem chamar exigirEscrita ---
+      {
+        const escritaCom = async (ligada, liberados) => {
+          config.travas.blingEscrita = ligada;
+          config.travas.blingCodigosLiberados = liberados;
+          const falso = criarBlingFalso();
+          const lido = await lerParaPopup(produto.id, falso);
+          return [lido.escrita, falso.escritasExigidas];
+        };
+        conferir("escrita: trava ligada e lista vazia = liberada, sem motivo", await escritaCom(true, []), [{ liberada: true, motivo: null }, []]);
+        conferir("escrita: sku na lista (em outra caixa) = liberada", (await escritaCom(true, ["zz-bs-2"]))[0], { liberada: true, motivo: null });
+        const [fora] = await escritaCom(true, ["ZZ-OUTRO"]);
+        conferir("escrita: sku fora da lista = barrada, e o motivo cita a lista e o codigo", [fora.liberada, casaTexto(fora.motivo, /BLING_ESCRITA_CODIGOS/), String(fora.motivo).includes("ZZ-BS-2")], [false, true, true]);
+        const [desligada] = await escritaCom(false, ["ZZ-BS-2"]);
+        conferir(
+          "escrita: trava geral desligada = barrada mesmo com o sku na lista, e o motivo cita BLING_ESCRITA (nao a lista)",
+          [desligada.liberada, casaTexto(desligada.motivo, /BLING_ESCRITA esta false/), casaTexto(desligada.motivo, /BLING_ESCRITA_CODIGOS/)],
+          [false, true, false],
+        );
+      }
+
+      // --- lerProdutoDoRise: a leitura do Rise com ordem estavel ---
+      {
+        const lido = await lerProdutoDoRise(produto.id);
+        conferir("lerProdutoDoRise: so os movimentos pendentes, do mais antigo ao mais novo (a ordem em que o Bling os recebe)", lido.movimentosEstoque.map((m) => [m.tipo, m.quantidade]), [["ENTRADA", 3], ["SAIDA", 1]]);
+        conferir("lerProdutoDoRise: vinculos com o padrao primeiro e os demais na ordem de criacao", lido.fornecedores.map((v) => v.fornecedor.nome), [
+          "ZZ Teste BS Com CNPJ",
+          "ZZ Teste BS Sem CNPJ",
+          "ZZ Teste BS CNPJ invalido",
+          "ZZ Teste BS Mesmo CNPJ",
+        ]);
+        conferir("lerProdutoDoRise: do fornecedor so o CNPJ e o nome", Object.keys(lido.fornecedores[0].fornecedor).sort(), ["cnpj", "nome"]);
+        conferir("lerProdutoDoRise: id que nao existe = null", await lerProdutoDoRise("id-que-nao-existe"), null);
+
+        // Pendencia da Tarefa 3: com o CNPJ repetido "fica o primeiro", entao a ordem tem que ser fixa.
+        const repA = await novoFornecedor("Rep A", CNPJ_BOM);
+        const repB = await novoFornecedor("Rep B", CNPJ_BOM);
+        const repetido = await prisma.produto.create({
+          data: {
+            sku: "ZZ-BS-4",
+            tituloBase: "Vinculos com CNPJ repetido",
+            fornecedores: { create: [{ fornecedorId: repA.id, codigo: "A", padrao: false }, { fornecedorId: repB.id, codigo: "B", padrao: true }] },
+          },
+        });
+        const vinculos = (await lerProdutoDoRise(repetido.id)).fornecedores;
+        conferir(
+          "CNPJ repetido: o vinculo padrao vem primeiro, entao e ele que normalizarFornecedoresDoRise guarda (mesmo criado depois)",
+          [vinculos.map((v) => v.codigo), normalizarFornecedoresDoRise(vinculos).map((f) => f.codigo)],
+          [["B", "A"], ["B"]],
+        );
+      }
+    } finally {
+      config.travas.blingEscrita = travaOriginal;
+      config.travas.blingCodigosLiberados = liberadosOriginais;
     }
   }
 
