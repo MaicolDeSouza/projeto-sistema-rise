@@ -326,6 +326,15 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     }
   }
 
+  // Troca o texto de uma opcao ANTES da escolha (pedido do dono em 04/10/2026): a linha editada e a
+  // que entra na descricao se for a selecionada. Fontes, valor e recomendacao da IA ficam como estavam.
+  function editarOpcao(divergencia, indice, linha) {
+    setDivergencias((atual) => atual.map((item) => item.id !== divergencia.id ? item : {
+      ...item,
+      opcoes: item.opcoes.map((opcao, posicao) => posicao === indice ? { ...opcao, linha } : opcao),
+    }));
+  }
+
   function organizar() {
     let novoTexto = texto;
     const novasConfirmadas = new Set(confirmadas);
@@ -556,6 +565,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                       selecoes={selecoes}
                       confirmadas={confirmadas}
                       aoSelecionar={(id, indice) => setSelecoes((atual) => ({ ...atual, [id]: indice }))}
+                      aoEditarOpcao={editarOpcao}
                       aoExcluirOpcao={excluirOpcao}
                       aoExcluirLinha={excluirLinha}
                       aoMover={moverLinha}

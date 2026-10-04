@@ -1973,6 +1973,19 @@ um bloco `{ ... }` por assunto, cada um começando em `await limpar()` (apaga pr
   homologação continua separado** (`CERTIFICADO`): anda com o número, e o Mercado Livre o pede
   em algumas categorias. A migration `20260916_documentos_tecnicos` recria o enum, porque o
   Postgres não remove valor de enum. Não havia nenhum arquivo dos tipos antigos.
+- **Documentos técnicos aceitam `.zip`** (pedido do dono em 04/10/2026; o certificado continua só
+  PDF/imagem). O Windows manda `application/x-zip-compressed`, então os dois tipos entram, e o
+  servidor só aceita se o conteúdo começar com `PK` (o tipo vem do navegador). Limite de 20 MB, o
+  mesmo dos PDFs (o `bodySizeLimit` é 24 MB). A rota `/api/arquivos` serve `.zip` como download.
+- **Fotos do produto: até 100** (`MAXIMO_IMAGENS`, pedido do dono em 04/10/2026; eram 9), e o painel
+  do cadastro novo guarda 150 candidatas (`MAXIMO_FOTOS_NO_PAINEL`, sempre acima do limite do
+  produto). Os canais aceitam menos (Shopee 9, Mercado Livre 12): cada anúncio escolhe as suas, e o
+  envio da fase 3 precisa cortar nesse número. O rascunho do ML guarda até 100 ids de foto.
+- **Descrição com IA: as opções candidatas (linhas roxas com "?") são editáveis antes da escolha**
+  (lápis + Salvar por linha, `LinhasDescricao` → `editarOpcao` em `JanelaDescricao`). O texto
+  salvo é o que entra na descrição se a opção for a selecionada.
+- **Ordem das medidas: Peso, Comprimento, Largura, Altura** (pedido do dono em 04/10/2026), no
+  cadastro do produto e na aba Envio do anúncio do ML.
 - **Documentos e certificado podem ser enviados no cadastro NOVO** (pedido do dono em
   16/09/2026). Vão para `dados/temporarios/<lote>/`, onde o lote é um UUID criado no primeiro
   envio, e são **movidos** para `dados/produtos/<SKU>/` no Salvar (`moverTemporarios`).

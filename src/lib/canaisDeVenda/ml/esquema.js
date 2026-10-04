@@ -35,7 +35,7 @@ export const LIMITES_ML = {
   atributos: 40,
   chaveDeAtributo: 60,
   valorDeAtributo: 200,
-  imagens: 50,
+  imagens: 100,
   idDeImagem: 64,
   modoDeEnvio: 20,
   itensDaComposicao: 50,

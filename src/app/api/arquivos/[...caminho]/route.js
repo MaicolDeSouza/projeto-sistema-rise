@@ -6,6 +6,7 @@ const CONTEUDO = {
   ".jpg": "image/jpeg",
   ".png": "image/png",
   ".pdf": "application/pdf",
+  ".zip": "application/zip",
 };
 
 /**
@@ -39,6 +40,8 @@ export async function GET(requisicao, { params }) {
     return new Response(bytes, {
       headers: {
         "Content-Type": CONTEUDO[extensao] ?? "application/octet-stream",
+        // ZIP nunca abre na pagina: baixa.
+        ...(extensao === ".zip" ? { "Content-Disposition": `attachment; filename="${nome}"` } : {}),
         // O nome e gerado no envio e nunca reutilizado: pode cachear para sempre.
         "Cache-Control": "public, max-age=31536000, immutable",
       },

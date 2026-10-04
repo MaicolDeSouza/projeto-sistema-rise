@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronDown, ChevronUp, GripVertical, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, GripVertical, Pencil, Trash2, X } from "lucide-react";
 import { formatarLinhaTecnica, limitesEspecificacoes } from "@/lib/ia/revisaoDescricao";
 
 const CORES = [
@@ -15,9 +15,18 @@ const CORES = [
 
 export default function LinhasDescricao({
   texto, divergencias, opcoesRestantes, selecoes, confirmadas,
-  aoSelecionar, aoExcluirOpcao, aoExcluirLinha, aoMover, aoMoverPasso, rolagem,
+  aoSelecionar, aoEditarOpcao, aoExcluirOpcao, aoExcluirLinha, aoMover, aoMoverPasso, rolagem,
 }) {
   const [destino, setDestino] = useState(null);
+  // Opcao em edicao: { chave, valor }. Uma por vez; salvar grava o texto na opcao, cancelar descarta.
+  const [edicao, setEdicao] = useState(null);
+
+  function salvarEdicao(divergencia, opcaoIndice) {
+    const linha = edicao?.valor.trim();
+    if (!linha) return;
+    aoEditarOpcao(divergencia, opcaoIndice, linha);
+    setEdicao(null);
+  }
   const arraste = useRef(null);
   const linhas = texto.split("\n");
   const { inicio, fim } = limitesEspecificacoes(texto);
@@ -86,8 +95,35 @@ export default function LinhasDescricao({
           const opcao = divergencia.opcoes[opcaoIndice];
           const marcada = selecoes[divergencia.id] === opcaoIndice;
           const cor = marcada ? divergencia.cor.marcada : divergencia.cor.base;
+          const chave = divergencia.id + "-" + opcaoIndice;
+          if (edicao?.chave === chave) {
+            return (
+              <div key={chave} className={"flex items-start gap-1 border-l-4 border-b p-0.5 " + cor}>
+                <span className="w-8 shrink-0 px-1 py-1.5 text-center text-suave">?</span>
+                <input
+                  autoFocus
+                  value={edicao.valor}
+                  onChange={(evento) => setEdicao({ chave, valor: evento.target.value })}
+                  onKeyDown={(evento) => {
+                    if (evento.key === "Enter") {
+                      evento.preventDefault();
+                      salvarEdicao(divergencia, opcaoIndice);
+                    } else if (evento.key === "Escape") {
+                      // Escape fecha so a edicao, e nao a janela inteira.
+                      evento.stopPropagation();
+                      setEdicao(null);
+                    }
+                  }}
+                  aria-label={"Editar opção de " + divergencia.campo}
+                  className="min-w-0 flex-1 rounded border border-borda bg-white px-1.5 py-1 font-mono text-xs"
+                />
+                <button type="button" onClick={() => salvarEdicao(divergencia, opcaoIndice)} disabled={!edicao.valor.trim()} aria-label="Salvar edição desta opção" title="Salvar" className="shrink-0 p-1.5 text-emerald-700 hover:text-emerald-900 disabled:opacity-30"><Check size={14} /></button>
+                <button type="button" onClick={() => setEdicao(null)} aria-label="Cancelar edição" title="Cancelar" className="shrink-0 p-1.5 text-suave hover:text-red-700"><X size={14} /></button>
+              </div>
+            );
+          }
           return (
-            <div key={divergencia.id + "-" + opcaoIndice} className={"flex items-start border-l-4 border-b p-0.5 " + cor}>
+            <div key={chave} className={"flex items-start border-l-4 border-b p-0.5 " + cor}>
               <span className="w-8 shrink-0 px-1 py-1.5 text-center text-suave">?</span>
               <button
                 type="button"
@@ -100,6 +136,7 @@ export default function LinhasDescricao({
                 {marcada && <span className="ml-2 rounded bg-slate-800 px-1.5 py-0.5 font-sans font-semibold text-white">Selecionada</span>}
                 {divergencia.recomendada === opcaoIndice && <span className="ml-2 rounded bg-emerald-600 px-1.5 py-0.5 font-sans font-semibold text-white">IA recomenda</span>}
               </button>
+              <button type="button" onClick={() => setEdicao({ chave, valor: formatarLinhaTecnica(opcao.linha) })} aria-label={"Editar opção " + opcao.valor + " de " + divergencia.campo} title="Editar esta opção" className="shrink-0 p-1.5 text-suave hover:text-acento"><Pencil size={13} /></button>
               <button type="button" onClick={() => aoExcluirOpcao(divergencia, opcaoIndice)} aria-label={"Excluir opção " + opcao.valor + " de " + divergencia.campo} title="Excluir esta opção" className="shrink-0 p-1.5 text-suave hover:text-red-700"><Trash2 size={13} /></button>
             </div>
           );

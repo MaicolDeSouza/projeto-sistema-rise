@@ -21,12 +21,12 @@ const PESO = {
 };
 const MEDIDAS = [
   {
-    chave: "alturaCm",
-    nome: "altura",
-    id: "ml-altura",
-    rotulo: "Altura (cm)",
+    chave: "comprimentoCm",
+    nome: "comprimento",
+    id: "ml-comprimento",
+    rotulo: "Comprimento (cm)",
     casas: 2,
-    ajuda: "Altura do pacote ja embalado, em centimetros.",
+    ajuda: "Comprimento do pacote ja embalado, em centimetros.",
   },
   {
     chave: "larguraCm",
@@ -37,12 +37,12 @@ const MEDIDAS = [
     ajuda: "Largura do pacote ja embalado, em centimetros.",
   },
   {
-    chave: "comprimentoCm",
-    nome: "comprimento",
-    id: "ml-comprimento",
-    rotulo: "Comprimento (cm)",
+    chave: "alturaCm",
+    nome: "altura",
+    id: "ml-altura",
+    rotulo: "Altura (cm)",
     casas: 2,
-    ajuda: "Comprimento do pacote ja embalado, em centimetros.",
+    ajuda: "Altura do pacote ja embalado, em centimetros.",
   },
 ];
 

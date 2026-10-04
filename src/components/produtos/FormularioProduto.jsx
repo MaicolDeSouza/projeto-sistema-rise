@@ -1209,6 +1209,10 @@ function LinkLojaIntegrada({ inicial, dominio, erro }) {
   );
 }
 
+// Formatos do seletor de arquivo: Documentos tecnicos aceitam tambem .zip; o certificado nao.
+const ACEITA_CERTIFICADO = "application/pdf,image/jpeg,image/png";
+const ACEITA_DOCUMENTO = `${ACEITA_CERTIFICADO},.zip,application/zip`;
+
 /** Envio de documento (manual, ficha tecnica, certificado). */
 function Documento({ produtoId, tipo, rotulo, ajuda, arquivos }) {
   const [pendente, iniciarTransicao] = useTransition();
@@ -1287,7 +1291,7 @@ function Documento({ produtoId, tipo, rotulo, ajuda, arquivos }) {
       <input
         ref={entrada}
         type="file"
-        accept="application/pdf,image/jpeg,image/png"
+        accept={tipo === "DOCUMENTO" ? ACEITA_DOCUMENTO : ACEITA_CERTIFICADO}
         onChange={aoEscolher}
         className="hidden"
       />
@@ -1453,7 +1457,7 @@ function DocumentoTemporario({
       <input
         ref={entrada}
         type="file"
-        accept="application/pdf,image/jpeg,image/png"
+        accept={tipo === "DOCUMENTO" ? ACEITA_DOCUMENTO : ACEITA_CERTIFICADO}
         onChange={aoEscolher}
         className="hidden"
       />
@@ -2567,19 +2571,19 @@ export default function FormularioProduto({
                   vazio="Nenhuma referencia marcada publica o peso na ficha tecnica."
                 />
                 <CampoDeReferencias
-                  nome="alturaCm"
-                  rotulo="Altura (cm)"
+                  nome="comprimentoCm"
+                  rotulo="Comprimento (cm)"
                   type="number"
                   step="0.01"
                   min="0"
-                  inicial={v("alturaCm")}
+                  inicial={v("comprimentoCm")}
                   ids={idsMarcados}
-                  valores={valoresRefs?.altura}
+                  valores={valoresRefs?.comprimento}
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
                   unidade="cm"
-                  vazio="Nenhuma referencia marcada publica a altura na ficha tecnica."
+                  vazio="Nenhuma referencia marcada publica o comprimento na ficha tecnica."
                 />
                 <CampoDeReferencias
                   nome="larguraCm"
@@ -2597,19 +2601,19 @@ export default function FormularioProduto({
                   vazio="Nenhuma referencia marcada publica a largura na ficha tecnica."
                 />
                 <CampoDeReferencias
-                  nome="comprimentoCm"
-                  rotulo="Comprimento (cm)"
+                  nome="alturaCm"
+                  rotulo="Altura (cm)"
                   type="number"
                   step="0.01"
                   min="0"
-                  inicial={v("comprimentoCm")}
+                  inicial={v("alturaCm")}
                   ids={idsMarcados}
-                  valores={valoresRefs?.comprimento}
+                  valores={valoresRefs?.altura}
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
                   unidade="cm"
-                  vazio="Nenhuma referencia marcada publica o comprimento na ficha tecnica."
+                  vazio="Nenhuma referencia marcada publica a altura na ficha tecnica."
                 />
               </div>
             </div>

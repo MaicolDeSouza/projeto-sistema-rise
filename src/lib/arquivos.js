@@ -44,7 +44,20 @@ const REGRAS = {
     ladoMinimo: 500,
     ladoMaximo: 1920,
   },
+  // Documentos tecnicos tambem aceitam .zip (pedido do dono em 04/10/2026: drivers e pacotes de
+  // fornecedor vem zipados). O Windows manda "application/x-zip-compressed" no lugar de "application/zip".
   DOCUMENTO: {
+    tipos: {
+      "application/pdf": ".pdf",
+      "image/jpeg": ".jpg",
+      "image/png": ".png",
+      "application/zip": ".zip",
+      "application/x-zip-compressed": ".zip",
+    },
+    tamanhoMaximo: 20 * 1024 * 1024,
+  },
+  // O certificado de homologacao continua so PDF/imagem: e o que o anuncio anexa.
+  CERTIFICADO: {
     tipos: {
       "application/pdf": ".pdf",
       "image/jpeg": ".jpg",
@@ -54,7 +67,7 @@ const REGRAS = {
   },
 };
 
-const regrasDe = (tipo) => (tipo === "IMAGEM" ? REGRAS.IMAGEM : REGRAS.DOCUMENTO);
+const regrasDe = (tipo) => REGRAS[tipo] ?? REGRAS.DOCUMENTO;
 
 // ---------------------------------------------------------------------------
 // Validacao de nomes — a defesa contra travessia de caminho
@@ -77,7 +90,7 @@ export function skuValido(sku) {
 
 /** Aceita apenas o nome gerado por nos: 32 hexadecimais mais a extensao. */
 export function nomeValido(nome) {
-  return /^[0-9a-f]{32}\.(jpg|png|pdf)$/.test(nome ?? "");
+  return /^[0-9a-f]{32}\.(jpg|png|pdf|zip)$/.test(nome ?? "");
 }
 
 export function pastaDoProduto(sku) {
@@ -136,8 +149,8 @@ async function validarEGravar(base, tipo, arquivo) {
   const extensao = regras.tipos[arquivo.type];
 
   if (!extensao) {
-    const aceitos = Object.keys(regras.tipos)
-      .map((mime) => mime.split("/")[1].toUpperCase())
+    const aceitos = [...new Set(Object.values(regras.tipos))]
+      .map((extensaoAceita) => extensaoAceita.slice(1).toUpperCase())
       .join(", ");
     return {
       ok: false,
@@ -152,6 +165,11 @@ async function validarEGravar(base, tipo, arquivo) {
   }
 
   const bytes = Buffer.from(await arquivo.arrayBuffer());
+
+  // O tipo vem do navegador: um .zip so entra se o conteudo comecar como zip ("PK").
+  if (extensao === ".zip" && bytes.subarray(0, 2).toString("latin1") !== "PK") {
+    return { ok: false, erro: "O arquivo nao e um ZIP valido." };
+  }
 
   if (tipo === "IMAGEM") {
     let dimensao;
@@ -219,7 +237,7 @@ export function loteValido(lote) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(lote ?? "");
 }
 
-const TIPO_POR_EXTENSAO = { ".pdf": "application/pdf", ".jpg": "image/jpeg", ".png": "image/png" };
+const TIPO_POR_EXTENSAO = { ".pdf": "application/pdf", ".jpg": "image/jpeg", ".png": "image/png", ".zip": "application/zip" };
 
 /** Apaga lotes com mais de 24 h. Falha aqui nunca derruba o envio. */
 export async function limparTemporariosAntigos() {
