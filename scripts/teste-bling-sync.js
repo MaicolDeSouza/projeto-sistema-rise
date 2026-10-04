@@ -828,6 +828,7 @@ try {
     // --- Falso: PATCH (so os campos informados; cada grupo informado e SUBSTITUIDO) ---
     {
       const falso = criarBlingFalso({ produtos: [umProduto(), umProduto({ id: 112, codigo: "ZZ-F-2" })], saldos: { "ZZ-F-1": 10 } });
+      falso.exigirEscrita("ZZ-F-1");
       const patch = await falso.patch("/produtos/111", { preco: 95, dimensoes: { altura: 7 }, estoque: { localizacao: "B2", saldoVirtualTotal: 999 } });
       conferir("falso: PATCH responde 200", [patch.ok, patch.status], [true, 200]);
       const depois = (await falso.get("/produtos/111")).dados.data;
@@ -848,6 +849,7 @@ try {
     // --- Falso: POST /produtos ---
     {
       const falso = criarBlingFalso();
+      falso.exigirEscrita("ZZ-F-9");
       const criado = await falso.post("/produtos", { nome: "Novo", codigo: "ZZ-F-9", tipo: "P", formato: "S", situacao: "A", preco: 10, estoque: { minimo: 2, saldoVirtualTotal: 77 } });
       conferir("falso: POST /produtos devolve 201 e data.id", [criado.ok, criado.status, typeof id(criado)], [true, 201, "number"]);
       const achados = (await falso.get("/produtos?codigos[]=ZZ-F-9")).dados.data;
@@ -867,6 +869,7 @@ try {
     // --- Falso: fornecedores do produto ---
     {
       const falso = criarBlingFalso({ produtos: [umProduto()], contatos: [umFornecedorDoBling()] });
+      falso.exigirEscrita("ZZ-F-1");
       conferir("falso: produto sem vinculo de fornecedor tem data vazio", (await falso.get("/produtos/fornecedores", { idProduto: 111 })).dados.data, []);
       const vinculo = await falso.post("/produtos/fornecedores", { descricao: "https://exemplo.com/a", codigo: "F1", precoCusto: 5.9, padrao: true, produto: { id: 111 }, fornecedor: { id: 8001 } });
       conferir("falso: POST /produtos/fornecedores devolve 201 e data.id", [vinculo.ok, vinculo.status, typeof id(vinculo)], [true, 201, "number"]);
@@ -912,6 +915,7 @@ try {
           { id: 8003, nome: "Eletronica Sao Joao", tiposContato: [{ descricao: "Cliente" }] },
         ],
       });
+      falso.exigirEscrita("ZZ-F-1");
       const idFornecedor = falso.idDoTipoDeContato("Fornecedor");
 
       conferir("falso: GET /contatos?numeroDocumento= acha pelos 14 digitos", (await falso.get("/contatos?numeroDocumento=12345678000195")).dados.data.map((c) => c.id), [8001]);
@@ -970,6 +974,7 @@ try {
         produtos: [umProduto(), umProduto({ id: 112, codigo: "ZZ-F-2" }), umProduto({ id: 113, codigo: "ZZ-F-3", situacao: "I" })],
         saldos: { "ZZ-F-1": 10, "ZZ-F-2": { virtual: -8, fisico: 0 }, "ZZ-F-3": 4 },
       });
+      falso.exigirEscrita("ZZ-F-1");
       const lido = await falso.get("/estoques/saldos", { "codigos[]": ["ZZ-F-1", "ZZ-F-2", "ZZ-F-INEXISTENTE"] });
       conferir(
         "falso: GET /estoques/saldos?codigos[]= devolve produto, saldos e depositos; codigo que nao existe e ignorado",
@@ -1039,23 +1044,75 @@ try {
       conferir("falso: o lancamento recusado nao mexe no saldo nem entra na lista", [falso.saldo("ZZ-F-1"), falso.estado.lancamentos.length], [1, antes]);
     }
 
+    // --- Falso: o balanco define o saldo FISICO do deposito; o virtual e a contagem menos as reservas ---
+    // Investigacao da Tarefa 1, §4.3 e B5: "um balanco de 12 deixa o fisico em 12 e o virtual em
+    // 12 - reservas". As reservas (fisico - virtual) ficam constantes. Entrada e saida mexem nos
+    // dois saldos do mesmo tanto.
+    {
+      const falso = criarBlingFalso({
+        produtos: [umProduto({ id: 211, codigo: "ZZ-F-R1" }), umProduto({ id: 212, codigo: "ZZ-F-R2" }), umProduto({ id: 213, codigo: "ZZ-F-R3" })],
+        // R1 = o 100114 do relatorio (fisico 0, virtual -8: reserva 8); R2 = o 100246 (fisico 56,
+        // virtual 29: reserva 27); R3 = sem reserva (um numero so: virtual igual ao fisico).
+        saldos: { "ZZ-F-R1": { virtual: -8, fisico: 0 }, "ZZ-F-R2": { virtual: 29, fisico: 56 }, "ZZ-F-R3": 10 },
+      });
+      falso.exigirEscrita("ZZ-F-R1");
+      const deposito = (await falso.get("/depositos")).dados.data.find((d) => d.padrao).id;
+      const lancar = (produtoId, operacao, quantidade) => falso.post("/estoques", { produto: { id: produtoId }, deposito: { id: deposito }, operacao, quantidade });
+      // [fisico, virtual] pelo GET de saldos, e os dois do deposito conferidos junto.
+      const saldos = async (codigo) => {
+        const item = (await falso.get("/estoques/saldos", { "codigos[]": [codigo] })).dados.data[0];
+        const noDeposito = item.depositos[0];
+        return [item.saldoFisicoTotal, item.saldoVirtualTotal, noDeposito.saldoFisico === item.saldoFisicoTotal && noDeposito.saldoVirtual === item.saldoVirtualTotal];
+      };
+
+      conferir("balanco com reserva: ponto de partida do 100114 (fisico 0, virtual -8)", await saldos("ZZ-F-R1"), [0, -8, true]);
+      await lancar(211, "B", 5);
+      conferir("balanco 5 no 100114: o FISICO vira 5 e o virtual -3 (5 - 8 de reservas), nao 5", await saldos("ZZ-F-R1"), [5, -3, true]);
+      conferir("balanco: falso.saldo() e o virtual (-3)", falso.saldo("ZZ-F-R1"), -3);
+      conferir("balanco: o virtual tambem sai no produto (GET /produtos/{id})", (await falso.get("/produtos/211")).dados.data.estoque.saldoVirtualTotal, -3);
+
+      conferir("balanco com reserva: ponto de partida do 100246 (fisico 56, virtual 29)", await saldos("ZZ-F-R2"), [56, 29, true]);
+      await lancar(212, "E", 3);
+      conferir("entrada com reserva soma nos dois (56 + 3, 29 + 3)", await saldos("ZZ-F-R2"), [59, 32, true]);
+      await lancar(212, "S", 1);
+      conferir("saida com reserva tira dos dois (59 - 1, 32 - 1)", await saldos("ZZ-F-R2"), [58, 31, true]);
+      await lancar(212, "B", 40);
+      conferir("balanco 40 no 100246: fisico 40 e virtual 13 (40 - 27 de reservas)", await saldos("ZZ-F-R2"), [40, 13, true]);
+      await lancar(212, "B", 0);
+      conferir("balanco 0 com reserva: fisico 0 e virtual -27 (zerar a contagem nao apaga as reservas)", await saldos("ZZ-F-R2"), [0, -27, true]);
+      await lancar(212, "E", 30);
+      conferir("e uma entrada depois dele segue a mesma reserva (0 + 30, -27 + 30)", await saldos("ZZ-F-R2"), [30, 3, true]);
+
+      await lancar(211, "E", 2);
+      await lancar(211, "S", 10);
+      conferir("100114: entrada 2 e saida 10 depois do balanco (5 -> 7 -> -3 de fisico; -3 -> -1 -> -11 de virtual)", await saldos("ZZ-F-R1"), [-3, -11, true]);
+
+      await lancar(213, "B", 7);
+      conferir("sem reserva (fisico igual ao virtual) o balanco define os dois", await saldos("ZZ-F-R3"), [7, 7, true]);
+      await lancar(213, "E", 2);
+      await lancar(213, "S", 4);
+      conferir("sem reserva: entrada e saida mantem os dois iguais", await saldos("ZZ-F-R3"), [5, 5, true]);
+    }
+
     // --- Falso: falhas simuladas ---
     {
       const falso = criarBlingFalso({
         produtos: [umProduto(), umProduto({ id: 112, codigo: "ZZ-F-2" })],
         falhas: [{ metodo: "PATCH", caminho: "/produtos/111", status: 400, mensagem: "Preco invalido" }],
       });
+      falso.exigirEscrita("ZZ-F-1");
       const falhou = await falso.patch("/produtos/111", { preco: 1 });
       conferir("falha: devolve ok false, o status e a mensagem em error.description", [falhou.ok, falhou.status, falhou.dados], [false, 400, { error: { description: "Preco invalido" } }]);
       conferir("falha: a chamada que falhou nao muda nada", (await falso.get("/produtos/111")).dados.data.preco, 80);
       conferir("falha: outro metodo no mesmo caminho nao falha (GET acima)", (await falso.get("/produtos/111")).ok, true);
       conferir("falha: outro caminho nao falha", (await falso.patch("/produtos/112", { preco: 5 })).ok, true);
-      conferir("falha: a chamada que falhou fica registrada em chamadas", falso.chamadas.map((c) => `${c.metodo} ${c.caminho}`).slice(0, 2), ["PATCH /produtos/111", "GET /produtos/111"]);
+      conferir("falha: a chamada que falhou fica registrada em chamadas", falso.chamadas.map((c) => `${c.metodo} ${c.caminho}`).slice(0, 3), ["exigirEscrita ZZ-F-1", "PATCH /produtos/111", "GET /produtos/111"]);
 
       const porPrefixo = criarBlingFalso({
         produtos: [umProduto()],
         falhas: [{ metodo: "post", caminho: "/estoques", status: 500, mensagem: "Falha do Bling" }],
       });
+      porPrefixo.exigirEscrita("ZZ-F-1");
       const deposito = (await porPrefixo.get("/depositos")).dados.data.find((d) => d.padrao).id;
       const post = await porPrefixo.post("/estoques", { produto: { id: 111 }, deposito: { id: deposito }, operacao: "E", quantidade: 1 });
       conferir("falha: casa por prefixo do caminho e por metodo sem diferenciar caixa", [post.ok, post.status, post.dados.error.description], [false, 500, "Falha do Bling"]);
@@ -1067,6 +1124,7 @@ try {
         saldos: { "ZZ-F-1": 0 },
         falhas: [{ metodo: "POST", caminho: "/estoques", status: 400, mensagem: "Saldo insuficiente", depois: 1, vezes: 1 }],
       });
+      noSegundo.exigirEscrita("ZZ-F-1");
       const idDoDeposito = (await noSegundo.get("/depositos")).dados.data.find((d) => d.padrao).id;
       const lancamento = (quantidade) => noSegundo.post("/estoques", { produto: { id: 111 }, deposito: { id: idDoDeposito }, operacao: "E", quantidade });
       const tres = [await lancamento(1), await lancamento(1), await lancamento(1)];
@@ -1082,16 +1140,20 @@ try {
       const falso = criarBlingFalso({ produtos: [umProduto()] });
       const corpo = { preco: 95, dimensoes: { altura: 7 } };
       await falso.get("/produtos", { "codigos[]": ["ZZ-F-1"] });
+      falso.exigirEscrita("ZZ-F-1");
       await falso.patch("/produtos/111", corpo);
       await falso.get("/depositos");
-      conferir("chamadas: metodo, caminho e corpo, na ordem de chegada (GET leva os params no corpo)", falso.chamadas, [
+      // exigirEscrita entra em `chamadas` (caminho = o codigo) para o teste afirmar a ordem: a
+      // trava tem que vir ANTES do primeiro patch, post ou put.
+      conferir("chamadas: metodo, caminho e corpo, na ordem de chegada (GET leva os params no corpo; exigirEscrita leva o codigo)", falso.chamadas, [
         { metodo: "GET", caminho: "/produtos", corpo: { "codigos[]": ["ZZ-F-1"] } },
+        { metodo: "exigirEscrita", caminho: "ZZ-F-1" },
         { metodo: "PATCH", caminho: "/produtos/111", corpo: { preco: 95, dimensoes: { altura: 7 } } },
         { metodo: "GET", caminho: "/depositos" },
       ]);
       corpo.preco = 1;
       corpo.dimensoes.altura = 1;
-      conferir("chamadas: guarda uma copia do corpo (mudar o objeto depois nao muda o registro)", falso.chamadas[1].corpo, { preco: 95, dimensoes: { altura: 7 } });
+      conferir("chamadas: guarda uma copia do corpo (mudar o objeto depois nao muda o registro)", falso.chamadas[2].corpo, { preco: 95, dimensoes: { altura: 7 } });
       conferir(
         "consultaDaChamada: junta a consulta do caminho com a dos params, tudo em lista de textos",
         consultaDaChamada({ caminho: "/estoques/saldos?codigos[]=a&codigos%5B%5D=b", corpo: { "codigos[]": ["c"], pagina: 1, vazio: "" } }),
@@ -1099,13 +1161,22 @@ try {
       );
       conferir("consultaDaChamada: o falso a oferece pronta", falso.consulta === consultaDaChamada, true);
 
-      conferir("exigirEscrita do falso e um no-op e anota o codigo", [falso.exigirEscrita("100246"), falso.exigirEscrita("ZZ-F-1"), falso.escritasExigidas], [undefined, undefined, ["100246", "ZZ-F-1"]]);
-      const restrito = criarBlingFalso({ codigosLiberados: ["ZZ-OK"] });
+      conferir("exigirEscrita do falso nao devolve nada e anota cada codigo", [falso.exigirEscrita("100246"), falso.exigirEscrita("ZZ-F-1"), falso.escritasExigidas], [undefined, undefined, ["ZZ-F-1", "100246", "ZZ-F-1"]]);
+
+      const restrito = criarBlingFalso({ codigosLiberados: ["ZZ-OK"], produtos: [umProduto()] });
       conferir(
         "exigirEscrita com codigosLiberados recusa o que nao esta na lista, como o cliente real",
-        [casa(mensagemDe(() => restrito.exigirEscrita("100246")), /nao esta na lista de codigos liberados/), mensagemDe(() => restrito.exigirEscrita("zz-ok"))],
-        [true, null],
+        casa(mensagemDe(() => restrito.exigirEscrita("100246")), /nao esta na lista de codigos liberados/),
+        true,
       );
+      // A recusa nao e uma chamada que aconteceu (`chamadas.length === 0` e o que a Tarefa 8 afirma
+      // para "codigo fora da lista"), mas fica em escritasExigidas, e nao libera a escrita.
+      conferir(
+        "exigirEscrita recusado: nao entra em chamadas, fica em escritasExigidas e NAO libera a escrita",
+        [restrito.chamadas.length, restrito.escritasExigidas, casa(await rejeicaoDe(restrito.patch("/produtos/111", { preco: 1 })), /exigirEscrita/)],
+        [0, ["100246"], true],
+      );
+      conferir("exigirEscrita com o codigo da lista (outra caixa) passa e libera a escrita", [mensagemDe(() => restrito.exigirEscrita("zz-ok")), (await restrito.patch("/produtos/111", { preco: 1 })).ok], [null, true]);
 
       conferir("falso: endpoint que ele nao conhece rejeita com 'nao suportado' (erro de teste, nao do Bling)", casa(await rejeicaoDe(falso.get("/pedidos/vendas")), /nao suportado/), true);
       conferir("falso: GET /produtos?codigo= (nao documentado, Emenda 8) e recusado: o certo e codigos[]", casa(await rejeicaoDe(falso.get("/produtos?codigo=ZZ-F-1")), /codigos\[\]/), true);
@@ -1113,6 +1184,33 @@ try {
       conferir("falso: verbo que o endpoint nao tem (PUT /depositos) tambem e recusado", casa(await rejeicaoDe(falso.put("/depositos", {})), /nao suportado/), true);
 
       conferir("falso: produto(id) e produto(codigo) devolvem o produto como o GET o devolveria", [falso.produto(111).nome, falso.produto("ZZ-F-1").id, falso.produto("NADA"), falso.produto(5)], ["Motor falso", 111, null, null]);
+    }
+
+    // --- Falso: escrever sem exigirEscrita antes e erro de teste ---
+    // A segunda trava (a lista de codigos liberados) so vale se quem escreve lembrar de chamar
+    // `cliente.exigirEscrita(sku)` antes. Com o falso padrao, post, put e patch sem ela lancam.
+    {
+      const padrao = criarBlingFalso({ produtos: [umProduto()], contatos: [umFornecedorDoBling()] });
+      const recusas = [
+        await rejeicaoDe(padrao.post("/estoques", { produto: { id: 111 } })),
+        await rejeicaoDe(padrao.put("/contatos/8001", { nome: "x" })),
+        await rejeicaoDe(padrao.patch("/produtos/111", { preco: 1 })),
+      ];
+      conferir("exigirEscrita obrigatorio: post, put e patch sem exigirEscrita antes lancam", recusas.map((mensagem) => casa(mensagem, /exigirEscrita/)), [true, true, true]);
+      conferir("a mensagem diz qual escrita foi barrada", [casa(recusas[0], /POST \/estoques/), casa(recusas[1], /PUT \/contatos\/8001/), casa(recusas[2], /PATCH \/produtos\/111/)], [true, true, true]);
+      conferir("a escrita barrada nao muda nada nem entra em chamadas", [padrao.chamadas.length, padrao.produto(111).preco, padrao.estado.contatos.get(8001).nome], [0, 80, "Fornecedor Com Documento"]);
+      conferir("a leitura nao precisa de exigirEscrita", [(await padrao.get("/depositos")).ok, (await padrao.get("/produtos", { "codigos[]": ["ZZ-F-1"] })).ok], [true, true]);
+
+      padrao.exigirEscrita("ZZ-F-1");
+      const aposEscrita = [(await padrao.patch("/produtos/111", { preco: 1 })).ok, (await padrao.put("/contatos/8001", { nome: "x" })).ok, (await padrao.post("/produtos", { nome: "N", tipo: "P", formato: "S", situacao: "A" })).ok];
+      conferir("depois de exigirEscrita(codigo) o patch, o put e o post passam", aposEscrita, [true, true, true]);
+      conferir("exigirEscrita fica em chamadas, no lugar certo: antes do primeiro patch, put ou post", padrao.chamadas.map((chamada) => chamada.metodo), ["GET", "GET", "exigirEscrita", "PATCH", "PUT", "POST"]);
+      conferir("e leva o codigo no caminho", padrao.chamadas[2], { metodo: "exigirEscrita", caminho: "ZZ-F-1" });
+
+      // Para os testes que exercitam os endpoints do proprio falso e nao tem sku para pedir.
+      const livre = criarBlingFalso({ produtos: [umProduto()], exigirEscritaObrigatorio: false });
+      conferir("exigirEscritaObrigatorio: false deixa escrever sem exigirEscrita", (await livre.patch("/produtos/111", { preco: 1 })).ok, true);
+      conferir("e nao inventa um exigirEscrita em chamadas", livre.chamadas.map((chamada) => chamada.metodo), ["PATCH"]);
     }
 
     // --- O mesmo codigo no falso e no Rise: o que a Tarefa 7 vai usar ---

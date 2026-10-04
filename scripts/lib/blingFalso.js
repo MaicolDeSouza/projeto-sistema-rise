@@ -144,7 +144,10 @@ function tamanhoDaUrl(rota, consulta) {
  *   `depois` = quantas chamadas correspondentes passam antes (padrao 0); `vezes` = quantas
  *   falham (padrao: todas).
  * @param {string[]} [opcoes.codigosLiberados] se preenchida, `exigirEscrita` recusa os codigos
- *   fora dela (a segunda trava do cliente real). Padrao: no-op.
+ *   fora dela (a segunda trava do cliente real). Padrao: aceita todos.
+ * @param {boolean} [opcoes.exigirEscritaObrigatorio] padrao `true`: `post`, `put` e `patch` LANCAM
+ *   erro de teste se `exigirEscrita` nao foi chamada (e aceita) antes nesta instancia. `false` so
+ *   para os testes que exercitam os endpoints do proprio falso sem ter um sku a pedir.
  */
 export function criarBlingFalso(opcoes = {}) {
   const chamadas = [];
@@ -153,6 +156,8 @@ export function criarBlingFalso(opcoes = {}) {
   const tiposDeContato = copia(opcoes.tiposDeContato ?? TIPOS_DE_CONTATO_PADRAO);
   const depositos = copia(opcoes.depositos ?? DEPOSITOS_PADRAO);
   const codigosLiberados = (opcoes.codigosLiberados ?? []).map((codigo) => minusculo(codigo).trim());
+  const exigirEscritaObrigatorio = opcoes.exigirEscritaObrigatorio ?? true;
+  let escritaLiberada = false; // vira true na primeira exigirEscrita aceita desta instancia
 
   const produtos = new Map(); // id -> produto como o Bling o guarda (sem o saldo)
   const saldos = new Map(); // id do produto -> { virtual, fisico }
@@ -502,10 +507,14 @@ export function criarBlingFalso(opcoes = {}) {
         const quantidade = typeof corpo?.quantidade === "number" ? corpo.quantidade : Number.NaN;
         if (!Number.isFinite(quantidade) || quantidade < 0) return validacao("quantidade tem que ser um numero maior ou igual a zero.", ["quantidade"]);
 
-        // E soma, S tira, B define o saldo virtual. Fisico e virtual andam juntos (o falso nao
-        // modela o que o Bling real faz com as reservas) e o virtual pode ficar negativo.
+        // Entrada soma e saida tira, nos DOIS saldos do mesmo tanto. O balanco (B) define o saldo
+        // FISICO do deposito, e o virtual fica em `contagem - reservas` (investigacao da Tarefa 1,
+        // §4.3 e B5: "um balanco de 12 deixa o fisico em 12 e o virtual em 12 - reservas").
+        // As reservas (fisico - virtual) sao constantes: so o Bling real as muda, por pedido. Por
+        // isso o virtual pode ficar negativo, e um balanco 5 num produto com fisico 0 e virtual -8
+        // da fisico 5 e virtual -3, nao virtual 5.
         const saldo = saldos.get(produto.id);
-        const delta = corpo.operacao === "E" ? quantidade : corpo.operacao === "S" ? -quantidade : quantidade - saldo.virtual;
+        const delta = corpo.operacao === "E" ? quantidade : corpo.operacao === "S" ? -quantidade : quantidade - saldo.fisico;
         saldo.virtual += delta;
         saldo.fisico += delta;
 
@@ -544,6 +553,20 @@ export function criarBlingFalso(opcoes = {}) {
 
   async function despachar(metodo, caminho, segundo) {
     const { rota, consulta: daRota } = separarCaminho(caminho);
+
+    // A segunda trava (a lista de codigos liberados) so vale se quem escreve chamar
+    // `cliente.exigirEscrita(sku)` ANTES. O cliente real nao tem como saber se o chamador esqueceu,
+    // entao o falso cobra: escrever sem ter pedido a trava e erro do teste, e nao entra em
+    // `chamadas` (nao aconteceu). Leitura nao precisa.
+    if (metodo !== "GET" && exigirEscritaObrigatorio && !escritaLiberada) {
+      throw new Error(
+        `Bling falso: ${metodo} ${rota} sem exigirEscrita(codigo) antes. A sincronizacao tem que chamar ` +
+          "cliente.exigirEscrita(sku) antes de toda escrita (e a segunda trava, a lista de codigos liberados, " +
+          "que so vale assim). Nos testes dos endpoints do proprio falso, chame falso.exigirEscrita(\"<codigo>\") " +
+          "antes ou crie o falso com exigirEscritaObrigatorio: false.",
+      );
+    }
+
     // Registra antes de tudo, inclusive a que vai falhar: foi tentada.
     chamadas.push({ metodo, caminho, corpo: copia(segundo) });
 
@@ -571,18 +594,24 @@ export function criarBlingFalso(opcoes = {}) {
     put: (caminho, corpo) => despachar("PUT", caminho, corpo),
     patch: (caminho, corpo) => despachar("PATCH", caminho, corpo),
 
-    /// No-op, como o cliente real com as travas liberadas: o falso nunca fala com o Bling. Anota
-    /// o codigo para o teste conferir que a sincronizacao pediu a trava. Com `codigosLiberados`,
-    /// recusa o que nao esta na lista (para testar "recusa antes de qualquer chamada").
+    /// Como o cliente real com as travas liberadas, nao devolve nada: o falso nunca fala com o
+    /// Bling. Com `codigosLiberados`, recusa o que nao esta na lista (para testar "recusa antes de
+    /// qualquer chamada"). Aceito, libera as escritas deste falso e entra em `chamadas` como
+    /// `{ metodo: "exigirEscrita", caminho: codigo }`, para o teste afirmar que veio ANTES do
+    /// primeiro patch, post ou put. Recusado, NAO libera e NAO entra em `chamadas` (o que a
+    /// Tarefa 8 afirma, `chamadas.length === 0`); toda tentativa fica em `escritasExigidas`.
     exigirEscrita(codigo) {
       escritasExigidas.push(codigo);
       if (codigosLiberados.length && !codigosLiberados.includes(minusculo(codigo).trim())) {
         throw new Error(`Escrita bloqueada: o codigo ${codigo} nao esta na lista de codigos liberados (Bling falso).`);
       }
+      escritaLiberada = true;
+      chamadas.push({ metodo: "exigirEscrita", caminho: codigo, corpo: undefined });
     },
 
     /// [{ metodo, caminho, corpo }] na ordem. Para GET, `corpo` guarda os `params`.
     chamadas,
+    /// Todo codigo que chegou a exigirEscrita, aceito ou recusado.
     escritasExigidas,
     consulta: consultaDaChamada,
 
