@@ -299,6 +299,19 @@ try {
     conferir("CNPJ de 13 digitos, nulo e vazio sao descartados", normalizarFornecedoresDoRise([treze, estrangeiro, vazio, a]).map((f) => f.nome), ["Fornecedor A"]);
     conferir("os descartados vao para o aviso, na ordem de chegada", fornecedoresSemCnpj([treze, a, estrangeiro, vazio]), ["Fornecedor Treze", "Fornecedor Estrangeiro", "Fornecedor Vazio"]);
     conferir("quem tem CNPJ valido nao entra no aviso", fornecedoresSemCnpj([a]), []);
+    // CNPJ invalido conta como sem CNPJ (Review Focus 4): 14 digitos nao bastam. Fora da lista
+    // e no aviso, em vez de seguir ate o POST /contatos e ser recusado no meio do envio.
+    const digitoErrado = vinculo("12345678000196", "Fornecedor Digito Errado");
+    const todosZeros = vinculo("00000000000000", "Fornecedor Zeros");
+    const todosUns = vinculo("11.111.111/1111-11", "Fornecedor Uns");
+    conferir("CNPJ de 14 digitos com digito verificador errado fica fora da lista", normalizarFornecedoresDoRise([digitoErrado, a]).map((f) => f.nome), ["Fornecedor A"]);
+    conferir("CNPJ de sequencia repetida fica fora da lista", normalizarFornecedoresDoRise([todosZeros, todosUns, a]).map((f) => f.nome), ["Fornecedor A"]);
+    conferir(
+      "CNPJ invalido cai no aviso 'sem CNPJ', na ordem de chegada",
+      fornecedoresSemCnpj([digitoErrado, a, todosZeros, treze, todosUns]),
+      ["Fornecedor Digito Errado", "Fornecedor Zeros", "Fornecedor Treze", "Fornecedor Uns"],
+    );
+    conferir("so o invalido: lista vazia e aviso com ele", [normalizarFornecedoresDoRise([digitoErrado]), fornecedoresSemCnpj([digitoErrado])], [[], ["Fornecedor Digito Errado"]]);
     const repetido = vinculo("12345678000195", "Fornecedor A repetido", { codigo: "A2" });
     conferir("o mesmo CNPJ em dois vinculos vira um, e fica o primeiro", normalizarFornecedoresDoRise([a, repetido]).map((f) => [f.nome, f.codigo]), [["Fornecedor A", "A1"]]);
     conferir("CNPJ repetido nao e 'sem CNPJ'", fornecedoresSemCnpj([a, repetido]), []);
@@ -350,6 +363,7 @@ try {
     conferir("a ordem de chegada dos vinculos nao muda a assinatura", assinaturaDoRise(campos, normalizarFornecedoresDoRise([b, a])), assinaturaDoRise(campos, normalizarFornecedoresDoRise([a, b])));
     // O que nao pode ser enviado nao pode deixar o selo aceso para sempre.
     conferir("fornecedor sem CNPJ nao entra na assinatura", assinaturaDoRise(campos, normalizarFornecedoresDoRise([a, treze, estrangeiro])), comA);
+    conferir("nem o de CNPJ invalido", assinaturaDoRise(campos, normalizarFornecedoresDoRise([a, digitoErrado, todosZeros])), comA);
     // O vinculo enviado e CNPJ, codigo, descricao, custo e padrao; o nome so serve para
     // achar o contato no Bling, e renomear o fornecedor nao muda o que vai.
     conferir("o nome do fornecedor nao entra na assinatura", assinaturaDoRise(campos, normalizarFornecedoresDoRise([{ ...a, fornecedor: { ...a.fornecedor, nome: "Renomeado" } }])), comA);

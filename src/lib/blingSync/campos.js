@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { validarCnpj } from "@/lib/documentos";
 import { emCm, htmlParaTexto, unidadeDe } from "@/lib/integracoes/importarBling";
 
 /**
@@ -174,10 +175,15 @@ export function normalizarDoBling(bling) {
 // Fornecedores: ligados ao contato do Bling pelo CNPJ
 // ---------------------------------------------------------------------------
 
-/// Os 14 digitos do CNPJ do fornecedor do vinculo, ou null (ausente, incompleto, estrangeiro).
+/**
+ * Os 14 digitos do CNPJ do fornecedor do vinculo, ou null (ausente, incompleto, estrangeiro
+ * ou invalido). Confere os digitos verificadores e recusa sequencia repetida
+ * (`00000000000000`): CNPJ invalido contaria como enviavel, entraria na assinatura e o Bling
+ * o recusaria so no `POST /contatos`, no meio do envio, em vez de cair no aviso "sem CNPJ".
+ */
 function cnpjDoVinculo(vinculo) {
   const digitos = String(vinculo?.fornecedor?.cnpj ?? "").replace(/\D/g, "");
-  return digitos.length === 14 ? digitos : null;
+  return validarCnpj(digitos) ? digitos : null;
 }
 
 /// Custo do vinculo: 2 casas; ausente e null. Zero fica zero (e um custo informado).
@@ -188,7 +194,7 @@ function custoOuNull(valor) {
 
 /**
  * Os fornecedores do produto prontos para enviar. Entrada: as linhas de `ProdutoFornecedor`
- * com `fornecedor: { cnpj, nome }`. So fica quem tem CNPJ de 14 digitos (o Bling liga o
+ * com `fornecedor: { cnpj, nome }`. So fica quem tem CNPJ valido, de 14 digitos (o Bling liga o
  * fornecedor pelo CNPJ; sem ele nao ha o que enviar), um por CNPJ (repetido: fica o
  * primeiro, o Bling nao quer o mesmo contato duas vezes no produto) e em ordem de CNPJ,
  * para a mesma lista dar sempre a mesma assinatura.
