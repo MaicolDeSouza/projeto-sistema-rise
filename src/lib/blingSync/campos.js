@@ -97,7 +97,9 @@ function descricaoDoRise(valor) {
   if (valor === null || valor === undefined) return null;
   return (
     String(valor)
-      .replace(/\r/g, "")
+      // \r\n e \r sozinho valem UMA quebra, como no `textoParaHtml` (corpo.js): apagar o \r colava
+      // as palavras ("a\rb" virava "ab") e o texto nunca seria igual ao que volta do Bling.
+      .replace(/\r\n?/g, "\n")
       .replace(/[ \t ]+/g, " ")
       .replace(/ *\n */g, "\n")
       .replace(/\n{3,}/g, "\n\n")

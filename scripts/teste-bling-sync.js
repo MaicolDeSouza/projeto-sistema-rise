@@ -422,6 +422,9 @@ try {
       "Tensao < 5V & corrente > 1A",
       "Disse \"oi\" e 'tchau'",
       "Linha 1\r\nLinha 2",
+      // \r sozinho (CR de planilha, PDF ou formato antigo de Mac): vale uma quebra dos dois lados.
+      "a\rb",
+      "a\r\n\rb",
       "A\n\n\n\nB",
       "Linha 1  com  espaco",
       "a b  c",
