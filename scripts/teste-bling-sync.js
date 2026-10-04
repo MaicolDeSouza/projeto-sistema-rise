@@ -33,6 +33,8 @@ const {
   normalizarFornecedoresDoRise,
 } = await import("../src/lib/blingSync/campos.js");
 const { montarCorpoDeCadastro, montarCorpoParcial, textoParaHtml } = await import("../src/lib/blingSync/corpo.js");
+const { estoqueDoRise } = await import("../src/lib/blingSync/estoque.js");
+const { estadoDoIconeBling } = await import("../src/lib/blingSync/estado.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -598,6 +600,61 @@ try {
     conferir("cadastro: sem medidas nao ha dimensoes", "dimensoes" in cadastroMinimo, false);
     conferir("cadastro: a descricao vai escapada", montarCorpoDeCadastro("ZZ-BS-6", umRiseNormalizado({ nome: "X", descricao: "a<b & c\nd" })).descricaoCurta, "a&lt;b &amp; c<br>d");
     conferir("cadastro de um Rise de verdade (normalizado do produto do banco): sem null", temVazio(montarCorpoDeCadastro("ZZ-BS-5", normalizarDoRise({ tituloBase: "Produto", precoVenda: "10.50", unidade: "UN" }))), false);
+  }
+
+  // -------------------------------------------------------------------------
+  // Regras puras: estoque do Rise e estado do icone
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nEstoque e estado");
+
+    const entrada = (quantidade) => ({ tipo: "ENTRADA", quantidade });
+    const saida = (quantidade) => ({ tipo: "SAIDA", quantidade });
+    const balanco = (quantidade) => ({ tipo: "BALANCO", quantidade });
+
+    // --- Estoque do Rise = saldo do Bling + ajustes pendentes, aplicados na ordem ---
+    conferir("estoque: sem pendentes e o saldo do Bling", estoqueDoRise(10, []), 10);
+    conferir("estoque: a entrada soma", estoqueDoRise(10, [entrada(3)]), 13);
+    conferir("estoque: entrada e saida, na ordem", estoqueDoRise(10, [entrada(3), saida(1)]), 12);
+    conferir("estoque: saida maior que o saldo nao deixa menos que 0", estoqueDoRise(10, [saida(20)]), 0);
+    conferir("estoque: o balanco define o saldo, e o que vem depois parte dele", estoqueDoRise(10, [entrada(3), balanco(7), saida(2)]), 5);
+    // A ordem importa: o balanco no fim apaga o que veio antes, no comeco ele e o ponto de partida.
+    conferir("estoque: a mesma lista em outra ordem da outro resultado", [estoqueDoRise(10, [balanco(7), entrada(3), saida(2)]), estoqueDoRise(10, [entrada(3), saida(2), balanco(7)])], [8, 7]);
+    conferir("estoque: balanco 0 zera", estoqueDoRise(10, [balanco(0)]), 0);
+
+    // Emenda 6: o saldo virtual do Bling pode ser negativo (reservas). Os pendentes se aplicam
+    // sobre o valor cru e so no fim se corta em 0: cortar antes esconderia a entrada.
+    conferir("estoque: saldo negativo do Bling, sem pendentes, da 0", estoqueDoRise(-8, []), 0);
+    conferir("estoque: saldo negativo + entrada (-8 + 3 = -5) da 0: o corte e so no fim", estoqueDoRise(-8, [entrada(3)]), 0);
+    conferir("estoque: saldo negativo + entradas que passam do zero (-8 + 12 = 4)", estoqueDoRise(-8, [entrada(12)]), 4);
+    conferir("estoque: saldo negativo, balanco define o saldo", estoqueDoRise(-8, [balanco(5)]), 5);
+    conferir("estoque: o meio da conta pode ficar negativo (10 - 20 + 15 = 5, e nao 0 + 15)", estoqueDoRise(10, [saida(20), entrada(15)]), 5);
+
+    // Entrada ruim comum nao quebra a tela: conta como zero e segue.
+    conferir("estoque: quantidade nao numerica conta 0", estoqueDoRise(10, [entrada("abc"), saida(undefined), entrada(null), entrada(NaN), saida(Infinity)]), 10);
+    conferir("estoque: quantidade em texto numerico vale o numero", estoqueDoRise(10, [entrada("3")]), 13);
+    conferir("estoque: tipo desconhecido e ignorado", estoqueDoRise(10, [{ tipo: "OUTRO", quantidade: 5 }, entrada(1)]), 11);
+    conferir("estoque: pendentes ausentes, saldo ausente ou nao numerico", [estoqueDoRise(10), estoqueDoRise(10, null), estoqueDoRise(null, [entrada(2)]), estoqueDoRise("x", []), estoqueDoRise(undefined)], [10, 10, 2, 0, 0]);
+    conferir("estoque: item nulo na lista de pendentes e ignorado", estoqueDoRise(10, [null, entrada(1), undefined]), 11);
+    const listaDePendentes = [entrada(3), saida(1)];
+    estoqueDoRise(10, listaDePendentes);
+    conferir("estoque: nao muda a lista recebida", listaDePendentes, [entrada(3), saida(1)]);
+
+    // --- Estado do icone: cor e selo sao independentes ---
+    const estado = (extra) => estadoDoIconeBling({ sincronizadoEm: null, assinaturaGuardada: null, assinaturaAtual: "a", pendentes: 0, ...extra });
+    const sincronizadoEm = new Date("2026-10-04T12:00:00Z");
+
+    conferir("icone: nunca sincronizado e sem pendente = cinza, sem selo", estado({}), { cor: "cinza", divergente: false, motivos: [] });
+    conferir("icone: nunca sincronizado com 1 pendente = cinza com selo de estoque", estado({ pendentes: 1 }), { cor: "cinza", divergente: true, motivos: ["estoque"] });
+    conferir("icone: sincronizado e assinaturas iguais = verde, sem selo", estado({ sincronizadoEm, assinaturaGuardada: "a", assinaturaAtual: "a" }), { cor: "verde", divergente: false, motivos: [] });
+    conferir("icone: sincronizado e assinaturas diferentes = verde com selo de campos", estado({ sincronizadoEm, assinaturaGuardada: "a", assinaturaAtual: "b" }), { cor: "verde", divergente: true, motivos: ["campos"] });
+    conferir("icone: sincronizado, diferentes e 2 pendentes = campos e estoque, nesta ordem", estado({ sincronizadoEm, assinaturaGuardada: "a", assinaturaAtual: "b", pendentes: 2 }), { cor: "verde", divergente: true, motivos: ["campos", "estoque"] });
+    conferir("icone: sincronizado, assinaturas iguais e 1 pendente = verde com selo de estoque", estado({ sincronizadoEm, assinaturaGuardada: "a", assinaturaAtual: "a", pendentes: 1 }), { cor: "verde", divergente: true, motivos: ["estoque"] });
+    // Nunca sincronizado nao tem o que comparar: a assinatura guardada vazia nao e "campos".
+    conferir("icone: nunca sincronizado, mesmo com assinaturas diferentes, nao tem selo de campos", estado({ assinaturaGuardada: "a", assinaturaAtual: "b" }), { cor: "cinza", divergente: false, motivos: [] });
+    conferir("icone: sincronizado sem assinatura guardada conta como campos diferentes", estado({ sincronizadoEm, assinaturaGuardada: null, assinaturaAtual: "b" }), { cor: "verde", divergente: true, motivos: ["campos"] });
+    conferir("icone: pendentes ausente ou nao numerico conta 0", [estado({ pendentes: undefined }), estado({ pendentes: "x" }), estado({ pendentes: NaN })].map((e) => e.divergente), [false, false, false]);
+    conferir("icone: pendentes negativo nao e pendente", estado({ pendentes: -1 }).divergente, false);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.
