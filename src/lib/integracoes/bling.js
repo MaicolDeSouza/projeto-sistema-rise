@@ -117,30 +117,58 @@ export async function obterAccessToken() {
   return guardar(dados, segredo);
 }
 
-async function chamar(metodo, caminho, { params, corpo } = {}) {
-  if (metodo !== "GET") exigirTravaLiberada(SERVICO);
+const preenchido = (valor) => valor !== undefined && valor !== null && valor !== "";
 
-  const token = await obterAccessToken();
+/**
+ * Monta a URL de um pedido. Valor de `params` que e lista REPETE a chave
+ * (`{"codigos[]": ["a", "b"]}` vira `codigos[]=a&codigos[]=b`): e o jeito que o Bling
+ * pede `codigos[]` e `idsProdutos[]`, e `searchParams.set` guardaria so o ultimo. O `[]`
+ * ja vem no nome da chave. Valor simples continua em `set`, como sempre foi.
+ * Exportada porque o teste confere a montagem sem fazer chamada nenhuma.
+ */
+export function urlDoBling(caminho, params) {
   const url = new URL(`${API}${caminho}`);
 
   for (const [chave, valor] of Object.entries(params ?? {})) {
-    if (valor !== undefined && valor !== null && valor !== "") {
+    if (Array.isArray(valor)) {
+      for (const item of valor) {
+        if (preenchido(item)) url.searchParams.append(chave, String(item));
+      }
+    } else if (preenchido(valor)) {
       url.searchParams.set(chave, String(valor));
     }
   }
+
+  return url.toString();
+}
+
+async function chamar(metodo, caminho, { params, corpo, tentativas } = {}) {
+  if (metodo !== "GET") exigirTravaLiberada(SERVICO);
+
+  const token = await obterAccessToken();
+  const url = urlDoBling(caminho, params);
 
   await limitar(SERVICO, MAX_POR_SEGUNDO);
 
   return requisitar({
     servico: SERVICO,
-    url: url.toString(),
+    url,
     metodo,
     headers: { Authorization: `Bearer ${token}` },
     corpo,
+    tentativas, // ausente = o padrao do requisitar (leitura pode repetir)
   });
 }
 
 export const blingGet = (caminho, params) => chamar("GET", caminho, { params });
+
+// Escrita NUNCA tenta de novo sozinha (`tentativas: 1`): se o Bling processou o pedido e a
+// resposta se perdeu (tempo esgotado, 5xx), repetir lancaria o estoque ou criaria o produto
+// duas vezes. Quem escreve decide, depois de reler o que ficou no Bling. As tres passam
+// pela trava BLING_ESCRITA dentro de `chamar`.
+export const blingPost = (caminho, corpo) => chamar("POST", caminho, { corpo, tentativas: 1 });
+export const blingPut = (caminho, corpo) => chamar("PUT", caminho, { corpo, tentativas: 1 });
+export const blingPatch = (caminho, corpo) => chamar("PATCH", caminho, { corpo, tentativas: 1 });
 
 /**
  * Teste de conexao: le os canais de venda.

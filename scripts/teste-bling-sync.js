@@ -35,6 +35,10 @@ const {
 const { montarCorpoDeCadastro, montarCorpoParcial, textoParaHtml } = await import("../src/lib/blingSync/corpo.js");
 const { estoqueDoRise } = await import("../src/lib/blingSync/estoque.js");
 const { estadoDoIconeBling } = await import("../src/lib/blingSync/estado.js");
+const { config, separarLista } = await import("../src/lib/integracoes/config.js");
+const { blingGet, blingPatch, blingPost, blingPut, urlDoBling } = await import("../src/lib/integracoes/bling.js");
+const { clienteBling, exigirCodigoLiberado } = await import("../src/lib/blingSync/cliente.js");
+const { consultaDaChamada, criarBlingFalso } = await import("./lib/blingFalso.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -655,6 +659,468 @@ try {
     conferir("icone: sincronizado sem assinatura guardada conta como campos diferentes", estado({ sincronizadoEm, assinaturaGuardada: null, assinaturaAtual: "b" }), { cor: "verde", divergente: true, motivos: ["campos"] });
     conferir("icone: pendentes ausente ou nao numerico conta 0", [estado({ pendentes: undefined }), estado({ pendentes: "x" }), estado({ pendentes: NaN })].map((e) => e.divergente), [false, false, false]);
     conferir("icone: pendentes negativo nao e pendente", estado({ pendentes: -1 }).divergente, false);
+  }
+
+  // -------------------------------------------------------------------------
+  // Cliente do Bling, trava por codigo e Bling falso
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nCliente e trava");
+
+    // A mensagem do que a funcao lanca (ou null): o teste so quer o texto do erro.
+    const mensagemDe = (fn) => {
+      try {
+        fn();
+        return null;
+      } catch (erro) {
+        return erro.message;
+      }
+    };
+    const rejeicaoDe = async (promessa) => {
+      try {
+        await promessa;
+        return null;
+      } catch (erro) {
+        return erro.message;
+      }
+    };
+    const casa = (texto, regex) => typeof texto === "string" && regex.test(texto);
+
+    // --- Segunda trava: a lista de codigos liberados ---
+    conferir("codigos liberados: lista vazia libera qualquer codigo", mensagemDe(() => exigirCodigoLiberado("100246", [])), null);
+    conferir("codigos liberados: o codigo esta na lista, sem diferenciar caixa", mensagemDe(() => exigirCodigoLiberado("ZZ-TESTE", ["zz-teste"])), null);
+    conferir("codigos liberados: a lista em maiuscula e o codigo em minuscula tambem passa", mensagemDe(() => exigirCodigoLiberado("zz-teste", ["ZZ-TESTE"])), null);
+    conferir("codigos liberados: espaco em volta do codigo nao o tira da lista", mensagemDe(() => exigirCodigoLiberado(" ZZ-TESTE ", ["ZZ-TESTE"])), null);
+    const recusa = mensagemDe(() => exigirCodigoLiberado("100246", ["ZZ-TESTE"]));
+    conferir("codigos liberados: fora da lista lanca 'nao esta na lista de codigos liberados'", casa(recusa, /nao esta na lista de codigos liberados/), true);
+    conferir("codigos liberados: a mensagem diz qual codigo foi recusado", String(recusa).includes("100246"), true);
+    conferir(
+      "codigos liberados: com varios na lista, so passa quem esta nela",
+      ["ZZ-A", "zz-b", "ZZ-C"].map((codigo) => mensagemDe(() => exigirCodigoLiberado(codigo, ["ZZ-A", "ZZ-B"])) === null),
+      [true, true, false],
+    );
+    conferir(
+      "codigos liberados: codigo vazio ou ausente nao passa quando ha lista",
+      [mensagemDe(() => exigirCodigoLiberado("", ["ZZ-TESTE"])) !== null, mensagemDe(() => exigirCodigoLiberado(undefined, ["ZZ-TESTE"])) !== null],
+      [true, true],
+    );
+    // Uma trava de seguranca nao pode se abrir por descuido: sem lista de verdade, falha alto.
+    conferir("codigos liberados: sem lista (undefined) lanca em vez de liberar", casa(mensagemDe(() => exigirCodigoLiberado("100246", undefined)), /lista/), true);
+
+    conferir("BLING_ESCRITA_CODIGOS: separado por virgula, aparado, sem vazios", separarLista(" ZZ-A, zz-b ,,ZZ-C ,"), ["ZZ-A", "zz-b", "ZZ-C"]);
+    conferir("BLING_ESCRITA_CODIGOS: ausente ou vazio vira lista vazia", [separarLista(""), separarLista(undefined), separarLista("  , ,")], [[], [], []]);
+    conferir(
+      "config.travas.blingCodigosLiberados e uma lista de textos",
+      Array.isArray(config.travas.blingCodigosLiberados) && config.travas.blingCodigosLiberados.every((codigo) => typeof codigo === "string" && codigo.length > 0),
+      true,
+    );
+
+    // --- Parametros em lista (Emenda 7) ---
+    const base = "https://api.bling.com.br/Api/v3";
+    conferir("urlDoBling: valor em lista repete a chave, com o [] no nome", urlDoBling("/estoques/saldos", { "codigos[]": ["a", "b"] }), `${base}/estoques/saldos?codigos%5B%5D=a&codigos%5B%5D=b`);
+    conferir("urlDoBling: parametro simples como sempre, na ordem (o importador)", urlDoBling("/produtos", { pagina: 2, limite: 100, criterio: 5 }), `${base}/produtos?pagina=2&limite=100&criterio=5`);
+    conferir("urlDoBling: zero e valor, vazio/null/undefined nao vao, nem de dentro da lista", urlDoBling("/produtos", { pagina: 0, a: "", b: null, c: undefined, "codigos[]": ["x", "", null, undefined, "y"] }), `${base}/produtos?pagina=0&codigos%5B%5D=x&codigos%5B%5D=y`);
+    conferir("urlDoBling: lista vazia nao deixa a chave nem o '?'", urlDoBling("/produtos", { "codigos[]": [] }), `${base}/produtos`);
+    conferir("urlDoBling: sem parametros", [urlDoBling("/depositos"), urlDoBling("/depositos", {})], [`${base}/depositos`, `${base}/depositos`]);
+    conferir("urlDoBling: lista e valor simples juntos", urlDoBling("/estoques/saldos", { "codigos[]": ["a"], limite: 100 }), `${base}/estoques/saldos?codigos%5B%5D=a&limite=100`);
+    conferir("urlDoBling: o codigo com espaco e barra e escapado", urlDoBling("/produtos", { "codigos[]": ["A B/1"] }), `${base}/produtos?codigos%5B%5D=A+B%2F1`);
+
+    // --- O cliente real: contrato e trava de escrita (SEM rede) ---
+    const cliente = clienteBling();
+    conferir("clienteBling: get, post, put, patch e exigirEscrita, e nada mais", Object.keys(cliente).sort(), ["exigirEscrita", "get", "patch", "post", "put"]);
+    conferir(
+      "clienteBling liga cada verbo a blingGet, blingPost, blingPut e blingPatch",
+      [cliente.get === blingGet, cliente.post === blingPost, cliente.put === blingPut, cliente.patch === blingPatch, typeof cliente.exigirEscrita],
+      [true, true, true, true, "function"],
+    );
+    // So com a trava desligada: com ela ligada no .env estas chamadas sairiam de verdade, e
+    // nenhum teste escreve no Bling. A recusa vem de exigirTravaLiberada, antes do token e da rede.
+    if (config.travas.blingEscrita === false) {
+      conferir("blingPut com a trava desligada rejeita 'Escrita bloqueada', sem rede", casa(await rejeicaoDe(blingPut("/produtos/1", {})), /Escrita bloqueada/), true);
+      conferir("blingPost com a trava desligada rejeita 'Escrita bloqueada', sem rede", casa(await rejeicaoDe(blingPost("/produtos", { nome: "x" })), /Escrita bloqueada/), true);
+      conferir("blingPatch com a trava desligada rejeita 'Escrita bloqueada', sem rede", casa(await rejeicaoDe(blingPatch("/produtos/1", { nome: "x" })), /Escrita bloqueada/), true);
+      conferir("cliente.put, post e patch passam pela mesma trava", [
+        casa(await rejeicaoDe(cliente.put("/contatos/1", {})), /Escrita bloqueada/),
+        casa(await rejeicaoDe(cliente.post("/estoques", {})), /Escrita bloqueada/),
+        casa(await rejeicaoDe(cliente.patch("/produtos/1", {})), /Escrita bloqueada/),
+      ], [true, true, true]);
+      conferir("cliente.exigirEscrita com a trava desligada lanca, qualquer que seja o codigo", casa(mensagemDe(() => cliente.exigirEscrita("100246")), /Escrita bloqueada/), true);
+    } else {
+      console.log("AVISO: BLING_ESCRITA esta ligada no .env, entao o teste da trava de escrita do cliente real foi PULADO (nenhuma escrita e tentada).");
+    }
+
+    // --- O Bling falso: o contrato do cliente ---
+    const umProduto = (extra = {}) => ({
+      id: 111,
+      codigo: "ZZ-F-1",
+      nome: "Motor falso",
+      preco: 80,
+      descricaoCurta: "<p>x</p>",
+      dimensoes: { largura: 4, altura: 3, profundidade: 9, unidadeMedida: 1 },
+      estoque: { minimo: 1, maximo: 5, localizacao: "A1" },
+      tributacao: { origem: 0, ncm: "85011019" },
+      ...extra,
+    });
+    const umFornecedorDoBling = (extra = {}) => ({ id: 8001, nome: "Fornecedor Com Documento", numeroDocumento: "12345678000195", tiposContato: [{ descricao: "Fornecedor" }], ...extra });
+    const id = (resposta) => resposta.dados.data.id;
+
+    {
+      const falso = criarBlingFalso();
+      conferir(
+        "falso: tem o mesmo contrato do cliente (4 verbos e exigirEscrita) e a lista de chamadas",
+        [...Object.keys(cliente)].every((chave) => typeof falso[chave] === "function") && Array.isArray(falso.chamadas),
+        true,
+      );
+      const ler = await falso.get("/depositos");
+      conferir("falso: responde no formato do requisitar", [ler.ok, ler.status, typeof ler.duracaoMs, Array.isArray(ler.dados.data)], [true, 200, "number", true]);
+    }
+
+    // --- Falso: produtos ---
+    {
+      const falso = criarBlingFalso({
+        produtos: [
+          umProduto(),
+          umProduto({ id: 112, codigo: "ZZ-F-2", nome: "Outro motor" }),
+          umProduto({ id: 113, codigo: "ZZ-F-3", nome: "Motor inativo", situacao: "I" }),
+          umProduto({ id: 114, codigo: "ZZ-F-DUP", nome: "Duplicado A" }),
+          umProduto({ id: 115, codigo: "zz-f-dup", nome: "Duplicado B" }),
+        ],
+        saldos: { "ZZ-F-1": 10 },
+      });
+
+      const porCaminho = await falso.get("/produtos?codigos[]=ZZ-F-1");
+      conferir(
+        "falso: GET /produtos?codigos[]= devolve o produto cadastrado por codigo",
+        [porCaminho.ok, porCaminho.status, porCaminho.dados.data.map((p) => [p.id, p.codigo, p.nome, p.preco])],
+        [true, 200, [[111, "ZZ-F-1", "Motor falso", 80]]],
+      );
+      conferir("falso: a listagem traz so as chaves da listagem do Bling (sem dimensoes) e o saldo", [
+        "dimensoes" in porCaminho.dados.data[0],
+        "tributacao" in porCaminho.dados.data[0],
+        porCaminho.dados.data[0].estoque,
+        porCaminho.dados.data[0].situacao,
+      ], [false, false, { saldoVirtualTotal: 10 }, "A"]);
+      const porParametro = await falso.get("/produtos", { "codigos[]": ["ZZ-F-1", "ZZ-F-2"] });
+      conferir("falso: a mesma busca com a lista em params (a chave repetida)", porParametro.dados.data.map((p) => p.codigo), ["ZZ-F-1", "ZZ-F-2"]);
+      const emCaminhoEParams = await falso.get("/produtos?codigos[]=ZZ-F-1", { "codigos[]": ["ZZ-F-2"] });
+      conferir("falso: a consulta pode vir metade no caminho e metade em params", emCaminhoEParams.dados.data.map((p) => p.codigo), ["ZZ-F-1", "ZZ-F-2"]);
+      const codificado = await falso.get("/produtos?codigos%5B%5D=ZZ-F-1");
+      conferir("falso: o [] escapado (como o cliente real o manda) vale igual", codificado.dados.data.map((p) => p.codigo), ["ZZ-F-1"]);
+      conferir("falso: codigo sem produto da data vazio, com ok", [(await falso.get("/produtos?codigos[]=NADA")).ok, (await falso.get("/produtos?codigos[]=NADA")).dados.data], [true, []]);
+      conferir("falso: o codigo casa sem diferenciar caixa e devolve o codigo como o Bling o guarda", (await falso.get("/produtos?codigos[]=zz-f-1")).dados.data.map((p) => p.codigo), ["ZZ-F-1"]);
+      conferir("falso: produto inativo nao aparece na busca por codigo (o criterio padrao e so ativos)", (await falso.get("/produtos?codigos[]=ZZ-F-3")).dados.data, []);
+      conferir("falso: dois produtos com o mesmo codigo voltam os dois (o Bling nao impede)", (await falso.get("/produtos?codigos[]=ZZ-F-DUP")).dados.data.map((p) => p.id), [114, 115]);
+
+      const completo = (await falso.get("/produtos/111")).dados.data;
+      conferir("falso: GET /produtos/{id} traz o produto inteiro, com os grupos e o saldo no estoque", [
+        completo.id, completo.dimensoes, completo.estoque, completo.tributacao, completo.tipo, completo.formato,
+      ], [111, { largura: 4, altura: 3, profundidade: 9, unidadeMedida: 1 }, { minimo: 1, maximo: 5, localizacao: "A1", saldoVirtualTotal: 10 }, { origem: 0, ncm: "85011019" }, "P", "S"]);
+      const inexistente = await falso.get("/produtos/999999");
+      conferir("falso: GET /produtos/{id} de id que nao existe da data vazio", [inexistente.ok, inexistente.dados.data], [true, []]);
+
+      // O que o chamador recebe e uma copia: mexer nela nao pode mudar o Bling falso.
+      completo.nome = "Mudei fora";
+      completo.dimensoes.altura = 999;
+      const relido = (await falso.get("/produtos/111")).dados.data;
+      conferir("falso: a resposta e uma copia (mudar o que veio nao muda o falso)", [relido.nome, relido.dimensoes.altura], ["Motor falso", 3]);
+    }
+
+    // --- Falso: PATCH (so os campos informados; cada grupo informado e SUBSTITUIDO) ---
+    {
+      const falso = criarBlingFalso({ produtos: [umProduto(), umProduto({ id: 112, codigo: "ZZ-F-2" })], saldos: { "ZZ-F-1": 10 } });
+      const patch = await falso.patch("/produtos/111", { preco: 95, dimensoes: { altura: 7 }, estoque: { localizacao: "B2", saldoVirtualTotal: 999 } });
+      conferir("falso: PATCH responde 200", [patch.ok, patch.status], [true, 200]);
+      const depois = (await falso.get("/produtos/111")).dados.data;
+      conferir("falso: PATCH muda so o campo informado da raiz", [depois.preco, depois.nome, depois.descricaoCurta, depois.codigo], [95, "Motor falso", "<p>x</p>", "ZZ-F-1"]);
+      // Nao esta confirmado na API que o Bling real substitui o grupo (a Tarefa 12 mede isso no
+      // produto de teste); o falso assume que sim, o pior caso para quem envia so parte do grupo.
+      conferir("falso: PATCH substitui o grupo informado por inteiro (dimensoes ficou so com a altura)", depois.dimensoes, { altura: 7 });
+      conferir("falso: PATCH no estoque troca o grupo e nao mexe no saldo, que e somente-leitura", [depois.estoque, falso.saldo("ZZ-F-1")], [{ localizacao: "B2", saldoVirtualTotal: 10 }, 10]);
+      conferir("falso: grupo que nao veio no PATCH fica como estava", depois.tributacao, { origem: 0, ncm: "85011019" });
+      conferir("falso: o outro produto nao foi tocado", (await falso.get("/produtos/112")).dados.data.preco, 80);
+      await falso.patch("/produtos/111", { id: 5, fornecedor: { id: 1 }, imagemURL: "x" });
+      const somenteLeitura = (await falso.get("/produtos/111")).dados.data;
+      conferir("falso: PATCH nao troca o id nem grava fornecedor e imagemURL (somente-leitura)", [somenteLeitura.id, "fornecedor" in somenteLeitura, "imagemURL" in somenteLeitura], [111, false, false]);
+      const naoHa = await falso.patch("/produtos/999999", { preco: 1 });
+      conferir("falso: PATCH em id que nao existe da 404", [naoHa.ok, naoHa.status, naoHa.dados.error.type], [false, 404, "RESOURCE_NOT_FOUND"]);
+    }
+
+    // --- Falso: POST /produtos ---
+    {
+      const falso = criarBlingFalso();
+      const criado = await falso.post("/produtos", { nome: "Novo", codigo: "ZZ-F-9", tipo: "P", formato: "S", situacao: "A", preco: 10, estoque: { minimo: 2, saldoVirtualTotal: 77 } });
+      conferir("falso: POST /produtos devolve 201 e data.id", [criado.ok, criado.status, typeof id(criado)], [true, 201, "number"]);
+      const achados = (await falso.get("/produtos?codigos[]=ZZ-F-9")).dados.data;
+      conferir("falso: o produto criado passa a ser achado pelo codigo, com o mesmo id", achados.map((p) => [p.id, p.nome, p.preco]), [[id(criado), "Novo", 10]]);
+      conferir("falso: o saldo nao entra pelo POST (somente-leitura): nasce em 0", [falso.saldo("ZZ-F-9"), (await falso.get(`/produtos/${id(criado)}`)).dados.data.estoque], [0, { minimo: 2, saldoVirtualTotal: 0 }]);
+      const outro = await falso.post("/produtos", { nome: "Outro", codigo: "ZZ-F-10", tipo: "P", formato: "S", situacao: "A" });
+      conferir("falso: cada produto criado tem um id novo", id(outro) !== id(criado), true);
+      const semNome = await falso.post("/produtos", { codigo: "ZZ-F-11", tipo: "P", formato: "S", situacao: "A" });
+      conferir(
+        "falso: POST sem nome da 400 VALIDATION_ERROR e aponta o campo",
+        [semNome.ok, semNome.status, semNome.dados.error.type, semNome.dados.error.fields.map((f) => f.element)],
+        [false, 400, "VALIDATION_ERROR", ["nome"]],
+      );
+      conferir("falso: o POST recusado nao criou nada", (await falso.get("/produtos?codigos[]=ZZ-F-11")).dados.data, []);
+    }
+
+    // --- Falso: fornecedores do produto ---
+    {
+      const falso = criarBlingFalso({ produtos: [umProduto()], contatos: [umFornecedorDoBling()] });
+      conferir("falso: produto sem vinculo de fornecedor tem data vazio", (await falso.get("/produtos/fornecedores", { idProduto: 111 })).dados.data, []);
+      const vinculo = await falso.post("/produtos/fornecedores", { descricao: "https://exemplo.com/a", codigo: "F1", precoCusto: 5.9, padrao: true, produto: { id: 111 }, fornecedor: { id: 8001 } });
+      conferir("falso: POST /produtos/fornecedores devolve 201 e data.id", [vinculo.ok, vinculo.status, typeof id(vinculo)], [true, 201, "number"]);
+      const lista = (await falso.get("/produtos/fornecedores?idProduto=111")).dados.data;
+      conferir(
+        "falso: o vinculo volta no formato do relatorio (idProduto no caminho)",
+        lista.map((v) => [v.id, v.descricao, v.codigo, v.precoCusto, v.padrao, v.produto.id, v.fornecedor.id]),
+        [[id(vinculo), "https://exemplo.com/a", "F1", 5.9, true, 111, 8001]],
+      );
+      conferir("falso: e tambem com idProduto em params (numero ou texto)", [
+        (await falso.get("/produtos/fornecedores", { idProduto: "111" })).dados.data.length,
+        (await falso.get("/produtos/fornecedores", { idProduto: 222 })).dados.data.length,
+      ], [1, 0]);
+
+      const atualizado = await falso.put(`/produtos/fornecedores/${id(vinculo)}`, { descricao: "https://exemplo.com/b", codigo: "F2", precoCusto: 7, padrao: true, produto: { id: 111 }, fornecedor: { id: 8001 } });
+      conferir("falso: PUT /produtos/fornecedores/{id} responde 200", [atualizado.ok, atualizado.status], [true, 200]);
+      const depois = (await falso.get("/produtos/fornecedores", { idProduto: 111 })).dados.data;
+      conferir("falso: o PUT atualiza o MESMO vinculo (nao cria outro)", depois.map((v) => [v.id, v.codigo, v.precoCusto, v.descricao]), [[id(vinculo), "F2", 7, "https://exemplo.com/b"]]);
+
+      const semFornecedor = await falso.post("/produtos/fornecedores", { produto: { id: 111 } });
+      conferir("falso: POST de vinculo sem fornecedor.id da 400", [semFornecedor.ok, semFornecedor.status, semFornecedor.dados.error.type], [false, 400, "VALIDATION_ERROR"]);
+      const contatoInexistente = await falso.post("/produtos/fornecedores", { produto: { id: 111 }, fornecedor: { id: 424242 } });
+      conferir("falso: POST de vinculo com um contato que nao existe da 400", [contatoInexistente.ok, contatoInexistente.status], [false, 400]);
+      const produtoInexistente = await falso.post("/produtos/fornecedores", { produto: { id: 999999 }, fornecedor: { id: 8001 } });
+      conferir("falso: POST de vinculo de um produto que nao existe da 400", [produtoInexistente.ok, produtoInexistente.status], [false, 400]);
+      const putSemProduto = await falso.put(`/produtos/fornecedores/${id(vinculo)}`, { codigo: "F3" });
+      conferir("falso: PUT de vinculo sem produto.id da 400 (e o unico obrigatorio da documentacao)", [putSemProduto.ok, putSemProduto.status], [false, 400]);
+      conferir("falso: PUT em vinculo que nao existe da 404", (await falso.put("/produtos/fornecedores/999999", { produto: { id: 111 } })).status, 404);
+      const comVinculoPronto = criarBlingFalso({
+        produtos: [umProduto()],
+        contatos: [umFornecedorDoBling()],
+        vinculos: [{ id: 9001, descricao: "d", codigo: "C", precoCusto: 3, padrao: true, produto: { id: 111 }, fornecedor: { id: 8001 } }],
+      });
+      conferir("falso: a opcao vinculos ja nasce com o vinculo", (await comVinculoPronto.get("/produtos/fornecedores", { idProduto: 111 })).dados.data.map((v) => [v.id, v.codigo]), [[9001, "C"]]);
+    }
+
+    // --- Falso: contatos ---
+    {
+      const falso = criarBlingFalso({
+        contatos: [
+          umFornecedorDoBling(),
+          { id: 8002, nome: "Eletrônica São João", tiposContato: [{ descricao: "Fornecedor" }] },
+          { id: 8003, nome: "Eletronica Sao Joao", tiposContato: [{ descricao: "Cliente" }] },
+        ],
+      });
+      const idFornecedor = falso.idDoTipoDeContato("Fornecedor");
+
+      conferir("falso: GET /contatos?numeroDocumento= acha pelos 14 digitos", (await falso.get("/contatos?numeroDocumento=12345678000195")).dados.data.map((c) => c.id), [8001]);
+      conferir("falso: o mesmo em params", (await falso.get("/contatos", { numeroDocumento: "12345678000195" })).dados.data.map((c) => c.id), [8001]);
+      conferir("falso: com a pontuacao do CNPJ NAO acha (o Bling guarda so os digitos)", (await falso.get("/contatos", { numeroDocumento: "12.345.678/0001-95" })).dados.data, []);
+      conferir("falso: documento que ninguem tem da lista vazia", (await falso.get("/contatos?numeroDocumento=99999999999999")).dados.data, []);
+      conferir("falso: numeroDocumento vazio nao filtra (o cliente real nem manda o parametro)", (await falso.get("/contatos", { numeroDocumento: "" })).dados.data.length, 3);
+      conferir(
+        "falso: pesquisa= acha pelo nome sem diferenciar caixa e acento (e por parte do nome)",
+        [(await falso.get("/contatos", { pesquisa: "eletronica sao joao" })).dados.data.map((c) => c.id), (await falso.get("/contatos?pesquisa=JOAO")).dados.data.map((c) => c.id), (await falso.get("/contatos", { pesquisa: "com documento" })).dados.data.map((c) => c.id)],
+        [[8002, 8003], [8002, 8003], [8001]],
+      );
+      conferir("falso: a listagem de contatos NAO traz tiposContato (so o GET por id traz)", Object.keys((await falso.get("/contatos", { pesquisa: "joao" })).dados.data[0]).sort(), ["celular", "codigo", "id", "nome", "numeroDocumento", "situacao", "telefone"]);
+      conferir("falso: idTipoContato filtra pelo tipo", (await falso.get("/contatos", { pesquisa: "joao", idTipoContato: idFornecedor })).dados.data.map((c) => c.id), [8002]);
+
+      const porId = (await falso.get("/contatos/8002")).dados.data;
+      conferir("falso: GET /contatos/{id} traz tiposContato com id e descricao", [porId.id, porId.tiposContato], [8002, [{ id: idFornecedor, descricao: "Fornecedor" }]]);
+      const tipos = (await falso.get("/contatos/tipos")).dados.data;
+      conferir("falso: GET /contatos/tipos traz os 7 tipos da conta, cada um com id e descricao", [tipos.length, tipos.map((t) => t.descricao).includes("Fornecedor"), new Set(tipos.map((t) => t.id)).size, tipos.every((t) => typeof t.id === "number")], [7, true, 7, true]);
+      const semContato = await falso.get("/contatos/999999");
+      conferir("falso: GET /contatos/{id} de id que nao existe da 404", [semContato.ok, semContato.status], [false, 404]);
+      conferir("falso: idDoTipoDeContato de um tipo que nao existe lanca", casa(mensagemDe(() => falso.idDoTipoDeContato("Inventado")), /Inventado/), true);
+
+      const novo = await falso.post("/contatos", { nome: "Fornecedor Novo", situacao: "A", tipo: "J", numeroDocumento: "11222333000181", tiposContato: [{ id: idFornecedor }] });
+      conferir("falso: POST /contatos devolve 201 e data.id", [novo.ok, novo.status, typeof id(novo)], [true, 201, "number"]);
+      conferir("falso: o contato criado e achado pelo documento e traz o tipo Fornecedor", [
+        (await falso.get("/contatos", { numeroDocumento: "11222333000181" })).dados.data.map((c) => c.id),
+        (await falso.get(`/contatos/${id(novo)}`)).dados.data.tiposContato,
+      ], [[id(novo)], [{ id: idFornecedor, descricao: "Fornecedor" }]]);
+      const tipoFixo = await falso.post("/contatos", { nome: "Com id fixo", situacao: "A", tipo: "J", tiposContato: [{ id: 999 }] });
+      conferir("falso: POST com tipo de contato de id que a conta nao tem da 400 (o id nunca e fixo)", [tipoFixo.ok, tipoFixo.status, tipoFixo.dados.error.type], [false, 400, "VALIDATION_ERROR"]);
+      const semNome = await falso.post("/contatos", { situacao: "A", tipo: "J" });
+      conferir("falso: POST de contato sem nome da 400", [semNome.ok, semNome.status, semNome.dados.error.fields.map((f) => f.element)], [false, 400, ["nome"]]);
+
+      const renomeado = await falso.put("/contatos/8001", { nome: "Renomeado" });
+      conferir("falso: PUT /contatos/{id} atualiza o contato", [renomeado.ok, renomeado.status, (await falso.get("/contatos/8001")).dados.data.nome], [true, 200, "Renomeado"]);
+      const putContato = await falso.put("/contatos/8003", { numeroDocumento: "11111111000191" });
+      conferir("falso: PUT /contatos/{id} grava o documento e a busca o acha", [putContato.status, (await falso.get("/contatos", { numeroDocumento: "11111111000191" })).dados.data.map((c) => c.id)], [200, [8003]]);
+      conferir("falso: PUT em contato que nao existe da 404", (await falso.put("/contatos/999999", { nome: "x" })).status, 404);
+      const tiposProprios = criarBlingFalso({ tiposDeContato: [{ id: 5, descricao: "Fornecedor" }, { id: 6, descricao: "Cliente" }], contatos: [{ id: 1, nome: "A", tiposContato: [{ descricao: "Cliente" }] }] });
+      conferir("falso: tiposDeContato proprios valem, e o contato resolve o tipo pela descricao", [(await tiposProprios.get("/contatos/tipos")).dados.data, (await tiposProprios.get("/contatos/1")).dados.data.tiposContato], [[{ id: 5, descricao: "Fornecedor" }, { id: 6, descricao: "Cliente" }], [{ id: 6, descricao: "Cliente" }]]);
+    }
+
+    // --- Falso: depositos ---
+    {
+      const padrao = (await criarBlingFalso().get("/depositos")).dados.data;
+      conferir("falso: os depositos da conta (Fisico padrao e Virtual) e exatamente um padrao", [padrao.map((d) => [d.descricao, d.padrao, d.desconsiderarSaldo]), padrao.filter((d) => d.padrao).length], [[["Fisico", true, false], ["Virtual", false, true]], 1]);
+      conferir("falso: cada deposito tem id e situacao 1 (ativo)", padrao.every((d) => typeof d.id === "number" && d.situacao === 1), true);
+      const proprios = [{ id: 1, descricao: "A", situacao: 1, padrao: false, desconsiderarSaldo: false }, { id: 2, descricao: "B", situacao: 1, padrao: false, desconsiderarSaldo: false }];
+      conferir("falso: depositos proprios valem (dois sem padrao)", (await criarBlingFalso({ depositos: proprios }).get("/depositos")).dados.data.map((d) => [d.id, d.padrao]), [[1, false], [2, false]]);
+    }
+
+    // --- Falso: saldos e lancamentos de estoque ---
+    {
+      const falso = criarBlingFalso({
+        produtos: [umProduto(), umProduto({ id: 112, codigo: "ZZ-F-2" }), umProduto({ id: 113, codigo: "ZZ-F-3", situacao: "I" })],
+        saldos: { "ZZ-F-1": 10, "ZZ-F-2": { virtual: -8, fisico: 0 }, "ZZ-F-3": 4 },
+      });
+      const lido = await falso.get("/estoques/saldos", { "codigos[]": ["ZZ-F-1", "ZZ-F-2", "ZZ-F-INEXISTENTE"] });
+      conferir(
+        "falso: GET /estoques/saldos?codigos[]= devolve produto, saldos e depositos; codigo que nao existe e ignorado",
+        [lido.ok, lido.status, lido.dados.data.map((s) => [s.produto.id, s.produto.codigo, s.saldoFisicoTotal, s.saldoVirtualTotal])],
+        [true, 200, [[111, "ZZ-F-1", 10, 10], [112, "ZZ-F-2", 0, -8]]],
+      );
+      conferir("falso: cada saldo traz os depositos com id, fisico e virtual", Object.keys(lido.dados.data[0].depositos[0]).sort(), ["id", "saldoFisico", "saldoVirtual"]);
+      conferir("falso: saldo negativo (virtual, com reservas) volta negativo", lido.dados.data[1].saldoVirtualTotal, -8);
+      conferir("falso: a busca por saldo tambem aceita a consulta no caminho, com o [] escapado", (await falso.get("/estoques/saldos?codigos%5B%5D=ZZ-F-1&codigos%5B%5D=ZZ-F-2")).dados.data.map((s) => s.produto.codigo), ["ZZ-F-1", "ZZ-F-2"]);
+      conferir("falso: o saldo casa o codigo sem diferenciar caixa e devolve o codigo como o Bling o guarda", (await falso.get("/estoques/saldos", { "codigos[]": ["zz-f-1"] })).dados.data.map((s) => s.produto.codigo), ["ZZ-F-1"]);
+
+      const nenhum = await falso.get("/estoques/saldos", { "codigos[]": ["NADA", "NEM-ISSO"] });
+      conferir(
+        "falso: lote em que NENHUM codigo resolve da HTTP 400 VALIDATION_ERROR (nao lista vazia)",
+        [nenhum.ok, nenhum.status, nenhum.dados.error.type, typeof nenhum.dados.error.message, typeof nenhum.dados.error.description],
+        [false, 400, "VALIDATION_ERROR", "string", "string"],
+      );
+      conferir("falso: produto inativo nao resolve por codigos[] (cai no 400)", (await falso.get("/estoques/saldos", { "codigos[]": ["ZZ-F-3"] })).status, 400);
+      conferir("falso: idsProdutos[] resolve o inativo", (await falso.get("/estoques/saldos", { "idsProdutos[]": [113] })).dados.data.map((s) => [s.produto.codigo, s.saldoVirtualTotal]), [["ZZ-F-3", 4]]);
+      const idInexistente = await falso.get("/estoques/saldos", { "idsProdutos[]": [999999] });
+      conferir("falso: idsProdutos[] de id que nao existe da data vazio (200)", [idInexistente.ok, idInexistente.dados.data], [true, []]);
+      conferir("falso: saldos sem codigos[] nem idsProdutos[] da 400", (await falso.get("/estoques/saldos")).status, 400);
+
+      // O limite real e o tamanho da URL (6 mil passa, 9 mil da 414): o falso recusa passando de 8 mil.
+      const curtos = Array.from({ length: 100 }, (_, i) => `ZZ-${String(i).padStart(3, "0")}`);
+      conferir("falso: um lote de 100 codigos cabe na URL", (await falso.get("/estoques/saldos", { "codigos[]": curtos })).status !== 414, true);
+      const longos = Array.from({ length: 300 }, (_, i) => `ZZ-CODIGO-COMPRIDO-${String(i).padStart(4, "0")}`);
+      const tooLong = await falso.get("/estoques/saldos", { "codigos[]": longos });
+      conferir("falso: URL longa demais da 414, como o Bling", [tooLong.ok, tooLong.status], [false, 414]);
+
+      // POST /estoques: E soma, S tira, B define, no saldo virtual do produto.
+      const deposito = (await falso.get("/depositos")).dados.data.find((d) => d.padrao).id;
+      const lancar = (corpo) => falso.post("/estoques", { produto: { id: 111 }, deposito: { id: deposito }, ...corpo });
+      const entrada = await lancar({ operacao: "E", quantidade: 3 });
+      conferir("falso: POST /estoques devolve 201 e data.id do lancamento", [entrada.ok, entrada.status, typeof id(entrada)], [true, 201, "number"]);
+      conferir("falso: a entrada soma ao saldo (10 + 3)", falso.saldo("ZZ-F-1"), 13);
+      await lancar({ operacao: "S", quantidade: 1 });
+      conferir("falso: a saida tira do saldo (13 - 1)", falso.saldo("ZZ-F-1"), 12);
+      await lancar({ operacao: "B", quantidade: 5 });
+      conferir("falso: o balanco define o saldo (5)", falso.saldo("ZZ-F-1"), 5);
+      conferir("falso: o saldo novo aparece no GET de saldos (fisico e virtual andam juntos) e no produto", [
+        (await falso.get("/estoques/saldos", { "codigos[]": ["ZZ-F-1"] })).dados.data.map((s) => [s.saldoFisicoTotal, s.saldoVirtualTotal]),
+        (await falso.get("/produtos/111")).dados.data.estoque.saldoVirtualTotal,
+        (await falso.get("/produtos", { "codigos[]": ["ZZ-F-1"] })).dados.data[0].estoque.saldoVirtualTotal,
+      ], [[[5, 5]], 5, 5]);
+      await lancar({ operacao: "S", quantidade: 20 });
+      conferir("falso: o virtual pode ficar negativo (reservas): saida maior que o saldo e aceita", falso.saldo("ZZ-F-1"), -15);
+      await lancar({ operacao: "B", quantidade: 0 });
+      conferir("falso: balanco 0 zera", falso.saldo("ZZ-F-1"), 0);
+      conferir("falso: o falso guarda os lancamentos, na ordem", falso.estado.lancamentos.map((l) => [l.operacao, l.quantidade]), [["E", 3], ["S", 1], ["B", 5], ["S", 20], ["B", 0]]);
+      conferir("falso: a observacao e o resto do corpo vao junto", (await lancar({ operacao: "E", quantidade: 1, observacoes: "ajuste do Rise" })).status === 201 && falso.estado.lancamentos.at(-1).observacoes === "ajuste do Rise", true);
+      conferir("falso: lancamento em um produto muda so o saldo dele", falso.saldo("ZZ-F-2"), -8);
+
+      const invalidos = [
+        ["operacao desconhecida", { operacao: "X", quantidade: 1 }],
+        ["sem operacao", { quantidade: 1 }],
+        ["sem quantidade", { operacao: "E" }],
+        ["quantidade negativa", { operacao: "E", quantidade: -1 }],
+        ["quantidade que nao e numero", { operacao: "E", quantidade: "abc" }],
+        ["produto que nao existe", { operacao: "E", quantidade: 1, produto: { id: 999999 } }],
+        ["deposito que nao existe", { operacao: "E", quantidade: 1, deposito: { id: 999999 } }],
+      ];
+      const antes = falso.estado.lancamentos.length;
+      const respostas = [];
+      for (const [, extra] of invalidos) respostas.push(await lancar(extra));
+      conferir("falso: lancamento invalido da 400 VALIDATION_ERROR", respostas.map((r) => [r.ok, r.status, r.dados.error.type]), invalidos.map(() => [false, 400, "VALIDATION_ERROR"]));
+      conferir("falso: o lancamento recusado nao mexe no saldo nem entra na lista", [falso.saldo("ZZ-F-1"), falso.estado.lancamentos.length], [1, antes]);
+    }
+
+    // --- Falso: falhas simuladas ---
+    {
+      const falso = criarBlingFalso({
+        produtos: [umProduto(), umProduto({ id: 112, codigo: "ZZ-F-2" })],
+        falhas: [{ metodo: "PATCH", caminho: "/produtos/111", status: 400, mensagem: "Preco invalido" }],
+      });
+      const falhou = await falso.patch("/produtos/111", { preco: 1 });
+      conferir("falha: devolve ok false, o status e a mensagem em error.description", [falhou.ok, falhou.status, falhou.dados], [false, 400, { error: { description: "Preco invalido" } }]);
+      conferir("falha: a chamada que falhou nao muda nada", (await falso.get("/produtos/111")).dados.data.preco, 80);
+      conferir("falha: outro metodo no mesmo caminho nao falha (GET acima)", (await falso.get("/produtos/111")).ok, true);
+      conferir("falha: outro caminho nao falha", (await falso.patch("/produtos/112", { preco: 5 })).ok, true);
+      conferir("falha: a chamada que falhou fica registrada em chamadas", falso.chamadas.map((c) => `${c.metodo} ${c.caminho}`).slice(0, 2), ["PATCH /produtos/111", "GET /produtos/111"]);
+
+      const porPrefixo = criarBlingFalso({
+        produtos: [umProduto()],
+        falhas: [{ metodo: "post", caminho: "/estoques", status: 500, mensagem: "Falha do Bling" }],
+      });
+      const deposito = (await porPrefixo.get("/depositos")).dados.data.find((d) => d.padrao).id;
+      const post = await porPrefixo.post("/estoques", { produto: { id: 111 }, deposito: { id: deposito }, operacao: "E", quantidade: 1 });
+      conferir("falha: casa por prefixo do caminho e por metodo sem diferenciar caixa", [post.ok, post.status, post.dados.error.description], [false, 500, "Falha do Bling"]);
+      conferir("falha: o GET de /estoques/saldos nao e do metodo da falha", (await porPrefixo.get("/estoques/saldos", { "codigos[]": ["ZZ-F-1"] })).ok, true);
+
+      // Os envios de estoque falham no segundo lancamento: depois=1 deixa passar o primeiro, vezes=1 so falha uma vez.
+      const noSegundo = criarBlingFalso({
+        produtos: [umProduto()],
+        saldos: { "ZZ-F-1": 0 },
+        falhas: [{ metodo: "POST", caminho: "/estoques", status: 400, mensagem: "Saldo insuficiente", depois: 1, vezes: 1 }],
+      });
+      const idDoDeposito = (await noSegundo.get("/depositos")).dados.data.find((d) => d.padrao).id;
+      const lancamento = (quantidade) => noSegundo.post("/estoques", { produto: { id: 111 }, deposito: { id: idDoDeposito }, operacao: "E", quantidade });
+      const tres = [await lancamento(1), await lancamento(1), await lancamento(1)];
+      conferir("falha: depois=1 e vezes=1 falha so a segunda chamada", tres.map((r) => r.ok), [true, false, true]);
+      conferir("falha: a que falhou nao somou (so as outras duas)", noSegundo.saldo("ZZ-F-1"), 2);
+      const sempre = criarBlingFalso({ falhas: [{ metodo: "GET", caminho: "/depositos", status: 429, mensagem: "Muitas chamadas" }] });
+      conferir("falha: sem vezes falha todas as chamadas", [(await sempre.get("/depositos")).status, (await sempre.get("/depositos")).status], [429, 429]);
+      conferir("falha: sem status vira 400, sem mensagem tem um texto", (await criarBlingFalso({ falhas: [{ metodo: "GET", caminho: "/depositos" }] }).get("/depositos")).dados.error.description.length > 0, true);
+    }
+
+    // --- Falso: registro das chamadas, exigirEscrita e o que nao e suportado ---
+    {
+      const falso = criarBlingFalso({ produtos: [umProduto()] });
+      const corpo = { preco: 95, dimensoes: { altura: 7 } };
+      await falso.get("/produtos", { "codigos[]": ["ZZ-F-1"] });
+      await falso.patch("/produtos/111", corpo);
+      await falso.get("/depositos");
+      conferir("chamadas: metodo, caminho e corpo, na ordem de chegada (GET leva os params no corpo)", falso.chamadas, [
+        { metodo: "GET", caminho: "/produtos", corpo: { "codigos[]": ["ZZ-F-1"] } },
+        { metodo: "PATCH", caminho: "/produtos/111", corpo: { preco: 95, dimensoes: { altura: 7 } } },
+        { metodo: "GET", caminho: "/depositos" },
+      ]);
+      corpo.preco = 1;
+      corpo.dimensoes.altura = 1;
+      conferir("chamadas: guarda uma copia do corpo (mudar o objeto depois nao muda o registro)", falso.chamadas[1].corpo, { preco: 95, dimensoes: { altura: 7 } });
+      conferir(
+        "consultaDaChamada: junta a consulta do caminho com a dos params, tudo em lista de textos",
+        consultaDaChamada({ caminho: "/estoques/saldos?codigos[]=a&codigos%5B%5D=b", corpo: { "codigos[]": ["c"], pagina: 1, vazio: "" } }),
+        { "codigos[]": ["a", "b", "c"], pagina: ["1"] },
+      );
+      conferir("consultaDaChamada: o falso a oferece pronta", falso.consulta === consultaDaChamada, true);
+
+      conferir("exigirEscrita do falso e um no-op e anota o codigo", [falso.exigirEscrita("100246"), falso.exigirEscrita("ZZ-F-1"), falso.escritasExigidas], [undefined, undefined, ["100246", "ZZ-F-1"]]);
+      const restrito = criarBlingFalso({ codigosLiberados: ["ZZ-OK"] });
+      conferir(
+        "exigirEscrita com codigosLiberados recusa o que nao esta na lista, como o cliente real",
+        [casa(mensagemDe(() => restrito.exigirEscrita("100246")), /nao esta na lista de codigos liberados/), mensagemDe(() => restrito.exigirEscrita("zz-ok"))],
+        [true, null],
+      );
+
+      conferir("falso: endpoint que ele nao conhece rejeita com 'nao suportado' (erro de teste, nao do Bling)", casa(await rejeicaoDe(falso.get("/pedidos/vendas")), /nao suportado/), true);
+      conferir("falso: GET /produtos?codigo= (nao documentado, Emenda 8) e recusado: o certo e codigos[]", casa(await rejeicaoDe(falso.get("/produtos?codigo=ZZ-F-1")), /codigos\[\]/), true);
+      conferir("falso: listagem de produtos sem codigos[] tambem", casa(await rejeicaoDe(falso.get("/produtos", { pagina: 1, limite: 100 })), /codigos\[\]/), true);
+      conferir("falso: verbo que o endpoint nao tem (PUT /depositos) tambem e recusado", casa(await rejeicaoDe(falso.put("/depositos", {})), /nao suportado/), true);
+
+      conferir("falso: produto(id) e produto(codigo) devolvem o produto como o GET o devolveria", [falso.produto(111).nome, falso.produto("ZZ-F-1").id, falso.produto("NADA"), falso.produto(5)], ["Motor falso", 111, null, null]);
+    }
+
+    // --- O mesmo codigo no falso e no Rise: o que a Tarefa 7 vai usar ---
+    {
+      const falso = criarBlingFalso({ produtos: [umProduto({ codigo: "ZZ-BS-2", nome: "Produto de teste", preco: 95 })] });
+      const achado = await falso.get("/produtos", { "codigos[]": ["ZZ-BS-2"] });
+      conferir("o falso devolve o produto cadastrado por codigo e registra a chamada", [achado.dados.data.map((p) => [p.codigo, p.preco]), falso.chamadas.map((c) => [c.metodo, c.caminho])], [[["ZZ-BS-2", 95]], [["GET", "/produtos"]]]);
+    }
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

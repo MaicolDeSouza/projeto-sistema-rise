@@ -14,6 +14,17 @@ function lerBooleano(nome) {
   return ler(nome, "false").toLowerCase() === "true";
 }
 
+/**
+ * "a, B ,,c" vira ["a", "B", "c"]: separado por virgula, aparado e sem vazios.
+ * Exportada para o teste conferir a regra sem mexer no ambiente.
+ */
+export function separarLista(texto) {
+  return String(texto ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export const config = {
   // Onde a interface roda. Tem que ser localhost: o navegador bloqueia os
   // scripts quando servidos de dominios de loopback publico (localtest.me e
@@ -53,6 +64,12 @@ export const config = {
   travas: {
     mlPublicacao: lerBooleano("ML_PUBLICACAO"),
     blingEscrita: lerBooleano("BLING_ESCRITA"),
+    // Segunda trava do Bling: com BLING_ESCRITA ligada, so os codigos desta lista
+    // (separados por virgula) podem ser escritos; qualquer outro e recusado antes da
+    // chamada. Vazia = todos liberados. Serve para o primeiro teste com UM produto de
+    // teste, numa conta com 1007 anuncios reais. Lida uma vez, na carga: o ambiente nao
+    // muda com o processo no ar.
+    blingCodigosLiberados: separarLista(ler("BLING_ESCRITA_CODIGOS")),
   },
 };
 
