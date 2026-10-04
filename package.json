@@ -33,7 +33,8 @@
     "foto:mensal": "node scripts/foto-mensal.js",
     "teste:fotos": "node scripts/teste-fotos.js",
     "teste:estoque": "node scripts/teste-estoque.js",
-    "teste:anuncios-ml": "node scripts/teste-anuncios-ml.js"
+    "teste:anuncios-ml": "node scripts/teste-anuncios-ml.js",
+    "teste:bling-sync": "node scripts/teste-bling-sync.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

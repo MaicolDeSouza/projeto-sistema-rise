@@ -166,6 +166,20 @@ model Produto {
 
   /// ID do produto no Bling, preenchido quando o produto e espelhado no ERP.
   blingId String?
+
+  // --- Sincronizacao com o Bling (plano de 04/10/2026) ---
+  /// Quando o produto foi enviado ao Bling pela ultima vez. Nulo = nunca
+  /// sincronizado (icone cinza); preenchido = ja sincronizado (icone verde).
+  blingSincronizadoEm DateTime?
+  /// Resumo dos campos enviados no ULTIMO envio. A tela compara com o resumo de
+  /// hoje para saber se o Rise mudou depois, sem reler o Bling. Nulo = nunca enviado.
+  blingAssinatura     String?
+  /// Saldo de estoque lido do Bling (o saldoVirtualTotal) na ultima vez que o
+  /// operador usou o botao da lista. Pode ser NEGATIVO: o saldo virtual desconta
+  /// reservas. Nulo = nunca lido. O estoque do Rise e este saldo mais os ajustes
+  /// pendentes (MovimentoEstoque.enviadoAoBlingEm nulo).
+  blingSaldo          Int?
+
   ativo   Boolean @default(true)
 
   /// Marca "produto totalmente conferido" (pedido do dono em 22/09/2026): antes
@@ -192,6 +206,7 @@ model Produto {
   anuncios     Anuncio[]
 
   movimentosEstoque MovimentoEstoque[]
+  blingCopias       BlingCopiaProduto[]
 
   @@index([marca])
   @@index([ativo])
@@ -231,7 +246,37 @@ model MovimentoEstoque {
   motivo     String?
   observacao String?
 
+  /// Quando este ajuste foi aplicado ao saldo do Bling. NULO = PENDENTE: o ajuste
+  /// existe so aqui e o Bling ainda nao sabe dele (a sincronizacao envia os
+  /// pendentes na ordem e marca cada um depois que o Bling aceita). Os movimentos
+  /// que ja existiam quando esta coluna nasceu foram marcados pela migration, para
+  /// nao reenviar o passado.
+  enviadoAoBlingEm DateTime?
+
   criadoEm DateTime @default(now())
+
+  @@index([produtoId, criadoEm])
+}
+
+/// Copia de seguranca do produto no Bling, tirada ANTES de cada envio mas gravada
+/// so DEPOIS de o Bling aceitar (envio que falha nao deixa copia). Guarda o produto
+/// como o Bling o tinha (`conteudo`) e o resumo "campo: de -> para" do que o envio
+/// mudou (`alteracoes`), para desfazer a mao se preciso. Ficam as 3 mais recentes
+/// por produto; as mais velhas sao apagadas pelo codigo de envio.
+///
+/// Apagar o produto apaga as copias dele (Cascade): sem produto no Rise elas nao
+/// tem a quem servir.
+model BlingCopiaProduto {
+  id        String  @id @default(cuid())
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  criadoEm DateTime @default(now())
+
+  /// O produto como estava no Bling antes do envio (resposta do GET).
+  conteudo   Json
+  /// O que o envio mudou: lista de {campo, de, para}. Nulo = sem resumo.
+  alteracoes Json?
 
   @@index([produtoId, criadoEm])
 }
