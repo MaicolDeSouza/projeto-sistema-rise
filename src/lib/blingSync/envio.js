@@ -135,6 +135,42 @@ function recusaPorDuplicado(sku, quantidade) {
   );
 }
 
+/// Sem caixa e sem espacos nas pontas, como a busca por codigo (`leitura.js`) e a trava compararam.
+const chaveDoCodigo = (codigo) => String(codigo ?? "").trim().toLowerCase();
+
+/**
+ * Antes de CRIAR: o codigo pode existir no Bling como produto INATIVO, que a busca por codigo nao ve
+ * (`GET /produtos?codigos[]=` so devolve ativos). Criar outro com o mesmo codigo duplicaria o
+ * produto, e o novo nasceria sem estoque, sem fotos e sem os anuncios do ML e da Loja Integrada, que
+ * continuam ligados ao inativo. O sinal disponivel e o `blingId` guardado (pela importacao): se ele
+ * ainda aponta para um produto deste codigo que nao foi excluido (`situacao` diferente de "E"),
+ * recusa. 404 (apagado de verdade) ou produto de outro codigo: o codigo esta livre e o cadastro
+ * segue. Qualquer outro erro nesta leitura: na duvida, nao cria.
+ *
+ * O `blingId` aqui e so sinal de recusa, NUNCA alvo de escrita (Emenda 11): o produto criado e os
+ * vinculos usam o id que a resposta do POST devolver.
+ */
+async function recusarSeExisteInativo(cliente, produto) {
+  const id = idOuNull(produto.blingId);
+  if (!id) return;
+
+  const naoConferido = (motivo) =>
+    new FalhaDoEnvio(`Nao foi possivel conferir no Bling o produto ja ligado a este (id ${id}): ${motivo}. Nada foi criado; tente de novo em alguns instantes.`);
+  let resposta;
+  try {
+    resposta = await cliente.get(`/produtos/${id}`);
+  } catch (erro) {
+    throw naoConferido(mensagemDe(erro));
+  }
+  if (resposta?.status === 404) return;
+  if (!resposta?.ok) throw naoConferido(`o Bling recusou a leitura (${motivoDoBling(resposta)})`);
+
+  const lido = resposta.dados?.data;
+  if (lido && chaveDoCodigo(lido.codigo) === chaveDoCodigo(produto.sku) && lido.situacao !== "E") {
+    throw new FalhaDoEnvio("Este codigo existe no Bling como produto inativo: reative-o la e use Sincronizar. Nada foi criado.");
+  }
+}
+
 /// Recusa o nome acima do limite do Bling, com o tamanho (contado em caracteres, nao em bytes).
 function exigirNomeNoLimite(nome) {
   const tamanho = Array.from(String(nome ?? "")).length;
@@ -434,7 +470,12 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling()) {
       exigirEscrita(cliente, sku);
 
       const achado = await buscar(cliente, sku);
-      if (achado.situacao === "nao_existe") throw new FalhaDoEnvio(`Produto ${sku} nao existe no Bling; use Cadastrar no Bling.`);
+      // A busca so ve ativos: o codigo pode estar inativo no Bling, e cadastrar de novo o duplicaria.
+      if (achado.situacao === "nao_existe") {
+        throw new FalhaDoEnvio(
+          "O codigo nao foi achado entre os produtos ativos do Bling. Se ele esta inativo la, reative-o e use Sincronizar; senao use Cadastrar no Bling.",
+        );
+      }
       if (achado.situacao === "duplicado") throw recusaPorDuplicado(sku, achado.quantidade);
 
       const campos = normalizarDoRise(produto);
@@ -470,7 +511,8 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling()) {
  * `Produto.blingId`; depois envia os fornecedores e, com tudo certo, marca como sincronizado.
  *
  * Recusa, sem `POST`: codigo fora da trava; produto que ja existe no Bling ("use Sincronizar") ou
- * que existe mais de uma vez; problema bloqueante de `validar` (sem nome, SKU ou preco); nome acima
+ * que existe mais de uma vez; codigo que existe INATIVO no Bling, pelo `blingId` guardado
+ * (`recusarSeExisteInativo`); problema bloqueante de `validar` (sem nome, SKU ou preco); nome acima
  * de 120 caracteres. Se o cadastro deu certo e um fornecedor falhou, devolve `ok: false` COM o
  * `blingId`: o produto ja existe la, e o proximo passo e "Sincronizar".
  *
@@ -492,6 +534,7 @@ export async function cadastrarNoBling(produtoId, cliente = clienteBling()) {
       const achado = await buscar(cliente, sku);
       if (achado.situacao === "existe") throw new FalhaDoEnvio(`O produto ${sku} ja existe no Bling; use Sincronizar.`);
       if (achado.situacao === "duplicado") throw recusaPorDuplicado(sku, achado.quantidade);
+      await recusarSeExisteInativo(cliente, produto);
 
       const bloqueantes = validar(produto).filter((problema) => problema.bloqueante).map((problema) => problema.problema);
       if (bloqueantes.length) throw new FalhaDoEnvio(`Nao da para cadastrar no Bling: ${bloqueantes.join(" ")}`);

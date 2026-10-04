@@ -1909,7 +1909,13 @@ try {
       const produto = await criarNoRise("ZZ-BS-E7");
       const vazio = novoFalso();
       const naoExiste = await sincronizarProduto(produto.id, vazio);
-      conferir("codigo que nao existe no Bling: ok false, manda usar Cadastrar no Bling, nenhuma escrita", [naoExiste.ok, casaTexto(naoExiste.erro, /nao existe no Bling; use Cadastrar no Bling/), escritasDe(vazio).length], [false, true, 0]);
+      // A busca so ve ativos: a mensagem lembra que o codigo pode estar inativo no Bling, para o
+      // operador nao criar um duplicado de um produto que so foi inativado.
+      conferir(
+        "codigo que nao e achado entre os ativos do Bling: ok false, fala do inativo e do Cadastrar no Bling, nenhuma escrita",
+        [naoExiste.ok, naoExiste.erro, escritasDe(vazio).length],
+        [false, "O codigo nao foi achado entre os produtos ativos do Bling. Se ele esta inativo la, reative-o e use Sincronizar; senao use Cadastrar no Bling.", 0],
+      );
       const duplicado = novoFalso({ produtos: [noBling("ZZ-BS-E7"), noBling("zz-bs-e7", { id: BLING_ID + 1 })] });
       const dois = await sincronizarProduto(produto.id, duplicado);
       conferir("dois produtos com o codigo no Bling: ok false citando 'mais de um', e nenhuma escrita", [dois.ok, casaTexto(dois.erro, /mais de um/), escritasDe(duplicado).length], [false, true, 0]);
@@ -2007,6 +2013,99 @@ try {
         [false, true, false, null, null],
       );
       conferir("cadastrar com o POST recusado: nao tenta de novo", doMetodo(falso, "POST").length, 1);
+    }
+
+    // --- Cadastrar quando o codigo existe INATIVO no Bling ---
+    // A busca por codigo so ve ativos. O `blingId` guardado (da importacao) serve so de SINAL: se
+    // ele aponta para um produto do mesmo codigo que nao foi excluido, criar outro duplicaria o
+    // produto (o novo nasceria sem estoque, fotos e anuncios, que ficam no inativo). Nunca e o alvo
+    // de escrita nenhuma.
+    {
+      const MENSAGEM_INATIVO = "Este codigo existe no Bling como produto inativo: reative-o la e use Sincronizar. Nada foi criado.";
+      const ID_GUARDADO = 15000000301;
+      const postsDeProduto = (falso) => doMetodo(falso, "POST").filter((chamada) => chamada.caminho === "/produtos");
+
+      // Inativo: nao aparece na busca por codigo, mas responde ao GET por id (como o Bling real).
+      {
+        const produto = await criarNoRise("ZZ-BS-C7", { blingId: String(ID_GUARDADO) });
+        const falso = novoFalso({ produtos: [noBling("ZZ-BS-C7", { id: ID_GUARDADO, situacao: "I" })] });
+        conferir(
+          "falso: o produto inativo nao aparece em GET /produtos?codigos[]= mas responde a GET /produtos/{id}",
+          [(await falso.get("/produtos", { "codigos[]": ["ZZ-BS-C7"] })).dados.data, (await falso.get(`/produtos/${ID_GUARDADO}`)).dados.data.situacao],
+          [[], "I"],
+        );
+        falso.chamadas.length = 0;
+        const recusado = await cadastrarNoBling(produto.id, falso);
+        conferir("cadastrar com o codigo INATIVO no Bling (blingId guardado): ok false com a mensagem, sem criar nada", [recusado.ok, recusado.erro, "blingId" in recusado], [false, MENSAGEM_INATIVO, false]);
+        conferir(
+          "cadastrar com o codigo inativo: exigirEscrita, a busca, o GET do blingId guardado e NENHUM POST",
+          [rotasDe(falso), postsDeProduto(falso).length, escritasDe(falso).length],
+          [["exigirEscrita ZZ-BS-C7", "GET /produtos", `GET /produtos/${ID_GUARDADO}`], 0, 0],
+        );
+        const depois = await ler(produto.id);
+        conferir("cadastrar com o codigo inativo: o Rise fica como estava (blingId, assinatura)", [depois.blingId, depois.blingAssinatura, depois.blingSincronizadoEm], [String(ID_GUARDADO), null, null]);
+      }
+
+      // Excluido (situacao "E"): o codigo esta livre, o cadastro segue.
+      {
+        const produto = await criarNoRise("ZZ-BS-C8", { blingId: String(ID_GUARDADO) });
+        const falso = novoFalso({ produtos: [noBling("ZZ-BS-C8", { id: ID_GUARDADO, situacao: "E" })] });
+        const cadastrado = await cadastrarNoBling(produto.id, falso);
+        conferir(
+          "cadastrar com o blingId apontando para um produto EXCLUIDO: cadastra, num id novo",
+          [cadastrado.ok, postsDeProduto(falso).length, cadastrado.blingId !== ID_GUARDADO, (await ler(produto.id)).blingId],
+          [true, 1, true, String(cadastrado.blingId)],
+        );
+        conferir("e exigirEscrita veio antes de tudo (e do POST)", [falso.chamadas[0].metodo, falso.chamadas.findIndex((chamada) => chamada.metodo === "POST") > 0], ["exigirEscrita", true]);
+      }
+
+      // 404: o produto guardado foi apagado de verdade; o cadastro segue.
+      {
+        const produto = await criarNoRise("ZZ-BS-C9", { blingId: "15000009999" });
+        const falso = novoFalso();
+        const cadastrado = await cadastrarNoBling(produto.id, falso);
+        conferir(
+          "cadastrar com o blingId guardado dando 404: cadastra normalmente",
+          [cadastrado.ok, rotasDe(falso).slice(0, 4), postsDeProduto(falso).length],
+          [true, ["exigirEscrita ZZ-BS-C9", "GET /produtos", "GET /produtos/15000009999", "POST /produtos"], 1],
+        );
+      }
+
+      // O id guardado e hoje de OUTRO codigo (inativo ou nao): nao diz nada sobre este; o cadastro segue.
+      {
+        const produto = await criarNoRise("ZZ-BS-CA", { blingId: String(ID_GUARDADO) });
+        const falso = novoFalso({ produtos: [noBling("ZZ-BS-OUTRO", { id: ID_GUARDADO, situacao: "I" })] });
+        const cadastrado = await cadastrarNoBling(produto.id, falso);
+        conferir("cadastrar com o blingId guardado apontando para um produto de OUTRO codigo: cadastra", [cadastrado.ok, postsDeProduto(falso).length, falso.produto(ID_GUARDADO).codigo], [true, 1, "ZZ-BS-OUTRO"]);
+      }
+
+      // Qualquer outro erro no GET do blingId: na duvida, nao cria.
+      {
+        const produto = await criarNoRise("ZZ-BS-CB", { blingId: String(ID_GUARDADO) });
+        const falso = novoFalso({
+          produtos: [noBling("ZZ-BS-CB", { id: ID_GUARDADO, situacao: "I" })],
+          falhas: [{ metodo: "GET", caminho: `/produtos/${ID_GUARDADO}`, status: 500, mensagem: "Erro interno" }],
+        });
+        const recusado = await cadastrarNoBling(produto.id, falso);
+        conferir(
+          "cadastrar com o GET do blingId guardado dando 500: ok false com o HTTP, e nenhum POST",
+          [recusado.ok, casaTexto(recusado.erro, /HTTP 500/), casaTexto(recusado.erro, /Nada foi criado/), escritasDe(falso).length],
+          [false, true, true, 0],
+        );
+        const semRede = await cadastrarNoBling(produto.id, {
+          ...falso,
+          get: async (caminho, params) => (caminho === `/produtos/${ID_GUARDADO}` ? Promise.reject(new Error("fetch failed")) : falso.get(caminho, params)),
+        });
+        conferir("e com a rede caindo nesse GET: ok false, sem POST", [semRede.ok, casaTexto(semRede.erro, /fetch failed/), escritasDe(falso).length], [false, true, 0]);
+      }
+
+      // Sem blingId guardado: nada a conferir, cadastra como sempre (o "cadastrar com tudo" acima, sem o GET extra).
+      {
+        const produto = await criarNoRise("ZZ-BS-CC");
+        const falso = novoFalso({ produtos: [noBling("ZZ-BS-OUTRO", { id: ID_GUARDADO, situacao: "I" })] });
+        const cadastrado = await cadastrarNoBling(produto.id, falso);
+        conferir("cadastrar sem blingId guardado: cadastra, sem ler produto por id antes do POST", [cadastrado.ok, rotasDe(falso).slice(0, 3)], [true, ["exigirEscrita ZZ-BS-CC", "GET /produtos", "POST /produtos"]]);
+      }
     }
 
     // --- Emenda 11, sobre TODOS os falsos do bloco ---
