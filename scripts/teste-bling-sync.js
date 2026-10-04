@@ -32,6 +32,7 @@ const {
   normalizarDoRise,
   normalizarFornecedoresDoRise,
 } = await import("../src/lib/blingSync/campos.js");
+const { montarCorpoDeCadastro, montarCorpoParcial, textoParaHtml } = await import("../src/lib/blingSync/corpo.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -367,6 +368,233 @@ try {
     // O vinculo enviado e CNPJ, codigo, descricao, custo e padrao; o nome so serve para
     // achar o contato no Bling, e renomear o fornecedor nao muda o que vai.
     conferir("o nome do fornecedor nao entra na assinatura", assinaturaDoRise(campos, normalizarFornecedoresDoRise([{ ...a, fornecedor: { ...a.fornecedor, nome: "Renomeado" } }])), comA);
+  }
+
+  // -------------------------------------------------------------------------
+  // Regras puras: corpo do envio
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nCorpo do envio");
+
+    // A ordem das chaves de um objeto nao e contrato (o Bling as devolve numa ordem e o corpo
+    // as monta noutra), entao os objetos se comparam com as chaves ordenadas.
+    const ordenado = (valor) => {
+      if (Array.isArray(valor)) return valor.map(ordenado);
+      if (valor && typeof valor === "object") {
+        return Object.fromEntries(Object.keys(valor).sort().map((chave) => [chave, ordenado(valor[chave])]));
+      }
+      return valor;
+    };
+    const chaves = (objeto) => Object.keys(objeto).sort();
+    // null ou undefined em qualquer profundidade: "campo vazio no Rise nunca vai ao Bling".
+    const temVazio = (valor) => valor === null || valor === undefined || (typeof valor === "object" && Object.values(valor).some(temVazio));
+
+    // O produto como o GET /produtos/{id} o devolve (so o que importa aqui), e o Rise ja
+    // normalizado, que e o que as funcoes recebem. Fabricas: cada caso parte de um objeto novo.
+    const umBlingAtual = () => ({
+      id: 1001, nome: "Motor antigo", codigo: "ZZ-BS-1", preco: 80, tipo: "P", situacao: "A", formato: "S",
+      descricaoCurta: "<b>velha</b>", marca: "X", unidade: "UN", pesoLiquido: 0.2, pesoBruto: 0.2, gtin: "",
+      actionEstoque: "", categoria: { id: 7 }, linhaProduto: { id: 3 }, variacoes: [{ id: 1 }],
+      midia: { video: { url: "https://exemplo.com/v" }, imagens: { internas: [{ link: "https://s3/foto.jpg" }] } },
+      fornecedor: { id: 5, contato: { id: 6, nome: "F" }, codigo: "F1", precoCusto: 10 },
+      estrutura: { tipoEstoque: "", lancamentoEstoque: "", componentes: [] },
+      camposCustomizados: [{ idCampoCustomizado: 1, valor: "x" }],
+      dimensoes: { largura: 4, altura: 3, profundidade: 9, unidadeMedida: 1 },
+      estoque: { minimo: 1, maximo: 5, crossdocking: 2, localizacao: "A1", saldoVirtualTotal: 8 },
+      tributacao: { origem: 0, ncm: "85011019", cest: "", spedTipoItem: "00", percentualTributos: 10, nFCI: "N1", grupoProduto: { id: 9 } },
+    });
+    const umRiseNormalizado = (extra = {}) => ({ ...normalizarDoRise({}), ...extra });
+
+    // --- textoParaHtml ---
+    conferir("textoParaHtml: &, <, aspas e \\r\\n", textoParaHtml('a<b & "c"\r\nd'), "a&lt;b &amp; &quot;c&quot;<br>d");
+    conferir("textoParaHtml: nunca deixa uma tag crua (script)", textoParaHtml("<script>x</script>").includes("<script"), false);
+    conferir("textoParaHtml: o script escapado", textoParaHtml("<script>x</script>"), "&lt;script&gt;x&lt;/script&gt;");
+    conferir("textoParaHtml: > e apostrofo", textoParaHtml("a > b, it's"), "a &gt; b, it&#39;s");
+    conferir("textoParaHtml: \\r sozinho e \\r\\n valem uma quebra cada, \\n tambem", [textoParaHtml("a\rb"), textoParaHtml("a\r\nb"), textoParaHtml("a\nb")], ["a<br>b", "a<br>b", "a<br>b"]);
+    conferir("textoParaHtml: linha em branco vira duas quebras", textoParaHtml("a\n\nb"), "a<br><br>b");
+    conferir("textoParaHtml: o & vai primeiro (uma entidade digitada vira texto, nao some)", textoParaHtml("&lt; &amp;"), "&amp;lt; &amp;amp;");
+    conferir("textoParaHtml: vazio, null e undefined dao texto vazio", [textoParaHtml(""), textoParaHtml(null), textoParaHtml(undefined)], ["", "", ""]);
+
+    // --- Ida e volta da descricao (Review Focus 2 e 5) ---
+    // O Rise guarda texto puro, o envio o escapa e o Bling o devolve como HTML: lido de volta
+    // tem que dar o MESMO texto, senao a segunda sincronizacao acha diferenca onde nao ha.
+    const textos = [
+      "Tensao < 5V & corrente > 1A",
+      "Disse \"oi\" e 'tchau'",
+      "Linha 1\r\nLinha 2",
+      "A\n\n\n\nB",
+      "Linha 1  com  espaco",
+      "a b  c",
+      "<script>alert(1)</script>",
+      "&amp; &lt; &#65; &nbsp; &quot;",
+      "  Inicio e fim  \n\n  ",
+      "a\n \n b",
+      "<br> literal e <p>x</p> e </p>",
+      "R$ 5,00 > 3 && x<y",
+      "Acentuacao: ação, Ñ, ü, 4,5\" e 3/4'",
+      "Pronto \u{1F600} ok",
+      "\tTab\taqui\t",
+      " ",
+      "",
+    ];
+    for (const original of textos) {
+      const esperado = normalizarDoRise({ descricaoBase: original }).descricao;
+      const direto = normalizarDoBling({ descricaoCurta: textoParaHtml(original) }).descricao;
+      // O caminho real: o corpo leva o texto JA normalizado do Rise, e o Bling pode embrulhar em <p>.
+      const enviado = montarCorpoParcial({}, normalizarDoRise({ descricaoBase: original }), ["descricao"]).descricaoCurta;
+      const pelaMontagem = normalizarDoBling({ descricaoCurta: enviado ?? "" }).descricao;
+      const embrulhado = normalizarDoBling({ descricaoCurta: `<p>${enviado ?? ""}</p>\r\n` }).descricao;
+      // O espaco sem quebra (NBSP) nao se distingue do comum no terminal: aparece escrito.
+      const rotulo = JSON.stringify(original).replace(/ /g, "\\u00a0");
+      conferir(`ida e volta da descricao ${rotulo}`, [direto, pelaMontagem, embrulhado], [esperado, esperado, esperado]);
+    }
+
+    // --- Corpo parcial: so o que mudou, grupos por inteiro ---
+    const riseNovo = umRiseNormalizado({ nome: "Motor novo", descricao: "nova\nlinha", altura: 3.5 });
+    const parcial = montarCorpoParcial(umBlingAtual(), riseNovo, ["nome", "descricao", "altura"]);
+    conferir("parcial: so nome, descricaoCurta e o grupo dimensoes", chaves(parcial), ["descricaoCurta", "dimensoes", "nome"]);
+    conferir("parcial: nome e descricao (a quebra vira <br>)", [parcial.nome, parcial.descricaoCurta], ["Motor novo", "nova<br>linha"]);
+    conferir("parcial: dimensoes vai INTEIRO, a altura do Rise e o resto do Bling", ordenado(parcial.dimensoes), { altura: 3.5, largura: 4, profundidade: 9, unidadeMedida: 1 });
+    conferir(
+      "parcial: nao leva categoria, variacoes, situacao, codigo, marca, estoque nem midia",
+      ["categoria", "variacoes", "situacao", "codigo", "marca", "estoque", "midia"].filter((chave) => chave in parcial),
+      [],
+    );
+
+    // Nada que nao seja do Rise, nem com todos os campos mudando de uma vez.
+    const riseCheio = umRiseNormalizado({
+      nome: "N", descricao: "D", preco: 99.9, marca: "M", ean: "7891234567895", unidade: "UN", peso: 0.5,
+      altura: 1, largura: 2, comprimento: 3, estoqueMinimo: 4, estoqueMaximo: 40, localizacao: "Z9",
+      origem: 1, ncm: "12345678", cest: "0100100", spedTipoItem: "04", percentualTributos: 12.5,
+    });
+    const todos = CAMPOS_DE_ENVIO.map((campo) => campo.id);
+    // O corpo e montado numa copia profunda dos grupos: tirar o saldo do estoque nao pode tirar do objeto lido.
+    const blingRecebido = umBlingAtual();
+    montarCorpoParcial(blingRecebido, riseCheio, todos);
+    conferir("parcial: nao muda o blingAtual recebido (o saldo e as medidas ficam)", ordenado(blingRecebido), ordenado(umBlingAtual()));
+    const cheio = montarCorpoParcial(umBlingAtual(), riseCheio, todos);
+    conferir(
+      "parcial com todos os campos: so as chaves de envio",
+      chaves(cheio),
+      ["descricaoCurta", "dimensoes", "estoque", "gtin", "marca", "nome", "pesoBruto", "pesoLiquido", "preco", "tributacao", "unidade"],
+    );
+    conferir(
+      "parcial com todos os campos: nunca codigo, situacao, midia, fornecedor, actionEstoque, categoria, variacoes, estrutura nem campos personalizados",
+      ["id", "codigo", "tipo", "formato", "situacao", "midia", "fornecedor", "actionEstoque", "categoria", "linhaProduto", "variacoes", "estrutura", "camposCustomizados", "imagemURL"].filter((chave) => chave in cheio),
+      [],
+    );
+    conferir("parcial com todos os campos: raiz", [cheio.nome, cheio.descricaoCurta, cheio.preco, cheio.marca, cheio.gtin, cheio.unidade, cheio.pesoLiquido, cheio.pesoBruto], ["N", "D", 99.9, "M", "7891234567895", "UN", 0.5, 0.5]);
+    conferir("parcial com todos os campos: dimensoes (comprimento e profundidade)", ordenado(cheio.dimensoes), { altura: 1, largura: 2, profundidade: 3, unidadeMedida: 1 });
+    conferir("parcial com todos os campos: estoque, sem o saldo, com o que o Rise nao envia", ordenado(cheio.estoque), { crossdocking: 2, localizacao: "Z9", maximo: 40, minimo: 4 });
+    conferir(
+      "parcial com todos os campos: tributacao com o resto do grupo como veio do Bling",
+      ordenado(cheio.tributacao),
+      { cest: "0100100", grupoProduto: { id: 9 }, nFCI: "N1", ncm: "12345678", origem: 1, percentualTributos: 12.5, spedTipoItem: "04" },
+    );
+
+    // Estoque: o grupo vai inteiro, sem o saldo (somente-leitura).
+    const parcialEstoque = montarCorpoParcial(umBlingAtual(), umRiseNormalizado({ estoqueMaximo: 9 }), ["estoqueMaximo"]);
+    conferir("estoque: so o grupo estoque", chaves(parcialEstoque), ["estoque"]);
+    conferir("estoque: sem saldoVirtualTotal, o resto como esta no Bling", ordenado(parcialEstoque.estoque), { crossdocking: 2, localizacao: "A1", maximo: 9, minimo: 1 });
+    conferir("estoque: localizacao e minimo mudam sozinhos", ordenado(montarCorpoParcial(umBlingAtual(), umRiseNormalizado({ localizacao: "B2", estoqueMinimo: 3 }), ["localizacao", "estoqueMinimo"]).estoque), { crossdocking: 2, localizacao: "B2", maximo: 5, minimo: 3 });
+    conferir("estoque: grupo ausente no Bling vira so o que o Rise manda", montarCorpoParcial({}, umRiseNormalizado({ localizacao: "B2" }), ["localizacao"]), { estoque: { localizacao: "B2" } });
+
+    // Tributacao: o grupo inteiro, e a origem 0 e valor.
+    const parcialTributacao = montarCorpoParcial(umBlingAtual(), umRiseNormalizado({ origem: 0, ncm: "99999999" }), ["ncm"]);
+    conferir("tributacao: so o grupo, so o NCM trocado, o resto como no Bling", ordenado(parcialTributacao), { tributacao: { cest: "", grupoProduto: { id: 9 }, nFCI: "N1", ncm: "99999999", origem: 0, percentualTributos: 10, spedTipoItem: "00" } });
+    conferir("tributacao: origem 0 e valor, nao vazio", montarCorpoParcial({ tributacao: { origem: 1 } }, umRiseNormalizado({ origem: 0 }), ["origem"]), { tributacao: { origem: 0 } });
+
+    // Peso: os dois campos do Bling, iguais.
+    conferir("peso: pesoLiquido e pesoBruto saem iguais ao peso do Rise", montarCorpoParcial(umBlingAtual(), umRiseNormalizado({ peso: 0.75 }), ["peso"]), { pesoLiquido: 0.75, pesoBruto: 0.75 });
+    conferir("preco, marca, EAN e unidade: um campo da raiz cada", montarCorpoParcial(umBlingAtual(), umRiseNormalizado({ preco: 91, marca: "NOVA", ean: "7891234567895", unidade: "MT" }), ["preco", "marca", "ean", "unidade"]), { preco: 91, marca: "NOVA", gtin: "7891234567895", unidade: "MT" });
+    conferir("so entra o que esta em camposAlterados: o Rise tem mais coisa que nao entra", chaves(montarCorpoParcial(umBlingAtual(), riseCheio, ["preco"])), ["preco"]);
+
+    // Vazio no Rise nunca apaga nada no Bling.
+    conferir("campo null no Rise nao entra, mesmo em camposAlterados (marca)", montarCorpoParcial(umBlingAtual(), umRiseNormalizado({ marca: null, nome: "Novo" }), ["marca", "nome"]), { nome: "Novo" });
+    conferir("grupo cujos campos alterados estao todos vazios no Rise nao vai", montarCorpoParcial(umBlingAtual(), umRiseNormalizado(), ["altura", "estoqueMaximo", "ncm"]), {});
+    conferir("camposAlterados vazio devolve {}", montarCorpoParcial(umBlingAtual(), riseCheio, []), {});
+    conferir("camposAlterados ausente devolve {}", montarCorpoParcial(umBlingAtual(), riseCheio), {});
+    conferir("campo desconhecido em camposAlterados e ignorado (video, sku, estoque)", montarCorpoParcial(umBlingAtual(), riseCheio, ["video", "sku", "estoque", "saldo"]), {});
+    conferir("o corpo parcial nunca tem null nem undefined", temVazio(cheio), false);
+    conferir("blingAtual ausente nao quebra: o grupo nasce so com o que o Rise manda", montarCorpoParcial(null, umRiseNormalizado({ altura: 2 }), ["altura"]), { dimensoes: { altura: 2, unidadeMedida: 1 } });
+
+    // --- Dimensoes: as tres medidas na mesma unidade ---
+    // O Bling em mm: se so a altura muda e o grupo vai com unidadeMedida 1, as outras duas
+    // medidas (que estavam em mm) tem que ir em cm, senao 45 mm viraria 45 cm.
+    const blingEmMm = () => ({ ...umBlingAtual(), dimensoes: { largura: 45, altura: 30, profundidade: 100, unidadeMedida: 2 } });
+    conferir(
+      "dimensoes: o Bling em mm, so a altura muda, as outras vao convertidas para cm",
+      ordenado(montarCorpoParcial(blingEmMm(), umRiseNormalizado({ altura: 3.5 }), ["altura"]).dimensoes),
+      { altura: 3.5, largura: 4.5, profundidade: 10, unidadeMedida: 1 },
+    );
+    conferir(
+      "dimensoes: o Bling em metros",
+      ordenado(montarCorpoParcial({ dimensoes: { largura: 0.045, altura: 0.03, profundidade: 0.1, unidadeMedida: 0 } }, umRiseNormalizado({ altura: 3.5 }), ["altura"]).dimensoes),
+      { altura: 3.5, largura: 4.5, profundidade: 10, unidadeMedida: 1 },
+    );
+    conferir(
+      "dimensoes: se uma medida muda, as tres vao do Rise quando ele tem valor (mesmo as que nao mudaram)",
+      ordenado(montarCorpoParcial(blingEmMm(), umRiseNormalizado({ altura: 3.5, largura: 4.5, comprimento: 10 }), ["altura"]).dimensoes),
+      { altura: 3.5, largura: 4.5, profundidade: 10, unidadeMedida: 1 },
+    );
+    conferir(
+      "dimensoes: o que o Rise nao tem fica o do Bling (convertido)",
+      ordenado(montarCorpoParcial(blingEmMm(), umRiseNormalizado({ altura: 3.5, comprimento: 12 }), ["altura", "comprimento"]).dimensoes),
+      { altura: 3.5, largura: 4.5, profundidade: 12, unidadeMedida: 1 },
+    );
+    conferir(
+      "dimensoes: medida zero no Bling continua zero, sem virar null",
+      ordenado(montarCorpoParcial({ dimensoes: { largura: 0, altura: 30, profundidade: 0, unidadeMedida: 2 } }, umRiseNormalizado({ altura: 3.5 }), ["altura"]).dimensoes),
+      { altura: 3.5, largura: 0, profundidade: 0, unidadeMedida: 1 },
+    );
+    conferir(
+      "dimensoes: o Bling em cm nao tem medida refeita (3,456 fica 3,456)",
+      ordenado(montarCorpoParcial({ dimensoes: { largura: 3.456, altura: 3, profundidade: 9, unidadeMedida: 1 } }, umRiseNormalizado({ altura: 5 }), ["altura"]).dimensoes),
+      { altura: 5, largura: 3.456, profundidade: 9, unidadeMedida: 1 },
+    );
+
+    // --- A segunda sincronizacao nao acha diferenca (Review Focus 5) ---
+    // Simula o PATCH: os campos soltos trocam o valor e cada grupo e trocado por inteiro. Depois
+    // le o Bling de novo, como a tela faz, e compara.
+    const aplicarPatch = (bling, corpo) => ({ ...bling, ...corpo });
+    const riseDoCaso = normalizarDoRise({
+      tituloBase: "Motor JGY370 novo", descricaoBase: "Tensao < 5V & \"ok\"\r\nLinha 2", precoVenda: 99.9, marca: "generica",
+      ean: "7891234567895", unidade: "UN", pesoKg: 0.5, alturaCm: 3.5, larguraCm: 4.5, comprimentoCm: 10,
+      estoqueMinimo: 4, estoqueMaximo: 40, localizacao: "Z9", origem: 1, ncm: "8501.10.19", cest: "01.001.00", spedTipoItem: "04", percentualTributos: 12.5,
+    });
+    for (const [nome, bling] of [["Bling em cm", umBlingAtual()], ["Bling em mm", blingEmMm()]]) {
+      const antes = diferencas(riseDoCaso, normalizarDoBling(bling));
+      const alterados = antes.filter((d) => d.tipo === "diferente").map((d) => d.campo);
+      const depois = diferencas(riseDoCaso, normalizarDoBling(aplicarPatch(bling, montarCorpoParcial(bling, riseDoCaso, alterados))));
+      conferir(`segunda sincronizacao sem diferenca (${nome}): havia ${alterados.length} campo(s) a enviar`, [alterados.length > 0, depois], [true, []]);
+    }
+    // So a altura difere e o Bling esta em mm: as medidas que nao mudaram nao podem passar a divergir.
+    const riseSoAltura = normalizarDoRise({ tituloBase: "Motor antigo", unidade: "UN", alturaCm: 3.5, larguraCm: 4.5, comprimentoCm: 10 });
+    const blingSoAltura = { nome: "Motor antigo", unidade: "UN", dimensoes: { largura: 45, altura: 30, profundidade: 100, unidadeMedida: 2 } };
+    const corpoSoAltura = montarCorpoParcial(blingSoAltura, riseSoAltura, ["altura"]);
+    conferir(
+      "mm no Bling, so a altura difere: depois do envio nenhuma medida diverge",
+      [diferencas(riseSoAltura, normalizarDoBling(blingSoAltura)).map((d) => d.campo), diferencas(riseSoAltura, normalizarDoBling(aplicarPatch(blingSoAltura, corpoSoAltura)))],
+      [["altura"], []],
+    );
+
+    // --- Corpo de cadastro (POST /produtos) ---
+    const cadastro = montarCorpoDeCadastro("ZZ-BS-9", riseCheio);
+    conferir("cadastro: codigo, tipo P, formato S e situacao A", [cadastro.codigo, cadastro.tipo, cadastro.formato, cadastro.situacao], ["ZZ-BS-9", "P", "S", "A"]);
+    conferir("cadastro: os campos de envio, com o mesmo mapeamento do parcial", [cadastro.nome, cadastro.descricaoCurta, cadastro.preco, cadastro.marca, cadastro.gtin, cadastro.unidade, cadastro.pesoLiquido, cadastro.pesoBruto], ["N", "D", 99.9, "M", "7891234567895", "UN", 0.5, 0.5]);
+    conferir("cadastro: dimensoes em cm", ordenado(cadastro.dimensoes), { altura: 1, largura: 2, profundidade: 3, unidadeMedida: 1 });
+    conferir("cadastro: estoque so com minimo, maximo e localizacao (sem saldo)", ordenado(cadastro.estoque), { localizacao: "Z9", maximo: 40, minimo: 4 });
+    conferir("cadastro: tributacao", ordenado(cadastro.tributacao), { cest: "0100100", ncm: "12345678", origem: 1, percentualTributos: 12.5, spedTipoItem: "04" });
+    conferir("cadastro: nao tem midia, saldo nem categoria", ["midia", "categoria", "variacoes", "fornecedor", "estrutura", "actionEstoque", "id"].filter((chave) => chave in cadastro).concat("saldoVirtualTotal" in cadastro.estoque ? ["estoque.saldoVirtualTotal"] : []), []);
+    conferir("cadastro: nenhuma chave null nem undefined", temVazio(cadastro), false);
+
+    const cadastroMinimo = montarCorpoDeCadastro("ZZ-BS-8", umRiseNormalizado({ nome: "So o nome" }));
+    conferir("cadastro de um Rise quase vazio: so codigo, nome e os fixos, sem grupo vazio", ordenado(cadastroMinimo), { codigo: "ZZ-BS-8", formato: "S", nome: "So o nome", situacao: "A", tipo: "P" });
+    conferir("cadastro: grupo so com o que tem valor (a unidade de medida acompanha as medidas)", ordenado(montarCorpoDeCadastro("ZZ-BS-7", umRiseNormalizado({ nome: "X", altura: 2, origem: 0, localizacao: "A1" })).dimensoes), { altura: 2, unidadeMedida: 1 });
+    conferir("cadastro: origem 0 entra, estoque so com a localizacao", [montarCorpoDeCadastro("ZZ-BS-7", umRiseNormalizado({ nome: "X", origem: 0, localizacao: "A1" })).tributacao, montarCorpoDeCadastro("ZZ-BS-7", umRiseNormalizado({ nome: "X", origem: 0, localizacao: "A1" })).estoque], [{ origem: 0 }, { localizacao: "A1" }]);
+    conferir("cadastro: sem medidas nao ha dimensoes", "dimensoes" in cadastroMinimo, false);
+    conferir("cadastro: a descricao vai escapada", montarCorpoDeCadastro("ZZ-BS-6", umRiseNormalizado({ nome: "X", descricao: "a<b & c\nd" })).descricaoCurta, "a&lt;b &amp; c<br>d");
+    conferir("cadastro de um Rise de verdade (normalizado do produto do banco): sem null", temVazio(montarCorpoDeCadastro("ZZ-BS-5", normalizarDoRise({ tituloBase: "Produto", precoVenda: "10.50", unidade: "UN" }))), false);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.
