@@ -39,6 +39,7 @@ const { config, separarLista } = await import("../src/lib/integracoes/config.js"
 const { blingGet, blingPatch, blingPost, blingPut, urlDoBling } = await import("../src/lib/integracoes/bling.js");
 const { clienteBling, exigirCodigoLiberado } = await import("../src/lib/blingSync/cliente.js");
 const { buscarNoBling, lerParaPopup, lerProdutoDoRise } = await import("../src/lib/blingSync/leitura.js");
+const { cadastrarNoBling, sincronizarProduto } = await import("../src/lib/blingSync/envio.js");
 const { consultaDaChamada, criarBlingFalso } = await import("./lib/blingFalso.js");
 
 let falhas = 0;
@@ -1542,6 +1543,502 @@ try {
     } finally {
       config.travas.blingEscrita = travaOriginal;
       config.travas.blingCodigosLiberados = liberadosOriginais;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Envio dos campos, cadastro e copia de seguranca (Tarefa 8)
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nEnvio dos campos");
+    await limpar();
+
+    const casaTexto = (texto, regex) => typeof texto === "string" && regex.test(texto);
+    const ESCRITAS = ["POST", "PUT", "PATCH"];
+    const doMetodo = (falso, metodo) => falso.chamadas.filter((chamada) => chamada.metodo === metodo);
+    const escritasDe = (falso) => falso.chamadas.filter((chamada) => ESCRITAS.includes(chamada.metodo));
+    const rotasDe = (falso) => falso.chamadas.map((chamada) => `${chamada.metodo} ${chamada.caminho}`);
+    const ordenado = (valor) => {
+      if (Array.isArray(valor)) return valor.map(ordenado);
+      if (valor && typeof valor === "object") return Object.fromEntries(Object.keys(valor).sort().map((chave) => [chave, ordenado(valor[chave])]));
+      return valor;
+    };
+    // Todo falso do bloco fica guardado: no fim, os corpos de PATCH/POST de produto de todos eles
+    // sao conferidos contra as chaves proibidas (Emenda 11).
+    const usados = [];
+    const novoFalso = (opcoes) => {
+      const falso = criarBlingFalso(opcoes);
+      usados.push(falso);
+      return falso;
+    };
+
+    // O produto do Rise e o mesmo produto no Bling, iguais depois de normalizar (o preco do Bling
+    // e 90, como o do Rise). O do Bling traz tambem o que o Rise nunca envia (midia, fornecedor,
+    // categoria...), para provar que nada disso volta no corpo.
+    const BLING_ID = 15000000201;
+    const criarNoRise = (sku, extra = {}) =>
+      prisma.produto.create({
+        data: {
+          sku,
+          tituloBase: "Motor de teste do envio",
+          descricaoBase: "Linha 1\nLinha 2",
+          precoVenda: "90.00",
+          marca: "GENERICA",
+          unidade: "UN",
+          pesoKg: "0.25",
+          alturaCm: "3",
+          larguraCm: "4.5",
+          comprimentoCm: "10",
+          ncm: "85011019",
+          origem: 0,
+          localizacao: "A1",
+          ...extra,
+        },
+      });
+    const noBling = (codigo, extra = {}) => ({
+      id: BLING_ID,
+      codigo,
+      nome: "Motor de teste do envio",
+      preco: 90,
+      descricaoCurta: "<p>Linha 1<br>Linha 2</p>",
+      marca: "Generica",
+      unidade: "Un",
+      pesoBruto: 0.25,
+      dimensoes: { altura: 30, largura: 45, profundidade: 100, unidadeMedida: 2 },
+      tributacao: { ncm: "85011019", origem: 0 },
+      estoque: { minimo: 0, maximo: 0, localizacao: "A1" },
+      actionEstoque: "",
+      categoria: { id: 7 },
+      variacoes: [],
+      imagemURL: "https://s3/miniatura.jpg",
+      midia: { video: { url: "" }, imagens: { internas: [{ link: "https://s3/foto.jpg" }] } },
+      fornecedor: { id: 0, contato: { id: 0, nome: "" } },
+      estrutura: { tipoEstoque: "", lancamentoEstoque: "", componentes: [] },
+      camposCustomizados: [],
+      ...extra,
+    });
+    const ler = (id) => prisma.produto.findUnique({ where: { id } });
+    const copiasDe = (produtoId) => prisma.blingCopiaProduto.findMany({ where: { produtoId }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }] });
+    // A assinatura de hoje, calculada como a lista vai calcular: e a que o envio tem que gravar.
+    const assinaturaAtual = async (id) => {
+      const lido = await lerProdutoDoRise(id);
+      return assinaturaDoRise(normalizarDoRise(lido), normalizarFornecedoresDoRise(lido.fornecedores));
+    };
+
+    // --- Sem diferenca nenhuma: nao chama o PATCH e marca como sincronizado ---
+    {
+      const produto = await criarNoRise("ZZ-BS-E1");
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-E1")] });
+      const resultado = await sincronizarProduto(produto.id, falso);
+      conferir("sem diferenca: ok, alterados vazio e nenhum fornecedor", resultado, { ok: true, alterados: [], fornecedores: { enviados: 0, avisos: [] } });
+      conferir("sem diferenca: exigirEscrita e a primeira chamada, depois a busca e a leitura, e NENHUM PATCH", rotasDe(falso), ["exigirEscrita ZZ-BS-E1", "GET /produtos", `GET /produtos/${BLING_ID}`]);
+      const depois = await ler(produto.id);
+      const atual = await assinaturaAtual(produto.id);
+      conferir("sem diferenca: grava blingSincronizadoEm e a assinatura do Rise de hoje", [depois.blingSincronizadoEm instanceof Date, depois.blingAssinatura === atual], [true, true]);
+      conferir("sem diferenca: o atualizadoEm do produto NAO muda (sincronizar nao e editar, e nao sobe o produto na lista)", depois.atualizadoEm.getTime(), produto.atualizadoEm.getTime());
+      conferir(
+        "sem diferenca: o icone fica verde e sem selo",
+        estadoDoIconeBling({ sincronizadoEm: depois.blingSincronizadoEm, assinaturaGuardada: depois.blingAssinatura, assinaturaAtual: atual, pendentes: 0 }),
+        { cor: "verde", divergente: false, motivos: [] },
+      );
+      conferir("sem diferenca: nenhuma copia de seguranca (nada mudou no Bling)", (await copiasDe(produto.id)).length, 0);
+    }
+
+    // --- Preco diferente: PATCH so com o preco, no id da busca, e copia de seguranca ---
+    {
+      // O blingId guardado e velho de proposito: o alvo do PATCH sai da busca por codigo (Emenda 11).
+      const produto = await criarNoRise("ZZ-BS-E2", { blingId: "424242" });
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-E2", { preco: 95 })] });
+      const resultado = await sincronizarProduto(produto.id, falso);
+      conferir("preco diferente: ok, e alterados com o de (Bling) e o para (Rise)", [resultado.ok, resultado.alterados], [true, [{ campo: "preco", de: 95, para: 90 }]]);
+      conferir(
+        "preco diferente: UM PATCH, no id achado pela busca por codigo (nao no blingId guardado), com SO o preco",
+        doMetodo(falso, "PATCH").map((chamada) => [chamada.caminho, chamada.corpo]),
+        [[`/produtos/${BLING_ID}`, { preco: 90 }]],
+      );
+      conferir("preco diferente: exigirEscrita primeiro, depois a busca, a leitura e o PATCH", rotasDe(falso), ["exigirEscrita ZZ-BS-E2", "GET /produtos", `GET /produtos/${BLING_ID}`, `PATCH /produtos/${BLING_ID}`]);
+      conferir("preco diferente: o Bling ficou com o preco do Rise, e o resto como estava", [falso.produto(BLING_ID).preco, falso.produto(BLING_ID).categoria, falso.produto(BLING_ID).midia.imagens.internas.length], [90, { id: 7 }, 1]);
+      const copias = await copiasDe(produto.id);
+      conferir("preco diferente: uma copia de seguranca", copias.length, 1);
+      conferir("a copia guarda o produto do Bling como estava ANTES do PATCH (preco 95, o id e o codigo)", [copias[0].conteudo.preco, copias[0].conteudo.id, copias[0].conteudo.codigo], [95, BLING_ID, "ZZ-BS-E2"]);
+      conferir("a copia guarda as alteracoes campo: de -> para", copias[0].alteracoes.map((alteracao) => [alteracao.campo, alteracao.de, alteracao.para]), [["preco", 95, 90]]);
+      const depois = await ler(produto.id);
+      conferir(
+        "preco diferente: assinatura e data gravadas, atualizadoEm intacto, e o blingId guardado nao e tocado",
+        [depois.blingAssinatura === (await assinaturaAtual(produto.id)), depois.blingSincronizadoEm instanceof Date, depois.atualizadoEm.getTime(), depois.blingId],
+        [true, true, produto.atualizadoEm.getTime(), "424242"],
+      );
+
+      // Clique duplo (Review Focus 5): a segunda, logo depois, nao tem diferenca e nao chama o PATCH.
+      const segunda = await sincronizarProduto(produto.id, falso);
+      conferir("clique duplo: a segunda e ok, sem alterados", [segunda.ok, segunda.alterados], [true, []]);
+      conferir("clique duplo: continua UM PATCH so e UMA copia so", [doMetodo(falso, "PATCH").length, (await copiasDe(produto.id)).length], [1, 1]);
+    }
+
+    // --- Clique duplo ao mesmo tempo: o segundo nao corre junto ---
+    {
+      const produto = await criarNoRise("ZZ-BS-E3");
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-E3", { preco: 95 })] });
+      const [a, b] = await Promise.all([sincronizarProduto(produto.id, falso), sincronizarProduto(produto.id, falso)]);
+      conferir(
+        "clique duplo ao mesmo tempo: um envia e o outro e recusado por haver envio em andamento",
+        [[a.ok, b.ok].sort(), casaTexto((a.ok ? b : a).erro, /em andamento/)],
+        [[false, true], true],
+      );
+      conferir("clique duplo ao mesmo tempo: UM PATCH so", doMetodo(falso, "PATCH").length, 1);
+      conferir("e depois de terminar, a trava sai: a proxima sincronizacao corre (sem diferenca)", (await sincronizarProduto(produto.id, falso)).ok, true);
+    }
+
+    // --- Cinco sincronizacoes com mudanca: ficam as 3 copias mais recentes ---
+    {
+      const produto = await criarNoRise("ZZ-BS-E4");
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-E4", { preco: 95 })] });
+      const oks = [];
+      for (let i = 1; i <= 5; i++) {
+        await prisma.produto.update({ where: { id: produto.id }, data: { precoVenda: String(100 + i) } });
+        oks.push((await sincronizarProduto(produto.id, falso)).ok);
+      }
+      const copias = await copiasDe(produto.id);
+      conferir("5 sincronizacoes com mudanca: todas ok, 5 PATCH e so 3 copias", [oks, doMetodo(falso, "PATCH").length, copias.length], [[true, true, true, true, true], 5, 3]);
+      conferir("as copias que ficam sao as 3 mais recentes (de 102, 103, 104 para 103, 104, 105)", copias.map((copia) => [copia.conteudo.preco, copia.alteracoes[0].para]), [[102, 103], [103, 104], [104, 105]]);
+    }
+
+    // --- Fornecedores do Rise (CNPJs validos; um estrangeiro, sem CNPJ) e contatos do Bling ---
+    const novoFornecedor = (nome, cnpj) => prisma.fornecedor.create({ data: { nome: `ZZ Teste BS ${nome}`, ...(cnpj ? { cnpj } : {}) } });
+    const fCnpj = await novoFornecedor("Forn CNPJ", "11.222.333/0001-81");
+    const fNome = await novoFornecedor("Forn Nome", "12.345.678/0001-95");
+    const fCliente = await novoFornecedor("Forn Cliente", "00.000.000/0001-91");
+    const fNovo = await novoFornecedor("Forn Novo", "11.444.777/0001-61");
+    const fOutroDoc = await novoFornecedor("Forn Outro Doc", "22.233.344/0001-83");
+    const fSem = await novoFornecedor("Forn Estrangeiro", null);
+    const ID_CNPJ = 16100000001;
+    const ID_NOME = 16100000002;
+    const ID_CLIENTE = 16100000003;
+    const ID_OUTRO_DOC = 16100000004;
+    const contatosDoBling = () => [
+      // Achado pelo CNPJ (14 digitos), mesmo com outro nome.
+      { id: ID_CNPJ, nome: "Nome diferente no Bling", numeroDocumento: "11222333000181", tiposContato: [{ descricao: "Fornecedor" }] },
+      // Sem documento, nome igual sem caixa, sem acento e sem espacos nas pontas, tipo Fornecedor: reaproveitado.
+      { id: ID_NOME, nome: "  zz teste bs forn NOMÉ ", numeroDocumento: "", tiposContato: [{ descricao: "Fornecedor" }] },
+      // Nome igual, mas e Cliente: NAO serve.
+      { id: ID_CLIENTE, nome: "ZZ Teste BS Forn Cliente", tiposContato: [{ descricao: "Cliente" }] },
+      // Nome igual e tipo Fornecedor, mas com OUTRO CNPJ: e outra empresa, NAO serve.
+      { id: ID_OUTRO_DOC, nome: "ZZ Teste BS Forn Outro Doc", numeroDocumento: "33344455000183", tiposContato: [{ descricao: "Fornecedor" }] },
+    ];
+    const AVISO_SEM_CNPJ = "Fornecedor ZZ Teste BS Forn Estrangeiro: sem CNPJ valido, nao sera enviado ao Bling.";
+
+    // --- Contato: CNPJ, depois nome (so tipo Fornecedor), e so entao criar; vinculo novo ---
+    {
+      const produto = await criarNoRise("ZZ-BS-F1", {
+        fornecedores: {
+          create: [
+            { fornecedorId: fCnpj.id, codigo: "FC-1", descricao: "https://exemplo.com/fc", precoCusto: "10.00", padrao: true },
+            { fornecedorId: fNome.id, codigo: "FN-1" },
+            { fornecedorId: fSem.id, codigo: "FS-1" },
+            { fornecedorId: fCliente.id },
+            { fornecedorId: fOutroDoc.id },
+            { fornecedorId: fNovo.id, precoCusto: "7.50" },
+          ],
+        },
+      });
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-F1")], contatos: contatosDoBling() });
+      const idTipoFornecedor = falso.idDoTipoDeContato("Fornecedor");
+      const resultado = await sincronizarProduto(produto.id, falso);
+      conferir("fornecedores: ok, 5 vinculos enviados e o aviso do sem CNPJ (o estrangeiro)", resultado, { ok: true, alterados: [], fornecedores: { enviados: 5, avisos: [AVISO_SEM_CNPJ] } });
+
+      const contatosCriados = doMetodo(falso, "POST").filter((chamada) => chamada.caminho === "/contatos");
+      conferir(
+        "contato: so os 3 sem contato aproveitavel sao criados (o de tipo Cliente, o de outro CNPJ e o novo), com 14 digitos e o id do tipo Fornecedor lido de /contatos/tipos",
+        contatosCriados.map((chamada) => ordenado(chamada.corpo)),
+        [
+          ordenado({ nome: "ZZ Teste BS Forn Cliente", situacao: "A", tipo: "J", numeroDocumento: "00000000000191", tiposContato: [{ id: idTipoFornecedor }] }),
+          ordenado({ nome: "ZZ Teste BS Forn Novo", situacao: "A", tipo: "J", numeroDocumento: "11444777000161", tiposContato: [{ id: idTipoFornecedor }] }),
+          ordenado({ nome: "ZZ Teste BS Forn Outro Doc", situacao: "A", tipo: "J", numeroDocumento: "22233344000183", tiposContato: [{ id: idTipoFornecedor }] }),
+        ],
+      );
+      conferir("contato: os tipos sao lidos UMA vez por envio", doMetodo(falso, "GET").filter((chamada) => chamada.caminho === "/contatos/tipos").length, 1);
+      conferir(
+        "contato: o de nome igual so e lido (GET /contatos/{id}) quando nao tem documento; o de outro CNPJ nem e lido",
+        doMetodo(falso, "GET").filter((chamada) => /^\/contatos\/\d+$/.test(chamada.caminho)).map((chamada) => chamada.caminho),
+        [`/contatos/${ID_CLIENTE}`, `/contatos/${ID_NOME}`],
+      );
+      conferir("contato: nenhum contato existente e alterado (nenhum PUT)", doMetodo(falso, "PUT").length, 0);
+      const reaproveitado = falso.estado.contatos.get(ID_NOME);
+      conferir("contato achado pelo nome: reaproveitado SEM escrever nele (segue sem documento)", [reaproveitado.nome, reaproveitado.numeroDocumento], ["  zz teste bs forn NOMÉ ", ""]);
+
+      const vinculos = doMetodo(falso, "POST").filter((chamada) => chamada.caminho === "/produtos/fornecedores");
+      conferir("vinculo: um POST por fornecedor com CNPJ, todos no id do produto achado pela busca", [vinculos.length, vinculos.every((chamada) => chamada.corpo.produto.id === BLING_ID)], [5, true]);
+      const vinculoDe = (contatoId) => vinculos.find((chamada) => chamada.corpo.fornecedor.id === contatoId)?.corpo;
+      conferir(
+        "vinculo pelo CNPJ: descricao, codigo, custo e padrao do Rise, no contato achado",
+        vinculoDe(ID_CNPJ),
+        { descricao: "https://exemplo.com/fc", codigo: "FC-1", precoCusto: 10, padrao: true, produto: { id: BLING_ID }, fornecedor: { id: ID_CNPJ } },
+      );
+      conferir("vinculo pelo nome: campo vazio no Rise nao vai (so codigo e padrao)", vinculoDe(ID_NOME), { codigo: "FN-1", padrao: false, produto: { id: BLING_ID }, fornecedor: { id: ID_NOME } });
+      const idDoNovo = [...falso.estado.contatos.values()].find((contato) => contato.numeroDocumento === "11444777000161")?.id;
+      conferir("vinculo do contato criado: no id que o POST /contatos devolveu, com o custo", vinculoDe(idDoNovo), { precoCusto: 7.5, padrao: false, produto: { id: BLING_ID }, fornecedor: { id: idDoNovo } });
+      conferir("o Bling ficou com 5 vinculos no produto e 7 contatos (4 + 3 criados)", [[...falso.estado.vinculos.values()].filter((vinculo) => vinculo.produto.id === BLING_ID).length, falso.estado.contatos.size], [5, 7]);
+      const depois = await ler(produto.id);
+      conferir("fornecedores: assinatura gravada (o sem CNPJ fica fora dela, senao o selo nunca apagaria)", depois.blingAssinatura === (await assinaturaAtual(produto.id)), true);
+
+      // A segunda sincronizacao nao duplica nada: os contatos criados agora sao achados pelo CNPJ,
+      // o de nome continua pelo nome e os vinculos ja existem iguais.
+      const escritasAntes = escritasDe(falso).length;
+      const segunda = await sincronizarProduto(produto.id, falso);
+      conferir("segunda sincronizacao: ok, nenhum enviado e NENHUMA escrita nova", [segunda.ok, segunda.fornecedores.enviados, escritasDe(falso).length - escritasAntes], [true, 0, 0]);
+    }
+
+    // --- Vinculo ja existente: igual nao escreve; diferente vai por PUT, nunca por POST ---
+    {
+      const produto = await criarNoRise("ZZ-BS-F2", {
+        fornecedores: { create: [{ fornecedorId: fCnpj.id, codigo: "FC-1", descricao: "https://exemplo.com/fc", precoCusto: "10.00", padrao: true }] },
+      });
+      const vinculoNoBling = (extra) => ({ id: 17100000001, descricao: "https://exemplo.com/fc", codigo: "FC-1", precoCusto: 10, precoCompra: 0, padrao: true, produto: { id: BLING_ID }, fornecedor: { id: ID_CNPJ }, ...extra });
+
+      const igual = novoFalso({ produtos: [noBling("ZZ-BS-F2")], contatos: contatosDoBling(), vinculos: [vinculoNoBling()] });
+      const semMudar = await sincronizarProduto(produto.id, igual);
+      conferir("vinculo existente e igual: ok, nenhum enviado e NENHUMA escrita", [semMudar.ok, semMudar.fornecedores.enviados, escritasDe(igual).length], [true, 0, 0]);
+      conferir(
+        "vinculo existente e igual: so leituras (busca, produto, contato pelo CNPJ e vinculos do produto)",
+        rotasDe(igual),
+        ["exigirEscrita ZZ-BS-F2", "GET /produtos", `GET /produtos/${BLING_ID}`, "GET /contatos", "GET /produtos/fornecedores"],
+      );
+
+      const diferente = novoFalso({
+        produtos: [noBling("ZZ-BS-F2")],
+        contatos: contatosDoBling(),
+        vinculos: [vinculoNoBling({ descricao: "https://exemplo.com/velho", codigo: "VELHO", precoCusto: 8, precoCompra: 3.5, padrao: false })],
+      });
+      const mudou = await sincronizarProduto(produto.id, diferente);
+      conferir(
+        "vinculo existente e diferente: PUT no MESMO vinculo e nenhum POST de vinculo",
+        [mudou.ok, mudou.fornecedores.enviados, doMetodo(diferente, "PUT").map((chamada) => chamada.caminho), doMetodo(diferente, "POST").length],
+        [true, 1, ["/produtos/fornecedores/17100000001"], 0],
+      );
+      conferir(
+        "o PUT leva o vinculo inteiro: os campos do Rise por cima e o que o Rise nao tem (precoCompra) como estava",
+        ordenado(doMetodo(diferente, "PUT")[0].corpo),
+        ordenado({ descricao: "https://exemplo.com/fc", codigo: "FC-1", precoCusto: 10, precoCompra: 3.5, padrao: true, produto: { id: BLING_ID }, fornecedor: { id: ID_CNPJ } }),
+      );
+      const escritasAntes = escritasDe(diferente).length;
+      const deNovo = await sincronizarProduto(produto.id, diferente);
+      conferir("e a sincronizacao seguinte nao escreve nada (o vinculo ja esta igual)", [deNovo.ok, escritasDe(diferente).length - escritasAntes, diferente.estado.vinculos.size], [true, 0, 1]);
+
+      // Campo vazio no Rise nunca apaga o do Bling: o vinculo sem codigo, descricao e custo no Rise
+      // nao difere de um vinculo do Bling que tem os tres.
+      const vazio = await criarNoRise("ZZ-BS-F3", { fornecedores: { create: [{ fornecedorId: fCnpj.id, padrao: true }] } });
+      const comDados = novoFalso({ produtos: [noBling("ZZ-BS-F3")], contatos: contatosDoBling(), vinculos: [vinculoNoBling({ codigo: "B1", descricao: "d", precoCusto: 5 })] });
+      const naoApaga = await sincronizarProduto(vazio.id, comDados);
+      conferir("vinculo com campos vazios no Rise: nao conta como diferente, nada e escrito", [naoApaga.ok, escritasDe(comDados).length], [true, 0]);
+    }
+
+    // --- Falha no vinculo de um fornecedor: os outros seguem, mas a assinatura nao avanca ---
+    {
+      const produto = await criarNoRise("ZZ-BS-F4", {
+        fornecedores: { create: [{ fornecedorId: fCnpj.id, codigo: "FC-1", padrao: true }, { fornecedorId: fNome.id, codigo: "FN-1" }] },
+      });
+      const falso = novoFalso({
+        produtos: [noBling("ZZ-BS-F4", { preco: 95 })],
+        contatos: contatosDoBling(),
+        falhas: [{ metodo: "POST", caminho: "/produtos/fornecedores", status: 400, mensagem: "Fornecedor recusado pelo Bling", vezes: 1 }],
+      });
+      const resultado = await sincronizarProduto(produto.id, falso);
+      conferir(
+        "falha no vinculo: ok false, e o erro diz qual fornecedor e a mensagem do Bling",
+        [resultado.ok, casaTexto(resultado.erro, /ZZ Teste BS Forn CNPJ/), casaTexto(resultado.erro, /Fornecedor recusado pelo Bling/), casaTexto(resultado.erro, /ZZ Teste BS Forn Nome/)],
+        [false, true, true, false],
+      );
+      conferir(
+        "falha no vinculo: o outro fornecedor segue e e enviado, e o que falhou nao e repetido",
+        [resultado.fornecedores.enviados, doMetodo(falso, "POST").map((chamada) => chamada.corpo.fornecedor.id)],
+        [1, [ID_CNPJ, ID_NOME]],
+      );
+      conferir("falha no vinculo: o PATCH dos campos ja tinha ido, entao alterados e a copia ficam", [resultado.alterados, (await copiasDe(produto.id)).length], [[{ campo: "preco", de: 95, para: 90 }], 1]);
+      const depois = await ler(produto.id);
+      conferir("falha no vinculo: a assinatura e a data NAO sao gravadas", [depois.blingAssinatura, depois.blingSincronizadoEm], [null, null]);
+    }
+
+    // --- A conta sem o tipo de contato Fornecedor: nada e criado ---
+    {
+      const produto = await criarNoRise("ZZ-BS-F5", { fornecedores: { create: [{ fornecedorId: fNovo.id }] } });
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-F5")], tiposDeContato: [{ id: 5, descricao: "Cliente" }] });
+      const resultado = await sincronizarProduto(produto.id, falso);
+      conferir("sem o tipo Fornecedor no Bling: ok false, o erro diz isso, e nenhum contato nem vinculo e criado", [resultado.ok, casaTexto(resultado.erro, /tipo de contato Fornecedor/), escritasDe(falso).length], [false, true, 0]);
+    }
+
+    // --- PATCH com falha 400: nada de copia, nada de assinatura, e para ali ---
+    {
+      const anterior = new Date("2026-10-01T12:00:00Z");
+      const produto = await criarNoRise("ZZ-BS-E5", {
+        blingAssinatura: "assinatura-antiga",
+        blingSincronizadoEm: anterior,
+        fornecedores: { create: [{ fornecedorId: fCnpj.id, codigo: "FC-1", padrao: true }] },
+      });
+      const falso = novoFalso({
+        produtos: [noBling("ZZ-BS-E5", { preco: 95 })],
+        contatos: contatosDoBling(),
+        falhas: [{ metodo: "PATCH", caminho: "/produtos/", status: 400, mensagem: "Preco invalido" }],
+      });
+      const resultado = await sincronizarProduto(produto.id, falso);
+      conferir("PATCH com falha 400: ok false, e o erro traz o HTTP e a mensagem do Bling", [resultado.ok, casaTexto(resultado.erro, /HTTP 400/), casaTexto(resultado.erro, /Preco invalido/)], [false, true, true]);
+      conferir("PATCH com falha: nada alterado, e erro vem logo depois de ok", [resultado.alterados, Object.keys(resultado)], [[], ["ok", "erro", "alterados", "fornecedores"]]);
+      conferir("PATCH com falha: para ali, sem repetir a escrita nem seguir para os fornecedores", rotasDe(falso), ["exigirEscrita ZZ-BS-E5", "GET /produtos", `GET /produtos/${BLING_ID}`, `PATCH /produtos/${BLING_ID}`]);
+      const depois = await ler(produto.id);
+      conferir("PATCH com falha: a assinatura e a data NAO mudam", [depois.blingAssinatura, depois.blingSincronizadoEm.getTime()], ["assinatura-antiga", anterior.getTime()]);
+      conferir("PATCH com falha: nenhuma copia gravada", (await copiasDe(produto.id)).length, 0);
+    }
+
+    // --- Nome acima do limite do Bling (120): recusa, nunca corta ---
+    {
+      const produto = await criarNoRise("ZZ-BS-E6", { tituloBase: "N".repeat(121) });
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-E6")] });
+      const resultado = await sincronizarProduto(produto.id, falso);
+      conferir(
+        "nome com 121 caracteres: recusa (limite do Bling), sem PATCH e sem cortar o nome",
+        [resultado.ok, casaTexto(resultado.erro, /120/), doMetodo(falso, "PATCH").length, falso.produto(BLING_ID).nome],
+        [false, true, 0, "Motor de teste do envio"],
+      );
+      conferir("nome com 121: nada gravado no Rise", [(await ler(produto.id)).blingAssinatura, (await copiasDe(produto.id)).length], [null, 0]);
+      await prisma.produto.update({ where: { id: produto.id }, data: { tituloBase: "N".repeat(120) } });
+      const limite = await sincronizarProduto(produto.id, falso);
+      conferir("nome com 120 caracteres passa, e o PATCH leva o nome inteiro", [limite.ok, doMetodo(falso, "PATCH").map((chamada) => chamada.corpo)], [true, [{ nome: "N".repeat(120) }]]);
+    }
+
+    // --- O codigo nao existe, existe duas vezes, ou o produto nao existe no Rise ---
+    {
+      const produto = await criarNoRise("ZZ-BS-E7");
+      const vazio = novoFalso();
+      const naoExiste = await sincronizarProduto(produto.id, vazio);
+      conferir("codigo que nao existe no Bling: ok false, manda usar Cadastrar no Bling, nenhuma escrita", [naoExiste.ok, casaTexto(naoExiste.erro, /nao existe no Bling; use Cadastrar no Bling/), escritasDe(vazio).length], [false, true, 0]);
+      const duplicado = novoFalso({ produtos: [noBling("ZZ-BS-E7"), noBling("zz-bs-e7", { id: BLING_ID + 1 })] });
+      const dois = await sincronizarProduto(produto.id, duplicado);
+      conferir("dois produtos com o codigo no Bling: ok false citando 'mais de um', e nenhuma escrita", [dois.ok, casaTexto(dois.erro, /mais de um/), escritasDe(duplicado).length], [false, true, 0]);
+      const semUso = novoFalso();
+      const semProduto = await sincronizarProduto("id-que-nao-existe", semUso);
+      conferir("produto que nao existe no Rise: ok false, e o Bling nem e chamado", [semProduto.ok, casaTexto(semProduto.erro, /Produto nao encontrado/), semUso.chamadas.length], [false, true, 0]);
+      conferir("nada foi gravado no Rise", [(await ler(produto.id)).blingAssinatura, (await ler(produto.id)).blingSincronizadoEm], [null, null]);
+      conferir("sincronizarProduto e cadastrarNoBling: o cliente e opcional (o padrao e o clienteBling())", [sincronizarProduto.length, cadastrarNoBling.length], [1, 1]);
+    }
+
+    // --- Codigo fora da lista liberada: recusa antes de QUALQUER chamada ---
+    {
+      const produto = await criarNoRise("ZZ-BS-E8");
+      const restrito = novoFalso({ codigosLiberados: ["ZZ-OUTRO"], produtos: [noBling("ZZ-BS-E8", { preco: 95 })] });
+      const sincronizar = await sincronizarProduto(produto.id, restrito);
+      conferir("codigo fora da lista liberada: sincronizar recusa sem NENHUMA chamada", [sincronizar.ok, casaTexto(sincronizar.erro, /nao esta na lista de codigos liberados/), restrito.chamadas.length], [false, true, 0]);
+      const cadastrar = await cadastrarNoBling(produto.id, restrito);
+      conferir("codigo fora da lista liberada: cadastrar tambem", [cadastrar.ok, casaTexto(cadastrar.erro, /nao esta na lista de codigos liberados/), restrito.chamadas.length], [false, true, 0]);
+      conferir("a trava foi pedida com o sku do Rise, nas duas", restrito.escritasExigidas, ["ZZ-BS-E8", "ZZ-BS-E8"]);
+      const depois = await ler(produto.id);
+      conferir("codigo fora da lista: nada gravado no Rise", [depois.blingAssinatura, depois.blingId], [null, null]);
+    }
+
+    // --- Cadastrar no Bling ---
+    {
+      const semPreco = await criarNoRise("ZZ-BS-C1", { precoVenda: null });
+      const falso = novoFalso();
+      const recusa = await cadastrarNoBling(semPreco.id, falso);
+      conferir("cadastrar sem preco: ok false com a mensagem de validar, e nenhum POST", [recusa.ok, casaTexto(recusa.erro, /preco de venda/), doMetodo(falso, "POST").length, (await ler(semPreco.id)).blingId], [false, true, 0, null]);
+      conferir("cadastrar recusado: o resultado tem so ok e erro", Object.keys(recusa), ["ok", "erro"]);
+    }
+    {
+      const produto = await criarNoRise("ZZ-BS-C2");
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-C2")] });
+      const jaExiste = await cadastrarNoBling(produto.id, falso);
+      conferir("cadastrar o que ja existe no Bling: ok false, manda usar Sincronizar, sem escrita", [jaExiste.ok, casaTexto(jaExiste.erro, /ja existe no Bling; use Sincronizar/), escritasDe(falso).length], [false, true, 0]);
+    }
+    {
+      const produto = await criarNoRise("ZZ-BS-C3", { tituloBase: "N".repeat(121) });
+      const falso = novoFalso();
+      const longo = await cadastrarNoBling(produto.id, falso);
+      conferir("cadastrar com nome de 121 caracteres: recusa sem POST", [longo.ok, casaTexto(longo.erro, /120/), escritasDe(falso).length], [false, true, 0]);
+    }
+    {
+      const produto = await criarNoRise("ZZ-BS-C4", {
+        fornecedores: { create: [{ fornecedorId: fCnpj.id, codigo: "FC-1", precoCusto: "10.00", padrao: true }, { fornecedorId: fSem.id }] },
+      });
+      const falso = novoFalso({ contatos: contatosDoBling() });
+      const resultado = await cadastrarNoBling(produto.id, falso);
+      const criado = falso.produto("ZZ-BS-C4");
+      conferir("cadastrar com tudo: ok, e o blingId e o id do produto criado no Bling", [resultado.ok, typeof resultado.blingId, resultado.blingId === criado?.id, Object.keys(resultado)], [true, "number", true, ["ok", "blingId"]]);
+      const depois = await ler(produto.id);
+      conferir(
+        "cadastrar: grava Produto.blingId (texto), a assinatura e a data, sem mexer no atualizadoEm",
+        [depois.blingId, depois.blingAssinatura === (await assinaturaAtual(produto.id)), depois.blingSincronizadoEm instanceof Date, depois.atualizadoEm.getTime()],
+        [String(resultado.blingId), true, true, produto.atualizadoEm.getTime()],
+      );
+      const posts = doMetodo(falso, "POST");
+      conferir(
+        "cadastrar: POST /produtos e depois o vinculo no id criado (o fornecedor sem CNPJ fica de fora)",
+        posts.map((chamada) => [chamada.caminho, chamada.caminho === "/produtos" ? chamada.corpo.codigo : [chamada.corpo.produto.id === resultado.blingId, chamada.corpo.fornecedor.id]]),
+        [["/produtos", "ZZ-BS-C4"], ["/produtos/fornecedores", [true, ID_CNPJ]]],
+      );
+      conferir("cadastrar: o corpo do POST e o montarCorpoDeCadastro do Rise normalizado", posts[0].corpo, montarCorpoDeCadastro("ZZ-BS-C4", normalizarDoRise(await lerProdutoDoRise(produto.id))));
+      conferir("cadastrar: exigirEscrita e a primeira chamada", falso.chamadas[0], { metodo: "exigirEscrita", caminho: "ZZ-BS-C4" });
+      conferir("cadastrar: o produto criado no Bling tem o nome, o preco, o codigo e a situacao do Rise", [criado.nome, criado.preco, criado.codigo, criado.situacao], ["Motor de teste do envio", 90, "ZZ-BS-C4", "A"]);
+      // Ida e volta: logo depois de cadastrar, sincronizar nao acha diferenca nem reescreve o vinculo.
+      const depoisDoCadastro = await sincronizarProduto(produto.id, falso);
+      conferir(
+        "sincronizar logo depois do cadastro: ok, sem PATCH e sem escrever o vinculo de novo",
+        [depoisDoCadastro.ok, depoisDoCadastro.alterados, doMetodo(falso, "PATCH").length, doMetodo(falso, "PUT").length, doMetodo(falso, "POST").length],
+        [true, [], 0, 0, 2],
+      );
+    }
+    {
+      const produto = await criarNoRise("ZZ-BS-C5");
+      const falso = novoFalso();
+      const [a, b] = await Promise.all([cadastrarNoBling(produto.id, falso), cadastrarNoBling(produto.id, falso)]);
+      conferir(
+        "cadastrar com clique duplo ao mesmo tempo: um cadastra e o outro e recusado (nunca dois produtos no Bling)",
+        [[a.ok, b.ok].sort(), doMetodo(falso, "POST").filter((chamada) => chamada.caminho === "/produtos").length, casaTexto((a.ok ? b : a).erro, /em andamento/)],
+        [[false, true], 1, true],
+      );
+      const depois = await cadastrarNoBling(produto.id, falso);
+      conferir("cadastrar de novo depois: ja existe, use Sincronizar", [depois.ok, casaTexto(depois.erro, /ja existe/)], [false, true]);
+    }
+    {
+      const produto = await criarNoRise("ZZ-BS-C6");
+      const falso = novoFalso({ falhas: [{ metodo: "POST", caminho: "/produtos", status: 400, mensagem: "Codigo invalido" }] });
+      const recusado = await cadastrarNoBling(produto.id, falso);
+      const depois = await ler(produto.id);
+      conferir(
+        "cadastrar com o POST recusado: ok false com a mensagem do Bling, sem blingId nem assinatura",
+        [recusado.ok, casaTexto(recusado.erro, /Codigo invalido/), "blingId" in recusado, depois.blingId, depois.blingAssinatura],
+        [false, true, false, null, null],
+      );
+      conferir("cadastrar com o POST recusado: nao tenta de novo", doMetodo(falso, "POST").length, 1);
+    }
+
+    // --- Emenda 11, sobre TODOS os falsos do bloco ---
+    {
+      const PROIBIDAS = ["midia", "fornecedor", "actionEstoque", "imagemURL", "categoria", "variacoes", "estrutura", "camposCustomizados"];
+      const corposDeProduto = usados.flatMap((falso) =>
+        falso.chamadas.filter((chamada) => (chamada.metodo === "PATCH" && /^\/produtos\/\d+$/.test(chamada.caminho)) || (chamada.metodo === "POST" && chamada.caminho === "/produtos")),
+      );
+      conferir("Emenda 11: houve PATCH e POST de produto para conferir", [corposDeProduto.some((c) => c.metodo === "PATCH"), corposDeProduto.some((c) => c.metodo === "POST")], [true, true]);
+      conferir(
+        "Emenda 11: nenhum corpo de PATCH/POST de produto leva chave proibida (nem codigo ou situacao no PATCH)",
+        corposDeProduto.flatMap((chamada) =>
+          [...PROIBIDAS, ...(chamada.metodo === "PATCH" ? ["codigo", "situacao"] : [])].filter((chave) => chave in (chamada.corpo ?? {})).map((chave) => `${chamada.metodo} ${chave}`),
+        ),
+        [],
+      );
+      conferir(
+        "Emenda 11: em todo falso que recebeu escrita, exigirEscrita veio antes da primeira",
+        usados
+          .filter((falso) => escritasDe(falso).length > 0)
+          .every((falso) => {
+            const trava = falso.chamadas.findIndex((chamada) => chamada.metodo === "exigirEscrita");
+            const escrita = falso.chamadas.findIndex((chamada) => ESCRITAS.includes(chamada.metodo));
+            return trava !== -1 && trava < escrita;
+          }),
+        true,
+      );
+      conferir(
+        "Emenda 11: todo PATCH foi no id achado pela busca por codigo",
+        usados.flatMap((falso) => doMetodo(falso, "PATCH")).every((chamada) => chamada.caminho === `/produtos/${BLING_ID}`),
+        true,
+      );
     }
   }
 
