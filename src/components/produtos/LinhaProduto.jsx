@@ -11,6 +11,10 @@ import { rotuloDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import Copiar from "@/components/ui/Copiar";
 import ConferidoProduto from "./ConferidoProduto";
 import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPreco } from "./EdicaoRapida";
+import IconeBling from "./IconeBling";
+
+/// O produto sem estado conhecido do Bling: cinza, sem selo (nunca sincronizado e sem pendencia).
+const ICONE_BLING_PADRAO = { cor: "cinza", divergente: false, motivos: [] };
 
 /**
  * Imagem do produto.
@@ -58,11 +62,17 @@ export default function LinhaProduto({
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [janelaML, setJanelaML] = useState(false);
+  // O valor so e lido na Tarefa 11, que renderiza a janela do Bling (`abrirJanelaBling`); por ora o
+  // clique no icone so guarda o estado.
+  const [, setJanelaBling] = useState(false);
   // Qual popup de edicao rapida esta aberto: "localizacao", "preco" ou "estoque".
   const [editando, setEditando] = useState(null);
   const fecharEdicao = () => setEditando(null);
   // Cor e ponto sozinhos nao dizem o estado: o mesmo texto vai no nome acessivel e na dica.
   const rotuloML = rotuloDoIconeML(iconeML);
+  // Calculado no servidor (`page.jsx`) e entregue dentro do produto, que e o que `TabelaProdutos`
+  // repassa a linha.
+  const iconeBling = produto.iconeBling ?? ICONE_BLING_PADRAO;
 
   const moeda = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -144,13 +154,16 @@ export default function LinhaProduto({
         </CelulaEditavel>
       </td>
 
-      {/* Provisorio, a pedido do dono: Bling, Loja Integrada e Shopee em preto fosco, sem
-          ligar ao estado de integracao (a situacao real deles volta aqui depois). O Mercado
-          Livre ja reflete o anuncio: e um botao que abre o anuncio em pop-up. */}
+      {/* O Mercado Livre e o Bling refletem o estado real e sao botoes (o ML abre o anuncio em
+          pop-up; o Bling, a janela da sincronizacao). Provisorio, a pedido do dono: Loja
+          Integrada e Shopee seguem em preto fosco, sem ligar ao estado de integracao (a
+          situacao real deles volta aqui depois). */}
       <td className="px-3 py-2.5">
         <div className="flex items-center gap-1.5">
           {CANAIS.map((canal) =>
-            canal.id === "MERCADO_LIVRE" ? (
+            canal.id === "BLING" ? (
+              <IconeBling key={canal.id} iconeBling={iconeBling} aoClicar={() => setJanelaBling(true)} />
+            ) : canal.id === "MERCADO_LIVRE" ? (
               <button
                 key={canal.id}
                 type="button"

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { CANAIS, separarCanais } from "@/lib/canais";
 import { urlDe } from "@/lib/arquivos";
 import { estadoDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
+import { INCLUDE_DO_ICONE_BLING, iconeBlingDoProduto } from "@/lib/blingSync/estado";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import Paginacao from "@/components/mercados/Paginacao";
@@ -88,6 +89,9 @@ export default async function ProdutosPage({ searchParams }) {
             idExterno: true,
           },
         },
+        // Para o icone do Bling: os fornecedores (entram na assinatura dos campos) e quantos
+        // ajustes de estoque ainda nao foram ao Bling. So banco: a lista nao chama o Bling.
+        ...INCLUDE_DO_ICONE_BLING,
       },
     });
   } catch (excecao) {
@@ -115,6 +119,9 @@ export default async function ProdutosPage({ searchParams }) {
       imagemUrl: produto.arquivos[0]
         ? urlDe(produto.sku, "IMAGEM", produto.arquivos[0].arquivo)
         : null,
+      // Cor e selo do icone do Bling, calculados aqui (a assinatura usa node:crypto, so servidor).
+      // Vai dentro do produto porque e isso que a tabela repassa a linha.
+      iconeBling: iconeBlingDoProduto(produto),
     },
     ...separarCanais(produto.anuncios),
     // O icone do ML mostra o anuncio (publicado e ativo, ou pendente), nao so o idExterno.

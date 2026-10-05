@@ -34,7 +34,8 @@ const {
 } = await import("../src/lib/blingSync/campos.js");
 const { montarCorpoDeCadastro, montarCorpoParcial, textoParaHtml } = await import("../src/lib/blingSync/corpo.js");
 const { estoqueDoRise } = await import("../src/lib/blingSync/estoque.js");
-const { estadoDoIconeBling } = await import("../src/lib/blingSync/estado.js");
+const { INCLUDE_DO_ICONE_BLING, depositoIdValido, estadoDoIconeBling, iconeBlingDoProduto, produtoIdValido } = await import("../src/lib/blingSync/estado.js");
+const { gravarAjusteDeEstoque } = await import("../src/lib/ajusteRapido.js");
 const { config, separarLista } = await import("../src/lib/integracoes/config.js");
 const { blingGet, blingPatch, blingPost, blingPut, urlDoBling } = await import("../src/lib/integracoes/bling.js");
 const { clienteBling, exigirCodigoLiberado } = await import("../src/lib/blingSync/cliente.js");
@@ -2680,6 +2681,181 @@ try {
     {
       const falso = criarBlingFalso();
       conferir("produtoIds vazio: nada atualizado e nenhuma chamada", [await sincronizarEstoqueDoBling(falso, { produtoIds: [] }), falso.chamadas.length], [{ atualizados: 0, semCodigoNoBling: 0, falhas: [] }, 0]);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Icone do Bling na lista de Produtos (Tarefa 10)
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nIcone do Bling na lista");
+    await limpar();
+
+    // As Server Actions (`acoes-bling.js`) importam `revalidatePath` do Next, que nao existe fora dele:
+    // aqui se testa o que elas usam (a conferencia do que vem do navegador) e o estado do icone, que e
+    // o que a lista le. O icone sai SO do banco: nenhum teste deste bloco fala com o Bling, a nao ser
+    // o falso, e so para deixar o produto sincronizado.
+    const ID_NO_BLING = 15000000501;
+    const criarNoRise = (sku, extra = {}) =>
+      prisma.produto.create({
+        data: {
+          sku,
+          tituloBase: "Motor de teste do icone",
+          descricaoBase: "Linha 1\nLinha 2",
+          precoVenda: "90.00",
+          marca: "GENERICA",
+          unidade: "UN",
+          pesoKg: "0.25",
+          alturaCm: "3",
+          larguraCm: "4.5",
+          comprimentoCm: "10",
+          ncm: "85011019",
+          origem: 0,
+          localizacao: "A1",
+          ...extra,
+        },
+      });
+    // O mesmo produto, como o Bling o guarda: igual ao do Rise depois de normalizar (sem PATCH).
+    const noBling = (codigo, extra = {}) => ({
+      id: ID_NO_BLING,
+      codigo,
+      nome: "Motor de teste do icone",
+      preco: 90,
+      descricaoCurta: "<p>Linha 1<br>Linha 2</p>",
+      marca: "Generica",
+      unidade: "Un",
+      pesoBruto: 0.25,
+      dimensoes: { altura: 30, largura: 45, profundidade: 100, unidadeMedida: 2 },
+      tributacao: { ncm: "85011019", origem: 0 },
+      estoque: { minimo: 0, maximo: 0, localizacao: "A1" },
+      ...extra,
+    });
+    // A linha como a lista de Produtos a le (`page.jsx` usa o mesmo include): se o include da lista
+    // divergisse do que o envio le, o icone marcaria divergencia falsa logo depois de sincronizar.
+    const iconeDe = async (id) => iconeBlingDoProduto(await prisma.produto.findUnique({ where: { id }, include: INCLUDE_DO_ICONE_BLING }));
+    const VERDE_EM_DIA = { cor: "verde", divergente: false, motivos: [] };
+    const novoFornecedor = (nome, cnpj) => prisma.fornecedor.create({ data: { nome: `ZZ Teste BS ${nome}`, ...(cnpj ? { cnpj } : {}) } });
+
+    // --- O roteiro da Tarefa 10: cinza, verde, preco mudou, ajuste de estoque ---
+    {
+      const produto = await criarNoRise("ZZ-BS-3");
+      const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-3")] });
+
+      conferir("icone: produto nunca sincronizado = cinza, sem selo", await iconeDe(produto.id), { cor: "cinza", divergente: false, motivos: [] });
+
+      const sincronizado = await sincronizarProduto(produto.id, falso);
+      conferir("icone: sincronizarProduto com o Bling falso deu certo", sincronizado.ok, true);
+      conferir("icone: logo depois de sincronizar = verde, sem selo (a assinatura da lista e a do envio)", await iconeDe(produto.id), VERDE_EM_DIA);
+
+      await prisma.produto.update({ where: { id: produto.id }, data: { precoVenda: "95.00" } });
+      conferir("icone: mudar o preco no Rise = verde com selo de campos", await iconeDe(produto.id), { cor: "verde", divergente: true, motivos: ["campos"] });
+
+      const ajuste = await gravarAjusteDeEstoque(produto.id, { tipo: "ENTRADA", quantidade: 2 });
+      conferir("icone: o ajuste de estoque foi gravado", ajuste.ok, true);
+      conferir("icone: com ajuste de estoque pendente, os motivos incluem estoque (depois de campos)", await iconeDe(produto.id), { cor: "verde", divergente: true, motivos: ["campos", "estoque"] });
+
+      // Sincronizar de novo leva o preco; o ajuste continua pendente (so o envio de estoque o leva).
+      const denovo = await sincronizarProduto(produto.id, falso);
+      conferir("icone: sincronizar de novo leva o preco ao Bling", [denovo.ok, denovo.alterados.map((alterado) => alterado.campo)], [true, ["preco"]]);
+      conferir("icone: depois disso so o ajuste pendente acende o selo (estoque)", await iconeDe(produto.id), { cor: "verde", divergente: true, motivos: ["estoque"] });
+
+      // Ajuste enviado deixa de ser pendente: volta a nao ter o motivo "estoque".
+      const enviado = await enviarAjustesDeEstoque(produto.id, falso);
+      conferir("icone: o envio do ajuste de estoque deu certo", [enviado.ok, enviado.enviados, enviado.restantes], [true, 1, 0]);
+      conferir("icone: ajuste ja enviado nao e pendente: verde, sem selo", await iconeDe(produto.id), VERDE_EM_DIA);
+
+      // O que o Rise nao envia nao acende o selo: ativo, estoque e nome do fornecedor ficam fora da assinatura.
+      await prisma.produto.update({ where: { id: produto.id }, data: { ativo: false, estoque: 77 } });
+      conferir("icone: desativar o produto e mudar o estoque (campos que nao sao enviados) nao acende o selo", await iconeDe(produto.id), VERDE_EM_DIA);
+    }
+
+    // --- Fornecedores: entram na assinatura, so os que podem ser enviados (CNPJ valido) ---
+    {
+      const fornecedor = await novoFornecedor("Icone Forn", "11.222.333/0001-81");
+      const estrangeiro = await novoFornecedor("Icone Estrangeiro", null);
+      const produto = await criarNoRise("ZZ-BS-4");
+      const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-4")] });
+      await sincronizarProduto(produto.id, falso);
+      conferir("fornecedor: produto sincronizado sem fornecedor = verde, sem selo", await iconeDe(produto.id), VERDE_EM_DIA);
+
+      const vinculo = await prisma.produtoFornecedor.create({ data: { produtoId: produto.id, fornecedorId: fornecedor.id, codigo: "FI-1", precoCusto: "10.00", padrao: true } });
+      conferir("fornecedor: adicionado depois de sincronizar = selo de campos", await iconeDe(produto.id), { cor: "verde", divergente: true, motivos: ["campos"] });
+
+      const comFornecedor = await sincronizarProduto(produto.id, falso);
+      conferir("fornecedor: sincronizar envia o vinculo", [comFornecedor.ok, comFornecedor.fornecedores.enviados], [true, 1]);
+      conferir("fornecedor: depois de sincronizar = verde, sem selo", await iconeDe(produto.id), VERDE_EM_DIA);
+
+      await prisma.fornecedor.update({ where: { id: fornecedor.id }, data: { nome: "ZZ Teste BS Icone Forn Renomeado" } });
+      conferir("fornecedor: renomear o fornecedor nao acende o selo (o nome so serve para achar o contato)", await iconeDe(produto.id), VERDE_EM_DIA);
+
+      await prisma.produtoFornecedor.create({ data: { produtoId: produto.id, fornecedorId: estrangeiro.id, codigo: "EST-1" } });
+      conferir("fornecedor: um sem CNPJ (estrangeiro) fica fora da assinatura: nao acende o selo", await iconeDe(produto.id), VERDE_EM_DIA);
+
+      await prisma.produtoFornecedor.update({ where: { id: vinculo.id }, data: { precoCusto: "12.00" } });
+      conferir("fornecedor: mudar o custo do vinculo = selo de campos", await iconeDe(produto.id), { cor: "verde", divergente: true, motivos: ["campos"] });
+
+      await sincronizarProduto(produto.id, falso);
+      conferir("fornecedor: sincronizar de novo apaga o selo", await iconeDe(produto.id), VERDE_EM_DIA);
+
+      await prisma.produtoFornecedor.delete({ where: { id: vinculo.id } });
+      conferir("fornecedor: removido depois de sincronizar = selo de campos", await iconeDe(produto.id), { cor: "verde", divergente: true, motivos: ["campos"] });
+
+      const semFornecedor = await sincronizarProduto(produto.id, falso);
+      conferir("fornecedor: sincronizar sem o fornecedor (o Rise nunca apaga vinculo no Bling) deu certo", semFornecedor.ok, true);
+      conferir("fornecedor: e o icone volta a verde, sem selo", await iconeDe(produto.id), VERDE_EM_DIA);
+    }
+
+    // --- Mesmo CNPJ em dois vinculos: a lista escolhe o MESMO vinculo que o envio (padrao primeiro) ---
+    {
+      const antigo = await novoFornecedor("Icone Dup A", "11.444.777/0001-61");
+      const padrao = await novoFornecedor("Icone Dup B", "11.444.777/0001-61");
+      // O vinculo padrao nasce DEPOIS: so a ordem (padrao primeiro) o poe na frente do outro.
+      const produto = await criarNoRise("ZZ-BS-5", {
+        fornecedores: {
+          create: [
+            { fornecedorId: antigo.id, codigo: "A1", padrao: false },
+            { fornecedorId: padrao.id, codigo: "B1", padrao: true },
+          ],
+        },
+      });
+      const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-5")] });
+      const resultado = await sincronizarProduto(produto.id, falso);
+      conferir("mesmo CNPJ em dois vinculos: o envio manda um so", [resultado.ok, resultado.fornecedores.enviados], [true, 1]);
+      conferir("mesmo CNPJ em dois vinculos: o icone fica verde, sem selo (mesma ordem do envio)", await iconeDe(produto.id), VERDE_EM_DIA);
+    }
+
+    // --- iconeBlingDoProduto e pura: linha sem fornecedores nem contagem nao quebra ---
+    {
+      conferir("iconeBlingDoProduto: linha minima (sem fornecedores nem _count) = cinza, sem selo", iconeBlingDoProduto({ tituloBase: "So o nome" }), { cor: "cinza", divergente: false, motivos: [] });
+      conferir("iconeBlingDoProduto: a contagem do banco entra como pendente (cinza com selo de estoque)", iconeBlingDoProduto({ tituloBase: "X", _count: { movimentosEstoque: 3 } }), { cor: "cinza", divergente: true, motivos: ["estoque"] });
+      conferir(
+        "iconeBlingDoProduto: sincronizado com a assinatura guardada de outro conteudo = campos",
+        iconeBlingDoProduto({ tituloBase: "X", blingSincronizadoEm: new Date("2026-10-04T12:00:00Z"), blingAssinatura: "outra", fornecedores: [], _count: { movimentosEstoque: 0 } }),
+        { cor: "verde", divergente: true, motivos: ["campos"] },
+      );
+      const casa = assinaturaDoRise(normalizarDoRise({ tituloBase: "X", precoVenda: "9.90" }), []);
+      conferir(
+        "iconeBlingDoProduto: sincronizado com a assinatura do mesmo conteudo (Decimal em texto) = verde, sem selo",
+        iconeBlingDoProduto({ tituloBase: "X", precoVenda: "9.90", blingSincronizadoEm: new Date("2026-10-04T12:00:00Z"), blingAssinatura: casa, fornecedores: [], _count: { movimentosEstoque: 0 } }),
+        VERDE_EM_DIA,
+      );
+    }
+
+    // --- O que as Server Actions conferem antes de chamar a lib (vem do navegador, nao e de confianca) ---
+    {
+      conferir("produtoId valido: so texto nao vazio", ["prod_1", "x"].map(produtoIdValido), [true, true]);
+      conferir(
+        "produtoId invalido: vazio, so espaco, ausente, numero, objeto e lista nao passam",
+        ["", "   ", undefined, null, 12, {}, [], ["a"], true].map(produtoIdValido),
+        [false, false, false, false, false, false, false, false, false],
+      );
+      conferir("depositoId ausente (undefined ou null) vale: o envio escolhe o deposito padrao", [undefined, null].map(depositoIdValido), [true, true]);
+      conferir("depositoId valido: inteiro positivo", [1, 14200000001, Number.MAX_SAFE_INTEGER].map(depositoIdValido), [true, true, true]);
+      conferir(
+        "depositoId invalido: texto (mesmo numerico), vazio, 0, negativo, 1.5, NaN, Infinity, passa de inteiro seguro, booleano, objeto e lista nao passam",
+        ["12", "", "abc", 0, -1, 1.5, NaN, Infinity, 2 ** 60, true, {}, [], [1]].map(depositoIdValido),
+        [false, false, false, false, false, false, false, false, false, false, false, false, false],
+      );
     }
   }
 
