@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { depositoIdValido, produtoIdValido } from "@/lib/blingSync/estado";
+import { mudouNoBling } from "@/lib/blingSync/apresentacao";
 import { cadastrarNoBling, enviarAjustesDeEstoque, sincronizarProduto } from "@/lib/blingSync/envio";
 import { lerParaPopup } from "@/lib/blingSync/leitura";
 import { sincronizarEstoqueDoBling } from "@/lib/blingSync/saldos";
@@ -75,7 +76,9 @@ export async function cadastrarProdutoNoBling(produtoId) {
     "Nao foi possivel concluir o cadastro. O produto pode ter sido criado no Bling: confira la antes de tentar de novo.",
     async () => {
       const resultado = await cadastrarNoBling(produtoId);
-      return revalidando(resultado, resultado.ok);
+      // Revalida tambem quando o cadastro falhou DEPOIS de criar o produto no Bling (`blingId`): o id
+      // ja foi gravado no Rise, e a lista tem que mostra-lo. A regra e a de `mudouNoBling`, testada.
+      return revalidando(resultado, mudouNoBling("cadastrar", resultado));
     },
   );
 }
@@ -95,7 +98,10 @@ export async function enviarEstoqueAoBling(produtoId, depositoId) {
       // O 2o parametro da lib e o cliente do Bling: `undefined` deixa o padrao (o cliente real).
       const opcoes = depositoId === undefined || depositoId === null ? {} : { depositoId };
       const resultado = await enviarAjustesDeEstoque(produtoId, undefined, opcoes);
-      return revalidando(resultado, resultado.ok);
+      // O envio para na primeira falha e o que ja foi fica gravado (ajuste marcado como enviado e
+      // `blingSaldo`): com `ok: false` e `enviados > 0` a lista tambem precisa refletir. A regra e a de
+      // `mudouNoBling`, testada.
+      return revalidando(resultado, mudouNoBling("estoque", resultado));
     },
   );
 }

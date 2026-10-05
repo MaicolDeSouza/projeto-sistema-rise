@@ -12,6 +12,7 @@ import Copiar from "@/components/ui/Copiar";
 import ConferidoProduto from "./ConferidoProduto";
 import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPreco } from "./EdicaoRapida";
 import IconeBling from "./IconeBling";
+import JanelaBling from "./JanelaBling";
 
 /// O produto sem estado conhecido do Bling: cinza, sem selo (nunca sincronizado e sem pendencia).
 const ICONE_BLING_PADRAO = { cor: "cinza", divergente: false, motivos: [] };
@@ -57,22 +58,19 @@ export default function LinhaProduto({
   produto,
   pendentes,
   iconeML = { publicado: false, rascunho: false },
+  // Cor e selo do icone do Bling, calculados no servidor (`page.jsx`: a assinatura usa node:crypto).
+  iconeBling = ICONE_BLING_PADRAO,
   selecionado = false,
   aoAlternarSelecao,
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [janelaML, setJanelaML] = useState(false);
-  // O valor so e lido na Tarefa 11, que renderiza a janela do Bling (`abrirJanelaBling`); por ora o
-  // clique no icone so guarda o estado.
-  const [, setJanelaBling] = useState(false);
+  const [janelaBling, setJanelaBling] = useState(false);
   // Qual popup de edicao rapida esta aberto: "localizacao", "preco" ou "estoque".
   const [editando, setEditando] = useState(null);
   const fecharEdicao = () => setEditando(null);
   // Cor e ponto sozinhos nao dizem o estado: o mesmo texto vai no nome acessivel e na dica.
   const rotuloML = rotuloDoIconeML(iconeML);
-  // Calculado no servidor (`page.jsx`) e entregue dentro do produto, que e o que `TabelaProdutos`
-  // repassa a linha.
-  const iconeBling = produto.iconeBling ?? ICONE_BLING_PADRAO;
 
   const moeda = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -208,6 +206,7 @@ export default function LinhaProduto({
         {editando === "preco" && <PopupPreco produto={produto} aoFechar={fecharEdicao} />}
         {editando === "estoque" && <PopupEstoque produto={produto} aoFechar={fecharEdicao} />}
         {janelaML && <JanelaAnuncioML produtoId={produto.id} aoFechar={() => setJanelaML(false)} />}
+        {janelaBling && <JanelaBling produto={produto} aoFechar={() => setJanelaBling(false)} />}
 
         {pendentes.length > 0 && (
           <>

@@ -58,7 +58,7 @@ function useEnvio(acao, aoConcluir) {
   return { pendente, erro, enviar, limparErro: () => setErro(null) };
 }
 
-function Popup({ titulo, produto, aoFechar, aoEnviar, rotuloBotao, pendente, erro, children }) {
+export function Popup({ titulo, produto, aoFechar, aoEnviar, rotuloBotao, pendente, erro, children }) {
   useEffect(() => {
     function aoTeclar(evento) {
       if (evento.key === "Escape") aoFechar();

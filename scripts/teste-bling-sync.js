@@ -42,6 +42,7 @@ const { clienteBling, exigirCodigoLiberado } = await import("../src/lib/blingSyn
 const { buscarNoBling, lerParaPopup, lerProdutoDoRise } = await import("../src/lib/blingSync/leitura.js");
 const { cadastrarNoBling, enviarAjustesDeEstoque, sincronizarProduto } = await import("../src/lib/blingSync/envio.js");
 const { sincronizarEstoqueDoBling } = await import("../src/lib/blingSync/saldos.js");
+const { LIMITE_DE_FALHAS_VISIVEIS, mudouNoBling, resumirEnvio, resumirEstoqueDaLista, valorParaTela } = await import("../src/lib/blingSync/apresentacao.js");
 const { consultaDaChamada, criarBlingFalso } = await import("./lib/blingFalso.js");
 
 let falhas = 0;
@@ -2856,6 +2857,123 @@ try {
         ["12", "", "abc", 0, -1, 1.5, NaN, Infinity, 2 ** 60, true, {}, [], [1]].map(depositoIdValido),
         [false, false, false, false, false, false, false, false, false, false, false, false, false],
       );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Pop-up do Bling e botao "Sincronizar estoque com Bling" (Tarefa 11)
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nApresentacao do pop-up e do botao de estoque");
+
+    // As Server Actions e os componentes nao sao executados aqui (revalidatePath e React nao existem
+    // fora do Next): o que decide o texto e a releitura mora em `apresentacao.js`, sem imports, e e isso
+    // que se testa. Sem banco e sem Bling.
+    const NBSP = " ";
+
+    // --- valorParaTela: o valor normalizado como a tela o mostra ---
+    {
+      conferir("valorParaTela: vazio (null, undefined, texto vazio) = null, para a tela dizer 'vazio'", [null, undefined, ""].map((valor) => valorParaTela("nome", valor)), [null, null, null]);
+      conferir("valorParaTela: zero e valor, nao vazio (origem 0 = nacional)", [valorParaTela("origem", 0), valorParaTela("estoqueMinimo", 0)], ["0", "0"]);
+      conferir("valorParaTela: preco em reais", valorParaTela("preco", 95), `R$${NBSP}95,00`);
+      conferir("valorParaTela: preco com milhar e centavos", valorParaTela("preco", 1234.5), `R$${NBSP}1.234,50`);
+      conferir("valorParaTela: peso em kg, medidas em cm e % de tributos", [valorParaTela("peso", 0.25), valorParaTela("altura", 3), valorParaTela("comprimento", 10.5), valorParaTela("percentualTributos", 12.5)], ["0,25 kg", "3 cm", "10,5 cm", "12,5%"]);
+      conferir("valorParaTela: peso com 3 casas nao perde precisao", valorParaTela("peso", 0.125), "0,125 kg");
+      conferir("valorParaTela: numero sem unidade (estoque minimo)", valorParaTela("estoqueMinimo", 5), "5");
+      conferir("valorParaTela: texto fica como esta, com as quebras de linha", valorParaTela("descricao", "Linha 1\nLinha 2"), "Linha 1\nLinha 2");
+    }
+
+    // --- resumirEstoqueDaLista: o botao da lista ---
+    {
+      const falha = (n) => ({ sku: `ZZ-${n}`, erro: `erro ${n}` });
+      const doze = Array.from({ length: 12 }, (_, indice) => falha(indice + 1));
+
+      conferir("limite de falhas visiveis: 10", LIMITE_DE_FALHAS_VISIVEIS, 10);
+
+      const tudo = resumirEstoqueDaLista({ ok: true, atualizados: 3, semCodigoNoBling: 2, falhas: [] });
+      conferir("resumo: a linha e 'N atualizados, M sem esse codigo no Bling'", tudo.linha, "3 atualizados, 2 sem esse codigo no Bling");
+      conferir("resumo: tudo atualizado e sem falha = tom ok, nenhuma falha", [tudo.tom, tudo.falhas, tudo.falhasOcultas], ["ok", [], 0]);
+
+      const nenhum = resumirEstoqueDaLista({ ok: true, atualizados: 0, semCodigoNoBling: 5, falhas: [] });
+      conferir("resumo: ok:true com 0 atualizados NAO e 'tudo atualizado': a linha diz 0 e o tom e de atencao", [nenhum.linha, nenhum.tom], ["0 atualizados, 5 sem esse codigo no Bling", "atencao"]);
+
+      const comFalhas = resumirEstoqueDaLista({ ok: true, atualizados: 4, semCodigoNoBling: 0, falhas: [falha(1), falha(2)] });
+      conferir("resumo: ok:true com falhas = tom de atencao, e as falhas vem com sku e erro", [comFalhas.linha, comFalhas.tom, comFalhas.falhas, comFalhas.falhasOcultas], ["4 atualizados, 0 sem esse codigo no Bling", "atencao", [falha(1), falha(2)], 0]);
+
+      const longa = resumirEstoqueDaLista({ ok: true, atualizados: 1, semCodigoNoBling: 0, falhas: doze });
+      conferir("resumo: 12 falhas mostram as 10 primeiras e 'e mais 2' (a contagem e das que ficaram de fora)", [longa.falhas, longa.falhasOcultas], [doze.slice(0, 10), 2]);
+      conferir("resumo: exatamente 10 falhas nao escondem nenhuma", resumirEstoqueDaLista({ falhas: doze.slice(0, 10) }).falhasOcultas, 0);
+      conferir("resumo: 11 falhas escondem 1", resumirEstoqueDaLista({ falhas: doze.slice(0, 11) }).falhasOcultas, 1);
+
+      conferir("resumo: resposta sem campos (ou nula) conta zero, sem quebrar", [resumirEstoqueDaLista({}).linha, resumirEstoqueDaLista(null).linha, resumirEstoqueDaLista(undefined).falhas], ["0 atualizados, 0 sem esse codigo no Bling", "0 atualizados, 0 sem esse codigo no Bling", []]);
+      conferir("resumo: numero estranho conta zero", resumirEstoqueDaLista({ atualizados: "x", semCodigoNoBling: -3, falhas: "nao e lista" }).linha, "0 atualizados, 0 sem esse codigo no Bling");
+    }
+
+    // --- mudouNoBling: quando o pop-up le o Bling de novo depois de um envio ---
+    {
+      // Sincronizar: ok sempre rele; falha so se o PATCH ou algum fornecedor ja tinha ido.
+      conferir("mudouNoBling sincronizar: ok = sim (mesmo sem nada a enviar: a tela mostra o estado de agora)", mudouNoBling("sincronizar", { ok: true, alterados: [], fornecedores: { enviados: 0, avisos: [] } }), true);
+      conferir("mudouNoBling sincronizar: falha com campo ja enviado = sim", mudouNoBling("sincronizar", { ok: false, erro: "x", alterados: [{ campo: "preco", de: 1, para: 2 }], fornecedores: { enviados: 0, avisos: [] } }), true);
+      conferir("mudouNoBling sincronizar: falha com fornecedor ja enviado = sim", mudouNoBling("sincronizar", { ok: false, erro: "x", alterados: [], fornecedores: { enviados: 2, avisos: [] } }), true);
+      conferir("mudouNoBling sincronizar: falha sem nada enviado (escrita bloqueada) = nao: nada mudou, nao se le o Bling a toa", mudouNoBling("sincronizar", { ok: false, erro: "Escrita bloqueada", alterados: [], fornecedores: { enviados: 0, avisos: [] } }), false);
+      // Cadastrar: o id so existe se o POST passou.
+      conferir("mudouNoBling cadastrar: ok = sim", mudouNoBling("cadastrar", { ok: true, blingId: 7 }), true);
+      conferir("mudouNoBling cadastrar: falha depois de criar (tem blingId) = sim", mudouNoBling("cadastrar", { ok: false, erro: "x", blingId: 7 }), true);
+      conferir("mudouNoBling cadastrar: falha sem blingId = nao", mudouNoBling("cadastrar", { ok: false, erro: "x" }), false);
+      // Estoque: o envio para na primeira falha, e o que ja foi fica.
+      conferir("mudouNoBling estoque: ok = sim", mudouNoBling("estoque", { ok: true, enviados: 2, restantes: 0 }), true);
+      conferir("mudouNoBling estoque: falha com ajuste ja enviado = sim (o saldo do Bling mudou)", mudouNoBling("estoque", { ok: false, erro: "x", enviados: 1, restantes: 2 }), true);
+      conferir("mudouNoBling estoque: falha sem ajuste enviado = nao", mudouNoBling("estoque", { ok: false, erro: "x", enviados: 0, restantes: 3 }), false);
+      conferir("mudouNoBling estoque: precisaDeposito (nada foi enviado) = nao", mudouNoBling("estoque", { ok: false, erro: "x", enviados: 0, restantes: 3, precisaDeposito: [{ id: 1, descricao: "A" }] }), false);
+      // Resposta que nao e o que se espera nunca derruba a tela.
+      conferir("mudouNoBling: tipo desconhecido, resposta nula ou vazia = nao", [mudouNoBling("outro", { ok: true }), mudouNoBling("sincronizar", null), mudouNoBling("estoque", undefined), mudouNoBling("cadastrar", {})], [false, false, false, false]);
+    }
+
+    // --- resumirEnvio: o que a tela conta do envio, com o rotulo do campo ---
+    {
+      const rotulos = { preco: "Preco", nome: "Nome", descricao: "Descricao" };
+
+      const enviouTudo = resumirEnvio(
+        "sincronizar",
+        { ok: true, alterados: [{ campo: "preco", de: 90, para: 95 }, { campo: "nome", de: "Motor", para: "Motor CC" }], fornecedores: { enviados: 1, avisos: [] } },
+        rotulos,
+      );
+      conferir("resumirEnvio sincronizar ok: titulo, um campo por linha (de ... para ...) e os fornecedores", enviouTudo, {
+        titulo: "Sincronizado com o Bling.",
+        linhas: [`Preco: de R$${NBSP}90,00 para R$${NBSP}95,00`, "Nome: de Motor para Motor CC", "Fornecedores enviados: 1."],
+      });
+
+      conferir("resumirEnvio sincronizar ok sem nada a enviar: o Bling ja estava igual", resumirEnvio("sincronizar", { ok: true, alterados: [], fornecedores: { enviados: 0, avisos: [] } }, rotulos), {
+        titulo: "Nada para enviar: o Bling ja estava igual ao Rise.",
+        linhas: [],
+      });
+
+      conferir(
+        "resumirEnvio sincronizar com falha no meio: diz o que foi antes da falha",
+        resumirEnvio("sincronizar", { ok: false, erro: "x", alterados: [{ campo: "preco", de: 90, para: 95 }], fornecedores: { enviados: 0, avisos: [] } }, rotulos),
+        { titulo: "Antes da falha, foi enviado ao Bling:", linhas: [`Preco: de R$${NBSP}90,00 para R$${NBSP}95,00`] },
+      );
+      conferir("resumirEnvio sincronizar com falha e nada enviado: nada a contar (null)", resumirEnvio("sincronizar", { ok: false, erro: "Escrita bloqueada", alterados: [], fornecedores: { enviados: 0, avisos: [] } }, rotulos), null);
+
+      conferir(
+        "resumirEnvio: campo sem rotulo conhecido mostra o id; valor vazio diz 'vazio'",
+        resumirEnvio("sincronizar", { ok: true, alterados: [{ campo: "cest", de: null, para: "2800100" }], fornecedores: { enviados: 0, avisos: [] } }, rotulos).linhas,
+        ["cest: de vazio para 2800100"],
+      );
+      const longo = "x".repeat(200);
+      const abreviado = resumirEnvio("sincronizar", { ok: true, alterados: [{ campo: "descricao", de: longo, para: "curta" }], fornecedores: { enviados: 0, avisos: [] } }, rotulos).linhas[0];
+      conferir("resumirEnvio: valor comprido e abreviado (a descricao inteira nao entra na mensagem)", [abreviado.length < 120, abreviado.includes("..."), abreviado.startsWith("Descricao: de ")], [true, true, true]);
+
+      conferir("resumirEnvio cadastrar ok: o id no Bling", resumirEnvio("cadastrar", { ok: true, blingId: 123 }), { titulo: "Produto cadastrado no Bling (id 123).", linhas: [] });
+      conferir("resumirEnvio cadastrar falha depois de criar: diz que o produto ja existe la", resumirEnvio("cadastrar", { ok: false, erro: "x", blingId: 123 }), { titulo: "O produto foi criado no Bling (id 123), mas o envio nao terminou.", linhas: [] });
+      conferir("resumirEnvio cadastrar falha sem id: nada a contar", resumirEnvio("cadastrar", { ok: false, erro: "Escrita bloqueada" }), null);
+
+      conferir("resumirEnvio estoque ok: quantos ajustes foram", resumirEnvio("estoque", { ok: true, enviados: 2, restantes: 0 }), { titulo: "2 ajuste(s) de estoque enviado(s) ao Bling.", linhas: [] });
+      conferir("resumirEnvio estoque ok sem pendente: nao havia o que enviar", resumirEnvio("estoque", { ok: true, enviados: 0, restantes: 0 }), { titulo: "Nao havia ajuste de estoque pendente.", linhas: [] });
+      conferir("resumirEnvio estoque falha depois de enviar alguns: quantos foram e quantos ficaram", resumirEnvio("estoque", { ok: false, erro: "x", enviados: 1, restantes: 2 }), { titulo: "1 ajuste(s) de estoque foram ao Bling antes da falha; 2 continuam pendente(s).", linhas: [] });
+      conferir("resumirEnvio estoque falha sem enviar (ou precisaDeposito): nada a contar", [resumirEnvio("estoque", { ok: false, erro: "x", enviados: 0, restantes: 3 }), resumirEnvio("estoque", { ok: false, erro: "x", enviados: 0, restantes: 3, precisaDeposito: [{ id: 1, descricao: "A" }] })], [null, null]);
+
+      conferir("resumirEnvio: tipo desconhecido ou resposta nula = null", [resumirEnvio("outro", { ok: true }), resumirEnvio("sincronizar", null), resumirEnvio("estoque", undefined)], [null, null, null]);
     }
   }
 

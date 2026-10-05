@@ -11,6 +11,7 @@ import AvisoBanco from "@/components/ui/AvisoBanco";
 import Paginacao from "@/components/mercados/Paginacao";
 import TabelaProdutos from "@/components/produtos/TabelaProdutos";
 import BotaoImportarBling from "@/components/produtos/BotaoImportarBling";
+import BotaoSincronizarEstoque from "@/components/produtos/BotaoSincronizarEstoque";
 
 export const dynamic = "force-dynamic";
 
@@ -119,13 +120,12 @@ export default async function ProdutosPage({ searchParams }) {
       imagemUrl: produto.arquivos[0]
         ? urlDe(produto.sku, "IMAGEM", produto.arquivos[0].arquivo)
         : null,
-      // Cor e selo do icone do Bling, calculados aqui (a assinatura usa node:crypto, so servidor).
-      // Vai dentro do produto porque e isso que a tabela repassa a linha.
-      iconeBling: iconeBlingDoProduto(produto),
     },
     ...separarCanais(produto.anuncios),
     // O icone do ML mostra o anuncio (publicado e ativo, ou pendente), nao so o idExterno.
     iconeML: estadoDoIconeML(produto.anuncios),
+    // Cor e selo do icone do Bling, calculados aqui (a assinatura usa node:crypto, so servidor).
+    iconeBling: iconeBlingDoProduto(produto),
   }));
 
   return (
@@ -136,6 +136,7 @@ export default async function ProdutosPage({ searchParams }) {
         acao={
           <div className="flex items-start gap-3">
             <BotaoImportarBling />
+            <BotaoSincronizarEstoque />
             <Link
               href="/produtos/novo"
               className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90"
