@@ -288,7 +288,9 @@ const FORMATO_DESCRICAO = {
   schema: {
     type: "object",
     properties: {
-      paragrafos: { type: "array", items: { type: "string" } },
+      // DOIS grupos, na ordem [primeiro paragrafo, segundo paragrafo], cada um com as opcoes de
+      // texto para o dono escolher (pedido do dono em 04/10/2026: 3 opcoes por paragrafo).
+      paragrafos: { type: "array", items: { type: "array", items: { type: "string" } } },
       caracteristicas: {
         type: "array",
         items: {
@@ -488,9 +490,14 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
       : "") +
     "Escreva o conteúdo da descrição, em três partes. Tudo em TEXTO PURO: sem negrito, sem " +
     "asteriscos, sem '#', sem emoji e sem links.\n" +
-    `- paragrafos: exatamente DOIS parágrafos, cada um com NO MÁXIMO ${LIMITE_PARAGRAFO} ` +
-    "caracteres contando espaços (cerca de quatro linhas), no padrão abaixo (\"técnico-" +
-    "comparativo\"), definido com o dono em 22/09/2026.\n" +
+    "- paragrafos: exatamente DOIS grupos, na ordem [opções do primeiro parágrafo, opções do " +
+    `segundo parágrafo]. Cada grupo traz exatamente ${OPCOES_DE_PARAGRAFO} opções DIFERENTES ` +
+    "de texto para aquele parágrafo, e o dono escolhe UMA de cada grupo. Todas as opções " +
+    `seguem o padrão abaixo, cada uma com NO MÁXIMO ${LIMITE_PARAGRAFO} caracteres contando ` +
+    "espaços (cerca de quatro linhas). As opções de um grupo devem variar de verdade no que " +
+    "ganha espaço e na ordem dos fatos (por exemplo, abrir pelo chip ou pela aplicação; " +
+    "destacar a tensão ou a compatibilidade), e não só trocar uma palavra por sinônimo. " +
+    "Padrão (\"técnico-comparativo\"), definido com o dono em 22/09/2026:\n" +
     "  Primeiro parágrafo — identidade técnica: comece pelo NOME do produto como sujeito da " +
     "frase (\"A Placa...\", \"A Célula de carga...\", \"O Sensor...\"), diga o que ele é e a " +
     "especificação central que decide a compra (chip/CI, processador, clock — o dado técnico " +
@@ -538,10 +545,10 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
     "escolherá esses valores na tela.\n" +
     "Não escreva garantia, preço, prazo nem nome de loja: essas partes são da loja.";
 
-  // Paragrafo acima do limite volta para a IA encurtar, uma vez, dizendo quais
-  // passaram. Cortar no codigo quebraria a frase no meio.
+  // Opcao de paragrafo acima do limite volta para a IA encurtar, uma vez, dizendo quais passaram.
+  // Cortar no codigo quebraria a frase no meio.
   let conteudo;
-  let paragrafos = [];
+  let opcoesParagrafos = [];
   let longos = [];
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
     const texto = await chamar({
@@ -551,8 +558,8 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
       pedido:
         pedido +
         (longos.length > 0
-          ? `\n\nNa tentativa anterior estes parágrafos passaram de ${LIMITE_PARAGRAFO} ` +
-            `caracteres; reescreva mais curtos, mantendo o que informa:\n${longos.join("\n")}`
+          ? `\n\nNa tentativa anterior estas opções de parágrafo passaram de ${LIMITE_PARAGRAFO} ` +
+            `caracteres; reescreva TODAS as opções, mais curtas, mantendo o que informa:\n${longos.join("\n")}`
           : ""),
       formato: FORMATO_DESCRICAO,
     });
@@ -562,18 +569,16 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
     } catch {
       throw new Error("A IA devolveu a descricao em formato inesperado. Tente de novo.");
     }
-    paragrafos = Array.isArray(conteudo?.paragrafos) ? conteudo.paragrafos : [];
-    if (!paragrafos.some((paragrafo) => String(paragrafo).trim())) {
+    ({ opcoes: opcoesParagrafos, longos } = opcoesDeParagrafos(conteudo?.paragrafos));
+    if (!opcoesParagrafos.some((lista) => lista.length > 0)) {
       throw new Error("A IA devolveu uma descricao vazia. Tente de novo.");
     }
-    longos = paragrafos
-      .slice(0, 2)
-      .map((paragrafo) => textoPuro(paragrafo))
-      .filter((paragrafo) => paragrafo.length > LIMITE_PARAGRAFO);
     if (longos.length === 0) break;
   }
-  // Ainda longo na segunda vez: ficam as frases inteiras que cabem.
-  paragrafos = paragrafos.map((paragrafo) => frasesQueCabem(textoPuro(paragrafo)));
+  // Ainda longo na segunda vez: ficam as frases inteiras que cabem (e sem repetir o que o corte igualou).
+  opcoesParagrafos = ajustarAoLimite(opcoesParagrafos);
+  // A descricao nasce com a PRIMEIRA opcao de cada paragrafo; o dono troca na janela.
+  const paragrafos = opcoesParagrafos.map((lista) => lista[0]).filter(Boolean);
 
   const idsDivergentes = new Set(divergencias.map((item) => item.id));
   const caracteristicasDaIA = Array.isArray(conteudo.caracteristicas) ? conteudo.caracteristicas : [];
@@ -621,6 +626,9 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
     .map((item) => [item.id, item]));
   return {
     texto: textoFinal,
+    // As opcoes de cada um dos dois primeiros paragrafos: `[[p1a, p1b, p1c], [p2a, p2b, p2c]]`. O texto
+    // acima usa a primeira de cada uma.
+    opcoesParagrafos,
     divergencias: divergencias.map((item) => {
       const decisao = decisoes.get(item.id);
       let recomendada = Number.isInteger(decisao?.opcao) &&
@@ -650,6 +658,49 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
  * 57 caracteres por linha.
  */
 export const LIMITE_PARAGRAFO = 230;
+
+/// Quantas opcoes de texto a IA escreve para CADA um dos dois primeiros paragrafos da descricao.
+export const OPCOES_DE_PARAGRAFO = 3;
+
+/**
+ * Limpa o que a IA devolveu para os dois primeiros paragrafos (pedido do dono em 04/10/2026: 3 opcoes
+ * para escolher em cada um): texto puro, sem repetir e ate `OPCOES_DE_PARAGRAFO` por paragrafo, na ordem
+ * em que vieram. Devolve tambem as opcoes `longos` (acima do limite) para a IA reescrever.
+ *
+ * Tolera a IA devolver um texto solto no lugar do grupo (o formato antigo, de um paragrafo so): vira um
+ * grupo de uma opcao. Faltar opcao nao e erro (o dono escolhe entre as que vieram); so nao haver nenhuma
+ * em todo o resultado e, e isso quem chama confere.
+ *
+ * @param {unknown} bruto o campo `paragrafos` da resposta
+ * @returns {{ opcoes: string[][], longos: string[] }}
+ */
+export function opcoesDeParagrafos(bruto) {
+  const grupos = Array.isArray(bruto) ? bruto.slice(0, 2) : [];
+  const opcoes = [];
+  const longos = [];
+  for (const grupo of grupos) {
+    const vistas = new Set();
+    const lista = [];
+    for (const candidata of Array.isArray(grupo) ? grupo : [grupo]) {
+      const limpa = textoPuro(candidata);
+      if (!limpa || vistas.has(limpa)) continue;
+      vistas.add(limpa);
+      lista.push(limpa);
+    }
+    const finais = lista.slice(0, OPCOES_DE_PARAGRAFO);
+    longos.push(...finais.filter((opcao) => opcao.length > LIMITE_PARAGRAFO));
+    opcoes.push(finais);
+  }
+  return { opcoes, longos };
+}
+
+/**
+ * Ultimo recurso para a opcao que continua acima do limite depois da segunda tentativa: ficam as frases
+ * inteiras que cabem. O corte pode igualar duas opcoes, e a repetida sai.
+ */
+export function ajustarAoLimite(opcoes) {
+  return opcoes.map((lista) => [...new Set(lista.map((opcao) => frasesQueCabem(opcao)))]);
+}
 
 /** As frases inteiras do comeco que cabem no limite; uma so, se nem ela couber. */
 export function frasesQueCabem(texto, limite = LIMITE_PARAGRAFO) {

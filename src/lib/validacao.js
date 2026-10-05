@@ -45,6 +45,30 @@ export function ehUrlSegura(valor) {
 export const cnpjOpcional = () =>
   opcional(z.string().refine(validarCnpj, "CNPJ invalido.").transform(formatarCnpj));
 
+/**
+ * Caixa de marcacao ou campo oculto: chega "on" quando marcado e NAO chega
+ * quando nao esta (o navegador nao envia o desmarcado nem o desabilitado).
+ */
+export const marcado = () => z.preprocess((valor) => valor === "on", z.boolean());
+
+/**
+ * CNPJ do fornecedor: obrigatorio, salvo para o estrangeiro, que nao tem (pedido
+ * do dono em 04/10/2026). Recebe o schema do fornecedor com `cnpj` (`cnpjOpcional`)
+ * e `estrangeiro` (`marcado`).
+ *
+ * O erro vai no campo `cnpj`, para a tela mostrar embaixo dele. E quem esta marcado
+ * como estrangeiro tem o CNPJ ZERADO aqui: o campo fica desabilitado na tela, mas
+ * o valor digitado antes da marcacao nao pode ir junto, senao o cadastro ficaria
+ * estrangeiro e com CNPJ ao mesmo tempo.
+ */
+export const exigirCnpjSalvoEstrangeiro = (esquema) =>
+  esquema
+    .refine((dados) => dados.estrangeiro || dados.cnpj, {
+      path: ["cnpj"],
+      message: "Informe o CNPJ ou marque Estrangeiro.",
+    })
+    .transform((dados) => (dados.estrangeiro ? { ...dados, cnpj: null } : dados));
+
 /** Texto do formulario, aparado: "  " tem que valer como vazio. */
 export function lerCampos(formData) {
   const campos = {};

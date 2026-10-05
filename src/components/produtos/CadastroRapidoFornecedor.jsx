@@ -6,6 +6,8 @@ import { Loader, X } from "lucide-react";
 
 import { fontesParaCadastroRapidoFornecedor, salvarParceiro } from "@/app/cadastros/acoes";
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
+import CampoCnpjFornecedor from "@/components/cadastros/CampoCnpjFornecedor";
+import CampoSite from "@/components/cadastros/CampoSite";
 
 /** O mesmo cadastro de fornecedor, em dialogo sobre o formulario do produto. */
 export default function CadastroRapidoFornecedor({ nomeInicial, aoFechar, aoCadastrar }) {
@@ -55,11 +57,11 @@ export default function CadastroRapidoFornecedor({ nomeInicial, aoFechar, aoCada
         <form onSubmit={salvar} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2"><Campo nome="nome" rotulo="Nome" defaultValue={nomeInicial} erro={erros.nome} required autoFocus /></div>
-            <Campo nome="cnpj" rotulo="CNPJ" erro={erros.cnpj} placeholder="00.000.000/0000-00" />
+            <CampoCnpjFornecedor erro={erros.cnpj} />
             <Campo nome="contato" rotulo="Contato" erro={erros.contato} />
             <Campo nome="telefone" rotulo="Telefone / WhatsApp" erro={erros.telefone} />
             <Campo nome="email" rotulo="E-mail" type="email" erro={erros.email} />
-            <div className="sm:col-span-2"><Campo nome="site" rotulo="Site" erro={erros.site} placeholder="https://" /></div>
+            <div className="sm:col-span-2"><CampoSite erro={erros.site} /></div>
             <Campo nome="prazoEntregaDias" rotulo="Prazo de entrega (dias)" type="number" min="0" step="1" erro={erros.prazoEntregaDias} />
             <Campo nome="pedidoMinimo" rotulo="Pedido minimo (R$)" type="number" min="0" step="0.01" erro={erros.pedidoMinimo} />
             <div className="sm:col-span-2"><Campo nome="condicoesPagamento" rotulo="Condicoes de pagamento" erro={erros.condicoesPagamento} /></div>

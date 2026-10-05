@@ -104,6 +104,69 @@ conferir("filtro tira letras", filtrarDigitacaoDeTelefone("5488990p008u"), "5488
 conferir("filtro deixa a pontuacao de telefone", filtrarDigitacaoDeTelefone("+55 (54) 98899-0008"), "+55 (54) 98899-0008");
 
 // ---------------------------------------------------------------------------
+// CNPJ do fornecedor: obrigatorio, salvo o estrangeiro (sem banco)
+// ---------------------------------------------------------------------------
+
+console.log("\nCNPJ do fornecedor");
+const { z } = await import("zod");
+const { cnpjOpcional, errosPorCampo, exigirCnpjSalvoEstrangeiro, marcado } = await import(
+  "../src/lib/validacao.js"
+);
+
+// O mesmo encaixe do `FornecedorSchema` de `app/cadastros/acoes.js` (que e "use server"
+// e nao exporta o schema): so os tres campos que a regra olha.
+const FornecedorDeTeste = exigirCnpjSalvoEstrangeiro(
+  z.object({
+    nome: z.string().min(1, "Informe o nome."),
+    cnpj: cnpjOpcional(),
+    estrangeiro: marcado(),
+  }),
+);
+const analisar = (campos) => {
+  const resultado = FornecedorDeTeste.safeParse(campos);
+  return resultado.success
+    ? { ok: true, dados: resultado.data }
+    : { ok: false, erros: errosPorCampo(resultado) };
+};
+const SEM_CNPJ = "Informe o CNPJ ou marque Estrangeiro.";
+
+conferir(
+  "com CNPJ valido salva, formatado",
+  analisar({ nome: "Fortek", cnpj: "11222333000181" }),
+  { ok: true, dados: { nome: "Fortek", cnpj: "11.222.333/0001-81", estrangeiro: false } },
+);
+conferir("sem CNPJ e sem marcar estrangeiro: recusa no campo cnpj", analisar({ nome: "Fortek", cnpj: "" }), {
+  ok: false,
+  erros: { cnpj: SEM_CNPJ },
+});
+conferir("CNPJ ausente do envio (campo desabilitado) tambem recusa", analisar({ nome: "Fortek" }), {
+  ok: false,
+  erros: { cnpj: SEM_CNPJ },
+});
+conferir(
+  "estrangeiro sem CNPJ salva: so o nome e obrigatorio",
+  analisar({ nome: "Shenzhen Parts", estrangeiro: "on" }),
+  { ok: true, dados: { nome: "Shenzhen Parts", cnpj: null, estrangeiro: true } },
+);
+conferir(
+  "estrangeiro com CNPJ digitado antes de marcar: o CNPJ e zerado",
+  analisar({ nome: "Shenzhen Parts", cnpj: "11.222.333/0001-81", estrangeiro: "on" }),
+  { ok: true, dados: { nome: "Shenzhen Parts", cnpj: null, estrangeiro: true } },
+);
+conferir("CNPJ invalido continua recusado, com o motivo certo", analisar({ nome: "Fortek", cnpj: "11.222.333/0001-82" }), {
+  ok: false,
+  erros: { cnpj: "CNPJ invalido." },
+});
+conferir("estrangeiro sem nome: recusa o nome, e so ele", analisar({ nome: "", estrangeiro: "on" }), {
+  ok: false,
+  erros: { nome: "Informe o nome." },
+});
+conferir("valor diferente de on nao marca estrangeiro", analisar({ nome: "Fortek", estrangeiro: "false", cnpj: "" }), {
+  ok: false,
+  erros: { cnpj: SEM_CNPJ },
+});
+
+// ---------------------------------------------------------------------------
 // Fonte -> cadastro (banco)
 // ---------------------------------------------------------------------------
 
@@ -141,6 +204,13 @@ try {
   conferir("cnpj preservado", fornecedor.cnpj, "11.222.333/0001-81");
   conferir("prazo preservado", fornecedor.prazoEntregaDias, 5);
   conferir("site ja digitado preservado", fornecedor.site, "https://digitado.com.br");
+  conferir("fornecedor nasce nao estrangeiro (coluna com padrao false)", fornecedor.estrangeiro, false);
+
+  // Estrangeiro: grava a marca e fica sem CNPJ.
+  await prisma.fornecedor.create({ data: { nome: `${PREFIXO} Estrangeiro`, estrangeiro: true } });
+  const estrangeiro = await prisma.fornecedor.findUnique({ where: { nome: `${PREFIXO} Estrangeiro` } });
+  conferir("estrangeiro grava a marca", estrangeiro.estrangeiro, true);
+  conferir("estrangeiro fica sem CNPJ", estrangeiro.cnpj, null);
 
   // Cadastro ligado a outra fonte nao e roubado.
   const b2 = await novaFonte(`${PREFIXO} B`, "FORNECEDOR", "zz-teste-b2.invalid");

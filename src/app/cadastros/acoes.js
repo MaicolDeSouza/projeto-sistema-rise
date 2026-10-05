@@ -10,7 +10,9 @@ import {
   decimal,
   ehUrlSegura,
   errosPorCampo,
+  exigirCnpjSalvoEstrangeiro,
   lerCampos,
+  marcado,
   opcional,
 } from "@/lib/validacao";
 
@@ -41,14 +43,18 @@ const prazoEntregaDias = opcional(
     .min(0, "Nao pode ser negativo."),
 );
 
-const FornecedorSchema = BaseSchema.extend({
-  fonteId: opcional(z.string()),
-  cnpj: cnpjOpcional(),
-  contato: opcional(z.string()),
-  prazoEntregaDias,
-  condicoesPagamento: opcional(z.string()),
-  pedidoMinimo: decimal(),
-});
+// CNPJ obrigatorio, salvo fornecedor estrangeiro: so o nome vale para quem nao tem.
+const FornecedorSchema = exigirCnpjSalvoEstrangeiro(
+  BaseSchema.extend({
+    fonteId: opcional(z.string()),
+    cnpj: cnpjOpcional(),
+    estrangeiro: marcado(),
+    contato: opcional(z.string()),
+    prazoEntregaDias,
+    condicoesPagamento: opcional(z.string()),
+    pedidoMinimo: decimal(),
+  }),
+);
 
 // Concorrente nao tem os campos de negociacao: nao se compra dele. O zod
 // descarta o que nao esta no schema, entao um POST com "cnpj" nao grava nada.

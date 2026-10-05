@@ -13,9 +13,11 @@ import PopupExclusao from "./PopupExclusao";
 /**
  * Lista de fornecedores, concorrentes ou transportadoras (`slug`). Uma tabela so
  * para os tres; as colunas que mudam vem da configuracao em `PARCEIROS`:
- * "Coleta" so onde o cadastro pode ter site varrido, e a coluna de uso
- * ("Produtos" do fornecedor, "Clientes" da transportadora) so onde algo usa o
- * cadastro — e e o numero que impede a exclusao.
+ * "CNPJ" so onde `cnpj` esta ligado, "Coleta" so onde o cadastro pode ter site
+ * varrido, e a coluna de numero ("Produtos" do fornecedor, "Clientes" da
+ * transportadora) so onde ha o que contar. O numero de "Produtos" e o que o
+ * sistema tem coletado do fornecedor em Mercados; o de "Clientes", o que impede
+ * a exclusao (ver `PARCEIROS.usos`).
  *
  * A coluna "Coleta" mostra a fonte ligada em Mercados, e nao o cadastro dela:
  * quem quer mexer na varredura precisa saber se a fonte esta ativa ou pausada
@@ -62,6 +64,7 @@ export default function TabelaParceiros({ linhas, slug, busca }) {
             <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
               <tr className="divide-x divide-borda">
                 <th className="px-3 py-2.5 font-medium">Nome</th>
+                {config.cnpj && <th className="px-3 py-2.5 font-medium">CNPJ</th>}
                 <th className="px-3 py-2.5 font-medium">Contato</th>
                 <th className="px-3 py-2.5 font-medium">Site</th>
                 {temColeta && <th className="px-3 py-2.5 font-medium">Coleta</th>}
@@ -90,6 +93,17 @@ export default function TabelaParceiros({ linhas, slug, busca }) {
                       </span>
                     )}
                   </td>
+                  {config.cnpj && (
+                    <td className="px-3 py-2.5 whitespace-nowrap tabular-nums">
+                      {linha.estrangeiro ? (
+                        <Badge>Estrangeiro</Badge>
+                      ) : linha.cnpj ? (
+                        linha.cnpj
+                      ) : (
+                        <span className="text-suave">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-3 py-2.5 text-suave">{linha.contato || "—"}</td>
                   <td className="px-3 py-2.5">
                     {linha.site ? (
@@ -120,7 +134,9 @@ export default function TabelaParceiros({ linhas, slug, busca }) {
                     </td>
                   )}
                   {config.usos && (
-                    <td className="px-3 py-2.5 text-right tabular-nums">{linha.usos}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {linha.usos ?? <span className="text-suave">—</span>}
+                    </td>
                   )}
                   <td className="px-3 py-2.5">
                     <div className="flex justify-end gap-1">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 /**
  * Foto com LUPA: o mouse em cima mostra a area sob ele ampliada, e o clique abre a foto grande
@@ -53,10 +53,20 @@ export function ImagemComZoom({ src, alt, zoom, setZoom, aoAmpliar, className = 
 
 /**
  * A foto GRANDE, por cima de tudo. O Esc e ouvido na captura da `window` e para ali: sem isso o mesmo
- * Esc fecharia tambem a janela de revisao, que escuta no `document`. As setas tambem ficam aqui, para
- * nao trocarem a foto de tras enquanto esta aberta.
+ * Esc fecharia tambem a janela de revisao, que escuta no `document`. As setas do teclado tambem ficam
+ * aqui, para nao trocarem a foto de tras enquanto esta aberta.
+ *
+ * NAVEGACAO ENTRE FOTOS (pedido do dono em 04/10/2026: ao clicar na foto do produto, setas para ir a
+ * anterior e a proxima). E opcional: quem tem uma lista de fotos passa `aoNavegar(passo)` (-1 ou 1),
+ * `posicao` (a atual, a partir de 0) e `total`, e ganha as duas setas na tela, as do teclado e o
+ * contador. Quem mostra uma foto so (a janela de revisao compara a original com a melhorada, e "proxima"
+ * ali nao existe) nao passa nada e fica como era, com as setas do teclado engolidas. As setas nao dao a
+ * volta: na primeira o "anterior" apaga, na ultima o "proxima", como as do painel.
  */
-export function AmpliacaoDeFoto({ src, alt, aoFechar }) {
+export function AmpliacaoDeFoto({ src, alt, aoFechar, posicao = 0, total = 0, aoNavegar = null }) {
+  const navegavel = Boolean(aoNavegar) && total > 1;
+  const ultima = total - 1;
+
   useEffect(() => {
     const aoTeclar = (evento) => {
       if (evento.key === "Escape") {
@@ -64,11 +74,14 @@ export function AmpliacaoDeFoto({ src, alt, aoFechar }) {
         aoFechar();
       } else if (evento.key === "ArrowLeft" || evento.key === "ArrowRight") {
         evento.stopImmediatePropagation();
+        if (!navegavel) return;
+        const passo = evento.key === "ArrowLeft" ? -1 : 1;
+        if (posicao + passo >= 0 && posicao + passo <= ultima) aoNavegar(passo);
       }
     };
     window.addEventListener("keydown", aoTeclar, true);
     return () => window.removeEventListener("keydown", aoTeclar, true);
-  }, [aoFechar]);
+  }, [aoFechar, aoNavegar, navegavel, posicao, ultima]);
 
   return (
     <div
@@ -86,6 +99,39 @@ export function AmpliacaoDeFoto({ src, alt, aoFechar }) {
       >
         <X size={18} />
       </button>
+
+      {navegavel && (
+        <>
+          {/* O clique nas setas NAO pode subir: o fundo fecha a foto, e passar de foto nao e fechar. */}
+          <button
+            type="button"
+            onClick={(evento) => {
+              evento.stopPropagation();
+              aoNavegar(-1);
+            }}
+            disabled={posicao <= 0}
+            aria-label="Foto anterior"
+            className="absolute top-1/2 left-3 -translate-y-1/2 cursor-pointer rounded-full bg-white/90 p-2.5 text-slate-700 shadow hover:bg-white disabled:cursor-default disabled:opacity-30"
+          >
+            <ChevronLeft size={26} />
+          </button>
+          <button
+            type="button"
+            onClick={(evento) => {
+              evento.stopPropagation();
+              aoNavegar(1);
+            }}
+            disabled={posicao >= ultima}
+            aria-label="Proxima foto"
+            className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer rounded-full bg-white/90 p-2.5 text-slate-700 shadow hover:bg-white disabled:cursor-default disabled:opacity-30"
+          >
+            <ChevronRight size={26} />
+          </button>
+          <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-slate-800/80 px-3 py-1 text-xs text-white">
+            {posicao + 1} / {total}
+          </span>
+        </>
+      )}
     </div>
   );
 }

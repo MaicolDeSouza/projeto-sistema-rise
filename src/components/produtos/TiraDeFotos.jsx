@@ -142,7 +142,7 @@ export default function TiraDeFotos({ imagens, atualBase, aoEscolher, aoReordena
               title={
                 posicao === 0
                   ? "Foto principal (a primeira da fila). Arraste para mudar a ordem."
-                  : `Foto ${posicao + 1}${imagem.finalizada ? " (finalizada)" : ""}. Arraste para mudar a ordem.`
+                  : `Foto ${posicao + 1}${imagem.finalizada ? " (validada)" : ""}. Arraste para mudar a ordem.`
               }
               className={`relative block ${tamanho} shrink-0 cursor-grab overflow-hidden rounded border-2 bg-white ${
                 imagem.base === atualBase ? "border-acento" : "border-borda hover:border-acento/50"

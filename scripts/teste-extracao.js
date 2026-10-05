@@ -1550,6 +1550,75 @@ console.log("\n— portal com login (Santana, Add Suite) —");
     "Titulo\n\nEspecificações técnicas:\n\nItens inclusos: placa");
 }
 
+console.log("\n— Descricao: 3 opcoes para cada um dos 2 primeiros paragrafos —");
+{
+  const { trocarParagrafo } = await import("../src/lib/ia/revisaoDescricao.js");
+  const { ajustarAoLimite, LIMITE_PARAGRAFO, OPCOES_DE_PARAGRAFO, opcoesDeParagrafos } = await import("../src/lib/ia/anuncio.js");
+
+  // trocarParagrafo: cada paragrafo e uma LINHA; troca a linha exata e nada mais.
+  const descricao = "TITULO\n\nPrimeiro paragrafo.\nSegundo paragrafo.\n\nEspecificações técnicas:\n- Clock: 16MHz;";
+  conferir("troca o primeiro paragrafo e mantem o resto", trocarParagrafo(descricao, "Primeiro paragrafo.", "Outro primeiro."),
+    "TITULO\n\nOutro primeiro.\nSegundo paragrafo.\n\nEspecificações técnicas:\n- Clock: 16MHz;");
+  conferir("troca o segundo sem mexer no primeiro", trocarParagrafo(descricao, "Segundo paragrafo.", "Outro segundo."),
+    "TITULO\n\nPrimeiro paragrafo.\nOutro segundo.\n\nEspecificações técnicas:\n- Clock: 16MHz;");
+  conferir("espaco sobrando na linha nao atrapalha", trocarParagrafo("A\n  Primeiro paragrafo.  \nB", "Primeiro paragrafo.", "Novo."), "A\nNovo.\nB");
+  conferir("paragrafo editado a mao: nao acha e devolve null", trocarParagrafo(descricao.replace("Primeiro paragrafo.", "Primeiro paragrafo EDITADO."), "Primeiro paragrafo.", "Novo."), null);
+  conferir("trecho de uma linha maior nao conta (so a linha inteira)", trocarParagrafo("Primeiro paragrafo. Mais texto.", "Primeiro paragrafo.", "Novo."), null);
+  conferir("paragrafo atual vazio nao troca nada", trocarParagrafo(descricao, "  ", "Novo."), null);
+
+  // opcoesDeParagrafos: o que a IA devolveu virou ate 3 opcoes limpas por paragrafo.
+  conferir("a IA pede 3 opcoes por paragrafo", OPCOES_DE_PARAGRAFO, 3);
+  const duasVezesTres = opcoesDeParagrafos([["A1.", "A2.", "A3."], ["B1.", "B2.", "B3."]]);
+  conferir("dois grupos de tres", duasVezesTres, { opcoes: [["A1.", "A2.", "A3."], ["B1.", "B2.", "B3."]], longos: [] });
+  conferir("tira markdown e emoji de cada opcao", opcoesDeParagrafos([["**Negrito** aqui 😀", "B."], ["C."]]).opcoes,
+    [["Negrito aqui", "B."], ["C."]]);
+  conferir("compacta a unidade tecnica na opcao", opcoesDeParagrafos([["Opera em 5 V e 16 MHz."], ["B."]]).opcoes[0], ["Opera em 5V e 16MHz."]);
+  conferir("opcao repetida sai", opcoesDeParagrafos([["A.", "A.", "B."], ["C."]]).opcoes[0], ["A.", "B."]);
+  conferir("opcao em branco sai", opcoesDeParagrafos([["A.", "   ", ""], ["C."]]).opcoes[0], ["A."]);
+  conferir("mais de tres opcoes: ficam as tres primeiras", opcoesDeParagrafos([["A.", "B.", "C.", "D."], ["E."]]).opcoes[0], ["A.", "B.", "C."]);
+  conferir("so os dois primeiros grupos valem", opcoesDeParagrafos([["A."], ["B."], ["C."]]).opcoes.length, 2);
+  conferir("formato antigo (texto solto no lugar do grupo) vira grupo de uma opcao", opcoesDeParagrafos(["A.", "B."]).opcoes, [["A."], ["B."]]);
+  conferir("lixo no lugar da lista vira vazio, sem quebrar", opcoesDeParagrafos(null), { opcoes: [], longos: [] });
+  conferir("grupo vazio fica vazio", opcoesDeParagrafos([[], ["B."]]).opcoes, [[], ["B."]]);
+
+  // O limite de cada paragrafo vale para CADA opcao.
+  const frase = (letra) => `${letra.repeat(98)}. `;
+  const longa = (ultima) => `${frase("a")}${frase("b")}${frase(ultima)}`.trim();
+  conferir("opcao acima do limite vai para a IA reescrever", opcoesDeParagrafos([["Curta.", longa("c")], ["B."]]).longos, [longa("c")]);
+  conferir("opcao exatamente no limite nao e longa", opcoesDeParagrafos([["x".repeat(LIMITE_PARAGRAFO)], ["B."]]).longos, []);
+  conferir("so as tres primeiras contam para o limite", opcoesDeParagrafos([["A.", "B.", "C.", longa("d")], ["E."]]).longos, []);
+
+  // Ultimo recurso: ficam as frases inteiras que cabem, e o corte pode igualar duas opcoes.
+  const cortadas = ajustarAoLimite([[longa("c"), longa("d"), "Curta."], [longa("e")]]);
+  conferir("corta em frases inteiras e nenhuma passa do limite", cortadas.flat().every((opcao) => opcao.length <= LIMITE_PARAGRAFO), true);
+  conferir("duas opcoes que o corte igualou viram uma", cortadas[0], [`${frase("a")}${frase("b")}`.trim(), "Curta."]);
+}
+
+console.log("\n— Download do arquivo do produto: o nome real no cabecalho, e nao o hash —");
+{
+  const { cabecalhoDeArquivo, urlDe } = await import("../src/lib/arquivos.js");
+  conferir("PDF abre na pagina e leva o nome real", cabecalhoDeArquivo("Datasheet ATmega328P.pdf", "inline"),
+    `inline; filename="Datasheet ATmega328P.pdf"; filename*=UTF-8''Datasheet%20ATmega328P.pdf`);
+  conferir("ZIP baixa e leva o nome real", cabecalhoDeArquivo("Download do driver para Windows.zip", "attachment"),
+    `attachment; filename="Download do driver para Windows.zip"; filename*=UTF-8''Download%20do%20driver%20para%20Windows.zip`);
+  conferir("acento: a forma ASCII perde o acento e a UTF-8 o guarda", cabecalhoDeArquivo("Manual técnico.pdf"),
+    `inline; filename="Manual tecnico.pdf"; filename*=UTF-8''Manual%20t%C3%A9cnico.pdf`);
+  conferir("caractere fora do latim vira _ so na forma ASCII", cabecalhoDeArquivo("Ficha 日本.pdf").includes(`filename="Ficha __.pdf"`), true);
+  conferir("quebra de linha no nome nao injeta cabecalho", /[\r\n]/.test(cabecalhoDeArquivo("a.pdf\r\nSet-Cookie: x=1")), false);
+  conferir("aspas, barras e dois-pontos saem do nome", cabecalhoDeArquivo(`a"b\\c/d:e.pdf`),
+    `inline; filename="a_b_c_d_e.pdf"; filename*=UTF-8''a_b_c_d_e.pdf`);
+  conferir("apostrofo e parenteses sao codificados no filename* (RFC 5987)", cabecalhoDeArquivo("Guia (v2) d'água.pdf").split("filename*=UTF-8''")[1],
+    "Guia%20%28v2%29%20d%27%C3%A1gua.pdf");
+  conferir("sem nome real devolve so a disposicao (o navegador usa o endereco)",
+    [cabecalhoDeArquivo(null), cabecalhoDeArquivo("   ", "attachment"), cabecalhoDeArquivo(".."), cabecalhoDeArquivo(undefined, "attachment")],
+    ["inline", "attachment", "inline", "attachment"]);
+
+  const hash = "a".repeat(32);
+  conferir("documento e certificado mudam de endereco (a resposta antiga ficou um ano no navegador)",
+    [urlDe("100103", "DOCUMENTO", `${hash}.pdf`).endsWith("?v=2"), urlDe("100103", "CERTIFICADO", `${hash}.pdf`).endsWith("?v=2")], [true, true]);
+  conferir("imagem continua com o endereco limpo", urlDe("100103", "IMAGEM", `${hash}.jpg`), `/api/arquivos/100103/imagens/${hash}.jpg`);
+}
+
 console.log("\n— Magento: atributos tecnicos em JSON —");
 const { especificacoesDosAtributosMagento } = await import("../src/lib/coleta/magento-pwa.js");
 const rotulosMagento = new Map([["comprimento", "Comprimento"], ["atributos_json", "Atributos JSON"]]);

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 
-import { TIPOS_POR_PASTA, caminhoDe } from "@/lib/arquivos";
+import { prisma } from "@/lib/db";
+import { TIPOS_POR_PASTA, cabecalhoDeArquivo, caminhoDe } from "@/lib/arquivos";
 
 const CONTEUDO = {
   ".jpg": "image/jpeg",
@@ -17,6 +18,11 @@ const CONTEUDO = {
  * que o sistema gera. Qualquer outra coisa e recusada — sem isso, um caminho
  * como "../../.env" viraria leitura de arquivo arbitrario, e o .env guarda as
  * credenciais do Bling e do Mercado Livre.
+ *
+ * O arquivo mora no disco com o nome gerado por nos (hash), mas quem baixa espera o NOME REAL que o dono
+ * enviou ("Datasheet ATmega328P.pdf"): ele esta no banco (`ProdutoArquivo.nomeOriginal`) e vai no
+ * `Content-Disposition` (pedido do dono em 05/10/2026). A busca do nome nao pode derrubar o download: se o
+ * banco falhar, o arquivo sai com o nome do endereco, como antes.
  */
 export async function GET(requisicao, { params }) {
   const { caminho } = await params;
@@ -30,18 +36,41 @@ export async function GET(requisicao, { params }) {
 
   if (!tipo) return new Response("Pasta desconhecida.", { status: 400 });
 
-  const absoluto = caminhoDe(decodeURIComponent(sku), tipo, nome);
+  const skuDecodificado = decodeURIComponent(sku);
+  const absoluto = caminhoDe(skuDecodificado, tipo, nome);
   if (!absoluto) return new Response("Caminho invalido.", { status: 400 });
 
   try {
     const bytes = await readFile(absoluto);
     const extensao = nome.slice(nome.lastIndexOf("."));
 
+    // O nome real, se houver (foto importada nao tem). So depois de o arquivo existir: nome de arquivo
+    // que nao existe nao justifica ida ao banco.
+    let nomeOriginal = null;
+    try {
+      const linha = await prisma.produtoArquivo.findFirst({
+        where: { arquivo: nome, produto: { sku: skuDecodificado } },
+        select: { nomeOriginal: true },
+      });
+      nomeOriginal = linha?.nomeOriginal ?? null;
+    } catch {
+      // Sem o banco, o download segue com o nome do endereco.
+    }
+
+    // ZIP nunca abre na pagina: baixa. O resto abre, e o nome real vai junto para o "Salvar como".
+    const disposicao = extensao === ".zip" ? "attachment" : "inline";
+    const cabecalho = cabecalhoDeArquivo(nomeOriginal, disposicao);
+    const comNome = cabecalho !== disposicao;
+
     return new Response(bytes, {
       headers: {
         "Content-Type": CONTEUDO[extensao] ?? "application/octet-stream",
-        // ZIP nunca abre na pagina: baixa.
-        ...(extensao === ".zip" ? { "Content-Disposition": `attachment; filename="${nome}"` } : {}),
+        // Sem nome real, o ZIP mantem o comportamento de antes (nome do endereco); o resto nao precisa de cabecalho.
+        ...(comNome
+          ? { "Content-Disposition": cabecalho }
+          : extensao === ".zip"
+            ? { "Content-Disposition": `attachment; filename="${nome}"` }
+            : {}),
         // O nome e gerado no envio e nunca reutilizado: pode cachear para sempre.
         "Cache-Control": "public, max-age=31536000, immutable",
       },

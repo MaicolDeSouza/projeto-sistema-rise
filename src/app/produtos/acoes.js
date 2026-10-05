@@ -397,9 +397,13 @@ async function gravarTemporarios(produto, formData) {
  * As fotos do painel de imagens do cadastro novo: saem do lote temporario (ja padronizadas)
  * para a pasta do produto, NA ORDEM em que o painel mostra, com a principal marcada.
  *
- * O navegador manda so `[{ base, principal }]`. Cada `base` e conferida (UUID sem hifens) e
- * so entra a foto que EXISTE no lote; tamanho e tipo sao lidos do disco, nao do que o
+ * O navegador manda so `[{ base, principal, finalizada }]`. Cada `base` e conferida (UUID sem
+ * hifens) e so entra a foto que EXISTE no lote; tamanho e tipo sao lidos do disco, nao do que o
  * navegador disse.
+ *
+ * SO AS VALIDADAS FICAM (pedido do dono em 04/10/2026): foto com `finalizada: false` nao e gravada, e as
+ * candidatas que sobram no lote temporario nunca chegam ao produto. Campo ausente mantem a foto (ver
+ * `reconciliarImagensDoProduto`, que tem a mesma regra e explica o porque).
  */
 async function gravarImagensDoLote(produto, formData) {
   const lote = String(formData.get("loteTemporario") ?? "");
@@ -413,7 +417,9 @@ async function gravarImagensDoLote(produto, formData) {
   }
   if (!Array.isArray(lista)) return;
 
-  const validas = lista.filter((item) => baseValida(item?.base)).slice(0, MAXIMO_IMAGENS);
+  const validas = lista
+    .filter((item) => baseValida(item?.base) && item?.finalizada !== false)
+    .slice(0, MAXIMO_IMAGENS);
   if (validas.length === 0) return;
 
   const movidas = await moverImagensParaProduto(

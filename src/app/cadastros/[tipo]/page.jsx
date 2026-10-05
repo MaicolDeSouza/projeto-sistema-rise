@@ -87,18 +87,26 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
           : undefined,
         orderBy: { nome: "asc" },
         include: {
-          fonte: { select: { id: true, tipo: true, ativa: true } },
-          _count: { select: { produtos: true } },
+          // A contagem e dos produtos COLETADOS da fonte ligada (Mercados), contados
+          // no banco: carregar os milhares de produtos so para saber quantos sao
+          // seria o custo de uma tela inteira. Os vinculos com produtos da Rise (que
+          // eram o numero desta coluna) continuam no formulario e na trava de exclusao.
+          fonte: {
+            select: { id: true, tipo: true, ativa: true, _count: { select: { produtos: true } } },
+          },
         },
       });
       parceiros = registros.map((r) => ({
         id: r.id,
         nome: r.nome,
+        cnpj: r.cnpj,
+        estrangeiro: r.estrangeiro,
         contato: [r.contato, r.telefone, r.email].filter(Boolean).join(" · "),
         site: r.site,
         ativo: r.ativo,
-        fonte: r.fonte,
-        usos: r._count.produtos,
+        fonte: r.fonte && { id: r.fonte.id, tipo: r.fonte.tipo, ativa: r.fonte.ativa },
+        // Sem fonte ligada nao ha o que contar: a tela mostra travessao, e nao 0.
+        usos: r.fonte ? r.fonte._count.produtos : null,
       }));
     } else if (tipo === "concorrentes") {
       const registros = await prisma.concorrente.findMany({

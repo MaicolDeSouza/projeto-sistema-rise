@@ -110,14 +110,14 @@ requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 284 asserções da extração, da conciliação e das medidas, SEM rede
+npm run teste:extracao            # 316 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
 npm run teste:coleta              # 43 asserções da gravação no banco (usa o Postgres, SEM rede)
-npm run teste:cadastros           # 69 asserções: CPF/CNPJ/CEP/telefone e a ligação fonte -> cadastro (Postgres, SEM rede)
+npm run teste:cadastros           # 80 asserções: CPF/CNPJ/CEP/telefone, CNPJ obrigatório do fornecedor e a ligação fonte -> cadastro (Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
@@ -126,6 +126,7 @@ npm run teste:worker              # 58 asserções: rede, fila, retomada e o wor
 npm run foto:mensal               # tira a foto mensal de preço e estoque (só se passou do dia 14 e o mês não tem foto); `-- --forcar` ignora o dia
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
+npm run teste:imagens             # 197 asserções das fotos: padronização, lote temporário, Photoroom simulado e a edição das fotos de um produto que já existe, com a regra "só as validadas ficam" (Postgres e dados/, SEM rede)
 npm run teste:anuncios-ml         # 346 asserções do rascunho de anúncio do Mercado Livre: composição, validação, payload, ícone, gravação e frases fixas (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 ```
 
@@ -1529,7 +1530,9 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
 - **A marcação NÃO é gravada**, por decisão do dono: serve só para gerar o texto. O Mercados
   continua sem vínculo com `Produto`.
 - **A janela só busca e marca; os botões de IA ficam no formulário**, pedido do dono no mesmo
-  dia. O título é **só o símbolo (✦) ao lado da lupa**, e só aparece com referências marcadas.
+  dia. O título era **só o símbolo (✦) ao lado da lupa** (**substituído em 04/10/2026 pela lista "Escolher o
+  título"**, que traz os títulos dos produtos marcados e a opção de IA; ver mais abaixo), e só aparece com
+  referências marcadas.
   **"Criar descrição"** fica no topo da **aba Descrição** e abre uma janela própria
   (`JanelaDescricao.jsx`): à esquerda, os produtos marcados **em abas lado a lado** (a cor do
   ponto diz fornecedor ou concorrente; ficha, descrição da loja e link); à direita, a criação
@@ -1584,6 +1587,18 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
   ordem: foi o que deu três opções realmente diferentes no teste do relé. Por isso a marcação
   (`marcados`) mora no `FormularioProduto`, e não na janela: os botões precisam dela com a janela
   fechada. As palavras enviadas à IA são as do Nome no momento do clique.
+- **O título agora é escolhido numa LISTA, e o botão "✦" saiu do sistema** (pedido do dono em 04/10/2026).
+  Ao lado da lupa, depois que há produtos marcados, o botão **"Escolher o título"** (`ListaDeTitulos`, em
+  `FormularioProduto.jsx`) abre uma lista só com:
+  - os **títulos dos produtos de fornecedores e concorrentes marcados na lupa**, cada um com a loja e o tipo e a
+    contagem dos 60 do Mercado Livre (passar de 60 não impede escolher: o Nome mostra o aviso). Entram em
+    **MAIÚSCULAS**, como o padrão da loja (o que o Bling já usa), e **sem repetir**: o mesmo nome em duas lojas
+    vira uma linha com as duas origens;
+  - e, **na mesma lista**, a opção **"Gerar título com IA"**, que chama a **mesma ação de antes**
+    (`criarTitulosIA` → `gerarTitulos`, o mesmo `PADRAO_TITULO`, 3 opções de até 60 caracteres) e põe as 3 na
+    própria lista, com o selo "IA" e o link "Gerar outras opções".
+  Nada vai para o Nome até o dono clicar numa linha. O que não mudou: a IA só roda no clique, e o aviso de erro
+  continua embaixo do Nome.
 - **A marcação fica fora dos trechos com `key={versao}`.** Preencher o Nome remonta os campos,
   e ela sumiria junto. Por isso o formulário tem dois `Fragment` (`geral-` e `abas-`).
   O `BotaoIA` pode ser remontado no meio da geração porque o estado da chamada também é do
@@ -1669,7 +1684,7 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
   vem da ferramenta, não do bloqueio.
 - **Cor dos ícones = uso, e não disponibilidade** (pedido do dono em 16/09/2026, revisto no
   mesmo dia): **azul enquanto não usado, verde depois** (`usos` no `FormularioProduto`, com
-  `COR_DE_USO` e `BORDA_DE_USO`). Lupa (verde quando há referências marcadas), ✦ título,
+  `COR_DE_USO` e `BORDA_DE_USO`). Lupa (verde quando há referências marcadas), lista de título (era o ✦),
   varinha do código e $ preço sempre aparecem. **Ícone de lista (marca, modelo, homologação,
   peso, medidas, NCM) some quando as referências não trazem aquele dado.** Antes foi cinza e
   sem dado, e chegou a ser vermelho quando não usado; o dono pediu azul. "Usado" é escolher um
@@ -1784,6 +1799,62 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
 - **Remover uma referência só DESTA geração** (lixeira em cada aba): não desmarca na lupa nem
   mexe no que está salvo — pedido do dono: "não excluir fonte". Reabrir a janela (que reseta o
   estado local `excluidos`) traz todas de volta.
+- **Sair com texto gerado pergunta antes** (pedido do dono em 04/10/2026: clicar fora fechava a janela e
+  perdia o texto sem avisar). Clique fora, X e Esc passam por `pedirFechamento`, no molde do "Sair sem
+  salvar?" do editor do Mercado Livre. **Só pergunta quando há o que perder**: texto já gerado, ou geração em
+  andamento (fechar a descarta, e ela é paga); janela vazia fecha direto. O aviso oferece **Continuar
+  editando**, **Sair sem usar** e **Usar esta descrição** (o "salvar" desta janela, o mesmo botão de baixo,
+  desabilitado enquanto houver parâmetro aguardando escolha). Com o aviso aberto, o Esc o fecha e volta à edição.
+- **3 opções para cada um dos 2 primeiros parágrafos** (pedido do dono em 04/10/2026). A IA devolve
+  `paragrafos` como DOIS grupos, `[[p1a, p1b, p1c], [p2a, p2b, p2c]]` (`OPCOES_DE_PARAGRAFO`), e a descrição
+  nasce com a **primeira** de cada. A janela mostra as 6 opções em duas listas de escolha, e clicar numa troca
+  **a linha do parágrafo** no texto (`trocarParagrafo`, em `revisaoDescricao.js`).
+  - **O limite de 230 caracteres vale para CADA opção** (`opcoesDeParagrafos`): a que passa volta para a IA
+    reescrever (uma segunda chamada, todas as opções), e a que ainda passar fica nas frases inteiras que cabem
+    (`ajustarAoLimite`); o corte pode igualar duas opções, e a repetida sai. Repetida, em branco e a quarta em
+    diante também saem. Faltar opção não é erro; só não vir nenhuma é.
+  - **Parágrafo editado à mão não é trocado "no escuro"**: a troca procura a linha exata, e se o dono mexeu
+    nela a janela avisa em vez de escrever a opção no lugar errado. `organizarDescricao` só mexe nas
+    especificações, então as linhas dos parágrafos não mudam sob a troca.
+  - O retorno de `criarDescricaoIA` ganhou `opcoesParagrafos`; `texto` continua sendo a descrição pronta.
+  - **A janela não importa `anuncio.js`** (puxaria o SDK e o banco para o navegador): por isso o limite não
+    aparece como "x/230" na tela, só a contagem de caracteres.
+
+**Fotos do produto: só as validadas são salvas, o botão Baixar e a ampliada com setas** (`PainelDeImagens.jsx`,
+pedidos do dono em 04/10/2026):
+- **SÓ AS FOTOS VALIDADAS FICAM.** Ao salvar o produto, apenas as fotos com o **check verde** (`finalizada`,
+  que o dono marca com "Escolher essa" em Melhorar) são salvas; **as demais são excluídas** (a linha, o
+  arquivo no disco e, no produto novo, nunca chegam a ser gravadas). Vale para o produto novo
+  (`gravarImagensDoLote`) e para o existente (`reconciliarImagensDoProduto`, que devolve `naoValidadas`).
+  - **O que decide é o `false` EXPLÍCITO; campo ausente MANTÉM a foto.** Um formulário aberto antes da regra
+    salva sem o campo, e tratar a falta como "não validada" apagaria as fotos de um produto inteiro.
+    Por isso `imagemParaTela` faz toda foto nova nascer com `finalizada: false`, e o formulário manda o valor
+    como está (`imagem.finalizada`, sem `Boolean(...)`).
+  - **SALVA = VALIDADA.** Como só a validada é salva, toda foto que já estava no produto volta **com o check**
+    ao reabrir (`prepararFotosDoProduto` devolve `finalizada: true`). Sem isso, as fotos antigas (de antes da
+    regra) e as importadas do Bling voltariam sem check e **seriam apagadas no próximo Salvar**; nenhum
+    produto existente teve foto apagada por isto. Foto que não abriu no painel (arquivo ilegível) segue
+    preservada, nunca apagada por não estar validada.
+  - O painel diz o que vai acontecer: "N fotos · M validadas · K sem validar serão excluídas ao salvar", e o
+    limite de 100 conta só as validadas (`FormularioProduto` confere o que está sendo enviado). O texto da tela
+    é "validada"; o nome no código segue `finalizada`.
+  - **A coluna `ProdutoArquivo.finalizada` (migration `20261004_arquivo_finalizada`) ficou SEM USO.** Nasceu
+    na primeira versão, que gravava o check; na mesma sessão a regra virou "só validada é salva", e gravar o
+    check deixou de ter função. Nada a lê nem a escreve. Foi deixada para não mexer no schema com outra frente
+    ativa; **remover na próxima migration de quem alterar o schema.**
+  - Trocar o conteúdo da foto (Melhorar, voltar ao original) zera a validação na tela (`trocar`): a decisão do
+    dono recomeça. Testado em `teste:imagens` (os três destinos, campo ausente, todas sem check).
+- **A foto ampliada ganhou setas** (`AmpliacaoDeFoto`, em `ImagemComZoom.jsx`): clicar na foto principal abre
+  a ampliada com seta anterior/próxima, as setas do teclado e o contador "2 / 5". As setas **não dão a volta**
+  (na primeira o "anterior" apaga, na última o "próxima"), e a foto do painel de trás acompanha (usa o mesmo `ir`
+  das setas do painel). É opcional (`aoNavegar`): a janela de revisão, que compara original com melhorada, não
+  passa nada e fica como era, com as setas do teclado engolidas.
+- **Botão Baixar** entre Melhorar e Excluir (o destrutivo continua por último): baixa a foto que está na
+  tela (a padronizada 1024x1024, ou a melhorada, se foi a escolhida). É um `<a download>` para o endereço do
+  próprio sistema (`/api/temporarios/...`), sem rota nova. O nome do arquivo é o SKU digitado no formulário
+  e a posição (`100103-2.jpg`), ou `foto-N.jpg` sem SKU: sem isso, toda foto de todo produto se chamaria
+  `foto-1.jpg` e uma sobrescreveria a outra na pasta de downloads. O SKU é lido do campo na hora do clique e
+  limpo (só letras, números, ponto, hífen e sublinhado). Apagado enquanto a foto está sendo ajustada.
 
 ## Produtos: edição rápida na lista (30/09/2026)
 
@@ -1977,6 +2048,25 @@ um bloco `{ ... }` por assunto, cada um começando em `await limpar()` (apaga pr
   PDF/imagem). O Windows manda `application/x-zip-compressed`, então os dois tipos entram, e o
   servidor só aceita se o conteúdo começar com `PK` (o tipo vem do navegador). Limite de 20 MB, o
   mesmo dos PDFs (o `bodySizeLimit` é 24 MB). A rota `/api/arquivos` serve `.zip` como download.
+- **O arquivo baixado leva o NOME REAL, e não o hash** (pedido do dono em 05/10/2026: baixava como
+  `d408461a…pdf` em vez de `Datasheet ATmega328P.pdf`). O arquivo mora no disco com nome gerado por nós (32
+  hexadecimais), mas a lista já mostrava `ProdutoArquivo.nomeOriginal`; a rota `/api/arquivos` não o informava
+  ao navegador. Agora ela busca o nome no banco e manda `Content-Disposition` (`cabecalhoDeArquivo`, em
+  `arquivos.js`): PDF e imagem continuam **abrindo na página** (`inline`, e o "Salvar como" já sugere o nome
+  certo) e ZIP **baixa** (`attachment`).
+  - **O nome real é texto de terceiro** (vem do navegador de quem enviou) e vai para um cabeçalho HTTP:
+    saem quebra de linha (injeção de cabeçalho), aspas, barras e dois-pontos, e vai em duas formas, a ASCII e
+    a `filename*` UTF-8 (RFC 5987), para "Manual técnico.pdf" não virar "Manual t_cnico.pdf".
+  - **A busca do nome não derruba o download**: se o banco falhar, o arquivo sai com o nome do endereço, como
+    antes. Sem nome real (foto importada) também.
+  - **`urlDe` acrescenta `?v=2` a documento e certificado** (imagem não). A rota guarda a resposta por um
+    ano (`immutable`), e as respostas já guardadas no navegador não têm o nome real; mudar o endereço faz buscar
+    de novo. A rota ignora o parâmetro, e o endereço é calculado (nunca gravado). Testado em `teste:extracao`.
+  - **Clicar no documento BAIXA, não abre janela** (pedido do dono em 05/10/2026). O link da lista (documentos
+    e certificado, em `FormularioProduto.jsx`) perdeu o `target="_blank"` — com ele o ZIP abria uma aba em
+    branco e o PDF abria no navegador — e ganhou `download` com o nome real. O **ícone e o nome ficam dentro do
+    mesmo link** (o ícone virou o de download), então clicar em qualquer um baixa. Quem quiser só ver o PDF
+    perde essa saída pela lista; a rota continua servindo `inline`, então o endereço aberto direto ainda mostra.
 - **Fotos do produto: até 100** (`MAXIMO_IMAGENS`, pedido do dono em 04/10/2026; eram 9), e o painel
   do cadastro novo guarda 150 candidatas (`MAXIMO_FOTOS_NO_PAINEL`, sempre acima do limite do
   produto). Os canais aceitam menos (Shopee 9, Mercado Livre 12): cada anúncio escolhe as suas, e o
@@ -2074,6 +2164,28 @@ tela tem um link "← Cadastros" (`LinkDeVolta`, em `src/components/ui/`, usado 
   pela ação, pelo formulário e pelo teste) e guardado **formatado**, para "11222333000181" e
   "11.222.333/0001-81" não virarem dois textos. Vale para fornecedor, transportadora e cliente.
   Antes só se contava 14 dígitos no fornecedor.
+- **Fornecedor: CNPJ obrigatório, salvo o ESTRANGEIRO** (pedido do dono em 04/10/2026). Coluna
+  `Fornecedor.estrangeiro` (`Boolean @default(false)`, migration `20261004_fornecedor_estrangeiro`). Botão
+  **Estrangeiro** ao lado do CNPJ (`CampoCnpjFornecedor`): ligado, o campo fica desabilitado e vazio e só o
+  nome é obrigatório. O navegador não envia campo desabilitado, então a marca vai num campo oculto
+  `estrangeiro=on`; o **servidor zera o CNPJ** de quem chega marcado (`exigirCnpjSalvoEstrangeiro`, em
+  `src/lib/validacao.js`, testado em `teste:cadastros`) e recusa a falta dos dois com o erro no campo `cnpj`.
+  - **O componente vale para os DOIS formulários de fornecedor**: o completo e o cadastro rápido dentro de
+    Produtos (`CadastroRapidoFornecedor`), que chama a mesma `salvarParceiro`. Sem o botão ali, não haveria
+    como cadastrar um estrangeiro por aquele popup depois de o CNPJ virar obrigatório.
+  - **Fornecedor criado pela fonte de Mercados** (`garantirCadastroDaFonte`) nasce sem CNPJ e sem a marca,
+    porque grava direto no banco, sem passar pelo formulário. O formulário passa a exigir um dos dois no
+    próximo Salvar. Os 6 existentes em 04/10/2026 já tinham CNPJ.
+- **Lista de fornecedores** (`TabelaParceiros`): coluna **CNPJ** logo depois do Nome (flag `cnpj` em
+  `PARCEIROS`; o estrangeiro mostra o selo "Estrangeiro"). **"Produtos" = produtos COLETADOS da fonte ligada**
+  (`_count` de `ProdutoColetado`, feito no banco; travessão quando não há fonte), e não mais os vínculos com
+  produtos cadastrados na Rise: a Fortek mostrava 3 contra 1.979 coletados, e o dono estranhou. Os vínculos
+  continuam na trava de exclusão (`recadoDeUso`) e no rodapé do formulário. Enquanto uma varredura corre, o
+  número sobe junto e pode passar do "coletados" da tela Fontes, que só avança quando a coleta fecha.
+- **Site do cadastro** (`CampoSite`): botão **Abrir site** ao lado do campo, que abre o endereço digitado em
+  outra aba. O campo continua de digitar (clicar dentro dele para corrigir não pode sair da tela); o botão só
+  acende com http/https válido, porque `javascript:` num `href` executaria código. Vale para fornecedor e
+  concorrente (mesmo formulário) e para o cadastro rápido.
 - **Cascata (`blocos.js` → `filhos`, `SidebarItem.jsx`) — hoje NENHUM bloco a usa**, mas o código do menu
   continua suportando (Cadastros a usou até 21/09/2026): um nível, cada filho é um link. A
   seta é um botão **irmão** do link, não filho (botão dentro de `<a>` é HTML inválido e o clique
@@ -2197,7 +2309,7 @@ mistura com fornecedor** (o Bling junta os dois numa tela).
   (`Fornecedor.condicoesPagamento`, o que ele negociou) é outra coisa e ficou.**
 - **Dado pessoal (LGPD):** CPF, endereço e telefone ficam só no Postgres local e entram nos
   dumps do `npm run backup` (que ficam em `dados/`, fora do git). Nada vai a marketplace ou ERP.
-- `npm run teste:cadastros`: 69 asserções (CPF, CNPJ, CEP, telefone e a ligação fonte → cadastro; a parte
+- `npm run teste:cadastros`: 80 asserções (CPF, CNPJ, CEP, telefone, CNPJ obrigatório do fornecedor e a ligação fonte → cadastro; a parte
   do banco usa fontes de teste e as apaga).
 
 **Pendências combinadas com o dono (não implementadas):**

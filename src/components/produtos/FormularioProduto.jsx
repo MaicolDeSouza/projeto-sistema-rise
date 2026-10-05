@@ -200,74 +200,152 @@ function Interruptor({ nome, inicial }) {
 }
 
 /**
- * So o simbolo, ao lado da lupa (pedido do dono em 16/09/2026). O clique pede
- * opcoes de titulo a IA e abre a lista para escolher; nada vai para o Nome ate
- * o operador clicar numa delas.
+ * Uma opcao da lista de titulos: o texto, de onde veio (ou o selo "IA") e quanto ocupa dos 60 do Mercado
+ * Livre. Passar de 60 nao impede escolher: o Nome mostra o aviso e o dono edita.
  */
-function BotaoTitulosIA({ ia, aoCriar, aoEscolher, aoFechar, usado }) {
+function LinhaDeTitulo({ titulo, origem, selo, aoEscolher }) {
+  const passou = titulo.length > LIMITE_TITULO_ML;
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => aoEscolher(titulo)}
+        className="flex w-full items-start justify-between gap-3 rounded border border-borda px-3 py-2 text-left hover:border-acento hover:bg-sky-50"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-medium break-words">{titulo}</span>
+          {(origem || selo) && (
+            <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-suave">
+              {selo && (
+                <span className="inline-flex items-center gap-1 rounded bg-sky-100 px-1.5 py-0.5 font-medium text-sky-800">
+                  <Sparkles size={10} />
+                  {selo}
+                </span>
+              )}
+              {origem && <span className="truncate">{origem}</span>}
+            </span>
+          )}
+        </span>
+        <span
+          className={`shrink-0 pt-0.5 text-[11px] tabular-nums ${passou ? "font-medium text-amber-700" : "text-suave"}`}
+        >
+          {titulo.length}/{LIMITE_TITULO_ML}
+        </span>
+      </button>
+    </li>
+  );
+}
+
+/**
+ * O titulo do produto, escolhido numa lista (pedido do dono em 04/10/2026), ao lado da lupa. A lista traz,
+ * num lugar so:
+ *  - os titulos dos produtos de fornecedores e concorrentes MARCADOS na lupa, para escolher UM;
+ *  - e a opcao de GERAR o titulo com IA, que escreve 3 opcoes no padrao da loja (a mesma acao e o mesmo
+ *    padrao do botao antigo: ver `gerarTitulos`) e as poe na propria lista.
+ * Nada vai para o Nome ate o operador clicar numa linha. Substitui o botao "✦", que so gerava com IA e
+ * saiu do sistema.
+ *
+ * Os titulos das referencias entram em MAIUSCULAS, como o padrao da loja (o que o Bling ja usa), e sem
+ * repetir: dois fornecedores com o mesmo nome de produto viram uma linha, com as duas origens.
+ */
+function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
+  const [aberta, setAberta] = useState(false);
   if (ia.quantos === 0) return null;
+
   const emCurso = ia.gerando && ia.emCurso === "titulo";
-  const opcoes = ia.opcoesTitulo;
+  const opcoesDaIA = ia.opcoesTitulo;
+
+  const porTitulo = new Map();
+  for (const item of referencias) {
+    const titulo = String(item.nome ?? "").replace(/\s+/g, " ").trim().toLocaleUpperCase("pt-BR");
+    if (!titulo) continue;
+    const origem = `${item.fonte} (${item.tipo === "FORNECEDOR" ? "fornecedor" : "concorrente"})`;
+    if (porTitulo.has(titulo)) porTitulo.get(titulo).push(origem);
+    else porTitulo.set(titulo, [origem]);
+  }
+
+  function escolher(titulo) {
+    setAberta(false);
+    aoEscolher(titulo);
+  }
 
   return (
     <div className="relative mt-6 shrink-0">
       <button
         type="button"
-        onClick={() => aoCriar("titulo")}
-        disabled={ia.gerando}
-        title={`Criar opcoes de titulo com IA (usa os ${ia.quantos} produto(s) marcados na lupa)`}
-        aria-label="Criar opcoes de titulo com IA"
-        className={`rounded border p-2.5 hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-60 ${
-          usado ? BORDA_DE_USO.usado : BORDA_DE_USO.funcao
-        }`}
+        onClick={() => setAberta((atual) => !atual)}
+        title={`Escolher o titulo: dos ${ia.quantos} produto(s) marcados na lupa, ou gerado com IA`}
+        aria-label="Escolher o titulo"
+        aria-expanded={aberta}
+        className={`rounded border p-2.5 hover:bg-fundo ${usado ? BORDA_DE_USO.usado : BORDA_DE_USO.funcao}`}
       >
-        {emCurso ? (
-          <Loader size={18} className="animate-spin" />
-        ) : (
-          <Sparkles size={18} />
-        )}
+        {emCurso ? <Loader size={18} className="animate-spin" /> : <ListChecks size={18} />}
       </button>
       <BolhaDeAjuda
-        texto={`Cria opcoes de titulo com IA usando os ${ia.quantos} produto(s) marcados na lupa do Nome.`}
+        texto={`Escolha o titulo entre os dos ${ia.quantos} produto(s) marcados na lupa, ou gere um com IA. Nada vai para o Nome ate voce clicar numa opcao.`}
       />
 
-      {opcoes && (
-        <ListaFlutuante largura="w-[34rem]" espaco="mt-2" aoFechar={aoFechar}>
+      {aberta && (
+        <ListaFlutuante largura="w-[36rem]" espaco="mt-2" aoFechar={() => setAberta(false)}>
           <div className="flex items-center justify-between px-2 pt-1 pb-2">
             <span className="text-sm font-semibold">Escolha um titulo</span>
             <button
               type="button"
-              onClick={aoFechar}
-              aria-label="Fechar opcoes de titulo"
+              onClick={() => setAberta(false)}
+              aria-label="Fechar a lista de titulos"
               className="rounded p-1 text-suave hover:bg-fundo"
             >
               <X size={14} />
             </button>
           </div>
-          <ul className="space-y-1">
-            {opcoes.map((titulo) => (
-              <li key={titulo}>
+
+          <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppercase">
+            Dos produtos marcados ({porTitulo.size})
+          </p>
+          {porTitulo.size === 0 ? (
+            <p className="px-2 pb-2 text-sm text-suave">Os produtos marcados nao tem titulo.</p>
+          ) : (
+            <ul className="max-h-72 space-y-1 overflow-y-auto">
+              {[...porTitulo].map(([titulo, origens]) => (
+                <LinhaDeTitulo key={titulo} titulo={titulo} origem={origens.join(" · ")} aoEscolher={escolher} />
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-2 border-t border-borda pt-2">
+            <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppercase">Com IA</p>
+            {opcoesDaIA ? (
+              <>
+                <ul className="space-y-1">
+                  {opcoesDaIA.map((titulo) => (
+                    <LinhaDeTitulo key={titulo} titulo={titulo} selo="IA" aoEscolher={escolher} />
+                  ))}
+                </ul>
                 <button
                   type="button"
-                  onClick={() => aoEscolher(titulo)}
-                  className="flex w-full items-center justify-between gap-3 rounded border border-borda px-3 py-2 text-left text-sm font-medium hover:border-acento hover:bg-sky-50"
+                  onClick={() => aoCriar("titulo")}
+                  disabled={ia.gerando}
+                  className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-xs text-acento hover:underline disabled:opacity-60"
                 >
-                  <span>{titulo}</span>
-                  <span className="shrink-0 text-[11px] text-suave tabular-nums">
-                    {titulo.length}/{LIMITE_TITULO_ML}
-                  </span>
+                  {emCurso ? <Loader size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                  {emCurso ? "Escrevendo..." : "Gerar outras opcoes"}
                 </button>
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            onClick={() => aoCriar("titulo")}
-            className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-xs text-acento hover:underline"
-          >
-            <Sparkles size={12} />
-            Gerar outras opcoes
-          </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => aoCriar("titulo")}
+                disabled={ia.gerando}
+                className="flex w-full items-center gap-2 rounded border border-dashed border-acento px-3 py-2 text-left text-sm font-medium text-acento hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {emCurso ? <Loader size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                <span>{emCurso ? "Escrevendo os titulos..." : "Gerar titulo com IA"}</span>
+                <span className="ml-auto text-[11px] font-normal text-suave">
+                  3 opcoes, no padrao da loja
+                </span>
+              </button>
+            )}
+          </div>
         </ListaFlutuante>
       )}
     </div>
@@ -1096,7 +1174,7 @@ function CampoNome({
   ia,
   aoCriarIA,
   aoEscolherTitulo,
-  aoFecharTitulos,
+  referencias,
   usos,
 }) {
   const [tamanho, setTamanho] = useState((inicial ?? "").length);
@@ -1150,12 +1228,12 @@ function CampoNome({
           <BolhaDeAjuda texto="Marca produtos parecidos de fornecedores e concorrentes como referencia: preenche preco, marca, modelo e medidas, e cria titulo e descricao com IA." />
         </button>
         {/* Aparece depois que produtos foram marcados na janela da lupa. */}
-        <BotaoTitulosIA
+        <ListaDeTitulos
           usado={usos.tem("titulo")}
           ia={ia}
+          referencias={referencias}
           aoCriar={aoCriarIA}
           aoEscolher={aoEscolherTitulo}
-          aoFechar={aoFecharTitulos}
         />
       </div>
       <ErroIA ia={ia} qual="titulo" />
@@ -1248,14 +1326,20 @@ function Documento({ produtoId, tipo, rotulo, ajuda, arquivos }) {
             key={arquivo.id}
             className="flex items-center gap-2 rounded border border-borda px-2 py-1.5"
           >
-            <FileText size={14} className="shrink-0 text-suave" />
+            {/*
+              BAIXA o arquivo (pedido do dono em 05/10/2026: clicar abria uma janela nova e nao baixava nada).
+              O icone e o nome ficam DENTRO do mesmo link, entao clicar em qualquer um baixa. Sem
+              `target="_blank"`: com ele o ZIP abria uma aba em branco e o PDF abria no navegador, em vez de
+              baixar. `download` leva o nome real (o endereco e do proprio sistema, entao o atributo vale).
+            */}
             <a
               href={arquivo.url}
-              target="_blank"
-              rel="noreferrer"
-              className="min-w-0 flex-1 truncate text-sm hover:text-acento"
+              download={arquivo.nomeOriginal ?? arquivo.arquivo}
+              title="Baixar"
+              className="group/doc flex min-w-0 flex-1 items-center gap-2 text-sm hover:text-acento"
             >
-              {arquivo.nomeOriginal ?? arquivo.arquivo}
+              <Download size={14} className="shrink-0 text-suave group-hover/doc:text-acento" />
+              <span className="truncate">{arquivo.nomeOriginal ?? arquivo.arquivo}</span>
             </a>
             <button
               type="button"
@@ -1957,9 +2041,12 @@ export default function FormularioProduto({
       // O painel guarda mais fotos do que o produto leva (as candidatas dos produtos marcados na
       // lupa). Lido do que esta sendo ENVIADO, e nao do estado: a acao nao pode enxergar uma foto
       // velha. Recusar aqui evita o servidor cortar as fotos que sobram sem o dono ver.
+      // So contam as que serao SALVAS: as sem o check verde (`finalizada: false`) sao excluidas no Salvar.
       let fotosNoEnvio = 0;
       try {
-        fotosNoEnvio = JSON.parse(formData.get("imagensDoLote") ?? "[]").length;
+        fotosNoEnvio = JSON.parse(formData.get("imagensDoLote") ?? "[]").filter(
+          (foto) => foto?.finalizada !== false,
+        ).length;
       } catch {
         // Campo ilegivel: o servidor ignora e o produto vai sem fotos do painel.
       }
@@ -1967,7 +2054,7 @@ export default function FormularioProduto({
         fotosNoEnvio > MAXIMO_IMAGENS
           ? {
               ok: false,
-              erro: `O painel tem ${fotosNoEnvio} fotos e o produto leva no maximo ${MAXIMO_IMAGENS}. Exclua ${fotosNoEnvio - MAXIMO_IMAGENS} (Melhorar > Excluir).`,
+              erro: `${fotosNoEnvio} fotos estao validadas e o produto leva no maximo ${MAXIMO_IMAGENS}. Tire a validacao ou exclua ${fotosNoEnvio - MAXIMO_IMAGENS} (Melhorar).`,
             }
           : await salvarProduto(produto?.id ?? null, anterior, formData);
 
@@ -2193,6 +2280,10 @@ export default function FormularioProduto({
             principal: posicao === 0,
             // Da foto que ja era do produto: o servidor sabe qual linha ela substitui ou mantem.
             arquivoId: imagem.arquivoId ?? null,
+            // O check verde = foto VALIDADA. So as validadas sao salvas; as com `false` sao excluidas no
+            // Salvar. Vai como esta, e NAO como `Boolean(...)`: foto vinda de uma tela antiga nao tem o
+            // campo, e o ausente quer dizer "nao sei" (o servidor a mantem), enquanto `false` quer dizer "excluir".
+            finalizada: imagem.finalizada,
           })),
         )}
       />
@@ -2265,7 +2356,7 @@ export default function FormularioProduto({
                 ia={ia}
                 aoCriarIA={criarComIA}
                 aoEscolherTitulo={escolherTitulo}
-                aoFecharTitulos={() => setOpcoesTitulo(null)}
+                referencias={[...marcados.values()]}
                 usos={usos}
               />
             </div>

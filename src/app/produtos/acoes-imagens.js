@@ -49,6 +49,9 @@ function imagemParaTela(lote, base, extra = {}) {
   return {
     base,
     url: `/api/temporarios/${lote}/imagens/${base}.jpg?v=${Date.now()}`,
+    // Toda foto que entra no painel nasce NAO validada, e o dono a valida (check verde) ou ela nao e salva.
+    // Tem que ser `false` explicito, e nao ausente: so o `false` faz o servidor deixar a foto de fora.
+    finalizada: false,
     ampliada: false,
     // `melhorada`: a versao que vai para o produto AGORA e a melhorada. `temMelhorada`: ela foi
     // comprada e esta guardada, mesmo que a escolhida seja a original (o dono alterna entre as duas).
@@ -244,6 +247,8 @@ export async function importarFotosDasReferencias(lote, ids, vagas) {
  * painel do cadastro novo). Cada uma e copiada para o lote, padronizada, e volta com o `arquivoId` da linha
  * de origem, que o Salvar usa para saber o que e do produto e o que e novo.
  *
+ * Cada uma volta com a marca `finalizada` (o check verde) ligada: so foto validada e salva.
+ *
  * Vem NA ORDEM em que o produto as mostra: a principal primeiro, e depois a ordem gravada. As que nao
  * puderam entrar (arquivo sumido ou ilegivel) voltam em `naoCarregadas`: o formulario as manda de volta
  * como "preservar", senao o Salvar acharia que foram excluidas e as apagaria.
@@ -282,6 +287,11 @@ export async function prepararFotosDoProduto(lote, produtoId) {
             ampliada: resultado.ampliada,
             origem: { largura: resultado.origem.largura, altura: resultado.origem.altura },
             arquivoId: linha.id,
+            // SALVA = VALIDADA: so as fotos validadas sao salvas (04/10/2026), entao toda foto que
+            // ja estava no produto volta com o check verde. Nao ha o que ler no banco, e assim as fotos
+            // antigas (de antes da regra, e as importadas do Bling) tambem voltam validadas e nao sao
+            // apagadas no proximo Salvar.
+            finalizada: true,
           }),
         );
       } catch {

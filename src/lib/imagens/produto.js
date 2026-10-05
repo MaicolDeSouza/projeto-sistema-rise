@@ -31,8 +31,19 @@ import { baseValida, lerDoLote, moverImagensParaProduto } from "./lote";
  * Ordem das operacoes, para uma falha nao deixar o produto sem foto: primeiro os arquivos novos
  * entram na pasta, depois as linhas mudam, e so no fim os arquivos velhos saem.
  *
+ * SO AS FOTOS VALIDADAS FICAM (pedido do dono em 04/10/2026: ao salvar, apenas as imagens validadas serao
+ * salvas e as demais serao excluidas). "Validada" e o check verde (`finalizada`), que o formulario manda
+ * em cada foto. Foto com `finalizada: false` NAO entra no plano: se ja era do produto, cai em "removida"
+ * (linha e arquivo apagados); se era candidata (referencias, envio), nunca chega a ser gravada.
+ *
+ * O que decide e o `false` EXPLICITO. Campo AUSENTE (`undefined`) quer dizer "o formulario nao sabe" e a
+ * foto fica: um formulario aberto antes desta regra salva sem o campo, e tratar a falta como "nao
+ * validada" apagaria as fotos de um produto inteiro. Por isso tambem a foto que ja estava salva volta
+ * sempre como validada ao reabrir (ver `prepararFotosDoProduto`): salva = validada.
+ *
  * @param {{ produto: { id: string, sku: string }, lote: string,
- *           itens: Array<{ base: string, arquivoId?: string }>, preservar?: string[] }} entrada
+ *           itens: Array<{ base: string, arquivoId?: string, finalizada?: boolean }>,
+ *           preservar?: string[] }} entrada
  */
 export async function reconciliarImagensDoProduto({ produto, lote, itens, preservar = [] }) {
   const vistas = new Set();
@@ -40,9 +51,16 @@ export async function reconciliarImagensDoProduto({ produto, lote, itens, preser
   for (const item of Array.isArray(itens) ? itens : []) {
     if (!baseValida(item?.base) || vistas.has(item.base)) continue;
     vistas.add(item.base);
-    lista.push({ base: item.base, arquivoId: typeof item.arquivoId === "string" ? item.arquivoId : null });
+    lista.push({
+      base: item.base,
+      arquivoId: typeof item.arquivoId === "string" ? item.arquivoId : null,
+      // So `false` de verdade tira a foto; qualquer outra coisa (ausente, texto) a mantem.
+      validada: item.finalizada !== false,
+    });
   }
-  const escolhidas = lista.slice(0, MAXIMO_IMAGENS);
+  const validadas = lista.filter((item) => item.validada);
+  const naoValidadas = lista.length - validadas.length;
+  const escolhidas = validadas.slice(0, MAXIMO_IMAGENS);
 
   const atuais = await prisma.produtoArquivo.findMany({
     where: { produtoId: produto.id, tipo: "IMAGEM" },
@@ -94,7 +112,9 @@ export async function reconciliarImagensDoProduto({ produto, lote, itens, preser
   const naLista = new Set(plano.filter((p) => p.linha).map((p) => p.linha.id));
   const removidas = atuais.filter((linha) => !naLista.has(linha.id) && !preservadas.has(linha.id));
   const arquivosVelhos = removidas.map((linha) => linha.arquivo);
-  const contagem = { mantidas: 0, substituidas: 0, novas: 0, removidas: removidas.length };
+  // `naoValidadas`: as que o painel mandou sem o check e por isso ficaram de fora (as que ja eram do
+  // produto tambem entram em `removidas`).
+  const contagem = { mantidas: 0, substituidas: 0, novas: 0, removidas: removidas.length, naoValidadas };
 
   await prisma.$transaction(async (tx) => {
     for (const [posicao, passo] of plano.entries()) {

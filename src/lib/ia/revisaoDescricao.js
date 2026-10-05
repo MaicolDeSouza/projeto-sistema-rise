@@ -119,6 +119,29 @@ export function moverEspecificacaoPorPasso(texto, origem, direcao) {
   return moverEspecificacao(texto, origem, destino);
 }
 
+/**
+ * Troca um dos dois primeiros paragrafos da descricao por outra opcao (pedido do dono em 04/10/2026: a IA
+ * escreve 3 opcoes de cada um e ele escolhe). Cada paragrafo mora numa LINHA, entao e essa linha, igual ao
+ * texto do paragrafo atual, que sai.
+ *
+ * Devolve `null` quando a linha nao existe mais: o dono editou, moveu ou apagou o paragrafo a mao, e trocar
+ * "no escuro" poderia escrever a opcao no lugar errado. Quem chama avisa o dono, em vez de adivinhar.
+ *
+ * @param {string} texto a descricao inteira
+ * @param {string} atual o paragrafo que esta no texto agora
+ * @param {string} novo a opcao que entra no lugar
+ * @returns {string | null}
+ */
+export function trocarParagrafo(texto, atual, novo) {
+  const procurado = String(atual ?? "").trim();
+  if (!procurado) return null;
+  const linhas = String(texto).split("\n");
+  const indice = linhas.findIndex((linha) => linha.trim() === procurado);
+  if (indice < 0) return null;
+  linhas[indice] = String(novo ?? "").trim();
+  return linhas.join("\n");
+}
+
 export function organizarDescricao(texto) {
   const linhas = String(texto).replace(/\r\n/g, "\n").split("\n");
   const { inicio, fim } = limitesEspecificacoes(linhas.join("\n"));

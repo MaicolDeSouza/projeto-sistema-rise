@@ -126,11 +126,11 @@ function SeloFinalizada({ aoDesfazer, desativado }) {
       type="button"
       onClick={aoDesfazer}
       disabled={desativado}
-      aria-label="Desfazer: tirar a marca de finalizada"
+      aria-label="Desfazer: tirar a validacao da foto"
       title="Desfazer"
       className="group/selo inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
     >
-      <Check size={12} strokeWidth={3} /> Finalizada
+      <Check size={12} strokeWidth={3} /> Validada
       <X size={12} className="opacity-70 group-hover/selo:opacity-100" />
     </button>
   );
@@ -564,7 +564,7 @@ export default function JanelaDeFotos({
           <h2 className="text-sm font-semibold">Fotos do produto</h2>
           <span className="text-xs text-suave">
             {atual
-              ? `Foto ${indice + 1} de ${total} · ${finalizadas} finalizada${finalizadas === 1 ? "" : "s"}`
+              ? `Foto ${indice + 1} de ${total} · ${finalizadas} validada${finalizadas === 1 ? "" : "s"}`
               : "Nenhuma foto"}
           </span>
           <button

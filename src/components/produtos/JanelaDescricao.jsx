@@ -8,11 +8,11 @@ import {
   useState,
   useTransition,
 } from "react";
-import { ArrowRight, ExternalLink, Loader, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
+import { ArrowRight, Check, ExternalLink, Loader, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
 
 import { buscarDescricoesParaProduto, criarDescricaoIA } from "@/app/produtos/acoes";
 import { linhasDeEspecificacao, medidasDaDescricao } from "@/lib/medidas";
-import { adicionarEspecificacao, formatarLinhaTecnica, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, organizarDescricao, removerEspecificacao } from "@/lib/ia/revisaoDescricao";
+import { adicionarEspecificacao, formatarLinhaTecnica, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, organizarDescricao, removerEspecificacao, trocarParagrafo } from "@/lib/ia/revisaoDescricao";
 import LinhasDescricao from "./LinhasDescricao";
 
 /// Cor do ponto de cada aba: verde fornecedor, amarelo concorrente — as mesmas
@@ -219,15 +219,24 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   // excluir fonte" — a marcacao de verdade continua na lupa, e reabrir a
   // janela traz tudo de volta). Guarda so o id, resetado em `abrir()`.
   const [excluidos, setExcluidos] = useState(() => new Set());
+  // O aviso "Sair sem usar?" (ver `pedirFechamento`).
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false);
+  // As 3 opcoes de cada um dos 2 primeiros paragrafos (pedido do dono em 04/10/2026), `[[p1a, p1b, p1c],
+  // [p2a, p2b, p2c]]`, e qual esta no texto agora em cada grupo. O texto nasce com a primeira de cada.
+  const [opcoesParagrafos, setOpcoesParagrafos] = useState([]);
+  const [escolhidosParagrafos, setEscolhidosParagrafos] = useState([0, 0]);
 
   function abrir() {
     const leitura = ++leituraAtual.current;
     const atual = lerProduto();
     setAberta(true);
+    setConfirmandoSaida(false);
     setErro(null);
     setProduto(atual);
     setDetalhes(null);
     setTexto("");
+    setOpcoesParagrafos([]);
+    setEscolhidosParagrafos([0, 0]);
     setDivergencias([]);
     setSelecoes({});
     setOpcoesRestantes({});
@@ -257,9 +266,25 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   function fechar() {
     leituraAtual.current++;
     geracaoAtual.current++;
+    setConfirmandoSaida(false);
     setAberta(false);
   }
-  const fecharPeloTeclado = useEffectEvent(fechar);
+
+  /**
+   * Todo caminho de fechar (clique fora, X e Esc) passa por aqui (pedido do dono em 04/10/2026: clicar
+   * fora fechava a janela e perdia a descricao sem perguntar). Pergunta so quando ha o que perder: texto
+   * ja gerado, ou geracao em andamento (fechar a descarta, e ela e paga). Janela sem nada gerado fecha
+   * direto, senao o aviso viraria ruido. Com o aviso ja aberto, o Esc o fecha e volta para a edicao.
+   */
+  function pedirFechamento() {
+    if (confirmandoSaida) {
+      setConfirmandoSaida(false);
+      return;
+    }
+    if (texto.trim() || gerando) setConfirmandoSaida(true);
+    else fechar();
+  }
+  const fecharPeloTeclado = useEffectEvent(pedirFechamento);
 
   useEffect(() => {
     if (!aberta) return;
@@ -301,6 +326,9 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
         setTexto((resultado.divergencias?.length ?? 0) > 0
           ? garantirSecaoEspecificacoes(resultado.texto)
           : resultado.texto);
+        // O texto usa a primeira opcao de cada paragrafo; o dono troca na lista de opcoes.
+        setOpcoesParagrafos(resultado.opcoesParagrafos ?? []);
+        setEscolhidosParagrafos([0, 0]);
         setDivergencias(resultado.divergencias ?? []);
         setSelecoes({});
         setConfirmadas(new Set());
@@ -312,6 +340,27 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
         if (geracao === geracaoAtual.current) setErro(falha?.message ?? "Falha ao chamar a IA.");
       }
     });
+  }
+
+  /**
+   * Poe no texto a opcao `indice` do paragrafo `grupo` (0 = primeiro, 1 = segundo). Troca a LINHA do
+   * paragrafo que esta la agora; se o dono editou essa linha a mao, nao acha e avisa, em vez de escrever a
+   * opcao em lugar errado (ver `trocarParagrafo`).
+   */
+  function escolherParagrafo(grupo, indice) {
+    const lista = opcoesParagrafos[grupo] ?? [];
+    const atual = lista[escolhidosParagrafos[grupo]];
+    const novo = lista[indice];
+    if (!novo || indice === escolhidosParagrafos[grupo]) return;
+
+    const trocado = trocarParagrafo(texto, atual, novo);
+    if (trocado === null) {
+      setErro("Este paragrafo foi editado no texto e nao da para trocar por uma opcao. Edite la, ou gere de novo.");
+      return;
+    }
+    setErro(null);
+    setTexto(trocado);
+    setEscolhidosParagrafos((anteriores) => anteriores.map((valor, posicao) => (posicao === grupo ? indice : valor)));
   }
 
   function excluirOpcao(divergencia, indice) {
@@ -395,6 +444,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     }
     if (Number.isInteger(selecoes.peso)) camposEscolhidos.pesoKg = lidas.pesoKg ?? "";
     aoUsar(final, { camposEscolhidos });
+    setConfirmandoSaida(false);
     setAberta(false);
   }
 
@@ -413,7 +463,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
       onClick={(evento) => {
-        if (evento.target === evento.currentTarget) fechar();
+        if (evento.target === evento.currentTarget) pedirFechamento();
       }}
     >
       <section
@@ -426,7 +476,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
           <span className="text-sm font-semibold">Criar descricao</span>
           <button
             type="button"
-            onClick={fechar}
+            onClick={pedirFechamento}
             aria-label="Fechar criar descricao"
             className="rounded p-1 text-suave hover:bg-fundo"
           >
@@ -539,6 +589,50 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             {erro && <p className="mb-2 text-sm text-red-700">{erro}</p>}
 
             <div ref={rolagemDescricao} className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+              {texto && opcoesParagrafos.some((opcoes) => opcoes.length > 1) && (
+                <section aria-label="Opcoes dos paragrafos">
+                  <h3 className="mb-2 text-sm font-semibold">Escolha os 2 primeiros paragrafos</h3>
+                  {opcoesParagrafos.map((opcoes, grupo) =>
+                    opcoes.length === 0 ? null : (
+                      <div key={grupo} role="radiogroup" aria-label={`Opcoes do paragrafo ${grupo + 1}`} className="mb-3">
+                        <p className="mb-1 text-xs font-semibold text-suave">Paragrafo {grupo + 1}</p>
+                        <ul className="space-y-1">
+                          {opcoes.map((opcao, indice) => {
+                            const escolhida = escolhidosParagrafos[grupo] === indice;
+                            return (
+                              <li key={opcao}>
+                                <button
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={escolhida}
+                                  onClick={() => escolherParagrafo(grupo, indice)}
+                                  className={`flex w-full items-start gap-2 rounded border px-3 py-2 text-left text-sm ${
+                                    escolhida
+                                      ? "border-acento bg-sky-50"
+                                      : "border-borda bg-superficie hover:border-acento"
+                                  }`}
+                                >
+                                  <span
+                                    className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                                      escolhida ? "border-acento bg-acento text-white" : "border-borda"
+                                    }`}
+                                  >
+                                    {escolhida && <Check size={11} strokeWidth={3} />}
+                                  </span>
+                                  <span className="min-w-0 flex-1">{opcao}</span>
+                                  <span className="shrink-0 text-[11px] text-suave tabular-nums">
+                                    {opcao.length}
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ),
+                  )}
+                </section>
+              )}
               {texto ? (
                 <section>
                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -601,6 +695,58 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
           </div>
         </div>
       </section>
+
+      {confirmandoSaida && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={(evento) => {
+            if (evento.target === evento.currentTarget) setConfirmandoSaida(false);
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="descricao-sair-titulo"
+            className="w-full max-w-md rounded-lg border border-borda bg-superficie p-4 shadow-2xl"
+          >
+            <p id="descricao-sair-titulo" className="text-sm font-semibold">
+              Sair sem usar a descricao?
+            </p>
+            <p className="mt-1 text-sm text-suave">
+              {texto.trim()
+                ? "O texto desta janela ainda nao foi usado e sera perdido."
+                : "A descricao ainda esta sendo escrita e sera perdida."}
+            </p>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setConfirmandoSaida(false)}
+                className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+              >
+                Continuar editando
+              </button>
+              <button
+                type="button"
+                onClick={fechar}
+                className="rounded border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+              >
+                Sair sem usar
+              </button>
+              {/* O "salvar" desta janela: o mesmo botao de baixo, que poe o texto na aba Descricao. */}
+              <button
+                type="button"
+                onClick={usar}
+                disabled={!texto.trim() || pendentes > 0}
+                title={pendentes > 0 ? `${pendentes} parametro(s) aguardam escolha.` : undefined}
+                className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Usar esta descricao
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

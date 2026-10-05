@@ -1,7 +1,18 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Check, ChevronLeft, ChevronRight, ImageOff, ImagePlus, Loader, Sparkles, Star, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  ImageOff,
+  ImagePlus,
+  Loader,
+  Sparkles,
+  Star,
+  Trash2,
+} from "lucide-react";
 
 import {
   enviarImagemAoLote,
@@ -27,6 +38,19 @@ async function tentar(acao) {
           : (erro?.message ?? "Falha inesperada ao executar a acao."),
     };
   }
+}
+
+/**
+ * Nome do arquivo baixado: o SKU que esta digitado no formulario e a posicao da foto
+ * ("100103-2.jpg"). Sem o SKU, todo download de todo produto se chamaria "foto-1.jpg" e um
+ * sobrescreveria o outro na pasta de downloads. O SKU e lido do campo na hora do clique, e nao
+ * guardado em estado: ele e um campo nao controlado e o painel nao precisa saber dele o resto do tempo.
+ * O que vem do campo e texto livre, entao so ficam letras, numeros, ponto, hifen e sublinhado.
+ */
+function nomeParaBaixar(link, posicao) {
+  const sku = link.closest("form")?.elements.namedItem("sku")?.value ?? "";
+  const limpo = sku.trim().replace(/[^\w.-]+/g, "_");
+  return `${limpo || "foto"}-${posicao}.jpg`;
 }
 
 // O que a janela pode mudar numa foto: a ordem, a escolha, a versao e a exclusao. E com isto que se
@@ -97,8 +121,11 @@ export default function PainelDeImagens({
   const indice = atual ? imagens.indexOf(atual) : -1;
   const cheio = imagens.length >= MAXIMO_FOTOS_NO_PAINEL;
   const ocupado = pendente || importando;
+  // Validadas = com o check verde (`finalizada`). So elas sao salvas (04/10/2026): as demais sao excluidas
+  // no Salvar, e por isso o limite do produto conta so as validadas.
   const finalizadas = imagens.filter((imagem) => imagem.finalizada).length;
-  const excedente = imagens.length - MAXIMO_IMAGENS;
+  const naoValidadas = imagens.length - finalizadas;
+  const excedente = finalizadas - MAXIMO_IMAGENS;
 
   // Com a janela aberta as alteracoes vao para o rascunho; fora dela, direto para as fotos.
   const mudarLista = (funcao) => (janelaAberta ? setRascunho(funcao) : setImagens(funcao));
@@ -152,8 +179,8 @@ export default function PainelDeImagens({
     setRascunho((anterior) => [...lista, ...anterior.filter((imagem) => imagem.excluida)]);
   }
 
-  // "Finalizada" so existe na tela: marca que o dono ja decidiu por esta foto. Nao vai para o
-  // servidor nem para o produto.
+  // "Finalizada" marca que o dono ja decidiu por esta foto (o check verde). Vai no Salvar do produto
+  // (`ProdutoArquivo.finalizada`) e volta ao reabrir; ate ele salvar, so existe aqui na tela.
   function finalizar(base, valor) {
     mudarLista((anteriores) =>
       anteriores.map((outra) => (outra.base === base ? { ...outra, finalizada: valor } : outra)),
@@ -363,7 +390,7 @@ export default function PainelDeImagens({
             {atual.finalizada && (
               <span
                 className="pointer-events-none absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white shadow"
-                title="Foto finalizada"
+                title="Foto validada"
               >
                 <Check size={14} strokeWidth={3} />
               </span>
@@ -424,6 +451,31 @@ export default function PainelDeImagens({
           >
             <Sparkles size={12} /> Melhorar
           </button>
+          {/*
+            Baixa a foto que esta na tela (a padronizada 1024x1024, ou a melhorada, se foi a escolhida).
+            E um link com `download`, e nao um botao que busca o arquivo: o endereco e do proprio sistema
+            (`/api/temporarios/...`), entao o navegador baixa direto. Fica ENTRE Melhorar e Excluir para o
+            botao destrutivo continuar sendo o ultimo. Enquanto a foto esta sendo ajustada ("Ajustando a
+            foto...") o arquivo pode estar mudando, e o link fica apagado.
+          */}
+          <a
+            href={atual.url}
+            download="foto.jpg"
+            aria-disabled={pendente}
+            title="Baixar esta foto"
+            onClick={(evento) => {
+              if (pendente) {
+                evento.preventDefault();
+                return;
+              }
+              evento.currentTarget.download = nomeParaBaixar(evento.currentTarget, indice + 1);
+            }}
+            className={`inline-flex items-center gap-1 rounded border border-borda px-2 py-1 text-[11px] text-texto hover:bg-fundo ${
+              pendente ? "pointer-events-none opacity-50" : ""
+            }`}
+          >
+            <Download size={12} /> Baixar
+          </a>
           <button
             type="button"
             onClick={() => excluir(atual)}
@@ -466,18 +518,20 @@ export default function PainelDeImagens({
 
       {imagens.length > 0 && (
         <p
-          className={`mt-1 flex shrink-0 items-center gap-1.5 text-[10px] ${excedente > 0 ? "font-medium text-amber-700" : "text-suave"}`}
+          className={`mt-1 flex shrink-0 items-center gap-1.5 text-[10px] ${excedente > 0 || naoValidadas > 0 ? "font-medium text-amber-700" : "text-suave"}`}
         >
           <span>
-            {imagens.length} foto{imagens.length === 1 ? "" : "s"} · {finalizadas} finalizada
+            {imagens.length} foto{imagens.length === 1 ? "" : "s"} · {finalizadas} validada
             {finalizadas === 1 ? "" : "s"}
             {excedente > 0
-              ? ` · exclua ${excedente} (maximo ${MAXIMO_IMAGENS})`
+              ? ` · tire ${excedente} (maximo ${MAXIMO_IMAGENS})`
               : ` · maximo ${MAXIMO_IMAGENS}`}
+            {naoValidadas > 0 &&
+              ` · ${naoValidadas} sem validar ${naoValidadas === 1 ? "sera excluida" : "serao excluidas"} ao salvar`}
           </span>
           {/* Mensagem informativa: icone "i" (padrao do sistema), e nao texto fixo nem dica escondida. */}
           <BolhaDeAjuda
-            texto={`O produto leva no maximo ${MAXIMO_IMAGENS} fotos, na ordem da tira, e a primeira e a principal: arraste as miniaturas para ordenar. Finalizadas sao as que voce ja decidiu usar.`}
+            texto={`Ao salvar o produto, so as fotos validadas (com o check verde) sao salvas: as demais sao excluidas. Valide em Melhorar > Escolher essa. O produto leva no maximo ${MAXIMO_IMAGENS} fotos, na ordem da tira, e a primeira e a principal: arraste as miniaturas para ordenar.`}
             variante="inline"
           />
         </p>
@@ -499,7 +553,16 @@ export default function PainelDeImagens({
       )}
 
       {ampliada && atual && (
-        <AmpliacaoDeFoto src={atual.url} alt="Foto do produto" aoFechar={() => setAmpliada(false)} />
+        <AmpliacaoDeFoto
+          src={atual.url}
+          alt="Foto do produto"
+          aoFechar={() => setAmpliada(false)}
+          // Setas para passar de foto sem fechar: usa o mesmo `ir` das setas do painel, entao a foto de tras
+          // acompanha (fechar a ampliada nao devolve a vitrine a uma foto antiga).
+          posicao={indice}
+          total={imagens.length}
+          aoNavegar={ir}
+        />
       )}
 
       {janelaAberta && (

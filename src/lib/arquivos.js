@@ -107,7 +107,45 @@ export function caminhoDe(sku, tipo, nome) {
 
 /** Endereco pelo qual a interface pede o arquivo. Calculado, nunca gravado. */
 export function urlDe(sku, tipo, nome) {
-  return `/api/arquivos/${encodeURIComponent(sku)}/${PASTAS[tipo]}/${nome}`;
+  const endereco = `/api/arquivos/${encodeURIComponent(sku)}/${PASTAS[tipo]}/${nome}`;
+  // Documento e certificado ganham `?v=2` (05/10/2026): a rota guarda a resposta por um ano (`immutable`, o
+  // nome gerado nunca e reutilizado), e as respostas ja guardadas no navegador saem SEM o nome real do
+  // arquivo (`cabecalhoDeArquivo`). Mudar o endereco faz o navegador buscar de novo. A rota ignora o
+  // parametro. Imagem nao precisa: nao tem nome real para mostrar.
+  return tipo === "IMAGEM" ? endereco : `${endereco}?v=2`;
+}
+
+/**
+ * Cabecalho `Content-Disposition` com o NOME REAL do arquivo, o que o dono enviou ("Datasheet
+ * ATmega328P.pdf"), e nao o nome gerado por nos com que ele mora no disco (32 hexadecimais, para nunca
+ * confiar no nome que vem do navegador). Sem isto o arquivo baixado saia com o hash (pedido do dono em
+ * 05/10/2026). `disposicao` e "inline" (PDF e imagem abrem na pagina, e "Salvar como" ja sugere o nome certo)
+ * ou "attachment" (ZIP baixa direto).
+ *
+ * O nome real e TEXTO DE TERCEIRO: vem do navegador de quem enviou. Ele vai para um cabecalho HTTP, entao
+ * quebra de linha (injecao de cabecalho), aspas e barras saem antes; e vai em duas formas, a ASCII (sem
+ * acento, para clientes antigos) e a `filename*` (UTF-8, RFC 5987), para "Manual técnico.pdf" nao virar
+ * "Manual t_cnico.pdf".
+ *
+ * Sem nome real (foto importada, arquivo antigo), devolve so a disposicao: o navegador usa o endereco.
+ */
+export function cabecalhoDeArquivo(nomeOriginal, disposicao = "inline") {
+  const limpo = String(nomeOriginal ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/[\\/:*?"<>|]/g, "_")
+    .trim();
+  if (!limpo || /^\.+$/.test(limpo)) return disposicao;
+
+  const ascii = limpo
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^\x20-\x7e]/g, "_");
+  // `encodeURIComponent` deixa passar ' ( ) *, que o RFC 5987 manda codificar.
+  const utf8 = encodeURIComponent(limpo).replace(
+    /['()*]/g,
+    (caractere) => `%${caractere.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `${disposicao}; filename="${ascii}"; filename*=UTF-8''${utf8}`;
 }
 
 // ---------------------------------------------------------------------------

@@ -635,10 +635,12 @@ try {
     const salvo = await reconciliarImagensDoProduto({
       produto: alvo,
       lote: loteEdicao,
+      // Todas validadas (o check verde): so as validadas ficam (04/10/2026), e este bloco testa os tres
+      // destinos de foto que FICA. A regra de quem sai tem bloco proprio, mais abaixo.
       itens: [
-        { base: novaFoto.base },
-        { base: aberto.imagens[0].base, arquivoId: linhaA.id },
-        { base: abertaAntiga.base, arquivoId: linhaAntiga.id },
+        { base: novaFoto.base, finalizada: true },
+        { base: aberto.imagens[0].base, arquivoId: linhaA.id, finalizada: true },
+        { base: abertaAntiga.base, arquivoId: linhaAntiga.id, finalizada: true },
       ],
       preservar: [sumida.id],
     });
@@ -678,6 +680,22 @@ try {
     });
     conferir("reabrir e salvar sem mudar nada nao reescreve nem apaga nada", [semMudar.mantidas, semMudar.substituidas, semMudar.novas, semMudar.removidas], [3, 0, 0, 0]);
 
+    // SALVA = VALIDADA (04/10/2026): so as fotos validadas sao salvas, entao toda foto que ja estava no
+    // produto volta com o check verde ao reabrir. Isso tambem protege as fotos antigas (de antes da regra) e as
+    // importadas do Bling: sem o check elas seriam apagadas no proximo Salvar.
+    const lotesCheck = [];
+    const abrirParaCheck = async () => {
+      const lote = randomUUID();
+      lotesCheck.push(lote);
+      return { lote, ...(await acoes.prepararFotosDoProduto(lote, produtoEdicao.id)) };
+    };
+    conferir("toda foto que ja estava salva volta VALIDADA ao reabrir", reaberto.imagens.map((i) => i.finalizada), [true, true, true]);
+    conferir(
+      "salvar SEM informar o check (formulario aberto antes da regra) nao apaga nada",
+      [semMudar.removidas, semMudar.naoValidadas, (await abrirParaCheck()).imagens.length],
+      [0, 0, 3],
+    );
+
     // O lote perdeu uma foto (limpeza de 24 h, outra aba): a do produto continua valendo, e nao e apagada.
     const semUma = await reconciliarImagensDoProduto({
       produto: alvo,
@@ -686,6 +704,67 @@ try {
       preservar: reaberto.naoCarregadas,
     });
     conferir("foto que sumiu do lote nao apaga a do produto", [semUma.mantidas, semUma.removidas], [3, 0]);
+
+    // SO AS VALIDADAS FICAM (pedido do dono em 04/10/2026): ao salvar, as sem o check verde sao excluidas.
+    const regra = await abrirParaCheck();
+    const candidataSemCheck = await adicionarImagem(regra.lote, await foto(900, 900));
+    const candidataComCheck = await adicionarImagem(regra.lote, await foto(950, 950));
+    const linhaQueSai = await prisma.produtoArquivo.findUnique({ where: { id: regra.imagens[1].arquivoId } });
+    const filtrado = await reconciliarImagensDoProduto({
+      produto: alvo,
+      lote: regra.lote,
+      itens: [
+        { base: regra.imagens[0].base, arquivoId: regra.imagens[0].arquivoId, finalizada: true },
+        { base: regra.imagens[1].base, arquivoId: regra.imagens[1].arquivoId, finalizada: false },
+        { base: regra.imagens[2].base, arquivoId: regra.imagens[2].arquivoId, finalizada: true },
+        { base: candidataSemCheck.base, finalizada: false },
+        { base: candidataComCheck.base, finalizada: true },
+      ],
+      preservar: regra.naoCarregadas,
+    });
+    conferir(
+      "so as validadas ficam: 2 mantidas e 1 nova; a do produto sem check sai; a candidata sem check nao entra",
+      [filtrado.mantidas, filtrado.novas, filtrado.removidas, filtrado.naoValidadas],
+      [2, 1, 1, 2],
+    );
+    conferir(
+      "a foto sem check que era do produto saiu do banco e do disco",
+      [
+        await prisma.produtoArquivo.count({ where: { id: linhaQueSai.id } }),
+        await readFile(caminhoDe(SKU_EDICAO, "IMAGEM", linhaQueSai.arquivo)).then(() => "existe", () => "sumiu"),
+      ],
+      [0, "sumiu"],
+    );
+    const aposFiltrar = await prisma.produtoArquivo.findMany({
+      where: { produtoId: produtoEdicao.id, tipo: "IMAGEM" },
+      orderBy: { ordem: "asc" },
+    });
+    conferir(
+      "o produto fica com as 3 validadas e a que nao abriu (4 linhas), so a primeira e a principal",
+      [aposFiltrar.length, aposFiltrar.map((l) => l.principal)],
+      [4, [true, false, false, false]],
+    );
+    conferir(
+      "a candidata validada entrou, a sem check nao",
+      aposFiltrar.some((l) => l.arquivo === `${candidataComCheck.base}.jpg`) &&
+        !aposFiltrar.some((l) => l.arquivo === `${candidataSemCheck.base}.jpg`),
+      true,
+    );
+
+    // Tirar o check de TODAS: o produto fica so com a que nao abriu no painel (essa nunca e apagada por isso).
+    const todasSemCheck = await abrirParaCheck();
+    const semNenhuma = await reconciliarImagensDoProduto({
+      produto: alvo,
+      lote: todasSemCheck.lote,
+      itens: todasSemCheck.imagens.map((i) => ({ base: i.base, arquivoId: i.arquivoId, finalizada: false })),
+      preservar: todasSemCheck.naoCarregadas,
+    });
+    const restantes = await prisma.produtoArquivo.findMany({ where: { produtoId: produtoEdicao.id, tipo: "IMAGEM" } });
+    conferir(
+      "todas sem check: as 3 do painel saem e so fica a ilegivel, que vira a principal",
+      [semNenhuma.mantidas, semNenhuma.removidas, restantes.map((l) => [l.id, l.principal])],
+      [0, 3, [[sumida.id, true]]],
+    );
 
     // So o que e DESTE produto: a linha de outro produto na lista e ignorada (viraria uma foto nova sem arquivo).
     const foraDoProduto = await reconciliarImagensDoProduto({
@@ -696,7 +775,7 @@ try {
     });
     conferir("id de linha que nao e do produto nao e tratado como dele", [foraDoProduto.novas, foraDoProduto.mantidas], [1, 0]);
 
-    for (const lote of [loteEdicao, loteDeNovo]) await acoes.descartarLoteDeArquivos(lote);
+    for (const lote of [loteEdicao, loteDeNovo, ...lotesCheck]) await acoes.descartarLoteDeArquivos(lote);
   } finally {
     globalThis.fetch = fetchReal;
     for (const [nome, valor] of Object.entries(envAntes)) {

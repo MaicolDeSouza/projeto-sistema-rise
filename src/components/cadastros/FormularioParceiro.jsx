@@ -8,6 +8,8 @@ import { Loader } from "lucide-react";
 import { salvarParceiro } from "@/app/cadastros/acoes";
 import { PARCEIROS } from "@/lib/cadastros";
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "./Campo";
+import CampoCnpjFornecedor from "./CampoCnpjFornecedor";
+import CampoSite from "./CampoSite";
 
 /**
  * Formulario de fornecedor ou concorrente (`slug`). `parceiro` nulo = cadastro
@@ -58,12 +60,10 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
 
         {temNegociacao && (
           <>
-            <Campo
-              nome="cnpj"
-              rotulo="CNPJ"
+            <CampoCnpjFornecedor
               erro={erros.cnpj}
-              defaultValue={valor("cnpj")}
-              placeholder="00.000.000/0000-00"
+              cnpjInicial={valor("cnpj")}
+              estrangeiroInicial={inicial.estrangeiro === true}
             />
             <Campo
               nome="contato"
@@ -79,13 +79,10 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
         <Campo nome="email" rotulo="E-mail" type="email" erro={erros.email} defaultValue={valor("email")} />
 
         <div className="md:col-span-2">
-          <Campo
-            nome="site"
-            rotulo="Site"
+          <CampoSite
             erro={erros.site}
-            defaultValue={valor("site")}
-            placeholder="https://"
-            ajuda="Endereco de venda do site, com http ou https."
+            siteInicial={valor("site")}
+            ajuda="Endereco de venda do site, com http ou https. O botao Abrir site leva ate ele."
           />
         </div>
 

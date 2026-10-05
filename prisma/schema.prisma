@@ -311,6 +311,12 @@ model ProdutoArquivo {
   /// dancarem na tela e custava uma transacao no banco a cada clique.
   principal Boolean @default(false)
 
+  /// SEM USO. Nasceu em 04/10/2026 para guardar o check verde ("validada") das fotos, e no mesmo dia o dono
+  /// decidiu que SO as fotos validadas sao salvas: toda foto gravada ja e validada, entao nao ha o que
+  /// guardar (o painel a devolve sempre validada ao reabrir). Nada le nem escreve esta coluna. Fica aqui
+  /// so para nao mexer no schema com outra frente ativa; remover na proxima migration de quem o alterar.
+  finalizada Boolean @default(false)
+
   ordem Int @default(0)
 
   criadoEm DateTime @default(now())
@@ -443,6 +449,11 @@ model Fornecedor {
   nome String @unique
 
   cnpj               String?
+  /// Fornecedor de fora do Brasil: nao tem CNPJ. Sem esta marca o CNPJ e
+  /// obrigatorio no cadastro (pedido do dono em 04/10/2026). Fornecedor criado
+  /// pela fonte de Mercados nasce sem CNPJ e sem esta marca; o formulario exige
+  /// um dos dois na proxima vez que for salvo.
+  estrangeiro        Boolean  @default(false)
   site               String?
   contato            String?
   telefone           String?

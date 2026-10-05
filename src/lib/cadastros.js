@@ -16,9 +16,15 @@
  * Lista vazia = o cadastro nao tem site varrido (transportadora), e a tela nem
  * oferece o campo.
  *
- * `usos`: o que impede a exclusao e como a coluna se chama — o fornecedor
- * abastece produtos, a transportadora e preferida por clientes. Concorrente nao
- * e usado por nada ainda.
+ * `usos`: como se chama a coluna de numero da lista. Do fornecedor e "Produtos":
+ * quantos produtos DELE o sistema tem coletados em Mercados (site ou lista), que
+ * e o que o dono quer ver ali (pedido de 04/10/2026; antes contava so os vinculos
+ * com produtos cadastrados na Rise). Da transportadora e "Clientes": quantos a tem
+ * como preferida, e esse e o numero que impede a exclusao. Quem impede a exclusao
+ * do fornecedor e `recadoDeUso`, que conta os vinculos por conta propria.
+ * Concorrente nao tem coluna de numero.
+ *
+ * `cnpj`: a lista mostra a coluna CNPJ (so o fornecedor, por enquanto).
  *
  * `artigo` e `novo` existem por causa do genero: "Ja existe uma transportadora",
  * "Nova transportadora".
@@ -33,6 +39,7 @@ export const PARCEIROS = {
     novo: "Novo",
     tiposDeFonte: ["FORNECEDOR"],
     usos: "Produtos",
+    cnpj: true,
   },
   concorrentes: {
     slug: "concorrentes",
@@ -43,6 +50,7 @@ export const PARCEIROS = {
     novo: "Novo",
     tiposDeFonte: ["CONCORRENTE", "OUTRO"],
     usos: null,
+    cnpj: false,
   },
   transportadoras: {
     slug: "transportadoras",
@@ -53,6 +61,7 @@ export const PARCEIROS = {
     novo: "Nova",
     tiposDeFonte: [],
     usos: "Clientes",
+    cnpj: false,
   },
 };
 
