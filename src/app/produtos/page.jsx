@@ -78,7 +78,7 @@ export default async function ProdutosPage({ searchParams }) {
       take: POR_PAGINA,
       include: {
         arquivos: {
-          where: { tipo: "IMAGEM" },
+          where: { tipo: "IMAGEM", papel: "FOTO" },
           orderBy: { ordem: "asc" },
           take: 1,
         },

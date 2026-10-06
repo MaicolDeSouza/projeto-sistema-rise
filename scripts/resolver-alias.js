@@ -38,6 +38,13 @@ export function resolve(especificador, contexto, proximo) {
     return proximo(pathToFileURL(destino).href, contexto);
   }
 
+  // `next/cache`, `next/navigation`...: o pacote nao tem mapa de exports, e o Node ESM exige a extensao.
+  // So para os testes importarem uma Server Action (a leitura/escrita no banco roda de verdade; o que
+  // depende do Next, como `revalidatePath`, so funciona dentro dele e o teste o captura).
+  if (/^next\/[a-z-]+$/.test(especificador)) {
+    return proximo(`${especificador}.js`, contexto);
+  }
+
   if (especificador.startsWith(".") && contexto.parentURL) {
     const base = path.dirname(fileURLToPath(contexto.parentURL));
     const destino = completarExtensao(path.resolve(base, especificador));

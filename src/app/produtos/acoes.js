@@ -703,8 +703,9 @@ export async function enviarArquivo(produtoId, tipo, _estadoAnterior, formData) 
   if (!produto) return { ok: false, erro: "Produto nao encontrado." };
 
   if (tipo === "IMAGEM") {
+    // So FOTO conta no limite: a reserva fica guardada a parte (Nano Banana).
     const quantas = await prisma.produtoArquivo.count({
-      where: { produtoId, tipo: "IMAGEM" },
+      where: { produtoId, tipo: "IMAGEM", papel: "FOTO" },
     });
     if (quantas >= MAXIMO_IMAGENS) {
       return {
@@ -729,7 +730,7 @@ export async function enviarArquivo(produtoId, tipo, _estadoAnterior, formData) 
   if (!resultado.ok) return { ok: false, erro: resultado.erro };
 
   const ultimo = await prisma.produtoArquivo.findFirst({
-    where: { produtoId, tipo },
+    where: { produtoId, tipo, papel: "FOTO" },
     orderBy: { ordem: "desc" },
     select: { ordem: true },
   });
@@ -739,7 +740,7 @@ export async function enviarArquivo(produtoId, tipo, _estadoAnterior, formData) 
   const primeira =
     tipo === "IMAGEM" &&
     (await prisma.produtoArquivo.count({
-      where: { produtoId, tipo: "IMAGEM" },
+      where: { produtoId, tipo: "IMAGEM", papel: "FOTO" },
     })) === 0;
 
   await prisma.produtoArquivo.create({
@@ -765,7 +766,9 @@ export async function removerArquivo(arquivoId) {
     where: { id: arquivoId },
     include: { produto: { select: { sku: true } } },
   });
-  if (!registro) return { ok: false, erro: "Arquivo nao encontrado." };
+  // A RESERVA nao se exclui por aqui: o arquivo mora em reserva/ (nao em imagens/) e a exclusao e decidida
+  // na tela e aplicada pelo Salvar (`reservaExcluida`). Apagar so a linha deixaria o arquivo orfao.
+  if (!registro || registro.papel !== "FOTO") return { ok: false, erro: "Arquivo nao encontrado." };
 
   await prisma.produtoArquivo.delete({ where: { id: arquivoId } });
   await apagarArquivo(registro.produto.sku, registro.tipo, registro.arquivo);
@@ -774,7 +777,7 @@ export async function removerArquivo(arquivoId) {
   // mesmo tendo fotos.
   if (registro.principal) {
     const proxima = await prisma.produtoArquivo.findFirst({
-      where: { produtoId: registro.produtoId, tipo: "IMAGEM" },
+      where: { produtoId: registro.produtoId, tipo: "IMAGEM", papel: "FOTO" },
       orderBy: { ordem: "asc" },
       select: { id: true },
     });
@@ -806,10 +809,11 @@ export async function removerArquivo(arquivoId) {
 export async function definirImagemPrincipal(arquivoId) {
   const escolhida = await prisma.produtoArquivo.findUnique({
     where: { id: arquivoId },
-    select: { id: true, produtoId: true, tipo: true },
+    select: { id: true, produtoId: true, tipo: true, papel: true },
   });
 
-  if (!escolhida || escolhida.tipo !== "IMAGEM") {
+  // A reserva nunca e foto principal.
+  if (!escolhida || escolhida.tipo !== "IMAGEM" || escolhida.papel !== "FOTO") {
     return { ok: false, erro: "Imagem nao encontrada." };
   }
 
@@ -817,7 +821,7 @@ export async function definirImagemPrincipal(arquivoId) {
   // uma falha no meio deixaria duas (ou nenhuma).
   await prisma.$transaction([
     prisma.produtoArquivo.updateMany({
-      where: { produtoId: escolhida.produtoId, tipo: "IMAGEM" },
+      where: { produtoId: escolhida.produtoId, tipo: "IMAGEM", papel: "FOTO" },
       data: { principal: false },
     }),
     prisma.produtoArquivo.update({

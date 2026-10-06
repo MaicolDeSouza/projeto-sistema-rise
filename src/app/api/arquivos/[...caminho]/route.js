@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 import { prisma } from "@/lib/db";
-import { TIPOS_POR_PASTA, cabecalhoDeArquivo, caminhoDe } from "@/lib/arquivos";
+import { PASTA_RESERVA, TIPOS_POR_PASTA, cabecalhoDeArquivo, caminhoDaReserva, caminhoDe } from "@/lib/arquivos";
 
 const CONTEUDO = {
   ".jpg": "image/jpeg",
@@ -32,6 +32,26 @@ export async function GET(requisicao, { params }) {
   }
 
   const [sku, pasta, nome] = caminho;
+
+  // Reserva de imagens (Nano Banana): sempre JPEG com nome gerado por nos, sempre aberta na pagina. Nao
+  // consulta o banco: nao ha nome real para mostrar, so a imagem.
+  if (pasta === PASTA_RESERVA) {
+    const absolutoReserva = caminhoDaReserva(decodeURIComponent(sku), nome);
+    if (!absolutoReserva) return new Response("Caminho invalido.", { status: 400 });
+    try {
+      return new Response(await readFile(absolutoReserva), {
+        headers: {
+          "Content-Type": "image/jpeg",
+          // O nome e gerado na gravacao e nunca reutilizado: pode cachear para sempre.
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      });
+    } catch (erro) {
+      if (erro.code === "ENOENT") return new Response("Arquivo nao encontrado.", { status: 404 });
+      throw erro;
+    }
+  }
+
   const tipo = TIPOS_POR_PASTA[pasta];
 
   if (!tipo) return new Response("Pasta desconhecida.", { status: 400 });

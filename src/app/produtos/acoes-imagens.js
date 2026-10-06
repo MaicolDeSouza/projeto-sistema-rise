@@ -263,7 +263,7 @@ export async function prepararFotosDoProduto(lote, produtoId) {
       select: {
         sku: true,
         arquivos: {
-          where: { tipo: "IMAGEM" },
+          where: { tipo: "IMAGEM", papel: "FOTO" },
           orderBy: [{ principal: "desc" }, { ordem: "asc" }],
           select: { id: true, arquivo: true },
         },

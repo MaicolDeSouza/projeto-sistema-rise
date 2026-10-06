@@ -214,6 +214,7 @@ console.log("\nGravacao no produto (usa o Postgres e a pasta dados/)");
 
 const SKU_TESTE = "ZZ-TESTE-IMAGENS";
 const SKU_EDICAO = "ZZ-TESTE-IMAGENS-EDICAO";
+const SKU_RESERVA = "ZZ-TESTE-RESERVA";
 const { prisma } = await import("../src/lib/db.js");
 const { anexarImagens } = await import("../src/lib/imagensImportadas.js");
 const { caminhoDe, apagarPastaProduto } = await import("../src/lib/arquivos.js");
@@ -776,6 +777,154 @@ try {
     conferir("id de linha que nao e do produto nao e tratado como dele", [foraDoProduto.novas, foraDoProduto.mantidas], [1, 0]);
 
     for (const lote of [loteEdicao, loteDeNovo, ...lotesCheck]) await acoes.descartarLoteDeArquivos(lote);
+
+    // ----- Reserva (Nano Banana): so as linhas FOTO contam; a RESERVA fica guardada e escondida -----
+    console.log("\nReserva: so FOTO conta (usa o Postgres e dados/)");
+    {
+      const { readdir } = await import("node:fs/promises");
+      const { join } = await import("node:path");
+      const { gravarNaReserva, lerDaReserva, apagarDaReserva } = await import("../src/lib/imagens/reserva.js");
+      const { caminhoDaReserva, urlDaReserva, renomearPastaProduto, apagarArquivo } = await import("../src/lib/arquivos.js");
+      const { GET: rotaDeArquivos } = await import("../src/app/api/arquivos/[...caminho]/route.js");
+      const { imagensDaOrigem } = await import("../src/lib/imagensImportadas.js");
+      const { definirImagemPrincipal, removerArquivo } = await import("../src/app/produtos/acoes.js");
+
+      await prisma.produto.deleteMany({ where: { sku: SKU_RESERVA } });
+      await apagarPastaProduto(SKU_RESERVA);
+      const produtoReserva = await prisma.produto.create({
+        data: { sku: SKU_RESERVA, tituloBase: "Produto de teste da reserva" },
+      });
+
+      // Linha criada sem informar os campos novos: FOTO, original e grupo nulo (nulo vale "o proprio id").
+      // O backfill grupo = id das linhas que JA existiam esta na migration e foi conferido na Tarefa 1.
+      const semCampos = await prisma.produtoArquivo.create({
+        data: { produtoId: produtoReserva.id, tipo: "DOCUMENTO", arquivo: `${"d".repeat(32)}.pdf` },
+      });
+      conferir(
+        "linha criada sem os campos novos vira FOTO/original, com grupo nulo (= o proprio id)",
+        [semCampos.papel, semCampos.versao, semCampos.grupo],
+        ["FOTO", "original", null],
+      );
+      await prisma.produtoArquivo.delete({ where: { id: semCampos.id } });
+
+      // gravarNaReserva: JPEG entra como esta; PNG (foto antiga) passa antes pelo padronizador.
+      const jpgUm = await foto(1000, 1000);
+      const reservaUm = await gravarNaReserva(SKU_RESERVA, jpgUm);
+      const reservaDois = await gravarNaReserva(SKU_RESERVA, await foto(900, 900));
+      conferir("reserva: nome gerado (32 hexadecimais + .jpg) e tipo image/jpeg", [/^[0-9a-f]{32}\.jpg$/.test(reservaUm.nome), reservaUm.mimeType], [true, "image/jpeg"]);
+      conferir("reserva: JPEG e gravado sem mexer nos bytes", (await lerDaReserva(SKU_RESERVA, reservaUm.nome))?.equals(jpgUm), true);
+      conferir("reserva: tamanhoBytes confere com o arquivo", reservaUm.tamanhoBytes, jpgUm.length);
+      const reservaPng = await gravarNaReserva(SKU_RESERVA, await foto(800, 600, "png"));
+      const metaPng = await sharp(await lerDaReserva(SKU_RESERVA, reservaPng.nome)).metadata();
+      conferir("reserva: PNG antigo e padronizado antes de gravar (JPEG 1024x1024)", [metaPng.format, metaPng.width, metaPng.height], ["jpeg", 1024, 1024]);
+      await apagarDaReserva(SKU_RESERVA, reservaPng.nome);
+      conferir("reserva: apagar tira o arquivo", await lerDaReserva(SKU_RESERVA, reservaPng.nome), null);
+      await apagarDaReserva(SKU_RESERVA, reservaPng.nome); // ENOENT nao e erro
+      conferir("reserva: apagar de novo nao estoura", true, true);
+      conferir("reserva: nome fora do formato nao le nada", [await lerDaReserva(SKU_RESERVA, "../../.env"), await lerDaReserva("../fora", reservaUm.nome)], [null, null]);
+
+      const criarReserva = (gravada, versao) =>
+        prisma.produtoArquivo.create({
+          data: {
+            produtoId: produtoReserva.id,
+            tipo: "IMAGEM",
+            papel: "RESERVA",
+            versao,
+            grupo: "grupo-de-teste",
+            arquivo: gravada.nome,
+            mimeType: gravada.mimeType,
+            tamanhoBytes: gravada.tamanhoBytes,
+            ordem: 0,
+            principal: false,
+          },
+        });
+      const linhaReservaUm = await criarReserva(reservaUm, "original");
+      const linhaReservaDois = await criarReserva(reservaDois, "photoroom");
+
+      // So RESERVA no produto: a primeira FOTO que chega e a principal e fica na posicao 0.
+      const primeiraAnexo = await anexarImagens(produtoReserva.id, SKU_RESERVA, [{ tipo: "endereco", endereco: dataUri(await foto(700, 700), "image/jpeg") }]);
+      const fotosA = await prisma.produtoArquivo.findMany({ where: { produtoId: produtoReserva.id, tipo: "IMAGEM", papel: "FOTO" } });
+      conferir("a RESERVA nao conta: a 1a foto de verdade e a principal, na posicao 0", [primeiraAnexo.salvas, fotosA.length, fotosA[0]?.principal, fotosA[0]?.ordem], [1, 1, true, 0]);
+
+      // 99 FOTO + 2 RESERVA: sobra 1 vaga das 100 (so FOTO conta), e nao zero.
+      await prisma.produtoArquivo.createMany({
+        data: Array.from({ length: MAXIMO_IMAGENS - 2 }, (_, i) => ({
+          produtoId: produtoReserva.id,
+          tipo: "IMAGEM",
+          arquivo: `${"e".repeat(28)}${String(i).padStart(4, "0")}.jpg`,
+          ordem: i + 1,
+        })),
+      });
+      const cheia = await anexarImagens(produtoReserva.id, SKU_RESERVA, [
+        { tipo: "endereco", endereco: dataUri(await foto(710, 710), "image/jpeg") },
+        { tipo: "endereco", endereco: dataUri(await foto(720, 720), "image/jpeg") },
+      ]);
+      conferir("as 100 fotos contam so FOTO: com 99 FOTO e 2 RESERVA sobra 1 vaga", cheia.salvas, 1);
+      const fotosCheias = await prisma.produtoArquivo.findMany({ where: { produtoId: produtoReserva.id, tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" } });
+      conferir("... e o produto fecha com 100 FOTO", fotosCheias.length, MAXIMO_IMAGENS);
+      // Volta ao produto com 1 FOTO (a do primeiro anexo) e as 2 RESERVA.
+      for (const linha of fotosCheias.slice(1)) await apagarArquivo(SKU_RESERVA, "IMAGEM", linha.arquivo);
+      await prisma.produtoArquivo.deleteMany({ where: { id: { in: fotosCheias.slice(1).map((l) => l.id) } } });
+      const fotoUnica = fotosCheias[0];
+
+      // Leituras de foto: a reserva nunca aparece.
+      const daOrigem = await imagensDaOrigem(`rise:${produtoReserva.id}`);
+      conferir("Clonar (imagensDaOrigem) so traz as FOTO", [daOrigem.fontes.length, daOrigem.previas.length], [1, 1]);
+      const loteReserva = randomUUID();
+      const aberta = await acoes.prepararFotosDoProduto(loteReserva, produtoReserva.id);
+      conferir("abrir a edicao so traz as FOTO, e a reserva nao vira 'nao carregada'", [aberta.ok, aberta.imagens.length, aberta.naoCarregadas], [true, 1, []]);
+      await acoes.descartarLoteDeArquivos(loteReserva);
+      conferir("a foto principal nao pode ser uma RESERVA", (await definirImagemPrincipal(linhaReservaUm.id)).ok, false);
+      const principaisA = await prisma.produtoArquivo.findMany({ where: { produtoId: produtoReserva.id, principal: true } });
+      conferir("... e a principal continua a FOTO", principaisA.map((l) => l.id), [fotoUnica.id]);
+
+      // Excluir a principal escolhe a proxima FOTO, nunca uma RESERVA (as RESERVA ficam na posicao 0 de proposito).
+      await anexarImagens(produtoReserva.id, SKU_RESERVA, [{ tipo: "endereco", endereco: dataUri(await foto(730, 730), "image/jpeg") }]);
+      try {
+        await removerArquivo(fotoUnica.id);
+      } catch {
+        // revalidatePath so existe dentro do Next; o banco ja foi mexido antes dele.
+      }
+      const aposRemover = await prisma.produtoArquivo.findMany({ where: { produtoId: produtoReserva.id, tipo: "IMAGEM" }, orderBy: { criadoEm: "asc" } });
+      conferir(
+        "excluir a principal passa a marca para a proxima FOTO, nunca para uma RESERVA",
+        aposRemover.map((l) => [l.papel, l.principal]).sort().map(String),
+        [["FOTO", true], ["RESERVA", false], ["RESERVA", false]].sort().map(String),
+      );
+      conferir("excluir uma RESERVA por aqui e recusado (ela se exclui pelo Salvar)", [(await removerArquivo(linhaReservaDois.id).catch(() => ({ ok: false }))).ok, await prisma.produtoArquivo.count({ where: { id: linhaReservaDois.id } })], [false, 1]);
+
+      // Guarda de codigo: nenhuma leitura de foto sem filtrar o papel.
+      const arquivosDeCodigo = (await readdir(join(process.cwd(), "src"), { recursive: true })).filter((nome) => /\.(js|jsx)$/.test(nome));
+      const semFiltro = [];
+      for (const nome of arquivosDeCodigo) {
+        const linhas = (await readFile(join(process.cwd(), "src", nome), "utf8")).split(/\r?\n/);
+        linhas.forEach((linha, i) => {
+          if (/where:\s*\{[^}]*tipo: "IMAGEM"[^}]*\}/.test(linha) && !linha.includes("papel")) semFiltro.push(`${nome}:${i + 1}`);
+        });
+      }
+      conferir("nenhuma leitura de foto sem filtrar papel", semFiltro, []);
+
+      // Caminho e endereco da reserva: nome so no formato do sistema, nunca um caminho.
+      conferir("caminhoDaReserva recusa travessia e extensao fora do padrao", [caminhoDaReserva("ZZ", "../../.env"), caminhoDaReserva("ZZ", `${"a".repeat(32)}.png`), caminhoDaReserva("../fora", reservaUm.nome)], [null, null, null]);
+      conferir("caminhoDaReserva aceita o nome gerado", caminhoDaReserva(SKU_RESERVA, reservaUm.nome)?.endsWith(join(SKU_RESERVA, "reserva", reservaUm.nome)), true);
+      conferir("urlDaReserva", urlDaReserva(SKU_RESERVA, reservaUm.nome), `/api/arquivos/${SKU_RESERVA}/reserva/${reservaUm.nome}`);
+
+      // A rota serve a pasta reserva.
+      const pedir = (caminho) => rotaDeArquivos(new Request("http://localhost/api/arquivos"), { params: Promise.resolve({ caminho }) });
+      const servida = await pedir([SKU_RESERVA, "reserva", reservaUm.nome]);
+      conferir("rota: reserva existente devolve 200 image/jpeg", [servida.status, servida.headers.get("content-type")], [200, "image/jpeg"]);
+      conferir("rota: ... com os bytes do arquivo", Buffer.from(await servida.arrayBuffer()).equals(jpgUm), true);
+      conferir("rota: nome valido que nao existe devolve 404", (await pedir([SKU_RESERVA, "reserva", `${"c".repeat(32)}.jpg`])).status, 404);
+      conferir("rota: travessia na reserva e recusada", [400, 404].includes((await pedir([SKU_RESERVA, "reserva", "../../.env"])).status), true);
+      conferir("rota: pasta desconhecida continua recusada", (await pedir([SKU_RESERVA, "outra", reservaUm.nome])).status, 400);
+
+      // Trocar o SKU leva a pasta reserva junto.
+      const skuNovoReserva = `${SKU_RESERVA}-B`;
+      await apagarPastaProduto(skuNovoReserva);
+      const trocou = await renomearPastaProduto(SKU_RESERVA, skuNovoReserva);
+      conferir("trocar o SKU leva a reserva junto", [trocou.ok, (await lerDaReserva(skuNovoReserva, reservaUm.nome))?.equals(jpgUm)], [true, true]);
+      await renomearPastaProduto(skuNovoReserva, SKU_RESERVA);
+    }
   } finally {
     globalThis.fetch = fetchReal;
     for (const [nome, valor] of Object.entries(envAntes)) {
@@ -795,6 +944,9 @@ try {
   await apagarPastaProduto(SKU_TESTE);
   await prisma.produto.deleteMany({ where: { sku: SKU_EDICAO } });
   await apagarPastaProduto(SKU_EDICAO);
+  await prisma.produto.deleteMany({ where: { sku: SKU_RESERVA } });
+  await apagarPastaProduto(SKU_RESERVA);
+  await apagarPastaProduto(`${SKU_RESERVA}-B`);
   await prisma.$disconnect();
 }
 

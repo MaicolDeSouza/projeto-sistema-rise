@@ -63,7 +63,7 @@ export async function reconciliarImagensDoProduto({ produto, lote, itens, preser
   const escolhidas = validadas.slice(0, MAXIMO_IMAGENS);
 
   const atuais = await prisma.produtoArquivo.findMany({
-    where: { produtoId: produto.id, tipo: "IMAGEM" },
+    where: { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO" },
     orderBy: { ordem: "asc" },
   });
   const porId = new Map(atuais.map((linha) => [linha.id, linha]));

@@ -105,6 +105,25 @@ export function caminhoDe(sku, tipo, nome) {
   return path.join(RAIZ, sku, pasta, nome);
 }
 
+/**
+ * Pasta da RESERVA de imagens do produto (dados/produtos/<SKU>/reserva/): originais e versoes geradas
+ * que o dono nao escolheu como foto. Fica fora de `PASTAS` de proposito: nao e um tipo de arquivo, e
+ * entrar la deixaria a rota e o `caminhoDe` tratarem a reserva como foto. Toda reserva e JPEG, com o
+ * nome gerado por nos (32 hexadecimais + .jpg).
+ */
+export const PASTA_RESERVA = "reserva";
+
+/** Caminho absoluto de um arquivo da reserva, ou null se o SKU ou o nome nao forem os do sistema. */
+export function caminhoDaReserva(sku, nome) {
+  if (!skuValido(sku) || !/^[0-9a-f]{32}\.jpg$/.test(nome ?? "")) return null;
+  return path.join(RAIZ, sku, PASTA_RESERVA, nome);
+}
+
+/** Endereco pelo qual a tela pede um arquivo da reserva. Calculado, nunca gravado. */
+export function urlDaReserva(sku, nome) {
+  return `/api/arquivos/${encodeURIComponent(sku)}/${PASTA_RESERVA}/${nome}`;
+}
+
 /** Endereco pelo qual a interface pede o arquivo. Calculado, nunca gravado. */
 export function urlDe(sku, tipo, nome) {
   const endereco = `/api/arquivos/${encodeURIComponent(sku)}/${PASTAS[tipo]}/${nome}`;

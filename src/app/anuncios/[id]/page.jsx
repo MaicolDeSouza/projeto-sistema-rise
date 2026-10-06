@@ -22,7 +22,7 @@ export default async function AnuncioPage({ params }) {
       // `imagens` deixou de existir em 27/08/2026: virou `arquivos`, uma tabela
       // so para imagem, ficha e manual. Aqui interessa a imagem, na ordem em
       // que o operador as arrumou no cadastro.
-      arquivos: { where: { tipo: "IMAGEM" }, orderBy: { ordem: "asc" } },
+      arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" } },
       anuncios: true,
     },
   });

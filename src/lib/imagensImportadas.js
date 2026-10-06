@@ -56,7 +56,8 @@ export async function bytesDe(fonte) {
  * @param {Array<{tipo: "endereco", endereco: string} | {tipo: "arquivo", sku: string, nome: string}>} fontes
  */
 export async function anexarImagens(produtoId, sku, fontes) {
-  const jaTem = await prisma.produtoArquivo.count({ where: { produtoId, tipo: "IMAGEM" } });
+  // So FOTO conta nas 100 do produto e decide a principal; a RESERVA fica guardada a parte.
+  const jaTem = await prisma.produtoArquivo.count({ where: { produtoId, tipo: "IMAGEM", papel: "FOTO" } });
   const vagas = Math.max(0, MAXIMO_IMAGENS - jaTem);
 
   let salvas = 0;
@@ -166,7 +167,7 @@ export async function imagensDaOrigem(origem, limite = MAXIMO_IMAGENS) {
       select: {
         sku: true,
         arquivos: {
-          where: { tipo: "IMAGEM" },
+          where: { tipo: "IMAGEM", papel: "FOTO" },
           orderBy: [{ principal: "desc" }, { ordem: "asc" }],
           select: { arquivo: true },
         },

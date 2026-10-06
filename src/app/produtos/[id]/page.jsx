@@ -18,7 +18,8 @@ export default async function EditarProdutoPage({ params, searchParams }) {
   const registro = await prisma.produto.findUnique({
     where: { id },
     include: {
-      arquivos: { orderBy: { ordem: "asc" } },
+      // A RESERVA de imagens nao e foto do produto: ela entra no painel pela lista `reserva`, escondida.
+      arquivos: { where: { papel: "FOTO" }, orderBy: { ordem: "asc" } },
       fornecedores: {
         include: { fornecedor: { select: { nome: true } } },
         orderBy: { criadoEm: "asc" },

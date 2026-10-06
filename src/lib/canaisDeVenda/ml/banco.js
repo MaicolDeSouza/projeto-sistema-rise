@@ -45,7 +45,7 @@ export async function contextoDosProdutos(ids) {
       pesoKg: true, alturaCm: true, larguraCm: true, comprimentoCm: true,
       custo: true, fornecedorRascunho: true,
       fornecedores: { select: { padrao: true, precoCusto: true } },
-      arquivos: { where: { tipo: "IMAGEM" }, orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }], select: { id: true, arquivo: true, principal: true } },
+      arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }], select: { id: true, arquivo: true, principal: true } },
     },
   });
 
