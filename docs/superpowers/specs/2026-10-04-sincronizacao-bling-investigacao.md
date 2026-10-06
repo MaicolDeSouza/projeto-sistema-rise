@@ -276,3 +276,55 @@ Em qualquer opção, o CNPJ vai e é comparado **só com 14 dígitos** (o Bling 
 3. O balanço (`B`) mexe no físico, e o virtual fica `balanço − reservas`? (§4.3.) E a entrada exige `preco`?
 4. O contato criado com `numeroDocumento` só de dígitos é achado pela busca seguinte? (A1.)
 5. O `PUT` com o corpo omitindo campos: só se o dono mantiver o `PUT` (§1.4).
+
+## Resultados da escrita (teste real de 05/10/2026)
+
+Feito com **um** produto de teste, `ZZ-TESTE-BLING` (id no Bling `16715406765`), com ok do dono. As duas travas
+foram abertas **só no ambiente de um script temporário** (`BLING_ESCRITA=true BLING_ESCRITA_CODIGOS=ZZ-TESTE-BLING
+node ...`; o `dotenv` não sobrescreve o ambiente), e o script se recusava a rodar se a lista de códigos liberados
+não fosse exatamente `["ZZ-TESTE-BLING"]`. O `.env` continuou com `BLING_ESCRITA=false`. O produto de teste ficou
+no Bling e no Rise; nada foi apagado no Bling.
+
+### Respostas aos 5 itens acima
+
+1. **O `PATCH` de um grupo preserva os subcampos não enviados: SIM.** Um `PATCH` cru
+   `{"estoque":{"localizacao":"T-3"}}` mudou só `estoque.localizacao`; `minimo`, `maximo` e `crossdocking`
+   continuaram. A sincronização manda o grupo inteiro, mesclado com o do Bling, o que fica redundante mas inofensivo.
+2. **Vídeo: NÃO MEDIDO.** O produto de teste não tem fotos (o Bling só aceita imagem por link público), então não
+   há como ver se `midia.video` apaga as fotos internas. O vídeo continua fora do envio (Emenda 2).
+3. **Balanço: com reservas zero, o físico e o virtual ficaram iguais ao balanço.** Saldo 0 → entrada de 10 → saída de
+   3 → 7 → balanço `B` de 5: `saldoFisicoTotal` 5 e `saldoVirtualTotal` 5. O caso com reserva (virtual =
+   balanço − reservas) não foi medido. **A entrada NÃO exige `preco`:** `POST /estoques` só com `produto`,
+   `deposito`, `operacao` e `quantidade` deu 201.
+4. **Contato criado só com dígitos: NÃO MEDIDO.** O fornecedor do teste (Fortek, CNPJ 17.142.314/0001-21) já tinha
+   contato no Bling (id `6674987146`), achado por `GET /contatos?numeroDocumento=17142314000121`; nenhum contato foi
+   criado. A busca por `numeroDocumento` só com dígitos acha o contato que já tem o documento gravado em dígitos.
+5. **`PUT`: não se aplica.** O envio é por `PATCH` (só os campos que mudaram), e o `PUT` não foi usado.
+
+### Formatos observados
+
+- **`POST /produtos`** → **201** `{data: {id, variations: null, warnings: []}}`. O corpo levou `codigo`, `tipo: "P"`,
+  `formato: "S"`, `situacao: "A"`, nome, `descricaoCurta`, preço, marca, unidade, pesos, `dimensoes` (`unidadeMedida`
+  1 = cm), `estoque.minimo/maximo/localizacao` e `tributacao.origem/ncm/cest`.
+- **O Bling reformata o que guarda:** NCM `85011019` virou `8501.10.19`, CEST `2806300` virou `28.063.00`. A
+  `descricaoCurta` voltou como foi enviada (`Linha 1 com &lt;b&gt;tag&lt;/b&gt; &amp; e-comercial<br>Linha 2 ...`,
+  escape e `<br>` preservados, acentos intactos). Mesmo assim a leitura do pop-up logo depois do cadastro mostrou
+  **zero diferenças**: a normalização iguala os dois formatos.
+- **Categoria padrão:** o Bling pôs `categoria.id` 962676 no produto criado; o Rise não envia categoria.
+- **`POST /produtos/fornecedores`** → **201** `{data: {id}}`; o vínculo voltou na listagem com `padrao: true`,
+  `precoCusto` 5,5 e `precoCompra` 0.
+- **`PATCH /produtos/{id}`** → **200** `{data: {id, variations: null, warnings: []}}`. Com só o preço mudado no Rise,
+  o corpo foi `{"preco": 15}` e, comparado o produto inteiro antes e depois, só o preço mudou (categoria e situação
+  intactas).
+- **`GET /depositos`:** 2 depósitos, um padrão (id `1423545090`, o usado nos ajustes) e outro (`1432737444`).
+- **`POST /estoques`** → **201** `{data: {id}}` para `E`, `S` e `B`. `GET /estoques/saldos?codigos[]=` devolve, por
+  produto, `saldoFisicoTotal`, `saldoVirtualTotal` e a lista `depositos` com `saldoFisico`/`saldoVirtual` de cada um.
+- **Trava por código:** com a escrita ligada e a lista só com o código de teste, sincronizar, enviar ajustes e
+  cadastrar o produto real `100103` foram recusados antes de qualquer chamada (zero escritas).
+
+### Continua sem medida
+
+Criar contato (`POST /contatos`) e achá-lo depois; `GET /contatos?pesquisa=` com nome, acentos, critério 3, páginas e
+situação E/I; `PUT /produtos/fornecedores/{id}` com as chaves extras da listagem e `padrao: false` no único vínculo;
+`POST /produtos` com o código de um produto inativo; `tributacao.grupoProduto` no corpo; saída maior que o saldo
+(físico negativo); o campo exato do 400 "nenhum produto foi informado" em `GET /estoques/saldos`; o vídeo.

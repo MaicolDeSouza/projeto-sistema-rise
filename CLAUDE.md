@@ -91,7 +91,7 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 
 | Bloco | Situação |
 | --- | --- |
-| Produtos | Cadastro completo — é a base de que todo anúncio deriva. Cadastro novo com importação do Bling, busca por código, referências de mercado e título/descrição por IA (Anthropic) |
+| Produtos | Cadastro completo — é a base de que todo anúncio deriva. Cadastro novo com importação do Bling, busca por código, referências de mercado e título/descrição por IA (Anthropic). Sincronização com o Bling: ícone na lista, pop-up de diferenças, envio de campos e de ajustes de estoque e botão "Sincronizar estoque com Bling"; a **escrita no Bling está travada** |
 | Integrações | Bling e ML conectados e testados; Loja Integrada via Bling |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
@@ -103,7 +103,9 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 
 **A publicação nunca foi ligada.** `ML_PUBLICACAO` e `BLING_ESCRITA` estão em `false`, e
 `exigirTravaLiberada` em `src/lib/integracoes/config.js` barra todo `POST`/`PUT` antes da
-requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue sem pedir.
+requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue sem pedir. Em 05/10/2026 houve um
+teste de escrita real no Bling com UM produto de teste (`ZZ-TESTE-BLING`), com as travas abertas só no ambiente
+de um script (o `.env` continuou em `false`); liberar produtos reais continua decisão do dono.
 
 ## Rodar
 
@@ -128,6 +130,7 @@ npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 197 asserções das fotos: padronização, lote temporário, Photoroom simulado e a edição das fotos de um produto que já existe, com a regra "só as validadas ficam" (Postgres e dados/, SEM rede)
 npm run teste:anuncios-ml         # 346 asserções do rascunho de anúncio do Mercado Livre: composição, validação, payload, ícone, gravação e frases fixas (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:bling-sync          # 657 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -1997,6 +2000,195 @@ um bloco `{ ... }` por assunto, cada um começando em `await limpar()` (apaga pr
   `etapa` tem que ser **atômico**: `salvarRascunhoML` lê e grava `dados` sem trava. (3) O vínculo do kit sobrevive a
   edição de itens com o mesmo código: a conferência no Bling deve comparar a composição (id + quantidade), não só o
   código. (4) `listarAnunciosML` carrega todos os anúncios ML em memória; com os 1.007 reais, filtrar e paginar no banco.
+
+## Sincronização Rise <-> Bling (04 a 05/10/2026)
+
+Pedido do dono em 04/10/2026: o Rise manda ao Bling os dados do produto (campos, fornecedores e ajustes de
+estoque) e lê de lá o saldo, e a lista de Produtos ganha um **ícone** que diz se os dois lados estão iguais.
+Spec: `docs/superpowers/specs/2026-10-04-sincronizacao-bling-design.md`; plano:
+`docs/superpowers/plans/2026-10-04-sincronizacao-bling.md`; investigação da API (só leitura) e **resultados da
+escrita real**: `docs/superpowers/specs/2026-10-04-sincronizacao-bling-investigacao.md`. **A escrita segue
+travada** (`BLING_ESCRITA=false` no `.env`): só um produto de teste foi escrito no Bling de verdade (ver "Teste
+real de 05/10/2026").
+
+### O que o dono decidiu (04/10/2026)
+
+- **O vínculo é só pelo código (SKU).** O alvo da escrita sai do código do próprio `Produto`, nunca de um id
+  guardado (Emenda 11): um `blingId` velho não pode apontar a escrita para o produto errado.
+- **A sincronização geral nunca envia código nem estoque.** O estoque vai só como **ajuste** (entrada, saída ou
+  balanço, os mesmos movimentos da edição rápida da lista), e o código só vai no cadastro de um produto novo.
+- **A descrição do Rise substitui a do Bling** (`descricaoCurta`, em HTML: texto escapado e quebra de linha
+  como `<br>`).
+- **Fornecedores por CNPJ, todos os vinculados.** Se o contato não existe no Bling, é criado lá. Contato
+  achado **só por nome** é reaproveitado **somente se não tiver documento** (emenda 3b): na investigação, 578 dos
+  603 contatos Fornecedor do Bling não têm CNPJ, e criar de novo duplicaria quase todos.
+- **Ativo/inativo não é enviado.** Nem categoria, variações, composição, campos personalizados, fotos e vídeo
+  (ver "O que nunca entra no corpo").
+- **A foto principal fica para quando o sistema estiver na VPS:** o Bling só aceita imagem por link público, e
+  as fotos do Rise estão em disco local.
+- **O estoque do Bling para o Rise só pelo botão manual** "Sincronizar estoque com Bling". O controle
+  automático também fica para a VPS.
+- **Conflito de estoque:** o estoque do Rise = saldo do Bling + ajustes pendentes do Rise. Os ajustes
+  pendentes vão ao **depósito padrão** do Bling (ou o dono escolhe o depósito quando não há padrão).
+- **Teste real com UM produto antes de qualquer produto real** (feito em 05/10/2026, abaixo).
+
+### Onde mora cada parte
+
+- **Lib** (`src/lib/blingSync/`): `campos.js` (campos de envio, normalização, assinatura, diferenças),
+  `corpo.js` (corpo do `POST`/`PATCH`), `estoque.js` (`estoqueDoRise`), `estado.js` (o ícone; **só servidor**,
+  importa `node:crypto`), `cliente.js` (o contrato `{get, post, put, patch, exigirEscrita}` e as travas),
+  `leitura.js` (`lerParaPopup`), `envio.js` (`sincronizarProduto`, `cadastrarNoBling`, `enviarAjustesDeEstoque` e
+  a trava por produto `umPorVez`), `saldos.js` (`sincronizarEstoqueDoBling`) e `apresentacao.js` (**puro**: o
+  navegador pode importá-lo).
+- **Tela:** `src/app/produtos/acoes-bling.js` (Server Actions finas), `src/components/produtos/IconeBling.jsx`,
+  `JanelaBling.jsx` (o pop-up), `BotaoSincronizarEstoque.jsx`, e `LinhaProduto.jsx`/`TabelaProdutos.jsx`/`page.jsx`
+  da lista.
+- **Banco:** `Produto.blingSincronizadoEm`, `blingAssinatura` e `blingSaldo`; `MovimentoEstoque.enviadoAoBlingEm`
+  (nulo = ajuste pendente); `BlingCopiaProduto` (o produto do Bling como estava antes de cada sobrescrita, os 3
+  mais recentes por produto).
+- **Teste:** `npm run teste:bling-sync` (`scripts/teste-bling-sync.js`), 657 asserções, **SEM rede**: o Bling
+  falso (`scripts/lib/blingFalso.js`) tem o mesmo formato do cliente real e **recusa escrita sem um
+  `exigirEscrita` antes**. Postgres local, só escreve produtos `ZZ-BS-*`.
+
+### Estado guardado e o ícone
+
+- **Cor e selo são independentes.** A **cor** diz se o produto já foi sincronizado alguma vez: **cinza = nunca**,
+  **verde = já**. O **selo "?"** aparece sobre qualquer das duas e diz que o Rise e o Bling podem estar
+  diferentes, por um de dois motivos: `campos` (a assinatura dos campos mudou desde o último envio; só vale
+  depois de sincronizado, porque produto nunca enviado não tem "campo que mudou") e `estoque` (há ajuste de
+  estoque ainda não enviado). O texto acessível e o `title` vêm de `IconeBling.jsx`.
+- **O ícone sai só do banco, sem chamar o Bling** (`iconeBlingDoProduto`). A assinatura é composta do mesmo jeito
+  que o envio a grava (`normalizarDoRise` + `normalizarFornecedoresDoRise`), senão o produto recém-sincronizado
+  apareceria como divergente. **A assinatura só avança quando todas as etapas do envio deram certo.** A ordem dos
+  vínculos de fornecedor (padrão primeiro, depois a criação) tem que ser a mesma no envio e no ícone.
+- **O pop-up** (`JanelaBling`) lê o Bling na hora, a cada abertura, e mostra campo a campo o que difere. O botão
+  principal do rodapé muda com o estado: "Cadastrar no Bling" (o código não existe lá), "Sincronizar com o
+  Bling", ou "Ler de novo" (erro de leitura). O bloco Estoque tem "Enviar ajustes de estoque" (e "Enviar ajustes
+  neste deposito" quando é preciso escolher). **Com as travas fechadas os botões continuam na tela**, e ao
+  clicar o motivo da recusa aparece em vermelho: nunca um botão que some sem dizer por quê.
+- **`blingSaldo` é o saldo VIRTUAL do Bling** (o que desconta reservas, como o importador sempre leu) e **pode
+  ser negativo**. O `estoque` do Rise é esse saldo mais os ajustes pendentes; saldo negativo no Bling deixa o
+  `estoque` do Rise em 0 e guarda o negativo em `blingSaldo`.
+
+### O que nunca entra no corpo (`corpo.js`)
+
+Código (só o `POST` o leva, como identificador), situação, imagens e vídeo (`midia`), `fornecedor` (só se grava
+por `/produtos/fornecedores`), `actionEstoque` (o valor `Z` **zera os saldos**), categoria, variações, composição e
+campos personalizados. O envio é por **`PATCH`**, não `PUT`: a documentação do Bling diz que só os campos
+informados mudam, e o `PUT` não diz o que faz com o campo omitido. Só vai o que **mudou**: cada grupo tocado
+(`dimensoes`, `estoque`, `tributacao`) vai por inteiro, mesclado com o que o Bling já tem, e o grupo que ninguém
+tocou não vai. **Campo vazio no Rise nunca apaga nada no Bling.**
+
+### Travas de segurança
+
+**Leia isto antes de ligar qualquer coisa.**
+
+- **Duas travas, e as duas precisam deixar passar:** `BLING_ESCRITA` (a geral) e `BLING_ESCRITA_CODIGOS` (a
+  lista de SKUs liberados, separados por vírgula, sem diferenciar caixa). `exigirTravaLiberada` barra todo verbo
+  que não é `GET` (`POST`, `PUT` e `PATCH`).
+- **LISTA VAZIA = TODOS OS CÓDIGOS LIBERADOS.** Variável ausente, **com o nome errado** ou só com vírgulas dá lista
+  vazia, e com `BLING_ESCRITA=true` isso libera os ~1.314 produtos de uma vez, numa conta com estoque e anúncios
+  reais. **Ao ligar a escrita para um teste, conferir ANTES, imprimindo
+  `config.travas.blingCodigosLiberados`, que a lista é a esperada e não `[]`.**
+- **As duas só são lidas UMA vez, na partida do processo** (`src/lib/integracoes/config.js`). Mudar o `.env` não
+  vale para o servidor, o worker ou o script que já estão no ar: reiniciar. (O que também vale ao contrário:
+  fechar a trava no `.env` não fecha um processo que já subiu aberto.)
+- **O teste de escrita pode ser feito SEM editar o `.env`:** passar as duas variáveis na linha de comando do
+  script, `BLING_ESCRITA=true BLING_ESCRITA_CODIGOS=ZZ-TESTE-BLING node <script>`. O `dotenv` **não sobrescreve**
+  variável que já existe no ambiente, então as travas ficam abertas só naquele processo; o `.env` continua
+  `BLING_ESCRITA=false` e os servidores, que leem as travas uma vez, continuam fechados. Foi assim em 05/10/2026,
+  e o script se recusava a rodar se a lista não fosse exatamente `["ZZ-TESTE-BLING"]`.
+- **A escrita nunca tenta de novo sozinha** (`tentativas: 1`): resposta que se perde não quer dizer que o Bling
+  não recebeu, e repetir pode escrever duas vezes. A mensagem manda conferir antes de tentar de novo.
+- **`exigirEscrita(codigo)` roda antes da primeira chamada de escrita**, para a recusa não deixar meia
+  sincronização para trás.
+- **Cópia de segurança antes de cada sobrescrita** (`BlingCopiaProduto`).
+- **A trava por produto (`umPorVez`) só vale dentro de UM processo:** dois processos (o site e um script, por
+  exemplo) não se enxergam.
+- **Para liberar produtos reais** (decisão do dono): `BLING_ESCRITA=true` e a lista com os SKUs que ele quiser,
+  de preferência poucos de cada vez. Lista vazia ou ausente libera todos.
+
+### Teste real de 05/10/2026 (um produto, com ok do dono)
+
+Medido contra o Bling de verdade, com as travas abertas só no ambiente de um script temporário (apagado depois).
+O produto de teste é **`ZZ-TESTE-BLING`** (id no Bling 16715406765): criado no Rise com descrição contendo `<b>`,
+`&`, quebra de linha e acentos, NCM 85011019, CEST 2806300, medidas, estoque mínimo e máximo e o fornecedor Fortek
+(CNPJ 17.142.314/0001-21, contato que já existia no Bling, id 6674987146, achado por
+`GET /contatos?numeroDocumento=17142314000121`). **Ele fica nos dois lados** (Rise e Bling): o dono apaga ou
+inativa quando quiser, nada foi apagado no Bling.
+
+- **Cadastrar:** `POST /produtos` → **201** `{data:{id, variations:null, warnings:[]}}`; depois
+  `POST /produtos/fornecedores` → **201** `{data:{id}}`.
+  - **O Bling reformata:** guardou o NCM como `8501.10.19` e o CEST como `28.063.00`, e a descrição como
+    `Linha 1 com &lt;b&gt;tag&lt;/b&gt; &amp; e-comercial<br>Linha 2 ...` (o escape e o `<br>` foram preservados).
+  - **Mesmo assim o pop-up logo depois mostrou ZERO diferenças** (a normalização iguala os formatos) e o ícone
+    ficou **verde**.
+  - **O Bling pôs uma categoria padrão** (`categoria.id` 962676) que o Rise não envia.
+- **Sincronizar** (mudou só o preço no Rise): o ícone ganhou o selo `campos`; `PATCH /produtos/{id}` com o corpo
+  `{"preco":15}` → **200**. Só o preço mudou no Bling (comparado o produto inteiro antes e depois): categoria,
+  situação e o resto intactos. O ícone voltou a verde. Os fornecedores não foram reenviados (já vinculados,
+  `enviados: 0`).
+- **O `PATCH` de um grupo preserva os subcampos não enviados:** um `PATCH` cru `{"estoque":{"localizacao":"T-3"}}`
+  (só no produto de teste) mudou apenas `estoque.localizacao`; `minimo`, `maximo` e `crossdocking` ficaram. A
+  sincronização envia o grupo `estoque` completo mesclado com o do Bling, o que é redundante mas inofensivo.
+- **Estoque:** `GET /depositos` devolveu 2 depósitos, um padrão (id 1423545090, o usado). `POST /estoques` →
+  **201** `{data:{id}}` para `E` (entrada de 10), `S` (saída de 3) e `B` (balanço de 5).
+  - **A entrada NÃO exige `preco`.**
+  - Saldo no Bling: 0 → 7 → balanço 5. `saldoFisicoTotal` e `saldoVirtualTotal` ficaram **ambos em 5** (sem
+    reservas, o virtual é o balanço).
+  - O Rise ficou com `estoque` 7 (depois dos dois primeiros) e 5 (depois do balanço), `blingSaldo` igual e ícone
+    verde. `sincronizarEstoqueDoBling` só desse produto: 1 atualizado.
+- **Trava por código:** com a escrita ligada e a lista só com o código de teste, `sincronizarProduto`,
+  `enviarAjustesDeEstoque` e `cadastrarNoBling` do produto **real 100103** foram **recusados** ("Escrita
+  bloqueada: o codigo 100103 nao esta na lista de codigos liberados ... Nenhum dado foi enviado."), com **zero
+  escritas** ao Bling.
+- **Contato:** o contato do fornecedor já existia, então a criação de contato (`POST /contatos`) **não foi
+  exercitada** na API real. Continua testada só contra o Bling falso.
+
+### O botão "Sincronizar estoque com Bling" (05/10/2026, com ok do dono e backup antes)
+
+Lê o saldo de **todos** os produtos do Rise no Bling (só leitura, em lotes de 100 códigos) e grava em cada um o
+`blingSaldo` e o `estoque` recalculado. Nada é escrito no Bling, e **nada roda sozinho**: o botão avisa, antes do
+clique, o que vai acontecer. Roda no servidor, e a tela mostra sempre os dois números (atualizados e falhas).
+
+- **Resultado na tela:** "1314 atualizados, 0 sem esse codigo no Bling".
+- **No banco:** os 1.314 produtos ficaram com `blingSaldo`; **50 tiveram o `estoque` alterado** (soma +6.747; os
+  serviços 9999xx foram de 10 para ~1.000, igual ao Bling); os **37 produtos com saldo NEGATIVO** no Bling ficaram
+  com `estoque` 0 (e o `blingSaldo` negativo guardado). **Nenhum `MovimentoEstoque` foi criado.**
+- **O servidor da porta 3000 pertence a outra sessão, e as Server Actions do Next rodam uma por vez:** um pop-up
+  aberto durante o botão espera a leitura em massa terminar.
+
+### O que continua SEM medida na API real
+
+Só se saberá com um teste de escrita novo, e cada item é pendência:
+
+- Criar contato de fornecedor (`POST /contatos`) e achar depois o contato criado só com dígitos.
+- `GET /contatos?pesquisa=` com nome e acentos, o critério 3, páginas e a situação E/I.
+- `PUT /produtos/fornecedores/{id}` com as chaves extras da listagem, e `padrao: false` no único vínculo.
+- `POST /produtos` com o código de um produto **inativo** no Bling (a guarda por `blingId` cobre só o caso com id
+  guardado).
+- `tributacao.grupoProduto` no corpo; saída maior que o saldo (físico negativo).
+- O campo exato do `400` "nenhum produto foi informado" de `GET /estoques/saldos` (se `description`, `message` ou
+  `fields[].msg`).
+- **O vídeo (`midia.video`) segue FORA do envio (Emenda 2).** Enviar vídeo obriga a mandar `midia.imagens`, e o
+  produto de teste não tem fotos, então não dá para provar que isso preserva as fotos do Bling. Só entra com um
+  teste que prove.
+
+### Limitações e pendências conhecidas
+
+- **PENDÊNCIA REGISTRADA: estoque automático e foto principal quando o sistema estiver na VPS.** A **foto
+  principal** depende de uma URL pública (as fotos moram em `dados/produtos/`, sem rota pública), e o **controle
+  automático do estoque** (hoje só o botão manual) também espera a VPS. Até lá: foto só pelo Bling, estoque só
+  pelo botão e pelos ajustes enviados.
+- **"N campos iguais" no pop-up não expande:** `lerParaPopup` só devolve a contagem.
+- **O "Cadastrar no Bling" do pop-up NÃO cria o `Anuncio` BLING com `idExterno`** (a importação cria). As telas de
+  Anúncios podem oferecer "Cadastrar no Bling" de novo para um produto cadastrado assim.
+- **Produto INATIVO no Bling sem `blingId` guardado:** nenhum sinal impede duplicar no cadastro (só a mensagem do
+  Sincronizar avisa).
+- **Janela de milissegundos** entre o `POST` de estoque aceito e a marca `enviadoAoBlingEm`: um "Sincronizar
+  estoque" no mesmo instante pode contar o ajuste em dobro no número LOCAL do Rise até o próximo clique (o Bling
+  fica certo).
+- **CNPJ alfanumérico** (o novo formato de 2026) não é tratado pela busca por CNPJ.
 
 ## Decisões de arquitetura
 
