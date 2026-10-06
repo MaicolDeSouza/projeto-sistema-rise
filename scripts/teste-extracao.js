@@ -1594,6 +1594,37 @@ console.log("\n— Descricao: 3 opcoes para cada um dos 2 primeiros paragrafos �
   conferir("duas opcoes que o corte igualou viram uma", cortadas[0], [`${frase("a")}${frase("b")}`.trim(), "Curta."]);
 }
 
+console.log("\n— Posicao de preco entre os concorrentes (\"2º de 10\") —");
+{
+  const { posicaoDePreco } = await import("../src/lib/posicaoDePreco.js");
+  const lojas = (...pares) => pares.map(([loja, preco]) => ({ loja, preco }));
+
+  const basico = posicaoDePreco(34.9, lojas(["A", 31.5], ["B", 36], ["C", 40]));
+  conferir("posicao conta do mais barato: 1 loja abaixo = 2º de 4", [basico.posicao, basico.total], [2, 4]);
+  conferir("mais barato e o proximo abaixo, com a loja", [basico.maisBarato, basico.abaixo], [{ loja: "A", preco: 31.5 }, { loja: "A", preco: 31.5 }]);
+  conferir("proximo acima", basico.acima, { loja: "B", preco: 36 });
+  conferir("nem primeiro nem ultimo", [basico.primeiro, basico.ultimo, basico.empatados], [false, false, 0]);
+
+  const primeiro = posicaoDePreco(30, lojas(["A", 31.5], ["B", 36]));
+  conferir("o mais barato e o 1º, sem ninguem abaixo", [primeiro.posicao, primeiro.total, primeiro.primeiro, primeiro.abaixo], [1, 3, true, null]);
+  const ultimo = posicaoDePreco(50, lojas(["A", 31.5], ["B", 36]));
+  conferir("o mais caro e o ultimo, sem ninguem acima", [ultimo.posicao, ultimo.ultimo, ultimo.acima], [3, true, null]);
+
+  const empate = posicaoDePreco(34.9, lojas(["A", 31.5], ["B", 34.9], ["C", 34.9], ["D", 40]));
+  conferir("empate fica na mesma posicao, e conta quantos empatam", [empate.posicao, empate.total, empate.empatados], [2, 5, 2]);
+  conferir("empate em centavos: 34.9 e '34,90' sao iguais", posicaoDePreco(34.9, lojas(["A", "34,90"])).empatados, 1);
+
+  const mesmaLoja = posicaoDePreco(34.9, lojas(["A", 31.5], ["A", 29], ["A", 45], ["B", 36]));
+  conferir("cada loja conta UMA vez, pelo menor preco dela", [mesmaLoja.posicao, mesmaLoja.total, mesmaLoja.maisBarato], [2, 3, { loja: "A", preco: 29 }]);
+  conferir("loja com nome em caixa ou espaco diferente e a mesma", posicaoDePreco(34.9, lojas(["Loja A", 31.5], [" loja a ", 30])).total, 2);
+
+  conferir("concorrente sem preco (ou preco zero) fica de fora", posicaoDePreco(34.9, lojas(["A", null], ["B", ""], ["C", 0], ["D", 36])).total, 2);
+  conferir("sem preco do produto: nada", posicaoDePreco(null, lojas(["A", 31.5])), null);
+  conferir("preco do produto zero ou texto vazio: nada", [posicaoDePreco(0, lojas(["A", 1])), posicaoDePreco("", lojas(["A", 1]))], [null, null]);
+  conferir("nenhum concorrente com preco: nada", posicaoDePreco(34.9, lojas(["A", null])), null);
+  conferir("preco do produto em texto com virgula vale", posicaoDePreco("34,90", lojas(["A", 31.5])).posicao, 2);
+}
+
 console.log("\n— Descricao: o prompt de escrita editavel na janela —");
 {
   const { limparPromptDaDescricao, MAXIMO_PROMPT_DESCRICAO, montarPedidoDaDescricao, PROMPT_DESCRICAO_PADRAO } =

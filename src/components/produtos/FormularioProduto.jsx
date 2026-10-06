@@ -34,6 +34,7 @@ import { UNIDADES } from "@/lib/unidades";
 import { ORIGENS, TIPOS_ITEM } from "@/lib/fiscal";
 import { LIMITE_TITULO_ML, MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/limites";
 import { medidasDaDescricao } from "@/lib/medidas";
+import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import BuscarPorCodigo from "./BuscarPorCodigo";
 import Concorrentes from "./Concorrentes";
 import EditorDescricao from "./EditorDescricao";
@@ -41,6 +42,7 @@ import Fornecedores from "./Fornecedores";
 import JanelaDescricao from "./JanelaDescricao";
 import PainelDeImagens from "./PainelDeImagens";
 import ReferenciasDeMercado, { MAXIMO_MARCADOS } from "./ReferenciasDeMercado";
+import SeloPosicaoDePreco from "./SeloPosicaoDePreco";
 import {
   descartarLoteDeArquivos,
   importarFotosDasReferencias,
@@ -677,7 +679,7 @@ function corDaMargem(preco, custo) {
   return margem >= 60 ? "text-emerald-600" : "text-yellow-600";
 }
 
-function CampoPreco({ inicial, erro, referencias, custo, precoAtual, aoAlterar, aoMudarValor, usos }) {
+function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, aoAlterar, aoMudarValor, usos }) {
   const entrada = useRef(null);
   const [aberto, setAberto] = useState(false);
   const [abertoMargem, setAbertoMargem] = useState(false);
@@ -798,7 +800,11 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, aoAlterar, 
   return (
     <CampoComIcone
       nome="precoVenda"
-      rotulo="Preco venda"
+      rotulo={
+        <>
+          Preco venda <SeloPosicaoDePreco posicao={posicao} />
+        </>
+      }
       type="number"
       step="0.01"
       min="0"
@@ -2174,6 +2180,13 @@ export default function FormularioProduto({
     (item) => item.tipo === "CONCORRENTE" && !idsConcorrentesAtuais.has(item.id),
   );
 
+  // "2º de 10" ao lado de Preco venda e de Concorrentes (pedido do dono em 06/10/2026): o preco que esta no
+  // campo AGORA contra a lista de concorrentes da tela, salva ou nao. Ver lib/posicaoDePreco.js.
+  const posicaoDoPreco = posicaoDePreco(
+    precoVendaAtual,
+    concorrentesRascunho.map((item) => ({ loja: item.fonte, preco: item.preco })),
+  );
+
   /*
     INDICACOES SEMPRE A MOSTRA (pedido do dono em 06/10/2026): marca, modelo, EAN, medidas, NCM, preco e a
     lista de titulos vem das referencias marcadas na lupa E dos fornecedores e concorrentes SALVOS na aba
@@ -2496,6 +2509,7 @@ export default function FormularioProduto({
                 referencias={referenciasDasIndicacoes}
                 custo={custoPadrao}
                 precoAtual={precoVendaAtual}
+                posicao={posicaoDoPreco}
                 aoAlterar={() => setAlterado(true)}
                 aoMudarValor={setPrecoVendaTexto}
                 usos={usos}
@@ -2914,6 +2928,7 @@ export default function FormularioProduto({
                 aoMudarRascunho={mudarConcorrentesRascunho}
                 sugestoes={sugestoesConcorrente}
                 precoProduto={precoVendaAtual}
+                seloDoTitulo={<SeloPosicaoDePreco posicao={posicaoDoPreco} />}
               />
             </div>
           </div>

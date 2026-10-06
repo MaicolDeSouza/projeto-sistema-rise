@@ -162,6 +162,7 @@ export default function Concorrentes({
   sugestoes = [],
   precoProduto,
   ativo = false,
+  seloDoTitulo = null,
 }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [editando, setEditando] = useState(null); // id do vinculo, "novo", ou null
@@ -395,7 +396,8 @@ export default function Concorrentes({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold">Concorrentes</h3>
+      {/* `seloDoTitulo`: a posicao de preco ("2º de 10"), calculada no formulario (pedido do dono em 06/10/2026). */}
+      <h3 className="flex items-center text-sm font-semibold">Concorrentes {seloDoTitulo}</h3>
       <p className="mt-0.5 text-[11px] text-suave">
         Marcados na lupa do Nome, ou adicionados aqui. So para consulta: preco de concorrente
         nao e custo e nao entra no calculo do produto.
