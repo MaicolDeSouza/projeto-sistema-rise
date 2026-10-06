@@ -1822,7 +1822,11 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
   divergências da geração anterior. Se já houver texto lá, pergunta "Substituir?" antes; desabilitado enquanto a
   IA escreve. Não custa nada: nenhuma chamada à IA.
 - **Prompt editável, com "Salvar prompt"** (pedido do dono em 06/10/2026, no molde do Nano Banana): no lugar do
-  texto informativo, uma caixa com o prompt de escrita que vai para a IA, já carregada com o salvo. São só as
+  texto informativo, **uma linha com o botão "Editar prompt"** e o estado ("o padrão do sistema", "o salvo por
+  você" ou, em âmbar, "editado, vale só nesta janela"). O botão abre o prompt numa **janela grande por cima**
+  (`editandoPrompt`), para a área da descrição ficar com o espaço (pedido do mesmo dia). "Salvar prompt" grava e
+  fecha; "Fechar", o X, o Esc e o clique fora fecham mantendo a edição só para esta janela. A caixa vem já
+  carregada com o salvo. São só as
   INSTRUÇÕES (`PROMPT_DESCRICAO_PADRAO`, em `anuncio.js`); o Nome, as referências, as medidas e as divergências
   entram sozinhos antes dele (`montarPedidoDaDescricao`). Editar sem salvar vale só para as gerações da janela
   aberta; "Voltar ao salvo" descarta, "Restaurar padrão" põe o texto do código na caixa (e só vale depois de
