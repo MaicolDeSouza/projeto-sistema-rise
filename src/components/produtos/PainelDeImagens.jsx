@@ -58,8 +58,19 @@ function nomeParaBaixar(link, posicao) {
 
 // O que a janela pode mudar numa foto: a ordem, a escolha, a versao e a exclusao. E com isto que se
 // sabe se ha alteracao a salvar ou a descartar.
+// As versoes geradas entram na assinatura: gerar com o Nano Banana SEM escolher e uma alteracao (ha uma foto
+// paga nova), e fechar a janela tem que perguntar em vez de descartar a geracao da tela.
 const assinatura = (lista) =>
-  JSON.stringify(lista.map((i) => [i.base, Boolean(i.finalizada), i.versao ?? "original", Boolean(i.excluida)]));
+  JSON.stringify(
+    lista.map((i) => [
+      i.base,
+      Boolean(i.finalizada),
+      i.versao ?? "original",
+      Boolean(i.excluida),
+      Boolean(i.versoes?.photoroom),
+      Boolean(i.versoes?.nanobanana),
+    ]),
+  );
 
 /// A foto tem alguma versao gerada PAGA guardada (Photoroom comprado ou Nano Banana gerado)? O Cancelar da
 /// janela nao devolve o dinheiro, e excluir uma foto paga pede um clique a mais.
@@ -384,6 +395,15 @@ export default function PainelDeImagens({
   // era (pelo NOME). O que foi pago continua guardado (a tela ainda sabe das versoes), so nao e usado.
   function cancelarJanela() {
     if (!alteradoNaJanela) {
+      // "Gerar de novo" troca o arquivo da versao sem mudar a assinatura: os enderecos novos (e as versoes)
+      // do rascunho passam para as fotos, para a tela nunca esquecer uma geracao paga.
+      const doRascunho = rascunho;
+      setImagens((anteriores) =>
+        anteriores.map((antes) => {
+          const depois = doRascunho.find((outra) => outra.base === antes.base);
+          return depois ? { ...antes, versoes: depois.versoes, urls: depois.urls } : antes;
+        }),
+      );
       setRascunho(null);
       return;
     }

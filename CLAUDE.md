@@ -128,7 +128,7 @@ npm run teste:worker              # 58 asserções: rede, fila, retomada e o wor
 npm run foto:mensal               # tira a foto mensal de preço e estoque (só se passou do dia 14 e o mês não tem foto); `-- --forcar` ignora o dia
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
-npm run teste:imagens             # 197 asserções das fotos: padronização, lote temporário, Photoroom simulado e a edição das fotos de um produto que já existe, com a regra "só as validadas ficam" (Postgres e dados/, SEM rede)
+npm run teste:imagens             # 420 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens e o Nano Banana (Google falso) (Postgres e dados/, SEM rede)
 npm run teste:anuncios-ml         # 346 asserções do rascunho de anúncio do Mercado Livre: composição, validação, payload, ícone, gravação e frases fixas (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:bling-sync          # 664 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 ```
@@ -1828,7 +1828,9 @@ pedidos do dono em 04/10/2026):
 - **SÓ AS FOTOS VALIDADAS FICAM.** Ao salvar o produto, apenas as fotos com o **check verde** (`finalizada`,
   que o dono marca com "Escolher essa" em Melhorar) são salvas; **as demais são excluídas** (a linha, o
   arquivo no disco e, no produto novo, nunca chegam a ser gravadas). Vale para o produto novo
-  (`gravarImagensDoLote`) e para o existente (`reconciliarImagensDoProduto`, que devolve `naoValidadas`).
+  (`gravarImagensDoLote`, que desde 05/10/2026 delega ao mesmo `reconciliarImagensDoProduto`) e para o existente
+  (que devolve `naoValidadas`). **Exceção:** a foto que tem versão PAGA (Photoroom ou Nano Banana) e não foi
+  validada não é excluída, vai para a **reserva** (ver a seção abaixo).
   - **O que decide é o `false` EXPLÍCITO; campo ausente MANTÉM a foto.** Um formulário aberto antes da regra
     salva sem o campo, e tratar a falta como "não validada" apagaria as fotos de um produto inteiro.
     Por isso `imagemParaTela` faz toda foto nova nascer com `finalizada: false`, e o formulário manda o valor
@@ -1843,8 +1845,9 @@ pedidos do dono em 04/10/2026):
     é "validada"; o nome no código segue `finalizada`.
   - **A coluna `ProdutoArquivo.finalizada` (migration `20261004_arquivo_finalizada`) ficou SEM USO.** Nasceu
     na primeira versão, que gravava o check; na mesma sessão a regra virou "só validada é salva", e gravar o
-    check deixou de ter função. Nada a lê nem a escreve. Foi deixada para não mexer no schema com outra frente
-    ativa; **remover na próxima migration de quem alterar o schema.**
+    check deixou de ter função. Nada a lê nem a escreve. **A migration da reserva (`20261005_nano_banana_reserva`)
+    também NÃO a removeu:** o servidor da outra frente roda com o client antigo, que a lista em toda consulta, e
+    um `DROP COLUMN` o derrubaria. Fica para a próxima migration, quando as duas frentes tiverem o client novo.
   - Trocar o conteúdo da foto (Melhorar, voltar ao original) zera a validação na tela (`trocar`): a decisão do
     dono recomeça. Testado em `teste:imagens` (os três destinos, campo ausente, todas sem check).
 - **A foto ampliada ganhou setas** (`AmpliacaoDeFoto`, em `ImagemComZoom.jsx`): clicar na foto principal abre
@@ -1858,6 +1861,113 @@ pedidos do dono em 04/10/2026):
   e a posição (`100103-2.jpg`), ou `foto-N.jpg` sem SKU: sem isso, toda foto de todo produto se chamaria
   `foto-1.jpg` e uma sobrescreveria a outra na pasta de downloads. O SKU é lido do campo na hora do clique e
   limpo (só letras, números, ponto, hífen e sublinhado). Apagado enquanto a foto está sendo ajustada.
+
+## Produtos: Nano Banana e a reserva de imagens (05/10/2026)
+
+Pedido do dono: gerar a foto do produto como **foto de estúdio limpa** com o Nano Banana (modelos de imagem do
+Google), **dentro do Rise**, e **não perder mais** o original e as versões geradas no Salvar. Spec:
+`docs/superpowers/specs/2026-10-05-nano-banana-design.md`; plano:
+`docs/superpowers/plans/2026-10-05-nano-banana.md`. Foi executado inline, sem subagentes.
+
+### Versão nomeada da foto (substituiu o booleano `melhorada`)
+
+- `imagem.versao` é `"original" | "photoroom" | "nanobanana"` (a que está em `imagens/<base>.jpg` agora);
+  `imagem.versoes` diz quais versões **geradas** existem guardadas (`{ photoroom, nanobanana }`) e `imagem.urls`
+  traz os endereços. `imagemParaTela` e `versoesParaTela` moram em `src/lib/imagens/paraTela.js` (módulo comum:
+  um arquivo `"use server"` só exporta função assíncrona).
+- **Lote temporário** (`dados/temporarios/<lote>/`): `versoes/<base>.<versao>.jpg` (as três), `extras/<base>.<n>.<ext>`
+  (até 5 imagens extras ENVIADAS para a geração) e `geracoes/<base>.json` (o último pedido: modelo, prompt e
+  extras). O nome antigo `.melhorada.jpg` (lotes de antes de 05/10/2026, que vivem até 24 h) é lido como
+  `photoroom`. `apagarImagem` leva as quatro grafias de versão, as extras e a geração, e nunca as de outra foto.
+- "Escolher essa" copia a versão guardada para `imagens/<base>.jpg`, sem custo, para qualquer versão. O Cancelar da
+  janela restaura a versão pelo **nome**. A janela confirma duas vezes a exclusão de qualquer foto com versão paga.
+
+### A reserva (`ProdutoArquivo.papel`)
+
+- **`papel`**: `FOTO` (carrossel e anúncios) ou `RESERVA` (guardada, escondida atrás do botão "Reserva (N)").
+  `versao` e `grupo` ligam a original e as versões da mesma foto (`grupo` nulo vale "o próprio id"; as linhas
+  antigas ganharam `grupo = id` na migration). Arquivos em `dados/produtos/<SKU>/reserva/<32 hex>.jpg`, servidos
+  por `/api/arquivos/<sku>/reserva/<nome>` (`caminhoDaReserva`, `urlDaReserva`, `reserva.js`).
+- **TODA leitura de foto do produto filtra `papel: "FOTO"`.** As 100 fotos, a foto principal, "Clonar", os
+  anúncios do ML, a lista de Produtos e a abertura do painel nunca veem a reserva. Há um teste de guarda
+  (`nenhuma leitura de foto sem filtrar papel`) que lê todo o `src/` e falha se uma linha nova com
+  `where: { ... tipo: "IMAGEM" ... }` esquecer o `papel`. **Ao escrever uma leitura nova de foto, filtre.**
+- **Regras do Salvar** (`reconciliarImagensDoProduto`, único lugar onde a reserva é decidida):
+  - a foto validada fica como FOTO; o original e as outras versões do lote **descem para a reserva** no mesmo
+    grupo (sha1 diferente da foto final);
+  - o arquivo velho de uma foto trocada desce para a reserva quando a troca envolve uma versão gerada; a foto
+    antiga só padronizada continua sendo apagada, como antes;
+  - foto **paga sem validar**: nada entra no carrossel e todas as versões dela (inclusive a original) vão para a
+    reserva. A geração paga nunca some em silêncio;
+  - a FOTO que sai da lista mas divide o grupo com uma validada que ficou (o dono trouxe outra versão da
+    reserva) vira RESERVA, na mesma linha;
+  - **nunca duas imagens iguais no mesmo grupo**: a RESERVA igual à foto final é apagada, e nada novo é criado se
+    o grupo já tem aqueles bytes. Candidata nunca tocada continua descartada;
+  - `reservaExcluida` (ids que o dono excluiu na tela) apaga linha e arquivo, só de RESERVA deste produto, e o
+    que foi excluído não é recriado pelo lote. **A exclusão só vale no Salvar do produto**: o Cancelar não grava.
+  - Ordem das operações: arquivos novos entram (nome novo, nunca renomeia o do produto antes da transação),
+    depois a transação, e só no fim os velhos saem.
+- **Reabrir** (`prepararFotosDoProduto`): cada foto volta com `versao` e `grupo`; a RESERVA do mesmo grupo entra no
+  lote como `versoes/`; **a RESERVA `original` vira o original do lote** (`definirOriginal`), então o Nano
+  Banana parte da original verdadeira e não da foto atual. Reabrir e salvar sem mexer não duplica nada.
+- **Tela:** botão "Reserva (N)" ao lado de "Melhorar" (só em produto que já existe; some quando N é 0). "Escolher
+  essa" troca a foto do mesmo grupo na mesma posição; "Gerar com Nano Banana" (só nas `original`) traz a original
+  como candidata **no fim** e abre a janela na aba Nano Banana; "Excluir" pede um segundo clique.
+
+### Integração com o Google (`src/lib/integracoes/nanobanana.js` e `nanobananaLog.js`)
+
+- **Modelos** (`MODELOS`, preço por imagem 1K, **conferidos em 05/10/2026** em ai.google.dev): `nano-banana-2` →
+  `gemini-3.1-flash-image`, US$ 0,067 (padrão, aceita extras); `nano-banana-pro` → `gemini-3-pro-image`, US$ 0,134
+  (aceita extras); `nano-banana-2-lite` → `gemini-3.1-flash-lite-image`, US$ 0,034 (**ignora as extras**). O Nano
+  Banana 1 ficou fora (legado). Se o Google mudar o preço, é uma linha.
+- **Sem camada gratuita nem sandbox para imagem: gerar já é pagar.** Chamada `POST .../models/<id>:generateContent`,
+  chave no cabeçalho `x-goog-api-key`, só imagem, 1:1, 1K, tempo limite de 120 s, até 5 extras, prompt até 2.000
+  caracteres. **O formato do corpo (clássico `contents/parts/inline_data`) ainda NÃO foi confirmado com a chave
+  real**: só `montarPedido` e `lerResposta` o conhecem, e o roteiro `scripts/teste-nano-banana.js` o confirma.
+- **`.env`:** `GEMINI_API_KEY=`, `NANO_BANANA_GERACAO=false` (trava, no molde de `PHOTOROOM_COMPRA`: mesmo com a chave
+  colada nada é gerado) e `NANO_BANANA_TETO_DIA=50` (gerações por dia que deram certo). Mudou o `.env`, reiniciar o
+  servidor (o `.env` só é relido na partida).
+- **Travas, todas no servidor (`gerarComNanoBanana`, `acoes-nanobanana.js`) e antes de chamar o Google:** lote e foto
+  válidos, modelo conhecido, prompt não vazio e até 2.000, configuração (chave + trava), teto do dia (sem
+  conseguir ler o uso, **recusa**: o gasto é real), **uma geração por vez por foto** (clique duplo ou duas abas) e
+  extras disponíveis (uma faltando recusa o pedido inteiro **antes** de cobrar).
+- **Custo e auditoria:** em reais pela cotação de `cotacaoDolar.js` (fixa em R$ 6,00 por ora), com o dólar entre
+  parênteses e sem IOF. `LogIntegracao` com **`servico = GEMINI`** (migration `20261005_nano_banana_reserva`): o
+  modelo no `endpoint`, status e duração, e no resumo só pixels da original, quantas extras, tamanho do prompt e
+  se era "gerar de novo". **Nunca a chave, a imagem nem o prompt.** Só a resposta **200** conta como gasto e no teto;
+  falha de rede ou 429 entra no log mas não conta; chamada recusada antes de sair nem entra.
+- **Só a ÚLTIMA geração do Nano Banana fica guardada por foto** ("gerar de novo" troca a versão `nanobanana`; nunca
+  toca na original nem na do Photoroom). Para ficar com as duas, "Escolher essa" na primeira antes de gerar a
+  segunda, e a segunda vai para a reserva no Salvar.
+- **Erros traduzidos** (`mensagemDeErro`/`lerResposta`): chave recusada, faturamento ausente (também em HTTP 400
+  `FAILED_PRECONDITION`), cota, recusa por conteúdo (`SAFETY`, `IMAGE_SAFETY`...), resposta sem imagem (mostra o
+  texto que o Google devolveu) e imagem que não abre (a geração foi cobrada, e a mensagem diz isso).
+- **O modelo é generativo e pode redesenhar o produto**, como o `beautify` do Photoroom fez com um Arduino. A defesa é
+  o prompt (`PROMPT_PADRAO`: mesma forma, cores, conectores, textos), as imagens extras de referência e a revisão
+  lado a lado com zoom antes de escolher. **O prompt enviado à IA tem acento** (é o texto da spec, literal); o
+  resto do código segue sem acento.
+- **Prompt salvo por modelo** (`PromptImagem`, chave do `MODELOS`, **não** o id do Google). Salvar o texto igual ao
+  padrão do código **apaga a linha** (padrão = sem linha, e uma melhoria futura do padrão chega a quem nunca mexeu).
+
+### Tela (janela "Fotos do produto", layout B)
+
+Quadro da esquerda com a original; o da direita tem as abas **Photoroom | Nano Banana** (lembrada por foto). A aba
+Nano Banana (`PainelNanoBanana.jsx`): resultado, modelo com o preço em reais, prompt (`n/2000`, "Salvar prompt" só
+acende quando difere do salvo, "Voltar ao salvo"), tira de imagens extras (outras fotos do carrossel + "Enviar"),
+**confirmação amarela de preço antes de cobrar** e "Escolher essa". O estado de cada foto (modelo, prompt editado,
+extras marcadas) mora em `porFoto[base].nb`, no painel: fechar a janela não perde o que o dono estava refinando.
+Sem chave ou com a trava desligada, uma faixa diz o motivo e "Gerar" fica cinza; o resto funciona. O rodapé mostra
+o uso do Nano Banana ao lado do Photoroom.
+
+### Pendências
+
+- **Chave e faturamento do Google são passos do dono** (aistudio.google.com: criar a chave, ativar o faturamento,
+  conferir que aparece como paga, colar em `GEMINI_API_KEY=`, reiniciar). **`NANO_BANANA_GERACAO=true` só depois do
+  roteiro `scripts/teste-nano-banana.js` confirmar o formato** (custa cerca de US$ 0,20). Orçamento mensal com
+  alerta no Google Cloud é opcional.
+- A geração real de ponta a ponta na tela (produto novo e existente) ainda não foi vista: depende da chave.
+- Fora desta rodada: várias gerações por foto, prompt por produto, teto de tamanho da reserva, Nano Banana a partir
+  da foto do Photoroom, 2K/4K e o Nano Banana 1.
 
 ## Produtos: edição rápida na lista (30/09/2026)
 
