@@ -1632,6 +1632,10 @@ export default function FormularioProduto({
   const [carregandoFotosDoProduto, setCarregandoFotosDoProduto] = useState(Boolean(produto));
   const [fotosProntas, setFotosProntas] = useState(false);
   const [fotosPreservadas, setFotosPreservadas] = useState([]);
+  // RESERVA de imagens (Nano Banana): so em produto que ja existe (`null` no cadastro novo, que nao tem o
+  // botao). `reservaExcluida` sao os ids que o dono excluiu na tela; o servidor so apaga no Salvar.
+  const [reserva, setReserva] = useState(null);
+  const [reservaExcluida, setReservaExcluida] = useState([]);
   const carregouFotosDoProduto = useRef(false);
 
   // Funcoes de preenchimento ja usadas neste cadastro, para o icone mudar de cor
@@ -1664,6 +1668,7 @@ export default function FormularioProduto({
       if (resposta.ok) {
         setLoteTemporario(novoLote);
         setImagensLote(resposta.imagens);
+        setReserva(resposta.reserva ?? []);
         setFotosPreservadas(resposta.naoCarregadas);
         setFotosProntas(true);
         if (resposta.naoCarregadas.length > 0) {
@@ -2288,12 +2293,16 @@ export default function FormularioProduto({
             finalizada: imagem.finalizada,
             // Rotulo da versao que esta na foto (original, photoroom, nanobanana): o Salvar grava na FOTO.
             versao: imagem.versao ?? "original",
+            // O grupo liga a foto as versoes dela na reserva (nulo = a propria foto, sem reserva).
+            grupo: imagem.grupo ?? null,
           })),
         )}
       />
       {/* Produto existente: so com o painel carregado o servidor mexe nas fotos (ver `fotosProntas`). */}
       <input type="hidden" name="fotosDoPainelProntas" value={fotosProntas ? "1" : "0"} />
       <input type="hidden" name="arquivosPreservados" value={JSON.stringify(fotosPreservadas)} />
+      {/* Imagens da reserva que o dono excluiu na tela: so o Salvar apaga (ver ReservaDeImagens). */}
+      <input type="hidden" name="reservaExcluida" value={JSON.stringify(reservaExcluida)} />
       {/* Fornecedores adicionados antes de o produto existir (ver Fornecedores.jsx). */}
       <input
         type="hidden"
@@ -2385,6 +2394,9 @@ export default function FormularioProduto({
                     carregandoFotosDoProduto ? "Carregando as fotos do produto..." : progressoDaImportacao
                   }
                   aoAlterar={() => setAlterado(true)}
+                  reserva={reserva}
+                  reservaExcluida={reservaExcluida}
+                  setReservaExcluida={setReservaExcluida}
                 />
               </div>
             </div>

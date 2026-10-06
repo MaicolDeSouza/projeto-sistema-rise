@@ -9,6 +9,7 @@ import {
   ImageOff,
   ImagePlus,
   Loader,
+  Archive,
   Sparkles,
   Star,
   Trash2,
@@ -19,11 +20,13 @@ import {
   escolherVersaoNoLote,
   removerImagemDoLote,
   removerImagensDoLote,
+  trazerDaReserva,
 } from "@/app/produtos/acoes-imagens";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/limites";
 import { AmpliacaoDeFoto, ImagemComZoom } from "./ImagemComZoom";
 import JanelaDeFotos from "./JanelaDeFotos";
+import ReservaDeImagens from "./ReservaDeImagens";
 import TiraDeFotos from "./TiraDeFotos";
 
 async function tentar(acao) {
@@ -100,6 +103,9 @@ export default function PainelDeImagens({
   importando,
   progressoDaImportacao,
   aoAlterar,
+  reserva = null,
+  reservaExcluida = [],
+  setReservaExcluida = () => {},
 }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [foco, setFoco] = useState(null);
@@ -112,6 +118,7 @@ export default function PainelDeImagens({
   const [porFoto, setPorFoto] = useState({});
   // Foto paga que o dono clicou uma vez em "Excluir": o segundo clique confirma.
   const [paraConfirmar, setParaConfirmar] = useState(null);
+  const [reservaAberta, setReservaAberta] = useState(false);
   const entrada = useRef(null);
 
   const janelaAberta = rascunho !== null;
@@ -141,6 +148,79 @@ export default function PainelDeImagens({
 
   // Com a janela aberta as alteracoes vao para o rascunho; fora dela, direto para as fotos.
   const mudarLista = (funcao) => (janelaAberta ? setRascunho(funcao) : setImagens(funcao));
+
+  // RESERVA (so em produto que ja existe: `reserva` e null no cadastro novo). O que ja foi excluido na tela ou
+  // trazido para o carrossel nao conta: o numero do botao e o que ainda esta guardado e a vista.
+  const trazidasDaReserva = new Set(imagens.map((imagem) => imagem.reservaId).filter(Boolean));
+  const reservaVisivel = (reserva ?? []).filter((item) => !reservaExcluida.includes(item.id) && !trazidasDaReserva.has(item.id));
+  const botaoDaReserva =
+    reserva !== null && reservaVisivel.length > 0 ? (
+      <button
+        type="button"
+        onClick={() => setReservaAberta(true)}
+        disabled={ocupado}
+        title="Imagens que voce ja trabalhou e nao usou como foto: a original e as versoes geradas"
+        className="inline-flex items-center gap-1 rounded border border-borda px-2 py-1 text-[11px] text-texto hover:bg-fundo disabled:opacity-50"
+      >
+        <Archive size={12} /> Reserva ({reservaVisivel.length})
+      </button>
+    ) : null;
+
+  // "Escolher essa" na reserva: a imagem entra no carrossel, ja validada, NO LUGAR da foto do mesmo grupo (ela
+  // desce para a reserva no Salvar); sem foto do grupo, entra no fim.
+  function escolherDaReserva(item) {
+    iniciarTransicao(async () => {
+      const resposta = await tentar(() => trazerDaReserva(garantirLote(), item.id));
+      if (!resposta.ok) {
+        setErro(resposta.erro);
+        return;
+      }
+      const nova = resposta.imagem;
+      const posicao = nova.grupo ? imagens.findIndex((outra) => outra.grupo === nova.grupo) : -1;
+      if (posicao < 0 && imagens.length >= MAXIMO_FOTOS_NO_PAINEL) {
+        setErro(`Limite de ${MAXIMO_FOTOS_NO_PAINEL} fotos no painel: exclua uma antes de trazer esta.`);
+        return;
+      }
+      setImagens((anteriores) => {
+        const onde = nova.grupo ? anteriores.findIndex((outra) => outra.grupo === nova.grupo) : -1;
+        return onde >= 0 ? anteriores.map((outra, indiceDaFoto) => (indiceDaFoto === onde ? nova : outra)) : [...anteriores, nova];
+      });
+      setFoco(nova.base);
+      setReservaAberta(false);
+      setErro(null);
+      aoAlterar();
+    });
+  }
+
+  // "Gerar com Nano Banana" numa original da reserva: ela entra como candidata NAO validada, no fim (a foto do
+  // produto fica onde esta, para nada pago se perder), e a janela abre nela, na aba Nano Banana.
+  function gerarDaReserva(item) {
+    iniciarTransicao(async () => {
+      if (imagens.length >= MAXIMO_FOTOS_NO_PAINEL) {
+        setErro(`Limite de ${MAXIMO_FOTOS_NO_PAINEL} fotos no painel: exclua uma antes de trazer esta.`);
+        return;
+      }
+      const resposta = await tentar(() => trazerDaReserva(garantirLote(), item.id));
+      if (!resposta.ok) {
+        setErro(resposta.erro);
+        return;
+      }
+      const nova = { ...resposta.imagem, finalizada: false };
+      setImagens((anteriores) => [...anteriores, nova]);
+      setPorFoto((anterior) => ({ ...anterior, [nova.base]: { ...anterior[nova.base], aba: "nanobanana" } }));
+      setFoco(nova.base);
+      setRascunho([...imagens, nova]);
+      setReservaAberta(false);
+      setErro(null);
+      aoAlterar();
+    });
+  }
+
+  // Excluir da reserva so MARCA; o servidor apaga no Salvar do produto.
+  function excluirDaReserva(item) {
+    setReservaExcluida((anteriores) => (anteriores.includes(item.id) ? anteriores : [...anteriores, item.id]));
+    aoAlterar();
+  }
 
   function enviarArquivos(arquivos) {
     const lista = [...arquivos];
@@ -457,6 +537,7 @@ export default function PainelDeImagens({
           >
             <Sparkles size={12} /> Melhorar
           </button>
+          {botaoDaReserva}
           {/*
             Baixa a foto que esta na tela (a padronizada 1024x1024, ou a melhorada, se foi a escolhida).
             E um link com `download`, e nao um botao que busca o arquivo: o endereco e do proprio sistema
@@ -497,6 +578,9 @@ export default function PainelDeImagens({
           </button>
         </div>
       )}
+
+      {/* Sem foto nenhuma mas com reserva (todas excluidas): o botao ainda precisa de um lugar. */}
+      {!atual && botaoDaReserva && <div className="mt-1.5 flex shrink-0">{botaoDaReserva}</div>}
 
       <div className="mt-2 shrink-0">
         <TiraDeFotos
@@ -568,6 +652,17 @@ export default function PainelDeImagens({
           posicao={indice}
           total={imagens.length}
           aoNavegar={ir}
+        />
+      )}
+
+      {reservaAberta && (
+        <ReservaDeImagens
+          reserva={reservaVisivel}
+          aoEscolher={escolherDaReserva}
+          aoGerar={gerarDaReserva}
+          aoExcluir={excluirDaReserva}
+          aoFechar={() => setReservaAberta(false)}
+          ocupado={ocupado}
         />
       )}
 

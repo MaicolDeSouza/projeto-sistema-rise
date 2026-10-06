@@ -340,6 +340,46 @@ async function carregarVersoesDaReserva(lote, base, sku, versaoDaFoto, reservasD
   }
 }
 
+/**
+ * "Escolher essa" de uma imagem da RESERVA: ela entra no lote como foto, ja VALIDADA (o dono a escolheu), e o
+ * painel a poe no lugar da foto do mesmo grupo. Quem troca de verdade e o Salvar: a foto que estava la desce
+ * para a reserva e a RESERVA de origem some (regras do `reconciliarImagensDoProduto`).
+ *
+ * O navegador manda so o id; o arquivo e lido da reserva do produto dono dessa linha. So vale RESERVA de
+ * imagem: o id de uma FOTO nao entra por aqui.
+ */
+export async function trazerDaReserva(lote, reservaId) {
+  const invalido = conferir(lote);
+  if (invalido) return { ok: false, erro: invalido };
+
+  try {
+    const linha = await prisma.produtoArquivo.findUnique({
+      where: { id: String(reservaId ?? "") },
+      select: { id: true, tipo: true, papel: true, arquivo: true, versao: true, grupo: true, produto: { select: { sku: true } } },
+    });
+    if (!linha || linha.tipo !== "IMAGEM" || linha.papel !== "RESERVA") return { ok: false, erro: "Imagem da reserva nao encontrada." };
+
+    const bytes = await lerDaReserva(linha.produto.sku, linha.arquivo);
+    if (!bytes) return { ok: false, erro: "O arquivo desta imagem da reserva nao esta mais no disco." };
+
+    const resultado = await adicionarImagem(lote, bytes);
+    if (!resultado.ok) return resultado;
+    return {
+      ok: true,
+      imagem: imagemParaTela(lote, resultado.base, {
+        ampliada: resultado.ampliada,
+        origem: { largura: resultado.origem.largura, altura: resultado.origem.altura },
+        finalizada: true,
+        versao: VERSOES.includes(linha.versao) ? linha.versao : "original",
+        grupo: linha.grupo ?? linha.id,
+        reservaId: linha.id,
+      }),
+    };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
+}
+
 /** Varias fotos de uma vez (o produto foi desmarcado na lupa). */
 export async function removerImagensDoLote(lote, bases) {
   const invalido = conferir(lote);

@@ -1472,6 +1472,20 @@ try {
         );
         conferir("... e nenhum arquivo novo na reserva", (await readdir(juntar(RAIZ, SKU_REABRIR, "reserva"))).sort(), reservaAntes);
 
+        // Trazer da reserva para o carrossel ("Escolher essa" da reserva): a imagem entra no lote, ja validada.
+        const loteTrazer = loteReabrir();
+        const trazida = await acoes.trazerDaReserva(loteTrazer, reservaR.id);
+        conferir(
+          "trazer da reserva: imagem validada, com a versao, o grupo e o id da reserva",
+          [trazida.ok, trazida.imagem?.finalizada, trazida.imagem?.versao, trazida.imagem?.grupo, trazida.imagem?.reservaId],
+          [true, true, "original", fotoR.id, reservaR.id],
+        );
+        conferir("trazer da reserva: os bytes da reserva ficam em imagens/<base>.jpg", sha(await loteLib.lerDoLote(loteTrazer, "imagens", `${trazida.imagem?.base}.jpg`)), sha(ORIG));
+        conferir("trazer da reserva: o original do lote tambem e o da reserva", sha((await loteLib.originalDoLote(loteTrazer, trazida.imagem?.base))?.bytes), sha(ORIG));
+        const trazerFoto = await acoes.trazerDaReserva(loteTrazer, fotoR.id);
+        conferir("trazer um id de FOTO e recusado (so RESERVA)", [trazerFoto.ok, typeof trazerFoto.erro], [false, "string"]);
+        conferir("trazer id que nao existe e lote invalido sao recusados", [(await acoes.trazerDaReserva(loteTrazer, "id-inventado")).ok, (await acoes.trazerDaReserva("../fora", reservaR.id)).ok], [false, false]);
+
         // Reserva cujo arquivo sumiu: a foto abre mesmo assim, e a reserva ilegivel so nao entra nas versoes.
         const { unlink } = await import("node:fs/promises");
         await unlink(juntar(RAIZ, SKU_REABRIR, "reserva", gravadaR.nome));
@@ -1482,6 +1496,7 @@ try {
           [semArquivo.ok, semArquivo.imagens.length, semArquivo.reserva?.length, await loteLib.lerVersao(L, semArquivo.imagens[0]?.base, "original").then((b) => sha(b) === sha(ORIG))],
           [true, 1, 1, false],
         );
+        conferir("trazer da reserva com o arquivo sumido e recusado", (await acoes.trazerDaReserva(loteReabrir(), reservaR.id)).ok, false);
 
         // Produto sem reserva: reserva vazia, a foto original segue como antes.
         await prisma.produtoArquivo.deleteMany({ where: { produtoId: produtoR.id, papel: "RESERVA" } });
