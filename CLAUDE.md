@@ -1734,6 +1734,12 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
     código nem link, sem Nome, não escolhe produto no chute.
   - **EAN só entra com formato de código de barras** (8, 12, 13 ou 14 dígitos, `eanValido`): há loja que põe o
     código interno no campo de EAN.
+  - **Links de consulta rápida abaixo do GTIN / EAN** (pedido do dono em 06/10/2026): "Consultar em: Cosmos ·
+    EAN-Search" abre o site numa aba nova com o código digitado na hora (só os dígitos); com o campo vazio, usa o
+    Nome. O endereço é montado no clique, porque o campo não é controlado. `ean-search.org/?q=` está nos exemplos
+    da própria documentação; o `cosmos.bluesoft.com.br/pesquisar?q=` **não foi conferido** (o site tem
+    verificação da Cloudflare). A lupa com a API do Cosmos está planejada e espera o `COSMOS_TOKEN` no `.env`.
+    O Cosmos é grátis até 25 por dia, e o dono dispensou o log das buscas.
   - Medido em 06/10/2026 no 100103, servidor de desenvolvimento: as indicações aparecem uns 17 s depois de abrir
     a página. As ações do servidor rodam uma de cada vez, e a preparação das fotos vem antes. Testes em
     `teste-cadastros` ("Indicações dos vínculos salvos").
