@@ -1246,6 +1246,47 @@ function CampoNome({
   );
 }
 
+/// Busca do Cosmos: aceita GTIN, NCM (8 digitos) e nome. O endereco nao foi conferido (o site tem verificacao
+/// da Cloudflare); se nao cair na busca, e aqui que se troca.
+const BUSCA_DO_COSMOS = (termo) => `https://cosmos.bluesoft.com.br/pesquisar?q=${termo}`;
+const SITES_DO_EAN = [
+  { nome: "Cosmos", endereco: BUSCA_DO_COSMOS },
+  { nome: "EAN-Search", endereco: (termo) => `https://www.ean-search.org/?q=${termo}` },
+  // O endereco e o que o dono usou no navegador.
+  { nome: "Product-Search", endereco: (termo) => `https://pt.product-search.net/?q=${termo}` },
+];
+const SITES_DO_NCM = [{ nome: "Cosmos", endereco: BUSCA_DO_COSMOS }];
+
+/**
+ * "Consultar em: ..." abaixo de um campo de codigo (pedido do dono em 06/10/2026, no GTIN/EAN e no NCM): abre o
+ * site numa aba nova com os digitos do campo como estao AGORA, ou com o Nome do produto se o campo estiver
+ * vazio. O endereco e montado no clique porque os campos nao sao controlados.
+ */
+function LinksDeConsulta({ campo, sites, lerCampo }) {
+  return (
+    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-suave">
+      Consultar em:
+      {sites.map((site) => (
+        <a
+          key={site.nome}
+          href={site.endereco("")}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(evento) => {
+            const codigo = lerCampo(campo).replace(/\D/g, "");
+            const termo = codigo || lerCampo("tituloBase").trim();
+            evento.currentTarget.href = site.endereco(encodeURIComponent(termo));
+          }}
+          title={`Abre o ${site.nome} numa aba nova com o codigo do campo (ou o Nome, se o campo estiver vazio)`}
+          className="inline-flex items-center gap-0.5 text-acento hover:underline"
+        >
+          {site.nome} <ExternalLink size={11} />
+        </a>
+      ))}
+    </p>
+  );
+}
+
 /** Link da Loja Integrada, com botao que abre a pagina quando preenchido. */
 function LinkLojaIntegrada({ inicial, dominio, erro }) {
   const [valor, setValor] = useState(inicial ?? "");
@@ -2620,36 +2661,7 @@ export default function FormularioProduto({
                     usos={usos}
                     vazio="Nenhuma referencia publica um codigo de barras valido."
                   />
-                  {/*
-                    Consulta rapida nos sites (pedido do dono em 06/10/2026): abre numa aba nova com o codigo
-                    digitado AGORA; com o campo vazio, com o Nome do produto. O endereco e montado no clique
-                    porque o campo nao e controlado.
-                  */}
-                  <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-suave">
-                    Consultar em:
-                    {[
-                      { nome: "Cosmos", endereco: (termo) => `https://cosmos.bluesoft.com.br/pesquisar?q=${termo}` },
-                      { nome: "EAN-Search", endereco: (termo) => `https://www.ean-search.org/?q=${termo}` },
-                      // Pedido do dono em 06/10/2026; o endereco e o que ele usou no navegador.
-                      { nome: "Product-Search", endereco: (termo) => `https://pt.product-search.net/?q=${termo}` },
-                    ].map((site) => (
-                      <a
-                        key={site.nome}
-                        href={site.endereco("")}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(evento) => {
-                          const codigo = valorDoCampo("ean").replace(/\D/g, "");
-                          const termo = codigo || valorDoCampo("tituloBase").trim();
-                          evento.currentTarget.href = site.endereco(encodeURIComponent(termo));
-                        }}
-                        title={`Abre o ${site.nome} numa aba nova com o codigo do campo (ou o Nome, se o campo estiver vazio)`}
-                        className="inline-flex items-center gap-0.5 text-acento hover:underline"
-                      >
-                        {site.nome} <ExternalLink size={11} />
-                      </a>
-                    ))}
-                  </p>
+                  <LinksDeConsulta campo="ean" sites={SITES_DO_EAN} lerCampo={valorDoCampo} />
                 </div>
               </div>
             </div>
@@ -2815,19 +2827,22 @@ export default function FormularioProduto({
                     ajuda="Origem fiscal da mercadoria (nacional, importada etc.), usada no calculo do ICMS."
                   />
                 </div>
-                <CampoDeReferencias
-                  nome="ncm"
-                  rotulo="NCM"
-                  inicial={v("ncm")}
-                  placeholder="0000.00.00"
-                  ajuda="Obrigatorio para emitir nota."
-                  ids={idsDasIndicacoes}
-                  valores={valoresRefs?.ncm}
-                  carregando={lendoRefs}
-                  aoAlterar={() => setAlterado(true)}
-                  usos={usos}
-                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o NCM. Fortek, Casa da Robotica e Smartkits costumam publicar; Eletrogate, Saravati e Usinainfo nao."
-                />
+                <div>
+                  <CampoDeReferencias
+                    nome="ncm"
+                    rotulo="NCM"
+                    inicial={v("ncm")}
+                    placeholder="0000.00.00"
+                    ajuda="Obrigatorio para emitir nota."
+                    ids={idsDasIndicacoes}
+                    valores={valoresRefs?.ncm}
+                    carregando={lendoRefs}
+                    aoAlterar={() => setAlterado(true)}
+                    usos={usos}
+                    vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o NCM. Fortek, Casa da Robotica e Smartkits costumam publicar; Eletrogate, Saravati e Usinainfo nao."
+                  />
+                  <LinksDeConsulta campo="ncm" sites={SITES_DO_NCM} lerCampo={valorDoCampo} />
+                </div>
                 <Campo
                   nome="cest"
                   rotulo="CEST"
