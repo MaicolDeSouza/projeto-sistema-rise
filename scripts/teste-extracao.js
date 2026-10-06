@@ -1594,6 +1594,36 @@ console.log("\n— Descricao: 3 opcoes para cada um dos 2 primeiros paragrafos �
   conferir("duas opcoes que o corte igualou viram uma", cortadas[0], [`${frase("a")}${frase("b")}`.trim(), "Curta."]);
 }
 
+console.log("\n— Descricao: o prompt de escrita editavel na janela —");
+{
+  const { limparPromptDaDescricao, MAXIMO_PROMPT_DESCRICAO, montarPedidoDaDescricao, PROMPT_DESCRICAO_PADRAO } =
+    await import("../src/lib/ia/anuncio.js");
+
+  // O padrao e o texto que ia fixo no codigo: as instrucoes, sem os dados do produto.
+  conferir("padrao comeca pelas instrucoes", PROMPT_DESCRICAO_PADRAO.startsWith("Escreva o conteúdo da descrição"), true);
+  conferir("padrao ja traz os numeros do limite e das opcoes", [PROMPT_DESCRICAO_PADRAO.includes("NO MÁXIMO 230 caracteres"),
+    PROMPT_DESCRICAO_PADRAO.includes("exatamente 3 opções")], [true, true]);
+  conferir("padrao nao traz dados de produto", PROMPT_DESCRICAO_PADRAO.includes("Referências:\n"), false);
+  conferir("padrao cabe no teto", PROMPT_DESCRICAO_PADRAO.length <= MAXIMO_PROMPT_DESCRICAO, true);
+
+  // limparPromptDaDescricao: o que vem da tela.
+  conferir("tira espaco das pontas", limparPromptDaDescricao("  Escreva curto.  \n"), { ok: true, texto: "Escreva curto." });
+  conferir("vazio e recusado", limparPromptDaDescricao("   ").ok, false);
+  conferir("nao-texto e recusado", limparPromptDaDescricao(null).ok, false);
+  conferir("no teto passa", limparPromptDaDescricao("x".repeat(MAXIMO_PROMPT_DESCRICAO)).ok, true);
+  conferir("acima do teto e recusado, com erro em portugues", limparPromptDaDescricao("x".repeat(MAXIMO_PROMPT_DESCRICAO + 1)),
+    { ok: false, erro: `O prompt passa de ${MAXIMO_PROMPT_DESCRICAO} caracteres.` });
+
+  // montarPedidoDaDescricao: dados do produto primeiro, o prompt (padrao ou editado) depois.
+  const dados = { titulo: "PLACA X", referencias: "<referencia>a</referencia>", listaDeMedidas: ["- Referência 1 (A): peso 7 g"], divergencias: [] };
+  const editado = montarPedidoDaDescricao({ ...dados, instrucoes: "Escreva tudo em uma frase." });
+  conferir("o prompt editado e o que vai para a IA, no fim do pedido", editado.endsWith("\n\nEscreva tudo em uma frase."), true);
+  conferir("os dados do produto continuam antes do prompt", [editado.startsWith("Produto que a loja vai anunciar: PLACA X\n\n"),
+    editado.includes("Referências:\n\n<referencia>a</referencia>"), editado.includes("Peso e medidas já encontrados")], [true, true, true]);
+  conferir("o prompt padrao nao entra junto com o editado", editado.includes("Escreva o conteúdo da descrição"), false);
+  conferir("sem titulo, o pedido comeca nas referencias", montarPedidoDaDescricao({ ...dados, titulo: "", instrucoes: "P" }).startsWith("Referências:"), true);
+}
+
 console.log("\n— Download do arquivo do produto: o nome real no cabecalho, e nao o hash —");
 {
   const { cabecalhoDeArquivo, urlDe } = await import("../src/lib/arquivos.js");

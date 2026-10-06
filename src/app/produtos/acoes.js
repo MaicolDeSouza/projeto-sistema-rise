@@ -9,7 +9,16 @@ import { buscarProdutoPorCodigo } from "@/lib/buscaPorCodigo";
 import { buscarReferencias } from "@/lib/buscaPorPalavras";
 import { listarDocumentosDasReferencias } from "@/lib/documentosReferencias";
 import { lerCamposDasReferencias, lerDetalhesDasReferencias } from "@/lib/camposDasReferencias";
-import { gerarDescricao, gerarTitulos, MAXIMO_REFERENCIAS } from "@/lib/ia/anuncio";
+import {
+  gerarDescricao,
+  gerarTitulos,
+  gravarPromptDaDescricao,
+  lerPromptDaDescricao,
+  limparPromptDaDescricao,
+  MAXIMO_PROMPT_DESCRICAO,
+  MAXIMO_REFERENCIAS,
+  PROMPT_DESCRICAO_PADRAO,
+} from "@/lib/ia/anuncio";
 import { normalizar } from "@/lib/texto";
 import { descartarLote } from "@/lib/imagens/lote";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
@@ -243,9 +252,43 @@ export async function buscarDescricoesParaProduto(titulo, idsMarcados = []) {
  * Descricao no modelo da loja, escrita pela IA a partir das referencias marcadas.
  * `produto` leva o Nome e o Codigo do formulario: titulo e "Itens inclusos (Cod:)".
  */
-export async function criarDescricaoIA(ids, produto) {
+export async function criarDescricaoIA(ids, produto, instrucoes) {
   try {
-    return { ok: true, ...(await gerarDescricao(ids, produto)) };
+    // `instrucoes` e o prompt da caixa da janela (o salvo, ou editado so para esta geracao). Sem ele, o salvo.
+    let prompt;
+    if (instrucoes === undefined) {
+      prompt = await lerPromptDaDescricao();
+    } else {
+      const conferido = limparPromptDaDescricao(instrucoes);
+      if (!conferido.ok) return conferido;
+      prompt = conferido.texto;
+    }
+    return { ok: true, ...(await gerarDescricao(ids, produto, prompt)) };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
+}
+
+/**
+ * O prompt de escrita da descricao para a caixa da janela "Criar descricao" (pedido do dono em 06/10/2026): o
+ * salvo (ou o padrao do codigo), o padrao para comparar e o teto de caracteres.
+ */
+export async function promptDaDescricao() {
+  return {
+    ok: true,
+    texto: await lerPromptDaDescricao(),
+    padrao: PROMPT_DESCRICAO_PADRAO,
+    maximo: MAXIMO_PROMPT_DESCRICAO,
+  };
+}
+
+/** "Salvar prompt": passa a ser o prompt de toda descricao gerada. Igual ao padrao, apaga a linha salva. */
+export async function salvarPromptDaDescricao(texto) {
+  const conferido = limparPromptDaDescricao(texto);
+  if (!conferido.ok) return conferido;
+  try {
+    await gravarPromptDaDescricao(conferido.texto);
+    return { ok: true, texto: conferido.texto };
   } catch (erro) {
     return { ok: false, erro: erro.message };
   }

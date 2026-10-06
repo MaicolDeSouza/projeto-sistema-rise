@@ -128,7 +128,7 @@ npm run teste:worker              # 58 asserções: rede, fila, retomada e o wor
 npm run foto:mensal               # tira a foto mensal de preço e estoque (só se passou do dia 14 e o mês não tem foto); `-- --forcar` ignora o dia
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
-npm run teste:imagens             # 420 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens e o Nano Banana (Google falso) (Postgres e dados/, SEM rede)
+npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
 npm run teste:anuncios-ml         # 346 asserções do rascunho de anúncio do Mercado Livre: composição, validação, payload, ícone, gravação e frases fixas (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:bling-sync          # 664 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 ```
@@ -1804,6 +1804,20 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
   Abre em "Editar texto completo" (o texto da loja não segue o padrão), e zera as opções de parágrafo e as
   divergências da geração anterior. Se já houver texto lá, pergunta "Substituir?" antes; desabilitado enquanto a
   IA escreve. Não custa nada: nenhuma chamada à IA.
+- **Prompt editável, com "Salvar prompt"** (pedido do dono em 06/10/2026, no molde do Nano Banana): no lugar do
+  texto informativo, uma caixa com o prompt de escrita que vai para a IA, já carregada com o salvo. São só as
+  INSTRUÇÕES (`PROMPT_DESCRICAO_PADRAO`, em `anuncio.js`); o Nome, as referências, as medidas e as divergências
+  entram sozinhos antes dele (`montarPedidoDaDescricao`). Editar sem salvar vale só para as gerações da janela
+  aberta; "Voltar ao salvo" descarta, "Restaurar padrão" põe o texto do código na caixa (e só vale depois de
+  salvar). Vazio ou acima de 12.000 caracteres (`MAXIMO_PROMPT_DESCRICAO`) não gera nem salva; o servidor confere
+  de novo (`limparPromptDaDescricao`).
+  - **Onde fica salvo:** na tabela do Nano Banana, `PromptImagem`, com a chave `"descricao"` no lugar do modelo
+    (`CHAVE_PROMPT_DESCRICAO`), para não mexer no schema. A mesma regra: salvar igual ao padrão APAGA a linha.
+  - Os nomes das partes no texto (paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm, decisoes)
+    são os campos da resposta; tirar um do prompt não quebra a leitura, porque o formato JSON os exige. O
+    `SISTEMA` (o papel de redator da Rise) continua fixo e é o mesmo dos títulos.
+  - Ao separar o prompt, o pedido montado ficou idêntico, caractere por caractere, ao de antes (conferido contra o
+    commit anterior). Testes: `teste-extracao` (regras e montagem) e `teste-imagens` (salvar e ler no banco).
 - **Remover uma referência só DESTA geração** (lixeira em cada aba): não desmarca na lupa nem
   mexe no que está salvo — pedido do dono: "não excluir fonte". Reabrir a janela (que reseta o
   estado local `excluidos`) traz todas de volta.

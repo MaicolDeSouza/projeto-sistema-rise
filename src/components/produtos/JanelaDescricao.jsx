@@ -10,7 +10,12 @@ import {
 } from "react";
 import { ArrowRight, Check, ExternalLink, Loader, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
 
-import { buscarDescricoesParaProduto, criarDescricaoIA } from "@/app/produtos/acoes";
+import {
+  buscarDescricoesParaProduto,
+  criarDescricaoIA,
+  promptDaDescricao,
+  salvarPromptDaDescricao,
+} from "@/app/produtos/acoes";
 import { linhasDeEspecificacao, medidasDaDescricao } from "@/lib/medidas";
 import { adicionarEspecificacao, formatarLinhaTecnica, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, organizarDescricao, removerEspecificacao, trocarParagrafo } from "@/lib/ia/revisaoDescricao";
 import LinhasDescricao from "./LinhasDescricao";
@@ -246,6 +251,14 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   const [escolhidosParagrafos, setEscolhidosParagrafos] = useState([0, 0]);
   // O texto de uma aba da esquerda esperando o "Substituir?" (ver `pedirLevar`).
   const [textoParaLevar, setTextoParaLevar] = useState(null);
+  // O prompt de escrita que vai para a IA (pedido do dono em 06/10/2026, no molde do Nano Banana): a caixa
+  // nasce com o salvo; editar sem salvar vale so para as geracoes desta janela. `null` = ainda lendo.
+  const [prompt, setPrompt] = useState(null);
+  const [promptSalvo, setPromptSalvo] = useState(null);
+  const [promptPadrao, setPromptPadrao] = useState("");
+  const [maximoPrompt, setMaximoPrompt] = useState(0);
+  const [erroPrompt, setErroPrompt] = useState(null);
+  const [salvandoPrompt, iniciarSalvarPrompt] = useTransition();
 
   function abrir() {
     const leitura = ++leituraAtual.current;
@@ -271,6 +284,21 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     // de volta — por isso reseta aqui, e nao junto de `detalhes` (que so
     // muda quando a busca termina).
     setExcluidos(new Set());
+    setPrompt(null);
+    setPromptSalvo(null);
+    setErroPrompt(null);
+    // O prompt chega sozinho, sem esperar as referencias (a busca leva segundos).
+    promptDaDescricao()
+      .then((resposta) => {
+        if (leitura !== leituraAtual.current) return;
+        setPrompt(resposta.texto);
+        setPromptSalvo(resposta.texto);
+        setPromptPadrao(resposta.padrao);
+        setMaximoPrompt(resposta.maximo);
+      })
+      .catch(() => {
+        if (leitura === leituraAtual.current) setErroPrompt("Nao deu para ler o prompt salvo. A geracao usa o salvo mesmo assim.");
+      });
     iniciarLeitura(async () => {
       try {
         const resposta = await buscarDescricoesParaProduto(atual.titulo, ids);
@@ -343,7 +371,8 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setProduto(atual);
     iniciarGeracao(async () => {
       try {
-        const resultado = await criarDescricaoIA(idsParaGerar, atual);
+        // O prompt da caixa; sem ele (ainda lendo, ou a leitura falhou) o servidor usa o salvo.
+        const resultado = await criarDescricaoIA(idsParaGerar, atual, prompt ?? undefined);
         if (geracao !== geracaoAtual.current) return;
         if (!resultado.ok) {
           setErro(resultado.erro);
@@ -459,6 +488,24 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setEditandoTexto(true);
   }
 
+  /** "Salvar prompt": o texto da caixa passa a ser o prompt de toda descricao gerada. */
+  function salvarPrompt() {
+    setErroPrompt(null);
+    iniciarSalvarPrompt(async () => {
+      try {
+        const resposta = await salvarPromptDaDescricao(prompt);
+        if (!resposta.ok) {
+          setErroPrompt(resposta.erro);
+          return;
+        }
+        setPrompt(resposta.texto);
+        setPromptSalvo(resposta.texto);
+      } catch (falha) {
+        setErroPrompt(falha?.message ?? "Falha ao salvar o prompt.");
+      }
+    });
+  }
+
   function adicionarDaFonte(linha) {
     const especificacao = linha.nome ? `${linha.nome}: ${linha.valor}` : linha.valor;
     setTexto((atual) => adicionarEspecificacao(atual, especificacao));
@@ -508,6 +555,8 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   const pendentes = divergencias.filter((item) => !confirmadas.has(item.id)).length;
   const prontasParaOrganizar = divergencias.filter((item) =>
     !confirmadas.has(item.id) && Number.isInteger(selecoes[item.id])).length;
+  // Prompt vazio ou acima do teto nao gera nem salva (o servidor confere de novo).
+  const promptValido = prompt === null || (prompt.trim().length > 0 && prompt.trim().length <= maximoPrompt);
 
   return (
     <div
@@ -602,10 +651,61 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             <p className="mb-1 text-xs font-semibold tracking-wide text-suave uppercase">
               Criar a descricao com IA
             </p>
-            <p className="mb-2 text-xs text-suave">
-              Segue o padrao da loja, em texto puro: titulo, 2 paragrafos de ate 4 linhas, Especificacoes
-              tecnicas, Itens inclusos com o codigo e Garantia.
-            </p>
+            {/* O prompt que vai para a IA (pedido do dono em 06/10/2026), no lugar do texto informativo. */}
+            <div className="mb-2 space-y-1 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-suave">Prompt enviado à IA</span>
+                {prompt !== null && (
+                  <span className={`ml-auto ${prompt.trim().length > maximoPrompt ? "font-medium text-red-700" : "text-suave"}`}>
+                    {prompt.trim().length}/{maximoPrompt}
+                  </span>
+                )}
+              </div>
+              <textarea
+                value={prompt ?? ""}
+                onChange={(evento) => setPrompt(evento.target.value)}
+                disabled={prompt === null || gerando || salvandoPrompt}
+                placeholder={prompt === null ? "Lendo o prompt salvo..." : ""}
+                rows={5}
+                aria-label="Prompt enviado à IA"
+                className="w-full resize-y rounded border border-borda bg-superficie p-2 text-xs leading-relaxed focus:border-acento focus:outline-none disabled:opacity-60"
+              />
+              <p className="text-suave">
+                O Nome, o Código, as referências, as medidas e as divergências entram sozinhos antes dele.
+                Editar sem salvar vale só para esta janela.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={salvarPrompt}
+                  disabled={prompt === null || prompt === promptSalvo || !promptValido || gerando || salvandoPrompt}
+                  title="Guarda este texto como o prompt de toda descricao gerada"
+                  className="inline-flex items-center gap-1 rounded border border-acento px-2 py-1 text-xs text-acento hover:bg-superficie disabled:opacity-40"
+                >
+                  {salvandoPrompt && <Loader size={12} className="animate-spin" />}
+                  Salvar prompt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrompt(promptSalvo)}
+                  disabled={prompt === null || prompt === promptSalvo || gerando || salvandoPrompt}
+                  title="Descarta o que voce editou e volta ao prompt salvo"
+                  className="rounded border border-borda px-2 py-1 text-xs hover:bg-superficie disabled:opacity-40"
+                >
+                  Voltar ao salvo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrompt(promptPadrao)}
+                  disabled={prompt === null || prompt === promptPadrao || gerando || salvandoPrompt}
+                  title="Poe na caixa o prompt original do sistema (para valer sempre, clique depois em Salvar prompt)"
+                  className="rounded border border-borda px-2 py-1 text-xs hover:bg-superficie disabled:opacity-40"
+                >
+                  Restaurar padrão
+                </button>
+              </div>
+              {erroPrompt && <p className="text-red-700">{erroPrompt}</p>}
+            </div>
 
             <dl className="mb-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-xs">
               <dt className="text-suave">Titulo:</dt>
@@ -622,7 +722,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               <button
                 type="button"
                 onClick={gerar}
-                disabled={gerando || idsParaGerar.length === 0}
+                disabled={gerando || idsParaGerar.length === 0 || !promptValido}
                 className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {gerando ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}

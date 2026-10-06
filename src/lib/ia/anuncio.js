@@ -449,8 +449,10 @@ export function montarDescricao({
  * @param {{titulo?: string, sku?: string, medidas?: object}} produto o Nome, o Codigo e
  *   o peso/dimensoes JA preenchidos no formulario. Medida do formulario vence a
  *   da IA: o texto nao pode dizer uma coisa e o campo outra.
+ * @param {string} instrucoes o prompt de escrita (o salvo pelo dono, ou o editado so para esta geracao),
+ *   ja conferido por `limparPromptDaDescricao`.
  */
-export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} } = {}) {
+export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} } = {}, instrucoes = PROMPT_DESCRICAO_PADRAO) {
   const { texto: referencias, quantidade, medidasPorReferencia, referencias: linhas } = await lerReferencias(ids);
   const divergencias = identificarDivergencias(linhas);
 
@@ -473,77 +475,7 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
       return `- Referência ${ref.numero} (${ref.nome}): ${partes.join("; ")}`;
     });
 
-  const pedido =
-    (titulo.trim() ? `Produto que a loja vai anunciar: ${titulo.trim()}\n\n` : "") +
-    `Referências:\n\n${referencias}\n\n` +
-    (listaDeMedidas.length > 0
-      ? `Peso e medidas já encontrados nas referências:\n${listaDeMedidas.join("\n")}\n\n`
-      : "") +
-    (divergencias.length > 0
-      ? `Divergências a revisar pelo operador (opcoes numeradas a partir de zero):\n${JSON.stringify(
-          divergencias.map(({ id, campo, opcoes }) => ({
-            id, campo, opcoes: opcoes.map(({ valor, fontes, aviso }) => ({
-              valor, aviso, fontes: fontes.map(({ nome, produto }) => `${nome}: ${produto}`),
-            })),
-          })),
-        )}\n\n`
-      : "") +
-    "Escreva o conteúdo da descrição, em três partes. Tudo em TEXTO PURO: sem negrito, sem " +
-    "asteriscos, sem '#', sem emoji e sem links.\n" +
-    "- paragrafos: exatamente DOIS grupos, na ordem [opções do primeiro parágrafo, opções do " +
-    `segundo parágrafo]. Cada grupo traz exatamente ${OPCOES_DE_PARAGRAFO} opções DIFERENTES ` +
-    "de texto para aquele parágrafo, e o dono escolhe UMA de cada grupo. Todas as opções " +
-    `seguem o padrão abaixo, cada uma com NO MÁXIMO ${LIMITE_PARAGRAFO} caracteres contando ` +
-    "espaços (cerca de quatro linhas). As opções de um grupo devem variar de verdade no que " +
-    "ganha espaço e na ordem dos fatos (por exemplo, abrir pelo chip ou pela aplicação; " +
-    "destacar a tensão ou a compatibilidade), e não só trocar uma palavra por sinônimo. " +
-    "Padrão (\"técnico-comparativo\"), definido com o dono em 22/09/2026:\n" +
-    "  Primeiro parágrafo — identidade técnica: comece pelo NOME do produto como sujeito da " +
-    "frase (\"A Placa...\", \"A Célula de carga...\", \"O Sensor...\"), diga o que ele é e a " +
-    "especificação central que decide a compra (chip/CI, processador, clock — o dado técnico " +
-    "mais relevante), terminando com a tensão de operação/alimentação quando as referências " +
-    "trouxerem esse dado.\n" +
-    "  Segundo parágrafo — compatibilidade prática: o que o produto aceita ou exige junto " +
-    "(shields, bibliotecas, IDE, módulo complementar como o HX711) e, quando fizer sentido, o " +
-    "que acompanha.\n" +
-    "  Escreva em frases completas, com verbo ligando os fatos (\"possui\", \"é compatível " +
-    "com\", \"acompanha\"), NUNCA uma lista telegráfica separada só por vírgula. Tom acessível, " +
-    "como se explicasse para alguém leigo no assunto, mas sem perder precisão técnica: nenhum " +
-    "adjetivo de efeito (\"incrível\", \"ideal\", \"de alta qualidade\", \"a solução perfeita\"). " +
-    "Não repita o título nem o que a lista de especificações já diz em detalhe.\n" +
-    "- caracteristicas: as especificações técnicas que as referências confirmam, cada uma com " +
-    "nome curto e valor (ex.: nome \"Voltagem de Operação\", valor \"5V\"). Da mais importante para " +
-    "a menos importante. Não repita a mesma especificação com nomes diferentes. Para cada campo " +
-    "divergente listado acima, inclua também UMA característica com o nome do campo e valor \"\" " +
-    "na posição técnica correta entre as demais. Essa linha vazia serve somente para ordenar " +
-    "as opções que o operador escolherá; não aparecerá na descrição final. Dimensões e peso " +
-    "ficam por último, nessa ordem. Em TODAS as unidades de medida técnicas, escreva " +
-    "o número colado à unidade, sem espaço: 5V, 50mA, 1KB, 16MHz, 2GHz, 68mm. " +
-    "Aplique a regra também a miliampères, milímetros, kilobytes, megahertz, " +
-    "gigahertz e outras unidades equivalentes. Use sempre o termo TENSÃO, nunca " +
-    "voltagem; use CORRENTE, nunca amperagem. Vale para parágrafos e para nomes " +
-    "das especificações.\n" +
-    "- itensInclusos: o que vem na embalagem. O primeiro item é o próprio produto, com o nome " +
-    "dele em MAIÚSCULAS e sem os acessórios; depois os acessórios, em escrita normal " +
-    "(ex.: {quantidade: 1, descricao: \"PLACA COMPATIVEL ARDUINO UNO R3 CH340\"}, " +
-    "{quantidade: 1, descricao: \"Cabo USB\"}). Acessório só se o título ou as referências " +
-    "disserem que acompanha.\n" +
-    "- pesoGramas e dimensoesMm: o peso (em gramas) e as dimensões do CORPO do produto (em " +
-    "milímetros: comprimento, largura, altura). Use a lista \"Peso e medidas já encontrados\": " +
-    "escolha a da referência que é o MESMO produto do título; se nenhuma for exatamente o mesmo, " +
-    "use a mais parecida. Só fica null o que a lista não trouxer. Não use medida de cabo, fio ou " +
-    "embalagem. NÃO coloque peso nem " +
-    "dimensões em caracteristicas: essas linhas são escritas à parte.\n\n" +
-    "- decisoes: para CADA divergência, indique id, índice da opção recomendada (ou null se não " +
-    "houver evidência suficiente) e motivo breve. Prefira a variante do mesmo produto do título, " +
-    "a medida do corpo em vez da embalagem e dados corroborados por fontes independentes. " +
-    "Uma medida com ordem de eixos presumida é menos confiável que uma medida com eixos " +
-    "declarados. Para corrente, diferencie limite de pico e operação contínua: não recomende o pico " +
-    "como corrente contínua. Uma recomendação é uma hipótese para revisão, não uma certeza. " +
-    "Não invente opções. " +
-    "Não coloque valores divergentes nos parágrafos nem nas características; o operador " +
-    "escolherá esses valores na tela.\n" +
-    "Não escreva garantia, preço, prazo nem nome de loja: essas partes são da loja.";
+  const pedido = montarPedidoDaDescricao({ titulo, referencias, listaDeMedidas, divergencias, instrucoes });
 
   // Opcao de paragrafo acima do limite volta para a IA encurtar, uma vez, dizendo quais passaram.
   // Cortar no codigo quebraria a frase no meio.
@@ -661,6 +593,141 @@ export const LIMITE_PARAGRAFO = 230;
 
 /// Quantas opcoes de texto a IA escreve para CADA um dos dois primeiros paragrafos da descricao.
 export const OPCOES_DE_PARAGRAFO = 3;
+
+/**
+ * O prompt de escrita da descricao: as instrucoes, sem os dados do produto (pedido do dono em 06/10/2026: ver e
+ * editar na janela "Criar descricao" o que vai para a IA, e salvar, como o prompt do Nano Banana). O nome, as
+ * referencias, as medidas e as divergencias entram sozinhos ANTES dele, em `montarPedidoDaDescricao`.
+ *
+ * Os nomes das partes (paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm, decisoes) sao os
+ * campos da resposta. Tirar um do texto nao quebra a leitura: o formato JSON obriga a resposta a traze-los.
+ */
+export const PROMPT_DESCRICAO_PADRAO =
+  "Escreva o conteúdo da descrição, em três partes. Tudo em TEXTO PURO: sem negrito, sem " +
+  "asteriscos, sem '#', sem emoji e sem links.\n" +
+  "- paragrafos: exatamente DOIS grupos, na ordem [opções do primeiro parágrafo, opções do " +
+  `segundo parágrafo]. Cada grupo traz exatamente ${OPCOES_DE_PARAGRAFO} opções DIFERENTES ` +
+  "de texto para aquele parágrafo, e o dono escolhe UMA de cada grupo. Todas as opções " +
+  `seguem o padrão abaixo, cada uma com NO MÁXIMO ${LIMITE_PARAGRAFO} caracteres contando ` +
+  "espaços (cerca de quatro linhas). As opções de um grupo devem variar de verdade no que " +
+  "ganha espaço e na ordem dos fatos (por exemplo, abrir pelo chip ou pela aplicação; " +
+  "destacar a tensão ou a compatibilidade), e não só trocar uma palavra por sinônimo. " +
+  "Padrão (\"técnico-comparativo\"), definido com o dono em 22/09/2026:\n" +
+  "  Primeiro parágrafo — identidade técnica: comece pelo NOME do produto como sujeito da " +
+  "frase (\"A Placa...\", \"A Célula de carga...\", \"O Sensor...\"), diga o que ele é e a " +
+  "especificação central que decide a compra (chip/CI, processador, clock — o dado técnico " +
+  "mais relevante), terminando com a tensão de operação/alimentação quando as referências " +
+  "trouxerem esse dado.\n" +
+  "  Segundo parágrafo — compatibilidade prática: o que o produto aceita ou exige junto " +
+  "(shields, bibliotecas, IDE, módulo complementar como o HX711) e, quando fizer sentido, o " +
+  "que acompanha.\n" +
+  "  Escreva em frases completas, com verbo ligando os fatos (\"possui\", \"é compatível " +
+  "com\", \"acompanha\"), NUNCA uma lista telegráfica separada só por vírgula. Tom acessível, " +
+  "como se explicasse para alguém leigo no assunto, mas sem perder precisão técnica: nenhum " +
+  "adjetivo de efeito (\"incrível\", \"ideal\", \"de alta qualidade\", \"a solução perfeita\"). " +
+  "Não repita o título nem o que a lista de especificações já diz em detalhe.\n" +
+  "- caracteristicas: as especificações técnicas que as referências confirmam, cada uma com " +
+  "nome curto e valor (ex.: nome \"Voltagem de Operação\", valor \"5V\"). Da mais importante para " +
+  "a menos importante. Não repita a mesma especificação com nomes diferentes. Para cada campo " +
+  "divergente listado acima, inclua também UMA característica com o nome do campo e valor \"\" " +
+  "na posição técnica correta entre as demais. Essa linha vazia serve somente para ordenar " +
+  "as opções que o operador escolherá; não aparecerá na descrição final. Dimensões e peso " +
+  "ficam por último, nessa ordem. Em TODAS as unidades de medida técnicas, escreva " +
+  "o número colado à unidade, sem espaço: 5V, 50mA, 1KB, 16MHz, 2GHz, 68mm. " +
+  "Aplique a regra também a miliampères, milímetros, kilobytes, megahertz, " +
+  "gigahertz e outras unidades equivalentes. Use sempre o termo TENSÃO, nunca " +
+  "voltagem; use CORRENTE, nunca amperagem. Vale para parágrafos e para nomes " +
+  "das especificações.\n" +
+  "- itensInclusos: o que vem na embalagem. O primeiro item é o próprio produto, com o nome " +
+  "dele em MAIÚSCULAS e sem os acessórios; depois os acessórios, em escrita normal " +
+  "(ex.: {quantidade: 1, descricao: \"PLACA COMPATIVEL ARDUINO UNO R3 CH340\"}, " +
+  "{quantidade: 1, descricao: \"Cabo USB\"}). Acessório só se o título ou as referências " +
+  "disserem que acompanha.\n" +
+  "- pesoGramas e dimensoesMm: o peso (em gramas) e as dimensões do CORPO do produto (em " +
+  "milímetros: comprimento, largura, altura). Use a lista \"Peso e medidas já encontrados\": " +
+  "escolha a da referência que é o MESMO produto do título; se nenhuma for exatamente o mesmo, " +
+  "use a mais parecida. Só fica null o que a lista não trouxer. Não use medida de cabo, fio ou " +
+  "embalagem. NÃO coloque peso nem " +
+  "dimensões em caracteristicas: essas linhas são escritas à parte.\n\n" +
+  "- decisoes: para CADA divergência, indique id, índice da opção recomendada (ou null se não " +
+  "houver evidência suficiente) e motivo breve. Prefira a variante do mesmo produto do título, " +
+  "a medida do corpo em vez da embalagem e dados corroborados por fontes independentes. " +
+  "Uma medida com ordem de eixos presumida é menos confiável que uma medida com eixos " +
+  "declarados. Para corrente, diferencie limite de pico e operação contínua: não recomende o pico " +
+  "como corrente contínua. Uma recomendação é uma hipótese para revisão, não uma certeza. " +
+  "Não invente opções. " +
+  "Não coloque valores divergentes nos parágrafos nem nas características; o operador " +
+  "escolherá esses valores na tela.\n" +
+  "Não escreva garantia, preço, prazo nem nome de loja: essas partes são da loja.";
+
+/// Teto do prompt editado. O padrao tem cerca de 4.200 caracteres; o teto deixa espaco para acrescentar.
+export const MAXIMO_PROMPT_DESCRICAO = 12000;
+
+/**
+ * Confere o prompt que veio da tela: texto, nao vazio e dentro do teto.
+ * @returns {{ ok: true, texto: string } | { ok: false, erro: string }}
+ */
+export function limparPromptDaDescricao(texto) {
+  const limpo = typeof texto === "string" ? texto.trim() : "";
+  if (!limpo) return { ok: false, erro: "O prompt nao pode ficar vazio." };
+  if (limpo.length > MAXIMO_PROMPT_DESCRICAO) {
+    return { ok: false, erro: `O prompt passa de ${MAXIMO_PROMPT_DESCRICAO} caracteres.` };
+  }
+  return { ok: true, texto: limpo };
+}
+
+/** O pedido inteiro: primeiro os dados do produto, que o codigo monta; depois o prompt de escrita. */
+export function montarPedidoDaDescricao({ titulo = "", referencias, listaDeMedidas = [], divergencias = [], instrucoes }) {
+  return (
+    (titulo.trim() ? `Produto que a loja vai anunciar: ${titulo.trim()}\n\n` : "") +
+    `Referências:\n\n${referencias}\n\n` +
+    (listaDeMedidas.length > 0
+      ? `Peso e medidas já encontrados nas referências:\n${listaDeMedidas.join("\n")}\n\n`
+      : "") +
+    (divergencias.length > 0
+      ? `Divergências a revisar pelo operador (opcoes numeradas a partir de zero):\n${JSON.stringify(
+          divergencias.map(({ id, campo, opcoes }) => ({
+            id, campo, opcoes: opcoes.map(({ valor, fontes, aviso }) => ({
+              valor, aviso, fontes: fontes.map(({ nome, produto }) => `${nome}: ${produto}`),
+            })),
+          })),
+        )}\n\n`
+      : "") +
+    instrucoes
+  );
+}
+
+/**
+ * A linha do prompt da descricao salvo pelo dono. Fica na tabela do prompt do Nano Banana (`PromptImagem`), com
+ * esta chave no lugar do modelo: a mesma regra (uma linha so quando o dono mudou o texto) sem mexer no schema.
+ */
+export const CHAVE_PROMPT_DESCRICAO = "descricao";
+
+/** O prompt salvo, ou o padrao do codigo quando nao ha linha (ou o banco falha). */
+export async function lerPromptDaDescricao() {
+  try {
+    const linha = await prisma.promptImagem.findUnique({ where: { modelo: CHAVE_PROMPT_DESCRICAO } });
+    return linha?.texto ?? PROMPT_DESCRICAO_PADRAO;
+  } catch {
+    return PROMPT_DESCRICAO_PADRAO;
+  }
+}
+
+/**
+ * Grava o prompt ja conferido por `limparPromptDaDescricao`. Igual ao padrao, APAGA a linha: assim uma melhoria
+ * futura do padrao chega a quem nunca mexeu nele (a mesma regra do Nano Banana).
+ */
+export async function gravarPromptDaDescricao(texto) {
+  if (texto === PROMPT_DESCRICAO_PADRAO) {
+    await prisma.promptImagem.deleteMany({ where: { modelo: CHAVE_PROMPT_DESCRICAO } });
+    return;
+  }
+  await prisma.promptImagem.upsert({
+    where: { modelo: CHAVE_PROMPT_DESCRICAO },
+    create: { modelo: CHAVE_PROMPT_DESCRICAO, texto },
+    update: { texto },
+  });
+}
 
 /**
  * Limpa o que a IA devolveu para os dois primeiros paragrafos (pedido do dono em 04/10/2026: 3 opcoes

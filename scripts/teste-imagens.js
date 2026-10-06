@@ -1679,6 +1679,35 @@ try {
         await prisma.logIntegracao.deleteMany({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } } });
       }
 
+      // ----- Criar descricao: o prompt de escrita salvo (mesma tabela, chave "descricao") -----
+      console.log("\nCriar descricao: prompt salvo (usa o Postgres)");
+      const acoesProduto = await import("../src/app/produtos/acoes.js");
+      const { CHAVE_PROMPT_DESCRICAO, PROMPT_DESCRICAO_PADRAO, MAXIMO_PROMPT_DESCRICAO } = await import("../src/lib/ia/anuncio.js");
+      const ondePromptDescricao = { modelo: CHAVE_PROMPT_DESCRICAO };
+      // O prompt real do dono fica guardado e volta no fim.
+      const promptDescricaoDoDono = await prisma.promptImagem.findUnique({ where: ondePromptDescricao });
+      try {
+        await prisma.promptImagem.deleteMany({ where: ondePromptDescricao });
+        const inicial = await acoesProduto.promptDaDescricao();
+        conferir("descricao: sem linha, o prompt e o padrao do codigo", [inicial.ok, inicial.texto === PROMPT_DESCRICAO_PADRAO, inicial.padrao === PROMPT_DESCRICAO_PADRAO, inicial.maximo], [true, true, true, MAXIMO_PROMPT_DESCRICAO]);
+        const salvoD = await acoesProduto.salvarPromptDaDescricao("  Escreva so dois paragrafos.  ");
+        conferir("descricao: salvar grava sem os espacos das pontas", [salvoD.ok, salvoD.texto, (await acoesProduto.promptDaDescricao()).texto], [true, "Escreva so dois paragrafos.", "Escreva so dois paragrafos."]);
+        await acoesProduto.salvarPromptDaDescricao("Segundo prompt");
+        conferir("descricao: salvar de novo sobrescreve, uma linha so", [(await acoesProduto.promptDaDescricao()).texto, await prisma.promptImagem.count({ where: ondePromptDescricao })], ["Segundo prompt", 1]);
+        conferir("descricao: a linha nao aparece como prompt de modelo do Nano Banana", Object.values((await nbAcoes.estadoDoNanoBanana()).prompts).includes("Segundo prompt"), false);
+        const recusadoD = await acoesProduto.salvarPromptDaDescricao("   ");
+        conferir("descricao: vazio e recusado e o salvo fica", [recusadoD.ok, (await acoesProduto.promptDaDescricao()).texto], [false, "Segundo prompt"]);
+        const longoD = await acoesProduto.salvarPromptDaDescricao("a".repeat(MAXIMO_PROMPT_DESCRICAO + 1));
+        conferir("descricao: acima do teto e recusado", longoD.ok, false);
+        const padraoD = await acoesProduto.salvarPromptDaDescricao(PROMPT_DESCRICAO_PADRAO);
+        conferir("descricao: salvar igual ao padrao apaga a linha", [padraoD.ok, await prisma.promptImagem.count({ where: ondePromptDescricao })], [true, 0]);
+        const geracaoRecusada = await acoesProduto.criarDescricaoIA(["x"], { titulo: "T", sku: "S" }, "  ");
+        conferir("descricao: gerar com prompt vazio e recusado ANTES de chamar a IA", [geracaoRecusada.ok, geracaoRecusada.erro], [false, "O prompt nao pode ficar vazio."]);
+      } finally {
+        await prisma.promptImagem.deleteMany({ where: ondePromptDescricao });
+        if (promptDescricaoDoDono) await prisma.promptImagem.create({ data: promptDescricaoDoDono });
+      }
+
       // ----- Nano Banana: prompt salvo por modelo, imagens extras e o estado para a tela -----
       console.log("\nNano Banana: prompt, extras e estado (usa o Postgres e dados/)");
       const { PROMPT_PADRAO, MODELOS: MODELOS_NB } = await import("../src/lib/integracoes/nanobanana.js");
