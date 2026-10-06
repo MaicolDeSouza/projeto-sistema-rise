@@ -2338,16 +2338,28 @@ clique, o que vai acontecer. Roda no servidor, e a tela mostra sempre os dois n�
 - **O servidor da porta 3000 pertence a outra sessão, e as Server Actions do Next rodam uma por vez:** um pop-up
   aberto durante o botão espera a leitura em massa terminar.
 
+### Segundo teste real (06/10/2026, só no `ZZ-TESTE-BLING`)
+
+Mesmo esquema (travas abertas só no ambiente do script, `.env` intocado):
+
+- **Grupo fiscal e medidas:** percentual de tributos (vazio → 12,5), tipo SPED (vazio → `00`) e altura (2 → 2,5)
+  mudados no Rise; um `PATCH` → **200** com `dimensoes` e `tributacao` inteiros (mesclados com o Bling, inclusive
+  `grupoProduto: {id: 0}`, NCM e CEST no formato do Bling). No Bling mudaram **só** esses 3 campos.
+- **Fornecedor achado PELO NOME (o caso comum):** os fornecedores do Rise quase nunca têm o CNPJ no Bling
+  (Circuitronix, Metaltex e Unitel existem lá só pelo nome, sem documento; a Metaltex tem 2 contatos com o mesmo
+  nome). Com a Unitel: busca por CNPJ vazia → `pesquisa=Unitel&criterio=1` → `GET /contatos/{id}` confirmou o tipo
+  Fornecedor → **reaproveitado sem escrever nele**, e só o vínculo foi criado (`POST /produtos/fornecedores` 201).
+- **Fornecedor SEM contato no Bling:** `POST /contatos` → **201** com `{nome, situacao: "A", tipo: "J",
+  numeroDocumento: <14 dígitos>, tiposContato: [{id}]}`; o Bling guardou como Fornecedor, a busca por CNPJ só com
+  dígitos o acha, e a segunda sincronização não fez **nenhuma** escrita. O contato de teste é **"ZZ Teste
+  Fornecedor Rise"** (id 18435727818, CNPJ de exemplo 11.222.333/0001-81): fica no Bling até o dono apagar.
+- **Alterar um vínculo:** custo e descrição mudados no Rise → `PUT /produtos/fornecedores/{id}` → **200** (com as
+  chaves extras da listagem, `precoCompra` incluído); só aquele vínculo mudou.
+
 ### O que continua SEM medida na API real
 
-Só se saberá com um teste de escrita novo, e cada item é pendência:
-
-- Criar contato de fornecedor (`POST /contatos`) e achar depois o contato criado só com dígitos.
-- `GET /contatos?pesquisa=` com nome e acentos, o critério 3, páginas e a situação E/I.
-- `PUT /produtos/fornecedores/{id}` com as chaves extras da listagem, e `padrao: false` no único vínculo.
-- `POST /produtos` com o código de um produto **inativo** no Bling (não é mais tentado: a busca entre os inativos
-  recusa antes).
-- `tributacao.grupoProduto` no corpo; saída maior que o saldo (físico negativo).
+- `GET /contatos?pesquisa=` com acentos, páginas e situação E/I (o nome simples foi medido).
+- Saída maior que o saldo (físico negativo).
 - O campo exato do `400` "nenhum produto foi informado" de `GET /estoques/saldos` (se `description`, `message` ou
   `fields[].msg`).
 - **O vídeo (`midia.video`) segue FORA do envio (Emenda 2).** Enviar vídeo obriga a mandar `midia.imagens`, e o
