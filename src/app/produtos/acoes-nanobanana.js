@@ -2,19 +2,29 @@
 
 import sharp from "sharp";
 
+import { prisma } from "@/lib/db";
 import { loteValido } from "@/lib/arquivos";
-import { MAXIMO_EXTRAS, MAXIMO_PROMPT } from "@/lib/limites";
+import { cotacaoDoDolar, emReais } from "@/lib/cotacaoDolar";
+import { MAXIMO_EXTRAS, MAXIMO_EXTRA_BYTES, MAXIMO_PROMPT } from "@/lib/limites";
 import {
+  adicionarExtra,
   baseValida,
   garantirOriginalGuardado,
   gravarGeracao,
   guardarVersao,
   lerExtra,
   originalDoLote,
+  removerExtra,
 } from "@/lib/imagens/lote";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { versoesParaTela } from "@/lib/imagens/paraTela";
-import { MODELOS, avaliarConfiguracao, gerarImagem } from "@/lib/integracoes/nanobanana";
+import {
+  MODELOS,
+  MODELO_PADRAO,
+  PROMPT_PADRAO,
+  avaliarConfiguracao,
+  gerarImagem,
+} from "@/lib/integracoes/nanobanana";
 import { registrarChamada, usoDoNanoBanana } from "@/lib/integracoes/nanobananaLog";
 
 /**
@@ -154,5 +164,111 @@ export async function gerarComNanoBanana(lote, base, pedido) {
     return falha(erro.message);
   } finally {
     emAndamento.delete(chave);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Estado para a tela, prompt salvo por modelo e imagens extras
+// ---------------------------------------------------------------------------
+
+/**
+ * O que a aba Nano Banana precisa para desenhar: a configuracao (com o motivo, se estiver recusando), os
+ * modelos com o preco em reais (pela cotacao de `cotacaoDolar.js`), o prompt de cada modelo (o salvo ou o
+ * padrao do codigo) e o uso do dia e do mes. Sem o uso a tela ainda funciona: so nao o mostra.
+ */
+export async function estadoDoNanoBanana() {
+  const configuracao = avaliarConfiguracao();
+  const cotacao = cotacaoDoDolar();
+
+  const salvos = new Map();
+  try {
+    for (const linha of await prisma.promptImagem.findMany()) salvos.set(linha.modelo, linha.texto);
+  } catch {
+    // Sem o banco a tela usa o prompt padrao.
+  }
+
+  let uso = null;
+  try {
+    uso = await usoDoNanoBanana();
+  } catch {
+    // Sem contagem a tela ainda funciona: so nao mostra o uso.
+  }
+
+  return {
+    config: { ok: configuracao.ok, motivo: configuracao.motivo },
+    modelos: Object.entries(MODELOS).map(([chave, modelo]) => ({
+      chave,
+      nome: modelo.nome,
+      usd: modelo.usd,
+      brl: emReais(modelo.usd, cotacao),
+      aceitaExtras: modelo.aceitaExtras,
+    })),
+    modeloPadrao: MODELO_PADRAO,
+    // Uma linha por modelo no banco so quando o dono mudou o texto: sem linha, vale o do codigo.
+    prompts: Object.fromEntries(Object.keys(MODELOS).map((chave) => [chave, salvos.get(chave) ?? PROMPT_PADRAO])),
+    cotacao,
+    uso,
+    gastoMesBrl: uso ? emReais(uso.gastoMesUsd, cotacao) : null,
+    maximoExtras: MAXIMO_EXTRAS,
+    maximoPrompt: MAXIMO_PROMPT,
+  };
+}
+
+/**
+ * "Salvar prompt": um por modelo, que passa a ser o ponto de partida daquele modelo. Salvar o texto igual ao
+ * padrao do codigo APAGA a linha: o padrao do codigo e "sem linha", e assim uma melhoria futura do padrao
+ * chega a quem nunca mexeu nele.
+ */
+export async function salvarPromptDoModelo(modelo, texto) {
+  const chave = typeof modelo === "string" ? modelo : "";
+  if (!Object.hasOwn(MODELOS, chave)) return falha("Modelo desconhecido.");
+
+  const limpo = typeof texto === "string" ? texto.trim() : "";
+  if (!limpo) return falha("O prompt nao pode ficar vazio.");
+  if (limpo.length > MAXIMO_PROMPT) return falha(`O prompt passa de ${MAXIMO_PROMPT} caracteres.`);
+
+  try {
+    if (limpo === PROMPT_PADRAO.trim()) {
+      await prisma.promptImagem.deleteMany({ where: { modelo: chave } });
+    } else {
+      await prisma.promptImagem.upsert({
+        where: { modelo: chave },
+        create: { modelo: chave, texto: limpo },
+        update: { texto: limpo },
+      });
+    }
+    return { ok: true, texto: limpo };
+  } catch (erro) {
+    return falha(erro.message);
+  }
+}
+
+/** Uma imagem extra enviada de fora para a geracao desta foto (campo `arquivo`). */
+export async function adicionarExtraAoLote(lote, base, formData) {
+  if (!loteValido(lote) || !baseValida(base)) return falha("Foto invalida.");
+
+  const arquivo = formData?.get?.("arquivo");
+  if (!arquivo || typeof arquivo.arrayBuffer !== "function" || !arquivo.size) return falha("Nenhum arquivo enviado.");
+  if (arquivo.size > MAXIMO_EXTRA_BYTES) {
+    return falha(`A imagem tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB; o limite e ${MAXIMO_EXTRA_BYTES / 1024 / 1024} MB.`);
+  }
+
+  try {
+    const resultado = await adicionarExtra(lote, base, Buffer.from(await arquivo.arrayBuffer()));
+    if (!resultado.ok) return falha(resultado.erro);
+    return { ok: true, extra: { n: resultado.n, url: `/api/temporarios/${lote}/extras/${base}.${resultado.n}.${resultado.extensao}?v=${Date.now()}` } };
+  } catch (erro) {
+    return falha(erro.message);
+  }
+}
+
+export async function removerExtraDoLote(lote, base, n) {
+  if (!loteValido(lote) || !baseValida(base)) return falha("Foto invalida.");
+  if (!Number.isInteger(n) || n < 1 || n > MAXIMO_EXTRAS) return falha("Imagem extra invalida.");
+  try {
+    await removerExtra(lote, base, n);
+    return { ok: true };
+  } catch (erro) {
+    return falha(erro.message);
   }
 }

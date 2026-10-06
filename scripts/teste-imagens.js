@@ -1663,6 +1663,80 @@ try {
         await acoes.descartarLoteDeArquivos(L);
         await prisma.logIntegracao.deleteMany({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } } });
       }
+
+      // ----- Nano Banana: prompt salvo por modelo, imagens extras e o estado para a tela -----
+      console.log("\nNano Banana: prompt, extras e estado (usa o Postgres e dados/)");
+      const { PROMPT_PADRAO, MODELOS: MODELOS_NB } = await import("../src/lib/integracoes/nanobanana.js");
+      const { MAXIMO_EXTRA_BYTES } = await import("../src/lib/limites.js");
+      const { GET: rotaTemporarios } = await import("../src/app/api/temporarios/[...caminho]/route.js");
+      const apagarPrompts = () => prisma.promptImagem.deleteMany({ where: { modelo: { in: Object.keys(MODELOS_NB) } } });
+      // Os prompts reais do dono ficam guardados e voltam no fim: este teste usa as chaves de verdade.
+      const promptsDoDono = await prisma.promptImagem.findMany({ where: { modelo: { in: Object.keys(MODELOS_NB) } } });
+      const LE = randomUUID();
+      try {
+        await apagarPrompts();
+        const estado = await nbAcoes.estadoDoNanoBanana();
+        conferir("estado: os tres modelos, na ordem, com preco em reais (US$ x 6)", [estado.modelos.map((m) => m.chave), estado.modelos.map((m) => m.brl), estado.modelos.map((m) => m.aceitaExtras)], [["nano-banana-2", "nano-banana-pro", "nano-banana-2-lite"], [0.4, 0.8, 0.2], [true, true, false]]);
+        conferir("estado: modelo padrao, cotacao e limites", [estado.modeloPadrao, estado.cotacao, estado.maximoExtras, estado.maximoPrompt], ["nano-banana-2", { valor: 6, origem: "fixa" }, MAXIMO_EXTRAS, MAXIMO_PROMPT]);
+        conferir("estado: sem linha, o prompt de cada modelo e o padrao do codigo", Object.keys(MODELOS_NB).every((chave) => estado.prompts[chave] === PROMPT_PADRAO), true);
+        conferir("estado: a configuracao vem com o motivo e o uso do dia", [typeof estado.config.ok, estado.uso === null || typeof estado.uso.hoje === "number"], ["boolean", true]);
+
+        const salvo = await nbAcoes.salvarPromptDoModelo("nano-banana-pro", "  Meu prompt do Pro  ");
+        conferir("salvar prompt grava (sem os espacos das pontas)", [salvo.ok, salvo.texto], [true, "Meu prompt do Pro"]);
+        const depoisDeSalvar = await nbAcoes.estadoDoNanoBanana();
+        conferir("o texto salvo vale SO para aquele modelo", [depoisDeSalvar.prompts["nano-banana-pro"], depoisDeSalvar.prompts["nano-banana-2"] === PROMPT_PADRAO, depoisDeSalvar.prompts["nano-banana-2-lite"] === PROMPT_PADRAO], ["Meu prompt do Pro", true, true]);
+        await nbAcoes.salvarPromptDoModelo("nano-banana-pro", "Segundo texto");
+        conferir("salvar de novo sobrescreve, e ha uma linha so", [(await nbAcoes.estadoDoNanoBanana()).prompts["nano-banana-pro"], await prisma.promptImagem.count({ where: { modelo: "nano-banana-pro" } })], ["Segundo texto", 1]);
+        const voltouAoPadrao = await nbAcoes.salvarPromptDoModelo("nano-banana-pro", PROMPT_PADRAO);
+        conferir("salvar o texto igual ao padrao apaga a linha (padrao do codigo = sem linha)", [voltouAoPadrao.ok, await prisma.promptImagem.count({ where: { modelo: "nano-banana-pro" } })], [true, 0]);
+
+        const recusasPrompt = [
+          ["texto vazio", "nano-banana-2", ""],
+          ["so espacos", "nano-banana-2", "    "],
+          [`${MAXIMO_PROMPT + 1} caracteres`, "nano-banana-2", "a".repeat(MAXIMO_PROMPT + 1)],
+          ["modelo inexistente", "nano-banana-1", "texto"],
+          ["modelo vindo como outro tipo", { toString: () => "nano-banana-2" }, "texto"],
+        ];
+        for (const [nome, modelo, texto] of recusasPrompt) {
+          const r = await nbAcoes.salvarPromptDoModelo(modelo, texto);
+          conferir(`prompt recusado (${nome}): erro em portugues e nada gravado`, [r.ok, typeof r.erro === "string" && r.erro.length > 5, await prisma.promptImagem.count({ where: { modelo: { in: Object.keys(MODELOS_NB) } } })], [false, true, 0]);
+        }
+        const noLimitePrompt = await nbAcoes.salvarPromptDoModelo("nano-banana-2-lite", "a".repeat(MAXIMO_PROMPT));
+        conferir(`prompt de exatamente ${MAXIMO_PROMPT} caracteres e aceito`, noLimitePrompt.ok, true);
+
+        // Extras enviadas.
+        const fotoE = await loteLib.adicionarImagem(LE, ORIG);
+        const enviar = (bytes, nome = "extra.jpg", tipo = "image/jpeg") => {
+          const dados = new FormData();
+          dados.set("arquivo", new File([bytes], nome, { type: tipo }));
+          return nbAcoes.adicionarExtraAoLote(LE, fotoE.base, dados);
+        };
+        const jpgExtra = await foto(900, 700);
+        const primeiraExtra = await enviar(jpgExtra);
+        conferir("extra: JPEG valido devolve n 1 e o endereco", [primeiraExtra.ok, primeiraExtra.extra?.n, new RegExp(`^/api/temporarios/${LE}/extras/${fotoE.base}\\.1\\.jpg\\?v=\\d+$`).test(primeiraExtra.extra?.url ?? "")], [true, 1, true]);
+        const servida = await rotaTemporarios(null, { params: Promise.resolve({ caminho: [LE, "extras", `${fotoE.base}.1.jpg`] }) });
+        conferir("extra: a rota de temporarios entrega a imagem", [servida.status, servida.headers.get("content-type"), Buffer.from(await servida.arrayBuffer()).equals(jpgExtra)], [200, "image/jpeg", true]);
+        for (let i = 2; i <= MAXIMO_EXTRAS; i++) await enviar(await foto(800 + i, 800), `extra${i}.png`, "image/png");
+        const sexta = await enviar(jpgExtra);
+        conferir("extra: a 6a e recusada", [sexta.ok, /No maximo 5/.test(sexta.erro ?? "")], [false, true]);
+        const texto = await nbAcoes.adicionarExtraAoLote(LE, fotoE.base, (() => { const d = new FormData(); d.set("arquivo", new File([Buffer.from("isto nao e uma imagem")], "x.jpg", { type: "image/jpeg" })); return d; })());
+        conferir("extra: arquivo de texto renomeado .jpg e recusado", texto.ok, false);
+        const vazio = await nbAcoes.adicionarExtraAoLote(LE, fotoE.base, new FormData());
+        conferir("extra: sem arquivo e recusado", vazio.ok, false);
+        const grandeDemais = await nbAcoes.adicionarExtraAoLote(LE, fotoE.base, (() => { const d = new FormData(); d.set("arquivo", new File([Buffer.alloc(MAXIMO_EXTRA_BYTES + 1, 1)], "g.jpg", { type: "image/jpeg" })); return d; })());
+        conferir("extra: acima de 10 MB e recusado", [grandeDemais.ok, /10 MB/.test(grandeDemais.erro ?? "")], [false, true]);
+        conferir("extra: lote e foto invalidos sao recusados", [(await nbAcoes.adicionarExtraAoLote("../fora", fotoE.base, new FormData())).ok, (await nbAcoes.adicionarExtraAoLote(LE, "../x", new FormData())).ok], [false, false]);
+
+        const removida = await nbAcoes.removerExtraDoLote(LE, fotoE.base, 1);
+        conferir("remover extra apaga o arquivo", [removida.ok, await loteLib.lerExtra(LE, fotoE.base, 1)], [true, null]);
+        const cheiaDeNovo = await enviar(jpgExtra);
+        conferir("... e libera o numero: a proxima enviada volta a ser a 1", [cheiaDeNovo.ok, cheiaDeNovo.extra?.n], [true, 1]);
+        conferir("remover numero invalido e recusado", [(await nbAcoes.removerExtraDoLote(LE, fotoE.base, 9)).ok, (await nbAcoes.removerExtraDoLote(LE, fotoE.base, "x")).ok, (await nbAcoes.removerExtraDoLote("../fora", fotoE.base, 1)).ok], [false, false, false]);
+      } finally {
+        await acoes.descartarLoteDeArquivos(LE);
+        await apagarPrompts();
+        if (promptsDoDono.length > 0) await prisma.promptImagem.createMany({ data: promptsDoDono });
+      }
     }
   } finally {
     globalThis.fetch = fetchReal;
