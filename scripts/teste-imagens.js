@@ -1494,6 +1494,175 @@ try {
         await prisma.produto.deleteMany({ where: { sku: SKU_REABRIR } });
         await apagarPastaProduto(SKU_REABRIR);
       }
+
+      // ----- Nano Banana: gerar (Postgres e dados/, fetch simulado, chaves inventadas) -----
+      console.log("\nNano Banana: gerar (usa o Postgres e dados/, fetch simulado)");
+      const nbAcoes = await import("../src/app/produtos/acoes-nanobanana.js");
+      const { usoDoNanoBanana: usoNB } = await import("../src/lib/integracoes/nanobananaLog.js");
+      const { RAIZ_TEMPORARIA: RAIZ_LOTE } = await import("../src/lib/arquivos.js");
+      const ENV_NB = ["GEMINI_API_KEY", "NANO_BANANA_GERACAO", "NANO_BANANA_TETO_DIA"];
+      const envAntesNB = Object.fromEntries(ENV_NB.map((nome) => [nome, process.env[nome]]));
+      const fetchAntesGerar = globalThis.fetch;
+      const inicioGerar = new Date();
+      const L = randomUUID();
+      const chamadasGerar = [];
+      let cores = 0;
+      let respostaGerar = null;
+      // Cada chamada devolve um PNG 700x700 de outra cor: "gerar de novo" tem que trocar a versao.
+      const pngGerado = (largura = 700, altura = 700) =>
+        sharp({ create: { width: largura, height: altura, channels: 3, background: { r: 30 + (cores++ % 200), g: 120, b: 60 } } }).png().toBuffer();
+      const respostaComImagem = async (bytes) =>
+        new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/png", data: (bytes ?? (await pngGerado())).toString("base64") } }] }, finishReason: "STOP" }] }), { status: 200 });
+      try {
+        process.env.GEMINI_API_KEY = "chave-falsa-do-teste";
+        process.env.NANO_BANANA_GERACAO = "true";
+        process.env.NANO_BANANA_TETO_DIA = "100000";
+        globalThis.fetch = async (url, inicio) => {
+          chamadasGerar.push({ url: String(url), corpo: JSON.parse(inicio.body) });
+          return respostaGerar ? respostaGerar() : respostaComImagem();
+        };
+        const foto1 = await loteLib.adicionarImagem(L, ORIG);
+        const foto2 = await loteLib.adicionarImagem(L, OUTRA);
+        await loteLib.guardarVersao(L, foto1.base, "photoroom", PR);
+        const fotoAntes = await loteLib.lerDoLote(L, "imagens", `${foto1.base}.jpg`);
+        const pedido = { modelo: "nano-banana-2", prompt: "Foto de estudio do produto", extras: [] };
+
+        const gerada = await nbAcoes.gerarComNanoBanana(L, foto1.base, pedido);
+        const versaoNB = await loteLib.lerVersao(L, foto1.base, "nanobanana");
+        conferir("gerar: uma chamada, e a versao nanobanana fica guardada", [gerada.ok, chamadasGerar.length, gerada.versoes?.nanobanana, Boolean(gerada.urls?.nanobanana)], [true, 1, true, true]);
+        conferir("gerar: devolve o custo do modelo e nao a foto inteira", [gerada.custoUsd, "versao" in gerada, "finalizada" in gerada], [0.067, false, false]);
+        conferir("gerar: a versao guardada sai 1024x1024", (await sharp(versaoNB).metadata()).width, 1024);
+        conferir(
+          "gerar: a foto do produto, a do Photoroom e a original ficam intactas",
+          [(await loteLib.lerDoLote(L, "imagens", `${foto1.base}.jpg`)).equals(fotoAntes), (await loteLib.lerVersao(L, foto1.base, "photoroom"))?.equals(PR), sha((await loteLib.originalDoLote(L, foto1.base)).bytes)],
+          [true, true, sha(ORIG)],
+        );
+        conferir("gerar: a original padronizada tambem fica guardada", Boolean(await loteLib.lerVersao(L, foto1.base, "original")), true);
+        const geracao = await loteLib.lerGeracao(L, foto1.base);
+        conferir("gerar: o pedido fica em geracoes/ (modelo, prompt e extras)", [geracao?.modelo, geracao?.prompt, geracao?.extras, typeof geracao?.em], ["nano-banana-2", "Foto de estudio do produto", [], "string"]);
+        conferir("gerar: o original vai no pedido", chamadasGerar[0].corpo.contents[0].parts[1].inline_data.data, ORIG.toString("base64"));
+        let logs = await prisma.logIntegracao.findMany({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } }, orderBy: { criadoEm: "asc" } });
+        conferir("gerar: 1 linha GEMINI 200, sem chave nem prompt", [logs.length, logs[0]?.statusHttp, /chave-falsa|estudio/.test(JSON.stringify(logs))], [1, 200, false]);
+        conferir("gerar: o resumo do log tem pixels da original, extras, tamanho do prompt, repetida", JSON.parse(logs[0].requestResumo), { pixelsOrigem: 1024 * 1024, extras: 0, tamanhoPrompt: 26, repetida: false });
+
+        // Gerar de novo: troca a versao nanobanana (so a ultima fica) e conta duas no uso.
+        const hojeAntes = (await usoNB()).hoje;
+        const deNovo = await nbAcoes.gerarComNanoBanana(L, foto1.base, { ...pedido, repetida: true });
+        conferir("gerar de novo: outra chamada, outra imagem no lugar da anterior", [deNovo.ok, chamadasGerar.length, sha(await loteLib.lerVersao(L, foto1.base, "nanobanana")) !== sha(versaoNB)], [true, 2, true]);
+        conferir("gerar de novo: continua UM arquivo nanobanana, e a foto do produto nao mudou", [(await readdir(juntar(RAIZ_LOTE, L, "versoes"))).filter((n) => n.startsWith(`${foto1.base}.nanobanana`)).length, (await loteLib.lerDoLote(L, "imagens", `${foto1.base}.jpg`)).equals(fotoAntes)], [1, true]);
+        conferir("gerar de novo: o uso conta mais uma, e o log marca repetida", [(await usoNB()).hoje - hojeAntes, JSON.parse((await prisma.logIntegracao.findFirst({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } }, orderBy: { criadoEm: "desc" } })).requestResumo).repetida], [1, true]);
+
+        // Recusas ANTES de chamar o Google: nenhuma chamada sai.
+        const antesDasRecusas = chamadasGerar.length;
+        const recusasGerar = [
+          ["lote invalido", () => nbAcoes.gerarComNanoBanana("../fora", foto1.base, pedido)],
+          ["foto invalida", () => nbAcoes.gerarComNanoBanana(L, "../x", pedido)],
+          ["modelo desconhecido", () => nbAcoes.gerarComNanoBanana(L, foto1.base, { ...pedido, modelo: "nano-banana-1" })],
+          ["prompt vazio", () => nbAcoes.gerarComNanoBanana(L, foto1.base, { ...pedido, prompt: "   " })],
+          ["prompt longo demais", () => nbAcoes.gerarComNanoBanana(L, foto1.base, { ...pedido, prompt: "a".repeat(MAXIMO_PROMPT + 1) })],
+          ["extra enviada que nao existe", () => nbAcoes.gerarComNanoBanana(L, foto1.base, { ...pedido, extras: [{ tipo: "enviada", n: 3 }] })],
+          ["extra que e a propria foto", () => nbAcoes.gerarComNanoBanana(L, foto1.base, { ...pedido, extras: [{ tipo: "foto", base: foto1.base }] })],
+          ["extra de foto que nao esta no lote", () => nbAcoes.gerarComNanoBanana(L, foto1.base, { ...pedido, extras: [{ tipo: "foto", base: "e".repeat(32) }] })],
+          [`mais de ${MAXIMO_EXTRAS} extras`, () => nbAcoes.gerarComNanoBanana(L, foto1.base, { ...pedido, extras: Array.from({ length: MAXIMO_EXTRAS + 1 }, () => ({ tipo: "foto", base: foto2.base })) })],
+        ];
+        for (const [nome, chamar] of recusasGerar) {
+          const r = await chamar();
+          conferir(`${nome}: recusado em portugues, sem chamar o Google`, [r.ok, typeof r.erro === "string" && r.erro.length > 5], [false, true]);
+        }
+        process.env.NANO_BANANA_GERACAO = "false";
+        const travada = await nbAcoes.gerarComNanoBanana(L, foto1.base, pedido);
+        conferir("trava desligada: recusado com o motivo", [travada.ok, /NANO_BANANA_GERACAO=true/.test(travada.erro)], [false, true]);
+        process.env.NANO_BANANA_GERACAO = "true";
+        delete process.env.GEMINI_API_KEY;
+        conferir("sem chave: recusado com o motivo", /GEMINI_API_KEY/.test((await nbAcoes.gerarComNanoBanana(L, foto1.base, pedido)).erro), true);
+        process.env.GEMINI_API_KEY = "chave-falsa-do-teste";
+        process.env.NANO_BANANA_TETO_DIA = String((await usoNB()).hoje);
+        const noTeto = await nbAcoes.gerarComNanoBanana(L, foto1.base, pedido);
+        conferir("teto do dia: a proxima e recusada", [noTeto.ok, /limite de \d+ geracoes de hoje acabou/i.test(noTeto.erro)], [false, true]);
+        process.env.NANO_BANANA_TETO_DIA = "100000";
+        conferir("... e nenhuma das recusas chamou o Google", chamadasGerar.length, antesDasRecusas);
+
+        // Duas ao mesmo tempo na MESMA foto: so uma passa; a outra e recusada sem chamar. Depois, libera.
+        let soltar;
+        const segurar = new Promise((resolve) => (soltar = resolve));
+        respostaGerar = async () => {
+          await segurar;
+          return respostaComImagem();
+        };
+        const antesDoPar = chamadasGerar.length;
+        const par = [nbAcoes.gerarComNanoBanana(L, foto1.base, pedido), nbAcoes.gerarComNanoBanana(L, foto1.base, pedido)];
+        // A recusada termina primeiro (a outra esta presa no Google falso); so depois a outra e solta.
+        const primeiraAterminar = await Promise.race(par);
+        soltar();
+        const resultadosDoPar = await Promise.all(par);
+        conferir(
+          "duas ao mesmo tempo: 1 chamada, 1 sucesso e 1 'ja ha uma geracao'",
+          [chamadasGerar.length - antesDoPar, resultadosDoPar.filter((x) => x.ok).length, primeiraAterminar.ok, /Ja ha uma geracao/.test(primeiraAterminar.erro ?? "")],
+          [1, 1, false, true],
+        );
+        respostaGerar = null;
+        conferir("... e depois de terminar, a mesma foto gera de novo", (await nbAcoes.gerarComNanoBanana(L, foto1.base, pedido)).ok, true);
+        const antesDeDuasFotos = chamadasGerar.length;
+        const [d1, d2] = await Promise.all([nbAcoes.gerarComNanoBanana(L, foto1.base, pedido), nbAcoes.gerarComNanoBanana(L, foto2.base, pedido)]);
+        conferir("fotos diferentes no mesmo instante nao se bloqueiam", [d1.ok, d2.ok, chamadasGerar.length - antesDeDuasFotos], [true, true, 2]);
+
+        // Extras: carrossel manda o ORIGINAL da outra foto; enviada manda o arquivo de extras/; Lite nao manda nenhuma.
+        const extraEnviada = await loteLib.adicionarExtra(L, foto1.base, NB);
+        conferir("extra enviada recebe o primeiro numero livre", [extraEnviada.ok, extraEnviada.n], [true, 1]);
+        const comExtras = await nbAcoes.gerarComNanoBanana(L, foto1.base, { ...pedido, extras: [{ tipo: "foto", base: foto2.base }, { tipo: "enviada", n: 1 }] });
+        const partesEnviadas = chamadasGerar.at(-1).corpo.contents[0].parts;
+        conferir(
+          "extras: prompt, original, regra, a outra foto e a enviada, nessa ordem",
+          [comExtras.ok, partesEnviadas.length, partesEnviadas[3]?.inline_data?.data === OUTRA.toString("base64"), partesEnviadas[4]?.inline_data?.data === NB.toString("base64")],
+          [true, 5, true, true],
+        );
+        conferir("extras: o log conta 2 extras", JSON.parse((await prisma.logIntegracao.findFirst({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } }, orderBy: { criadoEm: "desc" } })).requestResumo).extras, 2);
+        const comLite = await nbAcoes.gerarComNanoBanana(L, foto1.base, { ...pedido, modelo: "nano-banana-2-lite", extras: [{ tipo: "foto", base: foto2.base }, { tipo: "enviada", n: 1 }] });
+        conferir("Lite: so o prompt e a original vao, mesmo com extras pedidas", [comLite.ok, chamadasGerar.at(-1).corpo.contents[0].parts.length, chamadasGerar.at(-1).url.endsWith("gemini-3.1-flash-lite-image:generateContent")], [true, 2, true]);
+
+        // Respostas ruins do Google: nada vira versao; o log registra o 200 so quando o Google respondeu 200.
+        const ruins = [
+          ["200 so com texto", () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "Nao vou gerar" }] } }] }), { status: 200 }), 200, /nao devolveu imagem/],
+          ["200 com IMAGE_SAFETY", () => new Response(JSON.stringify({ candidates: [{ finishReason: "IMAGE_SAFETY" }] }), { status: 200 }), 200, /recusou esta foto/],
+          ["200 com base64 que nao e imagem", () => respostaComImagem(Buffer.from("nao e imagem nenhuma")), 200, /nao pode ser lida/],
+          ["200 com PNG quebrado (o sharp nao abre)", () => respostaComImagem(Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64, 7)])), 200, /cobrada, mas a imagem recebida nao pode ser tratada/],
+          ["429", () => new Response(JSON.stringify({ error: { message: "quota" } }), { status: 429 }), 429, /Limite ou cota/],
+        ];
+        for (const [nome, resposta, status, mensagem] of ruins) {
+          const antesNB = await loteLib.lerVersao(L, foto1.base, "nanobanana");
+          const hojeAntesRuim = (await usoNB()).hoje;
+          respostaGerar = resposta;
+          const ruim = await nbAcoes.gerarComNanoBanana(L, foto1.base, pedido);
+          const ultimo = await prisma.logIntegracao.findFirst({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } }, orderBy: { criadoEm: "desc" } });
+          conferir(
+            `${nome}: erro em portugues, a versao anterior fica, o log tem o status`,
+            [ruim.ok, mensagem.test(ruim.erro ?? ""), (await loteLib.lerVersao(L, foto1.base, "nanobanana")).equals(antesNB), ultimo.statusHttp],
+            [false, true, true, status],
+          );
+          conferir(`${nome}: conta no uso so se o Google respondeu 200`, (await usoNB()).hoje - hojeAntesRuim, status === 200 ? 1 : 0);
+        }
+        respostaGerar = () => Promise.reject(new TypeError("fetch failed"));
+        const logsAntesRede = await prisma.logIntegracao.count({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } } });
+        const semRede = await nbAcoes.gerarComNanoBanana(L, foto1.base, pedido);
+        const ultimoRede = await prisma.logIntegracao.findFirst({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } }, orderBy: { criadoEm: "desc" } });
+        conferir("erro de rede: entra no log sem status e nao conta", [semRede.ok, (await prisma.logIntegracao.count({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } } })) - logsAntesRede, ultimoRede.statusHttp], [false, 1, null]);
+
+        // Resposta fora de 1:1: aceita, e a versao sai 1024x1024 com fundo branco (o padronizador enquadra).
+        respostaGerar = async () => respostaComImagem(await pngGerado(1024, 768));
+        const retangular = await nbAcoes.gerarComNanoBanana(L, foto1.base, pedido);
+        const versaoRetangular = await loteLib.lerVersao(L, foto1.base, "nanobanana");
+        const metaRetangular = await sharp(versaoRetangular).metadata();
+        conferir("resposta 1024x768: guardada em 1024x1024, com faixa branca", [retangular.ok, metaRetangular.width, metaRetangular.height, proximoDoBranco(await pixel(versaoRetangular, 512, 4))], [true, 1024, 1024, true]);
+        respostaGerar = null;
+      } finally {
+        globalThis.fetch = fetchAntesGerar;
+        for (const [nome, valor] of Object.entries(envAntesNB)) {
+          if (valor === undefined) delete process.env[nome];
+          else process.env[nome] = valor;
+        }
+        await acoes.descartarLoteDeArquivos(L);
+        await prisma.logIntegracao.deleteMany({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } } });
+      }
     }
   } finally {
     globalThis.fetch = fetchReal;

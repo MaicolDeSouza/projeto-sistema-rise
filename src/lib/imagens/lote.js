@@ -10,6 +10,8 @@ import {
   skuValido,
 } from "@/lib/arquivos";
 
+import { MAXIMO_EXTRAS } from "@/lib/limites";
+
 import { padronizarImagem } from "./padronizar";
 
 /**
@@ -274,6 +276,63 @@ export async function escolherVersao(lote, base, versao) {
   if (!bytes) return { ok: false, erro: "Esta foto ainda nao foi melhorada." };
   await escrever(lote, "imagens", `${base}.jpg`, bytes);
   return { ok: true, ampliada: false, tamanhoBytes: bytes.length };
+}
+
+// ---------------------------------------------------------------------------
+// Nano Banana: imagens extras enviadas de fora e o ultimo pedido de cada foto
+// ---------------------------------------------------------------------------
+
+const EXTENSAO_DO_FORMATO = { jpeg: "jpg", png: "png", webp: "webp" };
+
+/**
+ * Guarda uma imagem extra ENVIADA para a geracao de uma foto, no primeiro numero livre de 1 a 5. Passa pelo
+ * padronizador so para CONFERIR que e imagem (os bytes guardados sao os que chegaram: e o que vai ao Google).
+ */
+export async function adicionarExtra(lote, base, bytes) {
+  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto invalida." };
+  const padrao = await padronizarImagem(bytes);
+  if (!padrao.ok) return padrao;
+  const extensao = EXTENSAO_DO_FORMATO[padrao.origem.formato];
+  if (!extensao) return { ok: false, erro: "Formato nao aceito. Envie JPG, PNG ou WebP." };
+
+  for (let n = 1; n <= MAXIMO_EXTRAS; n++) {
+    if (await lerExtra(lote, base, n)) continue;
+    await escrever(lote, "extras", `${base}.${n}.${extensao}`, bytes);
+    return { ok: true, n, extensao };
+  }
+  return { ok: false, erro: `No maximo ${MAXIMO_EXTRAS} imagens extras por foto.` };
+}
+
+/** Uma extra enviada, com a extensao em que foi guardada, ou null. */
+export async function lerExtra(lote, base, n) {
+  if (!baseValida(base) || !Number.isInteger(n)) return null;
+  for (const extensao of EXTENSOES) {
+    const bytes = await lerDoLote(lote, "extras", `${base}.${n}.${extensao}`);
+    if (bytes) return { bytes, extensao };
+  }
+  return null;
+}
+
+export async function removerExtra(lote, base, n) {
+  if (!baseValida(base) || !Number.isInteger(n)) return;
+  for (const extensao of EXTENSOES) await apagar(lote, "extras", `${base}.${n}.${extensao}`);
+}
+
+/** O ultimo pedido ao Nano Banana desta foto (modelo, prompt e extras), para "Gerar de novo" e auditoria. */
+export async function gravarGeracao(lote, base, dados) {
+  if (!baseValida(base)) throw new Error("Foto invalida.");
+  await escrever(lote, "geracoes", `${base}.json`, JSON.stringify({ ...dados, em: new Date().toISOString() }));
+}
+
+export async function lerGeracao(lote, base) {
+  if (!baseValida(base)) return null;
+  const bytes = await lerDoLote(lote, "geracoes", `${base}.json`);
+  if (!bytes) return null;
+  try {
+    return JSON.parse(bytes.toString("utf8"));
+  } catch {
+    return null;
+  }
 }
 
 /** A previa (com marca d'agua) e as opcoes com que foi pedida. */
