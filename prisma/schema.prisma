@@ -32,6 +32,9 @@ enum Servico {
   /// Tratamento da foto do produto novo (Photoroom). Cada previa (sandbox, gratis) e
   /// cada compra (producao, cobra) e uma linha; o modo vai no `endpoint`.
   PHOTOROOM
+  /// Foto do produto refeita pelo Nano Banana (modelos de imagem do Google, API Gemini). Cada geracao paga
+  /// e uma linha; o modelo vai no `endpoint`. Nunca grava a chave, a imagem nem o prompt.
+  GEMINI
 }
 
 enum TipoPessoa {
@@ -93,6 +96,13 @@ enum TipoArquivo {
   /// escolha a cada cadastro.
   DOCUMENTO
   CERTIFICADO
+}
+
+/// Papel de uma imagem do produto. FOTO aparece no carrossel e nos anuncios; RESERVA fica guardada
+/// (original e versoes geradas que o dono nao escolheu) e so aparece atras do botao "Reserva".
+enum PapelArquivo {
+  FOTO
+  RESERVA
 }
 
 enum StatusConexao {
@@ -319,9 +329,30 @@ model ProdutoArquivo {
 
   ordem Int @default(0)
 
+  /// So faz sentido para imagem. TODA leitura de foto do produto filtra `papel: "FOTO"`: a reserva nao
+  /// conta nas 100 fotos, nao vai para anuncio, nao e foto principal.
+  papel PapelArquivo @default(FOTO)
+
+  /// Rotulo da versao desta imagem: "original", "photoroom" ou "nanobanana". E so rotulo (a tela e o
+  /// Salvar o usam para dizer o que cada arquivo e); nenhuma regra de seguranca depende dele.
+  versao String @default("original")
+
+  /// Liga o original e as versoes geradas da MESMA foto (FOTO e RESERVA com o mesmo grupo). Linhas
+  /// anteriores a esta coluna ganham grupo = id na migration; nulo vale "o proprio id".
+  grupo String?
+
   criadoEm DateTime @default(now())
 
   @@index([produtoId, tipo, ordem])
+  @@index([produtoId, grupo])
+}
+
+/// Prompt salvo por modelo do Nano Banana. `modelo` e a chave do `MODELOS` no codigo (nano-banana-2...),
+/// NAO o id do Google. Sem linha vale o `PROMPT_PADRAO` do codigo; salvar o texto igual ao padrao apaga a linha.
+model PromptImagem {
+  modelo       String   @id
+  texto        String
+  atualizadoEm DateTime @updatedAt
 }
 
 // ---------------------------------------------------------------------------
