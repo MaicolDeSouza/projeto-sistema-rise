@@ -1799,6 +1799,11 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
 - **Conteúdo de cada referência em DUAS sub-abas**: Descrição (o texto original da página) e
   Especificações (com a quantidade entre parênteses no rótulo) — antes vinham empilhadas, e uma
   ficha técnica longa empurrava a descrição para baixo da rolagem.
+- **"Levar para edição"** (pedido do dono em 06/10/2026): na sub-aba Descrição de qualquer referência,
+  inclusive a "Descrição atual", o botão põe aquele texto na área de edição da direita, no lugar de gerar com IA.
+  Abre em "Editar texto completo" (o texto da loja não segue o padrão), e zera as opções de parágrafo e as
+  divergências da geração anterior. Se já houver texto lá, pergunta "Substituir?" antes; desabilitado enquanto a
+  IA escreve. Não custa nada: nenhuma chamada à IA.
 - **Remover uma referência só DESTA geração** (lixeira em cada aba): não desmarca na lupa nem
   mexe no que está salvo — pedido do dono: "não excluir fonte". Reabrir a janela (que reseta o
   estado local `excluidos`) traz todas de volta.

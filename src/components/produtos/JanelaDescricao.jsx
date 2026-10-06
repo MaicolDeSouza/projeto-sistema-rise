@@ -31,7 +31,7 @@ const ROTULO_TIPO = {
  * antes vinham empilhadas, e uma ficha longa empurrava a descricao para
  * baixo da rolagem.
  */
-function ConteudoReferencia({ item, aoAdicionar, podeAdicionar }) {
+function ConteudoReferencia({ item, aoAdicionar, podeAdicionar, aoLevar, podeLevar }) {
   const [subaba, setSubaba] = useState("descricao");
   const quantas = item.especificacoes.length;
 
@@ -78,6 +78,18 @@ function ConteudoReferencia({ item, aoAdicionar, podeAdicionar }) {
             {aba.rotulo}
           </button>
         ))}
+        {/* Pedido do dono em 06/10/2026: levar a descricao atual, ou a de qualquer loja, para a area de edicao. */}
+        {subaba === "descricao" && item.descricao && (
+          <button
+            type="button"
+            disabled={!podeLevar}
+            onClick={() => aoLevar(item.descricao)}
+            title={podeLevar ? "Levar este texto para a area de edicao" : "Aguarde a geracao terminar"}
+            className="mb-1 ml-auto inline-flex items-center gap-1 rounded border border-borda bg-superficie px-2 py-1 text-xs font-medium text-acento hover:border-acento disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Levar para edição <ArrowRight size={13} />
+          </button>
+        )}
       </div>
 
       {subaba === "descricao" ? (
@@ -116,7 +128,7 @@ function ConteudoReferencia({ item, aoAdicionar, podeAdicionar }) {
  * 16/09/2026 (antes era uma lista de secoes empilhadas, que obrigava a rolar
  * para achar a segunda loja). Cada aba diz o tipo pela cor e a loja pelo nome.
  */
-function AbasDeReferencias({ itens, descricaoAtual, produto, aoRemover, aoAdicionar, podeAdicionar }) {
+function AbasDeReferencias({ itens, descricaoAtual, produto, aoRemover, aoAdicionar, podeAdicionar, aoLevar, podeLevar }) {
   const [ativa, setAtiva] = useState(0);
   const abaAtual = descricaoAtual === null ? null : {
     id: "descricao-atual",
@@ -178,7 +190,14 @@ function AbasDeReferencias({ itens, descricaoAtual, produto, aoRemover, aoAdicio
         })}
       </div>
       <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto pt-3 pr-1">
-        <ConteudoReferencia key={item.id} item={item} aoAdicionar={aoAdicionar} podeAdicionar={podeAdicionar} />
+        <ConteudoReferencia
+          key={item.id}
+          item={item}
+          aoAdicionar={aoAdicionar}
+          podeAdicionar={podeAdicionar}
+          aoLevar={aoLevar}
+          podeLevar={podeLevar}
+        />
       </div>
     </div>
   );
@@ -225,12 +244,15 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   // [p2a, p2b, p2c]]`, e qual esta no texto agora em cada grupo. O texto nasce com a primeira de cada.
   const [opcoesParagrafos, setOpcoesParagrafos] = useState([]);
   const [escolhidosParagrafos, setEscolhidosParagrafos] = useState([0, 0]);
+  // O texto de uma aba da esquerda esperando o "Substituir?" (ver `pedirLevar`).
+  const [textoParaLevar, setTextoParaLevar] = useState(null);
 
   function abrir() {
     const leitura = ++leituraAtual.current;
     const atual = lerProduto();
     setAberta(true);
     setConfirmandoSaida(false);
+    setTextoParaLevar(null);
     setErro(null);
     setProduto(atual);
     setDetalhes(null);
@@ -277,6 +299,10 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
    * direto, senao o aviso viraria ruido. Com o aviso ja aberto, o Esc o fecha e volta para a edicao.
    */
   function pedirFechamento() {
+    if (textoParaLevar !== null) {
+      setTextoParaLevar(null);
+      return;
+    }
     if (confirmandoSaida) {
       setConfirmandoSaida(false);
       return;
@@ -409,6 +435,30 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setTexto(organizarDescricao(novoTexto));
   }
 
+  /**
+   * Leva a descricao atual, ou a de uma loja, para a area de edicao (pedido do dono em 06/10/2026), no
+   * lugar de gerar com IA. Abre no texto completo: o texto da loja nao segue o padrao, e e la que se ajusta.
+   * As opcoes de paragrafo e as divergencias eram da geracao anterior e nao valem para este texto.
+   * Se ja houver texto na area, pergunta antes de substituir.
+   */
+  function pedirLevar(fonte) {
+    if (texto.trim()) setTextoParaLevar(fonte);
+    else levarParaEdicao(fonte);
+  }
+
+  function levarParaEdicao(fonte) {
+    setTextoParaLevar(null);
+    setErro(null);
+    setTexto(fonte.trim());
+    setOpcoesParagrafos([]);
+    setEscolhidosParagrafos([0, 0]);
+    setDivergencias([]);
+    setSelecoes({});
+    setOpcoesRestantes({});
+    setConfirmadas(new Set());
+    setEditandoTexto(true);
+  }
+
   function adicionarDaFonte(linha) {
     const especificacao = linha.nome ? `${linha.nome}: ${linha.valor}` : linha.valor;
     setTexto((atual) => adicionarEspecificacao(atual, especificacao));
@@ -532,6 +582,8 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                     aoRemover={removerReferencia}
                     aoAdicionar={adicionarDaFonte}
                     podeAdicionar={Boolean(texto)}
+                    aoLevar={pedirLevar}
+                    podeLevar={!gerando}
                   />
                 </>
               )}
@@ -671,6 +723,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               ) : (
                 <p className="rounded border border-borda bg-superficie p-3 font-mono text-sm text-suave">
                   A descricao gerada aparece aqui para revisao antes de usar.
+                  Ou leve uma descricao da esquerda com &quot;Levar para edição&quot;.
                 </p>
               )}
             </div>
@@ -695,6 +748,46 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
           </div>
         </div>
       </section>
+
+      {textoParaLevar !== null && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={(evento) => {
+            if (evento.target === evento.currentTarget) setTextoParaLevar(null);
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="descricao-levar-titulo"
+            className="w-full max-w-md rounded-lg border border-borda bg-superficie p-4 shadow-2xl"
+          >
+            <p id="descricao-levar-titulo" className="text-sm font-semibold">
+              Substituir o texto da area de edicao?
+            </p>
+            <p className="mt-1 text-sm text-suave">
+              O texto que esta la agora sera trocado por esta descricao.
+            </p>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setTextoParaLevar(null)}
+                className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => levarParaEdicao(textoParaLevar)}
+                className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Substituir
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {confirmandoSaida && (
         <div
