@@ -2607,18 +2607,48 @@ export default function FormularioProduto({
                   usos={usos}
                   vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o numero de homologacao. Poucas lojas publicam: a maioria escreve so 'certificado pela Anatel'."
                 />
-                <CampoDeReferencias
-                  nome="ean"
-                  rotulo="GTIN / EAN"
-                  inicial={v("ean")}
-                  ajuda="Codigo de barras do produto."
-                  ids={idsDasIndicacoes}
-                  valores={valoresRefs?.ean}
-                  carregando={lendoRefs}
-                  aoAlterar={() => setAlterado(true)}
-                  usos={usos}
-                  vazio="Nenhuma referencia publica um codigo de barras valido."
-                />
+                <div>
+                  <CampoDeReferencias
+                    nome="ean"
+                    rotulo="GTIN / EAN"
+                    inicial={v("ean")}
+                    ajuda="Codigo de barras do produto."
+                    ids={idsDasIndicacoes}
+                    valores={valoresRefs?.ean}
+                    carregando={lendoRefs}
+                    aoAlterar={() => setAlterado(true)}
+                    usos={usos}
+                    vazio="Nenhuma referencia publica um codigo de barras valido."
+                  />
+                  {/*
+                    Consulta rapida nos sites (pedido do dono em 06/10/2026): abre numa aba nova com o codigo
+                    digitado AGORA; com o campo vazio, com o Nome do produto. O endereco e montado no clique
+                    porque o campo nao e controlado.
+                  */}
+                  <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-suave">
+                    Consultar em:
+                    {[
+                      { nome: "Cosmos", endereco: (termo) => `https://cosmos.bluesoft.com.br/pesquisar?q=${termo}` },
+                      { nome: "EAN-Search", endereco: (termo) => `https://www.ean-search.org/?q=${termo}` },
+                    ].map((site) => (
+                      <a
+                        key={site.nome}
+                        href={site.endereco("")}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(evento) => {
+                          const codigo = valorDoCampo("ean").replace(/\D/g, "");
+                          const termo = codigo || valorDoCampo("tituloBase").trim();
+                          evento.currentTarget.href = site.endereco(encodeURIComponent(termo));
+                        }}
+                        title={`Abre o ${site.nome} numa aba nova com o codigo do campo (ou o Nome, se o campo estiver vazio)`}
+                        className="inline-flex items-center gap-0.5 text-acento hover:underline"
+                      >
+                        {site.nome} <ExternalLink size={11} />
+                      </a>
+                    ))}
+                  </p>
+                </div>
               </div>
             </div>
 
