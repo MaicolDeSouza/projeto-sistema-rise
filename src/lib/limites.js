@@ -21,5 +21,15 @@ export const MAXIMO_FOTOS_NO_PAINEL = 150;
 /// a opcao "Ampliar" acima disto, em vez de deixar o dono descobrir pelo erro.
 export const MAXIMO_PIXELS_PARA_AMPLIAR = 1_000_000;
 
+/// Nano Banana: imagens extras por geracao (outras fotos do carrossel ou arquivos enviados), alem da
+/// original, que sempre vai. Cada uma aumenta o pedido e, no Google, o custo de entrada.
+export const MAXIMO_EXTRAS = 5;
+
+/// Nano Banana: tamanho maximo do prompt, em caracteres. Conferido na tela e no servidor.
+export const MAXIMO_PROMPT = 2000;
+
+/// Nano Banana: tamanho maximo de uma imagem extra enviada de fora (o mesmo teto da foto do produto).
+export const MAXIMO_EXTRA_BYTES = 10 * 1024 * 1024;
+
 /// Limite de titulo do Mercado Livre. Acima disso o anuncio e recusado.
 export const LIMITE_TITULO_ML = 60;

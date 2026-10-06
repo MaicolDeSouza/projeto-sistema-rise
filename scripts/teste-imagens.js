@@ -320,6 +320,188 @@ try {
   conferir("US$ 0,10 sao R$ 0,60", emReais(0.1), 0.6);
   conferir("conversao arredonda ao centavo", [emReais(0.15, { valor: 5.1575 }), emReais(1, { valor: 5.1575 })], [0.77, 5.16]);
 
+  // -------------------------------------------------------------------------
+  // Nano Banana (Google): configuracao, pedido e erros. SEM rede: `fetch` falso.
+  // -------------------------------------------------------------------------
+  console.log("\nNano Banana: configuracao, pedido e erros (sem rede)");
+  const nb = await import("../src/lib/integracoes/nanobanana.js");
+  const { MAXIMO_EXTRAS, MAXIMO_PROMPT, MAXIMO_EXTRA_BYTES } = await import("../src/lib/limites.js");
+  conferir("limites: 5 extras, prompt de 2000, extra de 10 MB", [MAXIMO_EXTRAS, MAXIMO_PROMPT, MAXIMO_EXTRA_BYTES], [5, 2000, 10 * 1024 * 1024]);
+
+  conferir("sem chave: geracao recusada com o motivo", [nb.avaliarConfiguracao({}).ok, /GEMINI_API_KEY/.test(nb.avaliarConfiguracao({}).motivo)], [false, true]);
+  conferir("trava desligada recusa mesmo com chave", nb.avaliarConfiguracao({ GEMINI_API_KEY: "k", NANO_BANANA_GERACAO: "false" }).ok, false);
+  conferir("trava em branco conta como desligada", nb.avaliarConfiguracao({ GEMINI_API_KEY: "k", NANO_BANANA_GERACAO: "" }).ok, false);
+  conferir("... e o motivo diz como ligar", /NANO_BANANA_GERACAO=true/.test(nb.avaliarConfiguracao({ GEMINI_API_KEY: "k" }).motivo), true);
+  conferir(
+    "chave e trava ligada liberam, teto padrao 50",
+    [nb.avaliarConfiguracao({ GEMINI_API_KEY: "k", NANO_BANANA_GERACAO: "true" }).ok, nb.avaliarConfiguracao({ GEMINI_API_KEY: "k", NANO_BANANA_GERACAO: "true" }).tetoDia],
+    [true, 50],
+  );
+  conferir("teto lido do .env", nb.avaliarConfiguracao({ GEMINI_API_KEY: "k", NANO_BANANA_GERACAO: "true", NANO_BANANA_TETO_DIA: " 7 " }).tetoDia, 7);
+  conferir(
+    "teto invalido volta para 50",
+    ["abc", "-3", "2.5", ""].map((t) => nb.avaliarConfiguracao({ GEMINI_API_KEY: "k", NANO_BANANA_GERACAO: "true", NANO_BANANA_TETO_DIA: t }).tetoDia),
+    [50, 50, 50, 50],
+  );
+  conferir("o motivo nunca traz a chave", JSON.stringify(nb.avaliarConfiguracao({ GEMINI_API_KEY: "SEGREDO", NANO_BANANA_GERACAO: "false" })).includes("SEGREDO"), false);
+
+  conferir("tres modelos, nessa ordem, o 2 e o padrao", [Object.keys(nb.MODELOS), nb.MODELO_PADRAO], [["nano-banana-2", "nano-banana-pro", "nano-banana-2-lite"], "nano-banana-2"]);
+  conferir("ids do Google", Object.values(nb.MODELOS).map((m) => m.id), ["gemini-3.1-flash-image", "gemini-3-pro-image", "gemini-3.1-flash-lite-image"]);
+  conferir("precos dos tres modelos", Object.values(nb.MODELOS).map((m) => m.usd), [0.067, 0.134, 0.034]);
+  conferir("o Lite ignora as extras", Object.values(nb.MODELOS).map((m) => m.aceitaExtras), [true, true, false]);
+  conferir("preco com a data da conferencia", Object.values(nb.MODELOS).every((m) => m.conferidoEm === "2026-10-05" && m.nome), true);
+  conferir("prompt padrao e o da spec, com acentos", [nb.PROMPT_PADRAO.startsWith("Foto de produto para loja de componentes eletrônicos."), nb.PROMPT_PADRAO.includes("Não acrescente, não remova")], [true, true]);
+
+  // montarPedido: ordem, 1:1, 1K, so imagem; Lite descarta extras e a regra fixa
+  const b64 = (texto) => Buffer.from(texto).toString("base64");
+  const originalFalsa = { bytes: Buffer.from("o"), mimeType: "image/jpeg" };
+  const extrasFalsas = [{ bytes: Buffer.from("a"), mimeType: "image/png" }, { bytes: Buffer.from("b"), mimeType: "image/webp" }];
+  const pedidoNB = nb.montarPedido({ prompt: "p", original: originalFalsa, extras: extrasFalsas, aceitaExtras: true });
+  const partes = pedidoNB.contents[0].parts;
+  conferir("pedido: prompt, original, regra, extras, nessa ordem", partes.map((p) => (p.text ? "texto" : "imagem")), ["texto", "imagem", "texto", "imagem", "imagem"]);
+  conferir("pedido: o prompt e o original em base64 com o tipo", [partes[0].text, partes[1].inline_data], ["p", { mime_type: "image/jpeg", data: b64("o") }]);
+  conferir("pedido: a regra fixa vem antes das extras", partes[2].text, nb.REGRA_EXTRAS);
+  conferir("pedido: extras na ordem dada", partes.slice(3).map((p) => [p.inline_data.mime_type, p.inline_data.data]), [["image/png", b64("a")], ["image/webp", b64("b")]]);
+  const cfg = pedidoNB.generationConfig;
+  conferir("pedido: 1:1, 1K e so imagem", [cfg.responseModalities, cfg.imageConfig], [["IMAGE"], { aspectRatio: "1:1", imageSize: "1K" }]);
+  const pedidoLite = nb.montarPedido({ prompt: "p", original: originalFalsa, extras: extrasFalsas, aceitaExtras: false });
+  conferir("Lite nao leva extras nem a regra", pedidoLite.contents[0].parts.length, 2);
+  conferir("sem extras nao vai a regra", nb.montarPedido({ prompt: "p", original: originalFalsa, extras: [], aceitaExtras: true }).contents[0].parts.length, 2);
+
+  // lerResposta aceita as duas grafias da parte de imagem.
+  const pngNB = await sharp({ create: { width: 64, height: 64, channels: 3, background: { r: 1, g: 2, b: 3 } } }).png().toBuffer();
+  const lidaSnake = nb.lerResposta({ candidates: [{ content: { parts: [{ inline_data: { mime_type: "image/png", data: pngNB.toString("base64") } }] } }] });
+  conferir("resposta com inline_data tambem e lida", [lidaSnake.ok, lidaSnake.bytes?.equals(pngNB)], [true, true]);
+
+  const envNB = { GEMINI_API_KEY: "chave-teste-nb", NANO_BANANA_GERACAO: "true" };
+  const originalNB = { bytes: await foto(800, 800), mimeType: "image/jpeg" };
+  const comImagem = (bytes = pngNB) => ({ candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/png", data: bytes.toString("base64") } }] }, finishReason: "STOP" }] });
+  const json = (corpo, status = 200) => () => new Response(JSON.stringify(corpo), { status, headers: { "content-type": "application/json" } });
+  const chamadasNB = [];
+  let respostaNB = json(comImagem());
+  const fetchAntesNB = globalThis.fetch;
+  const gerarNB = (extra = {}) => nb.gerarImagem({ modelo: "nano-banana-2", prompt: "Faca a foto de estudio", original: originalNB, env: envNB, ...extra });
+  try {
+    globalThis.fetch = async (url, inicio) => {
+      chamadasNB.push({ url: String(url), chave: inicio.headers["x-goog-api-key"], corpo: JSON.parse(inicio.body), sinal: Boolean(inicio.signal) });
+      return respostaNB();
+    };
+    const certo = await nb.gerarImagem({ modelo: "nano-banana-2", prompt: "  faca a foto  ", original: originalNB, env: envNB });
+    conferir("gerar: sucesso devolve os bytes, numa chamada so", [certo.ok, certo.enviada, certo.status, certo.bytes?.equals(pngNB), chamadasNB.length], [true, true, 200, true, 1]);
+    conferir("gerar: endereco do modelo 2", chamadasNB[0].url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent");
+    conferir("gerar: chave no cabecalho x-goog-api-key, com tempo limite", [chamadasNB[0].chave, chamadasNB[0].sinal], ["chave-teste-nb", true]);
+    conferir("gerar: a chave nao vai no corpo", JSON.stringify(chamadasNB[0].corpo).includes("chave-teste-nb"), false);
+    conferir("gerar: o prompt vai sem os espacos das pontas", chamadasNB[0].corpo.contents[0].parts[0].text, "faca a foto");
+    conferir("gerar: o original vai em seguida", chamadasNB[0].corpo.contents[0].parts[1].inline_data.data, originalNB.bytes.toString("base64"));
+    await nb.gerarImagem({ modelo: "nano-banana-pro", prompt: "x", original: originalNB, env: envNB });
+    conferir("gerar: o Pro vai ao endereco dele", chamadasNB[1].url.endsWith("/models/gemini-3-pro-image:generateContent"), true);
+
+    const casos = [
+      [403, { error: { code: 403, message: "Billing account not enabled for this project", status: "PERMISSION_DENIED" } }, /faturamento ativo/],
+      [400, { error: { code: 400, message: "Image generation requires billing", status: "FAILED_PRECONDITION" } }, /faturamento ativo/],
+      [403, { error: { code: 403, message: "Permission denied", status: "PERMISSION_DENIED" } }, /recusou a chave/],
+      [401, { error: { code: 401, message: "Unauthorized" } }, /recusou a chave/],
+      [400, { error: { code: 400, message: "API key not valid. Please pass a valid API key.", status: "INVALID_ARGUMENT", details: [{ reason: "API_KEY_INVALID" }] } }, /recusou a chave/],
+      [429, { error: { code: 429, message: "Resource exhausted" } }, /Limite ou cota do Google/],
+      [500, { error: { code: 500, message: "Internal error" } }, /falhou \(HTTP 500\): Internal error/],
+      [400, { error: { code: 400, message: "Campo invalido" } }, /recusou o pedido: Campo invalido/],
+    ];
+    for (const [status, corpo, esperado] of casos) {
+      respostaNB = json(corpo, status);
+      const r = await gerarNB();
+      conferir(`HTTP ${status} "${corpo.error.message}": mensagem certa, sem bytes, conta como enviada`, [r.ok, esperado.test(r.erro), r.bytes, r.enviada, r.status], [false, true, undefined, true, status]);
+    }
+
+    const respostas200 = [
+      ["recusa por conteudo (IMAGE_SAFETY)", { candidates: [{ finishReason: "IMAGE_SAFETY", content: { parts: [] } }] }, /recusou esta foto/],
+      ["pedido bloqueado (blockReason)", { promptFeedback: { blockReason: "SAFETY" } }, /recusou esta foto/],
+      ["so texto", { candidates: [{ content: { parts: [{ text: "Nao consigo gerar esta imagem." }] }, finishReason: "STOP" }] }, /nao devolveu imagem: Nao consigo gerar esta imagem\./],
+      ["base64 que nao e imagem", comImagem(Buffer.from("isto nao e uma imagem")), /nao pode ser lida/],
+    ];
+    for (const [nome, corpo, esperado] of respostas200) {
+      respostaNB = json(corpo);
+      const r = await gerarNB();
+      conferir(`200 com ${nome}: erro em portugues, sem bytes, status 200 e enviada`, [r.ok, esperado.test(r.erro), r.bytes, r.status, r.enviada], [false, true, undefined, 200, true]);
+    }
+    respostaNB = () => new Response("<html>erro</html>", { status: 200 });
+    const naoJson = await gerarNB();
+    conferir("200 que nao e JSON: erro, enviada", [naoJson.ok, naoJson.enviada, naoJson.status], [false, true, 200]);
+    const longo = "x".repeat(500);
+    respostaNB = json({ candidates: [{ content: { parts: [{ text: longo }] } }] });
+    conferir("o texto devolvido e cortado em 200 caracteres", (await gerarNB()).erro.length <= "O Google nao devolveu imagem: ".length + 200, true);
+
+    globalThis.fetch = async () => {
+      chamadasNB.push({});
+      throw Object.assign(new Error("tempo"), { name: "TimeoutError" });
+    };
+    const demorou = await gerarNB();
+    conferir("tempo esgotado: 'demorou demais' e enviada", [demorou.ok, /demorou demais/.test(demorou.erro), demorou.enviada, demorou.status], [false, true, true, null]);
+    globalThis.fetch = async () => {
+      chamadasNB.push({});
+      throw new TypeError("fetch failed");
+    };
+    const semRede = await gerarNB();
+    conferir("falha de rede: mensagem e enviada", [semRede.ok, /Nao foi possivel falar com o Google/.test(semRede.erro), semRede.enviada], [false, true, true]);
+
+    // Recusas ANTES de chamar: nenhuma chamada sai, `enviada: false`.
+    const antes = chamadasNB.length;
+    const recusas = [
+      ["modelo desconhecido", { modelo: "nano-banana-1" }],
+      ["trava desligada", { env: { GEMINI_API_KEY: "k", NANO_BANANA_GERACAO: "false" } }],
+      ["sem chave", { env: { NANO_BANANA_GERACAO: "true" } }],
+      ["prompt vazio", { prompt: "   " }],
+      [`prompt acima de ${MAXIMO_PROMPT}`, { prompt: "a".repeat(MAXIMO_PROMPT + 1) }],
+      [`mais de ${MAXIMO_EXTRAS} extras`, { extras: Array.from({ length: MAXIMO_EXTRAS + 1 }, () => ({ bytes: Buffer.from("e"), mimeType: "image/png" })) }],
+      ["sem original", { original: null }],
+    ];
+    for (const [nome, extra] of recusas) {
+      const r = await gerarNB(extra);
+      conferir(`${nome}: recusado sem chamar o Google`, [r.ok, r.enviada, typeof r.erro === "string" && r.erro.length > 0], [false, false, true]);
+    }
+    conferir("... e nenhuma das recusas chamou o fetch", chamadasNB.length, antes);
+    const noLimite = await gerarNB({ prompt: "a".repeat(MAXIMO_PROMPT) });
+    conferir(`prompt de exatamente ${MAXIMO_PROMPT} passa`, noLimite.enviada, true);
+  } finally {
+    globalThis.fetch = fetchAntesNB;
+  }
+
+  console.log("\nNano Banana: registro e uso (usa o Postgres)");
+  const { registrarChamada: registrarNB, usoDoNanoBanana } = await import("../src/lib/integracoes/nanobananaLog.js");
+  const inicioNB = new Date();
+  try {
+    await registrarNB({ modelo: "nano-banana-2", status: 200, duracaoMs: 1234, pixelsOrigem: 640000, extras: 2, tamanhoPrompt: 300, repetida: true });
+    const linhaNB = await prisma.logIntegracao.findFirst({ where: { servico: "GEMINI", criadoEm: { gte: inicioNB } }, orderBy: { criadoEm: "desc" } });
+    conferir(
+      "log: 1 linha GEMINI, POST, no endereco do modelo, com status e duracao",
+      [linhaNB?.metodo, linhaNB?.endpoint, linhaNB?.statusHttp, linhaNB?.duracaoMs],
+      ["POST", "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent", 200, 1234],
+    );
+    const resumoNB = JSON.parse(linhaNB?.requestResumo ?? "{}");
+    conferir("log: o resumo tem so pixels, extras, tamanho do prompt e se repetiu", [Object.keys(resumoNB).sort(), resumoNB], [["extras", "pixelsOrigem", "repetida", "tamanhoPrompt"], { pixelsOrigem: 640000, extras: 2, tamanhoPrompt: 300, repetida: true }]);
+    conferir("log: nada de chave, imagem ou prompt", /chave|key|base64|inline|data:/i.test(linhaNB?.requestResumo ?? ""), false);
+    conferir("log: falha ao gravar nao derruba quem chamou", await registrarNB({ modelo: "nano-banana-2", status: "nao e numero", duracaoMs: 1, pixelsOrigem: null, extras: 0, tamanhoPrompt: 1, repetida: false }).then(() => "seguiu", () => "estourou"), "seguiu");
+
+    // Uso num mes ficticio (2099), para nao misturar com o uso real do dono. So 200 conta.
+    const endereco2 = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent";
+    const enderecoPro = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image:generateContent";
+    const linhaUso = (endpoint, statusHttp, quando) => ({ servico: "GEMINI", metodo: "POST", endpoint, statusHttp, duracaoMs: 1, criadoEm: new Date(quando) });
+    await prisma.logIntegracao.createMany({
+      data: [
+        linhaUso(endereco2, 200, "2099-03-15T10:00:00Z"),
+        linhaUso(endereco2, 200, "2099-03-15T11:00:00Z"),
+        linhaUso(endereco2, 429, "2099-03-15T12:00:00Z"),
+        linhaUso(enderecoPro, 200, "2099-03-02T12:00:00Z"),
+        linhaUso(endereco2, 200, "2099-02-27T12:00:00Z"),
+      ],
+    });
+    const uso = await usoDoNanoBanana(new Date("2099-03-15T18:00:00Z"));
+    conferir("uso: hoje 2 e mes 3 (o 429 e o mes anterior ficam de fora)", [uso.hoje, uso.mes], [2, 3]);
+    conferir("uso: gasto do mes = 2 x 0,067 + 0,134", uso.gastoMesUsd, 0.27);
+    conferir("uso: limite do dia vem do teto", uso.limiteDia, nb.avaliarConfiguracao().tetoDia);
+  } finally {
+    await prisma.logIntegracao.deleteMany({ where: { servico: "GEMINI", criadoEm: { gte: inicioNB } } });
+  }
+
   const envAntes = {};
   for (const nome of ["PHOTOROOM_API_KEY", "PHOTOROOM_API_KEY_PRODUCAO", "PHOTOROOM_COMPRA"]) envAntes[nome] = process.env[nome];
   const fetchReal = globalThis.fetch;
