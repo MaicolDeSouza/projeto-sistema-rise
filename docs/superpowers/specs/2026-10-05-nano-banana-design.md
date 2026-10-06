@@ -134,9 +134,9 @@ Sem chave ou trava desligada: faixa com o motivo na aba, "Gerar" cinza, o resto 
 
 Prompt padrão (ponto de partida, o dono refina na tela):
 
-> Digitalize esta foto de produto de loja de componentes eletrônicos, reproduzindo-a fielmente, como um scanner de alta resolução, mantendo o aspecto original. Mantenha exatamente o produto da foto: mesma forma, proporções e cores. Mesmo ângulo e mesmo enquadramento da foto original. Deixe o fundo branco. Não acrescente nem remova nenhum elemento. Sem texto, logo ou marca d'água adicionados.
+> Melhore a nitidez desta foto de produto de loja de componentes eletrônicos, mantendo-a como uma fotografia real, sem aspecto de desenho, ilustração ou render. Mantenha exatamente o produto da foto: mesma forma, proporções e cores. Mesmo ângulo e mesmo enquadramento da foto original. Aumente a nitidez e remova o desfoque e o ruído, sem suavizar demais as superfícies. Onde o texto impresso estiver desbotado ou meio apagado, reescreva-o com nitidez apenas se for possível lê-lo com certeza; se não for possível, mantenha como está. Não invente letras, números nem marcações. Deixe o fundo branco. Não acrescente nem remova nenhum elemento. Sem texto, logo ou marca d'água adicionados.
 >
-> (Versão de 06/10/2026, escrita pelo dono, com ajuste só de sintaxe: "digitalizar a foto mantendo o aspecto original". A primeira versão pedia para "recriar a peça como foto de estúdio", e no teste com a chave real o texto impresso miúdo saiu redesenhado, e não copiado.)
+> (Terceira versão, de 06/10/2026, a pedido do dono: **foto original mais nítida, com o texto meio apagado reescrito e sem inventar nada**. A primeira pedia para "recriar a peça como foto de estúdio" e a segunda para "digitalizar mantendo o aspecto original"; nos testes com a chave real o texto impresso miúdo saiu redesenhado, e uma terceira variante com cara de ilustração foi descartada pelo dono. Um prompt não garante que o modelo não invente texto: a conferência lado a lado na janela continua sendo a defesa.)
 
 Regra fixa acrescentada pelo sistema quando há extras (não aparece na caixa): "As imagens a seguir são do mesmo produto e servem só como referência de forma e acabamento."
 

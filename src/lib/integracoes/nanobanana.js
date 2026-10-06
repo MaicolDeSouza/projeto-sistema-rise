@@ -40,7 +40,7 @@ export const MODELO_PADRAO = "nano-banana-2";
 
 /** Ponto de partida do prompt (spec §8, literal). O dono refina na tela e salva um por modelo. */
 export const PROMPT_PADRAO =
-  "Digitalize esta foto de produto de loja de componentes eletrônicos, reproduzindo-a fielmente, como um scanner de alta resolução, mantendo o aspecto original. Mantenha exatamente o produto da foto: mesma forma, proporções e cores. Mesmo ângulo e mesmo enquadramento da foto original. Deixe o fundo branco. Não acrescente nem remova nenhum elemento. Sem texto, logo ou marca d'água adicionados.";
+  "Melhore a nitidez desta foto de produto de loja de componentes eletrônicos, mantendo-a como uma fotografia real, sem aspecto de desenho, ilustração ou render. Mantenha exatamente o produto da foto: mesma forma, proporções e cores. Mesmo ângulo e mesmo enquadramento da foto original. Aumente a nitidez e remova o desfoque e o ruído, sem suavizar demais as superfícies. Onde o texto impresso estiver desbotado ou meio apagado, reescreva-o com nitidez apenas se for possível lê-lo com certeza; se não for possível, mantenha como está. Não invente letras, números nem marcações. Deixe o fundo branco. Não acrescente nem remova nenhum elemento. Sem texto, logo ou marca d'água adicionados.";
 
 /** Frase que o sistema acrescenta quando ha extras (nao aparece na caixa do prompt). Spec §8, literal. */
 export const REGRA_EXTRAS = "As imagens a seguir são do mesmo produto e servem só como referência de forma e acabamento.";
