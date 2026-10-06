@@ -976,31 +976,35 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 ? "O texto desta janela ainda nao foi usado e sera perdido."
                 : "A descricao ainda esta sendo escrita e sera perdida."}
             </p>
-            <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                autoFocus
-                onClick={() => setConfirmandoSaida(false)}
-                className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
-              >
-                Continuar editando
-              </button>
+            {/* Sair / Salvar / Cancelar, nesta ordem (pedido do dono em 06/10/2026; antes "Sair sem usar",
+                "Usar esta descricao" e "Continuar editando"). */}
+            <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={fechar}
+                title="Fecha a janela e descarta o texto"
                 className="rounded border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
               >
-                Sair sem usar
+                Sair
               </button>
-              {/* O "salvar" desta janela: o mesmo botao de baixo, que poe o texto na aba Descricao. */}
+              {/* O "salvar" desta janela: o mesmo "Usar esta descricao" de baixo, que poe o texto na aba Descricao. */}
               <button
                 type="button"
                 onClick={usar}
                 disabled={!texto.trim() || pendentes > 0}
-                title={pendentes > 0 ? `${pendentes} parametro(s) aguardam escolha.` : undefined}
+                title={pendentes > 0 ? `${pendentes} parametro(s) aguardam escolha.` : "Poe o texto na aba Descricao e fecha"}
                 className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Usar esta descricao
+                Salvar
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setConfirmandoSaida(false)}
+                title="Volta para a janela, sem perder nada"
+                className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+              >
+                Cancelar
               </button>
             </div>
           </section>

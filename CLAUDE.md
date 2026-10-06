@@ -1845,9 +1845,10 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
 - **Sair com texto gerado pergunta antes** (pedido do dono em 04/10/2026: clicar fora fechava a janela e
   perdia o texto sem avisar). Clique fora, X e Esc passam por `pedirFechamento`, no molde do "Sair sem
   salvar?" do editor do Mercado Livre. **Só pergunta quando há o que perder**: texto já gerado, ou geração em
-  andamento (fechar a descarta, e ela é paga); janela vazia fecha direto. O aviso oferece **Continuar
-  editando**, **Sair sem usar** e **Usar esta descrição** (o "salvar" desta janela, o mesmo botão de baixo,
-  desabilitado enquanto houver parâmetro aguardando escolha). Com o aviso aberto, o Esc o fecha e volta à edição.
+  andamento (fechar a descarta, e ela é paga); janela vazia fecha direto. O aviso oferece, nesta ordem, **Sair**
+  (descarta), **Salvar** (o mesmo "Usar esta descrição" de baixo, desabilitado enquanto houver parâmetro aguardando
+  escolha) e **Cancelar** (volta à janela); rótulos trocados a pedido do dono em 06/10/2026 (eram "Sair sem usar",
+  "Usar esta descrição" e "Continuar editando"). Com o aviso aberto, o Esc o fecha e volta à edição.
 - **3 opções para cada um dos 2 primeiros parágrafos** (pedido do dono em 04/10/2026). A IA devolve
   `paragrafos` como DOIS grupos, `[[p1a, p1b, p1c], [p2a, p2b, p2c]]` (`OPCOES_DE_PARAGRAFO`), e a descrição
   nasce com a **primeira** de cada. A janela mostra as 6 opções em duas listas de escolha, e clicar numa troca
