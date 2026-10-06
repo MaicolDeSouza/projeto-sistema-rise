@@ -352,7 +352,7 @@ try {
   conferir("precos dos tres modelos", Object.values(nb.MODELOS).map((m) => m.usd), [0.067, 0.134, 0.034]);
   conferir("o Lite ignora as extras", Object.values(nb.MODELOS).map((m) => m.aceitaExtras), [true, true, false]);
   conferir("preco com a data da conferencia", Object.values(nb.MODELOS).every((m) => m.conferidoEm === "2026-10-05" && m.nome), true);
-  conferir("prompt padrao e o da spec, com acentos", [nb.PROMPT_PADRAO.startsWith("Digitalize esta foto de produto"), nb.PROMPT_PADRAO.includes("mantendo o aspecto original") && nb.PROMPT_PADRAO.includes("Não acrescente, não remova")], [true, true]);
+  conferir("prompt padrao e o da spec, com acentos", [nb.PROMPT_PADRAO.startsWith("Digitalize esta foto de produto"), nb.PROMPT_PADRAO.includes("mantendo o aspecto original") && nb.PROMPT_PADRAO.includes("Não acrescente nem remova")], [true, true]);
 
   // montarPedido: ordem, 1:1, 1K, so imagem; Lite descarta extras e a regra fixa
   const b64 = (texto) => Buffer.from(texto).toString("base64");
