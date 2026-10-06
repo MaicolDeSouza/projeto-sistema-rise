@@ -589,6 +589,11 @@ export default function PainelDeImagens({
           aoFinalizar={finalizar}
           aoExcluir={excluirNoRascunho}
           aoEscolherVersao={escolherVersao}
+          // O Nano Banana gera sem trocar a foto do produto: so as versoes guardadas e os enderecos mudam,
+          // e a validacao e a versao escolhida ficam como estavam.
+          aoAtualizarFoto={(base, parcial) =>
+            mudarLista((anteriores) => anteriores.map((outra) => (outra.base === base ? { ...outra, ...parcial } : outra)))
+          }
           aoReordenar={reordenarNaJanela}
         />
       )}

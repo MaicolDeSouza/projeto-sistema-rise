@@ -8,9 +8,11 @@ import {
   estadoDoPhotoroom,
   gerarPreviaPhotoroom,
 } from "@/app/produtos/acoes-imagens";
+import { estadoDoNanoBanana } from "@/app/produtos/acoes-nanobanana";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { MAXIMO_PIXELS_PARA_AMPLIAR } from "@/lib/limites";
 import { AmpliacaoDeFoto, ImagemComZoom } from "./ImagemComZoom";
+import PainelNanoBanana from "./PainelNanoBanana";
 import TiraDeFotos from "./TiraDeFotos";
 
 /**
@@ -164,15 +166,21 @@ function BotaoEscolher({ escolhida, indisponivel, aoClicar, rotulo, dica, compac
 function FotoEmRevisao({
   lote,
   imagem,
+  outras,
   dados,
   mudarDados,
+  mudarNB,
   estado,
+  estadoNB,
   atualizarEstado,
+  atualizarEstadoNB,
+  aoSalvouPrompt,
   ocupado,
   aoComprar,
   aoFinalizar,
   aoExcluir,
   aoEscolherVersao,
+  aoAtualizarFoto,
 }) {
   const [erro, setErro] = useState(null);
   const [confirmando, setConfirmando] = useState(false);
@@ -181,6 +189,8 @@ function FotoEmRevisao({
   const [ampliada, setAmpliada] = useState(null);
   const [gerando, iniciarPrevia] = useTransition();
   const [comprando, iniciarCompra] = useTransition();
+  // A geracao do Nano Banana mora aqui (e nao no painel dele) para travar tambem os botoes do Photoroom.
+  const [gerandoNB, iniciarGeracaoNB] = useTransition();
 
   const opcoes = dados?.opcoes ?? OPCOES_INICIAIS;
   const previa = dados?.previa ?? null;
@@ -193,7 +203,9 @@ function FotoEmRevisao({
   const temPhotoroom = Boolean(imagem.versoes?.photoroom);
   const temPaga = temPhotoroom || Boolean(imagem.versoes?.nanobanana);
   const escolhida = finalizada ? (imagem.versao ?? "original") : null;
-  const parado = ocupado || gerando || comprando;
+  const parado = ocupado || gerando || comprando || gerandoNB;
+  // A aba da direita, lembrada por foto (padrao: Photoroom).
+  const aba = dados?.aba === "nanobanana" ? "nanobanana" : "photoroom";
 
   // O Photoroom so amplia foto de ate 1 megapixel, e o que ele recebe e o ARQUIVO QUE CHEGOU (nao a
   // foto ja ajustada). Acima disso a opcao "Ampliar" fica desligada: melhor do que o dono descobrir
@@ -399,14 +411,38 @@ function FotoEmRevisao({
 
   // Embaixo da foto da DIREITA: o selo, se a melhorada foi a escolhida, e o aviso de que as opcoes mudaram.
   // So o que pede uma acao fica escrito; o resto e explicado no "i".
+  const cabecalhoDireita = temPhotoroom && !previa ? "Melhorada" : "Previa do Photoroom";
   const legendaDireita = (
     <>
+      <span>{cabecalhoDireita}</span>
       {previa && !previaVale && <span>Voce mudou as opcoes: gere a previa de novo.</span>}
       {escolhida === "photoroom" && <SeloFinalizada aoDesfazer={desfazerEscolha} desativado={parado} />}
     </>
   );
 
-  const cabecalhoDireita = temPhotoroom && !previa ? "Melhorada" : "Previa do Photoroom";
+  // As abas do quadro da direita ficam no lugar do titulo. O titulo antigo ("Melhorada" ou "Previa do
+  // Photoroom") passou para a legenda embaixo da foto.
+  const abas = (
+    <span className="flex w-full gap-1" role="tablist">
+      {[
+        ["photoroom", "Photoroom"],
+        ["nanobanana", "Nano Banana"],
+      ].map(([chave, rotulo]) => (
+        <button
+          key={chave}
+          type="button"
+          role="tab"
+          aria-selected={aba === chave}
+          onClick={() => mudarDados({ aba: chave })}
+          className={`flex-1 border-b-2 px-2 py-1 text-xs ${
+            aba === chave ? "border-acento font-semibold text-acento" : "border-borda text-suave hover:text-texto"
+          }`}
+        >
+          {rotulo}
+        </button>
+      ))}
+    </span>
+  );
 
   return (
     <div className="space-y-3">
@@ -426,7 +462,32 @@ function FotoEmRevisao({
           />
         </Quadro>
 
-        <Quadro titulo={cabecalhoDireita} legenda={legendaDireita} acima={opcoesEmbaixoDaPrevia} botoes={botoesDireita}>
+        {aba === "nanobanana" ? (
+          <PainelNanoBanana
+            lote={lote}
+            imagem={imagem}
+            outras={outras}
+            estado={estadoNB}
+            nb={dados?.nb}
+            mudarNB={mudarNB}
+            abas={abas}
+            selo={escolhida === "nanobanana" ? <SeloFinalizada aoDesfazer={desfazerEscolha} desativado={parado} /> : null}
+            lado={LADO_DA_FOTO}
+            parado={ocupado || gerando || comprando}
+            gerando={gerandoNB}
+            iniciarGeracao={iniciarGeracaoNB}
+            aoGerado={(parcial) => {
+              aoAtualizarFoto(imagem.base, parcial);
+              atualizarEstadoNB();
+            }}
+            aoEscolher={() => aoEscolherVersao(imagem, "nanobanana")}
+            aoSalvouPrompt={aoSalvouPrompt}
+            aoAmpliar={setAmpliada}
+            zoom={zoom}
+            setZoom={setZoom}
+          />
+        ) : (
+        <Quadro titulo={abas} legenda={legendaDireita} acima={opcoesEmbaixoDaPrevia} botoes={botoesDireita}>
           {urlDaDireita ? (
             <ImagemComZoom
               src={urlDaDireita}
@@ -448,6 +509,7 @@ function FotoEmRevisao({
             </span>
           )}
         </Quadro>
+        )}
       </div>
 
       {estado && !estado.previa.ok && (
@@ -489,9 +551,12 @@ export default function JanelaDeFotos({
   aoFinalizar,
   aoExcluir,
   aoEscolherVersao,
+  aoAtualizarFoto,
   aoReordenar,
 }) {
   const [estado, setEstado] = useState(null);
+  // O estado do Nano Banana (modelos, prompts salvos, uso), lido do servidor ao abrir.
+  const [estadoNB, setEstadoNB] = useState(null);
   // A faixa de pergunta antes de sair: "sair" (X, Esc ou clique fora, com alteracoes) ou "cancelar"
   // (Cancelar, quando ha compra nesta janela, que nao tem volta).
   const [barra, setBarra] = useState(null);
@@ -520,6 +585,9 @@ export default function JanelaDeFotos({
     estadoDoPhotoroom().then((resposta) => {
       if (vivo) setEstado(resposta);
     });
+    estadoDoNanoBanana().then((resposta) => {
+      if (vivo) setEstadoNB(resposta);
+    });
     return () => {
       vivo = false;
     };
@@ -527,6 +595,14 @@ export default function JanelaDeFotos({
 
   const atualizarEstado = () => {
     estadoDoPhotoroom().then(setEstado);
+  };
+  // Depois de gerar, o uso do dia e do mes mudou.
+  const atualizarEstadoNB = () => {
+    estadoDoNanoBanana().then(setEstadoNB);
+  };
+  // O prompt salvo passa a valer na hora, sem ler o servidor de novo.
+  const aoSalvouPrompt = (modelo, texto) => {
+    setEstadoNB((anterior) => (anterior ? { ...anterior, prompts: { ...anterior.prompts, [modelo]: texto } } : anterior));
   };
 
   // O ouvinte le sempre a foto de agora, sem ser refeito a cada desenho.
@@ -608,6 +684,7 @@ export default function JanelaDeFotos({
                 key={atual.base}
                 lote={lote}
                 imagem={atual}
+                outras={imagens}
                 dados={porFoto[atual.base]}
                 mudarDados={(parcial) =>
                   setPorFoto((anterior) => ({
@@ -615,8 +692,22 @@ export default function JanelaDeFotos({
                     [atual.base]: { ...anterior[atual.base], ...parcial },
                   }))
                 }
+                // O estado do Nano Banana da foto (modelo, prompt editado, extras) vai em `nb`, e aceita
+                // uma funcao do estado de agora: duas respostas seguidas nao perdem uma a outra.
+                mudarNB={(alteracao) =>
+                  setPorFoto((anterior) => {
+                    const daFoto = anterior[atual.base] ?? {};
+                    const nb = daFoto.nb ?? {};
+                    const novo = typeof alteracao === "function" ? alteracao(nb) : alteracao;
+                    return { ...anterior, [atual.base]: { ...daFoto, nb: { ...nb, ...novo } } };
+                  })
+                }
                 estado={estado}
+                estadoNB={estadoNB}
                 atualizarEstado={atualizarEstado}
+                atualizarEstadoNB={atualizarEstadoNB}
+                aoSalvouPrompt={aoSalvouPrompt}
+                aoAtualizarFoto={aoAtualizarFoto}
                 ocupado={ocupado}
                 aoComprar={aoComprar}
                 aoFinalizar={aoFinalizar}
@@ -721,6 +812,12 @@ export default function JanelaDeFotos({
               <span className="block">
                 Compras no mes: {reais(estado.gastoMesBrl ?? 0)}
               </span>
+            </span>
+          )}
+          {estadoNB?.uso && (
+            <span className="hidden shrink-0 text-[10px] leading-tight text-suave md:block">
+              <span className="block">Nano Banana hoje: {estadoNB.uso.hoje}/{estadoNB.uso.limiteDia}</span>
+              <span className="block">Nano Banana no mes: {reais(estadoNB.gastoMesBrl ?? 0)}</span>
             </span>
           )}
 
