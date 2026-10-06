@@ -129,6 +129,17 @@ export async function originalDoLote(lote, base) {
 }
 
 /**
+ * Troca o ORIGINAL da foto (o "arquivo que chegou"). Usado ao reabrir um produto cuja foto e uma versao
+ * gerada: a original verdadeira mora na reserva, e e dela que o Nano Banana e o Photoroom tem que partir, e
+ * nao da foto atual. As outras extensoes saem, senao `originalDoLote` poderia achar a antiga primeiro.
+ */
+export async function definirOriginal(lote, base, bytes) {
+  if (!loteValido(lote) || !baseValida(base)) throw new Error("Foto invalida.");
+  for (const extensao of EXTENSOES) if (extensao !== "jpg") await apagar(lote, "originais", `${base}.${extensao}`);
+  await escrever(lote, "originais", `${base}.jpg`, bytes);
+}
+
+/**
  * Uma foto que chegou (enviada pelo dono, do Bling ou do "Clonar"): padroniza e guarda a
  * padronizada e o original.
  *

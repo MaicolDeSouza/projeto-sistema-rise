@@ -14,17 +14,21 @@ import {
   baseValida,
   descartarLote,
   gravarPrevia,
+  VERSOES,
+  definirOriginal,
   escolherVersao,
   garantirOriginalGuardado,
   guardarVersao,
   impressoesDoLote,
+  lerDoLote,
   lerOpcoesDaPrevia,
   originalDoLote,
   substituirImagem,
 } from "@/lib/imagens/lote";
 import { imagemParaTela, versoesParaTela } from "@/lib/imagens/paraTela";
+import { lerDaReserva } from "@/lib/imagens/reserva";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
-import { caminhoDe, loteValido } from "@/lib/arquivos";
+import { caminhoDe, loteValido, urlDaReserva } from "@/lib/arquivos";
 import { cotacaoDoDolar, emReais } from "@/lib/cotacaoDolar";
 import {
   CUSTO_COMPRA_USD,
@@ -226,6 +230,12 @@ export async function importarFotosDasReferencias(lote, ids, vagas) {
  * Vem NA ORDEM em que o produto as mostra: a principal primeiro, e depois a ordem gravada. As que nao
  * puderam entrar (arquivo sumido ou ilegivel) voltam em `naoCarregadas`: o formulario as manda de volta
  * como "preservar", senao o Salvar acharia que foram excluidas e as apagaria.
+ *
+ * RESERVA (Nano Banana): cada foto volta com a `versao` e o `grupo` da linha, e as RESERVA do mesmo grupo
+ * entram no lote como as versoes guardadas da foto (`versoes/`). Se ha uma RESERVA `original`, ela vira o
+ * original do lote: e dela, e nao da foto atual (que pode ser a do Nano Banana), que a proxima geracao
+ * parte. Reabrir e salvar sem mexer nao duplica nada: o Salvar compara os bytes dentro do grupo. A lista
+ * `reserva` vai para o botao "Reserva (N)", escondida.
  */
 export async function prepararFotosDoProduto(lote, produtoId) {
   const invalido = conferir(lote);
@@ -239,11 +249,24 @@ export async function prepararFotosDoProduto(lote, produtoId) {
         arquivos: {
           where: { tipo: "IMAGEM", papel: "FOTO" },
           orderBy: [{ principal: "desc" }, { ordem: "asc" }],
-          select: { id: true, arquivo: true },
+          select: { id: true, arquivo: true, versao: true, grupo: true },
         },
       },
     });
     if (!produto) return { ok: false, erro: "Produto nao encontrado." };
+
+    // Uma consulta so para a reserva inteira, agrupada.
+    const linhasDaReserva = await prisma.produtoArquivo.findMany({
+      where: { produtoId: String(produtoId), tipo: "IMAGEM", papel: "RESERVA" },
+      orderBy: { criadoEm: "asc" },
+      select: { id: true, arquivo: true, versao: true, grupo: true },
+    });
+    const reservaPorGrupo = new Map();
+    for (const linha of linhasDaReserva) {
+      const grupo = linha.grupo ?? linha.id;
+      if (!reservaPorGrupo.has(grupo)) reservaPorGrupo.set(grupo, []);
+      reservaPorGrupo.get(grupo).push(linha);
+    }
 
     const imagens = [];
     const naoCarregadas = [];
@@ -256,25 +279,64 @@ export async function prepararFotosDoProduto(lote, produtoId) {
           naoCarregadas.push(linha.id);
           continue;
         }
+        const grupo = linha.grupo ?? linha.id;
+        const versao = VERSOES.includes(linha.versao) ? linha.versao : "original";
+        await carregarVersoesDaReserva(lote, resultado.base, produto.sku, versao, reservaPorGrupo.get(grupo) ?? []);
         imagens.push(
           imagemParaTela(lote, resultado.base, {
             ampliada: resultado.ampliada,
             origem: { largura: resultado.origem.largura, altura: resultado.origem.altura },
             arquivoId: linha.id,
+            versao,
+            grupo,
             // SALVA = VALIDADA: so as fotos validadas sao salvas (04/10/2026), entao toda foto que
             // ja estava no produto volta com o check verde. Nao ha o que ler no banco, e assim as fotos
             // antigas (de antes da regra, e as importadas do Bling) tambem voltam validadas e nao sao
             // apagadas no proximo Salvar.
             finalizada: true,
+            ...(await versoesParaTela(lote, resultado.base)),
           }),
         );
       } catch {
         naoCarregadas.push(linha.id);
       }
     }
-    return { ok: true, imagens, naoCarregadas };
+    const reserva = linhasDaReserva.map((linha) => ({
+      id: linha.id,
+      grupo: linha.grupo ?? linha.id,
+      versao: linha.versao,
+      url: urlDaReserva(produto.sku, linha.arquivo),
+    }));
+    return { ok: true, imagens, naoCarregadas, reserva };
   } catch (erro) {
     return { ok: false, erro: erro.message };
+  }
+}
+
+/**
+ * As RESERVA do grupo de uma foto entram no lote como as versoes guardadas dela (sem chamar ninguem, sem
+ * custo), e a RESERVA `original`, se houver, vira o original do lote. A propria foto entra como a versao
+ * dela, para a janela poder voltar a ela depois de escolher outra. Arquivo de reserva que sumiu do disco so
+ * nao entra: a foto abre do mesmo jeito.
+ */
+async function carregarVersoesDaReserva(lote, base, sku, versaoDaFoto, reservasDoGrupo) {
+  let algumaGerada = versaoDaFoto !== "original";
+  for (const linha of reservasDoGrupo) {
+    // A mesma versao da foto ja esta na foto; duas com o mesmo nome no lote nao cabem.
+    if (!VERSOES.includes(linha.versao) || linha.versao === versaoDaFoto) continue;
+    const bytes = await lerDaReserva(sku, linha.arquivo);
+    if (!bytes) continue;
+    await guardarVersao(lote, base, linha.versao, bytes);
+    if (linha.versao === "original") await definirOriginal(lote, base, bytes);
+    else algumaGerada = true;
+  }
+
+  if (versaoDaFoto !== "original") {
+    const atual = await lerDoLote(lote, "imagens", `${base}.jpg`);
+    if (atual) await guardarVersao(lote, base, versaoDaFoto, atual);
+  } else if (algumaGerada) {
+    // Foto original com versao gerada na reserva: a original do lote e a propria foto.
+    await garantirOriginalGuardado(lote, base);
   }
 }
 

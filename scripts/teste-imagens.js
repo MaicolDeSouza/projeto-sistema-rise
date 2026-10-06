@@ -216,6 +216,7 @@ const SKU_TESTE = "ZZ-TESTE-IMAGENS";
 const SKU_EDICAO = "ZZ-TESTE-IMAGENS-EDICAO";
 const SKU_RESERVA = "ZZ-TESTE-RESERVA";
 const SKU_SALVAR = "ZZ-TESTE-RESERVA-SALVAR";
+const SKU_REABRIR = "ZZ-TESTE-RESERVA-REABRIR";
 const { prisma } = await import("../src/lib/db.js");
 const { anexarImagens } = await import("../src/lib/imagensImportadas.js");
 const { caminhoDe, apagarPastaProduto } = await import("../src/lib/arquivos.js");
@@ -1414,6 +1415,84 @@ try {
         for (const id of lotesSalvar) await acoes.descartarLoteDeArquivos(id);
         await prisma.produto.deleteMany({ where: { sku: SKU_SALVAR } });
         await apagarPastaProduto(SKU_SALVAR);
+      }
+
+      // ----- Reabrir com reserva: a janela parte da original VERDADEIRA, e reabrir+salvar nao duplica -----
+      console.log("\nReabrir com reserva (usa o Postgres e dados/)");
+      const lotesReabrir = [];
+      const loteReabrir = () => {
+        const id = randomUUID();
+        lotesReabrir.push(id);
+        return id;
+      };
+      try {
+        await prisma.produto.deleteMany({ where: { sku: SKU_REABRIR } });
+        await apagarPastaProduto(SKU_REABRIR);
+        const produtoR = await prisma.produto.create({ data: { sku: SKU_REABRIR, tituloBase: "Teste do reabrir com reserva" } });
+        const alvoR = { id: produtoR.id, sku: SKU_REABRIR };
+        const nomeFoto = `${randomUUID().replaceAll("-", "")}.jpg`;
+        const caminhoFoto = caminhoDe(SKU_REABRIR, "IMAGEM", nomeFoto);
+        await criarPasta(pastaDe(caminhoFoto), { recursive: true });
+        await escreverArquivo(caminhoFoto, NB);
+        const fotoR = await prisma.produtoArquivo.create({ data: { produtoId: produtoR.id, tipo: "IMAGEM", arquivo: nomeFoto, versao: "nanobanana", principal: true } });
+        await prisma.produtoArquivo.update({ where: { id: fotoR.id }, data: { grupo: fotoR.id } });
+        const gravadaR = await gravarNaReserva(SKU_REABRIR, ORIG);
+        const reservaR = await prisma.produtoArquivo.create({
+          data: { produtoId: produtoR.id, tipo: "IMAGEM", papel: "RESERVA", versao: "original", grupo: fotoR.id, arquivo: gravadaR.nome, mimeType: "image/jpeg", tamanhoBytes: gravadaR.tamanhoBytes },
+        });
+
+        let L = loteReabrir();
+        const aberto = await acoes.prepararFotosDoProduto(L, produtoR.id);
+        const im = aberto.imagens[0];
+        conferir("reabrir: a foto volta com a versao e o grupo da linha", [aberto.ok, aberto.imagens.length, im?.versao, im?.grupo, im?.arquivoId], [true, 1, "nanobanana", fotoR.id, fotoR.id]);
+        conferir("reabrir: a tela sabe da versao nanobanana e tem o endereco da original", [im?.versoes?.nanobanana, Boolean(im?.urls?.original), Boolean(im?.urls?.nanobanana)], [true, true, true]);
+        const originalNoLote = await loteLib.originalDoLote(L, im.base);
+        conferir("reabrir: o original do lote e a ORIGINAL verdadeira (a da reserva), nao a foto atual", [sha(originalNoLote?.bytes), sha(originalNoLote?.bytes) === sha(NB)], [sha(ORIG), false]);
+        conferir("reabrir: escolher a original na janela poe os bytes da reserva", [(await loteLib.escolherVersao(L, im.base, "original")).ok, sha(await loteLib.lerDoLote(L, "imagens", `${im.base}.jpg`))], [true, sha(ORIG)]);
+        await loteLib.escolherVersao(L, im.base, "nanobanana");
+        conferir(
+          "reabrir: a lista da reserva vem com versao, grupo e endereco",
+          [aberto.reserva?.length, aberto.reserva?.[0]?.id, aberto.reserva?.[0]?.versao, aberto.reserva?.[0]?.grupo, aberto.reserva?.[0]?.url],
+          [1, reservaR.id, "original", fotoR.id, `/api/arquivos/${SKU_REABRIR}/reserva/${gravadaR.nome}`],
+        );
+
+        // Reabrir e salvar sem mudar nada: nada criado nem apagado, a reserva continua com 1.
+        const reservaAntes = (await readdir(juntar(RAIZ, SKU_REABRIR, "reserva"))).sort();
+        const semMudar = await salvarFotos({
+          produto: alvoR,
+          lote: L,
+          itens: aberto.imagens.map((i) => ({ base: i.base, arquivoId: i.arquivoId, finalizada: i.finalizada, versao: i.versao, grupo: i.grupo })),
+          preservar: aberto.naoCarregadas,
+        });
+        const depois = await prisma.produtoArquivo.findMany({ where: { produtoId: produtoR.id }, orderBy: { criadoEm: "asc" } });
+        conferir(
+          "reabrir e salvar sem mudar: 0 reservadas, 0 apagadas, as mesmas 2 linhas",
+          [semMudar.mantidas, semMudar.reservadas, semMudar.removidas, depois.map((l) => [l.id, l.papel, l.versao])],
+          [1, 0, 0, [[fotoR.id, "FOTO", "nanobanana"], [reservaR.id, "RESERVA", "original"]]],
+        );
+        conferir("... e nenhum arquivo novo na reserva", (await readdir(juntar(RAIZ, SKU_REABRIR, "reserva"))).sort(), reservaAntes);
+
+        // Reserva cujo arquivo sumiu: a foto abre mesmo assim, e a reserva ilegivel so nao entra nas versoes.
+        const { unlink } = await import("node:fs/promises");
+        await unlink(juntar(RAIZ, SKU_REABRIR, "reserva", gravadaR.nome));
+        L = loteReabrir();
+        const semArquivo = await acoes.prepararFotosDoProduto(L, produtoR.id);
+        conferir(
+          "reserva com arquivo sumido nao derruba a abertura",
+          [semArquivo.ok, semArquivo.imagens.length, semArquivo.reserva?.length, await loteLib.lerVersao(L, semArquivo.imagens[0]?.base, "original").then((b) => sha(b) === sha(ORIG))],
+          [true, 1, 1, false],
+        );
+
+        // Produto sem reserva: reserva vazia, a foto original segue como antes.
+        await prisma.produtoArquivo.deleteMany({ where: { produtoId: produtoR.id, papel: "RESERVA" } });
+        await prisma.produtoArquivo.update({ where: { id: fotoR.id }, data: { versao: "original" } });
+        L = loteReabrir();
+        const simples = await acoes.prepararFotosDoProduto(L, produtoR.id);
+        conferir("produto sem reserva: reserva [] e a foto como original, sem versao gerada", [simples.reserva, simples.imagens[0]?.versao, simples.imagens[0]?.versoes, simples.imagens[0]?.urls?.original], [[], "original", { photoroom: false, nanobanana: false }, null]);
+      } finally {
+        for (const id of lotesReabrir) await acoes.descartarLoteDeArquivos(id);
+        await prisma.produto.deleteMany({ where: { sku: SKU_REABRIR } });
+        await apagarPastaProduto(SKU_REABRIR);
       }
     }
   } finally {
