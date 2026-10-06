@@ -56,3 +56,7 @@ next-env.d.ts
 # Imagens enviadas pelo sistema. Ficam fora do build (public/ nao sobrevive a
 # deploy com Docker) e viram volume no VPS.
 /dados/
+
+# Mockups do companion visual do brainstorming (skill superpowers): material de
+# conversa, nao do sistema.
+/.superpowers/
