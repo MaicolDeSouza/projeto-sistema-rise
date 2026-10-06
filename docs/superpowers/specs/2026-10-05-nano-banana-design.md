@@ -134,7 +134,9 @@ Sem chave ou trava desligada: faixa com o motivo na aba, "Gerar" cinza, o resto 
 
 Prompt padrão (ponto de partida, o dono refina na tela):
 
-> Foto de produto para loja de componentes eletrônicos. Recrie esta mesma peça como foto de estúdio: fundo branco puro, iluminação uniforme e suave, sem sombra dura e sem reflexo. Mantenha exatamente o produto da foto: mesma forma, proporções, cores, conectores, pinos, componentes, textos e etiquetas impressas. Não acrescente, não remova e não "corrija" nenhum detalhe. Mesmo ângulo de câmera. Produto centralizado, ocupando a maior parte do quadro. Sem texto, logo ou marca d'água adicionados.
+> Digitalize esta foto de produto de loja de componentes eletrônicos, reproduzindo-a fielmente, como um scanner de alta resolução, mantendo o aspecto original. Mantenha exatamente o produto da foto: mesma forma, proporções, cores, conectores, pinos, componentes, marcações, textos e etiquetas impressas. Copie cada texto e cada detalhe como estão, sem redesenhar, sem recriar e sem "corrigir". Mesmo ângulo, mesmo enquadramento e mesma iluminação da foto original. Deixe o fundo branco puro, sem sombra dura e sem reflexo. Não acrescente, não remova e não altere nenhum elemento. Sem texto, logo ou marca d'água adicionados.
+>
+> (Versão de 06/10/2026, a pedido do dono: "digitalizar a foto mantendo o aspecto original". A primeira versão pedia para "recriar a peça como foto de estúdio", e no teste com a chave real o texto impresso miúdo saiu redesenhado, e não copiado.)
 
 Regra fixa acrescentada pelo sistema quando há extras (não aparece na caixa): "As imagens a seguir são do mesmo produto e servem só como referência de forma e acabamento."
 
