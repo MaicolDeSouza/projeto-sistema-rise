@@ -24,7 +24,11 @@ const ORDEM = { FORNECEDOR: 0, CONCORRENTE: 1, OUTRO: 2 };
 
 export async function buscarReferencias(termo, { limite = TETO, fornecedoresLigados = [], idsConcorrentesLigados = [] } = {}) {
   const palavras = palavrasDoTermo(termo);
-  if (palavras.length === 0) return { total: 0, itens: [] };
+  // Sem palavras ainda acha os VINCULOS (pedido do dono em 06/10/2026: as indicacoes dos fornecedores e
+  // concorrentes salvos aparecem mesmo com o Nome vazio); so nao ha achados por semelhanca.
+  if (palavras.length === 0 && fornecedoresLigados.length === 0 && idsConcorrentesLigados.length === 0) {
+    return { total: 0, itens: [] };
+  }
 
   const todos = await produtosParaLista({ incluirIds: idsConcorrentesLigados });
 
@@ -60,10 +64,11 @@ export async function buscarReferencias(termo, { limite = TETO, fornecedoresLiga
       (soma, casou, posicao) => soma + (casou ? pesos[posicao] : 0),
       0,
     );
-    const nota = pesoCasado / pesoTotal;
+    // Sem palavras o peso total e zero: nota zero, e nenhum achado (so os vinculos, abaixo).
+    const nota = pesoTotal > 0 ? pesoCasado / pesoTotal : 0;
     notas.set(produto.id, nota);
     // Margem de arredondamento: com duas palavras, 1 pode vir como 0,9999.
-    if (nota >= minima - 1e-9) achados.push({ produto, nota });
+    if (palavras.length > 0 && nota >= minima - 1e-9) achados.push({ produto, nota });
   });
 
   achados.sort(

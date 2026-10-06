@@ -119,7 +119,7 @@ npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
 npm run teste:coleta              # 43 asserções da gravação no banco (usa o Postgres, SEM rede)
-npm run teste:cadastros           # 80 asserções: CPF/CNPJ/CEP/telefone, CNPJ obrigatório do fornecedor e a ligação fonte -> cadastro (Postgres, SEM rede)
+npm run teste:cadastros           # 88 asserções: CPF/CNPJ/CEP/telefone, CNPJ obrigatório do fornecedor, a ligação fonte -> cadastro e as indicações dos vínculos salvos (Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
@@ -1720,6 +1720,23 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
     que tem o **formato** do número (`0000-00-0000`), vindo de especificação com rótulo
     Anatel/homologação/INMETRO, ou colado à palavra na descrição. Número solto com hífen pode ser
     telefone.
+- **Indicações sempre à mostra: lupa + vínculos salvos** (pedido do dono em 06/10/2026). Antes, as indicações só
+  vinham da lupa, e um produto salvo abria sem nenhuma. Agora marca, modelo, homologação, **GTIN/EAN** (novo),
+  peso, medidas, NCM, preço e a **lista de títulos** vêm da soma das marcadas na lupa com os **fornecedores e
+  concorrentes salvos** na aba Fornecedores / Concorrentes. O "Gerar título com IA" usa a mesma soma.
+  - **Os vínculos NÃO entram em `marcados`**: a lupa continua começando vazia (decisão de 22/09/2026, porque
+    pré-marcar importava fotos sozinho). Os vínculos ficam em `vinculosItens`, lidos por `buscarPorPalavras` com
+    `limite: 0` (só os vínculos, sem achados por semelhança). É só leitura: nada é gravado, nenhuma foto é trazida.
+  - Relê quando a lista de fornecedores/concorrentes da tela muda, com 600 ms de espera (o nome de um fornecedor
+    novo muda a cada tecla, e a busca lê o acervo inteiro, uns 4 s). A lupa entra pelo que estava marcado quando
+    a janela **fechou** (`idsDaLupa`), como antes.
+  - `buscarReferencias` com o **Nome vazio** passou a achar os vínculos (antes devolvia nada). Fornecedor sem
+    código nem link, sem Nome, não escolhe produto no chute.
+  - **EAN só entra com formato de código de barras** (8, 12, 13 ou 14 dígitos, `eanValido`): há loja que põe o
+    código interno no campo de EAN.
+  - Medido em 06/10/2026 no 100103, servidor de desenvolvimento: as indicações aparecem uns 17 s depois de abrir
+    a página. As ações do servidor rodam uma de cada vez, e a preparação das fotos vem antes. Testes em
+    `teste-cadastros` ("Indicações dos vínculos salvos").
 
 **O React 19 limpa o formulário depois da action**, e o que volta é o `defaultValue`, não o
 que foi digitado. Num Salvar recusado (SKU repetido), o SKU voltava **vazio** junto com a
@@ -2654,7 +2671,8 @@ mistura com fornecedor** (o Bling junta os dois numa tela).
   (`Fornecedor.condicoesPagamento`, o que ele negociou) é outra coisa e ficou.**
 - **Dado pessoal (LGPD):** CPF, endereço e telefone ficam só no Postgres local e entram nos
   dumps do `npm run backup` (que ficam em `dados/`, fora do git). Nada vai a marketplace ou ERP.
-- `npm run teste:cadastros`: 80 asserções (CPF, CNPJ, CEP, telefone, CNPJ obrigatório do fornecedor e a ligação fonte → cadastro; a parte
+- `npm run teste:cadastros`: 88 asserções (CPF, CNPJ, CEP, telefone, CNPJ obrigatório do fornecedor, a ligação fonte → cadastro e as
+  indicações dos vínculos salvos; a parte
   do banco usa fontes de teste e as apaga).
 
 **Pendências combinadas com o dono (não implementadas):**

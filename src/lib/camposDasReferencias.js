@@ -3,8 +3,9 @@ import { medidasDoProdutoColetado, ncmFormatado } from "@/lib/medidas";
 import { normalizar } from "@/lib/texto";
 
 /**
- * Marca, modelo e numero de homologacao das referencias marcadas na lupa do
- * Nome, para o operador escolher no cadastro (pedido do dono em 16/09/2026).
+ * Marca, modelo, numero de homologacao, GTIN/EAN, medidas e NCM das referencias — as marcadas na lupa do
+ * Nome e, desde 06/10/2026, tambem os fornecedores e concorrentes SALVOS do produto —, para o operador
+ * escolher no cadastro (pedido do dono em 16/09/2026).
  *
  * Cada valor vem uma vez so, com as fontes que o publicam: "Hikari" dito por
  * tres lojas e um valor, e o numero de lojas e o que ajuda a confiar nele.
@@ -73,9 +74,18 @@ const ordenar = (mapa) =>
     (a, b) => b.fontes.length - a.fontes.length || a.valor.localeCompare(b.valor, "pt-BR"),
   );
 
+/**
+ * GTIN/EAN que serve para o campo: so digitos, com o tamanho de um codigo de barras (8, 12, 13 ou 14). Loja
+ * que poe o proprio codigo interno no campo de EAN ("123") nao vira indicacao.
+ */
+function eanValido(valor) {
+  const digitos = String(valor ?? "").replace(/[\s.-]/g, "");
+  return /^(\d{8}|\d{12,14})$/.test(digitos) ? digitos : null;
+}
+
 export async function lerCamposDasReferencias(ids) {
   const lista = [...new Set((ids ?? []).map(String))].slice(0, 50);
-  const vazio = { marca: [], modelo: [], homologacao: [], peso: [], altura: [], largura: [], comprimento: [], ncm: [] };
+  const vazio = { marca: [], modelo: [], homologacao: [], ean: [], peso: [], altura: [], largura: [], comprimento: [], ncm: [] };
   if (lista.length === 0) return vazio;
 
   const linhas = await prisma.produtoColetado.findMany({
@@ -84,6 +94,7 @@ export async function lerCamposDasReferencias(ids) {
       marca: true,
       modelo: true,
       ncm: true,
+      ean: true,
       especificacoes: true,
       descricao: true,
       fonte: { select: { nome: true } },
@@ -97,6 +108,7 @@ export async function lerCamposDasReferencias(ids) {
     if (linha.marca && !marcaEhALoja(linha.marca, fonte)) juntar(mapas.marca, linha.marca, fonte);
     juntar(mapas.modelo, linha.modelo, fonte);
     for (const numero of homologacoesDe(linha)) juntar(mapas.homologacao, numero, fonte);
+    juntar(mapas.ean, eanValido(linha.ean), fonte);
     juntar(mapas.ncm, ncmFormatado(linha.ncm), fonte);
 
     // Peso (kg) e dimensoes (cm) ja na unidade do formulario; o valor vai com

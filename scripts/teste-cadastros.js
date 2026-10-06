@@ -241,6 +241,44 @@ try {
   const sobrou = await prisma.concorrente.findUnique({ where: { nome: `${PREFIXO} A` } });
   conferir("excluir fonte mantem o cadastro", Boolean(sobrou), true);
   conferir("cadastro fica sem fonte", sobrou?.fonteId, null);
+
+  // -------------------------------------------------------------------------
+  // Indicacoes dos vinculos SALVOS (pedido do dono em 06/10/2026): os fornecedores e concorrentes da aba
+  // Fornecedores / Concorrentes dao marca, modelo, EAN, titulo... sem precisar marcar na lupa.
+  // -------------------------------------------------------------------------
+  console.log("\nIndicacoes dos vinculos salvos");
+  const { buscarReferencias } = await import("../src/lib/buscaPorPalavras.js");
+  const { lerCamposDasReferencias } = await import("../src/lib/camposDasReferencias.js");
+
+  const fonteF = await novaFonte(`${PREFIXO} Forn Vinculo`, "FORNECEDOR", "zz-vinculo-f.invalid");
+  const fonteC = await novaFonte(`${PREFIXO} Conc Vinculo`, "CONCORRENTE", "zz-vinculo-c.invalid");
+  const coletado = (fonte, chave, dados) =>
+    prisma.produtoColetado.create({ data: { fonteId: fonte.id, chave, origem: "site", ...dados } });
+  const pF = await coletado(fonteF, "ZZV-F1", {
+    codigo: "ZZV-F1", nome: "Placa Zzvinculo Nano", marca: "MARCAZZV", ean: "7891234567895", url: "https://zz-vinculo-f.invalid/p1",
+  });
+  await coletado(fonteF, "ZZV-F2", { codigo: "ZZV-F2", nome: "Outra peca Zzvinculo da mesma loja" });
+  const pC = await coletado(fonteC, "ZZV-C1", { codigo: "ZZV-C1", nome: "Placa Zzvinculo Nano Concorrente", modelo: "MODZZV", ean: "123" });
+  const vinculos = {
+    limite: 0,
+    fornecedoresLigados: [{ nome: fonteF.nome, codigo: "ZZV-F1", link: null }],
+    idsConcorrentesLigados: [pC.id],
+  };
+  const ids = (resposta) => resposta.itens.map((item) => item.id).sort();
+
+  const comTitulo = await buscarReferencias("Placa Zzvinculo Nano", vinculos);
+  conferir("vinculos: com titulo, so o produto exato do fornecedor e o concorrente salvo", ids(comTitulo), [pF.id, pC.id].sort());
+  conferir("vinculos: todos marcados como vinculados, com nome, loja e tipo", comTitulo.itens.every((item) => item.vinculado && item.nome && item.fonte && item.tipo), true);
+  const semTitulo = await buscarReferencias("", vinculos);
+  conferir("vinculos: SEM titulo, os vinculos aparecem do mesmo jeito", ids(semTitulo), [pF.id, pC.id].sort());
+  conferir("vinculos: sem titulo e sem vinculo, nada", (await buscarReferencias("", { limite: 0 })).itens, []);
+  const semIdentificador = await buscarReferencias("", { limite: 0, fornecedoresLigados: [{ nome: fonteF.nome, codigo: null, link: null }] });
+  conferir("vinculos: fornecedor sem codigo nem link e sem titulo nao escolhe produto no chute", semIdentificador.itens, []);
+
+  const campos = await lerCamposDasReferencias([pF.id, pC.id]);
+  conferir("campos: EAN valido do vinculo vira indicacao", campos.ean.map((item) => item.valor), ["7891234567895"]);
+  conferir("campos: EAN que nao e codigo de barras (\"123\") fica de fora", campos.ean.some((item) => item.valor === "123"), false);
+  conferir("campos: marca e modelo dos vinculos", [campos.marca.map((item) => item.valor), campos.modelo.map((item) => item.valor)], [["MARCAZZV"], ["MODZZV"]]);
 } finally {
   await prisma.concorrente.deleteMany({ where: { nome: { startsWith: PREFIXO } } });
   await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: PREFIXO } } });

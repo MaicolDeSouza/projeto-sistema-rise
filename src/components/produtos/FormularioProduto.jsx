@@ -49,6 +49,7 @@ import {
   removerImagensDoLote,
 } from "@/app/produtos/acoes-imagens";
 import {
+  buscarPorPalavras,
   camposDasReferencias,
   criarTitulosIA,
   enviarArquivo,
@@ -250,7 +251,10 @@ function LinhaDeTitulo({ titulo, origem, selo, aoEscolher }) {
  */
 function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
   const [aberta, setAberta] = useState(false);
-  if (ia.quantos === 0) return null;
+  // `referencias` = as marcadas na lupa E os fornecedores/concorrentes salvos (pedido do dono em 06/10/2026:
+  // os titulos aparecem sempre, sem precisar marcar na lupa).
+  const quantas = referencias.length;
+  if (quantas === 0) return null;
 
   const emCurso = ia.gerando && ia.emCurso === "titulo";
   const opcoesDaIA = ia.opcoesTitulo;
@@ -274,7 +278,7 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
       <button
         type="button"
         onClick={() => setAberta((atual) => !atual)}
-        title={`Escolher o titulo: dos ${ia.quantos} produto(s) marcados na lupa, ou gerado com IA`}
+        title={`Escolher o titulo: das ${quantas} referencia(s) (lupa e vinculos salvos), ou gerado com IA`}
         aria-label="Escolher o titulo"
         aria-expanded={aberta}
         className={`rounded border p-2.5 hover:bg-fundo ${usado ? BORDA_DE_USO.usado : BORDA_DE_USO.funcao}`}
@@ -282,7 +286,7 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
         {emCurso ? <Loader size={18} className="animate-spin" /> : <ListChecks size={18} />}
       </button>
       <BolhaDeAjuda
-        texto={`Escolha o titulo entre os dos ${ia.quantos} produto(s) marcados na lupa, ou gere um com IA. Nada vai para o Nome ate voce clicar numa opcao.`}
+        texto={`Escolha o titulo entre os das ${quantas} referencia(s) — marcadas na lupa e fornecedores/concorrentes salvos —, ou gere um com IA. Nada vai para o Nome ate voce clicar numa opcao.`}
       />
 
       {aberta && (
@@ -300,10 +304,10 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
           </div>
 
           <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppercase">
-            Dos produtos marcados ({porTitulo.size})
+            Das referencias ({porTitulo.size})
           </p>
           {porTitulo.size === 0 ? (
-            <p className="px-2 pb-2 text-sm text-suave">Os produtos marcados nao tem titulo.</p>
+            <p className="px-2 pb-2 text-sm text-suave">As referencias nao tem titulo.</p>
           ) : (
             <ul className="max-h-72 space-y-1 overflow-y-auto">
               {[...porTitulo].map(([titulo, origens]) => (
@@ -845,8 +849,8 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, aoAlterar, 
           onClick={() => setAberto((atual) => !atual)}
           title={
             comPreco.length > 0
-              ? "Ver os precos dos produtos marcados na lupa do Nome"
-              : "Os produtos marcados nao trazem preco"
+              ? "Ver os precos das referencias: marcadas na lupa do Nome e fornecedores/concorrentes salvos"
+              : "As referencias nao trazem preco"
           }
           aria-label="Precos das referencias"
           className={`relative rounded p-1.5 hover:bg-fundo ${
@@ -878,8 +882,8 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, aoAlterar, 
           {comPreco.length === 0 ? (
             <p className="px-2 pb-2 text-sm text-suave">
               {referencias.length === 0
-                ? "Marque produtos de referencia na lupa ao lado do Nome."
-                : "Os produtos marcados nao tem preco coletado."}
+                ? "Marque produtos de referencia na lupa ao lado do Nome, ou vincule fornecedores e concorrentes."
+                : "As referencias nao tem preco coletado."}
             </p>
           ) : (
             <ul className="max-h-72 space-y-1 overflow-y-auto">
@@ -1082,7 +1086,7 @@ function CampoDeReferencias({
           <button
             type="button"
             onClick={abrir}
-            title={`Ver ${rotulo.toLowerCase()} dos produtos marcados na lupa do Nome`}
+            title={`Ver ${rotulo.toLowerCase()} das referencias: marcadas na lupa do Nome e fornecedores/concorrentes salvos`}
             aria-label={`${rotulo} das referencias`}
             className={`relative rounded p-1.5 hover:bg-fundo ${
               usos.tem(nome) ? COR_DE_USO.usado : COR_DE_USO.referencia
@@ -1112,7 +1116,8 @@ function CampoDeReferencias({
 
           {ids.length === 0 ? (
             <p className="px-2 pb-2 text-sm text-suave">
-              Marque produtos de referencia na lupa ao lado do Nome.
+              Marque produtos de referencia na lupa ao lado do Nome, ou vincule fornecedores e concorrentes na
+              aba Fornecedores / Concorrentes.
             </p>
           ) : carregando || !valores ? (
             <p className="flex items-center gap-2 px-2 pb-2 text-sm text-suave">
@@ -1906,11 +1911,13 @@ export default function FormularioProduto({
     );
   }
 
-  // Marca, modelo e homologacao das referencias, lidos quando a janela da lupa
-  // fecha. Lidos ANTES de abrir qualquer lista para o icone de cada campo ja
-  // nascer cinza ou azul.
+  // Marca, modelo, homologacao, EAN, medidas e NCM das referencias, para os icones dos campos. Lidos ANTES
+  // de abrir qualquer lista, para o icone ja nascer (ou nao) conforme haja dado.
   const [valoresRefs, setValoresRefs] = useState(null);
   const [lendoRefs, iniciarLeituraRefs] = useTransition();
+  // As marcadas na lupa, como estavam quando a janela FECHOU: e quando o operador termina de escolher, e
+  // cada clique dentro da janela nao relê o banco.
+  const [idsDaLupa, setIdsDaLupa] = useState([]);
 
   function lerValoresRefs() {
     // Fornecedor marcado entra sozinho na aba Fornecedores ao fechar a janela
@@ -1919,41 +1926,8 @@ export default function FormularioProduto({
     fornecedoresRef.current?.sincronizarSugestoes();
     concorrentesRef.current?.sincronizarSugestoes();
     trazerFotosDasReferencias();
-
-    const ids = [...marcados.keys()];
-    if (ids.length === 0) {
-      setValoresRefs({
-        marca: [],
-        modelo: [],
-        homologacao: [],
-        peso: [],
-        altura: [],
-        largura: [],
-        comprimento: [],
-        ncm: [],
-      });
-      return;
-    }
-    iniciarLeituraRefs(async () => {
-      const resultado = await tentar(() => camposDasReferencias(ids));
-      setValoresRefs(
-        resultado.ok
-          ? resultado
-          : {
-              ...{
-                marca: [],
-                modelo: [],
-                homologacao: [],
-                peso: [],
-                altura: [],
-                largura: [],
-                comprimento: [],
-                ncm: [],
-              },
-              erro: resultado.erro,
-            },
-      );
-    });
+    // Os valores sao relidos pelo efeito de `chaveDasIndicacoes`, junto com os dos vinculos salvos.
+    setIdsDaLupa([...marcados.keys()]);
   }
 
   function alternarReferencia(item) {
@@ -1976,7 +1950,8 @@ export default function FormularioProduto({
   }
 
   function criarComIA(qual) {
-    const ids = [...marcados.keys()];
+    // As mesmas referencias da lista de titulos: as marcadas na lupa e os vinculos salvos.
+    const ids = referenciasDasIndicacoes.map((item) => item.id);
     // As palavras do Nome orientam a IA sobre QUAL produto e o nosso.
     const palavras =
       formulario.current?.elements.namedItem("tituloBase")?.value ?? "";
@@ -2158,6 +2133,64 @@ export default function FormularioProduto({
     (item) => item.tipo === "CONCORRENTE" && !idsConcorrentesAtuais.has(item.id),
   );
 
+  /*
+    INDICACOES SEMPRE A MOSTRA (pedido do dono em 06/10/2026): marca, modelo, EAN, medidas, NCM, preco e a
+    lista de titulos vem das referencias marcadas na lupa E dos fornecedores e concorrentes SALVOS na aba
+    Fornecedores / Concorrentes. Antes so vinham da lupa, e um produto salvo abria sem indicacao nenhuma.
+
+    Os vinculos NAO entram em `marcados`: a marcacao da lupa continua comecando vazia (decisao do dono em
+    22/09/2026 — pre-marcar disparava a importacao de fotos sozinha). Aqui so se LE: nada e gravado, nenhuma
+    foto e trazida.
+  */
+  const [vinculosItens, setVinculosItens] = useState([]);
+  const assinaturaVinculos = JSON.stringify({
+    fornecedores: (usaFornecedorRascunho ? fornecedoresRascunho : fornecedores)
+      .filter((item) => item.nome?.trim())
+      .map(({ nome, codigo, link }) => [nome.trim(), codigo ?? null, link ?? null]),
+    concorrentes: [...idsConcorrentesAtuais].sort(),
+  });
+  useEffect(() => {
+    const { fornecedores: lista, concorrentes: ids } = JSON.parse(assinaturaVinculos);
+    let valido = true;
+    // Espera a digitacao parar: o nome de um fornecedor novo muda a cada tecla, e a busca le o acervo.
+    const espera = setTimeout(() => {
+      buscarPorPalavras(formulario.current?.elements.namedItem("tituloBase")?.value ?? "", {
+        // So os vinculos, sem os achados por semelhanca.
+        limite: 0,
+        fornecedoresLigados: lista.map(([nome, codigo, link]) => ({ nome, codigo, link })),
+        idsConcorrentesLigados: ids,
+      })
+        .then((resposta) => {
+          if (valido) setVinculosItens(resposta.ok ? resposta.itens : []);
+        })
+        .catch(() => {
+          if (valido) setVinculosItens([]);
+        });
+    }, 600);
+    return () => {
+      valido = false;
+      clearTimeout(espera);
+    };
+  }, [assinaturaVinculos]);
+
+  // Vinculos e marcadas, sem repetir: a marcada vence (e a que o operador acabou de escolher na lupa).
+  const referenciasDasIndicacoes = [
+    ...new Map([...vinculosItens.map((item) => [item.id, item]), ...marcados]).values(),
+  ];
+  const idsDasIndicacoes = [...new Set([...idsDaLupa, ...vinculosItens.map((item) => item.id)])];
+  const chaveDasIndicacoes = [...idsDasIndicacoes].sort().join(",");
+  useEffect(() => {
+    const ids = chaveDasIndicacoes ? chaveDasIndicacoes.split(",") : [];
+    let valido = true;
+    iniciarLeituraRefs(async () => {
+      const resultado = await tentar(() => camposDasReferencias(ids));
+      if (valido) setValoresRefs(resultado.ok ? resultado : { erro: resultado.erro });
+    });
+    return () => {
+      valido = false;
+    };
+  }, [chaveDasIndicacoes]);
+
   /**
    * Por padrao parte do que JA esta digitado e sobrepoe so o que veio com
    * valor: e o que a IA (titulo, descricao, medidas) precisa, porque remontar
@@ -2214,7 +2247,8 @@ export default function FormularioProduto({
     setOpcoesTitulo(null);
     setErroIA(null);
     setMarcados(new Map());
-    setValoresRefs(null);
+    // As indicacoes da lupa saem; as dos vinculos salvos sao relidas pelo efeito, se mudarem.
+    setIdsDaLupa([]);
     referencias.current?.reiniciar();
     setFornecedoresRascunho([]);
     setConcorrentesRascunho([]);
@@ -2369,7 +2403,7 @@ export default function FormularioProduto({
                 ia={ia}
                 aoCriarIA={criarComIA}
                 aoEscolherTitulo={escolherTitulo}
-                referencias={[...marcados.values()]}
+                referencias={referenciasDasIndicacoes}
                 usos={usos}
               />
             </div>
@@ -2418,7 +2452,7 @@ export default function FormularioProduto({
               <CampoPreco
                 inicial={v("precoVenda")}
                 erro={erros.precoVenda}
-                referencias={[...marcados.values()]}
+                referencias={referenciasDasIndicacoes}
                 custo={custoPadrao}
                 precoAtual={precoVendaAtual}
                 aoAlterar={() => setAlterado(true)}
@@ -2522,23 +2556,23 @@ export default function FormularioProduto({
                   nome="marca"
                   rotulo="Marca"
                   inicial={v("marca")}
-                  ids={idsMarcados}
+                  ids={idsDasIndicacoes}
                   valores={valoresRefs?.marca}
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
-                  vazio="Nenhuma referencia marcada publica a marca (a loja que poe o proprio nome como marca fica de fora)."
+                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica a marca (a loja que poe o proprio nome como marca fica de fora)."
                 />
                 <CampoDeReferencias
                   nome="modelo"
                   rotulo="Modelo"
                   inicial={v("modelo")}
-                  ids={idsMarcados}
+                  ids={idsDasIndicacoes}
                   valores={valoresRefs?.modelo}
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
-                  vazio="Nenhuma referencia marcada publica o modelo."
+                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o modelo."
                 />
               </div>
 
@@ -2566,18 +2600,24 @@ export default function FormularioProduto({
                   rotulo="Numero de homologacao"
                   inicial={v("numeroHomologacao")}
                   ajuda="Anatel/INMETRO. O Mercado Livre pede o numero em varias categorias."
-                  ids={idsMarcados}
+                  ids={idsDasIndicacoes}
                   valores={valoresRefs?.homologacao}
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
-                  vazio="Nenhuma referencia marcada publica o numero de homologacao. Poucas lojas publicam: a maioria escreve so 'certificado pela Anatel'."
+                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o numero de homologacao. Poucas lojas publicam: a maioria escreve so 'certificado pela Anatel'."
                 />
-                <Campo
+                <CampoDeReferencias
                   nome="ean"
                   rotulo="GTIN / EAN"
-                  defaultValue={v("ean")}
+                  inicial={v("ean")}
                   ajuda="Codigo de barras do produto."
+                  ids={idsDasIndicacoes}
+                  valores={valoresRefs?.ean}
+                  carregando={lendoRefs}
+                  aoAlterar={() => setAlterado(true)}
+                  usos={usos}
+                  vazio="Nenhuma referencia publica um codigo de barras valido."
                 />
               </div>
             </div>
@@ -2669,13 +2709,13 @@ export default function FormularioProduto({
                   step="0.001"
                   min="0"
                   inicial={v("pesoKg")}
-                  ids={idsMarcados}
+                  ids={idsDasIndicacoes}
                   valores={valoresRefs?.peso}
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
                   unidade="kg"
-                  vazio="Nenhuma referencia marcada publica o peso na ficha tecnica."
+                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o peso na ficha tecnica."
                 />
                 <CampoDeReferencias
                   nome="comprimentoCm"
@@ -2684,13 +2724,13 @@ export default function FormularioProduto({
                   step="0.01"
                   min="0"
                   inicial={v("comprimentoCm")}
-                  ids={idsMarcados}
+                  ids={idsDasIndicacoes}
                   valores={valoresRefs?.comprimento}
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
                   unidade="cm"
-                  vazio="Nenhuma referencia marcada publica o comprimento na ficha tecnica."
+                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o comprimento na ficha tecnica."
                 />
                 <CampoDeReferencias
                   nome="larguraCm"
@@ -2699,13 +2739,13 @@ export default function FormularioProduto({
                   step="0.01"
                   min="0"
                   inicial={v("larguraCm")}
-                  ids={idsMarcados}
+                  ids={idsDasIndicacoes}
                   valores={valoresRefs?.largura}
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
                   unidade="cm"
-                  vazio="Nenhuma referencia marcada publica a largura na ficha tecnica."
+                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica a largura na ficha tecnica."
                 />
                 <CampoDeReferencias
                   nome="alturaCm"
@@ -2714,13 +2754,13 @@ export default function FormularioProduto({
                   step="0.01"
                   min="0"
                   inicial={v("alturaCm")}
-                  ids={idsMarcados}
+                  ids={idsDasIndicacoes}
                   valores={valoresRefs?.altura}
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
                   unidade="cm"
-                  vazio="Nenhuma referencia marcada publica a altura na ficha tecnica."
+                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica a altura na ficha tecnica."
                 />
               </div>
             </div>
@@ -2749,12 +2789,12 @@ export default function FormularioProduto({
                   inicial={v("ncm")}
                   placeholder="0000.00.00"
                   ajuda="Obrigatorio para emitir nota."
-                  ids={idsMarcados}
+                  ids={idsDasIndicacoes}
                   valores={valoresRefs?.ncm}
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
-                  vazio="Nenhuma referencia marcada publica o NCM. Fortek, Casa da Robotica e Smartkits costumam publicar; Eletrogate, Saravati e Usinainfo nao."
+                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o NCM. Fortek, Casa da Robotica e Smartkits costumam publicar; Eletrogate, Saravati e Usinainfo nao."
                 />
                 <Campo
                   nome="cest"
