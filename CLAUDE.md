@@ -1922,8 +1922,12 @@ Google), **dentro do Rise**, e **não perder mais** o original e as versões ger
   Banana 1 ficou fora (legado). Se o Google mudar o preço, é uma linha.
 - **Sem camada gratuita nem sandbox para imagem: gerar já é pagar.** Chamada `POST .../models/<id>:generateContent`,
   chave no cabeçalho `x-goog-api-key`, só imagem, 1:1, 1K, tempo limite de 120 s, até 5 extras, prompt até 2.000
-  caracteres. **O formato do corpo (clássico `contents/parts/inline_data`) ainda NÃO foi confirmado com a chave
-  real**: só `montarPedido` e `lerResposta` o conhecem, e o roteiro `scripts/teste-nano-banana.js` o confirma.
+  caracteres. **O formato do corpo (clássico `contents/parts/inline_data`) foi CONFIRMADO com a chave
+  real em 06/10/2026**: os dois modelos responderam HTTP 200 em 9 a 16 s, a imagem vem em `candidates[0].content.parts[0].inlineData`
+  (JPEG 1024x1024, ~400 KB) e a parte traz também um `thoughtSignature` enorme (~1,4 MB de texto) que é ignorado.
+  Só `montarPedido` e `lerResposta` conhecem o formato; o roteiro `scripts/teste-nano-banana.js` repete a conferência.
+  Teste com a foto do produto 100104 (placa Arduino Mega 2560 com cabo): forma, cores, conectores e cabo saíram iguais;
+  o texto impresso miúdo (marcação do chip, rótulos dos pinos) é **redesenhado e não copiado**, com pequenas diferenças.
 - **`.env`:** `GEMINI_API_KEY=`, `NANO_BANANA_GERACAO=false` (trava, no molde de `PHOTOROOM_COMPRA`: mesmo com a chave
   colada nada é gerado) e `NANO_BANANA_TETO_DIA=50` (gerações por dia que deram certo). Mudou o `.env`, reiniciar o
   servidor (o `.env` só é relido na partida).
@@ -1961,11 +1965,12 @@ o uso do Nano Banana ao lado do Photoroom.
 
 ### Pendências
 
-- **Chave e faturamento do Google são passos do dono** (aistudio.google.com: criar a chave, ativar o faturamento,
-  conferir que aparece como paga, colar em `GEMINI_API_KEY=`, reiniciar). **`NANO_BANANA_GERACAO=true` só depois do
-  roteiro `scripts/teste-nano-banana.js` confirmar o formato** (custa cerca de US$ 0,20). Orçamento mensal com
-  alerta no Google Cloud é opcional.
-- A geração real de ponta a ponta na tela (produto novo e existente) ainda não foi vista: depende da chave.
+- **Chave e faturamento do Google** (aistudio.google.com) **estão feitos** (06/10/2026), e o crédito de boas-vindas de
+  US$ 300 do Google Cloud **não cobre a API Gemini** (diz a própria tela): as gerações cobram no cartão. O roteiro
+  `scripts/teste-nano-banana.js` já rodou (US$ 0,20) e confirmou o formato. Orçamento mensal com alerta no Google
+  Cloud é opcional.
+- **`NANO_BANANA_GERACAO` segue `false`** até o dono mandar ligar: a geração real de ponta a ponta na tela (produto
+  novo e existente) ainda não foi vista.
 - Fora desta rodada: várias gerações por foto, prompt por produto, teto de tamanho da reserva, Nano Banana a partir
   da foto do Photoroom, 2K/4K e o Nano Banana 1.
 
