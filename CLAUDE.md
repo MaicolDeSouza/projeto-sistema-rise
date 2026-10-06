@@ -1947,7 +1947,7 @@ Google), **dentro do Rise**, e **não perder mais** o original e as versões ger
   `FAILED_PRECONDITION`), cota, recusa por conteúdo (`SAFETY`, `IMAGE_SAFETY`...), resposta sem imagem (mostra o
   texto que o Google devolveu) e imagem que não abre (a geração foi cobrada, e a mensagem diz isso).
 - **O modelo é generativo e pode redesenhar o produto**, como o `beautify` do Photoroom fez com um Arduino. A defesa é
-  o prompt (`PROMPT_PADRAO`: mesma forma, cores, conectores, textos), as imagens extras de referência e a revisão
+  o prompt (`PROMPT_PADRAO`: mesma forma, proporções e cores, sem inventar texto), as imagens extras de referência e a revisão
   lado a lado com zoom antes de escolher. **O prompt enviado à IA tem acento** (é o texto da spec, literal); o
   resto do código segue sem acento.
 - **Prompt salvo por modelo** (`PromptImagem`, chave do `MODELOS`, **não** o id do Google). Salvar o texto igual ao
@@ -1969,8 +1969,23 @@ o uso do Nano Banana ao lado do Photoroom.
   US$ 300 do Google Cloud **não cobre a API Gemini** (diz a própria tela): as gerações cobram no cartão. O roteiro
   `scripts/teste-nano-banana.js` já rodou (US$ 0,20) e confirmou o formato. Orçamento mensal com alerta no Google
   Cloud é opcional.
-- **`NANO_BANANA_GERACAO` segue `false`** até o dono mandar ligar: a geração real de ponta a ponta na tela (produto
-  novo e existente) ainda não foi vista.
+- **`NANO_BANANA_GERACAO=true` no `.env` desde 06/10/2026** (o dono mandou ligar; teto de 50 por dia). **A geração
+  real de ponta a ponta na tela (produto novo e existente) NUNCA foi vista**: o dono dispensou mais testes com
+  imagens, então o primeiro uso de verdade é o dele. O que foi visto na tela, sem gerar: a aba, o prompt salvo, as
+  extras, a reserva. O roteiro de bancada gerou só a placa Arduino Mega, 3 vezes (US$ 0,47 no total).
+- **O prompt padrão mudou três vezes em 06/10/2026**, e a versão atual (a que está em `PROMPT_PADRAO`) foi escolhida
+  pelo dono: **melhorar a nitidez da foto real**, sem aspecto de desenho, reescrevendo o texto meio apagado só se
+  der para ler com certeza e sem inventar nada. As anteriores ("recriar como foto de estúdio" e "digitalizar") foram
+  descartadas: nos testes o texto impresso miúdo (marcação do chip, rótulos de pinos) saiu **redesenhado, não
+  copiado**, e a versão "digitalizada" ficou com cara de desenho. **Um prompt não impede o modelo de errar texto
+  miúdo**: a conferência lado a lado na janela, antes de "Escolher essa", é a defesa de verdade, e o texto da
+  marcação do chip merece olho.
+- **Pontos menores deixados de lado na revisão final** (nenhum perde dado): o teto do dia não é atômico (duas fotos
+  gerando no mesmo instante passam uma acima); "Gerar com Nano Banana" na reserva traz a original no fim, e validá-la
+  sem tirar a foto do mesmo grupo deixa duas FOTO do mesmo grupo; `/api/arquivos` devolve 500 para endereço malformado
+  (`decodeURIComponent`, como já fazia nas outras pastas); o Salvar lê todos os arquivos da reserva para comparar os
+  bytes (sem teto de reserva isso cresce). O reparo "gerar sem escolher e fechar a janela" (as versões geradas entram
+  na assinatura da janela) **não tem teste automático** (é código de tela) e a geração de verdade não foi vista.
 - Fora desta rodada: várias gerações por foto, prompt por produto, teto de tamanho da reserva, Nano Banana a partir
   da foto do Photoroom, 2K/4K e o Nano Banana 1.
 
