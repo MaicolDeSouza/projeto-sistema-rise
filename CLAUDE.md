@@ -1738,8 +1738,9 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
     EAN-Search" abre o site numa aba nova com o código digitado na hora (só os dígitos); com o campo vazio, usa o
     Nome. O endereço é montado no clique, porque o campo não é controlado. `ean-search.org/?q=` está nos exemplos
     da própria documentação; o `cosmos.bluesoft.com.br/pesquisar?q=` **não foi conferido** (o site tem
-    verificação da Cloudflare). A lupa com a API do Cosmos está planejada e espera o `COSMOS_TOKEN` no `.env`.
-    O Cosmos é grátis até 25 por dia, e o dono dispensou o log das buscas.
+    verificação da Cloudflare). **Consulta pela API foi descartada** (06/10/2026): o Cosmos é pago (a partir de
+    R$ 499,99/mês para 100 consultas por dia; o plano grátis citado em resumos de busca não aparece na página
+    de preços), e o EAN-Search também cobra. Ficam só os links.
   - Medido em 06/10/2026 no 100103, servidor de desenvolvimento: as indicações aparecem uns 17 s depois de abrir
     a página. As ações do servidor rodam uma de cada vez, e a preparação das fotos vem antes. Testes em
     `teste-cadastros` ("Indicações dos vínculos salvos").
