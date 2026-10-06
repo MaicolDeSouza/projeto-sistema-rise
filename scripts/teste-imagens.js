@@ -215,6 +215,7 @@ console.log("\nGravacao no produto (usa o Postgres e a pasta dados/)");
 const SKU_TESTE = "ZZ-TESTE-IMAGENS";
 const SKU_EDICAO = "ZZ-TESTE-IMAGENS-EDICAO";
 const SKU_RESERVA = "ZZ-TESTE-RESERVA";
+const SKU_SALVAR = "ZZ-TESTE-RESERVA-SALVAR";
 const { prisma } = await import("../src/lib/db.js");
 const { anexarImagens } = await import("../src/lib/imagensImportadas.js");
 const { caminhoDe, apagarPastaProduto } = await import("../src/lib/arquivos.js");
@@ -1191,6 +1192,229 @@ try {
       const trocou = await renomearPastaProduto(SKU_RESERVA, skuNovoReserva);
       conferir("trocar o SKU leva a reserva junto", [trocou.ok, (await lerDaReserva(skuNovoReserva, reservaUm.nome))?.equals(jpgUm)], [true, true]);
       await renomearPastaProduto(skuNovoReserva, SKU_RESERVA);
+    }
+
+    // ----- Salvar com reserva (Nano Banana): o que nao vira foto do carrossel vai para a reserva -----
+    console.log("\nSalvar com reserva (usa o Postgres e dados/)");
+    {
+      const { createHash } = await import("node:crypto");
+      const { readdir, writeFile: escreverArquivo, mkdir: criarPasta } = await import("node:fs/promises");
+      const { dirname: pastaDe, join: juntar } = await import("node:path");
+      const { reconciliarImagensDoProduto: salvarFotos } = await import("../src/lib/imagens/produto.js");
+      const loteLib = await import("../src/lib/imagens/lote.js");
+      const { gravarNaReserva, lerDaReserva } = await import("../src/lib/imagens/reserva.js");
+      const { RAIZ } = await import("../src/lib/arquivos.js");
+
+      const lotesSalvar = [];
+      const novoLote = () => {
+        const id = randomUUID();
+        lotesSalvar.push(id);
+        return id;
+      };
+      let produtoS = null;
+      const recomecar = async () => {
+        await prisma.produto.deleteMany({ where: { sku: SKU_SALVAR } });
+        await apagarPastaProduto(SKU_SALVAR);
+        produtoS = await prisma.produto.create({ data: { sku: SKU_SALVAR, tituloBase: "Teste do Salvar com reserva" } });
+        return { id: produtoS.id, sku: SKU_SALVAR };
+      };
+      const linhas = () =>
+        prisma.produtoArquivo.findMany({ where: { produtoId: produtoS.id, tipo: "IMAGEM" }, orderBy: [{ papel: "asc" }, { ordem: "asc" }, { criadoEm: "asc" }] });
+      const deTipo = (lista, papel) => lista.filter((l) => l.papel === papel);
+      const sha = (bytes) => (bytes ? createHash("sha1").update(bytes).digest("hex") : null);
+      const bytesDaLinha = async (l) =>
+        l.papel === "FOTO" ? readFile(caminhoDe(SKU_SALVAR, "IMAGEM", l.arquivo)).catch(() => null) : lerDaReserva(SKU_SALVAR, l.arquivo);
+      const naPasta = async (pasta) => (await readdir(juntar(RAIZ, SKU_SALVAR, pasta)).catch(() => [])).sort();
+      // Imagens bem diferentes entre si (cores lisas), ja no padrao: o padronizador devolve os mesmos bytes.
+      const cor = async (r, g, b) =>
+        (await padronizarImagem(await sharp({ create: { width: 1024, height: 1024, channels: 3, background: { r, g, b } } }).jpeg({ quality: 90 }).toBuffer())).bytes;
+      const ORIG = await cor(200, 40, 40);
+      const PR = await cor(40, 200, 40);
+      const NB = await cor(40, 40, 200);
+      const OUTRA = await cor(200, 200, 40);
+      conferir("as imagens de teste estao no padrao (padronizar de novo nao muda os bytes)", (await padronizarImagem(ORIG)).bytes.equals(ORIG), true);
+      // Uma FOTO ja gravada no produto, direto (como o Salvar de antes a deixaria).
+      const fotoGravada = async (bytes, dados = {}) => {
+        const nome = `${randomUUID().replaceAll("-", "")}.jpg`;
+        const alvo = caminhoDe(SKU_SALVAR, "IMAGEM", nome);
+        await criarPasta(pastaDe(alvo), { recursive: true });
+        await escreverArquivo(alvo, bytes);
+        const linha = await prisma.produtoArquivo.create({ data: { produtoId: produtoS.id, tipo: "IMAGEM", arquivo: nome, mimeType: "image/jpeg", tamanhoBytes: bytes.length, ...dados } });
+        return prisma.produtoArquivo.update({ where: { id: linha.id }, data: { grupo: dados.grupo ?? linha.id } });
+      };
+      const reservaGravada = async (bytes, versao, grupo) => {
+        const gravada = await gravarNaReserva(SKU_SALVAR, bytes);
+        return prisma.produtoArquivo.create({
+          data: { produtoId: produtoS.id, tipo: "IMAGEM", papel: "RESERVA", versao, grupo, arquivo: gravada.nome, mimeType: "image/jpeg", tamanhoBytes: gravada.tamanhoBytes, ordem: 0 },
+        });
+      };
+
+      try {
+        // S1: foto nova validada na versao do Photoroom: FOTO photoroom + RESERVA original, no mesmo grupo.
+        let alvoS = await recomecar();
+        let L = novoLote();
+        let nova = await loteLib.adicionarImagem(L, ORIG);
+        await loteLib.garantirOriginalGuardado(L, nova.base);
+        await loteLib.guardarVersao(L, nova.base, "photoroom", PR);
+        await loteLib.escolherVersao(L, nova.base, "photoroom");
+        let r = await salvarFotos({ produto: alvoS, lote: L, itens: [{ base: nova.base, finalizada: true, versao: "photoroom" }] });
+        let ls = await linhas();
+        conferir("S1: 1 FOTO photoroom e 1 RESERVA original", [r.novas, r.reservadas, deTipo(ls, "FOTO").map((l) => l.versao), deTipo(ls, "RESERVA").map((l) => l.versao)], [1, 1, ["photoroom"], ["original"]]);
+        conferir("S1: no mesmo grupo, e o grupo e gravado", [ls[0].grupo !== null, ls[0].grupo === ls[1]?.grupo], [true, true]);
+        conferir("S1: os bytes certos em cada uma", [sha(await bytesDaLinha(deTipo(ls, "FOTO")[0])), sha(await bytesDaLinha(deTipo(ls, "RESERVA")[0] ?? {}))], [sha(PR), sha(ORIG)]);
+        conferir("S1: a RESERVA nao e principal", deTipo(ls, "RESERVA")[0]?.principal, false);
+
+        // S2: validada na ORIGINAL, com Nano Banana pago: FOTO original + RESERVA nanobanana (a original nao duplica).
+        alvoS = await recomecar();
+        L = novoLote();
+        nova = await loteLib.adicionarImagem(L, ORIG);
+        await loteLib.garantirOriginalGuardado(L, nova.base);
+        await loteLib.guardarVersao(L, nova.base, "nanobanana", NB);
+        r = await salvarFotos({ produto: alvoS, lote: L, itens: [{ base: nova.base, finalizada: true, versao: "original" }] });
+        ls = await linhas();
+        conferir("S2: FOTO original e so a nanobanana na reserva", [r.reservadas, deTipo(ls, "FOTO").map((l) => l.versao), deTipo(ls, "RESERVA").map((l) => l.versao)], [1, ["original"], ["nanobanana"]]);
+        conferir("S2: a reserva tem os bytes do Nano Banana", sha(await bytesDaLinha(deTipo(ls, "RESERVA")[0] ?? {})), sha(NB));
+
+        // S3 + S4: paga sem validar vai inteira para a reserva; candidata nunca tocada some.
+        alvoS = await recomecar();
+        L = novoLote();
+        const paga = await loteLib.adicionarImagem(L, ORIG);
+        await loteLib.garantirOriginalGuardado(L, paga.base);
+        await loteLib.guardarVersao(L, paga.base, "nanobanana", NB);
+        const intocada = await loteLib.adicionarImagem(L, OUTRA);
+        r = await salvarFotos({
+          produto: alvoS,
+          lote: L,
+          itens: [
+            { base: paga.base, finalizada: false, versao: "original" },
+            { base: intocada.base, finalizada: false },
+          ],
+        });
+        ls = await linhas();
+        conferir("S3: paga sem validar: nenhuma FOTO, 2 RESERVA (original e nanobanana)", [r.novas, r.reservadas, deTipo(ls, "FOTO").length, deTipo(ls, "RESERVA").map((l) => l.versao).sort()], [0, 2, 0, ["nanobanana", "original"]]);
+        conferir("S3: as duas no mesmo grupo", new Set(ls.map((l) => l.grupo)).size, 1);
+        conferir("S4: a candidata nunca tocada nao e gravada em lugar nenhum", (await Promise.all(ls.map(bytesDaLinha))).some((b) => sha(b) === sha(OUTRA)), false);
+        conferir("S4: e a pasta de imagens fica vazia", await naPasta("imagens"), []);
+
+        // S5: FOTO original existente, escolhe Nano Banana: a mesma linha muda; o velho desce para a reserva, uma vez so.
+        alvoS = await recomecar();
+        const fotoS5 = await fotoGravada(ORIG, { principal: true });
+        L = novoLote();
+        let aberto = await acoes.prepararFotosDoProduto(L, produtoS.id);
+        const base5 = aberto.imagens[0].base;
+        await loteLib.guardarVersao(L, base5, "nanobanana", NB);
+        await loteLib.garantirOriginalGuardado(L, base5);
+        await loteLib.escolherVersao(L, base5, "nanobanana");
+        r = await salvarFotos({ produto: alvoS, lote: L, itens: [{ base: base5, arquivoId: fotoS5.id, finalizada: true, versao: "nanobanana" }] });
+        ls = await linhas();
+        const fotoS5Depois = deTipo(ls, "FOTO")[0];
+        conferir("S5: a mesma linha, com arquivo novo e versao nanobanana", [r.substituidas, fotoS5Depois.id, fotoS5Depois.arquivo !== fotoS5.arquivo, fotoS5Depois.versao, fotoS5Depois.grupo], [1, fotoS5.id, true, "nanobanana", fotoS5.id]);
+        conferir("S5: o arquivo velho saiu da pasta de imagens", (await naPasta("imagens")).includes(fotoS5.arquivo), false);
+        conferir("S5: e mora na reserva como original, UMA vez", [r.reservadas, deTipo(ls, "RESERVA").map((l) => [l.versao, l.grupo]), sha(await bytesDaLinha(deTipo(ls, "RESERVA")[0] ?? {}))], [1, [["original", fotoS5.id]], sha(ORIG)]);
+        conferir("S5: na pasta reserva so o arquivo da linha", await naPasta("reserva"), deTipo(ls, "RESERVA").map((l) => l.arquivo));
+
+        // S6: foto antiga em PNG, so padronizada: a linha muda, o PNG some e NADA vai para a reserva.
+        alvoS = await recomecar();
+        const NOME_PNG = `${"9".repeat(32)}.png`;
+        const caminhoPng = caminhoDe(SKU_SALVAR, "IMAGEM", NOME_PNG);
+        await criarPasta(pastaDe(caminhoPng), { recursive: true });
+        await escreverArquivo(caminhoPng, await foto(800, 600, "png"));
+        const fotoPng = await prisma.produtoArquivo.create({ data: { produtoId: produtoS.id, tipo: "IMAGEM", arquivo: NOME_PNG, mimeType: "image/png", tamanhoBytes: 1, principal: true } });
+        L = novoLote();
+        aberto = await acoes.prepararFotosDoProduto(L, produtoS.id);
+        r = await salvarFotos({ produto: alvoS, lote: L, itens: [{ base: aberto.imagens[0].base, arquivoId: fotoPng.id, finalizada: true }] });
+        ls = await linhas();
+        conferir("S6: padronizada na mesma linha, sem reserva", [r.substituidas, r.reservadas, ls.length, ls[0].id, ls[0].arquivo.endsWith(".jpg")], [1, 0, 1, fotoPng.id, true]);
+        conferir("S6: o PNG saiu do disco e a pasta reserva nem existe", [await readFile(caminhoPng).then(() => "existe", () => "sumiu"), await naPasta("reserva")], ["sumiu", []]);
+        conferir("S6: a linha antiga ganha o grupo dela (= o id)", ls[0].grupo, fotoPng.id);
+
+        // S7: FOTO nanobanana com RESERVA original, versoes carregadas no lote; o dono volta a original.
+        alvoS = await recomecar();
+        const fotoS7 = await fotoGravada(NB, { versao: "nanobanana", principal: true });
+        const reservaS7 = await reservaGravada(ORIG, "original", fotoS7.grupo);
+        L = novoLote();
+        const base7 = (await loteLib.adicionarImagem(L, ORIG)).base; // como a Tarefa 6 faz: o original do lote e a original verdadeira
+        await loteLib.guardarVersao(L, base7, "nanobanana", NB);
+        await loteLib.garantirOriginalGuardado(L, base7);
+        r = await salvarFotos({ produto: alvoS, lote: L, itens: [{ base: base7, arquivoId: fotoS7.id, finalizada: true, versao: "original" }] });
+        ls = await linhas();
+        conferir("S7: a FOTO volta a ser a original (mesma linha)", [deTipo(ls, "FOTO").map((l) => [l.id, l.versao]), sha(await bytesDaLinha(deTipo(ls, "FOTO")[0]))], [[[fotoS7.id, "original"]], sha(ORIG)]);
+        conferir("S7: 1 RESERVA nanobanana, sem duplicata", [deTipo(ls, "RESERVA").map((l) => l.versao), sha(await bytesDaLinha(deTipo(ls, "RESERVA")[0] ?? {}))], [["nanobanana"], sha(NB)]);
+        conferir("S7: a RESERVA original (agora na FOTO) saiu, linha e arquivo", [await prisma.produtoArquivo.count({ where: { id: reservaS7.id } }), (await naPasta("reserva")).includes(reservaS7.arquivo)], [0, false]);
+
+        // S8: trouxe da reserva para o carrossel; a FOTO do mesmo grupo saiu da lista e desce para a reserva.
+        alvoS = await recomecar();
+        const fotoS8 = await fotoGravada(ORIG, { principal: true });
+        const reservaS8 = await reservaGravada(PR, "photoroom", fotoS8.grupo);
+        L = novoLote();
+        const trazida = await loteLib.adicionarImagem(L, PR);
+        r = await salvarFotos({ produto: alvoS, lote: L, itens: [{ base: trazida.base, finalizada: true, versao: "photoroom", grupo: fotoS8.grupo }] });
+        ls = await linhas();
+        const fotoS8Nova = deTipo(ls, "FOTO")[0];
+        const reservaS8Depois = deTipo(ls, "RESERVA");
+        conferir("S8: no fim 1 FOTO e 1 RESERVA", [deTipo(ls, "FOTO").length, reservaS8Depois.length], [1, 1]);
+        conferir("S8: a FOTO nova e a trazida (photoroom), no grupo da foto", [fotoS8Nova?.versao, fotoS8Nova?.grupo, fotoS8Nova?.principal, sha(await bytesDaLinha(fotoS8Nova ?? {}))], ["photoroom", fotoS8.grupo, true, sha(PR)]);
+        conferir("S8: a FOTO antiga virou a RESERVA (a mesma linha), com os bytes dela", [reservaS8Depois[0]?.id, reservaS8Depois[0]?.versao, sha(await bytesDaLinha(reservaS8Depois[0] ?? {}))], [fotoS8.id, "original", sha(ORIG)]);
+        conferir("S8: a RESERVA de origem sumiu, e o arquivo da foto antiga saiu de imagens/", [await prisma.produtoArquivo.count({ where: { id: reservaS8.id } }), (await naPasta("imagens")).includes(fotoS8.arquivo)], [0, false]);
+        conferir("S8: so os arquivos das linhas ficam no disco", [await naPasta("imagens"), await naPasta("reserva")], [deTipo(ls, "FOTO").map((l) => l.arquivo), reservaS8Depois.map((l) => l.arquivo)]);
+
+        // S11: reabrir e salvar sem mudar nada (estado do S8): nada criado, nada apagado.
+        const antesS11 = await linhas();
+        const arquivosAntesS11 = [await naPasta("imagens"), await naPasta("reserva")];
+        L = novoLote();
+        aberto = await acoes.prepararFotosDoProduto(L, produtoS.id);
+        r = await salvarFotos({ produto: alvoS, lote: L, itens: aberto.imagens.map((i) => ({ base: i.base, arquivoId: i.arquivoId, finalizada: i.finalizada, versao: i.versao })), preservar: aberto.naoCarregadas });
+        conferir("S11: reabrir e salvar sem mudar: 0 reservadas e as mesmas linhas", [r.reservadas, r.removidas, (await linhas()).map((l) => l.id)], [0, 0, antesS11.map((l) => l.id)]);
+        conferir("S11: ... e os mesmos arquivos", [await naPasta("imagens"), await naPasta("reserva")], arquivosAntesS11);
+
+        // S9: excluir da reserva: so ids de RESERVA deste produto valem.
+        const idReservaS9 = deTipo(antesS11, "RESERVA")[0]?.id;
+        const arquivoReservaS9 = deTipo(antesS11, "RESERVA")[0]?.arquivo;
+        const idFotoS9 = deTipo(antesS11, "FOTO")[0]?.id;
+        L = novoLote();
+        aberto = await acoes.prepararFotosDoProduto(L, produtoS.id);
+        r = await salvarFotos({
+          produto: alvoS,
+          lote: L,
+          itens: aberto.imagens.map((i) => ({ base: i.base, arquivoId: i.arquivoId, finalizada: true })),
+          reservaExcluida: [idReservaS9, idFotoS9, "outro-produto"],
+        });
+        ls = await linhas();
+        conferir("S9: so a RESERVA some (linha e arquivo); a FOTO fica", [r.reservaExcluidas, ls.map((l) => l.id), (await naPasta("reserva")).includes(arquivoReservaS9)], [1, [idFotoS9], false]);
+
+        // S10: FOTO excluida na tela (fora da lista, sem foto do mesmo grupo): apagada de verdade, sem RESERVA.
+        alvoS = await recomecar();
+        const fica = await fotoGravada(ORIG, { principal: true, ordem: 0 });
+        const sai = await fotoGravada(OUTRA, { ordem: 1 });
+        L = novoLote();
+        aberto = await acoes.prepararFotosDoProduto(L, produtoS.id);
+        const doFica = aberto.imagens.find((i) => i.arquivoId === fica.id);
+        r = await salvarFotos({ produto: alvoS, lote: L, itens: [{ base: doFica.base, arquivoId: fica.id, finalizada: true }] });
+        ls = await linhas();
+        conferir("S10: a excluida some (linha e arquivo), sem reserva", [r.removidas, r.reservadas, ls.map((l) => l.id), (await naPasta("imagens")).includes(sai.arquivo), await naPasta("reserva")], [1, 0, [fica.id], false, []]);
+
+        // S12: as 100 fotos contam so FOTO: 100 validadas + 3 RESERVA, e uma 101a ainda fica de fora.
+        alvoS = await recomecar();
+        await prisma.produtoArquivo.createMany({
+          data: Array.from({ length: MAXIMO_IMAGENS }, (_, i) => ({ produtoId: produtoS.id, tipo: "IMAGEM", arquivo: `${"c".repeat(28)}${String(i).padStart(4, "0")}.jpg`, ordem: i, principal: i === 0 })),
+        });
+        const cem = await prisma.produtoArquivo.findMany({ where: { produtoId: produtoS.id }, orderBy: { ordem: "asc" } });
+        for (const [i, bytes] of [ORIG, PR, NB].entries()) await reservaGravada(bytes, "original", cem[i].id);
+        L = novoLote();
+        const sobra = await loteLib.adicionarImagem(L, OUTRA);
+        r = await salvarFotos({
+          produto: alvoS,
+          lote: L,
+          // As 100 com uma base que nao esta no lote: o lote "perdeu" a foto, e a do produto continua valendo.
+          itens: [...cem.map((l) => ({ base: randomUUID().replaceAll("-", ""), arquivoId: l.id, finalizada: true })), { base: sobra.base, finalizada: true }],
+        });
+        ls = await linhas();
+        conferir("S12: 100 FOTO mantidas, a 101a fica de fora, as 3 RESERVA ficam", [r.mantidas, r.novas, deTipo(ls, "FOTO").length, deTipo(ls, "RESERVA").length], [MAXIMO_IMAGENS, 0, MAXIMO_IMAGENS, 3]);
+      } finally {
+        for (const id of lotesSalvar) await acoes.descartarLoteDeArquivos(id);
+        await prisma.produto.deleteMany({ where: { sku: SKU_SALVAR } });
+        await apagarPastaProduto(SKU_SALVAR);
+      }
     }
   } finally {
     globalThis.fetch = fetchReal;

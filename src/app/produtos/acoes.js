@@ -11,7 +11,7 @@ import { listarDocumentosDasReferencias } from "@/lib/documentosReferencias";
 import { lerCamposDasReferencias, lerDetalhesDasReferencias } from "@/lib/camposDasReferencias";
 import { gerarDescricao, gerarTitulos, MAXIMO_REFERENCIAS } from "@/lib/ia/anuncio";
 import { normalizar } from "@/lib/texto";
-import { baseValida, descartarLote, moverImagensParaProduto } from "@/lib/imagens/lote";
+import { descartarLote } from "@/lib/imagens/lote";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { reconciliarImagensDoProduto } from "@/lib/imagens/produto";
 import {
@@ -402,8 +402,11 @@ async function gravarTemporarios(produto, formData) {
  * navegador disse.
  *
  * SO AS VALIDADAS FICAM (pedido do dono em 04/10/2026): foto com `finalizada: false` nao e gravada, e as
- * candidatas que sobram no lote temporario nunca chegam ao produto. Campo ausente mantem a foto (ver
- * `reconciliarImagensDoProduto`, que tem a mesma regra e explica o porque).
+ * candidatas que sobram no lote temporario nunca chegam ao produto. Campo ausente mantem a foto.
+ *
+ * Desde a reserva (Nano Banana, 05/10/2026) o produto novo usa o MESMO Salvar do produto que ja existe
+ * (`reconciliarImagensDoProduto`): sem linhas, toda foto e "nova", e as versoes geradas (pagas) que nao foram
+ * escolhidas vao para a reserva em vez de sumir. A primeira da lista e a principal.
  */
 async function gravarImagensDoLote(produto, formData) {
   const lote = String(formData.get("loteTemporario") ?? "");
@@ -415,35 +418,9 @@ async function gravarImagensDoLote(produto, formData) {
   } catch {
     lista = [];
   }
-  if (!Array.isArray(lista)) return;
+  if (!Array.isArray(lista) || lista.length === 0) return;
 
-  const validas = lista
-    .filter((item) => baseValida(item?.base) && item?.finalizada !== false)
-    .slice(0, MAXIMO_IMAGENS);
-  if (validas.length === 0) return;
-
-  const movidas = await moverImagensParaProduto(
-    lote,
-    produto.sku,
-    validas.map((item) => item.base),
-  );
-  const marcada = validas.find((item) => item.principal === true)?.base;
-  const principal = movidas.find((m) => m.nome === `${marcada}.jpg`) ?? movidas[0];
-
-  for (const [ordem, movida] of movidas.entries()) {
-    await prisma.produtoArquivo.create({
-      data: {
-        produtoId: produto.id,
-        tipo: "IMAGEM",
-        principal: movida === principal,
-        arquivo: movida.nome,
-        nomeOriginal: null,
-        mimeType: movida.mimeType,
-        tamanhoBytes: movida.tamanhoBytes,
-        ordem,
-      },
-    });
-  }
+  await reconciliarImagensDoProduto({ produto: { id: produto.id, sku: produto.sku }, lote, itens: lista });
 }
 
 /**
@@ -473,6 +450,8 @@ async function gravarImagensDoPainel(produto, formData) {
     lote,
     itens: ler("imagensDoLote"),
     preservar: ler("arquivosPreservados").filter((id) => typeof id === "string"),
+    // Ids de RESERVA que o dono excluiu na tela; o servidor so aceita os deste produto.
+    reservaExcluida: ler("reservaExcluida").filter((id) => typeof id === "string"),
   });
 }
 
