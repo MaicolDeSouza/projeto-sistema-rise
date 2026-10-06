@@ -2630,6 +2630,8 @@ export default function FormularioProduto({
                     {[
                       { nome: "Cosmos", endereco: (termo) => `https://cosmos.bluesoft.com.br/pesquisar?q=${termo}` },
                       { nome: "EAN-Search", endereco: (termo) => `https://www.ean-search.org/?q=${termo}` },
+                      // Pedido do dono em 06/10/2026; o endereco e o que ele usou no navegador.
+                      { nome: "Product-Search", endereco: (termo) => `https://pt.product-search.net/?q=${termo}` },
                     ].map((site) => (
                       <a
                         key={site.nome}

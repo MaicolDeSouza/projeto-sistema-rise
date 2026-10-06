@@ -422,42 +422,44 @@ function FotoEmRevisao({
 
   // As abas do quadro da direita ficam no lugar do titulo. O titulo antigo ("Melhorada" ou "Previa do
   // Photoroom") passou para a legenda embaixo da foto.
-  // O site de cada servico, para usar fora do Rise (pedido do dono em 06/10/2026): o Photoroom na web e o
-  // Flow do Google, onde o Nano Banana roda. O link acompanha a aba aberta.
-  const siteDaAba =
-    aba === "nanobanana"
-      ? { nome: "Flow do Google", url: "https://labs.google/flow" }
-      : { nome: "Photoroom", url: "https://app.photoroom.com" };
+  // O site de cada servico, para usar fora do Rise (pedido do dono em 06/10/2026): so o icone ao lado do nome
+  // da aba. Um link com texto parecia uma terceira ferramenta. O icone e um <a> FORA do botao da aba (link
+  // dentro de botao nao vale em HTML), e clicar nele nao troca de aba.
   const abas = (
-    <span className="flex w-full items-center gap-1">
-      <span className="flex flex-1 gap-1" role="tablist">
-        {[
-          ["photoroom", "Photoroom"],
-          ["nanobanana", "Nano Banana"],
-        ].map(([chave, rotulo]) => (
+    <span className="flex w-full gap-1" role="tablist">
+      {[
+        ["photoroom", "Photoroom", { nome: "Photoroom", url: "https://app.photoroom.com" }],
+        ["nanobanana", "Nano Banana", { nome: "Flow do Google, onde o Nano Banana roda", url: "https://labs.google/flow" }],
+      ].map(([chave, rotulo, site]) => (
+        <span
+          key={chave}
+          className={`flex flex-1 items-center justify-center gap-1 border-b-2 ${
+            aba === chave ? "border-acento" : "border-borda"
+          }`}
+        >
           <button
-            key={chave}
             type="button"
             role="tab"
             aria-selected={aba === chave}
             onClick={() => mudarDados({ aba: chave })}
-            className={`flex-1 border-b-2 px-2 py-1 text-xs ${
-              aba === chave ? "border-acento font-semibold text-acento" : "border-borda text-suave hover:text-texto"
+            className={`py-1 pl-2 text-xs ${
+              aba === chave ? "font-semibold text-acento" : "text-suave hover:text-texto"
             }`}
           >
             {rotulo}
           </button>
-        ))}
-      </span>
-      <a
-        href={siteDaAba.url}
-        target="_blank"
-        rel="noreferrer"
-        title={`Abre o ${siteDaAba.nome} numa aba nova`}
-        className="inline-flex shrink-0 items-center gap-0.5 px-1 text-[11px] text-acento hover:underline"
-      >
-        {siteDaAba.nome} <ExternalLink size={11} />
-      </a>
+          <a
+            href={site.url}
+            target="_blank"
+            rel="noreferrer"
+            title={`Abre o site do ${site.nome} numa aba nova`}
+            aria-label={`Abrir o site do ${site.nome}`}
+            className="rounded p-0.5 pr-2 text-suave hover:text-acento"
+          >
+            <ExternalLink size={11} />
+          </a>
+        </span>
+      ))}
     </span>
   );
 
