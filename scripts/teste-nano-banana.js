@@ -36,6 +36,13 @@ const argumentos = process.argv.slice(2);
 const confirmou = argumentos.includes("--confirmo");
 const posicaoDaFoto = argumentos.indexOf("--foto");
 const caminhoDaFoto = posicaoDaFoto >= 0 ? argumentos[posicaoDaFoto + 1] : null;
+// `--modelo nano-banana-pro` roda so um modelo (e cobra so ele); sem a opcao, roda o 2 e o Pro.
+const posicaoDoModelo = argumentos.indexOf("--modelo");
+const modeloPedido = posicaoDoModelo >= 0 ? argumentos[posicaoDoModelo + 1] : null;
+if (modeloPedido && !Object.hasOwn(MODELOS, modeloPedido)) {
+  console.error(`Modelo desconhecido: ${modeloPedido}. Use ${Object.keys(MODELOS).join(", ")}.`);
+  process.exit(2);
+}
 
 if (!confirmou || !caminhoDaFoto) {
   console.log("Este roteiro COBRA do Google (cerca de US$ 0,20 no total, uns R$ 1,20).");
@@ -76,7 +83,7 @@ const pasta = path.join(process.cwd(), "dados", "temporarios", "teste-nano-banan
 await mkdir(pasta, { recursive: true });
 
 let custoUsd = 0;
-for (const modelo of ["nano-banana-2", "nano-banana-pro"]) {
+for (const modelo of modeloPedido ? [modeloPedido] : ["nano-banana-2", "nano-banana-pro"]) {
   console.log(`\n== ${MODELOS[modelo].nome} (${MODELOS[modelo].id}) ==`);
   const pedido = montarPedido({ prompt: PROMPT_PADRAO, original: { bytes, mimeType: tipo }, extras: [], aceitaExtras: true });
 
