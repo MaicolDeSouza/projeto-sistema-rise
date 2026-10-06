@@ -2426,6 +2426,21 @@ Mesmo esquema (travas abertas só no ambiente do script, `.env` intocado):
   versão apontava para o nosso preço; o dono pediu a inversão em 19/09/2026 e o **número ficou o
   mesmo** (39,90 contra 49,00 dá 22,8%). Como a coluna é medida vai numa bolha "i" no cabeçalho.
   Se um dia a base passar a ser o NOSSO preço, o mesmo exemplo dá 18,6%: é uma linha em `Diferenca`.
+- **Posição de preço "2º de 10"** (pedido do dono em 06/10/2026): selo ao lado de "Preço venda" e do título
+  "Concorrentes" (`SeloPosicaoDePreco.jsx`). O cálculo é de `posicaoDePreco` (`src/lib/posicaoDePreco.js`, função
+  pura): o Preço venda que está no campo AGORA contra a lista de concorrentes da tela (`concorrentesRascunho`,
+  salva ou não), e atualiza enquanto o dono digita.
+  - **1º = o mais barato.** O total é "lojas com preço + o produto".
+  - **Cada loja conta uma vez, pelo menor preço dela** (o nome é comparado sem caixa e sem espaço nas pontas).
+  - **Empate** (mesmo preço em centavos) fica na mesma posição, com "(empatado)".
+  - Concorrente sem preço ou com preço zero fica de fora. Sem preço do produto, ou sem concorrente com preço,
+    não há selo.
+  - **Cor:** verde quando é o 1º, âmbar quando é o último, cinza no meio. Não usa vermelho, porque ser o mais
+    caro pode ser estratégia.
+  - **A dica (mouse) mostra a distância:** o mais barato e a loja, "para ser o 1º: abaixo de R$ X", e os
+    vizinhos logo abaixo e logo acima.
+  - **Não é gravado no banco.** Uma coluna na lista de produtos ficaria para um segundo passo, que pede mudança no
+    banco. Testes em `teste-extracao` ("Posição de preço").
 - **Manual e ficha técnica são um tipo só, `DOCUMENTO`** ("Documentos técnicos", pasta
   `documentos/`), desde 16/09/2026, decidido com o dono. Nada no sistema tratava um diferente do
   outro, e o mesmo PDF de fabricante costuma ser as duas coisas. **O certificado de
