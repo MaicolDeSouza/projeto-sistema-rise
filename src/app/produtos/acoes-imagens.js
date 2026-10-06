@@ -15,13 +15,14 @@ import {
   descartarLote,
   gravarPrevia,
   escolherVersao,
-  guardarVersoes,
+  garantirOriginalGuardado,
+  guardarVersao,
   impressoesDoLote,
   lerOpcoesDaPrevia,
   originalDoLote,
   substituirImagem,
-  temMelhorada,
 } from "@/lib/imagens/lote";
+import { imagemParaTela, versoesParaTela } from "@/lib/imagens/paraTela";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { caminhoDe, loteValido } from "@/lib/arquivos";
 import { cotacaoDoDolar, emReais } from "@/lib/cotacaoDolar";
@@ -44,34 +45,7 @@ import { registrarChamada, usoDoPhotoroom } from "@/lib/integracoes/photoroomLog
  * exportada faz o Next recusar o modulo inteiro.
  */
 
-/** A foto como o painel a mostra. A `versao` no endereco evita o cache do navegador. */
-function imagemParaTela(lote, base, extra = {}) {
-  return {
-    base,
-    url: `/api/temporarios/${lote}/imagens/${base}.jpg?v=${Date.now()}`,
-    // Toda foto que entra no painel nasce NAO validada, e o dono a valida (check verde) ou ela nao e salva.
-    // Tem que ser `false` explicito, e nao ausente: so o `false` faz o servidor deixar a foto de fora.
-    finalizada: false,
-    ampliada: false,
-    // `melhorada`: a versao que vai para o produto AGORA e a melhorada. `temMelhorada`: ela foi
-    // comprada e esta guardada, mesmo que a escolhida seja a original (o dono alterna entre as duas).
-    melhorada: false,
-    temMelhorada: false,
-    originalUrl: null,
-    melhoradaUrl: null,
-    ...extra,
-  };
-}
-
-/** Os enderecos das duas versoes de uma foto ja comprada. */
-function versoesParaTela(lote, base) {
-  const v = Date.now();
-  return {
-    temMelhorada: true,
-    originalUrl: `/api/temporarios/${lote}/versoes/${base}.original.jpg?v=${v}`,
-    melhoradaUrl: `/api/temporarios/${lote}/versoes/${base}.melhorada.jpg?v=${v}`,
-  };
-}
+// A foto como a tela a mostra (`imagemParaTela`, `versoesParaTela`) mora em src/lib/imagens/paraTela.js.
 
 const DOWNLOADS_SIMULTANEOS = 4;
 
@@ -330,9 +304,9 @@ export async function removerImagemDoLote(lote, base) {
 }
 
 /**
- * Poe a versao escolhida ("original" ou "melhorada") como a foto do produto, SEM custo e sem chamar
- * o Photoroom. A melhorada e a original ficam guardadas depois da compra, e por isso o dono alterna
- * entre as duas quantas vezes quiser sem pagar de novo.
+ * Poe a versao escolhida ("original", "photoroom" ou "nanobanana") como a foto do produto, SEM custo e
+ * sem chamar ninguem. As versoes geradas ficam guardadas, e por isso o dono alterna entre elas quantas
+ * vezes quiser sem pagar de novo.
  */
 export async function escolherVersaoNoLote(lote, base, versao) {
   const invalido = conferir(lote, base);
@@ -340,13 +314,12 @@ export async function escolherVersaoNoLote(lote, base, versao) {
   try {
     const resultado = await escolherVersao(lote, base, versao);
     if (!resultado.ok) return resultado;
-    const comprada = await temMelhorada(lote, base);
     return {
       ok: true,
       imagem: imagemParaTela(lote, base, {
-        melhorada: versao === "melhorada",
+        versao,
         ampliada: Boolean(resultado.ampliada),
-        ...(comprada ? versoesParaTela(lote, base) : {}),
+        ...(await versoesParaTela(lote, base)),
       }),
     };
   } catch (erro) {
@@ -484,22 +457,23 @@ export async function comprarPhotoroom(lote, base, opcoesPedidas) {
     }
     await apagarPrevia(lote, base);
 
-    // As duas versoes ficam guardadas: a compra nao pode apagar a original, senao escolher a
-    // original depois jogaria fora a melhorada que ele pagou.
-    const guardadas = await guardarVersoes(lote, base, { originalCru: original.bytes, melhorada: resultado.bytes });
-    if (!guardadas.ok) {
+    // A original e a comprada ficam guardadas: a compra nao pode apagar a original, senao escolher a
+    // original depois jogaria fora a versao que ele pagou.
+    const guardouOriginal = await garantirOriginalGuardado(lote, base);
+    const guardada = guardouOriginal.ok ? await guardarVersao(lote, base, "photoroom", resultado.bytes) : guardouOriginal;
+    if (!guardada.ok) {
       return {
         ok: false,
-        erro: `A compra foi feita, mas as versoes nao puderam ser guardadas: ${guardadas.erro}`,
+        erro: `A compra foi feita, mas as versoes nao puderam ser guardadas: ${guardada.erro}`,
       };
     }
 
     return {
       ok: true,
       imagem: imagemParaTela(lote, base, {
-        melhorada: true,
+        versao: "photoroom",
         ampliada: resultado.ampliada,
-        ...versoesParaTela(lote, base),
+        ...(await versoesParaTela(lote, base)),
       }),
       custoUsd: CUSTO_COMPRA_USD,
     };

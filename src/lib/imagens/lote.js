@@ -23,21 +23,33 @@ import { padronizarImagem } from "./padronizar";
  *                          original" restaura. Some no Salvar (decisao do dono, 21/09/2026)
  *   previas/<base>.jpg     a previa com marca d'agua, ja padronizada; ao lado, .json com as
  *                          opcoes pedidas — a compra so vale para uma previa ja vista
- *   versoes/<base>.original.jpg e .melhorada.jpg   as DUAS versoes de uma foto ja comprada, ambas
- *                          padronizadas. `imagens/` guarda a que vai para o produto; estas duas
- *                          deixam o dono ALTERNAR entre elas sem perder a melhorada (paga) e sem
- *                          pagar de novo
+ *   versoes/<base>.<versao>.jpg   as versoes ja padronizadas de uma foto: `original` (a que chegou),
+ *                          `photoroom` (a comprada) e `nanobanana` (a ultima geracao do Google).
+ *                          `imagens/` guarda a que vai para o produto; estas deixam o dono
+ *                          ALTERNAR entre elas sem perder a paga e sem pagar de novo. O nome antigo
+ *                          `.melhorada.jpg` (lotes de antes de 05/10/2026) e lido como `photoroom`
+ *   extras/<base>.<n>.<ext>  imagens extras ENVIADAS de fora para a geracao do Nano Banana daquela
+ *                          foto (n de 1 a 5). A extra que e outra foto do carrossel nao e copiada:
+ *                          o servidor le o original dela pelo `base`
+ *   geracoes/<base>.json   modelo, prompt e extras da ultima geracao ("Gerar de novo" repete o pedido)
  *
  * `<base>` e um UUID sem hifens, gerado aqui. Nenhum nome vem do navegador: cada segmento
  * de caminho e conferido antes de o disco ser tocado (o lote guarda arquivos de clientes,
  * e um "../../.env" nao pode virar leitura ou escrita arbitraria).
  */
 
+/** As versoes de uma foto, pelo nome. A ordem e a das abas da janela. */
+export const VERSOES = ["original", "photoroom", "nanobanana"];
+
+// `.melhorada` so para LER lote antigo; nada novo e gravado com esse nome. O 1 a 5 das extras e o
+// MAXIMO_EXTRAS de limites.js, escrito aqui porque o padrao e literal.
 const PADROES = {
   imagens: /^[0-9a-f]{32}\.jpg$/,
   originais: /^[0-9a-f]{32}\.(jpg|png|webp)$/,
   previas: /^[0-9a-f]{32}\.(jpg|json)$/,
-  versoes: /^[0-9a-f]{32}\.(original|melhorada)\.jpg$/,
+  versoes: /^[0-9a-f]{32}\.(original|photoroom|nanobanana|melhorada)\.jpg$/,
+  extras: /^[0-9a-f]{32}\.[1-5]\.(jpg|png|webp)$/,
+  geracoes: /^[0-9a-f]{32}\.json$/,
 };
 
 export const PASTAS_DO_LOTE = Object.keys(PADROES);
@@ -170,43 +182,87 @@ export async function voltarAoOriginal(lote, base) {
   return substituirImagem(lote, base, original.bytes);
 }
 
+/** Existe o arquivo? Sem ler os bytes (uma versao tem ~200 KB e a pergunta e so sim ou nao). */
+async function existe(lote, pasta, nome) {
+  const alvo = caminhoNoLote(lote, pasta, nome);
+  if (!alvo) return false;
+  try {
+    await stat(alvo);
+    return true;
+  } catch (erro) {
+    if (erro.code === "ENOENT") return false;
+    throw erro;
+  }
+}
+
 /**
- * Guarda as DUAS versoes depois de uma compra: a original (padronizada a partir do arquivo que
- * chegou) e a melhorada. So assim o dono pode alternar entre elas: sem isto, escolher a original
- * apagaria a melhorada que ele pagou.
+ * O nome do arquivo de uma versao guardada, ou null. `photoroom` cai para `.melhorada.jpg` quando o
+ * nome novo falta: um lote aberto antes desta mudanca continua com a compra que o dono pagou.
  */
-export async function guardarVersoes(lote, base, { originalCru, melhorada }) {
+export async function nomeGuardadoDaVersao(lote, base, versao) {
+  if (!loteValido(lote) || !baseValida(base) || !VERSOES.includes(versao)) return null;
+  const nome = `${base}.${versao}.jpg`;
+  if (await existe(lote, "versoes", nome)) return nome;
+  if (versao === "photoroom" && (await existe(lote, "versoes", `${base}.melhorada.jpg`))) return `${base}.melhorada.jpg`;
+  return null;
+}
+
+/** Os bytes de uma versao guardada (ja padronizada), ou null. */
+export async function lerVersao(lote, base, versao) {
+  const nome = await nomeGuardadoDaVersao(lote, base, versao);
+  return nome ? lerDoLote(lote, "versoes", nome) : null;
+}
+
+/**
+ * Guarda uma versao ja padronizada. Grava por cima da anterior do mesmo nome: do Nano Banana so a
+ * ULTIMA geracao fica (spec §8). Nunca toca em `imagens/` nem nas outras versoes.
+ */
+export async function guardarVersao(lote, base, versao, bytesPadronizados) {
   if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto invalida." };
-  const padrao = await padronizarImagem(originalCru);
-  if (!padrao.ok) return padrao;
-  await escrever(lote, "versoes", `${base}.original.jpg`, padrao.bytes);
-  await escrever(lote, "versoes", `${base}.melhorada.jpg`, melhorada);
+  if (!VERSOES.includes(versao)) return { ok: false, erro: "Versao invalida." };
+  await escrever(lote, "versoes", `${base}.${versao}.jpg`, bytesPadronizados);
+  // O nome antigo deixaria duas "photoroom" no lote; a nova vale.
+  if (versao === "photoroom") await apagar(lote, "versoes", `${base}.melhorada.jpg`);
   return { ok: true };
 }
 
-/** A foto ja foi comprada (existe a versao melhorada guardada)? */
-export async function temMelhorada(lote, base) {
-  if (!baseValida(base)) return false;
-  return (await lerDoLote(lote, "versoes", `${base}.melhorada.jpg`)) !== null;
+/**
+ * Guarda a ORIGINAL padronizada (`versoes/<base>.original.jpg`), se ainda nao estiver. Roda antes de
+ * guardar qualquer versao gerada: sem ela, escolher a gerada perderia o caminho de volta na janela.
+ */
+export async function garantirOriginalGuardado(lote, base) {
+  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto invalida." };
+  if (await existe(lote, "versoes", `${base}.original.jpg`)) return { ok: true };
+  const original = await originalDoLote(lote, base);
+  if (!original) return { ok: false, erro: "O original desta foto nao esta mais disponivel." };
+  const padrao = await padronizarImagem(original.bytes);
+  if (!padrao.ok) return padrao;
+  await escrever(lote, "versoes", `${base}.original.jpg`, padrao.bytes);
+  return { ok: true };
+}
+
+/** Quais versoes GERADAS (pagas) existem guardadas para a foto. */
+export async function versoesDoLote(lote, base) {
+  return {
+    photoroom: (await nomeGuardadoDaVersao(lote, base, "photoroom")) !== null,
+    nanobanana: (await nomeGuardadoDaVersao(lote, base, "nanobanana")) !== null,
+  };
 }
 
 /**
- * Poe a versao escolhida como a foto do produto (`imagens/<base>.jpg`), sem chamar o Photoroom e
- * sem custo. "melhorada" exige uma compra anterior.
+ * Poe a versao escolhida como a foto do produto (`imagens/<base>.jpg`), sem chamar ninguem e sem
+ * custo. `original` volta ao arquivo que chegou; as geradas exigem uma geracao anterior.
  */
 export async function escolherVersao(lote, base, versao) {
   if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto invalida." };
+  if (!VERSOES.includes(versao)) return { ok: false, erro: "Versao invalida." };
 
   if (versao === "original") return voltarAoOriginal(lote, base);
 
-  if (versao === "melhorada") {
-    const bytes = await lerDoLote(lote, "versoes", `${base}.melhorada.jpg`);
-    if (!bytes) return { ok: false, erro: "Esta foto ainda nao foi melhorada." };
-    await escrever(lote, "imagens", `${base}.jpg`, bytes);
-    return { ok: true, ampliada: false, tamanhoBytes: bytes.length };
-  }
-
-  return { ok: false, erro: "Versao invalida." };
+  const bytes = await lerVersao(lote, base, versao);
+  if (!bytes) return { ok: false, erro: "Esta foto ainda nao foi melhorada." };
+  await escrever(lote, "imagens", `${base}.jpg`, bytes);
+  return { ok: true, ampliada: false, tamanhoBytes: bytes.length };
 }
 
 /** A previa (com marca d'agua) e as opcoes com que foi pedida. */
@@ -233,14 +289,27 @@ export async function apagarPrevia(lote, base) {
   await apagar(lote, "previas", `${base}.json`);
 }
 
-/** Remove a foto e tudo o que tem ao lado dela (original e previa). */
+/**
+ * Remove a foto e tudo o que tem ao lado dela: original, previa, as versoes (nas quatro grafias), as
+ * extras enviadas para ela e a ultima geracao. As da foto vizinha ficam: o filtro e o `<base>.`.
+ */
 export async function apagarImagem(lote, base) {
   if (!loteValido(lote) || !baseValida(base)) return;
   await apagar(lote, "imagens", `${base}.jpg`);
   for (const extensao of EXTENSOES) await apagar(lote, "originais", `${base}.${extensao}`);
-  await apagar(lote, "versoes", `${base}.original.jpg`);
-  await apagar(lote, "versoes", `${base}.melhorada.jpg`);
+  for (const versao of [...VERSOES, "melhorada"]) await apagar(lote, "versoes", `${base}.${versao}.jpg`);
   await apagarPrevia(lote, base);
+  await apagar(lote, "geracoes", `${base}.json`);
+
+  let nomes = [];
+  try {
+    nomes = await readdir(path.join(RAIZ_TEMPORARIA, lote, "extras"));
+  } catch (erro) {
+    if (erro.code !== "ENOENT") throw erro;
+  }
+  for (const nome of nomes) {
+    if (nome.startsWith(`${base}.`)) await apagar(lote, "extras", nome);
+  }
 }
 
 /** Apaga o lote inteiro: fotos, originais, previas e tambem os documentos enviados nele. */

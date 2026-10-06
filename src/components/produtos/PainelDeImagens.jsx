@@ -56,7 +56,14 @@ function nomeParaBaixar(link, posicao) {
 // O que a janela pode mudar numa foto: a ordem, a escolha, a versao e a exclusao. E com isto que se
 // sabe se ha alteracao a salvar ou a descartar.
 const assinatura = (lista) =>
-  JSON.stringify(lista.map((i) => [i.base, Boolean(i.finalizada), Boolean(i.melhorada), Boolean(i.excluida)]));
+  JSON.stringify(lista.map((i) => [i.base, Boolean(i.finalizada), i.versao ?? "original", Boolean(i.excluida)]));
+
+/// A foto tem alguma versao gerada PAGA guardada (Photoroom comprado ou Nano Banana gerado)? O Cancelar da
+/// janela nao devolve o dinheiro, e excluir uma foto paga pede um clique a mais.
+const temPaga = (imagem) => Boolean(imagem?.versoes?.photoroom || imagem?.versoes?.nanobanana);
+
+/// O selo da foto que esta no produto, pela versao.
+const ROTULO_DA_VERSAO = { photoroom: "Photoroom", nanobanana: "Nano Banana" };
 
 /**
  * As fotos do produto NOVO, antes de ele ser salvo.
@@ -112,9 +119,14 @@ export default function PainelDeImagens({
   const atualDaJanela = visiveisDaJanela.find((imagem) => imagem.base === foco) ?? visiveisDaJanela[0] ?? null;
 
   const alteradoNaJanela = janelaAberta && assinatura(rascunho) !== assinatura(imagens);
-  const jaCompradas = new Set(imagens.filter((imagem) => imagem.temMelhorada).map((imagem) => imagem.base));
+  // Pagas na janela: versao gerada (Photoroom ou Nano Banana) que a foto nao tinha antes de abrir.
+  const pagasAntes = new Set(
+    imagens.flatMap((imagem) => ["photoroom", "nanobanana"].filter((v) => imagem.versoes?.[v]).map((v) => `${imagem.base}:${v}`)),
+  );
   const comprasNaJanela = janelaAberta
-    ? rascunho.filter((imagem) => imagem.temMelhorada && !jaCompradas.has(imagem.base)).length
+    ? rascunho.filter((imagem) =>
+        ["photoroom", "nanobanana"].some((v) => imagem.versoes?.[v] && !pagasAntes.has(`${imagem.base}:${v}`)),
+      ).length
     : 0;
 
   const atual = imagens.find((imagem) => imagem.base === foco) ?? imagens[0] ?? null;
@@ -223,7 +235,7 @@ export default function PainelDeImagens({
   // Exclui a foto INTEIRA (a padronizada, a original guardada, a previa e a melhorada; o servidor
   // apaga tudo) e segue para a proxima da fila. E o do painel: apaga NA HORA.
   function excluir(imagem) {
-    if (imagem.temMelhorada && paraConfirmar !== imagem.base) {
+    if (temPaga(imagem) && paraConfirmar !== imagem.base) {
       // Foto paga: pede mais um clique.
       setParaConfirmar(imagem.base);
       return;
@@ -288,8 +300,8 @@ export default function PainelDeImagens({
   }
 
   // CANCELAR: descarta o rascunho. As fotos ja estao como antes (o rascunho nunca as tocou), menos a
-  // VERSAO: comprar ou escolher a melhorada mexe na foto do servidor, e la ela volta ao que era. O que
-  // foi comprado continua guardado (a tela ainda sabe da melhorada), so nao e usado.
+  // VERSAO: comprar, gerar ou escolher outra versao mexe na foto do servidor, e la ela volta a versao que
+  // era (pelo NOME). O que foi pago continua guardado (a tela ainda sabe das versoes), so nao e usado.
   function cancelarJanela() {
     if (!alteradoNaJanela) {
       setRascunho(null);
@@ -304,16 +316,10 @@ export default function PainelDeImagens({
           restauradas.push(antes);
           continue;
         }
-        let foto = {
-          ...antes,
-          temMelhorada: depois.temMelhorada,
-          originalUrl: depois.originalUrl,
-          melhoradaUrl: depois.melhoradaUrl,
-        };
-        if (Boolean(depois.melhorada) !== Boolean(antes.melhorada)) {
-          const resposta = await tentar(() =>
-            escolherVersaoNoLote(lote, antes.base, antes.melhorada ? "melhorada" : "original"),
-          );
+        let foto = { ...antes, versoes: depois.versoes, urls: depois.urls };
+        const versaoAntes = antes.versao ?? "original";
+        if ((depois.versao ?? "original") !== versaoAntes) {
+          const resposta = await tentar(() => escolherVersaoNoLote(lote, antes.base, versaoAntes));
           if (resposta.ok) foto = { ...antes, ...resposta.imagem, finalizada: antes.finalizada };
           else setErro(`Nao foi possivel devolver uma foto ao que era: ${resposta.erro}`);
         }
@@ -377,12 +383,12 @@ export default function PainelDeImagens({
                   Ampliada
                 </span>
               )}
-              {atual.melhorada && (
+              {ROTULO_DA_VERSAO[atual.versao] && (
                 <span
                   className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-900"
-                  title="Tratada pelo Photoroom."
+                  title={`Versao escolhida: ${ROTULO_DA_VERSAO[atual.versao]}.`}
                 >
-                  Melhorada
+                  {ROTULO_DA_VERSAO[atual.versao]}
                 </span>
               )}
             </span>

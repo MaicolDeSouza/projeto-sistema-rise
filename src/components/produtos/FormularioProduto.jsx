@@ -1815,7 +1815,9 @@ export default function FormularioProduto({
         !imagem.doClone &&
         !marcadosAgora.has(imagem.ref) &&
         !imagem.finalizada &&
-        !imagem.melhorada,
+        // Foto com versao gerada PAGA (Photoroom ou Nano Banana) nao sai por desmarcar na lupa.
+        !imagem.versoes?.photoroom &&
+        !imagem.versoes?.nanobanana,
     );
     const basesQueSairam = new Set(sairam.map((imagem) => imagem.base));
     if (sairam.length > 0) {
@@ -1824,7 +1826,7 @@ export default function FormularioProduto({
     }
 
     // Uma referencia so sai da lista de "ja trazidas" quando nao sobrou foto dela no painel; se
-    // sobrou (finalizada, melhorada), marcar de novo nao pode trazer tudo em dobro.
+    // sobrou (validada, ou com versao paga), marcar de novo nao pode trazer tudo em dobro.
     for (const ref of [...refsComFotos.current]) {
       if (marcadosAgora.has(ref)) continue;
       const sobrou = imagensLote.some((imagem) => imagem.ref === ref && !basesQueSairam.has(imagem.base));
@@ -2284,6 +2286,8 @@ export default function FormularioProduto({
             // Salvar. Vai como esta, e NAO como `Boolean(...)`: foto vinda de uma tela antiga nao tem o
             // campo, e o ausente quer dizer "nao sei" (o servidor a mantem), enquanto `false` quer dizer "excluir".
             finalizada: imagem.finalizada,
+            // Rotulo da versao que esta na foto (original, photoroom, nanobanana): o Salvar grava na FOTO.
+            versao: imagem.versao ?? "original",
           })),
         )}
       />

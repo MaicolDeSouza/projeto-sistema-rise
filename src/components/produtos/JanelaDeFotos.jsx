@@ -188,8 +188,11 @@ function FotoEmRevisao({
   const previaVale = Boolean(previa) && JSON.stringify(previa.opcoes) === JSON.stringify(opcoes);
   const compra = estado?.compra;
   const finalizada = Boolean(imagem.finalizada);
-  const temMelhorada = Boolean(imagem.temMelhorada);
-  const escolhida = finalizada ? (imagem.melhorada ? "melhorada" : "original") : null;
+  // A versao do Photoroom ja comprada (o quadro da direita a mostra); `temPaga` inclui o Nano Banana, para
+  // excluir pedir confirmacao de qualquer foto paga.
+  const temPhotoroom = Boolean(imagem.versoes?.photoroom);
+  const temPaga = temPhotoroom || Boolean(imagem.versoes?.nanobanana);
+  const escolhida = finalizada ? (imagem.versao ?? "original") : null;
   const parado = ocupado || gerando || comprando;
 
   // O Photoroom so amplia foto de ate 1 megapixel, e o que ele recebe e o ARQUIVO QUE CHEGOU (nao a
@@ -206,8 +209,8 @@ function FotoEmRevisao({
 
   // A esquerda mostra sempre a original ja padronizada; a direita, a previa quando existe e, sem ela,
   // a melhorada ja comprada.
-  const urlDaOriginal = temMelhorada && imagem.originalUrl ? imagem.originalUrl : imagem.url;
-  const urlDaDireita = previa ? previa.url : temMelhorada ? imagem.melhoradaUrl : null;
+  const urlDaOriginal = imagem.urls?.original ?? imagem.url;
+  const urlDaDireita = previa ? previa.url : temPhotoroom ? imagem.urls?.photoroom : null;
 
   function mudarOpcao(chave) {
     mudarDados({ opcoes: { ...opcoes, [chave]: !opcoes[chave] } });
@@ -246,8 +249,8 @@ function FotoEmRevisao({
   }
 
   function excluir() {
-    // A melhorada foi paga: pede mais um clique antes de jogar fora.
-    if (temMelhorada && !confirmandoExclusao) {
+    // Ha versao paga: pede mais um clique antes de jogar fora.
+    if (temPaga && !confirmandoExclusao) {
       setConfirmandoExclusao(true);
       return;
     }
@@ -260,7 +263,9 @@ function FotoEmRevisao({
       <BotaoEscolher
         escolhida={escolhida === "original"}
         indisponivel={parado}
-        aoClicar={() => (imagem.melhorada ? aoEscolherVersao(imagem, "original") : aoFinalizar(imagem.base, true))}
+        aoClicar={() =>
+          (imagem.versao ?? "original") !== "original" ? aoEscolherVersao(imagem, "original") : aoFinalizar(imagem.base, true)
+        }
         rotulo="Escolher essa"
         dica={escolhida === "original" ? "Esta e a foto escolhida" : "Usar a original no produto"}
       />
@@ -278,7 +283,7 @@ function FotoEmRevisao({
 
   // ----- Direita: com previa na tela, escolher e COMPRAR; sem previa, escolher a melhorada ja comprada -----
   const escolherComprando = Boolean(previa);
-  const podeEscolherDireita = escolherComprando ? previaVale && Boolean(compra?.ok) && !ocupado : temMelhorada;
+  const podeEscolherDireita = escolherComprando ? previaVale && Boolean(compra?.ok) && !ocupado : temPhotoroom;
 
   // O porque do botao da direita estar cinza (ou o que ele faz), no icone "i" ao lado dele. Antes era
   // um texto fixo embaixo, e o dono nao sabia que precisava da previa para o botao ligar.
@@ -288,7 +293,7 @@ function FotoEmRevisao({
   }
   if (previa && !previaVale) explicacaoDireita.push("Voce mudou as opcoes: gere a previa de novo.");
   else if (previa) explicacaoDireita.push(`Compra a foto sem marca d'agua por ${custoCompleto} e a usa no produto.`);
-  else if (temMelhorada) explicacaoDireita.push("Usa a melhorada que voce ja comprou, sem custo.");
+  else if (temPhotoroom) explicacaoDireita.push("Usa a melhorada que voce ja comprou, sem custo.");
   else {
     explicacaoDireita.push(
       "Gere a previa (gratis) para habilitar este botao. Escolher a melhorada compra a foto sem marca d'agua.",
@@ -331,9 +336,9 @@ function FotoEmRevisao({
         Gerar previa
       </button>
       <BotaoEscolher
-        escolhida={escolhida === "melhorada" && !previa}
+        escolhida={escolhida === "photoroom" && !previa}
         indisponivel={!podeEscolherDireita || parado}
-        aoClicar={() => (escolherComprando ? setConfirmando(true) : aoEscolherVersao(imagem, "melhorada"))}
+        aoClicar={() => (escolherComprando ? setConfirmando(true) : aoEscolherVersao(imagem, "photoroom"))}
         rotulo={escolherComprando && estado ? `Escolher essa (${custoEmReais})` : "Escolher essa"}
         compacto
       />
@@ -397,17 +402,17 @@ function FotoEmRevisao({
   const legendaDireita = (
     <>
       {previa && !previaVale && <span>Voce mudou as opcoes: gere a previa de novo.</span>}
-      {escolhida === "melhorada" && <SeloFinalizada aoDesfazer={desfazerEscolha} desativado={parado} />}
+      {escolhida === "photoroom" && <SeloFinalizada aoDesfazer={desfazerEscolha} desativado={parado} />}
     </>
   );
 
-  const cabecalhoDireita = temMelhorada && !previa ? "Melhorada" : "Previa do Photoroom";
+  const cabecalhoDireita = temPhotoroom && !previa ? "Melhorada" : "Previa do Photoroom";
 
   return (
     <div className="space-y-3">
       <div className="grid gap-4 sm:grid-cols-2">
         <Quadro
-          titulo={temMelhorada ? "Original" : "Foto atual"}
+          titulo={temPaga ? "Original" : "Foto atual"}
           legenda={legendaEsquerda}
           botoes={botoesEsquerda}
         >
@@ -458,7 +463,7 @@ function FotoEmRevisao({
       {erro && <p className="rounded bg-red-50 p-2 text-xs text-red-800">{erro}</p>}
       {confirmandoExclusao && (
         <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          Esta foto foi melhorada (paga). Excluir joga fora as duas versoes. Clique em Excluir de novo para
+          Esta foto tem versao paga. Excluir joga fora todas as versoes dela. Clique em Excluir de novo para
           confirmar.
         </p>
       )}
@@ -641,14 +646,14 @@ export default function JanelaDeFotos({
               {barra === "sair"
                 ? "Voce fez alteracoes nas fotos. Salvar antes de fechar?"
                 : `Cancelar desfaz as escolhas, a ordem e as exclusoes desta janela, mas NAO devolve o valor ${
-                    comprasNaJanela === 1 ? "da foto comprada" : `das ${comprasNaJanela} fotos compradas`
+                    comprasNaJanela === 1 ? "da foto paga" : `das ${comprasNaJanela} fotos pagas`
                   } agora: ${comprasNaJanela === 1 ? "ela fica guardada" : "elas ficam guardadas"}, so nao ${
                     comprasNaJanela === 1 ? "sera usada" : "serao usadas"
                   }. Desfazer mesmo?`}
               {barra === "sair" && comprasNaJanela > 0 && (
                 <span>
                   {" "}
-                  Descartar nao devolve o valor {comprasNaJanela === 1 ? "da foto comprada" : "das fotos compradas"}.
+                  Descartar nao devolve o valor {comprasNaJanela === 1 ? "da foto paga" : "das fotos pagas"}.
                 </span>
               )}
             </span>

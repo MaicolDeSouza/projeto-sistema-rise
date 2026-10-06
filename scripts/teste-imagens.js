@@ -598,13 +598,13 @@ try {
     process.env.PHOTOROOM_COMPRA = "true";
 
     const comprada = await acoes.comprarPhotoroom(loteDeTeste, base, { removerFundo: true, iluminacao: true });
-    conferir("compra feita com a chave de producao", [comprada.ok, comprada.imagem?.melhorada, chamadas[1]?.chave], [true, true, "sk_pr_teste"]);
-    conferir("depois da compra a foto sabe que tem a melhorada guardada", [comprada.imagem?.melhorada, comprada.imagem?.temMelhorada], [true, true]);
+    conferir("compra feita com a chave de producao", [comprada.ok, comprada.imagem?.versao, chamadas[1]?.chave], [true, "photoroom", "sk_pr_teste"]);
+    conferir("depois da compra a foto sabe que tem a versao do Photoroom guardada", [comprada.imagem?.versao, comprada.imagem?.versoes], ["photoroom", { photoroom: true, nanobanana: false }]);
     conferir(
       "a tela recebe os enderecos das DUAS versoes para comparar",
       [
-        new RegExp(`^/api/temporarios/${loteDeTeste}/versoes/${base}\\.original\\.jpg\\?v=\\d+$`).test(comprada.imagem?.originalUrl ?? ""),
-        new RegExp(`^/api/temporarios/${loteDeTeste}/versoes/${base}\\.melhorada\\.jpg\\?v=\\d+$`).test(comprada.imagem?.melhoradaUrl ?? ""),
+        new RegExp(`^/api/temporarios/${loteDeTeste}/versoes/${base}\\.original\\.jpg\\?v=\\d+$`).test(comprada.imagem?.urls?.original ?? ""),
+        new RegExp(`^/api/temporarios/${loteDeTeste}/versoes/${base}\\.photoroom\\.jpg\\?v=\\d+$`).test(comprada.imagem?.urls?.photoroom ?? ""),
       ],
       [true, true],
     );
@@ -615,8 +615,8 @@ try {
       [rotaOriginal.status, (await sharp(bytesDaOriginal).metadata()).width, bytesDaOriginal.equals(antesDaCompra)],
       [200, 1024, true],
     );
-    const rotaMelhorada = await rotaDoLote(null, { params: Promise.resolve({ caminho: [loteDeTeste, "versoes", `${base}.melhorada.jpg`] }) });
-    conferir("a rota entrega a melhorada", rotaMelhorada.status, 200);
+    const rotaMelhorada = await rotaDoLote(null, { params: Promise.resolve({ caminho: [loteDeTeste, "versoes", `${base}.photoroom.jpg`] }) });
+    conferir("a rota entrega a versao do Photoroom", rotaMelhorada.status, 200);
     const rotaVersaoRuim = await rotaDoLote(null, { params: Promise.resolve({ caminho: [loteDeTeste, "versoes", `${base}.outra.jpg`] }) });
     conferir("a rota recusa versao que o sistema nao gera", rotaVersaoRuim.status, 404);
     conferir("a foto do produto MUDOU", (await lerDoLote(loteDeTeste, "imagens", `${base}.jpg`)).equals(antesDaCompra), false);
@@ -625,11 +625,11 @@ try {
 
     // Alternar entre as versoes: sem custo, sem chamar o Photoroom, sem perder a paga.
     const escolheuOriginal = await acoes.escolherVersaoNoLote(loteDeTeste, base, "original");
-    conferir("escolher a original nao chama o Photoroom", [escolheuOriginal.ok, escolheuOriginal.imagem?.melhorada, chamadas.length], [true, false, 2]);
+    conferir("escolher a original nao chama o Photoroom", [escolheuOriginal.ok, escolheuOriginal.imagem?.versao, chamadas.length], [true, "original", 2]);
     conferir("... e a foto do produto volta a ser a de antes da compra", (await lerDoLote(loteDeTeste, "imagens", `${base}.jpg`)).equals(antesDaCompra), true);
-    conferir("... mas a melhorada continua guardada e a tela sabe", [escolheuOriginal.imagem?.temMelhorada, Boolean(escolheuOriginal.imagem?.melhoradaUrl)], [true, true]);
-    const escolheuMelhorada = await acoes.escolherVersaoNoLote(loteDeTeste, base, "melhorada");
-    conferir("escolher a melhorada de novo nao cobra outra vez", [escolheuMelhorada.ok, escolheuMelhorada.imagem?.melhorada, chamadas.length], [true, true, 2]);
+    conferir("... mas a melhorada continua guardada e a tela sabe", [escolheuOriginal.imagem?.versoes?.photoroom, Boolean(escolheuOriginal.imagem?.urls?.photoroom)], [true, true]);
+    const escolheuMelhorada = await acoes.escolherVersaoNoLote(loteDeTeste, base, "photoroom");
+    conferir("escolher a melhorada de novo nao cobra outra vez", [escolheuMelhorada.ok, escolheuMelhorada.imagem?.versao, chamadas.length], [true, "photoroom", 2]);
     conferir("... e a foto do produto e a melhorada que foi comprada", (await lerDoLote(loteDeTeste, "imagens", `${base}.jpg`)).equals(melhoradaComprada), true);
     const versaoInvalida = await acoes.escolherVersaoNoLote(loteDeTeste, base, "outra");
     conferir("versao desconhecida e recusada", versaoInvalida.ok, false);
@@ -638,10 +638,10 @@ try {
     const segundo = new FormData();
     segundo.set("arquivo", new File([jpg], "outra.jpg", { type: "image/jpeg" }));
     const outraFoto = await acoes.enviarImagemAoLote(loteDeTeste, segundo);
-    const semCompra = await acoes.escolherVersaoNoLote(loteDeTeste, outraFoto.imagem.base, "melhorada");
+    const semCompra = await acoes.escolherVersaoNoLote(loteDeTeste, outraFoto.imagem.base, "photoroom");
     conferir("melhorada de foto que nao foi comprada e recusada", [semCompra.ok, /ainda nao/i.test(semCompra.erro)], [false, true]);
     const soOriginal = await acoes.escolherVersaoNoLote(loteDeTeste, outraFoto.imagem.base, "original");
-    conferir("a original de uma foto comum funciona e nao tem melhorada", [soOriginal.ok, soOriginal.imagem?.temMelhorada, soOriginal.imagem?.originalUrl], [true, false, null]);
+    conferir("a original de uma foto comum funciona e nao tem melhorada", [soOriginal.ok, soOriginal.imagem?.versoes?.photoroom, soOriginal.imagem?.urls?.original], [true, false, null]);
     await acoes.removerImagemDoLote(loteDeTeste, outraFoto.imagem.base);
 
     // Excluir a foto tambem apaga as duas versoes.
@@ -670,9 +670,94 @@ try {
     conferir("remover foto que ja saiu do lote nao da erro", removida.ok, true);
     conferir(
       "remover tambem apaga as duas versoes guardadas",
-      [await lerDoLote(loteDeTeste, "versoes", `${base}.original.jpg`), await lerDoLote(loteDeTeste, "versoes", `${base}.melhorada.jpg`)],
+      [await lerDoLote(loteDeTeste, "versoes", `${base}.original.jpg`), await lerDoLote(loteDeTeste, "versoes", `${base}.photoroom.jpg`)],
       [null, null],
     );
+
+    // ----- Versao nomeada (Nano Banana): original, photoroom e nanobanana, mais extras/ e geracoes/ -----
+    console.log("\nVersao nomeada: original, photoroom e nanobanana (dados/)");
+    {
+      const lote = await import("../src/lib/imagens/lote.js");
+      const { writeFile: escreverArquivo, mkdir: criarPasta } = await import("node:fs/promises");
+      const { dirname: pastaDe } = await import("node:path");
+      const gravarCru = async (pasta, nome, bytes) => {
+        const alvo = lote.caminhoNoLote(loteDeTeste, pasta, nome);
+        await criarPasta(pastaDe(alvo), { recursive: true });
+        await escreverArquivo(alvo, bytes);
+      };
+      const pedirAoLote = (pasta, nome) => rotaDoLote(null, { params: Promise.resolve({ caminho: [loteDeTeste, pasta, nome] }) });
+      conferir("as tres versoes, nessa ordem", lote.VERSOES, ["original", "photoroom", "nanobanana"]);
+
+      // Lote antigo (de antes desta mudanca, vive ate 24 h): a melhorada guardada como .melhorada.jpg.
+      const legado = await lote.adicionarImagem(loteDeTeste, await foto(800, 800));
+      const bytesLegado = (await padronizarImagem(await foto(820, 820))).bytes;
+      await gravarCru("versoes", `${legado.base}.melhorada.jpg`, bytesLegado);
+      conferir("legado: .melhorada.jpg conta como photoroom", await lote.versoesDoLote(loteDeTeste, legado.base), { photoroom: true, nanobanana: false });
+      conferir("legado: o nome guardado e o antigo", await lote.nomeGuardadoDaVersao(loteDeTeste, legado.base, "photoroom"), `${legado.base}.melhorada.jpg`);
+      const escolheuLegado = await lote.escolherVersao(loteDeTeste, legado.base, "photoroom");
+      conferir("legado: escolher photoroom copia os bytes antigos", [escolheuLegado.ok, (await lerDoLote(loteDeTeste, "imagens", `${legado.base}.jpg`)).equals(bytesLegado)], [true, true]);
+      conferir("legado: a rota ainda serve .melhorada.jpg", (await pedirAoLote("versoes", `${legado.base}.melhorada.jpg`)).status, 200);
+      const legadoNaTela = await acoes.escolherVersaoNoLote(loteDeTeste, legado.base, "photoroom");
+      conferir("legado: a tela recebe o endereco antigo como photoroom", [legadoNaTela.imagem?.versao, legadoNaTela.imagem?.urls?.photoroom?.includes(`${legado.base}.melhorada.jpg`)], ["photoroom", true]);
+
+      // Nano Banana: guardar a versao e escolher, sem tocar na original.
+      const nova = await lote.adicionarImagem(loteDeTeste, await foto(900, 900));
+      const semGerar = await lote.escolherVersao(loteDeTeste, nova.base, "nanobanana");
+      conferir("nanobanana sem versao guardada e recusada", [semGerar.ok, /ainda nao/i.test(semGerar.erro)], [false, true]);
+      conferir("'melhorada' nao e mais nome de versao", (await lote.escolherVersao(loteDeTeste, nova.base, "melhorada")).erro, "Versao invalida.");
+      const bytesNB = (await padronizarImagem(await foto(950, 950))).bytes;
+      conferir("guardar a versao nanobanana", await lote.guardarVersao(loteDeTeste, nova.base, "nanobanana", bytesNB), { ok: true });
+      conferir("guardar versao fora da lista e recusado", (await lote.guardarVersao(loteDeTeste, nova.base, "outra", bytesNB)).ok, false);
+      const padronizadaNova = await lerDoLote(loteDeTeste, "imagens", `${nova.base}.jpg`);
+      const garantida = await lote.garantirOriginalGuardado(loteDeTeste, nova.base);
+      conferir("a original fica guardada, padronizada", [garantida.ok, (await lote.lerVersao(loteDeTeste, nova.base, "original"))?.equals(padronizadaNova)], [true, true]);
+      const escolhidaNB = await acoes.escolherVersaoNoLote(loteDeTeste, nova.base, "nanobanana");
+      conferir("escolher nanobanana copia a versao para a foto", [escolhidaNB.ok, escolhidaNB.imagem?.versao, (await lerDoLote(loteDeTeste, "imagens", `${nova.base}.jpg`)).equals(bytesNB)], [true, "nanobanana", true]);
+      conferir(
+        "a tela sabe das versoes e dos enderecos",
+        [escolhidaNB.imagem?.versoes, Boolean(escolhidaNB.imagem?.urls?.original), Boolean(escolhidaNB.imagem?.urls?.nanobanana), escolhidaNB.imagem?.urls?.photoroom, escolhidaNB.imagem?.finalizada],
+        [{ photoroom: false, nanobanana: true }, true, true, null, false],
+      );
+      const deVolta = await acoes.escolherVersaoNoLote(loteDeTeste, nova.base, "original");
+      conferir("voltar a original mantem a nanobanana guardada", [deVolta.imagem?.versao, deVolta.imagem?.versoes?.nanobanana, (await lerDoLote(loteDeTeste, "imagens", `${nova.base}.jpg`)).equals(padronizadaNova)], ["original", true, true]);
+      await lote.guardarVersao(loteDeTeste, nova.base, "photoroom", bytesLegado);
+      conferir("a rota entrega .photoroom.jpg e .nanobanana.jpg", [(await pedirAoLote("versoes", `${nova.base}.photoroom.jpg`)).status, (await pedirAoLote("versoes", `${nova.base}.nanobanana.jpg`)).status], [200, 200]);
+      await gravarCru("imagens", `${nova.base}.jpg`, bytesNB); // um arquivo qualquer existe; o nome .outra continua recusado
+      conferir("a rota recusa versao que o sistema nao gera", (await pedirAoLote("versoes", `${nova.base}.outra.jpg`)).status, 404);
+
+      // Pastas novas do lote: extras/ (ate 5 por foto) e geracoes/ (o ultimo pedido).
+      const b = nova.base;
+      conferir(
+        "extras e geracoes viram caminho",
+        [lote.caminhoNoLote(loteDeTeste, "extras", `${b}.1.jpg`) !== null, lote.caminhoNoLote(loteDeTeste, "extras", `${b}.5.webp`) !== null, lote.caminhoNoLote(loteDeTeste, "geracoes", `${b}.json`) !== null],
+        [true, true, true],
+      );
+      conferir(
+        "extra 6, extensao estranha e travessia nao viram caminho",
+        [lote.caminhoNoLote(loteDeTeste, "extras", `${b}.6.jpg`), lote.caminhoNoLote(loteDeTeste, "extras", `${b}.1.gif`), lote.caminhoNoLote(loteDeTeste, "extras", "../x"), lote.caminhoNoLote(loteDeTeste, "geracoes", "../x")],
+        [null, null, null, null],
+      );
+
+      // Excluir a foto leva tudo dela: as quatro grafias de versao, as extras e a geracao. Nunca as da vizinha.
+      await gravarCru("versoes", `${b}.melhorada.jpg`, bytesNB);
+      await gravarCru("extras", `${b}.1.jpg`, bytesNB);
+      await gravarCru("extras", `${b}.3.png`, bytesNB);
+      await gravarCru("geracoes", `${b}.json`, Buffer.from("{}"));
+      await gravarCru("extras", `${legado.base}.1.jpg`, bytesNB);
+      await lote.apagarImagem(loteDeTeste, b);
+      conferir(
+        "apagar a foto leva as quatro versoes, as extras e a geracao",
+        await Promise.all([
+          ...["original", "photoroom", "nanobanana", "melhorada"].map((v) => lerDoLote(loteDeTeste, "versoes", `${b}.${v}.jpg`)),
+          lerDoLote(loteDeTeste, "extras", `${b}.1.jpg`),
+          lerDoLote(loteDeTeste, "extras", `${b}.3.png`),
+          lerDoLote(loteDeTeste, "geracoes", `${b}.json`),
+        ]),
+        [null, null, null, null, null, null, null],
+      );
+      conferir("... e nao toca na extra de outra foto", (await lerDoLote(loteDeTeste, "extras", `${legado.base}.1.jpg`)) !== null, true);
+      await lote.apagarImagem(loteDeTeste, legado.base);
+    }
 
     // ----- As fotos dos produtos marcados na lupa (concorrentes e fornecedores) -----
     console.log("\nFotos dos produtos marcados na lupa (usa o Postgres; fotos como data URI, sem rede)");
