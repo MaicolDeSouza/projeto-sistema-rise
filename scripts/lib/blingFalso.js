@@ -322,10 +322,13 @@ export function criarBlingFalso(opcoes = {}) {
       ? produtos.get(idOuCodigo)
       : [...produtos.values()].find((produto) => minusculo(produto.codigo) === minusculo(idOuCodigo));
 
-  const ativosPorCodigo = (codigos) => {
+  // Medido no Bling real (05/10/2026): `codigos[]` sem `criterio` so devolve ATIVOS; com `criterio=3`,
+  // so INATIVOS (um codigo ativo ou inexistente volta vazio).
+  const porCodigo = (codigos, situacao) => {
     const procurados = new Set(codigos.map(minusculo));
-    return [...produtos.values()].filter((produto) => produto.situacao === "A" && procurados.has(minusculo(produto.codigo)));
+    return [...produtos.values()].filter((produto) => produto.situacao === situacao && procurados.has(minusculo(produto.codigo)));
   };
+  const ativosPorCodigo = (codigos) => porCodigo(codigos, "A");
 
   // ---------------------------------------------------------------------------
   // Endpoints
@@ -347,7 +350,8 @@ export function criarBlingFalso(opcoes = {}) {
             "Bling falso: GET /produtos so e suportado com codigos[]= (Emenda 8; nem `codigo=`, que nao esta documentado, nem a listagem do catalogo).",
           );
         }
-        return resposta(200, { data: ativosPorCodigo(codigos).map(produtoDaListagem) });
+        const situacao = consulta.criterio?.[0] === "3" ? "I" : "A";
+        return resposta(200, { data: porCodigo(codigos, situacao).map(produtoDaListagem) });
       },
     ],
     [

@@ -1791,6 +1791,31 @@ try {
       conferir("segunda sincronizacao: ok, nenhum enviado e NENHUMA escrita nova", [segunda.ok, segunda.fornecedores.enviados, escritasDe(falso).length - escritasAntes], [true, 0, 0]);
     }
 
+    // --- Revisao final: contato EXCLUIDO nunca recebe vinculo, e as buscas vao com criterio=1 (todos) ---
+    {
+      const produto = await criarNoRise("ZZ-BS-F9", {
+        fornecedores: { create: [{ fornecedorId: fCnpj.id, codigo: "FC-9", padrao: true }, { fornecedorId: fNome.id, codigo: "FN-9" }] },
+      });
+      const ID_EXCLUIDO_CNPJ = 16100000011;
+      const ID_EXCLUIDO_NOME = 16100000012;
+      const falso = novoFalso({
+        produtos: [noBling("ZZ-BS-F9")],
+        contatos: [
+          { id: ID_EXCLUIDO_CNPJ, nome: "Excluido com o CNPJ", numeroDocumento: "11222333000181", situacao: "E", tiposContato: [{ descricao: "Fornecedor" }] },
+          { id: ID_EXCLUIDO_NOME, nome: "ZZ Teste BS Forn Nome", numeroDocumento: "", situacao: "E", tiposContato: [{ descricao: "Fornecedor" }] },
+        ],
+      });
+      const resultado = await sincronizarProduto(produto.id, falso);
+      const vinculos = doMetodo(falso, "POST").filter((chamada) => chamada.caminho === "/produtos/fornecedores");
+      conferir(
+        "contato EXCLUIDO (pelo CNPJ ou pelo nome) nao recebe vinculo: os dois contatos sao criados de novo",
+        [resultado.ok, doMetodo(falso, "POST").filter((chamada) => chamada.caminho === "/contatos").length, vinculos.some((chamada) => [ID_EXCLUIDO_CNPJ, ID_EXCLUIDO_NOME].includes(chamada.corpo.fornecedor.id))],
+        [true, 2, false],
+      );
+      const buscasDeContato = doMetodo(falso, "GET").filter((chamada) => chamada.caminho === "/contatos");
+      conferir("as buscas de contato (CNPJ e nome) vao com criterio=1 (todos, nao so os ultimos incluidos)", [buscasDeContato.length > 0, buscasDeContato.every((chamada) => consultaDaChamada(chamada).criterio?.[0] === "1")], [true, true]);
+    }
+
     // --- Vinculo ja existente: igual nao escreve; diferente vai por PUT, nunca por POST ---
     {
       const produto = await criarNoRise("ZZ-BS-F2", {
@@ -2041,9 +2066,9 @@ try {
         const recusado = await cadastrarNoBling(produto.id, falso);
         conferir("cadastrar com o codigo INATIVO no Bling (blingId guardado): ok false com a mensagem, sem criar nada", [recusado.ok, recusado.erro, "blingId" in recusado], [false, MENSAGEM_INATIVO, false]);
         conferir(
-          "cadastrar com o codigo inativo: exigirEscrita, a busca, o GET do blingId guardado e NENHUM POST",
+          "cadastrar com o codigo inativo: exigirEscrita, a busca, a busca entre os inativos (que ja o acha) e NENHUM POST",
           [rotasDe(falso), postsDeProduto(falso).length, escritasDe(falso).length],
-          [["exigirEscrita ZZ-BS-C7", "GET /produtos", `GET /produtos/${ID_GUARDADO}`], 0, 0],
+          [["exigirEscrita ZZ-BS-C7", "GET /produtos", "GET /produtos"], 0, 0],
         );
         const depois = await ler(produto.id);
         conferir("cadastrar com o codigo inativo: o Rise fica como estava (blingId, assinatura)", [depois.blingId, depois.blingAssinatura, depois.blingSincronizadoEm], [String(ID_GUARDADO), null, null]);
@@ -2069,8 +2094,8 @@ try {
         const cadastrado = await cadastrarNoBling(produto.id, falso);
         conferir(
           "cadastrar com o blingId guardado dando 404: cadastra normalmente",
-          [cadastrado.ok, rotasDe(falso).slice(0, 4), postsDeProduto(falso).length],
-          [true, ["exigirEscrita ZZ-BS-C9", "GET /produtos", "GET /produtos/15000009999", "POST /produtos"], 1],
+          [cadastrado.ok, rotasDe(falso).slice(0, 5), postsDeProduto(falso).length],
+          [true, ["exigirEscrita ZZ-BS-C9", "GET /produtos", "GET /produtos", "GET /produtos/15000009999", "POST /produtos"], 1],
         );
       }
 
@@ -2082,11 +2107,12 @@ try {
         conferir("cadastrar com o blingId guardado apontando para um produto de OUTRO codigo: cadastra", [cadastrado.ok, postsDeProduto(falso).length, falso.produto(ID_GUARDADO).codigo], [true, 1, "ZZ-BS-OUTRO"]);
       }
 
-      // Qualquer outro erro no GET do blingId: na duvida, nao cria.
+      // Qualquer outro erro no GET do blingId: na duvida, nao cria. (Sem o produto no falso: inativo, ele
+      // ja seria achado pela busca entre os inativos, antes deste GET.)
       {
         const produto = await criarNoRise("ZZ-BS-CB", { blingId: String(ID_GUARDADO) });
         const falso = novoFalso({
-          produtos: [noBling("ZZ-BS-CB", { id: ID_GUARDADO, situacao: "I" })],
+          produtos: [],
           falhas: [{ metodo: "GET", caminho: `/produtos/${ID_GUARDADO}`, status: 500, mensagem: "Erro interno" }],
         });
         const recusado = await cadastrarNoBling(produto.id, falso);
@@ -2102,12 +2128,60 @@ try {
         conferir("e com a rede caindo nesse GET: ok false, sem POST", [semRede.ok, casaTexto(semRede.erro, /fetch failed/), escritasDe(falso).length], [false, true, 0]);
       }
 
-      // Sem blingId guardado: nada a conferir, cadastra como sempre (o "cadastrar com tudo" acima, sem o GET extra).
+      // Sem blingId guardado e sem inativo com o codigo: cadastra, so com a busca entre os inativos a mais.
       {
         const produto = await criarNoRise("ZZ-BS-CC");
         const falso = novoFalso({ produtos: [noBling("ZZ-BS-OUTRO", { id: ID_GUARDADO, situacao: "I" })] });
         const cadastrado = await cadastrarNoBling(produto.id, falso);
-        conferir("cadastrar sem blingId guardado: cadastra, sem ler produto por id antes do POST", [cadastrado.ok, rotasDe(falso).slice(0, 3)], [true, ["exigirEscrita ZZ-BS-CC", "GET /produtos", "POST /produtos"]]);
+        conferir(
+          "cadastrar sem blingId guardado: a busca, a busca entre os inativos (criterio 3) e o POST, sem ler produto por id",
+          [cadastrado.ok, rotasDe(falso).slice(0, 4), consultaDaChamada(falso.chamadas.filter((c) => c.metodo === "GET")[1]).criterio],
+          [true, ["exigirEscrita ZZ-BS-CC", "GET /produtos", "GET /produtos", "POST /produtos"], ["3"]],
+        );
+      }
+
+      // Revisao final: inativo SEM blingId guardado (o produto criado a mao no Rise). Antes so a mensagem
+      // do Sincronizar avisava; agora a busca entre os inativos recusa o cadastro.
+      {
+        const produto = await criarNoRise("ZZ-BS-CD");
+        const falso = novoFalso({ produtos: [noBling("ZZ-BS-CD", { id: ID_GUARDADO, situacao: "I" })] });
+        const recusado = await cadastrarNoBling(produto.id, falso);
+        conferir(
+          "cadastrar com o codigo INATIVO no Bling e SEM blingId guardado: ok false com a mensagem, nenhum POST",
+          [recusado.ok, recusado.erro, postsDeProduto(falso).length, escritasDe(falso).length, (await ler(produto.id)).blingId],
+          [false, MENSAGEM_INATIVO, 0, 0, null],
+        );
+      }
+
+      // A busca entre os inativos falhando (500) ou vindo sem lista: na duvida, nao cria.
+      {
+        const produto = await criarNoRise("ZZ-BS-CE");
+        const falso = novoFalso({ falhas: [{ metodo: "GET", caminho: "/produtos", status: 500, mensagem: "Erro interno", depois: 1 }] });
+        const recusado = await cadastrarNoBling(produto.id, falso);
+        conferir("cadastrar com a busca entre os inativos dando 500: ok false com o HTTP, nenhum POST", [recusado.ok, casaTexto(recusado.erro, /HTTP 500/), escritasDe(falso).length], [false, true, 0]);
+
+        let buscas = 0;
+        const semLista = await cadastrarNoBling(produto.id, {
+          ...falso,
+          get: async (caminho, params) => (caminho === "/produtos" && ++buscas === 2 ? { ok: true, status: 200, dados: { data: {} } } : novoFalso().get(caminho, params)),
+        });
+        conferir("e com a busca entre os inativos vindo 200 sem lista: ok false, nenhum POST", [semLista.ok, casaTexto(semLista.erro, /sem a lista/), escritasDe(falso).length], [false, true, 0]);
+      }
+
+      // Revisao final: a busca por codigo (a porta do cadastro) vindo 200 SEM lista falha fechada.
+      {
+        const produto = await criarNoRise("ZZ-BS-CF");
+        const falso = novoFalso();
+        const comCorpoEstranho = { ...falso, get: async (caminho, params) => (caminho === "/produtos" ? { ok: true, status: 200, dados: { data: {} } } : falso.get(caminho, params)) };
+        let lancou = null;
+        try {
+          await buscarNoBling(comCorpoEstranho, "ZZ-BS-CF");
+        } catch (erro) {
+          lancou = erro.message;
+        }
+        conferir("buscarNoBling: 200 sem a lista de produtos LANCA (nao vira nao_existe)", lancou, "O Bling respondeu a busca sem a lista de produtos. Tente de novo.");
+        const recusado = await cadastrarNoBling(produto.id, comCorpoEstranho);
+        conferir("cadastrar com a busca vindo 200 sem lista: ok false, nenhum POST", [recusado.ok, escritasDe(falso).length], [false, 0]);
       }
     }
 

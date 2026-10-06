@@ -78,7 +78,10 @@ export async function buscarNoBling(cliente, codigo) {
   if (!pedido) return { situacao: "nao_existe" };
 
   const busca = exigirResposta(await cliente.get("/produtos", { "codigos[]": [pedido] }));
-  const lista = Array.isArray(busca.dados?.data) ? busca.dados.data : [];
+  // Falha fechada: `nao_existe` e a porta do "Cadastrar no Bling", e um 200 com corpo inesperado lido
+  // como lista vazia criaria de novo um produto que pode existir.
+  if (!Array.isArray(busca.dados?.data)) throw new ErroDoBling("O Bling respondeu a busca sem a lista de produtos. Tente de novo.");
+  const lista = busca.dados.data;
   const achados = lista.filter((item) => chaveDoCodigo(item?.codigo) === chaveDoCodigo(pedido));
 
   if (achados.length === 0) return { situacao: "nao_existe" };

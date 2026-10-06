@@ -144,15 +144,28 @@ const chaveDoCodigo = (codigo) => String(codigo ?? "").trim().toLowerCase();
  * Antes de CRIAR: o codigo pode existir no Bling como produto INATIVO, que a busca por codigo nao ve
  * (`GET /produtos?codigos[]=` so devolve ativos). Criar outro com o mesmo codigo duplicaria o
  * produto, e o novo nasceria sem estoque, sem fotos e sem os anuncios do ML e da Loja Integrada, que
- * continuam ligados ao inativo. O sinal disponivel e o `blingId` guardado (pela importacao): se ele
- * ainda aponta para um produto deste codigo que nao foi excluido (`situacao` diferente de "E"),
- * recusa. 404 (apagado de verdade) ou produto de outro codigo: o codigo esta livre e o cadastro
- * segue. Qualquer outro erro nesta leitura: na duvida, nao cria.
+ * continuam ligados ao inativo. Dois sinais, nesta ordem:
+ * (a) a mesma busca por codigo entre os INATIVOS (`criterio=3`; medido em 05/10/2026: devolve so
+ *     inativos, e codigo ativo ou inexistente volta vazio). Cobre o produto sem `blingId` guardado,
+ *     como o criado a mao no Rise;
+ * (b) o `blingId` guardado (pela importacao): se ele ainda aponta para um produto deste codigo que nao
+ *     foi excluido (`situacao` diferente de "E"), recusa. 404 (apagado de verdade) ou produto de outro
+ *     codigo: o codigo esta livre e o cadastro segue.
+ * Qualquer erro nestas leituras: na duvida, nao cria.
  *
  * O `blingId` aqui e so sinal de recusa, NUNCA alvo de escrita (Emenda 11): o produto criado e os
  * vinculos usam o id que a resposta do POST devolver.
  */
 async function recusarSeExisteInativo(cliente, produto) {
+  const existeInativo = () =>
+    new FalhaDoEnvio("Este codigo existe no Bling como produto inativo: reative-o la e use Sincronizar. Nada foi criado.");
+
+  const inativos = await ler(cliente, "/produtos", { "codigos[]": [produto.sku], criterio: 3 }, "a busca do codigo entre os produtos inativos");
+  if (!Array.isArray(inativos.dados?.data)) {
+    throw new FalhaDoEnvio("O Bling respondeu a busca entre os produtos inativos sem a lista. Nada foi criado; tente de novo.");
+  }
+  if (inativos.dados.data.some((item) => chaveDoCodigo(item?.codigo) === chaveDoCodigo(produto.sku))) throw existeInativo();
+
   const id = idOuNull(produto.blingId);
   if (!id) return;
 
@@ -168,9 +181,7 @@ async function recusarSeExisteInativo(cliente, produto) {
   if (!resposta?.ok) throw naoConferido(`o Bling recusou a leitura (${motivoDoBling(resposta)})`);
 
   const lido = resposta.dados?.data;
-  if (lido && chaveDoCodigo(lido.codigo) === chaveDoCodigo(produto.sku) && lido.situacao !== "E") {
-    throw new FalhaDoEnvio("Este codigo existe no Bling como produto inativo: reative-o la e use Sincronizar. Nada foi criado.");
-  }
+  if (lido && chaveDoCodigo(lido.codigo) === chaveDoCodigo(produto.sku) && lido.situacao !== "E") throw existeInativo();
 }
 
 /// Recusa o nome acima do limite do Bling, com o tamanho (contado em caracteres, nao em bytes).
@@ -316,21 +327,28 @@ async function idDoTipoFornecedor(cliente, memoria) {
  * (c) so entao cria, com o CNPJ e o tipo Fornecedor. Buscar so pelo CNPJ e criar duplicaria quase
  *     todos os fornecedores: 578 dos 603 contatos Fornecedor do Bling nao tem documento.
  * Qualquer leitura que falhe interrompe ESTE fornecedor: "nao achei" por erro criaria um duplicado.
+ *
+ * As duas buscas vao com `criterio=1` (todos os contatos): o padrao do Bling e `3`, "ultimos
+ * incluidos", e um contato antigo fora dele viraria um duplicado. Contato EXCLUIDO (`situacao` "E")
+ * nunca e usado: vincular o produto a ele esconderia o fornecedor.
  */
 async function contatoDoFornecedor(cliente, fornecedor, memoria) {
-  const porDocumento = listaDe(await ler(cliente, "/contatos", { numeroDocumento: fornecedor.cnpj }, "a busca do contato pelo CNPJ"));
-  const peloCnpj = porDocumento.find((contato) => digitos(contato?.numeroDocumento) === fornecedor.cnpj && idOuNull(contato?.id));
+  const naoExcluido = (contato) => contato?.situacao !== "E";
+  const porDocumento = listaDe(await ler(cliente, "/contatos", { numeroDocumento: fornecedor.cnpj, criterio: 1 }, "a busca do contato pelo CNPJ"));
+  const peloCnpj = porDocumento.find((contato) => digitos(contato?.numeroDocumento) === fornecedor.cnpj && idOuNull(contato?.id) && naoExcluido(contato));
   if (peloCnpj) return idOuNull(peloCnpj.id);
 
   const nome = paraComparar(fornecedor.nome);
   if (nome) {
-    const porNome = listaDe(await ler(cliente, "/contatos", { pesquisa: fornecedor.nome }, "a busca do contato pelo nome"));
-    const candidatos = porNome.filter((contato) => idOuNull(contato?.id) && paraComparar(contato?.nome) === nome && !digitos(contato?.numeroDocumento));
+    const porNome = listaDe(await ler(cliente, "/contatos", { pesquisa: fornecedor.nome, criterio: 1 }, "a busca do contato pelo nome"));
+    const candidatos = porNome.filter(
+      (contato) => idOuNull(contato?.id) && paraComparar(contato?.nome) === nome && !digitos(contato?.numeroDocumento) && naoExcluido(contato),
+    );
     for (const candidato of candidatos) {
       const id = idOuNull(candidato.id);
       const contato = (await ler(cliente, `/contatos/${id}`, undefined, "a leitura do contato achado pelo nome")).dados?.data;
       const ehFornecedor = (Array.isArray(contato?.tiposContato) ? contato.tiposContato : []).some((tipo) => paraComparar(tipo?.descricao) === "fornecedor");
-      if (ehFornecedor) return id;
+      if (ehFornecedor && naoExcluido(contato)) return id;
     }
   }
 

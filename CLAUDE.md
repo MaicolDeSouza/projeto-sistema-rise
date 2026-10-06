@@ -130,7 +130,7 @@ npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 197 asserções das fotos: padronização, lote temporário, Photoroom simulado e a edição das fotos de um produto que já existe, com a regra "só as validadas ficam" (Postgres e dados/, SEM rede)
 npm run teste:anuncios-ml         # 346 asserções do rascunho de anúncio do Mercado Livre: composição, validação, payload, ícone, gravação e frases fixas (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
-npm run teste:bling-sync          # 657 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
+npm run teste:bling-sync          # 664 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -2046,7 +2046,7 @@ real de 05/10/2026").
 - **Banco:** `Produto.blingSincronizadoEm`, `blingAssinatura` e `blingSaldo`; `MovimentoEstoque.enviadoAoBlingEm`
   (nulo = ajuste pendente); `BlingCopiaProduto` (o produto do Bling como estava antes de cada sobrescrita, os 3
   mais recentes por produto).
-- **Teste:** `npm run teste:bling-sync` (`scripts/teste-bling-sync.js`), 657 asserções, **SEM rede**: o Bling
+- **Teste:** `npm run teste:bling-sync` (`scripts/teste-bling-sync.js`), 664 asserções, **SEM rede**: o Bling
   falso (`scripts/lib/blingFalso.js`) tem o mesmo formato do cliente real e **recusa escrita sem um
   `exigirEscrita` antes**. Postgres local, só escreve produtos `ZZ-BS-*`.
 
@@ -2165,8 +2165,8 @@ Só se saberá com um teste de escrita novo, e cada item é pendência:
 - Criar contato de fornecedor (`POST /contatos`) e achar depois o contato criado só com dígitos.
 - `GET /contatos?pesquisa=` com nome e acentos, o critério 3, páginas e a situação E/I.
 - `PUT /produtos/fornecedores/{id}` com as chaves extras da listagem, e `padrao: false` no único vínculo.
-- `POST /produtos` com o código de um produto **inativo** no Bling (a guarda por `blingId` cobre só o caso com id
-  guardado).
+- `POST /produtos` com o código de um produto **inativo** no Bling (não é mais tentado: a busca entre os inativos
+  recusa antes).
 - `tributacao.grupoProduto` no corpo; saída maior que o saldo (físico negativo).
 - O campo exato do `400` "nenhum produto foi informado" de `GET /estoques/saldos` (se `description`, `message` ou
   `fields[].msg`).
@@ -2183,8 +2183,12 @@ Só se saberá com um teste de escrita novo, e cada item é pendência:
 - **"N campos iguais" no pop-up não expande:** `lerParaPopup` só devolve a contagem.
 - **O "Cadastrar no Bling" do pop-up NÃO cria o `Anuncio` BLING com `idExterno`** (a importação cria). As telas de
   Anúncios podem oferecer "Cadastrar no Bling" de novo para um produto cadastrado assim.
-- **Produto INATIVO no Bling sem `blingId` guardado:** nenhum sinal impede duplicar no cadastro (só a mensagem do
-  Sincronizar avisa).
+- **Revisão final (05/10/2026), corrigido:** o cadastro procura o código também entre os **inativos**
+  (`GET /produtos?codigos[]=<sku>&criterio=3`, medido: devolve só inativos) e recusa se achar, então o produto
+  inativo **sem** `blingId` guardado não é mais duplicado; a busca por código que volta 200 **sem lista** falha
+  fechada (não vira "não existe", que abriria o cadastro); e as buscas de contato vão com `criterio=1` (todos; o
+  padrão `3` é "últimos incluídos") e **contato excluído (`situacao` "E") nunca recebe vínculo**. A busca
+  `pesquisa=` pelo nome foi medida: acha o contato da Fortek com o padrão e com `criterio=1`.
 - **Janela de milissegundos** entre o `POST` de estoque aceito e a marca `enviadoAoBlingEm`: um "Sincronizar
   estoque" no mesmo instante pode contar o ajuste em dobro no número LOCAL do Rise até o próximo clique (o Bling
   fica certo).
