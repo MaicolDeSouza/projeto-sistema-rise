@@ -307,6 +307,24 @@ try {
   conferir("rascunho com custo zero nao vira custo", pecaParaTela({ id: "p4", sku: "S4", tituloBase: "P4", estoque: 0, fornecedorRascunho: { nome: "Y", precoCusto: 0 }, fornecedores: [] }).custo, null);
   conferir("a busca de pecas devolve no mesmo formato (componenteId, fornecedor)", Object.hasOwn(busca.itens[0] ?? {}, "componenteId") && Object.hasOwn(busca.itens[0] ?? {}, "fornecedor"), true);
 
+  // --- Tarefa 7: "Criar descricao" so com as referencias cadastradas (todo produto) ---
+  // A janela recebia lojas achadas pelo NOME no catalogo inteiro, inclusive concorrentes que nao estavam na
+  // aba do produto (o dono viu isso em 07/10/2026). Agora so le os ids que o formulario manda: os da aba
+  // Fornecedores / Concorrentes e os marcados na lupa. So leitura de ProdutoColetado ja coletado.
+  const { buscarDescricoesParaProduto } = await import("../src/app/produtos/acoes.js");
+  const coletados = await prisma.produtoColetado.findMany({
+    where: { fonte: { tipo: "CONCORRENTE" }, nome: { contains: "arduino", mode: "insensitive" } },
+    select: { id: true },
+    take: 2,
+  });
+  const semReferencia = await buscarDescricoesParaProduto([]);
+  conferir("descricao sem nenhuma referencia cadastrada: nada (antes buscava o nome no catalogo)", [semReferencia.ok, semReferencia.itens.length, semReferencia.encontrados], [true, 0, 0]);
+  if (coletados.length > 0) {
+    const umaSo = await buscarDescricoesParaProduto([coletados[0].id, coletados[0].id]);
+    conferir("descricao com 1 concorrente cadastrado: so ele, sem repetir e sem lojas parecidas do catalogo", umaSo.itens.map((item) => item.id), [coletados[0].id]);
+  }
+  conferir("ids que nao sao texto: ignorados", (await buscarDescricoesParaProduto([null, 42, { id: "x" }])).itens.length, 0);
+
   // --- apagar o kit leva as linhas de composicao, nao as pecas ---
   await prisma.produto.delete({ where: { id: kit2.id } });
   conferir("apagar o kit2 apaga as linhas dele e a peca A fica", [await prisma.produtoComponente.count({ where: { kitId: kit2.id } }), (await prisma.produto.findUnique({ where: { id: a.id } }))?.sku], [0, "ZZ-KIT-A1"]);

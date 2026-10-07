@@ -208,11 +208,16 @@ function AbasDeReferencias({ itens, descricaoAtual, produto, aoRemover, aoAdicio
   );
 }
 
+/// O que dizer quando o produto nao tem referencia: desde 07/10/2026 a janela nao procura mais pelo Nome no
+/// catalogo das lojas, entao o caminho e cadastrar os fornecedores e concorrentes do produto.
+const SEM_REFERENCIAS =
+  "Nenhum concorrente ou fornecedor cadastrado neste produto. Adicione na aba Fornecedores / Concorrentes (ou marque na lupa do Nome) para gerar a descrição a partir deles.";
+
 /**
  * Janela "Criar descricao" — pedido do dono em 16/09/2026.
  *
- * A esquerda, os produtos encontrados no catalogo das lojas, em abas lado a lado, com a
- * descricao e a ficha de cada loja; a direita, a criacao com IA no padrao da loja
+ * A esquerda, os produtos dos fornecedores e concorrentes CADASTRADOS no produto (e os marcados na lupa),
+ * em abas lado a lado, com a descricao e a ficha de cada loja; a direita, a criacao com IA no padrao da loja
  * (titulo, 2 paragrafos de ate 4 linhas, Especificacoes tecnicas, Itens inclusos, Garantia),
  * em texto puro.
  *
@@ -305,7 +310,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
       });
     iniciarLeitura(async () => {
       try {
-        const resposta = await buscarDescricoesParaProduto(atual.titulo, ids);
+        const resposta = await buscarDescricoesParaProduto(ids);
         if (leitura === leituraAtual.current) setDetalhes(resposta);
       } catch (falha) {
         if (leitura === leituraAtual.current) {
@@ -620,9 +625,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                   </button>
                 </p>
               ) : itens.length === 0 && descricaoAtual === null ? (
-                <p className="text-sm text-suave">
-                  Nenhuma descrição encontrada para este Nome nos fornecedores e concorrentes cadastrados.
-                </p>
+                <p className="text-sm text-suave">{SEM_REFERENCIAS}</p>
               ) : (
                 <>
                   {!detalhes.ok && <p className="mb-2 text-sm text-red-700">{detalhes.erro}</p>}
@@ -650,10 +653,14 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             </div>
             {detalhes?.ok && detalhes.encontrados > 0 && (
               <p className="mt-2 text-xs text-suave">
-                Foram encontrados {detalhes.encontrados} produtos em {detalhes.fontes} lojas.
-                A geração usa o mais relevante de cada loja, até {detalhes.limite} referências.
-                Você pode remover uma aba antes de gerar.
+                {detalhes.encontrados} produto(s) de {detalhes.fontes} loja(s): os fornecedores e concorrentes
+                cadastrados neste produto e os marcados na lupa, até {detalhes.limite}. Você pode remover uma aba
+                antes de gerar.
               </p>
+            )}
+            {/* Com a descricao atual na tela, a lista de referencias some atras dela: o aviso fica aqui embaixo. */}
+            {detalhes?.ok && detalhes.encontrados === 0 && descricaoAtual !== null && (
+              <p className="mt-2 text-xs text-amber-700">{SEM_REFERENCIAS}</p>
             )}
           </div>
 

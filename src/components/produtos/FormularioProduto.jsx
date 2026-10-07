@@ -2703,7 +2703,9 @@ export default function FormularioProduto({
       {/* Fora dos trechos remontados, pelo mesmo motivo da janela da lupa. */}
       <JanelaDescricao
         ref={janelaDescricao}
-        ids={idsMarcados}
+        // So o que esta cadastrado na aba Fornecedores / Concorrentes (salvo ou nao) e o marcado na lupa
+        // (pedido do dono em 07/10/2026): a janela nao procura mais pelo Nome no catalogo das lojas.
+        ids={[...new Set([...idsMarcados, ...vinculosItens.map((item) => item.id)])]}
         descricaoAtual={produto?.descricaoBase ?? null}
         lerProduto={() => ({
           titulo: valorDoCampo("tituloBase"),

@@ -196,48 +196,24 @@ export async function documentosDasReferencias(ids, produtoId = null) {
   }
 }
 
-/** Procura no catalogo coletado o produto correspondente em cada loja cadastrada. */
-export async function buscarDescricoesParaProduto(titulo, idsMarcados = []) {
+/**
+ * As referencias da janela "Criar descricao": SO os fornecedores e concorrentes cadastrados no produto (a aba
+ * Fornecedores / Concorrentes, salva ou nao) e os marcados na lupa. O formulario manda os ids; aqui so se le.
+ *
+ * Ate 07/10/2026 esta funcao procurava o Nome no catalogo coletado inteiro e trazia o mais parecido de cada
+ * loja, e a janela mostrava descricoes de concorrentes que nao estavam na aba do produto (o dono viu isso e
+ * pediu para valer em todo produto). Sem referencia, a lista vem vazia e a janela diz o que fazer.
+ */
+export async function buscarDescricoesParaProduto(idsReferencias = []) {
   try {
-    const marcados = [...new Set((Array.isArray(idsMarcados) ? idsMarcados : []).map(String))]
+    const ids = [...new Set((Array.isArray(idsReferencias) ? idsReferencias : []).filter((id) => typeof id === "string" && id))]
       .slice(0, MAXIMO_REFERENCIAS);
-    const termo = String(titulo ?? "").trim().slice(0, 300);
-    const familiaArduino = normalizar(termo).match(/\b(uno|nano|mega)\b/)?.[1];
-    const resultados = termo ? (await buscarReferencias(termo, { limite: Infinity })).itens : [];
-    // A busca ampla da lupa pode aproximar uma placa UNO de uma MEGA. Para
-    // escrever a descricao, essas familias nao sao intercambiaveis.
-    const candidatos = resultados.filter((item) =>
-      (item.tipo === "FORNECEDOR" || item.tipo === "CONCORRENTE") &&
-      (!familiaArduino || new RegExp(`\\b${familiaArduino}\\b`).test(normalizar(item.nome))));
-    // Uma loja pode ter varios acessorios parecidos. Ficamos com o produto
-    // mais relevante de cada loja para cobrir as fontes sem repetir conteudo.
-    const disponibilidade = candidatos.length
-      ? await prisma.produtoColetado.findMany({
-          where: { id: { in: candidatos.map((item) => item.id) } },
-          select: { id: true, descricao: true, especificacoes: true },
-        })
-      : [];
-    const comConteudo = new Set(disponibilidade
-      .filter((item) => item.descricao?.trim() ||
-        (Array.isArray(item.especificacoes) && item.especificacoes.length > 0))
-      .map((item) => item.id));
-    const elegiveis = candidatos.filter((item) => comConteudo.has(item.id));
-    const escolhidos = [...marcados];
-    const vistos = new Set(escolhidos);
-    const fontes = new Set();
-    for (const item of elegiveis) {
-      const fonte = `${item.tipo}:${item.fonte}`;
-      if (fontes.has(fonte)) continue;
-      fontes.add(fonte);
-      if (vistos.has(item.id) || escolhidos.length >= MAXIMO_REFERENCIAS) continue;
-      escolhidos.push(item.id);
-      vistos.add(item.id);
-    }
+    const itens = ids.length > 0 ? await lerDetalhesDasReferencias(ids) : [];
     return {
       ok: true,
-      itens: await lerDetalhesDasReferencias(escolhidos),
-      encontrados: elegiveis.length,
-      fontes: fontes.size,
+      itens,
+      encontrados: itens.length,
+      fontes: new Set(itens.map((item) => `${item.tipo}:${item.fonte}`)).size,
       limite: MAXIMO_REFERENCIAS,
     };
   } catch (erro) {
