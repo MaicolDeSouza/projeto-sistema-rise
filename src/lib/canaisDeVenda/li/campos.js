@@ -110,10 +110,10 @@ const seoDescription = (valor) => texto(cortarNaPalavra(valor ?? "", LIMITE_DA_D
  * O Rise: o Produto (cadastro) mais o rascunho do anuncio da LI. A descricao e SEMPRE a do cadastro
  * (`descricaoBase`): o anuncio nao a edita (pedido do dono em 07/10/2026).
  */
-export function normalizarDoRiseLI(produto, rascunho, { frases = [], documentos = [] } = {}) {
+export function normalizarDoRiseLI(produto, rascunho, { documentos = [] } = {}) {
   const p = produto ?? {};
   const r = rascunho ?? {};
-  const html = montarDescricaoLI({ descricao: p.descricaoBase, documentos, frases });
+  const html = montarDescricaoLI({ descricao: p.descricaoBase, documentos });
   return {
     nome: texto(r.titulo),
     slug: texto(r.slug),

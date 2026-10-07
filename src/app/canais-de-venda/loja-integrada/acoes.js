@@ -2,13 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 
-import { gravarFrasesDoCanal } from "@/lib/canaisDeVenda/configuracao";
 import { anuncioLIDoProduto, carregarAnuncioLI, contextoDoProduto, novoRascunhoLI, salvarRascunhoLI } from "@/lib/canaisDeVenda/li/banco";
 import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
 import { listarCategoriasDaLI, listarMarcasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
 
 /**
- * Acoes do servidor do canal Loja Integrada (Canais de Venda): o editor do anuncio, as frases fixas e
+ * Acoes do servidor do canal Loja Integrada (Canais de Venda): o editor do anuncio e
  * as listas ao vivo de categorias e marcas da loja (so leitura). Finas, no molde das do Mercado Livre:
  * a regra mora em `lib/canaisDeVenda/li`, onde o teste a alcanca sem o Next.
  *
@@ -65,12 +64,6 @@ export async function anuncioDoProdutoLI(produtoId) {
 export async function salvarAnuncioLI(id, rascunho) {
   if (!ehIdOuNulo(id)) return PEDIDO_INVALIDO;
   return protegendo(async () => revalidando(await salvarRascunhoLI(id, rascunho)));
-}
-
-export async function salvarFrasesFixasLI(texto) {
-  // Vem do navegador: um objeto viraria "[object Object]" e seria gravado.
-  if (typeof texto !== "string") return PEDIDO_INVALIDO;
-  return protegendo(async () => revalidando(await gravarFrasesDoCanal("LOJA_INTEGRADA", texto)));
 }
 
 /** As categorias da loja, ao vivo (o dono esta renovando a arvore). So leitura. */

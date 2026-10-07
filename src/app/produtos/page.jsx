@@ -6,7 +6,6 @@ import { CANAIS, separarCanais } from "@/lib/canais";
 import { urlDe } from "@/lib/arquivos";
 import { estadoDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import { INCLUDE_DO_ICONE_BLING, iconeBlingDoProduto } from "@/lib/blingSync/estado";
-import { lerConfigCanal } from "@/lib/canaisDeVenda/configuracao";
 import { documentosDoProduto } from "@/lib/canaisDeVenda/li/banco";
 import { iconeLIDoProduto } from "@/lib/canaisDeVenda/li/estado";
 import PageHeader from "@/components/ui/PageHeader";
@@ -109,13 +108,11 @@ export default async function ProdutosPage({ searchParams }) {
     erro = excecao;
   }
 
-  // Icone da Loja Integrada: as frases fixas entram na assinatura (lidas uma vez) e os documentos so
-  // quando ha endereco publico (sem ele, documentosDoProduto devolve [] sem consultar). Falha aqui
-  // nao derruba a lista: o icone fica sem selo.
-  let frasesLI = [];
+  // Icone da Loja Integrada: os documentos entram na assinatura so quando ha endereco publico (sem
+  // ele, documentosDoProduto devolve [] sem consultar). Falha aqui nao derruba a lista: o icone fica
+  // sem selo.
   const documentosLI = new Map();
   try {
-    frasesLI = (await lerConfigCanal("LOJA_INTEGRADA")).frases;
     for (const produto of produtos ?? []) documentosLI.set(produto.id, await documentosDoProduto(produto));
   } catch (excecao) {
     console.error("[loja integrada] icone", excecao);
@@ -150,7 +147,6 @@ export default async function ProdutosPage({ searchParams }) {
     iconeBling: iconeBlingDoProduto(produto),
     // Cor e selo do icone da Loja Integrada (assinatura com node:crypto, so servidor).
     iconeLI: iconeLIDoProduto(produto, produto.anuncios.find((anuncio) => anuncio.canal === "LOJA_INTEGRADA") ?? null, {
-      frases: frasesLI,
       documentos: documentosLI.get(produto.id) ?? [],
     }),
   }));

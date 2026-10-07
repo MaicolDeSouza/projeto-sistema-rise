@@ -13,8 +13,9 @@ import { avisoDasFrases, frasesDoTexto } from "@/lib/canaisDeVenda/frases";
  */
 
 // Os canais com frases fixas. Canal fora da lista e recusado: o valor vem de Server Action, e o
-// enum do banco recusaria com um erro que a tela nao saberia explicar.
-const CANAIS = new Set(["MERCADO_LIVRE", "LOJA_INTEGRADA"]);
+// enum do banco recusaria com um erro que a tela nao saberia explicar. A Loja Integrada saiu em
+// 07/10/2026 (o dono nao usa frases fixas la); a linha antiga dela em ConfigCanal fica sem uso.
+const CANAIS = new Set(["MERCADO_LIVRE"]);
 
 function falha(erro) {
   console.error("[canais de venda]", erro);

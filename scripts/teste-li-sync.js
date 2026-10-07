@@ -103,9 +103,9 @@ try {
     const blocoDocs = P("<strong>Documentos / Arquivos para download:</strong><br>- <a href=\"https://rise.exemplo/a.pdf?v=2\">Datasheet &lt;v2&gt;.pdf</a>;");
     conferir("documentos logo abaixo das Especificacoes tecnicas (so http)", montarDescricaoLI({ descricao: texto, documentos: docs }).includes(P("<strong>Especificações técnicas:</strong><br>- SRAM: 2KB;<br>- Peso: 24g;") + blocoDocs + P("<strong>Itens inclusos: (Cód:100101)</strong><br>- 01 Placa;")), true);
     conferir("sem Especificacoes, documentos acima de Garantia", montarDescricaoLI({ descricao: "Texto.\n\nGarantia:\n- 90 dias;", documentos: docs }), P("Texto.") + blocoDocs + P("<strong>Garantia:</strong><br>- 90 dias;"));
-    conferir("sem as duas secoes, documentos no fim do texto, antes das frases", montarDescricaoLI({ descricao: "Texto.", documentos: docs, frases: ["Com nota fiscal"] }), P("Texto.") + blocoDocs + P("Com nota fiscal"));
+    conferir("sem as duas secoes, documentos no fim do texto", montarDescricaoLI({ descricao: "Texto.", documentos: docs }), P("Texto.") + blocoDocs);
     conferir("sem documento com http, nao ha secao", montarDescricaoLI({ descricao: "Texto.", documentos: [{ url: "javascript:x", nome: "x" }] }), P("Texto."));
-    conferir("frases cada uma num paragrafo; frase vazia sai", montarDescricaoLI({ descricao: "Texto & tal", frases: ["Com nota fiscal", ""] }), P("Texto &amp; tal") + P("Com nota fiscal"));
+    conferir("frases fixas sairam da LI: passadas, nao entram", montarDescricaoLI({ descricao: "Texto & tal", frases: ["Com nota fiscal"] }), P("Texto &amp; tal"));
     conferir("linha de lista que termina em dois-pontos nao vira titulo", montarDescricaoLI({ descricao: "Uso:\n- Tensao:" }), P("<strong>Uso:</strong><br>- Tensao:"));
     conferir("ida e volta pelo htmlParaTexto", htmlParaTexto(montarDescricaoLI({ descricao: "a <b>\nc\n\nd" }), { paragrafos: true }), "a <b>\nc\n\nd");
     conferir("ida e volta com aspas, & e CRLF", htmlParaTexto(montarDescricaoLI({ descricao: `Diz "x" & 'y'\r\nfim` }), { paragrafos: true }), `Diz "x" & 'y'\nfim`);
@@ -245,8 +245,7 @@ try {
       await prisma.produto.update({ where: { id: p.id }, data: { conferido: false } });
       conferir("salvar recusa produto que deixou de ser Conferido", (await salvarRascunhoLI(salvo.id, novo.rascunho)).ok, false);
       conferir("salvar recusa rascunho de outro formato", (await salvarRascunhoLI(null, { produtoId: p.id, categorias: [1] })).ok, false);
-      conferir("frases por canal: LI e ML separadas", [(await gravarFrasesDoCanal("LOJA_INTEGRADA", "Com nota fiscal")).frases, Array.isArray((await lerConfigCanal("MERCADO_LIVRE")).frases)], [["Com nota fiscal"], true]);
-      conferir("frases da LI lidas de volta", (await lerConfigCanal("LOJA_INTEGRADA")).frases, ["Com nota fiscal"]);
+      conferir("frases fixas so no ML: a LI e recusada", [(await gravarFrasesDoCanal("LOJA_INTEGRADA", "Com nota fiscal")).ok, Array.isArray((await lerConfigCanal("MERCADO_LIVRE")).frases)], [false, true]);
       conferir("canal desconhecido e recusado", (await gravarFrasesDoCanal("OUTRO", "x")).ok, false);
     } finally {
       config.appUrlPublica = urlPublicaAntes;
@@ -323,7 +322,8 @@ try {
     const anuncioIcone = { produtoId: "p", titulo: "CLP", descricao: "Texto", dados: { slug: "clp", categorias: ["5"] }, sincronizadoEm: new Date() };
     const assinaturaCerta = assinaturaLI(normalizarDoRiseLI(produtoIcone, { produtoId: "p", titulo: "CLP", slug: "clp", marca: "", categorias: ["5"], destaque: false, videoUrl: null, seo: { title: "", description: "" } }, { frases: [], documentos: [] }));
     conferir("iconeLIDoProduto: igual ao guardado e verde", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: [], documentos: [] }), { cor: "verde", divergente: false, conferido: true });
-    conferir("iconeLIDoProduto: frase nova acende o selo", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: ["Com nota"], documentos: [] }).divergente, true);
+    conferir("iconeLIDoProduto: documento novo acende o selo", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { documentos: [{ url: "https://x/a.pdf", nome: "a.pdf" }] }).divergente, true);
+    conferir("iconeLIDoProduto: frase passada nao muda nada", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: ["Com nota"], documentos: [] }).divergente, false);
     conferir("iconeLIDoProduto: sem anuncio e cinza", iconeLIDoProduto(produtoIcone, null, {}), { cor: "cinza", divergente: false, conferido: true });
     conferir("produtoIdValido reexportado", typeof produtoIdValido, "function");
   }

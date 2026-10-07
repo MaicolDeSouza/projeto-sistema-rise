@@ -15,10 +15,10 @@ export function estadoDoIconeLI({ conferido, sincronizadoEm, assinaturaGuardada,
   return { cor: "verde", divergente: Boolean(assinaturaGuardada) && assinaturaGuardada !== assinaturaAtual, conferido: true };
 }
 
-/** A assinatura atual e montada como o envio a grava: produto + rascunho + frases + documentos. */
-export function iconeLIDoProduto(produto, anuncioLI, { frases = [], documentos = [] } = {}) {
+/** A assinatura atual e montada como o envio a grava: produto + rascunho + documentos. */
+export function iconeLIDoProduto(produto, anuncioLI, { documentos = [] } = {}) {
   if (!anuncioLI) return estadoDoIconeLI({ conferido: produto?.conferido, sincronizadoEm: null });
-  const atual = assinaturaLI(normalizarDoRiseLI(produto, rascunhoDoAnuncio(anuncioLI), { frases, documentos }));
+  const atual = assinaturaLI(normalizarDoRiseLI(produto, rascunhoDoAnuncio(anuncioLI), { documentos }));
   return estadoDoIconeLI({
     conferido: produto?.conferido,
     sincronizadoEm: anuncioLI.sincronizadoEm,

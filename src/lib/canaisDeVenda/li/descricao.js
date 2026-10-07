@@ -10,6 +10,7 @@
  * - a secao "Documentos / Arquivos para download:" com os arquivos da aba Documentos do produto, logo
  *   abaixo de "Especificacoes tecnicas:"; sem ela, logo acima de "Garantia:"; sem as duas, no fim do
  *   texto. Sem documento, nao ha secao.
+ * As frases fixas da LI sairam do sistema em 07/10/2026 (pedido do dono): so o Mercado Livre as usa.
  *
  * Todo texto e escapado: tag digitada no cadastro vira texto, nunca HTML. A volta
  * (`htmlParaTexto(html, { paragrafos: true })`) devolve o mesmo texto (mais a secao de documentos),
@@ -23,8 +24,6 @@ const escapar = (texto) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-
-const preenchido = (valor) => valor !== null && valor !== undefined && String(valor).trim() !== "";
 
 const semAcento = (texto) =>
   String(texto ?? "")
@@ -62,8 +61,8 @@ function posicaoDosDocumentos(linhas) {
   return garantia >= 0 ? garantia : linhas.length;
 }
 
-/** O HTML da descricao: texto do produto, documentos na posicao combinada e as frases fixas. */
-export function montarDescricaoLI({ descricao, documentos = [], frases = [] } = {}) {
+/** O HTML da descricao: texto do produto e os documentos na posicao combinada. */
+export function montarDescricaoLI({ descricao, documentos = [] } = {}) {
   let linhas = String(descricao ?? "")
     .replace(/\r\n?/g, "\n")
     .split("\n")
@@ -104,6 +103,5 @@ export function montarDescricaoLI({ descricao, documentos = [], frases = [] } = 
     );
   });
 
-  const deFrases = (frases ?? []).filter(preenchido).map((frase) => paragrafo([escapar(String(frase).trim())]));
-  return [...partes, ...deFrases].join("");
+  return partes.join("");
 }

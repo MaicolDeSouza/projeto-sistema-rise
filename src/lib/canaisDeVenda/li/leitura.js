@@ -2,7 +2,6 @@ import { exigirCodigoLiberado } from "@/lib/blingSync/cliente";
 import { config } from "@/lib/integracoes/config";
 import { normalizarProdutoLojaIntegrada } from "@/lib/integracoes/lojaIntegrada/normalizadores";
 import { paginarLojaIntegrada } from "@/lib/integracoes/lojaIntegrada/paginacao";
-import { lerConfigCanal } from "../configuracao";
 import { anuncioLIDoProduto, contextoDoProduto, documentosDoProduto, rascunhoDoAnuncio, vincularPeloSku } from "./banco";
 import { CAMPOS_DE_ENVIO_LI, TEXTO_DO_TIPO_PRODUCAO, avisosFiscaisLI, diferencasLI, normalizarDaLI, normalizarDoRiseLI } from "./campos";
 import { clienteLI } from "./cliente";
@@ -212,8 +211,8 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
       avisos.push(`O produto deste codigo na Loja Integrada mudou de id (o Rise guardou ${anuncio.idExterno}, a loja tem ${busca.id}).`);
     }
 
-    const [{ frases }, documentos] = await Promise.all([lerConfigCanal("LOJA_INTEGRADA"), documentosDoProduto(produto)]);
-    const rise = normalizarDoRiseLI(produto, rascunhoDoAnuncio(anuncio), { frases, documentos });
+    const documentos = await documentosDoProduto(produto);
+    const rise = normalizarDoRiseLI(produto, rascunhoDoAnuncio(anuncio), { documentos });
     // Categoria do rascunho que sumiu da loja sai do envio (`envio.js`); aqui ela sai da comparacao
     // tambem, senao o pop-up mostraria "Categorias: diferente" para sempre com o Sincronizar dizendo
     // "nada para enviar". Vira aviso, para o dono tira-la do anuncio.

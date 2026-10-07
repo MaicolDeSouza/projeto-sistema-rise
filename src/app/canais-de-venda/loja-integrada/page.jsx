@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Settings } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import TabelaAnunciosLI from "@/components/anuncios/li/TabelaAnunciosLI";
 import Paginacao from "@/components/mercados/Paginacao";
@@ -45,10 +45,6 @@ export default async function LojaIntegradaPage({ searchParams }) {
         descricao="Conteudo, SEO e dados fiscais dos produtos da loja propria, a partir dos produtos Conferidos. Estoque e preco continuam pelo Bling."
         acao={
           <div className="flex flex-wrap gap-2">
-            <Link href="/canais-de-venda/loja-integrada/configuracoes" className={`${botao} border border-borda hover:bg-fundo`}>
-              <Settings size={16} />
-              Configuracoes
-            </Link>
             <Link href="/canais-de-venda/loja-integrada/novo" className={`${botao} bg-acento text-white hover:opacity-90`}>
               <Plus size={16} />
               Novo anuncio

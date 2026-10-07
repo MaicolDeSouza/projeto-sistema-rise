@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { lerConfigCanal } from "../configuracao";
 import { anuncioLIDoProduto, contextoDoProduto, documentosDoProduto, rascunhoDoAnuncio, salvarRascunhoLI } from "./banco";
 import { assinaturaLI, diferencasLI, normalizarDaLI, normalizarDoRiseLI } from "./campos";
 import { clienteLI } from "./cliente";
@@ -99,10 +98,10 @@ async function categoriasVivas(cliente, ids) {
 }
 
 async function contextoDoEnvio(produto, rascunho, cliente) {
-  const [{ frases }, documentos] = await Promise.all([lerConfigCanal(CANAL), documentosDoProduto(produto)]);
-  const rise = normalizarDoRiseLI(produto, rascunho, { frases, documentos });
+  const documentos = await documentosDoProduto(produto);
+  const rise = normalizarDoRiseLI(produto, rascunho, { documentos });
   const { validas, ignoradas } = await categoriasVivas(cliente, rise.categorias);
-  const descricaoHtml = montarDescricaoLI({ descricao: produto.descricaoBase, documentos, frases });
+  const descricaoHtml = montarDescricaoLI({ descricao: produto.descricaoBase, documentos });
   return { rise, riseEnvio: { ...rise, categorias: validas }, ignoradas, descricaoHtml, categoriasUris: validas.map((id) => `/api/v1/categoria/${id}`) };
 }
 

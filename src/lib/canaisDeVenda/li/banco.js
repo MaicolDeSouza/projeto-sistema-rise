@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { config } from "@/lib/integracoes/config";
-import { lerConfigCanal } from "../configuracao";
 import { RascunhoLISchema } from "./esquema";
 import { rascunhoDaLI, rascunhoInicialLI } from "./rascunho";
 
@@ -106,8 +105,8 @@ export function rascunhoDoAnuncio(anuncio) {
 }
 
 async function contextoDoEditor(produto) {
-  const [{ frases }, documentos] = await Promise.all([lerConfigCanal(CANAL), documentosDoProduto(produto)]);
-  return { produto, frases, documentos, urlPublica: Boolean(String(config.appUrlPublica ?? "").trim()) };
+  const documentos = await documentosDoProduto(produto);
+  return { produto, documentos, urlPublica: Boolean(String(config.appUrlPublica ?? "").trim()) };
 }
 
 export async function novoRascunhoLI(produtoId) {
