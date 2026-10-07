@@ -27,6 +27,9 @@ const { blocoDocumentos, blocoEspecificacoes, montarDescricaoLI, textoParaHtmlLI
 const { htmlParaTexto } = await import("../src/lib/integracoes/normalizacao.js");
 const { CAMPOS_DE_ENVIO_LI, CAMPOS_SO_LEITURA_LI, TEXTO_DO_TIPO_PRODUCAO, TIPO_PRODUCAO_DA_LI, assinaturaLI, avisosFiscaisLI, contarDivergencias, diferencasLI, normalizarDaLI, normalizarDoRiseLI } = await import("../src/lib/canaisDeVenda/li/campos.js");
 const { CHAVES_SO_LEITURA, formatarNcmLI, mesclarCorpoLI, montarCorpoDeCadastroLI } = await import("../src/lib/canaisDeVenda/li/corpo.js");
+const { rascunhoDaLI, rascunhoInicialLI } = await import("../src/lib/canaisDeVenda/li/rascunho.js");
+const { LIMITES_LI, RascunhoLISchema } = await import("../src/lib/canaisDeVenda/li/esquema.js");
+const { ABAS_LI, validarRascunhoLI } = await import("../src/lib/canaisDeVenda/li/validacao.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -150,6 +153,32 @@ try {
     conferir("PUT: marca sem URI mantem a da LI", mesclarCorpoLI(produtoLI, rise, ["marca"], { descricaoHtml: "", marcaUri: null, categoriasUris: [] }).marca, "/api/v1/marca/16306688");
     conferir("PUT: origem e tipo de producao nunca sao trocados", (({ icms_origin_code, production_type }) => ({ icms_origin_code, production_type }))(mesclarCorpoLI(produtoLI, rise, ["origem", "tipoProducao"], { descricaoHtml: "", marcaUri: null, categoriasUris: [] })), { icms_origin_code: null, production_type: null });
     conferir("PUT: nao altera o original", [produtoLI.nome, "preco_cheio" in produtoLI], ["CLP FX3U", true]);
+  }
+
+  {
+    console.log("\nRegras puras: rascunho, esquema e validacao");
+    const ctxProd = { id: "p1", sku: "100404", tituloBase: "CLP FX3U 24MR", descricaoBase: "Linha 1\n\nLinha 2", marca: "MITSUBISHI", conferido: true, ncm: "85371020", origem: 0, tipoProducao: "REVENDA", ean: "x", pesoKg: 0.5, alturaCm: 2, larguraCm: 12, comprimentoCm: 6, videoUrl: null };
+    const inicial = rascunhoInicialLI(ctxProd);
+    conferir("rascunho inicial", inicial, { produtoId: "p1", titulo: "CLP FX3U 24MR", slug: "clp-fx3u-24mr", descricao: "Linha 1\n\nLinha 2", marca: "MITSUBISHI", categorias: [], destaque: false, videoUrl: null, seo: { title: "CLP FX3U 24MR", description: "Linha 1" }, especificacoes: true });
+    conferir("rascunho inicial de produto sem texto", rascunhoInicialLI({ id: "p2" }), { produtoId: "p2", titulo: "", slug: "", descricao: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" }, especificacoes: true });
+    conferir("vinculo traz slug, categorias e destaque da LI", rascunhoDaLI(inicial, { slug: "clp-da-li", categorias: ["1", "2"], destaque: true, nome: "Outro" }), { ...inicial, slug: "clp-da-li", categorias: ["1", "2"], destaque: true });
+    conferir("vinculo sem slug na LI mantem o do rascunho", rascunhoDaLI(inicial, { slug: null, categorias: [], destaque: false }).slug, "clp-fx3u-24mr");
+    conferir("titulo ate 255 (limite medido na LI)", LIMITES_LI.titulo, 255);
+    const lido = RascunhoLISchema.safeParse({ ...inicial, extra: 1 });
+    conferir("esquema descarta chave estranha e aceita o rascunho", [lido.success, "extra" in (lido.data ?? {})], [true, false]);
+    conferir("esquema recusa categorias que nao sao texto", RascunhoLISchema.safeParse({ ...inicial, categorias: [1] }).success, false);
+    conferir("esquema recusa titulo acima de 255", RascunhoLISchema.safeParse({ ...inicial, titulo: "x".repeat(256) }).success, false);
+    conferir("esquema completa o que faltar", RascunhoLISchema.parse({ produtoId: "p3" }), { produtoId: "p3", titulo: "", slug: "", descricao: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" }, especificacoes: true });
+    conferir("ABAS_LI", ABAS_LI.map((a) => a.id), ["geral", "seo", "descricao", "fiscal", "envio", "previa"]);
+    conferir("rotulo da ultima aba", ABAS_LI.at(-1).rotulo, "Previa e sincronizacao");
+    const problemas = validarRascunhoLI({ ...inicial, titulo: "", slug: "Ré", categorias: ["9"], seo: { title: "t".repeat(71), description: "" } }, { produto: { ...ctxProd, conferido: false, ncm: null }, categoriasDaLI: [{ id: "1" }] });
+    conferir("bloqueantes: titulo, slug, nao conferido", problemas.filter((p) => p.bloqueante).map((p) => p.campo), ["titulo", "slug", "produto"]);
+    conferir("alertas: ncm, categoria inexistente, seo longo", ["ncm", "categorias", "seoTitulo"].every((c) => problemas.some((p) => p.campo === c && !p.bloqueante)), true);
+    conferir("todo problema tem aba conhecida", problemas.every((p) => ABAS_LI.some((a) => a.id === p.aba)), true);
+    conferir("rascunho completo sem problema", validarRascunhoLI({ ...inicial, categorias: ["1"] }, { produto: ctxProd, categoriasDaLI: [{ id: "1" }] }), []);
+    conferir("sem a lista ao vivo nao acusa categoria inexistente", validarRascunhoLI({ ...inicial, categorias: ["9"] }, { produto: ctxProd, categoriasDaLI: null }), []);
+    const faltas = validarRascunhoLI({ ...inicial, marca: "", categorias: [] }, { produto: { ...ctxProd, ean: null, pesoKg: null, alturaCm: null }, categoriasDaLI: null }).map((p) => p.campo);
+    conferir("alertas: sem gtin, marca, categoria, peso e medida", ["gtin", "marca", "categorias", "peso", "medidas"].every((c) => faltas.includes(c)), true);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.
