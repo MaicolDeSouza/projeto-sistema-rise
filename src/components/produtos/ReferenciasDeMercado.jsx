@@ -128,12 +128,15 @@ function Foto({ id, alt, aoAmpliar }) {
 
   function mostrarPrevia(evento) {
     const caixa = evento.currentTarget.getBoundingClientRect();
-    // Abaixo da borda da tela, sobe; sem espaco a direita, abre a esquerda.
-    const topo = Math.max(8, Math.min(caixa.top, window.innerHeight - LADO_PREVIA - 8));
-    const esquerda =
-      caixa.right + 8 + LADO_PREVIA < window.innerWidth
-        ? caixa.right + 8
-        : caixa.left - LADO_PREVIA - 8;
+    // ACIMA da LINHA, e nao ao lado da miniatura (pedido do dono em 07/10/2026): ao lado ela cobria o nome do
+    // produto da propria linha. Mede pela linha (<tr>), e nao pela miniatura: a linha e mais alta e o nome
+    // comeca acima da foto. Sem espaco em cima (as primeiras linhas), abre EMBAIXO da linha. Alinhada a esquerda
+    // da miniatura, sem passar da borda da tela.
+    const linha = evento.currentTarget.closest("tr")?.getBoundingClientRect() ?? caixa;
+    const emCima = linha.top - LADO_PREVIA - 4;
+    const topo =
+      emCima >= 8 ? emCima : Math.max(8, Math.min(linha.bottom + 4, window.innerHeight - LADO_PREVIA - 8));
+    const esquerda = Math.max(8, Math.min(caixa.left, window.innerWidth - LADO_PREVIA - 8));
     setPrevia({ topo, esquerda });
   }
 
