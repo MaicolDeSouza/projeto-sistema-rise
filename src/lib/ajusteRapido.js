@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { recalcularKitsDaPeca } from "@/lib/composicaoBanco";
 import { MAXIMO_ESTOQUE, MOTIVOS, novoSaldo, tipoValido } from "@/lib/estoque";
 
 /**
@@ -96,9 +97,14 @@ export async function gravarAjusteDeEstoque(id, dados = {}) {
 
   try {
     return await prisma.$transaction(async (tx) => {
-      const linhas = await tx.$queryRaw`SELECT "estoque" FROM "Produto" WHERE "id" = ${id} FOR UPDATE`;
+      const linhas = await tx.$queryRaw`SELECT "estoque", "tipo"::text AS "tipo" FROM "Produto" WHERE "id" = ${id} FOR UPDATE`;
       if (linhas.length === 0) {
         return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
+      }
+      // Kit: o estoque e calculado pelas pecas (decisao do dono em 07/10/2026). Um ajuste aqui seria
+      // apagado no proximo recalculo, e no Bling o kit nem recebe lancamento.
+      if (linhas[0].tipo === "COMPOSICAO") {
+        return { ok: false, erro: "O estoque de um kit é calculado pelas peças. Ajuste o estoque das peças." };
       }
 
       const anterior = linhas[0].estoque;
@@ -122,6 +128,9 @@ export async function gravarAjusteDeEstoque(id, dados = {}) {
           observacao: observacaoLimpa || null,
         },
       });
+      // Os kits que usam esta peca mudam junto, na mesma transacao: uma queda no meio nao deixa a
+      // peca com um saldo e o kit com outro.
+      await recalcularKitsDaPeca(id, tx);
 
       return { ok: true, saldoAnterior: anterior, saldoNovo: novo };
     });

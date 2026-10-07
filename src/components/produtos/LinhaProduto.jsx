@@ -152,9 +152,18 @@ export default function LinhaProduto({
           produto.estoque === 0 ? "font-medium text-red-700" : ""
         }`}
       >
-        <CelulaEditavel titulo="Ajustar estoque" aoClicar={() => setEditando("estoque")}>
-          {produto.estoque}
-        </CelulaEditavel>
+        {/* Kit: o estoque e calculado pelas pecas (o menor de estoque da peca / quantidade), e um
+            ajuste direto seria desfeito no proximo recalculo; a celula so mostra o numero. */}
+        {produto.tipo === "COMPOSICAO" ? (
+          <span title="Estoque de kit: calculado pelas peças. Ajuste o estoque das peças.">
+            {produto.estoque}
+            <span className="block text-[10px] font-normal leading-tight text-suave">calculado pelas peças</span>
+          </span>
+        ) : (
+          <CelulaEditavel titulo="Ajustar estoque" aoClicar={() => setEditando("estoque")}>
+            {produto.estoque}
+          </CelulaEditavel>
+        )}
       </td>
 
       {/* O Mercado Livre e o Bling refletem o estado real e sao botoes (o ML abre o anuncio em

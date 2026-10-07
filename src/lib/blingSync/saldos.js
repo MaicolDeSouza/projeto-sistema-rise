@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { clienteBling } from "@/lib/blingSync/cliente";
 import { estoqueDoRise } from "@/lib/blingSync/estoque";
+import { recalcularKitsDasPecas } from "@/lib/composicaoBanco";
 import { prisma } from "@/lib/db";
 
 /**
@@ -178,11 +179,22 @@ async function gravarLote(achados, desde, resultado) {
           });
           continue;
         }
+        // Kit: guarda o saldo do Bling (o pop-up o mostra), mas o estoque do Rise e o CALCULADO pelas
+        // pecas daqui, regravado abaixo junto com os outros kits (decisao do dono em 07/10/2026).
+        if (produto.tipo === "COMPOSICAO") {
+          await tx.$executeRaw`UPDATE "Produto" SET "blingSaldo" = ${saldo} WHERE "id" = ${produto.id}`;
+          saida.push({ produto });
+          continue;
+        }
         // Os pendentes vem do banco em ordem de criadoEm: a ordem em que o Bling os recebera.
         const estoque = estoqueDoRise(saldo, seus);
         await tx.$executeRaw`UPDATE "Produto" SET "blingSaldo" = ${saldo}, "estoque" = ${estoque} WHERE "id" = ${produto.id}`;
         saida.push({ produto });
       }
+      // Os kits que usam as pecas deste lote, DEPOIS das pecas gravadas e na mesma transacao: um kit
+      // cujas pecas estao em lotes diferentes e regravado de novo a cada lote, e o ultimo vale.
+      const pecasGravadas = saida.filter((item) => !item.erro && item.produto.tipo !== "COMPOSICAO").map((item) => item.produto.id);
+      await recalcularKitsDasPecas(pecasGravadas, tx);
       return saida;
     });
   } catch (erro) {
@@ -265,7 +277,8 @@ export async function sincronizarEstoqueDoBling(cliente = clienteBling(), opcoes
   try {
     produtos = await prisma.produto.findMany({
       where: ids ? { id: { in: ids.map(String) } } : {},
-      select: { id: true, sku: true },
+      // `tipo`: o kit nao tem o estoque regravado pelo saldo, so o `blingSaldo` (ver gravarLote).
+      select: { id: true, sku: true, tipo: true },
       orderBy: [{ sku: "asc" }, { id: "asc" }],
     });
   } catch (erro) {

@@ -185,6 +185,37 @@ try {
   conferir("kitsQueUsam lista os dois kits da peca A, pelo sku", (await kitsQueUsam(a.id)).map((k) => k.sku).sort(), ["ZZ-KIT-K1", "ZZ-KIT-K2"]);
   conferir("peca que nao esta em kit nenhum: lista vazia", await kitsQueUsam(c.id), []);
 
+  // --- Tarefa 4: edicao rapida de estoque (kit recusado; peca recalcula os kits) ---
+  const { gravarAjusteDeEstoque } = await import("../src/lib/ajusteRapido.js");
+  const atualizadoDe = async (id) => (await prisma.produto.findUnique({ where: { id }, select: { atualizadoEm: true } })).atualizadoEm.getTime();
+  const noKitAntes = await atualizadoDe(kit.id);
+  const ajusteNoKit = await gravarAjusteDeEstoque(kit.id, { tipo: "ENTRADA", quantidade: 1 });
+  conferir("ajuste de estoque direto no kit: recusado, dizendo que e calculado pelas pecas", [ajusteNoKit.ok, /calculado pelas peças/.test(ajusteNoKit.erro ?? "")], [false, true]);
+  conferir("e nenhum movimento foi gravado no kit", await prisma.movimentoEstoque.count({ where: { produtoId: kit.id } }), 0);
+  const ajusteNaPeca = await gravarAjusteDeEstoque(a.id, { tipo: "ENTRADA", quantidade: 5 });
+  conferir("entrada de 5 na peca A (4 -> 9): ok", [ajusteNaPeca.ok, ajusteNaPeca.saldoNovo], [true, 9]);
+  conferir("os dois kits da peca A foram recalculados junto: kit1 (A x3, B x1) = 3, kit2 (A x2) = 4", [await estoqueDe(kit.id), await estoqueDe(kit2.id)], [3, 4]);
+  conferir("o recalculo nao mexe no atualizadoEm do kit (a lista ordena por ele e o envio ao Bling o usa)", await atualizadoDe(kit.id), noKitAntes);
+
+  // --- Tarefa 4: botao "Sincronizar estoque com Bling" (pecas gravadas, kit so com o saldo do Bling) ---
+  const { sincronizarEstoqueDoBling } = await import("../src/lib/blingSync/saldos.js");
+  const { criarBlingFalso } = await import("./lib/blingFalso.js");
+  const falso = criarBlingFalso({
+    produtos: [
+      { id: 501, codigo: "ZZ-KIT-A1", nome: "Peca A" },
+      { id: 502, codigo: "ZZ-KIT-B2", nome: "Peca B" },
+      { id: 503, codigo: "ZZ-KIT-K1", nome: "Kit 1" },
+    ],
+    saldos: { "ZZ-KIT-A1": 12, "ZZ-KIT-B2": 28, "ZZ-KIT-K1": 50 },
+  });
+  const saldos = await sincronizarEstoqueDoBling(falso, { produtoIds: [a.id, b.id, kit.id] });
+  conferir("botao de saldos: 3 atualizados, sem falha", [saldos.atualizados, saldos.falhas], [3, []]);
+  const lidoA = await prisma.produto.findUnique({ where: { id: a.id }, select: { estoque: true, blingSaldo: true } });
+  conferir("peca A: saldo 12 do Bling + a entrada de 5 ainda pendente = 17", [lidoA.blingSaldo, lidoA.estoque], [12, 17]);
+  const lidoKit = await prisma.produto.findUnique({ where: { id: kit.id }, select: { estoque: true, blingSaldo: true } });
+  conferir("kit: guarda o saldo do Bling (50), mas o estoque e o CALCULADO pelas pecas daqui: 17/3 = 5", [lidoKit.blingSaldo, lidoKit.estoque], [50, 5]);
+  conferir("kit2, fora do lote mas com a peca A: recalculado para 17/2 = 8", await estoqueDe(kit2.id), 8);
+
   // --- a peca usada em kit nao e excluida: o Restrict do banco e a ultima defesa ---
   let recusouNoBanco = false;
   try {

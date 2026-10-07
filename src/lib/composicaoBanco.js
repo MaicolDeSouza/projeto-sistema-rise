@@ -86,14 +86,19 @@ export async function pecasPermitidas(ids, tx = prisma) {
   return { ok: true };
 }
 
-/// Grava `Produto.estoque` do kit com a conta das pecas.
+/**
+ * Grava `Produto.estoque` do kit com a conta das pecas. SQL cru de proposito, como o botao de saldos
+ * do Bling: o `@updatedAt` do Prisma nao age e o `atualizadoEm` do kit fica como estava. Mudar o
+ * estoque de uma peca nao e editar o kit — a lista ordena por `atualizadoEm`, e o envio ao Bling o
+ * usa para saber se o produto foi editado no meio do envio.
+ */
 async function gravarEstoqueDoKit(kitId, tx) {
   const pecas = await tx.produtoComponente.findMany({
     where: { kitId },
     select: { quantidade: true, componente: { select: { estoque: true } } },
   });
   const estoque = estoqueDoKit(pecas.map((peca) => ({ estoque: peca.componente.estoque, quantidade: peca.quantidade })));
-  await tx.produto.update({ where: { id: kitId }, data: { estoque } });
+  await tx.$executeRaw`UPDATE "Produto" SET "estoque" = ${estoque} WHERE "id" = ${kitId}`;
   return estoque;
 }
 
@@ -140,7 +145,21 @@ export async function gravarComposicao(kitId, itens, tx = null) {
  * @returns {Promise<number>} quantos kits foram regravados.
  */
 export async function recalcularKitsDaPeca(componenteId, tx = prisma) {
-  const kits = await tx.produtoComponente.findMany({ where: { componenteId }, select: { kitId: true }, distinct: ["kitId"] });
+  return recalcularKitsDasPecas([componenteId], tx);
+}
+
+/**
+ * O mesmo que `recalcularKitsDaPeca`, para varias pecas de uma vez: cada kit e regravado UMA vez,
+ * mesmo usando varias das pecas. E o caso do lote de saldos do Bling (100 produtos por vez).
+ *
+ * @param {string[]} componenteIds
+ * @param {import("@prisma/client").Prisma.TransactionClient} tx
+ * @returns {Promise<number>} quantos kits foram regravados.
+ */
+export async function recalcularKitsDasPecas(componenteIds, tx = prisma) {
+  const ids = [...new Set((Array.isArray(componenteIds) ? componenteIds : []).map(String))];
+  if (ids.length === 0) return 0;
+  const kits = await tx.produtoComponente.findMany({ where: { componenteId: { in: ids } }, select: { kitId: true }, distinct: ["kitId"] });
   for (const { kitId } of kits) await gravarEstoqueDoKit(kitId, tx);
   return kits.length;
 }

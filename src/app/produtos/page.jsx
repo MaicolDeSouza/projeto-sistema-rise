@@ -134,6 +134,8 @@ export default async function ProdutosPage({ searchParams }) {
           ? Number(produto.fornecedorRascunho.precoCusto)
           : null,
       estoque: produto.estoque,
+      // Kit: o estoque e calculado pelas pecas e a celula nao abre o ajuste.
+      tipo: produto.tipo,
       ativo: produto.ativo,
       conferido: produto.conferido,
       imagemUrl: produto.arquivos[0]
