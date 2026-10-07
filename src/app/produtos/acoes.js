@@ -7,6 +7,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { buscarProdutoPorCodigo } from "@/lib/buscaPorCodigo";
 import { buscarReferencias } from "@/lib/buscaPorPalavras";
+import { kitsQueUsam } from "@/lib/composicaoBanco";
 import { listarDocumentosDasReferencias } from "@/lib/documentosReferencias";
 import { lerCamposDasReferencias, lerDetalhesDasReferencias } from "@/lib/camposDasReferencias";
 import {
@@ -865,6 +866,17 @@ export async function excluirProduto(id) {
     return {
       ok: false,
       erro: `Este produto tem anúncio publicado em: ${canais}. Encerre os anúncios antes de excluir, senão eles ficam órfãos no canal.`,
+    };
+  }
+
+  // Peca de kit: apagar deixaria o kit sem o que vende. O banco ja recusa (Restrict), mas o
+  // erro dele nao diz QUAIS kits; aqui o recado nomeia cada um, para o operador saber onde tirar.
+  const kits = await kitsQueUsam(id);
+  if (kits.length > 0) {
+    const nomes = kits.map((kit) => kit.sku).join(", ");
+    return {
+      ok: false,
+      erro: `Este produto é peça ${kits.length === 1 ? "do kit" : "dos kits"} ${nomes}. Tire-o da composição antes de excluir.`,
     };
   }
 

@@ -16,6 +16,10 @@ register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 const { estoqueDoKit, ncmsDasPecas, pesoEMedidasDoKit, totaisDoKit, validarComposicao } = await import(
   "../src/lib/composicao.js"
 );
+const { prisma } = await import("../src/lib/db.js");
+const { gravarComposicao, kitsQueUsam, lerPecasDoKit, pecasPermitidas, recalcularKitsDaPeca } = await import(
+  "../src/lib/composicaoBanco.js"
+);
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -115,6 +119,97 @@ conferir("peca repetida: recusa", validarComposicao([{ componenteId: "a", quanti
 conferir("o proprio produto como peca: recusa", validarComposicao([{ componenteId: PROPRIO, quantidade: 1 }, { componenteId: "b", quantidade: 1 }], { produtoId: PROPRIO }).ok, false);
 conferir("nao e lista: recusa", validarComposicao("abc", { produtoId: PROPRIO }).ok, false);
 conferir("peca sem id: recusa", validarComposicao([{ componenteId: "", quantidade: 1 }, { componenteId: "b", quantidade: 1 }], { produtoId: PROPRIO }).ok, false);
+
+// ---------------------------------------------------------------------------
+// Banco: ler, gravar e recalcular o kit; peca usada em kit nao e excluida
+// ---------------------------------------------------------------------------
+
+console.log("\nBanco do kit");
+
+async function limpar() {
+  // As pecas sao Restrict: apagar primeiro os kits (Cascade leva as linhas de ProdutoComponente).
+  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-KIT-" }, tipo: "COMPOSICAO" } });
+  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-KIT-" } } });
+}
+await limpar();
+
+// Peca "boa": simples, conferida e vinculada ao Bling (os tres requisitos do dono).
+const novaPeca = (sku, extra = {}) =>
+  prisma.produto.create({
+    data: { sku, tituloBase: `Peca ${sku}`, tipo: "SIMPLES", conferido: true, blingId: `9${sku.replace(/\D/g, "")}`, estoque: 10, ...extra },
+  });
+const estoqueDe = async (id) => (await prisma.produto.findUnique({ where: { id }, select: { estoque: true } })).estoque;
+
+try {
+  const a = await novaPeca("ZZ-KIT-A1", { estoque: 18 });
+  const b = await novaPeca("ZZ-KIT-B2", { estoque: 28 });
+  const c = await novaPeca("ZZ-KIT-C3", { estoque: 9 });
+  const kit = await prisma.produto.create({ data: { sku: "ZZ-KIT-K1", tituloBase: "Kit de teste", tipo: "COMPOSICAO", estoque: 999 } });
+
+  // --- gravar e ler ---
+  await gravarComposicao(kit.id, [
+    { componenteId: a.id, quantidade: 1 },
+    { componenteId: b.id, quantidade: 1 },
+    { componenteId: c.id, quantidade: 1 },
+  ]);
+  let pecas = await lerPecasDoKit(kit.id);
+  conferir("gravar 3 pecas: le as 3, na ordem, com os dados da peca", pecas.map((p) => [p.componente.sku, p.quantidade, p.ordem, p.componente.estoque]), [["ZZ-KIT-A1", 1, 0, 18], ["ZZ-KIT-B2", 1, 1, 28], ["ZZ-KIT-C3", 1, 2, 9]]);
+  conferir("o estoque do kit foi gravado calculado (menor peca: 9), apagando o 999 digitado", await estoqueDe(kit.id), 9);
+
+  // --- trocar quantidade e tirar uma peca: troca a lista inteira ---
+  await gravarComposicao(kit.id, [
+    { componenteId: a.id, quantidade: 3 },
+    { componenteId: b.id, quantidade: 1 },
+  ]);
+  pecas = await lerPecasDoKit(kit.id);
+  conferir("regravar com 2 pecas e quantidade 3: a terceira some, a quantidade muda", pecas.map((p) => [p.componente.sku, p.quantidade]), [["ZZ-KIT-A1", 3], ["ZZ-KIT-B2", 1]]);
+  conferir("estoque recalculado: 18/3 = 6, 28/1 = 28 -> 6", await estoqueDe(kit.id), 6);
+  conferir("a peca que saiu continua existindo como produto", (await prisma.produto.findUnique({ where: { id: c.id } }))?.sku, "ZZ-KIT-C3");
+
+  // --- pecas permitidas ---
+  const naoConferida = await novaPeca("ZZ-KIT-N4", { conferido: false });
+  const semBling = await novaPeca("ZZ-KIT-S5", { blingId: null });
+  conferir("pecas boas: ok", await pecasPermitidas([a.id, b.id]), { ok: true });
+  conferir("peca nao conferida: recusa dizendo o sku e o motivo", (await pecasPermitidas([a.id, naoConferida.id])).erro.includes("ZZ-KIT-N4") && (await pecasPermitidas([naoConferida.id])).erro.toLowerCase().includes("conferid"), true);
+  conferir("peca sem vinculo com o Bling: recusa dizendo o sku", (await pecasPermitidas([semBling.id])).erro.includes("ZZ-KIT-S5"), true);
+  conferir("um kit como peca de outro kit: recusa", (await pecasPermitidas([kit.id])).ok, false);
+  conferir("id que nao existe: recusa", (await pecasPermitidas(["nao-existe"])).ok, false);
+
+  // --- recalcular os kits de uma peca ---
+  const kit2 = await prisma.produto.create({ data: { sku: "ZZ-KIT-K2", tituloBase: "Kit de teste 2", tipo: "COMPOSICAO" } });
+  await gravarComposicao(kit2.id, [{ componenteId: a.id, quantidade: 2 }]);
+  conferir("kit2 nasce com 18/2 = 9", await estoqueDe(kit2.id), 9);
+  await prisma.produto.update({ where: { id: a.id }, data: { estoque: 4 } });
+  await prisma.$transaction((tx) => recalcularKitsDaPeca(a.id, tx));
+  conferir("a peca A caiu para 4: kit1 (A x3) vira 1 e kit2 (A x2) vira 2, os dois na mesma transacao", [await estoqueDe(kit.id), await estoqueDe(kit2.id)], [1, 2]);
+  conferir("kitsQueUsam lista os dois kits da peca A, pelo sku", (await kitsQueUsam(a.id)).map((k) => k.sku).sort(), ["ZZ-KIT-K1", "ZZ-KIT-K2"]);
+  conferir("peca que nao esta em kit nenhum: lista vazia", await kitsQueUsam(c.id), []);
+
+  // --- a peca usada em kit nao e excluida: o Restrict do banco e a ultima defesa ---
+  let recusouNoBanco = false;
+  try {
+    await prisma.produto.delete({ where: { id: a.id } });
+  } catch (erro) {
+    recusouNoBanco = erro?.code === "P2003";
+  }
+  conferir("apagar a peca A direto no banco e recusado pela chave estrangeira (P2003)", recusouNoBanco, true);
+  conferir("e a peca continua la", (await prisma.produto.findUnique({ where: { id: a.id } }))?.sku, "ZZ-KIT-A1");
+
+  // --- a acao de excluir recusa ANTES do banco, dizendo em quais kits a peca esta ---
+  // `excluirProduto` importa `revalidatePath` do Next, que fora dele so lanca se for chamado: a
+  // recusa acontece antes, entao da para testar a regra aqui (o caminho feliz nao).
+  const { excluirProduto } = await import("../src/app/produtos/acoes.js");
+  const recusa = await excluirProduto(a.id);
+  conferir("excluirProduto da peca A: ok false e o recado lista os dois kits pelo sku", [recusa.ok, recusa.erro.includes("ZZ-KIT-K1") && recusa.erro.includes("ZZ-KIT-K2")], [false, true]);
+  conferir("e a peca A continua la (nada foi apagado)", (await prisma.produto.findUnique({ where: { id: a.id } }))?.sku, "ZZ-KIT-A1");
+
+  // --- apagar o kit leva as linhas de composicao, nao as pecas ---
+  await prisma.produto.delete({ where: { id: kit2.id } });
+  conferir("apagar o kit2 apaga as linhas dele e a peca A fica", [await prisma.produtoComponente.count({ where: { kitId: kit2.id } }), (await prisma.produto.findUnique({ where: { id: a.id } }))?.sku], [0, "ZZ-KIT-A1"]);
+} finally {
+  await limpar();
+  await prisma.$disconnect();
+}
 
 // ---------------------------------------------------------------------------
 // Resumo
