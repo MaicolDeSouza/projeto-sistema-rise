@@ -212,6 +212,8 @@ Atenção: muitos desses têm **título fora do padrão** (minúsculas, `*SKU` n
 
 ## 7. Decisões suas (recomendação marcada)
 
+**Decidido pelo dono em 06/10/2026, todas na opção recomendada:** 12 categorias de topo (7.1); três níveis em Movimento Linear (7.2); bombas em "Bombas, Válvulas e Solenoides" com Laser ou Spindles como segunda categoria, e o motor 775 em "Spindles, Inversores e Acessórios" (7.3 e 7.4); os 629 produtos fora do site entram todos na LI (7.6). A coluna `categoria_secundaria` do CSV já traz a segunda categoria dos 4 itens de 7.3. Folhas pequenas (7.5) ficam mantidas até aviso em contrário. Em aberto só a lista de itens individuais no fim desta seção.
+
 **7.1 Tamanho do menu**
 - **Opção 1 (recomendada): 12 categorias de topo**, como na seção 4. Displays e Telas fica no topo porque a linha Nextion (18 itens, ticket de R$ 400 a R$ 1.350) merece um clique só; Softwares e Serviços fica no topo porque o site já tem "Serviços" e são itens de natureza diferente.
 - Opção 2: 10 categorias. Displays e Telas vira subcategoria de Placas e Embarcados; Softwares e Serviços vira subcategoria de CNC. Menu mais curto, Nextion a dois cliques.
