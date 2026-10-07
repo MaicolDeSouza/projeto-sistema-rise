@@ -62,6 +62,7 @@ export default async function EditarProdutoPage({ params, searchParams }) {
     estoqueMinimo: registro.estoqueMinimo ?? "",
     estoqueMaximo: registro.estoqueMaximo ?? "",
     origem: registro.origem,
+    tipoProducao: registro.tipoProducao,
     ncm: registro.ncm,
     cest: registro.cest,
     spedTipoItem: registro.spedTipoItem,

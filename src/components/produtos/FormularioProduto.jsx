@@ -31,7 +31,7 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import { UNIDADES } from "@/lib/unidades";
-import { ORIGENS, TIPOS_ITEM } from "@/lib/fiscal";
+import { ORIGENS, TIPOS_ITEM, TIPOS_PRODUCAO } from "@/lib/fiscal";
 import { LIMITE_TITULO_ML, MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/limites";
 import { medidasDaDescricao } from "@/lib/medidas";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
@@ -144,7 +144,7 @@ function Campo({ nome, rotulo, erro, ajuda, children, ...props }) {
   );
 }
 
-function Selecao({ nome, rotulo, opcoes, inicial, ajuda }) {
+function Selecao({ nome, rotulo, opcoes, inicial, ajuda, semVazio = false }) {
   return (
     <Campo nome={nome} rotulo={rotulo} ajuda={ajuda}>
       <select
@@ -153,7 +153,7 @@ function Selecao({ nome, rotulo, opcoes, inicial, ajuda }) {
         defaultValue={inicial ?? ""}
         className={`${CLASSE_CAMPO} border-borda focus:border-acento`}
       >
-        <option value="">Selecione</option>
+        {!semVazio && <option value="">Selecione</option>}
         {opcoes.map((opcao) => (
           <option key={opcao.valor} value={opcao.valor}>
             {opcao.rotulo}
@@ -2839,6 +2839,16 @@ export default function FormularioProduto({
                     opcoes={ORIGENS}
                     inicial={inicial?.origem}
                     ajuda="Origem fiscal da mercadoria (nacional, importada etc.), usada no calculo do ICMS."
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <Selecao
+                    nome="tipoProducao"
+                    rotulo="Tipo de producao"
+                    opcoes={TIPOS_PRODUCAO}
+                    inicial={inicial?.tipoProducao ?? "REVENDA"}
+                    semVazio
+                    ajuda="Usado pela nota fiscal da Loja Integrada: revenda ou fabricacao propria (muda o CFOP)."
                   />
                 </div>
                 <div>

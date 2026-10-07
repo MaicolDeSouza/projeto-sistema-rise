@@ -33,3 +33,12 @@ export const TIPOS_ITEM = [
   { valor: "10", rotulo: "10 - Outros insumos" },
   { valor: "99", rotulo: "99 - Outras" },
 ];
+
+/**
+ * Tipo de producao que a NF-e nativa da Loja Integrada pede por produto (muda o CFOP).
+ * A loja revende quase tudo; por isso REVENDA e o padrao no banco.
+ */
+export const TIPOS_PRODUCAO = [
+  { valor: "REVENDA", rotulo: "Revenda" },
+  { valor: "FABRICACAO_PROPRIA", rotulo: "Fabricacao propria" },
+];

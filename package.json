@@ -35,7 +35,8 @@
     "teste:estoque": "node scripts/teste-estoque.js",
     "teste:anuncios-ml": "node scripts/teste-anuncios-ml.js",
     "teste:bling-sync": "node scripts/teste-bling-sync.js",
-    "teste:loja-integrada": "node scripts/teste-loja-integrada.js"
+    "teste:loja-integrada": "node scripts/teste-loja-integrada.js",
+    "teste:li-sync": "node scripts/teste-li-sync.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

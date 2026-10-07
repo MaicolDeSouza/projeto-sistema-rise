@@ -21,6 +21,12 @@ enum Canal {
   SHOPEE
 }
 
+/// Tipo de producao que a NF-e nativa da Loja Integrada usa (production_type).
+enum TipoProducao {
+  REVENDA
+  FABRICACAO_PROPRIA
+}
+
 enum Servico {
   BLING
   MERCADO_LIVRE
@@ -167,6 +173,8 @@ model Produto {
   // tributarias — duplica-los aqui criaria uma segunda fonte de verdade fiscal.
   /// Origem da mercadoria, 0 a 8 (tabela da NF-e).
   origem             Int?
+  /// Tipo de producao da NF-e da Loja Integrada; muda o CFOP. Revenda e o caso da loja.
+  tipoProducao       TipoProducao @default(REVENDA)
   ncm                String?
   cest               String?
   /// Tipo do item na tabela 4.3.1 do SPED PIS/COFINS.
@@ -217,6 +225,7 @@ model Produto {
 
   movimentosEstoque MovimentoEstoque[]
   blingCopias       BlingCopiaProduto[]
+  copiasDeCanal     CopiaProdutoCanal[]
 
   @@index([marca])
   @@index([ativo])
@@ -289,6 +298,25 @@ model BlingCopiaProduto {
   alteracoes Json?
 
   @@index([produtoId, criadoEm])
+}
+
+/// O produto do canal como estava antes de cada sobrescrita. O PUT da Loja Integrada
+/// exige o produto inteiro, e um campo esquecido no corpo apagaria dado de la: a copia
+/// e o que permite desfazer a mao.
+model CopiaProdutoCanal {
+  id        String  @id @default(cuid())
+  canal     Canal
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  criadoEm DateTime @default(now())
+
+  /// O produto como estava no canal antes do envio (resposta do GET).
+  conteudo   Json
+  /// O que o envio mudou: lista de {campo, de, para}. Nulo = sem resumo.
+  alteracoes Json?
+
+  @@index([produtoId, canal, criadoEm])
 }
 
 /// Arquivos do produto: imagens, documentos tecnicos e certificado.

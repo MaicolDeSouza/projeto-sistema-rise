@@ -381,6 +381,12 @@ const ProdutoSchema = z.object({
   ),
 
   origem: opcional(z.coerce.number().int().min(0).max(8)),
+  // Sem o campo (formulario antigo aberto) nao grava nada: o banco ja nasce com REVENDA, e
+  // um padrao aqui sobrescreveria FABRICACAO_PROPRIA no proximo Salvar.
+  tipoProducao: z.preprocess(
+    (valor) => (valor === "" || valor === null ? undefined : valor),
+    z.enum(["REVENDA", "FABRICACAO_PROPRIA"], { message: "Escolha Revenda ou Fabricacao propria." }).optional(),
+  ),
   ncm: opcional(z.string().trim()),
   cest: opcional(z.string().trim()),
   spedTipoItem: opcional(z.string().trim()),
