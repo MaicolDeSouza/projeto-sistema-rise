@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import { ordenarConcorrentes, situacaoDeEstoque } from "@/lib/estoqueDoConcorrente";
 import {
   consultarSituacaoConcorrentes,
   listarConcorrentesCadastrados,
@@ -58,17 +59,6 @@ function validar(dados) {
   return erros;
 }
 
-/**
- * Do mais barato para o mais caro, pedido do dono em 18/09/2026: e o que
- * importa para comparar preco. Sem preco fica por ultimo.
- */
-function porPrecoAscendente(a, b) {
-  if (a.preco == null && b.preco == null) return 0;
-  if (a.preco == null) return 1;
-  if (b.preco == null) return -1;
-  return a.preco - b.preco;
-}
-
 /** Como a coluna e medida — mostrado na bolha "i" do cabecalho. */
 const COMO_MEDE_A_DIFERENCA =
   "Seu Preco venda contra o preco normal do concorrente: (seu preco - preco do concorrente) / preco do concorrente. " +
@@ -113,16 +103,18 @@ function Diferenca({ precoProduto, precoConcorrente }) {
   );
 }
 
+/** A mesma regra da ordem da tabela e da posicao de preco (`situacaoDeEstoque`). */
 function EstoqueConcorrente({ situacao }) {
-  if (!situacao) return <span className="text-suave">Nao informado</span>;
-  if (situacao.quantidade === 0) return <span className="font-medium text-red-700">Sem estoque</span>;
-  if (!situacao.ativo) return <span className="text-suave">Fora da coleta</span>;
-  if (situacao.quantidade > 0) return (
-    <span className="font-medium text-emerald-700">Em estoque <span className="block font-normal text-suave">{situacao.quantidade} un.</span></span>
-  );
-  if (situacao.estoqueStatus === "OUT_OF_STOCK") return <span className="font-medium text-red-700">Sem estoque</span>;
-  if (situacao.estoqueStatus === "AVAILABLE" || situacao.estoqueStatus === "IN_STOCK") {
-    return <span className="font-medium text-emerald-700">Em estoque</span>;
+  const estado = situacaoDeEstoque(situacao);
+  if (estado === "sem-estoque") return <span className="font-medium text-red-700">Sem estoque</span>;
+  if (estado === "fora-da-coleta") return <span className="text-suave">Fora da coleta</span>;
+  if (estado === "em-estoque") {
+    return (
+      <span className="font-medium text-emerald-700">
+        Em estoque
+        {situacao.quantidade > 0 && <span className="block font-normal text-suave">{situacao.quantidade} un.</span>}
+      </span>
+    );
   }
   return <span className="text-suave">Nao informado</span>;
 }
@@ -381,7 +373,9 @@ export default function Concorrentes({
     });
   }
 
-  const vinculosOrdenados = [...vinculos].sort(porPrecoAscendente);
+  // Do mais barato ao mais caro (18/09/2026), com os SEM ESTOQUE no fim da lista, e nao fora dela (pedido do dono
+  // em 07/10/2026: ele usa outros dados desses concorrentes). Ver lib/estoqueDoConcorrente.js.
+  const vinculosOrdenados = ordenarConcorrentes(vinculos, situacoes);
 
   const campo = (chave) => ({
     value: rascunho[chave],

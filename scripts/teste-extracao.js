@@ -1613,6 +1613,40 @@ console.log("\n— Navegacao: segue a paginacao das categorias, e nao ordenacao 
   conferir("nome de parametro em caixa alta conta igual", parametroRuim(`${base}?OrderBy=price`), true);
 }
 
+console.log("\n— Estoque do concorrente e a ordem da aba Concorrentes —");
+{
+  const { ordenarConcorrentes, situacaoDeEstoque } = await import("../src/lib/estoqueDoConcorrente.js");
+  // Mesma leitura do selo da coluna Estoque: a quantidade manda; "ativo" falso e produto que saiu da coleta.
+  conferir("sem situacao: nao informado", situacaoDeEstoque(undefined), "nao-informado");
+  conferir("quantidade zero: sem estoque", situacaoDeEstoque({ ativo: true, quantidade: 0, estoqueStatus: "AVAILABLE" }), "sem-estoque");
+  conferir("OUT_OF_STOCK sem quantidade: sem estoque", situacaoDeEstoque({ ativo: true, quantidade: null, estoqueStatus: "OUT_OF_STOCK" }), "sem-estoque");
+  conferir("saiu da coleta: fora da coleta", situacaoDeEstoque({ ativo: false, quantidade: null, estoqueStatus: "AVAILABLE" }), "fora-da-coleta");
+  conferir("quantidade positiva: em estoque", situacaoDeEstoque({ ativo: true, quantidade: 5, estoqueStatus: null }), "em-estoque");
+  conferir("IN_STOCK: em estoque", situacaoDeEstoque({ ativo: true, quantidade: null, estoqueStatus: "IN_STOCK" }), "em-estoque");
+  conferir("status desconhecido: nao informado", situacaoDeEstoque({ ativo: true, quantidade: null, estoqueStatus: null }), "nao-informado");
+
+  // A ordem (pedido do dono em 07/10/2026): com estoque (ou sem informacao) primeiro, sem estoque depois, fora da
+  // coleta por ultimo; dentro de cada grupo, do mais barato ao mais caro, sem preco no fim.
+  const linhas = [
+    { id: "a", preco: 20, produtoColetadoId: "pa" },
+    { id: "b", preco: 50, produtoColetadoId: "pb" },
+    { id: "c", preco: 10, produtoColetadoId: "pc" },
+    { id: "d", preco: null, produtoColetadoId: "pd" },
+    { id: "e", preco: 30, produtoColetadoId: null },
+    { id: "f", preco: 5, produtoColetadoId: "pf" },
+  ];
+  const situacoes = {
+    pa: { ativo: true, quantidade: 0 },
+    pb: { ativo: true, estoqueStatus: "IN_STOCK" },
+    pc: { ativo: true, estoqueStatus: "OUT_OF_STOCK" },
+    pd: { ativo: true, estoqueStatus: "IN_STOCK" },
+    pf: { ativo: false },
+  };
+  conferir("com estoque primeiro, sem estoque depois, fora da coleta por ultimo", ordenarConcorrentes(linhas, situacoes).map((l) => l.id), ["e", "b", "d", "c", "a", "f"]);
+  conferir("sem situacao lida ainda: so pelo preco", ordenarConcorrentes(linhas, {}).map((l) => l.id), ["f", "c", "a", "e", "b", "d"]);
+  conferir("nao muda a lista original", linhas.map((l) => l.id), ["a", "b", "c", "d", "e", "f"]);
+}
+
 console.log("\n— Posicao de preco entre os concorrentes (\"2º de 10\") —");
 {
   const { posicaoDePreco } = await import("../src/lib/posicaoDePreco.js");

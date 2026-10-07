@@ -2561,6 +2561,11 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
     dela estiverem assim, e a dica diz quantas saíram. O formulário lê o estoque pela ação
     `consultarSituacaoConcorrentes`, porque a aba Concorrentes só lê o dela quando abre. No 100103 o selo foi
     de 7º de 14 para 6º de 11.
+  - **Na aba Concorrentes eles continuam, por último** (pedido do dono em 07/10/2026: ele usa outros dados
+    desses concorrentes). A ordem é: com estoque ou sem informação primeiro, sem estoque depois, fora da coleta
+    por último; dentro de cada grupo, do mais barato ao mais caro. `ordenarConcorrentes` e `situacaoDeEstoque`
+    (`src/lib/estoqueDoConcorrente.js`) são a regra única da ordem, da coluna Estoque e da posição de preço, que
+    antes tinham cada uma a sua. A quantidade manda: zero é "sem estoque" mesmo que a loja diga disponível.
   - **Cor:** verde quando é o 1º, âmbar quando é o último, cinza no meio. Não usa vermelho, porque ser o mais
     caro pode ser estratégia.
   - **A dica (mouse) mostra a distância:** o mais barato e a loja, "para ser o 1º: abaixo de R$ X", e os

@@ -35,6 +35,7 @@ import { ORIGENS, TIPOS_ITEM, TIPOS_PRODUCAO } from "@/lib/fiscal";
 import { LIMITE_TITULO_ML, MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/limites";
 import { medidasDaDescricao } from "@/lib/medidas";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
+import { indisponivel } from "@/lib/estoqueDoConcorrente";
 import BuscarPorCodigo from "./BuscarPorCodigo";
 import Concorrentes from "./Concorrentes";
 import EditorDescricao from "./EditorDescricao";
@@ -2207,14 +2208,12 @@ export default function FormularioProduto({
   // campo AGORA contra a lista de concorrentes da tela, salva ou nao. Ver lib/posicaoDePreco.js.
   const posicaoDoPreco = posicaoDePreco(
     precoVendaAtual,
-    concorrentesRascunho.map((item) => {
-      const estoque = estoqueDosConcorrentes[item.produtoColetadoId];
-      return {
-        loja: item.fonte,
-        preco: item.preco,
-        indisponivel: Boolean(estoque && (estoque.estoqueStatus === "OUT_OF_STOCK" || estoque.ativo === false)),
-      };
-    }),
+    concorrentesRascunho.map((item) => ({
+      loja: item.fonte,
+      preco: item.preco,
+      // A mesma regra da coluna Estoque e da ordem da aba Concorrentes.
+      indisponivel: indisponivel(estoqueDosConcorrentes[item.produtoColetadoId]),
+    })),
   );
 
   /*
