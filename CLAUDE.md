@@ -2485,7 +2485,7 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   ela, acima de "Garantia:"; sem as duas, no fim (só com `APP_URL_PUBLICA`). O bloco automático de Especificações e a
   prévia separada saíram. A formatação não acende o selo (a comparação é pelo texto).
 - **Editor = pop-up (07/10/2026):** ao abrir, o editor lê a loja (`abrirJanelaLI`, só leitura). Abas, nesta ordem:
-  **Divergências** (só quando há campo "diferente"; "só tem na loja" não conta) / Geral / Descrição / Categorias / Peso e dimensões /
+  **Divergências** (só quando há campo "diferente"; "só tem na loja" não conta) / Características / Imagens / Descrição / Categorias / Peso e dimensões /
   Tributação / SEO / Prévia e sincronização (nomes iguais aos do cadastro de Produto). A comparação é do anúncio **salvo** com a loja. No rodapé, **"Sincronizar com a
   LI"** ("Cadastrar na LI" se o código não está na loja), sob as mesmas travas; com alteração na tela pergunta "Salvar e
   sincronizar" (sem opção de enviar sem salvar). "Editar produto" (Descrição, Fiscal, Envio) abre o cadastro na mesma
@@ -2493,10 +2493,16 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
 - **Aba Fiscal:** aviso grande do que mudar **no painel da LI** (origem e tipo de produção vazios ou diferentes; a API
   não os grava), com o link `https://app.lojaintegrada.com.br/catalogo/produto/{idExterno}/editar`. O alerta "sem
   GTIN" considera o GTIN que já está na loja (`gtinDaLI`).
-- **Aba SEO:** nomes e ordem da LI (Tag Title, Meta Tag Description, URL do produto), contador "54 de 70 caracteres",
-  "Gerar com IA" (3 opções de meta description, pede 140-160 e aceita 130-160: `gerarDescriptionsSeo` em
-  `ia/anuncio.js`) e o SEO dos concorrentes salvos (`seoConcorrentes.js`, lendo `ProdutoColetado.seo`). O padrão
-  automático da description corta na última frase inteira (`cortarNaFrase`).
+- **Aba SEO:** nomes e ordem da LI (Tag Title, Meta Tag Description, URL do produto), contador "54 de 70 caracteres".
+  **Title e description são OBRIGATÓRIOS** (bloqueiam Sincronizar e Cadastrar) e travados no campo: 70 e **160** (o que o
+  Google mostra; `LIMITE_DA_DESCRIPTION_SEO`, que também é o corte do envio, era 250). Sem "Usar padrão": um **ícone de
+  lista** ao lado de cada campo, no molde do "Escolher o título" do cadastro, traz o nome do produto, o SEO dos
+  concorrentes salvos (`seoConcorrentes.js`, de `ProdutoColetado.seo`, cortado na frase) e, na description, "Gerar com
+  IA" (3 opções, pede 140-160 e aceita 130-160: `gerarDescriptionsSeo` em `ia/anuncio.js`).
+- **Aba Imagens** (07/10/2026), depois de Características (a antiga Geral): marcar e ordenar as fotos validadas do
+  produto (`fotosDoProduto`, só `papel: FOTO`; a capa é a primeira), guardadas em `rascunho.imagens`. O **envio espera a
+  VPS** (a LI só aceita imagem por URL pública): as fotos não entram na assinatura nem no Sincronizar. Anúncio novo nasce
+  com todas as fotos, a principal na frente.
 - **Slug = SEMPRE `slugDe(nome do anúncio)`** (decisão do dono em 07/10/2026, sabendo do risco): campo só leitura;
   `rascunhoDoAnuncio`, `salvarRascunhoLI` e `normalizarDoRiseLI` refazem do título; o vínculo não traz mais o slug da
   loja. Produto que já está na loja muda de URL no próximo Sincronizar (/alias, 301), e cada troca de nome muda de

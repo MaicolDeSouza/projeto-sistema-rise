@@ -72,7 +72,7 @@ try {
 
   {
     console.log("\nRegras puras: slug e SEO");
-    conferir("limites do slug e do SEO", [LIMITE_DO_SLUG, LIMITE_DO_TITULO_SEO, LIMITE_DA_DESCRIPTION_SEO], [100, 70, 250]);
+    conferir("limites do slug e do SEO", [LIMITE_DO_SLUG, LIMITE_DO_TITULO_SEO, LIMITE_DA_DESCRIPTION_SEO], [100, 70, 160]);
     conferir("slug sem acento, minusculo, hifens", slugDe("CLP FX3U-24MR  14 Entradas / Relé RS232"), "clp-fx3u-24mr-14-entradas-rele-rs232");
     conferir("slug de so simbolos e vazio", slugDe("!!! ???"), "");
     conferir("slug corta em 100 sem hifen no fim", slugDe("a".repeat(99) + " bcd").length <= 100 && !slugDe("a".repeat(99) + " bcd").endsWith("-"), true);
@@ -83,9 +83,9 @@ try {
     conferir("palavra unica maior que o limite corta seca", cortarNaPalavra("abcdefghij", 4), "abcd");
     conferir("titulo SEO padrao <= 70", tituloSeoPadrao("x".repeat(60) + " " + "y".repeat(20)), "x".repeat(60));
     conferir("description padrao = primeiro paragrafo colapsado", descriptionPadrao("Linha  1\ncontinua\n\nSegundo paragrafo"), "Linha 1 continua");
-    conferir("description padrao <= 250", descriptionPadrao("palavra ".repeat(60)).length <= 250, true);
+    conferir("description padrao <= 160 (o limite que o Google mostra)", descriptionPadrao("palavra ".repeat(60)).length <= 160, true);
     const longa = "A Placa Uno R3 usa o ATmega328P e roda a 16 MHz com tensao de 5V. " + "Ela e compativel com os shields do Arduino e com a IDE oficial, e acompanha cabo USB para gravar o codigo. ".repeat(3);
-    conferir("description padrao corta na ultima FRASE inteira", descriptionPadrao(longa), "A Placa Uno R3 usa o ATmega328P e roda a 16 MHz com tensao de 5V. Ela e compativel com os shields do Arduino e com a IDE oficial, e acompanha cabo USB para gravar o codigo.");
+    conferir("description padrao corta na ultima FRASE inteira", descriptionPadrao(longa), "A Placa Uno R3 usa o ATmega328P e roda a 16 MHz com tensao de 5V.");
     conferir("cortarNaFrase: cabe inteiro fica igual", cortarNaFrase("Uma frase. Outra.", 50), "Uma frase. Outra.");
     conferir("cortarNaFrase: nenhuma frase cabe, corta na palavra", cortarNaFrase("Uma frase muito comprida sem ponto nenhum ate o fim", 20), "Uma frase muito");
     conferir("cortarNaFrase: decimal com ponto nao e fim de frase", cortarNaFrase("Tensao de 3.3V e 5V no mesmo modulo. Segunda frase bem longa que nao cabe.", 40), "Tensao de 3.3V e 5V no mesmo modulo.");
@@ -194,8 +194,8 @@ try {
     console.log("\nRegras puras: rascunho, esquema e validacao");
     const ctxProd = { id: "p1", sku: "100404", tituloBase: "CLP FX3U 24MR", descricaoBase: "Linha 1\n\nLinha 2", marca: "MITSUBISHI", conferido: true, ncm: "85371020", origem: 0, tipoProducao: "REVENDA", ean: "x", pesoKg: 0.5, alturaCm: 2, larguraCm: 12, comprimentoCm: 6, videoUrl: null };
     const inicial = rascunhoInicialLI(ctxProd);
-    conferir("rascunho inicial", inicial, { produtoId: "p1", titulo: "CLP FX3U 24MR", slug: "clp-fx3u-24mr", marca: "MITSUBISHI", categorias: [], destaque: false, videoUrl: null, seo: { title: "CLP FX3U 24MR", description: "Linha 1" } });
-    conferir("rascunho inicial de produto sem texto", rascunhoInicialLI({ id: "p2" }), { produtoId: "p2", titulo: "", slug: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" } });
+    conferir("rascunho inicial", inicial, { produtoId: "p1", titulo: "CLP FX3U 24MR", slug: "clp-fx3u-24mr", marca: "MITSUBISHI", categorias: [], destaque: false, videoUrl: null, seo: { title: "CLP FX3U 24MR", description: "Linha 1" }, imagens: [] });
+    conferir("rascunho inicial de produto sem texto", rascunhoInicialLI({ id: "p2" }), { produtoId: "p2", titulo: "", slug: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" }, imagens: [] });
     conferir("vinculo traz categorias e destaque da LI; o slug segue o nome", rascunhoDaLI(inicial, { slug: "clp-da-li", categorias: ["1", "2"], destaque: true, nome: "Outro" }), { ...inicial, categorias: ["1", "2"], destaque: true });
     conferir("rascunho guardado: slug refeito do titulo", rascunhoDoAnuncio({ produtoId: "p", titulo: "Fonte 12V 5A", dados: { slug: "velho" } }).slug, "fonte-12v-5a");
     conferir("titulo ate 255 (limite medido na LI)", LIMITES_LI.titulo, 255);
@@ -203,12 +203,20 @@ try {
     conferir("esquema descarta chave estranha e aceita o rascunho", [lido.success, "extra" in (lido.data ?? {})], [true, false]);
     conferir("esquema recusa categorias que nao sao texto", RascunhoLISchema.safeParse({ ...inicial, categorias: [1] }).success, false);
     conferir("esquema recusa titulo acima de 255", RascunhoLISchema.safeParse({ ...inicial, titulo: "x".repeat(256) }).success, false);
-    conferir("esquema completa o que faltar", RascunhoLISchema.parse({ produtoId: "p3" }), { produtoId: "p3", titulo: "", slug: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" } });
-    conferir("ABAS_LI na ordem do dono", ABAS_LI.map((a) => a.id), ["geral", "descricao", "categorias", "envio", "fiscal", "seo", "previa"]);
+    conferir("esquema completa o que faltar", RascunhoLISchema.parse({ produtoId: "p3" }), { produtoId: "p3", titulo: "", slug: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" }, imagens: [] });
+    conferir("rascunho inicial leva as fotos do produto, a principal na frente", rascunhoInicialLI(ctxProd, { fotos: [{ id: "f2", principal: false }, { id: "f1", principal: true }] }).imagens, ["f1", "f2"]);
+    conferir("fotos escolhidas nao mudam a assinatura (o envio de foto espera a VPS)", assinaturaLI(normalizarDoRiseLI(ctxProd, { ...inicial, imagens: ["f1"] }, {})), assinaturaLI(normalizarDoRiseLI(ctxProd, inicial, {})));
+    conferir("ABAS_LI na ordem do dono", ABAS_LI.map((a) => a.id), ["geral", "imagens", "descricao", "categorias", "envio", "fiscal", "seo", "previa"]);
+    conferir("abas com os nomes do cadastro de Produto", ABAS_LI.filter((a) => ["geral", "envio", "fiscal"].includes(a.id)).map((a) => a.rotulo), ["Características", "Peso e dimensões", "Tributação"]);
     conferir("alerta de categoria mora na aba Categorias", validarRascunhoLI({ ...inicial, categorias: [] }, { produto: ctxProd, categoriasDaLI: null }).find((p) => p.campo === "categorias")?.aba, "categorias");
     conferir("rotulo da ultima aba", ABAS_LI.at(-1).rotulo, "Prévia e sincronização");
     const problemas = validarRascunhoLI({ ...inicial, titulo: "", slug: "Ré", categorias: ["9"], seo: { title: "t".repeat(71), description: "" } }, { produto: { ...ctxProd, conferido: false, ncm: null }, categoriasDaLI: [{ id: "1" }] });
-    conferir("bloqueantes: titulo e nao conferido (sem nome nao ha slug a acusar)", problemas.filter((p) => p.bloqueante).map((p) => p.campo), ["titulo", "produto"]);
+    conferir("bloqueantes: titulo e nao conferido (sem nome nao ha slug a acusar)", problemas.filter((p) => p.bloqueante).map((p) => p.campo), ["titulo", "produto", "seoDescription"]);
+    conferir(
+      "SEO obrigatorio: title e description vazios bloqueiam, na aba SEO",
+      validarRascunhoLI({ ...inicial, categorias: ["1"], seo: { title: " ", description: "" } }, { produto: ctxProd, categoriasDaLI: null }).filter((p) => p.bloqueante).map((p) => [p.campo, p.aba]),
+      [["seoTitulo", "seo"], ["seoDescription", "seo"]],
+    );
     conferir("nome so de simbolos nao gera endereco", validarRascunhoLI({ ...inicial, titulo: "!!!", categorias: ["1"] }, { produto: ctxProd, categoriasDaLI: null }).map((p) => [p.campo, p.bloqueante]), [["slug", true]]);
     conferir("alertas: ncm, categoria inexistente, seo longo", ["ncm", "categorias", "seoTitulo"].every((c) => problemas.some((p) => p.campo === c && !p.bloqueante)), true);
     conferir("todo problema tem aba conhecida", problemas.every((p) => ABAS_LI.some((a) => a.id === p.aba)), true);
@@ -232,7 +240,11 @@ try {
       conferir("novo rascunho de produto inexistente", (await novoRascunhoLI("nao-existe")).ok, false);
       const ctx = await contextoDoProduto(p.id);
       conferir("contexto com Decimal em Number e fiscais", [ctx.sku, ctx.pesoKg, ctx.tipoProducao, ctx.conferido], ["ZZ-LI-3", 0.25, "REVENDA", true]);
+      const fotoA = await prisma.produtoArquivo.create({ data: { produtoId: p.id, tipo: "IMAGEM", arquivo: "a.jpg", principal: false, ordem: 0 } });
+      const fotoB = await prisma.produtoArquivo.create({ data: { produtoId: p.id, tipo: "IMAGEM", arquivo: "b.jpg", principal: true, ordem: 1 } });
+      await prisma.produtoArquivo.create({ data: { produtoId: p.id, tipo: "IMAGEM", arquivo: "r.jpg", papel: "RESERVA", ordem: 2 } });
       const novo = await novoRascunhoLI(p.id);
+      conferir("novo rascunho: as fotos (sem a reserva), a principal na frente", [novo.rascunho.imagens, novo.contexto.fotos.map((f) => [f.id, f.url.includes("/ZZ-LI-3/")])], [[fotoB.id, fotoA.id], [[fotoB.id, true], [fotoA.id, true]]]);
       conferir("novo rascunho nasce do produto", [novo.ok, novo.rascunho.titulo, novo.rascunho.slug, novo.contexto.documentos], [true, "Fonte 12V", "fonte-12v", []]);
       conferir("contexto do editor traz o dominio da loja (com https)", String(novo.contexto.dominioDaLoja ?? "").startsWith("https://"), true);
       const salvo = await salvarRascunhoLI(null, { ...novo.rascunho, categorias: ["10", "20"], seo: { title: "T", description: "D" } });
@@ -244,6 +256,7 @@ try {
       conferir("categoriaExternaId e a primeira categoria", (await prisma.anuncio.findUnique({ where: { id: salvo.id } })).categoriaExternaId, "10");
       conferir("carregar id inexistente ou vazio", [(await carregarAnuncioLI("x")).ok, (await carregarAnuncioLI("")).ok], [false, false]);
       conferir("anuncio LI do produto", (await anuncioLIDoProduto(p.id))?.id, salvo.id);
+      conferir("salvar guarda as fotos escolhidas, na ordem", (await carregarAnuncioLI(salvo.id)).rascunho.imagens, [fotoB.id, fotoA.id]);
       conferir("salvar guarda o slug do titulo, nao o que a tela mandou", (await prisma.anuncio.findUnique({ where: { id: salvo.id } })).dados.slug, "fonte-12v-5a");
       await vincularPeloSku(p.id, { idItemExterno: "401", url: "https://loja/x", ativo: true, slug: "fonte-da-li", categorias: ["30"], destaque: true });
       const vinculado = await carregarAnuncioLI(salvo.id);
@@ -445,13 +458,13 @@ try {
     const li4 = criarLojaIntegradaFalsa({ produtos: [{ id: 701, sku: "ZZ-LI-12", nome: "Antigo", apelido: "/antigo", seo: "/api/v1/seo/71" }], seos: { 71: { title: "", description: "" } }, falhas: { "PUT /seo/71": 500 } });
     await lerParaPopupLI(pf.id, li4);
     const anF = await anuncioLIDoProduto(pf.id);
-    await salvarRascunhoLI(anF.id, { ...rascunhoDoAnuncio(anF), seo: { title: "Titulo", description: "" } });
+    await salvarRascunhoLI(anF.id, { ...rascunhoDoAnuncio(anF), seo: { title: "Titulo", description: "Resumo" } });
     const falhou = await sincronizarProdutoLI(pf.id, li4);
     const anDepois = await anuncioLIDoProduto(pf.id);
     conferir("falha no SEO: etapa seo, anuncio em ERRO, assinatura intacta", [falhou.ok, falhou.etapa, anDepois.status, anDepois.erro !== null, anDepois.dados.etapa, anDepois.hashConteudo], [false, "seo", "ERRO", true, "seo", null]);
     conferir("falha no SEO: o PUT do produto ja tinha ido (aparece nos alterados)", falhou.alterados.some((a) => a.campo === "nome"), true);
     // Cadastro
-    const pc = await prisma.produto.create({ data: { sku: "ZZ-LI-10", tituloBase: "Novo na LI", marca: "NOVAMARCA", ncm: "85364900", conferido: true } });
+    const pc = await prisma.produto.create({ data: { sku: "ZZ-LI-10", tituloBase: "Novo na LI", descricaoBase: "O produto novo na loja.", marca: "NOVAMARCA", ncm: "85364900", conferido: true } });
     const semNcm = await prisma.produto.create({ data: { sku: "ZZ-LI-11", tituloBase: "Sem NCM", conferido: true } });
     conferir("cadastrar sem NCM recusa antes do POST", [/NCM/.test((await cadastrarNaLI(semNcm.id, li3)).erro ?? ""), li3.chamadas.filter((c) => c.metodo === "POST" && c.caminho === "/produto").length], [true, 0]);
     const cad = await cadastrarNaLI(pc.id, li3);

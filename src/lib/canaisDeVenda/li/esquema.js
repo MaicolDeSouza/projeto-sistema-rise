@@ -11,6 +11,8 @@ import { z } from "zod";
 // Tetos de tamanho: a Server Action recebe o que o navegador mandar. O titulo vai ate 255,
 // o limite medido na LI (256 da 400); slug 100. O SEO tem folga: o corte em 70/250 e no envio.
 export const LIMITES_LI = {
+  imagens: 20,
+  idDeImagem: 40,
   titulo: 255,
   slug: 100,
   marca: 120,
@@ -40,4 +42,6 @@ export const RascunhoLISchema = z.object({
       description: textoAte(LIMITES_LI.seoDescription).default(""),
     })
     .default({ title: "", description: "" }),
+  // Ids de ProdutoArquivo, na ordem de envio (a primeira e a capa).
+  imagens: z.array(z.string().max(LIMITES_LI.idDeImagem)).max(LIMITES_LI.imagens).default([]),
 });

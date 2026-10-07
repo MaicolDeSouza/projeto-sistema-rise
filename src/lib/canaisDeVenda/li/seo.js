@@ -1,13 +1,13 @@
 /**
  * Padroes de SEO do produto na Loja Integrada (title e meta description). Sem imports.
  *
- * Os limites sao os da propria LI (o /seo recusa acima disso) e coincidem com o que o
- * Google mostra no resultado de busca: cortar no meio da palavra deixaria o resultado feio,
- * entao o corte e sempre na ultima palavra inteira.
+ * O title vai ate 70 (o limite da LI). A description vai ate 160, e nao os 250 que a LI aceita: e o que
+ * o Google mostra no resultado de busca, e o dono pediu o campo travado nisso (07/10/2026). Cortar no
+ * meio da palavra deixaria o resultado feio, entao o corte e sempre na ultima palavra (ou frase) inteira.
  */
 
 export const LIMITE_DO_TITULO_SEO = 70;
-export const LIMITE_DA_DESCRIPTION_SEO = 250;
+export const LIMITE_DA_DESCRIPTION_SEO = 160;
 
 const colapsar = (texto) => String(texto ?? "").replace(/\s+/g, " ").trim();
 

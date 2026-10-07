@@ -15,6 +15,7 @@ import AbaCategorias from "./AbaCategorias";
 import AbaDescricao from "./AbaDescricao";
 import AbaDivergencias from "./AbaDivergencias";
 import AbaGeral from "./AbaGeral";
+import AbaImagens from "./AbaImagens";
 import AbaPrevia from "./AbaPrevia";
 import AbaSEO from "./AbaSEO";
 import { AbaEnvio, AbaFiscal } from "./AbasDeLeitura";
@@ -22,6 +23,7 @@ import { AbaEnvio, AbaFiscal } from "./AbasDeLeitura";
 // Uma aba por id de `ABAS_LI`: aba nova na validacao pede o componente aqui.
 const ABAS_PRONTAS = {
   geral: AbaGeral,
+  imagens: AbaImagens,
   descricao: AbaDescricao,
   categorias: AbaCategorias,
   envio: AbaEnvio,

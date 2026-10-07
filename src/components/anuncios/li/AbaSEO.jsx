@@ -1,16 +1,24 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { ExternalLink, Loader, Sparkles } from "lucide-react";
+import { ExternalLink, ListChecks, Loader, Sparkles, X } from "lucide-react";
 
 import { gerarSeoIALI, seoConcorrentesLI } from "@/app/canais-de-venda/loja-integrada/acoes";
 import { CLASSE_CAMPO } from "@/components/cadastros/Campo";
 import MensagensDoCampo from "@/components/anuncios/ml/MensagensDoCampo";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
-import { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaFrase, descriptionPadrao, tituloSeoPadrao } from "@/lib/canaisDeVenda/li/seo";
+import { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaFrase, cortarNaPalavra } from "@/lib/canaisDeVenda/li/seo";
 import { slugDaUrl, slugDe } from "@/lib/canaisDeVenda/li/slug";
 
 const DATA = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo" });
+
+async function chamar(acao, ...argumentos) {
+  try {
+    return await acao(...argumentos);
+  } catch {
+    return { ok: false, erro: "Não foi possível falar com o servidor. Tente de novo." };
+  }
+}
 
 /** Contador no formato da LI ("54 de 70 caracteres"), vermelho acima do limite. */
 function Contador({ tamanho, limite }) {
@@ -29,112 +37,109 @@ function Rotulo({ htmlFor, texto, tamanho, limite, ajuda }) {
   );
 }
 
-async function chamar(acao, ...argumentos) {
-  try {
-    return await acao(...argumentos);
-  } catch {
-    return { ok: false, erro: "Não foi possível falar com o servidor. Tente de novo." };
-  }
+function Opcao({ texto, detalhe, selo, aoEscolher }) {
+  return (
+    <li>
+      <button type="button" onClick={() => aoEscolher(texto)} className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-fundo">
+        <span className="block">{texto}</span>
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-suave">
+          {selo && <span className="rounded bg-violet-100 px-1 font-medium text-violet-800">{selo}</span>}
+          <span className="tabular-nums">{texto.length} caracteres</span>
+          {detalhe}
+        </span>
+      </button>
+    </li>
+  );
+}
+
+function DeOnde({ item }) {
+  return (
+    <>
+      <span>{item.loja}</span>
+      {item.coletadoEm && <span>coletado em {DATA.format(new Date(item.coletadoEm))}</span>}
+      {item.url && (
+        <a href={item.url} target="_blank" rel="noreferrer" onClick={(evento) => evento.stopPropagation()} className="inline-flex items-center gap-0.5 text-acento hover:underline">
+          página
+          <ExternalLink size={10} />
+        </a>
+      )}
+    </>
+  );
 }
 
 /**
- * O SEO dos concorrentes salvos no produto, para comparar e, se quiser, usar como ponto de partida.
- * "Usar" leva o texto limpo e cortado na ultima frase inteira que cabe no limite da LI.
+ * Ícone de lista ao lado do campo, no molde do "Escolher o título" do cadastro de Produto (pedido do dono
+ * em 07/10/2026): abre as opções e nada vai para o campo até clicar numa delas. A lista abre colada ao
+ * campo, por cima do resto da aba; clicar fora fecha.
  */
-function SeoDosConcorrentes({ produtoId, alterarSeo }) {
-  const [estado, setEstado] = useState({ carregando: true, lista: [], erro: null });
+function ListaDeOpcoes({ rotulo, aberta, aoAlternar, carregando, children }) {
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={aoAlternar}
+        aria-label={rotulo}
+        aria-expanded={aberta}
+        title={rotulo}
+        className="rounded border border-sky-300 p-2.5 text-acento hover:bg-fundo"
+      >
+        {carregando ? <Loader size={18} className="animate-spin" /> : <ListChecks size={18} />}
+      </button>
+      {aberta && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={aoAlternar} />
+          <div className="absolute top-full right-0 z-40 mt-2 w-[36rem] max-w-[calc(100vw-4rem)] rounded-lg border border-borda bg-superficie p-2 shadow-xl">
+            <div className="flex items-center justify-between px-2 pt-1 pb-2">
+              <span className="text-sm font-semibold">{rotulo}</span>
+              <button type="button" onClick={aoAlternar} aria-label="Fechar a lista" className="rounded p-1 text-suave hover:bg-fundo">
+                <X size={14} />
+              </button>
+            </div>
+            {children}
+            <p className="mt-2 border-t border-borda px-2 pt-2 text-[11px] text-suave">
+              Copiar igual ao concorrente não ajuda no Google: use como ponto de partida e ajuste.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
+const SECAO = "px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppercase";
+
+/**
+ * Aba SEO, com os nomes e a ordem da tela da Loja Integrada: Tag Title, Meta Tag Description e URL do
+ * produto. Pedidos do dono em 07/10/2026:
+ * - os dois campos sao OBRIGATORIOS para enviar (a validacao bloqueia) e travados no limite: 70 no
+ *   title e 160 na description (o que o Google mostra);
+ * - sem "Usar padrao": o texto vem do icone de lista ao lado do campo (o nome do produto, o SEO dos
+ *   concorrentes salvos no produto e, na description, "Gerar com IA").
+ *
+ * A URL sai SEMPRE do nome do produto: o campo e so leitura. Produto que ja esta na loja muda de URL no
+ * proximo Sincronizar (o /alias da LI redireciona a antiga com 301), e o aviso mostra a URL de hoje.
+ */
+export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo }) {
+  const seo = rascunho.seo ?? { title: "", description: "" };
+  const alterarSeo = (parcial) => alterar((atual) => ({ seo: { ...(atual.seo ?? { title: "", description: "" }), ...parcial } }));
+  const [concorrentes, setConcorrentes] = useState({ carregando: true, lista: [], erro: null });
+  const [aberta, setAberta] = useState(null);
+  const [opcoesIA, setOpcoesIA] = useState([]);
+  const [erroIA, setErroIA] = useState(null);
+  const [gerando, iniciarGeracao] = useTransition();
+
+  const produtoId = rascunho.produtoId;
   useEffect(() => {
     let vivo = true;
     (async () => {
       const resultado = produtoId ? await chamar(seoConcorrentesLI, produtoId) : { ok: true, concorrentes: [] };
       if (!vivo) return;
-      setEstado(resultado.ok ? { carregando: false, lista: resultado.concorrentes, erro: null } : { carregando: false, lista: [], erro: resultado.erro });
+      setConcorrentes(resultado.ok ? { carregando: false, lista: resultado.concorrentes, erro: null } : { carregando: false, lista: [], erro: resultado.erro });
     })();
     return () => {
       vivo = false;
     };
   }, [produtoId]);
-
-  return (
-    <section aria-label="SEO dos concorrentes" className="rounded border border-borda p-3">
-      <p className="text-sm font-semibold">SEO dos concorrentes</p>
-      <p className="mt-0.5 text-xs text-suave">
-        Dos concorrentes salvos no produto (aba Fornecedores / Concorrentes do cadastro), como a coleta leu a página deles. Copiar igual não ajuda no Google:
-        use como ponto de partida e ajuste.
-      </p>
-      {estado.carregando && (
-        <p className="mt-2 flex items-center gap-2 text-xs text-suave">
-          <Loader size={13} className="animate-spin" />
-          Lendo os concorrentes...
-        </p>
-      )}
-      {estado.erro && <p className="mt-2 text-xs text-red-700">{estado.erro}</p>}
-      {!estado.carregando && !estado.erro && estado.lista.length === 0 && (
-        <p className="mt-2 text-xs text-suave">Nenhum concorrente salvo com SEO coletado. Vincule concorrentes no cadastro do produto (lupa do Nome).</p>
-      )}
-      <ul className="mt-2 space-y-2">
-        {estado.lista.map((item) => (
-          <li key={item.id} className="rounded border border-borda bg-fundo/50 p-2.5 text-xs">
-            <p className="flex flex-wrap items-center gap-x-2 text-suave">
-              <span className="font-medium text-texto">{item.loja}</span>
-              {item.url ? (
-                <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-acento hover:underline">
-                  {item.nome || "pagina"}
-                  <ExternalLink size={11} />
-                </a>
-              ) : (
-                <span>{item.nome}</span>
-              )}
-              {item.coletadoEm && <span>· coletado em {DATA.format(new Date(item.coletadoEm))}</span>}
-            </p>
-            {item.title && (
-              <div className="mt-1.5">
-                <p>
-                  <span className="text-suave">Title ({item.title.length}):</span> {item.title}
-                </p>
-                <button type="button" onClick={() => alterarSeo({ title: cortarNaFrase(item.title, LIMITE_DO_TITULO_SEO) })} className="mt-0.5 text-acento hover:underline">
-                  Usar este título
-                </button>
-              </div>
-            )}
-            {item.description && (
-              <div className="mt-1.5">
-                <p>
-                  <span className="text-suave">Description ({item.description.length}):</span> {item.description}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => alterarSeo({ description: cortarNaFrase(item.description, LIMITE_DA_DESCRIPTION_SEO) })}
-                  className="mt-0.5 text-acento hover:underline"
-                >
-                  Usar esta descrição
-                </button>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-/**
- * Aba SEO, com os nomes e a ordem da tela da Loja Integrada (pedido do dono em 07/10/2026): Tag
- * Title, Meta Tag Description e URL do produto. Os limites (70 e 250) sao os da LI; acima disso o
- * envio corta.
- *
- * A URL sai SEMPRE do nome do produto (decisao do dono em 07/10/2026): o campo e so leitura. Produto
- * que ja esta na loja muda de URL no proximo Sincronizar (o /alias da LI redireciona a antiga com
- * 301), e o aviso mostra a URL de verdade de hoje (`vinculo.urlExterna`; a antiga pode ser
- * "/produto/<slug>.html").
- */
-export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo }) {
-  const seo = rascunho.seo ?? { title: "", description: "" };
-  const alterarSeo = (parcial) => alterar((atual) => ({ seo: { ...(atual.seo ?? { title: "", description: "" }), ...parcial } }));
-  const [opcoesIA, setOpcoesIA] = useState([]);
-  const [erroIA, setErroIA] = useState(null);
-  const [gerando, iniciarGeracao] = useTransition();
 
   const dominio = contexto.dominioDaLoja || "https://www.4hobby.com.br";
   const slug = slugDe(rascunho.titulo);
@@ -143,23 +148,71 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
   const tituloNaBusca = seo.title?.trim() || rascunho.titulo || "Título do produto";
   const descriptionNaBusca = seo.description?.trim() || "Sem description: o Google escolhe um trecho da página.";
 
+  const comTitulo = concorrentes.lista.filter((item) => item.title);
+  const comDescription = concorrentes.lista.filter((item) => item.description);
+  const nome = cortarNaPalavra(rascunho.titulo ?? "", LIMITE_DO_TITULO_SEO);
+
+  function escolherTitulo(texto) {
+    setAberta(null);
+    alterarSeo({ title: cortarNaPalavra(texto, LIMITE_DO_TITULO_SEO) });
+  }
+  function escolherDescription(texto) {
+    setAberta(null);
+    alterarSeo({ description: cortarNaFrase(texto, LIMITE_DA_DESCRIPTION_SEO) });
+  }
   function gerarComIA() {
     setErroIA(null);
     iniciarGeracao(async () => {
-      const resultado = await chamar(gerarSeoIALI, rascunho.produtoId, rascunho.titulo ?? "");
+      const resultado = await chamar(gerarSeoIALI, produtoId, rascunho.titulo ?? "");
       if (resultado.ok) setOpcoesIA(resultado.opcoes);
       else setErroIA(resultado.erro);
     });
   }
+  const alternar = (qual) => () => setAberta((atual) => (atual === qual ? null : qual));
+  const avisoDaLista = concorrentes.erro ? (
+    <p className="px-2 pb-2 text-xs text-red-700">{concorrentes.erro}</p>
+  ) : concorrentes.carregando ? (
+    <p className="flex items-center gap-2 px-2 pb-2 text-xs text-suave">
+      <Loader size={12} className="animate-spin" />
+      Lendo os concorrentes...
+    </p>
+  ) : null;
 
   return (
     <div className="space-y-6">
       <div>
         <Rotulo htmlFor="li-seo-titulo" texto="Tag Title - Título do produto" tamanho={(seo.title ?? "").trim().length} limite={LIMITE_DO_TITULO_SEO} />
-        <input id="li-seo-titulo" value={seo.title ?? ""} onChange={(evento) => alterarSeo({ title: evento.target.value })} className={`${CLASSE_CAMPO} border-borda focus:border-acento`} />
-        <button type="button" onClick={() => alterar((atual) => ({ seo: { ...(atual.seo ?? {}), title: tituloSeoPadrao(atual.titulo) } }))} className="mt-1 text-[11px] text-acento hover:underline">
-          Usar padrão (o nome)
-        </button>
+        <div className="flex items-start gap-2">
+          <input
+            id="li-seo-titulo"
+            value={seo.title ?? ""}
+            maxLength={LIMITE_DO_TITULO_SEO}
+            onChange={(evento) => alterarSeo({ title: evento.target.value })}
+            className={`${CLASSE_CAMPO} border-borda focus:border-acento`}
+          />
+          <div className="mt-1">
+            <ListaDeOpcoes rotulo="Escolher o título" aberta={aberta === "titulo"} aoAlternar={alternar("titulo")} carregando={concorrentes.carregando}>
+              <p className={SECAO}>Do produto</p>
+              {nome ? (
+                <ul>
+                  <Opcao texto={nome} detalhe={<span>o nome do anúncio</span>} aoEscolher={escolherTitulo} />
+                </ul>
+              ) : (
+                <p className="px-2 pb-2 text-xs text-suave">O anúncio ainda não tem nome (aba Características).</p>
+              )}
+              <p className={`${SECAO} mt-2`}>Dos concorrentes ({comTitulo.length})</p>
+              {avisoDaLista}
+              {!concorrentes.carregando && comTitulo.length === 0 && (
+                <p className="px-2 pb-2 text-xs text-suave">Nenhum concorrente salvo com título coletado. Vincule concorrentes no cadastro do produto.</p>
+              )}
+              <ul className="max-h-72 space-y-1 overflow-y-auto">
+                {comTitulo.map((item) => (
+                  <Opcao key={item.id} texto={item.title} detalhe={<DeOnde item={item} />} aoEscolher={escolherTitulo} />
+                ))}
+              </ul>
+            </ListaDeOpcoes>
+          </div>
+        </div>
         <MensagensDoCampo problemas={problemas} campo="seoTitulo" />
       </div>
 
@@ -169,53 +222,81 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
           texto="Meta Tag Description - Descrição / Resumo"
           tamanho={(seo.description ?? "").trim().length}
           limite={LIMITE_DA_DESCRIPTION_SEO}
-          ajuda="O resumo que o Google mostra embaixo do título. O ideal é de 140 a 160 caracteres: o Google corta o que passa."
+          ajuda="O resumo que o Google mostra embaixo do título. Vai até 160 caracteres, que é o que o Google mostra."
         />
-        <textarea
-          id="li-seo-description"
-          rows={3}
-          value={seo.description ?? ""}
-          onChange={(evento) => alterarSeo({ description: evento.target.value })}
-          className={`${CLASSE_CAMPO} resize-y border-borda focus:border-acento`}
-        />
-        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
-          <button
-            type="button"
-            onClick={() => alterar((atual) => ({ seo: { ...(atual.seo ?? {}), description: descriptionPadrao(contexto.produto?.descricaoBase, atual.titulo) } }))}
-            className="text-[11px] text-acento hover:underline"
-          >
-            Usar padrão (as primeiras frases da descrição)
-          </button>
-          <button
-            type="button"
-            onClick={gerarComIA}
-            disabled={gerando || !rascunho.produtoId}
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-acento hover:underline disabled:opacity-60"
-          >
-            {gerando ? <Loader size={12} className="animate-spin" /> : <Sparkles size={12} />}
-            {gerando ? "Gerando com IA..." : opcoesIA.length ? "Gerar outras opções com IA" : "Gerar com IA"}
-          </button>
+        <div className="flex items-start gap-2">
+          <textarea
+            id="li-seo-description"
+            rows={3}
+            value={seo.description ?? ""}
+            maxLength={LIMITE_DA_DESCRIPTION_SEO}
+            onChange={(evento) => alterarSeo({ description: evento.target.value })}
+            className={`${CLASSE_CAMPO} resize-y border-borda focus:border-acento`}
+          />
+          <div className="mt-1">
+            <ListaDeOpcoes rotulo="Escolher a descrição" aberta={aberta === "description"} aoAlternar={alternar("description")} carregando={concorrentes.carregando || gerando}>
+              <p className={SECAO}>Dos concorrentes ({comDescription.length})</p>
+              {avisoDaLista}
+              {!concorrentes.carregando && comDescription.length === 0 && (
+                <p className="px-2 pb-2 text-xs text-suave">Nenhum concorrente salvo com descrição coletada. Vincule concorrentes no cadastro do produto.</p>
+              )}
+              <ul className="max-h-60 space-y-1 overflow-y-auto">
+                {comDescription.map((item) => (
+                  <Opcao
+                    key={item.id}
+                    texto={cortarNaFrase(item.description, LIMITE_DA_DESCRIPTION_SEO)}
+                    detalhe={
+                      <>
+                        <DeOnde item={item} />
+                        {item.description.length > LIMITE_DA_DESCRIPTION_SEO && <span>(o original tem {item.description.length}; vai cortado na frase)</span>}
+                      </>
+                    }
+                    aoEscolher={escolherDescription}
+                  />
+                ))}
+              </ul>
+
+              <div className="mt-2 border-t border-borda pt-2">
+                <p className={SECAO}>Com IA</p>
+                {opcoesIA.length > 0 && (
+                  <ul className="space-y-1">
+                    {opcoesIA.map((opcao) => (
+                      <Opcao key={opcao} texto={opcao} selo="IA" aoEscolher={escolherDescription} />
+                    ))}
+                  </ul>
+                )}
+                {erroIA && <p className="px-2 py-1 text-xs text-red-700">{erroIA}</p>}
+                {opcoesIA.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={gerarComIA}
+                    disabled={gerando || !produtoId}
+                    className="mt-1 inline-flex items-center gap-1.5 px-2 py-1 text-xs text-acento hover:underline disabled:opacity-60"
+                  >
+                    {gerando ? <Loader size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                    {gerando ? "Escrevendo..." : "Gerar outras opções"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={gerarComIA}
+                    disabled={gerando || !produtoId}
+                    className="flex w-full items-center gap-2 rounded border border-dashed border-acento px-3 py-2 text-left text-sm font-medium text-acento hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {gerando ? <Loader size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                    <span>{gerando ? "Escrevendo as descrições..." : "Gerar com IA"}</span>
+                    <span className="ml-auto text-[11px] font-normal text-suave">3 opções de 140 a 160 caracteres</span>
+                  </button>
+                )}
+              </div>
+            </ListaDeOpcoes>
+          </div>
         </div>
-        {erroIA && <p className="mt-1 text-[11px] text-red-700">{erroIA}</p>}
-        {opcoesIA.length > 0 && (
-          <ul className="mt-2 space-y-1.5">
-            {opcoesIA.map((opcao) => (
-              <li key={opcao} className="flex items-start gap-3 rounded border border-violet-200 bg-violet-50/60 p-2 text-xs">
-                <span className="min-w-0 flex-1">
-                  {opcao} <span className="text-suave">({opcao.length})</span>
-                </span>
-                <button type="button" onClick={() => alterarSeo({ description: opcao })} className="shrink-0 rounded border border-violet-300 bg-white px-2 py-1 text-[11px] text-violet-800 hover:bg-violet-50">
-                  Usar esta
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
         <MensagensDoCampo problemas={problemas} campo="seoDescription" />
       </div>
 
       <div>
-        <Rotulo htmlFor="li-slug" texto="URL do produto" ajuda="Sai do nome do produto (aba Geral) e muda junto com ele. Só letras minúsculas sem acento, números e hifens." />
+        <Rotulo htmlFor="li-slug" texto="URL do produto" ajuda="Sai do nome do produto (aba Características) e muda junto com ele. Só letras minúsculas sem acento, números e hifens." />
         <div className="mt-1 flex items-stretch overflow-hidden rounded border border-borda bg-fundo text-[15px]">
           <span className="shrink-0 border-r border-borda px-2.5 py-2 text-suave">{dominio}/</span>
           <input id="li-slug" readOnly value={slug} className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-medium text-texto focus:outline-none" />
@@ -240,8 +321,6 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
         </p>
         <p className="mt-0.5 line-clamp-2 text-sm text-suave">{descriptionNaBusca.slice(0, LIMITE_DA_DESCRIPTION_SEO)}</p>
       </div>
-
-      <SeoDosConcorrentes produtoId={rascunho.produtoId} alterarSeo={alterarSeo} />
     </div>
   );
 }

@@ -13,8 +13,10 @@ import { descriptionPadrao, tituloSeoPadrao } from "./seo";
 const texto = (valor) => (valor === null || valor === undefined ? "" : String(valor));
 
 /** O rascunho que nasce de um produto do Rise: titulo, slug e SEO saem do cadastro. */
-export function rascunhoInicialLI(produto) {
+export function rascunhoInicialLI(produto, { fotos = [] } = {}) {
   const p = produto ?? {};
+  // As fotos do produto, a principal na frente (aba Imagens, 07/10/2026). So vao para a loja na VPS.
+  const imagens = [...fotos.filter((foto) => foto.principal), ...fotos.filter((foto) => !foto.principal)].map((foto) => foto.id);
   const titulo = texto(p.tituloBase).trim();
   const descricao = texto(p.descricaoBase);
   return {
@@ -26,6 +28,7 @@ export function rascunhoInicialLI(produto) {
     destaque: false,
     videoUrl: p.videoUrl ?? null,
     seo: { title: tituloSeoPadrao(titulo), description: descriptionPadrao(descricao, titulo) },
+    imagens,
   };
 }
 

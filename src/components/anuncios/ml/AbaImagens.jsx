@@ -35,7 +35,7 @@ function fotosDisponiveis(rascunho, contexto) {
  * Uma foto da lista. `posicao` e o lugar dela na ordem de envio (0 = capa), ou `null` quando
  * nao esta marcada. `foto` e `undefined` quando o rascunho guarda um id que o produto nao tem mais.
  */
-function LinhaDeFoto({ id, foto, posicao, total, aoAlternar, aoMover }) {
+export function LinhaDeFoto({ id, foto, posicao, total, aoAlternar, aoMover }) {
   const marcada = posicao !== null;
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 p-2.5">

@@ -103,6 +103,7 @@ export function rascunhoDoAnuncio(anuncio) {
     destaque: Boolean(dados.destaque),
     videoUrl: dados.videoUrl ?? null,
     seo: { title: dados.seo?.title ?? "", description: dados.seo?.description ?? "" },
+    imagens: Array.isArray(dados.imagens) ? dados.imagens : [],
   };
 }
 
@@ -113,16 +114,31 @@ function dominioDaLoja() {
   return /^https?:\/\//i.test(dominio) ? dominio.replace(/^http:/i, "https:") : `https://${dominio}`;
 }
 
+/**
+ * As fotos do produto para a aba Imagens: so as do carrossel (`papel: FOTO`; a reserva nunca entra), a
+ * principal na frente. O endereco e o local (o envio a LI espera a VPS, que dara um endereco publico).
+ */
+export async function fotosDoProduto(produto) {
+  if (!produto?.id || !produto?.sku) return [];
+  const fotos = await prisma.produtoArquivo.findMany({
+    where: { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO" },
+    orderBy: [{ principal: "desc" }, { ordem: "asc" }, { criadoEm: "asc" }],
+    select: { id: true, arquivo: true, principal: true },
+  });
+  return fotos.map((foto) => ({ id: foto.id, principal: foto.principal, url: urlDe(produto.sku, "IMAGEM", foto.arquivo) }));
+}
+
 async function contextoDoEditor(produto) {
-  const documentos = await documentosDoProduto(produto);
-  return { produto, documentos, urlPublica: Boolean(String(config.appUrlPublica ?? "").trim()), dominioDaLoja: dominioDaLoja() };
+  const [documentos, fotos] = await Promise.all([documentosDoProduto(produto), fotosDoProduto(produto)]);
+  return { produto, documentos, fotos, urlPublica: Boolean(String(config.appUrlPublica ?? "").trim()), dominioDaLoja: dominioDaLoja() };
 }
 
 export async function novoRascunhoLI(produtoId) {
   const produto = await contextoDoProduto(produtoId);
   if (!produto) return { ok: false, erro: "Produto não encontrado." };
   if (!produto.conferido) return { ok: false, erro: aindaNaoConferido(produto.sku) };
-  return { ok: true, rascunho: rascunhoInicialLI(produto), contexto: await contextoDoEditor(produto) };
+  const contexto = await contextoDoEditor(produto);
+  return { ok: true, rascunho: rascunhoInicialLI(produto, { fotos: contexto.fotos }), contexto };
 }
 
 /** Abre o anuncio para editar. Produto que deixou de ser Conferido abre; quem recusa e o Salvar. */
@@ -216,7 +232,7 @@ export async function vincularPeloSku(produtoId, { idItemExterno, url, ativo, sl
   const produto = await contextoDoProduto(produtoId);
   if (!produto) throw new Error("Produto não encontrado para vincular.");
   const existente = await anuncioLIDoProduto(produtoId);
-  const base = existente ? rascunhoDoAnuncio(existente) : rascunhoInicialLI(produto);
+  const base = existente ? rascunhoDoAnuncio(existente) : rascunhoInicialLI(produto, { fotos: await fotosDoProduto(produto) });
   const rascunho = rascunhoDaLI(base, { slug, categorias, destaque });
   const { colunas, dados } = colunasEDados(rascunho);
   const vinculo = {

@@ -16,7 +16,8 @@ import { slugDe, slugValido } from "./slug";
 // dimensoes, Tributacao), pedido do mesmo dia. A aba "Divergencias" nao esta aqui: o editor a poe na
 // frente so quando a leitura da loja acha diferencas.
 export const ABAS_LI = [
-  { id: "geral", rotulo: "Geral" },
+  { id: "geral", rotulo: "Características" },
+  { id: "imagens", rotulo: "Imagens" },
   { id: "descricao", rotulo: "Descrição" },
   { id: "categorias", rotulo: "Categorias" },
   { id: "envio", rotulo: "Peso e dimensões" },
@@ -44,6 +45,10 @@ export function validarRascunhoLI(rascunho, contexto) {
   if (!produto.conferido) {
     acusar("produto", "geral", "Só produto Conferido vai para a Loja Integrada. Confira o cadastro antes.", true);
   }
+  // SEO obrigatorio antes de enviar (pedido do dono em 07/10/2026): sem title e description o Google
+  // monta o resultado sozinho.
+  if (vazio(r.seo?.title)) acusar("seoTitulo", "seo", "Informe o Tag Title (título para o Google).", true);
+  if (vazio(r.seo?.description)) acusar("seoDescription", "seo", "Informe a Meta Tag Description (resumo para o Google).", true);
 
   // Alertas.
   if (vazio(r.marca)) acusar("marca", "geral", "Sem marca: o produto fica sem marca na loja.");
