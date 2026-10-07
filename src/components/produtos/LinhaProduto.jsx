@@ -7,6 +7,7 @@ import { EllipsisVertical, ImageOff } from "lucide-react";
 
 import { CANAIS } from "@/lib/canais";
 import JanelaAnuncioML from "@/components/anuncios/ml/JanelaAnuncioML";
+import JanelaAnuncioLI from "@/components/anuncios/li/JanelaAnuncioLI";
 import { rotuloDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import Copiar from "@/components/ui/Copiar";
 import ConferidoProduto from "./ConferidoProduto";
@@ -14,7 +15,6 @@ import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPreco } from "./Ed
 import IconeBling from "./IconeBling";
 import JanelaBling from "./JanelaBling";
 import IconeLojaIntegrada from "./IconeLojaIntegrada";
-import JanelaLojaIntegrada from "./JanelaLojaIntegrada";
 
 /// O produto sem estado conhecido do Bling: cinza, sem selo (nunca sincronizado e sem pendencia).
 const ICONE_BLING_PADRAO = { cor: "cinza", divergente: false, motivos: [] };
@@ -214,7 +214,8 @@ export default function LinhaProduto({
         {editando === "estoque" && <PopupEstoque produto={produto} aoFechar={fecharEdicao} />}
         {janelaML && <JanelaAnuncioML produtoId={produto.id} aoFechar={() => setJanelaML(false)} />}
         {janelaBling && <JanelaBling produto={produto} aoFechar={() => setJanelaBling(false)} />}
-        {janelaLI && <JanelaLojaIntegrada produto={produto} aoFechar={() => setJanelaLI(false)} />}
+        {/* O pop-up de diferencas virou a aba Divergencias do editor (07/10/2026): o icone abre o editor. */}
+        {janelaLI && <JanelaAnuncioLI produtoId={produto.id} aoFechar={() => setJanelaLI(false)} />}
 
         {pendentes.length > 0 && (
           <>

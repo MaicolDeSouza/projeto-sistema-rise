@@ -1,31 +1,30 @@
 "use client";
 
-import Link from "next/link";
+import { Lock } from "lucide-react";
 
 import { montarDescricaoLI } from "@/lib/canaisDeVenda/li/descricao";
+import { EditarNoProduto } from "./AbasDeLeitura";
 
 /**
  * Aba Descricao: so leitura. O texto e o do CADASTRO do produto (pedido do dono em 07/10/2026: a
- * descricao nao se edita no anuncio, para nao haver duas versoes); quem muda e o cadastro, pelo link.
- * O que aparece aqui e exatamente o que vai para a loja: o texto com fonte 16 e titulos em negrito,
- * os documentos para download (com endereco publico).
+ * descricao nao se edita no anuncio, para nao haver duas versoes); quem muda e o cadastro, pelo
+ * "Editar produto" (que pergunta antes se o anuncio tem alteracao nao salva). O que aparece aqui e
+ * exatamente o que vai para a loja: o texto com fonte 16 e titulos em negrito e os documentos para
+ * download (com endereco publico).
  *
  * `dangerouslySetInnerHTML` recebe o HTML montado AQUI por `montarDescricaoLI`, que escapa todo
  * texto: tag digitada no cadastro vira texto, nunca HTML. Nada vindo da loja passa por aqui.
  */
-export default function AbaDescricao({ contexto }) {
+export default function AbaDescricao({ contexto, abrirProduto }) {
   const produto = contexto.produto ?? {};
   const html = montarDescricaoLI({ descricao: produto.descricaoBase, documentos: contexto.documentos ?? [] });
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold">Descricao que vai para a loja</p>
-        {produto.id && (
-          <Link href={`/produtos/${produto.id}`} target="_blank" className="text-xs text-acento hover:underline">
-            Editar no produto
-          </Link>
-        )}
+      <div className="flex flex-wrap items-center gap-2 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+        <Lock size={14} className="shrink-0" />
+        <span className="min-w-0 flex-1">Esta descricao e so leitura e vem do cadastro do produto. Para editar, use</span>
+        <EditarNoProduto abrirProduto={produto.id ? abrirProduto : null} className="text-sm font-medium" />
       </div>
 
       {!contexto.urlPublica && (
@@ -35,6 +34,7 @@ export default function AbaDescricao({ contexto }) {
         </p>
       )}
 
+      <p className="text-sm font-semibold">Descricao que vai para a loja</p>
       {html ? (
         <div
           className="max-h-[36rem] space-y-2 overflow-y-auto rounded border border-borda bg-superficie px-4 py-3 leading-relaxed [&_a]:text-acento [&_a]:underline"

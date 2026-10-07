@@ -1,5 +1,5 @@
 /**
- * Textos do pop-up da Loja Integrada (`JanelaLojaIntegrada.jsx`): como um valor aparece na tela, o
+ * Textos do editor da Loja Integrada (aba Divergencias e rodape do `EditorAnuncioLI.jsx`): como um valor aparece na tela, o
  * resumo do que um envio fez e quando o pop-up le a LI de novo. Sem imports, sem banco e sem rede:
  * e o unico arquivo de `li/` sobre envio que o NAVEGADOR pode importar (`campos.js`, `envio.js` e
  * `leitura.js` sao de servidor). Nada aqui decide regra de envio: so conta o que a lib decidiu.

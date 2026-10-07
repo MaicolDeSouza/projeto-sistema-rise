@@ -280,6 +280,108 @@ export async function gerarTitulos(ids, palavras) {
   return opcoes;
 }
 
+/// Meta description da Loja Integrada (pedido do dono em 07/10/2026): o pedido a IA e de 140 a 160
+/// caracteres; a faixa aceita comeca em 130 porque a IA conta mal, e uma opcao boa de 135 nao deve
+/// custar outra chamada. Acima de 160 o Google corta no resultado.
+export const FAIXA_DESCRIPTION_SEO = { minimo: 130, maximo: 160 };
+export const OPCOES_DE_DESCRIPTION_SEO = 3;
+
+const FORMATO_DESCRIPTIONS = {
+  type: "json_schema",
+  schema: {
+    type: "object",
+    properties: { descriptions: { type: "array", items: { type: "string" } } },
+    required: ["descriptions"],
+    additionalProperties: false,
+  },
+};
+
+const comparavelSeo = (texto) =>
+  String(texto ?? "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+/**
+ * Separa as opcoes boas: numa linha, sem repetir, dentro da faixa e sem o titulo inteiro dentro
+ * (description que repete o title desperdica o espaco do resultado de busca).
+ */
+export function limparDescriptionsSeo(lista, titulo = "") {
+  const aceitas = [];
+  const recusadas = [];
+  const tituloComparavel = comparavelSeo(titulo);
+  for (const bruta of lista ?? []) {
+    const texto = String(bruta ?? "").replace(/\s+/g, " ").trim();
+    if (!texto || aceitas.includes(texto) || recusadas.includes(texto)) continue;
+    const foraDaFaixa = texto.length < FAIXA_DESCRIPTION_SEO.minimo || texto.length > FAIXA_DESCRIPTION_SEO.maximo;
+    const repeteTitulo = tituloComparavel.length > 0 && comparavelSeo(texto).includes(tituloComparavel);
+    if (foraDaFaixa || repeteTitulo) recusadas.push(texto);
+    else aceitas.push(texto);
+  }
+  return { aceitas, recusadas };
+}
+
+/**
+ * O pedido da meta description. Os concorrentes entram so com title e description (o nome da loja
+ * nao entra: o que nao entra nao vaza para o texto da Rise), como referencia de termos de busca.
+ */
+export function montarPedidoSeo({ titulo = "", descricao = "", concorrentes = [] }) {
+  const referencias = (concorrentes ?? [])
+    .filter((item) => item?.title || item?.description)
+    .map((item, indice) => `Concorrente ${indice + 1}\nTitle: ${item.title || "(sem)"}\nDescription: ${item.description || "(sem)"}`)
+    .join("\n\n");
+  return (
+    "Escreva a meta description (o resumo que o Google mostra no resultado de busca) do produto abaixo, " +
+    "para a loja virtual da Rise.\n\n" +
+    "Regras:\n" +
+    `- entre ${FAIXA_DESCRIPTION_SEO.minimo + 10} e ${FAIXA_DESCRIPTION_SEO.maximo} caracteres, contando espaços;\n` +
+    "- comece pelo que a pessoa busca: o tipo do produto e o modelo ou chip;\n" +
+    "- frases completas, sem cortar no meio, sem lista e sem emoji;\n" +
+    "- sem CAIXA ALTA (só siglas e códigos de modelo, como USB ou ATmega328P);\n" +
+    "- não repita o título inteiro: o título já aparece em cima no resultado;\n" +
+    "- use só fatos do cadastro; os concorrentes servem só para ver os termos que eles disputam, não copie frases deles;\n" +
+    "- não cite preço, frete, prazo, desconto nem nome de loja.\n\n" +
+    `Título do produto: ${titulo}\n\nDescrição do cadastro:\n${descricao || "(vazia)"}\n\n` +
+    (referencias ? `SEO dos concorrentes (referência de termos):\n\n${referencias}\n\n` : "") +
+    `Escreva ${OPCOES_DE_DESCRIPTION_SEO} opções DIFERENTES entre si. Responda no formato {"descriptions": ["...", "..."]}.`
+  );
+}
+
+/**
+ * Opcoes de meta description para a aba SEO da Loja Integrada, no molde de `gerarTitulos`: as que
+ * saem da faixa ou repetem o titulo voltam uma vez para a IA, mostrando as recusadas.
+ */
+export async function gerarDescriptionsSeo({ titulo = "", descricao = "", concorrentes = [] }) {
+  const base = montarPedidoSeo({ titulo, descricao, concorrentes });
+  const opcoes = [];
+  const recusadas = [];
+  for (let tentativa = 1; tentativa <= 2 && opcoes.length < OPCOES_DE_DESCRIPTION_SEO; tentativa++) {
+    const pedido =
+      base +
+      (opcoes.length > 0 ? `\n\nJá aceitas (não repita): ${opcoes.join(" | ")}` : "") +
+      (recusadas.length > 0
+        ? `\n\nRecusadas (fora de ${FAIXA_DESCRIPTION_SEO.minimo + 10} a ${FAIXA_DESCRIPTION_SEO.maximo} caracteres ou repetindo o título): ${recusadas.map((texto) => `"${texto}" (${texto.length})`).join(" | ")}`
+        : "");
+    const texto = await chamar({ tarefa: "seo-li", quantidade: concorrentes.length, sistema: SISTEMA, pedido, formato: FORMATO_DESCRIPTIONS });
+    let candidatas;
+    try {
+      candidatas = JSON.parse(texto).descriptions;
+      if (!Array.isArray(candidatas)) throw new Error();
+    } catch {
+      throw new Error("A IA devolveu as descriptions em formato inesperado. Tente de novo.");
+    }
+    const { aceitas, recusadas: fora } = limparDescriptionsSeo(candidatas, titulo);
+    for (const opcao of aceitas) if (!opcoes.includes(opcao) && opcoes.length < OPCOES_DE_DESCRIPTION_SEO) opcoes.push(opcao);
+    recusadas.push(...fora.filter((opcao) => !recusadas.includes(opcao)));
+  }
+  if (opcoes.length === 0) {
+    throw new Error(`A IA nao conseguiu descriptions de ${FAIXA_DESCRIPTION_SEO.minimo} a ${FAIXA_DESCRIPTION_SEO.maximo} caracteres. Tente de novo.`);
+  }
+  return opcoes;
+}
+
 /// Texto fixo do fim da descricao, igual em todo anuncio da loja (modelo do dono).
 export const GARANTIA_PADRAO = "Garantia Legal de 90 dias (contra defeitos de fabricação)";
 

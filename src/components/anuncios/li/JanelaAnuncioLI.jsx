@@ -15,7 +15,8 @@ async function chamar(acao, argumento) {
 }
 
 /**
- * O editor do anuncio da Loja Integrada numa janela, aberto pelo pop-up do icone ("Editar anuncio").
+ * O editor do anuncio da Loja Integrada numa janela, aberto pelo icone da Loja Integrada na lista de
+ * Produtos (desde 07/10/2026 o editor e o pop-up: le a loja e mostra as divergencias numa aba).
  * Um anuncio por produto: sem anuncio abre um novo (nada e gravado ate o Salvar); com anuncio abre
  * esse. Produto nao Conferido mostra so o aviso. O editor desenha a propria janela (Esc, X, "Sair
  * sem salvar?"); aqui ficam as fases antes dele.

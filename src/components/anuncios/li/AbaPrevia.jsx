@@ -27,10 +27,10 @@ function agruparPorAba(problemas) {
 
 /**
  * Aba Previa e sincronizacao: os problemas de todas as abas (cada um leva a aba que o resolve) e a
- * situacao do vinculo com a loja. Nao envia nada: Cadastrar e Sincronizar ficam no icone da Loja
- * Integrada na lista de Produtos, que le a loja na hora e mostra as diferencas antes.
+ * situacao do vinculo com a loja. Nao envia nada: Cadastrar e Sincronizar ficam no rodape do editor
+ * (07/10/2026), e as diferencas com a loja na aba Divergencias.
  */
-export default function AbaPrevia({ irPara, todosProblemas, vinculo }) {
+export default function AbaPrevia({ irPara, todosProblemas, vinculo, leitura }) {
   const grupos = agruparPorAba(todosProblemas);
   const bloqueantes = todosProblemas.filter((problema) => problema.bloqueante).length;
   const alertas = todosProblemas.length - bloqueantes;
@@ -59,9 +59,12 @@ export default function AbaPrevia({ irPara, todosProblemas, vinculo }) {
         ) : (
           <p className="mt-1 text-suave">Sem vinculo com a loja ainda.</p>
         )}
-        <p className="mt-2 text-xs text-suave">
-          Cadastrar e Sincronizar ficam no icone da Loja Integrada na lista de Produtos: ele le a loja na hora e mostra o que muda antes de enviar.
-        </p>
+        <p className="mt-2 text-xs text-suave">O botao do rodape envia o anuncio SALVO: &quot;Cadastrar na LI&quot; se o produto nao esta na loja, &quot;Sincronizar com a LI&quot; se ja esta.</p>
+        {leitura?.ok && leitura.escrita?.liberada === false && (
+          <p className="mt-1 text-xs text-amber-800">
+            <span className="font-medium">Envio bloqueado agora.</span> {leitura.escrita.motivo}
+          </p>
+        )}
       </div>
 
       {bloqueantes > 0 ? (

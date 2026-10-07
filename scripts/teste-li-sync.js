@@ -504,6 +504,35 @@ try {
     conferir("slug lido da URL antiga passa na validacao", slugValido(normalizarDaLI({ url: "/produto/rele-5v.html" }, null, {}).slug), true);
   }
 
+  {
+    console.log("\nSEO: concorrentes salvos e as opcoes da IA");
+    await limpar();
+    const { seoDosConcorrentes } = await import("../src/lib/canaisDeVenda/li/seoConcorrentes.js");
+    const { FAIXA_DESCRIPTION_SEO, limparDescriptionsSeo, montarPedidoSeo } = await import("../src/lib/ia/anuncio.js");
+    const fonte = await prisma.fonteColeta.create({ data: { nome: "ZZ-LI Fonte SEO", dominio: "zz-li-seo.invalid", tipo: "CONCORRENTE", ativa: false, proximaVarreduraEm: new Date(Date.now() + 1e12) } });
+    try {
+      const p = await prisma.produto.create({ data: { sku: "ZZ-LI-SEO", tituloBase: "Placa Uno R3", conferido: true } });
+      const coletadoEm = new Date("2026-10-01T12:00:00Z");
+      const comSeo = await prisma.produtoColetado.create({ data: { fonteId: fonte.id, chave: "codigo:A1", origem: "site", nome: "Uno R3 Concorrente", url: "https://zz-li-seo.invalid/uno", coletadoEm, seo: { title: "  Placa Uno R3 |\n Loja  ", description: "Compre a Placa Uno R3.\nFrete rapido.", canonical: "https://zz-li-seo.invalid/uno" } } });
+      const semSeo = await prisma.produtoColetado.create({ data: { fonteId: fonte.id, chave: "codigo:A2", origem: "site", nome: "Sem SEO", seo: {} } });
+      await prisma.produtoConcorrente.createMany({ data: [{ produtoId: p.id, produtoColetadoId: comSeo.id }, { produtoId: p.id, produtoColetadoId: semSeo.id }, { produtoId: p.id, nomeManual: "Manual", fonteManual: "Outra" }] });
+      const lista = await seoDosConcorrentes(p.id);
+      conferir("so os concorrentes com SEO, texto sem quebras, loja e data", lista, [{ id: comSeo.id, loja: "ZZ-LI Fonte SEO", nome: "Uno R3 Concorrente", url: "https://zz-li-seo.invalid/uno", title: "Placa Uno R3 | Loja", description: "Compre a Placa Uno R3. Frete rapido.", coletadoEm: coletadoEm.toISOString() }]);
+      conferir("produto sem concorrente: lista vazia", await seoDosConcorrentes("nao-existe"), []);
+    } finally {
+      await prisma.fonteColeta.delete({ where: { id: fonte.id } });
+    }
+    conferir("faixa da description pedida a IA", FAIXA_DESCRIPTION_SEO, { minimo: 130, maximo: 160 });
+    const boa = "Placa Uno R3 com ATmega328P e CH340 para projetos de eletronica: compativel com shields e com a IDE do Arduino, acompanha cabo USB.";
+    conferir(
+      "limpar: fora da faixa, repetida, com o titulo inteiro e vazia saem",
+      limparDescriptionsSeo([`  ${boa}  `, boa, "Curta demais.", "x".repeat(170), "PLACA UNO R3 CH340 e a melhor placa para quem quer aprender eletronica e programacao com Arduino e shields.", ""], "Placa Uno R3 CH340"),
+      { aceitas: [boa], recusadas: ["Curta demais.", "x".repeat(170), "PLACA UNO R3 CH340 e a melhor placa para quem quer aprender eletronica e programacao com Arduino e shields."] },
+    );
+    const pedido = montarPedidoSeo({ titulo: "Placa Uno R3", descricao: "A Placa faz X.", concorrentes: [{ loja: "Loja Secreta", title: "Uno | Loja Secreta", description: "Compre ja." }] });
+    conferir("pedido leva titulo, descricao e o SEO dos concorrentes, sem o nome da loja", [pedido.includes("Placa Uno R3"), pedido.includes("A Placa faz X."), pedido.includes("Compre ja."), /Loja Secreta/.test(pedido.replace("Uno | Loja Secreta", ""))], [true, true, true, false]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;

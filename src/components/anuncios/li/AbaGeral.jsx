@@ -4,17 +4,16 @@ import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo"
 import MensagensDoCampo, { problemasDoCampo } from "@/components/anuncios/ml/MensagensDoCampo";
 import Badge from "@/components/ui/Badge";
 import { LIMITES_LI } from "@/lib/canaisDeVenda/li/esquema";
-import ArvoreDeCategorias from "./ArvoreDeCategorias";
 
 /**
  * Aba Geral do anuncio da Loja Integrada: o produto, o nome na loja, a marca (com as marcas que a
  * loja ja tem como sugestao: a escolhida e achada sem caixa e sem acento no envio, e so e criada se
- * nao houver nenhuma igual), as categorias ao vivo, destaque e video.
+ * nao houver nenhuma igual), destaque e video. As categorias tem aba propria (07/10/2026).
  *
- * As listas de marcas e categorias sao lidas pelo editor ao abrir (`contexto.marcasDaLI`,
- * `contexto.categoriasDaLI`); aqui so se mostram, e "Recarregar categorias" pede de novo.
+ * O nome tambem decide o endereco do produto na loja (slug, aba SEO): mudar o nome muda a URL.
+ * A lista de marcas e lida pelo editor ao abrir (`contexto.marcasDaLI`).
  */
-export default function AbaGeral({ rascunho, contexto, alterar, problemas, recarregarCategorias }) {
+export default function AbaGeral({ rascunho, contexto, alterar, problemas }) {
   const produto = contexto.produto;
   const primeiro = (campo) => problemasDoCampo(problemas, campo)[0]?.problema;
   const titulo = rascunho.titulo ?? "";
@@ -47,6 +46,7 @@ export default function AbaGeral({ rascunho, contexto, alterar, problemas, recar
         />
         <div className="mt-1 flex items-start gap-3">
           {erroDoTitulo && <p className="text-[11px] text-red-700">{erroDoTitulo}</p>}
+          {!erroDoTitulo && <MensagensDoCampo problemas={problemas} campo="slug" />}
           <span className="ml-auto shrink-0 text-[11px] text-suave tabular-nums">
             {tamanho}/{LIMITES_LI.titulo}
           </span>
@@ -88,19 +88,6 @@ export default function AbaGeral({ rascunho, contexto, alterar, problemas, recar
         />
         Produto em destaque na loja
       </label>
-
-      <div>
-        <p className="mb-1 text-sm font-semibold">Categorias na loja</p>
-        <ArvoreDeCategorias
-          categorias={contexto.categoriasDaLI ?? null}
-          carregando={Boolean(contexto.carregandoCategorias)}
-          erro={contexto.erroDasCategorias ?? null}
-          aoRecarregar={recarregarCategorias}
-          selecionadas={rascunho.categorias ?? []}
-          aoMudar={(categorias) => alterar({ categorias })}
-        />
-        <MensagensDoCampo problemas={problemas} campo="categorias" />
-      </div>
     </div>
   );
 }

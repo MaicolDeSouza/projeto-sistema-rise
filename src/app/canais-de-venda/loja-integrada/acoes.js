@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { anuncioLIDoProduto, carregarAnuncioLI, contextoDoProduto, novoRascunhoLI, salvarRascunhoLI } from "@/lib/canaisDeVenda/li/banco";
 import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
 import { listarCategoriasDaLI, listarMarcasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
+import { seoDosConcorrentes } from "@/lib/canaisDeVenda/li/seoConcorrentes";
+import { gerarDescriptionsSeo } from "@/lib/ia/anuncio";
 
 /**
  * Acoes do servidor do canal Loja Integrada (Canais de Venda): o editor do anuncio e
@@ -64,6 +66,30 @@ export async function anuncioDoProdutoLI(produtoId) {
 export async function salvarAnuncioLI(id, rascunho) {
   if (!ehIdOuNulo(id)) return PEDIDO_INVALIDO;
   return protegendo(async () => revalidando(await salvarRascunhoLI(id, rascunho)));
+}
+
+/** O SEO (title e description) dos concorrentes salvos no produto, para comparar na aba SEO. */
+export async function seoConcorrentesLI(produtoId) {
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => ({ ok: true, concorrentes: await seoDosConcorrentes(produtoId) }));
+}
+
+/**
+ * Tres opcoes de meta description pela IA (Anthropic, como os titulos do cadastro). O texto do
+ * produto e o SEO dos concorrentes sao lidos aqui, do banco; do navegador vem so o nome que esta na
+ * tela (pode nao estar salvo ainda), conferido no tamanho.
+ */
+export async function gerarSeoIALI(produtoId, titulo) {
+  if (!ehId(produtoId) || typeof titulo !== "string" || titulo.length > 255) return PEDIDO_INVALIDO;
+  try {
+    const [produto, concorrentes] = await Promise.all([contextoDoProduto(produtoId), seoDosConcorrentes(produtoId)]);
+    if (!produto) return { ok: false, erro: "Produto nao encontrado." };
+    const opcoes = await gerarDescriptionsSeo({ titulo: titulo.trim() || produto.tituloBase, descricao: produto.descricaoBase ?? "", concorrentes });
+    return { ok: true, opcoes };
+  } catch (erro) {
+    console.error("[loja integrada] seo com IA", erro);
+    return { ok: false, erro: erro.message || "Nao foi possivel gerar com a IA. Tente de novo." };
+  }
 }
 
 /** As categorias da loja, ao vivo (o dono esta renovando a arvore). So leitura. */

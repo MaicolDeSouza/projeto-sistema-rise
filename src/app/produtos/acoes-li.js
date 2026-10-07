@@ -8,7 +8,7 @@ import { produtoIdValido } from "@/lib/canaisDeVenda/li/estado";
 import { lerParaPopupLI } from "@/lib/canaisDeVenda/li/leitura";
 
 /**
- * Acoes do icone da Loja Integrada na lista de Produtos. Finas, no molde de `acoes-bling.js`: a regra,
+ * Acoes do editor da Loja Integrada (aberto pelo icone da lista de Produtos): ler a loja, Sincronizar e Cadastrar. Finas, no molde de `acoes-bling.js`: a regra,
  * a leitura e o envio moram em `lib/canaisDeVenda/li`, onde o teste (scripts/teste-li-sync.js) os
  * alcanca com a LI falsa; aqui ficam conferir o que vem do navegador, revalidar as listas e nao
  * deixar excecao nenhuma chegar a tela.
