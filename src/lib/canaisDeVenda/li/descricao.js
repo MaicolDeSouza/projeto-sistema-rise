@@ -1,14 +1,19 @@
 /**
- * O HTML da descricao do produto na Loja Integrada. Sem imports: o navegador o importa na
- * previa, e o servidor monta o mesmo texto no envio.
+ * O HTML da descricao do produto na Loja Integrada. Sem imports: a aba Descricao do editor mostra o
+ * mesmo resultado que o servidor envia.
  *
- * A LI aceita HTML (o Mercado Livre nao), entao aqui a descricao ganha paragrafos, a lista
- * de especificacoes e os links dos documentos. Os titulos dos blocos tem acento porque sao
- * conteudo da loja, lido pelo cliente.
+ * O texto e o do CADASTRO do produto (`descricaoBase`), que segue o padrao da loja: TITULO EM
+ * MAIUSCULAS, paragrafos, e secoes com titulo terminado em dois-pontos ("Especificacoes tecnicas:",
+ * "Itens inclusos:", "Garantia:") seguidas de linhas "- item;". Pedido do dono em 07/10/2026:
+ * - fonte 16 em todo o texto (`<span style="font-size:16px;">`, como os produtos antigos da loja);
+ * - o titulo do produto e os titulos de secao em negrito;
+ * - a secao "Documentos / Arquivos para download:" com os arquivos da aba Documentos do produto, logo
+ *   abaixo de "Especificacoes tecnicas:"; sem ela, logo acima de "Garantia:"; sem as duas, no fim do
+ *   texto. Sem documento, nao ha secao.
  *
- * O texto do Rise e texto puro: tudo e escapado, e uma tag digitada nunca vira HTML. A volta
- * (`htmlParaTexto(html, { paragrafos: true })`) tem que devolver o mesmo texto, senao o selo
- * de divergencia nunca apagaria.
+ * Todo texto e escapado: tag digitada no cadastro vira texto, nunca HTML. A volta
+ * (`htmlParaTexto(html, { paragrafos: true })`) devolve o mesmo texto (mais a secao de documentos),
+ * e e por ela que o selo de divergencia compara: a formatacao nao conta.
  */
 
 const escapar = (texto) =>
@@ -20,59 +25,85 @@ const escapar = (texto) =>
     .replace(/'/g, "&#39;");
 
 const preenchido = (valor) => valor !== null && valor !== undefined && String(valor).trim() !== "";
-const positivo = (valor) => preenchido(valor) && Number(valor) > 0;
 
-const PESO = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-const MEDIDA = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+const semAcento = (texto) =>
+  String(texto ?? "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .trim();
 
-/** Linha em branco separa paragrafos; quebra simples vira <br>. */
-export function textoParaHtmlLI(texto) {
-  if (!preenchido(texto)) return "";
-  return String(texto)
+const TITULO_DOS_DOCUMENTOS = "Documentos / Arquivos para download:";
+// Linha que marca, no texto, onde entra a secao de documentos. Nao existe em texto digitado.
+const MARCA_DOS_DOCUMENTOS = "\u0000documentos\u0000";
+
+const ehItemDeLista = (linha) => /^\s*-/.test(linha);
+// Titulo de secao termina em dois-pontos, ou em dois-pontos e um parentese ("Itens inclusos: (Cod:100101)").
+const ehTituloDeSecao = (linha) => !ehItemDeLista(linha) && /:\s*(\([^)]*\))?\s*$/.test(linha) && linha.trim().length <= 80;
+const ehTituloDoProduto = (linha) => /\p{Lu}/u.test(linha) && !/\p{Ll}/u.test(linha);
+
+/** Cada paragrafo leva a fonte 16; as linhas dele sao separadas por <br>. */
+const paragrafo = (linhas) => `<p><span style="font-size:16px;">${linhas.join("<br>")}</span></p>`;
+
+/** Os documentos com endereco http(s): `javascript:` num href executaria na loja. */
+function documentosValidos(documentos) {
+  return (documentos ?? []).filter((doc) => /^https?:\/\//i.test(String(doc?.url ?? "")));
+}
+
+/** Indice da linha antes da qual entra a secao de documentos. */
+function posicaoDosDocumentos(linhas) {
+  const especificacoes = linhas.findIndex((linha) => /^especificacoes tecnicas:?$/.test(semAcento(linha)));
+  if (especificacoes >= 0) {
+    let fim = especificacoes;
+    while (fim + 1 < linhas.length && ehItemDeLista(linhas[fim + 1])) fim += 1;
+    return fim + 1;
+  }
+  const garantia = linhas.findIndex((linha) => /^garantia:?$/.test(semAcento(linha)));
+  return garantia >= 0 ? garantia : linhas.length;
+}
+
+/** O HTML da descricao: texto do produto, documentos na posicao combinada e as frases fixas. */
+export function montarDescricaoLI({ descricao, documentos = [], frases = [] } = {}) {
+  let linhas = String(descricao ?? "")
     .replace(/\r\n?/g, "\n")
-    .split(/\n[ \t]*\n/)
-    .map((paragrafo) => paragrafo.trim())
-    .filter(Boolean)
-    .map((paragrafo) => `<p>${escapar(paragrafo).replace(/\n/g, "<br>")}</p>`)
-    .join("");
-}
-
-/** So os campos preenchidos; nenhum = sem bloco. Medidas so com as tres (C x L x A). */
-export function blocoEspecificacoes(produto) {
-  const p = produto ?? {};
-  const linhas = [];
-  if (preenchido(p.marca)) linhas.push(`Marca: ${escapar(p.marca)}`);
-  if (preenchido(p.modelo)) linhas.push(`Modelo: ${escapar(p.modelo)}`);
-  if (preenchido(p.ean)) linhas.push(`GTIN: ${escapar(p.ean)}`);
-  if (positivo(p.pesoKg)) linhas.push(`Peso: ${PESO.format(Number(p.pesoKg))} kg`);
-  if (positivo(p.comprimentoCm) && positivo(p.larguraCm) && positivo(p.alturaCm)) {
-    const medidas = [p.comprimentoCm, p.larguraCm, p.alturaCm].map((valor) => MEDIDA.format(Number(valor)));
-    linhas.push(`Medidas: ${medidas.join(" x ")} cm`);
+    .split("\n")
+    .map((linha) => linha.trim());
+  const docs = documentosValidos(documentos);
+  if (docs.length) {
+    const posicao = posicaoDosDocumentos(linhas);
+    linhas = [...linhas.slice(0, posicao), "", MARCA_DOS_DOCUMENTOS, "", ...linhas.slice(posicao)];
   }
-  if (positivo(p.garantiaMeses)) {
-    const meses = Number(p.garantiaMeses);
-    linhas.push(`Garantia: ${meses} ${meses === 1 ? "mês" : "meses"}`);
+
+  // Paragrafos: grupos de linhas separados por linha em branco.
+  const grupos = [];
+  let atual = [];
+  for (const linha of linhas) {
+    if (linha === "") {
+      if (atual.length) grupos.push(atual);
+      atual = [];
+    } else {
+      atual.push(linha);
+    }
   }
-  if (preenchido(p.numeroHomologacao)) linhas.push(`Homologação: ${escapar(p.numeroHomologacao)}`);
-  if (!linhas.length) return "";
-  return `<h2>Especificações</h2><ul>${linhas.map((linha) => `<li>${linha}</li>`).join("")}</ul>`;
-}
+  if (atual.length) grupos.push(atual);
 
-/** Links dos documentos. Endereco que nao e http(s) fica de fora: `javascript:` num href executaria na loja. */
-export function blocoDocumentos(documentos) {
-  const itens = (documentos ?? []).filter((doc) => /^https?:\/\//i.test(String(doc?.url ?? "")));
-  if (!itens.length) return "";
-  const lista = itens.map((doc) => `<li><a href="${escapar(doc.url)}">${escapar(doc.nome ?? doc.url)}</a></li>`);
-  return `<h2>Documentos</h2><ul>${lista.join("")}</ul>`;
-}
+  let primeiraLinha = true;
+  const partes = grupos.map((grupo) => {
+    if (grupo.length === 1 && grupo[0] === MARCA_DOS_DOCUMENTOS) {
+      return paragrafo([
+        `<strong>${escapar(TITULO_DOS_DOCUMENTOS)}</strong>`,
+        ...docs.map((doc) => `- <a href="${escapar(doc.url)}">${escapar(doc.nome ?? doc.url)}</a>;`),
+      ]);
+    }
+    return paragrafo(
+      grupo.map((linha) => {
+        const emNegrito = (primeiraLinha && ehTituloDoProduto(linha)) || ehTituloDeSecao(linha);
+        primeiraLinha = false;
+        return emNegrito ? `<strong>${escapar(linha)}</strong>` : escapar(linha);
+      }),
+    );
+  });
 
-/** Texto, especificacoes (se pedidas), documentos e as frases fixas, cada frase um paragrafo. */
-export function montarDescricaoLI({ descricao, especificacoes, produto, documentos, frases }) {
-  const partes = [
-    textoParaHtmlLI(descricao),
-    especificacoes ? blocoEspecificacoes(produto) : "",
-    blocoDocumentos(documentos),
-    ...(frases ?? []).filter(preenchido).map((frase) => `<p>${escapar(String(frase).trim())}</p>`),
-  ];
-  return partes.join("");
+  const deFrases = (frases ?? []).filter(preenchido).map((frase) => paragrafo([escapar(String(frase).trim())]));
+  return [...partes, ...deFrases].join("");
 }

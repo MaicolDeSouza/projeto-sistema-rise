@@ -13,7 +13,6 @@ import { z } from "zod";
 export const LIMITES_LI = {
   titulo: 255,
   slug: 100,
-  descricao: 50000,
   marca: 120,
   categorias: 20,
   idDeCategoria: 32,
@@ -28,7 +27,6 @@ export const RascunhoLISchema = z.object({
   produtoId: z.string().nullish(),
   titulo: textoAte(LIMITES_LI.titulo).default(""),
   slug: textoAte(LIMITES_LI.slug).default(""),
-  descricao: textoAte(LIMITES_LI.descricao).default(""),
   marca: textoAte(LIMITES_LI.marca).default(""),
   categorias: z.array(z.string().max(LIMITES_LI.idDeCategoria)).max(LIMITES_LI.categorias).default([]),
   destaque: z.boolean().default(false),
@@ -42,5 +40,4 @@ export const RascunhoLISchema = z.object({
       description: textoAte(LIMITES_LI.seoDescription).default(""),
     })
     .default({ title: "", description: "" }),
-  especificacoes: z.boolean().default(true),
 });

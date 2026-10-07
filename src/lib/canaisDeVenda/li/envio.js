@@ -102,7 +102,7 @@ async function contextoDoEnvio(produto, rascunho, cliente) {
   const [{ frases }, documentos] = await Promise.all([lerConfigCanal(CANAL), documentosDoProduto(produto)]);
   const rise = normalizarDoRiseLI(produto, rascunho, { frases, documentos });
   const { validas, ignoradas } = await categoriasVivas(cliente, rise.categorias);
-  const descricaoHtml = montarDescricaoLI({ descricao: rascunho.descricao, especificacoes: Boolean(rascunho.especificacoes), produto, documentos, frases });
+  const descricaoHtml = montarDescricaoLI({ descricao: produto.descricaoBase, documentos, frases });
   return { rise, riseEnvio: { ...rise, categorias: validas }, ignoradas, descricaoHtml, categoriasUris: validas.map((id) => `/api/v1/categoria/${id}`) };
 }
 

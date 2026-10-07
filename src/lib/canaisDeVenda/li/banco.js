@@ -14,9 +14,9 @@ import { rascunhoDaLI, rascunhoInicialLI } from "./rascunho";
  * Diferente do Mercado Livre, o anuncio da LI vinculado (PUBLICADO) continua editavel: e
  * dele que o Sincronizar le o que vai para a loja.
  *
- * Onde mora cada campo: titulo e descricao em coluna; a primeira categoria tambem em
+ * Onde mora cada campo: titulo em coluna (a descricao e a do cadastro, nao do anuncio); a primeira categoria tambem em
  * `categoriaExternaId` (para filtrar sem abrir o JSON); slug, marca, categorias, destaque,
- * videoUrl, seo e especificacoes no JSON `dados`.
+ * videoUrl e seo no JSON `dados`.
  */
 
 const CANAL = "LOJA_INTEGRADA";
@@ -97,13 +97,11 @@ export function rascunhoDoAnuncio(anuncio) {
     produtoId: anuncio.produtoId,
     titulo: anuncio.titulo ?? "",
     slug: dados.slug ?? "",
-    descricao: anuncio.descricao ?? "",
     marca: dados.marca ?? "",
     categorias: Array.isArray(dados.categorias) ? dados.categorias : [],
     destaque: Boolean(dados.destaque),
     videoUrl: dados.videoUrl ?? null,
     seo: { title: dados.seo?.title ?? "", description: dados.seo?.description ?? "" },
-    especificacoes: dados.especificacoes ?? true,
   };
 }
 
@@ -144,9 +142,9 @@ export async function carregarAnuncioLI(id) {
 }
 
 function colunasEDados(rascunho) {
-  const { produtoId, titulo, descricao, ...dados } = rascunho;
+  const { produtoId, titulo, ...dados } = rascunho;
   return {
-    colunas: { produtoId, titulo, descricao, categoriaExternaId: rascunho.categorias[0] ?? null },
+    colunas: { produtoId, titulo, categoriaExternaId: rascunho.categorias[0] ?? null },
     dados,
   };
 }

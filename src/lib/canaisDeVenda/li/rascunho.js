@@ -5,8 +5,8 @@ import { descriptionPadrao, tituloSeoPadrao } from "./seo";
  * O rascunho do anuncio da Loja Integrada, guardado em `Anuncio.dados` (canal LOJA_INTEGRADA,
  * um por produto). Sem imports de servidor: o editor o usa.
  *
- * Forma: { produtoId, titulo, slug, descricao, marca, categorias: string[], destaque,
- * videoUrl, seo: { title, description }, especificacoes }. As categorias sao ids da LI em
+ * Forma: { produtoId, titulo, slug, marca, categorias: string[], destaque, videoUrl, seo: { title,
+ * description } }. A descricao NAO e do anuncio: vem sempre do cadastro (pedido do dono em 07/10/2026). As categorias sao ids da LI em
  * texto; a marca e o NOME (a URI e achada no envio).
  */
 
@@ -21,13 +21,11 @@ export function rascunhoInicialLI(produto) {
     produtoId: p.id ?? null,
     titulo,
     slug: slugDe(titulo),
-    descricao,
     marca: texto(p.marca).trim(),
     categorias: [],
     destaque: false,
     videoUrl: p.videoUrl ?? null,
     seo: { title: tituloSeoPadrao(titulo), description: descriptionPadrao(descricao, titulo) },
-    especificacoes: true,
   };
 }
 

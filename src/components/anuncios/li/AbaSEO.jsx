@@ -16,7 +16,7 @@ function Contador({ tamanho, limite }) {
  * Mudar o slug de um produto que ja esta na loja troca a URL pelo /alias da LI, que redireciona a
  * antiga (301): o Google segue o redirecionamento, mas a troca nao e de graca, e o aviso diz isso.
  */
-export default function AbaSEO({ rascunho, alterar, problemas, vinculo, slugOriginal }) {
+export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo, slugOriginal }) {
   const seo = rascunho.seo ?? { title: "", description: "" };
   const alterarSeo = (parcial) => alterar((atual) => ({ seo: { ...(atual.seo ?? { title: "", description: "" }), ...parcial } }));
   const erroDoSlug = problemasDoCampo(problemas, "slug")[0]?.problema;
@@ -72,7 +72,7 @@ export default function AbaSEO({ rascunho, alterar, problemas, vinculo, slugOrig
         <div className="mt-1 flex items-center gap-3">
           <button
             type="button"
-            onClick={() => alterar((atual) => ({ seo: { ...(atual.seo ?? {}), description: descriptionPadrao(atual.descricao, atual.titulo) } }))}
+            onClick={() => alterar((atual) => ({ seo: { ...(atual.seo ?? {}), description: descriptionPadrao(contexto.produto?.descricaoBase, atual.titulo) } }))}
             className="text-[11px] text-acento hover:underline"
           >
             Usar padrao (o primeiro paragrafo da descricao)

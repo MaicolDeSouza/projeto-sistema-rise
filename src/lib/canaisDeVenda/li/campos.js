@@ -106,17 +106,14 @@ const origemInteira = (valor) => {
 const seoTitulo = (valor) => texto(cortarNaPalavra(valor ?? "", LIMITE_DO_TITULO_SEO));
 const seoDescription = (valor) => texto(cortarNaPalavra(valor ?? "", LIMITE_DA_DESCRIPTION_SEO));
 
-/** O Rise: o Produto (cadastro) mais o rascunho do anuncio da LI. */
+/**
+ * O Rise: o Produto (cadastro) mais o rascunho do anuncio da LI. A descricao e SEMPRE a do cadastro
+ * (`descricaoBase`): o anuncio nao a edita (pedido do dono em 07/10/2026).
+ */
 export function normalizarDoRiseLI(produto, rascunho, { frases = [], documentos = [] } = {}) {
   const p = produto ?? {};
   const r = rascunho ?? {};
-  const html = montarDescricaoLI({
-    descricao: r.descricao,
-    especificacoes: Boolean(r.especificacoes),
-    produto: p,
-    documentos,
-    frases,
-  });
+  const html = montarDescricaoLI({ descricao: p.descricaoBase, documentos, frases });
   return {
     nome: texto(r.titulo),
     slug: texto(r.slug),

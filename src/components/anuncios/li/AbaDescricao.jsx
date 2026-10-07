@@ -2,85 +2,54 @@
 
 import Link from "next/link";
 
-import { CLASSE_CAMPO } from "@/components/cadastros/Campo";
 import { montarDescricaoLI } from "@/lib/canaisDeVenda/li/descricao";
 
 /**
- * Aba Descricao: o texto (puro, como o do cadastro), a caixa das Especificacoes (lista montada do
- * produto: marca, modelo, GTIN, peso, medidas, garantia, homologacao), as frases fixas do canal e a
- * previa do HTML que vai para a loja.
+ * Aba Descricao: so leitura. O texto e o do CADASTRO do produto (pedido do dono em 07/10/2026: a
+ * descricao nao se edita no anuncio, para nao haver duas versoes); quem muda e o cadastro, pelo link.
+ * O que aparece aqui e exatamente o que vai para a loja: o texto com fonte 16 e titulos em negrito,
+ * os documentos para download (com endereco publico) e as frases fixas.
  *
- * A previa usa `dangerouslySetInnerHTML` com o HTML montado AQUI por `montarDescricaoLI`, que escapa
- * todo texto: tag digitada no Rise vira texto, nunca HTML. Nada vindo da loja passa por aqui.
+ * `dangerouslySetInnerHTML` recebe o HTML montado AQUI por `montarDescricaoLI`, que escapa todo
+ * texto: tag digitada no cadastro vira texto, nunca HTML. Nada vindo da loja passa por aqui.
  */
-export default function AbaDescricao({ rascunho, contexto, alterar }) {
-  const html = montarDescricaoLI({
-    descricao: rascunho.descricao,
-    especificacoes: Boolean(rascunho.especificacoes),
-    produto: contexto.produto ?? {},
-    documentos: contexto.documentos ?? [],
-    frases: contexto.frases ?? [],
-  });
+export default function AbaDescricao({ contexto }) {
+  const produto = contexto.produto ?? {};
+  const html = montarDescricaoLI({ descricao: produto.descricaoBase, documentos: contexto.documentos ?? [], frases: contexto.frases ?? [] });
 
   return (
-    <div className="space-y-5">
-      <div>
-        <label htmlFor="li-descricao" className="text-sm font-semibold">
-          Descricao
-        </label>
-        <textarea
-          id="li-descricao"
-          rows={14}
-          value={rascunho.descricao ?? ""}
-          onChange={(evento) => alterar({ descricao: evento.target.value })}
-          className={`${CLASSE_CAMPO} resize-y border-borda font-sans text-[15px] leading-relaxed focus:border-acento`}
-        />
-        <p className="mt-1 text-[11px] text-suave">Linha em branco separa paragrafos. Tags digitadas aparecem como texto na loja.</p>
-      </div>
-
-      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
-        <input
-          type="checkbox"
-          checked={Boolean(rascunho.especificacoes)}
-          onChange={(evento) => alterar({ especificacoes: evento.target.checked })}
-          className="h-4 w-4 accent-acento"
-        />
-        Incluir a lista de Especificacoes (do cadastro do produto)
-      </label>
-
-      <div className="rounded border border-borda bg-fundo p-3 text-sm">
-        <p className="font-semibold">Frases fixas da Loja Integrada</p>
-        {contexto.frases?.length ? (
-          <ul className="mt-1 list-disc pl-5 text-suave">
-            {contexto.frases.map((frase) => (
-              <li key={frase}>{frase}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-1 text-suave">Nenhuma frase fixa.</p>
-        )}
-        <Link href="/canais-de-venda/loja-integrada/configuracoes" target="_blank" className="mt-1 inline-block text-xs text-acento hover:underline">
-          Editar as frases fixas
-        </Link>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold">Descricao que vai para a loja</p>
+        <div className="flex gap-3 text-xs">
+          {produto.id && (
+            <Link href={`/produtos/${produto.id}`} target="_blank" className="text-acento hover:underline">
+              Editar no produto
+            </Link>
+          )}
+          <Link href="/canais-de-venda/loja-integrada/configuracoes" target="_blank" className="text-acento hover:underline">
+            Editar as frases fixas
+          </Link>
+        </div>
       </div>
 
       {!contexto.urlPublica && (
         <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Documentos: desligado ate o Rise ter endereco publico (APP_URL_PUBLICA, na VPS). Os manuais e datasheets do produto entram na descricao como links quando ele existir.
+          Documentos para download: desligado ate o Rise ter endereco publico (APP_URL_PUBLICA, na VPS). Quando ligar, os arquivos da aba
+          Documentos do produto entram logo abaixo das Especificacoes tecnicas.
         </p>
       )}
 
-      <div>
-        <p className="text-sm font-semibold">Previa na loja</p>
-        {html ? (
-          <div
-            className="mt-2 max-h-[32rem] space-y-2 overflow-y-auto rounded border border-borda bg-superficie px-4 py-3 text-[15px] leading-relaxed [&_a]:text-acento [&_a]:underline [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-semibold [&_ul]:list-disc [&_ul]:pl-5"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        ) : (
-          <p className="mt-2 text-sm text-suave">Sem descricao.</p>
-        )}
-      </div>
+      {html ? (
+        <div
+          className="max-h-[36rem] space-y-2 overflow-y-auto rounded border border-borda bg-superficie px-4 py-3 leading-relaxed [&_a]:text-acento [&_a]:underline"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      ) : (
+        <p className="rounded border border-borda bg-fundo px-3 py-2 text-sm text-suave">
+          O produto ainda nao tem descricao. Escreva no cadastro do produto (aba Descricao).
+        </p>
+      )}
     </div>
   );
 }

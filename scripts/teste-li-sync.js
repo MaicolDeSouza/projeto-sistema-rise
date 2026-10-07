@@ -23,7 +23,7 @@ register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 const { prisma } = await import("../src/lib/db.js");
 const { LIMITE_DO_SLUG, slugDe, slugValido } = await import("../src/lib/canaisDeVenda/li/slug.js");
 const { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaPalavra, descriptionPadrao, tituloSeoPadrao } = await import("../src/lib/canaisDeVenda/li/seo.js");
-const { blocoDocumentos, blocoEspecificacoes, montarDescricaoLI, textoParaHtmlLI } = await import("../src/lib/canaisDeVenda/li/descricao.js");
+const { montarDescricaoLI } = await import("../src/lib/canaisDeVenda/li/descricao.js");
 const { htmlParaTexto } = await import("../src/lib/integracoes/normalizacao.js");
 const { CAMPOS_DE_ENVIO_LI, CAMPOS_SO_LEITURA_LI, TEXTO_DO_TIPO_PRODUCAO, TIPO_PRODUCAO_DA_LI, assinaturaLI, avisosFiscaisLI, contarDivergencias, diferencasLI, normalizarDaLI, normalizarDoRiseLI } = await import("../src/lib/canaisDeVenda/li/campos.js");
 const { CHAVES_SO_LEITURA, formatarNcmLI, mesclarCorpoLI, montarCorpoDeCadastroLI } = await import("../src/lib/canaisDeVenda/li/corpo.js");
@@ -89,23 +89,27 @@ try {
 
   {
     console.log("\nRegras puras: descricao HTML");
-    conferir("escapa tag e e-comercial", textoParaHtmlLI("a <b> & c"), "<p>a &lt;b&gt; &amp; c</p>");
-    conferir("escapa aspas", textoParaHtmlLI(`diz "oi" e 'tchau'`), "<p>diz &quot;oi&quot; e &#39;tchau&#39;</p>");
-    conferir("quebra simples vira br, dupla vira paragrafo, CRLF vale um", textoParaHtmlLI("l1\r\nl2\r\n\r\nl3"), "<p>l1<br>l2</p><p>l3</p>");
-    conferir("vazio nao gera paragrafo", [textoParaHtmlLI("  \n "), textoParaHtmlLI(null)], ["", ""]);
-    const prod = { marca: "ARDUINO", modelo: "UNO R3", ean: "7891234567890", pesoKg: 0.5, alturaCm: 2, larguraCm: 12, comprimentoCm: 6, garantiaMeses: 3, numeroHomologacao: null };
-    conferir("especificacoes so com os preenchidos", blocoEspecificacoes(prod), "<h2>Especificações</h2><ul><li>Marca: ARDUINO</li><li>Modelo: UNO R3</li><li>GTIN: 7891234567890</li><li>Peso: 0,500 kg</li><li>Medidas: 6 x 12 x 2 cm</li><li>Garantia: 3 meses</li></ul>");
-    conferir("medidas so com as tres; decimal com virgula; garantia de 1 mes", blocoEspecificacoes({ alturaCm: 2.5, larguraCm: 12 , garantiaMeses: 1, numeroHomologacao: "0123-45-6789" }), "<h2>Especificações</h2><ul><li>Garantia: 1 mês</li><li>Homologação: 0123-45-6789</li></ul>");
-    conferir("medida decimal sem zero a direita", blocoEspecificacoes({ alturaCm: 2.5, larguraCm: 12.25, comprimentoCm: 6.1 }), "<h2>Especificações</h2><ul><li>Medidas: 6,1 x 12,25 x 2,5 cm</li></ul>");
-    conferir("especificacoes vazias nao geram bloco", blocoEspecificacoes({}), "");
-    conferir("documentos com nome escapado", blocoDocumentos([{ url: "https://x/y.pdf?v=2", nome: "Manual <v2>.pdf" }]), "<h2>Documentos</h2><ul><li><a href=\"https://x/y.pdf?v=2\">Manual &lt;v2&gt;.pdf</a></li></ul>");
-    conferir("documento com endereco que nao e http fica de fora", blocoDocumentos([{ url: "javascript:alert(1)", nome: "x" }]), "");
-    conferir("sem documentos nao ha bloco", [blocoDocumentos([]), blocoDocumentos(null)], ["", ""]);
-    const html = montarDescricaoLI({ descricao: "Texto & tal", especificacoes: false, produto: prod, documentos: [], frases: ["Com nota fiscal", ""] });
-    conferir("descricao final: texto e frases", html, "<p>Texto &amp; tal</p><p>Com nota fiscal</p>");
-    conferir("descricao final com especificacoes e documentos, na ordem", montarDescricaoLI({ descricao: "T", especificacoes: true, produto: { marca: "X" }, documentos: [{ url: "https://a/b.pdf", nome: "B" }], frases: ["F"] }), "<p>T</p><h2>Especificações</h2><ul><li>Marca: X</li></ul><h2>Documentos</h2><ul><li><a href=\"https://a/b.pdf\">B</a></li></ul><p>F</p>");
-    conferir("ida e volta pelo htmlParaTexto", htmlParaTexto(montarDescricaoLI({ descricao: "a <b>\nc\n\nd", especificacoes: false, produto: {}, documentos: [], frases: [] }), { paragrafos: true }), "a <b>\nc\n\nd");
-    conferir("ida e volta com aspas, & e CRLF", htmlParaTexto(montarDescricaoLI({ descricao: `Diz "x" & 'y'\r\nfim`, especificacoes: false, produto: {}, documentos: [], frases: [] }), { paragrafos: true }), `Diz "x" & 'y'\nfim`);
+    const P = (miolo) => `<p><span style="font-size:16px;">${miolo}</span></p>`;
+    conferir("escapa tag, e-comercial e aspas", montarDescricaoLI({ descricao: `a <b> & c "x" 'y'` }), P("a &lt;b&gt; &amp; c &quot;x&quot; &#39;y&#39;"));
+    conferir("quebra simples vira br, dupla vira paragrafo, CRLF vale um", montarDescricaoLI({ descricao: "l1\r\nl2\r\n\r\nl3" }), P("l1<br>l2") + P("l3"));
+    conferir("vazio nao gera nada", [montarDescricaoLI({ descricao: "  \n " }), montarDescricaoLI({ descricao: null })], ["", ""]);
+    const texto = "PLACA UNO R3\n\nA Placa faz X.\n\nEspecificações técnicas:\n- SRAM: 2KB;\n- Peso: 24g;\n\nItens inclusos: (Cód:100101)\n- 01 Placa;\n\nGarantia:\n- Garantia Legal de 90 dias;";
+    conferir(
+      "titulo do produto e titulos de secao em negrito; itens normais",
+      montarDescricaoLI({ descricao: texto }),
+      P("<strong>PLACA UNO R3</strong>") + P("A Placa faz X.") + P("<strong>Especificações técnicas:</strong><br>- SRAM: 2KB;<br>- Peso: 24g;") + P("<strong>Itens inclusos: (Cód:100101)</strong><br>- 01 Placa;") + P("<strong>Garantia:</strong><br>- Garantia Legal de 90 dias;"),
+    );
+    const docs = [{ url: "https://rise.exemplo/a.pdf?v=2", nome: "Datasheet <v2>.pdf" }, { url: "javascript:alert(1)", nome: "x" }];
+    const blocoDocs = P("<strong>Documentos / Arquivos para download:</strong><br>- <a href=\"https://rise.exemplo/a.pdf?v=2\">Datasheet &lt;v2&gt;.pdf</a>;");
+    conferir("documentos logo abaixo das Especificacoes tecnicas (so http)", montarDescricaoLI({ descricao: texto, documentos: docs }).includes(P("<strong>Especificações técnicas:</strong><br>- SRAM: 2KB;<br>- Peso: 24g;") + blocoDocs + P("<strong>Itens inclusos: (Cód:100101)</strong><br>- 01 Placa;")), true);
+    conferir("sem Especificacoes, documentos acima de Garantia", montarDescricaoLI({ descricao: "Texto.\n\nGarantia:\n- 90 dias;", documentos: docs }), P("Texto.") + blocoDocs + P("<strong>Garantia:</strong><br>- 90 dias;"));
+    conferir("sem as duas secoes, documentos no fim do texto, antes das frases", montarDescricaoLI({ descricao: "Texto.", documentos: docs, frases: ["Com nota fiscal"] }), P("Texto.") + blocoDocs + P("Com nota fiscal"));
+    conferir("sem documento com http, nao ha secao", montarDescricaoLI({ descricao: "Texto.", documentos: [{ url: "javascript:x", nome: "x" }] }), P("Texto."));
+    conferir("frases cada uma num paragrafo; frase vazia sai", montarDescricaoLI({ descricao: "Texto & tal", frases: ["Com nota fiscal", ""] }), P("Texto &amp; tal") + P("Com nota fiscal"));
+    conferir("linha de lista que termina em dois-pontos nao vira titulo", montarDescricaoLI({ descricao: "Uso:\n- Tensao:" }), P("<strong>Uso:</strong><br>- Tensao:"));
+    conferir("ida e volta pelo htmlParaTexto", htmlParaTexto(montarDescricaoLI({ descricao: "a <b>\nc\n\nd" }), { paragrafos: true }), "a <b>\nc\n\nd");
+    conferir("ida e volta com aspas, & e CRLF", htmlParaTexto(montarDescricaoLI({ descricao: `Diz "x" & 'y'\r\nfim` }), { paragrafos: true }), `Diz "x" & 'y'\nfim`);
+    conferir("ida e volta com titulos e documentos", htmlParaTexto(montarDescricaoLI({ descricao: "PLACA\n\nGarantia:\n- 90 dias;", documentos: docs }), { paragrafos: true }), "PLACA\n\nDocumentos / Arquivos para download:\n- Datasheet <v2>.pdf;\n\nGarantia:\n- 90 dias;");
     conferir("htmlParaTexto sem a opcao continua como o Bling usa", htmlParaTexto("<p>a</p><p>b</p>"), "a\nb");
   }
 
@@ -115,8 +119,8 @@ try {
     conferir("campos so de leitura: origem e tipo de producao", CAMPOS_SO_LEITURA_LI.map((c) => c.id), ["origem", "tipoProducao"]);
     conferir("texto do tipo de producao e o medido na LI", TEXTO_DO_TIPO_PRODUCAO, { REVENDA: "Revenda", FABRICACAO_PROPRIA: "Fabricação própria" });
     conferir("tipo de producao da LI pelo texto", [TIPO_PRODUCAO_DA_LI("Revenda"), TIPO_PRODUCAO_DA_LI("Fabricação própria"), TIPO_PRODUCAO_DA_LI("outro"), TIPO_PRODUCAO_DA_LI(null)], ["REVENDA", "FABRICACAO_PROPRIA", null, null]);
-    const produtoRise = { tituloBase: "x", ncm: "8537.10.20", ean: "7894972605270", modelo: "FX3U", pesoKg: "0.5", alturaCm: "2.3", larguraCm: "12", comprimentoCm: "6.01", origem: 0, tipoProducao: "REVENDA" };
-    const rasc = { titulo: " CLP FX3U ", slug: "clp-fx3u", descricao: "Texto", marca: "Mitsubishi", categorias: ["23983023", "5946305", "23983023"], destaque: false, videoUrl: null, seo: { title: "t".repeat(80), description: "" }, especificacoes: false };
+    const produtoRise = { tituloBase: "x", descricaoBase: "Texto", ncm: "8537.10.20", ean: "7894972605270", modelo: "FX3U", pesoKg: "0.5", alturaCm: "2.3", larguraCm: "12", comprimentoCm: "6.01", origem: 0, tipoProducao: "REVENDA" };
+    const rasc = { titulo: " CLP FX3U ", slug: "clp-fx3u", marca: "Mitsubishi", categorias: ["23983023", "5946305", "23983023"], destaque: false, videoUrl: null, seo: { title: "t".repeat(80), description: "" } };
     const rise = normalizarDoRiseLI(produtoRise, rasc, { frases: [], documentos: [] });
     conferir("rise normalizado", rise, { nome: "CLP FX3U", slug: "clp-fx3u", descricao: "Texto", ncm: "85371020", gtin: "7894972605270", mpn: "FX3U", peso: 0.5, altura: 3, largura: 12, comprimento: 7, marca: "MITSUBISHI", categorias: ["23983023", "5946305"], video: null, destaque: false, seoTitulo: "t".repeat(70), seoDescription: null, origem: 0, tipoProducao: "REVENDA" });
     const produtoLI = { id: 1, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<p>Texto</p>", ncm: "8537.10.20", gtin: "7894972605270", mpn: "FX3U", peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: "0", production_type: TEXTO_DO_TIPO_PRODUCAO.REVENDA, seo_title: "", seo_description: "" };
@@ -143,8 +147,8 @@ try {
   {
     console.log("\nRegras puras: corpo do cadastro e mesclagem do PUT");
     const rise = normalizarDoRiseLI(
-      { ncm: "8537.10.20", ean: "7894972605270", modelo: "FX3U", pesoKg: "0.5", alturaCm: "2.3", larguraCm: "12", comprimentoCm: "6.01", origem: 0, tipoProducao: "REVENDA" },
-      { titulo: "CLP FX3U", slug: "clp-fx3u", descricao: "Texto", marca: "Mitsubishi", categorias: ["5946305"], destaque: false, videoUrl: null, seo: { title: "S", description: "" } },
+      { descricaoBase: "Texto", ncm: "8537.10.20", ean: "7894972605270", modelo: "FX3U", pesoKg: "0.5", alturaCm: "2.3", larguraCm: "12", comprimentoCm: "6.01", origem: 0, tipoProducao: "REVENDA" },
+      { titulo: "CLP FX3U", slug: "clp-fx3u", marca: "Mitsubishi", categorias: ["5946305"], destaque: false, videoUrl: null, seo: { title: "S", description: "" } },
       {},
     );
     const produtoLI = { id: 1, resource_uri: "/api/v1/produto/1", url: "/clp-fx3u", seo: "/api/v1/seo/9", imagens: [{ id: 3 }], preco_cheio: "10.00", estoque_quantidade: 5, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<p>Texto</p>", ncm: "8537.10.20", gtin: "7894972605270", mpn: "FX3U", peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: null, production_type: null, seo_title: "", seo_description: "", tags: [] };
@@ -169,8 +173,8 @@ try {
     console.log("\nRegras puras: rascunho, esquema e validacao");
     const ctxProd = { id: "p1", sku: "100404", tituloBase: "CLP FX3U 24MR", descricaoBase: "Linha 1\n\nLinha 2", marca: "MITSUBISHI", conferido: true, ncm: "85371020", origem: 0, tipoProducao: "REVENDA", ean: "x", pesoKg: 0.5, alturaCm: 2, larguraCm: 12, comprimentoCm: 6, videoUrl: null };
     const inicial = rascunhoInicialLI(ctxProd);
-    conferir("rascunho inicial", inicial, { produtoId: "p1", titulo: "CLP FX3U 24MR", slug: "clp-fx3u-24mr", descricao: "Linha 1\n\nLinha 2", marca: "MITSUBISHI", categorias: [], destaque: false, videoUrl: null, seo: { title: "CLP FX3U 24MR", description: "Linha 1" }, especificacoes: true });
-    conferir("rascunho inicial de produto sem texto", rascunhoInicialLI({ id: "p2" }), { produtoId: "p2", titulo: "", slug: "", descricao: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" }, especificacoes: true });
+    conferir("rascunho inicial", inicial, { produtoId: "p1", titulo: "CLP FX3U 24MR", slug: "clp-fx3u-24mr", marca: "MITSUBISHI", categorias: [], destaque: false, videoUrl: null, seo: { title: "CLP FX3U 24MR", description: "Linha 1" } });
+    conferir("rascunho inicial de produto sem texto", rascunhoInicialLI({ id: "p2" }), { produtoId: "p2", titulo: "", slug: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" } });
     conferir("vinculo traz slug, categorias e destaque da LI", rascunhoDaLI(inicial, { slug: "clp-da-li", categorias: ["1", "2"], destaque: true, nome: "Outro" }), { ...inicial, slug: "clp-da-li", categorias: ["1", "2"], destaque: true });
     conferir("vinculo sem slug na LI mantem o do rascunho", rascunhoDaLI(inicial, { slug: null, categorias: [], destaque: false }).slug, "clp-fx3u-24mr");
     conferir("titulo ate 255 (limite medido na LI)", LIMITES_LI.titulo, 255);
@@ -178,7 +182,7 @@ try {
     conferir("esquema descarta chave estranha e aceita o rascunho", [lido.success, "extra" in (lido.data ?? {})], [true, false]);
     conferir("esquema recusa categorias que nao sao texto", RascunhoLISchema.safeParse({ ...inicial, categorias: [1] }).success, false);
     conferir("esquema recusa titulo acima de 255", RascunhoLISchema.safeParse({ ...inicial, titulo: "x".repeat(256) }).success, false);
-    conferir("esquema completa o que faltar", RascunhoLISchema.parse({ produtoId: "p3" }), { produtoId: "p3", titulo: "", slug: "", descricao: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" }, especificacoes: true });
+    conferir("esquema completa o que faltar", RascunhoLISchema.parse({ produtoId: "p3" }), { produtoId: "p3", titulo: "", slug: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" } });
     conferir("ABAS_LI", ABAS_LI.map((a) => a.id), ["geral", "seo", "descricao", "fiscal", "envio", "previa"]);
     conferir("rotulo da ultima aba", ABAS_LI.at(-1).rotulo, "Previa e sincronizacao");
     const problemas = validarRascunhoLI({ ...inicial, titulo: "", slug: "Ré", categorias: ["9"], seo: { title: "t".repeat(71), description: "" } }, { produto: { ...ctxProd, conferido: false, ncm: null }, categoriasDaLI: [{ id: "1" }] });
@@ -312,7 +316,7 @@ try {
     conferir("icone: nunca sincronizado e cinza sem selo", estadoDoIconeLI({ conferido: true, sincronizadoEm: null, assinaturaGuardada: null, assinaturaAtual: "b" }), { cor: "cinza", divergente: false, conferido: true });
     const produtoIcone = { id: "p", sku: "X", conferido: true, ncm: "85371020", pesoKg: 0.5 };
     const anuncioIcone = { produtoId: "p", titulo: "CLP", descricao: "Texto", dados: { slug: "clp", categorias: ["5"] }, sincronizadoEm: new Date() };
-    const assinaturaCerta = assinaturaLI(normalizarDoRiseLI(produtoIcone, { produtoId: "p", titulo: "CLP", slug: "clp", descricao: "Texto", marca: "", categorias: ["5"], destaque: false, videoUrl: null, seo: { title: "", description: "" }, especificacoes: true }, { frases: [], documentos: [] }));
+    const assinaturaCerta = assinaturaLI(normalizarDoRiseLI(produtoIcone, { produtoId: "p", titulo: "CLP", slug: "clp", marca: "", categorias: ["5"], destaque: false, videoUrl: null, seo: { title: "", description: "" } }, { frases: [], documentos: [] }));
     conferir("iconeLIDoProduto: igual ao guardado e verde", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: [], documentos: [] }), { cor: "verde", divergente: false, conferido: true });
     conferir("iconeLIDoProduto: frase nova acende o selo", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: ["Com nota"], documentos: [] }).divergente, true);
     conferir("iconeLIDoProduto: sem anuncio e cinza", iconeLIDoProduto(produtoIcone, null, {}), { cor: "cinza", divergente: false, conferido: true });
@@ -387,7 +391,7 @@ try {
     await salvarRascunhoLI(anuncioAntes.id, { ...rascunhoDoAnuncio(anuncioAntes), categorias: ["5", "999"], seo: { title: "Rele Arduino", description: "D" } });
     const envio = await sincronizarProdutoLI(pe.id, li3);
     // Origem e tipo de producao NAO entram: a API nao os grava (medido em 07/10/2026).
-    conferir("sincronizou; categoria morta ignorada; marca achada sem acento", [envio.ok, envio.alterados.map((a) => a.campo).sort(), envio.marcaCriada, envio.categoriasIgnoradas], [true, ["altura", "comprimento", "descricao", "largura", "marca", "ncm", "nome", "peso", "seoDescription", "seoTitulo"], null, ["999"]]);
+    conferir("sincronizou; categoria morta ignorada; marca achada sem acento", [envio.ok, envio.alterados.map((a) => a.campo).sort(), envio.marcaCriada, envio.categoriasIgnoradas], [true, ["altura", "comprimento", "largura", "marca", "ncm", "nome", "peso", "seoDescription", "seoTitulo"], null, ["999"]]);
     const naLI = li3.produtos().find((p) => p.id === 601);
     conferir("PUT inteiro preservou imagens, categorias, preco e estoque da LI e trocou o nome", [naLI.imagens.length, naLI.categorias, naLI.nome, naLI.marca, naLI.preco_cheio, naLI.estoque_quantidade], [1, ["/api/v1/categoria/5"], "Modulo Rele", "/api/v1/marca/2", "10.00", 4]);
     conferir("medidas inteiras e NCM com pontos na LI", [naLI.altura, naLI.largura, naLI.profundidade, naLI.ncm], [2, 2, 3, "8536.49.00"]);
