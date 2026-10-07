@@ -2454,6 +2454,18 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
 - **Ícone:** cinza = nunca sincronizado ou não Conferido; verde = sincronizado; selo "!" = a assinatura (Rise + rascunho +
   frases + documentos) mudou desde o último envio. Mudar uma frase fixa acende o selo dos sincronizados.
 
+### Primeiro envio real (07/10/2026, produto 100101, com ok do dono)
+
+Travas abertas só no processo de um script (`LI_ESCRITA=true LI_ESCRITA_CODIGOS=100101`), `.env` intocado.
+- **A primeira tentativa recusou antes da trava, sem escrever nada:** o vínculo trouxe o slug `produto/...html`. Produto
+  antigo da loja tem a URL `/produto/<slug>.html` (o novo, `/<slug>`); `normalizarDaLI` passou a tirar o `produto/`
+  e o `.html`.
+- **Depois:** `PUT /v1/produto/204930845` → 200 e `PUT /v1/seo/88716201` → 200. Mudaram nome, descrição (com a lista
+  de Especificações), MPN, peso, medidas (7 x 6 x 1 cm) e SEO. **Preço, estoque, ativo, categorias, destaque, fotos (5),
+  marca, GTIN e a URL principal ficaram iguais** (comparado com a cópia em `CopiaProdutoCanal`). A releitura mostrou só
+  o GTIN como "só tem na loja" (o Rise está vazio, e vazio não apaga).
+- O `apelido` voltou da LI com uma barra na frente (`/placa-...`): a LI normaliza o que recebe; a URL não mudou.
+
 ### Travas
 
 `LI_ESCRITA` (geral) e `LI_ESCRITA_CODIGOS` (SKUs liberados; **vazia libera todos**), lidas uma vez na partida. Teste de
@@ -2462,7 +2474,6 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
 
 ### Pendências
 
-- **Primeiro Sincronizar real num produto do dono** (gate da Tarefa 17): ainda não feito.
 - **O servidor da porta 3000 precisa reiniciar** depois da migration: com o cliente Prisma antigo, `/novo`, o editor e o
   pop-up caem em "Unknown field tipoProducao". As abas do editor e o pop-up com diferenças reais **não foram vistos na tela**.
 - Fotos (`POST /produto_imagem`) e documentos: na VPS. Webhooks, pedidos e importação dos 44 só-LI: fora desta fase.
