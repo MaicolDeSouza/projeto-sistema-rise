@@ -92,16 +92,16 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 | Bloco | Situação |
 | --- | --- |
 | Produtos | Cadastro completo — é a base de que todo anúncio deriva. Cadastro novo com importação do Bling, busca por código, referências de mercado e título/descrição por IA (Anthropic). Sincronização com o Bling: ícone na lista, pop-up de diferenças, envio de campos e de ajustes de estoque e botão "Sincronizar estoque com Bling"; a **escrita no Bling está travada** |
-| Integrações | Bling e ML conectados e testados; Loja Integrada via Bling |
+| Integrações | Bling e ML conectados e testados; Loja Integrada pelo Personal Token (API direta para o conteúdo; estoque, preço e pedidos seguem pelo Bling) |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
-| Canais de Venda | Mercado Livre: rascunho de anúncio simples e de composição/kit (salvar, pop-up pelo ícone na lista de Produtos e página própria, frases fixas), **sem publicar**. Loja Integrada e Shopee são só cartões "em breve" |
+| Canais de Venda | Mercado Livre: rascunho de anúncio simples e de composição/kit (salvar, pop-up pelo ícone na lista de Produtos e página própria, frases fixas), **sem publicar**. Loja Integrada: editor por abas (Geral, SEO, Descrição, Fiscal, Envio, Prévia) com categorias ao vivo, ícone com selo e pop-up de diferenças na lista de Produtos, Cadastrar e Sincronizar **sob trava** (`LI_ESCRITA=false`). Shopee é só cartão "em breve" |
 | Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
-**A publicação nunca foi ligada.** `ML_PUBLICACAO` e `BLING_ESCRITA` estão em `false`, e
+**A publicação nunca foi ligada.** `ML_PUBLICACAO`, `BLING_ESCRITA` e `LI_ESCRITA` estão em `false`, e
 `exigirTravaLiberada` em `src/lib/integracoes/config.js` barra todo `POST`/`PUT` antes da
 requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue sem pedir. Em 05/10/2026 houve um
 teste de escrita real no Bling com UM produto de teste (`ZZ-TESTE-BLING`), com as travas abertas só no ambiente
@@ -130,6 +130,8 @@ npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
 npm run teste:anuncios-ml         # 346 asserções do rascunho de anúncio do Mercado Livre: composição, validação, payload, ícone, gravação e frases fixas (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
+npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:bling-sync          # 664 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 ```
 
@@ -236,12 +238,13 @@ o Docker Desktop travava ao abrir e o sistema ficava sem banco.
 
 ### Loja Integrada
 
-- A API exige **Chave de Aplicação**, emitida só a provedores de solução, e a solicitação
-  para lojistas **está suspensa**. Confirmado: com app key inválida vem
-  `401 "Chave de Aplicação não encontrada"` — o que valida o formato do header.
-- Até reabrirem, **o canal é atendido pelo Bling**, que tem chave própria.
-- As URLs de produto são baseadas no **nome** e editáveis — não dá para deduzi-las do id.
-  Por isso `Produto.urlLojaIntegrada` é preenchido à mão.
+- **Autenticação: Personal Token** do proprietário, em `Authorization: Basic <token>` (a Chave de Aplicação, emitida
+  só a provedores, continua suspensa para lojistas e não é usada). API em `https://api.awsli.com.br/v1`, **100
+  requisições por minuto por loja** (o cliente limita a 90). Listagens em no máximo 100 (`limit=200` dá 400).
+- **O que a API grava e o que não grava foi MEDIDO** em 07/10/2026 no produto de teste: ver "Canais de Venda: Loja
+  Integrada" (origem e tipo de produção são só leitura; SEO só pelo `/seo`; `categorias: []` apaga; medidas inteiras).
+- As URLs de produto são baseadas no **nome** e editáveis — não dá para deduzi-las do id. O vínculo pelo SKU grava
+  `Produto.urlLojaIntegrada` com `LI_DOMINIO` + o `url` da loja.
 
 ### Mercados (coleta de concorrentes e fornecedores)
 
@@ -2385,6 +2388,85 @@ Mesmo esquema (travas abertas só no ambiente do script, `.env` intocado):
   estoque" no mesmo instante pode contar o ajuste em dobro no número LOCAL do Rise até o próximo clique (o Bling
   fica certo).
 - **CNPJ alfanumérico** (o novo formato de 2026) não é tratado pela busca por CNPJ.
+
+## Canais de Venda: Loja Integrada (06 a 07/10/2026)
+
+Pedido do dono em 06/10/2026: o Rise passa a ser a origem do **conteúdo** dos produtos da Loja Integrada (LI), na
+mesma sequência do Bling e do Mercado Livre (ícone na lista, pop-up de diferenças, travas, teste com um produto, depois
+liberar). A NF-e é emitida **pela própria LI**, então NCM e GTIN têm que chegar certos. Spec:
+`docs/superpowers/specs/2026-10-06-loja-integrada-design.md`; plano: `docs/superpowers/plans/2026-10-06-loja-integrada.md`;
+levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 8):
+`docs/superpowers/investigacoes/2026-10-06-loja-integrada-levantamento.md`. **A escrita segue travada** (`LI_ESCRITA=false`).
+
+### O que o dono decidiu (06/10/2026)
+
+- **O Bling continua dono de ESTOQUE, PREÇO e PEDIDOS na LI** (canal `Loja_Integrada` 203478870, confirmado pelo dono).
+  O Rise **nunca** escreve `produto_preco` nem `produto_estoque`.
+- **Só Produto Conferido** vincula, cadastra e sincroniza (conferido no servidor em toda ação).
+- **Fotos e documentos esperam a VPS** (a LI só aceita imagem por URL pública). O bloco "Documentos" da descrição está
+  pronto e desligado enquanto `APP_URL_PUBLICA` estiver vazio.
+- Os **44 produtos que só existem na LI** ficam ignorados; no NCM **o Rise vence** (77 divergentes medidos).
+- **Abordagem híbrida:** editor por abas (molde do ML) + ícone com selo e pop-up de diferenças (molde do Bling).
+- **Categorias ao vivo:** a lista vem da LI na hora (o dono está renovando a árvore do site), em árvore, várias por produto.
+
+### Medido na LI real em 07/10/2026 (produto de teste `ZZ-TESTE-LI`, id 404334430, inativo; fica até o dono apagar)
+
+- **Origem (`icms_origin_code`) e tipo de produção (`production_type`) NÃO são graváveis pela API**: o `PUT` do produto
+  os ignora (200) e o `PATCH` dá 405. Ficaram **só leitura**: o pop-up compara com o cadastro e avisa "ajuste no painel da
+  LI"; não contam como divergência (o selo nunca apagaria). `Produto.tipoProducao` existe para essa comparação.
+- **SEO só pelo `PUT /v1/seo/{id}`** (o `PUT` do produto ignora `seo_title`/`seo_description`).
+- **`PUT` do produto inteiro:** aceita até as chaves só de leitura, mas o Rise as tira (`CHAVES_SO_LEITURA`): devolver
+  `preco_cheio`/`estoque_quantidade` lidos segundos antes desfaria o Bling. **`categorias: []` e `marca: null` explícitos
+  APAGAM**; sem a chave, mantém. Lista vazia no Rise nunca entra no corpo.
+- **Medidas só inteiras** (decimal = 400 com corpo vazio): o envio faz `Math.ceil`. Nome até 255. NCM guardado como
+  enviado (vai `8537.10.20`). SKU repetido no `POST` = **400** com `error[].sku` (não 409). `?sku=` filtra.
+- **`/alias?replace_main=true`** muda o `url` (301 do antigo) e **mantém o `apelido`**: o slug atual é o `url`.
+- `descricao_completa` preserva `<h2>`, `<ul>`, `&amp;` e `<a href>` byte a byte.
+
+### Onde mora cada parte
+
+- **Lib** (`src/lib/canaisDeVenda/li/`): `slug.js`, `seo.js`, `descricao.js` (HTML: texto escapado, Especificações,
+  Documentos, frases), `campos.js` (normalização dos dois lados, assinatura, diferenças, avisos fiscais; **só servidor**),
+  `corpo.js` (POST e mesclagem do PUT), `rascunho.js`, `esquema.js` (zod), `validacao.js` (`ABAS_LI`), `banco.js`
+  (rascunho, vínculo pelo SKU, lista), `cliente.js` (as duas travas), `leitura.js` (busca, detalhe, categorias, marcas,
+  pop-up), `envio.js` (Sincronizar e Cadastrar), `estado.js` (ícone), `apresentacao.js` (o único que o navegador importa),
+  `rotulos.js`. O cliente HTTP, a paginação e os normalizadores do handoff ficam em `src/lib/integracoes/lojaIntegrada/`.
+- **Tela:** `src/app/canais-de-venda/loja-integrada/` (lista, `novo`, `[id]`, `configuracoes`, `acoes.js`),
+  `src/app/produtos/acoes-li.js`, `src/components/anuncios/li/` (editor por abas, `ArvoreDeCategorias`, `JanelaAnuncioLI`),
+  `src/components/produtos/IconeLojaIntegrada.jsx` e `JanelaLojaIntegrada.jsx`.
+- **Banco:** migration `20261006_loja_integrada` (`Produto.tipoProducao`, `CopiaProdutoCanal`). O rascunho mora em `Anuncio`
+  (canal LOJA_INTEGRADA, **um por produto**, índice parcial `Anuncio_um_por_produto`): título e descrição em coluna, o resto
+  (slug, marca, categorias, destaque, vídeo, SEO, especificações) em `dados`. Anúncio vinculado (PUBLICADO) **continua
+  editável**: é dele que o Sincronizar lê.
+- **Teste:** `npm run teste:li-sync` (LI falsa em `scripts/lib/lojaIntegradaFalsa.js`, que reproduz o medido e é **mais dura**
+  que a real só em `CHAVES_SO_LEITURA`; Postgres, só escreve produtos `ZZ-LI-*`).
+
+### Fluxos
+
+- **Vínculo:** a primeira abertura do pop-up de um produto Conferido que já existe na LI grava `idExterno`, `urlExterna` e o
+  link em `Produto.urlLojaIntegrada`; slug, categorias e destaque **vêm da loja** para o rascunho.
+- **Sincronizar** (etapas: trava, leitura, marca, produto, seo, slug, gravação): só os campos diferentes; marca achada sem
+  caixa e sem acento (`POST /marca` só se não houver); categoria do rascunho que sumiu da loja sai do envio
+  (`categoriasIgnoradas`); cópia do GET em `CopiaProdutoCanal` (3 por produto) antes do PUT; falha depois da trava deixa o
+  anúncio em ERRO com a etapa e a assinatura intacta.
+- **Cadastrar:** recusa sem NCM e SKU que já existe (ou está na lixeira); cria **inativo**; o vínculo é gravado logo após o
+  POST (se o SEO falhar depois, o próximo clique não duplica).
+- **Ícone:** cinza = nunca sincronizado ou não Conferido; verde = sincronizado; selo "!" = a assinatura (Rise + rascunho +
+  frases + documentos) mudou desde o último envio. Mudar uma frase fixa acende o selo dos sincronizados.
+
+### Travas
+
+`LI_ESCRITA` (geral) e `LI_ESCRITA_CODIGOS` (SKUs liberados; **vazia libera todos**), lidas uma vez na partida. Teste de
+escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <script>` (o `dotenv` não sobrescreve).
+`exigirEscrita(sku)` antes da primeira escrita; nenhuma escrita repete sozinha.
+
+### Pendências
+
+- **Primeiro Sincronizar real num produto do dono** (gate da Tarefa 17): ainda não feito.
+- **O servidor da porta 3000 precisa reiniciar** depois da migration: com o cliente Prisma antigo, `/novo`, o editor e o
+  pop-up caem em "Unknown field tipoProducao". As abas do editor e o pop-up com diferenças reais **não foram vistos na tela**.
+- Fotos (`POST /produto_imagem`) e documentos: na VPS. Webhooks, pedidos e importação dos 44 só-LI: fora desta fase.
+- `POST /marca` nunca foi exercitado na API real (só na LI falsa).
 
 ## Decisões de arquitetura
 

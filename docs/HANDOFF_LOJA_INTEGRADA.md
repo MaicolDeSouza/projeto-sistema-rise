@@ -1,3 +1,5 @@
+> **Superado pela spec de 06/10/2026** (`docs/superpowers/specs/2026-10-06-loja-integrada-design.md`) e pela execucao do plano em 07/10/2026: o cliente, a paginacao e os normalizadores ficaram; o vinculo externo, a importacao e os webhooks sairam. Mantido como historico.
+
 # Handoff técnico — Integração Rise × Loja Integrada
 
 **Atualizado em:** 6 de outubro de 2026  
