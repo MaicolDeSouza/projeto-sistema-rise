@@ -5,6 +5,8 @@ import { LIMITE_TITULO_ML } from "@/lib/limites";
 import { linhaDeDimensoes, linhaDePeso, medidasDoProdutoColetado } from "@/lib/medidas";
 import { casaPalavra, indiceDePalavras, normalizar, palavrasDoTermo } from "@/lib/texto";
 
+import { limparSugestoesDeCategoria, montarPedidoDeCategorias } from "@/lib/canaisDeVenda/li/categorias";
+
 import { PADRAO_TITULO } from "./padraoTitulo";
 import { idDaCaracteristica, identificarDivergencias } from "./divergencias";
 import { compactarUnidades, normalizarTerminologiaEletrica } from "./revisaoDescricao";
@@ -380,6 +382,45 @@ export async function gerarDescriptionsSeo({ titulo = "", descricao = "", concor
     throw new Error(`A IA não conseguiu descriptions de ${FAIXA_DESCRIPTION_SEO.minimo} a ${FAIXA_DESCRIPTION_SEO.maximo} caracteres. Tente de novo.`);
   }
   return opcoes;
+}
+
+const FORMATO_CATEGORIAS = {
+  type: "json_schema",
+  schema: {
+    type: "object",
+    properties: {
+      categorias: {
+        type: "array",
+        items: { type: "object", properties: { id: { type: "string" }, motivo: { type: "string" } }, required: ["id", "motivo"], additionalProperties: false },
+      },
+    },
+    required: ["categorias"],
+    additionalProperties: false,
+  },
+};
+
+/**
+ * Sugere a(s) categoria(s) da Loja Integrada para o produto (pedido do dono em 07/10/2026). A IA so
+ * escolhe da arvore real da loja, pelo id; o que nao existe nela e descartado (`limparSugestoesDeCategoria`).
+ */
+export async function sugerirCategoriasIA({ titulo = "", marca = "", descricao = "", categorias = [] }) {
+  if (!categorias.length) throw new Error("A lista de categorias da loja não foi lida. Recarregue as categorias e tente de novo.");
+  const texto = await chamar({
+    tarefa: "categoria-li",
+    quantidade: 0,
+    sistema: SISTEMA,
+    pedido: montarPedidoDeCategorias({ titulo, marca, descricao, categorias }),
+    formato: FORMATO_CATEGORIAS,
+  });
+  let bruto;
+  try {
+    bruto = JSON.parse(texto).categorias;
+  } catch {
+    throw new Error("A IA devolveu as categorias em formato inesperado. Tente de novo.");
+  }
+  const sugestoes = limparSugestoesDeCategoria(bruto, categorias);
+  if (!sugestoes.length) throw new Error("A IA não achou uma categoria da loja para este produto. Escolha na árvore.");
+  return sugestoes;
 }
 
 /// Texto fixo do fim da descricao, igual em todo anuncio da loja (modelo do dono).

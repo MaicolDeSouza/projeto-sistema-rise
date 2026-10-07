@@ -648,6 +648,29 @@ try {
     conferir("Bling recusa: ok false com o HTTP e o motivo", [recusado.ok, /HTTP 400/.test(recusado.erro ?? ""), /Recusado/.test(recusado.erro ?? "")], [false, true, true]);
   }
 
+  {
+    console.log("\nCategorias: sugestao da IA");
+    const { MAXIMO_DE_SUGESTOES, comAncestrais, limparSugestoesDeCategoria, montarPedidoDeCategorias } = await import("../src/lib/canaisDeVenda/li/categorias.js");
+    const arvore = [
+      { id: "1", nome: "Embarcados", paiId: null, caminho: "Embarcados" },
+      { id: "2", nome: "Arduino", paiId: "1", caminho: "Embarcados > Arduino" },
+      { id: "3", nome: "Placas Arduino", paiId: "2", caminho: "Embarcados > Arduino > Placas Arduino" },
+      { id: "4", nome: "Sensores", paiId: null, caminho: "Sensores" },
+    ];
+    conferir("no maximo 3 sugestoes", MAXIMO_DE_SUGESTOES, 3);
+    conferir(
+      "limpar: id que nao existe sai, repetido vira um, motivo fica, e o caminho vem da arvore",
+      limparSugestoesDeCategoria([{ id: "3", motivo: "E uma placa" }, { id: 99, motivo: "x" }, { id: "3", motivo: "de novo" }, { id: "4" }], arvore),
+      [{ id: "3", caminho: "Embarcados > Arduino > Placas Arduino", motivo: "E uma placa" }, { id: "4", caminho: "Sensores", motivo: "" }],
+    );
+    conferir("limpar: corta em 3", limparSugestoesDeCategoria([{ id: "1" }, { id: "2" }, { id: "3" }, { id: "4" }], arvore).length, 3);
+    conferir("limpar: resposta torta vira lista vazia", limparSugestoesDeCategoria(null, arvore), []);
+    conferir("marcar leva as categorias-pai junto (como o 100101 esta na loja), sem repetir", comAncestrais(["3", "2"], arvore).sort(), ["1", "2", "3"]);
+    conferir("pai que sumiu da arvore nao entra", comAncestrais(["3"], arvore.filter((c) => c.id !== "1")).sort(), ["2", "3"]);
+    const pedido = montarPedidoDeCategorias({ titulo: "Placa Uno R3", marca: "GENERICA", descricao: "A placa faz X.", categorias: arvore });
+    conferir("o pedido leva o produto e a arvore com os ids", [pedido.includes("Placa Uno R3"), pedido.includes("A placa faz X."), pedido.includes("3: Embarcados > Arduino > Placas Arduino")], [true, true, true]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;

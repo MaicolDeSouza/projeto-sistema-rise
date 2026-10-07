@@ -2509,6 +2509,12 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   produto (`fotosDoProduto`, só `papel: FOTO`; a capa é a primeira), guardadas em `rascunho.imagens`. O **envio espera a
   VPS** (a LI só aceita imagem por URL pública): as fotos não entram na assinatura nem no Sincronizar. Anúncio novo nasce
   com todas as fotos, a principal na frente.
+- **Categorias pela IA** (pedido do dono em 07/10/2026): botão "Sugerir com IA" na aba Categorias. A IA recebe o nome,
+  a marca, a descrição e a árvore da loja inteira ("id: caminho", uma por linha) e devolve até 3 ids com um motivo
+  (`sugerirCategoriasIA` em `ia/anuncio.js`, regras puras em `li/categorias.js`). Id que não existe na árvore sai, e o
+  caminho mostrado vem da árvore, nunca do texto da IA. Nada é marcado até "Marcar estas", que marca as sugeridas **com
+  as categorias-pai** (`comAncestrais`, como o 100101 está na loja) e mantém as que já estavam marcadas. Gravar continua
+  sendo o Salvar. **A chamada real nunca foi vista** (é paga; o primeiro uso é do dono).
 - **URL (slug):** produto que **já está na loja mantém a URL de hoje** (decisão do dono em 07/10/2026, que desfez a
   de trocar pela do nome: o Google já indexou). O slug saiu dos campos comparados e o Sincronizar **não chama mais o
   `/alias`**. Só o produto novo nasce com `slugDe(nome)`, como `apelido` no Cadastrar. A aba SEO mostra a URL de hoje
@@ -2539,8 +2545,11 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   (201, releitura "ligado", preço 15). **Em 10 minutos o Bling NÃO mandou estoque nem preço** à LI (preço vazio, estoque
   0, `estoque_gerenciado` false, nenhuma modificação): ligar não dispara envio. **Uma entrada de estoque de 1 unidade
   enviada pelo Rise ao Bling (5 → 6) chegou à LI em menos de 1 minuto: estoque 6 e `estoque_gerenciado` true.** O
-  preço continuou vazio: o Bling manda estoque quando o estoque muda, e o preço provavelmente só quando o preço muda (não
-  medido). Produto novo ligado no Bling precisa de uma mudança de estoque (e de preço) para a LI receber. ZZ-TESTE-BLING
+  preço continuou vazio. **Mudar o preço do produto no Bling também NÃO chegou à LI** (medido em 07/10/2026: o
+  Sincronizar do Rise mandou `PATCH` com o preço 15 → 16; 23 minutos depois a LI seguia com `preco_cheio` vazio). O preço
+  do VÍNCULO com a loja (`/produtos/lojas`) é outro número e não acompanhou: continuou 15 com o produto em 16. Ainda não
+  medido: se o Bling manda o preço quando o preço DO VÍNCULO muda, ou se a integração da LI no Bling está com o envio de
+  preço desligado (conferir na tela de configuração da integração). Até lá, o preço da LI não chega pelo Bling. ZZ-TESTE-BLING
   (404349127) e o vínculo ficam até o dono apagar. selo "!" = a assinatura (Rise + rascunho +
   documentos) mudou desde o último envio. **A LI regrava `<br>` como `<br />\r\n`**: `htmlParaTexto(..., { paragrafos:
   true })` trata quebra crua do HTML como espaço, senão a descrição ficava "diferente" para sempre.

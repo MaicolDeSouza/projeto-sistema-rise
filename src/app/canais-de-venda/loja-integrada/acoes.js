@@ -8,7 +8,7 @@ import { ligarNoBlingLI, vinculoBlingNaLI } from "@/lib/canaisDeVenda/li/blingLo
 import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
 import { listarCategoriasDaLI, listarMarcasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
 import { seoDosConcorrentes } from "@/lib/canaisDeVenda/li/seoConcorrentes";
-import { gerarDescriptionsSeo } from "@/lib/ia/anuncio";
+import { gerarDescriptionsSeo, sugerirCategoriasIA } from "@/lib/ia/anuncio";
 
 /**
  * Acoes do servidor do canal Loja Integrada (Canais de Venda): o editor do anuncio e
@@ -120,6 +120,23 @@ export async function gerarSeoIALI(produtoId, titulo) {
   } catch (erro) {
     console.error("[loja integrada] seo com IA", erro);
     return { ok: false, erro: erro.message || "Não foi possível gerar com a IA. Tente de novo." };
+  }
+}
+
+/**
+ * Categoria pela IA (pedido do dono em 07/10/2026): le a arvore ao vivo da loja e o produto do banco; do
+ * navegador vem so o nome que esta na tela. Devolve as sugestoes; quem marca e a tela, no "Marcar estas".
+ */
+export async function sugerirCategoriasLI(produtoId, titulo) {
+  if (!ehId(produtoId) || typeof titulo !== "string" || titulo.length > 255) return PEDIDO_INVALIDO;
+  try {
+    const [produto, categorias] = await Promise.all([contextoDoProduto(produtoId), listarCategoriasDaLI(clienteLI())]);
+    if (!produto) return { ok: false, erro: "Produto não encontrado." };
+    const sugestoes = await sugerirCategoriasIA({ titulo: titulo.trim() || produto.tituloBase, marca: produto.marca ?? "", descricao: produto.descricaoBase ?? "", categorias });
+    return { ok: true, sugestoes };
+  } catch (erro) {
+    console.error("[loja integrada] categoria com IA", erro);
+    return { ok: false, erro: erro.message || "Não foi possível sugerir com a IA. Tente de novo." };
   }
 }
 
