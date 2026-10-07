@@ -111,6 +111,11 @@ try {
     conferir("ida e volta com aspas, & e CRLF", htmlParaTexto(montarDescricaoLI({ descricao: `Diz "x" & 'y'\r\nfim` }), { paragrafos: true }), `Diz "x" & 'y'\nfim`);
     conferir("ida e volta com titulos e documentos", htmlParaTexto(montarDescricaoLI({ descricao: "PLACA\n\nGarantia:\n- 90 dias;", documentos: docs }), { paragrafos: true }), "PLACA\n\nDocumentos / Arquivos para download:\n- Datasheet <v2>.pdf;\n\nGarantia:\n- 90 dias;");
     conferir("htmlParaTexto sem a opcao continua como o Bling usa", htmlParaTexto("<p>a</p><p>b</p>"), "a\nb");
+    conferir(
+      "a LI regrava <br> como <br />\\r\\n: a quebra crua nao vira paragrafo extra",
+      htmlParaTexto('<p><span style="font-size:16px;"><strong>T:</strong><br />\r\n- a;<br />\r\n- b;</span></p>\r\n<p>c</p>', { paragrafos: true }),
+      "T:\n- a;\n- b;\n\nc",
+    );
   }
 
   {
