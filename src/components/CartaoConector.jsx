@@ -41,7 +41,11 @@ function formatarData(valor) {
   }).format(new Date(valor));
 }
 
-export default function CartaoConector({ conector, conexao }) {
+export default function CartaoConector({
+  conector,
+  conexao,
+  tokenPertoDoVencimento = false,
+}) {
   const [pendente, iniciarTransicao] = useTransition();
   const [resultado, setResultado] = useState(null);
 
@@ -106,6 +110,12 @@ export default function CartaoConector({ conector, conexao }) {
         )}
       </dl>
 
+      {tokenPertoDoVencimento && (
+        <p className="mt-3 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+          Token da Loja Integrada proximo do vencimento. Renove-o no painel da loja.
+        </p>
+      )}
+
       {!conector.configurado && (
         <p className="mt-3 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
           Faltam variaveis no .env: {conector.faltando.join(", ")}
@@ -132,7 +142,7 @@ export default function CartaoConector({ conector, conexao }) {
           <span className="break-words">
             {resultado.ok
               ? `${resultado.conta}${resultado.detalhe ? ` — ${resultado.detalhe}` : ""} (${resultado.latenciaMs}ms)`
-              : resultado.erro}
+              : `${resultado.erro}${resultado.detalheTecnico ? ` — ${resultado.detalheTecnico}` : ""}`}
           </span>
         </div>
       )}
@@ -148,7 +158,7 @@ export default function CartaoConector({ conector, conexao }) {
         </div>
       )}
 
-      {conector.tipoAuth === "chaves_estaticas" && !conectado && !conector.bloqueado && (
+      {["chaves_estaticas", "personal_token"].includes(conector.tipoAuth) && !conectado && !conector.bloqueado && (
         <form action={aoSalvar} className="mt-4 space-y-3">
           {conector.campos.map((campo) => (
             <div key={campo.nome}>
@@ -161,7 +171,7 @@ export default function CartaoConector({ conector, conexao }) {
               <input
                 id={`${conector.id}-${campo.nome}`}
                 name={campo.nome}
-                type="password"
+                type={campo.tipo ?? "password"}
                 autoComplete="off"
                 className="mt-1 w-full rounded border border-borda px-2 py-1.5 text-sm focus:border-acento focus:outline-none"
               />

@@ -9,6 +9,15 @@ import { config } from "@/lib/integracoes/config";
 
 export const dynamic = "force-dynamic";
 
+// O Personal Token da Loja Integrada vence (o Rise conta 3 meses a partir do salvamento):
+// avisa a 30 dias. Calculado aqui, no servidor, porque o relogio no render do cartao
+// (componente de cliente) daria um valor diferente a cada render.
+const TRINTA_DIAS_MS = 30 * 24 * 60 * 60 * 1000;
+function tokenVencePerto(conector, conexao) {
+  if (conector.id !== "LOJA_INTEGRADA" || !conexao?.expiraEm) return false;
+  return new Date(conexao.expiraEm).getTime() - Date.now() <= TRINTA_DIAS_MS;
+}
+
 export default async function IntegracoesPage({ searchParams }) {
   const params = await searchParams;
 
@@ -22,7 +31,9 @@ export default async function IntegracoesPage({ searchParams }) {
   }
 
   const travasLigadas =
-    config.travas.mlPublicacao || config.travas.blingEscrita;
+    config.travas.mlPublicacao ||
+    config.travas.blingEscrita ||
+    config.travas.liEscrita;
 
   // Os conectores carregam funcoes, que nao atravessam a fronteira
   // servidor/cliente. Manda so o que a tela precisa exibir.
@@ -73,13 +84,16 @@ export default async function IntegracoesPage({ searchParams }) {
             <>
               <strong>Escrita liberada.</strong> Publicacao no Mercado Livre:{" "}
               {config.travas.mlPublicacao ? "ligada" : "desligada"} · Escrita no
-              Bling: {config.travas.blingEscrita ? "ligada" : "desligada"}.
+              Bling: {config.travas.blingEscrita ? "ligada" : "desligada"} ·
+              Escrita na Loja Integrada:{" "}
+              {config.travas.liEscrita ? "ligada" : "desligada"}.
             </>
           ) : (
             <>
               <strong>Somente leitura.</strong> As travas{" "}
-              <code>ML_PUBLICACAO</code> e <code>BLING_ESCRITA</code> estao
-              desligadas: nada e escrito nas plataformas.
+              <code>ML_PUBLICACAO</code>, <code>BLING_ESCRITA</code> e{" "}
+              <code>LI_ESCRITA</code> estao desligadas: nada e
+              escrito nas plataformas.
             </>
           )}
         </span>
@@ -94,6 +108,10 @@ export default async function IntegracoesPage({ searchParams }) {
               key={conector.id}
               conector={conector}
               conexao={conexoes.get(conector.id) ?? null}
+              tokenPertoDoVencimento={tokenVencePerto(
+                conector,
+                conexoes.get(conector.id),
+              )}
             />
           ))}
         </div>

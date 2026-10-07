@@ -1,9 +1,9 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { skuValido } from "@/lib/arquivos";
-import { decodificar } from "@/lib/coleta/texto-html";
 import { anexarImagens } from "@/lib/imagensImportadas";
 import { UNIDADES } from "@/lib/unidades";
+import { htmlParaTexto } from "@/lib/integracoes/normalizacao";
 
 import { blingGet } from "./bling";
 
@@ -64,22 +64,7 @@ async function listarCatalogo() {
   return produtos;
 }
 
-/** Descricao do Bling vem em HTML; o cadastro base guarda texto. */
-export function htmlParaTexto(html) {
-  if (!html) return null;
-  const texto = decodificar(
-    html
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/(p|div|li|h\d)>/gi, "\n")
-      .replace(/<[^>]+>/g, ""),
-  )
-    .replace(/\r/g, "")
-    .replace(/[ \t\u00a0]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-  return texto || null;
-}
+export { htmlParaTexto };
 
 /**
  * A lista de unidades daqui e fechada. O Bling usa "PÇ", "Un", "pc" para a

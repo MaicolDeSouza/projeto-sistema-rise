@@ -35,8 +35,9 @@ export async function testarConexao(servicoId) {
 
 export async function salvarChavesAction(servicoId, formData) {
   const conector = obterConector(servicoId);
-  if (!conector?.salvarChaves) {
-    return { ok: false, erro: "Este conector nao usa chaves estaticas." };
+  const salvar = conector?.salvarCredenciais ?? conector?.salvarChaves;
+  if (!salvar) {
+    return { ok: false, erro: "Este conector nao recebe credenciais nesta tela." };
   }
 
   const valores = Object.fromEntries(
@@ -55,7 +56,7 @@ export async function salvarChavesAction(servicoId, formData) {
   }
 
   try {
-    await conector.salvarChaves(valores);
+    await salvar(valores);
   } catch (erro) {
     return { ok: false, erro: erro.message };
   }

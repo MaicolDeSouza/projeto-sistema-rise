@@ -11,7 +11,7 @@ import { prisma } from "@/lib/db";
  */
 
 const CAMPOS_SIGILOSOS =
-  /(authorization|client_secret|access_token|refresh_token|chave_api|chave_aplicacao|\bcode\b|password|secret)/i;
+  /(authorization|client_secret|access_token|refresh_token|personal_?token|webhook_?token|\btoken\b|chave_api|chave_aplicacao|\bcode\b|password|secret)/i;
 
 /**
  * Substitui valores sigilosos por "***" antes de gravar no log.
@@ -21,11 +21,15 @@ export function mascarar(valor) {
   if (valor === null || valor === undefined) return valor;
 
   if (typeof valor === "string") {
-    // Mascara pares "chave=valor" e "chave: valor" dentro de strings soltas.
-    return valor.replace(
-      /((?:authorization|client_secret|access_token|refresh_token|chave_api|chave_aplicacao|code|password|secret)\s*[=:]\s*)([^\s&,;"']+)/gi,
-      "$1***",
-    );
+    // Mascara credenciais tanto em pares "chave=valor" quanto em headers
+    // soltos. No caso de Authorization, esconder so a palavra "Basic" deixaria
+    // justamente o token visivel depois dela.
+    return valor
+      .replace(/\b(Basic|Bearer)\s+[A-Za-z0-9._~+/=-]+/gi, "$1 ***")
+      .replace(
+        /((?:authorization|client_secret|access_token|refresh_token|personal_?token|webhook_?token|token|chave_api|chave_aplicacao|code|password|secret)\s*[=:]\s*)([^&,;\r\n]+)/gi,
+        "$1***",
+      );
   }
 
   if (Array.isArray(valor)) return valor.map(mascarar);
