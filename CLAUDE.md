@@ -2446,6 +2446,10 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   `promocional` e `sob_consulta` como estavam (o PUT pode zerar chave ausente; não medido). O preço entra na comparação
   (campo "Preço") e na assinatura; vazio no Rise não apaga. **Um preço só para tudo, escolha do dono:** o 100101 custava
   R$ 38,90 no Rise e R$ 49,00 na loja (o preço da loja no vínculo do Bling), e o próximo Sincronizar o leva a 38,90.
+  **Medido em 07/10/2026 (ok do dono), no ZZ-TESTE-BLING (404349127):** `PUT /produto_preco/404349127` com
+  `{cheio: 16, custo: null, promocional: null, sob_consulta: false}` → 200; a LI guardou `cheio` "16.0000" e o detalhe do
+  produto passou a mostrar `preco_cheio` 16. Estoque (6), custo, promocional e `ativo` não mudaram. Só o preço foi enviado
+  (os outros campos já estavam iguais). **Não medido:** se o Bling sobrescreve depois com o preço do vínculo (15).
 - **Só Produto Conferido** vincula, cadastra e sincroniza (conferido no servidor em toda ação).
 - **Fotos e documentos esperam a VPS** (a LI só aceita imagem por URL pública). O bloco "Documentos" da descrição está
   pronto e desligado enquanto `APP_URL_PUBLICA` estiver vazio.
