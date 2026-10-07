@@ -4,6 +4,7 @@ import { htmlParaTexto } from "@/lib/integracoes/normalizacao";
 
 import { montarDescricaoLI } from "./descricao";
 import { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaPalavra } from "./seo";
+import { slugDe } from "./slug";
 
 /**
  * Os campos que o Rise escreve na Loja Integrada, lidos dos dois lados no MESMO formato:
@@ -116,7 +117,8 @@ export function normalizarDoRiseLI(produto, rascunho, { documentos = [] } = {}) 
   const html = montarDescricaoLI({ descricao: p.descricaoBase, documentos });
   return {
     nome: texto(r.titulo),
-    slug: texto(r.slug),
+    // Sempre do nome (decisao do dono em 07/10/2026): o slug guardado nao manda.
+    slug: texto(slugDe(r.titulo)),
     descricao: html ? htmlParaTexto(html, { paragrafos: true }) : null,
     ncm: soDigitos(p.ncm),
     gtin: texto(p.ean),

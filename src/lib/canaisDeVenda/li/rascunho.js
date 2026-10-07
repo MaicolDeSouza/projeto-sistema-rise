@@ -5,7 +5,7 @@ import { descriptionPadrao, tituloSeoPadrao } from "./seo";
  * O rascunho do anuncio da Loja Integrada, guardado em `Anuncio.dados` (canal LOJA_INTEGRADA,
  * um por produto). Sem imports de servidor: o editor o usa.
  *
- * Forma: { produtoId, titulo, slug, marca, categorias: string[], destaque, videoUrl, seo: { title,
+ * Forma: { produtoId, titulo, slug (sempre slugDe(titulo), decisao do dono em 07/10/2026), marca, categorias: string[], destaque, videoUrl, seo: { title,
  * description } }. A descricao NAO e do anuncio: vem sempre do cadastro (pedido do dono em 07/10/2026). As categorias sao ids da LI em
  * texto; a marca e o NOME (a URI e achada no envio).
  */
@@ -30,14 +30,15 @@ export function rascunhoInicialLI(produto) {
 }
 
 /**
- * Ao vincular um produto que ja existe na LI, o slug (a URL que o Google ja indexou), as
- * categorias e o destaque vem de la: o dono os escolheu na loja. O resto fica o do Rise.
+ * Ao vincular um produto que ja existe na LI, as categorias e o destaque vem de la: o dono os
+ * escolheu na loja. O resto fica o do Rise. O slug NAO vem: desde 07/10/2026 ele e sempre o do
+ * nome no Rise (decisao do dono, sabendo que a URL antiga muda com 301 no proximo Sincronizar).
  */
 export function rascunhoDaLI(rascunho, produtoLINormalizado) {
   const li = produtoLINormalizado ?? {};
   return {
     ...rascunho,
-    slug: li.slug || rascunho.slug,
+    slug: slugDe(rascunho.titulo),
     categorias: Array.isArray(li.categorias) ? [...li.categorias] : rascunho.categorias,
     destaque: Boolean(li.destaque),
   };

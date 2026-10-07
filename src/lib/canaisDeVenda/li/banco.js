@@ -3,6 +3,7 @@ import { urlDe } from "@/lib/arquivos";
 import { config } from "@/lib/integracoes/config";
 import { RascunhoLISchema } from "./esquema";
 import { rascunhoDaLI, rascunhoInicialLI } from "./rascunho";
+import { slugDe } from "./slug";
 
 /**
  * O anuncio da Loja Integrada no banco: um por produto (indice parcial `Anuncio_um_por_produto`,
@@ -95,7 +96,8 @@ export function rascunhoDoAnuncio(anuncio) {
   return {
     produtoId: anuncio.produtoId,
     titulo: anuncio.titulo ?? "",
-    slug: dados.slug ?? "",
+    // O slug e sempre o do nome (07/10/2026): o guardado em `dados` e de antes da regra e nao vale.
+    slug: slugDe(anuncio.titulo ?? ""),
     marca: dados.marca ?? "",
     categorias: Array.isArray(dados.categorias) ? dados.categorias : [],
     destaque: Boolean(dados.destaque),
@@ -104,9 +106,16 @@ export function rascunhoDoAnuncio(anuncio) {
   };
 }
 
+// O endereco da loja que a aba SEO mostra antes do slug (LI_DOMINIO). Sem a variavel, o da 4hobby.
+function dominioDaLoja() {
+  const dominio = String(config.lojaIntegrada?.dominio ?? "").trim().replace(/\/+$/, "");
+  if (!dominio) return "https://www.4hobby.com.br";
+  return /^https?:\/\//i.test(dominio) ? dominio.replace(/^http:/i, "https:") : `https://${dominio}`;
+}
+
 async function contextoDoEditor(produto) {
   const documentos = await documentosDoProduto(produto);
-  return { produto, documentos, urlPublica: Boolean(String(config.appUrlPublica ?? "").trim()) };
+  return { produto, documentos, urlPublica: Boolean(String(config.appUrlPublica ?? "").trim()), dominioDaLoja: dominioDaLoja() };
 }
 
 export async function novoRascunhoLI(produtoId) {
@@ -156,6 +165,8 @@ export async function salvarRascunhoLI(anuncioId, entrada) {
   const lido = RascunhoLISchema.safeParse(entrada);
   if (!lido.success) return { ok: false, erro: "O rascunho chegou incompleto. Recarregue a tela." };
   const rascunho = lido.data;
+  // O slug e sempre o do nome: o que a tela mandar nao vale (decisao do dono em 07/10/2026).
+  rascunho.slug = slugDe(rascunho.titulo);
 
   try {
     let existente = null;
@@ -198,8 +209,8 @@ export async function salvarRascunhoLI(anuncioId, entrada) {
 
 /**
  * Liga o produto ao que ja existe na LI com o mesmo SKU. Cria o anuncio (a partir do produto)
- * se nao havia rascunho. Slug, categorias e destaque vem da LI (`rascunhoDaLI`); o vinculo e o
- * link da loja no produto sao gravados juntos.
+ * se nao havia rascunho. Categorias e destaque vem da LI (`rascunhoDaLI`; o slug segue o nome); o
+ * vinculo e o link da loja no produto sao gravados juntos.
  */
 export async function vincularPeloSku(produtoId, { idItemExterno, url, ativo, slug, categorias, destaque }) {
   const produto = await contextoDoProduto(produtoId);

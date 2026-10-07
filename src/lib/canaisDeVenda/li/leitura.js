@@ -160,6 +160,8 @@ function resultado(campos) {
     iguais: 0,
     avisos: [],
     escrita: { liberada: false, motivo: null },
+    fiscais: [],
+    daLoja: { gtin: null, origem: null, tipoProducao: null },
     ...campos,
   };
 }
@@ -226,7 +228,10 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
       }
     }
     const diferencas = diferencasLI(comparado, li);
-    avisos.push(...textosDosAvisosFiscais(avisosFiscaisLI(rise, li)));
+    // Os fiscais vao em lista para a aba Fiscal do editor (aviso grande com o link do painel) e em
+    // texto para quem so le os avisos.
+    const fiscais = avisosFiscaisLI(rise, li);
+    avisos.push(...textosDosAvisosFiscais(fiscais));
 
     let marcaExisteNaLI = null;
     if (rise.marca) {
@@ -246,6 +251,8 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
       diferencas,
       iguais: CAMPOS_DE_ENVIO_LI.length - diferencas.length,
       avisos,
+      fiscais,
+      daLoja: { gtin: li.gtin, origem: li.origem, tipoProducao: li.tipoProducao },
     });
   } catch (erro) {
     return resultado({

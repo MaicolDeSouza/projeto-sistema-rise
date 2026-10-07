@@ -19,6 +19,22 @@ export function cortarNaPalavra(texto, limite) {
   return espaco > 0 ? limpo.slice(0, espaco).trimEnd() : limpo.slice(0, limite);
 }
 
+/**
+ * Corta na ultima FRASE inteira que cabe (pedido do dono em 07/10/2026: description cortada no meio
+ * de uma frase fica feia no Google). Fim de frase e ".", "!" ou "?" seguido de espaco ou do fim: o
+ * ponto de "3.3V" nao conta. Sem nenhuma frase que caiba, corta na palavra.
+ */
+export function cortarNaFrase(texto, limite) {
+  const limpo = colapsar(texto);
+  if (limpo.length <= limite) return limpo;
+  let fim = -1;
+  for (const achado of limpo.matchAll(/[.!?](?=\s|$)/g)) {
+    if (achado.index + 1 > limite) break;
+    fim = achado.index + 1;
+  }
+  return fim > 0 ? limpo.slice(0, fim) : cortarNaPalavra(limpo, limite);
+}
+
 export function tituloSeoPadrao(nome) {
   return cortarNaPalavra(nome, LIMITE_DO_TITULO_SEO);
 }
@@ -44,5 +60,5 @@ export function descriptionPadrao(descricao, titulo = "") {
     .split(/\r?\n\s*\r?\n/)
     .filter((paragrafo) => paragrafo.trim());
   const escolhido = paragrafos.find((paragrafo) => !ehTitulo(paragrafo, titulo)) ?? paragrafos[0] ?? "";
-  return cortarNaPalavra(escolhido, LIMITE_DA_DESCRIPTION_SEO);
+  return cortarNaFrase(escolhido, LIMITE_DA_DESCRIPTION_SEO);
 }

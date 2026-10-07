@@ -21,8 +21,8 @@ const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
 const { prisma } = await import("../src/lib/db.js");
-const { LIMITE_DO_SLUG, slugDe, slugValido } = await import("../src/lib/canaisDeVenda/li/slug.js");
-const { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaPalavra, descriptionPadrao, tituloSeoPadrao } = await import("../src/lib/canaisDeVenda/li/seo.js");
+const { LIMITE_DO_SLUG, slugDaUrl, slugDe, slugValido } = await import("../src/lib/canaisDeVenda/li/slug.js");
+const { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaFrase, cortarNaPalavra, descriptionPadrao, tituloSeoPadrao } = await import("../src/lib/canaisDeVenda/li/seo.js");
 const { montarDescricaoLI } = await import("../src/lib/canaisDeVenda/li/descricao.js");
 const { htmlParaTexto } = await import("../src/lib/integracoes/normalizacao.js");
 const { CAMPOS_DE_ENVIO_LI, CAMPOS_SO_LEITURA_LI, TEXTO_DO_TIPO_PRODUCAO, TIPO_PRODUCAO_DA_LI, assinaturaLI, avisosFiscaisLI, contarDivergencias, diferencasLI, normalizarDaLI, normalizarDoRiseLI } = await import("../src/lib/canaisDeVenda/li/campos.js");
@@ -84,6 +84,12 @@ try {
     conferir("titulo SEO padrao <= 70", tituloSeoPadrao("x".repeat(60) + " " + "y".repeat(20)), "x".repeat(60));
     conferir("description padrao = primeiro paragrafo colapsado", descriptionPadrao("Linha  1\ncontinua\n\nSegundo paragrafo"), "Linha 1 continua");
     conferir("description padrao <= 250", descriptionPadrao("palavra ".repeat(60)).length <= 250, true);
+    const longa = "A Placa Uno R3 usa o ATmega328P e roda a 16 MHz com tensao de 5V. " + "Ela e compativel com os shields do Arduino e com a IDE oficial, e acompanha cabo USB para gravar o codigo. ".repeat(3);
+    conferir("description padrao corta na ultima FRASE inteira", descriptionPadrao(longa), "A Placa Uno R3 usa o ATmega328P e roda a 16 MHz com tensao de 5V. Ela e compativel com os shields do Arduino e com a IDE oficial, e acompanha cabo USB para gravar o codigo.");
+    conferir("cortarNaFrase: cabe inteiro fica igual", cortarNaFrase("Uma frase. Outra.", 50), "Uma frase. Outra.");
+    conferir("cortarNaFrase: nenhuma frase cabe, corta na palavra", cortarNaFrase("Uma frase muito comprida sem ponto nenhum ate o fim", 20), "Uma frase muito");
+    conferir("cortarNaFrase: decimal com ponto nao e fim de frase", cortarNaFrase("Tensao de 3.3V e 5V no mesmo modulo. Segunda frase bem longa que nao cabe.", 40), "Tensao de 3.3V e 5V no mesmo modulo.");
+    conferir("slug da URL da loja: antiga, nova, com dominio e vazia", [slugDaUrl("https://www.4hobby.com.br/produto/placa-uno.html"), slugDaUrl("/rele-5v"), slugDaUrl("https://www.4hobby.com.br/rele-5v?x=1"), slugDaUrl(null)], ["placa-uno", "rele-5v", "rele-5v", null]);
     conferir("description de vazio e nulo", [descriptionPadrao(""), descriptionPadrao(null)], ["", ""]);
   }
 
@@ -127,6 +133,7 @@ try {
     const produtoRise = { tituloBase: "x", descricaoBase: "Texto", ncm: "8537.10.20", ean: "7894972605270", modelo: "FX3U", pesoKg: "0.5", alturaCm: "2.3", larguraCm: "12", comprimentoCm: "6.01", origem: 0, tipoProducao: "REVENDA" };
     const rasc = { titulo: " CLP FX3U ", slug: "clp-fx3u", marca: "Mitsubishi", categorias: ["23983023", "5946305", "23983023"], destaque: false, videoUrl: null, seo: { title: "t".repeat(80), description: "" } };
     const rise = normalizarDoRiseLI(produtoRise, rasc, { frases: [], documentos: [] });
+    conferir("slug do Rise sai SEMPRE do nome, nao do guardado", normalizarDoRiseLI(produtoRise, { ...rasc, titulo: "Relé 5V", slug: "outro" }, {}).slug, "rele-5v");
     conferir("rise normalizado", rise, { nome: "CLP FX3U", slug: "clp-fx3u", descricao: "Texto", ncm: "85371020", gtin: "7894972605270", mpn: "FX3U", peso: 0.5, altura: 3, largura: 12, comprimento: 7, marca: "MITSUBISHI", categorias: ["23983023", "5946305"], video: null, destaque: false, seoTitulo: "t".repeat(70), seoDescription: null, origem: 0, tipoProducao: "REVENDA" });
     const produtoLI = { id: 1, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<p>Texto</p>", ncm: "8537.10.20", gtin: "7894972605270", mpn: "FX3U", peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: "0", production_type: TEXTO_DO_TIPO_PRODUCAO.REVENDA, seo_title: "", seo_description: "" };
     const li = normalizarDaLI(produtoLI, { title: "t".repeat(70), description: "" }, { marcaNome: "Mitsubishi" });
@@ -180,23 +187,27 @@ try {
     const inicial = rascunhoInicialLI(ctxProd);
     conferir("rascunho inicial", inicial, { produtoId: "p1", titulo: "CLP FX3U 24MR", slug: "clp-fx3u-24mr", marca: "MITSUBISHI", categorias: [], destaque: false, videoUrl: null, seo: { title: "CLP FX3U 24MR", description: "Linha 1" } });
     conferir("rascunho inicial de produto sem texto", rascunhoInicialLI({ id: "p2" }), { produtoId: "p2", titulo: "", slug: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" } });
-    conferir("vinculo traz slug, categorias e destaque da LI", rascunhoDaLI(inicial, { slug: "clp-da-li", categorias: ["1", "2"], destaque: true, nome: "Outro" }), { ...inicial, slug: "clp-da-li", categorias: ["1", "2"], destaque: true });
-    conferir("vinculo sem slug na LI mantem o do rascunho", rascunhoDaLI(inicial, { slug: null, categorias: [], destaque: false }).slug, "clp-fx3u-24mr");
+    conferir("vinculo traz categorias e destaque da LI; o slug segue o nome", rascunhoDaLI(inicial, { slug: "clp-da-li", categorias: ["1", "2"], destaque: true, nome: "Outro" }), { ...inicial, categorias: ["1", "2"], destaque: true });
+    conferir("rascunho guardado: slug refeito do titulo", rascunhoDoAnuncio({ produtoId: "p", titulo: "Fonte 12V 5A", dados: { slug: "velho" } }).slug, "fonte-12v-5a");
     conferir("titulo ate 255 (limite medido na LI)", LIMITES_LI.titulo, 255);
     const lido = RascunhoLISchema.safeParse({ ...inicial, extra: 1 });
     conferir("esquema descarta chave estranha e aceita o rascunho", [lido.success, "extra" in (lido.data ?? {})], [true, false]);
     conferir("esquema recusa categorias que nao sao texto", RascunhoLISchema.safeParse({ ...inicial, categorias: [1] }).success, false);
     conferir("esquema recusa titulo acima de 255", RascunhoLISchema.safeParse({ ...inicial, titulo: "x".repeat(256) }).success, false);
     conferir("esquema completa o que faltar", RascunhoLISchema.parse({ produtoId: "p3" }), { produtoId: "p3", titulo: "", slug: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" } });
-    conferir("ABAS_LI", ABAS_LI.map((a) => a.id), ["geral", "seo", "descricao", "fiscal", "envio", "previa"]);
+    conferir("ABAS_LI na ordem do dono", ABAS_LI.map((a) => a.id), ["geral", "descricao", "categorias", "envio", "fiscal", "seo", "previa"]);
+    conferir("alerta de categoria mora na aba Categorias", validarRascunhoLI({ ...inicial, categorias: [] }, { produto: ctxProd, categoriasDaLI: null }).find((p) => p.campo === "categorias")?.aba, "categorias");
     conferir("rotulo da ultima aba", ABAS_LI.at(-1).rotulo, "Previa e sincronizacao");
     const problemas = validarRascunhoLI({ ...inicial, titulo: "", slug: "Ré", categorias: ["9"], seo: { title: "t".repeat(71), description: "" } }, { produto: { ...ctxProd, conferido: false, ncm: null }, categoriasDaLI: [{ id: "1" }] });
-    conferir("bloqueantes: titulo, slug, nao conferido", problemas.filter((p) => p.bloqueante).map((p) => p.campo), ["titulo", "slug", "produto"]);
+    conferir("bloqueantes: titulo e nao conferido (sem nome nao ha slug a acusar)", problemas.filter((p) => p.bloqueante).map((p) => p.campo), ["titulo", "produto"]);
+    conferir("nome so de simbolos nao gera endereco", validarRascunhoLI({ ...inicial, titulo: "!!!", categorias: ["1"] }, { produto: ctxProd, categoriasDaLI: null }).map((p) => [p.campo, p.bloqueante]), [["slug", true]]);
     conferir("alertas: ncm, categoria inexistente, seo longo", ["ncm", "categorias", "seoTitulo"].every((c) => problemas.some((p) => p.campo === c && !p.bloqueante)), true);
     conferir("todo problema tem aba conhecida", problemas.every((p) => ABAS_LI.some((a) => a.id === p.aba)), true);
     conferir("rascunho completo sem problema", validarRascunhoLI({ ...inicial, categorias: ["1"] }, { produto: ctxProd, categoriasDaLI: [{ id: "1" }] }), []);
     conferir("sem a lista ao vivo nao acusa categoria inexistente", validarRascunhoLI({ ...inicial, categorias: ["9"] }, { produto: ctxProd, categoriasDaLI: null }), []);
     const faltas = validarRascunhoLI({ ...inicial, marca: "", categorias: [] }, { produto: { ...ctxProd, ean: null, pesoKg: null, alturaCm: null }, categoriasDaLI: null }).map((p) => p.campo);
+    const gtinLoja = validarRascunhoLI({ ...inicial, categorias: ["1"] }, { produto: { ...ctxProd, ean: null }, categoriasDaLI: null, gtinDaLI: "7894382766950" }).find((p) => p.campo === "gtin");
+    conferir("sem GTIN no Rise mas com GTIN na loja: a nota sai com o da loja", [Boolean(gtinLoja), /7894382766950/.test(gtinLoja?.problema ?? ""), /SEM GTIN/.test(gtinLoja?.problema ?? "")], [true, true, false]);
     conferir("alertas: sem gtin, marca, categoria, peso e medida", ["gtin", "marca", "categorias", "peso", "medidas"].every((c) => faltas.includes(c)), true);
   }
 
@@ -214,6 +225,7 @@ try {
       conferir("contexto com Decimal em Number e fiscais", [ctx.sku, ctx.pesoKg, ctx.tipoProducao, ctx.conferido], ["ZZ-LI-3", 0.25, "REVENDA", true]);
       const novo = await novoRascunhoLI(p.id);
       conferir("novo rascunho nasce do produto", [novo.ok, novo.rascunho.titulo, novo.rascunho.slug, novo.contexto.documentos], [true, "Fonte 12V", "fonte-12v", []]);
+      conferir("contexto do editor traz o dominio da loja (com https)", String(novo.contexto.dominioDaLoja ?? "").startsWith("https://"), true);
       const salvo = await salvarRascunhoLI(null, { ...novo.rascunho, categorias: ["10", "20"], seo: { title: "T", description: "D" } });
       conferir("salva o rascunho", salvo.ok, true);
       const deNovo = await salvarRascunhoLI(null, { ...novo.rascunho, categorias: ["10", "20"], titulo: "Fonte 12V 5A" });
@@ -223,9 +235,10 @@ try {
       conferir("categoriaExternaId e a primeira categoria", (await prisma.anuncio.findUnique({ where: { id: salvo.id } })).categoriaExternaId, "10");
       conferir("carregar id inexistente ou vazio", [(await carregarAnuncioLI("x")).ok, (await carregarAnuncioLI("")).ok], [false, false]);
       conferir("anuncio LI do produto", (await anuncioLIDoProduto(p.id))?.id, salvo.id);
+      conferir("salvar guarda o slug do titulo, nao o que a tela mandou", (await prisma.anuncio.findUnique({ where: { id: salvo.id } })).dados.slug, "fonte-12v-5a");
       await vincularPeloSku(p.id, { idItemExterno: "401", url: "https://loja/x", ativo: true, slug: "fonte-da-li", categorias: ["30"], destaque: true });
       const vinculado = await carregarAnuncioLI(salvo.id);
-      conferir("vinculo grava idExterno, url, ATIVA e traz slug/categorias/destaque da LI", [vinculado.vinculo.idExterno, vinculado.vinculo.situacaoCanal, vinculado.rascunho.slug, vinculado.rascunho.categorias, vinculado.rascunho.destaque, vinculado.rascunho.titulo], ["401", "ATIVA", "fonte-da-li", ["30"], true, "Fonte 12V 5A"]);
+      conferir("vinculo grava idExterno, url, ATIVA e traz categorias/destaque da LI (slug do nome)", [vinculado.vinculo.idExterno, vinculado.vinculo.situacaoCanal, vinculado.rascunho.slug, vinculado.rascunho.categorias, vinculado.rascunho.destaque, vinculado.rascunho.titulo], ["401", "ATIVA", "fonte-12v-5a", ["30"], true, "Fonte 12V 5A"]);
       conferir("vinculo deixa o anuncio PUBLICADO", vinculado.status, "PUBLICADO");
       conferir("urlLojaIntegrada preenchida pelo vinculo", (await prisma.produto.findUnique({ where: { id: p.id } })).urlLojaIntegrada, "https://loja/x");
       conferir("anuncio vinculado continua editavel", (await salvarRascunhoLI(salvo.id, { ...vinculado.rascunho, titulo: "Fonte 12V 5A bivolt" })).ok, true);
@@ -233,7 +246,7 @@ try {
       const r = await prisma.produto.create({ data: { sku: "ZZ-LI-5", tituloBase: "Sem rascunho", conferido: true } });
       const { anuncioId } = await vincularPeloSku(r.id, { idItemExterno: "402", url: "https://loja/y", ativo: false, slug: "sem-rascunho-li", categorias: [], destaque: false });
       const criadoNoVinculo = await carregarAnuncioLI(anuncioId);
-      conferir("vinculo sem rascunho cria o anuncio a partir do produto, PAUSADA", [criadoNoVinculo.rascunho.titulo, criadoNoVinculo.rascunho.slug, criadoNoVinculo.vinculo.situacaoCanal], ["Sem rascunho", "sem-rascunho-li", "PAUSADA"]);
+      conferir("vinculo sem rascunho cria o anuncio a partir do produto, PAUSADA", [criadoNoVinculo.rascunho.titulo, criadoNoVinculo.rascunho.slug, criadoNoVinculo.vinculo.situacaoCanal], ["Sem rascunho", "sem-rascunho", "PAUSADA"]);
       conferir("lista acha por sku sem caixa", (await listarAnunciosLI({ busca: "zz-li-3" })).linhas.map((l) => l.sku), ["ZZ-LI-3"]);
       conferir("lista acha por titulo sem caixa", (await listarAnunciosLI({ busca: "BIVOLT" })).linhas.map((l) => [l.sku, l.idExterno]), [["ZZ-LI-3", "401"]]);
       conferir("lista pagina fora do intervalo cai na ultima", (await listarAnunciosLI({ busca: "zz-li-", pagina: 99 })).pagina, 1);
@@ -366,7 +379,7 @@ try {
     const segunda = await lerParaPopupLI(prodL.id, li2);
     conferir("segunda abertura nao vincula de novo", segunda.vinculadoAgora, false);
     const aberto = await carregarAnuncioLI(segunda.anuncioId);
-    conferir("vinculo trouxe slug e categorias da LI para o rascunho", [aberto.rascunho.slug, aberto.rascunho.categorias], ["sensor", ["3"]]);
+    conferir("vinculo trouxe as categorias da LI; o slug segue o nome", [aberto.rascunho.slug, aberto.rascunho.categorias], [slugDe(aberto.rascunho.titulo), ["3"]]);
     conferir("escrita fechada tem motivo", [popup.escrita.liberada, /LI_ESCRITA/.test(popup.escrita.motivo)], [false, true]);
     const popLixo = await lerParaPopupLI(lixo.id, li2);
     conferir("pop-up de produto na lixeira da LI", [popLixo.ok, popLixo.situacao, popLixo.erro], [false, "removido", "O codigo ZZ-LI-7 esta na lixeira da Loja Integrada: restaure-o la antes de sincronizar."]);
@@ -383,6 +396,8 @@ try {
     const popFiscal = await lerParaPopupLI(prodL.id, li2);
     conferir("aviso fiscal: tipo de producao diferente, ajuste no painel", popFiscal.avisos.some((a) => /Tipo de producao/.test(a) && /painel da Loja Integrada/.test(a)), true);
     conferir("aviso fiscal nao entra nas diferencas", popFiscal.diferencas.some((d) => d.campo === "tipoProducao"), false);
+    conferir("leitura traz os fiscais em lista (para a aba Fiscal)", popFiscal.fiscais.map((f) => [f.campo, f.tipo, f.rise, f.li]), [["tipoProducao", "diferente", "FABRICACAO_PROPRIA", "REVENDA"]]);
+    conferir("leitura traz o que a loja tem de GTIN, origem e tipo", Object.keys(popFiscal.daLoja).sort(), ["gtin", "origem", "tipoProducao"]);
   }
 
   {
@@ -396,7 +411,8 @@ try {
     await salvarRascunhoLI(anuncioAntes.id, { ...rascunhoDoAnuncio(anuncioAntes), categorias: ["5", "999"], seo: { title: "Rele Arduino", description: "D" } });
     const envio = await sincronizarProdutoLI(pe.id, li3);
     // Origem e tipo de producao NAO entram: a API nao os grava (medido em 07/10/2026).
-    conferir("sincronizou; categoria morta ignorada; marca achada sem acento", [envio.ok, envio.alterados.map((a) => a.campo).sort(), envio.marcaCriada, envio.categoriasIgnoradas], [true, ["altura", "comprimento", "largura", "marca", "ncm", "nome", "peso", "seoDescription", "seoTitulo"], null, ["999"]]);
+    conferir("sincronizou; categoria morta ignorada; marca achada sem acento", [envio.ok, envio.alterados.map((a) => a.campo).sort(), envio.marcaCriada, envio.categoriasIgnoradas], [true, ["altura", "comprimento", "largura", "marca", "ncm", "nome", "peso", "seoDescription", "seoTitulo", "slug"], null, ["999"]]);
+    conferir("URL nova sai do nome (/alias com 301)", li3.produtos().find((p) => p.id === 601).url, "/modulo-rele");
     const naLI = li3.produtos().find((p) => p.id === 601);
     conferir("PUT inteiro preservou imagens, categorias, preco e estoque da LI e trocou o nome", [naLI.imagens.length, naLI.categorias, naLI.nome, naLI.marca, naLI.preco_cheio, naLI.estoque_quantidade], [1, ["/api/v1/categoria/5"], "Modulo Rele", "/api/v1/marca/2", "10.00", 4]);
     conferir("medidas inteiras e NCM com pontos na LI", [naLI.altura, naLI.largura, naLI.profundidade, naLI.ncm], [2, 2, 3, "8536.49.00"]);
@@ -412,9 +428,9 @@ try {
     conferir("icone verde e sem selo depois do envio", iconeLIDoProduto(await prisma.produto.findUnique({ where: { id: pe.id } }), await anuncioLIDoProduto(pe.id), { frases: [], documentos: [] }), { cor: "verde", divergente: false, conferido: true });
     // Slug: muda pelo /alias, nao pelo PUT.
     const comSlug = await anuncioLIDoProduto(pe.id);
-    await salvarRascunhoLI(comSlug.id, { ...rascunhoDoAnuncio(comSlug), slug: "modulo-rele" });
+    await salvarRascunhoLI(comSlug.id, { ...rascunhoDoAnuncio(comSlug), titulo: "Modulo Rele 5V", slug: "ignorado" });
     const envioSlug = await sincronizarProdutoLI(pe.id, li3);
-    conferir("slug alterado vai pelo /alias e o link e relido", [envioSlug.alterados.map((a) => a.campo), li3.produtos().find((p) => p.id === 601).url, (await anuncioLIDoProduto(pe.id)).urlExterna.endsWith("/modulo-rele")], [["slug"], "/modulo-rele", true]);
+    conferir("nome novo muda o slug pelo /alias e o link e relido", [envioSlug.alterados.map((a) => a.campo).sort(), li3.produtos().find((p) => p.id === 601).url, (await anuncioLIDoProduto(pe.id)).urlExterna.endsWith("/modulo-rele-5v")], [["nome", "slug"], "/modulo-rele-5v", true]);
     // Falha depois da trava: ERRO, etapa e assinatura intacta.
     const pf = await prisma.produto.create({ data: { sku: "ZZ-LI-12", tituloBase: "Falha", ncm: "85364900", conferido: true } });
     const li4 = criarLojaIntegradaFalsa({ produtos: [{ id: 701, sku: "ZZ-LI-12", nome: "Antigo", apelido: "/antigo", seo: "/api/v1/seo/71" }], seos: { 71: { title: "", description: "" } }, falhas: { "PUT /seo/71": 500 } });

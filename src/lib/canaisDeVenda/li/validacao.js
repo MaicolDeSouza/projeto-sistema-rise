@@ -1,5 +1,5 @@
 import { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO } from "./seo";
-import { slugValido } from "./slug";
+import { slugDe, slugValido } from "./slug";
 
 /**
  * Validacao do rascunho do anuncio da Loja Integrada, por aba. Sem imports de servidor: o
@@ -12,12 +12,15 @@ import { slugValido } from "./slug";
  * 07/10/2026), entao o que importa e o valor da LI, e quem avisa e o pop-up de diferencas.
  */
 
+// Ordem pedida pelo dono em 07/10/2026. A aba "Divergencias" nao esta aqui: o editor a poe na
+// frente so quando a leitura da loja acha diferencas.
 export const ABAS_LI = [
   { id: "geral", rotulo: "Geral" },
-  { id: "seo", rotulo: "SEO" },
   { id: "descricao", rotulo: "Descricao" },
-  { id: "fiscal", rotulo: "Fiscal" },
+  { id: "categorias", rotulo: "Categorias" },
   { id: "envio", rotulo: "Envio" },
+  { id: "fiscal", rotulo: "Fiscal" },
+  { id: "seo", rotulo: "SEO" },
   { id: "previa", rotulo: "Previa e sincronizacao" },
 ];
 
@@ -33,8 +36,9 @@ export function validarRascunhoLI(rascunho, contexto) {
 
   // Bloqueantes.
   if (vazio(r.titulo)) acusar("titulo", "geral", "Informe o nome do produto na loja.", true);
-  if (!slugValido(r.slug)) {
-    acusar("slug", "seo", "Endereco invalido: so letras minusculas sem acento, numeros e hifens, ate 100.", true);
+  // O endereco sai do nome (07/10/2026): so acusa quando o nome existe e nao gera endereco.
+  if (!vazio(r.titulo) && !slugValido(slugDe(r.titulo))) {
+    acusar("slug", "geral", "O nome nao gera um endereco: use ao menos uma letra ou numero.", true);
   }
   if (!produto.conferido) {
     acusar("produto", "geral", "So produto Conferido vai para a Loja Integrada. Confira o cadastro antes.", true);
@@ -43,12 +47,12 @@ export function validarRascunhoLI(rascunho, contexto) {
   // Alertas.
   if (vazio(r.marca)) acusar("marca", "geral", "Sem marca: o produto fica sem marca na loja.");
   if (!r.categorias?.length) {
-    acusar("categorias", "geral", "Sem categoria: o produto nao aparece em nenhum menu da loja.");
+    acusar("categorias", "categorias", "Sem categoria: o produto nao aparece em nenhum menu da loja.");
   } else if (categoriasDaLI) {
     const existentes = new Set(categoriasDaLI.map((categoria) => String(categoria.id)));
     const sumidas = r.categorias.filter((id) => !existentes.has(String(id)));
     if (sumidas.length) {
-      acusar("categorias", "geral", `Categoria que nao existe mais na loja: ${sumidas.join(", ")}. Ela sai do envio.`);
+      acusar("categorias", "categorias", `Categoria que nao existe mais na loja: ${sumidas.join(", ")}. Ela sai do envio.`);
     }
   }
   if ((r.seo?.title ?? "").trim().length > LIMITE_DO_TITULO_SEO) {
@@ -60,7 +64,17 @@ export function validarRascunhoLI(rascunho, contexto) {
   if (vazio(produto.ncm)) {
     acusar("ncm", "fiscal", "Sem NCM a Loja Integrada nao emite NF-e, e o cadastro na LI exige NCM.");
   }
-  if (vazio(produto.ean)) acusar("gtin", "fiscal", "Sem GTIN/EAN: a nota sai SEM GTIN.");
+  // O GTIN que ja esta na loja (lido pelo editor) e o que vai na nota: vazio no Rise nao apaga.
+  if (vazio(produto.ean)) {
+    const daLoja = String(contexto?.gtinDaLI ?? "").trim();
+    acusar(
+      "gtin",
+      "fiscal",
+      daLoja
+        ? `Sem GTIN/EAN no Rise: a nota sai com o GTIN que ja esta na loja (${daLoja}). Para mudar, preencha no cadastro do produto.`
+        : "Sem GTIN/EAN: a nota sai SEM GTIN.",
+    );
+  }
   if (semNumero(produto.pesoKg)) acusar("peso", "envio", "Sem peso: o frete da loja nao calcula.");
   if (semNumero(produto.alturaCm) || semNumero(produto.larguraCm) || semNumero(produto.comprimentoCm)) {
     acusar("medidas", "envio", "Falta altura, largura ou comprimento: o frete da loja nao calcula.");
