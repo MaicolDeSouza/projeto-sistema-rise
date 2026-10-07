@@ -42,13 +42,13 @@ async function consultar(graphql, consulta, sinal) {
   try {
     dados = JSON.parse(resposta.corpo);
   } catch {
-    throw new Error("O catalogo GraphQL nao devolveu JSON.");
+    throw new Error("O catálogo GraphQL não devolveu JSON.");
   }
   // O Magento pode falhar em custom_attributesV2 de UM item e ainda devolver a
   // pagina inteira em data.products.items (observado na pagina 2 da Ryndack).
   // Descartar a resposta por causa desse erro parcial interromperia a varredura
   // apos os primeiros 50 produtos. Os atributos ausentes ficam vazios so ali.
-  if (dados.errors?.length && !dados.data) throw new Error(dados.errors[0].message ?? "Erro no catalogo GraphQL.");
+  if (dados.errors?.length && !dados.data) throw new Error(dados.errors[0].message ?? "Erro no catálogo GraphQL.");
   return dados.data;
 }
 
@@ -176,7 +176,7 @@ export async function colherMagentoPwa({ graphql, origem, secao, limite, orcamen
       }`, sinal);
       visitas++;
       categoriaId = dados?.categories?.items?.[0]?.id;
-      if (!categoriaId) throw new Error(`A secao /${caminho} nao existe no catalogo Magento.`);
+      if (!categoriaId) throw new Error(`A seção /${caminho} não existe no catálogo Magento.`);
     }
 
     for (let pagina = 1; visitas < orcamento && produtos.length + retomados < limite; pagina++) {
@@ -190,7 +190,7 @@ export async function colherMagentoPwa({ graphql, origem, secao, limite, orcamen
       visitas++;
       const bloco = dados?.products;
       const itens = bloco?.items;
-      if (!Array.isArray(itens)) throw new Error("O catalogo GraphQL nao trouxe a lista de produtos.");
+      if (!Array.isArray(itens)) throw new Error("O catálogo GraphQL não trouxe a lista de produtos.");
       if (total === null && bloco.total_count != null && Number.isFinite(Number(bloco.total_count))) total = Number(bloco.total_count);
 
       for (const item of itens) {

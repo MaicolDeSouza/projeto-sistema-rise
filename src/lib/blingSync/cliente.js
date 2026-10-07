@@ -22,7 +22,7 @@ export function exigirCodigoLiberado(codigo, liberados, variavel = "BLING_ESCRIT
   // Uma trava de seguranca nao pode se abrir por descuido: sem lista de verdade (undefined,
   // texto), falha alto em vez de tratar como "vazia = libera tudo".
   if (!Array.isArray(liberados)) {
-    throw new Error("exigirCodigoLiberado: a lista de codigos liberados tem que ser uma lista.");
+    throw new Error("exigirCodigoLiberado: a lista de códigos liberados tem que ser uma lista.");
   }
   if (liberados.length === 0) return;
 
@@ -30,7 +30,7 @@ export function exigirCodigoLiberado(codigo, liberados, variavel = "BLING_ESCRIT
   if (procurado && liberados.some((item) => String(item).trim().toLowerCase() === procurado)) return;
 
   throw new Error(
-    `Escrita bloqueada: o codigo ${codigo} nao esta na lista de codigos liberados ` +
+    `Escrita bloqueada: o código ${codigo} não está na lista de códigos liberados ` +
       `(${variavel} no .env). Nenhum dado foi enviado.`,
   );
 }

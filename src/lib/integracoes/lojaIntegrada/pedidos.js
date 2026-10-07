@@ -7,14 +7,14 @@ import {
 
 function idSeguro(id) {
   if (id === undefined || id === null || String(id).trim() === "") {
-    throw new TypeError("Id do pedido da Loja Integrada nao informado.");
+    throw new TypeError("Id do pedido da Loja Integrada não informado.");
   }
   return encodeURIComponent(String(id).trim());
 }
 
 function normalizarLista(dados) {
   if (!Array.isArray(dados?.objects)) {
-    throw new TypeError("Lista de pedidos da Loja Integrada invalida.");
+    throw new TypeError("Lista de pedidos da Loja Integrada inválida.");
   }
   return {
     pedidos: dados.objects.map(normalizarPedidoLojaIntegrada),

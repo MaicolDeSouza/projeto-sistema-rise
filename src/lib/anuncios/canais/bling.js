@@ -23,7 +23,7 @@ export function validar(produto) {
   if (!produto?.sku?.trim()) {
     problemas.push({
       campo: "sku",
-      problema: "O SKU e obrigatorio: e ele que liga o produto aos canais.",
+      problema: "O SKU é obrigatório: é ele que liga o produto aos canais.",
       bloqueante: true,
     });
   }
@@ -31,7 +31,7 @@ export function validar(produto) {
   if (!produto?.tituloBase?.trim()) {
     problemas.push({
       campo: "tituloBase",
-      problema: "Informe a descricao do produto.",
+      problema: "Informe a descrição do produto.",
       bloqueante: true,
     });
   }
@@ -40,7 +40,7 @@ export function validar(produto) {
   if (!preco || preco <= 0) {
     problemas.push({
       campo: "preco",
-      problema: "Informe o preco de venda.",
+      problema: "Informe o preço de venda.",
       bloqueante: true,
     });
   }
@@ -48,7 +48,7 @@ export function validar(produto) {
   if (!produto?.custo) {
     problemas.push({
       campo: "custo",
-      problema: "Sem custo cadastrado nao da para acompanhar a margem.",
+      problema: "Sem custo cadastrado não dá para acompanhar a margem.",
       bloqueante: false,
     });
   }

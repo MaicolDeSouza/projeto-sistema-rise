@@ -158,7 +158,7 @@ export function lerPtax(json) {
   }
 
   if (porDia.size === 0) {
-    return { ok: false, erro: "O Banco Central nao trouxe cotacao para o periodo (fim de semana ou feriado?)." };
+    return { ok: false, erro: "O Banco Central não trouxe cotação para o período (fim de semana ou feriado?)." };
   }
   const serie = [...porDia.values()].sort((a, b) => (a.data < b.data ? -1 : 1));
   return { ok: true, serie };
@@ -176,7 +176,7 @@ export function lerAgora(json) {
   const compra = numeroPositivo(dado?.bid);
   const venda = numeroPositivo(dado?.ask);
   if (compra === null || venda === null) {
-    return { ok: false, erro: "A cotacao de agora veio num formato inesperado." };
+    return { ok: false, erro: "A cotação de agora veio num formato inesperado." };
   }
   const instante = numeroPositivo(dado?.timestamp);
   return {
@@ -214,7 +214,7 @@ export function lerBoletim(json) {
     if (!ultimo || instante > ultimo.lidoEm) ultimo = { compra, venda, lidoEm: instante };
   }
 
-  if (!ultimo) return { ok: false, erro: "O Banco Central nao trouxe boletim recente." };
+  if (!ultimo) return { ok: false, erro: "O Banco Central não trouxe boletim recente." };
   return { ok: true, fonte: "bcb", ...ultimo, maxima: null, minima: null, variacaoPct: null };
 }
 

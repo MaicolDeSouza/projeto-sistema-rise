@@ -22,13 +22,13 @@ export async function GET(requisicao, { params }) {
     );
 
   if (!conector || conector.tipoAuth !== "oauth2") {
-    return voltar("erro", `Servico desconhecido: ${servico}`);
+    return voltar("erro", `Serviço desconhecido: ${servico}`);
   }
 
   if (!conector.configurado) {
     return voltar(
       "erro",
-      `Faltam variaveis no .env: ${conector.faltando.join(", ")}`,
+      `Faltam variáveis no .env: ${conector.faltando.join(", ")}`,
     );
   }
 

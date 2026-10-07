@@ -27,7 +27,7 @@ const ehJpeg = (bytes) => bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 
  */
 export async function gravarNaReserva(sku, bytes) {
   const pasta = pastaDoProduto(sku);
-  if (!pasta) throw new Error("SKU invalido para a reserva.");
+  if (!pasta) throw new Error("SKU inválido para a reserva.");
 
   let jpeg = bytes;
   if (!ehJpeg(bytes)) {

@@ -8,14 +8,14 @@ import Card from "@/components/ui/Card";
 export const dynamic = "force-dynamic";
 
 const CAMPOS = [
-  { nome: "sku", rotulo: "SKU", ajuda: "Codigo unico. E ele que liga o produto aos canais." },
+  { nome: "sku", rotulo: "SKU", ajuda: "Código único. É ele que liga o produto aos canais." },
   { nome: "ean", rotulo: "EAN / GTIN" },
   { nome: "marca", rotulo: "Marca" },
   { nome: "modelo", rotulo: "Modelo" },
-  { nome: "tituloBase", rotulo: "Titulo base", largo: true },
-  { nome: "descricaoBase", rotulo: "Descricao base", largo: true, area: true },
+  { nome: "tituloBase", rotulo: "Título base", largo: true },
+  { nome: "descricaoBase", rotulo: "Descrição base", largo: true, area: true },
   { nome: "custo", rotulo: "Custo" },
-  { nome: "precoVenda", rotulo: "Preco de venda" },
+  { nome: "precoVenda", rotulo: "Preço de venda" },
   { nome: "estoque", rotulo: "Estoque" },
   { nome: "garantiaMeses", rotulo: "Garantia (meses)" },
 ];
@@ -28,11 +28,11 @@ export default function NovoAnuncioPage() {
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-suave hover:text-texto"
       >
         <ArrowLeft size={15} />
-        Voltar para anuncios
+        Voltar para anúncios
       </Link>
 
       <PageHeader
-        titulo="Novo anuncio"
+        titulo="Novo anúncio"
         descricao="Cadastre o produto uma vez e escolha em quais canais ele deve ser publicado."
       />
 
@@ -67,8 +67,8 @@ export default function NovoAnuncioPage() {
         <Card>
           <h2 className="mb-1 text-sm font-semibold">Canais</h2>
           <p className="mb-4 text-xs text-suave">
-            O Bling e obrigatorio: sem o produto no ERP os marketplaces nao tem
-            onde gravar o codigo de retorno que liga os dois lados.
+            O Bling é obrigatório: sem o produto no ERP os marketplaces não têm
+            onde gravar o código de retorno que liga os dois lados.
           </p>
 
           <div className="space-y-3">
@@ -104,14 +104,14 @@ export default function NovoAnuncioPage() {
           <button
             type="button"
             disabled
-            title="Disponivel na proxima etapa, quando a publicacao for ligada"
+            title="Disponível na próxima etapa, quando a publicação for ligada"
             className="mt-4 w-full cursor-not-allowed rounded border border-borda px-3 py-2 text-sm text-suave opacity-60"
           >
             Salvar e validar
           </button>
           <p className="mt-2 text-[11px] text-suave">
-            O cadastro entra em funcionamento na proxima etapa, junto com a
-            publicacao.
+            O cadastro entra em funcionamento na próxima etapa, junto com a
+            publicação.
           </p>
         </Card>
       </div>

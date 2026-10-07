@@ -67,7 +67,7 @@ export default function RegrasDeCompra({ precoNormal, precosPorQuantidade, multi
 
       {temMultiplo && (
         <div className="min-w-[9rem] rounded border border-borda px-3 py-2.5">
-          <p className="mb-2 text-xs font-medium tracking-wide text-suave uppercase">Multiplo de venda</p>
+          <p className="mb-2 text-xs font-medium tracking-wide text-suave uppercase">Múltiplo de venda</p>
           <p className="text-lg font-semibold tabular-nums">{multiploVenda}</p>
           <p className="text-xs text-suave">
             {multiploVenda > 1 ? `vendido de ${multiploVenda} em ${multiploVenda}` : "vendido por unidade"}

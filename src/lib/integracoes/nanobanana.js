@@ -74,7 +74,7 @@ export function avaliarConfiguracao(env = process.env) {
     return { ok: false, motivo: "Chave do Google ausente: coloque GEMINI_API_KEY no arquivo .env e reinicie o servidor.", tetoDia };
   }
   if (!ligada) {
-    return { ok: false, motivo: "Geracao desligada. Ela so liga com NANO_BANANA_GERACAO=true no .env.", tetoDia };
+    return { ok: false, motivo: "Geração desligada. Ela só liga com NANO_BANANA_GERACAO=true no .env.", tetoDia };
   }
   return { ok: true, motivo: null, tetoDia };
 }
@@ -125,7 +125,7 @@ export function lerResposta(corpo) {
     const dados = parte?.inlineData?.data ?? parte?.inline_data?.data;
     if (typeof dados !== "string" || !dados) continue;
     const bytes = Buffer.from(dados, "base64");
-    if (!pareceImagem(bytes)) return { ok: false, erro: "O Google devolveu uma imagem que nao pode ser lida." };
+    if (!pareceImagem(bytes)) return { ok: false, erro: "O Google devolveu uma imagem que não pode ser lida." };
     return { ok: true, bytes };
   }
 
@@ -137,7 +137,7 @@ export function lerResposta(corpo) {
     .join(" ")
     .trim()
     .slice(0, 200);
-  return { ok: false, erro: `O Google nao devolveu imagem${texto ? `: ${texto}` : "."}` };
+  return { ok: false, erro: `O Google não devolveu imagem${texto ? `: ${texto}` : "."}` };
 }
 
 /** Mensagem para a tela a partir do que o Google respondeu com erro. */
@@ -190,9 +190,9 @@ export async function gerarImagem({ modelo, prompt, original, extras = [], env =
   if (!texto) return falha("Escreva o prompt antes de gerar.");
   if (texto.length > MAXIMO_PROMPT) return falha(`O prompt passa de ${MAXIMO_PROMPT} caracteres.`);
 
-  if (!original?.bytes?.length) return falha("A foto original nao esta disponivel.");
+  if (!original?.bytes?.length) return falha("A foto original não está disponível.");
   const lista = Array.isArray(extras) ? extras : [];
-  if (lista.length > MAXIMO_EXTRAS) return falha(`No maximo ${MAXIMO_EXTRAS} imagens extras por foto.`);
+  if (lista.length > MAXIMO_EXTRAS) return falha(`No máximo ${MAXIMO_EXTRAS} imagens extras por foto.`);
 
   const corpo = montarPedido({ prompt: texto, original, extras: lista, aceitaExtras: MODELOS[modelo].aceitaExtras });
 
@@ -206,7 +206,7 @@ export async function gerarImagem({ modelo, prompt, original, extras = [], env =
     });
   } catch (erro) {
     return falha(
-      erro?.name === "TimeoutError" ? "O Google demorou demais para responder." : "Nao foi possivel falar com o Google. Confira a conexao.",
+      erro?.name === "TimeoutError" ? "O Google demorou demais para responder." : "Não foi possível falar com o Google. Confira a conexão.",
       null,
       true,
     );
@@ -220,7 +220,7 @@ export async function gerarImagem({ modelo, prompt, original, extras = [], env =
   try {
     json = await resposta.json();
   } catch {
-    return falha("O Google devolveu uma resposta que nao e JSON.", resposta.status, true);
+    return falha("O Google devolveu uma resposta que não é JSON.", resposta.status, true);
   }
 
   const lida = lerResposta(json);

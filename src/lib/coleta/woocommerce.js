@@ -65,8 +65,8 @@ export async function colherWooCommerce({ catalogo, origem, secao, limite, orcam
       visitas++;
       if (!resposta.ok || !resposta.corpo) throw new Error(resposta.erro ?? `Store API respondeu HTTP ${resposta.status ?? "?"}`);
       let itens;
-      try { itens = JSON.parse(resposta.corpo); } catch { throw new Error("A Store API nao devolveu JSON."); }
-      if (!Array.isArray(itens)) throw new Error("A Store API nao devolveu uma lista de produtos.");
+      try { itens = JSON.parse(resposta.corpo); } catch { throw new Error("A Store API não devolveu JSON."); }
+      if (!Array.isArray(itens)) throw new Error("A Store API não devolveu uma lista de produtos.");
       const declarado = Number(resposta.cabecalhos?.["x-wp-total"]);
       if (total === null && Number.isFinite(declarado) && declarado >= 0) total = declarado;
 
@@ -85,7 +85,7 @@ export async function colherWooCommerce({ catalogo, origem, secao, limite, orcam
           sinal?.throwIfAborted();
           const paginaProduto = await buscar(produto.url, { sinal });
           visitas++;
-          if (!paginaProduto.ok || !paginaProduto.corpo) throw new Error(paginaProduto.erro ?? "Nao foi possivel conferir o preco na pagina da Forseti.");
+          if (!paginaProduto.ok || !paginaProduto.corpo) throw new Error(paginaProduto.erro ?? "Não foi possível conferir o preço na página da Forseti.");
           produto = produtoDoWooCommerce(item, origem, plataforma, paginaProduto.corpo);
         }
         produtos.push(produto);

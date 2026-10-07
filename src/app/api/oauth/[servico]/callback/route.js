@@ -27,21 +27,21 @@ export async function GET(requisicao, { params }) {
     );
 
   const conector = obterConector(APELIDOS[servico]);
-  if (!conector) return voltar("erro", `Servico desconhecido: ${servico}`);
+  if (!conector) return voltar("erro", `Serviço desconhecido: ${servico}`);
 
   if (erroOAuth) {
-    return voltar("erro", `${conector.nome} recusou a autorizacao: ${erroOAuth}`);
+    return voltar("erro", `${conector.nome} recusou a autorização: ${erroOAuth}`);
   }
 
   if (!code) {
-    return voltar("erro", `${conector.nome} nao enviou o codigo de autorizacao.`);
+    return voltar("erro", `${conector.nome} não enviou o código de autorização.`);
   }
 
   const esperado = requisicao.cookies.get(`state_${servico}`)?.value;
   if (!esperado || esperado !== state) {
     return voltar(
       "erro",
-      `State invalido no retorno do ${conector.nome}. Tente conectar novamente.`,
+      `State inválido no retorno do ${conector.nome}. Tente conectar novamente.`,
     );
   }
 

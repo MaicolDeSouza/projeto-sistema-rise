@@ -24,7 +24,7 @@ async function chamar(acao, ...argumentos) {
   try {
     return await acao(...argumentos);
   } catch {
-    return { ok: false, erro: "Nao foi possivel falar com o servidor. Tente de novo." };
+    return { ok: false, erro: "Não foi possível falar com o servidor. Tente de novo." };
   }
 }
 
@@ -135,7 +135,7 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
   function incluir() {
     const codigo = codigoBusca.trim();
     if (!codigo) {
-      setErroDaBusca("Informe o codigo do produto.");
+      setErroDaBusca("Informe o código do produto.");
       return;
     }
     setErroDaBusca(null);
@@ -150,7 +150,7 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
       // A lista e as variaveis do clique estao velhas: vale o que o ultimo render mostra.
       const { rascunho: atual, contexto: lido } = ultimo.current;
       if (atual.composicao?.itens?.some((item) => item.produtoId === produto.id)) {
-        setErroDaBusca(`O produto ${produto.sku} ja esta na composicao.`);
+        setErroDaBusca(`O produto ${produto.sku} já está na composição.`);
         return;
       }
       const produtos = { ...lido.produtos, [produto.id]: produto };
@@ -198,8 +198,8 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
   return (
     <div className="rounded border border-borda p-3">
       <div className="flex items-center gap-1 text-sm font-semibold">
-        Composicao
-        <BolhaDeAjuda variante="inline" texto="O primeiro item e o produto principal do anuncio. Subir ou descer um item muda quem e o principal." />
+        Composição
+        <BolhaDeAjuda variante="inline" texto="O primeiro item é o produto principal do anúncio. Subir ou descer um item muda quem é o principal." />
       </div>
 
       <ul className="mt-2 divide-y divide-borda rounded border border-borda">
@@ -210,7 +210,7 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <div className="flex min-w-0 flex-1 items-center gap-2 text-sm">
                   <span className="font-mono font-medium">{produto?.sku ?? "?"}</span>
-                  <span className="min-w-0 truncate">{produto?.tituloBase ?? "Produto nao encontrado"}</span>
+                  <span className="min-w-0 truncate">{produto?.tituloBase ?? "Produto não encontrado"}</span>
                   {posicao === 0 && <Badge tom="info">Principal</Badge>}
                 </div>
                 <label className="flex items-center gap-1.5 text-xs text-suave">
@@ -265,7 +265,7 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
               evento.preventDefault();
               if (!buscando) incluir();
             }}
-            placeholder="Codigo do produto"
+            placeholder="Código do produto"
             className="w-56 rounded border border-borda bg-superficie px-2.5 py-2 text-sm focus:border-acento focus:outline-none"
           />
           <button
@@ -283,13 +283,13 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
 
       <div className="mt-4">
         <label htmlFor="ml-codigo-kit" className="flex items-center gap-1 text-sm font-semibold">
-          Codigo do kit
+          Código do kit
           <BolhaDeAjuda
             variante="inline"
             texto={
               unico
-                ? "Com um produto so, o codigo sai pronto: codigo do produto, sublinhado e a quantidade (920302_1.000)."
-                : "Kit com produtos diferentes: o codigo e o SKU do kit no Bling. Digite o seu ou use Sugerir (faixa 25xxxx)."
+                ? "Com um produto só, o código sai pronto: código do produto, sublinhado e a quantidade (920302_1.000)."
+                : "Kit com produtos diferentes: o código é o SKU do kit no Bling. Digite o seu ou use Sugerir (faixa 25xxxx)."
             }
           />
         </label>
@@ -299,7 +299,7 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
             value={composicao.codigo ?? ""}
             readOnly={unico}
             maxLength={LIMITE_DO_CODIGO}
-            placeholder={unico ? "Sai pronto quando ha produto e quantidade" : ""}
+            placeholder={unico ? "Sai pronto quando há produto e quantidade" : ""}
             onChange={(evento) => mudarCodigo(evento.target.value)}
             onBlur={unico ? undefined : () => conferirCodigo(composicao)}
             className={`${CLASSE_CAMPO} ${bordaDoCampo(erroDoCodigo)} ${unico ? "bg-fundo text-suave" : ""}`}

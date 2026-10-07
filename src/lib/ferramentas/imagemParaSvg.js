@@ -28,7 +28,7 @@ import {
 /** Teto de pixels da imagem ENVIADA. Contra "bomba de descompressao": um PNG de
  *  poucos KB pode declarar 50.000 x 50.000 pixels e pedir gigabytes ao decodificar. */
 const TETO_PIXELS_ENTRADA = 40_000_000;
-const ERRO_PIXELS_DEMAIS = "A imagem tem pixels demais para converter. Reduza as dimensoes e tente de novo.";
+const ERRO_PIXELS_DEMAIS = "A imagem tem pixels demais para converter. Reduza as dimensões e tente de novo.";
 
 /**
  * Tipo pelos BYTES, nunca pelo `type` do navegador nem pela extensao: quem
@@ -56,20 +56,20 @@ export function tipoPelosBytes(bytes) {
  * @returns {string|null} o motivo da recusa, ou null se esta tudo certo.
  */
 export function motivoDeSvgInseguro(svg) {
-  if (typeof svg !== "string" || !/^\s*<svg[\s>]/i.test(svg)) return "a saida nao comeca por <svg>";
+  if (typeof svg !== "string" || !/^\s*<svg[\s>]/i.test(svg)) return "a saída não começa por <svg>";
   const proibidos = [
     [/<script/i, "<script>"],
     [/<foreignObject/i, "<foreignObject>"],
     [/<image[\s>]/i, "<image>"],
     [/<use[\s>]/i, "<use>"],
-    [/<iframe|<embed|<object/i, "conteudo embutido"],
+    [/<iframe|<embed|<object/i, "conteúdo embutido"],
     [/<!DOCTYPE|<!ENTITY/i, "DOCTYPE/ENTITY"],
     [/\son[a-z]+\s*=/i, "atributo de evento (on...)"],
     [/javascript:/i, "javascript:"],
     [/\b(xlink:)?href\s*=/i, "href"],
   ];
   for (const [padrao, nome] of proibidos) {
-    if (padrao.test(svg)) return `a saida traz ${nome}`;
+    if (padrao.test(svg)) return `a saída traz ${nome}`;
   }
   return null;
 }
@@ -100,13 +100,13 @@ export async function converterImagemParaSvg({ bytes }) {
   if (bytes.length > TETO_BYTES_SVG) {
     return {
       ok: false,
-      erro: `O arquivo tem ${(bytes.length / 1024 / 1024).toFixed(1)} MB e o limite e ${TETO_MB_SVG} MB.`,
+      erro: `O arquivo tem ${(bytes.length / 1024 / 1024).toFixed(1)} MB e o limite é ${TETO_MB_SVG} MB.`,
     };
   }
 
   const tipo = tipoPelosBytes(bytes);
   if (!tipo) {
-    return { ok: false, erro: "Formato nao aceito. Envie uma imagem PNG, JPG ou WebP." };
+    return { ok: false, erro: "Formato não aceito. Envie uma imagem PNG, JPG ou WebP." };
   }
 
   const inicio = performance.now();
@@ -141,7 +141,7 @@ export async function converterImagemParaSvg({ bytes }) {
     const excedeu = /pixel limit|exceeds/i.test(erro?.message ?? "");
     return {
       ok: false,
-      erro: excedeu ? ERRO_PIXELS_DEMAIS : "Nao foi possivel ler a imagem. O arquivo pode estar corrompido.",
+      erro: excedeu ? ERRO_PIXELS_DEMAIS : "Não foi possível ler a imagem. O arquivo pode estar corrompido.",
     };
   }
 
@@ -172,7 +172,7 @@ export async function converterImagemParaSvg({ bytes }) {
 
   const paleta = coresDaImagem(rgba);
   if (paleta.length === 0) {
-    return { ok: false, erro: "A imagem esta toda transparente: nao ha o que converter." };
+    return { ok: false, erro: "A imagem está toda transparente: não há o que converter." };
   }
 
   // A borda entre o fundo apagado e o desenho precisa da paleta para ser
@@ -197,7 +197,7 @@ export async function converterImagemParaSvg({ bytes }) {
   const motivo = motivoDeSvgInseguro(svg);
   if (motivo) {
     // Nao devolve o SVG suspeito: quem o pedir nao chega a te-lo.
-    return { ok: false, erro: `Conversao recusada por seguranca: ${motivo}.` };
+    return { ok: false, erro: `Conversão recusada por segurança: ${motivo}.` };
   }
 
   const cores = [

@@ -75,14 +75,14 @@ export default function BuscarPorCodigo({ codigoAtual, aoEscolher }) {
         className="inline-flex items-center gap-1.5 rounded border border-acento bg-superficie px-4 py-2 text-sm font-medium text-acento hover:bg-fundo"
       >
         <Copy size={15} />
-        Clonar a partir de um codigo
+        Clonar a partir de um código
       </button>
-      <BolhaDeAjuda texto="Copia o cadastro de um produto da Rise, de fornecedor ou de concorrente, pelo codigo, EAN ou MPN. Uma nova busca recomeca o cadastro do zero." />
+      <BolhaDeAjuda texto="Copia o cadastro de um produto da Rise, de fornecedor ou de concorrente, pelo código, EAN ou MPN. Uma nova busca recomeça o cadastro do zero." />
 
       {aberto && (
         <div className="absolute right-0 z-20 mt-2 w-[28rem] max-w-[calc(100vw-2rem)] rounded-lg border border-borda bg-superficie p-3 shadow-lg">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-semibold">Clonar a partir de um codigo</span>
+            <span className="text-sm font-semibold">Clonar a partir de um código</span>
             <button
               type="button"
               onClick={() => setAberto(false)}
@@ -108,7 +108,7 @@ export default function BuscarPorCodigo({ codigoAtual, aoEscolher }) {
                   buscar();
                 }
               }}
-              placeholder="Codigo, EAN ou MPN"
+              placeholder="Código, EAN ou MPN"
               className="w-full rounded border border-borda px-2.5 py-2 text-sm focus:border-acento focus:outline-none"
             />
             <button
@@ -127,14 +127,14 @@ export default function BuscarPorCodigo({ codigoAtual, aoEscolher }) {
 
           {resposta?.ok && resposta.resultados.length === 0 && (
             <p className="mt-3 text-sm text-suave">
-              Nenhum produto com o codigo &quot;{codigo.trim()}&quot;.
+              Nenhum produto com o código &quot;{codigo.trim()}&quot;.
             </p>
           )}
 
           {resposta?.ok && resposta.resultados.length > 1 && (
             <div className="mt-3">
               <p className="mb-1.5 text-xs text-suave">
-                {resposta.resultados.length} produtos com este codigo. Escolha qual clonar:
+                {resposta.resultados.length} produtos com este código. Escolha qual clonar:
               </p>
               <ul className="max-h-80 divide-y divide-borda overflow-y-auto rounded border border-borda">
                 {resposta.resultados.map((resultado) => {

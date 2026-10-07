@@ -42,16 +42,16 @@ export default async function MercadoLivrePage({ searchParams }) {
       <LinkDeVolta href="/canais-de-venda" rotulo="Canais de Venda" />
       <PageHeader
         titulo="Mercado Livre"
-        descricao="Anuncios criados a partir dos produtos Conferidos. A publicacao no Mercado Livre entra numa proxima etapa."
+        descricao="Anúncios criados a partir dos produtos Conferidos. A publicação no Mercado Livre entra numa próxima etapa."
         acao={
           <div className="flex flex-wrap gap-2">
             <Link href="/canais-de-venda/mercado-livre/configuracoes" className={`${botao} border border-borda hover:bg-fundo`}>
               <Settings size={16} />
-              Configuracoes
+              Configurações
             </Link>
             <Link href="/canais-de-venda/mercado-livre/novo" className={`${botao} bg-acento text-white hover:opacity-90`}>
               <Plus size={16} />
-              Novo anuncio
+              Novo anúncio
             </Link>
           </div>
         }
@@ -62,7 +62,7 @@ export default async function MercadoLivrePage({ searchParams }) {
       {lista && (
         <>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <CampoBusca valorInicial={busca} rotulo="Buscar por titulo ou codigo" className="w-full max-w-sm" />
+            <CampoBusca valorInicial={busca} rotulo="Buscar por título ou código" className="w-full max-w-sm" />
             <Paginacao
               compacto
               pagina={lista.pagina}
@@ -84,7 +84,7 @@ export default async function MercadoLivrePage({ searchParams }) {
                 ultimo={ultimo}
                 total={lista.total}
               />
-              <p className="mt-3 text-xs text-suave">{lista.total} anuncio(s)</p>
+              <p className="mt-3 text-xs text-suave">{lista.total} anúncio(s)</p>
             </>
           )}
         </>

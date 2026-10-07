@@ -197,7 +197,7 @@ try {
     conferir("esquema completa o que faltar", RascunhoLISchema.parse({ produtoId: "p3" }), { produtoId: "p3", titulo: "", slug: "", marca: "", categorias: [], destaque: false, videoUrl: null, seo: { title: "", description: "" } });
     conferir("ABAS_LI na ordem do dono", ABAS_LI.map((a) => a.id), ["geral", "descricao", "categorias", "envio", "fiscal", "seo", "previa"]);
     conferir("alerta de categoria mora na aba Categorias", validarRascunhoLI({ ...inicial, categorias: [] }, { produto: ctxProd, categoriasDaLI: null }).find((p) => p.campo === "categorias")?.aba, "categorias");
-    conferir("rotulo da ultima aba", ABAS_LI.at(-1).rotulo, "Previa e sincronizacao");
+    conferir("rotulo da ultima aba", ABAS_LI.at(-1).rotulo, "Prévia e sincronização");
     const problemas = validarRascunhoLI({ ...inicial, titulo: "", slug: "Ré", categorias: ["9"], seo: { title: "t".repeat(71), description: "" } }, { produto: { ...ctxProd, conferido: false, ncm: null }, categoriasDaLI: [{ id: "1" }] });
     conferir("bloqueantes: titulo e nao conferido (sem nome nao ha slug a acusar)", problemas.filter((p) => p.bloqueante).map((p) => p.campo), ["titulo", "produto"]);
     conferir("nome so de simbolos nao gera endereco", validarRascunhoLI({ ...inicial, titulo: "!!!", categorias: ["1"] }, { produto: ctxProd, categoriasDaLI: null }).map((p) => [p.campo, p.bloqueante]), [["slug", true]]);
@@ -219,7 +219,7 @@ try {
     try {
       const p = await prisma.produto.create({ data: { sku: "ZZ-LI-3", tituloBase: "Fonte 12V", descricaoBase: "Desc", marca: "ACME", ncm: "85044010", conferido: true, pesoKg: "0.250", tipoProducao: "REVENDA" } });
       const q = await prisma.produto.create({ data: { sku: "ZZ-LI-4", tituloBase: "Nao conferido" } });
-      conferir("novo rascunho recusa nao Conferido", (await novoRascunhoLI(q.id)).erro, "O produto ZZ-LI-4 ainda nao foi Conferido. So produto Conferido vira anuncio.");
+      conferir("novo rascunho recusa nao Conferido", (await novoRascunhoLI(q.id)).erro, "O produto ZZ-LI-4 ainda não foi Conferido. Só produto Conferido vira anúncio.");
       conferir("novo rascunho de produto inexistente", (await novoRascunhoLI("nao-existe")).ok, false);
       const ctx = await contextoDoProduto(p.id);
       conferir("contexto com Decimal em Number e fiscais", [ctx.sku, ctx.pesoKg, ctx.tipoProducao, ctx.conferido], ["ZZ-LI-3", 0.25, "REVENDA", true]);
@@ -382,7 +382,7 @@ try {
     conferir("vinculo trouxe as categorias da LI; o slug segue o nome", [aberto.rascunho.slug, aberto.rascunho.categorias], [slugDe(aberto.rascunho.titulo), ["3"]]);
     conferir("escrita fechada tem motivo", [popup.escrita.liberada, /LI_ESCRITA/.test(popup.escrita.motivo)], [false, true]);
     const popLixo = await lerParaPopupLI(lixo.id, li2);
-    conferir("pop-up de produto na lixeira da LI", [popLixo.ok, popLixo.situacao, popLixo.erro], [false, "removido", "O codigo ZZ-LI-7 esta na lixeira da Loja Integrada: restaure-o la antes de sincronizar."]);
+    conferir("pop-up de produto na lixeira da LI", [popLixo.ok, popLixo.situacao, popLixo.erro], [false, "removido", "O código ZZ-LI-7 está na lixeira da Loja Integrada: restaure-o lá antes de sincronizar."]);
     const popDup = await lerParaPopupLI(dup.id, li2);
     conferir("pop-up de SKU duplicado na LI", [popDup.ok, popDup.situacao, /mais de um/.test(popDup.erro)], [false, "duplicado", true]);
     const popNovo = await lerParaPopupLI(novoNaLI.id, li2);
@@ -394,7 +394,7 @@ try {
     conferir("token recusado vira recado", /Personal Token/.test((await lerParaPopupLI(prodL.id, liToken)).erro), true);
     await prisma.produto.update({ where: { id: prodL.id }, data: { tipoProducao: "FABRICACAO_PROPRIA" } });
     const popFiscal = await lerParaPopupLI(prodL.id, li2);
-    conferir("aviso fiscal: tipo de producao diferente, ajuste no painel", popFiscal.avisos.some((a) => /Tipo de producao/.test(a) && /painel da Loja Integrada/.test(a)), true);
+    conferir("aviso fiscal: tipo de producao diferente, ajuste no painel", popFiscal.avisos.some((a) => /Tipo de produção/.test(a) && /painel da Loja Integrada/.test(a)), true);
     conferir("aviso fiscal nao entra nas diferencas", popFiscal.diferencas.some((d) => d.campo === "tipoProducao"), false);
     conferir("leitura traz os fiscais em lista (para a aba Fiscal)", popFiscal.fiscais.map((f) => [f.campo, f.tipo, f.rise, f.li]), [["tipoProducao", "diferente", "FABRICACAO_PROPRIA", "REVENDA"]]);
     conferir("leitura traz o que a loja tem de GTIN, origem e tipo", Object.keys(popFiscal.daLoja).sort(), ["gtin", "origem", "tipoProducao"]);
@@ -457,16 +457,16 @@ try {
     const chamadasAntesDaTrava = li3.chamadas.length;
     const recusado = await sincronizarProdutoLI(pe.id, travada);
     conferir("trava fechada: recusa antes de qualquer chamada", [recusado.erro.includes("LI_ESCRITA"), recusado.etapa, li3.chamadas.length - chamadasAntesDaTrava], [true, "trava", 0]);
-    conferir("mudouNaLI e resumirEnvioLI", [mudouNaLI("sincronizar", envio), resumirEnvioLI("sincronizar", { ok: true, alterados: [] }).titulo], [true, "Nada para enviar: a Loja Integrada ja estava igual ao Rise."]);
+    conferir("mudouNaLI e resumirEnvioLI", [mudouNaLI("sincronizar", envio), resumirEnvioLI("sincronizar", { ok: true, alterados: [] }).titulo], [true, "Nada para enviar: a Loja Integrada já estava igual ao Rise."]);
     conferir("resumo do sincronizar lista os campos", resumirEnvioLI("sincronizar", { ok: true, alterados: [{ campo: "peso", de: null, para: 0.5 }] }, { peso: "Peso (kg)" }), { titulo: "Sincronizado com a Loja Integrada.", linhas: ["Peso (kg): de vazio para 0,5 kg"] });
     conferir("resumo do cadastro", resumirEnvioLI("cadastrar", { ok: true, idExterno: "9" }).titulo, "Produto cadastrado na Loja Integrada (inativo).");
-    conferir("valorParaTela", [valorParaTela("categorias", ["1", "2"]), valorParaTela("destaque", false), valorParaTela("altura", 3), valorParaTela("tipoProducao", "FABRICACAO_PROPRIA"), valorParaTela("ncm", null)], ["1, 2", "nao", "3 cm", "Fabricacao propria", null]);
+    conferir("valorParaTela", [valorParaTela("categorias", ["1", "2"]), valorParaTela("destaque", false), valorParaTela("altura", 3), valorParaTela("tipoProducao", "FABRICACAO_PROPRIA"), valorParaTela("ncm", null)], ["1, 2", "nao", "3 cm", "Fabricação própria", null]);
   }
 
   {
     console.log("\nRotulos");
     conferir("STATUS_LI", Object.keys(STATUS_LI), ["RASCUNHO", "PUBLICADO", "ERRO"]);
-    conferir("rotulo do tipo de producao", ROTULO_DO_TIPO_PRODUCAO.FABRICACAO_PROPRIA, "Fabricacao propria");
+    conferir("rotulo do tipo de producao", ROTULO_DO_TIPO_PRODUCAO.FABRICACAO_PROPRIA, "Fabricação própria");
   }
 
   {
@@ -485,7 +485,7 @@ try {
     await salvarRascunhoLI(anM.id, { ...rascunhoDoAnuncio(anM), categorias: ["5", "999"] });
     const popM = await lerParaPopupLI(pm.id, li5);
     conferir("pop-up: categoria que sumiu da loja nao vira diferenca eterna", popM.diferencas.some((d) => d.campo === "categorias"), false);
-    conferir("pop-up: categoria que sumiu da loja vira aviso", popM.avisos.some((a) => /999/.test(a) && /nao existe mais/.test(a)), true);
+    conferir("pop-up: categoria que sumiu da loja vira aviso", popM.avisos.some((a) => /999/.test(a) && /não existe mais/.test(a)), true);
   }
 
   {

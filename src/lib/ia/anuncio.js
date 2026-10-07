@@ -33,7 +33,7 @@ function obterCliente() {
   // nao tem um: sem a variavel, a mensagem precisa dizer onde configurar.
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error(
-      "IA nao configurada: coloque ANTHROPIC_API_KEY no arquivo .env e reinicie o servidor.",
+      "IA não configurada: coloque ANTHROPIC_API_KEY no arquivo .env e reinicie o servidor.",
     );
   }
   // Endereco FIXO: o SDK tambem le ANTHROPIC_BASE_URL do ambiente, e nesta
@@ -45,9 +45,9 @@ function obterCliente() {
 
 async function lerReferencias(ids) {
   const lista = [...new Set((ids ?? []).map(String))];
-  if (lista.length === 0) throw new Error("Marque pelo menos um produto de referencia.");
+  if (lista.length === 0) throw new Error("Marque pelo menos um produto de referência.");
   if (lista.length > MAXIMO_REFERENCIAS) {
-    throw new Error(`Marque no maximo ${MAXIMO_REFERENCIAS} produtos de referencia.`);
+    throw new Error(`Marque no máximo ${MAXIMO_REFERENCIAS} produtos de referencia.`);
   }
 
   const linhas = await prisma.produtoColetado.findMany({
@@ -68,7 +68,7 @@ async function lerReferencias(ids) {
   // mais parecida escolhida na busca e deve continuar primeira no prompt.
   const porId = new Map(linhas.map((linha) => [linha.id, linha]));
   const ordenadas = lista.map((id) => porId.get(id)).filter(Boolean);
-  if (ordenadas.length === 0) throw new Error("Os produtos marcados nao existem mais no banco.");
+  if (ordenadas.length === 0) throw new Error("Os produtos marcados não existem mais no banco.");
 
   // O nome da loja NAO vai para o prompt: o texto e da Rise e nao pode citar
   // concorrente, e o que nao entra nao tem como vazar.
@@ -141,10 +141,10 @@ function mensagemDeErro(erro) {
     return "Limite de uso da IA atingido. Tente de novo em alguns instantes.";
   }
   if (erro instanceof Anthropic.APIConnectionError) {
-    return "Sem conexao com o servico de IA. Confira a internet e tente de novo.";
+    return "Sem conexão com o serviço de IA. Confira a internet e tente de novo.";
   }
   if (erro instanceof Anthropic.APIError) {
-    return `O servico de IA devolveu erro ${erro.status ?? ""}: ${erro.message}`;
+    return `O serviço de IA devolveu erro ${erro.status ?? ""}: ${erro.message}`;
   }
   return erro.message;
 }
@@ -174,7 +174,7 @@ async function chamar({ tarefa, quantidade, sistema, pedido, formato }) {
   await registrar({ tarefa, referencias: quantidade, inicio, resposta });
 
   if (resposta.stop_reason === "refusal") {
-    throw new Error("A IA recusou gerar este texto. Tente marcar outras referencias.");
+    throw new Error("A IA recusou gerar este texto. Tente marcar outras referências.");
   }
   if (resposta.stop_reason === "max_tokens") {
     throw new Error("A resposta da IA veio incompleta. Tente de novo com menos referencias.");
@@ -261,7 +261,7 @@ export async function gerarTitulos(ids, palavras) {
       candidatos = JSON.parse(texto).titulos;
       if (!Array.isArray(candidatos)) throw new Error();
     } catch {
-      throw new Error("A IA devolveu os titulos em formato inesperado. Tente de novo.");
+      throw new Error("A IA devolveu os títulos em formato inesperado. Tente de novo.");
     }
 
     for (const candidato of candidatos) {
@@ -274,7 +274,7 @@ export async function gerarTitulos(ids, palavras) {
 
   if (opcoes.length === 0) {
     throw new Error(
-      `A IA nao conseguiu titulos de ate ${LIMITE_TITULO_ML} caracteres. Tente de novo.`,
+      `A IA não conseguiu títulos de até ${LIMITE_TITULO_ML} caracteres. Tente de novo.`,
     );
   }
   return opcoes;
@@ -377,7 +377,7 @@ export async function gerarDescriptionsSeo({ titulo = "", descricao = "", concor
     recusadas.push(...fora.filter((opcao) => !recusadas.includes(opcao)));
   }
   if (opcoes.length === 0) {
-    throw new Error(`A IA nao conseguiu descriptions de ${FAIXA_DESCRIPTION_SEO.minimo} a ${FAIXA_DESCRIPTION_SEO.maximo} caracteres. Tente de novo.`);
+    throw new Error(`A IA não conseguiu descriptions de ${FAIXA_DESCRIPTION_SEO.minimo} a ${FAIXA_DESCRIPTION_SEO.maximo} caracteres. Tente de novo.`);
   }
   return opcoes;
 }
@@ -601,11 +601,11 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
     try {
       conteudo = JSON.parse(texto);
     } catch {
-      throw new Error("A IA devolveu a descricao em formato inesperado. Tente de novo.");
+      throw new Error("A IA devolveu a descrição em formato inesperado. Tente de novo.");
     }
     ({ opcoes: opcoesParagrafos, longos } = opcoesDeParagrafos(conteudo?.paragrafos));
     if (!opcoesParagrafos.some((lista) => lista.length > 0)) {
-      throw new Error("A IA devolveu uma descricao vazia. Tente de novo.");
+      throw new Error("A IA devolveu uma descrição vazia. Tente de novo.");
     }
     if (longos.length === 0) break;
   }
@@ -771,7 +771,7 @@ export const MAXIMO_PROMPT_DESCRICAO = 12000;
  */
 export function limparPromptDaDescricao(texto) {
   const limpo = typeof texto === "string" ? texto.trim() : "";
-  if (!limpo) return { ok: false, erro: "O prompt nao pode ficar vazio." };
+  if (!limpo) return { ok: false, erro: "O prompt não pode ficar vazio." };
   if (limpo.length > MAXIMO_PROMPT_DESCRICAO) {
     return { ok: false, erro: `O prompt passa de ${MAXIMO_PROMPT_DESCRICAO} caracteres.` };
   }

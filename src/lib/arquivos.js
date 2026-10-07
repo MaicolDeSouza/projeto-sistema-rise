@@ -182,7 +182,7 @@ export async function salvarArquivo(sku, tipo, arquivo) {
   if (!skuValido(sku)) {
     return {
       ok: false,
-      erro: "SKU invalido: use apenas letras, numeros, ponto, hifen e sublinhado.",
+      erro: "SKU inválido: use apenas letras, números, ponto, hífen e sublinhado.",
     };
   }
 
@@ -211,21 +211,21 @@ async function validarEGravar(base, tipo, arquivo) {
       .join(", ");
     return {
       ok: false,
-      erro: `Formato ${arquivo.type || "desconhecido"} nao aceito. Envie ${aceitos}.`,
+      erro: `Formato ${arquivo.type || "desconhecido"} não aceito. Envie ${aceitos}.`,
     };
   }
 
   if (arquivo.size > regras.tamanhoMaximo) {
     const mb = (arquivo.size / 1024 / 1024).toFixed(1);
     const limite = regras.tamanhoMaximo / 1024 / 1024;
-    return { ok: false, erro: `O arquivo tem ${mb} MB; o limite e ${limite} MB.` };
+    return { ok: false, erro: `O arquivo tem ${mb} MB; o limite é ${limite} MB.` };
   }
 
   const bytes = Buffer.from(await arquivo.arrayBuffer());
 
   // O tipo vem do navegador: um .zip so entra se o conteudo comecar como zip ("PK").
   if (extensao === ".zip" && bytes.subarray(0, 2).toString("latin1") !== "PK") {
-    return { ok: false, erro: "O arquivo nao e um ZIP valido." };
+    return { ok: false, erro: "O arquivo não é um ZIP válido." };
   }
 
   if (tipo === "IMAGEM") {
@@ -233,7 +233,7 @@ async function validarEGravar(base, tipo, arquivo) {
     try {
       dimensao = imageSize(bytes);
     } catch {
-      return { ok: false, erro: "Nao foi possivel ler a imagem. Arquivo corrompido?" };
+      return { ok: false, erro: "Não foi possível ler a imagem. Arquivo corrompido?" };
     }
 
     const { width, height } = dimensao;
@@ -241,14 +241,14 @@ async function validarEGravar(base, tipo, arquivo) {
     if (width < regras.ladoMinimo || height < regras.ladoMinimo) {
       return {
         ok: false,
-        erro: `A imagem tem ${width}x${height}px. O Mercado Livre exige no minimo ${regras.ladoMinimo}x${regras.ladoMinimo}px.`,
+        erro: `A imagem tem ${width}x${height}px. O Mercado Livre exige no mínimo ${regras.ladoMinimo}x${regras.ladoMinimo}px.`,
       };
     }
 
     if (width > regras.ladoMaximo || height > regras.ladoMaximo) {
       return {
         ok: false,
-        erro: `A imagem tem ${width}x${height}px. O maximo aceito pelo Mercado Livre e ${regras.ladoMaximo}x${regras.ladoMaximo}px.`,
+        erro: `A imagem tem ${width}x${height}px. O máximo aceito pelo Mercado Livre é ${regras.ladoMaximo}x${regras.ladoMaximo}px.`,
       };
     }
   }
@@ -315,9 +315,9 @@ export async function limparTemporariosAntigos() {
 }
 
 export async function salvarArquivoTemporario(lote, tipo, arquivo) {
-  if (!loteValido(lote)) return { ok: false, erro: "Lote de envio invalido." };
+  if (!loteValido(lote)) return { ok: false, erro: "Lote de envio inválido." };
   if (!TIPOS_TEMPORARIOS.includes(tipo)) {
-    return { ok: false, erro: "Este tipo de arquivo so pode ser enviado depois de salvar." };
+    return { ok: false, erro: "Este tipo de arquivo só pode ser enviado depois de salvar." };
   }
   await limparTemporariosAntigos();
   return validarEGravar(path.join(RAIZ_TEMPORARIA, lote), tipo, arquivo);
@@ -394,13 +394,13 @@ export async function renomearPastaProduto(skuAntigo, skuNovo) {
   const origem = pastaDoProduto(skuAntigo);
   const destino = pastaDoProduto(skuNovo);
 
-  if (!origem || !destino) return { ok: false, erro: "SKU invalido." };
+  if (!origem || !destino) return { ok: false, erro: "SKU inválido." };
 
   try {
     await readdir(destino);
     return {
       ok: false,
-      erro: `Ja existe uma pasta de arquivos para o SKU "${skuNovo}".`,
+      erro: `Já existe uma pasta de arquivos para o SKU "${skuNovo}".`,
     };
   } catch (erro) {
     if (erro.code !== "ENOENT") throw erro;

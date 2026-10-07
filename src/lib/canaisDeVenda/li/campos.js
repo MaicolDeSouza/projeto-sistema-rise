@@ -19,8 +19,8 @@ import { slugDe } from "./slug";
 
 export const CAMPOS_DE_ENVIO_LI = [
   { id: "nome", rotulo: "Nome" },
-  { id: "slug", rotulo: "Endereco (slug)" },
-  { id: "descricao", rotulo: "Descricao" },
+  { id: "slug", rotulo: "Endereço (slug)" },
+  { id: "descricao", rotulo: "Descrição" },
   { id: "ncm", rotulo: "NCM" },
   { id: "gtin", rotulo: "GTIN / EAN" },
   { id: "mpn", rotulo: "MPN (modelo)" },
@@ -30,15 +30,15 @@ export const CAMPOS_DE_ENVIO_LI = [
   { id: "comprimento", rotulo: "Comprimento (cm)" },
   { id: "marca", rotulo: "Marca" },
   { id: "categorias", rotulo: "Categorias" },
-  { id: "video", rotulo: "Video (YouTube)" },
+  { id: "video", rotulo: "Vídeo (YouTube)" },
   { id: "destaque", rotulo: "Destaque" },
-  { id: "seoTitulo", rotulo: "SEO: titulo" },
+  { id: "seoTitulo", rotulo: "SEO: título" },
   { id: "seoDescription", rotulo: "SEO: description" },
 ];
 
 export const CAMPOS_SO_LEITURA_LI = [
   { id: "origem", rotulo: "Origem (NF-e)" },
-  { id: "tipoProducao", rotulo: "Tipo de producao (NF-e)" },
+  { id: "tipoProducao", rotulo: "Tipo de produção (NF-e)" },
 ];
 
 /** Texto exato que a LI devolve em `production_type` (lido em 07/10/2026). */

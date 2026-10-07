@@ -6,9 +6,9 @@
  */
 
 export const STATUS_LI = {
-  RASCUNHO: { rotulo: "Sem vinculo", tom: "neutro" },
+  RASCUNHO: { rotulo: "Sem vínculo", tom: "neutro" },
   PUBLICADO: { rotulo: "Na loja", tom: "sucesso" },
   ERRO: { rotulo: "Erro", tom: "erro" },
 };
 
-export const ROTULO_DO_TIPO_PRODUCAO = { REVENDA: "Revenda", FABRICACAO_PROPRIA: "Fabricacao propria" };
+export const ROTULO_DO_TIPO_PRODUCAO = { REVENDA: "Revenda", FABRICACAO_PROPRIA: "Fabricação própria" };

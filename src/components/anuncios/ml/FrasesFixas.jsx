@@ -21,7 +21,7 @@ const CLASSE_DA_MENSAGEM = {
 export default function FrasesFixas({
   frasesIniciais,
   salvar: salvarNoServidor = salvarFrasesFixas,
-  ajuda = "Estas frases entram em todo anuncio, depois da descricao do produto.",
+  ajuda = "Estas frases entram em todo anúncio, depois da descrição do produto.",
 }) {
   const [texto, setTexto] = useState(() => frasesIniciais.join("\n"));
   const [mensagem, setMensagem] = useState(null);
@@ -50,7 +50,7 @@ export default function FrasesFixas({
         resultado = await salvarNoServidor(enviado);
       } catch {
         // Excecao solta numa transicao iria ao error boundary e levaria o que foi digitado.
-        resultado = { ok: false, erro: "Nao foi possivel falar com o servidor. O texto continua aqui: tente salvar de novo." };
+        resultado = { ok: false, erro: "Não foi possível falar com o servidor. O texto continua aqui: tente salvar de novo." };
       }
       if (!resultado.ok) {
         setMensagem({ tipo: "erro", texto: resultado.erro });
@@ -68,7 +68,7 @@ export default function FrasesFixas({
           <label htmlFor="ml-frases-fixas">Frases fixas</label>
           <BolhaDeAjuda
             variante="inline"
-            texto={`Uma frase por linha. Linha vazia e frase repetida sao descartadas. No maximo ${MAXIMO_DE_FRASES} frases de ${MAXIMO_DA_FRASE} caracteres cada.`}
+            texto={`Uma frase por linha. Linha vazia e frase repetida são descartadas. No máximo ${MAXIMO_DE_FRASES} frases de ${MAXIMO_DA_FRASE} caracteres cada.`}
           />
         </div>
         <p id="ml-frases-nota" className="mt-0.5 text-sm text-suave">{ajuda}</p>

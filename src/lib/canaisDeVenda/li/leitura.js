@@ -22,9 +22,9 @@ function erroDaLI(status, dados) {
     return new ErroDaLI("A Loja Integrada recusou a leitura por limite de chamadas (100 chamadas por minuto na loja). Tente de novo em alguns instantes.");
   }
   if (status === 401 || status === 403) {
-    return new ErroDaLI("A Loja Integrada recusou o acesso: confira ou renove o Personal Token em Integracoes.");
+    return new ErroDaLI("A Loja Integrada recusou o acesso: confira ou renove o Personal Token em Integrações.");
   }
-  if (status >= 500) return new ErroDaLI(`A Loja Integrada esta com problema (HTTP ${status}). Tente de novo em alguns instantes.`);
+  if (status >= 500) return new ErroDaLI(`A Loja Integrada está com problema (HTTP ${status}). Tente de novo em alguns instantes.`);
   const detalhe = dados?.error_message ?? dados?.detail ?? null;
   return new ErroDaLI(`A Loja Integrada recusou a leitura (HTTP ${status}${detalhe ? `): ${detalhe}` : ")"}.`);
 }
@@ -38,7 +38,7 @@ function exigirResposta(resposta) {
 export function textoDoErroLI(erro) {
   if (erro instanceof ErroDaLI) return erro.message;
   if (erro?.status) return erroDaLI(erro.status, null).message;
-  return `Nao foi possivel ler a Loja Integrada: ${erro?.message ?? erro}`;
+  return `Não foi possível ler a Loja Integrada: ${erro?.message ?? erro}`;
 }
 
 const chave = (texto) => String(texto ?? "").trim().toLowerCase();
@@ -120,14 +120,14 @@ export function escritaDoProduto(sku) {
   if (!config.travas.liEscrita) {
     return {
       liberada: false,
-      motivo: "A escrita na Loja Integrada esta desligada (LI_ESCRITA esta false no .env): a leitura funciona, mas nada sera enviado.",
+      motivo: "A escrita na Loja Integrada está desligada (LI_ESCRITA está false no .env): a leitura funciona, mas nada será enviado.",
     };
   }
   try {
     exigirCodigoLiberado(sku, config.travas.liCodigosLiberados, "LI_ESCRITA_CODIGOS");
     return { liberada: true, motivo: null };
   } catch {
-    return { liberada: false, motivo: `O codigo ${sku} nao esta na lista de codigos liberados para escrita (LI_ESCRITA_CODIGOS no .env).` };
+    return { liberada: false, motivo: `O código ${sku} não está na lista de códigos liberados para escrita (LI_ESCRITA_CODIGOS no .env).` };
   }
 }
 
@@ -139,9 +139,9 @@ function textosDosAvisosFiscais(avisos) {
   return avisos.map((aviso) => {
     const emTexto = aviso.campo === "origem" ? origemEmTexto : tipoEmTexto;
     if (aviso.tipo === "vazioNaLI") {
-      return `${aviso.rotulo}: vazio na Loja Integrada (no Rise: ${emTexto(aviso.rise)}); a NF-e usara o padrao do emissor. A API nao grava este campo: ajuste no painel da Loja Integrada.`;
+      return `${aviso.rotulo}: vazio na Loja Integrada (no Rise: ${emTexto(aviso.rise)}); a NF-e usará o padrão do emissor. A API não grava este campo: ajuste no painel da Loja Integrada.`;
     }
-    return `${aviso.rotulo}: a Loja Integrada tem ${emTexto(aviso.li)} e o Rise tem ${emTexto(aviso.rise)}. A API nao grava este campo: ajuste no painel da Loja Integrada.`;
+    return `${aviso.rotulo}: a Loja Integrada tem ${emTexto(aviso.li)} e o Rise tem ${emTexto(aviso.rise)}. A API não grava este campo: ajuste no painel da Loja Integrada.`;
   });
 }
 
@@ -176,16 +176,16 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
   let produto = null;
   try {
     produto = await contextoDoProduto(produtoId);
-    if (!produto) return resultado({ erro: "Produto nao encontrado." });
+    if (!produto) return resultado({ erro: "Produto não encontrado." });
     const base = { sku: produto.sku, conferido: Boolean(produto.conferido), escrita: escritaDoProduto(produto.sku) };
     if (!produto.conferido) return resultado({ ...base, ok: true });
 
     const busca = await buscarNaLI(cliente, produto.sku);
     if (busca.situacao === "removido") {
-      return resultado({ ...base, situacao: "removido", erro: `O codigo ${produto.sku} esta na lixeira da Loja Integrada: restaure-o la antes de sincronizar.` });
+      return resultado({ ...base, situacao: "removido", erro: `O código ${produto.sku} está na lixeira da Loja Integrada: restaure-o lá antes de sincronizar.` });
     }
     if (busca.situacao === "duplicado") {
-      return resultado({ ...base, situacao: "duplicado", erro: `Ha mais de um produto com o codigo ${produto.sku} na Loja Integrada. Deixe um so antes de sincronizar.` });
+      return resultado({ ...base, situacao: "duplicado", erro: `Há mais de um produto com o código ${produto.sku} na Loja Integrada. Deixe um só antes de sincronizar.` });
     }
 
     let anuncio = await anuncioLIDoProduto(produtoId);
@@ -210,7 +210,7 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
       anuncio = await anuncioLIDoProduto(produtoId);
       vinculadoAgora = true;
     } else if (String(anuncio.idExterno) !== String(busca.id)) {
-      avisos.push(`O produto deste codigo na Loja Integrada mudou de id (o Rise guardou ${anuncio.idExterno}, a loja tem ${busca.id}).`);
+      avisos.push(`O produto deste código na Loja Integrada mudou de id (o Rise guardou ${anuncio.idExterno}, a loja tem ${busca.id}).`);
     }
 
     const documentos = await documentosDoProduto(produto);
@@ -224,7 +224,7 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
       const mortas = rise.categorias.filter((id) => !vivas.has(id));
       if (mortas.length) {
         comparado = { ...rise, categorias: rise.categorias.filter((id) => vivas.has(id)) };
-        avisos.push(`Categoria que nao existe mais na loja: ${mortas.join(", ")}. Ela fica fora do envio; tire-a no anuncio.`);
+        avisos.push(`Categoria que não existe mais na loja: ${mortas.join(", ")}. Ela fica fora do envio; tire-a no anúncio.`);
       }
     }
     const diferencas = diferencasLI(comparado, li);
@@ -236,7 +236,7 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
     let marcaExisteNaLI = null;
     if (rise.marca) {
       marcaExisteNaLI = mesmaMarca(rise.marca, li.marca) || (await listarMarcasDaLI(cliente)).some((m) => mesmaMarca(m.nome, rise.marca));
-      if (!marcaExisteNaLI) avisos.push(`A marca ${rise.marca} nao existe na Loja Integrada: o Sincronizar a cria.`);
+      if (!marcaExisteNaLI) avisos.push(`A marca ${rise.marca} não existe na Loja Integrada: o Sincronizar a cria.`);
     }
 
     return resultado({

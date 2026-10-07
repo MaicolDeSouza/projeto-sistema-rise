@@ -131,7 +131,7 @@ const conexaoOk = await testar(cliente);
 conferir(
   "teste de conexao normaliza o sucesso",
   { ok: conexaoOk.ok, conta: conexaoOk.conta, detalhe: conexaoOk.detalhe },
-  { ok: true, conta: "Personal Token valido", detalhe: "7 produto(s) no catalogo" },
+  { ok: true, conta: "Personal Token válido", detalhe: "7 produto(s) no catálogo" },
 );
 
 const autenticacaoFalhou = await testar({
@@ -316,7 +316,7 @@ try {
 conferir(
   "interrompe meta.next repetido",
   repeticaoDetectada,
-  "A paginacao da Loja Integrada entrou em repeticao.",
+  "A paginação da Loja Integrada entrou em repetição.",
 );
 
 conferir(

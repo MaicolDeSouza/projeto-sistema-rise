@@ -67,13 +67,13 @@ export function unidadesDaComposicao(itens) {
 /** Recusas da composicao, uma frase por problema. Lista vazia = pode gravar. */
 export function errosDaComposicao(itens) {
   const lista = listaDeItens(itens);
-  if (lista.length === 0) return ["Inclua ao menos um produto na composicao."];
+  if (lista.length === 0) return ["Inclua ao menos um produto na composição."];
 
   const erros = [];
   lista.forEach((item, posicao) => {
     if (!item?.produtoId) erros.push(`Item ${posicao + 1}: escolha o produto.`);
     if (lerQuantidade(item?.quantidade) === null) {
-      erros.push(`Item ${posicao + 1}: a quantidade deve ser um numero inteiro de 1 a ${QUANTIDADE_MAXIMA}.`);
+      erros.push(`Item ${posicao + 1}: a quantidade deve ser um número inteiro de 1 a ${QUANTIDADE_MAXIMA}.`);
     }
   });
 
@@ -84,7 +84,7 @@ export function errosDaComposicao(itens) {
   // repetiria o erro que ja foi dito.
   const quantidadeQuebrada = lista.some((item) => lerQuantidade(item?.quantidade) === null);
   if (!quantidadeQuebrada && unidadesDaComposicao(lista) < MINIMO_DE_UNIDADES) {
-    erros.push(`A composicao precisa de ao menos ${MINIMO_DE_UNIDADES} unidades.`);
+    erros.push(`A composição precisa de ao menos ${MINIMO_DE_UNIDADES} unidades.`);
   }
   return erros;
 }

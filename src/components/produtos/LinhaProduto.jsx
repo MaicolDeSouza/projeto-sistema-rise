@@ -123,20 +123,20 @@ export default function LinhaProduto({
       <td className="px-3 py-2.5">
         <div className="flex items-center gap-1">
           <span className="font-mono text-xs">{produto.sku}</span>
-          <Copiar texto={produto.sku} rotulo="o codigo" />
+          <Copiar texto={produto.sku} rotulo="o código" />
         </div>
       </td>
 
       {/* Localizacao, preco e estoque abrem a edicao rapida (pedido do dono em
           30/09/2026): um popup por campo, gravando so neste sistema. */}
       <td className="px-3 py-2.5 text-suave">
-        <CelulaEditavel titulo="Editar localizacao" aoClicar={() => setEditando("localizacao")}>
+        <CelulaEditavel titulo="Editar localização" aoClicar={() => setEditando("localizacao")}>
           {produto.localizacao || "—"}
         </CelulaEditavel>
       </td>
 
       <td className="px-3 py-2.5 tabular-nums">
-        <CelulaEditavel titulo="Editar preco de venda" aoClicar={() => setEditando("preco")}>
+        <CelulaEditavel titulo="Editar preço de venda" aoClicar={() => setEditando("preco")}>
           {produto.precoVenda === null ? (
             "—"
           ) : (
@@ -222,7 +222,7 @@ export default function LinhaProduto({
             <button
               type="button"
               onClick={() => setMenuAberto((aberto) => !aberto)}
-              aria-label="Acoes do produto"
+              aria-label="Ações do produto"
               aria-expanded={menuAberto}
               className="rounded p-1 text-suave hover:bg-fundo hover:text-texto"
             >
@@ -244,7 +244,7 @@ export default function LinhaProduto({
                       disabled
                       title={
                         canal.motivo ??
-                        "Disponivel na proxima etapa, quando a publicacao for ligada"
+                        "Disponível na próxima etapa, quando a publicação for ligada"
                       }
                       className="flex w-full cursor-not-allowed items-start gap-2 px-3 py-2 text-sm opacity-60"
                     >
@@ -269,7 +269,7 @@ export default function LinhaProduto({
                     </button>
                   ))}
                   <p className="mt-1 border-t border-borda px-3 pt-2 pb-1 text-[11px] text-suave">
-                    A publicacao entra na proxima etapa.
+                    A publicação entra na próxima etapa.
                   </p>
                 </div>
               </>

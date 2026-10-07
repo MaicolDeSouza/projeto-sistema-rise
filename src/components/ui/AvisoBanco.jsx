@@ -39,22 +39,22 @@ export default function AvisoBanco({ erro }) {
         <div className="min-w-0">
           <p className="font-medium text-amber-900">
             {semBanco
-              ? "Nao foi possivel conversar com o banco de dados"
-              : "Esta tela pediu ao banco algo que ele nao reconhece"}
+              ? "Não foi possível conversar com o banco de dados"
+              : "Esta tela pediu ao banco algo que ele não reconhece"}
           </p>
 
           <p className="mt-1 text-sm text-amber-800">
             {semBanco ? (
               <>
-                Verifique se o Postgres esta no ar: ele roda como servico do
+                Verifique se o Postgres está no ar: ele roda como serviço do
                 Windows (<code className="rounded bg-amber-100 px-1">postgresql-x64-17</code>)
-                e sobe junto com a maquina. Depois recarregue esta pagina.
+                e sobe junto com a máquina. Depois recarregue esta página.
               </>
             ) : (
               <>
-                O banco esta no ar — o defeito e da consulta desta tela, e nao ha
+                O banco está no ar — o defeito é da consulta desta tela, e não há
                 nada a fazer no Postgres. A mensagem abaixo diz qual campo ou
-                tabela nao existe; ela e o que o desenvolvedor precisa ver.
+                tabela não existe; ela é o que o desenvolvedor precisa ver.
               </>
             )}
           </p>

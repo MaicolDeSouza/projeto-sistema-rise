@@ -32,7 +32,7 @@ export async function GET(requisicao, { params }) {
 
   const casamento = /^data:([a-z0-9.+/-]+);base64,(.+)$/is.exec(miniatura);
   if (!casamento || !TIPOS.has(casamento[1].toLowerCase())) {
-    return new Response("Formato de foto nao suportado.", { status: 415 });
+    return new Response("Formato de foto não suportado.", { status: 415 });
   }
 
   return new Response(Buffer.from(casamento[2], "base64"), {

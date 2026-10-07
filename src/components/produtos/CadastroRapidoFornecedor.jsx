@@ -20,7 +20,7 @@ export default function CadastroRapidoFornecedor({ nomeInicial, aoFechar, aoCada
     let cancelado = false;
     fontesParaCadastroRapidoFornecedor()
       .then((lista) => { if (!cancelado) setFontes(lista); })
-      .catch(() => { if (!cancelado) setErro("Nao foi possivel carregar as fontes de coleta."); });
+      .catch(() => { if (!cancelado) setErro("Não foi possível carregar as fontes de coleta."); });
     return () => { cancelado = true; };
   }, []);
 
@@ -40,7 +40,7 @@ export default function CadastroRapidoFornecedor({ nomeInicial, aoFechar, aoCada
       }
       aoCadastrar({ id: resultado.id, nome });
     } catch {
-      setErro("Nao foi possivel cadastrar o fornecedor. Tente novamente.");
+      setErro("Não foi possível cadastrar o fornecedor. Tente novamente.");
     } finally {
       setSalvando(false);
     }
@@ -48,12 +48,12 @@ export default function CadastroRapidoFornecedor({ nomeInicial, aoFechar, aoCada
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="presentation">
-      <div role="dialog" aria-modal="true" aria-label="Cadastro rapido de fornecedor" className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-superficie p-5 shadow-xl">
+      <div role="dialog" aria-modal="true" aria-label="Cadastro rápido de fornecedor" className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-superficie p-5 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Cadastrar fornecedor</h2>
           <button type="button" onClick={aoFechar} aria-label="Fechar" className="rounded p-1 text-suave hover:bg-fundo"><X size={18} /></button>
         </div>
-        <p className="mb-4 text-sm text-suave">Cadastre a empresa para poder adiciona-la ao produto.</p>
+        <p className="mb-4 text-sm text-suave">Cadastre a empresa para poder adicioná-la ao produto.</p>
         <form onSubmit={salvar} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2"><Campo nome="nome" rotulo="Nome" defaultValue={nomeInicial} erro={erros.nome} required autoFocus /></div>
@@ -63,8 +63,8 @@ export default function CadastroRapidoFornecedor({ nomeInicial, aoFechar, aoCada
             <Campo nome="email" rotulo="E-mail" type="email" erro={erros.email} />
             <div className="sm:col-span-2"><CampoSite erro={erros.site} /></div>
             <Campo nome="prazoEntregaDias" rotulo="Prazo de entrega (dias)" type="number" min="0" step="1" erro={erros.prazoEntregaDias} />
-            <Campo nome="pedidoMinimo" rotulo="Pedido minimo (R$)" type="number" min="0" step="0.01" erro={erros.pedidoMinimo} />
-            <div className="sm:col-span-2"><Campo nome="condicoesPagamento" rotulo="Condicoes de pagamento" erro={erros.condicoesPagamento} /></div>
+            <Campo nome="pedidoMinimo" rotulo="Pedido mínimo (R$)" type="number" min="0" step="0.01" erro={erros.pedidoMinimo} />
+            <div className="sm:col-span-2"><Campo nome="condicoesPagamento" rotulo="Condições de pagamento" erro={erros.condicoesPagamento} /></div>
             <div className="sm:col-span-2">
               <Campo nome="fonteId" rotulo="Fonte de coleta" erro={erros.fonteId}>
                 <select id="fonteId" name="fonteId" defaultValue="" className={`${CLASSE_CAMPO} ${bordaDoCampo(erros.fonteId)}`}>
@@ -74,7 +74,7 @@ export default function CadastroRapidoFornecedor({ nomeInicial, aoFechar, aoCada
               </Campo>
             </div>
             <div className="sm:col-span-2">
-              <Campo nome="observacoes" rotulo="Observacoes" erro={erros.observacoes}>
+              <Campo nome="observacoes" rotulo="Observações" erro={erros.observacoes}>
                 <textarea id="observacoes" name="observacoes" rows={3} className={`${CLASSE_CAMPO} ${bordaDoCampo(erros.observacoes)}`} />
               </Campo>
             </div>

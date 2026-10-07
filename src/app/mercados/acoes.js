@@ -26,7 +26,7 @@ import { garantirCadastroDaFonte } from "@/lib/cadastros";
 
 const FonteSchema = z.object({
   nome: z.string().trim().min(1, "Informe um nome para a fonte."),
-  url: z.string().trim().min(1, "Informe o endereco do site."),
+  url: z.string().trim().min(1, "Informe o endereço do site."),
   tipo: z.enum(["CONCORRENTE", "FORNECEDOR", "OUTRO"]),
   secao: z.string().trim().optional().nullable(),
 });
@@ -225,8 +225,8 @@ export async function testarArquivoAcao(dados) {
         detalhe:
           `${total} linha(s) viraram ${produtos.length} produto(s)` +
           (regras.sufixoDeCarga
-            ? ` — regra da ${regras.nome}: o sufixo do codigo e a carga, nao o produto`
-            : " — o mesmo codigo nas duas listas e um produto so"),
+            ? ` — regra da ${regras.nome}: o sufixo do código é a carga, não o produto`
+            : " — o mesmo código nas duas listas é um produto só"),
       });
     }
 
@@ -238,8 +238,8 @@ export async function testarArquivoAcao(dados) {
       return {
         resultado: "FALHA",
         motivo:
-          "Nao foi possivel reconhecer produtos neste arquivo. " +
-          "Formatos lidos hoje: pagina salva (HTML), catalogo em PDF e JSON.",
+          "Não foi possível reconhecer produtos neste arquivo. " +
+          "Formatos lidos hoje: página salva (HTML), catálogo em PDF e JSON.",
         passos,
         produtos: [],
         campos: null,
@@ -322,7 +322,7 @@ async function salvarFonteInterna({
   try {
     alvo = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
   } catch {
-    return { ok: false, erro: "Endereco invalido." };
+    return { ok: false, erro: "Endereço inválido." };
   }
 
   const somenteArquivo = alvo.hostname.endsWith(".invalid");
@@ -366,7 +366,7 @@ async function salvarFonteInterna({
   if (existente) {
     return {
       ok: false,
-      erro: `"${existente.nome}" ja acompanha ${alvo.hostname}${prefixoUrl ?? ""}.`,
+      erro: `"${existente.nome}" já acompanha ${alvo.hostname}${prefixoUrl ?? ""}.`,
     };
   }
 
@@ -415,7 +415,7 @@ export async function salvarFonteComArquivos(dados) {
   const nome = String(dados.get("nome") ?? "").trim();
   const tipo = String(dados.get("tipo") ?? "");
   if (tipo !== "FORNECEDOR" || arquivos.length === 0) {
-    return { ok: false, erro: "Selecione um catalogo de fornecedor para salvar." };
+    return { ok: false, erro: "Selecione um catálogo de fornecedor para salvar." };
   }
 
   const originais = [];
@@ -442,7 +442,7 @@ export async function salvarFonteComArquivos(dados) {
   try {
     dominio = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname;
   } catch {
-    return { ok: false, erro: "Endereco invalido." };
+    return { ok: false, erro: "Endereço inválido." };
   }
   const secao = String(dados.get("secao") ?? "").trim() || null;
   const existente = await prisma.fonteColeta.findFirst({ where: { dominio, prefixoUrl: secao } });
@@ -451,7 +451,7 @@ export async function salvarFonteComArquivos(dados) {
       const atualizado = await enviarArquivosDaFonte(existente.id, dados);
       return atualizado.ok ? { ok: true, id: existente.id, atualizado: true } : atualizado;
     } catch (erro) {
-      return { ok: false, erro: `Nao foi possivel atualizar o catalogo: ${erro?.message ?? erro}` };
+      return { ok: false, erro: `Não foi possível atualizar o catálogo: ${erro?.message ?? erro}` };
     }
   }
   let salvo;
@@ -478,7 +478,7 @@ export async function salvarFonteComArquivos(dados) {
   } catch (erro) {
     await prisma.fonteColeta.delete({ where: { id: salvo.id } }).catch(() => {});
     await apagarArquivosOriginais(dominio).catch(() => {});
-    return { ok: false, erro: `Nao foi possivel guardar o catalogo: ${erro?.message ?? erro}` };
+    return { ok: false, erro: `Não foi possível guardar o catálogo: ${erro?.message ?? erro}` };
   }
 }
 
@@ -493,7 +493,7 @@ export async function salvarFonteComArquivos(dados) {
  */
 export async function editarFonte(id, { nome, url }) {
   const fonte = await prisma.fonteColeta.findUnique({ where: { id } });
-  if (!fonte) return { ok: false, erro: "Fonte nao encontrada." };
+  if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
 
   const nomeLimpo = (nome ?? "").trim();
   if (!nomeLimpo) return { ok: false, erro: "Informe um nome para a fonte." };
@@ -506,7 +506,7 @@ export async function editarFonte(id, { nome, url }) {
     try {
       alvo = new URL(/^https?:\/\//i.test(urlLimpa) ? urlLimpa : `https://${urlLimpa}`);
     } catch {
-      return { ok: false, erro: "Endereco invalido." };
+      return { ok: false, erro: "Endereço inválido." };
     }
 
     if (alvo.hostname !== fonte.dominio) {
@@ -529,7 +529,7 @@ export async function editarFonte(id, { nome, url }) {
       if (existente) {
         return {
           ok: false,
-          erro: `"${existente.nome}" ja acompanha ${alvo.hostname}.`,
+          erro: `"${existente.nome}" já acompanha ${alvo.hostname}.`,
         };
       }
 
@@ -546,7 +546,7 @@ export async function editarFonte(id, { nome, url }) {
 }
 export async function alternarFonte(id) {
   const fonte = await prisma.fonteColeta.findUnique({ where: { id } });
-  if (!fonte) return { ok: false, erro: "Fonte nao encontrada." };
+  if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
 
   if (!fonte.robotsPermite && !fonte.ativa) {
     return { ok: false, erro: "O robots.txt deste site nos bloqueia." };
@@ -581,7 +581,7 @@ export async function varrerFonteAgora(fonteId) {
     where: { id: fonteId },
     select: { id: true, nome: true, ativa: true, robotsPermite: true },
   });
-  if (!fonte) return { ok: false, erro: "Fonte nao encontrada." };
+  if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
   if (!fonte.robotsPermite) return { ok: false, erro: "O robots.txt deste site nos bloqueia." };
   if (!fonte.ativa) return { ok: false, erro: "Fonte pausada. Use Retomar antes de varrer." };
 
@@ -590,7 +590,7 @@ export async function varrerFonteAgora(fonteId) {
 
   revalidatePath("/mercados/fontes");
   revalidatePath("/mercados");
-  if (enfileiradas === 0) return { ok: false, erro: "Esta fonte ja esta na fila ou em varredura." };
+  if (enfileiradas === 0) return { ok: false, erro: "Esta fonte já está na fila ou em varredura." };
   return { ok: true };
 }
 
@@ -600,9 +600,9 @@ export async function varrerFonteAgora(fonteId) {
 
 async function fonteDePortal(fonteId) {
   const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId } });
-  if (!fonte) return { erro: "Fonte nao encontrada." };
+  if (!fonte) return { erro: "Fonte não encontrada." };
   if (!portalDoEndereco(fonte.dominio)) {
-    return { erro: "Esta fonte nao e um portal varrido por categoria." };
+    return { erro: "Esta fonte não é um portal varrido por categoria." };
   }
   return { fonte, categorias: Array.isArray(fonte.categorias) ? fonte.categorias : [] };
 }
@@ -621,10 +621,10 @@ export async function adicionarCategoria(fonteId, url) {
 
   const host = new URL(categoria.url).hostname.replace(/^www\./, "");
   if (host !== fonte.dominio.replace(/^www\./, "")) {
-    return { ok: false, erro: `O link e de ${host}, e esta fonte e ${fonte.dominio}.` };
+    return { ok: false, erro: `O link é de ${host}, e esta fonte é ${fonte.dominio}.` };
   }
   if (categorias.some((item) => item.url === categoria.url)) {
-    return { ok: false, erro: "Esta categoria ja esta na fonte." };
+    return { ok: false, erro: "Esta categoria já está na fonte." };
   }
 
   await prisma.fonteColeta.update({
@@ -699,12 +699,12 @@ export async function excluirFonte(id) {
  */
 export async function enviarArquivosDaFonte(fonteId, dados) {
   const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId } });
-  if (!fonte) return { ok: false, erro: "Fonte nao encontrada." };
+  if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
 
   if (fonte.tipo !== "FORNECEDOR") {
     return {
       ok: false,
-      erro: "So fornecedor manda lista. Concorrente tem vitrine, e e por ela que se varre.",
+      erro: "Só fornecedor manda lista. Concorrente tem vitrine, e é por ela que se varre.",
     };
   }
 
@@ -761,7 +761,7 @@ export async function salvarInstrucoes(fonteId, texto) {
 /** Descarta a lista guardada, para a fonte voltar a ser varrida pelo site. */
 export async function apagarArquivosAcao(fonteId) {
   const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId } });
-  if (!fonte) return { ok: false, erro: "Fonte nao encontrada." };
+  if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
 
   // Descarta so os arquivos. Os produtos que vieram da lista continuam no banco:
   // apagar custaria codigo, descricao e fotos por causa de uma lista trocada.
@@ -879,7 +879,7 @@ export async function atualizarTabelas(fonteId) {
     return {
       ok: false,
       erro: pausadas
-        ? `Nenhuma fonte ativa. ${pausadas} esta(o) pausada(s) — use "Retomar" na linha da fonte.`
+        ? `Nenhuma fonte ativa. ${pausadas} está(ão) pausada(s) — use "Retomar" na linha da fonte.`
         : "Nenhuma fonte cadastrada para varrer.",
     };
   }
@@ -888,7 +888,7 @@ export async function atualizarTabelas(fonteId) {
 
   revalidatePath("/mercados");
   if (enfileiradas === 0) {
-    return { ok: false, erro: "Ja ha uma varredura em andamento." };
+    return { ok: false, erro: "Já há uma varredura em andamento." };
   }
   return { ok: true, enfileiradas };
 }

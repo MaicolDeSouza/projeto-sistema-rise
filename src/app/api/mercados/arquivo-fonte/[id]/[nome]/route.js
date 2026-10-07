@@ -32,11 +32,11 @@ export async function GET(requisicao, { params }) {
   const nomeProcurado = decodeURIComponent(String(nome));
   const lista = Array.isArray(fonte?.listaArquivos) ? fonte.listaArquivos : [];
   if (!fonte || !lista.some((item) => item?.nome === nomeProcurado)) {
-    return new Response("Arquivo nao encontrado.", { status: 404 });
+    return new Response("Arquivo não encontrado.", { status: 404 });
   }
 
   const bytes = await lerArquivoOriginal(fonte.dominio, nomeProcurado);
-  if (!bytes) return new Response("Arquivo nao encontrado.", { status: 404 });
+  if (!bytes) return new Response("Arquivo não encontrado.", { status: 404 });
 
   const extensao = nomeProcurado.slice(nomeProcurado.lastIndexOf(".")).toLowerCase();
 

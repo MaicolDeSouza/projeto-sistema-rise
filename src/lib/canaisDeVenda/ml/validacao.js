@@ -14,12 +14,12 @@ import { errosDaComposicao } from "../composicao";
 
 export const ABAS_ML = [
   { id: "geral", rotulo: "Geral" },
-  { id: "preco", rotulo: "Preco e estoque" },
+  { id: "preco", rotulo: "Preço e estoque" },
   { id: "imagens", rotulo: "Imagens" },
-  { id: "descricao", rotulo: "Descricao" },
-  { id: "ficha", rotulo: "Ficha tecnica" },
+  { id: "descricao", rotulo: "Descrição" },
+  { id: "ficha", rotulo: "Ficha técnica" },
   { id: "envio", rotulo: "Envio" },
-  { id: "previa", rotulo: "Previa e validacao" },
+  { id: "previa", rotulo: "Prévia e validação" },
 ];
 
 // Categoria do ML e o codigo (MLB1234), digitado nesta fase.
@@ -65,21 +65,21 @@ export function validarRascunhoML(rascunho, contexto) {
   // Geral
   const titulo = texto(rascunho.titulo);
   if (!titulo) {
-    acrescentar("titulo", "geral", "O titulo e obrigatorio.");
+    acrescentar("titulo", "geral", "O título é obrigatório.");
   } else if (titulo.length > LIMITE_TITULO) {
-    acrescentar("titulo", "geral", `O titulo tem ${titulo.length} caracteres; o limite do Mercado Livre e ${LIMITE_TITULO}.`);
+    acrescentar("titulo", "geral", `O título tem ${titulo.length} caracteres; o limite do Mercado Livre é ${LIMITE_TITULO}.`);
   }
 
   // `family_name` e obrigatorio no modelo User Products, que e o desta conta.
   if (!texto(rascunho.familyName)) {
-    acrescentar("familyName", "geral", "Informe o nome da familia (family_name), obrigatorio no modelo User Products.");
+    acrescentar("familyName", "geral", "Informe o nome da família (family_name), obrigatório no modelo User Products.");
   }
 
   const categoria = texto(rascunho.categoriaId);
   if (!categoria) {
     acrescentar("categoria", "geral", "Escolha a categoria do Mercado Livre.");
   } else if (!FORMATO_DA_CATEGORIA.test(categoria)) {
-    acrescentar("categoria", "geral", "A categoria deve ser o codigo do Mercado Livre: MLB seguido de numeros (por exemplo, MLB1234).");
+    acrescentar("categoria", "geral", "A categoria deve ser o código do Mercado Livre: MLB seguido de números (por exemplo, MLB1234).");
   }
 
   // So produto Conferido entra num anuncio. Numa composicao o que conta sao os itens (o
@@ -95,17 +95,17 @@ export function validarRascunhoML(rascunho, contexto) {
     const quem = composicao ? `O item ${produto?.sku ?? ""}`.trim() : "Este produto";
 
     if (!produto) {
-      acrescentar(campoDoProduto, "geral", `${composicao ? "Um dos produtos da composicao" : "O produto do anuncio"} nao foi encontrado: ele pode ter sido excluido.`);
+      acrescentar(campoDoProduto, "geral", `${composicao ? "Um dos produtos da composição" : "O produto do anúncio"} não foi encontrado: ele pode ter sido excluído.`);
       continue;
     }
     if (produto.conferido !== true) {
-      acrescentar(campoDoProduto, "geral", `${quem} nao esta Conferido. So produto Conferido vira anuncio.`);
+      acrescentar(campoDoProduto, "geral", `${quem} não está Conferido. Só produto Conferido vira anúncio.`);
     }
     if (!texto(produto.blingId)) {
       acrescentar(
         campoDoBling,
         "geral",
-        composicao ? `${quem} esta sem blingId: o anuncio nao podera ser publicado.` : "Produto sem blingId: o anuncio nao podera ser publicado.",
+        composicao ? `${quem} está sem blingId: o anúncio não poderá ser publicado.` : "Produto sem blingId: o anúncio não poderá ser publicado.",
       );
     }
   }
@@ -115,42 +115,42 @@ export function validarRascunhoML(rascunho, contexto) {
 
     const codigo = texto(composicao.codigo);
     if (!codigo) {
-      acrescentar("codigoKit", "geral", "Informe o codigo do kit.");
+      acrescentar("codigoKit", "geral", "Informe o código do kit.");
     } else if (contexto?.codigoEmUso) {
-      acrescentar("codigoKit", "geral", `O codigo ${codigo} ja esta em uso: ${contexto.codigoEmUso}.`);
+      acrescentar("codigoKit", "geral", `O código ${codigo} já está em uso: ${contexto.codigoEmUso}.`);
     }
   }
 
   // Preco e estoque
   if (positivo(rascunho.preco) === null) {
-    acrescentar("preco", "preco", "Informe o preco de venda.");
+    acrescentar("preco", "preco", "Informe o preço de venda.");
   }
 
   // Campo em branco nao e estoque zero: `Number("")` daria 0 e passaria como alerta.
   const estoque = texto(rascunho.estoque) === "" ? NaN : Number(rascunho.estoque);
   if (!Number.isInteger(estoque) || estoque < 0) {
-    acrescentar("estoque", "preco", "O estoque deve ser um numero inteiro, zero ou maior.");
+    acrescentar("estoque", "preco", "O estoque deve ser um número inteiro, zero ou maior.");
   } else if (estoque === 0) {
-    acrescentar("estoque", "preco", "Estoque zerado: o anuncio seria publicado sem disponibilidade.", false);
+    acrescentar("estoque", "preco", "Estoque zerado: o anúncio seria publicado sem disponibilidade.", false);
   }
 
   // Imagens
   if (!Array.isArray(rascunho.imagens) || rascunho.imagens.length === 0) {
-    acrescentar("imagens", "imagens", "O anuncio precisa de ao menos uma imagem.");
+    acrescentar("imagens", "imagens", "O anúncio precisa de ao menos uma imagem.");
   }
   if (composicao) {
     // O envio de fotos proprias do kit e da fase 3; ate la o kit mostra as dos itens.
-    acrescentar("fotosDoKit", "imagens", "O kit esta usando as fotos dos itens. O Mercado Livre pede fotos proprias do kit; o envio delas entra na fase 3.", false);
+    acrescentar("fotosDoKit", "imagens", "O kit está usando as fotos dos itens. O Mercado Livre pede fotos próprias do kit; o envio delas entra na fase 3.", false);
   }
 
   // Descricao
   if (!texto(rascunho.descricao)) {
-    acrescentar("descricao", "descricao", "A descricao e obrigatoria.");
+    acrescentar("descricao", "descricao", "A descrição é obrigatória.");
   }
 
   // Ficha tecnica. O GTIN e o codigo de barras da peca avulsa: o kit nao o tem.
   if (!composicao && !texto(rascunho.atributos?.GTIN)) {
-    acrescentar("GTIN", "ficha", "Sem GTIN (codigo de barras). A maioria das categorias de eletronicos exige o codigo universal.", false);
+    acrescentar("GTIN", "ficha", "Sem GTIN (código de barras). A maioria das categorias de eletrônicos exige o código universal.", false);
   }
 
   // Envio

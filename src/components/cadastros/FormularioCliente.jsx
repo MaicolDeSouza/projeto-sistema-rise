@@ -22,13 +22,13 @@ const REGIMES = [
 ];
 
 const TIPOS = [
-  { valor: "FISICA", rotulo: "Pessoa Fisica" },
-  { valor: "JURIDICA", rotulo: "Pessoa Juridica" },
+  { valor: "FISICA", rotulo: "Pessoa Física" },
+  { valor: "JURIDICA", rotulo: "Pessoa Jurídica" },
 ];
 
 const ABAS = [
   { id: "cadastro", rotulo: "Dados cadastrais" },
-  { id: "endereco", rotulo: "Endereco" },
+  { id: "endereco", rotulo: "Endereço" },
   { id: "contato", rotulo: "Contato" },
   { id: "adicionais", rotulo: "Dados adicionais" },
 ];
@@ -211,14 +211,14 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
           />
 
           <div className={soJuridica}>
-            <Campo nome="regimeTributario" rotulo="Codigo de regime tributario" erro={erros.regimeTributario}>
+            <Campo nome="regimeTributario" rotulo="Código de regime tributário" erro={erros.regimeTributario}>
               <select
                 id="regimeTributario"
                 name="regimeTributario"
                 defaultValue={valor("regimeTributario")}
                 className={`${CLASSE_CAMPO} ${bordaDoCampo(erros.regimeTributario)}`}
               >
-                <option value="">Nao definido</option>
+                <option value="">Não definido</option>
                 {REGIMES.map((regime) => (
                   <option key={regime.valor} value={regime.valor}>
                     {regime.rotulo}
@@ -231,7 +231,7 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
           <div className={soJuridica}>
             <Campo
               nome="inscricaoEstadual"
-              rotulo="Inscricao Estadual"
+              rotulo="Inscrição Estadual"
               erro={erros.inscricaoEstadual}
               defaultValue={valor("inscricaoEstadual")}
               disabled={ieIsento}
@@ -254,7 +254,7 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
           <div className={soJuridica}>
             <Campo
               nome="inscricaoMunicipal"
-              rotulo="Inscricao Municipal"
+              rotulo="Inscrição Municipal"
               erro={erros.inscricaoMunicipal}
               defaultValue={valor("inscricaoMunicipal")}
             />
@@ -362,7 +362,7 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
         </div>
 
         <div className="mt-4">
-          <Campo nome="observacoes" rotulo="Observacoes" erro={erros.observacoes}>
+          <Campo nome="observacoes" rotulo="Observações" erro={erros.observacoes}>
             <textarea
               id="observacoes"
               name="observacoes"

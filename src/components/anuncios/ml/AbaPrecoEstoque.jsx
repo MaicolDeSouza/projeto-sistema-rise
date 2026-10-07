@@ -45,8 +45,8 @@ function somaDosPrecosAvulsos(itens, produtos) {
 
 function mensagemSemCusto(faltam) {
   return faltam.length > 0
-    ? `Sem custo de ${faltam.join(", ")}: a margem fica indisponivel.`
-    : "Sem custo informado: a margem fica indisponivel.";
+    ? `Sem custo de ${faltam.join(", ")}: a margem fica indisponível.`
+    : "Sem custo informado: a margem fica indisponível.";
 }
 
 /**
@@ -80,7 +80,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, problemas
         <Campo
           nome="ml-custo"
           rotulo="Custo"
-          ajuda="Somente leitura. Quem muda o custo e o cadastro do produto (aba Fornecedores). No kit, e a soma de quantidade x custo de cada item."
+          ajuda="Somente leitura. Quem muda o custo é o cadastro do produto (aba Fornecedores). No kit, é a soma de quantidade x custo de cada item."
         >
           <input
             id="ml-custo"
@@ -94,11 +94,11 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, problemas
 
         <Campo
           nome="ml-preco"
-          rotulo="Preco de venda"
+          rotulo="Preço de venda"
           ajuda={
             emKit
-              ? "O preco do kit nao sai da soma das pecas: decida pela margem."
-              : "Comeca com o preco de venda do produto. Aceita virgula ou ponto."
+              ? "O preço do kit não sai da soma das peças: decida pela margem."
+              : "Começa com o preço de venda do produto. Aceita vírgula ou ponto."
           }
         >
           <input
@@ -114,7 +114,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, problemas
           />
           <MensagensDoCampo problemas={problemas} campo="preco" />
           {somaAvulsa !== null && (
-            <p className="mt-1 text-[11px] text-suave">Soma dos precos avulsos: {MOEDA.format(somaAvulsa)}</p>
+            <p className="mt-1 text-[11px] text-suave">Soma dos preços avulsos: {MOEDA.format(somaAvulsa)}</p>
           )}
         </Campo>
 
@@ -123,8 +123,8 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, problemas
           rotulo="Estoque"
           ajuda={
             emKit
-              ? "Quantos kits o estoque dos itens monta. Mudar a composicao recalcula este numero."
-              : "Comeca com o estoque do produto no sistema."
+              ? "Quantos kits o estoque dos itens monta. Mudar a composição recalcula este número."
+              : "Começa com o estoque do produto no sistema."
           }
         >
           <input
@@ -144,7 +144,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, problemas
       </div>
 
       <div className="rounded border border-borda bg-fundo p-3">
-        <p className="text-xs text-suave">Margem liquida</p>
+        <p className="text-xs text-suave">Margem líquida</p>
         {margem !== null ? (
           <p className={`mt-1 text-lg font-semibold ${corDaMargem(preco, custo.valor)}`}>
             {PERCENTUAL.format(margem)}%
@@ -153,10 +153,10 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, problemas
         ) : semCusto ? (
           <p className="mt-1 text-sm text-amber-700">{mensagemSemCusto(custo.faltam)}</p>
         ) : (
-          <p className="mt-1 text-sm text-suave">Informe o preco de venda para ver a margem.</p>
+          <p className="mt-1 text-sm text-suave">Informe o preço de venda para ver a margem.</p>
         )}
         <p className="mt-2 text-[11px] text-suave">
-          Imposto de {Math.round(IMPOSTO_PADRAO * 100)}% fixo. Comissao, tarifa e frete do ML entram na fase 2.
+          Imposto de {Math.round(IMPOSTO_PADRAO * 100)}% fixo. Comissão, tarifa e frete do ML entram na fase 2.
         </p>
       </div>
     </div>

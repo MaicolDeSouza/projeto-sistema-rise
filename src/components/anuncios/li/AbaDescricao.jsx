@@ -23,18 +23,18 @@ export default function AbaDescricao({ contexto, abrirProduto }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
         <Lock size={14} className="shrink-0" />
-        <span className="min-w-0 flex-1">Esta descricao e so leitura e vem do cadastro do produto. Para editar, use</span>
+        <span className="min-w-0 flex-1">Esta descrição é só leitura e vem do cadastro do produto. Para editar, use</span>
         <EditarNoProduto abrirProduto={produto.id ? abrirProduto : null} className="text-sm font-medium" />
       </div>
 
       {!contexto.urlPublica && (
         <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Documentos para download: desligado ate o Rise ter endereco publico (APP_URL_PUBLICA, na VPS). Quando ligar, os arquivos da aba
-          Documentos do produto entram logo abaixo das Especificacoes tecnicas.
+          Documentos para download: desligado até o Rise ter endereço público (APP_URL_PUBLICA, na VPS). Quando ligar, os arquivos da aba
+          Documentos do produto entram logo abaixo das Especificações técnicas.
         </p>
       )}
 
-      <p className="text-sm font-semibold">Descricao que vai para a loja</p>
+      <p className="text-sm font-semibold">Descrição que vai para a loja</p>
       {html ? (
         <div
           className="max-h-[36rem] space-y-2 overflow-y-auto rounded border border-borda bg-superficie px-4 py-3 leading-relaxed [&_a]:text-acento [&_a]:underline"
@@ -42,7 +42,7 @@ export default function AbaDescricao({ contexto, abrirProduto }) {
         />
       ) : (
         <p className="rounded border border-borda bg-fundo px-3 py-2 text-sm text-suave">
-          O produto ainda nao tem descricao. Escreva no cadastro do produto (aba Descricao).
+          O produto ainda não tem descrição. Escreva no cadastro do produto (aba Descrição).
         </p>
       )}
     </div>

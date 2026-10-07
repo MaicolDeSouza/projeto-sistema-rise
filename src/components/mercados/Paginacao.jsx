@@ -74,15 +74,15 @@ export default function Paginacao({
   return (
     <nav
       className={`flex flex-wrap items-center justify-center ${compacto ? "gap-2.5" : "gap-3 py-3"}`}
-      aria-label="Navegacao entre paginas"
+      aria-label="Navegação entre páginas"
     >
       <button
         type="button"
         onClick={() => irPara(1)}
         disabled={naPrimeira}
         className={botao}
-        title="Primeira pagina"
-        aria-label="Primeira pagina"
+        title="Primeira página"
+        aria-label="Primeira página"
       >
         <ChevronsLeft size={18} />
       </button>
@@ -91,8 +91,8 @@ export default function Paginacao({
         onClick={() => irPara(pagina - 1)}
         disabled={naPrimeira}
         className={botao}
-        title="Pagina anterior"
-        aria-label="Pagina anterior"
+        title="Página anterior"
+        aria-label="Página anterior"
       >
         <ChevronLeft size={18} />
       </button>
@@ -103,7 +103,7 @@ export default function Paginacao({
         inventar essa complicacao agora seria resolver problema que nao existe.
       */}
       <label className="sr-only" htmlFor="pagina-atual">
-        Pagina
+        Página
       </label>
       <select
         id="pagina-atual"
@@ -123,8 +123,8 @@ export default function Paginacao({
         onClick={() => irPara(pagina + 1)}
         disabled={naUltima}
         className={botao}
-        title="Proxima pagina"
-        aria-label="Proxima pagina"
+        title="Próxima página"
+        aria-label="Próxima página"
       >
         <ChevronRight size={18} />
       </button>
@@ -133,8 +133,8 @@ export default function Paginacao({
         onClick={() => irPara(totalPaginas)}
         disabled={naUltima}
         className={botao}
-        title="Ultima pagina"
-        aria-label="Ultima pagina"
+        title="Última página"
+        aria-label="Última página"
       >
         <ChevronsRight size={18} />
       </button>

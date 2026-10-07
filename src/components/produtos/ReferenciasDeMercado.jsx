@@ -361,11 +361,11 @@ export default function ReferenciasDeMercado({
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="Referencias de mercado"
+        aria-label="Referências de mercado"
         className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-borda bg-superficie shadow-2xl"
       >
         <div className="flex flex-wrap items-center gap-2 border-b border-borda p-3">
-          <span className="text-sm font-semibold">Referencias de mercado</span>
+          <span className="text-sm font-semibold">Referências de mercado</span>
 
           {/*
             Nao e um <form>: esta dentro do formulario do produto, e o Enter
@@ -399,7 +399,7 @@ export default function ReferenciasDeMercado({
           <button
             type="button"
             onClick={() => fechar()}
-            aria-label="Fechar referencias"
+            aria-label="Fechar referências"
             className="rounded p-1 text-suave hover:bg-fundo"
           >
             <X size={16} />
@@ -419,7 +419,7 @@ export default function ReferenciasDeMercado({
         {resposta?.ok && itens.length === 0 && (
           <p className="p-4 text-sm text-suave">
             Nenhum produto de fornecedor ou concorrente parecido. Tente menos palavras, ou o
-            modelo da peca (ex.: HC-SR04).
+            modelo da peça (ex.: HC-SR04).
           </p>
         )}
 
@@ -455,7 +455,7 @@ export default function ReferenciasDeMercado({
                       aoClicar={alternarOrdenacao}
                       direita
                     >
-                      Preco
+                      Preço
                     </CabecalhoOrdenavel>
                     <th className="px-3 py-2 font-medium">Link</th>
                     <CabecalhoOrdenavel
@@ -463,7 +463,7 @@ export default function ReferenciasDeMercado({
                       ordenacao={ordenacao}
                       aoClicar={alternarOrdenacao}
                       direita
-                      titulo="Quanto do titulo buscado aparece no nome do produto, com peso maior para modelo e codigo"
+                      titulo="Quanto do título buscado aparece no nome do produto, com peso maior para modelo e código"
                     >
                       Parecido
                     </CabecalhoOrdenavel>
@@ -544,7 +544,7 @@ export default function ReferenciasDeMercado({
                               // O clique do meio (abrir em nova aba) dispara
                               // auxclick, nao click.
                               onAuxClick={() => marcarAberto(item.id)}
-                              title={jaAberto ? "Voce ja abriu este link" : undefined}
+                              title={jaAberto ? "Você já abriu este link" : undefined}
                               className={`inline-flex items-center gap-1 hover:underline ${
                                 jaAberto ? "text-purple-700" : "text-acento"
                               }`}
@@ -557,8 +557,8 @@ export default function ReferenciasDeMercado({
                             // link sem destino convidaria a um clique que nao leva a nada.
                             <span className="text-xs text-suave">
                               {item.origem === "arquivo"
-                                ? "sem pagina (lista do fornecedor)"
-                                : "sem pagina"}
+                                ? "sem página (lista do fornecedor)"
+                                : "sem página"}
                             </span>
                           )}
                         </td>
@@ -585,7 +585,7 @@ export default function ReferenciasDeMercado({
               onClick={limpar}
               className="text-xs text-suave underline hover:text-texto"
             >
-              Limpar marcacao
+              Limpar marcação
             </button>
           )}
 

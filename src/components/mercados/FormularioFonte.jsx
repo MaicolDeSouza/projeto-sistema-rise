@@ -42,26 +42,26 @@ const TIPOS = [
 const CABECALHO = {
   SUCESSO: {
     icone: CircleCheck,
-    titulo: "Fonte compativel",
+    titulo: "Fonte compatível",
     classe: "border-emerald-200 bg-emerald-50 text-emerald-900",
   },
   PARCIAL: {
     icone: CircleAlert,
-    titulo: "Fonte parcialmente compativel",
+    titulo: "Fonte parcialmente compatível",
     classe: "border-amber-300 bg-amber-50 text-amber-900",
   },
   FALHA: {
     icone: CircleX,
-    titulo: "Nao foi possivel validar a fonte",
+    titulo: "Não foi possível validar a fonte",
     classe: "border-red-200 bg-red-50 text-red-900",
   },
 };
 
 const CONFIANCA = {
-  alta: { rotulo: "confianca alta", classe: "bg-emerald-50 text-emerald-800 border-emerald-200" },
-  media: { rotulo: "confianca media", classe: "bg-amber-50 text-amber-800 border-amber-300" },
-  baixa: { rotulo: "confianca baixa", classe: "bg-amber-50 text-amber-800 border-amber-300" },
-  nenhuma: { rotulo: "nao identificada", classe: "bg-fundo text-suave border-borda" },
+  alta: { rotulo: "confiança alta", classe: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+  media: { rotulo: "confiança média", classe: "bg-amber-50 text-amber-800 border-amber-300" },
+  baixa: { rotulo: "confiança baixa", classe: "bg-amber-50 text-amber-800 border-amber-300" },
+  nenhuma: { rotulo: "não identificada", classe: "bg-fundo text-suave border-borda" },
 };
 
 /**
@@ -100,17 +100,17 @@ function CartaoPlataforma({ teste }) {
 
       {typeof teste.produtosNoSite === "number" && (
         <p className="mt-2 text-sm">
-          <span className="font-medium">Catalogo da loja: </span>
+          <span className="font-medium">Catálogo da loja: </span>
           <span className="tabular-nums">
             {teste.produtosNoSite.toLocaleString("pt-BR")}
             {teste.produtosNoSiteParcial ? "+" : ""}
           </span>{" "}
           produto(s){" "}
           {teste.produtosNoSiteFonte === "catalogo"
-            ? "no catalogo publico da loja"
+            ? "no catálogo público da loja"
             : "publicados no sitemap"}
           {teste.produtosNoSiteParcial
-            ? " — a leitura parou no teto, entao o catalogo e maior que isso"
+            ? " — a leitura parou no teto, então o catálogo é maior que isso"
             : ""}
         </p>
       )}
@@ -118,7 +118,7 @@ function CartaoPlataforma({ teste }) {
       <dl className="mt-2 space-y-1 text-xs">
         {entrega.preco && (
           <div>
-            <dt className="inline font-medium">Preco: </dt>
+            <dt className="inline font-medium">Preço: </dt>
             <dd className="inline text-suave">{entrega.preco}</dd>
           </div>
         )}
@@ -147,17 +147,17 @@ function CartaoPlataforma({ teste }) {
           {catalogoPublico.disponivel ? (
             <>
               <span className="font-medium">
-                Esta loja publica o catalogo em JSON, sem credencial
+                Esta loja publica o catálogo em JSON, sem credencial
               </span>{" "}
               — {catalogoPublico.url}
               {catalogoPublico.total ? ` · ${catalogoPublico.total} produto(s)` : ""}. A coleta
-              atual nao usa esse caminho: ler o catalogo em vez de abrir pagina por pagina e
-              uma decisao a parte.
+              atual não usa esse caminho: ler o catálogo em vez de abrir página por página é
+              uma decisão à parte.
             </>
           ) : (
             <>
-              A plataforma costuma publicar catalogo em {catalogoPublico.url}, mas nesta loja
-              nao respondeu ({catalogoPublico.motivo}).
+              A plataforma costuma publicar catálogo em {catalogoPublico.url}, mas nesta loja
+              não respondeu ({catalogoPublico.motivo}).
             </>
           )}
         </p>
@@ -176,8 +176,8 @@ function CartaoPlataforma({ teste }) {
 
       {!plataforma.conferidaEm && plataforma.id !== "desconhecida" && (
         <p className="mt-2 text-xs text-amber-700">
-          As regras desta plataforma ainda nao foram conferidas em loja real — confira a
-          previa antes de confiar.
+          As regras desta plataforma ainda não foram conferidas em loja real — confira a
+          prévia antes de confiar.
         </p>
       )}
     </div>
@@ -338,7 +338,7 @@ function juntarTestes(doLink, doArquivo, regras = {}) {
               ok: true,
               detalhe:
                 `${doLink?.produtosNoSite ?? 0} do site + ${doArquivo?.produtosNoSite ?? 0} do arquivo` +
-                ` — ${mesclado.casados} codigo(s) conferido(s) nos dois viraram um produto so`,
+                ` — ${mesclado.casados} código(s) conferido(s) nos dois viraram um produto só`,
             },
           ]
         : []),
@@ -563,7 +563,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
       </div>
       <p className="mb-4 text-sm text-suave">
         Informe o site de um concorrente ou fornecedor. Antes de gravar, o sistema abre
-        algumas paginas de produto para confirmar que consegue extrair dados uteis dali.
+        algumas páginas de produto para confirmar que consegue extrair dados úteis dali.
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -633,15 +633,15 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
               />
             </label>
             <span className="text-xs text-suave">
-              Este fornecedor so mostra preco com login. Cole no campo URL o link de UMA
-              categoria (ex.: https://santanaimport.com.br/componentes.html); as outras voce
+              Este fornecedor só mostra preço com login. Cole no campo URL o link de UMA
+              categoria (ex.: https://santanaimport.com.br/componentes.html); as outras você
               adiciona depois, em Categorias, na linha da fonte. O login fica cifrado.
             </span>
           </div>
         ) : (
         <label>
           <span className="mb-1 block text-xs text-suave">
-            Secao / categoria <span className="text-suave">(opcional)</span>
+            Seção / categoria <span className="text-suave">(opcional)</span>
           </span>
           <input
             type="text"
@@ -695,8 +695,8 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
             aria-checked={amostraVariada}
             title={
               amostraVariada
-                ? "Ligado: cada Buscar dados traz tres produtos diferentes dos ja vistos"
-                : "Desligado: Buscar dados sempre traz os mesmos tres produtos"
+                ? "Ligado: cada Buscar dados traz três produtos diferentes dos já vistos"
+                : "Desligado: Buscar dados sempre traz os mesmos três produtos"
             }
             className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -815,14 +815,14 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
 
         {testando && ehPortal && (
           <span className="text-xs text-suave">
-            Entrando no portal e lendo a primeira pagina da categoria. Leva uns 15 segundos.
+            Entrando no portal e lendo a primeira página da categoria. Leva uns 15 segundos.
           </span>
         )}
 
         {testando && arquivos.length === 0 && !ehPortal && (
           <span className="text-xs text-suave">
-            Abrindo robots.txt, sitemap e algumas paginas de produto. As visitas sao
-            espacadas para nao pesar no site, entao leva de um a cinco minutos — sites que
+            Abrindo robots.txt, sitemap e algumas páginas de produto. As visitas são
+            espaçadas para não pesar no site, então leva de um a cinco minutos — sites que
             pedem ritmo mais lento no robots.txt (Crawl-delay) demoram mais, e nos
             respeitamos o que eles pedem.
           </span>
@@ -872,7 +872,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
               {teste.campos.ausentes.length > 0 && (
                 <>
                   <p className="mt-3 mb-1.5 text-sm font-medium">
-                    Nao disponiveis nesta fonte
+                    Não disponíveis nesta fonte
                   </p>
                   <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
                     {teste.campos.ausentes.map((campo) => (
@@ -882,7 +882,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
                     ))}
                   </div>
                   <p className="mt-2 text-xs text-suave">
-                    Campo ausente nao invalida a fonte: sites publicam informacoes
+                    Campo ausente não invalida a fonte: sites publicam informações
                     diferentes, e o que falta fica null em vez de ser inventado.
                   </p>
                 </>
@@ -893,7 +893,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
           {teste.produtos.length > 0 && (
             <div className="space-y-3">
               <p className="text-sm font-medium">
-                Previa dos produtos coletados ({teste.produtos.length})
+                Prévia dos produtos coletados ({teste.produtos.length})
               </p>
               {teste.produtos.map((produto, indice) => (
                 <PreviaProduto

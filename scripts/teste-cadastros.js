@@ -155,7 +155,7 @@ conferir(
 );
 conferir("CNPJ invalido continua recusado, com o motivo certo", analisar({ nome: "Fortek", cnpj: "11.222.333/0001-82" }), {
   ok: false,
-  erros: { cnpj: "CNPJ invalido." },
+  erros: { cnpj: "CNPJ inválido." },
 });
 conferir("estrangeiro sem nome: recusa o nome, e so ele", analisar({ nome: "", estrangeiro: "on" }), {
   ok: false,

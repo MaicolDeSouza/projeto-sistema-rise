@@ -28,7 +28,7 @@ export async function GET(requisicao, { params }) {
   const { caminho } = await params;
 
   if (!Array.isArray(caminho) || caminho.length !== 3) {
-    return new Response("Caminho invalido.", { status: 400 });
+    return new Response("Caminho inválido.", { status: 400 });
   }
 
   const [sku, pasta, nome] = caminho;
@@ -37,7 +37,7 @@ export async function GET(requisicao, { params }) {
   // consulta o banco: nao ha nome real para mostrar, so a imagem.
   if (pasta === PASTA_RESERVA) {
     const absolutoReserva = caminhoDaReserva(decodeURIComponent(sku), nome);
-    if (!absolutoReserva) return new Response("Caminho invalido.", { status: 400 });
+    if (!absolutoReserva) return new Response("Caminho inválido.", { status: 400 });
     try {
       return new Response(await readFile(absolutoReserva), {
         headers: {
@@ -47,7 +47,7 @@ export async function GET(requisicao, { params }) {
         },
       });
     } catch (erro) {
-      if (erro.code === "ENOENT") return new Response("Arquivo nao encontrado.", { status: 404 });
+      if (erro.code === "ENOENT") return new Response("Arquivo não encontrado.", { status: 404 });
       throw erro;
     }
   }
@@ -58,7 +58,7 @@ export async function GET(requisicao, { params }) {
 
   const skuDecodificado = decodeURIComponent(sku);
   const absoluto = caminhoDe(skuDecodificado, tipo, nome);
-  if (!absoluto) return new Response("Caminho invalido.", { status: 400 });
+  if (!absoluto) return new Response("Caminho inválido.", { status: 400 });
 
   try {
     const bytes = await readFile(absoluto);
@@ -97,7 +97,7 @@ export async function GET(requisicao, { params }) {
     });
   } catch (erro) {
     if (erro.code === "ENOENT") {
-      return new Response("Arquivo nao encontrado.", { status: 404 });
+      return new Response("Arquivo não encontrado.", { status: 404 });
     }
     throw erro;
   }

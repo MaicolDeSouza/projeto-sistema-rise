@@ -122,7 +122,7 @@ export function AmpliacaoDeFoto({ src, alt, aoFechar, posicao = 0, total = 0, ao
               aoNavegar(1);
             }}
             disabled={posicao >= ultima}
-            aria-label="Proxima foto"
+            aria-label="Próxima foto"
             className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer rounded-full bg-white/90 p-2.5 text-slate-700 shadow hover:bg-white disabled:cursor-default disabled:opacity-30"
           >
             <ChevronRight size={26} />

@@ -7,7 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { carregarAnuncioLI } from "@/lib/canaisDeVenda/li/banco";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Anuncio | Loja Integrada | Sistema Rise" };
+export const metadata = { title: "Anúncio | Loja Integrada | Sistema Rise" };
 
 /** Um anuncio da Loja Integrada ja salvo, aberto no editor. Id que nao existe (ou de outro canal) e 404. */
 export default async function AnuncioLIPage({ params }) {
@@ -25,7 +25,7 @@ export default async function AnuncioLIPage({ params }) {
   return (
     <>
       <LinkDeVolta href="/canais-de-venda/loja-integrada" rotulo="Loja Integrada" />
-      <PageHeader titulo="Anuncio da Loja Integrada" descricao={carregado?.rascunho.titulo || "Anuncio sem titulo"} />
+      <PageHeader titulo="Anúncio da Loja Integrada" descricao={carregado?.rascunho.titulo || "Anúncio sem título"} />
 
       {erro && <AvisoBanco erro={erro} />}
 

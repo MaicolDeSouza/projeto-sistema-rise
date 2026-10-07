@@ -21,7 +21,7 @@ import { resumirEstoqueDaLista } from "@/lib/blingSync/apresentacao";
 
 const AVISO_CURTO = "Atualiza o estoque de todos os produtos aqui, lendo o saldo no Bling.";
 const AVISO_LONGO =
-  "Le o saldo no Bling e atualiza o estoque de TODOS os produtos do Rise neste sistema. Os ajustes ainda nao enviados ao Bling sao preservados. Nada e alterado no Bling.";
+  "Lê o saldo no Bling e atualiza o estoque de TODOS os produtos do Rise neste sistema. Os ajustes ainda não enviados ao Bling são preservados. Nada é alterado no Bling.";
 
 export default function BotaoSincronizarEstoque() {
   const [pendente, iniciarTransicao] = useTransition();
@@ -35,7 +35,7 @@ export default function BotaoSincronizarEstoque() {
         setResultado(await sincronizarEstoqueComBling());
       } catch {
         // A acao ja devolve `{ ok: false }` para o que da errado no servidor; isto cobre a rede caindo.
-        setResultado({ ok: false, erro: "Nao foi possivel falar com o servidor. Tente de novo." });
+        setResultado({ ok: false, erro: "Não foi possível falar com o servidor. Tente de novo." });
       }
     });
   }

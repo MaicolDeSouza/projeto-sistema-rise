@@ -90,7 +90,7 @@ export default function Sidebar() {
         {/* Faixa com o nome da loja, como no menu de referencia */}
         <div className="bg-menu-topo px-3 py-1.5">
           <p className="truncate text-[10px] font-medium tracking-[0.12em] text-menu-texto/70 uppercase">
-            {recolhida ? "SR" : "Loja de Eletronicos"}
+            {recolhida ? "SR" : "Loja de Eletrônicos"}
           </p>
         </div>
 

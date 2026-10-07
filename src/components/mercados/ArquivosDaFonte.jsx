@@ -120,7 +120,7 @@ export default function ArquivosDaFonte({ fonte }) {
           type="button"
           onClick={() => setAnotando((antes) => !antes)}
           title={fonte.instrucoes ?? "Anotar como baixar e enviar a lista"}
-          aria-label="Instrucoes desta fonte"
+          aria-label="Instruções desta fonte"
           className={`rounded border p-1 ${
             fonte.instrucoes
               ? "border-acento text-acento"
@@ -140,11 +140,11 @@ export default function ArquivosDaFonte({ fonte }) {
             name="instrucoes"
             defaultValue={fonte.instrucoes ?? ""}
             rows={5}
-            placeholder="Ex.: entrar no portal, menu Pedidos, Ctrl+S como pagina completa. A lista de reserva vem no mesmo menu."
+            placeholder="Ex.: entrar no portal, menu Pedidos, Ctrl+S como página completa. A lista de reserva vem no mesmo menu."
             className="w-full rounded border border-borda bg-superficie p-1.5 text-xs"
           />
           {/* Senha nao entra aqui: o campo e texto simples e aparece na tela. */}
-          <p className="mt-1 text-suave">Nao anote senha aqui.</p>
+          <p className="mt-1 text-suave">Não anote senha aqui.</p>
           <div className="mt-1.5 flex gap-1.5">
             <button
               type="submit"

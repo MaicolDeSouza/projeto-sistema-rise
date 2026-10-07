@@ -32,7 +32,7 @@ const TEXTOS_MARCA = {
   buscar: "Buscar marca",
   vazio: "Nenhuma marca cadastrada ainda.",
   tituloExcluir: "Excluir marca?",
-  avisoExcluir: "Produtos que ja usam esta marca nao sao alterados: o campo Marca deles e texto proprio.",
+  avisoExcluir: "Produtos que já usam esta marca não são alterados: o campo Marca deles é texto próprio.",
 };
 
 /**
@@ -213,7 +213,7 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
                 acabariam divergindo.
               */}
               <p className="max-w-md text-sm text-suave">
-                O cadastro de produto e o mesmo do item Produtos do menu.
+                O cadastro de produto é o mesmo do item Produtos do menu.
               </p>
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 <Link

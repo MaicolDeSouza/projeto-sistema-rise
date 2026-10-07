@@ -68,7 +68,7 @@ function JanelaImportar({ aoFechar }) {
       erro={erro}
     >
       <label className="mb-1 block text-xs text-suave" htmlFor="importar-bling-codigo">
-        Codigo do produto no Bling
+        Código do produto no Bling
       </label>
       <input
         id="importar-bling-codigo"
@@ -85,8 +85,8 @@ function JanelaImportar({ aoFechar }) {
         className="w-full rounded border border-borda bg-superficie px-2.5 py-2 font-mono text-sm focus:border-acento focus:outline-none"
       />
       <p className="mt-1.5 text-xs text-suave">
-        Importa so o produto ativo com este codigo, com as fotos e o fornecedor (como rascunho). So le o Bling: nada e
-        alterado la.
+        Importa só o produto ativo com este código, com as fotos e o fornecedor (como rascunho). Só lê o Bling: nada é
+        alterado lá.
       </p>
 
       {resultado?.ok && (
@@ -106,7 +106,7 @@ function JanelaImportar({ aoFechar }) {
       )}
       {resultado?.jaExiste && (
         <Link href={`/produtos/${resultado.produtoId}`} className="mt-2 inline-block text-xs font-medium text-acento underline">
-          Abrir o produto que ja existe
+          Abrir o produto que já existe
         </Link>
       )}
     </Popup>

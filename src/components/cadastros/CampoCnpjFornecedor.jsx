@@ -28,7 +28,7 @@ export default function CampoCnpjFornecedor({ erro, cnpjInicial = "", estrangeir
       nome="cnpj"
       rotulo="CNPJ"
       erro={erro}
-      ajuda="Obrigatorio. Fornecedor de fora do Brasil nao tem CNPJ: use o botao Estrangeiro."
+      ajuda="Obrigatório. Fornecedor de fora do Brasil não tem CNPJ: use o botão Estrangeiro."
     >
       <div className="flex gap-2">
         <input

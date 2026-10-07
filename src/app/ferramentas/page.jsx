@@ -13,7 +13,7 @@ export const metadata = { title: "Ferramentas | Sistema Rise" };
 export default function FerramentasPage() {
   return (
     <>
-      <PageHeader titulo="Ferramentas" descricao="Utilitarios do dia a dia. Escolha uma para abrir." />
+      <PageHeader titulo="Ferramentas" descricao="Utilitários do dia a dia. Escolha uma para abrir." />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {FERRAMENTAS.map((ferramenta) => (

@@ -71,10 +71,10 @@ function validarRascunho(dados) {
   const erros = {};
   if (!dados.nome.trim()) erros.nome = "Informe o fornecedor.";
   if (dados.precoCusto !== "" && (Number.isNaN(Number(dados.precoCusto)) || Number(dados.precoCusto) < 0)) {
-    erros.precoCusto = "Informe um numero valido.";
+    erros.precoCusto = "Informe um número válido.";
   }
   if (dados.link && !ehUrlSegura(dados.link)) {
-    erros.link = "Informe um endereco http ou https.";
+    erros.link = "Informe um endereço http ou https.";
   }
   return erros;
 }
@@ -127,8 +127,8 @@ function CustoDaVarredura({ id, dado, aberto, aoAlternar }) {
           evento.stopPropagation();
           aoAlternar(aberto ? null : id);
         }}
-        title="Ver custo da ultima varredura"
-        aria-label="Ver custo da ultima varredura"
+        title="Ver custo da última varredura"
+        aria-label="Ver custo da última varredura"
         aria-expanded={aberto}
         className={`inline-flex h-5 w-5 items-center justify-center rounded-full border ${
           aberto
@@ -145,7 +145,7 @@ function CustoDaVarredura({ id, dado, aberto, aoAlternar }) {
           className="absolute top-full left-0 z-20 mt-1.5 w-60 rounded border border-borda bg-superficie p-3 text-xs shadow-lg"
         >
           <p className="mb-1.5 text-[10px] font-medium tracking-wide text-suave uppercase">
-            Custo ultima varredura
+            Custo última varredura
           </p>
           <p className="text-texto">{atualTexto ?? "—"}</p>
           {reservaTexto && (
@@ -284,7 +284,7 @@ export default function Fornecedores({
       return;
     }
     if (!cadastradoAgora && !catalogoAtual.some((item) => item.nome.toLocaleLowerCase("pt-BR") === dadosDoVinculo.nome.trim().toLocaleLowerCase("pt-BR"))) {
-      setErros({ nome: "Fornecedor nao cadastrado. Complete o cadastro rapido." });
+      setErros({ nome: "Fornecedor não cadastrado. Complete o cadastro rápido." });
       setPopupNome(dadosDoVinculo.nome.trim());
       return;
     }
@@ -339,7 +339,7 @@ export default function Fornecedores({
 
     if (!catalogoAtual.some((cadastro) => cadastro.nome.toLocaleLowerCase("pt-BR") === dados.nome.trim().toLocaleLowerCase("pt-BR"))) {
       setRascunho(dados);
-      setErros({ nome: "Fornecedor nao cadastrado. Complete o cadastro rapido." });
+      setErros({ nome: "Fornecedor não cadastrado. Complete o cadastro rápido." });
       setEditando("novo");
       setPopupNome(dados.nome.trim());
       return;
@@ -429,12 +429,12 @@ export default function Fornecedores({
           <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
             <tr className="divide-x divide-borda">
               <th className="px-3 py-2 font-medium">Fornecedor</th>
-              <th className="px-3 py-2 font-medium">Descricao no fornecedor</th>
-              <th className="px-3 py-2 font-medium">Codigo no fornecedor</th>
-              <th className="px-3 py-2 font-medium">Preco de custo</th>
+              <th className="px-3 py-2 font-medium">Descrição no fornecedor</th>
+              <th className="px-3 py-2 font-medium">Código no fornecedor</th>
+              <th className="px-3 py-2 font-medium">Preço de custo</th>
               <th className="px-3 py-2 font-medium">Estoque fornecedor</th>
               <th className="px-3 py-2 font-medium">Link</th>
-              <th className="px-3 py-2 font-medium">Padrao</th>
+              <th className="px-3 py-2 font-medium">Padrão</th>
               <th className="w-20 px-3 py-2" />
             </tr>
           </thead>
@@ -504,7 +504,7 @@ export default function Fornecedores({
                       <span className="text-suave">—</span>
                     ) : estoques[vinculo.id].disponivel ? (
                       <span className="text-emerald-700">
-                        estoque disponivel
+                        estoque disponível
                         {typeof estoques[vinculo.id].quantidade === "number" && `: ${estoques[vinculo.id].quantidade}`}
                       </span>
                     ) : (
@@ -539,12 +539,12 @@ export default function Fornecedores({
                       onClick={() => definirPadrao(vinculo)}
                       aria-label={
                         vinculo.padrao
-                          ? `${vinculo.nome} e o fornecedor padrao`
-                          : `Usar ${vinculo.nome} como fornecedor padrao`
+                          ? `${vinculo.nome} é o fornecedor padrão`
+                          : `Usar ${vinculo.nome} como fornecedor padrão`
                       }
                       title={
                         vinculo.padrao
-                          ? "E deste fornecedor que sai o custo do produto"
+                          ? "É deste fornecedor que sai o custo do produto"
                           : "Usar o custo deste fornecedor"
                       }
                       className={`inline-flex items-center gap-1.5 rounded px-1.5 py-1 text-xs font-medium ${
@@ -558,7 +558,7 @@ export default function Fornecedores({
                       ) : (
                         <Square size={16} className="shrink-0" />
                       )}
-                      {vinculo.padrao && "Padrao"}
+                      {vinculo.padrao && "Padrão"}
                     </button>
                   </td>
                   <td className="px-3 py-2">
@@ -613,7 +613,7 @@ export default function Fornecedores({
       )}
 
       <p className="mt-2 text-[11px] text-suave">
-        O custo do produto vem do fornecedor marcado como padrao.
+        O custo do produto vem do fornecedor marcado como padrão.
       </p>
 
       {popupNome !== null && (

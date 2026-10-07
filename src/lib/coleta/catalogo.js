@@ -85,7 +85,7 @@ export async function lerCatalogo(catalogo, { limite = 0, sinal = null } = {}) {
 
     const json = comoJson(resposta.corpo);
     if (!json) {
-      if (pagina === 1) return { total: null, itens: [], erro: "resposta nao e JSON" };
+      if (pagina === 1) return { total: null, itens: [], erro: "resposta não é JSON" };
       break;
     }
 

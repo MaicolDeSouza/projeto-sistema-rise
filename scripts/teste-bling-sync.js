@@ -184,11 +184,11 @@ try {
     // --- Diferencas ---
     const bling95 = umBling();
     bling95.preco = 95;
-    const diferencaDePreco = lista(umRise(), bling95);
-    conferir("preco diferente aparece", diferencaDePreco.map(resumo), [{ campo: "preco", tipo: "diferente", rise: 90, bling: 95 }]);
-    conferir("a diferenca traz o rotulo da tela e as chaves na ordem do contrato", Object.keys(diferencaDePreco[0]), ["campo", "rotulo", "rise", "bling", "tipo"]);
-    conferir("rotulo sem acento", diferencaDePreco[0].rotulo, "Preco");
-    conferir("preco diferente conta como divergencia", contarDivergencias(diferencaDePreco), 1);
+    const diferencaDePreço = lista(umRise(), bling95);
+    conferir("preco diferente aparece", diferencaDePreço.map(resumo), [{ campo: "preco", tipo: "diferente", rise: 90, bling: 95 }]);
+    conferir("a diferenca traz o rotulo da tela e as chaves na ordem do contrato", Object.keys(diferencaDePreço[0]), ["campo", "rotulo", "rise", "bling", "tipo"]);
+    conferir("rotulo sem acento", diferencaDePreço[0].rotulo, "Preço");
+    conferir("preco diferente conta como divergencia", contarDivergencias(diferencaDePreço), 1);
 
     const riseSemMarca = umRise();
     riseSemMarca.marca = null;
@@ -197,7 +197,7 @@ try {
     const diferencaDeMarca = lista(riseSemMarca, blingComMarca);
     conferir("Rise vazio e Bling com valor: vazioNoRise", diferencaDeMarca.map(resumo), [{ campo: "marca", tipo: "vazioNoRise", rise: null, bling: "X" }]);
     conferir("vazioNoRise nao conta como divergencia", contarDivergencias(diferencaDeMarca), 0);
-    conferir("so os 'diferente' contam", contarDivergencias([...diferencaDeMarca, ...diferencaDePreco]), 1);
+    conferir("so os 'diferente' contam", contarDivergencias([...diferencaDeMarca, ...diferencaDePreço]), 1);
     conferir("lista vazia nao tem divergencia", contarDivergencias([]), 0);
 
     const blingSemMarca = umBling();
@@ -689,7 +689,7 @@ try {
         return erro.message;
       }
     };
-    const casa = (texto, regex) => typeof texto === "string" && regex.test(texto);
+    const casa = (texto, regex) => typeof texto === "string" && regex.test(texto.normalize("NFD").replace(/\p{M}/gu, ""));
 
     // --- Segunda trava: a lista de codigos liberados ---
     conferir("codigos liberados: lista vazia libera qualquer codigo", mensagemDe(() => exigirCodigoLiberado("100246", [])), null);
@@ -1115,11 +1115,11 @@ try {
     {
       const falso = criarBlingFalso({
         produtos: [umProduto(), umProduto({ id: 112, codigo: "ZZ-F-2" })],
-        falhas: [{ metodo: "PATCH", caminho: "/produtos/111", status: 400, mensagem: "Preco invalido" }],
+        falhas: [{ metodo: "PATCH", caminho: "/produtos/111", status: 400, mensagem: "Preço invalido" }],
       });
       falso.exigirEscrita("ZZ-F-1");
       const falhou = await falso.patch("/produtos/111", { preco: 1 });
-      conferir("falha: devolve ok false, o status e a mensagem em error.description", [falhou.ok, falhou.status, falhou.dados], [false, 400, { error: { description: "Preco invalido" } }]);
+      conferir("falha: devolve ok false, o status e a mensagem em error.description", [falhou.ok, falhou.status, falhou.dados], [false, 400, { error: { description: "Preço invalido" } }]);
       conferir("falha: a chamada que falhou nao muda nada", (await falso.get("/produtos/111")).dados.data.preco, 80);
       conferir("falha: outro metodo no mesmo caminho nao falha (GET acima)", (await falso.get("/produtos/111")).ok, true);
       conferir("falha: outro caminho nao falha", (await falso.patch("/produtos/112", { preco: 5 })).ok, true);
@@ -1253,7 +1253,7 @@ try {
     config.travas.blingCodigosLiberados = [];
 
     try {
-      const casaTexto = (texto, regex) => typeof texto === "string" && regex.test(texto);
+      const casaTexto = (texto, regex) => typeof texto === "string" && regex.test(texto.normalize("NFD").replace(/\p{M}/gu, ""));
       // A mensagem com que a promessa foi rejeitada (ou null se ela deu certo).
       const rejeicaoDeLeitura = async (promessa) => {
         try {
@@ -1401,7 +1401,7 @@ try {
         conferir("popup existe: ok, sku e situacao (o Bling guarda o codigo em outra caixa e ainda assim e o mesmo)", [existe.ok, existe.sku, existe.situacao], [true, "ZZ-BS-2", "existe"]);
         conferir("popup existe: sem a chave erro, e todas as outras", Object.keys(existe).sort(), ["avisos", "diferencas", "escrita", "estoque", "iguais", "ok", "situacao", "sku"]);
         conferir("popup existe: so o preco difere (90 no Rise, 95 no Bling); o resto bate depois de normalizar", existe.diferencas.map(resumo), [{ campo: "preco", tipo: "diferente", rise: 90, bling: 95 }]);
-        conferir("popup existe: a diferenca traz o rotulo da tela", existe.diferencas[0].rotulo, "Preco");
+        conferir("popup existe: a diferenca traz o rotulo da tela", existe.diferencas[0].rotulo, "Preço");
         conferir("popup existe: iguais conta os campos iguais (18 menos o preco)", [existe.iguais, existe.iguais + existe.diferencas.length === CAMPOS_DE_ENVIO.length], [17, true]);
         conferir(
           "popup existe: estoque = saldo virtual do produto LIDO (12, nao o 20 guardado), estoque do Rise e os 2 pendentes (o enviado nao conta)",
@@ -1411,7 +1411,7 @@ try {
         conferir(
           "popup existe: aviso para o fornecedor sem CNPJ e para o de CNPJ invalido, nesta ordem; o com CNPJ e o repetido nao avisam",
           existe.avisos,
-          ["Fornecedor ZZ Teste BS Sem CNPJ sem CNPJ valido: nao sera enviado ao Bling.", "Fornecedor ZZ Teste BS CNPJ invalido sem CNPJ valido: nao sera enviado ao Bling."],
+          ["Fornecedor ZZ Teste BS Sem CNPJ sem CNPJ válido: não será enviado ao Bling.", "Fornecedor ZZ Teste BS CNPJ invalido sem CNPJ válido: não será enviado ao Bling."],
         );
         conferir("popup existe: com a trava desligada a escrita nao esta liberada e o motivo diz qual trava", [existe.escrita.liberada, casaTexto(existe.escrita.motivo, /BLING_ESCRITA esta false/)], [false, true]);
         conferir("popup existe: so le: GET da busca e GET do completo, nenhuma escrita e nenhum exigirEscrita", [chamadasDe(falso), falso.escritasExigidas], [["GET /produtos", "GET /produtos/15000000101"], []]);
@@ -1556,7 +1556,7 @@ try {
     console.log("\nEnvio dos campos");
     await limpar();
 
-    const casaTexto = (texto, regex) => typeof texto === "string" && regex.test(texto);
+    const casaTexto = (texto, regex) => typeof texto === "string" && regex.test(texto.normalize("NFD").replace(/\p{M}/gu, ""));
     const ESCRITAS = ["POST", "PUT", "PATCH"];
     const doMetodo = (falso, metodo) => falso.chamadas.filter((chamada) => chamada.metodo === metodo);
     const escritasDe = (falso) => falso.chamadas.filter((chamada) => ESCRITAS.includes(chamada.metodo));
@@ -1647,7 +1647,7 @@ try {
       conferir("sem diferenca: nenhuma copia de seguranca (nada mudou no Bling)", (await copiasDe(produto.id)).length, 0);
     }
 
-    // --- Preco diferente: PATCH so com o preco, no id da busca, e copia de seguranca ---
+    // --- Preço diferente: PATCH so com o preco, no id da busca, e copia de seguranca ---
     {
       // O blingId guardado e velho de proposito: o alvo do PATCH sai da busca por codigo (Emenda 11).
       const produto = await criarNoRise("ZZ-BS-E2", { blingId: "424242" });
@@ -1728,7 +1728,7 @@ try {
       // Nome igual e tipo Fornecedor, mas com OUTRO CNPJ: e outra empresa, NAO serve.
       { id: ID_OUTRO_DOC, nome: "ZZ Teste BS Forn Outro Doc", numeroDocumento: "33344455000183", tiposContato: [{ descricao: "Fornecedor" }] },
     ];
-    const AVISO_SEM_CNPJ = "Fornecedor ZZ Teste BS Forn Estrangeiro: sem CNPJ valido, nao sera enviado ao Bling.";
+    const AVISO_SEM_CNPJ = "Fornecedor ZZ Teste BS Forn Estrangeiro: sem CNPJ válido, não será enviado ao Bling.";
 
     // --- Contato: CNPJ, depois nome (so tipo Fornecedor), e so entao criar; vinculo novo ---
     {
@@ -1905,7 +1905,7 @@ try {
       const falso = novoFalso({
         produtos: [noBling("ZZ-BS-E5", { preco: 95 })],
         contatos: contatosDoBling(),
-        falhas: [{ metodo: "PATCH", caminho: "/produtos/", status: 400, mensagem: "Preco invalido" }],
+        falhas: [{ metodo: "PATCH", caminho: "/produtos/", status: 400, mensagem: "Preço invalido" }],
       });
       const resultado = await sincronizarProduto(produto.id, falso);
       conferir("PATCH com falha 400: ok false, e o erro traz o HTTP e a mensagem do Bling", [resultado.ok, casaTexto(resultado.erro, /HTTP 400/), casaTexto(resultado.erro, /Preco invalido/)], [false, true, true]);
@@ -1942,7 +1942,7 @@ try {
       conferir(
         "codigo que nao e achado entre os ativos do Bling: ok false, fala do inativo e do Cadastrar no Bling, nenhuma escrita",
         [naoExiste.ok, naoExiste.erro, escritasDe(vazio).length],
-        [false, "O codigo nao foi achado entre os produtos ativos do Bling. Se ele esta inativo la, reative-o e use Sincronizar; senao use Cadastrar no Bling.", 0],
+        [false, "O código não foi achado entre os produtos ativos do Bling. Se ele está inativo lá, reative-o e use Sincronizar; senão use Cadastrar no Bling.", 0],
       );
       const duplicado = novoFalso({ produtos: [noBling("ZZ-BS-E7"), noBling("zz-bs-e7", { id: BLING_ID + 1 })] });
       const dois = await sincronizarProduto(produto.id, duplicado);
@@ -1969,10 +1969,10 @@ try {
 
     // --- Cadastrar no Bling ---
     {
-      const semPreco = await criarNoRise("ZZ-BS-C1", { precoVenda: null });
+      const semPreço = await criarNoRise("ZZ-BS-C1", { precoVenda: null });
       const falso = novoFalso();
-      const recusa = await cadastrarNoBling(semPreco.id, falso);
-      conferir("cadastrar sem preco: ok false com a mensagem de validar, e nenhum POST", [recusa.ok, casaTexto(recusa.erro, /preco de venda/), doMetodo(falso, "POST").length, (await ler(semPreco.id)).blingId], [false, true, 0, null]);
+      const recusa = await cadastrarNoBling(semPreço.id, falso);
+      conferir("cadastrar sem preco: ok false com a mensagem de validar, e nenhum POST", [recusa.ok, casaTexto(recusa.erro, /preco de venda/), doMetodo(falso, "POST").length, (await ler(semPreço.id)).blingId], [false, true, 0, null]);
       conferir("cadastrar recusado: o resultado tem so ok e erro", Object.keys(recusa), ["ok", "erro"]);
     }
     {
@@ -2049,7 +2049,7 @@ try {
     // produto (o novo nasceria sem estoque, fotos e anuncios, que ficam no inativo). Nunca e o alvo
     // de escrita nenhuma.
     {
-      const MENSAGEM_INATIVO = "Este codigo existe no Bling como produto inativo: reative-o la e use Sincronizar. Nada foi criado.";
+      const MENSAGEM_INATIVO = "Este código existe no Bling como produto inativo: reative-o lá e use Sincronizar. Nada foi criado.";
       const ID_GUARDADO = 15000000301;
       const postsDeProduto = (falso) => doMetodo(falso, "POST").filter((chamada) => chamada.caminho === "/produtos");
 
@@ -2225,7 +2225,7 @@ try {
     console.log("\nEstoque");
     await limpar();
 
-    const casaTexto = (texto, regex) => typeof texto === "string" && regex.test(texto);
+    const casaTexto = (texto, regex) => typeof texto === "string" && regex.test(texto.normalize("NFD").replace(/\p{M}/gu, ""));
     const ESCRITAS = ["POST", "PUT", "PATCH"];
     const doMetodo = (falso, metodo) => falso.chamadas.filter((chamada) => chamada.metodo === metodo);
     const escritasDe = (falso) => falso.chamadas.filter((chamada) => ESCRITAS.includes(chamada.metodo));
@@ -2535,7 +2535,7 @@ try {
 
       const semUso = novoFalso();
       const semProduto = await enviarAjustesDeEstoque("id-que-nao-existe", semUso);
-      conferir("produto que nao existe no Rise: ok false, e o Bling nem e chamado", [semProduto, semUso.chamadas.length], [{ ok: false, erro: "Produto nao encontrado no Rise.", enviados: 0, restantes: 0 }, 0]);
+      conferir("produto que nao existe no Rise: ok false, e o Bling nem e chamado", [semProduto, semUso.chamadas.length], [{ ok: false, erro: "Produto não encontrado no Rise.", enviados: 0, restantes: 0 }, 0]);
       conferir("enviarAjustesDeEstoque e sincronizarEstoqueDoBling: o cliente e opcional (o padrao e o clienteBling())", [enviarAjustesDeEstoque.length, sincronizarEstoqueDoBling.length], [1, 0]);
     }
 
@@ -2965,22 +2965,22 @@ try {
       conferir("limite de falhas visiveis: 10", LIMITE_DE_FALHAS_VISIVEIS, 10);
 
       const tudo = resumirEstoqueDaLista({ ok: true, atualizados: 3, semCodigoNoBling: 2, falhas: [] });
-      conferir("resumo: a linha e 'N atualizados, M sem esse codigo no Bling'", tudo.linha, "3 atualizados, 2 sem esse codigo no Bling");
+      conferir("resumo: a linha e 'N atualizados, M sem esse codigo no Bling'", tudo.linha, "3 atualizados, 2 sem esse código no Bling");
       conferir("resumo: tudo atualizado e sem falha = tom ok, nenhuma falha", [tudo.tom, tudo.falhas, tudo.falhasOcultas], ["ok", [], 0]);
 
       const nenhum = resumirEstoqueDaLista({ ok: true, atualizados: 0, semCodigoNoBling: 5, falhas: [] });
-      conferir("resumo: ok:true com 0 atualizados NAO e 'tudo atualizado': a linha diz 0 e o tom e de atencao", [nenhum.linha, nenhum.tom], ["0 atualizados, 5 sem esse codigo no Bling", "atencao"]);
+      conferir("resumo: ok:true com 0 atualizados NAO e 'tudo atualizado': a linha diz 0 e o tom e de atencao", [nenhum.linha, nenhum.tom], ["0 atualizados, 5 sem esse código no Bling", "atencao"]);
 
       const comFalhas = resumirEstoqueDaLista({ ok: true, atualizados: 4, semCodigoNoBling: 0, falhas: [falha(1), falha(2)] });
-      conferir("resumo: ok:true com falhas = tom de atencao, e as falhas vem com sku e erro", [comFalhas.linha, comFalhas.tom, comFalhas.falhas, comFalhas.falhasOcultas], ["4 atualizados, 0 sem esse codigo no Bling", "atencao", [falha(1), falha(2)], 0]);
+      conferir("resumo: ok:true com falhas = tom de atencao, e as falhas vem com sku e erro", [comFalhas.linha, comFalhas.tom, comFalhas.falhas, comFalhas.falhasOcultas], ["4 atualizados, 0 sem esse código no Bling", "atencao", [falha(1), falha(2)], 0]);
 
       const longa = resumirEstoqueDaLista({ ok: true, atualizados: 1, semCodigoNoBling: 0, falhas: doze });
       conferir("resumo: 12 falhas mostram as 10 primeiras e 'e mais 2' (a contagem e das que ficaram de fora)", [longa.falhas, longa.falhasOcultas], [doze.slice(0, 10), 2]);
       conferir("resumo: exatamente 10 falhas nao escondem nenhuma", resumirEstoqueDaLista({ falhas: doze.slice(0, 10) }).falhasOcultas, 0);
       conferir("resumo: 11 falhas escondem 1", resumirEstoqueDaLista({ falhas: doze.slice(0, 11) }).falhasOcultas, 1);
 
-      conferir("resumo: resposta sem campos (ou nula) conta zero, sem quebrar", [resumirEstoqueDaLista({}).linha, resumirEstoqueDaLista(null).linha, resumirEstoqueDaLista(undefined).falhas], ["0 atualizados, 0 sem esse codigo no Bling", "0 atualizados, 0 sem esse codigo no Bling", []]);
-      conferir("resumo: numero estranho conta zero", resumirEstoqueDaLista({ atualizados: "x", semCodigoNoBling: -3, falhas: "nao e lista" }).linha, "0 atualizados, 0 sem esse codigo no Bling");
+      conferir("resumo: resposta sem campos (ou nula) conta zero, sem quebrar", [resumirEstoqueDaLista({}).linha, resumirEstoqueDaLista(null).linha, resumirEstoqueDaLista(undefined).falhas], ["0 atualizados, 0 sem esse código no Bling", "0 atualizados, 0 sem esse código no Bling", []]);
+      conferir("resumo: numero estranho conta zero", resumirEstoqueDaLista({ atualizados: "x", semCodigoNoBling: -3, falhas: "nao e lista" }).linha, "0 atualizados, 0 sem esse código no Bling");
     }
 
     // --- mudouNoBling: quando o pop-up le o Bling de novo depois de um envio ---
@@ -3005,7 +3005,7 @@ try {
 
     // --- resumirEnvio: o que a tela conta do envio, com o rotulo do campo ---
     {
-      const rotulos = { preco: "Preco", nome: "Nome", descricao: "Descricao" };
+      const rotulos = { preco: "Preço", nome: "Nome", descricao: "Descricao" };
 
       const enviouTudo = resumirEnvio(
         "sincronizar",
@@ -3014,18 +3014,18 @@ try {
       );
       conferir("resumirEnvio sincronizar ok: titulo, um campo por linha (de ... para ...) e os fornecedores", enviouTudo, {
         titulo: "Sincronizado com o Bling.",
-        linhas: [`Preco: de R$${NBSP}90,00 para R$${NBSP}95,00`, "Nome: de Motor para Motor CC", "Fornecedores enviados: 1."],
+        linhas: [`Preço: de R$${NBSP}90,00 para R$${NBSP}95,00`, "Nome: de Motor para Motor CC", "Fornecedores enviados: 1."],
       });
 
       conferir("resumirEnvio sincronizar ok sem nada a enviar: o Bling ja estava igual", resumirEnvio("sincronizar", { ok: true, alterados: [], fornecedores: { enviados: 0, avisos: [] } }, rotulos), {
-        titulo: "Nada para enviar: o Bling ja estava igual ao Rise.",
+        titulo: "Nada para enviar: o Bling já estava igual ao Rise.",
         linhas: [],
       });
 
       conferir(
         "resumirEnvio sincronizar com falha no meio: diz o que foi antes da falha",
         resumirEnvio("sincronizar", { ok: false, erro: "x", alterados: [{ campo: "preco", de: 90, para: 95 }], fornecedores: { enviados: 0, avisos: [] } }, rotulos),
-        { titulo: "Antes da falha, foi enviado ao Bling:", linhas: [`Preco: de R$${NBSP}90,00 para R$${NBSP}95,00`] },
+        { titulo: "Antes da falha, foi enviado ao Bling:", linhas: [`Preço: de R$${NBSP}90,00 para R$${NBSP}95,00`] },
       );
       conferir("resumirEnvio sincronizar com falha e nada enviado: nada a contar (null)", resumirEnvio("sincronizar", { ok: false, erro: "Escrita bloqueada", alterados: [], fornecedores: { enviados: 0, avisos: [] } }, rotulos), null);
 
@@ -3039,11 +3039,11 @@ try {
       conferir("resumirEnvio: valor comprido e abreviado (a descricao inteira nao entra na mensagem)", [abreviado.length < 120, abreviado.includes("..."), abreviado.startsWith("Descricao: de ")], [true, true, true]);
 
       conferir("resumirEnvio cadastrar ok: o id no Bling", resumirEnvio("cadastrar", { ok: true, blingId: 123 }), { titulo: "Produto cadastrado no Bling (id 123).", linhas: [] });
-      conferir("resumirEnvio cadastrar falha depois de criar: diz que o produto ja existe la", resumirEnvio("cadastrar", { ok: false, erro: "x", blingId: 123 }), { titulo: "O produto foi criado no Bling (id 123), mas o envio nao terminou.", linhas: [] });
+      conferir("resumirEnvio cadastrar falha depois de criar: diz que o produto ja existe la", resumirEnvio("cadastrar", { ok: false, erro: "x", blingId: 123 }), { titulo: "O produto foi criado no Bling (id 123), mas o envio não terminou.", linhas: [] });
       conferir("resumirEnvio cadastrar falha sem id: nada a contar", resumirEnvio("cadastrar", { ok: false, erro: "Escrita bloqueada" }), null);
 
       conferir("resumirEnvio estoque ok: quantos ajustes foram", resumirEnvio("estoque", { ok: true, enviados: 2, restantes: 0 }), { titulo: "2 ajuste(s) de estoque enviado(s) ao Bling.", linhas: [] });
-      conferir("resumirEnvio estoque ok sem pendente: nao havia o que enviar", resumirEnvio("estoque", { ok: true, enviados: 0, restantes: 0 }), { titulo: "Nao havia ajuste de estoque pendente.", linhas: [] });
+      conferir("resumirEnvio estoque ok sem pendente: nao havia o que enviar", resumirEnvio("estoque", { ok: true, enviados: 0, restantes: 0 }), { titulo: "Não havia ajuste de estoque pendente.", linhas: [] });
       conferir("resumirEnvio estoque falha depois de enviar alguns: quantos foram e quantos ficaram", resumirEnvio("estoque", { ok: false, erro: "x", enviados: 1, restantes: 2 }), { titulo: "1 ajuste(s) de estoque foram ao Bling antes da falha; 2 continuam pendente(s).", linhas: [] });
       conferir("resumirEnvio estoque falha sem enviar (ou precisaDeposito): nada a contar", [resumirEnvio("estoque", { ok: false, erro: "x", enviados: 0, restantes: 3 }), resumirEnvio("estoque", { ok: false, erro: "x", enviados: 0, restantes: 3, precisaDeposito: [{ id: 1, descricao: "A" }] })], [null, null]);
 

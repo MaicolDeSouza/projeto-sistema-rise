@@ -16,7 +16,7 @@ const dataEHora = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
 });
 
-const ROTULO_DA_SITUACAO = { ATIVA: "ativo na loja", PAUSADA: "inativo na loja", ENCERRADA: "encerrado", DESCONHECIDA: "situacao desconhecida" };
+const ROTULO_DA_SITUACAO = { ATIVA: "ativo na loja", PAUSADA: "inativo na loja", ENCERRADA: "encerrado", DESCONHECIDA: "situação desconhecida" };
 
 function agruparPorAba(problemas) {
   return ABAS_LI.map((aba) => {
@@ -39,11 +39,11 @@ export default function AbaPrevia({ irPara, todosProblemas, vinculo, leitura }) 
   return (
     <div className="space-y-6">
       <div className="rounded border border-borda bg-fundo p-3 text-sm">
-        <p className="font-semibold">Sincronizacao</p>
+        <p className="font-semibold">Sincronização</p>
         {vinculo?.idExterno ? (
           <div className="mt-1 space-y-0.5">
             <p>
-              Na loja: id {vinculo.idExterno} ({ROTULO_DA_SITUACAO[vinculo.situacaoCanal] ?? "situacao desconhecida"})
+              Na loja: id {vinculo.idExterno} ({ROTULO_DA_SITUACAO[vinculo.situacaoCanal] ?? "situação desconhecida"})
               {linkSeguro && (
                 <>
                   {" · "}
@@ -53,13 +53,13 @@ export default function AbaPrevia({ irPara, todosProblemas, vinculo, leitura }) 
                 </>
               )}
             </p>
-            <p className="text-suave">Ultima sincronizacao: {vinculo.sincronizadoEm ? dataEHora.format(new Date(vinculo.sincronizadoEm)) : "nunca"}</p>
-            {vinculo.erro && <p className="text-red-700">Ultimo envio falhou: {vinculo.erro}</p>}
+            <p className="text-suave">Última sincronização: {vinculo.sincronizadoEm ? dataEHora.format(new Date(vinculo.sincronizadoEm)) : "nunca"}</p>
+            {vinculo.erro && <p className="text-red-700">Último envio falhou: {vinculo.erro}</p>}
           </div>
         ) : (
-          <p className="mt-1 text-suave">Sem vinculo com a loja ainda.</p>
+          <p className="mt-1 text-suave">Sem vínculo com a loja ainda.</p>
         )}
-        <p className="mt-2 text-xs text-suave">O botao do rodape envia o anuncio SALVO: &quot;Cadastrar na LI&quot; se o produto nao esta na loja, &quot;Sincronizar com a LI&quot; se ja esta.</p>
+        <p className="mt-2 text-xs text-suave">O botão do rodapé envia o anúncio SALVO: &quot;Cadastrar na LI&quot; se o produto não está na loja, &quot;Sincronizar com a LI&quot; se já está.</p>
         {leitura?.ok && leitura.escrita?.liberada === false && (
           <p className="mt-1 text-xs text-amber-800">
             <span className="font-medium">Envio bloqueado agora.</span> {leitura.escrita.motivo}
@@ -74,7 +74,7 @@ export default function AbaPrevia({ irPara, todosProblemas, vinculo, leitura }) 
       ) : (
         <div>
           <p className="text-sm font-semibold text-emerald-700">Nada impede enviar para a Loja Integrada.</p>
-          {alertas > 0 && <p className="mt-1 text-xs text-amber-700">{alertas} alerta(s) abaixo para conferir; eles nao impedem o envio.</p>}
+          {alertas > 0 && <p className="mt-1 text-xs text-amber-700">{alertas} alerta(s) abaixo para conferir; eles não impedem o envio.</p>}
         </div>
       )}
 

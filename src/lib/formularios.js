@@ -45,11 +45,11 @@ export function lerTelefones(formData) {
   if (invalido) {
     return {
       telefones: [],
-      erro: `Telefone invalido: ${invalido}. Use o DDD e o numero, como (54) 98899-0008.`,
+      erro: `Telefone inválido: ${invalido}. Use o DDD e o número, como (54) 98899-0008.`,
     };
   }
   if (digitados.length > MAXIMO_TELEFONES) {
-    return { telefones: [], erro: `No maximo ${MAXIMO_TELEFONES} telefones.` };
+    return { telefones: [], erro: `No máximo ${MAXIMO_TELEFONES} telefones.` };
   }
   return { telefones: digitados.map(telefoneParaGravar), erro: null };
 }
@@ -58,16 +58,16 @@ export function lerTelefones(formData) {
 export function lerEmails(formData) {
   const emails = lerLista(formData, "emails", (valor) => valor.toLowerCase());
   const invalido = emails.find((email) => !EMAIL.safeParse(email).success);
-  if (invalido) return { emails: [], erro: `E-mail invalido: ${invalido}` };
-  if (emails.length > MAXIMO_EMAILS) return { emails: [], erro: `No maximo ${MAXIMO_EMAILS} e-mails.` };
+  if (invalido) return { emails: [], erro: `E-mail inválido: ${invalido}` };
+  if (emails.length > MAXIMO_EMAILS) return { emails: [], erro: `No máximo ${MAXIMO_EMAILS} e-mails.` };
   return { emails, erro: null };
 }
 
 const ContatoSchema = z.object({
   nome: z.string().trim().min(1, "Todo contato precisa de nome."),
   cargo: opcional(z.string().trim()),
-  telefone: opcional(z.string().trim().refine(telefoneValido, "Telefone de contato invalido.")),
-  email: opcional(z.string().trim().email("E-mail de contato invalido.")),
+  telefone: opcional(z.string().trim().refine(telefoneValido, "Telefone de contato inválido.")),
+  email: opcional(z.string().trim().email("E-mail de contato inválido.")),
 });
 
 /**
@@ -77,7 +77,7 @@ const ContatoSchema = z.object({
 export function lerContatos(bruto) {
   try {
     const lista = JSON.parse(bruto || "[]");
-    if (!Array.isArray(lista) || lista.length > MAXIMO_CONTATOS) throw new Error("lista invalida");
+    if (!Array.isArray(lista) || lista.length > MAXIMO_CONTATOS) throw new Error("lista inválida");
 
     const lido = z.array(ContatoSchema).safeParse(lista);
     if (!lido.success) return { contatos: [], erro: lido.error.issues[0].message };
@@ -90,7 +90,7 @@ export function lerContatos(bruto) {
       erro: null,
     };
   } catch {
-    return { contatos: [], erro: "A lista de contatos veio invalida. Recarregue a pagina." };
+    return { contatos: [], erro: "A lista de contatos veio inválida. Recarregue a página." };
   }
 }
 
@@ -113,7 +113,7 @@ export function lerEndereco(campos, prefixo) {
   const erros = {};
 
   if (dados.cep) {
-    if (dados.cep.replace(/\D/g, "").length !== 8) erros[`${prefixo}_cep`] = "O CEP tem 8 digitos.";
+    if (dados.cep.replace(/\D/g, "").length !== 8) erros[`${prefixo}_cep`] = "O CEP tem 8 dígitos.";
     else dados.cep = formatarCep(dados.cep);
   }
   if (dados.uf && !UFS.includes(dados.uf)) erros[`${prefixo}_uf`] = "Escolha um estado da lista.";

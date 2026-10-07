@@ -56,7 +56,7 @@ export default function CampoSite({ erro, siteInicial = "", ajuda }) {
         ) : (
           <span
             aria-disabled="true"
-            title="Informe um endereco com http ou https para abrir o site."
+            title="Informe um endereço com http ou https para abrir o site."
             className="mt-1 inline-flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded border border-borda px-3 text-sm font-medium whitespace-nowrap text-suave opacity-50"
           >
             <ExternalLink size={15} />

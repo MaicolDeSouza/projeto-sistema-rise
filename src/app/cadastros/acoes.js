@@ -26,21 +26,21 @@ import {
  * Tudo aqui grava so no banco local — nenhuma chamada a marketplace ou ERP.
  */
 
-const site = opcional(z.string().refine(ehUrlSegura, "Informe um endereco http ou https."));
+const site = opcional(z.string().refine(ehUrlSegura, "Informe um endereço http ou https."));
 
 const BaseSchema = z.object({
   nome: z.string().min(1, "Informe o nome."),
   site,
   telefone: opcional(z.string()),
-  email: opcional(z.string().email("Informe um e-mail valido.")),
+  email: opcional(z.string().email("Informe um e-mail válido.")),
   observacoes: opcional(z.string()),
 });
 
 const prazoEntregaDias = opcional(
   z.coerce
-    .number({ message: "Informe um numero valido." })
-    .int("Use um numero inteiro.")
-    .min(0, "Nao pode ser negativo."),
+    .number({ message: "Informe um número válido." })
+    .int("Use um número inteiro.")
+    .min(0, "Não pode ser negativo."),
 );
 
 // CNPJ obrigatorio, salvo fornecedor estrangeiro: so o nome vale para quem nao tem.
@@ -147,7 +147,7 @@ export async function salvarParceiro(slug, id, _anterior, formData) {
         where: { nome: { equals: dados.nome, mode: "insensitive" } },
         select: { id: true },
       });
-      if (existente) return { ok: false, erros: { nome: `Este ${config.singular} ja esta cadastrado. Selecione-o na lista.` } };
+      if (existente) return { ok: false, erros: { nome: `Este ${config.singular} já está cadastrado. Selecione-o na lista.` } };
     }
     const salvo = id
       ? await modelo.update({ where: { id }, data: dados })
@@ -159,13 +159,13 @@ export async function salvarParceiro(slug, id, _anterior, formData) {
     if (erro?.code === "P2002") {
       return {
         ok: false,
-        erros: { nome: `Ja existe ${config.artigo} ${config.singular} com este nome.` },
+        erros: { nome: `Já existe ${config.artigo} ${config.singular} com este nome.` },
       };
     }
     if (erro?.code === "P2025") {
-      return { ok: false, erro: "Este cadastro nao existe mais. Volte para a lista." };
+      return { ok: false, erro: "Este cadastro não existe mais. Volte para a lista." };
     }
-    return { ok: false, erro: erro?.message ?? "Nao foi possivel salvar." };
+    return { ok: false, erro: erro?.message ?? "Não foi possível salvar." };
   }
 }
 
@@ -181,14 +181,14 @@ async function recadoDeUso(slug, id) {
   if (slug === "fornecedores") {
     const usos = await prisma.produtoFornecedor.count({ where: { fornecedorId: id } });
     if (usos > 0) {
-      return `Este fornecedor abastece ${usos} produto(s) do catalogo. Remova o vinculo em cada produto antes de excluir.`;
+      return `Este fornecedor abastece ${usos} produto(s) do catálogo. Remova o vínculo em cada produto antes de excluir.`;
     }
   }
 
   if (slug === "transportadoras") {
     const usos = await prisma.cliente.count({ where: { transportadoraId: id } });
     if (usos > 0) {
-      return `Esta transportadora e a preferida de ${usos} cliente(s). Troque a transportadora deles antes de excluir.`;
+      return `Esta transportadora é a preferida de ${usos} cliente(s). Troque a transportadora deles antes de excluir.`;
     }
   }
 
@@ -208,7 +208,7 @@ export async function excluirParceiro(slug, id) {
   } catch (erro) {
     // Ja excluido por outra aba: o resultado que o operador queria.
     if (erro?.code !== "P2025") {
-      return { ok: false, erro: erro?.message ?? "Nao foi possivel excluir." };
+      return { ok: false, erro: erro?.message ?? "Não foi possível excluir." };
     }
   }
 
@@ -236,7 +236,7 @@ async function salvarSimples({ modelo, esquema, id, dados, jaExiste, naoExiste }
   } catch (erro) {
     if (erro?.code === "P2002") return { ok: false, erros: { nome: jaExiste } };
     if (erro?.code === "P2025") return { ok: false, erro: naoExiste };
-    return { ok: false, erro: erro?.message ?? "Nao foi possivel salvar." };
+    return { ok: false, erro: erro?.message ?? "Não foi possível salvar." };
   }
 }
 
@@ -245,7 +245,7 @@ async function excluirSimples(modelo, id) {
     await modelo.delete({ where: { id } });
   } catch (erro) {
     if (erro?.code !== "P2025") {
-      return { ok: false, erro: erro?.message ?? "Nao foi possivel excluir." };
+      return { ok: false, erro: erro?.message ?? "Não foi possível excluir." };
     }
   }
 
@@ -260,8 +260,8 @@ export async function salvarMarca(id, dados) {
     esquema: MarcaSchema,
     id,
     dados,
-    jaExiste: "Esta marca ja esta cadastrada.",
-    naoExiste: "Esta marca nao existe mais. Atualize a pagina.",
+    jaExiste: "Esta marca já está cadastrada.",
+    naoExiste: "Esta marca não existe mais. Atualize a página.",
   });
 }
 

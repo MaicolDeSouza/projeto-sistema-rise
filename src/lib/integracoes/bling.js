@@ -96,7 +96,7 @@ export async function obterAccessToken() {
   const segredo = await lerSegredo(SERVICO);
 
   if (!segredo?.accessToken) {
-    throw new Error('Bling nao conectado. Use "Conectar" na tela Integracoes.');
+    throw new Error('Bling não conectado. Use "Conectar" na tela Integrações.');
   }
 
   const conexao = await lerConexao(SERVICO);
@@ -106,7 +106,7 @@ export async function obterAccessToken() {
   if (aindaVale) return segredo.accessToken;
 
   if (!segredo.refreshToken) {
-    throw new Error("Token do Bling expirou e nao ha refresh token. Reconecte.");
+    throw new Error("Token do Bling expirou e não há refresh token. Reconecte.");
   }
 
   const dados = await pedirToken({
@@ -196,7 +196,7 @@ export async function testar() {
     conta: `${canais.length} canal(is) de venda`,
     detalhe: canalMl
       ? `Canal do Mercado Livre: ${canalMl.descricao} (${canalMl.id})`
-      : `Canal ${config.bling.canalMlId} nao encontrado entre os canais ativos`,
+      : `Canal ${config.bling.canalMlId} não encontrado entre os canais ativos`,
   };
 }
 

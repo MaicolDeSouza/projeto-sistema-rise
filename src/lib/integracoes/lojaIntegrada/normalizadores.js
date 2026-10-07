@@ -64,7 +64,7 @@ function normalizarImagens(valores) {
 
 export function normalizarProdutoLojaIntegrada(produto) {
   if (!produto || typeof produto !== "object") {
-    throw new TypeError("Produto da Loja Integrada invalido.");
+    throw new TypeError("Produto da Loja Integrada inválido.");
   }
 
   const idItem = textoOuNulo(produto.id);
@@ -135,7 +135,7 @@ export function normalizarProdutoLojaIntegrada(produto) {
 
 export function normalizarPrecoLojaIntegrada(preco) {
   if (!preco || typeof preco !== "object") {
-    throw new TypeError("Preco da Loja Integrada invalido.");
+    throw new TypeError("Preço da Loja Integrada inválido.");
   }
   return {
     id: textoOuNulo(preco.id),
@@ -149,7 +149,7 @@ export function normalizarPrecoLojaIntegrada(preco) {
 
 export function normalizarEstoqueLojaIntegrada(estoque) {
   if (!estoque || typeof estoque !== "object") {
-    throw new TypeError("Estoque da Loja Integrada invalido.");
+    throw new TypeError("Estoque da Loja Integrada inválido.");
   }
   return {
     id: textoOuNulo(estoque.id),
@@ -169,7 +169,7 @@ function documentoDoCliente(cliente) {
 
 export function normalizarClienteLojaIntegrada(cliente) {
   if (!cliente || typeof cliente !== "object") {
-    throw new TypeError("Cliente da Loja Integrada invalido.");
+    throw new TypeError("Cliente da Loja Integrada inválido.");
   }
   const id = textoOuNulo(cliente.id) ?? idDeRecursoLojaIntegrada(cliente.resource_uri);
   if (!id) throw new TypeError("Cliente da Loja Integrada sem id.");
@@ -209,7 +209,7 @@ export function normalizarClienteLojaIntegrada(cliente) {
 
 export function normalizarPedidoLojaIntegrada(pedido) {
   if (!pedido || typeof pedido !== "object") {
-    throw new TypeError("Pedido da Loja Integrada invalido.");
+    throw new TypeError("Pedido da Loja Integrada inválido.");
   }
   const numero = textoOuNulo(pedido.numero);
   const id = idDeRecursoLojaIntegrada(pedido.resource_uri) ?? numero;

@@ -42,12 +42,12 @@ export default async function LojaIntegradaPage({ searchParams }) {
       <LinkDeVolta href="/canais-de-venda" rotulo="Canais de Venda" />
       <PageHeader
         titulo="Loja Integrada"
-        descricao="Conteudo, SEO e dados fiscais dos produtos da loja propria, a partir dos produtos Conferidos. Estoque e preco continuam pelo Bling."
+        descricao="Conteúdo, SEO e dados fiscais dos produtos da loja própria, a partir dos produtos Conferidos. Estoque e preço continuam pelo Bling."
         acao={
           <div className="flex flex-wrap gap-2">
             <Link href="/canais-de-venda/loja-integrada/novo" className={`${botao} bg-acento text-white hover:opacity-90`}>
               <Plus size={16} />
-              Novo anuncio
+              Novo anúncio
             </Link>
           </div>
         }
@@ -58,7 +58,7 @@ export default async function LojaIntegradaPage({ searchParams }) {
       {lista && (
         <>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <CampoBusca valorInicial={busca} rotulo="Buscar por titulo ou codigo" className="w-full max-w-sm" />
+            <CampoBusca valorInicial={busca} rotulo="Buscar por título ou código" className="w-full max-w-sm" />
             <Paginacao compacto pagina={lista.pagina} totalPaginas={lista.totalPaginas} primeiro={primeiro} ultimo={ultimo} total={lista.total} />
           </div>
 
@@ -67,7 +67,7 @@ export default async function LojaIntegradaPage({ searchParams }) {
           {lista.linhas.length > 0 && (
             <>
               <Paginacao pagina={lista.pagina} totalPaginas={lista.totalPaginas} primeiro={primeiro} ultimo={ultimo} total={lista.total} />
-              <p className="mt-3 text-xs text-suave">{lista.total} anuncio(s)</p>
+              <p className="mt-3 text-xs text-suave">{lista.total} anúncio(s)</p>
             </>
           )}
         </>

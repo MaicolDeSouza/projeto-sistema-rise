@@ -7,7 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { carregarAnuncioML } from "@/lib/canaisDeVenda/ml/banco";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Anuncio | Mercado Livre | Sistema Rise" };
+export const metadata = { title: "Anúncio | Mercado Livre | Sistema Rise" };
 
 /** Um anuncio do Mercado Livre ja salvo, aberto no editor. Id que nao existe (ou de outro canal) e 404. */
 export default async function AnuncioMLPage({ params }) {
@@ -25,7 +25,7 @@ export default async function AnuncioMLPage({ params }) {
   return (
     <>
       <LinkDeVolta href="/canais-de-venda/mercado-livre" rotulo="Mercado Livre" />
-      <PageHeader titulo="Anuncio do Mercado Livre" descricao={carregado?.rascunho.titulo || "Anuncio sem titulo"} />
+      <PageHeader titulo="Anúncio do Mercado Livre" descricao={carregado?.rascunho.titulo || "Anúncio sem título"} />
 
       {erro && <AvisoBanco erro={erro} />}
 

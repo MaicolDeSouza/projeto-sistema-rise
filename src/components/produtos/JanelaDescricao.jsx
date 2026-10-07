@@ -65,8 +65,8 @@ function ConteudoReferencia({ item, aoAdicionar, podeAdicionar, aoLevar, podeLev
 
       <div role="tablist" className="flex gap-1 border-b border-borda">
         {[
-          { id: "descricao", rotulo: "Descricao" },
-          { id: "especificacoes", rotulo: `Especificacoes (${quantas})` },
+          { id: "descricao", rotulo: "Descrição" },
+          { id: "especificacoes", rotulo: `Especificações (${quantas})` },
         ].map((aba) => (
           <button
             key={aba.id}
@@ -89,7 +89,7 @@ function ConteudoReferencia({ item, aoAdicionar, podeAdicionar, aoLevar, podeLev
             type="button"
             disabled={!podeLevar}
             onClick={() => aoLevar(item.descricao)}
-            title={podeLevar ? "Levar este texto para a area de edicao" : "Aguarde a geracao terminar"}
+            title={podeLevar ? "Levar este texto para a área de edição" : "Aguarde a geração terminar"}
             className="mb-1 ml-auto inline-flex items-center gap-1 rounded border border-borda bg-superficie px-2 py-1 text-xs font-medium text-acento hover:border-acento disabled:cursor-not-allowed disabled:opacity-40"
           >
             Levar para edição <ArrowRight size={13} />
@@ -102,7 +102,7 @@ function ConteudoReferencia({ item, aoAdicionar, podeAdicionar, aoLevar, podeLev
           <p className="whitespace-pre-wrap text-texto">{item.descricao}</p>
         ) : (
           <p className="text-suave">
-            {item.tipo === "ATUAL" ? "Este produto ainda não tem descrição salva." : "Esta loja nao publica descricao."}
+            {item.tipo === "ATUAL" ? "Este produto ainda não tem descrição salva." : "Esta loja não publica descrição."}
           </p>
         )
       ) : quantas > 0 ? (
@@ -114,15 +114,15 @@ function ConteudoReferencia({ item, aoAdicionar, podeAdicionar, aoLevar, podeLev
                 type="button"
                 disabled={!podeAdicionar}
                 onClick={() => aoAdicionar(linha)}
-                title={podeAdicionar ? "Adicionar a especificacao na descricao" : "Gere a descricao antes de adicionar"}
-                aria-label={`Adicionar ${linha.nome || linha.valor} a descricao`}
+                title={podeAdicionar ? "Adicionar a especificação na descrição" : "Gere a descrição antes de adicionar"}
+                aria-label={`Adicionar ${linha.nome || linha.valor} a descrição`}
                 className="shrink-0 rounded p-0.5 text-acento hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-30"
               ><ArrowRight size={16} /></button>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-suave">Esta loja nao publica ficha tecnica.</p>
+        <p className="text-suave">Esta loja não publica ficha técnica.</p>
       )}
     </div>
   );
@@ -183,8 +183,8 @@ function AbasDeReferencias({ itens, descricaoAtual, produto, aoRemover, aoAdicio
                     aoRemover(referencia);
                     setAtiva((atual) => Math.max(0, Math.min(atual, abas.length - 2)));
                   }}
-                  title={"Remover " + referencia.fonte + " das referencias"}
-                  aria-label={"Remover " + referencia.fonte + " das referencias"}
+                  title={"Remover " + referencia.fonte + " das referências"}
+                  aria-label={"Remover " + referencia.fonte + " das referências"}
                   className="shrink-0 rounded p-1 text-suave opacity-0 group-hover/aba:opacity-100 hover:bg-red-50 hover:text-red-700 focus:opacity-100"
                 >
                   <Trash2 size={11} />
@@ -301,7 +301,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
         setMaximoPrompt(resposta.maximo);
       })
       .catch(() => {
-        if (leitura === leituraAtual.current) setErroPrompt("Nao deu para ler o prompt salvo. A geracao usa o salvo mesmo assim.");
+        if (leitura === leituraAtual.current) setErroPrompt("Não deu para ler o prompt salvo. A geração usa o salvo mesmo assim.");
       });
     iniciarLeitura(async () => {
       try {
@@ -309,7 +309,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
         if (leitura === leituraAtual.current) setDetalhes(resposta);
       } catch (falha) {
         if (leitura === leituraAtual.current) {
-          setDetalhes({ ok: false, erro: falha?.message ?? "Falha ao ler as referencias." });
+          setDetalhes({ ok: false, erro: falha?.message ?? "Falha ao ler as referências." });
         }
       }
     });
@@ -419,7 +419,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
 
     const trocado = trocarParagrafo(texto, atual, novo);
     if (trocado === null) {
-      setErro("Este paragrafo foi editado no texto e nao da para trocar por uma opcao. Edite la, ou gere de novo.");
+      setErro("Este parágrafo foi editado no texto e não dá para trocar por uma opção. Edite lá, ou gere de novo.");
       return;
     }
     setErro(null);
@@ -579,15 +579,15 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="Criar descricao"
+        aria-label="Criar descrição"
         className="flex h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-lg border border-borda bg-superficie shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-borda p-3">
-          <span className="text-sm font-semibold">Criar descricao</span>
+          <span className="text-sm font-semibold">Criar descrição</span>
           <button
             type="button"
             onClick={pedirFechamento}
-            aria-label="Fechar criar descricao"
+            aria-label="Fechar criar descrição"
             className="rounded p-1 text-suave hover:bg-fundo"
           >
             <X size={16} />
@@ -604,13 +604,13 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             <div className="flex min-h-0 flex-1 flex-col">
               {lendo || !detalhes ? (
                 <p className="flex items-center gap-2 text-sm text-suave">
-                  <Loader size={14} className="animate-spin" /> Lendo as referencias...
+                  <Loader size={14} className="animate-spin" /> Lendo as referências...
                 </p>
               ) : !detalhes.ok && descricaoAtual === null ? (
                 <p className="text-sm text-red-700">{detalhes.erro}</p>
               ) : itens.length === 0 && excluidos.size > 0 && descricaoAtual === null ? (
                 <p className="text-sm text-suave">
-                  Todas as referencias foram removidas desta geracao.{" "}
+                  Todas as referências foram removidas desta geração.{" "}
                   <button
                     type="button"
                     onClick={() => setExcluidos(new Set())}
@@ -621,7 +621,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 </p>
               ) : itens.length === 0 && descricaoAtual === null ? (
                 <p className="text-sm text-suave">
-                  Nenhuma descricao encontrada para este Nome nos fornecedores e concorrentes cadastrados.
+                  Nenhuma descrição encontrada para este Nome nos fornecedores e concorrentes cadastrados.
                 </p>
               ) : (
                 <>
@@ -651,8 +651,8 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             {detalhes?.ok && detalhes.encontrados > 0 && (
               <p className="mt-2 text-xs text-suave">
                 Foram encontrados {detalhes.encontrados} produtos em {detalhes.fontes} lojas.
-                A geracao usa o mais relevante de cada loja, ate {detalhes.limite} referencias.
-                Voce pode remover uma aba antes de gerar.
+                A geração usa o mais relevante de cada loja, até {detalhes.limite} referências.
+                Você pode remover uma aba antes de gerar.
               </p>
             )}
           </div>
@@ -660,7 +660,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
           {/* ---------- Criar com IA ---------- */}
           <div className="flex min-h-0 flex-col rounded-lg border border-borda bg-fundo p-3">
             <p className="mb-1 text-xs font-semibold tracking-wide text-suave uppercase">
-              Criar a descricao com IA
+              Criar a descrição com IA
             </p>
             {/*
               O prompt que vai para a IA (pedido do dono em 06/10/2026). Aqui so uma linha com o botao "Editar
@@ -689,13 +689,13 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             </div>
 
             <dl className="mb-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-xs">
-              <dt className="text-suave">Titulo:</dt>
+              <dt className="text-suave">Título:</dt>
               <dd className={produto.titulo ? "font-medium" : "text-amber-700"}>
                 {produto.titulo || "preencha o Nome antes de gerar"}
               </dd>
-              <dt className="text-suave">Codigo:</dt>
+              <dt className="text-suave">Código:</dt>
               <dd className={produto.sku ? "font-mono" : "text-amber-700"}>
-                {produto.sku || "sem codigo: \"Itens inclusos\" sai sem (Cod:)"}
+                {produto.sku || "sem código: \"Itens inclusos\" sai sem (Cod:)"}
               </dd>
             </dl>
 
@@ -723,12 +723,12 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
 
             <div ref={rolagemDescricao} className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
               {texto && opcoesParagrafos.some((opcoes) => opcoes.length > 1) && (
-                <section aria-label="Opcoes dos paragrafos">
-                  <h3 className="mb-2 text-sm font-semibold">Escolha os 2 primeiros paragrafos</h3>
+                <section aria-label="Opções dos parágrafos">
+                  <h3 className="mb-2 text-sm font-semibold">Escolha os 2 primeiros parágrafos</h3>
                   {opcoesParagrafos.map((opcoes, grupo) =>
                     opcoes.length === 0 ? null : (
-                      <div key={grupo} role="radiogroup" aria-label={`Opcoes do paragrafo ${grupo + 1}`} className="mb-3">
-                        <p className="mb-1 text-xs font-semibold text-suave">Paragrafo {grupo + 1}</p>
+                      <div key={grupo} role="radiogroup" aria-label={`Opções do parágrafo ${grupo + 1}`} className="mb-3">
+                        <p className="mb-1 text-xs font-semibold text-suave">Parágrafo {grupo + 1}</p>
                         <ul className="space-y-1">
                           {opcoes.map((opcao, indice) => {
                             const escolhida = escolhidosParagrafos[grupo] === indice;
@@ -769,7 +769,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               {texto ? (
                 <section>
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold">Descricao para revisar</h3>
+                    <h3 className="text-sm font-semibold">Descrição para revisar</h3>
                     <button
                       type="button"
                       onClick={() => setEditandoTexto((atual) => !atual)}
@@ -803,8 +803,8 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 </section>
               ) : (
                 <p className="rounded border border-borda bg-superficie p-3 font-mono text-sm text-suave">
-                  A descricao gerada aparece aqui para revisao antes de usar.
-                  Ou leve uma descricao da esquerda com &quot;Levar para edição&quot;.
+                  A descrição gerada aparece aqui para revisão antes de usar.
+                  Ou leve uma descrição da esquerda com &quot;Levar para edição&quot;.
                 </p>
               )}
             </div>
@@ -815,7 +815,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                   ? prontasParaOrganizar + " escolha(s) marcada(s); clique em Organizar descrição."
                   : pendentes > 0
                     ? pendentes + " parâmetro(s) aguardam escolha."
-                    : "Substitui o texto da aba Descricao."}
+                    : "Substitui o texto da aba Descrição."}
               </span>
               <button
                 type="button"
@@ -823,7 +823,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 disabled={!texto.trim() || pendentes > 0}
                 className="rounded bg-acento px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Usar esta descricao
+                Usar esta descrição
               </button>
             </div>
           </div>
@@ -879,7 +879,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 type="button"
                 onClick={() => setPrompt(promptPadrao)}
                 disabled={prompt === promptPadrao || salvandoPrompt}
-                title="Poe na caixa o prompt original do sistema (para valer sempre, clique depois em Salvar prompt)"
+                title="Põe na caixa o prompt original do sistema (para valer sempre, clique depois em Salvar prompt)"
                 className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:opacity-40"
               >
                 Restaurar padrão
@@ -888,7 +888,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 type="button"
                 onClick={() => setPrompt(promptSalvo)}
                 disabled={prompt === promptSalvo || salvandoPrompt}
-                title="Descarta o que voce editou e volta ao prompt salvo"
+                title="Descarta o que você editou e volta ao prompt salvo"
                 className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:opacity-40"
               >
                 Voltar ao salvo
@@ -904,7 +904,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 type="button"
                 onClick={salvarPrompt}
                 disabled={prompt === promptSalvo || !promptValido || salvandoPrompt}
-                title="Guarda este texto como o prompt de toda descricao gerada"
+                title="Guarda este texto como o prompt de toda descrição gerada"
                 className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {salvandoPrompt && <Loader size={14} className="animate-spin" />}
@@ -929,10 +929,10 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             className="w-full max-w-md rounded-lg border border-borda bg-superficie p-4 shadow-2xl"
           >
             <p id="descricao-levar-titulo" className="text-sm font-semibold">
-              Substituir o texto da area de edicao?
+              Substituir o texto da área de edição?
             </p>
             <p className="mt-1 text-sm text-suave">
-              O texto que esta la agora sera trocado por esta descricao.
+              O texto que está lá agora será trocado por esta descrição.
             </p>
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               <button
@@ -969,12 +969,12 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             className="w-full max-w-md rounded-lg border border-borda bg-superficie p-4 shadow-2xl"
           >
             <p id="descricao-sair-titulo" className="text-sm font-semibold">
-              Sair sem usar a descricao?
+              Sair sem usar a descrição?
             </p>
             <p className="mt-1 text-sm text-suave">
               {texto.trim()
-                ? "O texto desta janela ainda nao foi usado e sera perdido."
-                : "A descricao ainda esta sendo escrita e sera perdida."}
+                ? "O texto desta janela ainda não foi usado e será perdido."
+                : "A descrição ainda está sendo escrita e será perdida."}
             </p>
             {/* Sair / Salvar / Cancelar, nesta ordem (pedido do dono em 06/10/2026; antes "Sair sem usar",
                 "Usar esta descricao" e "Continuar editando"). */}
@@ -992,7 +992,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 type="button"
                 onClick={usar}
                 disabled={!texto.trim() || pendentes > 0}
-                title={pendentes > 0 ? `${pendentes} parametro(s) aguardam escolha.` : "Poe o texto na aba Descricao e fecha"}
+                title={pendentes > 0 ? `${pendentes} parâmetro(s) aguardam escolha.` : "Põe o texto na aba Descrição e fecha"}
                 className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Salvar

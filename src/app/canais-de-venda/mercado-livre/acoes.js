@@ -25,7 +25,7 @@ import {
  * no Mercado Livre nem no Bling; as acoes gravam so no banco local.
  */
 
-const PEDIDO_INVALIDO = { ok: false, erro: "Pedido invalido." };
+const PEDIDO_INVALIDO = { ok: false, erro: "Pedido inválido." };
 
 // Um id e texto que o navegador manda: tipo errado ou vazio nao pode chegar a consulta.
 // O Prisma le `where: { id: undefined }` como "sem filtro", entao um id ausente nao e so um
@@ -45,7 +45,7 @@ async function protegendo(trabalho) {
     return await trabalho();
   } catch (erro) {
     console.error("[canais de venda]", erro);
-    return { ok: false, erro: "Nao foi possivel concluir. Tente de novo." };
+    return { ok: false, erro: "Não foi possível concluir. Tente de novo." };
   }
 }
 
@@ -82,7 +82,7 @@ export async function listarAnunciosDoProdutoML(produtoId) {
     const [produtos, anuncios] = await Promise.all([contextoDosProdutos([produtoId]), anunciosMLDoProduto(produtoId)]);
     // Excluido depois de a lista de Produtos ter carregado: a janela diz isso em vez de abrir vazia.
     // `hasOwn` porque o id vem do navegador: "constructor" acharia a funcao do objeto, nao um produto.
-    if (!Object.hasOwn(produtos, produtoId)) return { ok: false, erro: "Produto nao encontrado. Ele pode ter sido excluido." };
+    if (!Object.hasOwn(produtos, produtoId)) return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
 
     const { id, sku, tituloBase, conferido } = produtos[produtoId];
     return { ok: true, produto: { id, sku, tituloBase, conferido }, anuncios };

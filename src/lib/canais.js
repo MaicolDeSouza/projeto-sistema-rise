@@ -22,7 +22,7 @@ export const CANAIS = [
     id: "LOJA_INTEGRADA",
     nome: "Loja Integrada",
     logo: "/marcas/loja-integrada.svg",
-    resumo: "Loja propria — conteudo pelo Rise, estoque e preco pelo Bling",
+    resumo: "Loja própria — conteúdo pelo Rise, estoque e preço pelo Bling",
     viaBling: true,
     disponivel: true,
   },
@@ -30,7 +30,7 @@ export const CANAIS = [
     id: "MERCADO_LIVRE",
     nome: "Mercado Livre",
     logo: "/marcas/mercado-livre.svg",
-    resumo: "Marketplace — publicacao direta por API",
+    resumo: "Marketplace — publicação direta por API",
     disponivel: true,
   },
   {
@@ -40,7 +40,7 @@ export const CANAIS = [
     resumo: "Marketplace — aguardando credenciais de parceiro",
     disponivel: false,
     motivoIndisponivel:
-      "Exige credenciais do Shopee Open Platform, que ainda nao foram obtidas.",
+      "Exige credenciais do Shopee Open Platform, que ainda não foram obtidas.",
   },
 ];
 

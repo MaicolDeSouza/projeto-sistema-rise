@@ -34,13 +34,13 @@ export default function EditorDescricao({ nome, valorInicial = "", aoSair }) {
         onBlur={(evento) => aoSair?.(evento.target.value)}
         placeholder={
           "PORCA MARTELO M3 TIPO T PARA PERFIL 30 CANAL 8\n\n" +
-          "Primeiro paragrafo.\nSegundo paragrafo.\n\n" +
+          "Primeiro parágrafo.\nSegundo parágrafo.\n\n" +
           "Especificações técnicas:\n- Rosca: M3;\n- Material: Aço zincado;"
         }
         className="min-h-[40rem] w-full resize-y rounded border border-borda px-3 py-2.5 text-[15px] leading-relaxed focus:border-acento focus:outline-none"
       />
       <p className="mt-1 text-[11px] text-suave">
-        Texto puro, sem formatacao: o mesmo texto serve para Bling, Loja Integrada e Mercado
+        Texto puro, sem formatação: o mesmo texto serve para Bling, Loja Integrada e Mercado
         Livre. Arraste o canto inferior para aumentar o campo.
       </p>
     </div>

@@ -16,8 +16,8 @@ export default function BlocoEmConstrucao({ href }) {
       <PageHeader titulo={bloco?.rotulo ?? "Bloco"} descricao={bloco?.resumo} />
       <EmptyState
         icone={Hammer}
-        titulo="Em construcao"
-        descricao="Este bloco ainda nao foi implementado. A fundacao do sistema esta pronta e ele sera desenvolvido em uma etapa proxima."
+        titulo="Em construção"
+        descricao="Este bloco ainda não foi implementado. A fundação do sistema está pronta e ele será desenvolvido em uma etapa próxima."
       />
     </>
   );

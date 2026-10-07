@@ -80,7 +80,7 @@ export async function gerarSku() {
       .reduce((atual, sku) => Math.max(atual, Number(sku)), PRIMEIRO_SKU_AUTOMATICO - 1);
 
     if (maior >= ULTIMO_SKU_AUTOMATICO) {
-      return { ok: false, erro: "A faixa 25xxxx acabou (259999 ja existe)." };
+      return { ok: false, erro: "A faixa 25xxxx acabou (259999 já existe)." };
     }
     return { ok: true, sku: String(maior + 1) };
   } catch (erro) {
@@ -127,7 +127,7 @@ export async function detalhesDasReferencias(ids) {
 /** Busca leve para vincular um item coletado pela coluna Codigo. */
 export async function buscarItemColetadoPorCodigo(codigoBruto, tipo) {
   const codigo = String(codigoBruto ?? "").trim().slice(0, 100);
-  if (!codigo) return { ok: false, erro: "Informe o codigo antes de buscar." };
+  if (!codigo) return { ok: false, erro: "Informe o código antes de buscar." };
   const tipos = tipo === "FORNECEDOR" ? ["FORNECEDOR"] : ["CONCORRENTE", "OUTRO"];
   try {
     const itens = await prisma.produtoColetado.findMany({
@@ -170,7 +170,7 @@ export async function documentosDasReferencias(ids, produtoId = null) {
           concorrentes: { select: { produtoColetadoId: true } },
         },
       });
-      if (!produto) return { ok: false, erro: "Produto nao encontrado." };
+      if (!produto) return { ok: false, erro: "Produto não encontrado." };
       const concorrentes = produto.concorrentes.map((item) => item.produtoColetadoId).filter(Boolean);
       for (const id of concorrentes) referencias.add(id);
       if (produto.tituloBase && produto.fornecedores.length) {
@@ -295,16 +295,16 @@ export async function salvarPromptDaDescricao(texto) {
  * o botao trazia o catalogo inteiro). O codigo vem do navegador: so texto, e a lib confere o resto.
  */
 export async function importarDoBlingPorCodigo(codigo) {
-  if (typeof codigo !== "string") return { ok: false, erro: "Informe o codigo do produto no Bling." };
+  if (typeof codigo !== "string") return { ok: false, erro: "Informe o código do produto no Bling." };
   try {
     const resultado = await importarPorCodigoDoBling(codigo);
     if (resultado.ok) revalidatePath("/produtos");
     return resultado;
   } catch (erro) {
     // P2002: o mesmo SKU foi gravado no meio (dois cliques, duas abas); o produto ja existe.
-    if (erro?.code === "P2002") return { ok: false, erro: "Este codigo acabou de ser importado. Atualize a lista." };
+    if (erro?.code === "P2002") return { ok: false, erro: "Este código acabou de ser importado. Atualize a lista." };
     console.error("[importar do Bling]", erro);
-    return { ok: false, erro: `Nao foi possivel importar: ${erro.message}` };
+    return { ok: false, erro: `Não foi possível importar: ${erro.message}` };
   }
 }
 
@@ -314,8 +314,8 @@ const opcional = (esquema) =>
 const decimal = () =>
   opcional(
     z.coerce
-      .number({ message: "Informe um numero valido." })
-      .min(0, "Nao pode ser negativo."),
+      .number({ message: "Informe um número válido." })
+      .min(0, "Não pode ser negativo."),
   );
 
 /** Aceita apenas http/https — protocolo perigoso em campo que vira link. */
@@ -333,9 +333,9 @@ const ProdutoSchema = z.object({
   sku: z
     .string()
     .trim()
-    .min(1, "O SKU e obrigatorio.")
-    .refine(skuValido, "Use apenas letras, numeros, ponto, hifen e sublinhado."),
-  tituloBase: z.string().trim().min(1, "O nome do produto e obrigatorio."),
+    .min(1, "O SKU é obrigatório.")
+    .refine(skuValido, "Use apenas letras, números, ponto, hífen e sublinhado."),
+  tituloBase: z.string().trim().min(1, "O nome do produto é obrigatório."),
   localizacao: opcional(z.string().trim()),
   precoVenda: decimal(),
   unidade: z.enum(UNIDADES).catch("UN"),
@@ -363,7 +363,7 @@ const ProdutoSchema = z.object({
   // So http/https: colar "javascript:" num campo que vira <a> e o caminho
   // classico de injecao.
   urlLojaIntegrada: opcional(
-    z.string().trim().refine(ehUrlSegura, "Informe um endereco http ou https."),
+    z.string().trim().refine(ehUrlSegura, "Informe um endereço http ou https."),
   ),
 
   origem: opcional(z.coerce.number().int().min(0).max(8)),
@@ -371,7 +371,7 @@ const ProdutoSchema = z.object({
   // um padrao aqui sobrescreveria FABRICACAO_PROPRIA no proximo Salvar.
   tipoProducao: z.preprocess(
     (valor) => (valor === "" || valor === null ? undefined : valor),
-    z.enum(["REVENDA", "FABRICACAO_PROPRIA"], { message: "Escolha Revenda ou Fabricacao propria." }).optional(),
+    z.enum(["REVENDA", "FABRICACAO_PROPRIA"], { message: "Escolha Revenda ou Fabricação própria." }).optional(),
   ),
   ncm: opcional(z.string().trim()),
   cest: opcional(z.string().trim()),
@@ -558,7 +558,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
             select: { fonte: { select: { nome: true } } },
           })
         : null;
-      if (item?.produtoColetadoId && !coletado) return { ok: false, erro: "Um produto de concorrente nao foi encontrado. Revise a lista." };
+      if (item?.produtoColetadoId && !coletado) return { ok: false, erro: "Um produto de concorrente não foi encontrado. Revise a lista." };
       const nome = String(coletado?.fonte.nome ?? item?.fonteManual ?? "").trim();
       const cadastrado = await prisma.concorrente.findFirst({
         where: { nome: { equals: nome, mode: "insensitive" } },
@@ -577,7 +577,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
         await gravarImagensDoLote(produto, formData);
       } catch (erro) {
         console.error("Falha ao gravar as fotos do cadastro novo:", erro.message);
-        avisoImagens = "O produto foi salvo, mas as fotos nao foram gravadas. Envie de novo.";
+        avisoImagens = "O produto foi salvo, mas as fotos não foram gravadas. Envie de novo.";
       }
 
       // Documentos e certificado enviados antes de salvar: saem da pasta
@@ -592,7 +592,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
         await gravarTemporarios(produto, formData);
       } catch (erro) {
         console.error("Falha ao gravar documentos do cadastro novo:", erro.message);
-        avisoArquivos = "O produto foi salvo, mas os documentos enviados antes de salvar nao foram gravados. Envie de novo.";
+        avisoArquivos = "O produto foi salvo, mas os documentos enviados antes de salvar não foram gravados. Envie de novo.";
       }
 
       // O lote acabou: os originais das fotos, as previas e o que sobrou dos documentos nao
@@ -607,7 +607,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
         await gravarFornecedoresRascunho(produto, formData);
       } catch (erro) {
         console.error("Falha ao gravar fornecedores do cadastro novo:", erro.message);
-        avisoFornecedores = "O produto foi salvo, mas os fornecedores adicionados antes de salvar nao foram gravados. Adicione de novo.";
+        avisoFornecedores = "O produto foi salvo, mas os fornecedores adicionados antes de salvar não foram gravados. Adicione de novo.";
       }
 
       // Mesmo motivo de fornecedores: o produto ja existe, entao uma falha
@@ -617,7 +617,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
         await gravarConcorrentesRascunho(produto, formData);
       } catch (erro) {
         console.error("Falha ao gravar concorrentes do cadastro novo:", erro.message);
-        avisoConcorrentes = "O produto foi salvo, mas os concorrentes adicionados antes de salvar nao foram gravados. Adicione de novo.";
+        avisoConcorrentes = "O produto foi salvo, mas os concorrentes adicionados antes de salvar não foram gravados. Adicione de novo.";
       }
 
       revalidatePath("/produtos");
@@ -657,7 +657,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       console.error("Falha ao gravar as fotos do produto:", erro.message);
       return {
         ok: false,
-        erro: "Os dados foram salvos, mas as fotos nao foram gravadas. Clique em Salvar de novo.",
+        erro: "Os dados foram salvos, mas as fotos não foram gravadas. Clique em Salvar de novo.",
       };
     }
     await descartarLote(String(formData.get("loteTemporario") ?? "")).catch(() => {});
@@ -673,7 +673,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       await gravarFornecedoresRascunho(produto, formData);
     } catch (erro) {
       console.error("Falha ao gravar os fornecedores do produto:", erro.message);
-      avisoFornecedores = "O produto foi salvo, mas os fornecedores nao foram atualizados. Confira a aba e salve de novo.";
+      avisoFornecedores = "O produto foi salvo, mas os fornecedores não foram atualizados. Confira a aba e salve de novo.";
     }
 
     let avisoConcorrentes = null;
@@ -681,7 +681,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       await gravarConcorrentesRascunho(produto, formData);
     } catch (erro) {
       console.error("Falha ao gravar os concorrentes do produto:", erro.message);
-      avisoConcorrentes = "O produto foi salvo, mas os concorrentes nao foram atualizados. Confira a aba e salve de novo.";
+      avisoConcorrentes = "O produto foi salvo, mas os concorrentes não foram atualizados. Confira a aba e salve de novo.";
     }
 
     // O fornecedor extraido na importacao do Bling ja foi confirmado pela
@@ -702,7 +702,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     if (erro.code === "P2002") {
       return {
         ok: false,
-        erros: { sku: `Ja existe um produto com o SKU "${dados.sku}".` },
+        erros: { sku: `Já existe um produto com o SKU "${dados.sku}".` },
       };
     }
     return { ok: false, erro: erro.message };
@@ -714,7 +714,7 @@ export async function enviarArquivo(produtoId, tipo, _estadoAnterior, formData) 
     where: { id: produtoId },
     select: { sku: true },
   });
-  if (!produto) return { ok: false, erro: "Produto nao encontrado." };
+  if (!produto) return { ok: false, erro: "Produto não encontrado." };
 
   if (tipo === "IMAGEM") {
     // So FOTO conta no limite: a reserva fica guardada a parte (Nano Banana).
@@ -782,7 +782,7 @@ export async function removerArquivo(arquivoId) {
   });
   // A RESERVA nao se exclui por aqui: o arquivo mora em reserva/ (nao em imagens/) e a exclusao e decidida
   // na tela e aplicada pelo Salvar (`reservaExcluida`). Apagar so a linha deixaria o arquivo orfao.
-  if (!registro || registro.papel !== "FOTO") return { ok: false, erro: "Arquivo nao encontrado." };
+  if (!registro || registro.papel !== "FOTO") return { ok: false, erro: "Arquivo não encontrado." };
 
   await prisma.produtoArquivo.delete({ where: { id: arquivoId } });
   await apagarArquivo(registro.produto.sku, registro.tipo, registro.arquivo);
@@ -828,7 +828,7 @@ export async function definirImagemPrincipal(arquivoId) {
 
   // A reserva nunca e foto principal.
   if (!escolhida || escolhida.tipo !== "IMAGEM" || escolhida.papel !== "FOTO") {
-    return { ok: false, erro: "Imagem nao encontrada." };
+    return { ok: false, erro: "Imagem não encontrada." };
   }
 
   // Uma principal por produto: desmarcar e marcar na mesma transacao, senao
@@ -852,7 +852,7 @@ export async function excluirProduto(id) {
     where: { id },
     include: { anuncios: true },
   });
-  if (!produto) return { ok: false, erro: "Produto nao encontrado." };
+  if (!produto) return { ok: false, erro: "Produto não encontrado." };
 
   // Apagar um produto cujo anuncio esta no ar deixaria o anuncio orfao: vivo la
   // fora e invisivel aqui dentro.
@@ -864,7 +864,7 @@ export async function excluirProduto(id) {
     const canais = publicados.map((anuncio) => anuncio.canal).join(", ");
     return {
       ok: false,
-      erro: `Este produto tem anuncio publicado em: ${canais}. Encerre os anuncios antes de excluir, senao eles ficam orfaos no canal.`,
+      erro: `Este produto tem anúncio publicado em: ${canais}. Encerre os anúncios antes de excluir, senão eles ficam órfãos no canal.`,
     };
   }
 
@@ -922,7 +922,7 @@ const FornecedorSchema = z.object({
   codigo: opcional(z.string().trim()),
   precoCusto: decimal(),
   link: opcional(
-    z.string().trim().refine(ehUrlSegura, "Informe um endereco http ou https."),
+    z.string().trim().refine(ehUrlSegura, "Informe um endereço http ou https."),
   ),
 });
 
@@ -983,7 +983,7 @@ async function gravarFornecedoresRascunho(produto, formData) {
     const fornecedor = await prisma.fornecedor.findFirst({
       where: { nome: { equals: nome, mode: "insensitive" } },
     });
-    if (!fornecedor) throw new Error(`Cadastre o fornecedor "${nome}" antes de vincula-lo ao produto.`);
+    if (!fornecedor) throw new Error(`Cadastre o fornecedor "${nome}" antes de vinculá-lo ao produto.`);
 
     // Upsert, e nao create: o mesmo fornecedor marcado duas vezes no rascunho
     // (nome repetido) atualiza o vinculo em vez de esbarrar no
@@ -1111,7 +1111,7 @@ export async function salvarFornecedorDoProduto(produtoId, vinculoId, dados) {
     const fornecedor = await prisma.fornecedor.findFirst({
       where: { nome: { equals: nome, mode: "insensitive" } },
     });
-    if (!fornecedor) return { ok: false, erros: { nome: "Fornecedor nao cadastrado. Cadastre-o antes de salvar." }, cadastroNecessario: true };
+    if (!fornecedor) return { ok: false, erros: { nome: "Fornecedor não cadastrado. Cadastre-o antes de salvar." }, cadastroNecessario: true };
 
     if (vinculoId) {
       await prisma.produtoFornecedor.update({
@@ -1140,7 +1140,7 @@ export async function salvarFornecedorDoProduto(produtoId, vinculoId, dados) {
     if (erro.code === "P2002") {
       return {
         ok: false,
-        erros: { nome: `"${nome}" ja esta vinculado a este produto.` },
+        erros: { nome: `"${nome}" já está vinculado a este produto.` },
       };
     }
     return { ok: false, erro: erro.message };
@@ -1152,7 +1152,7 @@ export async function definirFornecedorPadrao(vinculoId) {
     where: { id: vinculoId },
     select: { produtoId: true },
   });
-  if (!alvo) return { ok: false, erro: "Fornecedor nao encontrado." };
+  if (!alvo) return { ok: false, erro: "Fornecedor não encontrado." };
 
   await prisma.$transaction([
     prisma.produtoFornecedor.updateMany({
@@ -1175,7 +1175,7 @@ export async function removerFornecedorDoProduto(vinculoId) {
     where: { id: vinculoId },
     select: { produtoId: true, padrao: true },
   });
-  if (!alvo) return { ok: false, erro: "Fornecedor nao encontrado." };
+  if (!alvo) return { ok: false, erro: "Fornecedor não encontrado." };
 
   await prisma.produtoFornecedor.delete({ where: { id: vinculoId } });
 
@@ -1219,7 +1219,7 @@ const ConcorrenteSchema = z
     codigoManual: opcional(z.string().trim()),
     precoManual: decimal(),
     linkManual: opcional(
-      z.string().trim().refine(ehUrlSegura, "Informe um endereco http ou https."),
+      z.string().trim().refine(ehUrlSegura, "Informe um endereço http ou https."),
     ),
   })
   .refine((dados) => Boolean(dados.produtoColetadoId || dados.fonteManual), {
@@ -1241,7 +1241,7 @@ export async function salvarConcorrenteDoProduto(produtoId, vinculoId, dados) {
         })
       : null;
     if (resultado.data.produtoColetadoId && !coletado) {
-      return { ok: false, erro: "Produto coletado nao encontrado." };
+      return { ok: false, erro: "Produto coletado não encontrado." };
     }
     const nomeConcorrente = coletado?.fonte.nome ?? resultado.data.fonteManual;
     const cadastro = await prisma.concorrente.findFirst({
@@ -1270,7 +1270,7 @@ export async function salvarConcorrenteDoProduto(produtoId, vinculoId, dados) {
   } catch (erro) {
     // Unico caso pratico: o mesmo produto coletado marcado duas vezes.
     if (erro.code === "P2002") {
-      return { ok: false, erro: "Este concorrente ja esta na lista." };
+      return { ok: false, erro: "Este concorrente já está na lista." };
     }
     return { ok: false, erro: erro.message };
   }
@@ -1281,7 +1281,7 @@ export async function removerConcorrenteDoProduto(vinculoId) {
     where: { id: vinculoId },
     select: { produtoId: true },
   });
-  if (!alvo) return { ok: false, erro: "Concorrente nao encontrado." };
+  if (!alvo) return { ok: false, erro: "Concorrente não encontrado." };
 
   await prisma.produtoConcorrente.delete({ where: { id: vinculoId } });
 

@@ -38,7 +38,7 @@ function Campo({ rotulo, valor, travado, motivo, herdado, problemas = [] }) {
             : "border-borda bg-superficie"
         } ${problemas.length ? "border-red-300" : ""}`}
       >
-        {valor || <span className="text-suave">nao informado</span>}
+        {valor || <span className="text-suave">não informado</span>}
       </div>
       {herdado && (
         <p className="mt-1 text-[11px] text-suave">Herdado da aba Base</p>
@@ -68,17 +68,17 @@ function AbaBase({ base }) {
       <Campo rotulo="Marca" valor={base.marca} />
       <Campo rotulo="Modelo" valor={base.modelo} />
       <div className="sm:col-span-2">
-        <Campo rotulo="Titulo base" valor={base.tituloBase} />
+        <Campo rotulo="Título base" valor={base.tituloBase} />
       </div>
       <div className="sm:col-span-2">
-        <Campo rotulo="Descricao base" valor={base.descricaoBase} />
+        <Campo rotulo="Descrição base" valor={base.descricaoBase} />
       </div>
       <Campo
         rotulo="Custo"
         valor={base.custo ? `R$ ${base.custo.toFixed(2)}` : null}
       />
       <Campo
-        rotulo="Preco de venda"
+        rotulo="Preço de venda"
         valor={base.precoVenda ? `R$ ${base.precoVenda.toFixed(2)}` : null}
       />
       <Campo rotulo="Estoque" valor={String(base.estoque)} />
@@ -113,7 +113,7 @@ function AbaCanal({ aba }) {
       <div className="rounded border border-borda bg-fundo p-4">
         <p className="flex items-center gap-1.5 text-sm font-medium">
           <Lock size={14} />
-          Canal indisponivel
+          Canal indisponível
         </p>
         <p className="mt-1 text-sm text-suave">{aba.motivoIndisponivel}</p>
       </div>
@@ -129,14 +129,14 @@ function AbaCanal({ aba }) {
     <div className="space-y-5">
       {aba.viaBling && (
         <p className="rounded border border-borda bg-fundo p-3 text-sm text-suave">
-          Este canal e sincronizado pelo Bling: o produto publicado la aparece
-          aqui automaticamente, sem chamada direta a API da Loja Integrada.
+          Este canal é sincronizado pelo Bling: o produto publicado lá aparece
+          aqui automaticamente, sem chamada direta à API da Loja Integrada.
         </p>
       )}
 
       {!anuncio ? (
         <p className="text-sm text-suave">
-          Ainda nao existe anuncio deste produto neste canal.
+          Ainda não existe anúncio deste produto neste canal.
         </p>
       ) : (
         <>
@@ -145,7 +145,7 @@ function AbaCanal({ aba }) {
             {anuncio.desatualizado && (
               <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
                 <TriangleAlert size={12} />
-                Alteracoes nao publicadas
+                Alterações não publicadas
               </span>
             )}
             {anuncio.urlExterna && (
@@ -192,7 +192,7 @@ function AbaCanal({ aba }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Campo
-                rotulo="Titulo no canal"
+                rotulo="Título no canal"
                 valor={anuncio.tituloEfetivo}
                 herdado={anuncio.tituloHerdado}
                 travado={editaveis.titulo && !editaveis.titulo.editavel}
@@ -233,7 +233,7 @@ function AbaCanal({ aba }) {
           {payload && (
             <details className="rounded border border-borda">
               <summary className="cursor-pointer px-3 py-2 text-xs font-medium">
-                Pre-visualizar o que seria enviado
+                Pré-visualizar o que seria enviado
               </summary>
               <pre className="overflow-x-auto border-t border-borda bg-fundo p-3 text-[11px]">
                 {JSON.stringify(payload, null, 2)}
@@ -256,7 +256,7 @@ function AbaCanal({ aba }) {
             key={rotulo}
             type="button"
             disabled
-            title="Disponivel na proxima etapa, quando a publicacao for ligada"
+            title="Disponível na próxima etapa, quando a publicação for ligada"
             className="inline-flex cursor-not-allowed items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm text-suave opacity-60"
           >
             <Icone size={14} />
@@ -264,7 +264,7 @@ function AbaCanal({ aba }) {
           </button>
         ))}
         <span className="text-xs text-suave">
-          Publicacao ainda desligada nesta etapa.
+          Publicação ainda desligada nesta etapa.
         </span>
       </div>
     </div>
@@ -316,7 +316,7 @@ export default function EditorAnuncio({ base, abas }) {
         {ativa === "BASE" ? (
           <>
             <p className="mb-4 text-sm text-suave">
-              Conteudo neutro de canal. E daqui que cada anuncio deriva — mudar
+              Conteúdo neutro de canal. É daqui que cada anúncio deriva — mudar
               algo aqui marca os canais publicados como desatualizados.
             </p>
             <AbaBase base={base} />

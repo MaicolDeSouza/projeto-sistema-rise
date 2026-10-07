@@ -32,13 +32,13 @@ export function interpretarProximaPagina(valor) {
     url = new URL(valor, ORIGEM_OFICIAL);
   } catch {
     throw new ErroLojaIntegrada(
-      "A Loja Integrada devolveu uma URL de paginacao invalida.",
+      "A Loja Integrada devolveu uma URL de paginação inválida.",
     );
   }
 
   if (url.origin !== ORIGEM_OFICIAL) {
     throw new ErroLojaIntegrada(
-      "A Loja Integrada devolveu uma URL de paginacao fora do dominio oficial.",
+      "A Loja Integrada devolveu uma URL de paginação fora do domínio oficial.",
     );
   }
 
@@ -68,8 +68,8 @@ export async function* paginarLojaIntegrada({
   params = {},
   maxPaginas = 10_000,
 }) {
-  if (!cliente?.get) throw new TypeError("Cliente da Loja Integrada invalido.");
-  if (!caminho) throw new TypeError("Caminho da paginacao nao informado.");
+  if (!cliente?.get) throw new TypeError("Cliente da Loja Integrada inválido.");
+  if (!caminho) throw new TypeError("Caminho da paginação não informado.");
   if (!Number.isInteger(maxPaginas) || maxPaginas < 1) {
     throw new TypeError("maxPaginas deve ser um inteiro positivo.");
   }
@@ -81,7 +81,7 @@ export async function* paginarLojaIntegrada({
     const chave = chaveDaPagina(requisicao.caminho, requisicao.params);
     if (visitadas.has(chave)) {
       throw new ErroLojaIntegrada(
-        "A paginacao da Loja Integrada entrou em repeticao.",
+        "A paginação da Loja Integrada entrou em repetição.",
       );
     }
     visitadas.add(chave);
@@ -106,7 +106,7 @@ export async function* paginarLojaIntegrada({
   }
 
   throw new ErroLojaIntegrada(
-    `A consulta excedeu o limite de ${maxPaginas} pagina(s).`,
+    `A consulta excedeu o limite de ${maxPaginas} página(s).`,
   );
 }
 

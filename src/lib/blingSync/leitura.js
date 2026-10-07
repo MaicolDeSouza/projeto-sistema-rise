@@ -27,10 +27,10 @@ function erroDoBling(status, dados) {
     return new ErroDoBling("O Bling recusou a leitura por limite de chamadas (3 por segundo na conta inteira). Tente de novo em alguns instantes.");
   }
   if (status === 401 || status === 403) {
-    return new ErroDoBling("O Bling recusou o acesso (token invalido, expirado ou sem permissao de leitura). Reconecte o Bling em Integracoes e tente de novo.");
+    return new ErroDoBling("O Bling recusou o acesso (token inválido, expirado ou sem permissão de leitura). Reconecte o Bling em Integrações e tente de novo.");
   }
   if (status >= 500) {
-    return new ErroDoBling(`O Bling esta com problema (HTTP ${status}). Tente de novo em alguns instantes.`);
+    return new ErroDoBling(`O Bling está com problema (HTTP ${status}). Tente de novo em alguns instantes.`);
   }
   return new ErroDoBling(`O Bling recusou a leitura (HTTP ${status}${descricao ? `): ${descricao}` : ")"}.`);
 }
@@ -42,7 +42,7 @@ function exigirResposta(resposta) {
 }
 
 function textoDoErro(erro) {
-  return erro instanceof ErroDoBling ? erro.message : `Nao foi possivel ler o Bling: ${erro?.message ?? erro}`;
+  return erro instanceof ErroDoBling ? erro.message : `Não foi possível ler o Bling: ${erro?.message ?? erro}`;
 }
 
 /// Sem caixa e sem espacos nas pontas: o Bling e o Rise nem sempre guardam o SKU com a mesma caixa
@@ -89,7 +89,7 @@ export async function buscarNoBling(cliente, codigo) {
 
   const id = Number(achados[0].id);
   if (!Number.isSafeInteger(id) || id <= 0) {
-    throw new ErroDoBling("O Bling devolveu o produto sem um id valido. Tente de novo.");
+    throw new ErroDoBling("O Bling devolveu o produto sem um id válido. Tente de novo.");
   }
 
   const completo = await cliente.get(`/produtos/${id}`);
@@ -148,7 +148,7 @@ function escritaDoProduto(sku) {
   if (!config.travas.blingEscrita) {
     return {
       liberada: false,
-      motivo: "A escrita no Bling esta desligada (BLING_ESCRITA esta false no .env): a leitura funciona, mas nada sera enviado.",
+      motivo: "A escrita no Bling está desligada (BLING_ESCRITA está false no .env): a leitura funciona, mas nada será enviado.",
     };
   }
   try {
@@ -158,7 +158,7 @@ function escritaDoProduto(sku) {
   } catch {
     return {
       liberada: false,
-      motivo: `O codigo ${sku} nao esta na lista de codigos liberados para escrita (BLING_ESCRITA_CODIGOS no .env).`,
+      motivo: `O código ${sku} não está na lista de códigos liberados para escrita (BLING_ESCRITA_CODIGOS no .env).`,
     };
   }
 }
@@ -204,12 +204,12 @@ export async function lerParaPopup(produtoId, cliente = clienteBling()) {
   try {
     produto = await lerProdutoDoRise(produtoId);
   } catch (erro) {
-    return resultado({ ok: false, erro: `Nao foi possivel ler o produto no Rise: ${erro?.message ?? erro}` });
+    return resultado({ ok: false, erro: `Não foi possível ler o produto no Rise: ${erro?.message ?? erro}` });
   }
-  if (!produto) return resultado({ ok: false, erro: "Produto nao encontrado no Rise." });
+  if (!produto) return resultado({ ok: false, erro: "Produto não encontrado no Rise." });
 
   const sku = produto.sku;
-  const avisos = fornecedoresSemCnpj(produto.fornecedores).map((nome) => `Fornecedor ${nome} sem CNPJ valido: nao sera enviado ao Bling.`);
+  const avisos = fornecedoresSemCnpj(produto.fornecedores).map((nome) => `Fornecedor ${nome} sem CNPJ válido: não será enviado ao Bling.`);
   const estoqueCom = (saldoLido) => ({
     blingSaldo: saldoLido ?? produto.blingSaldo ?? null,
     riseEstoque: produto.estoque,
@@ -231,8 +231,8 @@ export async function lerParaPopup(produtoId, cliente = clienteBling()) {
       ok: false,
       situacao: "duplicado",
       erro:
-        `Ha mais de um produto com o codigo ${sku} no Bling (${achado.quantidade} encontrados). ` +
-        "O Rise nao escolhe um sozinho: deixe so um com esse codigo no Bling e tente de novo.",
+        `Há mais de um produto com o código ${sku} no Bling (${achado.quantidade} encontrados). ` +
+        "O Rise não escolhe um sozinho: deixe só um com esse código no Bling e tente de novo.",
     });
   }
 

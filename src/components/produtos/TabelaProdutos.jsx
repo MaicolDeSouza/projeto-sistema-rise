@@ -21,9 +21,9 @@ import LinhaProduto from "./LinhaProduto";
 
 /// Rotulo de cada coluna ordenavel, na ordem da tabela.
 const COLUNAS_ORDENAVEIS = [
-  { campo: "codigo", rotulo: "Codigo" },
-  { campo: "localizacao", rotulo: "Localizacao" },
-  { campo: "preco", rotulo: "Preco" },
+  { campo: "codigo", rotulo: "Código" },
+  { campo: "localizacao", rotulo: "Localização" },
+  { campo: "preco", rotulo: "Preço" },
   { campo: "estoque", rotulo: "Estoque" },
 ];
 
@@ -69,7 +69,7 @@ function PopupConfirmacao({ produtos, pendente, aoConfirmar, aoCancelar }) {
       <section
         role="alertdialog"
         aria-modal="true"
-        aria-label="Confirmar exclusao"
+        aria-label="Confirmar exclusão"
         className="flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-lg border border-borda bg-superficie shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-borda p-3">
@@ -96,7 +96,7 @@ function PopupConfirmacao({ produtos, pendente, aoConfirmar, aoCancelar }) {
         </ul>
 
         <div className="flex items-center justify-between gap-2 border-t border-borda p-3">
-          <p className="text-[11px] text-suave">Os arquivos enviados tambem serao apagados.</p>
+          <p className="text-[11px] text-suave">Os arquivos enviados também serão apagados.</p>
           <div className="flex shrink-0 gap-2">
             <button
               type="button"
@@ -205,8 +205,8 @@ export default function TabelaProdutos({
         setMensagem({
           tipo: "erro",
           texto:
-            `${resultado.excluidos} produto(s) excluido(s). ${resultado.falhas.length} nao ` +
-            `puderam ser excluidos: ${resultado.falhas.map((falha) => falha.erro).join(" ")}`,
+            `${resultado.excluidos} produto(s) excluído(s). ${resultado.falhas.length} nao ` +
+            `puderam ser excluídos: ${resultado.falhas.map((falha) => falha.erro).join(" ")}`,
         });
       } else {
         setMensagem({
@@ -226,7 +226,7 @@ export default function TabelaProdutos({
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <CampoBusca
           valorInicial={busca}
-          rotulo="Buscar por nome ou codigo"
+          rotulo="Buscar por nome ou código"
           className="max-w-sm flex-1"
         />
 
@@ -275,7 +275,7 @@ export default function TabelaProdutos({
               onClick={() => setSelecionados(new Set())}
               className="underline hover:text-texto"
             >
-              Limpar selecao
+              Limpar seleção
             </button>
           </span>
         )}
@@ -304,8 +304,8 @@ export default function TabelaProdutos({
           }
           descricao={
             busca
-              ? "Tente outro termo, ou limpe a busca para ver o catalogo inteiro."
-              : "Cadastre o primeiro produto para comecar."
+              ? "Tente outro termo, ou limpe a busca para ver o catálogo inteiro."
+              : "Cadastre o primeiro produto para começar."
           }
         />
       ) : (

@@ -45,11 +45,11 @@ export default function ContatosDoCliente({ inicial, erro }) {
       return;
     }
     if (contato.telefone && !telefoneValido(contato.telefone)) {
-      setAviso("Informe um telefone valido, com DDD: (54) 98899-0008.");
+      setAviso("Informe um telefone válido, com DDD: (54) 98899-0008.");
       return;
     }
     if (contato.email && !/^\S+@\S+\.\S+$/.test(contato.email)) {
-      setAviso("Informe um e-mail valido.");
+      setAviso("Informe um e-mail válido.");
       return;
     }
 
@@ -201,13 +201,13 @@ export default function ContatosDoCliente({ inicial, erro }) {
         </button>
         {editando !== null && (
           <button type="button" onClick={limpar} className="text-sm text-suave hover:text-texto">
-            cancelar edicao
+            cancelar edição
           </button>
         )}
         {(aviso || erro) && <span className="text-xs text-red-700">{aviso ?? erro}</span>}
         {pendente && !aviso && !erro && (
           <span className="text-xs text-suave">
-            Este contato sera incluido ao salvar o cliente.
+            Este contato será incluído ao salvar o cliente.
           </span>
         )}
       </div>

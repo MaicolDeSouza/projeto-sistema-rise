@@ -23,7 +23,7 @@ export const SECOES_DE_CADASTROS = [
     href: "/cadastros/clientes",
     rotulo: "Clientes",
     icone: Users,
-    resumo: "Pessoas fisicas e juridicas que compram da loja, com endereco geral e de entrega, contatos e transportadora preferida.",
+    resumo: "Pessoas físicas e jurídicas que compram da loja, com endereço geral e de entrega, contatos e transportadora preferida.",
   },
   {
     href: "/cadastros/fornecedores",
@@ -35,24 +35,24 @@ export const SECOES_DE_CADASTROS = [
     href: "/cadastros/concorrentes",
     rotulo: "Concorrentes",
     icone: Globe,
-    resumo: "Lojas que vendem o mesmo tipo de produto, para comparar preco no Mercados.",
+    resumo: "Lojas que vendem o mesmo tipo de produto, para comparar preço no Mercados.",
   },
   {
     href: "/cadastros/transportadoras",
     rotulo: "Transportadoras",
     icone: Truck,
-    resumo: "Quem entrega os pedidos, com modalidade, contatos e o endereco de rastreamento.",
+    resumo: "Quem entrega os pedidos, com modalidade, contatos e o endereço de rastreamento.",
   },
   {
     href: "/cadastros/produtos",
     rotulo: "Produtos",
     icone: Package,
-    resumo: "O catalogo da loja. Abre o mesmo cadastro do item Produtos do menu.",
+    resumo: "O catálogo da loja. Abre o mesmo cadastro do item Produtos do menu.",
   },
   {
     href: "/cadastros/marcas",
     rotulo: "Marcas",
     icone: Tag,
-    resumo: "As marcas dos produtos, sempre em maiusculas, com uma observacao.",
+    resumo: "As marcas dos produtos, sempre em maiúsculas, com uma observação.",
   },
 ];

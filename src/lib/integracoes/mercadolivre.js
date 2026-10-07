@@ -86,7 +86,7 @@ export async function obterAccessToken() {
 
   if (!segredo?.accessToken) {
     throw new Error(
-      'Mercado Livre nao conectado. Use "Conectar" na tela Integracoes.',
+      'Mercado Livre não conectado. Use "Conectar" na tela Integrações.',
     );
   }
 
@@ -98,8 +98,8 @@ export async function obterAccessToken() {
 
   if (!segredo.refreshToken) {
     throw new Error(
-      "Token do Mercado Livre expirou e nao ha refresh token. Confirme que o " +
-        "escopo offline_access esta marcado no aplicativo e reconecte.",
+      "Token do Mercado Livre expirou e não há refresh token. Confirme que o " +
+        "escopo offline_access está marcado no aplicativo e reconecte.",
     );
   }
 
@@ -167,7 +167,7 @@ export async function testar() {
 export const conector = {
   id: SERVICO,
   nome: "Mercado Livre",
-  descricao: "Marketplace — publicacao dos anuncios",
+  descricao: "Marketplace — publicação dos anúncios",
   tipoAuth: "oauth2",
   // O fluxo precisa comecar no MESMO dominio para onde o ML devolve: cookie
   // nao atravessa dominio, e o state se perderia na volta.

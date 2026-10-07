@@ -51,19 +51,19 @@ function validar(dados) {
     dados.preco !== "" &&
     (Number.isNaN(Number(dados.preco)) || Number(dados.preco) < 0)
   ) {
-    erros.preco = "Informe um numero valido.";
+    erros.preco = "Informe um número válido.";
   }
   if (dados.url && !ehUrlSegura(dados.url)) {
-    erros.url = "Informe um endereco http ou https.";
+    erros.url = "Informe um endereço http ou https.";
   }
   return erros;
 }
 
 /** Como a coluna e medida — mostrado na bolha "i" do cabecalho. */
 const COMO_MEDE_A_DIFERENCA =
-  "Seu Preco venda contra o preco normal do concorrente: (seu preco - preco do concorrente) / preco do concorrente. " +
-  "A seta mostra onde o CONCORRENTE esta em relacao a voce: para baixo e vermelho, ele esta mais barato (voce perde venda); " +
-  "para cima e verde, ele esta mais caro.";
+  "Seu Preço venda contra o preço normal do concorrente: (seu preço - preço do concorrente) / preço do concorrente. " +
+  "A seta mostra onde o CONCORRENTE está em relação a você: para baixo e vermelho, ele está mais barato (você perde venda); " +
+  "para cima e verde, ele está mais caro.";
 
 /**
  * Onde o concorrente esta em relacao ao preco de venda do produto — pedido do
@@ -93,8 +93,8 @@ function Diferenca({ precoProduto, precoConcorrente }) {
       }`}
       title={
         concorrenteMaisBarato
-          ? "Este concorrente esta mais barato que voce"
-          : "Este concorrente esta mais caro que voce"
+          ? "Este concorrente está mais barato que você"
+          : "Este concorrente está mais caro que você"
       }
     >
       <Seta size={13} />
@@ -116,7 +116,7 @@ function EstoqueConcorrente({ situacao }) {
       </span>
     );
   }
-  return <span className="text-suave">Nao informado</span>;
+  return <span className="text-suave">Não informado</span>;
 }
 
 /**
@@ -227,7 +227,7 @@ export default function Concorrentes({
       return;
     }
     if (!cadastradoAgora && !catalogo.some((item) => item.nome.toLocaleLowerCase("pt-BR") === dados.fonte.trim().toLocaleLowerCase("pt-BR"))) {
-      setErros({ fonte: "Concorrente nao cadastrado. Complete o cadastro rapido." });
+      setErros({ fonte: "Concorrente não cadastrado. Complete o cadastro rápido." });
       setPopupNome(dados.fonte.trim());
       return;
     }
@@ -299,7 +299,7 @@ export default function Concorrentes({
       sugestaoAguardando.current = item;
       escolherCodigo({ ...item, preco: item.precoNormal });
       setEditando("novo");
-      setErros({ fonte: "Concorrente nao cadastrado. Complete o cadastro rapido." });
+      setErros({ fonte: "Concorrente não cadastrado. Complete o cadastro rápido." });
       setPopupNome(item.fonte);
       return;
     }
@@ -393,8 +393,8 @@ export default function Concorrentes({
       {/* `seloDoTitulo`: a posicao de preco ("2º de 10"), calculada no formulario (pedido do dono em 06/10/2026). */}
       <h3 className="flex items-center text-sm font-semibold">Concorrentes {seloDoTitulo}</h3>
       <p className="mt-0.5 text-[11px] text-suave">
-        Marcados na lupa do Nome, ou adicionados aqui. So para consulta: preco de concorrente
-        nao e custo e nao entra no calculo do produto.
+        Marcados na lupa do Nome, ou adicionados aqui. Só para consulta: preço de concorrente
+        não é custo e não entra no cálculo do produto.
       </p>
       {/* `md:overflow-visible`: a bolha "i" do cabecalho abre para CIMA, fora da
           caixa da tabela, e `overflow-x-auto` a cortava por inteiro (overflow-x
@@ -406,18 +406,18 @@ export default function Concorrentes({
             <tr className="divide-x divide-borda">
               <th className="px-3 py-2 font-medium">Concorrente</th>
               <th className="px-3 py-2 font-medium">Produto</th>
-              <th className="px-3 py-2 font-medium">Codigo</th>
-              <th className="px-3 py-2 font-medium">Preco</th>
+              <th className="px-3 py-2 font-medium">Código</th>
+              <th className="px-3 py-2 font-medium">Preço</th>
               <th className="px-3 py-2 font-medium">
                 <span className="inline-flex items-center gap-1.5">
-                  Diferenca
+                  Diferença
                   <BolhaDeAjuda texto={COMO_MEDE_A_DIFERENCA} variante="inline" />
                 </span>
               </th>
               <th className="w-28 px-3 py-2 font-medium">
                 <span className="inline-flex items-center gap-1">
                   Estoque
-                  <BolhaDeAjuda texto="Mostra se o concorrente tem estoque. Se informar a quantidade, zero significa sem estoque; quando nao informa, usamos a disponibilidade declarada pela loja." variante="inline" />
+                  <BolhaDeAjuda texto="Mostra se o concorrente tem estoque. Se informar a quantidade, zero significa sem estoque; quando não informa, usamos a disponibilidade declarada pela loja." variante="inline" />
                 </span>
               </th>
               <th className="px-3 py-2 font-medium">Link</th>
@@ -582,7 +582,7 @@ function LinhaEdicao({ campo, erros, pendente, aoSalvar, aoCancelar, aoEscolherC
       </td>
       <td className="px-3 py-2">
         <div className="flex items-center gap-1">
-          <input placeholder="Codigo" {...campo("codigo")} />
+          <input placeholder="Código" {...campo("codigo")} />
           <BuscaColetadoPorCodigo codigo={campo("codigo").value} tipo="CONCORRENTE" aoEscolher={aoEscolherCodigo} />
         </div>
       </td>

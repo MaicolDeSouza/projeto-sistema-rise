@@ -63,7 +63,7 @@ export async function padronizarImagem(bytes) {
   }
   if (bytes.length > ENTRADA_MAXIMA_BYTES) {
     const mb = (bytes.length / 1024 / 1024).toFixed(1);
-    return { ok: false, erro: `A imagem tem ${mb} MB; o limite de leitura e ${ENTRADA_MAXIMA_BYTES / 1024 / 1024} MB.` };
+    return { ok: false, erro: `A imagem tem ${mb} MB; o limite de leitura é ${ENTRADA_MAXIMA_BYTES / 1024 / 1024} MB.` };
   }
 
   const abrir = () => sharp(bytes, { limitInputPixels: PIXELS_MAXIMOS });
@@ -72,13 +72,13 @@ export async function padronizarImagem(bytes) {
   try {
     meta = await abrir().metadata();
   } catch {
-    return { ok: false, erro: "Nao foi possivel ler a imagem. Arquivo corrompido?" };
+    return { ok: false, erro: "Não foi possível ler a imagem. Arquivo corrompido?" };
   }
 
   if (!FORMATOS_ACEITOS.includes(meta.format)) {
     return {
       ok: false,
-      erro: `Formato ${meta.format ?? "desconhecido"} nao aceito. Use JPEG, PNG ou WebP.`,
+      erro: `Formato ${meta.format ?? "desconhecido"} não aceito. Use JPEG, PNG ou WebP.`,
     };
   }
 
@@ -89,7 +89,7 @@ export async function padronizarImagem(bytes) {
   const largura = girada ? meta.height : meta.width;
   const altura = girada ? meta.width : meta.height;
   if (!largura || !altura) {
-    return { ok: false, erro: "Nao foi possivel ler a imagem. Arquivo corrompido?" };
+    return { ok: false, erro: "Não foi possível ler a imagem. Arquivo corrompido?" };
   }
 
   const origem = { largura, altura, formato: meta.format, bytes: bytes.length };
@@ -166,6 +166,6 @@ export async function padronizarImagem(bytes) {
       origem,
     };
   } catch {
-    return { ok: false, erro: "Nao foi possivel tratar a imagem. Arquivo corrompido?" };
+    return { ok: false, erro: "Não foi possível tratar a imagem. Arquivo corrompido?" };
   }
 }

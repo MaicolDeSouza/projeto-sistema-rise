@@ -68,7 +68,7 @@ export function caminhoNoLote(lote, pasta, nome) {
 
 async function escrever(lote, pasta, nome, bytes) {
   const destino = caminhoNoLote(lote, pasta, nome);
-  if (!destino) throw new Error("Caminho invalido no lote.");
+  if (!destino) throw new Error("Caminho inválido no lote.");
   await mkdir(path.dirname(destino), { recursive: true });
   await writeFile(destino, bytes);
 }
@@ -136,7 +136,7 @@ export async function originalDoLote(lote, base) {
  * nao da foto atual. As outras extensoes saem, senao `originalDoLote` poderia achar a antiga primeiro.
  */
 export async function definirOriginal(lote, base, bytes) {
-  if (!loteValido(lote) || !baseValida(base)) throw new Error("Foto invalida.");
+  if (!loteValido(lote) || !baseValida(base)) throw new Error("Foto inválida.");
   for (const extensao of EXTENSOES) if (extensao !== "jpg") await apagar(lote, "originais", `${base}.${extensao}`);
   await escrever(lote, "originais", `${base}.jpg`, bytes);
 }
@@ -149,7 +149,7 @@ export async function definirOriginal(lote, base, bytes) {
  *   origem: object, tamanhoBytes: number } | { ok: false, erro: string }>}
  */
 export async function adicionarImagem(lote, bytes) {
-  if (!loteValido(lote)) return { ok: false, erro: "Lote de envio invalido." };
+  if (!loteValido(lote)) return { ok: false, erro: "Lote de envio inválido." };
 
   // Cadastro abandonado (aba fechada sem salvar) e apagado na proxima foto enviada.
   await limparTemporariosAntigos();
@@ -179,7 +179,7 @@ export async function adicionarImagem(lote, bytes) {
  * dentro do peso combinado.
  */
 export async function substituirImagem(lote, base, bytes) {
-  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto invalida." };
+  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto inválida." };
 
   const padrao = await padronizarImagem(bytes);
   if (!padrao.ok) return padrao;
@@ -191,7 +191,7 @@ export async function substituirImagem(lote, base, bytes) {
 /** Padroniza de novo o arquivo que chegou e o poe como a foto do produto. */
 export async function voltarAoOriginal(lote, base) {
   const original = await originalDoLote(lote, base);
-  if (!original) return { ok: false, erro: "O original desta foto nao esta mais disponivel." };
+  if (!original) return { ok: false, erro: "O original desta foto não está mais disponível." };
   return substituirImagem(lote, base, original.bytes);
 }
 
@@ -231,8 +231,8 @@ export async function lerVersao(lote, base, versao) {
  * ULTIMA geracao fica (spec §8). Nunca toca em `imagens/` nem nas outras versoes.
  */
 export async function guardarVersao(lote, base, versao, bytesPadronizados) {
-  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto invalida." };
-  if (!VERSOES.includes(versao)) return { ok: false, erro: "Versao invalida." };
+  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto inválida." };
+  if (!VERSOES.includes(versao)) return { ok: false, erro: "Versão inválida." };
   await escrever(lote, "versoes", `${base}.${versao}.jpg`, bytesPadronizados);
   // O nome antigo deixaria duas "photoroom" no lote; a nova vale.
   if (versao === "photoroom") await apagar(lote, "versoes", `${base}.melhorada.jpg`);
@@ -244,10 +244,10 @@ export async function guardarVersao(lote, base, versao, bytesPadronizados) {
  * guardar qualquer versao gerada: sem ela, escolher a gerada perderia o caminho de volta na janela.
  */
 export async function garantirOriginalGuardado(lote, base) {
-  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto invalida." };
+  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto inválida." };
   if (await existe(lote, "versoes", `${base}.original.jpg`)) return { ok: true };
   const original = await originalDoLote(lote, base);
-  if (!original) return { ok: false, erro: "O original desta foto nao esta mais disponivel." };
+  if (!original) return { ok: false, erro: "O original desta foto não está mais disponível." };
   const padrao = await padronizarImagem(original.bytes);
   if (!padrao.ok) return padrao;
   await escrever(lote, "versoes", `${base}.original.jpg`, padrao.bytes);
@@ -267,13 +267,13 @@ export async function versoesDoLote(lote, base) {
  * custo. `original` volta ao arquivo que chegou; as geradas exigem uma geracao anterior.
  */
 export async function escolherVersao(lote, base, versao) {
-  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto invalida." };
-  if (!VERSOES.includes(versao)) return { ok: false, erro: "Versao invalida." };
+  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto inválida." };
+  if (!VERSOES.includes(versao)) return { ok: false, erro: "Versão inválida." };
 
   if (versao === "original") return voltarAoOriginal(lote, base);
 
   const bytes = await lerVersao(lote, base, versao);
-  if (!bytes) return { ok: false, erro: "Esta foto ainda nao foi melhorada." };
+  if (!bytes) return { ok: false, erro: "Esta foto ainda não foi melhorada." };
   await escrever(lote, "imagens", `${base}.jpg`, bytes);
   return { ok: true, ampliada: false, tamanhoBytes: bytes.length };
 }
@@ -289,18 +289,18 @@ const EXTENSAO_DO_FORMATO = { jpeg: "jpg", png: "png", webp: "webp" };
  * padronizador so para CONFERIR que e imagem (os bytes guardados sao os que chegaram: e o que vai ao Google).
  */
 export async function adicionarExtra(lote, base, bytes) {
-  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto invalida." };
+  if (!loteValido(lote) || !baseValida(base)) return { ok: false, erro: "Foto inválida." };
   const padrao = await padronizarImagem(bytes);
   if (!padrao.ok) return padrao;
   const extensao = EXTENSAO_DO_FORMATO[padrao.origem.formato];
-  if (!extensao) return { ok: false, erro: "Formato nao aceito. Envie JPG, PNG ou WebP." };
+  if (!extensao) return { ok: false, erro: "Formato não aceito. Envie JPG, PNG ou WebP." };
 
   for (let n = 1; n <= MAXIMO_EXTRAS; n++) {
     if (await lerExtra(lote, base, n)) continue;
     await escrever(lote, "extras", `${base}.${n}.${extensao}`, bytes);
     return { ok: true, n, extensao };
   }
-  return { ok: false, erro: `No maximo ${MAXIMO_EXTRAS} imagens extras por foto.` };
+  return { ok: false, erro: `No máximo ${MAXIMO_EXTRAS} imagens extras por foto.` };
 }
 
 /** Uma extra enviada, com a extensao em que foi guardada, ou null. */
@@ -320,7 +320,7 @@ export async function removerExtra(lote, base, n) {
 
 /** O ultimo pedido ao Nano Banana desta foto (modelo, prompt e extras), para "Gerar de novo" e auditoria. */
 export async function gravarGeracao(lote, base, dados) {
-  if (!baseValida(base)) throw new Error("Foto invalida.");
+  if (!baseValida(base)) throw new Error("Foto inválida.");
   await escrever(lote, "geracoes", `${base}.json`, JSON.stringify({ ...dados, em: new Date().toISOString() }));
 }
 
@@ -337,7 +337,7 @@ export async function lerGeracao(lote, base) {
 
 /** A previa (com marca d'agua) e as opcoes com que foi pedida. */
 export async function gravarPrevia(lote, base, bytesPadronizados, opcoes) {
-  if (!baseValida(base)) throw new Error("Foto invalida.");
+  if (!baseValida(base)) throw new Error("Foto inválida.");
   await escrever(lote, "previas", `${base}.jpg`, bytesPadronizados);
   await escrever(lote, "previas", `${base}.json`, JSON.stringify({ opcoes, em: new Date().toISOString() }));
 }

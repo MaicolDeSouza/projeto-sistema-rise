@@ -12,7 +12,7 @@ export default function ImagemParaSvgPage() {
 
       <PageHeader
         titulo="Imagem para SVG"
-        descricao="Converte o logo em SVG, com fundo transparente e as cores exatas. Nada e gravado: o arquivo fica so nesta tela."
+        descricao="Converte o logo em SVG, com fundo transparente e as cores exatas. Nada é gravado: o arquivo fica só nesta tela."
       />
       <ImagemParaSvg />
     </>

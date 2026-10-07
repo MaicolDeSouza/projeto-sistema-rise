@@ -26,7 +26,7 @@ export default function PopupExclusao({
       <section
         role="alertdialog"
         aria-modal="true"
-        aria-label="Confirmar exclusao"
+        aria-label="Confirmar exclusão"
         className="w-full max-w-md overflow-hidden rounded-lg border border-borda bg-superficie shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-borda p-3">

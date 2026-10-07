@@ -47,14 +47,14 @@ export default function AbaFichaTecnica({ rascunho, alterar, problemas }) {
         <Campo
           nome="ml-brand"
           rotulo="Marca (BRAND)"
-          ajuda="Comeca com a marca do cadastro do produto. Sempre em maiusculas."
+          ajuda="Começa com a marca do cadastro do produto. Sempre em maiúsculas."
           value={atributos.BRAND ?? ""}
           onChange={(evento) => digitarEmMaiusculas(evento, "BRAND")}
         />
         <Campo
           nome="ml-model"
           rotulo="Modelo (MODEL)"
-          ajuda="Comeca com o modelo do cadastro do produto. Sempre em maiusculas."
+          ajuda="Começa com o modelo do cadastro do produto. Sempre em maiúsculas."
           value={atributos.MODEL ?? ""}
           onChange={(evento) => digitarEmMaiusculas(evento, "MODEL")}
         />
@@ -62,13 +62,13 @@ export default function AbaFichaTecnica({ rascunho, alterar, problemas }) {
         {emKit ? (
           <div>
             <p className="text-sm font-semibold">EAN/GTIN</p>
-            <p className="mt-2 text-sm text-suave">Kit nao exige EAN/GTIN.</p>
+            <p className="mt-2 text-sm text-suave">Kit não exige EAN/GTIN.</p>
           </div>
         ) : (
           <Campo
             nome="ml-gtin"
             rotulo="EAN/GTIN"
-            ajuda="Codigo de barras da peca avulsa, so numeros. A maioria das categorias de eletronicos exige."
+            ajuda="Código de barras da peça avulsa, só números. A maioria das categorias de eletrônicos exige."
           >
             <input
               id="ml-gtin"
@@ -85,10 +85,10 @@ export default function AbaFichaTecnica({ rascunho, alterar, problemas }) {
 
       <div>
         <div className="flex items-center gap-1 text-sm font-semibold">
-          Especificacoes da descricao
+          Especificações da descrição
           <BolhaDeAjuda
             variante="inline"
-            texto="Somente leitura. Sao as linhas no formato '- Nome: valor' da descricao; para mudar, edite a descricao."
+            texto="Somente leitura. São as linhas no formato '- Nome: valor' da descrição; para mudar, edite a descrição."
           />
         </div>
         {especificacoes.length > 0 ? (
@@ -100,7 +100,7 @@ export default function AbaFichaTecnica({ rascunho, alterar, problemas }) {
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-suave">Nenhuma especificacao encontrada na descricao.</p>
+          <p className="mt-2 text-sm text-suave">Nenhuma especificação encontrada na descrição.</p>
         )}
         <p className="mt-2 text-[11px] text-suave">Os atributos da categoria do ML entram na fase 2.</p>
       </div>

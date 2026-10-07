@@ -7,7 +7,7 @@ import { exigirRespostaLojaIntegrada } from "./paginacao";
 
 function idSeguro(id) {
   if (id === undefined || id === null || String(id).trim() === "") {
-    throw new TypeError("Id do produto da Loja Integrada nao informado.");
+    throw new TypeError("Id do produto da Loja Integrada não informado.");
   }
   return encodeURIComponent(String(id).trim());
 }

@@ -52,8 +52,8 @@ export default async function IntegracoesPage({ searchParams }) {
   return (
     <>
       <PageHeader
-        titulo="Integracoes"
-        descricao="Conexoes com os sistemas externos. Conecte a conta, acompanhe a situacao e teste o acesso quando precisar."
+        titulo="Integrações"
+        descricao="Conexões com os sistemas externos. Conecte a conta, acompanhe a situação e teste o acesso quando precisar."
       />
 
       {params?.erro && (
@@ -82,7 +82,7 @@ export default async function IntegracoesPage({ searchParams }) {
         <span>
           {travasLigadas ? (
             <>
-              <strong>Escrita liberada.</strong> Publicacao no Mercado Livre:{" "}
+              <strong>Escrita liberada.</strong> Publicação no Mercado Livre:{" "}
               {config.travas.mlPublicacao ? "ligada" : "desligada"} · Escrita no
               Bling: {config.travas.blingEscrita ? "ligada" : "desligada"} ·
               Escrita na Loja Integrada:{" "}
@@ -92,7 +92,7 @@ export default async function IntegracoesPage({ searchParams }) {
             <>
               <strong>Somente leitura.</strong> As travas{" "}
               <code>ML_PUBLICACAO</code>, <code>BLING_ESCRITA</code> e{" "}
-              <code>LI_ESCRITA</code> estao desligadas: nada e
+              <code>LI_ESCRITA</code> estão desligadas: nada é
               escrito nas plataformas.
             </>
           )}

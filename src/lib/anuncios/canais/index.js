@@ -21,7 +21,7 @@ export const canais = [
   {
     id: "LOJA_INTEGRADA",
     nome: "Loja Integrada",
-    resumo: "Loja propria — sincronizada pelo Bling",
+    resumo: "Loja própria — sincronizada pelo Bling",
     obrigatorio: false,
     disponivel: true,
     viaBling: true,
@@ -30,7 +30,7 @@ export const canais = [
   {
     id: "MERCADO_LIVRE",
     nome: "Mercado Livre",
-    resumo: "Marketplace — publicacao direta por API",
+    resumo: "Marketplace — publicação direta por API",
     obrigatorio: false,
     disponivel: true,
     regras: mercadoLivre,
@@ -42,7 +42,7 @@ export const canais = [
     obrigatorio: false,
     disponivel: false,
     motivoIndisponivel:
-      "Exige credenciais do Shopee Open Platform, que ainda nao foram obtidas.",
+      "Exige credenciais do Shopee Open Platform, que ainda não foram obtidas.",
     regras: null,
   },
 ];

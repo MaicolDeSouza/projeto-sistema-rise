@@ -10,7 +10,7 @@ async function chamar(acao, argumento) {
   try {
     return await acao(argumento);
   } catch {
-    return { ok: false, erro: "Nao foi possivel falar com o servidor. Tente de novo." };
+    return { ok: false, erro: "Não foi possível falar com o servidor. Tente de novo." };
   }
 }
 
@@ -99,10 +99,10 @@ export default function JanelaAnuncioLI({ produtoId, aoFechar, aoSalvar }) {
         if (evento.target === evento.currentTarget) aoFechar();
       }}
     >
-      <section role="dialog" aria-modal="true" aria-label="Anuncio da Loja Integrada" className="w-full max-w-md rounded-lg border border-borda bg-superficie shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-label="Anúncio da Loja Integrada" className="w-full max-w-md rounded-lg border border-borda bg-superficie shadow-2xl">
         <header className="flex items-start justify-between gap-3 border-b border-borda px-5 py-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold">Anuncio da Loja Integrada</p>
+            <p className="text-sm font-semibold">Anúncio da Loja Integrada</p>
             {produto && (
               <p className="mt-0.5 truncate text-xs text-suave">
                 <span className="font-mono">{produto.sku}</span> · {produto.tituloBase}
@@ -117,10 +117,10 @@ export default function JanelaAnuncioLI({ produtoId, aoFechar, aoSalvar }) {
           {fase === "carregando" && (
             <p className="flex items-center gap-2 text-suave">
               <Loader size={14} className="animate-spin" />
-              Abrindo o anuncio...
+              Abrindo o anúncio...
             </p>
           )}
-          {fase === "naoConferido" && <p className="text-amber-800">So produto Conferido vai para a Loja Integrada. Confira o cadastro do produto primeiro.</p>}
+          {fase === "naoConferido" && <p className="text-amber-800">Só produto Conferido vai para a Loja Integrada. Confira o cadastro do produto primeiro.</p>}
           {fase === "erro" && <p className="text-red-700">{erro}</p>}
         </div>
       </section>

@@ -6,7 +6,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { lerConfigML } from "@/lib/canaisDeVenda/configuracao";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Configuracoes | Mercado Livre | Sistema Rise" };
+export const metadata = { title: "Configurações | Mercado Livre | Sistema Rise" };
 
 /**
  * Configuracoes do canal Mercado Livre. Por enquanto so as frases fixas, que entram no fim da
@@ -24,7 +24,7 @@ export default async function ConfiguracoesMLPage() {
   return (
     <>
       <LinkDeVolta href="/canais-de-venda/mercado-livre" rotulo="Mercado Livre" />
-      <PageHeader titulo="Configuracoes do Mercado Livre" />
+      <PageHeader titulo="Configurações do Mercado Livre" />
 
       {erro && <AvisoBanco erro={erro} />}
 

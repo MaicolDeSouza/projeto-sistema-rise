@@ -44,7 +44,7 @@ export function EditarNoProduto({ abrirProduto, className = "text-xs" }) {
   );
 }
 
-const ROTULO_DO_CAMPO_FISCAL = { origem: "Origem", tipoProducao: "Tipo de producao" };
+const ROTULO_DO_CAMPO_FISCAL = { origem: "Origem", tipoProducao: "Tipo de produção" };
 
 function valorFiscal(campo, valor) {
   if (valor === null || valor === undefined) return null;
@@ -56,12 +56,12 @@ function valorFiscal(campo, valor) {
  * 07/10/2026, no PUT e no POST). Aviso grande, com o link direto ao produto no admin da loja.
  */
 function AjustesNoPainel({ leitura, idExterno }) {
-  if (!leitura) return <p className="rounded border border-borda bg-fundo p-3 text-xs text-suave">Lendo a Loja Integrada para conferir origem e tipo de producao...</p>;
+  if (!leitura) return <p className="rounded border border-borda bg-fundo p-3 text-xs text-suave">Lendo a Loja Integrada para conferir origem e tipo de produção...</p>;
   if (!leitura.ok) return null;
   if (leitura.situacao === "nao_existe") {
     return (
       <p className="rounded border border-borda bg-fundo p-3 text-xs text-suave">
-        O produto ainda nao esta na loja. Depois de &quot;Cadastrar na LI&quot;, confira origem e tipo de producao no painel da Loja Integrada: a API nao os grava.
+        O produto ainda não está na loja. Depois de &quot;Cadastrar na LI&quot;, confira origem e tipo de produção no painel da Loja Integrada: a API não os grava.
       </p>
     );
   }
@@ -70,7 +70,7 @@ function AjustesNoPainel({ leitura, idExterno }) {
   if (fiscais.length === 0) {
     return (
       <p className="rounded border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
-        Origem e tipo de producao na loja conferem com o Rise.
+        Origem e tipo de produção na loja conferem com o Rise.
         {link && (
           <>
             {" "}
@@ -88,7 +88,7 @@ function AjustesNoPainel({ leitura, idExterno }) {
         <TriangleAlert size={20} className="shrink-0" />
         Ajuste no painel da Loja Integrada
       </p>
-      <p className="mt-1 text-sm">A API da Loja Integrada nao grava estes campos: o Sincronizar nao consegue mudar. Altere-os no produto, no painel da loja:</p>
+      <p className="mt-1 text-sm">A API da Loja Integrada não grava estes campos: o Sincronizar não consegue mudar. Altere-os no produto, no painel da loja:</p>
       <ul className="mt-3 space-y-2">
         {fiscais.map((item) => (
           <li key={item.campo} className="rounded border border-amber-300 bg-white/70 px-3 py-2 text-sm">
@@ -96,7 +96,7 @@ function AjustesNoPainel({ leitura, idExterno }) {
             <span className="font-semibold">{valorFiscal(item.campo, item.rise) ?? "o do Rise"}</span>
             <span className="text-amber-800">
               {" "}
-              (na loja: {item.li === null ? "vazio, a nota usa o padrao do emissor" : valorFiscal(item.campo, item.li)})
+              (na loja: {item.li === null ? "vazio, a nota usa o padrão do emissor" : valorFiscal(item.campo, item.li)})
             </span>
           </li>
         ))}
@@ -112,7 +112,7 @@ function AjustesNoPainel({ leitura, idExterno }) {
           <ExternalLink size={14} />
         </a>
       ) : (
-        <p className="mt-3 text-xs">O link do painel aparece quando o anuncio estiver vinculado ao produto da loja.</p>
+        <p className="mt-3 text-xs">O link do painel aparece quando o anúncio estiver vinculado ao produto da loja.</p>
       )}
       {link && <p className="mt-1 text-[11px] break-all text-amber-800">{link}</p>}
     </section>
@@ -136,8 +136,8 @@ export function AbaFiscal({ contexto, problemas, leitura, vinculo, abrirProduto 
       <div className="rounded border border-borda px-3">
         <Linha rotulo="NCM" valor={produto.ncm} />
         <Linha rotulo="GTIN / EAN" valor={produto.ean} nota={vazio(produto.ean) && leitura?.daLoja?.gtin ? `na loja: ${leitura.daLoja.gtin}` : null} />
-        <Linha rotulo="Origem" valor={rotuloDaOrigem(produto.origem)} nota="so leitura na LI: ajuste no painel" />
-        <Linha rotulo="Tipo de producao" valor={rotuloDoTipo(produto.tipoProducao)} nota="so leitura na LI: ajuste no painel" />
+        <Linha rotulo="Origem" valor={rotuloDaOrigem(produto.origem)} nota="só leitura na LI: ajuste no painel" />
+        <Linha rotulo="Tipo de produção" valor={rotuloDoTipo(produto.tipoProducao)} nota="só leitura na LI: ajuste no painel" />
       </div>
       <MensagensDoCampo problemas={problemas} campo={["ncm", "gtin"]} />
     </div>
@@ -165,7 +165,7 @@ export function AbaEnvio({ contexto, problemas, abrirProduto }) {
         <Linha rotulo="Altura" valor={medida(produto.alturaCm)} />
       </div>
       <MensagensDoCampo problemas={problemas} campo={["peso", "medidas"]} />
-      <p className="text-xs text-suave">A Loja Integrada guarda medida em centimetro inteiro: o valor sobe para o inteiro de cima.</p>
+      <p className="text-xs text-suave">A Loja Integrada guarda medida em centímetro inteiro: o valor sobe para o inteiro de cima.</p>
     </div>
   );
 }

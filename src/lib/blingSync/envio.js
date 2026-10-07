@@ -87,7 +87,7 @@ const emAndamento = new Set();
 async function umPorVez(produtoId, recusar, executar) {
   const chave = String(produtoId ?? "");
   if (emAndamento.has(chave)) {
-    return recusar("Ja ha um envio deste produto ao Bling em andamento. Aguarde terminar e confira o resultado.");
+    return recusar("Já há um envio deste produto ao Bling em andamento. Aguarde terminar e confira o resultado.");
   }
   emAndamento.add(chave);
   try {
@@ -106,9 +106,9 @@ async function lerDoRise(produtoId) {
   try {
     produto = await lerProdutoDoRise(produtoId);
   } catch (erro) {
-    throw new FalhaDoEnvio(`Nao foi possivel ler o produto no Rise: ${mensagemDe(erro)}`);
+    throw new FalhaDoEnvio(`Não foi possível ler o produto no Rise: ${mensagemDe(erro)}`);
   }
-  if (!produto) throw new FalhaDoEnvio("Produto nao encontrado no Rise.");
+  if (!produto) throw new FalhaDoEnvio("Produto não encontrado no Rise.");
   return produto;
 }
 
@@ -126,14 +126,14 @@ async function buscar(cliente, sku) {
     return await buscarNoBling(cliente, sku);
   } catch (erro) {
     // `buscarNoBling` ja traduz o HTTP; aqui so se diz que nada foi enviado.
-    throw new FalhaDoEnvio(`Nao foi possivel ler o produto no Bling, e nada foi enviado: ${mensagemDe(erro)}`);
+    throw new FalhaDoEnvio(`Não foi possível ler o produto no Bling, e nada foi enviado: ${mensagemDe(erro)}`);
   }
 }
 
 function recusaPorDuplicado(sku, quantidade) {
   return new FalhaDoEnvio(
-    `Ha mais de um produto com o codigo ${sku} no Bling (${quantidade} encontrados). O Rise nao escolhe um sozinho: ` +
-      "deixe so um com esse codigo no Bling e tente de novo. Nada foi enviado.",
+    `Há mais de um produto com o código ${sku} no Bling (${quantidade} encontrados). O Rise não escolhe um sozinho: ` +
+      "deixe só um com esse código no Bling e tente de novo. Nada foi enviado.",
   );
 }
 
@@ -158,9 +158,9 @@ const chaveDoCodigo = (codigo) => String(codigo ?? "").trim().toLowerCase();
  */
 async function recusarSeExisteInativo(cliente, produto) {
   const existeInativo = () =>
-    new FalhaDoEnvio("Este codigo existe no Bling como produto inativo: reative-o la e use Sincronizar. Nada foi criado.");
+    new FalhaDoEnvio("Este código existe no Bling como produto inativo: reative-o lá e use Sincronizar. Nada foi criado.");
 
-  const inativos = await ler(cliente, "/produtos", { "codigos[]": [produto.sku], criterio: 3 }, "a busca do codigo entre os produtos inativos");
+  const inativos = await ler(cliente, "/produtos", { "codigos[]": [produto.sku], criterio: 3 }, "a busca do código entre os produtos inativos");
   if (!Array.isArray(inativos.dados?.data)) {
     throw new FalhaDoEnvio("O Bling respondeu a busca entre os produtos inativos sem a lista. Nada foi criado; tente de novo.");
   }
@@ -170,7 +170,7 @@ async function recusarSeExisteInativo(cliente, produto) {
   if (!id) return;
 
   const naoConferido = (motivo) =>
-    new FalhaDoEnvio(`Nao foi possivel conferir no Bling o produto ja ligado a este (id ${id}): ${motivo}. Nada foi criado; tente de novo em alguns instantes.`);
+    new FalhaDoEnvio(`Não foi possível conferir no Bling o produto já ligado a este (id ${id}): ${motivo}. Nada foi criado; tente de novo em alguns instantes.`);
   let resposta;
   try {
     resposta = await cliente.get(`/produtos/${id}`);
@@ -189,7 +189,7 @@ function exigirNomeNoLimite(nome) {
   const tamanho = Array.from(String(nome ?? "")).length;
   if (tamanho > LIMITE_DO_NOME) {
     throw new FalhaDoEnvio(
-      `O nome tem ${tamanho} caracteres e o Bling aceita no maximo ${LIMITE_DO_NOME}. Encurte o nome no Rise e tente de novo. Nada foi enviado.`,
+      `O nome tem ${tamanho} caracteres e o Bling aceita no máximo ${LIMITE_DO_NOME}. Encurte o nome no Rise e tente de novo. Nada foi enviado.`,
     );
   }
 }
@@ -209,7 +209,7 @@ function motivoDoBling(resposta) {
 
 function dicaDoStatus(status) {
   if (status === 429) return " O Bling limita a 3 chamadas por segundo na conta inteira: tente de novo em alguns instantes.";
-  if (status === 401) return " Reconecte o Bling em Integracoes e tente de novo.";
+  if (status === 401) return " Reconecte o Bling em Integrações e tente de novo.";
   // O Bling pode ter gravado e a resposta e que falhou: repetir as cegas duplicaria.
   if (status >= 500) return " O Bling pode ter gravado mesmo assim: confira no Bling antes de tentar de novo.";
   return "";
@@ -221,7 +221,7 @@ async function ler(cliente, caminho, params, oQue) {
   try {
     resposta = await cliente.get(caminho, params);
   } catch (erro) {
-    throw new FalhaDoEnvio(`Nao foi possivel concluir ${oQue} no Bling: ${mensagemDe(erro)}`);
+    throw new FalhaDoEnvio(`Não foi possível concluir ${oQue} no Bling: ${mensagemDe(erro)}`);
   }
   if (!resposta?.ok) {
     throw new FalhaDoEnvio(`O Bling recusou ${oQue} (${motivoDoBling(resposta)}).${dicaDoStatus(resposta?.status)}`);
@@ -265,7 +265,7 @@ async function gravarCopia(produtoId, conteudo, alteracoes) {
       if (velhas.length) await tx.blingCopiaProduto.deleteMany({ where: { id: { in: velhas.map((copia) => copia.id) } } });
     });
   } catch (erro) {
-    throw new FalhaDoEnvio(`Os campos foram enviados ao Bling, mas a copia de seguranca nao foi gravada no Rise: ${mensagemDe(erro)}`);
+    throw new FalhaDoEnvio(`Os campos foram enviados ao Bling, mas a cópia de segurança não foi gravada no Rise: ${mensagemDe(erro)}`);
   }
 }
 
@@ -290,11 +290,11 @@ async function gravarSincronizado(produto, campos, fornecedores) {
   try {
     gravou = await gravarNoProduto(produto, { blingSincronizadoEm: new Date(), blingAssinatura: assinaturaDoRise(campos, fornecedores) });
   } catch (erro) {
-    throw new FalhaDoEnvio(`O Bling recebeu o envio, mas o Rise nao gravou que o produto foi sincronizado: ${mensagemDe(erro)}`);
+    throw new FalhaDoEnvio(`O Bling recebeu o envio, mas o Rise não gravou que o produto foi sincronizado: ${mensagemDe(erro)}`);
   }
   if (!gravou) {
     throw new FalhaDoEnvio(
-      "O Bling recebeu o envio, mas o produto foi alterado (ou excluido) no Rise durante o envio, entao ele nao foi marcado como sincronizado. Sincronize de novo para conferir.",
+      "O Bling recebeu o envio, mas o produto foi alterado (ou excluído) no Rise durante o envio, então ele não foi marcado como sincronizado. Sincronize de novo para conferir.",
     );
   }
 }
@@ -312,7 +312,7 @@ async function idDoTipoFornecedor(cliente, memoria) {
     memoria.idDoTipo = idOuNull(tipo?.id);
   }
   if (!memoria.idDoTipo) {
-    throw new FalhaDoEnvio("o Bling nao tem o tipo de contato Fornecedor (GET /contatos/tipos), entao o contato nao foi criado. Crie o tipo no Bling e tente de novo.");
+    throw new FalhaDoEnvio("o Bling não tem o tipo de contato Fornecedor (GET /contatos/tipos), então o contato não foi criado. Crie o tipo no Bling e tente de novo.");
   }
   return memoria.idDoTipo;
 }
@@ -355,10 +355,10 @@ async function contatoDoFornecedor(cliente, fornecedor, memoria) {
   const idDoTipo = await idDoTipoFornecedor(cliente, memoria);
   const criado = await escrever(
     () => cliente.post("/contatos", { nome: fornecedor.nome, situacao: "A", tipo: "J", numeroDocumento: fornecedor.cnpj, tiposContato: [{ id: idDoTipo }] }),
-    "a criacao do contato",
+    "a criação do contato",
   );
   const id = idOuNull(criado.dados?.data?.id);
-  if (!id) throw new FalhaDoEnvio("o Bling aceitou a criacao do contato, mas nao devolveu o id dele. Confira o contato no Bling antes de tentar de novo.");
+  if (!id) throw new FalhaDoEnvio("o Bling aceitou a criação do contato, mas não devolveu o id dele. Confira o contato no Bling antes de tentar de novo.");
   return id;
 }
 
@@ -406,16 +406,16 @@ async function gravarVinculo(cliente, idProduto, contatoId, fornecedor, memoria)
   if (existente) {
     if (vinculoIgual(existente, desejado)) return false;
     const idVinculo = idOuNull(existente.id);
-    if (!idVinculo) throw new FalhaDoEnvio("o vinculo deste fornecedor no Bling veio sem um id valido; nada foi alterado.");
+    if (!idVinculo) throw new FalhaDoEnvio("o vínculo deste fornecedor no Bling veio sem um id válido; nada foi alterado.");
     const corpo = { ...existente, ...desejado, produto: { id: idProduto }, fornecedor: { id: contatoId } };
     delete corpo.id;
-    await escrever(() => cliente.put(`/produtos/fornecedores/${idVinculo}`, corpo), "a atualizacao do vinculo do fornecedor com o produto");
+    await escrever(() => cliente.put(`/produtos/fornecedores/${idVinculo}`, corpo), "a atualização do vínculo do fornecedor com o produto");
     return true;
   }
 
   await escrever(
     () => cliente.post("/produtos/fornecedores", { ...desejado, produto: { id: idProduto }, fornecedor: { id: contatoId } }),
-    "a criacao do vinculo do fornecedor com o produto",
+    "a criação do vínculo do fornecedor com o produto",
   );
   return true;
 }
@@ -449,12 +449,12 @@ async function enviarFornecedores(cliente, idProduto, fornecedores) {
 
 function falhaDosFornecedores(falhas, antes = "") {
   return new FalhaDoEnvio(
-    `${antes}${falhas.length} fornecedor(es) nao foram enviados ao Bling: ${falhas.join(" ")} ` +
-      "Os demais foram enviados, mas o produto nao foi marcado como sincronizado: corrija e sincronize de novo.",
+    `${antes}${falhas.length} fornecedor(es) não foram enviados ao Bling: ${falhas.join(" ")} ` +
+      "Os demais foram enviados, mas o produto não foi marcado como sincronizado: corrija e sincronize de novo.",
   );
 }
 
-const avisosSemCnpj = (produto) => fornecedoresSemCnpj(produto.fornecedores).map((nome) => `Fornecedor ${nome}: sem CNPJ valido, nao sera enviado ao Bling.`);
+const avisosSemCnpj = (produto) => fornecedoresSemCnpj(produto.fornecedores).map((nome) => `Fornecedor ${nome}: sem CNPJ válido, não será enviado ao Bling.`);
 
 // ---------------------------------------------------------------------------
 // Sincronizar um produto que ja existe no Bling
@@ -493,7 +493,7 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling()) {
       // A busca so ve ativos: o codigo pode estar inativo no Bling, e cadastrar de novo o duplicaria.
       if (achado.situacao === "nao_existe") {
         throw new FalhaDoEnvio(
-          "O codigo nao foi achado entre os produtos ativos do Bling. Se ele esta inativo la, reative-o e use Sincronizar; senao use Cadastrar no Bling.",
+          "O código não foi achado entre os produtos ativos do Bling. Se ele está inativo lá, reative-o e use Sincronizar; senão use Cadastrar no Bling.",
         );
       }
       if (achado.situacao === "duplicado") throw recusaPorDuplicado(sku, achado.quantidade);
@@ -552,12 +552,12 @@ export async function cadastrarNoBling(produtoId, cliente = clienteBling()) {
       exigirEscrita(cliente, sku);
 
       const achado = await buscar(cliente, sku);
-      if (achado.situacao === "existe") throw new FalhaDoEnvio(`O produto ${sku} ja existe no Bling; use Sincronizar.`);
+      if (achado.situacao === "existe") throw new FalhaDoEnvio(`O produto ${sku} já existe no Bling; use Sincronizar.`);
       if (achado.situacao === "duplicado") throw recusaPorDuplicado(sku, achado.quantidade);
       await recusarSeExisteInativo(cliente, produto);
 
       const bloqueantes = validar(produto).filter((problema) => problema.bloqueante).map((problema) => problema.problema);
-      if (bloqueantes.length) throw new FalhaDoEnvio(`Nao da para cadastrar no Bling: ${bloqueantes.join(" ")}`);
+      if (bloqueantes.length) throw new FalhaDoEnvio(`Não dá para cadastrar no Bling: ${bloqueantes.join(" ")}`);
 
       const campos = normalizarDoRise(produto);
       exigirNomeNoLimite(campos.nome);
@@ -565,17 +565,17 @@ export async function cadastrarNoBling(produtoId, cliente = clienteBling()) {
       const criado = await escrever(() => cliente.post("/produtos", montarCorpoDeCadastro(sku, campos)), "o cadastro do produto");
       blingId = idOuNull(criado.dados?.data?.id);
       if (!blingId) {
-        throw new FalhaDoEnvio("O Bling aceitou o cadastro, mas nao devolveu o id do produto. Confira no Bling antes de tentar de novo.");
+        throw new FalhaDoEnvio("O Bling aceitou o cadastro, mas não devolveu o id do produto. Confira no Bling antes de tentar de novo.");
       }
 
       let gravou;
       try {
         gravou = await gravarNoProduto(produto, { blingId: String(blingId) });
       } catch (erro) {
-        throw new FalhaDoEnvio(`O produto foi cadastrado no Bling (id ${blingId}), mas o Rise nao gravou o id: ${mensagemDe(erro)}. Use Sincronizar.`);
+        throw new FalhaDoEnvio(`O produto foi cadastrado no Bling (id ${blingId}), mas o Rise não gravou o id: ${mensagemDe(erro)}. Use Sincronizar.`);
       }
       if (!gravou) {
-        throw new FalhaDoEnvio(`O produto foi cadastrado no Bling (id ${blingId}), mas foi alterado no Rise durante o envio e o id nao foi gravado. Use Sincronizar.`);
+        throw new FalhaDoEnvio(`O produto foi cadastrado no Bling (id ${blingId}), mas foi alterado no Rise durante o envio e o id não foi gravado. Use Sincronizar.`);
       }
 
       const fornecedores = normalizarFornecedoresDoRise(produto.fornecedores);
@@ -600,8 +600,8 @@ const OPERACAO_DO_AJUSTE = { ENTRADA: "E", SAIDA: "S", BALANCO: "B" };
 /// O ajuste em palavras, para a mensagem: "entrada de 3", "balanco (contagem de 12)".
 function descreverAjuste(movimento) {
   if (movimento.tipo === "ENTRADA") return `entrada de ${movimento.quantidade}`;
-  if (movimento.tipo === "SAIDA") return `saida de ${movimento.quantidade}`;
-  if (movimento.tipo === "BALANCO") return `balanco, contagem de ${movimento.quantidade}`;
+  if (movimento.tipo === "SAIDA") return `saída de ${movimento.quantidade}`;
+  if (movimento.tipo === "BALANCO") return `balanço, contagem de ${movimento.quantidade}`;
   return `${movimento.tipo} de ${movimento.quantidade}`;
 }
 
@@ -617,7 +617,7 @@ function corpoDoAjuste(idProduto, idDeposito, movimento, oQue) {
   const operacao = OPERACAO_DO_AJUSTE[movimento.tipo];
   const quantidade = Number(movimento.quantidade);
   if (!operacao || !Number.isFinite(quantidade) || quantidade < 0) {
-    throw new FalhaDoEnvio(`Nao foi possivel enviar ${oQue}: o tipo ou a quantidade estao invalidos no Rise. Nada dele foi enviado.`);
+    throw new FalhaDoEnvio(`Não foi possível enviar ${oQue}: o tipo ou a quantidade estão inválidos no Rise. Nada dele foi enviado.`);
   }
   return { produto: { id: idProduto }, deposito: { id: idDeposito }, operacao, quantidade };
 }
@@ -632,22 +632,22 @@ function corpoDoAjuste(idProduto, idDeposito, movimento, oQue) {
  * @returns {Promise<{id: number} | {precisaDeposito: {id: number, descricao: string}[]}>}
  */
 async function escolherDeposito(cliente, depositoPedido) {
-  const depositos = listaDe(await ler(cliente, "/depositos", undefined, "a leitura dos depositos"))
+  const depositos = listaDe(await ler(cliente, "/depositos", undefined, "a leitura dos depósitos"))
     .map((deposito) => ({ id: idOuNull(deposito?.id), descricao: String(deposito?.descricao ?? ""), padrao: deposito?.padrao === true }))
     .filter((deposito) => deposito.id);
 
   if (depositoPedido !== undefined && depositoPedido !== null && depositoPedido !== "") {
     // O id vem da tela: so vale se o Bling o devolveu agora.
     const id = idOuNull(depositoPedido);
-    if (!id) throw new FalhaDoEnvio(`O deposito informado (${depositoPedido}) nao e valido. Nada foi enviado.`);
+    if (!id) throw new FalhaDoEnvio(`O depósito informado (${depositoPedido}) não é válido. Nada foi enviado.`);
     if (!depositos.some((deposito) => deposito.id === id)) {
-      throw new FalhaDoEnvio(`O deposito ${id} nao esta entre os depositos do Bling. Nada foi enviado.`);
+      throw new FalhaDoEnvio(`O depósito ${id} não está entre os depósitos do Bling. Nada foi enviado.`);
     }
     return { id };
   }
 
   if (depositos.length === 0) {
-    throw new FalhaDoEnvio("O Bling nao devolveu nenhum deposito (GET /depositos), entao nao ha onde lancar os ajustes. Nada foi enviado.");
+    throw new FalhaDoEnvio("O Bling não devolveu nenhum depósito (GET /depósitos), então não há onde lançar os ajustes. Nada foi enviado.");
   }
   const padroes = depositos.filter((deposito) => deposito.padrao);
   if (padroes.length === 1) return { id: padroes[0].id };
@@ -669,12 +669,12 @@ async function marcarEnviado(movimento, oQue) {
     });
   } catch (erro) {
     throw new FalhaDoEnvio(
-      `O Bling aceitou ${oQue}, mas o Rise nao conseguiu marca-lo como enviado: ${mensagemDe(erro)}. Ele continua pendente aqui: ` +
-        "confira o saldo no Bling antes de enviar de novo, senao ele seria lancado duas vezes.",
+      `O Bling aceitou ${oQue}, mas o Rise não conseguiu marcá-lo como enviado: ${mensagemDe(erro)}. Ele continua pendente aqui: ` +
+        "confira o saldo no Bling antes de enviar de novo, senão ele seria lançado duas vezes.",
     );
   }
   if (marcados.count === 0) {
-    throw new FalhaDoEnvio(`O Bling aceitou ${oQue}, mas ele nao estava mais pendente no Rise (foi excluido, ou marcado por outro envio). Confira o saldo no Bling.`);
+    throw new FalhaDoEnvio(`O Bling aceitou ${oQue}, mas ele não estava mais pendente no Rise (foi excluído, ou marcado por outro envio). Confira o saldo no Bling.`);
   }
 }
 
@@ -688,14 +688,14 @@ async function marcarEnviado(movimento, oQue) {
  * Devolve o aviso para a tela, ou null.
  */
 async function relerSaldo(cliente, produto, idNoBling) {
-  const aviso = (motivo) => `Os ajustes enviados ja estao no Bling, mas o saldo novo nao foi guardado no Rise: ${motivo} Use o botao de estoque da lista para le-lo.`;
+  const aviso = (motivo) => `Os ajustes enviados já estão no Bling, mas o saldo novo não foi guardado no Rise: ${motivo} Use o botão de estoque da lista para lê-lo.`;
   try {
     const lido = await lerSaldosDoBling(cliente, [produto.sku]);
     if (!lido.ok) return aviso(lido.erro);
     const item = lido.itens.find((candidato) => candidato.id === idNoBling && chaveDoCodigo(candidato.codigo) === chaveDoCodigo(produto.sku));
-    if (!item || item.saldo === null) return aviso("o Bling nao devolveu o saldo deste produto.");
+    if (!item || item.saldo === null) return aviso("o Bling não devolveu o saldo deste produto.");
     const gravados = await prisma.$executeRaw`UPDATE "Produto" SET "blingSaldo" = ${item.saldo} WHERE "id" = ${produto.id}`;
-    return gravados > 0 ? null : aviso("o produto nao existe mais no Rise.");
+    return gravados > 0 ? null : aviso("o produto não existe mais no Rise.");
   } catch (erro) {
     return aviso(`${mensagemDe(erro)}.`);
   }
@@ -748,14 +748,14 @@ export async function enviarAjustesDeEstoque(produtoId, cliente = clienteBling()
       const achado = await buscar(cliente, produto.sku);
       if (achado.situacao === "nao_existe") {
         throw new FalhaDoEnvio(
-          "O codigo nao foi achado entre os produtos ativos do Bling, entao nenhum ajuste foi enviado. Se ele esta inativo la, reative-o; senao cadastre o produto no Bling antes.",
+          "O código não foi achado entre os produtos ativos do Bling, então nenhum ajuste foi enviado. Se ele está inativo lá, reative-o; senão cadastre o produto no Bling antes.",
         );
       }
       if (achado.situacao === "duplicado") throw recusaPorDuplicado(produto.sku, achado.quantidade);
 
       const deposito = await escolherDeposito(cliente, opcoes?.depositoId);
       if (deposito.precisaDeposito) {
-        return falhou("O Bling tem mais de um deposito e nenhum marcado como padrao: escolha em qual lancar os ajustes. Nada foi enviado.", {
+        return falhou("O Bling tem mais de um depósito e nenhum marcado como padrão: escolha em qual lançar os ajustes. Nada foi enviado.", {
           precisaDeposito: deposito.precisaDeposito,
         });
       }
@@ -776,7 +776,7 @@ export async function enviarAjustesDeEstoque(produtoId, cliente = clienteBling()
       return { ok: true, ...saida, ...(aviso ? { aviso } : {}) };
     } catch (erro) {
       const resumo = enviando
-        ? ` ${saida.enviados} ajuste(s) enviado(s) antes da falha; ${saida.restantes} continua(m) pendente(s), na mesma ordem, para o proximo envio.`
+        ? ` ${saida.enviados} ajuste(s) enviado(s) antes da falha; ${saida.restantes} continua(m) pendente(s), na mesma ordem, para o próximo envio.`
         : "";
       return falhou(`${textoDaFalha(erro)}${resumo}`, aviso ? { aviso } : {});
     }

@@ -188,7 +188,7 @@ function FotoAmpliada({ imagens, indice, alt, aoTrocar, aoFechar }) {
               evento.stopPropagation();
               proxima();
             }}
-            aria-label="Proxima foto"
+            aria-label="Próxima foto"
             className="absolute right-4 cursor-pointer rounded-full bg-white/10 p-3 text-white transition hover:bg-white/25"
           >
             <ChevronRight size={28} />
@@ -297,8 +297,8 @@ function Estoque({ semEstoque, disponivel, quantidade, aChegar, semMargem }) {
       <span className="flex items-center gap-1 text-xs text-emerald-700">
         <PackageCheck size={12} />
         {typeof quantidade === "number"
-          ? `Estoque disponivel: ${quantidade}`
-          : "Estoque disponivel"}
+          ? `Estoque disponível: ${quantidade}`
+          : "Estoque disponível"}
       </span>
       {/* Linha PROPRIA, nao mais "· N a chegar" na mesma linha (pedido do
           dono, 22/09/2026) — pronta entrega e reserva sao numeros de
@@ -461,7 +461,7 @@ function CaixaDePreco({
 
   return (
     <div className="min-w-[14rem] flex-1 rounded border border-borda px-3 py-2.5">
-      <p className="mb-2 text-xs font-medium tracking-wide text-suave uppercase">Preco</p>
+      <p className="mb-2 text-xs font-medium tracking-wide text-suave uppercase">Preço</p>
 
       {prontaTexto && <p className="text-lg font-semibold tabular-nums">{prontaTexto}</p>}
 
@@ -668,7 +668,7 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
     return (
       <div className="flex items-center gap-2 px-5 py-10 text-sm text-suave">
         <Loader size={15} className="animate-spin" />
-        Carregando os dados da pagina...
+        Carregando os dados da página...
       </div>
     );
   }
@@ -695,7 +695,7 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
    * a janela de ruido e faria os que importam sumirem no meio.
    */
   const identificadores = [
-    ["Codigo / SKU", dados.skuFonte, true],
+    ["Código / SKU", dados.skuFonte, true],
     ["MPN", dados.mpn, true],
     ["EAN", dados.ean, true, "ean"],
     ["Marca", dados.marca, false, "brand"],
@@ -761,7 +761,7 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
           transcrever a mao sem errar.
         */}
         <h2 className="group flex items-start gap-1 text-lg font-semibold">
-          <span>{dados.titulo ?? "Sem titulo"}</span>
+          <span>{dados.titulo ?? "Sem título"}</span>
           {dados.titulo && (
             <span className="mt-1.5">
               <Copiar texto={dados.titulo} rotulo="o nome" />
@@ -865,14 +865,14 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
           ) : (
             <div className="flex flex-wrap items-baseline gap-x-3 border-t border-borda pt-3">
               <div>
-                <p className="text-xs text-suave">Preco de tabela</p>
+                <p className="text-xs text-suave">Preço de tabela</p>
                 <p className="text-base tabular-nums text-red-600">
                   {comoMoeda(dados.precoAtual)}
                 </p>
               </div>
               {dados.precoPromocional !== null && (
                 <div>
-                  <p className="text-xs text-suave">A vista</p>
+                  <p className="text-xs text-suave">À vista</p>
                   <p className="text-2xl font-semibold tabular-nums text-emerald-700">
                     {comoMoeda(dados.precoPromocional)}
                   </p>
@@ -924,11 +924,11 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
                 <ExternalLink size={14} />
                 Abrir no site {dados.fonte.dominio}
               </a>
-              <Copiar texto={dados.url} rotulo="o endereco" />
+              <Copiar texto={dados.url} rotulo="o endereço" />
             </div>
           ) : (
             <p className="text-sm text-suave">
-              Sem pagina publica — este produto veio da lista enviada pelo fornecedor.
+              Sem página pública — este produto veio da lista enviada pelo fornecedor.
             </p>
           )}
         </div>
@@ -938,7 +938,7 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
         abas={[
           {
             id: "descricao",
-            titulo: "Descricao",
+            titulo: "Descrição",
             conteudo: dados.descricao ? (
               <div className="group">
                 {/*
@@ -947,7 +947,7 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
                   selecionar a mao numa caixa que rola e trabalhoso e falha.
                 */}
                 <div className="mb-1 flex justify-end">
-                  <Copiar texto={dados.descricao} rotulo="a descricao" />
+                  <Copiar texto={dados.descricao} rotulo="a descrição" />
                 </div>
                 <p className="max-h-96 overflow-y-auto rounded border border-borda bg-fundo p-3 text-sm whitespace-pre-wrap">
                   {dados.descricao}
@@ -955,13 +955,13 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
               </div>
             ) : (
               <p className="text-sm text-suave">
-                A loja nao publica descricao nesta pagina.
+                A loja não publica descrição nesta página.
               </p>
             ),
           },
           {
             id: "caracteristicas",
-            titulo: `Caracteristicas (${dados.especificacoes?.length ?? 0})`,
+            titulo: `Características (${dados.especificacoes?.length ?? 0})`,
             /*
               LISTA ORDENADA, nao objeto: a ficha tem linha sem rotulo
               ("Tecnologia ultra silenciosa"), que objeto nenhum comporta sem
@@ -995,7 +995,7 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
                     */}
                     <Copiar
                       texto={item.nome ? `${item.nome}: ${item.valor}` : String(item.valor)}
-                      rotulo={item.nome ?? "a caracteristica"}
+                      rotulo={item.nome ?? "a característica"}
                     />
                   </div>
                 ))}
@@ -1049,10 +1049,10 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
                   botao e no leitor de tela.
                 */}
                 {[
-                  ["Titulo", "o titulo", dados.seo.title],
-                  ["Descricao", "a descricao", dados.seo.description],
+                  ["Título", "o título", dados.seo.title],
+                  ["Descrição", "a descrição", dados.seo.description],
                   ["Palavras-chave", "as palavras-chave", dados.seo.keywords],
-                  ["URL canonica", "a URL canonica", dados.seo.canonical],
+                  ["URL canônica", "a URL canônica", dados.seo.canonical],
                 ]
                   .filter(([, , valor]) => valor)
                   .map(([rotulo, artigo, valor]) => (
@@ -1073,7 +1073,7 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
 
       <p className="mt-4 text-xs text-suave">
         Coletado em {comoData(dados.vistoEm)}
-        {dados.mudouEm && ` · ultima mudanca de preco em ${comoData(dados.mudouEm)}`}
+        {dados.mudouEm && ` · última mudança de preço em ${comoData(dados.mudouEm)}`}
       </p>
 
       {/*
@@ -1173,7 +1173,7 @@ export default function TabelaMercados({ linhas }) {
             <tr className="divide-x divide-borda">
               <th className="w-16 px-3 py-2.5 text-center font-medium">Imagem</th>
               <th className="px-3 py-2.5 text-left font-medium">Nome</th>
-              <th className="px-3 py-2.5 text-left font-medium">Codigo</th>
+              <th className="px-3 py-2.5 text-left font-medium">Código</th>
               <th className="w-32 px-3 py-2.5 text-left font-medium">Estoque</th>
               <th className="px-3 py-2.5 text-left font-medium">Valor</th>
               <th className="w-12 px-3 py-2.5 text-center font-medium">Site</th>
@@ -1223,7 +1223,7 @@ export default function TabelaMercados({ linhas }) {
                   <span className="flex items-center gap-1">
                     {linha.skuFonte ?? linha.mpn ?? "—"}
                     {(linha.skuFonte || linha.mpn) && (
-                      <Copiar texto={linha.skuFonte ?? linha.mpn} rotulo="o codigo" />
+                      <Copiar texto={linha.skuFonte ?? linha.mpn} rotulo="o código" />
                     )}
                   </span>
                 </td>

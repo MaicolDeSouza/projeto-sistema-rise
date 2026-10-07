@@ -152,37 +152,37 @@ const motivoDoBling = (status, dados) => dados?.error?.description ?? dados?.err
  */
 export async function importarPorCodigoDoBling(codigoInformado) {
   const codigo = String(codigoInformado ?? "").trim();
-  if (!codigo) return { ok: false, erro: "Informe o codigo do produto no Bling." };
+  if (!codigo) return { ok: false, erro: "Informe o código do produto no Bling." };
   if (!skuValido(codigo)) {
-    return { ok: false, erro: `O codigo "${codigo}" nao pode ser usado como SKU aqui (so letras, numeros, ponto, hifen e sublinhado, ate 64 caracteres).` };
+    return { ok: false, erro: `O código "${codigo}" não pode ser usado como SKU aqui (só letras, números, ponto, hífen e sublinhado, até 64 caracteres).` };
   }
 
   const jaAqui = await prisma.produto.findFirst({ where: { sku: { equals: codigo, mode: "insensitive" } }, select: { id: true, sku: true } });
-  if (jaAqui) return { ok: false, erro: `O produto ${jaAqui.sku} ja existe no Rise. Nada foi importado.`, produtoId: jaAqui.id };
+  if (jaAqui) return { ok: false, erro: `O produto ${jaAqui.sku} já existe no Rise. Nada foi importado.`, produtoId: jaAqui.id };
 
   const busca = await blingGet("/produtos", { "codigos[]": [codigo] });
-  if (!busca.ok) return { ok: false, erro: `O Bling recusou a busca pelo codigo: ${motivoDoBling(busca.status, busca.dados)}` };
+  if (!busca.ok) return { ok: false, erro: `O Bling recusou a busca pelo código: ${motivoDoBling(busca.status, busca.dados)}` };
   if (!Array.isArray(busca.dados?.data)) return { ok: false, erro: "O Bling respondeu a busca sem a lista de produtos. Tente de novo." };
 
   const chave = codigo.toLowerCase();
   const achados = busca.dados.data.filter((item) => String(item?.codigo ?? "").trim().toLowerCase() === chave);
-  if (achados.length === 0) return { ok: false, erro: `Nenhum produto ATIVO com o codigo ${codigo} no Bling.` };
+  if (achados.length === 0) return { ok: false, erro: `Nenhum produto ATIVO com o código ${codigo} no Bling.` };
   if (achados.length > 1) {
-    return { ok: false, erro: `Ha ${achados.length} produtos com o codigo ${codigo} no Bling. Deixe so um com esse codigo e tente de novo.` };
+    return { ok: false, erro: `Há ${achados.length} produtos com o código ${codigo} no Bling. Deixe só um com esse código e tente de novo.` };
   }
   const achado = achados[0];
   if (achado.formato !== "S") {
-    return { ok: false, erro: `O codigo ${codigo} e uma variacao ou composicao no Bling; so produto simples e importado.` };
+    return { ok: false, erro: `O código ${codigo} é uma variação ou composição no Bling; só produto simples é importado.` };
   }
 
   const peloId = await prisma.produto.findFirst({ where: { blingId: String(achado.id) }, select: { id: true, sku: true } });
   if (peloId) {
-    return { ok: false, erro: `Este produto do Bling ja esta ligado ao produto ${peloId.sku} do Rise. Nada foi importado.`, produtoId: peloId.id };
+    return { ok: false, erro: `Este produto do Bling já está ligado ao produto ${peloId.sku} do Rise. Nada foi importado.`, produtoId: peloId.id };
   }
 
   const detalhe = await blingGet(`/produtos/${achado.id}`);
   if (!detalhe.ok || !detalhe.dados?.data) {
-    return { ok: false, erro: `Nao foi possivel ler o produto no Bling: ${motivoDoBling(detalhe.status, detalhe.dados)}` };
+    return { ok: false, erro: `Não foi possível ler o produto no Bling: ${motivoDoBling(detalhe.status, detalhe.dados)}` };
   }
   const bling = detalhe.dados.data;
   const fornecedorBling = await lerFornecedorBling(bling);

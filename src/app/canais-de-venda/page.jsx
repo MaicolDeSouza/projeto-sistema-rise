@@ -12,7 +12,7 @@ export const metadata = { title: "Canais de Venda | Sistema Rise" };
 export default function CanaisDeVendaPage() {
   return (
     <>
-      <PageHeader titulo="Canais de Venda" descricao="Crie e gerencie anuncios por canal. Escolha um para abrir." />
+      <PageHeader titulo="Canais de Venda" descricao="Crie e gerencie anúncios por canal. Escolha um para abrir." />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {CANAIS_DE_VENDA.map((canal) => (

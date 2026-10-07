@@ -28,7 +28,7 @@ export async function obterPersonalToken() {
 
   if (!token) {
     throw new Error(
-      "Loja Integrada nao configurada. Informe o Personal Token na tela Integracoes.",
+      "Loja Integrada não configurada. Informe o Personal Token na tela Integrações.",
     );
   }
 
@@ -48,7 +48,7 @@ export function classificarFalhaLojaIntegrada(status, dados) {
   if (status === 401) {
     return {
       tipo: "AUTENTICACAO",
-      erro: "Erro de autenticacao. Confira ou renove o Personal Token.",
+      erro: "Erro de autenticação. Confira ou renove o Personal Token.",
     };
   }
   if (status === 403) {
@@ -60,13 +60,13 @@ export function classificarFalhaLojaIntegrada(status, dados) {
   if (status === 404) {
     return {
       tipo: "NAO_ENCONTRADO",
-      erro: "Recurso nao encontrado na Loja Integrada.",
+      erro: "Recurso não encontrado na Loja Integrada.",
     };
   }
   if (status === 409) {
     return {
       tipo: "CONFLITO",
-      erro: "A Loja Integrada recusou a operacao por conflito.",
+      erro: "A Loja Integrada recusou a operação por conflito.",
     };
   }
   if (status === 429) {
@@ -78,14 +78,14 @@ export function classificarFalhaLojaIntegrada(status, dados) {
   if (status >= 500) {
     return {
       tipo: "INDISPONIVEL",
-      erro: "A API da Loja Integrada esta indisponivel no momento.",
+      erro: "A API da Loja Integrada está indisponível no momento.",
       detalheTecnico: `HTTP ${status}`,
     };
   }
 
   return {
     tipo: "RESPOSTA_INVALIDA",
-    erro: "A Loja Integrada recusou a solicitacao.",
+    erro: "A Loja Integrada recusou a solicitação.",
     detalheTecnico: [`HTTP ${status}`, detalhe].filter(Boolean).join(" — "),
   };
 }
@@ -99,7 +99,7 @@ export function criarLojaIntegradaClient({
 } = {}) {
   async function chamar(metodo, caminho, { params, corpo } = {}) {
     if (!configuracao.lojaIntegrada.enabled) {
-      throw new Error("A integracao com a Loja Integrada esta desabilitada.");
+      throw new Error("A integração com a Loja Integrada está desabilitada.");
     }
     if (metodo !== "GET") exigirEscrita();
 

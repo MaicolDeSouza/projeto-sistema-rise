@@ -101,7 +101,7 @@ export default function TabelaSimples({ itens, busca, salvar, excluir, textos, m
       </td>
       <td className="px-3 py-2">
         <input
-          aria-label={`Observacoes da ${textos.item}`}
+          aria-label={`Observações da ${textos.item}`}
           value={rascunho.observacoes}
           onChange={(evento) => setRascunho({ ...rascunho, observacoes: evento.target.value })}
           onKeyDown={aoTeclar}
@@ -122,7 +122,7 @@ export default function TabelaSimples({ itens, busca, salvar, excluir, textos, m
           <button
             type="button"
             onClick={cancelar}
-            aria-label="Cancelar edicao"
+            aria-label="Cancelar edição"
             className="rounded p-1.5 text-suave hover:bg-superficie"
           >
             <X size={15} />
@@ -157,7 +157,7 @@ export default function TabelaSimples({ itens, busca, salvar, excluir, textos, m
             <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
               <tr className="divide-x divide-borda">
                 <th className="px-3 py-2.5 font-medium">{textos.coluna}</th>
-                <th className="px-3 py-2.5 font-medium">Observacoes</th>
+                <th className="px-3 py-2.5 font-medium">Observações</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>

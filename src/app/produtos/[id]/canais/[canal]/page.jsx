@@ -37,8 +37,8 @@ export default async function CanalDoProdutoPage({ params }) {
 
       <EmptyState
         icone={Hammer}
-        titulo="Tela em construcao"
-        descricao={`A gestao do anuncio no ${canal.nome} — publicar, editar, sincronizar e pausar — entra na proxima etapa, junto com a publicacao real.`}
+        titulo="Tela em construção"
+        descricao={`A gestão do anúncio no ${canal.nome} — publicar, editar, sincronizar e pausar — entra na próxima etapa, junto com a publicação real.`}
       />
     </>
   );

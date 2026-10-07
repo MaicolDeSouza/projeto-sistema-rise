@@ -33,7 +33,7 @@ async function chamar(acao, ...argumentos) {
   try {
     return await acao(...argumentos);
   } catch {
-    return { ok: false, erro: "Nao foi possivel falar com o servidor. Tente de novo." };
+    return { ok: false, erro: "Não foi possível falar com o servidor. Tente de novo." };
   }
 }
 
@@ -60,7 +60,7 @@ function SeoDosConcorrentes({ produtoId, alterarSeo }) {
     <section aria-label="SEO dos concorrentes" className="rounded border border-borda p-3">
       <p className="text-sm font-semibold">SEO dos concorrentes</p>
       <p className="mt-0.5 text-xs text-suave">
-        Dos concorrentes salvos no produto (aba Fornecedores / Concorrentes do cadastro), como a coleta leu a pagina deles. Copiar igual nao ajuda no Google:
+        Dos concorrentes salvos no produto (aba Fornecedores / Concorrentes do cadastro), como a coleta leu a página deles. Copiar igual não ajuda no Google:
         use como ponto de partida e ajuste.
       </p>
       {estado.carregando && (
@@ -94,7 +94,7 @@ function SeoDosConcorrentes({ produtoId, alterarSeo }) {
                   <span className="text-suave">Title ({item.title.length}):</span> {item.title}
                 </p>
                 <button type="button" onClick={() => alterarSeo({ title: cortarNaFrase(item.title, LIMITE_DO_TITULO_SEO) })} className="mt-0.5 text-acento hover:underline">
-                  Usar este titulo
+                  Usar este título
                 </button>
               </div>
             )}
@@ -108,7 +108,7 @@ function SeoDosConcorrentes({ produtoId, alterarSeo }) {
                   onClick={() => alterarSeo({ description: cortarNaFrase(item.description, LIMITE_DA_DESCRIPTION_SEO) })}
                   className="mt-0.5 text-acento hover:underline"
                 >
-                  Usar esta descricao
+                  Usar esta descrição
                 </button>
               </div>
             )}
@@ -140,8 +140,8 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
   const slug = slugDe(rascunho.titulo);
   const slugNaLoja = slugDaUrl(vinculo?.urlExterna);
   const trocaUrl = Boolean(vinculo?.idExterno) && Boolean(slugNaLoja) && Boolean(slug) && slug !== slugNaLoja;
-  const tituloNaBusca = seo.title?.trim() || rascunho.titulo || "Titulo do produto";
-  const descriptionNaBusca = seo.description?.trim() || "Sem description: o Google escolhe um trecho da pagina.";
+  const tituloNaBusca = seo.title?.trim() || rascunho.titulo || "Título do produto";
+  const descriptionNaBusca = seo.description?.trim() || "Sem description: o Google escolhe um trecho da página.";
 
   function gerarComIA() {
     setErroIA(null);
@@ -155,10 +155,10 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
   return (
     <div className="space-y-6">
       <div>
-        <Rotulo htmlFor="li-seo-titulo" texto="Tag Title - Titulo do produto" tamanho={(seo.title ?? "").trim().length} limite={LIMITE_DO_TITULO_SEO} />
+        <Rotulo htmlFor="li-seo-titulo" texto="Tag Title - Título do produto" tamanho={(seo.title ?? "").trim().length} limite={LIMITE_DO_TITULO_SEO} />
         <input id="li-seo-titulo" value={seo.title ?? ""} onChange={(evento) => alterarSeo({ title: evento.target.value })} className={`${CLASSE_CAMPO} border-borda focus:border-acento`} />
         <button type="button" onClick={() => alterar((atual) => ({ seo: { ...(atual.seo ?? {}), title: tituloSeoPadrao(atual.titulo) } }))} className="mt-1 text-[11px] text-acento hover:underline">
-          Usar padrao (o nome)
+          Usar padrão (o nome)
         </button>
         <MensagensDoCampo problemas={problemas} campo="seoTitulo" />
       </div>
@@ -166,10 +166,10 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
       <div>
         <Rotulo
           htmlFor="li-seo-description"
-          texto="Meta Tag Description - Descricao / Resumo"
+          texto="Meta Tag Description - Descrição / Resumo"
           tamanho={(seo.description ?? "").trim().length}
           limite={LIMITE_DA_DESCRIPTION_SEO}
-          ajuda="O resumo que o Google mostra embaixo do titulo. O ideal e de 140 a 160 caracteres: o Google corta o que passa."
+          ajuda="O resumo que o Google mostra embaixo do título. O ideal é de 140 a 160 caracteres: o Google corta o que passa."
         />
         <textarea
           id="li-seo-description"
@@ -184,7 +184,7 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
             onClick={() => alterar((atual) => ({ seo: { ...(atual.seo ?? {}), description: descriptionPadrao(contexto.produto?.descricaoBase, atual.titulo) } }))}
             className="text-[11px] text-acento hover:underline"
           >
-            Usar padrao (as primeiras frases da descricao)
+            Usar padrão (as primeiras frases da descrição)
           </button>
           <button
             type="button"
@@ -193,7 +193,7 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
             className="inline-flex items-center gap-1 text-[11px] font-medium text-acento hover:underline disabled:opacity-60"
           >
             {gerando ? <Loader size={12} className="animate-spin" /> : <Sparkles size={12} />}
-            {gerando ? "Gerando com IA..." : opcoesIA.length ? "Gerar outras opcoes com IA" : "Gerar com IA"}
+            {gerando ? "Gerando com IA..." : opcoesIA.length ? "Gerar outras opções com IA" : "Gerar com IA"}
           </button>
         </div>
         {erroIA && <p className="mt-1 text-[11px] text-red-700">{erroIA}</p>}
@@ -215,7 +215,7 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
       </div>
 
       <div>
-        <Rotulo htmlFor="li-slug" texto="URL do produto" ajuda="Sai do nome do produto (aba Geral) e muda junto com ele. So letras minusculas sem acento, numeros e hifens." />
+        <Rotulo htmlFor="li-slug" texto="URL do produto" ajuda="Sai do nome do produto (aba Geral) e muda junto com ele. Só letras minúsculas sem acento, números e hifens." />
         <div className="mt-1 flex items-stretch overflow-hidden rounded border border-borda bg-fundo text-[15px]">
           <span className="shrink-0 border-r border-borda px-2.5 py-2 text-suave">{dominio}/</span>
           <input id="li-slug" readOnly value={slug} className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-medium text-texto focus:outline-none" />
@@ -223,7 +223,7 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
         <MensagensDoCampo problemas={problemas} campo="slug" />
         {trocaUrl && (
           <p className="mt-1.5 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            Hoje o produto esta na loja em <span className="font-medium break-all">{vinculo.urlExterna}</span>. No Sincronizar a URL passa a ser{" "}
+            Hoje o produto está na loja em <span className="font-medium break-all">{vinculo.urlExterna}</span>. No Sincronizar a URL passa a ser{" "}
             <span className="font-medium break-all">
               {dominio}/{slug}
             </span>

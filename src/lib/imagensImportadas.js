@@ -24,7 +24,7 @@ const TIMEOUT_MS = 20 * 1000;
 export async function bytesDe(fonte) {
   if (fonte.tipo === "arquivo") {
     const caminho = caminhoDe(fonte.sku, "IMAGEM", fonte.nome);
-    if (!caminho) throw new Error("caminho de arquivo invalido");
+    if (!caminho) throw new Error("caminho de arquivo inválido");
     return readFile(caminho);
   }
 
@@ -34,7 +34,7 @@ export async function bytesDe(fonte) {
     return Buffer.from(casamento[1], "base64");
   }
 
-  if (!/^https?:\/\//i.test(fonte.endereco)) throw new Error("endereco nao e http nem https");
+  if (!/^https?:\/\//i.test(fonte.endereco)) throw new Error("endereço não é http nem https");
 
   const abortar = new AbortController();
   const relogio = setTimeout(() => abortar.abort(), TIMEOUT_MS);

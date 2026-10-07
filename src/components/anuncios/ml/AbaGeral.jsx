@@ -75,14 +75,14 @@ function ProdutoPrincipal({ produto, problemas }) {
           <span className="font-mono font-medium">{produto.sku}</span>
           <span className="min-w-0 flex-1 truncate">{produto.tituloBase}</span>
           <Badge tom={produto.conferido === true ? "sucesso" : "erro"}>
-            {produto.conferido === true ? "Conferido" : "Nao conferido"}
+            {produto.conferido === true ? "Conferido" : "Não conferido"}
           </Badge>
           <span className={`text-xs ${blingId ? "text-suave" : "font-medium text-amber-700"}`}>
             {blingId ? `Bling ${blingId}` : "sem blingId"}
           </span>
         </div>
       ) : (
-        <p className="mt-1 text-sm text-red-700">Produto nao encontrado. Ele pode ter sido excluido.</p>
+        <p className="mt-1 text-sm text-red-700">Produto não encontrado. Ele pode ter sido excluído.</p>
       )}
       <MensagensDoCampo problemas={problemas} campo={["produto", "blingId"]} />
     </div>
@@ -124,11 +124,11 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
               onChange={(evento) => alternarComposicao(evento.target.checked)}
               className="h-4 w-4 accent-acento"
             />
-            Anuncio de composicao (kit)
+            Anúncio de composição (kit)
           </label>
           <BolhaDeAjuda
             variante="inline"
-            texto="Vende varias unidades, ou produtos diferentes, num anuncio so. Desligar devolve a descricao, o estoque, as fotos e as medidas do produto principal."
+            texto="Vende várias unidades, ou produtos diferentes, num anúncio só. Desligar devolve a descrição, o estoque, as fotos e as medidas do produto principal."
           />
         </div>
         {emKit && (
@@ -147,7 +147,7 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="md:col-span-2">
-          <Campo nome="ml-titulo" rotulo="Titulo">
+          <Campo nome="ml-titulo" rotulo="Título">
             <input
               id="ml-titulo"
               value={titulo}
@@ -170,8 +170,8 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
         <div className="md:col-span-2">
           <Campo
             nome="ml-familyName"
-            rotulo="Nome da familia (family_name)"
-            ajuda="Obrigatorio no modelo User Products do ML"
+            rotulo="Nome da família (family_name)"
+            ajuda="Obrigatório no modelo User Products do ML"
             erro={primeiro("familyName")}
             value={rascunho.familyName ?? ""}
             onChange={(evento) => alterar({ familyName: evento.target.value })}
@@ -179,13 +179,13 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
         </div>
 
         <EscolhaEntre
-          rotulo="Tipo de anuncio"
+          rotulo="Tipo de anúncio"
           opcoes={TIPOS_DE_ANUNCIO_ML}
           valor={rascunho.tipoAnuncio}
           aoMudar={(tipoAnuncio) => alterar({ tipoAnuncio })}
         />
         <EscolhaEntre
-          rotulo="Condicao"
+          rotulo="Condição"
           opcoes={CONDICOES}
           valor={rascunho.condicao}
           aoMudar={(condicao) => alterar({ condicao })}
@@ -194,7 +194,7 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
         <Campo
           nome="ml-categoria"
           rotulo="Categoria do ML"
-          ajuda="A sugestao automatica entra na fase 2"
+          ajuda="A sugestão automática entra na fase 2"
           erro={primeiro("categoria")}
           value={rascunho.categoriaId ?? ""}
           // O codigo da categoria e sempre MLB em maiusculas: "mlb1234" so daria erro na validacao.

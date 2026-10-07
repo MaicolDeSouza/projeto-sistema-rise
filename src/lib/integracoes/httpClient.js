@@ -208,7 +208,7 @@ export async function requisitar({
         responseResumo: null,
         erro:
           erro.name === "AbortError"
-            ? `Tempo esgotado apos ${timeoutMs}ms`
+            ? `Tempo esgotado após ${timeoutMs}ms`
             : resumir(erro.message, 400),
       });
 

@@ -75,15 +75,15 @@ export async function contextoDosProdutos(ids) {
   );
 }
 
-const aindaNaoConferido = (sku) => `O produto ${sku} ainda nao foi Conferido. So produto Conferido vira anuncio.`;
+const aindaNaoConferido = (sku) => `O produto ${sku} ainda não foi Conferido. Só produto Conferido vira anúncio.`;
 
 /** Acha um produto pelo codigo (SKU, igual) para abrir ou compor um anuncio. */
 export async function buscarProdutoParaAnuncio(codigo) {
   const sku = String(codigo ?? "").trim();
-  if (!sku) return { ok: false, erro: "Informe o codigo do produto." };
+  if (!sku) return { ok: false, erro: "Informe o código do produto." };
 
   const achado = await prisma.produto.findUnique({ where: { sku }, select: { id: true } });
-  if (!achado) return { ok: false, erro: `Nenhum produto com o codigo ${sku}.` };
+  if (!achado) return { ok: false, erro: `Nenhum produto com o código ${sku}.` };
 
   const produto = (await contextoDosProdutos([achado.id]))[achado.id];
   if (!produto.conferido) return { ok: false, erro: aindaNaoConferido(produto.sku) };
@@ -94,7 +94,7 @@ export async function buscarProdutoParaAnuncio(codigo) {
 export async function novoRascunhoML(produtoId) {
   const produtos = await contextoDosProdutos([produtoId]);
   const principal = produtos[produtoId];
-  if (!principal) return { ok: false, erro: "Produto nao encontrado." };
+  if (!principal) return { ok: false, erro: "Produto não encontrado." };
   if (!principal.conferido) return { ok: false, erro: aindaNaoConferido(principal.sku) };
 
   const { frases } = await lerConfigML();
@@ -130,7 +130,7 @@ function rascunhoDoAnuncio(anuncio) {
  * impede abrir: a validacao o aponta, e quem recusa e o Salvar.
  */
 export async function carregarAnuncioML(id) {
-  const naoAchou = { ok: false, erro: "Anuncio nao encontrado." };
+  const naoAchou = { ok: false, erro: "Anúncio não encontrado." };
   // `where: { id: undefined }` o Prisma le como "sem filtro": um id ausente nao pode chegar la.
   if (typeof id !== "string" || id === "") return naoAchou;
   const anuncio = await prisma.anuncio.findFirst({ where: { id, canal: CANAL } });
@@ -168,7 +168,7 @@ export async function codigoEmUso(codigo, { anuncioId, itens }) {
   });
   const minha = assinaturaDosItens(itens);
   const outra = comOMesmoCodigo.find((anuncio) => assinaturaDosItens(anuncio.dados.composicao.itens) !== minha);
-  return outra ? `o anuncio "${outra.titulo || "sem titulo"}" com outra composicao` : null;
+  return outra ? `o anúncio "${outra.titulo || "sem título"}" com outra composição` : null;
 }
 
 /**
@@ -203,17 +203,17 @@ export async function salvarRascunhoML(anuncioId, entrada) {
       if (typeof anuncioId === "string" && anuncioId !== "") {
         existente = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { canal: true, status: true, dados: true } });
       }
-      if (!existente) return { ok: false, erro: "Anuncio nao encontrado." };
+      if (!existente) return { ok: false, erro: "Anúncio não encontrado." };
       // Anuncio publicado so muda pelo fluxo de publicacao (fase 3).
-      if (existente.canal !== CANAL || existente.status === "PUBLICADO") return { ok: false, erro: "Este anuncio nao pode ser alterado aqui." };
+      if (existente.canal !== CANAL || existente.status === "PUBLICADO") return { ok: false, erro: "Este anúncio não pode ser alterado aqui." };
     }
 
     const ids = [...new Set([rascunho.produtoId, ...itens.map((item) => item.produtoId)].filter(Boolean))];
     const encontrados = new Map((await prisma.produto.findMany({ where: { id: { in: ids } }, select: { id: true, sku: true, conferido: true } })).map((p) => [p.id, p]));
     for (const id of ids) {
       const produto = encontrados.get(id);
-      if (!produto) return { ok: false, erro: rascunho.composicao ? "Um dos produtos da composicao foi excluido." : "O produto do anuncio foi excluido." };
-      if (!produto.conferido) return { ok: false, erro: `O produto ${produto.sku} nao esta mais Conferido. Confira o cadastro antes de salvar o anuncio.` };
+      if (!produto) return { ok: false, erro: rascunho.composicao ? "Um dos produtos da composição foi excluído." : "O produto do anúncio foi excluído." };
+      if (!produto.conferido) return { ok: false, erro: `O produto ${produto.sku} não está mais Conferido. Confira o cadastro antes de salvar o anúncio.` };
     }
 
     if (rascunho.composicao) {
@@ -232,7 +232,7 @@ export async function salvarRascunhoML(anuncioId, entrada) {
       const guardada = existente?.dados?.composicao;
       composicao.blingProdutoId = guardada && String(guardada.codigo ?? "").trim() === composicao.codigo ? (guardada.blingProdutoId ?? null) : null;
       const emUso = await codigoEmUso(composicao.codigo, { anuncioId, itens: composicao.itens });
-      if (emUso) return { ok: false, erro: `O codigo ${composicao.codigo} ja esta em uso: ${emUso}.` };
+      if (emUso) return { ok: false, erro: `O código ${composicao.codigo} já está em uso: ${emUso}.` };
       rascunho.composicao = composicao;
     }
 
@@ -247,7 +247,7 @@ export async function salvarRascunhoML(anuncioId, entrada) {
     return { ok: true, id: anuncioId };
   } catch (erro) {
     console.error("[canais de venda]", erro);
-    return { ok: false, erro: "Nao foi possivel salvar. Tente de novo." };
+    return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 }
 

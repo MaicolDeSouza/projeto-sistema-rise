@@ -23,8 +23,8 @@ import { sincronizarEstoqueDoBling } from "@/lib/blingSync/saldos";
  * `depositoIdValido`) mora em `lib/blingSync/estado.js`, onde o teste a alcanca sem o Next.
  */
 
-const PEDIDO_INVALIDO = { ok: false, erro: "Pedido invalido." };
-const DEPOSITO_INVALIDO = { ok: false, erro: "Deposito invalido." };
+const PEDIDO_INVALIDO = { ok: false, erro: "Pedido inválido." };
+const DEPOSITO_INVALIDO = { ok: false, erro: "Depósito inválido." };
 
 /**
  * Cobre a chamada inteira: o que a lib deixa subir (a leitura do banco antes de tudo, um bug) vira
@@ -54,14 +54,14 @@ function revalidando(resultado, gravou) {
  */
 export async function abrirJanelaBling(produtoId) {
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
-  return protegendo("Nao foi possivel ler o Bling. Tente de novo.", () => lerParaPopup(produtoId));
+  return protegendo("Não foi possível ler o Bling. Tente de novo.", () => lerParaPopup(produtoId));
 }
 
 /** Envia ao Bling os campos que mudaram e os fornecedores de um produto que ja existe la. */
 export async function sincronizarComBling(produtoId) {
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(
-    "Nao foi possivel concluir a sincronizacao. O Bling pode ter recebido parte do envio: confira no Bling antes de tentar de novo.",
+    "Não foi possível concluir a sincronização. O Bling pode ter recebido parte do envio: confira no Bling antes de tentar de novo.",
     async () => {
       const resultado = await sincronizarProduto(produtoId);
       return revalidando(resultado, resultado.ok);
@@ -73,7 +73,7 @@ export async function sincronizarComBling(produtoId) {
 export async function cadastrarProdutoNoBling(produtoId) {
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(
-    "Nao foi possivel concluir o cadastro. O produto pode ter sido criado no Bling: confira la antes de tentar de novo.",
+    "Não foi possível concluir o cadastro. O produto pode ter sido criado no Bling: confira lá antes de tentar de novo.",
     async () => {
       const resultado = await cadastrarNoBling(produtoId);
       // Revalida tambem quando o cadastro falhou DEPOIS de criar o produto no Bling (`blingId`): o id
@@ -93,7 +93,7 @@ export async function enviarEstoqueAoBling(produtoId, depositoId) {
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   if (!depositoIdValido(depositoId)) return DEPOSITO_INVALIDO;
   return protegendo(
-    "Nao foi possivel concluir o envio do estoque. Parte dos ajustes pode ter ido ao Bling: confira o saldo la antes de tentar de novo.",
+    "Não foi possível concluir o envio do estoque. Parte dos ajustes pode ter ido ao Bling: confira o saldo lá antes de tentar de novo.",
     async () => {
       // O 2o parametro da lib e o cliente do Bling: `undefined` deixa o padrao (o cliente real).
       const opcoes = depositoId === undefined || depositoId === null ? {} : { depositoId };
@@ -115,7 +115,7 @@ export async function enviarEstoqueAoBling(produtoId, depositoId) {
  * produto, com o motivo), e a tela mostra os tres numeros.
  */
 export async function sincronizarEstoqueComBling() {
-  return protegendo("Nao foi possivel atualizar o estoque. Tente de novo.", async () => {
+  return protegendo("Não foi possível atualizar o estoque. Tente de novo.", async () => {
     const resultado = await sincronizarEstoqueDoBling();
     return revalidando({ ok: true, ...resultado }, resultado.atualizados > 0);
   });

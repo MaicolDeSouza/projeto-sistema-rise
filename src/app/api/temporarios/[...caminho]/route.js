@@ -21,12 +21,12 @@ export async function GET(_requisicao, { params }) {
   const { caminho } = await params;
 
   if (!Array.isArray(caminho) || caminho.length !== 3) {
-    return new Response("Caminho invalido.", { status: 400 });
+    return new Response("Caminho inválido.", { status: 400 });
   }
 
   const [lote, pasta, nome] = caminho;
   const bytes = await lerDoLote(lote, pasta, nome);
-  if (!bytes) return new Response("Arquivo nao encontrado.", { status: 404 });
+  if (!bytes) return new Response("Arquivo não encontrado.", { status: 404 });
 
   const extensao = nome.slice(nome.lastIndexOf(".") + 1);
   return new Response(bytes, {

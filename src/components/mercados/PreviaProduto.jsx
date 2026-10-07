@@ -10,10 +10,10 @@ import { ROTULOS_CAMPOS, valoresDoProduto } from "@/lib/coleta/campos";
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 const SITUACAO = {
-  AVAILABLE: { rotulo: "Disponivel", tom: "sucesso" },
+  AVAILABLE: { rotulo: "Disponível", tom: "sucesso" },
   // O mesmo fato com o nome dos leitores de fornecedor: sem esta linha, produto
   // compravel na Santana aparecia "Indeterminado".
-  IN_STOCK: { rotulo: "Disponivel", tom: "sucesso" },
+  IN_STOCK: { rotulo: "Disponível", tom: "sucesso" },
   OUT_OF_STOCK: { rotulo: "Sem estoque", tom: "alerta" },
   PAUSED: { rotulo: "Pausado", tom: "erro" },
   UNKNOWN: { rotulo: "Indeterminado", tom: "neutro" },
@@ -73,7 +73,7 @@ function Campo({ rotulo, valor, origem, mono = false }) {
         className={`truncate text-sm ${vazio ? "text-suave" : ""} ${
           mono && !vazio ? "font-mono text-xs" : ""
         }`}
-        title={vazio ? "nao publicado por este site" : String(valor)}
+        title={vazio ? "não publicado por este site" : String(valor)}
       >
         {vazio ? "—" : valor}
       </dd>
@@ -204,7 +204,7 @@ export default function PreviaProduto({ produto, indice }) {
 
               <div className="flex flex-wrap items-start gap-x-5 gap-y-2">
                 <div>
-                  <p className="text-xs text-suave">Preco</p>
+                  <p className="text-xs text-suave">Preço</p>
                   <p
                     className={
                       temPromocional
@@ -255,7 +255,7 @@ export default function PreviaProduto({ produto, indice }) {
                     {typeof produto.stock?.quantity === "number" ? (
                       produto.stock.quantity
                     ) : (
-                      <span className="text-sm font-normal text-suave">nao informada</span>
+                      <span className="text-sm font-normal text-suave">não informada</span>
                     )}
                   </p>
                 </div>
@@ -271,7 +271,7 @@ export default function PreviaProduto({ produto, indice }) {
 
                 <div className="flex flex-wrap items-start gap-x-5 gap-y-2">
                   <div>
-                    <p className="text-xs text-suave">Preco</p>
+                    <p className="text-xs text-suave">Preço</p>
                     <p className="text-lg font-semibold tabular-nums">
                       {typeof precoDeReserva === "number" ? MOEDA.format(precoDeReserva) : "—"}
                     </p>
@@ -308,7 +308,7 @@ export default function PreviaProduto({ produto, indice }) {
                       {typeof produto.stock?.aChegar === "number" ? (
                         produto.stock.aChegar
                       ) : (
-                        <span className="text-sm font-normal text-suave">nao informada</span>
+                        <span className="text-sm font-normal text-suave">não informada</span>
                       )}
                     </p>
                   </div>
@@ -469,10 +469,10 @@ export default function PreviaProduto({ produto, indice }) {
         {Object.values(produto.seo ?? {}).some(Boolean) ? (
           <dl className="space-y-0.5 rounded border border-borda bg-fundo p-2 text-xs">
             {[
-              ["Titulo", produto.seo.title],
-              ["Descricao", produto.seo.description],
+              ["Título", produto.seo.title],
+              ["Descrição", produto.seo.description],
               ["Palavras-chave", produto.seo.keywords],
-              ["URL canonica", produto.seo.canonical],
+              ["URL canônica", produto.seo.canonical],
             ]
               .filter(([, valor]) => valor)
               .map(([rotulo, valor]) => (
@@ -490,7 +490,7 @@ export default function PreviaProduto({ produto, indice }) {
       </div>
 
       <div className="mt-3">
-        <p className="mb-1 text-xs text-suave">Variacoes</p>
+        <p className="mb-1 text-xs text-suave">Variações</p>
         {produto.variants?.length > 0 ? (
           <ul className="text-xs">
             {produto.variants.map((variacao) => (
@@ -501,7 +501,7 @@ export default function PreviaProduto({ produto, indice }) {
           </ul>
         ) : (
           <p className="text-sm text-suave">
-            — <span className="text-xs">(sem variacao agrupada nesta pagina)</span>
+            — <span className="text-xs">(sem variação agrupada nesta página)</span>
           </p>
         )}
       </div>

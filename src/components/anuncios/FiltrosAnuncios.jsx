@@ -5,13 +5,13 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { canais } from "@/lib/anuncios/canais";
 
 const SITUACOES = [
-  { valor: "", rotulo: "Todas as situacoes" },
+  { valor: "", rotulo: "Todas as situações" },
   { valor: "ATIVA", rotulo: "Ativos" },
   { valor: "PAUSADA", rotulo: "Pausados" },
   { valor: "ENCERRADA", rotulo: "Encerrados" },
   { valor: "RASCUNHO", rotulo: "Rascunhos" },
   { valor: "ERRO", rotulo: "Com erro" },
-  { valor: "PENDENTE", rotulo: "Com alteracoes nao publicadas" },
+  { valor: "PENDENTE", rotulo: "Com alterações não publicadas" },
 ];
 
 export default function FiltrosAnuncios({ canal, situacao }) {
@@ -52,7 +52,7 @@ export default function FiltrosAnuncios({ canal, situacao }) {
       <select
         value={situacao}
         onChange={(evento) => aplicar("situacao", evento.target.value)}
-        aria-label="Filtrar por situacao"
+        aria-label="Filtrar por situação"
         className={classe}
       >
         {SITUACOES.map((item) => (

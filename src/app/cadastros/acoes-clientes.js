@@ -33,14 +33,14 @@ const ClienteSchema = z
     tipoPessoa: z.enum(["FISICA", "JURIDICA"]).catch("FISICA"),
     documento: opcional(z.string()),
     clienteDesde: opcional(
-      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Informe uma data valida."),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Informe uma data válida."),
     ),
 
-    sexo: opcional(z.enum(["MASCULINO", "FEMININO"], { message: "Escolha uma opcao." })),
+    sexo: opcional(z.enum(["MASCULINO", "FEMININO"], { message: "Escolha uma opção." })),
     naturalidade: opcional(z.string()),
 
     nomeFantasia: opcional(z.string()),
-    regimeTributario: opcional(z.enum(REGIMES, { message: "Escolha uma opcao." })),
+    regimeTributario: opcional(z.enum(REGIMES, { message: "Escolha uma opção." })),
     inscricaoEstadual: opcional(z.string()),
     inscricaoMunicipal: opcional(z.string()),
 
@@ -67,7 +67,7 @@ const ClienteSchema = z
       contexto.addIssue({
         code: "custom",
         path: ["documento"],
-        message: fisica ? "CPF invalido." : "CNPJ invalido.",
+        message: fisica ? "CPF inválido." : "CNPJ inválido.",
       });
     }
   });
@@ -188,16 +188,16 @@ export async function salvarCliente(id, _anterior, formData) {
     if (erro?.code === "P2002") {
       return {
         ok: false,
-        erros: { documento: `Ja existe um cliente com este ${fisica ? "CPF" : "CNPJ"}.` },
+        erros: { documento: `Já existe um cliente com este ${fisica ? "CPF" : "CNPJ"}.` },
       };
     }
     if (erro?.code === "P2003") {
-      return { ok: false, erros: { transportadoraId: "Esta transportadora nao existe mais." } };
+      return { ok: false, erros: { transportadoraId: "Esta transportadora não existe mais." } };
     }
     if (erro?.code === "P2025") {
-      return { ok: false, erro: "Este cliente nao existe mais. Volte para a lista." };
+      return { ok: false, erro: "Este cliente não existe mais. Volte para a lista." };
     }
-    return { ok: false, erro: erro?.message ?? "Nao foi possivel salvar." };
+    return { ok: false, erro: erro?.message ?? "Não foi possível salvar." };
   }
 }
 
@@ -208,7 +208,7 @@ export async function excluirCliente(id) {
   } catch (erro) {
     // Ja excluido por outra aba: o resultado que o operador queria.
     if (erro?.code !== "P2025") {
-      return { ok: false, erro: erro?.message ?? "Nao foi possivel excluir." };
+      return { ok: false, erro: erro?.message ?? "Não foi possível excluir." };
     }
   }
 
@@ -234,7 +234,7 @@ export async function excluirCliente(id) {
  */
 export async function buscarCep(cep) {
   const digitos = String(cep ?? "").replace(/\D/g, "");
-  if (digitos.length !== 8) return { ok: false, erro: "Informe um CEP com 8 digitos." };
+  if (digitos.length !== 8) return { ok: false, erro: "Informe um CEP com 8 dígitos." };
 
   const inicio = Date.now();
   let statusHttp = null;
@@ -254,8 +254,8 @@ export async function buscarCep(cep) {
     // O ViaCEP responde 200 com {"erro": true} quando o CEP tem formato certo e
     // nao existe.
     if (corpo?.erro) {
-      resumo = "CEP nao encontrado";
-      return { ok: false, erro: "CEP nao encontrado. Confira o numero ou preencha a mao." };
+      resumo = "CEP não encontrado";
+      return { ok: false, erro: "CEP não encontrado. Confira o número ou preencha à mão." };
     }
 
     resumo = "CEP encontrado";
@@ -271,7 +271,7 @@ export async function buscarCep(cep) {
     };
   } catch (erro) {
     falha = erro?.message ?? "erro desconhecido";
-    return { ok: false, erro: "Nao foi possivel consultar o CEP agora. Preencha a mao." };
+    return { ok: false, erro: "Não foi possível consultar o CEP agora. Preencha à mão." };
   } finally {
     // Auditoria nao pode derrubar a consulta: se o log falhar, segue.
     await prisma.logIntegracao

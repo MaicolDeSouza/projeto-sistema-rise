@@ -33,8 +33,8 @@ export function estadoDoIconeML(anuncios) {
  * @param {{publicado: boolean, rascunho: boolean}} estado o retorno de `estadoDoIconeML`
  */
 export function rotuloDoIconeML({ publicado, rascunho }) {
-  const base = "Anuncio no Mercado Livre";
-  if (publicado) return `${base}: publicado e ativo${rascunho ? ", com anuncio pendente" : ""}`;
-  if (rascunho) return `${base}: anuncio pendente (rascunho, erro ou pausado)`;
-  return `${base}: sem anuncio`;
+  const base = "Anúncio no Mercado Livre";
+  if (publicado) return `${base}: publicado e ativo${rascunho ? ", com anúncio pendente" : ""}`;
+  if (rascunho) return `${base}: anúncio pendente (rascunho, erro ou pausado)`;
+  return `${base}: sem anúncio`;
 }

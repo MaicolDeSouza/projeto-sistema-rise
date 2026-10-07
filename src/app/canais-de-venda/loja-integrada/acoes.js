@@ -17,7 +17,7 @@ import { gerarDescriptionsSeo } from "@/lib/ia/anuncio";
  * Sincronizar/Cadastrar (`produtos/acoes-li.js`), sob as travas.
  */
 
-const PEDIDO_INVALIDO = { ok: false, erro: "Pedido invalido." };
+const PEDIDO_INVALIDO = { ok: false, erro: "Pedido inválido." };
 
 // O Prisma le `where: { id: undefined }` como "sem filtro": id ausente nunca chega a consulta.
 const ehId = (valor) => typeof valor === "string" && valor !== "";
@@ -28,7 +28,7 @@ async function protegendo(trabalho) {
     return await trabalho();
   } catch (erro) {
     console.error("[loja integrada]", erro);
-    return { ok: false, erro: "Nao foi possivel concluir. Tente de novo." };
+    return { ok: false, erro: "Não foi possível concluir. Tente de novo." };
   }
 }
 
@@ -56,7 +56,7 @@ export async function anuncioDoProdutoLI(produtoId) {
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(async () => {
     const [produto, anuncio] = await Promise.all([contextoDoProduto(produtoId), anuncioLIDoProduto(produtoId)]);
-    if (!produto) return { ok: false, erro: "Produto nao encontrado. Ele pode ter sido excluido." };
+    if (!produto) return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
     const { id, sku, tituloBase, conferido } = produto;
     return { ok: true, produto: { id, sku, tituloBase, conferido }, anuncioId: anuncio?.id ?? null };
   });
@@ -83,12 +83,12 @@ export async function gerarSeoIALI(produtoId, titulo) {
   if (!ehId(produtoId) || typeof titulo !== "string" || titulo.length > 255) return PEDIDO_INVALIDO;
   try {
     const [produto, concorrentes] = await Promise.all([contextoDoProduto(produtoId), seoDosConcorrentes(produtoId)]);
-    if (!produto) return { ok: false, erro: "Produto nao encontrado." };
+    if (!produto) return { ok: false, erro: "Produto não encontrado." };
     const opcoes = await gerarDescriptionsSeo({ titulo: titulo.trim() || produto.tituloBase, descricao: produto.descricaoBase ?? "", concorrentes });
     return { ok: true, opcoes };
   } catch (erro) {
     console.error("[loja integrada] seo com IA", erro);
-    return { ok: false, erro: erro.message || "Nao foi possivel gerar com a IA. Tente de novo." };
+    return { ok: false, erro: erro.message || "Não foi possível gerar com a IA. Tente de novo." };
   }
 }
 

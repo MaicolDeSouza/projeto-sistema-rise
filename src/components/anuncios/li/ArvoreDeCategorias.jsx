@@ -103,7 +103,7 @@ export default function ArvoreDeCategorias({ categorias, carregando, erro, aoRec
 
       {mortas.map((id) => (
         <div key={id} className="flex items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
-          <span>Categoria {id} nao existe mais na loja: fica fora do envio.</span>
+          <span>Categoria {id} não existe mais na loja: fica fora do envio.</span>
           <button type="button" onClick={() => alternar(id)} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-amber-100">
             <X size={12} />
             Tirar
@@ -113,8 +113,8 @@ export default function ArvoreDeCategorias({ categorias, carregando, erro, aoRec
 
       <div className="max-h-72 overflow-y-auto px-2 py-2">
         {erro && <p className="px-1 text-sm text-red-700">{erro}</p>}
-        {!erro && !categorias && <p className="px-1 text-sm text-suave">{carregando ? "Lendo as categorias da Loja Integrada..." : "Categorias ainda nao carregadas."}</p>}
-        {categorias && categorias.length === 0 && <p className="px-1 text-sm text-suave">A loja nao tem categorias.</p>}
+        {!erro && !categorias && <p className="px-1 text-sm text-suave">{carregando ? "Lendo as categorias da Loja Integrada..." : "Categorias ainda não carregadas."}</p>}
+        {categorias && categorias.length === 0 && <p className="px-1 text-sm text-suave">A loja não tem categorias.</p>}
         {categorias && termo && (
           <ul>
             {achadas.length === 0 && <li className="px-1 text-sm text-suave">Nenhuma categoria com &quot;{busca}&quot;.</li>}

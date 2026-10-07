@@ -65,7 +65,7 @@ async function conferirCatalogo(catalogo) {
     return {
       url: catalogo.url,
       disponivel: false,
-      motivo: "respondeu, mas nao em JSON",
+      motivo: "respondeu, mas não em JSON",
       observacao: catalogo.observacao ?? null,
     };
   }
@@ -159,7 +159,7 @@ export async function testarFonte({ url, secao, nome, tipo, evitar }) {
     resultado: bastantes && ausentes.length === 0 ? "SUCESSO" : "PARCIAL",
     motivo: bastantes
       ? null
-      : `So foi possivel validar ${produtos.length} produto(s); o teste procura ${MINIMO_PRODUTOS}.`,
+      : `Só foi possível validar ${produtos.length} produto(s); o teste procura ${MINIMO_PRODUTOS}.`,
     passos: colheita.passos,
     produtos,
     formatos: colheita.formatos,

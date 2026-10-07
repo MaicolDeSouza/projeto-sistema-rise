@@ -9,7 +9,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { buscarProdutoParaAnuncio, novoRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Novo anuncio | Mercado Livre | Sistema Rise" };
+export const metadata = { title: "Novo anúncio | Mercado Livre | Sistema Rise" };
 
 const textoDe = (valor) => String((Array.isArray(valor) ? valor[0] : valor) ?? "").trim();
 
@@ -45,8 +45,8 @@ export default async function NovoAnuncioMLPage({ searchParams }) {
     <>
       <LinkDeVolta href="/canais-de-venda/mercado-livre" rotulo="Mercado Livre" />
       <PageHeader
-        titulo="Novo anuncio"
-        descricao={sku ? `Anuncio do produto ${sku}. Preencha as abas e clique em Salvar para guardar o rascunho.` : "Escolha o produto Conferido que vira anuncio."}
+        titulo="Novo anúncio"
+        descricao={sku ? `Anúncio do produto ${sku}. Preencha as abas e clique em Salvar para guardar o rascunho.` : "Escolha o produto Conferido que vira anúncio."}
       />
 
       {erro && <AvisoBanco erro={erro} />}
@@ -66,7 +66,7 @@ export default async function NovoAnuncioMLPage({ searchParams }) {
         <Card className="max-w-xl">
           <form method="get" className="space-y-3">
             <label htmlFor="produto" className="block text-sm font-medium">
-              Codigo do produto
+              Código do produto
             </label>
             <div className="flex gap-2">
               <input
@@ -87,7 +87,7 @@ export default async function NovoAnuncioMLPage({ searchParams }) {
                 Abrir
               </button>
             </div>
-            <p className="text-xs text-suave">O codigo e o SKU do cadastro de Produtos. So produto Conferido vira anuncio.</p>
+            <p className="text-xs text-suave">O código é o SKU do cadastro de Produtos. Só produto Conferido vira anúncio.</p>
             {recusa && (
               <p role="alert" className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
                 {recusa}
@@ -95,7 +95,7 @@ export default async function NovoAnuncioMLPage({ searchParams }) {
             )}
           </form>
           <p className="mt-4 text-xs text-suave">
-            Ainda nao conferiu o produto? Abra o cadastro em{" "}
+            Ainda não conferiu o produto? Abra o cadastro em{" "}
             <Link href="/produtos" className="text-acento hover:underline">
               Produtos
             </Link>

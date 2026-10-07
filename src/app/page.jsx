@@ -38,7 +38,7 @@ export default async function PainelPage() {
     <>
       <PageHeader
         titulo="Painel"
-        descricao="Visao geral da operacao da loja."
+        descricao="Visão geral da operação da loja."
       />
 
       {erro ? (
@@ -52,19 +52,19 @@ export default async function PainelPage() {
             icone={Package}
           />
           <CardIndicador
-            rotulo="Anuncios publicados"
+            rotulo="Anúncios publicados"
             valor={indicadores.publicados}
             detalhe="Mercado Livre + Loja Integrada"
             icone={CircleCheck}
           />
           <CardIndicador
-            rotulo="Anuncios com erro"
+            rotulo="Anúncios com erro"
             valor={indicadores.comErro}
             detalhe="Precisam de nova tentativa"
             icone={CircleAlert}
           />
           <CardIndicador
-            rotulo="Blocos disponiveis"
+            rotulo="Blocos disponíveis"
             valor={blocos.filter((bloco) => bloco.pronto).length}
             detalhe={`de ${blocos.length} previstos`}
             icone={Megaphone}
@@ -90,7 +90,7 @@ export default async function PainelPage() {
                     <p className="font-medium">{bloco.rotulo}</p>
                     <p className="mt-1 text-sm text-suave">{bloco.resumo}</p>
                     {!bloco.pronto && (
-                      <p className="mt-2 text-xs text-suave/80">Em construcao</p>
+                      <p className="mt-2 text-xs text-suave/80">Em construção</p>
                     )}
                   </div>
                 </div>

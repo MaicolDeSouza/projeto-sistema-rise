@@ -37,7 +37,7 @@ export default function TabelaClientes({ linhas, busca }) {
 
       {linhas.length === 0 ? (
         <p className="rounded-lg border border-dashed border-borda bg-superficie px-4 py-8 text-center text-sm text-suave">
-          {busca ? `Nenhum resultado para "${busca}".` : "Nenhum cliente cadastrado ainda. Use o botao Novo cliente."}
+          {busca ? `Nenhum resultado para "${busca}".` : "Nenhum cliente cadastrado ainda. Use o botão Novo cliente."}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-borda bg-superficie">
@@ -71,7 +71,7 @@ export default function TabelaClientes({ linhas, busca }) {
                   <td className="px-3 py-2.5 whitespace-nowrap text-suave">{linha.documento || "—"}</td>
                   <td className="px-3 py-2.5">
                     <Badge tom={linha.tipoPessoa === "JURIDICA" ? "info" : "neutro"}>
-                      {linha.tipoPessoa === "JURIDICA" ? "Juridica" : "Fisica"}
+                      {linha.tipoPessoa === "JURIDICA" ? "Jurídica" : "Física"}
                     </Badge>
                   </td>
                   <td className="px-3 py-2.5 text-suave">{linha.contato || "—"}</td>
@@ -106,7 +106,7 @@ export default function TabelaClientes({ linhas, busca }) {
         <PopupExclusao
           titulo="Excluir cliente?"
           nome={alvo.nome}
-          aviso="Os enderecos e contatos deste cliente tambem serao apagados."
+          aviso="Os endereços e contatos deste cliente também serão apagados."
           erro={erro}
           pendente={pendente}
           aoConfirmar={excluir}

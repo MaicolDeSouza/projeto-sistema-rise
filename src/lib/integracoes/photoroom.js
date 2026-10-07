@@ -50,13 +50,13 @@ export function avaliarConfiguracao(env = process.env) {
   if (!chavePrevia) {
     previa = {
       ok: false,
-      motivo: "Chave de previa ausente: coloque PHOTOROOM_API_KEY (a de sandbox) no arquivo .env e reinicie o servidor.",
+      motivo: "Chave de prévia ausente: coloque PHOTOROOM_API_KEY (a de sandbox) no arquivo .env e reinicie o servidor.",
     };
   } else if (!chavePrevia.startsWith(PREFIXO_SANDBOX)) {
     previa = {
       ok: false,
       motivo:
-        "PHOTOROOM_API_KEY nao e de sandbox (ela deve comecar com sandbox_). A previa e gratis por ser sandbox, e uma chave de producao cobraria a cada previa.",
+        "PHOTOROOM_API_KEY não é de sandbox (ela deve começar com sandbox_). A prévia é grátis por ser sandbox, e uma chave de produção cobraria a cada prévia.",
     };
   } else {
     previa = { ok: true, motivo: null };
@@ -67,19 +67,19 @@ export function avaliarConfiguracao(env = process.env) {
     compra = {
       ok: false,
       ligada: false,
-      motivo: "Compra desligada (modo teste). Ela so liga com PHOTOROOM_COMPRA=true no .env.",
+      motivo: "Compra desligada (modo teste). Ela só liga com PHOTOROOM_COMPRA=true no .env.",
     };
   } else if (!chaveCompra) {
     compra = {
       ok: false,
       ligada: true,
-      motivo: "Chave de producao ausente: coloque PHOTOROOM_API_KEY_PRODUCAO no arquivo .env e reinicie o servidor.",
+      motivo: "Chave de produção ausente: coloque PHOTOROOM_API_KEY_PRODUCAO no arquivo .env e reinicie o servidor.",
     };
   } else if (chaveCompra.startsWith(PREFIXO_SANDBOX)) {
     compra = {
       ok: false,
       ligada: true,
-      motivo: "PHOTOROOM_API_KEY_PRODUCAO e uma chave de sandbox (comeca com sandbox_): a compra sairia com marca d'agua.",
+      motivo: "PHOTOROOM_API_KEY_PRODUCAO é uma chave de sandbox (começa com sandbox_): a compra sairia com marca d'água.",
     };
   } else {
     compra = { ok: true, ligada: true, motivo: null };
@@ -100,7 +100,7 @@ export function camposDaEdicao(opcoes = {}) {
   const ampliar = opcoes.ampliar === true;
 
   if (!removerFundo && !iluminacao && !ampliar) {
-    throw new Error("Escolha ao menos uma opcao: remover fundo, melhorar iluminacao ou ampliar.");
+    throw new Error("Escolha ao menos uma opção: remover fundo, melhorar iluminação ou ampliar.");
   }
 
   const campos = [
@@ -141,10 +141,10 @@ export function mensagemDeErro(status, corpo = "") {
   }
 
   if (status === 401 || status === 403) return "O Photoroom recusou a chave. Confira o valor no .env.";
-  if (status === 402) return "O Photoroom recusou por falta de creditos ou de plano. Confira a conta.";
+  if (status === 402) return "O Photoroom recusou por falta de créditos ou de plano. Confira a conta.";
   if (status === 429) return "Muitas chamadas seguidas ao Photoroom (ou o limite do sandbox acabou). Tente de novo mais tarde.";
   if (status === 400 && /too big|upscale/i.test(detalhe)) {
-    return "A foto e grande demais para o Photoroom ampliar (o limite e 1 megapixel, cerca de 1000x1000). Tire a opcao Ampliar.";
+    return "A foto é grande demais para o Photoroom ampliar (o limite é 1 megapixel, cerca de 1000x1000). Tire a opção Ampliar.";
   }
   // Erro 500 ao ampliar e PASSAGEIRO: o mesmo 1024x768 falhou uma vez e passou logo depois (21/09/2026).
   if (status === 500 && /upscal/i.test(detalhe)) {
@@ -207,7 +207,7 @@ export async function editarImagem({ modo, bytes, extensao, opcoes, env = proces
     return falha(
       erro?.name === "TimeoutError"
         ? "O Photoroom demorou demais para responder."
-        : "Nao foi possivel falar com o Photoroom. Confira a conexao.",
+        : "Não foi possível falar com o Photoroom. Confira a conexão.",
       null,
       true,
     );

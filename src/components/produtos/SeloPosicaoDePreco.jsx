@@ -17,22 +17,22 @@ export default function SeloPosicaoDePreco({ posicao }) {
       ? "border-amber-300 bg-amber-50 text-amber-800"
       : "border-borda bg-fundo text-suave";
 
-  const linhas = [`Posicao de preco: ${posicao.posicao}º de ${posicao.total} (1º = o mais barato).`];
+  const linhas = [`Posição de preço: ${posicao.posicao}º de ${posicao.total} (1º = o mais barato).`];
   if (posicao.primeiro) {
-    linhas.push(posicao.empatados > 0 ? "Empatado com o mais barato." : "Voce e o mais barato.");
+    linhas.push(posicao.empatados > 0 ? "Empatado com o mais barato." : "Você é o mais barato.");
   } else {
     linhas.push(`Mais barato: ${reais(posicao.maisBarato.preco)} (${posicao.maisBarato.loja}).`);
     linhas.push(`Para ser o 1º: abaixo de ${reais(posicao.maisBarato.preco)}.`);
   }
   if (posicao.abaixo && posicao.abaixo.loja !== posicao.maisBarato?.loja) {
-    linhas.push(`Logo abaixo de voce: ${reais(posicao.abaixo.preco)} (${posicao.abaixo.loja}).`);
+    linhas.push(`Logo abaixo de você: ${reais(posicao.abaixo.preco)} (${posicao.abaixo.loja}).`);
   }
-  if (posicao.acima) linhas.push(`Logo acima de voce: ${reais(posicao.acima.preco)} (${posicao.acima.loja}).`);
-  if (posicao.empatados > 0) linhas.push(`Mesmo preco que ${posicao.empatados} loja(s).`);
+  if (posicao.acima) linhas.push(`Logo acima de você: ${reais(posicao.acima.preco)} (${posicao.acima.loja}).`);
+  if (posicao.empatados > 0) linhas.push(`Mesmo preço que ${posicao.empatados} loja(s).`);
   if (posicao.indisponiveis > 0) {
     linhas.push(`${posicao.indisponiveis} loja(s) sem estoque ficaram fora da conta.`);
   }
-  linhas.push("Conta cada loja uma vez, pelo menor preco dela; so concorrentes com preco e com estoque.");
+  linhas.push("Conta cada loja uma vez, pelo menor preço dela; só concorrentes com preço e com estoque.");
 
   return (
     <span

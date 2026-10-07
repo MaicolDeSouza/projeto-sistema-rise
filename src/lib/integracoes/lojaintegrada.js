@@ -52,18 +52,19 @@ export async function testar(cliente = clienteLojaIntegrada) {
     return {
       ok: true,
       latenciaMs: duracaoMs,
-      conta: "Personal Token valido",
+      conta: "Personal Token válido",
       detalhe:
-        total === null ? "Catalogo acessivel" : `${total} produto(s) no catalogo`,
+        total === null ? "Catálogo acessível" : `${total} produto(s) no catálogo`,
     };
   } catch (erro) {
-    const configuracao = /nao configurada|desabilitada/i.test(erro.message);
+    // As mensagens ganharam acento em 07/10/2026; o "a" sem acento fica para mensagem antiga.
+    const configuracao = /n[aã]o configurada|desabilitada/i.test(erro.message);
     return {
       ok: false,
       tipo: configuracao ? "CONFIGURACAO" : "INDISPONIVEL",
       erro: configuracao
         ? erro.message
-        : "Nao foi possivel acessar a API da Loja Integrada.",
+        : "Não foi possível acessar a API da Loja Integrada.",
       ...(configuracao ? {} : { detalheTecnico: erro.message }),
     };
   }
@@ -72,7 +73,7 @@ export async function testar(cliente = clienteLojaIntegrada) {
 export const conector = {
   id: SERVICO,
   nome: "Loja Integrada",
-  descricao: "Loja propria — catalogo, pedidos e estoque",
+  descricao: "Loja própria — catálogo, pedidos e estoque",
   tipoAuth: "personal_token",
   origemOAuth: null,
   campos: [
@@ -80,7 +81,7 @@ export const conector = {
       nome: "personalToken",
       rotulo: "Personal Token",
       ajuda:
-        "Gerado pelo proprietario em Configuracoes > Chave para API > Personal token.",
+        "Gerado pelo proprietário em Configurações > Chave para API > Personal token.",
       tipo: "password",
     },
   ],

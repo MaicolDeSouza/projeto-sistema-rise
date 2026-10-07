@@ -30,7 +30,7 @@ export function custoDoProduto({ fornecedores, fornecedorRascunho, custo } = {})
     .filter((fornecedor) => fornecedor?.padrao)
     .map((fornecedor) => valorPositivo(fornecedor.precoCusto))
     .find((valor) => valor !== null);
-  if (doPadrao !== undefined) return { valor: doPadrao, origem: "fornecedor padrao" };
+  if (doPadrao !== undefined) return { valor: doPadrao, origem: "fornecedor padrão" };
 
   const doRascunho = valorPositivo(fornecedorRascunho?.precoCusto);
   if (doRascunho !== null) return { valor: doRascunho, origem: "rascunho do Bling" };

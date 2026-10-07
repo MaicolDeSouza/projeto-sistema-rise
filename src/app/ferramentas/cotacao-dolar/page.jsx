@@ -4,7 +4,7 @@ import LinkDeVolta from "@/components/ui/LinkDeVolta";
 import PageHeader from "@/components/ui/PageHeader";
 import { PERIODO_PADRAO } from "@/lib/ferramentas/cotacao";
 
-export const metadata = { title: "Cotacao do dolar | Sistema Rise" };
+export const metadata = { title: "Cotação do dólar | Sistema Rise" };
 
 // A cotacao muda o dia todo: nada de pagina pre-montada no build.
 export const dynamic = "force-dynamic";
@@ -18,8 +18,8 @@ export default async function CotacaoDolarPage() {
       <LinkDeVolta href="/ferramentas" rotulo="Ferramentas" />
 
       <PageHeader
-        titulo="Cotacao do dolar"
-        descricao="O dolar de agora e o oficial do Banco Central (PTAX), com grafico por periodo. Nenhuma cotacao e gravada: elas sao consultadas na hora."
+        titulo="Cotação do dólar"
+        descricao="O dólar de agora e o oficial do Banco Central (PTAX), com gráfico por período. Nenhuma cotação é gravada: elas são consultadas na hora."
       />
       <CotacaoDolar inicial={inicial} periodoInicial={PERIODO_PADRAO} />
     </>

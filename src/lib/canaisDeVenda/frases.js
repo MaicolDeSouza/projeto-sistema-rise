@@ -24,10 +24,10 @@ export function frasesDoTexto(texto) {
 
 /** O motivo de a lista (ja limpa, de `frasesDoTexto`) ser recusada, ou `null` se serve. */
 export function avisoDasFrases(frases) {
-  if (frases.length > MAXIMO_DE_FRASES) return `Use ate ${MAXIMO_DE_FRASES} frases.`;
+  if (frases.length > MAXIMO_DE_FRASES) return `Use até ${MAXIMO_DE_FRASES} frases.`;
   const longa = frases.findIndex((frase) => frase.length > MAXIMO_DA_FRASE);
   if (longa >= 0) {
-    return `A frase ${longa + 1} tem ${frases[longa].length} caracteres. O limite e ${MAXIMO_DA_FRASE}.`;
+    return `A frase ${longa + 1} tem ${frases[longa].length} caracteres. O limite é ${MAXIMO_DA_FRASE}.`;
   }
   return null;
 }

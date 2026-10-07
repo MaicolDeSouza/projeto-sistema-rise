@@ -29,11 +29,11 @@ export default function TabelaAnunciosML({ linhas, busca }) {
     return (
       <EmptyState
         icone={Handshake}
-        titulo={busca ? `Nenhum anuncio encontrado para "${busca}"` : "Nenhum anuncio do Mercado Livre ainda"}
+        titulo={busca ? `Nenhum anúncio encontrado para "${busca}"` : "Nenhum anúncio do Mercado Livre ainda"}
         descricao={
           busca
-            ? "Tente outro termo (titulo, codigo do produto ou codigo do kit), ou limpe a busca."
-            : 'Clique em "Novo anuncio" e informe o codigo de um produto Conferido, ou use o icone do Mercado Livre na lista de Produtos.'
+            ? "Tente outro termo (título, código do produto ou código do kit), ou limpe a busca."
+            : 'Clique em "Novo anúncio" e informe o código de um produto Conferido, ou use o ícone do Mercado Livre na lista de Produtos.'
         }
       />
     );
@@ -44,11 +44,11 @@ export default function TabelaAnunciosML({ linhas, busca }) {
       <table className="w-full text-sm">
         <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
           <tr className="divide-x divide-borda">
-            <th className="px-3 py-2.5 font-medium">Codigo</th>
-            <th className="px-3 py-2.5 font-medium">Titulo</th>
+            <th className="px-3 py-2.5 font-medium">Código</th>
+            <th className="px-3 py-2.5 font-medium">Título</th>
             <th className="px-3 py-2.5 font-medium">Tipo</th>
-            <th className="px-3 py-2.5 text-right font-medium">Preco</th>
-            <th className="px-3 py-2.5 font-medium">Situacao</th>
+            <th className="px-3 py-2.5 text-right font-medium">Preço</th>
+            <th className="px-3 py-2.5 font-medium">Situação</th>
             <th className="px-3 py-2.5 font-medium">Atualizado em</th>
           </tr>
         </thead>
@@ -64,7 +64,7 @@ export default function TabelaAnunciosML({ linhas, busca }) {
                 </td>
                 <td className="px-3 py-2.5">
                   <Link href={enderecoDe(linha)} className="hover:underline">
-                    {linha.titulo || <span className="text-suave italic">Sem titulo</span>}
+                    {linha.titulo || <span className="text-suave italic">Sem título</span>}
                   </Link>
                 </td>
                 <td className="px-3 py-2.5">{ROTULO_DO_TIPO_ML[linha.tipoAnuncio] ?? "-"}</td>

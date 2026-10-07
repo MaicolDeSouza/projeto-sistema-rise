@@ -54,8 +54,8 @@ import { registrarChamada, usoDoPhotoroom } from "@/lib/integracoes/photoroomLog
 const DOWNLOADS_SIMULTANEOS = 4;
 
 function conferir(lote, base) {
-  if (!loteValido(lote)) return "Lote de envio invalido.";
-  if (base !== undefined && !baseValida(base)) return "Foto invalida.";
+  if (!loteValido(lote)) return "Lote de envio inválido.";
+  if (base !== undefined && !baseValida(base)) return "Foto inválida.";
   return null;
 }
 
@@ -253,7 +253,7 @@ export async function prepararFotosDoProduto(lote, produtoId) {
         },
       },
     });
-    if (!produto) return { ok: false, erro: "Produto nao encontrado." };
+    if (!produto) return { ok: false, erro: "Produto não encontrado." };
 
     // Uma consulta so para a reserva inteira, agrupada.
     const linhasDaReserva = await prisma.produtoArquivo.findMany({
@@ -273,7 +273,7 @@ export async function prepararFotosDoProduto(lote, produtoId) {
     for (const linha of produto.arquivos) {
       try {
         const caminho = caminhoDe(produto.sku, "IMAGEM", linha.arquivo);
-        if (!caminho) throw new Error("caminho invalido");
+        if (!caminho) throw new Error("caminho inválido");
         const resultado = await adicionarImagem(lote, await readFile(caminho));
         if (!resultado.ok) {
           naoCarregadas.push(linha.id);
@@ -357,10 +357,10 @@ export async function trazerDaReserva(lote, reservaId) {
       where: { id: String(reservaId ?? "") },
       select: { id: true, tipo: true, papel: true, arquivo: true, versao: true, grupo: true, produto: { select: { sku: true } } },
     });
-    if (!linha || linha.tipo !== "IMAGEM" || linha.papel !== "RESERVA") return { ok: false, erro: "Imagem da reserva nao encontrada." };
+    if (!linha || linha.tipo !== "IMAGEM" || linha.papel !== "RESERVA") return { ok: false, erro: "Imagem da reserva não encontrada." };
 
     const bytes = await lerDaReserva(linha.produto.sku, linha.arquivo);
-    if (!bytes) return { ok: false, erro: "O arquivo desta imagem da reserva nao esta mais no disco." };
+    if (!bytes) return { ok: false, erro: "O arquivo desta imagem da reserva não está mais no disco." };
 
     const resultado = await adicionarImagem(lote, bytes);
     if (!resultado.ok) return resultado;
@@ -480,12 +480,12 @@ export async function gerarPreviaPhotoroom(lote, base, opcoesPedidas) {
 
   const uso = await usoDoPhotoroom().catch(() => null);
   if (uso && uso.previasHoje >= uso.limiteDia) {
-    return { ok: false, erro: `O limite de ${uso.limiteDia} previas gratis de hoje acabou. Volta amanha.` };
+    return { ok: false, erro: `O limite de ${uso.limiteDia} prévias grátis de hoje acabou. Volta amanhã.` };
   }
 
   try {
     const original = await originalDoLote(lote, base);
-    if (!original) return { ok: false, erro: "O original desta foto nao esta mais disponivel." };
+    if (!original) return { ok: false, erro: "O original desta foto não está mais disponível." };
 
     const resposta = await editarImagem({ modo: "previa", bytes: original.bytes, extensao: original.extensao, opcoes });
     if (resposta.enviada) {
@@ -532,11 +532,11 @@ export async function comprarPhotoroom(lote, base, opcoesPedidas) {
   try {
     const vista = await lerOpcoesDaPrevia(lote, base);
     if (!vista || JSON.stringify(opcoesCanonicas(vista)) !== JSON.stringify(opcoes)) {
-      return { ok: false, erro: "Gere a previa com estas opcoes e confira o resultado antes de comprar." };
+      return { ok: false, erro: "Gere a prévia com estas opções e confira o resultado antes de comprar." };
     }
 
     const original = await originalDoLote(lote, base);
-    if (!original) return { ok: false, erro: "O original desta foto nao esta mais disponivel." };
+    if (!original) return { ok: false, erro: "O original desta foto não está mais disponível." };
 
     const resposta = await editarImagem({ modo: "producao", bytes: original.bytes, extensao: original.extensao, opcoes });
     if (resposta.enviada) {
@@ -554,7 +554,7 @@ export async function comprarPhotoroom(lote, base, opcoesPedidas) {
     if (!resultado.ok) {
       return {
         ok: false,
-        erro: `A compra foi feita, mas a foto recebida nao pode ser tratada: ${resultado.erro}`,
+        erro: `A compra foi feita, mas a foto recebida não pode ser tratada: ${resultado.erro}`,
       };
     }
     await apagarPrevia(lote, base);
@@ -566,7 +566,7 @@ export async function comprarPhotoroom(lote, base, opcoesPedidas) {
     if (!guardada.ok) {
       return {
         ok: false,
-        erro: `A compra foi feita, mas as versoes nao puderam ser guardadas: ${guardada.erro}`,
+        erro: `A compra foi feita, mas as versões não puderam ser guardadas: ${guardada.erro}`,
       };
     }
 

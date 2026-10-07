@@ -258,10 +258,10 @@ export function criarSessao({ origem, usuario, senha, ritmoMs, sinal = null }) {
         if (sinal?.aborted) throw erro;
         if (erro?.code === "ECONNRESET") {
           throw new Error(
-            "o portal cortou a conexao (ECONNRESET) — costuma ser bloqueio por excesso de acesso; a varredura para aqui",
+            "o portal cortou a conexão (ECONNRESET) — costuma ser bloqueio por excesso de acesso; a varredura para aqui",
           );
         }
-        throw new Error(teto.aborted ? "o portal nao respondeu em 2 minutos" : `falha de rede: ${erro?.message ?? erro}`);
+        throw new Error(teto.aborted ? "o portal não respondeu em 2 minutos" : `falha de rede: ${erro?.message ?? erro}`);
       } finally {
         ultimoPedidoEm = Date.now();
         pedidos++;
@@ -292,14 +292,14 @@ export function criarSessao({ origem, usuario, senha, ritmoMs, sinal = null }) {
 
   async function entrar() {
     const pagina = await pedir(`${origem}/minhaconta/identificacao`);
-    if (pagina.status !== 200) throw new Error(`pagina de login respondeu HTTP ${pagina.status}`);
+    if (pagina.status !== 200) throw new Error(`página de login respondeu HTTP ${pagina.status}`);
 
     const campos = new Map();
     for (const [input] of pagina.texto.matchAll(/<input[^>]*type="hidden"[^>]*>/gi)) {
       const nome = /name="([^"]+)"/i.exec(input)?.[1];
       if (nome && !campos.has(nome)) campos.set(nome, decodificar(/value="([^"]*)"/i.exec(input)?.[1] ?? ""));
     }
-    if (!campos.has("__VIEWSTATE")) throw new Error("a pagina de login mudou: nao ha __VIEWSTATE");
+    if (!campos.has("__VIEWSTATE")) throw new Error("a página de login mudou: não há __VIEWSTATE");
 
     campos.set("__EVENTTARGET", "ctl00$ContentPlaceHolder1$lkEntrar");
     campos.set("__EVENTARGUMENT", "");
@@ -337,7 +337,7 @@ export function criarSessao({ origem, usuario, senha, ritmoMs, sinal = null }) {
     try {
       dados = JSON.parse(resposta.texto);
     } catch {
-      throw new Error("a lista da categoria nao veio em JSON — o portal pode ter mudado");
+      throw new Error("a lista da categoria não veio em JSON — o portal pode ter mudado");
     }
     return {
       html: dados.html ?? "",
@@ -461,9 +461,9 @@ export async function testarPortal({ url, usuario, senha, nome, tipo }) {
     conferidaEm: "2026-09-17",
     entrega: {
       resumo:
-        "O preco so aparece com login. A lista de cada categoria ja traz preco, IPI, ST, preco com impostos, faixas de quantidade e multiplo de venda, sem abrir a pagina do produto. Sem quantidade em estoque: so se da para comprar.",
+        "O preço só aparece com login. A lista de cada categoria já traz preço, IPI, ST, preço com impostos, faixas de quantidade e múltiplo de venda, sem abrir a página do produto. Sem quantidade em estoque: só se dá para comprar.",
       cuidados: [
-        "Varrido so pelas categorias cadastradas na fonte, uma pagina a cada 30 s.",
+        "Varrido só pelas categorias cadastradas na fonte, uma página a cada 30 s.",
         "O login fica cifrado na fonte e nunca volta para a tela.",
       ],
     },
@@ -494,7 +494,7 @@ export async function testarPortal({ url, usuario, senha, nome, tipo }) {
 
   if (!usuario?.trim() || !senha) {
     passo("Login", false, "informe o e-mail e a senha do portal");
-    return falha("Este fornecedor so mostra preco com login. Informe o e-mail e a senha do portal.");
+    return falha("Este fornecedor só mostra preço com login. Informe o e-mail e a senha do portal.");
   }
 
   const permissao = await podeVisitar(categoria.url);
@@ -525,11 +525,11 @@ export async function testarPortal({ url, usuario, senha, nome, tipo }) {
   passo(
     "Lista da categoria",
     produtos.length > 0,
-    `${lida.total.toLocaleString("pt-BR")} produto(s) na categoria · ${produtos.length} lidos na primeira pagina, ${comPreco.length} com preco`,
+    `${lida.total.toLocaleString("pt-BR")} produto(s) na categoria · ${produtos.length} lidos na primeira página, ${comPreco.length} com preço`,
   );
-  if (lida.semSessao) passo("Sessao", false, "a lista voltou pedindo login");
+  if (lida.semSessao) passo("Sessão", false, "a lista voltou pedindo login");
 
-  if (produtos.length === 0) return falha("A categoria nao trouxe produtos.");
+  if (produtos.length === 0) return falha("A categoria não trouxe produtos.");
 
   // A previa mostra quem tem preco: e o que o login precisava provar.
   const amostra = [...comPreco, ...produtos.filter((p) => p.prices.normal === null)].slice(0, 3);
@@ -545,7 +545,7 @@ export async function testarPortal({ url, usuario, senha, nome, tipo }) {
 
   return {
     resultado: comPreco.length > 0 ? "PARCIAL" : "FALHA",
-    motivo: comPreco.length > 0 ? null : "A lista veio sem preco: o login pode nao ter valido.",
+    motivo: comPreco.length > 0 ? null : "A lista veio sem preço: o login pode não ter valido.",
     passos,
     produtos: amostra,
     formatos: ["lista do portal"],

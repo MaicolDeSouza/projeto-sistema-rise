@@ -24,8 +24,8 @@ import { emCm, htmlParaTexto, unidadeDe } from "@/lib/integracoes/importarBling"
  */
 export const CAMPOS_DE_ENVIO = [
   { id: "nome", rotulo: "Nome" },
-  { id: "descricao", rotulo: "Descricao" },
-  { id: "preco", rotulo: "Preco" },
+  { id: "descricao", rotulo: "Descrição" },
+  { id: "preco", rotulo: "Preço" },
   { id: "marca", rotulo: "Marca" },
   { id: "ean", rotulo: "EAN" },
   { id: "unidade", rotulo: "Unidade" },
@@ -33,9 +33,9 @@ export const CAMPOS_DE_ENVIO = [
   { id: "altura", rotulo: "Altura" },
   { id: "largura", rotulo: "Largura" },
   { id: "comprimento", rotulo: "Comprimento" },
-  { id: "estoqueMinimo", rotulo: "Estoque minimo" },
-  { id: "estoqueMaximo", rotulo: "Estoque maximo" },
-  { id: "localizacao", rotulo: "Localizacao" },
+  { id: "estoqueMinimo", rotulo: "Estoque mínimo" },
+  { id: "estoqueMaximo", rotulo: "Estoque máximo" },
+  { id: "localizacao", rotulo: "Localização" },
   { id: "origem", rotulo: "Origem" },
   { id: "ncm", rotulo: "NCM" },
   { id: "cest", rotulo: "CEST" },

@@ -74,15 +74,15 @@ export default async function AnunciosPage({ searchParams }) {
   return (
     <>
       <PageHeader
-        titulo="Anuncios"
-        descricao="Um cadastro, varios canais. Cada canal tem suas regras e sua situacao propria."
+        titulo="Anúncios"
+        descricao="Um cadastro, vários canais. Cada canal tem suas regras e sua situação própria."
         acao={
           <Link
             href="/anuncios/novo"
             className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90"
           >
             <Plus size={16} />
-            Novo anuncio
+            Novo anúncio
           </Link>
         }
       />
@@ -96,8 +96,8 @@ export default async function AnunciosPage({ searchParams }) {
           {linhas.length === 0 ? (
             <EmptyState
               icone={Megaphone}
-              titulo="Nenhum anuncio encontrado"
-              descricao="Ajuste os filtros ou cadastre um anuncio novo."
+              titulo="Nenhum anúncio encontrado"
+              descricao="Ajuste os filtros ou cadastre um anúncio novo."
             />
           ) : (
             <div className="overflow-x-auto rounded-lg border border-borda bg-superficie">
@@ -105,7 +105,7 @@ export default async function AnunciosPage({ searchParams }) {
                 <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
                   <tr>
                     <th className="px-4 py-3 font-medium">Produto</th>
-                    <th className="px-4 py-3 text-right font-medium">Preco</th>
+                    <th className="px-4 py-3 text-right font-medium">Preço</th>
                     <th className="px-4 py-3 text-right font-medium">Estoque</th>
                     {canais.map((canal) => (
                       <th key={canal.id} className="px-4 py-3 font-medium">
@@ -130,7 +130,7 @@ export default async function AnunciosPage({ searchParams }) {
                         {pendentes.length > 0 && (
                           <p className="mt-1 inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-800">
                             <TriangleAlert size={11} />
-                            {pendentes.length} canal(is) com alteracoes nao
+                            {pendentes.length} canal(is) com alterações não
                             publicadas
                           </p>
                         )}

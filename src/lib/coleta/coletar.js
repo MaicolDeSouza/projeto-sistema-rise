@@ -86,7 +86,7 @@ export async function aplicarListaDoFornecedor({
       produtos: 0,
       erro:
         `a lista nova tem ${queda.agora} produto(s) contra ${queda.antes} da anterior — ` +
-        `${queda.percentual}% sumiriam. Confira se o conjunto esta completo ` +
+        `${queda.percentual}% sumiriam. Confira se o conjunto está completo ` +
         `(a Fortek manda duas listas) e envie de novo.`,
     };
   }
@@ -148,7 +148,7 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
       total: fonte.listaArquivos?.length ?? 0,
       feitas: 0,
       produtos: 0,
-      erro: "os arquivos da lista nao estao mais em disco — envie a lista de novo",
+      erro: "os arquivos da lista não estão mais em disco — envie a lista de novo",
     };
   }
 
@@ -501,12 +501,12 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
       feitas: 0,
       produtos: 0,
       visitas: colheita.visitas,
-      erro: colheita.motivo ?? "nenhum produto valido",
+      erro: colheita.motivo ?? "nenhum produto válido",
     };
   }
 
   const resumo =
-    `${colheita.produtos.length} produto(s) em ${colheita.visitas} pagina(s) · ` +
+    `${colheita.produtos.length} produto(s) em ${colheita.visitas} página(s) · ` +
     `formatos: ${colheita.formatos.join(", ")}` +
     (colheita.ritmoMs ? ` · site pede ${colheita.ritmoMs / 1000}s entre visitas` : "") +
     (retomados > 0 ? ` · ${retomados} retomado(s) de antes de uma interrupcao` : "");

@@ -26,7 +26,7 @@ const CANAL_BLING = CANAIS.find((canal) => canal.id === "BLING");
 function rotuloDoIconeBling({ cor, motivos }) {
   const partes = [];
   if (cor === "cinza") partes.push("nunca sincronizado");
-  if (motivos.includes("campos")) partes.push("divergencia em campos");
+  if (motivos.includes("campos")) partes.push("divergência em campos");
   if (motivos.includes("estoque")) partes.push("ajuste de estoque pendente");
   if (partes.length === 0) partes.push("em dia");
   return `Bling: ${partes.join(" e ")}`;

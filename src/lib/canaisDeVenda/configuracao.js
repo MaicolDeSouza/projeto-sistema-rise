@@ -19,12 +19,12 @@ const CANAIS = new Set(["MERCADO_LIVRE"]);
 
 function falha(erro) {
   console.error("[canais de venda]", erro);
-  return { ok: false, erro: "Nao foi possivel salvar. Tente de novo." };
+  return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
 }
 
 /** Sem linha no banco devolve a lista vazia e NAO cria a linha: ler nao escreve. */
 export async function lerConfigCanal(canal) {
-  if (!CANAIS.has(canal)) throw new Error(`Canal sem configuracao: ${canal}`);
+  if (!CANAIS.has(canal)) throw new Error(`Canal sem configuração: ${canal}`);
   const linha = await prisma.configCanal.findUnique({ where: { canal } });
   return { frases: linha?.frasesFixas ?? [] };
 }

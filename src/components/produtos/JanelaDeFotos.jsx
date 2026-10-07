@@ -48,12 +48,12 @@ const ROTULOS = [
   {
     chave: "removerFundo",
     rotulo: "Remover fundo",
-    ajuda: "Deixa o fundo branco liso. Nao precisa em foto que ja esta sem fundo.",
+    ajuda: "Deixa o fundo branco liso. Não precisa em foto que já está sem fundo.",
   },
   {
     chave: "iluminacao",
-    rotulo: "Iluminacao",
-    ajuda: "Melhora a iluminacao sem mudar a cor do produto.",
+    rotulo: "Iluminação",
+    ajuda: "Melhora a iluminação sem mudar a cor do produto.",
   },
   {
     chave: "ampliar",
@@ -62,7 +62,7 @@ const ROTULOS = [
     // refaz a foto PEQUENA com mais definicao, e so aceita foto de ate 1 megapixel.
     rotulo: "Ampliar",
     ajuda:
-      "Ampliar: a IA refaz uma foto pequena com mais definicao (o ajuste simples para 1024 px ja e automatico e gratis). So vale para foto de ate 1 megapixel, cerca de 1000x1000.",
+      "Ampliar: a IA refaz uma foto pequena com mais definição (o ajuste simples para 1024 px já é automático e grátis). Só vale para foto de até 1 megapixel, cerca de 1000x1000.",
   },
 ];
 
@@ -128,7 +128,7 @@ function SeloFinalizada({ aoDesfazer, desativado }) {
       type="button"
       onClick={aoDesfazer}
       disabled={desativado}
-      aria-label="Desfazer: tirar a validacao da foto"
+      aria-label="Desfazer: tirar a validação da foto"
       title="Desfazer"
       className="group/selo inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
     >
@@ -279,13 +279,13 @@ function FotoEmRevisao({
           (imagem.versao ?? "original") !== "original" ? aoEscolherVersao(imagem, "original") : aoFinalizar(imagem.base, true)
         }
         rotulo="Escolher essa"
-        dica={escolhida === "original" ? "Esta e a foto escolhida" : "Usar a original no produto"}
+        dica={escolhida === "original" ? "Esta é a foto escolhida" : "Usar a original no produto"}
       />
       <button
         type="button"
         onClick={excluir}
         disabled={parado}
-        title="Exclui a foto, a previa e a melhorada, e segue para a proxima"
+        title="Exclui a foto, a prévia e a melhorada, e segue para a próxima"
         className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
       >
         <Trash2 size={14} /> Excluir
@@ -301,14 +301,14 @@ function FotoEmRevisao({
   // um texto fixo embaixo, e o dono nao sabia que precisava da previa para o botao ligar.
   const explicacaoDireita = [];
   if (estado && compra && !compra.ok) {
-    explicacaoDireita.push(compra.ligada ? compra.motivo : "Compra desligada (modo teste): so a previa gratis funciona.");
+    explicacaoDireita.push(compra.ligada ? compra.motivo : "Compra desligada (modo teste): só a prévia grátis funciona.");
   }
-  if (previa && !previaVale) explicacaoDireita.push("Voce mudou as opcoes: gere a previa de novo.");
-  else if (previa) explicacaoDireita.push(`Compra a foto sem marca d'agua por ${custoCompleto} e a usa no produto.`);
-  else if (temPhotoroom) explicacaoDireita.push("Usa a melhorada que voce ja comprou, sem custo.");
+  if (previa && !previaVale) explicacaoDireita.push("Você mudou as opções: gere a prévia de novo.");
+  else if (previa) explicacaoDireita.push(`Compra a foto sem marca d'água por ${custoCompleto} e a usa no produto.`);
+  else if (temPhotoroom) explicacaoDireita.push("Usa a melhorada que você já comprou, sem custo.");
   else {
     explicacaoDireita.push(
-      "Gere a previa (gratis) para habilitar este botao. Escolher a melhorada compra a foto sem marca d'agua.",
+      "Gere a prévia (grátis) para habilitar este botão. Escolher a melhorada compra a foto sem marca d'água.",
     );
   }
   const dicaDireita = explicacaoDireita.join(" ");
@@ -341,11 +341,11 @@ function FotoEmRevisao({
         type="button"
         onClick={gerar}
         disabled={parado || !algumaOpcao || !estado?.previa.ok}
-        title="Gera uma previa gratis, com marca d'agua"
+        title="Gera uma prévia grátis, com marca d'água"
         className="inline-flex shrink-0 items-center gap-1.5 rounded border border-acento px-2.5 py-2 text-sm font-medium whitespace-nowrap text-acento hover:bg-fundo disabled:opacity-50"
       >
         {gerando ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
-        Gerar previa
+        Gerar prévia
       </button>
       <BotaoEscolher
         escolhida={escolhida === "photoroom" && !previa}
@@ -362,7 +362,7 @@ function FotoEmRevisao({
   const ajudaDasOpcoes = [
     ...ROTULOS.map((item) => item.ajuda),
     grandeParaAmpliar
-      ? `Ampliar esta desligada: esta foto tem ${imagem.origem.largura}×${imagem.origem.altura} e o Photoroom so amplia ate 1 megapixel.`
+      ? `Ampliar está desligada: esta foto tem ${imagem.origem.largura}×${imagem.origem.altura} e o Photoroom só amplia até 1 megapixel.`
       : null,
   ]
     .filter(Boolean)
@@ -400,7 +400,7 @@ function FotoEmRevisao({
   const desfazerEscolha = () => aoFinalizar(imagem.base, false);
   const legendaEsquerda = (
     <>
-      <span>{imagem.fonte ? `Origem: ${imagem.fonte}` : "Enviada por voce"}</span>
+      <span>{imagem.fonte ? `Origem: ${imagem.fonte}` : "Enviada por você"}</span>
       <span aria-hidden="true">·</span>
       <span>
         1024×1024{anterior ? ` (${anterior})` : ""}
@@ -411,11 +411,11 @@ function FotoEmRevisao({
 
   // Embaixo da foto da DIREITA: o selo, se a melhorada foi a escolhida, e o aviso de que as opcoes mudaram.
   // So o que pede uma acao fica escrito; o resto e explicado no "i".
-  const cabecalhoDireita = temPhotoroom && !previa ? "Melhorada" : "Previa do Photoroom";
+  const cabecalhoDireita = temPhotoroom && !previa ? "Melhorada" : "Prévia do Photoroom";
   const legendaDireita = (
     <>
       <span>{cabecalhoDireita}</span>
-      {previa && !previaVale && <span>Voce mudou as opcoes: gere a previa de novo.</span>}
+      {previa && !previaVale && <span>Você mudou as opções: gere a prévia de novo.</span>}
       {escolhida === "photoroom" && <SeloFinalizada aoDesfazer={desfazerEscolha} desativado={parado} />}
     </>
   );
@@ -510,7 +510,7 @@ function FotoEmRevisao({
           {urlDaDireita ? (
             <ImagemComZoom
               src={urlDaDireita}
-              alt={previa ? "Previa com marca d'agua" : "Foto melhorada"}
+              alt={previa ? "Prévia com marca d'água" : "Foto melhorada"}
               zoom={zoom}
               setZoom={setZoom}
               aoAmpliar={() => setAmpliada({ src: urlDaDireita, alt: cabecalhoDireita })}
@@ -519,12 +519,12 @@ function FotoEmRevisao({
             />
           ) : (
             <span className="absolute inset-0 flex items-center justify-center px-6 text-center text-xs text-suave">
-              A previa aparece aqui, gratis e com marca d&apos;agua.
+              A prévia aparece aqui, grátis e com marca d&apos;água.
             </span>
           )}
           {gerando && (
             <span className="absolute inset-0 flex items-center justify-center gap-2 bg-white/80 text-sm text-suave">
-              <Loader size={16} className="animate-spin" /> Gerando a previa...
+              <Loader size={16} className="animate-spin" /> Gerando a prévia...
             </span>
           )}
         </Quadro>
@@ -537,14 +537,14 @@ function FotoEmRevisao({
       {confirmando && (
         <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           Comprar esta foto por <strong>{custoEmReais}</strong> ({dolares(estado.custoUsd)}, a{" "}
-          {reais(estado.cotacao.valor)} por dolar) e usa-la no produto? O Photoroom cobra em dolar, no cartao: o
+          {reais(estado.cotacao.valor)} por dólar) e usá-la no produto? O Photoroom cobra em dólar, no cartão: o
           valor em reais e uma estimativa, sem IOF.
         </p>
       )}
       {erro && <p className="rounded bg-red-50 p-2 text-xs text-red-800">{erro}</p>}
       {confirmandoExclusao && (
         <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          Esta foto tem versao paga. Excluir joga fora todas as versoes dela. Clique em Excluir de novo para
+          Esta foto tem versão paga. Excluir joga fora todas as versões dela. Clique em Excluir de novo para
           confirmar.
         </p>
       )}
@@ -682,7 +682,7 @@ export default function JanelaDeFotos({
           {erro && <p className="mb-3 rounded bg-red-50 p-2 text-xs text-red-800">{erro}</p>}
           {!atual && (
             <p className="py-16 text-center text-sm text-suave">
-              Todas as fotos foram excluidas. Cancele para trazer de volta, ou salve para ficar sem elas.
+              Todas as fotos foram excluídas. Cancele para trazer de volta, ou salve para ficar sem elas.
             </p>
           )}
           {atual && (
@@ -692,7 +692,7 @@ export default function JanelaDeFotos({
               onClick={() => aoEscolher(imagens[indice - 1].base)}
               disabled={indice <= 0}
               aria-label="Foto anterior"
-              title="Foto anterior (seta para a esquerda)"
+              title="Foto anterior (seta para à esquerda)"
               className="flex w-9 shrink-0 items-center justify-center self-center rounded-full border border-borda py-6 text-suave hover:bg-fundo disabled:opacity-30 disabled:hover:bg-transparent"
             >
               <ChevronLeft size={20} />
@@ -739,8 +739,8 @@ export default function JanelaDeFotos({
               type="button"
               onClick={() => aoEscolher(imagens[indice + 1].base)}
               disabled={indice >= total - 1}
-              aria-label="Proxima foto"
-              title="Proxima foto (seta para a direita)"
+              aria-label="Próxima foto"
+              title="Próxima foto (seta para à direita)"
               className="flex w-9 shrink-0 items-center justify-center self-center rounded-full border border-borda py-6 text-suave hover:bg-fundo disabled:opacity-30 disabled:hover:bg-transparent"
             >
               <ChevronRight size={20} />
@@ -754,16 +754,16 @@ export default function JanelaDeFotos({
           <div className="flex flex-wrap items-center gap-2 border-t border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
             <span className="min-w-0 flex-1">
               {barra === "sair"
-                ? "Voce fez alteracoes nas fotos. Salvar antes de fechar?"
-                : `Cancelar desfaz as escolhas, a ordem e as exclusoes desta janela, mas NAO devolve o valor ${
+                ? "Você fez alterações nas fotos. Salvar antes de fechar?"
+                : `Cancelar desfaz as escolhas, a ordem e as exclusões desta janela, mas NÃO devolve o valor ${
                     comprasNaJanela === 1 ? "da foto paga" : `das ${comprasNaJanela} fotos pagas`
-                  } agora: ${comprasNaJanela === 1 ? "ela fica guardada" : "elas ficam guardadas"}, so nao ${
-                    comprasNaJanela === 1 ? "sera usada" : "serao usadas"
+                  } agora: ${comprasNaJanela === 1 ? "ela fica guardada" : "elas ficam guardadas"}, só não ${
+                    comprasNaJanela === 1 ? "será usada" : "serão usadas"
                   }. Desfazer mesmo?`}
               {barra === "sair" && comprasNaJanela > 0 && (
                 <span>
                   {" "}
-                  Descartar nao devolve o valor {comprasNaJanela === 1 ? "da foto paga" : "das fotos pagas"}.
+                  Descartar não devolve o valor {comprasNaJanela === 1 ? "da foto paga" : "das fotos pagas"}.
                 </span>
               )}
             </span>
@@ -819,7 +819,7 @@ export default function JanelaDeFotos({
 
           {/* Era uma frase fixa no rodape; e mensagem informativa, entao e o icone "i" (padrao do sistema). */}
           <BolhaDeAjuda
-            texto="Arraste as miniaturas para mudar a ordem. A primeira da fila e a foto principal do produto."
+            texto="Arraste as miniaturas para mudar a ordem. A primeira da fila é a foto principal do produto."
             variante="inline"
           />
 
@@ -827,16 +827,16 @@ export default function JanelaDeFotos({
               miniaturas na tira. */}
           {uso && (
             <span className="hidden shrink-0 text-[10px] leading-tight text-suave md:block">
-              <span className="block">Previas hoje: {uso.previasHoje}/{uso.limiteDia}</span>
+              <span className="block">Prévias hoje: {uso.previasHoje}/{uso.limiteDia}</span>
               <span className="block">
-                Compras no mes: {reais(estado.gastoMesBrl ?? 0)}
+                Compras no mês: {reais(estado.gastoMesBrl ?? 0)}
               </span>
             </span>
           )}
           {estadoNB?.uso && (
             <span className="hidden shrink-0 text-[10px] leading-tight text-suave md:block">
               <span className="block">Nano Banana hoje: {estadoNB.uso.hoje}/{estadoNB.uso.limiteDia}</span>
-              <span className="block">Nano Banana no mes: {reais(estadoNB.gastoMesBrl ?? 0)}</span>
+              <span className="block">Nano Banana no mês: {reais(estadoNB.gastoMesBrl ?? 0)}</span>
             </span>
           )}
 
@@ -845,7 +845,7 @@ export default function JanelaDeFotos({
             type="button"
             onClick={pedirCancelar}
             disabled={ocupado}
-            title="Desfaz o que foi feito nesta janela e mantem as fotos como estavam antes"
+            title="Desfaz o que foi feito nesta janela e mantém as fotos como estavam antes"
             className="shrink-0 rounded border border-borda px-4 py-2 text-sm hover:bg-fundo disabled:opacity-50"
           >
             Cancelar
@@ -854,7 +854,7 @@ export default function JanelaDeFotos({
             type="button"
             onClick={aoSalvar}
             disabled={ocupado}
-            title="Guarda todas as alteracoes feitas nas fotos"
+            title="Guarda todas as alterações feitas nas fotos"
             className="inline-flex shrink-0 items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
             {ocupado && <Loader size={14} className="animate-spin" />}

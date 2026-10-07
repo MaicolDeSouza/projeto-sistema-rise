@@ -23,8 +23,8 @@ export const opcional = (esquema) =>
 export const decimal = () =>
   opcional(
     z.coerce
-      .number({ message: "Informe um numero valido." })
-      .min(0, "Nao pode ser negativo."),
+      .number({ message: "Informe um número válido." })
+      .min(0, "Não pode ser negativo."),
   );
 
 /** Aceita apenas http/https — protocolo perigoso em campo que vira link. */
@@ -43,7 +43,7 @@ export function ehUrlSegura(valor) {
  * diferentes na busca.
  */
 export const cnpjOpcional = () =>
-  opcional(z.string().refine(validarCnpj, "CNPJ invalido.").transform(formatarCnpj));
+  opcional(z.string().refine(validarCnpj, "CNPJ inválido.").transform(formatarCnpj));
 
 /**
  * Caixa de marcacao ou campo oculto: chega "on" quando marcado e NAO chega

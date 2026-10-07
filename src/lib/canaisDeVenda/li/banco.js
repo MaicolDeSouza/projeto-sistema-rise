@@ -24,7 +24,7 @@ const POR_PAGINA = 100;
 
 const numero = (valor) => (valor === null || valor === undefined ? null : Number(valor));
 
-const aindaNaoConferido = (sku) => `O produto ${sku} ainda nao foi Conferido. So produto Conferido vira anuncio.`;
+const aindaNaoConferido = (sku) => `O produto ${sku} ainda não foi Conferido. Só produto Conferido vira anúncio.`;
 
 const CAMPOS_DO_CONTEXTO = {
   id: true,
@@ -120,14 +120,14 @@ async function contextoDoEditor(produto) {
 
 export async function novoRascunhoLI(produtoId) {
   const produto = await contextoDoProduto(produtoId);
-  if (!produto) return { ok: false, erro: "Produto nao encontrado." };
+  if (!produto) return { ok: false, erro: "Produto não encontrado." };
   if (!produto.conferido) return { ok: false, erro: aindaNaoConferido(produto.sku) };
   return { ok: true, rascunho: rascunhoInicialLI(produto), contexto: await contextoDoEditor(produto) };
 }
 
 /** Abre o anuncio para editar. Produto que deixou de ser Conferido abre; quem recusa e o Salvar. */
 export async function carregarAnuncioLI(id) {
-  const naoAchou = { ok: false, erro: "Anuncio nao encontrado." };
+  const naoAchou = { ok: false, erro: "Anúncio não encontrado." };
   // `where: { id: undefined }` o Prisma le como "sem filtro": um id ausente nao pode chegar la.
   if (typeof id !== "string" || id === "") return naoAchou;
   const anuncio = await prisma.anuncio.findFirst({ where: { id, canal: CANAL } });
@@ -177,7 +177,7 @@ export async function salvarRascunhoLI(anuncioId, entrada) {
           select: { id: true, produtoId: true, dados: true },
         });
       }
-      if (!existente) return { ok: false, erro: "Anuncio nao encontrado." };
+      if (!existente) return { ok: false, erro: "Anúncio não encontrado." };
       rascunho.produtoId = existente.produtoId;
     } else if (rascunho.produtoId) {
       existente = await prisma.anuncio.findFirst({
@@ -188,9 +188,9 @@ export async function salvarRascunhoLI(anuncioId, entrada) {
 
     if (!rascunho.produtoId) return { ok: false, erro: "O rascunho chegou sem o produto. Recarregue a tela." };
     const produto = await prisma.produto.findUnique({ where: { id: rascunho.produtoId }, select: { sku: true, conferido: true } });
-    if (!produto) return { ok: false, erro: "O produto do anuncio foi excluido." };
+    if (!produto) return { ok: false, erro: "O produto do anúncio foi excluído." };
     if (!produto.conferido) {
-      return { ok: false, erro: `O produto ${produto.sku} nao esta mais Conferido. Confira o cadastro antes de salvar o anuncio.` };
+      return { ok: false, erro: `O produto ${produto.sku} não está mais Conferido. Confira o cadastro antes de salvar o anúncio.` };
     }
 
     const { colunas, dados } = colunasEDados(rascunho);
@@ -203,7 +203,7 @@ export async function salvarRascunhoLI(anuncioId, entrada) {
     return { ok: true, id: existente.id };
   } catch (erro) {
     console.error("[canais de venda]", erro);
-    return { ok: false, erro: "Nao foi possivel salvar. Tente de novo." };
+    return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 }
 
@@ -214,7 +214,7 @@ export async function salvarRascunhoLI(anuncioId, entrada) {
  */
 export async function vincularPeloSku(produtoId, { idItemExterno, url, ativo, slug, categorias, destaque }) {
   const produto = await contextoDoProduto(produtoId);
-  if (!produto) throw new Error("Produto nao encontrado para vincular.");
+  if (!produto) throw new Error("Produto não encontrado para vincular.");
   const existente = await anuncioLIDoProduto(produtoId);
   const base = existente ? rascunhoDoAnuncio(existente) : rascunhoInicialLI(produto);
   const rascunho = rascunhoDaLI(base, { slug, categorias, destaque });

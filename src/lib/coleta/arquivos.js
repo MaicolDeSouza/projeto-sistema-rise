@@ -433,7 +433,7 @@ async function lerPlanilha(bytes) {
   await pasta.xlsx.load(bytes);
 
   const folha = pasta.worksheets[0];
-  if (!folha) return { itens: [], imagens: null, aviso: "A planilha nao tem nenhuma folha." };
+  if (!folha) return { itens: [], imagens: null, aviso: "A planilha não tem nenhuma folha." };
 
   const linhaCabecalho = acharCabecalho(folha);
   if (!linhaCabecalho) {
@@ -441,7 +441,7 @@ async function lerPlanilha(bytes) {
       itens: [],
       imagens: null,
       aviso:
-        `Nao reconheci o cabecalho nas primeiras ${LINHAS_ATE_CABECALHO} linhas da folha "${folha.name}".`,
+        `Não reconheci o cabeçalho nas primeiras ${LINHAS_ATE_CABECALHO} linhas da folha "${folha.name}".`,
     };
   }
 
@@ -680,7 +680,7 @@ export async function lerArquivo({ nome, bytes, fonte }) {
     brutos = itens;
     imagensPorCodigo = imagens ?? null;
     origem = folha
-      ? `planilha do fornecedor (folha "${folha}", cabecalho na linha ${linhaCabecalho})`
+      ? `planilha do fornecedor (folha "${folha}", cabeçalho na linha ${linhaCabecalho})`
       : "planilha do fornecedor";
     if (aviso) avisos.push(aviso);
   } else if (formato === "pdf") {
@@ -690,7 +690,7 @@ export async function lerArquivo({ nome, bytes, fonte }) {
     origem = "catalogo em PDF do fornecedor";
     if (brutos.length === 0 && texto.length > 0) {
       avisos.push(
-        "O PDF tem texto, mas nenhuma linha com cara de produto. Catalogo em imagem, ou colunas em outro formato.",
+        "O PDF tem texto, mas nenhuma linha com cara de produto. Catálogo em imagem, ou colunas em outro formato.",
       );
     }
   } else if (formato === "json") {
@@ -702,7 +702,7 @@ export async function lerArquivo({ nome, bytes, fonte }) {
       brutos = lista.map((item) => item?.Product ?? item);
       origem = "arquivo JSON do fornecedor";
     } catch {
-      avisos.push("O arquivo nao e JSON valido.");
+      avisos.push("O arquivo não é JSON válido.");
     }
   } else if (formato === "html") {
     // O charset importa: portal brasileiro em Latin-1 nao e raro, e decodificar
@@ -739,7 +739,7 @@ export async function lerArquivo({ nome, bytes, fonte }) {
       return { formato, produtos, avisos, origem: "pagina de produto salva" };
     }
   } else {
-    avisos.push(`Formato nao reconhecido: ${nome ?? "sem nome"}.`);
+    avisos.push(`Formato não reconhecido: ${nome ?? "sem nome"}.`);
   }
 
   if (brutos.length > MAXIMO_PRODUTOS) {

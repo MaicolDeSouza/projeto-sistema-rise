@@ -15,10 +15,10 @@ const CANAL_LI = CANAIS.find((canal) => canal.id === "LOJA_INTEGRADA");
 
 /** O estado em palavras: vai no nome acessivel e na dica (cor e selo sozinhos nao dizem nada). */
 export function rotuloDoIconeLI({ cor, divergente, conferido }) {
-  if (!conferido) return "Loja Integrada: so Produto Conferido";
+  if (!conferido) return "Loja Integrada: só Produto Conferido";
   const partes = [];
   if (cor === "cinza") partes.push("nunca sincronizado");
-  if (divergente) partes.push("divergencia em campos");
+  if (divergente) partes.push("divergência em campos");
   if (partes.length === 0) partes.push("em dia");
   return `Loja Integrada: ${partes.join(" e ")}`;
 }

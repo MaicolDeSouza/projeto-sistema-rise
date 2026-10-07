@@ -25,7 +25,7 @@ export function validar(produto, anuncio, _atributos, contexto = {}) {
       {
         campo: "canal",
         problema:
-          "Publique primeiro no Bling: e ele que envia o produto para a Loja Integrada.",
+          "Publique primeiro no Bling: é ele que envia o produto para a Loja Integrada.",
         bloqueante: true,
       },
     ];
@@ -36,6 +36,6 @@ export function validar(produto, anuncio, _atributos, contexto = {}) {
 export function montarPayload() {
   return {
     observacao:
-      "Sem payload proprio: o Bling sincroniza o produto com a Loja Integrada.",
+      "Sem payload próprio: o Bling sincroniza o produto com a Loja Integrada.",
   };
 }

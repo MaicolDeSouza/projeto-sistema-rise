@@ -37,8 +37,8 @@ async function tentar(acao) {
       ok: false,
       erro:
         erro?.message?.includes("Body exceeded") || erro?.name === "TypeError"
-          ? "Falha ao enviar a foto. Ela pode ser grande demais para a conexao."
-          : (erro?.message ?? "Falha inesperada ao executar a acao."),
+          ? "Falha ao enviar a foto. Ela pode ser grande demais para a conexão."
+          : (erro?.message ?? "Falha inesperada ao executar a ação."),
     };
   }
 }
@@ -170,7 +170,7 @@ export default function PainelDeImagens({
         type="button"
         onClick={() => setReservaAberta(true)}
         disabled={ocupado}
-        title="Imagens que voce ja trabalhou e nao usou como foto: a original e as versoes geradas"
+        title="Imagens que você já trabalhou e não usou como foto: a original e as versões geradas"
         className="inline-flex items-center gap-1 rounded border border-borda px-2 py-1 text-[11px] text-texto hover:bg-fundo disabled:opacity-50"
       >
         <Archive size={12} /> Reserva ({reservaVisivel.length})
@@ -421,7 +421,7 @@ export default function PainelDeImagens({
         if ((depois.versao ?? "original") !== versaoAntes) {
           const resposta = await tentar(() => escolherVersaoNoLote(lote, antes.base, versaoAntes));
           if (resposta.ok) foto = { ...antes, ...resposta.imagem, finalizada: antes.finalizada };
-          else setErro(`Nao foi possivel devolver uma foto ao que era: ${resposta.erro}`);
+          else setErro(`Não foi possível devolver uma foto ao que era: ${resposta.erro}`);
         }
         restauradas.push(foto);
       }
@@ -457,9 +457,9 @@ export default function PainelDeImagens({
             className="flex h-full w-full flex-col items-center justify-center gap-1 rounded border border-dashed border-borda text-suave hover:border-acento hover:text-acento disabled:opacity-60"
           >
             <ImageOff size={26} />
-            <span className="px-4 text-center text-xs">Enviar fotos (ou arraste para ca)</span>
+            <span className="px-4 text-center text-xs">Enviar fotos (ou arraste para cá)</span>
             <span className="px-4 text-center text-[10px]">
-              Cada foto e ajustada para 1024x1024, fundo branco
+              Cada foto é ajustada para 1024x1024, fundo branco
             </span>
           </button>
         )}
@@ -470,7 +470,7 @@ export default function PainelDeImagens({
               {indice === 0 && (
                 <span
                   className="inline-flex items-center gap-1 rounded bg-slate-800/80 px-1.5 py-0.5 text-[10px] font-medium text-white"
-                  title="A primeira da fila e a foto principal do produto"
+                  title="A primeira da fila é a foto principal do produto"
                 >
                   <Star size={10} className="fill-amber-300 text-amber-300" /> Principal
                 </span>
@@ -486,7 +486,7 @@ export default function PainelDeImagens({
               {ROTULO_DA_VERSAO[atual.versao] && (
                 <span
                   className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-900"
-                  title={`Versao escolhida: ${ROTULO_DA_VERSAO[atual.versao]}.`}
+                  title={`Versão escolhida: ${ROTULO_DA_VERSAO[atual.versao]}.`}
                 >
                   {ROTULO_DA_VERSAO[atual.versao]}
                 </span>
@@ -517,7 +517,7 @@ export default function PainelDeImagens({
                   type="button"
                   onClick={() => ir(1)}
                   disabled={indice >= imagens.length - 1}
-                  aria-label="Proxima foto"
+                  aria-label="Próxima foto"
                   className="absolute top-1/2 right-1 -translate-y-1/2 rounded-full border border-borda bg-white/90 p-1 text-suave shadow hover:text-texto disabled:opacity-30"
                 >
                   <ChevronRight size={16} />
@@ -552,7 +552,7 @@ export default function PainelDeImagens({
             type="button"
             onClick={abrirJanela}
             disabled={ocupado}
-            title="Ver as fotos grandes, escolher quais usar e ver uma previa gratis do Photoroom"
+            title="Ver as fotos grandes, escolher quais usar e ver uma prévia grátis do Photoroom"
             className="inline-flex items-center gap-1 rounded border border-acento px-2 py-1 text-[11px] font-medium text-acento hover:bg-fundo disabled:opacity-50"
           >
             <Sparkles size={12} /> Melhorar
@@ -616,7 +616,7 @@ export default function PainelDeImagens({
             title={
               cheio
                 ? `Limite de ${MAXIMO_FOTOS_NO_PAINEL} fotos no painel`
-                : "Adicionar fotos. Cada uma e ajustada para 1024x1024, fundo branco."
+                : "Adicionar fotos. Cada uma é ajustada para 1024x1024, fundo branco."
             }
             className="flex h-11 w-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded border border-dashed border-borda text-suave hover:border-acento hover:text-acento disabled:opacity-40"
           >
@@ -634,14 +634,14 @@ export default function PainelDeImagens({
             {imagens.length} foto{imagens.length === 1 ? "" : "s"} · {finalizadas} validada
             {finalizadas === 1 ? "" : "s"}
             {excedente > 0
-              ? ` · tire ${excedente} (maximo ${MAXIMO_IMAGENS})`
-              : ` · maximo ${MAXIMO_IMAGENS}`}
+              ? ` · tire ${excedente} (máximo ${MAXIMO_IMAGENS})`
+              : ` · máximo ${MAXIMO_IMAGENS}`}
             {naoValidadas > 0 &&
-              ` · ${naoValidadas} sem validar ${naoValidadas === 1 ? "sera excluida" : "serao excluidas"} ao salvar`}
+              ` · ${naoValidadas} sem validar ${naoValidadas === 1 ? "será excluída" : "serão excluídas"} ao salvar`}
           </span>
           {/* Mensagem informativa: icone "i" (padrao do sistema), e nao texto fixo nem dica escondida. */}
           <BolhaDeAjuda
-            texto={`Ao salvar o produto, so as fotos validadas (com o check verde) sao salvas: as demais sao excluidas. Valide em Melhorar > Escolher essa. O produto leva no maximo ${MAXIMO_IMAGENS} fotos, na ordem da tira, e a primeira e a principal: arraste as miniaturas para ordenar.`}
+            texto={`Ao salvar o produto, só as fotos validadas (com o check verde) são salvas: as demais são excluídas. Valide em Melhorar > Escolher essa. O produto leva no máximo ${MAXIMO_IMAGENS} fotos, na ordem da tira, e a primeira é a principal: arraste as miniaturas para ordenar.`}
             variante="inline"
           />
         </p>

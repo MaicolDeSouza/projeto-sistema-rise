@@ -25,13 +25,13 @@ function LinhaDeDiferenca({ item }) {
     <li className={`rounded border p-3 ${vazioNoRise ? "border-borda bg-fundo/60 text-suave" : "border-amber-200 bg-amber-50/50"}`}>
       <p className="text-sm font-medium text-texto">
         {item.rotulo}
-        <span className="ml-1.5 text-xs font-normal text-suave">{vazioNoRise ? "so tem na loja" : "diferente"}</span>
+        <span className="ml-1.5 text-xs font-normal text-suave">{vazioNoRise ? "só tem na loja" : "diferente"}</span>
       </p>
       <dl className="mt-1.5 grid grid-cols-2 gap-3 text-xs">
         <div className="min-w-0">
           <dt className="text-[11px] text-suave">No Rise (salvo)</dt>
           <dd>
-            <Valor campo={item.campo} valor={item.rise} quandoVazio="vazio no Rise (nao sera enviado)" />
+            <Valor campo={item.campo} valor={item.rise} quandoVazio="vazio no Rise (não será enviado)" />
           </dd>
         </div>
         <div className="min-w-0">
@@ -55,8 +55,8 @@ export default function AbaDivergencias({ leitura, lerLoja, lendo }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm">
-          <span className="font-semibold">{diferentes} campo(s) diferente(s)</span> entre o anuncio salvo no Rise e a Loja Integrada.{" "}
-          <span className="text-suave">O &quot;Sincronizar com a LI&quot;, no rodape, envia o que esta no Rise.</span>
+          <span className="font-semibold">{diferentes} campo(s) diferente(s)</span> entre o anúncio salvo no Rise e a Loja Integrada.{" "}
+          <span className="text-suave">O &quot;Sincronizar com a LI&quot;, no rodapé, envia o que está no Rise.</span>
         </p>
         <button
           type="button"

@@ -17,7 +17,7 @@ import { lerParaPopupLI } from "@/lib/canaisDeVenda/li/leitura";
  * elas fechadas, a acao devolve o motivo e nada sai.
  */
 
-const PEDIDO_INVALIDO = { ok: false, erro: "Pedido invalido." };
+const PEDIDO_INVALIDO = { ok: false, erro: "Pedido inválido." };
 
 /** Excecao solta viraria tela de erro do Next; aqui vira recado, com o erro so no log do servidor. */
 async function protegendo(recado, trabalho) {
@@ -44,7 +44,7 @@ function revalidando(resultado, mudou) {
  */
 export async function abrirJanelaLI(produtoId) {
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
-  return protegendo("Nao foi possivel ler a Loja Integrada. Tente de novo.", async () => {
+  return protegendo("Não foi possível ler a Loja Integrada. Tente de novo.", async () => {
     const resultado = await lerParaPopupLI(produtoId);
     return revalidando(resultado, resultado.vinculadoAgora === true);
   });
@@ -54,7 +54,7 @@ export async function abrirJanelaLI(produtoId) {
 export async function sincronizarComLI(produtoId) {
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(
-    "Nao foi possivel concluir a sincronizacao. A Loja Integrada pode ter recebido parte do envio: confira na loja antes de tentar de novo.",
+    "Não foi possível concluir a sincronização. A Loja Integrada pode ter recebido parte do envio: confira na loja antes de tentar de novo.",
     async () => {
       const resultado = await sincronizarProdutoLI(produtoId);
       return revalidando(resultado, mudouNaLI("sincronizar", resultado));
@@ -66,7 +66,7 @@ export async function sincronizarComLI(produtoId) {
 export async function cadastrarProdutoNaLI(produtoId) {
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(
-    "Nao foi possivel concluir o cadastro. O produto pode ter sido criado na Loja Integrada: confira la antes de tentar de novo.",
+    "Não foi possível concluir o cadastro. O produto pode ter sido criado na Loja Integrada: confira lá antes de tentar de novo.",
     async () => {
       const resultado = await cadastrarNaLI(produtoId);
       return revalidando(resultado, mudouNaLI("cadastrar", resultado));

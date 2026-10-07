@@ -45,7 +45,7 @@ export function CamposDeEndereco({ prefixo, valores, aoMudar, erros }) {
         nome={nome("cep")}
         rotulo="CEP"
         erro={erros[nome("cep")] ?? aviso}
-        ajuda="Clique na lupa para preencher estado, cidade, bairro e endereco. So o CEP e consultado."
+        ajuda="Clique na lupa para preencher estado, cidade, bairro e endereço. Só o CEP é consultado."
       >
         <div className="relative">
           <input
@@ -67,7 +67,7 @@ export function CamposDeEndereco({ prefixo, valores, aoMudar, erros }) {
             type="button"
             onClick={consultar}
             disabled={consultando}
-            aria-label="Buscar endereco pelo CEP"
+            aria-label="Buscar endereço pelo CEP"
             className="absolute top-1/2 right-1.5 mt-0.5 -translate-y-1/2 rounded p-1.5 text-emerald-700 hover:bg-fundo disabled:opacity-50"
           >
             {consultando ? <Loader size={16} className="animate-spin" /> : <Search size={16} />}
@@ -98,12 +98,12 @@ export function CamposDeEndereco({ prefixo, valores, aoMudar, erros }) {
       <div className="md:col-span-2">
         <Campo
           nome={nome("logradouro")}
-          rotulo="Endereco"
+          rotulo="Endereço"
           value={valores.logradouro}
           onChange={mudar("logradouro")}
         />
       </div>
-      <Campo nome={nome("numero")} rotulo="Numero" value={valores.numero} onChange={mudar("numero")} />
+      <Campo nome={nome("numero")} rotulo="Número" value={valores.numero} onChange={mudar("numero")} />
       <Campo
         nome={nome("complemento")}
         rotulo="Complemento"
@@ -155,7 +155,7 @@ export default function EnderecoDoCliente({ inicial, erros }) {
           >
             {item.titulo}
             {temErro(item.id) && (
-              <span aria-label="Ha erro nesta aba" className="h-2 w-2 rounded-full bg-red-500" />
+              <span aria-label="Há erro nesta aba" className="h-2 w-2 rounded-full bg-red-500" />
             )}
           </button>
         ))}
@@ -174,7 +174,7 @@ export default function EnderecoDoCliente({ inicial, erros }) {
             onChange={(evento) => setIgual(evento.target.checked)}
             className="h-4 w-4 accent-acento"
           />
-          Mesmo endereco do Geral
+          Mesmo endereço do Geral
         </label>
 
         {/* Montado mesmo quando escondido: so o `hidden` muda, e o servidor ignora
@@ -183,7 +183,7 @@ export default function EnderecoDoCliente({ inicial, erros }) {
           <CamposDeEndereco prefixo="entrega" valores={entrega} aoMudar={setEntrega} erros={erros} />
         </div>
         {igual && (
-          <p className="text-sm text-suave">A entrega vai para o endereco da aba Geral.</p>
+          <p className="text-sm text-suave">A entrega vai para o endereço da aba Geral.</p>
         )}
       </div>
     </div>

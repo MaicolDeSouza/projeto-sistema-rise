@@ -37,7 +37,7 @@ export async function converterImagemAcao(dados) {
   if (arquivo.size > TETO_BYTES_SVG) {
     return {
       ok: false,
-      erro: `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB e o limite e ${TETO_MB_SVG} MB.`,
+      erro: `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB e o limite é ${TETO_MB_SVG} MB.`,
     };
   }
 
@@ -83,7 +83,7 @@ async function buscarPtax(intervalo) {
     return { ok: true, serie: lido.serie, ultimo, variacao: variacao(lido.serie) };
   } catch (erro) {
     console.warn("[cotacao] PTAX:", erro?.message);
-    return { ok: false, erro: "Nao foi possivel consultar o Banco Central agora." };
+    return { ok: false, erro: "Não foi possível consultar o Banco Central agora." };
   }
 }
 
@@ -113,7 +113,7 @@ async function buscarAgora() {
     return lerBoletim(await lerJson(urlBoletins()));
   } catch (erro) {
     console.warn("[cotacao] boletim do BC:", erro?.message);
-    return { ok: false, erro: "Nao foi possivel consultar a cotacao de agora." };
+    return { ok: false, erro: "Não foi possível consultar a cotação de agora." };
   }
 }
 
@@ -131,7 +131,7 @@ async function buscarAgora() {
  */
 export async function buscarCotacaoAcao(valorDoPeriodo, forcar = false) {
   const intervalo = intervaloDoPeriodo(valorDoPeriodo);
-  if (!intervalo) return { ok: false, erro: "Periodo invalido." };
+  if (!intervalo) return { ok: false, erro: "Período inválido." };
 
   const [ptax, agora] = await Promise.all([
     comMemoria(`ptax|${intervalo.periodo.valor}|${intervalo.fim}`, VALE_PTAX_MS, forcar === true, () =>
@@ -141,7 +141,7 @@ export async function buscarCotacaoAcao(valorDoPeriodo, forcar = false) {
   ]);
 
   if (!ptax.ok && !agora.ok) {
-    return { ok: false, erro: "Nao foi possivel consultar as cotacoes agora. Tente de novo em instantes." };
+    return { ok: false, erro: "Não foi possível consultar as cotações agora. Tente de novo em instantes." };
   }
   return { ok: true, periodo: intervalo.periodo.valor, ptax, agora };
 }

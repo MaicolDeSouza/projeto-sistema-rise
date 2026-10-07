@@ -44,7 +44,7 @@ export function BarraDeAbas({ abas, aba, aoMudar, comErro, children }) {
           >
             {item.rotulo}
             {comErro(item.id) && (
-              <span aria-label="Ha erro nesta aba" className="h-2 w-2 rounded-full bg-red-500" />
+              <span aria-label="Há erro nesta aba" className="h-2 w-2 rounded-full bg-red-500" />
             )}
           </button>
         ))}

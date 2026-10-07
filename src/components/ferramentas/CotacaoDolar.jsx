@@ -23,7 +23,7 @@ async function tentar(acao) {
   try {
     return await acao();
   } catch (erro) {
-    return { ok: false, erro: erro?.message ?? "Falha inesperada ao consultar as cotacoes." };
+    return { ok: false, erro: erro?.message ?? "Falha inesperada ao consultar as cotações." };
   }
 }
 
@@ -77,7 +77,7 @@ export default function CotacaoDolar({ inicial, periodoInicial }) {
     return (
       <Card className="space-y-3">
         <p role="alert" className="text-sm text-red-700">
-          {dados?.erroDaUltima ?? dados?.erro ?? "Nao foi possivel consultar as cotacoes agora."}
+          {dados?.erroDaUltima ?? dados?.erro ?? "Não foi possível consultar as cotações agora."}
         </p>
         <button
           type="button"
@@ -101,13 +101,13 @@ export default function CotacaoDolar({ inicial, periodoInicial }) {
         {/* ---------- Agora ---------- */}
         <Card>
           <p className="flex items-center gap-1.5 text-sm text-suave">
-            Dolar agora
+            Dólar agora
             <BolhaDeAjuda
               variante="inline"
               texto={
                 agora.ok && agora.fonte === "bcb"
-                  ? "Ultimo boletim do Banco Central (ele divulga de hora em hora, das 10h as 13h). A cotacao em tempo real esta indisponivel: o token da AwesomeAPI vai na linha AWESOMEAPI_TOKEN do arquivo .env."
-                  : "Cotacao de mercado, que muda o dia todo. Fonte: AwesomeAPI. Nao e o dolar oficial (PTAX)."
+                  ? "Último boletim do Banco Central (ele divulga de hora em hora, das 10h às 13h). A cotação em tempo real está indisponível: o token da AwesomeAPI vai na linha AWESOMEAPI_TOKEN do arquivo .env."
+                  : "Cotação de mercado, que muda o dia todo. Fonte: AwesomeAPI. Não é o dólar oficial (PTAX)."
               }
             />
           </p>
@@ -122,7 +122,7 @@ export default function CotacaoDolar({ inicial, periodoInicial }) {
                 <Variacao percentual={agora.variacaoPct} sufixo="no dia" />
                 {agora.maxima && agora.minima && (
                   <span className="text-xs text-suave tabular-nums">
-                    maxima {MOEDA.format(agora.maxima)} · minima {MOEDA.format(agora.minima)}
+                    maxima {MOEDA.format(agora.maxima)} · mínima {MOEDA.format(agora.minima)}
                   </span>
                 )}
               </div>
@@ -137,10 +137,10 @@ export default function CotacaoDolar({ inicial, periodoInicial }) {
         {/* ---------- PTAX ---------- */}
         <Card>
           <p className="flex items-center gap-1.5 text-sm text-suave">
-            Dolar oficial (PTAX)
+            Dólar oficial (PTAX)
             <BolhaDeAjuda
               variante="inline"
-              texto="Taxa de cambio calculada pelo Banco Central, uma vez por dia util (por volta das 13h). E a usada em contrato e nota fiscal."
+              texto="Taxa de câmbio calculada pelo Banco Central, uma vez por dia útil (por volta das 13h). É a usada em contrato e nota fiscal."
             />
           </p>
           {ptax.ok ? (
@@ -168,7 +168,7 @@ export default function CotacaoDolar({ inicial, periodoInicial }) {
       {/* ---------- Grafico ---------- */}
       <Card className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div role="group" aria-label="Periodo do grafico" className="flex overflow-hidden rounded border border-borda text-sm">
+          <div role="group" aria-label="Período do gráfico" className="flex overflow-hidden rounded border border-borda text-sm">
             {PERIODOS.map((item) => (
               <button
                 key={item.valor}
@@ -207,11 +207,11 @@ export default function CotacaoDolar({ inicial, periodoInicial }) {
             <GraficoCotacao serie={ptax.serie} />
           </div>
         ) : (
-          <p className="text-sm text-suave">O grafico depende do Banco Central, que nao respondeu agora.</p>
+          <p className="text-sm text-suave">O gráfico depende do Banco Central, que não respondeu agora.</p>
         )}
 
         <p className="text-xs text-suave">
-          Grafico da <strong>venda</strong> do PTAX, um ponto por dia util. Alta do dolar tende a encarecer o que a loja
+          Gráfico da <strong>venda</strong> do PTAX, um ponto por dia útil. Alta do dólar tende a encarecer o que a loja
           compra dos fornecedores, por isso a alta aparece em vermelho e a queda em verde.
         </p>
       </Card>
@@ -222,7 +222,7 @@ export default function CotacaoDolar({ inicial, periodoInicial }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm tabular-nums">
               <caption className="border-b border-borda px-3 py-2.5 text-left text-xs font-medium tracking-wide text-suave uppercase">
-                Ultimos dias uteis (PTAX)
+                Últimos dias úteis (PTAX)
               </caption>
               <thead>
                 <tr className="text-left text-xs text-suave">

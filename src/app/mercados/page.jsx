@@ -180,7 +180,7 @@ export default async function MercadosPage({ searchParams }) {
     <>
       <PageHeader
         titulo="Scraper"
-        descricao="Produtos, precos e codigos coletados dos sites de concorrentes e fornecedores."
+        descricao="Produtos, preços e códigos coletados dos sites de concorrentes e fornecedores."
         acao={
           <div className="flex items-start gap-2">
             <Link
@@ -207,7 +207,7 @@ export default async function MercadosPage({ searchParams }) {
           <div className="mb-3 flex flex-wrap items-center gap-4">
             <CampoBusca
               valorInicial={busca}
-              rotulo="Buscar por codigo, marca, modelo ou titulo"
+              rotulo="Buscar por código, marca, modelo ou título"
               className="w-full max-w-lg"
             />
             <p className="text-sm text-suave">
@@ -260,14 +260,14 @@ export default async function MercadosPage({ searchParams }) {
                   ? `Nada encontrado para "${busca}"`
                   : totalFontes === 0
                     ? "Nenhum site cadastrado ainda"
-                    : "Nenhuma pagina coletada ainda"
+                    : "Nenhuma página coletada ainda"
               }
               descricao={
                 busca
-                  ? "Tente outro termo. A busca cobre titulo, marca, modelo e os codigos publicados pela loja — nao a descricao."
+                  ? "Tente outro termo. A busca cobre título, marca, modelo e os códigos publicados pela loja — não a descrição."
                   : totalFontes === 0
-                    ? "Cadastre o primeiro site de concorrente ou fornecedor para comecar a coletar."
-                    : 'Os sites estao cadastrados, mas ainda nao foram varridos. Use "Atualizar dados" — com o worker rodando (npm run worker).'
+                    ? "Cadastre o primeiro site de concorrente ou fornecedor para começar a coletar."
+                    : 'Os sites estão cadastrados, mas ainda não foram varridos. Use "Atualizar dados" — com o worker rodando (npm run worker).'
               }
               acao={
                 totalFontes === 0 && !busca ? (

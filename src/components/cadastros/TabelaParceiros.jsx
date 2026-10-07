@@ -55,8 +55,8 @@ export default function TabelaParceiros({ linhas, slug, busca }) {
           {busca
             ? `Nenhum resultado para "${busca}".`
             : temColeta
-              ? `Nada cadastrado ainda. Use o botao ${config.novo}, ou salve uma fonte em Mercados.`
-              : `Nada cadastrado ainda. Use o botao ${config.novo}.`}
+              ? `Nada cadastrado ainda. Use o botão ${config.novo}, ou salve uma fonte em Mercados.`
+              : `Nada cadastrado ainda. Use o botão ${config.novo}.`}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-borda bg-superficie">

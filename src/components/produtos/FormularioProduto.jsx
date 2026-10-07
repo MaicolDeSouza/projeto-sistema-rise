@@ -66,12 +66,12 @@ import {
 } from "@/app/produtos/acoes";
 
 const ABAS = [
-  { id: "caracteristicas", rotulo: "Caracteristicas" },
-  { id: "descricao", rotulo: "Descricao" },
+  { id: "caracteristicas", rotulo: "Características" },
+  { id: "descricao", rotulo: "Descrição" },
   { id: "fornecedores", rotulo: "Fornecedores / Concorrentes" },
-  { id: "documentos", rotulo: "Documentos tecnicos" },
-  { id: "dimensoes", rotulo: "Peso e dimensoes" },
-  { id: "tributacao", rotulo: "Tributacao" },
+  { id: "documentos", rotulo: "Documentos técnicos" },
+  { id: "dimensoes", rotulo: "Peso e dimensões" },
+  { id: "tributacao", rotulo: "Tributação" },
 ];
 
 /**
@@ -89,8 +89,8 @@ async function tentar(acao) {
       ok: false,
       erro:
         erro?.message?.includes("Body exceeded") || erro?.name === "TypeError"
-          ? "Falha ao enviar o arquivo. Ele pode ser grande demais para a conexao."
-          : (erro?.message ?? "Falha inesperada ao executar a acao."),
+          ? "Falha ao enviar o arquivo. Ele pode ser grande demais para a conexão."
+          : (erro?.message ?? "Falha inesperada ao executar a ação."),
     };
   }
 }
@@ -172,7 +172,7 @@ function Interruptor({ nome, inicial }) {
 
   return (
     <div>
-      <span className="block text-sm font-semibold">Situacao</span>
+      <span className="block text-sm font-semibold">Situação</span>
       <input type="hidden" name={nome} value={ligado ? "on" : ""} />
       <button
         type="button"
@@ -282,25 +282,25 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
       <button
         type="button"
         onClick={() => setAberta((atual) => !atual)}
-        title={`Escolher o titulo: das ${quantas} referencia(s) (lupa e vinculos salvos), ou gerado com IA`}
-        aria-label="Escolher o titulo"
+        title={`Escolher o título: das ${quantas} referência(s) (lupa e vínculos salvos), ou gerado com IA`}
+        aria-label="Escolher o título"
         aria-expanded={aberta}
         className={`rounded border p-2.5 hover:bg-fundo ${usado ? BORDA_DE_USO.usado : BORDA_DE_USO.funcao}`}
       >
         {emCurso ? <Loader size={18} className="animate-spin" /> : <ListChecks size={18} />}
       </button>
       <BolhaDeAjuda
-        texto={`Escolha o titulo entre os das ${quantas} referencia(s) — marcadas na lupa e fornecedores/concorrentes salvos —, ou gere um com IA. Nada vai para o Nome ate voce clicar numa opcao.`}
+        texto={`Escolha o título entre os das ${quantas} referência(s) — marcadas na lupa e fornecedores/concorrentes salvos —, ou gere um com IA. Nada vai para o Nome até você clicar numa opção.`}
       />
 
       {aberta && (
         <ListaFlutuante largura="w-[36rem]" espaco="mt-2" aoFechar={() => setAberta(false)}>
           <div className="flex items-center justify-between px-2 pt-1 pb-2">
-            <span className="text-sm font-semibold">Escolha um titulo</span>
+            <span className="text-sm font-semibold">Escolha um título</span>
             <button
               type="button"
               onClick={() => setAberta(false)}
-              aria-label="Fechar a lista de titulos"
+              aria-label="Fechar a lista de títulos"
               className="rounded p-1 text-suave hover:bg-fundo"
             >
               <X size={14} />
@@ -308,10 +308,10 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
           </div>
 
           <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppercase">
-            Das referencias ({porTitulo.size})
+            Das referências ({porTitulo.size})
           </p>
           {porTitulo.size === 0 ? (
-            <p className="px-2 pb-2 text-sm text-suave">As referencias nao tem titulo.</p>
+            <p className="px-2 pb-2 text-sm text-suave">As referências não têm título.</p>
           ) : (
             <ul className="max-h-72 space-y-1 overflow-y-auto">
               {[...porTitulo].map(([titulo, origens]) => (
@@ -336,7 +336,7 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
                   className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-xs text-acento hover:underline disabled:opacity-60"
                 >
                   {emCurso ? <Loader size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                  {emCurso ? "Escrevendo..." : "Gerar outras opcoes"}
+                  {emCurso ? "Escrevendo..." : "Gerar outras opções"}
                 </button>
               </>
             ) : (
@@ -347,9 +347,9 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
                 className="flex w-full items-center gap-2 rounded border border-dashed border-acento px-3 py-2 text-left text-sm font-medium text-acento hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {emCurso ? <Loader size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                <span>{emCurso ? "Escrevendo os titulos..." : "Gerar titulo com IA"}</span>
+                <span>{emCurso ? "Escrevendo os títulos..." : "Gerar título com IA"}</span>
                 <span className="ml-auto text-[11px] font-normal text-suave">
-                  3 opcoes, no padrao da loja
+                  3 opções, no padrão da loja
                 </span>
               </button>
             )}
@@ -549,18 +549,18 @@ function CampoSku({ inicial, erro, aoAlterar, usos }) {
   return (
     <CampoComIcone
       nome="sku"
-      rotulo="Codigo (SKU) *"
+      rotulo="Código (SKU) *"
       entrada={entrada}
       defaultValue={inicial}
       erro={erro ?? falha}
-      ajuda="Letras, numeros, ponto, hifen e sublinhado. E o nome da pasta de arquivos."
+      ajuda="Letras, números, ponto, hífen e sublinhado. É o nome da pasta de arquivos."
       icone={
         <button
           type="button"
           onClick={gerar}
           disabled={gerando}
-          title="Gerar o proximo codigo livre (25xxxx)"
-          aria-label="Gerar codigo automatico"
+          title="Gerar o próximo código livre (25xxxx)"
+          aria-label="Gerar código automático"
           className={`rounded p-1.5 hover:bg-fundo disabled:opacity-50 ${
             usos.tem("sku") ? COR_DE_USO.usado : COR_DE_USO.funcao
           }`}
@@ -804,7 +804,7 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
       nome="precoVenda"
       rotulo={
         <>
-          Preco venda <SeloPosicaoDePreco posicao={posicao} />
+          Preço venda <SeloPosicaoDePreco posicao={posicao} />
         </>
       }
       type="number"
@@ -829,7 +829,7 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
             <button
               type="button"
               onClick={() => setAbertoMargem((atual) => !atual)}
-              title={`Percentual de lucro / lucro em reais, ja com ${(IMPOSTO_PADRAO * 100).toFixed(0)}% de imposto descontado — clique para editar`}
+              title={`Percentual de lucro / lucro em reais, já com ${(IMPOSTO_PADRAO * 100).toFixed(0)}% de imposto descontado — clique para editar`}
               className={`shrink-0 text-sm font-semibold tabular-nums whitespace-nowrap hover:underline ${corIndicador}`}
             >
               ({margemAtual.toFixed(1)}% / {reais(lucroAtual)})
@@ -841,8 +841,8 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
             disabled={!temCusto}
             title={
               temCusto
-                ? "Calcular a partir do custo do fornecedor padrao"
-                : "Marque um fornecedor padrao com preco de custo para calcular a margem"
+                ? "Calcular a partir do custo do fornecedor padrão"
+                : "Marque um fornecedor padrão com preço de custo para calcular a margem"
             }
             aria-label="Calcular margem a partir do custo do fornecedor"
             className={`relative shrink-0 rounded p-1.5 hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-40 ${COR_DE_USO.funcao}`}
@@ -857,10 +857,10 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
           onClick={() => setAberto((atual) => !atual)}
           title={
             comPreco.length > 0
-              ? "Ver os precos das referencias: marcadas na lupa do Nome e fornecedores/concorrentes salvos"
-              : "As referencias nao trazem preco"
+              ? "Ver os preços das referências: marcadas na lupa do Nome e fornecedores/concorrentes salvos"
+              : "As referências não trazem preço"
           }
-          aria-label="Precos das referencias"
+          aria-label="Preços das referências"
           className={`relative rounded p-1.5 hover:bg-fundo ${
             usos.tem("precoVenda") ? COR_DE_USO.usado : COR_DE_USO.funcao
           }`}
@@ -876,11 +876,11 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
       {aberto && (
         <ListaFlutuante largura="w-[30rem]" aoFechar={() => setAberto(false)}>
           <div className="flex items-center justify-between px-2 pt-1 pb-2">
-            <span className="text-sm font-semibold">Escolha um preco</span>
+            <span className="text-sm font-semibold">Escolha um preço</span>
             <button
               type="button"
               onClick={() => setAberto(false)}
-              aria-label="Fechar precos"
+              aria-label="Fechar preços"
               className="rounded p-1 text-suave hover:bg-fundo"
             >
               <X size={14} />
@@ -890,8 +890,8 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
           {comPreco.length === 0 ? (
             <p className="px-2 pb-2 text-sm text-suave">
               {referencias.length === 0
-                ? "Marque produtos de referencia na lupa ao lado do Nome, ou vincule fornecedores e concorrentes."
-                : "As referencias nao tem preco coletado."}
+                ? "Marque produtos de referência na lupa ao lado do Nome, ou vincule fornecedores e concorrentes."
+                : "As referências não têm preço coletado."}
             </p>
           ) : (
             <ul className="max-h-72 space-y-1 overflow-y-auto">
@@ -957,7 +957,7 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
 
             <div>
               <span className="block text-xs text-suave">
-                Imposto ({(IMPOSTO_PADRAO * 100).toFixed(0)}% do preco)
+                Imposto ({(IMPOSTO_PADRAO * 100).toFixed(0)}% do preço)
               </span>
               <p className="text-sm font-medium tabular-nums">
                 {impostoAtual !== null ? reais(impostoAtual) : "—"}
@@ -965,7 +965,7 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
             </div>
 
             <label className="block">
-              <span className="block text-xs text-suave">Preco de venda</span>
+              <span className="block text-xs text-suave">Preço de venda</span>
               <div className="relative mt-0.5">
                 <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-suave">
                   R$
@@ -984,7 +984,7 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
             </label>
 
             <label className="block">
-              <span className="block text-xs text-suave">% de lucro (liquido, ja com imposto)</span>
+              <span className="block text-xs text-suave">% de lucro (líquido, já com imposto)</span>
               <div className="relative mt-0.5">
                 <input
                   ref={lucroPercentual}
@@ -1004,7 +1004,7 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
             </label>
 
             <label className="block">
-              <span className="block text-xs text-suave">Margem financeira (liquida)</span>
+              <span className="block text-xs text-suave">Margem financeira (líquida)</span>
               <div className="relative mt-0.5">
                 <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-suave">
                   R$
@@ -1024,8 +1024,8 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
             {/* Nota pedida pelo dono em 22/09/2026: o imposto entra fixo por
                 enquanto, e a tela avisa disso em vez de parecer definitivo. */}
             <p className="border-t border-borda pt-2 text-[11px] text-suave">
-              Imposto de {(IMPOSTO_PADRAO * 100).toFixed(0)}% ja descontado do lucro acima. Fixo
-              por enquanto — no futuro vira configuravel.
+              Imposto de {(IMPOSTO_PADRAO * 100).toFixed(0)}% já descontado do lucro acima. Fixo
+              por enquanto — no futuro vira configurável.
             </p>
           </div>
         </ListaFlutuante>
@@ -1094,8 +1094,8 @@ function CampoDeReferencias({
           <button
             type="button"
             onClick={abrir}
-            title={`Ver ${rotulo.toLowerCase()} das referencias: marcadas na lupa do Nome e fornecedores/concorrentes salvos`}
-            aria-label={`${rotulo} das referencias`}
+            title={`Ver ${rotulo.toLowerCase()} das referências: marcadas na lupa do Nome e fornecedores/concorrentes salvos`}
+            aria-label={`${rotulo} das referências`}
             className={`relative rounded p-1.5 hover:bg-fundo ${
               usos.tem(nome) ? COR_DE_USO.usado : COR_DE_USO.referencia
             }`}
@@ -1124,13 +1124,13 @@ function CampoDeReferencias({
 
           {ids.length === 0 ? (
             <p className="px-2 pb-2 text-sm text-suave">
-              Marque produtos de referencia na lupa ao lado do Nome, ou vincule fornecedores e concorrentes na
+              Marque produtos de referência na lupa ao lado do Nome, ou vincule fornecedores e concorrentes na
               aba Fornecedores / Concorrentes.
             </p>
           ) : carregando || !valores ? (
             <p className="flex items-center gap-2 px-2 pb-2 text-sm text-suave">
               <Loader size={14} className="animate-spin" /> Lendo as
-              referencias...
+              referências...
             </p>
           ) : valores?.erro ? (
             <p className="px-2 pb-2 text-sm text-red-700">{valores.erro}</p>
@@ -1228,8 +1228,8 @@ function CampoNome({
         <button
           type="button"
           onClick={() => aoBuscar(entrada.current?.value ?? "")}
-          title="Buscar referencias de mercado com as palavras do Nome"
-          aria-label="Buscar referencias de mercado"
+          title="Buscar referências de mercado com as palavras do Nome"
+          aria-label="Buscar referências de mercado"
           // Usada = ha referencias marcadas.
           className={`relative mt-6 shrink-0 rounded border p-2.5 hover:bg-fundo ${
             ia.quantos > 0 ? BORDA_DE_USO.usado : BORDA_DE_USO.funcao
@@ -1238,7 +1238,7 @@ function CampoNome({
           <Search size={18} />
           {/* Quantos produtos estao marcados como referencia. */}
           <Contador quantidade={ia.quantos} usado />
-          <BolhaDeAjuda texto="Marca produtos parecidos de fornecedores e concorrentes como referencia: preenche preco, marca, modelo e medidas, e cria titulo e descricao com IA." />
+          <BolhaDeAjuda texto="Marca produtos parecidos de fornecedores e concorrentes como referência: preenche preço, marca, modelo e medidas, e cria título e descrição com IA." />
         </button>
         {/* Aparece depois que produtos foram marcados na janela da lupa. */}
         <ListaDeTitulos
@@ -1285,7 +1285,7 @@ function LinksDeConsulta({ campo, sites, lerCampo }) {
             const termo = codigo || lerCampo("tituloBase").trim();
             evento.currentTarget.href = site.endereco(encodeURIComponent(termo));
           }}
-          title={`Abre o ${site.nome} numa aba nova com o codigo do campo (ou o Nome, se o campo estiver vazio)`}
+          title={`Abre o ${site.nome} numa aba nova com o código do campo (ou o Nome, se o campo estiver vazio)`}
           className="inline-flex items-center gap-0.5 text-acento hover:underline"
         >
           {site.nome} <ExternalLink size={11} />
@@ -1333,7 +1333,7 @@ function LinkLojaIntegrada({ inicial, dominio, erro }) {
       </div>
       {outroDominio && (
         <p className="mt-1 text-[11px] text-amber-700">
-          Este link nao aponta para {dominio}. Confira se e o endereco certo.
+          Este link não aponta para {dominio}. Confira se é o endereço certo.
         </p>
       )}
       {erro && <p className="mt-1 text-[11px] text-red-700">{erro}</p>}
@@ -1476,12 +1476,12 @@ function DocumentosDasReferencias({ ids, ativo, produtoId }) {
     <div className="mt-5 border-t border-borda pt-4 sm:col-span-2">
       <h3 className="text-sm font-semibold">Documentos dos fornecedores e concorrentes</h3>
       <p className="mt-1 text-xs text-suave">
-        Arquivos dos fornecedores e concorrentes atuais. Baixe o arquivo ou acesse a pagina do produto na loja.
+        Arquivos dos fornecedores e concorrentes atuais. Baixe o arquivo ou acesse a página do produto na loja.
       </p>
-      {!temReferencias && <p className="mt-3 text-sm text-suave">Marque referencias na lupa do Nome para buscar documentos.</p>}
+      {!temReferencias && <p className="mt-3 text-sm text-suave">Marque referências na lupa do Nome para buscar documentos.</p>}
       {temReferencias && carregando && <p className="mt-3 text-sm text-suave">Buscando documentos...</p>}
       {temReferencias && !carregando && itens.length === 0 && !erroBusca && (
-        <p className="mt-3 text-sm text-suave">Nenhum documento tecnico foi coletado dessas referencias.</p>
+        <p className="mt-3 text-sm text-suave">Nenhum documento técnico foi coletado dessas referências.</p>
       )}
       {erroBusca && <p className="mt-3 rounded bg-red-50 p-2 text-xs text-red-800">{erroBusca}</p>}
       {itens.length > 0 && (
@@ -1562,7 +1562,7 @@ function DocumentoTemporario({
             <FileText size={14} className="shrink-0 text-suave" />
             <span
               className="min-w-0 flex-1 truncate text-sm"
-              title="Sera gravado ao salvar"
+              title="Será gravado ao salvar"
             >
               {arquivo.nomeOriginal ?? arquivo.nome}
             </span>
@@ -1602,7 +1602,7 @@ function DocumentoTemporario({
 
       {!erro && lista.length > 0 && (
         <p className="mt-1 text-[11px] text-suave">
-          Os arquivos sao gravados no produto ao salvar.
+          Os arquivos são gravados no produto ao salvar.
         </p>
       )}
       {erro && (
@@ -1727,11 +1727,11 @@ export default function FormularioProduto({
         setFotosProntas(true);
         if (resposta.naoCarregadas.length > 0) {
           setErroAcao(
-            `${resposta.naoCarregadas.length} foto(s) do produto nao puderam ser abertas e ficam como estao.`,
+            `${resposta.naoCarregadas.length} foto(s) do produto não puderam ser abertas e ficam como estão.`,
           );
         }
       } else {
-        setErroAcao(`As fotos do produto nao carregaram (${resposta.erro}). Salvar nao mexe nelas.`);
+        setErroAcao(`As fotos do produto não carregaram (${resposta.erro}). Salvar não mexe nelas.`);
       }
       setCarregandoFotosDoProduto(false);
     });
@@ -1934,7 +1934,7 @@ export default function FormularioProduto({
       if (falhou) avisos.push(falhou);
       if (recusadas > 0) {
         avisos.push(
-          `${recusadas} foto(s) dos produtos marcados nao puderam ser trazidas (ilegivel ou o site nao respondeu).`,
+          `${recusadas} foto(s) dos produtos marcados não puderam ser trazidas (ilegível ou o site não respondeu).`,
         );
       }
       if (foraDoLimite > 0) {
@@ -1943,7 +1943,7 @@ export default function FormularioProduto({
         );
       }
       if (trazidas === 0 && avisos.length === 0) {
-        avisos.push("Os produtos marcados nao trouxeram nenhuma foto nova.");
+        avisos.push("Os produtos marcados não trouxeram nenhuma foto nova.");
       }
       setErroAcao(avisos.length > 0 ? avisos.join(" ") : null);
       setImportandoImagens(false);
@@ -2085,7 +2085,7 @@ export default function FormularioProduto({
         fotosNoEnvio > MAXIMO_IMAGENS
           ? {
               ok: false,
-              erro: `${fotosNoEnvio} fotos estao validadas e o produto leva no maximo ${MAXIMO_IMAGENS}. Tire a validacao ou exclua ${fotosNoEnvio - MAXIMO_IMAGENS} (Melhorar).`,
+              erro: `${fotosNoEnvio} fotos estão validadas e o produto leva no máximo ${MAXIMO_IMAGENS}. Tire a validação ou exclua ${fotosNoEnvio - MAXIMO_IMAGENS} (Melhorar).`,
             }
           : await salvarProduto(produto?.id ?? null, anterior, formData);
 
@@ -2360,7 +2360,7 @@ export default function FormularioProduto({
           );
           if (resposta.recusadas > 0) {
             setErroAcao(
-              `${resposta.recusadas} foto(s) do produto de origem nao puderam ser trazidas (ilegivel ou o site nao respondeu).`,
+              `${resposta.recusadas} foto(s) do produto de origem não puderam ser trazidas (ilegível ou o site não respondeu).`,
             );
           }
         } else {
@@ -2527,7 +2527,7 @@ export default function FormularioProduto({
               />
               <Campo
                 nome="localizacao"
-                rotulo="Localizacao"
+                rotulo="Localização"
                 defaultValue={v("localizacao")}
                 ajuda="Ex.: R14"
               />
@@ -2645,7 +2645,7 @@ export default function FormularioProduto({
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
-                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica a marca (a loja que poe o proprio nome como marca fica de fora)."
+                  vazio="Nenhuma referência (lupa ou vínculos salvos) publica a marca (a loja que põe o próprio nome como marca fica de fora)."
                 />
                 <CampoDeReferencias
                   nome="modelo"
@@ -2656,7 +2656,7 @@ export default function FormularioProduto({
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
-                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o modelo."
+                  vazio="Nenhuma referência (lupa ou vínculos salvos) publica o modelo."
                 />
               </div>
 
@@ -2673,7 +2673,7 @@ export default function FormularioProduto({
 
               <Campo
                 nome="videoUrl"
-                rotulo="Video (link do YouTube)"
+                rotulo="Vídeo (link do YouTube)"
                 defaultValue={v("videoUrl")}
                 placeholder="https://www.youtube.com/watch?v=..."
               />
@@ -2681,28 +2681,28 @@ export default function FormularioProduto({
               <div className="grid gap-4 border-t border-borda pt-5 sm:grid-cols-2">
                 <CampoDeReferencias
                   nome="numeroHomologacao"
-                  rotulo="Numero de homologacao"
+                  rotulo="Número de homologação"
                   inicial={v("numeroHomologacao")}
-                  ajuda="Anatel/INMETRO. O Mercado Livre pede o numero em varias categorias."
+                  ajuda="Anatel/INMETRO. O Mercado Livre pede o número em várias categorias."
                   ids={idsDasIndicacoes}
                   valores={valoresRefs?.homologacao}
                   carregando={lendoRefs}
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
-                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o numero de homologacao. Poucas lojas publicam: a maioria escreve so 'certificado pela Anatel'."
+                  vazio="Nenhuma referência (lupa ou vínculos salvos) publica o número de homologação. Poucas lojas publicam: a maioria escreve só 'certificado pela Anatel'."
                 />
                 <div>
                   <CampoDeReferencias
                     nome="ean"
                     rotulo="GTIN / EAN"
                     inicial={v("ean")}
-                    ajuda="Codigo de barras do produto."
+                    ajuda="Código de barras do produto."
                     ids={idsDasIndicacoes}
                     valores={valoresRefs?.ean}
                     carregando={lendoRefs}
                     aoAlterar={() => setAlterado(true)}
                     usos={usos}
-                    vazio="Nenhuma referencia publica um codigo de barras valido."
+                    vazio="Nenhuma referência publica um código de barras válido."
                   />
                   <LinksDeConsulta campo="ean" sites={SITES_DO_EAN} lerCampo={valorDoCampo} />
                 </div>
@@ -2723,8 +2723,8 @@ export default function FormularioProduto({
               {novo ? (
                 <DocumentoTemporario
                   tipo="DOCUMENTO"
-                  rotulo="Documentos tecnicos"
-                  ajuda="Manual, datasheet, ficha tecnica. PDF, JPG ou PNG, ate 20 MB cada."
+                  rotulo="Documentos técnicos"
+                  ajuda="Manual, datasheet, ficha técnica. PDF, JPG ou PNG, até 20 MB cada."
                   lista={temporarios.filter((item) => item.tipo === "DOCUMENTO")}
                   aoEnviar={enviarTemporario}
                   aoRemover={removerTemporario}
@@ -2733,15 +2733,15 @@ export default function FormularioProduto({
                 <Documento
                   produtoId={produto.id}
                   tipo="DOCUMENTO"
-                  rotulo="Documentos tecnicos"
-                  ajuda="Manual, datasheet, ficha tecnica. PDF, JPG ou PNG, ate 20 MB cada."
+                  rotulo="Documentos técnicos"
+                  ajuda="Manual, datasheet, ficha técnica. PDF, JPG ou PNG, até 20 MB cada."
                   arquivos={arquivos.DOCUMENTO ?? []}
                 />
               )}
               {novo ? (
                 <DocumentoTemporario
                   tipo="CERTIFICADO"
-                  rotulo="Certificado de homologacao"
+                  rotulo="Certificado de homologação"
                   lista={temporarios.filter((item) => item.tipo === "CERTIFICADO")}
                   aoEnviar={enviarTemporario}
                   aoRemover={removerTemporario}
@@ -2750,7 +2750,7 @@ export default function FormularioProduto({
                 <Documento
                   produtoId={produto.id}
                   tipo="CERTIFICADO"
-                  rotulo="Certificado de homologacao"
+                  rotulo="Certificado de homologação"
                   arquivos={arquivos.CERTIFICADO ?? []}
                 />
               )}
@@ -2771,11 +2771,11 @@ export default function FormularioProduto({
                     className="inline-flex items-center gap-1.5 rounded border border-acento bg-superficie px-3 py-2 text-sm font-medium text-acento hover:bg-fundo"
                   >
                     <Sparkles size={15} />
-                    Criar descricao
+                    Criar descrição
                   </button>
                   <BolhaDeAjuda
                     texto={
-                      "Busca descricoes dos produtos correspondentes nos fornecedores e concorrentes cadastrados e cria o texto com IA."
+                      "Busca descrições dos produtos correspondentes nos fornecedores e concorrentes cadastrados e cria o texto com IA."
                     }
                   />
                 </div>
@@ -2802,7 +2802,7 @@ export default function FormularioProduto({
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
                   unidade="kg"
-                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o peso na ficha tecnica."
+                  vazio="Nenhuma referência (lupa ou vínculos salvos) publica o peso na ficha técnica."
                 />
                 <CampoDeReferencias
                   nome="comprimentoCm"
@@ -2817,7 +2817,7 @@ export default function FormularioProduto({
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
                   unidade="cm"
-                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o comprimento na ficha tecnica."
+                  vazio="Nenhuma referência (lupa ou vínculos salvos) publica o comprimento na ficha técnica."
                 />
                 <CampoDeReferencias
                   nome="larguraCm"
@@ -2832,7 +2832,7 @@ export default function FormularioProduto({
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
                   unidade="cm"
-                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica a largura na ficha tecnica."
+                  vazio="Nenhuma referência (lupa ou vínculos salvos) publica a largura na ficha técnica."
                 />
                 <CampoDeReferencias
                   nome="alturaCm"
@@ -2847,17 +2847,17 @@ export default function FormularioProduto({
                   aoAlterar={() => setAlterado(true)}
                   usos={usos}
                   unidade="cm"
-                  vazio="Nenhuma referencia (lupa ou vinculos salvos) publica a altura na ficha tecnica."
+                  vazio="Nenhuma referência (lupa ou vínculos salvos) publica a altura na ficha técnica."
                 />
               </div>
             </div>
 
             <div className={aba === "tributacao" ? "space-y-4" : "hidden"}>
               <p className="rounded border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
-                <strong>Dados da nota fiscal.</strong> Quem emite a nota e o
-                Bling — aqui ficam so os campos que identificam o produto e
+                <strong>Dados da nota fiscal.</strong> Quem emite a nota é o
+                Bling — aqui ficam só os campos que identificam o produto e
                 viajam com ele. Os valores calculados de imposto continuam no
-                Bling, que tem as regras tributarias.
+                Bling, que tem as regras tributárias.
               </p>
 
               <div className="grid gap-4 sm:grid-cols-3">
@@ -2867,17 +2867,17 @@ export default function FormularioProduto({
                     rotulo="Origem"
                     opcoes={ORIGENS}
                     inicial={inicial?.origem}
-                    ajuda="Origem fiscal da mercadoria (nacional, importada etc.), usada no calculo do ICMS."
+                    ajuda="Origem fiscal da mercadoria (nacional, importada etc.), usada no cálculo do ICMS."
                   />
                 </div>
                 <div className="sm:col-span-3">
                   <Selecao
                     nome="tipoProducao"
-                    rotulo="Tipo de producao"
+                    rotulo="Tipo de produção"
                     opcoes={TIPOS_PRODUCAO}
                     inicial={inicial?.tipoProducao ?? "REVENDA"}
                     semVazio
-                    ajuda="Usado pela nota fiscal da Loja Integrada: revenda ou fabricacao propria (muda o CFOP)."
+                    ajuda="Usado pela nota fiscal da Loja Integrada: revenda ou fabricação própria (muda o CFOP)."
                   />
                 </div>
                 <div>
@@ -2886,13 +2886,13 @@ export default function FormularioProduto({
                     rotulo="NCM"
                     inicial={v("ncm")}
                     placeholder="0000.00.00"
-                    ajuda="Obrigatorio para emitir nota."
+                    ajuda="Obrigatório para emitir nota."
                     ids={idsDasIndicacoes}
                     valores={valoresRefs?.ncm}
                     carregando={lendoRefs}
                     aoAlterar={() => setAlterado(true)}
                     usos={usos}
-                    vazio="Nenhuma referencia (lupa ou vinculos salvos) publica o NCM. Fortek, Casa da Robotica e Smartkits costumam publicar; Eletrogate, Saravati e Usinainfo nao."
+                    vazio="Nenhuma referência (lupa ou vínculos salvos) publica o NCM. Fortek, Casa da Robótica e Smartkits costumam publicar; Eletrogate, Saravati e Usinainfo não."
                   />
                   <LinksDeConsulta campo="ncm" sites={SITES_DO_NCM} lerCampo={valorDoCampo} />
                 </div>
@@ -2901,7 +2901,7 @@ export default function FormularioProduto({
                   rotulo="CEST"
                   defaultValue={v("cest")}
                   placeholder="00.000.00"
-                  ajuda="So para produtos sujeitos a substituicao tributaria."
+                  ajuda="Só para produtos sujeitos a substituição tributária."
                 />
                 <Campo
                   nome="percentualTributos"
@@ -2910,7 +2910,7 @@ export default function FormularioProduto({
                   step="0.01"
                   min="0"
                   defaultValue={v("percentualTributos")}
-                  ajuda="Lei da Transparencia."
+                  ajuda="Lei da Transparência."
                 />
                 <div className="sm:col-span-3">
                   <Selecao
@@ -2918,7 +2918,7 @@ export default function FormularioProduto({
                     rotulo="Tipo do item"
                     opcoes={TIPOS_ITEM}
                     inicial={inicial?.spedTipoItem}
-                    ajuda="Usado na geracao do SPED PIS/COFINS."
+                    ajuda="Usado na geração do SPED PIS/COFINS."
                   />
                 </div>
               </div>
@@ -2928,16 +2928,16 @@ export default function FormularioProduto({
               <div className="grid gap-4 sm:grid-cols-4">
                 <Campo
                   nome="estoqueMinimo"
-                  rotulo="Estoque minimo"
+                  rotulo="Estoque mínimo"
                   type="number"
                   step="1"
                   min="0"
                   defaultValue={v("estoqueMinimo")}
-                  ajuda="Quanto voce quer ter em estoque, no minimo."
+                  ajuda="Quanto você quer ter em estoque, no mínimo."
                 />
                 <Campo
                   nome="estoqueMaximo"
-                  rotulo="Estoque maximo"
+                  rotulo="Estoque máximo"
                   type="number"
                   step="1"
                   min="0"

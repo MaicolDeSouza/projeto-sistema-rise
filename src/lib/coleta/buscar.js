@@ -470,7 +470,7 @@ async function requisitarPagina(alvo, { etag, vistoEm, sinal, sinalDaBusca, inic
       return {
         ...vazio,
         status: resposta.status,
-        erro: `Redirecionou para outro dominio (${resposta.redirecionouPara})`,
+        erro: `Redirecionou para outro domínio (${resposta.redirecionouPara})`,
         duracaoMs,
       };
     }
@@ -498,7 +498,7 @@ async function requisitarPagina(alvo, { etag, vistoEm, sinal, sinalDaBusca, inic
         ...vazio,
         status: resposta.status,
         erro: protecao
-          ? `Protecao anti-bot (${protecao}) — o site exige execucao de JavaScript e nao pode ser coletado`
+          ? `Proteção anti-bot (${protecao}) — o site exige execução de JavaScript e não pode ser coletado`
           : `HTTP ${resposta.status}`,
         protecaoAntiBot: protecao,
         duracaoMs,

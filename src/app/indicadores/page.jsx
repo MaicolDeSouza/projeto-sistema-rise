@@ -7,7 +7,7 @@ export const metadata = { title: "Indicadores | Sistema Rise" };
 export default function IndicadoresPage() {
   return (
     <>
-      <PageHeader titulo="Indicadores" descricao="Acompanhe os numeros da sua loja." />
+      <PageHeader titulo="Indicadores" descricao="Acompanhe os números da sua loja." />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <CartaoDeAtalho
           href="/indicadores/estoque"

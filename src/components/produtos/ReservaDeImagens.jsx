@@ -64,11 +64,11 @@ export default function ReservaDeImagens({ reserva, aoEscolher, aoGerar, aoExclu
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           <p className="mb-3 text-xs text-suave">
-            Aqui ficam a original e as versoes que voce ja trabalhou e nao usou como foto. Elas nao entram no
-            anuncio. Excluir so vale quando voce salvar o produto.
+            Aqui ficam a original e as versões que você já trabalhou e não usou como foto. Elas não entram no
+            anúncio. Excluir só vale quando você salvar o produto.
           </p>
           {reserva.length === 0 ? (
-            <p className="py-10 text-center text-sm text-suave">A reserva esta vazia.</p>
+            <p className="py-10 text-center text-sm text-suave">A reserva está vazia.</p>
           ) : (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {reserva.map((item) => (

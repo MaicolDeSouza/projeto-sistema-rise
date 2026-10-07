@@ -37,8 +37,8 @@ export default async function IndicadoresEstoquePage() {
     {
       titulo: "Valor do estoque a custo",
       valor: indicadores.custo,
-      descricao: "Capital aplicado nas mercadorias, com base no custo do fornecedor padrao ou no custo importado do Bling exibido no cadastro.",
-      formula: "Soma da quantidade em estoque x custo unitario de cada produto.",
+      descricao: "Capital aplicado nas mercadorias, com base no custo do fornecedor padrão ou no custo importado do Bling exibido no cadastro.",
+      formula: "Soma da quantidade em estoque x custo unitário de cada produto.",
       faltantes: indicadores.semCusto,
       campo: "custo",
       icone: Wallet,
@@ -46,10 +46,10 @@ export default async function IndicadoresEstoquePage() {
     {
       titulo: "Receita potencial do estoque",
       valor: indicadores.receita,
-      descricao: "Receita bruta estimada se todo o estoque for vendido pelos precos cadastrados.",
-      formula: "Soma da quantidade em estoque x preco de venda de cada produto.",
+      descricao: "Receita bruta estimada se todo o estoque for vendido pelos preços cadastrados.",
+      formula: "Soma da quantidade em estoque x preço de venda de cada produto.",
       faltantes: indicadores.semPreco,
-      campo: "preco de venda",
+      campo: "preço de venda",
       icone: TrendingUp,
     },
   ] : [];
@@ -58,7 +58,7 @@ export default async function IndicadoresEstoquePage() {
     <>
       <PageHeader
         titulo="Estoque"
-        descricao="Valoracao do estoque a partir dos produtos da loja."
+        descricao="Valoração do estoque a partir dos produtos da loja."
         voltarPara="/indicadores"
         voltarRotulo="Voltar para Indicadores"
         acao={<Link href="/produtos" className="text-sm text-acento hover:underline">Ver produtos</Link>}
@@ -77,7 +77,7 @@ export default async function IndicadoresEstoquePage() {
                 <p className="mt-3 text-xs text-suave">{formula}</p>
                 {faltantes > 0 && (
                   <p className="mt-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                    Total parcial: {faltantes} produto(s) com estoque sem {campo} cadastrado nao entram neste valor.
+                    Total parcial: {faltantes} produto(s) com estoque sem {campo} cadastrado não entram neste valor.
                   </p>
                 )}
               </Card>
@@ -86,10 +86,10 @@ export default async function IndicadoresEstoquePage() {
           <div className="mt-5 space-y-2 text-sm text-suave">
             <p>{indicadores.produtosComEstoque.toLocaleString("pt-BR")} produtos com estoque positivo · {indicadores.unidades.toLocaleString("pt-BR")} unidades.</p>
             {indicadores.produtosComEstoque === 0 && <p>Nenhum produto com estoque positivo no momento.</p>}
-            <p>Inclui produtos ativos e inativos com saldo positivo. Saldos zerados ou negativos nao compoem os valores.</p>
-            {indicadores.estoqueNegativo > 0 && <p className="text-amber-700">Ha {indicadores.estoqueNegativo} produto(s) com saldo negativo. Confira os saldos em Produtos.</p>}
-            <p>A receita potencial nao e lucro: nao desconta impostos, taxas, comissoes, fretes ou outras despesas.</p>
-            <p>Os valores sao recalculados ao abrir ou recarregar esta pagina, usando os dados salvos em Produtos.</p>
+            <p>Inclui produtos ativos e inativos com saldo positivo. Saldos zerados ou negativos não compõem os valores.</p>
+            {indicadores.estoqueNegativo > 0 && <p className="text-amber-700">Há {indicadores.estoqueNegativo} produto(s) com saldo negativo. Confira os saldos em Produtos.</p>}
+            <p>A receita potencial não é lucro: não desconta impostos, taxas, comissões, fretes ou outras despesas.</p>
+            <p>Os valores são recalculados ao abrir ou recarregar esta página, usando os dados salvos em Produtos.</p>
           </div>
         </>
       )}

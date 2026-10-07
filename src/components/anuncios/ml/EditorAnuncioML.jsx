@@ -27,14 +27,14 @@ const ABAS_PRONTAS = {
   previa: AbaPrevia,
 };
 
-const MOTIVO_DA_FASE = "A publicacao entra na fase 3.";
+const MOTIVO_DA_FASE = "A publicação entra na fase 3.";
 
 const CLASSE_DA_MENSAGEM = {
   erro: "border-red-200 bg-red-50 text-red-800",
   ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
 };
 
-const MOTIVO_DO_PUBLICADO = "Anuncio publicado: nao editavel aqui.";
+const MOTIVO_DO_PUBLICADO = "Anúncio publicado: não editável aqui.";
 
 const semBlingId = (produto) => Boolean(produto) && !String(produto.blingId ?? "").trim();
 
@@ -136,7 +136,7 @@ export default function EditorAnuncioML({
         resultado = await salvarAnuncioML(idAtual, enviado);
       } catch {
         // Excecao solta numa transicao iria ao error boundary e levaria o que foi digitado.
-        resultado = { ok: false, erro: "Nao foi possivel falar com o servidor. O que esta na tela continua aqui: tente salvar de novo." };
+        resultado = { ok: false, erro: "Não foi possível falar com o servidor. O que está na tela continua aqui: tente salvar de novo." };
       }
       // Recusa (produto que deixou de ser Conferido, por exemplo): so o recado. Nada do estado muda.
       if (!resultado.ok) {
@@ -157,7 +157,7 @@ export default function EditorAnuncioML({
   const motivosSemPublicar = [
     MOTIVO_DA_FASE,
     ...(idsDosProdutos.some((id) => semBlingId(contexto.produtos[id])) ? ["Produto sem blingId."] : []),
-    ...(bloqueantes > 0 ? [`${bloqueantes} problema(s) bloqueante(s) na Previa.`] : []),
+    ...(bloqueantes > 0 ? [`${bloqueantes} problema(s) bloqueante(s) na Prévia.`] : []),
   ];
 
   const propsDasAbas = { rascunho, contexto, alterar, setContexto, irPara: setAba, anuncioId: idAtual };
@@ -207,7 +207,7 @@ export default function EditorAnuncioML({
       <div className="flex items-center gap-2 text-xs">
         <Badge tom={rotuloDoStatus.tom}>{rotuloDoStatus.rotulo}</Badge>
         {alterado ? (
-          <span className="text-amber-700">Alteracoes nao salvas</span>
+          <span className="text-amber-700">Alterações não salvas</span>
         ) : (
           idAtual && <span className="text-suave">Tudo salvo</span>
         )}
@@ -263,12 +263,12 @@ export default function EditorAnuncioML({
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="Anuncio do Mercado Livre"
+        aria-label="Anúncio do Mercado Livre"
         className="flex max-h-full w-full max-w-5xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl focus:outline-none"
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-5 py-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold">Anuncio do Mercado Livre</p>
+            <p className="text-sm font-semibold">Anúncio do Mercado Livre</p>
             {principal && (
               <p className="mt-0.5 truncate text-xs text-suave">
                 <span className="font-mono">{principal.sku}</span> · {principal.tituloBase}
@@ -301,7 +301,7 @@ export default function EditorAnuncioML({
             <p id="ml-sair-titulo" className="text-sm font-semibold">
               Sair sem salvar?
             </p>
-            <p className="mt-1 text-sm text-suave">As alteracoes deste anuncio ainda nao foram salvas e serao perdidas.</p>
+            <p className="mt-1 text-sm text-suave">As alterações deste anúncio ainda não foram salvas e serão perdidas.</p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"

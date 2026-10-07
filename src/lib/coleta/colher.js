@@ -149,28 +149,28 @@ export async function colherProdutos({
   } catch {
     return {
       ok: false,
-      motivo: "O endereco informado nao e uma URL valida.",
-      passos: [passo("Endereco valido", false)],
+      motivo: "O endereço informado não é uma URL válida.",
+      passos: [passo("Endereço válido", false)],
       produtos: [],
       formatos: [],
       visitas: 0,
     };
   }
-  passos.push(passo("Endereco valido", true, alvo.origin));
+  passos.push(passo("Endereço válido", true, alvo.origin));
 
   const home = await buscarPagina(alvo.toString(), { sinal });
   if (!home.ok && !home.corpo) {
-    passos.push(passo("Site acessivel", false, home.erro));
+    passos.push(passo("Site acessível", false, home.erro));
     return {
       ok: false,
-      motivo: `Nao foi possivel abrir o site: ${home.erro}`,
+      motivo: `Não foi possível abrir o site: ${home.erro}`,
       passos,
       produtos: [],
       formatos: [],
       visitas: 1,
     };
   }
-  passos.push(passo("Site acessivel", true));
+  passos.push(passo("Site acessível", true));
 
   // PRIMEIRO PASSO DA ANALISE: quem serve esta loja.
   //
@@ -194,10 +194,10 @@ export async function colherProdutos({
       nome: "Magento 2 com vitrine Venia",
       familia: "Magento 2 / Adobe Commerce",
       confianca: "alta",
-      sinais: ["vitrine Venia no HTML", "endereco Magento GraphQL declarado pela loja"],
+      sinais: ["vitrine Venia no HTML", "endereço Magento GraphQL declarado pela loja"],
       alternativas: [],
       entrega: {
-        resumo: "A vitrine e carregada por JavaScript; os produtos estao no catalogo GraphQL publico.",
+        resumo: "A vitrine é carregada por JavaScript; os produtos estão no catálogo GraphQL público.",
         formatos: ["graphql"],
         preco: "price_range.minimum_price.final_price",
         codigo: "sku",
@@ -215,9 +215,9 @@ export async function colherProdutos({
       "Plataforma identificada",
       plataforma.id !== "desconhecida",
       plataforma.id === "desconhecida"
-        ? "front proprio ou plataforma fora do catalogo — segue pela leitura generica"
+        ? "front próprio ou plataforma fora do catálogo — segue pela leitura genérica"
         : plataforma.nome +
-            " · confianca " +
+            " · confiança " +
             plataforma.confianca +
             " · " +
             plataforma.sinais.join(" · "),
@@ -266,11 +266,11 @@ export async function colherProdutos({
       aoProgredir,
       sinal,
     });
-    passos.push(passo("Catalogo GraphQL lido", !leitura.erro, leitura.erro ?? `${leitura.total ?? "?"} produto(s) no catalogo`));
-    passos.push(passo("Produtos encontrados", leitura.produtos.length > 0, `${leitura.produtos.length} valido(s) em ${leitura.visitas} consulta(s)`));
+    passos.push(passo("Catálogo GraphQL lido", !leitura.erro, leitura.erro ?? `${leitura.total ?? "?"} produto(s) no catálogo`));
+    passos.push(passo("Produtos encontrados", leitura.produtos.length > 0, `${leitura.produtos.length} válido(s) em ${leitura.visitas} consulta(s)`));
     return {
       ok: leitura.produtos.length + leitura.retomados > 0,
-      motivo: leitura.erro ?? (leitura.produtos.length + leitura.retomados ? null : "O catalogo GraphQL nao retornou produtos validos."),
+      motivo: leitura.erro ?? (leitura.produtos.length + leitura.retomados ? null : "O catálogo GraphQL não retornou produtos válidos."),
       passos,
       produtos: leitura.produtos,
       formatos: leitura.produtos.length ? ["graphql"] : [],
@@ -296,13 +296,13 @@ export async function colherProdutos({
     // Se a API caiu depois de alguns lotes, o worker precisa retomar; fechar
     // uma coleta parcial como concluida esconderia os itens ainda nao lidos.
     if (leitura.erro && (leitura.produtos.length || leitura.retomados)) {
-      throw new Error(`Catalogo WooCommerce interrompido: ${leitura.erro}`);
+      throw new Error(`Catálogo WooCommerce interrompido: ${leitura.erro}`);
     }
     // Algumas lojas bloqueiam a Store API. Se nao veio nenhum produto, a
     // navegacao HTML continua sendo a alternativa existente.
     if (leitura.produtos.length || leitura.retomados) {
-      passos.push(passo("Catalogo WooCommerce lido", true, `${leitura.total ?? "?"} produto(s) no catalogo`));
-      passos.push(passo("Produtos encontrados", true, `${leitura.produtos.length} valido(s) em ${leitura.visitas} consulta(s)`));
+      passos.push(passo("Catálogo WooCommerce lido", true, `${leitura.total ?? "?"} produto(s) no catálogo`));
+      passos.push(passo("Produtos encontrados", true, `${leitura.produtos.length} válido(s) em ${leitura.visitas} consulta(s)`));
       return {
         ok: true, motivo: null, passos, produtos: leitura.produtos,
         formatos: ["woocommerce-store-api"], visitas: leitura.visitas + 1,
@@ -312,7 +312,7 @@ export async function colherProdutos({
         produtosNoSiteFonte: leitura.total === null ? null : "catalogo",
       };
     }
-    passos.push(passo("Catalogo WooCommerce lido", false, leitura.erro ?? "nenhum produto valido; seguindo pelas paginas"));
+    passos.push(passo("Catálogo WooCommerce lido", false, leitura.erro ?? "nenhum produto válido; seguindo pelas páginas"));
   }
 
   // Uma memoria POR COLHEITA, nunca global: o desconto a vista e desta loja, e
@@ -442,18 +442,18 @@ export async function colherProdutos({
 
     passos.push(
       passo(
-        "Catalogo publico lido",
+        "Catálogo público lido",
         !leitura.erro && itensDoCatalogo.length > 0,
         leitura.erro
-          ? `nao respondeu: ${leitura.erro}`
+          ? `não respondeu: ${leitura.erro}`
           : // totalDoCatalogo so vem preenchido quando a paginacao esgotou (ou a
             // plataforma declara o total). No teste, o limite pequeno corta a
             // leitura na primeira pagina, e itensDoCatalogo.length e so a
             // amostra lida ate ali — dizer isso como "no catalogo da loja"
             // afirmaria um tamanho de loja que nao foi provado.
             totalDoCatalogo !== null
-            ? `${totalDoCatalogo} produto(s) no catalogo da loja`
-            : `${itensDoCatalogo.length} produto(s) lido(s) nesta amostra — a loja tem mais (total confirmado so na coleta completa)`,
+            ? `${totalDoCatalogo} produto(s) no catálogo da loja`
+            : `${itensDoCatalogo.length} produto(s) lido(s) nesta amostra — a loja tem mais (total confirmado só na coleta completa)`,
       ),
     );
   }
@@ -558,8 +558,8 @@ export async function colherProdutos({
         "Sitemap identificado",
         sitemaps.length > 0,
         sitemaps.length > 0
-          ? `${urlsSitemap.length}${sitemapNoTeto ? "+" : ""} endereco(s) no sitemap`
-          : "nao publicado — vamos navegar pelo site",
+          ? `${urlsSitemap.length}${sitemapNoTeto ? "+" : ""} endereço(s) no sitemap`
+          : "não publicado — vamos navegar pelo site",
       ),
     );
   }
@@ -679,9 +679,9 @@ export async function colherProdutos({
     if (varredura.secou) {
       passos.push(
         passo(
-          "Navegacao encerrada",
+          "Navegação encerrada",
           true,
-          `${varredura.semAchado} pagina(s) seguidas sem produto novo — o resto do site nao tem o que colher`,
+          `${varredura.semAchado} página(s) seguidas sem produto novo — o resto do site não tem o que colher`,
         ),
       );
     }
@@ -695,7 +695,7 @@ export async function colherProdutos({
     passo(
       "Produtos encontrados",
       encontrados.length > 0,
-      `${encontrados.length} valido(s) em ${visitas} pagina(s) abertas`,
+      `${encontrados.length} válido(s) em ${visitas} página(s) abertas`,
     ),
   );
 
@@ -703,15 +703,15 @@ export async function colherProdutos({
   if (variantesIgnoradas > 0) {
     passos.push(
       passo(
-        "Enderecos repetidos ignorados",
+        "Endereços repetidos ignorados",
         true,
-        `${variantesIgnoradas} endereco(s) eram o mesmo produto por outro caminho de categoria`,
+        `${variantesIgnoradas} endereço(s) eram o mesmo produto por outro caminho de categoria`,
       ),
     );
   }
 
   if (encontrados.length > 0) {
-    passos.push(passo("Extracao concluida", true, [...formatos].join(", ") || "—"));
+    passos.push(passo("Extração concluída", true, [...formatos].join(", ") || "—"));
   }
 
   return {
@@ -723,7 +723,7 @@ export async function colherProdutos({
     motivo:
       achados() > 0
         ? null
-        : "Nao foram encontrados produtos validos. O site nao publica JSON-LD, Microdata nem OpenGraph de produto nas paginas que abrimos." +
+        : "Não foram encontrados produtos válidos. O site não publica JSON-LD, Microdata nem OpenGraph de produto nas páginas que abrimos." +
           (plataforma.id === "desconhecida"
             ? ""
             : ` A loja roda em ${plataforma.nome}: ${plataforma.entrega.resumo}`),

@@ -17,7 +17,7 @@ const PESO = {
   id: "ml-peso",
   rotulo: "Peso (kg)",
   casas: 3,
-  ajuda: "Peso do pacote ja embalado, em quilos. Ate 3 casas: 0,250 sao 250 gramas.",
+  ajuda: "Peso do pacote já embalado, em quilos. Até 3 casas: 0,250 são 250 gramas.",
 };
 const MEDIDAS = [
   {
@@ -26,7 +26,7 @@ const MEDIDAS = [
     id: "ml-comprimento",
     rotulo: "Comprimento (cm)",
     casas: 2,
-    ajuda: "Comprimento do pacote ja embalado, em centimetros.",
+    ajuda: "Comprimento do pacote já embalado, em centímetros.",
   },
   {
     chave: "larguraCm",
@@ -34,7 +34,7 @@ const MEDIDAS = [
     id: "ml-largura",
     rotulo: "Largura (cm)",
     casas: 2,
-    ajuda: "Largura do pacote ja embalado, em centimetros.",
+    ajuda: "Largura do pacote já embalado, em centímetros.",
   },
   {
     chave: "alturaCm",
@@ -42,7 +42,7 @@ const MEDIDAS = [
     id: "ml-altura",
     rotulo: "Altura (cm)",
     casas: 2,
-    ajuda: "Altura do pacote ja embalado, em centimetros.",
+    ajuda: "Altura do pacote já embalado, em centímetros.",
   },
 ];
 
@@ -111,7 +111,7 @@ export default function AbaEnvio({ rascunho, alterar, problemas }) {
     <div className="space-y-4">
       {emKit && (
         <div className="rounded border border-borda bg-fundo px-3 py-2 text-sm text-suave">
-          Peso sugerido: soma dos itens. Confira as dimensoes da caixa do kit.
+          Peso sugerido: soma dos itens. Confira as dimensões da caixa do kit.
         </div>
       )}
 
@@ -137,7 +137,7 @@ export default function AbaEnvio({ rascunho, alterar, problemas }) {
       </div>
       <MensagensDoCampo problemas={problemas} campo="dimensoes" />
 
-      <Campo nome="ml-modo-de-envio" rotulo="Modo de envio" ajuda="Somente leitura. Nesta fase o envio e sempre pelo Mercado Envios.">
+      <Campo nome="ml-modo-de-envio" rotulo="Modo de envio" ajuda="Somente leitura. Nesta fase o envio é sempre pelo Mercado Envios.">
         <input
           id="ml-modo-de-envio"
           readOnly
@@ -148,14 +148,14 @@ export default function AbaEnvio({ rascunho, alterar, problemas }) {
 
       <div className="space-y-2">
         <CaixaDeOpcao
-          rotulo="Frete gratis"
-          ajuda="O frete fica por sua conta: o comprador nao paga o envio."
+          rotulo="Frete grátis"
+          ajuda="O frete fica por sua conta: o comprador não paga o envio."
           marcada={Boolean(envio.freteGratis)}
           aoMudar={(freteGratis) => mudarEnvio({ freteGratis })}
         />
         <CaixaDeOpcao
           rotulo="Retirada no local"
-          ajuda="O comprador tambem pode retirar o produto na sua loja."
+          ajuda="O comprador também pode retirar o produto na sua loja."
           marcada={Boolean(envio.retirada)}
           aoMudar={(retirada) => mudarEnvio({ retirada })}
         />

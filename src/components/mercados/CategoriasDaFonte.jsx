@@ -54,7 +54,7 @@ export default function CategoriasDaFonte({ fonte }) {
       () => adicionarCategoria(fonte.id, novaUrl),
       () => {
         setNovaUrl("");
-        setAviso("Categoria adicionada. Ela entra na proxima varredura.");
+        setAviso("Categoria adicionada. Ela entra na próxima varredura.");
       },
     );
   }
@@ -78,7 +78,7 @@ export default function CategoriasDaFonte({ fonte }) {
       <div>
         <p className="text-sm font-medium">Categorias varridas ({categorias.length})</p>
         <p className="text-xs text-suave">
-          Portal com login: so as categorias abaixo sao lidas, uma pagina a cada 30 segundos.
+          Portal com login: só as categorias abaixo são lidas, uma página a cada 30 segundos.
         </p>
       </div>
 
@@ -98,7 +98,7 @@ export default function CategoriasDaFonte({ fonte }) {
               <p className="text-xs text-suave">
                 {typeof categoria.total === "number"
                   ? `${categoria.total.toLocaleString("pt-BR")} produto(s) no portal`
-                  : "total aparece na proxima varredura"}
+                  : "total aparece na próxima varredura"}
                 {typeof categoria.lidos === "number" && ` · ${categoria.lidos.toLocaleString("pt-BR")} lido(s)`}
                 {categoria.varridaEm && ` · varrida em ${comoData(categoria.varridaEm)}`}
               </p>
@@ -110,7 +110,7 @@ export default function CategoriasDaFonte({ fonte }) {
               title={
                 categorias.length <= 1
                   ? "A fonte precisa de pelo menos uma categoria. Para parar, use Pausar."
-                  : "Tirar esta categoria da varredura (os produtos ja coletados ficam)"
+                  : "Tirar esta categoria da varredura (os produtos já coletados ficam)"
               }
               className="inline-flex items-center gap-1 rounded border border-borda px-2 py-1 text-xs text-red-700 hover:bg-fundo disabled:opacity-40"
             >

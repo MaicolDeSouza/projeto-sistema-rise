@@ -28,11 +28,11 @@ export default function TabelaAnunciosLI({ linhas, busca }) {
     return (
       <EmptyState
         icone={ShoppingBag}
-        titulo={busca ? `Nenhum anuncio encontrado para "${busca}"` : "Nenhum anuncio da Loja Integrada ainda"}
+        titulo={busca ? `Nenhum anúncio encontrado para "${busca}"` : "Nenhum anúncio da Loja Integrada ainda"}
         descricao={
           busca
-            ? "Tente outro termo (titulo ou codigo do produto), ou limpe a busca."
-            : "Clique em \"Novo anuncio\" e informe o codigo de um produto Conferido, ou abra o icone da Loja Integrada na lista de Produtos (o produto que ja existe na loja e vinculado pelo codigo)."
+            ? "Tente outro termo (título ou código do produto), ou limpe a busca."
+            : "Clique em \"Novo anúncio\" e informe o código de um produto Conferido, ou abra o ícone da Loja Integrada na lista de Produtos (o produto que já existe na loja é vinculado pelo código)."
         }
       />
     );
@@ -43,9 +43,9 @@ export default function TabelaAnunciosLI({ linhas, busca }) {
       <table className="w-full text-sm">
         <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
           <tr className="divide-x divide-borda">
-            <th className="px-3 py-2.5 font-medium">Codigo</th>
-            <th className="px-3 py-2.5 font-medium">Titulo</th>
-            <th className="px-3 py-2.5 font-medium">Situacao</th>
+            <th className="px-3 py-2.5 font-medium">Código</th>
+            <th className="px-3 py-2.5 font-medium">Título</th>
+            <th className="px-3 py-2.5 font-medium">Situação</th>
             <th className="px-3 py-2.5 font-medium">Na loja</th>
             <th className="px-3 py-2.5 font-medium">Sincronizado em</th>
             <th className="px-3 py-2.5 font-medium">Atualizado em</th>
@@ -63,7 +63,7 @@ export default function TabelaAnunciosLI({ linhas, busca }) {
                 </td>
                 <td className="px-3 py-2.5">
                   <Link href={enderecoDe(linha)} className="hover:underline">
-                    {linha.titulo || <span className="text-suave italic">Sem titulo</span>}
+                    {linha.titulo || <span className="text-suave italic">Sem título</span>}
                   </Link>
                 </td>
                 <td className="px-3 py-2.5">

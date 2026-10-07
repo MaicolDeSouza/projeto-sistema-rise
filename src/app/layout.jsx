@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "Sistema Rise",
-  description: "Controle das operacoes da loja: anuncios, pedidos e estoque.",
+  description: "Controle das operações da loja: anúncios, pedidos e estoque.",
 };
 
 export default function RootLayout({ children }) {

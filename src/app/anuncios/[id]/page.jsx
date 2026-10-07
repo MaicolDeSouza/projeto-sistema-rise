@@ -108,7 +108,7 @@ export default async function AnuncioPage({ params }) {
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-suave hover:text-texto"
       >
         <ArrowLeft size={15} />
-        Voltar para anuncios
+        Voltar para anúncios
       </Link>
 
       <PageHeader titulo={produto.tituloBase} descricao={`SKU ${produto.sku}`} />

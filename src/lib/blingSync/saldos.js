@@ -74,7 +74,7 @@ function recusaDaLeitura(resposta) {
   const descricao = resposta?.dados?.error?.description ?? resposta?.dados?.error?.message ?? null;
   let texto = `O Bling recusou a leitura do saldo (HTTP ${status ?? "sem status"}${descricao ? `: ${descricao}` : ""}).`;
   if (status === 429) texto += " O Bling limita a 3 chamadas por segundo na conta inteira: tente de novo em alguns instantes.";
-  else if (status === 401 || status === 403) texto += " Reconecte o Bling em Integracoes e tente de novo.";
+  else if (status === 401 || status === 403) texto += " Reconecte o Bling em Integrações e tente de novo.";
   else if (status >= 500) texto += " Tente de novo em alguns instantes.";
   return texto;
 }
@@ -103,7 +103,7 @@ export async function lerSaldosDoBling(cliente, codigos) {
   try {
     resposta = await cliente.get("/estoques/saldos", { "codigos[]": pedidos });
   } catch (erro) {
-    return { ok: false, erro: `Nao foi possivel ler o saldo no Bling: ${mensagemDe(erro)}` };
+    return { ok: false, erro: `Não foi possível ler o saldo no Bling: ${mensagemDe(erro)}` };
   }
   if (!resposta?.ok) {
     if (nenhumResolvido(resposta)) return { ok: true, itens: [] };
@@ -167,14 +167,14 @@ async function gravarLote(achados, desde, resultado) {
       const saida = [];
       for (const { produto, saldo } of achados) {
         if (!existem.has(produto.id)) {
-          saida.push({ produto, erro: "O produto foi excluido do Rise durante a leitura do saldo." });
+          saida.push({ produto, erro: "O produto foi excluído do Rise durante a leitura do saldo." });
           continue;
         }
         const seus = doProduto.get(produto.id) ?? [];
         if (seus.some((movimento) => movimento.enviadoAoBlingEm !== null)) {
           saida.push({
             produto,
-            erro: "Um ajuste deste produto foi enviado ao Bling enquanto o saldo era lido, e o saldo lido pode nao conte-lo: o estoque nao foi alterado. Atualize o estoque de novo.",
+            erro: "Um ajuste deste produto foi enviado ao Bling enquanto o saldo era lido, e o saldo lido pode não contê-lo: o estoque não foi alterado. Atualize o estoque de novo.",
           });
           continue;
         }
@@ -187,7 +187,7 @@ async function gravarLote(achados, desde, resultado) {
     });
   } catch (erro) {
     for (const { produto } of achados) {
-      resultado.falhas.push({ sku: produto.sku, erro: `O saldo foi lido do Bling, mas nao foi gravado no Rise: ${mensagemDe(erro)}` });
+      resultado.falhas.push({ sku: produto.sku, erro: `O saldo foi lido do Bling, mas não foi gravado no Rise: ${mensagemDe(erro)}` });
     }
     return;
   }
@@ -216,7 +216,7 @@ async function atualizarLote(cliente, lote, resultado) {
       // O Rise nao escolhe um: o saldo do produto errado viraria o estoque deste.
       resultado.falhas.push({
         sku: produto.sku,
-        erro: `Ha mais de um produto com o codigo ${produto.sku} no Bling (${itens.length} encontrados): o estoque nao foi alterado. Deixe so um com esse codigo no Bling.`,
+        erro: `Há mais de um produto com o código ${produto.sku} no Bling (${itens.length} encontrados): o estoque não foi alterado. Deixe só um com esse código no Bling.`,
       });
     } else if (itens.length === 0 || itens[0].saldo === null) {
       // Nao existe no Bling, esta inativo la (`codigos[]` nao resolve inativo) ou veio sem saldo.
@@ -269,7 +269,7 @@ export async function sincronizarEstoqueDoBling(cliente = clienteBling(), opcoes
       orderBy: [{ sku: "asc" }, { id: "asc" }],
     });
   } catch (erro) {
-    throw new Error(`Nao foi possivel ler os produtos do Rise: ${mensagemDe(erro)}`);
+    throw new Error(`Não foi possível ler os produtos do Rise: ${mensagemDe(erro)}`);
   }
 
   // Sem codigo no Rise nao ha o que pedir ao Bling: conta como sem codigo, e o estoque fica.

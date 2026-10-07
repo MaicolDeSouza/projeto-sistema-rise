@@ -155,7 +155,7 @@ export default async function ProdutosPage({ searchParams }) {
     <>
       <PageHeader
         titulo="Produtos"
-        descricao="O cadastro base da loja. Todo anuncio nos canais deriva de um produto daqui."
+        descricao="O cadastro base da loja. Todo anúncio nos canais deriva de um produto daqui."
         acao={
           <div className="flex items-start gap-3">
             <BotaoImportarBling />

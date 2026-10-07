@@ -91,7 +91,7 @@ export default function ListaDeValores({
             {rotuloIncluir}
           </button>
         )}
-        {valores.length > 1 && <span className="text-xs text-suave">O primeiro e o principal.</span>}
+        {valores.length > 1 && <span className="text-xs text-suave">O primeiro é o principal.</span>}
       </div>
 
       {erro && <p className="mt-1 text-[11px] text-red-700">{erro}</p>}

@@ -220,7 +220,7 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
                     <th className="pb-1 text-right font-medium">Produtos</th>
                     <th
                       className="pb-1 text-right font-medium"
-                      title="Segundos, em media, para coletar cada produto novo"
+                      title="Segundos, em média, para coletar cada produto novo"
                     >
                       Seg/prod.
                     </th>
@@ -273,7 +273,7 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
       */}
       {!emAndamento && !erro && situacao?.ultimo && (
         <p className="text-left text-xs text-suave">
-          Ultima varredura: {situacao.ultimo.fonteNome} ·{" "}
+          Última varredura: {situacao.ultimo.fonteNome} ·{" "}
           {situacao.ultimo.status === "CONCLUIDO"
             ? `${situacao.ultimo.produtos ?? 0} produto(s) gravado(s)`
             : `falhou${situacao.ultimo.erro ? `: ${situacao.ultimo.erro}` : ""}`}
@@ -321,7 +321,7 @@ function LinhaDeVarredura({ job }) {
         {job.fonteNome}
         {job.retomados > 0 && (
           <span className="block text-[10px] text-suave">
-            retomada: {job.retomados.toLocaleString("pt-BR")} ja gravados
+            retomada: {job.retomados.toLocaleString("pt-BR")} já gravados
           </span>
         )}
       </td>

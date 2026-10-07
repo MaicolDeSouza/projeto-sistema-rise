@@ -167,5 +167,5 @@ export async function tirarFotoMensal({ agora = new Date(), forcar = false } = {
   const produtos = temProdutos ? 0 : await fotografarProdutos(mes);
 
   const tirou = coleta > 0 || produtos > 0;
-  return { tirou, mes, coleta, produtos, ...(tirou ? {} : { motivo: "a foto deste mes ja existe" }) };
+  return { tirou, mes, coleta, produtos, ...(tirou ? {} : { motivo: "a foto deste mês já existe" }) };
 }

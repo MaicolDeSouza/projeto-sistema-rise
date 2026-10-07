@@ -6,7 +6,7 @@ import Badge from "@/components/ui/Badge";
  * um anuncio "PUBLICADO" pode estar "PAUSADA" no Mercado Livre.
  */
 export function resumirSituacao(anuncio) {
-  if (!anuncio) return { rotulo: "Sem anuncio", tom: "neutro" };
+  if (!anuncio) return { rotulo: "Sem anúncio", tom: "neutro" };
 
   if (anuncio.status === "ERRO") return { rotulo: "Erro", tom: "erro" };
   if (anuncio.status === "RASCUNHO") return { rotulo: "Rascunho", tom: "neutro" };

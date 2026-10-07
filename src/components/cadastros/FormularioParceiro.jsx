@@ -82,7 +82,7 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
           <CampoSite
             erro={erros.site}
             siteInicial={valor("site")}
-            ajuda="Endereco de venda do site, com http ou https. O botao Abrir site leva ate ele."
+            ajuda="Endereço de venda do site, com http ou https. O botão Abrir site leva até ele."
           />
         </div>
 
@@ -102,7 +102,7 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
           <>
             <Campo
               nome="pedidoMinimo"
-              rotulo="Pedido minimo (R$)"
+              rotulo="Pedido mínimo (R$)"
               type="number"
               min="0"
               step="0.01"
@@ -112,10 +112,10 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
             <div className="md:col-span-2">
               <Campo
                 nome="condicoesPagamento"
-                rotulo="Condicoes de pagamento"
+                rotulo="Condições de pagamento"
                 erro={erros.condicoesPagamento}
                 defaultValue={valor("condicoesPagamento")}
-                placeholder="Ex.: pix a vista, boleto 28 dias"
+                placeholder="Ex.: pix à vista, boleto 28 dias"
               />
             </div>
           </>
@@ -147,7 +147,7 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
         )}
 
         <div className="md:col-span-2">
-          <Campo nome="observacoes" rotulo="Observacoes" erro={erros.observacoes}>
+          <Campo nome="observacoes" rotulo="Observações" erro={erros.observacoes}>
             <textarea
               id="observacoes"
               name="observacoes"
@@ -167,8 +167,8 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
       {ehFornecedor && parceiro && (
         <p className="text-xs text-suave">
           {usos > 0
-            ? `Este fornecedor abastece ${usos} produto(s) do catalogo, por isso nao pode ser excluido enquanto houver vinculo.`
-            : "Nenhum produto do catalogo usa este fornecedor ainda."}
+            ? `Este fornecedor abastece ${usos} produto(s) do catálogo, por isso não pode ser excluído enquanto houver vínculo.`
+            : "Nenhum produto do catálogo usa este fornecedor ainda."}
         </p>
       )}
 

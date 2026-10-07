@@ -145,7 +145,7 @@ function AvisoSoAqui({ children }) {
   );
 }
 
-const AVISO_CANAIS = "Fica so neste sistema: o Bling e os canais (Mercado Livre, Loja Integrada) nao sao atualizados.";
+const AVISO_CANAIS = "Fica só neste sistema: o Bling e os canais (Mercado Livre, Loja Integrada) não são atualizados.";
 
 export function PopupLocalizacao({ produto, aoFechar }) {
   const [valor, setValor] = useState(produto.localizacao ?? "");
@@ -153,7 +153,7 @@ export function PopupLocalizacao({ produto, aoFechar }) {
 
   return (
     <Popup
-      titulo="Editar localizacao"
+      titulo="Editar localização"
       produto={produto}
       aoFechar={aoFechar}
       aoEnviar={() => enviar(produto.id, valor)}
@@ -162,7 +162,7 @@ export function PopupLocalizacao({ produto, aoFechar }) {
       erro={erro}
     >
       <label className="mb-1 block text-xs text-suave" htmlFor="edicao-localizacao">
-        Localizacao
+        Localização
       </label>
       <input
         id="edicao-localizacao"
@@ -178,7 +178,7 @@ export function PopupLocalizacao({ produto, aoFechar }) {
         className={CLASSE_CAMPO}
       />
       <p className="mt-1.5 text-xs text-suave">
-        So para a separacao do pedido. Nao vai para canal nenhum. Vazio limpa a localizacao.
+        Só para a separação do pedido. Não vai para canal nenhum. Vazio limpa a localização.
       </p>
     </Popup>
   );
@@ -195,7 +195,7 @@ export function PopupPreco({ produto, aoFechar }) {
 
   return (
     <Popup
-      titulo="Editar preco de venda"
+      titulo="Editar preço de venda"
       produto={produto}
       aoFechar={aoFechar}
       aoEnviar={() => enviar(produto.id, valor)}
@@ -204,7 +204,7 @@ export function PopupPreco({ produto, aoFechar }) {
       erro={erro}
     >
       <label className="mb-1 block text-xs text-suave" htmlFor="edicao-preco">
-        Preco de venda (R$)
+        Preço de venda (R$)
       </label>
       <input
         id="edicao-preco"
@@ -225,15 +225,15 @@ export function PopupPreco({ produto, aoFechar }) {
         {lucro !== null &&
           (preco < custo
             ? `Abaixo do custo: ${moeda.format(lucro)} (${margem.toFixed(1)}%)`
-            : `Lucro liquido ${moeda.format(lucro)} (${margem.toFixed(1)}%)`)}
+            : `Lucro líquido ${moeda.format(lucro)} (${margem.toFixed(1)}%)`)}
       </p>
       <p className="text-xs text-suave">
         {custo > 0
           ? `Custo ${moeda.format(custo)} · imposto de ${(IMPOSTO_PADRAO * 100).toFixed(0)}% descontado, fixo por enquanto.`
-          : "Sem custo cadastrado: a margem nao e calculada."}
+          : "Sem custo cadastrado: a margem não é calculada."}
       </p>
       <AvisoSoAqui>
-        {AVISO_CANAIS} O preco de venda e um so por produto, igual para todos os canais.
+        {AVISO_CANAIS} O preço de venda é um só por produto, igual para todos os canais.
       </AvisoSoAqui>
     </Popup>
   );
@@ -271,7 +271,7 @@ export function PopupEstoque({ produto, aoFechar }) {
   let previa = null;
   if (depois !== null) {
     if (depois < 0) {
-      previa = { erro: true, texto: `A saida (${digitada}) e maior que o saldo (${produto.estoque}).` };
+      previa = { erro: true, texto: `A saída (${digitada}) é maior que o saldo (${produto.estoque}).` };
     } else if (depois > MAXIMO_ESTOQUE) {
       previa = { erro: true, texto: `O saldo passaria do limite de ${MAXIMO_ESTOQUE}.` };
     } else {
@@ -299,7 +299,7 @@ export function PopupEstoque({ produto, aoFechar }) {
         </span>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Operacao">
+      <div className="mt-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Operação">
         {TIPOS_DE_MOVIMENTO.map((item) => {
           const Icone = ICONES_DO_MOVIMENTO[item.id];
           return (
@@ -371,7 +371,7 @@ export function PopupEstoque({ produto, aoFechar }) {
         </div>
         <div>
           <label className="mb-1 block text-xs text-suave" htmlFor="edicao-observacao">
-            Observacao (opcional)
+            Observação (opcional)
           </label>
           <input
             id="edicao-observacao"

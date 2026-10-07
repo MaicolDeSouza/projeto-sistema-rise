@@ -156,28 +156,28 @@ export default async function EditarProdutoPage({ params, searchParams }) {
 
       {busca?.documentos === "falhou" && (
         <p className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          O produto foi salvo, mas os documentos enviados antes de salvar nao foram gravados.
-          Envie de novo em Documentos tecnicos e Certificado de homologacao.
+          O produto foi salvo, mas os documentos enviados antes de salvar não foram gravados.
+          Envie de novo em Documentos técnicos e Certificado de homologação.
         </p>
       )}
 
       {busca?.fornecedores === "falhou" && (
         <p className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          O produto foi salvo, mas os fornecedores adicionados antes de salvar nao foram
+          O produto foi salvo, mas os fornecedores adicionados antes de salvar não foram
           gravados. Adicione de novo na aba Fornecedores.
         </p>
       )}
 
       {busca?.concorrentes === "falhou" && (
         <p className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          O produto foi salvo, mas os concorrentes adicionados antes de salvar nao foram
+          O produto foi salvo, mas os concorrentes adicionados antes de salvar não foram
           gravados. Adicione de novo na aba Fornecedores.
         </p>
       )}
 
       {busca?.fotos === "falhou" && (
         <p className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          O produto foi salvo, mas as fotos enviadas antes de salvar nao foram gravadas. Envie de
+          O produto foi salvo, mas as fotos enviadas antes de salvar não foram gravadas. Envie de
           novo no bloco de imagens.
         </p>
       )}

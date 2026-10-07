@@ -21,13 +21,13 @@ export const FERRAMENTAS = [
     rotulo: "Imagem para SVG",
     icone: Shapes,
     resumo: "Converte o logo de uma empresa, de um fornecedor ou do seu site em SVG, com fundo transparente e as cores exatas.",
-    detalhe: "PNG, JPG e WebP · ate 10 MB",
+    detalhe: "PNG, JPG e WebP · até 10 MB",
   },
   {
     href: "/ferramentas/cotacao-dolar",
-    rotulo: "Cotacao do dolar",
+    rotulo: "Cotação do dólar",
     icone: TrendingUp,
-    resumo: "O dolar de agora e o oficial do Banco Central (PTAX), com grafico dos ultimos dias, meses ou do ultimo ano.",
+    resumo: "O dólar de agora e o oficial do Banco Central (PTAX), com gráfico dos últimos dias, meses ou do último ano.",
     detalhe: "Banco Central (PTAX) · sem gravar nada",
   },
 ];

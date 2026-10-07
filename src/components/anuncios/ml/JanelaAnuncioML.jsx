@@ -35,7 +35,7 @@ async function chamar(acao, argumento) {
   try {
     return await acao(argumento);
   } catch {
-    return { ok: false, erro: "Nao foi possivel falar com o servidor. Tente de novo." };
+    return { ok: false, erro: "Não foi possível falar com o servidor. Tente de novo." };
   }
 }
 
@@ -59,12 +59,12 @@ function Moldura({ produto, aoFechar, children }) {
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="Anuncios do Mercado Livre"
+        aria-label="Anúncios do Mercado Livre"
         className="flex max-h-full w-full max-w-2xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl focus:outline-none"
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-5 py-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold">Anuncios do Mercado Livre</p>
+            <p className="text-sm font-semibold">Anúncios do Mercado Livre</p>
             {produto && (
               <p className="mt-0.5 truncate text-xs text-suave">
                 <span className="font-mono">{produto.sku}</span> · {produto.tituloBase}
@@ -106,7 +106,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
       if (!montada.current) return null;
       if (!resultado.ok) {
         // O Salvar ja deu certo: a falha e so de recarregar a lista, e o texto nao pode sugerir o contrario.
-        setErro(nota?.tipo === "ok" ? `${nota.texto} Nao foi possivel recarregar a lista: ${resultado.erro}` : resultado.erro);
+        setErro(nota?.tipo === "ok" ? `${nota.texto} Não foi possível recarregar a lista: ${resultado.erro}` : resultado.erro);
         setFase("erro");
         return null;
       }
@@ -191,7 +191,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
   // Volta a lista do produto, ja com o anuncio que acabou de ser salvo.
   function aoSalvar() {
     setFase("carregando");
-    carregarLista({ tipo: "ok", texto: "Anuncio salvo." });
+    carregarLista({ tipo: "ok", texto: "Anúncio salvo." });
   }
 
   function tentarDeNovo() {
@@ -241,7 +241,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
       {fase === "naoConferido" && (
         <div className="space-y-3 text-sm">
           <p role="alert" className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-            Este produto ainda nao foi Conferido. So produto Conferido vira anuncio.
+            Este produto ainda não foi Conferido. Só produto Conferido vira anúncio.
           </p>
           <Link href={`/produtos/${produto.id}`} className="inline-block text-acento hover:underline">
             Abrir o cadastro do produto
@@ -258,7 +258,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
           )}
 
           {anuncios.length === 0 ? (
-            <p className="py-4 text-center text-sm text-suave">Este produto ainda nao tem anuncio no Mercado Livre.</p>
+            <p className="py-4 text-center text-sm text-suave">Este produto ainda não tem anúncio no Mercado Livre.</p>
           ) : (
             <ul className="divide-y divide-borda rounded border border-borda">
               {anuncios.map((anuncio) => {
@@ -272,7 +272,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
                     >
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">
-                          {anuncio.titulo || <span className="text-suave italic">Sem titulo</span>}
+                          {anuncio.titulo || <span className="text-suave italic">Sem título</span>}
                         </span>
                         <span className="block truncate font-mono text-xs text-suave">{anuncio.codigo}</span>
                       </span>
@@ -291,7 +291,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
             className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90"
           >
             <Plus size={14} />
-            Novo anuncio
+            Novo anúncio
           </button>
         </div>
       )}

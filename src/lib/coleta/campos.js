@@ -12,7 +12,7 @@
 
 export const ROTULOS_CAMPOS = {
   name: "Nome",
-  code: "Codigo / SKU",
+  code: "Código / SKU",
   mpn: "MPN",
   ean: "EAN",
   brand: "Marca",
@@ -21,11 +21,11 @@ export const ROTULOS_CAMPOS = {
   ncm: "NCM",
   url: "URL",
   images: "Imagens",
-  precoNormal: "Preco normal",
-  precoPromocional: "Preco promocional",
-  precoComImpostos: "Preco com impostos",
-  description: "Descricao",
-  specifications: "Caracteristicas",
+  precoNormal: "Preço normal",
+  precoPromocional: "Preço promocional",
+  precoComImpostos: "Preço com impostos",
+  description: "Descrição",
+  specifications: "Características",
   documentos: "Documentos",
   status: "Status",
   quantidade: "Pronta entrega",
@@ -72,7 +72,7 @@ export function valoresDoProduto(produto) {
       : null;
 
   const situacoes = {
-    AVAILABLE: "Disponivel",
+    AVAILABLE: "Disponível",
     OUT_OF_STOCK: "Sem estoque",
     PAUSED: "Pausado",
     UNKNOWN: "Indeterminado",

@@ -8,7 +8,7 @@ import {
 
 function idSeguro(id) {
   if (id === undefined || id === null || String(id).trim() === "") {
-    throw new TypeError("Id do produto da Loja Integrada nao informado.");
+    throw new TypeError("Id do produto da Loja Integrada não informado.");
   }
   return encodeURIComponent(String(id).trim());
 }
@@ -27,7 +27,7 @@ export function criarProdutosLojaIntegrada({
     const resposta = await cliente.get("/produto", params);
     const dados = exigirRespostaLojaIntegrada(resposta);
     if (!Array.isArray(dados?.objects)) {
-      throw new TypeError("Lista de produtos da Loja Integrada invalida.");
+      throw new TypeError("Lista de produtos da Loja Integrada inválida.");
     }
     return {
       produtos: dados.objects.map(normalizarProdutoLojaIntegrada),

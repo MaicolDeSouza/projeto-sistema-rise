@@ -74,7 +74,7 @@ try {
   conferir("localizacao: grava e apara", [(await gravarLocalizacao(id, "  R14  ")).ok, (await ler()).localizacao], [true, "R14"]);
   conferir("localizacao: vazio limpa", [(await gravarLocalizacao(id, "   ")).ok, (await ler()).localizacao], [true, null]);
   conferir("localizacao: passa de 40 caracteres", (await gravarLocalizacao(id, "x".repeat(41))).ok, false);
-  conferir("localizacao: produto que nao existe", (await gravarLocalizacao("nao-existe", "A1")).erro, "Produto nao encontrado. Ele pode ter sido excluido.");
+  conferir("localizacao: produto que nao existe", (await gravarLocalizacao("nao-existe", "A1")).erro, "Produto não encontrado. Ele pode ter sido excluído.");
 
   // Preco.
   conferir("preco: virgula decimal", [(await gravarPrecoVenda(id, "90,50")).ok, Number((await ler()).precoVenda)], [true, 90.5]);
@@ -90,14 +90,14 @@ try {
   conferir("entrada: soma ao saldo", [entrada.ok, entrada.saldoAnterior, entrada.saldoNovo, (await ler()).estoque], [true, 5, 8, 8]);
 
   const saidaGrande = await gravarAjusteDeEstoque(id, { tipo: "SAIDA", quantidade: 10 });
-  conferir("saida maior que o saldo: recusada", [saidaGrande.ok, saidaGrande.erro], [false, "A saida (10) e maior que o saldo (8)."]);
+  conferir("saida maior que o saldo: recusada", [saidaGrande.ok, saidaGrande.erro], [false, "A saída (10) é maior que o saldo (8)."]);
   conferir("e o saldo nao mudou", (await ler()).estoque, 8);
   conferir("e nao gravou movimento", (await movimentos()).length, 1);
 
   const saida = await gravarAjusteDeEstoque(id, { tipo: "SAIDA", quantidade: 8, motivo: "Perda ou avaria" });
   conferir("saida ate zerar", [saida.ok, saida.saldoNovo, (await ler()).estoque], [true, 0, 0]);
 
-  const balanco = await gravarAjusteDeEstoque(id, { tipo: "BALANCO", quantidade: "12", motivo: "Contagem de inventario" });
+  const balanco = await gravarAjusteDeEstoque(id, { tipo: "BALANCO", quantidade: "12", motivo: "Contagem de inventário" });
   conferir("balanco define o saldo (quantidade em texto)", [balanco.ok, balanco.saldoAnterior, balanco.saldoNovo], [true, 0, 12]);
   const balancoIgual = await gravarAjusteDeEstoque(id, { tipo: "BALANCO", quantidade: 12 });
   conferir("balanco que confirma o mesmo numero tambem fica no historico", [balancoIgual.ok, (await movimentos()).length], [true, 4]);
@@ -130,7 +130,7 @@ try {
     conferir(`recusa: ${nome}`, (await gravarAjusteDeEstoque(id, dados)).ok, false);
   }
   conferir("nenhuma recusa mexeu no saldo nem no historico", [(await ler()).estoque, (await movimentos()).length], [antes, 5]);
-  conferir("produto que nao existe", (await gravarAjusteDeEstoque("nao-existe", { tipo: "ENTRADA", quantidade: 1 })).erro, "Produto nao encontrado. Ele pode ter sido excluido.");
+  conferir("produto que nao existe", (await gravarAjusteDeEstoque("nao-existe", { tipo: "ENTRADA", quantidade: 1 })).erro, "Produto não encontrado. Ele pode ter sido excluído.");
 
   await gravarAjusteDeEstoque(id, { tipo: "BALANCO", quantidade: MAXIMO_ESTOQUE });
   const estouro = await gravarAjusteDeEstoque(id, { tipo: "ENTRADA", quantidade: 1 });

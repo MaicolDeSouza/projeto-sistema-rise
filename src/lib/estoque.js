@@ -6,15 +6,15 @@
 
 export const TIPOS_DE_MOVIMENTO = [
   { id: "ENTRADA", rotulo: "Entrada", ajuda: "soma ao saldo", campo: "Quantidade a entrar", botao: "Confirmar entrada" },
-  { id: "SAIDA", rotulo: "Saida", ajuda: "tira do saldo", campo: "Quantidade a sair", botao: "Confirmar saida" },
-  { id: "BALANCO", rotulo: "Balanco", ajuda: "define o saldo", campo: "Contagem real (novo saldo)", botao: "Confirmar balanco" },
+  { id: "SAIDA", rotulo: "Saída", ajuda: "tira do saldo", campo: "Quantidade a sair", botao: "Confirmar saída" },
+  { id: "BALANCO", rotulo: "Balanço", ajuda: "define o saldo", campo: "Contagem real (novo saldo)", botao: "Confirmar balanço" },
 ];
 
 /// Motivos oferecidos por tipo; o primeiro e o padrao da tela.
 export const MOTIVOS = {
-  ENTRADA: ["Compra de fornecedor", "Devolucao de cliente", "Outro"],
+  ENTRADA: ["Compra de fornecedor", "Devolução de cliente", "Outro"],
   SAIDA: ["Venda fora dos canais", "Perda ou avaria", "Uso interno", "Outro"],
-  BALANCO: ["Contagem de inventario"],
+  BALANCO: ["Contagem de inventário"],
 };
 
 /// Teto folgado dentro do INTEGER do Postgres (2,1 bilhoes): um zero a mais

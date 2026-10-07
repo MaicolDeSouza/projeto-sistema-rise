@@ -45,7 +45,7 @@ async function chamar(acao, argumentos, escreve) {
       ok: false,
       erro: escreve
         ? "A resposta do servidor se perdeu. O Bling pode ter recebido o envio: confira no Bling antes de tentar de novo."
-        : "Nao foi possivel falar com o servidor. Tente de novo.",
+        : "Não foi possível falar com o servidor. Tente de novo.",
     };
   }
 }
@@ -78,13 +78,13 @@ function LinhaDeDiferenca({ item }) {
     <li className={`rounded border p-2 ${vazioNoRise ? "border-borda bg-fundo/60 text-suave" : "border-amber-200 bg-amber-50/50"}`}>
       <p className="text-xs font-medium text-texto">
         {item.rotulo}
-        <span className="ml-1.5 font-normal text-suave">{vazioNoRise ? "so tem no Bling" : "diferente"}</span>
+        <span className="ml-1.5 font-normal text-suave">{vazioNoRise ? "só tem no Bling" : "diferente"}</span>
       </p>
       <dl className="mt-1 grid grid-cols-2 gap-3 text-xs">
         <div className="min-w-0">
           <dt className="text-[11px] text-suave">No Rise</dt>
           <dd>
-            <Valor campo={item.campo} valor={item.rise} quandoVazio="vazio no Rise (nao sera enviado)" />
+            <Valor campo={item.campo} valor={item.rise} quandoVazio="vazio no Rise (não será enviado)" />
           </dd>
         </div>
         <div className="min-w-0">
@@ -108,18 +108,18 @@ function Diferencas({ diferencas, iguais }) {
 
   if (diferencas.length === 0) {
     return (
-      <section aria-label="Diferencas entre o Rise e o Bling">
+      <section aria-label="Diferenças entre o Rise e o Bling">
         <p className={`rounded border p-2 text-xs ${CLASSE_DO_TOM.ok}`}>
-          Nenhuma diferenca: {textoDosIguais} no Rise e no Bling.
+          Nenhuma diferença: {textoDosIguais} no Rise e no Bling.
         </p>
       </section>
     );
   }
 
   return (
-    <section aria-label="Diferencas entre o Rise e o Bling">
+    <section aria-label="Diferenças entre o Rise e o Bling">
       <p className="text-xs font-medium">
-        Diferencas entre o Rise e o Bling <span className="font-normal text-suave">({diferencas.length})</span>
+        Diferenças entre o Rise e o Bling <span className="font-normal text-suave">({diferencas.length})</span>
       </p>
       <ul className="mt-1.5 space-y-1.5">
         {diferencas.map((item) => (
@@ -198,7 +198,7 @@ export default function JanelaBling({ produto, aoFechar }) {
             setDeposito(null);
             setDepositos({ lista: resultado.precisaDeposito, motivo: resultado.erro });
           } else {
-            setErro(resultado.erro ?? "O envio nao foi concluido.");
+            setErro(resultado.erro ?? "O envio não foi concluído.");
           }
         }
 
@@ -246,7 +246,7 @@ export default function JanelaBling({ produto, aoFechar }) {
 
   return (
     <Popup
-      titulo="Sincronizacao com o Bling"
+      titulo="Sincronização com o Bling"
       produto={produto}
       aoFechar={aoFechar}
       aoEnviar={principal.executar}
@@ -264,17 +264,17 @@ export default function JanelaBling({ produto, aoFechar }) {
           <>
             {!leitura.ok && (
               <p role="alert" className={`rounded border p-2.5 text-xs ${CLASSE_DO_TOM.erro}`}>
-                {leitura.erro ?? "Nao foi possivel ler o Bling."}
+                {leitura.erro ?? "Não foi possível ler o Bling."}
               </p>
             )}
 
             {leitura.ok && leitura.situacao === "nao_existe" && (
               <section aria-label="Produto fora do Bling" className="rounded border border-borda bg-fundo p-2.5 text-xs">
-                <p className="font-medium">Este codigo nao esta no Bling</p>
+                <p className="font-medium">Este código não está no Bling</p>
                 <p className="mt-1 text-suave">
-                  O codigo <span className="font-mono">{leitura.sku}</span> nao foi achado entre os produtos ativos do Bling.
-                  &quot;Cadastrar no Bling&quot; cria o produto la com os dados do Rise. Se ele existe inativo no Bling, reative-o
-                  la em vez de cadastrar.
+                  O código <span className="font-mono">{leitura.sku}</span> não foi achado entre os produtos ativos do Bling.
+                  &quot;Cadastrar no Bling&quot; cria o produto lá com os dados do Rise. Se ele existe inativo no Bling, reative-o
+                  lá em vez de cadastrar.
                 </p>
               </section>
             )}
@@ -297,10 +297,10 @@ export default function JanelaBling({ produto, aoFechar }) {
                 <dl className="mt-1.5 grid grid-cols-3 gap-2">
                   <div>
                     <dt className="text-[11px] text-suave">Saldo no Bling</dt>
-                    <dd className="text-base tabular-nums">{estoque.blingSaldo ?? "nao lido"}</dd>
+                    <dd className="text-base tabular-nums">{estoque.blingSaldo ?? "não lido"}</dd>
                     {/* Sem leitura agora (codigo fora do Bling ou erro), o saldo e o ultimo guardado no Rise. */}
                     {estoque.blingSaldo !== null && (
-                      <dd className="text-[11px] text-suave">{leitura.situacao === "existe" ? "lido agora" : "ultimo lido"}</dd>
+                      <dd className="text-[11px] text-suave">{leitura.situacao === "existe" ? "lido agora" : "último lido"}</dd>
                     )}
                   </div>
                   <div>
@@ -312,7 +312,7 @@ export default function JanelaBling({ produto, aoFechar }) {
                     <dd className="text-base tabular-nums">{estoque.pendentes}</dd>
                   </div>
                 </dl>
-                <p className="mt-1.5 text-[11px] text-suave">O estoque do Rise e o saldo do Bling mais os ajustes ainda nao enviados.</p>
+                <p className="mt-1.5 text-[11px] text-suave">O estoque do Rise é o saldo do Bling mais os ajustes ainda não enviados.</p>
 
                 {leitura.ok && leitura.situacao === "existe" && estoque.pendentes > 0 && !depositos && (
                   <button type="button" onClick={() => enviarEstoque()} disabled={pendente} className={`mt-2 ${CLASSE_DO_BOTAO_SECUNDARIO}`}>
@@ -323,7 +323,7 @@ export default function JanelaBling({ produto, aoFechar }) {
 
                 {depositos && (
                   <fieldset className={`mt-2 rounded border p-2.5 ${CLASSE_DO_TOM.atencao}`}>
-                    <legend className="px-1 text-xs font-medium">Escolha o deposito</legend>
+                    <legend className="px-1 text-xs font-medium">Escolha o depósito</legend>
                     <p className="text-xs">{depositos.motivo}</p>
                     {/* O Enter num radio enviaria o formulario inteiro, e o botao principal do rodape e
                         outro envio (sincronizar): aqui o Enter nao faz nada. */}
@@ -342,7 +342,7 @@ export default function JanelaBling({ produto, aoFechar }) {
                             onChange={() => setDeposito(item.id)}
                             disabled={pendente}
                           />
-                          {item.descricao || `Deposito ${item.id}`}
+                          {item.descricao || `Depósito ${item.id}`}
                         </label>
                       ))}
                     </div>
@@ -353,7 +353,7 @@ export default function JanelaBling({ produto, aoFechar }) {
                       className={`mt-2 ${CLASSE_DO_BOTAO_SECUNDARIO}`}
                     >
                       {qual === "estoque" && <Loader size={13} className="animate-spin" />}
-                      {qual === "estoque" ? "Enviando..." : "Enviar ajustes neste deposito"}
+                      {qual === "estoque" ? "Enviando..." : "Enviar ajustes neste depósito"}
                     </button>
                   </fieldset>
                 )}

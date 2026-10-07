@@ -22,13 +22,13 @@ export function camposEditaveis(anuncio) {
 
   return {
     titulo: comVendas
-      ? { editavel: false, motivo: "O anuncio ja tem vendas" }
+      ? { editavel: false, motivo: "O anúncio já tem vendas" }
       : { editavel: true },
     categoria: publicado
-      ? { editavel: false, motivo: "Categoria nao muda depois de publicado" }
+      ? { editavel: false, motivo: "Categoria não muda depois de publicado" }
       : { editavel: true },
     tipoAnuncio: comVendas
-      ? { editavel: false, motivo: "O tipo de anuncio so pode mudar uma vez" }
+      ? { editavel: false, motivo: "O tipo de anúncio só pode mudar uma vez" }
       : { editavel: true },
     descricao: { editavel: true },
     preco: { editavel: true },
@@ -52,13 +52,13 @@ export function validar(produto, anuncio, atributosCategoria) {
   if (!titulo.trim()) {
     problemas.push({
       campo: "titulo",
-      problema: "O titulo e obrigatorio.",
+      problema: "O título é obrigatório.",
       bloqueante: true,
     });
   } else if (titulo.length > LIMITE_TITULO) {
     problemas.push({
       campo: "titulo",
-      problema: `O titulo tem ${titulo.length} caracteres; o limite do Mercado Livre e ${LIMITE_TITULO}.`,
+      problema: `O título tem ${titulo.length} caracteres; o limite do Mercado Livre é ${LIMITE_TITULO}.`,
       bloqueante: true,
     });
   }
@@ -75,7 +75,7 @@ export function validar(produto, anuncio, atributosCategoria) {
   if (!preco || preco <= 0) {
     problemas.push({
       campo: "preco",
-      problema: "Informe o preco de venda.",
+      problema: "Informe o preço de venda.",
       bloqueante: true,
     });
   }
@@ -83,7 +83,7 @@ export function validar(produto, anuncio, atributosCategoria) {
   if ((produto?.imagens?.length ?? 0) === 0) {
     problemas.push({
       campo: "imagens",
-      problema: "O anuncio precisa de ao menos uma imagem.",
+      problema: "O anúncio precisa de ao menos uma imagem.",
       bloqueante: true,
     });
   }
@@ -92,7 +92,7 @@ export function validar(produto, anuncio, atributosCategoria) {
     problemas.push({
       campo: "ean",
       problema:
-        "Sem EAN/GTIN. A maioria das categorias de eletronicos exige o codigo universal.",
+        "Sem EAN/GTIN. A maioria das categorias de eletrônicos exige o código universal.",
       bloqueante: false,
     });
   }
@@ -100,7 +100,7 @@ export function validar(produto, anuncio, atributosCategoria) {
   if (!Number.isFinite(Number(produto?.estoque)) || Number(produto?.estoque) <= 0) {
     problemas.push({
       campo: "estoque",
-      problema: "Estoque zerado: o anuncio seria publicado sem disponibilidade.",
+      problema: "Estoque zerado: o anúncio seria publicado sem disponibilidade.",
       bloqueante: false,
     });
   }
@@ -111,7 +111,7 @@ export function validar(produto, anuncio, atributosCategoria) {
     problemas.push({
       campo: "familyName",
       problema:
-        "Informe o nome da familia (family_name), obrigatorio no modelo User Products.",
+        "Informe o nome da família (family_name), obrigatório no modelo User Products.",
       bloqueante: true,
     });
   }
@@ -122,7 +122,7 @@ export function validar(produto, anuncio, atributosCategoria) {
     if (exigido && !preenchidos[atributo.id]) {
       problemas.push({
         campo: `atributo:${atributo.id}`,
-        problema: `"${atributo.name}" e obrigatorio nesta categoria.`,
+        problema: `"${atributo.name}" é obrigatório nesta categoria.`,
         bloqueante: true,
       });
     }

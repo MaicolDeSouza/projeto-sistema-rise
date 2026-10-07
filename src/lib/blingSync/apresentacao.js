@@ -85,7 +85,7 @@ export function resumirEstoqueDaLista(resultado) {
   const semCodigoNoBling = inteiro(resultado?.semCodigoNoBling);
   const falhas = Array.isArray(resultado?.falhas) ? resultado.falhas : [];
   return {
-    linha: `${atualizados} atualizados, ${semCodigoNoBling} sem esse codigo no Bling`,
+    linha: `${atualizados} atualizados, ${semCodigoNoBling} sem esse código no Bling`,
     tom: atualizados > 0 && falhas.length === 0 ? "ok" : "atencao",
     falhas: falhas.slice(0, LIMITE_DE_FALHAS_VISIVEIS),
     falhasOcultas: Math.max(0, falhas.length - LIMITE_DE_FALHAS_VISIVEIS),
@@ -147,7 +147,7 @@ export function resumirEnvio(tipo, resultado, rotulos = {}) {
     if (ok) {
       return linhas.length > 0
         ? { titulo: "Sincronizado com o Bling.", linhas }
-        : { titulo: "Nada para enviar: o Bling ja estava igual ao Rise.", linhas: [] };
+        : { titulo: "Nada para enviar: o Bling já estava igual ao Rise.", linhas: [] };
     }
     return linhas.length > 0 ? { titulo: "Antes da falha, foi enviado ao Bling:", linhas } : null;
   }
@@ -155,7 +155,7 @@ export function resumirEnvio(tipo, resultado, rotulos = {}) {
   if (tipo === "cadastrar") {
     const id = resultado.blingId ? ` (id ${resultado.blingId})` : "";
     if (ok) return { titulo: `Produto cadastrado no Bling${id}.`, linhas: [] };
-    return resultado.blingId ? { titulo: `O produto foi criado no Bling${id}, mas o envio nao terminou.`, linhas: [] } : null;
+    return resultado.blingId ? { titulo: `O produto foi criado no Bling${id}, mas o envio não terminou.`, linhas: [] } : null;
   }
 
   if (tipo === "estoque") {
@@ -163,7 +163,7 @@ export function resumirEnvio(tipo, resultado, rotulos = {}) {
     const restantes = inteiro(resultado.restantes);
     if (ok) {
       return {
-        titulo: enviados > 0 ? `${enviados} ajuste(s) de estoque enviado(s) ao Bling.` : "Nao havia ajuste de estoque pendente.",
+        titulo: enviados > 0 ? `${enviados} ajuste(s) de estoque enviado(s) ao Bling.` : "Não havia ajuste de estoque pendente.",
         linhas: [],
       };
     }

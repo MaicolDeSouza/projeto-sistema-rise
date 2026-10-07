@@ -98,7 +98,7 @@ export function exigirTravaLiberada(servico) {
   if (!chave || config.travas[chave]) return;
 
   throw new Error(
-    `Escrita bloqueada: ${variavel} esta false no .env. Nenhum dado foi ` +
-      "enviado. Mude para true quando quiser liberar a publicacao.",
+    `Escrita bloqueada: ${variavel} está false no .env. Nenhum dado foi ` +
+      "enviado. Mude para true quando quiser liberar a publicação.",
   );
 }

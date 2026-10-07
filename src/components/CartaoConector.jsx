@@ -30,7 +30,7 @@ const ROTULOS = {
   CONECTADO: "Conectado",
   ERRO: "Erro",
   EXPIRADO: "Expirado",
-  NAO_CONFIGURADO: "Nao configurado",
+  NAO_CONFIGURADO: "Não configurado",
 };
 
 function formatarData(valor) {
@@ -101,7 +101,7 @@ export default function CartaoConector({
         )}
         {conexao?.ultimoTesteEm && (
           <div className="flex gap-2">
-            <dt className="text-suave">Ultimo teste:</dt>
+            <dt className="text-suave">Último teste:</dt>
             <dd>
               {formatarData(conexao.ultimoTesteEm)}{" "}
               {conexao.ultimoTesteOk ? "· ok" : "· falhou"}
@@ -112,13 +112,13 @@ export default function CartaoConector({
 
       {tokenPertoDoVencimento && (
         <p className="mt-3 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
-          Token da Loja Integrada proximo do vencimento. Renove-o no painel da loja.
+          Token da Loja Integrada próximo do vencimento. Renove-o no painel da loja.
         </p>
       )}
 
       {!conector.configurado && (
         <p className="mt-3 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
-          Faltam variaveis no .env: {conector.faltando.join(", ")}
+          Faltam variáveis no .env: {conector.faltando.join(", ")}
         </p>
       )}
 
@@ -151,7 +151,7 @@ export default function CartaoConector({
         <div className="mt-4 rounded border border-borda bg-fundo p-3">
           <p className="flex items-center gap-1.5 text-xs font-medium">
             <Lock size={13} className="shrink-0" />
-            Indisponivel no momento
+            Indisponível no momento
           </p>
           <p className="mt-1.5 text-xs text-suave">{conector.bloqueado.motivo}</p>
           <p className="mt-1.5 text-xs text-suave">{conector.bloqueado.saida}</p>
@@ -211,7 +211,7 @@ export default function CartaoConector({
               ) : (
                 <RefreshCw size={14} />
               )}
-              Testar conexao
+              Testar conexão
             </button>
             <button
               type="button"

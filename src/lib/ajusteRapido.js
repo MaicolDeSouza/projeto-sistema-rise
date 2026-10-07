@@ -17,17 +17,17 @@ const MAXIMO_PRECO = 9_999_999.99;
 
 function falha(erro) {
   if (erro?.code === "P2025") {
-    return { ok: false, erro: "Produto nao encontrado. Ele pode ter sido excluido." };
+    return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
   }
   console.error("[edicao rapida]", erro);
-  return { ok: false, erro: "Nao foi possivel salvar. Tente de novo." };
+  return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
 }
 
 /** Texto vazio limpa a localizacao. */
 export async function gravarLocalizacao(id, texto) {
   const valor = String(texto ?? "").trim();
   if (valor.length > MAXIMO_LOCALIZACAO) {
-    return { ok: false, erro: `Use ate ${MAXIMO_LOCALIZACAO} caracteres.` };
+    return { ok: false, erro: `Use até ${MAXIMO_LOCALIZACAO} caracteres.` };
   }
 
   try {
@@ -45,10 +45,10 @@ export async function gravarLocalizacao(id, texto) {
 export async function gravarPrecoVenda(id, valor) {
   const numero = Number(String(valor ?? "").trim().replace(",", "."));
   if (!Number.isFinite(numero) || numero <= 0) {
-    return { ok: false, erro: "Informe o preco de venda." };
+    return { ok: false, erro: "Informe o preço de venda." };
   }
   if (numero > MAXIMO_PRECO) {
-    return { ok: false, erro: "Preco acima do limite permitido." };
+    return { ok: false, erro: "Preço acima do limite permitido." };
   }
 
   try {
@@ -72,11 +72,11 @@ export async function gravarPrecoVenda(id, valor) {
 export async function gravarAjusteDeEstoque(id, dados = {}) {
   const { tipo, quantidade, motivo, observacao } = dados;
 
-  if (!tipoValido(tipo)) return { ok: false, erro: "Escolha entrada, saida ou balanco." };
+  if (!tipoValido(tipo)) return { ok: false, erro: "Escolha entrada, saída ou balanço." };
 
   const numero = Number(quantidade);
   if (quantidade === "" || quantidade === null || !Number.isInteger(numero) || numero < 0) {
-    return { ok: false, erro: "Informe a quantidade, em numero inteiro." };
+    return { ok: false, erro: "Informe a quantidade, em número inteiro." };
   }
   if (numero > MAXIMO_ESTOQUE) {
     return { ok: false, erro: `Quantidade acima do limite de ${MAXIMO_ESTOQUE}.` };
@@ -87,24 +87,24 @@ export async function gravarAjusteDeEstoque(id, dados = {}) {
 
   const motivoLimpo = String(motivo ?? "").trim();
   if (motivoLimpo && !MOTIVOS[tipo].includes(motivoLimpo)) {
-    return { ok: false, erro: "Motivo invalido para esta operacao." };
+    return { ok: false, erro: "Motivo inválido para esta operação." };
   }
   const observacaoLimpa = String(observacao ?? "").trim();
   if (observacaoLimpa.length > MAXIMO_OBSERVACAO) {
-    return { ok: false, erro: `A observacao aceita ate ${MAXIMO_OBSERVACAO} caracteres.` };
+    return { ok: false, erro: `A observação aceita até ${MAXIMO_OBSERVACAO} caracteres.` };
   }
 
   try {
     return await prisma.$transaction(async (tx) => {
       const linhas = await tx.$queryRaw`SELECT "estoque" FROM "Produto" WHERE "id" = ${id} FOR UPDATE`;
       if (linhas.length === 0) {
-        return { ok: false, erro: "Produto nao encontrado. Ele pode ter sido excluido." };
+        return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
       }
 
       const anterior = linhas[0].estoque;
       const novo = novoSaldo(tipo, anterior, numero);
       if (novo < 0) {
-        return { ok: false, erro: `A saida (${numero}) e maior que o saldo (${anterior}).` };
+        return { ok: false, erro: `A saída (${numero}) é maior que o saldo (${anterior}).` };
       }
       if (novo > MAXIMO_ESTOQUE) {
         return { ok: false, erro: `O saldo passaria do limite de ${MAXIMO_ESTOQUE}.` };

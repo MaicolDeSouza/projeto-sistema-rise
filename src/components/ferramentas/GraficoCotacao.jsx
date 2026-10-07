@@ -82,7 +82,7 @@ export default function GraficoCotacao({ serie }) {
           width={largura}
           height={ALTURA}
           role="img"
-          aria-label={`Grafico da venda do dolar PTAX, de ${dataBr(pontos[0].data)} a ${dataBr(
+          aria-label={`Gráfico da venda do dólar PTAX, de ${dataBr(pontos[0].data)} a ${dataBr(
             pontos[pontos.length - 1].data,
           )}. Use as setas para percorrer os dias.`}
           tabIndex={0}

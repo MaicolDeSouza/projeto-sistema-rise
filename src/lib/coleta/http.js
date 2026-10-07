@@ -129,7 +129,7 @@ function lerCorpo(resposta, { teto, sinal }) {
     resposta.on("error", (erro) => encerrar(erro));
     // Conexao fechada antes do fim declarado: resposta pela metade nao e resposta.
     resposta.on("close", () => {
-      if (!resposta.complete) encerrar(new Error("A conexao caiu no meio da resposta"));
+      if (!resposta.complete) encerrar(new Error("A conexão caiu no meio da resposta"));
     });
   });
 }

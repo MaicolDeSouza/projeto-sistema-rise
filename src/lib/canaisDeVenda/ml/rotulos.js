@@ -13,7 +13,7 @@ export const STATUS_ML = {
 };
 
 export const TIPOS_DE_ANUNCIO_ML = [
-  { valor: "gold_special", rotulo: "Classico" },
+  { valor: "gold_special", rotulo: "Clássico" },
   { valor: "gold_pro", rotulo: "Premium" },
 ];
 

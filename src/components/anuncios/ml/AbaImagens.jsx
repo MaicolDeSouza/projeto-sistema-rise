@@ -7,7 +7,7 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import MensagensDoCampo from "./MensagensDoCampo";
 
 const AVISO_DO_KIT =
-  "O kit pede fotos proprias (as dos produtos mostram uma unidade de cada). O envio de fotos do kit entra na fase 3.";
+  "O kit pede fotos próprias (as dos produtos mostram uma unidade de cada). O envio de fotos do kit entra na fase 3.";
 
 const BOTAO_DA_LINHA =
   "rounded p-1.5 text-suave hover:bg-fundo hover:text-texto disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
@@ -70,7 +70,7 @@ function LinhaDeFoto({ id, foto, posicao, total, aoAlternar, aoMover }) {
               <span className="ml-2 truncate">{foto.titulo}</span>
             </>
           ) : (
-            <span className="text-red-700">Foto nao encontrada: ela pode ter sido excluida. Desmarque para tirar do anuncio.</span>
+            <span className="text-red-700">Foto não encontrada: ela pode ter sido excluída. Desmarque para tirar do anúncio.</span>
           )}
         </span>
       </label>
@@ -125,10 +125,10 @@ export default function AbaImagens({ rascunho, contexto, alterar, problemas }) {
 
       <div>
         <div className="flex items-center gap-1 text-sm font-semibold">
-          Fotos do anuncio ({marcadas.length})
+          Fotos do anúncio ({marcadas.length})
           <BolhaDeAjuda
             variante="inline"
-            texto="A ordem daqui e a ordem de envio: a primeira e a capa do anuncio. Use as setas para mudar."
+            texto="A ordem daqui é a ordem de envio: a primeira é a capa do anúncio. Use as setas para mudar."
           />
         </div>
         {marcadas.length > 0 ? (
@@ -139,7 +139,7 @@ export default function AbaImagens({ rascunho, contexto, alterar, problemas }) {
           </ul>
         ) : (
           <p className="mt-2 text-sm text-suave">
-            {disponiveis.length > 0 ? "Nenhuma foto marcada." : "Nenhuma foto cadastrada para este anuncio."}
+            {disponiveis.length > 0 ? "Nenhuma foto marcada." : "Nenhuma foto cadastrada para este anúncio."}
           </p>
         )}
         <MensagensDoCampo problemas={problemas} campo="imagens" />
@@ -147,7 +147,7 @@ export default function AbaImagens({ rascunho, contexto, alterar, problemas }) {
 
       {naoUsadas.length > 0 && (
         <div>
-          <p className="text-sm font-semibold">Fotos disponiveis</p>
+          <p className="text-sm font-semibold">Fotos disponíveis</p>
           <ul className="mt-2 divide-y divide-borda rounded border border-borda">
             {naoUsadas.map((foto) => (
               <LinhaDeFoto key={foto.id} id={foto.id} foto={foto} posicao={null} total={marcadas.length} aoAlternar={alternar} aoMover={mover} />

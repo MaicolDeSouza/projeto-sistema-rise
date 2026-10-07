@@ -27,7 +27,7 @@ async function tentar(acao) {
       ok: false,
       erro:
         erro?.message?.includes("Body exceeded") || erro?.name === "TypeError"
-          ? "Falha ao enviar o arquivo. Ele pode ser grande demais para a conexao."
+          ? "Falha ao enviar o arquivo. Ele pode ser grande demais para a conexão."
           : (erro?.message ?? "Falha inesperada ao converter."),
     };
   }
@@ -115,12 +115,12 @@ export default function ImagemParaSvg() {
     if (!novo) return;
 
     if (novo.size > TETO_BYTES_SVG) {
-      setErro(`O arquivo tem ${numero.format(novo.size / 1024 / 1024)} MB e o limite e ${TETO_MB_SVG} MB.`);
+      setErro(`O arquivo tem ${numero.format(novo.size / 1024 / 1024)} MB e o limite é ${TETO_MB_SVG} MB.`);
       return;
     }
     // So um aviso antecipado: quem decide de verdade e o servidor, pelos bytes.
     if (novo.type && !TIPOS_ACEITOS.includes(novo.type)) {
-      setErro("Formato nao aceito. Envie uma imagem PNG, JPG ou WebP.");
+      setErro("Formato não aceito. Envie uma imagem PNG, JPG ou WebP.");
       return;
     }
     setArquivo(novo);
@@ -134,7 +134,7 @@ export default function ImagemParaSvg() {
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2000);
     } catch {
-      setErro("Nao foi possivel copiar o codigo. Baixe o arquivo.");
+      setErro("Não foi possível copiar o código. Baixe o arquivo.");
     }
   }
 
@@ -175,7 +175,7 @@ export default function ImagemParaSvg() {
           ) : (
             <>
               <p className="text-sm font-medium">Escolher imagem</p>
-              <p className="mt-0.5 text-xs text-suave">ou arraste aqui · PNG, JPG ou WebP, ate {TETO_MB_SVG} MB</p>
+              <p className="mt-0.5 text-xs text-suave">ou arraste aqui · PNG, JPG ou WebP, até {TETO_MB_SVG} MB</p>
             </>
           )}
           <input
@@ -192,7 +192,7 @@ export default function ImagemParaSvg() {
         </div>
 
         <p className="text-xs text-suave">
-          A conversao comeca ao escolher a imagem. O fundo vira transparente e as cores saem exatas.
+          A conversão começa ao escolher a imagem. O fundo vira transparente e as cores saem exatas.
         </p>
 
         {erro && (
@@ -217,7 +217,7 @@ export default function ImagemParaSvg() {
               rodape={resultado ? emKb(resultado.bytesSvg) : pendente ? "convertendo..." : "sem resultado"}
               acao={
                 resultado && (
-                  <div role="group" aria-label="Aparencia do logo" className="flex overflow-hidden rounded border border-borda text-[11px]">
+                  <div role="group" aria-label="Aparência do logo" className="flex overflow-hidden rounded border border-borda text-[11px]">
                     {[
                       ["original", "Cores originais"],
                       ["fosco", "Fosco"],
@@ -271,7 +271,7 @@ export default function ImagemParaSvg() {
                 className="inline-flex items-center gap-1.5 rounded border border-borda px-4 py-2 text-sm hover:bg-fundo"
               >
                 {copiado ? <Check size={15} className="text-emerald-700" /> : <Copy size={15} />}
-                {copiado ? "Copiado" : "Copiar codigo"}
+                {copiado ? "Copiado" : "Copiar código"}
               </button>
             </div>
 
@@ -284,10 +284,10 @@ export default function ImagemParaSvg() {
 
             <p className="text-xs text-suave">
               {resultado.fundoRemovido
-                ? `Fundo removido (cor ${resultado.fundoRemovido}): o SVG e transparente.`
+                ? `Fundo removido (cor ${resultado.fundoRemovido}): o SVG é transparente.`
                 : resultado.jaTransparente
-                  ? "A imagem ja tinha fundo transparente."
-                  : "O fundo nao e de uma cor so, entao foi mantido."}
+                  ? "A imagem já tinha fundo transparente."
+                  : "O fundo não é de uma cor só, então foi mantido."}
               {resultado.reduzida &&
                 ` A imagem foi reduzida de ${resultado.larguraOriginal} × ${resultado.alturaOriginal} para ${resultado.largura} × ${resultado.altura} px antes de converter; o SVG escala sem perda.`}
             </p>

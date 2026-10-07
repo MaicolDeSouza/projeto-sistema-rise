@@ -72,12 +72,12 @@ export default function ConferidoProduto({ produto }) {
             onSubmit={confirmar}
             role="dialog"
             aria-modal="true"
-            aria-label="Codigo de conferencia"
+            aria-label="Código de conferência"
             className="w-full max-w-sm overflow-hidden rounded-lg border border-borda bg-superficie shadow-2xl"
           >
             <div className="flex items-center justify-between border-b border-borda p-3">
               <span className="text-sm font-semibold">
-                {conferido ? "Desmarcar conferencia" : "Marcar como conferido"}
+                {conferido ? "Desmarcar conferência" : "Marcar como conferido"}
               </span>
               <button
                 type="button"
@@ -92,7 +92,7 @@ export default function ConferidoProduto({ produto }) {
             <div className="space-y-2 p-3 text-sm">
               <p className="truncate font-medium">{produto.tituloBase}</p>
               <label className="block text-xs text-suave" htmlFor={`codigo-${produto.id}`}>
-                Digite o codigo para continuar
+                Digite o código para continuar
               </label>
               <input
                 id={`codigo-${produto.id}`}
@@ -110,7 +110,7 @@ export default function ConferidoProduto({ produto }) {
                   erro ? "border-red-500" : "border-borda"
                 }`}
               />
-              {erro && <p className="text-xs text-red-700">Codigo incorreto.</p>}
+              {erro && <p className="text-xs text-red-700">Código incorreto.</p>}
             </div>
 
             <div className="flex justify-end gap-2 border-t border-borda p-3">

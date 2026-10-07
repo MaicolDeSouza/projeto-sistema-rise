@@ -206,7 +206,7 @@ export default function PainelNanoBanana({
           />
         ) : (
           <span className="absolute inset-0 flex items-center justify-center px-6 text-center text-xs text-suave">
-            {definicao ? `O resultado aparece aqui. Cada geracao custa ${preco}.` : "O resultado aparece aqui."}
+            {definicao ? `O resultado aparece aqui. Cada geração custa ${preco}.` : "O resultado aparece aqui."}
           </span>
         )}
         {gerando && (
@@ -281,7 +281,7 @@ export default function PainelNanoBanana({
             type="button"
             onClick={voltarAoSalvo}
             disabled={ocupado || texto === salvo}
-            title="Descarta o que voce editou e volta ao prompt salvo"
+            title="Descarta o que você editou e volta ao prompt salvo"
             className="rounded border border-borda px-2 py-1 text-xs hover:bg-fundo disabled:opacity-40"
           >
             Voltar ao salvo
@@ -340,7 +340,7 @@ export default function PainelNanoBanana({
             type="button"
             onClick={() => entrada.current?.click()}
             disabled={ocupado || cheioDeExtras}
-            title={cheioDeExtras ? `No maximo ${maximoExtras} imagens extras` : "Enviar uma imagem do computador"}
+            title={cheioDeExtras ? `No máximo ${maximoExtras} imagens extras` : "Enviar uma imagem do computador"}
             className="inline-flex h-11 shrink-0 items-center gap-1 rounded border border-dashed border-borda px-2 text-suave hover:border-acento hover:text-acento disabled:opacity-40"
           >
             {enviando ? <Loader size={13} className="animate-spin" /> : <ImagePlus size={13} />} Enviar
@@ -362,7 +362,7 @@ export default function PainelNanoBanana({
       {confirmando && definicao && (
         <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           Gerar com <strong>{definicao.nome}</strong> por <strong>{reais(definicao.brl)}</strong> ({dolares(definicao.usd)})?
-          Cada geracao e cobrada e sai diferente. O Google cobra em dolar, no cartao: o valor em reais e uma estimativa,
+          Cada geração é cobrada e sai diferente. O Google cobra em dólar, no cartão: o valor em reais é uma estimativa,
           sem IOF.
         </p>
       )}
@@ -394,7 +394,7 @@ export default function PainelNanoBanana({
               type="button"
               onClick={() => setConfirmando(true)}
               disabled={ocupado || !liberado || !promptValido || !definicao}
-              title={!liberado ? estado?.config?.motivo : "Gera a foto (cobra pela geracao)"}
+              title={!liberado ? estado?.config?.motivo : "Gera a foto (cobra pela geração)"}
               className="inline-flex shrink-0 items-center gap-1.5 rounded border border-acento px-3 py-2 text-sm font-medium whitespace-nowrap text-acento hover:bg-fundo disabled:opacity-50"
             >
               {gerando ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
@@ -404,7 +404,7 @@ export default function PainelNanoBanana({
               type="button"
               onClick={escolher}
               disabled={!podeEscolher}
-              title={escolhida && nb?.novaGeracao !== true ? "Esta e a foto escolhida" : "Usar a foto do Nano Banana no produto, sem custo"}
+              title={escolhida && nb?.novaGeracao !== true ? "Esta é a foto escolhida" : "Usar a foto do Nano Banana no produto, sem custo"}
               className={`inline-flex shrink-0 items-center gap-1.5 rounded px-3 py-2 text-sm font-medium whitespace-nowrap ${
                 podeEscolher ? "bg-emerald-600 text-white hover:opacity-90" : "cursor-not-allowed border border-borda text-suave opacity-60"
               }`}

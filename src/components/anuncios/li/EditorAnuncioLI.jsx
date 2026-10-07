@@ -41,7 +41,7 @@ async function chamar(acao, ...argumentos) {
   try {
     return await acao(...argumentos);
   } catch {
-    return { ok: false, erro: "Nao foi possivel falar com o servidor." };
+    return { ok: false, erro: "Não foi possível falar com o servidor." };
   }
 }
 
@@ -109,7 +109,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     [rascunho, contexto, leitura],
   );
   const divergencias = divergenciasDe(leitura);
-  const abas = useMemo(() => (divergencias > 0 ? [{ id: "divergencias", rotulo: `Divergencias (${divergencias})` }, ...ABAS_LI] : ABAS_LI), [divergencias]);
+  const abas = useMemo(() => (divergencias > 0 ? [{ id: "divergencias", rotulo: `Divergências (${divergencias})` }, ...ABAS_LI] : ABAS_LI), [divergencias]);
   const abaVisivel = abas.some((item) => item.id === aba) ? aba : ABAS_LI[0].id;
 
   useEffect(() => {
@@ -143,7 +143,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     }
     if (lida.vinculadoAgora && lida.anuncioId) {
       if (alteradoRef.current) {
-        setMensagem({ tipo: "atencao", texto: "O anuncio acabou de ser vinculado a loja: as categorias e o destaque de la foram gravados. Salvar agora troca pelos da tela." });
+        setMensagem({ tipo: "atencao", texto: "O anúncio acabou de ser vinculado à loja: as categorias e o destaque de lá foram gravados. Salvar agora troca pelos da tela." });
       } else {
         const aberto = await chamar(abrirAnuncioLI, lida.anuncioId);
         if (!montado.current || !aberto.ok) return;
@@ -217,7 +217,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     try {
       resultado = await salvarAnuncioLI(idAtual, enviado);
     } catch {
-      resultado = { ok: false, erro: "Nao foi possivel falar com o servidor. O que esta na tela continua aqui: tente salvar de novo." };
+      resultado = { ok: false, erro: "Não foi possível falar com o servidor. O que está na tela continua aqui: tente salvar de novo." };
     }
     if (!resultado.ok) {
       setMensagem({ tipo: "erro", texto: resultado.erro });
@@ -248,7 +248,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     if (!montado.current) return;
     const resumo = resumirEnvioLI(tipo, resultado, rotulos);
     setEnvio(resumo ? { ok: resultado.ok === true, titulo: resumo.titulo, linhas: resumo.linhas } : null);
-    if (!resultado.ok) setMensagem({ tipo: "erro", texto: resultado.erro ?? "O envio nao foi concluido." });
+    if (!resultado.ok) setMensagem({ tipo: "erro", texto: resultado.erro ?? "O envio não foi concluído." });
     if (resultado.ok) setStatusAtual("PUBLICADO");
     if (mudouNaLI(tipo, resultado)) {
       setQual("lendo");
@@ -321,14 +321,14 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   // O estado da loja em uma linha, acima das abas: o que o pop-up do icone dizia.
   let situacaoDaLoja = null;
   if (leitura && !leitura.ok) {
-    situacaoDaLoja = { tipo: "erro", texto: leitura.erro ?? "Nao foi possivel ler a Loja Integrada.", lerDeNovo: true };
+    situacaoDaLoja = { tipo: "erro", texto: leitura.erro ?? "Não foi possível ler a Loja Integrada.", lerDeNovo: true };
   } else if (leitura?.ok && leitura.situacao === "nao_existe") {
     situacaoDaLoja = {
       tipo: "info",
-      texto: `O codigo ${leitura.sku} nao esta na Loja Integrada. "Cadastrar na LI" cria o produto INATIVO com este anuncio; preco e estoque chegam pelo Bling.`,
+      texto: `O código ${leitura.sku} não está na Loja Integrada. "Cadastrar na LI" cria o produto INATIVO com este anúncio; preço e estoque chegam pelo Bling.`,
     };
   } else if (leitura?.vinculadoAgora) {
-    situacaoDaLoja = { tipo: "ok", texto: `Vinculado agora pelo codigo (id ${leitura.idExterno}): as categorias e o destaque vieram da loja.` };
+    situacaoDaLoja = { tipo: "ok", texto: `Vinculado agora pelo código (id ${leitura.idExterno}): as categorias e o destaque vieram da loja.` };
   }
 
   const avisos = (
@@ -405,7 +405,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
       <div className="flex items-center gap-2 text-xs">
         <Badge tom={rotuloDoStatus.tom}>{rotuloDoStatus.rotulo}</Badge>
-        {alterado ? <span className="text-amber-700">Alteracoes nao salvas</span> : idAtual && <span className="text-suave">Tudo salvo</span>}
+        {alterado ? <span className="text-amber-700">Alterações não salvas</span> : idAtual && <span className="text-suave">Tudo salvo</span>}
       </div>
       <div className="flex items-center gap-2">
         <button
@@ -445,7 +445,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
             <p id="li-pergunta-titulo" className="text-sm font-semibold">
               Salvar antes de {tipoDeEnvio === "cadastrar" ? "cadastrar" : "sincronizar"}?
             </p>
-            <p className="mt-1 text-sm text-suave">O envio leva o anuncio salvo. As alteracoes da tela precisam ser salvas antes.</p>
+            <p className="mt-1 text-sm text-suave">O envio leva o anúncio salvo. As alterações da tela precisam ser salvas antes.</p>
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" autoFocus onClick={() => setPergunta(null)} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
                 Cancelar
@@ -458,9 +458,9 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
         ) : (
           <>
             <p id="li-pergunta-titulo" className="text-sm font-semibold">
-              Abrir o produto com alteracoes nao salvas?
+              Abrir o produto com alterações não salvas?
             </p>
-            <p className="mt-1 text-sm text-suave">O cadastro do produto abre nesta mesma aba. O que nao for salvo neste anuncio sera perdido.</p>
+            <p className="mt-1 text-sm text-suave">O cadastro do produto abre nesta mesma aba. O que não for salvo neste anúncio será perdido.</p>
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               <button type="button" autoFocus onClick={() => setPergunta(null)} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
                 Cancelar
@@ -505,12 +505,12 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="Anuncio da Loja Integrada"
+        aria-label="Anúncio da Loja Integrada"
         className="flex max-h-full w-full max-w-5xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl focus:outline-none"
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-5 py-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold">Anuncio da Loja Integrada</p>
+            <p className="text-sm font-semibold">Anúncio da Loja Integrada</p>
             {produto && (
               <p className="mt-0.5 truncate text-xs text-suave">
                 <span className="font-mono">{produto.sku}</span> · {produto.tituloBase}
@@ -538,7 +538,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
             <p id="li-sair-titulo" className="text-sm font-semibold">
               Sair sem salvar?
             </p>
-            <p className="mt-1 text-sm text-suave">As alteracoes deste anuncio ainda nao foram salvas e serao perdidas.</p>
+            <p className="mt-1 text-sm text-suave">As alterações deste anúncio ainda não foram salvas e serão perdidas.</p>
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" autoFocus onClick={() => setConfirmandoSaida(false)} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
                 Continuar editando

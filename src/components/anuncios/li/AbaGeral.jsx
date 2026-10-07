@@ -28,10 +28,10 @@ export default function AbaGeral({ rascunho, contexto, alterar, problemas }) {
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
             <span className="font-mono font-medium">{produto.sku}</span>
             <span className="min-w-0 flex-1 truncate">{produto.tituloBase}</span>
-            <Badge tom={produto.conferido ? "sucesso" : "erro"}>{produto.conferido ? "Conferido" : "Nao conferido"}</Badge>
+            <Badge tom={produto.conferido ? "sucesso" : "erro"}>{produto.conferido ? "Conferido" : "Não conferido"}</Badge>
           </div>
         ) : (
-          <p className="mt-1 text-sm text-red-700">Produto nao encontrado. Ele pode ter sido excluido.</p>
+          <p className="mt-1 text-sm text-red-700">Produto não encontrado. Ele pode ter sido excluído.</p>
         )}
         <MensagensDoCampo problemas={problemas} campo="produto" />
       </div>
@@ -58,7 +58,7 @@ export default function AbaGeral({ rascunho, contexto, alterar, problemas }) {
           <Campo
             nome="li-marca"
             rotulo="Marca"
-            ajuda="Escolha uma marca que a loja ja tem; uma marca nova e criada na Loja Integrada no Sincronizar."
+            ajuda="Escolha uma marca que a loja já tem; uma marca nova é criada na Loja Integrada no Sincronizar."
             value={rascunho.marca ?? ""}
             list="li-marcas-da-loja"
             onChange={(evento) => alterar({ marca: evento.target.value.toUpperCase() })}
@@ -72,7 +72,7 @@ export default function AbaGeral({ rascunho, contexto, alterar, problemas }) {
         </div>
         <Campo
           nome="li-video"
-          rotulo="Video (YouTube)"
+          rotulo="Vídeo (YouTube)"
           placeholder="https://www.youtube.com/watch?v=..."
           value={rascunho.videoUrl ?? ""}
           onChange={(evento) => alterar({ videoUrl: evento.target.value || null })}

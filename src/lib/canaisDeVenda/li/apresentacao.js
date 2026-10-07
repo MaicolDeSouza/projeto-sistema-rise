@@ -12,7 +12,7 @@ const NUMERO = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
 
 const SUFIXO_DO_CAMPO = { peso: " kg", altura: " cm", largura: " cm", comprimento: " cm" };
 
-const ROTULO_DO_TIPO_PRODUCAO = { REVENDA: "Revenda", FABRICACAO_PROPRIA: "Fabricacao propria" };
+const ROTULO_DO_TIPO_PRODUCAO = { REVENDA: "Revenda", FABRICACAO_PROPRIA: "Fabricação própria" };
 
 /**
  * O valor de um campo normalizado como a tela o escreve. Vazio (null, texto vazio, lista vazia)
@@ -50,18 +50,18 @@ export function resumirEnvioLI(tipo, resultado, rotulos = {}) {
     const linhas = alterados.map(({ campo, de, para }) => `${rotuloDe(rotulos, campo)}: de ${valorNaFrase(campo, de)} para ${valorNaFrase(campo, para)}`);
     if (resultado.marcaCriada) linhas.push(`Marca criada na Loja Integrada: ${resultado.marcaCriada}.`);
     const ignoradas = Array.isArray(resultado.categoriasIgnoradas) ? resultado.categoriasIgnoradas : [];
-    if (ignoradas.length) linhas.push(`Categorias que nao existem mais na loja ficaram de fora: ${ignoradas.join(", ")}.`);
+    if (ignoradas.length) linhas.push(`Categorias que não existem mais na loja ficaram de fora: ${ignoradas.join(", ")}.`);
     if (ok) {
       return alterados.length > 0
         ? { titulo: "Sincronizado com a Loja Integrada.", linhas }
-        : { titulo: "Nada para enviar: a Loja Integrada ja estava igual ao Rise.", linhas };
+        : { titulo: "Nada para enviar: a Loja Integrada já estava igual ao Rise.", linhas };
     }
     return alterados.length > 0 ? { titulo: `O envio parou na etapa "${resultado.etapa ?? "?"}". Estes campos estavam para ir:`, linhas } : null;
   }
 
   if (tipo === "cadastrar") {
-    if (ok) return { titulo: "Produto cadastrado na Loja Integrada (inativo).", linhas: ["Confira na loja e ative-o la quando quiser vender."] };
-    return resultado.idExterno ? { titulo: `O produto foi criado na Loja Integrada (id ${resultado.idExterno}), mas o envio nao terminou.`, linhas: [] } : null;
+    if (ok) return { titulo: "Produto cadastrado na Loja Integrada (inativo).", linhas: ["Confira na loja e ative-o lá quando quiser vender."] };
+    return resultado.idExterno ? { titulo: `O produto foi criado na Loja Integrada (id ${resultado.idExterno}), mas o envio não terminou.`, linhas: [] } : null;
   }
 
   return null;

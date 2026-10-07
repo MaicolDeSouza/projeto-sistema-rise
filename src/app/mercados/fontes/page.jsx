@@ -125,7 +125,7 @@ export default async function FontesPage({ searchParams }) {
 
       <PageHeader
         titulo="Fontes acompanhadas"
-        descricao="Concorrentes e fornecedores. Cada fonte e testada antes de ser cadastrada."
+        descricao="Concorrentes e fornecedores. Cada fonte é testada antes de ser cadastrada."
       />
 
       {erro && <AvisoBanco erro={erro} />}
@@ -149,7 +149,7 @@ export default async function FontesPage({ searchParams }) {
             <EmptyState
               icone={Store}
               titulo="Nenhuma fonte cadastrada"
-              descricao="Cole o endereco de um concorrente ou fornecedor no campo acima para comecar."
+              descricao="Cole o endereço de um concorrente ou fornecedor no campo acima para começar."
             />
           ) : daAba.length === 0 ? (
             <EmptyState
@@ -167,7 +167,7 @@ export default async function FontesPage({ searchParams }) {
                 <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
                   <tr className="divide-x divide-borda">
                     <th className="px-3 py-2.5 font-medium">Loja</th>
-                    <th className="px-3 py-2.5 font-medium">Situacao</th>
+                    <th className="px-3 py-2.5 font-medium">Situação</th>
                     {/*
                       "no site" sozinho mentia na aba de fornecedor: o catalogo
                       da Fortek e da Nightech vem da LISTA que eles mandam, nao
@@ -180,7 +180,7 @@ export default async function FontesPage({ searchParams }) {
                     <th className="px-3 py-2.5 text-right font-medium">
                       Produtos atualizados
                     </th>
-                    <th className="px-3 py-2.5 font-medium">Ultima varredura</th>
+                    <th className="px-3 py-2.5 font-medium">Última varredura</th>
                     {aba === "FORNECEDOR" && (
                       <th className="px-3 py-2.5 font-medium">Lista do fornecedor</th>
                     )}

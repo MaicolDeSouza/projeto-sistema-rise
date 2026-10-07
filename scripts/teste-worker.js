@@ -264,7 +264,7 @@ conferir("abre UMA variante por produto (6 aberturas, nao 18)", totalAberturas()
 conferir("e acha os 6 produtos", comIdentidade.produtos.length, PRODUTOS);
 conferir(
   "diz quantos enderecos eram repeticao (2 por produto)",
-  comIdentidade.passos.find((p) => p.nome === "Enderecos repetidos ignorados")?.detalhe?.startsWith("12 "),
+  comIdentidade.passos.find((p) => p.nome === "Endereços repetidos ignorados")?.detalhe?.startsWith("12 "),
   true,
 );
 conferir("o total do site conta produtos, nao enderecos (18 no sitemap, 6 produtos)", comIdentidade.produtosNoSite, PRODUTOS);

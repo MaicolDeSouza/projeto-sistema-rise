@@ -64,7 +64,7 @@ function proximaVarredura(fonte) {
   if (fonte.varredura === "NA_FILA") return "na fila";
   if (!fonte.proximaVarreduraEm) return "próxima: indefinida";
   if (!fonte.ativa || !fonte.robotsPermite) return "pausada";
-  if (new Date(fonte.proximaVarreduraEm).getTime() <= Date.now()) return "proxima: agora";
+  if (new Date(fonte.proximaVarreduraEm).getTime() <= Date.now()) return "próxima: agora";
   return `proxima: ${comoData(fonte.proximaVarreduraEm)}`;
 }
 
@@ -172,7 +172,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
                   title={
                     fonte.plataforma
                       ? `Plataforma: ${fonte.plataforma}`
-                      : "Plataforma nao identificada (fonte nova, ou plataforma ainda nao catalogada)"
+                      : "Plataforma não identificada (fonte nova, ou plataforma ainda não catalogada)"
                   }
                 >
                   <Info size={12} className="shrink-0 text-suave" />
@@ -200,7 +200,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
                 setEditando((antes) => !antes);
               }}
               className="rounded border border-borda p-1 text-suave hover:bg-fundo"
-              title="Editar nome e endereco"
+              title="Editar nome e endereço"
               aria-label={`Editar ${fonte.nome}`}
             >
               <Pencil size={13} />
@@ -227,7 +227,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
         <td className="px-3 py-2.5 text-right tabular-nums">
           {comoNumero(fonte.produtosNoSite)}
           {fonte.produtosNoSiteParcial && typeof fonte.produtosNoSite === "number" && (
-            <span title="A leitura do sitemap parou no teto; o catalogo e maior">+</span>
+            <span title="A leitura do sitemap parou no teto; o catálogo é maior">+</span>
           )}
         </td>
 
@@ -312,8 +312,8 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
                   : !fonte.ativa
                     ? "Fonte pausada: use Retomar antes de varrer"
                     : fonte.varredura
-                      ? "Esta fonte ja esta na fila ou em varredura"
-                      : "Varrer so esta fonte agora"
+                      ? "Esta fonte já está na fila ou em varredura"
+                      : "Varrer só esta fonte agora"
               }
             >
               {fonte.varredura === "VARRENDO" ? (
@@ -335,7 +335,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
               className={botao}
               title={
                 fonte.robotsPermite
-                  ? "Pausar mantem tudo que ja foi coletado"
+                  ? "Pausar mantem tudo que já foi coletado"
                   : "O robots.txt deste site nos bloqueia"
               }
             >
@@ -381,7 +381,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
               </label>
 
               <label className="flex-1 text-xs">
-                <span className="mb-1 block text-suave">Endereco</span>
+                <span className="mb-1 block text-suave">Endereço</span>
                 <input
                   name="url"
                   defaultValue={fonte.dominio}
@@ -410,8 +410,8 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
                 aqui evita a descoberta depois da varredura seguinte.
               */}
               <p className="w-full text-xs text-suave">
-                Mudar o endereco revalida o robots.txt do site novo. As paginas ja
-                coletadas continuam com o endereco antigo.
+                Mudar o endereço revalida o robots.txt do site novo. As páginas já
+                coletadas continuam com o endereço antigo.
               </p>
             </form>
           </td>
@@ -426,9 +426,9 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
             {confirmando !== null && (
               <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
                 <p>
-                  Excluir <strong>{fonte.nome}</strong> apaga tambem{" "}
-                  <strong>{confirmando} produto(s)</strong> coletado(s) e todo o historico de
-                  preco delas. Para so parar de coletar, use Pausar.
+                  Excluir <strong>{fonte.nome}</strong> apaga também{" "}
+                  <strong>{confirmando} produto(s)</strong> coletado(s) e todo o histórico de
+                  preço delas. Para só parar de coletar, use Pausar.
                 </p>
                 <div className="mt-2 flex gap-2">
                   <button

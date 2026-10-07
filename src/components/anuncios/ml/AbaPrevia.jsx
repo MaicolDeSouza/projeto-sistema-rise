@@ -50,10 +50,10 @@ export default function AbaPrevia({ rascunho, contexto, irPara, todosProblemas }
         </p>
       ) : (
         <div>
-          <p className="text-sm font-semibold text-emerald-700">Pronto para publicar quando a publicacao for ligada (fase 3).</p>
+          <p className="text-sm font-semibold text-emerald-700">Pronto para publicar quando a publicação for ligada (fase 3).</p>
           {alertas > 0 && (
             <p className="mt-1 text-xs text-amber-700">
-              {alertas} alerta(s) abaixo para conferir; eles nao impedem a publicacao.
+              {alertas} alerta(s) abaixo para conferir; eles não impedem a publicação.
             </p>
           )}
         </div>
@@ -87,16 +87,16 @@ export default function AbaPrevia({ rascunho, contexto, irPara, todosProblemas }
       <details className="rounded border border-borda">
         <summary className="cursor-pointer px-3 py-2 text-sm font-semibold">Dados que seriam enviados ao Mercado Livre</summary>
         {json === null ? (
-          <p className="border-t border-borda px-3 py-2 text-sm text-amber-700">Nao foi possivel montar a previa.</p>
+          <p className="border-t border-borda px-3 py-2 text-sm text-amber-700">Não foi possível montar a prévia.</p>
         ) : (
           <pre className="max-h-[32rem] overflow-auto border-t border-borda bg-fundo px-3 py-2.5 text-xs leading-relaxed">{json}</pre>
         )}
       </details>
 
       <div>
-        <p className="text-sm font-semibold">Descricao final</p>
+        <p className="text-sm font-semibold">Descrição final</p>
         <pre className="mt-2 max-h-[28rem] overflow-y-auto rounded border border-borda bg-fundo px-3 py-2.5 font-sans text-[15px] leading-relaxed break-words whitespace-pre-wrap">
-          {descricaoFinal || <span className="text-suave">Sem descricao.</span>}
+          {descricaoFinal || <span className="text-suave">Sem descrição.</span>}
         </pre>
       </div>
     </div>

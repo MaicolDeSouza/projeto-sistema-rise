@@ -17,14 +17,14 @@ import ListaDeValores from "./ListaDeValores";
 
 const MODALIDADES = [
   { valor: "CORREIOS", rotulo: "Correios" },
-  { valor: "RODOVIARIA", rotulo: "Transportadora rodoviaria" },
+  { valor: "RODOVIARIA", rotulo: "Transportadora rodoviária" },
   { valor: "ENTREGA_LOCAL", rotulo: "Entrega local (motoboy)" },
   { valor: "OUTRA", rotulo: "Outra" },
 ];
 
 const ABAS = [
   { id: "cadastro", rotulo: "Dados cadastrais" },
-  { id: "endereco", rotulo: "Endereco" },
+  { id: "endereco", rotulo: "Endereço" },
   { id: "contato", rotulo: "Contato" },
 ];
 
@@ -131,7 +131,7 @@ export default function FormularioTransportadora({ transportadora, usos }) {
                 defaultValue={valor("nome")}
                 required
                 autoFocus
-                ajuda="Razao social. O nome pelo qual voce a conhece vai em Nome fantasia."
+                ajuda="Razão social. O nome pelo qual você a conhece vai em Nome fantasia."
               />
               <Campo
                 nome="nomeFantasia"
@@ -144,7 +144,7 @@ export default function FormularioTransportadora({ transportadora, usos }) {
                 nome="cnpj"
                 rotulo="CNPJ"
                 erro={erros.cnpj}
-                ajuda="Opcional, mas conferido quando preenchido. A busca dos dados da empresa pelo CNPJ (Sintegra) ainda nao esta ligada: o botao da lupa fica desligado."
+                ajuda="Opcional, mas conferido quando preenchido. A busca dos dados da empresa pelo CNPJ (Sintegra) ainda não está ligada: o botão da lupa fica desligado."
               >
                 <div className="relative">
                   <input
@@ -175,7 +175,7 @@ export default function FormularioTransportadora({ transportadora, usos }) {
                   defaultValue={valor("modalidade")}
                   className={`${CLASSE_CAMPO} ${bordaDoCampo(erros.modalidade)}`}
                 >
-                  <option value="">Nao definida</option>
+                  <option value="">Não definida</option>
                   {MODALIDADES.map((modalidade) => (
                     <option key={modalidade.valor} value={modalidade.valor}>
                       {modalidade.rotulo}
@@ -186,7 +186,7 @@ export default function FormularioTransportadora({ transportadora, usos }) {
 
               <Campo
                 nome="inscricaoEstadual"
-                rotulo="Inscricao Estadual"
+                rotulo="Inscrição Estadual"
                 erro={erros.inscricaoEstadual}
                 defaultValue={valor("inscricaoEstadual")}
                 disabled={ieIsento}
@@ -212,7 +212,7 @@ export default function FormularioTransportadora({ transportadora, usos }) {
                   erro={erros.urlRastreamento}
                   defaultValue={valor("urlRastreamento")}
                   placeholder="https://site.com/rastrear/{codigo}"
-                  ajuda="Endereco de consulta com {codigo} no lugar do codigo de rastreio. O bloco Pedidos vai usar para montar o link do cliente."
+                  ajuda="Endereço de consulta com {código} no lugar do código de rastreio. O bloco Pedidos vai usar para montar o link do cliente."
                 />
               </div>
 
@@ -223,12 +223,12 @@ export default function FormularioTransportadora({ transportadora, usos }) {
                   erro={erros.site}
                   defaultValue={valor("site")}
                   placeholder="https://"
-                  ajuda="Endereco do site, com http ou https."
+                  ajuda="Endereço do site, com http ou https."
                 />
               </div>
 
               <div className="md:col-span-2">
-                <Campo nome="observacoes" rotulo="Observacoes" erro={erros.observacoes}>
+                <Campo nome="observacoes" rotulo="Observações" erro={erros.observacoes}>
                   <textarea
                     id="observacoes"
                     name="observacoes"
@@ -290,7 +290,7 @@ export default function FormularioTransportadora({ transportadora, usos }) {
       {transportadora && (
         <p className="text-xs text-suave">
           {usos > 0
-            ? `Esta transportadora e a preferida de ${usos} cliente(s), por isso nao pode ser excluida enquanto houver vinculo.`
+            ? `Esta transportadora é a preferida de ${usos} cliente(s), por isso não pode ser excluída enquanto houver vínculo.`
             : "Nenhum cliente tem esta transportadora como preferida ainda."}
         </p>
       )}

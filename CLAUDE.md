@@ -84,8 +84,18 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 - **Exclusão:** popup listando nome e código de cada item, **nunca** `confirm()` nativo (Produtos).
 - **Lista longa:** paginada, 100 por página, filtro por parâmetro repetido (`?fonte=A&fonte=B`), e
   nenhuma marcada quer dizer todas (Mercados).
-- **Texto da tela sem acento** (`Pessoa Fisica`, `Ultima varredura`, `Condicoes de pagamento`), como
-  as telas fazem hoje.
+- **Texto da tela COM acento** (decidido pelo dono em 07/10/2026; até ali era sem acento): `Pessoa Física`,
+  `Última varredura`, `Não foi possível salvar.`. Vale para tudo o que a pessoa lê: rótulos, botões, bolhas,
+  mensagens de erro e avisos que as ações devolvem. **Continuam sem acento:** identificadores, ids de aba e chaves,
+  comentários, slug/URL e nome de arquivo, e valores que o código compara ou grava como dado. A troca foi feita com
+  as ferramentas de `.acentos/` (fora do git): o extrator só pega texto de JSX e strings de tela, nunca chave,
+  classe CSS ou comparação.
+  - **Ficaram sem acento de propósito:** as "origens" e os textos de leitura de site de `src/lib/coleta/` (são dados
+    gravados em `ProdutoColetado` e entram na assinatura: acentuar regravaria todos os produtos na próxima varredura),
+    as notas de `plataformas.js` e os prompts da IA. Os passos e as mensagens do "Testar fonte" ganharam acento.
+  - **Teste que confere mensagem por regex** compara sem acento (`casa`/`casaTexto` no `teste-bling-sync`,
+    `semAcento` no `teste-imagens`); código que reconhece mensagem por regex aceita as duas grafias
+    (`/n[aã]o configurada/` em `integracoes/lojaintegrada.js`).
 
 ## Estado
 
@@ -2455,9 +2465,10 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   (rascunho, vínculo pelo SKU, lista), `cliente.js` (as duas travas), `leitura.js` (busca, detalhe, categorias, marcas,
   pop-up), `envio.js` (Sincronizar e Cadastrar), `estado.js` (ícone), `apresentacao.js` (o único que o navegador importa),
   `rotulos.js`. O cliente HTTP, a paginação e os normalizadores do handoff ficam em `src/lib/integracoes/lojaIntegrada/`.
-- **Tela:** `src/app/canais-de-venda/loja-integrada/` (lista, `novo`, `[id]`, `configuracoes`, `acoes.js`),
-  `src/app/produtos/acoes-li.js`, `src/components/anuncios/li/` (editor por abas, `ArvoreDeCategorias`, `JanelaAnuncioLI`),
-  `src/components/produtos/IconeLojaIntegrada.jsx` e `JanelaLojaIntegrada.jsx`.
+- **Tela:** `src/app/canais-de-venda/loja-integrada/` (lista, `novo`, `[id]`, `acoes.js`),
+  `src/app/produtos/acoes-li.js`, `src/components/anuncios/li/` (editor por abas, `ArvoreDeCategorias`, `JanelaAnuncioLI`)
+  e `src/components/produtos/IconeLojaIntegrada.jsx`. O ícone da lista abre o editor direto (o pop-up de diferenças
+  `JanelaLojaIntegrada` foi apagado em 07/10/2026: virou a aba Divergências).
 - **Banco:** migration `20261006_loja_integrada` (`Produto.tipoProducao`, `CopiaProdutoCanal`). O rascunho mora em `Anuncio`
   (canal LOJA_INTEGRADA, **um por produto**, índice parcial `Anuncio_um_por_produto`): título e descrição em coluna, o resto
   (slug, marca, categorias, destaque, vídeo, SEO, especificações) em `dados`. Anúncio vinculado (PUBLICADO) **continua
@@ -2473,8 +2484,27 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   (Cód:...)"). A seção **"Documentos / Arquivos para download:"** entra logo abaixo de "Especificações técnicas:"; sem
   ela, acima de "Garantia:"; sem as duas, no fim (só com `APP_URL_PUBLICA`). O bloco automático de Especificações e a
   prévia separada saíram. A formatação não acende o selo (a comparação é pelo texto).
-- **Vínculo:** a primeira abertura do pop-up de um produto Conferido que já existe na LI grava `idExterno`, `urlExterna` e o
-  link em `Produto.urlLojaIntegrada`; slug, categorias e destaque **vêm da loja** para o rascunho.
+- **Editor = pop-up (07/10/2026):** ao abrir, o editor lê a loja (`abrirJanelaLI`, só leitura). Abas, nesta ordem:
+  **Divergências** (só quando há campo "diferente"; "só tem na loja" não conta) / Geral / Descrição / Categorias / Peso e dimensões /
+  Tributação / SEO / Prévia e sincronização (nomes iguais aos do cadastro de Produto). A comparação é do anúncio **salvo** com a loja. No rodapé, **"Sincronizar com a
+  LI"** ("Cadastrar na LI" se o código não está na loja), sob as mesmas travas; com alteração na tela pergunta "Salvar e
+  sincronizar" (sem opção de enviar sem salvar). "Editar produto" (Descrição, Fiscal, Envio) abre o cadastro na mesma
+  aba e, com alteração não salva, pergunta (Salvar e abrir / Abrir sem salvar / Cancelar).
+- **Aba Fiscal:** aviso grande do que mudar **no painel da LI** (origem e tipo de produção vazios ou diferentes; a API
+  não os grava), com o link `https://app.lojaintegrada.com.br/catalogo/produto/{idExterno}/editar`. O alerta "sem
+  GTIN" considera o GTIN que já está na loja (`gtinDaLI`).
+- **Aba SEO:** nomes e ordem da LI (Tag Title, Meta Tag Description, URL do produto), contador "54 de 70 caracteres",
+  "Gerar com IA" (3 opções de meta description, pede 140-160 e aceita 130-160: `gerarDescriptionsSeo` em
+  `ia/anuncio.js`) e o SEO dos concorrentes salvos (`seoConcorrentes.js`, lendo `ProdutoColetado.seo`). O padrão
+  automático da description corta na última frase inteira (`cortarNaFrase`).
+- **Slug = SEMPRE `slugDe(nome do anúncio)`** (decisão do dono em 07/10/2026, sabendo do risco): campo só leitura;
+  `rascunhoDoAnuncio`, `salvarRascunhoLI` e `normalizarDoRiseLI` refazem do título; o vínculo não traz mais o slug da
+  loja. Produto que já está na loja muda de URL no próximo Sincronizar (/alias, 301), e cada troca de nome muda de
+  novo; o aviso mostra a URL de verdade de hoje (`vinculo.urlExterna`, que pode ser `/produto/<slug>.html`).
+- **Frases fixas saíram da LI** (07/10/2026): não entram na descrição nem na assinatura, e a página de configurações
+  do canal foi apagada. As do Mercado Livre continuam.
+- **Vínculo:** a primeira leitura de um produto Conferido que já existe na LI grava `idExterno`, `urlExterna` e o
+  link em `Produto.urlLojaIntegrada`; categorias e destaque **vêm da loja** para o rascunho (o slug não).
 - **Sincronizar** (etapas: trava, leitura, marca, produto, seo, slug, gravação): só os campos diferentes; marca achada sem
   caixa e sem acento (`POST /marca` só se não houver); categoria do rascunho que sumiu da loja sai do envio
   (`categoriasIgnoradas`); cópia do GET em `CopiaProdutoCanal` (3 por produto) antes do PUT; falha depois da trava deixa o
@@ -2482,7 +2512,8 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
 - **Cadastrar:** recusa sem NCM e SKU que já existe (ou está na lixeira); cria **inativo**; o vínculo é gravado logo após o
   POST (se o SEO falhar depois, o próximo clique não duplica).
 - **Ícone:** cinza = nunca sincronizado ou não Conferido; verde = sincronizado; selo "!" = a assinatura (Rise + rascunho +
-  frases + documentos) mudou desde o último envio. Mudar uma frase fixa acende o selo dos sincronizados.
+  documentos) mudou desde o último envio. **A LI regrava `<br>` como `<br />\r\n`**: `htmlParaTexto(..., { paragrafos:
+  true })` trata quebra crua do HTML como espaço, senão a descrição ficava "diferente" para sempre.
 
 ### Primeiro envio real (07/10/2026, produto 100101, com ok do dono)
 
@@ -2504,8 +2535,9 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
 
 ### Pendências
 
-- **O servidor da porta 3000 precisa reiniciar** depois da migration: com o cliente Prisma antigo, `/novo`, o editor e o
-  pop-up caem em "Unknown field tipoProducao". As abas do editor e o pop-up com diferenças reais **não foram vistos na tela**.
+- **O servidor da porta 3000 (de outra sessão, na mesma pasta) ficou com a lib antiga da LI na memória** em 07/10/2026:
+  a tela atualizou, mas as ações não (sem `fiscais`, `daLoja` e `dominioDaLoja`). Até reiniciar, a aba Fiscal diz
+  "conferem" e o alerta de GTIN ignora a loja. Só um `next dev` roda por pasta.
 - Fotos (`POST /produto_imagem`) e documentos: na VPS. Webhooks, pedidos e importação dos 44 só-LI: fora desta fase.
 - `POST /marca` nunca foi exercitado na API real (só na LI falsa).
 

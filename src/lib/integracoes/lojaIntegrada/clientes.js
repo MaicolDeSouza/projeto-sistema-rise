@@ -7,14 +7,14 @@ import {
 
 function idSeguro(id) {
   if (id === undefined || id === null || String(id).trim() === "") {
-    throw new TypeError("Id do cliente da Loja Integrada nao informado.");
+    throw new TypeError("Id do cliente da Loja Integrada não informado.");
   }
   return encodeURIComponent(String(id).trim());
 }
 
 function normalizarLista(dados) {
   if (!Array.isArray(dados?.objects)) {
-    throw new TypeError("Lista de clientes da Loja Integrada invalida.");
+    throw new TypeError("Lista de clientes da Loja Integrada inválida.");
   }
   return {
     clientes: dados.objects.map(normalizarClienteLojaIntegrada),
@@ -44,7 +44,7 @@ export function criarClientesLojaIntegrada({
 
   async function buscarPorEmail(email) {
     const valor = String(email ?? "").trim();
-    if (!valor) throw new TypeError("E-mail do cliente nao informado.");
+    if (!valor) throw new TypeError("E-mail do cliente não informado.");
     return buscar({ cliente_email: valor });
   }
 

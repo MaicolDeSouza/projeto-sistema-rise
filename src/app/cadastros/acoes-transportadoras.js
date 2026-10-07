@@ -29,9 +29,9 @@ const TransportadoraSchema = z.object({
   // autonomo). Decidido com o dono em 19/09/2026.
   cnpj: cnpjOpcional(),
   inscricaoEstadual: opcional(z.string()),
-  modalidade: opcional(z.enum(MODALIDADES, { message: "Escolha uma opcao." })),
-  urlRastreamento: enderecoWeb("Informe um endereco http ou https."),
-  site: enderecoWeb("Informe um endereco http ou https."),
+  modalidade: opcional(z.enum(MODALIDADES, { message: "Escolha uma opção." })),
+  urlRastreamento: enderecoWeb("Informe um endereço http ou https."),
+  site: enderecoWeb("Informe um endereço http ou https."),
   observacoes: opcional(z.string()),
 });
 
@@ -102,11 +102,11 @@ export async function salvarTransportadora(id, _anterior, formData) {
     return { ok: true, id: salva.id };
   } catch (erro) {
     if (erro?.code === "P2002") {
-      return { ok: false, erros: { nome: "Ja existe uma transportadora com este nome." } };
+      return { ok: false, erros: { nome: "Já existe uma transportadora com este nome." } };
     }
     if (erro?.code === "P2025") {
-      return { ok: false, erro: "Esta transportadora nao existe mais. Volte para a lista." };
+      return { ok: false, erro: "Esta transportadora não existe mais. Volte para a lista." };
     }
-    return { ok: false, erro: erro?.message ?? "Nao foi possivel salvar." };
+    return { ok: false, erro: erro?.message ?? "Não foi possível salvar." };
   }
 }

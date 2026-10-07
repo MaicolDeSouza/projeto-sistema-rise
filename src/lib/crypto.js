@@ -22,7 +22,7 @@ function obterChave() {
 
   if (!hex) {
     throw new Error(
-      "ENCRYPTION_KEY nao definida no .env. Gere uma com: " +
+      "ENCRYPTION_KEY não definida no .env. Gere uma com: " +
         'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
     );
   }
@@ -60,7 +60,7 @@ export function decifrar(texto) {
 
   const partes = texto.split(".");
   if (partes.length !== 3) {
-    throw new Error("Segredo cifrado em formato invalido.");
+    throw new Error("Segredo cifrado em formato inválido.");
   }
 
   const [iv, tag, conteudo] = partes.map((parte) =>

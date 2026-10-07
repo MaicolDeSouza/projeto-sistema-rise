@@ -37,7 +37,7 @@ class FalhaDoEnvio extends Error {
 const emAndamento = new Set();
 async function umPorVez(produtoId, recusar, executar) {
   const chave = String(produtoId ?? "");
-  if (emAndamento.has(chave)) return recusar("Ja ha um envio deste produto a Loja Integrada em andamento. Aguarde terminar e confira o resultado.");
+  if (emAndamento.has(chave)) return recusar("Já há um envio deste produto à Loja Integrada em andamento. Aguarde terminar e confira o resultado.");
   emAndamento.add(chave);
   try {
     return await executar();
@@ -49,12 +49,12 @@ async function umPorVez(produtoId, recusar, executar) {
 /** A recusa da LI em portugues; o 400 traz `error: [{campo: mensagem}]`. */
 function textoDaRecusa(resposta) {
   const { status, dados } = resposta ?? {};
-  if (status === 429) return "A Loja Integrada recusou por limite de chamadas (100 por minuto). Confira na loja o que ja foi gravado antes de tentar de novo.";
-  if (status === 401 || status === 403) return "A Loja Integrada recusou o acesso: confira ou renove o Personal Token em Integracoes.";
-  if (status >= 500) return `A Loja Integrada esta com problema (HTTP ${status}). Confira na loja o que ja foi gravado antes de tentar de novo.`;
+  if (status === 429) return "A Loja Integrada recusou por limite de chamadas (100 por minuto). Confira na loja o que já foi gravado antes de tentar de novo.";
+  if (status === 401 || status === 403) return "A Loja Integrada recusou o acesso: confira ou renove o Personal Token em Integrações.";
+  if (status >= 500) return `A Loja Integrada está com problema (HTTP ${status}). Confira na loja o que já foi gravado antes de tentar de novo.`;
   const campos = Array.isArray(dados?.error) ? dados.error.flatMap((item) => Object.entries(item ?? {}).map(([campo, msg]) => `${campo}: ${msg}`)) : [];
   if (campos.length) return `A Loja Integrada recusou o envio (HTTP ${status}): ${campos.join("; ")}`;
-  if (status === 400 && !dados) return "A Loja Integrada recusou o envio (HTTP 400, sem detalhe). Confira as medidas (cm inteiros) e o nome (ate 255 caracteres).";
+  if (status === 400 && !dados) return "A Loja Integrada recusou o envio (HTTP 400, sem detalhe). Confira as medidas (cm inteiros) e o nome (até 255 caracteres).";
   return `A Loja Integrada recusou o envio (HTTP ${status}${dados?.error_message ? `): ${dados.error_message}` : ")"}.`;
 }
 
@@ -64,7 +64,7 @@ async function escrever(etapa, chamada) {
   try {
     resposta = await chamada();
   } catch (erro) {
-    throw new FalhaDoEnvio(etapa, `A Loja Integrada nao respondeu (${erro?.message ?? erro}). Ela pode ter gravado: confira na Loja Integrada antes de tentar de novo.`);
+    throw new FalhaDoEnvio(etapa, `A Loja Integrada não respondeu (${erro?.message ?? erro}). Ela pode ter gravado: confira na Loja Integrada antes de tentar de novo.`);
   }
   if (!resposta?.ok) throw new FalhaDoEnvio(etapa, textoDaRecusa(resposta));
   return resposta.dados;
@@ -152,11 +152,11 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
 
   return umPorVez(produtoId, recusa, async () => {
     const produto = await contextoDoProduto(produtoId);
-    if (!produto) return recusa("Produto nao encontrado.");
-    if (!produto.conferido) return recusa(`O produto ${produto.sku} nao esta Conferido. So produto Conferido vai para a Loja Integrada.`);
+    if (!produto) return recusa("Produto não encontrado.");
+    if (!produto.conferido) return recusa(`O produto ${produto.sku} não está Conferido. Só produto Conferido vai para a Loja Integrada.`);
     const anuncio = await anuncioLIDoProduto(produtoId);
     if (!anuncio?.idExterno) {
-      return recusa("Este produto ainda nao esta vinculado a Loja Integrada: abra o pop-up para vincular pelo SKU, ou use Cadastrar na LI.");
+      return recusa("Este produto ainda não está vinculado à Loja Integrada: abra o pop-up para vincular pelo SKU, ou use Cadastrar na LI.");
     }
     const rascunho = rascunhoDoAnuncio(anuncio);
     const bloqueio = primeiroBloqueio(rascunho, produto);
@@ -170,11 +170,11 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
     const estado = { etapa: "leitura", alterados: [], marcaCriada: null, categoriasIgnoradas: [] };
     try {
       const busca = await ler("leitura", () => buscarNaLI(cliente, produto.sku));
-      if (busca.situacao === "removido") throw new FalhaDoEnvio("leitura", `O codigo ${produto.sku} esta na lixeira da Loja Integrada: restaure-o la antes de sincronizar.`);
-      if (busca.situacao === "duplicado") throw new FalhaDoEnvio("leitura", `Ha mais de um produto com o codigo ${produto.sku} na Loja Integrada. Deixe um so antes de sincronizar.`);
-      if (busca.situacao === "nao_existe") throw new FalhaDoEnvio("leitura", `O codigo ${produto.sku} nao existe mais na Loja Integrada.`);
+      if (busca.situacao === "removido") throw new FalhaDoEnvio("leitura", `O código ${produto.sku} está na lixeira da Loja Integrada: restaure-o lá antes de sincronizar.`);
+      if (busca.situacao === "duplicado") throw new FalhaDoEnvio("leitura", `Há mais de um produto com o código ${produto.sku} na Loja Integrada. Deixe um só antes de sincronizar.`);
+      if (busca.situacao === "nao_existe") throw new FalhaDoEnvio("leitura", `O código ${produto.sku} não existe mais na Loja Integrada.`);
       if (String(busca.id) !== String(anuncio.idExterno)) {
-        throw new FalhaDoEnvio("leitura", `O produto deste codigo na Loja Integrada mudou de id (o Rise guardou ${anuncio.idExterno}, a loja tem ${busca.id}). Confira na loja.`);
+        throw new FalhaDoEnvio("leitura", `O produto deste código na Loja Integrada mudou de id (o Rise guardou ${anuncio.idExterno}, a loja tem ${busca.id}). Confira na loja.`);
       }
       const detalhe = await ler("leitura", () => lerDetalheDaLI(cliente, anuncio.idExterno));
       const li = normalizarDaLI(detalhe.produto, detalhe.seo, { marcaNome: detalhe.marcaNome });
@@ -245,13 +245,13 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI()) {
 
   return umPorVez(produtoId, recusa, async () => {
     const produto = await contextoDoProduto(produtoId);
-    if (!produto) return recusa("Produto nao encontrado.");
-    if (!produto.conferido) return recusa(`O produto ${produto.sku} nao esta Conferido. So produto Conferido vai para a Loja Integrada.`);
+    if (!produto) return recusa("Produto não encontrado.");
+    if (!produto.conferido) return recusa(`O produto ${produto.sku} não está Conferido. Só produto Conferido vai para a Loja Integrada.`);
     if (!String(produto.ncm ?? "").replace(/\D/g, "")) {
-      return recusa("Sem NCM a Loja Integrada nao emite NF-e: preencha o NCM no produto antes de cadastrar.");
+      return recusa("Sem NCM a Loja Integrada não emite NF-e: preencha o NCM no produto antes de cadastrar.");
     }
     let anuncio = await anuncioLIDoProduto(produtoId);
-    if (anuncio?.idExterno) return recusa(`Este produto ja esta na Loja Integrada (id ${anuncio.idExterno}): use Sincronizar.`);
+    if (anuncio?.idExterno) return recusa(`Este produto já está na Loja Integrada (id ${anuncio.idExterno}): use Sincronizar.`);
     const rascunho = anuncio ? rascunhoDoAnuncio(anuncio) : rascunhoInicialLI(produto);
     const bloqueio = primeiroBloqueio(rascunho, produto);
     if (bloqueio) return recusa(bloqueio);
@@ -264,9 +264,9 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI()) {
     let idExterno = null;
     try {
       const busca = await ler("leitura", () => buscarNaLI(cliente, produto.sku));
-      if (busca.situacao === "existe") return recusa(`O codigo ${produto.sku} ja existe na Loja Integrada: abra o pop-up do icone para vincular.`);
-      if (busca.situacao === "removido") return recusa(`O codigo ${produto.sku} esta na lixeira da Loja Integrada: restaure-o la em vez de cadastrar de novo.`);
-      if (busca.situacao === "duplicado") return recusa(`Ha mais de um produto com o codigo ${produto.sku} na Loja Integrada.`);
+      if (busca.situacao === "existe") return recusa(`O código ${produto.sku} já existe na Loja Integrada: abra o pop-up do ícone para vincular.`);
+      if (busca.situacao === "removido") return recusa(`O código ${produto.sku} está na lixeira da Loja Integrada: restaure-o lá em vez de cadastrar de novo.`);
+      if (busca.situacao === "duplicado") return recusa(`Há mais de um produto com o código ${produto.sku} na Loja Integrada.`);
 
       if (!anuncio) {
         const salvo = await salvarRascunhoLI(null, rascunho);

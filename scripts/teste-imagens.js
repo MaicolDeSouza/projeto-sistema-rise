@@ -20,6 +20,8 @@ const { LADO_PADRAO, PESO_ALVO_BYTES, padronizarImagem } = await import(
   "../src/lib/imagens/padronizar.js"
 );
 
+const semAcento = (texto) => String(texto ?? "").normalize("NFD").replace(/\p{M}/gu, "");
+// As mensagens ganharam acento (07/10/2026); os padroes do teste comparam o texto sem acento.
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
   const ok = JSON.stringify(obtido) === JSON.stringify(esperado);
@@ -124,7 +126,7 @@ console.log("\nTransparencia e formatos");
 
   const gif = await padronizarImagem(await foto(800, 800, "gif"));
   conferir("GIF e recusado", gif.ok, false);
-  conferir("recusa cita o formato", /gif/.test(gif.erro), true);
+  conferir("recusa cita o formato", /gif/.test(semAcento(gif.erro)), true);
 
   const svg = await padronizarImagem(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800"/>'));
   conferir("SVG e recusado", svg.ok, false);
@@ -203,7 +205,7 @@ console.log("\nEntradas invalidas");
 
   const gigante = await padronizarImagem(Buffer.alloc(26 * 1024 * 1024, 1));
   conferir("acima de 25 MB e recusada sem ler", gigante.ok, false);
-  conferir("a recusa diz o limite", /25 MB/.test(gigante.erro), true);
+  conferir("a recusa diz o limite", /25 MB/.test(semAcento(gigante.erro)), true);
 }
 
 // ---------------------------------------------------------------------------
@@ -309,7 +311,7 @@ try {
     JSON.stringify(avaliarConfiguracao({ PHOTOROOM_API_KEY: "sandbox_SEGREDO1", PHOTOROOM_API_KEY_PRODUCAO: "sk_pr_SEGREDO2", PHOTOROOM_COMPRA: "false" })).includes("SEGREDO"),
     false,
   );
-  conferir("402 vira aviso de creditos", /creditos/.test(mensagemDeErro(402, "")), true);
+  conferir("402 vira aviso de creditos", /creditos/.test(semAcento(mensagemDeErro(402, ""))), true);
   conferir("erro de ampliacao vira aviso claro", /ampliar/.test(mensagemDeErro(400, JSON.stringify({ error: { message: "The image you are trying to upscale is too big" } }))), true);
   conferir("... e diz o limite de 1 megapixel", /1 megapixel/.test(mensagemDeErro(400, JSON.stringify({ error: { message: "The image you are trying to upscale is too big" } }))), true);
   conferir("erro 500 ao ampliar diz que costuma passar tentando de novo", /de novo/.test(mensagemDeErro(500, JSON.stringify({ error: { message: "An error occurred during image upscaling" } }))), true);
@@ -411,7 +413,7 @@ try {
     for (const [status, corpo, esperado] of casos) {
       respostaNB = json(corpo, status);
       const r = await gerarNB();
-      conferir(`HTTP ${status} "${corpo.error.message}": mensagem certa, sem bytes, conta como enviada`, [r.ok, esperado.test(r.erro), r.bytes, r.enviada, r.status], [false, true, undefined, true, status]);
+      conferir(`HTTP ${status} "${corpo.error.message}": mensagem certa, sem bytes, conta como enviada`, [r.ok, esperado.test(semAcento(r.erro)), r.bytes, r.enviada, r.status], [false, true, undefined, true, status]);
     }
 
     const respostas200 = [
@@ -423,7 +425,7 @@ try {
     for (const [nome, corpo, esperado] of respostas200) {
       respostaNB = json(corpo);
       const r = await gerarNB();
-      conferir(`200 com ${nome}: erro em portugues, sem bytes, status 200 e enviada`, [r.ok, esperado.test(r.erro), r.bytes, r.status, r.enviada], [false, true, undefined, 200, true]);
+      conferir(`200 com ${nome}: erro em portugues, sem bytes, status 200 e enviada`, [r.ok, esperado.test(semAcento(r.erro)), r.bytes, r.status, r.enviada], [false, true, undefined, 200, true]);
     }
     respostaNB = () => new Response("<html>erro</html>", { status: 200 });
     const naoJson = await gerarNB();
@@ -437,13 +439,13 @@ try {
       throw Object.assign(new Error("tempo"), { name: "TimeoutError" });
     };
     const demorou = await gerarNB();
-    conferir("tempo esgotado: 'demorou demais' e enviada", [demorou.ok, /demorou demais/.test(demorou.erro), demorou.enviada, demorou.status], [false, true, true, null]);
+    conferir("tempo esgotado: 'demorou demais' e enviada", [demorou.ok, /demorou demais/.test(semAcento(demorou.erro)), demorou.enviada, demorou.status], [false, true, true, null]);
     globalThis.fetch = async () => {
       chamadasNB.push({});
       throw new TypeError("fetch failed");
     };
     const semRede = await gerarNB();
-    conferir("falha de rede: mensagem e enviada", [semRede.ok, /Nao foi possivel falar com o Google/.test(semRede.erro), semRede.enviada], [false, true, true]);
+    conferir("falha de rede: mensagem e enviada", [semRede.ok, /Nao foi possivel falar com o Google/.test(semAcento(semRede.erro)), semRede.enviada], [false, true, true]);
 
     // Recusas ANTES de chamar: nenhuma chamada sai, `enviada: false`.
     const antes = chamadasNB.length;
@@ -583,7 +585,7 @@ try {
     conferir("estado: o custo tambem vem em reais, pela cotacao fixa", [estado.custoBrl, estado.cotacao], [0.6, { valor: 6, origem: "fixa" }]);
 
     const semPrevia = await acoes.comprarPhotoroom(loteDeTeste, base, { removerFundo: true, iluminacao: true });
-    conferir("comprar SEM previa e recusado", [semPrevia.ok, /previa/i.test(semPrevia.erro), chamadas.length], [false, true, 0]);
+    conferir("comprar SEM previa e recusado", [semPrevia.ok, /previa/i.test(semAcento(semPrevia.erro)), chamadas.length], [false, true, 0]);
 
     const antesDaCompra = await lerDoLote(loteDeTeste, "imagens", `${base}.jpg`);
     const gerada = await acoes.gerarPreviaPhotoroom(loteDeTeste, base, { removerFundo: true, iluminacao: true });
@@ -596,7 +598,7 @@ try {
 
     process.env.PHOTOROOM_COMPRA = "false";
     const travada = await acoes.comprarPhotoroom(loteDeTeste, base, { removerFundo: true, iluminacao: true });
-    conferir("trava desligada recusa a compra mesmo com previa e chave", [travada.ok, /desligada/i.test(travada.erro), chamadas.length], [false, true, 1]);
+    conferir("trava desligada recusa a compra mesmo com previa e chave", [travada.ok, /desligada/i.test(semAcento(travada.erro)), chamadas.length], [false, true, 1]);
     process.env.PHOTOROOM_COMPRA = "true";
 
     const comprada = await acoes.comprarPhotoroom(loteDeTeste, base, { removerFundo: true, iluminacao: true });
@@ -641,7 +643,7 @@ try {
     segundo.set("arquivo", new File([jpg], "outra.jpg", { type: "image/jpeg" }));
     const outraFoto = await acoes.enviarImagemAoLote(loteDeTeste, segundo);
     const semCompra = await acoes.escolherVersaoNoLote(loteDeTeste, outraFoto.imagem.base, "photoroom");
-    conferir("melhorada de foto que nao foi comprada e recusada", [semCompra.ok, /ainda nao/i.test(semCompra.erro)], [false, true]);
+    conferir("melhorada de foto que nao foi comprada e recusada", [semCompra.ok, /ainda nao/i.test(semAcento(semCompra.erro))], [false, true]);
     const soOriginal = await acoes.escolherVersaoNoLote(loteDeTeste, outraFoto.imagem.base, "original");
     conferir("a original de uma foto comum funciona e nao tem melhorada", [soOriginal.ok, soOriginal.imagem?.versoes?.photoroom, soOriginal.imagem?.urls?.original], [true, false, null]);
     await acoes.removerImagemDoLote(loteDeTeste, outraFoto.imagem.base);
@@ -705,8 +707,8 @@ try {
       // Nano Banana: guardar a versao e escolher, sem tocar na original.
       const nova = await lote.adicionarImagem(loteDeTeste, await foto(900, 900));
       const semGerar = await lote.escolherVersao(loteDeTeste, nova.base, "nanobanana");
-      conferir("nanobanana sem versao guardada e recusada", [semGerar.ok, /ainda nao/i.test(semGerar.erro)], [false, true]);
-      conferir("'melhorada' nao e mais nome de versao", (await lote.escolherVersao(loteDeTeste, nova.base, "melhorada")).erro, "Versao invalida.");
+      conferir("nanobanana sem versao guardada e recusada", [semGerar.ok, /ainda nao/i.test(semAcento(semGerar.erro))], [false, true]);
+      conferir("'melhorada' nao e mais nome de versao", (await lote.escolherVersao(loteDeTeste, nova.base, "melhorada")).erro, "Versão inválida.");
       const bytesNB = (await padronizarImagem(await foto(950, 950))).bytes;
       conferir("guardar a versao nanobanana", await lote.guardarVersao(loteDeTeste, nova.base, "nanobanana", bytesNB), { ok: true });
       conferir("guardar versao fora da lista e recusado", (await lote.guardarVersao(loteDeTeste, nova.base, "outra", bytesNB)).ok, false);
@@ -1586,14 +1588,14 @@ try {
         }
         process.env.NANO_BANANA_GERACAO = "false";
         const travada = await nbAcoes.gerarComNanoBanana(L, foto1.base, pedido);
-        conferir("trava desligada: recusado com o motivo", [travada.ok, /NANO_BANANA_GERACAO=true/.test(travada.erro)], [false, true]);
+        conferir("trava desligada: recusado com o motivo", [travada.ok, /NANO_BANANA_GERACAO=true/.test(semAcento(travada.erro))], [false, true]);
         process.env.NANO_BANANA_GERACAO = "true";
         delete process.env.GEMINI_API_KEY;
         conferir("sem chave: recusado com o motivo", /GEMINI_API_KEY/.test((await nbAcoes.gerarComNanoBanana(L, foto1.base, pedido)).erro), true);
         process.env.GEMINI_API_KEY = "chave-falsa-do-teste";
         process.env.NANO_BANANA_TETO_DIA = String((await usoNB()).hoje);
         const noTeto = await nbAcoes.gerarComNanoBanana(L, foto1.base, pedido);
-        conferir("teto do dia: a proxima e recusada", [noTeto.ok, /limite de \d+ geracoes de hoje acabou/i.test(noTeto.erro)], [false, true]);
+        conferir("teto do dia: a proxima e recusada", [noTeto.ok, /limite de \d+ geracoes de hoje acabou/i.test(semAcento(noTeto.erro))], [false, true]);
         process.env.NANO_BANANA_TETO_DIA = "100000";
         conferir("... e nenhuma das recusas chamou o Google", chamadasGerar.length, antesDasRecusas);
 
@@ -1612,7 +1614,7 @@ try {
         const resultadosDoPar = await Promise.all(par);
         conferir(
           "duas ao mesmo tempo: 1 chamada, 1 sucesso e 1 'ja ha uma geracao'",
-          [chamadasGerar.length - antesDoPar, resultadosDoPar.filter((x) => x.ok).length, primeiraAterminar.ok, /Ja ha uma geracao/.test(primeiraAterminar.erro ?? "")],
+          [chamadasGerar.length - antesDoPar, resultadosDoPar.filter((x) => x.ok).length, primeiraAterminar.ok, /Ja ha uma geracao/.test(semAcento(primeiraAterminar.erro ?? ""))],
           [1, 1, false, true],
         );
         respostaGerar = null;
@@ -1651,7 +1653,7 @@ try {
           const ultimo = await prisma.logIntegracao.findFirst({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } }, orderBy: { criadoEm: "desc" } });
           conferir(
             `${nome}: erro em portugues, a versao anterior fica, o log tem o status`,
-            [ruim.ok, mensagem.test(ruim.erro ?? ""), (await loteLib.lerVersao(L, foto1.base, "nanobanana")).equals(antesNB), ultimo.statusHttp],
+            [ruim.ok, mensagem.test(semAcento(ruim.erro ?? "")), (await loteLib.lerVersao(L, foto1.base, "nanobanana")).equals(antesNB), ultimo.statusHttp],
             [false, true, true, status],
           );
           conferir(`${nome}: conta no uso so se o Google respondeu 200`, (await usoNB()).hoje - hojeAntesRuim, status === 200 ? 1 : 0);
@@ -1702,7 +1704,7 @@ try {
         const padraoD = await acoesProduto.salvarPromptDaDescricao(PROMPT_DESCRICAO_PADRAO);
         conferir("descricao: salvar igual ao padrao apaga a linha", [padraoD.ok, await prisma.promptImagem.count({ where: ondePromptDescricao })], [true, 0]);
         const geracaoRecusada = await acoesProduto.criarDescricaoIA(["x"], { titulo: "T", sku: "S" }, "  ");
-        conferir("descricao: gerar com prompt vazio e recusado ANTES de chamar a IA", [geracaoRecusada.ok, geracaoRecusada.erro], [false, "O prompt nao pode ficar vazio."]);
+        conferir("descricao: gerar com prompt vazio e recusado ANTES de chamar a IA", [geracaoRecusada.ok, geracaoRecusada.erro], [false, "O prompt não pode ficar vazio."]);
       } finally {
         await prisma.promptImagem.deleteMany({ where: ondePromptDescricao });
         if (promptDescricaoDoDono) await prisma.promptImagem.create({ data: promptDescricaoDoDono });
@@ -1762,13 +1764,13 @@ try {
         conferir("extra: a rota de temporarios entrega a imagem", [servida.status, servida.headers.get("content-type"), Buffer.from(await servida.arrayBuffer()).equals(jpgExtra)], [200, "image/jpeg", true]);
         for (let i = 2; i <= MAXIMO_EXTRAS; i++) await enviar(await foto(800 + i, 800), `extra${i}.png`, "image/png");
         const sexta = await enviar(jpgExtra);
-        conferir("extra: a 6a e recusada", [sexta.ok, /No maximo 5/.test(sexta.erro ?? "")], [false, true]);
+        conferir("extra: a 6a e recusada", [sexta.ok, /No maximo 5/.test(semAcento(sexta.erro ?? ""))], [false, true]);
         const texto = await nbAcoes.adicionarExtraAoLote(LE, fotoE.base, (() => { const d = new FormData(); d.set("arquivo", new File([Buffer.from("isto nao e uma imagem")], "x.jpg", { type: "image/jpeg" })); return d; })());
         conferir("extra: arquivo de texto renomeado .jpg e recusado", texto.ok, false);
         const vazio = await nbAcoes.adicionarExtraAoLote(LE, fotoE.base, new FormData());
         conferir("extra: sem arquivo e recusado", vazio.ok, false);
         const grandeDemais = await nbAcoes.adicionarExtraAoLote(LE, fotoE.base, (() => { const d = new FormData(); d.set("arquivo", new File([Buffer.alloc(MAXIMO_EXTRA_BYTES + 1, 1)], "g.jpg", { type: "image/jpeg" })); return d; })());
-        conferir("extra: acima de 10 MB e recusado", [grandeDemais.ok, /10 MB/.test(grandeDemais.erro ?? "")], [false, true]);
+        conferir("extra: acima de 10 MB e recusado", [grandeDemais.ok, /10 MB/.test(semAcento(grandeDemais.erro ?? ""))], [false, true]);
         conferir("extra: lote e foto invalidos sao recusados", [(await nbAcoes.adicionarExtraAoLote("../fora", fotoE.base, new FormData())).ok, (await nbAcoes.adicionarExtraAoLote(LE, "../x", new FormData())).ok], [false, false]);
 
         const removida = await nbAcoes.removerExtraDoLote(LE, fotoE.base, 1);
