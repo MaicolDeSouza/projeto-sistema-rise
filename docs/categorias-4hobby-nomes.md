@@ -1,17 +1,17 @@
-# Revisão dos nomes das categorias (v2, uma família por folha)
+# Árvore final de categorias da loja 4hobby (uma família por folha)
 
-Data: 06/10/2026. Substitui a v1 deste arquivo depois do retorno do dono: **nome de folha não pode ser uma lista de produtos diferentes** ("Gás, Chama, Som, Luz e Cor" e "Fluxo, Nível, Chuva e Solo" foram os exemplos). A árvore de 12 categorias de topo continua a aprovada; o que muda é o desenho das folhas.
+Data: 07/10/2026. Esta é a árvore **aprovada**: a de 06/10 (76 folhas) foi refeita depois do retorno do dono de que nome de folha não pode listar produtos diferentes, e as 17 fusões de folhas pequenas propostas em seguida foram aceitas por ele em 07/10/2026. O CSV `categorias-4hobby-mapeamento.csv` já reflete esta árvore.
 
-## Regra adotada
+## Regras que valem para nome novo
 
-1. **Uma família de produto por folha.** O nome tem um substantivo que é o produto ("Sensores de Gás", "Fusos Trapezoidais"). Aceita-se "X e Y" só quando Y é acessório ou variante inseparável de X ("Células de Carga" com o HX711 dentro, "Termo Retrátil" com o kit).
-2. **O nome se sustenta sozinho** (vira URL e título da página na LI): "Sensores de Temperatura", não "Temperatura".
-3. Sem dois-pontos, sem parênteses, sem número de ordenação; sigla só quando é o que o cliente digita.
-4. Nada vai para "Outros". Produto que não cabe em família nenhuma fica na família mais próxima, nunca em gaveta genérica.
+1. **Uma família de produto por folha.** O nome tem o substantivo do produto ("Sensores de Gás e Chama", "Fusos Trapezoidais"). "X e Y" só quando Y é acessório ou vizinho inseparável de X.
+2. **O nome se sustenta sozinho** (vira URL e título da página na LI): "Sensores de Temperatura e Umidade", não "Temperatura".
+3. Sem dois-pontos, sem parênteses, sem número de ordenação; sigla só quando é o que o cliente digita (CLP, IHM, LED, RFID, CNC, SSR, ESP32, GT2).
+4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 
-Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1.301 produtos publicáveis (média de 9 por folha; hoje o site tem 59 folhas para 725 produtos, média de 12). As folhas marcadas com **◂ pequena** têm 4 produtos ou menos (32 folhas). A seção "Fusões possíveis" diz quais dá para juntar sem voltar a misturar famílias.
+Resultado: **12 topos, 1 intermediária (Movimento Linear) e 133 folhas** para 1.301 produtos publicáveis (média de 10 por folha). Nove folhas ficam com 3 ou 4 produtos de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome.
 
-## Árvore v2, com a quantidade de produtos de hoje
+## Árvore, com a quantidade de produtos de hoje
 
 ### Arduino, ESP32 e Embarcados (83)
 
@@ -21,16 +21,14 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1
 - Raspberry Pi e Acessórios (22)
 - Placas STM32 (6)
 - Placas de Interface com Bornes (9)
-- Shields para Arduino (3) ◂ pequena
-- Cases para Arduino (4) ◂ pequena
+- Shields e Cases para Arduino (7)
 - Gravadores e Programadores (4) ◂ pequena
 - Kits Arduino e Educacionais (5)
 
-### Módulos (99)
+### Módulos (97)
 
 - Módulos Relé (9)
-- Módulos Optoacoplador (3) ◂ pequena
-- Módulos MOSFET e Dimmer (3) ◂ pequena
+- Módulos de Acionamento (6)
 - Conversores Seriais RS485 e RS232 (10)
 - Módulos CAN Bus (5)
 - Módulos Ethernet (5)
@@ -42,24 +40,19 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1
 - Cartões e Leitores Micro SD (5)
 - Módulos RTC e Memória (5)
 - Teclados Matriciais e Botões Touch (5)
-- Joysticks e Encoders Rotativos (4) ◂ pequena
-- Controle Remoto e Infravermelho (3) ◂ pequena
-- Módulos de Áudio e Som (2) ◂ pequena
+- Joysticks e Controles Remotos (7)
 
 ### Sensores (97)
 
 - Sensores de Temperatura e Umidade (14)
-- Sensores de Distância e Ultrassônicos (4) ◂ pequena
-- Sensores Infravermelho e Seguidor de Linha (4) ◂ pequena
+- Sensores de Distância e Proximidade (8)
 - Sensores de Movimento e Vibração (5)
 - Sensores Indutivos e Capacitivos (6)
 - Chaves Fim de Curso (7)
 - Sensores Magnéticos Reed e Hall (5)
-- Sensores de Corrente (6)
-- Sensores de Tensão (3) ◂ pequena
+- Sensores de Corrente e Tensão (9)
 - Sensores de Gás e Chama (9)
-- Sensores de Luz e UV (5)
-- Sensores de Cor (2) ◂ pequena
+- Sensores de Luz e Cor (7)
 - Sensores de Fluxo de Água (5)
 - Sensores de Nível de Água (5)
 - Sensores de Umidade do Solo e Chuva (5)
@@ -78,11 +71,9 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1
 
 - CLP e Expansões (8)
 - IHM (9)
-- Botoeiras e Comando 22mm (10)
+- Botoeiras e Sinalizadores 22mm (14)
 - Botões Metálicos Iluminados (11)
-- Sinalizadores LED de Painel (4) ◂ pequena
-- Relés Industriais e SSR (3) ◂ pequena
-- Controladores de Temperatura (5)
+- Controladores de Temperatura e SSR (8)
 - Encoders Incrementais (3) ◂ pequena
 - Bornes para Trilho DIN (9)
 - Trilho DIN, Canaletas e Suportes (10)
@@ -92,8 +83,7 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1
 
 ### Fontes e Baterias (80)
 
-- Fontes Chaveadas (18)
-- Mini Fontes Hi-Link (4) ◂ pequena
+- Fontes Chaveadas (22)
 - Conversores DC-DC Step Up e Step Down (11)
 - Baterias e Pilhas (6)
 - Placas BMS e Testadores de Bateria (7)
@@ -108,13 +98,10 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1
 - Easy Servo e Servo AC (6)
 - Drivers de Motor de Passo (14)
 - Motores DC e Caixas de Redução (19)
-- Micro Servos (4) ◂ pequena
-- Brushless, ESC e Aeromodelismo (4) ◂ pequena
-- Ponte H e Drivers de Motor DC (5)
-- Controladores PWM de Velocidade (3) ◂ pequena
+- Servos e Motores para Aeromodelismo (8)
+- Ponte H e Controladores de Motor DC (8)
 - Mini Bombas de Água e Ar (9)
-- Válvulas Solenoide e Pneumática (3) ◂ pequena
-- Eletroímãs e Solenoides (5)
+- Eletroímãs e Válvulas Solenoide (8)
 - Chassis e Rodas para Robótica (6)
 
 ### CNC, Laser e Impressão 3D (359)
@@ -129,9 +116,8 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1
   - Mancais KP e KFL (7)
   - Suportes de Eixo SK e SHF (9)
   - Acoplamentos (21)
-  - Roldanas V-Slot (4) ◂ pequena
   - Correias GT2 e HTD (19)
-  - Polias GT2 e HTD (31)
+  - Polias GT2 e Roldanas V-Slot (35)
   - Cremalheiras e Engrenagens (12)
 - Perfis de Alumínio V-Slot (8)
 - Suportes de Motor de Passo (6)
@@ -141,8 +127,7 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1
 - Esteiras Porta Cabos (22)
 - Placas Controladoras CNC (13)
 - Spindles e Inversores (12)
-- Fresas para CNC (21)
-- Brocas, Pinças ER e Mandris (3) ◂ pequena
+- Fresas, Brocas e Pinças (24)
 - Módulos Laser de Diodo (8)
 - Peças para Laser CO2 (17)
 - Hotend, Bicos e Extrusoras (21)
@@ -150,7 +135,7 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1
 - Acessórios para Impressora 3D (11)
 - Máquinas e Equipamentos (8)
 
-### Componentes Eletrônicos (147)
+### Componentes Eletrônicos (149)
 
 - Resistores (18)
 - Potenciômetros e Trimpots (10)
@@ -160,11 +145,10 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1
 - Circuitos Integrados (32)
 - Reguladores de Tensão (5)
 - LEDs e Soquetes (20)
-- Buzzers e Alto-falantes (5)
+- Buzzers, Alto-falantes e Áudio (7)
 - Fusíveis e Filtros (3) ◂ pequena
-- Chaves Táteis e Push Button (4) ◂ pequena
 - Interruptores e Tomadas de Painel (5)
-- Chaves Gangorra e Alavanca (11)
+- Chaves e Push Buttons (15)
 
 ### Conectores e Cabos (155)
 
@@ -187,8 +171,7 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1
 ### Prototipagem e Ferramentas (57)
 
 - Protoboards e Placas Fenolite (8)
-- Solda e Estações de Solda (3) ◂ pequena
-- Ferramentas de Bancada (4) ◂ pequena
+- Ferramentas e Solda (7)
 - Instrumentos de Medição (6)
 - Espaçadores e Parafusos Nylon (6)
 - Imãs de Neodímio (3) ◂ pequena
@@ -200,32 +183,10 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1
 - Softwares (4) ◂ pequena
 - Serviços (4) ◂ pequena
 
-## Fusões possíveis (folhas pequenas)
+## Fusões aplicadas em 07/10/2026
 
-Se o dono preferir menos folhas, estas fusões juntam famílias vizinhas sem recriar lista de coisas diferentes. Aplicando todas, a árvore fica com **133 folhas**.
-
-| Folhas de hoje | Fusão sugerida | Fica com |
-| --- | --- | --- |
-| Shields para Arduino (3) + Cases para Arduino (4) | Shields e Cases para Arduino | 7 |
-| Módulos Optoacoplador (3) + Módulos MOSFET e Dimmer (3) | Módulos de Acionamento | 6 |
-| Joysticks e Encoders Rotativos (4) + Controle Remoto e Infravermelho (3) | Joysticks e Controles Remotos | 7 |
-| Módulos de Áudio e Som (2) → para Componentes | Buzzers, Alto-falantes e Áudio | 7 |
-| Sensores de Distância e Ultrassônicos (4) + Sensores Infravermelho e Seguidor de Linha (4) | Sensores de Distância e Proximidade | 8 |
-| Sensores de Tensão (3) + Sensores de Corrente (6) | Sensores de Corrente e Tensão | 9 |
-| Sensores de Cor (2) + Sensores de Luz e UV (5) | Sensores de Luz e Cor | 7 |
-| Sinalizadores LED de Painel (4) + Botoeiras e Comando 22mm (10) | Botoeiras e Sinalizadores 22mm | 14 |
-| Relés Industriais e SSR (3) + Controladores de Temperatura (5) | Controladores de Temperatura e SSR | 8 |
-| Mini Fontes Hi-Link (4) + Fontes Chaveadas (18) | Fontes Chaveadas | 22 |
-| Micro Servos (4) + Brushless, ESC e Aeromodelismo (4) | Servos e Motores para Aeromodelismo | 8 |
-| Controladores PWM de Velocidade (3) + Ponte H e Drivers de Motor DC (5) | Ponte H e Controladores de Motor DC | 8 |
-| Válvulas Solenoide e Pneumática (3) + Eletroímãs e Solenoides (5) | Eletroímãs e Válvulas Solenoide | 8 |
-| Roldanas V-Slot (4) + Polias GT2 e HTD (31) | Polias GT2 e Roldanas V-Slot | 35 |
-| Brocas, Pinças ER e Mandris (3) + Fresas para CNC (21) | Fresas, Brocas e Pinças | 24 |
-| Chaves Táteis e Push Button (4) + Chaves Gangorra e Alavanca (11) | Chaves e Interruptores | 15 |
-| Solda e Estações de Solda (3) + Ferramentas de Bancada (4) | Ferramentas e Solda | 7 |
-
-Ficam pequenas de propósito, por serem famílias que o cliente procura pelo nome: Gravadores e Programadores (4), Displays OLED e TFT (4), Telas para Raspberry Pi (4), Encoders Incrementais (3), Pastilhas Peltier (3), Fusíveis e Filtros (3), Imãs de Neodímio (3), Softwares (4) e Serviços (4).
+Shields + Cases para Arduino; Optoacoplador + MOSFET e Dimmer (Módulos de Acionamento); Joysticks + Controle Remoto; Áudio foi para Buzzers e Alto-falantes; Distância + Infravermelho; Tensão + Corrente; Cor + Luz; Sinalizadores + Botoeiras 22mm; Relés SSR + Controladores de Temperatura; Hi-Link dentro de Fontes Chaveadas; Micro Servos + Brushless (Servos e Motores para Aeromodelismo); PWM + Ponte H; Válvulas + Eletroímãs; Roldanas + Polias; Brocas e Pinças + Fresas; Chaves Táteis + Gangorra (Chaves e Push Buttons); Solda + Ferramentas de Bancada.
 
 ## Próximo passo
 
-Depois de o dono marcar o que muda (nome, fusão ou troca de produto de folha), o CSV `categorias-4hobby-mapeamento.csv` e a seção 4 do relatório principal são regravados com a árvore final, e só então entra o script da LI.
+Ajustes pontuais que o dono ditar (nome, produto trocando de folha) entram no CSV e aqui. Só então o script da Loja Integrada é escrito (criar as categorias pela API, reatribuir os 681 produtos que casam por SKU).

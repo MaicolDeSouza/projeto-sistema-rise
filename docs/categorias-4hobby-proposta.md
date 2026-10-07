@@ -7,7 +7,7 @@ Arquivo companheiro: `docs/categorias-4hobby-mapeamento.csv` (1.315 linhas: sku,
 ## 1. Resumo
 
 - O site hoje tem **6 categorias de topo e 59 folhas**, mas 784 produtos no ar contra **1.315 no catálogo**: 629 produtos vendáveis não têm lugar na árvore atual.
-- A proposta é uma árvore de **12 categorias de topo, 2 níveis** (3º nível só em "Movimento Linear", como a Impacto CNC faz), **76 folhas**, todas com produto de verdade dentro.
+- A proposta é uma árvore de **12 categorias de topo, 2 níveis** (3º nível só em "Movimento Linear", como a Impacto CNC faz), **133 folhas**, todas com produto de verdade dentro (ver seção 4).
 - Cada um dos 1.315 SKUs já está classificado no CSV. 14 ficam fora do site (6 "OBSOLETO", 6 "USO E CONSUMO", 1 projeto especial, 1 teste do Bling).
 - Decisões que são suas estão na seção 7.
 
@@ -38,124 +38,26 @@ Arquivo companheiro: `docs/categorias-4hobby-mapeamento.csv` (1.315 linhas: sku,
 
 Conclusões: 9 a 11 categorias de topo é a norma; sensores viram subcategorias por grandeza medida; displays aparecem no topo em 3 de 8 lojas; quem vende CNC usa 3 níveis na mecânica; quem vende industrial separa botoeira de borne.
 
-## 4. Árvore proposta (com a contagem de produtos de hoje)
+## 4. Árvore final (refeita em 06 e 07/10/2026)
 
-Nomes sem número, com acento, prontos para o cadastro. A ordem do menu é a desta lista; na LI a ordem vai no campo próprio, não no nome.
+A primeira versão desta seção tinha 76 folhas com nomes que listavam produtos diferentes ("Gás, Chama, Som, Luz e Cor"). O dono recusou esse desenho em 06/10/2026, e as folhas foram refeitas com **uma família de produto por folha**; as 17 fusões de folhas pequenas propostas depois foram aceitas em 07/10/2026. A árvore inteira, com as quantidades e as regras de nome, está em `categorias-4hobby-nomes.md`, e o CSV já a reflete.
 
-**1. Placas e Embarcados** (83)
-- Arduino e Compatíveis (9)
-- ESP32 e ESP8266 (20)
-- Raspberry Pi e Acessórios (21)
-- STM32 e Outras Placas (8)
-- Shields e Placas de Interface (16)
-- Gravadores e Programadores (4)
-- Kits Arduino e Educacionais (5)
+Categorias de topo (12, com os produtos de hoje):
 
-**2. Módulos** (98)
-- Relés, MOSFET e Potência (15)
-- Comunicação Serial, CAN e Ethernet (20)
-- Conversores de Sinal e Nível Lógico (15)
-- Wireless, IoT e Antenas (19)
-- RFID e Biometria (6)
-- RTC, Memória e Cartões SD (10)
-- Áudio, Teclados e Controles (13)
+- Arduino, ESP32 e Embarcados (83)
+- Módulos (97)
+- Sensores (97)
+- Displays e Telas (36)
+- Automação Industrial (90)
+- Fontes e Baterias (80)
+- Motores e Robótica (90)
+- CNC, Laser e Impressão 3D (359)
+- Componentes Eletrônicos (149)
+- Conectores e Cabos (155)
+- Prototipagem e Ferramentas (57)
+- Softwares e Serviços (8)
 
-**3. Sensores** (98)
-- Temperatura e Umidade (14)
-- Distância, Presença e Movimento (12)
-- Indutivos, Capacitivos e Fim de Curso (18)
-- Corrente e Tensão (9)
-- Gás, Chama, Som, Luz e Cor (18)
-- Fluxo, Nível, Chuva e Solo (15)
-- Peso, Carga e Piezo (12)
-
-**4. Displays e Telas** (36)
-- Telas Nextion (18)
-- Displays LCD, OLED e TFT (9)
-- Telas para Raspberry Pi (4)
-- 7 Segmentos e Matriz de LED (5)
-
-**5. Automação Industrial** (90)
-- CLP e IHM (17)
-- Botões, Chaves e Sinalização de Painel (25)
-- Relés de Estado Sólido e Industriais (3)
-- Controladores de Temperatura e Encoders (8)
-- Bornes, Trilho DIN e Quadros (27)
-- Ventilação e Refrigeração (10)
-
-**6. Energia e Alimentação** (80)
-- Fontes Chaveadas (22)
-- Conversores DC-DC Step Up e Step Down (11)
-- Baterias, Carregadores e BMS (19)
-- Suportes de Pilha e Acessórios de Bateria (22)
-- Voltímetros, Medidores e Testadores (6)
-
-**7. Motores, Drivers e Robótica** (90)
-- Motores de Passo e Servos Industriais (18)
-- Drivers para Motor de Passo (14)
-- Motores DC e Caixas de Redução (19)
-- Servos, Brushless e Aeromodelismo (8)
-- Drivers e Controladores de Motor DC (8)
-- Bombas, Válvulas e Solenoides (17)
-- Chassis, Rodas e Partes Robóticas (6)
-
-**8. CNC, Laser e Impressão 3D** (360)
-- Movimento Linear (166)
-  - Fusos e Castanhas (29)
-  - Eixos, Guias e Rolamentos Lineares (34)
-  - Mancais e Suportes de Eixo (16)
-  - Acoplamentos e Flanges (21)
-  - Polias, Roldanas e Correias (54)
-  - Cremalheiras e Engrenagens (12)
-- Perfis de Alumínio e Fixação V-Slot (48)
-- Esteiras Porta Cabos (22)
-- Controladoras e Eletrônica CNC (13)
-- Spindles, Inversores e Acessórios (12)
-- Fresas, Brocas e Pinças (24)
-- Laser: Módulos e Peças (25)
-- Impressão 3D: Hotend, Bicos e Peças (42)
-- Máquinas e Equipamentos (8)
-
-**9. Componentes Eletrônicos** (146)
-- Resistores, Potenciômetros e Trimpots (28)
-- Capacitores e Cristais (8)
-- Diodos, Transistores e MOSFETs (26)
-- Circuitos Integrados, Reguladores e Soquetes (37)
-- LEDs e Suportes (19)
-- Buzzers e Alto-falantes (5)
-- Fusíveis, Filtros e Proteção (3)
-- Chaves, Botões e Interruptores (20)
-
-**10. Conectores e Cabos** (155)
-- Conectores JST, Dupont e Barras de Pinos (40)
-- Conectores Circulares, Plugs e Jacks (25)
-- Bornes, Terminais e Emendas (12)
-- Conectores DB, RJ45, HDMI e Adaptadores (13)
-- Cabos USB, HDMI e Extensões de Painel (26)
-- Fios, Jumpers e Cabos Diversos (22)
-- Termo Retrátil e Organização de Cabos (17)
-
-**11. Prototipagem e Ferramentas** (57)
-- Protoboards e Placas de Circuito (8)
-- Soldagem (3)
-- Ferramentas e Instrumentos de Bancada (10)
-- Parafusos, Espaçadores e Fixação (22)
-- Caixas Plásticas e Organizadores (14)
-
-**12. Softwares e Serviços** (8)
-- Softwares e Licenças (4)
-- Serviços (4)
-
-**Fora do site** (14): 6 títulos "OBSOLETO-", 6 "USO E CONSUMO-" (termo retrátil PVC de bateria), "Projeto especial - Máquina Colagem" e `ZZ-TESTE-BLING`.
-
-### Regras que guiaram a árvore
-
-- **Uma folha só existe se tem produto hoje.** Nada de "em breve". As menores (Soldagem 3, Fusíveis 3, SSR 3) ficam porque são famílias que você compra regularmente; se preferir, podem ser fundidas (ver seção 7).
-- **O cliente pensa pela função, não pelo chip.** "Relés, MOSFET e Potência" junta módulo relé, SSR módulo, mosfet IRF520 e dimmer porque todos acionam carga. Sensores agrupados pela grandeza que medem, como Eletrogate e Usinainfo fazem.
-- **Industrial separado do maker.** Botão 22 mm, sinalizador 24 V, borne mola e quadro elétrico ficam em "Automação Industrial", e não misturados com chave gangorra e LED 5 mm. Quem compra um é outro público.
-- **CNC segue a lógica da Impacto CNC**, a referência do segmento: Movimento Linear com 3º nível, estrutura (perfil e fixação) à parte, eletrônica à parte, consumíveis (fresas) à parte.
-- **Acessório anda com o sistema dele.** Cabo de programação de CLP fica em CLP e IHM; conector molex da Nextion fica em Telas Nextion; display da RAMPS fica em Impressão 3D.
-- **Sem categoria "Outros"/"Geral".** Os 21 itens de "Geral" foram todos realocados (8 para Impressão 3D, 4 para Laser, 4 para Industrial, 2 para Chaves, 1 Termo Retrátil, 1 CNC eletrônica, 1 Trilho DIN).
+Total: 12 topos, a intermediária "Movimento Linear" em CNC e **133 folhas**. Nenhuma folha "Outros"; 9 folhas ficam com 3 ou 4 produtos de propósito, por serem famílias que o cliente procura pelo nome (Encoders Incrementais, Pastilhas Peltier, Imãs de Neodímio, Fusíveis e Filtros, Gravadores e Programadores, Displays OLED e TFT, Telas para Raspberry Pi, Softwares, Serviços).
 
 ## 5. De onde cada categoria atual vai (672 produtos conferidos)
 
@@ -219,7 +121,7 @@ Atenção: muitos desses têm **título fora do padrão** (minúsculas, `*SKU` n
 - Opção 2: 10 categorias. Displays e Telas vira subcategoria de Placas e Embarcados; Softwares e Serviços vira subcategoria de CNC. Menu mais curto, Nextion a dois cliques.
 
 **7.2 Terceiro nível em Movimento Linear**
-- **Opção 1 (recomendada): manter** (CNC > Movimento Linear > Fusos e Castanhas). São 166 produtos em 6 famílias; sem o nível intermediário, CNC teria 14 subcategorias lado a lado. O site atual já usa 3 níveis em CNC > Mecânica, então a LI aceita.
+- **Opção 1 (recomendada): manter** (CNC > Movimento Linear > Fusos e Castanhas). São 166 produtos em 12 famílias; sem o nível intermediário, CNC teria 27 subcategorias lado a lado. O site atual já usa 3 níveis em CNC > Mecânica, então a LI aceita.
 - Opção 2: achatar. CNC com 14 subcategorias diretas.
 
 **7.3 Onde ficam as bombas d'água de laser e spindle (3 itens) e o compressor de ar do laser**
@@ -258,7 +160,7 @@ Atenção: muitos desses têm **título fora do padrão** (minúsculas, `*SKU` n
 
 - **Categorias do Bling e da LI são independentes, sem vínculo, e o dono quer que continue assim** (decisão de 06/10/2026). O Rise cuida das categorias **direto na API da Loja Integrada**, com o Personal Token que a integração em andamento já usa; o Bling não entra nessa parte.
 - **O que a API da LI permite, conforme a especificação oficial** (`api-docs.lojaintegrada.com.br`, OpenAPI "API Loja Integrada v2", lida em 06/10/2026): `POST /v1/categoria` cria (campos `nome`, obrigatório; `descricao`; `categoria_pai`, o id da categoria pai para subcategoria; `id_externo`, um id nosso para depois buscar e alterar por ele); `GET /v1/categoria` lista com paginação; `GET` e `PUT /v1/categoria/{id}` leem e alteram (`nome`, `categoria_pai`). **Não existe DELETE para categoria**: excluir uma categoria é só pelo painel da LI. Leitura real feita em 06/10/2026: a loja tem **124 categorias** hoje, com os campos `id`, `id_externo`, `categoria_pai`, `descricao`, `nome`, `seo`, `url`.
-- **Consequência para a migração:** o Rise pode criar as 76 folhas e as 12 categorias de topo pela API, gravando o SKU/chave nosso em `id_externo`, e pode **renomear e mover** categorias existentes (PUT em `categoria_pai`) para reaproveitar as 124 atuais em vez de criar tudo do zero. O que sobrar sem uso é apagado à mão no painel. A escrita fica atrás da trava `LOJA_INTEGRADA_WRITE_ENABLED`, hoje `false`.
+- **Consequência para a migração:** o Rise pode criar as 133 folhas, a intermediária e as 12 categorias de topo pela API, gravando o SKU/chave nosso em `id_externo`, e pode **renomear e mover** categorias existentes (PUT em `categoria_pai`) para reaproveitar as 124 atuais em vez de criar tudo do zero. O que sobrar sem uso é apagado à mão no painel. A escrita fica atrás da trava `LOJA_INTEGRADA_WRITE_ENABLED`, hoje `false`.
 - **No Rise não existe campo de categoria em `Produto`** (conferido no `schema.prisma`). A sessão de envio vai precisar de uma tabela de categorias (árvore com pai, nome, ordem, id na LI, `id_externo`) e de um campo no produto apontando para a folha. O CSV deste trabalho já é o conteúdo inicial dessa tabela e desse campo.
 - **Mais de uma categoria por produto**: a LI aceita (o produto tem a lista `categorias`); a segunda categoria dos itens da seção 7.3 vai pela API junto com o produto.
 - **URLs antigas**: as categorias atuais têm URL própria e já estão no Google. Ao criar as novas, conferir se o painel da LI oferece redirecionamento 301; se não, manter as antigas ocultas (sem link no menu) por alguns meses em vez de apagar.
