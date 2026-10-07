@@ -27,6 +27,13 @@ enum TipoProducao {
   FABRICACAO_PROPRIA
 }
 
+/// Produto simples ou com composicao (kit: feito de outros produtos do Rise, em quantidades).
+/// Pedido do dono em 07/10/2026; ate ali o kit so existia dentro do anuncio do Mercado Livre.
+enum TipoProduto {
+  SIMPLES
+  COMPOSICAO
+}
+
 enum Servico {
   BLING
   MERCADO_LIVRE
@@ -200,6 +207,11 @@ model Produto {
 
   ativo   Boolean @default(true)
 
+  /// SIMPLES ou COMPOSICAO (kit). No kit, `estoque` e GRAVADO ja calculado pelas pecas (o menor de
+  /// estoque da peca / quantidade), e nao editado: as telas, a foto mensal e a sincronizacao leem a
+  /// coluna como sempre leram.
+  tipo TipoProduto @default(SIMPLES)
+
   /// Marca "produto totalmente conferido" (pedido do dono em 22/09/2026): antes
   /// vivia so no navegador (ConferidoProduto.jsx) e sumia ao recarregar. Agora
   /// grava de verdade, para a contagem "(N verificados)" da lista ser real.
@@ -227,8 +239,33 @@ model Produto {
   blingCopias       BlingCopiaProduto[]
   copiasDeCanal     CopiaProdutoCanal[]
 
+  /// As pecas deste kit, e os kits em que este produto e peca.
+  componentes ProdutoComponente[] @relation("KitPecas")
+  usadoEm     ProdutoComponente[] @relation("PecaKits")
+
   @@index([marca])
   @@index([ativo])
+}
+
+/// Uma peca de um produto com composicao (kit): qual produto e quantas unidades.
+model ProdutoComponente {
+  id    String  @id @default(cuid())
+  kitId String
+  kit   Produto @relation("KitPecas", fields: [kitId], references: [id], onDelete: Cascade)
+
+  componenteId String
+  /// Restrict de proposito: apagar uma peca que ainda esta em kit deixaria o kit sem o que
+  /// vende. A acao de excluir confere antes e diz em quais kits a peca esta.
+  componente Produto @relation("PecaKits", fields: [componenteId], references: [id], onDelete: Restrict)
+
+  quantidade Int
+  /// Ordem das linhas na aba Composicao (a do Bling, quando importado).
+  ordem Int @default(0)
+
+  criadoEm DateTime @default(now())
+
+  @@unique([kitId, componenteId])
+  @@index([componenteId])
 }
 
 enum TipoMovimentoEstoque {

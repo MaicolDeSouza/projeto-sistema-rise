@@ -33,6 +33,7 @@
     "foto:mensal": "node scripts/foto-mensal.js",
     "teste:fotos": "node scripts/teste-fotos.js",
     "teste:estoque": "node scripts/teste-estoque.js",
+    "teste:composicao": "node scripts/teste-composicao.js",
     "teste:anuncios-ml": "node scripts/teste-anuncios-ml.js",
     "teste:bling-sync": "node scripts/teste-bling-sync.js",
     "teste:loja-integrada": "node scripts/teste-loja-integrada.js",
