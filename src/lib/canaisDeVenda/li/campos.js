@@ -19,7 +19,6 @@ import { slugDe } from "./slug";
 
 export const CAMPOS_DE_ENVIO_LI = [
   { id: "nome", rotulo: "Nome" },
-  { id: "slug", rotulo: "Endereço (slug)" },
   { id: "descricao", rotulo: "Descrição" },
   { id: "ncm", rotulo: "NCM" },
   { id: "gtin", rotulo: "GTIN / EAN" },

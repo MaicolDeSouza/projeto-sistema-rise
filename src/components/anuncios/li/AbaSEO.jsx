@@ -7,8 +7,8 @@ import { gerarSeoIALI, seoConcorrentesLI } from "@/app/canais-de-venda/loja-inte
 import { CLASSE_CAMPO } from "@/components/cadastros/Campo";
 import MensagensDoCampo from "@/components/anuncios/ml/MensagensDoCampo";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
-import { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaFrase, cortarNaPalavra } from "@/lib/canaisDeVenda/li/seo";
-import { slugDaUrl, slugDe } from "@/lib/canaisDeVenda/li/slug";
+import { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaFrase } from "@/lib/canaisDeVenda/li/seo";
+import { slugDe } from "@/lib/canaisDeVenda/li/slug";
 
 const DATA = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo" });
 
@@ -113,11 +113,12 @@ const SECAO = "px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppe
  * produto. Pedidos do dono em 07/10/2026:
  * - os dois campos sao OBRIGATORIOS para enviar (a validacao bloqueia) e travados no limite: 70 no
  *   title e 160 na description (o que o Google mostra);
- * - sem "Usar padrao": o texto vem do icone de lista ao lado do campo (o nome do produto, o SEO dos
- *   concorrentes salvos no produto e, na description, "Gerar com IA").
+ * - sem "Usar padrao": a description vem do icone de lista ao lado do campo (o SEO dos concorrentes
+ *   salvos no produto e "Gerar com IA"). O title nao tem lista (o dono dispensou): nasce com o nome e
+ *   e digitado.
  *
- * A URL sai SEMPRE do nome do produto: o campo e so leitura. Produto que ja esta na loja muda de URL no
- * proximo Sincronizar (o /alias da LI redireciona a antiga com 301), e o aviso mostra a URL de hoje.
+ * A URL e so leitura. Produto que ja esta na loja mostra a URL de hoje e ela nao muda (o Google ja a
+ * indexou); produto novo mostra a que vai nascer do nome no Cadastrar.
  */
 export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo }) {
   const seo = rascunho.seo ?? { title: "", description: "" };
@@ -142,20 +143,17 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
   }, [produtoId]);
 
   const dominio = contexto.dominioDaLoja || "https://www.4hobby.com.br";
+  // Produto que ja esta na loja fica com a URL de hoje (decisao do dono em 07/10/2026: o Google ja a
+  // indexou); so o produto novo nasce com a URL do nome, no Cadastrar.
+  const naLoja = Boolean(vinculo?.idExterno) && /^https?:\/\//i.test(String(vinculo?.urlExterna ?? ""));
+  const caminhoDaLoja = naLoja ? String(vinculo.urlExterna).replace(/^https?:\/\/[^/]+\/?/i, "") : null;
   const slug = slugDe(rascunho.titulo);
-  const slugNaLoja = slugDaUrl(vinculo?.urlExterna);
-  const trocaUrl = Boolean(vinculo?.idExterno) && Boolean(slugNaLoja) && Boolean(slug) && slug !== slugNaLoja;
+  const caminho = naLoja ? caminhoDaLoja : slug;
   const tituloNaBusca = seo.title?.trim() || rascunho.titulo || "Título do produto";
   const descriptionNaBusca = seo.description?.trim() || "Sem description: o Google escolhe um trecho da página.";
 
-  const comTitulo = concorrentes.lista.filter((item) => item.title);
   const comDescription = concorrentes.lista.filter((item) => item.description);
-  const nome = cortarNaPalavra(rascunho.titulo ?? "", LIMITE_DO_TITULO_SEO);
 
-  function escolherTitulo(texto) {
-    setAberta(null);
-    alterarSeo({ title: cortarNaPalavra(texto, LIMITE_DO_TITULO_SEO) });
-  }
   function escolherDescription(texto) {
     setAberta(null);
     alterarSeo({ description: cortarNaFrase(texto, LIMITE_DA_DESCRIPTION_SEO) });
@@ -182,37 +180,13 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
     <div className="space-y-6">
       <div>
         <Rotulo htmlFor="li-seo-titulo" texto="Tag Title - Título do produto" tamanho={(seo.title ?? "").trim().length} limite={LIMITE_DO_TITULO_SEO} />
-        <div className="flex items-start gap-2">
-          <input
-            id="li-seo-titulo"
-            value={seo.title ?? ""}
-            maxLength={LIMITE_DO_TITULO_SEO}
-            onChange={(evento) => alterarSeo({ title: evento.target.value })}
-            className={`${CLASSE_CAMPO} border-borda focus:border-acento`}
-          />
-          <div className="mt-1">
-            <ListaDeOpcoes rotulo="Escolher o título" aberta={aberta === "titulo"} aoAlternar={alternar("titulo")} carregando={concorrentes.carregando}>
-              <p className={SECAO}>Do produto</p>
-              {nome ? (
-                <ul>
-                  <Opcao texto={nome} detalhe={<span>o nome do anúncio</span>} aoEscolher={escolherTitulo} />
-                </ul>
-              ) : (
-                <p className="px-2 pb-2 text-xs text-suave">O anúncio ainda não tem nome (aba Características).</p>
-              )}
-              <p className={`${SECAO} mt-2`}>Dos concorrentes ({comTitulo.length})</p>
-              {avisoDaLista}
-              {!concorrentes.carregando && comTitulo.length === 0 && (
-                <p className="px-2 pb-2 text-xs text-suave">Nenhum concorrente salvo com título coletado. Vincule concorrentes no cadastro do produto.</p>
-              )}
-              <ul className="max-h-72 space-y-1 overflow-y-auto">
-                {comTitulo.map((item) => (
-                  <Opcao key={item.id} texto={item.title} detalhe={<DeOnde item={item} />} aoEscolher={escolherTitulo} />
-                ))}
-              </ul>
-            </ListaDeOpcoes>
-          </div>
-        </div>
+        <input
+          id="li-seo-titulo"
+          value={seo.title ?? ""}
+          maxLength={LIMITE_DO_TITULO_SEO}
+          onChange={(evento) => alterarSeo({ title: evento.target.value })}
+          className={`${CLASSE_CAMPO} border-borda focus:border-acento`}
+        />
         <MensagensDoCampo problemas={problemas} campo="seoTitulo" />
       </div>
 
@@ -296,28 +270,30 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
       </div>
 
       <div>
-        <Rotulo htmlFor="li-slug" texto="URL do produto" ajuda="Sai do nome do produto (aba Características) e muda junto com ele. Só letras minúsculas sem acento, números e hifens." />
+        <Rotulo
+          htmlFor="li-slug"
+          texto="URL do produto"
+          ajuda={
+            naLoja
+              ? "A URL de produto que já está na loja não muda: o Google já a indexou. O Sincronizar não mexe nela."
+              : "Produto novo: a URL sai do nome do produto (aba Características) no Cadastrar na LI. Só letras minúsculas sem acento, números e hifens."
+          }
+        />
         <div className="mt-1 flex items-stretch overflow-hidden rounded border border-borda bg-fundo text-[15px]">
           <span className="shrink-0 border-r border-borda px-2.5 py-2 text-suave">{dominio}/</span>
-          <input id="li-slug" readOnly value={slug} className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-medium text-texto focus:outline-none" />
+          <input id="li-slug" readOnly value={caminho ?? ""} className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-medium text-texto focus:outline-none" />
         </div>
         <MensagensDoCampo problemas={problemas} campo="slug" />
-        {trocaUrl && (
-          <p className="mt-1.5 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            Hoje o produto está na loja em <span className="font-medium break-all">{vinculo.urlExterna}</span>. No Sincronizar a URL passa a ser{" "}
-            <span className="font-medium break-all">
-              {dominio}/{slug}
-            </span>
-            , e a antiga redireciona (301) para a nova. Cada troca de nome muda a URL de novo.
-          </p>
-        )}
+        <p className="mt-1 text-[11px] text-suave">
+          {naLoja ? "Como está na loja hoje. Fica assim, mesmo se o nome mudar." : "Vai ser a URL do produto quando ele for cadastrado na loja."}
+        </p>
       </div>
 
       <div className="rounded border border-borda bg-fundo p-3">
         <p className="text-xs text-suave">Como aparece na busca do Google (aproximado)</p>
         <p className="mt-2 truncate text-[17px] text-blue-800">{tituloNaBusca.slice(0, LIMITE_DO_TITULO_SEO)}</p>
         <p className="truncate text-xs text-emerald-800">
-          {dominio}/{slug || "endereco-do-produto"}
+          {dominio}/{caminho || "endereco-do-produto"}
         </p>
         <p className="mt-0.5 line-clamp-2 text-sm text-suave">{descriptionNaBusca.slice(0, LIMITE_DA_DESCRIPTION_SEO)}</p>
       </div>

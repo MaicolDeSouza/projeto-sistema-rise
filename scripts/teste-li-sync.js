@@ -21,7 +21,7 @@ const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
 const { prisma } = await import("../src/lib/db.js");
-const { LIMITE_DO_SLUG, slugDaUrl, slugDe, slugValido } = await import("../src/lib/canaisDeVenda/li/slug.js");
+const { LIMITE_DO_SLUG, slugDe, slugValido } = await import("../src/lib/canaisDeVenda/li/slug.js");
 const { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaFrase, cortarNaPalavra, descriptionPadrao, tituloSeoPadrao } = await import("../src/lib/canaisDeVenda/li/seo.js");
 const { montarDescricaoLI } = await import("../src/lib/canaisDeVenda/li/descricao.js");
 const { htmlParaTexto } = await import("../src/lib/integracoes/normalizacao.js");
@@ -89,7 +89,6 @@ try {
     conferir("cortarNaFrase: cabe inteiro fica igual", cortarNaFrase("Uma frase. Outra.", 50), "Uma frase. Outra.");
     conferir("cortarNaFrase: nenhuma frase cabe, corta na palavra", cortarNaFrase("Uma frase muito comprida sem ponto nenhum ate o fim", 20), "Uma frase muito");
     conferir("cortarNaFrase: decimal com ponto nao e fim de frase", cortarNaFrase("Tensao de 3.3V e 5V no mesmo modulo. Segunda frase bem longa que nao cabe.", 40), "Tensao de 3.3V e 5V no mesmo modulo.");
-    conferir("slug da URL da loja: antiga, nova, com dominio e vazia", [slugDaUrl("https://www.4hobby.com.br/produto/placa-uno.html"), slugDaUrl("/rele-5v"), slugDaUrl("https://www.4hobby.com.br/rele-5v?x=1"), slugDaUrl(null)], ["placa-uno", "rele-5v", "rele-5v", null]);
     conferir("description de vazio e nulo", [descriptionPadrao(""), descriptionPadrao(null)], ["", ""]);
   }
 
@@ -126,7 +125,7 @@ try {
 
   {
     console.log("\nRegras puras: campos, assinatura e diferencas");
-    conferir("campos de envio, na ordem, sem os fiscais so de leitura", CAMPOS_DE_ENVIO_LI.map((c) => c.id), ["nome", "slug", "descricao", "ncm", "gtin", "mpn", "peso", "altura", "largura", "comprimento", "marca", "categorias", "video", "destaque", "seoTitulo", "seoDescription"]);
+    conferir("campos de envio, na ordem, sem os fiscais so de leitura", CAMPOS_DE_ENVIO_LI.map((c) => c.id), ["nome", "descricao", "ncm", "gtin", "mpn", "peso", "altura", "largura", "comprimento", "marca", "categorias", "video", "destaque", "seoTitulo", "seoDescription"]);
     conferir("campos so de leitura: origem e tipo de producao", CAMPOS_SO_LEITURA_LI.map((c) => c.id), ["origem", "tipoProducao"]);
     conferir("texto do tipo de producao e o medido na LI", TEXTO_DO_TIPO_PRODUCAO, { REVENDA: "Revenda", FABRICACAO_PROPRIA: "Fabricação própria" });
     conferir("tipo de producao da LI pelo texto", [TIPO_PRODUCAO_DA_LI("Revenda"), TIPO_PRODUCAO_DA_LI("Fabricação própria"), TIPO_PRODUCAO_DA_LI("outro"), TIPO_PRODUCAO_DA_LI(null)], ["REVENDA", "FABRICACAO_PROPRIA", null, null]);
@@ -433,8 +432,8 @@ try {
     await salvarRascunhoLI(anuncioAntes.id, { ...rascunhoDoAnuncio(anuncioAntes), categorias: ["5", "999"], seo: { title: "Rele Arduino", description: "D" } });
     const envio = await sincronizarProdutoLI(pe.id, li3);
     // Origem e tipo de producao NAO entram: a API nao os grava (medido em 07/10/2026).
-    conferir("sincronizou; categoria morta ignorada; marca achada sem acento", [envio.ok, envio.alterados.map((a) => a.campo).sort(), envio.marcaCriada, envio.categoriasIgnoradas], [true, ["altura", "comprimento", "largura", "marca", "ncm", "nome", "peso", "seoDescription", "seoTitulo", "slug"], null, ["999"]]);
-    conferir("URL nova sai do nome (/alias com 301)", li3.produtos().find((p) => p.id === 601).url, "/modulo-rele");
+    conferir("sincronizou; categoria morta ignorada; marca achada sem acento", [envio.ok, envio.alterados.map((a) => a.campo).sort(), envio.marcaCriada, envio.categoriasIgnoradas], [true, ["altura", "comprimento", "largura", "marca", "ncm", "nome", "peso", "seoDescription", "seoTitulo"], null, ["999"]]);
+    conferir("produto que ja esta na loja mantem a URL de hoje (nenhum /alias)", [li3.produtos().find((p) => p.id === 601).apelido, li3.chamadas.some((c) => String(c.caminho).includes("/alias"))], ["/rele", false]);
     const naLI = li3.produtos().find((p) => p.id === 601);
     conferir("PUT inteiro preservou imagens, categorias, preco e estoque da LI e trocou o nome", [naLI.imagens.length, naLI.categorias, naLI.nome, naLI.marca, naLI.preco_cheio, naLI.estoque_quantidade], [1, ["/api/v1/categoria/5"], "Modulo Rele", "/api/v1/marca/2", "10.00", 4]);
     conferir("medidas inteiras e NCM com pontos na LI", [naLI.altura, naLI.largura, naLI.profundidade, naLI.ncm], [2, 2, 3, "8536.49.00"]);
@@ -448,11 +447,11 @@ try {
     conferir("segunda sincronizacao nao envia nada", (await sincronizarProdutoLI(pe.id, li3)).alterados, []);
     conferir("segunda sincronizacao nao faz PUT", li3.chamadas.filter((c) => c.metodo === "PUT").length, putsAntes);
     conferir("icone verde e sem selo depois do envio", iconeLIDoProduto(await prisma.produto.findUnique({ where: { id: pe.id } }), await anuncioLIDoProduto(pe.id), { frases: [], documentos: [] }), { cor: "verde", divergente: false, conferido: true });
-    // Slug: muda pelo /alias, nao pelo PUT.
+    // URL: produto que ja esta na loja nunca muda de URL (decisao do dono em 07/10/2026), nem com nome novo.
     const comSlug = await anuncioLIDoProduto(pe.id);
     await salvarRascunhoLI(comSlug.id, { ...rascunhoDoAnuncio(comSlug), titulo: "Modulo Rele 5V", slug: "ignorado" });
     const envioSlug = await sincronizarProdutoLI(pe.id, li3);
-    conferir("nome novo muda o slug pelo /alias e o link e relido", [envioSlug.alterados.map((a) => a.campo).sort(), li3.produtos().find((p) => p.id === 601).url, (await anuncioLIDoProduto(pe.id)).urlExterna.endsWith("/modulo-rele-5v")], [["nome", "slug"], "/modulo-rele-5v", true]);
+    conferir("nome novo vai so como nome: a URL da loja fica a mesma", [envioSlug.alterados.map((a) => a.campo).sort(), li3.produtos().find((p) => p.id === 601).apelido, li3.chamadas.some((c) => String(c.caminho).includes("/alias"))], [["nome"], "/rele", false]);
     // Falha depois da trava: ERRO, etapa e assinatura intacta.
     const pf = await prisma.produto.create({ data: { sku: "ZZ-LI-12", tituloBase: "Falha", ncm: "85364900", conferido: true } });
     const li4 = criarLojaIntegradaFalsa({ produtos: [{ id: 701, sku: "ZZ-LI-12", nome: "Antigo", apelido: "/antigo", seo: "/api/v1/seo/71" }], seos: { 71: { title: "", description: "" } }, falhas: { "PUT /seo/71": 500 } });

@@ -2493,7 +2493,7 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
 - **Aba Fiscal:** aviso grande do que mudar **no painel da LI** (origem e tipo de produção vazios ou diferentes; a API
   não os grava), com o link `https://app.lojaintegrada.com.br/catalogo/produto/{idExterno}/editar`. O alerta "sem
   GTIN" considera o GTIN que já está na loja (`gtinDaLI`).
-- **Aba SEO:** nomes e ordem da LI (Tag Title, Meta Tag Description, URL do produto), contador "54 de 70 caracteres".
+- **Aba SEO:** (o Tag Title não tem ícone de lista: o dono dispensou) nomes e ordem da LI (Tag Title, Meta Tag Description, URL do produto), contador "54 de 70 caracteres".
   **Title e description são OBRIGATÓRIOS** (bloqueiam Sincronizar e Cadastrar) e travados no campo: 70 e **160** (o que o
   Google mostra; `LIMITE_DA_DESCRIPTION_SEO`, que também é o corte do envio, era 250). Sem "Usar padrão": um **ícone de
   lista** ao lado de cada campo, no molde do "Escolher o título" do cadastro, traz o nome do produto, o SEO dos
@@ -2503,10 +2503,10 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   produto (`fotosDoProduto`, só `papel: FOTO`; a capa é a primeira), guardadas em `rascunho.imagens`. O **envio espera a
   VPS** (a LI só aceita imagem por URL pública): as fotos não entram na assinatura nem no Sincronizar. Anúncio novo nasce
   com todas as fotos, a principal na frente.
-- **Slug = SEMPRE `slugDe(nome do anúncio)`** (decisão do dono em 07/10/2026, sabendo do risco): campo só leitura;
-  `rascunhoDoAnuncio`, `salvarRascunhoLI` e `normalizarDoRiseLI` refazem do título; o vínculo não traz mais o slug da
-  loja. Produto que já está na loja muda de URL no próximo Sincronizar (/alias, 301), e cada troca de nome muda de
-  novo; o aviso mostra a URL de verdade de hoje (`vinculo.urlExterna`, que pode ser `/produto/<slug>.html`).
+- **URL (slug):** produto que **já está na loja mantém a URL de hoje** (decisão do dono em 07/10/2026, que desfez a
+  de trocar pela do nome: o Google já indexou). O slug saiu dos campos comparados e o Sincronizar **não chama mais o
+  `/alias`**. Só o produto novo nasce com `slugDe(nome)`, como `apelido` no Cadastrar. A aba SEO mostra a URL de hoje
+  (`vinculo.urlExterna`, que pode ser `/produto/<slug>.html`) ou a que vai nascer do nome.
 - **MPN sempre em branco** (07/10/2026): é o código de peça do fabricante e não se aplica aos produtos da loja. O
   Rise mandava o Modelo do cadastro como MPN (o 100101 foi com "UNO R3 SMD CH340"); agora o MPN do Rise é vazio, valor
   na loja conta como diferença e o Sincronizar limpa com `mpn: ""` (`CAMPOS_QUE_LIMPAM_LI`). **Limpar com texto vazio

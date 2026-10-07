@@ -16,14 +16,16 @@ import { validarRascunhoLI } from "./validacao";
  * - so Produto Conferido; as duas travas (`exigirEscrita`) ANTES da primeira escrita;
  * - nunca preco nem estoque (o Bling e o dono); nunca origem nem tipo de producao (a API nao grava);
  * - o PUT leva o produto inteiro, mesclado sobre o GET, e antes dele o GET vai para CopiaProdutoCanal;
- * - SEO pelo /seo/{id}, slug pelo /alias (301), cada um so quando mudou;
+ * - SEO pelo /seo/{id}, so quando mudou;
+ * - a URL de produto que ja esta na loja NUNCA muda (decisao do dono em 07/10/2026: o Google ja a indexou):
+ *   o slug do nome so vale no Cadastrar, como `apelido`. O /alias nao e mais chamado;
  * - nenhuma escrita repete sozinha (o cliente usa `tentativas: 1`): resposta perdida nao quer dizer
  *   que a LI nao gravou, e repetir poderia escrever duas vezes.
  */
 
 const CANAL = "LOJA_INTEGRADA";
 const COPIAS_GUARDADAS = 3;
-const CAMPOS_FORA_DO_PUT = new Set(["slug", "seoTitulo", "seoDescription"]);
+const CAMPOS_FORA_DO_PUT = new Set(["seoTitulo", "seoDescription"]);
 
 /// Falha com a mensagem pronta e a etapa em que o envio parou.
 class FalhaDoEnvio extends Error {
@@ -143,7 +145,7 @@ function primeiroBloqueio(rascunho, produto) {
 
 /**
  * Sincronizar: o produto ja vinculado (`idExterno`) recebe do Rise os campos que mudaram. Etapas, em
- * ordem: trava, leitura, marca, produto, seo, slug, gravacao. Falha depois da trava deixa o anuncio
+ * ordem: trava, leitura, marca, produto, seo, gravacao. Falha depois da trava deixa o anuncio
  * em ERRO com a etapa, e a assinatura nao muda (o icone continua dizendo que ha o que enviar).
  */
 export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
@@ -208,13 +210,6 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
         const seo = { title: riseEnvio.seoTitulo ?? li.seoTitulo ?? "", description: riseEnvio.seoDescription ?? li.seoDescription ?? "" };
         await escrever("seo", () => cliente.put(`/seo/${idDaUri(detalhe.produto.seo)}`, seo));
         payload.seo = seo;
-      }
-
-      if (campos.has("slug")) {
-        estado.etapa = "slug";
-        const alias = { absolute_path: `/${riseEnvio.slug}` };
-        await escrever("slug", () => cliente.put(`/produto/${anuncio.idExterno}/alias?replace_main=true`, alias));
-        payload.slug = alias;
       }
 
       estado.etapa = "gravacao";
