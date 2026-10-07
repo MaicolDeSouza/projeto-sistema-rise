@@ -129,8 +129,8 @@ e marca do Rise (marca diferente aparece no pop-up como qualquer outro campo).
 | categorias | `dados.categorias` | `categorias` (URIs) | conjunto de ids; lista vazia no Rise **não apaga** as da LI |
 | vídeo | `dados.videoUrl` | `url_video_youtube` | |
 | destaque | `dados.destaque` | `destaque` | |
-| origem | `Produto.origem` | `icms_origin_code` | texto "0".."8"; **se o PUT gravar** (investigação) |
-| tipo de produção | `Produto.tipoProducao` | `production_type` | "Revenda" / "Fabricação própria", texto exato medido na investigação |
+| origem | `Produto.origem` | `icms_origin_code` | **só leitura** (medido em 07/10/2026: o `PUT` ignora, `PATCH` dá 405); texto "0".."8"; comparado e avisado, não enviado |
+| tipo de produção | `Produto.tipoProducao` | `production_type` | **só leitura** (idem); "Revenda" / "Fabricação própria"; ajuste no painel da LI |
 | SEO título, description | `dados.seo` | `PUT /v1/seo/{idSeo}` | 70 e 250 caracteres |
 
 **Nunca entram:** `sku` depois do cadastro (só o `POST` o leva, como identificador), `ativo`, preço, estoque,

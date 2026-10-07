@@ -214,11 +214,40 @@ Diverge do padrão do Rise (a decidir na spec):
 - **Webhooks**: recebimento pronto, sem consumidor e sem URL pública. Fica para a VPS, como o do Bling.
 - `normalizadores.js` ignora `icms_origin_code`, `production_type`, `seo_title`, `seo_description` e `tags`.
 
-## 8. O que ainda não foi medido (fica para o produto de teste)
+## 8. Medido no produto de teste (07/10/2026)
 
-- Se `PUT /v1/produto` aceita `icms_origin_code`, `production_type`, `seo_title`, `seo_description`.
-- Se `PUT /v1/produto` sem `categorias`/`marca` apaga os existentes (a doc diz "enviar todos os campos").
-- Se `POST /v1/produto` com `sku` repetido recusa (409?) ou duplica.
-- Formato aceito no `ncm` (com ou sem pontos) e nas medidas (inteiro ou decimal).
-- `POST /v1/produto_imagem` com URL do R2/S3 e nome descritivo; se o nome do arquivo sobrevive no CDN.
-- Se `descricao_completa` preserva `<a href>` para PDF/ZIP e `<h2>` (a loja tem `<p>`, `<strong>`, `<span style>`).
+Com o ok do dono, travas abertas só no processo de scripts temporários
+(`LI_ESCRITA=true LI_ESCRITA_CODIGOS=ZZ-TESTE-LI`), `.env` intocado (`LI_ESCRITA=false`). Produto criado:
+**`ZZ-TESTE-LI`**, id **404334430**, inativo, nome "ZZ Teste LI (apagar)", sem categoria nem marca, URL
+`/zz-teste-li-alias`, SEO "ZZ titulo pelo /seo". **Fica na LI até o dono apagar.** Nenhum outro produto foi escrito;
+nenhuma marca ou categoria foi criada.
+
+| # | Pergunta | Resposta medida |
+| --- | --- | --- |
+| a | `GET /v1/produto?sku=` filtra? | **Sim.** `?sku=100404` devolveu `total_count: 1`; SKU inexistente devolve lista vazia. |
+| b | `PUT /v1/produto` grava `icms_origin_code` e `production_type`? | **Não.** O `PUT` responde 200 e **ignora** os dois (lidos de volta `null`), com o código como número ou texto e o tipo em quatro grafias ("Revenda", "Fabricação própria", `FABRICACAO_PROPRIA`, `fabricacao_propria`). `PATCH /v1/produto/{id}` responde **405**. **Origem e tipo de produção só mudam pelo painel da LI.** |
+| b | Formato lido | `icms_origin_code` texto (`"0"`), `production_type` texto (`"Fabricação própria"`). Dos 30 primeiros produtos da loja, **só 2** os têm preenchidos (100404 e 100405, ambos "Fabricação própria"); os demais vêm `null` e a NF-e usa o padrão do emissor. |
+| b | `PUT /v1/produto` grava `seo_title`/`seo_description`? | **Não** (ignorados). **`PUT /v1/seo/{id}`** grava (`{title, description}` → 200) e o detalhe do produto passa a mostrar `seo_title`/`seo_description` com o novo valor. O id do SEO vem do `seo` do detalhe (`/api/v1/seo/139417512`). |
+| c | `PUT` com o corpo inteiro do `GET` | **200**, sem recusar chave nenhuma (nem `imagens`, `preco_*`, `estoque_*`, `url`, `seo`, `resource_uri`). Mesmo assim o Rise as tira (`CHAVES_SO_LEITURA`): devolver `preco_cheio`/`estoque_quantidade` lidos segundos antes pode desfazer uma atualização do Bling feita no intervalo. |
+| c | `categorias`/`marca` no `PUT` | **Sem as chaves, mantém** as da LI. **Com `categorias: []` e `marca: null` explícitos, APAGA** (medido sem querer: os `PUT` seguintes as limparam). Logo, lista vazia no Rise = **omitir a chave**, nunca mandar `[]`. URI aceita com ou sem `/api` (`/v1/categoria/X` é guardada como `/api/v1/categoria/X`). |
+| d | `ncm` | Guardado **como enviado** (`"8501.10.19"`). Sem pontos não foi medido (o `POST` com pontos passou); comparar só os dígitos. |
+| d | Medidas | **Inteiras.** `altura: 2.5` no `POST` deu **400 com corpo vazio**; `3` passou. Confirma o `Math.ceil`. |
+| d | Peso | Guardado como texto com 3 casas (`"0.500"`). |
+| d | Nome | Até **255** caracteres; 300 dá 400 com `{"error":[{"nome":"Certifique-se de que o valor tenha no máximo 255 caracteres (ele possui 300)."}]}`. |
+| e | `POST` com `sku` repetido | **Recusa com 400** (não 409, não duplica): `{"error":[{"sku":"Erro de integridade, verifique se o SKU ou ID Externo estão duplicados."}],"error_message":"Um ou mais campos não são válidos."}`. |
+| f | URI de marca | `GET /v1/marca` devolve `resource_uri: "/api/v1/marca/17484441"` (marca "4hobby"). O `POST /v1/marca` **não foi exercitado** (criaria marca na loja inteira). |
+| g | `PUT /v1/produto/{id}/alias?replace_main=true` com `{absolute_path: "/novo"}` | **200**, devolve `{absolute_path}`. Depois, **`url` muda** para o novo caminho e **`apelido` continua o antigo**: o slug atual é o `url` sem a barra. |
+| h | `descricao_completa` | Preservada **byte a byte**: `<h2>`, `<ul><li>`, `&amp;` e `<a href="https://...pdf">`. |
+| — | `POST` cria com | `apelido` gerado do nome (`/zz-teste-li-apagar`, com barra), `ativo: false`, `categorias: []`, `marca: null`, `seo` próprio vazio. |
+| — | Canal do Bling 203478870 | O dono confirmou: sincroniza **estoque, preço e pedidos**. O Rise continua sem tocar em preço e estoque (decisão 1). |
+
+**O que muda no plano por causa disso** (rulings da execução):
+
+- **Origem e tipo de produção saem do envio.** O Rise mostra os dois no pop-up e na aba Fiscal como **só leitura**
+  ("ajuste no painel da LI"), compara com o cadastro e avisa quando diferem, mas **não conta como divergência**
+  (o selo "!" nunca apagaria, porque o Sincronizar não consegue gravá-los). `Produto.tipoProducao` (Tarefa 3) fica
+  como referência para essa comparação e para quando a LI abrir a escrita.
+- **SEO só pelo `/seo/{id}`**, numa etapa própria depois do `PUT` do produto (já era o desenho).
+- **Lista de categorias vazia no Rise = chave fora do corpo**; marca ausente idem.
+- **SKU repetido** é 400 com `error[].sku`: o `cadastrarNaLI` trata como "já existe" e relê, e a LI falsa reproduz.
+- **Medidas `Math.ceil`, nome até 255**, slug atual = `url`.
