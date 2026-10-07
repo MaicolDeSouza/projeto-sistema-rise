@@ -472,6 +472,13 @@ try {
     conferir("rascunho inicial usa o paragrafo de verdade", rascunhoInicialLI({ id: "x", tituloBase: "PLACA UNO", descricaoBase: "PLACA UNO\n\nA Placa faz X." }).seo.description, "A Placa faz X.");
   }
 
+  {
+    console.log("\nPrimeiro envio real: URL antiga /produto/<slug>.html");
+    conferir("slug da URL antiga sem produto/ e sem .html", normalizarDaLI({ url: "/produto/placa-compativel-arduino-uno-r3-com-cabo-usb.html", apelido: "placa-compativel-arduino-uno-r3-ch340-com-cabo-usb" }, null, {}).slug, "placa-compativel-arduino-uno-r3-com-cabo-usb");
+    conferir("slug da URL nova fica igual", normalizarDaLI({ url: "/zz-teste-li-alias" }, null, {}).slug, "zz-teste-li-alias");
+    conferir("slug lido da URL antiga passa na validacao", slugValido(normalizarDaLI({ url: "/produto/rele-5v.html" }, null, {}).slug), true);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;

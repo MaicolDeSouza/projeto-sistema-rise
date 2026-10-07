@@ -146,7 +146,14 @@ export function normalizarDaLI(produtoLI, seo, { marcaNome = null } = {}) {
   const caminho = texto(l.url) ?? texto(l.apelido);
   return {
     nome: texto(l.nome),
-    slug: caminho ? caminho.replace(/^\/+/, "") || null : null,
+    // Produto antigo da loja tem a URL "/produto/<slug>.html" (medido no 100101 em 07/10/2026); o
+    // novo, "/<slug>". O slug e o miolo: sem as barras, o "produto/" e o ".html".
+    slug: caminho
+      ? caminho
+          .replace(/^\/+/, "")
+          .replace(/^produto\//, "")
+          .replace(/\.html?$/, "") || null
+      : null,
     descricao: htmlParaTexto(l.descricao_completa, { paragrafos: true }),
     ncm: soDigitos(l.ncm),
     gtin: texto(l.gtin),
