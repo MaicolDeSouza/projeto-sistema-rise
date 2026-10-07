@@ -2412,7 +2412,8 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
 ### Medido na LI real em 07/10/2026 (produto de teste `ZZ-TESTE-LI`, id 404334430, inativo; fica até o dono apagar)
 
 - **Origem (`icms_origin_code`) e tipo de produção (`production_type`) NÃO são graváveis pela API**: o `PUT` do produto
-  os ignora (200) e o `PATCH` dá 405. Ficaram **só leitura**: o pop-up compara com o cadastro e avisa "ajuste no painel da
+  os ignora (200), o `PATCH` dá 405 e o `POST` do cadastro também os ignora (medido em 07/10/2026 com `ZZ-TESTE-LI-2` e
+  `ZZ-TESTE-LI-3`, inativos na LI até o dono apagar). Saída prática: o padrão do emissor nas configurações de NF-e da LI. Ficaram **só leitura**: o pop-up compara com o cadastro e avisa "ajuste no painel da
   LI"; não contam como divergência (o selo nunca apagaria). `Produto.tipoProducao` existe para essa comparação.
 - **SEO só pelo `PUT /v1/seo/{id}`** (o `PUT` do produto ignora `seo_title`/`seo_description`).
 - **`PUT` do produto inteiro:** aceita até as chaves só de leitura, mas o Rise as tira (`CHAVES_SO_LEITURA`): devolver
