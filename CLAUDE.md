@@ -2233,7 +2233,7 @@ real de 05/10/2026").
 ### Estado guardado e o ícone
 
 - **Cor e selo são independentes.** A **cor** diz se o produto já foi sincronizado alguma vez: **cinza = nunca**,
-  **verde = já**. O **selo "?"** aparece sobre qualquer das duas e diz que o Rise e o Bling podem estar
+  **verde = já**. O **selo "!"** (era "?" até 06/10/2026, troca pedida pelo dono) aparece sobre qualquer das duas e diz que o Rise e o Bling podem estar
   diferentes, por um de dois motivos: `campos` (a assinatura dos campos mudou desde o último envio; só vale
   depois de sincronizado, porque produto nunca enviado não tem "campo que mudou") e `estoque` (há ajuste de
   estoque ainda não enviado). O texto acessível e o `title` vêm de `IconeBling.jsx`.

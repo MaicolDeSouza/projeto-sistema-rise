@@ -6,7 +6,7 @@ import { CANAIS } from "@/lib/canais";
 
 /**
  * O icone do Bling na coluna Canais da lista de Produtos: a logo, que e COLORIDA quando o produto ja
- * foi sincronizado e em preto fosco quando nunca foi, e, a parte, um selo "?" no canto superior
+ * foi sincronizado e em preto fosco quando nunca foi, e, a parte, um selo "!" no canto superior
  * direito quando o Rise e o Bling podem estar diferentes (campo alterado depois da ultima
  * sincronizacao ou ajuste de estoque ainda nao enviado). Cor e selo sao independentes: o selo
  * aparece sobre as duas.
@@ -62,7 +62,7 @@ export default function IconeBling({ iconeBling, aoClicar }) {
           aria-hidden="true"
           className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[10px] leading-none font-bold text-amber-950 ring-2 ring-superficie"
         >
-          ?
+          !
         </span>
       )}
     </button>

@@ -1,7 +1,7 @@
 import { assinaturaDoRise, normalizarDoRise, normalizarFornecedoresDoRise } from "@/lib/blingSync/campos";
 
 /**
- * Estado do icone do Bling na lista de Produtos: uma cor e, a parte, um selo "?" que diz
+ * Estado do icone do Bling na lista de Produtos: uma cor e, a parte, um selo "!" que diz
  * por que o Rise e o Bling podem estar diferentes. Sem banco e sem rede: a lista, as acoes e
  * o teste leem a mesma regra.
  *
