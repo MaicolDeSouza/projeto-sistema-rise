@@ -31,7 +31,8 @@ function LinhaDeDiferenca({ item }) {
         <div className="min-w-0">
           <dt className="text-[11px] text-suave">No Rise (salvo)</dt>
           <dd>
-            <Valor campo={item.campo} valor={item.rise} quandoVazio="vazio no Rise (não será enviado)" />
+            {/* "diferente" com o Rise vazio e campo que o Rise quer em branco (MPN): o Sincronizar limpa. */}
+            <Valor campo={item.campo} valor={item.rise} quandoVazio={vazioNoRise ? "vazio no Rise (não será enviado)" : "em branco no Rise (o Sincronizar limpa na loja)"} />
           </dd>
         </div>
         <div className="min-w-0">
