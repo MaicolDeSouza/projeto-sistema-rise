@@ -36,6 +36,8 @@ import { LIMITE_TITULO_ML, MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/
 import { medidasDaDescricao } from "@/lib/medidas";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import { indisponivel } from "@/lib/estoqueDoConcorrente";
+import { ncmsDasPecas, pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
+import { FornecedoresDoKit, MedidasDoKit } from "./AbasDoKit";
 import BuscarPorCodigo from "./BuscarPorCodigo";
 import Composicao from "./Composicao";
 import Concorrentes from "./Concorrentes";
@@ -2043,6 +2045,46 @@ export default function FormularioProduto({
     formulario.current?.elements.namedItem(nome)?.value ?? "";
 
   /**
+   * Peso e medidas sugeridos pelas pecas do kit (pedido do dono em 07/10/2026). Os campos nao sao
+   * controlados, entao a sugestao e escrita direto no <input>. `forcar` (o botao "Usar a sugestao")
+   * escreve tudo o que tem valor; a troca de pecas escreve o peso sempre e as medidas so no campo vazio
+   * ou que ainda tinha a sugestao anterior, para nao apagar uma caixa medida a mao.
+   */
+  const sugestaoAnterior = useRef(null);
+  if (sugestaoAnterior.current === null) sugestaoAnterior.current = pesoEMedidasDoKit(produto?.composicao ?? []);
+  function escreverSugestao(sugestao, { forcar = false } = {}) {
+    const anterior = sugestaoAnterior.current;
+    for (const campo of ["pesoKg", "comprimentoCm", "larguraCm", "alturaCm"]) {
+      const valor = sugestao[campo];
+      const entrada = formulario.current?.elements.namedItem(campo);
+      if (valor === null || !entrada) continue;
+      const atual = entrada.value;
+      const livre = atual === "" || (anterior?.[campo] !== null && Number(atual) === anterior?.[campo]);
+      if (forcar || campo === "pesoKg" || livre) entrada.value = String(valor);
+    }
+    sugestaoAnterior.current = sugestao;
+  }
+
+  // As pecas mudaram (incluir, tirar, quantidade): refaz a sugestao nos campos. A primeira passada (o kit
+  // acabou de abrir) nao escreve nada: abrir nao pode mudar o que esta gravado sem o dono ver.
+  const assinaturaDasPecas = pecas.map((peca) => `${peca.componenteId}:${peca.quantidade}`).join(",");
+  const primeiraPassada = useRef(true);
+  useEffect(() => {
+    if (primeiraPassada.current) {
+      primeiraPassada.current = false;
+      return;
+    }
+    if (tipo === "COMPOSICAO") escreverSugestao(pesoEMedidasDoKit(pecas));
+    // So a assinatura (ids e quantidades) diz se as pecas mudaram; `pecas` e recriada a cada edicao.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assinaturaDasPecas, tipo]);
+
+  // NCM do kit: os NCMs das pecas entram na lista do campo, antes das referencias de mercado.
+  const ncmDasPecas = tipo === "COMPOSICAO"
+    ? ncmsDasPecas(pecas).map((grupo) => ({ valor: grupo.ncm, origem: `Peça ${grupo.pecas.join(", ")}`, fontes: ["Peças do kit"] }))
+    : [];
+
+  /**
    * Peso e dimensoes lidos das linhas "- Dimensões(CxLxA): ...;" e "- Peso: ...;"
    * da descricao (pedido do dono em 16/09/2026), so para os campos VAZIOS: o que
    * o operador ja digitou nao e sobrescrito por texto.
@@ -2161,9 +2203,12 @@ export default function FormularioProduto({
   // rascunho ou vinculos de verdade — e nao de Produto.custo: aquele campo so
   // e recalculado no Salvar, e ficaria um Salvar atrasado do que a tela mostra
   // (ex.: acabou de marcar outro fornecedor como padrao, ainda nao salvou).
-  const custoPadrao =
-    (usaFornecedorRascunho ? fornecedoresRascunho : fornecedores).find((item) => item.padrao)
-      ?.precoCusto ?? null;
+  // No kit, o custo e o CUSTO TOTAL das pecas (custo x quantidade), e nulo quando falta o de alguma: a
+  // margem nao pode sair de uma soma parcial.
+  const ehKit = tipo === "COMPOSICAO";
+  const custoPadrao = ehKit
+    ? totaisDoKit(pecas).custo
+    : ((usaFornecedorRascunho ? fornecedoresRascunho : fornecedores).find((item) => item.padrao)?.precoCusto ?? null);
 
   // Referencias marcadas na lupa que ja servem de atalho na aba Fornecedores
   // (pedido do dono em 18/09/2026): fornecedor vira sugestao de linha ali;
@@ -2930,6 +2975,15 @@ export default function FormularioProduto({
                   vazio="Nenhuma referência (lupa ou vínculos salvos) publica a altura na ficha técnica."
                 />
               </div>
+              {ehKit && (
+                <MedidasDoKit
+                  pecas={pecas}
+                  aoUsarSugestao={(sugestao) => {
+                    escreverSugestao(sugestao, { forcar: true });
+                    setAlterado(true);
+                  }}
+                />
+              )}
             </div>
 
             <div className={aba === "tributacao" ? "space-y-4" : "hidden"}>
@@ -2967,9 +3021,13 @@ export default function FormularioProduto({
                     inicial={v("ncm")}
                     placeholder="0000.00.00"
                     ajuda="Obrigatório para emitir nota."
-                    ids={idsDasIndicacoes}
-                    valores={valoresRefs?.ncm}
-                    carregando={lendoRefs}
+                    ids={ncmDasPecas.length > 0 ? [...idsDasIndicacoes, "pecas-do-kit"] : idsDasIndicacoes}
+                    valores={
+                      ncmDasPecas.length > 0
+                        ? [...ncmDasPecas, ...(Array.isArray(valoresRefs?.ncm) ? valoresRefs.ncm : [])]
+                        : valoresRefs?.ncm
+                    }
+                    carregando={lendoRefs && ncmDasPecas.length === 0}
                     aoAlterar={() => setAlterado(true)}
                     usos={usos}
                     vazio="Nenhuma referência (lupa ou vínculos salvos) publica o NCM. Fortek, Casa da Robótica e Smartkits costumam publicar; Eletrogate, Saravati e Usinainfo não."
@@ -3025,17 +3083,23 @@ export default function FormularioProduto({
                 />
               </div>
 
-              <Fornecedores
-                ref={fornecedoresRef}
-                produtoId={produto?.id ?? null}
-                ativo={aba === "fornecedores"}
-                vinculos={usaFornecedorRascunho ? fornecedoresRascunho : fornecedores}
-                catalogo={catalogoFornecedores}
-                aoFalhar={setErroAcao}
-                modoRascunho={usaFornecedorRascunho}
-                aoMudarRascunho={mudarFornecedoresRascunho}
-                sugestoes={sugestoesFornecedor}
-              />
+              {/* Kit: a tabela de fornecedores e a das PECAS, so leitura (pedido do dono em 07/10/2026; sem
+                  "Padrão" nem "Adicionar fornecedor"). A tabela editavel fica montada e escondida: os
+                  vinculos que o kit ja tinha continuam indo no envio, e nada some no Salvar. */}
+              {ehKit && <FornecedoresDoKit pecas={pecas} ativo={aba === "fornecedores"} />}
+              <div className={ehKit ? "hidden" : ""}>
+                <Fornecedores
+                  ref={fornecedoresRef}
+                  produtoId={produto?.id ?? null}
+                  ativo={aba === "fornecedores" && !ehKit}
+                  vinculos={usaFornecedorRascunho ? fornecedoresRascunho : fornecedores}
+                  catalogo={catalogoFornecedores}
+                  aoFalhar={setErroAcao}
+                  modoRascunho={usaFornecedorRascunho}
+                  aoMudarRascunho={mudarFornecedoresRascunho}
+                  sugestoes={sugestoesFornecedor}
+                />
+              </div>
 
               <Concorrentes
                 ref={concorrentesRef}

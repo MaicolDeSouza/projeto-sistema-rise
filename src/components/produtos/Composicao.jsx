@@ -49,9 +49,12 @@ export default function Composicao({ pecas, setPecas, produtoId, aoAlterar }) {
     });
   };
 
-  const incluir = (produto) => {
-    alterar([...pecas, { componenteId: produto.id, sku: produto.sku, tituloBase: produto.tituloBase, estoque: produto.estoque, quantidade: 1 }]);
-    setResultado((atual) => (atual?.itens ? { ...atual, itens: atual.itens.filter((item) => item.id !== produto.id) } : atual));
+  // A busca ja devolve a peca no formato da aba (preco, peso, fornecedor padrao): as abas do kit a usam.
+  const incluir = (peca) => {
+    alterar([...pecas, { ...peca, quantidade: 1 }]);
+    setResultado((atual) =>
+      atual?.itens ? { ...atual, itens: atual.itens.filter((item) => item.componenteId !== peca.componenteId) } : atual,
+    );
   };
 
   const fecharBusca = () => {
@@ -210,7 +213,7 @@ export default function Composicao({ pecas, setPecas, produtoId, aoAlterar }) {
           {resultado?.ok && resultado.itens.length > 0 && (
             <ul className="divide-y divide-borda rounded border border-borda">
               {resultado.itens.map((item) => (
-                <li key={item.id}>
+                <li key={item.componenteId}>
                   <button
                     type="button"
                     onClick={() => incluir(item)}

@@ -289,6 +289,24 @@ try {
   conferir("busca que so acha produto barrado: devolve o motivo", await pecasParaKit("ZZ-KIT-N4"), { itens: [], barrados: [{ sku: "ZZ-KIT-N4", tituloBase: "Peca ZZ-KIT-N4", motivo: "não está conferido" }] });
   conferir("busca com menos de 2 letras: vazia, sem consultar", await pecasParaKit("z"), { itens: [], barrados: [] });
 
+  // --- Tarefa 6: a peca no formato das abas do kit ---
+  const { pecaParaTela } = await import("../src/lib/composicaoBanco.js");
+  const comPadrao = pecaParaTela(
+    {
+      id: "p1", sku: "S1", tituloBase: "Peca", estoque: 4, precoVenda: "12.50", custo: "3.00", pesoKg: "0.020",
+      comprimentoCm: null, larguraCm: "2", alturaCm: "1.5", ncm: "8483.50.10",
+      fornecedores: [{ id: "v1", descricao: "link", codigo: "F-1", precoCusto: "5.40", link: "https://x", fornecedor: { id: "f1", nome: "Fortek", site: null } }],
+    },
+    3,
+  );
+  conferir("peca para tela: numeros simples, custo do fornecedor padrao (vence o do cadastro) e a quantidade", [comPadrao.custo, comPadrao.precoVenda, comPadrao.pesoKg, comPadrao.comprimentoCm, comPadrao.quantidade, comPadrao.fornecedor.nome], [5.4, 12.5, 0.02, null, 3, "Fortek"]);
+  const semPadrao = pecaParaTela({ id: "p2", sku: "S2", tituloBase: "Peca 2", estoque: 0, precoVenda: null, custo: "3.00", fornecedores: [] });
+  conferir("peca sem fornecedor padrao: custo do cadastro, fornecedor nulo, preco nulo", [semPadrao.custo, semPadrao.fornecedor, semPadrao.precoVenda], [3, null, null]);
+  const soRascunho = pecaParaTela({ id: "p3", sku: "S3", tituloBase: "Peca 3", estoque: 1, custo: null, fornecedorRascunho: { nome: "Loja X", codigo: "LX-9", precoCusto: 7.25 }, fornecedores: [] });
+  conferir("peca so com o fornecedor em rascunho do Bling: usa o nome e o custo dele, marcado como rascunho, sem vinculo", [soRascunho.custo, soRascunho.fornecedor?.nome, soRascunho.fornecedor?.rascunho, soRascunho.fornecedor?.id], [7.25, "Loja X", true, null]);
+  conferir("rascunho com custo zero nao vira custo", pecaParaTela({ id: "p4", sku: "S4", tituloBase: "P4", estoque: 0, fornecedorRascunho: { nome: "Y", precoCusto: 0 }, fornecedores: [] }).custo, null);
+  conferir("a busca de pecas devolve no mesmo formato (componenteId, fornecedor)", Object.hasOwn(busca.itens[0] ?? {}, "componenteId") && Object.hasOwn(busca.itens[0] ?? {}, "fornecedor"), true);
+
   // --- apagar o kit leva as linhas de composicao, nao as pecas ---
   await prisma.produto.delete({ where: { id: kit2.id } });
   conferir("apagar o kit2 apaga as linhas dele e a peca A fica", [await prisma.produtoComponente.count({ where: { kitId: kit2.id } }), (await prisma.produto.findUnique({ where: { id: a.id } }))?.sku], [0, "ZZ-KIT-A1"]);

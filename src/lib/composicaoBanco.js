@@ -28,6 +28,7 @@ const PECA = {
   larguraCm: true,
   comprimentoCm: true,
   ncm: true,
+  fornecedorRascunho: true,
   fornecedores: {
     where: { padrao: true },
     select: {
@@ -40,6 +41,65 @@ const PECA = {
     },
   },
 };
+
+/// Decimal do Prisma (ou texto) em numero; nulo continua nulo. O Decimal nao atravessa para a tela.
+const numeroOuNull = (valor) => (valor === null || valor === undefined || valor === "" ? null : Number(valor));
+
+/**
+ * Uma peca (lida com `PECA`) no formato da aba Composicao e das abas do kit: numeros simples, o
+ * fornecedor padrao achatado e a quantidade no kit. O custo e o do fornecedor padrao e, na falta dele,
+ * o do cadastro (a regra do sistema: "custo do produto vem do fornecedor padrao").
+ *
+ * Sem fornecedor confirmado, vale o RASCUNHO da importacao do Bling (`fornecedorRascunho`), como na margem
+ * da lista de Produtos: e onde esta o fornecedor e o custo da maioria dos produtos importados (as pecas do
+ * 990204 so tinham ele). Vai marcado `rascunho: true` para a tela dizer de onde veio.
+ *
+ * @param {object} produto linha de `Produto` lida com o select `PECA`
+ * @param {number} quantidade
+ */
+export function pecaParaTela(produto, quantidade = 1) {
+  const padrao = produto.fornecedores?.[0] ?? null;
+  const rascunho = !padrao && produto.fornecedorRascunho?.nome ? produto.fornecedorRascunho : null;
+  const custoRascunho = Number(rascunho?.precoCusto) > 0 ? Number(rascunho.precoCusto) : null;
+  return {
+    componenteId: produto.id,
+    sku: produto.sku,
+    tituloBase: produto.tituloBase,
+    estoque: produto.estoque,
+    quantidade,
+    precoVenda: numeroOuNull(produto.precoVenda),
+    custo: numeroOuNull(padrao?.precoCusto ?? produto.custo) ?? custoRascunho,
+    pesoKg: numeroOuNull(produto.pesoKg),
+    comprimentoCm: numeroOuNull(produto.comprimentoCm),
+    larguraCm: numeroOuNull(produto.larguraCm),
+    alturaCm: numeroOuNull(produto.alturaCm),
+    ncm: produto.ncm ?? null,
+    fornecedor: padrao
+      ? {
+          id: padrao.id,
+          nome: padrao.fornecedor.nome,
+          descricao: padrao.descricao ?? null,
+          codigo: padrao.codigo ?? null,
+          precoCusto: numeroOuNull(padrao.precoCusto),
+          link: padrao.link ?? null,
+          site: padrao.fornecedor.site ?? null,
+          rascunho: false,
+        }
+      : rascunho
+        ? {
+            id: null,
+            nome: String(rascunho.nome),
+            descricao: rascunho.descricao ?? null,
+            codigo: rascunho.codigo ?? null,
+            precoCusto: custoRascunho,
+            // A "Descricao no fornecedor" do Bling e, na pratica, o link do produto no site do fornecedor.
+            link: /^https?:\/\//i.test(String(rascunho.descricao ?? "")) ? rascunho.descricao : null,
+            site: null,
+            rascunho: true,
+          }
+        : null,
+  };
+}
 
 /**
  * As pecas de um kit, na ordem da aba, cada uma com o produto da peca em `componente` (so as
@@ -254,13 +314,14 @@ export async function pecasParaKit(termo, excluir = [], tx = prisma) {
     ],
   };
 
-  const itens = await tx.produto.findMany({
+  const achados = await tx.produto.findMany({
     where: { ...casa, tipo: "SIMPLES", conferido: true, blingId: { not: null } },
-    select: { id: true, sku: true, tituloBase: true, estoque: true },
+    select: PECA,
     orderBy: { sku: "asc" },
     take: 20,
   });
-  if (itens.length > 0) return { itens, barrados: [] };
+  // Ja no formato da aba: a peca escolhida entra com preco, peso e fornecedor, sem outra consulta.
+  if (achados.length > 0) return { itens: achados.map((produto) => pecaParaTela(produto)), barrados: [] };
 
   const outros = await tx.produto.findMany({
     where: casa,
