@@ -1,10 +1,12 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+
 /**
  * Bolinha "i" de ajuda, no padrao do Bling (pedido do dono em 18/09/2026): ao
  * passar o mouse, mostra um texto curto explicando o que aquilo faz — em vez
- * de um paragrafo de ajuda sempre visivel embaixo do campo, so CSS
- * (`group-hover` num grupo NOMEADO), sem estado.
+ * de um paragrafo de ajuda sempre visivel embaixo do campo.
  *
  * Duas variantes:
  * - `"canto"` (padrao): badge no canto SUPERIOR direito de um botao-icone
@@ -17,40 +19,85 @@
  *   substituindo o paragrafo de ajuda que ficava sempre visivel embaixo do
  *   campo — pedido do dono em 18/09/2026, para "deixar a tela mais limpa".
  *
- * O texto SEMPRE abre para CIMA (pedido do dono em 18/09/2026, depois de ver
- * a bolha abrindo para baixo na primeira versao): direcao fixa e
- * previsivel, sem depender de quanto espaco sobra abaixo.
+ * O texto abre para CIMA (pedido do dono em 18/09/2026) e so abre para baixo quando
+ * nao cabe em cima da tela (pedido de 07/10/2026).
+ *
+ * O texto e desenhado FORA da arvore, num portal em `document.body` com posicao
+ * `fixed` calculada do "i" (07/10/2026): dentro de um painel com rolagem
+ * (`overflow-y-auto`, a janela do editor da Loja Integrada) ou de uma tabela com
+ * `overflow-x-auto`, um texto `absolute` era CORTADO pela caixa, e no hover nao
+ * aparecia nada. A posicao e escrita direto no elemento antes da pintura (como a
+ * `ListaFlutuante` do cadastro), sem estado, e refeita a cada rolagem.
  *
  * O texto zera caixa, espacamento e peso herdados (`normal-case`,
  * `tracking-normal`, `font-normal`): dentro de um <th> de tabela (uppercase,
  * tracking largo) a explicacao inteira saia em MAIUSCULAS.
  *
- * Grupo NOMEADO (`group/ajuda`) e nao `group` liso: varios botoes desta tela
- * ja estao dentro de outros `group` (imagem, linha de tabela), e um grupo sem
- * nome acionaria a bolha errada — ou a bolha de outro botao — no hover de
- * quem estiver em volta.
- *
  * `onClick` para a propagacao: quando a bolha mora DENTRO de um botao maior
  * (caso da lupa de referencias), clicar bem em cima do "i" nao pode disparar
  * a acao do botao por baixo.
  */
+const MARGEM = 6;
+
 export default function BolhaDeAjuda({ texto, variante = "canto", className = "" }) {
   // "inline-direita": igual a "inline", mas o texto abre alinhado pela DIREITA do icone (para a
-  // esquerda). E a variante para icone que mora na borda direita de uma janela ou coluna: o texto
-  // centralizado no icone sairia do quadro e seria cortado (pedido do dono em 21/09/2026: toda
-  // mensagem informativa vira este icone, inclusive nas janelas de fotos).
+  // esquerda). E a variante para icone que mora na borda direita de uma janela ou coluna (pedido
+  // do dono em 21/09/2026).
   const inline = variante === "inline" || variante === "inline-direita";
-  const direita = variante === "inline-direita";
+  const centralizado = variante === "inline";
+  const [aberto, setAberto] = useState(false);
+  const icone = useRef(null);
+  const caixa = useRef(null);
+  const seta = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!aberto) return undefined;
+    function posicionar() {
+      const elemento = caixa.current;
+      const ancora = icone.current;
+      if (!elemento || !ancora) return;
+      const alvo = ancora.getBoundingClientRect();
+      const { width, height } = elemento.getBoundingClientRect();
+      const larguraDaTela = document.documentElement.clientWidth;
+      const preferida = centralizado ? alvo.left + alvo.width / 2 - width / 2 : alvo.right - width;
+      const esquerda = Math.min(Math.max(preferida, MARGEM), larguraDaTela - width - MARGEM);
+      const cabeEmCima = alvo.top - height - MARGEM >= 0;
+      const topo = cabeEmCima ? alvo.top - height - MARGEM : alvo.bottom + MARGEM;
+      Object.assign(elemento.style, { left: `${esquerda}px`, top: `${topo}px`, visibility: "visible" });
+      if (seta.current) {
+        const centro = Math.min(Math.max(alvo.left + alvo.width / 2 - esquerda - 4, 6), width - 14);
+        Object.assign(seta.current.style, {
+          left: `${centro}px`,
+          top: cabeEmCima ? "100%" : "auto",
+          bottom: cabeEmCima ? "auto" : "100%",
+          transform: `translateY(${cabeEmCima ? -4 : 4}px) rotate(45deg)`,
+        });
+      }
+    }
+    posicionar();
+    // Rolagem de qualquer caixa (captura) ou da janela move o "i": a bolha acompanha.
+    window.addEventListener("scroll", posicionar, true);
+    window.addEventListener("resize", posicionar);
+    return () => {
+      window.removeEventListener("scroll", posicionar, true);
+      window.removeEventListener("resize", posicionar);
+    };
+  }, [aberto, centralizado, texto]);
 
   return (
     <span
-      className={`group/ajuda ${inline ? "relative inline-flex" : "absolute -top-3 -right-1 z-10"} ${className}`}
+      className={`${inline ? "relative inline-flex" : "absolute -top-3 -right-1 z-10"} ${className}`}
       onClick={(evento) => evento.stopPropagation()}
+      onMouseEnter={() => setAberto(true)}
+      onMouseLeave={() => setAberto(false)}
     >
       <span
+        ref={icone}
         role="img"
         aria-label="Ajuda"
         tabIndex={0}
+        onFocus={() => setAberto(true)}
+        onBlur={() => setAberto(false)}
         className="block h-4 w-4 cursor-help rounded-full text-acento shadow-md ring-2 ring-superficie"
       >
         {/* O "i" e desenhado (SVG), e nao escrito como texto: e o de serifa e cauda
@@ -64,19 +111,19 @@ export default function BolhaDeAjuda({ texto, variante = "canto", className = ""
           </g>
         </svg>
       </span>
-      <span
-        role="tooltip"
-        className={`pointer-events-none absolute bottom-full z-50 mb-1.5 w-max max-w-56 rounded-md bg-slate-800 px-2.5 py-1.5 text-left text-[11px] leading-snug font-normal tracking-normal text-white normal-case opacity-0 shadow-lg transition group-hover/ajuda:opacity-100 group-focus-within/ajuda:opacity-100 ${
-          inline && !direita ? "left-1/2 -translate-x-1/2" : "right-0"
-        }`}
-      >
-        {texto}
-        <span
-          className={`absolute top-full h-2 w-2 -translate-y-1 rotate-45 bg-slate-800 ${
-            inline && !direita ? "left-1/2 -translate-x-1/2" : "right-1"
-          }`}
-        />
-      </span>
+      {aberto &&
+        createPortal(
+          <span
+            ref={caixa}
+            role="tooltip"
+            style={{ position: "fixed", left: 0, top: 0, visibility: "hidden" }}
+            className="pointer-events-none z-[100] w-max max-w-56 rounded-md bg-slate-800 px-2.5 py-1.5 text-left text-[11px] leading-snug font-normal tracking-normal text-white normal-case shadow-lg"
+          >
+            {texto}
+            <span ref={seta} className="absolute h-2 w-2 bg-slate-800" />
+          </span>,
+          document.body,
+        )}
     </span>
   );
 }
