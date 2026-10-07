@@ -6,6 +6,9 @@ import { CANAIS, separarCanais } from "@/lib/canais";
 import { urlDe } from "@/lib/arquivos";
 import { estadoDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import { INCLUDE_DO_ICONE_BLING, iconeBlingDoProduto } from "@/lib/blingSync/estado";
+import { lerConfigCanal } from "@/lib/canaisDeVenda/configuracao";
+import { documentosDoProduto } from "@/lib/canaisDeVenda/li/banco";
+import { iconeLIDoProduto } from "@/lib/canaisDeVenda/li/estado";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import Paginacao from "@/components/mercados/Paginacao";
@@ -88,6 +91,13 @@ export default async function ProdutosPage({ searchParams }) {
             status: true,
             situacaoCanal: true,
             idExterno: true,
+            // Para o icone da Loja Integrada: o rascunho e a assinatura do ultimo envio.
+            produtoId: true,
+            titulo: true,
+            descricao: true,
+            dados: true,
+            hashConteudo: true,
+            sincronizadoEm: true,
           },
         },
         // Para o icone do Bling: os fornecedores (entram na assinatura dos campos) e quantos
@@ -97,6 +107,18 @@ export default async function ProdutosPage({ searchParams }) {
     });
   } catch (excecao) {
     erro = excecao;
+  }
+
+  // Icone da Loja Integrada: as frases fixas entram na assinatura (lidas uma vez) e os documentos so
+  // quando ha endereco publico (sem ele, documentosDoProduto devolve [] sem consultar). Falha aqui
+  // nao derruba a lista: o icone fica sem selo.
+  let frasesLI = [];
+  const documentosLI = new Map();
+  try {
+    frasesLI = (await lerConfigCanal("LOJA_INTEGRADA")).frases;
+    for (const produto of produtos ?? []) documentosLI.set(produto.id, await documentosDoProduto(produto));
+  } catch (excecao) {
+    console.error("[loja integrada] icone", excecao);
   }
 
   // Decimal do Prisma nao atravessa a fronteira servidor/cliente: converta aqui.
@@ -126,6 +148,11 @@ export default async function ProdutosPage({ searchParams }) {
     iconeML: estadoDoIconeML(produto.anuncios),
     // Cor e selo do icone do Bling, calculados aqui (a assinatura usa node:crypto, so servidor).
     iconeBling: iconeBlingDoProduto(produto),
+    // Cor e selo do icone da Loja Integrada (assinatura com node:crypto, so servidor).
+    iconeLI: iconeLIDoProduto(produto, produto.anuncios.find((anuncio) => anuncio.canal === "LOJA_INTEGRADA") ?? null, {
+      frases: frasesLI,
+      documentos: documentosLI.get(produto.id) ?? [],
+    }),
   }));
 
   return (

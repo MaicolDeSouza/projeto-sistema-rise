@@ -444,6 +444,12 @@ try {
     conferir("rotulo do tipo de producao", ROTULO_DO_TIPO_PRODUCAO.FABRICACAO_PROPRIA, "Fabricacao propria");
   }
 
+  {
+    console.log("\nIcone na lista");
+    conferir("iconeLIDoProduto sem anuncio e cinza", iconeLIDoProduto({ conferido: true }, null, { frases: [], documentos: [] }), { cor: "cinza", divergente: false, conferido: true });
+    conferir("iconeLIDoProduto de produto nao Conferido e cinza mesmo sincronizado", iconeLIDoProduto({ conferido: false }, { produtoId: "p", dados: {}, sincronizadoEm: new Date(), hashConteudo: "x" }, {}), { cor: "cinza", divergente: false, conferido: false });
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;

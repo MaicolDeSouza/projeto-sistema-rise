@@ -13,6 +13,8 @@ import ConferidoProduto from "./ConferidoProduto";
 import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPreco } from "./EdicaoRapida";
 import IconeBling from "./IconeBling";
 import JanelaBling from "./JanelaBling";
+import IconeLojaIntegrada from "./IconeLojaIntegrada";
+import JanelaLojaIntegrada from "./JanelaLojaIntegrada";
 
 /// O produto sem estado conhecido do Bling: cinza, sem selo (nunca sincronizado e sem pendencia).
 const ICONE_BLING_PADRAO = { cor: "cinza", divergente: false, motivos: [] };
@@ -60,12 +62,15 @@ export default function LinhaProduto({
   iconeML = { publicado: false, rascunho: false },
   // Cor e selo do icone do Bling, calculados no servidor (`page.jsx`: a assinatura usa node:crypto).
   iconeBling = ICONE_BLING_PADRAO,
+  // Cor e selo do icone da Loja Integrada, tambem do servidor (`iconeLIDoProduto`).
+  iconeLI = { cor: "cinza", divergente: false, conferido: false },
   selecionado = false,
   aoAlternarSelecao,
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [janelaML, setJanelaML] = useState(false);
   const [janelaBling, setJanelaBling] = useState(false);
+  const [janelaLI, setJanelaLI] = useState(false);
   // Qual popup de edicao rapida esta aberto: "localizacao", "preco" ou "estoque".
   const [editando, setEditando] = useState(null);
   const fecharEdicao = () => setEditando(null);
@@ -153,14 +158,16 @@ export default function LinhaProduto({
       </td>
 
       {/* O Mercado Livre e o Bling refletem o estado real e sao botoes (o ML abre o anuncio em
-          pop-up; o Bling, a janela da sincronizacao). Provisorio, a pedido do dono: Loja
-          Integrada e Shopee seguem em preto fosco, sem ligar ao estado de integracao (a
+          pop-up; o Bling, a janela da sincronizacao). A Loja Integrada tambem
+          (icone com selo e pop-up de diferencas). Provisorio, a pedido do dono: a Shopee segue em preto fosco, sem ligar ao estado de integracao (a
           situacao real deles volta aqui depois). */}
       <td className="px-3 py-2.5">
         <div className="flex items-center gap-1.5">
           {CANAIS.map((canal) =>
             canal.id === "BLING" ? (
               <IconeBling key={canal.id} iconeBling={iconeBling} aoClicar={() => setJanelaBling(true)} />
+            ) : canal.id === "LOJA_INTEGRADA" ? (
+              <IconeLojaIntegrada key={canal.id} iconeLI={iconeLI} aoClicar={() => setJanelaLI(true)} />
             ) : canal.id === "MERCADO_LIVRE" ? (
               <button
                 key={canal.id}
@@ -207,6 +214,7 @@ export default function LinhaProduto({
         {editando === "estoque" && <PopupEstoque produto={produto} aoFechar={fecharEdicao} />}
         {janelaML && <JanelaAnuncioML produtoId={produto.id} aoFechar={() => setJanelaML(false)} />}
         {janelaBling && <JanelaBling produto={produto} aoFechar={() => setJanelaBling(false)} />}
+        {janelaLI && <JanelaLojaIntegrada produto={produto} aoFechar={() => setJanelaLI(false)} />}
 
         {pendentes.length > 0 && (
           <>

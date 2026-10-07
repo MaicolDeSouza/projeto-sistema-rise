@@ -342,13 +342,14 @@ export default function TabelaProdutos({
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
-              {linhas.map(({ produto, pendentes, iconeML, iconeBling }) => (
+              {linhas.map(({ produto, pendentes, iconeML, iconeBling, iconeLI }) => (
                 <LinhaProduto
                   key={produto.id}
                   produto={produto}
                   pendentes={pendentes}
                   iconeML={iconeML}
                   iconeBling={iconeBling}
+                  iconeLI={iconeLI}
                   selecionado={selecionados.has(produto.id)}
                   aoAlternarSelecao={() => alternarSelecao(produto.id)}
                 />
