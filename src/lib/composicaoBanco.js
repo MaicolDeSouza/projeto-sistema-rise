@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { estoqueDoKit } from "@/lib/composicao";
+import { estoqueDoKit, validarComposicao } from "@/lib/composicao";
 
 /**
  * O produto com composicao (kit) no banco: ler as pecas, trocar a lista inteira, recalcular o
@@ -162,6 +162,123 @@ export async function recalcularKitsDasPecas(componenteIds, tx = prisma) {
   const kits = await tx.produtoComponente.findMany({ where: { componenteId: { in: ids } }, select: { kitId: true }, distinct: ["kitId"] });
   for (const { kitId } of kits) await gravarEstoqueDoKit(kitId, tx);
   return kits.length;
+}
+
+/**
+ * Confere o tipo e a composicao que o cadastro mandou, ANTES de gravar qualquer coisa do produto: uma
+ * peca recusada nao pode deixar o produto salvo pela metade. Fica aqui, e nao no `salvarProduto`, porque
+ * o teste chama direto (a acao chama `revalidatePath`, que so existe dentro do Next).
+ *
+ * - `tipo` ausente (formulario aberto antes do campo existir) mantem o tipo gravado: um padrao aqui
+ *   transformaria um kit em simples e apagaria as pecas sem o operador pedir.
+ * - Kit sem o campo `composicao` mantem as pecas gravadas; produto que VIRA kit sem o campo e recusado.
+ * - Produto que ja e peca de outro kit nao vira kit (kit dentro de kit ficou fora, decisao do dono).
+ *
+ * @param {{produtoId: string|null, tipo?: "SIMPLES"|"COMPOSICAO", campo: string|null}} entrada
+ * @returns {Promise<{ok: true, tipo: string, itens: null | {componenteId: string, quantidade: number}[]} | {ok: false, erro: string}>}
+ *   `itens` nulo = nao mexer nas pecas; lista = a composicao nova (vazia no tipo simples, que apaga as pecas).
+ */
+export async function prepararComposicaoDoCadastro({ produtoId, tipo, campo }, tx = prisma) {
+  const gravado = produtoId ? await tx.produto.findUnique({ where: { id: produtoId }, select: { tipo: true } }) : null;
+  const tipoFinal = tipo ?? gravado?.tipo ?? "SIMPLES";
+  if (tipoFinal !== "COMPOSICAO") return { ok: true, tipo: tipoFinal, itens: [] };
+
+  if (produtoId) {
+    const usos = await kitsQueUsam(produtoId, tx);
+    if (usos.length > 0) {
+      const nomes = usos.map((kit) => kit.sku).join(", ");
+      return {
+        ok: false,
+        erro: `Este produto é peça ${usos.length === 1 ? "do kit" : "dos kits"} ${nomes}, e um kit não pode ser peça de outro kit. Tire-o da composição antes.`,
+      };
+    }
+  }
+
+  if (campo === null || campo === undefined) {
+    if (gravado?.tipo === "COMPOSICAO") return { ok: true, tipo: tipoFinal, itens: null };
+    return { ok: false, erro: "Escolha as peças do kit na aba Composição." };
+  }
+
+  let lista;
+  try {
+    lista = JSON.parse(String(campo));
+  } catch {
+    return { ok: false, erro: "Revise a composição antes de salvar." };
+  }
+  if (!Array.isArray(lista)) return { ok: false, erro: "Revise a composição antes de salvar." };
+
+  const itens = lista.map((item) => ({ componenteId: String(item?.componenteId ?? ""), quantidade: Number(item?.quantidade) }));
+  const regras = validarComposicao(itens, { produtoId });
+  if (!regras.ok) return regras;
+  const permitidas = await pecasPermitidas(itens.map((item) => item.componenteId), tx);
+  if (!permitidas.ok) return permitidas;
+
+  return { ok: true, tipo: tipoFinal, itens };
+}
+
+/**
+ * Aplica o que `prepararComposicaoDoCadastro` decidiu, dentro da transacao que gravou o produto: o kit
+ * nunca existe sem as pecas, nem as pecas sem o kit.
+ *
+ * @param {string} produtoId
+ * @param {{tipo: string, itens: null | {componenteId: string, quantidade: number}[]}} preparo
+ * @param {import("@prisma/client").Prisma.TransactionClient} tx
+ */
+export async function gravarComposicaoDoCadastro(produtoId, preparo, tx) {
+  if (preparo.itens === null) return;
+  // Simples: as pecas saem. O estoque fica o ultimo calculado e volta a ser editavel na lista.
+  if (preparo.tipo !== "COMPOSICAO") {
+    await tx.produtoComponente.deleteMany({ where: { kitId: produtoId } });
+    return;
+  }
+  await gravarComposicao(produtoId, preparo.itens, tx);
+}
+
+/**
+ * Os produtos que podem entrar num kit, para a busca da aba Composicao: simples, Conferidos e ja ligados
+ * ao Bling (decisao do dono em 07/10/2026), por SKU ou nome, ate 20. Sem nenhum permitido, devolve ate 5
+ * dos que casaram e foram barrados, com o motivo: senao o operador acharia que o produto nao existe.
+ *
+ * @param {string} termo
+ * @param {string[]} excluir ids que nao entram (o proprio produto e as pecas ja escolhidas)
+ */
+export async function pecasParaKit(termo, excluir = [], tx = prisma) {
+  const texto = String(termo ?? "").trim().slice(0, 80);
+  if (texto.length < 2) return { itens: [], barrados: [] };
+  const ignorar = (Array.isArray(excluir) ? excluir : []).map(String).slice(0, 500);
+  const casa = {
+    id: { notIn: ignorar },
+    OR: [
+      { sku: { contains: texto, mode: "insensitive" } },
+      { tituloBase: { contains: texto, mode: "insensitive" } },
+    ],
+  };
+
+  const itens = await tx.produto.findMany({
+    where: { ...casa, tipo: "SIMPLES", conferido: true, blingId: { not: null } },
+    select: { id: true, sku: true, tituloBase: true, estoque: true },
+    orderBy: { sku: "asc" },
+    take: 20,
+  });
+  if (itens.length > 0) return { itens, barrados: [] };
+
+  const outros = await tx.produto.findMany({
+    where: casa,
+    select: { sku: true, tituloBase: true, tipo: true, conferido: true, blingId: true },
+    orderBy: { sku: "asc" },
+    take: 5,
+  });
+  const barrados = outros.map((produto) => ({
+    sku: produto.sku,
+    tituloBase: produto.tituloBase,
+    motivo:
+      produto.tipo !== "SIMPLES"
+        ? "é um kit"
+        : !produto.conferido
+          ? "não está conferido"
+          : "não está vinculado ao Bling",
+  }));
+  return { itens: [], barrados };
 }
 
 /**

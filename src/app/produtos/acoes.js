@@ -7,7 +7,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { buscarProdutoPorCodigo } from "@/lib/buscaPorCodigo";
 import { buscarReferencias } from "@/lib/buscaPorPalavras";
-import { kitsQueUsam } from "@/lib/composicaoBanco";
+import { gravarComposicaoDoCadastro, kitsQueUsam, pecasParaKit, prepararComposicaoDoCadastro } from "@/lib/composicaoBanco";
 import { listarDocumentosDasReferencias } from "@/lib/documentosReferencias";
 import { lerCamposDasReferencias, lerDetalhesDasReferencias } from "@/lib/camposDasReferencias";
 import {
@@ -341,6 +341,12 @@ const ProdutoSchema = z.object({
   precoVenda: decimal(),
   unidade: z.enum(UNIDADES).catch("UN"),
   ativo: z.coerce.boolean(),
+  // Sem o campo (formulario aberto antes dele) nao grava nada: um padrao aqui transformaria um kit em
+  // simples e apagaria as pecas (ver `prepararComposicaoDoCadastro`).
+  tipo: z.preprocess(
+    (valor) => (valor === "" || valor === null ? undefined : valor),
+    z.enum(["SIMPLES", "COMPOSICAO"], { message: "Escolha Simples ou Com composição." }).optional(),
+  ),
 
   // Sempre em MAIUSCULAS (pedido do dono em 16/09/2026). A tela ja converte ao
   // digitar; aqui e a garantia para o que chegar por outro caminho.
@@ -567,8 +573,21 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       });
       if (!cadastrado) return { ok: false, erro: `Cadastre o concorrente "${nome}" antes de salvar o produto.` };
     }
+    // A composicao e conferida antes de gravar, e gravada na MESMA transacao do produto: o kit nunca existe
+    // sem as pecas (nem um produto que virou simples com pecas penduradas).
+    const composicao = await prepararComposicaoDoCadastro({
+      produtoId: id,
+      tipo: dados.tipo,
+      campo: formData.get("composicao"),
+    });
+    if (!composicao.ok) return { ok: false, erro: composicao.erro };
+
     if (!id) {
-      const produto = await prisma.produto.create({ data: dados });
+      const produto = await prisma.$transaction(async (tx) => {
+        const criado = await tx.produto.create({ data: dados });
+        await gravarComposicaoDoCadastro(criado.id, composicao, tx);
+        return criado;
+      });
 
       // Fotos do painel de imagens (ja padronizadas, no lote temporario): saem do lote
       // para a pasta do produto, que so agora tem nome (o SKU). Como os documentos abaixo,
@@ -646,7 +665,11 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       if (!movida.ok) return { ok: false, erros: { sku: movida.erro } };
     }
 
-    const produto = await prisma.produto.update({ where: { id }, data: dados });
+    const produto = await prisma.$transaction(async (tx) => {
+      const salvo = await tx.produto.update({ where: { id }, data: dados });
+      await gravarComposicaoDoCadastro(id, composicao, tx);
+      return salvo;
+    });
 
     // Fotos: o painel (ja padronizado, no lote temporario) vira o que o produto tem. A renomeacao da
     // pasta veio antes, entao `produto.sku` ja e o nome da pasta certa. Diferente do cadastro novo, o
@@ -1370,4 +1393,18 @@ async function gravarConcorrentesRascunho(produto, formData) {
   await prisma.produtoConcorrente.deleteMany({
     where: { produtoId: produto.id, id: { notIn: idsMantidos } },
   });
+}
+
+/**
+ * A busca do "Adicionar outro item" da aba Composicao. Do navegador vem so o texto e os ids a excluir;
+ * quem decide o que pode ser peca e `pecasParaKit` (simples, Conferido e vinculado ao Bling).
+ */
+export async function buscarPecasParaKit(termo, excluir = []) {
+  try {
+    const { itens, barrados } = await pecasParaKit(termo, excluir);
+    return { ok: true, itens, barrados };
+  } catch (erro) {
+    console.error("[composicao] busca de pecas", erro);
+    return { ok: false, erro: "Não foi possível buscar os produtos. Tente de novo." };
+  }
 }

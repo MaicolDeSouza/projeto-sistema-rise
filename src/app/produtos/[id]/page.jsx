@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { separarCanais } from "@/lib/canais";
 import { urlDe } from "@/lib/arquivos";
 import { config } from "@/lib/integracoes/config";
+import { lerPecasDoKit } from "@/lib/composicaoBanco";
 import { listarFornecedores } from "@/app/produtos/acoes";
 import PageHeader from "@/components/ui/PageHeader";
 import FormularioProduto from "@/components/produtos/FormularioProduto";
@@ -45,6 +46,17 @@ export default async function EditarProdutoPage({ params, searchParams }) {
 
   if (!registro) notFound();
 
+  // As pecas do kit, para a aba Composicao. So as colunas que a aba mostra: Decimal nao atravessa a
+  // fronteira servidor/cliente.
+  const pecas = registro.tipo === "COMPOSICAO" ? await lerPecasDoKit(registro.id) : [];
+  const composicao = pecas.map((peca) => ({
+    componenteId: peca.componenteId,
+    sku: peca.componente.sku,
+    tituloBase: peca.componente.tituloBase,
+    estoque: peca.componente.estoque,
+    quantidade: peca.quantidade,
+  }));
+
   // Decimal do Prisma nao atravessa a fronteira servidor/cliente.
   const produto = {
     id: registro.id,
@@ -56,6 +68,8 @@ export default async function EditarProdutoPage({ params, searchParams }) {
     descricaoBase: registro.descricaoBase,
     localizacao: registro.localizacao,
     unidade: registro.unidade ?? "UN",
+    tipo: registro.tipo,
+    composicao,
     ean: registro.ean,
     garantiaMeses: registro.garantiaMeses ?? "",
     urlLojaIntegrada: registro.urlLojaIntegrada,

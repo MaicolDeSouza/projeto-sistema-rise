@@ -246,6 +246,49 @@ try {
   conferir("resolver pecas do kit pelo blingId: as duas achadas, na ordem do Bling, sem faltar nenhuma", resolvido, { pecas: [{ componenteId: b.id, quantidade: 2 }, { componenteId: a.id, quantidade: 1 }], faltam: [] });
   conferir("kit sem pecas no Bling: erro, nada a gravar", Boolean((await resolverPecasDoKit({ estrutura: { componentes: [] } })).erro), true);
 
+  // --- Tarefa 5: cadastro (tipo + composicao do formulario), na ordem que o salvarProduto usa ---
+  // `salvarProduto` chama `revalidatePath` (so existe dentro do Next): a regra mora em composicaoBanco e e
+  // testada aqui; a acao so a chama antes de gravar e grava na mesma transacao.
+  const { gravarComposicaoDoCadastro, pecasParaKit, prepararComposicaoDoCadastro } = await import("../src/lib/composicaoBanco.js");
+  const campoDe = (lista) => JSON.stringify(lista);
+
+  const preparoNovo = await prepararComposicaoDoCadastro({
+    produtoId: null,
+    tipo: "COMPOSICAO",
+    campo: campoDe([{ componenteId: b.id, quantidade: 1 }, { componenteId: c.id, quantidade: "2" }]),
+  });
+  conferir("cadastro de kit novo com 2 pecas: aceito, quantidade em texto vira numero", [preparoNovo.ok, preparoNovo.itens], [true, [{ componenteId: b.id, quantidade: 1 }, { componenteId: c.id, quantidade: 2 }]]);
+  const kit3 = await prisma.$transaction(async (tx) => {
+    const criado = await tx.produto.create({ data: { sku: "ZZ-KIT-K3", tituloBase: "Kit do cadastro", tipo: "COMPOSICAO" } });
+    await gravarComposicaoDoCadastro(criado.id, preparoNovo, tx);
+    return criado;
+  });
+  conferir("kit criado: grava as pecas e o estoque calculado (B 28/1, C 9/2 -> 4)", [(await lerPecasDoKit(kit3.id)).map((p) => [p.componente.sku, p.quantidade]), await estoqueDe(kit3.id)], [[["ZZ-KIT-B2", 1], ["ZZ-KIT-C3", 2]], 4]);
+
+  const comNaoConferida = await prepararComposicaoDoCadastro({ produtoId: null, tipo: "COMPOSICAO", campo: campoDe([{ componenteId: b.id, quantidade: 1 }, { componenteId: naoConferida.id, quantidade: 1 }]) });
+  conferir("peca nao conferida no cadastro: recusa com o sku", [comNaoConferida.ok, (comNaoConferida.erro ?? "").includes("ZZ-KIT-N4")], [false, true]);
+  conferir("uma peca so, quantidade 1: recusa (kit de uma unidade e o proprio produto)", (await prepararComposicaoDoCadastro({ produtoId: null, tipo: "COMPOSICAO", campo: campoDe([{ componenteId: b.id, quantidade: 1 }]) })).ok, false);
+  conferir("kit novo sem o campo composicao: recusa pedindo as pecas", (await prepararComposicaoDoCadastro({ produtoId: null, tipo: "COMPOSICAO", campo: null })).ok, false);
+  conferir("JSON quebrado: recusa", (await prepararComposicaoDoCadastro({ produtoId: null, tipo: "COMPOSICAO", campo: "[{" })).ok, false);
+  conferir("kit consigo mesmo como peca: recusa", (await prepararComposicaoDoCadastro({ produtoId: kit3.id, tipo: "COMPOSICAO", campo: campoDe([{ componenteId: kit3.id, quantidade: 1 }, { componenteId: b.id, quantidade: 1 }]) })).ok, false);
+  conferir("kit gravado, formulario sem tipo nem composicao (aberto antes do campo): mantem as pecas", await prepararComposicaoDoCadastro({ produtoId: kit3.id, campo: null }), { ok: true, tipo: "COMPOSICAO", itens: null });
+  conferir("peca A (usada nos kits K1 e K2) virando kit: recusa dizendo os kits", (await prepararComposicaoDoCadastro({ produtoId: a.id, tipo: "COMPOSICAO", campo: campoDe([{ componenteId: b.id, quantidade: 2 }]) })).erro?.includes("ZZ-KIT-K1"), true);
+  conferir("produto simples sem o campo tipo: continua simples, lista vazia (nada a apagar)", await prepararComposicaoDoCadastro({ produtoId: c.id, campo: null }), { ok: true, tipo: "SIMPLES", itens: [] });
+
+  const paraSimples = await prepararComposicaoDoCadastro({ produtoId: kit3.id, tipo: "SIMPLES", campo: campoDe([{ componenteId: b.id, quantidade: 1 }]) });
+  await prisma.$transaction(async (tx) => {
+    await tx.produto.update({ where: { id: kit3.id }, data: { tipo: paraSimples.tipo } });
+    await gravarComposicaoDoCadastro(kit3.id, paraSimples, tx);
+  });
+  conferir("kit trocado para Simples: as pecas saem (a lista enviada e ignorada) e as pecas continuam existindo", [await prisma.produtoComponente.count({ where: { kitId: kit3.id } }), (await prisma.produto.findUnique({ where: { id: b.id } }))?.sku], [0, "ZZ-KIT-B2"]);
+
+  // --- Tarefa 5: busca de pecas da aba Composicao ---
+  const busca = await pecasParaKit("zz-kit-", [a.id]);
+  const achados = busca.itens.map((p) => p.sku);
+  conferir("busca por sku sem caixa: so simples, conferidas e com Bling; a excluida fica de fora", [achados.includes("ZZ-KIT-B2"), achados.includes("ZZ-KIT-C3"), achados.includes("ZZ-KIT-A1"), achados.includes("ZZ-KIT-N4"), achados.includes("ZZ-KIT-S5"), achados.includes("ZZ-KIT-K1")], [true, true, false, false, false, false]);
+  conferir("busca que so acha produto barrado: devolve o motivo", await pecasParaKit("ZZ-KIT-N4"), { itens: [], barrados: [{ sku: "ZZ-KIT-N4", tituloBase: "Peca ZZ-KIT-N4", motivo: "não está conferido" }] });
+  conferir("busca com menos de 2 letras: vazia, sem consultar", await pecasParaKit("z"), { itens: [], barrados: [] });
+
   // --- apagar o kit leva as linhas de composicao, nao as pecas ---
   await prisma.produto.delete({ where: { id: kit2.id } });
   conferir("apagar o kit2 apaga as linhas dele e a peca A fica", [await prisma.produtoComponente.count({ where: { kitId: kit2.id } }), (await prisma.produto.findUnique({ where: { id: a.id } }))?.sku], [0, "ZZ-KIT-A1"]);

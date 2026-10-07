@@ -37,6 +37,7 @@ import { medidasDaDescricao } from "@/lib/medidas";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import { indisponivel } from "@/lib/estoqueDoConcorrente";
 import BuscarPorCodigo from "./BuscarPorCodigo";
+import Composicao from "./Composicao";
 import Concorrentes from "./Concorrentes";
 import EditorDescricao from "./EditorDescricao";
 import Fornecedores from "./Fornecedores";
@@ -67,6 +68,8 @@ import {
 
 const ABAS = [
   { id: "caracteristicas", rotulo: "Características" },
+  // So aparece no produto "Com composicao" (kit); fica montada e escondida como as outras.
+  { id: "composicao", rotulo: "Composição" },
   { id: "descricao", rotulo: "Descrição" },
   { id: "fornecedores", rotulo: "Fornecedores / Concorrentes" },
   { id: "documentos", rotulo: "Documentos técnicos" },
@@ -1625,6 +1628,13 @@ export default function FormularioProduto({
   const router = useRouter();
   const [aba, setAba] = useState("caracteristicas");
   const [aberturaDocumentos, setAberturaDocumentos] = useState(0);
+  // Tipo do produto e pecas do kit: estado da tela (a aba Composicao edita em memoria, e so o Salvar grava).
+  // Controlados, e nao `defaultValue`: o tipo decide quais abas aparecem, e a remontagem dos campos
+  // ("Clonar a partir de um codigo", IA) nao pode trocar o tipo nem perder as pecas.
+  const [tipo, setTipo] = useState(produto?.tipo ?? "SIMPLES");
+  const [pecas, setPecas] = useState(() => produto?.composicao ?? []);
+  // Trocar um kit com pecas para Simples apaga as pecas no Salvar: a tela pergunta antes.
+  const [confirmarSimples, setConfirmarSimples] = useState(false);
   const [alterado, setAlterado] = useState(false);
   const [erroAcao, setErroAcao] = useState(null);
   const formulario = useRef(null);
@@ -2426,6 +2436,13 @@ export default function FormularioProduto({
         name="fornecedoresRascunho"
         value={JSON.stringify(fornecedoresRascunho)}
       />
+      {/* Pecas do kit (aba Composicao). So o id e a quantidade: o servidor le o resto do banco. No tipo
+          Simples o servidor ignora a lista e apaga as pecas gravadas. */}
+      <input
+        type="hidden"
+        name="composicao"
+        value={JSON.stringify(pecas.map((peca) => ({ componenteId: peca.componenteId, quantidade: peca.quantidade })))}
+      />
       {/* Concorrentes adicionados antes de o produto existir (ver Concorrentes.jsx). */}
       <input
         type="hidden"
@@ -2543,6 +2560,62 @@ export default function FormularioProduto({
                 aoMudarValor={setPrecoVendaTexto}
                 usos={usos}
               />
+              {/* Tipo no lugar onde ficava a Unidade (pedido do dono em 07/10/2026); a Unidade foi para
+                  depois da Situacao. */}
+              <div>
+                <Campo nome="tipo" rotulo="Tipo">
+                  <select
+                    id="tipo"
+                    name="tipo"
+                    value={tipo}
+                    onChange={(evento) => {
+                      const novoTipo = evento.target.value;
+                      if (novoTipo === "SIMPLES" && pecas.length > 0) {
+                        setConfirmarSimples(true);
+                        return;
+                      }
+                      setTipo(novoTipo);
+                      if (novoTipo === "COMPOSICAO") setAba("composicao");
+                    }}
+                    className={`${CLASSE_CAMPO} border-borda focus:border-acento`}
+                  >
+                    <option value="SIMPLES">Simples</option>
+                    <option value="COMPOSICAO">Com composição</option>
+                  </select>
+                </Campo>
+                {confirmarSimples && (
+                  <div className="mt-2 rounded border border-amber-300 bg-amber-50 p-2.5 text-[13px] text-amber-900">
+                    <p>
+                      {pecas.length === 1 ? "A peça do kit será removida" : `As ${pecas.length} peças do kit serão removidas`} ao
+                      salvar.
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTipo("SIMPLES");
+                          setPecas([]);
+                          setConfirmarSimples(false);
+                          setAlterado(true);
+                          if (aba === "composicao") setAba("caracteristicas");
+                        }}
+                        className="rounded bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                      >
+                        Trocar para Simples
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmarSimples(false)}
+                        className="rounded border border-amber-300 px-2.5 py-1 text-xs hover:bg-amber-100"
+                      >
+                        Manter com composição
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Interruptor nome="ativo" inicial={inicial?.ativo ?? true} />
               <Campo nome="unidade" rotulo="Unidade">
                 <select
                   id="unidade"
@@ -2557,8 +2630,6 @@ export default function FormularioProduto({
                   ))}
                 </select>
               </Campo>
-
-              <Interruptor nome="ativo" inicial={inicial?.ativo ?? true} />
               <LinkLojaIntegrada
                 inicial={v("urlLojaIntegrada")}
                 dominio={dominioLojaIntegrada}
@@ -2612,7 +2683,7 @@ export default function FormularioProduto({
         {/* ---------- Abas ---------- */}
         <Card className="p-0">
           <div className="flex overflow-x-auto border-b border-borda">
-            {ABAS.map((item) => (
+            {ABAS.filter((item) => item.id !== "composicao" || tipo === "COMPOSICAO").map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -2719,6 +2790,15 @@ export default function FormularioProduto({
               dono em 16/09/2026; o certificado de homologacao continua separado:
               anda com o numero, e o Mercado Livre pede em algumas categorias.
             */}
+            <div className={aba === "composicao" && tipo === "COMPOSICAO" ? "" : "hidden"}>
+              <Composicao
+                pecas={pecas}
+                setPecas={setPecas}
+                produtoId={produto?.id ?? null}
+                aoAlterar={() => setAlterado(true)}
+              />
+            </div>
+
             <div className={aba === "documentos" ? "grid gap-5 sm:grid-cols-2" : "hidden"}>
               {novo ? (
                 <DocumentoTemporario
