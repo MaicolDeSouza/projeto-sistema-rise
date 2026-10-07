@@ -69,6 +69,10 @@ const texto = (valor) => {
   return limpo || null;
 };
 
+// Marca sem acento e em maiusculas, dos dois lados: "Arduíno" no Rise e "Arduino" na LI sao a mesma
+// marca (o envio acha uma pela outra), e comparar com acento deixaria o selo aceso para sempre.
+const marcaNormalizada = (valor) => texto(valor)?.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase() ?? null;
+
 const soDigitos = (valor) => texto(String(valor ?? "").replace(/\D/g, ""));
 
 const positivo = (valor) => {
@@ -124,7 +128,7 @@ export function normalizarDoRiseLI(produto, rascunho, { frases = [], documentos 
     altura: medida(p.alturaCm),
     largura: medida(p.larguraCm),
     comprimento: medida(p.comprimentoCm),
-    marca: texto(r.marca)?.toUpperCase() ?? null,
+    marca: marcaNormalizada(r.marca),
     categorias: idsOrdenados(r.categorias),
     video: texto(r.videoUrl),
     destaque: Boolean(r.destaque),
@@ -151,7 +155,7 @@ export function normalizarDaLI(produtoLI, seo, { marcaNome = null } = {}) {
     altura: medida(l.altura),
     largura: medida(l.largura),
     comprimento: medida(l.profundidade),
-    marca: texto(marcaNome)?.toUpperCase() ?? null,
+    marca: marcaNormalizada(marcaNome),
     categorias: idsOrdenados((l.categorias ?? []).map(idDaUri)),
     video: texto(l.url_video_youtube),
     destaque: Boolean(l.destaque),
