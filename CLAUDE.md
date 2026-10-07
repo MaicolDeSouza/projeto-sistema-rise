@@ -2443,6 +2443,12 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
 
 ### Fluxos
 
+- **Descrição (pedido do dono em 07/10/2026):** é sempre a do **cadastro do produto** (`descricaoBase`); o anúncio
+  não a edita (a aba Descrição é só leitura, com "Editar no produto"). Vai com **fonte 16** e **títulos em negrito** (a
+  1ª linha em maiúsculas e as linhas que terminam em dois-pontos, como "Especificações técnicas:" e "Itens inclusos:
+  (Cód:...)"). A seção **"Documentos / Arquivos para download:"** entra logo abaixo de "Especificações técnicas:"; sem
+  ela, acima de "Garantia:"; sem as duas, no fim (só com `APP_URL_PUBLICA`). O bloco automático de Especificações e a
+  prévia separada saíram. A formatação não acende o selo (a comparação é pelo texto).
 - **Vínculo:** a primeira abertura do pop-up de um produto Conferido que já existe na LI grava `idExterno`, `urlExterna` e o
   link em `Produto.urlLojaIntegrada`; slug, categorias e destaque **vêm da loja** para o rascunho.
 - **Sincronizar** (etapas: trava, leitura, marca, produto, seo, slug, gravação): só os campos diferentes; marca achada sem
