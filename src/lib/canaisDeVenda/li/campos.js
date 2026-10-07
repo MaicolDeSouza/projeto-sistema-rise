@@ -27,6 +27,7 @@ export const CAMPOS_DE_ENVIO_LI = [
   { id: "altura", rotulo: "Altura (cm)" },
   { id: "largura", rotulo: "Largura (cm)" },
   { id: "comprimento", rotulo: "Comprimento (cm)" },
+  { id: "preco", rotulo: "Preço" },
   { id: "marca", rotulo: "Marca" },
   { id: "categorias", rotulo: "Categorias" },
   { id: "video", rotulo: "Vídeo (YouTube)" },
@@ -86,6 +87,12 @@ const peso = (valor) => {
   return numero === null ? null : Number(numero.toFixed(3));
 };
 
+// Preco em reais com 2 casas: a LI devolve "49.0000", e 49 no Rise e o mesmo preco.
+const dinheiro = (valor) => {
+  const numero = positivo(valor);
+  return numero === null ? null : Number(numero.toFixed(2));
+};
+
 // A LI guarda medida em cm INTEIRO (decimal da 400): sobe para o inteiro de cima, como o
 // envio fara. O arredondamento a 3 casas antes evita 12.000000001 virar 13.
 const medida = (valor) => {
@@ -129,6 +136,9 @@ export function normalizarDoRiseLI(produto, rascunho, { documentos = [] } = {}) 
     altura: medida(p.alturaCm),
     largura: medida(p.larguraCm),
     comprimento: medida(p.comprimentoCm),
+    // O preco de venda (o NORMAL) vai pelo Sincronizar desde 07/10/2026 (decisao do dono: o mesmo Sincronizar ja
+    // muda o preco no Bling). O estoque continua so pelo Bling.
+    preco: dinheiro(p.precoVenda),
     marca: marcaNormalizada(r.marca),
     categorias: idsOrdenados(r.categorias),
     video: texto(r.videoUrl),
@@ -163,6 +173,7 @@ export function normalizarDaLI(produtoLI, seo, { marcaNome = null } = {}) {
     altura: medida(l.altura),
     largura: medida(l.largura),
     comprimento: medida(l.profundidade),
+    preco: dinheiro(l.preco_cheio),
     marca: marcaNormalizada(marcaNome),
     categorias: idsOrdenados((l.categorias ?? []).map(idDaUri)),
     video: texto(l.url_video_youtube),

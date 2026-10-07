@@ -2439,8 +2439,13 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
 
 ### O que o dono decidiu (06/10/2026)
 
-- **O Bling continua dono de ESTOQUE, PREÇO e PEDIDOS na LI** (canal `Loja_Integrada` 203478870, confirmado pelo dono).
-  O Rise **nunca** escreve `produto_preco` nem `produto_estoque`.
+- **O Bling continua dono de ESTOQUE e PEDIDOS na LI** (canal `Loja_Integrada` 203478870, confirmado pelo dono).
+  O Rise **nunca** escreve `produto_estoque`. **O PREÇO passou para o Rise em 07/10/2026** (decisão do dono: o Bling não
+  mandava preço à LI, e o Sincronizar do Rise já muda o preço no Bling): o Sincronizar e o Cadastrar mandam o **preço de
+  venda** (`precoVenda`, o normal) por `PUT /produto_preco/{id}`, lendo antes o que a LI tem e devolvendo `custo`,
+  `promocional` e `sob_consulta` como estavam (o PUT pode zerar chave ausente; não medido). O preço entra na comparação
+  (campo "Preço") e na assinatura; vazio no Rise não apaga. **Um preço só para tudo, escolha do dono:** o 100101 custava
+  R$ 38,90 no Rise e R$ 49,00 na loja (o preço da loja no vínculo do Bling), e o próximo Sincronizar o leva a 38,90.
 - **Só Produto Conferido** vincula, cadastra e sincroniza (conferido no servidor em toda ação).
 - **Fotos e documentos esperam a VPS** (a LI só aceita imagem por URL pública). O bloco "Documentos" da descrição está
   pronto e desligado enquanto `APP_URL_PUBLICA` estiver vazio.
@@ -2549,7 +2554,7 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   Sincronizar do Rise mandou `PATCH` com o preço 15 → 16; 23 minutos depois a LI seguia com `preco_cheio` vazio). O preço
   do VÍNCULO com a loja (`/produtos/lojas`) é outro número e não acompanhou: continuou 15 com o produto em 16. Ainda não
   medido: se o Bling manda o preço quando o preço DO VÍNCULO muda, ou se a integração da LI no Bling está com o envio de
-  preço desligado (conferir na tela de configuração da integração). Até lá, o preço da LI não chega pelo Bling. ZZ-TESTE-BLING
+  preço desligado (conferir na tela de configuração da integração). Por isso o preço passou a ir pelo Rise. ZZ-TESTE-BLING
   (404349127) e o vínculo ficam até o dono apagar. selo "!" = a assinatura (Rise + rascunho +
   documentos) mudou desde o último envio. **A LI regrava `<br>` como `<br />\r\n`**: `htmlParaTexto(..., { paragrafos:
   true })` trata quebra crua do HTML como espaço, senão a descrição ficava "diferente" para sempre.

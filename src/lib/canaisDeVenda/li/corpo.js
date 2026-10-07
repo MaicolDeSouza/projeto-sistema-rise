@@ -8,9 +8,9 @@ import { CAMPOS_QUE_LIMPAM_LI, TEXTO_DO_TIPO_PRODUCAO } from "./campos";
  * 07/10/2026 mandam aqui:
  * - `categorias: []` e `marca: null` explicitos APAGAM o que a LI tem; sem a chave, mantem.
  *   Por isso lista vazia no Rise nunca entra: fica o valor da propria LI.
- * - O PUT aceita as chaves so de leitura do GET, mas devolver `preco_cheio` e
- *   `estoque_quantidade` lidos segundos antes desfaria uma atualizacao do Bling (dono do preco
- *   e do estoque) feita no intervalo. Elas saem do corpo.
+ * - O PUT aceita as chaves so de leitura do GET, mas devolver `estoque_quantidade` lido segundos
+ *   antes desfaria uma atualizacao do Bling (dono do estoque) feita no intervalo, e o preco tem
+ *   recurso proprio (`/produto_preco/{id}`, ver `envio.js`). Elas saem do corpo.
  *
  * Slug e SEO nunca vao no PUT: o slug muda pelo /alias (com 301) e o SEO pelo /v1/seo/{id}
  * (o PUT do produto ignora os dois). Origem e tipo de producao tambem nao: a API nao os grava.

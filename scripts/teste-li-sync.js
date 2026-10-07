@@ -125,7 +125,7 @@ try {
 
   {
     console.log("\nRegras puras: campos, assinatura e diferencas");
-    conferir("campos de envio, na ordem, sem os fiscais so de leitura", CAMPOS_DE_ENVIO_LI.map((c) => c.id), ["nome", "descricao", "ncm", "gtin", "mpn", "peso", "altura", "largura", "comprimento", "marca", "categorias", "video", "destaque", "seoTitulo", "seoDescription"]);
+    conferir("campos de envio, na ordem, sem os fiscais so de leitura", CAMPOS_DE_ENVIO_LI.map((c) => c.id), ["nome", "descricao", "ncm", "gtin", "mpn", "peso", "altura", "largura", "comprimento", "preco", "marca", "categorias", "video", "destaque", "seoTitulo", "seoDescription"]);
     conferir("campos so de leitura: origem e tipo de producao", CAMPOS_SO_LEITURA_LI.map((c) => c.id), ["origem", "tipoProducao"]);
     conferir("texto do tipo de producao e o medido na LI", TEXTO_DO_TIPO_PRODUCAO, { REVENDA: "Revenda", FABRICACAO_PROPRIA: "Fabricação própria" });
     conferir("tipo de producao da LI pelo texto", [TIPO_PRODUCAO_DA_LI("Revenda"), TIPO_PRODUCAO_DA_LI("Fabricação própria"), TIPO_PRODUCAO_DA_LI("outro"), TIPO_PRODUCAO_DA_LI(null)], ["REVENDA", "FABRICACAO_PROPRIA", null, null]);
@@ -133,7 +133,7 @@ try {
     const rasc = { titulo: " CLP FX3U ", slug: "clp-fx3u", marca: "Mitsubishi", categorias: ["23983023", "5946305", "23983023"], destaque: false, videoUrl: null, seo: { title: "t".repeat(80), description: "" } };
     const rise = normalizarDoRiseLI(produtoRise, rasc, { frases: [], documentos: [] });
     conferir("slug do Rise sai SEMPRE do nome, nao do guardado", normalizarDoRiseLI(produtoRise, { ...rasc, titulo: "Relé 5V", slug: "outro" }, {}).slug, "rele-5v");
-    conferir("rise normalizado", rise, { nome: "CLP FX3U", slug: "clp-fx3u", descricao: "Texto", ncm: "85371020", gtin: "7894972605270", mpn: null, peso: 0.5, altura: 3, largura: 12, comprimento: 7, marca: "MITSUBISHI", categorias: ["23983023", "5946305"], video: null, destaque: false, seoTitulo: "t".repeat(70), seoDescription: null, origem: 0, tipoProducao: "REVENDA" });
+    conferir("rise normalizado", rise, { nome: "CLP FX3U", slug: "clp-fx3u", descricao: "Texto", ncm: "85371020", gtin: "7894972605270", mpn: null, peso: 0.5, altura: 3, largura: 12, comprimento: 7, preco: null, marca: "MITSUBISHI", categorias: ["23983023", "5946305"], video: null, destaque: false, seoTitulo: "t".repeat(70), seoDescription: null, origem: 0, tipoProducao: "REVENDA" });
     const produtoLI = { id: 1, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<p>Texto</p>", ncm: "8537.10.20", gtin: "7894972605270", mpn: null, peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: "0", production_type: TEXTO_DO_TIPO_PRODUCAO.REVENDA, seo_title: "", seo_description: "" };
     const li = normalizarDaLI(produtoLI, { title: "t".repeat(70), description: "" }, { marcaNome: "Mitsubishi" });
     conferir("LI normalizada igual ao Rise", li, rise);
@@ -669,6 +669,48 @@ try {
     conferir("pai que sumiu da arvore nao entra", comAncestrais(["3"], arvore.filter((c) => c.id !== "1")).sort(), ["2", "3"]);
     const pedido = montarPedidoDeCategorias({ titulo: "Placa Uno R3", marca: "GENERICA", descricao: "A placa faz X.", categorias: arvore });
     conferir("o pedido leva o produto e a arvore com os ids", [pedido.includes("Placa Uno R3"), pedido.includes("A placa faz X."), pedido.includes("3: Embarcados > Arduino > Placas Arduino")], [true, true, true]);
+  }
+
+  {
+    console.log("\nPreço: o Rise manda o preço cheio pelo /produto_preco (o estoque segue com o Bling)");
+    await limpar();
+    conferir("preço é campo de envio", CAMPOS_DE_ENVIO_LI.find((c) => c.id === "preco")?.rotulo, "Preço");
+    conferir("Rise: preço de venda com 2 casas", normalizarDoRiseLI({ precoVenda: "16.5" }, {}).preco, 16.5);
+    conferir("Rise sem preço: null", normalizarDoRiseLI({ precoVenda: null }, {}).preco, null);
+    conferir("LI: preço cheio do detalhe ('49.0000' vira 49)", normalizarDaLI({ preco_cheio: "49.0000" }, null).preco, 49);
+    conferir("preço igual com formatos diferentes não é diferença", diferencasLI({ preco: 49 }, { preco: 49 }).some((d) => d.campo === "preco"), false);
+    conferir("preço vazio no Rise não apaga o da loja", diferencasLI({ preco: null }, { preco: 10 }).find((d) => d.campo === "preco")?.tipo, "vazioNoRise");
+    conferir("preço na loja vazio com preço no Rise é diferença", diferencasLI({ preco: 16 }, { preco: null }).find((d) => d.campo === "preco")?.tipo, "diferente");
+
+    const pp = await prisma.produto.create({ data: { sku: "ZZ-LI-20", tituloBase: "Placa", ncm: "85364900", conferido: true, precoVenda: 16 } });
+    const liP = criarLojaIntegradaFalsa({ produtos: [{ id: 801, sku: "ZZ-LI-20", nome: "Placa", apelido: "/placa", ncm: "8536.49.00", seo: "/api/v1/seo/81", preco_cheio: "15.0000", preco_custo: "5.0000", preco_promocional: null, estoque_quantidade: 6 }], seos: { 81: { title: "T", description: "D" } } });
+    await lerParaPopupLI(pp.id, liP); // vincula
+    const anP = await anuncioLIDoProduto(pp.id);
+    await salvarRascunhoLI(anP.id, { ...rascunhoDoAnuncio(anP), titulo: "Placa", seo: { title: "T", description: "D" } });
+    const envioP = await sincronizarProdutoLI(pp.id, liP);
+    const naLIP = liP.produtos().find((p) => p.id === 801);
+    conferir("sincronizar manda só o preço que mudou", [envioP.ok, envioP.alterados.map((a) => [a.campo, a.de, a.para])], [true, [["preco", 15, 16]]]);
+    conferir("preço gravado; custo e estoque intactos", [Number(naLIP.preco_cheio), naLIP.preco_custo, naLIP.estoque_quantidade], [16, "5.0000", 6]);
+    conferir("preço não passa pelo PUT do produto nem pelo estoque", [liP.chamadas.some((c) => c.metodo === "PUT" && c.caminho === "/produto/801"), liP.chamadas.some((c) => String(c.caminho).startsWith("/produto_estoque"))], [false, false]);
+    conferir("lê o preço antes de gravar e guarda cópia", [liP.chamadas.some((c) => c.metodo === "GET" && c.caminho === "/produto_preco/801"), await prisma.copiaProdutoCanal.count({ where: { produtoId: pp.id } })], [true, 1]);
+    const putsP = liP.chamadas.filter((c) => c.metodo === "PUT").length;
+    conferir("segunda sincronização não manda o preço de novo", [(await sincronizarProdutoLI(pp.id, liP)).alterados, liP.chamadas.filter((c) => c.metodo === "PUT").length], [[], putsP]);
+
+    // Falha no PUT do preço: etapa "preco", anúncio em ERRO, assinatura intacta.
+    await prisma.produto.update({ where: { id: pp.id }, data: { precoVenda: 17 } });
+    const hashAntes = (await anuncioLIDoProduto(pp.id)).hashConteudo;
+    const liFalha = criarLojaIntegradaFalsa({ produtos: [{ ...naLIP, seo: "/api/v1/seo/81" }], seos: { 81: { title: "T", description: "D" } }, falhas: { "PUT /produto_preco/801": 500 } });
+    const falhaP = await sincronizarProdutoLI(pp.id, liFalha);
+    const anFalha = await anuncioLIDoProduto(pp.id);
+    conferir("falha no preço: etapa preco, ERRO, assinatura intacta", [falhaP.ok, falhaP.etapa, anFalha.status, anFalha.hashConteudo === hashAntes], [false, "preco", "ERRO", true]);
+
+    // Cadastro com preço: POST do produto e, em seguida, o preço.
+    const pn = await prisma.produto.create({ data: { sku: "ZZ-LI-21", tituloBase: "Novo com preço", descricaoBase: "A placa nova na loja.", ncm: "85364900", conferido: true, precoVenda: 29.9 } });
+    const liN = criarLojaIntegradaFalsa({});
+    const cadN = await cadastrarNaLI(pn.id, liN);
+    const novoN = liN.produtos().at(-1);
+    conferir("preço na tela em reais", /^R\$\s16,00$/.test(valorParaTela("preco", 16)), true);
+    conferir("cadastrar grava o preço depois do POST", [cadN.ok, Number(novoN.preco_cheio), liN.chamadas.findIndex((c) => c.metodo === "POST") < liN.chamadas.findIndex((c) => c.metodo === "PUT" && String(c.caminho).startsWith("/produto_preco"))], [true, 29.9, true]);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

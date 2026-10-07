@@ -285,6 +285,26 @@ export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias
 
     if (metodo === "PUT" && recurso === "produto" && id && !sub) return produto ? putDoProduto(produto, corpo ?? {}) : naoAchou;
 
+    // Preco: recurso proprio (`/produto_preco/{id}`), guardado nas chaves `preco_*` do produto. O PUT e
+    // pessimista: chave de preco ausente vira null (a LI real nao foi medida nisso), entao o envio tem
+    // que devolver custo e promocional lidos.
+    if (recurso === "produto_preco" && id) {
+      const dono = tabelaProdutos.find((p) => String(p.id) === String(id));
+      if (!dono) return naoAchou;
+      const atual = () => ({ cheio: dono.preco_cheio ?? null, custo: dono.preco_custo ?? null, promocional: dono.preco_promocional ?? null, sob_consulta: Boolean(dono.preco_sob_consulta), id: dono.id + 1, produto: `/api/v1/produto/${dono.id}`, resource_uri: `/api/v1/produto_preco/${dono.id}` });
+      if (metodo === "GET") return resposta(200, atual());
+      if (metodo === "PUT") {
+        for (const chave of Object.keys(corpo ?? {})) {
+          if (!["cheio", "custo", "promocional", "sob_consulta"].includes(chave)) throw new Error(`LI falsa: chave desconhecida no PUT do preco: ${chave}`);
+        }
+        dono.preco_cheio = corpo?.cheio ?? null;
+        dono.preco_custo = corpo?.custo ?? null;
+        dono.preco_promocional = corpo?.promocional ?? null;
+        dono.preco_sob_consulta = Boolean(corpo?.sob_consulta);
+        return resposta(200, atual());
+      }
+    }
+
     if (metodo === "PUT" && recurso === "seo" && id) {
       const seo = tabelaSeo.get(String(id));
       if (!seo) return naoAchou;

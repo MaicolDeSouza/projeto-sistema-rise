@@ -9,6 +9,7 @@
 const LIMITE_DO_VALOR_NA_FRASE = 60;
 
 const NUMERO = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
+const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 const SUFIXO_DO_CAMPO = { peso: " kg", altura: " cm", largura: " cm", comprimento: " cm" };
 
@@ -23,6 +24,7 @@ export function valorParaTela(campo, valor) {
   if (Array.isArray(valor)) return valor.length ? valor.join(", ") : null;
   if (typeof valor === "boolean") return valor ? "sim" : "nao";
   if (campo === "tipoProducao") return ROTULO_DO_TIPO_PRODUCAO[valor] ?? String(valor);
+  if (campo === "preco" && typeof valor === "number" && Number.isFinite(valor)) return MOEDA.format(valor);
   if (typeof valor === "number" && Number.isFinite(valor)) return `${NUMERO.format(valor)}${SUFIXO_DO_CAMPO[campo] ?? ""}`;
   return String(valor);
 }

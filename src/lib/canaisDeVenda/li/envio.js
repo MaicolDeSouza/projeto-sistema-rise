@@ -14,7 +14,9 @@ import { validarRascunhoLI } from "./validacao";
  *
  * Regras que vem da spec e da medicao de 07/10/2026:
  * - so Produto Conferido; as duas travas (`exigirEscrita`) ANTES da primeira escrita;
- * - nunca preco nem estoque (o Bling e o dono); nunca origem nem tipo de producao (a API nao grava);
+ * - nunca estoque (o Bling e o dono); nunca origem nem tipo de producao (a API nao grava);
+ * - o preco de venda vai pelo /produto_preco/{id} (decisao do dono em 07/10/2026: o Sincronizar do Rise ja muda
+ *   o preco no Bling, e o Bling nao mandava preco a LI). So o `cheio`: custo e promocional voltam como a LI tem;
  * - o PUT leva o produto inteiro, mesclado sobre o GET, e antes dele o GET vai para CopiaProdutoCanal;
  * - SEO pelo /seo/{id}, so quando mudou;
  * - a URL de produto que ja esta na loja NUNCA muda (decisao do dono em 07/10/2026: o Google ja a indexou):
@@ -25,7 +27,7 @@ import { validarRascunhoLI } from "./validacao";
 
 const CANAL = "LOJA_INTEGRADA";
 const COPIAS_GUARDADAS = 3;
-const CAMPOS_FORA_DO_PUT = new Set(["seoTitulo", "seoDescription"]);
+const CAMPOS_FORA_DO_PUT = new Set(["seoTitulo", "seoDescription", "preco"]);
 
 /// Falha com a mensagem pronta e a etapa em que o envio parou.
 class FalhaDoEnvio extends Error {
@@ -82,6 +84,22 @@ async function ler(etapa, chamada) {
 }
 
 const idDaUri = (uri) => String(uri ?? "").split("/").filter(Boolean).at(-1) ?? null;
+
+/**
+ * O preco cheio pelo /produto_preco/{id}: le o que a LI tem, guarda copia e devolve custo, promocional e
+ * "sob consulta" como estavam (o PUT pode zerar chave ausente; nao medido). Devolve o corpo enviado.
+ */
+async function gravarPreco(cliente, produtoId, idExterno, preco, alterados) {
+  const atual = await ler("preco", async () => {
+    const resposta = await cliente.get(`/produto_preco/${idExterno}`);
+    if (!resposta?.ok) throw new FalhaDoEnvio("preco", textoDaRecusa(resposta));
+    return resposta.dados ?? {};
+  });
+  await guardarCopia(produtoId, { produto_preco: atual }, alterados);
+  const corpo = { cheio: preco, custo: atual.custo ?? null, promocional: atual.promocional ?? null, sob_consulta: Boolean(atual.sob_consulta) };
+  await escrever("preco", () => cliente.put(`/produto_preco/${idExterno}`, corpo));
+  return corpo;
+}
 
 /** A marca pelo nome, sem caixa e sem acento; so cria (POST /marca) quando nao ha nenhuma igual. */
 async function garantirMarca(cliente, nome) {
@@ -145,7 +163,7 @@ function primeiroBloqueio(rascunho, produto) {
 
 /**
  * Sincronizar: o produto ja vinculado (`idExterno`) recebe do Rise os campos que mudaram. Etapas, em
- * ordem: trava, leitura, marca, produto, seo, gravacao. Falha depois da trava deixa o anuncio
+ * ordem: trava, leitura, marca, produto, seo, preco, gravacao. Falha depois da trava deixa o anuncio
  * em ERRO com a etapa, e a assinatura nao muda (o icone continua dizendo que ha o que enviar).
  */
 export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
@@ -210,6 +228,11 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
         const seo = { title: riseEnvio.seoTitulo ?? li.seoTitulo ?? "", description: riseEnvio.seoDescription ?? li.seoDescription ?? "" };
         await escrever("seo", () => cliente.put(`/seo/${idDaUri(detalhe.produto.seo)}`, seo));
         payload.seo = seo;
+      }
+
+      if (campos.has("preco")) {
+        estado.etapa = "preco";
+        payload.preco = await gravarPreco(cliente, produtoId, anuncio.idExterno, riseEnvio.preco, estado.alterados.filter((item) => item.campo === "preco"));
       }
 
       estado.etapa = "gravacao";
@@ -286,6 +309,10 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI()) {
         const seo = { title: riseEnvio.seoTitulo ?? "", description: riseEnvio.seoDescription ?? "" };
         await escrever("seo", () => cliente.put(`/seo/${idDaUri(criado.seo)}`, seo));
         payload.seo = seo;
+      }
+
+      if (riseEnvio.preco !== null) {
+        payload.preco = await gravarPreco(cliente, produtoId, idExterno, riseEnvio.preco, [{ campo: "preco", de: null, para: riseEnvio.preco }]);
       }
 
       await gravarSucesso(anuncio.id, produtoId, { assinatura: assinaturaLI(rise), payload, url, ativo: false, idExterno });

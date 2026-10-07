@@ -42,7 +42,7 @@ export default async function LojaIntegradaPage({ searchParams }) {
       <LinkDeVolta href="/canais-de-venda" rotulo="Canais de Venda" />
       <PageHeader
         titulo="Loja Integrada"
-        descricao="Conteúdo, SEO e dados fiscais dos produtos da loja própria, a partir dos produtos Conferidos. Estoque e preço continuam pelo Bling."
+        descricao="Conteúdo, preço, SEO e dados fiscais dos produtos da loja própria, a partir dos produtos Conferidos. O estoque continua pelo Bling."
         acao={
           <div className="flex flex-wrap gap-2">
             <Link href="/canais-de-venda/loja-integrada/novo" className={`${botao} bg-acento text-white hover:opacity-90`}>

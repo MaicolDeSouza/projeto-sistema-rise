@@ -41,6 +41,7 @@ const CAMPOS_DO_CONTEXTO = {
   alturaCm: true,
   larguraCm: true,
   comprimentoCm: true,
+  precoVenda: true,
   garantiaMeses: true,
   numeroHomologacao: true,
   videoUrl: true,
@@ -59,6 +60,7 @@ export async function contextoDoProduto(produtoId) {
     alturaCm: numero(p.alturaCm),
     larguraCm: numero(p.larguraCm),
     comprimentoCm: numero(p.comprimentoCm),
+    precoVenda: numero(p.precoVenda),
   };
 }
 

@@ -342,7 +342,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
       if (!montado.current) return;
       setMensagem(
         resultado.ok
-          ? { tipo: "ok", texto: "Produto ligado à Loja Integrada no Bling: o Bling passa a mandar estoque e preço e a receber os pedidos dele." }
+          ? { tipo: "ok", texto: "Produto ligado à Loja Integrada no Bling: o Bling passa a mandar o estoque e a receber os pedidos dele." }
           : { tipo: "erro", texto: resultado.erro ?? "O vínculo não foi criado." },
       );
       setBling(await chamar(vinculoBlingLI, produtoId));
@@ -357,7 +357,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   } else if (leitura?.ok && leitura.situacao === "nao_existe") {
     situacaoDaLoja = {
       tipo: "info",
-      texto: `O código ${leitura.sku} não está na Loja Integrada. "Cadastrar na LI" cria o produto INATIVO com este anúncio; preço e estoque chegam pelo Bling.`,
+      texto: `O código ${leitura.sku} não está na Loja Integrada. "Cadastrar na LI" cria o produto INATIVO com este anúncio e o preço do Rise; o estoque chega pelo Bling.`,
     };
   } else if (leitura?.vinculadoAgora) {
     situacaoDaLoja = { tipo: "ok", texto: `Vinculado agora pelo código (id ${leitura.idExterno}): as categorias e o destaque vieram da loja.` };

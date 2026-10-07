@@ -29,12 +29,12 @@ export function situacaoDoBling(bling) {
     case "ligado":
       return {
         tipo: "ok",
-        texto: `Bling: ligado à Loja Integrada (produto ${bling.codigo || "?"} na loja${bling.preco !== null && bling.preco !== undefined ? `, preço ${MOEDA.format(bling.preco)} no vínculo` : ""}). Estoque, preço e pedidos passam pelo Bling.`,
+        texto: `Bling: ligado à Loja Integrada (produto ${bling.codigo || "?"} na loja${bling.preco !== null && bling.preco !== undefined ? `, preço ${MOEDA.format(bling.preco)} no vínculo` : ""}). Estoque e pedidos passam pelo Bling; o preço vai pelo Sincronizar do Rise.`,
       };
     case "codigo_diferente":
-      return { tipo: "atencao", texto: `No Bling, este produto está ligado a OUTRO produto da Loja Integrada (${bling.codigo}): o estoque e o preço vão para ele. Corrija o vínculo no Bling.` };
+      return { tipo: "atencao", texto: `No Bling, este produto está ligado a OUTRO produto da Loja Integrada (${bling.codigo}): o estoque vai para ele. Corrija o vínculo no Bling.` };
     case "sem_vinculo":
-      return { tipo: "atencao", texto: "O produto está no Bling, mas sem o canal da Loja Integrada: estoque e preço não chegam à loja e os pedidos não entram no Bling. Ligue o produto à loja Loja_Integrada no Bling." };
+      return { tipo: "atencao", texto: "O produto está no Bling, mas sem o canal da Loja Integrada: o estoque não chega à loja e os pedidos não entram no Bling. Ligue o produto à loja Loja_Integrada no Bling." };
     case "sem_produto_no_bling":
       return { tipo: "atencao", texto: "O produto não está no Bling: é o Bling que controla o estoque e recebe os pedidos da Loja Integrada. Cadastre o produto no Bling e ligue-o à loja Loja_Integrada." };
     case "duplicado":
