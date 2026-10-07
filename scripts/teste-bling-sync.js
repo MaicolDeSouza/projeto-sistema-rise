@@ -2317,6 +2317,24 @@ try {
       conferir("enviar de novo: so a trava, sem depositos, sem POST e sem releitura", rotasDe(falso).slice(chamadasAntes), ["exigirEscrita ZZ-BS-K1"]);
     }
 
+    // --- Kit (composicao) importado como produto (07/10/2026): estoque VIRTUAL nao recebe ajuste ---
+    {
+      const virtual = await criarComPendentes("ZZ-BS-KITV", [["ENTRADA", 2]]);
+      const falsoVirtual = novoFalso({ produtos: [noBling("ZZ-BS-KITV", { formato: "E", estrutura: { tipoEstoque: "V", componentes: [] } })] });
+      const recusado = await enviarAjustesDeEstoque(virtual.id, falsoVirtual);
+      // `casaTexto` compara sem acento: a expressao vai sem acento tambem.
+      conferir(
+        "kit com estoque VIRTUAL: ok false com o motivo, nenhum POST /estoques e o ajuste segue pendente",
+        [recusado.ok, casaTexto(recusado.erro, /composicao \(kit\)/), postsDeEstoque(falsoVirtual).length, await marcados(virtual.id)],
+        [false, true, 0, [false]],
+      );
+
+      const fisico = await criarComPendentes("ZZ-BS-KITF", [["ENTRADA", 2]]);
+      const falsoFisico = novoFalso({ produtos: [noBling("ZZ-BS-KITF", { formato: "E", estrutura: { tipoEstoque: "F", componentes: [] } })] });
+      const enviado = await enviarAjustesDeEstoque(fisico.id, falsoFisico);
+      conferir("kit com estoque PROPRIO (F): o ajuste vai normalmente", [enviado.ok, postsDeEstoque(falsoFisico).length, await marcados(fisico.id)], [true, 1, [true]]);
+    }
+
     // --- BALANCO 12: operacao B, quantidade 12; a releitura traz o saldo VIRTUAL ---
     {
       const produto = await criarComPendentes("ZZ-BS-K2", [["BALANCO", 12]]);

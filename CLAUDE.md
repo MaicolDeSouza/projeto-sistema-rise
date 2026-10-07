@@ -214,8 +214,14 @@ o Docker Desktop travava ao abrir e o sistema ficava sem banco.
   propósito; esse caminho (plano + lotes) foi removido. Hoje: `GET /produtos?codigos[]=<código>`
   (só ativos), e recusa sem gravar nada quando o código é vazio ou não serve de SKU, quando o
   produto já existe aqui (pelo SKU sem caixa, ou pelo `blingId`; a janela dá o link para ele),
-  quando não há produto ATIVO com o código, quando há mais de um, ou quando é variação/composição
-  (só formato `S`). Importa com fotos e fornecedor em rascunho, e cria junto o `Anuncio` BLING com
+  quando não há produto ATIVO com o código, quando há mais de um, ou quando é variação (formato
+  `V`). **Composição (kit, formato `E`) é importada como produto comum** (pedido do dono em
+  07/10/2026; antes kit só existia no anúncio do Mercado Livre), sem a lista de peças, com o estoque
+  que o Bling calcula pelas peças; **só entra se TODAS as peças já existem no Rise** (pelo `blingId`
+  ou pelo código), senão recusa dizendo quais faltam ("o item 121503_z do kit 121503_10z não está
+  cadastrado no Rise"). E o envio de ajustes de estoque **recusa kit de estoque virtual** (só o de
+  estoque próprio, `estrutura.tipoEstoque` "F", recebe ajuste). Primeiro kit importado: o 990204.
+  Importa com fotos e fornecedor em rascunho, e cria junto o `Anuncio` BLING com
   `idExterno`: sem ele a lista oferece "Cadastrar no Bling" e duplicaria o item no ERP. Código
   com barra (`900314_8/conector`) não vira SKU, porque SKU é nome de pasta.
 - **Imagem do Bling é link do S3 que expira em uma semana** — por isso é baixada para

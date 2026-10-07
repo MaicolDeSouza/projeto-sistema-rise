@@ -140,6 +140,35 @@ async function lerFornecedorBling(bling) {
 const motivoDoBling = (status, dados) => dados?.error?.description ?? dados?.error?.message ?? `HTTP ${status}`;
 
 /**
+ * As pecas do kit que NAO existem no Rise (pedido do dono em 07/10/2026: kit so entra com todas as
+ * pecas ja cadastradas aqui). A estrutura do Bling so traz o id de cada peca: primeiro procura pelo
+ * `blingId` guardado; sem ele, le a peca no Bling para saber o codigo e procura pelo SKU (sem caixa).
+ * Devolve os codigos que faltam (ou o id, se nem o Bling disser o codigo), ou `erro` se a leitura de
+ * uma peca falhar (na duvida, nao importa) ou se o kit vier sem pecas.
+ */
+async function pecasQueFaltamNoRise(bling) {
+  const componentes = Array.isArray(bling.estrutura?.componentes) ? bling.estrutura.componentes : [];
+  if (componentes.length === 0) return { erro: "O kit não tem itens na composição do Bling. Nada foi importado." };
+
+  const pecas = [];
+  for (const componente of componentes) {
+    const idPeca = componente?.produto?.id;
+    if (await prisma.produto.findFirst({ where: { blingId: String(idPeca) }, select: { id: true } })) continue;
+
+    const leitura = await blingGet(`/produtos/${idPeca}`);
+    if (!leitura.ok || !leitura.dados?.data) {
+      return { erro: `Não foi possível ler um item do kit no Bling (id ${idPeca}): ${motivoDoBling(leitura.status, leitura.dados)}. Nada foi importado.` };
+    }
+    const codigoPeca = String(leitura.dados.data.codigo ?? "").trim();
+    const noRise = codigoPeca
+      ? await prisma.produto.findFirst({ where: { sku: { equals: codigoPeca, mode: "insensitive" } }, select: { id: true } })
+      : null;
+    if (!noRise) pecas.push(codigoPeca || `id ${idPeca} no Bling`);
+  }
+  return { pecas };
+}
+
+/**
  * Importa o produto do Bling com o codigo informado. Devolve `{ok: true, produtoId, sku, nome,
  * fornecedorBling, salvas, ampliadas, recusadas}` ou `{ok: false, erro, produtoId?}` (o `produtoId`
  * quando o produto ja existe aqui, para a tela levar ate ele).
@@ -148,7 +177,9 @@ const motivoDoBling = (status, dados) => dados?.error?.description ?? dados?.err
  * `dados/produtos`); produto que ja existe aqui pelo SKU (sem diferenciar caixa) ou pelo id do Bling;
  * codigo que nao esta entre os ATIVOS do Bling (a busca por `codigos[]` so ve ativos, como a carga
  * inteira, que usava `criterio=2`); codigo achado mais de uma vez (o Rise nao escolhe sozinho); e
- * variacao ou composicao (so produto simples, formato "S", como sempre foi).
+ * VARIACAO (formato "V"). Produto simples ("S") e COMPOSICAO ("E", o kit) sao importados: o kit vira
+ * um produto comum aqui, sem a lista de pecas (pedido do dono em 07/10/2026; antes kit so existia no
+ * anuncio do Mercado Livre). O estoque dele e o saldo que o Bling calcula pelas pecas.
  */
 export async function importarPorCodigoDoBling(codigoInformado) {
   const codigo = String(codigoInformado ?? "").trim();
@@ -171,8 +202,8 @@ export async function importarPorCodigoDoBling(codigoInformado) {
     return { ok: false, erro: `Há ${achados.length} produtos com o código ${codigo} no Bling. Deixe só um com esse código e tente de novo.` };
   }
   const achado = achados[0];
-  if (achado.formato !== "S") {
-    return { ok: false, erro: `O código ${codigo} é uma variação ou composição no Bling; só produto simples é importado.` };
+  if (achado.formato !== "S" && achado.formato !== "E") {
+    return { ok: false, erro: `O código ${codigo} é um produto com variações no Bling; variação ainda não é importada.` };
   }
 
   const peloId = await prisma.produto.findFirst({ where: { blingId: String(achado.id) }, select: { id: true, sku: true } });
@@ -185,6 +216,20 @@ export async function importarPorCodigoDoBling(codigoInformado) {
     return { ok: false, erro: `Não foi possível ler o produto no Bling: ${motivoDoBling(detalhe.status, detalhe.dados)}` };
   }
   const bling = detalhe.dados.data;
+
+  if (bling.formato === "E") {
+    const faltando = await pecasQueFaltamNoRise(bling);
+    if (faltando.erro) return { ok: false, erro: faltando.erro };
+    if (faltando.pecas.length) {
+      const lista = faltando.pecas.join(", ");
+      const uma = faltando.pecas.length === 1;
+      return {
+        ok: false,
+        erro: `Não importado: ${uma ? "o item" : "os itens"} ${lista} do kit ${codigo} ${uma ? "não está cadastrado" : "não estão cadastrados"} no Rise. Importe ${uma ? "esse item" : "esses itens"} primeiro.`,
+      };
+    }
+  }
+
   const fornecedorBling = await lerFornecedorBling(bling);
 
   const produto = await prisma.produto.create({

@@ -752,6 +752,14 @@ export async function enviarAjustesDeEstoque(produtoId, cliente = clienteBling()
         );
       }
       if (achado.situacao === "duplicado") throw recusaPorDuplicado(produto.sku, achado.quantidade);
+      // Kit (composicao) com estoque VIRTUAL: o Bling calcula o saldo pelas pecas, e lancar estoque no
+      // kit nao muda o que ele vende. So o kit de estoque proprio ("F", fisico) recebe ajuste; na
+      // duvida (outro valor), nao envia.
+      if (achado.produto?.formato === "E" && achado.produto?.estrutura?.tipoEstoque !== "F") {
+        throw new FalhaDoEnvio(
+          "Este produto é uma composição (kit) no Bling, com o estoque calculado pelas peças: nenhum ajuste foi enviado. Ajuste o estoque das peças.",
+        );
+      }
 
       const deposito = await escolherDeposito(cliente, opcoes?.depositoId);
       if (deposito.precisaDeposito) {
