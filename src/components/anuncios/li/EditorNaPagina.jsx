@@ -1,13 +1,33 @@
 "use client";
 
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+
+import EditorAnuncioLI from "./EditorAnuncioLI";
+
 /**
- * Lugar do editor do anuncio da Loja Integrada numa pagina. Provisorio: o editor por abas
- * (`EditorAnuncioLI`) entra na tarefa seguinte do plano e passa a ser montado aqui.
+ * O editor da Loja Integrada montado numa pagina. No primeiro Salvar de um anuncio novo a URL passa
+ * a ser a do anuncio salvo (`replace`, para o Voltar do navegador nao cair no "novo"); enquanto a
+ * navegacao nao termina o editor fica `inert` (a remontagem perderia o que fosse digitado). Mesmo
+ * desenho do `EditorNaPagina` do Mercado Livre.
  */
-export default function EditorNaPagina({ rascunhoInicial }) {
+export default function EditorNaPagina({ anuncioId, rascunhoInicial, contextoInicial, status, vinculo }) {
+  const router = useRouter();
+  const [abrindo, iniciarNavegacao] = useTransition();
+
   return (
-    <p className="rounded border border-borda bg-fundo px-3 py-2 text-sm text-suave">
-      Editor na proxima tarefa. Rascunho de: {rascunhoInicial?.titulo || "produto sem titulo"}.
-    </p>
+    <div inert={abrindo} aria-busy={abrindo} className={abrindo ? "cursor-wait opacity-70" : undefined}>
+      <EditorAnuncioLI
+        anuncioId={anuncioId}
+        rascunhoInicial={rascunhoInicial}
+        contextoInicial={contextoInicial}
+        status={status}
+        vinculo={vinculo}
+        modo="pagina"
+        aoSalvar={(id) => {
+          if (!anuncioId) iniciarNavegacao(() => router.replace(`/canais-de-venda/loja-integrada/${id}`));
+        }}
+      />
+    </div>
   );
 }
