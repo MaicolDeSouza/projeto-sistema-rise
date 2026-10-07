@@ -2537,8 +2537,11 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   BLING_ESCRITA_CODIGOS, conferindo antes (não duplica, não mexe em vínculo de outro produto) e relendo depois.
   **Teste real em 07/10/2026 (ok do dono):** ZZ-TESTE-BLING cadastrado inativo na LI (id **404349127**) e ligado no Bling
   (201, releitura "ligado", preço 15). **Em 10 minutos o Bling NÃO mandou estoque nem preço** à LI (preço vazio, estoque
-  0, `estoque_gerenciado` false, nenhuma modificação): o envio do Bling não é imediato ao ligar; falta descobrir o que o
-  dispara (mudança de estoque/preço no Bling ou o envio manual da integração). Os dois ficam até o dono apagar. selo "!" = a assinatura (Rise + rascunho +
+  0, `estoque_gerenciado` false, nenhuma modificação): ligar não dispara envio. **Uma entrada de estoque de 1 unidade
+  enviada pelo Rise ao Bling (5 → 6) chegou à LI em menos de 1 minuto: estoque 6 e `estoque_gerenciado` true.** O
+  preço continuou vazio: o Bling manda estoque quando o estoque muda, e o preço provavelmente só quando o preço muda (não
+  medido). Produto novo ligado no Bling precisa de uma mudança de estoque (e de preço) para a LI receber. ZZ-TESTE-BLING
+  (404349127) e o vínculo ficam até o dono apagar. selo "!" = a assinatura (Rise + rascunho +
   documentos) mudou desde o último envio. **A LI regrava `<br>` como `<br />\r\n`**: `htmlParaTexto(..., { paragrafos:
   true })` trata quebra crua do HTML como espaço, senão a descrição ficava "diferente" para sempre.
 
