@@ -16,8 +16,9 @@ import { blingGet, blingPatch, blingPost, blingPut } from "@/lib/integracoes/bli
  *
  * @param {string} codigo codigo (SKU) do produto que sera escrito.
  * @param {string[]} liberados lista de codigos liberados; vazia = todos.
+ * @param {string} variavel nome da variavel do .env citado na recusa (a Loja Integrada usa LI_ESCRITA_CODIGOS).
  */
-export function exigirCodigoLiberado(codigo, liberados) {
+export function exigirCodigoLiberado(codigo, liberados, variavel = "BLING_ESCRITA_CODIGOS") {
   // Uma trava de seguranca nao pode se abrir por descuido: sem lista de verdade (undefined,
   // texto), falha alto em vez de tratar como "vazia = libera tudo".
   if (!Array.isArray(liberados)) {
@@ -30,7 +31,7 @@ export function exigirCodigoLiberado(codigo, liberados) {
 
   throw new Error(
     `Escrita bloqueada: o codigo ${codigo} nao esta na lista de codigos liberados ` +
-      "(BLING_ESCRITA_CODIGOS no .env). Nenhum dado foi enviado.",
+      `(${variavel} no .env). Nenhum dado foi enviado.`,
   );
 }
 

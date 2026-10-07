@@ -33,6 +33,9 @@ const { ABAS_LI, validarRascunhoLI } = await import("../src/lib/canaisDeVenda/li
 const { anuncioLIDoProduto, carregarAnuncioLI, contextoDoProduto, documentosDoProduto, listarAnunciosLI, novoRascunhoLI, salvarRascunhoLI, vincularPeloSku } = await import("../src/lib/canaisDeVenda/li/banco.js");
 const { gravarFrasesDoCanal, lerConfigCanal } = await import("../src/lib/canaisDeVenda/configuracao.js");
 const { config } = await import("../src/lib/integracoes/config.js");
+const { clienteLI } = await import("../src/lib/canaisDeVenda/li/cliente.js");
+const { estadoDoIconeLI, iconeLIDoProduto, produtoIdValido } = await import("../src/lib/canaisDeVenda/li/estado.js");
+const { criarLojaIntegradaFalsa } = await import("./lib/lojaIntegradaFalsa.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -240,6 +243,76 @@ try {
         await prisma.configCanal.deleteMany({ where: { canal: "LOJA_INTEGRADA" } });
       }
     }
+  }
+
+  {
+    console.log("\nCliente da LI, trava por codigo, LI falsa e icone");
+    const cli = clienteLI();
+    let recusa = null;
+    try { cli.exigirEscrita("100404"); } catch (e) { recusa = e.message; }
+    conferir("trava geral fechada recusa citando LI_ESCRITA", /LI_ESCRITA/.test(recusa ?? ""), true);
+    const travasAntes = { ...config.travas };
+    try {
+      config.travas.liEscrita = true;
+      config.travas.liCodigosLiberados = ["ZZ-TESTE-LI"];
+      let porCodigo = null;
+      try { cli.exigirEscrita("100404"); } catch (e) { porCodigo = e.message; }
+      conferir("trava por codigo recusa SKU fora da lista citando LI_ESCRITA_CODIGOS", /LI_ESCRITA_CODIGOS/.test(porCodigo ?? ""), true);
+      let liberado = "passou";
+      try { cli.exigirEscrita("zz-teste-li"); } catch (e) { liberado = e.message; }
+      conferir("trava por codigo libera o SKU da lista, sem caixa", liberado, "passou");
+    } finally {
+      Object.assign(config.travas, travasAntes);
+    }
+    const falsa = criarLojaIntegradaFalsa({
+      produtos: [{ id: 401, sku: "100404", nome: "CLP", apelido: "/clp", url: "/clp", ativo: true, removido: false, categorias: ["/api/v1/categoria/5"], marca: "/api/v1/marca/1", imagens: [{ id: 9 }], seo: "/api/v1/seo/77" }],
+      marcas: [{ id: 1, nome: "Mitsubishi" }],
+      categorias: [{ id: 5, nome: "CLP" }, { id: 6, nome: "IHM", categoria_pai: "/api/v1/categoria/5" }],
+      seos: { 77: { title: "", description: "" } },
+    });
+    conferir("GET /produto?sku= filtra sem caixa", (await falsa.get("/produto", { sku: "100404" })).dados.objects.map((p) => p.id), [401]);
+    conferir("GET /produto/{id} inexistente da 404", (await falsa.get("/produto/9")).status, 404);
+    let semTrava = null;
+    try { await falsa.put("/produto/401", { nome: "x" }); } catch (e) { semTrava = e.message; }
+    conferir("LI falsa recusa escrita sem exigirEscrita", semTrava, "LI falsa: escrita sem exigirEscrita");
+    falsa.exigirEscrita("100404");
+    conferir("PUT com chave so de leitura da 400", (await falsa.put("/produto/401", { nome: "x", imagens: [] })).status, 400);
+    const decimal = await falsa.put("/produto/401", { nome: "x", altura: 2.5 });
+    conferir("PUT com medida decimal da 400 sem corpo (como a LI)", [decimal.status, decimal.dados], [400, null]);
+    conferir("PUT com nome acima de 255 da 400", (await falsa.put("/produto/401", { nome: "x".repeat(256) })).status, 400);
+    const substituido = (await falsa.put("/produto/401", { nome: "Novo", sku: "100404", tipo: "normal", icms_origin_code: "2", production_type: "Revenda" })).dados;
+    conferir("PUT inteiro: ausente vira null, mas categorias e marca ausentes ficam (medido)", [substituido.apelido, substituido.categorias, substituido.marca], [null, ["/api/v1/categoria/5"], "/api/v1/marca/1"]);
+    conferir("PUT: so leitura ficam (imagens, url); fiscais ignorados", [substituido.imagens.length, substituido.url, substituido.seo_title, substituido.icms_origin_code, substituido.production_type], [1, "/clp", "", null, null]);
+    conferir("PUT com seo_title (so de leitura no Rise) da 400", (await falsa.put("/produto/401", { nome: "Novo", seo_title: "x" })).status, 400);
+    const limpo = (await falsa.put("/produto/401", { nome: "Novo", categorias: [], marca: null })).dados;
+    conferir("PUT com categorias [] e marca null apaga (medido)", [limpo.categorias, limpo.marca], [[], null]);
+    conferir("POST com SKU repetido da 400 com error.sku", (await falsa.post("/produto", { sku: "100404", nome: "Dup", tipo: "normal" })).dados?.error?.[0]?.sku?.startsWith("Erro de integridade"), true);
+    const criado = await falsa.post("/produto", { sku: "ZZ-NOVO", nome: "Novo produto", tipo: "normal", ativo: false, apelido: "novo-produto" });
+    conferir("POST cria com id, url, seo e inativo", [criado.status, typeof criado.dados.id, criado.dados.url, typeof criado.dados.seo, criado.dados.ativo], [201, "number", "/novo-produto", "string", false]);
+    const seoId = criado.dados.seo.split("/").filter(Boolean).at(-1);
+    await falsa.put(`/seo/${seoId}`, { title: "T", description: "D" });
+    conferir("PUT /seo grava e o detalhe mostra", [(await falsa.get(`/seo/${seoId}`)).dados.title, (await falsa.get(`/produto/${criado.dados.id}`)).dados.seo_title], ["T", "T"]);
+    await falsa.put(`/produto/${criado.dados.id}/alias?replace_main=true`, { absolute_path: "/outro" });
+    const comAlias = (await falsa.get(`/produto/${criado.dados.id}`)).dados;
+    conferir("/alias muda o url e mantem o apelido (medido)", [comAlias.url, comAlias.apelido], ["/outro", "/novo-produto"]);
+    conferir("POST /marca devolve URI", (await falsa.post("/marca", { nome: "Nova" })).dados.resource_uri.startsWith("/api/v1/marca/"), true);
+    conferir("GET /categoria pagina com meta", (await falsa.get("/categoria", { limit: 1 })).dados.meta.next !== null, true);
+    conferir("GET /marca lista", (await falsa.get("/marca", { limit: 100 })).dados.objects.map((m) => m.nome), ["Mitsubishi", "Nova"]);
+    conferir("chamadas registradas", falsa.chamadas.length >= 5, true);
+    let desconhecido = null;
+    try { await falsa.get("/qualquer"); } catch (e) { desconhecido = e.message; }
+    conferir("endpoint desconhecido lanca", /desconhecido/.test(desconhecido ?? ""), true);
+    conferir("icone: nao conferido e cinza sem selo", estadoDoIconeLI({ conferido: false, sincronizadoEm: new Date(), assinaturaGuardada: "a", assinaturaAtual: "b" }), { cor: "cinza", divergente: false, conferido: false });
+    conferir("icone: sincronizado e igual e verde", estadoDoIconeLI({ conferido: true, sincronizadoEm: new Date(), assinaturaGuardada: "a", assinaturaAtual: "a" }), { cor: "verde", divergente: false, conferido: true });
+    conferir("icone: assinatura mudou acende o selo", estadoDoIconeLI({ conferido: true, sincronizadoEm: new Date(), assinaturaGuardada: "a", assinaturaAtual: "b" }).divergente, true);
+    conferir("icone: nunca sincronizado e cinza sem selo", estadoDoIconeLI({ conferido: true, sincronizadoEm: null, assinaturaGuardada: null, assinaturaAtual: "b" }), { cor: "cinza", divergente: false, conferido: true });
+    const produtoIcone = { id: "p", sku: "X", conferido: true, ncm: "85371020", pesoKg: 0.5 };
+    const anuncioIcone = { produtoId: "p", titulo: "CLP", descricao: "Texto", dados: { slug: "clp", categorias: ["5"] }, sincronizadoEm: new Date() };
+    const assinaturaCerta = assinaturaLI(normalizarDoRiseLI(produtoIcone, { produtoId: "p", titulo: "CLP", slug: "clp", descricao: "Texto", marca: "", categorias: ["5"], destaque: false, videoUrl: null, seo: { title: "", description: "" }, especificacoes: true }, { frases: [], documentos: [] }));
+    conferir("iconeLIDoProduto: igual ao guardado e verde", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: [], documentos: [] }), { cor: "verde", divergente: false, conferido: true });
+    conferir("iconeLIDoProduto: frase nova acende o selo", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: ["Com nota"], documentos: [] }).divergente, true);
+    conferir("iconeLIDoProduto: sem anuncio e cinza", iconeLIDoProduto(produtoIcone, null, {}), { cor: "cinza", divergente: false, conferido: true });
+    conferir("produtoIdValido reexportado", typeof produtoIdValido, "function");
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.
