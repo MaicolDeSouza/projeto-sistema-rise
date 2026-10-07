@@ -203,6 +203,18 @@ try {
   conferir("excluirProduto da peca A: ok false e o recado lista os dois kits pelo sku", [recusa.ok, recusa.erro.includes("ZZ-KIT-K1") && recusa.erro.includes("ZZ-KIT-K2")], [false, true]);
   conferir("e a peca A continua la (nada foi apagado)", (await prisma.produto.findUnique({ where: { id: a.id } }))?.sku, "ZZ-KIT-A1");
 
+  // --- importacao do Bling: pecas resolvidas pelo blingId guardado (sem rede) ---
+  // A estrutura do Bling so traz o id de cada peca; quem ja tem `blingId` no Rise e achado sem ler o
+  // Bling. Quantidade "1,00" do Bling vira inteiro.
+  const { resolverPecasDoKit } = await import("../src/lib/integracoes/importarBling.js");
+  const pecaA = await prisma.produto.findUnique({ where: { id: a.id }, select: { blingId: true } });
+  const pecaB = await prisma.produto.findUnique({ where: { id: b.id }, select: { blingId: true } });
+  const resolvido = await resolverPecasDoKit({
+    estrutura: { tipoEstoque: "V", componentes: [{ produto: { id: Number(pecaB.blingId) }, quantidade: 2 }, { produto: { id: Number(pecaA.blingId) }, quantidade: 1.0 }] },
+  });
+  conferir("resolver pecas do kit pelo blingId: as duas achadas, na ordem do Bling, sem faltar nenhuma", resolvido, { pecas: [{ componenteId: b.id, quantidade: 2 }, { componenteId: a.id, quantidade: 1 }], faltam: [] });
+  conferir("kit sem pecas no Bling: erro, nada a gravar", Boolean((await resolverPecasDoKit({ estrutura: { componentes: [] } })).erro), true);
+
   // --- apagar o kit leva as linhas de composicao, nao as pecas ---
   await prisma.produto.delete({ where: { id: kit2.id } });
   conferir("apagar o kit2 apaga as linhas dele e a peca A fica", [await prisma.produtoComponente.count({ where: { kitId: kit2.id } }), (await prisma.produto.findUnique({ where: { id: a.id } }))?.sku], [0, "ZZ-KIT-A1"]);

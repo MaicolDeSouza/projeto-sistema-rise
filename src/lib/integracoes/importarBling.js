@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { skuValido } from "@/lib/arquivos";
 import { anexarImagens } from "@/lib/imagensImportadas";
+import { gravarComposicao } from "@/lib/composicaoBanco";
 import { UNIDADES } from "@/lib/unidades";
 import { htmlParaTexto } from "@/lib/integracoes/normalizacao";
 
@@ -140,20 +141,35 @@ async function lerFornecedorBling(bling) {
 const motivoDoBling = (status, dados) => dados?.error?.description ?? dados?.error?.message ?? `HTTP ${status}`;
 
 /**
- * As pecas do kit que NAO existem no Rise (pedido do dono em 07/10/2026: kit so entra com todas as
- * pecas ja cadastradas aqui). A estrutura do Bling so traz o id de cada peca: primeiro procura pelo
- * `blingId` guardado; sem ele, le a peca no Bling para saber o codigo e procura pelo SKU (sem caixa).
- * Devolve os codigos que faltam (ou o id, se nem o Bling disser o codigo), ou `erro` se a leitura de
- * uma peca falhar (na duvida, nao importa) ou se o kit vier sem pecas.
+ * As pecas de um kit do Bling resolvidas para produtos do Rise (pedido do dono em 07/10/2026: kit
+ * so entra com todas as pecas ja cadastradas aqui). A estrutura do Bling so traz o id de cada peca:
+ * primeiro procura pelo `blingId` guardado; sem ele, le a peca no Bling para saber o codigo e procura
+ * pelo SKU (sem caixa). Devolve as pecas achadas (`{componenteId, quantidade}`, na ordem do Bling) e
+ * as que faltam (o codigo, ou o id se nem o Bling disser o codigo), ou `erro` se a leitura de uma peca
+ * falhar (na duvida, nao importa) ou se o kit vier sem pecas.
+ *
+ * Exportada porque o script `composicao-do-bling.js` grava as pecas de um kit importado antes desta
+ * regra existir (o 990204), pelo mesmo caminho.
+ *
+ * @param {object} bling o produto como `GET /produtos/{id}` o devolve.
+ * @returns {Promise<{erro: string} | {pecas: {componenteId: string, quantidade: number}[], faltam: string[]}>}
  */
-async function pecasQueFaltamNoRise(bling) {
+export async function resolverPecasDoKit(bling) {
   const componentes = Array.isArray(bling.estrutura?.componentes) ? bling.estrutura.componentes : [];
   if (componentes.length === 0) return { erro: "O kit não tem itens na composição do Bling. Nada foi importado." };
 
   const pecas = [];
+  const faltam = [];
   for (const componente of componentes) {
     const idPeca = componente?.produto?.id;
-    if (await prisma.produto.findFirst({ where: { blingId: String(idPeca) }, select: { id: true } })) continue;
+    // O Bling mostra "1,00"; aqui a quantidade e inteira (peca fracionada nao faz sentido num kit).
+    const quantidade = Math.max(1, Math.round(Number(componente?.quantidade) || 1));
+
+    const peloBlingId = await prisma.produto.findFirst({ where: { blingId: String(idPeca) }, select: { id: true } });
+    if (peloBlingId) {
+      pecas.push({ componenteId: peloBlingId.id, quantidade });
+      continue;
+    }
 
     const leitura = await blingGet(`/produtos/${idPeca}`);
     if (!leitura.ok || !leitura.dados?.data) {
@@ -163,9 +179,10 @@ async function pecasQueFaltamNoRise(bling) {
     const noRise = codigoPeca
       ? await prisma.produto.findFirst({ where: { sku: { equals: codigoPeca, mode: "insensitive" } }, select: { id: true } })
       : null;
-    if (!noRise) pecas.push(codigoPeca || `id ${idPeca} no Bling`);
+    if (noRise) pecas.push({ componenteId: noRise.id, quantidade });
+    else faltam.push(codigoPeca || `id ${idPeca} no Bling`);
   }
-  return { pecas };
+  return { pecas, faltam };
 }
 
 /**
@@ -217,17 +234,20 @@ export async function importarPorCodigoDoBling(codigoInformado) {
   }
   const bling = detalhe.dados.data;
 
+  // Kit: todas as pecas tem que existir no Rise, senao nada e gravado e o recado diz quais faltam.
+  let pecasDoKit = null;
   if (bling.formato === "E") {
-    const faltando = await pecasQueFaltamNoRise(bling);
-    if (faltando.erro) return { ok: false, erro: faltando.erro };
-    if (faltando.pecas.length) {
-      const lista = faltando.pecas.join(", ");
-      const uma = faltando.pecas.length === 1;
+    const resolvido = await resolverPecasDoKit(bling);
+    if (resolvido.erro) return { ok: false, erro: resolvido.erro };
+    if (resolvido.faltam.length) {
+      const lista = resolvido.faltam.join(", ");
+      const uma = resolvido.faltam.length === 1;
       return {
         ok: false,
         erro: `Não importado: ${uma ? "o item" : "os itens"} ${lista} do kit ${codigo} ${uma ? "não está cadastrado" : "não estão cadastrados"} no Rise. Importe ${uma ? "esse item" : "esses itens"} primeiro.`,
       };
     }
+    pecasDoKit = resolvido.pecas;
   }
 
   const fornecedorBling = await lerFornecedorBling(bling);
@@ -235,6 +255,7 @@ export async function importarPorCodigoDoBling(codigoInformado) {
   const produto = await prisma.produto.create({
     data: {
       ...mapearProduto(bling),
+      tipo: pecasDoKit ? "COMPOSICAO" : "SIMPLES",
       // Json nulo no Prisma e Prisma.DbNull, nao null puro (ver CLAUDE.md).
       fornecedorRascunho: fornecedorBling ?? Prisma.DbNull,
       // Sem o Anuncio BLING com idExterno, o Rise ofereceria "Cadastrar no Bling" e duplicaria o item.
@@ -250,6 +271,10 @@ export async function importarPorCodigoDoBling(codigoInformado) {
     },
   });
 
+  // As pecas do kit: grava a lista e o estoque ja CALCULADO pelas pecas (o `saldoVirtualTotal` que
+  // `mapearProduto` trouxe e o do Bling; no Rise o estoque do kit e sempre o das pecas daqui).
+  if (pecasDoKit) await gravarComposicao(produto.id, pecasDoKit);
+
   const imagens = await importarImagens(produto.id, produto.sku, bling);
-  return { ok: true, produtoId: produto.id, sku: produto.sku, nome: produto.tituloBase, fornecedorBling, ...imagens };
+  return { ok: true, produtoId: produto.id, sku: produto.sku, nome: produto.tituloBase, fornecedorBling, pecas: pecasDoKit?.length ?? 0, ...imagens };
 }
