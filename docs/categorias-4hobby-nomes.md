@@ -1,181 +1,231 @@
-# Revisão dos nomes das categorias (rascunho para discussão)
+# Revisão dos nomes das categorias (v2, uma família por folha)
 
-Data: 06/10/2026. Complemento de `categorias-4hobby-proposta.md`. A árvore (12 topos, 76 folhas) está aprovada; aqui discutimos só **os nomes**. Nada disto está no CSV ainda: o CSV muda quando os nomes forem fechados.
+Data: 06/10/2026. Substitui a v1 deste arquivo depois do retorno do dono: **nome de folha não pode ser uma lista de produtos diferentes** ("Gás, Chama, Som, Luz e Cor" e "Fluxo, Nível, Chuva e Solo" foram os exemplos). A árvore de 12 categorias de topo continua a aprovada; o que muda é o desenho das folhas.
 
-## Padrão proposto para os nomes
+## Regra adotada
 
-1. **O nome se sustenta sozinho.** Na Loja Integrada o nome vira a URL e o título da página da categoria, e o Google indexa a página sem o menu em volta. "Temperatura e Umidade" vira `/temperatura-e-umidade`; "Sensores de Temperatura" vira `/sensores-de-temperatura`, que é o que o cliente digita. É o padrão da Usinainfo.
-2. **Duas a quatro palavras, no máximo um "e".** Lista de cinco coisas ("Gás, Chama, Som, Luz e Cor") é sinal de gaveta mal fechada.
-3. **Sem dois-pontos, sem parênteses, sem número de ordenação.** A ordem do menu vai no campo próprio da LI.
-4. **Sigla só quando é o que o cliente digita**: CLP, IHM, LED, RFID, CNC, DC-DC, SSR, GT2, ESP32, STM32.
-5. **Plural para família de produto** ("Fontes Chaveadas"), singular para nome de tecnologia ("Arduino", "Nextion").
-6. **Mesmo padrão entre irmãs.** Se uma filha de Sensores começa com "Sensores de", todas começam.
+1. **Uma família de produto por folha.** O nome tem um substantivo que é o produto ("Sensores de Gás", "Fusos Trapezoidais"). Aceita-se "X e Y" só quando Y é acessório ou variante inseparável de X ("Células de Carga" com o HX711 dentro, "Termo Retrátil" com o kit).
+2. **O nome se sustenta sozinho** (vira URL e título da página na LI): "Sensores de Temperatura", não "Temperatura".
+3. Sem dois-pontos, sem parênteses, sem número de ordenação; sigla só quando é o que o cliente digita.
+4. Nada vai para "Outros". Produto que não cabe em família nenhuma fica na família mais próxima, nunca em gaveta genérica.
 
-A regra 1 é a que mais muda nomes (cerca de 30 dos 89). A alternativa é manter nomes curtos que dependem do pai ("Temperatura e Umidade"), que ficam mais limpos no menu e piores na URL e no Google.
+Resultado: **12 topos, 1 intermediária (Movimento Linear) e 150 folhas** para 1.301 produtos publicáveis (média de 9 por folha; hoje o site tem 59 folhas para 725 produtos, média de 12). As folhas marcadas com **◂ pequena** têm 4 produtos ou menos (32 folhas). A seção "Fusões possíveis" diz quais dá para juntar sem voltar a misturar famílias.
 
-## Categorias de topo
-
-| Hoje na proposta | Sugestão | Por quê |
-| --- | --- | --- |
-| Placas e Embarcados | **Arduino, ESP32 e Embarcados** | "Arduino" e "ESP32" são as palavras que o cliente digita; 5 de 8 concorrentes têm Arduino no topo. "Embarcados" segura Raspberry, STM32 e kits. |
-| Módulos | Módulos | mantém |
-| Sensores | Sensores | mantém |
-| Displays e Telas | Displays e Telas | mantém |
-| Automação Industrial | Automação Industrial | mantém |
-| Energia e Alimentação | **Fontes e Baterias** | "Energia e Alimentação" é abstrato; as duas famílias que o cliente procura são fonte e bateria (41 dos 80 itens). |
-| Motores, Drivers e Robótica | **Motores e Robótica** | mais curto; drivers já estão nas folhas. |
-| CNC, Laser e Impressão 3D | CNC, Laser e Impressão 3D | mantém |
-| Componentes Eletrônicos | Componentes Eletrônicos | mantém |
-| Conectores e Cabos | Conectores e Cabos | mantém |
-| Prototipagem e Ferramentas | Prototipagem e Ferramentas | mantém |
-| Softwares e Serviços | Softwares e Serviços | mantém |
-
-## Folhas, por categoria de topo
-
-Coluna "Sugestão" em negrito quando muda. Entre parênteses, a quantidade de produtos de hoje.
+## Árvore v2, com a quantidade de produtos de hoje
 
 ### Arduino, ESP32 e Embarcados (83)
 
-| Hoje | Sugestão | Por quê |
-| --- | --- | --- |
-| Arduino e Compatíveis (9) | **Placas Arduino Compatíveis** | é o termo de busca e deixa claro que não é a placa oficial |
-| ESP32 e ESP8266 (20) | **Placas ESP32 e ESP8266** | o substantivo entra (regra 1) |
-| Raspberry Pi e Acessórios (21) | Raspberry Pi e Acessórios | mantém |
-| STM32 e Outras Placas (8) | STM32 e Outras Placas | mantém |
-| Shields e Placas de Interface (16) | **Shields e Interfaces** | mais curto, mesma leitura |
-| Gravadores e Programadores (4) | Gravadores e Programadores | mantém |
-| Kits Arduino e Educacionais (5) | Kits Arduino e Educacionais | mantém |
+- Placas Arduino Compatíveis (10)
+- Placas ESP32 (11)
+- Módulos ESP8266 (9)
+- Raspberry Pi e Acessórios (22)
+- Placas STM32 (6)
+- Placas de Interface com Bornes (9)
+- Shields para Arduino (3) ◂ pequena
+- Cases para Arduino (4) ◂ pequena
+- Gravadores e Programadores (4) ◂ pequena
+- Kits Arduino e Educacionais (5)
 
-### Módulos (98)
+### Módulos (99)
 
-| Hoje | Sugestão | Por quê |
-| --- | --- | --- |
-| Relés, MOSFET e Potência (15) | **Módulos Relé e Acionamento** | "módulo relé" é o termo de busca; "acionamento" cobre MOSFET, dimmer e temporizador (é o nome da Usinainfo) |
-| Comunicação Serial, CAN e Ethernet (20) | **Comunicação RS485, CAN e Ethernet** | RS485 é a palavra buscada; "serial" fica implícita |
-| Conversores de Sinal e Nível Lógico (15) | Conversores de Sinal e Nível Lógico | mantém |
-| Wireless, IoT e Antenas (19) | **Wireless e IoT** | antenas são acessório do wireless; nome mais curto |
-| RFID e Biometria (6) | RFID e Biometria | mantém |
-| RTC, Memória e Cartões SD (10) | **RTC, Memória e Cartão SD** | singular no acessório |
-| Áudio, Teclados e Controles (13) | Áudio, Teclados e Controles | mantém |
+- Módulos Relé (9)
+- Módulos Optoacoplador (3) ◂ pequena
+- Módulos MOSFET e Dimmer (3) ◂ pequena
+- Conversores Seriais RS485 e RS232 (10)
+- Módulos CAN Bus (5)
+- Módulos Ethernet (5)
+- Conversores 4-20mA e 0-10V (6)
+- Conversores de Nível Lógico, ADC e DAC (9)
+- Módulos Wireless e IoT (14)
+- Antenas e Pigtails (5)
+- Módulos RFID e Biometria (6)
+- Cartões e Leitores Micro SD (5)
+- Módulos RTC e Memória (5)
+- Teclados Matriciais e Botões Touch (5)
+- Joysticks e Encoders Rotativos (4) ◂ pequena
+- Controle Remoto e Infravermelho (3) ◂ pequena
+- Módulos de Áudio e Som (2) ◂ pequena
 
-### Sensores (98)
+### Sensores (97)
 
-| Hoje | Sugestão | Por quê |
-| --- | --- | --- |
-| Temperatura e Umidade (14) | **Sensores de Temperatura e Umidade** | regra 1 |
-| Distância, Presença e Movimento (12) | **Sensores de Distância e Movimento** | presença (PIR) é movimento; menos uma palavra |
-| Indutivos, Capacitivos e Fim de Curso (18) | **Sensores Indutivos e Fim de Curso** | capacitivos são 2 itens e ficam aqui sem precisar do nome |
-| Corrente e Tensão (9) | **Sensores de Corrente e Tensão** | regra 1 |
-| Gás, Chama, Som, Luz e Cor (18) | **Sensores de Gás e Chama** (10) e **Sensores de Luz, Som e Cor** (8) | cinco coisas num nome é gaveta; dividir dá dois nomes limpos e vira 77 folhas |
-| Fluxo, Nível, Chuva e Solo (15) | **Sensores de Fluxo, Nível e Solo** | chuva é um item; os três restantes são famílias |
-| Peso, Carga e Piezo (12) | **Sensores de Peso e Célula de Carga** | "célula de carga" é o termo buscado; piezo (4) fica junto sem nome |
+- Sensores de Temperatura e Umidade (14)
+- Sensores de Distância e Ultrassônicos (4) ◂ pequena
+- Sensores Infravermelho e Seguidor de Linha (4) ◂ pequena
+- Sensores de Movimento e Vibração (5)
+- Sensores Indutivos e Capacitivos (6)
+- Chaves Fim de Curso (7)
+- Sensores Magnéticos Reed e Hall (5)
+- Sensores de Corrente (6)
+- Sensores de Tensão (3) ◂ pequena
+- Sensores de Gás e Chama (9)
+- Sensores de Luz e UV (5)
+- Sensores de Cor (2) ◂ pequena
+- Sensores de Fluxo de Água (5)
+- Sensores de Nível de Água (5)
+- Sensores de Umidade do Solo e Chuva (5)
+- Células de Carga (7)
+- Transdutores Piezoelétricos (5)
 
 ### Displays e Telas (36)
 
-| Hoje | Sugestão | Por quê |
-| --- | --- | --- |
-| Telas Nextion (18) | Telas Nextion | mantém, forte no Google |
-| Displays LCD, OLED e TFT (9) | Displays LCD, OLED e TFT | mantém |
-| Telas para Raspberry Pi (4) | Telas para Raspberry Pi | mantém |
-| 7 Segmentos e Matriz de LED (5) | **Displays 7 Segmentos e Matriz LED** | regra 1 |
+- Telas Nextion (18)
+- Displays LCD (5)
+- Displays OLED e TFT (4) ◂ pequena
+- Telas para Raspberry Pi (4) ◂ pequena
+- Displays 7 Segmentos e Matriz LED (5)
 
 ### Automação Industrial (90)
 
-| Hoje | Sugestão | Por quê |
-| --- | --- | --- |
-| CLP e IHM (17) | CLP e IHM | mantém |
-| Botões, Chaves e Sinalização de Painel (25) | **Botões de Comando e Sinalização** | "comando e sinalização" é o vocabulário do setor (Metaltex, Eletrus); cabe emergência, seletora, sinalizador |
-| Relés de Estado Sólido e Industriais (3) | **Relés Industriais e SSR** | mais curto, a sigla é buscada |
-| Controladores de Temperatura e Encoders (8) | Controladores de Temperatura e Encoders | mantém (duas famílias pequenas; dividir daria 5 e 3) |
-| Bornes, Trilho DIN e Quadros (27) | **Bornes, Trilho DIN e Quadros Elétricos** | "quadro elétrico" é o termo completo |
-| Ventilação e Refrigeração (10) | **Microventiladores e Refrigeração** | "microventilador" e "cooler" são os termos buscados |
+- CLP e Expansões (8)
+- IHM (9)
+- Botoeiras e Comando 22mm (10)
+- Botões Metálicos Iluminados (11)
+- Sinalizadores LED de Painel (4) ◂ pequena
+- Relés Industriais e SSR (3) ◂ pequena
+- Controladores de Temperatura (5)
+- Encoders Incrementais (3) ◂ pequena
+- Bornes para Trilho DIN (9)
+- Trilho DIN, Canaletas e Suportes (10)
+- Quadros Elétricos e Prensa Cabos (8)
+- Microventiladores (7)
+- Pastilhas Peltier (3) ◂ pequena
 
 ### Fontes e Baterias (80)
 
-| Hoje | Sugestão | Por quê |
-| --- | --- | --- |
-| Fontes Chaveadas (22) | Fontes Chaveadas | mantém |
-| Conversores DC-DC Step Up e Step Down (11) | Conversores DC-DC Step Up e Step Down | mantém (longo, mas são os três termos buscados) |
-| Baterias, Carregadores e BMS (19) | Baterias, Carregadores e BMS | mantém |
-| Suportes de Pilha e Acessórios de Bateria (22) | **Suportes de Pilha e Bateria** | mais curto, mesma leitura |
-| Voltímetros, Medidores e Testadores (6) | **Voltímetros e Medidores** | testador USB é medidor |
+- Fontes Chaveadas (18)
+- Mini Fontes Hi-Link (4) ◂ pequena
+- Conversores DC-DC Step Up e Step Down (11)
+- Baterias e Pilhas (6)
+- Placas BMS e Testadores de Bateria (7)
+- Carregadores de Bateria e Painel Solar (6)
+- Suportes de Pilha e Bateria (17)
+- Níquel e Terminais para Bateria (5)
+- Voltímetros e Testadores (6)
 
 ### Motores e Robótica (90)
 
-| Hoje | Sugestão | Por quê |
-| --- | --- | --- |
-| Motores de Passo e Servos Industriais (18) | **Motores de Passo e Servo AC** | "servos industriais" confunde com os micro servos de robótica; o servo AC é 1 item e o nome diz qual |
-| Drivers para Motor de Passo (14) | **Drivers de Motor de Passo** | preposição mais natural |
-| Motores DC e Caixas de Redução (19) | Motores DC e Caixas de Redução | mantém |
-| Servos, Brushless e Aeromodelismo (8) | **Micro Servos, Brushless e Aeromodelismo** | separa do servo AC industrial |
-| Drivers e Controladores de Motor DC (8) | **Ponte H e Controladores de Motor DC** | "ponte H L298" é o termo buscado |
-| Bombas, Válvulas e Solenoides (17) | Bombas, Válvulas e Solenoides | mantém |
-| Chassis, Rodas e Partes Robóticas (6) | **Chassis e Rodas para Robótica** | mais curto |
+- Motores de Passo (12)
+- Easy Servo e Servo AC (6)
+- Drivers de Motor de Passo (14)
+- Motores DC e Caixas de Redução (19)
+- Micro Servos (4) ◂ pequena
+- Brushless, ESC e Aeromodelismo (4) ◂ pequena
+- Ponte H e Drivers de Motor DC (5)
+- Controladores PWM de Velocidade (3) ◂ pequena
+- Mini Bombas de Água e Ar (9)
+- Válvulas Solenoide e Pneumática (3) ◂ pequena
+- Eletroímãs e Solenoides (5)
+- Chassis e Rodas para Robótica (6)
 
-### CNC, Laser e Impressão 3D (360)
+### CNC, Laser e Impressão 3D (359)
 
-| Hoje | Sugestão | Por quê |
-| --- | --- | --- |
-| Movimento Linear (166, intermediária) | Movimento Linear | mantém |
-| ↳ Fusos e Castanhas (29) | Fusos e Castanhas | mantém |
-| ↳ Eixos, Guias e Rolamentos Lineares (34) | Eixos, Guias e Rolamentos Lineares | mantém |
-| ↳ Mancais e Suportes de Eixo (16) | Mancais e Suportes de Eixo | mantém |
-| ↳ Acoplamentos e Flanges (21) | **Acoplamentos** | flange é 1 produto em 4 variações |
-| ↳ Polias, Roldanas e Correias (54) | Polias, Roldanas e Correias | mantém |
-| ↳ Cremalheiras e Engrenagens (12) | Cremalheiras e Engrenagens | mantém |
-| Perfis de Alumínio e Fixação V-Slot (48) | **Perfis V-Slot e Fixação** | "v-slot" é o termo buscado; "alumínio" fica implícito |
-| Esteiras Porta Cabos (22) | Esteiras Porta Cabos | mantém |
-| Controladoras e Eletrônica CNC (13) | **Placas Controladoras CNC** | nome do produto, não da área |
-| Spindles, Inversores e Acessórios (12) | **Spindles e Inversores** | "e Acessórios" não diz nada; nebulizador e mangueira ficam aqui sem precisar do nome |
-| Fresas, Brocas e Pinças (24) | Fresas, Brocas e Pinças | mantém |
-| Laser: Módulos e Peças (25) | **Módulos Laser e Peças CO2** | sai o dois-pontos (regra 3); CO2 é a palavra buscada |
-| Impressão 3D: Hotend, Bicos e Peças (42) | **Peças para Impressora 3D** | é o termo de busca; sai o dois-pontos |
-| Máquinas e Equipamentos (8) | Máquinas e Equipamentos | mantém |
+- Movimento Linear (intermediária)
+  - Fusos de Esferas (7)
+  - Fusos Trapezoidais (10)
+  - Castanhas e Antifolga TR8 (12)
+  - Eixos Lineares (8)
+  - Guias Lineares MGN (6)
+  - Rolamentos e Pillow Block (20)
+  - Mancais KP e KFL (7)
+  - Suportes de Eixo SK e SHF (9)
+  - Acoplamentos (21)
+  - Roldanas V-Slot (4) ◂ pequena
+  - Correias GT2 e HTD (19)
+  - Polias GT2 e HTD (31)
+  - Cremalheiras e Engrenagens (12)
+- Perfis de Alumínio V-Slot (8)
+- Suportes de Motor de Passo (6)
+- Porcas Martelo e Excêntricas (14)
+- Cantoneiras para Perfil (8)
+- Espaçadores e Acabamentos V-Slot (12)
+- Esteiras Porta Cabos (22)
+- Placas Controladoras CNC (13)
+- Spindles e Inversores (12)
+- Fresas para CNC (21)
+- Brocas, Pinças ER e Mandris (3) ◂ pequena
+- Módulos Laser de Diodo (8)
+- Peças para Laser CO2 (17)
+- Hotend, Bicos e Extrusoras (21)
+- Mesas Aquecidas (9)
+- Acessórios para Impressora 3D (11)
+- Máquinas e Equipamentos (8)
 
-### Componentes Eletrônicos (146)
+### Componentes Eletrônicos (147)
 
-| Hoje | Sugestão | Por quê |
-| --- | --- | --- |
-| Resistores, Potenciômetros e Trimpots (28) | **Resistores e Potenciômetros** | trimpot é potenciômetro |
-| Capacitores e Cristais (8) | Capacitores e Cristais | mantém |
-| Diodos, Transistores e MOSFETs (26) | Diodos, Transistores e MOSFETs | mantém |
-| Circuitos Integrados, Reguladores e Soquetes (37) | **Circuitos Integrados e Reguladores** | soquete é acessório do CI |
-| LEDs e Suportes (19) | **LEDs e Soquetes** | "soquete para LED" é o termo |
-| Buzzers e Alto-falantes (5) | Buzzers e Alto-falantes | mantém |
-| Fusíveis, Filtros e Proteção (3) | **Fusíveis e Filtros** | "proteção" é redundante |
-| Chaves, Botões e Interruptores (20) | **Chaves e Interruptores** | "botões" confunde com os de painel industrial |
+- Resistores (18)
+- Potenciômetros e Trimpots (10)
+- Capacitores e Cristais (8)
+- Diodos (10)
+- Transistores e MOSFETs (16)
+- Circuitos Integrados (32)
+- Reguladores de Tensão (5)
+- LEDs e Soquetes (20)
+- Buzzers e Alto-falantes (5)
+- Fusíveis e Filtros (3) ◂ pequena
+- Chaves Táteis e Push Button (4) ◂ pequena
+- Interruptores e Tomadas de Painel (5)
+- Chaves Gangorra e Alavanca (11)
 
 ### Conectores e Cabos (155)
 
-| Hoje | Sugestão | Por quê |
-| --- | --- | --- |
-| Conectores JST, Dupont e Barras de Pinos (40) | Conectores JST, Dupont e Barras de Pinos | mantém (três termos buscados) |
-| Conectores Circulares, Plugs e Jacks (25) | **Conectores Mike, Plugs e Jacks** | "mike" (GX12/GX16) é como o cliente chama |
-| Bornes, Terminais e Emendas (12) | Bornes, Terminais e Emendas | mantém |
-| Conectores DB, RJ45, HDMI e Adaptadores (13) | **Adaptadores DB9, RJ45 e HDMI** | o que há aqui é adaptador e conector de painel |
-| Cabos USB, HDMI e Extensões de Painel (26) | **Cabos USB, HDMI e Extensões** | mais curto |
-| Fios, Jumpers e Cabos Diversos (22) | **Jumpers, Fios e Cabos** | jumper na frente (é o mais buscado); sai "diversos" |
-| Termo Retrátil e Organização de Cabos (17) | **Termo Retrátil e Abraçadeiras** | nome de produto, não de função |
+- Conectores JST (18)
+- Conectores Dupont (7)
+- Barras de Pinos (15)
+- Conectores Mike GX12 e GX16 (9)
+- Plugs P4 e P10 (10)
+- Conectores XLR, XT60 e Banana (6)
+- Bornes KRE e KF (6)
+- Terminais e Emendas (6)
+- Adaptadores DB9, RJ45 e HDMI (14)
+- Cabos de Extensão para Painel (11)
+- Cabos USB e HDMI (14)
+- Jumpers e Garras Jacaré (7)
+- Fios e Cabos Elétricos (15)
+- Termo Retrátil (11)
+- Abraçadeiras e Organizadores de Cabos (6)
 
 ### Prototipagem e Ferramentas (57)
 
-| Hoje | Sugestão | Por quê |
-| --- | --- | --- |
-| Protoboards e Placas de Circuito (8) | **Protoboards e Placas Fenolite** | "fenolite" é o termo buscado |
-| Soldagem (3) | **Solda e Estação de Solda** | regra 1: "soldagem" sozinho é processo, não produto |
-| Ferramentas e Instrumentos de Bancada (10) | **Ferramentas e Instrumentos** | mais curto |
-| Parafusos, Espaçadores e Fixação (22) | Parafusos, Espaçadores e Fixação | mantém |
-| Caixas Plásticas e Organizadores (14) | Caixas Plásticas e Organizadores | mantém |
+- Protoboards e Placas Fenolite (8)
+- Solda e Estações de Solda (3) ◂ pequena
+- Ferramentas de Bancada (4) ◂ pequena
+- Instrumentos de Medição (6)
+- Espaçadores e Parafusos Nylon (6)
+- Imãs de Neodímio (3) ◂ pequena
+- Parafusos, Buchas e Fixação (13)
+- Caixas Plásticas e Organizadores (14)
 
 ### Softwares e Serviços (8)
 
-| Hoje | Sugestão | Por quê |
+- Softwares (4) ◂ pequena
+- Serviços (4) ◂ pequena
+
+## Fusões possíveis (folhas pequenas)
+
+Se o dono preferir menos folhas, estas fusões juntam famílias vizinhas sem recriar lista de coisas diferentes. Aplicando todas, a árvore fica com **133 folhas**.
+
+| Folhas de hoje | Fusão sugerida | Fica com |
 | --- | --- | --- |
-| Softwares e Licenças (4) | **Softwares** | licença é o que se vende de software |
-| Serviços (4) | Serviços | mantém |
+| Shields para Arduino (3) + Cases para Arduino (4) | Shields e Cases para Arduino | 7 |
+| Módulos Optoacoplador (3) + Módulos MOSFET e Dimmer (3) | Módulos de Acionamento | 6 |
+| Joysticks e Encoders Rotativos (4) + Controle Remoto e Infravermelho (3) | Joysticks e Controles Remotos | 7 |
+| Módulos de Áudio e Som (2) → para Componentes | Buzzers, Alto-falantes e Áudio | 7 |
+| Sensores de Distância e Ultrassônicos (4) + Sensores Infravermelho e Seguidor de Linha (4) | Sensores de Distância e Proximidade | 8 |
+| Sensores de Tensão (3) + Sensores de Corrente (6) | Sensores de Corrente e Tensão | 9 |
+| Sensores de Cor (2) + Sensores de Luz e UV (5) | Sensores de Luz e Cor | 7 |
+| Sinalizadores LED de Painel (4) + Botoeiras e Comando 22mm (10) | Botoeiras e Sinalizadores 22mm | 14 |
+| Relés Industriais e SSR (3) + Controladores de Temperatura (5) | Controladores de Temperatura e SSR | 8 |
+| Mini Fontes Hi-Link (4) + Fontes Chaveadas (18) | Fontes Chaveadas | 22 |
+| Micro Servos (4) + Brushless, ESC e Aeromodelismo (4) | Servos e Motores para Aeromodelismo | 8 |
+| Controladores PWM de Velocidade (3) + Ponte H e Drivers de Motor DC (5) | Ponte H e Controladores de Motor DC | 8 |
+| Válvulas Solenoide e Pneumática (3) + Eletroímãs e Solenoides (5) | Eletroímãs e Válvulas Solenoide | 8 |
+| Roldanas V-Slot (4) + Polias GT2 e HTD (31) | Polias GT2 e Roldanas V-Slot | 35 |
+| Brocas, Pinças ER e Mandris (3) + Fresas para CNC (21) | Fresas, Brocas e Pinças | 24 |
+| Chaves Táteis e Push Button (4) + Chaves Gangorra e Alavanca (11) | Chaves e Interruptores | 15 |
+| Solda e Estações de Solda (3) + Ferramentas de Bancada (4) | Ferramentas e Solda | 7 |
 
-## Resumo
+Ficam pequenas de propósito, por serem famílias que o cliente procura pelo nome: Gravadores e Programadores (4), Displays OLED e TFT (4), Telas para Raspberry Pi (4), Encoders Incrementais (3), Pastilhas Peltier (3), Fusíveis e Filtros (3), Imãs de Neodímio (3), Softwares (4) e Serviços (4).
 
-- 3 nomes de topo mudam; 9 ficam.
-- 39 folhas mudam; 37 ficam; 1 folha vira 2 (Sensores de Gás e Chama; Sensores de Luz, Som e Cor). Total: 12 topos, 1 intermediária, 77 folhas.
-- Depois de fechados os nomes, o CSV e a seção 4 do relatório principal são atualizados, e só então o script da LI é escrito.
+## Próximo passo
+
+Depois de o dono marcar o que muda (nome, fusão ou troca de produto de folha), o CSV `categorias-4hobby-mapeamento.csv` e a seção 4 do relatório principal são regravados com a árvore final, e só então entra o script da LI.
