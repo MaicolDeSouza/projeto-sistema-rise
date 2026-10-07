@@ -29,7 +29,10 @@ export default function SeloPosicaoDePreco({ posicao }) {
   }
   if (posicao.acima) linhas.push(`Logo acima de voce: ${reais(posicao.acima.preco)} (${posicao.acima.loja}).`);
   if (posicao.empatados > 0) linhas.push(`Mesmo preco que ${posicao.empatados} loja(s).`);
-  linhas.push("Conta cada loja uma vez, pelo menor preco dela; so concorrentes com preco.");
+  if (posicao.indisponiveis > 0) {
+    linhas.push(`${posicao.indisponiveis} loja(s) sem estoque ficaram fora da conta.`);
+  }
+  linhas.push("Conta cada loja uma vez, pelo menor preco dela; so concorrentes com preco e com estoque.");
 
   return (
     <span

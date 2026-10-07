@@ -563,6 +563,22 @@ que achar. Quando o freio corta, a tela diz por quê ("N páginas seguidas sem p
 "2.030 de 2.033" pareceria varredura interrompida por erro. Testado com um corredor infinito de
 categorias na loja falsa do `teste:worker`.
 
+**A navegação segue a paginação das categorias** (`parametroRuim` em `descobrir.js`, 07/10/2026). Até então
+`p=` e `page=` estavam na lista de parâmetros recusados, junto de ordenação e filtro, e **a página 2 de
+categoria nenhuma era aberta**. Produto que só aparece na página 2 ou seguinte de uma categoria, sem link em
+destaque ou relacionados, nunca era achado. Caso real: o ESP32-S3-WROOM-1 N8 da Usinainfo (09795) só estava
+em `esp32-611?p=2`. Visto em 17/09, ele sumiu da lista porque a varredura de 04/10 não passou por ele, e
+**107** dos 2.515 produtos da Usinainfo ficaram de fora dela.
+- **Regra nova:** paginação é seguida quando é um número de 2 a 500 (`ULTIMA_PAGINA`). `p=1` (a própria
+  página 1), número inválido, número acima de 500 ou paginação junto de ordenação, filtro, busca ou `n=`
+  continuam recusados.
+- **Não era o preço:** a primeira suspeita foi a página do produto indisponível sem preço ser descartada. A
+  Usinainfo publica o preço no OpenGraph mesmo indisponível (R$ 69,83, `OUT_OF_STOCK`), e a página passa como
+  produto válido.
+- **Efeito esperado:** a varredura de site abre mais páginas (as páginas 2+ das categorias) e acha os
+  produtos que só estavam ali. A primeira varredura da Usinainfo com a regra nova ainda não rodou: conferir o
+  total e o tempo.
+
 **Tentativas numa queda.** Antes, o erro fatal devolvia todo job como PENDENTE, e o log mostrou
 "tentativa 4/3".
 - **Erro fatal:** o job na última tentativa agora FALHA e a fonte é adiada.
@@ -2535,6 +2551,11 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
   - **Empate** (mesmo preço em centavos) fica na mesma posição, com "(empatado)".
   - Concorrente sem preço ou com preço zero fica de fora. Sem preço do produto, ou sem concorrente com preço,
     não há selo.
+  - **Concorrente sem estoque também fica de fora** (pedido do dono em 07/10/2026): `estoqueStatus`
+    `OUT_OF_STOCK`, ou produto que saiu da loja (`ausenteDesde`). A loja sai da conta só se todos os produtos
+    dela estiverem assim, e a dica diz quantas saíram. O formulário lê o estoque pela ação
+    `consultarSituacaoConcorrentes`, porque a aba Concorrentes só lê o dela quando abre. No 100103 o selo foi
+    de 7º de 14 para 6º de 11.
   - **Cor:** verde quando é o 1º, âmbar quando é o último, cinza no meio. Não usa vermelho, porque ser o mais
     caro pode ser estratégia.
   - **A dica (mouse) mostra a distância:** o mais barato e a loja, "para ser o 1º: abaixo de R$ X", e os

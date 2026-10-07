@@ -1594,6 +1594,25 @@ console.log("\n— Descricao: 3 opcoes para cada um dos 2 primeiros paragrafos �
   conferir("duas opcoes que o corte igualou viram uma", cortadas[0], [`${frase("a")}${frase("b")}`.trim(), "Curta."]);
 }
 
+console.log("\n— Navegacao: segue a paginacao das categorias, e nao ordenacao nem filtro —");
+{
+  const { parametroRuim } = await import("../src/lib/coleta/descobrir.js");
+  const base = "https://www.usinainfo.com.br/esp32-611";
+  // O caso de 07/10/2026: o ESP32-S3-WROOM-1 so aparecia na pagina 2 da categoria, e a navegacao nunca abria "?p=2".
+  conferir("pagina 2 da categoria (?p=2) e seguida", parametroRuim(`${base}?p=2`), false);
+  conferir("?page=3 tambem", parametroRuim(`${base}?page=3`), false);
+  conferir("paginacao junto de outro parametro inofensivo e seguida", parametroRuim(`https://loja.test/index.php?id_category=11&p=2`), false);
+  conferir("endereco sem parametro e seguido", parametroRuim(base), false);
+  conferir("p=1 e a propria pagina 1: nao abre de novo", parametroRuim(`${base}?p=1`), true);
+  conferir("pagina que nao e numero e recusada", parametroRuim(`${base}?p=abc`), true);
+  conferir("pagina absurda e recusada (armadilha de paginas infinitas)", parametroRuim(`${base}?p=5000`), true);
+  conferir("ordenacao continua recusada", parametroRuim(`${base}?orderby=price&orderway=asc`), true);
+  conferir("paginacao COM ordenacao continua recusada", parametroRuim(`${base}?p=2&orderby=price`), true);
+  conferir("itens por pagina (n=) continua recusado", parametroRuim(`${base}?n=60`), true);
+  conferir("busca (q=, search_query=) continua recusada", [parametroRuim(`${base}?q=esp32`), parametroRuim(`${base}?search_query=x`)], [true, true]);
+  conferir("nome de parametro em caixa alta conta igual", parametroRuim(`${base}?OrderBy=price`), true);
+}
+
 console.log("\n— Posicao de preco entre os concorrentes (\"2º de 10\") —");
 {
   const { posicaoDePreco } = await import("../src/lib/posicaoDePreco.js");
@@ -1623,6 +1642,19 @@ console.log("\n— Posicao de preco entre os concorrentes (\"2º de 10\") —");
   conferir("preco do produto zero ou texto vazio: nada", [posicaoDePreco(0, lojas(["A", 1])), posicaoDePreco("", lojas(["A", 1]))], [null, null]);
   conferir("nenhum concorrente com preco: nada", posicaoDePreco(34.9, lojas(["A", null])), null);
   conferir("preco do produto em texto com virgula vale", posicaoDePreco("34,90", lojas(["A", 31.5])).posicao, 2);
+
+  // Concorrente SEM ESTOQUE nao conta (pedido do dono em 07/10/2026): ninguem compra dele agora.
+  const comIndisponivel = posicaoDePreco(34.9, [
+    { loja: "A", preco: 20, indisponivel: true },
+    { loja: "B", preco: 31.5 },
+    { loja: "C", preco: 40 },
+  ]);
+  conferir("loja sem estoque fica fora da posicao e do total", [comIndisponivel.posicao, comIndisponivel.total, comIndisponivel.maisBarato], [2, 3, { loja: "B", preco: 31.5 }]);
+  conferir("e a conta diz quantas lojas ficaram de fora por estarem sem estoque", comIndisponivel.indisponiveis, 1);
+  const lojaMista = posicaoDePreco(34.9, [{ loja: "A", preco: 20, indisponivel: true }, { loja: "A", preco: 33 }]);
+  conferir("loja com um produto sem estoque e outro com estoque conta pelo que tem estoque", [lojaMista.total, lojaMista.maisBarato, lojaMista.indisponiveis], [2, { loja: "A", preco: 33 }, 0]);
+  conferir("so lojas sem estoque: nada", posicaoDePreco(34.9, [{ loja: "A", preco: 20, indisponivel: true }]), null);
+  conferir("sem nenhuma indisponivel, a conta e zero", basico.indisponiveis, 0);
 }
 
 console.log("\n— Descricao: o prompt de escrita editavel na janela —");

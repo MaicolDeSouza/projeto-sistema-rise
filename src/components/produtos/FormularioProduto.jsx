@@ -53,6 +53,7 @@ import {
 import {
   buscarPorPalavras,
   camposDasReferencias,
+  consultarSituacaoConcorrentes,
   criarTitulosIA,
   enviarArquivo,
   enviarArquivoTemporario,
@@ -2180,11 +2181,40 @@ export default function FormularioProduto({
     (item) => item.tipo === "CONCORRENTE" && !idsConcorrentesAtuais.has(item.id),
   );
 
+  // O estoque de cada concorrente da lista, lido do banco (a aba Concorrentes le o seu so quando abre, e o selo
+  // ao lado do Preco venda aparece antes). Concorrente sem estoque, ou que saiu da loja, nao conta na posicao.
+  const [estoqueDosConcorrentes, setEstoqueDosConcorrentes] = useState({});
+  const chaveDosColetados = concorrentesRascunho
+    .map((item) => item.produtoColetadoId)
+    .filter(Boolean)
+    .sort()
+    .join(",");
+  useEffect(() => {
+    let valido = true;
+    consultarSituacaoConcorrentes(chaveDosColetados ? chaveDosColetados.split(",") : [])
+      .then((resposta) => {
+        if (valido) setEstoqueDosConcorrentes(resposta.ok ? resposta.itens : {});
+      })
+      .catch(() => {
+        if (valido) setEstoqueDosConcorrentes({});
+      });
+    return () => {
+      valido = false;
+    };
+  }, [chaveDosColetados]);
+
   // "2º de 10" ao lado de Preco venda e de Concorrentes (pedido do dono em 06/10/2026): o preco que esta no
   // campo AGORA contra a lista de concorrentes da tela, salva ou nao. Ver lib/posicaoDePreco.js.
   const posicaoDoPreco = posicaoDePreco(
     precoVendaAtual,
-    concorrentesRascunho.map((item) => ({ loja: item.fonte, preco: item.preco })),
+    concorrentesRascunho.map((item) => {
+      const estoque = estoqueDosConcorrentes[item.produtoColetadoId];
+      return {
+        loja: item.fonte,
+        preco: item.preco,
+        indisponivel: Boolean(estoque && (estoque.estoqueStatus === "OUT_OF_STOCK" || estoque.ativo === false)),
+      };
+    }),
   );
 
   /*

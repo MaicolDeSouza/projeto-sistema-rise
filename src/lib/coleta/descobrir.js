@@ -27,7 +27,37 @@ const IGNORAR = [
 
 /// Parametros de ordenacao e filtro geram infinitas URLs para a mesma pagina.
 /// Segui-los prenderia o rastreamento numa mesma vitrine para sempre.
-const PARAMETROS_RUINS = /[?&](orderby|orderway|tag|search_query|id_currency|back|n|p|page|q)=/i;
+const PARAMETROS_RUINS = new Set(["orderby", "orderway", "tag", "search_query", "id_currency", "back", "n", "q"]);
+
+/// Paginacao de categoria ("?p=2", "?page=3"). Ate 07/10/2026 estava junto dos ruins, e a navegacao nunca
+/// abria a pagina 2 de categoria nenhuma: o ESP32-S3-WROOM-1 da Usinainfo so aparecia em "esp32-611?p=2" e
+/// sumiu da coleta (107 produtos dela ficaram de fora na varredura de 04/10). Agora e seguida quando e um
+/// NUMERO de 2 a 500 e nao vem junto de ordenacao ou filtro.
+const PARAMETROS_DE_PAGINA = new Set(["p", "page"]);
+/// Acima disso e armadilha (pagina infinita), e nao vitrine: a maior categoria das lojas medidas tem poucas dezenas.
+const ULTIMA_PAGINA = 500;
+
+/**
+ * O endereco tem parametro que a navegacao nao deve seguir? Ordenacao, filtro, busca e itens por pagina sempre;
+ * paginacao so quando nao e um numero de 2 a `ULTIMA_PAGINA` (a "?p=1" e a propria pagina 1, aberta de novo).
+ */
+export function parametroRuim(url) {
+  let parametros;
+  try {
+    parametros = new URL(url).searchParams;
+  } catch {
+    return false;
+  }
+  for (const [nome, valor] of parametros) {
+    const chave = nome.toLowerCase();
+    if (PARAMETROS_RUINS.has(chave)) return true;
+    if (PARAMETROS_DE_PAGINA.has(chave)) {
+      const pagina = /^\d+$/.test(valor) ? Number(valor) : NaN;
+      if (!(pagina >= 2 && pagina <= ULTIMA_PAGINA)) return true;
+    }
+  }
+  return false;
+}
 
 /**
  * A URL tem cara de pagina de produto?
@@ -65,7 +95,7 @@ export function pareceListagem(url) {
 
 function ehSeguivel(url, origem, prefixo) {
   if (!url.startsWith(origem)) return false;
-  if (PARAMETROS_RUINS.test(url)) return false;
+  if (parametroRuim(url)) return false;
   if (IGNORAR.some((padrao) => padrao.test(url))) return false;
   if (prefixo && !url.includes(prefixo)) return false;
   return true;
@@ -88,7 +118,7 @@ function linksDe(html, urlBase, origem, prefixo) {
 
     // O prefixo restringe o que COLETAMOS, mas nao o que navegamos: a vitrine
     // que lista os produtos da secao costuma estar fora dela.
-    if (texto.startsWith(origem) && !PARAMETROS_RUINS.test(texto) && !IGNORAR.some((p) => p.test(texto))) {
+    if (texto.startsWith(origem) && !parametroRuim(texto) && !IGNORAR.some((p) => p.test(texto))) {
       achados.add(texto);
     }
   }
