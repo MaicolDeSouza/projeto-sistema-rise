@@ -216,6 +216,34 @@ conferir(
   },
 );
 
+conferir(
+  "normalizador traz slug, video, fiscais e SEO do detalhe",
+  (({ apelido, url, destaque, videoUrl, origem, tipoProducao, seo, tags }) => ({ apelido, url, destaque, videoUrl, origem, tipoProducao, seo, tags }))(
+    normalizarProdutoLojaIntegrada({
+      id: 404334430,
+      apelido: "/zz-teste-li-apagar",
+      url: "/zz-teste-li-alias",
+      destaque: false,
+      url_video_youtube: "https://youtu.be/x",
+      icms_origin_code: "0",
+      production_type: "Fabricação própria",
+      seo_title: "Titulo",
+      seo_description: "",
+      tags: [],
+    }),
+  ),
+  {
+    apelido: "/zz-teste-li-apagar",
+    url: "/zz-teste-li-alias",
+    destaque: false,
+    videoUrl: "https://youtu.be/x",
+    origem: "0",
+    tipoProducao: "Fabricação própria",
+    seo: { title: "Titulo", description: null },
+    tags: [],
+  },
+);
+
 const chamadasPaginadas = [];
 const clientePaginado = {
   get: async (caminho, params) => {

@@ -91,6 +91,17 @@ export function normalizarProdutoLojaIntegrada(produto) {
     gtin: textoOuNulo(produto.gtin),
     mpn: textoOuNulo(produto.mpn),
     ncm: textoOuNulo(produto.ncm),
+    // apelido e o slug com que o produto nasceu; depois de um /alias o caminho atual e o `url`.
+    apelido: textoOuNulo(produto.apelido),
+    videoUrl: textoOuNulo(produto.url_video_youtube),
+    // Fiscais da NF-e nativa da LI: so leitura pela API (medido em 07/10/2026, o PUT os ignora).
+    origem: textoOuNulo(produto.icms_origin_code),
+    tipoProducao: textoOuNulo(produto.production_type),
+    seo: {
+      title: textoOuNulo(produto.seo_title),
+      description: textoOuNulo(produto.seo_description),
+    },
+    tags: Array.isArray(produto.tags) ? produto.tags : [],
     marca: {
       id: idDeRecursoLojaIntegrada(produto.marca),
       uri: textoOuNulo(produto.marca?.resource_uri ?? produto.marca),

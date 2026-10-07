@@ -25,6 +25,7 @@ const { LIMITE_DO_SLUG, slugDe, slugValido } = await import("../src/lib/canaisDe
 const { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaPalavra, descriptionPadrao, tituloSeoPadrao } = await import("../src/lib/canaisDeVenda/li/seo.js");
 const { blocoDocumentos, blocoEspecificacoes, montarDescricaoLI, textoParaHtmlLI } = await import("../src/lib/canaisDeVenda/li/descricao.js");
 const { htmlParaTexto } = await import("../src/lib/integracoes/normalizacao.js");
+const { CAMPOS_DE_ENVIO_LI, CAMPOS_SO_LEITURA_LI, TEXTO_DO_TIPO_PRODUCAO, TIPO_PRODUCAO_DA_LI, assinaturaLI, avisosFiscaisLI, contarDivergencias, diferencasLI, normalizarDaLI, normalizarDoRiseLI } = await import("../src/lib/canaisDeVenda/li/campos.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -92,6 +93,37 @@ try {
     conferir("ida e volta pelo htmlParaTexto", htmlParaTexto(montarDescricaoLI({ descricao: "a <b>\nc\n\nd", especificacoes: false, produto: {}, documentos: [], frases: [] }), { paragrafos: true }), "a <b>\nc\n\nd");
     conferir("ida e volta com aspas, & e CRLF", htmlParaTexto(montarDescricaoLI({ descricao: `Diz "x" & 'y'\r\nfim`, especificacoes: false, produto: {}, documentos: [], frases: [] }), { paragrafos: true }), `Diz "x" & 'y'\nfim`);
     conferir("htmlParaTexto sem a opcao continua como o Bling usa", htmlParaTexto("<p>a</p><p>b</p>"), "a\nb");
+  }
+
+  {
+    console.log("\nRegras puras: campos, assinatura e diferencas");
+    conferir("campos de envio, na ordem, sem os fiscais so de leitura", CAMPOS_DE_ENVIO_LI.map((c) => c.id), ["nome", "slug", "descricao", "ncm", "gtin", "mpn", "peso", "altura", "largura", "comprimento", "marca", "categorias", "video", "destaque", "seoTitulo", "seoDescription"]);
+    conferir("campos so de leitura: origem e tipo de producao", CAMPOS_SO_LEITURA_LI.map((c) => c.id), ["origem", "tipoProducao"]);
+    conferir("texto do tipo de producao e o medido na LI", TEXTO_DO_TIPO_PRODUCAO, { REVENDA: "Revenda", FABRICACAO_PROPRIA: "Fabricação própria" });
+    conferir("tipo de producao da LI pelo texto", [TIPO_PRODUCAO_DA_LI("Revenda"), TIPO_PRODUCAO_DA_LI("Fabricação própria"), TIPO_PRODUCAO_DA_LI("outro"), TIPO_PRODUCAO_DA_LI(null)], ["REVENDA", "FABRICACAO_PROPRIA", null, null]);
+    const produtoRise = { tituloBase: "x", ncm: "8537.10.20", ean: "7894972605270", modelo: "FX3U", pesoKg: "0.5", alturaCm: "2.3", larguraCm: "12", comprimentoCm: "6.01", origem: 0, tipoProducao: "REVENDA" };
+    const rasc = { titulo: " CLP FX3U ", slug: "clp-fx3u", descricao: "Texto", marca: "Mitsubishi", categorias: ["23983023", "5946305", "23983023"], destaque: false, videoUrl: null, seo: { title: "t".repeat(80), description: "" }, especificacoes: false };
+    const rise = normalizarDoRiseLI(produtoRise, rasc, { frases: [], documentos: [] });
+    conferir("rise normalizado", rise, { nome: "CLP FX3U", slug: "clp-fx3u", descricao: "Texto", ncm: "85371020", gtin: "7894972605270", mpn: "FX3U", peso: 0.5, altura: 3, largura: 12, comprimento: 7, marca: "MITSUBISHI", categorias: ["23983023", "5946305"], video: null, destaque: false, seoTitulo: "t".repeat(70), seoDescription: null, origem: 0, tipoProducao: "REVENDA" });
+    const produtoLI = { id: 1, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<p>Texto</p>", ncm: "8537.10.20", gtin: "7894972605270", mpn: "FX3U", peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: "0", production_type: TEXTO_DO_TIPO_PRODUCAO.REVENDA, seo_title: "", seo_description: "" };
+    const li = normalizarDaLI(produtoLI, { title: "t".repeat(70), description: "" }, { marcaNome: "Mitsubishi" });
+    conferir("LI normalizada igual ao Rise", li, rise);
+    conferir("assinatura estavel e igual", assinaturaLI(rise) === assinaturaLI(li) && assinaturaLI(rise).length === 64, true);
+    conferir("assinatura ignora os fiscais so de leitura", assinaturaLI(rise) === assinaturaLI({ ...rise, origem: 5, tipoProducao: "FABRICACAO_PROPRIA" }), true);
+    conferir("assinatura muda com um campo de envio", assinaturaLI(rise) === assinaturaLI({ ...rise, nome: "outro" }), false);
+    conferir("sem diferencas", diferencasLI(rise, li), []);
+    const semMarca = normalizarDaLI({ ...produtoLI, marca: null, ncm: "", categorias: [] }, { title: "t".repeat(70), description: "" }, { marcaNome: null });
+    conferir("diferencas: ncm, marca e categorias (so no Rise)", diferencasLI(rise, semMarca).map((d) => [d.campo, d.tipo]), [["ncm", "diferente"], ["marca", "diferente"], ["categorias", "diferente"]]);
+    conferir("vazio no Rise nao e divergencia", contarDivergencias(diferencasLI({ ...rise, ncm: null, categorias: [] }, li)), 0);
+    conferir("vazio no Rise aparece marcado", diferencasLI({ ...rise, ncm: null }, li).map((d) => [d.campo, d.tipo]), [["ncm", "vazioNoRise"]]);
+    conferir("tipo de producao da LI sem acento e caixa", normalizarDaLI({ ...produtoLI, production_type: "fabricacao PROPRIA" }, null, {}).tipoProducao, "FABRICACAO_PROPRIA");
+    conferir("origem ausente e null, nao 0", normalizarDaLI({ ...produtoLI, icms_origin_code: null }, null, {}).origem, null);
+    conferir("slug atual e o url (o /alias nao muda o apelido)", normalizarDaLI({ ...produtoLI, url: "/clp-novo" }, null, {}).slug, "clp-novo");
+    conferir("SEO cai no seo_title do detalhe sem o /seo", normalizarDaLI({ ...produtoLI, seo_title: "Titulo LI" }, null, {}).seoTitulo, "Titulo LI");
+    conferir("fiscais diferentes nao contam como divergencia", diferencasLI(rise, { ...li, origem: 5, tipoProducao: "FABRICACAO_PROPRIA" }), []);
+    conferir("avisos fiscais: diferente e vazio na LI", avisosFiscaisLI(rise, { ...li, origem: 5, tipoProducao: null }).map((a) => [a.campo, a.tipo]), [["origem", "diferente"], ["tipoProducao", "vazioNaLI"]]);
+    conferir("avisos fiscais: iguais nao avisam", avisosFiscaisLI(rise, li), []);
+    conferir("medida e peso invalidos viram null", (({ peso, altura }) => ({ peso, altura }))(normalizarDoRiseLI({ pesoKg: "0", alturaCm: "abc" }, { titulo: "x" }, {})), { peso: null, altura: null });
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.
