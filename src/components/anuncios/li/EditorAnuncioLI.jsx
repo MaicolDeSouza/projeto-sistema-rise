@@ -493,9 +493,11 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   }
 
   const produto = contexto.produto;
+  // Janela presa no ALTO (pedido do dono em 07/10/2026): centralizada, ela subia e descia a cada troca de aba,
+  // porque cada aba tem uma altura. Assim so a parte de baixo muda.
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/50 p-4 pt-[4vh] text-left font-normal normal-case"
       onClick={(evento) => {
         if (evento.target === evento.currentTarget) pedirFechamento();
       }}
