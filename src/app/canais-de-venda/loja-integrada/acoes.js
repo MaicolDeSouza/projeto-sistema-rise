@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { anuncioLIDoProduto, carregarAnuncioLI, contextoDoProduto, novoRascunhoLI, salvarRascunhoLI } from "@/lib/canaisDeVenda/li/banco";
+import { clienteBling } from "@/lib/blingSync/cliente";
+import { vinculoBlingNaLI } from "@/lib/canaisDeVenda/li/blingLoja";
 import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
 import { listarCategoriasDaLI, listarMarcasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
 import { seoDosConcorrentes } from "@/lib/canaisDeVenda/li/seoConcorrentes";
@@ -66,6 +68,19 @@ export async function anuncioDoProdutoLI(produtoId) {
 export async function salvarAnuncioLI(id, rascunho) {
   if (!ehIdOuNulo(id)) return PEDIDO_INVALIDO;
   return protegendo(async () => revalidando(await salvarRascunhoLI(id, rascunho)));
+}
+
+/**
+ * O produto esta ligado, no Bling, ao canal da Loja Integrada? So le o Bling (3 GETs: busca pelo SKU,
+ * o produto e os vinculos com as lojas). O editor chama ao abrir.
+ */
+export async function vinculoBlingLI(produtoId) {
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const [produto, anuncio] = await Promise.all([contextoDoProduto(produtoId), anuncioLIDoProduto(produtoId)]);
+    if (!produto) return { ok: false, erro: "Produto não encontrado." };
+    return { ok: true, ...(await vinculoBlingNaLI(clienteBling(), produto.sku, anuncio?.idExterno ?? null)) };
+  });
 }
 
 /** O SEO (title e description) dos concorrentes salvos no produto, para comparar na aba SEO. */

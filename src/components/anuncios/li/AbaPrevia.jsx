@@ -16,6 +16,34 @@ const dataEHora = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
 });
 
+const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+/**
+ * O vinculo do produto com o canal da LI DENTRO do Bling (`vinculoBlingLI`, lido ao abrir o editor), em
+ * uma frase. `tipo` "ok" so aparece na Previa; "atencao" tambem vai para o topo do editor.
+ */
+export function situacaoDoBling(bling) {
+  if (!bling) return null;
+  if (!bling.ok) return { tipo: "info", texto: bling.erro ?? "Não foi possível ler o Bling." };
+  switch (bling.situacao) {
+    case "ligado":
+      return {
+        tipo: "ok",
+        texto: `Bling: ligado à Loja Integrada (produto ${bling.codigo || "?"} na loja${bling.preco !== null && bling.preco !== undefined ? `, preço ${MOEDA.format(bling.preco)} no vínculo` : ""}). Estoque, preço e pedidos passam pelo Bling.`,
+      };
+    case "codigo_diferente":
+      return { tipo: "atencao", texto: `No Bling, este produto está ligado a OUTRO produto da Loja Integrada (${bling.codigo}): o estoque e o preço vão para ele. Corrija o vínculo no Bling.` };
+    case "sem_vinculo":
+      return { tipo: "atencao", texto: "O produto está no Bling, mas sem o canal da Loja Integrada: estoque e preço não chegam à loja e os pedidos não entram no Bling. Ligue o produto à loja Loja_Integrada no Bling." };
+    case "sem_produto_no_bling":
+      return { tipo: "atencao", texto: "O produto não está no Bling: é o Bling que controla o estoque e recebe os pedidos da Loja Integrada. Cadastre o produto no Bling e ligue-o à loja Loja_Integrada." };
+    case "duplicado":
+      return { tipo: "atencao", texto: "Há mais de um produto com este código no Bling: deixe um só para o vínculo com a Loja Integrada ser conferido." };
+    default:
+      return { tipo: "info", texto: bling.erro ?? "Não foi possível conferir o Bling." };
+  }
+}
+
 const ROTULO_DA_SITUACAO = { ATIVA: "ativo na loja", PAUSADA: "inativo na loja", ENCERRADA: "encerrado", DESCONHECIDA: "situação desconhecida" };
 
 function agruparPorAba(problemas) {
@@ -30,7 +58,8 @@ function agruparPorAba(problemas) {
  * situacao do vinculo com a loja. Nao envia nada: Cadastrar e Sincronizar ficam no rodape do editor
  * (07/10/2026), e as diferencas com a loja na aba Divergencias.
  */
-export default function AbaPrevia({ irPara, todosProblemas, vinculo, leitura, contexto }) {
+export default function AbaPrevia({ irPara, todosProblemas, vinculo, leitura, bling }) {
+  const doBling = situacaoDoBling(bling);
   const grupos = agruparPorAba(todosProblemas);
   const bloqueantes = todosProblemas.filter((problema) => problema.bloqueante).length;
   const alertas = todosProblemas.length - bloqueantes;
@@ -60,12 +89,9 @@ export default function AbaPrevia({ irPara, todosProblemas, vinculo, leitura, co
           <p className="mt-1 text-suave">Sem vínculo com a loja ainda.</p>
         )}
         <p className="mt-2 text-xs text-suave">O botão do rodapé envia o anúncio SALVO: &quot;Cadastrar na LI&quot; se o produto não está na loja, &quot;Sincronizar com a LI&quot; se já está.</p>
-        {contexto?.produto && !contexto.produto.blingId && (
-          <p className="mt-1 text-xs text-amber-800">
-            <span className="font-medium">Produto sem vínculo com o Bling.</span> É o Bling que controla o estoque e recebe os pedidos da Loja
-            Integrada: sem o produto lá, o ícone da lista não fica verde. Cadastre ou importe o produto no Bling.
-          </p>
-        )}
+        <p className={`mt-1 text-xs ${doBling?.tipo === "atencao" ? "text-amber-800" : doBling?.tipo === "ok" ? "text-emerald-800" : "text-suave"}`}>
+          {doBling ? doBling.texto : "Conferindo o vínculo com o Bling..."}
+        </p>
         {leitura?.ok && leitura.escrita?.liberada === false && (
           <p className="mt-1 text-xs text-amber-800">
             <span className="font-medium">Envio bloqueado agora.</span> {leitura.escrita.motivo}

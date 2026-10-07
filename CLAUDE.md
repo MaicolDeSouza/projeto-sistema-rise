@@ -2523,7 +2523,10 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   POST (se o SEO falhar depois, o próximo clique não duplica).
 - **Ícone:** cinza = nunca sincronizado, não Conferido ou **sem vínculo com o Bling** (`blingId`; decisão do dono em
   07/10/2026: é o Bling que controla estoque e pedidos da LI, e o texto do ícone diz "sem vínculo com o Bling"); verde =
-  sincronizado e no Bling; selo "!" = a assinatura (Rise + rascunho +
+  sincronizado e no Bling; **o editor confere ao abrir** (só leitura, `blingLoja.js`) se o produto está ligado, DENTRO do
+  Bling, à loja Loja_Integrada (203478870): `GET /produtos/lojas?idProduto=`, cujo `codigo` é o id do produto na LI
+  (medido no 100101: "204930845", preço 49 no vínculo). Sem o vínculo, ou ligado a outro produto da LI, aviso no topo do
+  editor e na Prévia. selo "!" = a assinatura (Rise + rascunho +
   documentos) mudou desde o último envio. **A LI regrava `<br>` como `<br />\r\n`**: `htmlParaTexto(..., { paragrafos:
   true })` trata quebra crua do HTML como espaço, senão a descrição ficava "diferente" para sempre.
 

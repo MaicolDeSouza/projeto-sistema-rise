@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter } from "next/navigation";
 import { CircleCheck, Loader, X } from "lucide-react";
 
-import { abrirAnuncioLI, listarCategoriasLI, listarMarcasLI, salvarAnuncioLI } from "@/app/canais-de-venda/loja-integrada/acoes";
+import { abrirAnuncioLI, listarCategoriasLI, listarMarcasLI, salvarAnuncioLI, vinculoBlingLI } from "@/app/canais-de-venda/loja-integrada/acoes";
 import { abrirJanelaLI, cadastrarProdutoNaLI, sincronizarComLI } from "@/app/produtos/acoes-li";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
@@ -16,7 +16,7 @@ import AbaDescricao from "./AbaDescricao";
 import AbaDivergencias from "./AbaDivergencias";
 import AbaGeral from "./AbaGeral";
 import AbaImagens from "./AbaImagens";
-import AbaPrevia from "./AbaPrevia";
+import AbaPrevia, { situacaoDoBling } from "./AbaPrevia";
 import AbaSEO from "./AbaSEO";
 import { AbaEnvio, AbaFiscal } from "./AbasDeLeitura";
 
@@ -88,6 +88,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   const [vinculoAtual, setVinculoAtual] = useState(vinculo ?? null);
   const [salvo, setSalvo] = useState(rascunhoInicial);
   const [leitura, setLeitura] = useState(null);
+  const [bling, setBling] = useState(null);
   const [lendo, setLendo] = useState(true);
   const [envio, setEnvio] = useState(null);
   const [pergunta, setPergunta] = useState(null);
@@ -140,6 +141,11 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     if (!montado.current) return;
     setLeitura(lida);
     setLendo(false);
+    // O vinculo do produto com o canal da LI DENTRO do Bling (so leitura): e ele que leva estoque e
+    // pedidos. Corre em paralelo, sem segurar a tela.
+    chamar(vinculoBlingLI, produtoId).then((lido) => {
+      if (montado.current) setBling(lido);
+    });
     if (lida.ok && lida.idExterno) {
       setVinculoAtual((atual) => ({ ...(atual ?? {}), idExterno: lida.idExterno, urlExterna: lida.urlExterna ?? atual?.urlExterna ?? null }));
     }
@@ -316,9 +322,14 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     vinculo: vinculoAtual,
     recarregarCategorias,
     leitura,
+    bling,
     abrirProduto,
   };
   const rotuloDoStatus = STATUS_LI[statusAtual] ?? (idAtual ? STATUS_LI.RASCUNHO : { rotulo: "Novo", tom: "neutro" });
+
+  // Produto sem o canal da LI no Bling: aviso no topo (estoque e pedidos nao passam). Ligado, so na Previa.
+  const estadoDoBling = situacaoDoBling(bling);
+  const avisoDoBling = estadoDoBling && estadoDoBling.tipo === "atencao" ? estadoDoBling.texto : null;
 
   // O estado da loja em uma linha, acima das abas: o que o pop-up do icone dizia.
   let situacaoDaLoja = null;
@@ -355,6 +366,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
           )}
         </div>
       )}
+      {avisoDoBling && <div className={`rounded border px-3 py-2 text-xs ${CLASSE_DA_MENSAGEM.atencao}`}>{avisoDoBling}</div>}
       {situacaoDaLoja && (
         <div className={`flex flex-wrap items-center gap-2 rounded border px-3 py-2 text-xs ${CLASSE_DA_MENSAGEM[situacaoDaLoja.tipo]}`}>
           <span className="min-w-0 flex-1">{situacaoDaLoja.texto}</span>
@@ -367,7 +379,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
       )}
     </>
   );
-  const temAviso = Boolean(mensagem || envio || situacaoDaLoja);
+  const temAviso = Boolean(mensagem || envio || situacaoDaLoja || avisoDoBling);
 
   const barra = (
     <div inert={travado}>

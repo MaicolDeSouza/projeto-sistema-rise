@@ -561,6 +561,40 @@ try {
     conferir("pedido leva titulo, descricao e o SEO dos concorrentes, sem o nome da loja", [pedido.includes("Placa Uno R3"), pedido.includes("A Placa faz X."), pedido.includes("Compre ja."), /Loja Secreta/.test(pedido.replace("Uno | Loja Secreta", ""))], [true, true, true, false]);
   }
 
+  {
+    console.log("\nBling: o produto ligado ao canal da Loja Integrada");
+    const { LOJA_LI_NO_BLING, vinculoBlingNaLI } = await import("../src/lib/canaisDeVenda/li/blingLoja.js");
+    // Bling de mentira so de leitura: a busca por codigo, o produto e os vinculos com as lojas.
+    const blingDeLeitura = ({ produtos = {}, vinculos = {}, falha = null }) => ({
+      chamadas: [],
+      async get(caminho, params) {
+        this.chamadas.push([caminho, params]);
+        if (falha) return { ok: false, status: falha, dados: {} };
+        if (caminho === "/produtos") {
+          const codigo = params["codigos[]"][0];
+          return { ok: true, status: 200, dados: { data: produtos[codigo] ? [{ id: produtos[codigo], codigo }] : [] } };
+        }
+        if (caminho.startsWith("/produtos/") && caminho !== "/produtos/lojas") {
+          const id = Number(caminho.split("/").pop());
+          const codigo = Object.keys(produtos).find((c) => produtos[c] === id);
+          return { ok: true, status: 200, dados: { data: { id, codigo } } };
+        }
+        if (caminho === "/produtos/lojas") return { ok: true, status: 200, dados: { data: vinculos[params.idProduto] ?? [] } };
+        throw new Error(`rota inesperada ${caminho}`);
+      },
+    });
+    conferir("o canal da LI no Bling e o 203478870 (medido)", LOJA_LI_NO_BLING, "203478870");
+    const ligado = blingDeLeitura({ produtos: { 100101: 3191813308 }, vinculos: { 3191813308: [{ codigo: "MLB1", loja: { id: 203593931 }, preco: 49.9 }, { codigo: "204930845", loja: { id: 203478870 }, preco: 49.0000001 }] } });
+    conferir("ligado ao canal da LI, com o id da LI no codigo", await vinculoBlingNaLI(ligado, "100101", "204930845"), { situacao: "ligado", codigo: "204930845", preco: 49 });
+    conferir("ligado a OUTRO produto da LI", (await vinculoBlingNaLI(ligado, "100101", "999")).situacao, "codigo_diferente");
+    conferir("produto ainda fora da LI: ligado vale (o Bling ja tem o vinculo)", (await vinculoBlingNaLI(ligado, "100101", null)).situacao, "ligado");
+    const semLoja = blingDeLeitura({ produtos: { X1: 5 }, vinculos: { 5: [{ codigo: "MLB1", loja: { id: 203593931 } }] } });
+    conferir("no Bling, mas sem o canal da LI", await vinculoBlingNaLI(semLoja, "X1", "1"), { situacao: "sem_vinculo" });
+    conferir("codigo que nao existe no Bling", await vinculoBlingNaLI(blingDeLeitura({}), "NADA", "1"), { situacao: "sem_produto_no_bling" });
+    const fora = await vinculoBlingNaLI(blingDeLeitura({ falha: 401 }), "X1", "1");
+    conferir("Bling fora do ar vira erro com recado, sem lancar", [fora.situacao, /Bling/.test(fora.erro ?? "")], ["erro", true]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;
