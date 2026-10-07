@@ -595,6 +595,59 @@ try {
     conferir("Bling fora do ar vira erro com recado, sem lancar", [fora.situacao, /Bling/.test(fora.erro ?? "")], ["erro", true]);
   }
 
+  {
+    console.log("\nBling: ligar o produto ao canal da Loja Integrada");
+    const { LOJA_LI_NO_BLING, ligarNoBlingLI } = await import("../src/lib/canaisDeVenda/li/blingLoja.js");
+    // Bling de mentira que le e grava vinculos, com a trava de escrita.
+    const blingComVinculos = ({ produtos = {}, vinculos = {}, travaFechada = false, recusa = null }) => ({
+      chamadas: [],
+      exigirEscrita(codigo) {
+        this.chamadas.push(["TRAVA", codigo]);
+        if (travaFechada) throw new Error("Escrita bloqueada: BLING_ESCRITA esta false no .env. Nenhum dado foi enviado.");
+      },
+      async get(caminho, params) {
+        this.chamadas.push(["GET", caminho]);
+        if (caminho === "/produtos") {
+          const codigo = params["codigos[]"][0];
+          return { ok: true, status: 200, dados: { data: produtos[codigo] ? [{ id: produtos[codigo].id, codigo }] : [] } };
+        }
+        if (caminho === "/produtos/lojas") return { ok: true, status: 200, dados: { data: vinculos[params.idProduto] ?? [] } };
+        const id = Number(caminho.split("/").pop());
+        const codigo = Object.keys(produtos).find((c) => produtos[c].id === id);
+        return { ok: true, status: 200, dados: { data: { id, codigo, preco: produtos[codigo].preco } } };
+      },
+      async post(caminho, corpo) {
+        this.chamadas.push(["POST", caminho, corpo]);
+        if (recusa) return { ok: false, status: recusa, dados: { error: { description: "Recusado" } } };
+        (vinculos[corpo.produto.id] ??= []).push({ id: 1, ...corpo });
+        return { ok: true, status: 201, dados: { data: { id: 1 } } };
+      },
+    });
+    const b1 = blingComVinculos({ produtos: { "ZZ-B": { id: 77, preco: 39.9 } }, vinculos: { 77: [{ codigo: "MLB1", loja: { id: 203593931 } }] } });
+    const ligou = await ligarNoBlingLI(b1, "ZZ-B", "404334430");
+    conferir("liga: ok, e a releitura confirma", [ligou.ok, ligou.situacao], [true, "ligado"]);
+    const post = b1.chamadas.find((c) => c[0] === "POST");
+    conferir(
+      "POST /produtos/lojas com o id da LI no codigo, o preco do BLING, o produto e a loja da LI",
+      post && [post[1], post[2]],
+      ["/produtos/lojas", { codigo: "404334430", preco: 39.9, produto: { id: 77 }, loja: { id: Number(LOJA_LI_NO_BLING) } }],
+    );
+    conferir("a trava vem antes do POST", b1.chamadas.findIndex((c) => c[0] === "TRAVA") < b1.chamadas.findIndex((c) => c[0] === "POST"), true);
+    const deNovo = await ligarNoBlingLI(b1, "ZZ-B", "404334430");
+    conferir("ja ligado: nao grava de novo", [deNovo.ok, deNovo.situacao, b1.chamadas.filter((c) => c[0] === "POST").length], [true, "ligado", 1]);
+    const b2 = blingComVinculos({ produtos: { "ZZ-B": { id: 77, preco: 1 } }, vinculos: { 77: [{ codigo: "999", loja: { id: 203478870 } }] } });
+    const outro = await ligarNoBlingLI(b2, "ZZ-B", "404334430");
+    conferir("ligado a OUTRO produto da LI: recusa e nao mexe", [outro.ok, outro.situacao, b2.chamadas.some((c) => c[0] === "POST")], [false, "codigo_diferente", false]);
+    const b3 = blingComVinculos({ produtos: { "ZZ-B": { id: 77, preco: 1 } }, travaFechada: true });
+    const travado = await ligarNoBlingLI(b3, "ZZ-B", "404334430");
+    conferir("trava fechada: recusa com o motivo e nenhum POST", [travado.ok, /BLING_ESCRITA/.test(travado.erro ?? ""), b3.chamadas.some((c) => c[0] === "POST")], [false, true, false]);
+    conferir("sem o produto na LI ainda: recusa antes de ler o Bling", (await ligarNoBlingLI(blingComVinculos({}), "ZZ-B", null)).ok, false);
+    conferir("produto fora do Bling: recusa", (await ligarNoBlingLI(blingComVinculos({}), "NADA", "1")).situacao, "sem_produto_no_bling");
+    const b4 = blingComVinculos({ produtos: { "ZZ-B": { id: 77, preco: 1 } }, recusa: 400 });
+    const recusado = await ligarNoBlingLI(b4, "ZZ-B", "404334430");
+    conferir("Bling recusa: ok false com o HTTP e o motivo", [recusado.ok, /HTTP 400/.test(recusado.erro ?? ""), /Recusado/.test(recusado.erro ?? "")], [false, true, true]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;

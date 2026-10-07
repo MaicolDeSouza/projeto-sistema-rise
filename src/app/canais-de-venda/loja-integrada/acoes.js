@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { anuncioLIDoProduto, carregarAnuncioLI, contextoDoProduto, novoRascunhoLI, salvarRascunhoLI } from "@/lib/canaisDeVenda/li/banco";
 import { clienteBling } from "@/lib/blingSync/cliente";
-import { vinculoBlingNaLI } from "@/lib/canaisDeVenda/li/blingLoja";
+import { ligarNoBlingLI, vinculoBlingNaLI } from "@/lib/canaisDeVenda/li/blingLoja";
 import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
 import { listarCategoriasDaLI, listarMarcasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
 import { seoDosConcorrentes } from "@/lib/canaisDeVenda/li/seoConcorrentes";
@@ -81,6 +81,22 @@ export async function vinculoBlingLI(produtoId) {
     if (!produto) return { ok: false, erro: "Produto não encontrado." };
     return { ok: true, ...(await vinculoBlingNaLI(clienteBling(), produto.sku, anuncio?.idExterno ?? null)) };
   });
+}
+
+/**
+ * "Ligar no Bling": cria no Bling o vinculo do produto com a loja Loja_Integrada (escreve no Bling, sob
+ * BLING_ESCRITA e BLING_ESCRITA_CODIGOS). A regra mora em `blingLoja.js`.
+ */
+export async function ligarNoBlingDaLI(produtoId) {
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  try {
+    const [produto, anuncio] = await Promise.all([contextoDoProduto(produtoId), anuncioLIDoProduto(produtoId)]);
+    if (!produto) return { ok: false, erro: "Produto não encontrado." };
+    return await ligarNoBlingLI(clienteBling(), produto.sku, anuncio?.idExterno ?? null);
+  } catch (erro) {
+    console.error("[loja integrada] ligar no Bling", erro);
+    return { ok: false, erro: "A resposta se perdeu. O Bling pode ter gravado o vínculo: confira no Bling antes de tentar de novo." };
+  }
 }
 
 /** O SEO (title e description) dos concorrentes salvos no produto, para comparar na aba SEO. */

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter } from "next/navigation";
 import { CircleCheck, Loader, X } from "lucide-react";
 
-import { abrirAnuncioLI, listarCategoriasLI, listarMarcasLI, salvarAnuncioLI, vinculoBlingLI } from "@/app/canais-de-venda/loja-integrada/acoes";
+import { abrirAnuncioLI, ligarNoBlingDaLI, listarCategoriasLI, listarMarcasLI, salvarAnuncioLI, vinculoBlingLI } from "@/app/canais-de-venda/loja-integrada/acoes";
 import { abrirJanelaLI, cadastrarProdutoNaLI, sincronizarComLI } from "@/app/produtos/acoes-li";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
@@ -330,6 +330,25 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   // Produto sem o canal da LI no Bling: aviso no topo (estoque e pedidos nao passam). Ligado, so na Previa.
   const estadoDoBling = situacaoDoBling(bling);
   const avisoDoBling = estadoDoBling && estadoDoBling.tipo === "atencao" ? estadoDoBling.texto : null;
+  // So o produto que ja esta na LI e no Bling, sem o canal, pode ser ligado daqui.
+  const podeLigarNoBling = bling?.ok && bling.situacao === "sem_vinculo" && Boolean(vinculoAtual?.idExterno);
+
+  /** Cria no Bling o vinculo com a loja Loja_Integrada (sob as travas do Bling) e le de novo. */
+  function ligarNoBling() {
+    setMensagem(null);
+    setQual("bling");
+    iniciarTrabalho(async () => {
+      const resultado = await chamarEnvio(ligarNoBlingDaLI, produtoId);
+      if (!montado.current) return;
+      setMensagem(
+        resultado.ok
+          ? { tipo: "ok", texto: "Produto ligado à Loja Integrada no Bling: o Bling passa a mandar estoque e preço e a receber os pedidos dele." }
+          : { tipo: "erro", texto: resultado.erro ?? "O vínculo não foi criado." },
+      );
+      setBling(await chamar(vinculoBlingLI, produtoId));
+      setQual(null);
+    });
+  }
 
   // O estado da loja em uma linha, acima das abas: o que o pop-up do icone dizia.
   let situacaoDaLoja = null;
@@ -366,7 +385,22 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
           )}
         </div>
       )}
-      {avisoDoBling && <div className={`rounded border px-3 py-2 text-xs ${CLASSE_DA_MENSAGEM.atencao}`}>{avisoDoBling}</div>}
+      {avisoDoBling && (
+        <div className={`flex flex-wrap items-center gap-2 rounded border px-3 py-2 text-xs ${CLASSE_DA_MENSAGEM.atencao}`}>
+          <span className="min-w-0 flex-1">{avisoDoBling}</span>
+          {podeLigarNoBling && (
+            <button
+              type="button"
+              onClick={ligarNoBling}
+              disabled={ocupado}
+              className="inline-flex items-center gap-1.5 rounded border border-current px-2 py-1 font-medium hover:bg-white/50 disabled:opacity-60"
+            >
+              {qual === "bling" && <Loader size={12} className="animate-spin" />}
+              {qual === "bling" ? "Ligando..." : "Ligar à Loja Integrada no Bling"}
+            </button>
+          )}
+        </div>
+      )}
       {situacaoDaLoja && (
         <div className={`flex flex-wrap items-center gap-2 rounded border px-3 py-2 text-xs ${CLASSE_DA_MENSAGEM[situacaoDaLoja.tipo]}`}>
           <span className="min-w-0 flex-1">{situacaoDaLoja.texto}</span>
