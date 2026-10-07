@@ -30,7 +30,8 @@ export async function buscarReferencias(termo, { limite = TETO, fornecedoresLiga
     return { total: 0, itens: [] };
   }
 
-  const todos = await produtosParaLista({ incluirIds: idsConcorrentesLigados });
+  // Todos os produtos do banco (07/10/2026), inclusive os concorrentes ligados que a ultima varredura nao viu.
+  const todos = await produtosParaLista();
 
   // Quais palavras cada produto tem. Guardado para calcular o peso de cada
   // palavra antes da nota.
@@ -144,6 +145,8 @@ export async function buscarReferencias(termo, { limite = TETO, fornecedoresLiga
       // mostrar "—" a mostrar um preco que nao e o de tabela.
       precoNormal: produto.prices.normal,
       relevancia: Math.round(nota * 100),
+      // Quando foi visto pela ultima vez, se a ultima varredura da loja nao o viu (a lupa marca).
+      naoVistoDesde: produto.naoVistoDesde ?? null,
     })),
   };
 }

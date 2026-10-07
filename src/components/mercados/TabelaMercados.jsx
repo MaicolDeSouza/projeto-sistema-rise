@@ -1303,6 +1303,15 @@ export default function TabelaMercados({ linhas }) {
                 </td>
                 <td className="px-3 py-2.5 text-center text-suave">
                   {comoData(linha.vistoEm)}
+                  {/* Fora da ultima varredura da loja (pedido do dono em 07/10/2026: mostrar, e nao esconder). */}
+                  {linha.naoVistoDesde && (
+                    <span
+                      title="A ultima varredura desta loja nao passou por este produto. Preco e estoque sao do dia em que ele foi visto pela ultima vez."
+                      className="mt-1 block rounded bg-amber-50 px-1 py-0.5 text-[11px] leading-tight font-medium text-amber-800"
+                    >
+                      Não visto desde {comoData(linha.naoVistoDesde)}
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}

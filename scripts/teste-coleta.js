@@ -19,7 +19,7 @@ const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
 const { prisma } = await import("@/lib/db.js");
-const { detalheDoProduto, gravarColeta, produtosParaLista } = await import(
+const { detalheDoProduto, gravarColeta, listarProdutos, produtosParaLista } = await import(
   "@/lib/coleta/banco.js"
 );
 const { aplicarListaDoFornecedor } = await import("@/lib/coleta/coletar.js");
@@ -149,13 +149,20 @@ conferir(
 linhaMouse = await prisma.produtoColetado.findUnique({ where: { id: linhaMouse.id } });
 conferir("coleta 4: o mouse guarda a data em que foi visto", linhaMouse.vistoEm.toISOString(), segundos(3).toISOString());
 
-// A tela mostra so a ultima coleta de cada fonte: o mouse continua no banco, com
-// o historico dele, e volta a aparecer quando cair numa amostra de novo.
-const naLista = (await produtosParaLista()).filter((item) => item.fonte.dominio === DOMINIOS[0]);
+// A tela mostra TODOS os produtos do banco (pedido do dono em 07/10/2026; antes so a ultima coleta de cada
+// fonte). O que a ultima varredura nao viu vem marcado com a data em que foi visto pela ultima vez.
+const naLista = (await produtosParaLista())
+  .filter((item) => item.fonte.dominio === DOMINIOS[0])
+  .sort((a, b) => a.code.localeCompare(b.code));
 conferir(
-  "lista da tela: so o que veio na ultima coleta, e sem galeria",
-  [naLista.length, naLista[0]?.code, "images" in (naLista[0] ?? {})],
-  [1, "TEC-1", false],
+  "lista da tela: os dois produtos, e sem galeria",
+  [naLista.map((item) => item.code), "images" in (naLista[0] ?? {})],
+  [["MOU-1", "TEC-1"], false],
+);
+conferir(
+  "o mouse, fora da ultima coleta, vem marcado com quando foi visto; o teclado nao",
+  [naLista[0]?.naoVistoDesde, naLista[1]?.naoVistoDesde],
+  [segundos(3).toISOString(), null],
 );
 
 // ---------------------------------------------------------------------------
@@ -293,7 +300,19 @@ const naListaLotes = (await produtosParaLista())
   .filter((item) => item.fonte.dominio === DOMINIOS[2])
   .map((item) => item.code)
   .sort();
-conferir("a lista mostra os tres lotes, e nao a coleta antiga", naListaLotes, ["L1", "L2", "L3"]);
+conferir("a lista mostra os tres lotes E a coleta antiga", naListaLotes, ["L1", "L2", "L3", "VELHA"]);
+
+// A lista da TELA do Scraper (SQL no banco): todos aparecem, os nao vistos marcados e por ultimo.
+const telaLotes = await listarProdutos({ fontes: ["Lotes Teste"] });
+conferir("tela: conta os quatro", telaLotes.total, 4);
+conferir(
+  "tela: o nao visto na ultima varredura vem por ultimo, marcado com a data em que foi visto",
+  [telaLotes.linhas.at(-1)?.code, telaLotes.linhas.at(-1)?.naoVistoDesde],
+  ["VELHA", segundos(50).toISOString()],
+);
+conferir("tela: os da ultima varredura nao vem marcados", telaLotes.linhas.slice(0, 3).map((linha) => linha.naoVistoDesde), [null, null, null]);
+const telaPorPreco = await listarProdutos({ fontes: ["Lotes Teste"], ordem: "menor" });
+conferir("tela: ordenado por preco, o nao visto continua por ultimo", telaPorPreco.linhas.at(-1)?.code, "VELHA");
 
 // Produto achado de novo num lote seguinte nao duplica.
 await gravarColeta({ fonte: lotes, produtos: [peca("L1")], origem: "site", coletadoEm: segundos(64), fecharColeta: false });

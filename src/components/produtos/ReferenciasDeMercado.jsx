@@ -504,6 +504,16 @@ export default function ReferenciasDeMercado({
                               Salvo na aba
                             </span>
                           )}
+                          {/* Fora da ultima varredura da loja: aparece, marcado (pedido do dono em 07/10/2026). */}
+                          {item.naoVistoDesde && (
+                            <span
+                              title="A ultima varredura desta loja nao passou por este produto. Preco e estoque sao do dia em que ele foi visto pela ultima vez."
+                              className="ml-2 rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+                            >
+                              Não visto desde{" "}
+                              {new Date(item.naoVistoDesde).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
+                            </span>
+                          )}
                           {item.codigo && item.codigo !== "N/A" && (
                             <span className="ml-2 font-mono text-xs text-suave">
                               {item.codigo}

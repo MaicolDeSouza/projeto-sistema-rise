@@ -307,18 +307,20 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   preço diferente**, e não a penúltima linha, que pode ser só mudança de estoque.
 - **Produto de site que some da amostra não é apagado** — fica com o `vistoEm` antigo.
   Ficar fora de 20 não prova que saiu do ar, e o histórico de preço dele continua valendo.
-- **Mas a tabela mostra só a última coleta de cada fonte** (`produtosParaLista`), decidido
-  pelo dono em 15/09/2026. Loja sem sitemap de produto é varrida por **navegação**, e cada
-  varredura cai numa amostra diferente: a Usinainfo trouxe 19 produtos em 02/09 e outros 19
-  em 15/09, **sem repetir um endereço**. Listando todos, a loja cresceria vinte linhas por
-  varredura e misturaria preço de hoje com preço de duas semanas atrás. Para fornecedor não
-  muda nada: a lista conciliada inteira é regravada a cada reprocessamento, ausentes
-  incluídos.
-- **Fonte que nunca fechou uma coleta entra com tudo o que já gravou** (17/09/2026). O filtro
-  era `ultimaColetaEm not null`, e essa data só é escrita no fim da varredura. Com os lotes, a
-  primeira varredura de uma loja grande grava por horas: a Mamute Eletrônica tinha 3.711
-  produtos no banco e **não aparecia na tabela nem no filtro de fontes** (o filtro sai dos
-  produtos listados). Sem coleta fechada não há "anterior" para misturar.
+- **A tabela mostra TODOS os produtos do banco** (pedido do dono em 07/10/2026: "não quero que esconda nenhum
+  produto"). De 15/09 a 07/10/2026 ela mostrava só a última coleta de cada fonte, para não misturar preço de hoje
+  com preço antigo. O efeito colateral foi esconder sem aviso tudo o que uma varredura deixava de ver: o
+  ESP32-S3-WROOM-1 da Usinainfo estava no banco e sumiu da lista e da lupa, junto de outros 106 produtos dela
+  (a causa do sumiço era a paginação; ver "A navegação segue a paginação").
+  - **O que a última varredura da loja não viu vem marcado:** `naoVistoDesde` é o `vistoEm` do produto quando ele é
+    anterior ao `ultimaColetaEm` da fonte. A coluna "Atualizado" do Scraper e a lupa mostram "Não visto desde
+    dd/mm/aa", em âmbar. Loja que nunca fechou varredura não marca nada.
+  - **Os não vistos vão por último em qualquer ordenação** da tela (`foraDaUltima` em `listarProdutos`), para o
+    preço antigo não ficar no meio dos de hoje.
+  - `produtosParaLista` e `listarProdutos` fazem a mesma coisa (a lupa e o Scraper). O `incluirIds` (concorrentes
+    ligados) ficou sem efeito, porque todos já vêm.
+  - **Custo:** a tela passou a contar 70.442 produtos; a lupa e as indicações dos vínculos leem esse acervo
+    inteiro na memória a cada busca.
 - **O saldo anterior fica guardado** (`quantidadeAnterior`, `quantidadeAnteriorEm`), pedido do
   dono em 15/09/2026 para montar depois o histórico de venda: com os dois números e as duas
   datas dá para dizer quanto saiu entre uma varredura e outra. **São dois campos porque um

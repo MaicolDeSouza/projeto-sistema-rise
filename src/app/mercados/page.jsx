@@ -168,6 +168,8 @@ export default async function MercadosPage({ searchParams }) {
       // repete a mesma tabela com o multiplo de venda ao lado.
       precosPorQuantidade: produto.precosPorQuantidade ?? [],
       vistoEm: produto.coletadoEm,
+      // Quando foi visto pela ultima vez, se a ultima varredura da loja nao o viu (a tabela marca).
+      naoVistoDesde: produto.naoVistoDesde ?? null,
       fonteNome: produto.fonte?.nome ?? "?",
       fonteTipo: produto.fonte?.tipo ?? "OUTRO",
       // So para o link de fallback quando o produto nao tem URL propria.

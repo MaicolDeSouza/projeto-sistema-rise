@@ -283,43 +283,26 @@ export async function lerProdutosDaFonte(fonteId) {
  * alguns milhares de linhas leves em memoria responde em milissegundos, e
  * mantem a busca por todas as palavras que a tela ja fazia.
  *
- * MOSTRA SO A ULTIMA COLETA DE CADA FONTE — decidido pelo dono em 15/09/2026.
- * Loja sem sitemap de produto e varrida por navegacao, e cada varredura cai numa
- * amostra diferente: a Usinainfo trouxe 19 produtos em 02/09 e outros 19 hoje,
- * sem repetir um endereco. Guardar todos e certo (ficar fora de uma amostra de
- * 20 nao prova que o produto saiu do ar, e o historico de preco deles continua
- * valendo), mas listar todos faria a loja crescer vinte linhas por varredura,
- * misturando preco de hoje com preco de duas semanas atras.
+ * MOSTRA TODOS OS PRODUTOS DO BANCO (pedido do dono em 07/10/2026). De 15/09 a 07/10/2026 a lista mostrava so
+ * a ultima coleta de cada fonte, para nao misturar preco de hoje com preco antigo. O efeito colateral foi
+ * esconder sem aviso tudo o que uma varredura deixava de ver: o ESP32-S3-WROOM-1 da Usinainfo estava no banco e
+ * sumiu da lista, junto de outros 106 produtos dela. Agora todos aparecem, e o que a ultima varredura da loja
+ * nao viu vem com `naoVistoDesde` (quando foi visto pela ultima vez), para a tela marcar.
+ *
+ * Quem passava `{ incluirIds }` (os concorrentes ligados, que podiam estar fora da ultima coleta) continua
+ * funcionando: agora todos ja vem, e o parametro e ignorado.
  */
-export async function produtosParaLista({ incluirIds = [] } = {}) {
-  /*
-    FONTE QUE NUNCA FECHOU UMA COLETA ENTRA COM TUDO O QUE JA GRAVOU.
-
-    O filtro era `ultimaColetaEm not null`, e a data so e escrita quando a
-    varredura termina. Com a gravacao em lotes (16/09/2026), a primeira varredura
-    de uma loja grande passa horas gravando: a Mamute Eletronica tinha 3.711
-    produtos no banco em 17/09/2026 e nao aparecia na tabela nem no filtro de
-    fontes. Sem coleta fechada nao ha "anterior" com que misturar — tudo o que
-    ela tem e da varredura em andamento.
-  */
+export async function produtosParaLista() {
   const fontes = await prisma.fonteColeta.findMany({
     select: { id: true, ultimaColetaEm: true },
   });
 
   if (fontes.length === 0) return [];
+  const ultimaColeta = new Map(fontes.map((fonte) => [fonte.id, fonte.ultimaColetaEm]));
 
   const linhas = await prisma.produtoColetado.findMany({
-    where: {
-      OR: [
-        ...fontes.map((fonte) =>
-          fonte.ultimaColetaEm
-            ? { fonteId: fonte.id, vistoEm: { gte: fonte.ultimaColetaEm } }
-            : { fonteId: fonte.id },
-        ),
-        ...(incluirIds.length ? [{ id: { in: incluirIds } }] : []),
-      ],
-    },
     select: {
+      fonteId: true,
       id: true,
       origem: true,
       codigo: true,
@@ -361,8 +344,20 @@ export async function produtosParaLista({ incluirIds = [] } = {}) {
     stock: { status: linha.estoqueStatus, quantity: linha.quantidade, aChegar: linha.aChegar },
     buscaTexto: linha.buscaTexto ?? "",
     coletadoEm: linha.vistoEm.toISOString(),
+    naoVistoDesde: naoVistoDesde(linha.vistoEm, ultimaColeta.get(linha.fonteId)),
     fonte: linha.fonte,
   }));
+}
+
+/**
+ * Quando o produto foi visto pela ultima vez, SE a ultima varredura da loja nao o viu; senao `null`. A varredura
+ * fecha com a data do INICIO (`ultimaColetaEm`), entao "visto antes dela" e "fora da ultima varredura". Loja que
+ * nunca fechou varredura nao tem com que comparar: nada e marcado.
+ */
+function naoVistoDesde(vistoEm, ultimaColetaEm) {
+  if (!vistoEm || !ultimaColetaEm) return null;
+  const visto = new Date(vistoEm);
+  return visto < new Date(ultimaColetaEm) ? visto.toISOString() : null;
 }
 
 /** A primeira foto de cada produto pedido, para as linhas da pagina atual. */
@@ -498,17 +493,19 @@ export async function listarProdutos({
   }
 
   /*
-    MOSTRA SO A ULTIMA COLETA DE CADA FONTE (dono, 15/09/2026), e TUDO da fonte
-    que ainda nao fechou coleta nenhuma (17/09/2026) — ver `produtosParaLista`.
+    MOSTRA TODOS OS PRODUTOS DAS FONTES (pedido do dono em 07/10/2026; de 15/09 a 07/10 era so a ultima coleta de
+    cada fonte, e o que a varredura deixava de ver sumia sem aviso) — ver `produtosParaLista`. O que a ultima
+    varredura da loja nao viu vai por ULTIMO em qualquer ordem, e a linha leva `naoVistoDesde` para a tela marcar.
   */
-  const daColeta = Prisma.join(
-    doTipo.map((fonte) =>
-      fonte.ultimaColetaEm
-        ? Prisma.sql`("fonteId" = ${fonte.id} AND "vistoEm" >= ${fonte.ultimaColetaEm})`
-        : Prisma.sql`"fonteId" = ${fonte.id}`,
-    ),
-    " OR ",
-  );
+  const daColeta = Prisma.sql`"fonteId" IN (${Prisma.join(doTipo.map((fonte) => fonte.id))})`;
+  const comColeta = doTipo.filter((fonte) => fonte.ultimaColetaEm);
+  const foraDaUltima =
+    comColeta.length === 0
+      ? Prisma.sql`0`
+      : Prisma.sql`CASE WHEN ${Prisma.join(
+          comColeta.map((fonte) => Prisma.sql`("fonteId" = ${fonte.id} AND "vistoEm" < ${fonte.ultimaColetaEm})`),
+          " OR ",
+        )} THEN 1 ELSE 0 END`;
 
   // Todas as palavras sao exigidas, a mesma regra de `combina` — aqui contra o
   // `buscaTexto`, que ja foi normalizado na gravacao.
@@ -537,21 +534,14 @@ export async function listarProdutos({
   // a cada campanha da loja.
   const ordenacao =
     ordem === "menor"
-      ? Prisma.sql`COALESCE("precoNormal", "precoPromocional") ASC NULLS LAST`
+      ? Prisma.sql`${foraDaUltima} ASC, COALESCE("precoNormal", "precoPromocional") ASC NULLS LAST`
       : ordem === "maior"
-        ? Prisma.sql`COALESCE("precoNormal", "precoPromocional") DESC NULLS LAST`
-        : Prisma.sql`("estoqueStatus" = 'AVAILABLE') DESC, "coletadoEm" DESC NULLS LAST`;
+        ? Prisma.sql`${foraDaUltima} ASC, COALESCE("precoNormal", "precoPromocional") DESC NULLS LAST`
+        : Prisma.sql`${foraDaUltima} ASC, ("estoqueStatus" = 'AVAILABLE') DESC, "coletadoEm" DESC NULLS LAST`;
 
   // O acervo inteiro, sem filtro nenhum: e o segundo numero do "20 de 100" da
   // tela, que diz se o filtro escondeu muita coisa.
-  const todosOsIds = Prisma.join(
-    todasAsFontes.map((fonte) =>
-      fonte.ultimaColetaEm
-        ? Prisma.sql`("fonteId" = ${fonte.id} AND "vistoEm" >= ${fonte.ultimaColetaEm})`
-        : Prisma.sql`"fonteId" = ${fonte.id}`,
-    ),
-    " OR ",
-  );
+  const todosOsIds = Prisma.sql`"fonteId" IN (${Prisma.join(todasAsFontes.map((fonte) => fonte.id))})`;
 
   /*
     CADA CONTAGEM E UMA VARREDURA DA TABELA, entao so se conta o que nao da para
@@ -569,7 +559,7 @@ export async function listarProdutos({
     prisma.$queryRaw`
       SELECT id, origem, codigo, nome, marca, mpn, url, "precoNormal", "precoPromocional",
              "precoReserva", "precoComImpostos", impostos, "precosPorQuantidade", "estoqueStatus",
-             quantidade, "aChegar", "coletadoEm", "fonteId"
+             quantidade, "aChegar", "coletadoEm", "vistoEm", "fonteId"
         FROM "ProdutoColetado"
        WHERE ${onde}
        ORDER BY ${ordenacao}
@@ -617,6 +607,7 @@ export async function listarProdutos({
         aChegar: linha.aChegar,
       },
       coletadoEm: linha.coletadoEm,
+      naoVistoDesde: naoVistoDesde(linha.vistoEm, porId.get(linha.fonteId)?.ultimaColetaEm),
       fonte: {
         nome: porId.get(linha.fonteId)?.nome ?? "?",
         tipo: porId.get(linha.fonteId)?.tipo ?? "OUTRO",
