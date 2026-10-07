@@ -214,7 +214,19 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
 
     const [{ frases }, documentos] = await Promise.all([lerConfigCanal("LOJA_INTEGRADA"), documentosDoProduto(produto)]);
     const rise = normalizarDoRiseLI(produto, rascunhoDoAnuncio(anuncio), { frases, documentos });
-    const diferencas = diferencasLI(rise, li);
+    // Categoria do rascunho que sumiu da loja sai do envio (`envio.js`); aqui ela sai da comparacao
+    // tambem, senao o pop-up mostraria "Categorias: diferente" para sempre com o Sincronizar dizendo
+    // "nada para enviar". Vira aviso, para o dono tira-la do anuncio.
+    let comparado = rise;
+    if (rise.categorias.length) {
+      const vivas = new Set((await listarCategoriasDaLI(cliente)).map((categoria) => categoria.id));
+      const mortas = rise.categorias.filter((id) => !vivas.has(id));
+      if (mortas.length) {
+        comparado = { ...rise, categorias: rise.categorias.filter((id) => vivas.has(id)) };
+        avisos.push(`Categoria que nao existe mais na loja: ${mortas.join(", ")}. Ela fica fora do envio; tire-a no anuncio.`);
+      }
+    }
+    const diferencas = diferencasLI(comparado, li);
     avisos.push(...textosDosAvisosFiscais(avisosFiscaisLI(rise, li)));
 
     let marcaExisteNaLI = null;

@@ -450,6 +450,19 @@ try {
     conferir("iconeLIDoProduto de produto nao Conferido e cinza mesmo sincronizado", iconeLIDoProduto({ conferido: false }, { produtoId: "p", dados: {}, sincronizadoEm: new Date(), hashConteudo: "x" }, {}), { cor: "cinza", divergente: false, conferido: false });
   }
 
+  {
+    console.log("\nRevisao final: categoria morta no pop-up");
+    await limpar();
+    const pm = await prisma.produto.create({ data: { sku: "ZZ-LI-14", tituloBase: "Morta", ncm: "85364900", conferido: true } });
+    const li5 = criarLojaIntegradaFalsa({ produtos: [{ id: 801, sku: "ZZ-LI-14", nome: "Morta", apelido: "/morta", categorias: ["/api/v1/categoria/5"], seo: "/api/v1/seo/81" }], categorias: [{ id: 5, nome: "Reles" }], seos: { 81: { title: "", description: "" } } });
+    await lerParaPopupLI(pm.id, li5); // vincula
+    const anM = await anuncioLIDoProduto(pm.id);
+    await salvarRascunhoLI(anM.id, { ...rascunhoDoAnuncio(anM), categorias: ["5", "999"] });
+    const popM = await lerParaPopupLI(pm.id, li5);
+    conferir("pop-up: categoria que sumiu da loja nao vira diferenca eterna", popM.diferencas.some((d) => d.campo === "categorias"), false);
+    conferir("pop-up: categoria que sumiu da loja vira aviso", popM.avisos.some((a) => /999/.test(a) && /nao existe mais/.test(a)), true);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;
