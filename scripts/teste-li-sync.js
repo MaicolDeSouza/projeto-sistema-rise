@@ -36,6 +36,7 @@ const { config } = await import("../src/lib/integracoes/config.js");
 const { clienteLI } = await import("../src/lib/canaisDeVenda/li/cliente.js");
 const { estadoDoIconeLI, iconeLIDoProduto, produtoIdValido } = await import("../src/lib/canaisDeVenda/li/estado.js");
 const { criarLojaIntegradaFalsa } = await import("./lib/lojaIntegradaFalsa.js");
+const { buscarNaLI, lerDetalheDaLI, lerParaPopupLI, listarCategoriasDaLI, listarMarcasDaLI } = await import("../src/lib/canaisDeVenda/li/leitura.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -313,6 +314,63 @@ try {
     conferir("iconeLIDoProduto: frase nova acende o selo", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: ["Com nota"], documentos: [] }).divergente, true);
     conferir("iconeLIDoProduto: sem anuncio e cinza", iconeLIDoProduto(produtoIcone, null, {}), { cor: "cinza", divergente: false, conferido: true });
     conferir("produtoIdValido reexportado", typeof produtoIdValido, "function");
+  }
+
+  {
+    console.log("\nLeitura: busca por SKU, detalhe e pop-up");
+    await limpar();
+    const prodL = await prisma.produto.create({ data: { sku: "ZZ-LI-5", tituloBase: "Sensor", marca: "ACME", ncm: "90261000", conferido: true } });
+    const naoConf = await prisma.produto.create({ data: { sku: "ZZ-LI-6", tituloBase: "Outro" } });
+    const lixo = await prisma.produto.create({ data: { sku: "ZZ-LI-7", tituloBase: "Lixo", conferido: true } });
+    const dup = await prisma.produto.create({ data: { sku: "ZZ-LI-10", tituloBase: "Dup", conferido: true } });
+    const novoNaLI = await prisma.produto.create({ data: { sku: "ZZ-LI-8", tituloBase: "Novo", conferido: true } });
+    const li2 = criarLojaIntegradaFalsa({
+      produtos: [
+        { id: 501, sku: "zz-li-5", nome: "Sensor", apelido: "/sensor", ativo: true, removido: false, ncm: "9026.10.00", marca: "/api/v1/marca/7", categorias: ["/api/v1/categoria/3"], seo: "/api/v1/seo/900", production_type: "Revenda", icms_origin_code: "0" },
+        { id: 502, sku: "ZZ-LI-7", nome: "Lixo", removido: true },
+        { id: 503, sku: "ZZ-LI-10", nome: "Dup A" },
+        { id: 504, sku: "zz-li-10", nome: "Dup B" },
+      ],
+      marcas: [{ id: 7, nome: "Acme" }],
+      categorias: [{ id: 3, nome: "Sensores", categoria_pai: null }, { id: 4, nome: "Temperatura", categoria_pai: "/api/v1/categoria/3" }],
+      seos: { 900: { title: "", description: "" } },
+    });
+    conferir("busca acha sem caixa", (await buscarNaLI(li2, "ZZ-LI-5")).situacao, "existe");
+    conferir("busca: removido", (await buscarNaLI(li2, "ZZ-LI-7")).situacao, "removido");
+    conferir("busca: nao existe", (await buscarNaLI(li2, "ZZ-LI-8")).situacao, "nao_existe");
+    conferir("busca: duplicado", (await buscarNaLI(li2, "ZZ-LI-10")).situacao, "duplicado");
+    conferir("busca usa o filtro por SKU da API", li2.chamadas.filter((c) => c.caminho === "/produto" && c.params?.sku === "ZZ-LI-5").length, 1);
+    const detalheL = await lerDetalheDaLI(li2, 501);
+    conferir("detalhe traz seo e nome da marca", [detalheL.marcaNome, detalheL.seo.title, detalheL.produto.id], ["Acme", "", 501]);
+    conferir("categorias com caminho", await listarCategoriasDaLI(li2), [{ id: "3", nome: "Sensores", paiId: null, caminho: "Sensores" }, { id: "4", nome: "Temperatura", paiId: "3", caminho: "Sensores > Temperatura" }]);
+    conferir("marcas", await listarMarcasDaLI(li2), [{ id: "7", nome: "Acme", uri: "/api/v1/marca/7" }]);
+    const chamadasAntes = li2.chamadas.length;
+    const popNaoConf = await lerParaPopupLI(naoConf.id, li2);
+    conferir("pop-up de nao Conferido nao chama a LI", [popNaoConf.ok, popNaoConf.conferido, li2.chamadas.length - chamadasAntes], [true, false, 0]);
+    const popup = await lerParaPopupLI(prodL.id, li2);
+    conferir("pop-up vincula na primeira abertura e lista diferencas", [popup.ok, popup.situacao, popup.vinculadoAgora, popup.idExterno, popup.diferencas.length > 0], [true, "existe", true, "501", true]);
+    conferir("marca do Rise existe na LI (sem caixa)", popup.marcaExisteNaLI, true);
+    conferir("iguais + diferencas = campos de envio", popup.iguais + popup.diferencas.length, CAMPOS_DE_ENVIO_LI.length);
+    const segunda = await lerParaPopupLI(prodL.id, li2);
+    conferir("segunda abertura nao vincula de novo", segunda.vinculadoAgora, false);
+    const aberto = await carregarAnuncioLI(segunda.anuncioId);
+    conferir("vinculo trouxe slug e categorias da LI para o rascunho", [aberto.rascunho.slug, aberto.rascunho.categorias], ["sensor", ["3"]]);
+    conferir("escrita fechada tem motivo", [popup.escrita.liberada, /LI_ESCRITA/.test(popup.escrita.motivo)], [false, true]);
+    const popLixo = await lerParaPopupLI(lixo.id, li2);
+    conferir("pop-up de produto na lixeira da LI", [popLixo.ok, popLixo.situacao, popLixo.erro], [false, "removido", "O codigo ZZ-LI-7 esta na lixeira da Loja Integrada: restaure-o la antes de sincronizar."]);
+    const popDup = await lerParaPopupLI(dup.id, li2);
+    conferir("pop-up de SKU duplicado na LI", [popDup.ok, popDup.situacao, /mais de um/.test(popDup.erro)], [false, "duplicado", true]);
+    const popNovo = await lerParaPopupLI(novoNaLI.id, li2);
+    conferir("pop-up de produto que nao existe na LI oferece cadastro", [popNovo.ok, popNovo.situacao, popNovo.diferencas], [true, "nao_existe", []]);
+    const liFora = criarLojaIntegradaFalsa({ falhas: { "GET /produto": 429 } });
+    const popLimite = await lerParaPopupLI(prodL.id, liFora);
+    conferir("limite de chamadas vira recado", [popLimite.ok, /100 chamadas por minuto/.test(popLimite.erro)], [false, true]);
+    const liToken = criarLojaIntegradaFalsa({ falhas: { "GET /produto": 401 } });
+    conferir("token recusado vira recado", /Personal Token/.test((await lerParaPopupLI(prodL.id, liToken)).erro), true);
+    await prisma.produto.update({ where: { id: prodL.id }, data: { tipoProducao: "FABRICACAO_PROPRIA" } });
+    const popFiscal = await lerParaPopupLI(prodL.id, li2);
+    conferir("aviso fiscal: tipo de producao diferente, ajuste no painel", popFiscal.avisos.some((a) => /Tipo de producao/.test(a) && /painel da Loja Integrada/.test(a)), true);
+    conferir("aviso fiscal nao entra nas diferencas", popFiscal.diferencas.some((d) => d.campo === "tipoProducao"), false);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.
