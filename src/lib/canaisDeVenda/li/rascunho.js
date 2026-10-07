@@ -26,7 +26,7 @@ export function rascunhoInicialLI(produto) {
     categorias: [],
     destaque: false,
     videoUrl: p.videoUrl ?? null,
-    seo: { title: tituloSeoPadrao(titulo), description: descriptionPadrao(descricao) },
+    seo: { title: tituloSeoPadrao(titulo), description: descriptionPadrao(descricao, titulo) },
     especificacoes: true,
   };
 }

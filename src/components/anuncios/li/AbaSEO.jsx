@@ -72,7 +72,7 @@ export default function AbaSEO({ rascunho, alterar, problemas, vinculo, slugOrig
         <div className="mt-1 flex items-center gap-3">
           <button
             type="button"
-            onClick={() => alterar((atual) => ({ seo: { ...(atual.seo ?? {}), description: descriptionPadrao(atual.descricao) } }))}
+            onClick={() => alterar((atual) => ({ seo: { ...(atual.seo ?? {}), description: descriptionPadrao(atual.descricao, atual.titulo) } }))}
             className="text-[11px] text-acento hover:underline"
           >
             Usar padrao (o primeiro paragrafo da descricao)

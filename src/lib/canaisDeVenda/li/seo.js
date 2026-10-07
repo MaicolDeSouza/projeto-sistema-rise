@@ -23,10 +23,26 @@ export function tituloSeoPadrao(nome) {
   return cortarNaPalavra(nome, LIMITE_DO_TITULO_SEO);
 }
 
-/** O primeiro paragrafo da descricao: e o que diz o que o produto e. */
-export function descriptionPadrao(descricao) {
-  const primeiro = String(descricao ?? "")
+const comparavel = (texto) =>
+  colapsar(texto)
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+
+// No padrao da loja a descricao abre com o TITULO EM MAIUSCULAS numa linha so. Como description
+// ele so repetiria o title; o que diz o que o produto e vem no paragrafo seguinte.
+function ehTitulo(paragrafo, titulo) {
+  if (/\r?\n/.test(paragrafo.trim())) return false;
+  const texto = colapsar(paragrafo);
+  if (titulo && comparavel(texto) === comparavel(titulo)) return true;
+  return /\p{Lu}/u.test(texto) && !/\p{Ll}/u.test(texto) && texto.length <= 120;
+}
+
+/** O primeiro paragrafo que nao e so o titulo: e o que diz o que o produto e. */
+export function descriptionPadrao(descricao, titulo = "") {
+  const paragrafos = String(descricao ?? "")
     .split(/\r?\n\s*\r?\n/)
-    .find((paragrafo) => paragrafo.trim());
-  return cortarNaPalavra(primeiro ?? "", LIMITE_DA_DESCRIPTION_SEO);
+    .filter((paragrafo) => paragrafo.trim());
+  const escolhido = paragrafos.find((paragrafo) => !ehTitulo(paragrafo, titulo)) ?? paragrafos[0] ?? "";
+  return cortarNaPalavra(escolhido, LIMITE_DA_DESCRIPTION_SEO);
 }

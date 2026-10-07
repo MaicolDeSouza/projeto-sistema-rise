@@ -463,6 +463,15 @@ try {
     conferir("pop-up: categoria que sumiu da loja vira aviso", popM.avisos.some((a) => /999/.test(a) && /nao existe mais/.test(a)), true);
   }
 
+  {
+    console.log("\nRevisao final: description padrao pula o titulo");
+    conferir("pula o paragrafo que repete o nome", descriptionPadrao("PLACA UNO R3\n\nA Placa e uma placa de desenvolvimento.", "Placa Uno R3"), "A Placa e uma placa de desenvolvimento.");
+    conferir("pula a linha toda em maiusculas (o titulo do padrao da loja)", descriptionPadrao("MODULO RELE 5V\n\nO Modulo aciona cargas.", "Outro nome"), "O Modulo aciona cargas.");
+    conferir("paragrafo normal fica", descriptionPadrao("Texto comum.\n\nSegundo.", "Nome"), "Texto comum.");
+    conferir("so o titulo: fica o titulo (melhor que vazio)", descriptionPadrao("PLACA UNO R3", "Placa Uno R3"), "PLACA UNO R3");
+    conferir("rascunho inicial usa o paragrafo de verdade", rascunhoInicialLI({ id: "x", tituloBase: "PLACA UNO", descricaoBase: "PLACA UNO\n\nA Placa faz X." }).seo.description, "A Placa faz X.");
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;
