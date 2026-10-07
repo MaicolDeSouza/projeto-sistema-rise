@@ -2521,7 +2521,9 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   anúncio em ERRO com a etapa e a assinatura intacta.
 - **Cadastrar:** recusa sem NCM e SKU que já existe (ou está na lixeira); cria **inativo**; o vínculo é gravado logo após o
   POST (se o SEO falhar depois, o próximo clique não duplica).
-- **Ícone:** cinza = nunca sincronizado ou não Conferido; verde = sincronizado; selo "!" = a assinatura (Rise + rascunho +
+- **Ícone:** cinza = nunca sincronizado, não Conferido ou **sem vínculo com o Bling** (`blingId`; decisão do dono em
+  07/10/2026: é o Bling que controla estoque e pedidos da LI, e o texto do ícone diz "sem vínculo com o Bling"); verde =
+  sincronizado e no Bling; selo "!" = a assinatura (Rise + rascunho +
   documentos) mudou desde o último envio. **A LI regrava `<br>` como `<br />\r\n`**: `htmlParaTexto(..., { paragrafos:
   true })` trata quebra crua do HTML como espaço, senão a descrição ficava "diferente" para sempre.
 
@@ -2545,6 +2547,12 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
 
 ### Pendências
 
+- **"Especifique para melhorar resultados" (BETA da LI, Classificação de mercado e Especificações):** analisado em
+  07/10/2026. Não existe na API v1 (o `GET /produto` não traz nenhum campo disso), então só se preenche no painel. A
+  classificação usa a árvore de categorias do Mercado Livre, e a página pública do produto não publica GTIN, MPN nem
+  especificações em dados estruturados (só nome, marca, SKU, preço, imagem e descrição em Microdata). Ganho provável:
+  integrações da LI (Google Shopping / marketplaces), pouco no Google orgânico. Teste sugerido: preencher em um produto
+  e conferir se a página pública ganha dados novos.
 - **O servidor da porta 3000 (de outra sessão, na mesma pasta) ficou com a lib antiga da LI na memória** em 07/10/2026:
   a tela atualizou, mas as ações não (sem `fiscais`, `daLoja` e `dominioDaLoja`). Até reiniciar, a aba Fiscal diz
   "conferem" e o alerta de GTIN ignora a loja. Só um `next dev` roda por pasta.

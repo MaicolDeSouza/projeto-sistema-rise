@@ -14,10 +14,12 @@ import { CANAIS } from "@/lib/canais";
 const CANAL_LI = CANAIS.find((canal) => canal.id === "LOJA_INTEGRADA");
 
 /** O estado em palavras: vai no nome acessivel e na dica (cor e selo sozinhos nao dizem nada). */
-export function rotuloDoIconeLI({ cor, divergente, conferido }) {
+export function rotuloDoIconeLI({ cor, divergente, conferido, semBling }) {
   if (!conferido) return "Loja Integrada: só Produto Conferido";
   const partes = [];
-  if (cor === "cinza") partes.push("nunca sincronizado");
+  // Sem Bling o icone fica cinza mesmo sincronizado: o Bling controla o estoque e os pedidos da LI.
+  if (semBling) partes.push("sem vínculo com o Bling (estoque e pedidos não chegam)");
+  else if (cor === "cinza") partes.push("nunca sincronizado");
   if (divergente) partes.push("divergência em campos");
   if (partes.length === 0) partes.push("em dia");
   return `Loja Integrada: ${partes.join(" e ")}`;

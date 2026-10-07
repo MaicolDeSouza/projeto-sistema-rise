@@ -348,17 +348,23 @@ try {
     let desconhecido = null;
     try { await falsa.get("/qualquer"); } catch (e) { desconhecido = e.message; }
     conferir("endpoint desconhecido lanca", /desconhecido/.test(desconhecido ?? ""), true);
-    conferir("icone: nao conferido e cinza sem selo", estadoDoIconeLI({ conferido: false, sincronizadoEm: new Date(), assinaturaGuardada: "a", assinaturaAtual: "b" }), { cor: "cinza", divergente: false, conferido: false });
-    conferir("icone: sincronizado e igual e verde", estadoDoIconeLI({ conferido: true, sincronizadoEm: new Date(), assinaturaGuardada: "a", assinaturaAtual: "a" }), { cor: "verde", divergente: false, conferido: true });
-    conferir("icone: assinatura mudou acende o selo", estadoDoIconeLI({ conferido: true, sincronizadoEm: new Date(), assinaturaGuardada: "a", assinaturaAtual: "b" }).divergente, true);
-    conferir("icone: nunca sincronizado e cinza sem selo", estadoDoIconeLI({ conferido: true, sincronizadoEm: null, assinaturaGuardada: null, assinaturaAtual: "b" }), { cor: "cinza", divergente: false, conferido: true });
-    const produtoIcone = { id: "p", sku: "X", conferido: true, ncm: "85371020", pesoKg: 0.5 };
+    conferir("icone: nao conferido e cinza sem selo", estadoDoIconeLI({ conferido: false, sincronizadoEm: new Date(), assinaturaGuardada: "a", assinaturaAtual: "b", vinculadoAoBling: true }), { cor: "cinza", divergente: false, conferido: false, semBling: false });
+    conferir("icone: sincronizado, igual e no Bling e verde", estadoDoIconeLI({ conferido: true, sincronizadoEm: new Date(), assinaturaGuardada: "a", assinaturaAtual: "a", vinculadoAoBling: true }), { cor: "verde", divergente: false, conferido: true, semBling: false });
+    conferir(
+      "icone: sincronizado mas SEM vinculo com o Bling fica cinza e avisa (o Bling controla estoque e pedidos)",
+      estadoDoIconeLI({ conferido: true, sincronizadoEm: new Date(), assinaturaGuardada: "a", assinaturaAtual: "a", vinculadoAoBling: false }),
+      { cor: "cinza", divergente: false, conferido: true, semBling: true },
+    );
+    conferir("icone: assinatura mudou acende o selo", estadoDoIconeLI({ conferido: true, sincronizadoEm: new Date(), assinaturaGuardada: "a", assinaturaAtual: "b", vinculadoAoBling: true }).divergente, true);
+    conferir("icone: nunca sincronizado e cinza sem selo", estadoDoIconeLI({ conferido: true, sincronizadoEm: null, assinaturaGuardada: null, assinaturaAtual: "b", vinculadoAoBling: true }), { cor: "cinza", divergente: false, conferido: true, semBling: false });
+    const produtoIcone = { id: "p", sku: "X", conferido: true, ncm: "85371020", pesoKg: 0.5, blingId: "16715406765" };
     const anuncioIcone = { produtoId: "p", titulo: "CLP", descricao: "Texto", dados: { slug: "clp", categorias: ["5"] }, sincronizadoEm: new Date() };
     const assinaturaCerta = assinaturaLI(normalizarDoRiseLI(produtoIcone, { produtoId: "p", titulo: "CLP", slug: "clp", marca: "", categorias: ["5"], destaque: false, videoUrl: null, seo: { title: "", description: "" } }, { frases: [], documentos: [] }));
-    conferir("iconeLIDoProduto: igual ao guardado e verde", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: [], documentos: [] }), { cor: "verde", divergente: false, conferido: true });
+    conferir("iconeLIDoProduto: igual ao guardado e verde", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: [], documentos: [] }), { cor: "verde", divergente: false, conferido: true, semBling: false });
+    conferir("iconeLIDoProduto: produto sem blingId fica cinza com o aviso", iconeLIDoProduto({ ...produtoIcone, blingId: null }, { ...anuncioIcone, hashConteudo: assinaturaCerta }, {}), { cor: "cinza", divergente: false, conferido: true, semBling: true });
     conferir("iconeLIDoProduto: documento novo acende o selo", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { documentos: [{ url: "https://x/a.pdf", nome: "a.pdf" }] }).divergente, true);
     conferir("iconeLIDoProduto: frase passada nao muda nada", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: ["Com nota"], documentos: [] }).divergente, false);
-    conferir("iconeLIDoProduto: sem anuncio e cinza", iconeLIDoProduto(produtoIcone, null, {}), { cor: "cinza", divergente: false, conferido: true });
+    conferir("iconeLIDoProduto: sem anuncio e cinza", iconeLIDoProduto(produtoIcone, null, {}), { cor: "cinza", divergente: false, conferido: true, semBling: false });
     conferir("produtoIdValido reexportado", typeof produtoIdValido, "function");
   }
 
@@ -446,7 +452,8 @@ try {
     const putsAntes = li3.chamadas.filter((c) => c.metodo === "PUT").length;
     conferir("segunda sincronizacao nao envia nada", (await sincronizarProdutoLI(pe.id, li3)).alterados, []);
     conferir("segunda sincronizacao nao faz PUT", li3.chamadas.filter((c) => c.metodo === "PUT").length, putsAntes);
-    conferir("icone verde e sem selo depois do envio", iconeLIDoProduto(await prisma.produto.findUnique({ where: { id: pe.id } }), await anuncioLIDoProduto(pe.id), { frases: [], documentos: [] }), { cor: "verde", divergente: false, conferido: true });
+    conferir("depois do envio, sem Bling: cinza e sem selo", iconeLIDoProduto(await prisma.produto.findUnique({ where: { id: pe.id } }), await anuncioLIDoProduto(pe.id), { documentos: [] }), { cor: "cinza", divergente: false, conferido: true, semBling: true });
+    conferir("depois do envio, com Bling: verde e sem selo", iconeLIDoProduto({ ...(await prisma.produto.findUnique({ where: { id: pe.id } })), blingId: "1" }, await anuncioLIDoProduto(pe.id), { documentos: [] }), { cor: "verde", divergente: false, conferido: true, semBling: false });
     // URL: produto que ja esta na loja nunca muda de URL (decisao do dono em 07/10/2026), nem com nome novo.
     const comSlug = await anuncioLIDoProduto(pe.id);
     await salvarRascunhoLI(comSlug.id, { ...rascunhoDoAnuncio(comSlug), titulo: "Modulo Rele 5V", slug: "ignorado" });
@@ -492,8 +499,8 @@ try {
 
   {
     console.log("\nIcone na lista");
-    conferir("iconeLIDoProduto sem anuncio e cinza", iconeLIDoProduto({ conferido: true }, null, { frases: [], documentos: [] }), { cor: "cinza", divergente: false, conferido: true });
-    conferir("iconeLIDoProduto de produto nao Conferido e cinza mesmo sincronizado", iconeLIDoProduto({ conferido: false }, { produtoId: "p", dados: {}, sincronizadoEm: new Date(), hashConteudo: "x" }, {}), { cor: "cinza", divergente: false, conferido: false });
+    conferir("iconeLIDoProduto sem anuncio e cinza", iconeLIDoProduto({ conferido: true }, null, { frases: [], documentos: [] }), { cor: "cinza", divergente: false, conferido: true, semBling: true });
+    conferir("iconeLIDoProduto de produto nao Conferido e cinza mesmo sincronizado", iconeLIDoProduto({ conferido: false }, { produtoId: "p", dados: {}, sincronizadoEm: new Date(), hashConteudo: "x" }, {}), { cor: "cinza", divergente: false, conferido: false, semBling: false });
   }
 
   {

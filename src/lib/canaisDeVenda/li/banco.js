@@ -45,6 +45,7 @@ const CAMPOS_DO_CONTEXTO = {
   numeroHomologacao: true,
   videoUrl: true,
   conferido: true,
+  blingId: true,
 };
 
 /** O produto como `rascunho.js`, `validacao.js` e `campos.js` o leem, com Decimal em Number. */

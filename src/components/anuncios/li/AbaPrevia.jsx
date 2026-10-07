@@ -30,7 +30,7 @@ function agruparPorAba(problemas) {
  * situacao do vinculo com a loja. Nao envia nada: Cadastrar e Sincronizar ficam no rodape do editor
  * (07/10/2026), e as diferencas com a loja na aba Divergencias.
  */
-export default function AbaPrevia({ irPara, todosProblemas, vinculo, leitura }) {
+export default function AbaPrevia({ irPara, todosProblemas, vinculo, leitura, contexto }) {
   const grupos = agruparPorAba(todosProblemas);
   const bloqueantes = todosProblemas.filter((problema) => problema.bloqueante).length;
   const alertas = todosProblemas.length - bloqueantes;
@@ -60,6 +60,12 @@ export default function AbaPrevia({ irPara, todosProblemas, vinculo, leitura }) 
           <p className="mt-1 text-suave">Sem vínculo com a loja ainda.</p>
         )}
         <p className="mt-2 text-xs text-suave">O botão do rodapé envia o anúncio SALVO: &quot;Cadastrar na LI&quot; se o produto não está na loja, &quot;Sincronizar com a LI&quot; se já está.</p>
+        {contexto?.produto && !contexto.produto.blingId && (
+          <p className="mt-1 text-xs text-amber-800">
+            <span className="font-medium">Produto sem vínculo com o Bling.</span> É o Bling que controla o estoque e recebe os pedidos da Loja
+            Integrada: sem o produto lá, o ícone da lista não fica verde. Cadastre ou importe o produto no Bling.
+          </p>
+        )}
         {leitura?.ok && leitura.escrita?.liberada === false && (
           <p className="mt-1 text-xs text-amber-800">
             <span className="font-medium">Envio bloqueado agora.</span> {leitura.escrita.motivo}
