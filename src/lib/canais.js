@@ -22,7 +22,7 @@ export const CANAIS = [
     id: "LOJA_INTEGRADA",
     nome: "Loja Integrada",
     logo: "/marcas/loja-integrada.svg",
-    resumo: "Loja propria — sincronizada pelo Bling",
+    resumo: "Loja propria — conteudo pelo Rise, estoque e preco pelo Bling",
     viaBling: true,
     disponivel: true,
   },

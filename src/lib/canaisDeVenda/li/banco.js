@@ -77,6 +77,14 @@ export async function documentosDoProduto(produto) {
   return arquivos.map((a) => ({ url: `${base}${urlDe(produto.sku, a.tipo, a.arquivo)}`, nome: a.nomeOriginal ?? a.arquivo }));
 }
 
+/** O id do produto pelo SKU exato (a pagina "Novo anuncio" recebe o codigo digitado). */
+export async function idDoProdutoPeloSku(sku) {
+  const codigo = String(sku ?? "").trim();
+  if (!codigo) return null;
+  const achado = await prisma.produto.findUnique({ where: { sku: codigo }, select: { id: true } });
+  return achado?.id ?? null;
+}
+
 export async function anuncioLIDoProduto(produtoId) {
   if (typeof produtoId !== "string" || produtoId === "") return null;
   return prisma.anuncio.findFirst({ where: { canal: CANAL, produtoId }, orderBy: { criadoEm: "asc" } });

@@ -31,8 +31,8 @@ export const CANAIS_DE_VENDA = [
     href: "/canais-de-venda/loja-integrada",
     rotulo: "Loja Integrada",
     icone: ShoppingBag,
-    resumo: "Anuncios da loja propria, atendida pelo Bling.",
-    emBreve: true,
+    resumo: "Anuncios da loja propria: conteudo, SEO e dados fiscais pelo Rise; estoque e preco pelo Bling.",
+    detalhe: "Sincronizacao sob trava · fotos e documentos na VPS",
   },
   {
     href: "/canais-de-venda/shopee",
