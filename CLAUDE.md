@@ -2532,7 +2532,13 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   sincronizado e no Bling; **o editor confere ao abrir** (só leitura, `blingLoja.js`) se o produto está ligado, DENTRO do
   Bling, à loja Loja_Integrada (203478870): `GET /produtos/lojas?idProduto=`, cujo `codigo` é o id do produto na LI
   (medido no 100101: "204930845", preço 49 no vínculo). Sem o vínculo, ou ligado a outro produto da LI, aviso no topo do
-  editor e na Prévia. selo "!" = a assinatura (Rise + rascunho +
+  editor e na Prévia, com o botão **"Ligar à Loja Integrada no Bling"** (`ligarNoBlingLI`): `POST /produtos/lojas` com
+  `{codigo: id na LI, preco: o do produto NO BLING, produto.id, loja.id: 203478870}`, sob BLING_ESCRITA e
+  BLING_ESCRITA_CODIGOS, conferindo antes (não duplica, não mexe em vínculo de outro produto) e relendo depois.
+  **Teste real em 07/10/2026 (ok do dono):** ZZ-TESTE-BLING cadastrado inativo na LI (id **404349127**) e ligado no Bling
+  (201, releitura "ligado", preço 15). **Em 10 minutos o Bling NÃO mandou estoque nem preço** à LI (preço vazio, estoque
+  0, `estoque_gerenciado` false, nenhuma modificação): o envio do Bling não é imediato ao ligar; falta descobrir o que o
+  dispara (mudança de estoque/preço no Bling ou o envio manual da integração). Os dois ficam até o dono apagar. selo "!" = a assinatura (Rise + rascunho +
   documentos) mudou desde o último envio. **A LI regrava `<br>` como `<br />\r\n`**: `htmlParaTexto(..., { paragrafos:
   true })` trata quebra crua do HTML como espaço, senão a descrição ficava "diferente" para sempre.
 
