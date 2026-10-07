@@ -83,9 +83,12 @@ export function Popup({ titulo, produto, aoFechar, aoEnviar, rotuloBotao, penden
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold">{titulo}</p>
-            <p className="mt-0.5 truncate text-xs text-suave">
-              <span className="font-mono">{produto.sku}</span> · {produto.tituloBase}
-            </p>
+            {/* Sem produto (a importacao do Bling, que ainda nao tem um), a janela fica so com o titulo. */}
+            {produto && (
+              <p className="mt-0.5 truncate text-xs text-suave">
+                <span className="font-mono">{produto.sku}</span> · {produto.tituloBase}
+              </p>
+            )}
           </div>
           <button
             type="button"

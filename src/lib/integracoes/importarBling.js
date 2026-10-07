@@ -8,61 +8,14 @@ import { htmlParaTexto } from "@/lib/integracoes/normalizacao";
 import { blingGet } from "./bling";
 
 /**
- * Importacao de produtos do Bling para o cadastro base.
+ * Importacao de UM produto do Bling para o cadastro base, pelo codigo (SKU) que o operador digita.
+ *
+ * Ate 07/10/2026 o botao lia o catalogo inteiro e importava em lotes tudo o que faltava; o dono pediu
+ * para importar so o codigo informado (o catalogo ja foi trazido, e a carga inteira traria de volta
+ * o que ele apagou de proposito).
  *
  * So LE o Bling (GET): nao passa pela trava BLING_ESCRITA e nao altera nada la.
- *
- * Em duas etapas, porque o catalogo tem centenas de produtos e cada um leva um
- * pedido de detalhe mais o download das fotos: uma chamada so estouraria o tempo
- * de resposta.
- *   1. `planejarImportacaoDoBling` le o catalogo inteiro UMA vez (paginas de 100,
- *      ~3 req/s), descarta o que ja existe aqui e devolve a fila de ids em ordem
- *      de codigo (o Bling nao ordena a listagem, entao a ordem e feita aqui).
- *   2. `importarLoteDoBling` importa uma fatia pequena dessa fila. A tela chama
- *      em laco, mostra o progresso e pode parar entre um lote e outro.
- *
- * Retomar e seguro: produto que ja existe aqui (pelo id do Bling ou pelo SKU) e
- * pulado, entao um novo plano depois de uma parada so traz o que faltou.
  */
-
-const POR_PAGINA = 100;
-/// Trava contra laco infinito caso o Bling passe a devolver sempre a pagina.
-const MAXIMO_PAGINAS = 200;
-/// Tamanho maximo de um lote: o navegador escolhe o tamanho, o servidor limita.
-export const MAXIMO_POR_LOTE = 10;
-
-/// "900403_100" antes de "920302_1.000", e "2" antes de "10".
-export const compararCodigos = (a, b) =>
-  a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" });
-
-async function listarCatalogo() {
-  const produtos = [];
-
-  for (let pagina = 1; pagina <= MAXIMO_PAGINAS; pagina++) {
-    // criterio 2 = so ativos. Produto inativo no Bling nao e vendido; traze-lo
-    // para o cadastro base encheria a lista de itens mortos.
-    const { ok, status, dados } = await blingGet("/produtos", {
-      pagina,
-      limite: POR_PAGINA,
-      criterio: 2,
-    });
-
-    if (!ok) {
-      const detalhe = dados?.error?.description ?? dados?.error?.message ?? `HTTP ${status}`;
-      throw new Error(`Bling recusou a listagem de produtos: ${detalhe}`);
-    }
-
-    // O fim da paginacao e decidido pelo tamanho da pagina CRUA do Bling, nao do
-    // que sobra apos o filtro: uma pagina cheia de variacao/composicao teria poucos
-    // itens "S" e pareceria a ultima pagina, cortando o resto do catalogo.
-    const paginaCrua = dados?.data ?? [];
-    const lote = paginaCrua.filter((p) => p.formato === "S");
-    produtos.push(...lote);
-    if (paginaCrua.length < POR_PAGINA) break;
-  }
-
-  return produtos;
-}
 
 export { htmlParaTexto };
 
@@ -142,41 +95,6 @@ function importarImagens(produtoId, sku, bling) {
 }
 
 /**
- * Primeira etapa: le o catalogo inteiro (um pedido por pagina), filtra o que
- * ja existe aqui e devolve a fila de ids em ordem de codigo. Recalcular a cada
- * vez e seguro: produtos novos do Bling sao adicionados, os que ja existem sao
- * pulados automaticamente.
- */
-export async function planejarImportacaoDoBling() {
-  const catalogo = await listarCatalogo();
-
-  const existentes = await prisma.produto.findMany({
-    select: { sku: true, blingId: true },
-  });
-  const skus = new Set(existentes.map((produto) => produto.sku.toLowerCase()));
-  const blingIds = new Set(existentes.map((produto) => produto.blingId).filter(Boolean));
-
-  const semCodigoValido = catalogo.filter((produto) => !skuValido(produto.codigo?.trim()));
-
-  const fila = catalogo
-    .filter((produto) => skuValido(produto.codigo?.trim()))
-    .filter(
-      (produto) =>
-        !blingIds.has(String(produto.id)) &&
-        !skus.has(produto.codigo.trim().toLowerCase()),
-    )
-    .sort((a, b) => compararCodigos(a.codigo.trim(), b.codigo.trim()))
-    .map((produto) => produto.id);
-
-  return {
-    fila,
-    totalBling: catalogo.length,
-    totalParaImportar: fila.length,
-    semCodigoValido: semCodigoValido.length,
-  };
-}
-
-/**
  * Fornecedor do Bling para o rascunho do produto: so RASCUNHO, nunca cria
  * Fornecedor nem ProdutoFornecedor aqui (pedido do dono em 22/09/2026). Fica em
  * Produto.fornecedorRascunho; a aba Fornecedores/Concorrentes mostra como linha
@@ -219,67 +137,74 @@ async function lerFornecedorBling(bling) {
   };
 }
 
+const motivoDoBling = (status, dados) => dados?.error?.description ?? dados?.error?.message ?? `HTTP ${status}`;
+
 /**
- * Segunda etapa: importa uma fatia da fila planejada. Cada produto leva um
- * pedido de detalhe mais download das fotos; a tela chama isto em laco e
- * mostra progresso.
+ * Importa o produto do Bling com o codigo informado. Devolve `{ok: true, produtoId, sku, nome,
+ * fornecedorBling, salvas, ampliadas, recusadas}` ou `{ok: false, erro, produtoId?}` (o `produtoId`
+ * quando o produto ja existe aqui, para a tela levar ate ele).
+ *
+ * Recusa sem gravar nada: codigo vazio ou que nao serve de nome de pasta (o SKU vira pasta em
+ * `dados/produtos`); produto que ja existe aqui pelo SKU (sem diferenciar caixa) ou pelo id do Bling;
+ * codigo que nao esta entre os ATIVOS do Bling (a busca por `codigos[]` so ve ativos, como a carga
+ * inteira, que usava `criterio=2`); codigo achado mais de uma vez (o Rise nao escolhe sozinho); e
+ * variacao ou composicao (so produto simples, formato "S", como sempre foi).
  */
-export async function importarLoteDoBling(fila, comeco = 0, quantidade = MAXIMO_POR_LOTE) {
-  if (!Array.isArray(fila) || fila.length === 0) {
-    return { importados: [], falhas: [], lotes: 0, total: 0, proximoComeco: 0 };
+export async function importarPorCodigoDoBling(codigoInformado) {
+  const codigo = String(codigoInformado ?? "").trim();
+  if (!codigo) return { ok: false, erro: "Informe o codigo do produto no Bling." };
+  if (!skuValido(codigo)) {
+    return { ok: false, erro: `O codigo "${codigo}" nao pode ser usado como SKU aqui (so letras, numeros, ponto, hifen e sublinhado, ate 64 caracteres).` };
   }
 
-  const lote = fila.slice(comeco, comeco + quantidade);
-  const importados = [];
-  const falhas = [];
+  const jaAqui = await prisma.produto.findFirst({ where: { sku: { equals: codigo, mode: "insensitive" } }, select: { id: true, sku: true } });
+  if (jaAqui) return { ok: false, erro: `O produto ${jaAqui.sku} ja existe no Rise. Nada foi importado.`, produtoId: jaAqui.id };
 
-  for (const idBling of lote) {
-    try {
-      const { ok, status, dados } = await blingGet(`/produtos/${idBling}`);
-      if (!ok || !dados?.data) {
-        throw new Error(dados?.error?.description ?? `HTTP ${status}`);
-      }
+  const busca = await blingGet("/produtos", { "codigos[]": [codigo] });
+  if (!busca.ok) return { ok: false, erro: `O Bling recusou a busca pelo codigo: ${motivoDoBling(busca.status, busca.dados)}` };
+  if (!Array.isArray(busca.dados?.data)) return { ok: false, erro: "O Bling respondeu a busca sem a lista de produtos. Tente de novo." };
 
-      const bling = dados.data;
-      const fornecedorBling = await lerFornecedorBling(bling);
+  const chave = codigo.toLowerCase();
+  const achados = busca.dados.data.filter((item) => String(item?.codigo ?? "").trim().toLowerCase() === chave);
+  if (achados.length === 0) return { ok: false, erro: `Nenhum produto ATIVO com o codigo ${codigo} no Bling.` };
+  if (achados.length > 1) {
+    return { ok: false, erro: `Ha ${achados.length} produtos com o codigo ${codigo} no Bling. Deixe so um com esse codigo e tente de novo.` };
+  }
+  const achado = achados[0];
+  if (achado.formato !== "S") {
+    return { ok: false, erro: `O codigo ${codigo} e uma variacao ou composicao no Bling; so produto simples e importado.` };
+  }
 
-      const produto = await prisma.produto.create({
-        data: {
-          ...mapearProduto(bling),
-          // Json nulo no Prisma e Prisma.DbNull, nao null puro (ver CLAUDE.md).
-          fornecedorRascunho: fornecedorBling ?? Prisma.DbNull,
-          anuncios: {
-            create: {
-              canal: "BLING",
-              status: "RASCUNHO",
-              situacaoCanal: bling.situacao === "A" ? "ATIVA" : "PAUSADA",
-              idExterno: String(bling.id),
-              sincronizadoEm: new Date(),
-            },
-          },
+  const peloId = await prisma.produto.findFirst({ where: { blingId: String(achado.id) }, select: { id: true, sku: true } });
+  if (peloId) {
+    return { ok: false, erro: `Este produto do Bling ja esta ligado ao produto ${peloId.sku} do Rise. Nada foi importado.`, produtoId: peloId.id };
+  }
+
+  const detalhe = await blingGet(`/produtos/${achado.id}`);
+  if (!detalhe.ok || !detalhe.dados?.data) {
+    return { ok: false, erro: `Nao foi possivel ler o produto no Bling: ${motivoDoBling(detalhe.status, detalhe.dados)}` };
+  }
+  const bling = detalhe.dados.data;
+  const fornecedorBling = await lerFornecedorBling(bling);
+
+  const produto = await prisma.produto.create({
+    data: {
+      ...mapearProduto(bling),
+      // Json nulo no Prisma e Prisma.DbNull, nao null puro (ver CLAUDE.md).
+      fornecedorRascunho: fornecedorBling ?? Prisma.DbNull,
+      // Sem o Anuncio BLING com idExterno, o Rise ofereceria "Cadastrar no Bling" e duplicaria o item.
+      anuncios: {
+        create: {
+          canal: "BLING",
+          status: "RASCUNHO",
+          situacaoCanal: bling.situacao === "A" ? "ATIVA" : "PAUSADA",
+          idExterno: String(bling.id),
+          sincronizadoEm: new Date(),
         },
-      });
+      },
+    },
+  });
 
-      const imagens = await importarImagens(produto.id, produto.sku, bling);
-      importados.push({
-        sku: produto.sku,
-        nome: produto.tituloBase,
-        fornecedorBling,
-        ...imagens,
-      });
-    } catch (erro) {
-      falhas.push({ id: idBling, erro: erro.message });
-    }
-  }
-
-  const proximoComeco = comeco + lote.length;
-  const lotes = Math.ceil(proximoComeco / quantidade);
-
-  return {
-    importados,
-    falhas,
-    lotes,
-    total: fila.length,
-    proximoComeco,
-  };
+  const imagens = await importarImagens(produto.id, produto.sku, bling);
+  return { ok: true, produtoId: produto.id, sku: produto.sku, nome: produto.tituloBase, fornecedorBling, ...imagens };
 }

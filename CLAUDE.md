@@ -197,13 +197,17 @@ o Docker Desktop travava ao abrir e o sistema ficava sem banco.
   pedidos que bloqueia o IP. A autorização continua em `www`: é a página que o navegador
   abre. **A primeira renovação de token pelo host `api` ainda não aconteceu** — se falhar,
   é o primeiro suspeito.
-- **`GET /produtos` não ordena por código.** A importação ("Importar do Bling", em
-  `src/lib/integracoes/importarBling.js`) lê o catálogo ativo inteiro — 1.834 produtos, 19
-  páginas de 100, ~10 s — e ordena na memória, em ordem natural (`100103` antes de
-  `100103_10`). Cada clique traz os **próximos 5** que ainda não existem aqui (por `blingId`
-  ou SKU), e cria junto o `Anuncio` BLING com `idExterno`: sem ele a lista oferece
-  "Cadastrar no Bling" e duplicaria o item no ERP. Código com barra (`900314_8/conector`)
-  não vira SKU, porque SKU é nome de pasta.
+- **"Importar do Bling" importa UM produto, pelo código digitado** (pedido do dono em 07/10/2026;
+  `importarPorCodigoDoBling` em `src/lib/integracoes/importarBling.js`, janela em
+  `BotaoImportarBling.jsx`). Até ali o botão lia o catálogo ativo inteiro (1.834 produtos, 19
+  páginas de 100) e trazia em lotes tudo o que faltava, inclusive o que o dono tinha apagado de
+  propósito; esse caminho (plano + lotes) foi removido. Hoje: `GET /produtos?codigos[]=<código>`
+  (só ativos), e recusa sem gravar nada quando o código é vazio ou não serve de SKU, quando o
+  produto já existe aqui (pelo SKU sem caixa, ou pelo `blingId`; a janela dá o link para ele),
+  quando não há produto ATIVO com o código, quando há mais de um, ou quando é variação/composição
+  (só formato `S`). Importa com fotos e fornecedor em rascunho, e cria junto o `Anuncio` BLING com
+  `idExterno`: sem ele a lista oferece "Cadastrar no Bling" e duplicaria o item no ERP. Código
+  com barra (`900314_8/conector`) não vira SKU, porque SKU é nome de pasta.
 - **Imagem do Bling é link do S3 que expira em uma semana** — por isso é baixada para
   `dados/produtos`, não guardada como URL.
 - O `code` vale **1 minuto**. O refresh token dura 30 dias e **rotaciona**.
@@ -1783,7 +1787,8 @@ do catálogo do Bling (1.316 produtos de formato simples).
   Bling — uma página cheia de variação/composição tinha poucos itens `S` e parecia a última
   página, cortando o resto do catálogo. Corrigido: o critério de parar usa o tamanho da página
   crua (`importarBling.js`).
-- **O botão "Importar do Bling" travava aos 20 produtos numa fila grande.** `importarProximo`
+- **(HISTÓRICO: a importação em lotes saiu em 07/10/2026; hoje o botão importa um código.)** **O
+  botão "Importar do Bling" travava aos 20 produtos numa fila grande.** `importarProximo`
   encadeava só **um** lote extra (uma chamada aninhada), e parava em silêncio depois disso — sem
   erro, sem "Importação completa". Numa fila de exatamente 10 (os primeiros testes) isso nunca
   apareceu; numa fila de 1.266 ele parava aos 20. Reescrito como um laço de verdade

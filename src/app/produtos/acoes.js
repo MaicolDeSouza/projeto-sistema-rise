@@ -23,11 +23,7 @@ import { normalizar } from "@/lib/texto";
 import { descartarLote } from "@/lib/imagens/lote";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { reconciliarImagensDoProduto } from "@/lib/imagens/produto";
-import {
-  planejarImportacaoDoBling,
-  importarLoteDoBling,
-  MAXIMO_POR_LOTE,
-} from "@/lib/integracoes/importarBling";
+import { importarPorCodigoDoBling } from "@/lib/integracoes/importarBling";
 import { UNIDADES } from "@/lib/unidades";
 import {
   MAXIMO_IMAGENS,
@@ -295,30 +291,20 @@ export async function salvarPromptDaDescricao(texto) {
 }
 
 /**
- * Planeja a importacao completa do Bling: le o catalogo inteiro e devolve a
- * fila de ids pronta para importarLoteDoBling.
+ * Importa do Bling UM produto, pelo codigo que o operador digitou (pedido do dono em 07/10/2026; antes
+ * o botao trazia o catalogo inteiro). O codigo vem do navegador: so texto, e a lib confere o resto.
  */
-export async function planejarImportacao() {
+export async function importarDoBlingPorCodigo(codigo) {
+  if (typeof codigo !== "string") return { ok: false, erro: "Informe o codigo do produto no Bling." };
   try {
-    const resultado = await planejarImportacaoDoBling();
-    return { ok: true, ...resultado };
+    const resultado = await importarPorCodigoDoBling(codigo);
+    if (resultado.ok) revalidatePath("/produtos");
+    return resultado;
   } catch (erro) {
-    return { ok: false, erro: erro.message };
-  }
-}
-
-/**
- * Importa um lote da fila planejada. A tela chama isto em laco ate o fim.
- * `fila` vem do planejarImportacao, `comeco` marca onde retomou, `quantidade`
- * (padrao 10) e o tamanho do lote.
- */
-export async function importarLote(fila, comeco = 0, quantidade = MAXIMO_POR_LOTE) {
-  try {
-    const resultado = await importarLoteDoBling(fila, comeco, quantidade);
-    revalidatePath("/produtos");
-    return { ok: true, ...resultado };
-  } catch (erro) {
-    return { ok: false, erro: erro.message };
+    // P2002: o mesmo SKU foi gravado no meio (dois cliques, duas abas); o produto ja existe.
+    if (erro?.code === "P2002") return { ok: false, erro: "Este codigo acabou de ser importado. Atualize a lista." };
+    console.error("[importar do Bling]", erro);
+    return { ok: false, erro: `Nao foi possivel importar: ${erro.message}` };
   }
 }
 
