@@ -30,6 +30,9 @@ const { CHAVES_SO_LEITURA, formatarNcmLI, mesclarCorpoLI, montarCorpoDeCadastroL
 const { rascunhoDaLI, rascunhoInicialLI } = await import("../src/lib/canaisDeVenda/li/rascunho.js");
 const { LIMITES_LI, RascunhoLISchema } = await import("../src/lib/canaisDeVenda/li/esquema.js");
 const { ABAS_LI, validarRascunhoLI } = await import("../src/lib/canaisDeVenda/li/validacao.js");
+const { anuncioLIDoProduto, carregarAnuncioLI, contextoDoProduto, documentosDoProduto, listarAnunciosLI, novoRascunhoLI, salvarRascunhoLI, vincularPeloSku } = await import("../src/lib/canaisDeVenda/li/banco.js");
+const { gravarFrasesDoCanal, lerConfigCanal } = await import("../src/lib/canaisDeVenda/configuracao.js");
+const { config } = await import("../src/lib/integracoes/config.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -179,6 +182,64 @@ try {
     conferir("sem a lista ao vivo nao acusa categoria inexistente", validarRascunhoLI({ ...inicial, categorias: ["9"] }, { produto: ctxProd, categoriasDaLI: null }), []);
     const faltas = validarRascunhoLI({ ...inicial, marca: "", categorias: [] }, { produto: { ...ctxProd, ean: null, pesoKg: null, alturaCm: null }, categoriasDaLI: null }).map((p) => p.campo);
     conferir("alertas: sem gtin, marca, categoria, peso e medida", ["gtin", "marca", "categorias", "peso", "medidas"].every((c) => faltas.includes(c)), true);
+  }
+
+  {
+    console.log("\nBanco: rascunho, vinculo, lista e frases por canal");
+    await limpar();
+    const configAntes = await prisma.configCanal.findUnique({ where: { canal: "LOJA_INTEGRADA" } });
+    const urlPublicaAntes = config.appUrlPublica;
+    try {
+      const p = await prisma.produto.create({ data: { sku: "ZZ-LI-3", tituloBase: "Fonte 12V", descricaoBase: "Desc", marca: "ACME", ncm: "85044010", conferido: true, pesoKg: "0.250", tipoProducao: "REVENDA" } });
+      const q = await prisma.produto.create({ data: { sku: "ZZ-LI-4", tituloBase: "Nao conferido" } });
+      conferir("novo rascunho recusa nao Conferido", (await novoRascunhoLI(q.id)).erro, "O produto ZZ-LI-4 ainda nao foi Conferido. So produto Conferido vira anuncio.");
+      conferir("novo rascunho de produto inexistente", (await novoRascunhoLI("nao-existe")).ok, false);
+      const ctx = await contextoDoProduto(p.id);
+      conferir("contexto com Decimal em Number e fiscais", [ctx.sku, ctx.pesoKg, ctx.tipoProducao, ctx.conferido], ["ZZ-LI-3", 0.25, "REVENDA", true]);
+      const novo = await novoRascunhoLI(p.id);
+      conferir("novo rascunho nasce do produto", [novo.ok, novo.rascunho.titulo, novo.rascunho.slug, novo.contexto.documentos], [true, "Fonte 12V", "fonte-12v", []]);
+      const salvo = await salvarRascunhoLI(null, { ...novo.rascunho, categorias: ["10", "20"], seo: { title: "T", description: "D" } });
+      conferir("salva o rascunho", salvo.ok, true);
+      const deNovo = await salvarRascunhoLI(null, { ...novo.rascunho, categorias: ["10", "20"], titulo: "Fonte 12V 5A" });
+      conferir("segundo salvar sem id atualiza o mesmo anuncio (um por produto)", deNovo.id, salvo.id);
+      const carregado = await carregarAnuncioLI(salvo.id);
+      conferir("carrega titulo da coluna e categorias do dados", [carregado.rascunho.titulo, carregado.rascunho.categorias, carregado.vinculo.idExterno], ["Fonte 12V 5A", ["10", "20"], null]);
+      conferir("categoriaExternaId e a primeira categoria", (await prisma.anuncio.findUnique({ where: { id: salvo.id } })).categoriaExternaId, "10");
+      conferir("carregar id inexistente ou vazio", [(await carregarAnuncioLI("x")).ok, (await carregarAnuncioLI("")).ok], [false, false]);
+      conferir("anuncio LI do produto", (await anuncioLIDoProduto(p.id))?.id, salvo.id);
+      await vincularPeloSku(p.id, { idItemExterno: "401", url: "https://loja/x", ativo: true, slug: "fonte-da-li", categorias: ["30"], destaque: true });
+      const vinculado = await carregarAnuncioLI(salvo.id);
+      conferir("vinculo grava idExterno, url, ATIVA e traz slug/categorias/destaque da LI", [vinculado.vinculo.idExterno, vinculado.vinculo.situacaoCanal, vinculado.rascunho.slug, vinculado.rascunho.categorias, vinculado.rascunho.destaque, vinculado.rascunho.titulo], ["401", "ATIVA", "fonte-da-li", ["30"], true, "Fonte 12V 5A"]);
+      conferir("vinculo deixa o anuncio PUBLICADO", vinculado.status, "PUBLICADO");
+      conferir("urlLojaIntegrada preenchida pelo vinculo", (await prisma.produto.findUnique({ where: { id: p.id } })).urlLojaIntegrada, "https://loja/x");
+      conferir("anuncio vinculado continua editavel", (await salvarRascunhoLI(salvo.id, { ...vinculado.rascunho, titulo: "Fonte 12V 5A bivolt" })).ok, true);
+      conferir("editar nao apaga o vinculo", (await carregarAnuncioLI(salvo.id)).vinculo.idExterno, "401");
+      const r = await prisma.produto.create({ data: { sku: "ZZ-LI-5", tituloBase: "Sem rascunho", conferido: true } });
+      const { anuncioId } = await vincularPeloSku(r.id, { idItemExterno: "402", url: "https://loja/y", ativo: false, slug: "sem-rascunho-li", categorias: [], destaque: false });
+      const criadoNoVinculo = await carregarAnuncioLI(anuncioId);
+      conferir("vinculo sem rascunho cria o anuncio a partir do produto, PAUSADA", [criadoNoVinculo.rascunho.titulo, criadoNoVinculo.rascunho.slug, criadoNoVinculo.vinculo.situacaoCanal], ["Sem rascunho", "sem-rascunho-li", "PAUSADA"]);
+      conferir("lista acha por sku sem caixa", (await listarAnunciosLI({ busca: "zz-li-3" })).linhas.map((l) => l.sku), ["ZZ-LI-3"]);
+      conferir("lista acha por titulo sem caixa", (await listarAnunciosLI({ busca: "BIVOLT" })).linhas.map((l) => [l.sku, l.idExterno]), [["ZZ-LI-3", "401"]]);
+      conferir("lista pagina fora do intervalo cai na ultima", (await listarAnunciosLI({ busca: "zz-li-", pagina: 99 })).pagina, 1);
+      await prisma.produtoArquivo.create({ data: { produtoId: p.id, tipo: "DOCUMENTO", arquivo: "abc.pdf", nomeOriginal: "Manual.pdf" } });
+      conferir("documentos: sem endereco publico, nenhum", await documentosDoProduto({ id: p.id, sku: "ZZ-LI-3" }), []);
+      config.appUrlPublica = "https://rise.exemplo.com/";
+      conferir("documentos: com endereco publico, url absoluta e nome real", await documentosDoProduto({ id: p.id, sku: "ZZ-LI-3" }), [{ url: "https://rise.exemplo.com/api/arquivos/ZZ-LI-3/documentos/abc.pdf?v=2", nome: "Manual.pdf" }]);
+      config.appUrlPublica = urlPublicaAntes;
+      await prisma.produto.update({ where: { id: p.id }, data: { conferido: false } });
+      conferir("salvar recusa produto que deixou de ser Conferido", (await salvarRascunhoLI(salvo.id, novo.rascunho)).ok, false);
+      conferir("salvar recusa rascunho de outro formato", (await salvarRascunhoLI(null, { produtoId: p.id, categorias: [1] })).ok, false);
+      conferir("frases por canal: LI e ML separadas", [(await gravarFrasesDoCanal("LOJA_INTEGRADA", "Com nota fiscal")).frases, Array.isArray((await lerConfigCanal("MERCADO_LIVRE")).frases)], [["Com nota fiscal"], true]);
+      conferir("frases da LI lidas de volta", (await lerConfigCanal("LOJA_INTEGRADA")).frases, ["Com nota fiscal"]);
+      conferir("canal desconhecido e recusado", (await gravarFrasesDoCanal("OUTRO", "x")).ok, false);
+    } finally {
+      config.appUrlPublica = urlPublicaAntes;
+      if (configAntes) {
+        await prisma.configCanal.upsert({ where: { canal: "LOJA_INTEGRADA" }, create: { canal: "LOJA_INTEGRADA", frasesFixas: configAntes.frasesFixas }, update: { frasesFixas: configAntes.frasesFixas } });
+      } else {
+        await prisma.configCanal.deleteMany({ where: { canal: "LOJA_INTEGRADA" } });
+      }
+    }
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.
