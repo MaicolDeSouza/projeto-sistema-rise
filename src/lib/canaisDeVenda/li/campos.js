@@ -23,7 +23,7 @@ export const CAMPOS_DE_ENVIO_LI = [
   { id: "descricao", rotulo: "Descrição" },
   { id: "ncm", rotulo: "NCM" },
   { id: "gtin", rotulo: "GTIN / EAN" },
-  { id: "mpn", rotulo: "MPN (modelo)" },
+  { id: "mpn", rotulo: "MPN" },
   { id: "peso", rotulo: "Peso (kg)" },
   { id: "altura", rotulo: "Altura (cm)" },
   { id: "largura", rotulo: "Largura (cm)" },
@@ -122,7 +122,10 @@ export function normalizarDoRiseLI(produto, rascunho, { documentos = [] } = {}) 
     descricao: html ? htmlParaTexto(html, { paragrafos: true }) : null,
     ncm: soDigitos(p.ncm),
     gtin: texto(p.ean),
-    mpn: texto(p.modelo),
+    // MPN e o codigo de peca do FABRICANTE (ex.: A000066 do Arduino original). Nao se aplica aos produtos da
+    // loja (pedido do dono em 07/10/2026): fica sempre em branco, e o que estiver na LI e limpo no Sincronizar.
+    // Ate ali o Rise mandava o Modelo do cadastro, e o 100101 foi com "UNO R3 SMD CH340".
+    mpn: null,
     peso: peso(p.pesoKg),
     altura: medida(p.alturaCm),
     largura: medida(p.larguraCm),
@@ -181,7 +184,13 @@ export function assinaturaLI(campos) {
 const vazio = (valor) =>
   valor === null || valor === undefined || valor === "" || (Array.isArray(valor) && valor.length === 0);
 
-/** Campo a campo. Vazio no Rise com valor na LI e "vazioNoRise": o envio nunca apaga, entao nao e divergencia. */
+/// Campos que o Rise quer EM BRANCO na loja: vazio no Rise com valor na LI e diferenca, e o envio limpa.
+export const CAMPOS_QUE_LIMPAM_LI = new Set(["mpn"]);
+
+/**
+ * Campo a campo. Vazio no Rise com valor na LI e "vazioNoRise": o envio nunca apaga, entao nao e divergencia.
+ * A excecao e `CAMPOS_QUE_LIMPAM_LI` (MPN): ali o vazio e o valor certo, e o valor da loja e diferenca.
+ */
 export function diferencasLI(rise, li) {
   const lista = [];
   for (const { id, rotulo } of CAMPOS_DE_ENVIO_LI) {
@@ -189,7 +198,7 @@ export function diferencasLI(rise, li) {
     const daLI = li?.[id] ?? null;
     if (vazio(deRise) && vazio(daLI)) continue;
     if (vazio(deRise)) {
-      lista.push({ campo: id, rotulo, rise: deRise, li: daLI, tipo: "vazioNoRise" });
+      lista.push({ campo: id, rotulo, rise: deRise, li: daLI, tipo: CAMPOS_QUE_LIMPAM_LI.has(id) ? "diferente" : "vazioNoRise" });
       continue;
     }
     if (JSON.stringify(deRise) !== JSON.stringify(daLI)) {

@@ -134,10 +134,13 @@ try {
     const rasc = { titulo: " CLP FX3U ", slug: "clp-fx3u", marca: "Mitsubishi", categorias: ["23983023", "5946305", "23983023"], destaque: false, videoUrl: null, seo: { title: "t".repeat(80), description: "" } };
     const rise = normalizarDoRiseLI(produtoRise, rasc, { frases: [], documentos: [] });
     conferir("slug do Rise sai SEMPRE do nome, nao do guardado", normalizarDoRiseLI(produtoRise, { ...rasc, titulo: "Relé 5V", slug: "outro" }, {}).slug, "rele-5v");
-    conferir("rise normalizado", rise, { nome: "CLP FX3U", slug: "clp-fx3u", descricao: "Texto", ncm: "85371020", gtin: "7894972605270", mpn: "FX3U", peso: 0.5, altura: 3, largura: 12, comprimento: 7, marca: "MITSUBISHI", categorias: ["23983023", "5946305"], video: null, destaque: false, seoTitulo: "t".repeat(70), seoDescription: null, origem: 0, tipoProducao: "REVENDA" });
-    const produtoLI = { id: 1, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<p>Texto</p>", ncm: "8537.10.20", gtin: "7894972605270", mpn: "FX3U", peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: "0", production_type: TEXTO_DO_TIPO_PRODUCAO.REVENDA, seo_title: "", seo_description: "" };
+    conferir("rise normalizado", rise, { nome: "CLP FX3U", slug: "clp-fx3u", descricao: "Texto", ncm: "85371020", gtin: "7894972605270", mpn: null, peso: 0.5, altura: 3, largura: 12, comprimento: 7, marca: "MITSUBISHI", categorias: ["23983023", "5946305"], video: null, destaque: false, seoTitulo: "t".repeat(70), seoDescription: null, origem: 0, tipoProducao: "REVENDA" });
+    const produtoLI = { id: 1, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<p>Texto</p>", ncm: "8537.10.20", gtin: "7894972605270", mpn: null, peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: "0", production_type: TEXTO_DO_TIPO_PRODUCAO.REVENDA, seo_title: "", seo_description: "" };
     const li = normalizarDaLI(produtoLI, { title: "t".repeat(70), description: "" }, { marcaNome: "Mitsubishi" });
     conferir("LI normalizada igual ao Rise", li, rise);
+    conferir("MPN nunca sai do Modelo do cadastro (nao se aplica aos produtos da loja)", normalizarDoRiseLI({ ...produtoRise, modelo: "UNO R3" }, rasc, {}).mpn, null);
+    conferir("MPN preenchido na loja e diferenca: o Rise o quer em branco", diferencasLI({ ...rise, mpn: null }, { ...li, mpn: "UNO R3 SMD CH340" }).filter((d) => d.campo === "mpn").map((d) => d.tipo), ["diferente"]);
+    conferir("MPN em branco dos dois lados nao e diferenca", diferencasLI(rise, li).some((d) => d.campo === "mpn"), false);
     conferir("assinatura estavel e igual", assinaturaLI(rise) === assinaturaLI(li) && assinaturaLI(rise).length === 64, true);
     conferir("assinatura ignora os fiscais so de leitura", assinaturaLI(rise) === assinaturaLI({ ...rise, origem: 5, tipoProducao: "FABRICACAO_PROPRIA" }), true);
     conferir("assinatura muda com um campo de envio", assinaturaLI(rise) === assinaturaLI({ ...rise, nome: "outro" }), false);
@@ -163,12 +166,18 @@ try {
       { titulo: "CLP FX3U", slug: "clp-fx3u", marca: "Mitsubishi", categorias: ["5946305"], destaque: false, videoUrl: null, seo: { title: "S", description: "" } },
       {},
     );
-    const produtoLI = { id: 1, resource_uri: "/api/v1/produto/1", url: "/clp-fx3u", seo: "/api/v1/seo/9", imagens: [{ id: 3 }], preco_cheio: "10.00", estoque_quantidade: 5, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<p>Texto</p>", ncm: "8537.10.20", gtin: "7894972605270", mpn: "FX3U", peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: null, production_type: null, seo_title: "", seo_description: "", tags: [] };
+    const produtoLI = { id: 1, resource_uri: "/api/v1/produto/1", url: "/clp-fx3u", seo: "/api/v1/seo/9", imagens: [{ id: 3 }], preco_cheio: "10.00", estoque_quantidade: 5, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<p>Texto</p>", ncm: "8537.10.20", gtin: "7894972605270", mpn: null, peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: null, production_type: null, seo_title: "", seo_description: "", tags: [] };
     conferir("NCM no formato da loja", [formatarNcmLI("85371020"), formatarNcmLI("8537"), formatarNcmLI(null)], ["8537.10.20", "8537", null]);
     const corpoPost = montarCorpoDeCadastroLI({ sku: "ZZ-LI-2", rise, descricaoHtml: "<p>Texto</p>", marcaUri: "/api/v1/marca/1", categoriasUris: ["/api/v1/categoria/5946305"] });
     conferir("POST: inativo, normal, slug em apelido, fiscal em texto", [corpoPost.ativo, corpoPost.tipo, corpoPost.usado, corpoPost.apelido, corpoPost.icms_origin_code, corpoPost.production_type, corpoPost.ncm, corpoPost.altura, corpoPost.profundidade, corpoPost.peso], [false, "normal", false, "clp-fx3u", "0", TEXTO_DO_TIPO_PRODUCAO.REVENDA, "8537.10.20", 3, 7, 0.5]);
     conferir("POST: sem chave nula e sem SEO", ["url_video_youtube" in corpoPost, "seo_title" in corpoPost, "preco_cheio" in corpoPost], [false, false, false]);
-    conferir("POST: categorias vazias ficam de fora", "categorias" in montarCorpoDeCadastroLI({ sku: "x", rise, descricaoHtml: "", marcaUri: null, categoriasUris: [] }), false);
+    conferir("POST: sem MPN", "mpn" in corpoPost, false);
+    conferir(
+      "PUT: MPN alterado limpa com texto vazio (o valor velho da loja sai)",
+      mesclarCorpoLI({ ...produtoLI, mpn: "UNO R3 SMD CH340" }, rise, ["mpn"], { descricaoHtml: "", marcaUri: null, categoriasUris: [] }).mpn,
+      "",
+    );
+    conferir("POST: categorias vazias ficam de fora","categorias" in montarCorpoDeCadastroLI({ sku: "x", rise, descricaoHtml: "", marcaUri: null, categoriasUris: [] }), false);
     const put = mesclarCorpoLI(produtoLI, { ...rise, nome: "Novo", slug: "outro", seoTitulo: "S2" }, ["nome", "slug", "seoTitulo"], { descricaoHtml: "<p>Texto</p>", marcaUri: "/api/v1/marca/16306688", categoriasUris: [] });
     conferir("PUT: troca so o nome; slug e SEO nao entram", [put.nome, put.apelido, "seo_title" in put], ["Novo", "/clp-fx3u", false]);
     conferir("PUT: sem chaves so de leitura (preco, estoque, imagens, url, seo)", [...CHAVES_SO_LEITURA].filter((chave) => chave in put), []);

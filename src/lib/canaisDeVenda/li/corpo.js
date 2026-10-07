@@ -1,4 +1,4 @@
-import { TEXTO_DO_TIPO_PRODUCAO } from "./campos";
+import { CAMPOS_QUE_LIMPAM_LI, TEXTO_DO_TIPO_PRODUCAO } from "./campos";
 
 /**
  * O corpo que vai para a Loja Integrada: o POST do cadastro e o PUT do produto inteiro.
@@ -112,7 +112,7 @@ export function montarCorpoDeCadastroLI({ sku, rise, descricaoHtml, marcaUri, ca
 /**
  * PUT: copia do produto da LI sem as chaves so de leitura, com os campos alterados trocados
  * pelo valor do Rise. Campo alterado que esta vazio no Rise fica com o valor da LI (o envio
- * nunca apaga). Nao muda `produtoLI`.
+ * nunca apaga), menos os de `CAMPOS_QUE_LIMPAM_LI` (MPN), que o Rise quer em branco. Nao muda `produtoLI`.
  */
 export function mesclarCorpoLI(produtoLI, rise, camposAlterados, { descricaoHtml, marcaUri, categoriasUris }) {
   const corpo = {};
@@ -122,7 +122,12 @@ export function mesclarCorpoLI(produtoLI, rise, camposAlterados, { descricaoHtml
   const contexto = { descricaoHtml, marcaUri, categoriasUris };
   for (const campo of camposAlterados ?? []) {
     const par = valorParaLI(campo, rise ?? {}, contexto);
-    if (!par || vazio(par[1])) continue;
+    if (!par) continue;
+    // Campo que o Rise quer em branco (MPN) vai como texto vazio: e o unico jeito de limpar o valor da loja.
+    if (vazio(par[1])) {
+      if (CAMPOS_QUE_LIMPAM_LI.has(campo)) corpo[par[0]] = "";
+      continue;
+    }
     corpo[par[0]] = par[1];
   }
   return corpo;

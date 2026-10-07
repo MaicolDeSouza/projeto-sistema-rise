@@ -2501,6 +2501,10 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   `rascunhoDoAnuncio`, `salvarRascunhoLI` e `normalizarDoRiseLI` refazem do título; o vínculo não traz mais o slug da
   loja. Produto que já está na loja muda de URL no próximo Sincronizar (/alias, 301), e cada troca de nome muda de
   novo; o aviso mostra a URL de verdade de hoje (`vinculo.urlExterna`, que pode ser `/produto/<slug>.html`).
+- **MPN sempre em branco** (07/10/2026): é o código de peça do fabricante e não se aplica aos produtos da loja. O
+  Rise mandava o Modelo do cadastro como MPN (o 100101 foi com "UNO R3 SMD CH340"); agora o MPN do Rise é vazio, valor
+  na loja conta como diferença e o Sincronizar limpa com `mpn: ""` (`CAMPOS_QUE_LIMPAM_LI`). **Limpar com texto vazio
+  ainda não foi medido na LI real.**
 - **Frases fixas saíram da LI** (07/10/2026): não entram na descrição nem na assinatura, e a página de configurações
   do canal foi apagada. As do Mercado Livre continuam.
 - **Vínculo:** a primeira leitura de um produto Conferido que já existe na LI grava `idExterno`, `urlExterna` e o
