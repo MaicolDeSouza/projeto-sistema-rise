@@ -39,6 +39,7 @@ const { criarLojaIntegradaFalsa } = await import("./lib/lojaIntegradaFalsa.js");
 const { buscarNaLI, lerDetalheDaLI, lerParaPopupLI, listarCategoriasDaLI, listarMarcasDaLI } = await import("../src/lib/canaisDeVenda/li/leitura.js");
 const { cadastrarNaLI, sincronizarProdutoLI } = await import("../src/lib/canaisDeVenda/li/envio.js");
 const { mudouNaLI, resumirEnvioLI, valorParaTela } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
+const { ROTULO_DO_TIPO_PRODUCAO, STATUS_LI } = await import("../src/lib/canaisDeVenda/li/rotulos.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -435,6 +436,12 @@ try {
     conferir("resumo do sincronizar lista os campos", resumirEnvioLI("sincronizar", { ok: true, alterados: [{ campo: "peso", de: null, para: 0.5 }] }, { peso: "Peso (kg)" }), { titulo: "Sincronizado com a Loja Integrada.", linhas: ["Peso (kg): de vazio para 0,5 kg"] });
     conferir("resumo do cadastro", resumirEnvioLI("cadastrar", { ok: true, idExterno: "9" }).titulo, "Produto cadastrado na Loja Integrada (inativo).");
     conferir("valorParaTela", [valorParaTela("categorias", ["1", "2"]), valorParaTela("destaque", false), valorParaTela("altura", 3), valorParaTela("tipoProducao", "FABRICACAO_PROPRIA"), valorParaTela("ncm", null)], ["1, 2", "nao", "3 cm", "Fabricacao propria", null]);
+  }
+
+  {
+    console.log("\nRotulos");
+    conferir("STATUS_LI", Object.keys(STATUS_LI), ["RASCUNHO", "PUBLICADO", "ERRO"]);
+    conferir("rotulo do tipo de producao", ROTULO_DO_TIPO_PRODUCAO.FABRICACAO_PROPRIA, "Fabricacao propria");
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

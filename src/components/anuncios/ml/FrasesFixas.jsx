@@ -13,11 +13,16 @@ const CLASSE_DA_MENSAGEM = {
 };
 
 /**
- * Frases fixas do canal Mercado Livre: caixa de texto com uma frase por linha. O que o servidor
+ * Frases fixas de um canal (Mercado Livre por padrao; a Loja Integrada passa `salvar` e `ajuda`):
+ * caixa de texto com uma frase por linha. O que o servidor
  * devolve depois de gravar (limpo e sem repetidas) volta para a caixa, para o operador ver o que
  * ficou valendo. Salvar recusado nao mexe no texto digitado.
  */
-export default function FrasesFixas({ frasesIniciais }) {
+export default function FrasesFixas({
+  frasesIniciais,
+  salvar: salvarNoServidor = salvarFrasesFixas,
+  ajuda = "Estas frases entram em todo anuncio, depois da descricao do produto.",
+}) {
   const [texto, setTexto] = useState(() => frasesIniciais.join("\n"));
   const [mensagem, setMensagem] = useState(null);
   const [salvando, iniciarSalvamento] = useTransition();
@@ -42,7 +47,7 @@ export default function FrasesFixas({ frasesIniciais }) {
     iniciarSalvamento(async () => {
       let resultado;
       try {
-        resultado = await salvarFrasesFixas(enviado);
+        resultado = await salvarNoServidor(enviado);
       } catch {
         // Excecao solta numa transicao iria ao error boundary e levaria o que foi digitado.
         resultado = { ok: false, erro: "Nao foi possivel falar com o servidor. O texto continua aqui: tente salvar de novo." };
@@ -66,7 +71,7 @@ export default function FrasesFixas({ frasesIniciais }) {
             texto={`Uma frase por linha. Linha vazia e frase repetida sao descartadas. No maximo ${MAXIMO_DE_FRASES} frases de ${MAXIMO_DA_FRASE} caracteres cada.`}
           />
         </div>
-        <p id="ml-frases-nota" className="mt-0.5 text-sm text-suave">Estas frases entram em todo anuncio, depois da descricao do produto.</p>
+        <p id="ml-frases-nota" className="mt-0.5 text-sm text-suave">{ajuda}</p>
       </div>
 
       <textarea
