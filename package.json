@@ -38,7 +38,9 @@
     "teste:bling-sync": "node scripts/teste-bling-sync.js",
     "teste:loja-integrada": "node scripts/teste-loja-integrada.js",
     "teste:li-sync": "node scripts/teste-li-sync.js",
-    "teste:versao": "node scripts/teste-versao.js"
+    "teste:versao": "node scripts/teste-versao.js",
+    "teste:migracao": "node scripts/teste-migracao.js",
+    "auditar:arquivos": "node scripts/auditar-arquivos.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

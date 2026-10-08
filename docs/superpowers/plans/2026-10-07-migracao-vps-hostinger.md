@@ -116,13 +116,14 @@ git commit -m "Versao do deploy no pe do menu (DD.MM.AAAA.HH.MM; dev no PC)"
 
 **Files:**
 - Create: `src/lib/auditoriaArquivos.js`, `scripts/auditar-arquivos.js`
-- Modify: `scripts/teste-extracao.js` (bloco novo), `package.json` (script `auditar:arquivos`)
+- Create: `scripts/teste-migracao.js` (script `teste:migracao`; as regras puras das Tasks 3 e 4)
+- Modify: `package.json` (scripts `teste:migracao` e `auditar:arquivos`)
 
 **Interfaces:**
 - Consumes: `caminhoDe(sku, tipo, nome)`, `caminhoDaReserva(sku, nome)`, `pastaDoProduto(sku)` de `src/lib/arquivos.js`; `ProdutoArquivo { arquivo, tipo, papel, produto: { sku } }`.
 - Produces: `conferirNomes(esperados: string[], existentes: string[]) -> { faltando: string[], caixaDiferente: Array<{ esperado: string, encontrado: string }> }` (comparação exata; `caixaDiferente` quando só a caixa difere).
 
-- [ ] **Step 1: Teste** em `scripts/teste-extracao.js`
+- [ ] **Step 1: Teste** em `scripts/teste-migracao.js`
 
 ```js
 conferir("conferirNomes: tudo certo", conferirNomes(["a.jpg"], ["a.jpg"]), { faltando: [], caixaDiferente: [] });
@@ -130,7 +131,7 @@ conferir("conferirNomes: faltando", conferirNomes(["a.jpg", "b.pdf"], ["a.jpg"])
 conferir("conferirNomes: caixa diferente", conferirNomes(["abc.jpg"], ["ABC.jpg"]), { faltando: [], caixaDiferente: [{ esperado: "abc.jpg", encontrado: "ABC.jpg" }] });
 ```
 
-- [ ] **Step 2: Rodar e ver falhar** — `npm run teste:extracao` falha no import.
+- [ ] **Step 2: Rodar e ver falhar** — `npm run teste:migracao` falha no import.
 
 - [ ] **Step 3: Implementar `conferirNomes`** em `src/lib/auditoriaArquivos.js` (sem imports).
 
@@ -143,7 +144,7 @@ conferir("conferirNomes: caixa diferente", conferirNomes(["abc.jpg"], ["ABC.jpg"
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/lib/auditoriaArquivos.js scripts/auditar-arquivos.js scripts/teste-extracao.js package.json
+git add src/lib/auditoriaArquivos.js scripts/auditar-arquivos.js scripts/teste-migracao.js package.json
 git commit -m "Auditoria de arquivos: nome exato no disco antes da migracao para Linux"
 ```
 
@@ -151,12 +152,12 @@ git commit -m "Auditoria de arquivos: nome exato no disco antes da migracao para
 
 **Files:**
 - Create: `src/lib/copiaLocal.js`, `scripts/atualizar-copia.js`, `scripts/lib/postgres.js`
-- Modify: `scripts/backup-banco.js` (usa `scripts/lib/postgres.js`), `scripts/teste-extracao.js`, `package.json` (script `copia:atualizar`), `.env.example` (`RCLONE_REMOTO=r2:rise-backup`)
+- Modify: `scripts/backup-banco.js` (usa `scripts/lib/postgres.js`), `scripts/teste-migracao.js`, `package.json` (script `copia:atualizar`), `.env.example` (`RCLONE_REMOTO=r2:rise-backup`)
 
 **Interfaces:**
 - Produces: `ehBancoLocal(url: string) -> boolean` (host `localhost`, `127.0.0.1` ou `::1`); `sqlLimparConexoes() -> string` (`DELETE FROM "Conexao" WHERE "servico" IN ('MERCADO_LIVRE', 'BLING')`); `argumentosDeRestore({ dump, banco }) -> { dropdb: string[], createdb: string[], pgRestore: string[] }`; `scripts/lib/postgres.js` exporta `binario(nome)` e `conexaoDaUrl(url)` (hoje dentro de `backup-banco.js`).
 
-- [ ] **Step 1: Teste** em `scripts/teste-extracao.js`
+- [ ] **Step 1: Teste** em `scripts/teste-migracao.js`
 
 ```js
 conferir("ehBancoLocal: localhost", ehBancoLocal("postgresql://rise:x@localhost:5432/sistema_rise"), true);
@@ -170,7 +171,7 @@ conferir("argumentosDeRestore: pg_restore sem dono", argumentosDeRestore({ dump:
   ["--no-owner", "--no-password", "--dbname=sistema_rise", "x.dump"]);
 ```
 
-- [ ] **Step 2: Rodar e ver falhar.** `npm run teste:extracao`.
+- [ ] **Step 2: Rodar e ver falhar.** `npm run teste:migracao`.
 
 - [ ] **Step 3: Implementar `src/lib/copiaLocal.js`** (sem imports) e extrair `binario`/`conexaoDaUrl` de `backup-banco.js` para `scripts/lib/postgres.js`, sem mudar comportamento.
 
@@ -183,7 +184,7 @@ conferir("argumentosDeRestore: pg_restore sem dono", argumentosDeRestore({ dump:
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/lib/copiaLocal.js scripts/atualizar-copia.js scripts/lib/postgres.js scripts/backup-banco.js scripts/teste-extracao.js package.json .env.example
+git add src/lib/copiaLocal.js scripts/atualizar-copia.js scripts/lib/postgres.js scripts/backup-banco.js scripts/teste-migracao.js package.json .env.example
 git commit -m "Copia de desenvolvimento a partir do backup: restore local e limpeza das Conexao do ML e Bling"
 ```
 
