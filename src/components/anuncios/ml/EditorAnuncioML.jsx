@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Loader, X } from "lucide-react";
 
-import { salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { lerCategoriaML, salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
 import { STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
@@ -37,6 +37,10 @@ const CLASSE_DA_MENSAGEM = {
 const MOTIVO_DO_PUBLICADO = "Anúncio publicado: não editável aqui.";
 
 const semBlingId = (produto) => Boolean(produto) && !String(produto.blingId ?? "").trim();
+
+const CATEGORIA_ML = /^MLB\d+$/;
+// Espera o dono parar de digitar o codigo: cada tecla seria uma leitura no ML.
+const ESPERA_DA_CATEGORIA_MS = 400;
 
 /**
  * Editor de um anuncio do Mercado Livre: a casca (abas, Salvar, Publicar) e o estado que as abas
@@ -78,8 +82,43 @@ export default function EditorAnuncioML({
   const [salvo, setSalvo] = useState(rascunhoInicial);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
   const [salvando, iniciarSalvamento] = useTransition();
+  const [carregandoCategoria, iniciarLeituraDaCategoria] = useTransition();
   const caixaDaMensagem = useRef(null);
   const secaoDaJanela = useRef(null);
+  // Numero da leitura de categoria mais nova: a resposta de uma leitura antiga e descartada.
+  const leituraDaCategoria = useRef(0);
+  const categoriaId = rascunho.categoriaId;
+
+  // A categoria do ML (fase 2) vive no contexto, nao no rascunho: e lida de novo a cada codigo
+  // novo (e ao abrir o anuncio) e da a validacao o limite do titulo, se e final e os atributos.
+  useEffect(() => {
+    const id = String(categoriaId ?? "").trim();
+    const leitura = ++leituraDaCategoria.current;
+    const espera = setTimeout(
+      () => {
+        if (!CATEGORIA_ML.test(id)) {
+          setContexto((atual) => (atual.categoria === undefined && !atual.categoriaErro ? atual : { ...atual, categoria: undefined, categoriaErro: null }));
+          return;
+        }
+        iniciarLeituraDaCategoria(async () => {
+          let resultado;
+          try {
+            resultado = await lerCategoriaML(id);
+          } catch {
+            resultado = { ok: false, erro: "Não foi possível falar com o servidor." };
+          }
+          if (leitura !== leituraDaCategoria.current) return;
+          setContexto((atual) => ({
+            ...atual,
+            categoria: resultado.ok ? resultado.categoria : undefined,
+            categoriaErro: resultado.ok ? null : resultado.erro,
+          }));
+        });
+      },
+      CATEGORIA_ML.test(id) ? ESPERA_DA_CATEGORIA_MS : 0,
+    );
+    return () => clearTimeout(espera);
+  }, [categoriaId]);
 
   const alterado = rascunho !== salvo;
   const janela = modo === "janela";
@@ -160,7 +199,7 @@ export default function EditorAnuncioML({
     ...(bloqueantes > 0 ? [`${bloqueantes} problema(s) bloqueante(s) na Prévia.`] : []),
   ];
 
-  const propsDasAbas = { rascunho, contexto, alterar, setContexto, irPara: setAba, anuncioId: idAtual };
+  const propsDasAbas = { rascunho, contexto, alterar, setContexto, irPara: setAba, anuncioId: idAtual, carregandoCategoria };
   const rotuloDoStatus = STATUS_ML[status] ?? (idAtual ? STATUS_ML.RASCUNHO : { rotulo: "Novo", tom: "neutro" });
 
   const aviso = mensagem && (
