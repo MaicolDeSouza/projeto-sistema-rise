@@ -105,7 +105,7 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 | Integrações | Bling e ML conectados e testados; Loja Integrada pelo Personal Token (API direta para o conteúdo; estoque, preço e pedidos seguem pelo Bling) |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
-| Canais de Venda | Mercado Livre: rascunho de anúncio simples e de composição/kit (salvar, pop-up pelo ícone na lista de Produtos e página própria, frases fixas), **sem publicar**. Loja Integrada: editor por abas (Geral, SEO, Descrição, Fiscal, Envio, Prévia) com categorias ao vivo, ícone com selo e pop-up de diferenças na lista de Produtos, Cadastrar e Sincronizar **sob trava** (`LI_ESCRITA=false`). Shopee é só cartão "em breve" |
+| Canais de Venda | Mercado Livre: rascunho de anúncio simples e de composição/kit (salvar, pop-up pelo ícone na lista de Produtos e página própria, frases fixas), inteligência do ML (categoria, título, ficha, custos) e **Publicar pronto sob trava** (`ML_PUBLICACAO=false`; nenhum envio real ainda). Loja Integrada: editor por abas (Geral, SEO, Descrição, Fiscal, Envio, Prévia) com categorias ao vivo, ícone com selo e pop-up de diferenças na lista de Produtos, Cadastrar e Sincronizar **sob trava** (`LI_ESCRITA=false`). Shopee é só cartão "em breve" |
 | Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
@@ -115,7 +115,9 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 `exigirTravaLiberada` em `src/lib/integracoes/config.js` barra todo `POST`/`PUT` antes da
 requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue sem pedir. Em 05/10/2026 houve um
 teste de escrita real no Bling com UM produto de teste (`ZZ-TESTE-BLING`), com as travas abertas só no ambiente
-de um script (o `.env` continuou em `false`); liberar produtos reais continua decisão do dono.
+de um script (o `.env` continuou em `false`); liberar produtos reais continua decisão do dono. O Mercado Livre
+tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (lista de códigos liberados;
+**vazia libera todos**).
 
 ## Rodar
 
@@ -144,7 +146,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 450 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas e a fase 2 (categoria, atributos, custos, preço por margem, IA) contra um ML falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 565 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA) e a fase 3 (publicar, retomar, kit e vínculo no Bling) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:composicao          # 78 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças e a descrição só com referências cadastradas (Postgres, SEM rede; só escreve produtos ZZ-KIT-*)
@@ -256,9 +258,14 @@ o Docker Desktop travava ao abrir e o sistema ficava sem banco.
   se perde.
 - Access token dura 6h; o refresh exige o escopo **`offline_access`**.
 - Conta **`4HOBBY_STORE`**, seller `212386247`, no modelo **User Products** →
-  **`family_name` é obrigatório** ao publicar.
-- **Preço saiu do `POST`/`PUT /items`** (março/2026): vai em
-  `POST /items/{id}/prices/standard`.
+  **`family_name` é obrigatório** ao publicar e **o `title` NÃO pode ser enviado** no `POST /items`: o ML
+  gera o título a partir do `family_name` e dos atributos (documentação `preco-variacao`, lida em 08/10/2026).
+  O "Título" do editor do Rise vai como `family_name` (decisão do dono).
+- **Preço: na CRIAÇÃO ele vai no `POST /items`** (a documentação de preços, de 26/02/2026, diz que criar e
+  editar continua pela `/items`, e o "editar preço standard" ainda não existe). O que mudou em março/2026: um
+  `PUT /items` que manda **só** o `price` é recusado (400). Até 08/10/2026 este arquivo dizia que o preço
+  tinha saído do `POST`, o que estava errado.
+- Descrição: `POST /items/{id}/description` (`{ plain_text }`) depois de criar o item; não vai no `POST /items`.
 - **Título não muda depois que o anúncio tem vendas.** Encerrar é irreversível.
 - Publicar **pausado**, ajustar, e só então ativar — falha no meio não deixa anúncio
   incompleto no ar.
@@ -2135,8 +2142,8 @@ Pedido do dono em 30/09/2026; construído de 01 a 03/10/2026 na branch `canais-d
 `docs/superpowers/specs/2026-09-30-canais-de-venda-mercado-livre-design.md`; plano:
 `docs/superpowers/plans/2026-10-01-canais-de-venda-ml-fase-1.md`. **A fase 1 só monta e salva o rascunho**:
 nada escreve no Mercado Livre nem no Bling, o botão Publicar fica desabilitado com o motivo, e
-`ML_PUBLICACAO`/`BLING_ESCRITA` seguem `false`. A fase 2 (inteligência do ML, só leitura) está na seção seguinte; a
-fase 3 (publicar) não existe.
+`ML_PUBLICACAO`/`BLING_ESCRITA` seguem `false`. A fase 2 (inteligência do ML, só leitura) e a fase 3 (publicar) estão
+nas seções seguintes.
 
 **Onde mora cada parte**
 - **Rotas** (`src/app/canais-de-venda/`): `page.jsx` (cartões de `src/lib/canaisDeVenda/catalogo.js`; Loja Integrada
@@ -2289,6 +2296,62 @@ Conferido no navegador com dados reais (100101, `MLB99779`): o `LogIntegracao` s
 
 **Armadilha vista aqui:** o ESLint do projeto **não tem `no-undef`**: um import que faltou passou no lint e só quebrou
 no navegador. Conferir a tela depois de mexer em componente.
+
+## Canais de Venda: Mercado Livre (fase 3, publicar)
+
+Pedido do dono em 08/10/2026; plano: `docs/superpowers/plans/2026-10-08-canais-de-venda-ml-fase-3.md` (executado inline
+na `main`). **O Publicar está pronto e NUNCA foi usado de verdade**: `ML_PUBLICACAO` e `BLING_ESCRITA` seguem `false`, e
+tudo foi testado contra o ML falso e o Bling falso. Conferido no navegador (100101, rascunho de teste apagado depois): a
+janela mostra o resumo com leituras reais e o "Publicar no Mercado Livre" volta "Escrita bloqueada: ML_PUBLICACAO está
+false", sem nenhuma escrita no `LogIntegracao`.
+
+**Decisões do dono (08/10/2026):** o "Título" do editor vai como `family_name` (o ML não aceita `title` no modelo User
+Products; o campo family_name separado saiu da tela); o validador do ML entra (etapa do Publicar e botão "Validar no ML"
+na Prévia); **kit pelos dois caminhos**: (a) anúncio de um Produto com composição do cadastro publica como anúncio simples
+dele, e a pré-checagem exige que ele seja kit (`formato "E"`) no Bling; (b) anúncio com composição montada no editor:
+cada item Conferido, com `blingId` e produto simples no Bling, e o Rise **garante o kit no Bling** (reaproveita se as
+peças e quantidades forem iguais, recusa se forem outras, cria `formato "E"`/estoque virtual se o código está livre).
+
+**Etapas** (`ml/etapas.js`), cada uma gravada em `Anuncio.dados.publicacao.feitas` ao terminar: fotos → validar
+(`POST /items/validate`) → criar pausado com preço (`POST /items`) → pausar (só se o ML criou ativo) → descrição (`POST
+/items/{id}/description`) → kit no Bling (só composição) → vínculo no Bling (`POST /produtos/lojas`, loja `203593931`,
+`codigo` = MLB, `preco` = do anúncio) → ativar (`PUT /items/{id}`) → gravar (`PUBLICADO`, `situacaoCanal`, `idExterno`,
+`urlExterna`, `publicadoEm`). A ordem real difere da spec §7 (fotos antes, preço na criação, descrição por POST): é o que
+a documentação do ML diz hoje.
+
+**Onde mora:** `ml/publicar.js` (`prepararPublicacaoML`, só leitura, e `publicarAnuncioML`/`validarNoML`), `ml/bling.js`
+(`vinculoNoBlingML`, `vincularNoBlingML`, `conferirKitNoBling`, `criarKitNoBling`, `corpoDoKitDoAnuncio`),
+`ml/respostas.js` (corpo da criação e as causas de recusa do ML), `ml/etapas.js`, `ml/banco.js` (`lerPublicacao`,
+`gravarPublicacao`). Conector: `mlPost`, `mlPut`, `mlUpload` (multipart; `requisitar` aceita `FormData`), todos com
+uma tentativa só. Tela: `JanelaPublicarML.jsx`, o rodapé do `EditorAnuncioML` e o "Validar no ML" da `AbaPrevia`.
+
+**Regras que custaram pensar:**
+- **As duas travas antes da primeira escrita** (`ml.exigirEscrita` e `bling.exigirEscrita` do código do anúncio): a
+  recusa não deixa meia publicação. O ML falso e o Bling falso **lançam** quando alguém escreve sem ter chamado
+  `exigirEscrita` antes.
+- **Escrita nunca repete sozinha.** Criação sem resposta certa (rede, HTTP 5xx) marca a publicação como `incerta`;
+  "Retomar" recusa até o dono conferir no ML e escolher **Criar de novo**.
+- **Retomar continua da etapa que falhou:** o item não é recriado, as fotos já subidas não sobem de novo, a descrição
+  e o vínculo não duplicam. Sem item criado, fotos e validação rodam de novo a cada volta (o rascunho pode ter mudado).
+- **Kit que falha no Bling** deixa o anúncio `PUBLICANDO`, pausado no ML, com o rótulo "Aguardando o Bling" e o botão
+  **Verificar no Bling** (repete a partir do kit). O anúncio nunca é ativado sem o vínculo no Bling.
+- **Editor travado** durante a publicação e depois que o item existe no ML (o servidor recusa o Salvar com
+  `PUBLICANDO` ou com `publicacao.itemId`). As gravações de `dados` (publicação e Salvar) são feitas com
+  `SELECT ... FOR UPDATE`, e uma publicação por anúncio por vez neste processo (`emAndamento`).
+- **`gerarSku` pula os códigos de kit dos anúncios** (o Rise vai criá-los no Bling).
+- A pré-checagem relê a categoria no ML e valida no servidor; categoria que não pode ser lida **recusa** (na tela é só
+  alerta).
+
+**Não medido (só o primeiro envio real mostra):** se o `POST /items` aceita `status: "paused"` (se não aceitar, a etapa
+"pausar" pausa na hora); o título que o ML gera; se o Bling aceita um segundo vínculo do mesmo produto na mesma loja
+(o 100101 já tem o MLB4165084257); o que o Bling faz com estoque e preço depois do vínculo.
+
+**Primeiro Publicar real:** só com o OK do dono e com ele acompanhando, um produto de teste, travas abertas só no
+ambiente de um script (`ML_PUBLICACAO=true ML_PUBLICACAO_CODIGOS=<sku> BLING_ESCRITA=true BLING_ESCRITA_CODIGOS=<sku>`),
+`.env` intocado. Depois, o mesmo com um kit de teste.
+
+**Fora desta fase:** gerenciar anúncio publicado (editar, pausar, sincronizar preço/estoque), `hashConteudo`, aviso de
+exclusão de produto com anúncios, listagem paginada no banco.
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 
