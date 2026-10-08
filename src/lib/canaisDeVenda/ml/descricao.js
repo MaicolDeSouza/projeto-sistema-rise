@@ -12,8 +12,14 @@ function textoDasFrases(frases) {
     .join("\n");
 }
 
-/** Texto que vai ao Mercado Livre: a descricao e, depois dela, as frases fixas do canal. */
+// O que tem forma de etiqueta HTML (`<b>`, `</b>`, `<br/>`): o ML recusa a descricao inteira com isso
+// ("The description must be in plain text", medido em 08/10/2026). Exige letra logo depois do `<` e o
+// `>` na mesma linha, entao "<5V", "< 3,3 V" e "a<b" continuam sendo texto.
+const ETIQUETA_HTML = /<\/?[a-zA-Z][^<>\n]*>/g;
+
+/** Texto que vai ao Mercado Livre: a descricao e, depois dela, as frases fixas do canal, em texto puro. */
 export function montarDescricaoML({ descricao, frases }) {
   // Bloco vazio nao deixa linha em branco sobrando no comeco, no meio nem no fim do texto.
-  return [String(descricao ?? "").trim(), textoDasFrases(frases)].filter(Boolean).join("\n\n");
+  const texto = [String(descricao ?? "").trim(), textoDasFrases(frases)].filter(Boolean).join("\n\n");
+  return texto.replace(ETIQUETA_HTML, "");
 }
