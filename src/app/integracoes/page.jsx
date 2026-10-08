@@ -47,6 +47,7 @@ export default async function IntegracoesPage({ searchParams }) {
     configurado: conector.configurado,
     faltando: conector.faltando,
     bloqueado: conector.bloqueado ?? null,
+    painel: conector.painel ?? null,
   }));
 
   return (

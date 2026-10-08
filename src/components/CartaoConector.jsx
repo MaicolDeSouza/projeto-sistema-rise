@@ -5,6 +5,7 @@ import {
   Cable,
   CircleCheck,
   CircleX,
+  ExternalLink,
   Loader,
   Lock,
   RefreshCw,
@@ -223,6 +224,19 @@ export default function CartaoConector({
               Desconectar
             </button>
           </>
+        )}
+
+        {/* O painel da plataforma onde se cadastra o app da API; abre em outra aba, conectado ou nao. */}
+        {conector.painel && (
+          <a
+            href={conector.painel.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+          >
+            <ExternalLink size={14} />
+            {conector.painel.rotulo}
+          </a>
         )}
       </div>
     </Card>

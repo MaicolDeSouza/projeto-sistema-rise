@@ -214,6 +214,12 @@ export const conector = {
     ...(config.bling.clientId ? [] : ["BLING_CLIENT_ID"]),
     ...(config.bling.clientSecret ? [] : ["BLING_CLIENT_SECRET"]),
   ],
+  // Onde o dono cadastra e revisa os apps da API (client id, secret, link de redirecionamento). Pedido em
+  // 08/10/2026: abrir o painel direto do cartao da tela Integracoes.
+  painel: {
+    url: "https://www.bling.com.br/cadastro.aplicativos.php#/list",
+    rotulo: "Painel de aplicativos",
+  },
   iniciarAutorizacao,
   concluirAutorizacao,
   testar,
