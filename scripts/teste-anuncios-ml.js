@@ -1397,6 +1397,42 @@ try {
       conferir("faixa 25xxxx: SKU 250003 e kit 250007 => 250008", proximoCodigoDaFaixa(["250003", "250007", "100101_5"]), "250008");
     }
 
+    {
+      console.log("\nFase 3: estado da publicação");
+      await limpar();
+      const { ETAPAS, ROTULO_DA_ETAPA, proximaEtapa, etapasDoAnuncio } = await import("../src/lib/canaisDeVenda/ml/etapas.js");
+      const { lerPublicacao, gravarPublicacao } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+      conferir("etapas: ordem", ETAPAS, ["fotos", "validar", "criar", "pausar", "descricao", "kit_bling", "vinculo", "ativar", "gravar"]);
+      conferir("etapas: todas com rotulo", ETAPAS.every((etapa) => typeof ROTULO_DA_ETAPA[etapa] === "string"), true);
+      conferir("etapas: simples nao tem kit_bling", etapasDoAnuncio({ kit: false }).includes("kit_bling"), false);
+      conferir("etapas: kit tem kit_bling", etapasDoAnuncio({ kit: true }).includes("kit_bling"), true);
+      conferir("proximaEtapa: depois de fotos e validar vem criar", proximaEtapa({ feitas: ["fotos", "validar"] }), "criar");
+      conferir("proximaEtapa: simples pula kit_bling", proximaEtapa({ feitas: ["fotos", "validar", "criar", "pausar", "descricao"] }, etapasDoAnuncio({ kit: false })), "vinculo");
+      conferir("proximaEtapa: sem publicacao comeca nas fotos", proximaEtapa(null), "fotos");
+      conferir("proximaEtapa: tudo feito e null", proximaEtapa({ feitas: [...ETAPAS] }), null);
+
+      const pe = await prisma.produto.create({ data: { sku: "ZZ-ML-EST", tituloBase: "ZZ Estado", conferido: true, blingId: "1" } });
+      const aberto = await novoRascunhoML(pe.id);
+      const rascunhoValido = aberto.rascunho;
+      const { id } = await salvarRascunhoML(null, rascunhoValido);
+      conferir("publicacao: anuncio novo sem estado", (await lerPublicacao(id)).publicacao, null);
+      await gravarPublicacao(id, { feitas: ["fotos"], fotos: { f1: "999-a" } });
+      await gravarPublicacao(id, { fotos: { f2: "999-b" } });
+      const lido = await lerPublicacao(id);
+      conferir("gravarPublicacao: mescla as fotos e mantem feitas", [lido.publicacao.fotos, lido.publicacao.feitas], [{ f1: "999-a", f2: "999-b" }, ["fotos"]]);
+      conferir("gravarPublicacao: forma completa", Object.keys(lido.publicacao).sort(), ["atualizadoEm", "blingKitId", "erro", "etapaComErro", "feitas", "fotos", "incerta", "itemId", "permalink", "statusML"]);
+      conferir("salvar: rascunho editado nao apaga a publicacao", [(await salvarRascunhoML(id, { ...rascunhoValido, titulo: "OUTRO" })).ok, (await lerPublicacao(id)).publicacao.feitas], [true, ["fotos"]]);
+      await gravarPublicacao(id, {}, { status: "PUBLICANDO" });
+      conferir("salvar: recusado durante a publicacao", (await salvarRascunhoML(id, rascunhoValido)).erro, "Publicação em andamento: espere terminar.");
+      await gravarPublicacao(id, { itemId: "MLB9" }, { status: "ERRO", erro: "falhou" });
+      conferir("salvar: recusado com item ja criado no ML", /já existe no Mercado Livre/.test((await salvarRascunhoML(id, rascunhoValido)).erro), true);
+      const colunas = (await lerPublicacao(id)).anuncio;
+      conferir("gravarPublicacao: grava as colunas junto", [colunas.status, colunas.erro], ["ERRO", "falhou"]);
+      const carregado = await carregarAnuncioML(id);
+      conferir("carregarAnuncioML: devolve a publicacao", carregado.publicacao.itemId, "MLB9");
+      conferir("gravarPublicacao: anuncio que nao existe lanca", await gravarPublicacao("nao-existe", {}).then(() => "gravou", () => "lancou"), "lancou");
+    }
+
     // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.
   }
 

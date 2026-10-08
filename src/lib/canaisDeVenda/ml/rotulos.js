@@ -12,6 +12,9 @@ export const STATUS_ML = {
   ERRO: { rotulo: "Erro", tom: "erro" },
 };
 
+/// Anuncio de kit pausado no ML a espera do kit no Bling (status PUBLICANDO, etapa `kit_bling` com erro).
+export const AGUARDANDO_BLING = { rotulo: "Aguardando o Bling", tom: "alerta" };
+
 export const TIPOS_DE_ANUNCIO_ML = [
   { valor: "gold_special", rotulo: "Clássico" },
   { valor: "gold_pro", rotulo: "Premium" },

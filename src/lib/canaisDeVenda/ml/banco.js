@@ -144,7 +144,16 @@ export async function carregarAnuncioML(id) {
   const [produtos, { frases }] = await Promise.all([contextoDosProdutos(idsDosProdutos), lerConfigML()]);
   const emUso = composicao ? await codigoEmUso(composicao.codigo, { anuncioId: anuncio.id, itens: composicao.itens }) : null;
 
-  return { ok: true, anuncioId: anuncio.id, status: anuncio.status, rascunho, contexto: { produtos, frases, codigoEmUso: emUso } };
+  return {
+    ok: true,
+    anuncioId: anuncio.id,
+    status: anuncio.status,
+    rascunho,
+    contexto: { produtos, frases, codigoEmUso: emUso },
+    publicacao: anuncio.dados?.publicacao ?? null,
+    idExterno: anuncio.idExterno ?? null,
+    urlExterna: anuncio.urlExterna ?? null,
+  };
 }
 
 /**
@@ -186,6 +195,64 @@ export async function sugerirCodigoDeKit() {
 }
 
 /**
+ * Por que a publicacao impede salvar (ou `null`): durante a publicacao o rascunho mudaria o que esta
+ * sendo enviado, e depois que o item existe no ML (pausado) o rascunho ja nao e o que esta la: so
+ * "Retomar publicacao" segue dali.
+ */
+function recusaDaPublicacao(anuncio) {
+  if (anuncio?.status === "PUBLICANDO") return "Publicação em andamento: espere terminar.";
+  if (anuncio?.dados?.publicacao?.itemId) return "O anúncio já existe no Mercado Livre (pausado). Use Retomar publicação.";
+  return null;
+}
+
+const PUBLICACAO_VAZIA = {
+  feitas: [],
+  fotos: {},
+  itemId: null,
+  permalink: null,
+  statusML: null,
+  blingKitId: null,
+  incerta: false,
+  erro: null,
+  etapaComErro: null,
+};
+
+/** O anuncio do ML e o estado da publicacao dele (`null` enquanto nunca foi publicado). */
+export async function lerPublicacao(anuncioId) {
+  if (typeof anuncioId !== "string" || anuncioId === "") return { anuncio: null, publicacao: null };
+  const anuncio = await prisma.anuncio.findFirst({ where: { id: anuncioId, canal: CANAL } });
+  return { anuncio, publicacao: anuncio?.dados?.publicacao ?? null };
+}
+
+/**
+ * Grava o estado da publicacao (`dados.publicacao`), com a linha do anuncio travada (`FOR UPDATE`):
+ * le `dados` de novo, mescla `parcial` (as listas sao trocadas; as fotos sao somadas, uma a uma, para a
+ * queda no meio do envio nao perder as que ja subiram) e grava junto as `colunas` do anuncio (`status`,
+ * `situacaoCanal`, `idExterno`, `urlExterna`, `erro`, `publicadoEm`, `payloadEnviado`).
+ * `opcoes.blingProdutoId` grava o id do kit no Bling dentro de `dados.composicao`. Lanca se o anuncio
+ * nao existe (a publicacao para ai).
+ */
+export async function gravarPublicacao(anuncioId, parcial = {}, colunas = {}, opcoes = {}) {
+  if (typeof anuncioId !== "string" || anuncioId === "") throw new Error("Anúncio inválido.");
+  return prisma.$transaction(async (tx) => {
+    const travado = await tx.$queryRaw`SELECT id FROM "Anuncio" WHERE id = ${anuncioId} FOR UPDATE`;
+    if (travado.length === 0) throw new Error("Anúncio não encontrado.");
+    const { dados } = await tx.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true } });
+    const anterior = { ...PUBLICACAO_VAZIA, ...(dados?.publicacao ?? {}) };
+    const publicacao = {
+      ...anterior,
+      ...parcial,
+      fotos: { ...anterior.fotos, ...(parcial?.fotos ?? {}) },
+      atualizadoEm: new Date().toISOString(),
+    };
+    const novos = { ...(dados ?? {}), publicacao };
+    if (opcoes.blingProdutoId !== undefined && novos.composicao) novos.composicao = { ...novos.composicao, blingProdutoId: opcoes.blingProdutoId };
+    await tx.anuncio.update({ where: { id: anuncioId }, data: { ...colunas, dados: novos } });
+    return publicacao;
+  });
+}
+
+/**
  * Salva o rascunho: cria o anuncio (`anuncioId` nulo) ou atualiza o que ja existe. Problema da
  * validacao (titulo longo, preco em branco...) NAO impede salvar, e rascunho incompleto e
  * permitido. O que o servidor recusa e o que a tela nao tem como garantir: formato quebrado,
@@ -208,6 +275,8 @@ export async function salvarRascunhoML(anuncioId, entrada) {
       if (!existente) return { ok: false, erro: "Anúncio não encontrado." };
       // Anuncio publicado so muda pelo fluxo de publicacao (fase 3).
       if (existente.canal !== CANAL || existente.status === "PUBLICADO") return { ok: false, erro: "Este anúncio não pode ser alterado aqui." };
+      const recusa = recusaDaPublicacao(existente);
+      if (recusa) return { ok: false, erro: recusa };
     }
 
     const ids = [...new Set([rascunho.produtoId, ...itens.map((item) => item.produtoId)].filter(Boolean))];
@@ -244,8 +313,18 @@ export async function salvarRascunhoML(anuncioId, entrada) {
       const criado = await prisma.anuncio.create({ data: { ...colunas, canal: CANAL, status: "RASCUNHO", dados }, select: { id: true } });
       return { ok: true, id: criado.id };
     }
-    // O que o editor nao conhece (a etapa da publicacao, na fase 3) fica como estava.
-    await prisma.anuncio.update({ where: { id: anuncioId }, data: { ...colunas, dados: { ...(existente.dados ?? {}), ...dados } } });
+    // O que o editor nao conhece (o estado da publicacao) fica como estava. Le e grava `dados` com a
+    // linha travada: a publicacao grava a etapa no mesmo JSON, e "ler, mesclar, gravar" sem trava
+    // podia apagar uma etapa gravada no meio.
+    const recusa = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Anuncio" WHERE id = ${anuncioId} FOR UPDATE`;
+      const agora = await tx.anuncio.findUnique({ where: { id: anuncioId }, select: { status: true, dados: true } });
+      const motivo = agora.status === "PUBLICADO" ? "Este anúncio não pode ser alterado aqui." : recusaDaPublicacao(agora);
+      if (motivo) return motivo;
+      await tx.anuncio.update({ where: { id: anuncioId }, data: { ...colunas, dados: { ...(agora.dados ?? {}), ...dados } } });
+      return null;
+    });
+    if (recusa) return { ok: false, erro: recusa };
     return { ok: true, id: anuncioId };
   } catch (erro) {
     console.error("[canais de venda]", erro);
