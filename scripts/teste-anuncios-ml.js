@@ -1502,6 +1502,124 @@ try {
       conferir("preparar: continua so leitura", [ml.escritas.length, bf.chamadas.filter((chamada) => chamada.metodo !== "GET").length], [0, 0]);
     }
 
+    {
+      console.log("\nFase 3: publicar e retomar");
+      await limpar();
+      const { publicarAnuncioML, validarNoML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+      const { lerPublicacao } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+      const c = await cenarioDePublicacao();
+      const lerFoto = async () => Buffer.from("jpg");
+      const semMLB = (escrita) => `${escrita.metodo} ${escrita.caminho.replace(/MLB\d+/, "MLB")}`;
+      const postsNoBling = (bling, caminho) => bling.chamadas.filter((chamada) => chamada.metodo === "POST" && chamada.caminho === caminho).length;
+      const estado = async (id) => (await lerPublicacao(id)).anuncio;
+
+      // Caminho feliz
+      const ml = criarMLFalso();
+      const bf = c.novoBling();
+      const idSimples = await c.anuncioSimples(c.s1);
+      let r = await publicarAnuncioML(idSimples, { ml, bling: bf, lerFoto });
+      conferir("publicar: tudo certo", [r.ok, r.feitas.at(-1), (await estado(idSimples)).status], [true, "gravar", "PUBLICADO"]);
+      conferir("publicar: ordem das escritas no ML", ml.escritas.map(semMLB), ["POST /pictures/items/upload", "POST /pictures/items/upload", "POST /items/validate", "POST /items", "POST /items/MLB/description", "PUT /items/MLB"]);
+      conferir("publicar: criou pausado, com preco e fotos por id, sem title", (({ status, price, pictures, title }) => [status, price, pictures.length, pictures.every((foto) => /^999-MLB/.test(foto.id)), title])(ml.escritas[3].corpo), ["paused", 49.9, 2, true, undefined]);
+      conferir("publicar: ativou no fim", ml.escritas.at(-1).corpo, { status: "active" });
+      conferir("publicar: descricao do produto", ml.escritas[4].corpo.plain_text.startsWith("Descricao de ZZ-ML-S1"), true);
+      conferir("publicar: um vinculo no Bling, na loja do ML, com o MLB e o preco", [postsNoBling(bf, "/produtos/lojas"), bf.chamadas.find((chamada) => chamada.caminho === "/produtos/lojas" && chamada.metodo === "POST").corpo], [1, { codigo: r.itemId, preco: 49.9, produto: { id: 501 }, loja: { id: 203593931 } }]);
+      const publicado = await estado(idSimples);
+      conferir("publicar: colunas gravadas", [publicado.situacaoCanal, publicado.idExterno, publicado.urlExterna === r.permalink, publicado.publicadoEm instanceof Date, publicado.erro], ["ATIVA", r.itemId, true, true, null]);
+      conferir("publicar: payloadEnviado e o corpo da criacao", publicado.payloadEnviado.family_name, "PLACA ZZ ML");
+      conferir("publicar: de novo e recusado", (await publicarAnuncioML(idSimples, { ml, bling: bf, lerFoto })).erro, "O anúncio já está publicado.");
+
+      // Review Focus 3: trava do Bling fechada => nada escrito em lugar nenhum
+      const mlNovo = criarMLFalso();
+      const bfTravado = c.novoBling({ codigosLiberados: ["outro"] });
+      const idOutro = await c.anuncioSimples(c.s1);
+      r = await publicarAnuncioML(idOutro, { ml: mlNovo, bling: bfTravado, lerFoto });
+      conferir("trava: nada escrito em lugar nenhum", [r.ok, /Escrita bloqueada/.test(r.erro), mlNovo.escritas.length, bfTravado.chamadas.filter((chamada) => !["GET", "exigirEscrita"].includes(chamada.metodo)).length, (await estado(idOutro)).status], [false, true, 0, 0, "RASCUNHO"]);
+      const mlTravado = criarMLFalso({ codigosLiberados: ["outro"] });
+      r = await publicarAnuncioML(idOutro, { ml: mlTravado, bling: bf, lerFoto });
+      conferir("trava: codigo fora da lista do ML", [r.ok, /ML_PUBLICACAO_CODIGOS/.test(r.erro), mlTravado.escritas.length], [false, true, 0]);
+
+      // Review Focus 1: criacao sem resposta certa
+      const mlQueda = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items", exato: true, status: 500 }] });
+      const idQueda = await c.anuncioSimples(c.s1);
+      r = await publicarAnuncioML(idQueda, { ml: mlQueda, bling: bf, lerFoto });
+      conferir("incerta: marcada", [r.ok, r.incerta, r.etapa, (await estado(idQueda)).status], [false, true, "criar", "ERRO"]);
+      const antes = mlQueda.escritas.length;
+      r = await publicarAnuncioML(idQueda, { ml: mlQueda, bling: bf, lerFoto });
+      conferir("incerta: retomar sem recriar nao escreve", [r.ok, mlQueda.escritas.length - antes, /Confira/.test(r.erro)], [false, 0, true]);
+      r = await publicarAnuncioML(idQueda, { ml: mlQueda, bling: bf, lerFoto, recriar: true });
+      conferir("incerta: recriar cria e nao sobe as fotos de novo", [r.ok, mlQueda.escritas.filter((e) => e.caminho === "/pictures/items/upload").length, (await lerPublicacao(idQueda)).publicacao.incerta], [true, 2, false]);
+      const mlRede = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items", exato: true, lancar: true }] });
+      r = await publicarAnuncioML(await c.anuncioSimples(c.s1), { ml: mlRede, bling: bf, lerFoto });
+      conferir("incerta: queda de rede tambem", [r.ok, r.incerta], [false, true]);
+      const mlRecusa = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items", exato: true, status: 400, dados: { message: "bad", cause: [{ type: "error", code: "x", message: "Recusado" }] } }] });
+      r = await publicarAnuncioML(await c.anuncioSimples(c.s1), { ml: mlRecusa, bling: bf, lerFoto });
+      conferir("criar: recusa 4xx nao e incerta", [r.ok, Boolean(r.incerta), /Recusado/.test(r.erro)], [false, false, true]);
+
+      // Review Focus 2: falha em cada etapa e retomada
+      const mlDescricao = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items/MLB", status: 500 }] });
+      const bfDescricao = c.novoBling();
+      const idDescricao = await c.anuncioSimples(c.s1);
+      r = await publicarAnuncioML(idDescricao, { ml: mlDescricao, bling: bfDescricao, lerFoto });
+      conferir("descricao: para na descricao, sem ativar", [r.ok, r.etapa, (await estado(idDescricao)).status, mlDescricao.escritas.some((e) => e.corpo?.status === "active")], [false, "descricao", "ERRO", false]);
+      conferir("descricao: Salvar recusado com o item criado", /já existe no Mercado Livre/.test((await salvarRascunhoML(idDescricao, (await novoRascunhoML(c.s1.id)).rascunho)).erro), true);
+      r = await publicarAnuncioML(idDescricao, { ml: mlDescricao, bling: bfDescricao, lerFoto });
+      conferir("descricao: retomar termina sem recriar nem resubir fotos", [r.ok, mlDescricao.escritas.filter((e) => e.caminho === "/items").length, mlDescricao.escritas.filter((e) => e.caminho === "/pictures/items/upload").length], [true, 1, 2]);
+
+      const mlAtivar = criarMLFalso({ falhas: [{ metodo: "PUT", caminho: "/items/MLB", status: 500 }] });
+      const bfAtivar = c.novoBling();
+      const idAtivar = await c.anuncioSimples(c.s1);
+      r = await publicarAnuncioML(idAtivar, { ml: mlAtivar, bling: bfAtivar, lerFoto });
+      conferir("ativar: para em ativar", [r.ok, r.etapa], [false, "ativar"]);
+      r = await publicarAnuncioML(idAtivar, { ml: mlAtivar, bling: bfAtivar, lerFoto });
+      conferir("ativar: retomar nao recria nem revincula", [r.ok, mlAtivar.escritas.filter((e) => e.caminho === "/items").length, postsNoBling(bfAtivar, "/produtos/lojas"), mlAtivar.escritas.filter((e) => e.caminho.endsWith("/description")).length], [true, 1, 1, 1]);
+
+      const mlVinculo = criarMLFalso();
+      const bfVinculo = c.novoBling({ falhas: [{ metodo: "POST", caminho: "/produtos/lojas", status: 400, mensagem: "vinculo recusado", vezes: 1 }] });
+      const idVinculo = await c.anuncioSimples(c.s1);
+      r = await publicarAnuncioML(idVinculo, { ml: mlVinculo, bling: bfVinculo, lerFoto });
+      conferir("vinculo: para no vinculo, pausado", [r.ok, r.etapa, /vinculo recusado/.test(r.erro), mlVinculo.escritas.some((e) => e.corpo?.status === "active"), (await lerPublicacao(idVinculo)).publicacao.etapaComErro], [false, "vinculo", true, false, "vinculo"]);
+      r = await publicarAnuncioML(idVinculo, { ml: mlVinculo, bling: bfVinculo, lerFoto });
+      conferir("vinculo: retomar vincula e ativa", [r.ok, mlVinculo.escritas.at(-1).corpo, mlVinculo.escritas.filter((e) => e.caminho === "/items").length], [true, { status: "active" }, 1]);
+
+      // Review Focus 5: ML ignora o pausado
+      const mlAtivo = criarMLFalso({ ignorarPausado: true });
+      r = await publicarAnuncioML(await c.anuncioSimples(c.s1), { ml: mlAtivo, bling: c.novoBling(), lerFoto });
+      conferir("pausar: PUT paused logo depois de criar", [r.ok, semMLB(mlAtivo.escritas[4]), mlAtivo.escritas[4].corpo], [true, "PUT /items/MLB", { status: "paused" }]);
+
+      // Kit de composicao: cria o kit no Bling; falhando, fica aguardando o Bling, e retomar termina
+      const mlKit = criarMLFalso();
+      const bfKit = c.novoBling({ falhas: [{ metodo: "POST", caminho: "/produtos", status: 500, mensagem: "fora do ar", vezes: 1 }] });
+      const idKit = await c.anuncioDeKit("ZZ-ML-KITN", 2);
+      r = await publicarAnuncioML(idKit, { ml: mlKit, bling: bfKit, lerFoto });
+      const aguardando = await lerPublicacao(idKit);
+      conferir("kit: falha no Bling deixa aguardando, pausado", [r.ok, r.etapa, aguardando.anuncio.status, aguardando.publicacao.etapaComErro, /Aguardando o kit no Bling/.test(r.erro), mlKit.escritas.some((e) => e.corpo?.status === "active")], [false, "kit_bling", "PUBLICANDO", "kit_bling", true, false]);
+      r = await publicarAnuncioML(idKit, { ml: mlKit, bling: bfKit, lerFoto });
+      const kitNoBling = bfKit.produto("ZZ-ML-KITN");
+      conferir("kit: verificar no Bling cria o kit, vincula e ativa", [r.ok, kitNoBling?.formato, kitNoBling?.estrutura?.componentes, postsNoBling(bfKit, "/produtos/lojas"), mlKit.escritas.filter((e) => e.caminho === "/items").length], [true, "E", [{ produto: { id: 502 }, quantidade: 1 }, { produto: { id: 503 }, quantidade: 2 }], 1, 1]);
+      conferir("kit: vinculo no produto do kit e id gravado na composicao", [bfKit.chamadas.find((chamada) => chamada.caminho === "/produtos/lojas" && chamada.metodo === "POST").corpo.produto.id, (await lerPublicacao(idKit)).anuncio.dados.composicao.blingProdutoId], [kitNoBling.id, String(kitNoBling.id)]);
+      const mlKitIgual = criarMLFalso();
+      const bfKitIgual = c.novoBling();
+      r = await publicarAnuncioML(await c.anuncioDeKit("ZZ-ML-KITX", 2), { ml: mlKitIgual, bling: bfKitIgual, lerFoto });
+      conferir("kit: igual no Bling reaproveita sem criar produto", [r.ok, postsNoBling(bfKitIgual, "/produtos")], [true, 0]);
+
+      // Dois pedidos ao mesmo tempo do mesmo anuncio
+      const mlDois = criarMLFalso();
+      const idDois = await c.anuncioSimples(c.s1);
+      const [primeiro, segundo] = await Promise.all([publicarAnuncioML(idDois, { ml: mlDois, bling: c.novoBling(), lerFoto }), publicarAnuncioML(idDois, { ml: mlDois, bling: c.novoBling(), lerFoto })]);
+      conferir("simultaneo: um publica, o outro espera", [primeiro.ok, segundo.erro, mlDois.escritas.filter((e) => e.caminho === "/items").length], [true, "Publicação em andamento.", 1]);
+
+      // Validar no ML: validacao 400 => erro com as causas, nada criado, status continua RASCUNHO
+      const mlValida = criarMLFalso({ validacao: { status: 400, dados: { message: "Validation error", cause: [{ type: "error", code: "item.attribute.missing", message: "Falta MODEL" }, { type: "warning", code: "x", message: "Foto pequena" }] } } });
+      const idValida = await c.anuncioSimples(c.s1);
+      r = await validarNoML(idValida, { ml: mlValida, bling: bf, lerFoto });
+      conferir("validarNoML: causas e nada criado", [r.ok, /Falta MODEL/.test(r.erro), r.avisos, mlValida.escritas.some((e) => e.caminho === "/items"), (await estado(idValida)).status], [false, true, ["Foto pequena (x)"], false, "RASCUNHO"]);
+      r = await validarNoML(idValida, { ml: criarMLFalso(), bling: bf, lerFoto });
+      conferir("validarNoML: sem problema", [r.ok, (await estado(idValida)).status, (await salvarRascunhoML(idValida, (await novoRascunhoML(c.s1.id)).rascunho)).ok], [true, "RASCUNHO", true]);
+      const motivos = await publicarAnuncioML(await c.anuncioSimples(c.semBling), { ml: criarMLFalso(), bling: bf, lerFoto });
+      conferir("publicar: pre-checagem recusada devolve os motivos", [motivos.ok, motivos.motivos?.some((m) => /blingId/.test(m))], [false, true]);
+    }
+
     // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.
   }
 

@@ -268,7 +268,9 @@ export function criarMLFalso(opcoes = {}) {
   function antesDeEscrever(metodo, rota, corpo) {
     if (!escritaLiberada) throw new Error(`ML falso: ${metodo} ${rota} sem exigirEscrita(codigo) antes.`);
     escritas.push({ metodo, caminho: rota, corpo: structuredClone(corpo ?? null) });
-    const falha = falhas.find((item) => !item.usada && item.metodo === metodo && rota.startsWith(item.caminho));
+    // `exato: true` casa so o caminho inteiro: "/items" por prefixo pegaria tambem "/items/validate".
+    const casa = (item) => (item.exato ? rota === item.caminho : rota.startsWith(item.caminho));
+    const falha = falhas.find((item) => !item.usada && item.metodo === metodo && casa(item));
     if (!falha) return null;
     falha.usada = true;
     if (falha.lancar) throw new Error("fetch failed (falha programada no ML falso)");

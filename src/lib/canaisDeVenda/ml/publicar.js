@@ -1,10 +1,14 @@
+import { readFile } from "node:fs/promises";
+
+import { caminhoDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
 import { buscarNoBling } from "@/lib/blingSync/leitura";
-import { carregarAnuncioML, lerPublicacao } from "./banco";
-import { conferirKitNoBling, vinculoNoBlingML } from "./bling";
+import { carregarAnuncioML, gravarPublicacao, lerPublicacao } from "./banco";
+import { conferirKitNoBling, criarKitNoBling, vincularNoBlingML, vinculoNoBlingML } from "./bling";
 import { etapasDoAnuncio, proximaEtapa } from "./etapas";
 import { lerCategoriaCompleta, textoDoErroML } from "./leitura";
-import { montarPayloadML } from "./payload";
+import { nomeDaFoto, montarPayloadML } from "./payload";
+import { causasDoML, corpoDaCriacao, situacaoDoItem, textoDaRecusaML } from "./respostas";
 import { validarRascunhoML } from "./validacao";
 
 /**
@@ -116,4 +120,222 @@ export async function prepararPublicacaoML(anuncioId, clientes) {
     console.error("[ml publicar]", erro);
     return { ok: false, motivos: [`Não foi possível conferir o anúncio: ${erro?.message ?? erro}`], proxima: null, incerta: false };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Publicar: as etapas, gravadas uma a uma, e a retomada
+// ---------------------------------------------------------------------------
+
+/// Uma publicacao por anuncio de cada vez, neste processo (o mesmo molde da sincronizacao do Bling).
+const emAndamento = new Set();
+
+const RECADO_INCERTA =
+  "A criação do anúncio pode ter chegado ao Mercado Livre sem resposta. Confira em Anúncios > Pausados; se não estiver lá, use Criar de novo.";
+
+/// A foto do produto no disco (`dados/produtos/<SKU>/imagens/<arquivo>`).
+async function lerFotoDoDisco(sku, arquivo) {
+  const caminho = caminhoDe(sku, "IMAGEM", arquivo);
+  if (!caminho) throw new Error(`caminho inválido para a foto ${arquivo}`);
+  return readFile(caminho);
+}
+
+const tipoDaFoto = (arquivo) => (/\.png$/i.test(String(arquivo)) ? "image/png" : "image/jpeg");
+const textoDe = (erro) => erro?.message ?? String(erro);
+
+/// O NCM, o CEST e a origem do produto principal, so os digitos (o formato que o Bling recebe do Rise).
+async function fiscalDoPrincipal(produtoId) {
+  const produto = await prisma.produto.findUnique({ where: { id: produtoId }, select: { ncm: true, cest: true, origem: true } });
+  const digitos = (valor) => String(valor ?? "").replace(/\D/g, "") || null;
+  return { ncm: digitos(produto?.ncm), cest: digitos(produto?.cest), origem: produto?.origem ?? null };
+}
+
+/**
+ * Publica o anuncio, ou continua de onde parou ("Retomar publicacao", "Verificar no Bling"). Uma volta
+ * so: para na primeira falha, grava o erro e a etapa, e nunca tenta de novo sozinha.
+ *
+ * Ordem: pre-checagem (so leitura) -> as duas travas (ML e Bling) ANTES de qualquer escrita -> fotos
+ * -> validar -> criar pausado -> pausar (se o ML criou ativo) -> descricao -> kit no Bling (so
+ * composicao) -> vinculo no Bling -> ativar -> gravar. Enquanto o item nao existe no ML, fotos e
+ * validacao rodam de novo (o rascunho pode ter mudado); as fotos ja subidas nao sobem de novo.
+ *
+ * @param {object} opcoes
+ * @param {boolean} [opcoes.recriar] o dono conferiu no ML que a criacao incerta nao chegou la.
+ * @param {"validar"|null} [opcoes.ate] "validar" para depois do validador (o "Validar no ML").
+ * @param {(sku: string, arquivo: string) => Promise<Buffer>} [opcoes.lerFoto] injetavel no teste.
+ */
+export async function publicarAnuncioML(anuncioId, { ml, bling, recriar = false, ate = null, lerFoto = lerFotoDoDisco } = {}) {
+  if (emAndamento.has(anuncioId)) return { ok: false, etapa: null, feitas: [], erro: "Publicação em andamento." };
+  emAndamento.add(anuncioId);
+  try {
+    return await publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto });
+  } catch (erro) {
+    console.error("[ml publicar]", erro);
+    return { ok: false, etapa: null, feitas: [], erro: `Não foi possível publicar: ${textoDe(erro)}` };
+  } finally {
+    emAndamento.delete(anuncioId);
+  }
+}
+
+/** "Validar no ML": sobe as fotos que faltam e roda o validador, sem criar nada e sem mudar o status. */
+export function validarNoML(anuncioId, clientes) {
+  return publicarAnuncioML(anuncioId, { ...clientes, ate: "validar" });
+}
+
+async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto }) {
+  const soValidar = ate === "validar";
+  const preparado = await prepararInterno(anuncioId, { ml, bling });
+  if (!preparado.ok) {
+    return { ok: false, etapa: null, feitas: preparado.interno?.publicacao?.feitas ?? [], erro: preparado.motivos.join(" "), motivos: preparado.motivos };
+  }
+  const { rascunho, payload, codigo, etapas, principal, contexto } = preparado.interno;
+  let pub = preparado.interno.publicacao ?? { feitas: [], fotos: {}, itemId: null, statusML: null, incerta: false };
+  if (pub.incerta && !recriar && !soValidar) return { ok: false, etapa: "criar", feitas: pub.feitas ?? [], erro: RECADO_INCERTA, incerta: true };
+
+  // As duas travas antes da primeira escrita: a recusa nao pode deixar meia publicacao.
+  try {
+    ml.exigirEscrita(codigo);
+    bling.exigirEscrita(codigo);
+  } catch (erro) {
+    return { ok: false, etapa: null, feitas: pub.feitas ?? [], erro: textoDe(erro) };
+  }
+
+  const gravar = async (parcial, colunas = {}, opcoes = {}) => {
+    pub = await gravarPublicacao(anuncioId, parcial, colunas, opcoes);
+    return pub;
+  };
+  const marcar = (etapa) => gravar({ feitas: [...new Set([...(pub.feitas ?? []), etapa])] });
+  const falhar = async (etapa, erro, { incerta = false, aguardandoBling = false, avisos } = {}) => {
+    if (!soValidar) {
+      await gravar({ erro, etapaComErro: etapa, ...(incerta ? { incerta: true } : {}) }, { status: aguardandoBling ? "PUBLICANDO" : "ERRO", erro });
+    }
+    return {
+      ok: false,
+      etapa,
+      feitas: pub.feitas ?? [],
+      erro,
+      ...(incerta ? { incerta: true } : {}),
+      ...(avisos?.length ? { avisos } : {}),
+      ...(pub.itemId ? { itemId: pub.itemId } : {}),
+    };
+  };
+
+  if (!soValidar) await gravar({ erro: null, etapaComErro: null, ...(recriar ? { incerta: false } : {}) }, { status: "PUBLICANDO", erro: null });
+
+  // Sem item no ML, fotos e validacao rodam sempre: o rascunho pode ter mudado desde a ultima volta.
+  const feitas = new Set(pub.itemId ? (pub.feitas ?? []) : []);
+  const ids = Array.isArray(rascunho.imagens) ? rascunho.imagens : [];
+  const corpo = () => corpoDaCriacao(payload.item, ids.map((id) => pub.fotos?.[id]));
+  let avisos = [];
+
+  for (const etapa of etapas) {
+    if (feitas.has(etapa)) continue;
+
+    if (etapa === "fotos") {
+      const arquivos = await prisma.produtoArquivo.findMany({ where: { id: { in: ids } }, select: { id: true, arquivo: true, produto: { select: { sku: true } } } });
+      const porId = new Map(arquivos.map((arquivo) => [arquivo.id, arquivo]));
+      for (const [indice, id] of ids.entries()) {
+        if (pub.fotos?.[id]) continue;
+        const arquivo = porId.get(id);
+        if (!arquivo) return falhar(etapa, `A foto ${indice + 1} não foi encontrada (pode ter sido excluída do produto). Ajuste a aba Imagens.`);
+        let resposta;
+        try {
+          const bytes = await lerFoto(arquivo.produto.sku, arquivo.arquivo);
+          resposta = await ml.upload("/pictures/items/upload", { bytes, nome: nomeDaFoto(payload.item.family_name, indice), tipo: tipoDaFoto(arquivo.arquivo) });
+        } catch (erro) {
+          return falhar(etapa, `Falha ao enviar a foto ${indice + 1}: ${textoDe(erro)}`);
+        }
+        if (!resposta?.ok || !resposta.dados?.id) return falhar(etapa, textoDaRecusaML(resposta, `a foto ${indice + 1}`));
+        // Gravada a cada foto: uma queda no meio nao perde as que ja subiram.
+        await gravar({ fotos: { [id]: resposta.dados.id } });
+      }
+    } else if (etapa === "validar") {
+      let resposta;
+      try {
+        resposta = await ml.post("/items/validate", corpo());
+      } catch (erro) {
+        return falhar(etapa, `Falha ao falar com o Mercado Livre: ${textoDe(erro)}`);
+      }
+      avisos = causasDoML(resposta?.dados).avisos;
+      if (!resposta?.ok) return falhar(etapa, textoDaRecusaML(resposta, "o anúncio na validação"), { avisos });
+      if (soValidar) {
+        await marcar(etapa);
+        return { ok: true, etapa, feitas: pub.feitas, ...(avisos.length ? { avisos } : {}) };
+      }
+    } else if (etapa === "criar") {
+      const corpoDoItem = corpo();
+      await gravar({ incerta: false }, { payloadEnviado: corpoDoItem });
+      let resposta;
+      try {
+        resposta = await ml.post("/items", corpoDoItem);
+      } catch (erro) {
+        return falhar(etapa, `${RECADO_INCERTA} (${textoDe(erro)})`, { incerta: true });
+      }
+      if (resposta?.status >= 500) return falhar(etapa, `${RECADO_INCERTA} (HTTP ${resposta.status})`, { incerta: true });
+      if (!resposta?.ok || !resposta.dados?.id) return falhar(etapa, textoDaRecusaML(resposta, "a criação do anúncio"));
+      await gravar(
+        { itemId: resposta.dados.id, permalink: resposta.dados.permalink ?? null, statusML: resposta.dados.status ?? null, incerta: false },
+        { idExterno: resposta.dados.id, urlExterna: resposta.dados.permalink ?? null, situacaoCanal: situacaoDoItem(resposta.dados.status) },
+      );
+    } else if (etapa === "pausar") {
+      if (pub.statusML !== "paused") {
+        let resposta;
+        try {
+          resposta = await ml.put(`/items/${pub.itemId}`, { status: "paused" });
+        } catch (erro) {
+          return falhar(etapa, `Falha ao pausar o anúncio ${pub.itemId}: ${textoDe(erro)}. Pause-o no Mercado Livre se ele aparecer ativo.`);
+        }
+        if (!resposta?.ok) return falhar(etapa, textoDaRecusaML(resposta, `a pausa do anúncio ${pub.itemId}`));
+        const status = resposta.dados?.status ?? "paused";
+        await gravar({ statusML: status }, { situacaoCanal: situacaoDoItem(status) });
+      }
+    } else if (etapa === "descricao") {
+      let resposta;
+      try {
+        resposta = await ml.post(`/items/${pub.itemId}/description`, { plain_text: payload.descricao.plain_text });
+      } catch (erro) {
+        return falhar(etapa, `Falha ao enviar a descrição: ${textoDe(erro)}`);
+      }
+      if (!resposta?.ok) return falhar(etapa, textoDaRecusaML(resposta, "a descrição"));
+    } else if (etapa === "kit_bling") {
+      const itens = (rascunho.composicao?.itens ?? []).map((item) => ({ sku: contexto.produtos[item.produtoId]?.sku, quantidade: Number(item.quantidade) }));
+      const conferido = await conferirKitNoBling(bling, { codigo, itens });
+      let id = conferido.situacao === "igual" ? conferido.id : null;
+      if (conferido.situacao === "criar") {
+        const criado = await criarKitNoBling(bling, {
+          codigo,
+          titulo: payload.item.family_name,
+          preco: rascunho.preco,
+          envio: rascunho.envio,
+          principal: await fiscalDoPrincipal(principal?.id ?? rascunho.produtoId),
+          itens,
+        });
+        if (!criado.ok) return falhar(etapa, `Aguardando o kit no Bling: ${criado.erro}`, { aguardandoBling: true });
+        id = criado.id;
+      } else if (!id) {
+        const motivo = conferido.situacao === "diferente" ? `o kit ${codigo} existe no Bling com outras peças (${conferido.diferencas.join("; ")})` : conferido.erro;
+        return falhar(etapa, `Aguardando o kit no Bling: ${motivo}`, { aguardandoBling: true });
+      }
+      await gravar({ blingKitId: id }, {}, { blingProdutoId: String(id) });
+    } else if (etapa === "vinculo") {
+      const vinculo = await vincularNoBlingML(bling, codigo, pub.itemId, rascunho.preco);
+      if (!vinculo.ok) return falhar(etapa, vinculo.erro ?? "Não foi possível vincular o anúncio no Bling.");
+    } else if (etapa === "ativar") {
+      let resposta;
+      try {
+        resposta = await ml.put(`/items/${pub.itemId}`, { status: "active" });
+      } catch (erro) {
+        return falhar(etapa, `Falha ao ativar o anúncio ${pub.itemId}: ${textoDe(erro)}. Confira no Mercado Livre antes de tentar de novo.`);
+      }
+      if (!resposta?.ok) return falhar(etapa, textoDaRecusaML(resposta, `a ativação do anúncio ${pub.itemId}`));
+      await gravar({ statusML: resposta.dados?.status ?? "active" });
+    } else if (etapa === "gravar") {
+      await gravar(
+        { feitas: [...new Set([...(pub.feitas ?? []), "gravar"])], erro: null, etapaComErro: null },
+        { status: "PUBLICADO", situacaoCanal: situacaoDoItem(pub.statusML), publicadoEm: new Date(), erro: null },
+      );
+      return { ok: true, etapa, feitas: pub.feitas, itemId: pub.itemId, permalink: pub.permalink, ...(avisos.length ? { avisos } : {}) };
+    }
+    await marcar(etapa);
+  }
+  return { ok: true, etapa: null, feitas: pub.feitas ?? [], itemId: pub.itemId, permalink: pub.permalink };
 }
