@@ -1104,6 +1104,40 @@ try {
     const acimaDoLimite = await precoPorMargemNoML(falso, { ...r, envio: { ...r.envio, logistica: "self_service" } }, { custo: 60, margem: { tipo: "reais", valor: 10 } });
     conferir("precoPorMargemNoML: rele as taxas no preco novo (tarifa some acima de 79)", [acimaDoLimite.preco, acimaDoLimite.custosML.tarifaFixa], [86.42, 0]);
 
+    // So as partes puras: nenhuma chamada a IA sai do teste.
+    console.log("\nFase 2: pedidos e limpeza da IA");
+    const { montarPedidoDeEscolha, limparEscolha, limparTermos } = await import("../src/lib/ia/categoriaML.js");
+    const { montarPedidoDeTitulo } = await import("../src/lib/ia/tituloML.js");
+    const { jsonDoTexto } = await import("../src/lib/ia/pesquisaML.js");
+    const candidatas = [
+      { categoriaId: "MLB99779", nome: "Placas", caminho: ["A", "B"] },
+      { categoriaId: "MLB1", nome: "Outra", caminho: ["C"] },
+    ];
+    conferir("escolha: pedido lista as candidatas por id e caminho", montarPedidoDeEscolha({ titulo: "PLACA UNO", marca: "", modelo: "", descricao: "", candidatas }).includes("MLB99779: A > B"), true);
+    conferir(
+      "escolha: so id das candidatas",
+      [limparEscolha({ categoriaId: "MLB1", motivo: "x" }, candidatas), limparEscolha({ categoriaId: "MLB9", motivo: "x" }, candidatas), limparEscolha(null, candidatas)],
+      [{ categoriaId: "MLB1", motivo: "x" }, null, null],
+    );
+    conferir("termos: aparados, sem repetidos, ate 3", limparTermos({ termos: [" arduino uno ", "arduino uno", "uno r3 ch340", "placa", "quinto"] }), ["arduino uno", "uno r3 ch340", "placa"]);
+    conferir("termos: corta em 60 e ignora o que nao e texto", limparTermos({ termos: ["x".repeat(80), 7, null] }), ["x".repeat(60)]);
+    const pedidoTitulo = montarPedidoDeTitulo({
+      produto: { tituloBase: "PLACA UNO", marca: "ARDUINO", modelo: "UNO", descricao: "" },
+      kit: { unidades: 5, itens: ["PLACA UNO"] },
+      tendencias: ["arduino uno", "kit arduino"],
+      limite: 60,
+      titulosRecusados: [],
+    });
+    conferir("titulo: pedido cita o kit, as tendencias e o limite", [pedidoTitulo.includes("KIT"), pedidoTitulo.includes("arduino uno"), pedidoTitulo.includes("60")], [true, true, true]);
+    conferir(
+      "titulo: sem tendencias nao promete palavras em alta",
+      montarPedidoDeTitulo({ produto: { tituloBase: "PLACA" }, kit: null, tendencias: [], limite: 60, titulosRecusados: [] }).includes("em alta"),
+      false,
+    );
+    conferir("jsonDoTexto: o texto inteiro e JSON", jsonDoTexto('{"termos": ["a"]}'), { termos: ["a"] });
+    conferir("jsonDoTexto: acha o JSON depois do texto da pesquisa", jsonDoTexto('Pesquisei. Resultado:\n```json\n{"termos": ["a"]}\n```'), { termos: ["a"] });
+    conferir("jsonDoTexto: sem JSON e null", jsonDoTexto("nada aqui"), null);
+
     // Fase 2: as proximas tarefas entram aqui, dentro deste bloco.
   }
 

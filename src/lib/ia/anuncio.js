@@ -968,3 +968,15 @@ function juntarMedidas(doFormulario, conteudo, reserva = {}) {
     ]),
   );
 }
+
+// Para as IAs do canal Mercado Livre (`categoriaML.js`, `tituloML.js`, `fichaML.js`, `pesquisaML.js`):
+// a mesma chamada, o mesmo modelo, o mesmo registro em LogIntegracao e as mesmas mensagens de erro.
+export {
+  chamar as chamarIA,
+  limparTitulo,
+  SISTEMA as SISTEMA_IA,
+  obterCliente as obterClienteIA,
+  registrar as registrarIA,
+  MODELO as MODELO_IA,
+  mensagemDeErro as mensagemDeErroIA,
+};
