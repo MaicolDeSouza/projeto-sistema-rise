@@ -1620,6 +1620,17 @@ try {
       conferir("validarNoML: causas e nada criado", [r.ok, /Falta MODEL/.test(r.erro), r.avisos, mlValida.escritas.some((e) => e.caminho === "/items"), (await estado(idValida)).status], [false, true, ["Foto pequena (x)"], false, "RASCUNHO"]);
       r = await validarNoML(idValida, { ml: criarMLFalso(), bling: bf, lerFoto });
       conferir("validarNoML: sem problema", [r.ok, (await estado(idValida)).status, (await salvarRascunhoML(idValida, (await novoRascunhoML(c.s1.id)).rascunho)).ok], [true, "RASCUNHO", true]);
+      // Primeiro envio real (08/10/2026): o validador devolveu 400 "Validation error" so com causas do tipo
+      // warning ("User has not mode me1", "Mandatory free shipping added"). Aviso nao bloqueia: segue.
+      const soAvisos = { status: 400, dados: { message: "Validation error", error: "validation_error", cause: [{ type: "warning", code: "***", message: "User has not mode me1" }, { type: "warning", code: "***", message: "Mandatory free shipping added" }] } };
+      const mlAvisos = criarMLFalso({ validacao: soAvisos });
+      r = await publicarAnuncioML(await c.anuncioSimples(c.s1), { ml: mlAvisos, bling: c.novoBling(), lerFoto });
+      conferir("validar: 400 so com avisos nao bloqueia, e os avisos voltam", [r.ok, r.avisos], [true, ["User has not mode me1 (***)", "Mandatory free shipping added (***)"]]);
+      r = await validarNoML(await c.anuncioSimples(c.s1), { ml: criarMLFalso({ validacao: soAvisos }), bling: bf, lerFoto });
+      conferir("validarNoML: 400 so com avisos e ok com avisos", [r.ok, r.avisos?.length], [true, 2]);
+      r = await validarNoML(await c.anuncioSimples(c.s1), { ml: criarMLFalso({ validacao: { status: 400, dados: { message: "Validation error", cause: [] } } }), bling: bf, lerFoto });
+      conferir("validarNoML: 400 sem causa nenhuma barra com a mensagem", [r.ok, /Validation error/.test(r.erro)], [false, true]);
+
       // Revisao final: "Validar no ML" num anuncio cujo item ja existe nao pode seguir para as etapas seguintes.
       const mlParado = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items/MLB", status: 500 }] });
       const bfParado = c.novoBling();

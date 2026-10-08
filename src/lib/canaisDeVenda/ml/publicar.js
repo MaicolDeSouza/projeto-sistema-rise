@@ -260,8 +260,12 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto })
       } catch (erro) {
         return falhar(etapa, `Falha ao falar com o Mercado Livre: ${textoDe(erro)}`);
       }
-      avisos = causasDoML(resposta?.dados).avisos;
-      if (!resposta?.ok) return falhar(etapa, textoDaRecusaML(resposta, "o anúncio na validação"), { avisos });
+      const causas = causasDoML(resposta?.dados);
+      avisos = causas.avisos;
+      // O validador responde 400 "Validation error" mesmo quando TODAS as causas sao avisos (medido no
+      // primeiro envio real, 08/10/2026: "User has not mode me1", "Mandatory free shipping added"). Aviso
+      // nao bloqueia: so barra o 400 com causa de erro (ou sem causa nenhuma). O POST /items decide no fim.
+      if (!resposta?.ok && causas.erros.length > 0) return falhar(etapa, textoDaRecusaML(resposta, "o anúncio na validação"), { avisos });
       if (soValidar) {
         await marcar(etapa);
         return { ok: true, etapa, feitas: pub.feitas, ...(avisos.length ? { avisos } : {}) };
