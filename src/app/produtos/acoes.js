@@ -71,12 +71,13 @@ const ULTIMO_SKU_AUTOMATICO = 259999;
  */
 export async function gerarSku() {
   try {
-    const usados = await prisma.produto.findMany({
-      where: { sku: { startsWith: "25" } },
-      select: { sku: true },
-    });
-    const maior = usados
-      .map((produto) => produto.sku)
+    const [usados, anuncios] = await Promise.all([
+      prisma.produto.findMany({ where: { sku: { startsWith: "25" } }, select: { sku: true } }),
+      // O codigo do kit de um anuncio do ML vira um produto no Bling ao publicar: um produto novo com
+      // o mesmo 25xxxx seria recusado la (codigo repetido).
+      prisma.anuncio.findMany({ where: { canal: "MERCADO_LIVRE" }, select: { dados: true } }),
+    ]);
+    const maior = [...usados.map((produto) => produto.sku), ...anuncios.map((anuncio) => String(anuncio.dados?.composicao?.codigo ?? ""))]
       .filter((sku) => SKU_AUTOMATICO.test(sku))
       .reduce((atual, sku) => Math.max(atual, Number(sku)), PRIMEIRO_SKU_AUTOMATICO - 1);
 

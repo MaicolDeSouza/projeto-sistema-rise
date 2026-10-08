@@ -182,6 +182,7 @@ export function criarBlingFalso(opcoes = {}) {
   const saldos = new Map(); // id do produto -> { virtual, fisico }
   const contatos = new Map();
   const vinculos = new Map();
+  const vinculosDeLoja = new Map(); // /produtos/lojas: produto x canal de venda
   const lancamentos = [];
 
   // Ids com o tamanho dos reais (10 a 11 digitos): pegaria um erro de coluna de 32 bits.
@@ -277,6 +278,19 @@ export function criarBlingFalso(opcoes = {}) {
     return vinculo;
   }
 
+  function guardarVinculoDeLoja(dados) {
+    const vinculo = {
+      id: dados.id ?? novoId("vinculo", (candidato) => vinculosDeLoja.has(candidato) || vinculos.has(candidato)),
+      codigo: String(dados.codigo ?? ""),
+      preco: Number(dados.preco ?? 0),
+      precoPromocional: Number(dados.precoPromocional ?? 0),
+      produto: { id: Number(dados.produto.id) },
+      loja: { id: Number(dados.loja.id) },
+    };
+    vinculosDeLoja.set(vinculo.id, vinculo);
+    return vinculo;
+  }
+
   // A carga inicial e o que o Bling ja tem, entao guarda tambem o que o PATCH ignoraria
   // (fornecedor, imagemURL).
   for (const dados of opcoes.produtos ?? []) {
@@ -284,6 +298,7 @@ export function criarBlingFalso(opcoes = {}) {
   }
   for (const dados of opcoes.contatos ?? []) guardarContato(dados);
   for (const dados of opcoes.vinculos ?? []) guardarVinculo(dados);
+  for (const dados of opcoes.vinculosDeLoja ?? []) guardarVinculoDeLoja(dados);
 
   // ---------------------------------------------------------------------------
   // Formatos de resposta
@@ -386,6 +401,30 @@ export function criarBlingFalso(opcoes = {}) {
         delete semId.id;
         const produto = guardarProduto(semId, undefined);
         return resposta(201, { data: { id: produto.id, variations: { deleted: [], updated: [], saved: [] }, warnings: [] } });
+      },
+    ],
+
+    // ---- Vinculo produto x loja (canal de venda) ----
+    // Formato medido no Bling real em 03/10/2026 (investigacao B1): um registro por loja, com o
+    // `codigo` do produto NO CANAL (o MLB no Mercado Livre).
+    [
+      "GET",
+      /^\/produtos\/lojas$/,
+      (_partes, { consulta }) => {
+        const idProduto = consulta.idProduto?.[0];
+        const lista = [...vinculosDeLoja.values()].filter((vinculo) => ausente(idProduto) || vinculo.produto.id === Number(idProduto));
+        return resposta(200, { data: copia(lista) });
+      },
+    ],
+    [
+      "POST",
+      /^\/produtos\/lojas$/,
+      (_partes, { corpo }) => {
+        if (ausente(corpo?.produto?.id) || ausente(corpo?.loja?.id) || ausente(corpo?.codigo)) {
+          return validacao("codigo, produto.id e loja.id sao obrigatorios.", ["codigo", "produto.id", "loja.id"].filter((campo) => ausente(campo.split(".").reduce((valor, chave) => valor?.[chave], corpo))));
+        }
+        if (!produtos.has(Number(corpo.produto.id))) return validacao("O produto informado nao existe.", ["produto.id"]);
+        return resposta(201, { data: { id: guardarVinculoDeLoja(corpo).id } });
       },
     ],
 
@@ -655,6 +694,6 @@ export function criarBlingFalso(opcoes = {}) {
       const produto = acharProduto(idOuCodigo);
       return produto ? saldos.get(produto.id).virtual : null;
     },
-    estado: { produtos, contatos, vinculos, saldos, lancamentos, depositos, tiposDeContato },
+    estado: { produtos, contatos, vinculos, vinculosDeLoja, saldos, lancamentos, depositos, tiposDeContato },
   };
 }

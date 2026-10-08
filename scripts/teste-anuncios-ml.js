@@ -1329,6 +1329,74 @@ try {
       conferir("textoDaRecusaML: sem texto", textoDaRecusaML({ status: 500, dados: null }, "a descrição"), "O Mercado Livre recusou a descrição (HTTP 500).");
     }
 
+    {
+      console.log("\nFase 3: vínculo e kit no Bling");
+      const { criarBlingFalso } = await import("./lib/blingFalso.js");
+      const { LOJA_ML_NO_BLING, vinculoNoBlingML, vincularNoBlingML, conferirKitNoBling, corpoDoKitDoAnuncio, criarKitNoBling } = await import("../src/lib/canaisDeVenda/ml/bling.js");
+      const produtosDoBling = [
+        { id: 101, codigo: "100101", nome: "PLACA UNO", formato: "S", preco: 49 },
+        { id: 102, codigo: "100102", nome: "PLACA NANO", formato: "S", preco: 39 },
+        { id: 103, codigo: "100103", nome: "PLACA MEGA", formato: "S", preco: 99 },
+        { id: 809, codigo: "120809", nome: "KIT *120809", formato: "E", estrutura: { tipoEstoque: "V", lancamentoEstoque: "", componentes: [{ produto: { id: 101 }, quantidade: 1 }, { produto: { id: 102 }, quantidade: 2 }] } },
+      ];
+      const vinculosDeLoja = [{ codigo: "MLB4165084257", preco: 49.9, produto: { id: 101 }, loja: { id: 203593931 } }];
+      const novoBling = (extra = {}) => criarBlingFalso({ produtos: produtosDoBling, vinculosDeLoja, ...extra });
+      const posts = (bling, caminho) => bling.chamadas.filter((c) => c.metodo === "POST" && c.caminho === caminho);
+
+      const bf = novoBling();
+      conferir("loja do ML no Bling", LOJA_ML_NO_BLING, "203593931");
+      conferir("vinculo: outro MLB na loja nao conta como ligado", (await vinculoNoBlingML(bf, "100101", "MLB1")).situacao, "sem_vinculo");
+      conferir("vinculo: lista os outros MLB", (await vinculoNoBlingML(bf, "100101", "MLB1")).outros, ["MLB4165084257"]);
+      conferir("vinculo: produto fora do Bling", (await vinculoNoBlingML(bf, "999999", "MLB1")).situacao, "sem_produto_no_bling");
+      const bfTravado = novoBling({ codigosLiberados: ["outro"] });
+      const recusado = await vincularNoBlingML(bfTravado, "100101", "MLB1", 49.9);
+      conferir("vincular: trava recusa sem escrever", [recusado.ok, bfTravado.chamadas.some((c) => c.metodo === "POST"), /Escrita bloqueada/.test(recusado.erro)], [false, false, true]);
+      const v = await vincularNoBlingML(bf, "100101", "MLB1", 49.9);
+      conferir("vincular: POST na loja do ML com o MLB e o preco", [v.ok, posts(bf, "/produtos/lojas").at(-1)?.corpo], [true, { codigo: "MLB1", preco: 49.9, produto: { id: 101 }, loja: { id: 203593931 } }]);
+      const deNovo = await vincularNoBlingML(bf, "100101", "MLB1", 49.9);
+      conferir("vincular: segunda vez nao duplica", [deNovo.ok, deNovo.jaEstava, posts(bf, "/produtos/lojas").length], [true, true, 1]);
+      const bfRecusa = novoBling({ falhas: [{ metodo: "POST", caminho: "/produtos/lojas", status: 400, mensagem: "vinculo repetido" }] });
+      const recusaDoBling = await vincularNoBlingML(bfRecusa, "100101", "MLB1", 49.9);
+      conferir("vincular: recusa do Bling volta com o motivo", [recusaDoBling.ok, /vinculo repetido/.test(recusaDoBling.erro)], [false, true]);
+
+      conferir("kit: codigo livre => criar", (await conferirKitNoBling(bf, { codigo: "100101_5", itens: [{ sku: "100101", quantidade: 5 }] })).situacao, "criar");
+      conferir("kit: mesmas pecas em outra ordem => igual", await conferirKitNoBling(bf, { codigo: "120809", itens: [{ sku: "100102", quantidade: 2 }, { sku: "100101", quantidade: 1 }] }), { situacao: "igual", id: 809 });
+      conferir(
+        "kit: quantidade diferente => diferente com o recado",
+        await conferirKitNoBling(bf, { codigo: "120809", itens: [{ sku: "100101", quantidade: 1 }, { sku: "100102", quantidade: 3 }] }),
+        { situacao: "diferente", id: 809, diferencas: ["100102: 3 no anúncio, 2 no Bling"] },
+      );
+      conferir(
+        "kit: peca a mais no Bling e peca so no anuncio",
+        (await conferirKitNoBling(bf, { codigo: "120809", itens: [{ sku: "100101", quantidade: 1 }, { sku: "100103", quantidade: 1 }] })).diferencas,
+        ["100102: só no Bling", "100103: só no anúncio"],
+      );
+      conferir("kit: peca que nao existe no Bling => erro", (await conferirKitNoBling(bf, { codigo: "250001", itens: [{ sku: "999999", quantidade: 2 }] })).situacao, "erro");
+      conferir("kit: peca que e kit no Bling => erro", (await conferirKitNoBling(bf, { codigo: "250001", itens: [{ sku: "120809", quantidade: 2 }] })).situacao, "erro");
+      const simplesNoBling = await conferirKitNoBling(bf, { codigo: "100103", itens: [{ sku: "100101", quantidade: 2 }] });
+      conferir("kit: codigo de produto simples => erro", [simplesNoBling.situacao, /produto simples/.test(simplesNoBling.erro)], ["erro", true]);
+      conferir("kit: so leitura", bf.chamadas.filter((c) => c.metodo !== "GET" && c.metodo !== "exigirEscrita").length, 1);
+
+      const base = { codigo: "100101_5", titulo: "KIT COM 5 PLACA UNO", preco: 199, envio: { pesoKg: 0.25, alturaCm: 5, larguraCm: 10, comprimentoCm: 12 }, principal: { ncm: "84733049", origem: 0 }, pecasNoBling: [{ id: 11, quantidade: 5 }] };
+      const corpo = corpoDoKitDoAnuncio(base);
+      conferir(
+        "corpoDoKit: formato E, virtual, nome com *codigo, preco e unidade",
+        [corpo.codigo, corpo.formato, corpo.estrutura, corpo.nome, corpo.preco, corpo.unidade],
+        ["100101_5", "E", { tipoEstoque: "V", componentes: [{ produto: { id: 11 }, quantidade: 5 }] }, "KIT COM 5 PLACA UNO *100101_5", 199, "UN"],
+      );
+      conferir("corpoDoKit: NCM e peso do anuncio", [corpo.tributacao?.ncm, corpo.pesoBruto, corpo.dimensoes?.profundidade], ["84733049", 0.25, 12]);
+      const longo = corpoDoKitDoAnuncio({ ...base, titulo: "A".repeat(200) }).nome;
+      conferir("corpoDoKit: nome longo corta o titulo e mantem o sufixo", [longo.endsWith(" *100101_5"), Array.from(longo).length <= 120], [true, true]);
+
+      const kitCriado = await criarKitNoBling(bf, { codigo: "100101_5", titulo: "KIT", preco: 199, envio: {}, principal: {}, itens: [{ sku: "100101", quantidade: 5 }] });
+      conferir("criarKit: cria e confere formato E", [kitCriado.ok, (await conferirKitNoBling(bf, { codigo: "100101_5", itens: [{ sku: "100101", quantidade: 5 }] })).situacao], [true, "igual"]);
+      const kitTravado = await criarKitNoBling(novoBling({ codigosLiberados: ["outro"] }), { codigo: "100101_5", titulo: "KIT", preco: 199, envio: {}, principal: {}, itens: [{ sku: "100101", quantidade: 5 }] });
+      conferir("criarKit: trava recusa", [kitTravado.ok, /Escrita bloqueada/.test(kitTravado.erro)], [false, true]);
+
+      // gerarSku passa a contar os codigos de kit dos anuncios (a conta e a mesma de proximoCodigoDaFaixa).
+      conferir("faixa 25xxxx: SKU 250003 e kit 250007 => 250008", proximoCodigoDaFaixa(["250003", "250007", "100101_5"]), "250008");
+    }
+
     // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.
   }
 
