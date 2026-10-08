@@ -894,6 +894,64 @@ try {
     conferir("textoDoErroML: HTTP com message", textoDoErroML({ status: 403, dados: { message: "forbidden" } }), "Mercado Livre: forbidden (HTTP 403)");
     conferir("textoDoErroML: Error comum", textoDoErroML(new Error("Mercado Livre não conectado.")), "Mercado Livre não conectado.");
 
+    console.log("\nFase 2: atributos da categoria");
+    const { normalizarAtributosDaCategoria, motivoSemGtin, valorDeLista, problemasDosAtributos, limparAtributosDaIA, montarPedidoDaFicha } =
+      await import("../src/lib/canaisDeVenda/ml/atributos.js");
+    const crus = await lerAtributosDaCategoria(falso, "MLB99779");
+    const atributos = normalizarAtributosDaCategoria(crus);
+    conferir("normalizar: obrigatorios primeiro, depois condicionais", atributos.slice(0, 4).map((a) => a.id), ["BRAND", "MODEL", "GTIN", "EMPTY_GTIN_REASON"]);
+    conferir(
+      "normalizar: read_only e hidden (menos EMPTY_GTIN_REASON) saem",
+      atributos.some((a) => ["PACKAGE_HEIGHT", "SELLER_SKU", "SELLER_PACKAGE_WEIGHT", "IS_KIT"].includes(a.id)),
+      false,
+    );
+    conferir(
+      "normalizar: tipos",
+      Object.fromEntries(atributos.filter((a) => ["MICROCONTROLLER", "OPERATING_VOLTAGE", "BRAND", "INCLUDES_USB_CABLE"].includes(a.id)).map((a) => [a.id, a.tipo])),
+      { BRAND: "texto", MICROCONTROLLER: "lista", INCLUDES_USB_CABLE: "booleano", OPERATING_VOLTAGE: "numero_unidade" },
+    );
+    conferir("normalizar: valores e unidades", [atributos.find((a) => a.id === "MICROCONTROLLER").valores.map((v) => v.nome), atributos.find((a) => a.id === "OPERATING_VOLTAGE").unidades], [["ATmega328P", "ATmega2560"], ["V"]]);
+    conferir("motivoSemGtin: kit e simples, pelo nome", [motivoSemGtin(atributos, { kit: true }), motivoSemGtin(atributos, { kit: false })], ["O produto é um kit ou pack", "O produto não tem código cadastrado"]);
+    conferir("motivoSemGtin: categoria sem o atributo", motivoSemGtin([], { kit: true }), null);
+    const micro = atributos.find((a) => a.id === "MICROCONTROLLER");
+    conferir("valorDeLista: sem caixa e sem acento", [valorDeLista(micro, "atmega328p"), valorDeLista(micro, "ATMEGA2560 "), valorDeLista(micro, "Z80")], ["ATmega328P", "ATmega2560", null]);
+    conferir("valorDeLista: booleano casa sem acento", valorDeLista(atributos.find((a) => a.id === "INCLUDES_USB_CABLE"), "nao"), "Não");
+    conferir("valorDeLista: texto livre passa aparado", valorDeLista(atributos.find((a) => a.id === "BRAND"), " Arduino "), "Arduino");
+    conferir(
+      "problemas: obrigatorio vazio e lista fora",
+      problemasDosAtributos({ BRAND: "X", MICROCONTROLLER: "Z80" }, atributos, { kit: false }).map((p) => [p.campo, p.bloqueante]),
+      [["MODEL", true], ["GTIN", true], ["MICROCONTROLLER", true]],
+    );
+    conferir("problemas: texto da lista fora", problemasDosAtributos({ BRAND: "X", MODEL: "Y", GTIN: "1", MICROCONTROLLER: "Z80" }, atributos, { kit: false })[0].problema, "Microcontrolador: 'Z80' não está na lista da categoria.");
+    conferir("problemas: GTIN ou motivo", problemasDosAtributos({ BRAND: "X", MODEL: "Y", EMPTY_GTIN_REASON: "O produto não tem código cadastrado" }, atributos, { kit: false }), []);
+    conferir(
+      "problemas: kit com GTIN e alerta",
+      problemasDosAtributos({ BRAND: "X", MODEL: "Y", GTIN: "789", EMPTY_GTIN_REASON: "O produto é um kit ou pack" }, atributos, { kit: true }).map((p) => [p.campo, p.bloqueante]),
+      [["GTIN", false]],
+    );
+    conferir(
+      "problemas: kit sem motivo e bloqueante mesmo sem GTIN",
+      problemasDosAtributos({ BRAND: "X", MODEL: "Y" }, atributos, { kit: true }).map((p) => [p.campo, p.bloqueante]),
+      [["GTIN", true]],
+    );
+    conferir(
+      "limparAtributosDaIA: so em branco, lista casada, maiusculas, id falso fora",
+      limparAtributosDaIA(
+        { atributos: [{ id: "BRAND", valor: "arduino" }, { id: "MODEL", valor: "uno r3" }, { id: "MICROCONTROLLER", valor: "atmega328p" }, { id: "INVENTADO", valor: "x" }, { id: "GTIN", valor: "" }, { id: "MODEL", valor: "outro" }] },
+        atributos,
+        { BRAND: "ARDUINO" },
+      ).map((a) => [a.id, a.valor]),
+      [["MODEL", "UNO R3"], ["MICROCONTROLLER", "ATmega328P"]],
+    );
+    conferir("limparAtributosDaIA: resposta quebrada e lista vazia", limparAtributosDaIA({ nada: 1 }, atributos, {}), []);
+    const pedidoDaFicha = montarPedidoDaFicha({ titulo: "PLACA UNO", marca: "ARDUINO", modelo: "", descricao: "", especificacoes: [{ nome: "Tensão", valor: "5V" }], atributos, valoresAtuais: { BRAND: "ARDUINO" } });
+    conferir(
+      "pedido da ficha: so atributos em branco, com valores da lista",
+      [pedidoDaFicha.includes("BRAND |"), pedidoDaFicha.includes("MICROCONTROLLER | "), pedidoDaFicha.includes("ATmega328P"), pedidoDaFicha.includes("Tensão: 5V")],
+      [false, true, true, true],
+    );
+    conferir("lerCategoriaCompleta: atributos ja normalizados", (await lerCategoriaCompleta(falso, "MLB99779")).atributos[0].id, "BRAND");
+
     // Fase 2: as proximas tarefas entram aqui, dentro deste bloco.
   }
 

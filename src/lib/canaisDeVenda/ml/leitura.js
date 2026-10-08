@@ -10,6 +10,8 @@
  * (`docs/superpowers/investigacoes/2026-10-01-ml-bling-para-fases-2-e-3.md`, A1 a A5).
  */
 
+import { normalizarAtributosDaCategoria } from "./atributos";
+
 /** Texto do erro para a tela: resposta do ML com o motivo e o HTTP, ou a mensagem do erro. */
 export function textoDoErroML(erro) {
   if (typeof erro?.status === "number") {
@@ -68,9 +70,12 @@ export async function lerAtributosDaCategoria(cliente, categoriaId) {
   return Array.isArray(dados) ? dados : [];
 }
 
-/** A categoria com os atributos, numa leitura so para o editor; `null` se ela nao existe. */
+/**
+ * A categoria com os atributos ja no formato do Rise (`normalizarAtributosDaCategoria`), numa
+ * leitura so para o editor; `null` se ela nao existe.
+ */
 export async function lerCategoriaCompleta(cliente, categoriaId) {
   const categoria = await lerCategoria(cliente, categoriaId);
   if (!categoria) return null;
-  return { ...categoria, atributos: await lerAtributosDaCategoria(cliente, categoriaId) };
+  return { ...categoria, atributos: normalizarAtributosDaCategoria(await lerAtributosDaCategoria(cliente, categoriaId)) };
 }
