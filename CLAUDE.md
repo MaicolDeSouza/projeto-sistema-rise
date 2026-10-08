@@ -2400,8 +2400,12 @@ essa a lista "Anúncios já exportados" da tela de produto do Bling ("Vincular e
   anúncios do 100101, ambos situação 1. O ML pôs o anúncio novo no `user_product_id` MLBU5399328107 (o criado no
   primeiro teste, não o do MLB4165084257). Encerrado depois do teste, a pedido do dono (`closed` no ML); **logo depois
   do encerramento o Bling ainda mostrava o registro com situação 1**: a situação do Bling não acompanha o ML na hora.
-  O registro 64442771 continua no Bling (o dono remove se quiser). Não confirmado: se o Bling baixa o estoque pelo
-  registro em `/anuncios` (só uma venda real mostra).
+  O registro 64442771 continua no Bling (o dono remove se quiser). **Confirmado pelo dono na tela do Bling:** o
+  produto 100101 mostra "ML_4h · 2 anúncios" em "Anúncios já exportados" (MLB7771491156 Premium R$ 999 e
+  MLB4165084257 Clássico), ou seja, o `POST /anuncios` do Rise é o mesmo cadastro da tela. O ZZ-TESTE-BLING, cujo
+  anúncio ficou em Rascunho (MLB inativo, em revisão no ML), **não** mostra o ML_4h na tela, apesar do vínculo e do
+  registro existirem na API: presunção, a tela só lista a loja com anúncio que não está em Rascunho. Não confirmado:
+  se o Bling baixa o estoque pelo registro em `/anuncios` (só uma venda real mostra).
 
 **Fora desta fase:** gerenciar anúncio publicado (editar, pausar, sincronizar preço/estoque), `hashConteudo`, aviso de
 exclusão de produto com anúncios, listagem paginada no banco.
