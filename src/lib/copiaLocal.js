@@ -41,6 +41,16 @@ export function argumentosDeRestore({ dump, banco }) {
   };
 }
 
+/// Quantos backups automaticos o `npm run backup` guarda (BACKUP_MANTER). So inteiro de 1 a 365; o resto cai no
+/// padrao. Com 0 ou negativo o `slice` da retencao cobriria a lista inteira e o backup das 03:00 apagaria TODOS
+/// os dumps, o que acabou de gerar inclusive (um `BACKUP_MANTER=-1` digitado no .env da VPS).
+export function manterBackups(valor, padrao = 4) {
+  const texto = String(valor ?? "").trim();
+  if (!/^\d+$/.test(texto)) return padrao;
+  const numero = Number(texto);
+  return numero >= 1 && numero <= 365 ? numero : padrao;
+}
+
 /// O nome que o `npm run backup` da: `<banco>-AAAAMMDD-HHMMSS.dump`. So esses entram na retencao de 4.
 export function ehBackupAutomatico(nome, banco) {
   return nome.startsWith(`${banco}-`) && /^\d{8}-\d{6}\.dump$/.test(nome.slice(banco.length + 1));

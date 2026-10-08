@@ -25,7 +25,7 @@ import { appendFileSync, mkdirSync, readdirSync, rmSync, statSync } from "node:f
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { ehBackupAutomatico } from "../src/lib/copiaLocal.js";
+import { ehBackupAutomatico, manterBackups } from "../src/lib/copiaLocal.js";
 import { binario, conexaoDaUrl, rodar } from "./lib/postgres.js";
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
@@ -37,7 +37,7 @@ const LOG = path.join(aqui, "..", "dados", "logs", "backup.log");
 /// (`<banco>-AAAAMMDD-HHMMSS.dump`): backup feito a mao com outro nome
 /// ("...-antes-coleta-no-banco-...") nunca e apagado.
 /// Na VPS o numero vem de BACKUP_MANTER no .env (a copia externa no R2 guarda 30 dias, entao 4 bastam la).
-const MANTER = Number(process.env.BACKUP_MANTER) || 4;
+const MANTER = manterBackups(process.env.BACKUP_MANTER);
 
 /** Registra no dados/logs/backup.log — a tarefa agendada roda sem terminal. */
 function registrar(texto) {

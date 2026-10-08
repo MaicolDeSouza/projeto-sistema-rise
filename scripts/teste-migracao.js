@@ -13,6 +13,7 @@ const {
   dumpMaisRecente,
   ehBackupAutomatico,
   ehBancoLocal,
+  manterBackups,
   nomeDaCopiaDeSeguranca,
   sqlInserirConexao,
   sqlLerConexoes,
@@ -150,6 +151,14 @@ conferir(
   ["--no-password", "--template=template0", "--encoding=UTF8", "--locale=en-US", "--locale-provider=icu", "--icu-locale=en-US", "sistema_rise"],
 );
 conferir("argumentosDeRestore: pg_restore sem dono", restore.pgRestore, ["--no-owner", "--no-password", "--dbname=sistema_rise", "x.dump"]);
+
+// BACKUP_MANTER mal digitado nao pode virar "apague todos os backups".
+conferir("manterBackups: vazio e padrao", [manterBackups(undefined), manterBackups(""), manterBackups("  ")], [4, 4, 4]);
+conferir("manterBackups: valor valido", [manterBackups("1"), manterBackups("10"), manterBackups(" 7 "), manterBackups("365")], [1, 10, 7, 365]);
+conferir("manterBackups: negativo cai no padrao (apagaria todos)", [manterBackups("-1"), manterBackups("-4")], [4, 4]);
+conferir("manterBackups: zero cai no padrao", manterBackups("0"), 4);
+conferir("manterBackups: texto, decimal e acima de 365", [manterBackups("abc"), manterBackups("2.5"), manterBackups("366")], [4, 4, 4]);
+conferir("manterBackups: padrao informado", manterBackups("x", 6), 6);
 
 conferir("ehBackupAutomatico: nome do npm run backup", ehBackupAutomatico("sistema_rise-20261007-164838.dump", "sistema_rise"), true);
 conferir("ehBackupAutomatico: copia de seguranca nao e automatico", ehBackupAutomatico("sistema_rise-antes-da-copia-20261008-010203.dump", "sistema_rise"), false);
