@@ -111,7 +111,7 @@ export async function obterAccessToken() {
   return guardar(dados, segredo);
 }
 
-async function chamar(metodo, caminho, { params, corpo } = {}) {
+async function chamar(metodo, caminho, { params, corpo, tentativas } = {}) {
   if (metodo !== "GET") exigirTravaLiberada(SERVICO);
 
   const token = await obterAccessToken();
@@ -131,10 +131,26 @@ async function chamar(metodo, caminho, { params, corpo } = {}) {
     metodo,
     headers: { Authorization: `Bearer ${token}` },
     corpo,
+    ...(tentativas ? { tentativas } : {}),
   });
 }
 
 export const mlGet = (caminho, params) => chamar("GET", caminho, { params });
+
+// Escrita: UMA tentativa so. Uma resposta perdida nao quer dizer que o ML nao recebeu, e repetir
+// a criacao de um anuncio criaria dois iguais no ar. Todas passam pela trava ML_PUBLICACAO em `chamar`.
+export const mlPost = (caminho, corpo) => chamar("POST", caminho, { corpo, tentativas: 1 });
+export const mlPut = (caminho, corpo) => chamar("PUT", caminho, { corpo, tentativas: 1 });
+
+/**
+ * Envio binario de foto (`POST /pictures/items/upload`): multipart com o campo `file`, como a
+ * documentacao do ML pede (o endpoint so aceita o arquivo direto, nao endereco).
+ */
+export function mlUpload(caminho, { bytes, nome, tipo }) {
+  const formulario = new FormData();
+  formulario.append("file", new Blob([bytes], { type: tipo }), nome);
+  return chamar("POST", caminho, { corpo: formulario, tentativas: 1 });
+}
 
 // Guardado em memoria, e nao gravado na conexao: regravar o segredo aqui poderia devolver um
 // refresh token ja queimado (ele e de uso unico e pode ter sido trocado no meio desta leitura).

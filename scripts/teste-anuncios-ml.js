@@ -1225,6 +1225,84 @@ try {
     // Fase 2: as proximas tarefas entram aqui, dentro deste bloco.
   }
 
+  // Fase 3 (Publicar): um bloco so, porque o ML falso, o Bling falso e os imports sao compartilhados
+  // pelos sub-blocos de cada tarefa do plano de 08/10/2026.
+  {
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+
+    {
+      console.log("\nFase 3: cliente com escrita e ML falso");
+      const ml = criarMLFalso({ codigosLiberados: ["100101"] });
+      let recusa = null;
+      try { await ml.post("/items", {}); } catch (e) { recusa = e.message; }
+      conferir("falso: escrita sem exigirEscrita lanca", /exigirEscrita/.test(recusa), true);
+      let fora = null;
+      try { ml.exigirEscrita("999999"); } catch (e) { fora = e.message; }
+      conferir("falso: codigo fora da lista recusado", /999999.*ML_PUBLICACAO_CODIGOS/.test(fora), true);
+      ml.exigirEscrita("100101");
+      conferir("falso: validate sem erro e 204", (await ml.post("/items/validate", { family_name: "X" })).status, 204);
+      const foto = await ml.upload("/pictures/items/upload", { bytes: Buffer.from("jpg"), nome: "a-1.jpg", tipo: "image/jpeg" });
+      conferir("falso: upload devolve id", [foto.status, /^999-MLB/.test(foto.dados.id)], [200, true]);
+      conferir("falso: POST /items com title e 400", (await ml.post("/items", { title: "X", family_name: "X" })).status, 400);
+      const criado = await ml.post("/items", { family_name: "PLACA", status: "paused", price: 50 });
+      conferir("falso: cria pausado com MLB", [criado.status, criado.dados.status, /^MLB\d+$/.test(criado.dados.id)], [201, "paused", true]);
+      conferir("falso: GET do item criado", (await ml.get(`/items/${criado.dados.id}`)).dados.family_name, "PLACA");
+      const ativado = await ml.put(`/items/${criado.dados.id}`, { status: "active" });
+      conferir("falso: PUT muda o status", [ativado.status, ativado.dados.status], [200, "active"]);
+      conferir("falso: escritas registradas", ml.escritas.map((e) => e.metodo), ["POST", "POST", "POST", "POST", "PUT"]);
+      const pausadoIgnorado = criarMLFalso({ ignorarPausado: true });
+      pausadoIgnorado.exigirEscrita("x");
+      conferir("falso: ignorarPausado nasce active", (await pausadoIgnorado.post("/items", { family_name: "Y", status: "paused" })).dados.status, "active");
+      const comFalha = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items/MLB", status: 500 }] });
+      comFalha.exigirEscrita("x");
+      const item = (await comFalha.post("/items", { family_name: "Z" })).dados.id;
+      conferir(
+        "falso: falha programada uma vez",
+        [(await comFalha.post(`/items/${item}/description`, { plain_text: "a" })).status, (await comFalha.post(`/items/${item}/description`, { plain_text: "a" })).status],
+        [500, 201],
+      );
+      const comQueda = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items", lancar: true }] });
+      comQueda.exigirEscrita("x");
+      let caiu = false;
+      try { await comQueda.post("/items", { family_name: "Q" }); } catch { caiu = true; }
+      conferir("falso: falha programada pode lancar (rede)", caiu, true);
+      const comValidacao = criarMLFalso({ validacao: { status: 400, dados: { message: "Validation error", cause: [] } } });
+      comValidacao.exigirEscrita("x");
+      conferir("falso: validacao programada", (await comValidacao.post("/items/validate", {})).status, 400);
+
+      const { config, separarLista } = await import("../src/lib/integracoes/config.js");
+      conferir("config: lista do ML separada como a do Bling", separarLista(" 100101 ,, ZZ-ML-1"), ["100101", "ZZ-ML-1"]);
+      conferir("config: trava do ML tem lista de codigos", Array.isArray(config.travas.mlCodigosLiberados), true);
+      const { clienteML } = await import("../src/lib/canaisDeVenda/ml/cliente.js");
+      const real = clienteML();
+      conferir("clienteML: contrato com escrita", ["get", "usuarioId", "post", "put", "upload", "exigirEscrita"].map((k) => typeof real[k]), Array(6).fill("function"));
+      let travado = null;
+      try { real.exigirEscrita("100101"); } catch (e) { travado = e.message; }
+      // O .env do teste tem ML_PUBLICACAO=false: a trava geral recusa antes da lista.
+      conferir("clienteML: com a trava fechada, exigirEscrita recusa", config.travas.mlPublicacao ? "trava aberta no ambiente" : /ML_PUBLICACAO/.test(travado), config.travas.mlPublicacao ? "trava aberta no ambiente" : true);
+
+      // requisitar com FormData: o corpo vai cru, sem Content-Type (o fetch poe o boundary).
+      const { requisitar } = await import("../src/lib/integracoes/httpClient.js");
+      const fetchOriginal = globalThis.fetch;
+      let pedido = null;
+      globalThis.fetch = async (url, opcoes) => {
+        pedido = opcoes;
+        return new Response("{}", { status: 200 });
+      };
+      try {
+        const formulario = new FormData();
+        formulario.append("file", new Blob([Buffer.from("jpg")], { type: "image/jpeg" }), "a-1.jpg");
+        await requisitar({ servico: "MERCADO_LIVRE", url: "https://api.mercadolibre.com/pictures/items/upload", metodo: "POST", corpo: formulario, tentativas: 1 });
+        conferir("requisitar: FormData vai cru", pedido.body === formulario, true);
+        conferir("requisitar: FormData sem Content-Type", Object.keys(pedido.headers).some((k) => k.toLowerCase() === "content-type"), false);
+      } finally {
+        globalThis.fetch = fetchOriginal;
+      }
+    }
+
+    // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();

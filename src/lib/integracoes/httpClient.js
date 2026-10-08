@@ -125,6 +125,11 @@ export async function requisitar({
   tentativas = 3,
 }) {
   const alvo = new URL(url);
+  // Multipart (envio de foto ao ML): o corpo vai cru e SEM Content-Type, porque e o fetch
+  // que escreve o cabecalho com o `boundary`; um Content-Type posto aqui o apagaria. No log vao so
+  // os nomes dos campos: os bytes da foto nao cabem nem servem num resumo.
+  const ehMultipart = typeof FormData !== "undefined" && corpo instanceof FormData;
+  const doPedido = () => resumir({ query: Object.fromEntries(alvo.searchParams), ...(ehMultipart ? { multipart: [...new Set(corpo.keys())] } : {}) });
   let ultimoErro = null;
 
   for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
@@ -138,7 +143,7 @@ export async function requisitar({
         method: metodo,
         headers: {
           Accept: "application/json",
-          ...(corpo
+          ...(corpo && !ehMultipart
             ? {
                 "Content-Type": ehForm
                   ? "application/x-www-form-urlencoded"
@@ -148,7 +153,7 @@ export async function requisitar({
           ...headers,
         },
         ...(corpo
-          ? { body: ehForm ? corpo.toString() : JSON.stringify(corpo) }
+          ? { body: ehMultipart ? corpo : ehForm ? corpo.toString() : JSON.stringify(corpo) }
           : {}),
         signal: abortar?.signal,
         cache: "no-store",
@@ -173,7 +178,7 @@ export async function requisitar({
         endpoint: `${alvo.origin}${alvo.pathname}`,
         statusHttp: resposta.status,
         duracaoMs,
-        requestResumo: resumir({ query: Object.fromEntries(alvo.searchParams) }),
+        requestResumo: doPedido(),
         responseResumo: resumir(dados),
         erro: resposta.ok ? null : resumir(dados, 400),
       });
@@ -204,7 +209,7 @@ export async function requisitar({
         endpoint: `${alvo.origin}${alvo.pathname}`,
         statusHttp: null,
         duracaoMs: Date.now() - inicio,
-        requestResumo: resumir({ query: Object.fromEntries(alvo.searchParams) }),
+        requestResumo: doPedido(),
         responseResumo: null,
         erro:
           erro.name === "AbortError"

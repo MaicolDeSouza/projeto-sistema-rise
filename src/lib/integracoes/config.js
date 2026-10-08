@@ -68,6 +68,9 @@ export const config = {
   // acidental por construcao, nao por disciplina.
   travas: {
     mlPublicacao: lerBooleano("ML_PUBLICACAO"),
+    // Segunda trava do Mercado Livre, no molde da do Bling: com ML_PUBLICACAO ligada, so os codigos
+    // desta lista (o SKU do anuncio, ou o codigo do kit) podem ser publicados. Vazia = todos.
+    mlCodigosLiberados: separarLista(ler("ML_PUBLICACAO_CODIGOS")),
     blingEscrita: lerBooleano("BLING_ESCRITA"),
     // Segunda trava do Bling: com BLING_ESCRITA ligada, so os codigos desta lista
     // (separados por virgula) podem ser escritos; qualquer outro e recusado antes da

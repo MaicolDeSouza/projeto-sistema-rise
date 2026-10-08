@@ -13,7 +13,12 @@
  *   GET /users/me                                  GET /sites/MLB/domain_discovery/search?q=
  *   GET /categories/{id}                           GET /categories/{id}/attributes
  *   GET /sites/MLB/listing_prices                  GET /users/{id}/shipping_options/free
- *   GET /trends/MLB/{id}
+ *   GET /trends/MLB/{id}                           GET /items/{id}
+ *
+ * E as escritas da fase 3 (publicar): POST /items/validate, POST /pictures/items/upload,
+ * POST /items, POST /items/{id}/description e PUT /items/{id}. Escrita sem `exigirEscrita(codigo)`
+ * aceita antes LANCA, como no Bling falso. Opcoes: `codigosLiberados`, `falhas` (uma vez cada:
+ * `{ metodo, caminho (prefixo), status, dados?, lancar? }`), `ignorarPausado` e `validacao`.
  *
  * Caminho que ele nao conhece LANCA um erro: e erro do teste ou do falso, e esconder isso
  * atras de um 404 faria o teste passar sem provar nada.
@@ -238,6 +243,106 @@ export function criarMLFalso(opcoes = {}) {
     );
   }
 
+  // ---- Escrita (fase 3) ----
+  const codigosLiberados = (opcoes.codigosLiberados ?? []).map((codigo) => String(codigo).trim().toLowerCase());
+  const falhas = (opcoes.falhas ?? []).map((falha) => ({ ...falha, usada: false }));
+  const itens = new Map();
+  const fotos = [];
+  const escritas = [];
+  let escritaLiberada = false;
+  let contador = 2000000001;
+
+  /// O mesmo recado da trava real (`exigirCodigoLiberado`), para o teste conferir o texto.
+  function exigirEscrita(codigo) {
+    const procurado = String(codigo ?? "").trim().toLowerCase();
+    if (codigosLiberados.length > 0 && !codigosLiberados.includes(procurado)) {
+      throw new Error(
+        `Escrita bloqueada: o código ${codigo} não está na lista de códigos liberados (ML_PUBLICACAO_CODIGOS no .env). Nenhum dado foi enviado.`,
+      );
+    }
+    escritaLiberada = true;
+  }
+
+  // Toda escrita passa aqui: sem exigirEscrita antes, LANCA (a publicacao tem que conferir as travas
+  // antes de escrever); depois, a primeira falha programada que casar responde no lugar da rota.
+  function antesDeEscrever(metodo, rota, corpo) {
+    if (!escritaLiberada) throw new Error(`ML falso: ${metodo} ${rota} sem exigirEscrita(codigo) antes.`);
+    escritas.push({ metodo, caminho: rota, corpo: structuredClone(corpo ?? null) });
+    const falha = falhas.find((item) => !item.usada && item.metodo === metodo && rota.startsWith(item.caminho));
+    if (!falha) return null;
+    falha.usada = true;
+    if (falha.lancar) throw new Error("fetch failed (falha programada no ML falso)");
+    return resposta(falha.status, falha.dados ?? { message: "falha programada", error: "erro", status: falha.status, cause: [] });
+  }
+
+  async function post(caminho, corpo) {
+    const { rota } = separar(caminho);
+    const falhou = antesDeEscrever("POST", rota, corpo);
+    if (falhou) return falhou;
+
+    if (rota === "/items/validate") {
+      return opcoes.validacao ? resposta(opcoes.validacao.status, structuredClone(opcoes.validacao.dados)) : resposta(204, null);
+    }
+    if (rota === "/items") {
+      // No modelo User Products o ML recusa `title`: ele gera o titulo a partir do family_name.
+      if (corpo && "title" in corpo) {
+        return resposta(400, {
+          message: "title is not allowed for user products",
+          error: "validation_error",
+          status: 400,
+          cause: [{ type: "error", code: "item.title.not_modifiable", message: "title is not allowed" }],
+        });
+      }
+      const id = `MLB${contador++}`;
+      const item = {
+        id,
+        status: corpo?.status === "paused" && !opcoes.ignorarPausado ? "paused" : "active",
+        family_name: corpo?.family_name ?? null,
+        title: corpo?.family_name ?? null,
+        price: corpo?.price ?? null,
+        category_id: corpo?.category_id ?? null,
+        pictures: structuredClone(corpo?.pictures ?? []),
+        permalink: `https://produto.mercadolivre.com.br/${id.replace("MLB", "MLB-")}-anuncio-_JM`,
+        descricao: null,
+      };
+      itens.set(id, item);
+      return resposta(201, structuredClone(item));
+    }
+    const partes = rota.match(/^\/items\/([^/]+)\/description$/);
+    if (partes) {
+      const item = itens.get(partes[1]);
+      if (!item) return naoAchou(`Item ${partes[1]} not found`);
+      item.descricao = corpo?.plain_text ?? null;
+      return resposta(201, { text: "", plain_text: item.descricao });
+    }
+    throw new Error(`ML falso: POST ${rota} nao suportado`);
+  }
+
+  async function put(caminho, corpo) {
+    const { rota } = separar(caminho);
+    const falhou = antesDeEscrever("PUT", rota, corpo);
+    if (falhou) return falhou;
+    const partes = rota.match(/^\/items\/([^/]+)$/);
+    if (!partes) throw new Error(`ML falso: PUT ${rota} nao suportado`);
+    const item = itens.get(partes[1]);
+    if (!item) return naoAchou(`Item ${partes[1]} not found`);
+    Object.assign(item, corpo ?? {});
+    return resposta(200, structuredClone(item));
+  }
+
+  async function upload(caminho, { bytes, nome, tipo } = {}) {
+    const { rota } = separar(caminho);
+    const falhou = antesDeEscrever("POST", rota, { nome, tipo, tamanho: bytes?.length ?? 0 });
+    if (falhou) return falhou;
+    if (rota !== "/pictures/items/upload") throw new Error(`ML falso: upload em ${rota} nao suportado`);
+    const id = `999-MLB${contador++}_102026`;
+    fotos.push({ id, nome });
+    return resposta(200, {
+      id,
+      variations: [{ size: "1024x1024", url: `http://http2.mlstatic.com/D_NQ_NP_${id}-F.jpg`, secure_url: `https://http2.mlstatic.com/D_NQ_NP_${id}-F.jpg` }],
+    });
+  }
+
   async function get(caminho, params) {
     const pedido = separar(caminho, params);
     chamadas.push({ caminho: pedido.rota, params: pedido.params });
@@ -256,6 +361,11 @@ export function criarMLFalso(opcoes = {}) {
     if (partes) return lerCategoria(decodeURIComponent(partes[1]));
     partes = rota.match(/^\/users\/([^/]+)\/shipping_options\/free$/);
     if (partes) return frete(decodeURIComponent(partes[1]), pedido.params);
+    partes = rota.match(/^\/items\/([^/]+)$/);
+    if (partes) {
+      const item = itens.get(decodeURIComponent(partes[1]));
+      return item ? resposta(200, structuredClone(item)) : naoAchou(`Item ${partes[1]} not found`);
+    }
     partes = rota.match(/^\/trends\/MLB\/([^/]+)$/);
     if (partes) return tendencias(decodeURIComponent(partes[1]));
 
@@ -265,6 +375,13 @@ export function criarMLFalso(opcoes = {}) {
   return {
     get,
     usuarioId: async () => estado.usuarioId,
+    post,
+    put,
+    upload,
+    exigirEscrita,
     chamadas,
+    escritas,
+    itens,
+    fotos,
   };
 }
