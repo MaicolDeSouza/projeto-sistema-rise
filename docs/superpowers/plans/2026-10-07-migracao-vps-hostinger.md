@@ -299,7 +299,7 @@ git commit -m "VPS: imagem, compose com caddy/auth/app/worker/db e Caddyfile com
   6. `docker compose run --rm app npx prisma migrate deploy`;
   7. `docker compose up -d app worker`;
   8. `curl -s -o /dev/null -w "%{http_code}" https://rise.4hobby.com.br/` deve devolver 302 (login) ou 200;
-  9. `git tag -f "vps-$VERSAO" && git push -f origin "vps-$VERSAO"`; imprimir `VERSAO`, `COMMIT`, `docker compose ps`.
+  9. `git tag -f "vps-$VERSAO"` (só local: a VPS não tem credencial de escrita no GitHub) e uma linha em `dados/logs/deploy.log`; imprimir `VERSAO`, `COMMIT`, `docker compose ps`.
   Comentários: por que a imagem anterior fica (volta em um comando) e por que o dump só com migration pendente.
 
 - [ ] **Step 2: `deploy/backup-externo.sh`:** lê `RCLONE_REMOTO` e `HEALTHCHECKS_COPIA_URL` do `.env` com `ler_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }` (nunca `source .env`: o bcrypt de `TINYAUTH_AUTH_USERS` tem `$$`, que o bash expandiria); `DUMP=$(ls -t dados/backup/sistema_rise-*.dump | head -1)`; `rclone copyto "$DUMP" "$RCLONE_REMOTO/banco/diario/$(basename "$DUMP")"`; no dia 1, também para `$RCLONE_REMOTO/banco/mensal/`; `rclone delete --min-age 30d "$RCLONE_REMOTO/banco/diario"`; `rclone delete --min-age 370d "$RCLONE_REMOTO/banco/mensal"`; `rclone sync dados/produtos "$RCLONE_REMOTO/produtos"`; `rclone sync dados/coleta "$RCLONE_REMOTO/coleta"`; ao final `curl -fsS -m 10 "$HEALTHCHECKS_COPIA_URL"`; em falha (`trap ERR`), `curl "$HEALTHCHECKS_COPIA_URL/fail"`.
@@ -320,10 +320,20 @@ git commit -m "VPS: imagem, compose com caddy/auth/app/worker/db e Caddyfile com
 
 Run: `bash -n deploy/deploy-vps.sh deploy/backup-externo.sh deploy/limpar-logs.sh` (Git Bash) — Expected: sem saída.
 
+**Feito em 08/10/2026, com o que mudou ao executar:**
+- **`deploy/backup-diario.sh`** (novo): o `npm run backup` dentro do `app` com o aviso de sucesso **e de falha** ao healthchecks.io; no crontab do plano só havia o de sucesso, e um backup quebrado ficaria mudo até o healthchecks estranhar o atraso.
+- **`.gitattributes`** (novo): `*.sh`, `deploy/crontab`, `deploy/Caddyfile` e `Dockerfile` com LF. O git do PC está com `core.autocrlf=true`, e shell com CRLF quebra no bash.
+- **O `.env` é lido com `grep`, nunca com `source`**: o bcrypt do `TINYAUTH_AUTH_USERS` tem `$$`, que o bash expandiria.
+- **`backup-externo.sh`**: só o backup **automático** sobe (a cópia de segurança do `copia:atualizar` não); recusa backup com mais de 26 h, senão mandaria o de ontem de novo com o das 03:00 quebrado; o que o `sync` apagaria ou trocaria no R2 vai para `apagados/<data>` e fica 30 dias.
+- **`deploy-vps.sh`**: `docker compose up -d --wait db` (banco saudável antes do `migrate status`); confere o próprio site por dentro do contêiner (`/produtos`, que lê o banco) e depois o endereço público sem login (302); a tag `vps-<versão>` fica **só na VPS** e em `dados/logs/deploy.log` (a VPS não tem credencial de escrita no GitHub, e não deve ter).
+- **`crontab`** com `SHELL`, `MAILTO=""` e saída em `dados/logs/cron.log`; os horários valem porque a VPS fica no fuso de São Paulo (Task 7, passo 3).
+- **`limpar-logs.sh`** apaga só `worker-*.log` com mais de 30 dias; `backup.log`, `deploy.log` e `cron.log` ficam.
+- **Testado no PC com `rclone`, `curl`, `date` e `docker` de mentira** (pasta temporária): cópia externa em dia comum e no dia 1 (vai também ao mensal), com backup de 3 dias (código 1 e aviso `/fail`) e com remoto vazio (código 1 e `/fail`); backup diário com sucesso e com falha; limpeza apagando só o log de worker antigo. O `deploy-vps.sh` precisa do Docker de verdade e é exercitado no ensaio (Task 8).
+
 - [ ] **Step 7: Commit**
 
 ```bash
-git add deploy/ scripts/backup-banco.js
+git add .gitattributes deploy/ scripts/backup-banco.js
 git commit -m "VPS: scripts de deploy, copia externa para o R2, limpeza de logs e cron"
 ```
 
@@ -333,7 +343,7 @@ git commit -m "VPS: scripts de deploy, copia externa para o R2, limpeza de logs 
 
 - [ ] **Step 1: No painel da Hostinger:** KVM 2, região Brasil, Ubuntu 24.04 LTS, chave SSH pública do PC; firewall com 22, 80 e 443; anotar o IP.
 - [ ] **Step 2: Primeiro acesso como root:** instalar o Docker (passo 3) e então `adduser rise && usermod -aG sudo,docker rise`, copiar a chave para `/home/rise/.ssh/authorized_keys`, `PasswordAuthentication no` e `PermitRootLogin no` em `/etc/ssh/sshd_config`, `systemctl restart ssh`.
-- [ ] **Step 3: Pacotes:** `apt install -y docker.io docker-compose-v2 fail2ban unattended-upgrades rclone git curl apache2-utils`; `systemctl enable --now docker fail2ban`; `dpkg-reconfigure -plow unattended-upgrades`.
+- [ ] **Step 3: Pacotes:** `apt install -y docker.io docker-compose-v2 fail2ban unattended-upgrades rclone git curl apache2-utils`; `systemctl enable --now docker fail2ban`; `dpkg-reconfigure -plow unattended-upgrades`; `timedatectl set-timezone America/Sao_Paulo` (o cron do Ubuntu não entende `CRON_TZ`, e os horários do `deploy/crontab` são os de São Paulo).
 - [ ] **Step 4: Swap de 2 GB:** `fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile` e a linha no `/etc/fstab`.
 - [ ] **Step 5: Projeto:** `mkdir -p /srv/rise && chown rise /srv/rise`; como `rise`: `git clone https://github.com/MaicolDeSouza/projeto-sistema-rise.git /srv/rise/app`; `mkdir -p dados/{produtos,coleta,backup,temporarios,logs}`.
 - [ ] **Step 6: `.env` de produção** (`chmod 600`): copiado do `.env` do PC com as trocas da seção 7 da spec; senha nova do banco; `TINYAUTH_AUTH_USERS` gerado com `htpasswd -nbB maicol '<senha>'` com `$` duplicados; `RCLONE_REMOTO`, `HEALTHCHECKS_*`.
@@ -356,7 +366,7 @@ git commit -m "VPS: scripts de deploy, copia externa para o R2, limpeza de logs 
 
 ### Task 9: Backups ativos e restore de teste
 
-- [ ] **Step 1:** `crontab deploy/crontab` como `rise`; `crontab -l` confere.
+- [ ] **Step 1:** `crontab /srv/rise/app/deploy/crontab` como `rise`; `crontab -l` confere; `chmod +x deploy/*.sh` se o clone não trouxe a permissão.
 - [ ] **Step 2:** Rodar à mão: `docker compose exec -T app npm run backup && ./deploy/backup-externo.sh` → `rclone ls r2:rise-backup/banco/diario` mostra o dump; `rclone size r2:rise-backup/produtos` bate com o tamanho local; healthchecks verde nos dois checks.
 - [ ] **Step 3: Restore de teste no PC, ao lado do banco de verdade:** `npm run copia:atualizar -- --banco=sistema_rise_ensaio` (baixa o dump mais novo do R2; precisa do rclone no PC e de `RCLONE_REMOTO` no `.env`) → contagens iguais às do VPS; depois `dropdb sistema_rise_ensaio`. Os tokens do PC, que ainda é a produção, não são tocados.
 - [ ] **Step 4:** Snapshot manual do VPS no painel da Hostinger, nomeado `antes-da-virada`.

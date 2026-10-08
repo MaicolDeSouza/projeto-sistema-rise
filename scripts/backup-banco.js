@@ -36,7 +36,8 @@ const LOG = path.join(aqui, "..", "dados", "logs", "backup.log");
 /// ao gravar o quinto, o mais antigo sai. So conta arquivo com o nome deste script
 /// (`<banco>-AAAAMMDD-HHMMSS.dump`): backup feito a mao com outro nome
 /// ("...-antes-coleta-no-banco-...") nunca e apagado.
-const MANTER = 4;
+/// Na VPS o numero vem de BACKUP_MANTER no .env (a copia externa no R2 guarda 30 dias, entao 4 bastam la).
+const MANTER = Number(process.env.BACKUP_MANTER) || 4;
 
 /** Registra no dados/logs/backup.log — a tarefa agendada roda sem terminal. */
 function registrar(texto) {

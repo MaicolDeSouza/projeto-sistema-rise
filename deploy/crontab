@@ -1,0 +1,12 @@
+# Rotinas do Rise na VPS. Instalar como o usuario rise: crontab /srv/rise/app/deploy/crontab
+# O fuso do servidor e America/Sao_Paulo (timedatectl, na preparacao da VPS): os horarios abaixo sao os de
+# Sao Paulo. Sem "%" nas linhas: o cron trata "%" como quebra de linha.
+SHELL=/bin/bash
+MAILTO=""
+
+# Camada 1: backup do banco (npm run backup dentro do conteiner app), com aviso no healthchecks.io.
+0 3 * * *  cd /srv/rise/app && ./deploy/backup-diario.sh >> dados/logs/cron.log 2>&1
+# Camada 2: dump do dia e arquivos para o R2, com aviso no healthchecks.io.
+30 3 * * * cd /srv/rise/app && ./deploy/backup-externo.sh >> dados/logs/cron.log 2>&1
+# Logs do worker com mais de 30 dias, aos domingos.
+0 4 * * 0  cd /srv/rise/app && ./deploy/limpar-logs.sh >> dados/logs/cron.log 2>&1

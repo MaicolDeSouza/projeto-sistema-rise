@@ -1,0 +1,7 @@
+# Arquivos que rodam ou sao lidos no Linux da VPS ficam com quebra de linha LF no disco, inclusive no PC (o
+# git do Windows esta com core.autocrlf=true). Um script de shell com CRLF falha no bash com "$'\r': command
+# not found"; o cron e o Caddy tambem tropecam no "\r".
+*.sh            text eol=lf
+deploy/crontab  text eol=lf
+deploy/Caddyfile text eol=lf
+Dockerfile      text eol=lf
