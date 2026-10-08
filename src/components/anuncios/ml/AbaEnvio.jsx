@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import { LOGISTICAS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { medidasFaltando } from "@/lib/canaisDeVenda/ml/validacao";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { filtrarDecimal, lerDecimal, mostrarDigitado } from "./numeros";
@@ -135,16 +136,36 @@ export default function AbaEnvio({ rascunho, alterar, problemas }) {
           />
         ))}
       </div>
-      <MensagensDoCampo problemas={problemas} campo="dimensoes" />
+      <MensagensDoCampo problemas={problemas} campo={["dimensoes", "arredondamento"]} />
 
-      <Campo nome="ml-modo-de-envio" rotulo="Modo de envio" ajuda="Somente leitura. Nesta fase o envio é sempre pelo Mercado Envios.">
-        <input
-          id="ml-modo-de-envio"
-          readOnly
-          value={NOMES_DO_MODO[envio.modo] ?? envio.modo ?? ""}
-          className={`${CLASSE_CAMPO} max-w-xs border-borda bg-fundo text-suave`}
-        />
-      </Campo>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Campo nome="ml-modo-de-envio" rotulo="Modo de envio" ajuda="Somente leitura. O envio é sempre pelo Mercado Envios.">
+          <input
+            id="ml-modo-de-envio"
+            readOnly
+            value={NOMES_DO_MODO[envio.modo] ?? envio.modo ?? ""}
+            className={`${CLASSE_CAMPO} border-borda bg-fundo text-suave`}
+          />
+        </Campo>
+        <Campo
+          nome="ml-logistica"
+          rotulo="Tipo de logística"
+          ajuda="Muda a tarifa fixa do ML (o Flex cobra tarifa fixa em preço baixo) e o frete do vendedor. Depois de trocar, atualize os custos na aba Preço e estoque."
+        >
+          <select
+            id="ml-logistica"
+            value={envio.logistica ?? "xd_drop_off"}
+            onChange={(evento) => mudarEnvio({ logistica: evento.target.value })}
+            className={`${CLASSE_CAMPO} border-borda`}
+          >
+            {LOGISTICAS_ML.map((opcao) => (
+              <option key={opcao.valor} value={opcao.valor}>
+                {opcao.rotulo}
+              </option>
+            ))}
+          </select>
+        </Campo>
+      </div>
 
       <div className="space-y-2">
         <CaixaDeOpcao

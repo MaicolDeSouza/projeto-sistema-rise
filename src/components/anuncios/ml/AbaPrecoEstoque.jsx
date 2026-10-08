@@ -4,12 +4,12 @@ import { useState } from "react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import { custoDaComposicao } from "@/lib/canaisDeVenda/composicao";
-import { IMPOSTO_PADRAO, calcularMargem, corDaMargem, lucroLiquido } from "@/lib/margem";
+import CalculadoraDeMargem from "./CalculadoraDeMargem";
+import CustosDoML from "./CustosDoML";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { filtrarDecimal, lerDecimal, mostrarDigitado, recusarSimbolosDeInteiro } from "./numeros";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const PERCENTUAL = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const ORIGEM_DO_KIT = "soma de quantidade x custo dos itens";
 
@@ -50,10 +50,10 @@ function mensagemSemCusto(faltam) {
 }
 
 /**
- * Aba Preco e estoque: o custo (so leitura), o preco de venda e o estoque do anuncio, e a margem
- * liquida que o preco deixa sobre esse custo.
+ * Aba Preco e estoque: o custo (so leitura), o preco de venda (com a calculadora pela margem) e o
+ * estoque do anuncio, e os custos do Mercado Livre sobre esse preco (fase 2).
  */
-export default function AbaPrecoEstoque({ rascunho, contexto, alterar, problemas }) {
+export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas }) {
   // Texto do preco como foi digitado (ver `numeros.js`); `null` = nada digitado, mostra o numero.
   const [precoDigitado, setPrecoDigitado] = useState(null);
 
@@ -62,9 +62,6 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, problemas
   const custo = custoDoAnuncio(rascunho, itens, contexto.produtos);
   const somaAvulsa = emKit ? somaDosPrecosAvulsos(itens, contexto.produtos) : null;
 
-  const preco = Number(rascunho.preco);
-  const margem = calcularMargem(preco, custo.valor);
-  const semCusto = !(custo.valor > 0);
   const erroDoPreco = problemasDoCampo(problemas, "preco").some((problema) => problema.bloqueante);
   const erroDoEstoque = problemasDoCampo(problemas, "estoque").some((problema) => problema.bloqueante);
 
@@ -113,6 +110,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, problemas
             className={`${CLASSE_CAMPO} ${bordaDoCampo(erroDoPreco)}`}
           />
           <MensagensDoCampo problemas={problemas} campo="preco" />
+          <CalculadoraDeMargem rascunho={rascunho} alterar={alterar} setContexto={setContexto} custo={custo} />
           {somaAvulsa !== null && (
             <p className="mt-1 text-[11px] text-suave">Soma dos preços avulsos: {MOEDA.format(somaAvulsa)}</p>
           )}
@@ -143,22 +141,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, problemas
         </Campo>
       </div>
 
-      <div className="rounded border border-borda bg-fundo p-3">
-        <p className="text-xs text-suave">Margem líquida</p>
-        {margem !== null ? (
-          <p className={`mt-1 text-lg font-semibold ${corDaMargem(preco, custo.valor)}`}>
-            {PERCENTUAL.format(margem)}%
-            <span className="ml-2 text-sm font-medium">lucro de {MOEDA.format(lucroLiquido(preco, custo.valor))}</span>
-          </p>
-        ) : semCusto ? (
-          <p className="mt-1 text-sm text-amber-700">{mensagemSemCusto(custo.faltam)}</p>
-        ) : (
-          <p className="mt-1 text-sm text-suave">Informe o preço de venda para ver a margem.</p>
-        )}
-        <p className="mt-2 text-[11px] text-suave">
-          Imposto de {Math.round(IMPOSTO_PADRAO * 100)}% fixo. Comissão, tarifa e frete do ML entram na fase 2.
-        </p>
-      </div>
+      <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} mensagemSemCusto={mensagemSemCusto(custo.faltam)} />
     </div>
   );
 }
