@@ -152,7 +152,11 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="md:col-span-2">
-          <Campo nome="ml-titulo" rotulo="Título">
+          <Campo
+            nome="ml-titulo"
+            rotulo="Título"
+            ajuda="Vai ao Mercado Livre como o nome da família (family_name). No modelo User Products, o ML monta o título final a partir dele e dos atributos da ficha técnica."
+          >
             <input
               id="ml-titulo"
               value={titulo}
@@ -171,17 +175,6 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
             </div>
           </Campo>
           <SugestaoDeTitulo rascunho={rascunho} contexto={contexto} alterar={alterar} limite={LIMITE_TITULO} />
-        </div>
-
-        <div className="md:col-span-2">
-          <Campo
-            nome="ml-familyName"
-            rotulo="Nome da família (family_name)"
-            ajuda="Obrigatório no modelo User Products do ML"
-            erro={primeiro("familyName")}
-            value={rascunho.familyName ?? ""}
-            onChange={(evento) => alterar({ familyName: evento.target.value })}
-          />
         </div>
 
         <EscolhaEntre

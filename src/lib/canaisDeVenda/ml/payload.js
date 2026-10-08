@@ -95,17 +95,23 @@ export function montarPayloadML(rascunho, contexto) {
 
   return {
     item: {
-      title: titulo.slice(0, LIMITE_TITULO),
+      // Modelo User Products (a conta tem a tag `user_product_seller`): o ML RECUSA `title` no POST e
+      // gera o titulo a partir do `family_name` e dos atributos. Por decisao do dono (08/10/2026), o
+      // "Titulo" do editor e o que vai como `family_name`, no limite de titulo da categoria.
+      family_name: titulo.slice(0, LIMITE_TITULO),
       category_id: texto(rascunho.categoriaId) || null,
-      family_name: texto(rascunho.familyName),
+      // O preco vai na criacao: a documentacao (26/02/2026) diz que criar e editar continua pela
+      // `/items`; o "editar preco standard" ainda nao existe.
+      price: Number(rascunho.preco ?? 0),
       available_quantity: Number(rascunho.estoque ?? 0),
       currency_id: "BRL",
+      buying_mode: "buy_it_now",
       listing_type_id: rascunho.tipoAnuncio ?? "gold_special",
       condition: rascunho.condicao ?? "new",
       // Publica pausado: falha no meio da sequencia nao deixa anuncio incompleto no ar.
       status: "paused",
-      // Por enquanto so os nomes: o envio binario das fotos e da fase 3, e o ML devolve
-      // o id de cada uma, que entra aqui no lugar do nome.
+      // A previa mostra os nomes; a publicacao sobe as fotos ANTES de criar o item e troca os nomes
+      // pelos ids que o ML devolveu (`corpoDaCriacao`, em respostas.js).
       pictures: fotos.map(({ nome }) => ({ nome })),
       attributes: atributos,
       shipping: {
@@ -115,7 +121,6 @@ export function montarPayloadML(rascunho, contexto) {
         local_pick_up: Boolean(envio.retirada),
         ...(dimensions ? { dimensions } : {}),
       },
-      // Sem `price`: desde marco de 2026 o preco vai em `POST /items/{id}/prices/standard`.
     },
     descricao: {
       plain_text: montarDescricaoML({ descricao: rascunho.descricao, frases: contexto?.frases }),

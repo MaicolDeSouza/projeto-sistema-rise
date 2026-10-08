@@ -328,7 +328,7 @@ try {
     conferir("titulo com 61", onde(problema({ ...base, titulo: "X".repeat(61) }, ctx, "titulo")), ["geral", true]);
     conferir("titulo com 61: mensagem", problema({ ...base, titulo: "X".repeat(61) }, ctx, "titulo").problema, "O título tem 61 caracteres; o limite do Mercado Livre é 60.");
     conferir("titulo com 60 serve", problema({ ...base, titulo: "X".repeat(60) }, ctx, "titulo"), undefined);
-    conferir("sem family_name", onde(problema({ ...base, familyName: "" }, ctx, "familyName")), ["geral", true]);
+    conferir("family_name proprio nao e exigido (vai o titulo)", onde(problema({ ...base, familyName: "" }, ctx, "familyName")), [null, null]);
     conferir("sem categoria", onde(problema({ ...base, categoriaId: null }, ctx, "categoria")), ["geral", true]);
     conferir("categoria fora do formato", onde(problema({ ...base, categoriaId: "1234" }, ctx, "categoria")), ["geral", true]);
     conferir("categoria em minuscula", onde(problema({ ...base, categoriaId: "mlb1234" }, ctx, "categoria")), ["geral", true]);
@@ -372,7 +372,7 @@ try {
     conferir("produto simples nao tem aviso de foto do kit", problema(base, ctx, "fotosDoKit"), undefined);
 
     const payload = montarPayloadML(base, ctx);
-    conferir("payload nasce pausado, sem preco no item", [payload.item.status, "price" in payload.item], ["paused", false]);
+    conferir("payload nasce pausado, com o preco no item", [payload.item.status, payload.item.price], ["paused", 0.5]);
     conferir("payload leva o SKU do produto", payload.item.attributes.find((x) => x.id === "SELLER_SKU").value_name, "100101");
     conferir("payload do kit leva o codigo do kit", montarPayloadML(kitOk, ctx).item.attributes.find((x) => x.id === "SELLER_SKU").value_name, "100101_5");
     conferir("payload do kit nao leva GTIN", montarPayloadML(kitOk, ctx).item.attributes.some((x) => x.id === "GTIN"), false);
@@ -385,14 +385,14 @@ try {
     conferir("descricao final no payload", payload.descricao.plain_text, montarDescricaoML({ ...simples, frases: ctx.frases }));
     conferir("descricao final no payload: descricao do produto e frases fixas", payload.descricao.plain_text, `${a.descricaoBase}\n\nNota fiscal.`);
     conferir("payload: titulo, familia, categoria, estoque, tipo e condicao",
-      [payload.item.title, payload.item.family_name, payload.item.category_id, payload.item.available_quantity, payload.item.currency_id, payload.item.listing_type_id, payload.item.condition],
-      ["Resistor 1K 1/4W", "GENERICA", "MLB1234", 100, "BRL", "gold_special", "new"]);
+      ["title" in payload.item, payload.item.family_name, payload.item.category_id, payload.item.available_quantity, payload.item.currency_id, payload.item.listing_type_id, payload.item.condition],
+      [false, "Resistor 1K 1/4W", "MLB1234", 100, "BRL", "gold_special", "new"]);
     // Marca e Modelo vao em MAIUSCULAS (acento incluso); os demais atributos ficam como foram digitados.
     conferir("payload: marca e modelo em maiusculas, o resto intacto",
       montarPayloadML({ ...base, atributos: { BRAND: "Arduino", MODEL: "uno r3 ação", COLOR: "Azul", GTIN: "7890000000001" } }, ctx).item.attributes.filter((x) => !x.id.startsWith("SELLER_PACKAGE_")),
       [{ id: "BRAND", value_name: "ARDUINO" }, { id: "MODEL", value_name: "UNO R3 AÇÃO" }, { id: "COLOR", value_name: "Azul" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
     conferir("payload: marca em branco continua fora", montarPayloadML({ ...base, atributos: { BRAND: "  ", MODEL: "m1" } }, ctx).item.attributes.filter((x) => !x.id.startsWith("SELLER_PACKAGE_")).map((x) => x.id), ["MODEL", "SELLER_SKU"]);
-    conferir("payload: titulo cortado em 60",montarPayloadML({ ...base, titulo: "X".repeat(70) }, ctx).item.title, "X".repeat(60));
+    conferir("payload: titulo cortado em 60",montarPayloadML({ ...base, titulo: "X".repeat(70) }, ctx).item.family_name, "X".repeat(60));
     conferir("payload: envio com dimensoes em cm e peso em gramas", payload.item.shipping,
       { mode: "me2", logistic_type: "xd_drop_off", free_shipping: false, local_pick_up: false, dimensions: "1x1x2,1" });
     conferir("payload: frete gratis e retirada", (({ free_shipping, local_pick_up }) => [free_shipping, local_pick_up])(montarPayloadML(comEnvio({ freteGratis: true, retirada: true }), ctx).item.shipping), [true, true]);
@@ -1298,6 +1298,35 @@ try {
       } finally {
         globalThis.fetch = fetchOriginal;
       }
+    }
+
+    {
+      console.log("\nFase 3: payload e respostas do ML");
+      const { corpoDaCriacao, causasDoML, situacaoDoItem, textoDaRecusaML } = await import("../src/lib/canaisDeVenda/ml/respostas.js");
+      const rascunhoP = {
+        produtoId: "p", titulo: "PLACA UNO R3 CH340 COMPATIVEL ARDUINO", familyName: "OUTRA COISA", tipoAnuncio: "gold_special", condicao: "new",
+        categoriaId: "MLB99779", categoriaNome: null, preco: 49.9, estoque: 7, imagens: ["f1", "f2"], descricao: "x", atributos: { BRAND: "genérica" },
+        envio: { pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false },
+        composicao: null,
+      };
+      const p = montarPayloadML(rascunhoP, { produtos: { p: { sku: "100101" } }, frases: [] });
+      conferir("payload: sem title", "title" in p.item, false);
+      conferir("payload: family_name e o titulo", p.item.family_name, "PLACA UNO R3 CH340 COMPATIVEL ARDUINO");
+      conferir("payload: preco e buying_mode no item", [p.item.price, p.item.buying_mode], [49.9, "buy_it_now"]);
+      conferir("payload: titulo longo cortado no limite", montarPayloadML({ ...rascunhoP, titulo: "A".repeat(70) }, { produtos: {}, frases: [] }).item.family_name.length, 60);
+      conferir("validacao: family_name proprio nao e mais exigido", validarRascunhoML({ ...rascunhoP, familyName: "" }, { produtos: { p: { sku: "100101", conferido: true, blingId: "1" } }, frases: [] }).some((x) => x.campo === "familyName"), false);
+      conferir("corpoDaCriacao: fotos por id", corpoDaCriacao(p.item, ["a", "b"]).pictures, [{ id: "a" }, { id: "b" }]);
+      conferir("corpoDaCriacao: nao muda o item de entrada", p.item.pictures, [{ nome: "placa-uno-r3-ch340-compativel-arduino-1.jpg" }, { nome: "placa-uno-r3-ch340-compativel-arduino-2.jpg" }]);
+      conferir(
+        "causasDoML: separa erro e aviso",
+        causasDoML({ message: "Validation error", cause: [{ type: "error", code: "item.attribute.missing", message: "Falta BRAND" }, { type: "warning", code: "x.y", message: "Foto pequena" }] }),
+        { erros: ["Falta BRAND (item.attribute.missing)"], avisos: ["Foto pequena (x.y)"] },
+      );
+      conferir("causasDoML: sem cause usa message", causasDoML({ message: "invalid token" }), { erros: ["invalid token"], avisos: [] });
+      conferir("causasDoML: nada", causasDoML(null), { erros: [], avisos: [] });
+      conferir("situacaoDoItem", ["active", "paused", "closed", "x"].map(situacaoDoItem), ["ATIVA", "PAUSADA", "ENCERRADA", "DESCONHECIDA"]);
+      conferir("textoDaRecusaML", textoDaRecusaML({ status: 400, dados: { message: "bad", cause: [] } }, "a criação do anúncio"), "O Mercado Livre recusou a criação do anúncio (HTTP 400): bad");
+      conferir("textoDaRecusaML: sem texto", textoDaRecusaML({ status: 500, dados: null }, "a descrição"), "O Mercado Livre recusou a descrição (HTTP 500).");
     }
 
     // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.

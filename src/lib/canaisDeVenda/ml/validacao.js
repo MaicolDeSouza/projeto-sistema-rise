@@ -108,10 +108,8 @@ export function validarRascunhoML(rascunho, contexto) {
     acrescentar("titulo", "geral", `O título tem ${titulo.length} caracteres; o limite do Mercado Livre é ${limite}.`);
   }
 
-  // `family_name` e obrigatorio no modelo User Products, que e o desta conta.
-  if (!texto(rascunho.familyName)) {
-    acrescentar("familyName", "geral", "Informe o nome da família (family_name), obrigatório no modelo User Products.");
-  }
+  // O `family_name` obrigatorio do modelo User Products e o proprio titulo (fase 3, decisao do dono):
+  // o titulo obrigatorio acima ja cobre.
 
   const categoria = texto(rascunho.categoriaId);
   if (!categoria) {

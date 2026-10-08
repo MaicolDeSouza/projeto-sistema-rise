@@ -30,7 +30,7 @@ function agruparPorAba(problemas) {
 /**
  * Aba Previa e validacao: tudo que a validacao acusa, aba por aba (cada problema leva a aba que o
  * resolve), o que seria enviado ao Mercado Livre e o texto final da descricao. Nao publica: o
- * Publicar mora no rodape do editor e fica desligado ate a fase 3.
+ * Publicar mora no rodape do editor.
  *
  * `todosProblemas` e a lista inteira da validacao; as outras abas recebem so a delas.
  */
@@ -55,7 +55,7 @@ export default function AbaPrevia({ rascunho, contexto, irPara, todosProblemas }
       ) : (
         <div>
           <p className="text-sm font-semibold text-emerald-700">
-            Sem problemas na validação local. O validador do Mercado Livre depende de liberação e entra com a publicação.
+            Sem problemas na validação local. O validador do Mercado Livre roda como primeira etapa do Publicar.
           </p>
           {alertas > 0 && (
             <p className="mt-1 text-xs text-amber-700">
@@ -92,6 +92,10 @@ export default function AbaPrevia({ rascunho, contexto, irPara, todosProblemas }
 
       <details className="rounded border border-borda">
         <summary className="cursor-pointer px-3 py-2 text-sm font-semibold">Dados que seriam enviados ao Mercado Livre</summary>
+        <p className="border-t border-borda px-3 py-2 text-xs text-suave">
+          O título vai como <code>family_name</code> (o Mercado Livre monta o título final), e o preço vai junto na criação. As fotos
+          sobem antes e entram por id no lugar dos nomes abaixo.
+        </p>
         {json === null ? (
           <p className="border-t border-borda px-3 py-2 text-sm text-amber-700">Não foi possível montar a prévia.</p>
         ) : (
