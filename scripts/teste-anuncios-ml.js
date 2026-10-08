@@ -393,12 +393,16 @@ try {
       [{ id: "BRAND", value_name: "ARDUINO" }, { id: "MODEL", value_name: "UNO R3 AÇÃO" }, { id: "COLOR", value_name: "Azul" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
     conferir("payload: marca em branco continua fora", montarPayloadML({ ...base, atributos: { BRAND: "  ", MODEL: "m1" } }, ctx).item.attributes.filter((x) => !x.id.startsWith("SELLER_PACKAGE_")).map((x) => x.id), ["MODEL", "SELLER_SKU"]);
     conferir("payload: titulo cortado em 60",montarPayloadML({ ...base, titulo: "X".repeat(70) }, ctx).item.family_name, "X".repeat(60));
-    conferir("payload: envio com dimensoes em cm e peso em gramas", payload.item.shipping,
-      { mode: "me2", logistic_type: "xd_drop_off", free_shipping: false, local_pick_up: false, dimensions: "1x1x2,1" });
+    // Primeiro Publicar real (08/10/2026): o validador do ML recusou `shipping.dimensions` com decimais
+    // ("Dimensions do not follow the pattern 20x30x40,50") e avisou que a conta nao tem ME1. No ME2 as
+    // medidas vao so nos SELLER_PACKAGE_* (investigacao A7); `dimensions` e do ME1, e so em inteiros.
+    conferir("payload: envio ME2 sem dimensions (as medidas vao nos SELLER_PACKAGE_*)", payload.item.shipping,
+      { mode: "me2", logistic_type: "xd_drop_off", free_shipping: false, local_pick_up: false });
     conferir("payload: frete gratis e retirada", (({ free_shipping, local_pick_up }) => [free_shipping, local_pick_up])(montarPayloadML(comEnvio({ freteGratis: true, retirada: true }), ctx).item.shipping), [true, true]);
-    conferir("payload: peso do kit em gramas", montarPayloadML(kitOk, ctx).item.shipping.dimensions, "1x1x2,5");
-    conferir("payload: sem medida, sem dimensions", "dimensions" in montarPayloadML(comEnvio({ alturaCm: null }), ctx).item.shipping, false);
-    conferir("payload: sem peso, sem dimensions", "dimensions" in montarPayloadML(comEnvio({ pesoKg: null }), ctx).item.shipping, false);
+    conferir("payload: ME1 manda dimensions em inteiros", montarPayloadML(comEnvio({ modo: "me1", alturaCm: 1.2, larguraCm: 5.3, comprimentoCm: 6.8, pesoKg: 0.0244 }), ctx).item.shipping.dimensions, "2x6x7,24");
+    conferir("payload: ME1 sem medida, sem dimensions", "dimensions" in montarPayloadML(comEnvio({ modo: "me1", alturaCm: null }), ctx).item.shipping, false);
+    conferir("payload: ME1 sem peso, sem dimensions", "dimensions" in montarPayloadML(comEnvio({ modo: "me1", pesoKg: null }), ctx).item.shipping, false);
+    conferir("payload: peso do kit em gramas no SELLER_PACKAGE_WEIGHT", montarPayloadML(kitOk, ctx).item.attributes.find((x) => x.id === "SELLER_PACKAGE_WEIGHT")?.value_name, "5 g");
     conferir("payload: fotos com o nome legivel", payload.fotos,
       [{ arquivoId: "img-a1", nome: "resistor-1k-1-4w-1.jpg" }, { arquivoId: "img-a2", nome: "resistor-1k-1-4w-2.jpg" }]);
     conferir("payload: pictures so com os nomes", payload.item.pictures, [{ nome: "resistor-1k-1-4w-1.jpg" }, { nome: "resistor-1k-1-4w-2.jpg" }]);

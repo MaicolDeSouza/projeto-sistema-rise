@@ -39,12 +39,15 @@ export function nomeDaFoto(titulo, indice) {
   return `${nome || "anuncio"}-${indice + 1}.jpg`;
 }
 
-// "{altura}x{largura}x{comprimento},{gramas}", como o ML pede em `shipping.dimensions`.
+// "{altura}x{largura}x{comprimento},{gramas}" em `shipping.dimensions`: so no ME1, e so em INTEIROS (cm
+// para cima, gramas arredondados). No primeiro Publicar real (08/10/2026) o validador do ML recusou o
+// campo com decimais ("Dimensions do not follow the pattern 20x30x40,50") e avisou que a conta nao tem
+// ME1: no ME2, o modo da conta, as medidas vao so nos SELLER_PACKAGE_* (investigacao A7).
 // Sem uma das quatro medidas o campo fica de fora: um valor pela metade seria recusado.
-// Quem diz o que falta e a validacao (aba Envio), para a previa nunca discordar dela.
 function dimensoesDoEnvio(envio) {
-  if (medidasFaltando(envio).length > 0) return null;
-  return `${Number(envio.alturaCm)}x${Number(envio.larguraCm)}x${Number(envio.comprimentoCm)},${Math.round(Number(envio.pesoKg) * 1000)}`;
+  if (envio?.modo !== "me1" || medidasFaltando(envio).length > 0) return null;
+  const cm = (valor) => Math.ceil(Number(valor));
+  return `${cm(envio.alturaCm)}x${cm(envio.larguraCm)}x${cm(envio.comprimentoCm)},${Math.round(Number(envio.pesoKg) * 1000)}`;
 }
 
 /**
