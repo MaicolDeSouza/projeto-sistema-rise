@@ -129,7 +129,7 @@ npm run teste:svg                 # 60 asserções do conversor de imagem para S
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.HH.MM do deploy, em São Paulo; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
 npm run teste:migracao            # regras puras da migração para a VPS (nomes de arquivo com caixa diferente; restore da cópia; quais Conexao do PC sobrevivem à cópia; `BACKUP_MANTER` inválido). SEM rede e SEM banco
-npm run teste:rede                # o filtro de rede pública do servidor (`src/lib/redePublica.js` + `lookup`/`validar` do `obter`): IPs internos, nome que resolve para IP interno, redirecionamento para IP escrito, IPv6. Os "sites" são servidores nesta máquina: SEM internet e SEM banco
+npm run teste:rede                # o filtro de rede pública do servidor (`src/lib/redePublica.js` + `lookup`/`validar` do `obter`) e sua LIGAÇÃO em `bytesDe` e `baixarDocumento`: IPs internos, nome que resolve para IP interno, ponto final, redirecionamento para IP escrito, IPv6. Os "sites" são servidores nesta máquina: SEM internet e SEM consulta ao banco
 npm run auditar:arquivos          # confere que todo ProdutoArquivo existe no disco com o nome EXATO (o Linux distingue caixa); só lê; código 1 se houver problema
 npm run copia:atualizar           # RESTAURA no banco do PC o backup da VPS (R2, ou --dump=<arquivo>) e APAGA as Conexao do ML e do Bling vindas do dump (tokens que rotacionam). As Conexao que o PC já tinha VOLTAM quando o token é do app do .env do PC (ML_CLIENT_ID/BLING_CLIENT_ID = o `clientId` gravado no segredo, desde 08/10/2026); token de outro app ou de antes disso sai. Recusa banco remoto, servidor no ar e worker vivo; faz cópia de segurança antes
 npm run copia:atualizar -- --banco=sistema_rise_ensaio --dump=<arquivo>   # o mesmo restore AO LADO, sem tocar no banco do .env (ensaio); apagar depois com dropdb
@@ -3467,11 +3467,19 @@ verdade ainda é o do PC** e o da VPS é uma cópia de ensaio.
   - Só `GET`/`HEAD` de `/api/arquivos/<SKU>/<pasta>/<32 hex>.<ext>` passam sem login (`deploy/caddy/Caddyfile`); o resto
     cai no Tinyauth. O Caddy tira `Remote-*` de fora em todos os ramos: os níveis de acesso vão ler esses cabeçalhos.
   - **Todo pedido do servidor a um endereço que veio de texto de terceiro** (documento de referência, foto de
-    concorrente) passa por `src/lib/redePublica.js`: `lookupPublico` na conexão e `validarEnderecoPublico` em cada
-    redirecionamento, pelo `obter` de `coleta/http.js`. Nunca `fetch` direto: o servidor alcança `app`, `auth` e `db`
-    pela rede do Docker (provado em produção: os quatro nomes são recusados).
+    concorrente) passa por `src/lib/redePublica.js`: `lookupPublico` na conexão e `validarEnderecoPublico` (documento,
+    sem porta) ou `validarFotoPublica` (foto, aceita porta) em cada redirecionamento, pelo `obter` de `coleta/http.js`.
+    Nunca `fetch` direto: o servidor alcança `app`, `auth` e `db` pela rede do Docker (provado em produção: os quatro
+    nomes são recusados). IPv6 por **lista permitida** (só 2000::/3, menos documentação, Teredo, 6to4 e 3fff::/20), e
+    o ponto final do nome (`localhost.`) é tirado antes das regras de nome interno. `http://[::1]/` passava no filtro
+    antigo, porque o `URL` devolve o host de IPv6 com colchetes.
   - O Next já entrega os segmentos de rota **decodificados**: decodificar de novo lança `URIError` (500 numa rota
-    pública). `http://[::1]/` passava no filtro antigo, porque o `URL` devolve o host de IPv6 com colchetes.
+    pública).
+  - **Arquivo de `dados/` numa `Response` sai por `fluxoDeArquivo` (`src/lib/arquivos.js`), nunca por
+    `createReadStream` direto.** O Next não lê nem cancela o corpo de um HEAD, e o `createReadStream` abre o arquivo na
+    construção: 300 HEAD deixaram 300 descritores abertos em produção (medido), e o Caddy deixa HEAD passar sem login.
+    O fluxo é preguiçoso (abre na primeira leitura; precisa de `highWaterMark: 0`, senão o `ReadableStream` já faz um
+    `pull` na criação) e o `teste:imagens` confere.
 - **Pendências de segurança que dependem do dono** (nenhuma bloqueia a virada): (1) segundo fator (TOTP do Tinyauth) e
   senha de 16+ caracteres: o login é o único portão, e atrás dele estão tokens com escrita em 1.007 anúncios reais e CPF
   e endereço de clientes; (2) **guardar a `ENCRYPTION_KEY` num cofre de senhas**: sem ela os tokens do dump viram lixo;
