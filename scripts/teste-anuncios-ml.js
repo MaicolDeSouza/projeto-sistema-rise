@@ -1433,6 +1433,75 @@ try {
       conferir("gravarPublicacao: anuncio que nao existe lanca", await gravarPublicacao("nao-existe", {}).then(() => "gravou", () => "lancou"), "lancou");
     }
 
+    // Cenario da publicacao (Tarefas 5 e 6): produtos ZZ-ML-* no banco, anuncios salvos pelo caminho
+    // de verdade (`salvarRascunhoML`) e um Bling falso com os mesmos codigos. Chamado depois de `limpar()`.
+    const { criarBlingFalso } = await import("./lib/blingFalso.js");
+    async function cenarioDePublicacao() {
+      const criar = (sku, extra = {}) =>
+        prisma.produto.create({ data: { sku, tituloBase: `ZZ ${sku}`, descricaoBase: `Descricao de ${sku}`, conferido: true, blingId: "1", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 10, ...extra } });
+      const s1 = await criar("ZZ-ML-S1");
+      const semBling = await criar("ZZ-ML-SB", { blingId: null });
+      const k1 = await criar("ZZ-ML-K1");
+      const k2 = await criar("ZZ-ML-K2");
+      const kitDoRise = await criar("ZZ-ML-KP", { tipo: "COMPOSICAO" });
+      for (const produto of [s1, semBling, k1, k2, kitDoRise]) {
+        await prisma.produtoArquivo.createMany({ data: ["a.jpg", "b.jpg"].map((arquivo, ordem) => ({ produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO", arquivo: `${produto.sku}-${arquivo}`, ordem, principal: ordem === 0 })) });
+      }
+      const ajustes = { titulo: "PLACA ZZ ML", categoriaId: "MLB99779", preco: 49.9, estoque: 5, atributos: { BRAND: "ZZ", MODEL: "M1", EMPTY_GTIN_REASON: "O produto não tem código cadastrado" } };
+      async function anuncioSimples(produto, extra = {}) {
+        const { rascunho } = await novoRascunhoML(produto.id);
+        const salvo = await salvarRascunhoML(null, { ...rascunho, ...ajustes, ...extra });
+        if (!salvo.ok) throw new Error(`cenario: ${salvo.erro}`);
+        return salvo.id;
+      }
+      async function anuncioDeKit(codigo, quantidadeDoSegundo) {
+        const { rascunho, contexto } = await novoRascunhoML(k1.id);
+        const produtos = { ...contexto.produtos, ...(await contextoDosProdutos([k2.id])) };
+        const comKit = aplicarComposicao(rascunho, { itens: [{ produtoId: k1.id, quantidade: 1 }, { produtoId: k2.id, quantidade: quantidadeDoSegundo }], codigo, blingProdutoId: null }, produtos);
+        const salvo = await salvarRascunhoML(null, { ...comKit, ...ajustes, estoque: 3, atributos: { BRAND: "ZZ", MODEL: "M1", EMPTY_GTIN_REASON: "O produto é um kit ou pack" } });
+        if (!salvo.ok) throw new Error(`cenario: ${salvo.erro}`);
+        return salvo.id;
+      }
+      const produtosDoBling = [
+        { id: 501, codigo: "ZZ-ML-S1", nome: "ZZ S1", formato: "S", preco: 49 },
+        { id: 502, codigo: "ZZ-ML-K1", nome: "ZZ K1", formato: "S", preco: 10, tributacao: { ncm: "84733049" } },
+        { id: 503, codigo: "ZZ-ML-K2", nome: "ZZ K2", formato: "S", preco: 12 },
+        { id: 504, codigo: "ZZ-ML-KP", nome: "ZZ KP", formato: "S", preco: 30 },
+        { id: 505, codigo: "ZZ-ML-SB", nome: "ZZ SB", formato: "S", preco: 30 },
+        { id: 509, codigo: "ZZ-ML-KITX", nome: "KIT *ZZ-ML-KITX", formato: "E", estrutura: { tipoEstoque: "V", lancamentoEstoque: "", componentes: [{ produto: { id: 502 }, quantidade: 1 }, { produto: { id: 503 }, quantidade: 2 }] } },
+        { id: 510, codigo: "ZZ-ML-KITY", nome: "KIT *ZZ-ML-KITY", formato: "E", estrutura: { tipoEstoque: "V", lancamentoEstoque: "", componentes: [{ produto: { id: 502 }, quantidade: 1 }, { produto: { id: 503 }, quantidade: 2 }] } },
+      ];
+      const novoBling = (extra = {}) => criarBlingFalso({ produtos: produtosDoBling, ...extra });
+      return { s1, semBling, k1, k2, kitDoRise, anuncioSimples, anuncioDeKit, novoBling };
+    }
+
+    {
+      console.log("\nFase 3: pré-checagem");
+      await limpar();
+      const { prepararPublicacaoML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+      const c = await cenarioDePublicacao();
+      const ml = criarMLFalso();
+      const bf = c.novoBling();
+      const idSimples = await c.anuncioSimples(c.s1);
+      const pronto = await prepararPublicacaoML(idSimples, { ml, bling: bf });
+      conferir("preparar: anuncio simples pronto", [pronto.ok, pronto.motivos, pronto.resumo?.familyName, pronto.resumo?.preco, pronto.resumo?.estoque, pronto.resumo?.fotos, pronto.resumo?.codigo, pronto.resumo?.kit], [true, [], "PLACA ZZ ML", 49.9, 5, 2, "ZZ-ML-S1", null]);
+      conferir("preparar: proxima etapa e incerta", [pronto.proxima, pronto.incerta], ["fotos", false]);
+      conferir("preparar: so leitura", [ml.escritas.length, bf.chamadas.filter((chamada) => chamada.metodo !== "GET").length], [0, 0]);
+      conferir("preparar: sem blingId recusa", (await prepararPublicacaoML(await c.anuncioSimples(c.semBling), { ml, bling: bf })).motivos.some((m) => /blingId/.test(m)), true);
+      conferir("preparar: categoria nao folha recusa", (await prepararPublicacaoML(await c.anuncioSimples(c.s1, { categoriaId: "MLB1648" }), { ml, bling: bf })).motivos.some((m) => /não é final/.test(m)), true);
+      const foraDoBling = await prepararPublicacaoML(idSimples, { ml, bling: criarBlingFalso({ produtos: [] }) });
+      conferir("preparar: produto fora do Bling recusa", [foraDoBling.ok, foraDoBling.motivos.some((m) => /Bling/.test(m))], [false, true]);
+      const kitLivre = await prepararPublicacaoML(await c.anuncioDeKit("ZZ-ML-KITN", 2), { ml, bling: bf });
+      conferir("preparar: kit livre => criar", [kitLivre.ok, kitLivre.resumo?.kit], [true, { codigo: "ZZ-ML-KITN", situacao: "criar", itens: [{ sku: "ZZ-ML-K1", quantidade: 1 }, { sku: "ZZ-ML-K2", quantidade: 2 }] }]);
+      conferir("preparar: kit igual no Bling", (await prepararPublicacaoML(await c.anuncioDeKit("ZZ-ML-KITX", 2), { ml, bling: bf })).resumo?.kit?.situacao, "igual");
+      const kitDiferente = await prepararPublicacaoML(await c.anuncioDeKit("ZZ-ML-KITY", 3), { ml, bling: bf });
+      conferir("preparar: kit com outras pecas recusa com o recado", [kitDiferente.ok, kitDiferente.motivos.some((m) => /ZZ-ML-K2: 3 no anúncio, 2 no Bling/.test(m))], [false, true]);
+      const kitDoRise = await prepararPublicacaoML(await c.anuncioSimples(c.kitDoRise), { ml, bling: bf });
+      conferir("preparar: produto kit do Rise que e simples no Bling recusa", [kitDoRise.ok, kitDoRise.motivos.some((m) => /produto simples no Bling/.test(m))], [false, true]);
+      conferir("preparar: anuncio que nao existe", (await prepararPublicacaoML("nao-existe", { ml, bling: bf })).motivos, ["Anúncio não encontrado."]);
+      conferir("preparar: continua so leitura", [ml.escritas.length, bf.chamadas.filter((chamada) => chamada.metodo !== "GET").length], [0, 0]);
+    }
+
     // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.
   }
 
