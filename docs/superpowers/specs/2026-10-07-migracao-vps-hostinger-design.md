@@ -171,7 +171,9 @@ worker (supervisor)─┼──▶ db (postgres:17, só na rede interna; porta 5
 
 ## 9. DNS e integrações
 
-- **DNS:** na zona da Hostinger (conta antiga), o dono cria o registro A `rise` → IP do VPS. Mais tarde,
+- **DNS:** na zona da Hostinger (conta antiga), o dono cria **dois** registros A: `rise` → IP do VPS e
+  `auth.rise` → IP do VPS (o Tinyauth exige um host próprio para a tela de login; com ele em
+  `auth.rise.4hobby.com.br`, a sessão vale para `rise.4hobby.com.br` e não vaza para `www`). Mais tarde,
   `blog` e `maicol` do mesmo jeito. Nada muda em `@`, `www`, MX ou TXT. Pedir ao suporte da Hostinger, por
   escrito, a confirmação de que a zona continua caso a assinatura do Workspace mude ou vença; se um dia a
   conta antiga sair de cena, o plano B é a zona no Cloudflare (desenho apresentado no brainstorming).
@@ -284,7 +286,9 @@ rotacionaram); o DNS não precisa ser desfeito. O ambiente do PC fica intacto at
 ## 15. O que depende do dono
 
 - Contratar o KVM 2 na conta nova, região Brasil, e passar o IP.
-- Criar o registro A `rise` na zona da Hostinger antiga; perguntar ao suporte sobre a zona e a assinatura.
+- Criar os registros A `rise` e `auth.rise` na zona da Hostinger antiga; perguntar ao suporte sobre a zona e
+  a assinatura.
+- Escolher o segundo fator do login: código TOTP no aplicativo autenticador, ou entrada com conta Google.
 - Criar a conta Cloudflare (só para o R2) e o bucket; criar a conta no healthchecks.io.
 - Cadastrar os redirects novos no DevCenter do ML e no aplicativo do Bling.
 - Guardar no cofre de senhas: `ENCRYPTION_KEY`, senha nova do banco, chaves do R2, chave SSH.
