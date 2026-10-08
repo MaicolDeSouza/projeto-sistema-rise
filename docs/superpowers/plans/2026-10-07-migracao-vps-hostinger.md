@@ -374,12 +374,27 @@ git commit -m "VPS: scripts de deploy, copia externa para o R2, limpeza de logs 
 - [ ] **Step 10: Medir o IP de data center:** `docker compose exec app npm run teste:fonte -- <url>` para cada uma das oito fontes (as de 10 s de `Crawl-delay` levam minutos). Anotar quem respondeu e quem bloqueou. Quem bloquear entra no plano B (seção 12 da spec) na Task 13.
 - [ ] **Step 11: Deploy repetido:** `./deploy/deploy-vps.sh` de novo → versão nova na tela, `rise:anterior` existe (`docker images rise`), parada de segundos.
 
+**Feito em 08/10/2026 (ensaio geral, passos 1 a 8, 10 e 11; o passo 9 ficou pela metade):**
+- DNS: `rise` e `auth.rise` resolvem para 179.199.150.221 pelo DNS do Google. Dump de 84 MB por `scp`, 1.460 arquivos (209 MB) por `tar` sobre SSH (o PC não tem `rsync`); contagens iguais nos dois lados.
+- Restore no Postgres do compose: **6 s**, sem avisos; `Conexao` do ML e do Bling apagadas (2); UTF8, ICU en-US, fuso America/Sao_Paulo, 40 migrations, os três índices só de SQL, `pg_trgm`; Produto 1317, ProdutoColetado 70513, ProdutoArquivo 1456, FotoMensalColeta 65858, 0 jobs abertos.
+- Primeira imagem: **76 s** de build na VPS, 2,57 GB. `deploy-vps.sh`: 1º deploy versão `08.10.2026.10.19`; 2º deploy (`a006d48`) em **28 s**, `rise:anterior` guardada, `app` e `worker` religados em 3 s, `caddy`/`auth`/`db` intocados; `dados/logs/deploy.log` com as duas linhas.
+- **Certificados** da Let's Encrypt emitidos para os dois nomes na primeira subida; `http` → `https` 308.
+- **Login:** a tela do Tinyauth (em português) abre ao pedir `/produtos`; depois de entrar volta para `/produtos` autenticado. Cookie `tinyauth-session-…` com `Domain=rise.4hobby.com.br`, `HttpOnly`, `Secure`, `SameSite=Lax`, 7 dias (não vaza para o `www`). A API de login é `POST /api/user/login` (JSON `username`/`password`). **Sem navegador o Tinyauth responde 401, não 302**: o `curl` recebe 401 e o navegador é redirecionado; o `deploy-vps.sh` foi ajustado para esperar 401.
+- **Superfície pública (curl de dentro da VPS para o nome público):** `/api/arquivos/<sku>/imagens/<nome>` 200 sem login; `/produtos`, `/`, `/api/temporarios/x/y`, `/api/arquivos/../.env`, `/api/arquivos/<sku>/../../.env`, `/api/arquivos/../produtos` e `/produtos` com `Remote-User` forjado → todos 401. Caddy 2.11.7.
+- **Testes dentro da imagem:** extracao 371, svg 60, cotacao 86, versao 10, migracao 35, loja-integrada 27, todos com 0 falhas.
+- **Medição do IP de data center: nenhuma fonte bloqueia.** `teste:fonte` nas **23** fontes ativas (não 8) a partir da VPS: 20 PARCIAL (o veredito normal do teste), 3 FALHA (Fortek = portal atrás de login; Circuitronix sem dados de produto; Mamute, cuja amostra de 3 páginas não acha produto). **As três falham igual no PC**, conferido na hora, então não é bloqueio e o plano B do worker fica dispensado. Armadilha achada: `docker compose exec` dentro de um `while read` engole a entrada padrão; precisa de `</dev/null`.
+- **Usuário temporário `ensaio`** no Tinyauth (senha em `/home/rise/.login-ensaio.txt`, 600), até o dono escolher o definitivo. **Gravar o hash no `.env` exige `$` dobrado** (`$$`), senão o compose lê `$cPi…` como variável e apaga um pedaço; `.env` com aspas simples também funciona. Conferido lendo a variável de dentro do contêiner.
+- **Pendente do passo 9:** o roteiro de telas foi interrompido pelo dono depois do login; o restante (abrir produto com fotos, enviar foto e PDF, Mercados, Fontes, SVG, cotação, Integrações) fica para quando ele mandar, ou para ele mesmo fazer com o usuário `ensaio`.
+- **`npm run backup` dentro do `app`** gera o dump como `root` (o contêiner roda como root); `rise` continua lendo e apagando, porque a pasta é dele.
+
 ### Task 9: Backups ativos e restore de teste
 
 - [ ] **Step 1:** `crontab /srv/rise/app/deploy/crontab` como `rise`; `crontab -l` confere; `chmod +x deploy/*.sh` se o clone não trouxe a permissão.
 - [ ] **Step 2:** Rodar à mão: `docker compose exec -T app npm run backup && ./deploy/backup-externo.sh` → `rclone ls r2:rise-backup/banco/diario` mostra o dump; `rclone size r2:rise-backup/produtos` bate com o tamanho local; healthchecks verde nos dois checks.
 - [ ] **Step 3: Restore de teste no PC, ao lado do banco de verdade:** `npm run copia:atualizar -- --banco=sistema_rise_ensaio` (baixa o dump mais novo do R2; precisa do rclone no PC e de `RCLONE_REMOTO` no `.env`) → contagens iguais às do VPS; depois `dropdb sistema_rise_ensaio`. Os tokens do PC, que ainda é a produção, não são tocados.
 - [ ] **Step 4:** Snapshot manual do VPS no painel da Hostinger, nomeado `antes-da-virada`.
+
+**Feito em 08/10/2026 (passos 1 a 3):** crontab instalado como `rise` (03:00, 03:30, domingo 04:00); `backup-diario.sh` rodou de verdade (83,7 MB, 4,4 s) e o healthchecks respondeu `OK`; `backup-externo.sh` rodou duas vezes (a primeira com o rclone velho, descartada; a segunda com o 1.75.1) e o R2 ficou com 2 dumps em `banco/diario`, 1.456 fotos em `produtos`, 4 listas em `coleta`, 362 MB. Checks do healthchecks: `backup-diario` e `copia-externa` (URLs no `.env` da VPS). **Restore de teste no PC** a partir do R2 (`copia:atualizar --banco=sistema_rise_ensaio`): baixou o dump mais novo e restaurou com 1317/70513/1456 e 40 migrations; banco de ensaio apagado depois. O passo 4 (snapshot) fica para a véspera da virada.
 
 ### Task 10: Revisão de código antes da virada
 

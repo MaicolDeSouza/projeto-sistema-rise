@@ -69,9 +69,10 @@ if [ "${PRONTO}" != 1 ]; then
   exit 1
 fi
 
-# De fora, pelo Caddy: sem login a resposta e o redirecionamento para a tela de login.
+# De fora, pelo Caddy, sem login: o Tinyauth responde 401 a quem nao e navegador (curl) e redireciona (302)
+# quem e. Qualquer outra coisa (200, 502, 000) e sinal de problema no login ou no proxy.
 PUBLICO="$(curl -s -o /dev/null -w '%{http_code}' https://rise.4hobby.com.br/produtos || true)"
-echo "== https://rise.4hobby.com.br/produtos sem login: ${PUBLICO} (esperado 302)"
+echo "== https://rise.4hobby.com.br/produtos sem login: ${PUBLICO} (esperado 401; navegador recebe 302)"
 
 git tag -f "vps-${VERSAO}" >/dev/null
 mkdir -p dados/logs
