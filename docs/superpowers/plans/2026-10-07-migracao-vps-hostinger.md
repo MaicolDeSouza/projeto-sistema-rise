@@ -17,7 +17,7 @@
 - `next` ≥ 16.3.8 e `sharp` ≥ 0.35.5 antes de qualquer porta aberta (o audit de 07/10/2026 estendeu a faixa crítica do `next` até 16.3.7 e acusou o librsvg do `sharp` 0.35.4); Node 24 fixado na imagem.
 - Postgres 17, banco UTF8 com ICU `en-US`, `timezone=America/Sao_Paulo`; porta 5432 só em 127.0.0.1.
 - `TZ=America/Sao_Paulo` em `app`, `worker` e `db`.
-- Travas (`ML_PUBLICACAO`, `BLING_ESCRITA`, `LI_ESCRITA`, `NANO_BANANA_GERACAO`, `PHOTOROOM_COMPRA`) continuam `false` no VPS.
+- Travas (`ML_PUBLICACAO`, `BLING_ESCRITA`, `LI_ESCRITA`, `NANO_BANANA_GERACAO`, `PHOTOROOM_COMPRA`) no VPS **iguais às do PC** (decisão do dono em 08/10/2026: hoje `BLING_ESCRITA=true` só para o 100101 e `PHOTOROOM_COMPRA=true`; o resto `false`).
 - No VPS, migrations só por `prisma migrate deploy`, depois de dump; nunca `migrate dev` nem `migrate diff` contra o banco do VPS.
 - `APP_URL_PUBLICA` só é preenchido depois que `/api/arquivos` responder publicamente (seção 9 da spec).
 - Deploy no VPS só quando o dono pedir ("sobe"). Commit, push e merge seguem sem pedir.
