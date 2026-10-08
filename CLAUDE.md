@@ -101,7 +101,7 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 
 | Bloco | Situação |
 | --- | --- |
-| Produtos | Cadastro completo — é a base de que todo anúncio deriva. Cadastro novo com importação do Bling, busca por código, referências de mercado e título/descrição por IA (Anthropic). Sincronização com o Bling: ícone na lista, pop-up de diferenças, envio de campos e de ajustes de estoque e botão "Sincronizar estoque com Bling"; a **escrita no Bling está travada** |
+| Produtos | Cadastro completo — é a base de que todo anúncio deriva. Cadastro novo com importação do Bling, busca por código, referências de mercado e título/descrição por IA (Anthropic). Sincronização com o Bling: ícone na lista, pop-up de diferenças, envio de campos e de ajustes de estoque e botão "Sincronizar estoque com Bling"; a **escrita no Bling está travada**. Produto com composição (kit): aba Composição, estoque calculado pelas peças, abas de fornecedores/medidas/NCM das peças e envio da composição ao Bling |
 | Integrações | Bling e ML conectados e testados; Loja Integrada pelo Personal Token (API direta para o conteúdo; estoque, preço e pedidos seguem pelo Bling) |
 | Painel | Indicadores lendo do banco |
 | Anúncios | Interface e validação por canal, **sem publicar** |
@@ -142,7 +142,8 @@ npm run teste:imagens             # 429 asserções das fotos: padronização, l
 npm run teste:anuncios-ml         # 346 asserções do rascunho de anúncio do Mercado Livre: composição, validação, payload, ícone, gravação e frases fixas (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
-npm run teste:bling-sync          # 664 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
+npm run teste:composicao          # 78 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças e a descrição só com referências cadastradas (Postgres, SEM rede; só escreve produtos ZZ-KIT-*)
+npm run teste:bling-sync          # 685 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -216,8 +217,8 @@ o Docker Desktop travava ao abrir e o sistema ficava sem banco.
   produto já existe aqui (pelo SKU sem caixa, ou pelo `blingId`; a janela dá o link para ele),
   quando não há produto ATIVO com o código, quando há mais de um, ou quando é variação (formato
   `V`). **Composição (kit, formato `E`) é importada como produto comum** (pedido do dono em
-  07/10/2026; antes kit só existia no anúncio do Mercado Livre), sem a lista de peças, com o estoque
-  que o Bling calcula pelas peças; **só entra se TODAS as peças já existem no Rise** (pelo `blingId`
+  07/10/2026; antes kit só existia no anúncio do Mercado Livre), já com a lista de peças (aba Composição; ver
+  "Produto com composição (kit)"); **só entra se TODAS as peças já existem no Rise** (pelo `blingId`
   ou pelo código), senão recusa dizendo quais faltam ("o item 121503_z do kit 121503_10z não está
   cadastrado no Rise"). E o envio de ajustes de estoque **recusa kit de estoque virtual** (só o de
   estoque próprio, `estrutura.tipoEstoque` "F", recebe ajuste). Primeiro kit importado: o 990204.
@@ -2244,8 +2245,9 @@ real de 05/10/2026").
 - **Fornecedores por CNPJ, todos os vinculados.** Se o contato não existe no Bling, é criado lá. Contato
   achado **só por nome** é reaproveitado **somente se não tiver documento** (emenda 3b): na investigação, 578 dos
   603 contatos Fornecedor do Bling não têm CNPJ, e criar de novo duplicaria quase todos.
-- **Ativo/inativo não é enviado.** Nem categoria, variações, composição, campos personalizados, fotos e vídeo
-  (ver "O que nunca entra no corpo").
+- **Ativo/inativo não é enviado.** Nem categoria, variações, campos personalizados, fotos e vídeo
+  (ver "O que nunca entra no corpo"). A **composição do kit** passou a ir em 07/10/2026 (ver "Produto com
+  composição (kit)").
 - **A foto principal fica para quando o sistema estiver na VPS:** o Bling só aceita imagem por link público, e
   as fotos do Rise estão em disco local.
 - **O estoque do Bling para o Rise só pelo botão manual** "Sincronizar estoque com Bling". O controle
@@ -2268,7 +2270,7 @@ real de 05/10/2026").
 - **Banco:** `Produto.blingSincronizadoEm`, `blingAssinatura` e `blingSaldo`; `MovimentoEstoque.enviadoAoBlingEm`
   (nulo = ajuste pendente); `BlingCopiaProduto` (o produto do Bling como estava antes de cada sobrescrita, os 3
   mais recentes por produto).
-- **Teste:** `npm run teste:bling-sync` (`scripts/teste-bling-sync.js`), 664 asserções, **SEM rede**: o Bling
+- **Teste:** `npm run teste:bling-sync` (`scripts/teste-bling-sync.js`), 685 asserções, **SEM rede**: o Bling
   falso (`scripts/lib/blingFalso.js`) tem o mesmo formato do cliente real e **recusa escrita sem um
   `exigirEscrita` antes**. Postgres local, só escreve produtos `ZZ-BS-*`.
 
@@ -2295,8 +2297,8 @@ real de 05/10/2026").
 ### O que nunca entra no corpo (`corpo.js`)
 
 Código (só o `POST` o leva, como identificador), situação, imagens e vídeo (`midia`), `fornecedor` (só se grava
-por `/produtos/fornecedores`), `actionEstoque` (o valor `Z` **zera os saldos**), categoria, variações, composição e
-campos personalizados. O envio é por **`PATCH`**, não `PUT`: a documentação do Bling diz que só os campos
+por `/produtos/fornecedores`), `actionEstoque` (o valor `Z` **zera os saldos**), categoria, variações e
+campos personalizados (a `estrutura` só vai para kit, ver "Produto com composição (kit)"). O envio é por **`PATCH`**, não `PUT`: a documentação do Bling diz que só os campos
 informados mudam, e o `PUT` não diz o que faz com o campo omitido. Só vai o que **mudou**: cada grupo tocado
 (`dimensoes`, `estoque`, `tributacao`) vai por inteiro, mesclado com o que o Bling já tem, e o grupo que ninguém
 tocou não vai. **Campo vazio no Rise nunca apaga nada no Bling.**
@@ -2427,6 +2429,111 @@ Mesmo esquema (travas abertas só no ambiente do script, `.env` intocado):
   estoque" no mesmo instante pode contar o ajuste em dobro no número LOCAL do Rise até o próximo clique (o Bling
   fica certo).
 - **CNPJ alfanumérico** (o novo formato de 2026) não é tratado pela busca por CNPJ.
+
+## Produto com composição (kit) (07/10/2026)
+
+Pedido do dono em 07/10/2026: o Rise ganha produto do tipo **"Com composição"** (kit), feito de outros produtos do
+Rise em quantidades, criado e editado no cadastro, importado do Bling com as peças e **exportado para o Bling com a
+composição**. Até ali o kit só existia no anúncio do Mercado Livre (`dados.composicao` do rascunho, que continua
+separado). Spec: `docs/superpowers/specs/2026-10-07-produto-com-composicao-design.md`; plano (9 tarefas, executado
+inline): `docs/superpowers/plans/2026-10-07-produto-com-composicao.md`.
+
+### O que o dono decidiu
+
+- **Peça = produto já cadastrado no Rise, simples, Conferido e vinculado ao Bling** (`blingId`). Kit dentro de kit e
+  variação ficam fora.
+- **Estoque do kit calculado pelas peças** (o menor ⌊estoque da peça ÷ quantidade⌋; peça negativa conta 0), a mesma
+  conta do estoque virtual do Bling.
+- **Peso somado; medidas sugeridas e editáveis** (maior comprimento, maior largura, alturas somadas).
+- **O kit criado no Rise vai ao Bling com a composição.**
+- **Campo Tipo** (Simples / Com composição) onde estava a Unidade; a Unidade foi para depois da Situação.
+
+### Onde mora cada parte
+
+- **Banco** (migration `20261007_produto_composicao`, só aditiva): `enum TipoProduto`, `Produto.tipo` (padrão
+  `SIMPLES`) e `ProdutoComponente` (`kitId` Cascade, `componenteId` **Restrict**, `quantidade`, `ordem`,
+  `@@unique([kitId, componenteId])`).
+- **Regras puras** (`src/lib/composicao.js`, sem imports): `estoqueDoKit`, `totaisDoKit`, `pesoEMedidasDoKit`,
+  `ncmsDasPecas`, `validarComposicao` (lista não vazia, quantidade inteira 1..9999, total ≥ 2, sem repetir, sem o
+  próprio produto).
+- **Banco do kit** (`src/lib/composicaoBanco.js`): `lerPecasDoKit`, `pecasPermitidas`, `gravarComposicao` (troca a
+  lista inteira e grava o estoque calculado), `recalcularKitsDasPecas`, `kitsQueUsam`, `prepararComposicaoDoCadastro`
+  e `gravarComposicaoDoCadastro` (o Salvar do cadastro), `pecasParaKit` (busca da aba) e `pecaParaTela` (a peça num
+  formato só, com preço, custo, peso, NCM e fornecedor padrão).
+- **Tela:** `Composicao.jsx` (aba Composição: Componente, Código, Qtde, lixeira e "Adicionar outro item") e
+  `AbasDoKit.jsx` (`FornecedoresDoKit` e `MedidasDoKit`), ligados em `FormularioProduto.jsx`.
+- **Teste:** `npm run teste:composicao` (78) e o bloco "Composicao (kit)" do `teste:bling-sync`.
+
+### Regras que custaram pensar
+
+- **O estoque do kit é GRAVADO em `Produto.estoque` já calculado**, porque a lista, a foto mensal e a sincronização
+  leem a coluna. É recalculado ao salvar o kit, na edição rápida de estoque de uma peça (na MESMA transação, para todo
+  kit que a usa), no "Sincronizar estoque com Bling" (depois de gravar as peças; o kit guarda só o `blingSaldo`) e na
+  importação. O recálculo grava por **SQL cru**, para o `atualizadoEm` do kit não subir (a lista ordena por ele e o
+  envio ao Bling o usa para saber se o produto foi editado durante o envio).
+- **Ajuste rápido de estoque num kit é recusado** ("calculado pelas peças"), e a célula da lista não abre o popup.
+- **Peça usada em kit não é excluída**: `excluirProduto` recusa dizendo os kits, e o `Restrict` do banco é a última
+  defesa. Apagar o kit leva as linhas de composição, não as peças.
+- **Salvar:** a composição é conferida ANTES de gravar e gravada na mesma transação do produto. Formulário sem o campo
+  `tipo` (aberto antes dele existir) mantém o tipo gravado: um padrão "SIMPLES" apagaria as peças de um kit sem
+  ninguém pedir. Produto que é peça de algum kit não vira kit. Trocar um kit para Simples pede confirmação na tela e
+  apaga as peças no Salvar.
+- **Busca de peças:** só simples, Conferido e com `blingId`; sem nenhum permitido, mostra até 5 dos que casaram e
+  foram barrados, com o motivo ("não está conferido"), senão o operador acharia que o produto não existe.
+- **Aba Fornecedores do kit é só leitura:** o fornecedor padrão de cada peça e, na falta dele, o **rascunho do Bling**
+  (`fornecedorRascunho`, marcado "rascunho do Bling"; as peças importadas só têm ele). Custo total e venda total
+  (valor × quantidade) ficam **incompletos**, nunca soma parcial, quando falta o valor de uma peça. A margem do
+  "Preço venda" do kit usa o custo total. A tabela editável fica montada e escondida: vínculos que o kit já tinha
+  continuam no envio.
+- **Peso e dimensões:** trocar as peças preenche o peso sempre e as medidas só no campo vazio ou que ainda tinha a
+  sugestão anterior; **abrir o kit não muda nada gravado**. O quadro por peça mostra "sem dado" e o total diz
+  "incompleto".
+- **NCM:** os NCMs das peças entram na lista do campo (cada um uma vez, com os SKUs que o usam).
+- **Janela "Criar descrição" (vale para TODO produto):** usa só os fornecedores e concorrentes cadastrados na aba
+  (salvos ou não) e os marcados na lupa. Até 07/10/2026 ela procurava o Nome no catálogo coletado inteiro e trazia
+  concorrentes que não estavam na aba (o dono viu isso). Sem referência, a janela diz para cadastrar.
+
+### Bling
+
+- **Importar** um kit (formato `E`) já grava as peças (`resolverPecasDoKit`: pelo `blingId` guardado ou pelo código);
+  só entra se todas existem no Rise. `scripts/composicao-do-bling.js <código>` preenche as peças de um kit importado
+  antes disso (rodado no 990204: 3 peças, estoque 9).
+- **"Composição" é um campo da sincronização**, comparado como texto ("CÓDIGO xQTD; ..." por código, em maiúsculas).
+  A `estrutura` do Bling só traz o id de cada peça: a leitura busca o código de cada uma (`GET /produtos/{id}`, até 20;
+  peça que falha = erro de leitura, nunca "sem composição", senão um kit lido pela metade pareceria diferente).
+- **A assinatura só leva a composição quando ela existe**: sem isso, todo produto simples já sincronizado acenderia o
+  "!" sem nada ter mudado (há um teste contra a conta antiga).
+- **Cadastrar um kit:** `POST /produtos` com `formato: "E"` e `estrutura: { tipoEstoque: "V", componentes: [{ produto:
+  { id }, quantidade }] }`. **Sincronizar** com a composição diferente: `PATCH` com a `estrutura` inteira, mantendo o
+  `tipoEstoque` que o Bling tinha.
+- **Os ids das peças saem da busca por código FEITA NO ENVIO (Emenda 11)**, nunca do `blingId` guardado. Peça ausente,
+  repetida ou que é kit no Bling recusa o envio inteiro antes de escrever.
+- **Kit no Rise cujo código é produto SIMPLES no Bling: recusado, não convertido.** O produto do Bling tem estoque e
+  anúncios próprios; virar kit pelo Rise é decisão que o dono faz no Bling.
+
+### Teste real de 07/10/2026 (com OK do dono, só no produto de teste)
+
+Travas abertas só no processo de um script temporário (`BLING_ESCRITA=true BLING_ESCRITA_CODIGOS=ZZ-TESTE-KIT`; o
+script recusava qualquer outra lista), apagado depois.
+- **Leitura do 990204** (`GET /produtos/16593700269`): `formato "E"`, `estrutura: { tipoEstoque: "V",
+  lancamentoEstoque: "", componentes: [{ produto: { id }, quantidade: 1 }, ...] }`, quantidade numérica. Produto
+  simples também traz `estrutura` (vazia: `tipoEstoque: ""`, `componentes: []`).
+- **ZZ-TESTE-BLING foi marcado Conferido** no Rise (exigência para ser peça), e o **`ZZ-TESTE-KIT`** criado com ele ×2.
+- **Cadastrar:** `POST` → 201, id **16716767841**. O Bling guardou `formato "E"`, a estrutura com a peça
+  (16715406765) ×2 e calculou o saldo virtual **3** (6 ÷ 2), igual ao do Rise. O pop-up logo depois: só a Origem
+  como "só no Bling" (o Bling põe 0 por padrão), nenhuma divergência.
+- **Mudar para ×3 e Sincronizar:** `PATCH` só com a `estrutura` → 200. No Bling mudaram só a `estrutura` (×2 → ×3, o
+  `tipoEstoque "V"` mantido) e o saldo calculado (3 → 2). O Rise ficou com estoque 2 e o pop-up sem divergência.
+- **ZZ-TESTE-KIT fica no Bling e no Rise** até o dono apagar (junto do ZZ-TESTE-BLING, que agora é peça dele: no Rise
+  o kit tem que sair antes da peça).
+- **Pop-up real do 990204** (só leitura): "Nenhuma diferença: 19 campos iguais", composição incluída, saldo 9 nos dois.
+
+### Pendências
+
+- As peças do 990204 (120706, 120809, 120732) **não estão Conferidas** e só têm o fornecedor em rascunho do Bling: o
+  backfill da importação não exigia isso. Ao salvar uma delas, o rascunho vira vínculo de verdade. A correia (120809)
+  não tem peso nem medidas cadastrados, e a sugestão de peso/medidas do kit fica incompleta.
+- Kit dentro de kit, variação e o anúncio de kit do ML (`dados.composicao`) continuam separados do produto kit.
 
 ## Canais de Venda: Loja Integrada (06 a 07/10/2026)
 

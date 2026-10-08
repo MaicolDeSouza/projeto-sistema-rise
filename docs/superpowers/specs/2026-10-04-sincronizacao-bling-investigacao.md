@@ -328,3 +328,18 @@ Criar contato (`POST /contatos`) e achá-lo depois; `GET /contatos?pesquisa=` co
 situação E/I; `PUT /produtos/fornecedores/{id}` com as chaves extras da listagem e `padrao: false` no único vínculo;
 `POST /produtos` com o código de um produto inativo; `tributacao.grupoProduto` no corpo; saída maior que o saldo
 (físico negativo); o campo exato do 400 "nenhum produto foi informado" em `GET /estoques/saldos`; o vídeo.
+
+## Composição (kit): teste real de 07/10/2026
+
+Com OK do dono, só no produto de teste `ZZ-TESTE-KIT` (peça: `ZZ-TESTE-BLING`), travas abertas só no processo do
+script (`BLING_ESCRITA_CODIGOS=ZZ-TESTE-KIT`). Detalhes em `CLAUDE.md`, seção "Produto com composição (kit)".
+
+- **Formato da estrutura** (`GET /produtos/16593700269`, o kit 990204): `formato: "E"`, `estrutura: { tipoEstoque: "V",
+  lancamentoEstoque: "", componentes: [{ produto: { id }, quantidade: 1 }] }`, quantidade numérica. Produto simples
+  também devolve `estrutura`, vazia (`tipoEstoque: ""`, `componentes: []`).
+- **`POST /produtos` com `formato: "E"` e `estrutura: { tipoEstoque: "V", componentes: [{ produto: { id }, quantidade: 2 }] }`**
+  → **201**. O Bling guardou a estrutura como enviada e calculou `saldoVirtualTotal` pela peça (6 ÷ 2 = 3).
+- **`PATCH /produtos/{id}` só com `estrutura`** (quantidade 2 → 3, mesmo `tipoEstoque`) → **200**. Mudaram só a
+  `estrutura` e o saldo calculado (3 → 2); `tipoEstoque` ficou "V", nome, preço e o resto intactos.
+- **Continua sem medida:** `PATCH` de `estrutura` com peça a menos ou a mais (troca a lista inteira ou mescla?), e o
+  `PATCH` de `formato` num produto simples (o Rise recusa esse caso antes de enviar, de propósito).
