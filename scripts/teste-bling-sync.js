@@ -57,6 +57,8 @@ function conferir(nome, obtido, esperado) {
 async function limpar() {
   // Produto primeiro: leva junto os vinculos, os movimentos de estoque e as copias
   // de seguranca (Cascade). O fornecedor so pode sair depois dos vinculos (Restrict).
+  // Os kits saem antes das pecas: a peca usada em kit e Restrict.
+  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-BS-" }, tipo: "COMPOSICAO" } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-BS-" } } });
   await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: "ZZ Teste BS" } } });
 }
@@ -164,7 +166,7 @@ try {
     conferir("os campos de envio, na ordem", ids, [
       "nome", "descricao", "preco", "marca", "ean", "unidade", "peso", "altura", "largura",
       "comprimento", "estoqueMinimo", "estoqueMaximo", "localizacao", "origem", "ncm", "cest",
-      "spedTipoItem", "percentualTributos",
+      "spedTipoItem", "percentualTributos", "composicao",
     ]);
     conferir("todo campo tem rotulo para a tela", CAMPOS_DE_ENVIO.every((c) => typeof c.rotulo === "string" && c.rotulo.length > 0), true);
     // Emenda 2: o video fica fora. Codigo, saldo e situacao nunca sao enviados.
@@ -176,7 +178,7 @@ try {
       nome: "Motor JGY370", descricao: "Linha 1\nLinha 2", preco: 90, marca: "GENERICA", ean: null,
       unidade: "UN", peso: 0.25, altura: 3, largura: 4.5, comprimento: 10, estoqueMinimo: null,
       estoqueMaximo: null, localizacao: null, origem: 0, ncm: "85011019", cest: null,
-      spedTipoItem: null, percentualTributos: null,
+      spedTipoItem: null, percentualTributos: null, composicao: null,
     });
     conferir("Bling normalizado no mesmo formato (HTML, mm, 'Un', marca em maiusculas, zero vira null)", normalizarDoBling(umBling()), normalizadoDoRise);
     conferir("Rise e Bling iguais nao tem diferenca", lista(umRise(), umBling()), []);
@@ -1402,7 +1404,7 @@ try {
         conferir("popup existe: sem a chave erro, e todas as outras", Object.keys(existe).sort(), ["avisos", "diferencas", "escrita", "estoque", "iguais", "ok", "situacao", "sku"]);
         conferir("popup existe: so o preco difere (90 no Rise, 95 no Bling); o resto bate depois de normalizar", existe.diferencas.map(resumo), [{ campo: "preco", tipo: "diferente", rise: 90, bling: 95 }]);
         conferir("popup existe: a diferenca traz o rotulo da tela", existe.diferencas[0].rotulo, "Preço");
-        conferir("popup existe: iguais conta os campos iguais (18 menos o preco)", [existe.iguais, existe.iguais + existe.diferencas.length === CAMPOS_DE_ENVIO.length], [17, true]);
+        conferir("popup existe: iguais conta os campos iguais (19 menos o preco)", [existe.iguais, existe.iguais + existe.diferencas.length === CAMPOS_DE_ENVIO.length], [18, true]);
         conferir(
           "popup existe: estoque = saldo virtual do produto LIDO (12, nao o 20 guardado), estoque do Rise e os 2 pendentes (o enviado nao conta)",
           existe.estoque,
@@ -1431,7 +1433,7 @@ try {
           { campo: "marca", tipo: "vazioNoRise", rise: null, bling: "X" },
           { campo: "localizacao", tipo: "vazioNoRise", rise: null, bling: "B2" },
         ]);
-        conferir("popup vazio no Rise: nenhuma divergencia de verdade, e iguais = 18 menos as 2 listadas", [contarDivergencias(lido.diferencas), lido.iguais], [0, 16]);
+        conferir("popup vazio no Rise: nenhuma divergencia de verdade, e iguais = 19 menos as 2 listadas", [contarDivergencias(lido.diferencas), lido.iguais], [0, 17]);
         conferir("popup saldo negativo do Bling (Emenda 6): blingSaldo -8 cru, e o estoque do Rise sem pendente e 0", lido.estoque, { blingSaldo: -8, riseEstoque: 0, pendentes: 0 });
         conferir("popup sem fornecedor nem aviso: lista vazia", lido.avisos, []);
       }
@@ -3067,6 +3069,144 @@ try {
 
       conferir("resumirEnvio: tipo desconhecido ou resposta nula = null", [resumirEnvio("outro", { ok: true }), resumirEnvio("sincronizar", null), resumirEnvio("estoque", undefined)], [null, null, null]);
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Composicao (kit) na sincronizacao: leitura, diferenca, cadastro e PATCH (07/10/2026)
+  // -------------------------------------------------------------------------
+  console.log("\nComposicao (kit)");
+  {
+    const { createHash } = await import("node:crypto");
+    // Compara sem acento (as mensagens da tela tem acento; a expressao vai sem).
+    const casaTexto = (texto, regex) => typeof texto === "string" && regex.test(texto.normalize("NFD").replace(/\p{M}/gu, ""));
+    const kitDoRise =(pecas) => ({ tipo: "COMPOSICAO", componentes: pecas.map(([sku, quantidade]) => ({ quantidade, componente: { sku } })) });
+
+    // --- Regras puras ---
+    conferir("Rise: kit vira texto por codigo (ordenado, maiusculas), simples e kit sem pecas = null", [
+      normalizarDoRise(kitDoRise([["zz-b", 1], ["ZZ-A", 2]])).composicao,
+      normalizarDoRise({ tipo: "SIMPLES", componentes: [] }).composicao,
+      normalizarDoRise(kitDoRise([])).composicao,
+    ], ["ZZ-A x2; ZZ-B x1", null, null]);
+
+    const blingKit = { formato: "E", estrutura: { tipoEstoque: "V", componentes: [{ produto: { id: 2 }, quantidade: 1 }, { produto: { id: 1 }, quantidade: "2.00" }] } };
+    const codigos = new Map([[1, "zz-a"], [2, "ZZ-B"]]);
+    conferir("Bling: estrutura com os codigos das pecas vira o mesmo texto do Rise", normalizarDoBling(blingKit, { codigosDasPecas: codigos }).composicao, "ZZ-A x2; ZZ-B x1");
+    conferir("Bling: peca sem codigo resolvido aparece pelo id (nunca some da comparacao)", normalizarDoBling(blingKit, { codigosDasPecas: new Map([[1, "ZZ-A"]]) }).composicao, "ZZ-A x2; id 2 x1");
+    conferir("Bling simples: composicao null", normalizarDoBling({ formato: "S" }).composicao, null);
+    conferir(
+      "diferenca: composicao igual some; quantidade diferente vira 'diferente'; kit so no Bling e 'vazioNoRise' (nao apaga)",
+      [
+        diferencas({ composicao: "ZZ-A x2" }, { composicao: "ZZ-A x2" }).filter((d) => d.campo === "composicao").length,
+        diferencas({ composicao: "ZZ-A x3" }, { composicao: "ZZ-A x2" }).find((d) => d.campo === "composicao")?.tipo,
+        diferencas({ composicao: null }, { composicao: "ZZ-A x2" }).find((d) => d.campo === "composicao")?.tipo,
+      ],
+      [0, "diferente", "vazioNoRise"],
+    );
+
+    // A assinatura de um produto SIMPLES nao pode mudar com o campo novo: senao todo produto ja sincronizado
+    // acenderia o "!" na lista. Conferida contra a conta de antes (os 18 campos, sem a composicao).
+    const simples = normalizarDoRise({ tituloBase: "Produto simples", precoVenda: "10.00", tipo: "SIMPLES", componentes: [] });
+    const conteudoAntigo = {};
+    for (const { id } of CAMPOS_DE_ENVIO) if (id !== "composicao") conteudoAntigo[id] = simples[id] ?? null;
+    conteudoAntigo.fornecedores = [];
+    conferir(
+      "assinatura de produto simples igual a de antes da composicao existir",
+      assinaturaDoRise(simples, []),
+      createHash("sha256").update(JSON.stringify(conteudoAntigo)).digest("hex"),
+    );
+    conferir("assinatura de kit muda com a quantidade", assinaturaDoRise({ ...simples, composicao: "ZZ-A x2" }, []) !== assinaturaDoRise({ ...simples, composicao: "ZZ-A x3" }, []), true);
+
+    const pecasNoBling = [{ id: 15000000701, quantidade: 2 }, { id: 15000000702, quantidade: 1 }];
+    const riseKit = { ...normalizarDoRise({}), nome: "Kit", composicao: "ZZ-A x2; ZZ-B x1" };
+    const cadastroKit = montarCorpoDeCadastro("ZZ-BS-KIT", riseKit, { pecasNoBling });
+    conferir(
+      "cadastro de kit: formato E e estrutura virtual com os ids achados",
+      [cadastroKit.formato, cadastroKit.estrutura],
+      ["E", { tipoEstoque: "V", componentes: [{ produto: { id: 15000000701 }, quantidade: 2 }, { produto: { id: 15000000702 }, quantidade: 1 }] }],
+    );
+    conferir("cadastro de kit SEM as pecas achadas: corpo de simples, sem estrutura", [montarCorpoDeCadastro("ZZ-BS-KIT", riseKit).formato, "estrutura" in montarCorpoDeCadastro("ZZ-BS-KIT", riseKit)], ["S", false]);
+    conferir(
+      "PATCH com a composicao alterada: so a estrutura, mantendo o tipoEstoque do Bling (F fica F)",
+      montarCorpoParcial({ formato: "E", estrutura: { tipoEstoque: "F", componentes: [] } }, riseKit, ["composicao"], { pecasNoBling }),
+      { estrutura: { tipoEstoque: "F", componentes: [{ produto: { id: 15000000701 }, quantidade: 2 }, { produto: { id: 15000000702 }, quantidade: 1 }] } },
+    );
+    conferir("PATCH sem tipoEstoque no Bling: V", montarCorpoParcial({ formato: "E" }, riseKit, ["composicao"], { pecasNoBling }).estrutura.tipoEstoque, "V");
+    conferir("PATCH com composicao alterada mas sem as pecas achadas: nao leva estrutura", montarCorpoParcial({ formato: "E" }, riseKit, ["composicao"]), {});
+
+    // --- Banco + Bling falso ---
+    const ID_P1 = 15000000701;
+    const ID_P2 = 15000000702;
+    const ID_KIT = 15000000799;
+    // O blingId guardado nas pecas e de MENTIRA (999...): prova que o envio usa o id achado pelo codigo.
+    const p1 = await prisma.produto.create({ data: { sku: "ZZ-BS-KP1", tituloBase: "Peca 1 do kit", tipo: "SIMPLES", conferido: true, blingId: "999000001", estoque: 10 } });
+    const p2 = await prisma.produto.create({ data: { sku: "ZZ-BS-KP2", tituloBase: "Peca 2 do kit", tipo: "SIMPLES", conferido: true, blingId: "999000002", estoque: 10 } });
+    const kit = await prisma.produto.create({ data: { sku: "ZZ-BS-KIT", tituloBase: "Kit de teste do envio", precoVenda: "30.00", unidade: "UN", tipo: "COMPOSICAO" } });
+    await prisma.produtoComponente.createMany({ data: [{ kitId: kit.id, componenteId: p1.id, quantidade: 2, ordem: 0 }, { kitId: kit.id, componenteId: p2.id, quantidade: 1, ordem: 1 }] });
+    const pecaNoBling = (id, codigo) => ({ id, codigo, nome: `Peca ${codigo}`, preco: 5, formato: "S" });
+    const doMetodoBs = (falso, metodo) => falso.chamadas.filter((chamada) => chamada.metodo === metodo);
+
+    // Cadastrar o kit: as pecas sao achadas pelo codigo e vao na estrutura.
+    const falso = criarBlingFalso({ produtos: [pecaNoBling(ID_P1, "ZZ-BS-KP1"), pecaNoBling(ID_P2, "ZZ-BS-KP2")] });
+    const cadastrado = await cadastrarNoBling(kit.id, falso);
+    const post = doMetodoBs(falso, "POST").find((chamada) => chamada.caminho === "/produtos");
+    conferir("cadastrar kit: ok", cadastrado.ok, true);
+    conferir(
+      "cadastrar kit: POST com formato E e as pecas pelos ids ACHADOS (nunca o blingId 999 guardado)",
+      [post?.corpo?.formato, post?.corpo?.estrutura],
+      ["E", { tipoEstoque: "V", componentes: [{ produto: { id: ID_P1 }, quantidade: 2 }, { produto: { id: ID_P2 }, quantidade: 1 }] }],
+    );
+    conferir("cadastrar kit: nenhum corpo leva o id 999 guardado", JSON.stringify(falso.chamadas.map((chamada) => chamada.corpo ?? null)).includes("999000"), false);
+
+    // O pop-up do kit recem cadastrado: a composicao e igual (zero diferenca nela).
+    const popup = await lerParaPopup(kit.id, falso);
+    conferir("pop-up do kit cadastrado: ok, sem diferenca na composicao", [popup.ok, popup.diferencas.filter((diferenca) => diferenca.campo === "composicao").length], [true, 0]);
+
+    // O icone: o kit sincronizado fica verde e sem selo (a assinatura leva a composicao igual ao envio).
+    const lidoParaIcone = await prisma.produto.findUnique({ where: { id: kit.id }, include: INCLUDE_DO_ICONE_BLING });
+    conferir("icone do kit cadastrado: verde e sem selo", iconeBlingDoProduto(lidoParaIcone), { cor: "verde", divergente: false, motivos: [] });
+
+    // Mudar a quantidade no Rise: o icone acende e o Sincronizar manda SO a estrutura.
+    await prisma.produtoComponente.update({ where: { kitId_componenteId: { kitId: kit.id, componenteId: p1.id } }, data: { quantidade: 3 } });
+    const iconeMudou = iconeBlingDoProduto(await prisma.produto.findUnique({ where: { id: kit.id }, include: INCLUDE_DO_ICONE_BLING }));
+    conferir("icone depois de mudar a quantidade: selo de campos", iconeMudou.motivos, ["campos"]);
+    const patchesAntes = doMetodoBs(falso, "PATCH").length;
+    const sincronizado = await sincronizarProduto(kit.id, falso);
+    const patch = doMetodoBs(falso, "PATCH").slice(patchesAntes)[0];
+    conferir("sincronizar kit: ok e a composicao listada como alterada", [sincronizado.ok, sincronizado.alterados.map((item) => item.campo)], [true, ["composicao"]]);
+    conferir(
+      "sincronizar kit: PATCH so com a estrutura nova (P1 x3), no id do kit achado pelo codigo",
+      [Object.keys(patch?.corpo ?? {}), patch?.corpo?.estrutura?.componentes],
+      [["estrutura"], [{ produto: { id: ID_P1 }, quantidade: 3 }, { produto: { id: ID_P2 }, quantidade: 1 }]],
+    );
+    conferir("depois do envio o pop-up nao acusa mais a composicao", (await lerParaPopup(kit.id, falso)).diferencas.filter((diferenca) => diferenca.campo === "composicao").length, 0);
+
+    // Peca que nao existe no Bling: recusa sem POST.
+    const p3 = await prisma.produto.create({ data: { sku: "ZZ-BS-KP3", tituloBase: "Peca 3 (so no Rise)", tipo: "SIMPLES", conferido: true, blingId: "999000003" } });
+    const kit2 = await prisma.produto.create({ data: { sku: "ZZ-BS-KIT2", tituloBase: "Kit com peca faltando", precoVenda: "20.00", tipo: "COMPOSICAO" } });
+    await prisma.produtoComponente.createMany({ data: [{ kitId: kit2.id, componenteId: p1.id, quantidade: 1 }, { kitId: kit2.id, componenteId: p3.id, quantidade: 1 }] });
+    const falsoFalta = criarBlingFalso({ produtos: [pecaNoBling(ID_P1, "ZZ-BS-KP1")] });
+    const faltou = await cadastrarNoBling(kit2.id, falsoFalta);
+    conferir(
+      "cadastrar kit com peca que nao esta no Bling: ok false dizendo a peca, e nenhum POST",
+      [faltou.ok, faltou.erro?.includes("ZZ-BS-KP3"), doMetodoBs(falsoFalta, "POST").length],
+      [false, true, 0],
+    );
+
+    // Kit no Rise, mas o codigo e um produto SIMPLES no Bling: o Rise nao o transforma em kit.
+    const falsoSimples = criarBlingFalso({ produtos: [pecaNoBling(ID_P1, "ZZ-BS-KP1"), pecaNoBling(ID_P2, "ZZ-BS-KP2"), { id: ID_KIT, codigo: "ZZ-BS-KIT", nome: "Kit de teste do envio", preco: 30, formato: "S" }] });
+    const recusado = await sincronizarProduto(kit.id, falsoSimples);
+    conferir(
+      "sincronizar kit cujo codigo e simples no Bling: ok false e nenhum PATCH",
+      [recusado.ok, casaTexto(recusado.erro, /produto simples/), doMetodoBs(falsoSimples, "PATCH").length],
+      [false, true, 0],
+    );
+
+    // O pop-up de um kit do Bling cuja peca sumiu: erro de leitura, e nao "sem composicao".
+    const falsoSumiu = criarBlingFalso({
+      produtos: [pecaNoBling(ID_P1, "ZZ-BS-KP1"), { id: ID_KIT, codigo: "ZZ-BS-KIT", nome: "Kit", preco: 30, formato: "E", estrutura: { tipoEstoque: "V", componentes: [{ produto: { id: 15000000777 }, quantidade: 1 }] } }],
+    });
+    const lidoSumiu = await lerParaPopup(kit.id, falsoSumiu);
+    conferir("pop-up de kit com peca que sumiu do Bling: ok false com o motivo", [lidoSumiu.ok, casaTexto(lidoSumiu.erro, /nao existe mais/)], [false, true]);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

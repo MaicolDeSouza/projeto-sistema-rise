@@ -6,10 +6,11 @@ import {
   normalizarDoBling,
   normalizarDoRise,
   normalizarFornecedoresDoRise,
+  pecasDoRise,
 } from "@/lib/blingSync/campos";
 import { clienteBling } from "@/lib/blingSync/cliente";
 import { montarCorpoDeCadastro, montarCorpoParcial } from "@/lib/blingSync/corpo";
-import { buscarNoBling, lerProdutoDoRise } from "@/lib/blingSync/leitura";
+import { buscarNoBling, codigosDasPecasNoBling, lerProdutoDoRise } from "@/lib/blingSync/leitura";
 import { lerSaldosDoBling } from "@/lib/blingSync/saldos";
 import { prisma } from "@/lib/db";
 
@@ -182,6 +183,49 @@ async function recusarSeExisteInativo(cliente, produto) {
 
   const lido = resposta.dados?.data;
   if (lido && chaveDoCodigo(lido.codigo) === chaveDoCodigo(produto.sku) && lido.situacao !== "E") throw existeInativo();
+}
+
+// ---------------------------------------------------------------------------
+// Composicao (kit): as pecas achadas no Bling PELO CODIGO, neste envio
+// ---------------------------------------------------------------------------
+
+/**
+ * O id no Bling de cada peca do kit do Rise, achado pela busca por codigo FEITA AGORA (Emenda 11): o
+ * `blingId` guardado na peca nunca e usado, porque pode ser de um produto apagado e recriado la.
+ * Qualquer peca que falte, se repita ou seja ela mesma um kit no Bling recusa o envio inteiro ANTES da
+ * escrita: um kit com uma peca a menos no Bling venderia o que nao tem.
+ *
+ * @returns {Promise<{id: number, quantidade: number}[]>} na ordem de `pecasDoRise` (por codigo).
+ */
+async function acharPecasNoBling(cliente, produto) {
+  const pecas = pecasDoRise(produto);
+  if (pecas.length === 0) {
+    throw new FalhaDoEnvio("O kit está sem peças no Rise: preencha a aba Composição antes de enviar. Nada foi enviado.");
+  }
+  const achadas = [];
+  for (const peca of pecas) {
+    const achado = await buscar(cliente, peca.codigo);
+    if (achado.situacao === "duplicado") {
+      throw new FalhaDoEnvio(`A peça ${peca.codigo} aparece ${achado.quantidade} vezes no Bling: deixe só uma com esse código. Nada foi enviado.`);
+    }
+    if (achado.situacao !== "existe") {
+      throw new FalhaDoEnvio(`A peça ${peca.codigo} não foi achada entre os produtos ativos do Bling: cadastre-a (ou reative) lá antes do kit. Nada foi enviado.`);
+    }
+    if (achado.produto?.formato === "E") {
+      throw new FalhaDoEnvio(`A peça ${peca.codigo} é um kit no Bling, e kit dentro de kit não é enviado. Nada foi enviado.`);
+    }
+    achadas.push({ id: achado.id, quantidade: peca.quantidade });
+  }
+  return achadas;
+}
+
+/// Os codigos das pecas do kit que JA esta no Bling (para comparar a composicao). Falhou: nada e enviado.
+async function lerCodigosDasPecas(cliente, bling) {
+  try {
+    return await codigosDasPecasNoBling(cliente, bling);
+  } catch (erro) {
+    throw new FalhaDoEnvio(`Não foi possível ler a composição do kit no Bling, e nada foi enviado: ${mensagemDe(erro)}`);
+  }
 }
 
 /// Recusa o nome acima do limite do Bling, com o tamanho (contado em caracteres, nao em bytes).
@@ -498,11 +542,24 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling()) {
       }
       if (achado.situacao === "duplicado") throw recusaPorDuplicado(sku, achado.quantidade);
 
+      const codigosDasPecas = await lerCodigosDasPecas(cliente, achado.produto);
       const campos = normalizarDoRise(produto);
-      const mudaram = diferencas(campos, normalizarDoBling(achado.produto)).filter((diferenca) => diferenca.tipo === "diferente");
+      const mudaram = diferencas(campos, normalizarDoBling(achado.produto, { codigosDasPecas })).filter((diferenca) => diferenca.tipo === "diferente");
+
+      // Composicao diferente: so troca as pecas de um produto que JA e kit no Bling. Transformar um
+      // produto simples do Bling em kit (com estoque, anuncios e historico proprios) nao e feito pelo Rise.
+      let pecasNoBling;
+      if (mudaram.some((diferenca) => diferenca.campo === "composicao")) {
+        if (achado.produto?.formato !== "E") {
+          throw new FalhaDoEnvio(
+            `No Bling, o código ${sku} é um produto simples, e o Rise não transforma produto simples em kit lá (ele tem estoque e anúncios próprios). Faça a composição no Bling ou use outro código. Nada foi enviado.`,
+          );
+        }
+        pecasNoBling = await acharPecasNoBling(cliente, produto);
+      }
 
       if (mudaram.length > 0) {
-        const corpo = montarCorpoParcial(achado.produto, campos, mudaram.map((diferenca) => diferenca.campo));
+        const corpo = montarCorpoParcial(achado.produto, campos, mudaram.map((diferenca) => diferenca.campo), { pecasNoBling });
         if ("nome" in corpo) exigirNomeNoLimite(corpo.nome);
         await escrever(() => cliente.patch(`/produtos/${achado.id}`, corpo), "o envio dos campos");
         saida.alterados = mudaram.map((diferenca) => ({ campo: diferenca.campo, de: diferenca.bling, para: diferenca.rise }));
@@ -562,7 +619,11 @@ export async function cadastrarNoBling(produtoId, cliente = clienteBling()) {
       const campos = normalizarDoRise(produto);
       exigirNomeNoLimite(campos.nome);
 
-      const criado = await escrever(() => cliente.post("/produtos", montarCorpoDeCadastro(sku, campos)), "o cadastro do produto");
+      // Kit (pedido do dono em 07/10/2026: o kit criado no Rise vai ao Bling com a composicao): as pecas
+      // sao achadas no Bling ANTES do POST; faltando uma, nada e criado.
+      const pecasNoBling = produto.tipo === "COMPOSICAO" ? await acharPecasNoBling(cliente, produto) : undefined;
+
+      const criado = await escrever(() => cliente.post("/produtos", montarCorpoDeCadastro(sku, campos, { pecasNoBling })), "o cadastro do produto");
       blingId = idOuNull(criado.dados?.data?.id);
       if (!blingId) {
         throw new FalhaDoEnvio("O Bling aceitou o cadastro, mas não devolveu o id do produto. Confira no Bling antes de tentar de novo.");

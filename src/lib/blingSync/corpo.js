@@ -10,8 +10,23 @@ import { emCm } from "@/lib/integracoes/importarBling";
  *
  * Nunca entram no corpo: codigo (so o POST o leva, como identificador), situacao, imagens e
  * video (`midia`), `fornecedor` (so se grava por /produtos/fornecedores), `actionEstoque` (o
- * valor `Z` zera os saldos), categoria, variacoes, composicao e campos personalizados.
+ * valor `Z` zera os saldos), categoria, variacoes e campos personalizados.
+ *
+ * A `estrutura` (composicao do kit) so entra para KIT e com os ids das pecas que o ENVIO acabou de
+ * achar no Bling pelo codigo (`pecasNoBling`, Emenda 11): nunca um `blingId` guardado no Rise.
  */
+
+/// O tipo de estoque de um kit criado pelo Rise: "V" (virtual), o Bling calcula o saldo pelas pecas, a
+/// mesma conta do Rise (`estoqueDoKit`). Com "F" o kit teria estoque proprio, que ninguem lanca.
+const ESTOQUE_DO_KIT = "V";
+
+/// A `estrutura` do Bling a partir das pecas ja achadas la: `[{ produto: { id }, quantidade }]`.
+function estruturaDoKit(pecasNoBling, tipoEstoque) {
+  return {
+    tipoEstoque,
+    componentes: pecasNoBling.map((peca) => ({ produto: { id: peca.id }, quantidade: peca.quantidade })),
+  };
+}
 
 /**
  * Descricao do Rise (texto puro) em HTML para o `descricaoCurta` do Bling. Escapa tudo o que o
@@ -84,13 +99,20 @@ const CENTIMETROS = 1;
  * - Campo vazio (null) no Rise nunca entra, mesmo em `camposAlterados`: campo vazio no Rise
  *   nunca apaga nada no Bling. Grupo cujos campos alterados estao todos vazios nao vai.
  * - Id que nao e campo de envio e ignorado.
+ * - Composicao alterada: a `estrutura` vai INTEIRA (lista nova de pecas, com o `tipoEstoque` que o
+ *   Bling ja tinha, ou "V"), e so com `pecasNoBling` (os ids achados pelo codigo neste envio). Sem
+ *   eles a composicao nao vai: quem chama tem que resolver antes.
  *
  * Devolve `{}` quando nao ha nada a enviar. Nao muda `blingAtual`.
  */
-export function montarCorpoParcial(blingAtual, rise, camposAlterados) {
+export function montarCorpoParcial(blingAtual, rise, camposAlterados, { pecasNoBling } = {}) {
   const alterados = new Set(camposAlterados ?? []);
   const entra = (id) => alterados.has(id) && temValor(rise?.[id]);
   const corpo = {};
+
+  if (entra("composicao") && Array.isArray(pecasNoBling) && pecasNoBling.length > 0) {
+    corpo.estrutura = estruturaDoKit(pecasNoBling, blingAtual?.estrutura?.tipoEstoque || ESTOQUE_DO_KIT);
+  }
 
   for (const { id, destinos, converter } of CAMPOS_DA_RAIZ) {
     if (!entra(id)) continue;
@@ -152,9 +174,14 @@ function montarDimensoes(copia, original, rise) {
  * - sem saldo de estoque (o saldo entra depois, por lancamento em /estoques);
  * - sem `midia` (a foto fica para a VPS e o video para o teste da Tarefa 12).
  * O `nome` e obrigatorio no Bling: quem chama confere antes que o Rise o tem.
+ *
+ * Kit (o Rise tem composicao e `pecasNoBling` veio): `formato: "E"` e a `estrutura` com as pecas,
+ * estoque virtual. Sem `pecasNoBling` o corpo e de produto simples: quem chama recusa o kit antes.
  */
-export function montarCorpoDeCadastro(sku, rise) {
-  const corpo = { codigo: sku, tipo: "P", formato: "S", situacao: "A" };
+export function montarCorpoDeCadastro(sku, rise, { pecasNoBling } = {}) {
+  const kit = temValor(rise?.composicao) && Array.isArray(pecasNoBling) && pecasNoBling.length > 0;
+  const corpo = { codigo: sku, tipo: "P", formato: kit ? "E" : "S", situacao: "A" };
+  if (kit) corpo.estrutura = estruturaDoKit(pecasNoBling, ESTOQUE_DO_KIT);
 
   for (const { id, destinos, converter } of CAMPOS_DA_RAIZ) {
     if (!temValor(rise?.[id])) continue;

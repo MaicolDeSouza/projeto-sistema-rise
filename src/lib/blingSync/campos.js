@@ -16,7 +16,11 @@ import { emCm, htmlParaTexto, unidadeDe } from "@/lib/integracoes/importarBling"
 /**
  * Os campos que o Rise envia ao Bling, na ordem em que a tela os mostra e em que a
  * assinatura os le. NUNCA entram: codigo (SKU), saldo de estoque, situacao ativo/inativo,
- * imagens, categorias, variacoes, composicao e campos personalizados.
+ * imagens, categorias, variacoes e campos personalizados.
+ *
+ * A composicao (kit) entrou em 07/10/2026 (pedido do dono: o kit criado no Rise vai ao Bling com as
+ * pecas). Ela e comparada como TEXTO ("CODIGO x QTD; ..."), para "igual" continuar sendo `===` e o
+ * pop-up a mostrar como qualquer outro campo; no corpo vai como `estrutura` (ver `corpo.js`).
  *
  * O video fica de fora por ora (Emenda 2): enviar `midia.video` obriga a mandar tambem
  * `midia.imagens`, e ainda nao se sabe se isso apagaria as fotos do Bling. A Tarefa 12
@@ -41,7 +45,60 @@ export const CAMPOS_DE_ENVIO = [
   { id: "cest", rotulo: "CEST" },
   { id: "spedTipoItem", rotulo: "Tipo SPED" },
   { id: "percentualTributos", rotulo: "% de tributos" },
+  { id: "composicao", rotulo: "Composição" },
 ];
+
+// ---------------------------------------------------------------------------
+// Composicao (kit): as pecas como codigo + quantidade
+// ---------------------------------------------------------------------------
+
+/// O codigo de uma peca para comparar: sem espacos nas pontas e em maiusculas (o Bling e o Rise nem
+/// sempre guardam o SKU com a mesma caixa, a mesma folga da busca por codigo).
+const codigoDaPeca = (codigo) => String(codigo ?? "").trim().toLocaleUpperCase("pt-BR");
+
+/**
+ * As pecas do kit do Rise como `[{codigo, quantidade}]`, em ordem de codigo (a ordem da aba nao muda o
+ * kit). Produto simples, ou kit sem pecas, devolve lista vazia. Entrada: a linha do Prisma com
+ * `componentes: [{ quantidade, componente: { sku } }]`.
+ */
+export function pecasDoRise(produto) {
+  if (produto?.tipo !== "COMPOSICAO") return [];
+  return (produto.componentes ?? [])
+    .map((peca) => ({ codigo: codigoDaPeca(peca.componente?.sku), quantidade: Number(peca.quantidade) }))
+    .filter((peca) => peca.codigo && Number.isInteger(peca.quantidade) && peca.quantidade > 0)
+    .sort((a, b) => (a.codigo < b.codigo ? -1 : a.codigo > b.codigo ? 1 : 0));
+}
+
+/// A lista de pecas como o texto comparado e mostrado: "120706 x1; 120732 x2". Vazia vira null.
+export function textoDaComposicao(pecas) {
+  const lista = [...(pecas ?? [])].sort((a, b) => (a.codigo < b.codigo ? -1 : a.codigo > b.codigo ? 1 : 0));
+  return lista.length ? lista.map((peca) => `${peca.codigo} x${peca.quantidade}`).join("; ") : null;
+}
+
+/**
+ * Os ids das pecas da `estrutura` de um produto do Bling (formato "E"), sem repetir. A estrutura so
+ * traz o id de cada peca; o codigo vem de outra leitura (`GET /produtos/{id}`), feita por quem chama.
+ */
+export function idsDasPecasDoBling(bling) {
+  if (bling?.formato !== "E") return [];
+  const ids = (bling.estrutura?.componentes ?? []).map((item) => Number(item?.produto?.id)).filter((id) => Number.isSafeInteger(id) && id > 0);
+  return [...new Set(ids)];
+}
+
+/**
+ * A composicao do produto do Bling no mesmo texto do Rise. `codigosDasPecas` (Map id -> codigo) vem da
+ * leitura de cada peca. Peca sem codigo resolvido aparece como "id N": nunca some da comparacao (sumir
+ * faria um kit de 3 pecas parecer igual a um de 2).
+ */
+function composicaoDoBling(bling, codigosDasPecas) {
+  if (bling?.formato !== "E") return null;
+  const pecas = (bling.estrutura?.componentes ?? []).map((item) => {
+    const id = Number(item?.produto?.id);
+    const codigo = codigosDasPecas?.get(id);
+    return { codigo: codigo ? codigoDaPeca(codigo) : `id ${id}`, quantidade: Number(item?.quantidade) };
+  });
+  return textoDaComposicao(pecas);
+}
 
 // ---------------------------------------------------------------------------
 // Leitura de um valor solto
@@ -137,6 +194,7 @@ export function normalizarDoRise(produto) {
     cest: soDigitosOuNull(p.cest),
     spedTipoItem: texto(p.spedTipoItem),
     percentualTributos: positivoOuNull(p.percentualTributos, 2),
+    composicao: textoDaComposicao(pecasDoRise(p)),
   };
 }
 
@@ -145,8 +203,11 @@ export function normalizarDoRise(produto) {
  * como a importacao o le (`mapearProduto`): descricao do HTML de `descricaoCurta`, peso
  * bruto e, na falta dele, o liquido, medidas convertidas para cm, unidade na lista fechada
  * do Rise e minimo/maximo de estoque zero como vazio.
+ *
+ * `codigosDasPecas` (Map id do Bling -> codigo) so importa para kit (formato "E"): e com ele que a
+ * estrutura, que so traz ids, vira o texto comparado com o Rise.
  */
-export function normalizarDoBling(bling) {
+export function normalizarDoBling(bling, { codigosDasPecas } = {}) {
   const b = bling ?? {};
   const tributacao = b.tributacao ?? {};
   const dimensoes = b.dimensoes ?? {};
@@ -170,6 +231,7 @@ export function normalizarDoBling(bling) {
     cest: soDigitosOuNull(tributacao.cest),
     spedTipoItem: texto(tributacao.spedTipoItem),
     percentualTributos: positivoOuNull(tributacao.percentualTributos, 2),
+    composicao: composicaoDoBling(b, codigosDasPecas),
   };
 }
 
@@ -248,7 +310,12 @@ export function fornecedoresSemCnpj(vinculos) {
  */
 export function assinaturaDoRise(campos, fornecedores) {
   const conteudo = {};
-  for (const { id } of CAMPOS_DE_ENVIO) conteudo[id] = campos?.[id] ?? null;
+  for (const { id } of CAMPOS_DE_ENVIO) {
+    // A composicao so entra quando existe: com ela sempre presente, a assinatura de TODO produto
+    // simples ja sincronizado mudaria, e o icone de todos acenderia o "!" sem nada ter mudado.
+    if (id === "composicao" && (campos?.[id] ?? null) === null) continue;
+    conteudo[id] = campos?.[id] ?? null;
+  }
   conteudo.fornecedores = (fornecedores ?? []).map((fornecedor) => ({
     cnpj: fornecedor.cnpj,
     codigo: fornecedor.codigo ?? null,

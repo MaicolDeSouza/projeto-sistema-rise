@@ -54,6 +54,11 @@ export const INCLUDE_DO_ICONE_BLING = {
     orderBy: [{ padrao: "desc" }, { id: "asc" }],
   },
   _count: { select: { movimentosEstoque: { where: { enviadoAoBlingEm: null } } } },
+  // As pecas do kit entram na assinatura (composicao): sem elas, todo kit sincronizado acenderia o "!".
+  componentes: {
+    select: { quantidade: true, componente: { select: { sku: true } } },
+    orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }],
+  },
 };
 
 /**

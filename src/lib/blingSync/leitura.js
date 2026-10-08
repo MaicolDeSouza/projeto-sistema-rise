@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/db";
 import { config } from "@/lib/integracoes/config";
-import { CAMPOS_DE_ENVIO, diferencas, fornecedoresSemCnpj, normalizarDoBling, normalizarDoRise } from "@/lib/blingSync/campos";
+import {
+  CAMPOS_DE_ENVIO,
+  diferencas,
+  fornecedoresSemCnpj,
+  idsDasPecasDoBling,
+  normalizarDoBling,
+  normalizarDoRise,
+} from "@/lib/blingSync/campos";
 import { clienteBling, exigirCodigoLiberado } from "@/lib/blingSync/cliente";
 
 /**
@@ -102,6 +109,37 @@ export async function buscarNoBling(cliente, codigo) {
   return { situacao: "existe", id, produto, quantidade: 1 };
 }
 
+/// Quantas pecas de um kit do Bling a leitura resolve (uma chamada por peca, a 3 por segundo na conta).
+const MAXIMO_PECAS_LIDAS = 20;
+
+/**
+ * O codigo de cada peca de um kit do Bling (formato "E"), por `GET /produtos/{id}`: a `estrutura` so
+ * traz o id, e a comparacao com o Rise e por codigo. Produto que nao e kit devolve um Map vazio sem
+ * chamar nada.
+ *
+ * Falha de UMA peca (HTTP, 404, sem codigo) LANCA: a composicao ficaria incompleta, e um kit lido pela
+ * metade pareceria diferente do Rise (e o envio trocaria pecas que estao certas).
+ *
+ * @param {ReturnType<typeof clienteBling>} cliente
+ * @param {object} bling o produto completo do Bling
+ * @returns {Promise<Map<number, string>>} id da peca -> codigo
+ */
+export async function codigosDasPecasNoBling(cliente, bling) {
+  const ids = idsDasPecasDoBling(bling);
+  const codigos = new Map();
+  if (ids.length > MAXIMO_PECAS_LIDAS) {
+    throw new ErroDoBling(`O kit tem ${ids.length} peças no Bling, e o Rise lê no máximo ${MAXIMO_PECAS_LIDAS}.`);
+  }
+  for (const id of ids) {
+    const resposta = await cliente.get(`/produtos/${id}`);
+    if (resposta?.status === 404) throw new ErroDoBling(`Uma peça do kit (id ${id} no Bling) não existe mais lá. Confira a composição no Bling.`);
+    const codigo = String(exigirResposta(resposta).dados?.data?.codigo ?? "").trim();
+    if (!codigo) throw new ErroDoBling(`Uma peça do kit (id ${id} no Bling) está sem código. Confira a composição no Bling.`);
+    codigos.set(id, codigo);
+  }
+  return codigos;
+}
+
 // ---------------------------------------------------------------------------
 // O Rise: o produto, em ordem fixa
 // ---------------------------------------------------------------------------
@@ -130,6 +168,11 @@ export async function lerProdutoDoRise(produtoId) {
       movimentosEstoque: {
         where: { enviadoAoBlingEm: null },
         orderBy: [{ criadoEm: "asc" }, { id: "asc" }],
+      },
+      // As pecas do kit (so o codigo e a quantidade): a composicao e comparada e enviada por codigo.
+      componentes: {
+        select: { quantidade: true, componente: { select: { sku: true } } },
+        orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }],
       },
     },
   });
@@ -240,7 +283,15 @@ export async function lerParaPopup(produtoId, cliente = clienteBling()) {
     return resultado({ ...doRise, ok: true, situacao: "nao_existe" });
   }
 
-  const lista = diferencas(normalizarDoRise(produto), normalizarDoBling(achado.produto));
+  // Kit no Bling: os codigos das pecas, para a composicao ser comparada com a do Rise.
+  let codigosDasPecas;
+  try {
+    codigosDasPecas = await codigosDasPecasNoBling(cliente, achado.produto);
+  } catch (erro) {
+    return resultado({ ...doRise, ok: false, situacao: "existe", erro: textoDoErro(erro) });
+  }
+
+  const lista = diferencas(normalizarDoRise(produto), normalizarDoBling(achado.produto, { codigosDasPecas }));
   // `Number(null)` e 0: sem o saldo no produto lido, fica null (cai no ultimo guardado), nunca 0.
   const bruto = achado.produto.estoque?.saldoVirtualTotal;
   const saldoLido = bruto === null || bruto === undefined || bruto === "" ? null : Number(bruto);
