@@ -206,6 +206,9 @@ try {
       "Texto.\n\nNota fiscal.\nEnvio rapido.");
     conferir("sem frases nao sobra linha", montarDescricaoML({ descricao: "Texto.", frases: [] }), "Texto.");
     conferir("sem descricao, so as frases", montarDescricaoML({ descricao: "  ", frases: ["Nota fiscal."] }), "Nota fiscal.");
+    // Teste real de 08/10/2026: o ML recusou "<b>tag</b>" ("The description must be in plain text", nas
+    // posicoes das etiquetas). Sai so o que tem forma de etiqueta; "< 5V" e "<5V" sao texto e ficam.
+    conferir("descricao: etiqueta HTML sai, o resto fica", montarDescricaoML({ descricao: "Linha 1 com <b>tag</b> & e-comercial\nTensão <5V e < 3,3 V; a<b", frases: ["<br>Nota fiscal."] }), "Linha 1 com tag & e-comercial\nTensão <5V e < 3,3 V; a<b\n\nNota fiscal.");
     conferir("sem descricao nem frases, texto vazio", montarDescricaoML({ descricao: "  ", frases: undefined }), "");
     conferir("contexto de teste: descricao longa com Itens inclusos e Garantia",
       [a.descricaoBase.length >= 400, a.descricaoBase.includes("Itens inclusos: (Cod:100101)"), a.descricaoBase.includes("Garantia:")], [true, true, true]);
