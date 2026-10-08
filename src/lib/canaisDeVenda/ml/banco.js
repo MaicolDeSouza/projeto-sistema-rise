@@ -115,12 +115,14 @@ function rascunhoDoAnuncio(anuncio) {
     tipoAnuncio: dados.tipoAnuncio ?? "gold_special",
     condicao: dados.condicao ?? "new",
     categoriaId: anuncio.categoriaExternaId ?? null,
+    categoriaNome: dados.categoriaNome ?? null,
     preco: dados.preco ?? null,
     estoque: dados.estoque ?? null,
     imagens: dados.imagens ?? [],
     descricao: anuncio.descricao ?? "",
     atributos: anuncio.atributos ?? {},
-    envio: { pesoKg: null, alturaCm: null, larguraCm: null, comprimentoCm: null, modo: "me2", freteGratis: false, retirada: false, ...dados.envio },
+    // `logistica` e da fase 2: o anuncio gravado antes dela abre com o padrao da conta.
+    envio: { pesoKg: null, alturaCm: null, larguraCm: null, comprimentoCm: null, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false, ...dados.envio },
     composicao: dados.composicao ?? null,
   };
 }

@@ -17,4 +17,12 @@ export const TIPOS_DE_ANUNCIO_ML = [
   { valor: "gold_pro", rotulo: "Premium" },
 ];
 
-export const ROTULO_DO_TIPO_ML = Object.fromEntries(TIPOS_DE_ANUNCIO_ML.map(({ valor, rotulo }) => [valor, rotulo]));
+// Tipo de logistica do anuncio: muda a tarifa fixa do ML (`listing_prices`) e o frete do vendedor.
+// O padrao da conta e coleta/agencia (`xd_drop_off`, investigacao A3).
+export const LOGISTICAS_ML = [
+  { valor: "xd_drop_off", rotulo: "Mercado Envios (coleta/agência)" },
+  { valor: "fulfillment", rotulo: "Full" },
+  { valor: "self_service", rotulo: "Flex" },
+];
+
+export const ROTULO_DO_TIPO_ML =Object.fromEntries(TIPOS_DE_ANUNCIO_ML.map(({ valor, rotulo }) => [valor, rotulo]));

@@ -217,9 +217,9 @@ try {
     conferir("simples: family_name e a marca quando nao ha modelo", simples.familyName, "GENERICA");
     conferir("simples: produto e descricao inteira do produto", [simples.produtoId, simples.descricao], ["a", a.descricaoBase]);
     conferir("simples: os campos do rascunho", Object.keys(simples).sort(),
-      ["atributos", "categoriaId", "composicao", "condicao", "descricao", "envio", "estoque", "familyName", "imagens", "preco", "produtoId", "tipoAnuncio", "titulo"]);
+      ["atributos", "categoriaId", "categoriaNome", "composicao", "condicao", "descricao", "envio", "estoque", "familyName", "imagens", "preco", "produtoId", "tipoAnuncio", "titulo"]);
     conferir("simples: envio pelo Mercado Envios 2, com as medidas do produto", simples.envio,
-      { pesoKg: 0.001, alturaCm: 1, larguraCm: 1, comprimentoCm: 2, modo: "me2", freteGratis: false, retirada: false });
+      { pesoKg: 0.001, alturaCm: 1, larguraCm: 1, comprimentoCm: 2, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false });
     conferir("simples: sem composicao", simples.composicao, null);
     conferir("simples: foto principal vem primeiro mesmo fora de ordem",
       rascunhoInicial({ principal: { ...a, imagens: [...a.imagens].reverse() }, produtosPorId: {}, composicao: null }).imagens, ["img-a1", "img-a2"]);
@@ -379,7 +379,7 @@ try {
     // O cliente tira o GTIN ao virar kit, mas o servidor aceita o que vier: o payload barra tambem.
     conferir("payload do kit com GTIN no rascunho: o GTIN fica de fora",
       montarPayloadML({ ...kitOk, atributos: { ...kitOk.atributos, GTIN: "7890000000001" } }, ctx).item.attributes.some((x) => x.id === "GTIN"), false);
-    conferir("payload: atributos da ficha e o SKU", payload.item.attributes,
+    conferir("payload: atributos da ficha e o SKU", payload.item.attributes.filter((x) => !x.id.startsWith("SELLER_PACKAGE_")),
       [{ id: "BRAND", value_name: "GENERICA" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
     conferir("preco vai a parte", payload.preco, { amount: 0.5, currency_id: "BRL" });
     conferir("descricao final no payload", payload.descricao.plain_text, montarDescricaoML({ ...simples, frases: ctx.frases }));
@@ -389,12 +389,12 @@ try {
       ["Resistor 1K 1/4W", "GENERICA", "MLB1234", 100, "BRL", "gold_special", "new"]);
     // Marca e Modelo vao em MAIUSCULAS (acento incluso); os demais atributos ficam como foram digitados.
     conferir("payload: marca e modelo em maiusculas, o resto intacto",
-      montarPayloadML({ ...base, atributos: { BRAND: "Arduino", MODEL: "uno r3 ação", COLOR: "Azul", GTIN: "7890000000001" } }, ctx).item.attributes,
+      montarPayloadML({ ...base, atributos: { BRAND: "Arduino", MODEL: "uno r3 ação", COLOR: "Azul", GTIN: "7890000000001" } }, ctx).item.attributes.filter((x) => !x.id.startsWith("SELLER_PACKAGE_")),
       [{ id: "BRAND", value_name: "ARDUINO" }, { id: "MODEL", value_name: "UNO R3 AÇÃO" }, { id: "COLOR", value_name: "Azul" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
-    conferir("payload: marca em branco continua fora", montarPayloadML({ ...base, atributos: { BRAND: "  ", MODEL: "m1" } }, ctx).item.attributes.map((x) => x.id), ["MODEL", "SELLER_SKU"]);
+    conferir("payload: marca em branco continua fora", montarPayloadML({ ...base, atributos: { BRAND: "  ", MODEL: "m1" } }, ctx).item.attributes.filter((x) => !x.id.startsWith("SELLER_PACKAGE_")).map((x) => x.id), ["MODEL", "SELLER_SKU"]);
     conferir("payload: titulo cortado em 60",montarPayloadML({ ...base, titulo: "X".repeat(70) }, ctx).item.title, "X".repeat(60));
     conferir("payload: envio com dimensoes em cm e peso em gramas", payload.item.shipping,
-      { mode: "me2", free_shipping: false, local_pick_up: false, dimensions: "1x1x2,1" });
+      { mode: "me2", logistic_type: "xd_drop_off", free_shipping: false, local_pick_up: false, dimensions: "1x1x2,1" });
     conferir("payload: frete gratis e retirada", (({ free_shipping, local_pick_up }) => [free_shipping, local_pick_up])(montarPayloadML(comEnvio({ freteGratis: true, retirada: true }), ctx).item.shipping), [true, true]);
     conferir("payload: peso do kit em gramas", montarPayloadML(kitOk, ctx).item.shipping.dimensions, "1x1x2,5");
     conferir("payload: sem medida, sem dimensions", "dimensions" in montarPayloadML(comEnvio({ alturaCm: null }), ctx).item.shipping, false);
@@ -620,7 +620,7 @@ try {
         const gravado = await anuncioDe(completo.id);
         conferir("cada campo mora na sua coluna", [gravado.titulo, gravado.descricao, gravado.categoriaExternaId, gravado.produtoId, ordenado(gravado.atributos)],
           [novo.rascunho.titulo, novo.rascunho.descricao, "MLB1234", p1.id, ordenado(novo.rascunho.atributos)]);
-        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["composicao", "condicao", "envio", "estoque", "familyName", "imagens", "preco", "tipoAnuncio"]);
+        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["categoriaNome", "composicao", "condicao", "envio", "estoque", "familyName", "imagens", "preco", "tipoAnuncio"]);
         conferir("numero escrito como texto vira numero, e vazio vira null", [gravado.dados.preco, gravado.dados.estoque], [12.5, null]);
 
         // Atualizar: o mesmo anuncio, e o que o editor nao conhece (a etapa da fase 3) fica.
@@ -951,6 +951,78 @@ try {
       [false, true, true, true],
     );
     conferir("lerCategoriaCompleta: atributos ja normalizados", (await lerCategoriaCompleta(falso, "MLB99779")).atributos[0].id, "BRAND");
+
+    console.log("\nFase 2: rascunho, validacao com categoria e payload");
+    const { LOGISTICAS_ML } = await import("../src/lib/canaisDeVenda/ml/rotulos.js");
+    const { limiteDoTitulo } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
+    const categoriaCompleta = await lerCategoriaCompleta(falso, "MLB99779");
+    const principal = {
+      id: "p1", sku: "100101", tituloBase: "PLACA UNO", conferido: true, blingId: "1", precoVenda: 49, estoque: 20,
+      pesoKg: 0.05, alturaCm: 5.5, larguraCm: 8, comprimentoCm: 8, marca: "ARDUINO", modelo: "UNO", ean: "", imagens: [],
+    };
+    const base = rascunhoInicial({ principal, produtosPorId: { p1: principal }, composicao: null });
+    conferir("rascunho novo: logistica padrao e categoriaNome", [base.envio.logistica, base.categoriaNome], ["xd_drop_off", null]);
+    conferir("LOGISTICAS_ML: tres opcoes com xd_drop_off primeiro", LOGISTICAS_ML.map((l) => l.valor), ["xd_drop_off", "fulfillment", "self_service"]);
+    conferir("esquema: aceita logistica e categoriaNome", RascunhoMLSchema.safeParse({ ...base, categoriaNome: "Placas", envio: { ...base.envio, logistica: "fulfillment" } }).success, true);
+    conferir("esquema: recusa logistica desconhecida", RascunhoMLSchema.safeParse({ ...base, envio: { ...base.envio, logistica: "moto" } }).success, false);
+    const daFase1 = { ...base, envio: { ...base.envio } };
+    delete daFase1.categoriaNome;
+    delete daFase1.envio.logistica;
+    conferir("esquema: rascunho da fase 1 (sem os dois) ganha os padroes", (({ categoriaNome, envio }) => [categoriaNome, envio.logistica])(RascunhoMLSchema.parse(daFase1)), [null, "xd_drop_off"]);
+
+    const comCategoria = { ...base, categoriaId: "MLB99779", preco: 49, imagens: ["f1"], descricao: "x", atributos: { BRAND: "ARDUINO", MODEL: "UNO" }, envio: { ...base.envio, alturaCm: 5.5 } };
+    const ctx = { produtos: { p1: principal }, codigoEmUso: null, frases: [], categoria: categoriaCompleta, categoriaErro: null };
+    const problemasFase2 = validarRascunhoML(comCategoria, ctx);
+    conferir("validacao: GTIN ou motivo e bloqueante com categoria lida", problemasFase2.filter((p) => p.campo === "GTIN").map((p) => [p.aba, p.bloqueante]), [["ficha", true]]);
+    conferir("validacao: aviso de arredondamento no envio", problemasFase2.find((p) => p.campo === "arredondamento")?.problema, "O Mercado Envios recebe inteiros: altura 5,5 cm → 6 cm.");
+    conferir("validacao: arredondamento e alerta na aba Envio", (({ aba, bloqueante }) => [aba, bloqueante])(problemasFase2.find((p) => p.campo === "arredondamento")), ["envio", false]);
+    conferir(
+      "validacao: categoria nao folha e bloqueante",
+      validarRascunhoML({ ...comCategoria, categoriaId: "MLB1648" }, { ...ctx, categoria: await lerCategoriaCompleta(falso, "MLB1648") }).some((p) => p.campo === "categoria" && p.bloqueante),
+      true,
+    );
+    conferir("validacao: fotos acima do maximo da categoria", validarRascunhoML({ ...comCategoria, imagens: Array.from({ length: 13 }, (_, i) => `f${i}`) }, ctx).some((p) => p.campo === "imagens" && p.bloqueante), true);
+    conferir("validacao: categoria com erro de leitura e alerta", validarRascunhoML(comCategoria, { ...ctx, categoria: undefined, categoriaErro: "HTTP 500" }).find((p) => p.campo === "categoria")?.bloqueante, false);
+    conferir("validacao: categoria lida de OUTRO codigo nao vale", validarRascunhoML({ ...comCategoria, categoriaId: "MLB1648" }, ctx).some((p) => p.campo === "categoria" && p.bloqueante), false);
+    conferir(
+      "limiteDoTitulo: da categoria, ou 60 sem ela",
+      [limiteDoTitulo(comCategoria, { ...ctx, categoria: { ...categoriaCompleta, limiteTitulo: 70 } }), limiteDoTitulo(comCategoria, { ...ctx, categoria: undefined })],
+      [70, 60],
+    );
+    conferir("validacao: titulo de 65 cabe no limite 70 da categoria", validarRascunhoML({ ...comCategoria, titulo: "A".repeat(65) }, { ...ctx, categoria: { ...categoriaCompleta, limiteTitulo: 70 } }).some((p) => p.campo === "titulo"), false);
+    conferir("validacao: sem categoria lida, o alerta antigo de GTIN continua", validarRascunhoML(comCategoria, { ...ctx, categoria: undefined }).find((p) => p.campo === "GTIN")?.bloqueante, false);
+
+    const payloadFase2 = montarPayloadML({ ...comCategoria, envio: { ...comCategoria.envio, alturaCm: 5.5, larguraCm: 8, comprimentoCm: 8, pesoKg: 0.05 } }, ctx);
+    conferir(
+      "payload: SELLER_PACKAGE_* inteiros em cm e g, logistic_type",
+      [
+        ...["SELLER_PACKAGE_HEIGHT", "SELLER_PACKAGE_WIDTH", "SELLER_PACKAGE_LENGTH", "SELLER_PACKAGE_WEIGHT"].map((id) => payloadFase2.item.attributes.find((a) => a.id === id)?.value_name),
+        payloadFase2.item.shipping.logistic_type,
+      ],
+      ["6 cm", "8 cm", "8 cm", "50 g", "xd_drop_off"],
+    );
+    // `base` herda as quatro medidas do produto: tirar o peso e o que deixa o pacote incompleto.
+    conferir(
+      "payload: sem medida completa nao manda SELLER_PACKAGE_*",
+      montarPayloadML({ ...base, envio: { ...base.envio, pesoKg: null } }, ctx).item.attributes.some((a) => a.id.startsWith("SELLER_PACKAGE")),
+      false,
+    );
+
+    // No banco: os dois campos novos vao e voltam, e o anuncio da fase 1 (sem eles) abre com os padroes.
+    await limpar();
+    const pf2 = await prisma.produto.create({ data: { sku: "ZZ-ML-F2", tituloBase: "ZZ Fase 2", conferido: true, blingId: "999" } });
+    const ctxF2 = await contextoDosProdutos([pf2.id]);
+    const rascF2 = rascunhoInicial({ principal: ctxF2[pf2.id], produtosPorId: ctxF2, composicao: null });
+    const salvoF2 = await salvarRascunhoML(null, { ...rascF2, categoriaNome: "Placas", envio: { ...rascF2.envio, logistica: "fulfillment" } });
+    const lidoF2 = await carregarAnuncioML(salvoF2.id);
+    conferir("banco: categoriaNome e logistica voltam", [salvoF2.ok, lidoF2.rascunho.categoriaNome, lidoF2.rascunho.envio.logistica], [true, "Placas", "fulfillment"]);
+    const dadosDaFase1 = (await prisma.anuncio.findUnique({ where: { id: salvoF2.id } })).dados;
+    delete dadosDaFase1.categoriaNome;
+    delete dadosDaFase1.envio.logistica;
+    await prisma.anuncio.update({ where: { id: salvoF2.id }, data: { dados: dadosDaFase1 } });
+    const antigoF2 = await carregarAnuncioML(salvoF2.id);
+    conferir("banco: anuncio da fase 1 abre com xd_drop_off e sem nome de categoria", [antigoF2.rascunho.envio.logistica, antigoF2.rascunho.categoriaNome], ["xd_drop_off", null]);
+    await limpar();
 
     // Fase 2: as proximas tarefas entram aqui, dentro deste bloco.
   }

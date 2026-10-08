@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { LOGISTICAS_ML } from "./rotulos";
+
 /**
  * Forma do rascunho de um anuncio do Mercado Livre (ver `rascunho.js`) quando ele chega da
  * tela para ser salvo. Confere o FORMATO e converte numeros; regra de negocio (titulo longo,
@@ -30,6 +32,7 @@ const ItemDaComposicao = z.object({
 export const LIMITES_ML = {
   titulo: 200,
   familyName: 120,
+  categoriaNome: 200,
   descricao: 50000,
   codigoDoKit: 64,
   atributos: 40,
@@ -48,6 +51,8 @@ export const RascunhoMLSchema = z.object({
   tipoAnuncio: z.enum(["gold_special", "gold_pro"]),
   condicao: z.enum(["new", "used"]),
   categoriaId: z.string().nullable(),
+  // Os dois da fase 2 tem padrao: um editor aberto antes dela manda o rascunho sem eles.
+  categoriaNome: z.string().max(LIMITES_ML.categoriaNome).nullable().default(null),
   preco: numeroOuNulo,
   estoque: numeroOuNulo,
   imagens: z.array(z.string().max(LIMITES_ML.idDeImagem)).max(LIMITES_ML.imagens),
@@ -61,6 +66,7 @@ export const RascunhoMLSchema = z.object({
     larguraCm: numeroOuNulo,
     comprimentoCm: numeroOuNulo,
     modo: z.string().max(LIMITES_ML.modoDeEnvio),
+    logistica: z.enum(LOGISTICAS_ML.map((opcao) => opcao.valor)).default("xd_drop_off"),
     freteGratis: z.boolean(),
     retirada: z.boolean(),
   }),

@@ -144,6 +144,8 @@ export function rascunhoInicial({ principal, produtosPorId, composicao }) {
     tipoAnuncio: "gold_special",
     condicao: "new",
     categoriaId: null,
+    // So para mostrar: o nome que veio com a sugestao. Digitar o codigo a mao apaga o nome.
+    categoriaNome: null,
     preco: composicao ? null : (principal.precoVenda ?? null),
     estoque,
     imagens,
@@ -152,6 +154,7 @@ export function rascunhoInicial({ principal, produtosPorId, composicao }) {
     envio: {
       ...medidas,
       modo: "me2",
+      logistica: "xd_drop_off",
       freteGratis: false,
       retirada: false,
     },

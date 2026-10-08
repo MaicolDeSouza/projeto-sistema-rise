@@ -48,6 +48,21 @@ function dimensoesDoEnvio(envio) {
 }
 
 /**
+ * As medidas do pacote para o ME2 em coleta/agencia (`SELLER_PACKAGE_*`, investigacao A7): so
+ * inteiros, em cm e g, e o ML recusa decimal. Os cm sobem (uma caixa de 5,5 cm nao cabe em 5) e o
+ * peso vai ao grama mais perto. Sem uma das quatro medidas nao vai nenhuma, como `dimensions`.
+ */
+function atributosDaEmbalagem(envio) {
+  if (medidasFaltando(envio).length > 0) return [];
+  return [
+    { id: "SELLER_PACKAGE_HEIGHT", value_name: `${Math.ceil(Number(envio.alturaCm))} cm` },
+    { id: "SELLER_PACKAGE_WIDTH", value_name: `${Math.ceil(Number(envio.larguraCm))} cm` },
+    { id: "SELLER_PACKAGE_LENGTH", value_name: `${Math.ceil(Number(envio.comprimentoCm))} cm` },
+    { id: "SELLER_PACKAGE_WEIGHT", value_name: `${Math.round(Number(envio.pesoKg) * 1000)} g` },
+  ];
+}
+
+/**
  * @param {object} rascunho rascunho do anuncio (ver `rascunho.js`)
  * @param {{produtos: object, frases: string[]}} contexto produtos por id e frases fixas do canal
  */
@@ -62,9 +77,10 @@ export function montarPayloadML(rascunho, contexto) {
   // GTIN e o codigo de barras da peca avulsa, e kit nao o leva: a tela o tira ao virar kit, mas o
   // servidor grava o que chegar, e a previa e o envio saem daqui.
   const atributos = Object.entries(rascunho.atributos ?? {})
-    .filter(([id, valor]) => id !== "SELLER_SKU" && !(rascunho.composicao && id === "GTIN") && texto(valor))
+    .filter(([id, valor]) => id !== "SELLER_SKU" && !id.startsWith("SELLER_PACKAGE_") && !(rascunho.composicao && id === "GTIN") && texto(valor))
     .map(([id, valor]) => ({ id, value_name: EM_MAIUSCULAS.has(id) ? maiusculas(valor) : texto(valor) }));
   if (sku) atributos.push({ id: "SELLER_SKU", value_name: sku });
+  atributos.push(...atributosDaEmbalagem(envio));
 
   const fotos = (rascunho.imagens ?? []).map((arquivoId, indice) => ({ arquivoId, nome: nomeDaFoto(titulo, indice) }));
 
@@ -85,6 +101,7 @@ export function montarPayloadML(rascunho, contexto) {
       attributes: atributos,
       shipping: {
         mode: envio.modo ?? "me2",
+        logistic_type: envio.logistica ?? "xd_drop_off",
         free_shipping: Boolean(envio.freteGratis),
         local_pick_up: Boolean(envio.retirada),
         ...(dimensions ? { dimensions } : {}),
