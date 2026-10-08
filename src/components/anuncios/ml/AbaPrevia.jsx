@@ -41,16 +41,22 @@ export default function AbaPrevia({ rascunho, contexto, irPara, todosProblemas }
 
   const json = jsonDoPayload(rascunho, contexto);
   const descricaoFinal = montarDescricaoML({ descricao: rascunho.descricao, frases: contexto.frases });
+  const categoria = contexto.categoria && contexto.categoria.id === rascunho.categoriaId ? contexto.categoria : null;
 
   return (
     <div className="space-y-6">
+      <p className="text-xs text-suave">
+        Categoria: {categoria ? categoria.caminho.join(" > ") : "não lida no Mercado Livre"}
+      </p>
       {bloqueantes > 0 ? (
         <p className="text-sm font-semibold text-red-700">
           {bloqueantes} problema(s) bloqueante(s) e {alertas} alerta(s)
         </p>
       ) : (
         <div>
-          <p className="text-sm font-semibold text-emerald-700">Pronto para publicar quando a publicação for ligada (fase 3).</p>
+          <p className="text-sm font-semibold text-emerald-700">
+            Sem problemas na validação local. O validador do Mercado Livre depende de liberação e entra com a publicação.
+          </p>
           {alertas > 0 && (
             <p className="mt-1 text-xs text-amber-700">
               {alertas} alerta(s) abaixo para conferir; eles não impedem a publicação.

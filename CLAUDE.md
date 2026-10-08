@@ -144,7 +144,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 346 asserções do rascunho de anúncio do Mercado Livre: composição, validação, payload, ícone, gravação e frases fixas (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 445 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas e a fase 2 (categoria, atributos, custos, preço por margem, IA) contra um ML falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:composicao          # 78 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças e a descrição só com referências cadastradas (Postgres, SEM rede; só escreve produtos ZZ-KIT-*)
@@ -2135,7 +2135,8 @@ Pedido do dono em 30/09/2026; construído de 01 a 03/10/2026 na branch `canais-d
 `docs/superpowers/specs/2026-09-30-canais-de-venda-mercado-livre-design.md`; plano:
 `docs/superpowers/plans/2026-10-01-canais-de-venda-ml-fase-1.md`. **A fase 1 só monta e salva o rascunho**:
 nada escreve no Mercado Livre nem no Bling, o botão Publicar fica desabilitado com o motivo, e
-`ML_PUBLICACAO`/`BLING_ESCRITA` seguem `false`. As fases 2 (inteligência do ML, só leitura) e 3 (publicar) não existem.
+`ML_PUBLICACAO`/`BLING_ESCRITA` seguem `false`. A fase 2 (inteligência do ML, só leitura) está na seção seguinte; a
+fase 3 (publicar) não existe.
 
 **Onde mora cada parte**
 - **Rotas** (`src/app/canais-de-venda/`): `page.jsx` (cartões de `src/lib/canaisDeVenda/catalogo.js`; Loja Integrada
@@ -2224,13 +2225,68 @@ um bloco `{ ... }` por assunto, cada um começando em `await limpar()` (apaga pr
 - Investigação de leitura (03/10/2026, só GETs): `docs/superpowers/investigacoes/2026-10-01-ml-bling-para-fases-2-e-3.md`.
   Ela diz o que muda nos planos seguintes e lista **as decisões que dependem do dono** (validador do ML, criar o kit
   no Bling, logística do cálculo, o sufixo `z`, preço e medidas do kit, primeiro teste de escrita).
-- Deixado para a fase 2 de propósito: categoria digitada (`MLB…`), ficha só com `BRAND`/`MODEL`/`GTIN` e margem de
-  `src/lib/margem.js` (6%, sem taxas do ML).
+- O que a fase 1 deixou para a fase 2 (categoria só digitada, ficha só com `BRAND`/`MODEL`/`GTIN`, margem sem as
+  taxas do ML) está feito: ver a seção seguinte.
 - **Para carregar adiante:** (1) `gerarSku` (`src/app/produtos/acoes.js`) só lê `Produto.sku` e pode entregar um
   25xxxx já usado como código de kit; resolver antes de criar kit no Bling. (2) Gravar o vínculo com o Bling e a
   `etapa` tem que ser **atômico**: `salvarRascunhoML` lê e grava `dados` sem trava. (3) O vínculo do kit sobrevive a
   edição de itens com o mesmo código: a conferência no Bling deve comparar a composição (id + quantidade), não só o
   código. (4) `listarAnunciosML` carrega todos os anúncios ML em memória; com os 1.007 reais, filtrar e paginar no banco.
+
+## Canais de Venda: Mercado Livre (fase 2, inteligência do ML)
+
+Pedido do dono em 08/10/2026; plano: `docs/superpowers/plans/2026-10-08-canais-de-venda-ml-fase-2.md` (executado
+inline na `main`). **Só leitura no Mercado Livre**: nada é publicado nem validado por POST, e as travas seguem `false`.
+Conferido no navegador com dados reais (100101, `MLB99779`): o `LogIntegracao` só teve GET para o ML, mais o
+`POST /oauth/token` da renovação do token que o conector sempre faz.
+
+**Onde mora cada parte** (`src/lib/canaisDeVenda/ml/`, salvo onde dito)
+- `cliente.js`: `clienteML()` = `{ get: mlGet, usuarioId: obterUsuarioId }`. **Toda leitura recebe o cliente por
+  parâmetro** (molde do `clienteBling()`), e o teste passa o ML falso **`scripts/lib/mlFalso.js`** (sem rede, não
+  importa nada de `src/`, caminho desconhecido LANÇA). `obterUsuarioId` (em `integracoes/mercadolivre.js`) guarda o id
+  em memória e **não regrava a conexão**: o refresh token é de uso único e poderia voltar um já queimado.
+- `leitura.js` (só GET): `descobrirCategoria` (`domain_discovery`), `lerCategoria` (`null` em 404; `folha`,
+  `limiteTitulo`, `maxFotos`), `lerCategoriaCompleta` (com os atributos já normalizados), `lerTaxas` (`listing_prices`
+  **sempre** com `logistic_type` e `shipping_mode=me2`), `lerFreteDoVendedor` (`shipping_options/free`, medidas em
+  inteiros; `null` sem as quatro medidas, sem chamar o ML), `lerTendencias` (cache de 6 h em memória; 404 = lista
+  vazia), `lerCustosDoAnuncio`, `precoPorMargemNoML` (recalcula, relê as taxas no preço novo e repete até 4 voltas,
+  porque a tarifa fixa some acima do limite de frete grátis) e `textoDoErroML`.
+- `atributos.js` (puro, sem imports): normaliza `/categories/{id}/attributes` (obrigatórios, depois o GTIN condicional,
+  depois o resto; `read_only` e ocultos saem, menos `EMPTY_GTIN_REASON`), `motivoSemGtin` (acha "kit ou pack" / "não tem
+  código" **pelo nome**, nunca por id fixo), `valorDeLista` (sem caixa e sem acento), `problemasDosAtributos`,
+  `limparAtributosDaIA` e `montarPedidoDaFicha`. **GTIN e o motivo ficam fora da IA**: código de barras não se deduz.
+- `custos.js` (puro): `custosDoAnuncio`, `precoPorMargem` (arredonda **para cima** ao centavo; `null` sem custo ou
+  quando as porcentagens passam de 100%), `custosValem` (preço, categoria, tipo e logística iguais aos lidos) e
+  `freteQueConta` (o frete do vendedor **só conta com frete grátis ligado**).
+- `inteligencia.js`: `sugerirCategoria`, `sugerirTitulos`, `preencherFicha`, com o ML e a IA por parâmetro.
+- IA em `src/lib/ia/`: `categoriaML.js`, `tituloML.js`, `fichaML.js` e `pesquisaML.js` (`chamarComPesquisa`, com a
+  ferramenta `web_search_20260209` e **sem** `output_config.format`: as citações da pesquisa não combinam com ele, então
+  o JSON vem no fim do texto e `jsonDoTexto` o acha; trata `pause_turn`). Usam o modelo e o registro de
+  `src/lib/ia/anuncio.js`, reexportados no fim dele (`chamarIA`, `MODELO_IA`, `registrarIA`...).
+- Ações (`src/app/canais-de-venda/mercado-livre/acoes.js`): `lerCategoriaML`, `sugerirCategoriaML`,
+  `sugerirTitulosML`, `preencherFichaML`, `lerCustosML`, `precoPorMargemML`. Todas conferem Conferido no servidor e
+  não revalidam. Não rodam no teste de Node (`next/cache`): a orquestração delas é testada em `inteligencia.js`.
+- Tela: `SugestaoDeCategoria`, `SugestaoDeTitulo` (aba Geral), `CampoDeAtributo` e `SugestaoDeFicha` (Ficha técnica),
+  `CustosDoML` e `CalculadoraDeMargem` (Preço e estoque; a calculadora abre num painel, porque a `ListaFlutuante` é
+  interna do `FormularioProduto`), select de logística na aba Envio.
+
+**Decisões**
+- **A IA nunca inventa código de categoria**: escolhe entre as candidatas do `domain_discovery` ou devolve termos de
+  busca que voltam ao ML. Toda sugestão (categoria, título, ficha) só entra com clique do dono.
+- **Validador do ML (`POST /items/validate`) e `POST .../attributes/conditional` ficaram fora** (o dono escolheu em
+  08/10/2026): a validação é local (categoria final, limite de título da categoria, obrigatórios, lista, GTIN ou
+  motivo, fotos até `max_pictures_per_item`, aviso de arredondamento das medidas).
+- **A categoria lida (`contexto.categoria`) e os custos (`contexto.custosML`) vivem no estado do editor, não no banco.**
+  O editor relê a categoria 400 ms depois da última tecla no código. O rascunho ganhou só `categoriaNome` e
+  `envio.logistica` (padrão `xd_drop_off`, com padrão no zod e no `carregarAnuncioML` para rascunhos da fase 1). Sem
+  migration.
+- **Payload**: `SELLER_PACKAGE_HEIGHT/WIDTH/LENGTH` em cm arredondados **para cima** e `SELLER_PACKAGE_WEIGHT` em
+  gramas, só com as quatro medidas, e `shipping.logistic_type`.
+- A cor do lucro com as taxas do ML usa a mesma regra do Produto (vermelho com prejuízo, amarelo abaixo de 60%, verde a
+  partir de 60%), mas sobre a margem **já com** as taxas; o `corDaMargem` ignoraria as taxas.
+
+**Armadilha vista aqui:** o ESLint do projeto **não tem `no-undef`**: um import que faltou passou no lint e só quebrou
+no navegador. Conferir a tela depois de mexer em componente.
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 

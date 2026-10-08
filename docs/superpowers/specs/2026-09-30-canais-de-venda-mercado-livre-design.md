@@ -80,7 +80,7 @@ Todas nascem preenchidas a partir do Produto.
 4. **Descrição:** texto do Produto + frases fixas. Texto puro.
 5. **Ficha técnica:** atributos da categoria; IA preenche a partir do Produto; obrigatórios em destaque.
 6. **Envio:** peso/dimensões do Produto, tipo de logística, frete grátis, retirada.
-7. **Prévia e validação:** problemas por campo (bloqueantes e alertas), payload, e validação pelo validador de publicações do ML (sem criar anúncio).
+7. **Prévia e validação:** problemas por campo (bloqueantes e alertas), payload, e validação pelo validador de publicações do ML (sem criar anúncio). **Em 08/10/2026:** o validador é `POST /items/validate` (investigação A6), bloqueado pela trava `ML_PUBLICACAO`; o dono decidiu que a fase 2 valida localmente e o validador entra com a publicação.
 
 Limite: o ML não recomenda preço antes de o anúncio existir; depois de publicado, a sugestão aparece na tela de gerenciar.
 
@@ -145,7 +145,7 @@ Depois seguem 5b (vínculo), 6 (ativar) e 7 (gravar). **Se a 5a falhar**, o anú
 ## 10. Fases (cada uma com testes e aprovação antes da seguinte)
 
 1. **Rascunho:** migration, menu e cartões, lista, as 7 abas (sem IA e sem custos do ML), Salvar, pop-up e página, ícone com ponto âmbar, frases fixas.
-2. **Inteligência do ML (só leitura):** categoria, título, atributos, custos, calculadora, validador.
+2. **Inteligência do ML (só leitura):** categoria, título, atributos, custos, calculadora, validador. (Feita em 08/10/2026, plano `docs/superpowers/plans/2026-10-08-canais-de-venda-ml-fase-2.md`; sem o validador do ML, que é POST.)
 3. **Publicar:** escrita no ML e no Bling, etapas e retomada. Só depois de o dono liberar as travas.
 
 Investigação inicial, antes da fase 2 (leituras seguras): `domain_discovery`, `categories/{id}/attributes`, `listing_prices` com e sem `logistic_type`, `shipping_options/free`, Tendências, validador de publicações, e `GET /produtos/lojas` num produto já vinculado (formato exato). Para a composição: confirmar o **filtro por código** do `GET /produtos` (a consulta de teste por `codigos[]` voltou vazia até para o `100101`), conferir se `100101` e `100101_5` já existem, e copiar o formato exato dos kits reais `920302_1.000` (um componente) e `129912` (misto, 4 componentes) — campos `estrutura`, `lancamentoEstoque`, categoria, unidade, NCM — para o `POST /produtos`; entender o sufixo `z` de códigos como `120329_z`; confirmar se o Bling exige nome de produto único (os kits atuais terminam em ` *código`) e como o ML trata a ausência de EAN em kit.
