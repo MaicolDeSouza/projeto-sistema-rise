@@ -1,5 +1,28 @@
+import { execSync } from "node:child_process";
+
+import { versaoDoDeploy } from "./src/lib/versao.js";
+
+// Versao no pe do menu. Na VPS o script de deploy passa RISE_VERSAO (a hora do deploy) e RISE_COMMIT; no PC
+// nada vem e a tela diz "dev", com o commit lido do git so para o title. A imagem Docker nao leva o .git,
+// entao la o commit vem sempre da variavel.
+const deploy = versaoDoDeploy(process.env);
+
+function commitLocal() {
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Embutido no codigo no build: a versao e a do build que esta no ar, e nao muda sem um deploy novo.
+  env: {
+    NEXT_PUBLIC_RISE_VERSAO: deploy.versao,
+    NEXT_PUBLIC_RISE_COMMIT: deploy.commit ?? commitLocal() ?? "",
+  },
+
   // O pdf-parse usa o pdfjs por baixo, que carrega um WORKER em arquivo
   // separado. Empacotado pelo Turbopack, o caminho do worker se perde e a
   // leitura morre com "Cannot find module .../pdf.worker.mjs" — mesmo com a

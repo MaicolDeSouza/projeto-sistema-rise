@@ -75,16 +75,16 @@ git commit -m "Atualiza next para 16.3.5 e image-size: avisos criticos antes de 
 - Modify: `next.config.mjs`, `src/components/Sidebar.jsx:175-189`, `package.json` (script `teste:versao`)
 
 **Interfaces:**
-- Produces: `formatarVersao(data: Date) -> string` (`DD.MM.AAAA.HH.MM` no fuso `America/Sao_Paulo`); `lerVersao(env: object) -> { versao: string, commit: string | null }` (sem `RISE_VERSAO` devolve `{ versao: "dev", commit }`); `NEXT_PUBLIC_RISE_VERSAO` e `NEXT_PUBLIC_RISE_COMMIT` expostos pelo `next.config.mjs`. A Task 6 passa `RISE_VERSAO`/`RISE_COMMIT` como build args com o mesmo formato.
+- Produces: `formatarVersao(data: Date) -> string` (`DD.MM.AAAA.HH.MM` no fuso `America/Sao_Paulo`); `versaoDoDeploy(env: object) -> { versao: string, commit: string | null }` (sem `RISE_VERSAO` devolve `{ versao: "dev", commit }`); `NEXT_PUBLIC_RISE_VERSAO` e `NEXT_PUBLIC_RISE_COMMIT` expostos pelo `next.config.mjs`. A Task 6 passa `RISE_VERSAO`/`RISE_COMMIT` como build args com o mesmo formato.
 
 - [ ] **Step 1: Escrever o teste** em `scripts/teste-versao.js` (molde de `scripts/teste-cotacao.js`: `conferir(nome, obtido, esperado)`, SEM rede e SEM banco)
 
 ```js
 conferir("formatarVersao: Sao Paulo", formatarVersao(new Date("2026-10-08T01:17:00Z")), "07.10.2026.22.17");
 conferir("formatarVersao: zero a esquerda", formatarVersao(new Date("2026-01-05T12:03:00Z")), "05.01.2026.09.03");
-conferir("lerVersao: sem variavel", lerVersao({}), { versao: "dev", commit: null });
-conferir("lerVersao: com variavel", lerVersao({ RISE_VERSAO: "07.10.2026.22.17", RISE_COMMIT: "9b1c481" }), { versao: "07.10.2026.22.17", commit: "9b1c481" });
-conferir("lerVersao: so commit", lerVersao({ RISE_COMMIT: "9b1c481" }), { versao: "dev", commit: "9b1c481" });
+conferir("versaoDoDeploy: sem variavel", versaoDoDeploy({}), { versao: "dev", commit: null });
+conferir("versaoDoDeploy: com variavel", versaoDoDeploy({ RISE_VERSAO: "07.10.2026.22.17", RISE_COMMIT: "9b1c481" }), { versao: "07.10.2026.22.17", commit: "9b1c481" });
+conferir("versaoDoDeploy: so commit", versaoDoDeploy({ RISE_COMMIT: "9b1c481" }), { versao: "dev", commit: "9b1c481" });
 ```
 
 - [ ] **Step 2: Rodar e ver falhar**
@@ -98,7 +98,7 @@ Expected: falha por módulo inexistente.
 
 Run: `npm run teste:versao` — Expected: 0 falhas.
 
-- [ ] **Step 5: `next.config.mjs`:** acrescentar `env: { NEXT_PUBLIC_RISE_VERSAO, NEXT_PUBLIC_RISE_COMMIT }` lidos por `lerVersao(process.env)`; quando `RISE_COMMIT` não vier, tentar `git rev-parse --short HEAD` com `execSync` dentro de `try` (sem git, `null`). Comentário: a versão é a hora do deploy, carimbada pelo script do VPS; no PC fica `dev` para nunca confundir cópia com produção.
+- [ ] **Step 5: `next.config.mjs`:** acrescentar `env: { NEXT_PUBLIC_RISE_VERSAO, NEXT_PUBLIC_RISE_COMMIT }` lidos por `versaoDoDeploy(process.env)`; quando `RISE_COMMIT` não vier, tentar `git rev-parse --short HEAD` com `execSync` dentro de `try` (sem git, `null`). Comentário: a versão é a hora do deploy, carimbada pelo script do VPS; no PC fica `dev` para nunca confundir cópia com produção.
 
 - [ ] **Step 6: `Sidebar.jsx`:** acima do botão "Recolher menu", só quando `!recolhida`, um `<p className="px-4 pb-1 text-[10px] text-menu-texto/60" title={commit ? \`commit ${commit}\` : undefined}>Versão {versao}</p>`, com `versao`/`commit` lidos de `process.env.NEXT_PUBLIC_RISE_VERSAO` e `NEXT_PUBLIC_RISE_COMMIT` no topo do arquivo.
 

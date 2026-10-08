@@ -14,6 +14,10 @@ import {
 } from "@/lib/preferenciaMenu";
 import SidebarItem from "./SidebarItem";
 
+// Lidos como process.env.NOME literal: o Next troca o texto no build (ver o `env` do next.config.mjs).
+const VERSAO = process.env.NEXT_PUBLIC_RISE_VERSAO || "dev";
+const COMMIT = process.env.NEXT_PUBLIC_RISE_COMMIT || null;
+
 export default function Sidebar() {
   const pathname = usePathname();
 
@@ -171,6 +175,19 @@ export default function Sidebar() {
             </p>
           )}
         </nav>
+
+        {/*
+          Versao que esta no ar (pedido do dono em 07/10/2026): e como ele confere qual build a VPS roda.
+          Fora da barra recolhida, onde nao cabe.
+        */}
+        {!recolhida && (
+          <p
+            className="px-4 pb-2 text-[10px] text-menu-texto/60"
+            title={COMMIT ? `commit ${COMMIT}` : undefined}
+          >
+            Versão {VERSAO}
+          </p>
+        )}
 
         <button
           type="button"

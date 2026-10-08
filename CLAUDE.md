@@ -125,6 +125,7 @@ npm run diagnostico               # testa as integrações pela linha de comando
 npm run teste:extracao            # 316 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
+npm run teste:versao              # 10 asserções da versão no pé do menu (DD.MM.AAAA.HH.MM em São Paulo; "dev" sem RISE_VERSAO). SEM rede e SEM banco
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
