@@ -1,6 +1,4 @@
-import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
-import { Readable } from "node:stream";
 
 import { prisma } from "@/lib/db";
 import {
@@ -10,10 +8,12 @@ import {
   cabecalhoDeArquivo,
   caminhoDaReserva,
   caminhoDe,
+  fluxoDeArquivo,
 } from "@/lib/arquivos";
 
-/// Tamanho do arquivo, ou null se ele nao existe. Conferido ANTES de montar a resposta: o fluxo abaixo so abre o
-/// arquivo quando alguem le, e um 404 precisa sair antes dos cabecalhos.
+/// Tamanho do arquivo, ou null se ele nao existe. Conferido ANTES de montar a resposta: o fluxo (`fluxoDeArquivo`,
+/// que serve do disco em vez de ler o arquivo inteiro na memoria) so abre o arquivo quando alguem le o corpo, e um
+/// 404 precisa sair antes dos cabecalhos.
 async function tamanhoDe(absoluto) {
   try {
     const info = await stat(absoluto);
@@ -22,13 +22,6 @@ async function tamanhoDe(absoluto) {
     if (erro.code === "ENOENT") return null;
     throw erro;
   }
-}
-
-/// O arquivo em FLUXO, e nao inteiro na memoria: a rota e PUBLICA, documento e ZIP chegam a 20 MB, e N pedidos
-/// paralelos do mesmo ZIP eram N x 20 MB no container (limite de 1,5 GB). O fluxo so abre o arquivo quando
-/// alguem le: um HEAD, que nao le o corpo, nao deixa descritor aberto.
-function fluxoDe(absoluto) {
-  return Readable.toWeb(createReadStream(absoluto));
 }
 
 /**
@@ -65,7 +58,7 @@ export async function GET(requisicao, { params }) {
     if (!absolutoReserva) return new Response("Caminho inválido.", { status: 400 });
     const tamanhoReserva = await tamanhoDe(absolutoReserva);
     if (tamanhoReserva === null) return new Response("Arquivo não encontrado.", { status: 404 });
-    return new Response(fluxoDe(absolutoReserva), {
+    return new Response(fluxoDeArquivo(absolutoReserva), {
       headers: {
         "Content-Type": "image/jpeg",
         "Content-Length": String(tamanhoReserva),
@@ -108,7 +101,7 @@ export async function GET(requisicao, { params }) {
     const cabecalho = cabecalhoDeArquivo(nomeOriginal, disposicao);
     const comNome = cabecalho !== disposicao;
 
-    return new Response(fluxoDe(absoluto), {
+    return new Response(fluxoDeArquivo(absoluto), {
       headers: {
         "Content-Type": TIPO_POR_EXTENSAO[extensao] ?? "application/octet-stream",
         "Content-Length": String(tamanho),

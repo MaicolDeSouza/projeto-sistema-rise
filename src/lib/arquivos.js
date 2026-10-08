@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { mkdir, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { Readable } from "node:stream";
 
 import { imageSize } from "image-size";
 
@@ -117,6 +119,35 @@ export const PASTA_RESERVA = "reserva";
 export function caminhoDaReserva(sku, nome) {
   if (!skuValido(sku) || !/^[0-9a-f]{32}\.jpg$/.test(nome ?? "")) return null;
   return path.join(RAIZ, sku, PASTA_RESERVA, nome);
+}
+
+/**
+ * O arquivo como FLUXO para servir numa Response, e nao inteiro na memoria (documento e ZIP chegam a 20 MB, a rota
+ * e publica). O arquivo so e ABERTO na primeira leitura: `fs.createReadStream` abre na construcao, e quando
+ * ninguem le o corpo (o Next nao le nem cancela o corpo de um HEAD: so encerra a resposta) o descritor ficava
+ * aberto para sempre. Medido em producao em 08/10/2026: 300 HEAD deixaram 300 descritores abertos. Cancelar a
+ * leitura (cliente que desistiu) destroi o fluxo e fecha o arquivo.
+ *
+ * `abrir` existe para o teste contar as aberturas; em producao e o `createReadStream`.
+ */
+export function fluxoDeArquivo(absoluto, abrir = createReadStream) {
+  let leitor = null;
+  return new ReadableStream(
+    {
+      async pull(controle) {
+        leitor ??= Readable.toWeb(abrir(absoluto)).getReader();
+        const { done, value } = await leitor.read();
+        if (done) controle.close();
+        else controle.enqueue(value);
+      },
+      cancel(motivo) {
+        return leitor?.cancel(motivo);
+      },
+    },
+    // Marca d'agua 0: com o padrao (1) o ReadableStream chama o `pull` UMA vez ja na criacao, sem ninguem ler, e o
+    // arquivo seria aberto do mesmo jeito. Com 0 o `pull` so roda quando alguem pede dados.
+    { highWaterMark: 0 },
+  );
 }
 
 /** Endereco pelo qual a tela pede um arquivo da reserva. Calculado, nunca gravado. */

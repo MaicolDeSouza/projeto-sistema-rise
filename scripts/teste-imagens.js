@@ -1194,6 +1194,35 @@ try {
       conferir("rota: '%' solto no SKU de foto e 400, nao 500", (await pedir(["%zz", "imagens", reservaUm.nome])).status, 400);
       conferir("rota: o corpo e o tamanho vem do arquivo (fluxo)", [servida.headers.get("content-length")], [String(jpgUm.length)]);
 
+      // O fluxo e PREGUICOSO: o Next nao le nem cancela o corpo de um HEAD, e o `createReadStream` abre o arquivo na
+      // construcao. Medido em producao em 08/10/2026: 300 HEAD deixaram 300 descritores abertos no servidor.
+      {
+        const { createReadStream } = await import("node:fs");
+        const { fluxoDeArquivo } = await import("../src/lib/arquivos.js");
+        const arquivoDoFluxo = caminhoDaReserva(SKU_RESERVA, reservaUm.nome);
+        const aberturas = [];
+        const espiao = (caminho) => {
+          const fluxo = createReadStream(caminho);
+          aberturas.push(fluxo);
+          return fluxo;
+        };
+
+        const naoLido = fluxoDeArquivo(arquivoDoFluxo, espiao);
+        await new Promise((resolver) => setTimeout(resolver, 150));
+        conferir("fluxo: corpo que ninguem le (o HEAD) nao abre o arquivo", aberturas.length, 0);
+        void naoLido;
+
+        const leitor = fluxoDeArquivo(arquivoDoFluxo, espiao).getReader();
+        const primeiro = await leitor.read();
+        conferir("fluxo: a primeira leitura abre o arquivo, uma vez, e traz dados", [aberturas.length, primeiro.done, primeiro.value?.length > 0], [1, false, true]);
+        await leitor.cancel();
+        await new Promise((resolver) => setTimeout(resolver, 150));
+        conferir("fluxo: cancelar a leitura fecha o arquivo", aberturas[0].destroyed, true);
+
+        const inteiro = Buffer.from(await new Response(fluxoDeArquivo(arquivoDoFluxo)).arrayBuffer());
+        conferir("fluxo: lido inteiro e igual ao arquivo", inteiro.equals(jpgUm), true);
+      }
+
       // Trocar o SKU leva a pasta reserva junto.
       const skuNovoReserva = `${SKU_RESERVA}-B`;
       await apagarPastaProduto(skuNovoReserva);
