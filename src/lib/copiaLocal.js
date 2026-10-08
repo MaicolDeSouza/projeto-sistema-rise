@@ -66,3 +66,83 @@ export function dumpMaisRecente(nomes, banco) {
 export function bancoDeEnsaioValido(nome, banco) {
   return typeof nome === "string" && nome !== banco && nome.startsWith(`${banco}_`) && /^[a-z0-9_]+$/.test(nome);
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// As Conexao do PC que sobrevivem a copia (08/10/2026). Com um app proprio do PC no ML e no Bling, o token do PC
+// e do PC: nao ha por que apaga-lo a cada copia. O que continua sendo apagado e o token que veio no dump (o da
+// VPS) e qualquer token cujo app nao seja o do .env deste PC.
+// ---------------------------------------------------------------------------------------------------------------
+
+const COLUNAS_CONEXAO = [
+  "id",
+  "servico",
+  "segredoCifrado",
+  "status",
+  "contaExterna",
+  "escopos",
+  "expiraEm",
+  "conectadoEm",
+  "ultimoTesteEm",
+  "ultimoTesteOk",
+  "ultimoErro",
+  "criadoEm",
+  "atualizadoEm",
+];
+
+/// As linhas do PC dos servicos que rotacionam, lidas ANTES de apagar o banco. Enum e TIMESTAMP vao como texto:
+/// o pg converteria o TIMESTAMP sem fuso em Date local e de volta, e a linha tem que voltar igual.
+export function sqlLerConexoes() {
+  const colunas = COLUNAS_CONEXAO.map((coluna) =>
+    ["servico", "status", "expiraEm", "conectadoEm", "ultimoTesteEm", "criadoEm", "atualizadoEm"].includes(coluna)
+      ? `"${coluna}"::text AS "${coluna}"`
+      : `"${coluna}"`,
+  );
+  return `SELECT ${colunas.join(", ")} FROM "Conexao" WHERE "servico" IN ('MERCADO_LIVRE', 'BLING')`;
+}
+
+function limpo(valor) {
+  const texto = typeof valor === "string" ? valor.trim() : "";
+  return texto || null;
+}
+
+/**
+ * Quais Conexao do PC voltam depois do restore. So volta o token cujo app (o `clientId` gravado no segredo
+ * desde 08/10/2026) e o mesmo do .env deste PC. Token de outro app e o da producao (o .env do PC tinha as
+ * credenciais da VPS quando ele foi gerado), e token gravado antes de o clientId existir nao prova nada: os
+ * dois saem, como sempre sairam, e a tela Integracoes pede a autorizacao de novo.
+ */
+export function conexoesDoPc(linhas, { clientIds, decifrar }) {
+  const manter = [];
+  const descartar = [];
+  for (const linha of linhas ?? []) {
+    const esperado = limpo(clientIds?.[linha.servico]);
+    let gravado = null;
+    let ilegivel = false;
+    if (linha.segredoCifrado) {
+      try {
+        gravado = limpo(decifrar(linha.segredoCifrado)?.clientId);
+      } catch {
+        ilegivel = true;
+      }
+    }
+    let motivo = null;
+    if (!linha.segredoCifrado) motivo = "sem token";
+    else if (ilegivel) motivo = "segredo ilegivel com a ENCRYPTION_KEY deste .env";
+    else if (!esperado) motivo = "sem client id no .env";
+    else if (!gravado) motivo = "token sem o app registrado (autorizado antes de 08/10/2026)";
+    else if (gravado !== esperado) motivo = "token de outro app";
+    if (motivo) descartar.push({ servico: linha.servico, motivo });
+    else manter.push(linha);
+  }
+  return { manter, descartar };
+}
+
+/// INSERT parametrizado de uma linha lida por sqlLerConexoes, coluna a coluna, na mesma ordem.
+export function sqlInserirConexao(linha) {
+  return {
+    texto:
+      `INSERT INTO "Conexao" (${COLUNAS_CONEXAO.map((coluna) => `"${coluna}"`).join(", ")}) ` +
+      `VALUES (${COLUNAS_CONEXAO.map((_, indice) => `$${indice + 1}`).join(", ")})`,
+    valores: COLUNAS_CONEXAO.map((coluna) => linha[coluna] ?? null),
+  };
+}

@@ -127,10 +127,10 @@ npm run diagnostico               # testa as integrações pela linha de comando
 npm run teste:extracao            # 316 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
-npm run teste:versao              # 10 asserções da versão no pé do menu (DD.MM.AAAA.HH.MM em São Paulo; "dev" sem RISE_VERSAO). SEM rede e SEM banco
-npm run teste:migracao            # regras puras da migração para a VPS (nomes de arquivo com caixa diferente; restore da cópia). SEM rede e SEM banco
+npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.HH.MM do deploy, em São Paulo; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
+npm run teste:migracao            # regras puras da migração para a VPS (nomes de arquivo com caixa diferente; restore da cópia; quais Conexao do PC sobrevivem à cópia). SEM rede e SEM banco
 npm run auditar:arquivos          # confere que todo ProdutoArquivo existe no disco com o nome EXATO (o Linux distingue caixa); só lê; código 1 se houver problema
-npm run copia:atualizar           # RESTAURA no banco do PC o backup da VPS (R2, ou --dump=<arquivo>) e APAGA as Conexao do ML e do Bling (tokens que rotacionam). Recusa banco remoto, servidor no ar e worker vivo; faz cópia de segurança antes
+npm run copia:atualizar           # RESTAURA no banco do PC o backup da VPS (R2, ou --dump=<arquivo>) e APAGA as Conexao do ML e do Bling vindas do dump (tokens que rotacionam). As Conexao que o PC já tinha VOLTAM quando o token é do app do .env do PC (ML_CLIENT_ID/BLING_CLIENT_ID = o `clientId` gravado no segredo, desde 08/10/2026); token de outro app ou de antes disso sai. Recusa banco remoto, servidor no ar e worker vivo; faz cópia de segurança antes
 npm run copia:atualizar -- --banco=sistema_rise_ensaio --dump=<arquivo>   # o mesmo restore AO LADO, sem tocar no banco do .env (ensaio); apagar depois com dropdb
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido

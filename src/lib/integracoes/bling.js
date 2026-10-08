@@ -59,6 +59,9 @@ async function guardar(dados, anterior) {
       accessToken: dados.access_token,
       // Rotaciona. Se a renovacao nao devolver um novo, mantem o anterior.
       refreshToken: dados.refresh_token ?? anterior?.refreshToken ?? null,
+      // O app que gerou o token (desde 08/10/2026): a copia de desenvolvimento so devolve ao PC o token do
+      // app do proprio PC; o da VPS, vindo do dump, e apagado, porque renova-lo derrubaria a producao.
+      clientId: config.bling.clientId ?? null,
     },
     status: "CONECTADO",
     escopos: dados.scope ?? null,

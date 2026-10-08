@@ -10,9 +10,11 @@ import "dotenv/config";
  *   --manter-conexoes   nao apaga os tokens (so para a volta atras da migracao)
  *   --sem-arquivos      nao copia dados/produtos e dados/coleta do R2
  *
- * Por que apaga as Conexao do ML e do Bling: o refresh token dos dois ROTACIONA a cada renovacao. Uma copia
- * no PC que renovasse o token derrubaria o da VPS, e a falha pareceria erro da API. Depois de rodar, o PC so
- * fala com ML e Bling se o dono os reautorizar pela tela Integracoes. O token da Loja Integrada e fixo e fica.
+ * Por que apaga as Conexao do ML e do Bling vindas do dump: o refresh token dos dois ROTACIONA a cada renovacao.
+ * Uma copia no PC que renovasse o token da VPS derrubaria a producao, e a falha pareceria erro da API. O token da
+ * Loja Integrada e fixo e fica. Desde 08/10/2026 o PC tem apps proprios no ML e no Bling: a conexao que o PC ja
+ * tinha ANTES da copia volta depois dela, desde que o token seja do app do .env deste PC (`conexoesDoPc`);
+ * qualquer outra sai, e a tela Integracoes pede a autorizacao de novo.
  *
  * Travas, todas ANTES de apagar qualquer coisa:
  *   - o banco precisa ser desta maquina (com a URL da VPS no .env, apagaria a producao);
@@ -32,11 +34,15 @@ import pg from "pg";
 import {
   argumentosDeRestore,
   bancoDeEnsaioValido,
+  conexoesDoPc,
   dumpMaisRecente,
   ehBancoLocal,
   nomeDaCopiaDeSeguranca,
+  sqlInserirConexao,
+  sqlLerConexoes,
   sqlLimparConexoes,
 } from "../src/lib/copiaLocal.js";
+import { decifrar } from "../src/lib/crypto.js";
 import { binario, conexaoDaUrl, rodar } from "./lib/postgres.js";
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
@@ -69,7 +75,7 @@ if (ensaio && !bancoDeEnsaioValido(alvo, principal)) {
 }
 const env = { ...conexao, PGDATABASE: alvo };
 
-async function consultar(banco, sql) {
+async function consultar(banco, sql, valores) {
   const cliente = new pg.Client({
     host: conexao.PGHOST,
     port: Number(conexao.PGPORT),
@@ -79,7 +85,7 @@ async function consultar(banco, sql) {
   });
   await cliente.connect();
   try {
-    return await cliente.query(sql);
+    return await cliente.query(sql, valores);
   } finally {
     await cliente.end();
   }
@@ -175,7 +181,23 @@ if (!ensaio && existe) {
   console.log(`Copia de seguranca do banco atual: ${path.relative(RAIZ, copia)}`);
 }
 
-// 5. Recriar e restaurar.
+// 5. As Conexao do PC (ML e Bling), lidas ANTES de apagar: voltam no passo 7 quando sao dos apps deste PC.
+let doPc = { manter: [], descartar: [] };
+if (!ensaio && existe && !argumentos.has("manter-conexoes")) {
+  let linhas = [];
+  try {
+    linhas = (await consultar(alvo, sqlLerConexoes())).rows;
+  } catch (erro) {
+    // Tabela ausente: banco sem Conexao nenhuma.
+    if (erro.code !== "42P01") throw erro;
+  }
+  doPc = conexoesDoPc(linhas, {
+    clientIds: { MERCADO_LIVRE: process.env.ML_CLIENT_ID, BLING: process.env.BLING_CLIENT_ID },
+    decifrar,
+  });
+}
+
+// 6. Recriar e restaurar.
 const restore = argumentosDeRestore({ dump, banco: alvo });
 const inicio = Date.now();
 await rodar(binario("dropdb"), restore.dropdb, env, 2 * 60 * 1000);
@@ -183,15 +205,26 @@ await rodar(binario("createdb"), restore.createdb, env, 2 * 60 * 1000);
 await rodar(binario("pg_restore"), restore.pgRestore, env, 30 * 60 * 1000);
 console.log(`Restaurado em ${((Date.now() - inicio) / 1000).toFixed(1)} s`);
 
-// 6. Tokens que rotacionam.
+// 7. Tokens que rotacionam: os do dump saem; os do PC (passo 5) voltam.
 if (argumentos.has("manter-conexoes")) {
   console.log("Conexao mantidas (--manter-conexoes): ML e Bling continuam com os tokens do dump.");
 } else {
   const apagadas = await consultar(alvo, sqlLimparConexoes());
-  console.log(`Conexao do ML e do Bling apagadas: ${apagadas.rowCount}. Reautorize pela tela Integracoes se precisar.`);
+  for (const linha of doPc.manter) {
+    const { texto, valores } = sqlInserirConexao(linha);
+    await consultar(alvo, texto, valores);
+  }
+  const voltaram = doPc.manter.map((linha) => linha.servico);
+  console.log(
+    `Conexao do ML e do Bling do dump apagadas: ${apagadas.rowCount}.` +
+      (voltaram.length ? ` As do PC voltaram: ${voltaram.join(", ")}.` : ""),
+  );
+  for (const { servico, motivo } of doPc.descartar) {
+    console.log(`  ${servico}: a conexao do PC nao voltou (${motivo}). Reautorize pela tela Integracoes se precisar.`);
+  }
 }
 
-// 7. Arquivos. `copy` e nao `sync`: nunca apaga arquivo do PC.
+// 8. Arquivos. `copy` e nao `sync`: nunca apaga arquivo do PC.
 if (ensaio || argumentos.has("sem-arquivos")) {
   console.log("Arquivos nao copiados (ensaio ou --sem-arquivos).");
 } else if (!process.env.RCLONE_REMOTO) {
@@ -203,7 +236,7 @@ if (ensaio || argumentos.has("sem-arquivos")) {
   }
 }
 
-// 8. Contagens, para comparar com a origem.
+// 9. Contagens, para comparar com a origem.
 const contagens = await consultar(
   alvo,
   `SELECT (SELECT count(*) FROM "Produto")::int AS produtos,

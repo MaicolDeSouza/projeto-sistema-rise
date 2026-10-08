@@ -9,10 +9,13 @@ const { conferirNomes } = await import("../src/lib/auditoriaArquivos.js");
 const {
   argumentosDeRestore,
   bancoDeEnsaioValido,
+  conexoesDoPc,
   dumpMaisRecente,
   ehBackupAutomatico,
   ehBancoLocal,
   nomeDaCopiaDeSeguranca,
+  sqlInserirConexao,
+  sqlLerConexoes,
   sqlLimparConexoes,
 } = await import("../src/lib/copiaLocal.js");
 const { conexaoDaUrl } = await import("./lib/postgres.js");
@@ -62,6 +65,81 @@ conferir(
   "sqlLimparConexoes: so ML e Bling",
   sqlLimparConexoes(),
   `DELETE FROM "Conexao" WHERE "servico" IN ('MERCADO_LIVRE', 'BLING')`,
+);
+
+// As Conexao do PC que sobrevivem a copia. O "decifrar" aqui e um JSON.parse: a regra nao sabe de cifra.
+const decifrarFalso = (texto) => {
+  if (texto === "quebrado") throw new Error("tag de autenticacao invalida");
+  return JSON.parse(texto);
+};
+const linhaConexao = (servico, segredo) => ({
+  id: `id-${servico}`,
+  servico,
+  segredoCifrado: segredo === null ? null : JSON.stringify(segredo),
+  status: "CONECTADO",
+});
+const appsDoPc = { MERCADO_LIVRE: "ml-pc", BLING: "bling-pc" };
+const decidir = (linhas, clientIds = appsDoPc) => conexoesDoPc(linhas, { clientIds, decifrar: decifrarFalso });
+conferir(
+  "conexoesDoPc: token do app deste PC volta, inteiro",
+  decidir([linhaConexao("MERCADO_LIVRE", { refreshToken: "r", clientId: "ml-pc" })]),
+  { manter: [linhaConexao("MERCADO_LIVRE", { refreshToken: "r", clientId: "ml-pc" })], descartar: [] },
+);
+conferir(
+  "conexoesDoPc: token de outro app (o da VPS) nao volta",
+  decidir([linhaConexao("BLING", { refreshToken: "r", clientId: "bling-vps" })]).descartar,
+  [{ servico: "BLING", motivo: "token de outro app" }],
+);
+conferir(
+  "conexoesDoPc: token sem app registrado nao volta",
+  decidir([linhaConexao("BLING", { refreshToken: "r" })]).descartar,
+  [{ servico: "BLING", motivo: "token sem o app registrado (autorizado antes de 08/10/2026)" }],
+);
+conferir(
+  "conexoesDoPc: sem client id no .env nao volta",
+  decidir([linhaConexao("MERCADO_LIVRE", { clientId: "ml-pc" })], { BLING: "bling-pc" }).descartar,
+  [{ servico: "MERCADO_LIVRE", motivo: "sem client id no .env" }],
+);
+conferir("conexoesDoPc: sem token", decidir([linhaConexao("BLING", null)]).descartar, [{ servico: "BLING", motivo: "sem token" }]);
+conferir(
+  "conexoesDoPc: segredo que nao decifra",
+  decidir([{ id: "x", servico: "BLING", segredoCifrado: "quebrado", status: "CONECTADO" }]).descartar,
+  [{ servico: "BLING", motivo: "segredo ilegivel com a ENCRYPTION_KEY deste .env" }],
+);
+conferir(
+  "conexoesDoPc: espacos no client id nao separam",
+  decidir([linhaConexao("MERCADO_LIVRE", { clientId: " ml-pc " })], { MERCADO_LIVRE: "ml-pc " }).manter.length,
+  1,
+);
+conferir(
+  "conexoesDoPc: cada linha e decidida sozinha",
+  decidir([linhaConexao("MERCADO_LIVRE", { clientId: "ml-pc" }), linhaConexao("BLING", { clientId: "bling-vps" })]).manter.map((linha) => linha.servico),
+  ["MERCADO_LIVRE"],
+);
+conferir("conexoesDoPc: sem linhas", decidir([]), { manter: [], descartar: [] });
+conferir("conexoesDoPc: linhas nulas", decidir(null), { manter: [], descartar: [] });
+
+conferir(
+  "sqlLerConexoes: so ML e Bling, enum e datas como texto",
+  [
+    /WHERE "servico" IN \('MERCADO_LIVRE', 'BLING'\)$/.test(sqlLerConexoes()),
+    sqlLerConexoes().includes(`"expiraEm"::text AS "expiraEm"`),
+    sqlLerConexoes().includes(`"servico"::text AS "servico"`),
+    sqlLerConexoes().includes(`"segredoCifrado",`),
+  ],
+  [true, true, true, true],
+);
+const insercao = sqlInserirConexao({ id: "a", servico: "BLING", segredoCifrado: "s", status: "CONECTADO", ultimoTesteOk: false });
+conferir(
+  "sqlInserirConexao: as 13 colunas, na ordem da leitura",
+  insercao.texto,
+  `INSERT INTO "Conexao" ("id", "servico", "segredoCifrado", "status", "contaExterna", "escopos", "expiraEm", "conectadoEm", ` +
+    `"ultimoTesteEm", "ultimoTesteOk", "ultimoErro", "criadoEm", "atualizadoEm") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+);
+conferir(
+  "sqlInserirConexao: ausente vira null e false fica false",
+  insercao.valores,
+  ["a", "BLING", "s", "CONECTADO", null, null, null, null, null, false, null, null, null],
 );
 
 const restore = argumentosDeRestore({ dump: "x.dump", banco: "sistema_rise" });

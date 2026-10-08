@@ -52,6 +52,9 @@ async function guardar(dados, anterior) {
       // Uso unico: o novo precisa substituir o anterior na mesma escrita.
       refreshToken: dados.refresh_token ?? anterior?.refreshToken ?? null,
       userId: dados.user_id ?? anterior?.userId ?? null,
+      // O app que gerou o token (desde 08/10/2026): a copia de desenvolvimento so devolve ao PC o token do
+      // app do proprio PC; o da VPS, vindo do dump, e apagado, porque renova-lo derrubaria a producao.
+      clientId: config.mercadoLivre.clientId ?? null,
     },
     status: "CONECTADO",
     escopos: dados.scope ?? null,
