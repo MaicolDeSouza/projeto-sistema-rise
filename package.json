@@ -40,7 +40,8 @@
     "teste:li-sync": "node scripts/teste-li-sync.js",
     "teste:versao": "node scripts/teste-versao.js",
     "teste:migracao": "node scripts/teste-migracao.js",
-    "auditar:arquivos": "node scripts/auditar-arquivos.js"
+    "auditar:arquivos": "node scripts/auditar-arquivos.js",
+    "copia:atualizar": "node scripts/atualizar-copia.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

@@ -179,7 +179,8 @@ conferir("argumentosDeRestore: pg_restore sem dono", argumentosDeRestore({ dump:
 
 - [ ] **Step 5: Script `scripts/atualizar-copia.js`:** (1) recusa com mensagem se `!ehBancoLocal(DATABASE_URL)`; (2) com `--dump=<arquivo>` usa o arquivo, senão `rclone copy` do mais recente em `${RCLONE_REMOTO}/banco/diario/` para `dados/backup/`; (3) recusa se houver servidor nas portas 3000, 3001 ou 3002 ou worker no ar; (4) `dropdb --if-exists`, `createdb`, `pg_restore` com `argumentosDeRestore`, por `binario()` e `PGPASSWORD`; (5) executa `sqlLimparConexoes()`, salvo com `--manter-conexoes` (só para a volta atrás); (6) `rclone sync ${RCLONE_REMOTO}/produtos dados/produtos` e o mesmo para `coleta`, salvo com `--sem-arquivos`; (7) imprime contagem de `Produto`, `ProdutoColetado` e `Conexao` restantes. Comentário no topo: por que apaga `Conexao` (rotação de refresh token) e por que recusa banco remoto.
 
-- [ ] **Step 6: Ensaio no PC com o dump de hoje:** `npm run backup`, parar os servidores, `npm run copia:atualizar -- --dump=dados/backup/<mais recente>.dump --sem-arquivos`. Expected: contagens iguais às do dump; `Conexao` sem ML e Bling. Depois, reautorizar ML e Bling pela tela Integrações (o PC ainda é a produção nesta fase).
+- [ ] **Step 6: Ensaio no PC com o dump de hoje, AO LADO do banco de verdade:** `npm run backup`, depois `npm run copia:atualizar -- --banco=sistema_rise_ensaio --dump=dados/backup/<mais recente>.dump`. Expected: as 31 tabelas com as mesmas contagens do banco do sistema, exceto `Conexao` (só LOJA_INTEGRADA no ensaio); mesmo idioma (UTF8, ICU en-US); os três índices só de SQL; o banco do sistema com os três tokens intactos. Depois, `dropdb sistema_rise_ensaio`. (Mudança de 08/10/2026: a opção `--banco` evita apagar o banco do PC, que ainda é a produção, e obrigar o dono a reautorizar ML e Bling só para provar o script. As travas do banco do `.env` — opção desconhecida, banco remoto, servidor no ar, worker vivo — são exercitadas pela recusa, sem apagar nada.)
+  - Feito em 08/10/2026: restaurado em 31,9 s; contagens iguais nas 31 tabelas; `Conexao` 3 no sistema, 1 no ensaio; ensaio apagado.
 
 - [ ] **Step 7: Commit**
 
@@ -348,7 +349,7 @@ git commit -m "VPS: scripts de deploy, copia externa para o R2, limpeza de logs 
 
 - [ ] **Step 1:** `crontab deploy/crontab` como `rise`; `crontab -l` confere.
 - [ ] **Step 2:** Rodar à mão: `docker compose exec -T app npm run backup && ./deploy/backup-externo.sh` → `rclone ls r2:rise-backup/banco/diario` mostra o dump; `rclone size r2:rise-backup/produtos` bate com o tamanho local; healthchecks verde nos dois checks.
-- [ ] **Step 3: Restore de teste no PC:** `npm run copia:atualizar` (baixa do R2) com os servidores do PC parados → contagens iguais às do VPS; **depois** reautorizar ML e Bling no PC, porque nesta fase o PC ainda é a produção.
+- [ ] **Step 3: Restore de teste no PC, ao lado do banco de verdade:** `npm run copia:atualizar -- --banco=sistema_rise_ensaio` (baixa o dump mais novo do R2; precisa do rclone no PC e de `RCLONE_REMOTO` no `.env`) → contagens iguais às do VPS; depois `dropdb sistema_rise_ensaio`. Os tokens do PC, que ainda é a produção, não são tocados.
 - [ ] **Step 4:** Snapshot manual do VPS no painel da Hostinger, nomeado `antes-da-virada`.
 
 ### Task 10: Revisão de código antes da virada

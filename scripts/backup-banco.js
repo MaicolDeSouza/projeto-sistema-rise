@@ -21,10 +21,12 @@ import "dotenv/config";
  * `dados/` fica fora do git: o backup leva os tokens das integracoes (cifrados).
  */
 
-import { spawn } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { appendFileSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { ehBackupAutomatico } from "../src/lib/copiaLocal.js";
+import { binario, conexaoDaUrl, rodar } from "./lib/postgres.js";
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const PASTA = path.join(aqui, "..", "dados", "backup");
@@ -48,49 +50,9 @@ function registrar(texto) {
   }
 }
 
-/// Onde estao pg_dump e pg_restore. PG_BIN aponta outra pasta; sem ela, a do
-/// instalador do PostgreSQL 17 no Windows, e por fim o PATH (Linux da VPS).
-function binario(nome) {
-  const extensao = process.platform === "win32" ? ".exe" : "";
-  const pastas = [process.env.PG_BIN, "C:/Program Files/PostgreSQL/17/bin"].filter(Boolean);
-  for (const pasta of pastas) {
-    const caminho = path.join(pasta, `${nome}${extensao}`);
-    if (existsSync(caminho)) return caminho;
-  }
-  return nome;
-}
-
-function rodar(comando, argumentos, env, tetoMs) {
-  return new Promise((resolver, rejeitar) => {
-    const filho = spawn(comando, argumentos, { env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "pipe"] });
-    let saida = "";
-    let erro = "";
-    filho.stdout.on("data", (pedaco) => (saida += pedaco));
-    filho.stderr.on("data", (pedaco) => (erro += pedaco));
-    const relogio = setTimeout(() => {
-      filho.kill();
-      rejeitar(new Error(`${path.basename(comando)} passou de ${tetoMs / 1000}s e foi interrompido`));
-    }, tetoMs);
-    filho.on("error", (falha) => {
-      clearTimeout(relogio);
-      rejeitar(falha);
-    });
-    filho.on("close", (codigo) => {
-      clearTimeout(relogio);
-      if (codigo === 0) resolver(saida);
-      else rejeitar(new Error(`${path.basename(comando)} saiu com codigo ${codigo}: ${erro.trim()}`));
-    });
-  });
-}
-
-const url = new URL(process.env.DATABASE_URL);
-const conexao = {
-  PGHOST: url.hostname,
-  PGPORT: url.port || "5432",
-  PGUSER: decodeURIComponent(url.username),
-  PGPASSWORD: decodeURIComponent(url.password),
-  PGDATABASE: decodeURIComponent(url.pathname.replace(/^\//, "")),
-};
+// binario() e rodar() moram em scripts/lib/postgres.js desde 08/10/2026: a copia de desenvolvimento
+// (atualizar-copia.js) chama os mesmos programas do mesmo jeito.
+const conexao = conexaoDaUrl(process.env.DATABASE_URL);
 
 const agora = new Date();
 const carimbo = [
@@ -137,7 +99,7 @@ try {
 // HISTORICO DE QUATRO. So depois do backup novo conferido: se ele falhar, os
 // antigos ficam todos. O nome carrega a data, entao ordem alfabetica e cronologica.
 const automaticos = readdirSync(PASTA)
-  .filter((nome) => new RegExp(`^${conexao.PGDATABASE}-\\d{8}-\\d{6}\\.dump$`).test(nome))
+  .filter((nome) => ehBackupAutomatico(nome, conexao.PGDATABASE))
   .sort();
 for (const antigo of automaticos.slice(0, Math.max(0, automaticos.length - MANTER))) {
   rmSync(path.join(PASTA, antigo), { force: true });
