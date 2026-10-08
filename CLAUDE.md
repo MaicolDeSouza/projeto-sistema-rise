@@ -144,7 +144,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 445 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas e a fase 2 (categoria, atributos, custos, preço por margem, IA) contra um ML falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 450 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas e a fase 2 (categoria, atributos, custos, preço por margem, IA) contra um ML falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:composicao          # 78 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças e a descrição só com referências cadastradas (Postgres, SEM rede; só escreve produtos ZZ-KIT-*)
@@ -2280,6 +2280,8 @@ Conferido no navegador com dados reais (100101, `MLB99779`): o `LogIntegracao` s
   O editor relê a categoria 400 ms depois da última tecla no código. O rascunho ganhou só `categoriaNome` e
   `envio.logistica` (padrão `xd_drop_off`, com padrão no zod e no `carregarAnuncioML` para rascunhos da fase 1). Sem
   migration.
+- **O motivo de "sem GTIN" (`EMPTY_GTIN_REASON`) é do estado**: sai junto com o GTIN ao ligar ou desligar o kit (a
+  ficha põe "kit ou pack" de novo no kit), e o payload não o manda quando há GTIN. Limite de atributos no zod: 150.
 - **Payload**: `SELLER_PACKAGE_HEIGHT/WIDTH/LENGTH` em cm arredondados **para cima** e `SELLER_PACKAGE_WEIGHT` em
   gramas, só com as quatro medidas, e `shipping.logistic_type`.
 - A cor do lucro com as taxas do ML usa a mesma regra do Produto (vermelho com prejuízo, amarelo abaixo de 60%, verde a

@@ -60,10 +60,13 @@ function atributosDoProduto(produto, { comGtin }) {
 }
 
 // O GTIN e o codigo de barras da peca avulsa. Ao virar kit ele sai dos atributos; ao voltar a
-// ser anuncio simples, volta o do principal (ou nenhum, se o produto nao tem EAN). Os demais
-// atributos sao do dono e ficam como estao.
+// ser anuncio simples, volta o do principal (ou nenhum, se o produto nao tem EAN). O motivo de nao
+// ter GTIN (`EMPTY_GTIN_REASON`, fase 2) e do estado anterior ("kit ou pack" no kit, "nao tem
+// codigo" no avulso) e sai junto: a ficha poe o certo de novo. Os demais atributos sao do dono.
+const DO_CODIGO_DE_BARRAS = new Set(["GTIN", "EMPTY_GTIN_REASON"]);
+
 function atributosSemGtin(atributos) {
-  return Object.fromEntries(Object.entries(atributos ?? {}).filter(([id]) => id !== "GTIN"));
+  return Object.fromEntries(Object.entries(atributos ?? {}).filter(([id]) => !DO_CODIGO_DE_BARRAS.has(id)));
 }
 
 function atributosComGtinDoProduto(atributos, produto) {

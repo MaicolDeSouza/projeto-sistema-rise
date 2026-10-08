@@ -35,7 +35,9 @@ export const LIMITES_ML = {
   categoriaNome: 200,
   descricao: 50000,
   codigoDoKit: 64,
-  atributos: 40,
+  // A fase 2 monta a ficha com os atributos da categoria (MLB99779 tem 64), e a IA pode preencher
+  // dezenas: 40 travaria o Salvar de uma categoria grande.
+  atributos: 150,
   chaveDeAtributo: 60,
   valorDeAtributo: 200,
   imagens: 100,

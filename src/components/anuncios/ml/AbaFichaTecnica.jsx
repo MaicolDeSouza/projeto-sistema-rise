@@ -43,10 +43,15 @@ export default function AbaFichaTecnica({ rascunho, contexto, alterar, problemas
 
   // Kit nao tem GTIN: o motivo oficial "kit ou pack" da categoria ja nasce escolhido.
   useEffect(() => {
+    // Fora do kit a marca zera: ligar o kit de novo (o motivo saiu ao desligar) poe "kit ou pack" outra vez.
+    if (!emKit) {
+      motivoPostoEm.current = null;
+      return;
+    }
     if (!categoria || !motivoDoKit || motivoJaEscolhido || motivoPostoEm.current === categoria.id) return;
     motivoPostoEm.current = categoria.id;
     alterar((atual) => (String(atual.atributos?.EMPTY_GTIN_REASON ?? "").trim() ? {} : { atributos: { ...atual.atributos, EMPTY_GTIN_REASON: motivoDoKit } }));
-  }, [categoria, motivoDoKit, motivoJaEscolhido, alterar]);
+  }, [emKit, categoria, motivoDoKit, motivoJaEscolhido, alterar]);
 
   const listaDeEspecificacoes = (
     <div>

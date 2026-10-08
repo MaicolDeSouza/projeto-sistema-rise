@@ -76,8 +76,17 @@ export function montarPayloadML(rascunho, contexto) {
 
   // GTIN e o codigo de barras da peca avulsa, e kit nao o leva: a tela o tira ao virar kit, mas o
   // servidor grava o que chegar, e a previa e o envio saem daqui.
+  // Com GTIN, o motivo de nao ter GTIN nao vai: os dois juntos se contradizem.
+  const levaGtin = !rascunho.composicao && Boolean(texto(rascunho.atributos?.GTIN));
   const atributos = Object.entries(rascunho.atributos ?? {})
-    .filter(([id, valor]) => id !== "SELLER_SKU" && !id.startsWith("SELLER_PACKAGE_") && !(rascunho.composicao && id === "GTIN") && texto(valor))
+    .filter(
+      ([id, valor]) =>
+        id !== "SELLER_SKU" &&
+        !id.startsWith("SELLER_PACKAGE_") &&
+        !(rascunho.composicao && id === "GTIN") &&
+        !(levaGtin && id === "EMPTY_GTIN_REASON") &&
+        texto(valor),
+    )
     .map(([id, valor]) => ({ id, value_name: EM_MAIUSCULAS.has(id) ? maiusculas(valor) : texto(valor) }));
   if (sku) atributos.push({ id: "SELLER_SKU", value_name: sku });
   atributos.push(...atributosDaEmbalagem(envio));

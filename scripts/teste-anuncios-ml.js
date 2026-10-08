@@ -1194,6 +1194,34 @@ try {
     }
     conferir("preencherFicha: categoria que o ML nao conhece", semCategoria, "Categoria não encontrada no Mercado Livre.");
 
+    // Revisao final: o motivo de "sem GTIN" e do estado (kit ou avulso sem EAN) e nao pode sobrar ao
+    // trocar de estado; e uma categoria grande preenchida pela IA nao pode travar o Salvar.
+    console.log("\nFase 2: revisao final (motivo sem GTIN e limite de atributos)");
+    const composicaoDeDois = { itens: [{ produtoId: "p1", quantidade: 2 }], codigo: "", blingProdutoId: null };
+    const kitComMotivo = aplicarComposicao({ ...base, atributos: { ...base.atributos, EMPTY_GTIN_REASON: "O produto não tem código cadastrado" } }, composicaoDeDois, { p1: principal });
+    conferir("virar kit tira o motivo de sem GTIN do avulso", "EMPTY_GTIN_REASON" in kitComMotivo.atributos, false);
+    const deVolta = aplicarComposicao(
+      { ...kitComMotivo, atributos: { ...kitComMotivo.atributos, EMPTY_GTIN_REASON: "O produto é um kit ou pack" } },
+      null,
+      { p1: { ...principal, ean: "7890000000001" } },
+    );
+    conferir("desligar o kit tira o motivo 'kit ou pack' e devolve o GTIN", [deVolta.atributos.GTIN, "EMPTY_GTIN_REASON" in deVolta.atributos], ["7890000000001", false]);
+    conferir(
+      "payload: com GTIN, o motivo de nao ter nao vai",
+      montarPayloadML({ ...comCategoria, atributos: { BRAND: "A", MODEL: "B", GTIN: "789", EMPTY_GTIN_REASON: "Outro motivo" } }, ctx).item.attributes.some((a) => a.id === "EMPTY_GTIN_REASON"),
+      false,
+    );
+    conferir(
+      "payload: kit sem GTIN manda o motivo",
+      montarPayloadML({ ...comCategoria, composicao: { ...composicaoDeDois, codigo: "100101_2" }, atributos: { EMPTY_GTIN_REASON: "O produto é um kit ou pack" } }, ctx).item.attributes.some((a) => a.id === "EMPTY_GTIN_REASON"),
+      true,
+    );
+    conferir(
+      "esquema: aceita 100 atributos (categoria grande preenchida pela IA)",
+      RascunhoMLSchema.safeParse({ ...base, atributos: Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`ATRIBUTO_${i}`, "x"])) }).success,
+      true,
+    );
+
     // Fase 2: as proximas tarefas entram aqui, dentro deste bloco.
   }
 
