@@ -158,7 +158,11 @@ echo "${VERSAO} ${COMMIT}" >> dados/logs/deploy.log
 # O crontab versionado e a fonte unica das rotinas (backup, copia externa, limpeza de logs); sem reinstala-lo aqui,
 # uma mudanca nele ficava no git e nunca chegava ao cron.
 PASSO="instalando o crontab"
-crontab deploy/crontab
+# O deploy ja esta no ar, conferido e registrado: falha aqui e AVISO. Como erro, a trap diria "o deploy parou" e
+# mandaria voltar a imagem de um deploy que esta bom.
+if ! crontab deploy/crontab; then
+  echo "AVISO: o crontab NAO foi reinstalado (deploy/crontab invalido?). O deploy esta no ar; as rotinas seguem com o crontab de antes."
+fi
 
 docker compose ps
 echo "== No ar: Versao ${VERSAO} (commit ${COMMIT})"
