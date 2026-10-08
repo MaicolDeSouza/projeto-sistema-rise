@@ -128,7 +128,8 @@ npm run teste:extracao            # 316 asserções da extração, da conciliaç
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.HH.MM do deploy, em São Paulo; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
-npm run teste:migracao            # regras puras da migração para a VPS (nomes de arquivo com caixa diferente; restore da cópia; quais Conexao do PC sobrevivem à cópia). SEM rede e SEM banco
+npm run teste:migracao            # regras puras da migração para a VPS (nomes de arquivo com caixa diferente; restore da cópia; quais Conexao do PC sobrevivem à cópia; `BACKUP_MANTER` inválido). SEM rede e SEM banco
+npm run teste:rede                # o filtro de rede pública do servidor (`src/lib/redePublica.js` + `lookup`/`validar` do `obter`): IPs internos, nome que resolve para IP interno, redirecionamento para IP escrito, IPv6. Os "sites" são servidores nesta máquina: SEM internet e SEM banco
 npm run auditar:arquivos          # confere que todo ProdutoArquivo existe no disco com o nome EXATO (o Linux distingue caixa); só lê; código 1 se houver problema
 npm run copia:atualizar           # RESTAURA no banco do PC o backup da VPS (R2, ou --dump=<arquivo>) e APAGA as Conexao do ML e do Bling vindas do dump (tokens que rotacionam). As Conexao que o PC já tinha VOLTAM quando o token é do app do .env do PC (ML_CLIENT_ID/BLING_CLIENT_ID = o `clientId` gravado no segredo, desde 08/10/2026); token de outro app ou de antes disso sai. Recusa banco remoto, servidor no ar e worker vivo; faz cópia de segurança antes
 npm run copia:atualizar -- --banco=sistema_rise_ensaio --dump=<arquivo>   # o mesmo restore AO LADO, sem tocar no banco do .env (ensaio); apagar depois com dropdb
@@ -3427,6 +3428,60 @@ uma tela que a use.
   bissexto, meia-noite em São Paulo), período fora da lista recusado, PTAX e boletim com resposta boa, fora
   de ordem, repetida, com lixo e vazia, "agora", variação e as coordenadas do gráfico (um ponto só, série
   reta, série vazia, 250 dias, quadro minúsculo).
+
+## Rodar na VPS (migração de 08/10/2026)
+
+O Rise de produção roda numa VPS da Hostinger (KVM 2, Ubuntu 26.04), em **https://rise.4hobby.com.br**, com login na
+frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-design.md`; plano:
+`docs/superpowers/plans/2026-10-07-migracao-vps-hostinger.md`. **Enquanto a virada (Task 12) não acontece, o banco de
+verdade ainda é o do PC** e o da VPS é uma cópia de ensaio.
+
+- **Acesso:** `ssh -i ~/.ssh/rise_vps rise@179.199.150.221` (só chave; root e senha desligados; firewall 22/80/443). O
+  projeto fica em `/srv/rise/app` (clone deste repositório), com o `docker-compose.yml`: `db` (Postgres 17, porta só em
+  127.0.0.1), `app`, `worker` (mesma imagem), `auth` (Tinyauth, o login) e `caddy` (HTTPS e roteamento). O `.env` da VPS
+  é um arquivo à parte, nunca passa pelo git: chave nova ou trava mudada se grava lá por SSH (arquivo temporário lido
+  por um script, **nunca no texto de um comando**) e depois `docker compose up -d --force-recreate app worker`.
+- **Deploy só quando o dono disser "sobe":**
+  `ssh ... "cd /srv/rise/app && git fetch -q --tags origin && git checkout -q --detach origin/main && ./deploy/deploy-vps.sh"`
+  (baixar antes de rodar, porque o próprio script pode ter mudado). Ele valida o Caddyfile, constrói a imagem com o site
+  no ar, tira backup e aplica migrations só se houver pendência, troca os contêineres, recarrega o Caddy, confere o site
+  por dentro e **o login por fora com falha de verdade** (5 respostas, no fim do script), e só então guarda a imagem como
+  `rise:bom`, grava `dados/logs/deploy.log` e reinstala o crontab. Se parar no meio, o `trap` diz o passo e os comandos
+  de volta. **Volta atrás:** `docker image tag rise:anterior rise:latest && docker compose up -d app worker` (a anterior
+  é a do último deploy que passou em tudo). Migration não tem volta: só pelo dump tirado antes dela.
+- **Versão no pé do menu:** na VPS é a hora do deploy (`DD.MM.AAAA.HH.MM`) e o commit; no PC é `dev` mais a hora do
+  último commit (`+` se há alteração não commitada). **Mesmo commit nos dois = mesmo código**; a hora só dá a ordem.
+- **Dois apps de OAuth por plataforma:** o app do PC (redirect em `localhost`/`localtest.me`) e o da VPS (redirect em
+  `rise.4hobby.com.br`), cada um com as chaves no `.env` do seu ambiente. O token gravado leva o `clientId` do app, e o
+  `copia:atualizar` só devolve ao PC o token do app do PC. **Na virada, o dump traz os tokens do app do PC:** conectar o
+  ML e o Bling de novo na VPS (tela Integrações).
+- **Travas:** o `.env` da VPS tem as mesmas do PC (`BLING_ESCRITA` só para o 100101; `PHOTOROOM_COMPRA` e
+  `NANO_BANANA_GERACAO` ligadas); `ML_PUBLICACAO` e `LI_ESCRITA` desligadas.
+- **Backups, 3 camadas:** (1) 03:00, `deploy/backup-diario.sh` = `npm run backup` dentro do `app` (guarda 4,
+  `BACKUP_MANTER`); (2) 03:30, `deploy/backup-externo.sh` copia o dump e espelha `dados/produtos` e `dados/coleta` para o
+  Cloudflare R2 (bucket `rise-backup`: `banco/diario` 30 dias, `banco/mensal` 12 meses, o primeiro do mês que der certo,
+  e `apagados/<AAAAMMDD>` 30 dias **pela data da pasta**, não pela data do arquivo); (3) o backup semanal da Hostinger e
+  um snapshot manual na véspera da virada. As duas primeiras avisam o healthchecks.io (e-mail se falharem ou não
+  rodarem). `npm run copia:atualizar` traz o dump do R2 para o banco do PC.
+- **Superfície pública, o que NÃO se afrouxa** (revisão de segurança de 08/10/2026):
+  - Só `GET`/`HEAD` de `/api/arquivos/<SKU>/<pasta>/<32 hex>.<ext>` passam sem login (`deploy/caddy/Caddyfile`); o resto
+    cai no Tinyauth. O Caddy tira `Remote-*` de fora em todos os ramos: os níveis de acesso vão ler esses cabeçalhos.
+  - **Todo pedido do servidor a um endereço que veio de texto de terceiro** (documento de referência, foto de
+    concorrente) passa por `src/lib/redePublica.js`: `lookupPublico` na conexão e `validarEnderecoPublico` em cada
+    redirecionamento, pelo `obter` de `coleta/http.js`. Nunca `fetch` direto: o servidor alcança `app`, `auth` e `db`
+    pela rede do Docker (provado em produção: os quatro nomes são recusados).
+  - O Next já entrega os segmentos de rota **decodificados**: decodificar de novo lança `URIError` (500 numa rota
+    pública). `http://[::1]/` passava no filtro antigo, porque o `URL` devolve o host de IPv6 com colchetes.
+- **Pendências de segurança que dependem do dono** (nenhuma bloqueia a virada): (1) segundo fator (TOTP do Tinyauth) e
+  senha de 16+ caracteres: o login é o único portão, e atrás dele estão tokens com escrita em 1.007 anúncios reais e CPF
+  e endereço de clientes; (2) **guardar a `ENCRYPTION_KEY` num cofre de senhas**: sem ela os tokens do dump viram lixo;
+  (3) criptografar o dump antes de ir ao R2 (`rclone crypt`): ele leva CPF e endereço de clientes, hoje protegidos só
+  pelo token do bucket; (4) endurecer os contêineres depois da virada: rodam como root e `app`/`worker` recebem o `.env`
+  inteiro; `USER node` exige `chown` de `dados/`, e `cap_drop: ALL` sem isso impediria gravar; as imagens `caddy:2`,
+  `tinyauth:v5` e `postgres:17` têm tag flutuante; (5) `copia:atualizar` confere só o nome do host: um túnel SSH para o
+  banco da VPS (`-L 5432`) passaria por "localhost" (não há túnel no plano); (6) o app não confere o login sozinho (sem
+  `proxy.js`): entra com os níveis de acesso; (7) sem limite de taxa na rota pública (o Caddy puro não tem; o fluxo em
+  disco já tirou o risco de memória); (8) o mapa de apelidos do OAuth (`bling`/`mercadolivre`) está copiado em 3 lugares.
 
 ## Trabalho em paralelo: worktrees
 
