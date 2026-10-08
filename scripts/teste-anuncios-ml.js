@@ -724,7 +724,7 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["atualizadoEm", "codigo", "id", "preco", "status", "tipoAnuncio", "titulo"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["atualizadoEm", "codigo", "id", "idExterno", "preco", "status", "tipoAnuncio", "titulo", "urlExterna"]);
         conferir("lista: o mais recente primeiro", lista.linhas.every((l, i) => i === 0 || lista.linhas[i - 1].atualizadoEm >= l.atualizadoEm), true);
         conferir("lista: acha pelo codigo do kit", (await listarAnunciosML({ busca: "zz-ml-kit2" })).linhas.map((l) => [l.id, l.codigo]), [[k2.id, "ZZ-ML-KIT2"]]);
         conferir("lista: acha pelo titulo", (await listarAnunciosML({ busca: "ZZ TITULO NOVO" })).linhas.map((l) => [l.id, l.titulo, l.tipoAnuncio]), [[premium.id, "ZZ Titulo novo", "gold_pro"]]);

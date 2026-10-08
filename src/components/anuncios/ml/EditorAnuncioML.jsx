@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Loader, X } from "lucide-react";
+import { ExternalLink, Loader, X } from "lucide-react";
 
-import { lerCategoriaML, salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { abrirAnuncioML, lerCategoriaML, salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
-import { STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
+import { AGUARDANDO_BLING, STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import AbaDescricao from "./AbaDescricao";
 import AbaEnvio from "./AbaEnvio";
@@ -15,6 +15,7 @@ import AbaGeral from "./AbaGeral";
 import AbaImagens from "./AbaImagens";
 import AbaPrecoEstoque from "./AbaPrecoEstoque";
 import AbaPrevia from "./AbaPrevia";
+import JanelaPublicarML from "./JanelaPublicarML";
 
 // Uma aba por id de `ABAS_ML`: aba nova na validacao pede o componente aqui.
 const ABAS_PRONTAS = {
@@ -27,16 +28,12 @@ const ABAS_PRONTAS = {
   previa: AbaPrevia,
 };
 
-const MOTIVO_DA_FASE = "A publicação entra na fase 3.";
-
 const CLASSE_DA_MENSAGEM = {
   erro: "border-red-200 bg-red-50 text-red-800",
   ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
 };
 
 const MOTIVO_DO_PUBLICADO = "Anúncio publicado: não editável aqui.";
-
-const semBlingId = (produto) => Boolean(produto) && !String(produto.blingId ?? "").trim();
 
 const CATEGORIA_ML = /^MLB\d+$/;
 // Espera o dono parar de digitar o codigo: cada tecla seria uma leitura no ML.
@@ -67,6 +64,7 @@ export default function EditorAnuncioML({
   rascunhoInicial,
   contextoInicial,
   status,
+  publicacaoInicial = null,
   modo = "pagina",
   aoSalvar,
   aoFechar,
@@ -81,6 +79,11 @@ export default function EditorAnuncioML({
   // continua digitando enquanto o Salvar espera o servidor segue com alteracao pendente.
   const [salvo, setSalvo] = useState(rascunhoInicial);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
+  // A publicacao (fase 3) muda o status e o anuncio no ML sem remontar o editor: o editor rele o
+  // anuncio quando a janela do Publicar fecha depois de um envio.
+  const [statusAtual, setStatusAtual] = useState(status);
+  const [infoDoML, setInfoDoML] = useState(publicacaoInicial ?? {});
+  const [publicando, setPublicando] = useState(false);
   const [salvando, iniciarSalvamento] = useTransition();
   const [carregandoCategoria, iniciarLeituraDaCategoria] = useTransition();
   const caixaDaMensagem = useRef(null);
@@ -122,13 +125,17 @@ export default function EditorAnuncioML({
 
   const alterado = rascunho !== salvo;
   const janela = modo === "janela";
-  // Publicado so a fase 3 altera (o servidor recusa o Salvar): a tela nem finge que edita.
-  const publicado = status === "PUBLICADO";
+  // Publicado nao se edita aqui (o servidor recusa o Salvar): a tela nem finge que edita.
+  const publicado = statusAtual === "PUBLICADO";
+  const publicacao = infoDoML.publicacao ?? null;
+  // Durante a publicacao, e depois que o item ja existe no ML (pausado), o rascunho nao muda mais:
+  // so "Retomar publicacao" segue dali (o servidor tambem recusa o Salvar).
+  const presoNaPublicacao = statusAtual === "PUBLICANDO" || Boolean(publicacao?.itemId);
   // O primeiro Salvar de um anuncio novo na pagina troca a URL e remonta o editor a partir do
   // banco: o que fosse digitado enquanto a acao do servidor roda se perderia, e o rodape diria
   // "Tudo salvo". Travar so esse caso mantem o resto do editor livre (a janela volta a lista).
   const travado = salvando && idAtual === null && modo === "pagina";
-  const bloqueado = publicado || travado;
+  const bloqueado = publicado || travado || presoNaPublicacao;
   const problemas = useMemo(() => validarRascunhoML(rascunho, contexto), [rascunho, contexto]);
 
   // O erro aparece no topo: com o rodape fixo, o dono clica em Salvar com a pagina rolada.
@@ -152,13 +159,15 @@ export default function EditorAnuncioML({
     function aoTeclar(evento) {
       // Esc segurado repete o evento: sem ignorar, o aviso abriria e fecharia a cada repeticao.
       if (evento.key !== "Escape" || evento.repeat) return;
+      // A janela do Publicar ouve o proprio Esc: aqui ele nao pode fechar o editor por baixo dela.
+      if (publicando) return;
       // Esc fecha so o aviso quando ele esta aberto, e nao a janela inteira por baixo.
       if (confirmandoSaida) setConfirmandoSaida(false);
       else pedirFechamento();
     }
     document.addEventListener("keydown", aoTeclar);
     return () => document.removeEventListener("keydown", aoTeclar);
-  }, [janela, confirmandoSaida, pedirFechamento]);
+  }, [janela, confirmandoSaida, pedirFechamento, publicando]);
 
   function alterar(parcial) {
     setRascunho((atual) => ({ ...atual, ...(typeof parcial === "function" ? parcial(atual) : parcial) }));
@@ -190,17 +199,37 @@ export default function EditorAnuncioML({
   }
 
   const bloqueantes = problemas.filter((problema) => problema.bloqueante).length;
-  const idsDosProdutos = rascunho.composicao
-    ? (Array.isArray(rascunho.composicao.itens) ? rascunho.composicao.itens : []).map((item) => item.produtoId)
-    : [rascunho.produtoId];
+  // A falta de blingId e as demais travas do anuncio sao bloqueantes da validacao; as travas do ML e do
+  // Bling (ML_PUBLICACAO, BLING_ESCRITA) nao desabilitam o botao: a recusa do servidor aparece na janela.
+  const retomando = Boolean(publicacao) && (presoNaPublicacao || statusAtual === "ERRO");
+  const rotuloPublicar = publicacao?.etapaComErro === "kit_bling" ? "Verificar no Bling" : retomando ? "Retomar publicação" : "Publicar";
   const motivosSemPublicar = [
-    MOTIVO_DA_FASE,
-    ...(idsDosProdutos.some((id) => semBlingId(contexto.produtos[id])) ? ["Produto sem blingId."] : []),
-    ...(bloqueantes > 0 ? [`${bloqueantes} problema(s) bloqueante(s) na Prévia.`] : []),
+    ...(idAtual ? [] : ["Salve antes de publicar."]),
+    ...(alterado ? ["Salve as alterações antes de publicar."] : []),
+    ...(!publicacao?.itemId && bloqueantes > 0 ? [`${bloqueantes} problema(s) bloqueante(s) na Prévia.`] : []),
   ];
 
-  const propsDasAbas = { rascunho, contexto, alterar, setContexto, irPara: setAba, anuncioId: idAtual, carregandoCategoria };
-  const rotuloDoStatus = STATUS_ML[status] ?? (idAtual ? STATUS_ML.RASCUNHO : { rotulo: "Novo", tom: "neutro" });
+  // Fechou a janela do Publicar: se algo foi enviado, le de novo o status e o anuncio no ML.
+  async function aoFecharPublicacao(houveEnvio) {
+    setPublicando(false);
+    if (!houveEnvio || !idAtual) return;
+    try {
+      const relido = await abrirAnuncioML(idAtual);
+      if (!relido.ok) return;
+      setStatusAtual(relido.status);
+      setInfoDoML({ publicacao: relido.publicacao, idExterno: relido.idExterno, urlExterna: relido.urlExterna });
+    } catch {
+      // A releitura falhou: o rodape fica com o status anterior ate o anuncio ser aberto de novo.
+    }
+  }
+
+  // "Validar no ML" (Previa) valida o anuncio GRAVADO: so com ele salvo e sem alteracao pendente.
+  const podeValidar = Boolean(idAtual) && !alterado && !bloqueado;
+  const propsDasAbas = { rascunho, contexto, alterar, setContexto, irPara: setAba, anuncioId: idAtual, carregandoCategoria, podeValidar };
+  const rotuloDoStatus =
+    statusAtual === "PUBLICANDO" && publicacao?.etapaComErro === "kit_bling"
+      ? AGUARDANDO_BLING
+      : (STATUS_ML[statusAtual] ?? (idAtual ? STATUS_ML.RASCUNHO : { rotulo: "Novo", tom: "neutro" }));
 
   const aviso = mensagem && (
     <div
@@ -251,6 +280,14 @@ export default function EditorAnuncioML({
           idAtual && <span className="text-suave">Tudo salvo</span>
         )}
         {publicado && <span className="text-suave">{MOTIVO_DO_PUBLICADO}</span>}
+        {infoDoML.idExterno &&
+          (infoDoML.urlExterna ? (
+            <a href={infoDoML.urlExterna} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-acento hover:underline">
+              {infoDoML.idExterno} <ExternalLink size={12} />
+            </a>
+          ) : (
+            <span className="font-mono text-suave">{infoDoML.idExterno}</span>
+          ))}
       </div>
       <div className="flex items-center gap-2">
         <button
@@ -263,28 +300,45 @@ export default function EditorAnuncioML({
           {salvando && <Loader size={14} className="animate-spin" />}
           {salvando ? "Salvando..." : "Salvar"}
         </button>
-        <button
-          type="button"
-          disabled
-          title={motivosSemPublicar.join(" ")}
-          className="rounded border border-borda px-4 py-2 text-sm text-suave disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Publicar
-        </button>
+        {!publicado && (
+          <button
+            type="button"
+            onClick={() => setPublicando(true)}
+            disabled={salvando || motivosSemPublicar.length > 0}
+            title={motivosSemPublicar.join(" ") || undefined}
+            className="rounded border border-acento px-4 py-2 text-sm font-medium text-acento hover:bg-fundo disabled:cursor-not-allowed disabled:border-borda disabled:text-suave disabled:opacity-60"
+          >
+            {rotuloPublicar}
+          </button>
+        )}
       </div>
     </div>
+  );
+
+  // A ultima falha da publicacao, no topo: o dono abre o anuncio e ve por que ele parou.
+  const faixaDaPublicacao = !publicado && publicacao?.erro && (
+    <div role="alert" className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+      <span className="font-semibold">Publicação parada: </span>
+      {publicacao.erro}
+    </div>
+  );
+
+  const janelaDoPublicar = publicando && idAtual && (
+    <JanelaPublicarML anuncioId={idAtual} rotuloDoBotao={rotuloPublicar} aoFechar={aoFecharPublicacao} />
   );
 
   if (!janela) {
     return (
       <div className="space-y-4">
         {aviso}
+        {faixaDaPublicacao}
         <div className="rounded-lg border border-borda bg-superficie">
           {barra}
           <div className="p-5">{paineis}</div>
         </div>
         {/* Fixo na base da tela: o Salvar fica ao alcance em qualquer aba, por mais que ela role. */}
         <div className="sticky bottom-0 z-10 rounded-lg border border-borda bg-superficie shadow-lg">{rodape}</div>
+        {janelaDoPublicar}
       </div>
     );
   }
@@ -319,10 +373,13 @@ export default function EditorAnuncioML({
           </button>
         </header>
         {aviso && <div className="shrink-0 px-5 pt-3">{aviso}</div>}
+        {faixaDaPublicacao && <div className="shrink-0 px-5 pt-3">{faixaDaPublicacao}</div>}
         <div className="shrink-0">{barra}</div>
         <div className="min-h-0 flex-1 overflow-y-auto p-5">{paineis}</div>
         <div className="shrink-0 border-t border-borda">{rodape}</div>
       </section>
+
+      {janelaDoPublicar}
 
       {confirmandoSaida && (
         <div

@@ -1,5 +1,10 @@
 "use client";
 
+import { useState, useTransition } from "react";
+import { Loader } from "lucide-react";
+
+import { validarNoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { montarDescricaoML } from "@/lib/canaisDeVenda/ml/descricao";
 import { montarPayloadML } from "@/lib/canaisDeVenda/ml/payload";
 import { ABAS_ML } from "@/lib/canaisDeVenda/ml/validacao";
@@ -34,7 +39,64 @@ function agruparPorAba(problemas) {
  *
  * `todosProblemas` e a lista inteira da validacao; as outras abas recebem so a delas.
  */
-export default function AbaPrevia({ rascunho, contexto, irPara, todosProblemas }) {
+/**
+ * "Validar no ML" (fase 3): o validador de publicacoes do ML (`POST /items/validate`) confere o
+ * anuncio GRAVADO sem criar nada. Sobe antes as fotos que faltam (ficam guardadas para o Publicar),
+ * entao passa pela trava ML_PUBLICACAO como o Publicar.
+ */
+function ValidarNoML({ anuncioId, podeValidar }) {
+  const [resultado, setResultado] = useState(null);
+  const [validando, iniciar] = useTransition();
+
+  function validar() {
+    setResultado(null);
+    iniciar(async () => {
+      let lido;
+      try {
+        lido = await validarNoMLAcao(anuncioId);
+      } catch {
+        lido = { ok: false, erro: "Não foi possível falar com o servidor." };
+      }
+      setResultado(lido);
+    });
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={validar}
+          disabled={!podeValidar || validando}
+          title={podeValidar ? undefined : "Salve o anúncio (sem alterações pendentes) antes de validar."}
+          className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {validando && <Loader size={14} className="animate-spin" />}
+          {validando ? "Validando..." : "Validar no ML"}
+        </button>
+        <BolhaDeAjuda
+          variante="inline"
+          texto="O validador do Mercado Livre confere o anúncio salvo sem criar nada. As fotos sobem ao ML nessa hora e ficam guardadas para a publicação. Depende da liberação ML_PUBLICACAO."
+        />
+      </div>
+      {resultado?.ok && <p className="text-sm text-emerald-700">O Mercado Livre não apontou problema.</p>}
+      {resultado && !resultado.ok && (
+        <p role="alert" className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          {resultado.erro ?? (resultado.motivos ?? []).join(" ")}
+        </p>
+      )}
+      {resultado?.avisos?.length > 0 && (
+        <ul className="list-disc space-y-1 pl-5 text-xs text-amber-800">
+          {resultado.avisos.map((aviso, posicao) => (
+            <li key={posicao}>{aviso}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export default function AbaPrevia({ rascunho, contexto, irPara, todosProblemas, anuncioId, podeValidar }) {
   const grupos = agruparPorAba(todosProblemas);
   const bloqueantes = todosProblemas.filter((problema) => problema.bloqueante).length;
   const alertas = todosProblemas.length - bloqueantes;
@@ -64,6 +126,8 @@ export default function AbaPrevia({ rascunho, contexto, irPara, todosProblemas }
           )}
         </div>
       )}
+
+      <ValidarNoML anuncioId={anuncioId} podeValidar={podeValidar} />
 
       {grupos.map(({ aba, problemas }) => (
         <div key={aba.id}>

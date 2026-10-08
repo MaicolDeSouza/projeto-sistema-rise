@@ -37,6 +37,7 @@ export default async function AnuncioMLPage({ params }) {
           rascunhoInicial={carregado.rascunho}
           contextoInicial={carregado.contexto}
           status={carregado.status}
+          publicacaoInicial={{ publicacao: carregado.publicacao, idExterno: carregado.idExterno, urlExterna: carregado.urlExterna }}
         />
       )}
     </>

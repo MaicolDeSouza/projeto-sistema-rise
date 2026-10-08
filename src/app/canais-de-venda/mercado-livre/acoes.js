@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { LIMITE_TITULO } from "@/lib/anuncios/canais/mercadolivre";
+import { clienteBling } from "@/lib/blingSync/cliente";
+import { prepararPublicacaoML, publicarAnuncioML, validarNoML } from "@/lib/canaisDeVenda/ml/publicar";
 import { gravarFrases } from "@/lib/canaisDeVenda/configuracao";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import { LIMITES_ML, RascunhoMLSchema } from "@/lib/canaisDeVenda/ml/esquema";
@@ -26,8 +28,9 @@ import {
  * do servidor do Next: conferir o que vem do navegador, revalidar a tela e nao deixar
  * excecao nenhuma chegar ao cliente.
  *
- * Toda acao devolve `{ ok, ... }`. Acao que so le nao revalida. Fase 1: nada daqui escreve
- * no Mercado Livre nem no Bling; as acoes gravam so no banco local.
+ * Toda acao devolve `{ ok, ... }`. Acao que so le nao revalida. So o Publicar e o "Validar no ML"
+ * (fase 3) escrevem fora do banco local, e sempre sob as travas ML_PUBLICACAO e BLING_ESCRITA (e as
+ * listas de codigos liberados), conferidas antes da primeira escrita.
  */
 
 const PEDIDO_INVALIDO = { ok: false, erro: "Pedido inválido." };
@@ -257,4 +260,36 @@ export async function precoPorMargemML(rascunho, { custo, margem } = {}) {
   } catch (erro) {
     return falhaDeLeitura(erro, "preco por margem");
   }
+}
+
+// ---------------------------------------------------------------------------
+// Publicar (fase 3)
+// ---------------------------------------------------------------------------
+
+const clientes = () => ({ ml: clienteML(), bling: clienteBling() });
+
+/** A pre-checagem e o resumo da janela de confirmacao. So le o ML, o Bling e o banco. */
+export async function prepararPublicacaoMLAcao(anuncioId) {
+  if (!ehId(anuncioId)) return { ...PEDIDO_INVALIDO, motivos: [PEDIDO_INVALIDO.erro] };
+  return protegendo(() => prepararPublicacaoML(anuncioId, clientes()));
+}
+
+/**
+ * Publica, ou retoma da etapa que falhou. `recriar` so com o dono tendo conferido no ML que a criacao
+ * incerta nao chegou la. Revalida sempre: mesmo a publicacao que falhou mudou o status do anuncio.
+ */
+export async function publicarAnuncioMLAcao(anuncioId, { recriar = false } = {}) {
+  if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const resultado = await publicarAnuncioML(anuncioId, { ...clientes(), recriar: recriar === true });
+    revalidatePath("/canais-de-venda/mercado-livre");
+    revalidatePath("/produtos");
+    return resultado;
+  });
+}
+
+/** "Validar no ML": sobe as fotos que faltam e roda o validador do ML, sem criar o anuncio. */
+export async function validarNoMLAcao(anuncioId) {
+  if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
+  return protegendo(() => validarNoML(anuncioId, clientes()));
 }

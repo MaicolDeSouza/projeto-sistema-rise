@@ -49,6 +49,7 @@ export default function TabelaAnunciosML({ linhas, busca }) {
             <th className="px-3 py-2.5 font-medium">Tipo</th>
             <th className="px-3 py-2.5 text-right font-medium">Preço</th>
             <th className="px-3 py-2.5 font-medium">Situação</th>
+            <th className="px-3 py-2.5 font-medium">No ML</th>
             <th className="px-3 py-2.5 font-medium">Atualizado em</th>
           </tr>
         </thead>
@@ -73,6 +74,19 @@ export default function TabelaAnunciosML({ linhas, busca }) {
                 </td>
                 <td className="px-3 py-2.5">
                   <Badge tom={situacao.tom}>{situacao.rotulo}</Badge>
+                </td>
+                <td className="px-3 py-2.5 font-mono whitespace-nowrap">
+                  {linha.idExterno ? (
+                    linha.urlExterna ? (
+                      <a href={linha.urlExterna} target="_blank" rel="noreferrer" className="text-acento hover:underline">
+                        {linha.idExterno}
+                      </a>
+                    ) : (
+                      linha.idExterno
+                    )
+                  ) : (
+                    <span className="text-suave">-</span>
+                  )}
                 </td>
                 <td className="px-3 py-2.5 whitespace-nowrap text-suave tabular-nums">
                   {dataEHora.format(new Date(linha.atualizadoEm))}

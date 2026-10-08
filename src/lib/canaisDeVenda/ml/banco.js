@@ -332,7 +332,7 @@ export async function salvarRascunhoML(anuncioId, entrada) {
   }
 }
 
-const DADOS_DA_LINHA = { id: true, titulo: true, status: true, atualizadoEm: true, dados: true, produto: { select: { sku: true } } };
+const DADOS_DA_LINHA = { id: true, titulo: true, status: true, atualizadoEm: true, dados: true, idExterno: true, urlExterna: true, produto: { select: { sku: true } } };
 
 // O codigo da linha e o do kit, ou o SKU do produto no anuncio simples.
 function linhaDoAnuncio(anuncio) {
@@ -344,6 +344,9 @@ function linhaDoAnuncio(anuncio) {
     preco: anuncio.dados?.preco ?? null,
     status: anuncio.status,
     atualizadoEm: anuncio.atualizadoEm,
+    // O anuncio no ML (MLB e link), depois que a publicacao o criou.
+    idExterno: anuncio.idExterno ?? null,
+    urlExterna: anuncio.urlExterna ?? null,
   };
 }
 

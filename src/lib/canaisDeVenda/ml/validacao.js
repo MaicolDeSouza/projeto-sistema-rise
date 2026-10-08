@@ -183,8 +183,8 @@ export function validarRascunhoML(rascunho, contexto) {
     acrescentar("imagens", "imagens", `O anúncio tem ${quantasFotos} fotos; esta categoria aceita até ${lida.maxFotos}.`);
   }
   if (composicao) {
-    // O envio de fotos proprias do kit e da fase 3; ate la o kit mostra as dos itens.
-    acrescentar("fotosDoKit", "imagens", "O kit está usando as fotos dos itens. O Mercado Livre pede fotos próprias do kit; o envio delas entra na fase 3.", false);
+    // O editor so oferece as fotos dos produtos (uma unidade de cada): o aviso lembra o dono disso.
+    acrescentar("fotosDoKit", "imagens", "O kit está usando as fotos dos itens, que mostram uma unidade de cada. O Mercado Livre pede fotos próprias do kit.", false);
   }
 
   // Descricao

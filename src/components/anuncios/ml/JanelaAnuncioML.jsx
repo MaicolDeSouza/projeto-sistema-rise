@@ -155,6 +155,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
       status: resultado.status,
       rascunho: resultado.rascunho,
       contexto: resultado.contexto,
+      publicacaoInicial: { publicacao: resultado.publicacao, idExterno: resultado.idExterno, urlExterna: resultado.urlExterna },
     });
     setFase("editor");
   }, []);
@@ -207,6 +208,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
         rascunhoInicial={editor.rascunho}
         contextoInicial={editor.contexto}
         status={editor.status}
+        publicacaoInicial={editor.publicacaoInicial ?? null}
         modo="janela"
         aoSalvar={aoSalvar}
         aoFechar={aoFechar}
