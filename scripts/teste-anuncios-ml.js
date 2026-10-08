@@ -1616,6 +1616,19 @@ try {
       conferir("validarNoML: causas e nada criado", [r.ok, /Falta MODEL/.test(r.erro), r.avisos, mlValida.escritas.some((e) => e.caminho === "/items"), (await estado(idValida)).status], [false, true, ["Foto pequena (x)"], false, "RASCUNHO"]);
       r = await validarNoML(idValida, { ml: criarMLFalso(), bling: bf, lerFoto });
       conferir("validarNoML: sem problema", [r.ok, (await estado(idValida)).status, (await salvarRascunhoML(idValida, (await novoRascunhoML(c.s1.id)).rascunho)).ok], [true, "RASCUNHO", true]);
+      // Revisao final: "Validar no ML" num anuncio cujo item ja existe nao pode seguir para as etapas seguintes.
+      const mlParado = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items/MLB", status: 500 }] });
+      const bfParado = c.novoBling();
+      const idParado = await c.anuncioSimples(c.s1);
+      await publicarAnuncioML(idParado, { ml: mlParado, bling: bfParado, lerFoto });
+      const escritasAntes = mlParado.escritas.length;
+      r = await validarNoML(idParado, { ml: mlParado, bling: bfParado, lerFoto });
+      conferir(
+        "validarNoML: item ja criado recusa sem escrever nem publicar",
+        [r.ok, /Retomar publicação/.test(r.erro), mlParado.escritas.length - escritasAntes, postsNoBling(bfParado, "/produtos/lojas"), (await estado(idParado)).status],
+        [false, true, 0, 0, "ERRO"],
+      );
+
       const motivos = await publicarAnuncioML(await c.anuncioSimples(c.semBling), { ml: criarMLFalso(), bling: bf, lerFoto });
       conferir("publicar: pre-checagem recusada devolve os motivos", [motivos.ok, motivos.motivos?.some((m) => /blingId/.test(m))], [false, true]);
     }

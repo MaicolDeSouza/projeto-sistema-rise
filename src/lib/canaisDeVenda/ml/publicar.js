@@ -190,6 +190,11 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto })
   const { rascunho, payload, codigo, etapas, principal, contexto } = preparado.interno;
   let pub = preparado.interno.publicacao ?? { feitas: [], fotos: {}, itemId: null, statusML: null, incerta: false };
   if (pub.incerta && !recriar && !soValidar) return { ok: false, etapa: "criar", feitas: pub.feitas ?? [], erro: RECADO_INCERTA, incerta: true };
+  // Com o item ja criado, as etapas de validar ficam para tras: "Validar no ML" seguiria direto para a
+  // descricao, o vinculo e a ativacao, e publicaria sem o dono pedir.
+  if (soValidar && pub.itemId) {
+    return { ok: false, etapa: null, feitas: pub.feitas ?? [], erro: "O anúncio já existe no Mercado Livre (pausado): não há o que validar. Use Retomar publicação." };
+  }
 
   // As duas travas antes da primeira escrita: a recusa nao pode deixar meia publicacao.
   try {
