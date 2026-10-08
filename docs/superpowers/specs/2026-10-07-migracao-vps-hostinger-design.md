@@ -138,7 +138,8 @@ worker (supervisor)─┼──▶ db (postgres:17, só na rede interna; porta 5
 - **Dockerfile** (novo): `node:24-bookworm-slim`, `apt install postgresql-client-17` (repositório PGDG),
   `npm ci`, `npm run build`, `CMD ["npm","start"]`; o `worker` sobrepõe o comando com `node scripts/worker.js`.
   `.dockerignore` deixa de fora `node_modules`, `.next`, `dados`, `.env*`, `certificates`.
-- **Antes de qualquer porta aberta:** atualizar `next` para ≥ 16.3.5 e `image-size`, rodando os testes do
+- **Antes de qualquer porta aberta:** atualizar `next` para ≥ 16.3.8, `sharp` para ≥ 0.35.5 e `image-size`
+  (o audit de 07/10/2026 estendeu a faixa crítica do `next` até 16.3.7), rodando os testes do
   projeto (`teste:extracao`, `teste:imagens`, `teste:svg`, `teste:cotacao` e os de banco).
 - **Variáveis que mudam:** `DATABASE_URL` (host `db`, senha nova), `APP_URL=https://rise.4hobby.com.br`,
   `APP_URL_PUBLICA` (ver seção 9), `ML_REDIRECT_URI` e `BLING_REDIRECT_URI` com o domínio novo, `TZ`.
@@ -266,6 +267,12 @@ rotacionaram); o DNS não precisa ser desfeito. O ambiente do PC fica intacto at
   com o próprio nome no Caddy, o próprio banco no mesmo Postgres, a mesma rotina de backup e um registro A. O
   sistema pessoal ganha o próprio brainstorming quando o dono mandar o código.
 - Tela de login dentro do Rise (melhoria futura, sem pressa).
+- **Níveis de acesso** (pedido do dono em 07/10/2026; ex.: operador que não edita produtos nem vê o Painel de
+  indicadores): **primeira feature depois da virada**, com brainstorming próprio. O Tinyauth aceita vários
+  usuários e o Caddy já passa ao Rise o cabeçalho `Remote-User`, descartando cópia vinda de fora; o Rise
+  ganha a tabela de usuários com papel e um `exigirPermissao(...)` em cada Server Action e página, além de
+  esconder menu e botões. No PC, sem Tinyauth, a falta do cabeçalho vale como admin **só em
+  desenvolvimento**; em produção, falta do cabeçalho é recusa.
 - Envio das fotos ao Bling e à LI (pendências já registradas no CLAUDE.md, que a `APP_URL_PUBLICA` destrava).
 - Controle automático de estoque pelo Bling.
 - Mover DNS, e-mail ou domínio de conta.

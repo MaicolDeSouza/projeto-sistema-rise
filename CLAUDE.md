@@ -3157,7 +3157,8 @@ rasterizando o SVG de volta contra o original com o `sharp`):
 - **`sharp` e `@visioncortex/vtracer` estão em `serverExternalPackages`** (`next.config.mjs`): o pacote do
   wasm-pack lê o próprio `.wasm` do disco, e empacotado o caminho se perde (o mesmo defeito do `pdf-parse`).
 - **`sharp` agora é dependência DECLARADA.** Antes só existia como opcional transitiva do `next` e
-  sumiria num deploy Linux/VPS. Fixado em **0.35.4**: a 0.35.3 tinha aviso ALTO (libheif).
+  sumiria num deploy Linux/VPS. Fixado em **0.35.5** desde 07/10/2026: a 0.35.3 tinha aviso ALTO (libheif) e a
+  0.35.4 outro (librsvg, GHSA-wq5f-xc86-pv6w).
 - **Testes:** `npm run teste:svg`, 60 asserções, sem rede e sem banco, com as imagens geradas pelo
   próprio `sharp`. Cobre a bomba de descompressão, SVG e HTML disfarçados de imagem, PNG truncado,
   foto girada por EXIF, fundo transparente (amarelo, branco, já transparente, degradê), o branco de
@@ -3166,8 +3167,11 @@ rasterizando o SVG de volta contra o original com o `sharp`):
 **`npm audit` (20/09/2026) acusou avisos que JÁ existiam, fora desta feature** (o `sharp` e o VTracer
 não aparecem): **`next` 16.3.1 com dois avisos CRÍTICOS de execução remota** (um específico de servidor
 Windows; correção 16.3.5, sem mudança de versão maior), `image-size` (alto, usado no upload de imagens de
-produto) e outros menores. Ficou como tarefa separada ("Atualizar next e image-size"). **O dev server
-também escuta na rede local** (`Network: https://<ip>:3001`).
+produto) e outros menores. **Resolvido em 07/10/2026** (Task 1 da migração para a VPS): `next` e
+`eslint-config-next` 16.3.8 (o audit daquele dia já estendia a faixa crítica até 16.3.7), `sharp` 0.35.5 e
+`image-size` 2.0.4; lint e os testes extracao, svg, cotacao, loja-integrada, cadastros, imagens e li-sync
+passaram. Os avisos que sobraram são de ferramentas de desenvolvimento (`prisma` CLI, `eslint`), que não rodam
+no site. **O dev server também escuta na rede local** (`Network: https://<ip>:3001`).
 
 ## Ferramentas: cotação do dólar
 

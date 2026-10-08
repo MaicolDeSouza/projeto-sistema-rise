@@ -14,7 +14,7 @@
 
 - JavaScript sem TypeScript; identificadores e comentários sem acento; texto de tela com acento (CLAUDE.md).
 - Comentários explicam o porquê, não o quê.
-- `next` ≥ 16.3.5 antes de qualquer porta aberta; Node 24 fixado na imagem.
+- `next` ≥ 16.3.8 e `sharp` ≥ 0.35.5 antes de qualquer porta aberta (o audit de 07/10/2026 estendeu a faixa crítica do `next` até 16.3.7 e acusou o librsvg do `sharp` 0.35.4); Node 24 fixado na imagem.
 - Postgres 17, banco UTF8 com ICU `en-US`, `timezone=America/Sao_Paulo`; porta 5432 só em 127.0.0.1.
 - `TZ=America/Sao_Paulo` em `app`, `worker` e `db`.
 - Travas (`ML_PUBLICACAO`, `BLING_ESCRITA`, `LI_ESCRITA`, `NANO_BANANA_GERACAO`, `PHOTOROOM_COMPRA`) continuam `false` no VPS.
@@ -37,15 +37,15 @@
 
 ## Fase A — código no PC (tudo testável sem VPS)
 
-### Task 1: Atualizar `next` e `image-size`
+### Task 1: Atualizar `next`, `sharp` e `image-size`
 
 **Files:**
 - Modify: `package.json`, `package-lock.json`
 
-- [ ] **Step 1: Atualizar**
+- [ ] **Step 1: Atualizar** (servidor e worker desta pasta parados antes: `npm run worker:parar` e o `next dev`)
 
-Run: `npm install next@^16.3.5 eslint-config-next@^16.3.5 image-size@latest`
-Expected: `package.json` com `next` ≥ 16.3.5; `npm audit` sem aviso crítico em `next` nem alto em `image-size`.
+Run: `npm install --save-exact next@16.3.8 eslint-config-next@16.3.8 sharp@0.35.5` e `npm install image-size@^2.0.4`
+Expected: `npm audit` sem aviso em `next`, `sharp` nem `image-size`. Os avisos que sobram são de ferramentas de desenvolvimento (`prisma` CLI, `eslint`) e não rodam no site.
 
 - [ ] **Step 2: Testes sem rede e lint**
 
@@ -216,6 +216,8 @@ ENV RISE_VERSAO=$RISE_VERSAO RISE_COMMIT=$RISE_COMMIT TZ=America/Sao_Paulo
 RUN npm run build
 CMD ["npm", "start"]
 ```
+
+**Scripts de instalação no npm 11:** o `npm install` de 07/10/2026 avisou que `@prisma/engines`, `prisma` e `unrs-resolver` têm scripts "not yet covered by allowScripts". Antes do `npm ci` da imagem, liberar os três (`npm approve-scripts @prisma/engines prisma unrs-resolver`, que grava a regra no `package.json`) e conferir no build que `npx prisma --version` lista o schema engine; sem isso o `prisma migrate deploy` do contêiner pode falhar.
 
 `.dockerignore`: `node_modules`, `.next`, `dados`, `.env*`, `!.env.example`, `certificates`, `.git`, `docs`, `.acentos`. Comentário no Dockerfile: devDependencies ficam porque `dotenv` e `prisma` são usados pelos scripts e pelo `prisma.config.ts`; `postgresql-client-17` é para o `npm run backup` de dentro do contêiner.
 
