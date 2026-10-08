@@ -41,7 +41,8 @@
     "teste:versao": "node scripts/teste-versao.js",
     "teste:migracao": "node scripts/teste-migracao.js",
     "auditar:arquivos": "node scripts/auditar-arquivos.js",
-    "copia:atualizar": "node scripts/atualizar-copia.js"
+    "copia:atualizar": "node scripts/atualizar-copia.js",
+    "teste:rede": "node scripts/teste-rede-publica.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

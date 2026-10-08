@@ -3,6 +3,9 @@ import { readFile } from "node:fs/promises";
 import { prisma } from "@/lib/db";
 import { MAXIMO_IMAGENS, caminhoDe, salvarArquivo, urlDe } from "@/lib/arquivos";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
+import { obter } from "@/lib/coleta/http";
+import { USER_AGENT } from "@/lib/coleta/buscar";
+import { enderecoPublico, lookupPublico, validarEnderecoPublico } from "@/lib/redePublica";
 
 /**
  * Imagens que vem de fora do formulario: do Bling, de outro produto da Rise ou
@@ -20,6 +23,11 @@ import { padronizarImagem } from "@/lib/imagens/padronizar";
 
 const TIMEOUT_MS = 20 * 1000;
 
+/// Foto de origem maior que isto e recusada sem ser lida ate o fim. O envio manual aceita 10 MB; a foto
+/// original de uma loja pode ser maior (e depois e reduzida a 1024 px), mas nao ilimitada: o endereco vem de
+/// pagina de terceiro, e sem teto a resposta inteira ia para a memoria do servidor.
+const TETO_BYTES_FOTO = 25 * 1024 * 1024;
+
 /** Bytes de uma fonte: endereco http(s), data URI ou arquivo de outro produto. */
 export async function bytesDe(fonte) {
   if (fonte.tipo === "arquivo") {
@@ -36,15 +44,18 @@ export async function bytesDe(fonte) {
 
   if (!/^https?:\/\//i.test(fonte.endereco)) throw new Error("endereço não é http nem https");
 
-  const abortar = new AbortController();
-  const relogio = setTimeout(() => abortar.abort(), TIMEOUT_MS);
-  try {
-    const resposta = await fetch(fonte.endereco, { cache: "no-store", signal: abortar.signal });
-    if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
-    return Buffer.from(await resposta.arrayBuffer());
-  } finally {
-    clearTimeout(relogio);
-  }
+  // O endereco vem de texto de site de concorrente (`ProdutoColetado.imagens`/`miniatura`): so rede publica, com
+  // o IP conferido na propria conexao e em cada salto de redirecionamento (ver `redePublica.js`).
+  const resposta = await obter(enderecoPublico(fonte.endereco), {
+    lookup: lookupPublico,
+    validar: validarEnderecoPublico,
+    sinal: AbortSignal.timeout(TIMEOUT_MS),
+    cabecalhos: { "User-Agent": USER_AGENT },
+    tetoDoCorpo: (status) => (status >= 200 && status < 300 ? TETO_BYTES_FOTO + 1 : 0),
+  });
+  if (resposta.status < 200 || resposta.status >= 300 || !resposta.bytes) throw new Error(`HTTP ${resposta.status}`);
+  if (resposta.bytes.length > TETO_BYTES_FOTO) throw new Error("foto maior que 25 MB");
+  return resposta.bytes;
 }
 
 /**

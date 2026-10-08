@@ -49,7 +49,7 @@ function descompactar(resposta) {
  * Um pedido, sem seguir redirecionamento. Resolve quando chegam os cabecalhos.
  * POST existe para o login de portal de fornecedor (Santana, 17/09/2026).
  */
-function pedir(url, { cabecalhos, sinal, metodo = "GET", corpo = null }) {
+function pedir(url, { cabecalhos, sinal, metodo = "GET", corpo = null, lookup = null }) {
   return new Promise((resolver, rejeitar) => {
     const cliente = url.protocol === "https:" ? https : http;
     const pedido = cliente.request(url, {
@@ -59,7 +59,10 @@ function pedir(url, { cabecalhos, sinal, metodo = "GET", corpo = null }) {
         ...(corpo === null ? {} : { "Content-Length": Buffer.byteLength(corpo) }),
         ...cabecalhos,
       },
-      agent: url.protocol === "https:" ? agenteHttps : agenteHttp,
+      // Com `lookup` proprio (rede publica, ver `redePublica.js`) o pedido NAO usa o pool: o pool reaproveita um
+      // socket aberto antes, por outro caminho, e a conferencia do IP so vale na conexao nova.
+      agent: lookup ? false : url.protocol === "https:" ? agenteHttps : agenteHttp,
+      ...(lookup ? { lookup } : {}),
     });
 
     const abortar = () => pedido.destroy(sinal.reason ?? new Error("Cancelado"));
@@ -156,8 +159,14 @@ function cabecalhosDe(resposta) {
  *   este status; 0 descarta o corpo sem ler
  * @param {boolean} [opcoes.mesmoDominio] redirecionamento para outro dominio NAO e
  *   seguido: devolve `redirecionouPara`
- * @param {"GET"|"POST"} [opcoes.metodo]
+ * @param {"GET"|"POST"|"HEAD"} [opcoes.metodo] so o primeiro pedido leva o metodo; os saltos seguintes sao GET.
+ *   Para HEAD sem baixar nada, use `seguir: false`.
  * @param {string} [opcoes.corpo] corpo do POST, ja codificado
+ * @param {Function} [opcoes.lookup] `lookup` de DNS do http.request (ver `lookupPublico` em redePublica.js): vale
+ *   em TODOS os saltos, e o pedido deixa de usar o pool de conexoes
+ * @param {(url: URL) => void} [opcoes.validar] chamado com a URL de CADA pedido, o primeiro e os saltos de
+ *   redirecionamento, ANTES de ele sair; lanca para recusar. IP escrito na URL nao passa pelo `lookup`, e so isto
+ *   o barra num redirecionamento.
  * @param {boolean} [opcoes.seguir] false devolve o 30x como veio, com
  *   `localizacao`. Login precisa: o cookie de sessao chega NA resposta do POST,
  *   e so quem guarda cookies sabe manda-lo no pedido seguinte.
@@ -175,12 +184,15 @@ export async function obter(
     metodo = "GET",
     corpo = null,
     seguir = true,
+    lookup = null,
+    validar = null,
   } = {},
 ) {
   let url = new URL(endereco);
   const hostOriginal = url.hostname;
 
   for (let saltos = 0; ; saltos++) {
+    validar?.(url);
     // So o primeiro pedido leva o metodo e o corpo: redirecionamento de POST e
     // seguido como GET, como o navegador faz com 301/302/303.
     const { resposta } = await pedir(url, {
@@ -188,6 +200,7 @@ export async function obter(
       sinal,
       metodo: saltos === 0 ? metodo : "GET",
       corpo: saltos === 0 ? corpo : null,
+      lookup,
     });
     const status = resposta.statusCode ?? 0;
     const local = resposta.headers.location;

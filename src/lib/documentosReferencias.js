@@ -1,12 +1,17 @@
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
-
 import { prisma } from "@/lib/db";
+import { obter } from "@/lib/coleta/http";
+import { USER_AGENT } from "@/lib/coleta/buscar";
+import { ErroDeRecusa, enderecoPublico, lookupPublico, validarEnderecoPublico } from "@/lib/redePublica";
 
 const MAXIMO_REFERENCIAS = 100;
 const MAXIMO_BYTES = 20 * 1024 * 1024;
 const MAXIMO_REDIRECIONAMENTOS = 3;
 const formatosConsultados = new Map();
+
+/// Toda busca de documento passa por aqui: o IP conferido e o IP em que a conexao abre (`lookupPublico`), e o
+/// endereco de cada salto de redirecionamento e conferido antes de sair (`validarEnderecoPublico`). Com `fetch`,
+/// o nome era resolvido uma vez para conferir e outra, pelo fetch, para conectar.
+const REDE_PUBLICA = { lookup: lookupPublico, validar: validarEnderecoPublico };
 
 function formatoPeloNome(valor) {
   const extensao = String(valor ?? "").match(/\.(pdf|jpe?g|png|zip|rar|7z|docx?|xlsx?|pptx?|csv|txt|stl|dxf|step|ino|hex)(?:[?#]|$)/i)?.[1];
@@ -15,22 +20,28 @@ function formatoPeloNome(valor) {
 
 async function formatoPeloCabecalho(endereco) {
   let url = enderecoPublico(endereco);
+  const sinal = AbortSignal.timeout(5000);
   for (let tentativa = 0; tentativa <= MAXIMO_REDIRECIONAMENTOS; tentativa++) {
-    const ips = await lookup(url.hostname, { all: true });
-    if (!ips.length || ips.some(({ address }) => !ipPublico(address))) return null;
-    const resposta = await fetch(url, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(5000) });
+    // `seguir: false`: um HEAD so quer os cabecalhos, e o salto seguinte do `obter` seria um GET que baixaria o
+    // arquivo inteiro em segundo plano. Os redirecionamentos sao seguidos aqui, um HEAD por salto.
+    const resposta = await obter(url, {
+      ...REDE_PUBLICA,
+      metodo: "HEAD",
+      seguir: false,
+      sinal,
+      cabecalhos: { "User-Agent": USER_AGENT },
+    });
     if ([301, 302, 303, 307, 308].includes(resposta.status)) {
-      const destino = resposta.headers.get("location");
-      if (!destino) return null;
-      url = enderecoPublico(new URL(destino, url).href);
+      if (!resposta.localizacao) return null;
+      url = enderecoPublico(new URL(resposta.localizacao, url).href);
       continue;
     }
-    if (!resposta.ok) return null;
-    const disposicao = resposta.headers.get("content-disposition") ?? "";
+    if (resposta.status < 200 || resposta.status >= 300) return null;
+    const disposicao = resposta.cabecalhos["content-disposition"] ?? "";
     const nome = disposicao.match(/filename\*?=(?:UTF-8''|["']?)([^"';]+)/i)?.[1];
     const formato = formatoPeloNome(nome && decodeURIComponent(nome));
     if (formato) return formato;
-    const tipo = resposta.headers.get("content-type") ?? "";
+    const tipo = resposta.cabecalhos["content-type"] ?? "";
     if (/application\/pdf/i.test(tipo)) return "PDF";
     if (/image\/jpe?g/i.test(tipo)) return "JPG";
     if (/image\/png/i.test(tipo)) return "PNG";
@@ -106,44 +117,15 @@ export async function listarDocumentosDasReferencias(ids) {
 
 export async function localizarDocumentoDaReferencia(referenciaId, indice) {
   if (typeof referenciaId !== "string" || !Number.isInteger(indice) || indice < 0 || indice >= 12) {
-    throw new Error("Documento invalido.");
+    throw new ErroDeRecusa("Documento inválido.");
   }
   const produto = await prisma.produtoColetado.findUnique({
     where: { id: referenciaId },
     select: { documentos: true },
   });
   const documento = Array.isArray(produto?.documentos) ? produto.documentos[indice] : null;
-  if (!documento?.url) throw new Error("Documento nao encontrado na referencia.");
+  if (!documento?.url) throw new ErroDeRecusa("Documento não encontrado na referência.");
   return documento;
-}
-
-function enderecoPublico(valor) {
-  const url = new URL(valor);
-  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
-    throw new Error("Endereco do documento invalido.");
-  }
-  const host = url.hostname.toLowerCase();
-  if (
-    !host || host === "localhost" ||
-    /\.(local|localhost|internal|test)$/.test(host) ||
-    isIP(host) || url.port
-  ) {
-    throw new Error("O documento precisa estar em um endereco publico.");
-  }
-  return url;
-}
-
-function ipPublico(ip) {
-  const valor = ip.toLowerCase();
-  if (valor.includes(":")) {
-    return !(/^(::1|::|fe80:|fc|fd)/.test(valor) || valor.startsWith("::ffff:"));
-  }
-  const [a, b] = valor.split(".").map(Number);
-  return !(
-    a === 0 || a === 10 || a === 127 || a >= 224 ||
-    (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127)
-  );
 }
 
 function tipoDoArquivo(bytes, url, contentType) {
@@ -157,57 +139,36 @@ function tipoDoArquivo(bytes, url, contentType) {
     return { mime: "application/zip", ext: extensao || "zip" };
   }
   if (/text\/html/i.test(contentType) || /<(!doctype|html)/i.test(bytes.subarray(0, 200).toString())) {
-    throw new Error("Este link abriu uma pagina, nao um arquivo. Confira a pagina da loja pelo nome do fornecedor.");
+    throw new ErroDeRecusa("Este link abriu uma página, não um arquivo. Confira a página da loja pelo nome do fornecedor.");
   }
   if (extensao) return { mime: "application/octet-stream", ext: extensao };
-  throw new Error("Este link nao retornou um arquivo para download. Confira a pagina da loja pelo nome do fornecedor.");
+  throw new ErroDeRecusa("Este link não retornou um arquivo para download. Confira a página da loja pelo nome do fornecedor.");
 }
 
 export async function baixarDocumentoDaReferencia(referenciaId, indice) {
   const documento = await localizarDocumentoDaReferencia(referenciaId, indice);
-  let url = enderecoPublico(documento.url);
+  const url = enderecoPublico(documento.url);
 
-  for (let tentativa = 0; tentativa <= MAXIMO_REDIRECIONAMENTOS; tentativa++) {
-    const ips = await lookup(url.hostname, { all: true });
-    if (!ips.length || ips.some(({ address }) => !ipPublico(address))) {
-      throw new Error("O servidor do documento nao tem endereco publico valido.");
-    }
-
-    const resposta = await fetch(url, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(15000),
-      headers: { Accept: "application/pdf,image/jpeg,image/png,*/*" },
-    });
-    if ([301, 302, 303, 307, 308].includes(resposta.status)) {
-      const destino = resposta.headers.get("location");
-      await resposta.body?.cancel();
-      if (!destino) throw new Error("Redirecionamento sem destino.");
-      url = enderecoPublico(new URL(destino, url).href);
-      continue;
-    }
-    if (!resposta.ok || !resposta.body) throw new Error(`Falha ao baixar documento (${resposta.status}).`);
-    if (Number(resposta.headers.get("content-length")) > MAXIMO_BYTES) {
-      await resposta.body.cancel();
-      throw new Error("Documento maior que 20 MB.");
-    }
-    const partes = [];
-    let tamanho = 0;
-    for await (const parte of resposta.body) {
-      tamanho += parte.length;
-      if (tamanho > MAXIMO_BYTES) {
-        await resposta.body.cancel();
-        throw new Error("Documento maior que 20 MB.");
-      }
-      partes.push(parte);
-    }
-    const bytes = Buffer.concat(partes);
-    const tipo = tipoDoArquivo(bytes, url, resposta.headers.get("content-type") ?? "");
-    const base = String(documento.titulo || "documento")
-      .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "")
-      .replace(/\.(pdf|jpe?g|png|zip|rar|7z|docx?|xlsx?|pptx?|csv|txt|stl|dxf|step|ino|hex)$/i, "")
-      .slice(0, 80) || "documento";
-    return { bytes, mime: tipo.mime, nome: `${base}.${tipo.ext}` };
+  // O `obter` segue os redirecionamentos (ate 5) e confere cada salto (`REDE_PUBLICA`); o corpo e lido ate 20 MB
+  // +1 byte: um byte a mais que o teto prova que o arquivo e maior, sem baixar o resto.
+  const resposta = await obter(url, {
+    ...REDE_PUBLICA,
+    sinal: AbortSignal.timeout(15000),
+    cabecalhos: { "User-Agent": USER_AGENT, Accept: "application/pdf,image/jpeg,image/png,*/*" },
+    tetoDoCorpo: (status) => (status >= 200 && status < 300 ? MAXIMO_BYTES + 1 : 0),
+  });
+  if (resposta.redirecionouPara) throw new ErroDeRecusa("O documento redirecionou para outro endere\u00e7o.");
+  if (resposta.status < 200 || resposta.status >= 300 || !resposta.bytes) {
+    throw new ErroDeRecusa(`Falha ao baixar o documento (${resposta.status}).`);
   }
-  throw new Error("O documento redirecionou muitas vezes.");
+  if (resposta.bytes.length > MAXIMO_BYTES) throw new ErroDeRecusa("Documento maior que 20 MB.");
+
+  const bytes = resposta.bytes;
+  const tipo = tipoDoArquivo(bytes, new URL(resposta.urlFinal), resposta.cabecalhos["content-type"] ?? "");
+  const base = String(documento.titulo || "documento")
+    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "")
+    .replace(/\.(pdf|jpe?g|png|zip|rar|7z|docx?|xlsx?|pptx?|csv|txt|stl|dxf|step|ino|hex)$/i, "")
+    .slice(0, 80) || "documento";
+  return { bytes, mime: tipo.mime, nome: `${base}.${tipo.ext}` };
 }
