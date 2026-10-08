@@ -22,33 +22,46 @@ export class ErroDeRecusa extends Error {
   }
 }
 
-/// Endereco http(s) que vale buscar: sem usuario, sem porta, sem IP escrito e sem nome interno. IP escrito nao
-/// passa por `lookup` (o Node o usa direto), entao so a recusa aqui o barra.
-export function enderecoPublico(valor) {
+/// Endereco http(s) que vale buscar: sem usuario, sem IP escrito e sem nome interno, e SEM porta, salvo com
+/// `permitirPorta` (foto de loja em porta propria: o filtro de IP da conexao ja barra a rede interna, e a regra da
+/// porta existe para o documento). IP escrito nao passa por `lookup` (o Node o usa direto), entao so a recusa aqui
+/// o barra.
+export function enderecoPublico(valor, { permitirPorta = false } = {}) {
   let url;
   try {
     url = new URL(valor);
   } catch {
-    throw new ErroDeRecusa("Endereço do documento inválido.");
+    throw new ErroDeRecusa("Endereço inválido.");
   }
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
-    throw new ErroDeRecusa("Endereço do documento inválido.");
+    throw new ErroDeRecusa("Endereço inválido.");
   }
   // O `URL` devolve o host de IPv6 COM colchetes ("[::1]"), e o `isIP` so reconhece sem eles: sem tirar, o
   // endereco `http://[::1]/` passava, e como IP escrito ele nao passa pelo `lookup` (achado pelo teste, 08/10/2026).
-  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (!host || host === "localhost" || /\.(local|localhost|internal|test)$/.test(host) || isIP(host) || url.port) {
-    throw new ErroDeRecusa("O documento precisa estar em um endereço público.");
+  // O ponto FINAL ("localhost.", "x.internal.") e o mesmo nome para o DNS e escapava das regras de nome interno.
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.+$/, "");
+  if (
+    !host ||
+    host === "localhost" ||
+    /\.(local|localhost|internal|test)$/.test(host) ||
+    isIP(host) ||
+    (url.port && !permitirPorta)
+  ) {
+    throw new ErroDeRecusa("O endereço precisa ser público.");
   }
   return url;
 }
 
-/// IP que a internet roteia: fora loopback, rede privada, link-local, CGNAT (100.64/10), multicast, o IPv6 de
-/// rede interna e o IPv4 embutido em IPv6 (`::ffff:`), que contornaria a conferencia do IPv4.
+/// IP que a internet roteia: fora loopback, rede privada, link-local, CGNAT (100.64/10) e multicast. IPv6 por LISTA
+/// PERMITIDA: so o unicast global (2000::/3, o que o `dns.lookup` devolve com o primeiro grupo de 4 digitos
+/// comecando em 2 ou 3), menos o que nele nao e a internet: documentacao (2001:db8::/32), Teredo (2001::/32), 6to4
+/// (2002::/16, embute um IPv4 qualquer) e documentacao 3fff::/20. A lista de proibidos de antes deixava passar
+/// fe90::/10, fec0::/10, ff00::/8 e o NAT64 64:ff9b::/96. `::` e `::ffff:` (IPv4 embutido) nao comecam por 2 ou 3.
 export function ipPublico(ip) {
   const valor = String(ip).toLowerCase();
   if (valor.includes(":")) {
-    return !(/^(::1|::|fe80:|fc|fd)/.test(valor) || valor.startsWith("::ffff:"));
+    if (!/^[23][0-9a-f]{3}:/.test(valor)) return false;
+    return !/^(2001:0?db8:|2001:0?:|2002:|3fff:)/.test(valor);
   }
   const [a, b] = valor.split(".").map(Number);
   return !(
@@ -71,7 +84,7 @@ export function lookupPublico(nome, opcoes, retorno) {
   resolverNome(nome, { ...opcoes, all: true }, (erro, enderecos) => {
     if (erro) return retorno(erro);
     if (!enderecos.length || enderecos.some(({ address }) => !ipPublico(address))) {
-      return retorno(new ErroDeRecusa("O servidor do documento não tem endereço público válido."));
+      return retorno(new ErroDeRecusa("O servidor desse endereço não é público."));
     }
     if (opcoes?.all) return retorno(null, enderecos);
     return retorno(null, enderecos[0].address, enderecos[0].family);
@@ -79,7 +92,12 @@ export function lookupPublico(nome, opcoes, retorno) {
 }
 
 /// Para o `validar` do `obter`: confere o endereco de CADA salto do redirecionamento, que pode apontar direto
-/// para um IP interno (o `lookup` nao e chamado para IP escrito).
+/// para um IP interno (o `lookup` nao e chamado para IP escrito). A de documento nao aceita porta.
 export function validarEnderecoPublico(url) {
   enderecoPublico(url.href);
+}
+
+/// A mesma conferencia para FOTO: aceita a porta, porque so o IP da conexao importa para nao chegar a rede interna.
+export function validarFotoPublica(url) {
+  enderecoPublico(url.href, { permitirPorta: true });
 }

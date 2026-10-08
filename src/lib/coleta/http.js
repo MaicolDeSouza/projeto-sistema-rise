@@ -32,6 +32,14 @@ const agenteHttps = new https.Agent({ keepAlive: true, maxSockets: 4 });
 
 const MAXIMO_REDIRECIONAMENTOS = 5;
 
+/// Identifica quem esta visitando. Site que quiser nos bloquear precisa saber o que bloquear: user-agent
+/// disfarcado de navegador e o oposto de educado. Mora aqui, no modulo folha, e nao em `buscar.js`, porque a
+/// busca de documento e de foto (`documentosReferencias`, `imagensImportadas`) so precisa da string e nao da maquina
+/// de coleta (robots.txt, fila por dominio, banco). `buscar.js` a reexporta.
+export const USER_AGENT =
+  process.env.COLETA_USER_AGENT ||
+  "SistemaRise/1.0 (coleta de precos para uso proprio)";
+
 /**
  * Descompacta conforme o Content-Encoding. Codificacao desconhecida passa como
  * veio: melhor bytes crus do que resposta perdida.

@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
-import { obter } from "@/lib/coleta/http";
-import { USER_AGENT } from "@/lib/coleta/buscar";
+import { obter, USER_AGENT } from "@/lib/coleta/http";
 import { ErroDeRecusa, enderecoPublico, lookupPublico, validarEnderecoPublico } from "@/lib/redePublica";
 
 const MAXIMO_REFERENCIAS = 100;
@@ -146,7 +145,12 @@ function tipoDoArquivo(bytes, url, contentType) {
 }
 
 export async function baixarDocumentoDaReferencia(referenciaId, indice) {
-  const documento = await localizarDocumentoDaReferencia(referenciaId, indice);
+  return baixarDocumento(await localizarDocumentoDaReferencia(referenciaId, indice));
+}
+
+/// A parte da busca que nao depende do banco (o `{ url, titulo }` do documento ja localizado): e onde o filtro de
+/// rede publica esta ligado, e por isso exportada para o teste conferir a ligacao sem banco.
+export async function baixarDocumento(documento) {
   const url = enderecoPublico(documento.url);
 
   // O `obter` segue os redirecionamentos (ate 5) e confere cada salto (`REDE_PUBLICA`); o corpo e lido ate 20 MB
@@ -157,7 +161,6 @@ export async function baixarDocumentoDaReferencia(referenciaId, indice) {
     cabecalhos: { "User-Agent": USER_AGENT, Accept: "application/pdf,image/jpeg,image/png,*/*" },
     tetoDoCorpo: (status) => (status >= 200 && status < 300 ? MAXIMO_BYTES + 1 : 0),
   });
-  if (resposta.redirecionouPara) throw new ErroDeRecusa("O documento redirecionou para outro endere\u00e7o.");
   if (resposta.status < 200 || resposta.status >= 300 || !resposta.bytes) {
     throw new ErroDeRecusa(`Falha ao baixar o documento (${resposta.status}).`);
   }

@@ -8,6 +8,7 @@
  * nem por nome que resolve para IP interno, nem por redirecionamento para um IP escrito.
  */
 
+import "dotenv/config";
 import http from "node:http";
 
 const { register } = await import("node:module");
@@ -16,6 +17,9 @@ register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
 const { ErroDeRecusa, enderecoPublico, ipPublico, lookupPublico, validarEnderecoPublico } = await import("../src/lib/redePublica.js");
 const { obter } = await import("../src/lib/coleta/http.js");
+// As duas libs que usam o filtro (importam o cliente do banco, mas nenhuma consulta e feita aqui).
+const { bytesDe } = await import("../src/lib/imagensImportadas.js");
+const { baixarDocumento } = await import("../src/lib/documentosReferencias.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -35,11 +39,16 @@ async function recusa(fazer) {
 }
 
 // ---------------------------------------------------------------- ipPublico
-const publicos = ["8.8.8.8", "1.1.1.1", "200.147.67.142", "2606:4700:4700::1111", "100.63.255.255", "100.128.0.1", "172.15.0.1", "172.32.0.1"];
+const publicos = [
+  "8.8.8.8", "1.1.1.1", "200.147.67.142", "100.63.255.255", "100.128.0.1", "172.15.0.1", "172.32.0.1",
+  "2606:4700:4700::1111", "2a00:1450:4001:80b::200e", "2804:14d:1::1", "3000::1",
+];
 const internos = [
   "0.0.0.0", "10.0.0.5", "127.0.0.1", "127.255.255.254", "169.254.169.254", "172.16.0.1", "172.18.0.2", "172.31.255.255",
   "192.168.1.1", "100.64.0.1", "100.127.255.255", "224.0.0.1", "255.255.255.255",
-  "::1", "::", "fe80::1", "fc00::1", "fd12:3456::1", "::ffff:127.0.0.1", "::ffff:10.0.0.1",
+  // IPv6: o que nao e unicast global (2000::/3) e o que dentro dele nao e a internet.
+  "::1", "::", "fe80::1", "fe90::1", "febf::1", "fec0::1", "fc00::1", "fd12:3456::1", "ff02::1", "ff0e::1",
+  "::ffff:127.0.0.1", "::ffff:10.0.0.1", "64:ff9b::7f00:1", "2001:db8::1", "2001::1", "2002:7f00:1::1", "3fff::1",
 ];
 conferir("ipPublico: enderecos da internet passam", publicos.map(ipPublico), publicos.map(() => true));
 conferir("ipPublico: rede interna, loopback, link-local, CGNAT e multicast nao passam", internos.map(ipPublico), internos.map(() => false));
@@ -52,8 +61,19 @@ const recusados = [
   "http://localhost/x", "http://localhost:3000/x", "http://127.0.0.1:3000/x", "http://[::1]/x", "http://10.0.0.1/x",
   "http://servidor.local/x", "http://servico.internal/x", "http://x.localhost/x", "http://x.test/x",
   "https://loja.com:8443/x", "https://usuario:senha@loja.com/x", "http://169.254.169.254/latest/meta-data",
+  // O ponto final e o mesmo nome para o DNS: nao escapa das regras de nome interno.
+  "http://localhost./x", "http://LOCALHOST../x", "http://metadata.internal./x", "http://impressora.local./x",
 ];
 conferir("enderecoPublico: so http(s) sem usuario, sem porta, sem IP escrito e sem nome interno", await Promise.all(recusados.map((e) => recusa(() => enderecoPublico(e)))), recusados.map(() => "ErroDeRecusa"));
+
+// A foto aceita porta propria; o resto da regra (nome interno, IP escrito) vale igual.
+conferir("enderecoPublico com permitirPorta: foto de loja em porta propria passa", enderecoPublico("http://loja.com.br:8080/a.jpg", { permitirPorta: true }).port, "8080");
+const recusadosComPorta = ["http://localhost:3000/x", "http://127.0.0.1:3000/x", "http://[::1]:3000/x", "http://localhost.:80/x", "http://10.0.0.1:8080/x"];
+conferir(
+  "enderecoPublico com permitirPorta: nome interno e IP escrito continuam recusados",
+  await Promise.all(recusadosComPorta.map((e) => recusa(() => enderecoPublico(e, { permitirPorta: true })))),
+  recusadosComPorta.map(() => "ErroDeRecusa"),
+);
 
 // ---------------------------------------------------------------- lookupPublico (o nome que resolve para IP interno)
 const resolver = (nome, opcoes) => new Promise((resolve) => lookupPublico(nome, opcoes, (erro, a, b) => resolve({ erro, a, b })));
@@ -128,6 +148,19 @@ const grande = await servidor((_req, res) => {
 });
 const lido = await obter(`http://127.0.0.1:${grande.porta}/`, { tetoDoCorpo: () => 1001 });
 conferir("obter: corpo acima do teto vem truncado em teto bytes", [lido.bytes?.length, lido.truncado], [1001, true]);
+
+// 8. A LIGACAO do filtro nas libs que buscam endereco de terceiro (a prova de que ele esta ligado, e nao so de que
+// as pecas funcionam). "localhost." passa pela primeira camada (nome comum) e so o lookup da conexao o barra; o
+// servidor local `alvo` nao pode receber nenhum acesso.
+const acessosDoAlvo = alvo.acessos;
+const foto = await recusa(() => bytesDe({ tipo: "endereco", endereco: `http://localhost.:${alvo.porta}/foto.jpg` }));
+conferir("bytesDe: foto em nome que resolve para IP interno (com porta) e recusada pela conexao", [foto, alvo.acessos - acessosDoAlvo], ["ErroDeRecusa", 0]);
+const fotoIp = await recusa(() => bytesDe({ tipo: "endereco", endereco: `http://127.0.0.1:${alvo.porta}/foto.jpg` }));
+conferir("bytesDe: foto em IP escrito e recusada antes de sair", [fotoIp, alvo.acessos - acessosDoAlvo], ["ErroDeRecusa", 0]);
+const documento = await recusa(() => baixarDocumento({ url: "http://localhost./arquivo.pdf", titulo: "Datasheet" }));
+conferir("baixarDocumento: nome que resolve para IP interno e recusado pela conexao", documento, "ErroDeRecusa");
+const documentoComPorta = await recusa(() => baixarDocumento({ url: `http://localhost.:${alvo.porta}/arquivo.pdf`, titulo: "Datasheet" }));
+conferir("baixarDocumento: documento com porta e recusado, e o servidor local nao recebe acesso", [documentoComPorta, alvo.acessos - acessosDoAlvo], ["ErroDeRecusa", 0]);
 
 for (const s of [alvo, redireciona, comLocalizacao, grande]) await fechar(s);
 

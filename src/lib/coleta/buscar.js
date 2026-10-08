@@ -1,6 +1,6 @@
 import { limitar } from "@/lib/integracoes/httpClient";
 
-import { obter } from "./http";
+import { obter, USER_AGENT } from "./http";
 
 /**
  * Busca educada de paginas para a secao Mercados.
@@ -17,11 +17,8 @@ import { obter } from "./http";
  * cada dois segundos sem codigo novo.
  */
 
-/// Identifica quem esta visitando. Site que quiser nos bloquear precisa saber
-/// o que bloquear — user-agent disfarcado de navegador e o oposto de educado.
-export const USER_AGENT =
-  process.env.COLETA_USER_AGENT ||
-  "SistemaRise/1.0 (coleta de precos para uso proprio)";
+/// Quem esta visitando: definido em `http.js` (modulo folha) e reexportado aqui para quem ja importava daqui.
+export { USER_AGENT };
 
 /// Teto por requisicao, cobrindo cabecalho E corpo. Configuravel porque 20s e
 /// pouco para loja lenta: a santanaimport serve 1,4 MB de home por tras da
