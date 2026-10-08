@@ -2365,8 +2365,22 @@ o dono mandou **encerrar** logo depois do teste (encerrado; no Rise fica `ERRO`/
 - O teste do `FormData` gravava um registro falso de envio de foto no `LogIntegracao` a cada rodada (33 em 08/10/2026,
   apagados); hoje ele usa um endereço `teste-rise.invalid` e apaga o registro.
 
-**Próximos testes reais:** um produto SEM anúncio no ML (para chegar ao vínculo e à ativação) e depois um kit de teste,
-sempre com o dono acompanhando e as travas só no ambiente do script.
+**Segundo teste real, o fluxo inteiro (08/10/2026, com o dono):** ZZ-TESTE-BLING (com uma foto copiada do 100101),
+Clássico, R$ 999,00, estoque 1 → **MLB7771172470**: fotos, validador, criação, pausa, descrição, **vínculo no Bling**
+(`POST /produtos/lojas` 201: `codigo` MLB7771172470, preço 999, loja 203593931), ativação e gravação, tudo certo.
+- **O ML recusou a descrição com `<b>tag</b>`** ("The description must be in plain text", nas posições das
+  etiquetas). Corrigido: `montarDescricaoML` tira o que tem forma de etiqueta HTML (mantém "<5V", "< 3,3 V").
+- Depois de ativado, **o ML pôs o anúncio em revisão** (`under_review`, `waiting_for_patch`): moderação, provavelmente
+  por ser "produto de teste" com a foto de outro produto. O Rise gravou "Ativa" pela resposta do `PUT`.
+- **Encerrar um anúncio em revisão devolve `inactive`, não `closed`.** No Rise ele ficou `PUBLICADO`/`ENCERRADA`. O
+  vínculo dele no Bling (id 1024857128) continua lá: o dono remove no Bling se quiser.
+- `situacaoDoItem` não conhece `under_review` nem `inactive` (viram `DESCONHECIDA`): fica para a tela de gerenciar.
+
+**Vários anúncios do mesmo produto (decisão do dono em 08/10/2026):** Clássico, Premium etc., todos do mesmo produto,
+com o estoque controlado pelo Bling. Medido: os dois anúncios do 100101 ficaram em **produtos de usuário diferentes**
+(MLBU3363203323 e MLBU5399328107), porque o `family_name` mudou ("SMD"). O caminho do ML é `POST
+/user-products/{UP}/items` (nova condição de venda do MESMO produto do usuário: o estoque é do UP e o ML o divide entre os
+anúncios), com o vínculo único do Bling no anúncio que já existe. Desenho a aprovar com o dono.
 
 **Fora desta fase:** gerenciar anúncio publicado (editar, pausar, sincronizar preço/estoque), `hashConteudo`, aviso de
 exclusão de produto com anúncios, listagem paginada no banco.
