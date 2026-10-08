@@ -350,6 +350,15 @@ git commit -m "VPS: scripts de deploy, copia externa para o R2, limpeza de logs 
 - [ ] **Step 7: rclone:** `rclone config` com o remoto `r2` (tipo S3, provedor Cloudflare, chaves do bucket `rise-backup`); `rclone lsd r2:` lista o bucket.
 - [ ] **Step 8: Verificar:** `ssh rise@<ip> 'docker --version && docker compose version && rclone version && free -h && swapon --show'` — Expected: versões impressas, 2 GB de swap.
 
+**Feito em 08/10/2026 (VPS `srv2045018`, IP 179.199.150.221, Ubuntu 26.04.1, kernel 7.0, 2 vCPU, 7,7 GB, 96 GB):**
+- Passos 2 a 5 e 8 concluídos por SSH com a chave `~/.ssh/rise_vps` do PC: fuso `America/Sao_Paulo`; `docker.io` 29.1.3 e `docker-compose-v2` 2.40.3 do próprio Ubuntu (acima do 2.20 exigido); fail2ban com `backend = systemd` (o Ubuntu não tem mais `/var/log/auth.log`); `unattended-upgrades` ligado; swap de 2 GB no `/etc/fstab`; usuário `rise` com `sudo` **sem senha** (`/etc/sudoers.d/rise`: único administrador, só por chave) e no grupo `docker`; `/srv/rise/app` clonado do GitHub (público) no commit `77a8873`, `dados/*` criados, `deploy/*.sh` executáveis e com LF.
+- **SSH endurecido por `/etc/ssh/sshd_config.d/00-rise.conf`**, e o nome importa: o `sshd` usa o **primeiro** valor que lê, e os drop-ins do Hostinger (`50-cloud-init.conf`, com `PasswordAuthentication yes` e `PermitRootLogin yes`) vêm depois do `00-`. Conferido com `sshd -T` e na prática: root recusado, `rise` entrando.
+- **`ufw` ligado** (22, 80, 443) além do firewall do painel da Hostinger, que o dono ainda precisa configurar.
+- **Caddyfile validado pelo Caddy 2.11.7 real** ("Valid configuration"), o que fecha o passo 5 da Task 5.
+- **`.env` de produção** = cópia do `.env` do PC com: senha nova do banco (40 caracteres, gerada no servidor, nunca impressa), `DATABASE_URL` no host `db`, `APP_URL` e os dois redirects em `rise.4hobby.com.br`, e as variáveis novas (`TINYAUTH_AUTH_USERS`, `RCLONE_REMOTO=r2:rise-backup`, `HEALTHCHECKS_*`, `BACKUP_MANTER=4`). `chmod 600`; `docker compose config` válido com ele. Nenhum valor do `.env` tem `$`.
+- **Achado:** o `.env` do PC está com `BLING_ESCRITA=true` + `BLING_ESCRITA_CODIGOS=100101` e `PHOTOROOM_COMPRA=true`, diferente do que a spec supunha ("travas em `false`"). Copiado **como está**, para a produção se comportar igual ao PC de hoje; a decisão final é do dono antes da virada (no ensaio não importa: as `Conexao` do Bling são apagadas).
+- **Pendente do dono:** firewall do painel (22/80/443), registros A `rise` e `auth.rise`, chaves do R2 (passo 7, `rclone config`), URLs do healthchecks.io e a senha do login (`TINYAUTH_AUTH_USERS`).
+
 ### Task 8: Ensaio geral
 
 - [ ] **Step 1: DNS:** `dig +short rise.4hobby.com.br` e `dig +short auth.rise.4hobby.com.br` devolvem o IP do VPS.
