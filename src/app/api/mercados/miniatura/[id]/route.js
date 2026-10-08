@@ -27,7 +27,13 @@ export async function GET(requisicao, { params }) {
   if (!miniatura) return new Response("Sem foto.", { status: 404 });
 
   if (/^https?:\/\//i.test(miniatura)) {
-    return Response.redirect(miniatura, 302);
+    // O endereco e texto de site de terceiro: "http://loja .com/foto.jpg" passa no teste acima e faz
+    // `Response.redirect` lancar TypeError (500 e pilha no log a cada linha daquela fonte).
+    try {
+      return Response.redirect(new URL(miniatura).href, 302);
+    } catch {
+      return new Response("Sem foto.", { status: 404 });
+    }
   }
 
   const casamento = /^data:([a-z0-9.+/-]+);base64,(.+)$/is.exec(miniatura);

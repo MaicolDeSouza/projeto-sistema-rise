@@ -1188,6 +1188,11 @@ try {
       conferir("rota: nome valido que nao existe devolve 404", (await pedir([SKU_RESERVA, "reserva", `${"c".repeat(32)}.jpg`])).status, 404);
       conferir("rota: travessia na reserva e recusada", [400, 404].includes((await pedir([SKU_RESERVA, "reserva", "../../.env"])).status), true);
       conferir("rota: pasta desconhecida continua recusada", (await pedir([SKU_RESERVA, "outra", reservaUm.nome])).status, 400);
+      // A rota e PUBLICA: o Next ja entrega o SKU decodificado, e um "%" solto nao pode mais virar 500 (era um
+      // decodeURIComponent a mais, medido em 08/10/2026). `%zz` nao e SKU valido: 400, como qualquer outro.
+      conferir("rota: '%' solto no SKU da reserva e 400, nao 500", (await pedir(["%zz", "reserva", reservaUm.nome])).status, 400);
+      conferir("rota: '%' solto no SKU de foto e 400, nao 500", (await pedir(["%zz", "imagens", reservaUm.nome])).status, 400);
+      conferir("rota: o corpo e o tamanho vem do arquivo (fluxo)", [servida.headers.get("content-length")], [String(jpgUm.length)]);
 
       // Trocar o SKU leva a pasta reserva junto.
       const skuNovoReserva = `${SKU_RESERVA}-B`;

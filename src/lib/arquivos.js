@@ -294,7 +294,9 @@ export function loteValido(lote) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(lote ?? "");
 }
 
-const TIPO_POR_EXTENSAO = { ".pdf": "application/pdf", ".jpg": "image/jpeg", ".png": "image/png", ".zip": "application/zip" };
+// Exportado: a rota /api/arquivos serve com o mesmo mapa, e uma segunda copia dele ficaria para tras no dia em
+// que um tipo novo de documento for aceito no envio.
+export const TIPO_POR_EXTENSAO = { ".pdf": "application/pdf", ".jpg": "image/jpeg", ".png": "image/png", ".zip": "application/zip" };
 
 /** Apaga lotes com mais de 24 h. Falha aqui nunca derruba o envio. */
 export async function limparTemporariosAntigos() {

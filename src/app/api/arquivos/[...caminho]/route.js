@@ -1,14 +1,35 @@
-import { readFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
+import { Readable } from "node:stream";
 
 import { prisma } from "@/lib/db";
-import { PASTA_RESERVA, TIPOS_POR_PASTA, cabecalhoDeArquivo, caminhoDaReserva, caminhoDe } from "@/lib/arquivos";
+import {
+  PASTA_RESERVA,
+  TIPOS_POR_PASTA,
+  TIPO_POR_EXTENSAO,
+  cabecalhoDeArquivo,
+  caminhoDaReserva,
+  caminhoDe,
+} from "@/lib/arquivos";
 
-const CONTEUDO = {
-  ".jpg": "image/jpeg",
-  ".png": "image/png",
-  ".pdf": "application/pdf",
-  ".zip": "application/zip",
-};
+/// Tamanho do arquivo, ou null se ele nao existe. Conferido ANTES de montar a resposta: o fluxo abaixo so abre o
+/// arquivo quando alguem le, e um 404 precisa sair antes dos cabecalhos.
+async function tamanhoDe(absoluto) {
+  try {
+    const info = await stat(absoluto);
+    return info.isFile() ? info.size : null;
+  } catch (erro) {
+    if (erro.code === "ENOENT") return null;
+    throw erro;
+  }
+}
+
+/// O arquivo em FLUXO, e nao inteiro na memoria: a rota e PUBLICA, documento e ZIP chegam a 20 MB, e N pedidos
+/// paralelos do mesmo ZIP eram N x 20 MB no container (limite de 1,5 GB). O fluxo so abre o arquivo quando
+/// alguem le: um HEAD, que nao le o corpo, nao deixa descritor aberto.
+function fluxoDe(absoluto) {
+  return Readable.toWeb(createReadStream(absoluto));
+}
 
 /**
  * Serve os arquivos de dados/produtos/<SKU>/<pasta>/<nome>.
@@ -23,6 +44,10 @@ const CONTEUDO = {
  * enviou ("Datasheet ATmega328P.pdf"): ele esta no banco (`ProdutoArquivo.nomeOriginal`) e vai no
  * `Content-Disposition` (pedido do dono em 05/10/2026). A busca do nome nao pode derrubar o download: se o
  * banco falhar, o arquivo sai com o nome do endereco, como antes.
+ *
+ * O Next ja entrega os segmentos DECODIFICADOS. Decodificar de novo (como esta rota fazia) lancava URIError, e
+ * a rota PUBLICA respondia 500 a qualquer "%" solto no endereco (`/api/arquivos/%25zz/...`, medido em
+ * 08/10/2026). SKU valido so tem letras, numeros, ponto, hifen e sublinhado: nunca precisou de decodificacao.
  */
 export async function GET(requisicao, { params }) {
   const { caminho } = await params;
@@ -36,45 +61,46 @@ export async function GET(requisicao, { params }) {
   // Reserva de imagens (Nano Banana): sempre JPEG com nome gerado por nos, sempre aberta na pagina. Nao
   // consulta o banco: nao ha nome real para mostrar, so a imagem.
   if (pasta === PASTA_RESERVA) {
-    const absolutoReserva = caminhoDaReserva(decodeURIComponent(sku), nome);
+    const absolutoReserva = caminhoDaReserva(sku, nome);
     if (!absolutoReserva) return new Response("Caminho inválido.", { status: 400 });
-    try {
-      return new Response(await readFile(absolutoReserva), {
-        headers: {
-          "Content-Type": "image/jpeg",
-          // O nome e gerado na gravacao e nunca reutilizado: pode cachear para sempre.
-          "Cache-Control": "public, max-age=31536000, immutable",
-        },
-      });
-    } catch (erro) {
-      if (erro.code === "ENOENT") return new Response("Arquivo não encontrado.", { status: 404 });
-      throw erro;
-    }
+    const tamanhoReserva = await tamanhoDe(absolutoReserva);
+    if (tamanhoReserva === null) return new Response("Arquivo não encontrado.", { status: 404 });
+    return new Response(fluxoDe(absolutoReserva), {
+      headers: {
+        "Content-Type": "image/jpeg",
+        "Content-Length": String(tamanhoReserva),
+        // O nome e gerado na gravacao e nunca reutilizado: pode cachear para sempre.
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
   }
 
   const tipo = TIPOS_POR_PASTA[pasta];
 
   if (!tipo) return new Response("Pasta desconhecida.", { status: 400 });
 
-  const skuDecodificado = decodeURIComponent(sku);
-  const absoluto = caminhoDe(skuDecodificado, tipo, nome);
+  const absoluto = caminhoDe(sku, tipo, nome);
   if (!absoluto) return new Response("Caminho inválido.", { status: 400 });
 
   try {
-    const bytes = await readFile(absoluto);
+    const tamanho = await tamanhoDe(absoluto);
+    if (tamanho === null) return new Response("Arquivo não encontrado.", { status: 404 });
     const extensao = nome.slice(nome.lastIndexOf("."));
 
     // O nome real, se houver (foto importada nao tem). So depois de o arquivo existir: nome de arquivo
-    // que nao existe nao justifica ida ao banco.
+    // que nao existe nao justifica ida ao banco. Foto abre na pagina e nao mostra nome nenhum: sem ida ao
+    // banco, que numa rota publica seria uma consulta por foto de cada visitante da loja.
     let nomeOriginal = null;
-    try {
-      const linha = await prisma.produtoArquivo.findFirst({
-        where: { arquivo: nome, produto: { sku: skuDecodificado } },
-        select: { nomeOriginal: true },
-      });
-      nomeOriginal = linha?.nomeOriginal ?? null;
-    } catch {
-      // Sem o banco, o download segue com o nome do endereco.
+    if (tipo !== "IMAGEM") {
+      try {
+        const linha = await prisma.produtoArquivo.findFirst({
+          where: { arquivo: nome, produto: { sku } },
+          select: { nomeOriginal: true },
+        });
+        nomeOriginal = linha?.nomeOriginal ?? null;
+      } catch {
+        // Sem o banco, o download segue com o nome do endereco.
+      }
     }
 
     // ZIP nunca abre na pagina: baixa. O resto abre, e o nome real vai junto para o "Salvar como".
@@ -82,9 +108,10 @@ export async function GET(requisicao, { params }) {
     const cabecalho = cabecalhoDeArquivo(nomeOriginal, disposicao);
     const comNome = cabecalho !== disposicao;
 
-    return new Response(bytes, {
+    return new Response(fluxoDe(absoluto), {
       headers: {
-        "Content-Type": CONTEUDO[extensao] ?? "application/octet-stream",
+        "Content-Type": TIPO_POR_EXTENSAO[extensao] ?? "application/octet-stream",
+        "Content-Length": String(tamanho),
         // Sem nome real, o ZIP mantem o comportamento de antes (nome do endereco); o resto nao precisa de cabecalho.
         ...(comNome
           ? { "Content-Disposition": cabecalho }

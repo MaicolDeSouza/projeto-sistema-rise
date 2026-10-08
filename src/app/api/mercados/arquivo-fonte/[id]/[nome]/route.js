@@ -29,7 +29,8 @@ export async function GET(requisicao, { params }) {
     select: { dominio: true, listaArquivos: true },
   });
 
-  const nomeProcurado = decodeURIComponent(String(nome));
+  // O Next ja entrega o segmento decodificado; decodificar de novo lancava URIError (500) com um "%" solto.
+  const nomeProcurado = String(nome);
   const lista = Array.isArray(fonte?.listaArquivos) ? fonte.listaArquivos : [];
   if (!fonte || !lista.some((item) => item?.nome === nomeProcurado)) {
     return new Response("Arquivo não encontrado.", { status: 404 });
