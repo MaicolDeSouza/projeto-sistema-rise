@@ -2391,10 +2391,17 @@ essa a lista "Anúncios já exportados" da tela de produto do Bling ("Vincular e
   completa o registro. A situação continuou 2 (o MLB de teste está inativo no ML; o do 100101, ativo, mostra 1):
   **presunção**: a situação espelha o ML. `/anuncios/{id}/publicar` e `/pausar` não foram chamados (podem agir no ML).
 - Registro de teste criado no Bling: anúncio id **64439359** (ZZ-TESTE-BLING ↔ MLB7771172470); fica até o dono apagar.
-- Consequência: a recusa "um só anúncio por produto" da pré-checagem estava errada e sai; o Publicar ganha a etapa
-  **registrar o anúncio no Bling** (`POST /anuncios` + `PUT` com nome/preço/modalidade) e o vínculo produto-loja é
-  reaproveitado quando já existe (com qualquer MLB). Não confirmado: se o Bling baixa o estoque pelo registro em
-  `/anuncios` (só uma venda real mostra).
+- Consequência (fase 3b, feita em 08/10/2026): a recusa "um só anúncio por produto" da pré-checagem saiu; o Publicar
+  ganhou a etapa **`registrar_bling`** (`POST /anuncios` com nome, preço e modalidade; `PUT` só se a releitura voltar
+  sem título ou preço) e o vínculo produto-loja é reaproveitado quando já existe (com qualquer MLB).
+- **Terceiro teste real (08/10/2026, 100101 Premium a R$ 999, estoque 1 → MLB7771491156):** fluxo inteiro ok como
+  anúncio adicional: vínculo reaproveitado (o 907446191, do MLB4165084257, sem mudar), `POST /anuncios` → 201
+  (id 64442771) **já com título, preço e modalidade** (o PUT não foi preciso), ativado; o Bling listou os dois
+  anúncios do 100101, ambos situação 1. O ML pôs o anúncio novo no `user_product_id` MLBU5399328107 (o criado no
+  primeiro teste, não o do MLB4165084257). Encerrado depois do teste, a pedido do dono (`closed` no ML); **logo depois
+  do encerramento o Bling ainda mostrava o registro com situação 1**: a situação do Bling não acompanha o ML na hora.
+  O registro 64442771 continua no Bling (o dono remove se quiser). Não confirmado: se o Bling baixa o estoque pelo
+  registro em `/anuncios` (só uma venda real mostra).
 
 **Fora desta fase:** gerenciar anúncio publicado (editar, pausar, sincronizar preço/estoque), `hashConteudo`, aviso de
 exclusão de produto com anúncios, listagem paginada no banco.
