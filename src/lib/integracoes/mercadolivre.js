@@ -219,9 +219,10 @@ export const conector = {
     ...(config.mercadoLivre.clientId ? [] : ["ML_CLIENT_ID"]),
     ...(config.mercadoLivre.clientSecret ? [] : ["ML_CLIENT_SECRET"]),
   ],
-  // A lista de aplicacoes do DevCenter (client id, secret, redirect URIs, escopos), como no cartao do Bling.
+  // O DevCenter (client id, secret, redirect URIs, escopos), como no cartao do Bling. A raiz, e nao a
+  // lista de apps: /devcenter/new-list-app deu erro para o dono em 08/10/2026.
   painel: {
-    url: "https://developers.mercadolivre.com.br/devcenter/new-list-app",
+    url: "https://developers.mercadolivre.com.br/devcenter",
     rotulo: "Link configuração API",
   },
   iniciarAutorizacao,
