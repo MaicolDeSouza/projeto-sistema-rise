@@ -1296,12 +1296,15 @@ try {
       try {
         const formulario = new FormData();
         formulario.append("file", new Blob([Buffer.from("jpg")], { type: "image/jpeg" }), "a-1.jpg");
-        await requisitar({ servico: "MERCADO_LIVRE", url: "https://api.mercadolibre.com/pictures/items/upload", metodo: "POST", corpo: formulario, tentativas: 1 });
+        await requisitar({ servico: "MERCADO_LIVRE", url: "https://teste-rise.invalid/pictures/items/upload", metodo: "POST", corpo: formulario, tentativas: 1 });
         conferir("requisitar: FormData vai cru", pedido.body === formulario, true);
         conferir("requisitar: FormData sem Content-Type", Object.keys(pedido.headers).some((k) => k.toLowerCase() === "content-type"), false);
       } finally {
         globalThis.fetch = fetchOriginal;
+        // O requisitar registra toda chamada: o registro deste teste (fetch falso) sai do log.
+        await prisma.logIntegracao.deleteMany({ where: { endpoint: "https://teste-rise.invalid/pictures/items/upload" } });
       }
+      conferir("requisitar: o teste nao deixa registro no LogIntegracao", await prisma.logIntegracao.count({ where: { endpoint: { startsWith: "https://teste-rise.invalid" } } }), 0);
     }
 
     {
@@ -1353,15 +1356,22 @@ try {
       conferir("vinculo: lista os outros MLB", (await vinculoNoBlingML(bf, "100101", "MLB1")).outros, ["MLB4165084257"]);
       conferir("vinculo: produto fora do Bling", (await vinculoNoBlingML(bf, "999999", "MLB1")).situacao, "sem_produto_no_bling");
       const bfTravado = novoBling({ codigosLiberados: ["outro"] });
-      const recusado = await vincularNoBlingML(bfTravado, "100101", "MLB1", 49.9);
+      const recusado = await vincularNoBlingML(bfTravado, "100102", "MLB1", 49.9);
       conferir("vincular: trava recusa sem escrever", [recusado.ok, bfTravado.chamadas.some((c) => c.metodo === "POST"), /Escrita bloqueada/.test(recusado.erro)], [false, false, true]);
-      const v = await vincularNoBlingML(bf, "100101", "MLB1", 49.9);
-      conferir("vincular: POST na loja do ML com o MLB e o preco", [v.ok, posts(bf, "/produtos/lojas").at(-1)?.corpo], [true, { codigo: "MLB1", preco: 49.9, produto: { id: 101 }, loja: { id: 203593931 } }]);
-      const deNovo = await vincularNoBlingML(bf, "100101", "MLB1", 49.9);
+      // Medido no primeiro envio real (08/10/2026): o Bling aceita UM vinculo por produto na loja ("Para esta loja
+      // ja existe um produto loja vinculado ao produto informado"). Com outro MLB ja ligado, nem tenta.
+      const outroJaLigado = await vincularNoBlingML(bf, "100101", "MLB1", 49.9);
+      conferir("vincular: produto com outro MLB na loja recusa sem escrever", [outroJaLigado.ok, /MLB4165084257/.test(outroJaLigado.erro), posts(bf, "/produtos/lojas").length], [false, true, 0]);
+      const v = await vincularNoBlingML(bf, "100102", "MLB1", 49.9);
+      conferir("vincular: POST na loja do ML com o MLB e o preco", [v.ok, posts(bf, "/produtos/lojas").at(-1)?.corpo], [true, { codigo: "MLB1", preco: 49.9, produto: { id: 102 }, loja: { id: 203593931 } }]);
+      const deNovo = await vincularNoBlingML(bf, "100102", "MLB1", 49.9);
       conferir("vincular: segunda vez nao duplica", [deNovo.ok, deNovo.jaEstava, posts(bf, "/produtos/lojas").length], [true, true, 1]);
       const bfRecusa = novoBling({ falhas: [{ metodo: "POST", caminho: "/produtos/lojas", status: 400, mensagem: "vinculo repetido" }] });
-      const recusaDoBling = await vincularNoBlingML(bfRecusa, "100101", "MLB1", 49.9);
+      const recusaDoBling = await vincularNoBlingML(bfRecusa, "100102", "MLB1", 49.9);
       conferir("vincular: recusa do Bling volta com o motivo", [recusaDoBling.ok, /vinculo repetido/.test(recusaDoBling.erro)], [false, true]);
+      bf.exigirEscrita("100101");
+      const direto = await bf.post("/produtos/lojas", { codigo: "MLB2", preco: 1, produto: { id: 101 }, loja: { id: 203593931 } });
+      conferir("bling falso: segundo vinculo do produto na mesma loja e 400, como o real", [direto.status, JSON.stringify(direto.dados).includes("já existe um produto loja vinculado")], [400, true]);
 
       conferir("kit: codigo livre => criar", (await conferirKitNoBling(bf, { codigo: "100101_5", itens: [{ sku: "100101", quantidade: 5 }] })).situacao, "criar");
       conferir("kit: mesmas pecas em outra ordem => igual", await conferirKitNoBling(bf, { codigo: "120809", itens: [{ sku: "100102", quantidade: 2 }, { sku: "100101", quantidade: 1 }] }), { situacao: "igual", id: 809 });
@@ -1379,7 +1389,8 @@ try {
       conferir("kit: peca que e kit no Bling => erro", (await conferirKitNoBling(bf, { codigo: "250001", itens: [{ sku: "120809", quantidade: 2 }] })).situacao, "erro");
       const simplesNoBling = await conferirKitNoBling(bf, { codigo: "100103", itens: [{ sku: "100101", quantidade: 2 }] });
       conferir("kit: codigo de produto simples => erro", [simplesNoBling.situacao, /produto simples/.test(simplesNoBling.erro)], ["erro", true]);
-      conferir("kit: so leitura", bf.chamadas.filter((c) => c.metodo !== "GET" && c.metodo !== "exigirEscrita").length, 1);
+      // As duas escritas sao as do vinculo acima (a aceita e a recusada de proposito): o kit so leu.
+      conferir("kit: so leitura", bf.chamadas.filter((c) => c.metodo !== "GET" && c.metodo !== "exigirEscrita").length, 2);
 
       const base = { codigo: "100101_5", titulo: "KIT COM 5 PLACA UNO", preco: 199, envio: { pesoKg: 0.25, alturaCm: 5, larguraCm: 10, comprimentoCm: 12 }, principal: { ncm: "84733049", origem: 0 }, pecasNoBling: [{ id: 11, quantidade: 5 }] };
       const corpo = corpoDoKitDoAnuncio(base);
@@ -1502,6 +1513,9 @@ try {
       conferir("preparar: kit com outras pecas recusa com o recado", [kitDiferente.ok, kitDiferente.motivos.some((m) => /ZZ-ML-K2: 3 no anúncio, 2 no Bling/.test(m))], [false, true]);
       const kitDoRise = await prepararPublicacaoML(await c.anuncioSimples(c.kitDoRise), { ml, bling: bf });
       conferir("preparar: produto kit do Rise que e simples no Bling recusa", [kitDoRise.ok, kitDoRise.motivos.some((m) => /produto simples no Bling/.test(m))], [false, true]);
+      const bfLigado = c.novoBling({ vinculosDeLoja: [{ codigo: "MLB900", preco: 10, produto: { id: 501 }, loja: { id: 203593931 } }] });
+      const ligado = await prepararPublicacaoML(idSimples, { ml, bling: bfLigado });
+      conferir("preparar: produto ja vinculado a outro anuncio na loja do ML recusa", [ligado.ok, ligado.motivos.some((m) => /MLB900/.test(m) && /um só anúncio/.test(m))], [false, true]);
       conferir("preparar: anuncio que nao existe", (await prepararPublicacaoML("nao-existe", { ml, bling: bf })).motivos, ["Anúncio não encontrado."]);
       conferir("preparar: continua so leitura", [ml.escritas.length, bf.chamadas.filter((chamada) => chamada.metodo !== "GET").length], [0, 0]);
     }
@@ -1540,24 +1554,24 @@ try {
       r = await publicarAnuncioML(idOutro, { ml: mlNovo, bling: bfTravado, lerFoto });
       conferir("trava: nada escrito em lugar nenhum", [r.ok, /Escrita bloqueada/.test(r.erro), mlNovo.escritas.length, bfTravado.chamadas.filter((chamada) => !["GET", "exigirEscrita"].includes(chamada.metodo)).length, (await estado(idOutro)).status], [false, true, 0, 0, "RASCUNHO"]);
       const mlTravado = criarMLFalso({ codigosLiberados: ["outro"] });
-      r = await publicarAnuncioML(idOutro, { ml: mlTravado, bling: bf, lerFoto });
+      r = await publicarAnuncioML(idOutro, { ml: mlTravado, bling: c.novoBling(), lerFoto });
       conferir("trava: codigo fora da lista do ML", [r.ok, /ML_PUBLICACAO_CODIGOS/.test(r.erro), mlTravado.escritas.length], [false, true, 0]);
 
       // Review Focus 1: criacao sem resposta certa
       const mlQueda = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items", exato: true, status: 500 }] });
       const idQueda = await c.anuncioSimples(c.s1);
-      r = await publicarAnuncioML(idQueda, { ml: mlQueda, bling: bf, lerFoto });
+      r = await publicarAnuncioML(idQueda, { ml: mlQueda, bling: c.novoBling(), lerFoto });
       conferir("incerta: marcada", [r.ok, r.incerta, r.etapa, (await estado(idQueda)).status], [false, true, "criar", "ERRO"]);
       const antes = mlQueda.escritas.length;
-      r = await publicarAnuncioML(idQueda, { ml: mlQueda, bling: bf, lerFoto });
+      r = await publicarAnuncioML(idQueda, { ml: mlQueda, bling: c.novoBling(), lerFoto });
       conferir("incerta: retomar sem recriar nao escreve", [r.ok, mlQueda.escritas.length - antes, /Confira/.test(r.erro)], [false, 0, true]);
-      r = await publicarAnuncioML(idQueda, { ml: mlQueda, bling: bf, lerFoto, recriar: true });
+      r = await publicarAnuncioML(idQueda, { ml: mlQueda, bling: c.novoBling(), lerFoto, recriar: true });
       conferir("incerta: recriar cria e nao sobe as fotos de novo", [r.ok, mlQueda.escritas.filter((e) => e.caminho === "/pictures/items/upload").length, (await lerPublicacao(idQueda)).publicacao.incerta], [true, 2, false]);
       const mlRede = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items", exato: true, lancar: true }] });
-      r = await publicarAnuncioML(await c.anuncioSimples(c.s1), { ml: mlRede, bling: bf, lerFoto });
+      r = await publicarAnuncioML(await c.anuncioSimples(c.s1), { ml: mlRede, bling: c.novoBling(), lerFoto });
       conferir("incerta: queda de rede tambem", [r.ok, r.incerta], [false, true]);
       const mlRecusa = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items", exato: true, status: 400, dados: { message: "bad", cause: [{ type: "error", code: "x", message: "Recusado" }] } }] });
-      r = await publicarAnuncioML(await c.anuncioSimples(c.s1), { ml: mlRecusa, bling: bf, lerFoto });
+      r = await publicarAnuncioML(await c.anuncioSimples(c.s1), { ml: mlRecusa, bling: c.novoBling(), lerFoto });
       conferir("criar: recusa 4xx nao e incerta", [r.ok, Boolean(r.incerta), /Recusado/.test(r.erro)], [false, false, true]);
 
       // Review Focus 2: falha em cada etapa e retomada
@@ -1616,9 +1630,9 @@ try {
       // Validar no ML: validacao 400 => erro com as causas, nada criado, status continua RASCUNHO
       const mlValida = criarMLFalso({ validacao: { status: 400, dados: { message: "Validation error", cause: [{ type: "error", code: "item.attribute.missing", message: "Falta MODEL" }, { type: "warning", code: "x", message: "Foto pequena" }] } } });
       const idValida = await c.anuncioSimples(c.s1);
-      r = await validarNoML(idValida, { ml: mlValida, bling: bf, lerFoto });
+      r = await validarNoML(idValida, { ml: mlValida, bling: c.novoBling(), lerFoto });
       conferir("validarNoML: causas e nada criado", [r.ok, /Falta MODEL/.test(r.erro), r.avisos, mlValida.escritas.some((e) => e.caminho === "/items"), (await estado(idValida)).status], [false, true, ["Foto pequena (x)"], false, "RASCUNHO"]);
-      r = await validarNoML(idValida, { ml: criarMLFalso(), bling: bf, lerFoto });
+      r = await validarNoML(idValida, { ml: criarMLFalso(), bling: c.novoBling(), lerFoto });
       conferir("validarNoML: sem problema", [r.ok, (await estado(idValida)).status, (await salvarRascunhoML(idValida, (await novoRascunhoML(c.s1.id)).rascunho)).ok], [true, "RASCUNHO", true]);
       // Primeiro envio real (08/10/2026): o validador devolveu 400 "Validation error" so com causas do tipo
       // warning ("User has not mode me1", "Mandatory free shipping added"). Aviso nao bloqueia: segue.
@@ -1626,9 +1640,9 @@ try {
       const mlAvisos = criarMLFalso({ validacao: soAvisos });
       r = await publicarAnuncioML(await c.anuncioSimples(c.s1), { ml: mlAvisos, bling: c.novoBling(), lerFoto });
       conferir("validar: 400 so com avisos nao bloqueia, e os avisos voltam", [r.ok, r.avisos], [true, ["User has not mode me1 (***)", "Mandatory free shipping added (***)"]]);
-      r = await validarNoML(await c.anuncioSimples(c.s1), { ml: criarMLFalso({ validacao: soAvisos }), bling: bf, lerFoto });
+      r = await validarNoML(await c.anuncioSimples(c.s1), { ml: criarMLFalso({ validacao: soAvisos }), bling: c.novoBling(), lerFoto });
       conferir("validarNoML: 400 so com avisos e ok com avisos", [r.ok, r.avisos?.length], [true, 2]);
-      r = await validarNoML(await c.anuncioSimples(c.s1), { ml: criarMLFalso({ validacao: { status: 400, dados: { message: "Validation error", cause: [] } } }), bling: bf, lerFoto });
+      r = await validarNoML(await c.anuncioSimples(c.s1), { ml: criarMLFalso({ validacao: { status: 400, dados: { message: "Validation error", cause: [] } } }), bling: c.novoBling(), lerFoto });
       conferir("validarNoML: 400 sem causa nenhuma barra com a mensagem", [r.ok, /Validation error/.test(r.erro)], [false, true]);
 
       // Revisao final: "Validar no ML" num anuncio cujo item ja existe nao pode seguir para as etapas seguintes.
@@ -1644,7 +1658,7 @@ try {
         [false, true, 0, 0, "ERRO"],
       );
 
-      const motivos = await publicarAnuncioML(await c.anuncioSimples(c.semBling), { ml: criarMLFalso(), bling: bf, lerFoto });
+      const motivos = await publicarAnuncioML(await c.anuncioSimples(c.semBling), { ml: criarMLFalso(), bling: c.novoBling(), lerFoto });
       conferir("publicar: pre-checagem recusada devolve os motivos", [motivos.ok, motivos.motivos?.some((m) => /blingId/.test(m))], [false, true]);
     }
 

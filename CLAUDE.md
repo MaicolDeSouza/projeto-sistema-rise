@@ -146,7 +146,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 566 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA) e a fase 3 (publicar, retomar, kit e vínculo no Bling) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 574 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA) e a fase 3 (publicar, retomar, kit e vínculo no Bling) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:composicao          # 78 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças e a descrição só com referências cadastradas (Postgres, SEM rede; só escreve produtos ZZ-KIT-*)
@@ -2342,13 +2342,31 @@ uma tentativa só. Tela: `JanelaPublicarML.jsx`, o rodapé do `EditorAnuncioML` 
 - A pré-checagem relê a categoria no ML e valida no servidor; categoria que não pode ser lida **recusa** (na tela é só
   alerta).
 
-**Não medido (só o primeiro envio real mostra):** se o `POST /items` aceita `status: "paused"` (se não aceitar, a etapa
-"pausar" pausa na hora); o título que o ML gera; se o Bling aceita um segundo vínculo do mesmo produto na mesma loja
-(o 100101 já tem o MLB4165084257); o que o Bling faz com estoque e preço depois do vínculo.
+**Primeiro Publicar real (08/10/2026, com o dono acompanhando):** 100101 como Premium, R$ 999,00, estoque 1, travas
+abertas só no processo de um script (`ML_PUBLICACAO=true ML_PUBLICACAO_CODIGOS=100101 BLING_ESCRITA=true
+BLING_ESCRITA_CODIGOS=100101`; o script recusava qualquer outra lista), `.env` intocado. Criou o **MLB7770989588**, que
+o dono mandou **encerrar** logo depois do teste (encerrado; no Rise fica `ERRO`/`ENCERRADA`). O que foi medido:
+- **O validador recusou `shipping.dimensions` com decimais** ("Dimensions do not follow the pattern 20x30x40,50") e
+  avisou "User has not mode me1". Corrigido: no ME2 o campo não vai (as medidas vão nos `SELLER_PACKAGE_*`); no ME1,
+  só inteiros.
+- **O validador responde 400 "Validation error" mesmo quando todas as causas são `warning`** ("User has not mode me1",
+  "Mandatory free shipping added"). Corrigido: 400 só com avisos não bloqueia; o `POST /items` decide.
+- **O `POST /items` NÃO respeitou `status: "paused"`**: a etapa "pausar" teve de pausar o item logo depois (ele ficou
+  ativo por ~0,5 s). Fica a etapa; o anúncio só é ativado depois do vínculo.
+- **Título gerado pelo ML = o `family_name` em "Title Case"** ("Placa Compativel Arduino Uno R3 Smd Ch340 Com Cabo
+  Usb"). Frete grátis ligado sozinho (obrigatório nesse preço). Novo `user_product_id` (MLBU5399328107), 7 fotos,
+  `good_quality_thumbnail`.
+- **O Bling aceita UM vínculo por produto em cada loja**: o segundo deu 400 "Para esta loja já existe um produto loja
+  vinculado ao produto informado" (o 100101 já tem o MLB4165084257). O anúncio ficou pausado, sem vínculo, e foi
+  encerrado. Corrigido: a pré-checagem recusa o produto que já tem outro anúncio ligado na loja do ML, antes de criar
+  qualquer coisa. **Em aberto (decisão do dono): como ter Clássico e Premium do mesmo produto com o estoque no Bling.**
+- **O token do Bling foi invalidado no meio do teste** (17:33, com o Rise achando que valia até 21:56); o dono
+  reconectou. Suspeita: outro processo (a VPS do ensaio?) renovou o token com a mesma conta.
+- O teste do `FormData` gravava um registro falso de envio de foto no `LogIntegracao` a cada rodada (33 em 08/10/2026,
+  apagados); hoje ele usa um endereço `teste-rise.invalid` e apaga o registro.
 
-**Primeiro Publicar real:** só com o OK do dono e com ele acompanhando, um produto de teste, travas abertas só no
-ambiente de um script (`ML_PUBLICACAO=true ML_PUBLICACAO_CODIGOS=<sku> BLING_ESCRITA=true BLING_ESCRITA_CODIGOS=<sku>`),
-`.env` intocado. Depois, o mesmo com um kit de teste.
+**Próximos testes reais:** um produto SEM anúncio no ML (para chegar ao vínculo e à ativação) e depois um kit de teste,
+sempre com o dono acompanhando e as travas só no ambiente do script.
 
 **Fora desta fase:** gerenciar anúncio publicado (editar, pausar, sincronizar preço/estoque), `hashConteudo`, aviso de
 exclusão de produto com anúncios, listagem paginada no banco.

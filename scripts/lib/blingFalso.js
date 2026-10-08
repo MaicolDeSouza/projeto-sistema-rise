@@ -424,6 +424,18 @@ export function criarBlingFalso(opcoes = {}) {
           return validacao("codigo, produto.id e loja.id sao obrigatorios.", ["codigo", "produto.id", "loja.id"].filter((campo) => ausente(campo.split(".").reduce((valor, chave) => valor?.[chave], corpo))));
         }
         if (!produtos.has(Number(corpo.produto.id))) return validacao("O produto informado nao existe.", ["produto.id"]);
+        // Medido no Bling real em 08/10/2026 (primeiro Publicar do ML): UM vinculo por produto em cada loja.
+        const jaTem = [...vinculosDeLoja.values()].some((vinculo) => vinculo.produto.id === Number(corpo.produto.id) && vinculo.loja.id === Number(corpo.loja.id));
+        if (jaTem) {
+          return resposta(400, {
+            error: {
+              type: "VALIDATION_ERROR",
+              message: "Não foi possível salvar o registro de produto Loja.",
+              description: "Ocorreu um erro ao validar os dados recebidos.",
+              fields: [{ code: "***", msg: "Para esta loja já existe um produto loja vinculado ao produto informado.", element: "idLoja", namespace: "" }],
+            },
+          });
+        }
         return resposta(201, { data: { id: guardarVinculoDeLoja(corpo).id } });
       },
     ],

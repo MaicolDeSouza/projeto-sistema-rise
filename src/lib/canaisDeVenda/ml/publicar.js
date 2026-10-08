@@ -4,7 +4,7 @@ import { caminhoDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
 import { buscarNoBling } from "@/lib/blingSync/leitura";
 import { carregarAnuncioML, gravarPublicacao, lerPublicacao } from "./banco";
-import { conferirKitNoBling, criarKitNoBling, vincularNoBlingML, vinculoNoBlingML } from "./bling";
+import { conferirKitNoBling, criarKitNoBling, recadoDoVinculoUnico, vincularNoBlingML, vinculoNoBlingML } from "./bling";
 import { etapasDoAnuncio, proximaEtapa } from "./etapas";
 import { lerCategoriaCompleta, textoDoErroML } from "./leitura";
 import { nomeDaFoto, montarPayloadML } from "./payload";
@@ -82,6 +82,9 @@ async function prepararInterno(anuncioId, { ml, bling }) {
         }
         const vinculo = await vinculoNoBlingML(bling, codigo, publicacao?.itemId ?? "");
         outrosVinculos = vinculo.outros ?? [];
+        // O Bling aceita um so vinculo por produto na loja: um segundo anuncio ficaria criado no ML, pausado
+        // e sem vinculo (o que aconteceu no primeiro Publicar real). Recusa antes de criar qualquer coisa.
+        if (outrosVinculos.length > 0 && vinculo.situacao !== "ligado") motivos.push(recadoDoVinculoUnico(codigo, outrosVinculos));
       }
     } catch (erro) {
       motivos.push(`Não foi possível conferir o produto no Bling: ${erro?.message ?? erro}`);

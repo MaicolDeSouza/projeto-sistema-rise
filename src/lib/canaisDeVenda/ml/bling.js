@@ -32,6 +32,11 @@ function motivoDoBling(resposta) {
 
 const mensagem = (erro, padrao) => erro?.message ?? padrao;
 
+/** O recado do vinculo unico: o produto ja esta ligado a outro anuncio na loja do ML, no Bling. */
+export function recadoDoVinculoUnico(codigo, outros) {
+  return `No Bling, o produto ${codigo} já está vinculado ao anúncio ${outros.join(", ")} na loja do Mercado Livre, e o Bling aceita um só anúncio por produto em cada loja. Um segundo anúncio do mesmo produto não teria o estoque controlado pelo Bling.`;
+}
+
 // ---------------------------------------------------------------------------
 // Vinculo do anuncio (MLB) com o produto, na loja do ML
 // ---------------------------------------------------------------------------
@@ -73,6 +78,9 @@ export async function vincularNoBlingML(bling, codigo, itemId, preco) {
   }
   if (antes.situacao === "duplicado") return { ok: false, ...antes, erro: `O código ${codigo} aparece mais de uma vez no Bling: deixe só um.` };
   if (antes.situacao !== "sem_vinculo") return { ok: false, ...antes };
+  // O Bling aceita UM vinculo por produto em cada loja (medido no primeiro Publicar real, 08/10/2026:
+  // "Para esta loja ja existe um produto loja vinculado ao produto informado"). Nem tenta.
+  if (antes.outros?.length > 0) return { ok: false, ...antes, erro: recadoDoVinculoUnico(codigo, antes.outros) };
 
   try {
     bling.exigirEscrita(codigo);
