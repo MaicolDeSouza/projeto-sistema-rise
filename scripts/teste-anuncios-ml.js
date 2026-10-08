@@ -1024,6 +1024,86 @@ try {
     conferir("banco: anuncio da fase 1 abre com xd_drop_off e sem nome de categoria", [antigoF2.rascunho.envio.logistica, antigoF2.rascunho.categoriaNome], ["xd_drop_off", null]);
     await limpar();
 
+    console.log("\nFase 2: custos e preco por margem");
+    const { custosDoAnuncio, precoPorMargem, custosValem, freteQueConta } = await import("../src/lib/canaisDeVenda/ml/custos.js");
+    const { lerTaxas, lerFreteDoVendedor, lerTendencias, limparCacheDeTendencias, lerCustosDoAnuncio, precoPorMargemNoML } = await import(
+      "../src/lib/canaisDeVenda/ml/leitura.js"
+    );
+    conferir("custos: 49 com custo 24, 13%, sem tarifa e sem frete", custosDoAnuncio({ preco: 49, custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0 }), {
+      comissao: 6.37, tarifaFixa: 0, frete: 0, imposto: 2.94, lucro: 15.69, margem: 32,
+    });
+    conferir(
+      "custos: sem custo, lucro e margem nulos",
+      (({ lucro, margem, comissao }) => [lucro, margem, comissao])(custosDoAnuncio({ preco: 20, custo: null, percentual: 0.13, tarifaFixa: 6.65, frete: 0 })),
+      [null, null, 2.6],
+    );
+    conferir("custos: sem preco e null", custosDoAnuncio({ preco: 0, custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0 }), null);
+    conferir("preco por margem: R$ 20 de lucro", precoPorMargem({ custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "reais", valor: 20 } }), 54.33);
+    conferir("preco por margem: 30%", precoPorMargem({ custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "percentual", valor: 30 } }), 47.06);
+    conferir("preco por margem: inatingivel (90% com 18% + 6%)", precoPorMargem({ custo: 24, percentual: 0.18, tarifaFixa: 0, frete: 0, margem: { tipo: "percentual", valor: 90 } }), null);
+    conferir(
+      "preco por margem: arredonda para cima ao centavo (24,8 / 0,81 = 30,617...)",
+      precoPorMargem({ custo: 10, percentual: 0.13, tarifaFixa: 6.65, frete: 8.15, margem: { tipo: "reais", valor: 0 } }),
+      30.62,
+    );
+    conferir("preco por margem: sem custo e null", precoPorMargem({ custo: null, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "reais", valor: 5 } }), null);
+    conferir("preco por margem: o preco calculado devolve a margem pedida", (() => {
+      const preco = precoPorMargem({ custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "reais", valor: 20 } });
+      return custosDoAnuncio({ preco, custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0 }).lucro >= 20;
+    })(), true);
+
+    const lidos = { preco: 49, categoriaId: "MLB99779", tipoAnuncio: "gold_special", logistica: "xd_drop_off", freteGratis: false, percentual: 0.13, tarifaFixa: 0, frete: 8.15, pesoCobrado: 300, lidoEm: 1 };
+    const r = { ...comCategoria, preco: 49, tipoAnuncio: "gold_special", envio: { ...comCategoria.envio, larguraCm: 8, comprimentoCm: 8, pesoKg: 0.05, logistica: "xd_drop_off", freteGratis: false } };
+    conferir("custosValem: iguais", custosValem(lidos, r), true);
+    conferir(
+      "custosValem: mudou tipo, categoria, logistica ou preco",
+      [
+        custosValem(lidos, { ...r, tipoAnuncio: "gold_pro" }),
+        custosValem(lidos, { ...r, categoriaId: "MLB1" }),
+        custosValem(lidos, { ...r, envio: { ...r.envio, logistica: "fulfillment" } }),
+        custosValem(lidos, { ...r, preco: 49.5 }),
+      ],
+      [false, false, false, false],
+    );
+    conferir("custosValem: sem custos lidos", custosValem(null, r), false);
+    conferir("freteQueConta: so com frete gratis", [freteQueConta(lidos, r), freteQueConta(lidos, { ...r, envio: { ...r.envio, freteGratis: true } })], [0, 8.15]);
+    conferir("freteQueConta: frete nao lido conta 0", freteQueConta({ ...lidos, frete: null }, { ...r, envio: { ...r.envio, freteGratis: true } }), 0);
+
+    conferir("lerTaxas: xd_drop_off sem tarifa fixa", await lerTaxas(falso, { preco: 20, categoriaId: "MLB99779", tipoAnuncio: "gold_special", logistica: "xd_drop_off" }), { percentual: 0.13, tarifaFixa: 0, comissao: 2.6 });
+    conferir("lerTaxas: self_service abaixo do limite cobra 6,65", await lerTaxas(falso, { preco: 20, categoriaId: "MLB99779", tipoAnuncio: "gold_special", logistica: "self_service" }), { percentual: 0.13, tarifaFixa: 6.65, comissao: 9.25 });
+    conferir("lerTaxas: premium 18%", (await lerTaxas(falso, { preco: 150, categoriaId: "MLB99779", tipoAnuncio: "gold_pro", logistica: "xd_drop_off" })).percentual, 0.18);
+    conferir(
+      "lerTaxas: manda shipping_mode me2 e logistic_type",
+      (({ shipping_mode, logistic_type, listing_type_id }) => [shipping_mode, logistic_type, listing_type_id])(falso.chamadas.at(-1).params),
+      ["me2", "xd_drop_off", "gold_pro"],
+    );
+    conferir(
+      "lerFrete: dimensoes inteiras e custo",
+      await lerFreteDoVendedor(falso, { envio: { alturaCm: 5.5, larguraCm: 8, comprimentoCm: 8, pesoKg: 0.05 }, preco: 49, tipoAnuncio: "gold_special", logistica: "xd_drop_off" }),
+      { custo: 8.15, pesoCobrado: 300 },
+    );
+    conferir("lerFrete: formato AxLxC,g e o usuario no caminho", [falso.chamadas.at(-1).params.dimensions, falso.chamadas.at(-1).caminho], ["6x8x8,50", "/users/212386247/shipping_options/free"]);
+    const antesDoFrete = falso.chamadas.length;
+    conferir(
+      "lerFrete: sem medidas e null, sem chamada",
+      [await lerFreteDoVendedor(falso, { envio: {}, preco: 49, tipoAnuncio: "gold_special", logistica: "xd_drop_off" }), falso.chamadas.length],
+      [null, antesDoFrete],
+    );
+    limparCacheDeTendencias();
+    const antesDasTendencias = falso.chamadas.length;
+    const t1 = await lerTendencias(falso, "MLB99779");
+    const t2 = await lerTendencias(falso, "MLB99779");
+    conferir("tendencias: so keyword, 40 termos, segunda leitura vem do cache", [t1.length, t1[0], JSON.stringify(t2) === JSON.stringify(t1), falso.chamadas.length - antesDasTendencias], [40, "raspberry pi", true, 1]);
+    const custosML = await lerCustosDoAnuncio(falso, r);
+    conferir("lerCustosDoAnuncio: junta taxas e frete e vale para o rascunho", [custosML.percentual, custosML.frete, custosML.pesoCobrado, custosValem(custosML, r)], [0.13, 8.15, 300, true]);
+    conferir("lerCustosDoAnuncio: sem medidas, frete nulo", (await lerCustosDoAnuncio(falso, { ...r, envio: { ...r.envio, pesoKg: null } })).frete, null);
+    const porMargem = await precoPorMargemNoML(falso, { ...r, envio: { ...r.envio, logistica: "self_service", freteGratis: true } }, { custo: 24, margem: { tipo: "reais", valor: 20 } });
+    conferir("precoPorMargemNoML: converge com tarifa fixa e frete (self_service, frete gratis)", [porMargem.preco, porMargem.custosML.preco, porMargem.custosML.tarifaFixa], [72.6, 72.6, 6.65]);
+    conferir("precoPorMargemNoML: inatingivel e null", await precoPorMargemNoML(falso, r, { custo: 24, margem: { tipo: "percentual", valor: 95 } }), null);
+    // Acima do limite (79) a tarifa fixa some: o preco que a calcula tem que reler as taxas nele.
+    const acimaDoLimite = await precoPorMargemNoML(falso, { ...r, envio: { ...r.envio, logistica: "self_service" } }, { custo: 60, margem: { tipo: "reais", valor: 10 } });
+    conferir("precoPorMargemNoML: rele as taxas no preco novo (tarifa some acima de 79)", [acimaDoLimite.preco, acimaDoLimite.custosML.tarifaFixa], [86.42, 0]);
+
     // Fase 2: as proximas tarefas entram aqui, dentro deste bloco.
   }
 
