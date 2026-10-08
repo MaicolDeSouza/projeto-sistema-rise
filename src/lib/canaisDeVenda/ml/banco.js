@@ -212,6 +212,7 @@ const PUBLICACAO_VAZIA = {
   permalink: null,
   statusML: null,
   blingKitId: null,
+  blingAnuncioId: null,
   incerta: false,
   erro: null,
   etapaComErro: null,

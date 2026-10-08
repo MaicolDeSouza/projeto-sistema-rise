@@ -146,7 +146,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 574 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA) e a fase 3 (publicar, retomar, kit e vínculo no Bling) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 591 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA) e a fase 3 (publicar, retomar, kit e vínculo no Bling) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:composicao          # 78 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças e a descrição só com referências cadastradas (Postgres, SEM rede; só escreve produtos ZZ-KIT-*)
@@ -2315,7 +2315,8 @@ peças e quantidades forem iguais, recusa se forem outras, cria `formato "E"`/es
 **Etapas** (`ml/etapas.js`), cada uma gravada em `Anuncio.dados.publicacao.feitas` ao terminar: fotos → validar
 (`POST /items/validate`) → criar pausado com preço (`POST /items`) → pausar (só se o ML criou ativo) → descrição (`POST
 /items/{id}/description`) → kit no Bling (só composição) → vínculo no Bling (`POST /produtos/lojas`, loja `203593931`,
-`codigo` = MLB, `preco` = do anúncio) → ativar (`PUT /items/{id}`) → gravar (`PUBLICADO`, `situacaoCanal`, `idExterno`,
+`codigo` = MLB, `preco` = do anúncio; reaproveitado quando já existe) → registrar o anúncio no Bling (`POST /anuncios`, um por MLB;
+fase 3b, 08/10/2026) → ativar (`PUT /items/{id}`) → gravar (`PUBLICADO`, `situacaoCanal`, `idExterno`,
 `urlExterna`, `publicadoEm`). A ordem real difere da spec §7 (fotos antes, preço na criação, descrição por POST): é o que
 a documentação do ML diz hoje.
 
@@ -2377,10 +2378,23 @@ Clássico, R$ 999,00, estoque 1 → **MLB7771172470**: fotos, validador, criaç�
 - `situacaoDoItem` não conhece `under_review` nem `inactive` (viram `DESCONHECIDA`): fica para a tela de gerenciar.
 
 **Vários anúncios do mesmo produto (decisão do dono em 08/10/2026):** Clássico, Premium etc., todos do mesmo produto,
-com o estoque controlado pelo Bling. Medido: os dois anúncios do 100101 ficaram em **produtos de usuário diferentes**
-(MLBU3363203323 e MLBU5399328107), porque o `family_name` mudou ("SMD"). O caminho do ML é `POST
-/user-products/{UP}/items` (nova condição de venda do MESMO produto do usuário: o estoque é do UP e o ML o divide entre os
-anúncios), com o vínculo único do Bling no anúncio que já existe. Desenho a aprovar com o dono.
+com o estoque controlado pelo Bling. **O Bling aceita isso, por outro recurso:** o vínculo produto-loja
+(`/produtos/lojas`) é um por produto, mas os **anúncios** são `/anuncios` (tag "Anúncios" da API v3), um por MLB, e é
+essa a lista "Anúncios já exportados" da tela de produto do Bling ("Vincular estoques dos anúncios"). Medido em
+08/10/2026 (ZZ-TESTE-BLING, MLB7771172470):
+- `GET /anuncios?tipoIntegracao=MercadoLivre&idLoja=203593931&idProduto=<id>` lista `{ id, titulo, situacao, anuncioLoja:
+  { id: "MLB..." }, preco }`; `situacao` 1 Publicado, 2 Rascunho, 3 Com problema, 4 Pausado. O vínculo `/produtos/lojas`
+  sozinho **não** registra anúncio (a lista veio vazia com o vínculo já criado).
+- `POST /anuncios` com `{ produto: { id }, integracao: { tipo: "MercadoLivre" }, loja: { id: 203593931 }, anuncioLoja: { id:
+  "MLB..." } }` → 201 `{ data: { id } }`: **só registra, não mexe no anúncio do ML** (`last_updated` igual). Nasce com
+  título vazio, preço 0 e situação 2; `PUT /anuncios/{id}` com `nome`, `preco.valor` e `mercadoLivre.modalidade` → 204
+  completa o registro. A situação continuou 2 (o MLB de teste está inativo no ML; o do 100101, ativo, mostra 1):
+  **presunção**: a situação espelha o ML. `/anuncios/{id}/publicar` e `/pausar` não foram chamados (podem agir no ML).
+- Registro de teste criado no Bling: anúncio id **64439359** (ZZ-TESTE-BLING ↔ MLB7771172470); fica até o dono apagar.
+- Consequência: a recusa "um só anúncio por produto" da pré-checagem estava errada e sai; o Publicar ganha a etapa
+  **registrar o anúncio no Bling** (`POST /anuncios` + `PUT` com nome/preço/modalidade) e o vínculo produto-loja é
+  reaproveitado quando já existe (com qualquer MLB). Não confirmado: se o Bling baixa o estoque pelo registro em
+  `/anuncios` (só uma venda real mostra).
 
 **Fora desta fase:** gerenciar anúncio publicado (editar, pausar, sincronizar preço/estoque), `hashConteudo`, aviso de
 exclusão de produto com anúncios, listagem paginada no banco.

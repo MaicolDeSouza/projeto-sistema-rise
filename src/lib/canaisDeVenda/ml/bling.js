@@ -32,19 +32,16 @@ function motivoDoBling(resposta) {
 
 const mensagem = (erro, padrao) => erro?.message ?? padrao;
 
-/** O recado do vinculo unico: o produto ja esta ligado a outro anuncio na loja do ML, no Bling. */
-export function recadoDoVinculoUnico(codigo, outros) {
-  return `No Bling, o produto ${codigo} já está vinculado ao anúncio ${outros.join(", ")} na loja do Mercado Livre, e o Bling aceita um só anúncio por produto em cada loja. Um segundo anúncio do mesmo produto não teria o estoque controlado pelo Bling.`;
-}
-
 // ---------------------------------------------------------------------------
-// Vinculo do anuncio (MLB) com o produto, na loja do ML
+// Vinculo do produto com a loja do ML (um por produto) e o registro de cada anuncio (/anuncios)
 // ---------------------------------------------------------------------------
 
 /**
- * O anuncio `itemId` ja esta vinculado ao produto `codigo` na loja do ML? `outros` sao os MLB de outros
- * anuncios do mesmo produto na mesma loja (Classico e Premium, anuncios antigos): nao impedem, so
- * informam. Situacoes: "ligado", "sem_vinculo", "sem_produto_no_bling", "duplicado", "erro".
+ * O produto `codigo` esta vinculado a loja do ML no Bling? O vinculo (`/produtos/lojas`) e UM por produto
+ * em cada loja (medido em 08/10/2026: o segundo da 400 "ja existe um produto loja vinculado"), e o seu
+ * `codigo` guarda o MLB do primeiro anuncio. Qualquer vinculo na loja conta como "ligado"; `outros` sao
+ * os MLB que nao sao `itemId` (so informacao: cada anuncio e registrado a parte, em `/anuncios`).
+ * Situacoes: "ligado", "sem_vinculo", "sem_produto_no_bling", "duplicado", "erro".
  */
 export async function vinculoNoBlingML(bling, codigo, itemId) {
   try {
@@ -59,7 +56,7 @@ export async function vinculoNoBlingML(bling, codigo, itemId) {
     const daLoja = resposta.dados.data.filter((vinculo) => String(vinculo?.loja?.id) === LOJA_ML_NO_BLING);
     const codigos = daLoja.map((vinculo) => String(vinculo?.codigo ?? "").trim()).filter(Boolean);
     const outros = codigos.filter((outro) => outro !== String(itemId));
-    return { situacao: codigos.includes(String(itemId)) ? "ligado" : "sem_vinculo", outros, idProduto: busca.id };
+    return { situacao: codigos.length > 0 ? "ligado" : "sem_vinculo", outros, codigos, idProduto: busca.id };
   } catch (erro) {
     return { situacao: "erro", erro: `Bling: ${mensagem(erro, "não foi possível ler o produto.")}` };
   }
@@ -78,9 +75,6 @@ export async function vincularNoBlingML(bling, codigo, itemId, preco) {
   }
   if (antes.situacao === "duplicado") return { ok: false, ...antes, erro: `O código ${codigo} aparece mais de uma vez no Bling: deixe só um.` };
   if (antes.situacao !== "sem_vinculo") return { ok: false, ...antes };
-  // O Bling aceita UM vinculo por produto em cada loja (medido no primeiro Publicar real, 08/10/2026:
-  // "Para esta loja ja existe um produto loja vinculado ao produto informado"). Nem tenta.
-  if (antes.outros?.length > 0) return { ok: false, ...antes, erro: recadoDoVinculoUnico(codigo, antes.outros) };
 
   try {
     bling.exigirEscrita(codigo);
@@ -104,6 +98,76 @@ export async function vincularNoBlingML(bling, codigo, itemId, preco) {
   return depois.situacao === "ligado"
     ? { ok: true, ...depois }
     : { ok: false, ...depois, erro: "O Bling aceitou o vínculo, mas a releitura não o mostrou. Confira no Bling antes de tentar de novo." };
+}
+
+const TIPO_DE_INTEGRACAO = "MercadoLivre";
+
+/**
+ * O anuncio `itemId` ja esta registrado em `/anuncios` do Bling para o produto `idProduto` (id do Bling)?
+ * E esse registro, um por MLB, que a tela de produto do Bling lista em "Anuncios ja exportados".
+ * @returns {Promise<{ situacao: "registrado"|"nao_registrado"|"erro", id?, titulo?, preco?, erro? }>}
+ */
+export async function anuncioNoBlingML(bling, idProduto, itemId) {
+  try {
+    const resposta = await bling.get("/anuncios", { tipoIntegracao: TIPO_DE_INTEGRACAO, idLoja: Number(LOJA_ML_NO_BLING), idProduto });
+    if (!resposta?.ok || !Array.isArray(resposta.dados?.data)) {
+      return { situacao: "erro", erro: `Não foi possível ler os anúncios do produto no Bling (HTTP ${resposta?.status ?? "?"}).` };
+    }
+    const registro = resposta.dados.data.find((anuncio) => String(anuncio?.anuncioLoja?.id ?? "").trim() === String(itemId));
+    if (!registro) return { situacao: "nao_registrado" };
+    return { situacao: "registrado", id: Number(registro.id), titulo: String(registro.titulo ?? ""), preco: Number(registro.preco ?? 0) };
+  } catch (erro) {
+    return { situacao: "erro", erro: `Bling: ${mensagem(erro, "não foi possível ler os anúncios.")}` };
+  }
+}
+
+/**
+ * Registra o anuncio (MLB) no Bling, em `/anuncios`, ligado ao produto: e assim que varios anuncios do
+ * mesmo produto (Classico, Premium...) ficam com o estoque controlado pelo Bling. So registra, nao mexe no
+ * anuncio do ML (medido em 08/10/2026). O POST medido ignorou nome e preco quando nao vieram: se a releitura
+ * voltar sem eles, um `PUT` completa. Ja registrado nao escreve. `codigo` e o SKU para a trava.
+ *
+ * @param {{ codigo: string, idProduto: number, itemId: string, titulo: string, preco: number, tipoAnuncio: string }} dados
+ * @returns {Promise<{ ok: boolean, id?: number, jaEstava?: boolean, erro?: string }>}
+ */
+export async function registrarAnuncioNoBlingML(bling, { codigo, idProduto, itemId, titulo, preco, tipoAnuncio }) {
+  const antes = await anuncioNoBlingML(bling, idProduto, itemId);
+  if (antes.situacao === "erro") return { ok: false, erro: antes.erro };
+  if (antes.situacao === "registrado") return { ok: true, id: antes.id, jaEstava: true };
+
+  try {
+    bling.exigirEscrita(codigo);
+  } catch (erro) {
+    return { ok: false, erro: mensagem(erro, "Escrita no Bling bloqueada.") };
+  }
+
+  const dados = { nome: String(titulo ?? ""), preco: { valor: centavos(preco) }, mercadoLivre: { modalidade: String(tipoAnuncio ?? "") } };
+  const corpo = { produto: { id: idProduto }, integracao: { tipo: TIPO_DE_INTEGRACAO }, loja: { id: Number(LOJA_ML_NO_BLING) }, anuncioLoja: { id: String(itemId) }, ...dados };
+  let resposta;
+  try {
+    resposta = await bling.post("/anuncios", corpo);
+  } catch (erro) {
+    return { ok: false, erro: `Falha ao registrar o anúncio no Bling: ${mensagem(erro, "erro de rede")}. Confira no Bling antes de tentar de novo.` };
+  }
+  if (!resposta?.ok) {
+    const dica = resposta?.status >= 500 ? " O Bling pode ter registrado mesmo assim: confira antes de tentar de novo." : "";
+    return { ok: false, erro: `O Bling recusou o registro do anúncio ${itemId} (${motivoDoBling(resposta)}).${dica}` };
+  }
+
+  const depois = await anuncioNoBlingML(bling, idProduto, itemId);
+  if (depois.situacao !== "registrado") {
+    return { ok: false, erro: `O Bling aceitou o registro do anúncio ${itemId}, mas a releitura não o mostrou. Confira no Bling antes de tentar de novo.` };
+  }
+  if (!depois.titulo || !(depois.preco > 0)) {
+    let completado;
+    try {
+      completado = await bling.put(`/anuncios/${depois.id}`, corpo);
+    } catch (erro) {
+      return { ok: false, erro: `O anúncio ${itemId} foi registrado no Bling (id ${depois.id}), mas não foi possível completar nome e preço: ${mensagem(erro, "erro de rede")}.` };
+    }
+    if (!completado?.ok) return { ok: false, erro: `O anúncio ${itemId} foi registrado no Bling (id ${depois.id}), mas o Bling recusou nome e preço (${motivoDoBling(completado)}).` };
+  }
+  return { ok: true, id: depois.id };
 }
 
 // ---------------------------------------------------------------------------

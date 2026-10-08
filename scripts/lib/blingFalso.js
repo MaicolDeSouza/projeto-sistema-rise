@@ -183,10 +183,11 @@ export function criarBlingFalso(opcoes = {}) {
   const contatos = new Map();
   const vinculos = new Map();
   const vinculosDeLoja = new Map(); // /produtos/lojas: produto x canal de venda
+  const anuncios = new Map(); // /anuncios: um registro por anuncio (MLB) de um produto numa loja
   const lancamentos = [];
 
   // Ids com o tamanho dos reais (10 a 11 digitos): pegaria um erro de coluna de 32 bits.
-  const contadores = { produto: 15000000001, contato: 16000000001, vinculo: 17000000001, lancamento: 18000000001 };
+  const contadores = { produto: 15000000001, contato: 16000000001, vinculo: 17000000001, lancamento: 18000000001, anuncio: 19000000001 };
   function novoId(tipo, existe) {
     let id = contadores[tipo]++;
     while (existe(id)) id = contadores[tipo]++;
@@ -278,6 +279,23 @@ export function criarBlingFalso(opcoes = {}) {
     return vinculo;
   }
 
+  // O registro de /anuncios como o Bling o guarda (medido em 08/10/2026): titulo = `nome`, preco = `preco.valor`,
+  // situacao 2 (Rascunho) ao nascer. `ignorarCampos` imita o POST real medido, que nasceu sem titulo e preco.
+  function guardarAnuncio(dados, { ignorarCampos = false } = {}) {
+    const anuncio = {
+      id: dados.id ?? novoId("anuncio", (candidato) => anuncios.has(candidato)),
+      produto: { id: Number(dados.produto.id) },
+      loja: { id: Number(dados.loja.id) },
+      anuncioLoja: { id: String(dados.anuncioLoja?.id ?? "") },
+      titulo: ignorarCampos ? "" : String(dados.nome ?? ""),
+      preco: ignorarCampos ? 0 : Number(dados.preco?.valor ?? 0),
+      modalidade: ignorarCampos ? null : (dados.mercadoLivre?.modalidade ?? null),
+      situacao: dados.situacao ?? 2,
+    };
+    anuncios.set(anuncio.id, anuncio);
+    return anuncio;
+  }
+
   function guardarVinculoDeLoja(dados) {
     const vinculo = {
       id: dados.id ?? novoId("vinculo", (candidato) => vinculosDeLoja.has(candidato) || vinculos.has(candidato)),
@@ -299,6 +317,7 @@ export function criarBlingFalso(opcoes = {}) {
   for (const dados of opcoes.contatos ?? []) guardarContato(dados);
   for (const dados of opcoes.vinculos ?? []) guardarVinculo(dados);
   for (const dados of opcoes.vinculosDeLoja ?? []) guardarVinculoDeLoja(dados);
+  for (const dados of opcoes.anuncios ?? []) guardarAnuncio(dados);
 
   // ---------------------------------------------------------------------------
   // Formatos de resposta
@@ -437,6 +456,55 @@ export function criarBlingFalso(opcoes = {}) {
           });
         }
         return resposta(201, { data: { id: guardarVinculoDeLoja(corpo).id } });
+      },
+    ],
+
+    // ---- Anuncios (um registro por MLB de um produto numa loja; medido em 08/10/2026) ----
+    [
+      "GET",
+      /^\/anuncios$/,
+      (_partes, { consulta }) => {
+        const tipo = consulta.tipoIntegracao?.[0];
+        const idLoja = consulta.idLoja?.[0];
+        if (ausente(tipo) || ausente(idLoja)) return validacao("tipoIntegracao e idLoja sao obrigatorios.", [...(ausente(tipo) ? ["tipoIntegracao"] : []), ...(ausente(idLoja) ? ["idLoja"] : [])]);
+        const idProduto = consulta.idProduto?.[0];
+        const lista = [...anuncios.values()].filter((anuncio) => anuncio.loja.id === Number(idLoja) && (ausente(idProduto) || anuncio.produto.id === Number(idProduto)));
+        return resposta(200, { data: lista.map((anuncio) => ({ id: anuncio.id, titulo: anuncio.titulo, situacao: anuncio.situacao, anuncioLoja: { id: anuncio.anuncioLoja.id }, preco: anuncio.preco })) });
+      },
+    ],
+    [
+      "GET",
+      /^\/anuncios\/(\d+)$/,
+      ([, id]) => {
+        const anuncio = anuncios.get(Number(id));
+        if (!anuncio) return naoEncontrado();
+        return resposta(200, {
+          data: { id: anuncio.id, anuncioLoja: { id: anuncio.anuncioLoja.id }, preco: { valor: anuncio.preco, promocional: 0 }, produto: { id: anuncio.produto.id }, titulo: anuncio.titulo, descricao: "", status: anuncio.situacao, atributos: [], imagens: [], variacoes: [] },
+        });
+      },
+    ],
+    [
+      "POST",
+      /^\/anuncios$/,
+      (_partes, { corpo }) => {
+        const faltam = [...(ausente(corpo?.produto?.id) ? ["produto.id"] : []), ...(ausente(corpo?.integracao?.tipo) ? ["integracao.tipo"] : []), ...(ausente(corpo?.loja?.id) ? ["loja.id"] : [])];
+        if (faltam.length) return validacao("Campos obrigatorios do anuncio nao informados.", faltam);
+        if (!produtos.has(Number(corpo.produto.id))) return validacao("O produto informado nao existe.", ["produto.id"]);
+        const anuncio = guardarAnuncio(corpo, { ignorarCampos: opcoes.postDeAnuncioIgnoraCampos === true });
+        return resposta(201, { data: { id: anuncio.id, idsVariacoes: [] } });
+      },
+    ],
+    [
+      "PUT",
+      /^\/anuncios\/(\d+)$/,
+      ([, id], { corpo }) => {
+        const anuncio = anuncios.get(Number(id));
+        if (!anuncio) return naoEncontrado();
+        if (corpo?.nome !== undefined) anuncio.titulo = String(corpo.nome);
+        if (corpo?.preco?.valor !== undefined) anuncio.preco = Number(corpo.preco.valor);
+        if (corpo?.mercadoLivre?.modalidade !== undefined) anuncio.modalidade = corpo.mercadoLivre.modalidade;
+        // Medido: o Bling responde 204 sem corpo.
+        return resposta(204, null);
       },
     ],
 
@@ -706,6 +774,6 @@ export function criarBlingFalso(opcoes = {}) {
       const produto = acharProduto(idOuCodigo);
       return produto ? saldos.get(produto.id).virtual : null;
     },
-    estado: { produtos, contatos, vinculos, vinculosDeLoja, saldos, lancamentos, depositos, tiposDeContato },
+    estado: { produtos, contatos, vinculos, vinculosDeLoja, anuncios, saldos, lancamentos, depositos, tiposDeContato },
   };
 }

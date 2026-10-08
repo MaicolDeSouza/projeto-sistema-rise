@@ -4,7 +4,7 @@ import { caminhoDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
 import { buscarNoBling } from "@/lib/blingSync/leitura";
 import { carregarAnuncioML, gravarPublicacao, lerPublicacao } from "./banco";
-import { conferirKitNoBling, criarKitNoBling, recadoDoVinculoUnico, vincularNoBlingML, vinculoNoBlingML } from "./bling";
+import { conferirKitNoBling, criarKitNoBling, registrarAnuncioNoBlingML, vincularNoBlingML, vinculoNoBlingML } from "./bling";
 import { etapasDoAnuncio, proximaEtapa } from "./etapas";
 import { lerCategoriaCompleta, textoDoErroML } from "./leitura";
 import { nomeDaFoto, montarPayloadML } from "./payload";
@@ -80,11 +80,10 @@ async function prepararInterno(anuncioId, { ml, bling }) {
         if (doRise?.tipo === "COMPOSICAO" && busca.produto?.formato !== "E") {
           motivos.push(`O kit ${codigo} é produto simples no Bling: o estoque das peças não baixaria. Cadastre a composição no Bling antes de publicar.`);
         }
+        // Outros anuncios do mesmo produto no Bling: so informacao para a janela (o vinculo produto-loja e um
+        // so e e reaproveitado; cada anuncio e registrado a parte em /anuncios).
         const vinculo = await vinculoNoBlingML(bling, codigo, publicacao?.itemId ?? "");
         outrosVinculos = vinculo.outros ?? [];
-        // O Bling aceita um so vinculo por produto na loja: um segundo anuncio ficaria criado no ML, pausado
-        // e sem vinculo (o que aconteceu no primeiro Publicar real). Recusa antes de criar qualquer coisa.
-        if (outrosVinculos.length > 0 && vinculo.situacao !== "ligado") motivos.push(recadoDoVinculoUnico(codigo, outrosVinculos));
       }
     } catch (erro) {
       motivos.push(`Não foi possível conferir o produto no Bling: ${erro?.message ?? erro}`);
@@ -330,7 +329,20 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto })
       await gravar({ blingKitId: id }, {}, { blingProdutoId: String(id) });
     } else if (etapa === "vinculo") {
       const vinculo = await vincularNoBlingML(bling, codigo, pub.itemId, rascunho.preco);
-      if (!vinculo.ok) return falhar(etapa, vinculo.erro ?? "Não foi possível vincular o anúncio no Bling.");
+      if (!vinculo.ok) return falhar(etapa, vinculo.erro ?? "Não foi possível vincular o produto à loja no Bling.");
+    } else if (etapa === "registrar_bling") {
+      // O registro do anuncio no Bling (/anuncios), um por MLB: e o que deixa varios anuncios do mesmo
+      // produto com o estoque no Bling. O produto e achado pelo codigo, na hora (no kit, o codigo do kit).
+      let busca;
+      try {
+        busca = await buscarNoBling(bling, codigo);
+      } catch (erro) {
+        return falhar(etapa, `Não foi possível achar o produto ${codigo} no Bling: ${textoDe(erro)}`);
+      }
+      if (busca.situacao !== "existe") return falhar(etapa, `O produto ${codigo} não foi achado entre os produtos ativos do Bling para registrar o anúncio.`);
+      const registro = await registrarAnuncioNoBlingML(bling, { codigo, idProduto: busca.id, itemId: pub.itemId, titulo: payload.item.family_name, preco: rascunho.preco, tipoAnuncio: rascunho.tipoAnuncio });
+      if (!registro.ok) return falhar(etapa, registro.erro ?? "Não foi possível registrar o anúncio no Bling.");
+      await gravar({ blingAnuncioId: registro.id });
     } else if (etapa === "ativar") {
       let resposta;
       try {

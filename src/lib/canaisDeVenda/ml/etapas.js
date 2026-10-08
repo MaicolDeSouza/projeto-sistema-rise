@@ -9,7 +9,7 @@
  * e ativado depois do vinculo no Bling.
  */
 
-export const ETAPAS = ["fotos", "validar", "criar", "pausar", "descricao", "kit_bling", "vinculo", "ativar", "gravar"];
+export const ETAPAS = ["fotos", "validar", "criar", "pausar", "descricao", "kit_bling", "vinculo", "registrar_bling", "ativar", "gravar"];
 
 export const ROTULO_DA_ETAPA = {
   fotos: "Enviar as fotos",
@@ -18,7 +18,8 @@ export const ROTULO_DA_ETAPA = {
   pausar: "Conferir que ficou pausado",
   descricao: "Enviar a descrição",
   kit_bling: "Garantir o kit no Bling",
-  vinculo: "Vincular no Bling",
+  vinculo: "Vincular o produto à loja no Bling",
+  registrar_bling: "Registrar o anúncio no Bling",
   ativar: "Ativar o anúncio",
   gravar: "Gravar no Rise",
 };

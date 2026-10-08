@@ -116,11 +116,14 @@ export default function JanelaPublicarML({ anuncioId, rotuloDoBotao, aoFechar })
                 </p>
               )}
               {resumo.outrosVinculos?.length > 0 && (
-                <p className="text-xs text-suave">No Bling, este produto já está ligado a outro(s) anúncio(s) do ML: {resumo.outrosVinculos.join(", ")}.</p>
+                <p className="text-xs text-suave">
+                  No Bling, este produto já tem outro(s) anúncio(s) do ML ({resumo.outrosVinculos.join(", ")}). O novo é registrado junto, e o Bling controla o
+                  estoque de todos.
+                </p>
               )}
               <p className="text-xs text-suave">
-                O anúncio é criado pausado, recebe a descrição, é vinculado ao produto no Bling e só então é ativado. Se uma etapa falhar, nada
-                é repetido sozinho: o botão vira Retomar publicação.
+                O anúncio é criado pausado, recebe a descrição, é vinculado e registrado no Bling e só então é ativado. Se uma etapa falhar,
+                nada é repetido sozinho: o botão vira Retomar publicação.
               </p>
               {incerta && (
                 <p role="alert" className="rounded border border-red-200 bg-red-50 px-3 py-2 text-red-800">
