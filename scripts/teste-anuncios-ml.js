@@ -1138,6 +1138,62 @@ try {
     conferir("jsonDoTexto: acha o JSON depois do texto da pesquisa", jsonDoTexto('Pesquisei. Resultado:\n```json\n{"termos": ["a"]}\n```'), { termos: ["a"] });
     conferir("jsonDoTexto: sem JSON e null", jsonDoTexto("nada aqui"), null);
 
+    // A IA entra por parametro (`ia`): o teste passa funcoes falsas e confere o que elas recebem.
+    console.log("\nFase 2: orquestracao com o ML falso");
+    const { sugerirCategoria, sugerirTitulos, preencherFicha } = await import("../src/lib/canaisDeVenda/ml/inteligencia.js");
+    const produtoIA = { tituloBase: "PLACA UNO", marca: "ARDUINO", modelo: "UNO", descricaoBase: "Especificações técnicas:\n- Microcontrolador: ATmega328P;" };
+    const naoChame = async () => {
+      throw new Error("nao devia chamar");
+    };
+    const umaSo = await sugerirCategoria(falso, { titulo: "placa uno r3 ch340", produto: produtoIA, ia: { escolher: naoChame, termos: naoChame } });
+    conferir(
+      "sugerirCategoria: uma candidata nao chama a IA, vem com nome, caminho e folha",
+      [umaSo.origem, umaSo.aviso, umaSo.candidatas.map((c) => [c.categoriaId, c.folha, c.recomendada, c.caminho.length])],
+      ["ml", null, [["MLB99779", true, false, 3]]],
+    );
+    const duas = criarMLFalso({ descoberta: { placa: ["MLB99779", "MLB1648"] } });
+    const escolhida = await sugerirCategoria(duas, { titulo: "placa", produto: produtoIA, ia: { escolher: async () => ({ categoriaId: "MLB99779", motivo: "é placa" }), termos: naoChame } });
+    conferir("sugerirCategoria: duas candidatas, a IA recomenda uma", escolhida.candidatas.map((c) => [c.categoriaId, c.recomendada, c.motivo]), [["MLB99779", true, "é placa"], ["MLB1648", false, null]]);
+    const iaCaiu = await sugerirCategoria(duas, { titulo: "placa", produto: produtoIA, ia: { escolher: async () => { throw new Error("IA fora"); }, termos: naoChame } });
+    conferir("sugerirCategoria: IA falha, candidatas ficam e o aviso diz", [iaCaiu.candidatas.length, iaCaiu.aviso], [2, "Não foi possível pedir a recomendação da IA: IA fora"]);
+    const pelaInternet = await sugerirCategoria(falso, { titulo: "xyzw nada", produto: produtoIA, ia: { escolher: naoChame, termos: async () => ["placa uno r3 ch340", "placa uno r3 ch340"] } });
+    conferir("sugerirCategoria: sem candidata, termos da IA voltam ao ML, sem repetir", [pelaInternet.origem, pelaInternet.candidatas.map((c) => c.categoriaId)], ["internet", ["MLB99779"]]);
+    conferir(
+      "sugerirCategoria: nada em lugar nenhum",
+      (await sugerirCategoria(falso, { titulo: "xyzw nada", produto: produtoIA, ia: { escolher: naoChame, termos: async () => [] } })).aviso,
+      "O Mercado Livre não achou categoria para este produto. Digite o código.",
+    );
+    const pesquisaCaiu = await sugerirCategoria(falso, { titulo: "xyzw nada", produto: produtoIA, ia: { escolher: naoChame, termos: async () => { throw new Error("sem rede"); } } });
+    conferir("sugerirCategoria: pesquisa falha, diz o motivo e pede o codigo", [pesquisaCaiu.candidatas, pesquisaCaiu.aviso], [[], "Não foi possível pesquisar na internet: sem rede. Digite o código da categoria."]);
+
+    let recebido = null;
+    const titulosIA = await sugerirTitulos(falso, { produto: produtoIA, kit: null, categoriaId: "MLB99779", limite: 60, ia: async (args) => { recebido = args; return ["A", "B"]; } });
+    conferir("sugerirTitulos: passa tendencias e limite a IA", [titulosIA, recebido.tendencias.length, recebido.limite], [["A", "B"], 40, 60]);
+    await sugerirTitulos(falso, { produto: produtoIA, kit: null, categoriaId: null, limite: 60, ia: async (args) => { recebido = args; return ["A"]; } });
+    conferir("sugerirTitulos: sem categoria, sem tendencias", recebido.tendencias, []);
+    const semTendencias = criarMLFalso({ tendencias: { MLB99779: undefined } });
+    limparCacheDeTendencias();
+    await sugerirTitulos(semTendencias, { produto: produtoIA, kit: null, categoriaId: "MLB99779", limite: 60, ia: async (args) => { recebido = args; return ["A"]; } });
+    conferir("sugerirTitulos: categoria sem tendencias no ML segue sem elas", recebido.tendencias, []);
+
+    let pedidoDaIA = null;
+    const fichaIA = await preencherFicha(falso, {
+      produto: produtoIA, categoriaId: "MLB99779", valoresAtuais: { BRAND: "ARDUINO" }, internet: true,
+      ia: async (args) => { pedidoDaIA = args; return [{ id: "MODEL", nome: "Modelo", valor: "UNO R3" }]; },
+    });
+    conferir(
+      "preencherFicha: le a categoria, extrai as especificacoes e passa tudo a IA",
+      [fichaIA, pedidoDaIA.especificacoes.length, pedidoDaIA.atributos[0].id, pedidoDaIA.valoresAtuais, pedidoDaIA.internet],
+      [[{ id: "MODEL", nome: "Modelo", valor: "UNO R3" }], 1, "BRAND", { BRAND: "ARDUINO" }, true],
+    );
+    let semCategoria = null;
+    try {
+      await preencherFicha(falso, { produto: produtoIA, categoriaId: "MLB0", valoresAtuais: {}, internet: false, ia: naoChame });
+    } catch (erro) {
+      semCategoria = erro.message;
+    }
+    conferir("preencherFicha: categoria que o ML nao conhece", semCategoria, "Categoria não encontrada no Mercado Livre.");
+
     // Fase 2: as proximas tarefas entram aqui, dentro deste bloco.
   }
 
