@@ -4,7 +4,7 @@
  *   npm run teste:versao
  */
 
-const { formatarVersao, versaoDoDeploy } = await import("../src/lib/versao.js");
+const { formatarVersao, versaoDoDeploy, versaoLocal } = await import("../src/lib/versao.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -36,6 +36,25 @@ conferir(
   { versao: "07.10.2026.22.17", commit: "9b1c481" },
 );
 conferir("versaoDoDeploy: sem objeto", versaoDoDeploy(undefined), { versao: "dev", commit: null });
+
+// ---------------------------------------------------------------- versaoLocal (o PC)
+// A data vem do git (%cI, com o fuso do commit) e sai na hora de Sao Paulo, como na VPS.
+conferir("versaoLocal: hora do ultimo commit", versaoLocal({ dataDoCommit: "2026-10-08T13:08:31-03:00" }), "dev 08.10.2026.13.08");
+conferir("versaoLocal: alterado e nao commitado", versaoLocal({ dataDoCommit: "2026-10-08T13:08:31-03:00", alterado: true }), "dev 08.10.2026.13.08+");
+conferir("versaoLocal: Date", versaoLocal({ dataDoCommit: new Date("2026-10-08T01:17:00Z") }), "dev 07.10.2026.22.17");
+conferir("versaoLocal: sem git", versaoLocal({}), "dev");
+conferir("versaoLocal: sem objeto", versaoLocal(), "dev");
+conferir("versaoLocal: data nula nao vira 1970", versaoLocal({ dataDoCommit: null }), "dev");
+conferir("versaoLocal: data invalida", versaoLocal({ dataDoCommit: "ontem" }), "dev");
+
+const local = { commit: "46cdeca", dataDoCommit: "2026-10-08T13:08:31-03:00", alterado: false };
+conferir("versaoDoDeploy: no PC usa o git local", versaoDoDeploy({}, local), { versao: "dev 08.10.2026.13.08", commit: "46cdeca" });
+conferir(
+  "versaoDoDeploy: na VPS a variavel vence o git",
+  versaoDoDeploy({ RISE_VERSAO: "08.10.2026.11.12", RISE_COMMIT: "a006d48" }, local),
+  { versao: "08.10.2026.11.12", commit: "a006d48" },
+);
+conferir("versaoDoDeploy: git sem commit (imagem Docker)", versaoDoDeploy({}, {}), { versao: "dev", commit: null });
 
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

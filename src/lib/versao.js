@@ -29,10 +29,23 @@ function texto(valor) {
   return limpo || null;
 }
 
-/// Le RISE_VERSAO e RISE_COMMIT do ambiente do build. Variavel em branco conta como ausente.
-export function versaoDoDeploy(env) {
+/**
+ * Versao da copia de desenvolvimento (pedido do dono em 08/10/2026): "dev" mais a hora do ultimo commit, no
+ * formato da VPS, e "+" quando ha arquivo versionado alterado e ainda nao commitado. Assim o PC e a VPS se
+ * comparam pelo mesmo relogio, e o "dev" na frente continua dizendo que nao e a producao. Sem data (sem git,
+ * como dentro da imagem Docker), fica so "dev".
+ */
+export function versaoLocal({ dataDoCommit, alterado } = {}) {
+  const data = dataDoCommit instanceof Date ? dataDoCommit : new Date(dataDoCommit ?? NaN);
+  if (Number.isNaN(data.getTime())) return "dev";
+  return `dev ${formatarVersao(data)}${alterado ? "+" : ""}`;
+}
+
+/// Le RISE_VERSAO e RISE_COMMIT do ambiente do build. Variavel em branco conta como ausente. Sem RISE_VERSAO e a
+/// copia de desenvolvimento, e a versao e o commit saem do git local (`local`), quando ha.
+export function versaoDoDeploy(env, local) {
   return {
-    versao: texto(env?.RISE_VERSAO) ?? "dev",
-    commit: texto(env?.RISE_COMMIT),
+    versao: texto(env?.RISE_VERSAO) ?? versaoLocal(local),
+    commit: texto(env?.RISE_COMMIT) ?? texto(local?.commit),
   };
 }

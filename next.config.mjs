@@ -3,24 +3,34 @@ import { execSync } from "node:child_process";
 import { versaoDoDeploy } from "./src/lib/versao.js";
 
 // Versao no pe do menu. Na VPS o script de deploy passa RISE_VERSAO (a hora do deploy) e RISE_COMMIT; no PC
-// nada vem e a tela diz "dev", com o commit lido do git so para o title. A imagem Docker nao leva o .git,
-// entao la o commit vem sempre da variavel.
-const deploy = versaoDoDeploy(process.env);
-
-function commitLocal() {
-  try {
-    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim() || null;
-  } catch {
-    return null;
-  }
+// nada vem e a versao e "dev" mais a hora do ultimo commit, lida do git. A imagem Docker nao leva o .git nem
+// tem git, entao la tudo vem das variaveis. Lido UMA vez, na partida: commit novo so aparece depois de reiniciar.
+function gitLocal() {
+  const git = (argumentos) => {
+    try {
+      return execSync(`git ${argumentos}`, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    } catch {
+      return "";
+    }
+  };
+  const commit = git("rev-parse --short HEAD");
+  if (!commit) return {};
+  return {
+    commit,
+    dataDoCommit: git("log -1 --format=%cI"),
+    // So arquivo versionado: um .docx solto na pasta nao e mudanca no sistema.
+    alterado: git("status --porcelain --untracked-files=no") !== "",
+  };
 }
+
+const deploy = versaoDoDeploy(process.env, gitLocal());
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Embutido no codigo no build: a versao e a do build que esta no ar, e nao muda sem um deploy novo.
   env: {
     NEXT_PUBLIC_RISE_VERSAO: deploy.versao,
-    NEXT_PUBLIC_RISE_COMMIT: deploy.commit ?? commitLocal() ?? "",
+    NEXT_PUBLIC_RISE_COMMIT: deploy.commit ?? "",
   },
 
   // O pdf-parse usa o pdfjs por baixo, que carrega um WORKER em arquivo

@@ -186,6 +186,8 @@ export default function Sidebar() {
             title={COMMIT ? `commit ${COMMIT}` : undefined}
           >
             Versão {VERSAO}
+            {/* O commit a mostra, e nao so no title: e ele que diz se o PC e a VPS rodam o mesmo codigo. */}
+            {COMMIT && <span className="ml-1 text-menu-texto/40">· {COMMIT}</span>}
           </p>
         )}
 
