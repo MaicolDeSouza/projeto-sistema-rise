@@ -846,6 +846,57 @@ try {
     conferir("estoque barra e E + - . ,", barradas, ["e", "E", "+", "-", ".", ","]);
   }
 
+  // Fase 2 (inteligencia do ML, so leitura): um bloco so, porque o ML falso, os imports e os
+  // rascunhos de exemplo sao compartilhados entre as tarefas. Sem banco, salvo onde dito.
+  {
+    console.log("\nFase 2: cliente, ML falso e categoria");
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { descobrirCategoria, lerCategoria, lerAtributosDaCategoria, lerCategoriaCompleta, textoDoErroML } = await import(
+      "../src/lib/canaisDeVenda/ml/leitura.js"
+    );
+
+    const falso = criarMLFalso();
+    conferir("falso: contrato do cliente (get, usuarioId, chamadas)", [typeof falso.get, typeof falso.usuarioId, Array.isArray(falso.chamadas)], ["function", "function", true]);
+    conferir("falso: responde no formato do requisitar", (({ ok, status, duracaoMs }) => [ok, status, typeof duracaoMs])(await falso.get("/users/me")), [true, 200, "number"]);
+    conferir("falso: usuarioId e o da conta falsa", await falso.usuarioId(), "212386247");
+    let lancou = false;
+    try {
+      await falso.get("/nao/existe");
+    } catch {
+      lancou = true;
+    }
+    conferir("falso: caminho desconhecido lanca", lancou, true);
+
+    conferir("descobrirCategoria: devolve id, nome e dominio", await descobrirCategoria(falso, "placa uno r3 ch340"), [
+      { categoriaId: "MLB99779", nome: "Placas de Microcontroladores", dominioId: "MLB-MICROCONTROLLER_BOARDS", dominioNome: "Placas de microcontroladores" },
+    ]);
+    conferir("descobrirCategoria: sem resultado e lista vazia", await descobrirCategoria(falso, "xyzw nada"), []);
+    conferir("descobrirCategoria: manda q", falso.chamadas.at(-1).params, { q: "xyzw nada" });
+
+    const categoria = await lerCategoria(falso, "MLB99779");
+    conferir(
+      "lerCategoria: folha, limite 60, 12 fotos, caminho",
+      [categoria.folha, categoria.limiteTitulo, categoria.maxFotos, categoria.caminho],
+      [true, 60, 12, ["Eletrônicos, Áudio e Vídeo", "Componentes Eletrônicos", "Placas de Microcontroladores"]],
+    );
+    conferir("lerCategoria: nao folha", (await lerCategoria(falso, "MLB1648")).folha, false);
+    conferir("lerCategoria: 404 e null", await lerCategoria(falso, "MLB0"), null);
+    conferir(
+      "lerAtributosDaCategoria: lista crua com BRAND required",
+      (await lerAtributosDaCategoria(falso, "MLB99779")).some((a) => a.id === "BRAND" && a.tags?.required === true),
+      true,
+    );
+    conferir("lerCategoriaCompleta: categoria e atributos juntos", await (async () => {
+      const completa = await lerCategoriaCompleta(falso, "MLB99779");
+      return [completa.id, completa.folha, Array.isArray(completa.atributos) && completa.atributos.length > 0];
+    })(), ["MLB99779", true, true]);
+    conferir("lerCategoriaCompleta: 404 e null", await lerCategoriaCompleta(falso, "MLB0"), null);
+    conferir("textoDoErroML: HTTP com message", textoDoErroML({ status: 403, dados: { message: "forbidden" } }), "Mercado Livre: forbidden (HTTP 403)");
+    conferir("textoDoErroML: Error comum", textoDoErroML(new Error("Mercado Livre não conectado.")), "Mercado Livre não conectado.");
+
+    // Fase 2: as proximas tarefas entram aqui, dentro deste bloco.
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();

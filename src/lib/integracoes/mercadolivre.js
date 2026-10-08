@@ -136,6 +136,27 @@ async function chamar(metodo, caminho, { params, corpo } = {}) {
 
 export const mlGet = (caminho, params) => chamar("GET", caminho, { params });
 
+// Guardado em memoria, e nao gravado na conexao: regravar o segredo aqui poderia devolver um
+// refresh token ja queimado (ele e de uso unico e pode ter sido trocado no meio desta leitura).
+let usuarioIdEmMemoria = null;
+
+/**
+ * O id do vendedor no ML (algumas leituras, como o frete do vendedor, levam ele no caminho).
+ * Vem do segredo, gravado a cada troca de token (`user_id`); sem ele, pergunta a `/users/me`.
+ */
+export async function obterUsuarioId() {
+  const segredo = await lerSegredo(SERVICO);
+  if (segredo?.userId) return String(segredo.userId);
+  if (usuarioIdEmMemoria) return usuarioIdEmMemoria;
+
+  const { ok, status, dados } = await mlGet("/users/me");
+  if (!ok || !dados?.id) {
+    throw new Error(`Mercado Livre: não foi possível identificar a conta (HTTP ${status}).`);
+  }
+  usuarioIdEmMemoria = String(dados.id);
+  return usuarioIdEmMemoria;
+}
+
 /**
  * Teste de conexao: identifica a conta.
  *
