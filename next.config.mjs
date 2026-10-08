@@ -27,6 +27,9 @@ const deploy = versaoDoDeploy(process.env, gitLocal());
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Sem o "X-Powered-By: Next.js" em toda resposta: nao serve ao dono e diz a quem pergunta o que atacar.
+  poweredByHeader: false,
+
   // Embutido no codigo no build: a versao e a do build que esta no ar, e nao muda sem um deploy novo.
   env: {
     NEXT_PUBLIC_RISE_VERSAO: deploy.versao,

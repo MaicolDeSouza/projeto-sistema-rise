@@ -193,7 +193,7 @@ o Docker Desktop travava ao abrir e o sistema ficava sem banco.
 - **O container `rise-postgres` foi parado, não apagado** (`docker compose stop`), e o
   `docker-compose.yml` continua valendo para a VPS. Os dois ligados disputam a porta 5432.
   **Desde 08/10/2026 o compose é o da produção na VPS** (`db`, `app`, `worker`, `auth`, `caddy`, com o
-  `Dockerfile` e o `deploy/Caddyfile`); `npm run db:up` e `db:down` mexem **só no `db`**, para nunca montar o
+  `Dockerfile` e o `deploy/caddy/Caddyfile`); `npm run db:up` e `db:down` mexem **só no `db`**, para nunca montar o
   sistema inteiro no PC.
 - **Não fechar o Docker Desktop à força.** `Stop-Process -Force` deixa sockets unix órfãos
   (`%LOCALAPPDATA%\Docker\run\dockerInference`, `docker-secrets-engine\engine.sock`); na abertura

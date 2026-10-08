@@ -3,5 +3,5 @@
 # not found"; o cron e o Caddy tambem tropecam no "\r".
 *.sh            text eol=lf
 deploy/crontab  text eol=lf
-deploy/Caddyfile text eol=lf
+deploy/caddy/Caddyfile text eol=lf
 Dockerfile      text eol=lf

@@ -101,7 +101,9 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # A PASTA, e nao o arquivo: montado como arquivo unico, o conteiner segue vendo o inode antigo depois de um
+      # `git checkout` do deploy e ignora a mudanca. O deploy-vps.sh recarrega o Caddy (`caddy reload`) no fim.
+      - ./deploy/caddy:/etc/caddy:ro
       # Certificados guardados: subir de novo nao pede outro a Let's Encrypt (que limita pedidos por semana).
       - caddy-data:/data
       - caddy-config:/config

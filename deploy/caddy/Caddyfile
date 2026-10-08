@@ -1,17 +1,51 @@
 # Entrada da VPS (migracao de 08/10/2026). O Caddy emite e renova sozinho os certificados da Let's Encrypt
 # para os dois nomes; os registros A `rise` e `auth.rise` na zona da Hostinger apontam para a VPS.
+#
+# Este arquivo mora numa PASTA propria (deploy/caddy) e o compose monta a PASTA: montado como arquivo unico, o
+# conteiner seguia vendo o inode antigo depois de um `git checkout` e ignorava a mudanca em silencio. O deploy
+# valida este arquivo ANTES de trocar qualquer coisa e recarrega o Caddy no fim.
+
+# Cabecalhos de seguranca de toda resposta (revisao de seguranca de 08/10/2026). HSTS so do proprio nome, sem
+# includeSubDomains: o 4hobby.com.br tem a loja e o e-mail em outros nomes. Sem CSP completa de proposito: o Next
+# usa script em linha, e uma CSP restrita quebraria a tela. O que se aplica ao app esta no bloco dele, abaixo.
+(seguranca) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
 
 # Tela de login (Tinyauth). Host proprio porque o Tinyauth exige: com ele em auth.rise.4hobby.com.br, a sessao
 # vale para rise.4hobby.com.br e nao vaza para o www da loja.
 auth.rise.4hobby.com.br {
+	import seguranca
 	reverse_proxy auth:3000
 }
 
 rise.4hobby.com.br {
+	import seguranca
+
+	# Nenhum Remote-* que venha de fora chega ao app: so o forward_auth (abaixo, so no ramo com login) os grava.
+	# Vale tambem para o ramo publico: os niveis de acesso do Rise vao ler estes cabecalhos, e o codigo que se
+	# alcanca sem login nao pode confiar num valor que o navegador escolheu. Fora do `route`, a diretiva
+	# `request_header` roda antes dos `handle`, e portanto antes do forward_auth de dentro deles.
+	request_header -Remote-User
+	request_header -Remote-Name
+	request_header -Remote-Email
+	request_header -Remote-Groups
+
 	# Fotos e documentos dos produtos ficam PUBLICOS: o Bling, a Loja Integrada e o cliente da loja os buscam
-	# pela APP_URL_PUBLICA. Os nomes sao hashes de 32 caracteres dentro da pasta do SKU, e o conteudo ja esta
-	# publico na loja.
-	handle /api/arquivos/* {
+	# pela APP_URL_PUBLICA. So GET e HEAD, e so o caminho no formato EXATO que o sistema gera (SKU, pasta
+	# conhecida e nome de 32 hexadecimais): qualquer outro metodo, ou outro caminho debaixo de /api/arquivos,
+	# cai no ramo com login. O app valida tudo de novo; isto e a segunda tranca, e impede que um erro futuro numa
+	# rota ou no Next fique exposto sem login.
+	@arquivos {
+		method GET HEAD
+		path_regexp ^/api/arquivos/[A-Za-z0-9._-]{1,64}/(imagens|documentos|certificados|reserva)/[0-9a-f]{32}\.(jpg|png|pdf|zip)$
+	}
+	handle @arquivos {
 		reverse_proxy app:3000
 	}
 
@@ -19,6 +53,8 @@ rise.4hobby.com.br {
 	# Remote-User que vier do navegador sai ANTES de o forward_auth copiar o verdadeiro, que e o que os niveis
 	# de acesso do Rise vao ler.
 	handle {
+		# A tela do Rise nao pode ser embutida em outro site (clickjacking sobre a sessao do dono).
+		header Content-Security-Policy "frame-ancestors 'self'; base-uri 'self'"
 		route {
 			request_header -Remote-User
 			forward_auth auth:3000 {
