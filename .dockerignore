@@ -1,0 +1,13 @@
+# O que NUNCA entra na imagem: segredos (.env, certificados), dados da loja (dados/ vira bind mount na VPS),
+# o que o `npm ci` e o `npm run build` refazem la dentro, e o que nao roda no site.
+node_modules
+.next
+dados
+.env*
+!.env.example
+certificates
+.git
+docs
+.acentos
+.claude
+*.log

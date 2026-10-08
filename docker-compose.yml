@@ -1,3 +1,33 @@
+# Producao do Rise na VPS (migracao de 08/10/2026): caddy (HTTPS) -> auth (login) -> app (site) e worker
+# (coleta), todos falando com o db. Ver docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-design.md.
+#
+# No PC so o `db` e usado, e so quando o Postgres nativo esta parado: `npm run db:up` sobe apenas ele.
+#
+# Senhas do .env so com letras e numeros: o compose interpreta "$" nos valores.
+
+x-logs: &logs
+  # Sem teto, o log do Docker cresce ate encher o disco da VPS.
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-rise: &rise
+  image: rise:latest
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    TZ: America/Sao_Paulo
+  # dados/ (fotos, documentos, listas de fornecedor, backups, logs) mora no disco da VPS, fora da imagem:
+  # sobrevive a todo deploy. O codigo acha a pasta por process.cwd()/dados.
+  volumes:
+    - ./dados:/app/dados
+  depends_on:
+    db:
+      condition: service_healthy
+  mem_limit: 1536m
+  logging: *logs
+
 services:
   db:
     image: postgres:17
@@ -7,6 +37,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-rise}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
       POSTGRES_DB: ${POSTGRES_DB:-sistema_rise}
+      # Igual ao banco do PC: UTF8 com ordenacao ICU en-US. Sem isto a imagem usaria a ordenacao libc, e a
+      # ordem de nomes com acento mudaria de leve. So vale ao criar o volume.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8 --locale-provider=icu --icu-locale=en-US"
+      TZ: America/Sao_Paulo
+    # timezone: consulta manual com NOW() na hora de Sao Paulo, como no Windows (o codigo ja converte para UTC).
+    # shared_buffers: as contagens da tela Mercados varrem a tabela de 328 MB; o padrao da imagem e 128 MB.
+    command: ["postgres", "-c", "timezone=America/Sao_Paulo", "-c", "shared_buffers=1GB", "-c", "work_mem=32MB"]
     ports:
       # Publicado apenas em 127.0.0.1. Em VPS, "5432:5432" exporia o banco
       # para a internet inteira — o Postgres nao deve ter porta publica.
@@ -22,6 +59,58 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    mem_limit: 1536m
+    logging: *logs
+
+  app:
+    <<: *rise
+    build:
+      context: .
+      # O deploy (deploy/deploy-vps.sh) passa a hora e o commit com --build-arg; sem eles a tela diz "dev".
+      args:
+        RISE_VERSAO: ${RISE_VERSAO:-}
+        RISE_COMMIT: ${RISE_COMMIT:-}
+
+  worker:
+    <<: *rise
+    command: ["node", "scripts/worker.js"]
+    # O supervisor trata SIGTERM como o `npm run worker:parar`: cancela as varreduras (ate 60 s cada) e as
+    # devolve a fila sem gastar tentativa. Parar o worker na VPS e `docker compose stop worker`: com
+    # `unless-stopped`, o worker que sai pelo `worker:parar` e religado na hora.
+    stop_grace_period: 90s
+
+  auth:
+    image: ghcr.io/tinyauthapp/tinyauth:v5
+    restart: unless-stopped
+    environment:
+      TINYAUTH_APPURL: https://auth.rise.4hobby.com.br
+      # Sem usuario o Tinyauth nao sobe, e o Caddy recusa tudo (falha fechada). Opcional aqui so para o
+      # `npm run db:up` do PC, que nao tem login, continuar validando este arquivo.
+      TINYAUTH_AUTH_USERS: ${TINYAUTH_AUTH_USERS:-}
+      TINYAUTH_AUTH_SECURECOOKIE: "true"
+      TINYAUTH_AUTH_SESSIONEXPIRY: "604800"
+      # A rede do compose; o Caddy e quem fala com o Tinyauth.
+      TINYAUTH_AUTH_TRUSTEDPROXIES: 172.16.0.0/12
+    logging: *logs
+
+  caddy:
+    # 2.11.4 ou maior: as anteriores tinham falha no copy_headers do forward_auth (conferir no ensaio).
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificados guardados: subir de novo nao pede outro a Let's Encrypt (que limita pedidos por semana).
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+      - auth
+    logging: *logs
 
 volumes:
   rise-pgdata:
+  caddy-data:
+  caddy-config:

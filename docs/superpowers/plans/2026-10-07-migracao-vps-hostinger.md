@@ -264,10 +264,19 @@ rise.4hobby.com.br {
 
 Run: `docker compose config > /dev/null` — Expected: sem erro. `docker run --rm -v "${PWD}/deploy:/d" caddy:2 caddy validate --config /d/Caddyfile --adapter caddyfile` — Expected: "Valid configuration".
 
+**Feito em 08/10/2026, com o que mudou ao executar:**
+- `docker compose config` válido no PC (o motor do Docker não precisa estar ligado), cinco serviços com fuso, teto de memória e teto de log. **O `caddy validate` ficou para a Task 8**: ele precisa do motor, e o Docker Desktop do PC não foi ligado (o CLAUDE.md registra que ele trava ao abrir).
+- **Build de produção provado sem banco e sem `.env`**, como no Docker: cópia do commit `4be7787` numa worktree temporária, `npm ci` com `DATABASE_URL` falso (o `prisma generate` do postinstall passou) e `npm run build` com o banco apontando para uma porta vazia → build limpo; as páginas que leem o banco ficaram dinâmicas. Subido em modo produção na porta 3005 contra o banco do PC: `/produtos` 369 ms, `/mercados` 1,5 s, `/canais-de-venda` 131 ms, cotação 456 ms; HTML com "Versão 08.10.2026.06.00" e `title="commit 4be7787"`. Worktree apagada depois.
+- **Caddyfile com `route`**: o Caddy reordena diretivas soltas, e o `request_header -Remote-User` precisa rodar antes do `forward_auth`.
+- **`npm run db:up` / `db:down` passam a mexer só no serviço `db`**: com cinco serviços, o comando antigo tentaria montar o sistema inteiro no PC.
+- **`allowScripts` no `package.json`** (`npm approve-scripts @prisma/engines prisma unrs-resolver`, versões fixas): hoje o npm 11 só avisa; uma versão futura vai bloquear, e sem isso o `prisma migrate deploy` do contêiner quebraria.
+- **`TINYAUTH_AUTH_USERS` é opcional no compose** (`:-`): obrigatório (`:?`), o `npm run db:up` do PC, que não tem login, deixaria de validar o arquivo. Sem usuário o Tinyauth não sobe e o Caddy recusa tudo (falha fechada).
+- **Parar o worker na VPS é `docker compose stop worker`**: com `restart: unless-stopped`, o worker que sai pelo `worker:parar` é religado na hora. O supervisor trata o SIGTERM como o `worker:parar` (devolve as varreduras sem gastar tentativa); `stop_grace_period: 90s`.
+
 - [ ] **Step 6: Commit**
 
 ```bash
-git add Dockerfile .dockerignore docker-compose.yml deploy/Caddyfile .env.example
+git add Dockerfile .dockerignore docker-compose.yml deploy/Caddyfile .env.example package.json
 git commit -m "VPS: imagem, compose com caddy/auth/app/worker/db e Caddyfile com login na frente"
 ```
 
@@ -286,7 +295,7 @@ git commit -m "VPS: imagem, compose com caddy/auth/app/worker/db e Caddyfile com
   2. `VERSAO=$(TZ=America/Sao_Paulo date +%d.%m.%Y.%H.%M)`, `COMMIT=$(git rev-parse --short HEAD)`;
   3. `docker image tag rise:latest rise:anterior || true`; `docker compose build --build-arg RISE_VERSAO=$VERSAO --build-arg RISE_COMMIT=$COMMIT app`;
   4. se `docker compose exec -T app npx prisma migrate status` acusar migration pendente (sai com código diferente de 0): `docker compose exec -T app npm run backup`;
-  5. `docker compose exec -T app npm run worker:parar || true`; `docker compose stop worker`;
+  5. `docker compose stop worker` (SIGTERM: o supervisor devolve as varreduras à fila sem gastar tentativa, como o `worker:parar`; o `worker:parar` sozinho não serve na VPS, porque o `restart: unless-stopped` religa o worker na hora);
   6. `docker compose run --rm app npx prisma migrate deploy`;
   7. `docker compose up -d app worker`;
   8. `curl -s -o /dev/null -w "%{http_code}" https://rise.4hobby.com.br/` deve devolver 302 (login) ou 200;
@@ -340,7 +349,7 @@ git commit -m "VPS: scripts de deploy, copia externa para o R2, limpeza de logs 
 - [ ] **Step 5: Build e subida:** `./deploy/deploy-vps.sh` (primeira vez constrói tudo). Expected: `docker compose ps` com os cinco serviços `running`; versão impressa.
 - [ ] **Step 6: Certificado e login:** abrir `https://rise.4hobby.com.br` → redireciona para `auth.rise.4hobby.com.br`, cadeado válido; entrar; voltar ao Rise; a versão aparece no pé do menu. No navegador, o cookie de sessão tem `Domain` em `rise.4hobby.com.br` (ou abaixo), nunca em `4hobby.com.br` solto; se for o segundo caso, registrar e decidir com o dono antes da virada.
 - [ ] **Step 7: Testes dentro da imagem:** `docker compose exec app npm run teste:extracao && docker compose exec app npm run teste:svg && docker compose exec app npm run teste:cotacao && docker compose exec app npm run teste:versao` → 0 falhas (prova `sharp`, VTracer e Node na imagem Linux).
-- [ ] **Step 8: Superfície pública, sem cookie:** `curl -sI https://rise.4hobby.com.br/produtos | head -1` → `302`; `curl -sI "https://rise.4hobby.com.br/api/arquivos/<sku>/imagens/<nome>"` → `200`; `curl -sI --path-as-is "https://rise.4hobby.com.br/api/arquivos/../.env"` e `.../<sku>/../../.env` → `404`; `curl -sI https://rise.4hobby.com.br/api/temporarios/x/y` → `302`.
+- [ ] **Step 8: Superfície pública, sem cookie:** `curl -sI https://rise.4hobby.com.br/produtos | head -1` → `302`; `curl -sI "https://rise.4hobby.com.br/api/arquivos/<sku>/imagens/<nome>"` → `200`; `curl -sI --path-as-is "https://rise.4hobby.com.br/api/arquivos/../.env"` e `.../<sku>/../../.env` → `404`; `curl -sI https://rise.4hobby.com.br/api/temporarios/x/y` → `302`; `curl -sI --path-as-is "https://rise.4hobby.com.br/api/arquivos/../produtos"` → `302` (o caminho público não pode virar atalho para o resto do sistema); `curl -sI -H "Remote-User: maicol" https://rise.4hobby.com.br/produtos` → `302` (cabeçalho forjado não passa pelo login). Também: `docker compose exec caddy caddy version` → 2.11.4 ou maior, e `docker compose run --rm caddy caddy validate --config /etc/caddy/Caddyfile` → "Valid configuration".
 - [ ] **Step 9: Roteiro funcional, logado:** lista de Produtos; abrir um produto com fotos; enviar uma foto e um PDF num produto de teste `ZZ-VPS-1` e apagá-lo; Mercados com busca (resposta em ms); Fontes mostra "worker no ar"; Ferramentas: SVG de um PNG e cotação; `/integracoes` mostra ML e Bling como "não conectados" (esperado no ensaio) e a LI lendo. Se algum Salvar devolver "Invalid Server Actions request", acrescentar `experimental.serverActions.allowedOrigins: ["rise.4hobby.com.br"]` no `next.config.mjs` e refazer o deploy.
 - [ ] **Step 10: Medir o IP de data center:** `docker compose exec app npm run teste:fonte -- <url>` para cada uma das oito fontes (as de 10 s de `Crawl-delay` levam minutos). Anotar quem respondeu e quem bloqueou. Quem bloquear entra no plano B (seção 12 da spec) na Task 13.
 - [ ] **Step 11: Deploy repetido:** `./deploy/deploy-vps.sh` de novo → versão nova na tela, `rise:anterior` existe (`docker images rise`), parada de segundos.

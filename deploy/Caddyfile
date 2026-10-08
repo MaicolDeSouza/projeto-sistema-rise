@@ -1,0 +1,31 @@
+# Entrada da VPS (migracao de 08/10/2026). O Caddy emite e renova sozinho os certificados da Let's Encrypt
+# para os dois nomes; os registros A `rise` e `auth.rise` na zona da Hostinger apontam para a VPS.
+
+# Tela de login (Tinyauth). Host proprio porque o Tinyauth exige: com ele em auth.rise.4hobby.com.br, a sessao
+# vale para rise.4hobby.com.br e nao vaza para o www da loja.
+auth.rise.4hobby.com.br {
+	reverse_proxy auth:3000
+}
+
+rise.4hobby.com.br {
+	# Fotos e documentos dos produtos ficam PUBLICOS: o Bling, a Loja Integrada e o cliente da loja os buscam
+	# pela APP_URL_PUBLICA. Os nomes sao hashes de 32 caracteres dentro da pasta do SKU, e o conteudo ja esta
+	# publico na loja.
+	handle /api/arquivos/* {
+		reverse_proxy app:3000
+	}
+
+	# Todo o resto passa pelo login. `route` mantem a ordem escrita (o Caddy reordena diretivas soltas): o
+	# Remote-User que vier do navegador sai ANTES de o forward_auth copiar o verdadeiro, que e o que os niveis
+	# de acesso do Rise vao ler.
+	handle {
+		route {
+			request_header -Remote-User
+			forward_auth auth:3000 {
+				uri /api/auth/caddy
+				copy_headers Remote-User
+			}
+			reverse_proxy app:3000
+		}
+	}
+}
