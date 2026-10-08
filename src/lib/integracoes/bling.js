@@ -218,7 +218,7 @@ export const conector = {
   // 08/10/2026: abrir o painel direto do cartao da tela Integracoes.
   painel: {
     url: "https://www.bling.com.br/cadastro.aplicativos.php#/list",
-    rotulo: "Painel de aplicativos",
+    rotulo: "Link configuração API",
   },
   iniciarAutorizacao,
   concluirAutorizacao,
