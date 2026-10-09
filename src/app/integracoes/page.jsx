@@ -1,7 +1,10 @@
+import { headers } from "next/headers";
 import { CircleAlert, CircleCheck } from "lucide-react";
 
 import PageHeader from "@/components/ui/PageHeader";
 import CartaoConector from "@/components/CartaoConector";
+import CartaoServidorVps from "@/components/integracoes/CartaoServidorVps";
+import { ehOPcDeDesenvolvimento } from "@/lib/vps/regras";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import { conectores } from "@/lib/integracoes/registro";
 import { listarConexoes } from "@/lib/integracoes/conexoes";
@@ -29,6 +32,9 @@ export default async function IntegracoesPage({ searchParams }) {
   } catch (excecao) {
     erroBanco = excecao;
   }
+
+  // Cartao "Servidor VPS": so no Rise do PC, aberto em localhost (nunca na VPS, nunca pela rede local).
+  const mostrarServidorVps = ehOPcDeDesenvolvimento(process.env, (await headers()).get("host"));
 
   const travasLigadas =
     config.travas.mlPublicacao ||
@@ -99,6 +105,8 @@ export default async function IntegracoesPage({ searchParams }) {
           )}
         </span>
       </div>
+
+      {mostrarServidorVps && <CartaoServidorVps />}
 
       {erroBanco ? (
         <AvisoBanco erro={erroBanco} />

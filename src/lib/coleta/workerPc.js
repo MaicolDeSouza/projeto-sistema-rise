@@ -93,7 +93,8 @@ export function situacaoDoWorkerPc(estado, { agora = Date.now(), vivo = processo
 }
 
 /// O ambiente do servidor do Next, sem o que e do Next: o worker tem que rodar como se tivesse sido aberto no terminal.
-function ambienteDoTerminal(ambiente) {
+/// Tambem usado pelo ajudante do cartao "Servidor VPS" (`src/lib/vps/executar.js`).
+export function ambienteDoTerminal(ambiente) {
   const limpo = {};
   for (const [chave, valor] of Object.entries(ambiente)) {
     if (chave === "NODE_OPTIONS" || chave === "NODE_ENV" || chave.startsWith("__NEXT") || chave.startsWith("NEXT_")) {

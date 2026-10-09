@@ -142,6 +142,7 @@ npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
 npm run worker:pc                 # NO PC: abre um tunel SSH ate o banco da VPS, poe na fila as fontes ativas marcadas "Varrer pelo PC" (o site bloqueia a VPS), varre SO elas, grava direto na VPS e TERMINA quando acabar (`-- --ficar` mantem no ar). Ctrl+C encerra. O "Varrer agora" da fonte no Rise do PC faz o mesmo, so para ela. Ver "Fonte que bloqueia a VPS"
+npm run teste:vps                 # 58 asserções das regras do cartão "Servidor VPS" (Integrações): onde os botões funcionam, decisões de deploy e cópia, log do deploy, quem o ajudante para (e quem NUNCA) e os scripts mandados à VPS. SEM rede, SEM banco, SEM processos
 npm run teste:fila-pc             # 66 asserções dos TRÊS modos do worker na fila (normal, do PC e de teste): quem pega, recolhe e fecha o job de uma fonte marcada, a regra "servidor do banco é o Windows", o "Varrer agora" do Rise do PC (só a fonte pedida) e o arquivo de estado do worker do PC (Postgres local, SEM rede; só escreve fontes e jobs ZZ-PC-*)
 npm run backup                    # dados/backup/sistema_rise-AAAAMMDD-HHMMSS.dump (pg_dump, conferido com pg_restore; guarda os 4 mais recentes)
 npm run teste:worker              # 58 asserções: rede, fila, retomada e o worker de verdade (~6 min). RODE SOZINHO: junto de outros testes o "segundo worker" já saiu com 3221226505 (0xC0000409, aborto do Node no Windows ao encerrar, antes de o código 3 chegar); sozinho passa
@@ -3564,6 +3565,27 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   `ssh ... "cd /srv/rise/app && git fetch -q --tags origin && git checkout -q --detach origin/main && ./deploy/deploy-vps.sh"`
   (baixar antes de rodar, porque o próprio script pode ter mudado). Ele valida o Caddyfile, constrói a imagem com o site
   no ar, tira backup e aplica migrations só se houver pendência, troca os contêineres, recarrega o Caddy, confere o site
+- **Cartão "Servidor VPS" em Integrações** (pedido do dono em 09/10/2026): os dois caminhos acima por botão, **só no Rise
+  do PC aberto em localhost** (`ehOPcDeDesenvolvimento`: nunca na VPS, que tem `RISE_PRODUCAO`, nem pela rede local; a
+  página só mostra o cartão nesse caso, e as ações em `src/app/integracoes/acoes-vps.js` conferem de novo). Regras puras em
+  `src/lib/vps/regras.js` (teste `npm run teste:vps`), conversa com git, SSH e processos em `src/lib/vps/executar.js`, estado
+  da operação em `dados/vps-operacao.json`.
+  - **"Atualizar a VPS"** = o "sobe" do dono. Mostra o que está no ar (versão e commit do `~/logs/deploy.log`), os commits
+    da origin/main que a VPS ainda não tem, as migrations entre os dois e as varreduras rodando. Liga o deploy NA VPS em
+    segundo plano (`setsid nohup`, log em `~/logs/deploy-botao-AAAAMMDD-HHMMSS.log` com a linha final `== FIM codigo=N`),
+    baixando o código antes de rodar o script, e a tela acompanha os passos (`== ...` do `deploy-vps.sh`) e mostra o
+    resultado ou o passo que parou com os comandos de volta. **Arquivo sem commit e commit não enviado são AVISO**, não
+    bloqueio: várias sessões trabalham nesta pasta, e o que é só do PC não sobe (o aviso diz isso). Bloqueiam: VPS sem
+    resposta, deploy já rodando, outra operação, e a VPS já no commit do GitHub. A situação é lida de novo no clique.
+  - **"Atualizar banco do PC"** liga o ajudante destacado `scripts/vps-copiar-banco.js`: tira um dump de AGORA do banco da
+    VPS pela saída do SSH (`pg_dump` dentro do contêiner `db`, `< /dev/null`; nada fica na VPS; 84 MB em ~20 s, medido),
+    para os servidores de desenvolvimento das portas 3000/3001/3002 (a cadeia inteira do `npm run dev`, subindo pelos pais
+    `node`/`cmd` com next/npm no comando; nunca o Claude, o terminal, o próprio ajudante nem um `worker*.js`, que pode estar
+    varrendo para a VPS), roda o `copia:atualizar --dump=<arquivo>`, aplica as migrations deste código que a VPS ainda não
+    tem (`prisma migrate deploy`) e religa o servidor DESTA pasta (o das outras pastas fica parado, e a tela diz). O dump
+    sai em `dados/backup/vps-agora-*.dump` e é apagado no sucesso. Log em `dados/logs/vps-copia-botao.log`; o servidor
+    religado escreve em `dados/logs/servidor-dev-botao.log` (ele roda sem janela; para pará-lo, o Gerenciador de Tarefas
+    ou um novo clique).
   por dentro e **o login por fora com falha de verdade** (6 respostas, no fim do script), e só então guarda a imagem como
   `rise:bom`, grava `~/logs/deploy.log` (no host, fora de `dados/`) e reinstala o crontab. Se parar no meio, o `trap` diz o passo e os comandos
   de volta. **Volta atrás:** `docker image tag rise:anterior rise:latest && docker compose up -d app worker` (a anterior
