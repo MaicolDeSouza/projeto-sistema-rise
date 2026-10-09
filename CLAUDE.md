@@ -1282,8 +1282,8 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
     regravada na próxima varredura (é correção). (2) **Foto repetida:** a Nuvemshop põe tamanho e formato no NOME
     (`-480-0.webp`, `-640-0.webp`, `-1024-1024.png` são a mesma foto); `semRepetir` tira isso da identidade só no CDN
     `mitiendanube.com`, fica com a maior e passa `http://` para `https://` (a tela em https bloqueia a foto em http).
-    (3) **Categoria:** o dataLayer só tem o primeiro nível ("ELETRÔNICA"); `categoriaDaNuvemshop` lê o último degrau do
-    breadcrumb do JSON-LD ("FONTES DE ENERGIA", "FUSOS DE ESFERA").
+    (3) **Categoria:** o dataLayer só tem o primeiro nível ("ELETRÔNICA"); hoje vem o caminho do breadcrumb
+    do JSON-LD ("ELETRÔNICA > FONTES DE ENERGIA"), pelo leitor genérico de `categoria.js`.
   - **A home virava produto (mesmo dia).** A home e as categorias da Nuvemshop trazem um Product no JSON-LD por card da
     vitrine (26 na home da Oceantech), e o primeiro virava produto com o link da home, o resumo cortado do card, o logo
     da loja como foto e o "Catálogo de produtos" do menu como documento. Era isso que a prévia do "Buscar dados" mostrava.
@@ -1294,6 +1294,13 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   - **Efeito:** a Oceantech sai com mais produtos que páginas (24 de uma página). A varredura continua tratando a página uma vez.
     Os produtos já gravados dela só se corrigem na próxima varredura, e o worker do PC (`worker:pc`) precisa ser reiniciado
     para carregar o código novo.
+- **CATEGORIA = CAMINHO COMPLETO** (decisão do dono em 09/10/2026): `Impressão 3D > Partes`, `ELETRÔNICA > FONTES DE ENERGIA`,
+  e não mais um nível só (era o ÚLTIMO degrau no Microdata, RoboCore e Eletrus, e o PRIMEIRO no dataLayer). Regras em
+  `src/lib/coleta/categoria.js` (`caminhoDeCategoria`, separador ` > `): tira a raiz do começo (Início, Home, Página inicial,
+  Loja, Shop, Produtos, Todos os produtos), o próprio produto do fim e degrau repetido. Ordem das fontes: painel da Eletrus,
+  RoboCore, breadcrumb em Microdata, **breadcrumb do JSON-LD** (`caminhoDoJsonLd`, novo, fica com a trilha mais longa: a
+  Makerhero publica duas), `category` do JSON-LD e, por último, o dataLayer (só o primeiro nível). **Efeito:** a categoria
+  de todas as lojas muda na próxima varredura de cada uma (os produtos são regravados com o caminho).
 - **WooCommerce com "Simulador de Parcelas" (Makerhero, 09/10/2026): o JSON-LD traz só o preço do PIX** (12,25), que
   entrava como preço normal. `precosDoSimuladorWoo` (`normalizar.js`) lê o PRIMEIRO `<p class="price">` que tem o
   simulador: o valor cobrado (o `<ins>` quando há riscado) vira o preço normal declarado (12,90) e o valor de

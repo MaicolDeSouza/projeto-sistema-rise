@@ -1,6 +1,7 @@
 import { extrairProduto } from "./extrair";
 import { precosDaForseti } from "./forseti";
-import { categoriaDaNuvemshop, ehListagemDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
+import { ehListagemDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
+import { caminhoDeCategoria, caminhoDoJsonLd } from "./categoria";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
@@ -1183,13 +1184,14 @@ function daVitrineAspNet(html, url) {
       ? "http://schema.org/OutOfStock"
       : null;
 
-  // Categoria: o ultimo degrau do breadcrumb antes do proprio produto.
+  // Categoria: o caminho do breadcrumb antes do proprio produto (o degrau
+  // "active" e o produto). Caminho inteiro desde 09/10/2026 — ver categoria.js.
   const trilha = /<ul class="loja__breadcrumb">([\s\S]*?)<\/ul>/.exec(html)?.[1] ?? "";
   const degraus = [...trilha.matchAll(/<p class="content\s*([^"]*)">([\s\S]*?)<\/p>/g)]
     .filter((degrau) => !/active/.test(degrau[1]))
     .map((degrau) => comoTexto(degrau[2]))
     .filter(Boolean);
-  const categoria = degraus.at(-1) ?? null;
+  const categoria = caminhoDeCategoria(degraus);
 
   // Fotos: so as da galeria do produto (antes do painel), na versao original.
   // Duas pastas: ProdutoDestaque (a principal) e produtoArquivo (as demais) — o
@@ -2174,6 +2176,7 @@ export function normalizarPagina({
     [aspnet?.categoria, "breadcrumb da pagina"],
     [categoriaDaRoboCore(html, url), "breadcrumb da pagina"],
     [micro?.categoria, "breadcrumb"],
+    [caminhoDoJsonLd(html, name), "breadcrumb do JSON-LD"],
     [comoTexto(bruto?.category), "json-ld category"],
     [doDataLayer(html, code), "dataLayer de analytics"],
   );
@@ -2284,17 +2287,9 @@ export function normalizarPagina({
   // todas — ver nuvemshop.js. Sem o JS de variantes a pagina cai no caminho comum.
   const daNuvemshop = variantesDaNuvemshop(html);
   if (daNuvemshop.length) {
-    const categoriaNuvem = categoriaDaNuvemshop(html);
-    const baseNuvem = categoriaNuvem
-      ? {
-          ...base,
-          category: categoriaNuvem,
-          origens: { ...base.origens, category: "breadcrumb do JSON-LD (ultimo nivel)" },
-        }
-      : base;
     return {
       produtos: daNuvemshop.map((variante) =>
-        produtoDaVarianteNuvemshop(baseNuvem, variante, daNuvemshop.length > 1),
+        produtoDaVarianteNuvemshop(base, variante, daNuvemshop.length > 1),
       ),
       motivo: null,
       formatos: [...formatos, "nuvemshop"],

@@ -15,6 +15,7 @@
  */
 
 import { comoNumero, comoTexto } from "./texto-html";
+import { caminhoDeCategoria } from "./categoria";
 
 /// Elementos que se fecham sozinhos: procurar tag de fechamento deles acharia
 /// o fechamento de outro elemento e traria texto que nao e o valor.
@@ -208,9 +209,10 @@ function nomesDaTrilha(html) {
   return trilha;
 }
 
+// O CAMINHO INTEIRO da trilha ("Arduino > Sensores"), e nao mais so o ultimo
+// degrau: decisao do dono em 09/10/2026 — ver categoria.js.
 function categoriaDoBreadcrumb(trilha) {
-  const uteis = trilha.filter((valor) => !/^(in[ií]cio|home)$/i.test(valor));
-  return uteis.length > 0 ? uteis[uteis.length - 1] : null;
+  return caminhoDeCategoria(trilha);
 }
 
 /**

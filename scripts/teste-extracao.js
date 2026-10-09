@@ -164,7 +164,7 @@ const microHtml = `<html><head>
 const micro = doMicrodata(microHtml);
 conferir("microdata: mpn", micro.mpn, "10524");
 conferir("microdata: sku", micro.skuFonte, "10524");
-conferir("microdata: categoria do breadcrumb", micro.categoria, "Displays e Telas");
+conferir("microdata: categoria do breadcrumb", micro.categoria, "Arduino > Displays e Telas");
 conferir("microdata: nao pega o nome do site", micro.categoria !== "Loja", true);
 
 const display = normalizarPagina({ html: microHtml, url: "https://loja.com.br/p/display" })
@@ -173,7 +173,7 @@ conferir("entidade &iacute; decodificada", display.name, "Display 14 Segmentos 4
 conferir("entidade &oacute; decodificada", display.description, "Módulo com display de 14 segmentos.");
 conferir("preco NORMAL e o de tabela", display.prices.normal, 39.97);
 conferir("preco PROMOCIONAL e o menor", display.prices.promotional, 37.97);
-conferir("categoria", display.category, "Displays e Telas");
+conferir("categoria", display.category, "Arduino > Displays e Telas");
 conferir("status", display.stock.status, "AVAILABLE");
 
 // ---------------------------------------------------------------------------
@@ -356,7 +356,7 @@ const eletrus = normalizarPagina({
 conferir("codigo e o 'Cod:' do painel", eletrus.code, "53.00.1463");
 conferir("Ref: de fabricante vira MPN e modelo", [eletrus.mpn, eletrus.model], ["OBT500-18GM60-E5", "OBT500-18GM60-E5"]);
 conferir("marca do painel", eletrus.brand, "Autonics");
-conferir("categoria e o ultimo degrau antes do produto", eletrus.category, "Sensores");
+conferir("categoria e o ultimo degrau antes do produto", eletrus.category, "Automação > Sensores");
 conferir("preco e a vista escrito", [eletrus.prices.normal, eletrus.prices.promotional], [320, 304]);
 conferir("botao comprar = em estoque", eletrus.stock.status, "AVAILABLE");
 conferir("fotos da galeria nas duas pastas, sem o 'Passe o mouse'", eletrus.images, [
@@ -1918,7 +1918,7 @@ console.log("\n— Nuvemshop: acento, foto repetida em tamanhos e categoria (fon
 </head><body><img src="http://${cdn}-640-0.webp"><img src="https://${cdn}-1024-1024.png"></body></html>`;
   const [fonte] = normalizarPagina({ html, url: "https://loja.exemplo.com/produtos/fonte-chaveada/", fonte: { tipo: "CONCORRENTE" } }).produtos;
   conferir("Nuvemshop: a mesma foto em tres tamanhos vira uma, a maior, em https", fonte.images, [`https://${cdn}-1024-1024.png`]);
-  conferir("Nuvemshop: categoria e o ultimo nivel do breadcrumb", fonte.category, "FONTES DE ENERGIA");
+  conferir("Nuvemshop: categoria e o caminho inteiro do breadcrumb", fonte.category, "ELETRÔNICA > FONTES DE ENERGIA");
   conferir("Nuvemshop: sem breadcrumb no JSON-LD a categoria nao e inventada", normalizarPagina({ html: html.replace(/"breadcrumb":\{[\s\S]*?\]\},/, ""), url: "https://loja.exemplo.com/produtos/fonte-chaveada/", fonte: { tipo: "CONCORRENTE" } }).produtos[0].category, null);
 }
 
@@ -1960,6 +1960,22 @@ ${relacionado}</body></html>`;
   conferir("simulador: normal e o cobrado, pix vai como promocional", ler(pagina(valor("12,90"), "12,25", relacionado)).prices, { normal: 12.9, promotional: 12.25, comImpostos: null });
   conferir("simulador: com riscado, vale o <ins>", ler(pagina(`<del>${valor("15,90")}</del> <ins>${valor("12,90")}</ins>`, "12,25")).prices, { normal: 12.9, promotional: 12.25, comImpostos: null });
   conferir("simulador: valor que nao e pix nao e lido como pix", ler(pagina(valor("12,90"), "12,25").replace("no PIX", "no cartao")).origens.precoPromocional.includes("simulador"), false);
+}
+
+console.log("\n— Categoria como caminho completo (decisao do dono, 09/10/2026) —");
+{
+  const { caminhoDeCategoria, caminhoDoJsonLd } = await import("../src/lib/coleta/categoria.js");
+  conferir("caminho: tira Inicio e o proprio produto", caminhoDeCategoria(["Início", "Impressão 3D", "Partes", "Capa de Silicone para Hotend"], "Capa de Silicone para Hotend"), "Impressão 3D > Partes");
+  conferir("caminho: Home e Produtos no comeco sao raiz", caminhoDeCategoria(["Home", "Produtos", "Transformadores"]), "Transformadores");
+  conferir("caminho: Produtos no MEIO fica", caminhoDeCategoria(["Eletrônica", "Produtos", "Fontes"]), "Eletrônica > Produtos > Fontes");
+  conferir("caminho: degrau repetido em seguida vira um", caminhoDeCategoria(["Sensores", "Sensores", "Temperatura"]), "Sensores > Temperatura");
+  conferir("caminho: so raiz nao inventa categoria", caminhoDeCategoria(["Início", "Loja"]), null);
+  const ld = (itens) => `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: itens.map((name, i) => ({ "@type": "ListItem", position: i + 1, name })) })}</script>`;
+  const duas = ld(["Início", "Loja", "Capa"]) + ld(["Início", "Impressão 3D", "Partes", "Capa"]);
+  conferir("JSON-LD com duas trilhas: vale a mais longa", caminhoDoJsonLd(duas, "Capa"), "Impressão 3D > Partes");
+  const emGraph = `<script type="application/ld+json">${JSON.stringify({ "@graph": [{ "@type": "WebPage" }, { "@type": "BreadcrumbList", itemListElement: [{ position: 2, name: "Motores" }, { position: 1, name: "Home" }, { position: 3, name: "Passo" }] }] })}</script>`;
+  conferir("JSON-LD em @graph e fora de ordem: segue o position", caminhoDoJsonLd(emGraph), "Motores > Passo");
+  conferir("JSON-LD quebrado nao derruba", caminhoDoJsonLd('<script type="application/ld+json">{quebrado</script>'), null);
 }
 
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);

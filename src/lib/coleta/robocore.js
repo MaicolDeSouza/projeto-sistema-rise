@@ -1,4 +1,5 @@
 import { comoNumero, comoTexto } from "./texto-html";
+import { caminhoDeCategoria } from "./categoria";
 
 export function ehRoboCore(url) {
   try { return /^(www\.)?robocore\.net$/i.test(new URL(url).hostname); }
@@ -34,7 +35,8 @@ export function categoriaDaRoboCore(html, url) {
   const degraus = [...nav.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)]
     .map((degrau) => comoTexto(degrau[1]))
     .filter(Boolean);
-  return degraus.at(-1) ?? null;
+  // O caminho inteiro ("Impressão 3D > Filamentos PETG"), decisao do dono em 09/10/2026.
+  return caminhoDeCategoria(degraus);
 }
 
 /**
