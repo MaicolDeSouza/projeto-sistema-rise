@@ -132,7 +132,8 @@ fi
 #   - /produtos sem login: 401;  com um Remote-User forjado: 401 (o cabecalho nao pode abrir nada);
 #   - uma foto que nao existe, no formato exato: 404 (a rota publica esta de pe e o app respondeu);
 #   - o mesmo caminho por POST: 401 (so GET e HEAD sao publicos);
-#   - um nome fora do formato do sistema: 401 (cai no ramo com login).
+#   - um nome fora do formato do sistema: 401 (cai no ramo com login);
+#   - a pasta da reserva: 401 (so a tela, que tem login, a usa).
 PASSO="conferindo o login de fora"
 URL="https://rise.4hobby.com.br"
 FOTO="/api/arquivos/deploy-teste/imagens/00000000000000000000000000000000.jpg"
@@ -142,8 +143,9 @@ FORJADO="$(codigo -H 'Remote-User: Maicol' "${URL}/produtos")"
 FOTO_PUBLICA="$(codigo "${URL}${FOTO}")"
 FOTO_POST="$(codigo -X POST "${URL}${FOTO}")"
 FOTO_FORA="$(codigo "${URL}/api/arquivos/deploy-teste/imagens/qualquer.jpg")"
-echo "== De fora: /produtos ${PUBLICO} (401) | Remote-User forjado ${FORJADO} (401) | foto publica ${FOTO_PUBLICA} (404) | POST ${FOTO_POST} (401) | nome fora do formato ${FOTO_FORA} (401)"
-if [ "${PUBLICO}" != 401 ] || [ "${FORJADO}" != 401 ] || [ "${FOTO_PUBLICA}" != 404 ] || [ "${FOTO_POST}" != 401 ] || [ "${FOTO_FORA}" != 401 ]; then
+RESERVA="$(codigo "${URL}/api/arquivos/deploy-teste/reserva/00000000000000000000000000000000.jpg")"
+echo "== De fora: /produtos ${PUBLICO} (401) | Remote-User forjado ${FORJADO} (401) | foto publica ${FOTO_PUBLICA} (404) | POST ${FOTO_POST} (401) | nome fora do formato ${FOTO_FORA} (401) | reserva ${RESERVA} (401)"
+if [ "${PUBLICO}" != 401 ] || [ "${FORJADO}" != 401 ] || [ "${FOTO_PUBLICA}" != 404 ] || [ "${FOTO_POST}" != 401 ] || [ "${FOTO_FORA}" != 401 ] || [ "${RESERVA}" != 401 ]; then
   echo "A superficie publica nao esta como deveria (linha acima): o login pode estar aberto. NAO e um deploy valido."
   false
 fi
