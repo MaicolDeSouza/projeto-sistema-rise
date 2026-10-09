@@ -4,9 +4,13 @@
 SHELL=/bin/bash
 MAILTO=""
 
+# O log do cron mora em /home/rise/logs (o deploy cria a pasta), e NAO em dados/: o conteiner roda como root e escreve
+# em dados/, entao quem controla o conteiner trocaria dados/logs/cron.log por um link para /home/rise/.ssh/
+# authorized_keys, e o cron (que roda como rise) escreveria nele a saida do backup, que o conteiner controla.
+#
 # Camada 1: backup do banco (npm run backup dentro do conteiner app), com aviso no healthchecks.io.
-0 3 * * *  cd /srv/rise/app && ./deploy/backup-diario.sh >> dados/logs/cron.log 2>&1
+0 3 * * *  cd /srv/rise/app && ./deploy/backup-diario.sh >> /home/rise/logs/cron.log 2>&1
 # Camada 2: dump do dia e arquivos para o R2, com aviso no healthchecks.io.
-30 3 * * * cd /srv/rise/app && ./deploy/backup-externo.sh >> dados/logs/cron.log 2>&1
+30 3 * * * cd /srv/rise/app && ./deploy/backup-externo.sh >> /home/rise/logs/cron.log 2>&1
 # Logs do worker com mais de 30 dias, aos domingos.
-0 4 * * 0  cd /srv/rise/app && ./deploy/limpar-logs.sh >> dados/logs/cron.log 2>&1
+0 4 * * 0  cd /srv/rise/app && ./deploy/limpar-logs.sh >> /home/rise/logs/cron.log 2>&1

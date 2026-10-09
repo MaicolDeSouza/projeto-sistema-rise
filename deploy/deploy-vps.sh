@@ -16,6 +16,13 @@ cd "$(dirname "$0")/.."
 
 [ -f .env ] || { echo "Sem .env em $(pwd): nada foi feito."; exit 1; }
 
+# Chave de TESTE que desliga o filtro de rede publica da coleta (ver `obter` em src/lib/coleta/http.js). A imagem de
+# producao ja a ignora, mas ela nao tem o que fazer num .env de producao: melhor parar aqui do que deixar passar.
+if grep -qE '^[[:space:]]*COLETA_PERMITIR_REDE_LOCAL=' .env; then
+  echo "COLETA_PERMITIR_REDE_LOCAL esta no .env: e uma chave de TESTE e nao pode ficar na producao. Tire a linha e rode de novo. Nada foi feito."
+  exit 1
+fi
+
 # O `set -e` encerra o script no meio, e sem isto o dono ficaria diante do erro cru do Prisma ou do Docker, com o
 # worker parado e sem saber o que fazer. Cada etapa diz seu nome em PASSO; o backup so existe se houve migration.
 PASSO="preparando"
@@ -154,8 +161,10 @@ fi
 PASSO="registrando o deploy"
 docker image tag rise:latest rise:bom
 git tag -f "vps-${VERSAO}" >/dev/null
-mkdir -p dados/logs
-echo "${VERSAO} ${COMMIT}" >> dados/logs/deploy.log
+# Os logs do HOST (deploy.log, cron.log) moram em ~/logs, fora de dados/: o conteiner roda como root e escreve em
+# dados/, entao quem o controlasse trocaria um arquivo dali por um link e faria um `>>` do host escrever onde nao deve.
+mkdir -p "${HOME}/logs"
+echo "${VERSAO} ${COMMIT}" >> "${HOME}/logs/deploy.log"
 
 # O crontab versionado e a fonte unica das rotinas (backup, copia externa, limpeza de logs); sem reinstala-lo aqui,
 # uma mudanca nele ficava no git e nunca chegava ao cron.

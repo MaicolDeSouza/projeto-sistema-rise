@@ -38,8 +38,28 @@ rise.4hobby.com.br {
 
 	# Trilha de acesso (JSON, no log do Docker, que gira em 5 arquivos de 10 MB): sem isto nao ha como saber quem
 	# pediu o que na rota publica, nem base para um limite de taxa. O Caddy ja deixa Cookie e Authorization fora
-	# do registro.
-	log
+	# do registro. Dois cuidados: o `code` e o `state` do retorno do OAuth (/api/oauth/*/callback) iriam em texto na
+	# URI, e o IP inteiro de cada comprador que abre uma foto da loja e dado pessoal: o IP sai mascarado (/24 e /48),
+	# o bastante para ver de onde vem um abuso.
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					replace code REDACTED
+					replace state REDACTED
+				}
+				request>remote_ip ip_mask {
+					ipv4 24
+					ipv6 48
+				}
+				request>client_ip ip_mask {
+					ipv4 24
+					ipv6 48
+				}
+			}
+		}
+	}
 
 	# Fotos e documentos dos produtos ficam PUBLICOS: o Bling, a Loja Integrada e o cliente da loja os buscam
 	# pela APP_URL_PUBLICA. So GET e HEAD, e so o caminho no formato EXATO que o sistema gera (SKU, pasta
