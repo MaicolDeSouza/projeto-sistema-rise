@@ -3617,6 +3617,10 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   `ssh ... "cd /srv/rise/app && git fetch -q --tags origin && git checkout -q --detach origin/main && ./deploy/deploy-vps.sh"`
   (baixar antes de rodar, porque o próprio script pode ter mudado). Ele valida o Caddyfile, constrói a imagem com o site
   no ar, tira backup e aplica migrations só se houver pendência, troca os contêineres, recarrega o Caddy, confere o site
+  por dentro e **o login por fora com falha de verdade** (6 respostas, no fim do script), e só então guarda a imagem como
+  `rise:bom`, grava `~/logs/deploy.log` (no host, fora de `dados/`) e reinstala o crontab. Se parar no meio, o `trap` diz o passo e os comandos
+  de volta. **Volta atrás:** `docker image tag rise:anterior rise:latest && docker compose up -d app worker` (a anterior
+  é a do último deploy que passou em tudo). Migration não tem volta: só pelo dump tirado antes dela.
 - **Cartão "Servidor VPS" em Integrações** (pedido do dono em 09/10/2026): os dois caminhos acima por botão, **só no Rise
   do PC aberto em localhost** (`ehOPcDeDesenvolvimento`: nunca na VPS, que tem `RISE_PRODUCAO`, nem pela rede local; a
   página só mostra o cartão nesse caso, e as ações em `src/app/integracoes/acoes-vps.js` conferem de novo). Regras puras em
@@ -3641,10 +3645,6 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
     sai em `dados/backup/vps-agora-*.dump` e é apagado no sucesso. Log em `dados/logs/vps-copia-botao.log`; o servidor
     religado escreve em `dados/logs/servidor-dev-botao.log` (ele roda sem janela; para pará-lo, o Gerenciador de Tarefas
     ou um novo clique).
-  por dentro e **o login por fora com falha de verdade** (6 respostas, no fim do script), e só então guarda a imagem como
-  `rise:bom`, grava `~/logs/deploy.log` (no host, fora de `dados/`) e reinstala o crontab. Se parar no meio, o `trap` diz o passo e os comandos
-  de volta. **Volta atrás:** `docker image tag rise:anterior rise:latest && docker compose up -d app worker` (a anterior
-  é a do último deploy que passou em tudo). Migration não tem volta: só pelo dump tirado antes dela.
 - **Versão no pé do menu:** na VPS é a hora do deploy (`DD.MM.AAAA.HH.MM`) e o commit; no PC é `dev` mais a hora do
   último commit (`+` se há alteração não commitada). **Mesmo commit nos dois = mesmo código**; a hora só dá a ordem.
 - **Dois apps de OAuth por plataforma:** o app do PC (redirect em `localhost`/`localtest.me`) e o da VPS (redirect em
