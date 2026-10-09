@@ -7,6 +7,8 @@ import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import CampoBusca from "@/components/ui/CampoBusca";
+import BotaoBuscaAmpla from "@/components/ui/BotaoBuscaAmpla";
+import { textoDoSelo } from "@/lib/buscaAmpla";
 import TabelaMercados from "@/components/mercados/TabelaMercados";
 import FiltrosMercados from "@/components/mercados/FiltrosMercados";
 import BotaoAtualizar from "@/components/mercados/BotaoAtualizar";
@@ -34,6 +36,8 @@ export default async function MercadosPage({ searchParams }) {
   // "?tipo=qualquer-coisa" devolveria lista vazia sem explicacao.
   const tipo = ["CONCORRENTE", "FORNECEDOR"].includes(params?.tipo) ? params.tipo : "";
   const ordem = ["menor", "maior"].includes(params?.ordem) ? params.ordem : "";
+  // Busca ampla (09/10/2026): procura tambem na descricao, ficha e SEO. So vale com algo digitado.
+  const ampla = params?.ampla === "1";
 
   /*
     VARIAS FONTES AO MESMO TEMPO: ?fonte=A&fonte=B.
@@ -66,6 +70,7 @@ export default async function MercadosPage({ searchParams }) {
         fontes: pedidas,
         busca,
         ordem,
+        ampla,
         pagina: Math.max(Number.isFinite(pedida) ? pedida : 1, 1),
         porPagina: POR_PAGINA,
       }),
@@ -103,6 +108,7 @@ export default async function MercadosPage({ searchParams }) {
       fontes: fonte,
       busca,
       ordem,
+      ampla,
       pagina,
       porPagina: POR_PAGINA,
     });
@@ -170,6 +176,8 @@ export default async function MercadosPage({ searchParams }) {
       vistoEm: produto.coletadoEm,
       // Quando foi visto pela ultima vez, se a ultima varredura da loja nao o viu (a tabela marca).
       naoVistoDesde: produto.naoVistoDesde ?? null,
+      // Busca ampla: onde a palavra foi achada, quando nao estava no nome (a tabela mostra o selo).
+      achado: textoDoSelo(produto.achadoEm),
       fonteNome: produto.fonte?.nome ?? "?",
       fonteTipo: produto.fonte?.tipo ?? "OUTRO",
       // So para o link de fallback quando o produto nao tem URL propria.
@@ -205,11 +213,17 @@ export default async function MercadosPage({ searchParams }) {
             fim da tabela, ele exige rolar cento e vinte linhas para ser lido.
           */}
           <div className="mb-3 flex flex-wrap items-center gap-4">
-            <CampoBusca
-              valorInicial={busca}
-              rotulo="Buscar por código, marca, modelo ou título"
-              className="w-full max-w-lg"
-            />
+            <div className="flex w-full max-w-2xl items-center gap-2">
+              <CampoBusca
+                valorInicial={busca}
+                rotulo={ampla ? "Buscar também na descrição, ficha técnica e SEO" : "Buscar por código, marca, modelo ou título"}
+                className="w-full max-w-lg"
+              />
+              <BotaoBuscaAmpla
+                ligada={ampla}
+                ajuda="Procura também na descrição, na ficha técnica, na categoria e no SEO de cada loja. Os achados pelo nome vêm primeiro."
+              />
+            </div>
             <p className="text-sm text-suave">
               {resultado.total === resultado.totalGeral ? (
                 <>

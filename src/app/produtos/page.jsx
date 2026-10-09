@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 
 import { prisma } from "@/lib/db";
+import { idsDaBuscaDeProdutos, ondeAchouNoProduto, palavrasDaBusca, textoDoSelo } from "@/lib/buscaAmpla";
 import { CANAIS, separarCanais } from "@/lib/canais";
 import { urlDe } from "@/lib/arquivos";
 import { estadoDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
@@ -40,14 +41,21 @@ export default async function ProdutosPage({ searchParams }) {
   const direcao = params?.direcao === "asc" ? "asc" : "desc";
   const pedida = Number.parseInt(params?.pagina ?? "1", 10);
 
-  const where = busca
-    ? {
-        OR: [
-          { tituloBase: { contains: busca, mode: "insensitive" } },
-          { sku: { contains: busca, mode: "insensitive" } },
-        ],
-      }
-    : undefined;
+  // BUSCA COM INDICE (pedido do dono em 09/10/2026: a lista vai crescer muito). Todas as palavras, em qualquer
+  // ordem, no nome, codigo, marca, modelo e EAN; com a BUSCA AMPLA ligada, tambem na descricao, NCM, homologacao
+  // e localizacao. O indice devolve os ids, e a pagina e a ordem continuam no Prisma (ver lib/buscaAmpla.js).
+  const ampla = params?.ampla === "1";
+  const palavras = palavrasDaBusca(busca);
+  let where;
+  try {
+    const ids = await idsDaBuscaDeProdutos(busca, { ampla });
+    where = ids === null ? undefined : { id: { in: ids } };
+  } catch {
+    // Sem o indice (banco sem a migration), a busca antiga, so por nome e codigo.
+    where = busca
+      ? { OR: [{ tituloBase: { contains: busca, mode: "insensitive" } }, { sku: { contains: busca, mode: "insensitive" } }] }
+      : undefined;
+  }
 
   // Ordenar no banco ANTES de paginar, e nao so na pagina carregada: senao
   // "ordenar por preco" so organizaria os 25 produtos que ja estavam na tela,
@@ -142,6 +150,8 @@ export default async function ProdutosPage({ searchParams }) {
         ? urlDe(produto.sku, "IMAGEM", produto.arquivos[0].arquivo)
         : null,
     },
+    // Busca ampla: "achado na descrição" quando a palavra nao estava no nome nem no codigo.
+    achado: ampla && palavras.length > 0 ? textoDoSelo(ondeAchouNoProduto(produto, palavras)) : null,
     ...separarCanais(produto.anuncios),
     // O icone do ML mostra o anuncio (publicado e ativo, ou pendente), nao so o idExterno.
     iconeML: estadoDoIconeML(produto.anuncios),
@@ -180,6 +190,7 @@ export default async function ProdutosPage({ searchParams }) {
           <TabelaProdutos
             linhas={linhas}
             busca={busca}
+            ampla={ampla}
             ordenar={ordenar}
             direcao={direcao}
             pagina={pagina}

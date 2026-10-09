@@ -1216,6 +1216,12 @@ export default function TabelaMercados({ linhas }) {
                     <SeloFonte tipo={linha.fonteTipo} />
                     <span className="truncate">{linha.fonteNome}</span>
                   </span>
+                  {/* Busca ampla (09/10/2026): achado so no texto da loja, e nao no nome. */}
+                  {linha.achado && (
+                    <span className="mt-1 inline-block rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800">
+                      {linha.achado}
+                    </span>
+                  )}
                 </td>
                 {/* CODIGO antes de ESTOQUE (pedido do dono, 22/09/2026): e o
                     ponto de acesso ao produto, lido primeiro que a quantidade. */}

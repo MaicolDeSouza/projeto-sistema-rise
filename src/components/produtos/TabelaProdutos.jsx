@@ -16,6 +16,7 @@ import {
 import { excluirProdutos } from "@/app/produtos/acoes";
 import Paginacao from "@/components/mercados/Paginacao";
 import CampoBusca from "@/components/ui/CampoBusca";
+import BotaoBuscaAmpla from "@/components/ui/BotaoBuscaAmpla";
 import EmptyState from "@/components/ui/EmptyState";
 import LinhaProduto from "./LinhaProduto";
 
@@ -138,6 +139,8 @@ function PopupConfirmacao({ produtos, pendente, aoConfirmar, aoCancelar }) {
 export default function TabelaProdutos({
   linhas,
   busca,
+  // Busca ampla ligada (`?ampla=1`, pedido do dono em 09/10/2026).
+  ampla = false,
   ordenar = "",
   direcao = "desc",
   pagina = 1,
@@ -226,8 +229,12 @@ export default function TabelaProdutos({
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <CampoBusca
           valorInicial={busca}
-          rotulo="Buscar por nome ou código"
+          rotulo={ampla ? "Buscar também na descrição, NCM e localização" : "Buscar por nome, código, marca ou modelo"}
           className="max-w-sm flex-1"
+        />
+        <BotaoBuscaAmpla
+          ligada={ampla}
+          ajuda="Procura também na descrição, no NCM, na homologação e na localização de cada produto."
         />
 
         {/* Contagem da lista (pedido do dono em 22/09/2026): o TOTAL que casa
@@ -342,10 +349,11 @@ export default function TabelaProdutos({
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
-              {linhas.map(({ produto, pendentes, iconeML, iconeBling, iconeLI }) => (
+              {linhas.map(({ produto, pendentes, iconeML, iconeBling, iconeLI, achado }) => (
                 <LinhaProduto
                   key={produto.id}
                   produto={produto}
+                  achado={achado}
                   pendentes={pendentes}
                   iconeML={iconeML}
                   iconeBling={iconeBling}

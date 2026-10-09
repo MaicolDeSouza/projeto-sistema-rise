@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 
 import { normalizar } from "@/lib/texto";
+import { EXPRESSAO_AMPLA_COLETADO, ondeAchou, palavrasDaBusca, textoDaFicha, todasAsPalavras } from "@/lib/buscaAmpla";
 
 import { linhaDePreco, linhaDoProduto, mudouPreco, produtoDaLinha } from "./linha";
 
@@ -478,6 +479,8 @@ export async function listarProdutos({
   ordem = "",
   pagina = 1,
   porPagina = 100,
+  // BUSCA AMPLA (09/10/2026): procura tambem na descricao, ficha, categoria e SEO, e diz onde achou.
+  ampla = false,
 } = {}) {
   const todasAsFontes = await prisma.fonteColeta.findMany({
     select: { id: true, nome: true, tipo: true, ultimaColetaEm: true, dominio: true },
@@ -508,15 +511,26 @@ export async function listarProdutos({
         )} THEN 1 ELSE 0 END`;
 
   // Todas as palavras sao exigidas, a mesma regra de `combina` — aqui contra o
-  // `buscaTexto`, que ja foi normalizado na gravacao.
-  const palavras = normalizar(busca ?? "").split(/\s+/).filter(Boolean);
+  // `buscaTexto`, que ja foi normalizado na gravacao. Com a BUSCA AMPLA ligada (09/10/2026), contra a expressao
+  // que junta tambem descricao, ficha, categoria e SEO, que tem indice proprio (ver lib/buscaAmpla.js).
+  const palavras = palavrasDaBusca(busca);
+  // `Prisma.join` de lista vazia da erro: sem palavras nao ha condicao.
+  const peloNome =
+    palavras.length === 0
+      ? null
+      : Prisma.join(
+          palavras.map((palavra) => Prisma.sql`"buscaTexto" LIKE ${`%${palavra}%`}`),
+          " AND ",
+        );
   const filtroDaBusca =
     palavras.length === 0
       ? Prisma.empty
-      : Prisma.sql` AND ${Prisma.join(
-          palavras.map((palavra) => Prisma.sql`"buscaTexto" LIKE ${`%${palavra}%`}`),
-          " AND ",
-        )}`;
+      : ampla
+        ? Prisma.sql` AND ${todasAsPalavras(EXPRESSAO_AMPLA_COLETADO, palavras)}`
+        : Prisma.sql` AND ${peloNome}`;
+  // Na busca ampla, o achado pelo NOME vem antes do achado so no texto da loja, em qualquer ordem pedida.
+  const primeiroPeloNome =
+    ampla && palavras.length > 0 ? Prisma.sql`CASE WHEN ${peloNome} THEN 0 ELSE 1 END ASC, ` : Prisma.empty;
 
   // O filtro de fontes NAO entra na contagem: o seletor precisa mostrar quantos
   // cada fonte tem mesmo com outra marcada.
@@ -534,10 +548,10 @@ export async function listarProdutos({
   // a cada campanha da loja.
   const ordenacao =
     ordem === "menor"
-      ? Prisma.sql`${foraDaUltima} ASC, COALESCE("precoNormal", "precoPromocional") ASC NULLS LAST`
+      ? Prisma.sql`${primeiroPeloNome}${foraDaUltima} ASC, COALESCE("precoNormal", "precoPromocional") ASC NULLS LAST`
       : ordem === "maior"
-        ? Prisma.sql`${foraDaUltima} ASC, COALESCE("precoNormal", "precoPromocional") DESC NULLS LAST`
-        : Prisma.sql`${foraDaUltima} ASC, ("estoqueStatus" = 'AVAILABLE') DESC, "coletadoEm" DESC NULLS LAST`;
+        ? Prisma.sql`${primeiroPeloNome}${foraDaUltima} ASC, COALESCE("precoNormal", "precoPromocional") DESC NULLS LAST`
+        : Prisma.sql`${primeiroPeloNome}${foraDaUltima} ASC, ("estoqueStatus" = 'AVAILABLE') DESC, "coletadoEm" DESC NULLS LAST`;
 
   // O acervo inteiro, sem filtro nenhum: e o segundo numero do "20 de 100" da
   // tela, que diz se o filtro escondeu muita coisa.
@@ -559,12 +573,37 @@ export async function listarProdutos({
     prisma.$queryRaw`
       SELECT id, origem, codigo, nome, marca, mpn, url, "precoNormal", "precoPromocional",
              "precoReserva", "precoComImpostos", impostos, "precosPorQuantidade", "estoqueStatus",
-             quantidade, "aChegar", "coletadoEm", "vistoEm", "fonteId"
+             quantidade, "aChegar", "coletadoEm", "vistoEm", "fonteId", "buscaTexto"
         FROM "ProdutoColetado"
        WHERE ${onde}
        ORDER BY ${ordenacao}
        LIMIT ${porPagina} OFFSET ${Math.max(0, (pagina - 1) * porPagina)}`,
   ]);
+
+  // ONDE a busca ampla achou cada linha DA PAGINA (o selo "achado na descrição"). Le o texto da loja so das
+  // cem linhas mostradas, e nao do acervo: e o que pesa.
+  const achadoEm = new Map();
+  if (ampla && palavras.length > 0 && linhas.length > 0) {
+    const textos = await prisma.produtoColetado.findMany({
+      where: { id: { in: linhas.map((linha) => linha.id) } },
+      select: { id: true, buscaTexto: true, descricao: true, especificacoes: true, seo: true, categoria: true },
+    });
+    for (const texto of textos) {
+      achadoEm.set(
+        texto.id,
+        ondeAchou(
+          texto.buscaTexto ?? "",
+          [
+            ["descrição", texto.descricao],
+            ["ficha técnica", textoDaFicha(texto.especificacoes)],
+            ["SEO", [texto.seo?.title, texto.seo?.description, texto.seo?.keywords].filter(Boolean).join(" ")],
+            ["categoria", texto.categoria],
+          ],
+          palavras,
+        ),
+      );
+    }
+  }
 
   const porId = new Map(doTipo.map((fonte) => [fonte.id, fonte]));
   const quantosPorFonte = new Map(contagens.map((linha) => [linha.fonteId, linha.quantos]));
@@ -608,6 +647,8 @@ export async function listarProdutos({
       },
       coletadoEm: linha.coletadoEm,
       naoVistoDesde: naoVistoDesde(linha.vistoEm, porId.get(linha.fonteId)?.ultimaColetaEm),
+      // Busca ampla: onde a palavra estava, quando nao estava no nome ([] = achado pelo nome, ou busca normal).
+      achadoEm: achadoEm.get(linha.id) ?? [],
       fonte: {
         nome: porId.get(linha.fonteId)?.nome ?? "?",
         tipo: porId.get(linha.fonteId)?.tipo ?? "OUTRO",

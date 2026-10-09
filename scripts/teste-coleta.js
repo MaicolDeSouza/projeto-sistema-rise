@@ -43,6 +43,7 @@ const DOMINIOS = [
   "teste-fornecedor.local",
   "teste-lotes.local",
   "teste-primeira.local",
+  "teste-ampla.local",
 ];
 
 function produto({ code, name, normal, promotional = null, status = "AVAILABLE", quantity = null, url = null }) {
@@ -335,6 +336,80 @@ const naListaPrimeira = (await produtosParaLista())
   .map((item) => item.code)
   .sort();
 conferir("primeira varredura ainda aberta: os lotes ja aparecem na lista", naListaPrimeira, ["P1", "P2"]);
+
+// ---------------------------------------------------------------------------
+// BUSCA AMPLA (pedido do dono em 09/10/2026): com o botao ligado, procura tambem na descricao, na ficha e no SEO.
+console.log("\n— busca ampla (descricao, ficha, SEO) —");
+const { EXPRESSAO_AMPLA_COLETADO, EXPRESSAO_BUSCA_PRODUTO, EXPRESSAO_AMPLA_PRODUTO, idsDaBuscaDeProdutos, ondeAchouNoProduto } =
+  await import("@/lib/buscaAmpla.js");
+const { readFile } = await import("node:fs/promises");
+const migracaoAmpla = await readFile(new URL("../prisma/migrations/20261009_busca_ampla/migration.sql", import.meta.url), "utf8");
+conferir(
+  "a migration usa as MESMAS expressoes da busca (senao o banco nao usa o indice)",
+  [EXPRESSAO_AMPLA_COLETADO, EXPRESSAO_BUSCA_PRODUTO, EXPRESSAO_AMPLA_PRODUTO].map((expressao) => migracaoAmpla.includes(`((${expressao}) gin_trgm_ops)`)),
+  [true, true, true],
+);
+
+const amplaFonte = await prisma.fonteColeta.create({
+  data: { nome: "Ampla Teste", dominio: DOMINIOS[4], tipo: "CONCORRENTE", ativa: false },
+});
+const comTexto = (code, name, extra = {}) => ({ ...produto({ code, name, normal: 10, url: `https://a/${code}` }), ...extra });
+await gravarColeta({
+  fonte: amplaFonte,
+  produtos: [
+    comTexto("A1", "Placa Zzampla Nome"),
+    comTexto("A2", "Outra placa", { description: "Leva o chip Zzampla na placa" }),
+    comTexto("A3", "Terceira placa", { specifications: [{ nome: "Chip", valor: "Zzampla" }] }),
+    comTexto("A4", "Quarta peca", { seo: { title: "ZZÁMPLA no titulo da pagina", description: null, keywords: null, canonical: null } }),
+    comTexto("A5", "Sem a palavra"),
+  ],
+  origem: "site",
+  coletadoEm: segundos(80),
+});
+const buscaNormal = await listarProdutos({ fontes: ["Ampla Teste"], busca: "zzampla" });
+conferir("busca normal: so o que tem a palavra no nome", buscaNormal.linhas.map((linha) => linha.code), ["A1"]);
+const buscaAmpla = await listarProdutos({ fontes: ["Ampla Teste"], busca: "zzampla", ampla: true });
+conferir(
+  "busca ampla: tambem descricao, ficha e SEO (com acento no texto da loja)",
+  [buscaAmpla.total, buscaAmpla.linhas.map((linha) => linha.code).sort()],
+  [4, ["A1", "A2", "A3", "A4"]],
+);
+conferir("busca ampla: o achado pelo nome vem primeiro", buscaAmpla.linhas[0]?.code, "A1");
+conferir(
+  "busca ampla: o selo diz onde achou (o achado pelo nome nao tem selo)",
+  Object.fromEntries(buscaAmpla.linhas.map((linha) => [linha.code, linha.achadoEm])),
+  { A1: [], A2: ["descrição"], A3: ["ficha técnica"], A4: ["SEO"] },
+);
+const duasPalavras = await listarProdutos({ fontes: ["Ampla Teste"], busca: "outra zzampla", ampla: true });
+conferir("busca ampla: todas as palavras, cada uma em qualquer parte", duasPalavras.linhas.map((linha) => linha.code), ["A2"]);
+conferir("busca normal continua sem selo", buscaNormal.linhas[0]?.achadoEm, []);
+
+// Produtos do Rise: a mesma regra, com indice proprio.
+const SKUS_AMPLA = ["ZZ-AMPLA-1", "ZZ-AMPLA-2", "ZZ-AMPLA-3"];
+await prisma.produto.deleteMany({ where: { sku: { in: SKUS_AMPLA } } });
+try {
+  await prisma.produto.createMany({
+    data: [
+      { sku: "ZZ-AMPLA-1", tituloBase: "Modulo Zzproduto" },
+      { sku: "ZZ-AMPLA-2", tituloBase: "Outro modulo", descricaoBase: "Usa o chip ZZPRÓDUTO na placa" },
+      { sku: "ZZ-AMPLA-3", tituloBase: "Terceiro modulo", localizacao: "zzproduto-r1" },
+    ],
+  });
+  const skus = async (ids) =>
+    (await prisma.produto.findMany({ where: { id: { in: ids } }, select: { sku: true } })).map((p) => p.sku).sort();
+  conferir("produtos, busca normal: so pelo nome", await skus(await idsDaBuscaDeProdutos("zzproduto")), ["ZZ-AMPLA-1"]);
+  conferir(
+    "produtos, busca ampla: tambem descricao (com acento) e localizacao",
+    await skus(await idsDaBuscaDeProdutos("zzproduto", { ampla: true })),
+    SKUS_AMPLA,
+  );
+  conferir("produtos, busca normal acha pelo codigo", await skus(await idsDaBuscaDeProdutos("zz-ampla-3")), ["ZZ-AMPLA-3"]);
+  conferir("produtos, sem palavras: nenhuma restricao (null)", await idsDaBuscaDeProdutos("   "), null);
+  const segundo = await prisma.produto.findUnique({ where: { sku: "ZZ-AMPLA-2" } });
+  conferir("produtos: o selo diz onde achou", ondeAchouNoProduto(segundo, ["zzproduto"]), ["descrição"]);
+} finally {
+  await prisma.produto.deleteMany({ where: { sku: { in: SKUS_AMPLA } } });
+}
 
 // ---------------------------------------------------------------------------
 await prisma.fonteColeta.deleteMany({ where: { dominio: { in: DOMINIOS } } });

@@ -356,6 +356,25 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
     ligados) ficou sem efeito, porque todos já vêm.
   - **Custo:** a tela passou a contar 70.442 produtos; a lupa e as indicações dos vínculos leem esse acervo
     inteiro na memória a cada busca.
+- **BUSCA AMPLA** (pedido do dono em 09/10/2026), botão "Busca ampla" (`BotaoBuscaAmpla.jsx`, `?ampla=1` na URL)
+  ao lado do campo de busca do **Scraper** e de **Produtos**. Ligado, procura também no texto, e cada linha achada
+  só no texto ganha o selo "achado na descrição / na ficha técnica / no SEO / na categoria" (Produtos: "na
+  descrição / no NCM / na homologação / na localização"). Todas as palavras continuam exigidas.
+  - **Índice sobre EXPRESSÃO, sem coluna nova** (migration `20261009_busca_ampla`): três índices de trigramas
+    sobre "fórmulas" que juntam os campos sem acento e em minúsculas (`EXPRESSAO_AMPLA_COLETADO`,
+    `EXPRESSAO_BUSCA_PRODUTO`, `EXPRESSAO_AMPLA_PRODUTO` em `src/lib/buscaAmpla.js`). O banco monta o índice
+    para todos ao criar e o mantém sozinho em toda gravação. **A busca tem de repetir a expressão EXATAMENTE**,
+    senão o Postgres lê a tabela inteira: o SQL da migration foi GERADO das constantes, e o `teste:coleta` confere.
+    Só funções imutáveis (`lower`, `translate`, `||`, `->>`, `jsonb_path_query_array`); `unaccent` e `concat`
+    não servem em índice. A ficha entra pelos nomes e valores, não pelo JSON inteiro.
+  - **Medido em 09/10/2026 (PC, 70.513 coletados):** índices de 56 MB (coletado), 1,4 MB e 0,5 MB (Produto);
+    banco de 331 para 389 MB; criação em menos de 1 min. "atmega328" no Scraper: 275 achados (127 pelo nome)
+    em ~200 ms; sem índice, só a descrição levava 1,4 s.
+  - **Scraper:** os achados pelo NOME vêm primeiro em qualquer ordenação; o selo lê o texto só das linhas da página.
+  - **Produtos:** a busca NORMAL também passou a usar índice (todas as palavras, em qualquer ordem, no nome,
+    código, marca, modelo e EAN; antes era o texto inteiro, só em nome e código). O índice devolve os ids; ordem e
+    página continuam no Prisma, então Produtos não põe "pelo nome primeiro".
+  - Migration feita à mão: o próximo `migrate diff` vai propor apagar esses três índices. Tirar essas linhas.
 - **O saldo anterior fica guardado** (`quantidadeAnterior`, `quantidadeAnteriorEm`), pedido do
   dono em 15/09/2026 para montar depois o histórico de venda: com os dois números e as duas
   datas dá para dizer quanto saiu entre uma varredura e outra. **São dois campos porque um

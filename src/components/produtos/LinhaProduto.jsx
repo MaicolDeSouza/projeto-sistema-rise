@@ -66,6 +66,8 @@ export default function LinhaProduto({
   iconeLI = { cor: "cinza", divergente: false, conferido: false },
   selecionado = false,
   aoAlternarSelecao,
+  // Busca ampla (09/10/2026): "achado na descrição" quando a palavra nao estava no nome nem no codigo.
+  achado = null,
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [janelaML, setJanelaML] = useState(false);
@@ -113,6 +115,11 @@ export default function LinhaProduto({
         </div>
         {!produto.ativo && (
           <span className="text-[11px] text-suave">inativo</span>
+        )}
+        {achado && (
+          <span className="mt-1 block w-fit rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800">
+            {achado}
+          </span>
         )}
       </td>
 
