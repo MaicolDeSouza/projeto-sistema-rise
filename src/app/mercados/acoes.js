@@ -312,6 +312,7 @@ async function salvarFonteInterna({
   produtosNoSiteParcial,
   usuario,
   senha,
+  soNoPc = false,
 }, { arquivoValidado = false } = {}) {
   const analise = FonteSchema.safeParse({ nome, url, tipo, secao });
   if (!analise.success) {
@@ -326,7 +327,11 @@ async function salvarFonteInterna({
   }
 
   const somenteArquivo = alvo.hostname.endsWith(".invalid");
-  const permissao = somenteArquivo
+  // `soNoPc`: o site bloqueia a VPS (a Oceantech), entao nem o robots.txt se le daqui. Ele e conferido na hora de cada
+  // visita, em qualquer lugar (`buscarPagina`), e o worker do PC o confere do IP de casa. Fonte de arquivo e portal com
+  // login nunca entram por aqui.
+  const sitePeloPc = soNoPc === true && !somenteArquivo && !portalDoEndereco(url);
+  const permissao = somenteArquivo || sitePeloPc
     ? { permitido: true }
     : await podeVisitar(alvo.toString());
   if (!permissao.permitido && !arquivoValidado) {
@@ -382,7 +387,12 @@ async function salvarFonteInterna({
         prefixoUrl,
         // Catalogo enviado pelo operador pode ser reprocessado sem visitar o site.
         robotsPermite: arquivoValidado || permissao.permitido,
-        amostraResumo: resumo ?? null,
+        amostraResumo: sitePeloPc
+          ? "Cadastrada sem teste: o site bloqueia a VPS. A varredura roda no PC (npm run worker:pc)."
+          : (resumo ?? null),
+        // Fonte do PC nasce ATIVA: quem a varre e o `npm run worker:pc`, que e o pedido de varredura, e o "Atualizar
+        // dados" da VPS a pula. As demais nascem pausadas.
+        ...(sitePeloPc ? { varridaNoPc: true } : {}),
         ...doPortal,
         // Quantos produtos o site declarou ter no momento do teste. Guardado no
         // cadastro para a tela dizer o quanto do catalogo ja foi coletado sem
@@ -390,7 +400,7 @@ async function salvarFonteInterna({
         produtosNoSite: produtosNoSite ?? null,
         produtosNoSiteParcial: produtosNoSiteParcial ?? false,
         // A fonte nasce pausada. O operador decide quando inicia a coleta.
-        ativa: false,
+        ativa: sitePeloPc,
         proximaVarreduraEm: null,
       },
     });
@@ -596,9 +606,12 @@ export async function varrerFonteAgora(fonteId) {
   if (coletaPausada()) return { ok: false, erro: "Varredura pausada. Clique em Continuar antes de atualizar." };
   const fonte = await prisma.fonteColeta.findUnique({
     where: { id: fonteId },
-    select: { id: true, nome: true, ativa: true, robotsPermite: true },
+    select: { id: true, nome: true, ativa: true, robotsPermite: true, varridaNoPc: true },
   });
   if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
+  if (fonte.varridaNoPc) {
+    return { ok: false, erro: "Esta fonte é varrida só pelo PC: no PC, rode npm run worker:pc." };
+  }
   if (!fonte.robotsPermite) return { ok: false, erro: "O robots.txt deste site nos bloqueia." };
   if (!fonte.ativa) return { ok: false, erro: "Fonte pausada. Use Retomar antes de varrer." };
 
@@ -882,8 +895,9 @@ export async function atualizarTabelas(fonteId) {
   if (coletaPausada()) {
     return { ok: false, erro: "Varredura pausada. Clique em Continuar antes de atualizar." };
   }
+  // As fontes do PC ficam de fora: o worker da VPS as ignora, e o pedido de varredura delas e rodar `npm run worker:pc`.
   const fontes = await prisma.fonteColeta.findMany({
-    where: fonteId ? { id: fonteId } : { ativa: true, robotsPermite: true },
+    where: fonteId ? { id: fonteId, varridaNoPc: false } : { ativa: true, robotsPermite: true, varridaNoPc: false },
     select: { id: true, nome: true },
   });
 

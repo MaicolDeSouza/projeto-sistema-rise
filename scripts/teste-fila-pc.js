@@ -195,6 +195,42 @@ try {
   const aindaPendente = await prisma.job.findFirst({ where: { fonteId: fonteA.id } });
   conferir("o esgotado da VPS fica para o worker da VPS", aindaPendente.status, "PENDENTE");
 
+  // ----------------------------------------------------------------- o worker do PC poe as fontes dele na fila
+  await limparJobs(fonteA, fonteB);
+  const fonteC = await criarFonte("C", true); // marcada e ativa
+  const fonteD = await prisma.fonteColeta.create({
+    data: { nome: `${PREFIXO}-D`, dominio: "zz-pc-d.invalid", tipo: "CONCORRENTE", varridaNoPc: true, ativa: false },
+  });
+  const fonteE = await prisma.fonteColeta.create({
+    data: { nome: `${PREFIXO}-E`, dominio: "zz-pc-e.invalid", tipo: "CONCORRENTE", varridaNoPc: true, robotsPermite: false },
+  });
+  const todas = [fonteA, fonteB, fonteC, fonteD, fonteE];
+  const idsDeTeste = todas.map((fonte) => fonte.id);
+
+  // A funcao enfileira TODA fonte marcada do banco; se o PC ja tiver uma de verdade, o job dela e desfeito no fim.
+  const jobsAntes = (await prisma.job.findMany({ select: { id: true } })).map((job) => job.id);
+  const primeira = await fila.enfileirarFontesDoPc();
+  const donos = async () =>
+    (await prisma.job.findMany({ where: { fonteId: { in: idsDeTeste } }, select: { fonteId: true } })).map((job) => job.fonteId).sort();
+  conferir(
+    "o worker do PC poe na fila so as fontes marcadas E ativas E liberadas pelo robots.txt (B e C)",
+    await donos(),
+    [fonteB.id, fonteC.id].sort(),
+  );
+  conferir("a contagem inclui as fontes de teste marcadas e ativas", primeira.fontes >= 2 && primeira.enfileiradas >= 2, true);
+
+  await fila.enfileirarFontesDoPc();
+  conferir("pedir de novo nao duplica o job (indice de um job aberto por fonte)", await donos(), [fonteB.id, fonteC.id].sort());
+
+  const abertos = await fila.jobsAbertosDoPc();
+  await prisma.job.updateMany({ where: { fonteId: fonteB.id }, data: { status: "CONCLUIDO" } });
+  conferir("job concluido deixa de contar como aberto", abertos - (await fila.jobsAbertosDoPc()), 1);
+  await prisma.job.updateMany({ where: { fonteId: fonteC.id }, data: { status: "FALHOU" } });
+  conferir("job que falhou de vez tambem deixa de contar (o worker do PC pode terminar)", abertos - (await fila.jobsAbertosDoPc()), 2);
+
+  // Desfaz o que a funcao enfileirou de verdade em fonte que nao e de teste.
+  await prisma.job.deleteMany({ where: { id: { notIn: jobsAntes }, fonteId: { notIn: idsDeTeste } } });
+
   conferir("idsDasFontesNoPc lista so as marcadas", (await fila.idsDasFontesNoPc()).filter((id) => [fonteA.id, fonteB.id].includes(id)), [fonteB.id]);
 } finally {
   await limpar();

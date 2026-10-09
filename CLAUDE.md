@@ -141,8 +141,8 @@ npm run teste:cadastros           # 88 asserções: CPF/CNPJ/CEP/telefone, CNPJ 
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
-npm run worker:pc                 # NO PC: abre um tunel SSH ate o banco da VPS e varre SO as fontes marcadas "Varrer pelo PC" (o site bloqueia a VPS), gravando direto na VPS. Ctrl+C encerra. Ver "Fonte que bloqueia a VPS"
-npm run teste:fila-pc             # 40 asserções dos TRÊS modos do worker na fila (normal, do PC e de teste): quem pega, recolhe e fecha o job de uma fonte marcada, e a regra "servidor do banco é o Windows" (Postgres local, SEM rede; só escreve fontes e jobs ZZ-PC-*)
+npm run worker:pc                 # NO PC: abre um tunel SSH ate o banco da VPS, poe na fila as fontes ativas marcadas "Varrer pelo PC" (o site bloqueia a VPS), varre SO elas, grava direto na VPS e TERMINA quando acabar (`-- --ficar` mantem no ar). Ctrl+C encerra. Ver "Fonte que bloqueia a VPS"
+npm run teste:fila-pc             # 45 asserções dos TRÊS modos do worker na fila (normal, do PC e de teste): quem pega, recolhe e fecha o job de uma fonte marcada, e a regra "servidor do banco é o Windows" (Postgres local, SEM rede; só escreve fontes e jobs ZZ-PC-*)
 npm run backup                    # dados/backup/sistema_rise-AAAAMMDD-HHMMSS.dump (pg_dump, conferido com pg_restore; guarda os 4 mais recentes)
 npm run teste:worker              # 58 asserções: rede, fila, retomada e o worker de verdade (~6 min). RODE SOZINHO: junto de outros testes o "segundo worker" já saiu com 3221226505 (0xC0000409, aborto do Node no Windows ao encerrar, antes de o código 3 chegar); sozinho passa
 npm run foto:mensal               # tira a foto mensal de preço e estoque (só se passou do dia 14 e o mês não tem foto); `-- --forcar` ignora o dia
@@ -3480,11 +3480,16 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   Cloudflare desafia o IP de datacenter e deixa passar o de casa; outros virão). Em vez de copiar dados entre os bancos,
   **o worker do PC grava direto no banco da VPS**, então não há merge e os produtos aparecem na VPS na hora.
   - **A marca:** `FonteColeta.varridaNoPc` (migration `20261009_fonte_varrida_no_pc`), ligada pelo botão **"Varrer pelo
-    PC"** na linha da fonte (tela Fontes, na VPS). Marcada, o worker normal (o da VPS) a **ignora** (pega, recolhe e fecha
-    só as outras) e a fila mostra "Na fila do PC". O texto de `src/lib/coleta/soLocalhost.js` (a lista de sites que a
+    PC"** na linha da fonte (tela Fontes, na VPS) ou pelo botão "Cadastrar para varrer pelo PC" do formulário (abaixo).
+    Marcada, o worker normal (o da VPS) a **ignora** (pega, recolhe e fecha só as outras). **Na linha da fonte, o botão
+    "Varrer agora" some e dá lugar ao rótulo "Varredura só pelo PC"** (pedido do dono: não há o que clicar na VPS), e o botão
+    do interruptor vira "Devolver à VPS". `varrerFonteAgora` recusa a fonte do PC, e o "Atualizar dados" da VPS a pula. O texto de `src/lib/coleta/soLocalhost.js` (a lista de sites que a
     Cloudflare barra, medida em 09/10/2026) continua sendo só o aviso; quem decide é a marca.
-  - **Como varrer:** no PC, `npm run worker:pc` (`scripts/worker-pc.js`): lê o `DATABASE_URL` da VPS por SSH **só em
-    memória**, abre um túnel SSH na porta local **55432** (nunca a 5432 do Postgres do PC, para um engano de porta não
+  - **Como varrer, sem clicar em nada na VPS** (pedido do dono em 09/10/2026): no PC, `npm run worker:pc`
+    (`scripts/worker-pc.js`). **Rodar o comando é o pedido de varredura:** ao subir, o worker põe na fila as fontes
+    ativas marcadas (`enfileirarFontesDoPc`), varre e **termina sozinho quando não sobra job aberto delas** (código 6, que
+    o supervisor trata como sucesso); `npm run worker:pc -- --ficar` o mantém no ar. Por dentro: lê o `DATABASE_URL` da
+    VPS por SSH **só em memória**, abre um túnel SSH na porta local **55432** (nunca a 5432 do Postgres do PC, para um engano de porta não
     apontar o PC para a VPS) e sobe o supervisor com `COLETA_SO_PC=1` e esse endereço **só no ambiente do filho**. A senha do
     banco da VPS nunca vai para o `.env` nem para o disco. `Ctrl+C` encerra e devolve as varreduras à fila; o túnel só fecha
     depois (`detached`, para o Ctrl+C não derrubá-lo antes). Log em `dados/logs/worker-pc-AAAA-MM-DD.log`.
@@ -3498,9 +3503,12 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
     `localhost`, e a cópia apagaria o banco da VPS. Hoje ela lê `SELECT version()` (`servidorEhWindows`) e recusa o resto.
     Provado com um túnel de verdade em 09/10/2026: recusou no primeiro passo e o banco da VPS ficou intacto. Fecha a
     pendência de segurança 5.
-  - **Cadastrar a fonte:** o formulário da VPS salva sem o teste passar (o teste roda do IP da VPS e é barrado); a
-    aprovação da extração se faz na tela do PC (`Testar fonte`, que passa do IP de casa). O robots.txt é conferido a cada
-    visita, em qualquer lugar. O user-agent e o ritmo continuam os de sempre: **nada de disfarce**, e a regra
+  - **Cadastrar a fonte:** o formulário **esconde o Salvar quando o teste falha**, e o teste da VPS é barrado pelo site.
+    Por isso, na falha, aparece **"Cadastrar para varrer pelo PC"** (só site: nunca arquivo nem portal com login): grava a
+    fonte **sem teste**, já marcada e **ativa**, sem ler o robots.txt daqui (`soNoPc` em `salvarFonteInterna`). A extração se
+    confere com "Buscar dados" na tela do PC, que passa do IP de casa. O robots.txt é conferido a cada visita, em qualquer
+    lugar, e o worker do PC o confere de casa. **A Oceantech foi cadastrada assim.** Dado de teste: domínio `.invalid` é
+    tratado como "só arquivo" e não vale como site de teste. O user-agent e o ritmo continuam os de sempre: **nada de disfarce**, e a regra
     "desafio anti-bot não se contorna" continua valendo para quem barra também o IP de casa (Makerhero).
 - **Código novo que muda o banco chega à VPS pelo deploy, nunca pela cópia do banco.** A migration é um arquivo SQL em
   `prisma/migrations/` que vai no commit. O `deploy-vps.sh` roda `prisma migrate status` na VPS e, se há migration

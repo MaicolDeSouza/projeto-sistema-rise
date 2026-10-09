@@ -64,6 +64,9 @@ const SAIDA_PARADO = 4;
 /// Configuracao que nao adianta tentar de novo (modos que se contradizem, ou o do PC apontado para o banco errado).
 /// O supervisor tambem sai, em vez de religar.
 const SAIDA_CONFIGURACAO = 5;
+/// O worker do PC varreu tudo o que era dele e saiu de proposito (COLETA_PC_SAIR=1, o padrao do `npm run worker:pc`).
+/// O supervisor sai junto, em vez de religar.
+const SAIDA_CONCLUIDO = 6;
 
 /// Pedido de parada: um arquivo, criado por scripts/parar-worker.js. E o jeito de
 /// encerrar do jeito certo sem Ctrl+C — no Windows, matar o processo nao da ao
@@ -84,6 +87,9 @@ const PARALELO = fila.paraleloConfigurado();
 const FONTES = fila.fontesConfiguradas();
 /// Worker do PC (COLETA_SO_PC=1): so as fontes marcadas `varridaNoPc`, gravando no banco da VPS por um tunel.
 const SO_NO_PC = fila.soNoPcConfigurado();
+/// O worker do PC termina sozinho quando nao ha mais job aberto das fontes dele. Sem isto ele ficaria esperando, como o
+/// da VPS; `npm run worker:pc -- --ficar` desliga.
+const SAIR_AO_ACABAR = SO_NO_PC && process.env.COLETA_PC_SAIR === "1";
 
 /** Hostname que a varredura visita: o dominio da fonte, com ou sem protocolo. */
 function hostnameDa(fonte) {
@@ -435,6 +441,13 @@ async function laco() {
       return;
     }
 
+    // Worker do PC: nada varrendo e nada na fila das fontes dele = acabou. Fonte que falhou com tentativa pendente
+    // ainda conta como aberta, entao o worker espera a espera crescente passar e tenta de novo, como o da VPS.
+    if (SAIR_AO_ACABAR && !encerrando && emCurso.size === 0 && !coletaPausada() && (await fila.jobsAbertosDoPc()) === 0) {
+      await sair(SAIDA_CONCLUIDO, "todas as fontes marcadas para o PC foram varridas");
+      return;
+    }
+
     // Dorme ate a proxima volta OU ate uma varredura liberar vaga.
     await new Promise((resolver) => {
       const relogio = setTimeout(resolver, VOLTA_MS);
@@ -558,7 +571,10 @@ if (SO_NO_PC) {
   // copia que a proxima `copia:atualizar` apaga, e a VPS nunca veria o resultado. O tunel e aberto por
   // `npm run worker:pc`, que passa o endereco certo so a este processo.
   const [{ versao }] = await prisma.$queryRaw`SELECT version() AS versao`;
-  if (servidorEhWindows(versao)) {
+  // COLETA_PC_PERMITIR_BANCO_LOCAL=1 e SO para provar o caminho de "terminar sozinho" contra o banco local, onde nao ha
+  // nada de verdade a perder. A imagem de producao (RISE_PRODUCAO=1) a ignora, como ignora COLETA_PERMITIR_REDE_LOCAL.
+  const bancoLocalPermitidoNoTeste = process.env.COLETA_PC_PERMITIR_BANCO_LOCAL === "1" && !process.env.RISE_PRODUCAO;
+  if (servidorEhWindows(versao) && !bancoLocalPermitidoNoTeste) {
     logErro(
       "COLETA_SO_PC esta apontado para um banco do Windows (a copia local). O worker do PC grava no banco da VPS: " +
         "use `npm run worker:pc`.",
@@ -603,5 +619,15 @@ log(
     (FONTES ? ` · so as fontes ${FONTES.join(", ")}` : "") +
     (SO_NO_PC ? " · so as fontes marcadas para varrer no PC" : ""),
 );
+if (SO_NO_PC) {
+  // Quem roda `npm run worker:pc` esta pedindo a varredura das fontes marcadas: nao precisa clicar na tela da VPS.
+  const { fontes, enfileiradas } = await fila.enfileirarFontesDoPc();
+  log(
+    fontes === 0
+      ? "nenhuma fonte ativa marcada para varrer pelo PC"
+      : `${fontes} fonte(s) marcada(s) para o PC; ${enfileiradas} entrou(aram) na fila agora` +
+          (enfileiradas < fontes ? " (as outras ja estavam na fila ou varrendo)" : ""),
+  );
+}
 sinalDeVida();
 await laco();

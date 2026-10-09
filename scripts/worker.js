@@ -41,6 +41,8 @@ const SAIDA_OUTRO_WORKER = 3;
 const SAIDA_PARADO = 4;
 /// Configuracao invalida (modos que se contradizem, ou o worker do PC no banco errado): religar repetiria o erro.
 const SAIDA_CONFIGURACAO = 5;
+/// O worker do PC acabou o que era dele e saiu de proposito: o supervisor sai junto, com sucesso.
+const SAIDA_CONCLUIDO = 6;
 /// O worker do PC (COLETA_SO_PC=1) tem o proprio arquivo de log, para nunca se misturar ao do worker normal.
 const PREFIXO_DO_LOG = process.env.COLETA_SO_PC === "1" ? "worker-pc" : "worker";
 
@@ -110,6 +112,12 @@ function subir() {
 
     if (codigo === SAIDA_PARADO) {
       registrar("worker parado a pedido; supervisor saindo.");
+      streamDoDia?.end();
+      process.exit(0);
+    }
+
+    if (codigo === SAIDA_CONCLUIDO) {
+      registrar("varredura do PC concluida; supervisor saindo.");
       streamDoDia?.end();
       process.exit(0);
     }

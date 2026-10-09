@@ -10,6 +10,7 @@ import {
   CircleCheck,
   CircleX,
   Loader,
+  Monitor,
   Plus,
   RotateCcw,
   Shuffle,
@@ -471,7 +472,9 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
     });
   }
 
-  function cadastrar() {
+  /// `soNoPc`: o site bloqueia a VPS e o teste falhou DAQUI; a fonte entra marcada para varrer pelo PC (npm run
+  /// worker:pc), e a extracao se confere com "Buscar dados" na tela do PC.
+  function cadastrar(soNoPc = false) {
     setErro(null);
     iniciarSalvamento(async () => {
       const dados = {
@@ -479,6 +482,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
         url,
         tipo,
         secao,
+        ...(soNoPc ? { soNoPc: true } : {}),
         resumo: teste?.campos
           ? `${teste.resultado} · ${teste.produtos.length} produto(s) testado(s) · ${teste.formatos?.join(", ")}`
           : null,
@@ -766,7 +770,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
         {podeCadastrar && (
           <button
             type="button"
-            onClick={cadastrar}
+            onClick={() => cadastrar()}
             disabled={salvando || !nome.trim()}
             className="inline-flex items-center gap-1.5 rounded bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -785,6 +789,29 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
             <RotateCcw size={15} />
             Tentar novamente
           </button>
+        )}
+
+        {/*
+          O SITE QUE BLOQUEIA A VPS (a Oceantech, e outros virao). O teste falha daqui, mas pode passar do PC: este botao
+          cadastra a fonte ja MARCADA para varrer pelo PC, sem teste. Nao vale para arquivo nem portal com login.
+        */}
+        {teste?.resultado === "FALHA" && url.trim() && arquivos.length === 0 && !ehPortal && (
+          <div className="flex w-full flex-col items-start gap-1">
+            <button
+              type="button"
+              onClick={() => cadastrar(true)}
+              disabled={salvando || !nome.trim()}
+              className="inline-flex items-center gap-1.5 rounded border border-sky-400 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-900 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+              title="Para o site que bloqueia a VPS: a fonte é marcada para varrer pelo PC"
+            >
+              {salvando ? <Loader size={15} className="animate-spin" /> : <Monitor size={15} />}
+              Cadastrar para varrer pelo PC
+            </button>
+            <span className="text-xs text-suave">
+              Se o site só bloqueia a VPS, cadastre assim. A varredura roda no PC (<code>npm run worker:pc</code>) e grava aqui.
+              Confira a extração pelo “Buscar dados” na tela do PC.
+            </span>
+          </div>
         )}
 
         {arquivos.length > 0 && (

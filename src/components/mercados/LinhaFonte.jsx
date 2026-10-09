@@ -322,6 +322,24 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
               </button>
             )}
 
+            {fonte.varridaNoPc ? (
+              /*
+                FONTE DO PC: nao ha "Varrer agora" aqui. Quem a varre e o `npm run worker:pc`, que ja poe a fonte na
+                fila sozinho (rodar o comando e o pedido de varredura). O rotulo diz isso e mostra o andamento.
+              */
+              <span
+                className="inline-flex items-center gap-1 rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs text-sky-900"
+                title="Esta fonte é varrida só pelo PC: no PC, rode npm run worker:pc. Ele varre e grava aqui."
+              >
+                <Monitor size={12} />
+                {fonte.varredura === "VARRENDO"
+                  ? "Varrendo pelo PC"
+                  : fonte.varredura === "NA_FILA"
+                    ? "Na fila do PC"
+                    : "Varredura só pelo PC"}
+              </span>
+            ) : (
+              <>
             {/*
               VARREDURA SO DESTA FONTE, sem esperar o ciclo de 30 dias. Com a fonte
               ja na fila ou varrendo, o botao diz isso em vez de aceitar o clique.
@@ -354,6 +372,8 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
                     : "Na fila"
                   : "Varrer agora"}
             </button>
+              </>
+            )}
 
             {/*
               VARRER PELO PC. O worker da VPS passa a ignorar a fonte, e so o `npm run worker:pc` (rodando no PC, com o
@@ -364,15 +384,15 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
               onClick={alternarPc}
               disabled={pendente}
               aria-pressed={Boolean(fonte.varridaNoPc)}
-              className={`${botao} ${fonte.varridaNoPc ? "border-sky-400 bg-sky-50 text-sky-900" : ""}`}
+              className={botao}
               title={
                 fonte.varridaNoPc
-                  ? "Marcada: só o worker do PC varre esta fonte (npm run worker:pc). Clique para devolvê-la ao worker da VPS."
+                  ? "Devolve a fonte ao worker da VPS (ela volta a ter o botão Varrer agora)."
                   : "Para o site que bloqueia a VPS: o worker da VPS a deixa de lado e só o worker do PC varre."
               }
             >
               <Monitor size={12} />
-              Varrer pelo PC
+              {fonte.varridaNoPc ? "Devolver à VPS" : "Varrer pelo PC"}
             </button>
 
             <button

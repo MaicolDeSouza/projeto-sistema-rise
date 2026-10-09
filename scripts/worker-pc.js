@@ -3,7 +3,11 @@ import "dotenv/config";
 /**
  * Worker do PC: varre as fontes marcadas "Varrer pelo PC" e grava o resultado no banco da VPS.
  *
- *   npm run worker:pc        (Ctrl+C encerra do jeito certo)
+ *   npm run worker:pc            varre as fontes marcadas e TERMINA quando acabar
+ *   npm run worker:pc -- --ficar  fica no ar esperando mais trabalho
+ *
+ * Ctrl+C encerra do jeito certo nos dois casos. Nao precisa clicar em nada na tela da VPS: rodar o comando e o pedido
+ * de varredura (ele poe as fontes marcadas e ativas na fila sozinho).
  *
  * POR QUE EXISTE. Alguns sites bloqueiam o IP de datacenter da VPS, e outros virao. A fonte e marcada na tela de
  * Fontes; o worker da VPS passa a ignora-la, e este comando a varre daqui, com o IP de casa, no mesmo ritmo e com o
@@ -150,7 +154,11 @@ const urlDoBanco = urlDoBancoPeloTunel();
 
 dizer(`abrindo o tunel SSH na porta ${PORTA_LOCAL} deste PC...`);
 const tunel = await abrirTunel();
-dizer("tunel aberto. Subindo o worker, so das fontes marcadas para varrer pelo PC. Ctrl+C encerra.");
+dizer(
+  "tunel aberto. Subindo o worker, so das fontes marcadas para varrer pelo PC" +
+    (process.argv.includes("--ficar") ? " (fica no ar)" : " (termina quando acabar)") +
+    ". Ctrl+C encerra.",
+);
 
 // O Ctrl+C chega ao supervisor pelo mesmo terminal e ele encerra do jeito certo. Este script espera, para fechar o
 // tunel por ultimo; se saisse junto, o worker nao teria por onde devolver as varreduras ao banco.
@@ -158,7 +166,12 @@ process.on("SIGINT", () => {});
 
 const supervisor = spawn(process.execPath, [SUPERVISOR], {
   stdio: "inherit",
-  env: { ...process.env, DATABASE_URL: urlDoBanco, COLETA_SO_PC: "1" },
+  env: {
+    ...process.env,
+    DATABASE_URL: urlDoBanco,
+    COLETA_SO_PC: "1",
+    COLETA_PC_SAIR: process.argv.includes("--ficar") ? "0" : "1",
+  },
 });
 
 tunel.on("exit", () => {

@@ -107,6 +107,31 @@ export async function idsDasFontesNoPc() {
   return fontes.map((fonte) => fonte.id);
 }
 
+/**
+ * Poe na fila as fontes marcadas para o PC que estao ativas. E o "varrer agora" do worker do PC: quem roda
+ * `npm run worker:pc` esta pedindo a varredura, e clicar de novo na tela da VPS seria o mesmo pedido. Fonte pausada ou
+ * barrada pelo robots.txt nao entra, e a que ja tem job aberto fica de fora pelo indice unico da fila.
+ *
+ * @returns {Promise<{fontes: number, enfileiradas: number}>}
+ */
+export async function enfileirarFontesDoPc() {
+  const fontes = await prisma.fonteColeta.findMany({
+    where: { varridaNoPc: true, ativa: true, robotsPermite: true },
+    select: { id: true, nome: true },
+  });
+  const enfileiradas = await enfileirar(fontes);
+  return { fontes: fontes.length, enfileiradas };
+}
+
+/// Quantos jobs de coleta abertos (na fila ou varrendo) as fontes marcadas para o PC tem. Zero = o worker do PC acabou.
+export async function jobsAbertosDoPc() {
+  const ids = await idsDasFontesNoPc();
+  if (ids.length === 0) return 0;
+  return prisma.job.count({
+    where: { tipo: "coleta", status: { in: ["PENDENTE", "PROCESSANDO"] }, fonteId: { in: ids } },
+  });
+}
+
 /// A que fonte o job pertence (`fonteId` em coluna; job antigo so tem no payload).
 const fonteDoJob = (job) => job.fonteId ?? job.payload?.fonteId ?? null;
 
