@@ -106,13 +106,15 @@ export default async function IntegracoesPage({ searchParams }) {
         </span>
       </div>
 
-      {mostrarServidorVps && <CartaoServidorVps />}
+      {erroBanco && <AvisoBanco erro={erroBanco} />}
 
-      {erroBanco ? (
-        <AvisoBanco erro={erroBanco} />
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {paraTela.map((conector) => (
+      {/*
+        O "Servidor VPS" entra na mesma grade, no desenho dos conectores, e aparece mesmo com o banco do PC fora do
+        ar: trazer o banco da VPS e justamente o que resolve uma copia quebrada.
+      */}
+      <div className={`grid gap-4 lg:grid-cols-2 xl:grid-cols-3 ${erroBanco ? "mt-4" : ""}`}>
+        {!erroBanco &&
+          paraTela.map((conector) => (
             <CartaoConector
               key={conector.id}
               conector={conector}
@@ -123,8 +125,8 @@ export default async function IntegracoesPage({ searchParams }) {
               )}
             />
           ))}
-        </div>
-      )}
+        {mostrarServidorVps && <CartaoServidorVps />}
+      </div>
     </>
   );
 }

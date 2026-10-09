@@ -10,6 +10,7 @@ import {
   Loader,
   RefreshCw,
   Server,
+  X,
 } from "lucide-react";
 
 import Card from "@/components/ui/Card";
@@ -23,6 +24,8 @@ const MOSTRAR_COMMITS = 8;
 
 const comoHora = (valor) =>
   valor ? new Date(valor).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : null;
+
+const NOME_DA_OPERACAO = { deploy: "Atualizar a VPS", copia: "Atualizar banco do PC" };
 
 function Lista({ itens, tom }) {
   if (!itens?.length) return null;
@@ -65,7 +68,7 @@ function Confirmar({ texto, aoConfirmar, aoCancelar, pendente }) {
 function Operacao({ operacao, servidorFora }) {
   if (!operacao) return null;
   const deploy = operacao.tipo === "deploy";
-  const titulo = deploy ? "Atualizar a VPS" : "Atualizar banco do PC";
+  const titulo = NOME_DA_OPERACAO[operacao.tipo] ?? "Operação";
   const passos = deploy ? PASSOS_DO_DEPLOY.map((item) => item.rotulo) : Object.values(PASSOS_DA_COPIA);
 
   if (operacao.fase === "rodando") {
@@ -131,11 +134,46 @@ function Operacao({ operacao, servidorFora }) {
   );
 }
 
+/// A janela por cima da tela, no desenho do `Popup` de Produtos (fundo escuro, X, Esc e clique fora fecham), mais larga
+/// e com rolagem: o deploy lista commits, avisos e o andamento.
+function Janela({ aoFechar, children }) {
+  useEffect(() => {
+    function aoTeclar(evento) {
+      if (evento.key === "Escape") aoFechar();
+    }
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, [aoFechar]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+      onClick={(evento) => {
+        if (evento.target === evento.currentTarget) aoFechar();
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Servidor VPS"
+        className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg border border-borda bg-superficie p-5 shadow-2xl"
+      >
+        {children}
+      </section>
+    </div>
+  );
+}
+
 /**
- * Cartao "Servidor VPS" de Integracoes, SO no Rise do PC (localhost): "Atualizar a VPS" (deploy do que esta no
- * GitHub) e "Atualizar banco do PC" (troca o banco do PC por uma copia de agora da VPS). Pedido do dono em 09/10/2026.
+ * Cartao "Servidor VPS" de Integracoes, SO no Rise do PC (localhost), no mesmo desenho dos cartoes dos conectores
+ * (pedido do dono em 09/10/2026). Clicar abre a janela com tudo: "Atualizar a VPS" (deploy do que esta no GitHub) e
+ * "Atualizar banco do PC" (troca o banco do PC por uma copia de agora da VPS).
+ *
+ * O estado e o acompanhamento moram aqui, e nao na janela: com ela fechada, o selo do cartao continua dizendo
+ * "Atualizando" e o resultado aparece quando termina.
  */
 export default function CartaoServidorVps() {
+  const [aberto, setAberto] = useState(false);
   const [situacao, setSituacao] = useState(null);
   const [lendo, setLendo] = useState(true);
   const [operacao, setOperacao] = useState(null);
@@ -157,7 +195,7 @@ export default function CartaoServidorVps() {
     setOperacao(resposta.operacao ?? null);
   }
 
-  // A situacao e lida ao abrir: leva alguns segundos (busca no GitHub e uma conexao com a VPS).
+  // A situacao e lida ao abrir a tela: leva alguns segundos (busca no GitHub e uma conexao com a VPS).
   useEffect(() => {
     let vivo = true;
     situacaoDaVps()
@@ -222,140 +260,241 @@ export default function CartaoServidorVps() {
     });
   }
 
+  function fechar() {
+    setAberto(false);
+    setConfirmando(null);
+  }
+
   const vps = situacao?.vps;
   const deploy = situacao?.deploy;
   const copia = situacao?.copia;
   const commits = situacao?.commits ?? [];
+  const migrations = situacao?.migrations ?? [];
   const botao =
     "inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm font-medium hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-50";
 
+  const selo = rodando ? (
+    <Badge tom="info">Atualizando</Badge>
+  ) : lendo ? (
+    <Badge>Lendo...</Badge>
+  ) : vps?.alcancavel ? (
+    <Badge tom="sucesso">No ar</Badge>
+  ) : (
+    <Badge tom="erro">Sem resposta</Badge>
+  );
+
+  const paraSubir = !situacao
+    ? null
+    : deploy?.nada
+      ? "nada (a VPS está igual ao GitHub)"
+      : `${commits.length} commit(s)${migrations.length ? `, ${migrations.length} mudança(s) no banco` : ""}`;
+
   return (
-    <Card className="mb-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="rounded-md bg-fundo p-2 text-acento">
-            <Server size={18} />
-          </span>
-          <div>
-            <p className="flex items-center gap-2 font-semibold">
-              Servidor VPS
-              {lendo ? (
-                <Badge>lendo...</Badge>
-              ) : vps?.alcancavel ? (
-                <Badge tom="sucesso">No ar</Badge>
-              ) : (
-                <Badge tom="erro">Sem resposta</Badge>
-              )}
-            </p>
-            <p className="text-xs text-suave">rise.4hobby.com.br · só aparece no Rise do PC</p>
+    <>
+      {/* O cartao, no desenho dos conectores. Inteiro clicavel: abre a janela com tudo. */}
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        aria-haspopup="dialog"
+        className="h-full w-full rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-acento"
+      >
+        <Card className="flex h-full flex-col transition hover:border-acento">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span className="rounded-md bg-fundo p-2 text-acento">
+                <Server size={18} />
+              </span>
+              <div>
+                <p className="font-medium">Servidor VPS</p>
+                <p className="text-sm text-suave">Produção · rise.4hobby.com.br</p>
+              </div>
+            </div>
+            {selo}
           </div>
-        </div>
-        <button type="button" onClick={conferir} disabled={lendo || pendente || rodando} className={botao}>
-          <RefreshCw size={14} className={lendo ? "animate-spin" : ""} />
-          Conferir de novo
-        </button>
-      </div>
 
-      {vps?.alcancavel && (
-        <div className="mt-3 space-y-0.5 text-sm">
-          <p>
-            <span className="text-suave">Na VPS:</span> versão {vps.versaoNoAr ?? "?"} · commit{" "}
-            <code>{vps.commitNoAr ?? "?"}</code>
-            {vps.disco ? ` · disco ${vps.disco}` : ""}
-            {typeof vps.varreduras === "number" ? ` · ${vps.varreduras} varredura(s) agora, ${vps.naFila ?? 0} na fila` : ""}
-          </p>
-          <p>
-            <span className="text-suave">No GitHub:</span> commit <code>{situacao.commitDoGithub ?? "?"}</code>
-            {deploy?.nada ? " · igual à VPS" : commits.length ? ` · ${commits.length} commit(s) que a VPS ainda não tem` : ""}
-          </p>
-        </div>
-      )}
+          <dl className="mt-4 space-y-1 text-sm">
+            {vps?.versaoNoAr && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 whitespace-nowrap text-suave">Versão no ar:</dt>
+                <dd className="min-w-0 truncate">
+                  {vps.versaoNoAr} <span className="text-xs text-suave">({vps.commitNoAr})</span>
+                </dd>
+              </div>
+            )}
+            {paraSubir && vps?.alcancavel && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 whitespace-nowrap text-suave">Para subir:</dt>
+                <dd className="min-w-0">{paraSubir}</dd>
+              </div>
+            )}
+            {typeof vps?.varreduras === "number" && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 whitespace-nowrap text-suave">Varreduras:</dt>
+                <dd>
+                  {vps.varreduras} agora, {vps.naFila ?? 0} na fila
+                </dd>
+              </div>
+            )}
+            {operacao && !rodando && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 whitespace-nowrap text-suave">Última operação:</dt>
+                <dd className="min-w-0 truncate">
+                  {NOME_DA_OPERACAO[operacao.tipo] ?? "Operação"} · {operacao.fase === "ok" ? "deu certo" : "deu erro"}
+                  {operacao.fim ? ` (${comoHora(operacao.fim)})` : ""}
+                </dd>
+              </div>
+            )}
+          </dl>
 
-      {erro && (
-        <p className="mt-3 flex items-start gap-1.5 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          <CircleX size={15} className="mt-0.5 shrink-0" />
-          {erro}
-        </p>
-      )}
-
-      <Operacao operacao={operacao} servidorFora={servidorFora} />
-
-      {situacao && (
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="rounded border border-borda p-4">
-            <p className="flex items-center gap-2 font-medium">
-              <CloudUpload size={16} className="text-acento" /> Atualizar a VPS
+          {rodando && (
+            <p className="mt-3 flex items-center gap-1.5 rounded bg-sky-50 p-2 text-xs text-sky-900">
+              <Loader size={13} className="shrink-0 animate-spin" />
+              {NOME_DA_OPERACAO[operacao.tipo]}: {operacao.passo}
             </p>
-            <p className="mt-1 text-xs text-suave">
-              Envia à VPS o código que está no GitHub. O banco da VPS não é copiado nem apagado: as mudanças de banco
-              (migrations) só acrescentam, com backup antes.
+          )}
+          {erro && !aberto && <p className="mt-3 rounded bg-red-50 p-2 text-xs break-words text-red-800">{erro}</p>}
+
+          <div className="mt-auto pt-4">
+            <span className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm">
+              <CloudUpload size={14} /> Ver e atualizar
+            </span>
+          </div>
+        </Card>
+      </button>
+
+      {aberto && (
+        <Janela aoFechar={fechar}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-fundo p-2 text-acento">
+                <Server size={18} />
+              </span>
+              <div>
+                <p className="flex items-center gap-2 font-semibold">
+                  Servidor VPS {selo}
+                </p>
+                <p className="text-xs text-suave">rise.4hobby.com.br · só aparece no Rise do PC</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={conferir} disabled={lendo || pendente || rodando} className={botao}>
+                <RefreshCw size={14} className={lendo ? "animate-spin" : ""} />
+                Conferir de novo
+              </button>
+              <button type="button" onClick={fechar} aria-label="Fechar" className="rounded p-1 text-suave hover:bg-fundo">
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          {lendo && !situacao && (
+            <p className="mt-4 flex items-center gap-2 text-sm text-suave">
+              <Loader size={14} className="animate-spin" /> Lendo a situação da VPS e do GitHub...
             </p>
-            {commits.length > 0 && (
-              <ul className="mt-3 space-y-0.5 text-xs">
-                {commits.slice(0, MOSTRAR_COMMITS).map((linha) => (
-                  <li key={linha} className="truncate font-mono" title={linha}>
-                    {linha}
-                  </li>
-                ))}
-                {commits.length > MOSTRAR_COMMITS && (
-                  <li className="text-suave">e mais {commits.length - MOSTRAR_COMMITS} commit(s)</li>
+          )}
+
+          {vps?.alcancavel && (
+            <div className="mt-3 space-y-0.5 text-sm">
+              <p>
+                <span className="text-suave">Na VPS:</span> versão {vps.versaoNoAr ?? "?"} · commit{" "}
+                <code>{vps.commitNoAr ?? "?"}</code>
+                {vps.disco ? ` · disco ${vps.disco}` : ""}
+                {typeof vps.varreduras === "number" ? ` · ${vps.varreduras} varredura(s) agora, ${vps.naFila ?? 0} na fila` : ""}
+              </p>
+              <p>
+                <span className="text-suave">No GitHub:</span> commit <code>{situacao.commitDoGithub ?? "?"}</code>
+                {deploy?.nada ? " · igual à VPS" : commits.length ? ` · ${commits.length} commit(s) que a VPS ainda não tem` : ""}
+              </p>
+            </div>
+          )}
+
+          {erro && (
+            <p className="mt-3 flex items-start gap-1.5 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              <CircleX size={15} className="mt-0.5 shrink-0" />
+              {erro}
+            </p>
+          )}
+
+          <Operacao operacao={operacao} servidorFora={servidorFora} />
+
+          {situacao && (
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="rounded border border-borda p-4">
+                <p className="flex items-center gap-2 font-medium">
+                  <CloudUpload size={16} className="text-acento" /> Atualizar a VPS
+                </p>
+                <p className="mt-1 text-xs text-suave">
+                  Envia à VPS o código que está no GitHub. O banco da VPS não é copiado nem apagado: as mudanças de banco
+                  (migrations) só acrescentam, com backup antes.
+                </p>
+                {commits.length > 0 && (
+                  <ul className="mt-3 space-y-0.5 text-xs">
+                    {commits.slice(0, MOSTRAR_COMMITS).map((linha) => (
+                      <li key={linha} className="truncate font-mono" title={linha}>
+                        {linha}
+                      </li>
+                    ))}
+                    {commits.length > MOSTRAR_COMMITS && (
+                      <li className="text-suave">e mais {commits.length - MOSTRAR_COMMITS} commit(s)</li>
+                    )}
+                  </ul>
                 )}
-              </ul>
-            )}
-            <Lista itens={deploy?.nada ? [] : deploy?.bloqueios} tom="erro" />
-            <Lista itens={deploy?.avisos} tom="alerta" />
-            {deploy?.nada && <p className="mt-3 text-xs text-suave">A VPS já roda o que está no GitHub.</p>}
+                <Lista itens={deploy?.nada ? [] : deploy?.bloqueios} tom="erro" />
+                <Lista itens={deploy?.avisos} tom="alerta" />
+                {deploy?.nada && <p className="mt-3 text-xs text-suave">A VPS já roda o que está no GitHub.</p>}
 
-            {confirmando === "deploy" ? (
-              <Confirmar
-                texto="Atualizar a VPS agora? O site continua no ar durante a construção; a troca leva segundos."
-                aoConfirmar={() => executar("deploy")}
-                aoCancelar={() => setConfirmando(null)}
-                pendente={pendente}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmando("deploy")}
-                disabled={!deploy?.pode || rodando || pendente || lendo}
-                className={`mt-3 ${botao}`}
-              >
-                <CloudUpload size={14} /> Atualizar a VPS
-              </button>
-            )}
-          </div>
+                {confirmando === "deploy" ? (
+                  <Confirmar
+                    texto="Atualizar a VPS agora? O site continua no ar durante a construção; a troca leva segundos."
+                    aoConfirmar={() => executar("deploy")}
+                    aoCancelar={() => setConfirmando(null)}
+                    pendente={pendente}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmando("deploy")}
+                    disabled={!deploy?.pode || rodando || pendente || lendo}
+                    className={`mt-3 ${botao}`}
+                  >
+                    <CloudUpload size={14} /> Atualizar a VPS
+                  </button>
+                )}
+              </div>
 
-          <div className="rounded border border-borda p-4">
-            <p className="flex items-center gap-2 font-medium">
-              <DatabaseBackup size={16} className="text-acento" /> Atualizar banco do PC
-            </p>
-            <p className="mt-1 text-xs text-suave">
-              Troca o banco deste PC por uma cópia de agora da VPS. O que foi mudado só no banco do PC se perde (o PC é
-              cópia). As conexões do Mercado Livre e do Bling do PC são mantidas. O Rise do PC para e volta sozinho,
-              em 1 a 3 minutos.
-            </p>
-            <Lista itens={copia?.bloqueios} tom="erro" />
+              <div className="rounded border border-borda p-4">
+                <p className="flex items-center gap-2 font-medium">
+                  <DatabaseBackup size={16} className="text-acento" /> Atualizar banco do PC
+                </p>
+                <p className="mt-1 text-xs text-suave">
+                  Troca o banco deste PC por uma cópia de agora da VPS. O que foi mudado só no banco do PC se perde (o PC é
+                  cópia). As conexões do Mercado Livre e do Bling do PC são mantidas. O Rise do PC para e volta sozinho,
+                  em 1 a 3 minutos.
+                </p>
+                <Lista itens={copia?.bloqueios} tom="erro" />
 
-            {confirmando === "copia" ? (
-              <Confirmar
-                texto="Trocar o banco do PC pela cópia de agora da VPS? O Rise do PC fica fora do ar por 1 a 3 minutos e volta sozinho."
-                aoConfirmar={() => executar("copia")}
-                aoCancelar={() => setConfirmando(null)}
-                pendente={pendente}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmando("copia")}
-                disabled={!copia?.pode || rodando || pendente || lendo}
-                className={`mt-3 ${botao}`}
-              >
-                <DatabaseBackup size={14} /> Atualizar banco do PC
-              </button>
-            )}
-          </div>
-        </div>
+                {confirmando === "copia" ? (
+                  <Confirmar
+                    texto="Trocar o banco do PC pela cópia de agora da VPS? O Rise do PC fica fora do ar por 1 a 3 minutos e volta sozinho."
+                    aoConfirmar={() => executar("copia")}
+                    aoCancelar={() => setConfirmando(null)}
+                    pendente={pendente}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmando("copia")}
+                    disabled={!copia?.pode || rodando || pendente || lendo}
+                    className={`mt-3 ${botao}`}
+                  >
+                    <DatabaseBackup size={14} /> Atualizar banco do PC
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </Janela>
       )}
-    </Card>
+    </>
   );
 }

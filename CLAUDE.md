@@ -3614,7 +3614,10 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   do PC aberto em localhost** (`ehOPcDeDesenvolvimento`: nunca na VPS, que tem `RISE_PRODUCAO`, nem pela rede local; a
   página só mostra o cartão nesse caso, e as ações em `src/app/integracoes/acoes-vps.js` conferem de novo). Regras puras em
   `src/lib/vps/regras.js` (teste `npm run teste:vps`), conversa com git, SSH e processos em `src/lib/vps/executar.js`, estado
-  da operação em `dados/vps-operacao.json`.
+  da operação em `dados/vps-operacao.json`. **É um cartão da grade, no desenho dos conectores** (pedido do dono no mesmo
+  dia): mostra selo, versão no ar, o que falta subir e as varreduras; **clicar abre a janela com tudo** (os dois botões, as
+  confirmações e o andamento). O estado mora no cartão, então o selo diz "Atualizando" com a janela fechada. Aparece
+  mesmo com o banco do PC fora do ar (é quando trazer o da VPS resolve).
   - **"Atualizar a VPS"** = o "sobe" do dono. Mostra o que está no ar (versão e commit do `~/logs/deploy.log`), os commits
     da origin/main que a VPS ainda não tem, as migrations entre os dois e as varreduras rodando. Liga o deploy NA VPS em
     segundo plano (`setsid nohup`, log em `~/logs/deploy-botao-AAAAMMDD-HHMMSS.log` com a linha final `== FIM codigo=N`),
