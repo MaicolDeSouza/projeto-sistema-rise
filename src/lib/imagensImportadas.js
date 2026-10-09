@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { MAXIMO_IMAGENS, caminhoDe, salvarArquivo, urlDe } from "@/lib/arquivos";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { obter, USER_AGENT } from "@/lib/coleta/http";
-import { PORTAS_DE_FOTO, enderecoPublico, lookupPublico, validarFotoPublica } from "@/lib/redePublica";
+import { PORTAS_DE_BUSCA, enderecoPublico, lookupPublico, validarEnderecoDeBusca } from "@/lib/redePublica";
 
 /**
  * Imagens que vem de fora do formulario: do Bling, de outro produto da Rise ou
@@ -45,10 +45,10 @@ export async function bytesDe(fonte) {
 
   // O endereco vem de texto de site de concorrente (`ProdutoColetado.imagens`/`miniatura`): so rede publica, com
   // o IP conferido na propria conexao e em cada salto de redirecionamento (ver `redePublica.js`). Foto aceita as
-  // portas de PORTAS_DE_FOTO (loja que serve em :8080); documento nao aceita nenhuma.
-  const resposta = await obter(enderecoPublico(fonte.endereco, { portas: PORTAS_DE_FOTO }), {
+  // portas de PORTAS_DE_BUSCA (loja que serve em :8080); documento nao aceita nenhuma.
+  const resposta = await obter(enderecoPublico(fonte.endereco, { portas: PORTAS_DE_BUSCA }), {
     lookup: lookupPublico,
-    validar: validarFotoPublica,
+    validar: validarEnderecoDeBusca,
     sinal: AbortSignal.timeout(TIMEOUT_MS),
     cabecalhos: { "User-Agent": USER_AGENT },
     tetoDoCorpo: (status) => (status >= 200 && status < 300 ? TETO_BYTES_FOTO + 1 : 0),

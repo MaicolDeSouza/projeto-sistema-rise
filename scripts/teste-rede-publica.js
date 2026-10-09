@@ -21,7 +21,7 @@ const { register } = await import("node:module");
 const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
-const { PORTAS_DE_FOTO, ErroDeRecusa, enderecoPublico, ipPublico, lookupPublico, validarEnderecoPublico } = await import("../src/lib/redePublica.js");
+const { PORTAS_DE_BUSCA, ErroDeRecusa, enderecoPublico, ipPublico, lookupPublico, validarEnderecoPublico } = await import("../src/lib/redePublica.js");
 const { obter } = await import("../src/lib/coleta/http.js");
 // As duas libs que usam o filtro (importam o cliente do banco, mas nenhuma consulta e feita aqui).
 const { bytesDe } = await import("../src/lib/imagensImportadas.js");
@@ -47,11 +47,15 @@ async function recusa(fazer) {
 // ---------------------------------------------------------------- ipPublico
 const publicos = [
   "8.8.8.8", "1.1.1.1", "200.147.67.142", "100.63.255.255", "100.128.0.1", "172.15.0.1", "172.32.0.1",
+  // Vizinhos das faixas reservadas, que sao a internet.
+  "198.17.255.255", "198.20.0.1", "192.0.1.1", "192.0.3.1", "198.51.99.1", "198.51.101.1", "203.0.112.1", "203.0.114.1",
   "2606:4700:4700::1111", "2a00:1450:4001:80b::200e", "2804:14d:1::1", "3000::1",
 ];
 const internos = [
   "0.0.0.0", "10.0.0.5", "127.0.0.1", "127.255.255.254", "169.254.169.254", "172.16.0.1", "172.18.0.2", "172.31.255.255",
   "192.168.1.1", "100.64.0.1", "100.127.255.255", "224.0.0.1", "255.255.255.255",
+  // Reservadas (RFC 6890) que nao sao a internet: desempenho, IETF, documentacao e o anycast antigo do 6to4.
+  "198.18.0.1", "198.19.255.255", "192.0.0.8", "192.0.2.1", "198.51.100.7", "203.0.113.9", "192.88.99.1",
   // IPv6: o que nao e unicast global (2000::/3) e o que dentro dele nao e a internet.
   "::1", "::", "fe80::1", "fe90::1", "febf::1", "fec0::1", "fc00::1", "fd12:3456::1", "ff02::1", "ff0e::1",
   "::ffff:127.0.0.1", "::ffff:10.0.0.1", "64:ff9b::7f00:1", "2001:db8::1", "2001::1", "2002:7f00:1::1", "3fff::1",
@@ -72,17 +76,17 @@ const recusados = [
 ];
 conferir("enderecoPublico: so http(s) sem usuario, sem porta, sem IP escrito e sem nome interno", await Promise.all(recusados.map((e) => recusa(() => enderecoPublico(e)))), recusados.map(() => "ErroDeRecusa"));
 
-// A foto (e a coleta) aceita as portas de PORTAS_DE_FOTO; outra porta, ainda que num IP publico, serviria de sonda
+// A foto (e a coleta) aceita as portas de PORTAS_DE_BUSCA; outra porta, ainda que num IP publico, serviria de sonda
 // cega (o IP publico da propria VPS tem sshd na 22). O resto da regra (nome interno, IP escrito) vale igual.
-conferir("PORTAS_DE_FOTO", PORTAS_DE_FOTO, [80, 443, 8080, 8443]);
-conferir("enderecoPublico com portas: foto de loja em :8080 e :8443 passa", ["8080", "8443"].map((p) => enderecoPublico(`http://loja.com.br:${p}/a.jpg`, { portas: PORTAS_DE_FOTO }).port), ["8080", "8443"]);
+conferir("PORTAS_DE_BUSCA", PORTAS_DE_BUSCA, [80, 443, 8080, 8443]);
+conferir("enderecoPublico com portas: foto de loja em :8080 e :8443 passa", ["8080", "8443"].map((p) => enderecoPublico(`http://loja.com.br:${p}/a.jpg`, { portas: PORTAS_DE_BUSCA }).port), ["8080", "8443"]);
 const recusadosComPorta = [
   "http://localhost:3000/x", "http://127.0.0.1:3000/x", "http://[::1]:3000/x", "http://localhost.:80/x", "http://10.0.0.1:8080/x",
   "http://loja.com.br:22/x", "http://loja.com.br:3000/x", "https://loja.com.br:5432/x", "http://loja.com.br:8081/x",
 ];
 conferir(
   "enderecoPublico com portas: nome interno, IP escrito e porta fora da lista continuam recusados",
-  await Promise.all(recusadosComPorta.map((e) => recusa(() => enderecoPublico(e, { portas: PORTAS_DE_FOTO })))),
+  await Promise.all(recusadosComPorta.map((e) => recusa(() => enderecoPublico(e, { portas: PORTAS_DE_BUSCA })))),
   recusadosComPorta.map(() => "ErroDeRecusa"),
 );
 
@@ -122,6 +126,14 @@ delete process.env.COLETA_PERMITIR_REDE_LOCAL;
 const porPadrao = await recusa(() => obter(`http://localhost:${alvo.porta}/`));
 process.env.COLETA_PERMITIR_REDE_LOCAL = "1";
 conferir("obter sem opcoes: o padrao ja e a rede publica (localhost recusado, servidor local sem acesso)", [porPadrao, alvo.acessos], ["ErroDeRecusa", 0]);
+
+// 1c. A chave de teste e IGNORADA onde ha RISE_PRODUCAO (a imagem de producao a carrega, fixa no Dockerfile; o PC,
+// onde o teste roda, nao): com as duas definidas o filtro continua ligado e o servidor local nao recebe acesso. Uma
+// linha esquecida no .env da VPS nao pode desligar o filtro da coleta.
+process.env.RISE_PRODUCAO = "1";
+const naProducao = await recusa(() => obter(`http://localhost:${alvo.porta}/`));
+delete process.env.RISE_PRODUCAO;
+conferir("obter: COLETA_PERMITIR_REDE_LOCAL e ignorada onde ha RISE_PRODUCAO (imagem de producao)", [naProducao, alvo.acessos], ["ErroDeRecusa", 0]);
 
 // 2. Sem o lookup, o mesmo pedido vai (prova que o teste anterior mede o lookup, e nao outra coisa).
 const semFiltro = await obter(`http://localhost:${alvo.porta}/`, { tetoDoCorpo: () => 1000 });
@@ -187,7 +199,10 @@ if (resolucao?.length && resolucao.every(({ address }) => !ipPublico(address))) 
   conferir("ligacao: baixarDocumento recusa nome que resolve para IP interno pela CONEXAO", await mensagem(() => baixarDocumento({ url: `http://${nomeDaMaquina}/a.pdf`, titulo: "Datasheet" })), MENSAGEM_DO_LOOKUP);
   delete process.env.COLETA_PERMITIR_REDE_LOCAL;
   conferir("ligacao: obter sem opcoes (a coleta) recusa nome que resolve para IP interno pela CONEXAO", await mensagem(() => obter(`http://${nomeDaMaquina}/`)), MENSAGEM_DO_LOOKUP);
+  // O lookup mora no AGENTE, e http e https usam agentes diferentes: a coleta real e quase toda https.
+  conferir("ligacao: o mesmo por https (outro agente)", await mensagem(() => obter(`https://${nomeDaMaquina}/`)), MENSAGEM_DO_LOOKUP);
   process.env.COLETA_PERMITIR_REDE_LOCAL = "1";
+  conferir("ligacao: bytesDe por https", await mensagem(() => bytesDe({ tipo: "endereco", endereco: `https://${nomeDaMaquina}/foto.jpg` })), MENSAGEM_DO_LOOKUP);
 } else {
   console.log(`pulado  ligacao do filtro: o nome da maquina (${nomeDaMaquina}) nao resolve para IP interno aqui`);
 }

@@ -22,12 +22,13 @@ export class ErroDeRecusa extends Error {
   }
 }
 
-/// Portas que uma FOTO (e a coleta) pode ter alem da padrao: o filtro de IP da conexao ja barra a rede interna, mas
-/// uma porta qualquer num IP publico, o da propria VPS inclusive (sshd na 22), serviria de sonda cega.
-export const PORTAS_DE_FOTO = [80, 443, 8080, 8443];
+/// Portas que uma BUSCA (a coleta inteira e a foto de concorrente) pode ter alem da padrao: o filtro de IP da
+/// conexao ja barra a rede interna, mas uma porta qualquer num IP publico, o da propria VPS inclusive (sshd na 22),
+/// serviria de sonda cega.
+export const PORTAS_DE_BUSCA = [80, 443, 8080, 8443];
 
 /// Endereco http(s) que vale buscar: sem usuario, sem IP escrito e sem nome interno, e SEM porta, salvo as de
-/// `portas` (o documento nao aceita nenhuma; a foto, as de PORTAS_DE_FOTO). IP escrito nao passa por `lookup` (o
+/// `portas` (o documento nao aceita nenhuma; a foto, as de PORTAS_DE_BUSCA). IP escrito nao passa por `lookup` (o
 /// Node o usa direto), entao so a recusa aqui o barra.
 export function enderecoPublico(valor, { portas = [] } = {}) {
   let url;
@@ -66,7 +67,7 @@ export function ipPublico(ip) {
     if (!/^[23][0-9a-f]{3}:/.test(valor)) return false;
     return !/^(2001:0?db8:|2001:0?:|2002:|3fff:)/.test(valor);
   }
-  const [a, b] = valor.split(".").map(Number);
+  const [a, b, c] = valor.split(".").map(Number);
   return !(
     a === 0 ||
     a === 10 ||
@@ -75,7 +76,14 @@ export function ipPublico(ip) {
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
-    (a === 100 && b >= 64 && b <= 127)
+    (a === 100 && b >= 64 && b <= 127) ||
+    // Reservadas que nao sao a internet (RFC 6890): teste de desempenho, protocolo da IETF, documentacao e o
+    // anycast antigo do 6to4. Um nome que resolva para elas so serve a quem a rede interna roteia.
+    (a === 198 && (b === 18 || b === 19)) ||
+    (a === 192 && b === 0 && (c === 0 || c === 2)) ||
+    (a === 192 && b === 88 && c === 99) ||
+    (a === 198 && b === 51 && c === 100) ||
+    (a === 203 && b === 0 && c === 113)
   );
 }
 
@@ -100,7 +108,8 @@ export function validarEnderecoPublico(url) {
   enderecoPublico(url.href);
 }
 
-/// A mesma conferencia para FOTO e para a COLETA: aceita as portas de PORTAS_DE_FOTO.
-export function validarFotoPublica(url) {
-  enderecoPublico(url.href, { portas: PORTAS_DE_FOTO });
+/// A conferencia PADRAO de toda busca do servidor em endereco de terceiro (a coleta inteira e a foto de concorrente):
+/// aceita as portas de PORTAS_DE_BUSCA. So o documento tem a sua, sem porta nenhuma (`validarEnderecoPublico`).
+export function validarEnderecoDeBusca(url) {
+  enderecoPublico(url.href, { portas: PORTAS_DE_BUSCA });
 }

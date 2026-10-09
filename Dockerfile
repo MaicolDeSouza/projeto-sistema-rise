@@ -29,8 +29,11 @@ COPY . .
 # Versao no pe do menu: o deploy passa a hora (DD.MM.AAAA.HH.MM) e o commit; o next.config.mjs os embute.
 ARG RISE_VERSAO=""
 ARG RISE_COMMIT=""
+# RISE_PRODUCAO marca a IMAGEM de producao, qualquer que seja o build-arg: o codigo a usa para ignorar chaves de
+# teste que desligariam travas de seguranca (ver COLETA_PERMITIR_REDE_LOCAL em src/lib/coleta/http.js).
 ENV RISE_VERSAO=$RISE_VERSAO \
     RISE_COMMIT=$RISE_COMMIT \
+    RISE_PRODUCAO=1 \
     TZ=America/Sao_Paulo \
     NEXT_TELEMETRY_DISABLED=1
 

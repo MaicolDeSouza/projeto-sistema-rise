@@ -2,7 +2,7 @@ import http from "node:http";
 import https from "node:https";
 import zlib from "node:zlib";
 
-import { lookupPublico, validarFotoPublica } from "../redePublica.js";
+import { lookupPublico, validarEnderecoDeBusca } from "../redePublica.js";
 
 /**
  * Cliente HTTP da coleta, sobre `node:http`/`node:https` — e NAO sobre `fetch`.
@@ -184,7 +184,7 @@ function cabecalhosDe(resposta) {
  *   TODOS os saltos. Sem ele, o padrao e o `lookupPublico` (ver abaixo).
  * @param {(url: URL) => void} [opcoes.validar] chamado com a URL de CADA pedido, o primeiro e os saltos de
  *   redirecionamento, ANTES de ele sair; lanca para recusar. IP escrito na URL nao passa pelo `lookup`, e so isto
- *   o barra num redirecionamento. Sem ele, o padrao e `validarFotoPublica`.
+ *   o barra num redirecionamento. Sem ele, o padrao e `validarEnderecoDeBusca`.
  *
  * REDE PUBLICA POR PADRAO. O endereco que a coleta busca vem de texto de terceiro (link da pagina, <loc> de sitemap,
  * `Sitemap:` do robots.txt, `Location` de redirecionamento), e na VPS o servidor alcanca `app`, `auth` e `db` pela
@@ -212,9 +212,14 @@ export async function obter(
     validar: validarPedido = null,
   } = {},
 ) {
-  const filtrar = process.env.COLETA_PERMITIR_REDE_LOCAL !== "1";
+  // A chave e do TESTE e a imagem de producao a IGNORA: os dois conteineres (app e worker) recebem o .env inteiro,
+  // e uma linha esquecida ali desligaria o filtro em silencio. A imagem carrega RISE_PRODUCAO=1 (Dockerfile, ENV, fixo
+  // e nao dependente de build-arg); o PC, onde o teste roda, nao a tem. (O deploy tambem recusa um .env que contenha
+  // a chave.)
+  const chaveDeTeste = process.env.COLETA_PERMITIR_REDE_LOCAL === "1" && !process.env.RISE_PRODUCAO;
+  const filtrar = !chaveDeTeste;
   const lookup = lookupPedido ?? (filtrar ? lookupPublico : null);
-  const validar = validarPedido ?? (filtrar ? validarFotoPublica : null);
+  const validar = validarPedido ?? (filtrar ? validarEnderecoDeBusca : null);
 
   let url = new URL(endereco);
   const hostOriginal = url.hostname;
