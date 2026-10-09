@@ -41,7 +41,15 @@ export function decodificar(texto) {
     .replace(/&#x([0-9a-f]+);/gi, (_, codigo) =>
       String.fromCharCode(parseInt(codigo, 16)),
     )
-    .replace(/&([a-z]+);/gi, (inteiro, nome) => ENTIDADES[nome.toLowerCase()] ?? inteiro);
+    // A caixa do nome importa: &Iacute; e "Í", nao "í". Procurar so pelo nome em
+    // minusculas punha "CARACTERíSTICAS" na descricao da Oceantech (09/10/2026).
+    // Maiuscula que a tabela nao tem cai na minuscula e volta em caixa alta.
+    .replace(/&([a-z]+);/gi, (inteiro, nome) => {
+      if (ENTIDADES[nome] !== undefined) return ENTIDADES[nome];
+      const minuscula = ENTIDADES[nome.toLowerCase()];
+      if (minuscula === undefined) return inteiro;
+      return /^[A-Z]/.test(nome) ? minuscula.toUpperCase() : minuscula;
+    });
 }
 
 /**

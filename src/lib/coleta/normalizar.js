@@ -1,6 +1,6 @@
 import { extrairProduto } from "./extrair";
 import { precosDaForseti } from "./forseti";
-import { variantesDaNuvemshop } from "./nuvemshop";
+import { categoriaDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
@@ -303,13 +303,28 @@ function galeriaDoMagento(html, urlBase) {
   return fotos.slice(0, TETO_DE_GALERIA);
 }
 
+/** "-640-0.webp" no fim do nome de uma foto da Nuvemshop: largura, altura e formato. */
+const TAMANHO_NUVEMSHOP = /-(\d{2,4})-(\d{1,4})\.[A-Za-z0-9]+$/;
+
+/** So no CDN da Nuvemshop: noutra loja "-2-1.jpg" pode ser parte do nome. */
+function ehDaNuvemshop(endereco) {
+  try {
+    return /(^|\.)mitiendanube\.com$/i.test(new URL(endereco).hostname);
+  } catch {
+    return false;
+  }
+}
+
 function semRepetir(urls) {
   const porIdentidade = new Map();
 
   /** Area declarada no endereco (".../800x800/foto.jpg"), para escolher a maior. */
   const area = (endereco) => {
     const medida = /\/(\d{2,4})x(\d{2,4})\//.exec(endereco);
-    return medida ? Number(medida[1]) * Number(medida[2]) : 0;
+    if (medida) return Number(medida[1]) * Number(medida[2]);
+    // Nuvemshop: "...-640-0.webp" (largura e altura livre) ou "...-1024-1024.png".
+    const nuvem = ehDaNuvemshop(endereco) ? TAMANHO_NUVEMSHOP.exec(endereco) : null;
+    return nuvem ? Number(nuvem[1]) * Number(nuvem[1]) : 0;
   };
 
   for (const endereco of urls) {
@@ -321,7 +336,12 @@ function semRepetir(urls) {
       // contada duas vezes.
       const partes = partesSemDimensao(endereco);
 
-      const arquivo = semSufixoDeTamanho(partes.at(-1));
+      // NUVEMSHOP: o tamanho e o formato vem no NOME ("foto-480-0.webp",
+      // "foto-640-0.webp", "foto-1024-1024.png" sao a mesma foto). Sem isso a
+      // Oceantech mostrava a foto unica do produto duas vezes (09/10/2026).
+      const arquivo = ehDaNuvemshop(endereco)
+        ? partes.at(-1).replace(TAMANHO_NUVEMSHOP, "")
+        : semSufixoDeTamanho(partes.at(-1));
       const pasta = partes.at(-2) ?? "";
       const numero = /^(\d+)-/.exec(pasta)?.[1];
 
@@ -342,7 +362,11 @@ function semRepetir(urls) {
     }
   }
 
-  return [...porIdentidade.values()];
+  // A Nuvemshop serve a galeria em "http://" dentro de uma pagina https; o CDN
+  // responde nos dois, e a tela do Rise (https) bloqueia a foto em http.
+  return [...porIdentidade.values()].map((endereco) =>
+    ehDaNuvemshop(endereco) ? endereco.replace(/^http:\/\//i, "https://") : endereco,
+  );
 }
 
 /**
@@ -2189,9 +2213,17 @@ export function normalizarPagina({
   // todas — ver nuvemshop.js. Sem o JS de variantes a pagina cai no caminho comum.
   const daNuvemshop = variantesDaNuvemshop(html);
   if (daNuvemshop.length) {
+    const categoriaNuvem = categoriaDaNuvemshop(html);
+    const baseNuvem = categoriaNuvem
+      ? {
+          ...base,
+          category: categoriaNuvem,
+          origens: { ...base.origens, category: "breadcrumb do JSON-LD (ultimo nivel)" },
+        }
+      : base;
     return {
       produtos: daNuvemshop.map((variante) =>
-        produtoDaVarianteNuvemshop(base, variante, daNuvemshop.length > 1),
+        produtoDaVarianteNuvemshop(baseNuvem, variante, daNuvemshop.length > 1),
       ),
       motivo: null,
       formatos: [...formatos, "nuvemshop"],

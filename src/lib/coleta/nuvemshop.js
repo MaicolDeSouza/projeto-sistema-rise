@@ -65,6 +65,42 @@ function nomesDasOpcoes(html) {
 }
 
 /**
+ * Categoria do produto: o ULTIMO degrau do breadcrumb do JSON-LD antes do
+ * proprio produto ("Inicio > ELETRONICA > FONTES DE ENERGIA > Fonte..." da
+ * "FONTES DE ENERGIA"). O dataLayer da pagina so traz o primeiro nivel
+ * ("ELETRONICA"), que junta fontes, sensores e placas na mesma categoria.
+ */
+export function categoriaDaNuvemshop(html) {
+  if (typeof html !== "string") return null;
+
+  for (const bloco of html.matchAll(
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  )) {
+    let dado;
+    try {
+      dado = JSON.parse(bloco[1]);
+    } catch {
+      continue;
+    }
+
+    const lista =
+      dado?.["@type"] === "BreadcrumbList" ? dado : dado?.breadcrumb ?? null;
+    const itens = Array.isArray(lista?.itemListElement) ? lista.itemListElement : [];
+    if (itens.length < 3) continue;
+
+    const nomes = [...itens]
+      .sort((a, b) => (Number(a?.position) || 0) - (Number(b?.position) || 0))
+      .map((item) => (typeof item?.name === "string" ? item.name.trim() : ""));
+
+    // Tira o "Inicio" (primeiro) e o proprio produto (ultimo).
+    const categoria = nomes.slice(1, -1).filter(Boolean).at(-1);
+    if (categoria) return categoria;
+  }
+
+  return null;
+}
+
+/**
  * Variantes da pagina, ou lista vazia quando a pagina nao e da Nuvemshop (ou nao
  * tem o JS). Cada item:
  *

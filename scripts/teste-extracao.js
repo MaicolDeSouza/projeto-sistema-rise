@@ -1904,5 +1904,23 @@ console.log("\n— Nuvemshop: variantes com codigo, preco, pix e saldo proprios 
   conferir("Nuvemshop: link para a propria pagina nao e documento", ler(semDescricao).produtos[0].documentos.filter((d) => d.url.startsWith(urlNuvem)), []);
 }
 
+console.log("\n— Nuvemshop: acento, foto repetida em tamanhos e categoria (fonte chaveada da Oceantech) —");
+{
+  const { decodificar } = await import("../src/lib/coleta/texto-html.js");
+  conferir("entidade em maiuscula vira letra maiuscula", decodificar("CARACTER&Iacute;STICAS ESPECIFICA&Ccedil;&Otilde;ES"), "CARACTERÍSTICAS ESPECIFICAÇÕES");
+  conferir("entidade maiuscula fora da tabela volta em caixa alta", decodificar("&Ucirc;&ucirc;&Ntilde;"), "ÛûÑ");
+  conferir("entidade minuscula continua minuscula", decodificar("D&iacute;gitos &amp; 1,8&rdquo;"), "Dígitos & 1,8”");
+
+  const cdn = "acdn-us.mitiendanube.com/stores/001/734/387/products/fonte-chaveada-dc-195136f834a368beee16998997015591";
+  const html = `<html><head>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemPage","breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Início"},{"@type":"ListItem","position":2,"name":"ELETRÔNICA"},{"@type":"ListItem","position":3,"name":"FONTES DE ENERGIA"},{"@type":"ListItem","position":4,"name":"Fonte Chaveada 36V 16,6A 600W"}]},"mainEntity":{"@type":"Product","name":"Fonte Chaveada 36V 16,6A 600W","sku":"9287","image":"https://${cdn}-480-0.webp","description":"Fonte.","offers":{"@type":"Offer","price":"229","availability":"https://schema.org/InStock"}}}</script>
+<script>LS.variants = [{"price_number":229,"price_with_payment_discount_short":"R$217,55","stock":53,"sku":"9287","available":true,"option0":null,"option1":null,"option2":null,"id":1}];</script>
+</head><body><img src="http://${cdn}-640-0.webp"><img src="https://${cdn}-1024-1024.png"></body></html>`;
+  const [fonte] = normalizarPagina({ html, url: "https://loja.exemplo.com/produtos/fonte-chaveada/", fonte: { tipo: "CONCORRENTE" } }).produtos;
+  conferir("Nuvemshop: a mesma foto em tres tamanhos vira uma, a maior, em https", fonte.images, [`https://${cdn}-1024-1024.png`]);
+  conferir("Nuvemshop: categoria e o ultimo nivel do breadcrumb", fonte.category, "FONTES DE ENERGIA");
+  conferir("Nuvemshop: sem breadcrumb no JSON-LD a categoria nao e inventada", normalizarPagina({ html: html.replace(/"breadcrumb":\{[\s\S]*?\]\},/, ""), url: "https://loja.exemplo.com/produtos/fonte-chaveada/", fonte: { tipo: "CONCORRENTE" } }).produtos[0].category, null);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

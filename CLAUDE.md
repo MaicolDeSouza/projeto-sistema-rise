@@ -1273,6 +1273,14 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   - **Documentos: só os da descrição** (`data-store="product-description-<id>"`). O menu e o rodapé repetem "Catálogo de
     produtos" (link do Drive) em toda página. Vale para toda Nuvemshop. Link que aponta para a própria página (`href="#"`)
     também não é mais documento, em qualquer plataforma.
+  - **Fonte chaveada 36V (mesmo dia): três defeitos.** (1) **Acento:** `decodificar` (`texto-html.js`) procurava a
+    entidade pelo nome em minúsculas, e `&Iacute;` virava "í" ("CARACTERíSTICAS"). Agora o nome exato vence, e maiúscula
+    fora da tabela volta em caixa alta. **Vale para todas as lojas**: quem escreve entidade em maiúscula terá a descrição
+    regravada na próxima varredura (é correção). (2) **Foto repetida:** a Nuvemshop põe tamanho e formato no NOME
+    (`-480-0.webp`, `-640-0.webp`, `-1024-1024.png` são a mesma foto); `semRepetir` tira isso da identidade só no CDN
+    `mitiendanube.com`, fica com a maior e passa `http://` para `https://` (a tela em https bloqueia a foto em http).
+    (3) **Categoria:** o dataLayer só tem o primeiro nível ("ELETRÔNICA"); `categoriaDaNuvemshop` lê o último degrau do
+    breadcrumb do JSON-LD ("FONTES DE ENERGIA", "FUSOS DE ESFERA").
   - **Efeito:** a Oceantech sai com mais produtos que páginas (24 de uma página). A varredura continua tratando a página uma vez.
     Os produtos já gravados dela só se corrigem na próxima varredura, e o worker do PC (`worker:pc`) precisa ser reiniciado
     para carregar o código novo.
