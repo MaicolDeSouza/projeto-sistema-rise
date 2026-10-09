@@ -9,7 +9,6 @@ import {
   CircleCheck,
   Loader,
   Package,
-  Trash2,
   X,
 } from "lucide-react";
 
@@ -124,17 +123,11 @@ function PopupConfirmacao({ produtos, pendente, aoConfirmar, aoCancelar }) {
 }
 
 /**
- * Lista de produtos: busca, selecao por caixa e exclusao em lote (pedido do
- * dono em 18/09/2026, no padrao do Bling) — substituiu o botao "Excluir
- * produto" de dentro do cadastro. A selecao e so desta tabela: trocar de
- * pagina ou filtrar de novo comeca vazia, de proposito — selecao que
- * sobrevive a navegacao arrisca excluir produto que o operador nem esta mais
- * vendo.
+ * Lista de produtos: busca, paginacao e ordenacao.
  *
- * **A lixeira mora numa caixinha fixa ao lado da busca**, sempre visivel
- * (cinza e desabilitada sem nada marcado) — pedido do dono em 18/09/2026: e
- * onde outros icones de acao em lote vao entrar no futuro, e nao um botao que
- * aparece e desaparece.
+ * **Excluir e Clonar moram nos 3 pontinhos de cada linha** (pedido do dono em 09/10/2026). Ate ali a exclusao
+ * era em lote, por caixa de selecao e uma lixeira fixa ao lado da busca (18/09/2026, no padrao do Bling); a
+ * lixeira e as caixas sairam. A confirmacao continua sendo o popup com nome e SKU (`PopupConfirmacao`).
  */
 export default function TabelaProdutos({
   linhas,
@@ -151,8 +144,8 @@ export default function TabelaProdutos({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [selecionados, setSelecionados] = useState(() => new Set());
-  const [confirmando, setConfirmando] = useState(false);
+  // Produto cuja exclusao esta sendo confirmada (o "Excluir" dos 3 pontinhos da linha).
+  const [excluindo, setExcluindo] = useState(null);
   const [pendente, iniciarTransicao] = useTransition();
   const [mensagem, setMensagem] = useState(null); // { tipo: "erro" | "sucesso", texto }
 
@@ -174,55 +167,25 @@ export default function TabelaProdutos({
     router.push(query ? `${pathname}?${query}` : pathname);
   }
 
-  function alternarSelecao(id) {
-    setSelecionados((atual) => {
-      const novo = new Set(atual);
-      if (novo.has(id)) novo.delete(id);
-      else novo.add(id);
-      return novo;
-    });
-  }
-
-  const todosMarcados =
-    linhas.length > 0 && linhas.every(({ produto }) => selecionados.has(produto.id));
-
-  function alternarTodos() {
-    setSelecionados(todosMarcados ? new Set() : new Set(linhas.map(({ produto }) => produto.id)));
-  }
-
-  function confirmarExclusao() {
-    const ids = [...selecionados];
-    if (ids.length === 0) return;
+  function confirmarExclusao(produto) {
     setMensagem(null);
-    setConfirmando(true);
+    setExcluindo(produto);
   }
 
   function excluirConfirmado() {
-    const ids = [...selecionados];
+    const id = excluindo.id;
     iniciarTransicao(async () => {
-      const resultado = await excluirProdutos(ids);
-      setSelecionados(new Set());
-      setConfirmando(false);
+      const resultado = await excluirProdutos([id]);
+      setExcluindo(null);
 
-      if (resultado.falhas.length > 0) {
-        setMensagem({
-          tipo: "erro",
-          texto:
-            `${resultado.excluidos} produto(s) excluído(s). ${resultado.falhas.length} nao ` +
-            `puderam ser excluídos: ${resultado.falhas.map((falha) => falha.erro).join(" ")}`,
-        });
-      } else {
-        setMensagem({
-          tipo: "sucesso",
-          texto: `${resultado.excluidos} produto${resultado.excluidos > 1 ? "s" : ""} excluido${resultado.excluidos > 1 ? "s" : ""}.`,
-        });
-      }
+      // Um produto por vez (o "Excluir" da linha): ou saiu, ou o motivo da recusa (anuncio publicado, peca de kit).
+      setMensagem(
+        resultado.falhas.length > 0
+          ? { tipo: "erro", texto: resultado.falhas.map((falha) => falha.erro).join(" ") }
+          : { tipo: "sucesso", texto: `Produto ${excluindo.sku} excluído.` },
+      );
     });
   }
-
-  const produtosSelecionados = linhas
-    .filter(({ produto }) => selecionados.has(produto.id))
-    .map(({ produto }) => produto);
 
   return (
     <>
@@ -252,40 +215,6 @@ export default function TabelaProdutos({
             de uma pagina — Paginacao ja se esconde sozinha nesse caso. */}
         <Paginacao compacto pagina={pagina} totalPaginas={totalPaginas} total={total} />
 
-        {/* Caixa fixa de acoes em lote — outros icones entram aqui no futuro. */}
-        <div className="flex items-center gap-1 rounded border border-borda bg-superficie p-1.5">
-          <button
-            type="button"
-            onClick={confirmarExclusao}
-            disabled={pendente || selecionados.size === 0}
-            aria-label={
-              selecionados.size > 0
-                ? `Excluir ${selecionados.size} produto(s) selecionado(s)`
-                : "Marque produtos na lista para excluir"
-            }
-            title={
-              selecionados.size > 0
-                ? `Excluir ${selecionados.size} selecionado(s)`
-                : "Marque produtos na lista para excluir"
-            }
-            className="rounded p-1.5 text-suave hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-suave"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-
-        {selecionados.size > 0 && (
-          <span className="text-xs text-suave">
-            {selecionados.size} selecionado(s) ·{" "}
-            <button
-              type="button"
-              onClick={() => setSelecionados(new Set())}
-              className="underline hover:text-texto"
-            >
-              Limpar seleção
-            </button>
-          </span>
-        )}
       </div>
 
       {mensagem && (
@@ -320,15 +249,6 @@ export default function TabelaProdutos({
           <table className="w-full text-sm">
             <thead className="border-b border-borda bg-fundo text-center text-xs tracking-wide text-suave uppercase">
               <tr className="divide-x divide-borda">
-                <th className="w-10 px-3 py-2.5">
-                  <input
-                    type="checkbox"
-                    checked={todosMarcados}
-                    onChange={alternarTodos}
-                    aria-label="Selecionar todos os produtos"
-                    className="align-middle"
-                  />
-                </th>
                 <th className="px-3 py-2.5 font-medium">Imagem</th>
                 <th className="px-3 py-2.5 font-medium">Nome</th>
                 {/* "Conf." — nome curto pedido pelo dono em 22/09/2026 para a
@@ -349,17 +269,15 @@ export default function TabelaProdutos({
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
-              {linhas.map(({ produto, pendentes, iconeML, iconeBling, iconeLI, achado }) => (
+              {linhas.map(({ produto, iconeML, iconeBling, iconeLI, achado }) => (
                 <LinhaProduto
                   key={produto.id}
                   produto={produto}
                   achado={achado}
-                  pendentes={pendentes}
+                  aoExcluir={() => confirmarExclusao(produto)}
                   iconeML={iconeML}
                   iconeBling={iconeBling}
                   iconeLI={iconeLI}
-                  selecionado={selecionados.has(produto.id)}
-                  aoAlternarSelecao={() => alternarSelecao(produto.id)}
                 />
               ))}
             </tbody>
@@ -367,12 +285,12 @@ export default function TabelaProdutos({
         </div>
       )}
 
-      {confirmando && (
+      {excluindo && (
         <PopupConfirmacao
-          produtos={produtosSelecionados}
+          produtos={[excluindo]}
           pendente={pendente}
           aoConfirmar={excluirConfirmado}
-          aoCancelar={() => setConfirmando(false)}
+          aoCancelar={() => setExcluindo(null)}
         />
       )}
     </>

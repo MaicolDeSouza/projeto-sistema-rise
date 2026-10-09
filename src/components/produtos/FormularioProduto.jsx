@@ -60,6 +60,7 @@ import {
   consultarSituacaoConcorrentes,
   criarTitulosIA,
   enviarArquivo,
+  copiarDocumentosParaClone,
   enviarArquivoTemporario,
   gerarSku,
   documentosDasReferencias,
@@ -1626,6 +1627,9 @@ export default function FormularioProduto({
   concorrentes = [],
   catalogoFornecedores = [],
   dominioLojaIntegrada = "",
+  // "Clonar" da lista (pedido do dono em 09/10/2026): o cadastro novo nasce com os dados de outro produto (ver
+  // `dadosParaClone`). `produto` continua null: para o Salvar e para as abas, e um produto novo.
+  clone = null,
 }) {
   const router = useRouter();
   const [aba, setAba] = useState("caracteristicas");
@@ -1633,11 +1637,12 @@ export default function FormularioProduto({
   // Tipo do produto e pecas do kit: estado da tela (a aba Composicao edita em memoria, e so o Salvar grava).
   // Controlados, e nao `defaultValue`: o tipo decide quais abas aparecem, e a remontagem dos campos
   // ("Clonar a partir de um codigo", IA) nao pode trocar o tipo nem perder as pecas.
-  const [tipo, setTipo] = useState(produto?.tipo ?? "SIMPLES");
-  const [pecas, setPecas] = useState(() => produto?.composicao ?? []);
+  const [tipo, setTipo] = useState(produto?.tipo ?? clone?.tipo ?? "SIMPLES");
+  const [pecas, setPecas] = useState(() => produto?.composicao ?? clone?.composicao ?? []);
   // Trocar um kit com pecas para Simples apaga as pecas no Salvar: a tela pergunta antes.
   const [confirmarSimples, setConfirmarSimples] = useState(false);
-  const [alterado, setAlterado] = useState(false);
+  // O clone ja nasce com o que salvar.
+  const [alterado, setAlterado] = useState(Boolean(clone));
   const [erroAcao, setErroAcao] = useState(null);
   const formulario = useRef(null);
   const referencias = useRef(null);
@@ -1649,7 +1654,7 @@ export default function FormularioProduto({
   // controlados (defaultValue), entao preencher e remontar o corpo do
   // formulario com novos valores iniciais: `versao` muda a key e o React recria
   // os campos.
-  const [preenchido, setPreenchido] = useState(null);
+  const [preenchido, setPreenchido] = useState(() => clone?.campos ?? null);
   const [versao, setVersao] = useState(0);
 
   // Como o formulario NASCEU (Unidade "UN", Situacao ativa, o resto vazio). E a
@@ -1749,6 +1754,39 @@ export default function FormularioProduto({
     });
   }, [produto]);
 
+  // Clone: as fotos e os documentos do produto de origem entram no lote do cadastro novo ao abrir a tela.
+  // As fotos vem VALIDADAS (o check verde), como as de um produto que ja existe: so a validada e salva, e o
+  // dono pediu as fotos do original. `doClone` as protege de sair por desmarcar algo na lupa.
+  const carregouClone = useRef(false);
+  useEffect(() => {
+    if (!clone || carregouClone.current) return;
+    carregouClone.current = true;
+
+    const novoLote = crypto.randomUUID();
+    setLoteTemporario(novoLote);
+    setImportandoImagens(true);
+    (async () => {
+      const avisos = [];
+      const fotos = await tentar(() => importarImagensDaOrigem(novoLote, `rise:${clone.origem.id}`));
+      if (fotos.ok) {
+        setImagensLote(fotos.imagens.map((imagem) => ({ ...imagem, finalizada: true, doClone: true })));
+        if (fotos.recusadas > 0) avisos.push(`${fotos.recusadas} foto(s) do produto de origem não puderam ser copiadas.`);
+      } else {
+        avisos.push(`As fotos do produto de origem não foram copiadas (${fotos.erro}).`);
+      }
+      setImportandoImagens(false);
+
+      const documentos = await tentar(() => copiarDocumentosParaClone(novoLote, clone.origem.id));
+      if (documentos.ok) {
+        setTemporarios(documentos.temporarios);
+        if (documentos.faltaram > 0) avisos.push(`${documentos.faltaram} documento(s) do produto de origem não foram achados no disco.`);
+      } else {
+        avisos.push(`Os documentos do produto de origem não foram copiados (${documentos.erro}).`);
+      }
+      if (avisos.length > 0) setErroAcao(avisos.join(" "));
+    })();
+  }, [clone]);
+
   // Fornecedores e Concorrentes SO editam em memoria enquanto o formulario
   // esta aberto (pedido do dono em 22/09/2026: "so quero que salve quando eu
   // clicar no botao salvar do produto... caso eu aperte cancelar, tudo deve
@@ -1769,7 +1807,9 @@ export default function FormularioProduto({
   // vinculo de verdade: depois de salvo uma vez, `fornecedores` deixa de vir
   // vazio e o rascunho do Bling some, substituido pelos vinculos reais.
   const [fornecedoresRascunho, setFornecedoresRascunho] = useState(() =>
-    produto?.fornecedorRascunho?.nome && fornecedores.length === 0
+    clone
+      ? clone.fornecedores
+      : produto?.fornecedorRascunho?.nome && fornecedores.length === 0
       ? [
           {
             id: "bling-rascunho",
@@ -1823,7 +1863,7 @@ export default function FormularioProduto({
   // Mesma ideia para Concorrentes (pedido do dono em 18/09/2026, depois de
   // Concorrentes ganhar tabela propria — ate entao nao gravava nada).
   const [concorrentesRascunho, setConcorrentesRascunho] = useState(() =>
-    concorrentes.map(paraRascunho),
+    (clone?.concorrentes ?? concorrentes).map(paraRascunho),
   );
 
   function mudarConcorrentesRascunho(atualizador) {
@@ -2051,7 +2091,7 @@ export default function FormularioProduto({
    * ou que ainda tinha a sugestao anterior, para nao apagar uma caixa medida a mao.
    */
   const sugestaoAnterior = useRef(null);
-  if (sugestaoAnterior.current === null) sugestaoAnterior.current = pesoEMedidasDoKit(produto?.composicao ?? []);
+  if (sugestaoAnterior.current === null) sugestaoAnterior.current = pesoEMedidasDoKit(produto?.composicao ?? clone?.composicao ?? []);
   function escreverSugestao(sugestao, { forcar = false } = {}) {
     const anterior = sugestaoAnterior.current;
     for (const campo of ["pesoKg", "comprimentoCm", "larguraCm", "alturaCm"]) {
@@ -2706,7 +2746,7 @@ export default function FormularioProduto({
         // So o que esta cadastrado na aba Fornecedores / Concorrentes (salvo ou nao) e o marcado na lupa
         // (pedido do dono em 07/10/2026): a janela nao procura mais pelo Nome no catalogo das lojas.
         ids={[...new Set([...idsMarcados, ...vinculosItens.map((item) => item.id)])]}
-        descricaoAtual={produto?.descricaoBase ?? null}
+        descricaoAtual={produto?.descricaoBase ?? clone?.campos.descricaoBase ?? null}
         lerProduto={() => ({
           titulo: valorDoCampo("tituloBase"),
           sku: valorDoCampo("sku"),
@@ -2814,6 +2854,7 @@ export default function FormularioProduto({
                     nome="ean"
                     rotulo="GTIN / EAN"
                     inicial={v("ean")}
+                    erro={erros.ean}
                     ajuda="Código de barras do produto."
                     ids={idsDasIndicacoes}
                     valores={valoresRefs?.ean}

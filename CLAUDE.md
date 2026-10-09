@@ -3053,15 +3053,31 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
     reiniciar após a migration, o produto foi criado e o registro dos arquivos falhou. A ação
     devolvia erro, a tela ficava em "Novo produto" e o segundo Salvar daria "SKU já existe".
     Agora o Salvar segue para o produto, com o aviso `?documentos=falhou`.
-- **Exclusão de produto é só pela lista, em lote** (`TabelaProdutos.jsx`, 18/09/2026, padrão
-  do Bling): caixa de seleção por linha, e a lixeira numa **caixinha fixa ao lado da busca**,
-  sempre visível (cinza sem seleção) — é ali que outros ícones de ação em lote vão entrar. O
-  botão "Excluir produto" saiu do cadastro. **A confirmação é um popup na tela listando nome e
-  SKU de cada produto**, não o `confirm()` nativo: um erro real de teste (excluído o produto
-  errado por reordenação da lista) mostrou que "Excluir estes 2 produtos?" não deixa ver o que
-  está marcado. Depois de excluir, um aviso confirma quantos saíram; produto com anúncio
-  publicado continua recusado (`excluirProdutos` reaproveita `excluirProduto` item a item, e um
-  bloqueado não impede os outros).
+- **Exclusão de produto: "Excluir" nos 3 pontinhos de cada linha da lista** (pedido do dono em
+  09/10/2026). De 18/09 a 09/10/2026 era em lote, por caixa de seleção e uma lixeira fixa ao lado da
+  busca; a lixeira e as caixas saíram, e os "Cadastrar no Bling/LI/ML/Shopee" desabilitados que moravam
+  no menu também. O menu tem só **Clonar** e **Excluir**. **A confirmação continua sendo o popup com
+  nome e SKU**, não o `confirm()` nativo: um erro real de teste (excluído o produto errado por
+  reordenação da lista) mostrou que "Excluir estes 2 produtos?" não deixa ver o que está marcado.
+  Produto com anúncio publicado ou que é peça de kit continua recusado, com o motivo no aviso.
+- **Clonar** (pedido do dono em 09/10/2026): o item do menu abre `/produtos/novo?clonar=<id>`, o mesmo
+  cadastro novo já preenchido, com a faixa "Clonado a partir de <código> · <nome>". Nada é gravado até o
+  Salvar. Decisões do dono: **código (SKU) vazio**; copia campos, **fotos (já validadas), documentos e
+  certificado, fornecedores, concorrentes e a composição do kit**; **EAN copiado**. Não copia localização
+  nem link da Loja Integrada (são daquela peça), e o clone nasce sem estoque, sem Conferido, sem vínculo
+  com o Bling e sem anúncio.
+  - O produto é lido por `carregarProdutoParaFormulario` (`src/lib/produtoParaFormulario.js`), o MESMO da
+    tela de edição; `dadosParaClone` tira o que é do original e dá **ids novos** às linhas de fornecedor e
+    concorrente (o concorrente digitado à mão é reconhecido pelo id no Salvar).
+  - Fotos: `importarImagensDaOrigem(lote, "rise:<id>")` com `finalizada: true` (só a validada é salva).
+    Documentos: `copiarDocumentosParaClone` copia para o lote com nome novo (`copiarParaTemporario`), e o
+    Salvar os move para o clone; o original fica intacto. Conferido em 09/10/2026 com o 100101: o clone
+    saiu com 7 fotos, 3 documentos, 3 fornecedores e 12 concorrentes, e foi excluído pelo menu depois.
+- **O mesmo GTIN/EAN em dois produtos é recusado no Salvar** (pedido do dono em 09/10/2026, junto do
+  Clonar). Conferido em `salvarProduto`, não por índice único: em 09/10/2026 já havia **5 EAN repetidos**
+  no banco (14 produtos: 1208030000000 em 120808/09/10/12/13, 1210490000001 em 121058/63/70, e os pares
+  130502/130506, 121000/121049, 200302/258199). Esses produtos passam a pedir a correção no próximo Salvar.
+  A importação do Bling não confere.
 - **Imagem principal é uma marca (`principal`), não a posição 0.** Reordenar a cada clique
   fazia as miniaturas dançarem e custava até 3s por clique.
 - **Toda chamada externa é auditada** em `LogIntegracao`, com credenciais mascaradas.

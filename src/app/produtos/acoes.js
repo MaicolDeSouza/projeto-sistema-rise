@@ -29,6 +29,7 @@ import {
   apagarArquivo,
   apagarArquivoTemporario,
   apagarPastaProduto,
+  copiarParaTemporario,
   moverTemporarios,
   renomearPastaProduto,
   salvarArquivo,
@@ -503,6 +504,39 @@ export async function enviarArquivoTemporario(lote, tipo, formData) {
   }
 }
 
+/**
+ * Os documentos e o certificado do produto de origem, copiados para o lote do cadastro novo (o "Clonar" da
+ * lista, pedido do dono em 09/10/2026). Entram como se tivessem sido enviados agora: aparecem na aba Documentos,
+ * podem ser removidos, e o Salvar os move para o clone. Do navegador vem so o id; os arquivos saem do banco.
+ */
+export async function copiarDocumentosParaClone(lote, produtoId) {
+  try {
+    const produto = await prisma.produto.findUnique({
+      where: { id: String(produtoId ?? "") },
+      select: {
+        sku: true,
+        arquivos: {
+          where: { tipo: { in: ["DOCUMENTO", "CERTIFICADO"] } },
+          orderBy: { ordem: "asc" },
+          select: { tipo: true, arquivo: true, nomeOriginal: true },
+        },
+      },
+    });
+    if (!produto) return { ok: false, erro: "Produto de origem não encontrado." };
+
+    const temporarios = [];
+    let faltaram = 0;
+    for (const item of produto.arquivos) {
+      const nome = await copiarParaTemporario(lote, produto.sku, item.tipo, item.arquivo);
+      if (nome) temporarios.push({ tipo: item.tipo, nome, nomeOriginal: item.nomeOriginal ?? nome });
+      else faltaram++;
+    }
+    return { ok: true, temporarios, faltaram };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
+}
+
 export async function removerArquivoTemporario(lote, tipo, nome) {
   try {
     await apagarArquivoTemporario(lote, tipo, nome);
@@ -524,6 +558,22 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
   }
 
   const dados = resultado.data;
+
+  // O mesmo GTIN/EAN em dois produtos e recusado (pedido do dono em 09/10/2026, ao criar o "Clonar", que copia o
+  // EAN): o codigo de barras identifica UM produto, e a NF-e e os canais o leem como tal. Conferido aqui, e nao
+  // por indice unico no banco, porque ja havia EAN repetido gravado (5 grupos em 09/10/2026): esses produtos
+  // passam a pedir a correcao no proximo Salvar, e o resto do sistema continua lendo.
+  if (dados.ean) {
+    const outro = await prisma.produto.findFirst({
+      where: { ean: dados.ean, ...(id ? { NOT: { id } } : {}) },
+      select: { sku: true, tituloBase: true },
+    });
+    if (outro) {
+      // A mensagem vai tambem ao lado do Salvar: o campo pode estar numa aba que o dono nao esta vendo.
+      const erro = `Este GTIN/EAN já está no produto ${outro.sku} (${outro.tituloBase}).`;
+      return { ok: false, erro, erros: { ean: erro } };
+    }
+  }
 
   try {
     let fornecedoresPendentes = [];

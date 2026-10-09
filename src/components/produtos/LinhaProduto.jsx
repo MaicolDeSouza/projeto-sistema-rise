@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { EllipsisVertical, ImageOff } from "lucide-react";
+import { Copy, EllipsisVertical, ImageOff, Trash2 } from "lucide-react";
 
 import { CANAIS } from "@/lib/canais";
 import JanelaAnuncioML from "@/components/anuncios/ml/JanelaAnuncioML";
@@ -58,14 +58,13 @@ function Miniatura({ url, alt }) {
 
 export default function LinhaProduto({
   produto,
-  pendentes,
+  // Abre a confirmacao de exclusao deste produto (o popup mora na tabela).
+  aoExcluir,
   iconeML = { publicado: false, rascunho: false },
   // Cor e selo do icone do Bling, calculados no servidor (`page.jsx`: a assinatura usa node:crypto).
   iconeBling = ICONE_BLING_PADRAO,
   // Cor e selo do icone da Loja Integrada, tambem do servidor (`iconeLIDoProduto`).
   iconeLI = { cor: "cinza", divergente: false, conferido: false },
-  selecionado = false,
-  aoAlternarSelecao,
   // Busca ampla (09/10/2026): "achado na descrição" quando a palavra nao estava no nome nem no codigo.
   achado = null,
 }) {
@@ -85,20 +84,7 @@ export default function LinhaProduto({
   });
 
   return (
-    <tr
-      className={`group divide-x divide-borda hover:bg-fundo/60 ${
-        selecionado ? "bg-sky-50" : ""
-      }`}
-    >
-      <td className="px-3 py-2.5 text-center">
-        <input
-          type="checkbox"
-          checked={selecionado}
-          onChange={aoAlternarSelecao}
-          aria-label={`Selecionar ${produto.tituloBase}`}
-          className="align-middle"
-        />
-      </td>
+    <tr className="group divide-x divide-borda hover:bg-fundo/60">
       <td className="px-3 py-2.5">
         <Miniatura url={produto.imagemUrl} alt={produto.tituloBase} />
       </td>
@@ -233,63 +219,46 @@ export default function LinhaProduto({
         {/* O pop-up de diferencas virou a aba Divergencias do editor (07/10/2026): o icone abre o editor. */}
         {janelaLI && <JanelaAnuncioLI produtoId={produto.id} aoFechar={() => setJanelaLI(false)} />}
 
-        {pendentes.length > 0 && (
-          <>
-            <button
-              type="button"
-              onClick={() => setMenuAberto((aberto) => !aberto)}
-              aria-label="Ações do produto"
-              aria-expanded={menuAberto}
-              className="rounded p-1 text-suave hover:bg-fundo hover:text-texto"
-            >
-              <EllipsisVertical size={16} />
-            </button>
+        {/* Acoes do produto (pedido do dono em 09/10/2026): so Clonar e Excluir. Os "Cadastrar no
+            Bling/LI/ML/Shopee" desabilitados que moravam aqui sairam; cada canal tem o proprio icone. */}
+        <button
+          type="button"
+          onClick={() => setMenuAberto((aberto) => !aberto)}
+          aria-label="Ações do produto"
+          aria-expanded={menuAberto}
+          className="rounded p-1 text-suave hover:bg-fundo hover:text-texto"
+        >
+          <EllipsisVertical size={16} />
+        </button>
 
-            {menuAberto && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setMenuAberto(false)}
-                  aria-hidden="true"
-                />
-                <div className="absolute top-full right-3 z-20 mt-1 w-64 rounded-md border border-borda bg-superficie py-1 text-left shadow-lg">
-                  {pendentes.map((canal) => (
-                    <button
-                      key={canal.id}
-                      type="button"
-                      disabled
-                      title={
-                        canal.motivo ??
-                        "Disponível na próxima etapa, quando a publicação for ligada"
-                      }
-                      className="flex w-full cursor-not-allowed items-start gap-2 px-3 py-2 text-sm opacity-60"
-                    >
-                      <Image
-                        src={canal.logo}
-                        alt=""
-                        width={16}
-                        height={16}
-                        className="mt-0.5 shrink-0 rounded"
-                      />
-                      <span className="min-w-0">
-                        <span className="block">
-                          {canal.tentouEFalhou ? "Tentar de novo no" : "Cadastrar no"}{" "}
-                          {canal.nome}
-                        </span>
-                        {canal.motivo && (
-                          <span className="block text-[11px] text-suave">
-                            {canal.motivo}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  ))}
-                  <p className="mt-1 border-t border-borda px-3 pt-2 pb-1 text-[11px] text-suave">
-                    A publicação entra na próxima etapa.
-                  </p>
-                </div>
-              </>
-            )}
+        {menuAberto && (
+          <>
+            <div
+              className="fixed inset-0 z-10"
+              onClick={() => setMenuAberto(false)}
+              aria-hidden="true"
+            />
+            <div className="absolute top-full right-3 z-20 mt-1 w-44 rounded-md border border-borda bg-superficie py-1 text-left shadow-lg">
+              <Link
+                href={`/produtos/novo?clonar=${produto.id}`}
+                onClick={() => setMenuAberto(false)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-fundo"
+              >
+                <Copy size={15} className="shrink-0" />
+                Clonar
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuAberto(false);
+                  aoExcluir();
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+              >
+                <Trash2 size={15} className="shrink-0" />
+                Excluir
+              </button>
+            </div>
           </>
         )}
       </td>

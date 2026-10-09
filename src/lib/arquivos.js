@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { mkdir, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 
@@ -354,6 +354,28 @@ export async function salvarArquivoTemporario(lote, tipo, arquivo) {
   }
   await limparTemporariosAntigos();
   return validarEGravar(path.join(RAIZ_TEMPORARIA, lote), tipo, arquivo);
+}
+
+/**
+ * Copia um documento ou certificado de um produto que ja existe para o lote temporario (o "Clonar" da lista,
+ * pedido do dono em 09/10/2026). A copia ganha nome novo: o Salvar do clone MOVE o arquivo do lote para a pasta
+ * dele, e o original continua intacto. Arquivo que sumiu do disco devolve `null` (so nao entra).
+ */
+export async function copiarParaTemporario(lote, sku, tipo, nome) {
+  if (!loteValido(lote) || !TIPOS_TEMPORARIOS.includes(tipo)) return null;
+  const origem = caminhoDe(sku, tipo, nome);
+  if (!origem) return null;
+
+  const novo = `${randomUUID().replaceAll("-", "")}${path.extname(nome)}`;
+  const pasta = path.join(RAIZ_TEMPORARIA, lote, PASTAS[tipo]);
+  try {
+    await mkdir(pasta, { recursive: true });
+    await copyFile(origem, path.join(pasta, novo));
+  } catch (erro) {
+    if (erro.code === "ENOENT") return null;
+    throw erro;
+  }
+  return novo;
 }
 
 export async function apagarArquivoTemporario(lote, tipo, nome) {
