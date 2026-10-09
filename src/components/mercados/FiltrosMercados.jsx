@@ -118,9 +118,8 @@ export default function FiltrosMercados({ tipo = "", ordem = "", fonte = [], fon
         de filtros e empurraria a tabela para fora da tela. O tipo continua em
         marcador porque sao tres opcoes fixas que nunca crescem.
 
-        A lista vem dos produtos coletados, nao do cadastro de fontes: fonte
-        cadastrada e ainda nao varrida so ofereceria um filtro que devolve
-        lista vazia.
+        A lista vem do cadastro de fontes da aba, com 0 na fonte ainda sem
+        produto (pedido do dono em 09/10/2026).
       */}
       {fontes.length > 0 && (
         <>

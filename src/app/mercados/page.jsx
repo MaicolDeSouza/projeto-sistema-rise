@@ -81,10 +81,10 @@ export default async function MercadosPage({ searchParams }) {
   }
 
   /*
-    AS FONTES QUE O FILTRO OFERECE saem dos produtos coletados, nao do cadastro:
-    fonte cadastrada e ainda nao varrida ofereceria um filtro que devolve lista
-    vazia. Respeitam o filtro de tipo — com "Fornecedores" ligado, listar
-    concorrentes no seletor so daria escolha que se anula.
+    AS FONTES QUE O FILTRO OFERECE sao todas as cadastradas da aba, com 0 quando
+    ainda nao tem produto (pedido do dono em 09/10/2026). Respeitam o filtro de
+    tipo — com "Fornecedores" ligado, listar concorrentes no seletor so daria
+    escolha que se anula.
   */
   const fontes = resultado.contagemPorFonte;
   const nomesValidos = new Set(fontes.map((item) => item.nome));

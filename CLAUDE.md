@@ -450,6 +450,9 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   marcada quer dizer todas**, e "Todas" limpa a escolha em vez de marcar as sete — marcar
   todas prenderia o filtro ao conjunto de hoje, e a fonte cadastrada amanhã ficaria de fora
   sem ninguém perceber.
+- **O filtro lista TODAS as fontes cadastradas da aba**, com 0 na que ainda não tem produto (pedido do dono em
+  09/10/2026: a Oceantech, recém-cadastrada, sumia do seletor e parecia não existir). Até ali só entrava fonte com
+  produto gravado (`contagemPorFonte` em `listarProdutos`).
 - **`IN_STOCK` e `AVAILABLE` são o mesmo fato com dois nomes**: os leitores de arquivo
   gravam o primeiro, o raspador de site o segundo. A tela só conhecia `AVAILABLE`, e os
   **1.592 produtos em estoque da Fortek não mostravam linha nenhuma** — nem disponível, nem

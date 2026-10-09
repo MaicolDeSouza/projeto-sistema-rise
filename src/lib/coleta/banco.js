@@ -618,11 +618,11 @@ export async function listarProdutos({
   return {
     total,
     totalGeral: geral ? (geral[0]?.total ?? 0) : somar(null),
-    // So fonte COM produto aparece no filtro: fonte cadastrada e nunca varrida
-    // ofereceria uma escolha que devolve lista vazia.
-    contagemPorFonte: [...quantosPorFonte]
-      .map(([id, quantidade]) => ({ nome: porId.get(id)?.nome ?? "?", quantidade }))
-      .filter((item) => item.nome !== "?")
+    // TODA fonte cadastrada da aba aparece no filtro, com 0 quando ainda nao tem
+    // produto (pedido do dono em 09/10/2026: a Oceantech, recem-cadastrada, sumia
+    // da lista e parecia nao existir). Ate ali so entrava fonte com produto.
+    contagemPorFonte: doTipo
+      .map((fonte) => ({ nome: fonte.nome, quantidade: quantosPorFonte.get(fonte.id) ?? 0 }))
       .sort((a, b) => a.nome.localeCompare(b.nome)),
     linhas: linhas.map((linha) => ({
       id: linha.id,
