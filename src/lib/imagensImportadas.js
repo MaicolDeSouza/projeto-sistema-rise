@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { MAXIMO_IMAGENS, caminhoDe, salvarArquivo, urlDe } from "@/lib/arquivos";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { obter, USER_AGENT } from "@/lib/coleta/http";
-import { enderecoPublico, lookupPublico, validarFotoPublica } from "@/lib/redePublica";
+import { PORTAS_DE_FOTO, enderecoPublico, lookupPublico, validarFotoPublica } from "@/lib/redePublica";
 
 /**
  * Imagens que vem de fora do formulario: do Bling, de outro produto da Rise ou
@@ -44,9 +44,9 @@ export async function bytesDe(fonte) {
   if (!/^https?:\/\//i.test(fonte.endereco)) throw new Error("endereço não é http nem https");
 
   // O endereco vem de texto de site de concorrente (`ProdutoColetado.imagens`/`miniatura`): so rede publica, com
-  // o IP conferido na propria conexao e em cada salto de redirecionamento (ver `redePublica.js`). Foto aceita porta
-  // propria (loja que serve em :8080); documento nao.
-  const resposta = await obter(enderecoPublico(fonte.endereco, { permitirPorta: true }), {
+  // o IP conferido na propria conexao e em cada salto de redirecionamento (ver `redePublica.js`). Foto aceita as
+  // portas de PORTAS_DE_FOTO (loja que serve em :8080); documento nao aceita nenhuma.
+  const resposta = await obter(enderecoPublico(fonte.endereco, { portas: PORTAS_DE_FOTO }), {
     lookup: lookupPublico,
     validar: validarFotoPublica,
     sinal: AbortSignal.timeout(TIMEOUT_MS),

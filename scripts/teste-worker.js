@@ -20,6 +20,9 @@ import "dotenv/config";
 
 // Antes de importar buscar.js: o teto de tempo e lido na carga do modulo.
 process.env.COLETA_TIMEOUT_MS = "1500";
+// A coleta so busca na rede PUBLICA (ver `obter` em coleta/http.js), e a loja falsa deste teste mora em 127.0.0.1.
+// O processo filho do worker herda esta variavel.
+process.env.COLETA_PERMITIR_REDE_LOCAL = "1";
 
 const { register } = await import("node:module");
 const { pathToFileURL } = await import("node:url");

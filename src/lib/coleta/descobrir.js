@@ -93,8 +93,21 @@ export function pareceListagem(url) {
   return /\/(produtos|categorias?|category|categories|departamentos?|colecao|colecoes|marcas?|brands?)(\/|$)/i.test(caminho);
 }
 
+/**
+ * O endereco e da MESMA origem (esquema, host e porta) que `origem` (um `URL.origin`)? Com `startsWith`, a origem
+ * `https://loja.com.br` aceitava `https://loja.com.br.atacante.com:3000/x`: um link no HTML de uma loja levava o
+ * worker a visitar um host de terceiro, ou um nome que resolve para a rede interna. Compara a origem de verdade.
+ */
+export function mesmaOrigem(url, origem) {
+  try {
+    return new URL(url).origin === origem;
+  } catch {
+    return false;
+  }
+}
+
 function ehSeguivel(url, origem, prefixo) {
-  if (!url.startsWith(origem)) return false;
+  if (!mesmaOrigem(url, origem)) return false;
   if (parametroRuim(url)) return false;
   if (IGNORAR.some((padrao) => padrao.test(url))) return false;
   if (prefixo && !url.includes(prefixo)) return false;
@@ -118,7 +131,7 @@ function linksDe(html, urlBase, origem, prefixo) {
 
     // O prefixo restringe o que COLETAMOS, mas nao o que navegamos: a vitrine
     // que lista os produtos da secao costuma estar fora dela.
-    if (texto.startsWith(origem) && !parametroRuim(texto) && !IGNORAR.some((p) => p.test(texto))) {
+    if (mesmaOrigem(texto, origem) && !parametroRuim(texto) && !IGNORAR.some((p) => p.test(texto))) {
       achados.add(texto);
     }
   }

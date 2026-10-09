@@ -2,6 +2,8 @@ import http from "node:http";
 import https from "node:https";
 import zlib from "node:zlib";
 
+import { lookupPublico, validarFotoPublica } from "../redePublica.js";
+
 /**
  * Cliente HTTP da coleta, sobre `node:http`/`node:https` — e NAO sobre `fetch`.
  *
@@ -27,8 +29,19 @@ import zlib from "node:zlib";
 
 /// Conexoes reaproveitadas por dominio, como o fetch fazia. Sem isto cada pagina
 /// abriria um TLS novo — lento para nos e caro para a loja.
-const agenteHttp = new http.Agent({ keepAlive: true, maxSockets: 4 });
-const agenteHttps = new https.Agent({ keepAlive: true, maxSockets: 4 });
+///
+/// Um par de agentes por `lookup`: o `lookup` e do AGENTE (`lookupPublico` confere o IP quando a conexao e criada,
+/// e o socket reaproveitado depois ja foi conferido), entao o filtro de rede publica nao custa o reaproveitamento.
+const agentesPorLookup = new Map();
+function agenteDe(protocolo, lookup) {
+  let par = agentesPorLookup.get(lookup);
+  if (!par) {
+    const opcoes = { keepAlive: true, maxSockets: 4, ...(lookup ? { lookup } : {}) };
+    par = { http: new http.Agent(opcoes), https: new https.Agent(opcoes) };
+    agentesPorLookup.set(lookup, par);
+  }
+  return protocolo === "https:" ? par.https : par.http;
+}
 
 const MAXIMO_REDIRECIONAMENTOS = 5;
 
@@ -67,10 +80,7 @@ function pedir(url, { cabecalhos, sinal, metodo = "GET", corpo = null, lookup = 
         ...(corpo === null ? {} : { "Content-Length": Buffer.byteLength(corpo) }),
         ...cabecalhos,
       },
-      // Com `lookup` proprio (rede publica, ver `redePublica.js`) o pedido NAO usa o pool: o pool reaproveita um
-      // socket aberto antes, por outro caminho, e a conferencia do IP so vale na conexao nova.
-      agent: lookup ? false : url.protocol === "https:" ? agenteHttps : agenteHttp,
-      ...(lookup ? { lookup } : {}),
+      agent: agenteDe(url.protocol, lookup),
     });
 
     const abortar = () => pedido.destroy(sinal.reason ?? new Error("Cancelado"));
@@ -170,11 +180,17 @@ function cabecalhosDe(resposta) {
  * @param {"GET"|"POST"|"HEAD"} [opcoes.metodo] so o primeiro pedido leva o metodo; os saltos seguintes sao GET.
  *   Para HEAD sem baixar nada, use `seguir: false`.
  * @param {string} [opcoes.corpo] corpo do POST, ja codificado
- * @param {Function} [opcoes.lookup] `lookup` de DNS do http.request (ver `lookupPublico` em redePublica.js): vale
- *   em TODOS os saltos, e o pedido deixa de usar o pool de conexoes
+ * @param {Function} [opcoes.lookup] `lookup` de DNS do agente (ver `lookupPublico` em redePublica.js): vale em
+ *   TODOS os saltos. Sem ele, o padrao e o `lookupPublico` (ver abaixo).
  * @param {(url: URL) => void} [opcoes.validar] chamado com a URL de CADA pedido, o primeiro e os saltos de
  *   redirecionamento, ANTES de ele sair; lanca para recusar. IP escrito na URL nao passa pelo `lookup`, e so isto
- *   o barra num redirecionamento.
+ *   o barra num redirecionamento. Sem ele, o padrao e `validarFotoPublica`.
+ *
+ * REDE PUBLICA POR PADRAO. O endereco que a coleta busca vem de texto de terceiro (link da pagina, <loc> de sitemap,
+ * `Sitemap:` do robots.txt, `Location` de redirecionamento), e na VPS o servidor alcanca `app`, `auth` e `db` pela
+ * rede do Docker: sem filtro, uma loja mal-intencionada faria o worker dar GET neles. A unica excecao e o TESTE, que
+ * varre uma loja falsa em 127.0.0.1: `COLETA_PERMITIR_REDE_LOCAL=1` (lida a cada chamada) desliga o filtro PADRAO,
+ * nunca o que um chamador pediu explicitamente.
  * @param {boolean} [opcoes.seguir] false devolve o 30x como veio, com
  *   `localizacao`. Login precisa: o cookie de sessao chega NA resposta do POST,
  *   e so quem guarda cookies sabe manda-lo no pedido seguinte.
@@ -192,10 +208,14 @@ export async function obter(
     metodo = "GET",
     corpo = null,
     seguir = true,
-    lookup = null,
-    validar = null,
+    lookup: lookupPedido = null,
+    validar: validarPedido = null,
   } = {},
 ) {
+  const filtrar = process.env.COLETA_PERMITIR_REDE_LOCAL !== "1";
+  const lookup = lookupPedido ?? (filtrar ? lookupPublico : null);
+  const validar = validarPedido ?? (filtrar ? validarFotoPublica : null);
+
   let url = new URL(endereco);
   const hostOriginal = url.hostname;
 

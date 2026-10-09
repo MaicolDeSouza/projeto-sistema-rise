@@ -1594,6 +1594,24 @@ console.log("\n— Descricao: 3 opcoes para cada um dos 2 primeiros paragrafos �
   conferir("duas opcoes que o corte igualou viram uma", cortadas[0], [`${frase("a")}${frase("b")}`.trim(), "Curta."]);
 }
 
+console.log("\n— Navegacao: so a MESMA origem (e nao o que comeca igual) —");
+{
+  const { mesmaOrigem } = await import("../src/lib/coleta/descobrir.js");
+  const origem = "https://loja.com.br";
+  conferir("mesma origem: pagina da loja", mesmaOrigem("https://loja.com.br/produto/1", origem), true);
+  conferir("mesma origem: a raiz", mesmaOrigem("https://loja.com.br", origem), true);
+  conferir("mesma origem: porta padrao escrita", mesmaOrigem("https://loja.com.br:443/x", origem), true);
+  // O defeito: `startsWith` deixava passar um host que so COMECA igual. Um link no HTML de uma loja levava o worker
+  // a um host de terceiro (ou a um nome que resolve para a rede interna).
+  conferir("host que so comeca igual (loja.com.br.atacante.com) NAO e da origem", mesmaOrigem("https://loja.com.br.atacante.com/x", origem), false);
+  conferir("o mesmo, com porta", mesmaOrigem("https://loja.com.br.atacante.com:3000/x", origem), false);
+  conferir("host com usuario (loja.com.br@atacante.com) NAO e da origem", mesmaOrigem("https://loja.com.br@atacante.com/x", origem), false);
+  conferir("outro esquema NAO e da origem", mesmaOrigem("http://loja.com.br/x", origem), false);
+  conferir("outra porta NAO e da origem", mesmaOrigem("https://loja.com.br:8443/x", origem), false);
+  conferir("subdominio NAO e da origem", mesmaOrigem("https://www.loja.com.br/x", origem), false);
+  conferir("texto que nao e endereco NAO e da origem", mesmaOrigem("nao e url", origem), false);
+}
+
 console.log("\n— Navegacao: segue a paginacao das categorias, e nao ordenacao nem filtro —");
 {
   const { parametroRuim } = await import("../src/lib/coleta/descobrir.js");

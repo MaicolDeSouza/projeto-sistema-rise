@@ -22,11 +22,14 @@ export class ErroDeRecusa extends Error {
   }
 }
 
-/// Endereco http(s) que vale buscar: sem usuario, sem IP escrito e sem nome interno, e SEM porta, salvo com
-/// `permitirPorta` (foto de loja em porta propria: o filtro de IP da conexao ja barra a rede interna, e a regra da
-/// porta existe para o documento). IP escrito nao passa por `lookup` (o Node o usa direto), entao so a recusa aqui
-/// o barra.
-export function enderecoPublico(valor, { permitirPorta = false } = {}) {
+/// Portas que uma FOTO (e a coleta) pode ter alem da padrao: o filtro de IP da conexao ja barra a rede interna, mas
+/// uma porta qualquer num IP publico, o da propria VPS inclusive (sshd na 22), serviria de sonda cega.
+export const PORTAS_DE_FOTO = [80, 443, 8080, 8443];
+
+/// Endereco http(s) que vale buscar: sem usuario, sem IP escrito e sem nome interno, e SEM porta, salvo as de
+/// `portas` (o documento nao aceita nenhuma; a foto, as de PORTAS_DE_FOTO). IP escrito nao passa por `lookup` (o
+/// Node o usa direto), entao so a recusa aqui o barra.
+export function enderecoPublico(valor, { portas = [] } = {}) {
   let url;
   try {
     url = new URL(valor);
@@ -45,7 +48,7 @@ export function enderecoPublico(valor, { permitirPorta = false } = {}) {
     host === "localhost" ||
     /\.(local|localhost|internal|test)$/.test(host) ||
     isIP(host) ||
-    (url.port && !permitirPorta)
+    (url.port && !portas.includes(Number(url.port)))
   ) {
     throw new ErroDeRecusa("O endereço precisa ser público.");
   }
@@ -97,7 +100,7 @@ export function validarEnderecoPublico(url) {
   enderecoPublico(url.href);
 }
 
-/// A mesma conferencia para FOTO: aceita a porta, porque so o IP da conexao importa para nao chegar a rede interna.
+/// A mesma conferencia para FOTO e para a COLETA: aceita as portas de PORTAS_DE_FOTO.
 export function validarFotoPublica(url) {
-  enderecoPublico(url.href, { permitirPorta: true });
+  enderecoPublico(url.href, { portas: PORTAS_DE_FOTO });
 }

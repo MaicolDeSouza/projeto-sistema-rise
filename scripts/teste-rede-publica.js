@@ -9,13 +9,19 @@
  */
 
 import "dotenv/config";
+import dns from "node:dns/promises";
 import http from "node:http";
+import os from "node:os";
+
+// Os "sites" deste teste sao servidores em 127.0.0.1. O `obter` filtra a rede publica por padrao (a coleta busca
+// endereco de terceiro), e esta chave desliga SO o filtro padrao; o que o teste pede explicitamente continua valendo.
+process.env.COLETA_PERMITIR_REDE_LOCAL = "1";
 
 const { register } = await import("node:module");
 const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
-const { ErroDeRecusa, enderecoPublico, ipPublico, lookupPublico, validarEnderecoPublico } = await import("../src/lib/redePublica.js");
+const { PORTAS_DE_FOTO, ErroDeRecusa, enderecoPublico, ipPublico, lookupPublico, validarEnderecoPublico } = await import("../src/lib/redePublica.js");
 const { obter } = await import("../src/lib/coleta/http.js");
 // As duas libs que usam o filtro (importam o cliente do banco, mas nenhuma consulta e feita aqui).
 const { bytesDe } = await import("../src/lib/imagensImportadas.js");
@@ -66,12 +72,17 @@ const recusados = [
 ];
 conferir("enderecoPublico: so http(s) sem usuario, sem porta, sem IP escrito e sem nome interno", await Promise.all(recusados.map((e) => recusa(() => enderecoPublico(e)))), recusados.map(() => "ErroDeRecusa"));
 
-// A foto aceita porta propria; o resto da regra (nome interno, IP escrito) vale igual.
-conferir("enderecoPublico com permitirPorta: foto de loja em porta propria passa", enderecoPublico("http://loja.com.br:8080/a.jpg", { permitirPorta: true }).port, "8080");
-const recusadosComPorta = ["http://localhost:3000/x", "http://127.0.0.1:3000/x", "http://[::1]:3000/x", "http://localhost.:80/x", "http://10.0.0.1:8080/x"];
+// A foto (e a coleta) aceita as portas de PORTAS_DE_FOTO; outra porta, ainda que num IP publico, serviria de sonda
+// cega (o IP publico da propria VPS tem sshd na 22). O resto da regra (nome interno, IP escrito) vale igual.
+conferir("PORTAS_DE_FOTO", PORTAS_DE_FOTO, [80, 443, 8080, 8443]);
+conferir("enderecoPublico com portas: foto de loja em :8080 e :8443 passa", ["8080", "8443"].map((p) => enderecoPublico(`http://loja.com.br:${p}/a.jpg`, { portas: PORTAS_DE_FOTO }).port), ["8080", "8443"]);
+const recusadosComPorta = [
+  "http://localhost:3000/x", "http://127.0.0.1:3000/x", "http://[::1]:3000/x", "http://localhost.:80/x", "http://10.0.0.1:8080/x",
+  "http://loja.com.br:22/x", "http://loja.com.br:3000/x", "https://loja.com.br:5432/x", "http://loja.com.br:8081/x",
+];
 conferir(
-  "enderecoPublico com permitirPorta: nome interno e IP escrito continuam recusados",
-  await Promise.all(recusadosComPorta.map((e) => recusa(() => enderecoPublico(e, { permitirPorta: true })))),
+  "enderecoPublico com portas: nome interno, IP escrito e porta fora da lista continuam recusados",
+  await Promise.all(recusadosComPorta.map((e) => recusa(() => enderecoPublico(e, { portas: PORTAS_DE_FOTO })))),
   recusadosComPorta.map(() => "ErroDeRecusa"),
 );
 
@@ -104,6 +115,13 @@ const alvo = await servidor((_req, res) => {
 const porNome = await recusa(() => obter(`http://localhost:${alvo.porta}/`, { lookup: lookupPublico }));
 conferir("obter + lookupPublico: nome que resolve para IP interno e recusado", porNome, "ErroDeRecusa");
 conferir("obter + lookupPublico: o servidor interno nao recebeu conexao", alvo.acessos, 0);
+
+// 1b. SEM nenhuma opcao o `obter` ja filtra: a coleta busca endereco de terceiro (link, sitemap, redirecionamento).
+// Tira a chave do teste so neste pedido; o servidor local nao pode receber acesso.
+delete process.env.COLETA_PERMITIR_REDE_LOCAL;
+const porPadrao = await recusa(() => obter(`http://localhost:${alvo.porta}/`));
+process.env.COLETA_PERMITIR_REDE_LOCAL = "1";
+conferir("obter sem opcoes: o padrao ja e a rede publica (localhost recusado, servidor local sem acesso)", [porPadrao, alvo.acessos], ["ErroDeRecusa", 0]);
 
 // 2. Sem o lookup, o mesmo pedido vai (prova que o teste anterior mede o lookup, e nao outra coisa).
 const semFiltro = await obter(`http://localhost:${alvo.porta}/`, { tetoDoCorpo: () => 1000 });
@@ -149,16 +167,38 @@ const grande = await servidor((_req, res) => {
 const lido = await obter(`http://127.0.0.1:${grande.porta}/`, { tetoDoCorpo: () => 1001 });
 conferir("obter: corpo acima do teto vem truncado em teto bytes", [lido.bytes?.length, lido.truncado], [1001, true]);
 
-// 8. A LIGACAO do filtro nas libs que buscam endereco de terceiro (a prova de que ele esta ligado, e nao so de que
-// as pecas funcionam). "localhost." passa pela primeira camada (nome comum) e so o lookup da conexao o barra; o
-// servidor local `alvo` nao pode receber nenhum acesso.
+// 8. A LIGACAO do filtro nas libs e no `obter` (a prova de que ele esta ligado, e nao so de que as pecas funcionam).
+// Precisa de um nome que PASSE pela primeira camada (um rotulo so, sem as palavras de nome interno) e so o `lookup`
+// da conexao barre: o nome da propria maquina, que resolve para um IP da rede local. Se ele nao resolver aqui (ou
+// resolver para IP publico), o bloco e pulado em vez de dar falso resultado.
+const nomeDaMaquina = os.hostname();
+const resolucao = /^[a-z0-9_-]+$/i.test(nomeDaMaquina) ? await dns.lookup(nomeDaMaquina, { all: true }).catch(() => null) : null;
+if (resolucao?.length && resolucao.every(({ address }) => !ipPublico(address))) {
+  const MENSAGEM_DO_LOOKUP = "O servidor desse endereço não é público.";
+  const mensagem = async (fazer) => {
+    try {
+      await fazer();
+      return "aceitou";
+    } catch (erro) {
+      return erro instanceof ErroDeRecusa ? erro.message : `outro erro: ${erro.message}`;
+    }
+  };
+  conferir("ligacao: bytesDe recusa nome que resolve para IP interno pela CONEXAO", await mensagem(() => bytesDe({ tipo: "endereco", endereco: `http://${nomeDaMaquina}/foto.jpg` })), MENSAGEM_DO_LOOKUP);
+  conferir("ligacao: baixarDocumento recusa nome que resolve para IP interno pela CONEXAO", await mensagem(() => baixarDocumento({ url: `http://${nomeDaMaquina}/a.pdf`, titulo: "Datasheet" })), MENSAGEM_DO_LOOKUP);
+  delete process.env.COLETA_PERMITIR_REDE_LOCAL;
+  conferir("ligacao: obter sem opcoes (a coleta) recusa nome que resolve para IP interno pela CONEXAO", await mensagem(() => obter(`http://${nomeDaMaquina}/`)), MENSAGEM_DO_LOOKUP);
+  process.env.COLETA_PERMITIR_REDE_LOCAL = "1";
+} else {
+  console.log(`pulado  ligacao do filtro: o nome da maquina (${nomeDaMaquina}) nao resolve para IP interno aqui`);
+}
+
+// A primeira camada das libs: IP escrito e porta fora da lista (documento: qualquer porta) recusados antes de sair,
+// e o servidor local nao recebe acesso.
 const acessosDoAlvo = alvo.acessos;
-const foto = await recusa(() => bytesDe({ tipo: "endereco", endereco: `http://localhost.:${alvo.porta}/foto.jpg` }));
-conferir("bytesDe: foto em nome que resolve para IP interno (com porta) e recusada pela conexao", [foto, alvo.acessos - acessosDoAlvo], ["ErroDeRecusa", 0]);
 const fotoIp = await recusa(() => bytesDe({ tipo: "endereco", endereco: `http://127.0.0.1:${alvo.porta}/foto.jpg` }));
 conferir("bytesDe: foto em IP escrito e recusada antes de sair", [fotoIp, alvo.acessos - acessosDoAlvo], ["ErroDeRecusa", 0]);
-const documento = await recusa(() => baixarDocumento({ url: "http://localhost./arquivo.pdf", titulo: "Datasheet" }));
-conferir("baixarDocumento: nome que resolve para IP interno e recusado pela conexao", documento, "ErroDeRecusa");
+const fotoPorta = await recusa(() => bytesDe({ tipo: "endereco", endereco: `http://loja-que-nao-existe.example:3000/foto.jpg` }));
+conferir("bytesDe: foto em porta fora da lista e recusada antes de sair", fotoPorta, "ErroDeRecusa");
 const documentoComPorta = await recusa(() => baixarDocumento({ url: `http://localhost.:${alvo.porta}/arquivo.pdf`, titulo: "Datasheet" }));
 conferir("baixarDocumento: documento com porta e recusado, e o servidor local nao recebe acesso", [documentoComPorta, alvo.acessos - acessosDoAlvo], ["ErroDeRecusa", 0]);
 
