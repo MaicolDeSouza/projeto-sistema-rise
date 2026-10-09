@@ -3,8 +3,8 @@
 # Sistema Rise
 
 Painel de controle das operações de uma loja de eletrônicos (4hobby) que vende no
-**Mercado Livre** e na **Loja Integrada**, com o **Bling** como ERP. Roda na máquina do
-dono; a migração para VPS está prevista.
+**Mercado Livre** e na **Loja Integrada**, com o **Bling** como ERP. **Roda numa VPS da Hostinger desde 09/10/2026**
+(https://rise.4hobby.com.br); a máquina do dono é o ambiente de desenvolvimento.
 
 Organizado em **blocos** no menu lateral, cada um desenvolvido de forma independente.
 
@@ -3436,9 +3436,25 @@ uma tela que a use.
 
 O Rise de produção roda numa VPS da Hostinger (KVM 2, Ubuntu 26.04), em **https://rise.4hobby.com.br**, com login na
 frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-design.md`; plano:
-`docs/superpowers/plans/2026-10-07-migracao-vps-hostinger.md`. **Enquanto a virada (Task 12) não acontece, o banco de
-verdade ainda é o do PC** e o da VPS é uma cópia de ensaio.
+`docs/superpowers/plans/2026-10-07-migracao-vps-hostinger.md`. **A virada aconteceu em 09/10/2026 (06:25 a 07:25): o banco de verdade é o da VPS.** O PC recebeu o dump final, e hoje o
+  banco e `dados/` do PC são uma CÓPIA para desenvolver: o que se muda lá se perde na próxima `copia:atualizar`. **Nunca
+  ligue o worker no PC** (coletar nos dois lados duplicaria a varredura; quem coleta é o worker da VPS). Janela de volta
+  atrás até 11/10/2026: na VPS ficam `dados/produtos.antes` e `dados/coleta.antes` (as pastas do ensaio) e os dumps
+  `ensaio-antes-da-virada.dump` e `pc-final-da-virada.dump` em `dados/backup/`; **apagar tudo isso depois da janela**. O
+  snapshot da Hostinger de 09/10 06:25 expira em 10/10.
 
+- **O que a virada ensinou** (09/10/2026): (1) o Git Bash do PC **não tem `rsync`**: arquivos vão por `tar` dentro do
+  `ssh` para pastas `.novo`, conferidas por contagem e bytes e trocadas com a VPS parada; (2) `pg_dump`/`pg_restore` recusam o
+  `?schema=public` do `DATABASE_URL` do Prisma: dentro do contêiner use `"${DATABASE_URL%%\?*}"`; (3) `docker compose
+  run/exec` sem `-T` ou sem `< /dev/null` engole o resto de um script passado ao `ssh bash -s`; (4) o dump do PC traz os
+  tokens dos apps do PC: depois do restore, apagar as `Conexao` do ML e do Bling e **conectar de novo pela tela**
+  (a Loja Integrada, de token fixo, fica); (5) **o Banco Central (Olinda) responde 403 a qualquer pedido com `$select` a
+  partir da VPS** (IP de datacenter; um campo só e a vírgula codificada também), e 200 ao mesmo pedido sem ele, por isso a
+  cotação do dólar não usa `$select`; (6) para rodar um script do projeto dentro do contêiner, registrar o resolvedor
+  (`register(new URL("file:///app/scripts/resolver-alias.js"), pathToFileURL("/app/"))`) antes de importar `@/lib/...`.
+  A primeira varredura na VPS (Easytronics, 356 produtos) levou 13 min sem bloqueio, e nenhuma das 23 fontes bloqueou o IP.
+- **Outra sessão do Claude pode religar o PC.** Em 09/10/2026 a sessão `Rise_Manager` subiu servidor e worker no PC no meio
+  da virada (06:47 e 06:48) e o `copia:atualizar` recusou, corretamente. Quem religar o PC: servidor sim, **worker nunca**.
 - **Acesso:** `ssh -i ~/.ssh/rise_vps rise@179.199.150.221` (só chave; root e senha desligados; firewall 22/80/443). O
   projeto fica em `/srv/rise/app` (clone deste repositório), com o `docker-compose.yml`: `db` (Postgres 17, porta só em
   127.0.0.1), `app`, `worker` (mesma imagem), `auth` (Tinyauth, o login) e `caddy` (HTTPS e roteamento). O `.env` da VPS
