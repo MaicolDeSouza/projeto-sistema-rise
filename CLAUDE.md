@@ -1281,6 +1281,13 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
     `mitiendanube.com`, fica com a maior e passa `http://` para `https://` (a tela em https bloqueia a foto em http).
     (3) **Categoria:** o dataLayer só tem o primeiro nível ("ELETRÔNICA"); `categoriaDaNuvemshop` lê o último degrau do
     breadcrumb do JSON-LD ("FONTES DE ENERGIA", "FUSOS DE ESFERA").
+  - **A home virava produto (mesmo dia).** A home e as categorias da Nuvemshop trazem um Product no JSON-LD por card da
+    vitrine (26 na home da Oceantech), e o primeiro virava produto com o link da home, o resumo cortado do card, o logo
+    da loja como foto e o "Catálogo de produtos" do menu como documento. Era isso que a prévia do "Buscar dados" mostrava.
+    `ehListagemDaNuvemshop`: página do CDN `mitiendanube.com` cuja classe do `<body>` não é `template-product` não rende produto.
+  - **Ficha sem título com item solto** (`fichaSemTitulo`, vale para toda loja): numa lista MARCADA ("- "), item sem
+    dois-pontos ("- Rosca Direita") entra sem nome e não quebra mais a sequência, e o nome pode ter até 5 palavras
+    ("Máxima Folga Fuso Axial"). Continua exigindo 3 pares "Nome: valor" (lista de propaganda com um par não vira ficha).
   - **Efeito:** a Oceantech sai com mais produtos que páginas (24 de uma página). A varredura continua tratando a página uma vez.
     Os produtos já gravados dela só se corrigem na próxima varredura, e o worker do PC (`worker:pc`) precisa ser reiniciado
     para carregar o código novo.

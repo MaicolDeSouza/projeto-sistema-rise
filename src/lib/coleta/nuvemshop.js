@@ -65,6 +65,23 @@ function nomesDasOpcoes(html) {
 }
 
 /**
+ * A pagina e da Nuvemshop mas NAO e pagina de produto (home, categoria, busca)?
+ *
+ * A home da Oceantech publica 26 itens Product no JSON-LD, um por card da
+ * vitrine (09/10/2026). Lida como produto, ela virava a "Fonte Chaveada 36V" com
+ * o link da home, a descricao cortada do card, o logo da loja como foto e o link
+ * "Catalogo de produtos" do menu como documento. A Nuvemshop diz o tipo da
+ * pagina na classe do <body>: so "template-product" e pagina de produto.
+ */
+export function ehListagemDaNuvemshop(html) {
+  if (typeof html !== "string" || !/mitiendanube\.com/i.test(html)) return false;
+  const corpo = /<body\b[^>]*\bclass\s*=\s*["']([^"']*)["']/i.exec(html);
+  if (!corpo) return false;
+  const modelo = /\btemplate-([\w-]+)/.exec(corpo[1]);
+  return Boolean(modelo) && modelo[1] !== "product";
+}
+
+/**
  * Categoria do produto: o ULTIMO degrau do breadcrumb do JSON-LD antes do
  * proprio produto ("Inicio > ELETRONICA > FONTES DE ENERGIA > Fonte..." da
  * "FONTES DE ENERGIA"). O dataLayer da pagina so traz o primeiro nivel

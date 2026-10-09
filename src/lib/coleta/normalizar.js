@@ -1,6 +1,6 @@
 import { extrairProduto } from "./extrair";
 import { precosDaForseti } from "./forseti";
-import { categoriaDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
+import { categoriaDaNuvemshop, ehListagemDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
@@ -443,34 +443,62 @@ function limparDescricao(texto) {
  * paragrafo entre <p> —, mas qualquer linha que nao seja par quebra.
  */
 function fichaSemTitulo(linhas) {
-  const par = (linha) => {
+  const MARCADOR = /^[-•*]\s*/;
+
+  // Numa lista MARCADA o site ja disse "isto e item": o nome pode ser mais
+  // longo ("Maxima Folga Fuso Axial", 4 palavras) e o valor tambem.
+  const par = (linha, marcada) => {
     const limpa = linha.replace(/^[\s\-•*]+/, "").replace(/[;.]\s*$/, "").trim();
     const separador = limpa.indexOf(":");
-    if (separador < 2 || separador > 30) return null;
+    if (separador < 2 || separador > (marcada ? 45 : 30)) return null;
 
     const nome = limpa.slice(0, separador).trim();
     const valor = limpa.slice(separador + 1).trim();
-    if (!valor || valor.length > 40 || nome.split(/\s+/).length > 3) return null;
+    if (!valor || valor.length > (marcada ? 60 : 40)) return null;
+    if (nome.split(/\s+/).length > (marcada ? 5 : 3)) return null;
     if (!/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(nome)) return null;
     return { nome, valor };
   };
 
+  // Corrida = itens seguidos. So os PARES contam para aceitar a ficha (3 ou
+  // mais); item marcado sem dois-pontos ("- Rosca Direita", no fuso da
+  // Oceantech, 09/10/2026) entra sem nome e nao quebra a corrida. Antes ele
+  // quebrava, e a ficha de 6 itens sumia inteira por causa de uma linha.
   let corrida = [];
+  let pares = 0;
   let melhor = [];
+  let melhorPares = 0;
+  const fechar = () => {
+    if (pares > melhorPares) {
+      melhor = corrida;
+      melhorPares = pares;
+    }
+    corrida = [];
+    pares = 0;
+  };
+
   for (const linha of linhas) {
     if (!linha) continue;
 
-    const item = par(linha);
+    const marcada = MARCADOR.test(linha);
+    const item = par(linha, marcada);
     if (item) {
       corrida.push(item);
-    } else {
-      if (corrida.length > melhor.length) melhor = corrida;
-      corrida = [];
+      pares++;
+      continue;
     }
-  }
-  if (corrida.length > melhor.length) melhor = corrida;
 
-  return melhor.length >= 3 ? melhor : [];
+    const solto = linha.replace(MARCADOR, "").replace(/[;.]\s*$/, "").trim();
+    if (marcada && corrida.length && solto && solto.length <= 80) {
+      corrida.push({ nome: null, valor: solto });
+      continue;
+    }
+
+    fechar();
+  }
+  fechar();
+
+  return melhorPares >= 3 ? melhor : [];
 }
 
 /**
@@ -1792,6 +1820,11 @@ export function normalizarPagina({
   // primeiro card da vitrine, sem codigo e com a URL da home.
   if (ehListagemAspNet(html)) {
     return { produtos: [], motivo: "listagem de produtos, nao pagina de produto", formatos: [] };
+  }
+  // A home e as categorias da Nuvemshop trazem um Product no JSON-LD por card da
+  // vitrine: o primeiro virava "produto" com o endereco da home. Ver nuvemshop.js.
+  if (ehListagemDaNuvemshop(html)) {
+    return { produtos: [], motivo: "listagem da Nuvemshop, nao pagina de produto", formatos: [] };
   }
   const aspnet = daVitrineAspNet(html, url);
 

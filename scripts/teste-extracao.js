@@ -1922,5 +1922,31 @@ console.log("\n— Nuvemshop: acento, foto repetida em tamanhos e categoria (fon
   conferir("Nuvemshop: sem breadcrumb no JSON-LD a categoria nao e inventada", normalizarPagina({ html: html.replace(/"breadcrumb":\{[\s\S]*?\]\},/, ""), url: "https://loja.exemplo.com/produtos/fonte-chaveada/", fonte: { tipo: "CONCORRENTE" } }).produtos[0].category, null);
 }
 
+console.log("\n— Nuvemshop: home nao e produto; ficha marcada sem titulo —");
+{
+  const ld = (nome, sku) => `<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"${nome}","sku":"${sku}","offers":{"@type":"Offer","price":"229","availability":"https://schema.org/InStock"}}</script>`;
+  const home = `<html><head>${ld("Fonte Chaveada 36V", "9287")}${ld("Fonte Chaveada 48V", "9288")}</head><body class=" template-home"><img src="https://acdn-us.mitiendanube.com/x.png"></body></html>`;
+  const daHome = normalizarPagina({ html: home, url: "https://loja.exemplo.com/", fonte: { tipo: "CONCORRENTE" } });
+  conferir("Nuvemshop: a home (template-home) nao vira produto", [daHome.produtos.length, daHome.motivo], [0, "listagem da Nuvemshop, nao pagina de produto"]);
+  const pagina = home.replace("template-home", "template-product");
+  conferir("Nuvemshop: a pagina de produto (template-product) continua lida", normalizarPagina({ html: pagina, url: "https://loja.exemplo.com/produtos/fonte/", fonte: { tipo: "CONCORRENTE" } }).produtos.length > 0, true);
+  conferir("loja que nao e Nuvemshop nao e afetada pela classe do body", normalizarPagina({ html: home.replace("mitiendanube", "outrocdn"), url: "https://loja.exemplo.com/", fonte: { tipo: "CONCORRENTE" } }).produtos.length > 0, true);
+
+  const descricao = "Fuso de Esfera Laminado C7 com castanha 20mm passo 05:\n- Tamanho máximo: 2200mm\n- Dureza Superficial: 58 a 62 HRc\n- Rosca Direita\n- Máxima Folga Fuso Axial: 0,05mm\n- Máxima Folga Axial Castanha: 0,025mm\n- Baixo Ruído, Alta Precisão e Rigidez\n\nNão acompanha graxeira de lubrificação!";
+  const comFicha = `<html><head><script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "Product", name: "Fuso", sku: "1156", description: descricao, offers: { "@type": "Offer", price: "267" } })}</script></head><body></body></html>`;
+  const [fuso] = normalizarPagina({ html: comFicha, url: "https://loja.exemplo.com/produtos/fuso/", fonte: { tipo: "CONCORRENTE" } }).produtos;
+  conferir("ficha marcada sem titulo: item sem dois-pontos nao quebra a lista", fuso.specifications, [
+    { nome: "Tamanho máximo", valor: "2200mm" },
+    { nome: "Dureza Superficial", valor: "58 a 62 HRc" },
+    { nome: null, valor: "Rosca Direita" },
+    { nome: "Máxima Folga Fuso Axial", valor: "0,05mm" },
+    { nome: "Máxima Folga Axial Castanha", valor: "0,025mm" },
+    { nome: null, valor: "Baixo Ruído, Alta Precisão e Rigidez" },
+  ]);
+  const paginaCom = (texto) => `<html><head><script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "Product", name: "Kit", sku: "77", description: texto, offers: { "@type": "Offer", price: "10" } })}</script></head><body></body></html>`;
+  const propaganda = ["Produto top:", "- Alta durabilidade", "- Ótimo acabamento", "- Entrega rápida", "- Garantia: 90 dias"].join("\n");
+  conferir("lista marcada de propaganda com um par so nao vira ficha", normalizarPagina({ html: paginaCom(propaganda), url: "https://loja.exemplo.com/produtos/kit/", fonte: { tipo: "CONCORRENTE" } }).produtos[0].specifications, []);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
