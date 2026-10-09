@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { jobLargado } from "@/lib/coleta/fila";
 import { plataformasPorFonte } from "@/lib/coleta/banco";
 import { portalDoEndereco } from "@/lib/coleta/fornecedores";
+import { avisoSoLocalhost } from "@/lib/coleta/soLocalhost";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
@@ -81,6 +82,8 @@ export default async function FontesPage({ searchParams }) {
     produtosNoSite: fonte.produtosNoSite,
     produtosNoSiteParcial: fonte.produtosNoSiteParcial,
     instrucoes: fonte.instrucoes,
+    // Loja cujo Cloudflare barra a VPS: a tela avisa que so o localhost varre.
+    avisoSoLocalhost: avisoSoLocalhost(fonte.dominio),
     // PORTAL COM LOGIN (Santana): categorias e SE ha login — nunca o login em si.
     portal: Boolean(portalDoEndereco(fonte.dominio)),
     categorias: Array.isArray(fonte.categorias) ? fonte.categorias : [],

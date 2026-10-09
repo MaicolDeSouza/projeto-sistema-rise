@@ -191,6 +191,13 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
                 {fonte.prefixoUrl ?? ""}
                 <ExternalLink size={11} />
               </a>}
+
+              {fonte.avisoSoLocalhost && (
+                <p className="mt-1 flex items-start gap-1 text-xs text-amber-800">
+                  <Ban size={12} className="mt-0.5 shrink-0" />
+                  {fonte.avisoSoLocalhost}
+                </p>
+              )}
             </div>
 
             <button
