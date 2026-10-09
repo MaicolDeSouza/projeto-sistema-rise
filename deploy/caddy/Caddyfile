@@ -40,7 +40,9 @@ rise.4hobby.com.br {
 	# pediu o que na rota publica, nem base para um limite de taxa. O Caddy ja deixa Cookie e Authorization fora
 	# do registro. Dois cuidados: o `code` e o `state` do retorno do OAuth (/api/oauth/*/callback) iriam em texto na
 	# URI, e o IP inteiro de cada comprador que abre uma foto da loja e dado pessoal: o IP sai mascarado (/24 e /48),
-	# o bastante para ver de onde vem um abuso.
+	# o bastante para ver de onde vem um abuso. A URL tambem viaja, codificada, nos cabecalhos de RESPOSTA do login
+	# (X-Tinyauth-Location e o Location do redirecionamento levam `redirect_uri=<a URL original>`): medido em
+	# 08/10/2026, o `code` de teste aparecia ali depois de o filtro da URI o esconder. Esses dois cabecalhos nao entram.
 	log {
 		format filter {
 			wrap json
@@ -49,6 +51,8 @@ rise.4hobby.com.br {
 					replace code REDACTED
 					replace state REDACTED
 				}
+				resp_headers>X-Tinyauth-Location delete
+				resp_headers>Location delete
 				request>remote_ip ip_mask {
 					ipv4 24
 					ipv6 48
