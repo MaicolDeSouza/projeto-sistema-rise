@@ -3560,7 +3560,9 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
     PC"** na linha da fonte (tela Fontes, na VPS) ou pelo botão "Cadastrar para varrer pelo PC" do formulário (abaixo).
     Marcada, o worker normal (o da VPS) a **ignora** (pega, recolhe e fecha só as outras). **Na VPS, o botão "Varrer
     agora" dela some e dá lugar ao rótulo "Varredura só pelo PC"** (pedido do dono: a VPS não alcança o PC, que está na
-    rede de casa), e o botão do interruptor vira "Devolver à VPS". `varrerFonteAgora` recusa a fonte do PC, e o "Atualizar
+    rede de casa), e o botão "Varrer pelo PC" some (o "Devolver à VPS" saiu a pedido do dono em 09/10/2026: um clique
+    por engano mandaria a fonte de volta à VPS que ela bloqueia; desmarcar, se o site parar de bloquear, é
+    `definirVarridaNoPc(id, false)` por script). `varrerFonteAgora` recusa a fonte do PC, e o "Atualizar
     dados" da VPS a pula. O interruptor só aparece na VPS: no PC a marca iria para a cópia, que a `copia:atualizar` apaga.
     O texto de `src/lib/coleta/soLocalhost.js` (a lista de sites que a Cloudflare barra, medida em 09/10/2026) continua
     sendo só o aviso; quem decide é a marca.
