@@ -141,6 +141,8 @@ npm run teste:cadastros           # 88 asserções: CPF/CNPJ/CEP/telefone, CNPJ 
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
+npm run worker:pc                 # NO PC: abre um tunel SSH ate o banco da VPS e varre SO as fontes marcadas "Varrer pelo PC" (o site bloqueia a VPS), gravando direto na VPS. Ctrl+C encerra. Ver "Fonte que bloqueia a VPS"
+npm run teste:fila-pc             # 40 asserções dos TRÊS modos do worker na fila (normal, do PC e de teste): quem pega, recolhe e fecha o job de uma fonte marcada, e a regra "servidor do banco é o Windows" (Postgres local, SEM rede; só escreve fontes e jobs ZZ-PC-*)
 npm run backup                    # dados/backup/sistema_rise-AAAAMMDD-HHMMSS.dump (pg_dump, conferido com pg_restore; guarda os 4 mais recentes)
 npm run teste:worker              # 58 asserções: rede, fila, retomada e o worker de verdade (~6 min). RODE SOZINHO: junto de outros testes o "segundo worker" já saiu com 3221226505 (0xC0000409, aborto do Node no Windows ao encerrar, antes de o código 3 chegar); sozinho passa
 npm run foto:mensal               # tira a foto mensal de preço e estoque (só se passou do dia 14 e o mês não tem foto); `-- --forcar` ignora o dia
@@ -3438,7 +3440,8 @@ O Rise de produção roda numa VPS da Hostinger (KVM 2, Ubuntu 26.04), em **http
 frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-design.md`; plano:
 `docs/superpowers/plans/2026-10-07-migracao-vps-hostinger.md`. **A virada aconteceu em 09/10/2026 (06:25 a 07:25): o banco de verdade é o da VPS.** O PC recebeu o dump final, e hoje o
   banco e `dados/` do PC são uma CÓPIA para desenvolver: o que se muda lá se perde na próxima `copia:atualizar`. **Nunca
-  ligue o worker no PC** (coletar nos dois lados duplicaria a varredura; quem coleta é o worker da VPS). Janela de volta
+  ligue o worker NORMAL no PC** (coletar nos dois lados duplicaria a varredura; quem coleta é o worker da VPS). A única
+  exceção é `npm run worker:pc`, restrito às fontes marcadas e apontado para o banco da VPS (ver "Fonte que bloqueia a VPS"). Janela de volta
   atrás até 11/10/2026: na VPS ficam `dados/produtos.antes` e `dados/coleta.antes` (as pastas do ensaio) e os dumps
   `ensaio-antes-da-virada.dump` e `pc-final-da-virada.dump` em `dados/backup/`; **apagar tudo isso depois da janela**. O
   snapshot da Hostinger de 09/10 06:25 expira em 10/10.
@@ -3454,7 +3457,44 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   (`register(new URL("file:///app/scripts/resolver-alias.js"), pathToFileURL("/app/"))`) antes de importar `@/lib/...`.
   A primeira varredura na VPS (Easytronics, 356 produtos) levou 13 min sem bloqueio, e nenhuma das 23 fontes bloqueou o IP.
 - **Outra sessão do Claude pode religar o PC.** Em 09/10/2026 a sessão `Rise_Manager` subiu servidor e worker no PC no meio
-  da virada (06:47 e 06:48) e o `copia:atualizar` recusou, corretamente. Quem religar o PC: servidor sim, **worker nunca**.
+  da virada (06:47 e 06:48) e o `copia:atualizar` recusou, corretamente. Quem religar o PC: servidor sim, **worker normal nunca**.
+- **Fonte que bloqueia a VPS: "Varrer pelo PC"** (decidido com o dono em 09/10/2026, a pedido: a Oceantech, cuja
+  Cloudflare desafia o IP de datacenter e deixa passar o de casa; outros virão). Em vez de copiar dados entre os bancos,
+  **o worker do PC grava direto no banco da VPS**, então não há merge e os produtos aparecem na VPS na hora.
+  - **A marca:** `FonteColeta.varridaNoPc` (migration `20261009_fonte_varrida_no_pc`), ligada pelo botão **"Varrer pelo
+    PC"** na linha da fonte (tela Fontes, na VPS). Marcada, o worker normal (o da VPS) a **ignora** (pega, recolhe e fecha
+    só as outras) e a fila mostra "Na fila do PC". O texto de `src/lib/coleta/soLocalhost.js` (a lista de sites que a
+    Cloudflare barra, medida em 09/10/2026) continua sendo só o aviso; quem decide é a marca.
+  - **Como varrer:** no PC, `npm run worker:pc` (`scripts/worker-pc.js`): lê o `DATABASE_URL` da VPS por SSH **só em
+    memória**, abre um túnel SSH na porta local **55432** (nunca a 5432 do Postgres do PC, para um engano de porta não
+    apontar o PC para a VPS) e sobe o supervisor com `COLETA_SO_PC=1` e esse endereço **só no ambiente do filho**. A senha do
+    banco da VPS nunca vai para o `.env` nem para o disco. `Ctrl+C` encerra e devolve as varreduras à fila; o túnel só fecha
+    depois (`detached`, para o Ctrl+C não derrubá-lo antes). Log em `dados/logs/worker-pc-AAAA-MM-DD.log`.
+  - **Três modos, três travas do Postgres** (`travaDoWorker`): o normal, o de teste (`COLETA_FONTES`) e o do PC
+    (`COLETA_SO_PC=1`) convivem no mesmo banco. O do PC **não tira a foto mensal** (é do worker da VPS) e nunca se
+    combina com `COLETA_FONTES`. **Ele recusa subir contra um banco do Windows** (a cópia local): a varredura iria para uma
+    cópia que a próxima `copia:atualizar` apaga (`SAIDA_CONFIGURACAO` = 5, que o supervisor não religa).
+  - **O PC desligou no meio da varredura:** o job fica sem sinal, e depois de 2 minutos o worker da VPS o recolhe e a tela
+    deixa de dizer "varrendo". Na PARTIDA o worker da VPS não recolhe job de fonte do PC (pode ser de um worker vivo).
+  - **A `copia:atualizar` só aceita o Postgres do Windows.** Conferir só o nome do host não bastava: o túnel aparece como
+    `localhost`, e a cópia apagaria o banco da VPS. Hoje ela lê `SELECT version()` (`servidorEhWindows`) e recusa o resto.
+    Provado com um túnel de verdade em 09/10/2026: recusou no primeiro passo e o banco da VPS ficou intacto. Fecha a
+    pendência de segurança 5.
+  - **Cadastrar a fonte:** o formulário da VPS salva sem o teste passar (o teste roda do IP da VPS e é barrado); a
+    aprovação da extração se faz na tela do PC (`Testar fonte`, que passa do IP de casa). O robots.txt é conferido a cada
+    visita, em qualquer lugar. O user-agent e o ritmo continuam os de sempre: **nada de disfarce**, e a regra
+    "desafio anti-bot não se contorna" continua valendo para quem barra também o IP de casa (Makerhero).
+- **Código novo que muda o banco chega à VPS pelo deploy, nunca pela cópia do banco.** A migration é um arquivo SQL em
+  `prisma/migrations/` que vai no commit. O `deploy-vps.sh` roda `prisma migrate status` na VPS e, se há migration
+  pendente, **tira um backup antes** e aplica só as que faltam (`migrate deploy`), em ordem, **sem tocar nos dados**. Fluxo:
+  mexer no `schema.prisma`; gerar o SQL com `migrate diff` (tirando as linhas que apagam os índices que só existem no SQL);
+  aplicar no banco do PC; commitar a pasta; push; deploy. **Migration não tem volta** (só pelo backup tirado antes), então
+  deve ser aditiva (coluna nova com padrão, tabela nova); renomear ou apagar coluna em dois passos, para o código antigo
+  não quebrar nos segundos entre a migration e a troca dos contêineres. Depois de uma `copia:atualizar` o banco do PC volta
+  ao estado da VPS: migration criada no PC e ainda não deployada precisa de `npx prisma migrate deploy` de novo.
+- **Subir o banco do PC para a VPS apagaria tudo o que a VPS gravou** (restore = apagar e recriar; não existe merge):
+  coleta, histórico de preço, fotos mensais, ajustes de estoque, tokens. Só se fez na virada, uma vez. Dado criado no PC
+  que precise ir para a VPS: refazer pela tela da VPS, ou um script que envia só aquela tabela.
 - **Acesso:** `ssh -i ~/.ssh/rise_vps rise@179.199.150.221` (só chave; root e senha desligados; firewall 22/80/443). O
   projeto fica em `/srv/rise/app` (clone deste repositório), com o `docker-compose.yml`: `db` (Postgres 17, porta só em
   127.0.0.1), `app`, `worker` (mesma imagem), `auth` (Tinyauth, o login) e `caddy` (HTTPS e roteamento). O `.env` da VPS
@@ -3516,8 +3556,9 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   (3) criptografar o dump antes de ir ao R2 (`rclone crypt`): ele leva CPF e endereço de clientes, hoje protegidos só
   pelo token do bucket; (4) endurecer os contêineres depois da virada: rodam como root e `app`/`worker` recebem o `.env`
   inteiro; `USER node` exige `chown` de `dados/`, e `cap_drop: ALL` sem isso impediria gravar; as imagens `caddy:2`,
-  `tinyauth:v5` e `postgres:17` têm tag flutuante; (5) `copia:atualizar` confere só o nome do host: um túnel SSH para o
-  banco da VPS (`-L 5432`) passaria por "localhost" (não há túnel no plano); (6) o app não confere o login sozinho (sem
+  `tinyauth:v5` e `postgres:17` têm tag flutuante; (5) **RESOLVIDA em 09/10/2026:** a `copia:atualizar` agora exige que o
+  servidor do banco seja o Postgres do Windows (`servidorEhWindows`), porque o túnel do `worker:pc` aparece como
+  "localhost"; (6) o app não confere o login sozinho (sem
   `proxy.js`): entra com os níveis de acesso; (7) sem limite de taxa na rota pública (o Caddy puro não tem; o fluxo em
   disco já tirou o risco de memória, e o `log` do Caddy dá a trilha de quem pede o quê, mas gira em 5 arquivos de 10 MB:
   quem varre a rota expulsa a trilha em minutos; para guardar mais, `output file` com `roll_keep`); (8) o mapa de

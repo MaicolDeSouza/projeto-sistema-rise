@@ -41,6 +41,20 @@ export function argumentosDeRestore({ dump, banco }) {
   };
 }
 
+/**
+ * O servidor de banco e o do Windows (o do PC)? Le o texto de `SELECT version()`.
+ *
+ * Existe porque conferir so o NOME do host nao basta: um tunel SSH para o banco da VPS (`-L 55432:127.0.0.1:5432`)
+ * aparece como "localhost", e a `copia:atualizar` o trataria como a copia local e o APAGARIA. A VPS roda o Postgres
+ * em Linux ("x86_64-pc-linux-gnu"); o do PC e "compiled by Visual C++". Na duvida (texto vazio ou desconhecido) diz
+ * que NAO e, e quem pergunta recusa.
+ */
+export function servidorEhWindows(versao) {
+  const texto = String(versao ?? "");
+  if (/linux|debian|ubuntu|alpine/i.test(texto)) return false;
+  return /visual c\+\+|mingw|windows|win64|win32/i.test(texto);
+}
+
 /// Quantos backups automaticos o `npm run backup` guarda (BACKUP_MANTER). So inteiro de 1 a 365; o resto cai no
 /// padrao. Com 0 ou negativo o `slice` da retencao cobriria a lista inteira e o backup das 03:00 apagaria TODOS
 /// os dumps, o que acabou de gerar inclusive (um `BACKUP_MANTER=-1` digitado no .env da VPS).

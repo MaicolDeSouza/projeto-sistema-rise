@@ -81,8 +81,44 @@ export function fontesConfiguradas(valor = process.env.COLETA_FONTES) {
   return ids.length > 0 ? ids : null;
 }
 
-/** A trava do worker: uma para o normal, outra para o restrito a fontes. */
-export const travaDoWorker = (fontes) => (fontes ? TRAVA_WORKER + 1 : TRAVA_WORKER);
+/**
+ * Worker do PC (COLETA_SO_PC=1): atende SO as fontes marcadas `varridaNoPc`, e nenhuma outra.
+ *
+ * Existe porque alguns sites bloqueiam o IP de datacenter da VPS (e outros virao). O dono marca a fonte na tela de
+ * Fontes; o worker normal (o da VPS) passa a ignora-la, e `npm run worker:pc` varre no PC, com o IP de casa, gravando
+ * direto no banco da VPS por um tunel SSH. Nao se combina com COLETA_FONTES (que e o worker de teste).
+ */
+export function soNoPcConfigurado(valor = process.env.COLETA_SO_PC) {
+  return String(valor ?? "").trim() === "1";
+}
+
+/// COLETA_FONTES e COLETA_SO_PC juntos nao tem sentido: um pede fontes por id, o outro pela marca da tela.
+export function modoInvalido(fontes, soNoPc) {
+  return fontes && soNoPc ? "COLETA_FONTES e COLETA_SO_PC nao se combinam: escolha um dos dois." : null;
+}
+
+/** A trava do worker: uma para o normal, outra para o restrito a fontes, outra para o do PC. */
+export const travaDoWorker = (fontes, soNoPc = false) =>
+  fontes ? TRAVA_WORKER + 1 : soNoPc ? TRAVA_WORKER + 2 : TRAVA_WORKER;
+
+/** Ids das fontes marcadas para varrer no PC. */
+export async function idsDasFontesNoPc() {
+  const fontes = await prisma.fonteColeta.findMany({ where: { varridaNoPc: true }, select: { id: true } });
+  return fontes.map((fonte) => fonte.id);
+}
+
+/// A que fonte o job pertence (`fonteId` em coluna; job antigo so tem no payload).
+const fonteDoJob = (job) => job.fonteId ?? job.payload?.fonteId ?? null;
+
+/**
+ * Este worker atende este job? Worker de teste (fontes) atende o que pediu; o do PC, so as fontes marcadas; o
+ * normal, tudo menos as marcadas. O job do teste do worker so e do worker de teste.
+ */
+export function ehDesteWorker(job, { fontes = null, soNoPc = false, idsNoPc = new Set() } = {}) {
+  if (fontes) return fontes.includes(fonteDoJob(job));
+  if (ehDeTeste(job)) return false;
+  return idsNoPc.has(fonteDoJob(job)) === soNoPc;
+}
 
 /** Quantas varreduras em paralelo, de COLETA_PARALELO (1 a 10). */
 export function paraleloConfigurado(valor = process.env.COLETA_PARALELO) {
@@ -165,14 +201,21 @@ export async function enfileirarVencidas() {
  * impede dois abertos, mas um job antigo sem `fonteId` escaparia dele).
  *
  * @param {string} workerId
- * @param {{fontes?: string[]|null}} [opcoes] so jobs destas fontes (COLETA_FONTES)
+ * @param {{fontes?: string[]|null, soNoPc?: boolean}} [opcoes] so jobs destas fontes (COLETA_FONTES), ou so os
+ *   das fontes marcadas para o PC (COLETA_SO_PC)
  * @returns {Promise<object|null>} o job, ja PROCESSANDO e deste worker
  */
-export async function pegarProximoJob(workerId, { fontes = null } = {}) {
-  // Com filtro, so as fontes pedidas; sem filtro, nunca job do teste do worker.
+export async function pegarProximoJob(workerId, { fontes = null, soNoPc = false } = {}) {
+  // Com filtro, so as fontes pedidas. Sem filtro, nunca job do teste do worker, e a fonte marcada `varridaNoPc`
+  // e do worker do PC: o normal a deixa de lado, e o do PC pega SO ela.
+  const daFonte = Prisma.sql`COALESCE(j."fonteId", j."payload"->>'fonteId')`;
+  const marcadaNoPc = Prisma.sql`EXISTS (SELECT 1 FROM "FonteColeta" f WHERE f."id" = ${daFonte} AND f."varridaNoPc")`;
+  const naoETeste = Prisma.sql`COALESCE(j."payload"->>'teste', 'false') <> 'true'`;
   const soEstas = fontes
-    ? Prisma.sql`AND COALESCE(j."fonteId", j."payload"->>'fonteId') IN (${Prisma.join(fontes)})`
-    : Prisma.sql`AND COALESCE(j."payload"->>'teste', 'false') <> 'true'`;
+    ? Prisma.sql`AND ${daFonte} IN (${Prisma.join(fontes)})`
+    : soNoPc
+      ? Prisma.sql`AND ${naoETeste} AND ${marcadaNoPc}`
+      : Prisma.sql`AND ${naoETeste} AND NOT ${marcadaNoPc}`;
   /*
     HORA EM UTC, e nao a hora local do banco. As colunas sao TIMESTAMP sem fuso,
     gravadas pelo Prisma em UTC, e o Postgres desta maquina roda em
@@ -305,12 +348,17 @@ const ehDeTeste = (job) => job.payload?.teste === true;
  *   garantindo que nao ha outro no ar, todo job em andamento e de processo morto,
  *   e esperar dois minutos seria so atraso
  * @param {string[]|null} [opcoes.fontes] so jobs destas fontes (COLETA_FONTES)
+ * @param {boolean} [opcoes.soNoPc] so jobs das fontes marcadas para o PC (COLETA_SO_PC). Na PARTIDA o worker normal
+ *   (semSinalHaMs menor que o limite) nao recolhe job de fonte do PC: ele e de um worker VIVO, so que em outra
+ *   maquina. Na volta normal ele recolhe, sim, o que passou do limite sem sinal: o PC desligou no meio da varredura,
+ *   e sem isto a tela mostraria "varrendo" para sempre.
  * @returns {Promise<{fonteNome: string, desfecho: string}[]>}
  */
 export async function recolherLargados({
   agora = Date.now(),
   semSinalHaMs = JOB_SEM_SINAL_MS,
   fontes = null,
+  soNoPc = false,
 } = {}) {
   const limite = new Date(agora - semSinalHaMs);
   const abertos = await prisma.job.findMany({
@@ -321,7 +369,9 @@ export async function recolherLargados({
       OR: [{ sinalEm: { lte: limite } }, { sinalEm: null, atualizadoEm: { lte: limite } }],
     },
   });
-  const largados = fontes ? abertos : abertos.filter((job) => !ehDeTeste(job));
+  const incluiOPc = !fontes && !soNoPc && semSinalHaMs >= JOB_SEM_SINAL_MS;
+  const idsNoPc = fontes || incluiOPc ? new Set() : new Set(await idsDasFontesNoPc());
+  const largados = abertos.filter((job) => ehDesteWorker(job, { fontes, soNoPc, idsNoPc }));
 
   const recolhidos = [];
   for (const job of largados) {
@@ -358,7 +408,7 @@ export async function recolherLargados({
  *
  * @returns {Promise<string[]>} nomes das fontes fechadas
  */
-export async function fecharEsgotados({ fontes = null } = {}) {
+export async function fecharEsgotados({ fontes = null, soNoPc = false } = {}) {
   const pendentes = await prisma.job.findMany({
     where: {
       tipo: "coleta",
@@ -368,9 +418,11 @@ export async function fecharEsgotados({ fontes = null } = {}) {
     select: { id: true, tentativas: true, maxTentativas: true, fonteId: true, payload: true, erro: true },
   });
 
+  // Fechar o que esgotou as tentativas e limpeza de estado: o worker normal fecha tambem as fontes do PC.
+  const idsNoPc = fontes || !soNoPc ? new Set() : new Set(await idsDasFontesNoPc());
   const fechadas = [];
   for (const job of pendentes.filter(
-    (item) => item.tentativas >= item.maxTentativas && (fontes || !ehDeTeste(item)),
+    (item) => item.tentativas >= item.maxTentativas && ehDesteWorker(item, { fontes, soNoPc, idsNoPc }),
   )) {
     const { count } = await prisma.job.updateMany({
       where: { id: job.id, status: "PENDENTE" },

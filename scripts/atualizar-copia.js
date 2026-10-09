@@ -35,6 +35,7 @@ import {
   argumentosDeRestore,
   bancoDeEnsaioValido,
   conexoesDoPc,
+  servidorEhWindows,
   dumpMaisRecente,
   ehBancoLocal,
   nomeDaCopiaDeSeguranca,
@@ -125,6 +126,23 @@ async function bancoExiste(banco) {
   }
 }
 
+/// O texto de `SELECT version()` do servidor do banco alvo (conecta no banco `postgres`, que sempre existe).
+async function versaoDoServidor() {
+  const cliente = new pg.Client({
+    host: conexao.PGHOST,
+    port: Number(conexao.PGPORT),
+    user: conexao.PGUSER,
+    password: conexao.PGPASSWORD,
+    database: "postgres",
+  });
+  await cliente.connect();
+  try {
+    return (await cliente.query("SELECT version() AS versao")).rows[0].versao;
+  } finally {
+    await cliente.end();
+  }
+}
+
 /// Worker com sinal no ultimo minuto (o sinal e a cada 15 s). Tabela ausente = banco sem worker nenhum.
 async function workerVivo(banco) {
   try {
@@ -140,6 +158,17 @@ async function workerVivo(banco) {
 }
 
 console.log(`Banco alvo: ${alvo}${ensaio ? " (ensaio, ao lado do banco do .env, que nao e tocado)" : " (o do .env)"}`);
+
+// 0. O servidor tem que ser o Postgres DESTE PC (Windows). Conferir so o nome do host nao basta: um tunel SSH para o
+// banco da VPS (`ssh -L 55432:127.0.0.1:5432`, o que o `npm run worker:pc` abre) aparece como "localhost", e esta
+// copia o trataria como a local e o APAGARIA. A VPS roda o Postgres em Linux.
+const versaoDoAlvo = await versaoDoServidor();
+if (!servidorEhWindows(versaoDoAlvo)) {
+  recusar(
+    "o servidor de banco do alvo NAO e o Postgres do Windows deste PC (e o da VPS, por um tunel?): " +
+      `${String(versaoDoAlvo).slice(0, 80)}. Feche o tunel e confira o DATABASE_URL.`,
+  );
+}
 
 // 1. Quem esta usando o banco que vai ser apagado.
 const existe = await bancoExiste(alvo);

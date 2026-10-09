@@ -69,6 +69,7 @@ export default async function FontesPage({ searchParams }) {
     prefixoUrl: fonte.prefixoUrl,
     tipo: fonte.tipo,
     ativa: fonte.ativa,
+    varridaNoPc: fonte.varridaNoPc,
     robotsPermite: fonte.robotsPermite,
     // Do produto coletado mais recente que reconheceu uma (ver
     // plataformasPorFonte): fonte sem produto ainda, ou cuja plataforma nao foi

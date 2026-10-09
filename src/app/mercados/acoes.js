@@ -568,6 +568,23 @@ export async function alternarFonte(id) {
 }
 
 /**
+ * Marca (ou desmarca) a fonte para ser varrida pelo PC do dono, e nao pela VPS.
+ *
+ * Existe para o site que bloqueia o IP de datacenter da VPS (a Oceantech responde 403 com `cf-mitigated: challenge`).
+ * Marcada, a fonte sai do worker da VPS e so o `npm run worker:pc` a pega, gravando no mesmo banco. Nao mexe em job
+ * ja em andamento: ele termina com quem o pegou, e o PROXIMO vai para o worker certo.
+ */
+export async function definirVarridaNoPc(id, valor) {
+  const fonte = await prisma.fonteColeta.findUnique({ where: { id }, select: { id: true } });
+  if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
+
+  await prisma.fonteColeta.update({ where: { id }, data: { varridaNoPc: Boolean(valor) } });
+
+  revalidatePath("/mercados/fontes");
+  return { ok: true };
+}
+
+/**
  * Varredura manual de UMA fonte, pelo botao "Varrer agora" da linha (pedido do
  * dono em 16/09/2026). So enfileira: quem varre e o worker, pelo mesmo caminho do
  * ciclo automatico, e ela entra ao lado das outras lojas em andamento.

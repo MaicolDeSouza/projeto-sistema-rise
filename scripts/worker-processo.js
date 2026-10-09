@@ -49,6 +49,7 @@ const { coletaPausada } = await import("../src/lib/coleta/controle.js");
 const { ultimaRespostaDe } = await import("../src/lib/coleta/buscar.js");
 const fila = await import("../src/lib/coleta/fila.js");
 const { tirarFotoMensal } = await import("../src/lib/coleta/fotos.js");
+const { servidorEhWindows } = await import("../src/lib/copiaLocal.js");
 
 /// De quanto em quanto tempo se confere se a foto mensal e devida. A foto e uma por
 /// mes, entao a conferencia e barata; a hora so evita consultar o banco a cada volta.
@@ -60,6 +61,9 @@ const SAIDA_OUTRO_WORKER = 3;
 /// Codigo de saida do encerramento pedido por `npm run worker:parar`. O supervisor
 /// tambem sai, em vez de religar.
 const SAIDA_PARADO = 4;
+/// Configuracao que nao adianta tentar de novo (modos que se contradizem, ou o do PC apontado para o banco errado).
+/// O supervisor tambem sai, em vez de religar.
+const SAIDA_CONFIGURACAO = 5;
 
 /// Pedido de parada: um arquivo, criado por scripts/parar-worker.js. E o jeito de
 /// encerrar do jeito certo sem Ctrl+C — no Windows, matar o processo nao da ao
@@ -78,6 +82,8 @@ const WORKER_ID = randomUUID();
 const PARALELO = fila.paraleloConfigurado();
 /// So estas fontes (COLETA_FONTES), ou todas.
 const FONTES = fila.fontesConfiguradas();
+/// Worker do PC (COLETA_SO_PC=1): so as fontes marcadas `varridaNoPc`, gravando no banco da VPS por um tunel.
+const SO_NO_PC = fila.soNoPcConfigurado();
 
 /** Hostname que a varredura visita: o dominio da fonte, com ou sem protocolo. */
 function hostnameDa(fonte) {
@@ -113,7 +119,7 @@ async function obterTrava() {
   const cliente = new pg.Client({ connectionString: process.env.DATABASE_URL });
   await cliente.connect();
   const { rows } = await cliente.query("SELECT pg_try_advisory_lock($1) AS ok", [
-    fila.travaDoWorker(FONTES),
+    fila.travaDoWorker(FONTES, SO_NO_PC),
   ]);
   if (!rows[0].ok) {
     await cliente.end();
@@ -387,17 +393,17 @@ async function laco() {
   while (!encerrando) {
     try {
       if (!coletaPausada()) {
-        for (const { fonteNome, desfecho } of await fila.recolherLargados({ fontes: FONTES })) {
+        for (const { fonteNome, desfecho } of await fila.recolherLargados({ fontes: FONTES, soNoPc: SO_NO_PC })) {
           log(`${fonteNome}: largada sem sinal — ${desfecho}`);
         }
 
-        for (const fonteNome of await fila.fecharEsgotados({ fontes: FONTES })) {
+        for (const fonteNome of await fila.fecharEsgotados({ fontes: FONTES, soNoPc: SO_NO_PC })) {
           logErro(`${fonteNome}: tentativas esgotadas — marcada como falha`);
         }
 
         // O operador inicia as varreduras manualmente. Nao ha ciclo automatico.
         while (!coletaPausada() && !encerrando && !precisaReiniciar && emCurso.size < PARALELO) {
-          const job = await fila.pegarProximoJob(WORKER_ID, { fontes: FONTES });
+          const job = await fila.pegarProximoJob(WORKER_ID, { fontes: FONTES, soNoPc: SO_NO_PC });
           if (!job) break;
           // Nao aguardado: as varreduras correm juntas. `executar` nunca rejeita.
           executar(job);
@@ -405,8 +411,9 @@ async function laco() {
       }
 
       // Fora do `coletaPausada`: pausar a coleta nao pode custar a foto do mes. O
-      // worker de teste (COLETA_FONTES) nao a tira, para nao gravar no banco de verdade.
-      if (!FONTES && Date.now() - fotoConferidaEm >= CONFERE_FOTO_MS) {
+      // worker de teste (COLETA_FONTES) nao a tira, para nao gravar no banco de verdade. O do PC tambem nao: a foto
+      // e do worker da VPS, que roda sempre.
+      if (!FONTES && !SO_NO_PC && Date.now() - fotoConferidaEm >= CONFERE_FOTO_MS) {
         fotoConferidaEm = Date.now();
         const foto = await tirarFotoMensal();
         if (foto.tirou) {
@@ -540,6 +547,27 @@ process.on("message", (mensagemRecebida) => {
 // PROCESSANDO e o proximo worker os recolhe na partida.
 process.on("disconnect", () => sair(0, "supervisor saiu"));
 
+const contradicao = fila.modoInvalido(FONTES, SO_NO_PC);
+if (contradicao) {
+  logErro(contradicao);
+  await prisma.$disconnect();
+  process.exit(SAIDA_CONFIGURACAO);
+}
+if (SO_NO_PC) {
+  // O worker do PC grava no banco da VPS. Apontado para o banco local (um servidor Windows), ele varreria para uma
+  // copia que a proxima `copia:atualizar` apaga, e a VPS nunca veria o resultado. O tunel e aberto por
+  // `npm run worker:pc`, que passa o endereco certo so a este processo.
+  const [{ versao }] = await prisma.$queryRaw`SELECT version() AS versao`;
+  if (servidorEhWindows(versao)) {
+    logErro(
+      "COLETA_SO_PC esta apontado para um banco do Windows (a copia local). O worker do PC grava no banco da VPS: " +
+        "use `npm run worker:pc`.",
+    );
+    await prisma.$disconnect();
+    process.exit(SAIDA_CONFIGURACAO);
+  }
+}
+
 trava = await obterTrava();
 if (!trava) {
   const outro = await fila.workerNoAr();
@@ -566,13 +594,14 @@ await fila.registrarWorker({
 });
 
 // Com a trava na mao, todo job em andamento e de um processo que morreu.
-for (const { fonteNome, desfecho } of await fila.recolherLargados({ semSinalHaMs: 0, fontes: FONTES })) {
+for (const { fonteNome, desfecho } of await fila.recolherLargados({ semSinalHaMs: 0, fontes: FONTES, soNoPc: SO_NO_PC })) {
   log(`${fonteNome}: largada pelo worker anterior — ${desfecho}`);
 }
 
 log(
   `worker no ar · pid ${process.pid} · ate ${PARALELO} varreduras em paralelo` +
-    (FONTES ? ` · so as fontes ${FONTES.join(", ")}` : ""),
+    (FONTES ? ` · so as fontes ${FONTES.join(", ")}` : "") +
+    (SO_NO_PC ? " · so as fontes marcadas para varrer no PC" : ""),
 );
 sinalDeVida();
 await laco();

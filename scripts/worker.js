@@ -39,6 +39,10 @@ const PASTA_LOGS = path.join(aqui, "..", "dados", "logs");
 const SAIDA_OUTRO_WORKER = 3;
 /// O worker encerrou a pedido (`npm run worker:parar`): o supervisor sai junto.
 const SAIDA_PARADO = 4;
+/// Configuracao invalida (modos que se contradizem, ou o worker do PC no banco errado): religar repetiria o erro.
+const SAIDA_CONFIGURACAO = 5;
+/// O worker do PC (COLETA_SO_PC=1) tem o proprio arquivo de log, para nunca se misturar ao do worker normal.
+const PREFIXO_DO_LOG = process.env.COLETA_SO_PC === "1" ? "worker-pc" : "worker";
 
 /// Espera antes de religar: 5 s, 10 s, 20 s... ate 2 min.
 const ESPERA_INICIAL_MS = 5 * 1000;
@@ -65,7 +69,7 @@ function escreverNoLog(texto) {
   if (dia !== arquivoDoDia) {
     streamDoDia?.end();
     arquivoDoDia = dia;
-    streamDoDia = createWriteStream(path.join(PASTA_LOGS, `worker-${dia}.log`), { flags: "a" });
+    streamDoDia = createWriteStream(path.join(PASTA_LOGS, `${PREFIXO_DO_LOG}-${dia}.log`), { flags: "a" });
   }
   streamDoDia.write(texto);
 }
@@ -108,6 +112,12 @@ function subir() {
       registrar("worker parado a pedido; supervisor saindo.");
       streamDoDia?.end();
       process.exit(0);
+    }
+
+    if (codigo === SAIDA_CONFIGURACAO) {
+      registrar("configuracao invalida do worker — este supervisor nao tenta de novo.", true);
+      streamDoDia?.end();
+      process.exit(SAIDA_CONFIGURACAO);
     }
 
     if (codigo === SAIDA_OUTRO_WORKER) {

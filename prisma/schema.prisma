@@ -999,6 +999,11 @@ model FonteColeta {
 
   /// A ULTIMA COLETA GRAVADA, escrita por quem grava — worker, linha de comando
   /// ou carga. `ultimaVarreduraEm` so o worker escreve, e reprocessar a lista
+  /// Esta fonte e varrida pelo worker do PC do dono, e NAO pelo da VPS: o site bloqueia o IP de datacenter da VPS
+  /// (e outros virao). O worker normal ignora a fonte marcada; o `npm run worker:pc` pega SO as marcadas e grava no
+  /// banco da VPS por um tunel SSH. Desligar a marca devolve a fonte ao worker da VPS.
+  varridaNoPc Boolean @default(false)
+
   /// fora dele deixava a fonte "nunca varrida" com 1.911 produtos guardados.
   ultimaColetaEm        DateTime?
   /// "site" ou "arquivo". E o que deixa a trava de queda comparar lista com

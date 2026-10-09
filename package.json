@@ -29,6 +29,7 @@
     "coletar": "node scripts/coletar.js",
     "teste:worker": "node scripts/teste-worker.js",
     "worker:parar": "node scripts/parar-worker.js",
+    "worker:pc": "node scripts/worker-pc.js",
     "backup": "node scripts/backup-banco.js",
     "foto:mensal": "node scripts/foto-mensal.js",
     "teste:fotos": "node scripts/teste-fotos.js",
@@ -42,7 +43,8 @@
     "teste:migracao": "node scripts/teste-migracao.js",
     "auditar:arquivos": "node scripts/auditar-arquivos.js",
     "copia:atualizar": "node scripts/atualizar-copia.js",
-    "teste:rede": "node scripts/teste-rede-publica.js"
+    "teste:rede": "node scripts/teste-rede-publica.js",
+    "teste:fila-pc": "node scripts/teste-fila-pc.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

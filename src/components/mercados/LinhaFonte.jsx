@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, ExternalLink, FolderTree, Info, Loader, Pause, Pencil, Play, RefreshCw, Trash2 } from "lucide-react";
+import { Ban, ExternalLink, FolderTree, Info, Loader, Monitor, Pause, Pencil, Play, RefreshCw, Trash2 } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
 import ArquivosDaFonte from "@/components/mercados/ArquivosDaFonte";
@@ -10,6 +10,7 @@ import CategoriasDaFonte from "@/components/mercados/CategoriasDaFonte";
 import {
   alternarFonte,
   contarProdutos,
+  definirVarridaNoPc,
   editarFonte,
   excluirFonte,
   varrerFonteAgora,
@@ -90,6 +91,15 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
       const resultado = await varrerFonteAgora(fonte.id);
       if (!resultado.ok) setErro(resultado.erro);
       router.refresh();
+    });
+  }
+
+  function alternarPc() {
+    setErro(null);
+    iniciarTransicao(async () => {
+      const resultado = await definirVarridaNoPc(fonte.id, !fonte.varridaNoPc);
+      if (!resultado.ok) setErro(resultado.erro);
+      else router.refresh();
     });
   }
 
@@ -195,7 +205,10 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
               {fonte.avisoSoLocalhost && (
                 <p className="mt-1 flex items-start gap-1 text-xs text-amber-800">
                   <Ban size={12} className="mt-0.5 shrink-0" />
-                  {fonte.avisoSoLocalhost}
+                  <span>
+                    {fonte.avisoSoLocalhost}
+                    {!fonte.varridaNoPc && " Marque \"Varrer pelo PC\" para o worker da VPS deixá-la de lado."}
+                  </span>
                 </p>
               )}
             </div>
@@ -224,6 +237,11 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
             <Badge tom="sucesso">Ativa</Badge>
           ) : (
             <Badge tom="alerta">Pausada</Badge>
+          )}
+          {fonte.varridaNoPc && (
+            <span className="mt-1 block">
+              <Badge tom="info">Varrida pelo PC</Badge>
+            </span>
           )}
         </td>
 
@@ -331,8 +349,30 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
               {fonte.varredura === "VARRENDO"
                 ? "Varrendo"
                 : fonte.varredura === "NA_FILA"
-                  ? "Na fila"
+                  ? fonte.varridaNoPc
+                    ? "Na fila do PC"
+                    : "Na fila"
                   : "Varrer agora"}
+            </button>
+
+            {/*
+              VARRER PELO PC. O worker da VPS passa a ignorar a fonte, e so o `npm run worker:pc` (rodando no PC, com o
+              IP de casa) a pega. Para o site que bloqueia a VPS. Quem esta na fila espera o PC ligar.
+            */}
+            <button
+              type="button"
+              onClick={alternarPc}
+              disabled={pendente}
+              aria-pressed={Boolean(fonte.varridaNoPc)}
+              className={`${botao} ${fonte.varridaNoPc ? "border-sky-400 bg-sky-50 text-sky-900" : ""}`}
+              title={
+                fonte.varridaNoPc
+                  ? "Marcada: só o worker do PC varre esta fonte (npm run worker:pc). Clique para devolvê-la ao worker da VPS."
+                  : "Para o site que bloqueia a VPS: o worker da VPS a deixa de lado e só o worker do PC varre."
+              }
+            >
+              <Monitor size={12} />
+              Varrer pelo PC
             </button>
 
             <button
