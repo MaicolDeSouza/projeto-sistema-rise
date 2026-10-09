@@ -11,6 +11,7 @@ import { enfileirar, jobLargado, workerNoAr } from "@/lib/coleta/fila";
 import { podeVisitar } from "@/lib/coleta/buscar";
 import { juntarListas, lerArquivo } from "@/lib/coleta/arquivos";
 import { coletaPausada, definirPausaColeta } from "@/lib/coleta/controle";
+import { iniciarWorkerPc } from "@/lib/coleta/workerPc";
 import { portalDoEndereco, regrasDoFornecedor } from "@/lib/coleta/fornecedores";
 import { testarFonte } from "@/lib/coleta/testar";
 import { parametrosDaCategoria, testarPortal } from "@/lib/coleta/portal-addsuite";
@@ -610,7 +611,7 @@ export async function varrerFonteAgora(fonteId) {
   });
   if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
   if (fonte.varridaNoPc) {
-    return { ok: false, erro: "Esta fonte é varrida só pelo PC: no PC, rode npm run worker:pc." };
+    return { ok: false, erro: "Esta fonte é varrida só pelo PC: abra o Rise no seu PC e clique em Varrer agora nela." };
   }
   if (!fonte.robotsPermite) return { ok: false, erro: "O robots.txt deste site nos bloqueia." };
   if (!fonte.ativa) return { ok: false, erro: "Fonte pausada. Use Retomar antes de varrer." };
@@ -622,6 +623,40 @@ export async function varrerFonteAgora(fonteId) {
   revalidatePath("/mercados");
   if (enfileiradas === 0) return { ok: false, erro: "Esta fonte já está na fila ou em varredura." };
   return { ok: true };
+}
+
+/**
+ * O "Varrer agora" de uma fonte marcada "Varrer pelo PC", NO RISE DO PC: liga o worker do PC so para ela
+ * (`scripts/worker-pc.js --fonte=<id>`, destacado), que abre o tunel, varre com o IP de casa, grava direto no banco da
+ * VPS e termina sozinho. O worker da VPS nunca a pega.
+ *
+ * Na VPS nao ha o que ligar: o PC esta na rede de casa e nao aceita conexao de fora. Quem decide se a fonte e mesmo do
+ * PC e o banco da VPS (o worker recusa e a tela mostra o motivo); a marca daqui, da copia, so evita o clique errado.
+ */
+export async function varrerPeloPcAgora(fonteId) {
+  if (process.env.RISE_PRODUCAO) {
+    return { ok: false, erro: "Esta fonte é varrida pelo PC: abra o Rise no seu PC e clique em Varrer agora nela." };
+  }
+  // A pausa do PC vale para o worker do PC: ele ficaria esperando, sem varrer e sem terminar.
+  if (coletaPausada()) return { ok: false, erro: "Varredura pausada neste PC. Clique em Continuar antes." };
+
+  const fonte = await prisma.fonteColeta.findUnique({
+    where: { id: fonteId },
+    select: { id: true, nome: true, ativa: true, robotsPermite: true, varridaNoPc: true },
+  });
+  if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
+  if (!fonte.varridaNoPc) {
+    return {
+      ok: false,
+      erro: "Esta fonte não está marcada para varrer pelo PC. Marque na tela da VPS e atualize a cópia do PC.",
+    };
+  }
+  if (!fonte.robotsPermite) return { ok: false, erro: "O robots.txt deste site nos bloqueia." };
+  if (!fonte.ativa) return { ok: false, erro: "Fonte pausada. Use Retomar na tela da VPS antes de varrer." };
+
+  const resultado = iniciarWorkerPc({ pastaProjeto: process.cwd(), fonteId: fonte.id, fonteNome: fonte.nome });
+  revalidatePath("/mercados/fontes");
+  return resultado;
 }
 
 // ---------------------------------------------------------------------------

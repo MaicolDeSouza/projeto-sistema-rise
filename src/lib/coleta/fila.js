@@ -112,11 +112,14 @@ export async function idsDasFontesNoPc() {
  * `npm run worker:pc` esta pedindo a varredura, e clicar de novo na tela da VPS seria o mesmo pedido. Fonte pausada ou
  * barrada pelo robots.txt nao entra, e a que ja tem job aberto fica de fora pelo indice unico da fila.
  *
+ * `fonteId`: so aquela fonte (o "Varrer agora" da linha, no Rise do PC). Ela tem que estar marcada e ativa NESTE banco,
+ * que e o da VPS: a marca da copia do PC nao vale. `fontes: 0` com `fonteId` = a VPS nao a reconhece como fonte do PC.
+ *
  * @returns {Promise<{fontes: number, enfileiradas: number}>}
  */
-export async function enfileirarFontesDoPc() {
+export async function enfileirarFontesDoPc({ fonteId = null } = {}) {
   const fontes = await prisma.fonteColeta.findMany({
-    where: { varridaNoPc: true, ativa: true, robotsPermite: true },
+    where: { varridaNoPc: true, ativa: true, robotsPermite: true, ...(fonteId ? { id: fonteId } : {}) },
     select: { id: true, nome: true },
   });
   const enfileiradas = await enfileirar(fontes);

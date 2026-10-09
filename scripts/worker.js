@@ -45,6 +45,11 @@ const SAIDA_CONFIGURACAO = 5;
 const SAIDA_CONCLUIDO = 6;
 /// O worker do PC (COLETA_SO_PC=1) tem o proprio arquivo de log, para nunca se misturar ao do worker normal.
 const PREFIXO_DO_LOG = process.env.COLETA_SO_PC === "1" ? "worker-pc" : "worker";
+/// O worker do PC que termina sozinho (o padrao do `npm run worker:pc` e do "Varrer agora" do Rise do PC) desiste
+/// depois de tantas quedas seguidas: quem pediu a varredura espera um fim, e o da VPS sem a coluna nova ou um tunel
+/// que cai a toda hora religariam para sempre, com o tunel aberto.
+const PC_TERMINA_SOZINHO = process.env.COLETA_SO_PC === "1" && process.env.COLETA_PC_SAIR === "1";
+const QUEDAS_PARA_DESISTIR = 3;
 
 /// Espera antes de religar: 5 s, 10 s, 20 s... ate 2 min.
 const ESPERA_INICIAL_MS = 5 * 1000;
@@ -137,6 +142,12 @@ function subir() {
     if (Date.now() - subiuEm > NO_AR_ESTAVEL_MS) tentativasSeguidas = 0;
     const espera = Math.min(ESPERA_INICIAL_MS * 2 ** tentativasSeguidas, ESPERA_MAXIMA_MS);
     tentativasSeguidas++;
+
+    if (PC_TERMINA_SOZINHO && tentativasSeguidas >= QUEDAS_PARA_DESISTIR) {
+      registrar(`o worker do PC caiu ${tentativasSeguidas} vezes seguidas — desistindo. Veja o log acima.`, true);
+      streamDoDia?.end();
+      process.exit(1);
+    }
 
     registrar(
       `worker saiu (${sinal ? `sinal ${sinal}` : `codigo ${codigo}`}) — religando em ${espera / 1000}s`,

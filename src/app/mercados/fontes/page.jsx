@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import Link from "next/link";
 import { ArrowLeft, Store } from "lucide-react";
 
@@ -6,6 +8,7 @@ import { jobLargado } from "@/lib/coleta/fila";
 import { plataformasPorFonte } from "@/lib/coleta/banco";
 import { portalDoEndereco } from "@/lib/coleta/fornecedores";
 import { avisoSoLocalhost } from "@/lib/coleta/soLocalhost";
+import { lerEstadoDoWorkerPc, situacaoDoWorkerPc } from "@/lib/coleta/workerPc";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
@@ -61,6 +64,11 @@ export default async function FontesPage({ searchParams }) {
   }
 
   const varreduraPorFonte = situacaoNaFila(jobsAbertos);
+
+  // RISE DO PC (sem RISE_PRODUCAO, que a imagem da VPS carrega): o "Varrer agora" de uma fonte do PC liga o worker do
+  // PC daqui. O andamento dele mora num arquivo, e nao na fila desta copia: ele grava no banco da VPS.
+  const noPc = !process.env.RISE_PRODUCAO;
+  const workerPc = noPc ? situacaoDoWorkerPc(lerEstadoDoWorkerPc(path.join(process.cwd(), "dados"))) : null;
 
   const linhas = (fontes ?? []).map((fonte) => ({
     id: fonte.id,
@@ -137,7 +145,7 @@ export default async function FontesPage({ searchParams }) {
       {!erro && (
         <>
           <FormularioFonte tipoInicial={aba} />
-          <RecarregarEnquantoVarre ativo={varreduraPorFonte.size > 0} />
+          <RecarregarEnquantoVarre ativo={varreduraPorFonte.size > 0 || Boolean(workerPc?.rodando)} />
 
           {linhas.length > 0 && (
             <AbasDeFontes
@@ -193,7 +201,13 @@ export default async function FontesPage({ searchParams }) {
                 </thead>
                 <tbody className="divide-y divide-borda">
                   {daAba.map((fonte) => (
-                    <LinhaFonte key={fonte.id} fonte={fonte} mostrarLista={aba === "FORNECEDOR"} />
+                    <LinhaFonte
+                      key={fonte.id}
+                      fonte={fonte}
+                      mostrarLista={aba === "FORNECEDOR"}
+                      noPc={noPc}
+                      workerPc={workerPc}
+                    />
                   ))}
                 </tbody>
               </table>

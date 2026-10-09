@@ -141,8 +141,8 @@ npm run teste:cadastros           # 88 asserções: CPF/CNPJ/CEP/telefone, CNPJ 
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
-npm run worker:pc                 # NO PC: abre um tunel SSH ate o banco da VPS, poe na fila as fontes ativas marcadas "Varrer pelo PC" (o site bloqueia a VPS), varre SO elas, grava direto na VPS e TERMINA quando acabar (`-- --ficar` mantem no ar). Ctrl+C encerra. Ver "Fonte que bloqueia a VPS"
-npm run teste:fila-pc             # 45 asserções dos TRÊS modos do worker na fila (normal, do PC e de teste): quem pega, recolhe e fecha o job de uma fonte marcada, e a regra "servidor do banco é o Windows" (Postgres local, SEM rede; só escreve fontes e jobs ZZ-PC-*)
+npm run worker:pc                 # NO PC: abre um tunel SSH ate o banco da VPS, poe na fila as fontes ativas marcadas "Varrer pelo PC" (o site bloqueia a VPS), varre SO elas, grava direto na VPS e TERMINA quando acabar (`-- --ficar` mantem no ar). Ctrl+C encerra. O "Varrer agora" da fonte no Rise do PC faz o mesmo, so para ela. Ver "Fonte que bloqueia a VPS"
+npm run teste:fila-pc             # 66 asserções dos TRÊS modos do worker na fila (normal, do PC e de teste): quem pega, recolhe e fecha o job de uma fonte marcada, a regra "servidor do banco é o Windows", o "Varrer agora" do Rise do PC (só a fonte pedida) e o arquivo de estado do worker do PC (Postgres local, SEM rede; só escreve fontes e jobs ZZ-PC-*)
 npm run backup                    # dados/backup/sistema_rise-AAAAMMDD-HHMMSS.dump (pg_dump, conferido com pg_restore; guarda os 4 mais recentes)
 npm run teste:worker              # 58 asserções: rede, fila, retomada e o worker de verdade (~6 min). RODE SOZINHO: junto de outros testes o "segundo worker" já saiu com 3221226505 (0xC0000409, aborto do Node no Windows ao encerrar, antes de o código 3 chegar); sozinho passa
 npm run foto:mensal               # tira a foto mensal de preço e estoque (só se passou do dia 14 e o mês não tem foto); `-- --forcar` ignora o dia
@@ -3502,12 +3502,25 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   **o worker do PC grava direto no banco da VPS**, então não há merge e os produtos aparecem na VPS na hora.
   - **A marca:** `FonteColeta.varridaNoPc` (migration `20261009_fonte_varrida_no_pc`), ligada pelo botão **"Varrer pelo
     PC"** na linha da fonte (tela Fontes, na VPS) ou pelo botão "Cadastrar para varrer pelo PC" do formulário (abaixo).
-    Marcada, o worker normal (o da VPS) a **ignora** (pega, recolhe e fecha só as outras). **Na linha da fonte, o botão
-    "Varrer agora" some e dá lugar ao rótulo "Varredura só pelo PC"** (pedido do dono: não há o que clicar na VPS), e o botão
-    do interruptor vira "Devolver à VPS". `varrerFonteAgora` recusa a fonte do PC, e o "Atualizar dados" da VPS a pula. O texto de `src/lib/coleta/soLocalhost.js` (a lista de sites que a
-    Cloudflare barra, medida em 09/10/2026) continua sendo só o aviso; quem decide é a marca.
-  - **Como varrer, sem clicar em nada na VPS** (pedido do dono em 09/10/2026): no PC, `npm run worker:pc`
-    (`scripts/worker-pc.js`). **Rodar o comando é o pedido de varredura:** ao subir, o worker põe na fila as fontes
+    Marcada, o worker normal (o da VPS) a **ignora** (pega, recolhe e fecha só as outras). **Na VPS, o botão "Varrer
+    agora" dela some e dá lugar ao rótulo "Varredura só pelo PC"** (pedido do dono: a VPS não alcança o PC, que está na
+    rede de casa), e o botão do interruptor vira "Devolver à VPS". `varrerFonteAgora` recusa a fonte do PC, e o "Atualizar
+    dados" da VPS a pula. O interruptor só aparece na VPS: no PC a marca iria para a cópia, que a `copia:atualizar` apaga.
+    O texto de `src/lib/coleta/soLocalhost.js` (a lista de sites que a Cloudflare barra, medida em 09/10/2026) continua
+    sendo só o aviso; quem decide é a marca.
+  - **Como varrer: "Varrer agora" no Rise do PC** (pedido do dono em 09/10/2026: "abrir o Rise no meu PC e clicar em
+    Varrer agora desse concorrente, e todo o processo se inicia sozinho"). No Rise do PC (sem `RISE_PRODUCAO`), a fonte
+    marcada mostra "Varrer agora", que chama `varrerPeloPcAgora` → `iniciarWorkerPc` (`src/lib/coleta/workerPc.js`): liga
+    `scripts/worker-pc.js --fonte=<id>` **destacado** (sobrevive a um reinício do `next dev`, sem janela de console), que
+    varre **só aquela fonte**, grava direto na VPS e termina sozinho. A fonte tem que estar marcada e ativa **no banco da
+    VPS** (o id é o mesmo da cópia): se não estiver, o worker sai com 5 e a tela diz por quê. O andamento não vem da fila
+    da cópia, e sim de `dados/worker-pc.estado.json` (o botão grava o começo; o `worker-pc.js`, o fim com código e motivo):
+    a linha mostra "Varrendo pelo PC" e "Pelo PC desde 16:16", e depois "Pelo PC (16:40): Concluída." ou o motivo em
+    vermelho. Um worker do PC por vez (o botão recusa e a porta 55432 também). Saída do script em
+    `dados/logs/worker-pc-botao.log`. **Limite:** a fonte só aparece no PC depois de a cópia ser atualizada
+    (`copia:atualizar`). O supervisor do PC **desiste depois de 3 quedas seguidas** (ex.: a VPS sem a coluna nova), em vez
+    de religar para sempre com o túnel aberto.
+  - **Pelo terminal** (continua valendo): `npm run worker:pc` (`scripts/worker-pc.js`) põe na fila TODAS as fontes
     ativas marcadas (`enfileirarFontesDoPc`), varre e **termina sozinho quando não sobra job aberto delas** (código 6, que
     o supervisor trata como sucesso); `npm run worker:pc -- --ficar` o mantém no ar. Por dentro: lê o `DATABASE_URL` da
     VPS por SSH **só em memória**, abre um túnel SSH na porta local **55432** (nunca a 5432 do Postgres do PC, para um engano de porta não
@@ -3528,7 +3541,7 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
     Por isso, na falha, aparece **"Cadastrar para varrer pelo PC"** (só site: nunca arquivo nem portal com login): grava a
     fonte **sem teste**, já marcada e **ativa**, sem ler o robots.txt daqui (`soNoPc` em `salvarFonteInterna`). A extração se
     confere com "Buscar dados" na tela do PC, que passa do IP de casa. O robots.txt é conferido a cada visita, em qualquer
-    lugar, e o worker do PC o confere de casa. **A Oceantech foi cadastrada assim.** Dado de teste: domínio `.invalid` é
+    lugar, e o worker do PC o confere de casa. Dado de teste: domínio `.invalid` é
     tratado como "só arquivo" e não vale como site de teste. O user-agent e o ritmo continuam os de sempre: **nada de disfarce**, e a regra
     "desafio anti-bot não se contorna" continua valendo para quem barra também o IP de casa (Makerhero).
 - **Código novo que muda o banco chega à VPS pelo deploy, nunca pela cópia do banco.** A migration é um arquivo SQL em

@@ -17,6 +17,12 @@ register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 const { prisma } = await import("@/lib/db.js");
 const fila = await import("@/lib/coleta/fila.js");
 const { servidorEhWindows } = await import("@/lib/copiaLocal.js");
+const { gravarEstadoDoWorkerPc, idDeFonteValido, iniciarWorkerPc, lerEstadoDoWorkerPc, situacaoDoWorkerPc } = await import(
+  "@/lib/coleta/workerPc.js"
+);
+const { mkdtempSync, rmSync } = await import("node:fs");
+const os = await import("node:os");
+const path = await import("node:path");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -70,6 +76,59 @@ conferir(
   false,
 );
 conferir("texto vazio NAO vale como Windows", servidorEhWindows(""), false);
+
+// ---------------------------------------------------------------------------
+console.log("\n— o worker do PC visto pelo Rise do PC (estado em arquivo, o botao Varrer agora) —");
+
+const agora = Date.parse("2026-10-09T18:00:00Z");
+const vivo = () => true;
+const morto = () => false;
+const comeco = { pid: 4242, fonteId: "cmfonte0001", fonteNome: "Loja", inicioEm: "2026-10-09T17:50:00Z" };
+const fimOk = { ...comeco, fimEm: "2026-10-09T17:59:00Z", codigo: 0, motivo: null };
+
+conferir("sem estado: parado e sem resultado", situacaoDoWorkerPc(null), { rodando: false, ultima: null });
+conferir("comeco gravado e processo vivo: rodando, com a fonte", (({ rodando, fonteId }) => [rodando, fonteId])(situacaoDoWorkerPc(comeco, { agora, vivo })), [true, "cmfonte0001"]);
+const interrompida = situacaoDoWorkerPc(comeco, { agora, vivo: morto });
+conferir("comeco sem fim e processo morto: interrompida (o PC desligou)", [interrompida.rodando, interrompida.ultima.ok], [false, false]);
+conferir(
+  "comeco de mais de 24 h com o pid vivo (reaproveitado pelo Windows): nao conta como rodando",
+  situacaoDoWorkerPc({ ...comeco, inicioEm: "2026-10-08T12:00:00Z" }, { agora, vivo }).rodando,
+  false,
+);
+const concluida = situacaoDoWorkerPc(fimOk, { agora, vivo });
+conferir("fim com codigo 0: concluida, com a hora do fim", [concluida.rodando, concluida.ultima.ok, concluida.ultima.mensagem, concluida.ultima.fimEm], [false, true, "Concluída.", "2026-10-09T17:59:00Z"]);
+conferir("fim com erro: o motivo gravado vai para a tela", situacaoDoWorkerPc({ ...fimOk, codigo: 5, motivo: "A VPS recusou." }, { agora, vivo }).ultima.mensagem, "A VPS recusou.");
+conferir("fim com erro sem motivo: o codigo", situacaoDoWorkerPc({ ...fimOk, codigo: 1 }, { agora, vivo }).ultima.mensagem, "Falhou (código 1).");
+conferir("id de fonte: um cuid passa", idDeFonteValido("cmv183ymh000e0jqlpxf6ett8"), true);
+conferir(
+  "id de fonte: argumento, espaco, vazio e nulo nao passam",
+  [idDeFonteValido("--ficar"), idDeFonteValido("abc def ghi"), idDeFonteValido(""), idDeFonteValido(null)],
+  [false, false, false, false],
+);
+
+// No disco, numa pasta temporaria: gravar e ler de volta, e o botao recusar SEM ligar processo nenhum.
+const pastaTeste = mkdtempSync(path.join(os.tmpdir(), "rise-worker-pc-"));
+try {
+  const pastaDados = path.join(pastaTeste, "dados");
+  conferir("arquivo de estado ausente: nulo", lerEstadoDoWorkerPc(pastaDados), null);
+  gravarEstadoDoWorkerPc(pastaDados, fimOk);
+  conferir("grava e le de volta", lerEstadoDoWorkerPc(pastaDados), fimOk);
+  conferir("o botao recusa id de fonte invalido", iniciarWorkerPc({ pastaProjeto: pastaTeste, fonteId: "--ficar" }), { ok: false, erro: "Fonte inválida." });
+  gravarEstadoDoWorkerPc(pastaDados, { pid: process.pid, fonteId: "cmfonte0001", fonteNome: "Loja", inicioEm: new Date().toISOString() });
+  conferir(
+    "com um worker do PC rodando, o botao recusa e nao liga outro",
+    iniciarWorkerPc({ pastaProjeto: pastaTeste, fonteId: "cmfonte0002" }),
+    { ok: false, erro: "Já há uma varredura pelo PC em andamento (Loja)." },
+  );
+  gravarEstadoDoWorkerPc(pastaDados, fimOk);
+  conferir(
+    "sem o script na pasta, o botao diz isso em vez de falhar calado",
+    iniciarWorkerPc({ pastaProjeto: pastaTeste, fonteId: "cmfonte0002" }).erro,
+    "Não achei scripts/worker-pc.js nesta pasta.",
+  );
+} finally {
+  rmSync(pastaTeste, { recursive: true, force: true });
+}
 
 // ---------------------------------------------------------------------------
 console.log("\n— a fila no banco —");
@@ -230,6 +289,19 @@ try {
 
   // Desfaz o que a funcao enfileirou de verdade em fonte que nao e de teste.
   await prisma.job.deleteMany({ where: { id: { notIn: jobsAntes }, fonteId: { notIn: idsDeTeste } } });
+
+  // ----------------------------------------- o "Varrer agora" do Rise do PC: so a fonte pedida (worker-pc --fonte)
+  await limparJobs(...todas);
+  conferir("com fonteId, so aquela fonte entra na fila", await fila.enfileirarFontesDoPc({ fonteId: fonteC.id }), { fontes: 1, enfileiradas: 1 });
+  conferir("e nenhuma outra fonte marcada", await donos(), [fonteC.id]);
+  conferir(
+    "fonte NAO marcada pedida pelo id: a VPS nao a reconhece (o worker recusa com 5)",
+    await fila.enfileirarFontesDoPc({ fonteId: fonteA.id }),
+    { fontes: 0, enfileiradas: 0 },
+  );
+  conferir("fonte pausada pedida pelo id: idem", await fila.enfileirarFontesDoPc({ fonteId: fonteD.id }), { fontes: 0, enfileiradas: 0 });
+  conferir("id que nao existe no banco: idem", await fila.enfileirarFontesDoPc({ fonteId: "zzpcnaoexiste0000" }), { fontes: 0, enfileiradas: 0 });
+  conferir("a fila continua so com a C", await donos(), [fonteC.id]);
 
   conferir("idsDasFontesNoPc lista so as marcadas", (await fila.idsDasFontesNoPc()).filter((id) => [fonteA.id, fonteB.id].includes(id)), [fonteB.id]);
 } finally {

@@ -14,6 +14,7 @@ import {
   editarFonte,
   excluirFonte,
   varrerFonteAgora,
+  varrerPeloPcAgora,
 } from "@/app/mercados/acoes";
 
 /// Quantas colunas a tabela tem NESTA aba: a de fornecedor mostra a coluna da
@@ -69,7 +70,16 @@ function proximaVarredura(fonte) {
   return `proxima: ${comoData(fonte.proximaVarreduraEm)}`;
 }
 
-export default function LinhaFonte({ fonte, mostrarLista = false }) {
+/// Hora curta (15:52) para "Pelo PC: concluída às ...".
+function comoHora(valor) {
+  return valor ? new Date(valor).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : null;
+}
+
+/**
+ * `noPc`: este Rise roda no PC (e nao na VPS). `workerPc`: o worker do PC ligado daqui
+ * (`situacaoDoWorkerPc`: `rodando`, `fonteId`, `fonteNome`, `inicioEm` e o resultado da ultima vez em `ultima`).
+ */
+export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, workerPc = null }) {
   const router = useRouter();
   const [pendente, iniciarTransicao] = useTransition();
   const [confirmando, setConfirmando] = useState(null);
@@ -89,6 +99,21 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
     setErro(null);
     iniciarTransicao(async () => {
       const resultado = await varrerFonteAgora(fonte.id);
+      if (!resultado.ok) setErro(resultado.erro);
+      router.refresh();
+    });
+  }
+
+  // O worker do PC esta varrendo esta fonte (ou todas as marcadas, quando foi aberto pelo terminal), ou outra.
+  const pcVarrendoEsta = Boolean(workerPc?.rodando) && (workerPc.fonteId === fonte.id || workerPc.fonteId === null);
+  const pcVarrendoOutra = Boolean(workerPc?.rodando) && !pcVarrendoEsta;
+  const ultimaPeloPc = workerPc?.ultima?.fonteId === fonte.id ? workerPc.ultima : null;
+
+  /** No Rise do PC: liga o worker do PC so para esta fonte. Ele grava direto na VPS e desliga sozinho. */
+  function varrerPeloPc() {
+    setErro(null);
+    iniciarTransicao(async () => {
+      const resultado = await varrerPeloPcAgora(fonte.id);
       if (!resultado.ok) setErro(resultado.erro);
       router.refresh();
     });
@@ -207,7 +232,10 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
                   <Ban size={12} className="mt-0.5 shrink-0" />
                   <span>
                     {fonte.avisoSoLocalhost}
-                    {!fonte.varridaNoPc && " Marque \"Varrer pelo PC\" para o worker da VPS deixá-la de lado."}
+                    {!fonte.varridaNoPc &&
+                      (noPc
+                        ? " Marque \"Varrer pelo PC\" na tela da VPS."
+                        : " Marque \"Varrer pelo PC\" para o worker da VPS deixá-la de lado.")}
                   </span>
                 </p>
               )}
@@ -322,14 +350,38 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
               </button>
             )}
 
-            {fonte.varridaNoPc ? (
+            {fonte.varridaNoPc && noPc ? (
               /*
-                FONTE DO PC: nao ha "Varrer agora" aqui. Quem a varre e o `npm run worker:pc`, que ja poe a fonte na
-                fila sozinho (rodar o comando e o pedido de varredura). O rotulo diz isso e mostra o andamento.
+                FONTE DO PC, NO RISE DO PC: o "Varrer agora" liga o worker do PC so para ela (worker-pc.js --fonte),
+                que abre o tunel, varre com o IP de casa, grava direto no banco da VPS e desliga sozinho. O andamento
+                vem do arquivo de estado dele, e nao da fila desta copia.
+              */
+              <button
+                type="button"
+                onClick={varrerPeloPc}
+                disabled={pendente || Boolean(workerPc?.rodando) || !fonte.ativa || !fonte.robotsPermite}
+                className={`${botao} border-sky-300 bg-sky-50 text-sky-900`}
+                title={
+                  pcVarrendoEsta
+                    ? "O worker do PC está varrendo esta fonte e gravando direto na VPS. Ele desliga sozinho ao terminar."
+                    : pcVarrendoOutra
+                      ? `Já há uma varredura pelo PC em andamento${workerPc.fonteNome ? ` (${workerPc.fonteNome})` : ""}.`
+                      : !fonte.ativa
+                        ? "Fonte pausada: use Retomar na tela da VPS"
+                        : "Varre pelo seu PC (o site bloqueia a VPS) e grava direto no banco da VPS. Desliga sozinho ao terminar."
+                }
+              >
+                {pcVarrendoEsta ? <Loader size={12} className="animate-spin" /> : <Monitor size={12} />}
+                {pcVarrendoEsta ? "Varrendo pelo PC" : "Varrer agora"}
+              </button>
+            ) : fonte.varridaNoPc ? (
+              /*
+                FONTE DO PC, NA VPS: nao ha "Varrer agora" aqui (pedido do dono). A VPS nao alcanca o PC, que esta na
+                rede de casa: a varredura comeca pelo Rise do PC. O rotulo diz isso e mostra o andamento.
               */
               <span
                 className="inline-flex items-center gap-1 rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs text-sky-900"
-                title="Esta fonte é varrida só pelo PC: no PC, rode npm run worker:pc. Ele varre e grava aqui."
+                title="Esta fonte é varrida pelo PC: abra o Rise no seu PC e clique em Varrer agora nela. A varredura grava aqui."
               >
                 <Monitor size={12} />
                 {fonte.varredura === "VARRENDO"
@@ -376,24 +428,27 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
             )}
 
             {/*
-              VARRER PELO PC. O worker da VPS passa a ignorar a fonte, e so o `npm run worker:pc` (rodando no PC, com o
-              IP de casa) a pega. Para o site que bloqueia a VPS. Quem esta na fila espera o PC ligar.
+              VARRER PELO PC (a marca). O worker da VPS passa a ignorar a fonte, e so o worker do PC (com o IP de casa)
+              a varre. Para o site que bloqueia a VPS. So na VPS: no PC a marca seria gravada na copia, que a proxima
+              `copia:atualizar` apaga, e a VPS nunca a veria.
             */}
-            <button
-              type="button"
-              onClick={alternarPc}
-              disabled={pendente}
-              aria-pressed={Boolean(fonte.varridaNoPc)}
-              className={botao}
-              title={
-                fonte.varridaNoPc
-                  ? "Devolve a fonte ao worker da VPS (ela volta a ter o botão Varrer agora)."
-                  : "Para o site que bloqueia a VPS: o worker da VPS a deixa de lado e só o worker do PC varre."
-              }
-            >
-              <Monitor size={12} />
-              {fonte.varridaNoPc ? "Devolver à VPS" : "Varrer pelo PC"}
-            </button>
+            {!noPc && (
+              <button
+                type="button"
+                onClick={alternarPc}
+                disabled={pendente}
+                aria-pressed={Boolean(fonte.varridaNoPc)}
+                className={botao}
+                title={
+                  fonte.varridaNoPc
+                    ? "Devolve a fonte ao worker da VPS (ela volta a ter o botão Varrer agora)."
+                    : "Para o site que bloqueia a VPS: o worker da VPS a deixa de lado, e ela é varrida pelo Rise do PC."
+                }
+              >
+                <Monitor size={12} />
+                {fonte.varridaNoPc ? "Devolver à VPS" : "Varrer pelo PC"}
+              </button>
+            )}
 
             <button
               type="button"
@@ -420,6 +475,16 @@ export default function LinhaFonte({ fonte, mostrarLista = false }) {
               Excluir
             </button>
           </div>
+
+          {/* O worker do PC: desde quando varre esta fonte, ou como terminou da ultima vez. So no Rise do PC. */}
+          {fonte.varridaNoPc && pcVarrendoEsta && workerPc.inicioEm && (
+            <p className="mt-1 text-right text-xs text-sky-900">Pelo PC desde {comoHora(workerPc.inicioEm)}</p>
+          )}
+          {fonte.varridaNoPc && !workerPc?.rodando && ultimaPeloPc && (
+            <p className={`mt-1 text-right text-xs ${ultimaPeloPc.ok ? "text-suave" : "text-red-700"}`}>
+              Pelo PC{ultimaPeloPc.fimEm ? ` (${comoHora(ultimaPeloPc.fimEm)})` : ""}: {ultimaPeloPc.mensagem}
+            </p>
+          )}
         </td>
       </tr>
 

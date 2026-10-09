@@ -90,6 +90,9 @@ const SO_NO_PC = fila.soNoPcConfigurado();
 /// O worker do PC termina sozinho quando nao ha mais job aberto das fontes dele. Sem isto ele ficaria esperando, como o
 /// da VPS; `npm run worker:pc -- --ficar` desliga.
 const SAIR_AO_ACABAR = SO_NO_PC && process.env.COLETA_PC_SAIR === "1";
+/// So esta fonte (o "Varrer agora" da linha, no Rise do PC, que roda `worker-pc.js --fonte=<id>`). Sem ela, o worker do
+/// PC poe na fila todas as marcadas, como no `npm run worker:pc` do terminal.
+const FONTE_DO_PC = SO_NO_PC ? String(process.env.COLETA_PC_FONTE ?? "").trim() || null : null;
 
 /** Hostname que a varredura visita: o dominio da fonte, com ou sem protocolo. */
 function hostnameDa(fonte) {
@@ -620,8 +623,17 @@ log(
     (SO_NO_PC ? " · so as fontes marcadas para varrer no PC" : ""),
 );
 if (SO_NO_PC) {
-  // Quem roda `npm run worker:pc` esta pedindo a varredura das fontes marcadas: nao precisa clicar na tela da VPS.
-  const { fontes, enfileiradas } = await fila.enfileirarFontesDoPc();
+  // Quem roda `npm run worker:pc` (ou clica "Varrer agora" no Rise do PC) esta pedindo a varredura: nao precisa
+  // clicar na tela da VPS.
+  const { fontes, enfileiradas } = await fila.enfileirarFontesDoPc({ fonteId: FONTE_DO_PC });
+  if (FONTE_DO_PC && fontes === 0) {
+    // A copia do PC achava a fonte marcada, e a VPS nao: nada a varrer, e religar repetiria a recusa.
+    logErro(
+      `a fonte ${FONTE_DO_PC} nao existe na VPS, nao esta marcada "Varrer pelo PC" la, ou esta pausada. ` +
+        "Confira na tela Fontes da VPS e atualize a copia do PC.",
+    );
+    await sair(SAIDA_CONFIGURACAO, "fonte pedida nao e do PC na VPS");
+  }
   log(
     fontes === 0
       ? "nenhuma fonte ativa marcada para varrer pelo PC"

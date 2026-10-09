@@ -808,8 +808,8 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
               Cadastrar para varrer pelo PC
             </button>
             <span className="text-xs text-suave">
-              Se o site só bloqueia a VPS, cadastre assim. A varredura roda no PC (<code>npm run worker:pc</code>) e grava aqui.
-              Confira a extração pelo “Buscar dados” na tela do PC.
+              Se o site só bloqueia a VPS, cadastre assim. Depois, no Rise do seu PC, clique em Varrer agora nesta fonte:
+              a varredura roda pelo PC e grava aqui (a fonte aparece no PC depois de atualizar a cópia).
             </span>
           </div>
         )}
