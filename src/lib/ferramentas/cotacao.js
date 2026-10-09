@@ -96,7 +96,10 @@ export function urlPtax({ inicio, fim }) {
   return (
     `${BASE_PTAX}/CotacaoDolarPeriodo(dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)` +
     `?@dataInicial='${dataDoBcb(inicio)}'&@dataFinalCotacao='${dataDoBcb(fim)}'` +
-    "&$top=1000&$format=json&$select=cotacaoCompra,cotacaoVenda,dataHoraCotacao"
+    // SEM `$select`: a partir da VPS (IP de datacenter da Hostinger) o BC responde 403 a QUALQUER pedido que leve
+    // `$select`, mesmo com um campo so ou a virgula codificada, e 200 ao mesmo pedido sem ele (medido em 09/10/2026).
+    // A resposta vem com mais campos; `lerPtax` pega so os que usa.
+    "&$top=1000&$format=json"
   );
 }
 
@@ -109,7 +112,8 @@ export function urlBoletins(hoje = hojeEmSaoPaulo()) {
   return (
     `${BASE_PTAX}/CotacaoMoedaPeriodo(moeda=@moeda,dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)` +
     `?@moeda='USD'&@dataInicial='${dataDoBcb(somarDias(hoje, -7))}'&@dataFinalCotacao='${dataDoBcb(hoje)}'` +
-    "&$top=100&$format=json&$select=cotacaoCompra,cotacaoVenda,dataHoraCotacao,tipoBoletim"
+    // Sem `$select`, pelo mesmo motivo de `urlPtax`.
+    "&$top=100&$format=json"
   );
 }
 
