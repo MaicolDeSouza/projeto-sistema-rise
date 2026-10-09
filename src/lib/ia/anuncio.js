@@ -840,37 +840,7 @@ export function montarPedidoDaDescricao({ titulo = "", referencias, listaDeMedid
   );
 }
 
-/**
- * A linha do prompt da descricao salvo pelo dono. Fica na tabela do prompt do Nano Banana (`PromptImagem`), com
- * esta chave no lugar do modelo: a mesma regra (uma linha so quando o dono mudou o texto) sem mexer no schema.
- */
-export const CHAVE_PROMPT_DESCRICAO = "descricao";
-
-/** O prompt salvo, ou o padrao do codigo quando nao ha linha (ou o banco falha). */
-export async function lerPromptDaDescricao() {
-  try {
-    const linha = await prisma.promptImagem.findUnique({ where: { modelo: CHAVE_PROMPT_DESCRICAO } });
-    return linha?.texto ?? PROMPT_DESCRICAO_PADRAO;
-  } catch {
-    return PROMPT_DESCRICAO_PADRAO;
-  }
-}
-
-/**
- * Grava o prompt ja conferido por `limparPromptDaDescricao`. Igual ao padrao, APAGA a linha: assim uma melhoria
- * futura do padrao chega a quem nunca mexeu nele (a mesma regra do Nano Banana).
- */
-export async function gravarPromptDaDescricao(texto) {
-  if (texto === PROMPT_DESCRICAO_PADRAO) {
-    await prisma.promptImagem.deleteMany({ where: { modelo: CHAVE_PROMPT_DESCRICAO } });
-    return;
-  }
-  await prisma.promptImagem.upsert({
-    where: { modelo: CHAVE_PROMPT_DESCRICAO },
-    create: { modelo: CHAVE_PROMPT_DESCRICAO, texto },
-    update: { texto },
-  });
-}
+// Os prompts SALVOS (a biblioteca com nome, desde 09/10/2026) moram em `promptsDescricao.js`.
 
 /**
  * Limpa o que a IA devolveu para os dois primeiros paragrafos (pedido do dono em 04/10/2026: 3 opcoes

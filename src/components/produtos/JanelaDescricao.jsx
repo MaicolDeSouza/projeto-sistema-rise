@@ -13,7 +13,10 @@ import { ArrowRight, Check, ExternalLink, Loader, Pencil, Sparkles, Trash2, Wand
 import {
   buscarDescricoesParaProduto,
   criarDescricaoIA,
-  promptDaDescricao,
+  criarPromptDaDescricao,
+  definirPromptPadraoDaDescricao,
+  excluirPromptDaDescricao,
+  promptsDaDescricao,
   salvarPromptDaDescricao,
 } from "@/app/produtos/acoes";
 import { linhasDeEspecificacao, medidasDaDescricao } from "@/lib/medidas";
@@ -256,12 +259,17 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   const [escolhidosParagrafos, setEscolhidosParagrafos] = useState([0, 0]);
   // O texto de uma aba da esquerda esperando o "Substituir?" (ver `pedirLevar`).
   const [textoParaLevar, setTextoParaLevar] = useState(null);
-  // O prompt de escrita que vai para a IA (pedido do dono em 06/10/2026, no molde do Nano Banana): a caixa
-  // nasce com o salvo; editar sem salvar vale so para as geracoes desta janela. `null` = ainda lendo.
+  // A BIBLIOTECA DE PROMPTS (pedido do dono em 09/10/2026): `prompts` e a lista ({id, nome, texto, sistema,
+  // padrao}), o "Padrao do sistema" primeiro; `promptId` e o escolhido no seletor. `prompt` e `nomePrompt` sao o
+  // texto e o nome NA CAIXA: editar sem salvar vale so para as geracoes desta janela. `null` = ainda lendo.
+  const [prompts, setPrompts] = useState(null);
+  const [promptId, setPromptId] = useState(null);
   const [prompt, setPrompt] = useState(null);
-  const [promptSalvo, setPromptSalvo] = useState(null);
-  const [promptPadrao, setPromptPadrao] = useState("");
+  const [nomePrompt, setNomePrompt] = useState("");
   const [maximoPrompt, setMaximoPrompt] = useState(0);
+  // Dentro da janela do prompt: o nome do "Salvar como novo" (null = fechado) e a confirmacao de excluir.
+  const [nomeDoNovo, setNomeDoNovo] = useState(null);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [erroPrompt, setErroPrompt] = useState(null);
   const [salvandoPrompt, iniciarSalvarPrompt] = useTransition();
   // A caixa grande do prompt, por cima da janela (pedido do dono em 06/10/2026: a area da descricao precisa
@@ -292,21 +300,27 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     // de volta — por isso reseta aqui, e nao junto de `detalhes` (que so
     // muda quando a busca termina).
     setExcluidos(new Set());
+    setPrompts(null);
+    setPromptId(null);
     setPrompt(null);
-    setPromptSalvo(null);
+    setNomePrompt("");
     setErroPrompt(null);
     setEditandoPrompt(false);
-    // O prompt chega sozinho, sem esperar as referencias (a busca leva segundos).
-    promptDaDescricao()
+    setNomeDoNovo(null);
+    setConfirmandoExclusao(false);
+    // A lista chega sozinha, sem esperar as referencias (a busca leva segundos), e ja vem com o PADRAO escolhido.
+    promptsDaDescricao()
       .then((resposta) => {
         if (leitura !== leituraAtual.current) return;
-        setPrompt(resposta.texto);
-        setPromptSalvo(resposta.texto);
-        setPromptPadrao(resposta.padrao);
+        if (!resposta.ok) {
+          setErroPrompt("Não deu para ler os prompts salvos. A geração usa o padrão mesmo assim.");
+          return;
+        }
         setMaximoPrompt(resposta.maximo);
+        aplicarLista(resposta.prompts, (resposta.prompts.find((item) => item.padrao) ?? resposta.prompts[0]).id);
       })
       .catch(() => {
-        if (leitura === leituraAtual.current) setErroPrompt("Não deu para ler o prompt salvo. A geração usa o salvo mesmo assim.");
+        if (leitura === leituraAtual.current) setErroPrompt("Não deu para ler os prompts salvos. A geração usa o padrão mesmo assim.");
       });
     iniciarLeitura(async () => {
       try {
@@ -338,7 +352,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   function pedirFechamento() {
     // Com a janela do prompt aberta, o Esc (e o clique fora) fecha so ela, mantendo o que foi editado.
     if (editandoPrompt) {
-      setEditandoPrompt(false);
+      fecharPrompt();
       return;
     }
     if (textoParaLevar !== null) {
@@ -502,24 +516,77 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setEditandoTexto(true);
   }
 
-  /** "Salvar prompt": o texto da caixa passa a ser o prompt de toda descricao gerada. */
-  function salvarPrompt() {
+  /** Poe a lista nova e escolhe `id` nela (o texto e o nome vao para a caixa, descartando o que nao foi salvo). */
+  function aplicarLista(lista, id) {
+    const escolhido = lista.find((item) => item.id === id) ?? lista[0];
+    setPrompts(lista);
+    setPromptId(escolhido.id);
+    setPrompt(escolhido.texto);
+    setNomePrompt(escolhido.nome);
+  }
+
+  /** Fecha a janela do prompt mantendo o que foi editado na caixa; os pedidos de "novo" e "excluir" abertos somem. */
+  function fecharPrompt() {
+    setEditandoPrompt(false);
+    setNomeDoNovo(null);
+    setConfirmandoExclusao(false);
+    setErroPrompt(null);
+  }
+
+  /** Trocar no seletor: o texto do escolhido vai para a caixa (a edicao nao salva da anterior se perde). */
+  function escolherPrompt(id) {
+    setErroPrompt(null);
+    setNomeDoNovo(null);
+    setConfirmandoExclusao(false);
+    aplicarLista(prompts, id);
+  }
+
+  /**
+   * Roda uma acao da biblioteca e, dando certo, aplica a lista que ela devolve, escolhendo `escolher(resposta)`.
+   * `fecharDepois`: salvar e criar voltam para a tela normal (pedido do dono em 06/10/2026).
+   */
+  function naBiblioteca(acao, escolher, { fecharDepois = false, manterCaixa = false } = {}) {
     setErroPrompt(null);
     iniciarSalvarPrompt(async () => {
       try {
-        const resposta = await salvarPromptDaDescricao(prompt);
+        const resposta = await acao();
         if (!resposta.ok) {
           setErroPrompt(resposta.erro);
           return;
         }
-        setPrompt(resposta.texto);
-        setPromptSalvo(resposta.texto);
-        // Salvo, volta para a tela normal (pedido do dono em 06/10/2026).
-        setEditandoPrompt(false);
+        // `manterCaixa`: so a lista muda; o texto e o nome que estao sendo editados ficam como estao.
+        if (manterCaixa) setPrompts(resposta.prompts);
+        else aplicarLista(resposta.prompts, escolher(resposta));
+        setNomeDoNovo(null);
+        setConfirmandoExclusao(false);
+        if (fecharDepois) setEditandoPrompt(false);
       } catch (falha) {
-        setErroPrompt(falha?.message ?? "Falha ao salvar o prompt.");
+        setErroPrompt(falha?.message ?? "Falha ao gravar o prompt.");
       }
     });
+  }
+
+  /** "Salvar": nome e texto da caixa no prompt escolhido. */
+  function salvarPrompt() {
+    naBiblioteca(() => salvarPromptDaDescricao(promptId, nomePrompt, prompt), () => promptId, { fecharDepois: true });
+  }
+
+  /** "Salvar como novo": um prompt novo com o texto da caixa, ja escolhido. */
+  function criarPrompt() {
+    naBiblioteca(() => criarPromptDaDescricao(nomeDoNovo, prompt), (resposta) => resposta.prompt.id, { fecharDepois: true });
+  }
+
+  /** "Excluir": sai da lista, e a caixa fica com o prompt que ficou como padrao. */
+  function excluirPrompt() {
+    naBiblioteca(
+      () => excluirPromptDaDescricao(promptId),
+      (resposta) => (resposta.prompts.find((item) => item.padrao) ?? resposta.prompts[0]).id,
+    );
+  }
+
+  /** "Usar como padrão": o escolhido passa a vir escolhido ao abrir a janela. O texto da caixa nao muda. */
+  function tornarPadrao() {
+    naBiblioteca(() => definirPromptPadraoDaDescricao(promptId), () => promptId, { manterCaixa: true });
   }
 
   function adicionarDaFonte(linha) {
@@ -573,6 +640,11 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     !confirmadas.has(item.id) && Number.isInteger(selecoes[item.id])).length;
   // Prompt vazio ou acima do teto nao gera nem salva (o servidor confere de novo).
   const promptValido = prompt === null || (prompt.trim().length > 0 && prompt.trim().length <= maximoPrompt);
+  // O escolhido como esta SALVO, para dizer se a caixa foi editada e para o "Voltar ao salvo".
+  const promptEscolhido = prompts?.find((item) => item.id === promptId) ?? null;
+  const promptEditado =
+    prompt !== null && promptEscolhido !== null && (prompt !== promptEscolhido.texto || nomePrompt !== promptEscolhido.nome);
+  const textoDoSistema = prompts?.find((item) => item.sistema)?.texto ?? "";
 
   return (
     <div
@@ -670,20 +742,32 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               Criar a descrição com IA
             </p>
             {/*
-              O prompt que vai para a IA (pedido do dono em 06/10/2026). Aqui so uma linha com o botao "Editar
-              prompt": a caixa grande abre por cima (ver `editandoPrompt`), para a descricao ficar com o espaco.
+              O prompt que vai para a IA: a LISTA da biblioteca (pedido do dono em 09/10/2026) e o botao "Editar
+              prompt", que abre a caixa grande por cima (ver `editandoPrompt`), para a descricao ficar com o espaco.
             */}
             <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-              <span className="font-medium text-suave">Prompt enviado à IA:</span>
-              <span className={prompt !== null && prompt !== promptSalvo ? "font-medium text-amber-700" : "text-suave"}>
-                {prompt === null
-                  ? "lendo..."
-                  : prompt !== promptSalvo
-                    ? "editado, vale só nesta janela"
-                    : prompt === promptPadrao
-                      ? "o padrão do sistema"
-                      : "o salvo por você"}
-              </span>
+              <label htmlFor="descricao-prompt-escolhido" className="font-medium text-suave">
+                Prompt:
+              </label>
+              <select
+                id="descricao-prompt-escolhido"
+                value={promptId ?? ""}
+                onChange={(evento) => escolherPrompt(evento.target.value)}
+                disabled={prompts === null || gerando || salvandoPrompt}
+                className="max-w-56 min-w-0 rounded border border-borda bg-superficie px-2 py-1 text-xs focus:border-acento focus:outline-none disabled:opacity-60"
+              >
+                {prompts === null ? (
+                  <option value="">lendo...</option>
+                ) : (
+                  prompts.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.nome}
+                      {item.padrao ? " (padrão)" : ""}
+                    </option>
+                  ))
+                )}
+              </select>
+              {promptEditado && <span className="font-medium text-amber-700">editado, vale só nesta janela</span>}
               <button
                 type="button"
                 onClick={() => setEditandoPrompt(true)}
@@ -723,6 +807,17 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 className="inline-flex items-center gap-1.5 rounded border border-borda bg-superficie px-3 py-1.5 text-sm font-medium hover:border-acento disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <WandSparkles size={14} /> Organizar descrição
+              </button>
+              {/* "Salvar e sair" aqui em cima, a direita (pedido do dono em 09/10/2026; era "Usar esta descrição", no pe
+                  da janela): poe o texto na aba Descricao e fecha. */}
+              <button
+                type="button"
+                onClick={usar}
+                disabled={!texto.trim() || pendentes > 0}
+                title={pendentes > 0 ? `${pendentes} parâmetro(s) aguardam escolha.` : "Substitui o texto da aba Descrição e fecha"}
+                className="ml-auto rounded bg-acento px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Salvar e sair
               </button>
             </div>
 
@@ -816,32 +911,22 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               )}
             </div>
 
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <span className="text-[11px] text-suave">
-                {prontasParaOrganizar > 0
-                  ? prontasParaOrganizar + " escolha(s) marcada(s); clique em Organizar descrição."
-                  : pendentes > 0
-                    ? pendentes + " parâmetro(s) aguardam escolha."
-                    : "Substitui o texto da aba Descrição."}
-              </span>
-              <button
-                type="button"
-                onClick={usar}
-                disabled={!texto.trim() || pendentes > 0}
-                className="rounded bg-acento px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Usar esta descrição
-              </button>
-            </div>
+            <p className="mt-2 text-[11px] text-suave">
+              {prontasParaOrganizar > 0
+                ? prontasParaOrganizar + " escolha(s) marcada(s); clique em Organizar descrição."
+                : pendentes > 0
+                  ? pendentes + " parâmetro(s) aguardam escolha."
+                  : '"Salvar e sair" substitui o texto da aba Descrição.'}
+            </p>
           </div>
         </div>
       </section>
 
-      {editandoPrompt && prompt !== null && (
+      {editandoPrompt && prompt !== null && promptEscolhido && (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
           onClick={(evento) => {
-            if (evento.target === evento.currentTarget) setEditandoPrompt(false);
+            if (evento.target === evento.currentTarget) fecharPrompt();
           }}
         >
           <section
@@ -850,10 +935,37 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             aria-labelledby="descricao-prompt-titulo"
             className="flex h-[85vh] w-full max-w-5xl flex-col rounded-lg border border-borda bg-superficie p-4 shadow-2xl"
           >
-            <div className="mb-1 flex items-center gap-2">
-              <p id="descricao-prompt-titulo" className="text-sm font-semibold">
-                Prompt enviado à IA
-              </p>
+            {/* Nome do prompt (o do sistema nao muda de nome), se e o padrao, o contador e o X. */}
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span id="descricao-prompt-titulo" className="text-sm font-semibold">
+                Prompt:
+              </span>
+              {promptEscolhido.sistema ? (
+                <span className="text-sm font-semibold">{promptEscolhido.nome}</span>
+              ) : (
+                <input
+                  value={nomePrompt}
+                  onChange={(evento) => setNomePrompt(evento.target.value)}
+                  disabled={salvandoPrompt}
+                  aria-label="Nome do prompt"
+                  className="w-64 rounded border border-borda px-2 py-1 text-sm font-semibold focus:border-acento focus:outline-none"
+                />
+              )}
+              {promptEscolhido.padrao ? (
+                <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800">
+                  padrão: já vem escolhido ao abrir
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={tornarPadrao}
+                  disabled={salvandoPrompt}
+                  title="Este prompt passa a vir escolhido ao abrir a janela"
+                  className="rounded border border-borda px-2 py-0.5 text-[11px] hover:bg-fundo disabled:opacity-40"
+                >
+                  Usar como padrão
+                </button>
+              )}
               <span
                 className={`ml-auto text-xs ${prompt.trim().length > maximoPrompt ? "font-medium text-red-700" : "text-suave"}`}
               >
@@ -861,7 +973,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               </span>
               <button
                 type="button"
-                onClick={() => setEditandoPrompt(false)}
+                onClick={fecharPrompt}
                 aria-label="Fechar o prompt"
                 className="rounded p-1 text-suave hover:bg-fundo"
               >
@@ -871,51 +983,143 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             <p className="mb-2 text-xs text-suave">
               O Nome, o Código, as referências, as medidas e as divergências entram sozinhos antes dele. Fechar sem
               salvar vale só para esta janela.
+              {promptEscolhido.sistema && ' O do sistema não muda: para guardar uma versão sua, use "Salvar como novo".'}
             </p>
             <textarea
               value={prompt}
               onChange={(evento) => setPrompt(evento.target.value)}
               disabled={salvandoPrompt}
               autoFocus
-              aria-label="Prompt enviado à IA"
+              aria-label="Texto do prompt"
               className="min-h-0 flex-1 resize-none rounded border border-borda bg-white p-3 text-sm leading-relaxed focus:border-acento focus:outline-none disabled:opacity-60"
             />
             {erroPrompt && <p className="mt-2 text-sm text-red-700">{erroPrompt}</p>}
+
+            {/* "Salvar como novo": o nome do prompt novo, com o texto que esta na caixa. */}
+            {nomeDoNovo !== null && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded border border-acento/40 bg-sky-50 p-2 text-sm">
+                <label htmlFor="descricao-prompt-novo" className="font-medium">
+                  Nome do novo prompt:
+                </label>
+                <input
+                  id="descricao-prompt-novo"
+                  value={nomeDoNovo}
+                  onChange={(evento) => setNomeDoNovo(evento.target.value)}
+                  onKeyDown={(evento) => {
+                    if (evento.key === "Enter" && nomeDoNovo.trim() && promptValido) criarPrompt();
+                  }}
+                  autoFocus
+                  placeholder="Ex.: Motor DC"
+                  className="w-64 rounded border border-borda bg-white px-2 py-1 focus:border-acento focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={criarPrompt}
+                  disabled={!nomeDoNovo.trim() || !promptValido || salvandoPrompt}
+                  className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1 font-medium text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  {salvandoPrompt && <Loader size={14} className="animate-spin" />}
+                  Criar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNomeDoNovo(null)}
+                  className="rounded border border-borda bg-white px-3 py-1 hover:bg-fundo"
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
+
+            {/* "Excluir": confirma antes; o prompt some da lista e a caixa fica com o padrao. */}
+            {confirmandoExclusao && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded border border-red-200 bg-red-50 p-2 text-sm">
+                <span className="font-medium text-red-800">Excluir o prompt &quot;{promptEscolhido.nome}&quot;?</span>
+                <button
+                  type="button"
+                  onClick={excluirPrompt}
+                  disabled={salvandoPrompt}
+                  className="rounded bg-red-600 px-3 py-1 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  Excluir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmandoExclusao(false)}
+                  className="rounded border border-borda bg-white px-3 py-1 hover:bg-fundo"
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
+
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setPrompt(promptPadrao)}
-                disabled={prompt === promptPadrao || salvandoPrompt}
-                title="Põe na caixa o prompt original do sistema (para valer sempre, clique depois em Salvar prompt)"
+                onClick={() => setPrompt(textoDoSistema)}
+                disabled={prompt === textoDoSistema || salvandoPrompt}
+                title="Põe na caixa o texto do prompt do sistema (para guardar, salve depois)"
                 className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:opacity-40"
               >
-                Restaurar padrão
+                Restaurar o do sistema
               </button>
               <button
                 type="button"
-                onClick={() => setPrompt(promptSalvo)}
-                disabled={prompt === promptSalvo || salvandoPrompt}
+                onClick={() => {
+                  setPrompt(promptEscolhido.texto);
+                  setNomePrompt(promptEscolhido.nome);
+                }}
+                disabled={!promptEditado || salvandoPrompt}
                 title="Descarta o que você editou e volta ao prompt salvo"
                 className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:opacity-40"
               >
                 Voltar ao salvo
               </button>
+              {!promptEscolhido.sistema && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNomeDoNovo(null);
+                    setConfirmandoExclusao(true);
+                  }}
+                  disabled={salvandoPrompt}
+                  className="inline-flex items-center gap-1 rounded border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:opacity-40"
+                >
+                  <Trash2 size={14} /> Excluir
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setEditandoPrompt(false)}
+                onClick={fecharPrompt}
                 className="ml-auto rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
               >
                 Fechar
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  setConfirmandoExclusao(false);
+                  setNomeDoNovo("");
+                }}
+                disabled={!promptValido || salvandoPrompt}
+                title="Cria outro prompt com o texto da caixa"
+                className="rounded border border-acento px-3 py-1.5 text-sm font-medium text-acento hover:bg-sky-50 disabled:opacity-40"
+              >
+                Salvar como novo
+              </button>
+              <button
+                type="button"
                 onClick={salvarPrompt}
-                disabled={prompt === promptSalvo || !promptValido || salvandoPrompt}
-                title="Guarda este texto como o prompt de toda descrição gerada"
+                disabled={promptEscolhido.sistema || !promptEditado || !promptValido || salvandoPrompt}
+                title={
+                  promptEscolhido.sistema
+                    ? 'O do sistema não muda: use "Salvar como novo"'
+                    : "Grava o nome e o texto neste prompt"
+                }
                 className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {salvandoPrompt && <Loader size={14} className="animate-spin" />}
-                Salvar prompt
+                {salvandoPrompt && nomeDoNovo === null && <Loader size={14} className="animate-spin" />}
+                Salvar
               </button>
             </div>
           </section>

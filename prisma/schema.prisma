@@ -420,6 +420,18 @@ model PromptImagem {
   atualizadoEm DateTime @updatedAt
 }
 
+/// Os prompts de escrita da janela "Criar descricao", com nome (pedido do dono em 09/10/2026: "Microcontrolador",
+/// "Motor DC"...). O "Padrao do sistema" NAO e linha: e o `PROMPT_DESCRICAO_PADRAO` do codigo, que nao se apaga.
+/// `padrao` marca o que ja vem escolhido ao abrir a janela; no maximo um, e nenhum = o do sistema.
+model PromptDescricao {
+  id           String   @id @default(cuid())
+  nome         String   @unique
+  texto        String
+  padrao       Boolean  @default(false)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+}
+
 // ---------------------------------------------------------------------------
 // Anuncios
 // ---------------------------------------------------------------------------

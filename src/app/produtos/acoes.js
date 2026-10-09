@@ -13,13 +13,11 @@ import { lerCamposDasReferencias, lerDetalhesDasReferencias } from "@/lib/campos
 import {
   gerarDescricao,
   gerarTitulos,
-  gravarPromptDaDescricao,
-  lerPromptDaDescricao,
   limparPromptDaDescricao,
   MAXIMO_PROMPT_DESCRICAO,
   MAXIMO_REFERENCIAS,
-  PROMPT_DESCRICAO_PADRAO,
 } from "@/lib/ia/anuncio";
+import * as bibliotecaDePrompts from "@/lib/ia/promptsDescricao";
 import { normalizar } from "@/lib/texto";
 import { descartarLote } from "@/lib/imagens/lote";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
@@ -228,10 +226,11 @@ export async function buscarDescricoesParaProduto(idsReferencias = []) {
  */
 export async function criarDescricaoIA(ids, produto, instrucoes) {
   try {
-    // `instrucoes` e o prompt da caixa da janela (o salvo, ou editado so para esta geracao). Sem ele, o salvo.
+    // `instrucoes` e o prompt da caixa da janela (o escolhido na lista, ou editado so para esta geracao). Sem ele,
+    // o prompt marcado como padrao na biblioteca.
     let prompt;
     if (instrucoes === undefined) {
-      prompt = await lerPromptDaDescricao();
+      prompt = await bibliotecaDePrompts.textoDoPromptPadrao();
     } else {
       const conferido = limparPromptDaDescricao(instrucoes);
       if (!conferido.ok) return conferido;
@@ -243,29 +242,45 @@ export async function criarDescricaoIA(ids, produto, instrucoes) {
   }
 }
 
-/**
- * O prompt de escrita da descricao para a caixa da janela "Criar descricao" (pedido do dono em 06/10/2026): o
- * salvo (ou o padrao do codigo), o padrao para comparar e o teto de caracteres.
- */
-export async function promptDaDescricao() {
-  return {
-    ok: true,
-    texto: await lerPromptDaDescricao(),
-    padrao: PROMPT_DESCRICAO_PADRAO,
-    maximo: MAXIMO_PROMPT_DESCRICAO,
-  };
-}
+/*
+  A BIBLIOTECA DE PROMPTS da janela "Criar descricao" (pedido do dono em 09/10/2026): varios prompts com nome, um
+  marcado como padrao, e o "Padrao do sistema" (o do codigo) sempre primeiro. As regras moram em
+  lib/ia/promptsDescricao.js; aqui cada acao devolve tambem a LISTA atualizada, para a tela redesenhar o seletor.
+*/
 
-/** "Salvar prompt": passa a ser o prompt de toda descricao gerada. Igual ao padrao, apaga a linha salva. */
-export async function salvarPromptDaDescricao(texto) {
-  const conferido = limparPromptDaDescricao(texto);
-  if (!conferido.ok) return conferido;
+/** Roda `acao` e, dando certo, junta a lista atualizada a resposta. */
+async function comALista(acao) {
   try {
-    await gravarPromptDaDescricao(conferido.texto);
-    return { ok: true, texto: conferido.texto };
+    const resposta = await acao();
+    if (!resposta.ok) return resposta;
+    return { ...resposta, prompts: await bibliotecaDePrompts.listarPromptsDaDescricao() };
   } catch (erro) {
     return { ok: false, erro: erro.message };
   }
+}
+
+/** A lista de prompts e o teto de caracteres, para a janela abrir com o padrao escolhido. */
+export async function promptsDaDescricao() {
+  return comALista(async () => ({ ok: true, maximo: MAXIMO_PROMPT_DESCRICAO }));
+}
+
+/** "Salvar como novo". */
+export async function criarPromptDaDescricao(nome, texto) {
+  return comALista(() => bibliotecaDePrompts.criarPromptDaDescricao(nome, texto));
+}
+
+/** "Salvar": nome e texto do prompt escolhido. */
+export async function salvarPromptDaDescricao(id, nome, texto) {
+  return comALista(() => bibliotecaDePrompts.salvarPromptDaDescricao(id, nome, texto));
+}
+
+export async function excluirPromptDaDescricao(id) {
+  return comALista(() => bibliotecaDePrompts.excluirPromptDaDescricao(id));
+}
+
+/** "Usar como padrão": o que ja vem escolhido ao abrir a janela. */
+export async function definirPromptPadraoDaDescricao(id) {
+  return comALista(() => bibliotecaDePrompts.definirPromptPadraoDaDescricao(id));
 }
 
 /**

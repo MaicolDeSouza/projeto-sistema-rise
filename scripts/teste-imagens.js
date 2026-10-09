@@ -1715,33 +1715,66 @@ try {
         await prisma.logIntegracao.deleteMany({ where: { servico: "GEMINI", criadoEm: { gte: inicioGerar } } });
       }
 
-      // ----- Criar descricao: o prompt de escrita salvo (mesma tabela, chave "descricao") -----
-      console.log("\nCriar descricao: prompt salvo (usa o Postgres)");
+      // ----- Criar descricao: a biblioteca de prompts com nome (pedido do dono em 09/10/2026) -----
+      console.log("\nCriar descricao: biblioteca de prompts (usa o Postgres)");
       const acoesProduto = await import("../src/app/produtos/acoes.js");
-      const { CHAVE_PROMPT_DESCRICAO, PROMPT_DESCRICAO_PADRAO, MAXIMO_PROMPT_DESCRICAO } = await import("../src/lib/ia/anuncio.js");
-      const ondePromptDescricao = { modelo: CHAVE_PROMPT_DESCRICAO };
-      // O prompt real do dono fica guardado e volta no fim.
-      const promptDescricaoDoDono = await prisma.promptImagem.findUnique({ where: ondePromptDescricao });
+      const { PROMPT_DESCRICAO_PADRAO, MAXIMO_PROMPT_DESCRICAO } = await import("../src/lib/ia/anuncio.js");
+      const { ID_DO_SISTEMA, NOME_DO_SISTEMA, MAXIMO_NOME_PROMPT, textoDoPromptPadrao } = await import("../src/lib/ia/promptsDescricao.js");
+      // Os prompts reais do dono ficam guardados e voltam no fim.
+      const promptsDescricaoDoDono = await prisma.promptDescricao.findMany();
+      const resumo = (lista) => lista.map((p) => `${p.nome}${p.padrao ? "*" : ""}`);
       try {
-        await prisma.promptImagem.deleteMany({ where: ondePromptDescricao });
-        const inicial = await acoesProduto.promptDaDescricao();
-        conferir("descricao: sem linha, o prompt e o padrao do codigo", [inicial.ok, inicial.texto === PROMPT_DESCRICAO_PADRAO, inicial.padrao === PROMPT_DESCRICAO_PADRAO, inicial.maximo], [true, true, true, MAXIMO_PROMPT_DESCRICAO]);
-        const salvoD = await acoesProduto.salvarPromptDaDescricao("  Escreva so dois paragrafos.  ");
-        conferir("descricao: salvar grava sem os espacos das pontas", [salvoD.ok, salvoD.texto, (await acoesProduto.promptDaDescricao()).texto], [true, "Escreva so dois paragrafos.", "Escreva so dois paragrafos."]);
-        await acoesProduto.salvarPromptDaDescricao("Segundo prompt");
-        conferir("descricao: salvar de novo sobrescreve, uma linha so", [(await acoesProduto.promptDaDescricao()).texto, await prisma.promptImagem.count({ where: ondePromptDescricao })], ["Segundo prompt", 1]);
-        conferir("descricao: a linha nao aparece como prompt de modelo do Nano Banana", Object.values((await nbAcoes.estadoDoNanoBanana()).prompts).includes("Segundo prompt"), false);
-        const recusadoD = await acoesProduto.salvarPromptDaDescricao("   ");
-        conferir("descricao: vazio e recusado e o salvo fica", [recusadoD.ok, (await acoesProduto.promptDaDescricao()).texto], [false, "Segundo prompt"]);
-        const longoD = await acoesProduto.salvarPromptDaDescricao("a".repeat(MAXIMO_PROMPT_DESCRICAO + 1));
-        conferir("descricao: acima do teto e recusado", longoD.ok, false);
-        const padraoD = await acoesProduto.salvarPromptDaDescricao(PROMPT_DESCRICAO_PADRAO);
-        conferir("descricao: salvar igual ao padrao apaga a linha", [padraoD.ok, await prisma.promptImagem.count({ where: ondePromptDescricao })], [true, 0]);
+        await prisma.promptDescricao.deleteMany();
+        const inicial = await acoesProduto.promptsDaDescricao();
+        conferir("biblioteca vazia: so o do sistema, que e o padrao", [inicial.ok, resumo(inicial.prompts), inicial.prompts[0].id, inicial.prompts[0].sistema, inicial.maximo], [true, [`${NOME_DO_SISTEMA}*`], ID_DO_SISTEMA, true, MAXIMO_PROMPT_DESCRICAO]);
+        conferir("o do sistema traz o texto do codigo", inicial.prompts[0].texto === PROMPT_DESCRICAO_PADRAO, true);
+
+        const mcu = await acoesProduto.criarPromptDaDescricao("  Microcontrolador  ", "  Texto MCU  ");
+        conferir("criar: grava sem os espacos das pontas e devolve a lista", [mcu.ok, mcu.prompt?.nome, mcu.prompt?.texto, resumo(mcu.prompts)], [true, "Microcontrolador", "Texto MCU", [`${NOME_DO_SISTEMA}*`, "Microcontrolador"]]);
+        await acoesProduto.criarPromptDaDescricao("Motor DC", "Texto motor");
+        conferir("a lista vem com o do sistema primeiro e os outros por nome", resumo((await acoesProduto.promptsDaDescricao()).prompts), [`${NOME_DO_SISTEMA}*`, "Microcontrolador", "Motor DC"]);
+
+        const recusas = [
+          ["nome repetido, mesmo em outra caixa", "microcontrolador", "x"],
+          ["nome do prompt do sistema", NOME_DO_SISTEMA.toUpperCase(), "x"],
+          ["nome vazio", "   ", "x"],
+          [`nome acima de ${MAXIMO_NOME_PROMPT} caracteres`, "n".repeat(MAXIMO_NOME_PROMPT + 1), "x"],
+          ["texto vazio", "Sensor", "   "],
+          ["texto acima do teto", "Sensor", "a".repeat(MAXIMO_PROMPT_DESCRICAO + 1)],
+        ];
+        for (const [nome, nomeDoPrompt, texto] of recusas) {
+          const r = await acoesProduto.criarPromptDaDescricao(nomeDoPrompt, texto);
+          conferir(`criar recusado (${nome}): erro e nada gravado`, [r.ok, typeof r.erro === "string" && r.erro.length > 5, await prisma.promptDescricao.count()], [false, true, 2]);
+        }
+
+        const salvo = await acoesProduto.salvarPromptDaDescricao(mcu.prompt.id, "Microcontrolador 8 bits", "Texto novo");
+        conferir("salvar: troca nome e texto do escolhido", [salvo.ok, salvo.prompt?.nome, salvo.prompt?.texto], [true, "Microcontrolador 8 bits", "Texto novo"]);
+        const salvoRepetido = await acoesProduto.salvarPromptDaDescricao(mcu.prompt.id, "motor dc", "Texto novo");
+        conferir("salvar com o nome de OUTRO prompt e recusado", salvoRepetido.ok, false);
+        const mesmoNome = await acoesProduto.salvarPromptDaDescricao(mcu.prompt.id, "Microcontrolador 8 bits", "Texto 3");
+        conferir("salvar mantendo o proprio nome passa", [mesmoNome.ok, mesmoNome.prompt?.texto], [true, "Texto 3"]);
+        conferir("o do sistema nao se salva", (await acoesProduto.salvarPromptDaDescricao(ID_DO_SISTEMA, NOME_DO_SISTEMA, "x")).ok, false);
+        conferir("salvar prompt que nao existe e recusado", (await acoesProduto.salvarPromptDaDescricao("nao-existe", "Outro", "x")).ok, false);
+
+        const padrao = await acoesProduto.definirPromptPadraoDaDescricao(mcu.prompt.id);
+        conferir("usar como padrao: so ele marcado, o do sistema deixa de ser", [padrao.ok, resumo(padrao.prompts)], [true, [NOME_DO_SISTEMA, "Microcontrolador 8 bits*", "Motor DC"]]);
+        conferir("o texto do padrao e o que a geracao usa sem prompt da tela", await textoDoPromptPadrao(), "Texto 3");
+        const outroPadrao = await acoesProduto.definirPromptPadraoDaDescricao((await prisma.promptDescricao.findUnique({ where: { nome: "Motor DC" } })).id);
+        conferir("trocar o padrao desmarca o anterior", resumo(outroPadrao.prompts), [NOME_DO_SISTEMA, "Microcontrolador 8 bits", "Motor DC*"]);
+        const voltaSistema = await acoesProduto.definirPromptPadraoDaDescricao(ID_DO_SISTEMA);
+        conferir("o do sistema como padrao: nenhuma linha marcada", [resumo(voltaSistema.prompts), await textoDoPromptPadrao() === PROMPT_DESCRICAO_PADRAO], [[`${NOME_DO_SISTEMA}*`, "Microcontrolador 8 bits", "Motor DC"], true]);
+
+        await acoesProduto.definirPromptPadraoDaDescricao(mcu.prompt.id);
+        const excluido = await acoesProduto.excluirPromptDaDescricao(mcu.prompt.id);
+        conferir("excluir o padrao: sai, e o do sistema volta a ser o padrao", [excluido.ok, resumo(excluido.prompts)], [true, [`${NOME_DO_SISTEMA}*`, "Motor DC"]]);
+        conferir("o do sistema nao se exclui", (await acoesProduto.excluirPromptDaDescricao(ID_DO_SISTEMA)).ok, false);
+        conferir("excluir o que nao existe e recusado", (await acoesProduto.excluirPromptDaDescricao("nao-existe")).ok, false);
+
         const geracaoRecusada = await acoesProduto.criarDescricaoIA(["x"], { titulo: "T", sku: "S" }, "  ");
-        conferir("descricao: gerar com prompt vazio e recusado ANTES de chamar a IA", [geracaoRecusada.ok, geracaoRecusada.erro], [false, "O prompt não pode ficar vazio."]);
+        conferir("gerar com prompt vazio e recusado ANTES de chamar a IA", [geracaoRecusada.ok, geracaoRecusada.erro], [false, "O prompt não pode ficar vazio."]);
       } finally {
-        await prisma.promptImagem.deleteMany({ where: ondePromptDescricao });
-        if (promptDescricaoDoDono) await prisma.promptImagem.create({ data: promptDescricaoDoDono });
+        await prisma.promptDescricao.deleteMany();
+        if (promptsDescricaoDoDono.length > 0) await prisma.promptDescricao.createMany({ data: promptsDescricaoDoDono });
       }
 
       // ----- Nano Banana: prompt salvo por modelo, imagens extras e o estado para a tela -----

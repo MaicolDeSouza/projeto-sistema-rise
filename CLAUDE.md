@@ -1905,8 +1905,26 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
   aberta; "Voltar ao salvo" descarta, "Restaurar padrão" põe o texto do código na caixa (e só vale depois de
   salvar). Vazio ou acima de 12.000 caracteres (`MAXIMO_PROMPT_DESCRICAO`) não gera nem salva; o servidor confere
   de novo (`limparPromptDaDescricao`).
-  - **Onde fica salvo:** na tabela do Nano Banana, `PromptImagem`, com a chave `"descricao"` no lugar do modelo
-    (`CHAVE_PROMPT_DESCRICAO`), para não mexer no schema. A mesma regra: salvar igual ao padrão APAGA a linha.
+  - **BIBLIOTECA DE PROMPTS** (pedido do dono em 09/10/2026: "Microcontrolador", "Motor DC"...). A linha do
+    prompt virou uma **lista de escolha** ("Prompt: [Microcontrolador ▾]  ✏ Editar prompt"). Escolher na lista põe
+    o texto daquele prompt na caixa, e a edição não salva do anterior se perde.
+    - **Na janela do prompt:** o **nome** (editável), "Usar como padrão" (ou o selo "padrão: já vem escolhido ao
+      abrir"), **Salvar** (grava nome e texto no escolhido), **Salvar como novo** (pede o nome e cria outro com o
+      texto da caixa, já escolhido), **Excluir** (com confirmação; a caixa fica com o que ficou como padrão),
+      "Restaurar o do sistema" e "Voltar ao salvo". Salvar e criar fecham a janela do prompt.
+    - **"Padrão do sistema"** é o `PROMPT_DESCRICAO_PADRAO` do código, **não é linha do banco**: sempre o primeiro
+      da lista; não se salva (o botão Salvar fica desligado) nem se exclui. Nenhum prompt marcado = ele é o padrão.
+    - **Onde fica:** tabela `PromptDescricao` (nome único, comparado sem caixa; `padrao` em no máximo um),
+      regras em `src/lib/ia/promptsDescricao.js`. As ações (`promptsDaDescricao`, `criarPromptDaDescricao`,
+      `salvarPromptDaDescricao`, `excluirPromptDaDescricao`, `definirPromptPadraoDaDescricao`) devolvem sempre a
+      lista atualizada. Nome: até 60 caracteres, não vazio, não o do sistema. `criarDescricaoIA` sem prompt da
+      tela usa o marcado como padrão.
+    - **Migração `20261009_prompts_descricao`:** o prompt único de antes (linha `"descricao"` da `PromptImagem`,
+      06 a 09/10/2026) virou "Meu prompt", marcado como padrão, e a linha velha saiu.
+    - Testes em `teste-imagens` ("biblioteca de prompts", 23). Escolher o prompt pela **categoria do produto** fica
+      para quando o produto tiver categoria no banco.
+  - **"Salvar e sair"** (pedido do dono em 09/10/2026): o antigo "Usar esta descrição" saiu do pé da janela e foi
+    para a linha do "Gerar com IA", à direita. Põe o texto na aba Descrição e fecha.
   - Os nomes das partes no texto (paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm, decisoes)
     são os campos da resposta; tirar um do prompt não quebra a leitura, porque o formato JSON os exige. O
     `SISTEMA` (o papel de redator da Rise) continua fixo e é o mesmo dos títulos.
