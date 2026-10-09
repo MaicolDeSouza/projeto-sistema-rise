@@ -1294,6 +1294,11 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   - **Efeito:** a Oceantech sai com mais produtos que páginas (24 de uma página). A varredura continua tratando a página uma vez.
     Os produtos já gravados dela só se corrigem na próxima varredura, e o worker do PC (`worker:pc`) precisa ser reiniciado
     para carregar o código novo.
+- **WooCommerce com "Simulador de Parcelas" (Makerhero, 09/10/2026): o JSON-LD traz só o preço do PIX** (12,25), que
+  entrava como preço normal. `precosDoSimuladorWoo` (`normalizar.js`) lê o PRIMEIRO `<p class="price">` que tem o
+  simulador: o valor cobrado (o `<ins>` quando há riscado) vira o preço normal declarado (12,90) e o valor de
+  `wc-simulador-parcelas-detalhes-valor` seguido de "pix", "boleto" ou "à vista" vira candidato a promocional. Os blocos
+  seguintes da página são de produtos relacionados (99,90 / 94,90 na mesma página).
 - **Eletru's (eletruscomp.com.br): plataforma própria em ASP.NET MVC** (IIS,
   `x-aspnetmvc-version`), mapeada em 16/09/2026 como `aspnet-uploads` em `plataformas.js`.
   - **Formatos:** não tem JSON-LD. O Microdata traz só nome, preço e imagem, com `sku` **vazio**.

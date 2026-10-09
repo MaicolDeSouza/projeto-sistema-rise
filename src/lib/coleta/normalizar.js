@@ -1622,6 +1622,39 @@ function documentosDaPagina(html, urlBase) {
  * OpenGraph traz 28,60 (o de tabela) e o Microdata 27,17 (o a vista), e ler o
  * Microdata como preco normal esconderia a promocao.
  */
+/**
+ * WooCommerce com o plugin "Simulador de Parcelas" (Makerhero, 09/10/2026).
+ *
+ * O JSON-LD da loja publica so o preco do PIX (12,25), e ele entrava como preco
+ * normal. O preco cheio (12,90) e o do PIX so aparecem no bloco de preco da
+ * pagina: `<p class="price">` com o valor cobrado e, dentro do simulador,
+ * "R$ 12,25 no PIX". Vale o PRIMEIRO bloco que tem o simulador — os seguintes
+ * sao de produtos relacionados (o 99,90 / 94,90 da mesma pagina).
+ */
+function precosDoSimuladorWoo(html) {
+  const bloco = /<p\b[^>]*class="[^"]*\bprice\b[^"]*"[^>]*>([\s\S]*?wc-simulador-parcelas-detalhes-valor[\s\S]*?)<\/p>/i.exec(
+    html,
+  );
+  if (!bloco) return null;
+
+  const valorDe = (trecho) => {
+    const achado = /woocommerce-Price-amount[\s\S]*?<\/span>\s*([\d.]+,\d{2})/i.exec(trecho ?? "");
+    return achado ? comoNumero(achado[1].replace(/\./g, "").replace(",", ".")) : null;
+  };
+
+  // O preco cobrado: o <ins> quando ha riscado (<del>), senao o primeiro valor.
+  const antesDoSimulador = bloco[1].split(/wc-simulador-parcelas/i)[0];
+  const normal = valorDe(/<ins\b[\s\S]*?<\/ins>/i.exec(antesDoSimulador)?.[0]) ?? valorDe(antesDoSimulador);
+
+  // So conta como a vista o que a loja diz que e pix, boleto ou a vista.
+  const detalhe = /wc-simulador-parcelas-detalhes-valor[^>]*>([\s\S]*?)<\/span>\s*<\/span>/i.exec(bloco[1]);
+  const textoDoDetalhe = detalhe ? detalhe[1].replace(/<[^>]+>/g, " ") : "";
+  const aVista = /pix|boleto|[àa] vista/i.test(textoDoDetalhe) ? valorDe(detalhe[1]) : null;
+
+  if (normal === null) return null;
+  return { normal, aVista: aVista !== null && aVista < normal ? aVista : null };
+}
+
 function decidirPrecos({ declaradoNormal, candidatos }) {
   const valores = [...new Set(candidatos.filter((n) => typeof n === "number" && n > 0))];
 
@@ -1860,10 +1893,12 @@ export function normalizarPagina({
   const trayComRiscado = trayPrecoVenda > 0 && trayPrecoTabela > trayPrecoVenda;
   const forseti = precosDaForseti(html, url);
   const robocore = precosDaRoboCore(html, url, micro?.skuFonte ?? estruturado?.skuFonte);
+  const simuladorWoo = precosDoSimuladorWoo(html);
 
   const declaradoNormal =
     (trayComRiscado ? trayPrecoVenda : null) ??
     aspnet?.de ??
+    simuladorWoo?.normal ??
     forseti?.normal ??
     robocore?.normal ??
     comoNumero(meta["product:original_price:amount"]) ??
@@ -1904,6 +1939,7 @@ export function normalizarPagina({
     aspnet?.aVista ?? null,
     forseti?.aVista ?? null,
     robocore?.aVista ?? null,
+    simuladorWoo?.aVista ?? null,
   ].filter((n) => typeof n === "number");
 
   const prices = decidirPrecos({ declaradoNormal, candidatos });
@@ -2166,6 +2202,8 @@ export function normalizarPagina({
           ? "painel da RoboCore: preco a vista no PIX"
         : forseti && prices.promotional === forseti.aVista
           ? "painel da Forseti: preco a vista no PIX"
+        : simuladorWoo?.aVista && prices.promotional === simuladorWoo.aVista
+          ? "bloco de preco da pagina (simulador de parcelas): preco no PIX"
         : aspnet?.aVista && prices.promotional === aspnet.aVista
           ? "a vista escrito na pagina"
           : magentoAVista && prices.promotional === magentoAVista.aVista

@@ -1948,5 +1948,19 @@ console.log("\n— Nuvemshop: home nao e produto; ficha marcada sem titulo —")
   conferir("lista marcada de propaganda com um par so nao vira ficha", normalizarPagina({ html: paginaCom(propaganda), url: "https://loja.exemplo.com/produtos/kit/", fonte: { tipo: "CONCORRENTE" } }).produtos[0].specifications, []);
 }
 
+console.log("\n— WooCommerce com Simulador de Parcelas (Makerhero): o JSON-LD traz so o pix —");
+{
+  const moeda = '<span class="woocommerce-Price-currencySymbol">&#82;&#36;</span>';
+  const valor = (v) => `<span class="woocommerce-Price-amount amount"><bdi>${moeda}${v}</bdi></span>`;
+  const pagina = (cobrado, pix, relacionado = "") => `<html><head><script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Capa de Silicone","sku":"8IN07","offers":{"@type":"Offer","price":"12.25","priceCurrency":"BRL"}}</script></head><body>
+<p class="price"><span class="electro-price">${cobrado}</span> <span class="wc-simulador-parcelas-parcelamento-info-container"><span class="wc-simulador-parcelas-parcelamento-info">1X DE ${valor("12,90")} sem juros</span> </span><span class="wc-simulador-parcelas-offer"> <span class="wc-simulador-parcelas-detalhes-valor">${valor(pix)} <span>no PIX</span> </span></span></p>
+${relacionado}</body></html>`;
+  const ler = (html) => normalizarPagina({ html, url: "https://loja.exemplo.com/produto/capa/", fonte: { tipo: "CONCORRENTE" } }).produtos[0];
+  const relacionado = `<p class="price"><span class="electro-price">${valor("99,90")}</span><span class="wc-simulador-parcelas-detalhes-valor">${valor("94,90")} <span>no PIX</span></span></p>`;
+  conferir("simulador: normal e o cobrado, pix vai como promocional", ler(pagina(valor("12,90"), "12,25", relacionado)).prices, { normal: 12.9, promotional: 12.25, comImpostos: null });
+  conferir("simulador: com riscado, vale o <ins>", ler(pagina(`<del>${valor("15,90")}</del> <ins>${valor("12,90")}</ins>`, "12,25")).prices, { normal: 12.9, promotional: 12.25, comImpostos: null });
+  conferir("simulador: valor que nao e pix nao e lido como pix", ler(pagina(valor("12,90"), "12,25").replace("no PIX", "no cartao")).origens.precoPromocional.includes("simulador"), false);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
