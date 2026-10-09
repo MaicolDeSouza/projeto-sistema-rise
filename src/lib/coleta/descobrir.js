@@ -131,7 +131,9 @@ function linksDe(html, urlBase, origem, prefixo) {
 
     // O prefixo restringe o que COLETAMOS, mas nao o que navegamos: a vitrine
     // que lista os produtos da secao costuma estar fora dela.
-    if (mesmaOrigem(texto, origem) && !parametroRuim(texto) && !IGNORAR.some((p) => p.test(texto))) {
+    // `absoluta` ja e um URL: compara a origem direto, sem interpretar o texto de novo (`mesmaOrigem` e para quem so
+    // tem o texto).
+    if (absoluta.origin === origem && !parametroRuim(texto) && !IGNORAR.some((p) => p.test(texto))) {
       achados.add(texto);
     }
   }

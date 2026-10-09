@@ -1411,7 +1411,18 @@ conferir(
 // ---------------------------------------------------------------------------
 console.log("\n— portal com login (Santana, Add Suite) —");
 {
-  const { parametrosDaCategoria, produtosDaVitrine } = await import("../src/lib/coleta/portal-addsuite.js");
+  const { ehDoPortal, parametrosDaCategoria, produtosDaVitrine } = await import("../src/lib/coleta/portal-addsuite.js");
+
+  // O cookie de sessao vai em TODO pedido da sessao: so se segue redirecionamento para o proprio portal.
+  const portal = "https://santanaimport.com.br";
+  conferir("redirecionamento: o proprio portal", ehDoPortal("https://santanaimport.com.br/PainelCliente", portal), true);
+  conferir("redirecionamento: URL ja interpretada", ehDoPortal(new URL("/minhaconta", portal), portal), true);
+  conferir("redirecionamento: com ou sem www segue (o portal pode redirecionar entre os dois)", [ehDoPortal("https://www.santanaimport.com.br/x", portal), ehDoPortal("https://santanaimport.com.br/x", "https://www.santanaimport.com.br")], [true, true]);
+  conferir("redirecionamento: outro site NAO segue", ehDoPortal("https://atacante.com/x", portal), false);
+  conferir("redirecionamento: host que so comeca igual NAO segue", ehDoPortal("https://santanaimport.com.br.atacante.com/x", portal), false);
+  conferir("redirecionamento: usuario@ NAO segue", ehDoPortal("https://santanaimport.com.br@atacante.com/x", portal), false);
+  conferir("redirecionamento: para http (o cookie iria em claro) NAO segue", ehDoPortal("http://santanaimport.com.br/x", portal), false);
+  conferir("redirecionamento: outra porta NAO segue", ehDoPortal("https://santanaimport.com.br:8443/x", portal), false);
 
   conferir(
     "categoria de um nivel",

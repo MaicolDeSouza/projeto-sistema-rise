@@ -221,6 +221,17 @@ export function produtosDaVitrine(html, { categoria = null, fonte = null } = {})
 }
 
 /**
+ * O endereco e do MESMO site do portal? Mesmo esquema e porta, e mesmo host, com ou sem "www." (o portal pode
+ * redirecionar entre os dois, e o cookie de sessao vale para ambos). Qualquer outro host recebe recusa.
+ */
+export function ehDoPortal(endereco, origem) {
+  const alvo = endereco instanceof URL ? endereco : new URL(endereco);
+  const base = new URL(origem);
+  const semWww = (host) => host.replace(/^www\./, "");
+  return alvo.protocol === base.protocol && alvo.port === base.port && semWww(alvo.hostname) === semWww(base.hostname);
+}
+
+/**
  * Sessao de um portal Add Suite: cookies, ritmo e login.
  *
  * O ritmo vale entre TODOS os pedidos desta sessao, login incluido. Conexao
@@ -277,7 +288,13 @@ export function criarSessao({ origem, usuario, senha, ritmoMs, sinal = null }) {
       }
 
       if (resposta.status >= 300 && resposta.status < 400 && resposta.localizacao) {
-        url = new URL(resposta.localizacao, url).toString();
+        const proxima = new URL(resposta.localizacao, url);
+        // O cookie de sessao vai em TODO pedido desta sessao: um redirecionamento para outro site (ou um open
+        // redirect no portal) o levaria junto. So se segue para o proprio portal.
+        if (!ehDoPortal(proxima, origem)) {
+          throw new Error(`o portal redirecionou para outro site (${proxima.hostname}); a varredura para aqui`);
+        }
+        url = proxima.toString();
         continue;
       }
 

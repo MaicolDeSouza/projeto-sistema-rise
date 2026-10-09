@@ -19,8 +19,10 @@ function formatoPeloNome(valor) {
 
 async function formatoPeloCabecalho(endereco) {
   let url = enderecoPublico(endereco);
-  const sinal = AbortSignal.timeout(5000);
   for (let tentativa = 0; tentativa <= MAXIMO_REDIRECIONAMENTOS; tentativa++) {
+    // 5 s POR SALTO, como era com o fetch: um prazo so para a cadeia inteira fazia o terceiro redirecionamento
+    // estourar. (A espera por um socket livre, 4 por host, conta dentro dele, e e curta.)
+    const sinal = AbortSignal.timeout(5000);
     // `seguir: false`: um HEAD so quer os cabecalhos, e o salto seguinte do `obter` seria um GET que baixaria o
     // arquivo inteiro em segundo plano. Os redirecionamentos sao seguidos aqui, um HEAD por salto.
     const resposta = await obter(url, {
