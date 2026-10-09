@@ -142,7 +142,7 @@ npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
 npm run backup                    # dados/backup/sistema_rise-AAAAMMDD-HHMMSS.dump (pg_dump, conferido com pg_restore; guarda os 4 mais recentes)
-npm run teste:worker              # 58 asserções: rede, fila, retomada e o worker de verdade (~6 min)
+npm run teste:worker              # 58 asserções: rede, fila, retomada e o worker de verdade (~6 min). RODE SOZINHO: junto de outros testes o "segundo worker" já saiu com 3221226505 (0xC0000409, aborto do Node no Windows ao encerrar, antes de o código 3 chegar); sozinho passa
 npm run foto:mensal               # tira a foto mensal de preço e estoque (só se passou do dia 14 e o mês não tem foto); `-- --forcar` ignora o dia
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
@@ -1218,6 +1218,9 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
     passou a cortar a conexão (`ECONNRESET`) **só para o user-agent do sistema**. Voltou em menos
     de 1 h. **Não se troca o user-agent para contornar.** Ritmo agora **30 s**, 50 itens por página;
     `ECONNRESET` encerra a varredura com recado. A 30 s, 500 produtos levaram 6,8 min, sem bloqueio.
+  - **Só segue redirecionamento para o próprio portal** (`ehDoPortal`: mesmo esquema, porta e host, com ou sem
+    `www.`): o cookie de sessão vai em TODO pedido da sessão, e um redirecionamento para outro site, ou um open
+    redirect no portal, o levaria junto. Outro destino interrompe a varredura com recado (revisão de 08/10/2026).
   - **Sem retomada:** paginação que repete não permite pular página já lida. A queda recomeça, mas
     os lotes (uma página por lote) ficam gravados.
   - **Sem `?sku=` a página do produto mostra o padrão do modelo** (R$ 0,00, "indisponível") — só
@@ -3446,7 +3449,7 @@ verdade ainda é o do PC** e o da VPS é uma cópia de ensaio.
   (baixar antes de rodar, porque o próprio script pode ter mudado). Ele valida o Caddyfile, constrói a imagem com o site
   no ar, tira backup e aplica migrations só se houver pendência, troca os contêineres, recarrega o Caddy, confere o site
   por dentro e **o login por fora com falha de verdade** (6 respostas, no fim do script), e só então guarda a imagem como
-  `rise:bom`, grava `dados/logs/deploy.log` e reinstala o crontab. Se parar no meio, o `trap` diz o passo e os comandos
+  `rise:bom`, grava `~/logs/deploy.log` (no host, fora de `dados/`) e reinstala o crontab. Se parar no meio, o `trap` diz o passo e os comandos
   de volta. **Volta atrás:** `docker image tag rise:anterior rise:latest && docker compose up -d app worker` (a anterior
   é a do último deploy que passou em tudo). Migration não tem volta: só pelo dump tirado antes dela.
 - **Versão no pé do menu:** na VPS é a hora do deploy (`DD.MM.AAAA.HH.MM`) e o commit; no PC é `dev` mais a hora do
@@ -3467,15 +3470,18 @@ verdade ainda é o do PC** e o da VPS é uma cópia de ensaio.
   - Só `GET`/`HEAD` de `/api/arquivos/<SKU>/<imagens|documentos|certificados>/<32 hex>.<ext>` passam sem login
     (`deploy/caddy/Caddyfile`); o resto cai no Tinyauth, a pasta `reserva` inclusive (só a tela, que tem login, a usa).
     O Caddy tira `Remote-*` de fora em todos os ramos (os níveis de acesso vão ler esses cabeçalhos) e registra os
-    acessos do host do Rise (`log`, no log do Docker).
+    acessos do host do Rise (`log`, no log do Docker, com o `code` e o `state` do retorno do OAuth trocados por
+    `REDACTED` e o IP mascarado em /24 e /48: o IP inteiro de quem abre uma foto da loja é dado pessoal).
   - **Todo pedido do servidor a um endereço que veio de texto de terceiro** passa pelo filtro de rede pública
     (`src/lib/redePublica.js`): documento de referência, foto de concorrente **e a coleta inteira** (link de página,
     `<loc>` de sitemap, `Sitemap:` do robots.txt, redirecionamento). O filtro mora no **`obter` de `coleta/http.js`**:
     `lookupPublico` no agente (confere o IP quando a conexão é criada, e o socket reaproveitado já foi conferido) e
-    `validarEnderecoPublico` (documento, sem porta) ou `validarFotoPublica` (foto e coleta, portas 80, 443, 8080 e 8443)
+    `validarEnderecoPublico` (documento, sem porta) ou `validarEnderecoDeBusca` (foto e coleta, portas 80, 443, 8080 e 8443)
     em cada salto. **É o padrão**: `obter` sem opções já filtra. Só o teste do worker, que varre uma loja falsa em
     127.0.0.1, o desliga com `COLETA_PERMITIR_REDE_LOCAL=1` (lida a cada chamada; nunca desliga o que um chamador pediu
-    explicitamente). Nunca `fetch` direto: o servidor alcança `app`, `auth` e `db` pela rede do Docker (provado em
+    explicitamente; **a imagem de produção a ignora**, porque carrega `RISE_PRODUCAO=1` (fixo no Dockerfile, não depende
+    de build-arg), e o `deploy-vps.sh` recusa um `.env` que a contenha; por isso o `teste:worker` não roda dentro da
+    imagem de produção). Nunca `fetch` direto: o servidor alcança `app`, `auth` e `db` pela rede do Docker (provado em
     produção: os quatro nomes são recusados). IPv6 por **lista permitida** (só 2000::/3, menos documentação, Teredo,
     6to4 e 3fff::/20), e o ponto final do nome (`localhost.`) é tirado antes das regras de nome interno.
     `http://[::1]/` passava no filtro antigo, porque o `URL` devolve o host de IPv6 com colchetes. Link de página só é
@@ -3497,7 +3503,17 @@ verdade ainda é o do PC** e o da VPS é uma cópia de ensaio.
   `tinyauth:v5` e `postgres:17` têm tag flutuante; (5) `copia:atualizar` confere só o nome do host: um túnel SSH para o
   banco da VPS (`-L 5432`) passaria por "localhost" (não há túnel no plano); (6) o app não confere o login sozinho (sem
   `proxy.js`): entra com os níveis de acesso; (7) sem limite de taxa na rota pública (o Caddy puro não tem; o fluxo em
-  disco já tirou o risco de memória, e o `log` do Caddy dá a trilha de quem pede o quê); (8) o mapa de apelidos do OAuth (`bling`/`mercadolivre`) está copiado em 3 lugares.
+  disco já tirou o risco de memória, e o `log` do Caddy dá a trilha de quem pede o quê, mas gira em 5 arquivos de 10 MB:
+  quem varre a rota expulsa a trilha em minutos; para guardar mais, `output file` com `roll_keep`); (8) o mapa de
+  apelidos do OAuth (`bling`/`mercadolivre`) está copiado em 3 lugares; (9) **o dump nasce dentro do contêiner e o
+  `copia:atualizar` o restaura no PC com o superusuário do Postgres**: um dump forjado por quem controlasse o contêiner
+  rodaria SQL arbitrário na máquina do dono. Hoje o risco depende de o contêiner já estar comprometido; o caminho é
+  restaurar com um papel sem superusuário.
+- **O host não escreve onde o contêiner escreve.** O contêiner roda como root e `dados/` é de escrita para ele: quem o
+  controlasse trocaria um arquivo dali por um link, e um `>>` do host (o cron roda como `rise`, que tem sudo) escreveria
+  onde não deve. Por isso os logs do HOST (`deploy.log`, `cron.log`) ficam em `/home/rise/logs/` (o deploy cria a
+  pasta), e não em `dados/logs/`, onde ficam só os que o contêiner escreve (`worker-*.log`, `backup.log`). Escrita nova
+  do host dentro de `dados/` não entra.
 
 ## Trabalho em paralelo: worktrees
 
