@@ -3445,7 +3445,7 @@ verdade ainda é o do PC** e o da VPS é uma cópia de ensaio.
   `ssh ... "cd /srv/rise/app && git fetch -q --tags origin && git checkout -q --detach origin/main && ./deploy/deploy-vps.sh"`
   (baixar antes de rodar, porque o próprio script pode ter mudado). Ele valida o Caddyfile, constrói a imagem com o site
   no ar, tira backup e aplica migrations só se houver pendência, troca os contêineres, recarrega o Caddy, confere o site
-  por dentro e **o login por fora com falha de verdade** (5 respostas, no fim do script), e só então guarda a imagem como
+  por dentro e **o login por fora com falha de verdade** (6 respostas, no fim do script), e só então guarda a imagem como
   `rise:bom`, grava `dados/logs/deploy.log` e reinstala o crontab. Se parar no meio, o `trap` diz o passo e os comandos
   de volta. **Volta atrás:** `docker image tag rise:anterior rise:latest && docker compose up -d app worker` (a anterior
   é a do último deploy que passou em tudo). Migration não tem volta: só pelo dump tirado antes dela.
@@ -3464,15 +3464,23 @@ verdade ainda é o do PC** e o da VPS é uma cópia de ensaio.
   um snapshot manual na véspera da virada. As duas primeiras avisam o healthchecks.io (e-mail se falharem ou não
   rodarem). `npm run copia:atualizar` traz o dump do R2 para o banco do PC.
 - **Superfície pública, o que NÃO se afrouxa** (revisão de segurança de 08/10/2026):
-  - Só `GET`/`HEAD` de `/api/arquivos/<SKU>/<pasta>/<32 hex>.<ext>` passam sem login (`deploy/caddy/Caddyfile`); o resto
-    cai no Tinyauth. O Caddy tira `Remote-*` de fora em todos os ramos: os níveis de acesso vão ler esses cabeçalhos.
-  - **Todo pedido do servidor a um endereço que veio de texto de terceiro** (documento de referência, foto de
-    concorrente) passa por `src/lib/redePublica.js`: `lookupPublico` na conexão e `validarEnderecoPublico` (documento,
-    sem porta) ou `validarFotoPublica` (foto, aceita porta) em cada redirecionamento, pelo `obter` de `coleta/http.js`.
-    Nunca `fetch` direto: o servidor alcança `app`, `auth` e `db` pela rede do Docker (provado em produção: os quatro
-    nomes são recusados). IPv6 por **lista permitida** (só 2000::/3, menos documentação, Teredo, 6to4 e 3fff::/20), e
-    o ponto final do nome (`localhost.`) é tirado antes das regras de nome interno. `http://[::1]/` passava no filtro
-    antigo, porque o `URL` devolve o host de IPv6 com colchetes.
+  - Só `GET`/`HEAD` de `/api/arquivos/<SKU>/<imagens|documentos|certificados>/<32 hex>.<ext>` passam sem login
+    (`deploy/caddy/Caddyfile`); o resto cai no Tinyauth, a pasta `reserva` inclusive (só a tela, que tem login, a usa).
+    O Caddy tira `Remote-*` de fora em todos os ramos (os níveis de acesso vão ler esses cabeçalhos) e registra os
+    acessos do host do Rise (`log`, no log do Docker).
+  - **Todo pedido do servidor a um endereço que veio de texto de terceiro** passa pelo filtro de rede pública
+    (`src/lib/redePublica.js`): documento de referência, foto de concorrente **e a coleta inteira** (link de página,
+    `<loc>` de sitemap, `Sitemap:` do robots.txt, redirecionamento). O filtro mora no **`obter` de `coleta/http.js`**:
+    `lookupPublico` no agente (confere o IP quando a conexão é criada, e o socket reaproveitado já foi conferido) e
+    `validarEnderecoPublico` (documento, sem porta) ou `validarFotoPublica` (foto e coleta, portas 80, 443, 8080 e 8443)
+    em cada salto. **É o padrão**: `obter` sem opções já filtra. Só o teste do worker, que varre uma loja falsa em
+    127.0.0.1, o desliga com `COLETA_PERMITIR_REDE_LOCAL=1` (lida a cada chamada; nunca desliga o que um chamador pediu
+    explicitamente). Nunca `fetch` direto: o servidor alcança `app`, `auth` e `db` pela rede do Docker (provado em
+    produção: os quatro nomes são recusados). IPv6 por **lista permitida** (só 2000::/3, menos documentação, Teredo,
+    6to4 e 3fff::/20), e o ponto final do nome (`localhost.`) é tirado antes das regras de nome interno.
+    `http://[::1]/` passava no filtro antigo, porque o `URL` devolve o host de IPv6 com colchetes. Link de página só é
+    seguido se for da **mesma origem** (`mesmaOrigem` em `coleta/descobrir.js`): com `startsWith`, a origem
+    `https://loja.com.br` aceitava `https://loja.com.br.atacante.com`.
   - O Next já entrega os segmentos de rota **decodificados**: decodificar de novo lança `URIError` (500 numa rota
     pública).
   - **Arquivo de `dados/` numa `Response` sai por `fluxoDeArquivo` (`src/lib/arquivos.js`), nunca por
@@ -3489,7 +3497,7 @@ verdade ainda é o do PC** e o da VPS é uma cópia de ensaio.
   `tinyauth:v5` e `postgres:17` têm tag flutuante; (5) `copia:atualizar` confere só o nome do host: um túnel SSH para o
   banco da VPS (`-L 5432`) passaria por "localhost" (não há túnel no plano); (6) o app não confere o login sozinho (sem
   `proxy.js`): entra com os níveis de acesso; (7) sem limite de taxa na rota pública (o Caddy puro não tem; o fluxo em
-  disco já tirou o risco de memória); (8) o mapa de apelidos do OAuth (`bling`/`mercadolivre`) está copiado em 3 lugares.
+  disco já tirou o risco de memória, e o `log` do Caddy dá a trilha de quem pede o quê); (8) o mapa de apelidos do OAuth (`bling`/`mercadolivre`) está copiado em 3 lugares.
 
 ## Trabalho em paralelo: worktrees
 
