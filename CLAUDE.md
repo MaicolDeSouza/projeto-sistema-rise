@@ -356,8 +356,10 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
     ligados) ficou sem efeito, porque todos já vêm.
   - **Custo:** a tela passou a contar 70.442 produtos; a lupa e as indicações dos vínculos leem esse acervo
     inteiro na memória a cada busca.
-- **BUSCA AMPLA** (pedido do dono em 09/10/2026), botão "Busca ampla" (`BotaoBuscaAmpla.jsx`, `?ampla=1` na URL)
-  ao lado do campo de busca do **Scraper** e de **Produtos**. Ligado, procura também no texto, e cada linha achada
+- **BUSCA AMPLA** (pedido do dono em 09/10/2026), botão **"Pesquisa profunda"** (nome pedido pelo dono no mesmo dia;
+  `BotaoBuscaAmpla.jsx`, `?ampla=1` na URL) ao lado do campo de busca do **Scraper** e de **Produtos**. **Sempre
+  começa desligado:** abrir ou recarregar a tela com `?ampla=1` (link salvo, F5) desliga; continua ligado só nas
+  navegações de dentro da tela (outra busca, outra página da lista), por uma variável do módulo do botão. Ligado, procura também no texto, e cada linha achada
   só no texto ganha o selo "achado na descrição / na ficha técnica / no SEO / na categoria" (Produtos: "na
   descrição / no NCM / na homologação / na localização"). Todas as palavras continuam exigidas.
   - **Índice sobre EXPRESSÃO, sem coluna nova** (migration `20261009_busca_ampla`): três índices de trigramas
