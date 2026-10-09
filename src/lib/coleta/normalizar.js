@@ -1,5 +1,6 @@
 import { extrairProduto } from "./extrair";
 import { precosDaForseti } from "./forseti";
+import { variantesDaNuvemshop } from "./nuvemshop";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
@@ -1433,7 +1434,15 @@ const MAXIMO_DOCUMENTOS = 12;
  */
 function escopoDoProductInfo(html) {
   const abertura = /<product-info\b/i.exec(html);
-  if (!abertura) return html;
+  if (!abertura) {
+    // NUVEMSHOP: o menu do topo e o rodape repetem "Catalogo de produtos" (um
+    // link do Drive) em TODA pagina, e com a pagina inteira como escopo ele virava
+    // documento de todo produto da Oceantech. O documento do produto fica na
+    // descricao dele.
+    const descricao = /data-store="product-description-[^"]*"[^>]*>/i.exec(html);
+    if (descricao) return conteudoDoDiv(html, descricao.index + descricao[0].length);
+    return html;
+  }
 
   const fechamento = html.indexOf("</product-info>", abertura.index);
   if (fechamento === -1) return html;
@@ -1488,6 +1497,19 @@ function documentosDaPagina(html, urlBase) {
     const ehDocumento = ehArquivo || (titulo && NOME_DE_DOCUMENTO.test(titulo));
 
     if (!ehDocumento) continue;
+
+    // Link para a PROPRIA pagina (href="#" ou "#aba"): nao leva a documento
+    // nenhum. O botao "Catalogo de produtos" da Oceantech virava o endereco da
+    // pagina do produto com "#".
+    if (!ehArquivo) {
+      try {
+        const alvo = new URL(endereco);
+        const pagina = new URL(urlBase);
+        if (alvo.origin === pagina.origin && alvo.pathname === pagina.pathname) continue;
+      } catch {
+        // endereco ou base que nao abrem como URL: segue para as regras abaixo.
+      }
+    }
 
     // SECAO DO SITE NAO E DOCUMENTO DO PRODUTO. Link reconhecido so pelo texto,
     // apontando para uma pagina de primeiro nivel — "Catalogos" -> /catalogos,
@@ -2162,6 +2184,21 @@ export function normalizarPagina({
   // codigo vira mais de um produto, nunca um produto com dois codigos —
   // isso quebraria a busca pelos dois ao mesmo tempo.
 
+  // NUVEMSHOP: cada variante e um produto, com codigo, preco, pix e saldo dela.
+  // O JSON-LD da pagina so descreve a primeira variante e traz a soma do saldo de
+  // todas — ver nuvemshop.js. Sem o JS de variantes a pagina cai no caminho comum.
+  const daNuvemshop = variantesDaNuvemshop(html);
+  if (daNuvemshop.length) {
+    return {
+      produtos: daNuvemshop.map((variante) =>
+        produtoDaVarianteNuvemshop(base, variante, daNuvemshop.length > 1),
+      ),
+      motivo: null,
+      formatos: [...formatos, "nuvemshop"],
+      fonte,
+    };
+  }
+
   const codigos = separarCodigos(codigoDoProduto);
 
   // Variacao com identificador proprio e DIFERENTE do produto de origem vira um
@@ -2235,6 +2272,72 @@ export function normalizarPagina({
   }
 
   return { produtos, motivo: null, formatos, fonte };
+}
+
+/**
+ * O produto de UMA variante da Nuvemshop, a partir do produto-base da pagina.
+ *
+ * - Nome: o da pagina mais as opcoes ("... SFU 2005 - 250 mm"), quando ha mais de
+ *   uma variante. O tamanho tambem entra na ficha, com o nome da opcao.
+ * - Preco normal = o que a loja cobra pela variante. O riscado ("de R$ 297,00",
+ *   que so a primeira variante do fuso tem) nao e preco vigente: mesma regra da
+ *   Tray em promocao. O preco no pix vai como promocional, so informacao.
+ * - Saldo: o da variante. A pagina nao o mostra ao cliente, mas o publica no JS
+ *   que monta o seletor — e o numero que a propria loja usa para liberar a venda.
+ */
+function produtoDaVarianteNuvemshop(base, variante, varias) {
+  const sufixo = variante.opcoes.map((opcao) => opcao.valor).join(" / ");
+  const code = variante.codigo ?? SEM_CODIGO;
+  const desconto =
+    variante.aVista !== null ? Math.round((1 - variante.aVista / variante.preco) * 100) : null;
+
+  const nomesDaFicha = new Set(base.specifications.map((item) => item.nome));
+  const opcoesNaFicha = variante.opcoes
+    .filter((opcao) => opcao.nome && !nomesDaFicha.has(opcao.nome))
+    .map((opcao) => ({ nome: opcao.nome, valor: opcao.valor }));
+
+  const quantidade = variante.quantidade ?? (variante.disponivel ? null : 0);
+
+  return {
+    ...base,
+    name: varias && sufixo ? `${base.name} - ${sufixo}` : base.name,
+    code,
+    // O MPN e o EAN da pagina sao do produto inteiro, nao desta variante.
+    mpn: varias ? null : base.mpn,
+    ean: varias ? null : base.ean,
+    prices: {
+      ...base.prices,
+      normal: variante.preco,
+      promotional: variante.aVista,
+      comImpostos: null,
+    },
+    stock: {
+      status: variante.disponivel ? "AVAILABLE" : "OUT_OF_STOCK",
+      quantity: quantidade,
+      aChegar: null,
+    },
+    specifications: [...opcoesNaFicha, ...base.specifications],
+    variants: [],
+    origens: {
+      ...base.origens,
+      code: variante.codigo
+        ? "variante da Nuvemshop (LS.variants)"
+        : `variante da Nuvemshop sem codigo — marcado ${SEM_CODIGO}`,
+      precoNormal: variante.riscado
+        ? `preco da variante (LS.variants); o riscado de R$ ${variante.riscado.toFixed(2).replace(".", ",")} nao e o preco vigente`
+        : "preco da variante (LS.variants)",
+      precoPromocional:
+        variante.aVista !== null
+          ? `preco no pix da variante (LS.variants)${desconto ? ` — desconto de ${desconto}%` : ""}`
+          : base.origens.precoPromocional,
+      quantidade:
+        variante.quantidade !== null
+          ? "saldo da variante (LS.variants), que a pagina nao mostra ao cliente"
+          : variante.disponivel
+            ? base.origens.quantidade
+            : "variante esgotada na loja",
+    },
+  };
 }
 
 /** Campos essenciais presentes? Sem eles a pagina nao conta como produto. */

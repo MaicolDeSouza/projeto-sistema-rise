@@ -1854,5 +1854,55 @@ console.log("\n— Unitel: codigo com rotulo, titulo com placeholder, categoria,
   conferir("aba curta vence o og:description generico da empresa", curta?.description, "Peso: 0,060kg");
 }
 
+// ---------------------------------------------------------------------------
+// Nuvemshop (Oceantech, 09/10/2026): cada variante e um produto
+// ---------------------------------------------------------------------------
+console.log("\n— Nuvemshop: variantes com codigo, preco, pix e saldo proprios —");
+{
+  const variantes = [
+    { product_id: 1, price_number: 267, compare_at_price_number: 297, price_with_payment_discount_short: "R$253,65", stock: 6, sku: "1156", available: true, option0: "250 mm", option1: null, option2: null, id: 11 },
+    { product_id: 1, price_number: 273, compare_at_price_number: null, price_with_payment_discount_short: "R$259,35", stock: 0, sku: "1157", available: false, option0: "300 mm", option1: null, option2: null, id: 12 },
+    { product_id: 1, price_number: 1253.5, compare_at_price_number: null, price_with_payment_discount_short: "R$1.190,83", stock: null, sku: "1158", available: true, option0: "350 mm", option1: null, option2: null, id: 13 },
+  ];
+  const paginaNuvemshop = (variantesDaPagina) => `<html><head>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemPage","mainEntity":{"@type":"Product","name":"Fuso com Castanha SFU 2005","sku":"1156","description":"Fuso de esfera.","offers":{"@type":"Offer","priceCurrency":"BRL","price":"297","availability":"https://schema.org/InStock","inventoryLevel":{"@type":"QuantitativeValue","value":"178"}}}}</script>
+<script>var variants = [{ id: 11, options: [{ name: "Medidas", value: "250\u0020mm" }] }];</script>
+<script>LS.variants = ${JSON.stringify(variantesDaPagina)};</script>
+</head><body>
+<nav><a href="https://drive.google.com/file/d/ABC/view">CATALOGO DE PRODUTOS</a> <a href="#">CATALOGO DE PRODUTOS</a></nav>
+<div class="description user-content" data-store="product-description-1"><p>Texto.</p><a href="https://loja.exemplo.com/files/datasheet-fuso.pdf">Datasheet</a></div>
+<footer><a href="https://drive.google.com/file/d/ABC/view">CATALOGO DE PRODUTOS</a></footer>
+</body></html>`;
+  const urlNuvem = "https://loja.exemplo.com/produtos/fuso-com-castanha-sfu-2005/";
+  const ler = (html) => normalizarPagina({ html, url: urlNuvem, fonte: { tipo: "CONCORRENTE" } });
+  const lido = ler(paginaNuvemshop(variantes));
+  const [a, b, c] = lido.produtos;
+
+  conferir("Nuvemshop: uma pagina vira um produto por variante", lido.produtos.length, 3);
+  conferir("Nuvemshop: codigo de cada variante, e nao o do JSON-LD", lido.produtos.map((p) => p.code), ["1156", "1157", "1158"]);
+  conferir("Nuvemshop: o tamanho entra no nome", lido.produtos.map((p) => p.name), ["Fuso com Castanha SFU 2005 - 250 mm", "Fuso com Castanha SFU 2005 - 300 mm", "Fuso com Castanha SFU 2005 - 350 mm"]);
+  conferir("Nuvemshop: preco normal e o cobrado, nao o riscado", [a.prices.normal, b.prices.normal], [267, 273]);
+  conferir("Nuvemshop: preco no pix vai como promocional", [a.prices.promotional, b.prices.promotional, c.prices.promotional], [253.65, 259.35, 1190.83]);
+  conferir("Nuvemshop: saldo e o da variante, nao a soma do JSON-LD", [a.stock.quantity, b.stock.quantity], [6, 0]);
+  conferir("Nuvemshop: variante esgotada", [a.stock.status, b.stock.status], ["AVAILABLE", "OUT_OF_STOCK"]);
+  conferir("Nuvemshop: saldo que a loja nao controla fica sem numero", [c.stock.quantity, c.stock.status], [null, "AVAILABLE"]);
+  conferir("Nuvemshop: o tamanho entra na ficha com o nome da opcao", espec(a, "Medidas"), "250 mm");
+  conferir("Nuvemshop: a origem diz de onde veio o saldo", a.origens.quantidade.includes("LS.variants"), true);
+  conferir("Nuvemshop: a origem registra o riscado descartado", a.origens.precoNormal.includes("297,00"), true);
+  conferir("Nuvemshop: so o documento da descricao, sem o catalogo do menu", a.documentos.map((d) => d.url), ["https://loja.exemplo.com/files/datasheet-fuso.pdf"]);
+
+  const umaSo = ler(paginaNuvemshop(variantes.slice(0, 1))).produtos;
+  conferir("Nuvemshop: variante unica mantem o nome da pagina", umaSo.map((p) => p.name), ["Fuso com Castanha SFU 2005"]);
+  conferir("Nuvemshop: variante unica traz pix e saldo proprios", [umaSo[0].prices.promotional, umaSo[0].stock.quantity], [253.65, 6]);
+
+  const semJs = ler(paginaNuvemshop(variantes).replace("LS.variants = ", "LS.outra = "));
+  conferir("Nuvemshop: sem o JS de variantes cai no caminho comum", [semJs.produtos.length, semJs.produtos[0].code, semJs.produtos[0].prices.normal], [1, "1156", 297]);
+  conferir("Nuvemshop: JS de variantes quebrado cai no caminho comum", ler(paginaNuvemshop(variantes).replace('"id":11', '"id":')).produtos.length, 1);
+  const semDescricao = paginaNuvemshop(variantes)
+    .replace('data-store="product-description-1"', 'data-x="1"')
+    .replace("https://loja.exemplo.com/files/datasheet-fuso.pdf", urlNuvem + "#");
+  conferir("Nuvemshop: link para a propria pagina nao e documento", ler(semDescricao).produtos[0].documentos.filter((d) => d.url.startsWith(urlNuvem)), []);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

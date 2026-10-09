@@ -124,7 +124,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 316 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 406 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.HH.MM do deploy, em São Paulo; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -1255,6 +1255,27 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
     leem `SANTANA_USUARIO`/`SANTANA_SENHA` do `.env`. A coleta de verdade usa o login cifrado da
     fonte; as linhas do `.env` podem sair quando os scripts não forem mais usados.
 
+- **Nuvemshop (Oceantech, 09/10/2026): cada tamanho é um produto.** Leitor em `src/lib/coleta/nuvemshop.js`
+  (`variantesDaNuvemshop`), ligado em `normalizarPagina`. A página tem só UM item no JSON-LD, que descreve a primeira
+  variante sem nenhuma opção escolhida, e o resto está no JS `LS.variants` (uma linha por variante). No "Fuso com Castanha
+  SFU 2005" (24 tamanhos, 250 a 2200 mm) o JSON-LD trazia o **código 1156** (a de 250 mm), o **preço 297** (o RISCADO dela;
+  ela é vendida a 267) e o **saldo 178** (a SOMA dos 24 tamanhos); a tela da loja mostrava o preço do tamanho escolhido.
+  - **Cada variante vira um produto** (decisão do dono): código = o `sku` da variante, nome = o da página + as opções
+    (`... SFU 2005 - 250 mm`), e a opção entra também na ficha (`Medidas: 250 mm`). Variante única mantém o nome da página.
+    O MPN e o EAN da página saem quando há várias variantes (são do produto inteiro). Variante sem `sku` entra como `N/A`.
+  - **Preço normal = o que a loja cobra** pela variante (`price_number`); o riscado (`compare_at_price_number`, só a de 250 mm
+    tem) **não é preço vigente** e fica só na origem, a mesma regra da Tray em promoção. **O preço no pix**
+    (`price_with_payment_discount_short`, 5% abaixo) vai como **promocional**, só informação. A tela da loja NÃO mostra o pix
+    por variante (só "5% de desconto pagando com Pix"): o número está no JS.
+  - **Saldo = o da variante** (`stock`). A página não o mostra ao cliente, mas é o número que a própria loja usa para liberar
+    a venda (`available` vem dele), então é tão confiável quanto o estoque dela. `stock: null` = a loja não controla (fica
+    sem número, nunca zero); `stock: 0` = esgotada.
+  - **Documentos: só os da descrição** (`data-store="product-description-<id>"`). O menu e o rodapé repetem "Catálogo de
+    produtos" (link do Drive) em toda página. Vale para toda Nuvemshop. Link que aponta para a própria página (`href="#"`)
+    também não é mais documento, em qualquer plataforma.
+  - **Efeito:** a Oceantech sai com mais produtos que páginas (24 de uma página). A varredura continua tratando a página uma vez.
+    Os produtos já gravados dela só se corrigem na próxima varredura, e o worker do PC (`worker:pc`) precisa ser reiniciado
+    para carregar o código novo.
 - **Eletru's (eletruscomp.com.br): plataforma própria em ASP.NET MVC** (IIS,
   `x-aspnetmvc-version`), mapeada em 16/09/2026 como `aspnet-uploads` em `plataformas.js`.
   - **Formatos:** não tem JSON-LD. O Microdata traz só nome, preço e imagem, com `sku` **vazio**.
