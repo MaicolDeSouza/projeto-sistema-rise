@@ -383,7 +383,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
   // produtos (o de sempre, pela ordem do catalogo/sitemap do site). Ligado,
   // cada clique evita os produtos ja mostrados e traz tres novos — para
   // revisar varios produtos da fonte, um trio de cada vez, antes de decidir
-  // se salva. produtosVistos so cresce enquanto o toggle esta ligado.
+  // se salva. produtosVistos cresce a cada busca; o toggle decide se vai como `evitar`.
   const [amostraVariada, setAmostraVariada] = useState(false);
   const [produtosVistos, setProdutosVistos] = useState([]);
   // Login de PORTAL de fornecedor (a Santana): so existe no formulario enquanto
@@ -464,8 +464,11 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
       if (!url.trim() && doArquivo?.siteSugerido) setUrl(doArquivo.siteSugerido);
 
       // Acumula o que foi mostrado desta vez, para o proximo clique evitar e
-      // trazer outros tres.
-      if (amostraVariada && resultado?.produtos?.length) {
+      // trazer outros tres. Acumula SEMPRE, com o toggle ligado ou nao: so
+      // acumulando ligado, a primeira busca depois de ligar repetia os tres da
+      // busca anterior (pedido do dono, 10/10/2026). O `evitar` continua indo
+      // so com o toggle ligado.
+      if (resultado?.produtos?.length) {
         const enderecos = resultado.produtos.map((produto) => produto.url).filter(Boolean);
         setProdutosVistos((atuais) => [...new Set([...atuais, ...enderecos])]);
       }

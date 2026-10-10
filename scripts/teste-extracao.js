@@ -2047,6 +2047,24 @@ console.log("\n— Nuvemshop: o bloco da descricao vence o resumo do JSON-LD (co
   conferir("ficha com o nome de uma letra maiuscula (D)", cone.specifications.map((e) => e.nome), ["Modelo", "Rotação maxima", "L1", "D", "Material", "Precisão"]);
 }
 
+console.log("\n— Ficha sem titulo: nome de 4-5 palavras, legenda solta e propaganda (Policomp, 10/10/2026) —");
+{
+  const { especificacoesDaDescricao } = await import("../src/lib/coleta/normalizar.js");
+  const ficha = (texto) => especificacoesDaDescricao(texto.split("\n").join("<br>"));
+  conferir("redutor NEMA 23: nome de 4 palavras nao parte a ficha",
+    ficha("REDUTOR PLANETÁRIO NEMA 23 REDUÇÃO 4:1 EIXO 14MM\n\nModelo: PX57N004S0\nRedução: 4:1\nTorque maximo na saída: 50N.m\nRotação maxima na entrada: 3000 RPM\nFolga: < =15 arcmin\nEficiencia: 95%\n\nDATASHEET").map((e) => e.nome),
+    ["Modelo", "Redução", "Torque maximo na saída", "Rotação maxima na entrada", "Folga", "Eficiencia"]);
+  conferir("esteira: legenda solta entre pares entra sem nome",
+    ficha("Raio de curvatura: R125\nAltura x Largura\nMaterial: Nylon PA66\nTemperatura de trabalho: -40 ° c --- + 80 ° c"),
+    [{ nome: "Raio de curvatura", valor: "R125" }, { nome: null, valor: "Altura x Largura" }, { nome: "Material", valor: "Nylon PA66" }, { nome: "Temperatura de trabalho", valor: "-40 ° c --- + 80 ° c" }]);
+  conferir("legenda solta no FIM nao entra",
+    ficha("Modelo: A1\nPeso: 10g\nCor: preta\nVeja tambem").map((e) => e.nome), ["Modelo", "Peso", "Cor"]);
+  conferir("valor longo COM numero entra",
+    ficha("Modelo: A1\nPeso: 10g\nPotência de saída: 35W sob dissipação natural e 50W com ventilação").length, 3);
+  conferir("propaganda de valor longo SEM numero nao entra, nem com hifen",
+    ficha("- Leveza: Ideal para projetos portáteis e onde o peso é um fator importante\n- Resistência: Construído para suportar o uso contínuo e garantir a segurança\n- Estudantes: Ideal para projetos escolares e aprendizado prático de robótica"), []);
+}
+
 console.log("\n— Nuvemshop: home nao e produto; ficha marcada sem titulo —");
 {
   const ld = (nome, sku) => `<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"${nome}","sku":"${sku}","offers":{"@type":"Offer","price":"229","availability":"https://schema.org/InStock"}}</script>`;

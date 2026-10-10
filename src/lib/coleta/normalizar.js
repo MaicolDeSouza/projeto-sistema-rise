@@ -530,7 +530,7 @@ function fichaSemTitulo(linhas) {
     const igual = limpa.search(/\s=\s/);
     const usaIgual = igual !== -1 && (doisPontos === -1 || igual < doisPontos);
     const separador = usaIgual ? igual : doisPontos;
-    if (separador < 1 || separador > (marcada || usaIgual ? 45 : 30)) return null;
+    if (separador < 1 || separador > 45) return null;
 
     const nome = limpa.slice(0, separador).trim();
     // Nome de UMA letra so vale maiuscula sozinha: "D: 49,60 mm" (o diametro, no cone
@@ -539,10 +539,18 @@ function fichaSemTitulo(linhas) {
     // Depois do separador; "Folga: = 12 arcmin" traz um "=" sobrando no comeco do valor.
     const inicioDoValor = usaIgual ? limpa.indexOf("=", separador) + 1 : separador + 1;
     const valor = limpa.slice(inicioDoValor).replace(/^\s*=\s*/, "").trim();
-    if (!valor || valor.length > (marcada ? 60 : 40)) return null;
-    // "Nome = valor" e separador explicito, como o marcador de lista: o nome pode ser
-    // mais longo ("VELOCIDADE NOMINAL DE ENTRADA", 4 palavras).
-    if (nome.split(/\s+/).length > (marcada || usaIgual ? 5 : 3)) return null;
+    // Ate 5 palavras no nome e 80 caracteres no valor, com ou sem marcador (Policomp,
+    // 10/10/2026): com 3 palavras e 40 caracteres, "Torque maximo na saída: 50N.m" e
+    // "Rotação maxima na entrada: 3000 RPM" quebravam a corrida no meio, e o redutor
+    // NEMA 23 ficava com ZERO de 6 itens (2 + 2 pares, abaixo do minimo de 3). A
+    // protecao contra propaganda continua: corrida de 3 pares e nome em maiuscula.
+    if (!valor || valor.length > 80) return null;
+    // Valor comprido so conta se tiver NUMERO (medida, tensao, modelo): acima de 40
+    // caracteres sem marcador, acima de 60 com marcador (os tetos de antes). Frase de
+    // propaganda ("Leveza: Ideal para projetos portáteis e onde o peso é um fator
+    // importante", na Solda Fria) tem o formato de par, mas nao tem numero.
+    if (!usaIgual && valor.length > (marcada ? 60 : 40) && !/\d/.test(valor)) return null;
+    if (nome.split(/\s+/).length > 5) return null;
     if (!/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(nome)) return null;
     return { nome, valor };
   };
@@ -564,23 +572,37 @@ function fichaSemTitulo(linhas) {
     pares = 0;
   };
 
+  // Linha curta SEM marcador entre dois pares ("Altura x Largura", legenda solta na
+  // esteira porta-cabos da Policomp, 10/10/2026) ficava sozinha no meio e quebrava a
+  // ficha. Ela espera aqui: se vier outro par depois, entra sem nome; se nao vier,
+  // some junto com o fim da corrida. Mais de uma seguida, ou frase terminada em
+  // ponto, quebra como antes.
+  let soltas = [];
   for (const linha of linhas) {
     if (!linha) continue;
 
     const marcada = MARCADOR.test(linha);
     const item = par(linha, marcada);
     if (item) {
-      corrida.push(item);
+      corrida.push(...soltas, item);
+      soltas = [];
       pares++;
       continue;
     }
 
     const solto = linha.replace(MARCADOR, "").replace(/[;.]\s*$/, "").trim();
     if (marcada && corrida.length && solto && solto.length <= 80) {
-      corrida.push({ nome: null, valor: solto });
+      corrida.push(...soltas, { nome: null, valor: solto });
+      soltas = [];
       continue;
     }
 
+    if (!marcada && corrida.length && soltas.length < 1 && solto && linha.length <= 50 && !/[.!?]$/.test(linha.trim())) {
+      soltas.push({ nome: null, valor: solto });
+      continue;
+    }
+
+    soltas = [];
     fechar();
   }
   fechar();

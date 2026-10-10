@@ -510,7 +510,15 @@ export async function colherProdutos({
     // Produto primeiro, listagem por ultimo, o resto no meio — na ordem do
     // sitemap dentro de cada grupo. Sem isto a amostra do "Testar fonte" (8
     // enderecos) caia inteira nas categorias que o sitemap lista antes.
-    const grupo = (endereco) => (pareceProduto(endereco) ? 0 : pareceListagem(endereco) ? 2 : 1);
+    // Na Nuvemshop todo produto mora em "/produtos/<slug>/" (sem id no fim). So o
+    // "-NNN" do pareceProduto deixava a maioria no grupo do meio, ATRAS da home, do
+    // contato e da FAQ: a "Amostra variada" da Policomp (10/10/2026) esgotava os
+    // poucos com numero e so abria pagina institucional. So nesta plataforma: na
+    // Eletrus "/produtos/..." e categoria.
+    const produtoDaNuvemshop = (endereco) =>
+      plataforma.id === "nuvemshop" && /\/produtos\/[^/?#]+\/?$/i.test(endereco.split("?")[0]);
+    const grupo = (endereco) =>
+      pareceProduto(endereco) || produtoDaNuvemshop(endereco) ? 0 : pareceListagem(endereco) ? 2 : 1;
     // So enderecos da loja. O robots.txt da Mamute Eletronica declara tambem o
     // sitemap do BLOG (outro subdominio): os posts entrariam na fila e na conta
     // de "produtos no site". O arquivo do sitemap pode estar num CDN; o que ele
@@ -561,7 +569,15 @@ export async function colherProdutos({
   // responde isso.
   let produtosDoSitemap = 0;
 
-  for (const candidata of urlsSitemap.slice(0, amostraSitemap)) {
+  // Os ja tratados (o `evitar` da "Amostra variada" chega pre-marcado) saem ANTES do
+  // corte. Cortar primeiro prendia a amostra nos mesmos 8 enderecos do comeco do
+  // sitemap: na Policomp (10/10/2026) a 3a busca so tinha produtos removidos ali
+  // ("A pagina solicitada nao existe") e voltava com zero.
+  const candidatasDoSitemap = urlsSitemap
+    .filter((endereco) => !tratados.has(enderecoComparavel(endereco)))
+    .slice(0, amostraSitemap);
+
+  for (const candidata of candidatasDoSitemap) {
     if (achados() >= limite || visitas >= tetoVisitas) break;
     if (jaTratado(candidata)) continue;
     conferirSinal();

@@ -442,7 +442,13 @@ export default function PreviaProduto({ produto, indice }) {
           )}
         </p>
         {especificacoes.length > 0 ? (
-          <dl className="grid grid-cols-1 gap-x-6 text-xs sm:grid-cols-2">
+          // Preenche POR COLUNA (pedido do dono, 10/10/2026): a primeira metade, em ordem,
+          // na esquerda e o resto na direita. Com numero impar, a linha a mais fica na
+          // esquerda. No celular continua uma coluna so, na mesma ordem.
+          <dl
+            className="grid grid-cols-1 gap-x-6 text-xs sm:grid-flow-col sm:grid-cols-2 sm:[grid-template-rows:repeat(var(--linhas),auto)]"
+            style={{ "--linhas": Math.ceil(especificacoes.length / 2) }}
+          >
             {especificacoes.map((item, indice) => (
               <div
                 key={`${item.nome ?? "item"}-${indice}`}

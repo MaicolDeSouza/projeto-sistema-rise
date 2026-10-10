@@ -968,7 +968,11 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
               inventar uma chave. Essas aparecem com marcador.
             */
             conteudo: dados.especificacoes?.length > 0 && (
-              <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+              // Por coluna, como na previa do teste de fonte: a primeira metade na esquerda.
+              <dl
+                className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-flow-col sm:grid-cols-2 sm:[grid-template-rows:repeat(var(--linhas),auto)]"
+                style={{ "--linhas": Math.ceil(dados.especificacoes.length / 2) }}
+              >
                 {dados.especificacoes.map((item, indice) => (
                   <div
                     key={`${item.nome ?? "item"}-${indice}`}
