@@ -2059,6 +2059,26 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
   - O retorno de `criarDescricaoIA` ganhou `opcoesParagrafos`; `texto` continua sendo a descrição pronta.
   - **A janela não importa `anuncio.js`** (puxaria o SDK e o banco para o navegador): por isso o limite não
     aparece como "x/230" na tela, só a contagem de caracteres.
+- **Revisão em texto corrido, "Finalizar" e "Reajustar"** (pedido do dono em 10/10/2026; substitui as "duas listas de
+  escolha" acima e o "Organizar descrição"):
+  - **Uma tela só** (`LinhasDescricao.jsx`): a descrição na ordem final, e no lugar de cada escolha um **quadro
+    preto** (`Quadro`) com título curto ("Parágrafo 1: escolha uma opção", "Corrente Pinos I/O") e as opções dentro,
+    com as cores internas de antes. O quadro do parágrafo entra na linha que tem a opção escolhida dele. Saiu a lista
+    de parágrafos acima do texto e o link "Revisar linha por linha / Editar texto completo": o modo vem do estado
+    (com opções = quadros; finalizada, digitada ou levada da esquerda = texto editável).
+  - **"Finalizar descrição"** (`calcularFinal` + `finalizar`): cada parâmetro com a escolha do dono e, sem escolha, a
+    **recomendada pela IA**; parágrafo sem escolha fica com a 1ª opção; depois `organizarDescricao`. Guarda o retrato
+    de antes (`antesDeFinalizar`). O botão vira **"Reajustar descrição"**, que volta às opções com as escolhas do
+    dono; se o texto finalizado foi editado, pergunta antes ("Voltar às opções?"), porque a edição se perde.
+  - **"Salvar e sair" não trava mais** por parâmetro pendente: sem finalizar, finaliza sozinho (as escolhas e, no
+    resto, a recomendada). Peso e medidas vão aos campos pelas escolhas USADAS.
+  - **A IA SEMPRE recomenda** (`recomendacaoDaDivergencia`, em `divergencias.js`, testada no `teste:extracao`): a
+    decisão dela quando aponta uma opção da lista; senão a opção com mais lojas (empate: a primeira). **Corrente de
+    pico × contínua:** antes a recomendação era apagada; agora vai para a opção que traz a contínua (o valor de
+    operação), com o motivo.
+  - Conferido em 10/10/2026: o componente renderizado no Node com dados de exemplo (3 quadros, na ordem certa, sem
+    repetir o parágrafo) e, na tela, Finalizar → Reajustar → "Voltar às opções?" com texto digitado. **A revisão de
+    uma geração de verdade com os quadros ainda não foi vista** (a geração é paga): o primeiro uso é do dono.
 
 **Fotos do produto: só as validadas são salvas, o botão Baixar e a ampliada com setas** (`PainelDeImagens.jsx`,
 pedidos do dono em 04/10/2026):

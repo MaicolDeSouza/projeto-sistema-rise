@@ -8,7 +8,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { ArrowRight, Check, Copy, ExternalLink, Loader, Pencil, Plus, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
+import { ArrowRight, Check, Copy, ExternalLink, Loader, Pencil, Plus, RotateCcw, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
 
 import {
   buscarDescricoesParaProduto,
@@ -248,6 +248,11 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   const [opcoesRestantes, setOpcoesRestantes] = useState({});
   const [confirmadas, setConfirmadas] = useState(() => new Set());
   const [editandoTexto, setEditandoTexto] = useState(false);
+  // "Finalizar descricao" (pedido do dono em 10/10/2026): o retrato de ANTES de finalizar (texto, escolhas, modo),
+  // para o "Reajustar descricao" voltar as opcoes. `null` = nao finalizada. Guarda tambem o texto que a
+  // finalizacao montou, para saber se o dono editou depois, e as escolhas usadas (as dele e as recomendadas).
+  const [antesDeFinalizar, setAntesDeFinalizar] = useState(null);
+  const [confirmandoReajuste, setConfirmandoReajuste] = useState(false);
   const [erro, setErro] = useState(null);
   const [produto, setProduto] = useState({ titulo: "", sku: "" });
   const leituraAtual = useRef(0);
@@ -303,6 +308,8 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setOpcoesRestantes({});
     setConfirmadas(new Set());
     setEditandoTexto(false);
+    setAntesDeFinalizar(null);
+    setConfirmandoReajuste(false);
     geracaoAtual.current++;
     // So desta ABERTURA (pedido do dono em 22/09/2026): excluir uma
     // referencia aqui nao desmarca ela na lupa nem em lugar nenhum do
@@ -385,6 +392,10 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
       setConfirmandoSaida(false);
       return;
     }
+    if (confirmandoReajuste) {
+      setConfirmandoReajuste(false);
+      return;
+    }
     if (texto.trim() || gerando) setConfirmandoSaida(true);
     else fechar();
   }
@@ -441,6 +452,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
           item.id, item.opcoes.map((_, indice) => indice),
         ])));
         setEditandoTexto(false);
+        setAntesDeFinalizar(null);
       } catch (falha) {
         if (geracao === geracaoAtual.current) setErro(falha?.message ?? "Falha ao chamar a IA.");
       }
@@ -489,29 +501,70 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     }));
   }
 
-  function organizar() {
+  /**
+   * O texto final, sem mexer na tela: cada parametro com a escolha do dono e, onde ele nao escolheu, a RECOMENDADA
+   * pela IA (pedido do dono em 10/10/2026; sempre ha uma, ver `recomendacaoDaDivergencia`). Parametro cujas opcoes o
+   * dono excluiu todas sai sem linha. Os paragrafos ja estao no texto (a opcao escolhida, ou a primeira). Devolve
+   * tambem as escolhas usadas, para o "Salvar e sair" saber de onde vieram peso e medidas.
+   */
+  function calcularFinal() {
     let novoTexto = texto;
     const novasConfirmadas = new Set(confirmadas);
+    const novasRestantes = { ...opcoesRestantes };
+    const escolhas = {};
     const ignoradas = divergencias
       .filter((item) => confirmadas.has(item.id) && Number.isInteger(selecoes[item.id]))
       .map((item) => formatarLinhaTecnica(item.opcoes[selecoes[item.id]].linha));
     for (const divergencia of [...divergencias].sort((a, b) => a.posicao - b.posicao)) {
-      if (novasConfirmadas.has(divergencia.id)) continue;
+      if (novasConfirmadas.has(divergencia.id)) {
+        if (Number.isInteger(selecoes[divergencia.id])) escolhas[divergencia.id] = selecoes[divergencia.id];
+        continue;
+      }
       const restantes = opcoesRestantes[divergencia.id] ?? [];
-      const escolhida = selecoes[divergencia.id];
-      if (restantes.length > 0 && !restantes.includes(escolhida)) continue;
+      let escolhida = selecoes[divergencia.id];
+      if (!Number.isInteger(escolhida) || !restantes.includes(escolhida)) {
+        escolhida = restantes.includes(divergencia.recomendada) ? divergencia.recomendada : restantes[0];
+      }
       if (Number.isInteger(escolhida)) {
         const linha = divergencia.opcoes[escolhida].linha;
         novoTexto = inserirEspecificacaoNaPosicao(
           novoTexto, linha, divergencia.posicao ?? Number.POSITIVE_INFINITY, ignoradas,
         );
         ignoradas.push(formatarLinhaTecnica(linha));
-        setOpcoesRestantes((atual) => ({ ...atual, [divergencia.id]: [escolhida] }));
+        novasRestantes[divergencia.id] = [escolhida];
+        escolhas[divergencia.id] = escolhida;
       }
       novasConfirmadas.add(divergencia.id);
     }
-    setConfirmadas(novasConfirmadas);
-    setTexto(organizarDescricao(novoTexto));
+    return { texto: organizarDescricao(novoTexto), confirmadas: novasConfirmadas, restantes: novasRestantes, escolhas };
+  }
+
+  /** "Finalizar descricao": monta o texto final e passa para o texto editavel. O retrato de antes fica guardado. */
+  function finalizar() {
+    const final = calcularFinal();
+    setAntesDeFinalizar({ texto, confirmadas, opcoesRestantes, editandoTexto, textoFinal: final.texto, escolhas: final.escolhas });
+    setTexto(final.texto);
+    setConfirmadas(final.confirmadas);
+    setOpcoesRestantes(final.restantes);
+    setEditandoTexto(true);
+  }
+
+  /** "Reajustar descricao": volta as opcoes. Se o texto finalizado foi editado, pergunta antes (a edicao se perde). */
+  function reajustar() {
+    if (!antesDeFinalizar) return;
+    if (texto !== antesDeFinalizar.textoFinal) setConfirmandoReajuste(true);
+    else voltarAsOpcoes();
+  }
+
+  function voltarAsOpcoes() {
+    const antes = antesDeFinalizar;
+    setConfirmandoReajuste(false);
+    if (!antes) return;
+    setTexto(antes.texto);
+    setConfirmadas(antes.confirmadas);
+    setOpcoesRestantes(antes.opcoesRestantes);
+    setEditandoTexto(antes.editandoTexto);
+    setAntesDeFinalizar(null);
   }
 
   /**
@@ -536,6 +589,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setOpcoesRestantes({});
     setConfirmadas(new Set());
     setEditandoTexto(true);
+    setAntesDeFinalizar(null);
   }
 
   /** Poe a lista nova e escolhe `id` nela (o texto e o nome vao para a caixa). */
@@ -690,15 +744,18 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   }
 
   function usar() {
-    const final = organizarDescricao(texto);
+    // Sem finalizar, o "Salvar e sair" finaliza sozinho (as escolhas do dono e, no resto, a recomendada).
+    const { texto: final, escolhas } = antesDeFinalizar
+      ? { texto: organizarDescricao(texto), escolhas: antesDeFinalizar.escolhas }
+      : calcularFinal();
     const lidas = medidasDaDescricao(final);
     const camposEscolhidos = {};
-    if (Number.isInteger(selecoes.dimensoes)) {
+    if (Number.isInteger(escolhas.dimensoes)) {
       for (const campo of ["comprimentoCm", "larguraCm", "alturaCm"]) {
         camposEscolhidos[campo] = lidas[campo] ?? "";
       }
     }
-    if (Number.isInteger(selecoes.peso)) camposEscolhidos.pesoKg = lidas.pesoKg ?? "";
+    if (Number.isInteger(escolhas.peso)) camposEscolhidos.pesoKg = lidas.pesoKg ?? "";
     aoUsar(final, { camposEscolhidos });
     setConfirmandoSaida(false);
     setAberta(false);
@@ -732,8 +789,6 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   const pecasParaGerar = itensDasPecas.map((item) => ({ id: item.pecaId, quantidade: item.quantidade }));
   const itens = [...itensDasPecas, ...itensDasLojas];
   const pendentes = divergencias.filter((item) => !confirmadas.has(item.id)).length;
-  const prontasParaOrganizar = divergencias.filter((item) =>
-    !confirmadas.has(item.id) && Number.isInteger(selecoes[item.id])).length;
   // Prompt vazio ou acima do teto nao gera nem salva (o servidor confere de novo).
   const promptValido = prompt === null || (prompt.trim().length > 0 && prompt.trim().length <= maximoPrompt);
   // O escolhido como esta SALVO (null no prompt novo).
@@ -894,21 +949,33 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 {gerando ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
                 {gerando ? "Escrevendo..." : texto ? "Gerar de novo" : "Gerar com IA"}
               </button>
+              {/* "Finalizar descricao" (era "Organizar descricao") e, depois de finalizada, "Reajustar descricao"
+                  (pedido do dono em 10/10/2026). */}
               <button
                 type="button"
-                onClick={organizar}
+                onClick={antesDeFinalizar ? reajustar : finalizar}
                 disabled={!texto.trim() || gerando}
+                title={
+                  antesDeFinalizar
+                    ? "Volta às opções para escolher de novo"
+                    : "Monta o texto com as suas escolhas; onde não houver escolha, usa a recomendada pela IA"
+                }
                 className="inline-flex items-center gap-1.5 rounded border border-borda bg-superficie px-3 py-1.5 text-sm font-medium hover:border-acento disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <WandSparkles size={14} /> Organizar descrição
+                {antesDeFinalizar ? <RotateCcw size={14} /> : <WandSparkles size={14} />}
+                {antesDeFinalizar ? "Reajustar descrição" : "Finalizar descrição"}
               </button>
               {/* "Salvar e sair" aqui em cima, a direita (pedido do dono em 09/10/2026; era "Usar esta descrição", no pe
                   da janela): poe o texto na aba Descricao e fecha. */}
               <button
                 type="button"
                 onClick={usar}
-                disabled={!texto.trim() || pendentes > 0}
-                title={pendentes > 0 ? `${pendentes} parâmetro(s) aguardam escolha.` : "Substitui o texto da aba Descrição e fecha"}
+                disabled={!texto.trim()}
+                title={
+                  antesDeFinalizar
+                    ? "Substitui o texto da aba Descrição e fecha"
+                    : "Finaliza (as suas escolhas e, no resto, a recomendada), substitui o texto da aba Descrição e fecha"
+                }
                 className="ml-auto rounded bg-acento px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Salvar e sair
@@ -918,50 +985,6 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             {erro && <p className="mb-2 text-sm text-red-700">{erro}</p>}
 
             <div ref={rolagemDescricao} className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-              {texto && opcoesParagrafos.some((opcoes) => opcoes.length > 1) && (
-                <section aria-label="Opções dos parágrafos">
-                  <h3 className="mb-2 text-sm font-semibold">Escolha os 2 primeiros parágrafos</h3>
-                  {opcoesParagrafos.map((opcoes, grupo) =>
-                    opcoes.length === 0 ? null : (
-                      <div key={grupo} role="radiogroup" aria-label={`Opções do parágrafo ${grupo + 1}`} className="mb-3">
-                        <p className="mb-1 text-xs font-semibold text-suave">Parágrafo {grupo + 1}</p>
-                        <ul className="space-y-1">
-                          {opcoes.map((opcao, indice) => {
-                            const escolhida = escolhidosParagrafos[grupo] === indice;
-                            return (
-                              <li key={opcao}>
-                                <button
-                                  type="button"
-                                  role="radio"
-                                  aria-checked={escolhida}
-                                  onClick={() => escolherParagrafo(grupo, indice)}
-                                  className={`flex w-full items-start gap-2 rounded border px-3 py-2 text-left text-sm ${
-                                    escolhida
-                                      ? "border-acento bg-sky-50"
-                                      : "border-borda bg-superficie hover:border-acento"
-                                  }`}
-                                >
-                                  <span
-                                    className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                                      escolhida ? "border-acento bg-acento text-white" : "border-borda"
-                                    }`}
-                                  >
-                                    {escolhida && <Check size={11} strokeWidth={3} />}
-                                  </span>
-                                  <span className="min-w-0 flex-1">{opcao}</span>
-                                  <span className="shrink-0 text-[11px] text-suave tabular-nums">
-                                    {opcao.length}
-                                  </span>
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    ),
-                  )}
-                </section>
-              )}
               {/*
                 A caixa fica aberta para digitar desde o inicio (pedido do dono em 10/10/2026), com ou sem referencia.
                 E o MESMO <textarea> antes e depois da primeira tecla (mesma posicao na arvore): trocar de elemento
@@ -969,17 +992,12 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 a revisao linha a linha tomaria o lugar da caixa.
               */}
               <section>
+                {/* Sem o link "Revisar linha por linha" (pedido do dono em 10/10/2026): com opcoes para escolher, a
+                    revisao com os quadros; finalizada, digitada ou levada da esquerda, o texto editavel. */}
                 {texto && (
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold">Descrição para revisar</h3>
-                    <button
-                      type="button"
-                      onClick={() => setEditandoTexto((atual) => !atual)}
-                      className="text-xs text-acento hover:underline"
-                    >
-                      {editandoTexto ? "Revisar linha por linha" : "Editar texto completo"}
-                    </button>
-                  </div>
+                  <h3 className="mb-2 text-sm font-semibold">
+                    {editandoTexto ? "Descrição" : "Descrição para revisar"}
+                  </h3>
                 )}
                 {editandoTexto || !texto ? (
                   <textarea
@@ -1006,17 +1024,18 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                     aoMover={moverLinha}
                     aoMoverPasso={moverPorPasso}
                     rolagem={rolagemDescricao}
+                    paragrafos={opcoesParagrafos}
+                    escolhidosParagrafos={escolhidosParagrafos}
+                    aoEscolherParagrafo={escolherParagrafo}
                   />
                 )}
               </section>
             </div>
 
             <p className="mt-2 text-[11px] text-suave">
-              {prontasParaOrganizar > 0
-                ? prontasParaOrganizar + " escolha(s) marcada(s); clique em Organizar descrição."
-                : pendentes > 0
-                  ? pendentes + " parâmetro(s) aguardam escolha."
-                  : '"Salvar e sair" substitui o texto da aba Descrição.'}
+              {!antesDeFinalizar && !editandoTexto && pendentes > 0
+                ? `${pendentes} parâmetro(s) sem escolha: "Finalizar descrição" usa a recomendada pela IA.`
+                : '"Salvar e sair" substitui o texto da aba Descrição.'}
             </p>
           </div>
         </div>
@@ -1294,6 +1313,46 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
         </div>
       )}
 
+      {confirmandoReajuste && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={(evento) => {
+            if (evento.target === evento.currentTarget) setConfirmandoReajuste(false);
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="descricao-reajustar-titulo"
+            className="w-full max-w-md rounded-lg border border-borda bg-superficie p-4 shadow-2xl"
+          >
+            <p id="descricao-reajustar-titulo" className="text-sm font-semibold">
+              Voltar às opções?
+            </p>
+            <p className="mt-1 text-sm text-suave">
+              Você editou o texto depois de finalizar. Ao voltar às opções, essas edições se perdem.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setConfirmandoReajuste(false)}
+                className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={voltarAsOpcoes}
+                className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Voltar às opções
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
       {confirmandoSaida && (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
@@ -1330,8 +1389,8 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               <button
                 type="button"
                 onClick={usar}
-                disabled={!texto.trim() || pendentes > 0}
-                title={pendentes > 0 ? `${pendentes} parâmetro(s) aguardam escolha.` : "Põe o texto na aba Descrição e fecha"}
+                disabled={!texto.trim()}
+                title="Põe o texto na aba Descrição e fecha"
                 className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Salvar

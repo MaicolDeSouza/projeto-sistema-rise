@@ -8,7 +8,7 @@ import { casaPalavra, indiceDePalavras, normalizar, palavrasDoTermo } from "@/li
 import { limparSugestoesDeCategoria, montarPedidoDeCategorias } from "@/lib/canaisDeVenda/li/categorias";
 
 import { PADRAO_TITULO } from "./padraoTitulo";
-import { idDaCaracteristica, identificarDivergencias } from "./divergencias";
+import { idDaCaracteristica, identificarDivergencias, recomendacaoDaDivergencia } from "./divergencias";
 import { compactarUnidades, normalizarTerminologiaEletrica } from "./revisaoDescricao";
 
 /**
@@ -762,16 +762,8 @@ export async function gerarDescricao(
     // acima usa a primeira de cada uma.
     opcoesParagrafos,
     divergencias: divergencias.map((item) => {
-      const decisao = decisoes.get(item.id);
-      let recomendada = Number.isInteger(decisao?.opcao) &&
-        decisao.opcao >= 0 && decisao.opcao < item.opcoes.length ? decisao.opcao : null;
-      let motivo = String(decisao?.motivo ?? "").slice(0, 300);
-      if (/corrente/i.test(item.campo) && item.opcoes.some((opcao) =>
-        /pico/i.test(opcao.valor) && /cont[ií]nu/i.test(opcao.valor)) &&
-        recomendada !== null && !/cont[ií]nu/i.test(item.opcoes[recomendada].valor)) {
-        recomendada = null;
-        motivo = "As fontes misturam corrente de pico e corrente contínua. Confira o valor de operação antes de escolher.";
-      }
+      // Sempre ha uma recomendada (10/10/2026), com a regra de pico x continua (ver `recomendacaoDaDivergencia`).
+      const { recomendada, motivo } = recomendacaoDaDivergencia(item, decisoes.get(item.id));
       return {
         ...item,
         recomendada,

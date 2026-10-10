@@ -23,6 +23,41 @@ function identidadeDoValor(campo, valor) {
   return chave(valor);
 }
 
+/**
+ * A opcao recomendada de uma divergencia, SEMPRE uma (pedido do dono em 10/10/2026: o "Finalizar descricao" usa a
+ * recomendada onde o dono nao escolheu, e nao pode travar). Ate ali a recomendacao podia faltar.
+ *
+ * - A decisao da IA vale quando aponta uma opcao da lista.
+ * - Corrente de pico x continua (lojas que misturam as duas): recomendar so o pico seria anunciar a corrente de
+ *   pico como valor de operacao. Antes a recomendacao era apagada; agora vai para a opcao que traz a continua.
+ * - Sem decisao da IA: a opcao confirmada por mais lojas; no empate, a primeira.
+ */
+export function recomendacaoDaDivergencia(item, decisao) {
+  const opcoes = item?.opcoes ?? [];
+  if (opcoes.length === 0) return { recomendada: null, motivo: "" };
+  let recomendada = Number.isInteger(decisao?.opcao) && decisao.opcao >= 0 && decisao.opcao < opcoes.length
+    ? decisao.opcao
+    : null;
+  let motivo = String(decisao?.motivo ?? "").slice(0, 300);
+
+  const temContinua = (opcao) => /cont[ií]nu/i.test(opcao.valor);
+  const misturaPicoEContinua = /corrente/i.test(item.campo ?? "") &&
+    opcoes.some((opcao) => /pico/i.test(opcao.valor) && temContinua(opcao));
+  if (misturaPicoEContinua && (recomendada === null || !temContinua(opcoes[recomendada]))) {
+    recomendada = opcoes.findIndex(temContinua);
+    motivo = "As lojas misturam corrente de pico e corrente contínua: a recomendada traz a contínua, que é o valor de operação. Confira antes de salvar.";
+  }
+
+  if (recomendada === null) {
+    recomendada = opcoes.reduce(
+      (melhor, opcao, indice) => ((opcao.fontes?.length ?? 0) > (opcoes[melhor].fontes?.length ?? 0) ? indice : melhor),
+      0,
+    );
+    motivo = motivo || "A IA não decidiu: recomendada a opção confirmada por mais lojas.";
+  }
+  return { recomendada, motivo };
+}
+
 /** Compara fatos publicados por lojas distintas sem confundir unidade ou ordem dos eixos. */
 export function identificarDivergencias(referencias) {
   const campos = new Map();
