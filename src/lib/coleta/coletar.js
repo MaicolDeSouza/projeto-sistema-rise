@@ -9,7 +9,8 @@ import {
 import { colherProdutos, enderecoComparavel } from "./colher";
 import { podeVisitar } from "./buscar";
 import { conciliar, quedaSuspeita } from "./conciliar";
-import { portalDoEndereco, regrasDoFornecedor } from "./fornecedores";
+import { catalogoJsDoEndereco, portalDoEndereco, regrasDoFornecedor } from "./fornecedores";
+import { colherCatalogoJs } from "./catalogo-js";
 import { colherPortal } from "./portal-addsuite";
 import { decifrar } from "@/lib/crypto";
 
@@ -364,6 +365,64 @@ async function varrerPortal(fonte, portal, aoProgredir, { sinal, inicioDaVarredu
   };
 }
 
+/**
+ * Varredura de fornecedor cujo catalogo e UM arquivo JavaScript (R&AC, 10/10/2026).
+ *
+ * Le o arquivo, junta com o que ja esta guardado e grava de uma vez: a trava de queda
+ * (lista muito menor que a anterior) precisa da lista inteira, como na lista de arquivo.
+ */
+async function varrerCatalogoJs(fonte, catalogo, aoProgredir, sinal) {
+  const comecou = Date.now();
+  const colheita = await colherCatalogoJs({
+    urlBase: enderecoDaFonte(fonte),
+    caminho: catalogo.caminho,
+    fonte: { name: fonte.nome, type: fonte.tipo },
+    sinal,
+  });
+
+  if (colheita.erro) return { total: 0, feitas: 0, produtos: 0, visitas: colheita.visitas, erro: colheita.erro };
+
+  if (aoProgredir) await aoProgredir({ total: colheita.produtos.length, feitas: colheita.produtos.length, visitadas: colheita.visitas });
+  sinal?.throwIfAborted();
+
+  const anteriores = await lerProdutosDaFonte(fonte.id);
+  // O catalogo e uma lista inteira, como a de arquivo: a trava de queda vale (ela so
+  // compara lista com lista, entao a origem e dada como "arquivo").
+  const queda = quedaSuspeita({ anteriores, novos: colheita.produtos, origemAnterior: "arquivo" });
+  if (queda) {
+    return {
+      total: colheita.produtos.length,
+      feitas: 0,
+      produtos: 0,
+      visitas: colheita.visitas,
+      erro: `o catálogo novo tem ${queda.agora} produto(s) contra ${queda.antes} da coleta anterior — ${queda.percentual}% sumiriam. Confira o site antes de tentar de novo.`,
+    };
+  }
+
+  const resumo = `${colheita.produtos.length} produto(s) do catálogo do site (arquivo ${catalogo.caminho}) · sem preço: o site vende por orçamento`;
+  const gravacao = await gravarColeta({
+    fonte,
+    produtos: colheita.produtos,
+    origem: "site",
+    resumo,
+    duracaoMs: Date.now() - comecou,
+    inicioDaColeta: new Date(comecou),
+    totalDaColeta: colheita.produtos.length,
+  });
+
+  return {
+    total: colheita.produtos.length,
+    feitas: colheita.produtos.length,
+    produtos: gravacao.gravados,
+    visitas: colheita.visitas,
+    resumo,
+    gravacao,
+    produtosNoSite: colheita.produtos.length,
+    produtosNoSiteParcial: false,
+    erro: null,
+  };
+}
+
 export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVarredura = null } = {}) {
   const comecou = Date.now();
 
@@ -384,6 +443,10 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
   }
 
   const limite = limiteDaFonte();
+  const catalogoJs = catalogoJsDoEndereco(fonte.dominio);
+  if (catalogoJs && fonte.ativa && fonte.robotsPermite) {
+    return varrerCatalogoJs(fonte, catalogoJs, aoProgredir, sinal);
+  }
 
   // Pausada e bloqueada nao se varre. "Pausar mantem tudo que ja foi coletado"
   // e uma promessa da tela: varrer assim mesmo a quebraria.

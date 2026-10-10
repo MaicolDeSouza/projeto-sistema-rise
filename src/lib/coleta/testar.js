@@ -1,6 +1,8 @@
 import { buscarPagina } from "./buscar";
 import { camposPreenchidos, ROTULOS_CAMPOS } from "./campos";
 import { colherProdutos } from "./colher";
+import { colherCatalogoJs } from "./catalogo-js";
+import { catalogoJsDoEndereco } from "./fornecedores";
 
 /**
  * Teste de uma fonte.
@@ -84,7 +86,54 @@ async function conferirCatalogo(catalogo) {
   };
 }
 
+/**
+ * Teste da fonte cujo catalogo e um arquivo JavaScript (R&AC): le o arquivo, que e a
+ * mesma leitura da varredura, e mostra tres itens. Sem preco por desenho do site.
+ */
+async function testarCatalogoJs({ url, nome, tipo }, catalogo) {
+  const colheita = await colherCatalogoJs({
+    urlBase: /^https?:\/\//i.test(url) ? url : `https://${url}`,
+    caminho: catalogo.caminho,
+    fonte: { name: nome, type: tipo },
+  });
+  const passos = [
+    { nome: "Catálogo em arquivo lido", ok: !colheita.erro, detalhe: colheita.erro ?? `${colheita.produtos.length} produto(s) em ${catalogo.caminho}` },
+  ];
+
+  if (colheita.erro) {
+    return { resultado: "FALHA", motivo: colheita.erro, passos, produtos: [], campos: null, formatos: [], plataforma: null, catalogoPublico: null, produtosNoSite: null, produtosNoSiteParcial: false };
+  }
+
+  const amostra = colheita.produtos.slice(0, MINIMO_PRODUTOS);
+  const presentes = {};
+  for (const produto of amostra) {
+    for (const [campo, tem] of Object.entries(camposPreenchidos(produto))) presentes[campo] = presentes[campo] || tem;
+  }
+
+  return {
+    // Fornecedor: preco nao e exigido, e este site nao publica nenhum.
+    resultado: "PARCIAL",
+    motivo: "O site não publica preço nem estoque (vende por orçamento): a coleta traz código, descrição e foto.",
+    passos,
+    produtos: amostra,
+    formatos: ["catalogo-js"],
+    campos: {
+      encontrados: Object.entries(presentes).filter(([, tem]) => tem).map(([campo]) => ROTULOS_CAMPOS[campo]),
+      ausentes: Object.entries(presentes).filter(([, tem]) => !tem).map(([campo]) => ROTULOS_CAMPOS[campo]),
+    },
+    prefixoUrl: null,
+    dominio: new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname,
+    plataforma: null,
+    catalogoPublico: null,
+    produtosNoSite: colheita.produtos.length,
+    produtosNoSiteParcial: false,
+  };
+}
+
 export async function testarFonte({ url, secao, nome, tipo, evitar }) {
+  const catalogoJs = catalogoJsDoEndereco(url);
+  if (catalogoJs) return testarCatalogoJs({ url, nome, tipo }, catalogoJs);
+
   const colheita = await colherProdutos({
     url,
     secao,

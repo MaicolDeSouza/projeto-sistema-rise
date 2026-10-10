@@ -77,6 +77,22 @@ export const FORNECEDORES = [
       porPagina: 50,
     },
   },
+  {
+    id: "rac",
+    nome: "R&AC",
+
+    dominios: ["rac.tec.br"],
+    nomes: [/r&ac/i],
+
+    /**
+     * CATALOGO EM ARQUIVO JAVASCRIPT (10/10/2026).
+     *
+     * O site nao tem pagina por produto nem preco (atacado por orcamento no WhatsApp):
+     * `index.html` carrega `js/produtos-data.js` com os 2.195 itens ({codigo,
+     * descricao, imagem}) e a busca roda no navegador. O leitor esta em catalogo-js.js.
+     */
+    catalogoJs: { caminho: "js/produtos-data.js" },
+  },
 ];
 
 /**
@@ -118,4 +134,16 @@ export function portalDoEndereco(url) {
   if (!url) return null;
   const regras = regrasDoFornecedor({ url });
   return regras.portal ? { id: regras.id, nome: regras.nome, ...regras.portal } : null;
+}
+
+/**
+ * A configuracao de CATALOGO EM ARQUIVO JS do fornecedor deste endereco, ou null.
+ *
+ * So pelo DOMINIO, como `portalDoEndereco`: um concorrente chamado "R&AC" nao pode
+ * virar leitor de arquivo.
+ */
+export function catalogoJsDoEndereco(url) {
+  if (!url) return null;
+  const regras = regrasDoFornecedor({ url });
+  return regras.catalogoJs ? { id: regras.id, nome: regras.nome, ...regras.catalogoJs } : null;
 }

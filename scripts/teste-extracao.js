@@ -2231,5 +2231,27 @@ console.log("\n— Ficha com \"NOME = valor\" e datasheet por download.php (Poli
   conferir("documento: download.php?f= e anexo, mesmo na raiz e sem extensao", r.documentos.map((d) => d.titulo), ["DATASHEET"]);
 }
 
+console.log("\n— Catalogo em arquivo JavaScript (R&AC, 10/10/2026) —");
+{
+  const { listaDoCatalogoJs, produtoDoCatalogoJs } = await import("../src/lib/coleta/catalogo-js.js");
+  const { catalogoJsDoEndereco } = await import("../src/lib/coleta/fornecedores.js");
+  const { linhaDoProduto } = await import("../src/lib/coleta/linha.js");
+  const arquivo = 'window.PRODUTOS=[{"codigo":"RAC4000","descricao":"Chave Gangorra KCD1-101 2A/8A 250V Preta c/ Marcação","imagem":"img/produtos/rac4000.jpg","pagina_pdf":[6],"imagem_compartilhada":false},{"codigo":"RAC4001","descricao":"Chave Gangorra Vermelha","imagem":"img/produtos/rac4000.jpg","pagina_pdf":[6],"imagem_compartilhada":true},{"codigo":"","descricao":"sem codigo"},{"codigo":"RAC9","descricao":"  "}];';
+  const lista = listaDoCatalogoJs(arquivo);
+  conferir("catalogo-js: le o array de window.PRODUTOS", lista?.length, 4);
+  conferir("catalogo-js: arquivo sem a variavel devolve null", listaDoCatalogoJs("var x=[1]"), null);
+  conferir("catalogo-js: JSON quebrado devolve null", listaDoCatalogoJs('window.PRODUTOS=[{"codigo":'), null);
+  const base = new URL("https://www.rac.tec.br/");
+  const produtos = lista.map((item) => produtoDoCatalogoJs(item, { base, fonte: { name: "R&AC" } })).filter(Boolean);
+  conferir("catalogo-js: item sem codigo ou sem descricao e descartado", produtos.map((p) => p.code), ["RAC4000", "RAC4001"]);
+  conferir("catalogo-js: foto vira endereco absoluto", produtos[0].images, ["https://www.rac.tec.br/img/produtos/rac4000.jpg"]);
+  conferir("catalogo-js: sem preco e sem estoque, nunca inventados", [produtos[0].prices.normal, produtos[0].stock.quantity], [null, null]);
+  conferir("catalogo-js: foto compartilhada fica registrada na origem", Boolean(produtos[1].origens.imagem), true);
+  const linha = linhaDoProduto(produtos[0], { origem: "site" });
+  conferir("catalogo-js: a linha do banco tem chave por codigo", linha.chave, "codigo:RAC4000");
+  conferir("catalogo-js: dominio rac.tec.br (com ou sem www) usa o leitor", [Boolean(catalogoJsDoEndereco("www.rac.tec.br")), Boolean(catalogoJsDoEndereco("https://rac.tec.br/index.html"))], [true, true]);
+  conferir("catalogo-js: outro dominio nao usa", catalogoJsDoEndereco("https://www.eletrogate.com/"), null);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
