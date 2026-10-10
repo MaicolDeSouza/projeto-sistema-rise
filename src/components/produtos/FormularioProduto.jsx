@@ -2551,6 +2551,9 @@ export default function FormularioProduto({
     foto e trazida.
   */
   const [vinculosItens, setVinculosItens] = useState([]);
+  // A assinatura dos vinculos que ja foi LIDA: enquanto difere da de agora, a janela Criar descricao espera (a leitura
+  // leva segundos, e antes a janela abria sem as lojas e so a segunda abertura as trazia; pedido do dono em 10/10/2026).
+  const [assinaturaLida, setAssinaturaLida] = useState(null);
   const assinaturaVinculos = JSON.stringify({
     fornecedores: (usaFornecedorRascunho ? fornecedoresRascunho : fornecedores)
       .filter((item) => item.nome?.trim())
@@ -2569,10 +2572,14 @@ export default function FormularioProduto({
         idsConcorrentesLigados: ids,
       })
         .then((resposta) => {
-          if (valido) setVinculosItens(resposta.ok ? resposta.itens : []);
+          if (!valido) return;
+          setVinculosItens(resposta.ok ? resposta.itens : []);
+          setAssinaturaLida(assinaturaVinculos);
         })
         .catch(() => {
-          if (valido) setVinculosItens([]);
+          if (!valido) return;
+          setVinculosItens([]);
+          setAssinaturaLida(assinaturaVinculos);
         });
     }, 600);
     return () => {
@@ -2580,6 +2587,12 @@ export default function FormularioProduto({
       clearTimeout(espera);
     };
   }, [assinaturaVinculos]);
+
+  // Ha fornecedor ou concorrente salvo ainda sendo lido? (sem nenhum, nao ha o que esperar)
+  const vinculadosAgora = JSON.parse(assinaturaVinculos);
+  const lendoVinculos =
+    (vinculadosAgora.fornecedores.length > 0 || vinculadosAgora.concorrentes.length > 0) &&
+    assinaturaLida !== assinaturaVinculos;
 
   // Vinculos e marcadas, sem repetir: a marcada vence (e a que o operador acabou de escolher na lupa).
   const referenciasDasIndicacoes = [
@@ -3015,6 +3028,7 @@ export default function FormularioProduto({
         // So o que esta cadastrado na aba Fornecedores / Concorrentes (salvo ou nao) e o marcado na lupa
         // (pedido do dono em 07/10/2026): a janela nao procura mais pelo Nome no catalogo das lojas.
         ids={[...new Set([...idsMarcados, ...vinculosItens.map((item) => item.id)])]}
+        lendoReferencias={lendoVinculos}
         descricaoAtual={produto?.descricaoBase ?? clone?.campos.descricaoBase ?? null}
         // Kit: as pecas viram referencias da descricao (pedido do dono em 10/10/2026).
         pecas={tipo === "COMPOSICAO" ? pecas.map((peca) => ({ id: peca.componenteId, quantidade: peca.quantidade })) : []}

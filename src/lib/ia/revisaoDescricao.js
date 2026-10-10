@@ -105,6 +105,30 @@ export function substituirEspecificacao(texto, indice, nova) {
   return linhas.join("\n");
 }
 
+const LINHA_DOS_ITENS = /^Itens inclusos:/i;
+
+/** O codigo da linha "Itens inclusos: (Cod:100101)": "100101"; "" se a linha nao traz codigo; null se nao e essa linha. */
+export function codigoDosItensInclusos(linha) {
+  const texto = String(linha ?? "").trim();
+  if (!LINHA_DOS_ITENS.test(texto)) return null;
+  // "Cod:" (o que a geracao escreve) ou "Cód:" (como as descricoes antigas do cadastro).
+  return texto.match(/\(C[oó]d:([^)]*)\)/i)?.[1].trim() ?? "";
+}
+
+/**
+ * Troca o codigo da linha "Itens inclusos" (o lapis do codigo, pedido do dono em 10/10/2026: ele vem do codigo do
+ * produto, mas fica aberto para editar). Codigo vazio deixa so "Itens inclusos:". Nas outras linhas nao mexe.
+ */
+export function substituirCodigoDosItens(texto, indice, codigo) {
+  const linhas = String(texto).split("\n");
+  if (!LINHA_DOS_ITENS.test(String(linhas[indice] ?? "").trim())) return String(texto);
+  const limpo = String(codigo ?? "").replace(/[()\r\n]/g, "").trim();
+  // Mantem a grafia que a linha ja tinha ("Cód" ou "Cod").
+  const rotulo = String(linhas[indice]).match(/\((C[oó]d):/i)?.[1] ?? "Cod";
+  linhas[indice] = limpo ? `Itens inclusos: (${rotulo}:${limpo})` : "Itens inclusos:";
+  return linhas.join("\n");
+}
+
 /**
  * Mover um QUADRO de parametro (pedido do dono em 10/10/2026). A `posicao` do quadro e quantas linhas comuns vem
  * antes dele; quadros na mesma posicao seguem a `ordem` (lista de ids). Devolve o novo estado, sem mexer no de entrada.

@@ -1810,6 +1810,18 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   conferir("substituir: aceita o hifen e o ponto e virgula que ja vieram", substituirEspecificacao(base, 4, "- Tensão: 3,3V;").split("\n")[4], "- Tensão: 3,3V;");
   conferir("substituir: linha fora das especificacoes ou texto vazio nao mexe", [substituirEspecificacao(base, 0, "X"), substituirEspecificacao(base, 3, "  ")], [base, base]);
 
+  // O codigo dos "Itens inclusos" (pedido do dono em 10/10/2026): vem do codigo do produto, mas fica editavel.
+  const { codigoDosItensInclusos, substituirCodigoDosItens } = await import("../src/lib/ia/revisaoDescricao.js");
+  conferir("codigo lido da linha dos itens inclusos", [codigoDosItensInclusos("Itens inclusos: (Cod:100101)"), codigoDosItensInclusos("Itens inclusos:"), codigoDosItensInclusos("Garantia:")], ["100101", "", null]);
+  const comItens = "TITULO\n\nItens inclusos: (Cod:100101)\n- 01 PLACA;\n\nGarantia:\n- 90 dias;";
+  conferir("trocar o codigo dos itens inclusos", substituirCodigoDosItens(comItens, 2, "ZZ-9").split("\n")[2], "Itens inclusos: (Cod:ZZ-9)");
+  conferir("codigo vazio tira o parenteses", substituirCodigoDosItens(comItens, 2, "   ").split("\n")[2], "Itens inclusos:");
+  conferir("parenteses e quebra de linha no codigo sao descartados", substituirCodigoDosItens(comItens, 2, "A(B)\nC").split("\n")[2], "Itens inclusos: (Cod:ABC)");
+  conferir("linha que nao e dos itens inclusos nao muda", [substituirCodigoDosItens(comItens, 0, "X"), substituirCodigoDosItens(comItens, 3, "X")], [comItens, comItens]);
+  conferir("descricao antiga com 'Cód:' e fim de linha CRLF: le o codigo e mantem a grafia",
+    [codigoDosItensInclusos("Itens inclusos: (Cód:100101)\r"), substituirCodigoDosItens("A\n\nItens inclusos: (Cód:100101)\r\n- 01 X;", 2, "ZZ-1").split("\n")[2]],
+    ["100101", "Itens inclusos: (Cód:ZZ-1)"]);
+
   // Mover quadros de parametro: a posicao e a ordem de desempate.
   const { moverQuadroNoEstado } = await import("../src/lib/ia/revisaoDescricao.js");
   const quadros = [{ id: "a", posicao: 2 }, { id: "b", posicao: 2 }, { id: "c", posicao: 5 }];

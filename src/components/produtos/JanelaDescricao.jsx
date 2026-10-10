@@ -8,7 +8,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { ArrowRight, Check, Copy, ExternalLink, Loader, Pencil, Plus, RotateCcw, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
+import { ArrowRight, Check, Copy, ExternalLink, Loader, Pencil, Plus, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
 
 import {
   buscarDescricoesParaProduto,
@@ -21,7 +21,7 @@ import {
   salvarPromptDaDescricao,
 } from "@/app/produtos/acoes";
 import { linhasDeEspecificacao, medidasDaDescricao } from "@/lib/medidas";
-import { adicionarEspecificacao, formatarLinhaTecnica, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, organizarDescricao, removerEspecificacao, moverQuadroNoEstado, substituirEspecificacao, trocarParagrafo } from "@/lib/ia/revisaoDescricao";
+import { adicionarEspecificacao, formatarLinhaTecnica, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, organizarDescricao, removerEspecificacao, moverQuadroNoEstado, substituirCodigoDosItens, substituirEspecificacao, trocarParagrafo } from "@/lib/ia/revisaoDescricao";
 import LinhasDescricao from "./LinhasDescricao";
 
 /// Cor do ponto de cada aba: verde fornecedor, amarelo concorrente — as mesmas
@@ -140,7 +140,9 @@ function ConteudoReferencia({ item, aoAdicionar, podeAdicionar, aoLevar, podeLev
  * para achar a segunda loja). Cada aba diz o tipo pela cor e a loja pelo nome.
  */
 function AbasDeReferencias({ itens, descricaoAtual, produto, aoRemover, aoAdicionar, podeAdicionar, aoLevar, podeLevar }) {
-  const [ativa, setAtiva] = useState(0);
+  // A aba selecionada, pelo id (null = a primeira): a "Descricao atual" vem primeiro e abre selecionada, e a lista das
+  // lojas chegando depois nao tira a selecao dela (pedido do dono em 10/10/2026).
+  const [idAtivo, setIdAtivo] = useState(null);
   const abaAtual = descricaoAtual === null ? null : {
     id: "descricao-atual",
     tipo: "ATUAL",
@@ -150,15 +152,15 @@ function AbasDeReferencias({ itens, descricaoAtual, produto, aoRemover, aoAdicio
     descricao: descricaoAtual,
     especificacoes: linhasDeEspecificacao(descricaoAtual),
   };
-  const abas = abaAtual ? [...itens, abaAtual] : itens;
-  const item = abas[Math.min(ativa, abas.length - 1)];
+  const abas = abaAtual ? [abaAtual, ...itens] : itens;
+  const item = abas.find((aba) => aba.id === idAtivo) ?? abas[0];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div role="tablist" className="flex flex-wrap gap-1.5 border-b border-borda pb-2">
-        {abas.map((referencia, indice) => {
+        {abas.map((referencia) => {
           const tipo = ROTULO_TIPO[referencia.tipo] ?? ROTULO_TIPO.OUTRO;
-          const selecionada = indice === ativa;
+          const selecionada = referencia.id === item.id;
           return (
             <span
               key={referencia.id}
@@ -172,7 +174,7 @@ function AbasDeReferencias({ itens, descricaoAtual, produto, aoRemover, aoAdicio
                 type="button"
                 role="tab"
                 aria-selected={selecionada}
-                onClick={() => setAtiva(indice)}
+                onClick={() => setIdAtivo(referencia.id)}
                 title={referencia.nome ?? ""}
                 className="min-w-0 truncate py-1.5"
               >
@@ -185,10 +187,7 @@ function AbasDeReferencias({ itens, descricaoAtual, produto, aoRemover, aoAdicio
               {referencia.tipo !== "ATUAL" && (
                 <button
                   type="button"
-                  onClick={() => {
-                    aoRemover(referencia);
-                    setAtiva((atual) => Math.max(0, Math.min(atual, abas.length - 2)));
-                  }}
+                  onClick={() => aoRemover(referencia)}
                   title={"Remover " + referencia.fonte + " das referências"}
                   aria-label={"Remover " + referencia.fonte + " das referências"}
                   className="shrink-0 rounded p-1 text-suave opacity-0 group-hover/aba:opacity-100 hover:bg-red-50 hover:text-red-700 focus:opacity-100"
@@ -234,7 +233,7 @@ const SEM_REFERENCIAS =
  * O formulario abre pelo `ref` (`abrir`). `lerProduto` devolve o Nome e o Codigo
  * NO MOMENTO da geracao: titulo e "Itens inclusos: (Cod:...)" saem deles.
  */
-export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerProduto, aoUsar, pecas = [] }) {
+export default function JanelaDescricao({ ref, ids, lendoReferencias = false, descricaoAtual = null, lerProduto, aoUsar, pecas = [] }) {
   const [aberta, setAberta] = useState(false);
   const [detalhes, setDetalhes] = useState(null);
   // KIT (pedido do dono em 10/10/2026): a descricao do cadastro de cada peca, lida ao abrir. Viram abas de
@@ -263,6 +262,10 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   const [produto, setProduto] = useState({ titulo: "", sku: "" });
   const leituraAtual = useRef(0);
   const geracaoAtual = useRef(0);
+  // A leitura das referencias pode ser refeita com a janela aberta (os fornecedores e concorrentes salvos chegam depois
+  // de a pagina abrir): `idsLidos` e a lista da ultima leitura, e `releituraAtual` descarta a que ficou velha.
+  const releituraAtual = useRef(0);
+  const idsLidos = useRef("");
   const rolagemDescricao = useRef(null);
   // Referencias tiradas so DESTA geracao (pedido do dono em 22/09/2026: "nao
   // excluir fonte" — a marcacao de verdade continua na lupa, e reabrir a
@@ -357,12 +360,14 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
       .catch(() => {
         if (leitura === leituraAtual.current) setErroPrompt("Não deu para ler os prompts salvos. A geração usa o padrão mesmo assim.");
       });
+    idsLidos.current = ids.join(",");
+    const marca = ++releituraAtual.current;
     iniciarLeitura(async () => {
       try {
         const resposta = await buscarDescricoesParaProduto(ids);
-        if (leitura === leituraAtual.current) setDetalhes(resposta);
+        if (leitura === leituraAtual.current && marca === releituraAtual.current) setDetalhes(resposta);
       } catch (falha) {
-        if (leitura === leituraAtual.current) {
+        if (leitura === leituraAtual.current && marca === releituraAtual.current) {
           setDetalhes({ ok: false, erro: falha?.message ?? "Falha ao ler as referências." });
         }
       }
@@ -370,6 +375,24 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   }
 
   useImperativeHandle(ref, () => ({ abrir }));
+
+  // Os ids mudaram com a janela aberta (os vinculos salvos terminaram de carregar): le de novo.
+  const chaveDosIds = ids.join(",");
+  useEffect(() => {
+    if (!aberta || chaveDosIds === idsLidos.current) return;
+    idsLidos.current = chaveDosIds;
+    const marca = ++releituraAtual.current;
+    iniciarLeitura(async () => {
+      try {
+        const resposta = await buscarDescricoesParaProduto(chaveDosIds ? chaveDosIds.split(",") : []);
+        if (marca === releituraAtual.current) setDetalhes(resposta);
+      } catch (falha) {
+        if (marca === releituraAtual.current) {
+          setDetalhes({ ok: false, erro: falha?.message ?? "Falha ao ler as referências." });
+        }
+      }
+    });
+  }, [aberta, chaveDosIds, iniciarLeitura]);
 
   function fechar() {
     leituraAtual.current++;
@@ -492,6 +515,11 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setEscolhidosParagrafos((anteriores) => anteriores.map((valor, posicao) => (posicao === grupo ? indice : valor)));
   }
 
+  /** O lapis do codigo da linha "Itens inclusos": o do produto vem sugerido, e aqui ele troca. */
+  function editarCodigo(indice, codigo) {
+    setTexto((atual) => substituirCodigoDosItens(atual, indice, codigo));
+  }
+
   /** O lapis de uma linha comum das especificacoes: a linha volta no formato padrao e passa a mostrar "editada". */
   function editarLinha(indice, valor) {
     const novoTexto = substituirEspecificacao(texto, indice, valor);
@@ -585,7 +613,22 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setEditandoTexto(true);
   }
 
-  /** "Reajustar descricao": volta as opcoes. Se o texto finalizado foi editado, pergunta antes (a edicao se perde). */
+  /**
+   * "Editar descricao" (pedido do dono em 10/10/2026; o botao so tem dois nomes, "Editar" e "Finalizar", seja o texto da IA
+   * ou nao): abre a revisao linha por linha, com lapis, excluir e mover. Descricao da IA ja finalizada e com opcoes
+   * volta as opcoes e as escolhas (e pergunta antes se o texto foi editado); texto sem opcoes (digitado, levado da
+   * esquerda, ou da IA sem divergencia) so mostra as linhas, sem perder nada.
+   */
+  function editarDescricao() {
+    if (antesDeFinalizar && divergencias.length > 0) {
+      reajustar();
+      return;
+    }
+    setAntesDeFinalizar(null);
+    setEditandoTexto(false);
+  }
+
+  /** Volta as opcoes da IA. Se o texto finalizado foi editado, pergunta antes (a edicao se perde). */
   function reajustar() {
     if (!antesDeFinalizar) return;
     if (texto !== antesDeFinalizar.textoFinal) setConfirmandoReajuste(true);
@@ -828,6 +871,8 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   const pecasParaGerar = itensDasPecas.map((item) => ({ id: item.pecaId, quantidade: item.quantidade }));
   const itens = [...itensDasPecas, ...itensDasLojas];
   // Parametro cujas opcoes o dono excluiu todas some e fica de fora: nao conta como pendente.
+  // Ainda lendo as lojas: a leitura da janela ou os fornecedores e concorrentes salvos que a pagina esta carregando.
+  const lendoLojas = lendo || !detalhes || lendoReferencias;
   const pendentes = divergencias.filter(
     (item) => !confirmadas.has(item.id) && (opcoesRestantes[item.id] ?? []).length > 0,
   ).length;
@@ -867,17 +912,17 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
           {/* ---------- Referencias ---------- */}
           <div className="flex min-h-0 flex-col">
             <p className="mb-2 text-xs font-semibold tracking-wide text-suave uppercase">
-              Produtos encontrados ({itens.length}
-              {excluidos.size > 0 && ` de ${detalhes?.itens?.length ?? 0}`})
+              Produtos encontrados ({lendoLojas ? "…" : itens.length}
+              {!lendoLojas && excluidos.size > 0 && ` de ${detalhes?.itens?.length ?? 0}`})
             </p>
             <div className="flex min-h-0 flex-1 flex-col">
-              {lendo || !detalhes ? (
+              {lendoLojas && descricaoAtual === null ? (
                 <p className="flex items-center gap-2 text-sm text-suave">
                   <Loader size={14} className="animate-spin" /> Lendo as referências...
                 </p>
-              ) : !detalhes.ok && descricaoAtual === null ? (
+              ) : detalhes && !detalhes.ok && descricaoAtual === null ? (
                 <p className="text-sm text-red-700">{detalhes.erro}</p>
-              ) : itens.length === 0 && excluidos.size > 0 && descricaoAtual === null ? (
+              ) : !lendoLojas && itens.length === 0 && excluidos.size > 0 && descricaoAtual === null ? (
                 <p className="text-sm text-suave">
                   Todas as referências foram removidas desta geração.{" "}
                   <button
@@ -888,11 +933,17 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                     Trazer de volta
                   </button>
                 </p>
-              ) : itens.length === 0 && descricaoAtual === null ? (
+              ) : !lendoLojas && itens.length === 0 && descricaoAtual === null ? (
                 <p className="text-sm text-suave">{SEM_REFERENCIAS}</p>
               ) : (
                 <>
-                  {!detalhes.ok && <p className="mb-2 text-sm text-red-700">{detalhes.erro}</p>}
+                  {/* A "Descricao atual" aparece logo; as lojas entram quando a leitura termina. */}
+                  {lendoLojas && (
+                    <p className="mb-2 flex items-center gap-2 text-xs text-suave">
+                      <Loader size={12} className="animate-spin" /> Lendo fornecedores e concorrentes...
+                    </p>
+                  )}
+                  {detalhes && !detalhes.ok && <p className="mb-2 text-sm text-red-700">{detalhes.erro}</p>}
                   {itens.length === 0 && excluidos.size > 0 && (
                     <button
                       type="button"
@@ -915,7 +966,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                 </>
               )}
             </div>
-            {detalhes?.ok && detalhes.encontrados > 0 && (
+            {!lendoLojas && detalhes?.ok && detalhes.encontrados > 0 && (
               <p className="mt-2 text-xs text-suave">
                 {detalhes.encontrados} produto(s) de {detalhes.fontes} loja(s): os fornecedores e concorrentes
                 cadastrados neste produto e os marcados na lupa, até {detalhes.limite}. Você pode remover uma aba
@@ -923,7 +974,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               </p>
             )}
             {/* Com a descricao atual na tela, a lista de referencias some atras dela: o aviso fica aqui embaixo. */}
-            {detalhes?.ok && detalhes.encontrados === 0 && descricaoAtual !== null && itensDasPecas.length === 0 && (
+            {!lendoLojas && detalhes?.ok && detalhes.encontrados === 0 && descricaoAtual !== null && itensDasPecas.length === 0 && (
               <p className="mt-2 text-xs text-amber-700">{SEM_REFERENCIAS}</p>
             )}
           </div>
@@ -985,27 +1036,28 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               <button
                 type="button"
                 onClick={gerar}
-                disabled={gerando || !promptValido || (idsParaGerar.length === 0 && !produto.titulo)}
+                disabled={gerando || lendoLojas || !promptValido || (idsParaGerar.length === 0 && !produto.titulo)}
+                title={lendoLojas ? "Lendo os fornecedores e concorrentes do produto..." : undefined}
                 className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {gerando ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
                 {gerando ? "Escrevendo..." : texto ? "Gerar de novo" : "Gerar com IA"}
               </button>
-              {/* "Finalizar descricao" (era "Organizar descricao") e, depois de finalizada, "Reajustar descricao"
-                  (pedido do dono em 10/10/2026). */}
+              {/* "Finalizar descricao" (era "Organizar descricao") na revisao e "Editar descricao" no texto pronto,
+                  igual para o texto da IA e para o que nao veio dela (pedido do dono em 10/10/2026). */}
               <button
                 type="button"
-                onClick={antesDeFinalizar ? reajustar : finalizar}
+                onClick={editandoTexto ? editarDescricao : finalizar}
                 disabled={!texto.trim() || gerando}
                 title={
-                  antesDeFinalizar
-                    ? "Volta às opções para escolher de novo"
+                  editandoTexto
+                    ? "Abre a revisão linha por linha: editar, excluir e mover"
                     : "Monta o texto com as suas escolhas; onde não houver escolha, usa a recomendada pela IA"
                 }
                 className="inline-flex items-center gap-1.5 rounded border border-borda bg-superficie px-3 py-1.5 text-sm font-medium hover:border-acento disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {antesDeFinalizar ? <RotateCcw size={14} /> : <WandSparkles size={14} />}
-                {antesDeFinalizar ? "Reajustar descrição" : "Finalizar descrição"}
+                {editandoTexto ? <Pencil size={14} /> : <WandSparkles size={14} />}
+                {editandoTexto ? "Editar descrição" : "Finalizar descrição"}
               </button>
               {/* "Salvar e sair" aqui em cima, a direita (pedido do dono em 09/10/2026; era "Usar esta descrição", no pe
                   da janela): poe o texto na aba Descricao e fecha. */}
@@ -1070,6 +1122,8 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                     linhasEditadas={linhasEditadas}
                     ordemDosQuadros={ordemDosQuadros}
                     aoEditarLinha={editarLinha}
+                    codigoSugerido={produto.sku}
+                    aoEditarCodigo={editarCodigo}
                     aoMoverGrupo={moverGrupo}
                     paragrafos={opcoesParagrafos}
                     escolhidosParagrafos={escolhidosParagrafos}

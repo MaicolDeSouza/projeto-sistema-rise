@@ -2110,7 +2110,7 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
     (com opções = quadros; finalizada, digitada ou levada da esquerda = texto editável).
   - **"Finalizar descrição"** (`calcularFinal` + `finalizar`): cada parâmetro com a escolha do dono e, sem escolha, a
     **recomendada pela IA**; parágrafo sem escolha fica com a 1ª opção; depois `organizarDescricao`. Guarda o retrato
-    de antes (`antesDeFinalizar`). O botão vira **"Reajustar descrição"**, que volta às opções com as escolhas do
+    de antes (`antesDeFinalizar`). O botão vira **"Reajustar descrição"** (hoje se chama "Editar descrição", ver "Quatro ajustes seguintes"), que volta às opções com as escolhas do
     dono; se o texto finalizado foi editado, pergunta antes ("Voltar às opções?"), porque a edição se perde.
   - **"Salvar e sair" não trava mais** por parâmetro pendente: sem finalizar, finaliza sozinho (as escolhas e, no
     resto, a recomendada). Peso e medidas vão aos campos pelas escolhas USADAS.
@@ -2148,6 +2148,30 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       `fontesDasLinhas` (`{ "- Nome: valor;": [lojas] }`, chave = a linha formatada); só valem as referências de loja,
       não as peças de um kit. Vale só para a geração nova: texto digitado ou levado da esquerda não tem loja.
     - Testes: `teste:extracao` (lojas, `substituirEspecificacao`, `moverQuadroNoEstado`, o pedido com e sem referências).
+  - **Quatro ajustes seguintes, também de 10/10/2026** (pedidos do dono):
+    - **Referências já na primeira abertura.** A janela abria com "(0)" e o aviso de que não havia concorrente: os
+      fornecedores e concorrentes SALVOS são lidos em segundo plano pelo formulário (`vinculosItens`, uns 17 s no
+      servidor de desenvolvimento) e só a segunda abertura os trazia. Agora `FormularioProduto` calcula `lendoVinculos`
+      (a assinatura lida difere da de agora) e passa `lendoReferencias` à janela, que mostra "Lendo fornecedores e
+      concorrentes...", **desabilita o "Gerar com IA"** (com a dica) e **relê as referências sozinha** quando a lista de ids
+      muda com a janela aberta (`idsLidos`, `releituraAtual`). O aviso "Nenhum concorrente ou fornecedor" só sai depois de
+      a leitura terminar. A "Descrição atual" aparece logo, sem esperar as lojas.
+    - **"Descrição atual" é a primeira aba e abre selecionada**; a seleção é por id (`idAtivo`), então a lista das lojas
+      chegando depois não a tira dela.
+    - **Dois botões, iguais para texto da IA ou não: "Editar descrição" e "Finalizar descrição".** O "Reajustar" deixou
+      de existir. Texto simples (digitado, levado da esquerda ou já finalizado) mostra **"Editar descrição"**, que abre a
+      revisão linha por linha (lápis, excluir, mover, arrastar); na revisão o botão é **"Finalizar descrição"**, que
+      volta ao texto. Descrição da IA já finalizada **e com opções** volta aos quadros com as escolhas (e pergunta
+      "Voltar às opções?" se o texto foi editado); sem opções, abre direto, sem pergunta e sem perder nada
+      (`editarDescricao`).
+    - **Código dos "Itens inclusos"**: a linha ganhou o lápis do código (`codigoDosItensInclusos`,
+      `substituirCodigoDosItens`). O código **do produto vem sugerido** ("sugerido: 100101") quando a linha não traz
+      código; editável, Enter salva. Aceita "Cod:" (geração) e "Cód:" (descrições antigas do cadastro, que também
+      terminam em CRLF) e mantém a grafia da linha. Texto sem "Itens inclusos" não ganha a seção sozinho.
+    - Conferido na tela em 10/10/2026 no 100101, sem gerar: a espera (mudando a lista de concorrentes e abrindo a
+      janela na hora), a aba atual selecionada, digitar → Editar → editar código, linha, mover, excluir → Finalizar,
+      e "Levar para edição" → Editar. O caminho da IA com opções (Finalizar → Editar volta aos quadros) é o de antes e
+      segue coberto só pelo teste de renderização.
 
 **Fotos do produto: só as validadas são salvas, o botão Baixar e a ampliada com setas** (`PainelDeImagens.jsx`,
 pedidos do dono em 04/10/2026):

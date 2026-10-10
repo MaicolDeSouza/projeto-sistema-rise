@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, GripVertical, Pencil, Trash2, X } from "lucide-react";
-import { formatarLinhaTecnica, limitesEspecificacoes } from "@/lib/ia/revisaoDescricao";
+import { codigoDosItensInclusos, formatarLinhaTecnica, limitesEspecificacoes } from "@/lib/ia/revisaoDescricao";
 
 const CORES = [
   { base: "border-amber-400 bg-amber-50", marcada: "border-amber-600 bg-amber-200" },
@@ -30,12 +30,16 @@ export default function LinhasDescricao({
   aoSelecionar, aoEditarOpcao, aoExcluirOpcao, aoExcluirLinha, aoMover, aoMoverPasso, rolagem,
   paragrafos = [], escolhidosParagrafos = [], aoEscolherParagrafo,
   fontesDasLinhas = {}, linhasEditadas = new Set(), ordemDosQuadros = [], aoEditarLinha, aoMoverGrupo,
+  // O codigo dos Itens inclusos: o do produto vem sugerido, e o lapis da linha o deixa editavel.
+  codigoSugerido = "", aoEditarCodigo,
 }) {
   const [destino, setDestino] = useState(null);
   // Opcao em edicao: { chave, valor }. Uma por vez; salvar grava o texto na opcao, cancelar descarta.
   const [edicao, setEdicao] = useState(null);
   // Linha comum em edicao: { indice, valor }.
   const [edicaoLinha, setEdicaoLinha] = useState(null);
+  // Codigo da linha "Itens inclusos" em edicao: { indice, valor }.
+  const [edicaoCodigo, setEdicaoCodigo] = useState(null);
   // O item movido por ultimo: { tipo: "linha", indice } ou { tipo: "grupo", id }.
   const [destaque, setDestaque] = useState(null);
 
@@ -65,6 +69,11 @@ export default function LinhasDescricao({
     if (!valor) return;
     aoEditarLinha?.(edicaoLinha.indice, valor);
     setEdicaoLinha(null);
+  }
+  function salvarEdicaoDoCodigo() {
+    if (!edicaoCodigo) return;
+    aoEditarCodigo?.(edicaoCodigo.indice, edicaoCodigo.valor.trim());
+    setEdicaoCodigo(null);
   }
   const arraste = useRef(null);
   const linhas = texto.split("\n");
@@ -299,6 +308,35 @@ export default function LinhasDescricao({
             : (fontesDasLinhas[marcaDaLinha] ?? []).join(", ")
           : "";
         const destacada = destaque?.tipo === "linha" && destaque.indice === indice;
+        // A linha "Itens inclusos: (Cod:...)": o codigo tem o proprio lapis.
+        const codigoDaLinha = tecnica ? null : codigoDosItensInclusos(linha);
+        if (codigoDaLinha !== null && edicaoCodigo?.indice === indice) {
+          return (
+            <div key={"linha-" + ordem} className="flex items-center gap-1 border-b border-borda/50 bg-sky-50 p-0.5">
+              <span className="w-8 shrink-0 px-2 py-1.5 text-right text-suave">{indice + 1}</span>
+              <span className="shrink-0 px-1 font-sans text-[11px] text-suave">Itens inclusos, código:</span>
+              <input
+                autoFocus
+                value={edicaoCodigo.valor}
+                onChange={(evento) => setEdicaoCodigo({ indice, valor: evento.target.value })}
+                onKeyDown={(evento) => {
+                  if (evento.key === "Enter") {
+                    evento.preventDefault();
+                    salvarEdicaoDoCodigo();
+                  } else if (evento.key === "Escape") {
+                    // Escape fecha so a edicao, e nao a janela inteira.
+                    evento.stopPropagation();
+                    setEdicaoCodigo(null);
+                  }
+                }}
+                aria-label="Código dos itens inclusos"
+                className="min-w-0 flex-1 rounded border border-borda bg-white px-1.5 py-1 font-mono text-xs"
+              />
+              <button type="button" onClick={salvarEdicaoDoCodigo} aria-label="Salvar o código" title="Salvar" className="shrink-0 p-1.5 text-emerald-700 hover:text-emerald-900"><Check size={14} /></button>
+              <button type="button" onClick={() => setEdicaoCodigo(null)} aria-label="Cancelar edição" title="Cancelar" className="shrink-0 p-1.5 text-suave hover:text-red-700"><X size={14} /></button>
+            </div>
+          );
+        }
         if (tecnica && edicaoLinha?.indice === indice) {
           return (
             <div key={"linha-" + ordem} className="flex items-start gap-1 border-b border-borda/50 bg-sky-50 p-0.5">
@@ -355,6 +393,20 @@ export default function LinhasDescricao({
             <span className="min-w-0 flex-1 whitespace-pre-wrap px-2 py-1.5">{linha || " "}</span>
             {loja && (
               <span className={"max-w-[12rem] shrink-0 truncate px-1 py-1.5 font-sans text-[11px] text-suave " + (loja === "editada" ? "italic" : "")}>{loja}</span>
+            )}
+            {codigoDaLinha !== null && (
+              <>
+                {!codigoDaLinha && codigoSugerido && (
+                  <span className="max-w-[12rem] shrink-0 truncate px-1 py-1.5 font-sans text-[11px] text-suave">sugerido: {codigoSugerido}</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setEdicaoCodigo({ indice, valor: codigoDaLinha || codigoSugerido })}
+                  aria-label="Editar o código dos itens inclusos"
+                  title="Editar o código (vem do código do produto)"
+                  className="shrink-0 p-1.5 text-suave hover:text-acento"
+                ><Pencil size={13} /></button>
+              </>
             )}
             {tecnica && (
               <>
