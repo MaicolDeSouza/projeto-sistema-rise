@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { Search, X } from "lucide-react";
@@ -30,7 +31,7 @@ export default function BuscaColetadoPorCodigo({ codigo, tipo, aoEscolher }) {
         <Search size={16} />
       </button>
       {aberto && createPortal(
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4" role="presentation">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4" role="presentation" {...propsDoFundo(() => setAberto(false))}>
         <div role="dialog" aria-modal="true" aria-label="Buscar produto pelo código" className="w-full max-w-md rounded border border-borda bg-superficie p-3 shadow-lg">
           <div className="mb-2 flex items-center justify-between gap-2 text-xs font-semibold">
             <span>Produtos com código {codigo || "—"}</span>

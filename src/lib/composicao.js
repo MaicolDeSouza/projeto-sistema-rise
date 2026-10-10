@@ -128,8 +128,12 @@ export function pesoEMedidasDoKit(pecas) {
   };
 }
 
-/// Texto da Localizacao do kit com varias pecas (pedido do dono em 10/10/2026): cada peca mora num lugar,
-/// e quem separa o pedido le a aba Composicao. Cabe nos 40 caracteres da localizacao.
+/// Tamanho maximo da Localizacao (o mesmo da edicao rapida da lista). O Bling tambem recebe esse campo, e o limite
+/// dele nao foi medido: ficar em 40 evita uma recusa no envio.
+export const LIMITE_DA_LOCALIZACAO = 40;
+
+/// Texto da Localizacao do kit quando a lista das pecas nao cabe em `LIMITE_DA_LOCALIZACAO` (pedido do dono em
+/// 10/10/2026): quem separa o pedido le a aba Composicao.
 export const LOCALIZACAO_DE_VARIAS_PECAS = "Verificar a aba composição";
 
 // Os kits reais do Bling escrevem o milhar com ponto (920302_1.000); o anuncio do ML usa a mesma regra.
@@ -153,17 +157,29 @@ export function codigoSugeridoDoKit(pecas) {
 }
 
 /**
- * Localizacao do kit (pedido do dono em 10/10/2026). Com UMA peca, e a da peca e fica travada: o kit sai da
- * mesma prateleira. Com varias, o texto `LOCALIZACAO_DE_VARIAS_PECAS`, editavel. Sem pecas, nada a sugerir.
+ * Localizacao do kit (pedidos do dono em 10/10/2026). E sempre AUTOMATICA e fica travada: o kit nao tem lugar
+ * proprio, ele sai dos lugares das pecas.
+ *  - UMA peca: a localizacao da peca.
+ *  - VARIAS: cada peca com o lugar dela, na ordem da aba Composicao, `100101(F9) / 101010(H2)`. Peca sem
+ *    localizacao entra so com o codigo. Se a lista passar de `LIMITE_DA_LOCALIZACAO` caracteres, vira
+ *    `LOCALIZACAO_DE_VARIAS_PECAS` (a lista inteira esta na coluna Localizacao da aba Composicao e no popup da lista).
+ *  - Sem pecas, nada a sugerir (e o campo continua editavel).
  *
- * @param {{localizacao?: string|null}[]} pecas
+ * @param {{sku?: string, localizacao?: string|null}[]} pecas
  * @returns {{valor: string|null, travada: boolean}}
  */
 export function localizacaoDoKit(pecas) {
   const lista = Array.isArray(pecas) ? pecas : [];
   if (lista.length === 0) return { valor: null, travada: false };
   if (lista.length === 1) return { valor: String(lista[0]?.localizacao ?? "").trim(), travada: true };
-  return { valor: LOCALIZACAO_DE_VARIAS_PECAS, travada: false };
+  const texto = lista
+    .map((peca) => {
+      const sku = String(peca?.sku ?? "").trim();
+      const lugar = String(peca?.localizacao ?? "").trim();
+      return lugar ? `${sku}(${lugar})` : sku;
+    })
+    .join(" / ");
+  return { valor: texto.length > LIMITE_DA_LOCALIZACAO ? LOCALIZACAO_DE_VARIAS_PECAS : texto, travada: true };
 }
 
 /**

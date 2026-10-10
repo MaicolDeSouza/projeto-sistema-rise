@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   ArrowUp,
@@ -629,7 +630,7 @@ function Janela({ aberta, aoFechar, children }) {
       role="dialog"
       aria-modal="true"
       aria-label="Detalhe do produto coletado"
-      onClick={aoFechar}
+      {...propsDoFundo(aoFechar)}
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:p-8"
     >
       <div

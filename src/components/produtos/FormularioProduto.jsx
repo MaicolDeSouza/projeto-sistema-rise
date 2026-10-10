@@ -2199,6 +2199,14 @@ export default function FormularioProduto({
   const inicial = preenchido ?? produto;
   const v = (campo) => inicial?.[campo] ?? "";
   const novo = !produto;
+  // GARANTIA sugerida: 3 meses (pedido do dono em 10/10/2026), so no produto NOVO e no clone cuja origem nao tem
+  // garantia. So no estado inicial (`preenchido` ainda e o do clone, ou nulo): depois de um Salvar recusado o campo
+  // volta com o que foi enviado, e quem apagou os 3 meses nao os ve de volta. Produto ja salvo com o campo vazio
+  // NAO muda: o proximo Salvar gravaria 3 sem o dono ter escolhido.
+  const garantiaInicial =
+    novo && (preenchido === null || preenchido === clone?.campos) && v("garantiaMeses") === ""
+      ? "3"
+      : v("garantiaMeses");
   // A aba Fornecedores agora SEMPRE le e edita a lista em memoria (rascunho),
   // produto novo ou existente — ver o comentario junto de
   // `fornecedoresRascunho`, acima.
@@ -2461,8 +2469,9 @@ export default function FormularioProduto({
   // No kit, o custo e o CUSTO TOTAL das pecas (custo x quantidade), e nulo quando falta o de alguma: a
   // margem nao pode sair de uma soma parcial.
   const ehKit = tipo === "COMPOSICAO";
-  // Kit de uma peca: a localizacao e a da peca e fica travada (pedido do dono em 10/10/2026).
-  const localizacaoTravada = ehKit && pecas.length === 1;
+  // Kit: a localizacao e automatica (a da peca, ou `100101(F9) / 101010(H2)` com varias) e fica travada (pedidos do
+  // dono em 10/10/2026).
+  const localizacaoTravada = ehKit && pecas.length >= 1;
   // Os nomes que o produto ja tem (gravados e nao riscados, e os "a salvar"), por tipo: o "Anexar a este produto"
   // vira "Anexado" para nao duplicar.
   const nomesDosDocumentos = Object.fromEntries(
@@ -2911,8 +2920,12 @@ export default function FormularioProduto({
                 rotulo="Localização"
                 // Travada, mostra a da peca desde a abertura (um kit gravado antes da regra pode estar sem ela; o
                 // Salvar grava a da peca).
-                defaultValue={localizacaoTravada ? (pecas[0]?.localizacao ?? "") : v("localizacao")}
-                ajuda={localizacaoTravada ? "Kit de uma peça: a localização é a da peça e muda junto com ela." : "Ex.: R14"}
+                defaultValue={localizacaoTravada ? (localizacaoDoKit(pecas).valor ?? "") : v("localizacao")}
+                ajuda={
+                  localizacaoTravada
+                    ? "Kit: a localização vem das peças e muda junto com elas. Acima de 40 caracteres, vira “Verificar a aba composição”."
+                    : "Ex.: R14"
+                }
                 readOnly={localizacaoTravada}
                 aria-readonly={localizacaoTravada}
                 className={`${CLASSE_CAMPO} border-borda focus:border-acento ${localizacaoTravada ? "bg-fundo text-suave" : ""}`}
@@ -3114,7 +3127,7 @@ export default function FormularioProduto({
                   type="number"
                   step="1"
                   min="0"
-                  defaultValue={v("garantiaMeses")}
+                  defaultValue={garantiaInicial}
                 />
               </div>
 

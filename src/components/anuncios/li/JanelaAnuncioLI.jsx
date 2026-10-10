@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader, X } from "lucide-react";
 
@@ -95,9 +96,7 @@ export default function JanelaAnuncioLI({ produtoId, aoFechar, aoSalvar }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) aoFechar();
-      }}
+      {...propsDoFundo(() => aoFechar())}
     >
       <section role="dialog" aria-modal="true" aria-label="Anúncio da Loja Integrada" className="w-full max-w-md rounded-lg border border-borda bg-superficie shadow-2xl">
         <header className="flex items-start justify-between gap-3 border-b border-borda px-5 py-3">

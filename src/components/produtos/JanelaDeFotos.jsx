@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useEffect, useEffectEvent, useState, useTransition } from "react";
 import { Check, ChevronLeft, ChevronRight, ExternalLink, Loader, ShoppingCart, Sparkles, Trash2, X } from "lucide-react";
 
@@ -648,9 +649,7 @@ export default function JanelaDeFotos({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) pedirParaFechar();
-      }}
+      {...propsDoFundo(() => pedirParaFechar())}
     >
       <section
         role="dialog"

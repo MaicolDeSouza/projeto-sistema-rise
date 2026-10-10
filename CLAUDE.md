@@ -82,6 +82,11 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 - **Ajuda de campo:** bolha "i" (`BolhaDeAjuda`), abre **para cima**; nunca texto fixo embaixo do
   campo. Ver "Ajuda de campo é bolha".
 - **Exclusão:** popup listando nome e código de cada item, **nunca** `confirm()` nativo (Produtos).
+- **Janela (popup) com fundo escuro:** o fundo fecha a janela **só se o botão do mouse foi apertado E solto nele**
+  (`{...propsDoFundo(fechar)}` no elemento do fundo, `src/lib/fundoDaJanela.js`, decidido pelo dono em 10/10/2026).
+  O `onClick` com `target === currentTarget` fechava também quando se selecionava o texto de um campo e se arrastava
+  para fora (o navegador manda o `click` ao ancestral comum): a janela fechava e o digitado se perdia. O estado é por
+  elemento (`WeakMap`), porque há janela dentro de janela. **Janela nova usa o `propsDoFundo`, nunca o `onClick` direto.**
 - **Lista longa:** paginada, 100 por página, filtro por parâmetro repetido (`?fonte=A&fonte=B`), e
   nenhuma marcada quer dizer todas (Mercados).
 - **Texto da tela COM acento** (decidido pelo dono em 07/10/2026; até ali era sem acento): `Pessoa Física`,
@@ -153,7 +158,8 @@ npm run teste:imagens             # 429 asserções das fotos: padronização, l
 npm run teste:anuncios-ml         # 591 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA) e a fase 3 (publicar, retomar, kit e vínculo no Bling) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
-npm run teste:composicao          # 129 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
+npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
+npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 685 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 ```
 
@@ -2160,6 +2166,15 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       chegando depois não a tira dela. **Ela é a descrição do FORMULÁRIO no momento de abrir** (`descricaoDaAba`, lida do
       campo por `lerProduto().descricao`), e não a gravada do produto: o "Salvar e sair" só põe o texto no formulário, e
       reabrir a janela sem salvar o produto trazia o texto antigo (achado do dono em 10/10/2026).
+    - **Trava do "Salvar e sair" até finalizar** (pedido do dono em 10/10/2026): qualquer alteração (digitar, editar, mover,
+      excluir, escolher uma opção, gerar, levar um texto) mostra **"Finalizar descrição"** e deixa o **"Salvar e sair"
+      desabilitado**; ele só libera depois do "Finalizar". `finalizado = textoFinalizado !== null && texto ===
+      textoFinalizado && pendentes === 0`: o texto na caixa é igual ao que o "Finalizar" montou e nenhum parâmetro ficou sem
+      escolha. O "Salvar e sair" **deixou de finalizar sozinho**; o "Salvar" da pergunta ao fechar vale a mesma regra (e a
+      pergunta diz para finalizar antes). Sem alteração depois de finalizar, o botão ao lado mostra "Editar descrição".
+    - **Ao clicar numa loja, a sub-aba "Especificações" abre primeiro** (pedido do dono em 10/10/2026), e as duas sub-abas
+      continuam na tela. Só para fornecedor e concorrente com ao menos uma especificação; a "Descrição atual", as peças
+      do kit e a loja sem especificação abrem em "Descrição". Cada clique reinicia a escolha (o `key` da aba remonta).
     - **Dois botões, iguais para texto da IA ou não: "Editar descrição" e "Finalizar descrição".** O "Reajustar" deixou
       de existir. Texto simples (digitado, levado da esquerda ou já finalizado) mostra **"Editar descrição"**, que abre a
       revisão linha por linha (lápis, excluir, mover, arrastar); na revisão o botão é **"Finalizar descrição"**, que
@@ -2957,13 +2972,12 @@ ZZ-TESTE-BLING como peça (os kits de teste foram apagados).
   apagado:** o campo só recebe a sugestão vazio ou com a última sugestão (`sugeridos`). A chave aplicada fica num ref
   (`ultimaChaveDasSugestoes`), e não numa "primeira passada": o modo estrito roda o efeito duas vezes, e abrir um kit
   não pode mudar o que está gravado.
-- **Localização do kit** (`localizacaoDoKit`): UMA peça = a da peça, **travada** na tela e gravada pelo servidor no
-  Salvar (`localizacaoDoKitNoSalvar`); várias = "Verificar a aba composição" (`LOCALIZACAO_DE_VARIAS_PECAS`),
-  editável. **A peça que muda de lugar leva junto os kits feitos só dela** (`propagarLocalizacaoDaPeca`, SQL cru, sem
-  mexer no `atualizadoEm` do kit): no Salvar da peça e na edição rápida da lista, na mesma transação. Na lista, a
-  célula do kit de uma peça não abre o popup ("da peça do kit") e `gravarLocalizacao` recusa. Kit gravado antes da
-  regra fica com a localização antiga até o próximo Salvar dele ou até a peça mudar de lugar (a tela já mostra a da
-  peça ao abrir). Coluna Localização na tabela de peças.
+- **Localização do kit** (`localizacaoDoKit`, regra revista na terceira rodada, abaixo): **automática e travada**, a das
+  peças. Gravada pelo servidor no Salvar (`localizacaoDoKitNoSalvar`). **A peça que muda de lugar (ou de código) leva
+  junto TODOS os kits que a usam** (`propagarLocalizacaoDaPeca`, SQL cru, sem mexer no `atualizadoEm` do kit): no Salvar da
+  peça e na edição rápida da lista, na mesma transação. Kit gravado antes da regra fica com o texto antigo gravado até o
+  próximo Salvar dele ou até uma peça mudar de lugar; a tela e a lista já mostram o texto novo (calculado das peças).
+  Coluna Localização na tabela de peças.
 - **Fotos das peças:** cada peça que ENTRA traz as fotos dela, todas sem check (`trazerFotosDaPeca`); a peça de origem
   já tem as fotos no painel (`daOrigem`) e não baixa de novo; peça que sai leva as fotos dela ainda sem check (as da
   origem ficam). Abrir um kit não traz nada. Teto do painel (150) com aviso.
@@ -3026,6 +3040,29 @@ ZZ-TESTE-BLING como peça (os kits de teste foram apagados).
     segundo lote, criado antes, ficaria órfão.
   - Continuam gravando na hora, por não serem dados do produto: o cadastro rápido de fornecedor e concorrente (o vínculo
     espera o Salvar), a biblioteca de prompts e as telas fora do cadastro (edição rápida da lista, Conferido, canais).
+
+### Terceira rodada de 10/10/2026 (4 pedidos do dono)
+
+- **Garantia (meses) sugerida em 3** (`garantiaInicial` em `FormularioProduto.jsx`): só no produto NOVO e no clone cuja
+  origem não tem garantia, e só no estado inicial (depois de um Salvar recusado o campo volta com o que foi enviado, e
+  quem apagou os 3 não os vê de volta). **Produto já salvo com o campo vazio não muda**: o próximo Salvar gravaria 3 sem
+  o dono ter escolhido.
+- **Localização do kit com várias peças** (`localizacaoDoKit`): `100101(F9) / 101010(H2)`, na ordem da aba Composição;
+  peça sem localização entra só com o código; **acima de 40 caracteres** (`LIMITE_DA_LOCALIZACAO`, o mesmo da edição
+  rápida e uma margem para o Bling, cujo limite não foi medido) vira "Verificar a aba composição". Uma peça só continua
+  sendo o lugar dela, sem o código. O campo é **travado** com 1 ou mais peças e **editável** sem nenhuma.
+  - **Na lista:** a célula do kit (de uma ou de várias peças) **não tem lápis**, fica numa linha só (`max-w-44`, com
+    reticências, sem expandir a coluna) e **abre o popup** `PopupPecasDoKit` (em `EdicaoRapida.jsx`) com código, peça
+    (link para o cadastro), quantidade e localização de cada peça, só consulta. A página lê as peças dos kits da página
+    numa consulta só e calcula o texto com a mesma regra do cadastro (não lê o gravado).
+  - `gravarLocalizacao` (edição rápida) recusa **qualquer** kit ("A localização de um kit vem das peças dele"); `ehKit`
+    substituiu `ehKitDeUmaPeca`.
+- **Janelas só fecham com clique que COMEÇA e TERMINA no fundo** (`propsDoFundo` em `src/lib/fundoDaJanela.js`; ver
+  "Padrões do projeto"): aplicado nos 22 fundos que fechavam por `target === currentTarget`, no detalhe do Mercados
+  (que tinha o mesmo defeito por `stopPropagation`) e na busca por código do cadastro (que não fechava ao clicar fora).
+  **Ficaram como estão**, de propósito: as camadas invisíveis dos menus, a barra lateral do celular, os visualizadores de
+  foto (fecham com qualquer clique, por desenho) e os dois cadastros rápidos (fornecedor e concorrente), que são
+  formulários grandes sem confirmação de saída e perderiam o que foi digitado.
 
 ### Bling
 

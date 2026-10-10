@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { Loader, X } from "lucide-react";
 
 /**
@@ -19,9 +20,7 @@ export default function PopupExclusao({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) aoCancelar();
-      }}
+      {...propsDoFundo(() => aoCancelar())}
     >
       <section
         role="alertdialog"

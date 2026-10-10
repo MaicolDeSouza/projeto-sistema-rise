@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
-import { estoqueDoKit, faltasParaSerPeca, mudancasDaPeca, validarComposicao } from "@/lib/composicao";
+import { estoqueDoKit, faltasParaSerPeca, localizacaoDoKit, mudancasDaPeca, validarComposicao } from "@/lib/composicao";
 
 /// As colunas que o retrato da peca usa (`retratoDaPeca`). As fotos sao so as do carrossel (`papel: "FOTO"`):
 /// a reserva nao e do produto. Os documentos entram pelo nome.
@@ -470,44 +470,60 @@ export async function localizacaoDoKitNoSalvar(produtoId, preparo, tx = prisma) 
   const ids = preparo.itens !== null
     ? preparo.itens.map((item) => item.componenteId)
     : produtoId
-      ? (await tx.produtoComponente.findMany({ where: { kitId: produtoId }, select: { componenteId: true } })).map((linha) => linha.componenteId)
+      ? (await tx.produtoComponente.findMany({ where: { kitId: produtoId }, orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }], select: { componenteId: true } })).map((linha) => linha.componenteId)
       : [];
-  if (ids.length !== 1) return undefined;
-  const peca = await tx.produto.findUnique({ where: { id: ids[0] }, select: { localizacao: true } });
-  return peca?.localizacao ?? null;
+  if (ids.length === 0) return undefined;
+  const lidas = await tx.produto.findMany({ where: { id: { in: ids } }, select: { id: true, sku: true, localizacao: true } });
+  const porId = new Map(lidas.map((peca) => [peca.id, peca]));
+  const { valor } = localizacaoDoKit(ids.map((id) => porId.get(id)).filter(Boolean));
+  return valor || null;
 }
 
 /**
- * A peca mudou de lugar: os kits feitos SO dela mudam junto (pedido do dono em 10/10/2026), senao a
- * localizacao do kit ficaria errada sem ninguem perceber. SQL cru, como o estoque do kit: a peca mudar de
- * prateleira nao e editar o kit (a lista ordena por `atualizadoEm`, e o envio ao Bling o usa para saber se o
- * produto foi editado no meio do envio). Kit de varias pecas nao muda (o texto dele e "Verificar a aba composição").
+ * Regrava a localizacao de UM kit a partir das pecas dele (`localizacaoDoKit`). SQL cru, como o estoque do kit: a
+ * peca mudar de prateleira nao e editar o kit (a lista ordena por `atualizadoEm`, e o envio ao Bling o usa para
+ * saber se o produto foi editado no meio do envio). So escreve quando muda.
+ *
+ * @returns {Promise<number>} 1 se mudou, 0 se ja estava certa.
+ */
+async function gravarLocalizacaoDoKit(kitId, tx) {
+  const linhas = await tx.produtoComponente.findMany({
+    where: { kitId },
+    orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }],
+    select: { componente: { select: { sku: true, localizacao: true } } },
+  });
+  const { valor } = localizacaoDoKit(linhas.map((linha) => linha.componente));
+  if (valor === null) return 0;
+  const texto = valor || null;
+  return tx.$executeRaw`
+    UPDATE "Produto" SET "localizacao" = ${texto}::text
+     WHERE "id" = ${kitId} AND "localizacao" IS DISTINCT FROM ${texto}::text`;
+}
+
+/**
+ * A peca mudou de lugar (ou de codigo): TODOS os kits que a usam mudam junto (pedidos do dono em 10/10/2026), senao
+ * a localizacao do kit ficaria errada sem ninguem perceber. Kit de uma peca copia o lugar dela; kit de varias
+ * mostra `100101(F9) / 101010(H2)` ou "Verificar a aba composição".
  *
  * @param {string} pecaId
  * @returns {Promise<number>} quantos kits mudaram.
  */
 export async function propagarLocalizacaoDaPeca(pecaId, tx = prisma) {
-  return tx.$executeRaw`
-    UPDATE "Produto" AS kit
-       SET "localizacao" = peca."localizacao"
-      FROM "Produto" AS peca
-     WHERE peca."id" = ${pecaId}
-       AND kit."id" IN (
-         SELECT "kitId" FROM "ProdutoComponente"
-          GROUP BY "kitId"
-         HAVING COUNT(*) = 1 AND MIN("componenteId") = ${pecaId}
-       )
-       AND kit."localizacao" IS DISTINCT FROM peca."localizacao"`;
+  const kits = await tx.produtoComponente.findMany({ where: { componenteId: pecaId }, select: { kitId: true }, distinct: ["kitId"] });
+  let mudaram = 0;
+  for (const { kitId } of kits) mudaram += await gravarLocalizacaoDoKit(kitId, tx);
+  return mudaram;
 }
 
 /**
- * O kit tem uma peca so? A localizacao dele e a da peca e nao se edita na lista (pedido do dono em 10/10/2026).
+ * O produto e um kit? A localizacao dele e automatica (a das pecas) e nao se edita na lista (pedido do dono em
+ * 10/10/2026): muda-se a localizacao da peca.
  *
  * @param {string} produtoId
  */
-export async function ehKitDeUmaPeca(produtoId, tx = prisma) {
-  const pecas = await tx.produtoComponente.count({ where: { kitId: produtoId } });
-  return pecas === 1;
+export async function ehKit(produtoId, tx = prisma) {
+  const produto = await tx.produto.findUnique({ where: { id: produtoId }, select: { tipo: true } });
+  return produto?.tipo === "COMPOSICAO";
 }
 
 /**

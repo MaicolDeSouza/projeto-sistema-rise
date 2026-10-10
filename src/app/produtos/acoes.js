@@ -664,8 +664,8 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     });
     if (!composicao.ok) return { ok: false, erro: composicao.erro };
 
-    // Kit de UMA peca: a localizacao e a da peca (pedido do dono em 10/10/2026). O campo vem travado na tela,
-    // mas quem decide e o servidor, lendo a peca agora. Kit de varias pecas e produto simples gravam o digitado.
+    // Kit: a localizacao e automatica, a das pecas (pedido do dono em 10/10/2026). O campo vem travado na tela, mas
+    // quem decide e o servidor, lendo as pecas agora. Produto simples grava o digitado.
     const localizacaoDoKit = await localizacaoDoKitNoSalvar(id, composicao);
     if (localizacaoDoKit !== undefined) dados.localizacao = localizacaoDoKit;
 
@@ -755,7 +755,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     const produto = await prisma.$transaction(async (tx) => {
       const salvo = await tx.produto.update({ where: { id }, data: dados });
       await gravarComposicaoDoCadastro(id, composicao, tx);
-      // Peca que mudou de lugar leva junto os kits feitos so dela (no mesmo commit da peca).
+      // Peca que mudou de lugar (ou de codigo) leva junto os kits que a usam (no mesmo commit da peca).
       if (composicao.tipo !== "COMPOSICAO") await propagarLocalizacaoDaPeca(id, tx);
       return salvo;
     });

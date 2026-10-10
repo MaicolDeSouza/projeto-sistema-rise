@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useEffect, useState, useTransition } from "react";
 import {
   CircleAlert,
@@ -148,9 +149,7 @@ function Janela({ aoFechar, children }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) aoFechar();
-      }}
+      {...propsDoFundo(() => aoFechar())}
     >
       <section
         role="dialog"

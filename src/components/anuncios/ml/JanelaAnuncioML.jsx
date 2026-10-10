@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader, Plus, X } from "lucide-react";
@@ -50,9 +51,7 @@ function Moldura({ produto, aoFechar, children }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) aoFechar();
-      }}
+      {...propsDoFundo(() => aoFechar())}
     >
       <section
         ref={secao}

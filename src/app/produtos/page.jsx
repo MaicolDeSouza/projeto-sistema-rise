@@ -10,6 +10,7 @@ import { INCLUDE_DO_ICONE_BLING, iconeBlingDoProduto } from "@/lib/blingSync/est
 import { documentosDoProduto } from "@/lib/canaisDeVenda/li/banco";
 import { iconeLIDoProduto } from "@/lib/canaisDeVenda/li/estado";
 import { mudancasDosKits } from "@/lib/composicaoBanco";
+import { localizacaoDoKit } from "@/lib/composicao";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import Paginacao from "@/components/mercados/Paginacao";
@@ -133,9 +134,24 @@ export default async function ProdutosPage({ searchParams }) {
   // Falha aqui nao derruba a lista: o kit fica sem o "!".
   let alteracoesDosKits = new Map();
   let novoProduto = null;
+  // As pecas de cada kit da pagina, para a Localizacao dele (`localizacaoDoKit`) e o popup da celula (pedido do dono em
+  // 10/10/2026). Falha aqui tambem nao derruba a lista: a celula mostra a localizacao gravada.
+  const pecasDosKits = new Map();
   try {
     const kitsDaPagina = (produtos ?? []).filter((produto) => produto.tipo === "COMPOSICAO").map((produto) => produto.id);
-    if (kitsDaPagina.length > 0) alteracoesDosKits = await mudancasDosKits(kitsDaPagina);
+    if (kitsDaPagina.length > 0) {
+      alteracoesDosKits = await mudancasDosKits(kitsDaPagina);
+      const linhasDasPecas = await prisma.produtoComponente.findMany({
+        where: { kitId: { in: kitsDaPagina } },
+        orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }],
+        select: { kitId: true, quantidade: true, componente: { select: { id: true, sku: true, tituloBase: true, localizacao: true } } },
+      });
+      for (const linha of linhasDasPecas) {
+        const lista = pecasDosKits.get(linha.kitId) ?? [];
+        lista.push({ ...linha.componente, quantidade: linha.quantidade });
+        pecasDosKits.set(linha.kitId, lista);
+      }
+    }
     if (novoId) novoProduto = await prisma.produto.findUnique({ where: { id: novoId }, select: { id: true, sku: true } });
   } catch (excecao) {
     console.error("[produtos] pecas alteradas dos kits", excecao);
@@ -157,7 +173,11 @@ export default async function ProdutosPage({ searchParams }) {
       id: produto.id,
       sku: produto.sku,
       tituloBase: produto.tituloBase,
-      localizacao: produto.localizacao,
+      // Kit: o texto que o cadastro mostra (a das pecas, ou `100101(F9) / 101010(H2)`), e nao o gravado, que so se
+      // atualiza no proximo Salvar do kit ou quando uma peca muda de lugar.
+      localizacao: produto.tipo === "COMPOSICAO"
+        ? (localizacaoDoKit(pecasDosKits.get(produto.id) ?? []).valor ?? produto.localizacao)
+        : produto.localizacao,
       precoVenda: produto.precoVenda ? Number(produto.precoVenda) : null,
       // So para a margem do popup de preco: o custo do cadastro e, na falta dele, o
       // do rascunho do Bling (e la que esta o custo da maioria dos produtos importados).
@@ -169,9 +189,8 @@ export default async function ProdutosPage({ searchParams }) {
       estoque: produto.estoque,
       // Kit: o estoque e calculado pelas pecas e a celula nao abre o ajuste.
       tipo: produto.tipo,
-      // Kit de UMA peca: a localizacao e a da peca e a celula nao abre a edicao (pedido do dono em 10/10/2026).
-      // As pecas ja vem no include do icone do Bling (que tambem usa o `_count`: um segundo o sobrescreveria).
-      kitDeUmaPeca: produto.tipo === "COMPOSICAO" && produto.componentes?.length === 1,
+      // Kit: a celula da localizacao nao tem lapis e abre o popup com as pecas (pedido do dono em 10/10/2026).
+      pecasDoKit: produto.tipo === "COMPOSICAO" ? (pecasDosKits.get(produto.id) ?? []) : [],
       pecasAlteradas: alteracoesDosKits.get(produto.id)?.length ?? 0,
       ativo: produto.ativo,
       conferido: produto.conferido,

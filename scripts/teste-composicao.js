@@ -17,6 +17,7 @@ const {
   codigoSugeridoDoKit,
   estoqueDoKit,
   faltasParaSerPeca,
+  LIMITE_DA_LOCALIZACAO,
   LOCALIZACAO_DE_VARIAS_PECAS,
   localizacaoDoKit,
   mudancasDaPeca,
@@ -139,8 +140,12 @@ conferir("codigo: sem pecas nao sugere", codigoSugeridoDoKit([]), null);
 conferir("localizacao: sem pecas, nada", localizacaoDoKit([]), { valor: null, travada: false });
 conferir("localizacao: uma peca = a dela, travada", localizacaoDoKit([{ localizacao: " T-2 " }]), { valor: "T-2", travada: true });
 conferir("localizacao: uma peca sem localizacao = vazio, travada", localizacaoDoKit([{ localizacao: null }]), { valor: "", travada: true });
-conferir("localizacao: varias pecas = o texto, editavel", localizacaoDoKit([{ localizacao: "A" }, { localizacao: "B" }]), { valor: LOCALIZACAO_DE_VARIAS_PECAS, travada: false });
-conferir("o texto cabe nos 40 caracteres da localizacao", LOCALIZACAO_DE_VARIAS_PECAS.length <= 40, true);
+conferir("localizacao: varias pecas = cada uma com o lugar, na ordem, travada", localizacaoDoKit([{ sku: "100101", localizacao: "F9" }, { sku: "101010", localizacao: "H2" }]), { valor: "100101(F9) / 101010(H2)", travada: true });
+conferir("localizacao: tres pecas, uma sem lugar entra so com o codigo", localizacaoDoKit([{ sku: "100101", localizacao: "F9" }, { sku: "120809", localizacao: null }, { sku: "101010", localizacao: " H2 " }]).valor, "100101(F9) / 120809 / 101010(H2)");
+conferir("localizacao: exatamente 40 caracteres ainda cabe", localizacaoDoKit([{ sku: "A".repeat(15), localizacao: "1" }, { sku: "B".repeat(16), localizacao: "2" }]).valor.length, 40);
+conferir("localizacao: 41 caracteres vira o texto fixo", localizacaoDoKit([{ sku: "A".repeat(15), localizacao: "1" }, { sku: "B".repeat(17), localizacao: "2" }]), { valor: LOCALIZACAO_DE_VARIAS_PECAS, travada: true });
+conferir("localizacao: muitas pecas passam de 40 e viram o texto fixo", localizacaoDoKit(["100101", "101010", "120706", "120809"].map((sku) => ({ sku, localizacao: "R-14" }))).valor, LOCALIZACAO_DE_VARIAS_PECAS);
+conferir("o texto fixo cabe nos 40 caracteres da localizacao", LOCALIZACAO_DE_VARIAS_PECAS.length <= LIMITE_DA_LOCALIZACAO, true);
 conferir("faltas: produto apto -> nada", faltasParaSerPeca({ tipo: "SIMPLES", conferido: true, blingId: "1" }), []);
 conferir("faltas: TUDO de uma vez (nao so o primeiro motivo)", faltasParaSerPeca({ tipo: "SIMPLES", conferido: false, blingId: null }), ["validar no Rise", "integrar com o Bling"]);
 conferir("faltas: so o Bling", faltasParaSerPeca({ tipo: "SIMPLES", conferido: true, blingId: null }), ["integrar com o Bling"]);
@@ -387,14 +392,14 @@ try {
   conferir("ids que nao sao texto: ignorados", (await buscarDescricoesParaProduto([null, 42, { id: "x" }])).itens.length, 0);
 
   // --- 10/10/2026: produto de origem do clone como peca ---
-  const { pecaDeOrigemParaKit, localizacaoDoKitNoSalvar, propagarLocalizacaoDaPeca, ehKitDeUmaPeca, documentosDasPecas, descricoesDasPecas } =
+  const { pecaDeOrigemParaKit, localizacaoDoKitNoSalvar, propagarLocalizacaoDaPeca, ehKit, documentosDasPecas, descricoesDasPecas } =
     await import("../src/lib/composicaoBanco.js");
   const origemBoa = await pecaDeOrigemParaKit(b.id);
   conferir("origem apta: entra como peca, quantidade 1, no formato da aba", [origemBoa.ok, origemBoa.peca?.sku, origemBoa.peca?.quantidade, Object.hasOwn(origemBoa.peca ?? {}, "localizacao")], [true, "ZZ-KIT-B2", 1, true]);
   conferir("origem nao apta: nao entra, com o sku e o que falta", await pecaDeOrigemParaKit(semBling.id), { ok: false, sku: "ZZ-KIT-S5", faltas: ["integrar com o Bling"] });
   conferir("origem que nao existe: nao entra", (await pecaDeOrigemParaKit("nao-existe")).ok, false);
 
-  // --- 10/10/2026: localizacao do kit de uma peca ---
+  // --- 10/10/2026: localizacao automatica do kit (uma peca = a dela; varias = `SKU(lugar) / SKU(lugar)`) ---
   await prisma.produto.update({ where: { id: c.id }, data: { localizacao: "R-7" } });
   const kitLoc = await prisma.produto.create({ data: { sku: "ZZ-KIT-L1", tituloBase: "Kit de localizacao", tipo: "COMPOSICAO", localizacao: "ERRADA" } });
   const kitLoc2 = await prisma.produto.create({ data: { sku: "ZZ-KIT-L2", tituloBase: "Kit de duas pecas", tipo: "COMPOSICAO", localizacao: "Verificar a aba composição" } });
@@ -402,23 +407,30 @@ try {
   await gravarComposicao(kitLoc2.id, [{ componenteId: c.id, quantidade: 1 }, { componenteId: b.id, quantidade: 1 }]);
   conferir("Salvar de kit com UMA peca: grava a localizacao da peca", await localizacaoDoKitNoSalvar(kitLoc.id, { tipo: "COMPOSICAO", itens: [{ componenteId: c.id }] }), "R-7");
   conferir("Salvar de kit sem a lista no envio: le a peca gravada", await localizacaoDoKitNoSalvar(kitLoc.id, { tipo: "COMPOSICAO", itens: null }), "R-7");
-  conferir("Salvar de kit com varias pecas: fica a digitada (undefined)", await localizacaoDoKitNoSalvar(kitLoc2.id, { tipo: "COMPOSICAO", itens: null }), undefined);
+  conferir("Salvar de kit com varias pecas: grava a lista das pecas na ordem da composicao", await localizacaoDoKitNoSalvar(kitLoc2.id, { tipo: "COMPOSICAO", itens: null }), "ZZ-KIT-C3(R-7) / ZZ-KIT-B2");
+  conferir("Salvar de kit com a lista do formulario (outra ordem): segue a ordem enviada", await localizacaoDoKitNoSalvar(kitLoc2.id, { tipo: "COMPOSICAO", itens: [{ componenteId: b.id }, { componenteId: c.id }] }), "ZZ-KIT-B2 / ZZ-KIT-C3(R-7)");
+  conferir("Salvar de kit sem pecas: fica a digitada (undefined)", await localizacaoDoKitNoSalvar(kitLoc2.id, { tipo: "COMPOSICAO", itens: [] }), undefined);
   conferir("Salvar de produto simples: fica a digitada (undefined)", await localizacaoDoKitNoSalvar(c.id, { tipo: "SIMPLES", itens: [] }), undefined);
-  conferir("kit de uma peca?", [await ehKitDeUmaPeca(kitLoc.id), await ehKitDeUmaPeca(kitLoc2.id), await ehKitDeUmaPeca(c.id)], [true, false, false]);
+  conferir("e kit? (qualquer kit, de uma ou de varias pecas)", [await ehKit(kitLoc.id), await ehKit(kitLoc2.id), await ehKit(c.id)], [true, true, false]);
   const antesDoKit = (await prisma.produto.findUnique({ where: { id: kitLoc.id }, select: { atualizadoEm: true } })).atualizadoEm.getTime();
   await prisma.produto.update({ where: { id: c.id }, data: { localizacao: "R-9" } });
-  conferir("a peca mudou de lugar: so o kit feito SO dela muda junto", await propagarLocalizacaoDaPeca(c.id), 1);
+  const kitsDaPeca = await prisma.produtoComponente.count({ where: { componenteId: c.id } });
+  conferir("a peca mudou de lugar: TODOS os kits que a usam mudam junto (de uma ou de varias pecas)", await propagarLocalizacaoDaPeca(c.id), kitsDaPeca);
   const depoisDoKit = await prisma.produto.findUnique({ where: { id: kitLoc.id }, select: { localizacao: true, atualizadoEm: true } });
   conferir(
-    "kit de uma peca com a nova localizacao, sem mexer no atualizadoEm; o de duas pecas fica como estava",
+    "kit de uma peca com a nova localizacao, sem mexer no atualizadoEm; o de duas pecas com a lista nova",
     [depoisDoKit.localizacao, depoisDoKit.atualizadoEm.getTime() === antesDoKit, (await prisma.produto.findUnique({ where: { id: kitLoc2.id } })).localizacao],
-    ["R-9", true, "Verificar a aba composição"],
+    ["R-9", true, "ZZ-KIT-C3(R-9) / ZZ-KIT-B2"],
   );
   conferir("propagar de novo, sem mudanca: nenhum kit regravado", await propagarLocalizacaoDaPeca(c.id), 0);
+  await prisma.produto.update({ where: { id: c.id }, data: { localizacao: "ESTANTE-MUITO-LONGA-DE-TESTE-7" } });
+  await propagarLocalizacaoDaPeca(c.id);
+  conferir("lista que passa de 40 caracteres: o kit de varias pecas vira o texto fixo; o de uma peca copia o lugar", [(await prisma.produto.findUnique({ where: { id: kitLoc2.id } })).localizacao, (await prisma.produto.findUnique({ where: { id: kitLoc.id } })).localizacao], ["Verificar a aba composição", "ESTANTE-MUITO-LONGA-DE-TESTE-7"]);
   const { gravarLocalizacao } = await import("../src/lib/ajusteRapido.js");
-  conferir("edicao rapida: localizacao do kit de uma peca e recusada", (await gravarLocalizacao(kitLoc.id, "X-1")).ok, false);
-  conferir("edicao rapida da peca: leva o kit de uma peca junto", [(await gravarLocalizacao(c.id, "R-10")).ok, (await prisma.produto.findUnique({ where: { id: kitLoc.id } })).localizacao], [true, "R-10"]);
-  conferir("edicao rapida do kit de varias pecas continua livre", (await gravarLocalizacao(kitLoc2.id, "Prateleira 3")).ok, true);
+  conferir("edicao rapida: localizacao de kit de uma peca e recusada", (await gravarLocalizacao(kitLoc.id, "X-1")).ok, false);
+  conferir("edicao rapida: localizacao de kit de varias pecas tambem e recusada (e automatica)", (await gravarLocalizacao(kitLoc2.id, "Prateleira 3")).ok, false);
+  conferir("edicao rapida da peca: leva os kits junto", [(await gravarLocalizacao(c.id, "R-10")).ok, (await prisma.produto.findUnique({ where: { id: kitLoc.id } })).localizacao, (await prisma.produto.findUnique({ where: { id: kitLoc2.id } })).localizacao], [true, "R-10", "ZZ-KIT-C3(R-10) / ZZ-KIT-B2"]);
+  await prisma.produto.update({ where: { id: c.id }, data: { sku: "ZZ-KIT-C3" } });
 
   // --- 10/10/2026: documentos e descricoes das pecas (so leitura) ---
   await prisma.produtoArquivo.create({ data: { produtoId: c.id, tipo: "DOCUMENTO", arquivo: "a".repeat(32) + ".pdf", nomeOriginal: "Datasheet C3.pdf" } });

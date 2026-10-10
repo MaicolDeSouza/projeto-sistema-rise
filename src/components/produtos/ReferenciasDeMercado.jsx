@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useEffect, useEffectEvent, useImperativeHandle, useRef, useState, useTransition } from "react";
 import {
   ArrowDown,
@@ -356,10 +357,7 @@ export default function ReferenciasDeMercado({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-      onClick={(evento) => {
-        // So o clique no fundo escuro fecha; clique dentro da janela nao.
-        if (evento.target === evento.currentTarget) fechar();
-      }}
+      {...propsDoFundo(() => fechar())}
     >
       <section
         role="dialog"

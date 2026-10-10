@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CircleCheck, Loader, X } from "lucide-react";
@@ -483,9 +484,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   const caixaDePergunta = pergunta && (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) setPergunta(null);
-      }}
+      {...propsDoFundo(() => setPergunta(null))}
     >
       <section role="alertdialog" aria-modal="true" aria-labelledby="li-pergunta-titulo" className="w-full max-w-md rounded-lg border border-borda bg-superficie p-4 shadow-2xl">
         {pergunta === "enviar" ? (
@@ -546,9 +545,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/50 p-4 pt-[4vh] text-left font-normal normal-case"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) pedirFechamento();
-      }}
+      {...propsDoFundo(() => pedirFechamento())}
     >
       <section
         ref={secaoDaJanela}
@@ -580,9 +577,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
       {confirmandoSaida && (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
-          onClick={(evento) => {
-            if (evento.target === evento.currentTarget) setConfirmandoSaida(false);
-          }}
+          {...propsDoFundo(() => setConfirmandoSaida(false))}
         >
           <section role="alertdialog" aria-modal="true" aria-labelledby="li-sair-titulo" className="w-full max-w-sm rounded-lg border border-borda bg-superficie p-4 shadow-2xl">
             <p id="li-sair-titulo" className="text-sm font-semibold">

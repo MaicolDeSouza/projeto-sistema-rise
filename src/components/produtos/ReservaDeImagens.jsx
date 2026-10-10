@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useEffect, useState } from "react";
 import { Check, Loader, Sparkles, Trash2, X } from "lucide-react";
 
@@ -44,9 +45,7 @@ export default function ReservaDeImagens({ reserva, aoEscolher, aoGerar, aoExclu
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) aoFechar();
-      }}
+      {...propsDoFundo(() => aoFechar())}
     >
       <section
         role="dialog"

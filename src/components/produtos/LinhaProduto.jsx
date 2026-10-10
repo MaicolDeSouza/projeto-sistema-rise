@@ -11,7 +11,7 @@ import JanelaAnuncioLI from "@/components/anuncios/li/JanelaAnuncioLI";
 import { rotuloDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import Copiar from "@/components/ui/Copiar";
 import ConferidoProduto from "./ConferidoProduto";
-import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPreco } from "./EdicaoRapida";
+import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPecasDoKit, PopupPreco } from "./EdicaoRapida";
 import IconeBling from "./IconeBling";
 import JanelaBling from "./JanelaBling";
 import IconeLojaIntegrada from "./IconeLojaIntegrada";
@@ -139,13 +139,20 @@ export default function LinhaProduto({
 
       {/* Localizacao, preco e estoque abrem a edicao rapida (pedido do dono em
           30/09/2026): um popup por campo, gravando so neste sistema. */}
-      <td className="px-3 py-2.5 text-suave">
-        {/* Kit de uma peca: a localizacao e a da peca e muda junto com ela (pedido do dono em 10/10/2026). */}
-        {produto.kitDeUmaPeca ? (
-          <span title="Localização do kit: a da peça dele. Mude a localização da peça.">
+      <td className={`px-3 py-2.5 text-suave ${produto.tipo === "COMPOSICAO" ? "max-w-44" : ""}`}>
+        {/* KIT (pedido do dono em 10/10/2026): a localizacao e automatica (a das pecas), entao a celula NAO tem o
+            lapis. Fica numa linha so, sem expandir a coluna (reticencias se nao couber), e clicar abre o popup com
+            cada peca e o lugar dela. */}
+        {produto.tipo === "COMPOSICAO" ? (
+          <button
+            type="button"
+            onClick={() => setEditando("pecasDoKit")}
+            title={`${produto.localizacao || "Sem localização"} — clique para ver as peças e as localizações`}
+            aria-label="Ver as peças do kit e as localizações"
+            className="-mx-1 block w-[calc(100%+0.5rem)] truncate rounded px-1 py-0.5 text-left hover:bg-sky-50 focus-visible:bg-sky-50"
+          >
             {produto.localizacao || "—"}
-            <span className="block text-[10px] leading-tight">da peça do kit</span>
-          </span>
+          </button>
         ) : (
           <CelulaEditavel titulo="Editar localização" aoClicar={() => setEditando("localizacao")}>
             {produto.localizacao || "—"}
@@ -237,6 +244,7 @@ export default function LinhaProduto({
 
       <td className="relative px-3 py-2.5 text-right">
         {editando === "localizacao" && <PopupLocalizacao produto={produto} aoFechar={fecharEdicao} />}
+        {editando === "pecasDoKit" && <PopupPecasDoKit produto={produto} aoFechar={fecharEdicao} />}
         {editando === "preco" && <PopupPreco produto={produto} aoFechar={fecharEdicao} />}
         {editando === "estoque" && <PopupEstoque produto={produto} aoFechar={fecharEdicao} />}
         {janelaML && <JanelaAnuncioML produtoId={produto.id} aoFechar={() => setJanelaML(false)} />}

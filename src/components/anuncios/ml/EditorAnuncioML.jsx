@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ExternalLink, Loader, X } from "lucide-react";
 
@@ -347,9 +348,7 @@ export default function EditorAnuncioML({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) pedirFechamento();
-      }}
+      {...propsDoFundo(() => pedirFechamento())}
     >
       <section
         ref={secaoDaJanela}
@@ -384,9 +383,7 @@ export default function EditorAnuncioML({
       {confirmandoSaida && (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
-          onClick={(evento) => {
-            if (evento.target === evento.currentTarget) setConfirmandoSaida(false);
-          }}
+          {...propsDoFundo(() => setConfirmandoSaida(false))}
         >
           <section
             role="alertdialog"

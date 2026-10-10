@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useState, useTransition } from "react";
 import { Loader, Square, SquareCheckBig, X } from "lucide-react";
 
@@ -64,9 +65,7 @@ export default function ConferidoProduto({ produto }) {
       {aberto && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left"
-          onClick={(evento) => {
-            if (evento.target === evento.currentTarget) setAberto(false);
-          }}
+          {...propsDoFundo(() => setAberto(false))}
         >
           <form
             onSubmit={confirmar}

@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import {
   useEffect,
   useEffectEvent,
@@ -43,8 +44,13 @@ const ROTULO_TIPO = {
  * baixo da rolagem.
  */
 function ConteudoReferencia({ item, aoAdicionar, podeAdicionar, aoLevar, podeLevar }) {
-  const [subaba, setSubaba] = useState("descricao");
   const quantas = item.especificacoes.length;
+  // Ao clicar num fornecedor ou concorrente abre a ficha (Especificacoes), e nao a descricao (pedido do dono em
+  // 10/10/2026); as duas sub-abas continuam na tela. A "Descricao atual" e as pecas do kit abrem na descricao, e a loja
+  // sem nenhuma especificacao tambem, para nao abrir uma aba vazia. O `key` da aba remonta isto a cada clique.
+  const [subaba, setSubaba] = useState(
+    (item.tipo === "FORNECEDOR" || item.tipo === "CONCORRENTE") && quantas > 0 ? "especificacoes" : "descricao",
+  );
 
   return (
     <div className="space-y-3 text-sm">
@@ -252,6 +258,10 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
   // finalizacao montou, para saber se o dono editou depois, e as escolhas usadas (as dele e as recomendadas).
   const [antesDeFinalizar, setAntesDeFinalizar] = useState(null);
   const [confirmandoReajuste, setConfirmandoReajuste] = useState(false);
+  // O texto que o "Finalizar descricao" montou (pedido do dono em 10/10/2026: qualquer alteracao exige finalizar de novo, e
+  // o "Salvar e sair" so vale depois). `null` = nao finalizada. A descricao esta finalizada enquanto o texto na caixa for
+  // IGUAL a este e nao houver parametro sem escolha (ver `finalizado`).
+  const [textoFinalizado, setTextoFinalizado] = useState(null);
   // A loja de cada especificacao comum, no fim da linha (pedido do dono em 10/10/2026): { "- Nome: valor;": [lojas] },
   // so o que o texto da loja confirma. As linhas que o dono editou no lapis (`linhasEditadas`) mostram "editada".
   // `ordemDosQuadros` desempata os quadros de parametro na mesma posicao, ao subir e descer.
@@ -318,6 +328,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
     setConfirmadas(new Set());
     setEditandoTexto(false);
     setAntesDeFinalizar(null);
+    setTextoFinalizado(null);
     setConfirmandoReajuste(false);
     setFontesDasLinhas({});
     setLinhasEditadas(new Set());
@@ -488,6 +499,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
         ])));
         setEditandoTexto(false);
         setAntesDeFinalizar(null);
+        setTextoFinalizado(null);
       } catch (falha) {
         if (geracao === geracaoAtual.current) setErro(falha?.message ?? "Falha ao chamar a IA.");
       }
@@ -608,6 +620,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
     const final = calcularFinal();
     setAntesDeFinalizar({ texto, confirmadas, opcoesRestantes, editandoTexto, textoFinal: final.texto, escolhas: final.escolhas });
     setTexto(final.texto);
+    setTextoFinalizado(final.texto);
     setConfirmadas(final.confirmadas);
     setOpcoesRestantes(final.restantes);
     setEditandoTexto(true);
@@ -644,6 +657,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
     setOpcoesRestantes(antes.opcoesRestantes);
     setEditandoTexto(antes.editandoTexto);
     setAntesDeFinalizar(null);
+    setTextoFinalizado(null);
   }
 
   /**
@@ -669,6 +683,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
     setConfirmadas(new Set());
     setEditandoTexto(true);
     setAntesDeFinalizar(null);
+    setTextoFinalizado(null);
     setFontesDasLinhas({});
     setLinhasEditadas(new Set());
     setOrdemDosQuadros([]);
@@ -826,7 +841,9 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
   }
 
   function usar() {
-    // Sem finalizar, o "Salvar e sair" finaliza sozinho (as escolhas do dono e, no resto, a recomendada).
+    // So com a descricao finalizada (o botao fica desabilitado antes disso; a guarda cobre o resto).
+    if (!finalizado) return;
+    // O texto ja esta finalizado; sem o retrato de antes (texto sem opcoes), o calculo e idempotente.
     const { texto: final, escolhas } = antesDeFinalizar
       ? { texto: organizarDescricao(texto), escolhas: antesDeFinalizar.escolhas }
       : calcularFinal();
@@ -871,16 +888,19 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
   const pecasParaGerar = itensDasPecas.map((item) => ({ id: item.pecaId, quantidade: item.quantidade }));
   const itens = [...itensDasPecas, ...itensDasLojas];
   // Parametro cujas opcoes o dono excluiu todas some e fica de fora: nao conta como pendente.
-  // Ainda lendo as lojas: a leitura da janela ou os fornecedores e concorrentes salvos que a pagina esta carregando.
   // A "Descricao atual" e a do FORMULARIO agora, e nao a gravada do produto (pedido do dono em 10/10/2026): o "Salvar e sair"
   // so poe o texto no formulario, e abrir a janela de novo sem salvar o produto tem de trazer esse texto. `produto.descricao`
   // e lida do campo ao abrir; vazia = sem descricao atual; antes de abrir, vale a gravada.
   const descricaoDaAba =
     typeof produto.descricao === "string" ? (produto.descricao.trim() ? produto.descricao : null) : descricaoAtual;
+  // Ainda lendo as lojas: a leitura da janela ou os fornecedores e concorrentes salvos que a pagina esta carregando.
   const lendoLojas = lendo || !detalhes || lendoReferencias;
   const pendentes = divergencias.filter(
     (item) => !confirmadas.has(item.id) && (opcoesRestantes[item.id] ?? []).length > 0,
   ).length;
+  // Finalizada: o texto e o que o "Finalizar" montou e nenhum parametro ficou sem escolha. Qualquer alteracao (digitar,
+  // editar, mover, excluir, escolher, gerar, levar um texto) desfaz isto.
+  const finalizado = textoFinalizado !== null && texto === textoFinalizado && pendentes === 0;
   // Prompt vazio ou acima do teto nao gera nem salva (o servidor confere de novo).
   const promptValido = prompt === null || (prompt.trim().length > 0 && prompt.trim().length <= maximoPrompt);
   // O escolhido como esta SALVO (null no prompt novo).
@@ -891,9 +911,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) pedirFechamento();
-      }}
+      {...propsDoFundo(() => pedirFechamento())}
     >
       <section
         role="dialog"
@@ -1052,28 +1070,28 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
                   igual para o texto da IA e para o que nao veio dela (pedido do dono em 10/10/2026). */}
               <button
                 type="button"
-                onClick={editandoTexto ? editarDescricao : finalizar}
+                onClick={finalizado && editandoTexto ? editarDescricao : finalizar}
                 disabled={!texto.trim() || gerando}
                 title={
-                  editandoTexto
+                  finalizado && editandoTexto
                     ? "Abre a revisão linha por linha: editar, excluir e mover"
                     : "Monta o texto com as suas escolhas; onde não houver escolha, usa a recomendada pela IA"
                 }
                 className="inline-flex items-center gap-1.5 rounded border border-borda bg-superficie px-3 py-1.5 text-sm font-medium hover:border-acento disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {editandoTexto ? <Pencil size={14} /> : <WandSparkles size={14} />}
-                {editandoTexto ? "Editar descrição" : "Finalizar descrição"}
+                {finalizado && editandoTexto ? <Pencil size={14} /> : <WandSparkles size={14} />}
+                {finalizado && editandoTexto ? "Editar descrição" : "Finalizar descrição"}
               </button>
               {/* "Salvar e sair" aqui em cima, a direita (pedido do dono em 09/10/2026; era "Usar esta descrição", no pe
                   da janela): poe o texto na aba Descricao e fecha. */}
               <button
                 type="button"
                 onClick={usar}
-                disabled={!texto.trim()}
+                disabled={!texto.trim() || !finalizado}
                 title={
-                  antesDeFinalizar
+                  finalizado
                     ? "Substitui o texto da aba Descrição e fecha"
-                    : "Finaliza (as suas escolhas e, no resto, a recomendada), substitui o texto da aba Descrição e fecha"
+                    : 'Clique em "Finalizar descrição" para liberar o Salvar e sair'
                 }
                 className="ml-auto rounded bg-acento px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -1139,9 +1157,13 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
             </div>
 
             <p className="mt-2 text-[11px] text-suave">
-              {!antesDeFinalizar && !editandoTexto && pendentes > 0
-                ? `${pendentes} parâmetro(s) sem escolha: "Finalizar descrição" usa a recomendada pela IA.`
-                : '"Salvar e sair" substitui o texto da aba Descrição.'}
+              {!texto.trim()
+                ? '"Salvar e sair" substitui o texto da aba Descrição.'
+                : !finalizado
+                  ? (pendentes > 0
+                      ? pendentes + ' parâmetro(s) sem escolha: "Finalizar descrição" usa a recomendada pela IA. '
+                      : "") + 'Clique em "Finalizar descrição" para liberar o "Salvar e sair".'
+                  : '"Salvar e sair" substitui o texto da aba Descrição.'}
             </p>
           </div>
         </div>
@@ -1155,9 +1177,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
       {editandoPrompt && prompt !== null && (promptEscolhido || criandoPrompt) && (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
-          onClick={(evento) => {
-            if (evento.target === evento.currentTarget) comPergunta(fecharPrompt);
-          }}
+          {...propsDoFundo(() => comPergunta(fecharPrompt))}
         >
           <section
             role="dialog"
@@ -1328,9 +1348,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
       {saidaDoPrompt && (
         <div
           className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/50 p-4"
-          onClick={(evento) => {
-            if (evento.target === evento.currentTarget) setSaidaDoPrompt(null);
-          }}
+          {...propsDoFundo(() => setSaidaDoPrompt(null))}
         >
           <section
             role="alertdialog"
@@ -1382,9 +1400,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
       {textoParaLevar !== null && (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
-          onClick={(evento) => {
-            if (evento.target === evento.currentTarget) setTextoParaLevar(null);
-          }}
+          {...propsDoFundo(() => setTextoParaLevar(null))}
         >
           <section
             role="alertdialog"
@@ -1422,9 +1438,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
       {confirmandoReajuste && (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
-          onClick={(evento) => {
-            if (evento.target === evento.currentTarget) setConfirmandoReajuste(false);
-          }}
+          {...propsDoFundo(() => setConfirmandoReajuste(false))}
         >
           <section
             role="alertdialog"
@@ -1462,9 +1476,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
       {confirmandoSaida && (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
-          onClick={(evento) => {
-            if (evento.target === evento.currentTarget) setConfirmandoSaida(false);
-          }}
+          {...propsDoFundo(() => setConfirmandoSaida(false))}
         >
           <section
             role="alertdialog"
@@ -1479,6 +1491,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
               {texto.trim()
                 ? "O texto desta janela ainda não foi usado e será perdido."
                 : "A descrição ainda está sendo escrita e será perdida."}
+              {texto.trim() && !finalizado && ' Para salvar, clique antes em "Finalizar descrição".'}
             </p>
             {/* Sair / Salvar / Cancelar, nesta ordem (pedido do dono em 06/10/2026; antes "Sair sem usar",
                 "Usar esta descricao" e "Continuar editando"). */}
@@ -1495,8 +1508,8 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
               <button
                 type="button"
                 onClick={usar}
-                disabled={!texto.trim()}
-                title="Põe o texto na aba Descrição e fecha"
+                disabled={!texto.trim() || !finalizado}
+                title={finalizado ? "Põe o texto na aba Descrição e fecha" : 'Finalize a descrição antes de salvar'}
                 className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Salvar

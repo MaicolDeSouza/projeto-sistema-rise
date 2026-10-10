@@ -1,5 +1,6 @@
 "use client";
 
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useEffect, useState, useTransition } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, Loader, Pencil, X } from "lucide-react";
 
@@ -70,9 +71,7 @@ export function Popup({ titulo, produto, aoFechar, aoEnviar, rotuloBotao, penden
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case"
-      onClick={(evento) => {
-        if (evento.target === evento.currentTarget) aoFechar();
-      }}
+      {...propsDoFundo(() => aoFechar())}
     >
       <section
         role="dialog"
@@ -387,5 +386,88 @@ export function PopupEstoque({ produto, aoFechar }) {
 
       <AvisoSoAqui>{AVISO_CANAIS}</AvisoSoAqui>
     </Popup>
+  );
+}
+
+/**
+ * A Localizacao de um KIT na lista (pedido do dono em 10/10/2026): a celula fica numa linha so e abre este popup,
+ * que mostra cada peca do kit com o codigo, o nome, a quantidade e a localizacao. So consulta, sem Salvar: a
+ * localizacao do kit e automatica (a das pecas), e quem muda e a peca (o link abre o cadastro dela em outra aba).
+ */
+export function PopupPecasDoKit({ produto, aoFechar }) {
+  useEffect(() => {
+    function aoTeclar(evento) {
+      if (evento.key === "Escape") aoFechar();
+    }
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, [aoFechar]);
+
+  const pecas = produto.pecasDoKit ?? [];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case"
+      {...propsDoFundo(() => aoFechar())}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Localização do kit"
+        className="w-full max-w-2xl rounded-lg border border-borda bg-superficie p-4 shadow-2xl"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Localização do kit</p>
+            <p className="mt-0.5 truncate text-xs text-suave">
+              <span className="font-mono">{produto.sku}</span> · {produto.tituloBase}
+            </p>
+          </div>
+          <button type="button" onClick={aoFechar} aria-label="Fechar" className="rounded p-1 text-suave hover:bg-fundo">
+            <X size={16} />
+          </button>
+        </div>
+
+        {pecas.length === 0 ? (
+          <p className="mt-3 text-sm text-suave">Este kit ainda não tem peças.</p>
+        ) : (
+          <div className="mt-3 overflow-x-auto rounded border border-borda">
+            <table className="w-full text-sm">
+              <thead className="bg-fundo text-left text-xs font-semibold text-suave">
+                <tr>
+                  <th className="px-3 py-2">Código</th>
+                  <th className="px-3 py-2">Peça</th>
+                  <th className="px-3 py-2 text-right">Qtde</th>
+                  <th className="px-3 py-2">Localização</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-borda">
+                {pecas.map((peca) => (
+                  <tr key={peca.id}>
+                    <td className="px-3 py-2 font-mono text-xs">{peca.sku}</td>
+                    <td className="px-3 py-2">
+                      <a href={`/produtos/${peca.id}`} target="_blank" rel="noreferrer" className="hover:text-acento hover:underline">
+                        {peca.tituloBase}
+                      </a>
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">{peca.quantidade}</td>
+                    <td className="px-3 py-2 font-medium">{peca.localizacao || <span className="font-normal text-suave">—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <p className="mt-3 text-xs text-suave">
+          A localização do kit vem das peças e muda junto com elas. Para mudar, edite a localização da peça.
+        </p>
+        <div className="mt-3 flex justify-end">
+          <button type="button" onClick={aoFechar} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
+            Fechar
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }

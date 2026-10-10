@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { ehKitDeUmaPeca, propagarLocalizacaoDaPeca, recalcularKitsDaPeca } from "@/lib/composicaoBanco";
+import { ehKit, propagarLocalizacaoDaPeca, recalcularKitsDaPeca } from "@/lib/composicaoBanco";
 import { MAXIMO_ESTOQUE, MOTIVOS, novoSaldo, tipoValido } from "@/lib/estoque";
 
 /**
@@ -25,8 +25,8 @@ function falha(erro) {
 }
 
 /**
- * Texto vazio limpa a localizacao. Kit de UMA peca nao se edita aqui: a localizacao dele e a da peca (pedido do
- * dono em 10/10/2026). E a peca que muda de lugar leva junto os kits feitos so dela, na mesma transacao.
+ * Texto vazio limpa a localizacao. KIT nao se edita aqui: a localizacao dele e automatica, a das pecas (pedido do
+ * dono em 10/10/2026). E a peca que muda de lugar leva junto os kits que a usam, na mesma transacao.
  */
 export async function gravarLocalizacao(id, texto) {
   const valor = String(texto ?? "").trim();
@@ -35,8 +35,8 @@ export async function gravarLocalizacao(id, texto) {
   }
 
   try {
-    if (await ehKitDeUmaPeca(id)) {
-      return { ok: false, erro: "A localização deste kit é a da peça dele. Mude a localização da peça." };
+    if (await ehKit(id)) {
+      return { ok: false, erro: "A localização de um kit vem das peças dele. Mude a localização da peça." };
     }
     await prisma.$transaction(async (tx) => {
       await tx.produto.update({ where: { id }, data: { localizacao: valor || null } });
