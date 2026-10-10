@@ -2199,14 +2199,12 @@ export default function FormularioProduto({
   const inicial = preenchido ?? produto;
   const v = (campo) => inicial?.[campo] ?? "";
   const novo = !produto;
-  // GARANTIA sugerida: 3 meses (pedido do dono em 10/10/2026), so no produto NOVO e no clone cuja origem nao tem
-  // garantia. So no estado inicial (`preenchido` ainda e o do clone, ou nulo): depois de um Salvar recusado o campo
-  // volta com o que foi enviado, e quem apagou os 3 meses nao os ve de volta. Produto ja salvo com o campo vazio
-  // NAO muda: o proximo Salvar gravaria 3 sem o dono ter escolhido.
-  const garantiaInicial =
-    novo && (preenchido === null || preenchido === clone?.campos) && v("garantiaMeses") === ""
-      ? "3"
-      : v("garantiaMeses");
+  // GARANTIA sugerida: 3 meses (pedido do dono em 10/10/2026), so no produto NOVO que nao veio de um clone. O clone
+  // (da lista ou por codigo) traz a garantia DO PRODUTO CLONADO, mesmo vazia (o dono conferiu em 10/10/2026). So no
+  // estado inicial (`preenchido` nulo): depois de um Salvar recusado o campo volta com o que foi enviado, e quem
+  // apagou os 3 meses nao os ve de volta. Produto ja salvo com o campo vazio NAO muda: o proximo Salvar gravaria 3
+  // sem o dono ter escolhido.
+  const garantiaInicial = novo && !clone && preenchido === null && v("garantiaMeses") === "" ? "3" : v("garantiaMeses");
   // A aba Fornecedores agora SEMPRE le e edita a lista em memoria (rascunho),
   // produto novo ou existente — ver o comentario junto de
   // `fornecedoresRascunho`, acima.
@@ -2632,7 +2630,7 @@ export default function FormularioProduto({
    * produtos — a segunda busca herdava da primeira tudo o que a nova nao traz
    * (achado do dono em 19/09/2026).
    */
-  function aplicar(campos, { recomecar = false } = {}) {
+  function aplicar(campos, { recomecar = false, forcarOrigem = [] } = {}) {
     const atual =
       recomecar && valoresIniciais.current
         ? { ...valoresIniciais.current }
@@ -2651,7 +2649,10 @@ export default function FormularioProduto({
         ]),
     );
 
-    const mesclado = { ...atual, ...trazidos };
+    // `forcarOrigem`: campos que valem o que a ORIGEM tem, mesmo vazio (o `trazidos` acima ignora o vazio, e o campo
+    // ficaria com o padrao do cadastro novo: a Garantia, por exemplo, ficaria com os 3 meses sugeridos).
+    const daOrigem = Object.fromEntries(forcarOrigem.map((campo) => [campo, campos[campo] ?? ""]));
+    const mesclado = { ...atual, ...trazidos, ...daOrigem };
     setPreenchido(mesclado);
     // O campo Preco venda tambem remonta aqui (key={versao}), sem disparar o
     // onChange de CampoPreco: sem isto, a Diferenca em Concorrentes.jsx ficava
@@ -2683,7 +2684,12 @@ export default function FormularioProduto({
     setFornecedoresRascunho([]);
     setConcorrentesRascunho([]);
     limparTemporarios();
-    aplicar(resultado.campos, { recomecar: true });
+    aplicar(resultado.campos, {
+      recomecar: true,
+      // Produto do Rise: a garantia e a dele, mesmo vazia. Produto de fornecedor ou concorrente nao tem garantia
+      // cadastrada: fica a sugestao do cadastro novo.
+      forcarOrigem: String(resultado.id ?? "").startsWith("rise:") ? ["garantiaMeses"] : [],
+    });
     // Produto do Rise preenchido por aqui vale como origem do kit, igual ao "Clonar" da lista (pedido do dono em
     // 10/10/2026). Produto de fornecedor ou concorrente nao: ele nao pode ser peca.
     setOrigemId(String(resultado.id ?? "").startsWith("rise:") ? resultado.id.slice("rise:".length) : null);

@@ -3054,10 +3054,13 @@ ZZ-TESTE-BLING como peça (os kits de teste foram apagados).
 
 ### Terceira rodada de 10/10/2026 (4 pedidos do dono)
 
-- **Garantia (meses) sugerida em 3** (`garantiaInicial` em `FormularioProduto.jsx`): só no produto NOVO e no clone cuja
-  origem não tem garantia, e só no estado inicial (depois de um Salvar recusado o campo volta com o que foi enviado, e
-  quem apagou os 3 não os vê de volta). **Produto já salvo com o campo vazio não muda**: o próximo Salvar gravaria 3 sem
-  o dono ter escolhido.
+- **Garantia (meses) sugerida em 3** (`garantiaInicial` em `FormularioProduto.jsx`): só no produto NOVO que **não veio
+  de um clone**, e só no estado inicial (depois de um Salvar recusado o campo volta com o que foi enviado, e quem
+  apagou os 3 não os vê de volta). **O clone traz a garantia do produto clonado, mesmo vazia** (o dono corrigiu isso no
+  teste de 10/10/2026): vale para o "Clonar" da lista e para o "Clonar a partir de um código" com produto do Rise
+  (`forcarOrigem` em `aplicar`, porque o `trazidos` ignora valor vazio e deixaria os 3 sugeridos); produto de
+  fornecedor ou concorrente não tem garantia cadastrada e fica com os 3. **Produto já salvo com o campo vazio não
+  muda**: o próximo Salvar gravaria 3 sem o dono ter escolhido.
 - **Localização do kit com várias peças** (`localizacaoDoKit`): `100101(F9) / 101010(H2)`, na ordem da aba Composição;
   peça sem localização entra só com o código; **acima de 40 caracteres** (`LIMITE_DA_LOCALIZACAO`, o mesmo da edição
   rápida e uma margem para o Bling, cujo limite não foi medido) vira "Verificar a aba composição". Uma peça só continua
