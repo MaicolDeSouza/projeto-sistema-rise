@@ -1753,7 +1753,6 @@ try {
         conferir("salvar com o nome de OUTRO prompt e recusado", salvoRepetido.ok, false);
         const mesmoNome = await acoesProduto.salvarPromptDaDescricao(mcu.prompt.id, "Microcontrolador 8 bits", "Texto 3");
         conferir("salvar mantendo o proprio nome passa", [mesmoNome.ok, mesmoNome.prompt?.texto], [true, "Texto 3"]);
-        conferir("o do sistema nao se salva", (await acoesProduto.salvarPromptDaDescricao(ID_DO_SISTEMA, NOME_DO_SISTEMA, "x")).ok, false);
         conferir("salvar prompt que nao existe e recusado", (await acoesProduto.salvarPromptDaDescricao("nao-existe", "Outro", "x")).ok, false);
 
         const padrao = await acoesProduto.definirPromptPadraoDaDescricao(mcu.prompt.id);
@@ -1769,6 +1768,21 @@ try {
         conferir("excluir o padrao: sai, e o do sistema volta a ser o padrao", [excluido.ok, resumo(excluido.prompts)], [true, [`${NOME_DO_SISTEMA}*`, "Motor DC"]]);
         conferir("o do sistema nao se exclui", (await acoesProduto.excluirPromptDaDescricao(ID_DO_SISTEMA)).ok, false);
         conferir("excluir o que nao existe e recusado", (await acoesProduto.excluirPromptDaDescricao("nao-existe")).ok, false);
+
+        // O "Padrao do sistema" passou a ser editavel (pedido do dono em 10/10/2026): a edicao mora numa linha com o
+        // id fixo do sistema; o original continua no codigo. Nao se exclui.
+        const sistemaMesmoNome = await acoesProduto.salvarPromptDaDescricao(ID_DO_SISTEMA, NOME_DO_SISTEMA, "  Texto do sistema editado  ");
+        conferir("o do sistema se salva, mantendo o proprio nome", [sistemaMesmoNome.ok, sistemaMesmoNome.prompt?.id, sistemaMesmoNome.prompt?.sistema, sistemaMesmoNome.prompt?.texto], [true, ID_DO_SISTEMA, true, "Texto do sistema editado"]);
+        const sistemaRenomeado = await acoesProduto.salvarPromptDaDescricao(ID_DO_SISTEMA, "Base geral", "Texto base");
+        conferir("o do sistema pode ser renomeado, e continua o primeiro, uma vez so", [sistemaRenomeado.ok, resumo(sistemaRenomeado.prompts), sistemaRenomeado.prompts[0].id, sistemaRenomeado.prompts[0].texto], [true, ["Base geral*", "Motor DC"], ID_DO_SISTEMA, "Texto base"]);
+        conferir("sem prompt marcado, a geracao usa o texto EDITADO do sistema", await textoDoPromptPadrao(), "Texto base");
+        conferir("outro prompt nao pega o nome novo do sistema", (await acoesProduto.criarPromptDaDescricao("base geral", "x")).ok, false);
+        const motor = await prisma.promptDescricao.findUnique({ where: { nome: "Motor DC" } });
+        await acoesProduto.definirPromptPadraoDaDescricao(motor.id);
+        const sistemaDeNovo = await acoesProduto.definirPromptPadraoDaDescricao(ID_DO_SISTEMA);
+        conferir("o do sistema editado volta a ser o padrao", [resumo(sistemaDeNovo.prompts), await textoDoPromptPadrao()], [["Base geral*", "Motor DC"], "Texto base"]);
+        const sistemaExcluido = await acoesProduto.excluirPromptDaDescricao(ID_DO_SISTEMA);
+        conferir("o do sistema editado continua sem se excluir", [sistemaExcluido.ok, (await acoesProduto.promptsDaDescricao()).prompts[0].nome], [false, "Base geral"]);
 
         const geracaoRecusada = await acoesProduto.criarDescricaoIA(["x"], { titulo: "T", sku: "S" }, "  ");
         conferir("gerar com prompt vazio e recusado ANTES de chamar a IA", [geracaoRecusada.ok, geracaoRecusada.erro], [false, "O prompt não pode ficar vazio."]);

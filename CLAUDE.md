@@ -1993,12 +1993,26 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
   - **BIBLIOTECA DE PROMPTS** (pedido do dono em 09/10/2026: "Microcontrolador", "Motor DC"...). A linha do
     prompt virou uma **lista de escolha** ("Prompt: [Microcontrolador ▾]  ✏ Editar prompt"). Escolher na lista põe
     o texto daquele prompt na caixa, e a edição não salva do anterior se perde.
-    - **Na janela do prompt:** o **nome** (editável), "Usar como padrão" (ou o selo "padrão: já vem escolhido ao
-      abrir"), **Salvar** (grava nome e texto no escolhido), **Salvar como novo** (pede o nome e cria outro com o
-      texto da caixa, já escolhido), **Excluir** (com confirmação; a caixa fica com o que ficou como padrão),
-      "Restaurar o do sistema" e "Voltar ao salvo". Salvar e criar fecham a janela do prompt.
-    - **"Padrão do sistema"** é o `PROMPT_DESCRICAO_PADRAO` do código, **não é linha do banco**: sempre o primeiro
-      da lista; não se salva (o botão Salvar fica desligado) nem se exclui. Nenhum prompt marcado = ele é o padrão.
+    - **"GERENCIAR PROMPTS"** (redesenhado pelo dono em 10/10/2026; o botão era "Editar prompt"). **O que está
+      acima desta linha sobre "Salvar prompt", "Voltar ao salvo", "Restaurar padrão" e "editado, vale só nesta janela"
+      ficou para trás:**
+      - **Topo:** seletor dos prompts, **"+ Novo prompt"** (limpa nome e texto, deixa o seletor vazio e põe o cursor
+        no Nome) e "Usar como padrão" (ou o selo "padrão: já vem escolhido ao abrir"). X no canto.
+      - **Quadro do prompt:** o **Nome** na primeira linha, sempre visível (renomeia o escolhido ou dá nome ao
+        novo), o ícone de **copiar** o texto inteiro e o contador; o texto embaixo.
+      - **Rodapé: só Excluir e Salvar.** Salvar cria o novo ou grava o escolhido e fecha o popup; sem nome não
+        salva. Excluir pede confirmação e fica cinza no do sistema e no novo ainda não salvo.
+      - **Alteração não salva** + clique fora, X, Esc, trocar no seletor ou "Novo prompt": pergunta **Sair**
+        (descarta; o novo descartado volta ao escolhido antes dele), **Salvar** ou **Cancelar**, no molde do "Sair
+        sem usar?" da janela (`saidaDoPrompt`, `comPergunta`). Por isso a edição deixou de "valer só nesta janela".
+      - **A janela gera com o último prompt aberto no popup** (decisão do dono): é o mesmo `promptId`.
+      - Conferido na tela em 10/10/2026: editar e clicar fora perguntou, Sair descartou; "Novo prompt" + Salvar criou
+        e a janela passou a usá-lo; Excluir confirmou e voltou ao do sistema.
+    - **"Padrão do sistema"** é sempre o primeiro da lista e **não se exclui**. **Desde 10/10/2026 ele se edita e
+      se salva** (nome e texto, pedido do dono): a edição mora numa linha de `PromptDescricao` com o **id fixo
+      `"sistema"`** (`ID_DO_SISTEMA`), que nunca fica com `padrao` ligado; sem essa linha ele é o
+      `PROMPT_DESCRICAO_PADRAO` do código, que continua guardado como o original. Não há botão de restaurar: o texto
+      original volta só se o dono pedir. Nenhum prompt marcado = ele é o padrão, e a geração usa o texto editado.
     - **Onde fica:** tabela `PromptDescricao` (nome único, comparado sem caixa; `padrao` em no máximo um),
       regras em `src/lib/ia/promptsDescricao.js`. As ações (`promptsDaDescricao`, `criarPromptDaDescricao`,
       `salvarPromptDaDescricao`, `excluirPromptDaDescricao`, `definirPromptPadraoDaDescricao`) devolvem sempre a
@@ -2006,7 +2020,7 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       tela usa o marcado como padrão.
     - **Migração `20261009_prompts_descricao`:** o prompt único de antes (linha `"descricao"` da `PromptImagem`,
       06 a 09/10/2026) virou "Meu prompt", marcado como padrão, e a linha velha saiu.
-    - Testes em `teste-imagens` ("biblioteca de prompts", 23). Escolher o prompt pela **categoria do produto** fica
+    - Testes em `teste-imagens` ("biblioteca de prompts", 28, com o do sistema editável). Escolher o prompt pela **categoria do produto** fica
       para quando o produto tiver categoria no banco.
   - **"Salvar e sair"** (pedido do dono em 09/10/2026): o antigo "Usar esta descrição" saiu do pé da janela e foi
     para a linha do "Gerar com IA", à direita. Põe o texto na aba Descrição e fecha.

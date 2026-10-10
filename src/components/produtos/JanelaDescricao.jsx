@@ -8,7 +8,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { ArrowRight, Check, ExternalLink, Loader, Pencil, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
+import { ArrowRight, Check, Copy, ExternalLink, Loader, Pencil, Plus, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
 
 import {
   buscarDescricoesParaProduto,
@@ -260,20 +260,24 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   // O texto de uma aba da esquerda esperando o "Substituir?" (ver `pedirLevar`).
   const [textoParaLevar, setTextoParaLevar] = useState(null);
   // A BIBLIOTECA DE PROMPTS (pedido do dono em 09/10/2026): `prompts` e a lista ({id, nome, texto, sistema,
-  // padrao}), o "Padrao do sistema" primeiro; `promptId` e o escolhido no seletor. `prompt` e `nomePrompt` sao o
-  // texto e o nome NA CAIXA: editar sem salvar vale so para as geracoes desta janela. `null` = ainda lendo.
+  // padrao}), o "Padrao do sistema" primeiro; `promptId` e o escolhido (o mesmo na janela e no "Gerenciar prompts":
+  // fechar o popup deixa a janela com o ultimo aberto nele, decisao do dono em 10/10/2026). `prompt` e `nomePrompt`
+  // sao o texto e o nome NA CAIXA. `promptId` null com a lista lida = criando um prompt novo. `null` = ainda lendo.
   const [prompts, setPrompts] = useState(null);
   const [promptId, setPromptId] = useState(null);
   const [prompt, setPrompt] = useState(null);
   const [nomePrompt, setNomePrompt] = useState("");
   const [maximoPrompt, setMaximoPrompt] = useState(0);
-  // Dentro da janela do prompt: o nome do "Salvar como novo" (null = fechado) e a confirmacao de excluir.
-  const [nomeDoNovo, setNomeDoNovo] = useState(null);
+  // O escolhido antes do "Novo prompt": descartar o novo volta para ele.
+  const [anteriorId, setAnteriorId] = useState(null);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  // Alteracao nao salva + fechar, trocar de prompt ou "Novo prompt": o que fazer depois do Sair (descarta) ou do
+  // Salvar da pergunta (pedido do dono em 10/10/2026, no molde do "Sair sem usar?" desta janela).
+  const [saidaDoPrompt, setSaidaDoPrompt] = useState(null);
+  const [promptCopiado, setPromptCopiado] = useState(false);
   const [erroPrompt, setErroPrompt] = useState(null);
   const [salvandoPrompt, iniciarSalvarPrompt] = useTransition();
-  // A caixa grande do prompt, por cima da janela (pedido do dono em 06/10/2026: a area da descricao precisa
-  // do espaco; o prompt abre pelo botao "Editar prompt" e volta ao fechar ou salvar).
+  // O "Gerenciar prompts", por cima da janela (pedido do dono em 06/10/2026: a area da descricao precisa do espaco).
   const [editandoPrompt, setEditandoPrompt] = useState(false);
 
   function abrir() {
@@ -306,7 +310,8 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setNomePrompt("");
     setErroPrompt(null);
     setEditandoPrompt(false);
-    setNomeDoNovo(null);
+    setAnteriorId(null);
+    setSaidaDoPrompt(null);
     setConfirmandoExclusao(false);
     // A lista chega sozinha, sem esperar as referencias (a busca leva segundos), e ja vem com o PADRAO escolhido.
     promptsDaDescricao()
@@ -350,9 +355,12 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
    * direto, senao o aviso viraria ruido. Com o aviso ja aberto, o Esc o fecha e volta para a edicao.
    */
   function pedirFechamento() {
-    // Com a janela do prompt aberta, o Esc (e o clique fora) fecha so ela, mantendo o que foi editado.
+    // Com o "Gerenciar prompts" aberto, o Esc (e o clique fora) e dele: fecha a pergunta aberta, ou o popup,
+    // perguntando antes se ha alteracao nao salva.
     if (editandoPrompt) {
-      fecharPrompt();
+      if (saidaDoPrompt) setSaidaDoPrompt(null);
+      else if (confirmandoExclusao) setConfirmandoExclusao(false);
+      else comPergunta(fecharPrompt);
       return;
     }
     if (textoParaLevar !== null) {
@@ -516,7 +524,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setEditandoTexto(true);
   }
 
-  /** Poe a lista nova e escolhe `id` nela (o texto e o nome vao para a caixa, descartando o que nao foi salvo). */
+  /** Poe a lista nova e escolhe `id` nela (o texto e o nome vao para a caixa). */
   function aplicarLista(lista, id) {
     const escolhido = lista.find((item) => item.id === id) ?? lista[0];
     setPrompts(lista);
@@ -525,27 +533,83 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setNomePrompt(escolhido.nome);
   }
 
-  /** Fecha a janela do prompt mantendo o que foi editado na caixa; os pedidos de "novo" e "excluir" abertos somem. */
+  /** O que esta na caixa difere do salvo? No prompt novo, qualquer nome ou texto escrito conta. */
+  function promptAlterado() {
+    if (prompt === null || prompts === null) return false;
+    if (promptId === null) return Boolean(nomePrompt.trim() || prompt.trim());
+    const salvo = prompts.find((item) => item.id === promptId);
+    return Boolean(salvo) && (prompt !== salvo.texto || nomePrompt !== salvo.nome);
+  }
+
+  /** Fecha o "Gerenciar prompts"; a janela fica com o prompt que estava aberto nele. */
   function fecharPrompt() {
     setEditandoPrompt(false);
-    setNomeDoNovo(null);
     setConfirmandoExclusao(false);
     setErroPrompt(null);
   }
 
-  /** Trocar no seletor: o texto do escolhido vai para a caixa (a edicao nao salva da anterior se perde). */
+  /** Roda `acao(lista)` direto, ou depois da pergunta quando ha alteracao nao salva. */
+  function comPergunta(acao) {
+    setConfirmandoExclusao(false);
+    if (promptAlterado()) setSaidaDoPrompt(() => acao);
+    else acao(prompts);
+  }
+
+  /** "Sair" da pergunta: volta a caixa ao salvo (o novo descartado volta ao escolhido antes dele) e segue. */
+  function descartarESeguir() {
+    const acao = saidaDoPrompt;
+    setSaidaDoPrompt(null);
+    setErroPrompt(null);
+    aplicarLista(prompts, promptId ?? anteriorId);
+    acao?.(prompts);
+  }
+
+  /** Trocar no seletor do popup (ou da janela): o texto e o nome do escolhido vao para a caixa. */
   function escolherPrompt(id) {
     setErroPrompt(null);
-    setNomeDoNovo(null);
-    setConfirmandoExclusao(false);
-    aplicarLista(prompts, id);
+    comPergunta((lista) => aplicarLista(lista, id));
+  }
+
+  /** "Novo prompt": a caixa e o nome ficam vazios e o seletor sem escolha, ate o Salvar criar o prompt. */
+  function novoPrompt() {
+    setErroPrompt(null);
+    comPergunta(() => {
+      setAnteriorId((atual) => promptId ?? atual);
+      setPromptId(null);
+      setPrompt("");
+      setNomePrompt("");
+    });
   }
 
   /**
-   * Roda uma acao da biblioteca e, dando certo, aplica a lista que ela devolve, escolhendo `escolher(resposta)`.
-   * `fecharDepois`: salvar e criar voltam para a tela normal (pedido do dono em 06/10/2026).
+   * "Salvar": cria o prompt novo ou grava nome e texto no escolhido (o do sistema inclusive, desde 10/10/2026).
+   * `depois(lista)` e o que a pergunta de saida pediu; pelo botao do rodape, o popup fecha (pedido do dono em
+   * 06/10/2026: salvar volta para a tela normal).
    */
-  function naBiblioteca(acao, escolher, { fecharDepois = false, manterCaixa = false } = {}) {
+  function gravarPrompt(depois = fecharPrompt) {
+    setErroPrompt(null);
+    iniciarSalvarPrompt(async () => {
+      try {
+        const resposta =
+          promptId === null
+            ? await criarPromptDaDescricao(nomePrompt, prompt)
+            : await salvarPromptDaDescricao(promptId, nomePrompt, prompt);
+        setSaidaDoPrompt(null);
+        if (!resposta.ok) {
+          setErroPrompt(resposta.erro);
+          return;
+        }
+        aplicarLista(resposta.prompts, resposta.prompt.id);
+        depois(resposta.prompts);
+      } catch (falha) {
+        setSaidaDoPrompt(null);
+        setErroPrompt(falha?.message ?? "Falha ao gravar o prompt.");
+      }
+    });
+  }
+
+  /** Excluir e "Usar como padrao": rodam a acao e aplicam a lista que ela devolve. */
+  function naBiblioteca(acao, escolher, { manterCaixa = false } = {}) {
     setErroPrompt(null);
     iniciarSalvarPrompt(async () => {
       try {
@@ -557,26 +621,14 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
         // `manterCaixa`: so a lista muda; o texto e o nome que estao sendo editados ficam como estao.
         if (manterCaixa) setPrompts(resposta.prompts);
         else aplicarLista(resposta.prompts, escolher(resposta));
-        setNomeDoNovo(null);
         setConfirmandoExclusao(false);
-        if (fecharDepois) setEditandoPrompt(false);
       } catch (falha) {
         setErroPrompt(falha?.message ?? "Falha ao gravar o prompt.");
       }
     });
   }
 
-  /** "Salvar": nome e texto da caixa no prompt escolhido. */
-  function salvarPrompt() {
-    naBiblioteca(() => salvarPromptDaDescricao(promptId, nomePrompt, prompt), () => promptId, { fecharDepois: true });
-  }
-
-  /** "Salvar como novo": um prompt novo com o texto da caixa, ja escolhido. */
-  function criarPrompt() {
-    naBiblioteca(() => criarPromptDaDescricao(nomeDoNovo, prompt), (resposta) => resposta.prompt.id, { fecharDepois: true });
-  }
-
-  /** "Excluir": sai da lista, e a caixa fica com o prompt que ficou como padrao. */
+  /** "Excluir": sai da lista, e a caixa fica com o prompt que ficou como padrao. O do sistema nao se exclui. */
   function excluirPrompt() {
     naBiblioteca(
       () => excluirPromptDaDescricao(promptId),
@@ -587,6 +639,16 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   /** "Usar como padrão": o escolhido passa a vir escolhido ao abrir a janela. O texto da caixa nao muda. */
   function tornarPadrao() {
     naBiblioteca(() => definirPromptPadraoDaDescricao(promptId), () => promptId, { manterCaixa: true });
+  }
+
+  async function copiarPrompt() {
+    try {
+      await navigator.clipboard.writeText(prompt ?? "");
+      setPromptCopiado(true);
+      setTimeout(() => setPromptCopiado(false), 1500);
+    } catch {
+      // Sem permissao de area de transferencia: so nao copia.
+    }
   }
 
   function adicionarDaFonte(linha) {
@@ -640,11 +702,10 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     !confirmadas.has(item.id) && Number.isInteger(selecoes[item.id])).length;
   // Prompt vazio ou acima do teto nao gera nem salva (o servidor confere de novo).
   const promptValido = prompt === null || (prompt.trim().length > 0 && prompt.trim().length <= maximoPrompt);
-  // O escolhido como esta SALVO, para dizer se a caixa foi editada e para o "Voltar ao salvo".
+  // O escolhido como esta SALVO (null no prompt novo).
   const promptEscolhido = prompts?.find((item) => item.id === promptId) ?? null;
-  const promptEditado =
-    prompt !== null && promptEscolhido !== null && (prompt !== promptEscolhido.texto || nomePrompt !== promptEscolhido.nome);
-  const textoDoSistema = prompts?.find((item) => item.sistema)?.texto ?? "";
+  const criandoPrompt = prompts !== null && promptId === null;
+  const promptEditado = promptAlterado();
 
   return (
     <div
@@ -742,8 +803,8 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               Criar a descrição com IA
             </p>
             {/*
-              O prompt que vai para a IA: a LISTA da biblioteca (pedido do dono em 09/10/2026) e o botao "Editar
-              prompt", que abre a caixa grande por cima (ver `editandoPrompt`), para a descricao ficar com o espaco.
+              O prompt que vai para a IA: a LISTA da biblioteca (pedido do dono em 09/10/2026) e o botao "Gerenciar
+              prompts" (era "Editar prompt" ate 10/10/2026), que abre o popup por cima (ver `editandoPrompt`).
             */}
             <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
               <label htmlFor="descricao-prompt-escolhido" className="font-medium text-suave">
@@ -767,14 +828,13 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                   ))
                 )}
               </select>
-              {promptEditado && <span className="font-medium text-amber-700">editado, vale só nesta janela</span>}
               <button
                 type="button"
                 onClick={() => setEditandoPrompt(true)}
                 disabled={prompt === null || gerando}
                 className="ml-auto inline-flex items-center gap-1 rounded border border-acento bg-superficie px-2 py-1 text-xs font-medium text-acento hover:bg-sky-50 disabled:opacity-40"
               >
-                <Pencil size={12} /> Editar prompt
+                <Pencil size={12} /> Gerenciar prompts
               </button>
               {erroPrompt && !editandoPrompt && <p className="w-full text-red-700">{erroPrompt}</p>}
             </div>
@@ -922,11 +982,16 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
         </div>
       </section>
 
-      {editandoPrompt && prompt !== null && promptEscolhido && (
+      {/*
+        "Gerenciar prompts" (desenho do dono em 10/10/2026): no topo o seletor, o "Novo prompt" e o "Usar como
+        padrao"; no quadro do texto, o Nome (sempre visivel: renomeia o escolhido ou da nome ao novo), copiar e o
+        contador; no rodape so Excluir e Salvar. Fechar (clique fora, X, Esc) pergunta antes se ha o que perder.
+      */}
+      {editandoPrompt && prompt !== null && (promptEscolhido || criandoPrompt) && (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
           onClick={(evento) => {
-            if (evento.target === evento.currentTarget) fecharPrompt();
+            if (evento.target === evento.currentTarget) comPergunta(fecharPrompt);
           }}
         >
           <section
@@ -935,104 +1000,107 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
             aria-labelledby="descricao-prompt-titulo"
             className="flex h-[85vh] w-full max-w-5xl flex-col rounded-lg border border-borda bg-superficie p-4 shadow-2xl"
           >
-            {/* Nome do prompt (o do sistema nao muda de nome), se e o padrao, o contador e o X. */}
-            <div className="mb-1 flex flex-wrap items-center gap-2">
-              <span id="descricao-prompt-titulo" className="text-sm font-semibold">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <label htmlFor="descricao-prompt-gerenciar" id="descricao-prompt-titulo" className="text-sm font-semibold">
                 Prompt:
-              </span>
-              {promptEscolhido.sistema ? (
-                <span className="text-sm font-semibold">{promptEscolhido.nome}</span>
-              ) : (
-                <input
-                  value={nomePrompt}
-                  onChange={(evento) => setNomePrompt(evento.target.value)}
-                  disabled={salvandoPrompt}
-                  aria-label="Nome do prompt"
-                  className="w-64 rounded border border-borda px-2 py-1 text-sm font-semibold focus:border-acento focus:outline-none"
-                />
-              )}
-              {promptEscolhido.padrao ? (
+              </label>
+              <select
+                id="descricao-prompt-gerenciar"
+                value={promptId ?? ""}
+                onChange={(evento) => escolherPrompt(evento.target.value)}
+                disabled={salvandoPrompt}
+                className="w-64 rounded border border-borda bg-superficie px-2 py-1 text-sm focus:border-acento focus:outline-none disabled:opacity-60"
+              >
+                {/* Criando um prompt novo, o seletor fica vazio (pedido do dono). */}
+                {criandoPrompt && <option value="" />}
+                {prompts.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nome}
+                    {item.padrao ? " (padrão)" : ""}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={novoPrompt}
+                disabled={salvandoPrompt || criandoPrompt}
+                className="inline-flex items-center gap-1 rounded border border-acento px-2 py-1 text-sm font-medium text-acento hover:bg-sky-50 disabled:opacity-40"
+              >
+                <Plus size={14} /> Novo prompt
+              </button>
+              {promptEscolhido?.padrao ? (
                 <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800">
                   padrão: já vem escolhido ao abrir
                 </span>
               ) : (
-                <button
-                  type="button"
-                  onClick={tornarPadrao}
-                  disabled={salvandoPrompt}
-                  title="Este prompt passa a vir escolhido ao abrir a janela"
-                  className="rounded border border-borda px-2 py-0.5 text-[11px] hover:bg-fundo disabled:opacity-40"
-                >
-                  Usar como padrão
-                </button>
+                promptEscolhido && (
+                  <button
+                    type="button"
+                    onClick={tornarPadrao}
+                    disabled={salvandoPrompt}
+                    title="Este prompt passa a vir escolhido ao abrir a janela"
+                    className="rounded border border-borda px-2 py-0.5 text-[11px] hover:bg-fundo disabled:opacity-40"
+                  >
+                    Usar como padrão
+                  </button>
+                )
               )}
-              <span
-                className={`ml-auto text-xs ${prompt.trim().length > maximoPrompt ? "font-medium text-red-700" : "text-suave"}`}
-              >
-                {prompt.trim().length}/{maximoPrompt}
-              </span>
               <button
                 type="button"
-                onClick={fecharPrompt}
+                onClick={() => comPergunta(fecharPrompt)}
                 aria-label="Fechar o prompt"
-                className="rounded p-1 text-suave hover:bg-fundo"
+                className="ml-auto rounded p-1 text-suave hover:bg-fundo"
               >
                 <X size={16} />
               </button>
             </div>
-            <p className="mb-2 text-xs text-suave">
-              O Nome, o Código, as referências, as medidas e as divergências entram sozinhos antes dele. Fechar sem
-              salvar vale só para esta janela.
-              {promptEscolhido.sistema && ' O do sistema não muda: para guardar uma versão sua, use "Salvar como novo".'}
-            </p>
-            <textarea
-              value={prompt}
-              onChange={(evento) => setPrompt(evento.target.value)}
-              disabled={salvandoPrompt}
-              autoFocus
-              aria-label="Texto do prompt"
-              className="min-h-0 flex-1 resize-none rounded border border-borda bg-white p-3 text-sm leading-relaxed focus:border-acento focus:outline-none disabled:opacity-60"
-            />
-            {erroPrompt && <p className="mt-2 text-sm text-red-700">{erroPrompt}</p>}
 
-            {/* "Salvar como novo": o nome do prompt novo, com o texto que esta na caixa. */}
-            {nomeDoNovo !== null && (
-              <div className="mt-3 flex flex-wrap items-center gap-2 rounded border border-acento/40 bg-sky-50 p-2 text-sm">
-                <label htmlFor="descricao-prompt-novo" className="font-medium">
-                  Nome do novo prompt:
+            {/* O quadro do prompt: o Nome na primeira linha, com copiar e o contador; o texto embaixo. */}
+            <div className="flex min-h-0 flex-1 flex-col rounded border border-borda bg-white focus-within:border-acento">
+              <div className="flex flex-wrap items-center gap-2 border-b border-borda px-3 py-2">
+                <label htmlFor="descricao-prompt-nome" className="text-sm font-medium text-suave">
+                  Nome:
                 </label>
                 <input
-                  id="descricao-prompt-novo"
-                  value={nomeDoNovo}
-                  onChange={(evento) => setNomeDoNovo(evento.target.value)}
-                  onKeyDown={(evento) => {
-                    if (evento.key === "Enter" && nomeDoNovo.trim() && promptValido) criarPrompt();
-                  }}
-                  autoFocus
-                  placeholder="Ex.: Motor DC"
-                  className="w-64 rounded border border-borda bg-white px-2 py-1 focus:border-acento focus:outline-none"
+                  key={promptId ?? "novo"}
+                  id="descricao-prompt-nome"
+                  value={nomePrompt}
+                  onChange={(evento) => setNomePrompt(evento.target.value)}
+                  disabled={salvandoPrompt}
+                  autoFocus={criandoPrompt}
+                  placeholder="Dê um nome ao prompt (ex.: Motor DC)"
+                  className="w-72 rounded border border-borda px-2 py-1 text-sm font-semibold focus:border-acento focus:outline-none"
                 />
                 <button
                   type="button"
-                  onClick={criarPrompt}
-                  disabled={!nomeDoNovo.trim() || !promptValido || salvandoPrompt}
-                  className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1 font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  onClick={copiarPrompt}
+                  disabled={!prompt}
+                  title="Copiar todo o texto do prompt"
+                  aria-label="Copiar todo o texto do prompt"
+                  className="ml-auto rounded p-1.5 text-suave hover:bg-fundo hover:text-texto disabled:opacity-40"
                 >
-                  {salvandoPrompt && <Loader size={14} className="animate-spin" />}
-                  Criar
+                  {promptCopiado ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setNomeDoNovo(null)}
-                  className="rounded border border-borda bg-white px-3 py-1 hover:bg-fundo"
+                <span
+                  className={`text-xs ${prompt.trim().length > maximoPrompt ? "font-medium text-red-700" : "text-suave"}`}
                 >
-                  Cancelar
-                </button>
+                  {prompt.trim().length}/{maximoPrompt}
+                </span>
               </div>
-            )}
+              <textarea
+                value={prompt}
+                onChange={(evento) => setPrompt(evento.target.value)}
+                disabled={salvandoPrompt}
+                autoFocus={!criandoPrompt}
+                aria-label="Texto do prompt"
+                placeholder={criandoPrompt ? "Escreva aqui as instruções para a IA." : undefined}
+                className="min-h-0 flex-1 resize-none rounded-b p-3 text-sm leading-relaxed focus:outline-none disabled:opacity-60"
+              />
+            </div>
+            {erroPrompt && <p className="mt-2 text-sm text-red-700">{erroPrompt}</p>}
 
             {/* "Excluir": confirma antes; o prompt some da lista e a caixa fica com o padrao. */}
-            {confirmandoExclusao && (
+            {confirmandoExclusao && promptEscolhido && (
               <div className="mt-3 flex flex-wrap items-center gap-2 rounded border border-red-200 bg-red-50 p-2 text-sm">
                 <span className="font-medium text-red-800">Excluir o prompt &quot;{promptEscolhido.nome}&quot;?</span>
                 <button
@@ -1053,73 +1121,93 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               </div>
             )}
 
+            {/* So Excluir e Salvar (pedido do dono em 10/10/2026). */}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setPrompt(textoDoSistema)}
-                disabled={prompt === textoDoSistema || salvandoPrompt}
-                title="Põe na caixa o texto do prompt do sistema (para guardar, salve depois)"
-                className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:opacity-40"
-              >
-                Restaurar o do sistema
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPrompt(promptEscolhido.texto);
-                  setNomePrompt(promptEscolhido.nome);
-                }}
-                disabled={!promptEditado || salvandoPrompt}
-                title="Descarta o que você editou e volta ao prompt salvo"
-                className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:opacity-40"
-              >
-                Voltar ao salvo
-              </button>
-              {!promptEscolhido.sistema && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNomeDoNovo(null);
-                    setConfirmandoExclusao(true);
-                  }}
-                  disabled={salvandoPrompt}
-                  className="inline-flex items-center gap-1 rounded border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:opacity-40"
-                >
-                  <Trash2 size={14} /> Excluir
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={fecharPrompt}
-                className="ml-auto rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
-              >
-                Fechar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmandoExclusao(false);
-                  setNomeDoNovo("");
-                }}
-                disabled={!promptValido || salvandoPrompt}
-                title="Cria outro prompt com o texto da caixa"
-                className="rounded border border-acento px-3 py-1.5 text-sm font-medium text-acento hover:bg-sky-50 disabled:opacity-40"
-              >
-                Salvar como novo
-              </button>
-              <button
-                type="button"
-                onClick={salvarPrompt}
-                disabled={promptEscolhido.sistema || !promptEditado || !promptValido || salvandoPrompt}
+                onClick={() => setConfirmandoExclusao(true)}
+                disabled={!promptEscolhido || promptEscolhido.sistema || salvandoPrompt}
                 title={
-                  promptEscolhido.sistema
-                    ? 'O do sistema não muda: use "Salvar como novo"'
-                    : "Grava o nome e o texto neste prompt"
+                  promptEscolhido?.sistema
+                    ? "O Padrão do sistema não se exclui: ele pode ser editado e salvo."
+                    : criandoPrompt
+                      ? "O prompt novo ainda não foi salvo."
+                      : "Exclui este prompt"
                 }
+                className="inline-flex items-center gap-1 rounded border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Trash2 size={14} /> Excluir
+              </button>
+              <button
+                type="button"
+                onClick={() => gravarPrompt()}
+                disabled={!promptEditado || !promptValido || !nomePrompt.trim() || salvandoPrompt}
+                title={
+                  !nomePrompt.trim()
+                    ? "Dê um nome ao prompt antes de salvar"
+                    : criandoPrompt
+                      ? "Cria o prompt com este nome e texto"
+                      : "Grava o nome e o texto neste prompt"
+                }
+                className="ml-auto inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {salvandoPrompt && <Loader size={14} className="animate-spin" />}
+                Salvar
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* Alteracao nao salva no prompt: Sair (descarta) / Salvar / Cancelar, como o "Sair sem usar?" desta janela. */}
+      {saidaDoPrompt && (
+        <div
+          className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={(evento) => {
+            if (evento.target === evento.currentTarget) setSaidaDoPrompt(null);
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="descricao-prompt-sair-titulo"
+            className="w-full max-w-md rounded-lg border border-borda bg-superficie p-4 shadow-2xl"
+          >
+            <p id="descricao-prompt-sair-titulo" className="text-sm font-semibold">
+              Salvar as alterações do prompt?
+            </p>
+            <p className="mt-1 text-sm text-suave">
+              {criandoPrompt
+                ? "O prompt novo ainda não foi salvo e será perdido."
+                : `O prompt "${promptEscolhido?.nome ?? ""}" tem alterações que ainda não foram salvas.`}
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={descartarESeguir}
+                title="Descarta as alterações"
+                className="rounded border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+              >
+                Sair
+              </button>
+              <button
+                type="button"
+                onClick={() => gravarPrompt(saidaDoPrompt)}
+                disabled={!promptValido || !nomePrompt.trim() || salvandoPrompt}
+                title={!nomePrompt.trim() ? "Dê um nome ao prompt antes de salvar" : "Salva e continua"}
                 className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {salvandoPrompt && nomeDoNovo === null && <Loader size={14} className="animate-spin" />}
+                {salvandoPrompt && <Loader size={14} className="animate-spin" />}
                 Salvar
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setSaidaDoPrompt(null)}
+                title="Volta para o prompt, sem perder nada"
+                className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+              >
+                Cancelar
               </button>
             </div>
           </section>
