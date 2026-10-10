@@ -2260,5 +2260,43 @@ console.log("\n— Catalogo em arquivo JavaScript (R&AC, 10/10/2026) —");
   conferir("catalogo-js: outro dominio nao usa", catalogoJsDoEndereco("https://www.eletrogate.com/"), null);
 }
 
+console.log("\n— Orcamento em PDF da R&AC + catalogo do site (10/10/2026) —");
+{
+  const { orcamentoDoPdf, juntarListas } = await import("../src/lib/coleta/arquivos.js");
+  const { produtoDoCatalogoJs } = await import("../src/lib/coleta/catalogo-js.js");
+  const texto = [
+    "Data 09/10/2026",
+    "Qtde \tDescrição \tValor Total",
+    "50 RAC4042 - CH.GANGORRA KCD1-202 6T 6A 250V PT C/MAR \t2,65 132,28",
+    "300 RAC4136 - CH.TACTIL KFC-A06-6X6X5 4T 180º PT \t0,18 52,91",
+    "2.000 RAC5339 - ABRACADEIRA 3,6 (4,0)X200 PT K12L T30L \t0,19 388,01",
+    "30 RAC4728 - DIAL 16 METALICO P/3590S \t40,56 1.216,93",
+    "50 RAC4042 - REPETIDO \t9,99 499,50",
+    "23.406,81",
+    "PROPOSTA DE FORNECIMENTO",
+  ].join("\n");
+  const itens = orcamentoDoPdf(texto);
+  conferir("orcamento: le so as linhas de item, sem o repetido", itens.map((i) => i.sku), ["RAC4042", "RAC4136", "RAC5339", "RAC4728"]);
+  conferir("orcamento: unitario COMO IMPRESSO (nao total / quantidade)", itens.map((i) => i.preco), [2.65, 0.18, 0.19, 40.56]);
+  conferir("orcamento: milhar com ponto na quantidade e no preco", [itens[2].unidades_orcadas, itens[3].preco], [2000, 40.56]);
+  conferir("orcamento: texto sem itens devolve lista vazia", orcamentoDoPdf("Catálogo geral\nPágina 1").length, 0);
+
+  const base = new URL("https://www.rac.tec.br/");
+  const site = [
+    { codigo: "RAC4042", descricao: "Chave Gangorra KCD1-202 20A/8A 250V Preta c/ Marcação", imagem: "img/produtos/rac4042.jpg" },
+    { codigo: "RAC4043", descricao: "Chave Gangorra Vermelha", imagem: "img/produtos/rac4043.jpg" },
+  ].map((item) => produtoDoCatalogoJs(item, { base, fonte: { name: "R&AC" }, familias: [["Chaves gangorra", /CHAVE GANGORRA/i]] }));
+  const arquivo = itens.slice(0, 1).map((i) => ({
+    name: i.desc, code: i.sku, prices: { normal: i.preco, promotional: null, reserva: null, comImpostos: null },
+    precosPorQuantidade: [{ rotulo: "50 unidades (orçamento)", minimo: 50, maximo: null, preco: i.preco }],
+    stock: { status: "UNKNOWN", quantity: null, aChegar: null },
+  }));
+  const juntos = juntarListas([site, arquivo]);
+  conferir("mescla: mesmo codigo vira um produto (site + orcamento)", juntos.length, 2);
+  conferir("mescla: nome, foto e categoria do site", [juntos[0].name, juntos[0].images.length, juntos[0].category], ["Chave Gangorra KCD1-202 20A/8A 250V Preta c/ Marcação", 1, "Chaves gangorra"]);
+  conferir("mescla: preco e faixa de quantidade do orcamento", [juntos[0].prices.normal, juntos[0].precosPorQuantidade?.[0]?.minimo], [2.65, 50]);
+  conferir("mescla: item fora do orcamento continua sem preco", juntos[1].prices.normal, null);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

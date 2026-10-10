@@ -197,7 +197,17 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
     (await podeVisitar(enderecoDaFonte(fonte))).permitido;
   if (sitePermitido) {
     sinal?.throwIfAborted();
-    const doSite = await colherProdutos({
+    // R&AC: o "site" e o arquivo de catalogo (sem pagina por produto), lido pelo leitor proprio.
+    const catalogoJs = catalogoJsDoEndereco(fonte.dominio);
+    const doSite = catalogoJs
+      ? await colherCatalogoJs({
+          urlBase: enderecoDaFonte(fonte),
+          caminho: catalogoJs.caminho,
+          caminhoFamilias: catalogoJs.familias,
+          fonte: { name: fonte.nome, type: fonte.tipo },
+          sinal,
+        })
+      : await colherProdutos({
       url: enderecoDaFonte(fonte),
       secao: fonte.prefixoUrl ?? undefined,
       nome: fonte.nome,

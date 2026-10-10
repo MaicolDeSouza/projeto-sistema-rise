@@ -129,7 +129,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 523 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 531 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.HH.MM do deploy, em São Paulo; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -1321,6 +1321,22 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
     texto a cada coleta (não copiamos: o site a muda), e a categoria sai com a origem "família do site, deduzida da
     descrição". Sem a lista (arquivo fora do ar) a categoria fica vazia, sem derrubar a coleta. Medido: 2.195 itens em 84
     famílias, 57 em "Componente eletrônico" e os 6 buzzers do print.
+  - **Preço pelo ORÇAMENTO em PDF** (pedido do dono em 10/10/2026, arquivo "ORÇAMENTO 4 HOBBY.pdf" de 09/10/2026): o
+    fornecedor manda um orçamento, não a tabela. **49 itens de 2.195**, cada linha "qtde CÓDIGO - descrição abreviada, unitário,
+    total". `orcamentoDoPdf` (`arquivos.js`) lê as linhas (antes o leitor de PDF achava 0 produtos neste formato) e o produto
+    entra pelo caminho de arquivo. **O vínculo é pelo código RAC**, exato; a descrição do orçamento é abreviada e NÃO serve
+    para casar. Os 49 códigos existem no catálogo.
+    - **Preço = o unitário COMO IMPRESSO** (decisão do dono, Opção 2): ele vem arredondado ao centavo e diverge do total ÷
+      quantidade em 8 itens (RAC4136: 0,18 × 300 = 54,00 contra 52,91 no papel; RAC5339: 2.000 × 0,19 = 380,00 contra
+      388,01). Se um dia o dono quiser o preço exato, é total ÷ quantidade: uma linha em `orcamentoDoPdf`.
+    - **O preço vale para a quantidade orçada:** vai em `precosPorQuantidade` ("50 unidades (orçamento)", mínimo 50) além do
+      `prices.normal`. A quantidade do orçamento **não é estoque**: o campo se chama `unidades_orcadas`, porque o leitor
+      genérico casa "qtd" e "quantidade" por prefixo como estoque (foi o primeiro erro da implementação).
+    - **Mescla com o site** (`mesclarSiteComArquivo` na entrada `rac`, a regra da Nightech): em `reprocessarArquivos` o "site" é
+      o catálogo em arquivo (`colherCatalogoJs`, não o coletor de páginas). Site vence em nome, categoria e foto; o orçamento
+      entra com o preço. Conferido com os dados reais: 2.195 produtos, 49 com preço (RAC4042 2,65 / RAC4136 0,18 / RAC4920 2,52).
+    - **Cada orçamento novo reprocessa a lista:** o Rise guarda o último arquivo de cada tipo, não acumula orçamentos; os itens
+      que não estão no orçamento atual ficam sem preço. **A gravação no banco pela varredura continua sem teste de ponta a ponta.**
   - **O produto sai com** código `RACnnnn` (chave `codigo:`), descrição como nome e a foto em endereço absoluto; `url` nula
     (não há página). Preço, estoque e o resto ficam `null`, nunca inventados. `imagem_compartilhada` (o mesmo arquivo serve a
     vários códigos) vai para a origem da imagem.

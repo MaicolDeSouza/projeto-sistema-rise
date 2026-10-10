@@ -92,6 +92,13 @@ export const FORNECEDORES = [
      * descricao, imagem}) e a busca roda no navegador. O leitor esta em catalogo-js.js.
      */
     catalogoJs: { caminho: "js/produtos-data.js", familias: "js/catalogo-inicial.js" },
+
+    /**
+     * O PRECO vem do orcamento em PDF que o fornecedor manda (so os itens orcados, cada preco valido para
+     * a quantidade pedida); o catalogo do site traz codigo, nome, categoria e foto. Mesmo codigo = um produto,
+     * a regra da Nightech. O leitor do orcamento esta em arquivos.js (`orcamentoDoPdf`).
+     */
+    mesclarSiteComArquivo: true,
   },
 ];
 

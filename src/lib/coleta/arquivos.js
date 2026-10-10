@@ -529,6 +529,36 @@ function linhasDePdf(texto) {
   return itens;
 }
 
+/**
+ * ORCAMENTO em PDF (R&AC, 10/10/2026): "50 RAC4042 - CH.GANGORRA ...<tab>2,65 132,28" =
+ * quantidade, codigo, descricao abreviada, unitario e total. Nao e tabela de precos: cada
+ * valor vale para a QUANTIDADE pedida, e so entram os itens do orcamento.
+ *
+ * O unitario fica COMO IMPRESSO (decisao do dono): ele vem arredondado ao centavo e pode
+ * divergir do total / quantidade (0,18 x 300 = 54,00 contra 52,91 no papel).
+ *
+ * @returns {Array<{sku, desc, preco, unidades_orcadas}>}
+ */
+export function orcamentoDoPdf(texto) {
+  const numero = (valor) => Number(valor.replace(/\./g, "").replace(",", "."));
+  const linha = /^([\d.]+)\s+([A-Z]{2,5}\d+)\s+-\s+(.+?)\s*\t\s*([\d.]+,\d+)\s+([\d.]+,\d+)\s*$/;
+  const itens = [];
+  const vistos = new Set();
+
+  for (const linhaBruta of texto.split("\n")) {
+    const achado = linha.exec(linhaBruta.trim());
+    if (!achado) continue;
+    const quantidade = numero(achado[1]);
+    const preco = numero(achado[4]);
+    if (!(quantidade > 0) || !(preco > 0) || vistos.has(achado[2])) continue;
+    vistos.add(achado[2]);
+    // `unidades_orcadas`, e nao `qtd`/`quantidade`: o leitor generico leria esses nomes (por prefixo) como ESTOQUE.
+    itens.push({ sku: achado[2], desc: achado[3].trim(), preco, unidades_orcadas: quantidade });
+  }
+
+  return itens;
+}
+
 /** Catalogos com colunas visuais podem perder todos os separadores no getText(). */
 async function linhasDeTabelaVisualPdf(leitor) {
   const documento = await leitor.load();
@@ -685,9 +715,10 @@ export async function lerArquivo({ nome, bytes, fonte }) {
     if (aviso) avisos.push(aviso);
   } else if (formato === "pdf") {
     const { texto, tabela } = await textoDoPdf(bytes);
-    brutos = tabela.length ? tabela : linhasDePdf(texto);
+    const orcamento = orcamentoDoPdf(texto);
+    brutos = orcamento.length ? orcamento : tabela.length ? tabela : linhasDePdf(texto);
     siteSugerido = sitePublicadoNoPdf(texto);
-    origem = "catalogo em PDF do fornecedor";
+    origem = orcamento.length ? "orçamento em PDF do fornecedor" : "catalogo em PDF do fornecedor";
     if (brutos.length === 0 && texto.length > 0) {
       avisos.push(
         "O PDF tem texto, mas nenhuma linha com cara de produto. Catálogo em imagem, ou colunas em outro formato.",
@@ -748,9 +779,21 @@ export async function lerArquivo({ nome, bytes, fonte }) {
   }
 
   const produtos = brutos
-    .map((bruto) =>
-      comoProduto(bruto, { fonte, origem, imagens: imagensPorCodigo, modalidade }),
-    )
+    .map((bruto) => {
+      const produto = comoProduto(bruto, { fonte, origem, imagens: imagensPorCodigo, modalidade });
+      // Orcamento: o preco vale a partir da quantidade pedida (regra de COMPRA, com caixa propria na tela).
+      if (produto && bruto.unidades_orcadas > 0 && produto.prices.normal !== null) {
+        produto.precosPorQuantidade = [
+          {
+            rotulo: `${bruto.unidades_orcadas.toLocaleString("pt-BR")} unidades (orçamento)`,
+            minimo: bruto.unidades_orcadas,
+            maximo: null,
+            preco: produto.prices.normal,
+          },
+        ];
+      }
+      return produto;
+    })
     .filter(Boolean);
 
   return { formato, produtos, avisos, origem, modalidade, siteSugerido };
