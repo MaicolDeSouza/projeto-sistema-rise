@@ -535,7 +535,8 @@ function linhasDePdf(texto) {
  * valor vale para a QUANTIDADE pedida, e so entram os itens do orcamento.
  *
  * O unitario fica COMO IMPRESSO (decisao do dono): ele vem arredondado ao centavo e pode
- * divergir do total / quantidade (0,18 x 300 = 54,00 contra 52,91 no papel).
+ * divergir do total / quantidade (0,18 x 300 = 54,00 contra 52,91 no papel). A quantidade orcada
+ * NAO vira faixa de preco na tela (o dono tirou em 10/10/2026); so o preco fica.
  *
  * @returns {Array<{sku, desc, preco, unidades_orcadas}>}
  */
@@ -779,21 +780,9 @@ export async function lerArquivo({ nome, bytes, fonte }) {
   }
 
   const produtos = brutos
-    .map((bruto) => {
-      const produto = comoProduto(bruto, { fonte, origem, imagens: imagensPorCodigo, modalidade });
-      // Orcamento: o preco vale a partir da quantidade pedida (regra de COMPRA, com caixa propria na tela).
-      if (produto && bruto.unidades_orcadas > 0 && produto.prices.normal !== null) {
-        produto.precosPorQuantidade = [
-          {
-            rotulo: `${bruto.unidades_orcadas.toLocaleString("pt-BR")} unidades (orçamento)`,
-            minimo: bruto.unidades_orcadas,
-            maximo: null,
-            preco: produto.prices.normal,
-          },
-        ];
-      }
-      return produto;
-    })
+    .map((bruto) =>
+      comoProduto(bruto, { fonte, origem, imagens: imagensPorCodigo, modalidade }),
+    )
     .filter(Boolean);
 
   return { formato, produtos, avisos, origem, modalidade, siteSugerido };

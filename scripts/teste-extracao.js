@@ -2288,13 +2288,12 @@ console.log("\n— Orcamento em PDF da R&AC + catalogo do site (10/10/2026) —"
   ].map((item) => produtoDoCatalogoJs(item, { base, fonte: { name: "R&AC" }, familias: [["Chaves gangorra", /CHAVE GANGORRA/i]] }));
   const arquivo = itens.slice(0, 1).map((i) => ({
     name: i.desc, code: i.sku, prices: { normal: i.preco, promotional: null, reserva: null, comImpostos: null },
-    precosPorQuantidade: [{ rotulo: "50 unidades (orçamento)", minimo: 50, maximo: null, preco: i.preco }],
     stock: { status: "UNKNOWN", quantity: null, aChegar: null },
   }));
   const juntos = juntarListas([site, arquivo]);
   conferir("mescla: mesmo codigo vira um produto (site + orcamento)", juntos.length, 2);
   conferir("mescla: nome, foto e categoria do site", [juntos[0].name, juntos[0].images.length, juntos[0].category], ["Chave Gangorra KCD1-202 20A/8A 250V Preta c/ Marcação", 1, "Chaves gangorra"]);
-  conferir("mescla: preco e faixa de quantidade do orcamento", [juntos[0].prices.normal, juntos[0].precosPorQuantidade?.[0]?.minimo], [2.65, 50]);
+  conferir("mescla: preco do orcamento, sem faixa de quantidade", [juntos[0].prices.normal, juntos[0].precosPorQuantidade ?? null], [2.65, null]);
   conferir("mescla: item fora do orcamento continua sem preco", juntos[1].prices.normal, null);
 }
 

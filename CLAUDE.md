@@ -1329,9 +1329,9 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
     - **Preço = o unitário COMO IMPRESSO** (decisão do dono, Opção 2): ele vem arredondado ao centavo e diverge do total ÷
       quantidade em 8 itens (RAC4136: 0,18 × 300 = 54,00 contra 52,91 no papel; RAC5339: 2.000 × 0,19 = 380,00 contra
       388,01). Se um dia o dono quiser o preço exato, é total ÷ quantidade: uma linha em `orcamentoDoPdf`.
-    - **O preço vale para a quantidade orçada:** vai em `precosPorQuantidade` ("50 unidades (orçamento)", mínimo 50) além do
-      `prices.normal`. A quantidade do orçamento **não é estoque**: o campo se chama `unidades_orcadas`, porque o leitor
-      genérico casa "qtd" e "quantidade" por prefixo como estoque (foi o primeiro erro da implementação).
+    - **Sem faixa de quantidade na tela** (o dono mandou tirar em 10/10/2026): o orçamento só dá o `prices.normal`. O preço vale
+      para a quantidade orçada, mas isso não é mostrado. A quantidade do orçamento **não é estoque**: o campo se chama
+      `unidades_orcadas`, porque o leitor genérico casa "qtd" e "quantidade" por prefixo como estoque (foi o primeiro erro).
     - **Mescla com o site** (`mesclarSiteComArquivo` na entrada `rac`, a regra da Nightech): em `reprocessarArquivos` o "site" é
       o catálogo em arquivo (`colherCatalogoJs`, não o coletor de páginas). Site vence em nome, categoria e foto; o orçamento
       entra com o preço. Conferido com os dados reais: 2.195 produtos, 49 com preço (RAC4042 2,65 / RAC4136 0,18 / RAC4920 2,52).
