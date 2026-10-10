@@ -947,6 +947,14 @@ mesmo CI são o mesmo item.
   verdade. O `?.` não alcança `""`, e `"".find` derrubava a validação da fonte com
   `find is not a function` antes de qualquer preço ser lido. Campo de JSON de terceiro
   quer `Array.isArray`, não encadeamento opcional.
+- **Tray, bloco `description` com título dentro (Eletrodex, 10/10/2026):** o bloco abre com `<div class="title">Descrição
+  Geral</div>` e o texto vem depois, em `board_htm`. `descricaoDoBloco` cortava no PRIMEIRO `</div>` e a descrição saía
+  "Descrição Geral" (o JSON-LD trazia só "DS8877 8877"); a lista "Especificações DS-8877:" sumia junto. Agora o bloco é
+  recortado pelo `</div>` que o equilibra (`conteudoDoDiv`) e o título `class="title"` do começo sai. **Vale para toda loja**
+  com `class="...description..."` aninhado: a descrição pode ficar mais longa na próxima varredura (é correção).
+- **Tray, quadro `id="ficha"` (Código, Estoque, Categoria)** (`fichaDaLoja`): vira `code` (só na falta dos outros), `stock.quantity`
+  e `category` (depois dos breadcrumbs, antes do dataLayer), e as três linhas **saem das características**. Produtos já
+  gravados só mudam na próxima varredura, e o worker (ou `worker:pc`) precisa ser reiniciado para carregar o código.
 - **Loja Integrada** (Eletrogate): a galeria fica **fora** do escopo do `itemtype=Product`.
 - **Tray**: os relacionados ficam **dentro** desse escopo. As duas convenções são opostas,
   e é por isso que recortar no bloco do produto **não** serve de regra geral para imagem.

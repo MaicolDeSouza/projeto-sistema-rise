@@ -962,6 +962,33 @@ function acharNcm(especificacoes, descricao) {
   return digitos.length === 8 ? digitos : null;
 }
 
+/**
+ * Quadro "Ficha tecnica" que a Tray (Eletrodex, 10/10/2026) monta so com tres
+ * linhas: Codigo, Estoque e Categoria. Sao campos do produto, nao especificacao:
+ * viram `code`, `stock.quantity` e `category`, e saem da lista de caracteristicas
+ * (repeti-los la seria mostrar o mesmo dado duas vezes). Devolve `null` sem o quadro.
+ */
+function fichaDaLoja(html) {
+  const abertura = /<div[^>]*\bid=["']ficha["'][^>]*>/i.exec(html);
+  if (!abertura) return null;
+
+  const linhas = especificacoesDeTabela(
+    conteudoDoDiv(html, abertura.index + abertura[0].length),
+  );
+  const valorDe = (rotulo) =>
+    linhas.find((linha) => rotulo.test(linha.nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "")))?.valor ?? null;
+
+  const quantidade = /^\d{1,6}$/.test(valorDe(/^estoque$/i) ?? "")
+    ? Number(valorDe(/^estoque$/i))
+    : null;
+
+  return {
+    codigo: valorDe(/^codigo$/i),
+    quantidade,
+    categoria: valorDe(/^categoria$/i),
+  };
+}
+
 /** Especificacoes a partir de tabelas do HTML, quando nao ha dados estruturados. */
 function especificacoesDeTabela(html) {
   const itens = [];
@@ -1467,12 +1494,19 @@ function aVistaDaTray(tray) {
  * apareceria em dois lugares e nenhum deles clicavel.
  */
 function descricaoDoBloco(html) {
-  const bloco =
-    /<div[^>]*class=["'][^"']*\bdescription\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i.exec(
-      html,
-    );
+  const abertura =
+    /<div[^>]*class=["'][^"']*\bdescription\b[^"']*["'][^>]*>/i.exec(html);
+  if (!abertura) return null;
 
-  return bloco ? textoDoBlocoDeDescricao(bloco[1]) : null;
+  // O fechamento que EQUILIBRA a abertura, e nao o primeiro `</div>`: a Eletrodex
+  // (Tray, 10/10/2026) abre o bloco com `<div class="title">Descricao Geral</div>`
+  // e so depois vem o texto em `board_htm`. Cortar no primeiro `</div>` deixava a
+  // descricao inteira como "Descricao Geral" e perdia o texto e as especificacoes.
+  const interno = conteudoDoDiv(html, abertura.index + abertura[0].length)
+    // O titulo do bloco ("Descricao Geral") e rotulo da loja, nao texto do produto.
+    .replace(/^\s*<div[^>]*class=["'][^"']*\btitle\b[^"']*["'][^>]*>[\s\S]*?<\/div>/i, "");
+
+  return textoDoBlocoDeDescricao(interno);
 }
 
 function textoDoBlocoDeDescricao(blocoHtml) {
@@ -1965,6 +1999,7 @@ export function normalizarPagina({
   const micro = doMicrodata(html);
   const meta = metaTags(html);
   const tray = daTray(html);
+  const ficha = fichaDaLoja(html);
 
   // Listagem da plataforma ASP.NET: a home da Eletrus virava "produto" com o
   // primeiro card da vitrine, sem codigo e com a URL da home.
@@ -2121,6 +2156,7 @@ export function normalizarPagina({
     [estruturado?.skuFonte, estruturado?.fonte ?? "?"],
     [comoTexto(bruto?.productID), "json-ld productID"],
     [comoTexto(tray?.reference), "dataLayer da Tray"],
+    [ficha?.codigo, "ficha tecnica da loja"],
     [mpn, mpn ? `sem codigo proprio — usando o MPN (${origens.mpn})` : null],
     [codigoNaUrl(url, name), "codigo no endereco, confirmado pelo nome"],
   );
@@ -2152,6 +2188,7 @@ export function normalizarPagina({
     // existe dentro do JS que atualiza o painel por variante — nao no texto
     // visivel que quantidadeNoTexto varre.
     estoqueDaRoboCore(html, url, code) ??
+    ficha?.quantidade ??
     quantidadeNoTexto(escopo);
 
   const status = situacaoDe(disponibilidade);
@@ -2243,8 +2280,18 @@ export function normalizarPagina({
   const daListaHtml = especificacoesDeListaHtml(html);
   const juntas = juntarFichas(juntarFichas(aspnet?.especificacoes ?? [], declaradas), daListaHtml);
 
+  // Com o quadro "Ficha tecnica" da loja lido, Codigo, Estoque e Categoria ja
+  // viraram campos do produto e nao se repetem como caracteristica.
+  const semFichaDaLoja = ficha
+    ? juntas.filter(
+        (linha) =>
+          !/^(c[oó]digo|estoque|categoria)$/i.test(linha.nome) ||
+          ![ficha.codigo, ficha.quantidade?.toString(), ficha.categoria].includes(linha.valor),
+      )
+    : juntas;
+
   const specifications = semLinhasDeCodigo(
-    juntas.length > 0 ? juntas : especificacoesDeLista(description),
+    semFichaDaLoja.length > 0 ? semFichaDaLoja : especificacoesDeLista(description),
     identificadoresDeVariante,
   );
 
@@ -2303,6 +2350,7 @@ export function normalizarPagina({
     [micro?.categoria, "breadcrumb"],
     [caminhoDoJsonLd(html, name), "breadcrumb do JSON-LD"],
     [comoTexto(bruto?.category), "json-ld category"],
+    [ficha?.categoria, "ficha tecnica da loja"],
     [doDataLayer(html, code), "dataLayer de analytics"],
   );
 

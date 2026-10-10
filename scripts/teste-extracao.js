@@ -2297,5 +2297,24 @@ console.log("\n— Orcamento em PDF da R&AC + catalogo do site (10/10/2026) —"
   conferir("mescla: item fora do orcamento continua sem preco", juntos[1].prices.normal, null);
 }
 
+// Eletrodex (Tray, 10/10/2026): o bloco `description` abre com um <div class="title">
+// e so depois vem o texto; a "Ficha tecnica" traz Codigo, Estoque e Categoria.
+console.log("\n— Tray (Eletrodex): descricao com titulo, especificacoes e ficha da loja —");
+{
+  const htmlEletrodex = `<html><head>
+<script type="application/ld+json">{"@type":"Product","name":"DS-8877 - Chave Pentalobe","sku":"1005","description":"DS8877 8877","offers":{"price":"33.76","availability":"http://schema.org/InStock"}}</script>
+<script>dataLayer = [{"idProduct":"1005","nameProduct":"DS-8877","category":"Chaves","price":"33.76","reference":"M1B2C11","availability":"YES"}];</script></head><body>
+<div data-tab-id="#descricao" class="section-box description"><div class="title">Descri&ccedil;&atilde;o Geral</div>
+<div class="board_htm"><h2><strong>DS-8877 - Chave Pentalobe</strong></h2><p>Chave de fenda de precis&atilde;o feita de alum&iacute;nio puro.</p>
+<h2><strong>Especifica&ccedil;&otilde;es DS-8877:</strong></h2><ul><li>Material: Cabe&ccedil;a de a&ccedil;o Cr-V</li><li>Tipo: Chave de Fenda de Precis&atilde;o</li><li>Tamanho: 125mm</li></ul></div></div>
+<div id="ficha" class="section-box"><div class="title">Ficha t&eacute;cnica</div><div class="board_htm"><table>
+<tr><td>C&oacute;digo</td><td>M1B2C11</td></tr><tr><td>Estoque</td><td>5</td></tr><tr><td>Categoria</td><td>Chaves</td></tr></table></div></div>
+</body></html>`;
+  const e = normalizarPagina({ html: htmlEletrodex, url: "https://www.eletrodex.net/ds-8877", fonte: "Eletrodex" }).produtos[0];
+  conferir("eletrodex: descricao e o texto do produto, nao o titulo do bloco", /alum[ií]nio puro/.test(e.description) && !/^Descri/.test(e.description), true);
+  conferir("eletrodex: especificacoes da lista da descricao", e.specifications.map((i) => i.nome), ["Material", "Tipo", "Tamanho"]);
+  conferir("eletrodex: codigo, estoque e categoria da ficha da loja", [e.code, e.stock.quantity, e.category], ["M1B2C11", 5, "Chaves"]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
