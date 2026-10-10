@@ -147,7 +147,7 @@ npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
 npm run worker:pc                 # NO PC: abre um tunel SSH ate o banco da VPS, poe na fila as fontes ativas marcadas "Varrer pelo PC" (o site bloqueia a VPS), varre SO elas, grava direto na VPS e TERMINA quando acabar (`-- --ficar` mantem no ar). Ctrl+C encerra. O "Varrer agora" da fonte no Rise do PC faz o mesmo, so para ela. Ver "Fonte que bloqueia a VPS"
-npm run teste:vps                 # 58 asserções das regras do cartão "Servidor VPS" (Integrações): onde os botões funcionam, decisões de deploy e cópia, log do deploy, quem o ajudante para (e quem NUNCA) e os scripts mandados à VPS. SEM rede, SEM banco, SEM processos
+npm run teste:vps                 # 69 asserções das regras do cartão "Servidor VPS" (Integrações): onde os botões funcionam, decisões de deploy e cópia, log do deploy, quem o ajudante para (e quem NUNCA) e os scripts mandados à VPS; e do nome do usuário e do botão Sair (src/lib/sessao.js). SEM rede, SEM banco, SEM processos
 npm run teste:fila-pc             # 66 asserções dos TRÊS modos do worker na fila (normal, do PC e de teste): quem pega, recolhe e fecha o job de uma fonte marcada, a regra "servidor do banco é o Windows", o "Varrer agora" do Rise do PC (só a fonte pedida) e o arquivo de estado do worker do PC (Postgres local, SEM rede; só escreve fontes e jobs ZZ-PC-*)
 npm run backup                    # dados/backup/sistema_rise-AAAAMMDD-HHMMSS.dump (pg_dump, conferido com pg_restore; guarda os 4 mais recentes)
 npm run teste:worker              # 58 asserções: rede, fila, retomada e o worker de verdade (~6 min). RODE SOZINHO: junto de outros testes o "segundo worker" já saiu com 3221226505 (0xC0000409, aborto do Node no Windows ao encerrar, antes de o código 3 chegar); sozinho passa
@@ -4002,6 +4002,15 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
     sai em `dados/backup/vps-agora-*.dump` e é apagado no sucesso. Log em `dados/logs/vps-copia-botao.log`; o servidor
     religado escreve em `dados/logs/servidor-dev-botao.log` (ele roda sem janela; para pará-lo, o Gerenciador de Tarefas
     ou um novo clique).
+- **Nome do usuário e "Sair" no menu** (pedido do dono em 10/10/2026, desenho aprovado): no rodapé, acima da versão, a
+  inicial, o nome e o botão **Sair** (recolhido: só a inicial e o ícone). O nome é o `Remote-User` que o `forward_auth` grava
+  (o Caddy apaga qualquer Remote-* de fora), lido pelo layout em `sessaoDoRise` (`src/lib/sessao.js`) **só na VPS**; no PC
+  aparece "PC de desenvolvimento · sem login", sem Sair. O Sair é um **formulário POST** para `/api/sair`
+  (`src/app/api/sair/route.js`), que só aceita o envio do próprio Rise (`Origin` igual ao `Host`), repassa o cookie ao
+  `POST http://auth:3000/api/user/logout` do Tinyauth (o caminho medido em 10/10/2026; `/logout` é só a página dele, mais
+  um clique) e devolve o `Set-Cookie` que apaga a sessão, com `303` para `/`, que sem sessão cai no login. No topo do menu:
+  o ícone da 4hobby (`public/marcas/4hobby.svg`, vetorizado do logo do dono) abre www.4hobby.com.br em aba nova, e o "R" e
+  o nome Rise levam ao Painel.
 - **Versão no pé do menu:** na VPS é a hora do deploy (`DD.MM.AAAA.HH.MM`) e o commit; no PC é `dev` mais a hora do
   último commit (`+` se há alteração não commitada). **Mesmo commit nos dois = mesmo código**; a hora só dá a ordem.
 - **Dois apps de OAuth por plataforma:** o app do PC (redirect em `localhost`/`localtest.me`) e o da VPS (redirect em

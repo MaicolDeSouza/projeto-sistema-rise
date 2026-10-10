@@ -4,10 +4,11 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
+import { LogOut, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 
 import { blocos, ehRotaAtiva } from "@/lib/blocos";
 import { normalizar } from "@/lib/texto";
+import { inicialDoNome } from "@/lib/sessao";
 import {
   definirRecolhida,
   lerRecolhida,
@@ -20,7 +21,77 @@ import SidebarItem from "./SidebarItem";
 const VERSAO = process.env.NEXT_PUBLIC_RISE_VERSAO || "dev";
 const COMMIT = process.env.NEXT_PUBLIC_RISE_COMMIT || null;
 
-export default function Sidebar() {
+/**
+ * O rodape com quem esta usando o Rise (pedido do dono em 10/10/2026, desenho aprovado): na VPS, a inicial, o nome do
+ * login e o botao Sair; no PC, que nao tem login, so o aviso. O Sair e um formulario (POST /api/sair), e nao um link:
+ * um GET poderia ser disparado por qualquer imagem ou pre-carregamento e deslogar sem querer.
+ */
+function Usuario({ sessao, recolhida }) {
+  if (!sessao) return null;
+  const circulo = "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-menu-ativo text-sm font-medium text-white";
+
+  if (sessao.ambiente !== "vps") {
+    return (
+      <div
+        className={`flex items-center gap-2 border-t border-white/10 py-2.5 ${recolhida ? "justify-center px-2" : "px-3"}`}
+        title="PC de desenvolvimento · sem login"
+      >
+        <span className={circulo}>
+          <Monitor size={15} />
+        </span>
+        {!recolhida && (
+          <span className="min-w-0">
+            <span className="block truncate text-sm text-white">PC de desenvolvimento</span>
+            <span className="block text-[11px] text-menu-texto/60">sem login</span>
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  if (!sessao.nome) return null;
+  const sair = (
+    <form method="post" action="/api/sair">
+      <button
+        type="submit"
+        title="Sair do Rise"
+        aria-label="Sair do Rise"
+        className={
+          recolhida
+            ? "rounded-md p-1.5 text-white hover:bg-menu-hover"
+            : "inline-flex items-center gap-1 rounded-md border border-white/20 px-2 py-1 text-xs text-white hover:bg-menu-hover"
+        }
+      >
+        <LogOut size={recolhida ? 18 : 13} />
+        {!recolhida && "Sair"}
+      </button>
+    </form>
+  );
+
+  if (recolhida) {
+    return (
+      <div className="flex flex-col items-center gap-1.5 border-t border-white/10 py-2.5">
+        <span className={circulo} title={sessao.nome}>
+          {inicialDoNome(sessao.nome)}
+        </span>
+        {sair}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 border-t border-white/10 px-3 py-2.5">
+      <span className={circulo}>{inicialDoNome(sessao.nome)}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm text-white">{sessao.nome}</span>
+        <span className="block text-[11px] text-menu-texto/60">conectado</span>
+      </span>
+      {sair}
+    </div>
+  );
+}
+
+export default function Sidebar({ sessao = null }) {
   const pathname = usePathname();
 
   const recolhida = useSyncExternalStore(
@@ -195,6 +266,8 @@ export default function Sidebar() {
             </p>
           )}
         </nav>
+
+        <Usuario sessao={sessao} recolhida={recolhida} />
 
         {/*
           Versao que esta no ar (pedido do dono em 07/10/2026): e como ele confere qual build a VPS roda.

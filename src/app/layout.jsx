@@ -1,6 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 
 import Sidebar from "@/components/Sidebar";
+import { sessaoDoRise } from "@/lib/sessao";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,7 +20,10 @@ export const metadata = {
   description: "Controle das operações da loja: anúncios, pedidos e estoque.",
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  // Quem esta logado (o Remote-User que o login da VPS grava) para o rodape do menu e o botao Sair.
+  const sessao = sessaoDoRise(await headers(), process.env);
+
   return (
     <html
       lang="pt-BR"
@@ -26,7 +31,7 @@ export default function RootLayout({ children }) {
     >
       <body className="min-h-full">
         <div className="flex min-h-screen flex-col lg:flex-row">
-          <Sidebar />
+          <Sidebar sessao={sessao} />
           <main className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8">
             {children}
           </main>

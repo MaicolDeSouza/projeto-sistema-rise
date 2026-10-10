@@ -10,6 +10,7 @@
  */
 
 import * as regras from "../src/lib/vps/regras.js";
+import { ambienteDoRise, envioDoProprioRise, inicialDoNome, sessaoDoRise } from "../src/lib/sessao.js";
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -203,6 +204,22 @@ conferir(
   "Copia pronta em sistema_rise: 1317 produto(s), 70513 coletado(s)",
 );
 conferir("passos da copia: cinco, sem repetir", new Set(Object.values(regras.PASSOS_DA_COPIA)).size, 5);
+
+// ---------------------------------------------------------------------------
+console.log("\n— quem esta logado e o botao Sair (src/lib/sessao.js) —");
+
+const cab = (valores) => ({ get: (nome) => valores[nome.toLowerCase()] ?? null });
+conferir("VPS = RISE_PRODUCAO; PC = sem ela ou 0", [ambienteDoRise({ RISE_PRODUCAO: "1" }), ambienteDoRise({}), ambienteDoRise({ RISE_PRODUCAO: "0" })], ["vps", "pc", "pc"]);
+conferir("na VPS o nome vem do Remote-User", sessaoDoRise(cab({ "remote-user": "Maicol" }), { RISE_PRODUCAO: "1" }), { ambiente: "vps", nome: "Maicol" });
+conferir("no PC o Remote-User e ignorado (qualquer um na rede local o mandaria)", sessaoDoRise(cab({ "remote-user": "Intruso" }), {}), { ambiente: "pc", nome: null });
+conferir("na VPS sem o cabecalho: sem nome", sessaoDoRise(cab({}), { RISE_PRODUCAO: "1" }), { ambiente: "vps", nome: null });
+conferir("nome sem caractere de controle e curto", sessaoDoRise(cab({ "remote-user": "  Mai\u0000col\n " + "x".repeat(80) }), { RISE_PRODUCAO: "1" }).nome.length <= 60, true);
+conferir("inicial do nome", [inicialDoNome("Maicol"), inicialDoNome("élcio"), inicialDoNome(""), inicialDoNome(null)], ["M", "É", "?", "?"]);
+conferir("Sair vindo do proprio Rise (Origin igual ao Host): aceito", envioDoProprioRise({ origin: "https://rise.4hobby.com.br", host: "rise.4hobby.com.br" }), true);
+conferir("Sair vindo de outro site: recusado", envioDoProprioRise({ origin: "https://site-malicioso.com", host: "rise.4hobby.com.br" }), false);
+conferir("subdominio parecido: recusado", envioDoProprioRise({ origin: "https://rise.4hobby.com.br.atacante.com", host: "rise.4hobby.com.br" }), false);
+conferir("sem Origin: vale o Sec-Fetch-Site same-origin", [envioDoProprioRise({ host: "rise.4hobby.com.br", secFetchSite: "same-origin" }), envioDoProprioRise({ host: "rise.4hobby.com.br", secFetchSite: "cross-site" }), envioDoProprioRise({ host: "rise.4hobby.com.br" })], [true, false, false]);
+conferir("Origin \"null\" ou quebrado, ou sem Host: recusado", [envioDoProprioRise({ origin: "null", host: "rise.4hobby.com.br" }), envioDoProprioRise({ origin: "nao e url", host: "rise.4hobby.com.br" }), envioDoProprioRise({ origin: "https://rise.4hobby.com.br", host: "" })], [false, false, false]);
 
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
