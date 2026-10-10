@@ -94,6 +94,7 @@ async function testarCatalogoJs({ url, nome, tipo }, catalogo) {
   const colheita = await colherCatalogoJs({
     urlBase: /^https?:\/\//i.test(url) ? url : `https://${url}`,
     caminho: catalogo.caminho,
+    caminhoFamilias: catalogo.familias,
     fonte: { name: nome, type: tipo },
   });
   const passos = [

@@ -2233,7 +2233,7 @@ console.log("\n— Ficha com \"NOME = valor\" e datasheet por download.php (Poli
 
 console.log("\n— Catalogo em arquivo JavaScript (R&AC, 10/10/2026) —");
 {
-  const { listaDoCatalogoJs, produtoDoCatalogoJs } = await import("../src/lib/coleta/catalogo-js.js");
+  const { listaDoCatalogoJs, produtoDoCatalogoJs, familiasDoCatalogoJs } = await import("../src/lib/coleta/catalogo-js.js");
   const { catalogoJsDoEndereco } = await import("../src/lib/coleta/fornecedores.js");
   const { linhaDoProduto } = await import("../src/lib/coleta/linha.js");
   const arquivo = 'window.PRODUTOS=[{"codigo":"RAC4000","descricao":"Chave Gangorra KCD1-101 2A/8A 250V Preta c/ Marcação","imagem":"img/produtos/rac4000.jpg","pagina_pdf":[6],"imagem_compartilhada":false},{"codigo":"RAC4001","descricao":"Chave Gangorra Vermelha","imagem":"img/produtos/rac4000.jpg","pagina_pdf":[6],"imagem_compartilhada":true},{"codigo":"","descricao":"sem codigo"},{"codigo":"RAC9","descricao":"  "}];';
@@ -2247,6 +2247,13 @@ console.log("\n— Catalogo em arquivo JavaScript (R&AC, 10/10/2026) —");
   conferir("catalogo-js: foto vira endereco absoluto", produtos[0].images, ["https://www.rac.tec.br/img/produtos/rac4000.jpg"]);
   conferir("catalogo-js: sem preco e sem estoque, nunca inventados", [produtos[0].prices.normal, produtos[0].stock.quantity], [null, null]);
   conferir("catalogo-js: foto compartilhada fica registrada na origem", Boolean(produtos[1].origens.imagem), true);
+  const familias = familiasDoCatalogoJs("const families=[['Buzzers','BUZZER'],['Chaves gangorra','CHAVE GANGORRA'],['Quebrada','(']];");
+  conferir("catalogo-js: le as familias do site e ignora expressao que nao compila", familias?.map(([nome]) => nome), ["Buzzers", "Chaves gangorra"]);
+  conferir("catalogo-js: arquivo sem familias devolve null", familiasDoCatalogoJs("var x=1"), null);
+  const comFamilia = lista.map((item) => produtoDoCatalogoJs(item, { base, fonte: { name: "R&AC" }, familias })).filter(Boolean);
+  conferir("catalogo-js: categoria = primeira familia que casa na descricao", comFamilia[0].category, "Chaves gangorra");
+  conferir("catalogo-js: sem familia que case, a do proprio site", produtoDoCatalogoJs({ codigo: "RAC1", descricao: "Resistor 1K" }, { base, familias }).category, "Componente eletrônico");
+  conferir("catalogo-js: sem a lista de familias, categoria vazia", produtos[0].category, null);
   const linha = linhaDoProduto(produtos[0], { origem: "site" });
   conferir("catalogo-js: a linha do banco tem chave por codigo", linha.chave, "codigo:RAC4000");
   conferir("catalogo-js: dominio rac.tec.br (com ou sem www) usa o leitor", [Boolean(catalogoJsDoEndereco("www.rac.tec.br")), Boolean(catalogoJsDoEndereco("https://rac.tec.br/index.html"))], [true, true]);

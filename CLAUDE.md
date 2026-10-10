@@ -129,7 +129,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 518 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 523 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.HH.MM do deploy, em São Paulo; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -1309,12 +1309,18 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
 - **R&AC (rac.tec.br, 10/10/2026): catálogo em UM arquivo JavaScript, sem página de produto nem preço.** O dono pediu para
   varrer e o coletor de páginas devolvia zero. O `index.html` carrega `js/produtos-data.js`
   (`window.PRODUTOS=[{codigo, descricao, imagem, pagina_pdf, imagem_compartilhada, ...}]`, 2.195 itens, 590 KB) e a busca roda
-  no navegador. Atacado e varejo por orçamento no WhatsApp: **não há preço, estoque, marca, categoria nem endereço por produto.**
+  no navegador. Atacado e varejo por orçamento no WhatsApp: **não há preço, estoque, marca nem endereço por produto, e a categoria não vem no dado.**
   - **Leitor:** `src/lib/coleta/catalogo-js.js` (`listaDoCatalogoJs` lê o array como JSON, NUNCA executa o arquivo;
     `produtoDoCatalogoJs`; `colherCatalogoJs`, que baixa por `buscarPagina`, então robots.txt e ritmo valem). Ligado por
     dado em `fornecedores.js` (entrada `rac`, `catalogoJs: { caminho }`, reconhecida **só pelo domínio** em
     `catalogoJsDoEndereco`), em `varrerFonte` (`varrerCatalogoJs`, grava de uma vez e vale a trava de queda de 50%) e em
     `testarFonte` (3 itens de amostra, resultado "PARCIAL" por não haver preço, o que é o desenho do site).
+  - **Categoria = a "família" que o site mostra no card** (pedido do dono em 10/10/2026, com o print de "Buzzers"): o site a
+    deduz da descrição por uma lista em `js/catalogo-inicial.js` (`const families=[['Buzzers','BUZZER'],...]`, 90 famílias,
+    a primeira expressão sem caixa que casa vence, senão "Componente eletrônico"). `familiasDoCatalogoJs` lê essa lista como
+    texto a cada coleta (não copiamos: o site a muda), e a categoria sai com a origem "família do site, deduzida da
+    descrição". Sem a lista (arquivo fora do ar) a categoria fica vazia, sem derrubar a coleta. Medido: 2.195 itens em 84
+    famílias, 57 em "Componente eletrônico" e os 6 buzzers do print.
   - **O produto sai com** código `RACnnnn` (chave `codigo:`), descrição como nome e a foto em endereço absoluto; `url` nula
     (não há página). Preço, estoque e o resto ficam `null`, nunca inventados. `imagem_compartilhada` (o mesmo arquivo serve a
     vários códigos) vai para a origem da imagem.

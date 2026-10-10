@@ -91,7 +91,7 @@ export const FORNECEDORES = [
      * `index.html` carrega `js/produtos-data.js` com os 2.195 itens ({codigo,
      * descricao, imagem}) e a busca roda no navegador. O leitor esta em catalogo-js.js.
      */
-    catalogoJs: { caminho: "js/produtos-data.js" },
+    catalogoJs: { caminho: "js/produtos-data.js", familias: "js/catalogo-inicial.js" },
   },
 ];
 

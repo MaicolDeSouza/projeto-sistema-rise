@@ -26,6 +26,34 @@ export function listaDoCatalogoJs(texto, variavel = "PRODUTOS") {
   }
 }
 
+/**
+ * As FAMILIAS que o site usa para dar categoria ao item: `const families=[['Buzzers','BUZZER'],...]`
+ * em js/catalogo-inicial.js, onde o segundo valor e uma expressao (sem caixa) testada na
+ * descricao. A primeira que casa vence; nenhuma = "Componente eletrônico". Lida como texto
+ * (nunca executada) a cada coleta, para acompanhar o que o site mostra.
+ *
+ * @returns {Array<[string, RegExp]>|null}
+ */
+export function familiasDoCatalogoJs(texto) {
+  const inicio = texto.indexOf("const families=[");
+  if (inicio < 0) return null;
+  const fim = texto.indexOf("];", inicio);
+  if (fim < 0) return null;
+
+  const padrao = /\[\s*'((?:\\.|[^'\\])*)'\s*,\s*'((?:\\.|[^'\\])*)'\s*\]/g;
+  const familias = [];
+  for (const par of texto.slice(inicio, fim + 2).matchAll(padrao)) {
+    try {
+      familias.push([par[1], new RegExp(par[2], "i")]);
+    } catch {
+      // Expressao que nao compila: aquela familia e ignorada, as outras valem.
+    }
+  }
+  return familias.length > 0 ? familias : null;
+}
+
+const FAMILIA_PADRAO = "Componente eletrônico";
+
 const comoTexto = (valor) => {
   const texto = typeof valor === "string" ? valor.trim() : "";
   return texto === "" ? null : texto;
@@ -37,7 +65,7 @@ const comoTexto = (valor) => {
  * `imagem_compartilhada` indica que o mesmo arquivo serve a varios codigos (cores
  * de uma chave, por exemplo): a foto vale como referencia, e fica registrado.
  */
-export function produtoDoCatalogoJs(item, { base, fonte, coletadoEm = new Date() }) {
+export function produtoDoCatalogoJs(item, { base, fonte, familias = null, coletadoEm = new Date() }) {
   const codigo = comoTexto(item?.codigo);
   const nome = comoTexto(item?.descricao);
   if (!codigo || !nome) return null;
@@ -52,6 +80,8 @@ export function produtoDoCatalogoJs(item, { base, fonte, coletadoEm = new Date()
     }
   }
 
+  // Sem a lista de familias (arquivo fora do ar), categoria vazia: nunca um palpite.
+  const categoria = familias ? (familias.find(([, regra]) => regra.test(nome))?.[0] ?? FAMILIA_PADRAO) : null;
   const paginas = [].concat(item.pagina_pdf ?? []).join(", ");
 
   return {
@@ -61,7 +91,7 @@ export function produtoDoCatalogoJs(item, { base, fonte, coletadoEm = new Date()
     ean: null,
     brand: null,
     model: null,
-    category: null,
+    category: categoria,
     ncm: null,
     // O site nao tem endereco por produto: a busca e feita no navegador.
     url: null,
@@ -77,6 +107,7 @@ export function produtoDoCatalogoJs(item, { base, fonte, coletadoEm = new Date()
     plataforma: { id: "catalogo-js", nome: "Catálogo em arquivo JavaScript", confianca: "alta" },
     collectedAt: coletadoEm.toISOString(),
     origens: {
+      ...(categoria ? { category: "família do site, deduzida da descrição" } : {}),
       catalogo: `${fonte?.name ?? "catálogo"}: arquivo de produtos do site${paginas ? `, página(s) ${paginas} do PDF` : ""}`,
       ...(item.imagem_compartilhada ? { imagem: "foto compartilhada com outros códigos" } : {}),
     },
@@ -88,7 +119,7 @@ export function produtoDoCatalogoJs(item, { base, fonte, coletadoEm = new Date()
  *
  * @returns {Promise<{produtos: object[], visitas: number, erro: string|null}>}
  */
-export async function colherCatalogoJs({ urlBase, caminho, fonte, sinal }) {
+export async function colherCatalogoJs({ urlBase, caminho, caminhoFamilias = null, fonte, sinal }) {
   const base = new URL(urlBase);
   const alvo = new URL(caminho, base).toString();
 
@@ -101,11 +132,18 @@ export async function colherCatalogoJs({ urlBase, caminho, fonte, sinal }) {
   const lista = listaDoCatalogoJs(resposta.corpo);
   if (!lista) return { produtos: [], visitas: 1, erro: "o arquivo do catálogo não tem o formato esperado" };
 
+  // A categoria e opcional: falhar aqui nao derruba a coleta.
+  let familias = null;
+  if (caminhoFamilias) {
+    const regras = await buscarPagina(new URL(caminhoFamilias, base).toString(), { sinal });
+    if (regras.ok && regras.corpo) familias = familiasDoCatalogoJs(regras.corpo);
+  }
+
   const coletadoEm = new Date();
   const vistos = new Set();
   const produtos = [];
   for (const item of lista) {
-    const produto = produtoDoCatalogoJs(item, { base, fonte, coletadoEm });
+    const produto = produtoDoCatalogoJs(item, { base, fonte, familias, coletadoEm });
     if (!produto || vistos.has(produto.code)) continue;
     vistos.add(produto.code);
     produtos.push(produto);

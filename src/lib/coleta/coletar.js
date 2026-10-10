@@ -376,6 +376,7 @@ async function varrerCatalogoJs(fonte, catalogo, aoProgredir, sinal) {
   const colheita = await colherCatalogoJs({
     urlBase: enderecoDaFonte(fonte),
     caminho: catalogo.caminho,
+    caminhoFamilias: catalogo.familias,
     fonte: { name: fonte.nome, type: fonte.tipo },
     sinal,
   });
