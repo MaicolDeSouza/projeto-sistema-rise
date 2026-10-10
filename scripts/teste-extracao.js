@@ -1822,6 +1822,29 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
     [codigoDosItensInclusos("Itens inclusos: (Cód:100101)\r"), substituirCodigoDosItens("A\n\nItens inclusos: (Cód:100101)\r\n- 01 X;", 2, "ZZ-1").split("\n")[2]],
     ["100101", "Itens inclusos: (Cód:ZZ-1)"]);
 
+  // Lapis e lixeira em todos os campos (pedido do dono em 10/10/2026).
+  const { ehCabecalhoDeSecao, substituirLinha, removerLinha, excluirOpcaoDeParagrafo, editarOpcaoDeParagrafo } = await import("../src/lib/ia/revisaoDescricao.js");
+  const modelo = "TITULO\n\nParagrafo um.\nParagrafo dois.\n\nEspecificações técnicas:\n- Clock: 16MHz;\n\nItens inclusos: (Cod:100101)\n- 01 PLACA;\n- 01 CABO;\n\nGarantia:\n- 90 dias;";
+  conferir("cabecalhos de secao sao reconhecidos", [ehCabecalhoDeSecao("Garantia:"), ehCabecalhoDeSecao("Itens inclusos: (Cod:1)"), ehCabecalhoDeSecao("Especificações técnicas:"), ehCabecalhoDeSecao("- 90 dias;")], [true, true, true, false]);
+  conferir("editar o titulo", substituirLinha(modelo, 0, "  NOVO   TITULO ").split("\n")[0], "NOVO TITULO");
+  conferir("editar um paragrafo e um item incluso", [substituirLinha(modelo, 2, "Outro texto.").split("\n")[2], substituirLinha(modelo, 9, "- 01 PLACA UNO;").split("\n")[9]], ["Outro texto.", "- 01 PLACA UNO;"]);
+  conferir("editar: cabecalho, linha em branco e texto vazio nao mexem", [substituirLinha(modelo, 5, "X"), substituirLinha(modelo, 1, "X"), substituirLinha(modelo, 0, "   ")], [modelo, modelo, modelo]);
+  conferir("editar: quebra de linha vira espaco", substituirLinha(modelo, 2, "a\nb").split("\n")[2], "a b");
+  conferir("excluir um item incluso", removerLinha(modelo, 10), modelo.replace("- 01 CABO;\n", ""));
+  conferir("excluir o unico paragrafo entre dois espacos nao deixa buraco", removerLinha("A\n\nB\n\nC", 2), "A\n\nC");
+  conferir("excluir: cabecalho e linha em branco nao mexem", [removerLinha(modelo, 8), removerLinha(modelo, 1)], [modelo, modelo]);
+  const grupos = [["p1a", "p1b", "p1c"], ["p2a", "p2b"]];
+  const tirouEscolhida = excluirOpcaoDeParagrafo(grupos, [1, 0], 0, 1);
+  conferir("excluir a opcao escolhida: a primeira assume, e a linha do texto troca", [tirouEscolhida.opcoes[0], tirouEscolhida.escolhidos, tirouEscolhida.linhaAntes, tirouEscolhida.linhaDepois], [["p1a", "p1c"], [0, 0], "p1b", "p1a"]);
+  const tirouAntes = excluirOpcaoDeParagrafo(grupos, [2, 0], 0, 0);
+  conferir("excluir uma opcao antes da escolhida: a escolha acompanha, a linha nao muda", [tirouAntes.escolhidos[0], tirouAntes.linhaAntes, tirouAntes.linhaDepois], [1, "p1c", "p1c"]);
+  conferir("excluir ate sobrar uma: a ultima opcao nao se exclui; indice invalido tambem", [excluirOpcaoDeParagrafo(grupos, [0, 0], 1, 0).opcoes[1], excluirOpcaoDeParagrafo([["so"]], [0], 0, 0), excluirOpcaoDeParagrafo(grupos, [0, 0], 0, 9)], [["p2b"], null, null]);
+  const editouEscolhida = editarOpcaoDeParagrafo(grupos, [1, 0], 0, 1, "  novo   texto ");
+  conferir("editar a opcao escolhida: a linha do texto muda junto", [editouEscolhida.opcoes[0], editouEscolhida.linhaAntes, editouEscolhida.linhaDepois], [["p1a", "novo texto", "p1c"], "p1b", "novo texto"]);
+  const editouOutra = editarOpcaoDeParagrafo(grupos, [1, 0], 0, 2, "x");
+  conferir("editar outra opcao: a linha do texto nao muda", [editouOutra.linhaAntes, editouOutra.linhaDepois], ["p1b", "p1b"]);
+  conferir("editar com texto vazio ou indice invalido: null", [editarOpcaoDeParagrafo(grupos, [0, 0], 0, 0, "  "), editarOpcaoDeParagrafo(grupos, [0, 0], 0, 7, "x")], [null, null]);
+
   // Mover quadros de parametro: a posicao e a ordem de desempate.
   const { moverQuadroNoEstado } = await import("../src/lib/ia/revisaoDescricao.js");
   const quadros = [{ id: "a", posicao: 2 }, { id: "b", posicao: 2 }, { id: "c", posicao: 5 }];

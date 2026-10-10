@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, GripVertical, Pencil, Trash2, X } from "lucide-react";
-import { codigoDosItensInclusos, formatarLinhaTecnica, limitesEspecificacoes } from "@/lib/ia/revisaoDescricao";
+import { codigoDosItensInclusos, ehCabecalhoDeSecao, formatarLinhaTecnica, limitesEspecificacoes } from "@/lib/ia/revisaoDescricao";
 
 const CORES = [
   { base: "border-amber-400 bg-amber-50", marcada: "border-amber-600 bg-amber-200" },
@@ -32,6 +32,9 @@ export default function LinhasDescricao({
   fontesDasLinhas = {}, linhasEditadas = new Set(), ordemDosQuadros = [], aoEditarLinha, aoMoverGrupo,
   // O codigo dos Itens inclusos: o do produto vem sugerido, e o lapis da linha o deixa editavel.
   codigoSugerido = "", aoEditarCodigo,
+  // Lapis e lixeira em TODOS os campos (pedido do dono em 10/10/2026): as linhas que nao sao especificacao (titulo,
+  // paragrafo, itens inclusos, garantia) e as opcoes de paragrafo.
+  aoEditarLinhaGeral, aoExcluirLinhaGeral, aoEditarOpcaoDeParagrafo, aoExcluirOpcaoDeParagrafo,
 }) {
   const [destino, setDestino] = useState(null);
   // Opcao em edicao: { chave, valor }. Uma por vez; salvar grava o texto na opcao, cancelar descarta.
@@ -40,6 +43,8 @@ export default function LinhasDescricao({
   const [edicaoLinha, setEdicaoLinha] = useState(null);
   // Codigo da linha "Itens inclusos" em edicao: { indice, valor }.
   const [edicaoCodigo, setEdicaoCodigo] = useState(null);
+  // Opcao de paragrafo em edicao: { grupo, indice, valor }.
+  const [edicaoParagrafo, setEdicaoParagrafo] = useState(null);
   // O item movido por ultimo: { tipo: "linha", indice } ou { tipo: "grupo", id }.
   const [destaque, setDestaque] = useState(null);
 
@@ -67,8 +72,15 @@ export default function LinhasDescricao({
   function salvarEdicaoDaLinha() {
     const valor = edicaoLinha?.valor.trim();
     if (!valor) return;
-    aoEditarLinha?.(edicaoLinha.indice, valor);
+    // `geral`: linha que nao e especificacao (titulo, paragrafo, itens inclusos, garantia): o texto fica como foi digitado.
+    (edicaoLinha.geral ? aoEditarLinhaGeral : aoEditarLinha)?.(edicaoLinha.indice, valor);
     setEdicaoLinha(null);
+  }
+  function salvarEdicaoDoParagrafo() {
+    const valor = edicaoParagrafo?.valor.trim();
+    if (!valor) return;
+    aoEditarOpcaoDeParagrafo?.(edicaoParagrafo.grupo, edicaoParagrafo.indice, valor);
+    setEdicaoParagrafo(null);
   }
   function salvarEdicaoDoCodigo() {
     if (!edicaoCodigo) return;
@@ -264,21 +276,51 @@ export default function LinhasDescricao({
             <Quadro key={"paragrafo-" + item.grupo} titulo={`Parágrafo ${item.grupo + 1}: escolha uma opção`} rotulo={`Opções do parágrafo ${item.grupo + 1}`} radio>
               {opcoes.map((opcao, indice) => {
                 const escolhida = (escolhidosParagrafos[item.grupo] ?? 0) === indice;
+                if (edicaoParagrafo?.grupo === item.grupo && edicaoParagrafo.indice === indice) {
+                  return (
+                    <div key={indice} className="flex items-start gap-1 border-b border-sky-200 bg-sky-50 p-0.5 last:border-b-0">
+                      <textarea
+                        autoFocus
+                        rows={4}
+                        value={edicaoParagrafo.valor}
+                        onChange={(evento) => setEdicaoParagrafo({ grupo: item.grupo, indice, valor: evento.target.value })}
+                        onKeyDown={(evento) => {
+                          if (evento.key === "Enter") {
+                            evento.preventDefault();
+                            salvarEdicaoDoParagrafo();
+                          } else if (evento.key === "Escape") {
+                            // Escape fecha so a edicao, e nao a janela inteira.
+                            evento.stopPropagation();
+                            setEdicaoParagrafo(null);
+                          }
+                        }}
+                        aria-label={"Editar a opção " + (indice + 1) + " do parágrafo " + (item.grupo + 1)}
+                        className="min-w-0 flex-1 resize-y rounded border border-borda bg-white px-1.5 py-1 font-mono text-xs"
+                      />
+                      <button type="button" onClick={salvarEdicaoDoParagrafo} disabled={!edicaoParagrafo.valor.trim()} aria-label="Salvar edição desta opção" title="Salvar" className="shrink-0 p-1.5 text-emerald-700 hover:text-emerald-900 disabled:opacity-30"><Check size={14} /></button>
+                      <button type="button" onClick={() => setEdicaoParagrafo(null)} aria-label="Cancelar edição" title="Cancelar" className="shrink-0 p-1.5 text-suave hover:text-red-700"><X size={14} /></button>
+                    </div>
+                  );
+                }
                 return (
-                  <button
+                  <div
                     key={indice}
-                    type="button"
-                    role="radio"
-                    aria-checked={escolhida}
-                    onClick={() => aoEscolherParagrafo?.(item.grupo, indice)}
-                    className={`flex w-full items-start gap-2 border-b px-2 py-1.5 text-left last:border-b-0 ${
-                      escolhida ? "border-sky-200 bg-sky-50" : "border-borda/50 bg-white hover:bg-sky-50/50"
-                    }`}
+                    className={"flex items-start border-b last:border-b-0 " + (escolhida ? "border-sky-200 bg-sky-50" : "border-borda/50 bg-white hover:bg-sky-50/50")}
                   >
-                    <Circulo marcada={escolhida} />
-                    <span className="min-w-0 flex-1 whitespace-pre-wrap">{opcao}</span>
-                    <span className="shrink-0 font-sans text-[11px] text-suave tabular-nums">{opcao.length}</span>
-                  </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={escolhida}
+                      onClick={() => aoEscolherParagrafo?.(item.grupo, indice)}
+                      className="flex min-w-0 flex-1 items-start gap-2 px-2 py-1.5 text-left"
+                    >
+                      <Circulo marcada={escolhida} />
+                      <span className="min-w-0 flex-1 whitespace-pre-wrap">{opcao}</span>
+                      <span className="shrink-0 font-sans text-[11px] text-suave tabular-nums">{opcao.length}</span>
+                    </button>
+                    <button type="button" onClick={() => setEdicaoParagrafo({ grupo: item.grupo, indice, valor: opcao })} aria-label={"Editar a opção " + (indice + 1) + " do parágrafo " + (item.grupo + 1)} title="Editar esta opção" className="shrink-0 p-1.5 text-suave hover:text-acento"><Pencil size={13} /></button>
+                    <button type="button" onClick={() => aoExcluirOpcaoDeParagrafo?.(item.grupo, indice)} aria-label={"Excluir a opção " + (indice + 1) + " do parágrafo " + (item.grupo + 1)} title="Excluir esta opção" className="shrink-0 p-1.5 text-suave hover:text-red-700"><Trash2 size={13} /></button>
+                  </div>
                 );
               })}
             </Quadro>
@@ -310,6 +352,8 @@ export default function LinhasDescricao({
         const destacada = destaque?.tipo === "linha" && destaque.indice === indice;
         // A linha "Itens inclusos: (Cod:...)": o codigo tem o proprio lapis.
         const codigoDaLinha = tecnica ? null : codigoDosItensInclusos(linha);
+        // Titulo, paragrafo, itens inclusos e garantia: lapis e lixeira. Os titulos das secoes ficam como estao.
+        const editavelGeral = !tecnica && Boolean(linha.trim()) && !ehCabecalhoDeSecao(linha);
         if (codigoDaLinha !== null && edicaoCodigo?.indice === indice) {
           return (
             <div key={"linha-" + ordem} className="flex items-center gap-1 border-b border-borda/50 bg-sky-50 p-0.5">
@@ -337,27 +381,48 @@ export default function LinhasDescricao({
             </div>
           );
         }
-        if (tecnica && edicaoLinha?.indice === indice) {
+        if (edicaoLinha?.indice === indice && (tecnica || edicaoLinha.geral)) {
           return (
             <div key={"linha-" + ordem} className="flex items-start gap-1 border-b border-borda/50 bg-sky-50 p-0.5">
               <span className="w-8 shrink-0 px-2 py-1.5 text-right text-suave">{indice + 1}</span>
-              <input
-                autoFocus
-                value={edicaoLinha.valor}
-                onChange={(evento) => setEdicaoLinha({ indice, valor: evento.target.value })}
-                onKeyDown={(evento) => {
-                  if (evento.key === "Enter") {
-                    evento.preventDefault();
-                    salvarEdicaoDaLinha();
-                  } else if (evento.key === "Escape") {
-                    // Escape fecha so a edicao, e nao a janela inteira.
-                    evento.stopPropagation();
-                    setEdicaoLinha(null);
-                  }
-                }}
-                aria-label={"Editar linha " + (indice + 1)}
-                className="min-w-0 flex-1 rounded border border-borda bg-white px-1.5 py-1 font-mono text-xs"
-              />
+              {edicaoLinha.geral ? (
+                <textarea
+                  autoFocus
+                  rows={3}
+                  value={edicaoLinha.valor}
+                  onChange={(evento) => setEdicaoLinha({ indice, valor: evento.target.value, geral: true })}
+                  onKeyDown={(evento) => {
+                    if (evento.key === "Enter") {
+                      evento.preventDefault();
+                      salvarEdicaoDaLinha();
+                    } else if (evento.key === "Escape") {
+                      // Escape fecha so a edicao, e nao a janela inteira.
+                      evento.stopPropagation();
+                      setEdicaoLinha(null);
+                    }
+                  }}
+                  aria-label={"Editar linha " + (indice + 1)}
+                  className="min-w-0 flex-1 resize-y rounded border border-borda bg-white px-1.5 py-1 font-mono text-xs"
+                />
+              ) : (
+                <input
+                  autoFocus
+                  value={edicaoLinha.valor}
+                  onChange={(evento) => setEdicaoLinha({ indice, valor: evento.target.value })}
+                  onKeyDown={(evento) => {
+                    if (evento.key === "Enter") {
+                      evento.preventDefault();
+                      salvarEdicaoDaLinha();
+                    } else if (evento.key === "Escape") {
+                      // Escape fecha so a edicao, e nao a janela inteira.
+                      evento.stopPropagation();
+                      setEdicaoLinha(null);
+                    }
+                  }}
+                  aria-label={"Editar linha " + (indice + 1)}
+                  className="min-w-0 flex-1 rounded border border-borda bg-white px-1.5 py-1 font-mono text-xs"
+                />
+              )}
               <button type="button" onClick={salvarEdicaoDaLinha} disabled={!edicaoLinha.valor.trim()} aria-label="Salvar edição desta linha" title="Salvar" className="shrink-0 p-1.5 text-emerald-700 hover:text-emerald-900 disabled:opacity-30"><Check size={14} /></button>
               <button type="button" onClick={() => setEdicaoLinha(null)} aria-label="Cancelar edição" title="Cancelar" className="shrink-0 p-1.5 text-suave hover:text-red-700"><X size={14} /></button>
             </div>
@@ -414,6 +479,12 @@ export default function LinhasDescricao({
                 <button type="button" data-mover onClick={() => moverLinhaPorPasso(indice, -1)} aria-label={"Subir linha " + (indice + 1)} title="Subir linha" className="shrink-0 p-1.5 text-suave hover:text-acento"><ChevronUp size={13} /></button>
                 <button type="button" data-mover onClick={() => moverLinhaPorPasso(indice, 1)} aria-label={"Descer linha " + (indice + 1)} title="Descer linha" className="shrink-0 p-1.5 text-suave hover:text-acento"><ChevronDown size={13} /></button>
                 <button type="button" onClick={() => aoExcluirLinha(indice)} aria-label={"Excluir linha " + (indice + 1) + ": " + linha} title="Excluir esta especificação" className="shrink-0 p-1.5 text-suave hover:text-red-700"><Trash2 size={13} /></button>
+              </>
+            )}
+            {editavelGeral && (
+              <>
+                <button type="button" onClick={() => setEdicaoLinha({ indice, valor: linha.trim(), geral: true })} aria-label={"Editar linha " + (indice + 1)} title="Editar esta linha" className="shrink-0 p-1.5 text-suave hover:text-acento"><Pencil size={13} /></button>
+                <button type="button" onClick={() => aoExcluirLinhaGeral?.(indice)} aria-label={"Excluir linha " + (indice + 1) + ": " + linha} title="Excluir esta linha" className="shrink-0 p-1.5 text-suave hover:text-red-700"><Trash2 size={13} /></button>
               </>
             )}
           </div>

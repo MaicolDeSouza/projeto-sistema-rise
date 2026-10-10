@@ -105,6 +105,79 @@ export function substituirEspecificacao(texto, indice, nova) {
   return linhas.join("\n");
 }
 
+/// Os titulos das secoes: nao se editam nem se excluem pelo lapis e pela lixeira (as secoes dao a estrutura do texto).
+const CABECALHO_DE_SECAO = /^(Especificações técnicas|Itens inclusos|Garantia):/i;
+
+/** A linha e o titulo de uma secao? ("Especificações técnicas:", "Itens inclusos: (Cod:...)", "Garantia:") */
+export function ehCabecalhoDeSecao(linha) {
+  return CABECALHO_DE_SECAO.test(String(linha ?? "").trim());
+}
+
+/**
+ * O lapis de uma linha qualquer da descricao (titulo, paragrafo, item incluso, garantia; pedido do dono em 10/10/2026:
+ * todos os campos com lapis e lixeira). Troca o texto da linha, numa linha so (quebra vira espaco). Linha em branco,
+ * titulo de secao ou texto vazio: nao mexe.
+ */
+export function substituirLinha(texto, indice, nova) {
+  const linhas = String(texto).split("\n");
+  if (!linhas[indice]?.trim() || ehCabecalhoDeSecao(linhas[indice])) return String(texto);
+  const limpa = String(nova ?? "").replace(/\s+/g, " ").trim();
+  if (!limpa) return String(texto);
+  linhas[indice] = limpa;
+  return linhas.join("\n");
+}
+
+/**
+ * A lixeira de uma linha qualquer. Tira a linha e junta as linhas em branco que ficarem seguidas (excluir o
+ * unico paragrafo entre dois espacos nao deixa um buraco). Linha em branco ou titulo de secao: nao mexe.
+ */
+export function removerLinha(texto, indice) {
+  const linhas = String(texto).split("\n");
+  if (!linhas[indice]?.trim() || ehCabecalhoDeSecao(linhas[indice])) return String(texto);
+  linhas.splice(indice, 1);
+  const saida = [];
+  for (const linha of linhas) {
+    if (!linha.trim() && saida.length > 0 && !saida[saida.length - 1].trim()) continue;
+    saida.push(linha);
+  }
+  return saida.join("\n");
+}
+
+/**
+ * Excluir uma OPCAO de um dos dois primeiros paragrafos (a lixeira do quadro do paragrafo). Devolve as opcoes novas, qual
+ * fica escolhida e as linhas de antes e de depois do paragrafo no texto (iguais se a excluida nao era a escolhida). Se
+ * a escolhida sai, a primeira que sobrar assume. Com uma opcao so (ou indice invalido) nao ha o que excluir: `null`.
+ */
+export function excluirOpcaoDeParagrafo(opcoes, escolhidos, grupo, indice) {
+  const lista = opcoes[grupo] ?? [];
+  if (lista.length <= 1 || !Number.isInteger(indice) || indice < 0 || indice >= lista.length) return null;
+  const nova = lista.filter((_, posicao) => posicao !== indice);
+  const escolhido = escolhidos[grupo] ?? 0;
+  const novoEscolhido = indice === escolhido ? 0 : indice < escolhido ? escolhido - 1 : escolhido;
+  return {
+    opcoes: opcoes.map((itens, posicao) => (posicao === grupo ? nova : itens)),
+    escolhidos: escolhidos.map((valor, posicao) => (posicao === grupo ? novoEscolhido : valor)),
+    linhaAntes: lista[escolhido],
+    linhaDepois: nova[novoEscolhido],
+  };
+}
+
+/**
+ * Editar o texto de uma OPCAO de paragrafo (o lapis do quadro). Se ela e a escolhida, o texto da descricao muda junto
+ * (`linhaAntes` -> `linhaDepois`). Texto vazio ou indice invalido: `null`.
+ */
+export function editarOpcaoDeParagrafo(opcoes, escolhidos, grupo, indice, novo) {
+  const lista = opcoes[grupo] ?? [];
+  const limpo = String(novo ?? "").replace(/\s+/g, " ").trim();
+  if (!limpo || !Number.isInteger(indice) || indice < 0 || indice >= lista.length) return null;
+  const escolhido = escolhidos[grupo] ?? 0;
+  return {
+    opcoes: opcoes.map((itens, posicao) => (posicao === grupo ? itens.map((item, i) => (i === indice ? limpo : item)) : itens)),
+    linhaAntes: lista[escolhido],
+    linhaDepois: indice === escolhido ? limpo : lista[escolhido],
+  };
+}
+
 const LINHA_DOS_ITENS = /^Itens inclusos:/i;
 
 /** O codigo da linha "Itens inclusos: (Cod:100101)": "100101"; "" se a linha nao traz codigo; null se nao e essa linha. */

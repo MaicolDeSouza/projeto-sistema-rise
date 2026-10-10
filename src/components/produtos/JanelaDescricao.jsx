@@ -22,7 +22,7 @@ import {
   salvarPromptDaDescricao,
 } from "@/app/produtos/acoes";
 import { linhasDeEspecificacao, medidasDaDescricao } from "@/lib/medidas";
-import { adicionarEspecificacao, formatarLinhaTecnica, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, organizarDescricao, removerEspecificacao, moverQuadroNoEstado, substituirCodigoDosItens, substituirEspecificacao, trocarParagrafo } from "@/lib/ia/revisaoDescricao";
+import { adicionarEspecificacao, formatarLinhaTecnica, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, organizarDescricao, removerEspecificacao, editarOpcaoDeParagrafo, excluirOpcaoDeParagrafo, moverQuadroNoEstado, removerLinha, substituirCodigoDosItens, substituirEspecificacao, substituirLinha, trocarParagrafo } from "@/lib/ia/revisaoDescricao";
 import LinhasDescricao from "./LinhasDescricao";
 
 /// Cor do ponto de cada aba: verde fornecedor, amarelo concorrente — as mesmas
@@ -525,6 +525,47 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
     setErro(null);
     setTexto(trocado);
     setEscolhidosParagrafos((anteriores) => anteriores.map((valor, posicao) => (posicao === grupo ? indice : valor)));
+  }
+
+  /** O lapis de uma linha que nao e especificacao (titulo, paragrafo, itens inclusos, garantia): o texto fica como digitado. */
+  function editarLinhaGeral(indice, valor) {
+    const novoTexto = substituirLinha(texto, indice, valor);
+    if (novoTexto !== texto) setTexto(novoTexto);
+  }
+
+  /** A lixeira dessas mesmas linhas. */
+  function excluirLinhaGeral(indice) {
+    setTexto((atual) => removerLinha(atual, indice));
+  }
+
+  /**
+   * Aplica o resultado de editar ou excluir uma OPCAO de paragrafo: as opcoes novas e, se o paragrafo que esta no texto
+   * mudou (a escolhida foi editada ou excluida), troca a linha dele. Se o dono editou essa linha a mao, nao trocamos
+   * "no escuro" (a mesma regra de `escolherParagrafo`).
+   */
+  function aplicarOpcaoDeParagrafo(resultado) {
+    let novoTexto = texto;
+    if (resultado.linhaAntes !== resultado.linhaDepois) {
+      novoTexto = trocarParagrafo(texto, resultado.linhaAntes, resultado.linhaDepois);
+      if (novoTexto === null) {
+        setErro("Este parágrafo foi editado no texto e não dá para trocar por uma opção. Edite lá, ou gere de novo.");
+        return;
+      }
+    }
+    setErro(null);
+    setTexto(novoTexto);
+    setOpcoesParagrafos(resultado.opcoes);
+    if (resultado.escolhidos) setEscolhidosParagrafos(resultado.escolhidos);
+  }
+
+  function editarOpcaoDoParagrafo(grupo, indice, valor) {
+    const resultado = editarOpcaoDeParagrafo(opcoesParagrafos, escolhidosParagrafos, grupo, indice, valor);
+    if (resultado) aplicarOpcaoDeParagrafo(resultado);
+  }
+
+  function excluirOpcaoDoParagrafo(grupo, indice) {
+    const resultado = excluirOpcaoDeParagrafo(opcoesParagrafos, escolhidosParagrafos, grupo, indice);
+    if (resultado) aplicarOpcaoDeParagrafo(resultado);
   }
 
   /** O lapis do codigo da linha "Itens inclusos": o do produto vem sugerido, e aqui ele troca. */
@@ -1147,6 +1188,10 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
                     aoEditarLinha={editarLinha}
                     codigoSugerido={produto.sku}
                     aoEditarCodigo={editarCodigo}
+                    aoEditarLinhaGeral={editarLinhaGeral}
+                    aoExcluirLinhaGeral={excluirLinhaGeral}
+                    aoEditarOpcaoDeParagrafo={editarOpcaoDoParagrafo}
+                    aoExcluirOpcaoDeParagrafo={excluirOpcaoDoParagrafo}
                     aoMoverGrupo={moverGrupo}
                     paragrafos={opcoesParagrafos}
                     escolhidosParagrafos={escolhidosParagrafos}

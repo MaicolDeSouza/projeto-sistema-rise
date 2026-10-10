@@ -2166,6 +2166,17 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       chegando depois não a tira dela. **Ela é a descrição do FORMULÁRIO no momento de abrir** (`descricaoDaAba`, lida do
       campo por `lerProduto().descricao`), e não a gravada do produto: o "Salvar e sair" só põe o texto no formulário, e
       reabrir a janela sem salvar o produto trazia o texto antigo (achado do dono em 10/10/2026).
+    - **Lápis e lixeira em todos os campos da revisão** (pedido do dono em 10/10/2026). Além das especificações e das opções
+      dos parâmetros, que já tinham: **toda linha de conteúdo** (título, parágrafo sem opções, itens inclusos, garantia) ganha
+      lápis (editar, num campo de texto; Enter salva, Esc cancela) e lixeira (`substituirLinha`, `removerLinha`, em
+      `revisaoDescricao.js`; excluir junta as linhas em branco que ficarem seguidas). **Os títulos das seções**
+      ("Especificações técnicas:", "Itens inclusos:", "Garantia:"; `ehCabecalhoDeSecao`) e as linhas em branco **não** têm: dão a
+      estrutura do texto (o "Itens inclusos" tem só o lápis do código). **Cada opção dos quadros de parágrafo** também tem
+      lápis e lixeira (`editarOpcaoDeParagrafo`, `excluirOpcaoDeParagrafo`): editar a **escolhida** troca a linha do texto junto;
+      excluir a escolhida passa para a primeira que sobrar; **sobrando uma opção o quadro some** e o parágrafo vira linha comum
+      com lápis e lixeira; se o dono editou a linha do parágrafo à mão, não trocamos "no escuro" (a mesma regra de
+      `escolherParagrafo`). Qualquer uma dessas mudanças desfaz o "finalizado" (ver abaixo). Conferido em 10/10/2026 no 100101
+      (título, item incluso) e numa página de teste temporária (apagada) com as opções de parágrafo.
     - **Trava do "Salvar e sair" até finalizar** (pedido do dono em 10/10/2026): qualquer alteração (digitar, editar, mover,
       excluir, escolher uma opção, gerar, levar um texto) mostra **"Finalizar descrição"** e deixa o **"Salvar e sair"
       desabilitado**; ele só libera depois do "Finalizar". `finalizado = textoFinalizado !== null && texto ===
