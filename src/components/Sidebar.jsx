@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 
@@ -91,14 +92,17 @@ export default function Sidebar() {
           aberta ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}
       >
-        {/* Faixa com o nome da loja, como no menu de referencia */}
-        <div className="bg-menu-topo px-3 py-1.5">
-          <p className="truncate text-[10px] font-medium tracking-[0.12em] text-menu-texto/70 uppercase">
-            {recolhida ? "SR" : "Loja de Eletrônicos"}
-          </p>
-        </div>
-
         <div className="flex items-center gap-2 px-3 py-4">
+          {/*
+            Logo da 4hobby a esquerda do "R", do MESMO tamanho (pedido do dono em 10/10/2026, que tirou a faixa
+            "Loja de Eletronicos"). A engrenagem com o "4" e preta: fica num quadrado branco, como o "R" fica no azul.
+            Recolhido, o menu tem 64 px e cabe um icone so: fica o "R".
+          */}
+          {!recolhida && (
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white p-0.5" title="4hobby">
+              <Image src="/marcas/4hobby.svg" alt="4hobby" width={28} height={28} loading="eager" />
+            </div>
+          )}
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-acento font-bold text-white">
             R
           </div>
