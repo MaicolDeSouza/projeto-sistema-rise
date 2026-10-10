@@ -66,6 +66,9 @@ export function comoTexto(valor) {
       .replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, " ")
       // Com ou sem atributos: a Policomp (10/10/2026) escreve `<br style="..." />`, e a
       // descricao inteira do cone BT30 saia numa linha so, sem a ficha.
+      // `<` que nao abre tag (RH <80%, < 3,3 V) vira o sinal, senao o `<[^>]*>` abaixo
+      // engole o texto ate o proximo `>` (MC-154A da Eletrodex, 10/10/2026).
+      .replace(/<(?![a-zA-Z\/!])/g, "&lt;")
       .replace(/<br\b[^>]*>/gi, "\n")
       .replace(/<\/(p|div|li|tr|h[1-6])>/gi, "\n")
       .replace(/<[^>]*>/g, " "),

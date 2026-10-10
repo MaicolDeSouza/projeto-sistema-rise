@@ -1098,6 +1098,12 @@ function especificacoesPorVariante(html, codigosConhecidos) {
 const TITULO_DE_FICHA =
   /^(especifica[cç](?:[õo]es|ao|ão)(?: t[eé]cnicas?)?|ficha t[eé]cnica|dados t[eé]cnicos|caracter[ií]sticas t[eé]cnicas)\s*:?$/i;
 
+/// "Especificações HDB-882 Decibelímetro Digital Portátil Hikari:" (Eletrodex, 10/10/2026):
+/// o nome do produto (ou "Elétricas") depois da palavra. Só com dois-pontos no fim, para
+/// uma frase que apenas menciona a palavra não virar título.
+const TITULO_DE_FICHA_COM_NOME =
+  /^(?:especifica[cç](?:[õo]es|ao|ão)|dados t[eé]cnicos|ficha t[eé]cnica)\s+[^:.]{1,100}:$/i;
+
 /// "Características" sozinho tambem anuncia ficha na Solda Fria
 /// (`<h3>Características</h3><ul><li><strong>Tipo de Conector:</strong> ...`),
 /// mas em outras lojas e titulo de lista de marketing ("Alta durabilidade").
@@ -1115,14 +1121,20 @@ const TITULO_DE_FICHA_CURTO = /^caracter[ií]sticas(?: do produto)?\s*:?$/i;
  * ("Aplicacoes Indicadas") e outro assunto.
  */
 function especificacoesDeListaHtml(html) {
+  // Todas as listas que tem titulo de ficha ("Especificações X:", "Especificações Elétricas X:"),
+  // nao so a primeira.
+  let todas = [];
   for (const titulo of html.matchAll(/<(h[1-6]|p|strong|b)\b[^>]*>([\s\S]{0,120}?)<\/\1>/gi)) {
     const textoDoTitulo = comoTexto(titulo[2]) ?? "";
     const tituloCurto = TITULO_DE_FICHA_CURTO.test(textoDoTitulo);
-    if (!tituloCurto && !TITULO_DE_FICHA.test(textoDoTitulo)) continue;
+    if (!tituloCurto && !TITULO_DE_FICHA.test(textoDoTitulo) && !TITULO_DE_FICHA_COM_NOME.test(textoDoTitulo)) continue;
 
     // Entre o titulo e a lista, so tags e espaco: texto no meio quer dizer que a
     // lista e de outra coisa.
-    const depois = html.slice(titulo.index + titulo[0].length, titulo.index + titulo[0].length + 2000);
+    // `<ul></ul>` vazio entre o titulo e a lista de verdade (Eletrodex, MC-154A) nao e a lista.
+    const depois = html
+      .slice(titulo.index + titulo[0].length, titulo.index + titulo[0].length + 2000)
+      .replace(/<ul\b[^>]*>\s*<\/ul>/gi, "");
     const lista = /^(?:\s|<(?!ul\b)[^>]*>)*<ul\b[^>]*>([\s\S]*?)<\/ul>/i.exec(depois);
     if (!lista) continue;
 
@@ -1149,9 +1161,9 @@ function especificacoesDeListaHtml(html) {
       const comNumero = semRotulo.filter((item) => /\d/.test(item.valor)).length;
       if (comNumero / semRotulo.length < 0.5) continue;
     }
-    if (itens.length > 0) return itens;
+    if (itens.length > 0) todas = juntarFichas(todas, itens);
   }
-  return [];
+  return todas;
 }
 
 /** Junta duas fichas sem repetir o mesmo rotulo; a primeira vence. */

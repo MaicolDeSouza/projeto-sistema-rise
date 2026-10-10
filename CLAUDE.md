@@ -952,6 +952,7 @@ mesmo CI são o mesmo item.
   "Descrição Geral" (o JSON-LD trazia só "DS8877 8877"); a lista "Especificações DS-8877:" sumia junto. Agora o bloco é
   recortado pelo `</div>` que o equilibra (`conteudoDoDiv`) e o título `class="title"` do começo sai. **Vale para toda loja**
   com `class="...description..."` aninhado: a descrição pode ficar mais longa na próxima varredura (é correção).
+- **Tray, ficha na descrição que não vinha (Eletrodex MC-154A e HDB-882, 10/10/2026), três causas, todas gerais:** (1) o título é "Especificações <NOME DO PRODUTO>:" e `TITULO_DE_FICHA` só aceitava a palavra sozinha (`TITULO_DE_FICHA_COM_NOME`, só com dois-pontos no fim); (2) um `<ul></ul>` vazio entre o título e a lista de verdade fazia a leitura desistir; (3) `RH <80%` sem escapar: o `<[^>]*>` de `comoTexto` engolia o texto até o próximo `>` (agora `<` que não abre tag vira `&lt;`). `especificacoesDeListaHtml` passou a juntar TODAS as listas com título de ficha ("Especificações Elétricas X:" também), não só a primeira. Mesma regra: só vale na próxima varredura.
 - **Tray, quadro `id="ficha"` (Código, Estoque, Categoria)** (`fichaDaLoja`): vira `code` (só na falta dos outros), `stock.quantity`
   e `category` (depois dos breadcrumbs, antes do dataLayer), e as três linhas **saem das características**. Produtos já
   gravados só mudam na próxima varredura, e o worker (ou `worker:pc`) precisa ser reiniciado para carregar o código.

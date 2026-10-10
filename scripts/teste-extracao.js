@@ -2314,6 +2314,18 @@ console.log("\n— Tray (Eletrodex): descricao com titulo, especificacoes e fich
   conferir("eletrodex: descricao e o texto do produto, nao o titulo do bloco", /alum[ií]nio puro/.test(e.description) && !/^Descri/.test(e.description), true);
   conferir("eletrodex: especificacoes da lista da descricao", e.specifications.map((i) => i.nome), ["Material", "Tipo", "Tamanho"]);
   conferir("eletrodex: codigo, estoque e categoria da ficha da loja", [e.code, e.stock.quantity, e.category], ["M1B2C11", 5, "Chaves"]);
+
+  // MC-154A / HDB-882: titulo "Especificacoes <NOME>:", <ul></ul> vazio antes da lista e
+  // "RH <80%" sem escapar (o `<` engolia o texto ate o proximo `>`).
+  const htmlMc = `<html><head><script type="application/ld+json">{"@type":"Product","name":"MC-154A","sku":"9","offers":{"price":"99.90"}}</script></head><body><div class="section-box description"><div class="title">Descri&ccedil;&atilde;o Geral</div><div class="board_htm">
+<p>Capac&iacute;metro digital.</p><h3><strong>Especifica&ccedil;&otilde;es MC-154A Capac&iacute;metro Digital Minipa:</strong></h3>
+<ul>
+</ul>
+<ul><li>Display LCD: 3 1/2 d&iacute;gitos;</li><li>Ambiente: 0&deg;C a 40&deg;C, umidade RH <80% (m&aacute;ximo);</li><li>Alimenta&ccedil;&atilde;o: Uma bateria de 9V;</li></ul>
+<h3><strong>Seguran&ccedil;a MC-154A:</strong></h3><ul><li>Use EPI.</li></ul></div></div></body></html>`;
+  const mc = normalizarPagina({ html: htmlMc, url: "https://www.eletrodex.net/mc-154a", fonte: "Eletrodex" }).produtos[0];
+  conferir("eletrodex: lista depois de <ul> vazio e com '<80%' sem escapar", mc?.specifications.map((i) => i.nome), ["Display LCD", "Ambiente", "Alimentação"]);
+  conferir("eletrodex: texto depois do '<80%' continua na descricao", /80% \(m[aá]ximo\)/.test(mc?.description ?? ""), true);
 }
 
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
