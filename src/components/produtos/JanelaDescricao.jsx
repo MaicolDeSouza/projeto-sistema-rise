@@ -212,9 +212,9 @@ function AbasDeReferencias({ itens, descricaoAtual, produto, aoRemover, aoAdicio
 }
 
 /// O que dizer quando o produto nao tem referencia: desde 07/10/2026 a janela nao procura mais pelo Nome no
-/// catalogo das lojas, entao o caminho e cadastrar os fornecedores e concorrentes do produto.
+/// catalogo das lojas. Desde 10/10/2026 (pedido do dono) a IA gera assim mesmo, a partir do proprio produto.
 const SEM_REFERENCIAS =
-  "Nenhum concorrente ou fornecedor cadastrado neste produto. Adicione na aba Fornecedores / Concorrentes (ou marque na lupa do Nome) para gerar a descrição a partir deles.";
+  "Nenhum concorrente ou fornecedor neste produto: a IA escreve a partir do Nome e dos dados do produto (marca, modelo e descrição atual), sem inventar especificação. Confira as especificações antes de salvar. Para gerar a partir das lojas, adicione na aba Fornecedores / Concorrentes ou marque na lupa do Nome.";
 
 /**
  * Janela "Criar descricao" — pedido do dono em 16/09/2026.
@@ -854,7 +854,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               <button
                 type="button"
                 onClick={gerar}
-                disabled={gerando || idsParaGerar.length === 0 || !promptValido}
+                disabled={gerando || !promptValido || (idsParaGerar.length === 0 && !produto.titulo)}
                 className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {gerando ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
@@ -928,8 +928,14 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                   )}
                 </section>
               )}
-              {texto ? (
-                <section>
+              {/*
+                A caixa fica aberta para digitar desde o inicio (pedido do dono em 10/10/2026), com ou sem referencia.
+                E o MESMO <textarea> antes e depois da primeira tecla (mesma posicao na arvore): trocar de elemento
+                no meio da digitacao tiraria o cursor da caixa. A primeira tecla liga "Editar texto completo", senao
+                a revisao linha a linha tomaria o lugar da caixa.
+              */}
+              <section>
+                {texto && (
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold">Descrição para revisar</h3>
                     <button
@@ -940,35 +946,35 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                       {editandoTexto ? "Revisar linha por linha" : "Editar texto completo"}
                     </button>
                   </div>
-                  {editandoTexto ? (
-                    <textarea
-                      value={texto}
-                      onChange={(evento) => setTexto(evento.target.value)}
-                      className="min-h-80 w-full resize-y rounded border border-borda bg-superficie p-2.5 font-mono text-sm leading-relaxed focus:border-acento focus:outline-none"
-                    />
-                  ) : (
-                    <LinhasDescricao
-                      texto={texto}
-                      divergencias={divergencias}
-                      opcoesRestantes={opcoesRestantes}
-                      selecoes={selecoes}
-                      confirmadas={confirmadas}
-                      aoSelecionar={(id, indice) => setSelecoes((atual) => ({ ...atual, [id]: indice }))}
-                      aoEditarOpcao={editarOpcao}
-                      aoExcluirOpcao={excluirOpcao}
-                      aoExcluirLinha={excluirLinha}
-                      aoMover={moverLinha}
-                      aoMoverPasso={moverPorPasso}
-                      rolagem={rolagemDescricao}
-                    />
-                  )}
-                </section>
-              ) : (
-                <p className="rounded border border-borda bg-superficie p-3 font-mono text-sm text-suave">
-                  A descrição gerada aparece aqui para revisão antes de usar.
-                  Ou leve uma descrição da esquerda com &quot;Levar para edição&quot;.
-                </p>
-              )}
+                )}
+                {editandoTexto || !texto ? (
+                  <textarea
+                    value={texto}
+                    onChange={(evento) => {
+                      setTexto(evento.target.value);
+                      setEditandoTexto(true);
+                    }}
+                    aria-label="Descrição"
+                    placeholder={'Digite a descrição aqui, gere com IA ou leve uma descrição da esquerda com "Levar para edição".'}
+                    className="min-h-80 w-full resize-y rounded border border-borda bg-superficie p-2.5 font-mono text-sm leading-relaxed focus:border-acento focus:outline-none"
+                  />
+                ) : (
+                  <LinhasDescricao
+                    texto={texto}
+                    divergencias={divergencias}
+                    opcoesRestantes={opcoesRestantes}
+                    selecoes={selecoes}
+                    confirmadas={confirmadas}
+                    aoSelecionar={(id, indice) => setSelecoes((atual) => ({ ...atual, [id]: indice }))}
+                    aoEditarOpcao={editarOpcao}
+                    aoExcluirOpcao={excluirOpcao}
+                    aoExcluirLinha={excluirLinha}
+                    aoMover={moverLinha}
+                    aoMoverPasso={moverPorPasso}
+                    rolagem={rolagemDescricao}
+                  />
+                )}
+              </section>
             </div>
 
             <p className="mt-2 text-[11px] text-suave">

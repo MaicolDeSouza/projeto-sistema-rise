@@ -595,8 +595,17 @@ export function montarDescricao({
  * @param {string} instrucoes o prompt de escrita (o salvo pelo dono, ou o editado so para esta geracao),
  *   ja conferido por `limparPromptDaDescricao`.
  */
-export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} } = {}, instrucoes = PROMPT_DESCRICAO_PADRAO) {
-  const { texto: referencias, quantidade, medidasPorReferencia, referencias: linhas } = await lerReferencias(ids);
+export async function gerarDescricao(
+  ids,
+  { titulo = "", sku = "", medidas = {}, marca = "", modelo = "", descricao = "" } = {},
+  instrucoes = PROMPT_DESCRICAO_PADRAO,
+) {
+  // Sem fornecedor nem concorrente, a geracao parte do proprio produto (pedido do dono em 10/10/2026).
+  const semReferencias = (ids ?? []).length === 0;
+  if (semReferencias && !String(titulo).trim()) throw new Error("Preencha o Nome do produto antes de gerar.");
+  const { texto: referencias, quantidade, medidasPorReferencia, referencias: linhas } = semReferencias
+    ? { texto: dadosDoProprioProduto({ titulo, marca, modelo, descricao }), quantidade: 0, medidasPorReferencia: [], referencias: [] }
+    : await lerReferencias(ids);
   const divergencias = identificarDivergencias(linhas);
 
   // As medidas vao ja lidas, numa lista: soltas no meio do texto de cada loja a IA
@@ -618,7 +627,7 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
       return `- Referência ${ref.numero} (${ref.nome}): ${partes.join("; ")}`;
     });
 
-  const pedido = montarPedidoDaDescricao({ titulo, referencias, listaDeMedidas, divergencias, instrucoes });
+  const pedido = montarPedidoDaDescricao({ titulo, referencias, listaDeMedidas, divergencias, instrucoes, semReferencias });
 
   // Opcao de paragrafo acima do limite volta para a IA encurtar, uma vez, dizendo quais passaram.
   // Cortar no codigo quebraria a frase no meio.
@@ -683,7 +692,8 @@ export async function gerarDescricao(ids, { titulo = "", sku = "", medidas = {} 
     const indice = comuns.findIndex((item) => prioridade(item.nome) > prioridade(campo));
     return indice < 0 ? comuns.length : indice;
   };
-  const medidasFinais = juntarMedidas(medidas, conteudo, reservaDasReferencias(medidasPorReferencia, titulo));
+  // Sem referencia, a medida que a IA devolver nao tem de onde ter saido: so contam as do formulario.
+  const medidasFinais = juntarMedidas(medidas, semReferencias ? {} : conteudo, reservaDasReferencias(medidasPorReferencia, titulo));
   if (idsDivergentes.has("dimensoes")) {
     for (const campo of ["comprimentoCm", "larguraCm", "alturaCm"]) medidasFinais[campo] = null;
   }
@@ -820,10 +830,34 @@ export function limparPromptDaDescricao(texto) {
 }
 
 /** O pedido inteiro: primeiro os dados do produto, que o codigo monta; depois o prompt de escrita. */
-export function montarPedidoDaDescricao({ titulo = "", referencias, listaDeMedidas = [], divergencias = [], instrucoes }) {
+/**
+ * Sem fornecedor nem concorrente (pedido do dono em 10/10/2026): o que a IA recebe sai do proprio produto, so o que
+ * tem valor. Sem isto ela teria apenas o nome, e completaria a ficha de cabeca.
+ */
+export function dadosDoProprioProduto({ titulo = "", marca = "", modelo = "", descricao = "" } = {}) {
+  const partes = [];
+  if (String(titulo).trim()) partes.push(`Nome: ${String(titulo).trim()}`);
+  if (String(marca).trim()) partes.push(`Marca: ${String(marca).trim()}`);
+  if (String(modelo).trim()) partes.push(`Modelo: ${String(modelo).trim()}`);
+  if (String(descricao).trim()) partes.push(`Descrição atual do produto:\n${String(descricao).trim()}`);
+  return partes.join("\n");
+}
+
+/// A regra que vai junto quando nao ha referencia: a especificacao inventada e o risco de verdade (tensao, corrente,
+/// medida ou chip errados num anuncio). Fica no pedido, e nao no prompt da biblioteca, para valer com qualquer prompt.
+const REGRA_SEM_REFERENCIAS =
+  "Não há referências de outras lojas para este produto. Use SOMENTE os dados do próprio produto abaixo. " +
+  "Em caracteristicas, inclua apenas especificações que estejam escritas nesses dados, com o valor escrito ali; " +
+  "NUNCA invente, deduza ou complete valores (tensão, corrente, medidas, peso, chip, pinos). Se não houver nenhuma, " +
+  "devolva caracteristicas vazia, e pesoGramas e dimensoesMm nulos. Nos parágrafos, não afirme especificação que não " +
+  "esteja nesses dados.";
+
+export function montarPedidoDaDescricao({ titulo = "", referencias, listaDeMedidas = [], divergencias = [], instrucoes, semReferencias = false }) {
   return (
     (titulo.trim() ? `Produto que a loja vai anunciar: ${titulo.trim()}\n\n` : "") +
-    `Referências:\n\n${referencias}\n\n` +
+    (semReferencias
+      ? `${REGRA_SEM_REFERENCIAS}\n\nDados do próprio produto:\n\n${referencias}\n\n`
+      : `Referências:\n\n${referencias}\n\n`) +
     (listaDeMedidas.length > 0
       ? `Peso e medidas já encontrados nas referências:\n${listaDeMedidas.join("\n")}\n\n`
       : "") +

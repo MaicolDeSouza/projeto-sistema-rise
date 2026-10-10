@@ -2750,6 +2750,10 @@ export default function FormularioProduto({
         lerProduto={() => ({
           titulo: valorDoCampo("tituloBase"),
           sku: valorDoCampo("sku"),
+          // Sem fornecedor nem concorrente, a IA escreve a partir destes (pedido do dono em 10/10/2026).
+          marca: valorDoCampo("marca"),
+          modelo: valorDoCampo("modelo"),
+          descricao: valorDoCampo("descricaoBase"),
           // Peso e medidas ja preenchidos vao para a descricao como estao: o texto
           // nao pode dizer uma medida e o campo outra.
           medidas: Object.fromEntries(

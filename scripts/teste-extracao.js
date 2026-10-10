@@ -1748,6 +1748,20 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
     editado.includes("Referências:\n\n<referencia>a</referencia>"), editado.includes("Peso e medidas já encontrados")], [true, true, true]);
   conferir("o prompt padrao nao entra junto com o editado", editado.includes("Escreva o conteúdo da descrição"), false);
   conferir("sem titulo, o pedido comeca nas referencias", montarPedidoDaDescricao({ ...dados, titulo: "", instrucoes: "P" }).startsWith("Referências:"), true);
+
+  // Sem fornecedor nem concorrente (pedido do dono em 10/10/2026): a IA escreve a partir do proprio produto, com
+  // a regra de nao inventar especificacao.
+  const { dadosDoProprioProduto } = await import("../src/lib/ia/anuncio.js");
+  conferir("dados do proprio produto: so o que tem valor, na ordem",
+    dadosDoProprioProduto({ titulo: " Placa X ", marca: "ACME", modelo: "", descricao: "Texto atual.\nLinha 2" }),
+    "Nome: Placa X\nMarca: ACME\nDescrição atual do produto:\nTexto atual.\nLinha 2");
+  conferir("dados do proprio produto: so o nome", dadosDoProprioProduto({ titulo: "Placa X" }), "Nome: Placa X");
+  const semRefs = montarPedidoDaDescricao({ titulo: "Placa X", referencias: "Nome: Placa X", semReferencias: true, instrucoes: "P" });
+  conferir("sem referencias: o pedido diz que nao ha referencias e manda nao inventar especificacao",
+    [semRefs.includes("Não há referências de outras lojas"), semRefs.includes("Dados do próprio produto:\n\nNome: Placa X"),
+      /NUNCA invente/.test(semRefs), semRefs.includes("Referências:\n\n"), semRefs.endsWith("\n\nP")],
+    [true, true, true, false, true]);
+  conferir("com referencias, a regra de nao inventar nao entra", montarPedidoDaDescricao({ ...dados, instrucoes: "P" }).includes("Não há referências de outras lojas"), false);
 }
 
 console.log("\n— Download do arquivo do produto: o nome real no cabecalho, e nao o hash —");

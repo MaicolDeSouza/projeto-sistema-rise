@@ -2800,7 +2800,15 @@ inline): `docs/superpowers/plans/2026-10-07-produto-com-composicao.md`.
 - **NCM:** os NCMs das peças entram na lista do campo (cada um uma vez, com os SKUs que o usam).
 - **Janela "Criar descrição" (vale para TODO produto):** usa só os fornecedores e concorrentes cadastrados na aba
   (salvos ou não) e os marcados na lupa. Até 07/10/2026 ela procurava o Nome no catálogo coletado inteiro e trazia
-  concorrentes que não estavam na aba (o dono viu isso). Sem referência, a janela diz para cadastrar.
+  concorrentes que não estavam na aba (o dono viu isso).
+  - **Sem fornecedor nem concorrente, a janela funciona do mesmo jeito** (pedido do dono em 10/10/2026). A caixa da
+    descrição fica aberta para digitar desde o início (é o mesmo `<textarea>` antes e depois da primeira tecla, para
+    o cursor não sair dela), e o "Gerar com IA" fica liberado com o Nome preenchido. A IA recebe então os dados do
+    próprio produto (`dadosDoProprioProduto`: Nome, Marca, Modelo e a descrição atual), com a regra
+    `REGRA_SEM_REFERENCIAS` no pedido (fica no código, e não no prompt da biblioteca, para valer com qualquer
+    prompt): especificação só a que estiver escrita nesses dados, nunca inventada. Peso e medidas da IA são
+    ignorados nesse caso; valem só os do formulário. A janela avisa para conferir as especificações. A geração real
+    sem referência ainda não foi vista (é paga): o primeiro uso é do dono.
 
 ### Bling
 
