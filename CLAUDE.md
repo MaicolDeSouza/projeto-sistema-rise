@@ -1287,7 +1287,11 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   - **A home virava produto (mesmo dia).** A home e as categorias da Nuvemshop trazem um Product no JSON-LD por card da
     vitrine (26 na home da Oceantech), e o primeiro virava produto com o link da home, o resumo cortado do card, o logo
     da loja como foto e o "Catálogo de produtos" do menu como documento. Era isso que a prévia do "Buscar dados" mostrava.
-    `ehListagemDaNuvemshop`: página do CDN `mitiendanube.com` cuja classe do `<body>` não é `template-product` não rende produto.
+    `ehListagemDaNuvemshop`: página do CDN `mitiendanube.com` SEM sinal de produto não rende produto. Sinais de produto,
+    qualquer um: `og:type` "nuvemshop:product", `LS.variants = [` ou `<body class="template-product">`. A classe do `<body>`
+    sozinha não bastou: o tema da Policomp (`lojapolicompcomponentes.com.br`, 10/10/2026) não põe classe nenhuma, e a home
+    (19 Product no JSON-LD) voltou a virar produto com o link da home. O `policompcomponentes.com.br` é o site
+    INSTITUCIONAL (phpwcms, sem preço nem carrinho): a loja é o outro domínio.
   - **Ficha sem título com item solto** (`fichaSemTitulo`, vale para toda loja): numa lista MARCADA ("- "), item sem
     dois-pontos ("- Rosca Direita") entra sem nome e não quebra mais a sequência, e o nome pode ter até 5 palavras
     ("Máxima Folga Fuso Axial"). Continua exigindo 3 pares "Nome: valor" (lista de propaganda com um par não vira ficha).

@@ -75,10 +75,22 @@ function nomesDasOpcoes(html) {
  */
 export function ehListagemDaNuvemshop(html) {
   if (typeof html !== "string" || !/mitiendanube\.com/i.test(html)) return false;
+
+  // Sinais de PAGINA DE PRODUTO, qualquer um basta. A classe do <body> nao vem em
+  // todo tema: na Policomp (10/10/2026) o <body> nao tem classe nenhuma, e a home
+  // (19 Product no JSON-LD) voltou a virar produto. O og:type "nuvemshop:product"
+  // e o JS de variantes estao na pagina de produto dos dois temas medidos, e em
+  // nenhuma home ou categoria.
+  if (/<meta\b[^>]*property=["']og:type["'][^>]*content=["']nuvemshop:product["']/i.test(html)) return false;
+  if (/\bLS\.variants\s*=\s*\[/.test(html)) return false;
+
   const corpo = /<body\b[^>]*\bclass\s*=\s*["']([^"']*)["']/i.exec(html);
-  if (!corpo) return false;
-  const modelo = /\btemplate-([\w-]+)/.exec(corpo[1]);
-  return Boolean(modelo) && modelo[1] !== "product";
+  const modelo = corpo ? /\btemplate-([\w-]+)/.exec(corpo[1]) : null;
+  if (modelo) return modelo[1] !== "product";
+
+  // Sem nenhum sinal de produto e com o CDN da Nuvemshop: e listagem (home,
+  // categoria, busca), que traz um Product no JSON-LD por card da vitrine.
+  return true;
 }
 
 /**

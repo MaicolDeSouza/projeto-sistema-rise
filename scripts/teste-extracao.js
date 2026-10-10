@@ -2042,5 +2042,16 @@ console.log("\n— WooCommerce Store API: \"Amostra variada\" (evitar) —");
   conferir("Woo: evitado nao conta como retomado", segunda.retomados, 0);
 }
 
+console.log("\n— Nuvemshop: tema sem classe no <body> (Policomp, 10/10/2026) —");
+{
+  const ld = (nome, sku) => `<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"${nome}","sku":"${sku}","offers":{"@type":"Offer","price":"229","availability":"https://schema.org/InStock"}}</script>`;
+  const home = `<html><head>${ld("Motor de passo", "90125")}${ld("Spindle", "90246")}<meta property="og:type" content="website" /></head><body><img src="https://acdn-us.mitiendanube.com/x.png"></body></html>`;
+  conferir("Nuvemshop sem classe no body: home nao vira produto", normalizarPagina({ html: home, url: "https://loja.exemplo.com/", fonte: { tipo: "CONCORRENTE" } }).produtos.length, 0);
+  const produto = home.replace('content="website"', 'content="nuvemshop:product"');
+  conferir("Nuvemshop sem classe no body: og:type nuvemshop:product e produto", normalizarPagina({ html: produto, url: "https://loja.exemplo.com/produtos/motor/", fonte: { tipo: "CONCORRENTE" } }).produtos.length > 0, true);
+  const comVariantes = home.replace("</head>", '<script>LS.variants = [{"price_number":229,"sku":"90125","stock":5,"available":true,"option0":null,"id":1}];</script></head>');
+  conferir("Nuvemshop sem classe no body: LS.variants e produto", normalizarPagina({ html: comVariantes, url: "https://loja.exemplo.com/produtos/motor/", fonte: { tipo: "CONCORRENTE" } }).produtos.map((p) => p.code), ["90125"]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
