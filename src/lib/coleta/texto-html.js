@@ -64,7 +64,9 @@ export function comoTexto(valor) {
   const texto = decodificar(
     String(valor)
       .replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, " ")
-      .replace(/<br\s*\/?>/gi, "\n")
+      // Com ou sem atributos: a Policomp (10/10/2026) escreve `<br style="..." />`, e a
+      // descricao inteira do cone BT30 saia numa linha so, sem a ficha.
+      .replace(/<br\b[^>]*>/gi, "\n")
       .replace(/<\/(p|div|li|tr|h[1-6])>/gi, "\n")
       .replace(/<[^>]*>/g, " "),
   )

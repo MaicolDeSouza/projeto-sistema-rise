@@ -304,6 +304,9 @@ function galeriaDoMagento(html, urlBase) {
   return fotos.slice(0, TETO_DE_GALERIA);
 }
 
+/** "-1000x1000.jpg" / "-600x315w.jpg" no fim do nome de uma foto do OpenCart. */
+const TAMANHO_OPENCART = /-(\d{2,4})x(\d{2,4})w?(?=\.[A-Za-z0-9]+$)/;
+
 /** "-640-0.webp" no fim do nome de uma foto da Nuvemshop: largura, altura e formato. */
 const TAMANHO_NUVEMSHOP = /-(\d{2,4})-(\d{1,4})\.[A-Za-z0-9]+$/;
 
@@ -316,13 +319,58 @@ function ehDaNuvemshop(endereco) {
   }
 }
 
-function semRepetir(urls) {
+/**
+ * O endereco da MAIOR versao da mesma foto, pelo padrao de cada plataforma.
+ *
+ * A pagina costuma trazer so a miniatura da galeria, e a ampliada da previa mostrava
+ * a miniatura esticada (pedido do dono em 10/10/2026, "as fotos vem pequenas").
+ * Medido em todas as fontes nesse dia (largura real da foto guardada -> a grande):
+ * - Nuvemshop: `-240-0.webp` (240 px) -> `-1024-1024` (existe no CDN, mesmo nome);
+ * - Usinainfo (PrestaShop): `-large_default` (397x300) -> `-thickbox_default` (1192x900);
+ * - Eletrus: `_thumb` (300 px) -> `_orig` (500 px), a mesma foto;
+ * - Wix (Nightech): a URL encadeia dois redimensionamentos e o ultimo e de 500 px; o
+ *   endereco ate o `~mv2.png` e a original (2000 px).
+ * Magento (Mamute, Saravati, Ryndack, Curto Circuito), Tray, RoboCore, Loja Integrada,
+ * WooCommerce e Unitel ja guardam 800 a 2500 px e ficam como estao.
+ */
+function versaoGrande(endereco) {
+  if (typeof endereco !== "string") return endereco;
+  let url;
+  try {
+    url = new URL(endereco);
+  } catch {
+    return endereco;
+  }
+  const host = url.hostname.toLowerCase();
+
+  if (/(^|\.)mitiendanube\.com$/.test(host)) {
+    const formato = /\.[A-Za-z0-9]+$/.exec(url.pathname)?.[0];
+    return formato ? endereco.replace(TAMANHO_NUVEMSHOP, `-1024-1024${formato}`) : endereco;
+  }
+  if (/(^|\.)usinainfo\.com\.br$/.test(host)) {
+    return endereco.replace(/\/(\d+)-(small|cart|home|medium|large)_default\//, "/$1-thickbox_default/");
+  }
+  if (/(^|\.)eletruscomp\.com\.br$/.test(host)) {
+    return endereco.replace(/_thumb(\.[A-Za-z0-9]+)$/, "_orig$1");
+  }
+  if (host === "static.wixstatic.com" && url.pathname.startsWith("/media/")) {
+    const original = /^(.*?~mv2\.[A-Za-z0-9]+)\/v1\//.exec(endereco);
+    if (original) return original[1];
+  }
+  return endereco;
+}
+
+function semRepetir(urlsCruas) {
+  const urls = urlsCruas.map(versaoGrande);
   const porIdentidade = new Map();
 
   /** Area declarada no endereco (".../800x800/foto.jpg"), para escolher a maior. */
   const area = (endereco) => {
     const medida = /\/(\d{2,4})x(\d{2,4})\//.exec(endereco);
     if (medida) return Number(medida[1]) * Number(medida[2]);
+    // OpenCart (Solda Fria): o tamanho vem no fim do nome ("...-1000x1000.jpg").
+    const doOpenCart = /\/image\/cache\//.test(endereco) ? TAMANHO_OPENCART.exec(endereco) : null;
+    if (doOpenCart) return Number(doOpenCart[1]) * Number(doOpenCart[2]);
     // Nuvemshop: "...-640-0.webp" (largura e altura livre) ou "...-1024-1024.png".
     const nuvem = ehDaNuvemshop(endereco) ? TAMANHO_NUVEMSHOP.exec(endereco) : null;
     return nuvem ? Number(nuvem[1]) * Number(nuvem[1]) : 0;
@@ -346,10 +394,16 @@ function semRepetir(urls) {
       const pasta = partes.at(-2) ?? "";
       const numero = /^(\d+)-/.exec(pasta)?.[1];
 
+      // OPENCART (Solda Fria, 10/10/2026): o recorte do og:image ("...-600x315w.jpg",
+      // em cache/catalog/) e a foto grande ("...-1000x1000.jpg", em cache/2338/) sao a
+      // mesma foto em pastas diferentes. Sem tamanho e sem pasta, viram uma, a maior.
+      const doOpenCart = /\/image\/cache\//.test(endereco) && TAMANHO_OPENCART.test(partes.at(-1));
+
       // O numero na pasta identifica a foto no PrestaShop, onde o nome do
       // arquivo se repete entre fotos do mesmo produto.
-      identidade =
-        numero && arquivo
+      identidade = doOpenCart
+        ? `opencart/${partes.at(-1).replace(TAMANHO_OPENCART, "")}`
+        : numero && arquivo
           ? `${numero}/${arquivo}`
           : [...partes.slice(0, -1), arquivo].join("/");
     } catch {
@@ -363,9 +417,26 @@ function semRepetir(urls) {
     }
   }
 
+  // TRAY (WJ Componentes, 10/10/2026): a miniatura e a mesma foto com o tamanho na
+  // FRENTE do nome ("90_termostato..._1_<hash>.jpg", 90 px, ao lado do de 1000 px). So
+  // sai quando o nome sem o prefixo tambem esta na lista: na Tray o nome tambem pode
+  // COMECAR pelo id do produto ("73_5_<data>"), e esse e foto de verdade.
+  const nomeDe = (endereco) => {
+    try {
+      return new URL(endereco).pathname.split("/").pop();
+    } catch {
+      return "";
+    }
+  };
+  const nomes = new Set([...porIdentidade.values()].map(nomeDe));
+  const semMiniaturaDaTray = [...porIdentidade.values()].filter((endereco) => {
+    const prefixo = /^\d{2,4}_(.+)$/.exec(nomeDe(endereco));
+    return !(prefixo && /tcdn\.com\.br/i.test(endereco) && nomes.has(prefixo[1]));
+  });
+
   // A Nuvemshop serve a galeria em "http://" dentro de uma pagina https; o CDN
   // responde nos dois, e a tela do Rise (https) bloqueia a foto em http.
-  return [...porIdentidade.values()].map((endereco) =>
+  return semMiniaturaDaTray.map((endereco) =>
     ehDaNuvemshop(endereco) ? endereco.replace(/^http:\/\//i, "https://") : endereco,
   );
 }
@@ -459,9 +530,12 @@ function fichaSemTitulo(linhas) {
     const igual = limpa.search(/\s=\s/);
     const usaIgual = igual !== -1 && (doisPontos === -1 || igual < doisPontos);
     const separador = usaIgual ? igual : doisPontos;
-    if (separador < 2 || separador > (marcada || usaIgual ? 45 : 30)) return null;
+    if (separador < 1 || separador > (marcada || usaIgual ? 45 : 30)) return null;
 
     const nome = limpa.slice(0, separador).trim();
+    // Nome de UMA letra so vale maiuscula sozinha: "D: 49,60 mm" (o diametro, no cone
+    // BT30 da Policomp, 10/10/2026) quebrava a ficha no meio, e sobravam 3 de 6 itens.
+    if (nome.length < 2 && !/^[A-Z]$/.test(nome)) return null;
     // Depois do separador; "Folga: = 12 arcmin" traz um "=" sobrando no comeco do valor.
     const inicioDoValor = usaIgual ? limpa.indexOf("=", separador) + 1 : separador + 1;
     const valor = limpa.slice(inicioDoValor).replace(/^\s*=\s*/, "").trim();
@@ -2110,7 +2184,17 @@ export function normalizarPagina({
   // 0,060kg": pela regra da mais longa, o texto da empresa vencia e a descricao
   // do produto nunca chegava. O texto que a pagina mostra ao cliente vale mais
   // que a meta tag; sem aba, o og:description continua entrando como antes.
-  const description = descricaoDaRoboCore(html, url) ?? melhorDescricao([
+  // NUVEMSHOP: o bloco de descricao da pagina VENCE o JSON-LD (Policomp, 10/10/2026). Na
+  // Nuvemshop o JSON-LD traz um resumo de propaganda gerado ("Descubra o Cone Porta
+  // Pinca... Adquira ja o seu"), e no cone BT30 ele tinha 140 caracteres contra ~130 da
+  // descricao real (Modelo, Rotacao, L1, D...): pela regra da mais longa o resumo
+  // ganhava, e a ficha, que sai da descricao, vinha vazia.
+  const blocoDaNuvemshop =
+    /mitiendanube\.com/i.test(html) &&
+    /<meta\b[^>]*property=["']og:type["'][^>]*content=["']nuvemshop:product["']/i.test(html)
+      ? descricaoDoBloco(html)
+      : null;
+  const description = descricaoDaRoboCore(html, url) ?? (blocoDaNuvemshop && blocoDaNuvemshop.length >= 20 ? blocoDaNuvemshop : null) ?? melhorDescricao([
     aspnet?.descricao,
     estruturado?.descricao,
     micro?.descricao,

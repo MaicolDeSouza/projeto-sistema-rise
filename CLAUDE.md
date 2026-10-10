@@ -1328,6 +1328,19 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   - **Visto e NÃO corrigido (fora das 4):** descrição que só existe no JSON-LD, ou em `<br><br>`, chega cortada (fica só
     o que vem depois da última linha em branco). Já era assim antes; nas páginas reais testadas a descrição vem do bloco
     HTML em `<p>` e sai inteira.
+  - **Itens 5 e 6 (mesmo dia, pedido do dono):** (5) **fotos pequenas** na Nuvemshop (só a 1ª vinha grande; as outras eram
+    a miniatura `-240-0`) e, pedido junto, **em todas as fontes**. `versaoGrande` (`normalizar.js`, em `semRepetir`) troca o
+    endereço pela versão grande, medida em 10/10/2026 com HTTP 200 e o tamanho real: Nuvemshop `-NNN-N` → `-1024-1024`
+    (240 → 1024 px); Usinainfo (PrestaShop) `-small|cart|home|medium|large_default` → `-thickbox_default` (397 → 1192 px);
+    Eletrus `_thumb` → `_orig` (300 → 500); Wix (Nightech) sem o recorte `/v1/...` (500 → 2000). Mais duas pela
+    deduplicação: o OpenCart (Solda Fria) põe o tamanho no nome (`-600x315w`, `-1000x1000`, só em `/image/cache/`) e fica
+    o maior; a miniatura `90_` da Tray (WJ) sai quando a foto grande do mesmo arquivo está na lista (sozinha, fica). As
+    outras fontes (Mamute, Saravati, Ryndack, Curto Circuito, Smartkits, Casa da Robótica, Easytronics, RoboCore, Forseti,
+    Unitel, Loja Integrada) já vinham entre 800 e 2500 px. (6) **Descrição do cone BT30:** na Nuvemshop o bloco da
+    descrição da página (com 20+ caracteres) VENCE o JSON-LD, que ali é um resumo de SEO gerado (e mais longo); `comoTexto`
+    passou a quebrar linha também em `<br style="...">`; e na ficha sem título um nome de UMA letra vale se for maiúscula
+    ("D: 42 mm"). O cone sai com a descrição real em 6 linhas e as 6 características. Produtos já gravados só mudam na
+    próxima varredura.
 - **CATEGORIA = CAMINHO COMPLETO** (decisão do dono em 09/10/2026): `Impressão 3D > Partes`, `ELETRÔNICA > FONTES DE ENERGIA`,
   e não mais um nível só (era o ÚLTIMO degrau no Microdata, RoboCore e Eletrus, e o PRIMEIRO no dataLayer). Regras em
   `src/lib/coleta/categoria.js` (`caminhoDeCategoria`, separador ` > `): tira a raiz do começo (Início, Home, Página inicial,

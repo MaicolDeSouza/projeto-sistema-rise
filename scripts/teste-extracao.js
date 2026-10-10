@@ -1997,9 +1997,54 @@ console.log("\n— Nuvemshop: acento, foto repetida em tamanhos e categoria (fon
 <script>LS.variants = [{"price_number":229,"price_with_payment_discount_short":"R$217,55","stock":53,"sku":"9287","available":true,"option0":null,"option1":null,"option2":null,"id":1}];</script>
 </head><body><img src="http://${cdn}-640-0.webp"><img src="https://${cdn}-1024-1024.png"></body></html>`;
   const [fonte] = normalizarPagina({ html, url: "https://loja.exemplo.com/produtos/fonte-chaveada/", fonte: { tipo: "CONCORRENTE" } }).produtos;
-  conferir("Nuvemshop: a mesma foto em tres tamanhos vira uma, a maior, em https", fonte.images, [`https://${cdn}-1024-1024.png`]);
+  conferir("Nuvemshop: a mesma foto em tres tamanhos vira uma, na versao 1024 do CDN, em https", fonte.images, [`https://${cdn}-1024-1024.webp`]);
   conferir("Nuvemshop: categoria e o caminho inteiro do breadcrumb", fonte.category, "ELETRÔNICA > FONTES DE ENERGIA");
   conferir("Nuvemshop: sem breadcrumb no JSON-LD a categoria nao e inventada", normalizarPagina({ html: html.replace(/"breadcrumb":\{[\s\S]*?\]\},/, ""), url: "https://loja.exemplo.com/produtos/fonte-chaveada/", fonte: { tipo: "CONCORRENTE" } }).produtos[0].category, null);
+}
+
+console.log("\n— Fotos: a versao grande de cada plataforma (10/10/2026) —");
+{
+  const fotosDe = (imagens) => {
+    const html = `<html><head><meta property="og:type" content="nuvemshop:product" /><script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "Product", name: "X", sku: "1", image: imagens, offers: { "@type": "Offer", price: "10" } })}</script></head><body></body></html>`;
+    return normalizarPagina({ html, url: "https://loja.exemplo.com/p/x", fonte: { tipo: "CONCORRENTE" } }).produtos[0].images;
+  };
+  conferir("Usinainfo: large_default vira thickbox_default",
+    fotosDe(["https://www.usinainfo.com.br/1018285-large_default/placa.jpg", "https://www.usinainfo.com.br/1018286-home_default/placa.jpg"]),
+    ["https://www.usinainfo.com.br/1018285-thickbox_default/placa.jpg", "https://www.usinainfo.com.br/1018286-thickbox_default/placa.jpg"]);
+  conferir("Eletrus: _thumb vira _orig e junta com a original",
+    fotosDe(["https://www.eletruscomp.com.br/_uploads/ProdutoDestaque/82_4397_orig.jpg", "https://www.eletruscomp.com.br/_uploads/ProdutoDestaque/82_4397_thumb.jpg"]),
+    ["https://www.eletruscomp.com.br/_uploads/ProdutoDestaque/82_4397_orig.jpg"]);
+  conferir("Wix: o recorte /v1/ sai e fica o original",
+    fotosDe(["https://static.wixstatic.com/media/85f758_3a93~mv2.png/v1/fit/w_500,h_500,q_90/file.png"]),
+    ["https://static.wixstatic.com/media/85f758_3a93~mv2.png"]);
+  conferir("Tray: a miniatura 90_ sai quando a foto grande esta na lista",
+    fotosDe(["https://images.tcdn.com.br/img/img_prod/672486/termostato_985_1_abc.jpg", "https://images.tcdn.com.br/img/img_prod/672486/90_termostato_985_1_abc.jpg"]),
+    ["https://images.tcdn.com.br/img/img_prod/672486/termostato_985_1_abc.jpg"]);
+  conferir("Tray: miniatura sem a grande na lista continua (nao some foto)",
+    fotosDe(["https://images.tcdn.com.br/img/img_prod/672486/90_termostato_985_1_abc.jpg"]),
+    ["https://images.tcdn.com.br/img/img_prod/672486/90_termostato_985_1_abc.jpg"]);
+  conferir("OpenCart: o mesmo arquivo em 600x315w e 1000x1000 fica o maior",
+    fotosDe(["https://www.soldafria.com.br/image/cache/catalog/trafo-600x315w.jpg", "https://www.soldafria.com.br/image/cache/catalog/trafo-1000x1000.jpg"]),
+    ["https://www.soldafria.com.br/image/cache/catalog/trafo-1000x1000.jpg"]);
+  conferir("Nuvemshop: miniatura -240-0 vira -1024-1024",
+    fotosDe(["https://acdn-us.mitiendanube.com/stores/001/products/fuso-240-0.webp"]),
+    ["https://acdn-us.mitiendanube.com/stores/001/products/fuso-1024-1024.webp"]);
+  conferir("Loja sem regra: endereco fica como veio",
+    fotosDe(["https://loja.exemplo.com/img/foto-small_default.jpg"]),
+    ["https://loja.exemplo.com/img/foto-small_default.jpg"]);
+}
+
+console.log("\n— Nuvemshop: o bloco da descricao vence o resumo do JSON-LD (cone BT30 da Policomp) —");
+{
+  const { comoTexto } = await import("../src/lib/coleta/texto-html.js");
+  conferir("<br> com atributos tambem quebra linha", comoTexto('Modelo: A<br style="x" />Material: aço'), "Modelo: A\nMaterial: aço");
+  const resumo = "Descubra o Cone Porta Pinca BT30, ideal para usinagem de precisao com qualidade superior. Adquira ja o seu e eleve sua usinagem a outro nivel!";
+  const html = `<html><head><meta property="og:type" content="nuvemshop:product" />
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Cone BT30","sku":"77","image":"https://acdn-us.mitiendanube.com/stores/1/products/cone-640-0.webp","description":"${resumo}","offers":{"@type":"Offer","price":"300","availability":"https://schema.org/InStock"}}</script>
+</head><body><div class="user-product-description"><span>Modelo: BT30-ER32-100</span><br style="color:red" /><span>Rotação maxima: 30.000 RPM</span><br /><span>L1: 100 mm</span><br /><span>D: 42 mm</span><br /><span>Material: aço liga</span><br /><span>Precisão: 0,005</span></div></body></html>`;
+  const [cone] = normalizarPagina({ html, url: "https://loja.exemplo.com/produtos/cone/", fonte: { tipo: "CONCORRENTE" } }).produtos;
+  conferir("descricao e o bloco, nao o resumo de SEO", cone.description.startsWith("Modelo: BT30-ER32-100"), true);
+  conferir("ficha com o nome de uma letra maiuscula (D)", cone.specifications.map((e) => e.nome), ["Modelo", "Rotação maxima", "L1", "D", "Material", "Precisão"]);
 }
 
 console.log("\n— Nuvemshop: home nao e produto; ficha marcada sem titulo —");
