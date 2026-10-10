@@ -1294,6 +1294,12 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   - **Efeito:** a Oceantech sai com mais produtos que páginas (24 de uma página). A varredura continua tratando a página uma vez.
     Os produtos já gravados dela só se corrigem na próxima varredura, e o worker do PC (`worker:pc`) precisa ser reiniciado
     para carregar o código novo.
+- **Makerhero é lida pela Store API, não pela página** ("WooCommerce Store API" nas origens), e a API não traz o PIX.
+  `colherWooCommerce` abre a página dos PRIMEIROS produtos, lê o "R$ X no PIX" do Simulador de Parcelas
+  (`precosDoSimuladorWoo`) e aprende a regra da loja com a lógica da Tray (`aprenderRegraDePagamento` /
+  `aplicarRegraDePagamento`, em `pagamento.js`): na Makerhero, 5% truncando, aprendido numa página só (12,90 → 12,25 separa
+  os dois modos) e conferido no 2CC58 (14,90 → 14,15 na página). Loja WooCommerce sem o bloco desiste depois de UMA página.
+  A categoria da API vem pelo link da categoria mais funda (`caminhoDasCategoriasWoo`: "Impressão 3D > Partes").
 - **CATEGORIA = CAMINHO COMPLETO** (decisão do dono em 09/10/2026): `Impressão 3D > Partes`, `ELETRÔNICA > FONTES DE ENERGIA`,
   e não mais um nível só (era o ÚLTIMO degrau no Microdata, RoboCore e Eletrus, e o PRIMEIRO no dataLayer). Regras em
   `src/lib/coleta/categoria.js` (`caminhoDeCategoria`, separador ` > `): tira a raiz do começo (Início, Home, Página inicial,

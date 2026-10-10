@@ -1633,7 +1633,7 @@ function documentosDaPagina(html, urlBase) {
  * "R$ 12,25 no PIX". Vale o PRIMEIRO bloco que tem o simulador — os seguintes
  * sao de produtos relacionados (o 99,90 / 94,90 da mesma pagina).
  */
-function precosDoSimuladorWoo(html) {
+export function precosDoSimuladorWoo(html) {
   const bloco = /<p\b[^>]*class="[^"]*\bprice\b[^"]*"[^>]*>([\s\S]*?wc-simulador-parcelas-detalhes-valor[\s\S]*?)<\/p>/i.exec(
     html,
   );

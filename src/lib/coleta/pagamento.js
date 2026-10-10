@@ -164,12 +164,17 @@ function aprender(amostras) {
 /// modulo — ja errou um centavo por adotar regra de amostra que nao separava os
 /// modos — e provar isso sem rede exige chamar a funcao direto.
 export { aprender as aprenderParaTeste };
+// A mesma regra serve a outras plataformas que publicam o preco a vista so na
+// pagina (WooCommerce com Simulador de Parcelas, ver woocommerce.js).
+export { aprender as aprenderRegraDePagamento };
 
 /** O preco a vista que a regra ja aprendida preve para este produto. */
 function aplicar(regra, precoTabela) {
   const numerador = emCentavos(precoTabela) * (100 - regra.percentual);
   return MODOS[regra.modo](numerador) / 100;
 }
+
+export { aplicar as aplicarRegraDePagamento };
 
 /**
  * Memoria de uma fonte. Guarda o que ja foi aprendido sobre a loja para nao

@@ -1978,5 +1978,37 @@ console.log("\n— Categoria como caminho completo (decisao do dono, 09/10/2026)
   conferir("JSON-LD quebrado nao derruba", caminhoDoJsonLd('<script type="application/ld+json">{quebrado</script>'), null);
 }
 
+console.log("\n— WooCommerce Store API: PIX aprendido na pagina e categoria em caminho (Makerhero) —");
+{
+  const { colherWooCommerce, caminhoDasCategoriasWoo } = await import("../src/lib/coleta/woocommerce.js");
+  conferir("Woo: categoria pelo link da mais funda", caminhoDasCategoriasWoo([
+    { name: "Impressão 3D", slug: "impressao-3d", link: "https://loja.exemplo.com/categoria/impressao-3d/" },
+    { name: "Partes", slug: "partes-impressao-3d", link: "https://loja.exemplo.com/categoria/impressao-3d/partes-impressao-3d/" },
+  ]), "Impressão 3D > Partes");
+  conferir("Woo: categoria sem link fica com o nome", caminhoDasCategoriasWoo([{ name: "Sensores", slug: "sensores" }]), "Sensores");
+
+  const item = (sku, centavos) => ({ name: `Produto ${sku}`, sku, permalink: `https://loja.exemplo.com/produto/${sku}/`, prices: { price: String(centavos), regular_price: String(centavos), currency_minor_unit: 2 }, is_in_stock: true, categories: [] });
+  const itens = [item("A", 1290), item("B", 1490), item("C", 990)];
+  const moeda = '<span class="woocommerce-Price-currencySymbol">&#82;&#36;</span>';
+  const valor = (v) => `<span class="woocommerce-Price-amount amount"><bdi>${moeda}${v}</bdi></span>`;
+  const paginaComPix = `<p class="price"><span class="electro-price">${valor("12,90")}</span><span class="wc-simulador-parcelas-offer"> <span class="wc-simulador-parcelas-detalhes-valor">${valor("12,25")} <span>no PIX</span> </span></span></p>`;
+  const colher = async (paginaDoProduto) => {
+    let paginasAbertas = 0;
+    const buscar = async (url) => {
+      if (url.includes("/wp-json/")) return { ok: true, corpo: JSON.stringify(itens), cabecalhos: { "x-wp-total": "3" } };
+      paginasAbertas++;
+      return { ok: true, corpo: paginaDoProduto };
+    };
+    const r = await colherWooCommerce({ catalogo: { url: "https://loja.exemplo.com/wp-json/wc/store/v1/products" }, origem: "https://loja.exemplo.com", limite: 10, orcamento: 50, fonte: { type: "CONCORRENTE" }, plataforma: { id: "woocommerce", nome: "WooCommerce" }, buscar });
+    return { r, paginasAbertas };
+  };
+  const comPix = await colher(paginaComPix);
+  conferir("Woo: PIX lido na primeira pagina e calculado no resto", comPix.r.produtos.map((p) => p.prices.promotional), [12.25, 14.15, 9.4]);
+  conferir("Woo: uma pagina basta quando a amostra separa os modos de arredondar", comPix.paginasAbertas, 1);
+  conferir("Woo: a origem diz que o PIX foi calculado", comPix.r.produtos[1].origens.precoPromocional.startsWith("calculado: desconto de 5%"), true);
+  const semPix = await colher("<html><body><p class=\"price\">R$ 12,90</p></body></html>");
+  conferir("Woo: loja sem o simulador desiste na primeira pagina", [semPix.paginasAbertas, semPix.r.produtos.map((p) => p.prices.promotional)], [1, [null, null, null]]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
