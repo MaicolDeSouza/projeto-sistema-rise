@@ -1341,6 +1341,19 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
     passou a quebrar linha também em `<br style="...">`; e na ficha sem título um nome de UMA letra vale se for maiúscula
     ("D: 42 mm"). O cone sai com a descrição real em 6 linhas e as 6 características. Produtos já gravados só mudam na
     próxima varredura.
+  - **Itens 7 a 10 (mesmo dia):** (7) **Características por coluna** na prévia e no detalhe do Scraper: a primeira
+    metade na esquerda, o resto na direita (`sm:grid-flow-col` com `--linhas` = metade arredondada para cima). (8) **Ficha
+    sem título** (`fichaSemTitulo`): nome até 5 palavras e valor até 80 caracteres também sem marcador (eram 3 e 40: o
+    redutor NEMA 23 tinha 6 pares e saía com ZERO, partido em 2+2 por "Torque maximo na saída"); valor acima de 40 (60
+    com marcador) só com NÚMERO, que é o que separa "Potência: 35W sob..." de "Leveza: Ideal para projetos..."; e UMA
+    linha curta solta entre dois pares ("Altura x Largura") entra sem nome em vez de quebrar a ficha. Comparado em
+    todas as descrições do banco do PC (~62 mil): nenhuma loja perdeu item, ~760 produtos ganharam (Mamute, Saravati,
+    Smartkits, Forseti, Solda Fria...). Ruído que sobrou: sumário de e-book da Casa da Robótica ("Projeto 1: ...") em 4
+    produtos. Lista de recursos sem "Nome:" (placa controladora, driver DM542) continua sem ficha. (9) **"Amostra
+    variada" esgotava na 3ª busca:** a amostra do sitemap (8 endereços) agora é escolhida DEPOIS de tirar os já
+    mostrados, e na Nuvemshop `/produtos/<slug>/` conta como produto (antes só o "-NNN" no fim, e o resto ficava atrás da
+    home, do contato e da FAQ). Policomp: 4 buscas seguidas, 3 produtos novos em cada. (10) A tela acumula os produtos
+    mostrados em TODA busca (o `evitar` só vai com o toggle ligado): a 1ª busca depois de ligar repetia os anteriores.
 - **CATEGORIA = CAMINHO COMPLETO** (decisão do dono em 09/10/2026): `Impressão 3D > Partes`, `ELETRÔNICA > FONTES DE ENERGIA`,
   e não mais um nível só (era o ÚLTIMO degrau no Microdata, RoboCore e Eletrus, e o PRIMEIRO no dataLayer). Regras em
   `src/lib/coleta/categoria.js` (`caminhoDeCategoria`, separador ` > `): tira a raiz do começo (Início, Home, Página inicial,
