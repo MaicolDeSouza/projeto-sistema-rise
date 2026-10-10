@@ -49,12 +49,19 @@ const { coletaPausada } = await import("../src/lib/coleta/controle.js");
 const { ultimaRespostaDe } = await import("../src/lib/coleta/buscar.js");
 const fila = await import("../src/lib/coleta/fila.js");
 const { tirarFotoMensal } = await import("../src/lib/coleta/fotos.js");
+const { limparTemporariosAntigos } = await import("../src/lib/arquivos.js");
 const { servidorEhWindows } = await import("../src/lib/copiaLocal.js");
 
 /// De quanto em quanto tempo se confere se a foto mensal e devida. A foto e uma por
 /// mes, entao a conferencia e barata; a hora so evita consultar o banco a cada volta.
 const CONFERE_FOTO_MS = 60 * 60 * 1000;
 let fotoConferidaEm = 0;
+
+/// De quanto em quanto tempo se apaga o que sobrou em dados/temporarios (pastas de cadastro abandonado, com mais de 24 h;
+/// pedido do dono em 10/10/2026). Antes so se limpava quando alguem enviava foto ou documento, e sem envio o lixo ficava no
+/// disco da VPS. A primeira volta do worker ja limpa (`0`), que cobre o que sobrou de antes de ele ligar.
+const LIMPA_TEMPORARIOS_MS = 60 * 60 * 1000;
+let temporariosLimposEm = 0;
 
 /// Codigo de saida quando ja ha outro worker no ar. O supervisor nao religa.
 const SAIDA_OUTRO_WORKER = 3;
@@ -428,6 +435,13 @@ async function laco() {
         if (foto.tirou) {
           log(`foto mensal ${foto.mes}: ${foto.coleta} produto(s) de fornecedor/concorrente, ${foto.produtos} da loja`);
         }
+      }
+      // Os temporarios do cadastro de produto (fora do `coletaPausada`, como a foto). So o worker normal: o de teste e o do PC
+      // nao mexem na pasta de dados do site.
+      if (!FONTES && !SO_NO_PC && Date.now() - temporariosLimposEm >= LIMPA_TEMPORARIOS_MS) {
+        temporariosLimposEm = Date.now();
+        const apagados = await limparTemporariosAntigos();
+        if (apagados > 0) log(`temporarios: ${apagados} pasta(s) de cadastro abandonado apagada(s)`);
       }
     } catch (erro) {
       logErro(`erro na volta do worker: ${mensagem(erro)}`);

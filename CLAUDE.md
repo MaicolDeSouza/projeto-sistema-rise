@@ -3443,7 +3443,15 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
   - A lista (`arquivosTemporarios`) vem do navegador, mas **só entra o que existe no lote com
     nome gerado por nós**. Tamanho e formato são lidos do disco. Testado: `../../../.env` na
     lista é ignorado.
-  - Lote com mais de 24 h (cadastro abandonado) é apagado no envio seguinte.
+  - **Limpeza dos temporários** (`limparTemporariosAntigos`, em `arquivos.js`): lote com mais de 24 h (cadastro abandonado) é
+    apagado. O lote some na hora ao **Salvar** (produto novo ou existente) e ao **Cancelar**; o que sobra (aba fechada, saída pela
+    seta ou pelo menu) sai pela idade. **Quando roda:** a cada foto ou documento enviado **e, desde 10/10/2026, de hora em hora no
+    worker** (`LIMPA_TEMPORARIOS_MS`; só o worker normal, e já na primeira volta ao ligar). Antes só rodava com o envio, e sem
+    envio a pasta de um cadastro abandonado ficava no disco da VPS. A idade é a **atividade mais recente entre a pasta do lote e as
+    subpastas** (`ultimaAtividadeDoLote`): a data da pasta do lote só muda quando entra um item direto nela, e um cadastro aberto
+    havia mais de um dia, com fotos entrando, parecia parado. **Abrir a tela de um produto que já existe copia as fotos dele para
+    um lote novo a cada vez** (`prepararFotosDoProduto`): é a maior fonte de sobra (média de 1,8 MB por lote medida no PC em
+    10/10/2026). A pasta **não entra** no backup do R2 (só `dados/produtos` e `dados/coleta`). Testes: `teste:imagens` ("Temporarios").
   - Sem link de abrir antes de salvar: a pasta temporária não tem rota pública, de propósito.
   - **Falha ao gravar os documentos não derruba o Salvar.** Em 16/09, com o servidor sem
     reiniciar após a migration, o produto foi criado e o registro dos arquivos falhou. A ação

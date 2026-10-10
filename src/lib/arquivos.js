@@ -329,22 +329,50 @@ export function loteValido(lote) {
 // que um tipo novo de documento for aceito no envio.
 export const TIPO_POR_EXTENSAO = { ".pdf": "application/pdf", ".jpg": "image/jpeg", ".png": "image/png", ".zip": "application/zip" };
 
-/** Apaga lotes com mais de 24 h. Falha aqui nunca derruba o envio. */
+/**
+ * Quando o lote foi mexido pela ultima vez: a data mais recente entre a pasta dele e as subpastas (imagens, originais,
+ * documentos...). A data da pasta do lote so muda quando entra ou sai um item DIRETO dela, entao um cadastro aberto
+ * ha mais de um dia, com fotos ainda entrando nas subpastas, parecia parado e seria apagado no meio do uso.
+ */
+async function ultimaAtividadeDoLote(caminho) {
+  let recente = (await stat(caminho)).mtimeMs;
+  for (const sub of await readdir(caminho, { withFileTypes: true })) {
+    if (!sub.isDirectory()) continue;
+    recente = Math.max(recente, (await stat(path.join(caminho, sub.name))).mtimeMs);
+  }
+  return recente;
+}
+
+/**
+ * Apaga lotes com mais de 24 h e devolve quantos apagou. Falha aqui nunca derruba o envio, e um lote com problema nao
+ * impede a limpeza dos outros.
+ *
+ * Roda quando alguem envia uma foto ou um documento (`salvarArquivoTemporario`, `adicionarImagem`) E de hora em hora no
+ * worker (pedido do dono em 10/10/2026): so com o envio, a pasta de um cadastro abandonado ficava no disco ate o proximo
+ * envio, que podia demorar dias.
+ */
 export async function limparTemporariosAntigos() {
+  let apagados = 0;
   try {
     const lotes = await readdir(RAIZ_TEMPORARIA, { withFileTypes: true });
     const agora = Date.now();
     for (const lote of lotes) {
       if (!lote.isDirectory() || !loteValido(lote.name)) continue;
       const caminho = path.join(RAIZ_TEMPORARIA, lote.name);
-      const { mtimeMs } = await stat(caminho);
-      if (agora - mtimeMs > VALIDADE_TEMPORARIO_MS) {
-        await rm(caminho, { recursive: true, force: true });
+      try {
+        if (agora - (await ultimaAtividadeDoLote(caminho)) > VALIDADE_TEMPORARIO_MS) {
+          await rm(caminho, { recursive: true, force: true });
+          apagados++;
+        }
+      } catch (erro) {
+        // Outro pedido apagou o lote no mesmo instante (Salvar, Cancelar): nada a fazer.
+        if (erro.code !== "ENOENT") console.error("Falha ao limpar o lote temporario " + lote.name + ":", erro.message);
       }
     }
   } catch (erro) {
     if (erro.code !== "ENOENT") console.error("Falha ao limpar temporarios:", erro.message);
   }
+  return apagados;
 }
 
 export async function salvarArquivoTemporario(lote, tipo, arquivo) {

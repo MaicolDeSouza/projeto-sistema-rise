@@ -1791,6 +1791,50 @@ try {
         if (promptsDescricaoDoDono.length > 0) await prisma.promptDescricao.createMany({ data: promptsDescricaoDoDono });
       }
 
+      // ----- Temporarios do cadastro: a limpeza por idade (pedido do dono em 10/10/2026) -----
+      console.log("\nTemporarios: limpeza das pastas de cadastro abandonado (dados/temporarios)");
+      {
+        const { RAIZ_TEMPORARIA, limparTemporariosAntigos } = await import("../src/lib/arquivos.js");
+        const { mkdir: criarPasta, writeFile: gravar, utimes, rm: apagarPasta, access } = await import("node:fs/promises");
+        const path = (await import("node:path")).default;
+        const existe = (caminho) => access(caminho).then(() => true, () => false);
+        const HORAS = 60 * 60 * 1000;
+        const envelhecer = (caminho, horas) => utimes(caminho, new Date(Date.now() - horas * HORAS), new Date(Date.now() - horas * HORAS));
+        // Uma pasta de lote com uma subpasta e um arquivo; `horasDaPasta` e `horasDaSubpasta` dizem a idade de cada uma.
+        const lote = async (horasDaPasta, horasDaSubpasta) => {
+          const id = randomUUID();
+          const pasta = path.join(RAIZ_TEMPORARIA, id);
+          await criarPasta(path.join(pasta, "imagens"), { recursive: true });
+          await gravar(path.join(pasta, "imagens", "a.jpg"), "x");
+          await envelhecer(path.join(pasta, "imagens"), horasDaSubpasta);
+          await envelhecer(pasta, horasDaPasta);
+          return pasta;
+        };
+        const criados = [];
+        try {
+          const velho = await lote(30, 30);
+          const recente = await lote(1, 1);
+          const emUso = await lote(30, 2); // a pasta do lote e antiga, mas uma subpasta foi mexida ha 2 h
+          const foraDoPadrao = path.join(RAIZ_TEMPORARIA, "nao-e-um-lote");
+          await criarPasta(foraDoPadrao, { recursive: true });
+          await envelhecer(foraDoPadrao, 30);
+          criados.push(velho, recente, emUso, foraDoPadrao);
+
+          const apagados = await limparTemporariosAntigos();
+          conferir("limpeza: apaga o lote de mais de 24 h e so ele (conta pelo menos 1)", [apagados >= 1, await existe(velho)], [true, false]);
+          conferir("limpeza: o lote recente fica", await existe(recente), true);
+          conferir("limpeza: lote com subpasta mexida ha pouco fica (cadastro aberto ha dias nao e apagado no uso)", await existe(emUso), true);
+          conferir("limpeza: pasta que nao tem nome de lote nunca e tocada", await existe(foraDoPadrao), true);
+          conferir("limpeza: sem nada a apagar devolve 0 e nao falha", await limparTemporariosAntigos().then((n) => typeof n === "number"), true);
+          // Dias depois, o lote em uso tambem envelhece por inteiro e sai.
+          await envelhecer(path.join(emUso, "imagens"), 30);
+          await limparTemporariosAntigos();
+          conferir("limpeza: lote sem atividade nenhuma ha mais de 24 h sai, mesmo tendo subpasta", await existe(emUso), false);
+        } finally {
+          for (const caminho of criados) await apagarPasta(caminho, { recursive: true, force: true });
+        }
+      }
+
       // ----- Nano Banana: prompt salvo por modelo, imagens extras e o estado para a tela -----
       console.log("\nNano Banana: prompt, extras e estado (usa o Postgres e dados/)");
       const { PROMPT_PADRAO, MODELOS: MODELOS_NB } = await import("../src/lib/integracoes/nanobanana.js");
