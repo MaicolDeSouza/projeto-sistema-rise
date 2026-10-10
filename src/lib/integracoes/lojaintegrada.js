@@ -89,6 +89,12 @@ export const conector = {
   faltando: config.lojaIntegrada.enabled
     ? []
     : ["LOJA_INTEGRADA_ENABLED=true"],
+  // Onde o proprietario gera ou troca o Personal Token, como os cartoes do Bling e do ML (pedido do dono em
+  // 10/10/2026).
+  painel: {
+    url: "https://app.lojaintegrada.com.br/configuracao/token/personal",
+    rotulo: "Link configuração API",
+  },
   salvarCredenciais,
   testar,
 };
