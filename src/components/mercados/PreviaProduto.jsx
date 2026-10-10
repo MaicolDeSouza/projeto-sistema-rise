@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Check, ImageOff, X } from "lucide-react";
+
+import { AmpliacaoDeFoto } from "@/components/produtos/ImagemComZoom";
 
 import Badge from "@/components/ui/Badge";
 import RegrasDeCompra from "@/components/mercados/RegrasDeCompra";
@@ -31,7 +34,7 @@ const NA_GRADE = ["name", "code", "mpn", "ean", "brand", "model", "category", "n
  * desconhecida derrubaria a tela do teste inteira. O onError cobre o link
  * quebrado, para que uma imagem fora do ar nao deixe um buraco sem explicacao.
  */
-function Imagem({ url, alt, tamanho = "h-28 w-28" }) {
+function Imagem({ url, alt, tamanho = "h-28 w-28", aoClicar = null }) {
   if (!url) {
     return (
       <div
@@ -42,7 +45,7 @@ function Imagem({ url, alt, tamanho = "h-28 w-28" }) {
     );
   }
 
-  return (
+  const foto = (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={url}
@@ -52,6 +55,21 @@ function Imagem({ url, alt, tamanho = "h-28 w-28" }) {
       }}
       className={`${tamanho} shrink-0 rounded border border-borda bg-superficie object-contain`}
     />
+  );
+
+  if (!aoClicar) return foto;
+
+  // Clique abre a foto grande, com setas (pedido do dono em 10/10/2026, no padrao
+  // das fotos de Produtos). Botao de verdade, para o teclado alcancar.
+  return (
+    <button
+      type="button"
+      onClick={aoClicar}
+      className="shrink-0 cursor-zoom-in rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-acento"
+      aria-label={alt ? `Ampliar foto: ${alt}` : "Ampliar foto"}
+    >
+      {foto}
+    </button>
   );
 }
 
@@ -114,6 +132,17 @@ export default function PreviaProduto({ produto, indice }) {
     .join(" + ");
   const situacao = SITUACAO[produto.stock?.status] ?? SITUACAO.UNKNOWN;
   const temPromocional = typeof produto.prices?.promotional === "number";
+  // O "promocional" que e so o DESCONTO A VISTA (pix, boleto, deposito) nao e promocao:
+  // a Policomp mostra R$ 632,90 na pagina e o 601,26 so no popup "Ver meios de
+  // pagamento" (10/10/2026). Riscar o preco normal fazia parecer liquidacao. Quem diz
+  // qual dos dois casos e a origem gravada pelo leitor de cada plataforma.
+  const ehAVista =
+    temPromocional &&
+    /pix|vista|boleto|pagamento|dep[oó]sito|transfer[eê]ncia|desconto de [\d.,]+% da loja/i.test(
+      produto.origens?.precoPromocional ?? "",
+    );
+  const fotos = produto.images ?? [];
+  const [ampliada, setAmpliada] = useState(null);
   const valores = valoresDoProduto(produto);
   const especificacoes = produto.specifications ?? [];
   const documentos = produto.documentos ?? [];
@@ -148,20 +177,46 @@ export default function PreviaProduto({ produto, indice }) {
 
       <div className="flex flex-wrap gap-4">
         <div className="flex flex-col gap-1.5">
-          <Imagem url={produto.images?.[0]} alt={produto.name} />
-          {produto.images?.length > 1 && (
+          <Imagem
+            url={fotos[0]}
+            alt={produto.name}
+            aoClicar={fotos[0] ? () => setAmpliada(0) : null}
+          />
+          {fotos.length > 1 && (
             <div className="flex max-w-28 flex-wrap gap-1">
-              {produto.images.slice(1, 5).map((url) => (
-                <Imagem key={url} url={url} alt="" tamanho="h-6 w-6" />
+              {fotos.slice(1, 5).map((url, posicao) => (
+                <Imagem
+                  key={url}
+                  url={url}
+                  alt=""
+                  tamanho="h-6 w-6"
+                  aoClicar={() => setAmpliada(posicao + 1)}
+                />
               ))}
-              {produto.images.length > 5 && (
-                <span className="self-center text-xs text-suave">
-                  +{produto.images.length - 5}
-                </span>
+              {fotos.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => setAmpliada(5)}
+                  className="self-center text-xs text-suave hover:text-texto"
+                  title="Ver as outras fotos"
+                >
+                  +{fotos.length - 5}
+                </button>
               )}
             </div>
           )}
         </div>
+
+        {ampliada !== null && fotos[ampliada] && (
+          <AmpliacaoDeFoto
+            src={fotos[ampliada]}
+            alt={produto.name ?? ""}
+            posicao={ampliada}
+            total={fotos.length}
+            aoFechar={() => setAmpliada(null)}
+            aoNavegar={(passo) => setAmpliada((atual) => atual + passo)}
+          />
+        )}
 
         <div className="min-w-56 flex-1 space-y-3">
           <p className="font-medium">{produto.name}</p>
@@ -207,7 +262,7 @@ export default function PreviaProduto({ produto, indice }) {
                   <p className="text-xs text-suave">Preço</p>
                   <p
                     className={
-                      temPromocional
+                      temPromocional && !ehAVista
                         ? "text-sm text-suave line-through"
                         : "text-lg font-semibold tabular-nums"
                     }
@@ -225,7 +280,9 @@ export default function PreviaProduto({ produto, indice }) {
 
                 {temPromocional && (
                   <div>
-                    <p className="text-xs text-suave">{ROTULOS_CAMPOS.precoPromocional}</p>
+                    <p className="text-xs text-suave" title={produto.origens?.precoPromocional ?? undefined}>
+                      {ehAVista ? "À vista (pix/boleto)" : ROTULOS_CAMPOS.precoPromocional}
+                    </p>
                     <p className="text-lg font-semibold tabular-nums text-emerald-700">
                       {MOEDA.format(produto.prices.promotional)}
                     </p>

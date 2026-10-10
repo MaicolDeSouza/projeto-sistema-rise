@@ -450,13 +450,25 @@ function fichaSemTitulo(linhas) {
   // longo ("Maxima Folga Fuso Axial", 4 palavras) e o valor tambem.
   const par = (linha, marcada) => {
     const limpa = linha.replace(/^[\s\-•*]+/, "").replace(/[;.]\s*$/, "").trim();
-    const separador = limpa.indexOf(":");
-    if (separador < 2 || separador > (marcada ? 45 : 30)) return null;
+
+    // DOIS SEPARADORES, VALE O PRIMEIRO DA LINHA (Policomp, 10/10/2026). A ficha
+    // mistura "Modelo: PLF34" com "TORQUE NOMINAL = 50 N.m", e o ":" pode estar
+    // DENTRO do valor: "REDUÇÃO = 6.25:1" virava nome "REDUÇÃO = 6.25", valor "1".
+    // O "=" so conta com espaco em volta, para nao pegar formula colada ("V=IR").
+    const doisPontos = limpa.indexOf(":");
+    const igual = limpa.search(/\s=\s/);
+    const usaIgual = igual !== -1 && (doisPontos === -1 || igual < doisPontos);
+    const separador = usaIgual ? igual : doisPontos;
+    if (separador < 2 || separador > (marcada || usaIgual ? 45 : 30)) return null;
 
     const nome = limpa.slice(0, separador).trim();
-    const valor = limpa.slice(separador + 1).trim();
+    // Depois do separador; "Folga: = 12 arcmin" traz um "=" sobrando no comeco do valor.
+    const inicioDoValor = usaIgual ? limpa.indexOf("=", separador) + 1 : separador + 1;
+    const valor = limpa.slice(inicioDoValor).replace(/^\s*=\s*/, "").trim();
     if (!valor || valor.length > (marcada ? 60 : 40)) return null;
-    if (nome.split(/\s+/).length > (marcada ? 5 : 3)) return null;
+    // "Nome = valor" e separador explicito, como o marcador de lista: o nome pode ser
+    // mais longo ("VELOCIDADE NOMINAL DE ENTRADA", 4 palavras).
+    if (nome.split(/\s+/).length > (marcada || usaIgual ? 5 : 3)) return null;
     if (!/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(nome)) return null;
     return { nome, valor };
   };
@@ -1459,7 +1471,10 @@ const EXTENSAO_DE_ARQUIVO =
 
 /// Endpoint de anexo da plataforma. O PrestaShop serve o arquivo por
 /// `controller=attachment`, sem extensao nenhuma no endereco.
-const ENDPOINT_DE_ANEXO = /controller=attachment|\/attachments?\/|\/anexos?\//i;
+// `download.php?f=<hash>` (Policomp, 10/10/2026): o datasheet sai do site institucional
+// por um script de download, sem extensao, na raiz do dominio — e a regra contra
+// "pagina de primeiro nivel" o descartava como se fosse item de menu.
+const ENDPOINT_DE_ANEXO = /controller=attachment|\/attachments?\/|\/anexos?\/|\/download\.php\?/i;
 
 /// O que o link diz que é. Vocabulario de DOCUMENTO, nao de pagina: "blog",
 /// "tutorial" e "projeto" ficam de fora de proposito — sao conteudo da loja.
@@ -1495,6 +1510,10 @@ function escopoDoProductInfo(html) {
     // descricao dele.
     const descricao = /data-store="product-description-[^"]*"[^>]*>/i.exec(html);
     if (descricao) return conteudoDoDiv(html, descricao.index + descricao[0].length);
+    // Outro tema da Nuvemshop (Policomp, 10/10/2026) nao tem o data-store: a descricao
+    // vem num <div class="user-product-description user-content ...">.
+    const doTema = /<div\b[^>]*class="[^"]*\buser-product-description\b[^"]*"[^>]*>/i.exec(html);
+    if (doTema && /mitiendanube\.com/i.test(html)) return conteudoDoDiv(html, doTema.index + doTema[0].length);
     return html;
   }
 

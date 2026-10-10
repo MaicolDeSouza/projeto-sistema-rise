@@ -2073,5 +2073,19 @@ console.log("\n— Nuvemshop: tema sem classe no <body> (Policomp, 10/10/2026) �
   conferir("Nuvemshop: pagina de erro com LS.variants do destaque (sem og:type) nao vira produto", normalizarPagina({ html: comVariantes.replace("<body>", "<body><h1>A página solicitada não existe</h1><h2>Produtos em destaque</h2>"), url: "https://loja.exemplo.com/produtos/redutor-que-saiu/", fonte: { tipo: "CONCORRENTE" } }).produtos.length, 0);
 }
 
+console.log("\n— Ficha com \"NOME = valor\" e datasheet por download.php (Policomp, 10/10/2026) —");
+{
+  const descricao = ["Redutor Planetário NEMA 34", "Modelo: PLF34-6.25-L1-P2-16MM", "Redução: 6.25: 1", "Folga: = 12 arcmin", "Eficiência: 96%", "", "REDUÇÃO = 6.25:1", "RUÍDO = 60Db", "TORQUE NOMINAL = 50 N.m", "VELOCIDADE NOMINAL DE ENTRADA = 3000 RPM", "", "DATASHEET"].join("\n");
+  const html = `<html><head><script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "Product", name: "Redutor", sku: "31022", description: "Redutor Planetário NEMA 34", offers: { "@type": "Offer", price: "948.9" } })}</script></head><body><div class="user-product-description user-content">${descricao.split("\n\n").map((grupo) => `<p>${grupo.replace(/\n/g, "<br />")}</p>`).join("\n")}<a href="https://www.institucional.exemplo.com/download.php?f=9fa34319f14d7535a8034d3d72f2650e">DATASHEET</a></div><nav><a href="/catalogo">Catálogo</a></nav></body></html>`;
+  const [r] = normalizarPagina({ html, url: "https://loja.exemplo.com/produtos/redutor/", fonte: { tipo: "CONCORRENTE" } }).produtos;
+  const { especificacoesDaDescricao } = await import("../src/lib/coleta/normalizar.js");
+  const ficha = especificacoesDaDescricao(descricao.split("\n").join("<br>"));
+  conferir("ficha: \"NOME = valor\" e lida junto com \"Nome: valor\"", ficha.map((e) => e.nome), ["Modelo", "Redução", "Folga", "Eficiência", "REDUÇÃO", "RUÍDO", "TORQUE NOMINAL", "VELOCIDADE NOMINAL DE ENTRADA"]);
+  conferir("ficha: vale o PRIMEIRO separador (\"REDUÇÃO = 6.25:1\" fica inteiro)", ficha.find((e) => e.nome === "REDUÇÃO")?.valor, "6.25:1");
+  conferir("ficha: \"Folga: = 12 arcmin\" perde o = sobrando", ficha.find((e) => e.nome === "Folga")?.valor, "12 arcmin");
+  conferir("ficha: formula colada (V=IR) nao vira par", normalizarPagina({ html: html.replace("RUÍDO = 60Db", "V=IR").replace("TORQUE NOMINAL = 50 N.m", "P=VI"), url: "https://loja.exemplo.com/produtos/redutor/", fonte: { tipo: "CONCORRENTE" } }).produtos[0].specifications.some((e) => e.nome === "V"), false);
+  conferir("documento: download.php?f= e anexo, mesmo na raiz e sem extensao", r.documentos.map((d) => d.titulo), ["DATASHEET"]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

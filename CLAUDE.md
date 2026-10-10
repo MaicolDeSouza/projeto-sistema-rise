@@ -1312,6 +1312,22 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   (`enderecoComparavel`, que foi para `texto-html.js` porque `colher.js` importa `woocommerce.js` e seria um ciclo; `colher.js`
   a reexporta) e pula sem contar como achado. Medido na Makerhero real: 1ª chamada 8IN07/2CC58/2CC59, 2ª 9SS80/8IMQ5/8IMK3,
   zero repetidos.
+- **Policomp (Nuvemshop, 10/10/2026): as 4 anotações do dono.**
+  - **Pix não é promoção:** a prévia do teste de fonte (`PreviaProduto`) só risca o preço normal quando o promocional É
+    promoção. Quando a origem dele diz pix, à vista, boleto, pagamento, depósito, transferência ou "desconto de N% da loja",
+    o rótulo vira **"À vista (pix/boleto)"** e o normal fica sem risco (a Policomp mostra R$ 632,90 e o 601,26 só no popup
+    "Ver meios de pagamento"). O dado gravado não mudou.
+  - **Datasheet por `download.php?f=<hash>`** (no site institucional, na raiz e sem extensão) entra como anexo
+    (`ENDPOINT_DE_ANEXO`); antes caía na regra contra "página de primeiro nível". E o escopo dos documentos da Nuvemshop
+    aceita também o `<div class="user-product-description">` do tema da Policomp (o da Oceantech usa `data-store`).
+  - **Ficha "NOME = valor"** (`fichaSemTitulo`): " = " (com espaço em volta) também separa, e vale o PRIMEIRO separador
+    da linha ("REDUÇÃO = 6.25:1" -> nome REDUÇÃO, valor 6.25:1; antes nome "REDUÇÃO = 6.25", valor "1"); com "=" o nome
+    pode ter até 5 palavras. No redutor NEMA 34: 17 características (eram 5). Repetidos da página ("Redução" e "REDUÇÃO")
+    ficam os dois, como o site mostra.
+  - **Foto ampliada com setas na prévia:** clicar na foto ou numa miniatura abre a `AmpliacaoDeFoto` de Produtos.
+  - **Visto e NÃO corrigido (fora das 4):** descrição que só existe no JSON-LD, ou em `<br><br>`, chega cortada (fica só
+    o que vem depois da última linha em branco). Já era assim antes; nas páginas reais testadas a descrição vem do bloco
+    HTML em `<p>` e sai inteira.
 - **CATEGORIA = CAMINHO COMPLETO** (decisão do dono em 09/10/2026): `Impressão 3D > Partes`, `ELETRÔNICA > FONTES DE ENERGIA`,
   e não mais um nível só (era o ÚLTIMO degrau no Microdata, RoboCore e Eletrus, e o PRIMEIRO no dataLayer). Regras em
   `src/lib/coleta/categoria.js` (`caminhoDeCategoria`, separador ` > `): tira a raiz do começo (Início, Home, Página inicial,
