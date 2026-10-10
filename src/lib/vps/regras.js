@@ -10,6 +10,8 @@ export const VPS_PADRAO = {
   ssh: "rise@179.199.150.221",
   pasta: "/srv/rise/app",
   chave: ".ssh/rise_vps",
+  /// O painel da VPS na Hostinger (srv2045018), para o link do cartao (pedido do dono em 10/10/2026).
+  painel: "https://hpanel.hostinger.com/vps/2045018/overview",
 };
 
 /// Passo do deploy que o dono ve, na ordem em que o script da VPS os escreve ("== ..." no `deploy-vps.sh`).

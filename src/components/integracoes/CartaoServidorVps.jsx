@@ -8,6 +8,7 @@ import {
   CircleX,
   CloudUpload,
   DatabaseBackup,
+  ExternalLink,
   Loader,
   RefreshCw,
   Server,
@@ -17,7 +18,7 @@ import {
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { andamentoDaVps, atualizarAVps, atualizarBancoDoPc, situacaoDaVps } from "@/app/integracoes/acoes-vps";
-import { PASSOS_DA_COPIA, PASSOS_DO_DEPLOY } from "@/lib/vps/regras";
+import { PASSOS_DA_COPIA, PASSOS_DO_DEPLOY, VPS_PADRAO } from "@/lib/vps/regras";
 
 /// Enquanto algo roda: o deploy leva minutos, e a copia derruba e religa este servidor.
 const INTERVALO_MS = 4000;
@@ -290,14 +291,18 @@ export default function CartaoServidorVps() {
 
   return (
     <>
-      {/* O cartao, no desenho dos conectores. Inteiro clicavel: abre a janela com tudo. */}
-      <button
-        type="button"
-        onClick={() => setAberto(true)}
-        aria-haspopup="dialog"
-        className="h-full w-full rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-acento"
-      >
-        <Card className="flex h-full flex-col transition hover:border-acento">
+      {/*
+        O cartao, no desenho dos conectores. A parte de cima abre a janela com tudo; embaixo, "Ver e atualizar" (o mesmo)
+        e o painel da Hostinger em outra aba. Link dentro de botao nao vale em HTML, por isso o botao nao cobre o cartao
+        inteiro.
+      */}
+      <Card className="flex h-full flex-col transition hover:border-acento">
+        <button
+          type="button"
+          onClick={() => setAberto(true)}
+          aria-haspopup="dialog"
+          className="w-full rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-acento"
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
               <span className="rounded-md bg-fundo p-2 text-acento">
@@ -352,14 +357,27 @@ export default function CartaoServidorVps() {
             </p>
           )}
           {erro && !aberto && <p className="mt-3 rounded bg-red-50 p-2 text-xs break-words text-red-800">{erro}</p>}
+        </button>
 
-          <div className="mt-auto pt-4">
-            <span className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm">
-              <CloudUpload size={14} /> Ver e atualizar
-            </span>
-          </div>
-        </Card>
-      </button>
+        <div className="mt-auto flex flex-wrap gap-2 pt-4">
+          <button
+            type="button"
+            onClick={() => setAberto(true)}
+            aria-haspopup="dialog"
+            className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+          >
+            <CloudUpload size={14} /> Ver e atualizar
+          </button>
+          <a
+            href={VPS_PADRAO.painel}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+          >
+            <ExternalLink size={14} /> Painel da Hostinger
+          </a>
+        </div>
+      </Card>
 
       {aberto && (
         <Janela aoFechar={fechar}>
@@ -376,6 +394,9 @@ export default function CartaoServidorVps() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <a href={VPS_PADRAO.painel} target="_blank" rel="noopener noreferrer" className={botao}>
+                <ExternalLink size={14} /> Painel da Hostinger
+              </a>
               <button type="button" onClick={conferir} disabled={lendo || pendente || rodando} className={botao}>
                 <RefreshCw size={14} className={lendo ? "animate-spin" : ""} />
                 Conferir de novo
