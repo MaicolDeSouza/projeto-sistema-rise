@@ -128,6 +128,60 @@ export function pesoEMedidasDoKit(pecas) {
   };
 }
 
+/// Texto da Localizacao do kit com varias pecas (pedido do dono em 10/10/2026): cada peca mora num lugar,
+/// e quem separa o pedido le a aba Composicao. Cabe nos 40 caracteres da localizacao.
+export const LOCALIZACAO_DE_VARIAS_PECAS = "Verificar a aba composição";
+
+// Os kits reais do Bling escrevem o milhar com ponto (920302_1.000); o anuncio do ML usa a mesma regra.
+const FORMATO_DO_MILHAR = new Intl.NumberFormat("pt-BR");
+
+/**
+ * Codigo sugerido para o kit (pedido do dono em 10/10/2026): com UMA peca, `{sku}_{quantidade}`, no mesmo
+ * formato dos kits do Bling e do anuncio do ML (`920302_1.000`); com mais de uma, nenhum (o dono digita ou usa
+ * a varinha). Quantidade 1 tambem nao sugere: um kit precisa de 2 unidades, e "100101_1" seria a propria peca.
+ *
+ * @param {{sku: string, quantidade: number|string}[]} pecas
+ * @returns {string|null}
+ */
+export function codigoSugeridoDoKit(pecas) {
+  const lista = Array.isArray(pecas) ? pecas : [];
+  if (lista.length !== 1) return null;
+  const sku = String(lista[0]?.sku ?? "").trim();
+  const quantidade = quantidadeDe(lista[0]);
+  if (!sku || quantidade < 2 || quantidade > MAXIMO_QUANTIDADE) return null;
+  return `${sku}_${FORMATO_DO_MILHAR.format(quantidade)}`;
+}
+
+/**
+ * Localizacao do kit (pedido do dono em 10/10/2026). Com UMA peca, e a da peca e fica travada: o kit sai da
+ * mesma prateleira. Com varias, o texto `LOCALIZACAO_DE_VARIAS_PECAS`, editavel. Sem pecas, nada a sugerir.
+ *
+ * @param {{localizacao?: string|null}[]} pecas
+ * @returns {{valor: string|null, travada: boolean}}
+ */
+export function localizacaoDoKit(pecas) {
+  const lista = Array.isArray(pecas) ? pecas : [];
+  if (lista.length === 0) return { valor: null, travada: false };
+  if (lista.length === 1) return { valor: String(lista[0]?.localizacao ?? "").trim(), travada: true };
+  return { valor: LOCALIZACAO_DE_VARIAS_PECAS, travada: false };
+}
+
+/**
+ * O que falta para um produto poder ser peca de kit (decisao do dono em 07/10/2026: simples, Conferido e
+ * vinculado ao Bling), TUDO de uma vez (pedido do dono em 10/10/2026: a busca mostrava so o primeiro motivo).
+ * Lista vazia = apto. Kit nunca e peca, e os outros motivos nao importam nesse caso.
+ *
+ * @param {{tipo?: string, conferido?: boolean, blingId?: string|null}} produto
+ * @returns {string[]}
+ */
+export function faltasParaSerPeca(produto) {
+  if ((produto?.tipo ?? "SIMPLES") !== "SIMPLES") return ["É um kit, não pode ser peça"];
+  const faltas = [];
+  if (!produto?.conferido) faltas.push("validar no Rise");
+  if (!produto?.blingId) faltas.push("integrar com o Bling");
+  return faltas;
+}
+
 /**
  * Os NCMs das pecas, cada um uma vez, com os SKUs que o usam — a lista de escolha do campo NCM do
  * kit. Compara so pelos digitos ("8483.50.10" e "84835010" sao o mesmo NCM; o Bling reformata), e

@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { Download, ExternalLink, FileText } from "lucide-react";
 
-import { consultarEstoqueFornecedores } from "@/app/produtos/acoes";
+import { consultarEstoqueFornecedores, documentosDasPecasDoKit } from "@/app/produtos/acoes";
 import { pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
 
 /**
@@ -192,10 +192,11 @@ export function FornecedoresDoKit({ pecas, ativo }) {
 
 /**
  * Quadro de consulta da aba Peso e dimensoes do kit: o peso e as medidas de cada peca e a sugestao para o
- * kit (peso somado; comprimento e largura da maior peca; alturas somadas). "Usar a sugestao" preenche os
- * campos de cima, que continuam editaveis.
+ * kit (peso somado; comprimento e largura da maior peca; alturas somadas). Os campos de cima ja recebem a
+ * sugestao quando as pecas mudam e continuam editaveis; o botao "Usar a sugestao" saiu (pedido do dono em
+ * 10/10/2026).
  */
-export function MedidasDoKit({ pecas, aoUsarSugestao }) {
+export function MedidasDoKit({ pecas }) {
   const sugestao = pesoEMedidasDoKit(pecas);
   if (pecas.length === 0) return null;
 
@@ -206,20 +207,11 @@ export function MedidasDoKit({ pecas, aoUsarSugestao }) {
 
   return (
     <div className="mt-5 space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-semibold">Peso e medidas das peças</h3>
-          <p className="text-[12px] text-suave">
-            Sugestão do kit: peso somado, comprimento e largura da maior peça, alturas somadas (peças empilhadas).
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => aoUsarSugestao(sugestao)}
-          className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
-        >
-          Usar a sugestão nos campos
-        </button>
+      <div>
+        <h3 className="text-sm font-semibold">Peso e medidas das peças</h3>
+        <p className="text-[12px] text-suave">
+          Sugestão do kit: peso somado, comprimento e largura da maior peça, alturas somadas (peças empilhadas).
+        </p>
       </div>
 
       <div className="overflow-x-auto rounded border border-borda">
@@ -264,6 +256,93 @@ export function MedidasDoKit({ pecas, aoUsarSugestao }) {
       {sugestao.incompleto.length > 0 && (
         <p className="text-[12px] text-amber-700">
           Incompleto: {sugestao.incompleto.join(", ")} sem peso ou medida. O campo que depende dela fica sem sugestão.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Os documentos tecnicos e o certificado de cada peca, na aba Documentos tecnicos do kit (pedido do dono em
+ * 10/10/2026). So leitura e sem copiar para o kit: o datasheet trocado na peca ja aparece aqui. Le com a aba
+ * aberta, e de novo quando as pecas mudam. Clicar baixa com o nome real, como na lista de documentos do produto.
+ */
+export function DocumentosDasPecas({ pecas, ativo }) {
+  const [resposta, setResposta] = useState({ chave: "", pecas: [], erro: null });
+  const chave = pecas.map((peca) => peca.componenteId).join(",");
+  const carregando = Boolean(chave) && resposta.chave !== chave;
+  const lista = carregando ? [] : resposta.pecas;
+
+  useEffect(() => {
+    if (!ativo || !chave) return;
+    let vivo = true;
+    documentosDasPecasDoKit(chave.split(","))
+      .then((resultado) => {
+        if (vivo) setResposta({ chave, pecas: resultado?.ok ? resultado.pecas : [], erro: resultado?.ok ? null : resultado?.erro });
+      })
+      .catch(() => {
+        if (vivo) setResposta({ chave, pecas: [], erro: "Não foi possível ler os documentos das peças. Abra a aba de novo." });
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [ativo, chave]);
+
+  const comArquivo = lista.filter((peca) => peca.documentos.length > 0 || peca.certificados.length > 0);
+  const semArquivo = lista.filter((peca) => peca.documentos.length === 0 && peca.certificados.length === 0);
+
+  const linkDoArquivo = (arquivo) => (
+    <a
+      key={arquivo.id}
+      href={arquivo.url}
+      download={arquivo.nomeOriginal ?? arquivo.arquivo}
+      className="group/doc flex min-w-0 items-center gap-2 text-sm hover:text-acento"
+      title={`Baixar ${arquivo.nomeOriginal ?? arquivo.arquivo}`}
+    >
+      <Download size={14} className="shrink-0 text-suave group-hover/doc:text-acento" />
+      <span className="truncate">{arquivo.nomeOriginal ?? arquivo.arquivo}</span>
+    </a>
+  );
+
+  return (
+    <div className="mt-5 border-t border-borda pt-4 sm:col-span-2">
+      <h3 className="text-sm font-semibold">Documentos das peças</h3>
+      <p className="mt-1 text-xs text-suave">
+        Os arquivos de cada peça do kit, só para consulta. Para trocar um arquivo, abra a peça.
+      </p>
+      {!chave && <p className="mt-3 text-sm text-suave">O kit ainda não tem peças.</p>}
+      {carregando && <p className="mt-3 text-sm text-suave">Buscando os documentos das peças...</p>}
+      {resposta.erro && !carregando && <p className="mt-3 rounded bg-red-50 p-2 text-xs text-red-800">{resposta.erro}</p>}
+      {comArquivo.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {comArquivo.map((peca) => (
+            <li key={peca.id} className="rounded border border-borda px-3 py-2">
+              <Link
+                href={`/produtos/${peca.id}`}
+                target="_blank"
+                className="inline-flex items-center gap-1 text-sm font-medium hover:text-acento"
+              >
+                <FileText size={14} className="shrink-0 text-suave" />
+                <span className="font-mono text-xs">{peca.sku}</span> {peca.tituloBase}
+                <ExternalLink size={12} className="shrink-0 text-suave" />
+              </Link>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                <div className="min-w-0 space-y-1">
+                  <p className="text-[11px] font-semibold text-suave">Documentos técnicos</p>
+                  {peca.documentos.length > 0 ? peca.documentos.map(linkDoArquivo) : <p className="text-xs text-suave">Nenhum.</p>}
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <p className="text-[11px] font-semibold text-suave">Certificado de homologação</p>
+                  {peca.certificados.length > 0 ? peca.certificados.map(linkDoArquivo) : <p className="text-xs text-suave">Nenhum.</p>}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!carregando && semArquivo.length > 0 && (
+        <p className="mt-2 text-xs text-suave">
+          Sem documentos: {semArquivo.map((peca) => peca.sku).join(", ")}.
         </p>
       )}
     </div>

@@ -123,9 +123,17 @@ export default function LinhaProduto({
       {/* Localizacao, preco e estoque abrem a edicao rapida (pedido do dono em
           30/09/2026): um popup por campo, gravando so neste sistema. */}
       <td className="px-3 py-2.5 text-suave">
-        <CelulaEditavel titulo="Editar localização" aoClicar={() => setEditando("localizacao")}>
-          {produto.localizacao || "—"}
-        </CelulaEditavel>
+        {/* Kit de uma peca: a localizacao e a da peca e muda junto com ela (pedido do dono em 10/10/2026). */}
+        {produto.kitDeUmaPeca ? (
+          <span title="Localização do kit: a da peça dele. Mude a localização da peça.">
+            {produto.localizacao || "—"}
+            <span className="block text-[10px] leading-tight">da peça do kit</span>
+          </span>
+        ) : (
+          <CelulaEditavel titulo="Editar localização" aoClicar={() => setEditando("localizacao")}>
+            {produto.localizacao || "—"}
+          </CelulaEditavel>
+        )}
       </td>
 
       <td className="px-3 py-2.5 tabular-nums">

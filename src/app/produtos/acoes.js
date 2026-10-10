@@ -7,7 +7,17 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { buscarProdutoPorCodigo } from "@/lib/buscaPorCodigo";
 import { buscarReferencias } from "@/lib/buscaPorPalavras";
-import { gravarComposicaoDoCadastro, kitsQueUsam, pecasParaKit, prepararComposicaoDoCadastro } from "@/lib/composicaoBanco";
+import {
+  descricoesDasPecas,
+  documentosDasPecas,
+  gravarComposicaoDoCadastro,
+  kitsQueUsam,
+  localizacaoDoKitNoSalvar,
+  pecaDeOrigemParaKit,
+  pecasParaKit,
+  prepararComposicaoDoCadastro,
+  propagarLocalizacaoDaPeca,
+} from "@/lib/composicaoBanco";
 import { listarDocumentosDasReferencias } from "@/lib/documentosReferencias";
 import { lerCamposDasReferencias, lerDetalhesDasReferencias } from "@/lib/camposDasReferencias";
 import {
@@ -624,6 +634,11 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     });
     if (!composicao.ok) return { ok: false, erro: composicao.erro };
 
+    // Kit de UMA peca: a localizacao e a da peca (pedido do dono em 10/10/2026). O campo vem travado na tela,
+    // mas quem decide e o servidor, lendo a peca agora. Kit de varias pecas e produto simples gravam o digitado.
+    const localizacaoDoKit = await localizacaoDoKitNoSalvar(id, composicao);
+    if (localizacaoDoKit !== undefined) dados.localizacao = localizacaoDoKit;
+
     if (!id) {
       const produto = await prisma.$transaction(async (tx) => {
         const criado = await tx.produto.create({ data: dados });
@@ -710,6 +725,8 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     const produto = await prisma.$transaction(async (tx) => {
       const salvo = await tx.produto.update({ where: { id }, data: dados });
       await gravarComposicaoDoCadastro(id, composicao, tx);
+      // Peca que mudou de lugar leva junto os kits feitos so dela (no mesmo commit da peca).
+      if (composicao.tipo !== "COMPOSICAO") await propagarLocalizacaoDaPeca(id, tx);
       return salvo;
     });
 
@@ -1448,5 +1465,38 @@ export async function buscarPecasParaKit(termo, excluir = []) {
   } catch (erro) {
     console.error("[composicao] busca de pecas", erro);
     return { ok: false, erro: "Não foi possível buscar os produtos. Tente de novo." };
+  }
+}
+
+/**
+ * O produto de origem do clone como peca do kit (pedido do dono em 10/10/2026). Do navegador vem so o id; quem
+ * decide se ele pode ser peca e `pecaDeOrigemParaKit` (simples, Conferido e vinculado ao Bling).
+ */
+export async function pecaDeOrigemDoKit(id) {
+  try {
+    return await pecaDeOrigemParaKit(String(id ?? ""));
+  } catch (erro) {
+    console.error("[composicao] peca de origem", erro);
+    return { ok: false, sku: null, faltas: ["não foi possível ler o produto de origem"] };
+  }
+}
+
+/** Documentos e certificados das pecas, para a aba Documentos tecnicos do kit (so leitura). */
+export async function documentosDasPecasDoKit(ids) {
+  try {
+    return { ok: true, pecas: await documentosDasPecas(Array.isArray(ids) ? ids : []) };
+  } catch (erro) {
+    console.error("[composicao] documentos das pecas", erro);
+    return { ok: false, erro: "Não foi possível ler os documentos das peças." };
+  }
+}
+
+/** A descricao do cadastro de cada peca, para a janela "Criar descricao" do kit. */
+export async function descricoesDasPecasDoKit(ids) {
+  try {
+    return { ok: true, pecas: await descricoesDasPecas(Array.isArray(ids) ? ids : []) };
+  } catch (erro) {
+    console.error("[composicao] descricoes das pecas", erro);
+    return { ok: false, erro: "Não foi possível ler as descrições das peças." };
   }
 }

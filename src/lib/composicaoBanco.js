@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
-import { estoqueDoKit, validarComposicao } from "@/lib/composicao";
+import { urlDe } from "@/lib/arquivos";
+import { estoqueDoKit, faltasParaSerPeca, validarComposicao } from "@/lib/composicao";
 
 /**
  * O produto com composicao (kit) no banco: ler as pecas, trocar a lista inteira, recalcular o
@@ -20,6 +21,8 @@ const PECA = {
   tipo: true,
   conferido: true,
   blingId: true,
+  // A coluna Localizacao da aba e a localizacao do kit de uma peca (pedido do dono em 10/10/2026).
+  localizacao: true,
   estoque: true,
   precoVenda: true,
   custo: true,
@@ -65,6 +68,7 @@ export function pecaParaTela(produto, quantidade = 1) {
     componenteId: produto.id,
     sku: produto.sku,
     tituloBase: produto.tituloBase,
+    localizacao: produto.localizacao ?? null,
     estoque: produto.estoque,
     quantidade,
     precoVenda: numeroOuNull(produto.precoVenda),
@@ -295,9 +299,13 @@ export async function gravarComposicaoDoCadastro(produtoId, preparo, tx) {
 }
 
 /**
- * Os produtos que podem entrar num kit, para a busca da aba Composicao: simples, Conferidos e ja ligados
- * ao Bling (decisao do dono em 07/10/2026), por SKU ou nome, ate 20. Sem nenhum permitido, devolve ate 5
- * dos que casaram e foram barrados, com o motivo: senao o operador acharia que o produto nao existe.
+ * A busca da aba Composicao (pedido do dono em 10/10/2026: a busca diz, produto a produto, se pode ser peca
+ * ou o que falta). Procura por SKU ou nome e devolve as duas listas, que a tela junta numa so:
+ *  - `itens`: os aptos (simples, Conferidos e ja ligados ao Bling, decisao de 07/10/2026), ate 20, ja no
+ *    formato da aba (a peca escolhida entra com preco, peso e fornecedor, sem outra consulta);
+ *  - `barrados`: os que casaram e nao podem ser peca, ate 10, com TUDO o que falta (`faltasParaSerPeca`) e o
+ *    id, para a tela abrir o produto e o dono corrigir. Antes so vinham quando nenhum era apto, e so com o
+ *    primeiro motivo.
  *
  * @param {string} termo
  * @param {string[]} excluir ids que nao entram (o proprio produto e as pecas ja escolhidas)
@@ -313,33 +321,158 @@ export async function pecasParaKit(termo, excluir = [], tx = prisma) {
       { tituloBase: { contains: texto, mode: "insensitive" } },
     ],
   };
+  const apto = { tipo: "SIMPLES", conferido: true, blingId: { not: null } };
 
-  const achados = await tx.produto.findMany({
-    where: { ...casa, tipo: "SIMPLES", conferido: true, blingId: { not: null } },
-    select: PECA,
-    orderBy: { sku: "asc" },
-    take: 20,
-  });
-  // Ja no formato da aba: a peca escolhida entra com preco, peso e fornecedor, sem outra consulta.
-  if (achados.length > 0) return { itens: achados.map((produto) => pecaParaTela(produto)), barrados: [] };
-
-  const outros = await tx.produto.findMany({
-    where: casa,
-    select: { sku: true, tituloBase: true, tipo: true, conferido: true, blingId: true },
-    orderBy: { sku: "asc" },
-    take: 5,
-  });
+  const [achados, outros] = await Promise.all([
+    tx.produto.findMany({ where: { ...casa, ...apto }, select: PECA, orderBy: { sku: "asc" }, take: 20 }),
+    tx.produto.findMany({
+      where: { ...casa, NOT: apto },
+      select: { id: true, sku: true, tituloBase: true, tipo: true, conferido: true, blingId: true },
+      orderBy: { sku: "asc" },
+      take: 10,
+    }),
+  ]);
   const barrados = outros.map((produto) => ({
+    id: produto.id,
     sku: produto.sku,
     tituloBase: produto.tituloBase,
-    motivo:
-      produto.tipo !== "SIMPLES"
-        ? "é um kit"
-        : !produto.conferido
-          ? "não está conferido"
-          : "não está vinculado ao Bling",
+    faltas: faltasParaSerPeca(produto),
   }));
-  return { itens: [], barrados };
+  return { itens: achados.map((produto) => pecaParaTela(produto)), barrados };
+}
+
+/**
+ * O produto de origem de um clone, como peca do kit (pedido do dono em 10/10/2026): ao trocar o clone para
+ * "Com composicao", o produto de onde ele veio entra como primeira peca, quantidade 1, se puder ser peca.
+ * Senao, devolve o que falta, para a tela dizer por que ele nao entrou.
+ *
+ * @param {string} id
+ * @returns {Promise<{ok: true, peca: object} | {ok: false, sku: string|null, faltas: string[]}>}
+ */
+export async function pecaDeOrigemParaKit(id, tx = prisma) {
+  const produto = id ? await tx.produto.findUnique({ where: { id: String(id) }, select: PECA }) : null;
+  if (!produto) return { ok: false, sku: null, faltas: ["o produto de origem não foi encontrado"] };
+  const faltas = faltasParaSerPeca(produto);
+  if (faltas.length > 0) return { ok: false, sku: produto.sku, faltas };
+  return { ok: true, peca: pecaParaTela(produto, 1) };
+}
+
+/**
+ * A localizacao que o Salvar grava num kit (pedido do dono em 10/10/2026): com UMA peca, a da peca, travada
+ * (o kit sai da mesma prateleira, e o servidor nao confia no que a tela mandou). Com varias, ou num produto
+ * simples, `undefined` = fica a que veio do formulario.
+ *
+ * @param {string|null} produtoId
+ * @param {{tipo: string, itens: null | {componenteId: string}[]}} preparo o que `prepararComposicaoDoCadastro` devolveu
+ * @returns {Promise<string|null|undefined>}
+ */
+export async function localizacaoDoKitNoSalvar(produtoId, preparo, tx = prisma) {
+  if (preparo?.tipo !== "COMPOSICAO") return undefined;
+  // `itens` nulo = o formulario nao mandou a lista, e as pecas gravadas continuam valendo.
+  const ids = preparo.itens !== null
+    ? preparo.itens.map((item) => item.componenteId)
+    : produtoId
+      ? (await tx.produtoComponente.findMany({ where: { kitId: produtoId }, select: { componenteId: true } })).map((linha) => linha.componenteId)
+      : [];
+  if (ids.length !== 1) return undefined;
+  const peca = await tx.produto.findUnique({ where: { id: ids[0] }, select: { localizacao: true } });
+  return peca?.localizacao ?? null;
+}
+
+/**
+ * A peca mudou de lugar: os kits feitos SO dela mudam junto (pedido do dono em 10/10/2026), senao a
+ * localizacao do kit ficaria errada sem ninguem perceber. SQL cru, como o estoque do kit: a peca mudar de
+ * prateleira nao e editar o kit (a lista ordena por `atualizadoEm`, e o envio ao Bling o usa para saber se o
+ * produto foi editado no meio do envio). Kit de varias pecas nao muda (o texto dele e "Verificar a aba composição").
+ *
+ * @param {string} pecaId
+ * @returns {Promise<number>} quantos kits mudaram.
+ */
+export async function propagarLocalizacaoDaPeca(pecaId, tx = prisma) {
+  return tx.$executeRaw`
+    UPDATE "Produto" AS kit
+       SET "localizacao" = peca."localizacao"
+      FROM "Produto" AS peca
+     WHERE peca."id" = ${pecaId}
+       AND kit."id" IN (
+         SELECT "kitId" FROM "ProdutoComponente"
+          GROUP BY "kitId"
+         HAVING COUNT(*) = 1 AND MIN("componenteId") = ${pecaId}
+       )
+       AND kit."localizacao" IS DISTINCT FROM peca."localizacao"`;
+}
+
+/**
+ * O kit tem uma peca so? A localizacao dele e a da peca e nao se edita na lista (pedido do dono em 10/10/2026).
+ *
+ * @param {string} produtoId
+ */
+export async function ehKitDeUmaPeca(produtoId, tx = prisma) {
+  const pecas = await tx.produtoComponente.count({ where: { kitId: produtoId } });
+  return pecas === 1;
+}
+
+/**
+ * Os documentos tecnicos e o certificado de cada peca, para a aba Documentos tecnicos do kit (pedido do dono
+ * em 10/10/2026): so leitura, sem copiar para o kit, entao o datasheet trocado na peca ja aparece no kit. Na
+ * ordem dos ids pedidos (a da aba Composicao). O endereco e calculado na leitura, como em todo arquivo.
+ *
+ * @param {string[]} ids
+ * @returns {Promise<{id: string, sku: string, tituloBase: string, documentos: object[], certificados: object[]}[]>}
+ */
+export async function documentosDasPecas(ids, tx = prisma) {
+  const procurados = [...new Set((Array.isArray(ids) ? ids : []).map(String))].slice(0, 100);
+  if (procurados.length === 0) return [];
+  const produtos = await tx.produto.findMany({
+    where: { id: { in: procurados } },
+    select: {
+      id: true,
+      sku: true,
+      tituloBase: true,
+      arquivos: {
+        where: { tipo: { in: ["DOCUMENTO", "CERTIFICADO"] } },
+        orderBy: { ordem: "asc" },
+        select: { id: true, tipo: true, arquivo: true, nomeOriginal: true },
+      },
+    },
+  });
+  const porId = new Map(produtos.map((produto) => [produto.id, produto]));
+  return procurados
+    .map((id) => porId.get(id))
+    .filter(Boolean)
+    .map((produto) => {
+      const paraTela = (item) => ({
+        id: item.id,
+        arquivo: item.arquivo,
+        nomeOriginal: item.nomeOriginal,
+        url: urlDe(produto.sku, item.tipo, item.arquivo),
+      });
+      return {
+        id: produto.id,
+        sku: produto.sku,
+        tituloBase: produto.tituloBase,
+        documentos: produto.arquivos.filter((item) => item.tipo === "DOCUMENTO").map(paraTela),
+        certificados: produto.arquivos.filter((item) => item.tipo === "CERTIFICADO").map(paraTela),
+      };
+    });
+}
+
+/**
+ * A descricao do cadastro de cada peca, para a janela "Criar descricao" do kit (pedido do dono em 10/10/2026:
+ * as pecas viram referencias da IA). Lida a parte: a descricao e pesada, e a aba Composicao nao a carrega.
+ *
+ * @param {string[]} ids
+ * @returns {Promise<{id: string, sku: string, tituloBase: string, descricaoBase: string|null}[]>}
+ */
+export async function descricoesDasPecas(ids, tx = prisma) {
+  const procurados = [...new Set((Array.isArray(ids) ? ids : []).map(String))].slice(0, 50);
+  if (procurados.length === 0) return [];
+  const produtos = await tx.produto.findMany({
+    where: { id: { in: procurados } },
+    select: { id: true, sku: true, tituloBase: true, descricaoBase: true },
+  });
+  const porId = new Map(produtos.map((produto) => [produto.id, produto]));
+  return procurados.map((id) => porId.get(id)).filter(Boolean);
 }
 
 /**

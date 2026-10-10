@@ -144,6 +144,9 @@ export default async function ProdutosPage({ searchParams }) {
       estoque: produto.estoque,
       // Kit: o estoque e calculado pelas pecas e a celula nao abre o ajuste.
       tipo: produto.tipo,
+      // Kit de UMA peca: a localizacao e a da peca e a celula nao abre a edicao (pedido do dono em 10/10/2026).
+      // As pecas ja vem no include do icone do Bling (que tambem usa o `_count`: um segundo o sobrescreveria).
+      kitDeUmaPeca: produto.tipo === "COMPOSICAO" && produto.componentes?.length === 1,
       ativo: produto.ativo,
       conferido: produto.conferido,
       imagemUrl: produto.arquivos[0]

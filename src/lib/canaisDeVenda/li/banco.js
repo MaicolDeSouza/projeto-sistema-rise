@@ -68,16 +68,30 @@ export async function contextoDoProduto(produtoId) {
  * Os documentos e o certificado do produto com endereco PUBLICO, para o bloco "Documentos" da
  * descricao. Sem `APP_URL_PUBLICA` (o Rise ainda roda so no PC) devolve nada: um link para o
  * localhost na loja quebraria para todo cliente.
+ *
+ * Produto com composicao (kit) leva tambem os das PECAS, depois dos dele, na ordem da composicao (pedido do dono
+ * em 10/10/2026): o kit nao tem documento proprio, e o datasheet de cada peca e o que o cliente procura. O
+ * endereco de cada arquivo e o da peca (a pasta e a do SKU dela).
  */
 export async function documentosDoProduto(produto) {
   const base = String(config.appUrlPublica ?? "").trim().replace(/\/+$/, "");
   if (!base || !produto?.id || !produto?.sku) return [];
-  const arquivos = await prisma.produtoArquivo.findMany({
-    where: { produtoId: produto.id, tipo: { in: ["DOCUMENTO", "CERTIFICADO"] } },
-    orderBy: [{ tipo: "asc" }, { ordem: "asc" }, { criadoEm: "asc" }],
-    select: { tipo: true, arquivo: true, nomeOriginal: true },
+  const pecas = await prisma.produtoComponente.findMany({
+    where: { kitId: produto.id },
+    orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }],
+    select: { componente: { select: { id: true, sku: true } } },
   });
-  return arquivos.map((a) => ({ url: `${base}${urlDe(produto.sku, a.tipo, a.arquivo)}`, nome: a.nomeOriginal ?? a.arquivo }));
+  const donos = [{ id: produto.id, sku: produto.sku }, ...pecas.map((linha) => linha.componente)];
+  const arquivos = await prisma.produtoArquivo.findMany({
+    where: { produtoId: { in: donos.map((dono) => dono.id) }, tipo: { in: ["DOCUMENTO", "CERTIFICADO"] } },
+    orderBy: [{ tipo: "asc" }, { ordem: "asc" }, { criadoEm: "asc" }],
+    select: { produtoId: true, tipo: true, arquivo: true, nomeOriginal: true },
+  });
+  return donos.flatMap((dono) =>
+    arquivos
+      .filter((a) => a.produtoId === dono.id)
+      .map((a) => ({ url: `${base}${urlDe(dono.sku, a.tipo, a.arquivo)}`, nome: a.nomeOriginal ?? a.arquivo })),
+  );
 }
 
 /** O id do produto pelo SKU exato (a pagina "Novo anuncio" recebe o codigo digitado). */

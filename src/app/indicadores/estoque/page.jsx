@@ -17,6 +17,8 @@ export default async function IndicadoresEstoquePage() {
     const produtos = await prisma.produto.findMany({
       select: {
         estoque: true,
+        // O kit fica fora das somas (o estoque dele e o das pecas): ver `calcularIndicadoresEstoque`.
+        tipo: true,
         precoVenda: true,
         fornecedorRascunho: true,
         fornecedores: {
@@ -87,6 +89,10 @@ export default async function IndicadoresEstoquePage() {
             <p>{indicadores.produtosComEstoque.toLocaleString("pt-BR")} produtos com estoque positivo · {indicadores.unidades.toLocaleString("pt-BR")} unidades.</p>
             {indicadores.produtosComEstoque === 0 && <p>Nenhum produto com estoque positivo no momento.</p>}
             <p>Inclui produtos ativos e inativos com saldo positivo. Saldos zerados ou negativos não compõem os valores.</p>
+            <p>
+              Produtos com composição (kits) ficam de fora: o estoque deles é calculado pelas peças, que já estão na soma.
+              {indicadores.kitsFora > 0 && ` ${indicadores.kitsFora.toLocaleString("pt-BR")} kit(s) com estoque não foram contados.`}
+            </p>
             {indicadores.estoqueNegativo > 0 && <p className="text-amber-700">Há {indicadores.estoqueNegativo} produto(s) com saldo negativo. Confira os saldos em Produtos.</p>}
             <p>A receita potencial não é lucro: não desconta impostos, taxas, comissões, fretes ou outras despesas.</p>
             <p>Os valores são recalculados ao abrir ou recarregar esta página, usando os dados salvos em Produtos.</p>

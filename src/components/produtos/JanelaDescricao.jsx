@@ -15,6 +15,7 @@ import {
   criarDescricaoIA,
   criarPromptDaDescricao,
   definirPromptPadraoDaDescricao,
+  descricoesDasPecasDoKit,
   excluirPromptDaDescricao,
   promptsDaDescricao,
   salvarPromptDaDescricao,
@@ -29,6 +30,8 @@ const ROTULO_TIPO = {
   FORNECEDOR: { ponto: "bg-emerald-500" },
   CONCORRENTE: { ponto: "bg-amber-500" },
   ATUAL: { ponto: "bg-sky-500" },
+  // Peca do kit (pedido do dono em 10/10/2026).
+  PECA: { ponto: "bg-violet-500" },
   OUTRO: { ponto: "bg-slate-400" },
 };
 
@@ -231,9 +234,12 @@ const SEM_REFERENCIAS =
  * O formulario abre pelo `ref` (`abrir`). `lerProduto` devolve o Nome e o Codigo
  * NO MOMENTO da geracao: titulo e "Itens inclusos: (Cod:...)" saem deles.
  */
-export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerProduto, aoUsar }) {
+export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerProduto, aoUsar, pecas = [] }) {
   const [aberta, setAberta] = useState(false);
   const [detalhes, setDetalhes] = useState(null);
+  // KIT (pedido do dono em 10/10/2026): a descricao do cadastro de cada peca, lida ao abrir. Viram abas de
+  // referencia (com a quantidade) e vao para a IA; os Itens inclusos saem das pecas.
+  const [descricoesPecas, setDescricoesPecas] = useState([]);
   const [lendo, iniciarLeitura] = useTransition();
   const [gerando, iniciarGeracao] = useTransition();
   const [texto, setTexto] = useState("");
@@ -304,6 +310,14 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     // de volta — por isso reseta aqui, e nao junto de `detalhes` (que so
     // muda quando a busca termina).
     setExcluidos(new Set());
+    setDescricoesPecas([]);
+    if (pecas.length > 0) {
+      descricoesDasPecasDoKit(pecas.map((peca) => peca.id))
+        .then((resposta) => {
+          if (leitura === leituraAtual.current && resposta?.ok) setDescricoesPecas(resposta.pecas);
+        })
+        .catch(() => {});
+    }
     setPrompts(null);
     setPromptId(null);
     setPrompt(null);
@@ -408,7 +422,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     iniciarGeracao(async () => {
       try {
         // O prompt da caixa; sem ele (ainda lendo, ou a leitura falhou) o servidor usa o salvo.
-        const resultado = await criarDescricaoIA(idsParaGerar, atual, prompt ?? undefined);
+        const resultado = await criarDescricaoIA(idsParaGerar, { ...atual, pecas: pecasParaGerar }, prompt ?? undefined);
         if (geracao !== geracaoAtual.current) return;
         if (!resultado.ok) {
           setErro(resultado.erro);
@@ -695,8 +709,28 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   // Removidas SO desta geracao ficam de fora da lista mostrada e do que vai
   // para a IA — mas continuam marcadas de verdade (`ids` inteiro), entao
   // reabrir a janela (que reseta `excluidos`) as traz de volta.
-  const itens = detalhes?.ok ? detalhes.itens.filter((item) => !excluidos.has(item.id)) : [];
-  const idsParaGerar = itens.map((item) => item.id);
+  const itensDasLojas = detalhes?.ok ? detalhes.itens.filter((item) => !excluidos.has(item.id)) : [];
+  const idsParaGerar = itensDasLojas.map((item) => item.id);
+  // As pecas do kit primeiro, como abas de referencia (o id leva "peca:" para nao cruzar com o das lojas).
+  const itensDasPecas = descricoesPecas
+    .map((peca) => {
+      const quantidade = Number(pecas.find((item) => item.id === peca.id)?.quantidade) || 1;
+      return {
+        id: `peca:${peca.id}`,
+        pecaId: peca.id,
+        quantidade,
+        tipo: "PECA",
+        fonte: `Peça ×${quantidade}`,
+        nome: peca.tituloBase,
+        codigo: peca.sku,
+        descricao: peca.descricaoBase ?? "",
+        especificacoes: linhasDeEspecificacao(peca.descricaoBase ?? ""),
+        url: `/produtos/${peca.id}`,
+      };
+    })
+    .filter((item) => !excluidos.has(item.id));
+  const pecasParaGerar = itensDasPecas.map((item) => ({ id: item.pecaId, quantidade: item.quantidade }));
+  const itens = [...itensDasPecas, ...itensDasLojas];
   const pendentes = divergencias.filter((item) => !confirmadas.has(item.id)).length;
   const prontasParaOrganizar = divergencias.filter((item) =>
     !confirmadas.has(item.id) && Number.isInteger(selecoes[item.id])).length;
@@ -792,7 +826,7 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
               </p>
             )}
             {/* Com a descricao atual na tela, a lista de referencias some atras dela: o aviso fica aqui embaixo. */}
-            {detalhes?.ok && detalhes.encontrados === 0 && descricaoAtual !== null && (
+            {detalhes?.ok && detalhes.encontrados === 0 && descricaoAtual !== null && itensDasPecas.length === 0 && (
               <p className="mt-2 text-xs text-amber-700">{SEM_REFERENCIAS}</p>
             )}
           </div>

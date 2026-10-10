@@ -110,6 +110,44 @@ async function lerReferencias(ids) {
   return { texto, quantidade: ordenadas.length, medidasPorReferencia, referencias: ordenadas };
 }
 
+/**
+ * As PECAS de um kit como referencia da descricao (pedido do dono em 10/10/2026): o nome, a marca, o modelo e a
+ * descricao do cadastro de cada peca, com a quantidade, para a IA escrever a descricao do kit inteiro. Os "Itens
+ * inclusos" saem daqui (`itens`), e nao da IA: sao as pecas e as quantidades da aba Composicao.
+ *
+ * @param {{id: string, quantidade: number}[]} pecas
+ */
+async function lerPecasParaDescricao(pecas) {
+  const lista = (Array.isArray(pecas) ? pecas : [])
+    .map((peca) => ({ id: String(peca?.id ?? ""), quantidade: Math.max(1, Math.trunc(Number(peca?.quantidade)) || 1) }))
+    .filter((peca) => peca.id)
+    .slice(0, MAXIMO_REFERENCIAS);
+  if (lista.length === 0) return { texto: "", quantidade: 0, itens: [] };
+  const linhas = await prisma.produto.findMany({
+    where: { id: { in: lista.map((peca) => peca.id) } },
+    select: { id: true, sku: true, tituloBase: true, marca: true, modelo: true, descricaoBase: true },
+  });
+  const porId = new Map(linhas.map((linha) => [linha.id, linha]));
+  const achadas = lista.map((peca) => ({ ...peca, linha: porId.get(peca.id) })).filter((peca) => peca.linha);
+  if (achadas.length === 0) return { texto: "", quantidade: 0, itens: [] };
+  const blocos = achadas.map(({ quantidade, linha }) => {
+    const partes = [`<peca_do_kit codigo="${linha.sku}" quantidade="${quantidade}">`, `Nome: ${linha.tituloBase}`];
+    if (linha.marca) partes.push(`Marca: ${linha.marca}`);
+    if (linha.modelo) partes.push(`Modelo: ${linha.modelo}`);
+    if (linha.descricaoBase) partes.push(`Descricao:\n${linha.descricaoBase}`);
+    partes.push("</peca_do_kit>");
+    return partes.join("\n");
+  });
+  return {
+    texto:
+      "Este produto é um KIT formado pelas peças abaixo, nas quantidades indicadas. Escreva a descrição do kit inteiro; " +
+      "os Itens inclusos são preenchidos pelo sistema com as peças.\n\n" +
+      blocos.join("\n\n"),
+    quantidade: achadas.length,
+    itens: achadas.map(({ quantidade, linha }) => ({ quantidade, descricao: linha.tituloBase })),
+  };
+}
+
 async function registrar({ tarefa, referencias, inicio, resposta, erro }) {
   try {
     await prisma.logIntegracao.create({
@@ -597,15 +635,23 @@ export function montarDescricao({
  */
 export async function gerarDescricao(
   ids,
-  { titulo = "", sku = "", medidas = {}, marca = "", modelo = "", descricao = "" } = {},
+  { titulo = "", sku = "", medidas = {}, marca = "", modelo = "", descricao = "", pecas = [] } = {},
   instrucoes = PROMPT_DESCRICAO_PADRAO,
 ) {
-  // Sem fornecedor nem concorrente, a geracao parte do proprio produto (pedido do dono em 10/10/2026).
-  const semReferencias = (ids ?? []).length === 0;
+  // Kit (pedido do dono em 10/10/2026): as pecas entram como referencia, e os Itens inclusos saem delas.
+  const doKit = await lerPecasParaDescricao(pecas);
+  const temLojas = (ids ?? []).length > 0;
+  // Sem fornecedor, concorrente nem peca, a geracao parte do proprio produto (pedido do dono em 10/10/2026).
+  const semReferencias = !temLojas && doKit.quantidade === 0;
   if (semReferencias && !String(titulo).trim()) throw new Error("Preencha o Nome do produto antes de gerar.");
-  const { texto: referencias, quantidade, medidasPorReferencia, referencias: linhas } = semReferencias
+  const dasLojas = semReferencias
     ? { texto: dadosDoProprioProduto({ titulo, marca, modelo, descricao }), quantidade: 0, medidasPorReferencia: [], referencias: [] }
-    : await lerReferencias(ids);
+    : temLojas
+      ? await lerReferencias(ids)
+      : { texto: "", quantidade: 0, medidasPorReferencia: [], referencias: [] };
+  const { medidasPorReferencia, referencias: linhas } = dasLojas;
+  const referencias = [doKit.texto, dasLojas.texto].filter(Boolean).join("\n\n");
+  const quantidade = dasLojas.quantidade + doKit.quantidade;
   const divergencias = identificarDivergencias(linhas);
 
   // As medidas vao ja lidas, numa lista: soltas no meio do texto de cada loja a IA
@@ -704,7 +750,8 @@ export async function gerarDescricao(
     paragrafos,
     caracteristicas: caracteristicasDaIA
       .filter((item) => !idsDivergentes.has(idDaCaracteristica(item?.nome))),
-    itensInclusos: Array.isArray(conteudo.itensInclusos) ? conteudo.itensInclusos : [],
+    itensInclusos:
+      doKit.itens.length > 0 ? doKit.itens : Array.isArray(conteudo.itensInclusos) ? conteudo.itensInclusos : [],
     medidas: medidasFinais,
   });
   const decisoes = new Map((Array.isArray(conteudo.decisoes) ? conteudo.decisoes : [])

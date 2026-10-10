@@ -36,8 +36,8 @@ import { LIMITE_TITULO_ML, MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/
 import { medidasDaDescricao } from "@/lib/medidas";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import { indisponivel } from "@/lib/estoqueDoConcorrente";
-import { ncmsDasPecas, pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
-import { FornecedoresDoKit, MedidasDoKit } from "./AbasDoKit";
+import { codigoSugeridoDoKit, localizacaoDoKit, ncmsDasPecas, pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
+import { DocumentosDasPecas, FornecedoresDoKit, MedidasDoKit } from "./AbasDoKit";
 import BuscarPorCodigo from "./BuscarPorCodigo";
 import Composicao from "./Composicao";
 import Concorrentes from "./Concorrentes";
@@ -64,6 +64,7 @@ import {
   enviarArquivoTemporario,
   gerarSku,
   documentosDasReferencias,
+  pecaDeOrigemDoKit,
   removerArquivo,
   removerArquivoTemporario,
   salvarProduto,
@@ -1620,6 +1621,42 @@ function DocumentoTemporario({
   );
 }
 
+/**
+ * As sugestoes do kit em texto, como os campos as guardam (pedidos do dono em 07 e 10/10/2026): peso e medidas
+ * (`pesoEMedidasDoKit`), o preco de venda (a venda total das pecas; nula com a soma incompleta), o codigo (uma
+ * peca so) e a localizacao. Nulo = nada a sugerir.
+ */
+function textosDasSugestoes(pecas) {
+  const medidas = pesoEMedidasDoKit(pecas);
+  const texto = (valor) => (valor === null || valor === undefined ? null : String(valor));
+  const venda = totaisDoKit(pecas).venda;
+  return {
+    pesoKg: texto(medidas.pesoKg),
+    comprimentoCm: texto(medidas.comprimentoCm),
+    larguraCm: texto(medidas.larguraCm),
+    alturaCm: texto(medidas.alturaCm),
+    precoVenda: venda === null ? null : venda.toFixed(2),
+    sku: codigoSugeridoDoKit(pecas),
+    localizacao: localizacaoDoKit(pecas).valor,
+  };
+}
+
+/** O campo ainda tem a sugestao anterior? Numeros comparam como numero ("6.80" e "6.8" sao o mesmo). */
+function mesmaSugestao(atual, sugerido) {
+  if (sugerido === null || sugerido === undefined || atual === "") return false;
+  if (atual === sugerido) return true;
+  const a = Number(atual);
+  const b = Number(sugerido);
+  return sugerido !== "" && Number.isFinite(a) && Number.isFinite(b) && a === b;
+}
+
+/** "falta validar no Rise · integrar com o Bling", ou o caso do kit, que nunca e peca. */
+function textoDasFaltas(faltas) {
+  const lista = Array.isArray(faltas) ? faltas : [];
+  if (lista.length === 1 && lista[0].startsWith("É um kit")) return "é um kit, e kit não pode ser peça";
+  return `falta ${lista.join(" · ")}`;
+}
+
 export default function FormularioProduto({
   produto,
   arquivos = {},
@@ -1641,6 +1678,14 @@ export default function FormularioProduto({
   const [pecas, setPecas] = useState(() => produto?.composicao ?? clone?.composicao ?? []);
   // Trocar um kit com pecas para Simples apaga as pecas no Salvar: a tela pergunta antes.
   const [confirmarSimples, setConfirmarSimples] = useState(false);
+  // Produto do Rise de onde este cadastro NOVO veio (o "Clonar" da lista ou o "Clonar a partir de um codigo"):
+  // ao trocar para kit, ele entra como primeira peca (pedido do dono em 10/10/2026). Produto coletado nao conta.
+  const [origemId, setOrigemId] = useState(clone?.origem.id ?? null);
+  // Recado da aba Composicao: o produto de origem que nao pode ser peca, e por que.
+  const [avisoComposicao, setAvisoComposicao] = useState(null);
+  // O que o produto Simples tinha e o kit limpa (pedido do dono em 10/10/2026): fornecedores e concorrentes da
+  // peca, EAN, estoque minimo e maximo e as fotos validadas. Volta ao escolher Simples; o Salvar so ve o atual.
+  const guardadoDoSimples = useRef(null);
   // O clone ja nasce com o que salvar.
   const [alterado, setAlterado] = useState(Boolean(clone));
   const [erroAcao, setErroAcao] = useState(null);
@@ -1769,7 +1814,8 @@ export default function FormularioProduto({
       const avisos = [];
       const fotos = await tentar(() => importarImagensDaOrigem(novoLote, `rise:${clone.origem.id}`));
       if (fotos.ok) {
-        setImagensLote(fotos.imagens.map((imagem) => ({ ...imagem, finalizada: true, doClone: true })));
+        // `daOrigem`: ao virar kit, estas fotos passam a ser as da peca de origem, sem baixar de novo.
+        setImagensLote(fotos.imagens.map((imagem) => ({ ...imagem, finalizada: true, doClone: true, daOrigem: true })));
         if (fotos.recusadas > 0) avisos.push(`${fotos.recusadas} foto(s) do produto de origem não puderam ser copiadas.`);
       } else {
         avisos.push(`As fotos do produto de origem não foram copiadas (${fotos.erro}).`);
@@ -2084,41 +2130,6 @@ export default function FormularioProduto({
   const valorDoCampo = (nome) =>
     formulario.current?.elements.namedItem(nome)?.value ?? "";
 
-  /**
-   * Peso e medidas sugeridos pelas pecas do kit (pedido do dono em 07/10/2026). Os campos nao sao
-   * controlados, entao a sugestao e escrita direto no <input>. `forcar` (o botao "Usar a sugestao")
-   * escreve tudo o que tem valor; a troca de pecas escreve o peso sempre e as medidas so no campo vazio
-   * ou que ainda tinha a sugestao anterior, para nao apagar uma caixa medida a mao.
-   */
-  const sugestaoAnterior = useRef(null);
-  if (sugestaoAnterior.current === null) sugestaoAnterior.current = pesoEMedidasDoKit(produto?.composicao ?? clone?.composicao ?? []);
-  function escreverSugestao(sugestao, { forcar = false } = {}) {
-    const anterior = sugestaoAnterior.current;
-    for (const campo of ["pesoKg", "comprimentoCm", "larguraCm", "alturaCm"]) {
-      const valor = sugestao[campo];
-      const entrada = formulario.current?.elements.namedItem(campo);
-      if (valor === null || !entrada) continue;
-      const atual = entrada.value;
-      const livre = atual === "" || (anterior?.[campo] !== null && Number(atual) === anterior?.[campo]);
-      if (forcar || campo === "pesoKg" || livre) entrada.value = String(valor);
-    }
-    sugestaoAnterior.current = sugestao;
-  }
-
-  // As pecas mudaram (incluir, tirar, quantidade): refaz a sugestao nos campos. A primeira passada (o kit
-  // acabou de abrir) nao escreve nada: abrir nao pode mudar o que esta gravado sem o dono ver.
-  const assinaturaDasPecas = pecas.map((peca) => `${peca.componenteId}:${peca.quantidade}`).join(",");
-  const primeiraPassada = useRef(true);
-  useEffect(() => {
-    if (primeiraPassada.current) {
-      primeiraPassada.current = false;
-      return;
-    }
-    if (tipo === "COMPOSICAO") escreverSugestao(pesoEMedidasDoKit(pecas));
-    // So a assinatura (ids e quantidades) diz se as pecas mudaram; `pecas` e recriada a cada edicao.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assinaturaDasPecas, tipo]);
-
   // NCM do kit: os NCMs das pecas entram na lista do campo, antes das referencias de mercado.
   const ncmDasPecas = tipo === "COMPOSICAO"
     ? ncmsDasPecas(pecas).map((grupo) => ({ valor: grupo.ncm, origem: `Peça ${grupo.pecas.join(", ")}`, fontes: ["Peças do kit"] }))
@@ -2192,6 +2203,11 @@ export default function FormularioProduto({
         const enviados = Object.fromEntries(formData.entries());
         enviados.ativo = enviados.ativo === "on";
         setPreenchido(enviados);
+        // E REMONTA os campos com o que foi enviado (achado em 10/10/2026): o reset do React devolve cada LISTA
+        // (<select>) ao valor de quando ela foi montada, e mudar o `defaultValue` depois nao muda isso. Sem
+        // remontar, um kit novo recusado (codigo vazio) voltava a Unidade para UN e o Tipo para Simples sem a
+        // tela mostrar, e o Salvar seguinte gravava um produto simples, sem as pecas.
+        setVersao((anterior) => anterior + 1);
       }
 
       if (resultado.ok) {
@@ -2220,6 +2236,9 @@ export default function FormularioProduto({
   );
 
   const erros = estado?.erros ?? {};
+  // A mensagem do Salvar recusado some quando o formulario muda (ela ficava na tela depois de corrigida, achado do
+  // dono em 10/10/2026). O proximo Salvar traz outra resposta e a mostra de novo.
+  const [erroDispensado, setErroDispensado] = useState(null);
   // O que foi preenchido ou enviado vence o cadastro gravado: e o estado mais
   // recente da tela.
   const inicial = preenchido ?? produto;
@@ -2238,6 +2257,247 @@ export default function FormularioProduto({
   const [precoVendaTexto, setPrecoVendaTexto] = useState(v("precoVenda"));
   const precoVendaAtual = precoVendaTexto !== "" ? Number(precoVendaTexto) : null;
 
+  /**
+   * Sugestoes do kit nos campos (pedidos do dono em 07 e 10/10/2026): peso e medidas, codigo, preco de venda e
+   * localizacao. Os campos nao sao controlados, entao a sugestao e escrita direto no <input>.
+   *
+   * PARA NAO APAGAR O DIGITADO, um campo so recebe a sugestao quando esta vazio ou ainda tem a ULTIMA sugestao
+   * (`sugeridos`). Excecoes: o peso e escrito sempre (decisao de 07/10/2026), e a localizacao do kit de uma
+   * peca tambem (e a da peca, travada). Sem sugestao (codigo com varias pecas), o campo que tinha a anterior
+   * fica vazio. O codigo so e sugerido em produto novo: o de um kit salvo nunca muda sozinho.
+   */
+  const sugeridos = useRef(null);
+  if (sugeridos.current === null) sugeridos.current = textosDasSugestoes(produto?.composicao ?? clone?.composicao ?? []);
+
+  function aplicarSugestoesDoKit(lista) {
+    const form = formulario.current;
+    if (!form) return;
+    const anterior = sugeridos.current ?? {};
+    const nova = textosDasSugestoes(lista);
+    const travada = localizacaoDoKit(lista).travada;
+    let precoEscrito = null;
+    const escrever = (nome, valor, { sempre = false } = {}) => {
+      const entrada = form.elements.namedItem(nome);
+      if (!entrada) return;
+      const atual = entrada.value;
+      if (valor === null) {
+        if (mesmaSugestao(atual, anterior[nome])) entrada.value = "";
+        return;
+      }
+      if (sempre || atual === "" || mesmaSugestao(atual, anterior[nome])) {
+        entrada.value = valor;
+        if (nome === "precoVenda") precoEscrito = valor;
+      }
+    };
+    if (nova.pesoKg !== null) escrever("pesoKg", nova.pesoKg, { sempre: true });
+    for (const campo of ["comprimentoCm", "larguraCm", "alturaCm"]) {
+      // Medida que a peca nao tem nao apaga a do campo.
+      if (nova[campo] !== null) escrever(campo, nova[campo]);
+    }
+    if (!produto) escrever("sku", nova.sku);
+    // Soma incompleta (peca sem preco) nao sugere nem apaga: uma soma parcial pareceria um preco certo.
+    if (nova.precoVenda !== null) escrever("precoVenda", nova.precoVenda);
+    escrever("localizacao", nova.localizacao, { sempre: travada });
+    if (precoEscrito !== null) setPrecoVendaTexto(precoEscrito);
+    // A proxima comparacao e com o que se sugeriu agora; campo sem sugestao nova guarda a anterior.
+    sugeridos.current = {
+      ...anterior,
+      ...Object.fromEntries(Object.entries(nova).filter(([campo, valor]) => valor !== null || campo === "sku")),
+    };
+  }
+
+  // As pecas ou o tipo mudaram: refaz as sugestoes. Compara com a ultima chave aplicada, e nao com "primeira
+  // passada": abrir um kit nao pode mudar o que esta gravado, nem quando o modo estrito roda o efeito duas vezes.
+  const assinaturaDasPecas = pecas.map((peca) => `${peca.componenteId}:${peca.quantidade}`).join(",");
+  const chaveDasSugestoes = `${tipo}|${assinaturaDasPecas}`;
+  const ultimaChaveDasSugestoes = useRef(chaveDasSugestoes);
+  useEffect(() => {
+    if (ultimaChaveDasSugestoes.current === chaveDasSugestoes) return;
+    ultimaChaveDasSugestoes.current = chaveDasSugestoes;
+    if (tipo === "COMPOSICAO") aplicarSugestoesDoKit(pecas);
+    // So a chave (tipo, ids e quantidades) diz se algo mudou; `pecas` e recriada a cada edicao.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chaveDasSugestoes]);
+
+  /**
+   * FOTOS DAS PECAS (pedido do dono em 10/10/2026): cada peca incluida traz as fotos dela para o painel, todas sem
+   * escolher (so a validada e salva, e o dono escolhe as do kit). A peca de origem do clone ja tem as fotos no
+   * painel e nao baixa de novo. Peca tirada leva as fotos dela que ainda estao sem check; as da origem ficam (sao
+   * as do clone). Abrir um kit nao traz nada: so peca que ENTRA.
+   */
+  const imagensDoPainel = useRef(imagensLote);
+  useEffect(() => {
+    imagensDoPainel.current = imagensLote;
+  }, [imagensLote]);
+  const importacoesDePecas = useRef(0);
+  const idsDasPecas = pecas.map((peca) => peca.componenteId).join(",");
+  const pecasDasFotos = useRef(idsDasPecas);
+
+  async function trazerFotosDaPeca(pecaId) {
+    if (pecaId === origemId && imagensDoPainel.current.some((imagem) => imagem.daOrigem)) {
+      setImagensLote((lista) =>
+        lista.map((imagem) => (imagem.daOrigem ? { ...imagem, daPeca: pecaId, finalizada: false } : imagem)),
+      );
+      return;
+    }
+    const lote = garantirLote();
+    importacoesDePecas.current += 1;
+    setImportandoImagens(true);
+    setProgressoDaImportacao("Trazendo as fotos das peças...");
+    const resposta = await tentar(() => importarImagensDaOrigem(lote, `rise:${pecaId}`));
+    importacoesDePecas.current -= 1;
+    if (importacoesDePecas.current === 0) {
+      setImportandoImagens(false);
+      setProgressoDaImportacao(null);
+    }
+    if (!resposta.ok) {
+      setErroAcao(`As fotos de uma peça não vieram (${resposta.erro}).`);
+      return;
+    }
+    // A peca pode ter saido do kit enquanto as fotos baixavam.
+    if (!pecasDasFotos.current.split(",").includes(pecaId)) return;
+    const vagas = Math.max(0, MAXIMO_FOTOS_NO_PAINEL - imagensDoPainel.current.length);
+    const novas = resposta.imagens.slice(0, vagas).map((imagem) => ({ ...imagem, finalizada: false, daPeca: pecaId }));
+    if (novas.length < resposta.imagens.length) {
+      setErroAcao(
+        `O painel guarda até ${MAXIMO_FOTOS_NO_PAINEL} fotos: ${resposta.imagens.length - novas.length} foto(s) de uma peça ficaram de fora.`,
+      );
+    }
+    if (novas.length > 0) setImagensLote((lista) => [...lista, ...novas]);
+  }
+
+  useEffect(() => {
+    if (pecasDasFotos.current === idsDasPecas) return;
+    const antes = new Set(pecasDasFotos.current ? pecasDasFotos.current.split(",") : []);
+    pecasDasFotos.current = idsDasPecas;
+    const atuais = new Set(idsDasPecas ? idsDasPecas.split(",") : []);
+    const sairam = [...antes].filter((id) => !atuais.has(id));
+    if (sairam.length > 0) {
+      setImagensLote((lista) =>
+        lista.filter(
+          (imagem) => !(imagem.daPeca && sairam.includes(imagem.daPeca) && !imagem.daOrigem && imagem.finalizada !== true),
+        ),
+      );
+    }
+    for (const id of atuais) if (!antes.has(id)) trazerFotosDaPeca(id);
+    // So os ids dizem se uma peca entrou ou saiu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsDasPecas]);
+
+  /** Escreve num campo nao controlado (EAN, estoque, unidade) e devolve o valor que estava. */
+  function trocarCampo(nome, valor) {
+    const entrada = formulario.current?.elements.namedItem(nome);
+    if (!entrada) return "";
+    const antes = entrada.value;
+    entrada.value = valor;
+    return antes;
+  }
+
+  /**
+   * Trocar o Tipo (o campo so aparece em produto novo ou clonado, pedido do dono em 10/10/2026).
+   *
+   * Virar kit: unidade KIT; EAN, estoque minimo e maximo, fornecedores e concorrentes (eram da peca: o Bling
+   * receberia o custo de uma peca como custo do kit, e o selo de preco compararia o kit com a peca avulsa) ficam
+   * guardados e saem; as fotos passam a "nao escolhida"; o preco e as medidas do clone contam como sugestao; e o
+   * produto de origem entra como primeira peca, se puder ser peca.
+   */
+  function virarKit() {
+    const valorDe = (nome) => formulario.current?.elements.namedItem(nome)?.value ?? "";
+    guardadoDoSimples.current = {
+      // O que a tela vai sugerir no kit: volta ao escolher Simples se o dono nao tiver mexido.
+      campos: Object.fromEntries(
+        ["sku", "precoVenda", "localizacao", "pesoKg", "comprimentoCm", "larguraCm", "alturaCm"].map((nome) => [nome, valorDe(nome)]),
+      ),
+      fornecedores: fornecedoresRascunho,
+      concorrentes: concorrentesRascunho,
+      ean: trocarCampo("ean", ""),
+      estoqueMinimo: trocarCampo("estoqueMinimo", ""),
+      estoqueMaximo: trocarCampo("estoqueMaximo", ""),
+      fotosValidadas: new Set(imagensLote.filter((imagem) => imagem.finalizada === true).map((imagem) => imagem.base)),
+    };
+    trocarCampo("unidade", "KIT");
+    setFornecedoresRascunho([]);
+    setConcorrentesRascunho([]);
+    setImagensLote((lista) => lista.map((imagem) => (imagem.finalizada === true ? { ...imagem, finalizada: false } : imagem)));
+    const atual = (nome) => formulario.current?.elements.namedItem(nome)?.value || null;
+    sugeridos.current = {
+      ...sugeridos.current,
+      precoVenda: atual("precoVenda"),
+      comprimentoCm: atual("comprimentoCm"),
+      larguraCm: atual("larguraCm"),
+      alturaCm: atual("alturaCm"),
+      localizacao: atual("localizacao"),
+      // O "Clonar a partir de um codigo" copia o codigo da PECA para o campo: no kit ele vira o "{sku}_N".
+      ...(origemId ? { sku: atual("sku") } : {}),
+    };
+    setAvisoComposicao(null);
+    setTipo("COMPOSICAO");
+    setAba("composicao");
+    setAlterado(true);
+    if (origemId && pecas.length === 0) incluirOrigem(origemId);
+  }
+
+  async function incluirOrigem(id) {
+    const resposta = await tentar(() => pecaDeOrigemDoKit(id));
+    if (resposta.ok) {
+      // So entra com o kit ainda vazio: o dono pode ter incluido outra peca enquanto a leitura corria.
+      setPecas((atuais) => (atuais.length === 0 ? [resposta.peca] : atuais));
+      return;
+    }
+    const quem = resposta.sku ? `O produto de origem ${resposta.sku}` : "O produto de origem";
+    const motivo = resposta.faltas ? textoDasFaltas(resposta.faltas) : resposta.erro;
+    setAvisoComposicao(`${quem} não entrou no kit: ${motivo}.`);
+  }
+
+  /** Voltar a Simples: unidade UN, as pecas saem e o que o kit limpou volta (o que entrou enquanto era kit fica). */
+  function voltarASimples() {
+    setTipo("SIMPLES");
+    setPecas([]);
+    setConfirmarSimples(false);
+    setAvisoComposicao(null);
+    setAlterado(true);
+    if (aba === "composicao") setAba("caracteristicas");
+    trocarCampo("unidade", "UN");
+    const guardado = guardadoDoSimples.current;
+    guardadoDoSimples.current = null;
+    if (!guardado) return;
+    const juntar = (velhos) => (atuais) => [...velhos, ...atuais.filter((item) => !velhos.some((velho) => velho.id === item.id))];
+    setFornecedoresRascunho(juntar(guardado.fornecedores));
+    setConcorrentesRascunho(juntar(guardado.concorrentes));
+    for (const nome of ["ean", "estoqueMinimo", "estoqueMaximo"]) {
+      const entrada = formulario.current?.elements.namedItem(nome);
+      if (entrada && entrada.value === "") entrada.value = guardado[nome];
+    }
+    // Codigo, preco, localizacao, peso e medidas que ainda tem a sugestao do kit voltam ao que eram no Simples
+    // (o codigo "{sku}_5" e o preco de 5 pecas nao servem para o produto simples). O que o dono digitou fica.
+    for (const [nome, valor] of Object.entries(guardado.campos ?? {})) {
+      const entrada = formulario.current?.elements.namedItem(nome);
+      if (!entrada || !mesmaSugestao(entrada.value, sugeridos.current?.[nome])) continue;
+      entrada.value = valor;
+      if (nome === "precoVenda") setPrecoVendaTexto(valor);
+    }
+    setImagensLote((lista) =>
+      lista.map((imagem) =>
+        guardado.fotosValidadas.has(imagem.base) && imagem.finalizada === false ? { ...imagem, finalizada: true } : imagem,
+      ),
+    );
+  }
+
+  function mudarTipo(novoTipo) {
+    if (novoTipo === tipo) return;
+    if (novoTipo === "COMPOSICAO") {
+      virarKit();
+      return;
+    }
+    // Kit com pecas: pergunta antes, porque as pecas saem.
+    if (pecas.length > 0) {
+      setConfirmarSimples(true);
+      return;
+    }
+    voltarASimples();
+  }
+
+
   // Custo do fornecedor PADRAO, para a margem ao lado do Preco venda (pedido
   // do dono em 22/09/2026). Lido da mesma lista que a aba Fornecedores usa —
   // rascunho ou vinculos de verdade — e nao de Produto.custo: aquele campo so
@@ -2246,6 +2506,8 @@ export default function FormularioProduto({
   // No kit, o custo e o CUSTO TOTAL das pecas (custo x quantidade), e nulo quando falta o de alguma: a
   // margem nao pode sair de uma soma parcial.
   const ehKit = tipo === "COMPOSICAO";
+  // Kit de uma peca: a localizacao e a da peca e fica travada (pedido do dono em 10/10/2026).
+  const localizacaoTravada = ehKit && pecas.length === 1;
   const custoPadrao = ehKit
     ? totaisDoKit(pecas).custo
     : ((usaFornecedorRascunho ? fornecedoresRascunho : fornecedores).find((item) => item.padrao)?.precoCusto ?? null);
@@ -2432,6 +2694,9 @@ export default function FormularioProduto({
     setConcorrentesRascunho([]);
     limparTemporarios();
     aplicar(resultado.campos, { recomecar: true });
+    // Produto do Rise preenchido por aqui vale como origem do kit, igual ao "Clonar" da lista (pedido do dono em
+    // 10/10/2026). Produto de fornecedor ou concorrente nao: ele nao pode ser peca.
+    setOrigemId(String(resultado.id ?? "").startsWith("rise:") ? resultado.id.slice("rise:".length) : null);
 
     // As fotos do produto clonado entram no painel AGORA, baixadas e padronizadas no
     // servidor, e nao so no Salvar: assim o dono ve a foto final e ja pode melhorar uma
@@ -2451,7 +2716,7 @@ export default function FormularioProduto({
           setImagensLote(
             idColetado
               ? resposta.imagens.map((imagem) => ({ ...imagem, ref: idColetado, doClone: true }))
-              : resposta.imagens,
+              : resposta.imagens.map((imagem) => ({ ...imagem, daOrigem: true })),
           );
           if (resposta.recusadas > 0) {
             setErroAcao(
@@ -2479,7 +2744,10 @@ export default function FormularioProduto({
     <form
       ref={formulario}
       action={acao}
-      onChange={() => setAlterado(true)}
+      onChange={() => {
+        setAlterado(true);
+        if (estado?.erro) setErroDispensado(estado);
+      }}
       className="space-y-4"
     >
       {/* Lote de arquivos enviados antes de salvar (ver enviarTemporario). */}
@@ -2556,7 +2824,7 @@ export default function FormularioProduto({
         {estado?.ok && (
           <span className="text-sm text-emerald-700">Produto salvo.</span>
         )}
-        {estado?.erro && (
+        {estado?.erro && estado !== erroDispensado && (
           <span className="text-sm text-red-700">{estado.erro}</span>
         )}
 
@@ -2630,8 +2898,13 @@ export default function FormularioProduto({
               <Campo
                 nome="localizacao"
                 rotulo="Localização"
-                defaultValue={v("localizacao")}
-                ajuda="Ex.: R14"
+                // Travada, mostra a da peca desde a abertura (um kit gravado antes da regra pode estar sem ela; o
+                // Salvar grava a da peca).
+                defaultValue={localizacaoTravada ? (pecas[0]?.localizacao ?? "") : v("localizacao")}
+                ajuda={localizacaoTravada ? "Kit de uma peça: a localização é a da peça e muda junto com ela." : "Ex.: R14"}
+                readOnly={localizacaoTravada}
+                aria-readonly={localizacaoTravada}
+                className={`${CLASSE_CAMPO} border-borda focus:border-acento ${localizacaoTravada ? "bg-fundo text-suave" : ""}`}
               />
 
               <CampoPreco
@@ -2645,62 +2918,8 @@ export default function FormularioProduto({
                 aoMudarValor={setPrecoVendaTexto}
                 usos={usos}
               />
-              {/* Tipo no lugar onde ficava a Unidade (pedido do dono em 07/10/2026); a Unidade foi para
-                  depois da Situacao. */}
-              <div>
-                <Campo nome="tipo" rotulo="Tipo">
-                  <select
-                    id="tipo"
-                    name="tipo"
-                    value={tipo}
-                    onChange={(evento) => {
-                      const novoTipo = evento.target.value;
-                      if (novoTipo === "SIMPLES" && pecas.length > 0) {
-                        setConfirmarSimples(true);
-                        return;
-                      }
-                      setTipo(novoTipo);
-                      if (novoTipo === "COMPOSICAO") setAba("composicao");
-                    }}
-                    className={`${CLASSE_CAMPO} border-borda focus:border-acento`}
-                  >
-                    <option value="SIMPLES">Simples</option>
-                    <option value="COMPOSICAO">Com composição</option>
-                  </select>
-                </Campo>
-                {confirmarSimples && (
-                  <div className="mt-2 rounded border border-amber-300 bg-amber-50 p-2.5 text-[13px] text-amber-900">
-                    <p>
-                      {pecas.length === 1 ? "A peça do kit será removida" : `As ${pecas.length} peças do kit serão removidas`} ao
-                      salvar.
-                    </p>
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTipo("SIMPLES");
-                          setPecas([]);
-                          setConfirmarSimples(false);
-                          setAlterado(true);
-                          if (aba === "composicao") setAba("caracteristicas");
-                        }}
-                        className="rounded bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
-                      >
-                        Trocar para Simples
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmarSimples(false)}
-                        className="rounded border border-amber-300 px-2.5 py-1 text-xs hover:bg-amber-100"
-                      >
-                        Manter com composição
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <Interruptor nome="ativo" inicial={inicial?.ativo ?? true} />
+              {/* Unidade em cima e Tipo embaixo (pedido do dono em 10/10/2026, que desfez a troca de 07/10). A Unidade
+                  segue o Tipo (KIT ou UN) e continua aberta para escolher. */}
               <Campo nome="unidade" rotulo="Unidade">
                 <select
                   id="unidade"
@@ -2715,11 +2934,63 @@ export default function FormularioProduto({
                   ))}
                 </select>
               </Campo>
+
+              <Interruptor nome="ativo" inicial={inicial?.ativo ?? true} />
+              {/* Tipo SO em produto novo ou clonado (pedido do dono em 10/10/2026): sem o campo no envio, o servidor
+                  mantem o tipo gravado (`prepararComposicaoDoCadastro`), e um produto salvo nao vira kit nem volta a
+                  simples pela tela. O caminho para um kit novo e o Clonar. */}
+              {novo && (
+                <div>
+                  <Campo nome="tipo" rotulo="Tipo">
+                    {/* `defaultValue` + `key`, e nao `value`: o reset do React depois de um Salvar recusado volta a
+                        lista ao valor PADRAO dela, e uma lista controlada nao tem padrao (voltava para Simples). A
+                        chave remonta a lista a cada troca, e tambem quando o "Manter com composicao" desfaz a escolha. */}
+                    <select
+                      key={`tipo-${tipo}-${confirmarSimples}`}
+                      id="tipo"
+                      name="tipo"
+                      defaultValue={tipo}
+                      onChange={(evento) => mudarTipo(evento.target.value)}
+                      className={`${CLASSE_CAMPO} border-borda focus:border-acento`}
+                    >
+                      <option value="SIMPLES">Simples</option>
+                      <option value="COMPOSICAO">Com composição</option>
+                    </select>
+                  </Campo>
+                  {confirmarSimples && (
+                    <div className="mt-2 rounded border border-amber-300 bg-amber-50 p-2.5 text-[13px] text-amber-900">
+                      <p>
+                        {pecas.length === 1 ? "A peça do kit será removida" : `As ${pecas.length} peças do kit serão removidas`} ao
+                        salvar.
+                      </p>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={voltarASimples}
+                          className="rounded bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          Trocar para Simples
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmarSimples(false)}
+                          className="rounded border border-amber-300 px-2.5 py-1 text-xs hover:bg-amber-100"
+                        >
+                          Manter com composição
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* O link da Loja Integrada fica sempre na primeira coluna, com ou sem o Tipo ao lado da Situacao. */}
+              <div className="sm:col-start-1">
               <LinkLojaIntegrada
                 inicial={v("urlLojaIntegrada")}
                 dominio={dominioLojaIntegrada}
                 erro={erros.urlLojaIntegrada}
               />
+              </div>
             </div>
           </div>
         </Card>
@@ -2747,6 +3018,8 @@ export default function FormularioProduto({
         // (pedido do dono em 07/10/2026): a janela nao procura mais pelo Nome no catalogo das lojas.
         ids={[...new Set([...idsMarcados, ...vinculosItens.map((item) => item.id)])]}
         descricaoAtual={produto?.descricaoBase ?? clone?.campos.descricaoBase ?? null}
+        // Kit: as pecas viram referencias da descricao (pedido do dono em 10/10/2026).
+        pecas={tipo === "COMPOSICAO" ? pecas.map((peca) => ({ id: peca.componenteId, quantidade: peca.quantidade })) : []}
         lerProduto={() => ({
           titulo: valorDoCampo("tituloBase"),
           sku: valorDoCampo("sku"),
@@ -2888,6 +3161,7 @@ export default function FormularioProduto({
                 setPecas={setPecas}
                 produtoId={produto?.id ?? null}
                 aoAlterar={() => setAlterado(true)}
+                aviso={avisoComposicao}
               />
             </div>
 
@@ -2926,6 +3200,8 @@ export default function FormularioProduto({
                   arquivos={arquivos.CERTIFICADO ?? []}
                 />
               )}
+              {/* Kit: os documentos e certificados das pecas, so leitura (pedido do dono em 10/10/2026). */}
+              {ehKit && <DocumentosDasPecas pecas={pecas} ativo={aba === "documentos"} />}
               <DocumentosDasReferencias
                 key={aberturaDocumentos}
                 ids={idsMarcados}
@@ -3023,13 +3299,7 @@ export default function FormularioProduto({
                 />
               </div>
               {ehKit && (
-                <MedidasDoKit
-                  pecas={pecas}
-                  aoUsarSugestao={(sugestao) => {
-                    escreverSugestao(sugestao, { forcar: true });
-                    setAlterado(true);
-                  }}
-                />
+                <MedidasDoKit pecas={pecas} />
               )}
             </div>
 

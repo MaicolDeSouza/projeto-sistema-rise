@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { recalcularKitsDaPeca } from "@/lib/composicaoBanco";
+import { ehKitDeUmaPeca, propagarLocalizacaoDaPeca, recalcularKitsDaPeca } from "@/lib/composicaoBanco";
 import { MAXIMO_ESTOQUE, MOTIVOS, novoSaldo, tipoValido } from "@/lib/estoque";
 
 /**
@@ -24,7 +24,10 @@ function falha(erro) {
   return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
 }
 
-/** Texto vazio limpa a localizacao. */
+/**
+ * Texto vazio limpa a localizacao. Kit de UMA peca nao se edita aqui: a localizacao dele e a da peca (pedido do
+ * dono em 10/10/2026). E a peca que muda de lugar leva junto os kits feitos so dela, na mesma transacao.
+ */
 export async function gravarLocalizacao(id, texto) {
   const valor = String(texto ?? "").trim();
   if (valor.length > MAXIMO_LOCALIZACAO) {
@@ -32,7 +35,13 @@ export async function gravarLocalizacao(id, texto) {
   }
 
   try {
-    await prisma.produto.update({ where: { id }, data: { localizacao: valor || null } });
+    if (await ehKitDeUmaPeca(id)) {
+      return { ok: false, erro: "A localização deste kit é a da peça dele. Mude a localização da peça." };
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.produto.update({ where: { id }, data: { localizacao: valor || null } });
+      await propagarLocalizacaoDaPeca(id, tx);
+    });
     return { ok: true };
   } catch (erro) {
     return falha(erro);

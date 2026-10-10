@@ -12,6 +12,10 @@ export function custoDoCadastro(produto) {
 }
 
 // Mantem a precisao decimal dos valores monetarios durante toda a soma.
+//
+// KIT FICA FORA (pedido do dono em 10/10/2026): o estoque do produto com composicao e calculado pelas pecas,
+// que ja estao na soma. Contar o kit tambem contaria as mesmas pecas duas vezes (20 placas e mais 10 kits de 2
+// placas, que sao as mesmas 20). `kitsFora` diz quantos kits com estoque ficaram de fora.
 export function calcularIndicadoresEstoque(produtos) {
   let custo = new Decimal(0);
   let receita = new Decimal(0);
@@ -20,8 +24,13 @@ export function calcularIndicadoresEstoque(produtos) {
   let semCusto = 0;
   let semPreco = 0;
   let estoqueNegativo = 0;
+  let kitsFora = 0;
 
   for (const produto of produtos) {
+    if (produto.tipo === "COMPOSICAO") {
+      if (produto.estoque > 0) kitsFora++;
+      continue;
+    }
     if (produto.estoque < 0) estoqueNegativo++;
     if (produto.estoque <= 0) continue;
     produtosComEstoque++;
@@ -40,6 +49,7 @@ export function calcularIndicadoresEstoque(produtos) {
     semCusto,
     semPreco,
     estoqueNegativo,
+    kitsFora,
   };
 }
 

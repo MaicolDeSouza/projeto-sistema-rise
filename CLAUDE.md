@@ -153,7 +153,7 @@ npm run teste:imagens             # 429 asserções das fotos: padronização, l
 npm run teste:anuncios-ml         # 591 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA) e a fase 3 (publicar, retomar, kit e vínculo no Bling) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
-npm run teste:composicao          # 78 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças e a descrição só com referências cadastradas (Postgres, SEM rede; só escreve produtos ZZ-KIT-*)
+npm run teste:composicao          # 111 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças) (Postgres, SEM rede; só escreve produtos ZZ-KIT-*)
 npm run teste:bling-sync          # 685 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 ```
 
@@ -2759,7 +2759,8 @@ inline): `docs/superpowers/plans/2026-10-07-produto-com-composicao.md`.
   conta do estoque virtual do Bling.
 - **Peso somado; medidas sugeridas e editáveis** (maior comprimento, maior largura, alturas somadas).
 - **O kit criado no Rise vai ao Bling com a composição.**
-- **Campo Tipo** (Simples / Com composição) onde estava a Unidade; a Unidade foi para depois da Situação.
+- **Campo Tipo** (Simples / Com composição): desde 10/10/2026 **só em produto novo ou clonado**, embaixo da Unidade
+  (ver "Ajustes de 10/10/2026").
 
 ### Onde mora cada parte
 
@@ -2775,7 +2776,7 @@ inline): `docs/superpowers/plans/2026-10-07-produto-com-composicao.md`.
   formato só, com preço, custo, peso, NCM e fornecedor padrão).
 - **Tela:** `Composicao.jsx` (aba Composição: Componente, Código, Qtde, lixeira e "Adicionar outro item") e
   `AbasDoKit.jsx` (`FornecedoresDoKit` e `MedidasDoKit`), ligados em `FormularioProduto.jsx`.
-- **Teste:** `npm run teste:composicao` (78) e o bloco "Composicao (kit)" do `teste:bling-sync`.
+- **Teste:** `npm run teste:composicao` (111) e o bloco "Composicao (kit)" do `teste:bling-sync`.
 
 ### Regras que custaram pensar
 
@@ -2790,17 +2791,19 @@ inline): `docs/superpowers/plans/2026-10-07-produto-com-composicao.md`.
 - **Salvar:** a composição é conferida ANTES de gravar e gravada na mesma transação do produto. Formulário sem o campo
   `tipo` (aberto antes dele existir) mantém o tipo gravado: um padrão "SIMPLES" apagaria as peças de um kit sem
   ninguém pedir. Produto que é peça de algum kit não vira kit. Trocar um kit para Simples pede confirmação na tela e
-  apaga as peças no Salvar.
-- **Busca de peças:** só simples, Conferido e com `blingId`; sem nenhum permitido, mostra até 5 dos que casaram e
-  foram barrados, com o motivo ("não está conferido"), senão o operador acharia que o produto não existe.
+  apaga as peças no Salvar (desde 10/10/2026 só no produto novo ou clonado: o salvo não mostra o Tipo).
+- **Busca de peças:** só entra simples, Conferido e com `blingId`. Desde 10/10/2026 a lista mostra aptos e não aptos
+  juntos (até 20 e 10), em ordem de código: o apto com o selo "Apto", o não apto cinza, sem clique, com TUDO o que falta
+  ("Falta: validar no Rise · integrar com o Bling", ou "É um kit, não pode ser peça"; `faltasParaSerPeca`) e o link
+  "Abrir". Antes os barrados só vinham quando nenhum era apto, e com o primeiro motivo.
 - **Aba Fornecedores do kit é só leitura:** o fornecedor padrão de cada peça e, na falta dele, o **rascunho do Bling**
   (`fornecedorRascunho`, marcado "rascunho do Bling"; as peças importadas só têm ele). Custo total e venda total
   (valor × quantidade) ficam **incompletos**, nunca soma parcial, quando falta o valor de uma peça. A margem do
   "Preço venda" do kit usa o custo total. A tabela editável fica montada e escondida: vínculos que o kit já tinha
-  continuam no envio.
+  continuam no envio (no produto novo ou clonado que VIRA kit ela é limpa; ver "Ajustes de 10/10/2026").
 - **Peso e dimensões:** trocar as peças preenche o peso sempre e as medidas só no campo vazio ou que ainda tinha a
   sugestão anterior; **abrir o kit não muda nada gravado**. O quadro por peça mostra "sem dado" e o total diz
-  "incompleto".
+  "incompleto". O botão "Usar a sugestão nos campos" saiu em 10/10/2026.
 - **NCM:** os NCMs das peças entram na lista do campo (cada um uma vez, com os SKUs que o usam).
 - **Janela "Criar descrição" (vale para TODO produto):** usa só os fornecedores e concorrentes cadastrados na aba
   (salvos ou não) e os marcados na lupa. Até 07/10/2026 ela procurava o Nome no catálogo coletado inteiro e trazia
@@ -2813,6 +2816,56 @@ inline): `docs/superpowers/plans/2026-10-07-produto-com-composicao.md`.
     prompt): especificação só a que estiver escrita nesses dados, nunca inventada. Peso e medidas da IA são
     ignorados nesse caso; valem só os do formulário. A janela avisa para conferir as especificações. A geração real
     sem referência ainda não foi vista (é paga): o primeiro uso é do dono.
+
+### Ajustes de 10/10/2026 (18 pedidos do dono, aprovados um a um)
+
+Plano: `docs/superpowers/plans/2026-10-10-kit-no-cadastro.md`. **Sem mudança no banco.** Conferido na tela com o
+ZZ-TESTE-BLING como peça (os kits de teste foram apagados).
+
+- **Topo do cadastro:** Unidade em cima e Tipo embaixo, ao lado da Situação; o **Tipo só aparece em produto novo ou
+  clonado** (o salvo não vira kit nem volta a simples pela tela; o caminho para um kit novo é o Clonar). O link da Loja
+  Integrada fica sempre na primeira coluna.
+- **Virar kit** (`virarKit` em `FormularioProduto.jsx`): Unidade KIT; EAN, estoque mínimo e máximo, **fornecedores
+  (a tabela escondida) e concorrentes** guardados e limpos (eram da peça: o Bling receberia o custo de uma peça como o
+  do kit, e o selo de posição compararia o kit com a peça avulsa); todas as fotos passam a "não escolhida"; o preço e
+  as medidas que vieram do clone contam como sugestão. **Voltar a Simples** (`voltarASimples`): Unidade UN, e tudo o
+  que o kit limpou volta, inclusive código, preço, localização, peso e medidas que ainda tinham a sugestão do kit.
+- **Produto de origem vira a primeira peça:** o do "Clonar" da lista e o do "Clonar a partir de um código" com
+  produto do Rise (`origemId`), quantidade 1, se for apto (`pecaDeOrigemParaKit`). Senão, aviso âmbar na aba
+  Composição: "O produto de origem 101010 não entrou no kit: falta validar no Rise." O "Clonar a partir de um código"
+  copia o código da peça para o campo: ao virar kit ele conta como sugestão e é trocado pelo `{sku}_N`.
+- **Sugestões nos campos** (`aplicarSugestoesDoKit`, regras em `textosDasSugestoes`): código `{sku}_{N}` com UMA peça e
+  2+ unidades (milhar com ponto, como os kits do Bling: `codigoSugeridoDoKit`; com várias peças, vazio; só em produto
+  novo); preço = venda total das peças (soma incompleta não sugere); medidas; localização. **O digitado nunca é
+  apagado:** o campo só recebe a sugestão vazio ou com a última sugestão (`sugeridos`). A chave aplicada fica num ref
+  (`ultimaChaveDasSugestoes`), e não numa "primeira passada": o modo estrito roda o efeito duas vezes, e abrir um kit
+  não pode mudar o que está gravado.
+- **Localização do kit** (`localizacaoDoKit`): UMA peça = a da peça, **travada** na tela e gravada pelo servidor no
+  Salvar (`localizacaoDoKitNoSalvar`); várias = "Verificar a aba composição" (`LOCALIZACAO_DE_VARIAS_PECAS`),
+  editável. **A peça que muda de lugar leva junto os kits feitos só dela** (`propagarLocalizacaoDaPeca`, SQL cru, sem
+  mexer no `atualizadoEm` do kit): no Salvar da peça e na edição rápida da lista, na mesma transação. Na lista, a
+  célula do kit de uma peça não abre o popup ("da peça do kit") e `gravarLocalizacao` recusa. Kit gravado antes da
+  regra fica com a localização antiga até o próximo Salvar dele ou até a peça mudar de lugar (a tela já mostra a da
+  peça ao abrir). Coluna Localização na tabela de peças.
+- **Fotos das peças:** cada peça que ENTRA traz as fotos dela, todas sem check (`trazerFotosDaPeca`); a peça de origem
+  já tem as fotos no painel (`daOrigem`) e não baixa de novo; peça que sai leva as fotos dela ainda sem check (as da
+  origem ficam). Abrir um kit não traz nada. Teto do painel (150) com aviso.
+- **Documentos das peças** (`DocumentosDasPecas` em `AbasDoKit.jsx`, `documentosDasPecas`): seção só leitura na aba
+  Documentos técnicos, por peça, com baixar pelo nome real; nada é copiado para o kit. O bloco "Documentos" da
+  descrição da Loja Integrada do kit leva os das peças depois dos dele (`documentosDoProduto`, só com `APP_URL_PUBLICA`).
+- **Descrição:** as peças viram abas de referência na janela "Criar descrição" ("Peça ×5", ponto roxo, com a descrição
+  do cadastro, especificações lidas dela e o link para a peça; `descricoesDasPecas`), e vão para a IA
+  (`lerPecasParaDescricao` em `ia/anuncio.js`, como `<peca_do_kit>` com a quantidade). Os **"Itens inclusos" saem das
+  peças**, com as quantidades, e não da IA. A geração real com peças ainda não foi vista (é paga).
+- **Indicadores de estoque:** kits ficam fora do "Valor do estoque a custo" e da "Receita potencial" (o estoque deles é
+  o das peças, que já estão na soma); a tela diz quantos ficaram de fora (`kitsFora`).
+- **Mensagem do Salvar recusado some ao mexer no formulário** (`erroDispensado`); o próximo Salvar mostra a nova.
+- **DEFEITO ACHADO E CORRIGIDO (vinha de antes):** depois de um Salvar recusado, o reset do React 19 devolve cada
+  **lista** (`<select>`) ao valor de quando foi montada (mudar o `defaultValue` depois não muda isso), e uma lista
+  controlada volta para a primeira opção. Um kit novo recusado (código vazio) voltava a Unidade para UN e o Tipo para
+  Simples sem a tela mostrar, e o Salvar seguinte **gravava um produto simples, sem as peças**. Agora o Salvar recusado
+  remonta os campos com o que foi enviado (`setVersao`, como o `aplicar`), e o Tipo é `defaultValue` + `key` (remonta a
+  cada troca). Vale para as outras listas do formulário (Origem, Tipo de produção, Tipo do item).
 
 ### Bling
 

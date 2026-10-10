@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ExternalLink, Loader, Plus, Search, Trash2, X } from "lucide-react";
+import { CircleCheck, ExternalLink, Loader, Plus, Search, Trash2, X } from "lucide-react";
 
 import { buscarPecasParaKit } from "@/app/produtos/acoes";
 import { estoqueDoKit, MAXIMO_QUANTIDADE } from "@/lib/composicao";
@@ -14,8 +14,10 @@ import { estoqueDoKit, MAXIMO_QUANTIDADE } from "@/lib/composicao";
  *
  * A lista mora no formulario (`pecas`) e vai no envio como campo oculto JSON, no molde dos fornecedores:
  * a aba so edita em memoria, e so o Salvar do produto grava.
+ *
+ * `aviso`: recado do formulario sobre a composicao (o produto de origem do clone que nao pode ser peca).
  */
-export default function Composicao({ pecas, setPecas, produtoId, aoAlterar }) {
+export default function Composicao({ pecas, setPecas, produtoId, aoAlterar, aviso = null }) {
   const [buscando, setBuscando] = useState(false);
   const [termo, setTermo] = useState("");
   const [resultado, setResultado] = useState(null);
@@ -49,6 +51,15 @@ export default function Composicao({ pecas, setPecas, produtoId, aoAlterar }) {
     });
   };
 
+  // Uma lista so, aptos e nao aptos juntos, em ordem de codigo (pedido do dono em 10/10/2026): o motivo de um
+  // produto nao entrar aparece mesmo quando outro da busca pode entrar.
+  const encontrados = resultado?.ok
+    ? [
+        ...resultado.itens.map((item) => ({ ...item, apto: true, chave: item.componenteId })),
+        ...resultado.barrados.map((item) => ({ ...item, apto: false, chave: item.id })),
+      ].sort((a, b) => String(a.sku).localeCompare(String(b.sku), "pt-BR", { numeric: true }))
+    : [];
+
   // A busca ja devolve a peca no formato da aba (preco, peso, fornecedor padrao): as abas do kit a usam.
   const incluir = (peca) => {
     alterar([...pecas, { ...peca, quantidade: 1 }]);
@@ -72,12 +83,14 @@ export default function Composicao({ pecas, setPecas, produtoId, aoAlterar }) {
 
   return (
     <div className="space-y-4">
+      {aviso && <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{aviso}</p>}
       <div className="overflow-x-auto rounded border border-borda">
         <table className="w-full text-sm">
           <thead className="bg-fundo text-left text-xs font-semibold text-suave">
             <tr>
               <th className="px-3 py-2">Componente</th>
               <th className="px-3 py-2">Código (SKU)</th>
+              <th className="px-3 py-2">Localização</th>
               <th className="w-28 px-3 py-2">Qtde</th>
               <th className="w-12 px-3 py-2" aria-label="Remover" />
             </tr>
@@ -85,7 +98,7 @@ export default function Composicao({ pecas, setPecas, produtoId, aoAlterar }) {
           <tbody className="divide-y divide-borda">
             {pecas.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-3 py-4 text-center text-suave">
+                <td colSpan={5} className="px-3 py-4 text-center text-suave">
                   Nenhuma peça ainda. Use &quot;Adicionar outro item&quot;.
                 </td>
               </tr>
@@ -105,6 +118,7 @@ export default function Composicao({ pecas, setPecas, produtoId, aoAlterar }) {
                   <span className="block text-[11px] text-suave">Estoque: {peca.estoque ?? "—"}</span>
                 </td>
                 <td className="px-3 py-2 font-mono text-xs">{peca.sku}</td>
+                <td className="px-3 py-2 text-suave">{peca.localizacao || "—"}</td>
                 <td className="px-3 py-2">
                   <input
                     type="number"
@@ -196,36 +210,49 @@ export default function Composicao({ pecas, setPecas, produtoId, aoAlterar }) {
           <p className="text-[11px] text-suave">Só entram produtos simples, conferidos e já vinculados ao Bling.</p>
 
           {resultado?.erro && <p className="text-sm text-red-700">{resultado.erro}</p>}
-          {resultado?.ok && resultado.itens.length === 0 && (
-            <div className="text-sm text-suave">
-              <p>Nenhum produto que possa ser peça foi encontrado.</p>
-              {resultado.barrados.length > 0 && (
-                <ul className="mt-1 list-disc pl-5">
-                  {resultado.barrados.map((item) => (
-                    <li key={item.sku}>
-                      <span className="font-mono text-xs">{item.sku}</span> {item.tituloBase}: {item.motivo}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-          {resultado?.ok && resultado.itens.length > 0 && (
+          {resultado?.ok && encontrados.length === 0 && <p className="text-sm text-suave">Nenhum produto encontrado.</p>}
+          {encontrados.length > 0 && (
             <ul className="divide-y divide-borda rounded border border-borda">
-              {resultado.itens.map((item) => (
-                <li key={item.componenteId}>
-                  <button
-                    type="button"
-                    onClick={() => incluir(item)}
-                    className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-fundo"
-                  >
+              {encontrados.map((item) =>
+                item.apto ? (
+                  <li key={item.chave}>
+                    <button
+                      type="button"
+                      onClick={() => incluir(item)}
+                      className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-fundo"
+                    >
+                      <span className="w-24 shrink-0 font-mono text-xs">{item.sku}</span>
+                      <span className="min-w-0 flex-1">{item.tituloBase}</span>
+                      <span className="shrink-0 text-xs text-suave">Estoque {item.estoque}</span>
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                        <CircleCheck size={12} />
+                        Apto
+                      </span>
+                      <Plus size={14} className="shrink-0 text-acento" />
+                    </button>
+                  </li>
+                ) : (
+                  // Nao apto: cinza e sem clique, com TUDO o que falta e o link para abrir o produto e corrigir.
+                  <li key={item.chave} className="flex items-center gap-3 px-3 py-2 text-sm text-suave">
                     <span className="w-24 shrink-0 font-mono text-xs">{item.sku}</span>
                     <span className="min-w-0 flex-1">{item.tituloBase}</span>
-                    <span className="shrink-0 text-xs text-suave">Estoque {item.estoque}</span>
-                    <Plus size={14} className="shrink-0 text-acento" />
-                  </button>
-                </li>
-              ))}
+                    <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                      {item.faltas.length === 1 && item.faltas[0].startsWith("É um kit")
+                        ? item.faltas[0]
+                        : `Falta: ${item.faltas.join(" · ")}`}
+                    </span>
+                    <Link
+                      href={`/produtos/${item.id}`}
+                      target="_blank"
+                      className="inline-flex shrink-0 items-center gap-1 text-xs text-acento hover:underline"
+                      title={`Abrir ${item.sku} em outra aba para corrigir`}
+                    >
+                      Abrir
+                      <ExternalLink size={12} />
+                    </Link>
+                  </li>
+                ),
+              )}
             </ul>
           )}
         </div>
