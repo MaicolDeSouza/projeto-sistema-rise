@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 
@@ -98,19 +99,34 @@ export default function Sidebar() {
             "Loja de Eletronicos"). A engrenagem com o "4" e preta: fica num quadrado branco, como o "R" fica no azul.
             Recolhido, o menu tem 64 px e cabe um icone so: fica o "R".
           */}
+          {/* Clicavel: abre a loja em outra aba (pedido do dono em 10/10/2026), sem tirar ninguem do Rise. */}
           {!recolhida && (
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white p-0.5" title="4hobby">
-              <Image src="/marcas/4hobby.svg" alt="4hobby" width={28} height={28} loading="eager" />
-            </div>
+            <a
+              href="https://www.4hobby.com.br"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Abrir a loja 4hobby (nova aba)"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white p-0.5 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none"
+            >
+              <Image src="/marcas/4hobby.svg" alt="Loja 4hobby" width={28} height={28} loading="eager" />
+            </a>
           )}
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-acento font-bold text-white">
-            R
-          </div>
-          {!recolhida && (
-            <span className="truncate text-lg font-semibold text-white">
-              Rise
+          {/* O "R" e o nome levam ao Painel (pedido do dono em 10/10/2026), na mesma aba. */}
+          <Link
+            href="/"
+            onClick={() => setAberta(false)}
+            title="Ir para o Painel"
+            className="flex min-w-0 items-center gap-2 rounded-md focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-acento font-bold text-white hover:opacity-90">
+              R
             </span>
-          )}
+            {!recolhida && (
+              <span className="truncate text-lg font-semibold text-white">
+                Rise
+              </span>
+            )}
+          </Link>
 
           <button
             type="button"
