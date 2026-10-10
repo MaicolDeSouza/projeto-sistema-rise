@@ -1288,7 +1288,9 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
     vitrine (26 na home da Oceantech), e o primeiro virava produto com o link da home, o resumo cortado do card, o logo
     da loja como foto e o "Catálogo de produtos" do menu como documento. Era isso que a prévia do "Buscar dados" mostrava.
     `ehListagemDaNuvemshop`: página do CDN `mitiendanube.com` SEM sinal de produto não rende produto. Sinais de produto,
-    qualquer um: `og:type` "nuvemshop:product", `LS.variants = [` ou `<body class="template-product">`. A classe do `<body>`
+    qualquer um: `og:type` "nuvemshop:product" ou `<body class="template-product">`. **O `LS.variants` NÃO é sinal:** produto que
+    saiu da loja continua no sitemap, e o endereço responde 200 com "A página solicitada não existe" e "Produtos em destaque",
+    com o `LS.variants` do primeiro destaque (o redutor 2511 da Policomp virava o spindle de R$ 862,90). A classe do `<body>`
     sozinha não bastou: o tema da Policomp (`lojapolicompcomponentes.com.br`, 10/10/2026) não põe classe nenhuma, e a home
     (19 Product no JSON-LD) voltou a virar produto com o link da home. O `policompcomponentes.com.br` é o site
     INSTITUCIONAL (phpwcms, sem preço nem carrinho): a loja é o outro domínio.

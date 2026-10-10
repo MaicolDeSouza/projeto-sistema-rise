@@ -76,20 +76,25 @@ function nomesDasOpcoes(html) {
 export function ehListagemDaNuvemshop(html) {
   if (typeof html !== "string" || !/mitiendanube\.com/i.test(html)) return false;
 
-  // Sinais de PAGINA DE PRODUTO, qualquer um basta. A classe do <body> nao vem em
-  // todo tema: na Policomp (10/10/2026) o <body> nao tem classe nenhuma, e a home
-  // (19 Product no JSON-LD) voltou a virar produto. O og:type "nuvemshop:product"
-  // e o JS de variantes estao na pagina de produto dos dois temas medidos, e em
-  // nenhuma home ou categoria.
+  // Sinal de PAGINA DE PRODUTO: o og:type "nuvemshop:product", que esta na pagina de
+  // produto dos dois temas medidos e em nenhuma home, categoria ou pagina de erro. A
+  // classe do <body> nao vem em todo tema: na Policomp (10/10/2026) o <body> nao tem
+  // classe nenhuma, e a home (19 Product no JSON-LD) voltou a virar produto.
+  //
+  // O `LS.variants` NAO serve de sinal: o produto que saiu da loja continua no
+  // sitemap, e o endereco dele responde 200 com "A pagina solicitada nao existe" e
+  // "Produtos em destaque" — e o JS de variantes e o do PRIMEIRO destaque. Lida como
+  // produto, essa pagina virou "Motor Spindle 3.5KW" com o endereco de um redutor
+  // planetario (Policomp, 10/10/2026).
   if (/<meta\b[^>]*property=["']og:type["'][^>]*content=["']nuvemshop:product["']/i.test(html)) return false;
-  if (/\bLS\.variants\s*=\s*\[/.test(html)) return false;
 
   const corpo = /<body\b[^>]*\bclass\s*=\s*["']([^"']*)["']/i.exec(html);
   const modelo = corpo ? /\btemplate-([\w-]+)/.exec(corpo[1]) : null;
   if (modelo) return modelo[1] !== "product";
 
   // Sem nenhum sinal de produto e com o CDN da Nuvemshop: e listagem (home,
-  // categoria, busca), que traz um Product no JSON-LD por card da vitrine.
+  // categoria, busca) ou pagina de erro com destaques, que trazem um Product no
+  // JSON-LD (ou um LS.variants) de OUTRO produto.
   return true;
 }
 

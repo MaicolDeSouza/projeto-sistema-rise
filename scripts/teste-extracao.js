@@ -1762,6 +1762,26 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
       /NUNCA invente/.test(semRefs), semRefs.includes("Referências:\n\n"), semRefs.endsWith("\n\nP")],
     [true, true, true, false, true]);
   conferir("com referencias, a regra de nao inventar nao entra", montarPedidoDaDescricao({ ...dados, instrucoes: "P" }).includes("Não há referências de outras lojas"), false);
+
+  // A IA SEMPRE recomenda uma opcao (pedido do dono em 10/10/2026): o "Finalizar descricao" usa a recomendada onde o
+  // dono nao escolheu, e nunca trava.
+  const { recomendacaoDaDivergencia } = await import("../src/lib/ia/divergencias.js");
+  const fonte = (n) => Array.from({ length: n }, (_, i) => ({ id: `r${i}`, nome: `Loja ${i}`, produto: "P" }));
+  const tensao = { campo: "Tensão de Entrada", opcoes: [{ valor: "7-9V", fontes: fonte(1) }, { valor: "5-12V", fontes: fonte(3) }] };
+  conferir("decisao valida da IA e mantida, com o motivo", recomendacaoDaDivergencia(tensao, { opcao: 0, motivo: "Faixa da placa" }), { recomendada: 0, motivo: "Faixa da placa" });
+  conferir("sem decisao: a opcao com mais lojas", recomendacaoDaDivergencia(tensao, undefined).recomendada, 1);
+  conferir("decisao fora da lista conta como sem decisao", recomendacaoDaDivergencia(tensao, { opcao: 7, motivo: "x" }).recomendada, 1);
+  conferir("empate de lojas: a primeira", recomendacaoDaDivergencia({ campo: "Pinos", opcoes: [{ valor: "14", fontes: fonte(1) }, { valor: "20", fontes: fonte(1) }] }, null).recomendada, 0);
+  const corrente = { campo: "Corrente Pinos I/O", opcoes: [
+    { valor: "40mA (pico/curta duração); 20mA (contínua)", fontes: fonte(1) },
+    { valor: "40mA", fontes: fonte(2) },
+    { valor: "40mA(curta duração) / 20mA(contínua)", fontes: fonte(1) },
+  ] };
+  const pico = recomendacaoDaDivergencia(corrente, { opcao: 1, motivo: "mais lojas" });
+  conferir("pico x continua: a IA escolheu so o pico, e a recomendada passa a ser a que traz a continua",
+    [pico.recomendada, /cont[ií]nua/.test(pico.motivo)], [0, true]);
+  conferir("pico x continua: a escolha da IA que ja traz a continua fica", recomendacaoDaDivergencia(corrente, { opcao: 2, motivo: "ok" }).recomendada, 2);
+  conferir("pico x continua sem decisao: tambem a que traz a continua", recomendacaoDaDivergencia(corrente, null).recomendada, 0);
 }
 
 console.log("\n— Download do arquivo do produto: o nome real no cabecalho, e nao o hash —");
@@ -1926,7 +1946,7 @@ console.log("\n— Nuvemshop: acento, foto repetida em tamanhos e categoria (fon
   conferir("entidade minuscula continua minuscula", decodificar("D&iacute;gitos &amp; 1,8&rdquo;"), "Dígitos & 1,8”");
 
   const cdn = "acdn-us.mitiendanube.com/stores/001/734/387/products/fonte-chaveada-dc-195136f834a368beee16998997015591";
-  const html = `<html><head>
+  const html = `<html><head><meta property="og:type" content="nuvemshop:product" />
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemPage","breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Início"},{"@type":"ListItem","position":2,"name":"ELETRÔNICA"},{"@type":"ListItem","position":3,"name":"FONTES DE ENERGIA"},{"@type":"ListItem","position":4,"name":"Fonte Chaveada 36V 16,6A 600W"}]},"mainEntity":{"@type":"Product","name":"Fonte Chaveada 36V 16,6A 600W","sku":"9287","image":"https://${cdn}-480-0.webp","description":"Fonte.","offers":{"@type":"Offer","price":"229","availability":"https://schema.org/InStock"}}}</script>
 <script>LS.variants = [{"price_number":229,"price_with_payment_discount_short":"R$217,55","stock":53,"sku":"9287","available":true,"option0":null,"option1":null,"option2":null,"id":1}];</script>
 </head><body><img src="http://${cdn}-640-0.webp"><img src="https://${cdn}-1024-1024.png"></body></html>`;
@@ -2050,7 +2070,7 @@ console.log("\n— Nuvemshop: tema sem classe no <body> (Policomp, 10/10/2026) �
   const produto = home.replace('content="website"', 'content="nuvemshop:product"');
   conferir("Nuvemshop sem classe no body: og:type nuvemshop:product e produto", normalizarPagina({ html: produto, url: "https://loja.exemplo.com/produtos/motor/", fonte: { tipo: "CONCORRENTE" } }).produtos.length > 0, true);
   const comVariantes = home.replace("</head>", '<script>LS.variants = [{"price_number":229,"sku":"90125","stock":5,"available":true,"option0":null,"id":1}];</script></head>');
-  conferir("Nuvemshop sem classe no body: LS.variants e produto", normalizarPagina({ html: comVariantes, url: "https://loja.exemplo.com/produtos/motor/", fonte: { tipo: "CONCORRENTE" } }).produtos.map((p) => p.code), ["90125"]);
+  conferir("Nuvemshop: pagina de erro com LS.variants do destaque (sem og:type) nao vira produto", normalizarPagina({ html: comVariantes.replace("<body>", "<body><h1>A página solicitada não existe</h1><h2>Produtos em destaque</h2>"), url: "https://loja.exemplo.com/produtos/redutor-que-saiu/", fonte: { tipo: "CONCORRENTE" } }).produtos.length, 0);
 }
 
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
