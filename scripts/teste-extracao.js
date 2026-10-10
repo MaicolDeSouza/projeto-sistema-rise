@@ -2010,5 +2010,23 @@ console.log("\n— WooCommerce Store API: PIX aprendido na pagina e categoria em
   conferir("Woo: loja sem o simulador desiste na primeira pagina", [semPix.paginasAbertas, semPix.r.produtos.map((p) => p.prices.promotional)], [1, [null, null, null]]);
 }
 
+console.log("\n— WooCommerce Store API: \"Amostra variada\" (evitar) —");
+{
+  const { colherWooCommerce } = await import("../src/lib/coleta/woocommerce.js");
+  const item = (sku) => ({ name: `Produto ${sku}`, sku, permalink: `https://loja.exemplo.com/produto/${sku}/`, prices: { price: "1000", regular_price: "1000", currency_minor_unit: 2 }, is_in_stock: true, categories: [] });
+  const itens = ["A", "B", "C", "D", "E"].map(item);
+  const buscar = async (url) => url.includes("/wp-json/")
+    ? { ok: true, corpo: JSON.stringify(itens), cabecalhos: { "x-wp-total": "5" } }
+    : { ok: true, corpo: "<html><body>sem simulador</body></html>" };
+  const colher = (evitar) => colherWooCommerce({ catalogo: { url: "https://loja.exemplo.com/wp-json/wc/store/v1/products" }, origem: "https://loja.exemplo.com", limite: 3, orcamento: 50, fonte: { type: "CONCORRENTE" }, plataforma: { id: "woocommerce", nome: "WooCommerce" }, evitar, buscar });
+  const primeira = await colher(null);
+  conferir("Woo: sem evitar, os tres primeiros", primeira.produtos.map((p) => p.code), ["A", "B", "C"]);
+  // A tela manda os `url` COM barra final: o colher.js os normaliza antes de passar; aqui simulamos o normalizado.
+  const evitar = new Set(primeira.produtos.map((p) => p.url.replace(/\/+$/, "")));
+  const segunda = await colher(evitar);
+  conferir("Woo: com evitar, pula os ja mostrados e traz outros", segunda.produtos.map((p) => p.code), ["D", "E"]);
+  conferir("Woo: evitado nao conta como retomado", segunda.retomados, 0);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

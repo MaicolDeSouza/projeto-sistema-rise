@@ -12,6 +12,7 @@ import {
   pagamentoDe,
 } from "./plataformas";
 import { lerAVista, novaMemoriaDePagamento } from "./pagamento";
+import { enderecoComparavel } from "./texto-html";
 import { descobrirSitemaps, lerSitemaps } from "./sitemap";
 
 /**
@@ -28,21 +29,10 @@ import { descobrirSitemaps, lerSitemaps } from "./sitemap";
  * sempre buscarPagina.
  */
 
-/**
- * Endereco na forma de comparar: sem ancora, sem barra final, dominio minusculo.
- * A retomada compara o endereco de agora com o gravado antes da queda, e
- * "/produto/" e "/produto" sao a mesma pagina.
- */
-export function enderecoComparavel(endereco) {
-  try {
-    const url = new URL(endereco);
-    url.hash = "";
-    const caminho = url.pathname.length > 1 ? url.pathname.replace(/\/+$/, "") : url.pathname;
-    return `${url.protocol}//${url.host.toLowerCase()}${caminho}${url.search}`;
-  } catch {
-    return String(endereco ?? "");
-  }
-}
+// `enderecoComparavel` mora em texto-html.js desde 09/10/2026 (woocommerce.js
+// tambem precisa dela, e importa-la daqui seria um ciclo). Reexportada para
+// coletar.js e o teste do worker, que a importam daqui.
+export { enderecoComparavel };
 
 function passo(nome, ok, detalhe = null) {
   return { nome, ok, detalhe };
@@ -291,6 +281,8 @@ export async function colherProdutos({
     const leitura = await colherWooCommerce({
       catalogo, origem: alvo.origin, secao: prefixo, limite,
       orcamento: tetoVisitas, fonte, plataforma, jaColetadas,
+      // Ja no formato comparavel (sem barra final nem #), como o leitor compara.
+      evitar: evitar ? new Set([...evitar].map((endereco) => enderecoComparavel(endereco))) : null,
       aoGuardar, aoProgredir, sinal,
     });
     // Se a API caiu depois de alguns lotes, o worker precisa retomar; fechar

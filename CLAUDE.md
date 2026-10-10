@@ -1300,6 +1300,12 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   `aplicarRegraDePagamento`, em `pagamento.js`): na Makerhero, 5% truncando, aprendido numa página só (12,90 → 12,25 separa
   os dois modos) e conferido no 2CC58 (14,90 → 14,15 na página). Loja WooCommerce sem o bloco desiste depois de UMA página.
   A categoria da API vem pelo link da categoria mais funda (`caminhoDasCategoriasWoo`: "Impressão 3D > Partes").
+- **"Amostra variada" não funcionava em loja WooCommerce** (a Makerhero, 09/10/2026): o toggle manda `evitar` (os
+  produtos já mostrados) a `colherProdutos`, que o pré-marcava só no caminho de página e no Magento PWA; o
+  `colherWooCommerce` nem o recebia, e o segundo clique repetia os mesmos três. Agora recebe o conjunto já normalizado
+  (`enderecoComparavel`, que foi para `texto-html.js` porque `colher.js` importa `woocommerce.js` e seria um ciclo; `colher.js`
+  a reexporta) e pula sem contar como achado. Medido na Makerhero real: 1ª chamada 8IN07/2CC58/2CC59, 2ª 9SS80/8IMQ5/8IMK3,
+  zero repetidos.
 - **CATEGORIA = CAMINHO COMPLETO** (decisão do dono em 09/10/2026): `Impressão 3D > Partes`, `ELETRÔNICA > FONTES DE ENERGIA`,
   e não mais um nível só (era o ÚLTIMO degrau no Microdata, RoboCore e Eletrus, e o PRIMEIRO no dataLayer). Regras em
   `src/lib/coleta/categoria.js` (`caminhoDeCategoria`, separador ` > `): tira a raiz do começo (Início, Home, Página inicial,

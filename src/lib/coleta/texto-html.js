@@ -112,6 +112,25 @@ export function comoNumero(valor) {
 }
 
 /** Resolve caminho relativo contra a pagina e exige http(s). */
+/**
+ * Endereco na forma de comparar: sem ancora, sem barra final, dominio minusculo.
+ * A retomada compara o endereco de agora com o gravado antes da queda, e
+ * "/produto/" e "/produto" sao a mesma pagina.
+ *
+ * Mora aqui (modulo sem dependencias) porque colher.js e woocommerce.js usam os
+ * dois, e colher.js importa woocommerce.js: la, seria um ciclo de import.
+ */
+export function enderecoComparavel(endereco) {
+  try {
+    const url = new URL(endereco);
+    url.hash = "";
+    const caminho = url.pathname.length > 1 ? url.pathname.replace(/\/+$/, "") : url.pathname;
+    return `${url.protocol}//${url.host.toLowerCase()}${caminho}${url.search}`;
+  } catch {
+    return String(endereco ?? "");
+  }
+}
+
 export function comoUrlAbsoluta(url, urlBase) {
   if (!url || typeof url !== "string") return null;
 

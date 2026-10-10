@@ -3,7 +3,7 @@ import { ehProdutoValido, especificacoesDaDescricao, precosDoSimuladorWoo } from
 import { ehForseti, precosDaForseti } from "./forseti";
 import { aplicarRegraDePagamento, aprenderRegraDePagamento } from "./pagamento";
 import { caminhoDeCategoria } from "./categoria";
-import { comoTexto, comoUrlAbsoluta } from "./texto-html";
+import { comoTexto, comoUrlAbsoluta, enderecoComparavel } from "./texto-html";
 
 const TAMANHO_PAGINA = 20;
 
@@ -107,7 +107,7 @@ function percentualDeDesconto(cheio, aVista) {
 }
 
 /** Teste e worker usam a mesma leitura, com limite, retomada e ritmo de buscarPagina. */
-export async function colherWooCommerce({ catalogo, origem, secao, limite, orcamento, fonte, plataforma, jaColetadas, aoGuardar, aoProgredir, sinal, buscar = buscarPagina }) {
+export async function colherWooCommerce({ catalogo, origem, secao, limite, orcamento, fonte, plataforma, jaColetadas, evitar, aoGuardar, aoProgredir, sinal, buscar = buscarPagina }) {
   const produtos = [];
   const vistos = new Set();
   let retomados = 0;
@@ -152,6 +152,10 @@ export async function colherWooCommerce({ catalogo, origem, secao, limite, orcam
         if (vistos.has(chave)) continue;
         vistos.add(chave);
         if (jaColetadas?.has(produto.url.replace(/\/+$/, ""))) { retomados++; continue; }
+        // "Amostra variada" (09/10/2026, a Makerhero): pula o que o teste anterior
+        // ja mostrou, sem contar como achado, para trazer tres DIFERENTES. O
+        // Magento PWA ja fazia isso; aqui o `evitar` nem chegava.
+        if (evitar?.has(enderecoComparavel(produto.url))) continue;
         if (ehForseti(produto.url)) {
           if (visitas >= orcamento) throw new Error("Limite de visitas atingido antes de conferir o PIX da Forseti.");
           sinal?.throwIfAborted();
