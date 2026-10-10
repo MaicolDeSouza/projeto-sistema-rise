@@ -2157,7 +2157,9 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       muda com a janela aberta (`idsLidos`, `releituraAtual`). O aviso "Nenhum concorrente ou fornecedor" só sai depois de
       a leitura terminar. A "Descrição atual" aparece logo, sem esperar as lojas.
     - **"Descrição atual" é a primeira aba e abre selecionada**; a seleção é por id (`idAtivo`), então a lista das lojas
-      chegando depois não a tira dela.
+      chegando depois não a tira dela. **Ela é a descrição do FORMULÁRIO no momento de abrir** (`descricaoDaAba`, lida do
+      campo por `lerProduto().descricao`), e não a gravada do produto: o "Salvar e sair" só põe o texto no formulário, e
+      reabrir a janela sem salvar o produto trazia o texto antigo (achado do dono em 10/10/2026).
     - **Dois botões, iguais para texto da IA ou não: "Editar descrição" e "Finalizar descrição".** O "Reajustar" deixou
       de existir. Texto simples (digitado, levado da esquerda ou já finalizado) mostra **"Editar descrição"**, que abre a
       revisão linha por linha (lápis, excluir, mover, arrastar); na revisão o botão é **"Finalizar descrição"**, que

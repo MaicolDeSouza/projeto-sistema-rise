@@ -872,6 +872,11 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
   const itens = [...itensDasPecas, ...itensDasLojas];
   // Parametro cujas opcoes o dono excluiu todas some e fica de fora: nao conta como pendente.
   // Ainda lendo as lojas: a leitura da janela ou os fornecedores e concorrentes salvos que a pagina esta carregando.
+  // A "Descricao atual" e a do FORMULARIO agora, e nao a gravada do produto (pedido do dono em 10/10/2026): o "Salvar e sair"
+  // so poe o texto no formulario, e abrir a janela de novo sem salvar o produto tem de trazer esse texto. `produto.descricao`
+  // e lida do campo ao abrir; vazia = sem descricao atual; antes de abrir, vale a gravada.
+  const descricaoDaAba =
+    typeof produto.descricao === "string" ? (produto.descricao.trim() ? produto.descricao : null) : descricaoAtual;
   const lendoLojas = lendo || !detalhes || lendoReferencias;
   const pendentes = divergencias.filter(
     (item) => !confirmadas.has(item.id) && (opcoesRestantes[item.id] ?? []).length > 0,
@@ -916,13 +921,13 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
               {!lendoLojas && excluidos.size > 0 && ` de ${detalhes?.itens?.length ?? 0}`})
             </p>
             <div className="flex min-h-0 flex-1 flex-col">
-              {lendoLojas && descricaoAtual === null ? (
+              {lendoLojas && descricaoDaAba === null ? (
                 <p className="flex items-center gap-2 text-sm text-suave">
                   <Loader size={14} className="animate-spin" /> Lendo as referências...
                 </p>
-              ) : detalhes && !detalhes.ok && descricaoAtual === null ? (
+              ) : detalhes && !detalhes.ok && descricaoDaAba === null ? (
                 <p className="text-sm text-red-700">{detalhes.erro}</p>
-              ) : !lendoLojas && itens.length === 0 && excluidos.size > 0 && descricaoAtual === null ? (
+              ) : !lendoLojas && itens.length === 0 && excluidos.size > 0 && descricaoDaAba === null ? (
                 <p className="text-sm text-suave">
                   Todas as referências foram removidas desta geração.{" "}
                   <button
@@ -933,7 +938,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
                     Trazer de volta
                   </button>
                 </p>
-              ) : !lendoLojas && itens.length === 0 && descricaoAtual === null ? (
+              ) : !lendoLojas && itens.length === 0 && descricaoDaAba === null ? (
                 <p className="text-sm text-suave">{SEM_REFERENCIAS}</p>
               ) : (
                 <>
@@ -955,7 +960,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
                   )}
                   <AbasDeReferencias
                     itens={itens}
-                    descricaoAtual={descricaoAtual}
+                    descricaoAtual={descricaoDaAba}
                     produto={produto}
                     aoRemover={removerReferencia}
                     aoAdicionar={adicionarDaFonte}
@@ -974,7 +979,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
               </p>
             )}
             {/* Com a descricao atual na tela, a lista de referencias some atras dela: o aviso fica aqui embaixo. */}
-            {!lendoLojas && detalhes?.ok && detalhes.encontrados === 0 && descricaoAtual !== null && itensDasPecas.length === 0 && (
+            {!lendoLojas && detalhes?.ok && detalhes.encontrados === 0 && descricaoDaAba !== null && itensDasPecas.length === 0 && (
               <p className="mt-2 text-xs text-amber-700">{SEM_REFERENCIAS}</p>
             )}
           </div>
