@@ -87,11 +87,20 @@ export async function documentosDoProduto(produto) {
     orderBy: [{ tipo: "asc" }, { ordem: "asc" }, { criadoEm: "asc" }],
     select: { produtoId: true, tipo: true, arquivo: true, nomeOriginal: true },
   });
-  return donos.flatMap((dono) =>
-    arquivos
-      .filter((a) => a.produtoId === dono.id)
-      .map((a) => ({ url: `${base}${urlDe(dono.sku, a.tipo, a.arquivo)}`, nome: a.nomeOriginal ?? a.arquivo })),
-  );
+  // O mesmo documento anexado ao kit e ainda na peca (o "Anexar a este produto") sai uma vez so: vence o do kit.
+  const vistos = new Set();
+  return donos
+    .flatMap((dono) =>
+      arquivos
+        .filter((a) => a.produtoId === dono.id)
+        .map((a) => ({ url: `${base}${urlDe(dono.sku, a.tipo, a.arquivo)}`, nome: a.nomeOriginal ?? a.arquivo })),
+    )
+    .filter((documento) => {
+      const chave = documento.nome.trim().toLowerCase();
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
 }
 
 /** O id do produto pelo SKU exato (a pagina "Novo anuncio" recebe o codigo digitado). */

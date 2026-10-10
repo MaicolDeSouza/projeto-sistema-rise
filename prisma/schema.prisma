@@ -262,6 +262,11 @@ model ProdutoComponente {
   /// Ordem das linhas na aba Composicao (a do Bling, quando importado).
   ordem Int @default(0)
 
+  /// Como a peca estava no ultimo Salvar do kit (pedido do dono em 10/10/2026): nome, hash da descricao, preco,
+  /// peso, medidas, NCM, situacao, Conferido, hash das fotos e nomes dos documentos (`retratoDaPeca`). A peca que
+  /// muda depois acende o "!" do kit na lista e o quadro do que mudou ao abrir. Nulo = sem referencia (sem "!").
+  retrato Json?
+
   criadoEm DateTime @default(now())
 
   @@unique([kitId, componenteId])

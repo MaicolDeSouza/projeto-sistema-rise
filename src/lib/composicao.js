@@ -237,3 +237,78 @@ export function validarComposicao(itens, { produtoId = null } = {}) {
   if (unidades < 2) return { ok: false, erro: "Um kit precisa de pelo menos 2 unidades no total; com uma só, é o próprio produto." };
   return { ok: true };
 }
+
+const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const NUMERO = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
+
+/// Como cada campo do retrato aparece no quadro do kit. O custo, o estoque e a localizacao ficam de fora de
+/// proposito (pedido do dono em 10/10/2026): o estoque muda a cada venda e o kit ja o recalcula, a localizacao
+/// o kit ja acompanha sozinho, e o custo o dono nao quer acompanhando o "!".
+const CAMPOS_DO_RETRATO = [
+  { chave: "tituloBase", rotulo: "Nome", formato: (valor) => String(valor ?? "") || "—" },
+  { chave: "precoVenda", rotulo: "Preço de venda", numero: true, formato: (valor) => (valor === null ? "—" : MOEDA.format(valor)) },
+  { chave: "pesoKg", rotulo: "Peso", numero: true, formato: (valor) => (valor === null ? "—" : `${NUMERO.format(valor)} kg`) },
+  { chave: "comprimentoCm", rotulo: "Comprimento", numero: true, formato: (valor) => (valor === null ? "—" : `${NUMERO.format(valor)} cm`) },
+  { chave: "larguraCm", rotulo: "Largura", numero: true, formato: (valor) => (valor === null ? "—" : `${NUMERO.format(valor)} cm`) },
+  { chave: "alturaCm", rotulo: "Altura", numero: true, formato: (valor) => (valor === null ? "—" : `${NUMERO.format(valor)} cm`) },
+  { chave: "ncm", rotulo: "NCM", digitos: true, formato: (valor) => String(valor ?? "") || "—" },
+  { chave: "ativo", rotulo: "Situação", formato: (valor) => (valor ? "Ativo" : "Inativo") },
+  { chave: "conferido", rotulo: "Conferido", formato: (valor) => (valor ? "Sim" : "Não") },
+];
+
+const valorDoRetrato = (valor) => (valor === undefined ? null : valor);
+
+/**
+ * O que mudou numa peca desde o ultimo Salvar do kit (pedido do dono em 10/10/2026), em frases para o quadro do
+ * kit: "Preço de venda: R$ 38,90 → R$ 42,00", "Descrição alterada", "Fotos: 3 → 4", "Documentos: novo
+ * Datasheet.pdf". `antes` e o retrato guardado (`ProdutoComponente.retrato`), `agora` o da peca hoje, os dois no
+ * formato de `retratoDaPeca`. Sem retrato guardado nao ha com o que comparar: nada muda (o kit fica sem "!").
+ *
+ * Numeros comparam como numero (o banco devolve 12.4 e o Prisma "12.40"), o NCM so pelos digitos (o Bling
+ * reformata) e os documentos como conjunto de nomes (a ordem nao importa).
+ *
+ * @returns {{campo: string, texto: string}[]}
+ */
+export function mudancasDaPeca(antes, agora) {
+  if (!antes || !agora || typeof antes !== "object" || typeof agora !== "object") return [];
+  const mudancas = [];
+
+  for (const { chave, rotulo, numero, digitos, formato } of CAMPOS_DO_RETRATO) {
+    let a = valorDoRetrato(antes[chave]);
+    let b = valorDoRetrato(agora[chave]);
+    if (numero) {
+      a = numeroOuNull(a);
+      b = numeroOuNull(b);
+    }
+    const iguais = digitos
+      ? String(a ?? "").replace(/\D/g, "") === String(b ?? "").replace(/\D/g, "")
+      : a === b;
+    if (!iguais) mudancas.push({ campo: rotulo, texto: `${rotulo}: ${formato(a)} → ${formato(b)}` });
+  }
+
+  if (valorDoRetrato(antes.descricao) !== valorDoRetrato(agora.descricao)) {
+    mudancas.push({ campo: "Descrição", texto: "Descrição alterada" });
+  }
+
+  const fotosAntes = Number(antes.quantidadeFotos) || 0;
+  const fotosAgora = Number(agora.quantidadeFotos) || 0;
+  if (fotosAntes !== fotosAgora) {
+    mudancas.push({ campo: "Fotos", texto: `Fotos: ${fotosAntes} → ${fotosAgora}` });
+  } else if (valorDoRetrato(antes.fotos) !== valorDoRetrato(agora.fotos)) {
+    mudancas.push({ campo: "Fotos", texto: "Fotos trocadas" });
+  }
+
+  const nomes = (lista) => new Set((Array.isArray(lista) ? lista : []).map(String));
+  const documentosAntes = nomes(antes.documentos);
+  const documentosAgora = nomes(agora.documentos);
+  const novos = [...documentosAgora].filter((nome) => !documentosAntes.has(nome));
+  const saiu = [...documentosAntes].filter((nome) => !documentosAgora.has(nome));
+  if (novos.length > 0 || saiu.length > 0) {
+    const partes = [];
+    if (novos.length > 0) partes.push(`${novos.length === 1 ? "novo" : "novos"} ${novos.join(", ")}`);
+    if (saiu.length > 0) partes.push(`${saiu.length === 1 ? "removido" : "removidos"} ${saiu.join(", ")}`);
+    mudancas.push({ campo: "Documentos", texto: `Documentos: ${partes.join("; ")}` });
+  }
+
+  return mudancas;
+}

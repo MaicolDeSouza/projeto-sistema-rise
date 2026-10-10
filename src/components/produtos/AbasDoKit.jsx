@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Download, ExternalLink, FileText } from "lucide-react";
+import { Check, Download, ExternalLink, FileText, Loader, Paperclip } from "lucide-react";
 
 import { consultarEstoqueFornecedores, documentosDasPecasDoKit } from "@/app/produtos/acoes";
 import { pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
@@ -264,11 +264,23 @@ export function MedidasDoKit({ pecas }) {
 
 /**
  * Os documentos tecnicos e o certificado de cada peca, na aba Documentos tecnicos do kit (pedido do dono em
- * 10/10/2026). So leitura e sem copiar para o kit: o datasheet trocado na peca ja aparece aqui. Le com a aba
- * aberta, e de novo quando as pecas mudam. Clicar baixa com o nome real, como na lista de documentos do produto.
+ * 10/10/2026). A lista e so de consulta (o datasheet trocado na peca ja aparece aqui), e "Anexar a este produto"
+ * copia um arquivo para os documentos do proprio kit, como "a salvar" (`aoAnexar`; so o Salvar grava). O que o kit
+ * ja tem com o mesmo nome (`nomesNoProduto`, por tipo) aparece como "Anexado". Le com a aba aberta, e de novo
+ * quando as pecas mudam. Clicar no nome baixa com o nome real.
  */
-export function DocumentosDasPecas({ pecas, ativo }) {
+export function DocumentosDasPecas({ pecas, ativo, nomesNoProduto = {}, aoAnexar = null, desabilitado = false }) {
   const [resposta, setResposta] = useState({ chave: "", pecas: [], erro: null });
+  const [anexando, setAnexando] = useState(null);
+  const [erroAnexo, setErroAnexo] = useState(null);
+
+  async function anexar(arquivo) {
+    setAnexando(arquivo.id);
+    setErroAnexo(null);
+    const resultado = await aoAnexar(arquivo.id);
+    setAnexando(null);
+    if (!resultado?.ok) setErroAnexo(resultado?.erro ?? "Não foi possível anexar o arquivo.");
+  }
   const chave = pecas.map((peca) => peca.componenteId).join(",");
   const carregando = Boolean(chave) && resposta.chave !== chave;
   const lista = carregando ? [] : resposta.pecas;
@@ -291,25 +303,50 @@ export function DocumentosDasPecas({ pecas, ativo }) {
   const comArquivo = lista.filter((peca) => peca.documentos.length > 0 || peca.certificados.length > 0);
   const semArquivo = lista.filter((peca) => peca.documentos.length === 0 && peca.certificados.length === 0);
 
-  const linkDoArquivo = (arquivo) => (
-    <a
-      key={arquivo.id}
-      href={arquivo.url}
-      download={arquivo.nomeOriginal ?? arquivo.arquivo}
-      className="group/doc flex min-w-0 items-center gap-2 text-sm hover:text-acento"
-      title={`Baixar ${arquivo.nomeOriginal ?? arquivo.arquivo}`}
-    >
-      <Download size={14} className="shrink-0 text-suave group-hover/doc:text-acento" />
-      <span className="truncate">{arquivo.nomeOriginal ?? arquivo.arquivo}</span>
-    </a>
-  );
+  const linhaDoArquivo = (arquivo, tipo) => {
+    const nome = arquivo.nomeOriginal ?? arquivo.arquivo;
+    const anexado = nomesNoProduto[tipo]?.has(nome);
+    return (
+      <div key={arquivo.id} className="flex min-w-0 items-center gap-2">
+        <a
+          href={arquivo.url}
+          download={nome}
+          className="group/doc flex min-w-0 flex-1 items-center gap-2 text-sm hover:text-acento"
+          title={`Baixar ${nome}`}
+        >
+          <Download size={14} className="shrink-0 text-suave group-hover/doc:text-acento" />
+          <span className="truncate">{nome}</span>
+        </a>
+        {aoAnexar &&
+          (anexado ? (
+            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-emerald-700" title="O kit já tem um arquivo com este nome">
+              <Check size={12} />
+              Anexado
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => anexar(arquivo)}
+              disabled={desabilitado || anexando !== null}
+              title={desabilitado ? "Espere as fotos do produto carregarem." : "Copia este arquivo para os documentos do kit (gravado ao salvar)"}
+              className="inline-flex shrink-0 items-center gap-1 rounded border border-borda px-2 py-0.5 text-[11px] hover:bg-fundo disabled:opacity-50"
+            >
+              {anexando === arquivo.id ? <Loader size={11} className="animate-spin" /> : <Paperclip size={11} />}
+              Anexar a este produto
+            </button>
+          ))}
+      </div>
+    );
+  };
 
   return (
     <div className="mt-5 border-t border-borda pt-4 sm:col-span-2">
       <h3 className="text-sm font-semibold">Documentos das peças</h3>
       <p className="mt-1 text-xs text-suave">
-        Os arquivos de cada peça do kit, só para consulta. Para trocar um arquivo, abra a peça.
+        Os arquivos de cada peça do kit. &quot;Anexar a este produto&quot; copia o arquivo para os documentos do kit, e
+        ele é gravado ao salvar. Para trocar o arquivo da peça, abra a peça.
       </p>
+      {erroAnexo && <p className="mt-2 rounded bg-red-50 p-2 text-xs text-red-800">{erroAnexo}</p>}
       {!chave && <p className="mt-3 text-sm text-suave">O kit ainda não tem peças.</p>}
       {carregando && <p className="mt-3 text-sm text-suave">Buscando os documentos das peças...</p>}
       {resposta.erro && !carregando && <p className="mt-3 rounded bg-red-50 p-2 text-xs text-red-800">{resposta.erro}</p>}
@@ -329,11 +366,19 @@ export function DocumentosDasPecas({ pecas, ativo }) {
               <div className="mt-2 grid gap-3 sm:grid-cols-2">
                 <div className="min-w-0 space-y-1">
                   <p className="text-[11px] font-semibold text-suave">Documentos técnicos</p>
-                  {peca.documentos.length > 0 ? peca.documentos.map(linkDoArquivo) : <p className="text-xs text-suave">Nenhum.</p>}
+                  {peca.documentos.length > 0 ? (
+                    peca.documentos.map((arquivo) => linhaDoArquivo(arquivo, "DOCUMENTO"))
+                  ) : (
+                    <p className="text-xs text-suave">Nenhum.</p>
+                  )}
                 </div>
                 <div className="min-w-0 space-y-1">
                   <p className="text-[11px] font-semibold text-suave">Certificado de homologação</p>
-                  {peca.certificados.length > 0 ? peca.certificados.map(linkDoArquivo) : <p className="text-xs text-suave">Nenhum.</p>}
+                  {peca.certificados.length > 0 ? (
+                    peca.certificados.map((arquivo) => linhaDoArquivo(arquivo, "CERTIFICADO"))
+                  ) : (
+                    <p className="text-xs text-suave">Nenhum.</p>
+                  )}
                 </div>
               </div>
             </li>

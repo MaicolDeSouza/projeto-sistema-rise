@@ -19,6 +19,7 @@ import {
   Hammer,
   ListChecks,
   Loader,
+  RotateCcw,
   Search,
   Sparkles,
   Trash2,
@@ -59,13 +60,12 @@ import {
   camposDasReferencias,
   consultarSituacaoConcorrentes,
   criarTitulosIA,
-  enviarArquivo,
+  anexarDocumentoDaPeca,
   copiarDocumentosParaClone,
   enviarArquivoTemporario,
   gerarSku,
   documentosDasReferencias,
   pecaDeOrigemDoKit,
-  removerArquivo,
   removerArquivoTemporario,
   salvarProduto,
 } from "@/app/produtos/acoes";
@@ -1352,103 +1352,6 @@ function LinkLojaIntegrada({ inicial, dominio, erro }) {
 const ACEITA_CERTIFICADO = "application/pdf,image/jpeg,image/png";
 const ACEITA_DOCUMENTO = `${ACEITA_CERTIFICADO},.zip,application/zip`;
 
-/** Envio de documento (manual, ficha tecnica, certificado). */
-function Documento({ produtoId, tipo, rotulo, ajuda, arquivos }) {
-  const [pendente, iniciarTransicao] = useTransition();
-  const [erro, setErro] = useState(null);
-  const entrada = useRef(null);
-
-  function aoEscolher(evento) {
-    const arquivo = evento.target.files?.[0];
-    if (!arquivo) return;
-
-    const dados = new FormData();
-    dados.set("arquivo", arquivo);
-
-    iniciarTransicao(async () => {
-      const resultado = await tentar(() =>
-        enviarArquivo(produtoId, tipo, null, dados),
-      );
-      setErro(resultado.ok ? null : resultado.erro);
-      if (entrada.current) entrada.current.value = "";
-    });
-  }
-
-  return (
-    <div>
-      <span className="flex items-center gap-1 text-sm font-semibold">
-        {rotulo}
-        {ajuda && <BolhaDeAjuda texto={ajuda} variante="inline" />}
-      </span>
-
-      <div className="mt-1 space-y-1">
-        {arquivos.map((arquivo) => (
-          <div
-            key={arquivo.id}
-            className="flex items-center gap-2 rounded border border-borda px-2 py-1.5"
-          >
-            {/*
-              BAIXA o arquivo (pedido do dono em 05/10/2026: clicar abria uma janela nova e nao baixava nada).
-              O icone e o nome ficam DENTRO do mesmo link, entao clicar em qualquer um baixa. Sem
-              `target="_blank"`: com ele o ZIP abria uma aba em branco e o PDF abria no navegador, em vez de
-              baixar. `download` leva o nome real (o endereco e do proprio sistema, entao o atributo vale).
-            */}
-            <a
-              href={arquivo.url}
-              download={arquivo.nomeOriginal ?? arquivo.arquivo}
-              title="Baixar"
-              className="group/doc flex min-w-0 flex-1 items-center gap-2 text-sm hover:text-acento"
-            >
-              <Download size={14} className="shrink-0 text-suave group-hover/doc:text-acento" />
-              <span className="truncate">{arquivo.nomeOriginal ?? arquivo.arquivo}</span>
-            </a>
-            <button
-              type="button"
-              onClick={() =>
-                iniciarTransicao(async () => {
-                  const r = await tentar(() => removerArquivo(arquivo.id));
-                  if (!r.ok) setErro(r.erro);
-                })
-              }
-              aria-label="Remover"
-              className="shrink-0 rounded p-1 text-suave hover:bg-red-50 hover:text-red-700"
-            >
-              <Trash2 size={12} />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => entrada.current?.click()}
-        disabled={pendente}
-        className="mt-1.5 inline-flex items-center gap-1.5 rounded border border-borda px-2.5 py-1.5 text-xs hover:bg-fundo disabled:opacity-50"
-      >
-        {pendente ? (
-          <Loader size={12} className="animate-spin" />
-        ) : (
-          <Upload size={12} />
-        )}
-        Enviar arquivo
-      </button>
-
-      <input
-        ref={entrada}
-        type="file"
-        accept={tipo === "DOCUMENTO" ? ACEITA_DOCUMENTO : ACEITA_CERTIFICADO}
-        onChange={aoEscolher}
-        className="hidden"
-      />
-
-      {erro && (
-        <p className="mt-1 rounded bg-red-50 p-2 text-[11px] text-red-800">
-          {erro}
-        </p>
-      )}
-    </div>
-  );
-}
 
 /** Documentos encontrados nas referencias escolhidas na lupa do Nome. */
 function DocumentosDasReferencias({ ids, ativo, produtoId }) {
@@ -1524,20 +1427,25 @@ function DocumentosDasReferencias({ ids, ativo, produtoId }) {
 }
 
 /**
- * Envio de documento/certificado ANTES de o produto existir. Mesmo desenho do
- * `Documento`, mas o arquivo vai para a pasta temporaria e a lista e do
- * formulario (`temporarios`), que manda tudo junto no Salvar.
+ * Documentos tecnicos e certificado do produto, NOVO ou JA EXISTENTE (pedido do dono em 10/10/2026: toda mudanca
+ * no produto so vale no Salvar, documentos inclusive). Os ja gravados (`salvos`) baixam pelo nome real; Excluir so
+ * os RISCA (`excluidos`, aplicado no Salvar) e "Desfazer" volta. Os enviados ou anexados agora vao para a pasta
+ * temporaria (`lista`, os `temporarios` do formulario) e entram no produto no Salvar. Cancelar descarta tudo.
  *
- * Sem link para abrir: o arquivo ainda nao tem endereco publico, e servir a
- * pasta temporaria abriria uma rota para arquivo de cadastro que nem existe.
+ * Sem link para abrir o temporario: ele ainda nao tem endereco, e servir a pasta temporaria abriria uma rota para
+ * arquivo de cadastro que nem existe.
  */
-function DocumentoTemporario({
+function DocumentosDoProduto({
   tipo,
   rotulo,
   ajuda,
   lista,
   aoEnviar,
   aoRemover,
+  salvos = [],
+  excluidos = [],
+  aoAlternarExclusao,
+  desabilitado = false,
 }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [erro, setErro] = useState(null);
@@ -1553,6 +1461,8 @@ function DocumentoTemporario({
     });
   }
 
+  const riscados = salvos.filter((arquivo) => excluidos.includes(arquivo.id)).length;
+
   return (
     <div>
       <span className="flex items-center gap-1 text-sm font-semibold">
@@ -1561,18 +1471,55 @@ function DocumentoTemporario({
       </span>
 
       <div className="mt-1 space-y-1">
+        {salvos.map((arquivo) => {
+          const riscado = excluidos.includes(arquivo.id);
+          const nome = arquivo.nomeOriginal ?? arquivo.arquivo;
+          return (
+            <div
+              key={arquivo.id}
+              className={`flex items-center gap-2 rounded border px-2 py-1.5 ${riscado ? "border-red-200 bg-red-50/60" : "border-borda"}`}
+            >
+              {riscado ? (
+                <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-suave" title="Será excluído ao salvar">
+                  <Trash2 size={14} className="shrink-0 text-red-600" />
+                  <span className="truncate line-through">{nome}</span>
+                  <span className="shrink-0 text-[11px] text-red-700">excluído ao salvar</span>
+                </span>
+              ) : (
+                // BAIXA o arquivo (pedido do dono em 05/10/2026): o icone e o nome no mesmo link, sem `target`
+                // (o ZIP abria uma aba em branco) e com `download` levando o nome real.
+                <a
+                  href={arquivo.url}
+                  download={nome}
+                  title="Baixar"
+                  className="group/doc flex min-w-0 flex-1 items-center gap-2 text-sm hover:text-acento"
+                >
+                  <Download size={14} className="shrink-0 text-suave group-hover/doc:text-acento" />
+                  <span className="truncate">{nome}</span>
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => aoAlternarExclusao?.(arquivo.id)}
+                aria-label={riscado ? `Desfazer a exclusão de ${nome}` : `Excluir ${nome} ao salvar`}
+                title={riscado ? "Desfazer" : "Excluir (ao salvar)"}
+                className={`shrink-0 rounded p-1 text-suave ${riscado ? "hover:bg-fundo hover:text-texto" : "hover:bg-red-50 hover:text-red-700"}`}
+              >
+                {riscado ? <RotateCcw size={12} /> : <Trash2 size={12} />}
+              </button>
+            </div>
+          );
+        })}
         {lista.map((arquivo) => (
           <div
             key={arquivo.nome}
             className="flex items-center gap-2 rounded border border-dashed border-borda px-2 py-1.5"
           >
             <FileText size={14} className="shrink-0 text-suave" />
-            <span
-              className="min-w-0 flex-1 truncate text-sm"
-              title="Será gravado ao salvar"
-            >
+            <span className="min-w-0 flex-1 truncate text-sm" title="Será gravado ao salvar">
               {arquivo.nomeOriginal ?? arquivo.nome}
             </span>
+            <span className="shrink-0 text-[11px] text-suave">a salvar</span>
             <button
               type="button"
               onClick={() => iniciarTransicao(() => aoRemover(arquivo))}
@@ -1588,14 +1535,11 @@ function DocumentoTemporario({
       <button
         type="button"
         onClick={() => entrada.current?.click()}
-        disabled={pendente}
+        disabled={pendente || desabilitado}
+        title={desabilitado ? "Espere as fotos do produto carregarem." : undefined}
         className="mt-1.5 inline-flex items-center gap-1.5 rounded border border-borda px-2.5 py-1.5 text-xs hover:bg-fundo disabled:opacity-50"
       >
-        {pendente ? (
-          <Loader size={12} className="animate-spin" />
-        ) : (
-          <Upload size={12} />
-        )}
+        {pendente ? <Loader size={12} className="animate-spin" /> : <Upload size={12} />}
         Enviar arquivo
       </button>
 
@@ -1607,16 +1551,10 @@ function DocumentoTemporario({
         className="hidden"
       />
 
-      {!erro && lista.length > 0 && (
-        <p className="mt-1 text-[11px] text-suave">
-          Os arquivos são gravados no produto ao salvar.
-        </p>
+      {!erro && (lista.length > 0 || riscados > 0) && (
+        <p className="mt-1 text-[11px] text-suave">As mudanças nos documentos são gravadas ao salvar.</p>
       )}
-      {erro && (
-        <p className="mt-1 rounded bg-red-50 p-2 text-[11px] text-red-800">
-          {erro}
-        </p>
-      )}
+      {erro && <p className="mt-1 rounded bg-red-50 p-2 text-[11px] text-red-800">{erro}</p>}
     </div>
   );
 }
@@ -1771,6 +1709,8 @@ export default function FormularioProduto({
   // servidor e o do navegador seriam diferentes e o React acusaria.
   const [loteTemporario, setLoteTemporario] = useState("");
   const [temporarios, setTemporarios] = useState([]);
+  // Documentos ja gravados que o dono excluiu na tela: so saem no Salvar (pedido do dono em 10/10/2026).
+  const [documentosExcluidos, setDocumentosExcluidos] = useState([]);
 
   // Produto existente: as fotos dele entram no painel ao abrir a tela (ver `carregandoFotosDoProduto`).
   useEffect(() => {
@@ -2058,6 +1998,23 @@ export default function FormularioProduto({
     );
   }
 
+  // Excluir um documento ja gravado so o risca; o Salvar o apaga (pedido do dono em 10/10/2026). Outro clique desfaz.
+  function alternarExclusaoDeDocumento(id) {
+    setDocumentosExcluidos((atual) => (atual.includes(id) ? atual.filter((outro) => outro !== id) : [...atual, id]));
+    setAlterado(true);
+  }
+
+  // "Anexar a este produto" no kit: o documento da peca e copiado para o lote e entra como "a salvar".
+  async function anexarDocumento(arquivoId) {
+    const lote = garantirLote();
+    const resultado = await tentar(() => anexarDocumentoDaPeca(lote, arquivoId));
+    if (resultado.ok) {
+      setTemporarios((atual) => [...atual, resultado.arquivo]);
+      setAlterado(true);
+    }
+    return resultado;
+  }
+
   // Marca, modelo, homologacao, EAN, medidas e NCM das referencias, para os icones dos campos. Lidos ANTES
   // de abrir qualquer lista, para o icone ja nascer (ou nao) conforme haja dado.
   const [valoresRefs, setValoresRefs] = useState(null);
@@ -2213,20 +2170,18 @@ export default function FormularioProduto({
       if (resultado.ok) {
         setAlterado(false);
 
-        // Produto existente volta para a lista. Produto novo FICA na tela: e so
-        // depois de existir que imagens, documentos e fornecedores ficam
-        // liberados — devolver a lista obrigaria a procura-lo de novo.
+        // Os dois voltam para a lista (pedido do dono em 10/10/2026: o produto novo FICAVA na tela, de quando fotos,
+        // documentos e fornecedores so entravam depois de o produto existir; hoje tudo entra antes do Salvar). A
+        // lista ordena pelo ultimo alterado, entao o novo vem no topo, destacado (`novo`). Os avisos de algo que nao
+        // foi gravado vao na URL e aparecem na lista, senao a foto recusada sumiria em silencio.
         if (produto) router.push("/produtos");
         else if (resultado.id) {
-          // Quantas imagens vieram vai na URL: a tela do produto ja criado e outra
-          // pagina, e sem isso a foto recusada sumiria em silencio.
-          const busca = new URLSearchParams();
+          const busca = new URLSearchParams({ novo: resultado.id });
           if (resultado.avisoImagens) busca.set("fotos", "falhou");
           if (resultado.avisoArquivos) busca.set("documentos", "falhou");
           if (resultado.avisoFornecedores) busca.set("fornecedores", "falhou");
           if (resultado.avisoConcorrentes) busca.set("concorrentes", "falhou");
-          const sufixo = busca.size > 0 ? `?${busca}` : "";
-          router.replace(`/produtos/${resultado.id}${sufixo}`);
+          router.replace(`/produtos?${busca}`);
         }
       }
 
@@ -2508,6 +2463,19 @@ export default function FormularioProduto({
   const ehKit = tipo === "COMPOSICAO";
   // Kit de uma peca: a localizacao e a da peca e fica travada (pedido do dono em 10/10/2026).
   const localizacaoTravada = ehKit && pecas.length === 1;
+  // Os nomes que o produto ja tem (gravados e nao riscados, e os "a salvar"), por tipo: o "Anexar a este produto"
+  // vira "Anexado" para nao duplicar.
+  const nomesDosDocumentos = Object.fromEntries(
+    ["DOCUMENTO", "CERTIFICADO"].map((tipoDoArquivo) => [
+      tipoDoArquivo,
+      new Set([
+        ...(arquivos[tipoDoArquivo] ?? [])
+          .filter((arquivo) => !documentosExcluidos.includes(arquivo.id))
+          .map((arquivo) => arquivo.nomeOriginal ?? arquivo.arquivo),
+        ...temporarios.filter((item) => item.tipo === tipoDoArquivo).map((item) => item.nomeOriginal ?? item.nome),
+      ]),
+    ]),
+  );
   const custoPadrao = ehKit
     ? totaisDoKit(pecas).custo
     : ((usaFornecedorRascunho ? fornecedoresRascunho : fornecedores).find((item) => item.padrao)?.precoCusto ?? null);
@@ -2783,6 +2751,8 @@ export default function FormularioProduto({
       <input type="hidden" name="arquivosPreservados" value={JSON.stringify(fotosPreservadas)} />
       {/* Imagens da reserva que o dono excluiu na tela: so o Salvar apaga (ver ReservaDeImagens). */}
       <input type="hidden" name="reservaExcluida" value={JSON.stringify(reservaExcluida)} />
+      {/* Documentos ja gravados que o dono excluiu na tela: so o Salvar apaga. */}
+      <input type="hidden" name="documentosExcluidos" value={JSON.stringify(documentosExcluidos)} />
       {/* Fornecedores adicionados antes de o produto existir (ver Fornecedores.jsx). */}
       <input
         type="hidden"
@@ -2842,6 +2812,34 @@ export default function FormularioProduto({
 
       {erroAcao && (
         <p className="rounded bg-red-50 p-3 text-sm text-red-800">{erroAcao}</p>
+      )}
+
+      {/* O "!" do kit (pedido do dono em 10/10/2026): o que mudou nas pecas desde o ultimo Salvar do kit. Salvar o
+          kit grava o retrato de hoje e apaga o aviso. */}
+      {produto?.mudancasDasPecas?.length > 0 && (
+        <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="flex items-center gap-2 font-semibold">
+            <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+              !
+            </span>
+            {produto.mudancasDasPecas.length === 1
+              ? "Uma peça do kit mudou desde o último Salvar"
+              : `${produto.mudancasDasPecas.length} peças do kit mudaram desde o último Salvar`}
+          </p>
+          <ul className="mt-1.5 space-y-1 pl-6">
+            {produto.mudancasDasPecas.map((peca) => (
+              <li key={peca.componenteId}>
+                <a href={`/produtos/${peca.componenteId}`} target="_blank" rel="noreferrer" className="font-medium hover:underline">
+                  <span className="font-mono text-xs">{peca.sku}</span> {peca.tituloBase}
+                </a>
+                : {peca.mudancas.map((mudanca) => mudanca.texto).join("; ")}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 pl-6 text-[12px]">
+            Confira o kit (preço, descrição, fotos, documentos) e salve para marcar como revisado.
+          </p>
+        </div>
       )}
 
       <Fragment key={`geral-${versao}`}>
@@ -3166,42 +3164,41 @@ export default function FormularioProduto({
             </div>
 
             <div className={aba === "documentos" ? "grid gap-5 sm:grid-cols-2" : "hidden"}>
-              {novo ? (
-                <DocumentoTemporario
-                  tipo="DOCUMENTO"
-                  rotulo="Documentos técnicos"
-                  ajuda="Manual, datasheet, ficha técnica. PDF, JPG ou PNG, até 20 MB cada."
-                  lista={temporarios.filter((item) => item.tipo === "DOCUMENTO")}
-                  aoEnviar={enviarTemporario}
-                  aoRemover={removerTemporario}
-                />
-              ) : (
-                <Documento
-                  produtoId={produto.id}
-                  tipo="DOCUMENTO"
-                  rotulo="Documentos técnicos"
-                  ajuda="Manual, datasheet, ficha técnica. PDF, JPG ou PNG, até 20 MB cada."
-                  arquivos={arquivos.DOCUMENTO ?? []}
+              {/* Produto novo ou existente: tudo so vale no Salvar (pedido do dono em 10/10/2026). O envio espera as
+                  fotos do produto carregarem: elas criam o lote, e um segundo lote ficaria orfao. */}
+              <DocumentosDoProduto
+                tipo="DOCUMENTO"
+                rotulo="Documentos técnicos"
+                ajuda="Manual, datasheet, ficha técnica. PDF, JPG ou PNG, até 20 MB cada."
+                salvos={arquivos.DOCUMENTO ?? []}
+                excluidos={documentosExcluidos}
+                aoAlternarExclusao={alternarExclusaoDeDocumento}
+                lista={temporarios.filter((item) => item.tipo === "DOCUMENTO")}
+                aoEnviar={enviarTemporario}
+                aoRemover={removerTemporario}
+                desabilitado={carregandoFotosDoProduto}
+              />
+              <DocumentosDoProduto
+                tipo="CERTIFICADO"
+                rotulo="Certificado de homologação"
+                salvos={arquivos.CERTIFICADO ?? []}
+                excluidos={documentosExcluidos}
+                aoAlternarExclusao={alternarExclusaoDeDocumento}
+                lista={temporarios.filter((item) => item.tipo === "CERTIFICADO")}
+                aoEnviar={enviarTemporario}
+                aoRemover={removerTemporario}
+                desabilitado={carregandoFotosDoProduto}
+              />
+              {/* Kit: os documentos e certificados das pecas, com "Anexar a este produto" (pedido do dono em 10/10/2026). */}
+              {ehKit && (
+                <DocumentosDasPecas
+                  pecas={pecas}
+                  ativo={aba === "documentos"}
+                  nomesNoProduto={nomesDosDocumentos}
+                  aoAnexar={anexarDocumento}
+                  desabilitado={carregandoFotosDoProduto}
                 />
               )}
-              {novo ? (
-                <DocumentoTemporario
-                  tipo="CERTIFICADO"
-                  rotulo="Certificado de homologação"
-                  lista={temporarios.filter((item) => item.tipo === "CERTIFICADO")}
-                  aoEnviar={enviarTemporario}
-                  aoRemover={removerTemporario}
-                />
-              ) : (
-                <Documento
-                  produtoId={produto.id}
-                  tipo="CERTIFICADO"
-                  rotulo="Certificado de homologação"
-                  arquivos={arquivos.CERTIFICADO ?? []}
-                />
-              )}
-              {/* Kit: os documentos e certificados das pecas, so leitura (pedido do dono em 10/10/2026). */}
-              {ehKit && <DocumentosDasPecas pecas={pecas} ativo={aba === "documentos"} />}
               <DocumentosDasReferencias
                 key={aberturaDocumentos}
                 ids={idsMarcados}

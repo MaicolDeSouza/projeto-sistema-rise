@@ -140,6 +140,8 @@ export default function TabelaProdutos({
   totalPaginas = 1,
   total = linhas.length,
   totalConferidos = 0,
+  // Produto recem-criado (`?novo=<id>`, pedido do dono em 10/10/2026): a linha dele aparece destacada por alguns segundos.
+  destacarId = null,
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -273,6 +275,7 @@ export default function TabelaProdutos({
                 <LinhaProduto
                   key={produto.id}
                   produto={produto}
+                  destacada={produto.id === destacarId}
                   achado={achado}
                   aoExcluir={() => confirmarExclusao(produto)}
                   iconeML={iconeML}

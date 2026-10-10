@@ -67,6 +67,8 @@ export default function LinhaProduto({
   iconeLI = { cor: "cinza", divergente: false, conferido: false },
   // Busca ampla (09/10/2026): "achado na descrição" quando a palavra nao estava no nome nem no codigo.
   achado = null,
+  // Produto recem-criado: fundo verde claro que some sozinho (pedido do dono em 10/10/2026). So CSS, sem estado.
+  destacada = false,
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [janelaML, setJanelaML] = useState(false);
@@ -84,7 +86,10 @@ export default function LinhaProduto({
   });
 
   return (
-    <tr className="group divide-x divide-borda hover:bg-fundo/60">
+    <tr
+      className="group divide-x divide-borda hover:bg-fundo/60"
+      style={destacada ? { animation: "riseLinhaNova 6s ease-out" } : undefined}
+    >
       <td className="px-3 py-2.5">
         <Miniatura url={produto.imagemUrl} alt={produto.tituloBase} />
       </td>
@@ -110,7 +115,19 @@ export default function LinhaProduto({
       </td>
 
       <td className="px-3 py-2.5 text-center">
-        <ConferidoProduto produto={produto} />
+        <div className="flex items-center gap-1">
+          <ConferidoProduto produto={produto} />
+          {/* O "!" do kit (pedido do dono em 10/10/2026): uma peca mudou desde o ultimo Salvar do kit. */}
+          {produto.pecasAlteradas > 0 && (
+            <span
+              title={`${produto.pecasAlteradas === 1 ? "Uma peça do kit mudou" : `${produto.pecasAlteradas} peças do kit mudaram`} desde o último Salvar. Abra o kit para ver o que mudou.`}
+              aria-label={`${produto.pecasAlteradas} peça(s) do kit mudaram desde o último Salvar`}
+              className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white"
+            >
+              !
+            </span>
+          )}
+        </div>
       </td>
 
       <td className="px-3 py-2.5">

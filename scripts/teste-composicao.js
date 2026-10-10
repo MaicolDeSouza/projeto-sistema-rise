@@ -19,6 +19,7 @@ const {
   faltasParaSerPeca,
   LOCALIZACAO_DE_VARIAS_PECAS,
   localizacaoDoKit,
+  mudancasDaPeca,
   ncmsDasPecas,
   pesoEMedidasDoKit,
   totaisDoKit,
@@ -144,6 +145,30 @@ conferir("faltas: produto apto -> nada", faltasParaSerPeca({ tipo: "SIMPLES", co
 conferir("faltas: TUDO de uma vez (nao so o primeiro motivo)", faltasParaSerPeca({ tipo: "SIMPLES", conferido: false, blingId: null }), ["validar no Rise", "integrar com o Bling"]);
 conferir("faltas: so o Bling", faltasParaSerPeca({ tipo: "SIMPLES", conferido: true, blingId: null }), ["integrar com o Bling"]);
 conferir("faltas: kit nunca e peca, e os outros motivos nao importam", faltasParaSerPeca({ tipo: "COMPOSICAO", conferido: false, blingId: null }), ["É um kit, não pode ser peça"]);
+
+console.log("\nO que mudou na peca desde o ultimo Salvar do kit (o \"!\", 10/10/2026)");
+const retratoBase = {
+  tituloBase: "PLACA UNO", descricao: "aaa", precoVenda: 38.9, pesoKg: 0.024, comprimentoCm: 6.8, larguraCm: 5.3,
+  alturaCm: 1, ncm: "8473.30.49", ativo: true, conferido: true, fotos: "f1", quantidadeFotos: 3, documentos: ["Datasheet.pdf"],
+};
+conferir("igual: nada mudou", mudancasDaPeca(retratoBase, { ...retratoBase }), []);
+conferir("sem retrato guardado (kit antigo): nada muda, sem \"!\"", mudancasDaPeca(null, retratoBase), []);
+conferir("numero em texto do Prisma e o mesmo numero; NCM so pelos digitos", mudancasDaPeca(retratoBase, { ...retratoBase, precoVenda: "38.90", ncm: "84733049" }), []);
+// O Intl poe espaco nao separavel depois do "R$": compara com espaco comum.
+conferir("preco mudou", mudancasDaPeca(retratoBase, { ...retratoBase, precoVenda: 42 }).map((m) => m.texto.replace(/\s/g, " ")), ["Preço de venda: R$ 38,90 → R$ 42,00"]);
+conferir(
+  "nome, descricao, peso, situacao e Conferido",
+  mudancasDaPeca(retratoBase, { ...retratoBase, tituloBase: "PLACA UNO R3", descricao: "bbb", pesoKg: 0.03, ativo: false, conferido: false }).map((m) => m.campo),
+  ["Nome", "Peso", "Situação", "Conferido", "Descrição"],
+);
+conferir("foto a mais: conta", mudancasDaPeca(retratoBase, { ...retratoBase, fotos: "f2", quantidadeFotos: 4 }).map((m) => m.texto), ["Fotos: 3 → 4"]);
+conferir("foto trocada, mesma quantidade", mudancasDaPeca(retratoBase, { ...retratoBase, fotos: "f2" }).map((m) => m.texto), ["Fotos trocadas"]);
+conferir(
+  "documentos: novo e removido, sem ligar para a ordem",
+  mudancasDaPeca({ ...retratoBase, documentos: ["A.pdf", "B.pdf"] }, { ...retratoBase, documentos: ["C.pdf", "A.pdf"] }).map((m) => m.texto),
+  ["Documentos: novo C.pdf; removido B.pdf"],
+);
+conferir("custo, estoque e localizacao nao fazem parte do retrato", mudancasDaPeca(retratoBase, { ...retratoBase, custo: 99, estoque: 0, localizacao: "Z-9" }), []);
 
 // ---------------------------------------------------------------------------
 // Banco: ler, gravar e recalcular o kit; peca usada em kit nao e excluida
@@ -407,6 +432,54 @@ try {
   conferir("documentos sem ids: lista vazia, sem consultar", await documentosDasPecas([]), []);
   await prisma.produto.update({ where: { id: c.id }, data: { descricaoBase: "PECA C3\nTexto da peca." } });
   conferir("descricoes das pecas: na ordem pedida", (await descricoesDasPecas([c.id, b.id])).map((p) => [p.sku, p.descricaoBase]), [["ZZ-KIT-C3", "PECA C3\nTexto da peca."], ["ZZ-KIT-B2", null]]);
+
+  // --- 10/10/2026: o "!" do kit (retrato da peca no Salvar e o que mudou depois) ---
+  const { mudancasDosKits, retratoDaPeca } = await import("../src/lib/composicaoBanco.js");
+  const kitAlerta = await prisma.produto.create({ data: { sku: "ZZ-KIT-R1", tituloBase: "Kit do alerta", tipo: "COMPOSICAO" } });
+  await gravarComposicao(kitAlerta.id, [{ componenteId: b.id, quantidade: 2 }]);
+  const linhaAlerta = await prisma.produtoComponente.findFirst({ where: { kitId: kitAlerta.id }, select: { retrato: true } });
+  conferir("o Salvar do kit grava o retrato da peca", [linhaAlerta.retrato?.tituloBase, linhaAlerta.retrato?.quantidadeFotos, Array.isArray(linhaAlerta.retrato?.documentos)], ["Peca ZZ-KIT-B2", 0, true]);
+  conferir("logo depois do Salvar: nenhuma mudanca, sem \"!\"", (await mudancasDosKits([kitAlerta.id])).size, 0);
+  await prisma.produto.update({ where: { id: b.id }, data: { custo: 77, estoque: 3, localizacao: "Q-1" } });
+  conferir("custo, estoque e localizacao da peca mudaram: continua sem \"!\"", (await mudancasDosKits([kitAlerta.id])).size, 0);
+  await prisma.produto.update({ where: { id: b.id }, data: { precoVenda: 19.9, tituloBase: "Peca B2 nova" } });
+  const alerta = (await mudancasDosKits([kitAlerta.id])).get(kitAlerta.id);
+  conferir("preco e nome da peca mudaram: o kit tem o \"!\" e diz o que mudou", [alerta?.length, alerta?.[0]?.sku, alerta?.[0]?.mudancas.map((m) => m.campo)], [1, "ZZ-KIT-B2", ["Nome", "Preço de venda"]]);
+  await gravarComposicao(kitAlerta.id, [{ componenteId: b.id, quantidade: 2 }]);
+  conferir("salvar o kit de novo e o \"revisado\": o \"!\" apaga", (await mudancasDosKits([kitAlerta.id])).size, 0);
+  conferir(
+    "o retrato do codigo usa md5 da descricao e das fotos (o mesmo da migration)",
+    retratoDaPeca({ tituloBase: "X", descricaoBase: null, arquivos: [{ tipo: "IMAGEM", papel: "FOTO", arquivo: "b.jpg" }, { tipo: "IMAGEM", papel: "FOTO", arquivo: "a.jpg" }, { tipo: "IMAGEM", papel: "RESERVA", arquivo: "z.jpg" }] }),
+    {
+      tituloBase: "X", descricao: "d41d8cd98f00b204e9800998ecf8427e", precoVenda: null, pesoKg: null, comprimentoCm: null, larguraCm: null,
+      alturaCm: null, ncm: null, ativo: false, conferido: false, fotos: "5773833bf91ed255424103935dcd4711", quantidadeFotos: 2, documentos: [],
+    },
+  );
+
+  // --- 10/10/2026: "Anexar a este produto" copia o documento da peca para o lote do kit ---
+  const fs = await import("node:fs/promises");
+  const caminho = await import("node:path");
+  const { anexarDocumentoDaPeca } = await import("../src/app/produtos/acoes.js");
+  const pastaDaPeca = caminho.join(process.cwd(), "dados", "produtos", "ZZ-KIT-C3", "documentos");
+  const nomeNoDisco = "c".repeat(32) + ".pdf";
+  await fs.mkdir(pastaDaPeca, { recursive: true });
+  await fs.writeFile(caminho.join(pastaDaPeca, nomeNoDisco), "%PDF-1.4 teste");
+  const docDaPeca = await prisma.produtoArquivo.create({ data: { produtoId: c.id, tipo: "DOCUMENTO", arquivo: nomeNoDisco, nomeOriginal: "Manual C3.pdf" } });
+  const lote = "11111111-2222-3333-4444-555555555555";
+  const anexado = await anexarDocumentoDaPeca(lote, docDaPeca.id);
+  const noLote = anexado.ok
+    ? await fs.readFile(caminho.join(process.cwd(), "dados", "temporarios", lote, "documentos", anexado.arquivo.nome), "utf8").catch(() => null)
+    : null;
+  conferir(
+    "anexar: copia para o lote do kit, com o nome real, e o original da peca fica",
+    [anexado.ok, anexado.arquivo?.tipo, anexado.arquivo?.nomeOriginal, noLote, (await fs.stat(caminho.join(pastaDaPeca, nomeNoDisco))).isFile()],
+    [true, "DOCUMENTO", "Manual C3.pdf", "%PDF-1.4 teste", true],
+  );
+  const fotoDaPeca = await prisma.produtoArquivo.create({ data: { produtoId: c.id, tipo: "IMAGEM", arquivo: "d".repeat(32) + ".jpg" } });
+  conferir("anexar uma foto (nao e documento): recusa", (await anexarDocumentoDaPeca(lote, fotoDaPeca.id)).ok, false);
+  conferir("anexar um id que nao existe: recusa", (await anexarDocumentoDaPeca(lote, "nao-existe")).ok, false);
+  await fs.rm(caminho.join(process.cwd(), "dados", "temporarios", lote), { recursive: true, force: true });
+  await fs.rm(caminho.join(process.cwd(), "dados", "produtos", "ZZ-KIT-C3"), { recursive: true, force: true });
 
   // --- apagar o kit leva as linhas de composicao, nao as pecas ---
   await prisma.produto.delete({ where: { id: kit2.id } });

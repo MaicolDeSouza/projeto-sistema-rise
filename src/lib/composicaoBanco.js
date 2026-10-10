@@ -1,6 +1,96 @@
+import { createHash } from "node:crypto";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
-import { estoqueDoKit, faltasParaSerPeca, validarComposicao } from "@/lib/composicao";
+import { estoqueDoKit, faltasParaSerPeca, mudancasDaPeca, validarComposicao } from "@/lib/composicao";
+
+/// As colunas que o retrato da peca usa (`retratoDaPeca`). As fotos sao so as do carrossel (`papel: "FOTO"`):
+/// a reserva nao e do produto. Os documentos entram pelo nome.
+const SELECT_RETRATO = {
+  tituloBase: true,
+  descricaoBase: true,
+  precoVenda: true,
+  pesoKg: true,
+  comprimentoCm: true,
+  larguraCm: true,
+  alturaCm: true,
+  ncm: true,
+  ativo: true,
+  conferido: true,
+  arquivos: {
+    where: { OR: [{ tipo: "IMAGEM", papel: "FOTO" }, { tipo: { in: ["DOCUMENTO", "CERTIFICADO"] } }] },
+    select: { tipo: true, papel: true, arquivo: true, nomeOriginal: true },
+  },
+};
+
+const md5 = (texto) => createHash("md5").update(String(texto), "utf8").digest("hex");
+const numeroDoRetrato = (valor) => (valor === null || valor === undefined || valor === "" ? null : Number(valor));
+
+/**
+ * Como a peca esta agora, para guardar no Salvar do kit e comparar depois (pedido do dono em 10/10/2026: o "!" do
+ * kit quando uma peca muda). O MESMO formato que a migration `20261010_kit_retrato_das_pecas` gravou nos kits que
+ * ja existiam: a descricao (com a quebra de linha uniformizada) e as fotos viram md5 (texto longo nao precisa ir
+ * inteiro), as fotos em ordem de bytes
+ * (o `COLLATE "C"` do SQL), e os documentos pelo nome real. Mudar o formato aqui pede mudar a migration de volta,
+ * senao todo kit antigo acenderia o "!" sem nada ter mudado.
+ *
+ * @param {object} produto linha de `Produto` lida com `SELECT_RETRATO`
+ */
+export function retratoDaPeca(produto) {
+  const arquivos = Array.isArray(produto?.arquivos) ? produto.arquivos : [];
+  const fotos = arquivos
+    .filter((item) => item.tipo === "IMAGEM" && (item.papel ?? "FOTO") === "FOTO")
+    .map((item) => String(item.arquivo))
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const documentos = arquivos
+    .filter((item) => item.tipo === "DOCUMENTO" || item.tipo === "CERTIFICADO")
+    .map((item) => String(item.nomeOriginal ?? item.arquivo))
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  return {
+    tituloBase: produto?.tituloBase ?? null,
+    // A quebra de linha vira "\n" antes do md5: o navegador manda o texto da descricao com "\r\n", e salvar a peca
+    // pelo formulario sem mexer no texto acendia "Descrição alterada" (visto em 10/10/2026).
+    descricao: md5(String(produto?.descricaoBase ?? "").replace(/\r\n?/g, "\n")),
+    precoVenda: numeroDoRetrato(produto?.precoVenda),
+    pesoKg: numeroDoRetrato(produto?.pesoKg),
+    comprimentoCm: numeroDoRetrato(produto?.comprimentoCm),
+    larguraCm: numeroDoRetrato(produto?.larguraCm),
+    alturaCm: numeroDoRetrato(produto?.alturaCm),
+    ncm: produto?.ncm ?? null,
+    ativo: Boolean(produto?.ativo),
+    conferido: Boolean(produto?.conferido),
+    fotos: fotos.length > 0 ? md5(fotos.join(",")) : null,
+    quantidadeFotos: fotos.length,
+    documentos,
+  };
+}
+
+/**
+ * As pecas que mudaram desde o ultimo Salvar de cada kit (pedido do dono em 10/10/2026), para o "!" da lista e o
+ * quadro do kit. So entram as pecas com mudanca; kit sem nenhuma nao aparece no mapa. Peca sem retrato guardado
+ * (kit gravado antes da regra e nunca preenchido) nao conta.
+ *
+ * @param {string[]} kitIds
+ * @returns {Promise<Map<string, {componenteId: string, sku: string, tituloBase: string, mudancas: {campo: string, texto: string}[]}[]>>}
+ */
+export async function mudancasDosKits(kitIds, tx = prisma) {
+  const ids = [...new Set((Array.isArray(kitIds) ? kitIds : []).map(String))];
+  const porKit = new Map();
+  if (ids.length === 0) return porKit;
+  const linhas = await tx.produtoComponente.findMany({
+    where: { kitId: { in: ids }, retrato: { not: null } },
+    orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }],
+    select: { kitId: true, componenteId: true, retrato: true, componente: { select: { sku: true, ...SELECT_RETRATO } } },
+  });
+  for (const linha of linhas) {
+    const mudancas = mudancasDaPeca(linha.retrato, retratoDaPeca(linha.componente));
+    if (mudancas.length === 0) continue;
+    const lista = porKit.get(linha.kitId) ?? [];
+    lista.push({ componenteId: linha.componenteId, sku: linha.componente.sku, tituloBase: linha.componente.tituloBase, mudancas });
+    porKit.set(linha.kitId, lista);
+  }
+  return porKit;
+}
 
 /**
  * O produto com composicao (kit) no banco: ler as pecas, trocar a lista inteira, recalcular o
@@ -188,11 +278,19 @@ export async function gravarComposicao(kitId, itens, tx = null) {
     await t.produtoComponente.deleteMany({
       where: { kitId, componenteId: { notIn: lista.map((item) => item.componenteId) } },
     });
+    // O retrato de cada peca e o de AGORA: salvar o kit e o "revisado" do "!" (pedido do dono em 10/10/2026).
+    const pecas = await t.produto.findMany({
+      where: { id: { in: lista.map((item) => item.componenteId) } },
+      select: { id: true, ...SELECT_RETRATO },
+    });
+    const retratos = new Map(pecas.map((peca) => [peca.id, retratoDaPeca(peca)]));
     for (const item of lista) {
+      // Json nulo no Prisma e Prisma.DbNull (ver CLAUDE.md); so acontece com peca que sumiu entre a conferencia e aqui.
+      const retrato = retratos.get(item.componenteId) ?? Prisma.DbNull;
       await t.produtoComponente.upsert({
         where: { kitId_componenteId: { kitId, componenteId: item.componenteId } },
-        update: { quantidade: item.quantidade, ordem: item.ordem },
-        create: { kitId, ...item },
+        update: { quantidade: item.quantidade, ordem: item.ordem, retrato },
+        create: { kitId, ...item, retrato },
       });
     }
     return gravarEstoqueDoKit(kitId, t);

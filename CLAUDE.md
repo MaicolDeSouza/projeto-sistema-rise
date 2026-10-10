@@ -153,7 +153,7 @@ npm run teste:imagens             # 429 asserções das fotos: padronização, l
 npm run teste:anuncios-ml         # 591 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA) e a fase 3 (publicar, retomar, kit e vínculo no Bling) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
-npm run teste:composicao          # 111 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças) (Postgres, SEM rede; só escreve produtos ZZ-KIT-*)
+npm run teste:composicao          # 129 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 685 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 ```
 
@@ -2941,9 +2941,10 @@ ZZ-TESTE-BLING como peça (os kits de teste foram apagados).
 - **Fotos das peças:** cada peça que ENTRA traz as fotos dela, todas sem check (`trazerFotosDaPeca`); a peça de origem
   já tem as fotos no painel (`daOrigem`) e não baixa de novo; peça que sai leva as fotos dela ainda sem check (as da
   origem ficam). Abrir um kit não traz nada. Teto do painel (150) com aviso.
-- **Documentos das peças** (`DocumentosDasPecas` em `AbasDoKit.jsx`, `documentosDasPecas`): seção só leitura na aba
-  Documentos técnicos, por peça, com baixar pelo nome real; nada é copiado para o kit. O bloco "Documentos" da
-  descrição da Loja Integrada do kit leva os das peças depois dos dele (`documentosDoProduto`, só com `APP_URL_PUBLICA`).
+- **Documentos das peças** (`DocumentosDasPecas` em `AbasDoKit.jsx`, `documentosDasPecas`): seção na aba Documentos
+  técnicos, por peça, com baixar pelo nome real e, desde a segunda rodada, o "Anexar a este produto" (abaixo). O bloco
+  "Documentos" da descrição da Loja Integrada do kit leva os do kit e os das peças, sem repetir nome
+  (`documentosDoProduto`, só com `APP_URL_PUBLICA`).
 - **Descrição:** as peças viram abas de referência na janela "Criar descrição" ("Peça ×5", ponto roxo, com a descrição
   do cadastro, especificações lidas dela e o link para a peça; `descricoesDasPecas`), e vão para a IA
   (`lerPecasParaDescricao` em `ia/anuncio.js`, como `<peca_do_kit>` com a quantidade). Os **"Itens inclusos" saem das
@@ -2957,6 +2958,48 @@ ZZ-TESTE-BLING como peça (os kits de teste foram apagados).
   Simples sem a tela mostrar, e o Salvar seguinte **gravava um produto simples, sem as peças**. Agora o Salvar recusado
   remonta os campos com o que foi enviado (`setVersao`, como o `aplicar`), e o Tipo é `defaultValue` + `key` (remonta a
   cada troca). Vale para as outras listas do formulário (Origem, Tipo de produção, Tipo do item).
+  - **Ao testar a troca do Tipo por script ou pela ferramenta de formulário logo depois de reiniciar o servidor**, a
+    troca pode não chegar ao estado: no modo de desenvolvimento a página demora a ligar o React na primeira abertura
+    (compila tudo). Com a página carregada responde normal (conferido em 10/10/2026).
+
+### Segunda rodada de 10/10/2026 (4 pedidos do dono)
+
+- **"Anexar a este produto" só no kit**, ao lado de cada documento e certificado das PEÇAS (`anexarDocumentoDaPeca` em
+  `acoes.js`): copia o arquivo para o lote do kit e ele entra como "a salvar"; só o Salvar grava. O que o kit já tem com
+  o mesmo nome aparece como "Anexado". **Não existe nos documentos de fornecedor e concorrente** (decisão do dono: esses
+  ele baixa e confere antes), nem no produto simples.
+- **Salvar um produto NOVO volta para a lista** (`/produtos?novo=<id>`), como o existente já fazia. A lista ordena pelo
+  último alterado, então ele vem no topo, com fundo verde que some sozinho (animação CSS `riseLinhaNova`, sem estado). O
+  que não foi gravado (fotos, documentos, fornecedores, concorrentes) aparece num aviso no alto da lista
+  (`TEXTO_DO_AVISO` em `produtos/page.jsx`); antes aparecia na tela do produto.
+- **"!" no kit quando uma peça muda** (`mudancasDaPeca` em `composicao.js`, `retratoDaPeca` e `mudancasDosKits` em
+  `composicaoBanco.js`; coluna `ProdutoComponente.retrato`, migration `20261010_kit_retrato_das_pecas`):
+  - O retrato de cada peça é gravado em todo Salvar do kit (`gravarComposicao`): nome, md5 da descrição, preço de venda,
+    peso, medidas, NCM, situação, Conferido, md5 e quantidade das fotos (só `papel: FOTO`) e nomes dos documentos.
+    **Custo, estoque e localização ficam de fora** (decisão do dono).
+  - Na lista, um "!" âmbar ao lado do ícone de conferido do kit, com a contagem no `title`. Ao abrir o kit, um quadro
+    âmbar no topo lista o que mudou em cada peça ("Preço de venda: R$ 16,00 → R$ 17,00", "Descrição alterada",
+    "Fotos: 3 → 4", "Documentos: novo X"). **Salvar o kit apaga o "!"**: não há botão "Marcar como revisado", porque
+    toda mudança só vale no Salvar.
+  - **A migration preencheu o retrato dos kits que já existiam**, então eles começam sem "!". O SQL repete o formato do
+    `retratoDaPeca` (md5, fotos em `COLLATE "C"`, documentos em lista): **mudar um pede mudar o outro**, senão todo kit
+    antigo acende o "!" sem nada ter mudado. O teste confere o md5 do código.
+  - **Quebra de linha da descrição uniformizada em "\n" antes do md5** (no código e no SQL). O navegador manda o texto
+    do `<textarea>` com "\r\n", e salvar a peça pelo formulário sem mexer na descrição acendia "Descrição alterada"
+    (visto no teste de 10/10/2026). A migration foi corrigida antes de ir para a VPS; no PC, o registro dela em
+    `_prisma_migrations` teve o `checksum` atualizado e o preenchimento foi refeito.
+- **Toda mudança do produto só vale no Salvar, documentos inclusive** (pedido do dono em 10/10/2026). Fotos,
+  fornecedores, concorrentes, composição e reserva já esperavam o Salvar; a exceção eram os documentos do produto JÁ
+  EXISTENTE, que gravavam e apagavam na hora (`enviarArquivo`/`removerArquivo`, que o cadastro não usa mais).
+  - `DocumentosDoProduto` (`FormularioProduto.jsx`) serve produto novo e existente: o gravado tem baixar e Excluir, que
+    só RISCA ("excluído ao salvar", `documentosExcluidos`, com "Desfazer"); o enviado ou anexado entra no lote como "a
+    salvar". Cancelar descarta tudo.
+  - No Salvar do existente: `excluirDocumentosMarcados` (só documento ou certificado DESTE produto) e `gravarTemporarios`
+    (agora com a ordem depois dos que já existem), **depois das fotos**: `moverTemporarios` apaga o lote inteiro no fim.
+  - O "Enviar arquivo" espera as fotos do produto carregarem (`carregandoFotosDoProduto`): elas criam o lote, e um
+    segundo lote, criado antes, ficaria órfão.
+  - Continuam gravando na hora, por não serem dados do produto: o cadastro rápido de fornecedor e concorrente (o vínculo
+    espera o Salvar), a biblioteca de prompts e as telas fora do cadastro (edição rápida da lista, Conferido, canais).
 
 ### Bling
 
@@ -3272,7 +3315,8 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
   cadastro do produto e na aba Envio do anúncio do ML.
 - **Documentos e certificado podem ser enviados no cadastro NOVO** (pedido do dono em
   16/09/2026). Vão para `dados/temporarios/<lote>/`, onde o lote é um UUID criado no primeiro
-  envio, e são **movidos** para `dados/produtos/<SKU>/` no Salvar (`moverTemporarios`).
+  envio, e são **movidos** para `dados/produtos/<SKU>/` no Salvar (`moverTemporarios`). **Desde 10/10/2026 vale também
+  para o produto já existente**, e excluir só vale no Salvar (ver "Segunda rodada de 10/10/2026", na seção do kit).
   - O lote nasce no clique, e não na montagem: gerado na renderização, o valor do servidor e o
     do navegador divergiriam.
   - Passa pela **mesma validação** do envio normal (`validarEGravar`, extraída de

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
-import { lerPecasDoKit, pecaParaTela } from "@/lib/composicaoBanco";
+import { lerPecasDoKit, mudancasDosKits, pecaParaTela } from "@/lib/composicaoBanco";
 
 /**
  * O produto como o FormularioProduto o recebe, lido do banco. Mora aqui (e nao na pagina de edicao) porque
@@ -42,6 +42,8 @@ export async function carregarProdutoParaFormulario(id) {
   // em numeros simples: Decimal nao atravessa a fronteira servidor/cliente.
   const pecas = registro.tipo === "COMPOSICAO" ? await lerPecasDoKit(registro.id) : [];
   const composicao = pecas.map((peca) => pecaParaTela(peca.componente, peca.quantidade));
+  // O que mudou nas pecas desde o ultimo Salvar do kit (pedido do dono em 10/10/2026): o quadro do kit.
+  const mudancasDasPecas = registro.tipo === "COMPOSICAO" ? ((await mudancasDosKits([registro.id])).get(registro.id) ?? []) : [];
 
   // Decimal do Prisma nao atravessa a fronteira servidor/cliente.
   const produto = {
@@ -56,6 +58,7 @@ export async function carregarProdutoParaFormulario(id) {
     unidade: registro.unidade ?? "UN",
     tipo: registro.tipo,
     composicao,
+    mudancasDasPecas,
     garantiaMeses: registro.garantiaMeses ?? "",
     urlLojaIntegrada: registro.urlLojaIntegrada,
     estoqueMinimo: registro.estoqueMinimo ?? "",
@@ -153,6 +156,8 @@ export function dadosParaClone({ produto, fornecedores, concorrentes }) {
   const {
     id,
     composicao,
+    // O quadro do "!" e do kit original, nao do clone.
+    mudancasDasPecas: _mudancas,
     fornecedorRascunho,
     tipo,
     ...campos

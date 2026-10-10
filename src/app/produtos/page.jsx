@@ -9,6 +9,7 @@ import { estadoDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import { INCLUDE_DO_ICONE_BLING, iconeBlingDoProduto } from "@/lib/blingSync/estado";
 import { documentosDoProduto } from "@/lib/canaisDeVenda/li/banco";
 import { iconeLIDoProduto } from "@/lib/canaisDeVenda/li/estado";
+import { mudancasDosKits } from "@/lib/composicaoBanco";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import Paginacao from "@/components/mercados/Paginacao";
@@ -34,6 +35,14 @@ const CAMPO_DE_ORDENACAO = {
   estoque: "estoque",
 };
 
+/// O que deu errado no Salvar de um produto novo (a tela do produto mostrava isso antes de o Salvar voltar para a lista).
+const TEXTO_DO_AVISO = {
+  fotos: "as fotos não foram gravadas (envie de novo no bloco de imagens)",
+  documentos: "os documentos não foram gravados (envie de novo em Documentos técnicos)",
+  fornecedores: "os fornecedores não foram gravados (adicione de novo na aba Fornecedores / Concorrentes)",
+  concorrentes: "os concorrentes não foram gravados (adicione de novo na aba Fornecedores / Concorrentes)",
+};
+
 export default async function ProdutosPage({ searchParams }) {
   const params = await searchParams;
   const busca = (params?.q ?? "").trim();
@@ -45,6 +54,10 @@ export default async function ProdutosPage({ searchParams }) {
   // ordem, no nome, codigo, marca, modelo e EAN; com a BUSCA AMPLA ligada, tambem na descricao, NCM, homologacao
   // e localizacao. O indice devolve os ids, e a pagina e a ordem continuam no Prisma (ver lib/buscaAmpla.js).
   const ampla = params?.ampla === "1";
+  // Produto recem-criado (o Salvar do cadastro novo volta para ca, pedido do dono em 10/10/2026): a linha dele vem
+  // destacada, e o que nao foi gravado (fotos, documentos, fornecedores, concorrentes) aparece aqui em cima.
+  const novoId = typeof params?.novo === "string" ? params.novo : null;
+  const avisosDoNovo = ["fotos", "documentos", "fornecedores", "concorrentes"].filter((chave) => params?.[chave] === "falhou");
   const palavras = palavrasDaBusca(busca);
   let where;
   try {
@@ -116,6 +129,18 @@ export default async function ProdutosPage({ searchParams }) {
     erro = excecao;
   }
 
+  // O "!" do kit (pedido do dono em 10/10/2026): quantas pecas mudaram desde o ultimo Salvar de cada kit da pagina.
+  // Falha aqui nao derruba a lista: o kit fica sem o "!".
+  let alteracoesDosKits = new Map();
+  let novoProduto = null;
+  try {
+    const kitsDaPagina = (produtos ?? []).filter((produto) => produto.tipo === "COMPOSICAO").map((produto) => produto.id);
+    if (kitsDaPagina.length > 0) alteracoesDosKits = await mudancasDosKits(kitsDaPagina);
+    if (novoId) novoProduto = await prisma.produto.findUnique({ where: { id: novoId }, select: { id: true, sku: true } });
+  } catch (excecao) {
+    console.error("[produtos] pecas alteradas dos kits", excecao);
+  }
+
   // Icone da Loja Integrada: os documentos entram na assinatura so quando ha endereco publico (sem
   // ele, documentosDoProduto devolve [] sem consultar). Falha aqui nao derruba a lista: o icone fica
   // sem selo.
@@ -147,6 +172,7 @@ export default async function ProdutosPage({ searchParams }) {
       // Kit de UMA peca: a localizacao e a da peca e a celula nao abre a edicao (pedido do dono em 10/10/2026).
       // As pecas ja vem no include do icone do Bling (que tambem usa o `_count`: um segundo o sobrescreveria).
       kitDeUmaPeca: produto.tipo === "COMPOSICAO" && produto.componentes?.length === 1,
+      pecasAlteradas: alteracoesDosKits.get(produto.id)?.length ?? 0,
       ativo: produto.ativo,
       conferido: produto.conferido,
       imagemUrl: produto.arquivos[0]
@@ -188,10 +214,27 @@ export default async function ProdutosPage({ searchParams }) {
 
       {erro && <AvisoBanco erro={erro} />}
 
+      {novoProduto && avisosDoNovo.length > 0 && (
+        <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <p>
+            O produto <strong>{novoProduto.sku}</strong> foi salvo, mas{" "}
+            {avisosDoNovo.map((chave) => TEXTO_DO_AVISO[chave]).join("; ")}.{" "}
+            <Link href={`/produtos/${novoProduto.id}`} className="font-medium underline">
+              Abrir o produto
+            </Link>
+          </p>
+        </div>
+      )}
+      {/* O fundo verde da linha recem-criada some sozinho (so CSS: sem estado nem efeito). */}
+      {novoProduto && (
+        <style>{"@keyframes riseLinhaNova { 0%, 50% { background-color: #d1fae5; } 100% { background-color: transparent; } }"}</style>
+      )}
+
       {!erro && (
         <>
           <TabelaProdutos
             linhas={linhas}
+            destacarId={novoProduto?.id ?? null}
             busca={busca}
             ampla={ampla}
             ordenar={ordenar}

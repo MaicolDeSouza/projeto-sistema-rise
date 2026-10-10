@@ -420,7 +420,14 @@ async function gravarTemporarios(produto, formData) {
   );
   const movidos = await moverTemporarios(lote, produto.sku, lista);
 
-  const ordemPorTipo = {};
+  // Produto que ja existe (desde 10/10/2026 os documentos dele tambem esperam o Salvar): os novos vao depois
+  // dos que ja estao.
+  const ultimos = await prisma.produtoArquivo.groupBy({
+    by: ["tipo"],
+    where: { produtoId: produto.id, tipo: { in: ["DOCUMENTO", "CERTIFICADO"] } },
+    _max: { ordem: true },
+  });
+  const ordemPorTipo = Object.fromEntries(ultimos.map((linha) => [linha.tipo, (linha._max.ordem ?? -1) + 1]));
   for (const item of movidos) {
     const ordem = ordemPorTipo[item.tipo] ?? 0;
     ordemPorTipo[item.tipo] = ordem + 1;
@@ -435,6 +442,29 @@ async function gravarTemporarios(produto, formData) {
         ordem,
       },
     });
+  }
+}
+
+/**
+ * Os documentos e certificados que o dono excluiu na tela (pedido do dono em 10/10/2026: toda mudanca no produto
+ * so vale no Salvar, documentos inclusive). Do navegador vem so a lista de ids: so sai o que e DESTE produto e
+ * e documento ou certificado. A linha sai do banco e o arquivo do disco.
+ */
+async function excluirDocumentosMarcados(produto, formData) {
+  let ids = [];
+  try {
+    ids = JSON.parse(String(formData.get("documentosExcluidos") ?? "[]"));
+  } catch {
+    ids = [];
+  }
+  if (!Array.isArray(ids) || ids.length === 0) return;
+  const registros = await prisma.produtoArquivo.findMany({
+    where: { id: { in: ids.map(String).slice(0, 200) }, produtoId: produto.id, tipo: { in: ["DOCUMENTO", "CERTIFICADO"] } },
+    select: { id: true, tipo: true, arquivo: true },
+  });
+  for (const registro of registros) {
+    await prisma.produtoArquivo.delete({ where: { id: registro.id } });
+    await apagarArquivo(produto.sku, registro.tipo, registro.arquivo);
   }
 }
 
@@ -741,6 +771,18 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       return {
         ok: false,
         erro: "Os dados foram salvos, mas as fotos não foram gravadas. Clique em Salvar de novo.",
+      };
+    }
+    // Documentos e certificado: os excluidos na tela saem e os enviados (ou anexados) entram, so agora (pedido do
+    // dono em 10/10/2026). DEPOIS das fotos: mover os temporarios apaga o lote inteiro no fim.
+    try {
+      await excluirDocumentosMarcados(produto, formData);
+      await gravarTemporarios(produto, formData);
+    } catch (erro) {
+      console.error("Falha ao gravar os documentos do produto:", erro.message);
+      return {
+        ok: false,
+        erro: "Os dados e as fotos foram salvos, mas os documentos não foram gravados. Clique em Salvar de novo.",
       };
     }
     await descartarLote(String(formData.get("loteTemporario") ?? "")).catch(() => {});
@@ -1498,5 +1540,28 @@ export async function descricoesDasPecasDoKit(ids) {
   } catch (erro) {
     console.error("[composicao] descricoes das pecas", erro);
     return { ok: false, erro: "Não foi possível ler as descrições das peças." };
+  }
+}
+
+/**
+ * "Anexar a este produto" na aba Documentos tecnicos do kit (pedido do dono em 10/10/2026): o documento ou o
+ * certificado de uma PECA e copiado para o lote do kit e entra como "a salvar"; so o Salvar o grava no kit. Do
+ * navegador vem so o lote e o id do arquivo; o arquivo sai do banco e do disco. So documentos do Rise: os de
+ * fornecedor e concorrente o dono baixa e confere antes.
+ */
+export async function anexarDocumentoDaPeca(lote, arquivoId) {
+  try {
+    const registro = await prisma.produtoArquivo.findUnique({
+      where: { id: String(arquivoId ?? "") },
+      select: { tipo: true, arquivo: true, nomeOriginal: true, produto: { select: { sku: true } } },
+    });
+    if (!registro || !["DOCUMENTO", "CERTIFICADO"].includes(registro.tipo)) {
+      return { ok: false, erro: "Documento não encontrado." };
+    }
+    const nome = await copiarParaTemporario(lote, registro.produto.sku, registro.tipo, registro.arquivo);
+    if (!nome) return { ok: false, erro: "O arquivo desta peça não foi achado no disco." };
+    return { ok: true, arquivo: { tipo: registro.tipo, nome, nomeOriginal: registro.nomeOriginal ?? nome } };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
   }
 }
