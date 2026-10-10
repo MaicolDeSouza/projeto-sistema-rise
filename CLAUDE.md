@@ -262,6 +262,13 @@ o Docker Desktop travava ao abrir e o sistema ficava sem banco.
   Mercado Livre e dois ativos — gravar no canal errado quebra a sincronia de estoque **sem dar erro**. Os testes
   reais da fase 3 (08/10/2026, abaixo) foram feitos no ML_4h. `GET /produtos/lojas?idLoja=` e
   `GET /anuncios?tipoIntegracao=MercadoLivre&idLoja=` filtram pela loja (medido).
+- **Mudar um anúncio do ML_4h para o Rise_ML** (medido em 10/10/2026, com OK do dono, só no ZZ-TESTE-BLING e o
+  MLB7771172470, que estava INATIVO no ML): `POST /produtos/lojas` na loja 206326819 → 201 (id 1025320728) e
+  `POST /anuncios` na mesma loja → 201 (id 64620022), já com nome e preço; depois `DELETE
+  /anuncios/64439359?tipoIntegracao=MercadoLivre&idLoja=203593931` → 204 e `DELETE /produtos/lojas/1024857128` → 204.
+  O mesmo MLB ficou um instante nas duas lojas sem recusa. O item no ML **não mudou** (`last_updated` igual antes e
+  depois) e o vínculo da Loja Integrada do produto ficou intacto. **Não medido:** o DELETE num anúncio ATIVO (se o
+  Bling mexe no ML) e o que o Bling faz com pedidos de um MLB registrado nas duas lojas.
 
 ### Mercado Livre
 
