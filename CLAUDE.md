@@ -255,8 +255,13 @@ o Docker Desktop travava ao abrir e o sistema ficava sem banco.
 - `GET /canais-venda` (**`/lojas` dá 404**), `GET /produtos/lojas` (o campo `codigo` guarda
   o `MLB...`), `GET /produtos?codigo=<sku>`, `GET /depositos`.
   **`GET /integracoes` dá 403** com os escopos atuais.
-- O canal do ML é o **`203593931` ("ML_4h")**. Há 8 canais desse tipo e só um ativo —
-  gravar no canal errado quebra a sincronia de estoque **sem dar erro**.
+- **Desde 10/10/2026 o canal do ML do Rise é o `206326819` ("Rise_ML")**, uma integração do ML que o dono
+  criou no Bling só para o Rise (`LOJA_ML_NO_BLING` em `canaisDeVenda/ml/bling.js` e `BLING_CANAL_ML_ID` no
+  `.env`). O antigo **`203593931` ("ML_4h")** continua ativo com os anúncios de antes: medido no mesmo dia, 833
+  registros em `/anuncios` e 836 vínculos em `/produtos/lojas`, contra 0 e 0 no Rise_ML. Há 9 canais do tipo
+  Mercado Livre e dois ativos — gravar no canal errado quebra a sincronia de estoque **sem dar erro**. Os testes
+  reais da fase 3 (08/10/2026, abaixo) foram feitos no ML_4h. `GET /produtos/lojas?idLoja=` e
+  `GET /anuncios?tipoIntegracao=MercadoLivre&idLoja=` filtram pela loja (medido).
 
 ### Mercado Livre
 

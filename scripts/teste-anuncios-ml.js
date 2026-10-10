@@ -1349,12 +1349,12 @@ try {
         { id: 103, codigo: "100103", nome: "PLACA MEGA", formato: "S", preco: 99 },
         { id: 809, codigo: "120809", nome: "KIT *120809", formato: "E", estrutura: { tipoEstoque: "V", lancamentoEstoque: "", componentes: [{ produto: { id: 101 }, quantidade: 1 }, { produto: { id: 102 }, quantidade: 2 }] } },
       ];
-      const vinculosDeLoja = [{ codigo: "MLB4165084257", preco: 49.9, produto: { id: 101 }, loja: { id: 203593931 } }];
+      const vinculosDeLoja = [{ codigo: "MLB4165084257", preco: 49.9, produto: { id: 101 }, loja: { id: 206326819 } }];
       const novoBling = (extra = {}) => criarBlingFalso({ produtos: produtosDoBling, vinculosDeLoja, ...extra });
       const posts = (bling, caminho) => bling.chamadas.filter((c) => c.metodo === "POST" && c.caminho === caminho);
 
       const bf = novoBling();
-      conferir("loja do ML no Bling", LOJA_ML_NO_BLING, "203593931");
+      conferir("loja do ML no Bling", LOJA_ML_NO_BLING, "206326819");
       // O vinculo produto-loja e UM por produto (medido em 08/10/2026): com qualquer MLB ja ligado, o produto esta
       // ligado a loja; os anuncios, um por MLB, ficam em /anuncios.
       conferir("vinculo: qualquer MLB na loja conta como ligado", (await vinculoNoBlingML(bf, "100101", "MLB1")).situacao, "ligado");
@@ -1369,36 +1369,36 @@ try {
       const outroJaLigado = await vincularNoBlingML(bf, "100101", "MLB1", 49.9);
       conferir("vincular: produto com outro MLB na loja reaproveita sem escrever", [outroJaLigado.ok, outroJaLigado.jaEstava, posts(bf, "/produtos/lojas").length], [true, true, 0]);
       const v = await vincularNoBlingML(bf, "100102", "MLB1", 49.9);
-      conferir("vincular: POST na loja do ML com o MLB e o preco", [v.ok, posts(bf, "/produtos/lojas").at(-1)?.corpo], [true, { codigo: "MLB1", preco: 49.9, produto: { id: 102 }, loja: { id: 203593931 } }]);
+      conferir("vincular: POST na loja do ML com o MLB e o preco", [v.ok, posts(bf, "/produtos/lojas").at(-1)?.corpo], [true, { codigo: "MLB1", preco: 49.9, produto: { id: 102 }, loja: { id: 206326819 } }]);
       const deNovo = await vincularNoBlingML(bf, "100102", "MLB1", 49.9);
       conferir("vincular: segunda vez nao duplica", [deNovo.ok, deNovo.jaEstava, posts(bf, "/produtos/lojas").length], [true, true, 1]);
       const bfRecusa = novoBling({ falhas: [{ metodo: "POST", caminho: "/produtos/lojas", status: 400, mensagem: "vinculo repetido" }] });
       const recusaDoBling = await vincularNoBlingML(bfRecusa, "100102", "MLB1", 49.9);
       conferir("vincular: recusa do Bling volta com o motivo", [recusaDoBling.ok, /vinculo repetido/.test(recusaDoBling.erro)], [false, true]);
       bf.exigirEscrita("100101");
-      const direto = await bf.post("/produtos/lojas", { codigo: "MLB2", preco: 1, produto: { id: 101 }, loja: { id: 203593931 } });
+      const direto = await bf.post("/produtos/lojas", { codigo: "MLB2", preco: 1, produto: { id: 101 }, loja: { id: 206326819 } });
       conferir("bling falso: segundo vinculo do produto na mesma loja e 400, como o real", [direto.status, JSON.stringify(direto.dados).includes("já existe um produto loja vinculado")], [400, true]);
 
       // /anuncios do Bling: um registro por MLB (medido em 08/10/2026; formato no CLAUDE.md).
-      const bfAnuncios = novoBling({ anuncios: [{ produto: { id: 101 }, loja: { id: 203593931 }, anuncioLoja: { id: "MLB4165084257" }, nome: "PLACA UNO", preco: { valor: 49.9 }, situacao: 1 }] });
+      const bfAnuncios = novoBling({ anuncios: [{ produto: { id: 101 }, loja: { id: 206326819 }, anuncioLoja: { id: "MLB4165084257" }, nome: "PLACA UNO", preco: { valor: 49.9 }, situacao: 1 }] });
       conferir("bling falso: GET /anuncios exige tipoIntegracao e idLoja", (await bfAnuncios.get("/anuncios", { idProduto: 101 })).status, 400);
-      const lista = await bfAnuncios.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 203593931, idProduto: 101 });
+      const lista = await bfAnuncios.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 206326819, idProduto: 101 });
       conferir("bling falso: GET /anuncios lista o registro do produto", [lista.status, lista.dados.data.map((a) => [a.anuncioLoja.id, a.titulo, a.situacao, a.preco])], [200, [["MLB4165084257", "PLACA UNO", 1, 49.9]]]);
-      conferir("bling falso: GET /anuncios de outro produto e vazio", (await bfAnuncios.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 203593931, idProduto: 102 })).dados.data, []);
+      conferir("bling falso: GET /anuncios de outro produto e vazio", (await bfAnuncios.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 206326819, idProduto: 102 })).dados.data, []);
       conferir("anuncioNoBlingML: registrado", (await anuncioNoBlingML(bfAnuncios, 101, "MLB4165084257")).situacao, "registrado");
       conferir("anuncioNoBlingML: nao registrado", (await anuncioNoBlingML(bfAnuncios, 101, "MLB1")).situacao, "nao_registrado");
       const registroTravado = await registrarAnuncioNoBlingML(novoBling({ codigosLiberados: ["outro"] }), { codigo: "100101", idProduto: 101, itemId: "MLB1", titulo: "PLACA", preco: 999, tipoAnuncio: "gold_pro" });
       conferir("registrarAnuncio: trava recusa", [registroTravado.ok, /Escrita bloqueada/.test(registroTravado.erro)], [false, true]);
       const registro = await registrarAnuncioNoBlingML(bfAnuncios, { codigo: "100101", idProduto: 101, itemId: "MLB1", titulo: "PLACA PREMIUM", preco: 999, tipoAnuncio: "gold_pro" });
       const corpoDoRegistro = posts(bfAnuncios, "/anuncios").at(-1)?.corpo;
-      conferir("registrarAnuncio: POST /anuncios com o MLB, nome, preco e modalidade", [registro.ok, typeof registro.id, corpoDoRegistro], [true, "number", { produto: { id: 101 }, integracao: { tipo: "MercadoLivre" }, loja: { id: 203593931 }, anuncioLoja: { id: "MLB1" }, nome: "PLACA PREMIUM", preco: { valor: 999 }, mercadoLivre: { modalidade: "gold_pro" } }]);
-      conferir("registrarAnuncio: agora sao dois registros do produto", (await bfAnuncios.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 203593931, idProduto: 101 })).dados.data.map((a) => a.anuncioLoja.id), ["MLB4165084257", "MLB1"]);
+      conferir("registrarAnuncio: POST /anuncios com o MLB, nome, preco e modalidade", [registro.ok, typeof registro.id, corpoDoRegistro], [true, "number", { produto: { id: 101 }, integracao: { tipo: "MercadoLivre" }, loja: { id: 206326819 }, anuncioLoja: { id: "MLB1" }, nome: "PLACA PREMIUM", preco: { valor: 999 }, mercadoLivre: { modalidade: "gold_pro" } }]);
+      conferir("registrarAnuncio: agora sao dois registros do produto", (await bfAnuncios.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 206326819, idProduto: 101 })).dados.data.map((a) => a.anuncioLoja.id), ["MLB4165084257", "MLB1"]);
       const registroDeNovo = await registrarAnuncioNoBlingML(bfAnuncios, { codigo: "100101", idProduto: 101, itemId: "MLB1", titulo: "PLACA PREMIUM", preco: 999, tipoAnuncio: "gold_pro" });
       conferir("registrarAnuncio: segunda vez nao duplica", [registroDeNovo.ok, registroDeNovo.jaEstava, registroDeNovo.id === registro.id, posts(bfAnuncios, "/anuncios").length], [true, true, true, 1]);
       // O POST real medido ignorou nome e preco quando nao vieram: se a releitura voltar sem eles, o PUT completa.
       const bfSemNome = novoBling({ postDeAnuncioIgnoraCampos: true });
       const completado = await registrarAnuncioNoBlingML(bfSemNome, { codigo: "100102", idProduto: 102, itemId: "MLB2", titulo: "NANO", preco: 39, tipoAnuncio: "gold_special" });
-      conferir("registrarAnuncio: completa com PUT quando o POST ignorou nome e preco", [completado.ok, bfSemNome.chamadas.filter((c) => c.metodo === "PUT" && c.caminho === `/anuncios/${completado.id}`).length, (await bfSemNome.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 203593931, idProduto: 102 })).dados.data[0].titulo], [true, 1, "NANO"]);
+      conferir("registrarAnuncio: completa com PUT quando o POST ignorou nome e preco", [completado.ok, bfSemNome.chamadas.filter((c) => c.metodo === "PUT" && c.caminho === `/anuncios/${completado.id}`).length, (await bfSemNome.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 206326819, idProduto: 102 })).dados.data[0].titulo], [true, 1, "NANO"]);
 
       conferir("kit: codigo livre => criar", (await conferirKitNoBling(bf, { codigo: "100101_5", itens: [{ sku: "100101", quantidade: 5 }] })).situacao, "criar");
       conferir("kit: mesmas pecas em outra ordem => igual", await conferirKitNoBling(bf, { codigo: "120809", itens: [{ sku: "100102", quantidade: 2 }, { sku: "100101", quantidade: 1 }] }), { situacao: "igual", id: 809 });
@@ -1540,7 +1540,7 @@ try {
       conferir("preparar: kit com outras pecas recusa com o recado", [kitDiferente.ok, kitDiferente.motivos.some((m) => /ZZ-ML-K2: 3 no anúncio, 2 no Bling/.test(m))], [false, true]);
       const kitDoRise = await prepararPublicacaoML(await c.anuncioSimples(c.kitDoRise), { ml, bling: bf });
       conferir("preparar: produto kit do Rise que e simples no Bling recusa", [kitDoRise.ok, kitDoRise.motivos.some((m) => /produto simples no Bling/.test(m))], [false, true]);
-      const bfLigado = c.novoBling({ vinculosDeLoja: [{ codigo: "MLB900", preco: 10, produto: { id: 501 }, loja: { id: 203593931 } }] });
+      const bfLigado = c.novoBling({ vinculosDeLoja: [{ codigo: "MLB900", preco: 10, produto: { id: 501 }, loja: { id: 206326819 } }] });
       const ligado = await prepararPublicacaoML(idSimples, { ml, bling: bfLigado });
       conferir("preparar: produto ja vinculado a outro anuncio na loja do ML segue, informando", [ligado.ok, ligado.resumo?.outrosVinculos], [true, ["MLB900"]]);
       conferir("preparar: anuncio que nao existe", (await prepararPublicacaoML("nao-existe", { ml, bling: bf })).motivos, ["Anúncio não encontrado."]);
@@ -1568,7 +1568,7 @@ try {
       conferir("publicar: criou pausado, com preco e fotos por id, sem title", (({ status, price, pictures, title }) => [status, price, pictures.length, pictures.every((foto) => /^999-MLB/.test(foto.id)), title])(ml.escritas[3].corpo), ["paused", 49.9, 2, true, undefined]);
       conferir("publicar: ativou no fim", ml.escritas.at(-1).corpo, { status: "active" });
       conferir("publicar: descricao do produto", ml.escritas[4].corpo.plain_text.startsWith("Descricao de ZZ-ML-S1"), true);
-      conferir("publicar: um vinculo no Bling, na loja do ML, com o MLB e o preco", [postsNoBling(bf, "/produtos/lojas"), bf.chamadas.find((chamada) => chamada.caminho === "/produtos/lojas" && chamada.metodo === "POST").corpo], [1, { codigo: r.itemId, preco: 49.9, produto: { id: 501 }, loja: { id: 203593931 } }]);
+      conferir("publicar: um vinculo no Bling, na loja do ML, com o MLB e o preco", [postsNoBling(bf, "/produtos/lojas"), bf.chamadas.find((chamada) => chamada.caminho === "/produtos/lojas" && chamada.metodo === "POST").corpo], [1, { codigo: r.itemId, preco: 49.9, produto: { id: 501 }, loja: { id: 206326819 } }]);
       const publicado = await estado(idSimples);
       conferir("publicar: colunas gravadas", [publicado.situacaoCanal, publicado.idExterno, publicado.urlExterna === r.permalink, publicado.publicadoEm instanceof Date, publicado.erro], ["ATIVA", r.itemId, true, true, null]);
       conferir("publicar: payloadEnviado e o corpo da criacao", publicado.payloadEnviado.family_name, "PLACA ZZ ML");
@@ -1639,9 +1639,9 @@ try {
       conferir("registrar: retomar registra, nao revincula e ativa", [r.ok, postsNoBling(bfRegistro, "/anuncios"), postsNoBling(bfRegistro, "/produtos/lojas"), mlRegistro.escritas.at(-1).corpo, (await estado(idRegistro)).status], [true, 2, 1, { status: "active" }, "PUBLICADO"]);
       // Segundo anuncio do MESMO produto: o vinculo e reaproveitado e o /anuncios ganha mais um registro.
       const mlSegundo = criarMLFalso();
-      const bfSegundo = c.novoBling({ vinculosDeLoja: [{ codigo: "MLB900", preco: 10, produto: { id: 501 }, loja: { id: 203593931 } }], anuncios: [{ produto: { id: 501 }, loja: { id: 203593931 }, anuncioLoja: { id: "MLB900" }, nome: "PLACA ZZ ML", preco: { valor: 10 }, situacao: 1 }] });
+      const bfSegundo = c.novoBling({ vinculosDeLoja: [{ codigo: "MLB900", preco: 10, produto: { id: 501 }, loja: { id: 206326819 } }], anuncios: [{ produto: { id: 501 }, loja: { id: 206326819 }, anuncioLoja: { id: "MLB900" }, nome: "PLACA ZZ ML", preco: { valor: 10 }, situacao: 1 }] });
       r = await publicarAnuncioML(await c.anuncioSimples(c.s1, { tipoAnuncio: "gold_pro" }), { ml: mlSegundo, bling: bfSegundo, lerFoto });
-      const registrosDoProduto = (await bfSegundo.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 203593931, idProduto: 501 })).dados.data;
+      const registrosDoProduto = (await bfSegundo.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 206326819, idProduto: 501 })).dados.data;
       conferir("segundo anuncio do mesmo produto: sem novo vinculo, com novo registro", [r.ok, postsNoBling(bfSegundo, "/produtos/lojas"), registrosDoProduto.length, registrosDoProduto.at(-1).anuncioLoja.id === r.itemId], [true, 0, 2, true]);
 
       // Review Focus 5: ML ignora o pausado

@@ -12,10 +12,11 @@ import { buscarNoBling, codigosDasPecasNoBling } from "@/lib/blingSync/leitura";
  */
 
 /**
- * O canal "ML_4h" do Bling. Ha 8 canais do tipo Mercado Livre e so este esta ativo: vincular em outro
- * quebra a sincronia de estoque SEM dar erro (CLAUDE.md, "Bling").
+ * O canal "Rise_ML" do Bling (206326819), a integracao do ML criada pelo dono em 10/10/2026 so para o
+ * Rise. Ate ali era o "ML_4h" (203593931), que continua ativo com os anuncios antigos. Vincular em canal
+ * errado quebra a sincronia de estoque SEM dar erro (CLAUDE.md, "Bling").
  */
-export const LOJA_ML_NO_BLING = "203593931";
+export const LOJA_ML_NO_BLING = "206326819";
 
 /// O nome do Bling tem no maximo 120 caracteres (o mesmo limite da sincronizacao do produto).
 const LIMITE_DO_NOME = 120;
