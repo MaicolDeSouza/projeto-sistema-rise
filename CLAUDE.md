@@ -2095,6 +2095,33 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
   - Conferido em 10/10/2026: o componente renderizado no Node com dados de exemplo (3 quadros, na ordem certa, sem
     repetir o parágrafo) e, na tela, Finalizar → Reajustar → "Voltar às opções?" com texto digitado. **A revisão de
     uma geração de verdade com os quadros ainda não foi vista** (a geração é paga): o primeiro uso é do dono.
+  - **Ajustes de 10/10/2026 na mesma tela** (pedidos do dono, itens 8 a 14):
+    - **Marca de escolha igual à dos parágrafos:** as opções dos parâmetros usam o **círculo** (vazio; azul com o visto
+      quando escolhida) no lugar do "?", e a marca "Selecionada" saiu. As cores do grupo continuam. Cada opção é um
+      `role="radio"` dentro de um `radiogroup`.
+    - **No fim da linha:** primeiro a **loja** (as que publicam aquele valor), depois o selo "IA recomenda".
+    - **Quadro sem opções some:** excluídas todas as opções de um parâmetro, o quadro sai da tela, o parâmetro fica de
+      fora da descrição e não conta como pendente.
+    - **Mover quadros e linhas:** as setas ˄ ˅ aparecem também no cabeçalho de cada quadro de parâmetro. A `posicao` de um
+      quadro é quantas linhas comuns vêm antes dele; quadros na mesma posição seguem `ordemDosQuadros`. Quadro troca com
+      o vizinho (posição e ordem) ou passa por cima de uma linha comum; uma linha comum também passa por cima de **um**
+      quadro por clique (o quadro ganha ou perde uma linha antes dele). A regra é `moverQuadroNoEstado`
+      (`revisaoDescricao.js`, pura, testada). O "Finalizar" e o `calcularFinal` respeitam a mesma ordem.
+    - **A tela segue o item movido e o destaca** (fundo azul-claro com anel): `scrollIntoView({ block: "nearest" })`
+      **instantâneo** (o suave não rolava a cada clique no navegador de teste), e o destaque some ao clicar fora. Conferido
+      em 40 passos numa página de teste temporária (apagada), com a rolagem da página travada como na janela.
+    - **Lápis nas linhas comuns das especificações** (`substituirEspecificacao`): a linha vira um campo (Enter ou ✓ salva,
+      Esc ou ✕ cancela) e volta no formato "- Nome: valor;", com a unidade colada. A linha editada mostra **"editada"** no
+      lugar da loja.
+    - **Loja de cada especificação comum** (`lojasDaCaracteristica`, em `divergencias.js`): a IA devolve, em cada item de
+      `caracteristicas`, `referencias` (os números das referências de onde o tirou; o pedido manda isso, em
+      `INSTRUCAO_DE_REFERENCIAS`, e o nome da loja **continua sem ir para a IA**). O Rise **confere no texto de cada
+      referência** (nome, descrição e ficha) se o valor está lá (os pedaços com número, como "16mhz", ou, sem número,
+      todas as palavras) e só então mostra a loja; senão a linha fica **sem nome de loja**. Especificação que não veio de
+      concorrente nem de fornecedor também fica sem nome (pedido do dono). `gerarDescricao` devolve
+      `fontesDasLinhas` (`{ "- Nome: valor;": [lojas] }`, chave = a linha formatada); só valem as referências de loja,
+      não as peças de um kit. Vale só para a geração nova: texto digitado ou levado da esquerda não tem loja.
+    - Testes: `teste:extracao` (lojas, `substituirEspecificacao`, `moverQuadroNoEstado`, o pedido com e sem referências).
 
 **Fotos do produto: só as validadas são salvas, o botão Baixar e a ampliada com setas** (`PainelDeImagens.jsx`,
 pedidos do dono em 04/10/2026):

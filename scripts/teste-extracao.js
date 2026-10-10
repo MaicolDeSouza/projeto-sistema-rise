@@ -1782,6 +1782,52 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
     [pico.recomendada, /cont[ií]nua/.test(pico.motivo)], [0, true]);
   conferir("pico x continua: a escolha da IA que ja traz a continua fica", recomendacaoDaDivergencia(corrente, { opcao: 2, motivo: "ok" }).recomendada, 2);
   conferir("pico x continua sem decisao: tambem a que traz a continua", recomendacaoDaDivergencia(corrente, null).recomendada, 0);
+
+  // A LOJA de cada especificacao comum (pedido do dono em 10/10/2026): a IA aponta os numeros das referencias, e o
+  // Rise so aceita o que o texto da loja confirma. Sem loja confirmada, a linha fica sem nome.
+  const { lojasDaCaracteristica } = await import("../src/lib/ia/divergencias.js");
+  const refs = [
+    { nome: "Placa Uno R3", descricao: "Clock de 16 MHz e tensão de 5V.", especificacoes: [{ nome: "Memória Flash", valor: "32 KB" }], fonte: { nome: "Usinainfo" } },
+    { nome: "Arduino Uno", descricao: "Microcontrolador ATmega328P", especificacoes: [{ nome: "Clock", valor: "16MHz" }], fonte: { nome: "Eletrogate" } },
+    { nome: "Outro", descricao: "Sem nada", especificacoes: [], fonte: { nome: "Saravati" } },
+  ];
+  conferir("loja confirmada pelo texto (numero com unidade, espaco e caixa nao atrapalham)",
+    lojasDaCaracteristica({ nome: "Clock", valor: "16MHz", referencias: [1, 2] }, refs), ["Usinainfo", "Eletrogate"]);
+  conferir("a IA apontou uma referencia que NAO traz o valor: fica sem loja",
+    lojasDaCaracteristica({ nome: "Clock", valor: "16MHz", referencias: [3] }, refs), []);
+  conferir("so as que confirmam, na ordem dada", lojasDaCaracteristica({ nome: "Chip", valor: "ATmega328P", referencias: [1, 2] }, refs), ["Eletrogate"]);
+  conferir("valor so com texto: as palavras precisam estar na referencia", lojasDaCaracteristica({ nome: "Memoria", valor: "Flash 32KB", referencias: [1] }, refs), ["Usinainfo"]);
+  conferir("sem numeros, numero inexistente ou lixo: sem loja",
+    [lojasDaCaracteristica({ nome: "Clock", valor: "16MHz" }, refs), lojasDaCaracteristica({ nome: "Clock", valor: "16MHz", referencias: [9, 0, "x"] }, refs), lojasDaCaracteristica({ nome: "Clock", valor: "16MHz", referencias: [1] }, [])],
+    [[], [], []]);
+  conferir("loja repetida entra uma vez", lojasDaCaracteristica({ nome: "Clock", valor: "16MHz", referencias: [1, 1] }, refs), ["Usinainfo"]);
+
+  // Editar uma linha comum das especificacoes (pedido do dono em 10/10/2026): volta no formato "- Nome: valor;".
+  const { substituirEspecificacao } = await import("../src/lib/ia/revisaoDescricao.js");
+  const base = "TITULO\n\nEspecificações técnicas:\n- Clock: 16 MHz;\n- Tensão: 5V;\n\nGarantia:\n- 90 dias;";
+  conferir("substituir: formato padrao, unidade colada", substituirEspecificacao(base, 3, "Clock: 20 MHz."),
+    "TITULO\n\nEspecificações técnicas:\n- Clock: 20MHz;\n- Tensão: 5V;\n\nGarantia:\n- 90 dias;");
+  conferir("substituir: aceita o hifen e o ponto e virgula que ja vieram", substituirEspecificacao(base, 4, "- Tensão: 3,3V;").split("\n")[4], "- Tensão: 3,3V;");
+  conferir("substituir: linha fora das especificacoes ou texto vazio nao mexe", [substituirEspecificacao(base, 0, "X"), substituirEspecificacao(base, 3, "  ")], [base, base]);
+
+  // Mover quadros de parametro: a posicao e a ordem de desempate.
+  const { moverQuadroNoEstado } = await import("../src/lib/ia/revisaoDescricao.js");
+  const quadros = [{ id: "a", posicao: 2 }, { id: "b", posicao: 2 }, { id: "c", posicao: 5 }];
+  const ids = (estado) => estado.divergencias.map((item) => `${item.id}${item.posicao}`).join(",");
+  const trocado = moverQuadroNoEstado(quadros, ["a", "b", "c"], "a", { trocarCom: "b" });
+  conferir("quadros vizinhos trocam de ordem (mesma posicao)", [ids(trocado), trocado.ordem], ["a2,b2,c5", ["b", "a", "c"]]);
+  const trocadoDistante = moverQuadroNoEstado(quadros, ["a", "b", "c"], "b", { trocarCom: "c" });
+  conferir("quadros em posicoes diferentes trocam a posicao tambem", [ids(trocadoDistante), trocadoDistante.ordem], ["a2,b5,c2", ["a", "c", "b"]]);
+  const paraCima = moverQuadroNoEstado(quadros, ["a", "b", "c"], "c", { posicao: 4, lugar: "fim" });
+  conferir("subir por cima de uma linha: posicao nova, depois dos que ja la estao", [ids(paraCima), paraCima.ordem], ["a2,b2,c4", ["a", "b", "c"]]);
+  const paraBaixo = moverQuadroNoEstado(quadros, ["a", "b", "c"], "b", { posicao: 3, lugar: "inicio" });
+  conferir("descer por cima de uma linha: posicao nova, antes dos que ja la estao", [ids(paraBaixo), paraBaixo.ordem], ["a2,b3,c5", ["b", "a", "c"]]);
+  conferir("nao mexe no estado de entrada, nem em id que nao existe",
+    [quadros[0].posicao, moverQuadroNoEstado(quadros, ["a"], "z", { posicao: 1 }).divergencias === quadros, moverQuadroNoEstado(quadros, [], "a", { posicao: 9 }).ordem], [2, true, ["b", "c", "a"]]);
+
+  // O pedido manda a IA apontar as referencias de cada caracteristica (so com referencias de verdade).
+  conferir("o pedido com referencias pede os numeros de cada caracteristica", montarPedidoDaDescricao({ ...dados, instrucoes: "P" }).includes("campo referencias"), true);
+  conferir("sem referencias o pedido nao fala de numeros", montarPedidoDaDescricao({ ...dados, referencias: "Nome: X", semReferencias: true, instrucoes: "P" }).includes("campo referencias"), false);
 }
 
 console.log("\n— Download do arquivo do produto: o nome real no cabecalho, e nao o hash —");

@@ -21,7 +21,7 @@ import {
   salvarPromptDaDescricao,
 } from "@/app/produtos/acoes";
 import { linhasDeEspecificacao, medidasDaDescricao } from "@/lib/medidas";
-import { adicionarEspecificacao, formatarLinhaTecnica, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, organizarDescricao, removerEspecificacao, trocarParagrafo } from "@/lib/ia/revisaoDescricao";
+import { adicionarEspecificacao, formatarLinhaTecnica, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, organizarDescricao, removerEspecificacao, moverQuadroNoEstado, substituirEspecificacao, trocarParagrafo } from "@/lib/ia/revisaoDescricao";
 import LinhasDescricao from "./LinhasDescricao";
 
 /// Cor do ponto de cada aba: verde fornecedor, amarelo concorrente — as mesmas
@@ -253,6 +253,12 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
   // finalizacao montou, para saber se o dono editou depois, e as escolhas usadas (as dele e as recomendadas).
   const [antesDeFinalizar, setAntesDeFinalizar] = useState(null);
   const [confirmandoReajuste, setConfirmandoReajuste] = useState(false);
+  // A loja de cada especificacao comum, no fim da linha (pedido do dono em 10/10/2026): { "- Nome: valor;": [lojas] },
+  // so o que o texto da loja confirma. As linhas que o dono editou no lapis (`linhasEditadas`) mostram "editada".
+  // `ordemDosQuadros` desempata os quadros de parametro na mesma posicao, ao subir e descer.
+  const [fontesDasLinhas, setFontesDasLinhas] = useState({});
+  const [linhasEditadas, setLinhasEditadas] = useState(() => new Set());
+  const [ordemDosQuadros, setOrdemDosQuadros] = useState([]);
   const [erro, setErro] = useState(null);
   const [produto, setProduto] = useState({ titulo: "", sku: "" });
   const leituraAtual = useRef(0);
@@ -310,6 +316,9 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setEditandoTexto(false);
     setAntesDeFinalizar(null);
     setConfirmandoReajuste(false);
+    setFontesDasLinhas({});
+    setLinhasEditadas(new Set());
+    setOrdemDosQuadros([]);
     geracaoAtual.current++;
     // So desta ABERTURA (pedido do dono em 22/09/2026): excluir uma
     // referencia aqui nao desmarca ela na lupa nem em lugar nenhum do
@@ -444,6 +453,9 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
           : resultado.texto);
         // O texto usa a primeira opcao de cada paragrafo; o dono troca na lista de opcoes.
         setOpcoesParagrafos(resultado.opcoesParagrafos ?? []);
+        setFontesDasLinhas(resultado.fontesDasLinhas ?? {});
+        setLinhasEditadas(new Set());
+        setOrdemDosQuadros((resultado.divergencias ?? []).map((item) => item.id));
         setEscolhidosParagrafos([0, 0]);
         setDivergencias(resultado.divergencias ?? []);
         setSelecoes({});
@@ -478,6 +490,26 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setErro(null);
     setTexto(trocado);
     setEscolhidosParagrafos((anteriores) => anteriores.map((valor, posicao) => (posicao === grupo ? indice : valor)));
+  }
+
+  /** O lapis de uma linha comum das especificacoes: a linha volta no formato padrao e passa a mostrar "editada". */
+  function editarLinha(indice, valor) {
+    const novoTexto = substituirEspecificacao(texto, indice, valor);
+    if (novoTexto === texto) return;
+    setTexto(novoTexto);
+    const nova = (novoTexto.split("\n")[indice] ?? "").trim();
+    setLinhasEditadas((atual) => new Set(atual).add(formatarLinhaTecnica(nova)));
+  }
+
+  /**
+   * Sobe ou desce um quadro de parametro (as setas do quadro, ou uma linha comum passando por cima dele). A
+   * `posicao` e quantas linhas comuns vem antes do quadro. Dois quadros trocam de lugar (posicao e ordem); passando
+   * por uma linha, o quadro vai para o fim ("fim") ou o comeco ("inicio") dos que ja estao na nova posicao.
+   */
+  function moverGrupo(id, destino) {
+    const novo = moverQuadroNoEstado(divergencias, ordemDosQuadros, id, destino);
+    setDivergencias(novo.divergencias);
+    setOrdemDosQuadros(novo.ordem);
   }
 
   function excluirOpcao(divergencia, indice) {
@@ -515,7 +547,11 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     const ignoradas = divergencias
       .filter((item) => confirmadas.has(item.id) && Number.isInteger(selecoes[item.id]))
       .map((item) => formatarLinhaTecnica(item.opcoes[selecoes[item.id]].linha));
-    for (const divergencia of [...divergencias].sort((a, b) => a.posicao - b.posicao)) {
+    const ordemDoQuadro = (item) => {
+      const lugar = ordemDosQuadros.indexOf(item.id);
+      return lugar >= 0 ? lugar : ordemDosQuadros.length + divergencias.indexOf(item);
+    };
+    for (const divergencia of [...divergencias].sort((a, b) => (a.posicao - b.posicao) || (ordemDoQuadro(a) - ordemDoQuadro(b)))) {
       if (novasConfirmadas.has(divergencia.id)) {
         if (Number.isInteger(selecoes[divergencia.id])) escolhas[divergencia.id] = selecoes[divergencia.id];
         continue;
@@ -590,6 +626,9 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     setConfirmadas(new Set());
     setEditandoTexto(true);
     setAntesDeFinalizar(null);
+    setFontesDasLinhas({});
+    setLinhasEditadas(new Set());
+    setOrdemDosQuadros([]);
   }
 
   /** Poe a lista nova e escolhe `id` nela (o texto e o nome vao para a caixa). */
@@ -788,7 +827,10 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
     .filter((item) => !excluidos.has(item.id));
   const pecasParaGerar = itensDasPecas.map((item) => ({ id: item.pecaId, quantidade: item.quantidade }));
   const itens = [...itensDasPecas, ...itensDasLojas];
-  const pendentes = divergencias.filter((item) => !confirmadas.has(item.id)).length;
+  // Parametro cujas opcoes o dono excluiu todas some e fica de fora: nao conta como pendente.
+  const pendentes = divergencias.filter(
+    (item) => !confirmadas.has(item.id) && (opcoesRestantes[item.id] ?? []).length > 0,
+  ).length;
   // Prompt vazio ou acima do teto nao gera nem salva (o servidor confere de novo).
   const promptValido = prompt === null || (prompt.trim().length > 0 && prompt.trim().length <= maximoPrompt);
   // O escolhido como esta SALVO (null no prompt novo).
@@ -1024,6 +1066,11 @@ export default function JanelaDescricao({ ref, ids, descricaoAtual = null, lerPr
                     aoMover={moverLinha}
                     aoMoverPasso={moverPorPasso}
                     rolagem={rolagemDescricao}
+                    fontesDasLinhas={fontesDasLinhas}
+                    linhasEditadas={linhasEditadas}
+                    ordemDosQuadros={ordemDosQuadros}
+                    aoEditarLinha={editarLinha}
+                    aoMoverGrupo={moverGrupo}
                     paragrafos={opcoesParagrafos}
                     escolhidosParagrafos={escolhidosParagrafos}
                     aoEscolherParagrafo={escolherParagrafo}

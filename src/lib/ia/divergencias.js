@@ -58,6 +58,48 @@ export function recomendacaoDaDivergencia(item, decisao) {
   return { recomendada, motivo };
 }
 
+/// O texto de uma referencia, sem acento, sem espaco e com ponto no lugar da virgula, para procurar valores nele
+/// sem que "16 MHz" e "16MHz" ou "3,3V" e "3.3 V" se desencontrem.
+function textoDaReferencia(referencia) {
+  const partes = [referencia?.nome, referencia?.descricao];
+  for (const item of Array.isArray(referencia?.especificacoes) ? referencia.especificacoes : []) partes.push(item?.nome, item?.valor);
+  return normalizar(partes.filter(Boolean).join(" ")).replace(/,/g, ".").replace(/\s+/g, "");
+}
+
+/**
+ * As lojas de onde veio uma especificacao COMUM da descricao (pedido do dono em 10/10/2026: o nome da loja no fim
+ * da linha). A IA aponta os numeros das referencias de onde tirou o item (`item.referencias`), mas ela pode errar o
+ * numero: so entra a loja cujo texto CONFIRMA o valor (todos os pedacos com numero, como "16mhz", ou, sem numero, todas
+ * as palavras). Nome de loja nunca vai para a IA; ela so ve "referencia 1, 2...". Especificacao que nao veio de
+ * nenhuma loja, ou que o texto nao confirma, volta sem loja.
+ *
+ * @param {{ valor?: string, referencias?: unknown }} item a caracteristica devolvida pela IA
+ * @param {Array<{ nome?: string, descricao?: string, especificacoes?: Array, fonte?: { nome?: string } }>} referencias
+ *   as referencias na ordem em que foram numeradas no pedido (a primeira e a "1")
+ * @returns {string[]} nomes de loja, sem repetir, na ordem apontada
+ */
+export function lojasDaCaracteristica(item, referencias) {
+  const numeros = Array.isArray(item?.referencias) ? item.referencias.filter(Number.isInteger) : [];
+  if (numeros.length === 0 || !Array.isArray(referencias) || referencias.length === 0) return [];
+
+  const valor = normalizar(String(item?.valor ?? "")).replace(/,/g, ".").replace(/(\d)\s+(?=[a-z])/g, "$1");
+  const pedacos = valor.match(/[a-z0-9.]+/g) ?? [];
+  const comNumero = pedacos.filter((pedaco) => /\d/.test(pedaco));
+  const exigidos = (comNumero.length > 0 ? comNumero : pedacos.filter((pedaco) => pedaco.length >= 3))
+    .map((pedaco) => pedaco.replace(/^\.+|\.+$/g, ""))
+    .filter(Boolean);
+  if (exigidos.length === 0) return [];
+
+  const lojas = [];
+  for (const numero of numeros) {
+    const nome = referencias[numero - 1]?.fonte?.nome;
+    if (!nome || lojas.includes(nome)) continue;
+    const texto = textoDaReferencia(referencias[numero - 1]);
+    if (exigidos.every((pedaco) => texto.includes(pedaco))) lojas.push(nome);
+  }
+  return lojas;
+}
+
 /** Compara fatos publicados por lojas distintas sem confundir unidade ou ordem dos eixos. */
 export function identificarDivergencias(referencias) {
   const campos = new Map();

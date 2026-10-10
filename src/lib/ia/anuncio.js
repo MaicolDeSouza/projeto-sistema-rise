@@ -8,8 +8,8 @@ import { casaPalavra, indiceDePalavras, normalizar, palavrasDoTermo } from "@/li
 import { limparSugestoesDeCategoria, montarPedidoDeCategorias } from "@/lib/canaisDeVenda/li/categorias";
 
 import { PADRAO_TITULO } from "./padraoTitulo";
-import { idDaCaracteristica, identificarDivergencias, recomendacaoDaDivergencia } from "./divergencias";
-import { compactarUnidades, normalizarTerminologiaEletrica } from "./revisaoDescricao";
+import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica, recomendacaoDaDivergencia } from "./divergencias";
+import { compactarUnidades, formatarLinhaTecnica, normalizarTerminologiaEletrica } from "./revisaoDescricao";
 
 /**
  * Titulo e descricao de produto escritos pela IA a partir de produtos de
@@ -476,8 +476,10 @@ const FORMATO_DESCRICAO = {
         type: "array",
         items: {
           type: "object",
-          properties: { nome: { type: "string" }, valor: { type: "string" } },
-          required: ["nome", "valor"],
+          // `referencias`: os numeros das referencias de onde a especificacao saiu (o Rise confere no texto de cada
+          // uma e so mostra a loja que confirma; ver `lojasDaCaracteristica`). Vazio = nao veio de referencia.
+          properties: { nome: { type: "string" }, valor: { type: "string" }, referencias: { type: "array", items: { type: "integer" } } },
+          required: ["nome", "valor", "referencias"],
           additionalProperties: false,
         },
       },
@@ -756,8 +758,21 @@ export async function gerarDescricao(
   });
   const decisoes = new Map((Array.isArray(conteudo.decisoes) ? conteudo.decisoes : [])
     .map((item) => [item.id, item]));
+  // A loja de cada linha comum (nome da loja no fim da linha): chave = a linha como aparece no texto. As do kit
+  // (pecas) nao entram: so loja de verdade. Sem loja confirmada pelo texto, a linha fica fora do mapa.
+  const fontesDasLinhas = {};
+  if (temLojas) {
+    for (const item of caracteristicasDaIA) {
+      if (!item?.nome || !item?.valor || idsDivergentes.has(idDaCaracteristica(item.nome))) continue;
+      const lojas = lojasDaCaracteristica(item, linhas);
+      if (lojas.length > 0) {
+        fontesDasLinhas[formatarLinhaTecnica(`- ${semPontuacaoFinal(item.nome)}: ${semPontuacaoFinal(item.valor)};`)] = lojas;
+      }
+    }
+  }
   return {
     texto: textoFinal,
+    fontesDasLinhas,
     // As opcoes de cada um dos dois primeiros paragrafos: `[[p1a, p1b, p1c], [p2a, p2b, p2c]]`. O texto
     // acima usa a primeira de cada uma.
     opcoesParagrafos,
@@ -891,12 +906,19 @@ const REGRA_SEM_REFERENCIAS =
   "devolva caracteristicas vazia, e pesoGramas e dimensoesMm nulos. Nos parágrafos, não afirme especificação que não " +
   "esteja nesses dados.";
 
+/// Pede os numeros das referencias de cada caracteristica (o nome da loja no fim da linha, pedido do dono em
+/// 10/10/2026). Fica no pedido, e nao no prompt da biblioteca, para valer com qualquer prompt do dono.
+const INSTRUCAO_DE_REFERENCIAS =
+  'Em cada item de caracteristicas, preencha o campo referencias com os números (o numero="N" de cada referência) ' +
+  "das referências que trazem aquela especificação com esse valor. Deixe vazio se a especificação não está em " +
+  "nenhuma referência (por exemplo, se veio só do nome do produto).";
+
 export function montarPedidoDaDescricao({ titulo = "", referencias, listaDeMedidas = [], divergencias = [], instrucoes, semReferencias = false }) {
   return (
     (titulo.trim() ? `Produto que a loja vai anunciar: ${titulo.trim()}\n\n` : "") +
     (semReferencias
       ? `${REGRA_SEM_REFERENCIAS}\n\nDados do próprio produto:\n\n${referencias}\n\n`
-      : `Referências:\n\n${referencias}\n\n`) +
+      : `Referências:\n\n${referencias}\n\n${INSTRUCAO_DE_REFERENCIAS}\n\n`) +
     (listaDeMedidas.length > 0
       ? `Peso e medidas já encontrados nas referências:\n${listaDeMedidas.join("\n")}\n\n`
       : "") +

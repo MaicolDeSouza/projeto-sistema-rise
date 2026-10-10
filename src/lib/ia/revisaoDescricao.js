@@ -91,6 +91,50 @@ export function inserirEspecificacaoNaPosicao(texto, especificacao, posicao, ign
   return linhas.join("\n");
 }
 
+/**
+ * Troca o texto de UMA linha das especificacoes (o lapis das linhas comuns, pedido do dono em 10/10/2026). A linha
+ * volta no formato "- Nome: valor;", com a unidade colada. Fora das especificacoes, ou com o texto vazio, nao mexe.
+ */
+export function substituirEspecificacao(texto, indice, nova) {
+  const linhas = String(texto).split("\n");
+  const { inicio, fim } = limitesEspecificacoes(texto);
+  if (indice < inicio || indice >= fim || !linhas[indice]?.trim()) return String(texto);
+  const limpa = String(nova).trim().replace(/^[-–]\s*/, "").replace(/[;.\s]+$/, "");
+  if (!limpa) return String(texto);
+  linhas[indice] = "- " + formatarLinhaTecnica(limpa) + ";";
+  return linhas.join("\n");
+}
+
+/**
+ * Mover um QUADRO de parametro (pedido do dono em 10/10/2026). A `posicao` do quadro e quantas linhas comuns vem
+ * antes dele; quadros na mesma posicao seguem a `ordem` (lista de ids). Devolve o novo estado, sem mexer no de entrada.
+ *
+ * - `trocarCom`: troca de lugar com o quadro vizinho (posicao e ordem).
+ * - senao, `posicao` e a nova posicao, e `lugar` diz onde ele fica entre os que ja estao nela: "fim" (depois deles,
+ *   que e o caso de subir por cima de uma linha) ou "inicio" (antes deles, o de descer por cima de uma linha).
+ */
+export function moverQuadroNoEstado(divergencias, ordem, id, { posicao, trocarCom, lugar } = {}) {
+  const minha = divergencias.find((item) => item.id === id);
+  if (!minha) return { divergencias, ordem };
+  const outro = trocarCom ? divergencias.find((item) => item.id === trocarCom) : null;
+  const novas = divergencias.map((item) => {
+    if (item.id === id) return { ...item, posicao: outro ? outro.posicao : posicao };
+    if (outro && item.id === outro.id) return { ...item, posicao: minha.posicao };
+    return item;
+  });
+  const base = [...new Set([...ordem, ...divergencias.map((item) => item.id)])];
+  const aqui = base.indexOf(id);
+  if (outro) {
+    const ali = base.indexOf(outro.id);
+    [base[aqui], base[ali]] = [base[ali], base[aqui]];
+  } else {
+    base.splice(aqui, 1);
+    if (lugar === "inicio") base.unshift(id);
+    else base.push(id);
+  }
+  return { divergencias: novas, ordem: base };
+}
+
 export function removerEspecificacao(texto, indice) {
   const linhas = String(texto).split("\n");
   const { inicio, fim } = limitesEspecificacoes(texto);
