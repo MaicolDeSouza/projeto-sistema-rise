@@ -1,5 +1,6 @@
 import { buscarPagina } from "./buscar";
 import { camposPreenchidos, ROTULOS_CAMPOS } from "./campos";
+import { enderecoComparavel } from "./texto-html";
 import { colherProdutos } from "./colher";
 import { colherCatalogoJs } from "./catalogo-js";
 import { colherCatalogoShopify } from "./catalogo-shopify";
@@ -136,7 +137,7 @@ async function testarCatalogoJs({ url, nome, tipo }, catalogo) {
  * Teste da fonte cuja loja Shopify fica por tras de um site proprio (Prado): le o catalogo
  * inteiro em JSON (a mesma leitura da varredura; 3 paginas de 250) e mostra tres itens.
  */
-async function testarCatalogoShopify({ url, nome, tipo }, catalogo) {
+async function testarCatalogoShopify({ url, nome, tipo, evitar }, catalogo) {
   const colheita = await colherCatalogoShopify({
     loja: catalogo.loja,
     urlProduto: catalogo.urlProduto,
@@ -165,7 +166,11 @@ async function testarCatalogoShopify({ url, nome, tipo }, catalogo) {
     return { resultado: "FALHA", motivo: colheita.erro, passos, produtos: [], campos: null, formatos: ["catalogo-shopify"], plataforma, catalogoPublico: null, produtosNoSite: null, produtosNoSiteParcial: false };
   }
 
-  const amostra = colheita.produtos.slice(0, MINIMO_PRODUTOS);
+  // "Amostra variada" (o dono, 11/10/2026): os enderecos ja mostrados ficam de fora, e a amostra e
+  // tirada do que sobra. Sem isto, o catalogo inteiro vindo na mesma ordem dava sempre os tres primeiros.
+  const jaMostrados = new Set((evitar ?? []).map((endereco) => enderecoComparavel(endereco)));
+  const candidatos = colheita.produtos.filter((produto) => !produto.url || !jaMostrados.has(enderecoComparavel(produto.url)));
+  const amostra = candidatos.slice(0, MINIMO_PRODUTOS);
   const presentes = {};
   for (const produto of amostra) {
     for (const [campo, tem] of Object.entries(camposPreenchidos(produto))) presentes[campo] = presentes[campo] || tem;
@@ -201,7 +206,7 @@ export async function testarFonte({ url, secao, nome, tipo, evitar }) {
   const catalogoJs = catalogoJsDoEndereco(url);
   if (catalogoJs) return testarCatalogoJs({ url, nome, tipo }, catalogoJs);
   const catalogoShopify = catalogoShopifyDoEndereco(url);
-  if (catalogoShopify) return testarCatalogoShopify({ url, nome, tipo }, catalogoShopify);
+  if (catalogoShopify) return testarCatalogoShopify({ url, nome, tipo, evitar }, catalogoShopify);
 
   const colheita = await colherProdutos({
     url,

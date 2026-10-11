@@ -1392,7 +1392,7 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   581 produtos têm). `extrasDoSupabase` lê as duas tabelas inteiras (2 requisições, `buscarJson` em `buscar.js`, com a
   chave pública `anon` do site gravada na regra, **leitura autorizada pelo dono em 11/10/2026**) e `produtoDoShopify` as
   junta pelo handle em `documentos` (e em `specifications`, se um dia a tabela em texto for preenchida; hoje vem só em
-  imagem). Falha na base é aviso no teste, nunca erro: o catálogo vale sozinho. Cadastrar como CONCORRENTE pelo endereço
+  imagem). Falha na base é aviso no teste, nunca erro: o catálogo vale sozinho. O "Amostra variada" do teste pula os endereços já mostrados (`evitar`) antes de tirar os três (o dono viu os mesmos três se repetirem em 11/10/2026). Cadastrar como CONCORRENTE pelo endereço
   do site público; resultado do teste é PARCIAL (sem EAN, NCM e características na maioria).
 - **Makerhero é lida pela Store API, não pela página** ("WooCommerce Store API" nas origens), e a API não traz o PIX.
   `colherWooCommerce` abre a página dos PRIMEIROS produtos, lê o "R$ X no PIX" do Simulador de Parcelas
