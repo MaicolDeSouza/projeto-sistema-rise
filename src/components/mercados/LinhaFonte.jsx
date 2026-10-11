@@ -10,7 +10,6 @@ import CategoriasDaFonte from "@/components/mercados/CategoriasDaFonte";
 import {
   alternarFonte,
   contarProdutos,
-  definirVarridaNoPc,
   editarFonte,
   excluirFonte,
   varrerFonteAgora,
@@ -119,15 +118,6 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
     });
   }
 
-  function alternarPc() {
-    setErro(null);
-    iniciarTransicao(async () => {
-      const resultado = await definirVarridaNoPc(fonte.id, !fonte.varridaNoPc);
-      if (!resultado.ok) setErro(resultado.erro);
-      else router.refresh();
-    });
-  }
-
   function alternar() {
     setErro(null);
     iniciarTransicao(async () => {
@@ -232,10 +222,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
                   <Ban size={12} className="mt-0.5 shrink-0" />
                   <span>
                     {fonte.avisoSoLocalhost}
-                    {!fonte.varridaNoPc &&
-                      (noPc
-                        ? " Marque \"Varrer pelo PC\" na tela da VPS."
-                        : " Marque \"Varrer pelo PC\" para o worker da VPS deixá-la de lado.")}
+                    {!fonte.varridaNoPc && " Esta fonte precisa ser cadastrada com \"Varrer pelo PC\" marcado."}
                   </span>
                 </p>
               )}
@@ -427,25 +414,6 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
               </>
             )}
 
-            {/*
-              VARRER PELO PC (a marca). O worker da VPS passa a ignorar a fonte, e so o worker do PC (com o IP de casa)
-              a varre. Para o site que bloqueia a VPS. So na VPS: no PC a marca seria gravada na copia, que a proxima
-              `copia:atualizar` apaga, e a VPS nunca a veria. So MARCA: o "Devolver a VPS" saiu a pedido do dono em
-              09/10/2026 (um clique por engano mandaria a Oceantech de volta a VPS, que ela bloqueia). Desmarcar, se um
-              dia o site parar de bloquear, e `definirVarridaNoPc(id, false)` por script.
-            */}
-            {!noPc && !fonte.varridaNoPc && (
-              <button
-                type="button"
-                onClick={alternarPc}
-                disabled={pendente}
-                className={botao}
-                title="Para o site que bloqueia a VPS: o worker da VPS a deixa de lado, e ela é varrida pelo Rise do PC."
-              >
-                <Monitor size={12} />
-                Varrer pelo PC
-              </button>
-            )}
 
             <button
               type="button"

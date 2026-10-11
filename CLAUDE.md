@@ -3937,6 +3937,7 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
 - **Fonte que bloqueia a VPS: "Varrer pelo PC"** (decidido com o dono em 09/10/2026, a pedido: a Oceantech, cuja
   Cloudflare desafia o IP de datacenter e deixa passar o de casa; outros virão). Em vez de copiar dados entre os bancos,
   **o worker do PC grava direto no banco da VPS**, então não há merge e os produtos aparecem na VPS na hora.
+  - **DESDE 11/10/2026 a marca nasce na tela de testar fonte** (caixa "Varrer pelo PC", `FormularioFonte.jsx`, param `varridaNoPc` de `salvarFonteInterna`; fonte testada, robots lido, nasce pausada) ou no botão "Cadastrar para varrer pelo PC" quando o teste falha. **O botão "Varrer pelo PC" em toda linha da lista SAIU** (pedido do dono: aparecia para todos). Fontes marcadas hoje: Oceantech e Policomp (marcar a Policomp na VPS depois do deploy, se ainda não estiver).
   - **A marca:** `FonteColeta.varridaNoPc` (migration `20261009_fonte_varrida_no_pc`), ligada pelo botão **"Varrer pelo
     PC"** na linha da fonte (tela Fontes, na VPS) ou pelo botão "Cadastrar para varrer pelo PC" do formulário (abaixo).
     Marcada, o worker normal (o da VPS) a **ignora** (pega, recolhe e fecha só as outras). **Na VPS, o botão "Varrer

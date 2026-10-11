@@ -374,6 +374,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
   // de "Fornecedores" quer cadastrar um fornecedor. Um passo a menos, e um erro
   // a menos.
   const [tipo, setTipo] = useState(tipoInicial);
+  const [peloPc, setPeloPc] = useState(false);
   const [url, setUrl] = useState("");
   const [secao, setSecao] = useState("");
   const [teste, setTeste] = useState(null);
@@ -486,6 +487,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
         tipo,
         secao,
         ...(soNoPc ? { soNoPc: true } : {}),
+        ...(peloPc && !ehPortal && arquivos.length === 0 ? { varridaNoPc: true } : {}),
         resumo: teste?.campos
           ? `${teste.resultado} · ${teste.produtos.length} produto(s) testado(s) · ${teste.formatos?.join(", ")}`
           : null,
@@ -762,6 +764,21 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
             }}
           />
         </label>
+        )}
+
+        {/*
+          VARRER PELO PC (pedido do dono em 11/10/2026): a marca nasce AQUI, na tela de testar, e nao mais num botao em
+          toda linha da lista. Para o site que bloqueia a IP da VPS (Oceantech, Policomp). Nao vale para arquivo nem portal.
+        */}
+        {arquivos.length === 0 && !ehPortal && (
+          <label
+            className="flex w-full items-center gap-2 text-sm"
+            title="O worker da VPS deixa esta fonte de lado e ela é varrida pelo Rise do seu PC, com o IP de casa."
+          >
+            <input type="checkbox" checked={peloPc} onChange={(evento) => setPeloPc(evento.target.checked)} />
+            <Monitor size={14} />
+            Varrer pelo PC (o site bloqueia a VPS)
+          </label>
         )}
 
         {/*

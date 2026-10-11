@@ -314,6 +314,7 @@ async function salvarFonteInterna({
   usuario,
   senha,
   soNoPc = false,
+  varridaNoPc = false,
 }, { arquivoValidado = false } = {}) {
   const analise = FonteSchema.safeParse({ nome, url, tipo, secao });
   if (!analise.success) {
@@ -393,7 +394,10 @@ async function salvarFonteInterna({
           : (resumo ?? null),
         // Fonte do PC nasce ATIVA: quem a varre e o `npm run worker:pc`, que e o pedido de varredura, e o "Atualizar
         // dados" da VPS a pula. As demais nascem pausadas.
-        ...(sitePeloPc ? { varridaNoPc: true } : {}),
+        // Marca "Varrer pelo PC" pedida na tela de teste (fonte testada, com robots lido e nascendo pausada).
+        ...(sitePeloPc || (varridaNoPc === true && !somenteArquivo && !portalDoEndereco(url))
+          ? { varridaNoPc: true }
+          : {}),
         ...doPortal,
         // Quantos produtos o site declarou ter no momento do teste. Guardado no
         // cadastro para a tela dizer o quanto do catalogo ja foi coletado sem
