@@ -38,7 +38,7 @@ export function combina(alvo, termo) {
 }
 
 /// Palavras que nao dizem nada sobre o produto: "com" aparece em 1.613 nomes.
-const PALAVRAS_VAZIAS = new Set([
+export const PALAVRAS_VAZIAS = new Set([
   "a", "o", "as", "os", "e", "de", "da", "do", "das", "dos", "com", "sem", "para", "pra",
   "em", "no", "na", "nos", "nas", "por", "um", "uma", "ou",
 ]);
@@ -91,4 +91,34 @@ export function indiceDePalavras(alvo) {
 export function casaPalavra(formas, palavra) {
   if (palavra.length <= 3) return formas.includes(palavra);
   return formas.some((forma) => forma.startsWith(palavra));
+}
+
+/**
+ * A nota de cada item (0 a 1): a FRACAO DO PESO do termo que o item tem. Extraida da lupa de referencias
+ * (`buscarReferencias`) para a busca do Rise AI usar a mesma conta.
+ *
+ * PESO PELA RARIDADE. "sensor" esta em centenas de produtos e nao diz qual e a peca; "hcsr04" esta em poucos e diz.
+ * Com peso igual, a busca por "SENSOR DE DISTANCIA ULTRASSONICO HC-SR04 5V" punha sensores ToF (sensor + distancia
+ * + 5V) no mesmo nivel do HC-SR04. Palavra com digito ganha um bonus a mais: e modelo, CI ou especificacao.
+ *
+ * A raridade e medida entre os itens recebidos: quem passa so os candidatos tem pesos mais achatados que quem passa o
+ * catalogo inteiro (a lupa passa tudo). Sem palavras o peso total e zero e toda nota e zero.
+ *
+ * @param {string[]} palavras  de `palavrasDoTermo`
+ * @param {string[][]} formasPorItem  `indiceDePalavras` do texto de cada item
+ * @returns {{ notas: number[], pesos: number[] }}
+ */
+export function notasDeRelevancia(palavras, formasPorItem) {
+  const casamentos = formasPorItem.map((formas) => palavras.map((palavra) => casaPalavra(formas, palavra)));
+  const pesos = palavras.map((palavra, indice) => {
+    const comEla = casamentos.filter((linha) => linha[indice]).length;
+    const raridade = Math.log((formasPorItem.length + 1) / (comEla + 1)) + 1;
+    return /d/.test(palavra) ? raridade * 1.5 : raridade;
+  });
+  const pesoTotal = pesos.reduce((soma, peso) => soma + peso, 0);
+  const notas = casamentos.map((linha) => {
+    const pesoCasado = linha.reduce((soma, casou, posicao) => soma + (casou ? pesos[posicao] : 0), 0);
+    return pesoTotal > 0 ? pesoCasado / pesoTotal : 0;
+  });
+  return { notas, pesos };
 }

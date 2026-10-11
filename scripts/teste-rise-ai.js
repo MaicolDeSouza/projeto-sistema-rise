@@ -564,6 +564,116 @@ try {
     conferir("sem chave nem cliente a fabrica avisa", (() => { try { criarProvedor("anthropic", {}); return "criou"; } catch (e) { return e.message; } })(), "Anthropic: cadastre a chave em Configurações (ou ANTHROPIC_API_KEY no .env).");
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 7 — Busca no catalogo e ferramentas de produto
+  // -------------------------------------------------------------------------
+  {
+    const { indiceDePalavras, notasDeRelevancia } = await import("../src/lib/texto.js");
+    const { buscarProdutosNoCatalogo, buscarProdutosParecidos, cartaoDoProduto, fichaResumo } = await import("../src/lib/riseAi/busca.js");
+    const { definicoesParaProvedor, executarFerramenta } = await import("../src/lib/riseAi/ferramentas/index.js");
+    console.log("\nBusca e ferramentas de produto");
+
+    // A conta de relevancia (extraida da lupa): a fracao do peso do termo que o item tem.
+    const formas = ["placa uno ch340", "placa nano ch340", "case uno"].map((titulo) => indiceDePalavras(titulo));
+    const { notas } = notasDeRelevancia(["uno", "ch340"], formas);
+    conferir("relevancia: o item com tudo vence", [notas[0], notas[0] > notas[1], notas[0] > notas[2], notas[1] > 0 && notas[1] < 1], [1, true, true, true]);
+    conferir("relevancia sem palavras: tudo zero", notasDeRelevancia([], formas).notas, [0, 0, 0]);
+
+    const base = { ativo: true, conferido: true };
+    const uno = await prisma.produto.create({
+      data: {
+        ...base,
+        sku: "ZZ-IA-UNO",
+        tituloBase: "PLACA ZZIA UNO R3 CH340",
+        marca: "ZZIA",
+        modelo: "UNO R3",
+        precoVenda: 38.9,
+        custo: 20,
+        estoque: 12,
+        localizacao: "R14",
+        urlLojaIntegrada: "https://www.4hobby.com.br/placa-zzia-uno",
+        blingSaldoLidoEm: new Date(Date.now() - 20 * 60 * 1000),
+        descricaoBase: "PLACA ZZIA UNO R3\nCodigo interno: zzxia9\nEspecificações técnicas:\n- Tensão: 5V;\n- Microcontrolador: ATmega328P;",
+      },
+    });
+    await prisma.produto.create({
+      data: { ...base, sku: "ZZ-IA-NANO", tituloBase: "PLACA ZZIA NANO V3 CH340", ean: "7890000000017", precoVenda: 29.9, estoque: 0, descricaoBase: "Especificações técnicas:\n- Tensão: 5V;" },
+    });
+    await prisma.produto.create({
+      data: { ...base, sku: "ZZ-IA-ESP32", tituloBase: "ZZIA ESP32 DEVKIT V1 WIFI", precoVenda: 42.9, estoque: 8, descricaoBase: "Especificações técnicas:\n- Tensão: 5V;\n- Wi-Fi: 2.4GHz;" },
+    });
+    await prisma.produto.create({ data: { ...base, ativo: false, sku: "ZZ-IA-INATIVO", tituloBase: "PLACA ZZIA INATIVA CH340", precoVenda: 10, estoque: 3 } });
+
+    const skus = (r) => r.produtos.map((p) => p.sku);
+    conferir("busca por codigo", [skus(await buscarProdutosNoCatalogo("ZZ-IA-UNO")), (await buscarProdutosNoCatalogo("ZZ-IA-UNO")).origem], [["ZZ-IA-UNO"], "codigo"]);
+    conferir("busca por EAN", skus(await buscarProdutosNoCatalogo("7890000000017")), ["ZZ-IA-NANO"]);
+    conferir("busca por palavras ordena o mais parecido", skus(await buscarProdutosNoCatalogo("placa zzia uno ch340")), ["ZZ-IA-UNO"]);
+    conferir("a origem da busca por palavras", (await buscarProdutosNoCatalogo("placa zzia uno ch340")).origem, "palavras");
+    conferir("palavra vazia (para, com) nao atrapalha", skus(await buscarProdutosNoCatalogo("placa para zzia com uno")), ["ZZ-IA-UNO"]);
+    conferir("com estoque primeiro quando a relevancia empata", skus(await buscarProdutosNoCatalogo("placa zzia ch340")), ["ZZ-IA-UNO", "ZZ-IA-NANO"]);
+    conferir("so com estoque", skus(await buscarProdutosNoCatalogo("placa zzia ch340", { apenasComEstoque: true })), ["ZZ-IA-UNO"]);
+    conferir("preco maximo", skus(await buscarProdutosNoCatalogo("placa zzia ch340", { precoMaximo: 30 })), ["ZZ-IA-NANO"]);
+    conferir("produto inativo nao aparece", skus(await buscarProdutosNoCatalogo("placa zzia inativa")), []);
+    conferir("achado so na descricao: busca ampla", [skus(await buscarProdutosNoCatalogo("zzxia9")), (await buscarProdutosNoCatalogo("zzxia9")).origem], [["ZZ-IA-UNO"], "ampla"]);
+    conferir("nada achado: lista vazia e origem nenhuma", [await buscarProdutosNoCatalogo("zzqq nenhum produto assim")].map((r) => [r.produtos, r.origem])[0], [[], "nenhuma"]);
+    conferir("perfil publico so ve quem esta na loja", skus(await buscarProdutosNoCatalogo("placa zzia ch340", { perfil: "publico" })), ["ZZ-IA-UNO"]);
+    conferir("limite", (await buscarProdutosNoCatalogo("zzia", { limite: 2 })).produtos.length, 2);
+    conferir("parecidos ao Uno: o Nano entra, o proprio Uno nao", (await buscarProdutosParecidos(uno)).map((p) => p.sku).filter((s) => s.startsWith("ZZ-IA-")), ["ZZ-IA-NANO"]);
+
+    conferir("ficha resumida da descricao", fichaResumo("Especificações técnicas:\n- Tensão: 5V;\n- Wi-Fi: 2.4GHz;"), "Tensão: 5V; Wi-Fi: 2.4GHz");
+    conferir("ficha sem especificacoes", fichaResumo("Placa muito boa"), "");
+    conferir("ficha cortada em 600 caracteres", fichaResumo(Array.from({ length: 80 }, (_, i) => `- Item ${i}: valor numero ${i};`).join("\n")).length <= 600, true);
+
+    const cartaoAdmin = cartaoDoProduto(uno, { perfil: "admin" });
+    conferir(
+      "cartao do admin",
+      [cartaoAdmin.sku, cartaoAdmin.nome, cartaoAdmin.preco, cartaoAdmin.estoque, cartaoAdmin.temNaLoja, cartaoAdmin.urlLoja, cartaoAdmin.urlRise, cartaoAdmin.custo, cartaoAdmin.localizacao],
+      ["ZZ-IA-UNO", "PLACA ZZIA UNO R3 CH340", 38.9, 12, true, "https://www.4hobby.com.br/placa-zzia-uno", `/produtos/${uno.id}`, 20, "R14"],
+    );
+    conferir("estoque lido do Bling e texto simples (JSON)", [typeof cartaoAdmin.estoqueLidoEm, cartaoAdmin.fichaResumo], ["string", "Tensão: 5V; Microcontrolador: ATmega328P"]);
+    conferir("cartao publico sem custo nem localizacao", ["custo" in cartaoDoProduto(uno, { perfil: "publico" }), "localizacao" in cartaoDoProduto(uno, { perfil: "publico" })], [false, false]);
+
+    // Ferramentas
+    const defs = definicoesParaProvedor("admin");
+    conferir(
+      "ferramentas de produto para admin",
+      defs.map((d) => d.nome).sort(),
+      ["buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto"],
+    );
+    conferir("o schema vai sem $schema, como objeto, com termos obrigatorio", [defs.every((d) => d.parametros.type === "object" && !("$schema" in d.parametros)), defs.find((d) => d.nome === "buscarProdutos").parametros.required], [true, ["termos"]]);
+    conferir("publico nao recebe ferramenta de produto", definicoesParaProvedor("publico").map((d) => d.nome), []);
+
+    const executar = (nome, args, contexto = { perfil: "admin" }) => executarFerramenta(nome, args, contexto);
+    conferir("zod recusa argumento invalido", (await executar("consultarProduto", { sku: "x".repeat(500) })).ok, false);
+    conferir("zod recusa limite fora da faixa", (await executar("buscarProdutos", { termos: "zzia", limite: 50 })).ok, false);
+    conferir("ferramenta inexistente", (await executar("apagarTudo", {})).ok, false);
+    conferir("perfil sem permissao", (await executar("consultarProduto", { sku: "ZZ-IA-UNO" }, { perfil: "publico" })).ok, false);
+    const achados = await executar("buscarProdutos", { termos: "placa zzia ch340", apenasComEstoque: true });
+    conferir("buscarProdutos devolve cartoes sem custo", [achados.ok, achados.resultado.map((p) => p.sku), "custo" in achados.resultado[0], typeof achados.duracaoMs], [true, ["ZZ-IA-UNO"], false, "number"]);
+    conferir("buscarProdutos sem resultado e lista vazia", (await executar("buscarProdutos", { termos: "zzqq nenhum produto assim" })).resultado, []);
+
+    const completo = (await executar("consultarProduto", { sku: "ZZ-IA-UNO" })).resultado;
+    conferir(
+      "consultarProduto: ficha, custo e descricao",
+      [completo.sku, completo.custo, completo.ficha, completo.descricao.includes("zzxia9"), completo.fotos, completo.kit],
+      ["ZZ-IA-UNO", 20, [{ nome: "Tensão", valor: "5V" }, { nome: "Microcontrolador", valor: "ATmega328P" }], true, 0, []],
+    );
+    conferir("consultarProduto: codigo inexistente", (await executar("consultarProduto", { sku: "ZZ-IA-NAO-EXISTE" })).ok, false);
+    conferir("consultarProduto ignora a caixa do codigo", (await executar("consultarProduto", { sku: "zz-ia-uno" })).resultado?.sku, "ZZ-IA-UNO");
+    conferir("consultarEstoque", (await executar("consultarEstoque", { skus: ["ZZ-IA-UNO", "ZZ-IA-NANO"] })).resultado.map((l) => l.estoque), [12, 0]);
+    conferir("consultarEstoque: quando foi lido", typeof (await executar("consultarEstoque", { skus: ["ZZ-IA-UNO"] })).resultado[0].estoqueLidoEm, "string");
+    conferir("consultarEstoque: codigo que nao existe", (await executar("consultarEstoque", { skus: ["ZZ-IA-X"] })).resultado, [{ sku: "ZZ-IA-X", encontrado: false }]);
+    conferir("consultarPreco", (await executar("consultarPreco", { skus: ["ZZ-IA-UNO", "ZZ-IA-NANO"] })).resultado, [{ sku: "ZZ-IA-UNO", precoVenda: 38.9 }, { sku: "ZZ-IA-NANO", precoVenda: 29.9 }]);
+    const comparados = (await executar("compararProdutos", { skus: ["ZZ-IA-UNO", "ZZ-IA-ESP32"] })).resultado;
+    conferir(
+      "compararProdutos alinha a ficha pelo nome da caracteristica",
+      [comparados.caracteristicas.find((c) => c.nome === "Tensão").valores, comparados.caracteristicas.find((c) => c.nome === "Wi-Fi").valores],
+      [{ "ZZ-IA-UNO": "5V", "ZZ-IA-ESP32": "5V" }, { "ZZ-IA-UNO": null, "ZZ-IA-ESP32": "2.4GHz" }],
+    );
+    conferir("compararProdutos pede pelo menos 2", (await executar("compararProdutos", { skus: ["ZZ-IA-UNO"] })).ok, false);
+    conferir("similares pela ferramenta", (await executar("buscarProdutosSimilares", { sku: "ZZ-IA-UNO" })).resultado.map((p) => p.sku).filter((s) => s.startsWith("ZZ-IA-")), ["ZZ-IA-NANO"]);
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();

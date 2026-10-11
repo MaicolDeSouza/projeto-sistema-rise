@@ -1,5 +1,5 @@
 import { produtosParaLista } from "@/lib/coleta/banco";
-import { casaPalavra, indiceDePalavras, palavrasDoTermo } from "@/lib/texto";
+import { indiceDePalavras, notasDeRelevancia, palavrasDoTermo } from "@/lib/texto";
 
 /**
  * Referencias de mercado para o cadastro de produto: fornecedores e
@@ -33,26 +33,11 @@ export async function buscarReferencias(termo, { limite = TETO, fornecedoresLiga
   // Todos os produtos do banco (07/10/2026), inclusive os concorrentes ligados que a ultima varredura nao viu.
   const todos = await produtosParaLista();
 
-  // Quais palavras cada produto tem. Guardado para calcular o peso de cada
-  // palavra antes da nota.
-  const casamentos = todos.map((produto) => {
-    const formas = indiceDePalavras(produto.buscaTexto);
-    return palavras.map((palavra) => casaPalavra(formas, palavra));
-  });
-
-  /*
-    PESO PELA RARIDADE. "sensor" esta em centenas de produtos e nao diz qual e
-    a peca; "hcsr04" esta em poucos e diz. Com peso igual, a busca por
-    "SENSOR DE DISTANCIA ULTRASSONICO HC-SR04 5V" punha sensores ToF (sensor +
-    distancia + 5V) no mesmo nivel do HC-SR04. Palavra com digito ganha um
-    bonus a mais: e modelo, CI ou especificacao.
-  */
-  const pesos = palavras.map((palavra, indice) => {
-    const comEla = casamentos.filter((linha) => linha[indice]).length;
-    const raridade = Math.log((todos.length + 1) / (comEla + 1)) + 1;
-    return /\d/.test(palavra) ? raridade * 1.5 : raridade;
-  });
-  const pesoTotal = pesos.reduce((soma, peso) => soma + peso, 0);
+  // A nota de cada produto: a fracao do peso do titulo que ele tem (ver `notasDeRelevancia`, em texto.js).
+  const { notas: notasPorProduto } = notasDeRelevancia(
+    palavras,
+    todos.map((produto) => indiceDePalavras(produto.buscaTexto)),
+  );
 
   // Com ate duas palavras todas precisam aparecer: "sensor" sozinho casaria com
   // metade do acervo.
@@ -61,12 +46,8 @@ export async function buscarReferencias(termo, { limite = TETO, fornecedoresLiga
   const achados = [];
   const notas = new Map();
   todos.forEach((produto, indice) => {
-    const pesoCasado = casamentos[indice].reduce(
-      (soma, casou, posicao) => soma + (casou ? pesos[posicao] : 0),
-      0,
-    );
-    // Sem palavras o peso total e zero: nota zero, e nenhum achado (so os vinculos, abaixo).
-    const nota = pesoTotal > 0 ? pesoCasado / pesoTotal : 0;
+    // Sem palavras a nota e zero: nenhum achado (so os vinculos, abaixo).
+    const nota = notasPorProduto[indice];
     notas.set(produto.id, nota);
     // Margem de arredondamento: com duas palavras, 1 pode vir como 0,9999.
     if (palavras.length > 0 && nota >= minima - 1e-9) achados.push({ produto, nota });
