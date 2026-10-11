@@ -55,6 +55,33 @@ try {
     1,
   );
 
+  // -------------------------------------------------------------------------
+  // Tarefa 2 — Modelos e custo
+  // -------------------------------------------------------------------------
+  {
+    const { custoDaChamada, endpointPadrao, provedorPorId } = await import("../src/lib/riseAi/modelos.js");
+    console.log("\nModelos e custo");
+    conferir(
+      "haiku 1000/1000",
+      custoDaChamada({ provedor: "anthropic", modelo: "claude-haiku-5-5", tokensEntrada: 1000, tokensSaida: 1000 }),
+      { usd: 0.0006, brl: 0.0036 },
+    );
+    conferir(
+      "local custa zero",
+      custoDaChamada({ provedor: "lmstudio", modelo: "qwen3-4b", tokensEntrada: 5000, tokensSaida: 500 }),
+      { usd: 0, brl: 0 },
+    );
+    conferir(
+      "modelo de API sem preco",
+      custoDaChamada({ provedor: "openai", modelo: "gpt-x", tokensEntrada: 10, tokensSaida: 10 }),
+      null,
+    );
+    conferir("endpoint do LM Studio na VPS", endpointPadrao("lmstudio", "vps"), "http://host.docker.internal:1234/v1");
+    conferir("endpoint do LM Studio no PC", endpointPadrao("lmstudio", "pc"), "http://127.0.0.1:1234/v1");
+    conferir("endpoint de API nao depende do ambiente", endpointPadrao("anthropic", "vps"), "https://api.anthropic.com");
+    conferir("provedor desconhecido", provedorPorId("bard"), null);
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();
