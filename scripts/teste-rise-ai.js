@@ -637,11 +637,11 @@ try {
     const defs = definicoesParaProvedor("admin");
     conferir(
       "ferramentas de produto para admin",
-      defs.map((d) => d.nome).sort(),
+      defs.map((d) => d.nome).filter((nome) => nome !== "buscarConhecimento").sort(),
       ["buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto"],
     );
     conferir("o schema vai sem $schema, como objeto, com termos obrigatorio", [defs.every((d) => d.parametros.type === "object" && !("$schema" in d.parametros)), defs.find((d) => d.nome === "buscarProdutos").parametros.required], [true, ["termos"]]);
-    conferir("publico nao recebe ferramenta de produto", definicoesParaProvedor("publico").map((d) => d.nome), []);
+    conferir("publico nao recebe ferramenta de produto", definicoesParaProvedor("publico").map((d) => d.nome).filter((nome) => nome !== "buscarConhecimento"), []);
 
     const executar = (nome, args, contexto = { perfil: "admin" }) => executarFerramenta(nome, args, contexto);
     conferir("zod recusa argumento invalido", (await executar("consultarProduto", { sku: "x".repeat(500) })).ok, false);
@@ -672,6 +672,80 @@ try {
     );
     conferir("compararProdutos pede pelo menos 2", (await executar("compararProdutos", { skus: ["ZZ-IA-UNO"] })).ok, false);
     conferir("similares pela ferramenta", (await executar("buscarProdutosSimilares", { sku: "ZZ-IA-UNO" })).resultado.map((p) => p.sku).filter((s) => s.startsWith("ZZ-IA-")), ["ZZ-IA-NANO"]);
+  }
+
+  // -------------------------------------------------------------------------
+  // Tarefa 8 — Conhecimento aprovado
+  // -------------------------------------------------------------------------
+  {
+    const { criarConhecimento, aprovarConhecimento, rejeitarConhecimento, editarConhecimento, listarConhecimento, recuperarConhecimento, textoDoConhecimentoParaPrompt } =
+      await import("../src/lib/riseAi/conhecimento.js");
+    const { definicoesParaProvedor, executarFerramenta } = await import("../src/lib/riseAi/ferramentas/index.js");
+    console.log("\nConhecimento");
+
+    // O banco do dono vai ter notas de verdade: so as `ZZ-IA` interessam nas conferencias.
+    const deTeste = (notas) => notas.filter((nota) => nota.assunto.startsWith("ZZ-IA"));
+    const ids = (notas) => deTeste(notas).map((nota) => nota.id);
+
+    const aprovada = await criarConhecimento({
+      assunto: "ZZ-IA Nano x Uno para iniciante",
+      conteudo: "Projeto simples (LED, botão): indicar Nano ou Uno; Mega só com muitos pinos.",
+      produtos: ["zz-ia-uno", "ZZ-IA-NANO", "ZZ-IA-UNO", "  "],
+      status: "APROVADO",
+      criadoPor: "ZZ-IA-TESTE",
+      aprovadoPor: "ZZ-IA-TESTE",
+    });
+    const rascunho = await criarConhecimento({ assunto: "ZZ-IA rascunho", conteudo: "arduino para iniciante usa Mega", criadoPor: "ZZ-IA-TESTE" });
+    conferir(
+      "criada aprovada: quem e quando; produtos sem repetir, em maiusculas",
+      [aprovada.status, aprovada.aprovadoPor, aprovada.aprovadoEm instanceof Date, aprovada.produtos, aprovada.visibilidade, aprovada.versao],
+      ["APROVADO", "ZZ-IA-TESTE", true, ["ZZ-IA-UNO", "ZZ-IA-NANO"], "ADMIN", 1],
+    );
+    conferir("o rascunho nasce RASCUNHO", [rascunho.status, rascunho.aprovadoPor], ["RASCUNHO", null]);
+
+    const pergunta = "qual arduino serve para iniciante acender um led?";
+    conferir("so aprovado entra", ids(await recuperarConhecimento({ texto: pergunta })), [aprovada.id]);
+    conferir("recupera sem acento tambem", ids(await recuperarConhecimento({ texto: "qual arduino serve para iniciante, so acender um led com botao" })), [aprovada.id]);
+    conferir("pergunta sem relacao nao traz a nota", ids(await recuperarConhecimento({ texto: "fonte chaveada 12v 5a bivolt para fita" })), []);
+    conferir("nota ligada ao produto entra mesmo sem palavra em comum", ids(await recuperarConhecimento({ texto: "zzzzqx", skus: ["zz-ia-uno"] })), [aprovada.id]);
+    conferir("publico nao ve nota ADMIN", ids(await recuperarConhecimento({ texto: pergunta, perfil: "publico" })), []);
+    conferir("teto de caracteres", ids(await recuperarConhecimento({ texto: pergunta, maxCaracteres: 10 })), []);
+    conferir("limite de notas", (await recuperarConhecimento({ texto: pergunta, skus: ["ZZ-IA-UNO"], limite: 1 })).length <= 1, true);
+    const notas = await recuperarConhecimento({ texto: pergunta });
+    const texto = textoDoConhecimentoParaPrompt(deTeste(notas));
+    conferir(
+      "texto para o prompt",
+      [texto.startsWith("Conhecimento aprovado pela loja"), texto.includes("[ZZ-IA Nano x Uno para iniciante]"), texto.includes("ZZ-IA-UNO, ZZ-IA-NANO")],
+      [true, true, true],
+    );
+    conferir("sem notas, sem texto", textoDoConhecimentoParaPrompt([]), "");
+
+    // Vida da nota: aprovar, editar, rejeitar.
+    const virouAprovada = await aprovarConhecimento(rascunho.id, { usuario: "ZZ-IA-DONO" });
+    conferir("aprovar: quem aprovou e quando", [virouAprovada.status, virouAprovada.aprovadoPor, virouAprovada.aprovadoEm instanceof Date], ["APROVADO", "ZZ-IA-DONO", true]);
+    conferir("aprovada, passa a ser recuperada", ids(await recuperarConhecimento({ texto: "arduino para iniciante usa Mega" })).includes(rascunho.id), true);
+    const editada = await editarConhecimento(rascunho.id, { conteudo: "arduino para iniciante: indicar Uno ou Nano", categoria: "arduino" }, { usuario: "ZZ-IA-OUTRO" });
+    conferir("editar sobe a versao e o editor passa a ser quem aprova", [editada.versao, editada.conteudo, editada.categoria, editada.status, editada.aprovadoPor], [2, "arduino para iniciante: indicar Uno ou Nano", "arduino", "APROVADO", "ZZ-IA-OUTRO"]);
+    const rejeitada = await rejeitarConhecimento(rascunho.id);
+    conferir("rejeitar tira a aprovacao", [rejeitada.status, rejeitada.aprovadoPor, rejeitada.aprovadoEm], ["REJEITADO", null, null]);
+    conferir("rejeitada nao e recuperada", ids(await recuperarConhecimento({ texto: "arduino para iniciante" })).includes(rascunho.id), false);
+    conferir("nota que nao existe", await aprovarConhecimento("nao-existe", { usuario: "x" }).then(() => "aprovou", () => "recusou"), "recusou");
+
+    // Validacao do que se grava.
+    const recusa = (dados) => criarConhecimento({ criadoPor: "ZZ-IA-TESTE", ...dados }).then(() => "criou", (erro) => erro.message);
+    conferir("assunto curto demais", await recusa({ assunto: "ab", conteudo: "xxxx" }), "O assunto precisa ter de 3 a 120 caracteres.");
+    conferir("conteudo grande demais", await recusa({ assunto: "ZZ-IA grande", conteudo: "x".repeat(4001) }), "O conteúdo precisa ter de 3 a 4000 caracteres.");
+    conferir("aprovada sem dizer quem aprovou", await recusa({ assunto: "ZZ-IA sem quem", conteudo: "yyy", status: "APROVADO" }), "Nota aprovada precisa de quem aprovou.");
+    conferir("sem quem criou", await criarConhecimento({ assunto: "ZZ-IA sem dono", conteudo: "yyy" }).then(() => "criou", (erro) => erro.message), "Informe quem está criando a nota.");
+
+    const lista = await listarConhecimento({ busca: "ZZ-IA", status: "APROVADO" });
+    conferir("listar filtra por status e busca", [lista.some((nota) => nota.id === aprovada.id), lista.some((nota) => nota.id === rascunho.id)], [true, false]);
+
+    // A ferramenta do modelo.
+    const pelaFerramenta = await executarFerramenta("buscarConhecimento", { termos: "arduino para iniciante acender led" }, { perfil: "admin" });
+    conferir("ferramenta buscarConhecimento", [pelaFerramenta.ok, deTeste(pelaFerramenta.resultado).map((nota) => nota.id), Object.keys(pelaFerramenta.resultado[0]).sort()], [true, [aprovada.id], ["assunto", "conteudo", "id", "produtos"]]);
+    conferir("buscarConhecimento tambem serve ao perfil publico", definicoesParaProvedor("publico").map((d) => d.nome), ["buscarConhecimento"]);
+    conferir("a ferramenta recusa termos vazios", (await executarFerramenta("buscarConhecimento", { termos: "" }, { perfil: "admin" })).ok, false);
   }
 
   // ---- novos blocos entram antes desta linha ----

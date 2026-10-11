@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { FERRAMENTAS_DE_CONHECIMENTO } from "./conhecimento";
 import { ErroDeFerramenta } from "./erro";
 import { FERRAMENTAS_DE_PRODUTO } from "./produtos";
 
@@ -10,7 +11,7 @@ import { FERRAMENTAS_DE_PRODUTO } from "./produtos";
  * Cada ferramenta: `{ nome, descricao, perfis, esquema, executar(args, contexto) }`, com `contexto = { perfil, usuario }`.
  * Ferramenta nova = uma entrada num dos módulos desta pasta.
  */
-export const FERRAMENTAS = [...FERRAMENTAS_DE_PRODUTO];
+export const FERRAMENTAS = [...FERRAMENTAS_DE_PRODUTO, ...FERRAMENTAS_DE_CONHECIMENTO];
 
 /** O schema vai ao provedor sem o `$schema` que o zod acrescenta (alguns provedores o recusam). */
 function parametrosDe(esquema) {

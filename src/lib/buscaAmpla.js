@@ -23,8 +23,8 @@ const COM_ACENTO = "áàâãäåéèêëíìîïóòôõöúùûüçñýÿ";
 const SEM_ACENTO = "aaaaaaeeeeiiiiooooouuuucnyy";
 
 /// Junta as colunas com espaco, cada uma podendo ser nula.
-const juntar = (partes) => partes.map((parte) => `coalesce(${parte}, '')`).join(" || ' ' || ");
-const semAcento = (texto) => `translate(lower(${texto}), '${COM_ACENTO}', '${SEM_ACENTO}')`;
+export const juntar = (partes) => partes.map((parte) => `coalesce(${parte}, '')`).join(" || ' ' || ");
+export const semAcento = (texto) => `translate(lower(${texto}), '${COM_ACENTO}', '${SEM_ACENTO}')`;
 
 /// Produto COLETADO: o `buscaTexto` (nome, marca, modelo, codigo, MPN, EAN, ja normalizado na gravacao) mais o
 /// texto da loja. A ficha entra so pelos nomes e valores (o `::text` do JSON inteiro traria as chaves "nome" e
