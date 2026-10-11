@@ -64,6 +64,20 @@ export function todasAsPalavras(expressao, palavras) {
 }
 
 /**
+ * Como `todasAsPalavras`, mas cada palavra pode tambem ser atendida por uma condicao a mais (`tambem(palavra)`
+ * devolve um `Prisma.Sql` que comeca com ` OR ` ou `Prisma.empty`): e assim que o Scraper deixa a palavra valer
+ * tambem pelo NOME DA FONTE, sem precisar de coluna no indice.
+ */
+export function todasAsPalavrasOuTambem(expressao, palavras, tambem) {
+  return Prisma.join(
+    palavras.map(
+      (palavra) => Prisma.sql`(${Prisma.raw(expressao)} LIKE ${`%${palavra}%`}${tambem(palavra)})`,
+    ),
+    " AND ",
+  );
+}
+
+/**
  * ONDE a busca ampla achou o produto, para o selo da linha: as palavras que NAO estao no nome vem de que parte?
  * `nome` e o texto da busca normal; `lugares` e uma lista `[rotulo, texto]` na ordem de preferencia. Devolve os
  * rotulos sem repetir (vazio = achado pelo nome, sem selo).

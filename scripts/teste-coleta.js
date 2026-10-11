@@ -44,6 +44,7 @@ const DOMINIOS = [
   "teste-lotes.local",
   "teste-primeira.local",
   "teste-ampla.local",
+  "teste-pelafonte.local",
 ];
 
 function produto({ code, name, normal, promotional = null, status = "AVAILABLE", quantity = null, url = null }) {
@@ -383,6 +384,41 @@ conferir(
 const duasPalavras = await listarProdutos({ fontes: ["Ampla Teste"], busca: "outra zzampla", ampla: true });
 conferir("busca ampla: todas as palavras, cada uma em qualquer parte", duasPalavras.linhas.map((linha) => linha.code), ["A2"]);
 conferir("busca normal continua sem selo", buscaNormal.linhas[0]?.achadoEm, []);
+
+// A busca ampla tambem acha pelo NOME DA FONTE (pedido do dono em 11/10/2026): "4hobby" traz tudo da 4hobby.
+// Fonte com nome unico ("Zzpelafonte"): nenhum produto de verdade tem essa palavra no texto.
+const pelaFonteFonte = await prisma.fonteColeta.create({
+  data: { nome: "Zzpelafonte Loja", dominio: DOMINIOS[5], tipo: "CONCORRENTE", ativa: false },
+});
+await gravarColeta({
+  fonte: pelaFonteFonte,
+  produtos: [comTexto("F1", "Peca um"), comTexto("F2", "Peca dois com chip Zzfontechip")],
+  origem: "site",
+  coletadoEm: segundos(80),
+});
+const pelaFonte = await listarProdutos({ busca: "zzpelafonte", ampla: true });
+conferir(
+  "busca ampla: o nome da fonte traz todos os produtos dela (e so os dela)",
+  [pelaFonte.total, pelaFonte.linhas.map((linha) => linha.code).sort()],
+  [2, ["F1", "F2"]],
+);
+conferir(
+  "busca ampla: o nome da fonte nao gera selo",
+  pelaFonte.linhas.every((linha) => linha.achadoEm.length === 0),
+  true,
+);
+const fonteMaisTexto = await listarProdutos({ busca: "zzpelafonte zzfontechip", ampla: true });
+conferir(
+  "busca ampla: uma palavra pela fonte e outra pelo texto da loja",
+  fonteMaisTexto.linhas.map((linha) => linha.code),
+  ["F2"],
+);
+conferir(
+  "busca ampla: o nome da fonte e a aba (outra aba nao a ve)",
+  (await listarProdutos({ tipo: "FORNECEDOR", busca: "zzpelafonte", ampla: true })).total,
+  0,
+);
+conferir("busca normal NAO procura pelo nome da fonte", (await listarProdutos({ busca: "zzpelafonte" })).total, 0);
 
 // Produtos do Rise: a mesma regra, com indice proprio.
 const SKUS_AMPLA = ["ZZ-AMPLA-1", "ZZ-AMPLA-2", "ZZ-AMPLA-3"];

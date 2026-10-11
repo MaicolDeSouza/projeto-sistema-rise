@@ -2,7 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 
 import { normalizar } from "@/lib/texto";
-import { EXPRESSAO_AMPLA_COLETADO, ondeAchou, palavrasDaBusca, textoDaFicha, todasAsPalavras } from "@/lib/buscaAmpla";
+import { EXPRESSAO_AMPLA_COLETADO, ondeAchou, palavrasDaBusca, textoDaFicha, todasAsPalavrasOuTambem } from "@/lib/buscaAmpla";
 
 import { linhaDePreco, linhaDoProduto, mudouPreco, produtoDaLinha } from "./linha";
 
@@ -514,19 +514,28 @@ export async function listarProdutos({
   // `buscaTexto`, que ja foi normalizado na gravacao. Com a BUSCA AMPLA ligada (09/10/2026), contra a expressao
   // que junta tambem descricao, ficha, categoria e SEO, que tem indice proprio (ver lib/buscaAmpla.js).
   const palavras = palavrasDaBusca(busca);
+  // A BUSCA AMPLA tambem acha pelo NOME DA FONTE (pedido do dono em 11/10/2026): digitar "4hobby" traz todos os
+  // produtos da 4hobby. Cada palavra vale se esta no texto OU no nome de uma fonte da aba; o OR e sobre `fonteId`
+  // (poucos ids, ja resolvidos aqui), entao o indice de trigramas continua atendendo o resto. A busca normal
+  // continua so no texto.
+  const ouNaFonte = (palavra) => {
+    if (!ampla) return Prisma.empty;
+    const ids = doTipo.filter((fonte) => normalizar(fonte.nome).includes(palavra)).map((fonte) => fonte.id);
+    return ids.length === 0 ? Prisma.empty : Prisma.sql` OR "fonteId" IN (${Prisma.join(ids)})`;
+  };
   // `Prisma.join` de lista vazia da erro: sem palavras nao ha condicao.
   const peloNome =
     palavras.length === 0
       ? null
       : Prisma.join(
-          palavras.map((palavra) => Prisma.sql`"buscaTexto" LIKE ${`%${palavra}%`}`),
+          palavras.map((palavra) => Prisma.sql`("buscaTexto" LIKE ${`%${palavra}%`}${ouNaFonte(palavra)})`),
           " AND ",
         );
   const filtroDaBusca =
     palavras.length === 0
       ? Prisma.empty
       : ampla
-        ? Prisma.sql` AND ${todasAsPalavras(EXPRESSAO_AMPLA_COLETADO, palavras)}`
+        ? Prisma.sql` AND ${todasAsPalavrasOuTambem(EXPRESSAO_AMPLA_COLETADO, palavras, ouNaFonte)}`
         : Prisma.sql` AND ${peloNome}`;
   // Na busca ampla, o achado pelo NOME vem antes do achado so no texto da loja, em qualquer ordem pedida.
   const primeiroPeloNome =
@@ -586,13 +595,15 @@ export async function listarProdutos({
   if (ampla && palavras.length > 0 && linhas.length > 0) {
     const textos = await prisma.produtoColetado.findMany({
       where: { id: { in: linhas.map((linha) => linha.id) } },
-      select: { id: true, buscaTexto: true, descricao: true, especificacoes: true, seo: true, categoria: true },
+      select: { id: true, fonteId: true, buscaTexto: true, descricao: true, especificacoes: true, seo: true, categoria: true },
     });
+    const nomeDaFonte = new Map(doTipo.map((fonte) => [fonte.id, fonte.nome]));
     for (const texto of textos) {
       achadoEm.set(
         texto.id,
         ondeAchou(
-          texto.buscaTexto ?? "",
+          // O nome da fonte conta como "o nome": palavra achada so por ele nao ganha selo (a loja ja esta na linha).
+          `${texto.buscaTexto ?? ""} ${nomeDaFonte.get(texto.fonteId) ?? ""}`,
           [
             ["descrição", texto.descricao],
             ["ficha técnica", textoDaFicha(texto.especificacoes)],

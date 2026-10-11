@@ -216,12 +216,12 @@ export default async function MercadosPage({ searchParams }) {
             <div className="flex w-full max-w-2xl items-center gap-2">
               <CampoBusca
                 valorInicial={busca}
-                rotulo={ampla ? "Buscar também na descrição, ficha técnica e SEO" : "Buscar por código, marca, modelo ou título"}
+                rotulo={ampla ? "Buscar também em descrição, ficha, SEO e fonte" : "Buscar por código, marca, modelo ou título"}
                 className="w-full max-w-lg"
               />
               <BotaoBuscaAmpla
                 ligada={ampla}
-                ajuda="Procura também na descrição, na ficha técnica, na categoria e no SEO de cada loja. Os achados pelo nome vêm primeiro."
+                ajuda="Procura também na descrição, na ficha técnica, na categoria e no SEO de cada loja, e no nome da fonte: digitar o nome de uma loja traz todos os produtos dela. Os achados pelo nome vêm primeiro."
               />
             </div>
             <p className="text-sm text-suave">

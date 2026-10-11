@@ -141,7 +141,7 @@ npm run copia:atualizar -- --banco=sistema_rise_ensaio --dump=<arquivo>   # o me
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
-npm run teste:coleta              # 43 asserções da gravação no banco (usa o Postgres, SEM rede)
+npm run teste:coleta              # 65 asserções da gravação no banco e da busca ampla, inclusive pelo nome da fonte (usa o Postgres, SEM rede)
 npm run teste:cadastros           # 88 asserções: CPF/CNPJ/CEP/telefone, CNPJ obrigatório do fornecedor, a ligação fonte -> cadastro e as indicações dos vínculos salvos (Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
@@ -392,6 +392,12 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
     banco de 331 para 389 MB; criação em menos de 1 min. "atmega328" no Scraper: 275 achados (127 pelo nome)
     em ~200 ms; sem índice, só a descrição levava 1,4 s.
   - **Scraper:** os achados pelo NOME vêm primeiro em qualquer ordenação; o selo lê o texto só das linhas da página.
+  - **Também acha pelo NOME DA FONTE** (pedido do dono em 11/10/2026): digitar "4hobby" traz todos os produtos da 4hobby.
+    Cada palavra da busca vale se está no texto OU no nome de uma fonte da aba (`ouNaFonte` em `listarProdutos`: um
+    `OR "fonteId" IN (...)` com os ids já resolvidos, então o índice de trigramas segue valendo; `todasAsPalavrasOuTambem`
+    em `buscaAmpla.js`). Vale só com a Pesquisa profunda ligada, e só para as fontes da aba aberta. A palavra achada só
+    pelo nome da fonte não ganha selo (a loja já está na linha) e conta como "achado pelo nome" na ordem. Medido no PC:
+    "4hobby" ~1,8 s em modo de desenvolvimento (703 achados), igual a outras buscas profundas.
   - **Produtos:** a busca NORMAL também passou a usar índice (todas as palavras, em qualquer ordem, no nome,
     código, marca, modelo e EAN; antes era o texto inteiro, só em nome e código). O índice devolve os ids; ordem e
     página continuam no Prisma, então Produtos não põe "pelo nome primeiro".
@@ -468,6 +474,10 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   marcada quer dizer todas**, e "Todas" limpa a escolha em vez de marcar as sete — marcar
   todas prenderia o filtro ao conjunto de hoje, e a fonte cadastrada amanhã ficaria de fora
   sem ninguém perceber.
+- **Caixa de busca dentro da lista de fontes** (pedido do dono em 11/10/2026): ao lado de "Todas as fontes", no topo
+  da lista, uma caixa pequena filtra as fontes pelo nome enquanto se digita (sem caixa nem acento: "robotica" acha
+  "Casa da Robótica"). Só esconde linhas da lista, não desmarca nada, e zera a cada abertura (`procura` em
+  `FiltroFontes.jsx`).
 - **O filtro lista TODAS as fontes cadastradas da aba**, com 0 na que ainda não tem produto (pedido do dono em
   09/10/2026: a Oceantech, recém-cadastrada, sumia do seletor e parecia não existir). Até ali só entrava fonte com
   produto gravado (`contagemPorFonte` em `listarProdutos`).
