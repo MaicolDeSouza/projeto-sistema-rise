@@ -1,4 +1,4 @@
-import { ErroDoProvedor, erroDeStatus } from "./contrato";
+import { ErroDoProvedor, erroDeStatus, testarPorListagem } from "./contrato";
 
 /**
  * Adaptador para a API "chat/completions" da OpenAI e de tudo o que fala igual: LM Studio, Ollama, OpenAI e o Gemini
@@ -112,15 +112,7 @@ export function criarProvedorOpenAICompativel({ id, rotulo = id, endpoint, chave
     return lista.filter((modelo) => modelo?.id).map((modelo) => ({ id: String(modelo.id), nome: String(modelo.id) }));
   }
 
-  async function testar() {
-    const inicio = Date.now();
-    try {
-      const modelos = await listarModelos();
-      return { ok: true, latenciaMs: Date.now() - inicio, modelos, erro: null };
-    } catch (erro) {
-      return { ok: false, latenciaMs: Date.now() - inicio, modelos: [], erro: erro.message };
-    }
-  }
+  const testar = () => testarPorListagem(listarModelos);
 
   async function conversar({ modelo, sistema, mensagens, ferramentas = [], maxTokens, temperatura = 0.2, sinal, aoTexto = () => {} }) {
     const corpo = {

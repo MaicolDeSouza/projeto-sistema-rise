@@ -430,6 +430,140 @@ try {
     conferir("provedor de pe", await provedorDisponivel({ id: "ollama", listarModelos: async () => [{ id: "a" }] }, { agora: 0 }), true);
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 6 — Adaptador Anthropic
+  // -------------------------------------------------------------------------
+  {
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const { criarProvedorAnthropic } = await import("../src/lib/riseAi/provedores/anthropic.js");
+    const { criarProvedor } = await import("../src/lib/riseAi/provedores/index.js");
+    console.log("\nProvedor Anthropic");
+
+    const conteudoDaResposta = [
+      { type: "thinking", thinking: "", signature: "assinatura-opaca" },
+      { type: "text", text: "Olá" },
+      { type: "tool_use", id: "tu1", name: "consultarPreco", input: { skus: ["100101"] } },
+    ];
+    const clienteFalso = {
+      ultimoParams: null,
+      ultimasOpcoes: null,
+      resposta: { content: conteudoDaResposta, stop_reason: "tool_use", usage: { input_tokens: 20, output_tokens: 9 }, model: "claude-haiku-5-5" },
+      erro: null,
+      messages: {
+        stream(params, opcoes) {
+          clienteFalso.ultimoParams = params;
+          clienteFalso.ultimasOpcoes = opcoes;
+          return {
+            on(evento, ouvinte) {
+              if (evento === "text") ouvinte("Olá");
+              return this;
+            },
+            finalMessage: async () => {
+              if (clienteFalso.erro) throw clienteFalso.erro;
+              return clienteFalso.resposta;
+            },
+          };
+        },
+      },
+      models: { list: async () => ({ data: [{ id: "claude-haiku-5-5" }, { id: "claude-opus-5-5" }, { id: "outro-modelo" }] }) },
+    };
+
+    const provedorA = criarProvedorAnthropic({ chave: "x", cliente: clienteFalso });
+    const deltas = [];
+    const controle = new AbortController();
+    const resposta = await provedorA.conversar({
+      modelo: "claude-haiku-5-5",
+      sistema: "S",
+      mensagens: [
+        { papel: "usuario", conteudo: "oi" },
+        { papel: "assistente", conteudo: "", chamadas: [{ id: "a1", nome: "f", argumentos: { k: 1 } }, { id: "a2", nome: "g", argumentos: {} }] },
+        { papel: "ferramenta", chamadaId: "a1", nome: "f", conteudo: "{}" },
+        { papel: "ferramenta", chamadaId: "a2", nome: "g", conteudo: '{"ok":true}' },
+      ],
+      ferramentas: [{ nome: "f", descricao: "d", parametros: { type: "object", properties: {} } }],
+      maxTokens: 50,
+      sinal: controle.signal,
+      aoTexto: (delta) => deltas.push(delta),
+    });
+    conferir(
+      "chamada convertida",
+      [resposta.texto, resposta.chamadasDeFerramenta, resposta.motivoParada, resposta.uso, resposta.modelo],
+      ["Olá", [{ id: "tu1", nome: "consultarPreco", argumentos: { skus: ["100101"] } }], "ferramenta", { entrada: 20, saida: 9 }, "claude-haiku-5-5"],
+    );
+    conferir("texto em fluxo", deltas, ["Olá"]);
+    conferir("os blocos como a API os devolveu ficam em `bruto` (o pensamento inclusive)", resposta.bruto, conteudoDaResposta);
+    conferir(
+      "parametros do pedido",
+      [clienteFalso.ultimoParams.model, clienteFalso.ultimoParams.max_tokens, clienteFalso.ultimoParams.system, clienteFalso.ultimoParams.output_config, clienteFalso.ultimoParams.tools],
+      ["claude-haiku-5-5", 50, "S", { effort: "low" }, [{ name: "f", description: "d", input_schema: { type: "object", properties: {} } }]],
+    );
+    conferir("o sinal de cancelamento vai ao SDK", clienteFalso.ultimasOpcoes.signal === controle.signal, true);
+    conferir(
+      "assistente reconstruido: texto (se houver) + tool_use",
+      clienteFalso.ultimoParams.messages[1],
+      { role: "assistant", content: [{ type: "tool_use", id: "a1", name: "f", input: { k: 1 } }, { type: "tool_use", id: "a2", name: "g", input: {} }] },
+    );
+    conferir(
+      "resultados de ferramenta seguidos num user so",
+      clienteFalso.ultimoParams.messages[2],
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "a1", content: "{}" }, { type: "tool_result", tool_use_id: "a2", content: '{"ok":true}' }] },
+    );
+    conferir("so 3 mensagens: nada sobrou", clienteFalso.ultimoParams.messages.length, 3);
+
+    // Dentro do laço de ferramentas o assistente volta com os blocos EXATOS da API (thinking tem assinatura).
+    await provedorA.conversar({
+      modelo: "claude-haiku-5-5",
+      sistema: "S",
+      mensagens: [
+        { papel: "usuario", conteudo: "oi" },
+        { papel: "assistente", conteudo: "Olá", chamadas: [{ id: "tu1", nome: "consultarPreco", argumentos: { skus: ["100101"] } }], bruto: conteudoDaResposta },
+        { papel: "ferramenta", chamadaId: "tu1", nome: "consultarPreco", conteudo: "[]" },
+      ],
+      maxTokens: 50,
+    });
+    conferir("com `bruto`, o assistente volta como a API devolveu", clienteFalso.ultimoParams.messages[1], { role: "assistant", content: conteudoDaResposta });
+    conferir("sem ferramentas, o pedido nao leva `tools`", "tools" in clienteFalso.ultimoParams, false);
+
+    // Paradas.
+    const paradaDe = async (motivo) => {
+      clienteFalso.resposta = { content: [{ type: "text", text: "x" }], stop_reason: motivo, usage: { input_tokens: 1, output_tokens: 1 }, model: "m" };
+      return (await provedorA.conversar({ modelo: "m", sistema: "S", mensagens: [{ papel: "usuario", conteudo: "oi" }], maxTokens: 5 })).motivoParada;
+    };
+    conferir("paradas", [await paradaDe("end_turn"), await paradaDe("max_tokens"), await paradaDe("refusal"), await paradaDe("pause_turn")], ["fim", "max_tokens", "recusa", "outro"]);
+
+    // Erros do SDK viram `tipo`.
+    const tipoDoErro = async (erro) => {
+      clienteFalso.erro = erro;
+      const resultado = await provedorA
+        .conversar({ modelo: "m", sistema: "S", mensagens: [{ papel: "usuario", conteudo: "oi" }], maxTokens: 5 })
+        .then(() => "nao lancou", (e) => [e.name, e.tipo, e.status ?? null]);
+      clienteFalso.erro = null;
+      return resultado;
+    };
+    conferir("401 -> autenticacao", await tipoDoErro(Anthropic.APIError.generate(401, { error: { message: "x" } }, "recusada", new Headers())), ["ErroDoProvedor", "autenticacao", 401]);
+    conferir("429 -> limite", await tipoDoErro(Anthropic.APIError.generate(429, { error: { message: "x" } }, "limite", new Headers())), ["ErroDoProvedor", "limite", 429]);
+    conferir("500 -> resposta, com o status", await tipoDoErro(Anthropic.APIError.generate(500, {}, "boom", new Headers())), ["ErroDoProvedor", "resposta", 500]);
+    conferir("conexao", await tipoDoErro(new Anthropic.APIConnectionError({ message: "caiu" })), ["ErroDoProvedor", "conexao", null]);
+    conferir("tempo do SDK", await tipoDoErro(new Anthropic.APIConnectionTimeoutError()), ["ErroDoProvedor", "tempo", null]);
+    conferir("cancelado pelo laco (sinal) tambem e tempo", await tipoDoErro(new Anthropic.APIUserAbortError()), ["ErroDoProvedor", "tempo", null]);
+
+    // Modelos e teste de conexao.
+    conferir(
+      "listar modelos: so claude-, mais os sugeridos, sem repetir",
+      (await provedorA.listarModelos()).map((m) => m.id),
+      ["claude-haiku-5-5", "claude-opus-5-5", "claude-sonnet-5-5"],
+    );
+    const testeA = await provedorA.testar();
+    conferir("testar ok", [testeA.ok, testeA.modelos.length, testeA.erro], [true, 3, null]);
+    clienteFalso.models.list = async () => { throw Anthropic.APIError.generate(401, {}, "chave ruim", new Headers()); };
+    const testeRuimA = await provedorA.testar();
+    conferir("testar com erro nao lanca", [testeRuimA.ok, testeRuimA.modelos, typeof testeRuimA.erro], [false, [], "string"]);
+
+    // Fabrica: a Anthropic agora e criada pelo mesmo ponto.
+    conferir("fabrica cria o adaptador da Anthropic", criarProvedor("anthropic", { chave: "x", cliente: clienteFalso }).id, "anthropic");
+    conferir("sem chave nem cliente a fabrica avisa", (() => { try { criarProvedor("anthropic", {}); return "criou"; } catch (e) { return e.message; } })(), "Anthropic: cadastre a chave em Configurações (ou ANTHROPIC_API_KEY no .env).");
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();

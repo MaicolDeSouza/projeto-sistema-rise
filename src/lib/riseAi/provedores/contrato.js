@@ -7,7 +7,7 @@
  *
  * Mensagens neutras (`mensagens` de `conversar`):
  * @typedef {{ papel: "usuario", conteudo: string }} MensagemDoUsuario
- * @typedef {{ papel: "assistente", conteudo: string, chamadas?: { id: string, nome: string, argumentos: object }[] }} MensagemDoAssistente
+ * @typedef {{ papel: "assistente", conteudo: string, chamadas?: { id: string, nome: string, argumentos: object }[], bruto?: unknown }} MensagemDoAssistente
  * @typedef {{ papel: "ferramenta", chamadaId: string, nome: string, conteudo: string }} MensagemDeFerramenta  `conteudo` é JSON
  *
  * Definição de ferramenta: `parametros` é um JSON Schema de objeto.
@@ -20,7 +20,8 @@
  *   chamadasDeFerramenta: { id: string, nome: string, argumentos: object, malformada?: true, bruto?: string }[],
  *   uso: { entrada: number, saida: number, estimado?: true },
  *   motivoParada: "fim" | "ferramenta" | "max_tokens" | "recusa" | "outro",
- *   modelo: string
+ *   modelo: string,
+ *   bruto?: unknown
  * }} RespostaDoProvedor
  *
  * O provedor:
@@ -37,6 +38,25 @@
  *   }) => Promise<RespostaDoProvedor>
  * }} Provedor
  */
+
+/**
+ * `bruto` é OPACO: o que o adaptador precisa receber de volta, exatamente como o provedor o devolveu, para continuar o
+ * laço de ferramentas da MESMA resposta (a Anthropic exige reenviar os blocos de pensamento com a assinatura). O
+ * laço da conversa só o copia da resposta para a mensagem do assistente que reenvia; nunca o grava nem o interpreta.
+ * Mensagem vinda do banco não tem `bruto`, e o adaptador a reconstrói só com texto e chamadas.
+ *
+ * Teste de conexão de um adaptador a partir da listagem de modelos: nunca lança (a tela mostra `erro`).
+ * @param {() => Promise<{ id: string, nome: string }[]>} listarModelos
+ */
+export async function testarPorListagem(listarModelos) {
+  const inicio = Date.now();
+  try {
+    const modelos = await listarModelos();
+    return { ok: true, latenciaMs: Date.now() - inicio, modelos, erro: null };
+  } catch (erro) {
+    return { ok: false, latenciaMs: Date.now() - inicio, modelos: [], erro: erro.message };
+  }
+}
 
 /**
  * `tipo` diz o que fazer: `conexao` (recusou ou ninguém respondeu), `autenticacao` (chave recusada), `limite` (429),
