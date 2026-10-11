@@ -11,7 +11,8 @@ import { prisma } from "@/lib/db";
  * usa a mesma leitura para reler o saldo de um produto depois de enviar (`lerSaldosDoBling`).
  *
  * So le o Bling: so `cliente.get`, nunca `exigirEscrita` nem escrita. No Rise grava, por produto,
- * `blingSaldo` (o `saldoVirtualTotal`, que desconta reservas e pode ser negativo) e
+ * `blingSaldo` (o `saldoVirtualTotal`, que desconta reservas e pode ser negativo), `blingSaldoLidoEm` (a hora da leitura: o
+ * assistente do Rise AI diz "lido ha N min" ao falar de estoque) e
  * `estoque = estoqueDoRise(blingSaldo, pendentes)`, sem subir o `atualizadoEm` (ler o Bling nao e
  * editar o produto, e a lista ordena por ele) e sem criar `MovimentoEstoque` (o saldo lido nao e um
  * ajuste feito aqui).
@@ -144,7 +145,8 @@ function porCodigo(itens) {
  * ajuste de estoque feito na lista ao mesmo tempo (que trava a mesma linha) entra antes ou depois,
  * nunca no meio, e o estoque gravado sempre conta os pendentes que existem.
  *
- * `desde` e o instante de antes da leitura do Bling. Um ajuste deste produto marcado como enviado a
+ * `desde` e o instante de antes da leitura do Bling (e a hora gravada em `blingSaldoLidoEm`: o saldo pode ter mudado
+ * depois dela, nunca antes, entao e o lado seguro de dizer a idade do numero). Um ajuste deste produto marcado como enviado a
  * partir dali pode ou nao estar no saldo lido, e o Rise nao tem como saber: contar de novo dobraria o
  * ajuste, nao contar o perderia. Esse produto nao e regravado e volta como falha ("atualize de
  * novo"). O UPDATE e SQL cru de proposito: o `@updatedAt` do Prisma nao age, e o `atualizadoEm`
@@ -182,13 +184,13 @@ async function gravarLote(achados, desde, resultado) {
         // Kit: guarda o saldo do Bling (o pop-up o mostra), mas o estoque do Rise e o CALCULADO pelas
         // pecas daqui, regravado abaixo junto com os outros kits (decisao do dono em 07/10/2026).
         if (produto.tipo === "COMPOSICAO") {
-          await tx.$executeRaw`UPDATE "Produto" SET "blingSaldo" = ${saldo} WHERE "id" = ${produto.id}`;
+          await tx.$executeRaw`UPDATE "Produto" SET "blingSaldo" = ${saldo}, "blingSaldoLidoEm" = ${desde} WHERE "id" = ${produto.id}`;
           saida.push({ produto });
           continue;
         }
         // Os pendentes vem do banco em ordem de criadoEm: a ordem em que o Bling os recebera.
         const estoque = estoqueDoRise(saldo, seus);
-        await tx.$executeRaw`UPDATE "Produto" SET "blingSaldo" = ${saldo}, "estoque" = ${estoque} WHERE "id" = ${produto.id}`;
+        await tx.$executeRaw`UPDATE "Produto" SET "blingSaldo" = ${saldo}, "estoque" = ${estoque}, "blingSaldoLidoEm" = ${desde} WHERE "id" = ${produto.id}`;
         saida.push({ produto });
       }
       // Os kits que usam as pecas deste lote, DEPOIS das pecas gravadas e na mesma transacao: um kit

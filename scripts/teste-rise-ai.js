@@ -1434,6 +1434,90 @@ try {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 14 — Trava de renovacao do token e estoque automatico
+  // -------------------------------------------------------------------------
+  {
+    const { comTravaDeRenovacao, obterTokenSobTrava } = await import("../src/lib/integracoes/travaDeRenovacao.js");
+    const { deveSincronizarEstoque, rodarSincronizacaoDeEstoque } = await import("../src/lib/riseAi/estoqueAutomatico.js");
+    const { lerConexao, lerSegredo } = await import("../src/lib/integracoes/conexoes.js");
+    console.log("\nTrava de renovacao e estoque automatico");
+
+    const ordem = [];
+    await Promise.all([
+      comTravaDeRenovacao("zz-ia-teste", async () => {
+        ordem.push("a-entrou");
+        await new Promise((resolver) => setTimeout(resolver, 300));
+        ordem.push("a-saiu");
+      }),
+      (async () => {
+        await new Promise((resolver) => setTimeout(resolver, 50));
+        await comTravaDeRenovacao("zz-ia-teste", async () => {
+          ordem.push("b-entrou");
+        });
+      })(),
+    ]);
+    conferir("segunda renovacao espera a primeira", ordem, ["a-entrou", "a-saiu", "b-entrou"]);
+
+    const outraChave = [];
+    await Promise.all([
+      comTravaDeRenovacao("zz-ia-teste-a", async () => {
+        outraChave.push("a-entrou");
+        await new Promise((resolver) => setTimeout(resolver, 300));
+        outraChave.push("a-saiu");
+      }),
+      (async () => {
+        await new Promise((resolver) => setTimeout(resolver, 50));
+        await comTravaDeRenovacao("zz-ia-teste-b", async () => {
+          outraChave.push("b-entrou");
+        });
+      })(),
+    ]);
+    conferir("chaves diferentes nao se esperam", outraChave, ["a-entrou", "b-entrou", "a-saiu"]);
+    conferir("a funcao recebe a transacao e o valor volta", await comTravaDeRenovacao("zz-ia-teste", async (tx) => [typeof tx.$queryRaw, 42].join(":")), "function:42");
+    conferir("erro dentro da trava solta a trava e propaga", [await comTravaDeRenovacao("zz-ia-teste", async () => { throw new Error("falhou"); }).then(() => "ok", (erro) => erro.message), await comTravaDeRenovacao("zz-ia-teste", async () => "livre")], ["falhou", "livre"]);
+
+    // O que aconteceu em 08/10/2026: dois processos renovam o token ao mesmo tempo, o segundo usa um refresh token que o
+    // primeiro ja queimou, e a conexao morre. Com a trava, quem espera RELE o estado e encontra o token novo.
+    const estado = { token: "velho", expiraEm: 0 };
+    let renovacoes = 0;
+    const renovar = async () => {
+      renovacoes++;
+      await new Promise((resolver) => setTimeout(resolver, 150));
+      estado.token = `novo-${renovacoes}`;
+      estado.expiraEm = Date.now() + 3600000;
+      return estado.token;
+    };
+    const tokens = await Promise.all(
+      [0, 1, 2, 3].map(() =>
+        obterTokenSobTrava("zz-ia-teste-token", {
+          ler: async () => ({ ...estado }),
+          tokenValido: (lido) => (lido.expiraEm > Date.now() ? lido.token : null),
+          renovar,
+        }),
+      ),
+    );
+    conferir("quatro pedidos ao mesmo tempo, uma renovacao so, todos com o token novo", [renovacoes, tokens], [1, ["novo-1", "novo-1", "novo-1", "novo-1"]]);
+    conferir(
+      "token que ainda vale nem pede a trava",
+      await obterTokenSobTrava("zz-ia-teste-token", { ler: async () => ({ ...estado }), tokenValido: (lido) => lido.token, renovar: async () => { throw new Error("nao devia renovar"); } }),
+      "novo-1",
+    );
+    conferir("o erro de quem le (nao conectado) sobe sem renovar", await obterTokenSobTrava("zz-ia-teste-token", { ler: async () => ({}), tokenValido: () => { throw new Error("nao conectado"); }, renovar }).then(() => "ok", (erro) => erro.message), "nao conectado");
+
+    // lerSegredo e lerConexao aceitam a transacao e leem o mesmo (a conexao OLLAMA e a do teste: a do dono e devolvida no fim).
+    conferir("ler com a transacao = ler sem ela", await prisma.$transaction(async (tx) => [await lerConexao("OLLAMA", tx), await lerSegredo("OLLAMA", tx)]), [await lerConexao("OLLAMA"), await lerSegredo("OLLAMA")]);
+
+    conferir("desligado nao roda", deveSincronizarEstoque({ agora: 10, ultimaEm: 0, ligado: false, blingConectado: true }), { deve: false, motivo: "desligado" });
+    conferir("bling desconectado nao roda", deveSincronizarEstoque({ agora: 1e9, ultimaEm: 0, blingConectado: false }), { deve: false, motivo: "bling_desconectado" });
+    conferir("cedo demais", deveSincronizarEstoque({ agora: 1000, ultimaEm: 0, blingConectado: true }), { deve: false, motivo: "cedo" });
+    conferir("na hora", deveSincronizarEstoque({ agora: 3600001, ultimaEm: 0, blingConectado: true }), { deve: true, motivo: null });
+    conferir("exatamente uma hora depois ja vale", deveSincronizarEstoque({ agora: 3600000, ultimaEm: 0, blingConectado: true }), { deve: true, motivo: null });
+    conferir("intervalo proprio", deveSincronizarEstoque({ agora: 1000, ultimaEm: 0, intervaloMs: 500, blingConectado: true }), { deve: true, motivo: null });
+    conferir("rodar com a variavel desligada", await rodarSincronizacaoDeEstoque({ env: { ESTOQUE_AUTOMATICO_BLING: "false" } }), { rodou: false, motivo: "desligado" });
+    conferir("a variavel vale sem diferenciar caixa nem espacos", await rodarSincronizacaoDeEstoque({ env: { ESTOQUE_AUTOMATICO_BLING: " FALSE " } }), { rodou: false, motivo: "desligado" });
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();

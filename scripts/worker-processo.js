@@ -51,6 +51,7 @@ const fila = await import("../src/lib/coleta/fila.js");
 const { tirarFotoMensal } = await import("../src/lib/coleta/fotos.js");
 const { limparTemporariosAntigos } = await import("../src/lib/arquivos.js");
 const { servidorEhWindows } = await import("../src/lib/copiaLocal.js");
+const { rodarSincronizacaoDeEstoque } = await import("../src/lib/riseAi/estoqueAutomatico.js");
 
 /// De quanto em quanto tempo se confere se a foto mensal e devida. A foto e uma por
 /// mes, entao a conferencia e barata; a hora so evita consultar o banco a cada volta.
@@ -62,6 +63,12 @@ let fotoConferidaEm = 0;
 /// disco da VPS. A primeira volta do worker ja limpa (`0`), que cobre o que sobrou de antes de ele ligar.
 const LIMPA_TEMPORARIOS_MS = 60 * 60 * 1000;
 let temporariosLimposEm = 0;
+
+/// De quanto em quanto tempo o worker le o estoque do Bling e o grava no Rise (pedido do dono em 11/10/2026, para o Rise AI
+/// responder estoque com um numero de no maximo uma hora). So LEITURA do Bling; `ESTOQUE_AUTOMATICO_BLING=false` desliga.
+/// A primeira volta ja le (`0`): um deploy ou um reinicio nao deixa o numero velho por mais uma hora.
+const SINCRONIZA_ESTOQUE_MS = 60 * 60 * 1000;
+let estoqueSincronizadoEm = 0;
 
 /// Codigo de saida quando ja ha outro worker no ar. O supervisor nao religa.
 const SAIDA_OUTRO_WORKER = 3;
@@ -442,6 +449,15 @@ async function laco() {
         temporariosLimposEm = Date.now();
         const apagados = await limparTemporariosAntigos();
         if (apagados > 0) log(`temporarios: ${apagados} pasta(s) de cadastro abandonado apagada(s)`);
+      }
+      // O estoque do Bling (fora do `coletaPausada`, como a foto): so o worker normal. O de teste e o do PC nao mexem nos
+      // produtos do banco da VPS. `rodarSincronizacaoDeEstoque` nunca lanca e nao faz nada com o Bling desconectado.
+      if (!FONTES && !SO_NO_PC && Date.now() - estoqueSincronizadoEm >= SINCRONIZA_ESTOQUE_MS) {
+        estoqueSincronizadoEm = Date.now();
+        const estoque = await rodarSincronizacaoDeEstoque();
+        if (estoque.rodou) log(`estoque do Bling: ${estoque.atualizados} atualizados, ${estoque.semCodigoNoBling} sem codigo, ${estoque.falhas} falhas`);
+        else if (estoque.motivo === "erro") logErro(`estoque do Bling nao lido: ${estoque.erro}`);
+        else log(`estoque do Bling nao lido: ${estoque.motivo}`);
       }
     } catch (erro) {
       logErro(`erro na volta do worker: ${mensagem(erro)}`);

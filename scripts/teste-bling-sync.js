@@ -2660,6 +2660,15 @@ try {
       conferir("pendentes aplicados na ordem de criadoEm (5 + 3 -> balanco 12 -> - 1 = 11)", await lerS("ZZ-BS-S007"), [5, 11]);
       conferir("ajuste ja enviado nao conta, so o pendente (10 + 1)", await lerS("ZZ-BS-S008"), [10, 11]);
       conferir("o ultimo do segundo lote tambem (150)", await lerS("ZZ-BS-S150"), [150, 150]);
+      // A hora em que o saldo foi lido do Bling: o assistente do Rise diz "lido ha N min" ao falar de estoque. So quem foi
+      // gravado ganha a hora; quem o Bling nao resolveu (nao existe, inativo) continua sem.
+      const lidoEm = async (sku) => (await prisma.produto.findUnique({ where: { sku } })).blingSaldoLidoEm;
+      const antesDoTeste = Date.now() - 10 * 60 * 1000;
+      conferir(
+        "blingSaldoLidoEm: gravado nos produtos atualizados (agora), nulo nos que o Bling nao resolveu",
+        [(await lidoEm("ZZ-BS-S001"))?.getTime() > antesDoTeste, (await lidoEm("ZZ-BS-S150"))?.getTime() > antesDoTeste, await lidoEm("ZZ-BS-S003"), await lidoEm("ZZ-BS-S004")],
+        [true, true, null, null],
+      );
       const movimentosDepois = await movimentosS();
       conferir(
         "MovimentoEstoque nao ganha linha, e os pendentes continuam pendentes",

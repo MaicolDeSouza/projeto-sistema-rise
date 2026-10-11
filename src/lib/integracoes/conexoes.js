@@ -9,16 +9,21 @@ import { cifrar, decifrar } from "@/lib/crypto";
  * camada nao interpreta o conteudo.
  */
 
-/** Segredo decifrado de um servico, ou null se ainda nao ha conexao. */
-export async function lerSegredo(servico) {
-  const conexao = await prisma.conexao.findUnique({ where: { servico } });
+/**
+ * Segredo decifrado de um servico, ou null se ainda nao ha conexao.
+ *
+ * `db` e o cliente do banco: o `prisma` por padrao, ou o da transacao quando a leitura precisa valer dentro dela
+ * (a renovacao de token sob a trava, `travaDeRenovacao.js`).
+ */
+export async function lerSegredo(servico, db = prisma) {
+  const conexao = await db.conexao.findUnique({ where: { servico } });
   if (!conexao?.segredoCifrado) return null;
   return decifrar(conexao.segredoCifrado);
 }
 
-/** Metadados da conexao (sem segredo). Seguro para mandar para a tela. */
-export async function lerConexao(servico) {
-  return prisma.conexao.findUnique({
+/** Metadados da conexao (sem segredo). Seguro para mandar para a tela. `db`: como em `lerSegredo`. */
+export async function lerConexao(servico, db = prisma) {
+  return db.conexao.findUnique({
     where: { servico },
     select: {
       servico: true,
@@ -59,14 +64,16 @@ export async function listarConexoes() {
  * ROTACIONA — cada renovacao invalida o anterior. Se o token novo fosse gravado
  * em duas etapas e a segunda falhasse, o antigo ja estaria queimado e a conexao
  * morreria, exigindo reautorizacao manual.
+ *
+ * `db`: como em `lerSegredo` (a renovacao sob trava grava pela transacao que segura a trava).
  */
-export async function salvarConexao(servico, { segredo, ...metadados }) {
+export async function salvarConexao(servico, { segredo, ...metadados }, db = prisma) {
   const dados = {
     ...metadados,
     ...(segredo !== undefined ? { segredoCifrado: cifrar(segredo) } : {}),
   };
 
-  return prisma.conexao.upsert({
+  return db.conexao.upsert({
     where: { servico },
     update: dados,
     create: { servico, ...dados },

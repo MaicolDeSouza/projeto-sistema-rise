@@ -270,6 +270,9 @@ try {
   const lidoKit = await prisma.produto.findUnique({ where: { id: kit.id }, select: { estoque: true, blingSaldo: true } });
   conferir("kit: guarda o saldo do Bling (50), mas o estoque e o CALCULADO pelas pecas daqui: 17/3 = 5", [lidoKit.blingSaldo, lidoKit.estoque], [50, 5]);
   conferir("kit2, fora do lote mas com a peca A: recalculado para 17/2 = 8", await estoqueDe(kit2.id), 8);
+  const horaDoKit = await prisma.produto.findUnique({ where: { id: kit.id }, select: { blingSaldoLidoEm: true } });
+  const horaDaPeca = await prisma.produto.findUnique({ where: { id: a.id }, select: { blingSaldoLidoEm: true } });
+  conferir("a hora da leitura do Bling e gravada na peca E no kit (o kit guarda o saldo do Bling, entao tambem a hora dele)", [horaDaPeca.blingSaldoLidoEm instanceof Date, horaDoKit.blingSaldoLidoEm instanceof Date], [true, true]);
 
   // --- a peca usada em kit nao e excluida: o Restrict do banco e a ultima defesa ---
   let recusouNoBanco = false;

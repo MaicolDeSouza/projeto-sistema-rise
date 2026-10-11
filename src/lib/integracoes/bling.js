@@ -1,6 +1,7 @@
 import { config, exigirTravaLiberada } from "./config";
 import { limitar, requisitar } from "./httpClient";
 import { lerConexao, lerSegredo, salvarConexao } from "./conexoes";
+import { obterTokenSobTrava } from "./travaDeRenovacao";
 
 /**
  * Bling API v3.
@@ -50,8 +51,8 @@ async function pedirToken(corpo) {
   return dados;
 }
 
-/** Guarda os tokens ja com o instante de expiracao calculado. */
-async function guardar(dados, anterior) {
+/** Guarda os tokens ja com o instante de expiracao calculado. `db`: a transacao da trava, na renovacao. */
+async function guardar(dados, anterior, db) {
   const expiraEm = new Date(Date.now() + Number(dados.expires_in ?? 0) * 1000);
 
   await salvarConexao(SERVICO, {
@@ -67,7 +68,7 @@ async function guardar(dados, anterior) {
     escopos: dados.scope ?? null,
     expiraEm,
     conectadoEm: new Date(),
-  });
+  }, db);
 
   return dados.access_token;
 }
@@ -94,30 +95,32 @@ export async function concluirAutorizacao(code) {
 /**
  * Devolve um access token valido, renovando so quando falta pouco para expirar.
  * Pedir token a toa e o caminho mais rapido para o bloqueio de IP.
+ *
+ * A renovacao roda SOB TRAVA do banco (`travaDeRenovacao.js`): o refresh token e de uso unico, e o site, o worker e os
+ * scripts usam a mesma conexao. Quem espera a trava relê o estado e, se outro processo ja renovou, usa o token dele em
+ * vez de mandar um refresh token queimado (o que derrubaria a conexao).
  */
 export async function obterAccessToken() {
-  const segredo = await lerSegredo(SERVICO);
-
-  if (!segredo?.accessToken) {
-    throw new Error('Bling não conectado. Use "Conectar" na tela Integrações.');
-  }
-
-  const conexao = await lerConexao(SERVICO);
-  const aindaVale =
-    conexao?.expiraEm &&
-    conexao.expiraEm.getTime() - Date.now() > MARGEM_RENOVACAO_MS;
-  if (aindaVale) return segredo.accessToken;
-
-  if (!segredo.refreshToken) {
-    throw new Error("Token do Bling expirou e não há refresh token. Reconecte.");
-  }
-
-  const dados = await pedirToken({
-    grant_type: "refresh_token",
-    refresh_token: segredo.refreshToken,
+  return obterTokenSobTrava("conexao:BLING", {
+    ler: async (db) => ({ segredo: await lerSegredo(SERVICO, db), conexao: await lerConexao(SERVICO, db) }),
+    tokenValido: ({ segredo, conexao }) => {
+      if (!segredo?.accessToken) {
+        throw new Error('Bling não conectado. Use "Conectar" na tela Integrações.');
+      }
+      const aindaVale = conexao?.expiraEm && conexao.expiraEm.getTime() - Date.now() > MARGEM_RENOVACAO_MS;
+      return aindaVale ? segredo.accessToken : null;
+    },
+    renovar: async ({ segredo }, tx) => {
+      if (!segredo.refreshToken) {
+        throw new Error("Token do Bling expirou e não há refresh token. Reconecte.");
+      }
+      const dados = await pedirToken({
+        grant_type: "refresh_token",
+        refresh_token: segredo.refreshToken,
+      });
+      return guardar(dados, segredo, tx);
+    },
   });
-
-  return guardar(dados, segredo);
 }
 
 const preenchido = (valor) => valor !== undefined && valor !== null && valor !== "";
