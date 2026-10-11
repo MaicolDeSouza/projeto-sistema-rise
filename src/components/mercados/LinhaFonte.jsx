@@ -386,7 +386,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
                 <>
                 <span
                   className="inline-flex items-center gap-1 rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs text-sky-900"
-                  title="O Rise do seu PC atende o pedido sozinho (ele pergunta a VPS a cada minuto). Ao terminar, o worker do PC desliga."
+                  title="O Rise do seu PC atende o pedido sozinho (ele pergunta a VPS a cada 15 segundos). Ao terminar, o worker do PC desliga."
                 >
                   <Monitor size={12} />
                   {fonte.varredura === "VARRENDO" ? "Varrendo pelo PC" : "Na fila do PC"}
