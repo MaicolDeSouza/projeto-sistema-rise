@@ -536,6 +536,47 @@ async function requisitarPagina(alvo, { etag, vistoEm, sinal, sinalDaBusca, inic
  * @returns {Promise<{ok: boolean, status: number|null, bytes: Buffer|null,
  *   erro: string|null}>}
  */
+/**
+ * Pedido de JSON com cabecalhos proprios (a base Supabase por tras do site da Prado, que exige
+ * `apikey`). Irma de buscarPagina: o mesmo robots.txt, o mesmo ritmo por dominio, o mesmo `obter`
+ * (filtro de rede publica, teto de 2 MB, sem seguir para outro dominio). So muda o Accept e os
+ * cabecalhos a mais. Devolve `{ ok, status, corpo, erro }`.
+ */
+export async function buscarJson(url, { cabecalhos = {}, sinal = null } = {}) {
+  let alvo;
+  try {
+    alvo = new URL(url);
+  } catch {
+    return { ok: false, status: null, corpo: null, erro: "URL invalida" };
+  }
+
+  const permissao = await podeVisitar(alvo.toString());
+  if (!permissao.permitido) return { ok: false, status: null, corpo: null, erro: permissao.motivo };
+
+  await limitar(alvo.hostname, REQUISICOES, await janelaDe(alvo.origin));
+  if (sinal?.aborted) return { ok: false, status: null, corpo: null, erro: "Cancelado" };
+
+  try {
+    const resposta = await obter(alvo, {
+      cabecalhos: { "User-Agent": USER_AGENT, Accept: "application/json", ...cabecalhos },
+      sinal: sinalDaRequisicao(sinal),
+      mesmoDominio: true,
+      tetoDoCorpo: (status) => (status >= 200 && status < 300 ? MAXIMO_BYTES : 0),
+    });
+    if (resposta.redirecionouPara) {
+      return { ok: false, status: resposta.status, corpo: null, erro: `Redirecionou para outro domínio (${resposta.redirecionouPara})` };
+    }
+    if (resposta.status < 200 || resposta.status >= 300) {
+      return { ok: false, status: resposta.status, corpo: null, erro: `HTTP ${resposta.status}` };
+    }
+    return { ok: true, status: resposta.status, corpo: new TextDecoder().decode(resposta.bytes ?? new Uint8Array()), erro: null };
+  } catch (erro) {
+    return { ok: false, status: null, corpo: null, erro: erro?.message ?? String(erro) };
+  } finally {
+    registrarResposta(alvo.hostname);
+  }
+}
+
 export async function buscarBytes(url, { sinal } = {}) {
   let alvo;
   try {

@@ -1386,9 +1386,14 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   variante cada, `vendor` = a própria loja, `product_type` = categoria, `available` = status sem quantidade, endereço gravado
   = `https://pradoautomacaoindustrial.com.br/produto/{handle}` (o do sitemap do site). **88 produtos (eixos e fusos) têm a
   etiqueta `mm` e preço POR MILÍMETRO** (R$ 0,24 o SBR20): o número fica como a loja publica, com "Unidade de venda:
-  milímetro" na ficha e o aviso na origem do preço. A base Supabase do site (ficha técnica em imagem, PDFs) **não é lida**:
-  o dono autorizou a leitura, mas o catálogo do Shopify bastou e é público por desenho. Cadastrar como CONCORRENTE pelo
-  endereço do site público; resultado do teste é PARCIAL (sem EAN, NCM e características na maioria).
+  milímetro" na ficha e o aviso na origem do preço. **Os documentos NÃO estão no Shopify** (o dono viu o
+  eixo sem eles em 11/10/2026): desenho técnico, tabela de especificações em imagem, arquivo 3D (.IGS) e o PDF "Ficha
+  Técnica" moram na base Supabase do próprio site (`product_technical_data` e `product_pdfs`, pelo `product_handle`; 289 dos
+  581 produtos têm). `extrasDoSupabase` lê as duas tabelas inteiras (2 requisições, `buscarJson` em `buscar.js`, com a
+  chave pública `anon` do site gravada na regra, **leitura autorizada pelo dono em 11/10/2026**) e `produtoDoShopify` as
+  junta pelo handle em `documentos` (e em `specifications`, se um dia a tabela em texto for preenchida; hoje vem só em
+  imagem). Falha na base é aviso no teste, nunca erro: o catálogo vale sozinho. Cadastrar como CONCORRENTE pelo endereço
+  do site público; resultado do teste é PARCIAL (sem EAN, NCM e características na maioria).
 - **Makerhero é lida pela Store API, não pela página** ("WooCommerce Store API" nas origens), e a API não traz o PIX.
   `colherWooCommerce` abre a página dos PRIMEIROS produtos, lê o "R$ X no PIX" do Simulador de Parcelas
   (`precosDoSimuladorWoo`) e aprende a regra da loja com a lógica da Tray (`aprenderRegraDePagamento` /

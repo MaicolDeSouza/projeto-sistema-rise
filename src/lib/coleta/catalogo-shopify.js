@@ -1,3 +1,4 @@
+import { buscarJson } from "./buscar";
 import { lerCatalogo } from "./catalogo";
 import { especificacoesDaDescricao, textoDoBlocoDeDescricao } from "./normalizar";
 import { comoNumero } from "./texto-html";
@@ -48,7 +49,71 @@ export function urlDoProdutoShopify(molde, handle) {
  * quando existe e e maior. Pela regra do sistema o NORMAL e o de tabela, e o cobrado
  * vira promocional so quando os dois existem.
  */
-export function produtoDoShopify(item, { urlProduto, fonte, coletadoEm = new Date() } = {}) {
+/**
+ * Os documentos e a ficha que moram FORA do Shopify, na base Supabase do site (Prado): um mapa
+ * `handle -> { documentos, especificacoes }`. Duas leituras (as duas tabelas inteiras, 289 linhas
+ * cada), nunca uma por produto. Qualquer falha devolve um mapa vazio: o catalogo nao depende disto.
+ *
+ * @returns {Promise<{porHandle: Map<string, {documentos: object[], especificacoes: object[]}>, erro: string|null}>}
+ */
+export async function extrasDoSupabase({ url, chaveAnonima }, { sinal = null } = {}) {
+  const porHandle = new Map();
+  if (!url || !chaveAnonima) return { porHandle, erro: null };
+
+  const cabecalhos = { apikey: chaveAnonima, Authorization: `Bearer ${chaveAnonima}`, Range: "0-9999" };
+  const ler = async (tabela, campos) => {
+    const resposta = await buscarJson(`${url}/rest/v1/${tabela}?select=${campos}`, { cabecalhos, sinal });
+    if (!resposta.ok) return { linhas: null, erro: `${tabela}: ${resposta.erro}` };
+    try {
+      const json = JSON.parse(resposta.corpo);
+      return Array.isArray(json) ? { linhas: json, erro: null } : { linhas: null, erro: `${tabela}: resposta não é lista` };
+    } catch {
+      return { linhas: null, erro: `${tabela}: resposta não é JSON` };
+    }
+  };
+  const de = (handle) => {
+    if (!porHandle.has(handle)) porHandle.set(handle, { documentos: [], especificacoes: [] });
+    return porHandle.get(handle);
+  };
+
+  const tecnicos = await ler(
+    "product_technical_data",
+    "product_handle,technical_drawing_url,igs_file_url,igs_file_name,specs_table_image_url,specs_table_headers,specs_table_rows,product_video_url",
+  );
+  for (const linha of tecnicos.linhas ?? []) {
+    const handle = comoTexto(linha?.product_handle);
+    if (!handle) continue;
+    const extra = de(handle);
+    if (comoTexto(linha.technical_drawing_url)) extra.documentos.push({ titulo: "Desenho técnico", url: linha.technical_drawing_url.trim() });
+    if (comoTexto(linha.specs_table_image_url)) extra.documentos.push({ titulo: "Tabela de especificações (imagem)", url: linha.specs_table_image_url.trim() });
+    if (comoTexto(linha.igs_file_url)) {
+      extra.documentos.push({ titulo: `Arquivo 3D${comoTexto(linha.igs_file_name) ? ` (${linha.igs_file_name.trim()})` : " (.IGS)"}`, url: linha.igs_file_url.trim() });
+    }
+    if (comoTexto(linha.product_video_url)) extra.documentos.push({ titulo: "Vídeo do produto", url: linha.product_video_url.trim() });
+    // Tabela de especificacoes em texto, quando a loja a preencheu (em 11/10/2026 nenhuma tinha: vem
+    // em imagem). Cabecalhos + linhas de duas colunas viram pares nome:valor.
+    const cabecalho = Array.isArray(linha.specs_table_headers) ? linha.specs_table_headers : null;
+    const linhas = Array.isArray(linha.specs_table_rows) ? linha.specs_table_rows : [];
+    for (const par of linhas) {
+      const celulas = Array.isArray(par) ? par : cabecalho ? cabecalho.map((chave) => par?.[chave]) : [];
+      if (celulas.length === 2 && comoTexto(String(celulas[0] ?? "")) && comoTexto(String(celulas[1] ?? ""))) {
+        extra.especificacoes.push({ nome: String(celulas[0]).trim(), valor: String(celulas[1]).trim() });
+      }
+    }
+  }
+
+  const pdfs = await ler("product_pdfs", "product_handle,pdf_url,pdf_title");
+  for (const linha of pdfs.linhas ?? []) {
+    const handle = comoTexto(linha?.product_handle);
+    if (!handle || !comoTexto(linha.pdf_url)) continue;
+    de(handle).documentos.push({ titulo: comoTexto(linha.pdf_title) ?? "Ficha técnica (PDF)", url: linha.pdf_url.trim() });
+  }
+
+  const erros = [tecnicos.erro, pdfs.erro].filter(Boolean);
+  return { porHandle, erro: erros.length ? erros.join("; ") : null };
+}
+
+export function produtoDoShopify(item, { urlProduto, fonte, coletadoEm = new Date(), extras = null } = {}) {
   const nome = comoTexto(item?.title);
   const variantes = Array.isArray(item?.variants) ? item.variants : [];
   const principal = variantes[0];
@@ -79,6 +144,13 @@ export function produtoDoShopify(item, { urlProduto, fonte, coletadoEm = new Dat
   // pareceria o preco de um eixo inteiro ao lado dos nossos.
   const porMilimetro = Array.isArray(item.tags) && item.tags.some((tag) => /^mm$/i.test(String(tag)));
   if (porMilimetro) ficha.push({ nome: "Unidade de venda", valor: "milímetro (preço por mm)" });
+
+  // O que a base do site guarda deste handle: documentos e, se houver, a ficha em texto.
+  const extra = extras?.get?.(item.handle) ?? null;
+  for (const linha of extra?.especificacoes ?? []) {
+    if (!ficha.some((existente) => existente.nome?.toLowerCase() === linha.nome.toLowerCase())) ficha.push(linha);
+  }
+  const documentos = extra?.documentos ?? [];
 
   const disponivel = principal.available !== false;
   const categoria = comoTexto(item.product_type);
@@ -111,7 +183,7 @@ export function produtoDoShopify(item, { urlProduto, fonte, coletadoEm = new Dat
     },
     description: descricao,
     specifications: ficha,
-    documentos: [],
+    documentos,
     variants: variantes.slice(1).map((variante) => ({
       titulo: comoTexto(variante.title),
       codigo: comoTexto(variante.sku),
@@ -132,6 +204,8 @@ export function produtoDoShopify(item, { urlProduto, fonte, coletadoEm = new Dat
       status: "available do variante no catalogo",
       ...(descricao ? { description: "body_html do catalogo" } : {}),
       ...(imagens.length ? { images: `${imagens.length} foto(s) declarada(s) no catalogo` } : {}),
+      ...(documentos.length ? { documentos: `${documentos.length} arquivo(s) da base do site (Supabase)` } : {}),
+      ...(extra?.especificacoes?.length ? { specifications: "tabela de especificacoes da base do site (Supabase)" } : {}),
       catalogo: `${fonte?.name ?? "loja"}: loja Shopify por tras do site proprio`,
     },
   };
@@ -142,17 +216,27 @@ export function produtoDoShopify(item, { urlProduto, fonte, coletadoEm = new Dat
  *
  * @returns {Promise<{produtos: object[], visitas: number, erro: string|null}>}
  */
-export async function colherCatalogoShopify({ loja, urlProduto, fonte, sinal = null }) {
+export async function colherCatalogoShopify({ loja, urlProduto, supabase = null, fonte, sinal = null }) {
   const url = `https://${loja}/products.json?limit=250`;
   const lido = await lerCatalogo({ url, formato: "json", listaEm: "products" }, { limite: SEM_LIMITE, sinal });
-  const visitas = Math.max(1, Math.ceil(lido.itens.length / 250));
-  if (lido.erro) return { produtos: [], visitas, erro: `catálogo do Shopify em ${loja}: ${lido.erro}` };
+  let visitas = Math.max(1, Math.ceil(lido.itens.length / 250));
+  if (lido.erro) return { produtos: [], visitas, erro: `catálogo do Shopify em ${loja}: ${lido.erro}`, avisos: [] };
+
+  // Documentos fora do Shopify (a base do site). Falha aqui e AVISO, nao erro: o catalogo vale sozinho.
+  const avisos = [];
+  let extras = null;
+  if (supabase) {
+    const lidos = await extrasDoSupabase(supabase, { sinal });
+    visitas += 2;
+    extras = lidos.porHandle;
+    if (lidos.erro) avisos.push(`documentos da base do site não lidos: ${lidos.erro}`);
+  }
 
   const coletadoEm = new Date();
   const vistos = new Set();
   const produtos = [];
   for (const item of lido.itens) {
-    const produto = produtoDoShopify(item, { urlProduto, fonte, coletadoEm });
+    const produto = produtoDoShopify(item, { urlProduto, fonte, coletadoEm, extras });
     if (!produto) continue;
     // O banco identifica por codigo: dois itens com o mesmo sku seriam um so la, e o
     // segundo reescreveria o primeiro a cada varredura. Fica o primeiro, como no banco.
@@ -162,5 +246,5 @@ export async function colherCatalogoShopify({ loja, urlProduto, fonte, sinal = n
     produtos.push(produto);
   }
 
-  return { produtos, visitas, erro: produtos.length === 0 ? "nenhum produto válido no catálogo do Shopify" : null };
+  return { produtos, visitas, avisos, erro: produtos.length === 0 ? "nenhum produto válido no catálogo do Shopify" : null };
 }

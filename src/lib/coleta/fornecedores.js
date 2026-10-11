@@ -119,6 +119,19 @@ export const FORNECEDORES = [
     catalogoShopify: {
       loja: "prado-automacao-industrial.myshopify.com",
       urlProduto: "https://pradoautomacaoindustrial.com.br/produto/{handle}",
+      /**
+       * OS DOCUMENTOS NAO ESTAO NO SHOPIFY: desenho tecnico, tabela de especificacoes (em imagem),
+       * arquivo 3D (.IGS) e o PDF "Ficha Tecnica" moram na base Supabase do proprio site, nas tabelas
+       * `product_technical_data` e `product_pdfs`, ligadas ao produto pelo `product_handle` (289 de
+       * 581 produtos em 11/10/2026). A chave e a PUBLICA do site (papel `anon`, embutida no JavaScript
+       * que todo visitante baixa, valida ate 2035); a leitura foi autorizada pelo dono em 11/10/2026.
+       * So leitura, duas requisicoes por coleta. Se a chave um dia mudar, os documentos ficam de fora e
+       * o catalogo continua: ver `extrasDoSupabase` em catalogo-shopify.js.
+       */
+      supabase: {
+        url: "https://odtixfahgbyohtznjvhw.supabase.co",
+        chaveAnonima: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kdGl4ZmFoZ2J5b2h0em5qdmh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MjAzOTMsImV4cCI6MjA4MTQ5NjM5M30.7hgRiweC0NoYXbjrWa2Lim8XRa2RKt-7-7vWYrq6K-I",
+      },
     },
   },
 ];

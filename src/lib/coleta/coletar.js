@@ -406,6 +406,7 @@ async function varrerCatalogoShopify(fonte, catalogo, aoProgredir, sinal) {
       colherCatalogoShopify({
         loja: catalogo.loja,
         urlProduto: catalogo.urlProduto,
+        supabase: catalogo.supabase ?? null,
         fonte: { name: fonte.nome, type: fonte.tipo },
         sinal,
       }),

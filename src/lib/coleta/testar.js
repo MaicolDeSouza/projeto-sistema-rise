@@ -140,14 +140,23 @@ async function testarCatalogoShopify({ url, nome, tipo }, catalogo) {
   const colheita = await colherCatalogoShopify({
     loja: catalogo.loja,
     urlProduto: catalogo.urlProduto,
+    supabase: catalogo.supabase ?? null,
     fonte: { name: nome, type: tipo },
   });
+  const comDocumentos = colheita.produtos.filter((produto) => produto.documentos.length > 0).length;
   const passos = [
     {
       nome: "Catálogo do Shopify lido",
       ok: !colheita.erro,
       detalhe: colheita.erro ?? `${colheita.produtos.length} produto(s) em ${colheita.visitas} página(s) de ${catalogo.loja}`,
     },
+    ...(catalogo.supabase
+      ? [{
+          nome: "Documentos da base do site",
+          ok: (colheita.avisos ?? []).length === 0,
+          detalhe: (colheita.avisos ?? [])[0] ?? `${comDocumentos} produto(s) com documento(s)`,
+        }]
+      : []),
   ];
   const dominio = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname;
   const plataforma = { id: "shopify", nome: "Shopify", familia: "SaaS internacional", confianca: "alta", sinais: [], alternativas: [], conferidaEm: "2026-10-11", entrega: null };

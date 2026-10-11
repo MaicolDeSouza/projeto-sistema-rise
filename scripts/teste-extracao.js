@@ -2366,6 +2366,22 @@ console.log("\n— catalogo do Shopify por tras de site proprio (Prado) —");
 
   conferir("shopify: item sem titulo ou sem variante nao vira produto", [produtoDoShopify({ title: "", variants: [{}] }), produtoDoShopify({ title: "X", variants: [] })], [null, null]);
   conferir("shopify: molde sem handle nao inventa endereco", urlDoProdutoShopify(molde, null), null);
+
+  // Documentos e ficha da base do site (Supabase), ligados pelo handle.
+  const extras = new Map([[
+    "patim-com-aba-20mm",
+    {
+      documentos: [
+        { titulo: "Desenho técnico", url: "https://x.supabase.co/storage/v1/object/public/technical-files/drawings/PPW20.jpg" },
+        { titulo: "Ficha Técnica", url: "https://x.supabase.co/storage/v1/object/public/product-pdfs/PPW20.pdf" },
+      ],
+      especificacoes: [{ nome: "Carga", valor: "9.999 N" }, { nome: "Rosca", valor: "M5" }],
+    },
+  ]]);
+  const comExtras = produtoDoShopify(item, { urlProduto: molde, extras });
+  conferir("shopify: documentos da base do site entram pelo handle", comExtras.documentos.map((d) => d.titulo), ["Desenho técnico", "Ficha Técnica"]);
+  conferir("shopify: a ficha do body_html vence a da base no mesmo nome; o resto soma", comExtras.specifications.map((l) => `${l.nome}=${l.valor}`), ["Carga=1.000 N", "Material=aço", "Furação=M5", "Peso=250g", "Rosca=M5"]);
+  conferir("shopify: handle sem extras fica sem documentos", produtoDoShopify({ ...item, handle: "outro" }, { urlProduto: molde, extras }).documentos, []);
   conferir("shopify: a regra casa o site publico, a loja.* e o myshopify", [
     catalogoShopifyDoEndereco("https://pradoautomacaoindustrial.com.br/")?.loja,
     catalogoShopifyDoEndereco("https://loja.pradoautomacaoindustrial.com.br/x")?.loja,
