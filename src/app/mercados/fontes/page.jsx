@@ -8,6 +8,7 @@ import { jobLargado } from "@/lib/coleta/fila";
 import { plataformasPorFonte } from "@/lib/coleta/banco";
 import { portalDoEndereco } from "@/lib/coleta/fornecedores";
 import { avisoSoLocalhost } from "@/lib/coleta/soLocalhost";
+import BotaoVarrerFontesDoPc from "@/components/mercados/BotaoVarrerFontesDoPc";
 import { lerEstadoDoWorkerPc, situacaoDoWorkerPc } from "@/lib/coleta/workerPc";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
@@ -145,6 +146,7 @@ export default async function FontesPage({ searchParams }) {
       {!erro && (
         <>
           <FormularioFonte tipoInicial={aba} />
+          {noPc && <BotaoVarrerFontesDoPc workerPc={workerPc} />}
           <RecarregarEnquantoVarre ativo={varreduraPorFonte.size > 0 || Boolean(workerPc?.rodando)} />
 
           {linhas.length > 0 && (

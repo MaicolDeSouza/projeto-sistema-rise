@@ -368,7 +368,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
               */
               <span
                 className="inline-flex items-center gap-1 rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs text-sky-900"
-                title="Esta fonte é varrida pelo PC: abra o Rise no seu PC e clique em Varrer agora nela. A varredura grava aqui."
+                title="Esta fonte é varrida pelo PC: abra o Rise no seu PC (localhost), tela Fontes, e clique em Varrer fontes do PC. A varredura grava aqui."
               >
                 <Monitor size={12} />
                 {fonte.varredura === "VARRENDO"

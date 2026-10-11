@@ -111,8 +111,9 @@ export function ambienteDoTerminal(ambiente) {
  *
  * @returns {{ok: true} | {ok: false, erro: string}}
  */
-export function iniciarWorkerPc({ pastaProjeto, fonteId, fonteNome }) {
-  if (!idDeFonteValido(fonteId)) return { ok: false, erro: "Fonte inválida." };
+// `fonteId` nulo = TODAS as fontes marcadas (o botao "Varrer fontes do PC" e o `npm run worker:pc`).
+export function iniciarWorkerPc({ pastaProjeto, fonteId = null, fonteNome }) {
+  if (fonteId !== null && !idDeFonteValido(fonteId)) return { ok: false, erro: "Fonte inválida." };
 
   const pastaDados = path.join(pastaProjeto, "dados");
   const atual = situacaoDoWorkerPc(lerEstadoDoWorkerPc(pastaDados));
@@ -132,7 +133,7 @@ export function iniciarWorkerPc({ pastaProjeto, fonteId, fonteNome }) {
   let filho;
   try {
     // `windowsHide`: sem ele, o Windows abre uma janela de console para o processo destacado.
-    filho = spawn(process.execPath, [script, `--fonte=${fonteId}`], {
+    filho = spawn(process.execPath, fonteId ? [script, `--fonte=${fonteId}`] : [script], {
       cwd: pastaProjeto,
       detached: true,
       stdio: ["ignore", saida, saida],
@@ -147,6 +148,6 @@ export function iniciarWorkerPc({ pastaProjeto, fonteId, fonteNome }) {
   if (!filho.pid) return { ok: false, erro: "Não consegui ligar o worker do PC." };
   filho.unref();
 
-  gravarEstadoDoWorkerPc(pastaDados, { pid: filho.pid, fonteId, fonteNome: fonteNome ?? null, inicioEm: new Date().toISOString() });
+  gravarEstadoDoWorkerPc(pastaDados, { pid: filho.pid, fonteId, fonteNome: fonteNome ?? (fonteId ? null : "todas as fontes do PC"), inicioEm: new Date().toISOString() });
   return { ok: true };
 }

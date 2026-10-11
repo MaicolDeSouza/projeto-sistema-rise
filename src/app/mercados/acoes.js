@@ -663,6 +663,22 @@ export async function varrerPeloPcAgora(fonteId) {
   return resultado;
 }
 
+/**
+ * "Varrer fontes do PC" (11/10/2026): liga o worker do PC para TODAS as fontes marcadas e ativas NA VPS, sem depender
+ * da copia local. O `varrerPeloPcAgora` por linha so existe para fonte que ja esta marcada na copia do PC, e a
+ * Policomp, cadastrada na VPS no dia anterior, nao estava: o clique na VPS so marca, e o PC nao a via.
+ */
+export async function varrerFontesDoPc() {
+  if (process.env.RISE_PRODUCAO) {
+    return { ok: false, erro: "Abra o Rise no seu PC (localhost) para varrer pelo PC." };
+  }
+  if (coletaPausada()) return { ok: false, erro: "Varredura pausada neste PC. Clique em Continuar antes." };
+
+  const resultado = iniciarWorkerPc({ pastaProjeto: process.cwd() });
+  revalidatePath("/mercados/fontes");
+  return resultado;
+}
+
 // ---------------------------------------------------------------------------
 // Portal com login: categorias e login da fonte
 // ---------------------------------------------------------------------------
