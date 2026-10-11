@@ -54,6 +54,9 @@ async function limpar() {
   await prisma.logIntegracao.deleteMany({ where: { endpoint: "falso-1" } });
 }
 
+// Resultados que um bloco entrega aos seguintes (as conversas da Tarefa 9 alimentam a Revisao da Tarefa 12).
+const compartilhado = {};
+
 try {
   await limpar();
 
@@ -746,6 +749,280 @@ try {
     conferir("ferramenta buscarConhecimento", [pelaFerramenta.ok, deTeste(pelaFerramenta.resultado).map((nota) => nota.id), Object.keys(pelaFerramenta.resultado[0]).sort()], [true, [aprovada.id], ["assunto", "conteudo", "id", "produtos"]]);
     conferir("buscarConhecimento tambem serve ao perfil publico", definicoesParaProvedor("publico").map((d) => d.nome), ["buscarConhecimento"]);
     conferir("a ferramenta recusa termos vazios", (await executarFerramenta("buscarConhecimento", { termos: "" }, { perfil: "admin" })).ok, false);
+  }
+
+  // -------------------------------------------------------------------------
+  // Tarefa 9 — Resposta, prompt e o laco da conversa
+  // -------------------------------------------------------------------------
+  {
+    const { separarResposta, produtosCitados, tituloDaConversa, estimarTokens, cortarHistorico, extrairJson } = await import("../src/lib/riseAi/resposta.js");
+    const { montarSistema, mensagemDeConhecimento, SISTEMA_FIXO, PROMPT_ATENDIMENTO_PADRAO } = await import("../src/lib/riseAi/prompt.js");
+    const { mensagensParaOpenAI } = await import("../src/lib/riseAi/provedores/openaiCompativel.js");
+    const { responder } = await import("../src/lib/riseAi/conversa.js");
+    const { carregarConversa, listarConversas, renomearConversa, excluirConversa, avaliarMensagem } = await import("../src/lib/riseAi/conversas.js");
+    const { configuracaoPadrao } = await import("../src/lib/riseAi/configuracao.js");
+    const { criarLimitador } = await import("../src/lib/riseAi/limite.js");
+    const { criarConhecimento } = await import("../src/lib/riseAi/conhecimento.js");
+    const { criarProvedorFalso } = await import("./lib/provedorFalso.js");
+
+    console.log("\nResposta e prompt");
+    conferir(
+      "separa os dois blocos",
+      separarResposta("### Resposta para o cliente\nOlá!\n\n### Para a equipe\nUsei o Uno."),
+      { respostaCliente: "Olá!", paraEquipe: "Usei o Uno.", semSeparacao: false },
+    );
+    conferir("sem marcador", separarResposta("Olá! Serve o Uno."), { respostaCliente: "Olá! Serve o Uno.", paraEquipe: "", semSeparacao: true });
+    conferir(
+      "marcador em negrito, sem acento e em outra caixa",
+      separarResposta("**Resposta Para O Cliente:**\nOi\n\n## para a equipe\nNota"),
+      { respostaCliente: "Oi", paraEquipe: "Nota", semSeparacao: false },
+    );
+    conferir(
+      "so o marcador da equipe: o que vem antes ainda e do cliente, nunca da equipe",
+      separarResposta("Texto do cliente.\n### Para a equipe\nInterno: custo R$ 20"),
+      { respostaCliente: "Texto do cliente.", paraEquipe: "Interno: custo R$ 20", semSeparacao: true },
+    );
+    conferir("resposta vazia", separarResposta(""), { respostaCliente: "", paraEquipe: "", semSeparacao: true });
+
+    const candidatos = [
+      { sku: "100101", nome: "PLACA UNO R3 SMD CH340" },
+      { sku: "100210", nome: "PLACA NANO V3 CH340" },
+      { sku: "100340", nome: "ESP32 DEVKIT V1" },
+    ];
+    const citacao = produtosCitados("O Uno R3 SMD (100101) serve; o Nano está sem estoque.", candidatos);
+    conferir("produto citado por codigo e por nome (as palavras que so ele tem)", [citacao.citados.map((p) => p.sku), citacao.outros.map((p) => p.sku)], [["100101", "100210"], ["100340"]]);
+    conferir("citado so pelo codigo", produtosCitados("Veja o 100340.", candidatos).citados.map((p) => p.sku), ["100340"]);
+    conferir("palavra em comum nao basta", produtosCitados("Essa placa CH340 e boa.", candidatos).citados, []);
+    conferir("sem nada citado", produtosCitados("nao achei", candidatos).citados, []);
+    conferir("titulo de 60", [tituloDaConversa("a".repeat(80)).length, tituloDaConversa("  qual\narduino  serve? "), tituloDaConversa("   ")], [61, "qual arduino serve?", "Nova conversa"]);
+    conferir("estimar tokens", estimarTokens("abcdefgh"), 2);
+    conferir(
+      "historico cortado mantem o par assistente+ferramenta",
+      cortarHistorico(
+        [
+          { papel: "usuario", conteudo: "x".repeat(400) },
+          { papel: "assistente", conteudo: "", chamadas: [{ id: "1", nome: "f", argumentos: {} }] },
+          { papel: "ferramenta", chamadaId: "1", nome: "f", conteudo: "{}" },
+          { papel: "assistente", conteudo: "ok" },
+        ],
+        20,
+      ).map((m) => m.papel),
+      ["assistente", "ferramenta", "assistente"],
+    );
+    conferir(
+      "ferramenta orfa no comeco do corte sai",
+      cortarHistorico([{ papel: "assistente", conteudo: "x".repeat(400), chamadas: [{ id: "1", nome: "f", argumentos: {} }] }, { papel: "ferramenta", chamadaId: "1", nome: "f", conteudo: "{}" }, { papel: "assistente", conteudo: "ok" }], 3).map((m) => m.papel),
+      ["assistente"],
+    );
+    conferir("historico que cabe inteiro", cortarHistorico([{ papel: "usuario", conteudo: "oi" }, { papel: "assistente", conteudo: "ola" }], 100).length, 2);
+    conferir("sistema estavel entre pedidos", montarSistema({ perfil: "admin" }) === montarSistema({ perfil: "admin" }), true);
+    conferir("sistema = regras fixas + estilo", montarSistema({}) === `${SISTEMA_FIXO}\n\n${PROMPT_ATENDIMENTO_PADRAO}`, true);
+    conferir("o estilo da tela substitui o padrao, nunca as regras fixas", montarSistema({ promptAtendimento: "ESTILO NOVO" }).startsWith(SISTEMA_FIXO) && montarSistema({ promptAtendimento: "ESTILO NOVO" }).endsWith("ESTILO NOVO"), true);
+    conferir("as regras fixas dizem o formato e proibem custo", [SISTEMA_FIXO.includes("### Resposta para o cliente"), SISTEMA_FIXO.includes("### Para a equipe"), /custo/i.test(SISTEMA_FIXO)], [true, true, true]);
+    conferir("sistema sem data nem nome (estavel para o cache de prefixo)", /\b20\d\d\b/.test(montarSistema({})), false);
+    conferir("mensagem de conhecimento", [mensagemDeConhecimento("Conhecimento aprovado..."), mensagemDeConhecimento("")], [{ papel: "usuario", conteudo: "Conhecimento aprovado..." }, null]);
+    conferir("extrairJson", [extrairJson('bla {"a":1,"b":{"c":"}"}} bla'), extrairJson("sem json"), extrairJson('```json\n{"x":2}\n```')], [{ a: 1, b: { c: "}" } }, null, { x: 2 }]);
+    conferir(
+      "o adaptador OpenAI funde mensagens seguidas do usuario (o template do Gemma recusa duas)",
+      mensagensParaOpenAI("S", [{ papel: "usuario", conteudo: "a" }, { papel: "usuario", conteudo: "b" }, { papel: "assistente", conteudo: "c" }, { papel: "usuario", conteudo: "d" }]),
+      [{ role: "system", content: "S" }, { role: "user", content: "a\n\nb" }, { role: "assistant", content: "c" }, { role: "user", content: "d" }],
+    );
+
+    console.log("\nLaco da conversa");
+    const deps = (padrao, reserva, ajustes = {}) => ({
+      configuracao: {
+        ...configuracaoPadrao("pc"),
+        padrao: { provedor: "lmstudio", modelo: "falso-1" },
+        tempoLimite: { primeiroTokenMs: 50, totalMs: 2000 },
+        ...ajustes,
+      },
+      criarProvedor: (id) => (id === "lmstudio" ? padrao : reserva),
+      provedorDisponivel: async () => true,
+      limitador: criarLimitador({ porMinuto: 1000 }),
+    });
+    const falsoReservaOk = (usoDaReserva = { entrada: 1000, saida: 1000 }) =>
+      criarProvedorFalso({ id: "anthropic", roteiro: [{ texto: "### Resposta para o cliente\nReserva.\n\n### Para a equipe\n-", uso: usoDaReserva }] });
+
+    const minhaNota = await criarConhecimento({
+      assunto: "ZZ-IA Arduino para ligar LED",
+      conteudo: "Para ligar um LED num projeto simples, o Uno ou o Nano bastam; o Mega é exagero.",
+      status: "APROVADO",
+      criadoPor: "ZZ-IA-TESTE",
+      aprovadoPor: "ZZ-IA-TESTE",
+    });
+
+    const eventos = [];
+    const falsoPadrao = criarProvedorFalso({
+      roteiro: [
+        { chamadas: [{ nome: "buscarProdutos", argumentos: { termos: "placa zzia uno ch340" } }, { nome: "consultarEstoque", argumentos: { skus: ["ZZ-IA-NANO"] } }] },
+        { texto: "### Resposta para o cliente\nOlá! O PLACA ZZIA UNO R3 CH340 serve.\n\n### Para a equipe\nNano sem estoque.", uso: { entrada: 1000, saida: 100 } },
+      ],
+    });
+    const r1 = await responder({
+      texto: "Cliente (54) 98899-0008 pergunta: qual arduino para ligar um LED?",
+      usuario: "ZZ-IA-TESTE",
+      aoEvento: (nome) => eventos.push(nome),
+      dependencias: deps(falsoPadrao, falsoReservaOk()),
+    });
+    conferir("cartoes vem das ferramentas", r1.mensagem.estruturado.produtos.map((p) => p.sku), ["ZZ-IA-UNO"]);
+    conferir("o cartao da tela nao leva custo nem localizacao", ["custo" in r1.mensagem.estruturado.produtos[0], "localizacao" in r1.mensagem.estruturado.produtos[0], r1.mensagem.estruturado.produtos[0].urlLoja], [false, false, "https://www.4hobby.com.br/placa-zzia-uno"]);
+    conferir("quadro do cliente e equipe", [r1.mensagem.estruturado.respostaCliente.startsWith("Olá!"), r1.mensagem.estruturado.paraEquipe], [true, "Nano sem estoque."]);
+    conferir("modelo e custo zero no local", [r1.mensagem.provedor, r1.mensagem.modelo, Number(r1.mensagem.custoBrl), r1.mensagem.motivoDaReserva], ["lmstudio", "falso-1", 0, null]);
+    conferir("uso somado das duas rodadas", [r1.mensagem.tokensEntrada, r1.mensagem.tokensSaida], [1100, 120]);
+    conferir("eventos na ordem", eventos.filter((nome) => nome !== "texto"), ["inicio", "ferramenta", "ferramenta", "ferramenta", "ferramenta", "fim"]);
+    conferir(
+      "auditoria por chamada, sem o prompt",
+      await prisma.logIntegracao.count({ where: { servico: "LM_STUDIO", endpoint: "falso-1", requestResumo: { not: { contains: "LED" } } } }),
+      2,
+    );
+    conferir(
+      "a pergunta e gravada mascarada",
+      (await prisma.mensagemIA.findFirst({ where: { conversaId: r1.conversaId, papel: "USUARIO" } })).conteudo.includes("9****-**08"),
+      true,
+    );
+    conferir("a resposta lista o que foi mascarado", r1.mensagem.estruturado.mascarados, ["telefone"]);
+    conferir("conhecimento usado vai na mensagem", r1.mensagem.estruturado.conhecimentoUsado.some((nota) => nota.id === minhaNota.id), true);
+    conferir(
+      "o provedor recebeu o conhecimento e a pergunta mascarada, nunca o telefone",
+      falsoPadrao.pedidos[0].mensagens.some((m) => m.conteudo?.startsWith("Conhecimento aprovado")) && !JSON.stringify(falsoPadrao.pedidos[0]).includes("98899-0008"),
+      true,
+    );
+    conferir(
+      "o sistema e as ferramentas chegam ao provedor",
+      [falsoPadrao.pedidos[0].sistema === montarSistema({}), falsoPadrao.pedidos[0].ferramentas.map((f) => f.nome).includes("buscarProdutos")],
+      [true, true],
+    );
+    conferir("o resultado da ferramenta volta ao modelo como mensagem de ferramenta", falsoPadrao.pedidos[1].mensagens.filter((m) => m.papel === "ferramenta").length, 2);
+    const conversaDoR1 = await carregarConversa(r1.conversaId, { usuario: "ZZ-IA-TESTE" });
+    conferir("a conversa tem dono e o titulo sai do texto ja mascarado", [conversaDoR1.usuario, conversaDoR1.titulo.startsWith("Cliente (54)"), conversaDoR1.titulo.includes("98899")], ["ZZ-IA-TESTE", true, false]);
+
+    // O historico da conversa volta ao modelo na pergunta seguinte, e nunca comeca por resposta da IA.
+    const falsoSeguinte = criarProvedorFalso({ roteiro: [{ texto: "### Resposta para o cliente\nSim." }] });
+    await responder({ conversaId: r1.conversaId, texto: "e com bateria 9V?", usuario: "ZZ-IA-TESTE", dependencias: deps(falsoSeguinte, falsoReservaOk()) });
+    const historico = falsoSeguinte.pedidos[0].mensagens.filter((m) => !m.conteudo?.startsWith("Conhecimento aprovado"));
+    conferir(
+      "historico: a pergunta anterior, a resposta e a nova",
+      [historico[0].papel, historico.map((m) => m.papel).slice(0, 3), historico.at(-1).conteudo],
+      ["usuario", ["usuario", "assistente", "usuario"], "e com bateria 9V?"],
+    );
+
+    // Reserva: conexao recusada, primeiro token lento, ferramenta quebrada duas vezes, sem modelo, provedor fora do ar.
+    const r2 = await responder({ texto: "tem esp32?", usuario: "ZZ-IA-TESTE", dependencias: deps(criarProvedorFalso({ roteiro: [{ erro: "conexao" }] }), falsoReservaOk()) });
+    conferir("cai para a reserva", [r2.mensagem.provedor, r2.mensagem.modelo, r2.mensagem.motivoDaReserva], ["anthropic", "claude-haiku-5-5", "conexao"]);
+    conferir("custo da reserva (haiku, 1000+1000 tokens)", [Number(r2.mensagem.custoUsd), Number(r2.mensagem.custoBrl)], [0.0006, 0.0036]);
+    const r3 = await responder({
+      texto: "tem esp32?",
+      usuario: "ZZ-IA-TESTE",
+      dependencias: deps(criarProvedorFalso({ roteiro: [{ atrasoMs: 300, texto: "### Resposta para o cliente\nx" }] }), falsoReservaOk()),
+    });
+    conferir("primeiro token lento vira reserva", r3.mensagem.motivoDaReserva, "tempo");
+    const r4 = await responder({
+      texto: "tem esp32?",
+      usuario: "ZZ-IA-TESTE",
+      dependencias: deps(criarProvedorFalso({ roteiro: [{ texto: "### Resposta para o cliente\nComeçou", erroDepoisDoTexto: "conexao" }] }), falsoReservaOk()),
+    });
+    conferir("erro depois do texto nao usa a reserva (nunca duas vozes numa resposta)", [r4.mensagem.avisos.includes("erro"), r4.mensagem.motivoDaReserva, r4.mensagem.provedor], [true, null, "lmstudio"]);
+    const r5 = await responder({
+      texto: "tem esp32?",
+      usuario: "ZZ-IA-TESTE",
+      dependencias: deps(criarProvedorFalso({ roteiro: [{ chamadas: [{ malformada: true }] }, { chamadas: [{ malformada: true }] }] }), falsoReservaOk()),
+    });
+    conferir("duas ferramentas quebradas seguidas viram reserva", r5.mensagem.motivoDaReserva, "ferramenta_malformada");
+    const umaQuebrada = criarProvedorFalso({ roteiro: [{ chamadas: [{ malformada: true }] }, { texto: "### Resposta para o cliente\nOk." }] });
+    const r5b = await responder({ texto: "tem esp32?", usuario: "ZZ-IA-TESTE", dependencias: deps(umaQuebrada, falsoReservaOk()) });
+    conferir("uma ferramenta quebrada o modelo corrige sozinho", [r5b.mensagem.motivoDaReserva, r5b.mensagem.provedor], [null, "lmstudio"]);
+    const semModelo = criarProvedorFalso({ roteiro: [] });
+    const r5c = await responder({ texto: "tem esp32?", usuario: "ZZ-IA-TESTE", dependencias: deps(semModelo, falsoReservaOk(), { padrao: { provedor: "lmstudio", modelo: "" } }) });
+    conferir("padrao sem modelo escolhido vai para a reserva", [r5c.mensagem.motivoDaReserva, semModelo.pedidos.length], ["padrao_sem_modelo", 0]);
+    const foraDoAr = criarProvedorFalso({ roteiro: [] });
+    const dForaDoAr = deps(foraDoAr, falsoReservaOk());
+    dForaDoAr.provedorDisponivel = async () => false;
+    const r5d = await responder({ texto: "tem esp32?", usuario: "ZZ-IA-TESTE", dependencias: dForaDoAr });
+    conferir("provedor fora do ar nem e chamado (a reserva responde sem esperar o tempo limite)", [r5d.mensagem.motivoDaReserva, foraDoAr.pedidos.length], ["padrao_indisponivel", 0]);
+    const r5e = await responder({ texto: "tem esp32?", usuario: "ZZ-IA-TESTE", dependencias: deps(criarProvedorFalso({ roteiro: [{ erro: "conexao" }] }), falsoReservaOk(), { reserva: null }) });
+    conferir("sem reserva configurada o erro e claro", [r5e.mensagem.avisos, r5e.mensagem.conteudo.includes("Configure")], [["erro"], true]);
+    const r5f = await responder({
+      texto: "tem esp32?",
+      usuario: "ZZ-IA-TESTE",
+      dependencias: deps(criarProvedorFalso({ roteiro: [{ erro: "conexao" }] }), criarProvedorFalso({ id: "anthropic", roteiro: [{ erro: "autenticacao" }] })),
+    });
+    conferir("padrao e reserva falharam: um aviso, nada travado", [r5f.mensagem.avisos, r5f.mensagem.motivoDaReserva], [["erro"], "conexao"]);
+
+    // Sem resultado, sem separacao, ferramenta invalida, limite de ferramentas.
+    const r6 = await responder({
+      texto: "tem zzxqv 48V 40A?",
+      usuario: "ZZ-IA-TESTE",
+      dependencias: deps(criarProvedorFalso({ roteiro: [{ chamadas: [{ nome: "buscarProdutos", argumentos: { termos: "zzxqv 48v 40a" } }] }, { texto: "Não encontrei no catálogo." }] }), falsoReservaOk()),
+    });
+    conferir("avisos sem_resultado e sem_separacao", [...r6.mensagem.avisos].sort(), ["sem_resultado", "sem_separacao"]);
+    conferir("sem resultado: nenhum cartao inventado", r6.mensagem.estruturado.produtos, []);
+    const muitas = Array.from({ length: 9 }, () => ({ chamadas: [{ nome: "consultarPreco", argumentos: { skus: ["ZZ-IA-UNO"] } }] }));
+    const r7 = await responder({
+      texto: "preco",
+      usuario: "ZZ-IA-TESTE",
+      dependencias: deps(criarProvedorFalso({ roteiro: [...muitas, { texto: "### Resposta para o cliente\nR$ 38,90" }] }), falsoReservaOk()),
+    });
+    conferir("limite de ferramentas: 8 executadas e o aviso", [r7.mensagem.avisos.includes("limite_de_ferramentas"), r7.mensagem.estruturado.ferramentas.length], [true, 8]);
+    const r8 = await responder({
+      texto: "ficha do produto",
+      usuario: "ZZ-IA-TESTE",
+      dependencias: deps(criarProvedorFalso({ roteiro: [{ chamadas: [{ nome: "consultarProduto", argumentos: { sku: "x".repeat(500) } }] }, { texto: "### Resposta para o cliente\nNão achei esse código." }] }), falsoReservaOk()),
+    });
+    conferir("ferramenta recusada pelo zod nao derruba o laco", [r8.mensagem.estruturado.ferramentas[0].ok, r8.mensagem.avisos.includes("erro")], [false, false]);
+
+    // Uma resposta por vez por conversa, dono da conversa, limite por minuto, entrada invalida.
+    const lento = criarProvedorFalso({ roteiro: [{ atrasoMs: 200, texto: "### Resposta para o cliente\nA" }, { texto: "### Resposta para o cliente\nB" }] });
+    const dLento = deps(lento, falsoReservaOk(), { tempoLimite: { primeiroTokenMs: 5000, totalMs: 5000 } });
+    const [primeira, segunda] = await Promise.allSettled([
+      responder({ conversaId: r1.conversaId, texto: "1", usuario: "ZZ-IA-TESTE", dependencias: dLento }),
+      responder({ conversaId: r1.conversaId, texto: "2", usuario: "ZZ-IA-TESTE", dependencias: dLento }),
+    ]);
+    conferir("uma resposta por vez por conversa", [primeira.status, segunda.status === "rejected" ? segunda.reason.message : "respondeu"], ["fulfilled", "Espere a resposta anterior terminar."]);
+    conferir("a conversa fica livre depois", (await responder({ conversaId: r1.conversaId, texto: "3", usuario: "ZZ-IA-TESTE", dependencias: deps(criarProvedorFalso({ roteiro: [] }), falsoReservaOk()) })).mensagem.papel, "ASSISTENTE");
+    conferir(
+      "outro usuario nao continua a conversa",
+      await responder({ conversaId: r1.conversaId, texto: "oi", usuario: "ZZ-IA-OUTRO", dependencias: deps(falsoPadrao, falsoReservaOk()) }).then(() => "respondeu", (erro) => erro.message),
+      "Conversa não encontrada.",
+    );
+    const dLim = deps(falsoPadrao, falsoReservaOk());
+    dLim.limitador = criarLimitador({ porMinuto: 1 });
+    await responder({ texto: "a", usuario: "ZZ-IA-LIM", dependencias: dLim }).catch(() => {});
+    conferir("limite por minuto", await responder({ texto: "b", usuario: "ZZ-IA-LIM", dependencias: dLim }).then(() => "passou", (erro) => erro.message), "Muitas perguntas seguidas: espere um minuto.");
+    conferir("pergunta vazia", await responder({ texto: "   ", usuario: "ZZ-IA-TESTE", dependencias: deps(falsoPadrao, falsoReservaOk()) }).then(() => "respondeu", (erro) => erro.message), "Escreva a pergunta.");
+    conferir("pergunta grande demais", await responder({ texto: "x".repeat(8001), usuario: "ZZ-IA-TESTE", dependencias: deps(falsoPadrao, falsoReservaOk()) }).then(() => "respondeu", (erro) => erro.message), "A pergunta passa de 8.000 caracteres.");
+
+    // Conversas: listar, buscar, renomear, avaliar, excluir.
+    conferir("lista so as proprias", (await listarConversas({ usuario: "ZZ-IA-TESTE" })).every((c) => c.usuario === "ZZ-IA-TESTE"), true);
+    conferir("busca pelo conteudo das mensagens", (await listarConversas({ usuario: "ZZ-IA-TESTE", busca: "ligar um LED" })).some((c) => c.id === r1.conversaId), true);
+    conferir("administrador ve todas quando pede", (await listarConversas({ usuario: "ZZ-IA-OUTRO", administrador: true, todas: true })).some((c) => c.id === r1.conversaId), true);
+    conferir("administrador sem pedir ve so as dele", (await listarConversas({ usuario: "ZZ-IA-OUTRO", administrador: true })).some((c) => c.id === r1.conversaId), false);
+    conferir("administrador le a conversa de outro", (await carregarConversa(r1.conversaId, { usuario: "ZZ-IA-OUTRO", administrador: true }))?.id, r1.conversaId);
+    conferir("quem nao e dono nao le", await carregarConversa(r1.conversaId, { usuario: "ZZ-IA-OUTRO" }), null);
+    conferir("a conversa vem com as mensagens em ordem", (await carregarConversa(r1.conversaId, { usuario: "ZZ-IA-TESTE" })).mensagens.map((m) => m.papel).slice(0, 2), ["USUARIO", "ASSISTENTE"]);
+    await renomearConversa(r1.conversaId, "  Arduino para LED  ", { usuario: "ZZ-IA-TESTE" });
+    conferir("renomear", (await carregarConversa(r1.conversaId, { usuario: "ZZ-IA-TESTE" })).titulo, "Arduino para LED");
+    conferir("so o dono renomeia", await renomearConversa(r1.conversaId, "x", { usuario: "ZZ-IA-OUTRO" }).then(() => "renomeou", () => "recusou"), "recusou");
+    conferir("titulo vazio e recusado", await renomearConversa(r1.conversaId, "   ", { usuario: "ZZ-IA-TESTE" }).then(() => "renomeou", () => "recusou"), "recusou");
+    const avaliada = await avaliarMensagem(r1.mensagem.id, { avaliacao: -1, comentario: "indicou caro demais", usuario: "ZZ-IA-TESTE" });
+    conferir("avaliar", [avaliada.avaliacao, avaliada.comentario, avaliada.avaliadoPor, avaliada.avaliadoEm instanceof Date], [-1, "indicou caro demais", "ZZ-IA-TESTE", true]);
+    conferir("avaliacao invalida", await avaliarMensagem(r1.mensagem.id, { avaliacao: 5, usuario: "ZZ-IA-TESTE" }).then(() => "avaliou", () => "recusou"), "recusou");
+    conferir("so o dono avalia", await avaliarMensagem(r1.mensagem.id, { avaliacao: 1, usuario: "ZZ-IA-OUTRO" }).then(() => "avaliou", () => "recusou"), "recusou");
+    conferir("tirar a avaliacao", (await avaliarMensagem(r1.mensagem.id, { avaliacao: null, usuario: "ZZ-IA-TESTE" })).avaliacao, null);
+    await avaliarMensagem(r1.mensagem.id, { avaliacao: -1, comentario: "indicou caro demais", usuario: "ZZ-IA-TESTE" });
+
+    // Excluir a conversa: leva as mensagens, mas o conhecimento que nasceu dela fica (so perde a origem).
+    const paraExcluir = await responder({ texto: "so para excluir", usuario: "ZZ-IA-EXCLUI", dependencias: deps(criarProvedorFalso({ roteiro: [] }), falsoReservaOk()) });
+    const notaDaConversa = await criarConhecimento({ assunto: "ZZ-IA nasceu da conversa", conteudo: "regra", criadoPor: "ZZ-IA-EXCLUI", origemMensagemId: paraExcluir.mensagem.id });
+    conferir("so o dono exclui", await excluirConversa(paraExcluir.conversaId, { usuario: "ZZ-IA-OUTRO" }).then(() => "excluiu", () => "recusou"), "recusou");
+    await excluirConversa(paraExcluir.conversaId, { usuario: "ZZ-IA-EXCLUI" });
+    conferir(
+      "excluir leva as mensagens e a nota fica sem origem",
+      [await prisma.mensagemIA.count({ where: { conversaId: paraExcluir.conversaId } }), (await prisma.conhecimentoIA.findUnique({ where: { id: notaDaConversa.id } })).origemMensagemId],
+      [0, null],
+    );
+    // Para os testes seguintes (Revisao): a conversa r1, a r2 (reserva) e a r1.mensagem ficam.
+    compartilhado.r1 = r1;
+    compartilhado.r2 = r2;
   }
 
   // ---- novos blocos entram antes desta linha ----

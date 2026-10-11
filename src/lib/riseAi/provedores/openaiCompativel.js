@@ -12,7 +12,11 @@ export function mensagensParaOpenAI(sistema, mensagens) {
   const lista = [{ role: "system", content: sistema }];
   for (const mensagem of mensagens) {
     if (mensagem.papel === "usuario") {
-      lista.push({ role: "user", content: mensagem.conteudo });
+      // Duas mensagens do usuario seguidas (o conhecimento aprovado e a pergunta) viram uma: o template de chat de
+      // alguns modelos locais (Gemma, por exemplo) recusa quem nao alterna usuario e assistente.
+      const ultima = lista.at(-1);
+      if (ultima?.role === "user") ultima.content = `${ultima.content}\n\n${mensagem.conteudo}`;
+      else lista.push({ role: "user", content: mensagem.conteudo });
     } else if (mensagem.papel === "assistente") {
       const item = { role: "assistant", content: mensagem.conteudo ?? "" };
       if (mensagem.chamadas?.length) {
