@@ -263,6 +263,173 @@ try {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 5 — Contrato e adaptador compativel com OpenAI
+  // -------------------------------------------------------------------------
+  {
+    const { ErroDoProvedor, erroDeStatus } = await import("../src/lib/riseAi/provedores/contrato.js");
+    const { criarProvedorOpenAICompativel, mensagensParaOpenAI, ferramentasParaOpenAI } = await import(
+      "../src/lib/riseAi/provedores/openaiCompativel.js"
+    );
+    const { criarProvedor } = await import("../src/lib/riseAi/provedores/index.js");
+    const { provedorDisponivel, esquecerSaude } = await import("../src/lib/riseAi/provedores/saude.js");
+    console.log("\nProvedor OpenAI-compativel");
+
+    const sse = (...objetos) =>
+      objetos.map((o) => `data: ${typeof o === "string" ? o : JSON.stringify(o)}\n\n`).join("") + "data: [DONE]\n\n";
+    const corpoSSE = sse(
+      { choices: [{ delta: { role: "assistant", content: "" } }] },
+      { choices: [{ delta: { content: "Olá" } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 0, id: "call_1", function: { name: "buscarProdutos", arguments: '{"ter' } }] } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: 'mos":"esp32"}' } }] } }] },
+      { choices: [{ delta: {}, finish_reason: "tool_calls" }], usage: { prompt_tokens: 12, completion_tokens: 7 } },
+    );
+    const fetchFalso = (pedidos, corpo, status = 200, cabecalhos = {}) => async (url, init = {}) => {
+      pedidos.push({ url, method: init.method, headers: init.headers, body: init.body ? JSON.parse(init.body) : null, signal: init.signal });
+      return new Response(corpo, { status, headers: cabecalhos });
+    };
+    const provedorCom = (corpo, status = 200, cabecalhos = {}, pedidos = []) =>
+      criarProvedorOpenAICompativel({ id: "lmstudio", rotulo: "LM Studio", endpoint: "http://falso:1234/v1", fetchImpl: fetchFalso(pedidos, corpo, status, cabecalhos) });
+    const pedidoSimples = { modelo: "qwen3-4b", sistema: "S", mensagens: [{ papel: "usuario", conteudo: "oi" }], maxTokens: 50, aoTexto: () => {} };
+
+    const pedidos = [];
+    const provedor = provedorCom(corpoSSE, 200, {}, pedidos);
+    const partes = [];
+    const r = await provedor.conversar({
+      ...pedidoSimples,
+      maxTokens: 100,
+      ferramentas: [{ nome: "buscarProdutos", descricao: "d", parametros: { type: "object", properties: {} } }],
+      aoTexto: (delta) => partes.push(delta),
+    });
+    conferir("texto em fluxo (o delta vazio nao conta)", partes, ["Olá"]);
+    conferir("chamada de ferramenta montada de dois pedacos", r.chamadasDeFerramenta, [{ id: "call_1", nome: "buscarProdutos", argumentos: { termos: "esp32" } }]);
+    conferir("uso e parada", [r.uso, r.motivoParada, r.texto], [{ entrada: 12, saida: 7 }, "ferramenta", "Olá"]);
+    conferir(
+      "corpo do pedido",
+      [pedidos[0].url, pedidos[0].method, pedidos[0].body.model, pedidos[0].body.tools[0].function.name, pedidos[0].body.stream, pedidos[0].body.max_tokens, pedidos[0].headers.Authorization],
+      ["http://falso:1234/v1/chat/completions", "POST", "qwen3-4b", "buscarProdutos", true, 100, undefined],
+    );
+    {
+      const p = [];
+      await provedorCom(sse({ choices: [{ delta: { content: "x" }, finish_reason: "stop" }] }), 200, {}, p).conversar(pedidoSimples);
+      conferir("sem ferramentas: nada de tools", ["tools" in p[0].body, "tool_choice" in p[0].body], [false, false]);
+    }
+    {
+      const p = [];
+      const comChave = criarProvedorOpenAICompativel({ id: "openai", rotulo: "OpenAI", endpoint: "https://api/v1", chave: "sk-x", fetchImpl: fetchFalso(p, sse({ choices: [{ delta: { content: "x" }, finish_reason: "stop" }] })) });
+      await comChave.conversar(pedidoSimples);
+      conferir("a chave vai no Authorization", p[0].headers.Authorization, "Bearer sk-x");
+    }
+
+    // Um pedaco de rede pode partir uma linha "data:" e ate um caractere acentuado ao meio.
+    {
+      const bytes = new TextEncoder().encode(sse({ choices: [{ delta: { content: "Olá!" }, finish_reason: "stop" }] }));
+      const corte = bytes.indexOf(0xc3) + 1; // no meio do "á" (2 bytes)
+      const fluxo = new ReadableStream({
+        start(controle) {
+          controle.enqueue(bytes.slice(0, corte));
+          controle.enqueue(bytes.slice(corte));
+          controle.close();
+        },
+      });
+      const recebidos = [];
+      const picado = await provedorCom(fluxo).conversar({ ...pedidoSimples, aoTexto: (d) => recebidos.push(d) });
+      conferir("linha e acento partidos entre pedacos de rede", [recebidos.join(""), picado.texto, picado.motivoParada], ["Olá!", "Olá!", "fim"]);
+    }
+
+    conferir(
+      "argumentos invalidos viram malformada, sem derrubar",
+      (await provedorCom(sse({ choices: [{ delta: { tool_calls: [{ index: 0, id: "c9", function: { name: "f", arguments: '{"termos": ' } }] }, finish_reason: "tool_calls" }] })).conversar(pedidoSimples)).chamadasDeFerramenta,
+      [{ id: "c9", nome: "f", argumentos: {}, malformada: true, bruto: '{"termos": ' }],
+    );
+    conferir(
+      "chamada sem argumentos e sem id",
+      (await provedorCom(sse({ choices: [{ delta: { tool_calls: [{ index: 0, function: { name: "consultarEstoque" } }] }, finish_reason: "tool_calls" }] })).conversar(pedidoSimples)).chamadasDeFerramenta,
+      [{ id: "chamada_0", nome: "consultarEstoque", argumentos: {} }],
+    );
+    const semUso = await provedorCom(sse({ choices: [{ delta: { content: "resposta curta" }, finish_reason: "length" }] })).conversar(pedidoSimples);
+    conferir("sem usage: estimado por caracteres / 4", [semUso.uso.estimado, semUso.uso.saida, semUso.motivoParada], [true, Math.ceil("resposta curta".length / 4), "max_tokens"]);
+    conferir(
+      "content_filter vira recusa",
+      (await provedorCom(sse({ choices: [{ delta: {}, finish_reason: "content_filter" }] })).conversar(pedidoSimples)).motivoParada,
+      "recusa",
+    );
+    {
+      const completo = JSON.stringify({
+        model: "qwen3-4b",
+        choices: [{ message: { content: "Oi", tool_calls: [{ id: "t1", function: { name: "f", arguments: '{"a":1}' } }] }, finish_reason: "tool_calls" }],
+        usage: { prompt_tokens: 3, completion_tokens: 2 },
+      });
+      const deltas = [];
+      const naoFluxo = await provedorCom(completo, 200, { "content-type": "application/json" }).conversar({ ...pedidoSimples, aoTexto: (d) => deltas.push(d) });
+      conferir(
+        "servidor que ignora stream e devolve o JSON inteiro",
+        [deltas, naoFluxo.texto, naoFluxo.chamadasDeFerramenta, naoFluxo.uso],
+        [["Oi"], "Oi", [{ id: "t1", nome: "f", argumentos: { a: 1 } }], { entrada: 3, saida: 2 }],
+      );
+    }
+
+    // Erros por tipo (o laço da conversa decide a reserva por `tipo`).
+    const tipoDe = async (promessa) => promessa.then(() => "nao lancou", (erro) => [erro instanceof ErroDoProvedor, erro.tipo, erro.status ?? null]);
+    conferir("401 vira autenticacao", await tipoDe(provedorCom("", 401).conversar(pedidoSimples)), [true, "autenticacao", 401]);
+    conferir("429 vira limite", await tipoDe(provedorCom("", 429).conversar(pedidoSimples)), [true, "limite", 429]);
+    conferir("500 vira resposta, com o status", await tipoDe(provedorCom("boom", 500).conversar(pedidoSimples)), [true, "resposta", 500]);
+    conferir(
+      "fetch que lanca vira conexao",
+      await tipoDe(criarProvedorOpenAICompativel({ id: "lmstudio", endpoint: "http://x", fetchImpl: async () => { throw new TypeError("ECONNREFUSED"); } }).conversar(pedidoSimples)),
+      [true, "conexao", null],
+    );
+    conferir(
+      "AbortError vira tempo",
+      await tipoDe(criarProvedorOpenAICompativel({ id: "lmstudio", endpoint: "http://x", fetchImpl: async () => { throw Object.assign(new Error("aborted"), { name: "AbortError" }); } }).conversar(pedidoSimples)),
+      [true, "tempo", null],
+    );
+    conferir("erroDeStatus: mensagem cita o status", erroDeStatus(503, "indisponivel").message.includes("503"), true);
+
+    // Conversores puros.
+    conferir(
+      "mensagem de ferramenta vira role tool",
+      mensagensParaOpenAI("S", [{ papel: "ferramenta", chamadaId: "c1", nome: "x", conteudo: "{}" }])[1],
+      { role: "tool", tool_call_id: "c1", content: "{}" },
+    );
+    conferir(
+      "assistente com chamadas vira tool_calls com arguments em string",
+      mensagensParaOpenAI("S", [{ papel: "assistente", conteudo: "", chamadas: [{ id: "a1", nome: "f", argumentos: { k: 1 } }] }])[1],
+      { role: "assistant", content: "", tool_calls: [{ id: "a1", type: "function", function: { name: "f", arguments: '{"k":1}' } }] },
+    );
+    conferir("o sistema abre a lista", mensagensParaOpenAI("SISTEMA", [])[0], { role: "system", content: "SISTEMA" });
+    conferir(
+      "ferramenta no formato function",
+      ferramentasParaOpenAI([{ nome: "f", descricao: "d", parametros: { type: "object" } }]),
+      [{ type: "function", function: { name: "f", description: "d", parameters: { type: "object" } } }],
+    );
+
+    // listarModelos e testar nunca lancam no testar.
+    const listado = await provedorCom(JSON.stringify({ data: [{ id: "qwen3-4b" }, { id: "gemma-3" }] })).listarModelos();
+    conferir("listar modelos", listado, [{ id: "qwen3-4b", nome: "qwen3-4b" }, { id: "gemma-3", nome: "gemma-3" }]);
+    const teste = await provedorCom(JSON.stringify({ data: [{ id: "qwen3-4b" }] })).testar();
+    conferir("testar ok", [teste.ok, teste.modelos.length, typeof teste.latenciaMs, teste.erro], [true, 1, "number", null]);
+    const testeRuim = await provedorCom("", 401).testar();
+    conferir("testar com erro nao lanca", [testeRuim.ok, testeRuim.modelos, typeof testeRuim.erro], [false, [], "string"]);
+
+    // Fabrica.
+    conferir("fabrica cria o compativel", criarProvedor("lmstudio", { endpoint: "http://x" }).id, "lmstudio");
+    conferir("fabrica: id desconhecido lanca", (() => { try { criarProvedor("bard", {}); return "criou"; } catch { return "lancou"; } })(), "lancou");
+
+    // Saude com cache.
+    esquecerSaude();
+    let chamadasDeListar = 0;
+    const provedorQueFalha = { id: "lmstudio", listarModelos: async () => { chamadasDeListar++; throw new Error("x"); } };
+    conferir(
+      "saude com cache de 60 s",
+      [await provedorDisponivel(provedorQueFalha, { agora: 0 }), await provedorDisponivel(provedorQueFalha, { agora: 1000 }), chamadasDeListar],
+      [false, false, 1],
+    );
+    conferir("passado o cache, consulta de novo", [await provedorDisponivel(provedorQueFalha, { agora: 61000 }), chamadasDeListar], [false, 2]);
+    esquecerSaude();
+    conferir("provedor de pe", await provedorDisponivel({ id: "ollama", listarModelos: async () => [{ id: "a" }] }, { agora: 0 }), true);
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();
