@@ -2328,5 +2328,51 @@ console.log("\n— Tray (Eletrodex): descricao com titulo, especificacoes e fich
   conferir("eletrodex: texto depois do '<80%' continua na descricao", /80% \(m[aá]ximo\)/.test(mc?.description ?? ""), true);
 }
 
+// Prado Automacao (11/10/2026): loja Shopify por tras de um site proprio. So o products.json
+// responde; o produto inteiro sai dele, sem abrir pagina.
+console.log("\n— catalogo do Shopify por tras de site proprio (Prado) —");
+{
+  const { produtoDoShopify, urlDoProdutoShopify } = await import("../src/lib/coleta/catalogo-shopify.js");
+  const { catalogoShopifyDoEndereco } = await import("../src/lib/coleta/fornecedores.js");
+  const molde = "https://pradoautomacaoindustrial.com.br/produto/{handle}";
+  const item = {
+    title: "Patim Com Aba 20mm",
+    handle: "patim-com-aba-20mm",
+    body_html: "<p>O <strong>Patim com Aba 20mm</strong> move com precis&atilde;o.</p><h3>Especifica&ccedil;&otilde;es:</h3><ul><li>Carga: 1.000 N</li><li>Material: a&ccedil;o</li><li>Fura&ccedil;&atilde;o: M5</li></ul>",
+    vendor: "Prado Automação Industrial",
+    product_type: "Patim - Padrão",
+    tags: [],
+    variants: [{ sku: "PPW20", price: "111.06", compare_at_price: null, available: true, grams: 250 }],
+    images: [{ src: "https://cdn.shopify.com/s/files/1/0968/9441/9230/files/Foto_5.jpg?v=1" }, { src: "https://cdn.shopify.com/s/files/1/0968/9441/9230/files/Foto_1.jpg?v=1" }],
+  };
+  const p = produtoDoShopify(item, { urlProduto: molde, fonte: { name: "Prado" } });
+  conferir("shopify: nome, codigo, categoria e marca do catalogo", [p.name, p.code, p.category, p.brand], ["Patim Com Aba 20mm", "PPW20", "Patim - Padrão", "Prado Automação Industrial"]);
+  conferir("shopify: preco e o price quando nao ha compare_at", [p.prices.normal, p.prices.promotional], [111.06, null]);
+  conferir("shopify: endereco e o do site publico, pelo handle", p.url, "https://pradoautomacaoindustrial.com.br/produto/patim-com-aba-20mm");
+  conferir("shopify: fotos declaradas, na ordem", p.images.length, 2);
+  conferir("shopify: descricao do body_html com acentos", /Patim com Aba 20mm move com precisão/.test(p.description), true);
+  conferir("shopify: ficha da lista do body_html, mais o peso em gramas", p.specifications.map((l) => l.nome), ["Carga", "Material", "Furação", "Peso"]);
+  conferir("shopify: disponivel sem quantidade", [p.stock.status, p.stock.quantity], ["AVAILABLE", null]);
+  conferir("shopify: plataforma Shopify", p.plataforma.id, "shopify");
+
+  const esgotado = produtoDoShopify({ ...item, variants: [{ sku: "X", price: "10.00", available: false, grams: 0 }] }, { urlProduto: molde });
+  conferir("shopify: esgotado e zero, e grams 0 nao vira peso", [esgotado.stock.status, esgotado.stock.quantity, esgotado.specifications.some((l) => l.nome === "Peso")], ["OUT_OF_STOCK", 0, false]);
+
+  const deTabela = produtoDoShopify({ ...item, variants: [{ sku: "X", price: "90.00", compare_at_price: "120.00", available: true }] }, { urlProduto: molde });
+  conferir("shopify: compare_at maior e o normal; o cobrado vira promocional", [deTabela.prices.normal, deTabela.prices.promotional], [120, 90]);
+
+  const porMm = produtoDoShopify({ ...item, title: "Eixo Suportado T 20mm", tags: ["mm"], variants: [{ sku: "SBR20", price: "0.24", available: true }] }, { urlProduto: molde });
+  conferir("shopify: etiqueta mm = preco por milimetro, como a loja publica, com a unidade na ficha e na origem", [porMm.prices.normal, porMm.specifications.at(-1), /POR MILIMETRO/.test(porMm.origens.precoNormal)], [0.24, { nome: "Unidade de venda", valor: "milímetro (preço por mm)" }, true]);
+
+  conferir("shopify: item sem titulo ou sem variante nao vira produto", [produtoDoShopify({ title: "", variants: [{}] }), produtoDoShopify({ title: "X", variants: [] })], [null, null]);
+  conferir("shopify: molde sem handle nao inventa endereco", urlDoProdutoShopify(molde, null), null);
+  conferir("shopify: a regra casa o site publico, a loja.* e o myshopify", [
+    catalogoShopifyDoEndereco("https://pradoautomacaoindustrial.com.br/")?.loja,
+    catalogoShopifyDoEndereco("https://loja.pradoautomacaoindustrial.com.br/x")?.loja,
+    catalogoShopifyDoEndereco("https://prado-automacao-industrial.myshopify.com/")?.loja,
+    catalogoShopifyDoEndereco("https://www.eletrodex.net/"),
+  ], ["prado-automacao-industrial.myshopify.com", "prado-automacao-industrial.myshopify.com", "prado-automacao-industrial.myshopify.com", null]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

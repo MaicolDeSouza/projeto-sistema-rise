@@ -100,6 +100,27 @@ export const FORNECEDORES = [
      */
     mesclarSiteComArquivo: true,
   },
+  {
+    id: "prado",
+    nome: "Prado Automação Industrial",
+
+    // O site publico, a loja (loja.*) que so redireciona para ele e o endereco do Shopify.
+    dominios: ["pradoautomacaoindustrial.com.br", "prado-automacao-industrial.myshopify.com"],
+
+    /**
+     * LOJA SHOPIFY POR TRAS DE UM SITE PROPRIO (11/10/2026).
+     *
+     * O site monta a pagina no navegador (casca de 3,8 KB, sem produto); as paginas HTML do
+     * Shopify redirecionam para ele. So o catalogo publico em JSON do Shopify responde, e e
+     * dele que vem tudo (nome, sku, preco, foto, descricao, categoria, disponibilidade). O
+     * leitor esta em catalogo-shopify.js. O endereco gravado em cada produto e o do site
+     * publico (/produto/{handle}, como no sitemap dele).
+     */
+    catalogoShopify: {
+      loja: "prado-automacao-industrial.myshopify.com",
+      urlProduto: "https://pradoautomacaoindustrial.com.br/produto/{handle}",
+    },
+  },
 ];
 
 /**
@@ -153,4 +174,11 @@ export function catalogoJsDoEndereco(url) {
   if (!url) return null;
   const regras = regrasDoFornecedor({ url });
   return regras.catalogoJs ? { id: regras.id, nome: regras.nome, ...regras.catalogoJs } : null;
+}
+
+/** A configuracao de LOJA SHOPIFY POR TRAS DO SITE deste endereco, ou null. So pelo dominio, como as outras. */
+export function catalogoShopifyDoEndereco(url) {
+  if (!url) return null;
+  const regras = regrasDoFornecedor({ url });
+  return regras.catalogoShopify ? { id: regras.id, nome: regras.nome, ...regras.catalogoShopify } : null;
 }

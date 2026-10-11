@@ -1374,6 +1374,21 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   - **Para usar:** cadastrar em Fontes como FORNECEDOR com o endereço `https://www.rac.tec.br/` e usar "Atualizar dados".
     Conferido contra o site real em 10/10/2026 (só leitura): 2.195 produtos. **A gravação no banco pela varredura NÃO foi
     exercitada de ponta a ponta.** Preço, se o dono quiser, só por tabela enviada pelo fornecedor (importação de arquivo).
+- **Prado Automação Industrial (pradoautomacaoindustrial.com.br, 11/10/2026): loja Shopify por trás de um site próprio.**
+  O site monta a página no navegador (o HTML é uma casca de 3,8 KB, sem produto, com os dados num Supabase), a
+  `loja.pradoautomacaoindustrial.com.br` e o `prado-automacao-industrial.myshopify.com` redirecionam toda página HTML
+  para ele, e o "Testar fonte" dava zero nos três. **Só o catálogo público do Shopify em JSON responde**
+  (`/products.json?limit=250`, 3 páginas), e é dele que sai o produto inteiro: leitor `src/lib/coleta/catalogo-shopify.js`
+  (`produtoDoShopify`, `colherCatalogoShopify` sobre o `lerCatalogo`), ligado por domínio em `fornecedores.js` (entrada
+  `prado`, `catalogoShopify: { loja, urlProduto }`, `catalogoShopifyDoEndereco`), em `varrerFonte` (`varrerCatalogoShopify`,
+  pelo mesmo `varrerCatalogoDeLista` do catálogo em arquivo da R&AC: lista inteira, trava de queda, gravação de uma vez) e em
+  `testarFonte`. Nenhuma página é aberta. Medido: 581 itens, 580 produtos (um SKU repetido fica com o primeiro), um
+  variante cada, `vendor` = a própria loja, `product_type` = categoria, `available` = status sem quantidade, endereço gravado
+  = `https://pradoautomacaoindustrial.com.br/produto/{handle}` (o do sitemap do site). **88 produtos (eixos e fusos) têm a
+  etiqueta `mm` e preço POR MILÍMETRO** (R$ 0,24 o SBR20): o número fica como a loja publica, com "Unidade de venda:
+  milímetro" na ficha e o aviso na origem do preço. A base Supabase do site (ficha técnica em imagem, PDFs) **não é lida**:
+  o dono autorizou a leitura, mas o catálogo do Shopify bastou e é público por desenho. Cadastrar como CONCORRENTE pelo
+  endereço do site público; resultado do teste é PARCIAL (sem EAN, NCM e características na maioria).
 - **Makerhero é lida pela Store API, não pela página** ("WooCommerce Store API" nas origens), e a API não traz o PIX.
   `colherWooCommerce` abre a página dos PRIMEIROS produtos, lê o "R$ X no PIX" do Simulador de Parcelas
   (`precosDoSimuladorWoo`) e aprende a regra da loja com a lógica da Tray (`aprenderRegraDePagamento` /

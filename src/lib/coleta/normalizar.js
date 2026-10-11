@@ -1521,7 +1521,8 @@ function descricaoDoBloco(html) {
   return textoDoBlocoDeDescricao(interno);
 }
 
-function textoDoBlocoDeDescricao(blocoHtml) {
+// Exportada: o catalogo do Shopify (catalogo-shopify.js) converte o body_html com a mesma regra.
+export function textoDoBlocoDeDescricao(blocoHtml) {
   // A ESTRUTURA DA PAGINA SOBREVIVE AO TEXTO: titulo ganha uma linha em branco
   // antes, e item de lista vira "- item". Sem isto a lista de especificacoes da
   // Mamute ("Modelo: CJMCU-219", "Interface: I2C" ...) virava linhas soltas, sem

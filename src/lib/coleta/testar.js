@@ -2,7 +2,8 @@ import { buscarPagina } from "./buscar";
 import { camposPreenchidos, ROTULOS_CAMPOS } from "./campos";
 import { colherProdutos } from "./colher";
 import { colherCatalogoJs } from "./catalogo-js";
-import { catalogoJsDoEndereco } from "./fornecedores";
+import { colherCatalogoShopify } from "./catalogo-shopify";
+import { catalogoJsDoEndereco, catalogoShopifyDoEndereco } from "./fornecedores";
 
 /**
  * Teste de uma fonte.
@@ -131,9 +132,67 @@ async function testarCatalogoJs({ url, nome, tipo }, catalogo) {
   };
 }
 
+/**
+ * Teste da fonte cuja loja Shopify fica por tras de um site proprio (Prado): le o catalogo
+ * inteiro em JSON (a mesma leitura da varredura; 3 paginas de 250) e mostra tres itens.
+ */
+async function testarCatalogoShopify({ url, nome, tipo }, catalogo) {
+  const colheita = await colherCatalogoShopify({
+    loja: catalogo.loja,
+    urlProduto: catalogo.urlProduto,
+    fonte: { name: nome, type: tipo },
+  });
+  const passos = [
+    {
+      nome: "Catálogo do Shopify lido",
+      ok: !colheita.erro,
+      detalhe: colheita.erro ?? `${colheita.produtos.length} produto(s) em ${colheita.visitas} página(s) de ${catalogo.loja}`,
+    },
+  ];
+  const dominio = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname;
+  const plataforma = { id: "shopify", nome: "Shopify", familia: "SaaS internacional", confianca: "alta", sinais: [], alternativas: [], conferidaEm: "2026-10-11", entrega: null };
+
+  if (colheita.erro) {
+    return { resultado: "FALHA", motivo: colheita.erro, passos, produtos: [], campos: null, formatos: ["catalogo-shopify"], plataforma, catalogoPublico: null, produtosNoSite: null, produtosNoSiteParcial: false };
+  }
+
+  const amostra = colheita.produtos.slice(0, MINIMO_PRODUTOS);
+  const presentes = {};
+  for (const produto of amostra) {
+    for (const [campo, tem] of Object.entries(camposPreenchidos(produto))) presentes[campo] = presentes[campo] || tem;
+  }
+  const encontrados = Object.entries(presentes).filter(([, tem]) => tem).map(([campo]) => ROTULOS_CAMPOS[campo]);
+  const ausentes = Object.entries(presentes).filter(([, tem]) => !tem).map(([campo]) => ROTULOS_CAMPOS[campo]);
+  const bastantes = amostra.length >= MINIMO_PRODUTOS;
+
+  return {
+    resultado: bastantes && ausentes.length === 0 ? "SUCESSO" : "PARCIAL",
+    motivo: bastantes ? null : `Só foi possível validar ${amostra.length} produto(s); o teste procura ${MINIMO_PRODUTOS}.`,
+    passos,
+    produtos: amostra,
+    formatos: ["catalogo-shopify"],
+    campos: { encontrados, ausentes },
+    prefixoUrl: null,
+    dominio,
+    plataforma,
+    catalogoPublico: {
+      url: `https://${catalogo.loja}/products.json?limit=250`,
+      disponivel: true,
+      total: colheita.produtos.length,
+      itens: colheita.produtos.length,
+      campos: "title, handle, body_html, vendor, product_type, variants[] (price, sku, available), images[]",
+      observacao: "Loja Shopify por trás do site próprio: só o catálogo em JSON responde; nenhuma página é aberta.",
+    },
+    produtosNoSite: colheita.produtos.length,
+    produtosNoSiteParcial: false,
+  };
+}
+
 export async function testarFonte({ url, secao, nome, tipo, evitar }) {
   const catalogoJs = catalogoJsDoEndereco(url);
   if (catalogoJs) return testarCatalogoJs({ url, nome, tipo }, catalogoJs);
+  const catalogoShopify = catalogoShopifyDoEndereco(url);
+  if (catalogoShopify) return testarCatalogoShopify({ url, nome, tipo }, catalogoShopify);
 
   const colheita = await colherProdutos({
     url,

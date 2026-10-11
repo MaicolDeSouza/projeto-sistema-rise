@@ -9,8 +9,9 @@ import {
 import { colherProdutos, enderecoComparavel } from "./colher";
 import { podeVisitar } from "./buscar";
 import { conciliar, quedaSuspeita } from "./conciliar";
-import { catalogoJsDoEndereco, portalDoEndereco, regrasDoFornecedor } from "./fornecedores";
+import { catalogoJsDoEndereco, catalogoShopifyDoEndereco, portalDoEndereco, regrasDoFornecedor } from "./fornecedores";
 import { colherCatalogoJs } from "./catalogo-js";
+import { colherCatalogoShopify } from "./catalogo-shopify";
 import { colherPortal } from "./portal-addsuite";
 import { decifrar } from "@/lib/crypto";
 
@@ -382,14 +383,41 @@ async function varrerPortal(fonte, portal, aoProgredir, { sinal, inicioDaVarredu
  * (lista muito menor que a anterior) precisa da lista inteira, como na lista de arquivo.
  */
 async function varrerCatalogoJs(fonte, catalogo, aoProgredir, sinal) {
-  const comecou = Date.now();
-  const colheita = await colherCatalogoJs({
-    urlBase: enderecoDaFonte(fonte),
-    caminho: catalogo.caminho,
-    caminhoFamilias: catalogo.familias,
-    fonte: { name: fonte.nome, type: fonte.tipo },
-    sinal,
+  return varrerCatalogoDeLista(fonte, aoProgredir, sinal, {
+    colher: () =>
+      colherCatalogoJs({
+        urlBase: enderecoDaFonte(fonte),
+        caminho: catalogo.caminho,
+        caminhoFamilias: catalogo.familias,
+        fonte: { name: fonte.nome, type: fonte.tipo },
+        sinal,
+      }),
+    resumoDe: (quantos) => `${quantos} produto(s) do catálogo do site (arquivo ${catalogo.caminho}) · sem preço: o site vende por orçamento`,
   });
+}
+
+/**
+ * Loja Shopify por tras de um site proprio (Prado): o catalogo em JSON e a lista inteira,
+ * com preco. Mesmo caminho de gravacao do catalogo em arquivo.
+ */
+async function varrerCatalogoShopify(fonte, catalogo, aoProgredir, sinal) {
+  return varrerCatalogoDeLista(fonte, aoProgredir, sinal, {
+    colher: () =>
+      colherCatalogoShopify({
+        loja: catalogo.loja,
+        urlProduto: catalogo.urlProduto,
+        fonte: { name: fonte.nome, type: fonte.tipo },
+        sinal,
+      }),
+    resumoDe: (quantos) => `${quantos} produto(s) do catálogo do Shopify (${catalogo.loja}), sem abrir página`,
+  });
+}
+
+/// O que o catalogo em arquivo (R&AC) e o do Shopify (Prado) tem em comum: uma lista inteira
+/// lida de uma vez, a trava de queda e a gravacao de uma vez.
+async function varrerCatalogoDeLista(fonte, aoProgredir, sinal, { colher, resumoDe }) {
+  const comecou = Date.now();
+  const colheita = await colher();
 
   if (colheita.erro) return { total: 0, feitas: 0, produtos: 0, visitas: colheita.visitas, erro: colheita.erro };
 
@@ -410,7 +438,7 @@ async function varrerCatalogoJs(fonte, catalogo, aoProgredir, sinal) {
     };
   }
 
-  const resumo = `${colheita.produtos.length} produto(s) do catálogo do site (arquivo ${catalogo.caminho}) · sem preço: o site vende por orçamento`;
+  const resumo = resumoDe(colheita.produtos.length);
   const gravacao = await gravarColeta({
     fonte,
     produtos: colheita.produtos,
@@ -457,6 +485,10 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
   const catalogoJs = catalogoJsDoEndereco(fonte.dominio);
   if (catalogoJs && fonte.ativa && fonte.robotsPermite) {
     return varrerCatalogoJs(fonte, catalogoJs, aoProgredir, sinal);
+  }
+  const catalogoShopify = catalogoShopifyDoEndereco(fonte.dominio);
+  if (catalogoShopify && fonte.ativa && fonte.robotsPermite) {
+    return varrerCatalogoShopify(fonte, catalogoShopify, aoProgredir, sinal);
   }
 
   // Pausada e bloqueada nao se varre. "Pausar mantem tudo que ja foi coletado"
