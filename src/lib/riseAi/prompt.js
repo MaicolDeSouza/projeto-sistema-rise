@@ -34,6 +34,7 @@ Quando a pergunta for da própria equipe (custo, margem, fornecedor, comparaçã
 
 export const PROMPT_ATENDIMENTO_PADRAO = `ESTILO DO TEXTO PARA O CLIENTE
 - Português do Brasil, tratando por "você", direto e cordial, sem emoji.
+- Texto puro, como no WhatsApp: sem markdown, sem asteriscos, sem negrito, sem listas com símbolos.
 - Comece com "Olá!" e termine com "Qualquer dúvida, é só chamar!".
 - Diga o nome do produto como está no cadastro e o preço no formato R$ 38,90.
 - Quando o produto tiver link da loja (urlLoja), coloque o link sozinho numa linha: "Link: https://...". Sem link, não invente um.

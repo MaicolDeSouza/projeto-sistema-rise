@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { ErroDeUso } from "@/lib/riseAi/erros";
-import { avaliarMensagem, carregarMensagem, excluirConversa, mensagemParaTela, renomearConversa } from "@/lib/riseAi/conversas";
+import { avaliarMensagem, carregarMensagem, conversaParaLista, excluirConversa, listarConversas, mensagemParaTela, renomearConversa } from "@/lib/riseAi/conversas";
 import { sessaoAtual } from "./sessao";
 
 /**
@@ -25,6 +25,14 @@ async function executar(trabalho) {
     console.error("[rise-ai] falha na ação:", erro);
     return { ok: false, erro: AVISO_GENERICO };
   }
+}
+
+/** A busca da lista lateral: no título e no texto das mensagens, só nas conversas de quem pergunta. */
+export async function buscarConversasAcao(busca) {
+  return executar(async (sessao) => {
+    const conversas = await listarConversas({ usuario: sessao.usuario, busca: String(busca ?? ""), limite: 50 });
+    return { conversas: conversas.map(conversaParaLista) };
+  });
 }
 
 export async function renomearConversaAcao(id, formData) {

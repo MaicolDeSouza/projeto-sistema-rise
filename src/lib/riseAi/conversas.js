@@ -140,3 +140,8 @@ export function mensagemParaTela(mensagem) {
     criadoEm: mensagem.criadoEm instanceof Date ? mensagem.criadoEm.toISOString() : String(mensagem.criadoEm),
   };
 }
+
+/** A conversa como a lista lateral a recebe: só o que ela mostra, com a data em texto (Date não atravessa a Server Action). */
+export function conversaParaLista(conversa) {
+  return { id: conversa.id, titulo: conversa.titulo, atualizadoEm: conversa.atualizadoEm.toISOString() };
+}

@@ -820,6 +820,8 @@ try {
     conferir("o estilo da tela substitui o padrao, nunca as regras fixas", montarSistema({ promptAtendimento: "ESTILO NOVO" }).startsWith(SISTEMA_FIXO) && montarSistema({ promptAtendimento: "ESTILO NOVO" }).endsWith("ESTILO NOVO"), true);
     conferir("as regras fixas dizem o formato e proibem custo", [SISTEMA_FIXO.includes("### Resposta para o cliente"), SISTEMA_FIXO.includes("### Para a equipe"), /custo/i.test(SISTEMA_FIXO)], [true, true, true]);
     conferir("sistema sem data nem nome (estavel para o cache de prefixo)", /\b20\d\d\b/.test(montarSistema({})), false);
+    // Visto na tela em 11/10/2026: o modelo escreveu **negrito** no texto do cliente, e no WhatsApp os asteriscos aparecem.
+    conferir("o estilo pede texto puro, sem markdown (o cliente le no WhatsApp)", [/texto puro/i.test(PROMPT_ATENDIMENTO_PADRAO), /markdown/i.test(PROMPT_ATENDIMENTO_PADRAO)], [true, true]);
     conferir("mensagem de conhecimento", [mensagemDeConhecimento("Conhecimento aprovado..."), mensagemDeConhecimento("")], [{ papel: "usuario", conteudo: "Conhecimento aprovado..." }, null]);
     conferir("extrairJson", [extrairJson('bla {"a":1,"b":{"c":"}"}} bla'), extrairJson("sem json"), extrairJson('```json\n{"x":2}\n```')], [{ a: 1, b: { c: "}" } }, null, { x: 2 }]);
     conferir(

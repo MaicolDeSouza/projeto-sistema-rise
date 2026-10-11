@@ -7,6 +7,7 @@ import {
   Package,
   Radar,
   PieChart,
+  Sparkles,
   Cable,
   ShoppingCart,
   Store,
@@ -92,6 +93,14 @@ export const blocos = [
     rotulo: "Scraper",
     icone: Radar,
     resumo: "Produtos, preços e códigos de concorrentes e fornecedores",
+    pronto: true,
+  },
+  {
+    // Rise AI (spec de 11/10/2026): o assistente de IA do atendimento e do catalogo. Logo depois do Scraper.
+    href: "/rise-ai",
+    rotulo: "Rise AI",
+    icone: Sparkles,
+    resumo: "Assistente de IA para responder clientes e consultar o catálogo",
     pronto: true,
   },
   {
