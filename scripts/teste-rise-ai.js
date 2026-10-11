@@ -1025,6 +1025,81 @@ try {
     compartilhado.r2 = r2;
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 10 — Rota de streaming e acoes de conversa (a parte que roda em Node puro)
+  // -------------------------------------------------------------------------
+  {
+    const { eventoSSE, fluxoDeEventos } = await import("../src/lib/riseAi/sse.js");
+    const { ErroDeUso } = await import("../src/lib/riseAi/erros.js");
+    const { carregarMensagem, mensagemParaTela } = await import("../src/lib/riseAi/conversas.js");
+    const { responder } = await import("../src/lib/riseAi/conversa.js");
+    console.log("\nSSE e mensagem para a tela");
+
+    conferir("evento SSE", eventoSSE("texto", { delta: "a" }), 'event: texto\ndata: {"delta":"a"}\n\n');
+    conferir("evento SSE: quebra de linha e acento viram JSON valido numa linha so", eventoSSE("texto", { delta: "olá\nmundo" }), 'event: texto\ndata: {"delta":"olá\\nmundo"}\n\n');
+
+    const ler = async (fluxo) => {
+      const leitor = fluxo.getReader();
+      const decodificador = new TextDecoder();
+      let texto = "";
+      for (;;) {
+        const { done, value } = await leitor.read();
+        if (done) return texto;
+        texto += decodificador.decode(value, { stream: true });
+      }
+    };
+    conferir(
+      "o fluxo entrega os eventos na ordem e fecha",
+      await ler(fluxoDeEventos(async (enviar) => { enviar("inicio", { a: 1 }); enviar("fim", {}); })),
+      'event: inicio\ndata: {"a":1}\n\nevent: fim\ndata: {}\n\n',
+    );
+    conferir(
+      "erro de uso vira evento `erro` com a mensagem (a tela mostra o que fazer)",
+      await ler(fluxoDeEventos(async () => { throw new ErroDeUso("Escreva a pergunta."); })),
+      'event: erro\ndata: {"mensagem":"Escreva a pergunta."}\n\n',
+    );
+    const inesperados = [];
+    conferir(
+      "erro inesperado vira aviso generico: a mensagem interna nao chega a tela",
+      await ler(fluxoDeEventos(async () => { throw new Error("ECONNREFUSED 127.0.0.1:5432 senha=abc"); }, { aoErroInesperado: (erro) => inesperados.push(erro.message) })),
+      'event: erro\ndata: {"mensagem":"Não foi possível responder agora. Tente de novo em instantes."}\n\n',
+    );
+    conferir("o erro inesperado vai para o log do servidor", inesperados, ["ECONNREFUSED 127.0.0.1:5432 senha=abc"]);
+    conferir(
+      "cliente que fechou a conexao nao derruba a resposta",
+      await (async () => {
+        let terminou = false;
+        const fluxo = fluxoDeEventos(async (enviar) => { enviar("inicio", {}); await new Promise((r) => setTimeout(r, 30)); enviar("fim", {}); terminou = true; });
+        const leitor = fluxo.getReader();
+        await leitor.read();
+        await leitor.cancel();
+        await new Promise((r) => setTimeout(r, 80));
+        return terminou;
+      })(),
+      true,
+    );
+
+    // As cinco entradas invalidas do laco sao erros de uso (a tela os mostra); o resto nao.
+    const mensagemDe = (promessa) => promessa.then(() => "ok", (erro) => [erro instanceof ErroDeUso, erro.message]);
+    conferir("responder: pergunta vazia e erro de uso", await mensagemDe(responder({ texto: " ", usuario: "ZZ-IA-TESTE" })), [true, "Escreva a pergunta."]);
+    conferir("responder: conversa alheia e erro de uso", await mensagemDe(responder({ conversaId: "nao-existe", texto: "oi", usuario: "ZZ-IA-TESTE", dependencias: { configuracao: (await import("../src/lib/riseAi/configuracao.js")).configuracaoPadrao("pc"), limitador: { permitir: () => true } } })), [true, "Conversa não encontrada."]);
+
+    // A mensagem como a tela a recebe: so JSON simples (Decimal e Date nao atravessam a Server Action).
+    const { r1 } = compartilhado;
+    const noBanco = await prisma.mensagemIA.findUnique({ where: { id: r1.mensagem.id } });
+    const paraATela = mensagemParaTela(noBanco);
+    conferir(
+      "mensagem para a tela: numeros e texto simples",
+      [typeof paraATela.custoBrl, typeof paraATela.custoUsd, typeof paraATela.criadoEm, paraATela.papel, paraATela.provedor, paraATela.estruturado.respostaCliente.startsWith("Olá!"), Array.isArray(paraATela.avisos)],
+      ["number", "number", "string", "ASSISTENTE", "lmstudio", true, true],
+    );
+    conferir("mensagem para a tela: sem custo vira null, nao zero", mensagemParaTela({ ...noBanco, custoBrl: null, custoUsd: null }).custoBrl, null);
+    conferir("a mensagem de um dono: o dono carrega", (await carregarMensagem(r1.mensagem.id, { usuario: "ZZ-IA-TESTE" }))?.id, r1.mensagem.id);
+    conferir("quem nao e dono nao carrega", await carregarMensagem(r1.mensagem.id, { usuario: "ZZ-IA-OUTRO" }), null);
+    conferir("administrador carrega a de outro", (await carregarMensagem(r1.mensagem.id, { usuario: "ZZ-IA-OUTRO", administrador: true }))?.id, r1.mensagem.id);
+    conferir("mensagem que nao existe", await carregarMensagem("nao-existe", { usuario: "ZZ-IA-TESTE" }), null);
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();

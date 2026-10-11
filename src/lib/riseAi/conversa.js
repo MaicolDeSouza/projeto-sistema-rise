@@ -4,6 +4,7 @@ import { registrarChamadaDoProvedor } from "./auditoria";
 import { lerChave, lerConfiguracao } from "./configuracao";
 import { recuperarConhecimento, textoDoConhecimentoParaPrompt } from "./conhecimento";
 import { criarConversa, gravarMensagem } from "./conversas";
+import { ErroDeUso } from "./erros";
 import { definicoesParaProvedor, executarFerramenta } from "./ferramentas/index";
 import { criarLimitador } from "./limite";
 import { mascararDadosPessoais } from "./mascarar";
@@ -266,13 +267,13 @@ function textoDoErro({ erroInesperado, semModelo, escolhaReserva, falhaPadrao, f
  */
 export async function responder({ conversaId = null, texto, usuario, perfil = "admin", aoEvento = () => {}, dependencias = {} }) {
   const pergunta = String(texto ?? "").trim();
-  if (!pergunta) throw new Error("Escreva a pergunta.");
-  if (pergunta.length > MAXIMO_DA_PERGUNTA) throw new Error("A pergunta passa de 8.000 caracteres.");
+  if (!pergunta) throw new ErroDeUso("Escreva a pergunta.");
+  if (pergunta.length > MAXIMO_DA_PERGUNTA) throw new ErroDeUso("A pergunta passa de 8.000 caracteres.");
 
   // Síncrono, antes de qualquer espera: duas chamadas seguidas na mesma conversa não passam as duas.
   let ocupada = null;
   if (conversaId) {
-    if (emAndamento.has(conversaId)) throw new Error("Espere a resposta anterior terminar.");
+    if (emAndamento.has(conversaId)) throw new ErroDeUso("Espere a resposta anterior terminar.");
     emAndamento.add(conversaId);
     ocupada = conversaId;
   }
@@ -282,7 +283,7 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
     const config = dependencias.configuracao ?? (await lerConfiguracao());
     const limitador = dependencias.limitador ?? limitadorDaConfiguracao(config);
     if (!limitador.permitir(usuario, dependencias.agora?.() ?? Date.now())) {
-      throw new Error("Muitas perguntas seguidas: espere um minuto.");
+      throw new ErroDeUso("Muitas perguntas seguidas: espere um minuto.");
     }
 
     const { texto: perguntaMascarada, mascarados } = mascararDadosPessoais(pergunta);
@@ -295,7 +296,7 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
         include: { mensagens: { orderBy: [{ criadoEm: "asc" }, { id: "asc" }] } },
       });
       // Quem não é dono recebe a mesma resposta de quem pediu uma conversa que não existe.
-      if (!conversa || conversa.usuario !== usuario) throw new Error("Conversa não encontrada.");
+      if (!conversa || conversa.usuario !== usuario) throw new ErroDeUso("Conversa não encontrada.");
       anteriores = conversa.mensagens;
     } else {
       conversa = await criarConversa({ usuario, perfil: perfil === "publico" ? "PUBLICO" : "ADMIN", titulo: tituloDaConversa(perguntaMascarada) });
