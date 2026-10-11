@@ -82,6 +82,42 @@ try {
     conferir("provedor desconhecido", provedorPorId("bard"), null);
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 3 — Mascaramento de dados pessoais
+  // -------------------------------------------------------------------------
+  {
+    const { mascararDadosPessoais } = await import("../src/lib/riseAi/mascarar.js");
+    console.log("\nMascaramento");
+    const m1 = mascararDadosPessoais(
+      "Cliente João (54) 98899-0008, joao.silva@gmail.com, CPF 529.982.247-25 quer o 100101",
+    );
+    conferir("telefone, email e cpf, na ordem em que aparecem", m1.mascarados, ["telefone", "email", "documento"]);
+    conferir(
+      "texto mascarado",
+      m1.texto.includes("(54) 9****-**08") &&
+        m1.texto.includes("j***@***") &&
+        m1.texto.includes("***.***.***-25") &&
+        m1.texto.includes("100101") &&
+        !m1.texto.includes("98899-0008") &&
+        !m1.texto.includes("joao.silva") &&
+        !m1.texto.includes("529.982"),
+      true,
+    );
+    conferir("codigos de produto ficam", mascararDadosPessoais("ESP32 HC-SR04 121503_10z EAN 1208030000000").mascarados, []);
+    conferir("+55 solto", mascararDadosPessoais("me chama no +55 54 98899-0008").mascarados, ["telefone"]);
+    conferir("telefone so com digitos", mascararDadosPessoais("fone 54988990008").texto, "fone (54) 9****-**08");
+    conferir("fixo", mascararDadosPessoais("fixo (54) 3333-4444").texto, "fixo (54) ****-**44");
+    const cnpj = mascararDadosPessoais("CNPJ 11.222.333/0001-81");
+    conferir("cnpj", [cnpj.mascarados, cnpj.texto], [["documento"], "CNPJ **.***.***/****-81"]);
+    conferir("numero que nao e CPF nem telefone fica", mascararDadosPessoais("lote 111.111.111-11").mascarados, []);
+    conferir("repetido aparece uma vez na lista", mascararDadosPessoais("a@b.com e c@d.com").mascarados, ["email"]);
+    conferir(
+      "sem nada",
+      mascararDadosPessoais("qual arduino serve para ligar um LED?"),
+      { texto: "qual arduino serve para ligar um LED?", mascarados: [] },
+    );
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();
