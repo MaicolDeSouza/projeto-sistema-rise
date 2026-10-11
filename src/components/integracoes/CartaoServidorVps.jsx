@@ -339,6 +339,14 @@ export default function CartaoServidorVps() {
                 </dd>
               </div>
             )}
+            {situacao?.tunel && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 whitespace-nowrap text-suave">Túnel do Rise AI:</dt>
+                <dd className="min-w-0 truncate" title="O túnel que leva o LM Studio do seu PC até o Rise na VPS (npm run ia:pc)">
+                  {situacao.tunel.situacao}
+                </dd>
+              </div>
+            )}
             {operacao && !rodando && (
               <div className="flex gap-2">
                 <dt className="shrink-0 whitespace-nowrap text-suave">Última operação:</dt>

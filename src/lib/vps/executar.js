@@ -12,7 +12,8 @@ import os from "node:os";
 import path from "node:path";
 
 import * as regras from "./regras.js";
-import { ambienteDoTerminal } from "../coleta/workerPc.js";
+import { ambienteDoTerminal, processoVivo } from "../coleta/workerPc.js";
+import { lerEstadoDoTunel, situacaoDoTunel } from "../riseAi/tunelPc.js";
 
 const ARQUIVO_DE_ESTADO = "vps-operacao.json";
 /// O log do ajudante da copia (o que ele e o `copia:atualizar` escrevem), para quando a tela disser "veja o log".
@@ -140,6 +141,15 @@ function outraOperacaoDe(operacao) {
  * Tudo o que o cartao mostra: o que esta no ar, o que vai subir (commits e migrations entre o que roda na VPS e a
  * origin/main), as decisoes dos dois botoes e a ultima operacao.
  */
+/**
+ * O túnel do Rise AI (`npm run ia:pc`), lido do arquivo de estado que o script grava: só texto curto para o cartão. O
+ * processo que gravou o estado precisa estar vivo; senão o estado ficou velho (PC desligado, terminal morto à força).
+ */
+function lerTunel(pasta) {
+  const estado = lerEstadoDoTunel(path.join(pasta, "dados"));
+  return { situacao: situacaoDoTunel(estado, new Date(), { vivo: estado ? processoVivo(estado.pid) : false }) };
+}
+
 export async function lerSituacao(pasta) {
   const [git, vps] = await Promise.all([lerGit(pasta), lerVps()]);
 
@@ -158,6 +168,7 @@ export async function lerSituacao(pasta) {
   return {
     git: git.git,
     commitDoGithub: git.commitDoGithub,
+    tunel: lerTunel(pasta),
     vps,
     migrations,
     commits,

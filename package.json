@@ -31,6 +31,7 @@
     "teste:worker": "node scripts/teste-worker.js",
     "worker:parar": "node scripts/parar-worker.js",
     "worker:pc": "node scripts/worker-pc.js",
+    "ia:pc": "node scripts/ia-pc.js",
     "backup": "node scripts/backup-banco.js",
     "foto:mensal": "node scripts/foto-mensal.js",
     "teste:fotos": "node scripts/teste-fotos.js",

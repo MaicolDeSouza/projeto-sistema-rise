@@ -1518,6 +1518,113 @@ try {
     conferir("a variavel vale sem diferenciar caixa nem espacos", await rodarSincronizacaoDeEstoque({ env: { ESTOQUE_AUTOMATICO_BLING: " FALSE " } }), { rodou: false, motivo: "desligado" });
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 15 — Tunel do PC (SSH reverso ate o LM Studio)
+  // -------------------------------------------------------------------------
+  {
+    const { argumentosDoTunel, proximaEspera, lerEstadoDoTunel, gravarEstadoDoTunel, textoDoEstadoDoTunel } = await import("../src/lib/riseAi/tunelPc.js");
+    const { mkdtempSync, readdirSync, rmSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    console.log("\nTunel do PC");
+
+    conferir(
+      "argumentos do ssh",
+      argumentosDoTunel({ chave: "k", vps: "rise@vps" }),
+      ["-N", "-R", "172.17.0.1:1234:127.0.0.1:1234", "-o", "ExitOnForwardFailure=yes", "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=3", "-i", "k", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=15", "rise@vps"],
+    );
+    conferir("bind e porta proprios", argumentosDoTunel({ bind: "172.18.0.1", porta: 11434, chave: "k", vps: "v" }).slice(0, 3), ["-N", "-R", "172.18.0.1:11434:127.0.0.1:11434"]);
+    const recusa = (opcoes) => { try { argumentosDoTunel({ chave: "k", vps: "v", ...opcoes }); return "aceitou"; } catch (erro) { return erro.message; } };
+    conferir(
+      "a porta do PC nunca abre para a internet: bind aberto, vazio ou que nao e IP e recusado",
+      [recusa({ bind: "0.0.0.0" }), recusa({ bind: "*" }), recusa({ bind: "" }), recusa({ bind: "localhost" }), recusa({ bind: "172.17.0.1; rm" })],
+      Array(5).fill("O endereço do túnel na VPS tem que ser um IP fechado (como 172.17.0.1), nunca 0.0.0.0."),
+    );
+    conferir("porta invalida", [recusa({ porta: 0 }), recusa({ porta: 70000 }), recusa({ porta: "abc" })], Array(3).fill("A porta do túnel tem que ser um número de 1 a 65535."));
+    conferir("sem chave ou sem destino", [recusa({ chave: "" }), recusa({ vps: "" })], ["Informe a chave SSH e o destino (usuario@host).", "Informe a chave SSH e o destino (usuario@host)."]);
+
+    conferir("espera cresce ate 2 min", [proximaEspera(0), proximaEspera(1), proximaEspera(2), proximaEspera(3), proximaEspera(4), proximaEspera(5), proximaEspera(9)], [5000, 10000, 20000, 40000, 80000, 120000, 120000]);
+    conferir("espera: valor estranho volta ao comeco", [proximaEspera(-3), proximaEspera(Number.NaN), proximaEspera(undefined)], [5000, 5000, 5000]);
+
+    const agora = new Date("2026-10-11T18:00:00Z");
+    conferir(
+      "texto do estado: no ar (hora de Sao Paulo)",
+      textoDoEstadoDoTunel({ inicioEm: "2026-10-11T17:02:00.000Z", conectadoEm: "2026-10-11T17:02:00.000Z", quedas: 0 }, agora),
+      "Túnel do Rise AI: no ar desde 14:02",
+    );
+    conferir("texto do estado: no ar desde outro dia traz a data", textoDoEstadoDoTunel({ inicioEm: "2026-10-09T17:02:00.000Z", conectadoEm: "2026-10-09T17:02:00.000Z", quedas: 0 }, agora), "Túnel do Rise AI: no ar desde 09/10 14:02");
+    conferir(
+      "texto do estado: caiu e esta religando",
+      textoDoEstadoDoTunel({ inicioEm: "2026-10-11T17:02:00.000Z", conectadoEm: "2026-10-11T17:02:00.000Z", fimEm: "2026-10-11T17:40:00.000Z", motivo: "ssh saiu com 255", quedas: 1 }, agora),
+      "Túnel do Rise AI: caiu às 14:40 (religando)",
+    );
+    conferir(
+      "texto do estado: religou depois de cair (a conexao nova e mais recente que a queda)",
+      textoDoEstadoDoTunel({ inicioEm: "2026-10-11T17:02:00.000Z", conectadoEm: "2026-10-11T17:41:00.000Z", fimEm: "2026-10-11T17:40:00.000Z", quedas: 1 }, agora),
+      "Túnel do Rise AI: no ar desde 14:41",
+    );
+    conferir("texto do estado: ainda conectando", textoDoEstadoDoTunel({ inicioEm: "2026-10-11T17:59:00.000Z", quedas: 0 }, agora), "Túnel do Rise AI: conectando…");
+    conferir("texto do estado: nunca rodou", textoDoEstadoDoTunel(null, agora), "Túnel do Rise AI: parado");
+    conferir("texto do estado: encerrado de proposito", textoDoEstadoDoTunel({ inicioEm: "2026-10-11T17:02:00.000Z", conectadoEm: "2026-10-11T17:02:00.000Z", fimEm: "2026-10-11T17:50:00.000Z", motivo: "encerrado" }, agora), "Túnel do Rise AI: parado");
+    conferir(
+      "texto do estado: o processo morreu sem avisar (estado velho nao vale)",
+      textoDoEstadoDoTunel({ inicioEm: "2026-10-11T17:02:00.000Z", conectadoEm: "2026-10-11T17:02:00.000Z", quedas: 0 }, agora, { vivo: false }),
+      "Túnel do Rise AI: parado",
+    );
+
+    // O sshd da VPS (GatewayPorts no, medido em 11/10/2026) ACEITA o -R com o IP da ponte mas abre a porta so no loopback:
+    // o ssh fica conectado e inutil, e sem esta conferencia o script diria "tunel no ar". `ss -ltn` na VPS diz onde abriu.
+    const { portaNaPonte, argumentosDeConferencia } = await import("../src/lib/riseAi/tunelPc.js");
+    const cabecalho = "State  Recv-Q Send-Q Local Address:Port Peer Address:Port Process\n";
+    conferir(
+      "porta aberta na ponte do Docker",
+      [
+        portaNaPonte(`${cabecalho}LISTEN 0 128 172.17.0.1:1234 0.0.0.0:*\nLISTEN 0 128 0.0.0.0:22 0.0.0.0:*\n`, "172.17.0.1", 1234),
+        portaNaPonte(`${cabecalho}LISTEN 0 128 0.0.0.0:1234 0.0.0.0:*\n`, "172.17.0.1", 1234),
+      ],
+      ["ok", "ok"],
+    );
+    conferir(
+      "porta aberta so no loopback: o conteiner nao alcanca",
+      [portaNaPonte(`${cabecalho}LISTEN 0 128 127.0.0.1:1234 0.0.0.0:*\nLISTEN 0 128 [::1]:1234 [::]:*\n`, "172.17.0.1", 1234), portaNaPonte(`${cabecalho}LISTEN 0 128 [::1]:1234 [::]:*\n`, "172.17.0.1", 1234)],
+      ["so_loopback", "so_loopback"],
+    );
+    conferir(
+      "porta nao aberta, ou outra porta, ou texto vazio",
+      [portaNaPonte(`${cabecalho}LISTEN 0 128 0.0.0.0:22 0.0.0.0:*\nLISTEN 0 128 127.0.0.1:12345 0.0.0.0:*\n`, "172.17.0.1", 1234), portaNaPonte("", "172.17.0.1", 1234), portaNaPonte(null, "172.17.0.1", 1234)],
+      ["ausente", "ausente", "ausente"],
+    );
+    conferir("a ponte vence o loopback quando as duas existem", portaNaPonte(`${cabecalho}LISTEN 0 128 127.0.0.1:1234 0.0.0.0:*\nLISTEN 0 128 172.17.0.1:1234 0.0.0.0:*\n`, "172.17.0.1", 1234), "ok");
+    conferir("porta com final igual de outra nao conta (11234 nao e 1234)", portaNaPonte(`${cabecalho}LISTEN 0 128 172.17.0.1:11234 0.0.0.0:*\n`, "172.17.0.1", 1234), "ausente");
+    conferir(
+      "conferencia: ssh de leitura, sem -R e sem -N",
+      argumentosDeConferencia({ chave: "k", vps: "rise@vps" }),
+      ["-i", "k", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=15", "rise@vps", "ss -ltn"],
+    );
+    conferir(
+      "texto do estado: conectado mas a porta so abriu no loopback da VPS",
+      textoDoEstadoDoTunel({ inicioEm: "2026-10-11T17:02:00.000Z", conectadoEm: "2026-10-11T17:02:00.000Z", alcance: "so_loopback", quedas: 0 }, agora),
+      "Túnel do Rise AI: conectado, mas a VPS abriu a porta só em 127.0.0.1 e o Rise não a alcança (falta GatewayPorts clientspecified)",
+    );
+    conferir(
+      "texto do estado: alcance conferido",
+      textoDoEstadoDoTunel({ inicioEm: "2026-10-11T17:02:00.000Z", conectadoEm: "2026-10-11T17:02:00.000Z", alcance: "ok", quedas: 0 }, agora),
+      "Túnel do Rise AI: no ar desde 14:02",
+    );
+
+    const pasta = mkdtempSync(join(tmpdir(), "rise-ia-pc-"));
+    try {
+      conferir("estado que nunca foi gravado", lerEstadoDoTunel(pasta), null);
+      gravarEstadoDoTunel(pasta, { pid: 123, inicioEm: "2026-10-11T17:02:00.000Z", conectadoEm: null, quedas: 2, fimEm: null, motivo: null });
+      conferir("grava e le de volta", lerEstadoDoTunel(pasta), { pid: 123, inicioEm: "2026-10-11T17:02:00.000Z", conectadoEm: null, quedas: 2, fimEm: null, motivo: null });
+      conferir("a gravacao nao deixa arquivo temporario", readdirSync(pasta), ["ia-pc.estado.json"]);
+      writeFileSync(join(pasta, "ia-pc.estado.json"), "{ pela metade");
+      conferir("arquivo quebrado vale como sem estado", lerEstadoDoTunel(pasta), null);
+    } finally {
+      rmSync(pasta, { recursive: true, force: true });
+    }
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();
