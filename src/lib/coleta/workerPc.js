@@ -111,7 +111,7 @@ export function ambienteDoTerminal(ambiente) {
  *
  * @returns {{ok: true} | {ok: false, erro: string}}
  */
-// `fonteId` nulo = TODAS as fontes marcadas (o botao "Varrer fontes do PC" e o `npm run worker:pc`).
+// `fonteId` nulo = TODAS as fontes marcadas (o `npm run worker:pc`).
 // `pedidos`: nao poe fonte nenhuma na fila, so atende os pedidos que a VPS ja criou (o "Varrer pelo PC" da linha, na VPS).
 export function iniciarWorkerPc({ pastaProjeto, fonteId = null, fonteNome, pedidos = false }) {
   if (fonteId !== null && !idDeFonteValido(fonteId)) return { ok: false, erro: "Fonte inválida." };
