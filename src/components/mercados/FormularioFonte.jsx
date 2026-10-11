@@ -1,5 +1,7 @@
 "use client";
 
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import { DICA_DA_CAIXA } from "@/components/mercados/procedimentoPeloPc";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -778,6 +780,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
             <input type="checkbox" checked={peloPc} onChange={(evento) => setPeloPc(evento.target.checked)} />
             <Monitor size={14} />
             Varrer pelo PC (o site bloqueia a VPS)
+            <BolhaDeAjuda texto={DICA_DA_CAIXA} variante="inline" />
           </label>
         )}
 

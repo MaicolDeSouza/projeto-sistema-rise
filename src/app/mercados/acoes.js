@@ -664,6 +664,31 @@ export async function varrerPeloPcAgora(fonteId) {
 }
 
 /**
+ * "Varrer pelo PC" na VPS (11/10/2026): cria o PEDIDO de varredura de uma fonte marcada para o PC. O worker da VPS
+ * ignora essa fonte; quem a pega e o Rise do PC, que pergunta a VPS a cada minuto (`vigiaDoPc.js`) e liga o worker do
+ * PC sozinho. Se o PC estiver desligado, o pedido espera na fila.
+ */
+export async function pedirVarreduraPeloPc(fonteId) {
+  if (!process.env.RISE_PRODUCAO) {
+    return { ok: false, erro: "Este pedido é feito na tela da VPS. No PC, use Varrer agora ou Varrer fontes do PC." };
+  }
+  const fonte = await prisma.fonteColeta.findUnique({
+    where: { id: fonteId },
+    select: { id: true, nome: true, ativa: true, robotsPermite: true, varridaNoPc: true },
+  });
+  if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
+  if (!fonte.varridaNoPc) return { ok: false, erro: "Esta fonte não está marcada para varrer pelo PC." };
+  if (!fonte.robotsPermite) return { ok: false, erro: "O robots.txt deste site nos bloqueia." };
+  if (!fonte.ativa) return { ok: false, erro: "Fonte pausada. Use Retomar antes de varrer." };
+
+  const enfileiradas = await enfileirar([fonte]);
+  revalidatePath("/mercados/fontes");
+  revalidatePath("/mercados");
+  if (enfileiradas === 0) return { ok: false, erro: "Esta fonte já está na fila ou em varredura." };
+  return { ok: true };
+}
+
+/**
  * "Varrer fontes do PC" (11/10/2026): liga o worker do PC para TODAS as fontes marcadas e ativas NA VPS, sem depender
  * da copia local. O `varrerPeloPcAgora` por linha so existe para fonte que ja esta marcada na copia do PC, e a
  * Policomp, cadastrada na VPS no dia anterior, nao estava: o clique na VPS so marca, e o PC nao a via.

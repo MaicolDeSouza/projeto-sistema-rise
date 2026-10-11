@@ -636,7 +636,11 @@ log(
     (FONTES ? ` · so as fontes ${FONTES.join(", ")}` : "") +
     (SO_NO_PC ? " · so as fontes marcadas para varrer no PC" : ""),
 );
-if (SO_NO_PC) {
+if (SO_NO_PC && process.env.COLETA_PC_SO_PEDIDOS === "1") {
+  // Modo "pedidos" (o vigia do Rise do PC): o pedido ja esta na fila, criado pelo "Varrer pelo PC" da tela da VPS.
+  // Enfileirar aqui poria TODAS as fontes marcadas, e o dono pediu uma.
+  log("modo pedidos: so o que a VPS ja pos na fila");
+} else if (SO_NO_PC) {
   // Quem roda `npm run worker:pc` (ou clica "Varrer agora" no Rise do PC) esta pedindo a varredura: nao precisa
   // clicar na tela da VPS.
   const { fontes, enfileiradas } = await fila.enfileirarFontesDoPc({ fonteId: FONTE_DO_PC });

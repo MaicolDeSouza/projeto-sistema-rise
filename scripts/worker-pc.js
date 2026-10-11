@@ -46,6 +46,8 @@ const SUPERVISOR = path.join(aqui, "worker.js");
 const PASTA_DADOS = path.join(aqui, "..", "dados");
 
 const FICAR = process.argv.includes("--ficar");
+/// `--pedidos`: nao poe fonte na fila; so atende os jobs que a VPS ja criou ("Varrer pelo PC" na tela da VPS).
+const PEDIDOS = process.argv.includes("--pedidos");
 /// `--fonte=<id>`: so aquela fonte. Sem ele, todas as marcadas e ativas.
 const FONTE = process.argv.find((argumento) => argumento.startsWith("--fonte="))?.slice("--fonte=".length) ?? null;
 
@@ -220,7 +222,7 @@ dizer(`abrindo o tunel SSH na porta ${PORTA_LOCAL} deste PC...`);
 const tunel = await abrirTunel();
 dizer(
   "tunel aberto. Subindo o worker, " +
-    (FONTE ? `so da fonte ${FONTE}` : "so das fontes marcadas para varrer pelo PC") +
+    (FONTE ? `so da fonte ${FONTE}` : PEDIDOS ? "so dos pedidos feitos na VPS" : "so das fontes marcadas para varrer pelo PC") +
     (FICAR ? " (fica no ar)" : " (termina quando acabar)") +
     ". Ctrl+C encerra.",
 );
@@ -238,6 +240,7 @@ const supervisor = spawn(process.execPath, [SUPERVISOR], {
     DATABASE_URL: urlDoBanco,
     COLETA_SO_PC: "1",
     COLETA_PC_SAIR: FICAR ? "0" : "1",
+    ...(PEDIDOS ? { COLETA_PC_SO_PEDIDOS: "1" } : {}),
     ...(FONTE ? { COLETA_PC_FONTE: FONTE } : {}),
   },
 });

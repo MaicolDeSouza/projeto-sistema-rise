@@ -7,11 +7,14 @@ import { Ban, ExternalLink, FolderTree, Info, Loader, Monitor, Pause, Pencil, Pl
 import Badge from "@/components/ui/Badge";
 import ArquivosDaFonte from "@/components/mercados/ArquivosDaFonte";
 import CategoriasDaFonte from "@/components/mercados/CategoriasDaFonte";
+import { AVISO_DO_PEDIDO, DICA_DE_CADASTRO, PASSOS_DO_PEDIDO } from "@/components/mercados/procedimentoPeloPc";
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import {
   alternarFonte,
   contarProdutos,
   editarFonte,
   excluirFonte,
+  pedirVarreduraPeloPc,
   varrerFonteAgora,
   varrerPeloPcAgora,
 } from "@/app/mercados/acoes";
@@ -107,6 +110,19 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
   const pcVarrendoEsta = Boolean(workerPc?.rodando) && (workerPc.fonteId === fonte.id || workerPc.fonteId === null);
   const pcVarrendoOutra = Boolean(workerPc?.rodando) && !pcVarrendoEsta;
   const ultimaPeloPc = workerPc?.ultima?.fonteId === fonte.id ? workerPc.ultima : null;
+
+  const [procedimento, setProcedimento] = useState(false);
+
+  /** Na VPS: cria o pedido; o Rise do PC, que pergunta a cada minuto, liga o worker do PC. */
+  function pedirPeloPc() {
+    setErro(null);
+    setProcedimento(false);
+    iniciarTransicao(async () => {
+      const resultado = await pedirVarreduraPeloPc(fonte.id);
+      if (!resultado.ok) setErro(resultado.erro);
+      router.refresh();
+    });
+  }
 
   /** No Rise do PC: liga o worker do PC so para esta fonte. Ele grava direto na VPS e desliga sozinho. */
   function varrerPeloPc() {
@@ -366,17 +382,71 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
                 FONTE DO PC, NA VPS: nao ha "Varrer agora" aqui (pedido do dono). A VPS nao alcanca o PC, que esta na
                 rede de casa: a varredura comeca pelo Rise do PC. O rotulo diz isso e mostra o andamento.
               */
-              <span
-                className="inline-flex items-center gap-1 rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs text-sky-900"
-                title="Esta fonte é varrida pelo PC: abra o Rise no seu PC (localhost), tela Fontes, e clique em Varrer fontes do PC. A varredura grava aqui."
-              >
-                <Monitor size={12} />
-                {fonte.varredura === "VARRENDO"
-                  ? "Varrendo pelo PC"
-                  : fonte.varredura === "NA_FILA"
-                    ? "Na fila do PC"
-                    : "Varredura só pelo PC"}
-              </span>
+              fonte.varredura ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs text-sky-900"
+                  title="O Rise do seu PC atende o pedido sozinho (ele pergunta a VPS a cada minuto). Ao terminar, o worker do PC desliga."
+                >
+                  <Monitor size={12} />
+                  {fonte.varredura === "VARRENDO" ? "Varrendo pelo PC" : "Na fila do PC"}
+                </span>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setProcedimento(true)}
+                    disabled={pendente || !fonte.ativa || !fonte.robotsPermite}
+                    className={`${botao} border-sky-300 bg-sky-50 text-sky-900`}
+                    title={
+                      !fonte.robotsPermite
+                        ? "O robots.txt deste site nos bloqueia"
+                        : !fonte.ativa
+                          ? "Fonte pausada: use Retomar antes de varrer"
+                          : "Pede a varredura pelo seu PC (o site bloqueia a VPS). Mostra o procedimento antes."
+                    }
+                  >
+                    <Monitor size={12} />
+                    Varrer pelo PC
+                  </button>
+                  {procedimento && (
+                    <div
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="Procedimento para varrer pelo PC"
+                      {...propsDoFundo(() => setProcedimento(false))}
+                      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                    >
+                      <div
+                        onClick={(evento) => evento.stopPropagation()}
+                        className="w-full max-w-lg rounded-lg border border-borda bg-superficie p-5 text-left shadow-xl"
+                      >
+                        <h3 className="text-base font-semibold">Procedimento</h3>
+                        <p className="mt-0.5 text-sm text-suave">Varrer {fonte.nome} pelo PC</p>
+                        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm">
+                          {PASSOS_DO_PEDIDO.map((passo) => (
+                            <li key={passo}>{passo}</li>
+                          ))}
+                        </ol>
+                        <p className="mt-3 text-xs text-suave">{AVISO_DO_PEDIDO}</p>
+                        <p className="mt-1 text-xs text-suave">Dica: {DICA_DE_CADASTRO}</p>
+                        <div className="mt-4 flex justify-end gap-2">
+                          <button type="button" onClick={() => setProcedimento(false)} className={botao}>
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={pedirPeloPc}
+                            disabled={pendente}
+                            className="inline-flex items-center gap-1 rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
+                          >
+                            Continuar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
             ) : (
               <>
             {/*
