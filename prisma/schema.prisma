@@ -48,6 +48,11 @@ enum Servico {
   /// Foto do produto refeita pelo Nano Banana (modelos de imagem do Google, API Gemini). Cada geracao paga
   /// e uma linha; o modelo vai no `endpoint`. Nunca grava a chave, a imagem nem o prompt.
   GEMINI
+  /// Rise AI (assistente de IA): provedores de texto alem de ANTHROPIC e GEMINI. Cada chamada ao provedor e uma
+  /// linha de LogIntegracao (o modelo no `endpoint`), e a chave de cada um mora em `Conexao`. Nunca o prompt.
+  LM_STUDIO
+  OLLAMA
+  OPENAI
 }
 
 enum TipoPessoa {
@@ -204,6 +209,10 @@ model Produto {
   /// reservas. Nulo = nunca lido. O estoque do Rise e este saldo mais os ajustes
   /// pendentes (MovimentoEstoque.enviadoAoBlingEm nulo).
   blingSaldo          Int?
+  /// Quando o saldo acima foi lido do Bling pela ultima vez (botao da lista ou a leitura de hora em hora do worker).
+  /// E o que o Rise AI mostra ("Bling, ha 20 min") para a esposa saber o quao fresco e o estoque da resposta.
+  /// Nulo = nunca lido: a tela diz "estoque do cadastro".
+  blingSaldoLidoEm    DateTime?
 
   ativo   Boolean @default(true)
 
@@ -545,6 +554,172 @@ model Conexao {
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Rise AI — assistente de IA (spec de 11/10/2026)
+// ---------------------------------------------------------------------------
+
+/// ADMIN: o assistente do atendimento e do dono, com acesso a custo e fornecedor. PUBLICO: o do site da loja
+/// (Entrega 4), que so alcanca o que e publico — a autorizacao e do backend, nunca do prompt.
+enum PerfilIA {
+  ADMIN
+  PUBLICO
+}
+
+enum PapelMensagemIA {
+  USUARIO
+  ASSISTENTE
+}
+
+/// So APROVADO entra em resposta. REVERTIDO e a nota que o dono desfez depois de aprovada.
+enum StatusConhecimentoIA {
+  RASCUNHO
+  APROVADO
+  REJEITADO
+  REVERTIDO
+}
+
+enum VisibilidadeIA {
+  ADMIN
+  PUBLICO
+}
+
+enum StatusSugestaoIA {
+  PENDENTE
+  APROVADA
+  REJEITADA
+}
+
+/// Quem propos a correcao: o polegar para baixo de um usuario (SINALIZACAO) ou o analisador noturno (Entrega 3).
+enum OrigemSugestaoIA {
+  SINALIZACAO
+  ANALISADOR
+}
+
+/// Configuracao unica do Rise AI (linha `unica`): provedor padrao e reserva, endpoints, tempos, limites, prompt.
+/// A chave de cada provedor NAO mora aqui: fica cifrada em `Conexao`.
+model ConfiguracaoIA {
+  id            String   @id @default("unica")
+  dados         Json
+  atualizadoEm  DateTime @updatedAt
+  atualizadoPor String?
+}
+
+model ConversaIA {
+  id      String   @id @default(cuid())
+  titulo  String
+  /// O nome do login (Remote-User do Tinyauth); "pc" no Rise do PC, que nao tem login.
+  usuario String
+  perfil  PerfilIA @default(ADMIN)
+
+  /// A revisao noturna do dono: quando e por quem a conversa foi marcada como revisada.
+  revisadaEm  DateTime?
+  revisadaPor String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  mensagens MensagemIA[]
+  sugestoes SugestaoIA[]
+
+  @@index([usuario, atualizadoEm])
+  @@index([criadoEm])
+}
+
+model MensagemIA {
+  id         String          @id @default(cuid())
+  conversaId String
+  conversa   ConversaIA      @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  papel      PapelMensagemIA
+  /// O texto da mensagem. Na do usuario ja vem MASCARADO (telefone, e-mail, CPF/CNPJ): o original nunca e guardado.
+  conteudo   String
+  /// Da resposta: respostaCliente, paraEquipe, produtos (cartoes), outrosConsultados, conhecimentoUsado, ferramentas
+  /// (nome, argumentos, ok, duracaoMs) e mascarados. Os cartoes vem dos dados das ferramentas, nunca do texto do modelo.
+  estruturado Json?
+
+  /// Quem respondeu e quanto custou (so na resposta). `motivoDaReserva` nulo = foi o provedor padrao.
+  provedor        String?
+  modelo          String?
+  motivoDaReserva String?
+  tokensEntrada   Int?
+  tokensSaida     Int?
+  custoUsd        Decimal? @db.Decimal(12, 6)
+  custoBrl        Decimal? @db.Decimal(12, 4)
+  duracaoMs       Int?
+
+  /// 1 = polegar para cima, -1 = para baixo, nulo = sem avaliacao.
+  avaliacao   Int?
+  comentario  String?
+  avaliadoPor String?
+  avaliadoEm  DateTime?
+
+  /// sem_separacao, limite_de_ferramentas, sem_resultado, erro, sugestao_nao_gerada...
+  avisos String[] @default([])
+
+  criadoEm DateTime @default(now())
+
+  @@index([conversaId, criadoEm])
+  @@index([criadoEm])
+}
+
+/// O que o dono ensinou ao assistente. Persiste no Rise, independente do modelo de IA (RAG por texto).
+/// Nada vale sem a aprovacao dele: `aprovadoPor` e a prova.
+model ConhecimentoIA {
+  id        String  @id @default(cuid())
+  assunto   String
+  conteudo  String
+  categoria String?
+  /// De onde veio / a evidencia.
+  fonte     String?
+  /// SKUs dos produtos a que a nota se liga (entra na resposta mesmo sem palavra em comum).
+  produtos  String[] @default([])
+
+  visibilidade VisibilidadeIA       @default(ADMIN)
+  status       StatusConhecimentoIA @default(RASCUNHO)
+
+  criadoPor        String
+  aprovadoPor      String?
+  aprovadoEm       DateTime?
+  /// A resposta que motivou a nota; vira nulo se a conversa for excluida.
+  origemMensagemId String?
+  versao           Int       @default(1)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([status])
+}
+
+/// Correcao PROPOSTA pela IA (ao polegar para baixo, ou pelo analisador noturno). So vira ConhecimentoIA aprovado
+/// quando o dono clica em Aprovar; nunca automatico.
+model SugestaoIA {
+  id         String     @id @default(cuid())
+  conversaId String
+  conversa   ConversaIA @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  mensagemId String?
+
+  origem           OrigemSugestaoIA
+  tipo             String?
+  problema         String
+  correcaoSugerida String
+  justificativa    String?
+  produtos         String[]         @default([])
+  fontes           Json?
+  confianca        Int?
+
+  status         StatusSugestaoIA @default(PENDENTE)
+  decididoPor    String?
+  decididoEm     DateTime?
+  motivoRejeicao String?
+  /// A nota criada quando a sugestao foi aprovada.
+  conhecimentoId String?
+  /// Evita repetir o mesmo problema da mesma conversa (analisador).
+  hash           String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([status, criadoEm])
 }
 
 // ---------------------------------------------------------------------------

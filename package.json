@@ -46,7 +46,8 @@
     "copia:atualizar": "node scripts/atualizar-copia.js",
     "teste:rede": "node scripts/teste-rede-publica.js",
     "teste:fila-pc": "node scripts/teste-fila-pc.js",
-    "teste:vps": "node scripts/teste-vps.js"
+    "teste:vps": "node scripts/teste-vps.js",
+    "teste:rise-ai": "node scripts/teste-rise-ai.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
