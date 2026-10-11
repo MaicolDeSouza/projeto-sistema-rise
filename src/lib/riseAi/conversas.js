@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { ErroDeUso } from "./erros";
+import { mascararDadosPessoais } from "./mascarar";
 
 /**
  * As conversas do Rise AI no banco: de quem é cada uma, listar, buscar, renomear, excluir e avaliar respostas.
@@ -83,6 +84,9 @@ export async function gravarMensagem(conversaId, dados) {
 /**
  * 👍 (1), 👎 (-1) ou tirar a avaliação (`null`), com o comentário de quem avaliou. Só resposta da IA, e só o dono da
  * conversa (ou administrador).
+ *
+ * O comentário é MASCARADO antes de gravar (telefone, e-mail, CPF, CNPJ): quem sinaliza costuma colar o contato do cliente
+ * para dizer de que resposta fala, e o Rise AI não guarda dado pessoal colado — mesma regra do texto da pergunta.
  */
 export async function avaliarMensagem(id, { avaliacao, comentario = null, usuario, administrador = false }) {
   if (avaliacao !== 1 && avaliacao !== -1 && avaliacao !== null) throw new ErroDeUso("Avaliação inválida.");
@@ -95,7 +99,7 @@ export async function avaliarMensagem(id, { avaliacao, comentario = null, usuari
     where: { id: mensagem.id },
     data: {
       avaliacao,
-      comentario: avaliando ? String(comentario ?? "").trim() || null : null,
+      comentario: avaliando ? mascararDadosPessoais(String(comentario ?? "").trim()).texto || null : null,
       avaliadoPor: avaliando ? usuario : null,
       avaliadoEm: avaliando ? new Date() : null,
     },

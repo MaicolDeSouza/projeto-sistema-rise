@@ -1013,6 +1013,14 @@ try {
     conferir("avaliacao invalida", await avaliarMensagem(r1.mensagem.id, { avaliacao: 5, usuario: "ZZ-IA-TESTE" }).then(() => "avaliou", () => "recusou"), "recusou");
     conferir("so o dono avalia", await avaliarMensagem(r1.mensagem.id, { avaliacao: 1, usuario: "ZZ-IA-OUTRO" }).then(() => "avaliou", () => "recusou"), "recusou");
     conferir("tirar a avaliacao", (await avaliarMensagem(r1.mensagem.id, { avaliacao: null, usuario: "ZZ-IA-TESTE" })).avaliacao, null);
+    // Revisao final (11/10/2026): o comentario do 👎 e digitado pela esposa, que cola o telefone do cliente ("o cliente (54)
+    // 98899-0008 reclamou"). Era gravado como veio; a regra de LGPD do Rise AI e "nunca guardar o dado pessoal colado".
+    const comDadoPessoal = await avaliarMensagem(r1.mensagem.id, { avaliacao: -1, comentario: "o cliente (54) 98899-0008 e joao@exemplo.com reclamou do preco", usuario: "ZZ-IA-TESTE" });
+    conferir(
+      "o comentario do 👎 e mascarado antes de gravar",
+      [comDadoPessoal.comentario.includes("98899"), comDadoPessoal.comentario.includes("joao@"), comDadoPessoal.comentario.includes("reclamou do preco"), (await prisma.mensagemIA.findUnique({ where: { id: r1.mensagem.id } })).comentario.includes("98899")],
+      [false, false, true, false],
+    );
     await avaliarMensagem(r1.mensagem.id, { avaliacao: -1, comentario: "indicou caro demais", usuario: "ZZ-IA-TESTE" });
 
     // Excluir a conversa: leva as mensagens, mas o conhecimento que nasceu dela fica (so perde a origem).
