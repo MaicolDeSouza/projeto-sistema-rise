@@ -114,6 +114,7 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 | Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
+| Rise AI | Assistente de atendimento (Entrega 1, pronta e **ainda sem deploy**): a equipe cola a pergunta de um cliente e recebe o texto pronto para copiar, com preço, estoque e link da loja. Modelo local (LM Studio, no PC do dono) como padrão e a API da Anthropic como reserva; conversas guardadas; 👎 vira sugestão de correção que o **dono** aprova; Revisão do dia, Configurações e Consumo para administradores. Ver "Rise AI (Entrega 1)" |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
 **A publicação nunca foi ligada.** `ML_PUBLICACAO`, `BLING_ESCRITA` e `LI_ESCRITA` estão em `false`, e
@@ -161,6 +162,9 @@ npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 685 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
+npm run teste:rise-ai             # 379 asserções do Rise AI (Entrega 1): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo, configuração, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
+npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
+npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -3374,6 +3378,87 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
   "conferem" e o alerta de GTIN ignora a loja. Só um `next dev` roda por pasta.
 - Fotos (`POST /produto_imagem`) e documentos: na VPS. Webhooks, pedidos e importação dos 44 só-LI: fora desta fase.
 - `POST /marca` nunca foi exercitado na API real (só na LI falsa).
+
+## Rise AI (Entrega 1)
+
+Pedido do dono em 11/10/2026: um assistente que ajuda a esposa dele a responder as perguntas técnicas dos clientes sobre
+as peças. Spec: `docs/superpowers/specs/2026-10-11-rise-ai-design.md`; plano (16 tarefas, executado inline na `main`):
+`docs/superpowers/plans/2026-10-11-rise-ai-entrega-1.md`. **Pronto e testado, mas SEM DEPLOY** (a VPS segue na versão
+anterior: faltam o "sobe" e o ok do dono para o que mexe na VPS, abaixo). As Entregas 2 (lista de peças do cliente,
+conhecimento com versões, busca por significado) e 3 (analisador noturno, bateria de testes de modelos, assistente
+público) estão na spec.
+
+**Onde mora cada parte**
+- `src/lib/riseAi/`: `modelos.js` (provedores, preços, custo), `configuracao.js` (padrão de fábrica + o salvo; as chaves
+  ficam em `Conexao`), `provedores/` (adaptador OpenAI-compatível — LM Studio, Ollama, OpenAI, Gemini — e o da Anthropic,
+  atrás de um contrato único), `conversa.js` (o laço `responder`), `ferramentas/` (as ÚNICAS que o modelo usa para
+  alcançar o banco), `busca.js`, `conhecimento.js`, `sugestoes.js`, `revisao.js`, `consumo.js`, `prompt.js`, `mascarar.js`,
+  `acesso.js`, `tunelPc.js`, `estoqueAutomatico.js`.
+- Telas: `src/app/rise-ai/` (chat, `revisao/`, `configuracoes/`, `consumo/`; `administrador.js` é o invólucro de TODA ação
+  de administração), `src/app/api/rise-ai/conversar/route.js` (fluxo SSE) e `src/components/riseAi/`.
+- Banco (migration `20261011_rise_ai`, aditiva): `ConfiguracaoIA`, `ConversaIA`, `MensagemIA`, `ConhecimentoIA`,
+  `SugestaoIA`, `Produto.blingSaldoLidoEm` e os `Servico` `LM_STUDIO`, `OLLAMA` e `OPENAI`. O índice GIN
+  `ConhecimentoIA_busca_trgm` mora só no SQL (tirar do próximo `migrate diff`) e a busca de hoje não o usa (a tabela é
+  pequena).
+
+**O que o dono decidiu**
+- **Quem usa:** a esposa, no computador. A resposta é o texto PRONTO para copiar e mandar ao cliente (quadro "Resposta
+  pronta para o cliente", com Copiar), com o link da loja quando há.
+- **Modelo:** o LM Studio do PC é o padrão; a API da Anthropic (`claude-haiku-5-5`) é a reserva. Toda resposta mostra
+  QUAL modelo respondeu (selo verde = no PC, azul = API) e o custo, para comparar a qualidade e somar o gasto.
+- **Estoque:** o do Rise, relido do Bling de hora em hora pelo worker (só leitura; `ESTOQUE_AUTOMATICO_BLING=false`
+  desliga); a resposta diz "lido há N min" (`Produto.blingSaldoLidoEm`).
+- **A IA PROPÕE e o DONO aprova, nunca a esposa:** 👎 + comentário gera, em segundo plano, uma sugestão (`SugestaoIA`);
+  só "Aprovar" na Revisão do dia cria o conhecimento. O dono lê a Revisão à noite.
+- **Ligação da VPS ao PC:** túnel SSH reverso que se refaz sozinho (`npm run ia:pc`).
+
+**Regras que custaram pensar**
+- O modelo nunca executa SQL: só `executarFerramenta` (zod, perfil, no máximo 8 chamadas por resposta). Os cartões de
+  produto saem dos DADOS das ferramentas, nunca do texto do modelo; o texto do cliente nunca cita custo, margem,
+  fornecedor nem localização.
+- Telefone, e-mail, CPF e CNPJ colados no chat são MASCARADOS antes de gravar e antes de ir a qualquer provedor
+  (`mascarar.js`: só o que passa na conferência, para não estragar código de produto).
+- Reserva só quando o padrão falha SEM texto na tela ("nunca duas vozes numa resposta"); 45 s sem primeiro token também
+  manda para a reserva. Erro vira mensagem do assistente com o aviso `erro`, não exceção. Uma resposta por vez por
+  conversa e 20 perguntas por minuto por pessoa.
+- Administrador = `RISE_AI_ADMINS` (nomes do Tinyauth); **na VPS, sem a variável ninguém é** (falha fechada); no PC todos.
+  O servidor confere em toda ação (`executarComoAdministrador`, e um teste exige esse invólucro em toda ação). Conversa é
+  de quem a criou; o administrador lê as dos outros só na Revisão.
+- A chave de um provedor vai num `FormData` e nunca volta (o `next dev` imprime os argumentos de Server Action). A tela só
+  diz "cadastrada em dd/mm" e de onde vem (tela ou `.env`).
+- Texto para o cliente em TEXTO PURO, sem markdown: o Haiku escrevia **negrito** e no WhatsApp os asteriscos aparecem.
+  O estilo (`PROMPT_ATENDIMENTO_PADRAO`) o dono edita na tela; as regras de honestidade e o formato (`SISTEMA_FIXO`) são do código.
+- Sugestão ao 👎: limite próprio de 4.000 tokens (o Haiku PENSA, e com 1.200 a resposta saiu cortada); a pendente da mesma
+  resposta é reaproveitada; falha marca `sugestao_nao_gerada` e o administrador pede de novo ("Pedir sugestão à IA").
+- **Renovação do token do Bling sob trava do Postgres** (`integracoes/travaDeRenovacao.js`): o refresh token é de uso único
+  e o site e o worker usam a mesma conexão; quem espera a trava RELÊ antes de renovar (foi o que derrubou o token no teste
+  real de 08/10/2026). O conector do Mercado Livre tem o mesmo padrão SEM a trava (nenhum processo em segundo plano o chama hoje).
+- `src/lib/db.js` recria o client do Prisma quando os modelos mudam (assinatura dos nomes): o dev server mantinha o client
+  velho em `globalThis` depois de um `prisma generate`.
+- O teste usa a reserva de fábrica com provedor falso, e o laço registrava `LogIntegracao` como se fosse real: o `limpar()`
+  apaga as de duração menor que 50 ms (chamada real à API leva centenas).
+
+**O túnel (medido em 11/10/2026):** o `sshd` da VPS está com `GatewayPorts no`, então ele ACEITA o
+`-R 172.17.0.1:1234` e abre a porta só em 127.0.0.1: o `ssh` conecta, o `ExitOnForwardFailure` não dispara e o contêiner
+do Rise não alcança nada. `npm run ia:pc` confere onde a porta abriu (`ss -ltn`, só leitura) e avisa; o cartão "Servidor
+VPS" mostra "Túnel do Rise AI: no ar desde 14:02 / caiu às 14:40 (religando) / parado". O bind `0.0.0.0` é recusado (publicaria
+o LM Studio para a internet).
+
+**Para pôr no ar (só com o "sobe" e o ok do dono; nada foi mudado na VPS)**
+1. `.env` da VPS (por SSH, arquivo temporário, nunca no texto do comando): `RISE_AI_ADMINS=<usuário do dono no Tinyauth>`,
+   `ESTOQUE_AUTOMATICO_BLING=true`; o usuário da esposa em `TINYAUTH_AUTH_USERS`.
+2. `sshd`: `GatewayPorts clientspecified` (`sudo sshd -t && sudo systemctl reload ssh`) e o firewall deixar a rede dos
+   contêineres chegar à ponte: `sudo ufw allow from 172.16.0.0/12 to 172.17.0.1 port 1234 proto tcp` (o `ufw` já nega o resto).
+3. Deploy normal pelo cartão "Atualizar a VPS": aplica a migration (com backup antes) e o `extra_hosts` do compose.
+4. No PC: LM Studio com o servidor local ligado e `npm run ia:pc` aberto. Na tela Configurações da VPS: Testar conexão do
+   LM Studio (`http://host.docker.internal:1234/v1`), habilitar o modelo e escolhê-lo como Padrão.
+5. **A medir pelo dono:** `npm run medir:lmstudio -- --modelo=<id>` (o LM Studio não estava no ar quando a Entrega foi
+   fechada, então o tempo até o primeiro token e os tokens/s do modelo dele não foram medidos; o padrão de 45 s da spec é aposta).
+6. No dia seguinte, conferir no `LogIntegracao` que o `POST /oauth/token` do Bling aparece no máximo uma vez por renovação.
+
+**Em aberto (decidir):** excluir uma conversa APAGA de verdade (a esposa poderia apagar o que o dono quer ler: considerar
+esconder em vez de apagar); `effort: "low"` fixo no adaptador da Anthropic; o formulário de Configurações guarda valores
+iguais ao padrão de fábrica ao salvar (uma melhoria futura de um limite do código não chega a quem já salvou).
 
 ## Decisões de arquitetura
 
