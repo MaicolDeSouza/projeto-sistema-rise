@@ -16,7 +16,7 @@ export default async function RiseAiLayout({ children }) {
 
   return (
     <div className="flex flex-col gap-4 lg:h-[calc(100vh-4rem)] lg:flex-row">
-      <ListaDeConversas conversas={conversas.map(conversaParaLista)} />
+      <ListaDeConversas conversas={conversas.map(conversaParaLista)} administrador={sessao.administrador} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
     </div>
   );

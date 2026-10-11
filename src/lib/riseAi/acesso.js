@@ -1,5 +1,6 @@
 import { ambienteDoRise, sessaoDoRise } from "@/lib/sessao";
 import { separarLista } from "@/lib/integracoes/config";
+import { ErroDeUso } from "./erros";
 
 /**
  * Quem pode o quê no Rise AI. O login (Tinyauth) decide quem ENTRA no Rise; aqui se decide quem é ADMINISTRADOR do
@@ -31,5 +32,5 @@ export function usuarioDaSessao(cabecalhos, env) {
 
 /** @param {{ administrador?: boolean } | null | undefined} sessao */
 export function exigirAdministrador(sessao) {
-  if (!sessao?.administrador) throw new Error("Só administradores do Rise AI podem fazer isso.");
+  if (!sessao?.administrador) throw new ErroDeUso("Só administradores do Rise AI podem fazer isso.");
 }

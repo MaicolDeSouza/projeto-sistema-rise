@@ -73,6 +73,9 @@ export class ErroDoProvedor extends Error {
   }
 }
 
+/** Erro de provedor (do adaptador real ou de um falso que siga o contrato): é ele que dispara a reserva. */
+export const ehErroDeProvedor = (erro) => erro instanceof ErroDoProvedor || typeof erro?.tipo === "string";
+
 /** O erro de uma resposta HTTP que não é 2xx. `corpo` é o texto (já lido) da resposta, só para a mensagem. */
 export function erroDeStatus(status, corpo = "") {
   const trecho = String(corpo ?? "").replace(/\s+/g, " ").trim().slice(0, 300);

@@ -4,7 +4,7 @@
  * laço da conversa só depende do contrato, não de um adaptador.
  *
  * Cada item do `roteiro` responde a UMA chamada de `conversar`, na ordem:
- *   { texto?, chamadas?: [{ nome, argumentos } | { malformada: true }], uso?, atrasoMs?,
+ *   { texto?, chamadas?: [{ nome, argumentos } | { malformada: true }], uso?, atrasoMs?, motivoParada?,
  *     erro?: "conexao" | "autenticacao" | ..., erroDepoisDoTexto?: "conexao" | ... }
  * Roteiro esgotado responde um texto fixo. `pedidos` guarda uma CÓPIA do que cada chamada recebeu (o laço acrescenta
  * mensagens à mesma lista ao longo das rodadas).
@@ -71,7 +71,7 @@ export function criarProvedorFalso({ id = "falso", roteiro = [] } = {}) {
         texto: passo.texto ?? "",
         chamadasDeFerramenta,
         uso: passo.uso ?? { entrada: 100, saida: 20 },
-        motivoParada: chamadasDeFerramenta.length ? "ferramenta" : "fim",
+        motivoParada: passo.motivoParada ?? (chamadasDeFerramenta.length ? "ferramenta" : "fim"),
         modelo: pedido.modelo,
       };
     },

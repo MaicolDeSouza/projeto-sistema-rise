@@ -10,6 +10,7 @@ import { separarResposta } from "@/lib/riseAi/resposta";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import ControlesDaConversa from "./ControlesDaConversa";
 import MensagemDaIA, { QuadroDoCliente } from "./MensagemDaIA";
+import ProporCorrecao from "./ProporCorrecao";
 import SeloDoModelo from "./SeloDoModelo";
 import { eventosDoFluxo } from "./fluxo";
 import { rotuloDoMotivo } from "./formatos";
@@ -26,7 +27,7 @@ const MAXIMO_DA_PERGUNTA = 8000;
  * @param {{ conversaId: string | null, titulo?: string, criadaEm?: string, mensagensIniciais: object[],
  *   padrao: { provedor: string, modelo: string }, administrador: boolean }} props
  */
-export default function Chat({ conversaId, titulo, criadaEm, mensagensIniciais, padrao }) {
+export default function Chat({ conversaId, titulo, criadaEm, mensagensIniciais, padrao, administrador = false }) {
   const router = useRouter();
   const [mensagens, setMensagens] = useState(mensagensIniciais);
   const [texto, setTexto] = useState("");
@@ -163,7 +164,9 @@ export default function Chat({ conversaId, titulo, criadaEm, mensagensIniciais, 
               {mensagem.conteudo}
             </div>
           ) : (
-            <MensagemDaIA key={mensagem.id} mensagem={mensagem} aoTentarDeNovo={tentarDeNovo} />
+            <MensagemDaIA key={mensagem.id} mensagem={mensagem} aoTentarDeNovo={tentarDeNovo}>
+              {administrador && !mensagem.id.startsWith("local-") && <ProporCorrecao mensagem={mensagem} />}
+            </MensagemDaIA>
           ),
         )}
 

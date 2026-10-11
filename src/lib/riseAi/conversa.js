@@ -10,7 +10,7 @@ import { criarLimitador } from "./limite";
 import { mascararDadosPessoais } from "./mascarar";
 import { custoDaChamada } from "./modelos";
 import { mensagemDeConhecimento, montarSistema } from "./prompt";
-import { ErroDoProvedor } from "./provedores/contrato";
+import { ErroDoProvedor, ehErroDeProvedor } from "./provedores/contrato";
 import { criarProvedor as criarProvedorReal } from "./provedores/index";
 import { provedorDisponivel as provedorDisponivelReal } from "./provedores/saude";
 import { cortarHistorico, produtosCitados, separarResposta, tituloDaConversa } from "./resposta";
@@ -48,9 +48,6 @@ function limitadorDaConfiguracao(config) {
 }
 
 const arredondar = (valor, casas) => Math.round(valor * 10 ** casas) / 10 ** casas;
-
-/** Erro de provedor (do adaptador real ou de um falso que siga o contrato): é ele que dispara a reserva. */
-const ehErroDeProvedor = (erro) => erro instanceof ErroDoProvedor || typeof erro?.tipo === "string";
 
 /** Uma falha de provedor, com a informação de que dependem a reserva: algum texto desta rodada já está na tela? */
 class FalhaNoProvedor extends Error {

@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { juntar, semAcento } from "@/lib/buscaAmpla";
 import { normalizar } from "@/lib/texto";
+import { ErroDeUso } from "./erros";
 
 /**
  * O conhecimento que o dono ensinou ao assistente (spec §5.7). Mora no Rise, e não na memória de nenhum modelo: troca
@@ -22,7 +23,7 @@ const LIMIAR_DE_SIMILARIDADE = 0.08;
 const EXPRESSAO_DA_NOTA = Prisma.raw(semAcento(juntar([`"assunto"`, `"conteudo"`])));
 
 /** SKUs de uma nota: sem vazios nem repetidos, em maiúsculas (o código do Rise tem caixa mista: `121503_10z`). */
-function normalizarSkus(lista) {
+export function normalizarSkus(lista) {
   return [...new Set((lista ?? []).map((sku) => String(sku ?? "").trim().toUpperCase()).filter(Boolean))].slice(0, MAXIMO_DE_PRODUTOS);
 }
 
@@ -33,16 +34,16 @@ const aparado = (valor) => {
 
 function conferirTextos({ assunto, conteudo }) {
   if (assunto !== undefined && (assunto.trim().length < ASSUNTO.minimo || assunto.trim().length > ASSUNTO.maximo)) {
-    throw new Error(`O assunto precisa ter de ${ASSUNTO.minimo} a ${ASSUNTO.maximo} caracteres.`);
+    throw new ErroDeUso(`O assunto precisa ter de ${ASSUNTO.minimo} a ${ASSUNTO.maximo} caracteres.`);
   }
   if (conteudo !== undefined && (conteudo.trim().length < CONTEUDO.minimo || conteudo.trim().length > CONTEUDO.maximo)) {
-    throw new Error(`O conteúdo precisa ter de ${CONTEUDO.minimo} a ${CONTEUDO.maximo} caracteres.`);
+    throw new ErroDeUso(`O conteúdo precisa ter de ${CONTEUDO.minimo} a ${CONTEUDO.maximo} caracteres.`);
   }
 }
 
 async function lerNota(id) {
   const nota = await prisma.conhecimentoIA.findUnique({ where: { id: String(id ?? "") } });
-  if (!nota) throw new Error("Nota de conhecimento não encontrada.");
+  if (!nota) throw new ErroDeUso("Nota de conhecimento não encontrada.");
   return nota;
 }
 
@@ -64,9 +65,9 @@ export async function criarConhecimento({
   origemMensagemId = null,
 }) {
   conferirTextos({ assunto: String(assunto ?? ""), conteudo: String(conteudo ?? "") });
-  if (!aparado(criadoPor)) throw new Error("Informe quem está criando a nota.");
-  if (status !== "RASCUNHO" && status !== "APROVADO") throw new Error("Uma nota nasce como rascunho ou já aprovada.");
-  if (status === "APROVADO" && !aparado(aprovadoPor)) throw new Error("Nota aprovada precisa de quem aprovou.");
+  if (!aparado(criadoPor)) throw new ErroDeUso("Informe quem está criando a nota.");
+  if (status !== "RASCUNHO" && status !== "APROVADO") throw new ErroDeUso("Uma nota nasce como rascunho ou já aprovada.");
+  if (status === "APROVADO" && !aparado(aprovadoPor)) throw new ErroDeUso("Nota aprovada precisa de quem aprovou.");
 
   return prisma.conhecimentoIA.create({
     data: {
@@ -86,7 +87,7 @@ export async function criarConhecimento({
 }
 
 export async function aprovarConhecimento(id, { usuario }) {
-  if (!aparado(usuario)) throw new Error("Informe quem está aprovando a nota.");
+  if (!aparado(usuario)) throw new ErroDeUso("Informe quem está aprovando a nota.");
   await lerNota(id);
   return prisma.conhecimentoIA.update({
     where: { id },
@@ -105,7 +106,7 @@ export async function rejeitarConhecimento(id) {
  * dele, e `aprovadoPor` continua sendo a prova de quem viu o que está valendo.
  */
 export async function editarConhecimento(id, campos, { usuario }) {
-  if (!aparado(usuario)) throw new Error("Informe quem está editando a nota.");
+  if (!aparado(usuario)) throw new ErroDeUso("Informe quem está editando a nota.");
   const atual = await lerNota(id);
   conferirTextos({ assunto: campos.assunto, conteudo: campos.conteudo });
 
@@ -121,6 +122,25 @@ export async function editarConhecimento(id, campos, { usuario }) {
     dados.aprovadoEm = new Date();
   }
   return prisma.conhecimentoIA.update({ where: { id }, data: dados });
+}
+
+/** A nota como a tela a recebe: só texto e números (a data vai como texto ISO) e sem a ligação interna com a mensagem. */
+export function conhecimentoParaTela(nota) {
+  return {
+    id: nota.id,
+    assunto: nota.assunto,
+    conteudo: nota.conteudo,
+    categoria: nota.categoria ?? null,
+    fonte: nota.fonte ?? null,
+    produtos: nota.produtos ?? [],
+    visibilidade: nota.visibilidade,
+    status: nota.status,
+    criadoPor: nota.criadoPor,
+    aprovadoPor: nota.aprovadoPor ?? null,
+    aprovadoEm: nota.aprovadoEm ? nota.aprovadoEm.toISOString() : null,
+    versao: nota.versao,
+    atualizadoEm: nota.atualizadoEm.toISOString(),
+  };
 }
 
 export async function listarConhecimento({ busca = "", status = null, limite = 100 } = {}) {

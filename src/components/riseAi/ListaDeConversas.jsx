@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus, Search } from "lucide-react";
+import { ClipboardCheck, Plus, Search } from "lucide-react";
 
 import { buscarConversasAcao } from "@/app/rise-ai/acoes";
 
@@ -30,9 +30,11 @@ function agrupar(conversas) {
  * A lista lateral de conversas (as de quem está logado), com "+ Nova conversa" e a busca no título e no texto das
  * mensagens. "Nova conversa" só abre o chat em branco: a conversa nasce na primeira pergunta.
  *
- * @param {{ conversas: { id: string, titulo: string, atualizadoEm: string }[] }} props
+ * Para administrador, o link da Revisão do dia fica logo abaixo (a página confere de novo no servidor).
+ *
+ * @param {{ conversas: { id: string, titulo: string, atualizadoEm: string }[], administrador?: boolean }} props
  */
-export default function ListaDeConversas({ conversas }) {
+export default function ListaDeConversas({ conversas, administrador = false }) {
   const pathname = usePathname();
   const [busca, setBusca] = useState("");
   const [achadas, setAchadas] = useState([]);
@@ -55,6 +57,16 @@ export default function ListaDeConversas({ conversas }) {
       <Link href="/rise-ai" className="inline-flex items-center justify-center gap-1.5 rounded-md bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90">
         <Plus size={15} /> Nova conversa
       </Link>
+
+      {administrador && (
+        <Link
+          href="/rise-ai/revisao"
+          aria-current={pathname === "/rise-ai/revisao" ? "page" : undefined}
+          className={`inline-flex items-center justify-center gap-1.5 rounded-md border border-borda px-3 py-1.5 text-sm hover:bg-fundo ${pathname === "/rise-ai/revisao" ? "bg-fundo font-medium" : "text-suave"}`}
+        >
+          <ClipboardCheck size={15} /> Revisão do dia
+        </Link>
+      )}
 
       <div className="relative">
         <Search size={14} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-suave" />

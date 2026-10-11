@@ -1,31 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 
 import { excluirConversaAcao, renomearConversaAcao } from "@/app/rise-ai/acoes";
-import { propsDoFundo } from "@/lib/fundoDaJanela";
-
-/** A janela do sistema: fundo escuro que só fecha com clique que começa e termina nele (`propsDoFundo`), e Esc fecha. */
-function Janela({ titulo, aoFechar, children }) {
-  useEffect(() => {
-    function aoTeclar(evento) {
-      if (evento.key === "Escape") aoFechar();
-    }
-    document.addEventListener("keydown", aoTeclar);
-    return () => document.removeEventListener("keydown", aoTeclar);
-  }, [aoFechar]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" {...propsDoFundo(aoFechar)}>
-      <div role="dialog" aria-label={titulo} className="w-full max-w-md rounded-lg border border-borda bg-superficie p-5 shadow-xl">
-        <h2 className="mb-3 text-base font-semibold">{titulo}</h2>
-        {children}
-      </div>
-    </div>
-  );
-}
+import Janela from "./Janela";
 
 /**
  * Renomear e excluir a conversa aberta. A exclusão pergunta mostrando o TÍTULO e a DATA (regra do sistema: nunca um

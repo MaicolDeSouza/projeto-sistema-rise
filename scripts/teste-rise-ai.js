@@ -52,6 +52,9 @@ async function limpar() {
   await prisma.conhecimentoIA.deleteMany({ where: { assunto: { startsWith: "ZZ-IA" } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-IA-" } } });
   await prisma.logIntegracao.deleteMany({ where: { endpoint: "falso-1" } });
+  // A reserva de fabrica (anthropic/claude-haiku-5-5) responde pelos provedores falsos e o laco registra a chamada como
+  // se fosse real. Chamada de verdade a API leva centenas de ms; a dos falsos, 0 a poucos ms.
+  await prisma.logIntegracao.deleteMany({ where: { servico: "ANTHROPIC", endpoint: "claude-haiku-5-5", duracaoMs: { lt: 50 }, requestResumo: { contains: '"tarefa":' } } });
 }
 
 // Resultados que um bloco entrega aos seguintes (as conversas da Tarefa 9 alimentam a Revisao da Tarefa 12).
@@ -1147,6 +1150,181 @@ try {
     conferir("motivos da reserva viram frase", [rotuloDoMotivo("conexao"), rotuloDoMotivo("tempo"), rotuloDoMotivo("desconhecido-xyz")], ["sem conexão com o modelo padrão", "o modelo padrão demorou demais para começar", "o modelo padrão falhou"]);
     conferir("rotulo e local", [rotuloDoProvedor("lmstudio"), rotuloDoProvedor("anthropic"), ehLocal("lmstudio"), ehLocal("anthropic"), ehLocal("nao-existe")], ["LM Studio", "Anthropic", true, false, false]);
     conferir("reais", reais(38.9), "R$ 38,90");
+  }
+
+  // -------------------------------------------------------------------------
+  // Tarefa 12 — Sugestao ao polegar para baixo, propor correcao e revisao do dia
+  // -------------------------------------------------------------------------
+  {
+    const { gerarSugestaoParaMensagem, aprovarSugestao, rejeitarSugestao, listarSugestoes, proporCorrecao } = await import("../src/lib/riseAi/sugestoes.js");
+    const { conversasDoDia, marcarRevisada, resumoDoDia, limitesDoDia } = await import("../src/lib/riseAi/revisao.js");
+    const { avaliarMensagem } = await import("../src/lib/riseAi/conversas.js");
+    const { criarConhecimento } = await import("../src/lib/riseAi/conhecimento.js");
+    const { configuracaoPadrao } = await import("../src/lib/riseAi/configuracao.js");
+    const { criarProvedorFalso } = await import("./lib/provedorFalso.js");
+    console.log("\nSugestoes e revisao");
+
+    const { r1, r2 } = compartilhado;
+    const deps = (padrao, reserva) => ({
+      configuracao: { ...configuracaoPadrao("pc"), padrao: { provedor: "lmstudio", modelo: "falso-1" }, tempoLimite: { primeiroTokenMs: 50, totalMs: 2000 } },
+      criarProvedor: (id) => (id === "lmstudio" ? padrao : reserva),
+      provedorDisponivel: async () => true,
+    });
+    const json = (extra = {}) =>
+      JSON.stringify({ tipo: "resposta_errada", problema: "placa cara", correcaoSugerida: "Projeto simples: Nano ou Uno", justificativa: "regra da loja", produtos: ["ZZ-IA-UNO"], confianca: 80, ...extra });
+    const reservaIntacta = () => criarProvedorFalso({ id: "anthropic", roteiro: [{ texto: json() }] });
+    const quebrado = () => criarProvedorFalso({ roteiro: [{ erro: "conexao" }] });
+    const mensagemDe = (promessa) => promessa.then(() => "ok", (erro) => erro.message);
+    const doBanco = (id) => prisma.mensagemIA.findUnique({ where: { id } });
+
+    // Os limites de um dia de Sao Paulo (UTC-3): perto da meia-noite o UTC ja e o dia seguinte.
+    const limites = limitesDoDia("2026-10-11");
+    conferir("o dia vai de 03:00 UTC a 03:00 UTC do dia seguinte", [limites.inicio.toISOString(), limites.fim.toISOString()], ["2026-10-11T03:00:00.000Z", "2026-10-12T03:00:00.000Z"]);
+    conferir("dia invalido", [await mensagemDe(Promise.resolve().then(() => limitesDoDia("ontem"))), await mensagemDe(Promise.resolve().then(() => limitesDoDia("2026-13-45")))], ["Dia inválido.", "Dia inválido."]);
+
+    await criarConhecimento({ assunto: "ZZ-IA Nota ligada ao Uno", conteudo: "O Uno e a placa padrao para ligar LED.", produtos: ["ZZ-IA-UNO"], status: "APROVADO", criadoPor: "ZZ-IA-TESTE", aprovadoPor: "ZZ-IA-TESTE" });
+    await avaliarMensagem(r1.mensagem.id, { avaliacao: -1, comentario: "indicou caro demais", usuario: "ZZ-IA-TESTE" });
+
+    // --- gerar a sugestao ---
+    const padrao1 = criarProvedorFalso({ roteiro: [{ texto: json() }] });
+    const sugestao = await gerarSugestaoParaMensagem(r1.mensagem.id, { comentario: "indicou caro demais", dependencias: deps(padrao1, reservaIntacta()) });
+    conferir("sugestao pendente com os campos", [sugestao.status, sugestao.origem, sugestao.produtos, sugestao.confianca], ["PENDENTE", "SINALIZACAO", ["ZZ-IA-UNO"], 80]);
+    conferir("a sugestao guarda a conversa, a mensagem e o modelo que a propos", [sugestao.conversaId, sugestao.mensagemId, sugestao.fontes?.geradaPor.provedor, sugestao.fontes?.geradaPor.modelo], [r1.conversaId, r1.mensagem.id, "lmstudio", "falso-1"]);
+    const pedido = padrao1.pedidos[0];
+    const textoDoPedido = pedido.mensagens.map((mensagem) => mensagem.conteudo).join("\n");
+    conferir(
+      "o pedido leva a conversa, o comentario e o conhecimento aprovado, sem ferramentas e sem dado pessoal",
+      [pedido.ferramentas.length, textoDoPedido.includes("indicou caro demais"), textoDoPedido.includes("qual arduino para ligar um LED"), textoDoPedido.includes("ZZ-IA Nota ligada ao Uno"), textoDoPedido.includes("98899"), /JSON/.test(pedido.sistema)],
+      [0, true, true, true, false, true],
+    );
+
+    // 👎 duas vezes seguidas nao gasta uma segunda chamada nem duplica a sugestao pendente.
+    const intocado = criarProvedorFalso({ roteiro: [{ texto: json() }] });
+    const repetida = await gerarSugestaoParaMensagem(r1.mensagem.id, { dependencias: deps(intocado, reservaIntacta()) });
+    conferir("sugestao pendente da mesma resposta e reaproveitada", [repetida.id, intocado.pedidos.length, await prisma.sugestaoIA.count({ where: { mensagemId: r1.mensagem.id } })], [sugestao.id, 0, 1]);
+
+    // --- falhas ---
+    conferir("falha dos dois provedores", await mensagemDe(gerarSugestaoParaMensagem(r2.mensagem.id, { dependencias: deps(quebrado(), quebrado()) })).then((texto) => texto.startsWith("Não foi possível gerar a sugestão")), true);
+    conferir("falha marca a mensagem e nao cria sugestao", [(await doBanco(r2.mensagem.id)).avisos.includes("sugestao_nao_gerada"), await prisma.sugestaoIA.count({ where: { mensagemId: r2.mensagem.id } })], [true, 0]);
+    const viaReserva = criarProvedorFalso({ id: "anthropic", roteiro: [{ texto: json({ problema: "reserva usada sem necessidade" }) }] });
+    const sugestaoDaReserva = await gerarSugestaoParaMensagem(r2.mensagem.id, { dependencias: deps(quebrado(), viaReserva) });
+    conferir("padrao fora do ar: a reserva propoe", [sugestaoDaReserva.problema, sugestaoDaReserva.fontes?.geradaPor.provedor], ["reserva usada sem necessidade", "anthropic"]);
+    conferir("gerar de novo com sucesso limpa o aviso", (await doBanco(r2.mensagem.id)).avisos.includes("sugestao_nao_gerada"), false);
+
+    const respostasDeR1 = await prisma.mensagemIA.findMany({ where: { conversaId: r1.conversaId, papel: "ASSISTENTE" }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }] });
+    const outraResposta = respostasDeR1[1];
+    const semJson = await mensagemDe(gerarSugestaoParaMensagem(outraResposta.id, { dependencias: deps(criarProvedorFalso({ roteiro: [{ texto: "nao sei o que errou" }] }), reservaIntacta()) }));
+    conferir("resposta do modelo sem JSON nao vira sugestao", [semJson, (await doBanco(outraResposta.id)).avisos.includes("sugestao_nao_gerada")], ["Não foi possível gerar a sugestão: o modelo não devolveu uma sugestão válida.", true]);
+    const cortada = await mensagemDe(gerarSugestaoParaMensagem(outraResposta.id, { dependencias: deps(criarProvedorFalso({ roteiro: [{ texto: '{"tipo":"resposta_errada","problema":"placa ca', motivoParada: "max_tokens" }] }), reservaIntacta()) }));
+    conferir("resposta cortada pelo limite de tokens diz isso (um modelo que pensa muito estoura o limite)", cortada, "Não foi possível gerar a sugestão: a resposta do modelo foi cortada antes de terminar.");
+    const semCorrecao = await mensagemDe(gerarSugestaoParaMensagem(outraResposta.id, { dependencias: deps(criarProvedorFalso({ roteiro: [{ texto: json({ correcaoSugerida: "  " }) }] }), reservaIntacta()) }));
+    conferir("JSON sem a correcao nao vira sugestao", semCorrecao.startsWith("Não foi possível gerar a sugestão"), true);
+    const doUsuario = await prisma.mensagemIA.findFirst({ where: { conversaId: r1.conversaId, papel: "USUARIO" } });
+    conferir("so resposta da IA pode ser sinalizada", await mensagemDe(gerarSugestaoParaMensagem(doUsuario.id, { dependencias: deps(quebrado(), quebrado()) })), "Mensagem não encontrada.");
+    const deErro = await prisma.mensagemIA.create({ data: { conversaId: r2.conversaId, papel: "ASSISTENTE", conteudo: "falhou", avisos: ["erro"] } });
+    conferir("mensagem de erro nao tem o que corrigir", await mensagemDe(gerarSugestaoParaMensagem(deErro.id, { dependencias: deps(quebrado(), quebrado()) })), "Essa mensagem é um aviso de erro: não há resposta para corrigir.");
+    await prisma.mensagemIA.delete({ where: { id: deErro.id } });
+
+    // --- aprovar, rejeitar, listar ---
+    const sugestaoDeLista = await gerarSugestaoParaMensagem(outraResposta.id, { dependencias: deps(criarProvedorFalso({ roteiro: [{ texto: json({ problema: "ZZ-IA bateria 9V" }) }] }), reservaIntacta()) });
+    const pendentes = await listarSugestoes({ status: "PENDENTE" });
+    const naLista = pendentes.find((item) => item.id === sugestaoDeLista.id);
+    const todasDeR1 = await prisma.mensagemIA.findMany({ where: { conversaId: r1.conversaId }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }] });
+    const perguntaEsperada = todasDeR1[todasDeR1.findIndex((mensagem) => mensagem.id === outraResposta.id) - 1].conteudo;
+    conferir(
+      "a lista traz a conversa, a pergunta e a resposta originais",
+      [naLista?.conversa.titulo === (await prisma.conversaIA.findUnique({ where: { id: r1.conversaId } })).titulo, naLista?.pergunta, naLista?.resposta === (outraResposta.estruturado?.respostaCliente || outraResposta.conteudo)],
+      [true, perguntaEsperada, true],
+    );
+    conferir("a lista das pendentes traz as duas e nenhuma decidida", [pendentes.some((item) => item.id === sugestao.id), pendentes.some((item) => item.id === sugestaoDaReserva.id), pendentes.every((item) => item.status === "PENDENTE")], [true, true, true]);
+
+    const aprovada2 = await aprovarSugestao(sugestao.id, { usuario: "ZZ-IA-TESTE", edicao: { assunto: "ZZ-IA Projeto simples" } });
+    const notaAprovada = await prisma.conhecimentoIA.findUnique({ where: { id: aprovada2.conhecimentoId } });
+    conferir("aprovar cria conhecimento aprovado e liga", [aprovada2.status, notaAprovada.status], ["APROVADA", "APROVADO"]);
+    conferir(
+      "a nota leva a edicao, a correcao, os produtos e a origem",
+      [notaAprovada.assunto, notaAprovada.conteudo, notaAprovada.produtos, notaAprovada.origemMensagemId, notaAprovada.aprovadoPor, aprovada2.decididoPor],
+      ["ZZ-IA Projeto simples", "Projeto simples: Nano ou Uno", ["ZZ-IA-UNO"], r1.mensagem.id, "ZZ-IA-TESTE", "ZZ-IA-TESTE"],
+    );
+    conferir("aprovar duas vezes", await mensagemDe(aprovarSugestao(sugestao.id, { usuario: "ZZ-IA-TESTE" })), "Esta sugestão já foi decidida.");
+    const semEdicao = await aprovarSugestao(sugestaoDeLista.id, { usuario: "ZZ-IA-TESTE" });
+    conferir("sem edicao, o problema vira o assunto", (await prisma.conhecimentoIA.findUnique({ where: { id: semEdicao.conhecimentoId } })).assunto, "ZZ-IA bateria 9V");
+
+    const rejeitada = await rejeitarSugestao(sugestaoDaReserva.id, { usuario: "ZZ-IA-TESTE", motivo: "nao e regra, foi so desse cliente" });
+    conferir("rejeitar guarda quem, quando e por que", [rejeitada.status, rejeitada.decididoPor, rejeitada.motivoRejeicao, rejeitada.decididoEm instanceof Date, rejeitada.conhecimentoId], ["REJEITADA", "ZZ-IA-TESTE", "nao e regra, foi so desse cliente", true, null]);
+    conferir("rejeitar decidida", await mensagemDe(rejeitarSugestao(sugestaoDaReserva.id, { usuario: "ZZ-IA-TESTE", motivo: "" })), "Esta sugestão já foi decidida.");
+    conferir(
+      "a rejeitada sai das pendentes e aparece nas rejeitadas",
+      [(await listarSugestoes({ status: "PENDENTE" })).some((item) => item.id === sugestaoDaReserva.id), (await listarSugestoes({ status: "REJEITADA" })).some((item) => item.id === sugestaoDaReserva.id)],
+      [false, true],
+    );
+
+    // --- propor correcao (o administrador escreve a regra) ---
+    const correcao = await proporCorrecao({ mensagemId: r1.mensagem.id, problema: "ZZ-IA Mega para LED", regra: "Mega so com muitos pinos", produtos: ["zz-ia-uno", "ZZ-IA-UNO"], usuario: "ZZ-IA-TESTE" });
+    conferir("propor correcao ja e aprovado", [correcao.status, correcao.aprovadoPor, correcao.origemMensagemId], ["APROVADO", "ZZ-IA-TESTE", r1.mensagem.id]);
+    conferir("propor correcao: assunto, conteudo e produtos sem repetir", [correcao.assunto, correcao.conteudo, correcao.produtos], ["ZZ-IA Mega para LED", "Mega so com muitos pinos", ["ZZ-IA-UNO"]]);
+    conferir("propor correcao sem mensagem de origem", (await proporCorrecao({ problema: "ZZ-IA regra solta", regra: "Regra escrita direto pelo dono", usuario: "ZZ-IA-TESTE" })).origemMensagemId, null);
+    conferir("propor correcao: mensagem que nao existe", await mensagemDe(proporCorrecao({ mensagemId: "nao-existe", problema: "ZZ-IA x", regra: "regra", usuario: "ZZ-IA-TESTE" })), "Mensagem não encontrada.");
+    conferir("propor correcao: assunto curto demais", await mensagemDe(proporCorrecao({ problema: "ab", regra: "regra valida", usuario: "ZZ-IA-TESTE" })), "O assunto precisa ter de 3 a 120 caracteres.");
+
+    // --- a revisao do dia ---
+    const dia = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+    const doDia = await conversasDoDia(dia, { administrador: true });
+    const grupo = (conversa) => (conversa.sinalizada ? 0 : conversa.suspeita ? 1 : 2);
+    conferir("sinalizada vem antes da suspeita", doDia.findIndex((conversa) => conversa.id === r1.conversaId) < doDia.findIndex((conversa) => conversa.id === r2.conversaId), true);
+    conferir("a lista segue a ordem: sinalizadas, suspeitas, demais", doDia.map(grupo), [...doDia.map(grupo)].sort((a, b) => a - b));
+    conferir("suspeita por reserva", doDia.find((conversa) => conversa.id === r2.conversaId).suspeita, true);
+    const deR1 = doDia.find((conversa) => conversa.id === r1.conversaId);
+    conferir(
+      "a conversa traz titulo, quem, hora, respostas, modelos e custo",
+      [typeof deR1.titulo, deR1.usuario, /^\d\d:\d\d$/.test(deR1.horaInicio), deR1.respostas >= 1, deR1.modelos.includes("lmstudio/falso-1"), typeof deR1.custoBrl, deR1.sinalizada, deR1.revisadaEm],
+      ["string", "ZZ-IA-TESTE", true, true, true, "number", true, null],
+    );
+    conferir("nao administrador nao lista", await mensagemDe(conversasDoDia(dia, { administrador: false })), "Só administradores do Rise AI podem ver a revisão.");
+    const resumo = await resumoDoDia(dia);
+    conferir("resumo do dia soma custo e conta respostas por modelo", [typeof resumo.custoBrl, resumo.respostasPorModelo["lmstudio/falso-1"] >= 1, resumo.respostasPorModelo["anthropic/claude-haiku-5-5"] >= 1], ["number", true, true]);
+
+    const antes = (await prisma.conversaIA.findUnique({ where: { id: r2.conversaId } })).atualizadoEm;
+    await marcarRevisada(r2.conversaId, "ZZ-IA-TESTE");
+    const depois = await prisma.conversaIA.findUnique({ where: { id: r2.conversaId } });
+    conferir("marcar revisada grava quem e quando, sem mexer na ordem da lista de quem conversou", [depois.revisadaPor, depois.revisadaEm instanceof Date, depois.atualizadoEm.getTime()], ["ZZ-IA-TESTE", true, antes.getTime()]);
+    conferir("a conversa revisada aparece com a hora", (await conversasDoDia(dia, { administrador: true })).find((conversa) => conversa.id === r2.conversaId).revisadaEm !== null, true);
+    await prisma.mensagemIA.create({ data: { conversaId: r2.conversaId, papel: "USUARIO", conteudo: "mais uma pergunta depois da revisao", criadoEm: new Date(Date.now() + 5000) } });
+    conferir("mensagem nova depois da revisao volta a conversa para a fila", (await conversasDoDia(dia, { administrador: true })).find((conversa) => conversa.id === r2.conversaId).revisadaEm, null);
+    conferir("marcar revisada: conversa que nao existe", await mensagemDe(marcarRevisada("nao-existe", "ZZ-IA-TESTE")), "Conversa não encontrada.");
+
+    // As acoes da revisao nao rodam em Node puro (next/cache). O que se garante aqui: TODA acao exportada passa por
+    // `executar`, que confere o administrador no servidor antes de qualquer leitura; acao nova sem isso falha este teste.
+    {
+      const { readFileSync } = await import("node:fs");
+      const fonte = readFileSync(new URL("../src/app/rise-ai/revisao/acoes.js", import.meta.url), "utf8");
+      const acoes = [...fonte.matchAll(/export async function (\w+)\([^)]*\) \{\n([\s\S]*?)\n\}\n/g)];
+      conferir("a revisao tem as acoes esperadas", acoes.length >= 10, true);
+      conferir("toda acao da revisao passa por `executar`", acoes.filter(([, , corpo]) => !/^\s*return executar\(/.test(corpo)).map(([, nome]) => nome), []);
+      conferir("`executar` exige o administrador antes de rodar a acao", /exigirAdministrador\(sessao\);\s*return \{ ok: true, \.\.\.\(await trabalho\(sessao\)\) \}/.test(fonte), true);
+    }
+
+    // --- o que as telas da revisao usam (puro: roda no servidor e as acoes o chamam) ---
+    const { codigosDoTexto, camposDoFormulario } = await import("../src/lib/riseAi/formularios.js");
+    const { hojeEmSaoPaulo } = await import("../src/lib/riseAi/revisao.js");
+    const { conhecimentoParaTela, listarConhecimento } = await import("../src/lib/riseAi/conhecimento.js");
+    conferir("codigos do texto: virgula, ponto e virgula, espaco e quebra de linha; sem vazios", [codigosDoTexto(" a, B;c\n d ,,"), codigosDoTexto(null), codigosDoTexto("")], [["a", "B", "c", "d"], [], []]);
+    const formulario = new FormData();
+    formulario.set("assunto", "  Titulo  ");
+    formulario.set("conteudo", "   ");
+    formulario.set("produtos", "a, b");
+    conferir(
+      "campos do formulario: so o que foi preenchido (vazio nao e edicao), aparado",
+      camposDoFormulario(formulario, ["assunto", "conteudo", "fonte"]),
+      { assunto: "Titulo" },
+    );
+    conferir("hoje em Sao Paulo e o dia que a revisao abre", [hojeEmSaoPaulo(), /^\d{4}-\d{2}-\d{2}$/.test(hojeEmSaoPaulo())], [dia, true]);
+    const notasDaTela = (await listarConhecimento({ busca: "ZZ-IA Projeto simples" })).map(conhecimentoParaTela);
+    conferir(
+      "a nota vai para a tela so com texto e numeros simples",
+      [notasDaTela.length, typeof notasDaTela[0].atualizadoEm, notasDaTela[0].aprovadoPor, notasDaTela[0].produtos, notasDaTela[0].versao, "origemMensagemId" in notasDaTela[0]],
+      [1, "string", "ZZ-IA-TESTE", ["ZZ-IA-UNO"], 1, false],
+    );
   }
 
   // ---- novos blocos entram antes desta linha ----

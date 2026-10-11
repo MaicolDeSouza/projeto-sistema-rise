@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { ErroDeUso } from "@/lib/riseAi/erros";
 import { avaliarMensagem, carregarMensagem, conversaParaLista, excluirConversa, listarConversas, mensagemParaTela, renomearConversa } from "@/lib/riseAi/conversas";
+import { gerarSugestaoParaMensagem } from "@/lib/riseAi/sugestoes";
 import { sessaoAtual } from "./sessao";
 
 /**
@@ -62,7 +63,10 @@ export async function carregarMensagemAcao(id) {
 
 /**
  * 👍, 👎 ou tirar a avaliação. `avaliacao` chega do formulário como "1", "-1" ou "0" (tirar); o comentário é opcional.
- * (A sugestão de correção ao 👎 entra na Tarefa 12.)
+ *
+ * O 👎 dispara, EM SEGUNDO PLANO, a sugestão de correção da IA para o dono aprovar à noite: a esposa não espera o
+ * modelo (um local leva dezenas de segundos) e nada do que ele propõe vale sem a aprovação do dono. Se a sugestão
+ * falhar, a resposta ganha o aviso `sugestao_nao_gerada` e o administrador pede de novo na Revisão.
  */
 export async function avaliarMensagemAcao(id, formData) {
   return executar(async (sessao) => {
@@ -70,6 +74,13 @@ export async function avaliarMensagemAcao(id, formData) {
     const avaliacao = bruto === "1" ? 1 : bruto === "-1" ? -1 : bruto === "0" ? null : undefined;
     if (avaliacao === undefined) throw new ErroDeUso("Avaliação inválida.");
     const avaliada = await avaliarMensagem(id, { avaliacao, comentario: formData.get("comentario"), usuario: sessao.usuario, administrador: sessao.administrador });
+    if (avaliacao === -1) {
+      // Sem `revalidatePath` aqui: depois que a ação responde, o contexto do Next já foi embora. A Revisão é sempre
+      // dinâmica e relê o banco ao abrir.
+      void gerarSugestaoParaMensagem(id, { comentario: formData.get("comentario") ?? "" }).catch((erro) =>
+        console.error("[rise-ai] sugestão ao 👎 não gerada:", erro.message),
+      );
+    }
     revalidatePath("/rise-ai", "layout");
     return { mensagem: mensagemParaTela(avaliada) };
   });
