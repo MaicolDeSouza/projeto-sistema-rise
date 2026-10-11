@@ -3,11 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, Plus, Search } from "lucide-react";
+import { BarChart3, ClipboardCheck, Plus, Search, Settings } from "lucide-react";
 
 import { buscarConversasAcao } from "@/app/rise-ai/acoes";
 
 const FUSO = "America/Sao_Paulo";
+
+const LINKS_DO_ADMINISTRADOR = [
+  { href: "/rise-ai/revisao", rotulo: "Revisão do dia", Icone: ClipboardCheck },
+  { href: "/rise-ai/consumo", rotulo: "Consumo", Icone: BarChart3 },
+  { href: "/rise-ai/configuracoes", rotulo: "Configurações", Icone: Settings },
+];
 const dia = (data) => new Date(data).toLocaleDateString("sv-SE", { timeZone: FUSO });
 
 /** "Hoje", "Ontem" ou "Antes": o dia de cada conversa no fuso da loja (servidor e navegador chegam ao mesmo texto). */
@@ -30,7 +36,8 @@ function agrupar(conversas) {
  * A lista lateral de conversas (as de quem está logado), com "+ Nova conversa" e a busca no título e no texto das
  * mensagens. "Nova conversa" só abre o chat em branco: a conversa nasce na primeira pergunta.
  *
- * Para administrador, o link da Revisão do dia fica logo abaixo (a página confere de novo no servidor).
+ * Para administrador, os links da Revisão, do Consumo e das Configurações ficam logo abaixo (cada página confere de novo
+ * no servidor).
  *
  * @param {{ conversas: { id: string, titulo: string, atualizadoEm: string }[], administrador?: boolean }} props
  */
@@ -59,13 +66,18 @@ export default function ListaDeConversas({ conversas, administrador = false }) {
       </Link>
 
       {administrador && (
-        <Link
-          href="/rise-ai/revisao"
-          aria-current={pathname === "/rise-ai/revisao" ? "page" : undefined}
-          className={`inline-flex items-center justify-center gap-1.5 rounded-md border border-borda px-3 py-1.5 text-sm hover:bg-fundo ${pathname === "/rise-ai/revisao" ? "bg-fundo font-medium" : "text-suave"}`}
-        >
-          <ClipboardCheck size={15} /> Revisão do dia
-        </Link>
+        <nav className="flex flex-col gap-1" aria-label="Administração do Rise AI">
+          {LINKS_DO_ADMINISTRADOR.map(({ href, rotulo, Icone }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={pathname === href ? "page" : undefined}
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-fundo ${pathname === href ? "bg-fundo font-medium" : "text-suave"}`}
+            >
+              <Icone size={15} /> {rotulo}
+            </Link>
+          ))}
+        </nav>
       )}
 
       <div className="relative">

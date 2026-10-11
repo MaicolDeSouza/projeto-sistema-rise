@@ -1293,15 +1293,19 @@ try {
     conferir("mensagem nova depois da revisao volta a conversa para a fila", (await conversasDoDia(dia, { administrador: true })).find((conversa) => conversa.id === r2.conversaId).revisadaEm, null);
     conferir("marcar revisada: conversa que nao existe", await mensagemDe(marcarRevisada("nao-existe", "ZZ-IA-TESTE")), "Conversa não encontrada.");
 
-    // As acoes da revisao nao rodam em Node puro (next/cache). O que se garante aqui: TODA acao exportada passa por
-    // `executar`, que confere o administrador no servidor antes de qualquer leitura; acao nova sem isso falha este teste.
+    // As acoes de administracao nao rodam em Node puro (next/cache). O que se garante aqui: TODA acao exportada passa por
+    // `executarComoAdministrador`, que confere o administrador no servidor antes de qualquer leitura; acao nova sem isso
+    // falha este teste (vale para a Revisao e para as Configuracoes).
     {
       const { readFileSync } = await import("node:fs");
-      const fonte = readFileSync(new URL("../src/app/rise-ai/revisao/acoes.js", import.meta.url), "utf8");
-      const acoes = [...fonte.matchAll(/export async function (\w+)\([^)]*\) \{\n([\s\S]*?)\n\}\n/g)];
-      conferir("a revisao tem as acoes esperadas", acoes.length >= 10, true);
-      conferir("toda acao da revisao passa por `executar`", acoes.filter(([, , corpo]) => !/^\s*return executar\(/.test(corpo)).map(([, nome]) => nome), []);
-      conferir("`executar` exige o administrador antes de rodar a acao", /exigirAdministrador\(sessao\);\s*return \{ ok: true, \.\.\.\(await trabalho\(sessao\)\) \}/.test(fonte), true);
+      const ler = (caminho) => readFileSync(new URL(`../src/app/rise-ai/${caminho}`, import.meta.url), "utf8");
+      const acoesDe = (fonte) => [...fonte.matchAll(/export async function (\w+)\([^)]*\) \{\n([\s\S]*?)\n\}\n/g)];
+      for (const [arquivo, minimo] of [["revisao/acoes.js", 10], ["configuracoes/acoes.js", 5]]) {
+        const acoes = acoesDe(ler(arquivo));
+        conferir(`${arquivo}: tem as acoes esperadas`, acoes.length >= minimo, true);
+        conferir(`${arquivo}: toda acao passa por executarComoAdministrador`, acoes.filter(([, , corpo]) => !/^\s*return executarComoAdministrador\(/.test(corpo)).map(([, nome]) => nome), []);
+      }
+      conferir("o involucro exige o administrador antes de rodar a acao", /exigirAdministrador\(sessao\);\s*return \{ ok: true, \.\.\.\(await trabalho\(sessao\)\) \}/.test(ler("administrador.js")), true);
     }
 
     // --- o que as telas da revisao usam (puro: roda no servidor e as acoes o chamam) ---
@@ -1324,6 +1328,109 @@ try {
       "a nota vai para a tela so com texto e numeros simples",
       [notasDaTela.length, typeof notasDaTela[0].atualizadoEm, notasDaTela[0].aprovadoPor, notasDaTela[0].produtos, notasDaTela[0].versao, "origemMensagemId" in notasDaTela[0]],
       [1, "string", "ZZ-IA-TESTE", ["ZZ-IA-UNO"], 1, false],
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Tarefa 13 — Configuracoes e Consumo
+  // -------------------------------------------------------------------------
+  {
+    const { consumoPorDia, totaisDoPeriodo, periodoDosUltimosDias } = await import("../src/lib/riseAi/consumo.js");
+    const { parcialDaConfiguracao, idsDosModelos } = await import("../src/lib/riseAi/formularios.js");
+    const { configuracaoPadrao, validarConfiguracao } = await import("../src/lib/riseAi/configuracao.js");
+    const { PROMPT_ATENDIMENTO_PADRAO } = await import("../src/lib/riseAi/prompt.js");
+    console.log("\nConsumo");
+
+    // --- o consumo por dia, provedor e modelo (as conversas dos blocos anteriores estao no banco) ---
+    const hoje = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+    const linhas = await consumoPorDia({ de: hoje, ate: hoje });
+    const doFalso = linhas.filter((linha) => linha.provedor === "lmstudio" && linha.modelo === "falso-1");
+    conferir("agrega por dia e modelo", doFalso.length === 1 && doFalso[0].respostas >= 1 && doFalso[0].dia === hoje, true);
+    conferir("conta reservas e negativas", linhas.some((linha) => linha.reservas >= 1) && linhas.some((linha) => linha.negativas >= 1), true);
+    conferir("conta as falhas e as respostas sem separacao", linhas.some((linha) => linha.falhas >= 1) && linhas.some((linha) => linha.semSeparacao >= 1), true);
+    const daReserva = linhas.find((linha) => linha.provedor === "anthropic" && linha.modelo === "claude-haiku-5-5");
+    conferir(
+      "tokens e custo do dia sao numeros (a reserva tem preco)",
+      [typeof daReserva.tokensEntrada, typeof daReserva.custoBrl, typeof daReserva.custoUsd, typeof daReserva.duracaoMediaMs, daReserva.custoBrl > 0, daReserva.semCusto],
+      ["number", "number", "number", "number", true, 0],
+    );
+    const { limitesDoDia: limitesDeHoje } = await import("../src/lib/riseAi/revisao.js");
+    const doDiaNoBanco = { papel: "ASSISTENTE", provedor: "lmstudio", modelo: "falso-1", criadoEm: { gte: limitesDeHoje(hoje).inicio, lt: limitesDeHoje(hoje).fim } };
+    conferir(
+      "resposta de erro conta como falha, nao como resposta",
+      [doFalso[0].respostas + doFalso[0].falhas, doFalso[0].falhas],
+      [await prisma.mensagemIA.count({ where: doDiaNoBanco }), await prisma.mensagemIA.count({ where: { ...doDiaNoBanco, avisos: { has: "erro" } } })],
+    );
+    conferir("o dia vem em texto AAAA-MM-DD (fuso de Sao Paulo)", linhas.every((linha) => /^\d{4}-\d{2}-\d{2}$/.test(linha.dia)), true);
+    conferir("dia sem conversa: lista vazia", await consumoPorDia({ de: "2020-01-01", ate: "2020-01-02" }), []);
+    conferir(
+      "periodo invalido",
+      [
+        await consumoPorDia({ de: hoje, ate: "2020-01-01" }).then(() => "ok", (erro) => erro.message),
+        await consumoPorDia({ de: "ontem", ate: hoje }).then(() => "ok", (erro) => erro.message),
+        await consumoPorDia({ de: "2020-01-01", ate: hoje }).then(() => "ok", (erro) => erro.message),
+      ],
+      ["Período inválido.", "Dia inválido.", "O período passa de 366 dias."],
+    );
+
+    const totais = totaisDoPeriodo([
+      { respostas: 2, tokensEntrada: 100, tokensSaida: 10, custoBrl: 0.5, custoUsd: 0.1, duracaoMediaMs: 1000, reservas: 1, falhas: 0, negativas: 1, semResultado: 0, semSeparacao: 2, semCusto: 0 },
+      { respostas: 6, tokensEntrada: 300, tokensSaida: 30, custoBrl: 0.25, custoUsd: 0.05, duracaoMediaMs: 2000, reservas: 0, falhas: 1, negativas: 0, semResultado: 1, semSeparacao: 0, semCusto: 3 },
+    ]);
+    conferir(
+      "totais do periodo somam e ponderam o tempo medio pelas respostas",
+      totais,
+      { respostas: 8, tokensEntrada: 400, tokensSaida: 40, custoBrl: 0.75, custoUsd: 0.15, duracaoMediaMs: 1750, reservas: 1, falhas: 1, negativas: 1, semResultado: 1, semSeparacao: 2, semCusto: 3 },
+    );
+    conferir("totais de nada", totaisDoPeriodo([]).respostas, 0);
+    conferir("os ultimos 7 dias incluem hoje", [periodoDosUltimosDias(7, "2026-10-11"), periodoDosUltimosDias(30, "2026-03-05")], [{ de: "2026-10-05", ate: "2026-10-11" }, { de: "2026-02-04", ate: "2026-03-05" }]);
+
+    // --- o formulario de configuracoes vira o parcial que `gravarConfiguracao` entende ---
+    const formulario = (campos) => {
+      const dados = new FormData();
+      for (const [nome, valor] of Object.entries(campos)) dados.set(nome, valor);
+      return dados;
+    };
+    conferir("formulario vazio: nada para gravar", parcialDaConfiguracao(formulario({})), {});
+    conferir(
+      "formulario: padrao, reserva, tempos, limites e endereco",
+      parcialDaConfiguracao(
+        formulario({
+          padraoProvedor: "ollama",
+          padraoModelo: " qwen3:4b ",
+          reservaProvedor: "anthropic",
+          reservaModelo: "claude-haiku-5-5",
+          primeiroTokenMs: "30000",
+          totalMs: "120000",
+          maxChamadasDeFerramenta: "6",
+          maxTokensResposta: "1200",
+          contextoMaxTokens: "10000",
+          taxaPorUsuarioPorMinuto: "15",
+          "endpoint.lmstudio": " http://192.168.0.5:1234/v1 ",
+        }),
+      ),
+      {
+        padrao: { provedor: "ollama", modelo: "qwen3:4b" },
+        reserva: { provedor: "anthropic", modelo: "claude-haiku-5-5" },
+        tempoLimite: { primeiroTokenMs: 30000, totalMs: 120000 },
+        maxChamadasDeFerramenta: 6,
+        maxTokensResposta: 1200,
+        contextoMaxTokens: 10000,
+        taxaPorUsuarioPorMinuto: 15,
+        endpoints: { lmstudio: "http://192.168.0.5:1234/v1" },
+      },
+    );
+    conferir("reserva sem provedor = sem reserva", parcialDaConfiguracao(formulario({ reservaProvedor: "", reservaModelo: "claude-haiku-5-5" })), { reserva: null });
+    conferir("prompt igual ao padrao do codigo = nulo (uma melhoria futura do padrao chega a quem nunca mexeu)", parcialDaConfiguracao(formulario({ promptAtendimento: `  ${PROMPT_ATENDIMENTO_PADRAO}\r\n` })), { prompts: { atendimento: null } });
+    conferir("prompt vazio = nulo", parcialDaConfiguracao(formulario({ promptAtendimento: "   " })), { prompts: { atendimento: null } });
+    conferir("prompt proprio vai aparado e com quebras de linha do Unix", parcialDaConfiguracao(formulario({ promptAtendimento: "  Tom: formal.\r\nSem emoji.  " })), { prompts: { atendimento: "Tom: formal.\nSem emoji." } });
+    conferir("numero em branco ou com letra nao e aceito (o aviso do campo vem da validacao)", [parcialDaConfiguracao(formulario({ totalMs: "" })).tempoLimite.totalMs, parcialDaConfiguracao(formulario({ maxTokensResposta: "mil" })).maxTokensResposta].map(Number.isNaN), [true, true]);
+    const invalida = validarConfiguracao({ ...configuracaoPadrao("pc"), ...parcialDaConfiguracao(formulario({ maxTokensResposta: "mil" })) });
+    conferir("e a validacao diz qual campo", [invalida.ok, invalida.erros?.maxTokensResposta], [false, "Tokens por resposta: informe um número."]);
+    conferir(
+      "ids dos modelos marcados: sem vazios nem repetidos, aparados",
+      idsDosModelos((() => { const dados = new FormData(); for (const id of [" a ", "b", "", "a", "c"]) dados.append("modelo", id); return dados; })()),
+      ["a", "b", "c"],
     );
   }
 

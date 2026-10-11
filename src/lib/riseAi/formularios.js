@@ -1,3 +1,6 @@
+import { PROVEDORES } from "./modelos";
+import { PROMPT_ATENDIMENTO_PADRAO } from "./prompt";
+
 /**
  * Leitura dos formulários das telas de administração do Rise AI (Server Actions). Sem banco e sem Next: o teste usa
  * o mesmo arquivo.
@@ -24,4 +27,52 @@ export function camposDoFormulario(dados, nomes) {
     if (valor) campos[nome] = valor;
   }
   return campos;
+}
+
+const MAXIMO_DE_MODELOS = 500;
+
+/** Os campos de texto do formulário que o usuário deixou preenchidos ou apagou: presença do NOME, não do valor. */
+const tem = (dados, nome) => dados.has(nome);
+const texto = (dados, nome) => String(dados.get(nome) ?? "").trim();
+/** Campo numérico: em branco ou com letra vira NaN, e a validação da configuração diz "informe um número" naquele campo. */
+const numeroDoCampo = (dados, nome) => (texto(dados, nome) === "" ? Number.NaN : Number(texto(dados, nome)));
+const comoLinhasUnix = (valor) => String(valor ?? "").replace(/\r\n?/g, "\n").trim();
+
+/**
+ * O formulário de configurações do Rise AI vira o `parcial` de `gravarConfiguracao`: só entra o que veio no formulário
+ * (cada cartão e cada bloco da tela envia só os seus campos), e quem valida é `validarConfiguracao`, que devolve o erro
+ * campo a campo. Nada aqui lê chave de API: ela vai por uma ação própria.
+ *
+ *   padraoProvedor/padraoModelo · reservaProvedor/reservaModelo ("" = sem reserva) · primeiroTokenMs · totalMs ·
+ *   maxChamadasDeFerramenta · maxTokensResposta · contextoMaxTokens · taxaPorUsuarioPorMinuto · endpoint.<provedor> ·
+ *   promptAtendimento (em branco ou igual ao padrão do código = nulo: uma melhoria futura do padrão chega a quem nunca
+ *   mexeu no texto)
+ *
+ * @param {FormData} dados
+ */
+export function parcialDaConfiguracao(dados) {
+  const parcial = {};
+  if (tem(dados, "padraoProvedor")) parcial.padrao = { provedor: texto(dados, "padraoProvedor"), modelo: texto(dados, "padraoModelo") };
+  if (tem(dados, "reservaProvedor")) {
+    parcial.reserva = texto(dados, "reservaProvedor") ? { provedor: texto(dados, "reservaProvedor"), modelo: texto(dados, "reservaModelo") } : null;
+  }
+  const tempos = {};
+  for (const nome of ["primeiroTokenMs", "totalMs"]) if (tem(dados, nome)) tempos[nome] = numeroDoCampo(dados, nome);
+  if (Object.keys(tempos).length) parcial.tempoLimite = tempos;
+  for (const nome of ["maxChamadasDeFerramenta", "maxTokensResposta", "contextoMaxTokens", "taxaPorUsuarioPorMinuto"]) {
+    if (tem(dados, nome)) parcial[nome] = numeroDoCampo(dados, nome);
+  }
+  const endpoints = {};
+  for (const { id } of PROVEDORES) if (tem(dados, `endpoint.${id}`)) endpoints[id] = texto(dados, `endpoint.${id}`);
+  if (Object.keys(endpoints).length) parcial.endpoints = endpoints;
+  if (tem(dados, "promptAtendimento")) {
+    const prompt = comoLinhasUnix(dados.get("promptAtendimento"));
+    parcial.prompts = { atendimento: !prompt || prompt === comoLinhasUnix(PROMPT_ATENDIMENTO_PADRAO) ? null : prompt };
+  }
+  return parcial;
+}
+
+/** Os ids dos modelos marcados nas caixas (`modelo` repetido): aparados, sem vazios nem repetidos. */
+export function idsDosModelos(dados) {
+  return [...new Set(dados.getAll("modelo").map((id) => String(id ?? "").trim()).filter((id) => id && id.length <= 200))].slice(0, MAXIMO_DE_MODELOS);
 }
