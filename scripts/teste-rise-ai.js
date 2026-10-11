@@ -7,7 +7,7 @@ import "dotenv/config";
  *
  * Um bloco por tarefa do plano `docs/superpowers/plans/2026-10-11-rise-ai-entrega-1.md`. Os dados de teste levam
  * o prefixo `ZZ-IA-` e saem no `finally`; o teste nunca toca na `Conexao` de BLING, MERCADO_LIVRE, LOJA_INTEGRADA,
- * ANTHROPIC nem GEMINI (usa OLLAMA e a apaga) e guarda/restaura a linha `unica` da ConfiguracaoIA.
+ * ANTHROPIC nem GEMINI (usa OLLAMA) e guarda/restaura a linha `unica` da ConfiguracaoIA e a Conexao OLLAMA.
  */
 
 const { register } = await import("node:module");
@@ -25,13 +25,33 @@ function conferir(nome, obtido, esperado) {
   );
 }
 
+/** O que e do dono e os testes mexem: lido antes e devolvido no fim (a linha unica da configuracao e a Conexao OLLAMA). */
+const guardados = {
+  configuracao: await prisma.configuracaoIA.findUnique({ where: { id: "unica" } }),
+  ollama: await prisma.conexao.findUnique({ where: { servico: "OLLAMA" } }),
+};
+
+async function devolverOQueEraDoDono() {
+  if (guardados.configuracao) {
+    const { id, ...resto } = guardados.configuracao;
+    await prisma.configuracaoIA.upsert({ where: { id }, update: resto, create: guardados.configuracao });
+  } else {
+    await prisma.configuracaoIA.deleteMany({ where: { id: "unica" } });
+  }
+  if (guardados.ollama) {
+    const { id, ...resto } = guardados.ollama;
+    await prisma.conexao.upsert({ where: { servico: "OLLAMA" }, update: resto, create: guardados.ollama });
+  } else {
+    await prisma.conexao.deleteMany({ where: { servico: "OLLAMA" } });
+  }
+}
+
 /** Apaga tudo o que os testes criam. Roda no comeco (resto de uma execucao que caiu) e no fim. */
 async function limpar() {
   await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "ZZ-IA-" } } });
   await prisma.conhecimentoIA.deleteMany({ where: { assunto: { startsWith: "ZZ-IA" } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-IA-" } } });
   await prisma.logIntegracao.deleteMany({ where: { endpoint: "falso-1" } });
-  await prisma.conexao.deleteMany({ where: { servico: "OLLAMA" } });
 }
 
 try {
@@ -118,9 +138,135 @@ try {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 4 — Acesso, configuracao e chaves
+  // -------------------------------------------------------------------------
+  {
+    const { ehAdministrador, usuarioDaSessao, exigirAdministrador } = await import("../src/lib/riseAi/acesso.js");
+    const { configuracaoPadrao, validarConfiguracao, lerConfiguracao, gravarConfiguracao, lerChave, gravarChave, estadoDasChaves } =
+      await import("../src/lib/riseAi/configuracao.js");
+    const { criarLimitador } = await import("../src/lib/riseAi/limite.js");
+    console.log("\nAcesso e configuracao");
+
+    conferir("PC: todo mundo e admin", ehAdministrador("ana", {}), true);
+    conferir(
+      "VPS: so quem esta na lista",
+      [
+        ehAdministrador("Maicol", { RISE_PRODUCAO: "1", RISE_AI_ADMINS: "maicol, outro" }),
+        ehAdministrador("ana", { RISE_PRODUCAO: "1", RISE_AI_ADMINS: "maicol" }),
+      ],
+      [true, false],
+    );
+    conferir("VPS sem lista: ninguem", ehAdministrador("Maicol", { RISE_PRODUCAO: "1" }), false);
+    conferir("VPS sem nome: ninguem", ehAdministrador("", { RISE_PRODUCAO: "1", RISE_AI_ADMINS: "," }), false);
+    conferir(
+      "usuario da sessao: PC e VPS",
+      [
+        usuarioDaSessao(new Headers(), {}),
+        usuarioDaSessao(new Headers({ "remote-user": "Maicol" }), { RISE_PRODUCAO: "1" }),
+        usuarioDaSessao(new Headers(), { RISE_PRODUCAO: "1" }),
+      ],
+      ["pc", "Maicol", "desconhecido"],
+    );
+    conferir(
+      "exigirAdministrador lanca",
+      (() => {
+        try {
+          exigirAdministrador({ administrador: false });
+          return "passou";
+        } catch (erro) {
+          return erro.message;
+        }
+      })(),
+      "Só administradores do Rise AI podem fazer isso.",
+    );
+    conferir("exigirAdministrador deixa passar o admin", exigirAdministrador({ administrador: true }), undefined);
+
+    const padrao = configuracaoPadrao("pc");
+    conferir(
+      "padrao e reserva de fabrica",
+      [padrao.padrao.provedor, padrao.reserva.provedor, padrao.reserva.modelo, padrao.tempoLimite.primeiroTokenMs, padrao.tempoLimite.totalMs],
+      ["lmstudio", "anthropic", "claude-haiku-5-5", 45000, 180000],
+    );
+    conferir("a propria configuracao padrao e valida", validarConfiguracao(padrao).ok, true);
+    conferir(
+      "validacao recusa endpoint sem http",
+      validarConfiguracao({ ...padrao, endpoints: { ...padrao.endpoints, lmstudio: "ftp://x" } }).ok,
+      false,
+    );
+    conferir(
+      "validacao recusa total menor que primeiro token",
+      validarConfiguracao({ ...padrao, tempoLimite: { primeiroTokenMs: 60000, totalMs: 30000 } }).ok,
+      false,
+    );
+    conferir(
+      "validacao recusa provedor desconhecido na reserva",
+      validarConfiguracao({ ...padrao, reserva: { provedor: "bard", modelo: "x" } }).ok,
+      false,
+    );
+    conferir("reserva pode ser nula", validarConfiguracao({ ...padrao, reserva: null }).ok, true);
+    conferir(
+      "erro por campo",
+      Object.keys(validarConfiguracao({ ...padrao, maxChamadasDeFerramenta: 99 }).erros ?? {}),
+      ["maxChamadasDeFerramenta"],
+    );
+
+    // Configuracao gravada: o que NAO foi salvo continua vindo do padrao do ambiente.
+    await prisma.configuracaoIA.deleteMany({ where: { id: "unica" } });
+    conferir("sem linha, vale o padrao", (await lerConfiguracao("pc")).maxChamadasDeFerramenta, 8);
+    const gravada = await gravarConfiguracao(
+      { maxChamadasDeFerramenta: 5, endpoints: { lmstudio: "http://10.0.0.2:1234/v1" } },
+      { usuario: "ZZ-IA-TESTE" },
+    );
+    conferir("gravou", gravada.ok, true);
+    const lida = await lerConfiguracao("pc");
+    conferir(
+      "mescla raso + endpoints chave a chave",
+      [lida.maxChamadasDeFerramenta, lida.endpoints.lmstudio, lida.endpoints.anthropic],
+      [5, "http://10.0.0.2:1234/v1", "https://api.anthropic.com"],
+    );
+    conferir(
+      "so o salvo e gravado (o endpoint do ambiente nao vira dado)",
+      Object.keys((await prisma.configuracaoIA.findUnique({ where: { id: "unica" } })).dados).sort(),
+      ["endpoints", "maxChamadasDeFerramenta"],
+    );
+    conferir("o padrao do VPS continua valendo no VPS", (await lerConfiguracao("vps")).endpoints.ollama, "http://host.docker.internal:11434/v1");
+    conferir(
+      "reserva nula gravada vale (nao volta ao padrao)",
+      (await gravarConfiguracao({ reserva: null }, { usuario: "ZZ-IA-TESTE" })).ok && (await lerConfiguracao("pc")).reserva,
+      null,
+    );
+    const recusada = await gravarConfiguracao({ maxTokensResposta: 10 }, { usuario: "ZZ-IA-TESTE" });
+    conferir("gravar valor invalido e recusado e nada muda", [recusada.ok, (await lerConfiguracao("pc")).maxTokensResposta], [false, 1500]);
+
+    // Chaves: Conexao cifrada, com o .env como reserva.
+    conferir("chave do env quando nao ha Conexao", await lerChave("openai", { OPENAI_API_KEY: "sk-env" }), "sk-env");
+    conferir("sem chave nenhuma", await lerChave("openai", {}), null);
+    conferir("provedor local nao tem chave", await lerChave("lmstudio", { LMSTUDIO: "x" }), null);
+    await prisma.conexao.deleteMany({ where: { servico: "OLLAMA" } });
+    await gravarChave("ollama", "chave-teste");
+    conferir("chave gravada vence o env", await lerChave("ollama", {}), "chave-teste");
+    const estado = await estadoDasChaves({ OPENAI_API_KEY: "sk-env" });
+    conferir(
+      "estado: cadastrada e origem",
+      [estado.ollama.cadastrada, estado.ollama.origem, estado.openai.cadastrada, estado.openai.origem, estado.gemini.cadastrada],
+      [true, "conexao", true, "env", false],
+    );
+    conferir("estado nao vaza a chave", JSON.stringify(estado).includes("chave-teste") || JSON.stringify(estado).includes("sk-env"), false);
+    conferir("chave vazia e recusada", await gravarChave("ollama", "   ").then(() => "gravou", () => "recusou"), "recusou");
+
+    const limitador = criarLimitador({ porMinuto: 2 });
+    conferir(
+      "limite por minuto",
+      [limitador.permitir("a", 0), limitador.permitir("a", 1000), limitador.permitir("a", 2000), limitador.permitir("a", 61000), limitador.permitir("b", 2000)],
+      [true, true, false, true, true],
+    );
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();
+  await devolverOQueEraDoDono();
   await prisma.$disconnect();
 }
 
