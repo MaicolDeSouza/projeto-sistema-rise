@@ -13,12 +13,25 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 
-export const INTERVALO_DO_VIGIA_MS = 60_000;
+export const INTERVALO_DO_VIGIA_MS = 15_000;
 
-/// Jobs de coleta na fila (PENDENTE) de fontes ativas marcadas para o PC. Um job em andamento nao conta: ja tem worker.
-export const CONSULTA_DE_PEDIDOS =
-  'SELECT count(*) FROM "Job" j JOIN "FonteColeta" f ON f.id = j."fonteId" ' +
-  "WHERE j.tipo = 'coleta' AND j.status = 'PENDENTE' AND f.\"varridaNoPc\" AND f.ativa";
+/// O mesmo id de `ID_DO_VIGIA_PC` em fila.js (este arquivo nao importa nada do projeto).
+const ID_DO_VIGIA = "vigia-pc";
+
+/// Deixa o SINAL do PC na VPS (a tela da VPS avisa se um pedido espera e o PC nao responde) e conta os pedidos: jobs de
+/// coleta na fila (PENDENTE) de fontes ativas marcadas para o PC. Job em andamento nao conta: ja tem worker.
+/// O INSERT dentro do WITH roda mesmo sem ser lido. Hora em UTC, como as colunas.
+export function consultaDePedidos(maquina) {
+  const nome = String(maquina ?? "pc").replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 60) || "pc";
+  return (
+    `WITH sinal AS (INSERT INTO "WorkerColeta" (id, pid, maquina, paralelo, "iniciadoEm", "sinalEm") ` +
+    `VALUES ('${ID_DO_VIGIA}', 0, '${nome}', 0, NOW() AT TIME ZONE 'UTC', NOW() AT TIME ZONE 'UTC') ` +
+    `ON CONFLICT (id) DO UPDATE SET "sinalEm" = EXCLUDED."sinalEm", maquina = EXCLUDED.maquina, "encerradoEm" = NULL ` +
+    `RETURNING 1) ` +
+    `SELECT count(*) FROM "Job" j JOIN "FonteColeta" f ON f.id = j."fonteId" ` +
+    `WHERE j.tipo = 'coleta' AND j.status = 'PENDENTE' AND f."varridaNoPc" AND f.ativa`
+  );
+}
 
 /** A saida do psql (`-tA`) como numero de pedidos, ou null se nao for um numero. */
 export function pedidosDaSaida(saida) {
@@ -40,7 +53,7 @@ export function perguntarAVps({ spawnSyncImpl = spawnSync, vps, chave } = {}) {
     ],
     {
       // O script vai pela entrada, e nao na linha de comando: aspas dentro de aspas, via ssh, quebram em silencio.
-      input: `psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "${CONSULTA_DE_PEDIDOS.replace(/"/g, '\\"')}"\n`,
+      input: `psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "${consultaDePedidos(os.hostname()).replace(/"/g, '\\"')}"\n`,
       encoding: "utf8",
       timeout: 25_000,
       windowsHide: true,
@@ -63,7 +76,7 @@ export function ligarVigiaDoPc({ pastaProjeto, iniciar, rodando, pausada = () =>
   let ultimoErro = null;
   const olhar = () => {
     try {
-      if (rodando() || pausada()) return;
+      // A pergunta vai SEMPRE (e o sinal de vida do PC); so ligar o worker depende de nao estar rodando nem pausado.
       const resposta = perguntarAVps({ vps: process.env.VPS_SSH, chave: process.env.VPS_SSH_CHAVE });
       if (resposta.erro) {
         // Uma vez por mensagem: sem internet, o mesmo erro a cada minuto lotaria o terminal.
@@ -72,7 +85,7 @@ export function ligarVigiaDoPc({ pastaProjeto, iniciar, rodando, pausada = () =>
         return;
       }
       ultimoErro = null;
-      if (resposta.pedidos > 0) {
+      if (resposta.pedidos > 0 && !rodando() && !pausada()) {
         const resultado = iniciar({ pastaProjeto, pedidos: true });
         console.log(
           resultado.ok
@@ -87,7 +100,7 @@ export function ligarVigiaDoPc({ pastaProjeto, iniciar, rodando, pausada = () =>
 
   const relogio = setInterval(olhar, intervalo);
   relogio.unref?.();
-  // A primeira olhada 15 s depois de subir, para o servidor nao disputar CPU com a compilacao inicial.
-  setTimeout(olhar, 15_000).unref?.();
+  // A primeira olhada 5 s depois de subir, para o servidor nao disputar CPU com a compilacao inicial.
+  setTimeout(olhar, 5_000).unref?.();
 }
 

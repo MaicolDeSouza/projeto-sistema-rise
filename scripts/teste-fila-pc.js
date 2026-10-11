@@ -36,6 +36,19 @@ function conferir(nome, obtido, esperado) {
 }
 
 // ---------------------------------------------------------------------------
+console.log("— pedido pelo PC sem resposta (regras puras) —");
+{
+  const agora = new Date("2026-10-11T15:00:00Z").getTime();
+  const antes = (min) => new Date(agora - min * 60_000).toISOString();
+  conferir("pedido de 1 min: ainda dentro do prazo", fila.avisoDoPedidoPeloPc({ pedidoEm: antes(1), sinalEm: null, agora }), null);
+  conferir("pedido de 5 min e PC nunca deu sinal: erro", /nunca respondeu/.test(fila.avisoDoPedidoPeloPc({ pedidoEm: antes(5), sinalEm: null, agora })), true);
+  conferir("pedido de 5 min e sinal de 10 min atras: erro com a hora", /nao responde|não responde/.test(fila.avisoDoPedidoPeloPc({ pedidoEm: antes(5), sinalEm: antes(10), agora })), true);
+  conferir("pedido de 5 min e sinal de 15 s atras: PC vivo, sem aviso ainda", fila.avisoDoPedidoPeloPc({ pedidoEm: antes(5), sinalEm: antes(0.25), agora }), null);
+  conferir("pedido de 8 min e PC vivo: a varredura nao comecou", /não começou/.test(fila.avisoDoPedidoPeloPc({ pedidoEm: antes(8), sinalEm: antes(0.25), agora })), true);
+  conferir("sem pedido nao ha aviso", fila.avisoDoPedidoPeloPc({ pedidoEm: null, sinalEm: null, agora }), null);
+}
+
+// ---------------------------------------------------------------------------
 console.log("— modo do worker (regras puras) —");
 
 conferir("COLETA_SO_PC=1 liga", fila.soNoPcConfigurado("1"), true);

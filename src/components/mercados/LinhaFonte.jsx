@@ -383,6 +383,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
                 rede de casa: a varredura comeca pelo Rise do PC. O rotulo diz isso e mostra o andamento.
               */
               fonte.varredura ? (
+                <>
                 <span
                   className="inline-flex items-center gap-1 rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs text-sky-900"
                   title="O Rise do seu PC atende o pedido sozinho (ele pergunta a VPS a cada minuto). Ao terminar, o worker do PC desliga."
@@ -390,6 +391,13 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
                   <Monitor size={12} />
                   {fonte.varredura === "VARRENDO" ? "Varrendo pelo PC" : "Na fila do PC"}
                 </span>
+                {fonte.avisoPc && (
+                  <p className="mt-1 flex max-w-xs items-start gap-1 text-left text-xs text-red-700">
+                    <Ban size={12} className="mt-0.5 shrink-0" />
+                    <span>{fonte.avisoPc}</span>
+                  </p>
+                )}
+                </>
               ) : (
                 <>
                   <button

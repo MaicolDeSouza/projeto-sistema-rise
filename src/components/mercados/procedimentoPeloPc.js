@@ -4,7 +4,7 @@
 export const PASSOS_DO_PEDIDO = [
   "No seu PC: abra o Rise em localhost e deixe o PC ligado, sem suspender.",
   "Na VPS: se a fonte estiver pausada, clique em Retomar antes.",
-  "Na VPS: a linha da fonte mostra \"Na fila do PC\" (até 1 minuto) e depois \"Varrendo pelo PC\". O worker do PC desliga sozinho ao terminar.",
+  "Na VPS: a linha da fonte mostra \"Na fila do PC\" (até 15 segundos) e depois \"Varrendo pelo PC\". O worker do PC desliga sozinho ao terminar.",
   "Na VPS: confira se os novos produtos apareceram.",
 ];
 
@@ -18,5 +18,5 @@ export const DICA_DA_CAIXA =
   "1) Na VPS: marque esta caixa e salve a fonte. " +
   "2) Na VPS: se ela ficar pausada, clique em Retomar. " +
   "3) Na lista de fontes, clique em Varrer pelo PC e siga o procedimento. " +
-  "4) No seu PC: deixe o Rise em localhost aberto e o PC sem suspender; ele atende o pedido sozinho em até 1 minuto. " +
+  "4) No seu PC: deixe o Rise em localhost aberto e o PC sem suspender; ele atende o pedido sozinho em até 15 segundos. " +
   DICA_DE_CADASTRO;

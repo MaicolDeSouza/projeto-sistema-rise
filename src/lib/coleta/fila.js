@@ -97,6 +97,11 @@ export function modoInvalido(fontes, soNoPc) {
   return fontes && soNoPc ? "COLETA_FONTES e COLETA_SO_PC nao se combinam: escolha um dos dois." : null;
 }
 
+/// Id do registro do vigia do Rise do PC em `WorkerColeta` (so guarda o sinal dele). Usado tambem por `vigiaDoPc.js`.
+export const ID_DO_VIGIA_PC = "vigia-pc";
+/// Pedido esperando mais que isto, sem sinal do PC, vira erro na fonte.
+export const PRAZO_DO_PC_MS = 3 * 60 * 1000;
+
 /** A trava do worker: uma para o normal, outra para o restrito a fontes, outra para o do PC. */
 export const travaDoWorker = (fontes, soNoPc = false) =>
   fontes ? TRAVA_WORKER + 1 : soNoPc ? TRAVA_WORKER + 2 : TRAVA_WORKER;
@@ -490,7 +495,36 @@ export async function encerrarWorker(id) {
 /** O worker no ar, ou null. Para a tela. */
 export async function workerNoAr(agora = Date.now()) {
   return prisma.workerColeta.findFirst({
-    where: { encerradoEm: null, sinalEm: { gte: new Date(agora - WORKER_SEM_SINAL_MS) } },
+    // O vigia do Rise do PC (`ID_DO_VIGIA_PC`) mora na mesma tabela so para guardar o sinal dele; nao e worker.
+    where: { encerradoEm: null, id: { not: ID_DO_VIGIA_PC }, sinalEm: { gte: new Date(agora - WORKER_SEM_SINAL_MS) } },
     orderBy: { sinalEm: "desc" },
   });
+}
+
+/// O ultimo sinal do vigia do Rise do PC (o PC pergunta a VPS a cada 15 s e deixa o sinal aqui), ou null.
+export async function sinalDoVigiaDoPc() {
+  const linha = await prisma.workerColeta.findUnique({ where: { id: ID_DO_VIGIA_PC }, select: { sinalEm: true } });
+  return linha?.sinalEm ?? null;
+}
+
+/// Ha quanto tempo o pedido espera sem o Rise do PC responder, em minutos, ou null se ainda esta dentro do prazo. Pura.
+export function pcSemResposta({ pedidoEm, sinalEm, agora = Date.now(), prazoMs = PRAZO_DO_PC_MS }) {
+  if (!pedidoEm || agora - new Date(pedidoEm).getTime() < prazoMs) return null;
+  const sinal = sinalEm ? new Date(sinalEm).getTime() : 0;
+  return agora - sinal > prazoMs ? { desdeEm: sinalEm ?? null } : null;
+}
+
+/// O erro que a fonte do PC mostra na VPS (ou null): pedido esperando e o PC sem dar sinal, ou o PC vivo e a varredura
+/// sem comecar. Pura (o relogio entra por `agora`), para a tela nao chamar `Date.now()` na renderizacao.
+export function avisoDoPedidoPeloPc({ pedidoEm, sinalEm, agora = Date.now() }) {
+  const semResposta = pcSemResposta({ pedidoEm, sinalEm, agora });
+  if (semResposta) {
+    return sinalEm
+      ? `O Rise do seu PC não responde desde ${new Date(sinalEm).toLocaleString("pt-BR")}. Abra o Rise em localhost e deixe o PC ligado, sem suspender. O pedido continua na fila.`
+      : "O Rise do seu PC nunca respondeu a esta VPS. Abra o Rise em localhost (reinicie-o se acabou de atualizar o código) e deixe o PC ligado. O pedido continua na fila.";
+  }
+  if (pedidoEm && agora - new Date(pedidoEm).getTime() > 2 * PRAZO_DO_PC_MS) {
+    return "O Rise do PC está respondendo, mas a varredura não começou. No PC, veja dados/logs/worker-pc-botao.log (túnel SSH ou chave).";
+  }
+  return null;
 }

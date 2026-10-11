@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, Store } from "lucide-react";
 
 import { prisma } from "@/lib/db";
-import { jobLargado } from "@/lib/coleta/fila";
+import { avisoDoPedidoPeloPc, jobLargado, sinalDoVigiaDoPc } from "@/lib/coleta/fila";
 import { plataformasPorFonte } from "@/lib/coleta/banco";
 import { portalDoEndereco } from "@/lib/coleta/fornecedores";
 import { avisoSoLocalhost } from "@/lib/coleta/soLocalhost";
@@ -66,6 +66,25 @@ export default async function FontesPage({ searchParams }) {
 
   const varreduraPorFonte = situacaoNaFila(jobsAbertos);
 
+  // PEDIDO PELO PC SEM RESPOSTA (11/10/2026): o Rise do PC deixa um sinal na VPS a cada 15 s. Fonte do PC com pedido
+  // esperando ha mais de 3 min e sem sinal do PC nesse tempo mostra o erro na linha.
+  let sinalDoPc = null;
+  if (process.env.RISE_PRODUCAO) {
+    try {
+      sinalDoPc = await sinalDoVigiaDoPc();
+    } catch {
+      sinalDoPc = null;
+    }
+  }
+  const avisoDoPc = new Map();
+  for (const job of jobsAbertos) {
+    const fonteId = job.fonteId ?? job.payload?.fonteId;
+    if (job.status !== "PENDENTE" || !process.env.RISE_PRODUCAO) continue;
+    if (!(fontes ?? []).some((fonte) => fonte.id === fonteId && fonte.varridaNoPc)) continue;
+    const aviso = avisoDoPedidoPeloPc({ pedidoEm: job.criadoEm, sinalEm: sinalDoPc });
+    if (aviso) avisoDoPc.set(fonteId, aviso);
+  }
+
   // RISE DO PC (sem RISE_PRODUCAO, que a imagem da VPS carrega): o "Varrer agora" de uma fonte do PC liga o worker do
   // PC daqui. O andamento dele mora num arquivo, e nao na fila desta copia: ele grava no banco da VPS.
   const noPc = !process.env.RISE_PRODUCAO;
@@ -87,6 +106,7 @@ export default async function FontesPage({ searchParams }) {
     ultimaVarreduraEm: fonte.ultimaVarreduraEm,
     proximaVarreduraEm: fonte.proximaVarreduraEm,
     varredura: varreduraPorFonte.get(fonte.id) ?? null,
+    avisoPc: avisoDoPc.get(fonte.id) ?? null,
     // Quantos a loja tem, e quantos ja pegamos. Os dois juntos: um sozinho
     // nao responde se a coleta esta perto do fim ou mal comecou.
     produtosNoSite: fonte.produtosNoSite,
