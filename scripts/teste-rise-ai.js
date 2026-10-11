@@ -1100,6 +1100,53 @@ try {
     conferir("mensagem que nao existe", await carregarMensagem("nao-existe", { usuario: "ZZ-IA-TESTE" }), null);
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 11 — O que a tela do chat usa e roda em Node (leitura do fluxo SSE, formatos)
+  // -------------------------------------------------------------------------
+  {
+    const { eventosDoFluxo } = await import("../src/components/riseAi/fluxo.js");
+    const { custoEmTexto, duracaoEmTexto, idadeDoSaldo, rotuloDoMotivo, rotuloDoProvedor, ehLocal, reais } = await import("../src/components/riseAi/formatos.js");
+    const { eventoSSE } = await import("../src/lib/riseAi/sse.js");
+    console.log("\nFluxo e formatos da tela do chat");
+
+    const corpoDe = (...pedacos) =>
+      new ReadableStream({
+        start(controle) {
+          for (const pedaco of pedacos) controle.enqueue(typeof pedaco === "string" ? new TextEncoder().encode(pedaco) : pedaco);
+          controle.close();
+        },
+      });
+    const lerTudo = async (corpo) => {
+      const lidos = [];
+      for await (const evento of eventosDoFluxo(corpo)) lidos.push(evento);
+      return lidos;
+    };
+
+    conferir(
+      "varios eventos num pedaco so",
+      await lerTudo(corpoDe(eventoSSE("inicio", { a: 1 }) + eventoSSE("texto", { delta: "Olá" }) + eventoSSE("fim", {}))),
+      [{ nome: "inicio", dados: { a: 1 } }, { nome: "texto", dados: { delta: "Olá" } }, { nome: "fim", dados: {} }],
+    );
+    const bytes = new TextEncoder().encode(eventoSSE("texto", { delta: "Olá, tudo bem?" }) + eventoSSE("fim", { ok: true }));
+    const corte = bytes.indexOf(0xc3) + 1; // no meio do "á"
+    conferir(
+      "evento e acento partidos entre pedacos de rede",
+      await lerTudo(corpoDe(bytes.slice(0, 9), bytes.slice(9, corte), bytes.slice(corte))),
+      [{ nome: "texto", dados: { delta: "Olá, tudo bem?" } }, { nome: "fim", dados: { ok: true } }],
+    );
+    conferir("fim de linha CRLF (proxy)", await lerTudo(corpoDe('event: texto\r\ndata: {"delta":"x"}\r\n\r\n')), [{ nome: "texto", dados: { delta: "x" } }]);
+    conferir("comentario e JSON quebrado sao ignorados", await lerTudo(corpoDe(': keep-alive\n\nevent: texto\ndata: {quebrado\n\n' + eventoSSE("fim", {}))), [{ nome: "fim", dados: {} }]);
+    conferir("evento sem a linha em branco final ainda sai", await lerTudo(corpoDe('event: fim\ndata: {"x":1}')), [{ nome: "fim", dados: { x: 1 } }]);
+    conferir("corpo vazio", await lerTudo(corpoDe()), []);
+
+    conferir("custo: preco desconhecido nao e zero", [custoEmTexto(null), custoEmTexto(undefined), custoEmTexto(0), custoEmTexto(0.0036), custoEmTexto(1.5)], ["preço não cadastrado", "preço não cadastrado", "R$ 0,00", "R$ 0,0036", "R$ 1,50"]);
+    conferir("duracao", [duracaoEmTexto(420), duracaoEmTexto(4210), duracaoEmTexto(12000)], ["420 ms", "4,2 s", "12 s"]);
+    conferir("idade do saldo do Bling", [idadeDoSaldo(null), idadeDoSaldo(0), idadeDoSaldo(20), idadeDoSaldo(90), idadeDoSaldo(60 * 30)], ["estoque do cadastro", "lido agora há pouco", "lido há 20 min", "lido há 1 h", "lido há 1 d"]);
+    conferir("motivos da reserva viram frase", [rotuloDoMotivo("conexao"), rotuloDoMotivo("tempo"), rotuloDoMotivo("desconhecido-xyz")], ["sem conexão com o modelo padrão", "o modelo padrão demorou demais para começar", "o modelo padrão falhou"]);
+    conferir("rotulo e local", [rotuloDoProvedor("lmstudio"), rotuloDoProvedor("anthropic"), ehLocal("lmstudio"), ehLocal("anthropic"), ehLocal("nao-existe")], ["LM Studio", "Anthropic", true, false, false]);
+    conferir("reais", reais(38.9), "R$ 38,90");
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();
