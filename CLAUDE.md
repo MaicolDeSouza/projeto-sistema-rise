@@ -132,7 +132,8 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
    o destrutivo fica por último e sempre com pop-up listando os itens.
 10. **Revisão antes de entregar:** a sessão passa a tela por `ecc:make-interfaces-feel-better` (espaço, alinhamento,
     estados de botão) e confere no navegador em largura de notebook. Tela nova segue o desenho anotado do dono, sem
-    acrescentar o que ele não pediu.
+    acrescentar o que ele não pediu. Para o desenho inicial, chamar a skill `frontend-design` (plugin oficial da
+    Anthropic, ativado pelo dono em 12/10/2026), com estas 10 regras como restrição.
 
 ## Estado
 
