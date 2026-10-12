@@ -69,6 +69,51 @@ Entradas que a spec não exercita e que mais provavelmente mordem alguém; cada 
    que grava, não antes dela (Tarefa 13).
 6. **`RISE_SIMULAR_LOGIN` esquecida no `.env` da VPS:** ignorada com `RISE_PRODUCAO` e recusada pelo deploy (Tarefas 4 e 5).
 
+## Guia de desenho das telas (plugin UI/UX)
+
+As Tarefas 11, 14, 15 e 16 **começam invocando a skill `frontend-design`** (com as 10 regras do Padrão visual, a spec
+§5.1 e este guia como restrição) e **terminam com `ecc:make-interfaces-feel-better`** e a conferência no navegador a
+1366 px. O que segue é o que o construtor decide igual em todas as telas, para não reinventar a cada uma.
+
+**Vocabulário de componentes (reaproveitar, nunca recriar):** `PageHeader` (título, `voltarPara`, `acao` = a única
+ação principal), `CartaoDeAtalho`, `Card`, `Badge` (tons `neutro`/`sucesso`/`alerta`/`erro`/`info`), `EmptyState`,
+`BolhaDeAjuda` (`variante="inline"` ao lado do rótulo), `CampoBusca`, `Paginacao` (`src/components/mercados/`),
+`BarraDeAbas` + `Painel` (`src/components/cadastros/Abas.jsx`), `Campo` (`src/components/cadastros/Campo.jsx`) para
+rótulo + entrada, `PopupExclusao` (`src/components/cadastros/`) para o destrutivo, `Janela`
+(`src/components/riseAi/Janela.jsx`) para edição curta por cima.
+
+**Escala e espaço:** título de página `text-2xl font-semibold tracking-tight`; título de seção `text-base
+font-semibold`; corpo `text-sm`; detalhe `text-xs text-suave`; caixa `rounded-lg border border-borda bg-superficie
+p-5`; grade de cartões `grid gap-4 md:grid-cols-2 xl:grid-cols-3`; tabela com cabeçalho `text-xs uppercase
+tracking-wide text-suave` (o das tabelas de hoje), linha `hover:bg-fundo`, 100 por página; todo número que muda em
+`tabular-nums`; alinhamento à esquerda, nada centrado além dos segmentos de nível.
+
+**Estados, sempre os quatro:** vazio (`EmptyState`, uma frase e a ação dentro), carregando (o botão diz "Salvando…" e
+fica `disabled`; nunca spinner solto), recusa (botão `disabled` com o motivo no `title` e em uma linha `text-xs
+text-suave` ao lado), erro real (`rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800`, só para
+falha de verdade; o erro de validação vai embaixo do campo, como em `Campo`). Marcação é `emerald`
+(`bg-emerald-100 text-emerald-800`), atenção é `amber`, nunca `sky` para estado. Botão principal `bg-acento
+text-white`, secundário `border border-borda bg-superficie hover:bg-fundo`, destrutivo por último e só no popup.
+
+**Textos (verbo + objeto, com acento):** "Adicionar usuário", "Criar função", "Salvar", "Cancelar", "Excluir função",
+"Adicionar exceção", "todos desta lista"; selos "você", "inativo", "Administrador pelo .env", "Função fixa · vê e
+edita tudo"; estados vazios "Só você entra no Rise por enquanto.", "Nenhuma exceção.", "Sem função: vê só o Painel
+vazio."; bolhas: Login "O mesmo login da tela de entrada do Rise, criado por SSH.", Assinatura "Nome que assina as
+respostas no WhatsApp; nasce com o primeiro nome.", cabeçalho da matriz "excluir inclui editar, que inclui ver.".
+Nenhum parágrafo explicativo fixo em tela nenhuma.
+
+**Acabamento (`make-interfaces-feel-better`), conferido em cada tela:** alvo de clique de 40 px nos botões de ícone
+(`h-10 w-10`, ícone de 16 a 18 px centrado opticamente); `focus-visible:ring-2 focus-visible:ring-acento
+focus-visible:outline-none` em todo botão, célula e linha clicável; `transition-[background-color,border-color,opacity]
+duration-150` (nunca `transition-all`); raio concêntrico (segmento `rounded-md` dentro de célula `rounded-lg`);
+títulos com `text-wrap: balance`, descrições com `text-wrap: pretty`; a `Janela` entra em 150 ms e sai em 100 ms, e
+`prefers-reduced-motion` desliga as duas; a matriz inteira operável só pelo teclado (Tab entre linhas, setas entre
+segmentos, `0 1 2 3`); nada pula quando o rodapé de alterações aparece (ele é `sticky bottom-0`, e a lista reserva o
+`pb`). Mobile em uma coluna: o trilho da matriz vira um `select` acima da lista.
+
+**O único elemento ousado é a matriz** (spec §5.1): o resto segue o desenho das telas de hoje, sem gradiente, sem
+sombra colorida, sem faixa explicativa, sem marcador numerado, sem seta em link.
+
 ## As fases
 
 | Fase | O que entrega | Tarefas |
@@ -176,7 +221,9 @@ model SemeaduraDeAcessos {
   "zz-ac-" } } })` igual a `0`, e o `finally` com `limpar()` e `prisma.$disconnect()`; sai com código 1 se `falhas > 0`.
 - [ ] **Passo 2: rodar `npm run teste:acessos` e ver falhar** com "prisma.usuarioRise is undefined" (o client não tem o
   modelo).
-- [ ] **Passo 3: acrescentar os sete modelos ao `schema.prisma`**, gerar a migration com o `migrate diff` da seção
+- [ ] **Passo 3: antes de tocar no schema, a regra do schema:** `git status` limpo em `prisma/`, e avisar o dono que as
+  pastas `sistema-rise-agente-1` e `-2` precisam de `git merge main` antes de gerar qualquer migration. Então
+  **acrescentar os sete modelos ao `schema.prisma`**, gerar a migration com o `migrate diff` da seção
   "Restrições globais", conferir o SQL (só `CREATE TYPE`/`CREATE TABLE`/`CREATE INDEX`/`ADD CONSTRAINT`; tirar os
   `DROP INDEX` dos índices só-SQL), `npx prisma migrate deploy`, `npx prisma generate`, reiniciar o servidor.
 - [ ] **Passo 4: rodar `npm run teste:acessos` e ver passar** (1 asserção).
@@ -207,8 +254,11 @@ model SemeaduraDeAcessos {
     `acao.mercadoLivre.publicar`, `acao.lojaIntegrada.sincronizar`, `acao.scraper.varrer`, `acao.vps.deploy`); os
     dados `dado.custo`, `dado.margem`, `dado.localizacao`, `dado.estoqueExato`, `dado.concorrentes`,
     `dado.pessoalDoCliente`, `dado.financeiro` (cada um com `dica` dizendo onde aparece, spec §5.4); Rise AI:
-    `riseAi.chat` (capacidade), `riseAi.revisao`, `riseAi.conhecimento`, `riseAi.consumo`, `riseAi.configuracoes`;
-    Configurações: `tela.configuracoes`, `tela.configuracoes.usuarios` (`delegavel: false`), `tela.integracoes`.
+    `tela.riseAi` (a entrada do bloco: `ver` = vê o bloco no menu e abre `/rise-ai`) e, com `pai: "tela.riseAi"`, as
+    capacidades `riseAi.chat` (`editar` = conversar), `riseAi.revisao`, `riseAi.conhecimento`, `riseAi.consumo`,
+    `riseAi.configuracoes`; Configurações: `tela.configuracoes` (a entrada) e, com `pai: "tela.configuracoes"`,
+    `tela.configuracoes.usuarios` (`delegavel: false`) e `tela.integracoes`. Todo bloco de `blocos.js` tem uma tela de
+    entrada `tela.<bloco>` sem `pai`: é ela que `blocosOcultos` (Tarefa 3) consulta.
   - `recursoPorId(id)` → o recurso ou `null`; `NAO_DELEGAVEIS` → `["tela.configuracoes.usuarios"]`;
     `validarNivel(id, nivel)` → `true` só se `nivel` está em `NIVEIS_POR_TIPO[tipo]`; `gruposDaMatriz()` → lista de
     `{ grupo, recursos }` na ordem de `RECURSOS`, com `"dados"` por último.
@@ -236,8 +286,10 @@ model SemeaduraDeAcessos {
   - `resolverPermissoes({ funcoes, excecoes, administrador })` → `Map<string, string>` (id → nível efetivo), em que
     `funcoes` é `[{ permissoes: [{ recurso, nivel }] }]` e `excecoes` é `[{ recurso, nivel }]`. Regras (spec §3):
     maior nível entre as funções; exceção vence; sub-tela, cartão ou ação cujo `pai` é `nenhum` vira `nenhum`;
-    `administrador: true` põe o maior nível de cada tipo em todo recurso, delegável ou não; recurso que não está no
-    catálogo é ignorado; nível inválido para o tipo é ignorado; o que não aparece é `nenhum` (ausente do mapa).
+    `administrador: true` põe o maior nível de cada tipo em todo recurso, delegável ou não; **recurso não delegável só
+    entra por `administrador: true`** (uma linha gravada numa função ou exceção para ele é ignorada: defesa em
+    profundidade, além da validação da Tarefa 13); recurso que não está no catálogo é ignorado; nível inválido para o
+    tipo é ignorado; o que não aparece é `nenhum` (ausente do mapa).
   - `podeNo(permissoes, id, nivel)` → `ordemDoNivel(permissoes.get(id) ?? "nenhum") >= ordemDoNivel(nivel)`.
   - `blocosOcultos(permissoes, hrefs)` → os `href` de `hrefs` cuja tela do bloco (`grupo === href`, `tipo === "tela"`,
     sem `pai`) é `nenhum`. Neste lançamento o layout passa só `["/rise-ai", "/configuracoes"]` (os blocos cujas telas
@@ -248,7 +300,7 @@ model SemeaduraDeAcessos {
   `editar`; `tela.produtos` nenhum derruba `tela.produtos.cadastro` editar e `acao.produtos.sincronizarBling` executar
   para `nenhum`; `administrador: true` dá `excluir` em `tela.produtos`, `editar` em `dado.custo`, `executar` em
   `acao.vps.deploy` e `editar` em `tela.configuracoes.usuarios`; recurso `tela.naoExiste` e nível `voar` são
-  ignorados sem lançar; `podeNo(mapa, "dado.custo", "ver")` com `editar` é `true` e com ausente é `false`;
+  ignorados sem lançar; função com `tela.configuracoes.usuarios` `editar` e `administrador: false` → ausente do mapa; `podeNo(mapa, "dado.custo", "ver")` com `editar` é `true` e com ausente é `false`;
   `blocosOcultos(mapaSemRiseAi, ["/rise-ai","/configuracoes"])` é `["/rise-ai"]`; `contarLiberados` do grupo
   `/produtos` com só a tela em `ver` dá `{ liberados: 1, total: <n do catálogo> }`.
 - [ ] **Passo 2: ver falhar.**
@@ -378,8 +430,8 @@ model SemeaduraDeAcessos {
   - `PERMISSOES_DA_ATENDIMENTO`: lista `[{ recurso, nivel }]` da spec §7: `tela.painel` ver, os cartões
     `cartao.painel.produtos` e `cartao.painel.anunciosPublicados` ver (o dono escolhe os demais), `tela.cadastros` e
     sub-telas ver, `tela.canaisDeVenda` e sub-telas ver, `tela.produtos` e sub-telas ver, os sete `dado.*` ver,
-    `tela.pedidos`, `tela.estoque`, `tela.financeiro` ver, `riseAi.chat` editar; nada de `acao.*`, nada de Rise AI além
-    do chat, nada de Configurações.
+    `tela.pedidos`, `tela.estoque`, `tela.financeiro` ver, `tela.riseAi` ver e `riseAi.chat` editar; nada de `acao.*`,
+    nada de Rise AI além do chat, nada de Configurações.
   - `semearAcessos({ prisma, env, agora })` → `{ administradorId, atendimentoCriada: boolean, usuariosCriados: string[] }`.
     Cria a função `Administrador` (`fixa: true`) se faltar; cria `Atendimento` com as permissões acima **só se**
     `semeaduraDeAcessos` não tem a chave `"atendimento"` (e grava a chave); para cada login de `RISE_AI_ADMINS`
@@ -426,12 +478,13 @@ model SemeaduraDeAcessos {
   `revisao/acoes.js` → `riseAi.revisao` `editar` (`aprovarSugestaoAcao`, `rejeitarSugestaoAcao`, `gerarSugestaoAcao`,
   `marcarRevisadaAcao`, `carregarConversaParaRevisaoAcao`) e `riseAi.conhecimento` `editar` (`proporCorrecaoAcao`,
   `criarConhecimentoAcao`, `editarConhecimentoAcao`, `aprovarConhecimentoAcao`, `rejeitarConhecimentoAcao`);
-  `configuracoes/acoes.js` → `riseAi.configuracoes` `editar` (as cinco). Páginas: layout e chat `riseAi.chat` `ver`;
-  Revisão `riseAi.revisao` `ver`; Consumo `riseAi.consumo` `ver`; Configurações `riseAi.configuracoes` `ver`; a rota
-  `conversar` → `riseAi.chat` `editar` (403 sem corpo). As três páginas de administração deixam de desenhar o aviso "Só
-  administradores": `exigirAcessoNaPagina` dá 404.
+  `configuracoes/acoes.js` → `riseAi.configuracoes` `editar` (as cinco). Páginas: layout `tela.riseAi` `ver`; chat e
+  `[conversaId]` `riseAi.chat` `ver`; Revisão `riseAi.revisao` `ver`; Consumo `riseAi.consumo` `ver`; Configurações
+  `riseAi.configuracoes` `ver`; a rota `conversar` → `riseAi.chat` `editar` (403 sem corpo). As três páginas de
+  administração deixam de desenhar o aviso "Só administradores": `exigirAcessoNaPagina` dá 404.
 - `ListaDeConversas` recebe `links: { href, rotulo }[]` já filtrados pelo layout com `sessao.pode`
-  (`riseAi.revisao`/`riseAi.consumo`/`riseAi.configuracoes` em `ver`).
+  (`riseAi.revisao`/`riseAi.consumo`/`riseAi.configuracoes` em `ver`); o mapa `href → ícone` fica dentro do componente
+  de cliente (um componente React não atravessa a fronteira servidor → cliente).
 
 - [ ] **Passo 1: reescrever o guarda em `teste-rise-ai.js`**: para cada arquivo `acoes.js` de `src/app/rise-ai/`
   (os três), toda `export async function` tem corpo começando por `return executarComAcesso("<id do catálogo>",
@@ -448,8 +501,9 @@ model SemeaduraDeAcessos {
 ### Tarefa 9: As ferramentas leem `pode`
 
 **Arquivos:**
-- Modificar: `src/lib/riseAi/ferramentas/index.js` (`contexto` ganha `pode`), `ferramentas/produtos.js`
-  (`cartaoDoProduto`, `cartaoParaOModelo`, `consultarProduto`, `consultarEstoque`), `src/lib/riseAi/conversa.js`
+- Modificar: `src/lib/riseAi/ferramentas/index.js` (`contexto` ganha `pode`), `src/lib/riseAi/busca.js`
+  (`cartaoDoProduto(produto, { perfil, pode })`), `ferramentas/produtos.js` (`cartaoParaOModelo`, `consultarProduto`,
+  `consultarEstoque`), `src/lib/riseAi/conversa.js`
   (`responder({ ..., pode })` e `rodarLaco`), `src/app/api/rise-ai/conversar/route.js` (passa `sessao.pode`)
 - Testar: `scripts/teste-rise-ai.js`, bloco das ferramentas
 
@@ -503,8 +557,10 @@ model SemeaduraDeAcessos {
 **Arquivos:**
 - Criar: `src/lib/configuracoes/catalogo.js` (os três cartões: `href`, `recurso`, `rotulo`, `icone`, `resumo`)
 - Criar: `src/lib/configuracoes/detalhes.js` (puro: `detalheDeUsuarios({ usuarios, funcoes })` → `"2 usuários · 2
-  funções"`; `detalheDeIntegracoes(conexoes)` → `"3 conectadas"` ou `"1 expirada · 2 conectadas"` (a pior primeiro:
-  erro, expirada, não configurada, conectada); `detalheDoRiseAi(padrao)` → `"Padrão: Anthropic · claude-haiku-5-5"`)
+  funções"`; `detalheDeIntegracoes(conectores, conexoes)` (a lista `conectores` de `@/lib/integracoes/registro` e o
+  `Map` de `listarConexoes()`) → `"3 conectadas"` ou `"1 expirada · 2 conectadas"` (a pior primeiro: erro, expirada,
+  não configurada, conectada); `detalheDoRiseAi(padrao, PROVEDORES)` → `"Padrão: Anthropic · claude-haiku-5-5"` (o
+  rótulo do provedor vem de `PROVEDORES` em `@/lib/riseAi/modelos`))
 - Criar: `src/app/configuracoes/page.jsx` (`exigirAcessoNaPagina("tela.configuracoes","ver")`; filtra os cartões por
   `sessao.pode(cartao.recurso,"ver")`; carrega os detalhes em `Promise.all`; `PageHeader` "Configurações" com a
   descrição "Usuários, integrações e o Rise AI."; grade de `CartaoDeAtalho` como `/cadastros`)
@@ -531,10 +587,11 @@ model SemeaduraDeAcessos {
 
 **Interfaces:**
 - Produz:
-  - `listarUsuarios({ busca = "", inativos = false })` → `[{ id, login, nome, ativo, ultimoAcessoEm, funcoes:
-    [{ id, nome, fixa }], peloEnv: boolean }]`, ordenados por nome; `busca` casa nome ou login sem caixa; `inativos`
-    falso esconde os inativos. `peloEnv` vem de `quebraVidro(login, process.env)`.
-  - `carregarUsuario(id)` → o usuário com `funcoes` (ids), `excecoes` (`[{ recurso, nivel }]`) e `peloEnv`, ou `null`.
+  - `listarUsuarios({ busca = "", inativos = false, env = process.env })` → `[{ id, login, nome, ativo, ultimoAcessoEm,
+    funcoes: [{ id, nome, fixa }], peloEnv: boolean }]`, ordenados por nome; `busca` casa nome ou login sem caixa;
+    `inativos` falso esconde os inativos. `peloEnv` vem de `quebraVidro(login, env)` (o `env` é parâmetro para o teste).
+  - `carregarUsuario(id, { env = process.env } = {})` → o usuário com `funcoes` (ids), `excecoes` (`[{ recurso, nivel
+    }]`) e `peloEnv`, ou `null`.
   - `listarFuncoes()` → `[{ id, nome, descricao, fixa, usuarios: n, telasLiberadas: { liberados, total } }]`
     (`contarLiberados` sobre as telas de todos os grupos).
   - `carregarFuncao(id)` → `{ id, nome, descricao, fixa, permissoes: { [recurso]: nivel }, usuarios: [{ id, nome }] }`.
@@ -557,8 +614,8 @@ model SemeaduraDeAcessos {
 
 **Interfaces:**
 - Produz (puro): `validarUsuario({ login, nome, assinatura, ativo, funcoes, excecoes })` → `{ ok, erros: { campo:
-  mensagem } }`: login obrigatório, normalizado, não reservado; nome obrigatório; exceções com recurso do catálogo e
-  nível válido. `validarFuncao({ nome, descricao, permissoes })` → nome obrigatório (até 60), toda permissão com
+  mensagem } }`: login obrigatório, normalizado, não reservado; nome obrigatório; exceções com recurso do catálogo,
+  nível válido e **nunca um recurso não delegável**. `validarFuncao({ nome, descricao, permissoes })` → nome obrigatório (até 60), toda permissão com
   recurso do catálogo, nível válido para o tipo, nunca um recurso não delegável.
 - Produz (banco), todas com `{ quem }` (o login de quem grava) e auditoria na mesma transação:
   - `salvarUsuario(dados, { quem })` → `{ ok, id | erros }`: cria ou atualiza; login único (`"Já existe um usuário com
@@ -572,7 +629,8 @@ model SemeaduraDeAcessos {
     `funcao.salvar`.
   - `excluirFuncao(id, { quem })` → `{ ok, erro? }`: `fixa` recusa; desliga dos usuários (o `Cascade` apaga
     `UsuarioFuncao`); auditoria `funcao.excluir` com a lista de quem a tinha.
-  - `registrarAuditoria(tx, { quem, oQue, alvo, antes, depois })`.
+  - `registrarAuditoria(tx, { quem, oQue, alvo, antes, depois })`: `antes`/`depois` nulos vão como `Prisma.DbNull`
+    (armadilha do CLAUDE.md: `null` puro em `Json?` é recusado).
 
 - [ ] **Passo 1: asserções**: `validarUsuario` com login `"PC"` → erro no campo `login`; com exceção `{ recurso:
   "dado.custo", nivel: "excluir" }` → erro em `excecoes`; `validarFuncao` com `tela.configuracoes.usuarios` → erro;
@@ -596,9 +654,9 @@ model SemeaduraDeAcessos {
   async (sessao) => ...)` e `revalidatePath("/configuracoes", "layout")`)
 - Criar: `src/app/configuracoes/usuarios/page.jsx` (`exigirAcessoNaPagina("tela.configuracoes.usuarios","ver")`;
   `?aba=usuarios|funcoes`, `?q=`, `?inativos=1`)
-- Criar: `src/components/acessos/AbasDeConfiguracoes.jsx` (reaproveitar `src/components/cadastros/Abas.jsx` se ela
-  aceitar abas por link; senão, o mesmo desenho: `border-b-2`, ativa `border-acento`), `TabelaUsuarios.jsx`,
-  `TabelaFuncoes.jsx`
+- Criar: `src/components/acessos/UsuariosEFuncoes.jsx` (componente de cliente que usa `BarraDeAbas` e `Painel` de
+  `src/components/cadastros/Abas.jsx`: as duas tabelas ficam montadas e só escondidas, a aba inicial vem de `?aba=` e a
+  troca grava `?aba=` com `router.replace` para o link ser compartilhável), `TabelaUsuarios.jsx`, `TabelaFuncoes.jsx`
 - Testar: só no navegador (componentes); as regras já estão testadas nas Tarefas 12 e 13
 
 Linha-guia (spec §5.3): o dono vê primeiro quem tem acesso e com qual função; a ação principal é "Adicionar usuário"
@@ -638,14 +696,27 @@ seta de campos (lançamento 3) e **sem** "Ver como" (lançamento 2).
   de um cartão com `"2"` devolve `null`; `permissoesParaEnvio` tira os `nenhum`; recurso gravado que não está no
   catálogo não aparece na matriz nem quebra `contarAlteracoes` (foco 4).
 - [ ] **Passo 2: ver falhar; implementar as puras; ver passar.**
-- [ ] **Passo 3: montar os componentes e as páginas.** O formulário envia `permissoes` como JSON num campo oculto
+- [ ] **Passo 3: montar os componentes** (primeiro commit: `feat(acessos): matriz de permissoes (regras puras e
+  componentes)`). **Desenho** (spec §5.4 e o "Guia de desenho das telas"): a matriz é um `Card` com `p-0` dividido em
+  `flex`: o trilho `w-[200px] shrink-0 border-r border-borda` com um `button` por grupo (`flex w-full items-center
+  justify-between px-3 py-2 text-sm`, ativo `bg-fundo font-medium`, à direita "3/4" em `tabular-nums text-xs
+  text-suave` e um ponto `h-1.5 w-1.5 rounded-full bg-acento` só com alteração); a lista `min-w-0 flex-1` com o
+  cabeçalho `sticky top-0 z-10 bg-superficie border-b border-borda` (a busca local, o `select` "todos desta lista" e
+  os títulos das colunas de nível, cada coluna `w-[72px] text-center text-xs text-suave`); cada linha `grid
+  grid-cols-[minmax(0,1fr)_repeat(4,72px)] items-center border-b border-borda/60 px-3`, sub-tela com `pl-6` e "›",
+  linha esmaecida (`opacity-50`) quando a tela-pai é `nenhum`; o `SeletorDeNivel` é `role="radiogroup"` com um
+  `role="radio"` por nível (`h-10 w-10 rounded-md`, marcado `bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300`,
+  foco `ring-acento`), coluna de nível que não vale para o tipo fica vazia; o rodapé `sticky bottom-0 border-t
+  border-borda bg-superficie px-4 py-2.5` só com alteração, com "N alterações não salvas" em `tabular-nums` à esquerda
+  e Cancelar + Salvar à direita. Administrador: tudo `disabled` e o selo no lugar do Salvar.
+- [ ] **Passo 4: montar o `FormularioFuncao` e as páginas.** O formulário envia `permissoes` como JSON num campo oculto
   (`permissoesParaEnvio`), o servidor valida com `validarFuncao`. Sair com alteração pede confirmação do navegador
   (`beforeunload`). Depois de salvar: `router.replace` para `/configuracoes/funcoes/<id>` no primeiro Salvar (molde do
   editor do ML).
-- [ ] **Passo 4: no navegador** a 1366 px: criar "ZZ Teste", marcar Produtos ver pelo teclado, "todos desta lista"
+- [ ] **Passo 5: no navegador** a 1366 px: criar "ZZ Teste", marcar Produtos ver pelo teclado, "todos desta lista"
   em Cadastros, buscar "custo", salvar, reabrir, excluir pelo popup. Revisão `make-interfaces-feel-better`
   (raio concêntrico dos segmentos, `transition-property` explícito, `sticky` sem salto).
-- [ ] **Passo 5: `npm run lint`; commit** `feat(acessos): formulario da funcao com a matriz de permissoes`.
+- [ ] **Passo 6: `npm run lint`; commit** `feat(acessos): formulario da funcao e as paginas de funcao`.
 
 ### Tarefa 16: O usuário
 
@@ -662,7 +733,8 @@ popup de destino de conversas (Entrega B).
   SSH", em minúsculas ao digitar; Assinatura com bolha; interruptor Ativo, desabilitado com o selo "Administrador pelo
   .env" quando `peloEnv`, ou com `title` "último administrador ativo") e a aba Acesso (Funções como caixas de marcação
   com nome, descrição e "12 de 31 telas"; Exceções como tabela compacta Recurso · Nível · lixeira, só quando há
-  alguma, com "Adicionar exceção" numa `Janela` com busca de recurso e `SeletorDeNivel`; a linha quieta "Sem função:
+  alguma, com "Adicionar exceção" numa `Janela` (`src/components/riseAi/Janela.jsx`, com `propsDoFundo`) com busca de recurso e
+  `SeletorDeNivel`; a linha quieta "Sem função:
   vê só o Painel vazio." some ao marcar uma). Erro do servidor leva à primeira aba com erro e põe o ponto vermelho no
   título (molde `FormularioCliente`).
 - [ ] **Passo 2: no navegador**: criar `zz-ac-andrea` com Atendimento, tentar salvar `pc` (recusa), tentar desativar o
@@ -716,7 +788,8 @@ popup de destino de conversas (Entrega B).
   3. Usuários e funções › Funções: Administrador (cadeado, abre em somente leitura) e Atendimento; abrir Atendimento e
      ver Produtos em `ver`, os sete dados sensíveis em `ver`, Rise AI › chat em `editar`.
   4. Criar a função "Teste" marcando Cadastros com "todos desta lista" em `ver`; Salvar; o rodapé some; reabrir.
-  5. Usuários: o próprio login com o selo "Administrador pelo .env" e o interruptor Ativo travado.
+  5. Usuários: o usuário `maicol` (criado pela semeadura a partir de `RISE_AI_ADMINS=maicol`, que entra no `.env` do PC
+     para este roteiro) com o selo "Administrador pelo .env" e o interruptor Ativo travado.
   6. Criar o usuário `andrea` (nome Andrea) com a função Atendimento; Salvar.
   7. No `.env` do PC, `RISE_SIMULAR_LOGIN=andrea`, reiniciar o servidor: o rodapé do menu diz "simulando andrea"; o
      menu não tem Configurações; `/configuracoes` dá 404; `/rise-ai/revisao` dá 404; o chat abre e, numa pergunta
@@ -757,3 +830,38 @@ popup de destino de conversas (Entrega B).
   6 → T4 e T5.
 - **Proporção:** o plano é menor que a spec que implementa; os blocos de código são o schema (o único artefato que o
   construtor não deduziria) e assinaturas.
+
+## Revisão inline (12/10/2026, à noite, sem subagentes)
+
+Revisão de código, arquitetura e segurança feita pela própria sessão sobre o plano, contra o código. O que mudou:
+
+1. **Entrada do bloco Rise AI:** `blocosOcultos` olhava uma "tela do bloco" que o Rise AI não tinha (só capacidades).
+   Entrou `tela.riseAi` como entrada, com as capacidades como filhas; o layout exige `tela.riseAi` ver e o chat
+   `riseAi.chat` (Tarefas 2, 3, 7, 8).
+2. **Escalada por exceção:** `validarUsuario` só conferia catálogo e nível; uma exceção em `tela.configuracoes.usuarios`
+   daria a tela de usuários a quem não é administrador. Agora a validação recusa recurso não delegável e
+   `resolverPermissoes` ignora qualquer linha gravada para ele (Tarefas 3 e 13).
+3. **`Abas.jsx` é por estado, não por link:** a tela Usuários e funções vira um componente de cliente com as duas
+   tabelas montadas e `?aba=` só como estado inicial e link compartilhável (Tarefa 14).
+4. **Ícone não atravessa servidor → cliente:** `ListaDeConversas` recebe `{ href, rotulo }` e resolve o ícone por
+   `href` dentro do componente (Tarefa 8).
+5. **`cartaoDoProduto` mora em `busca.js`**, não em `ferramentas/produtos.js` (Tarefa 9).
+6. **`detalheDeIntegracoes` precisa dos conectores** (o `Map` de conexões não lista os não configurados) e
+   `detalheDoRiseAi` precisa de `PROVEDORES` para o rótulo (Tarefa 11).
+7. **`peloEnv` lê `process.env` dentro da lib:** virou parâmetro `env` para o teste (Tarefa 12).
+8. **`Json?` nulo é `Prisma.DbNull`** na auditoria (Tarefa 13).
+9. **Roteiro do dono, passo 5:** no PC o login é "pc"; o selo "Administrador pelo .env" aparece no usuário `maicol`
+   criado pela semeadura com `RISE_AI_ADMINS=maicol` no `.env` do PC (Tarefa 18).
+10. **Regra do schema** explícita na Tarefa 1 (as duas outras pastas precisam de `git merge main` antes de migration).
+11. **A Tarefa 15 vira dois commits** (regras puras + componentes; formulário + páginas) e ganhou o desenho fechado da
+    matriz; o "Guia de desenho das telas" fixa componentes, escala, estados, textos e acabamento para as quatro telas.
+
+Conferido e ok: `cache()` do React é por requisição (layout e página dividem a leitura; nada vaza entre pedidos);
+`notFound()` chamado de dentro de uma função da página funciona em página e em layout; `register()` do
+`instrumentation.js` roda na partida, antes da primeira requisição, só no runtime Node; `--hostname 127.0.0.1` convive
+com `sistema-rise.localtest.me` (resolve para 127.0.0.1); `header_up` com `{env.NOME}` é sintaxe do Caddy 2 e o
+`request_header -X-Rise-Borda` global apaga o cabeçalho vindo de fora antes dos `handle`; o ramo público `@arquivos`
+nunca ganha o cabeçalho; sem a variável na VPS ninguém entra (nem o quebra-vidro, que precisa do login) e o deploy
+recusa antes de trocar os contêineres; `FOR UPDATE` na linha da função Administrador serializa o "último
+administrador"; a mensagem da ação recusada só nomeia o recurso que quem chamou já conhece; o teste só grava `zz-ac-*`
+e `ZZ-AC *` e devolve o que for do dono.
