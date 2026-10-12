@@ -169,6 +169,62 @@ try {
     conferir("o grupo da matriz leva o nome da tela de entrada", grupos.find((g) => g.grupo === "/rise-ai").rotulo, "Rise AI");
   }
 
+  // --- resolucao: o nivel efetivo de cada recurso (src/lib/acessos/resolucao.js) ---
+  {
+    const { resolverPermissoes, podeNo, blocosOcultos, contarLiberados } = await import("../src/lib/acessos/resolucao.js");
+    const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
+    const funcao = (...permissoes) => ({ permissoes: permissoes.map(([recurso, nivel]) => ({ recurso, nivel })) });
+    const excecao = (recurso, nivel) => ({ recurso, nivel });
+    const resolver = (funcoes, excecoes = [], administrador = false) => resolverPermissoes({ funcoes, excecoes, administrador });
+
+    conferir("o maior nivel entre as funcoes", resolver([funcao(["tela.produtos", "ver"]), funcao(["tela.produtos", "editar"])]).get("tela.produtos"), "editar");
+    conferir("a excecao vence a funcao, para menos", resolver([funcao(["tela.produtos", "editar"])], [excecao("tela.produtos", "nenhum")]).has("tela.produtos"), false);
+    conferir("a excecao vence a funcao, para mais", resolver([funcao(["tela.produtos", "ver"])], [excecao("tela.produtos", "excluir")]).get("tela.produtos"), "excluir");
+    const semTela = resolver([funcao(["tela.produtos.cadastro", "editar"], ["acao.produtos.sincronizarBling", "executar"], ["acao.produtos.gerarTextoComIA", "executar"])]);
+    conferir(
+      "tela nenhum derruba as sub-telas e as acoes dela, inclusive a acao da sub-tela",
+      ["tela.produtos.cadastro", "acao.produtos.sincronizarBling", "acao.produtos.gerarTextoComIA"].map((id) => semTela.has(id)),
+      [false, false, false],
+    );
+    const admin = resolver([], [], true);
+    conferir(
+      "administrador tem o maior nivel de cada tipo, delegavel ou nao",
+      ["tela.produtos", "dado.custo", "acao.vps.deploy", "tela.configuracoes.usuarios", "cartao.painel.produtos", "riseAi.revisao"].map((id) => admin.get(id)),
+      ["excluir", "editar", "executar", "excluir", "ver", "editar"],
+    );
+    conferir("administrador tem todos os recursos do catalogo", admin.size, RECURSOS.length);
+    conferir(
+      "recurso fora do catalogo e nivel invalido sao ignorados sem lancar",
+      [...resolver([funcao(["tela.naoExiste", "ver"], ["tela.produtos", "voar"], ["dado.custo", "excluir"])]).keys()],
+      [],
+    );
+    conferir(
+      "recurso nao delegavel gravado numa funcao ou excecao nao vale (so pelo administrador)",
+      [
+        resolver([funcao(["tela.configuracoes", "ver"], ["tela.configuracoes.usuarios", "editar"])]).has("tela.configuracoes.usuarios"),
+        resolver([funcao(["tela.configuracoes", "ver"])], [excecao("tela.configuracoes.usuarios", "excluir")]).has("tela.configuracoes.usuarios"),
+      ],
+      [false, false],
+    );
+    const custoEditar = resolver([funcao(["dado.custo", "editar"])]);
+    conferir(
+      "pode: editar inclui ver; ausente e nao; nivel pedido invalido e nao",
+      [podeNo(custoEditar, "dado.custo", "ver"), podeNo(custoEditar, "dado.custo", "editar"), podeNo(custoEditar, "dado.margem", "ver"), podeNo(custoEditar, "dado.custo", "voar"), podeNo(custoEditar, "dado.custo", "nenhum")],
+      [true, true, false, false, false],
+    );
+    const semRiseAi = resolver([funcao(["tela.configuracoes", "ver"], ["riseAi.chat", "editar"])]);
+    conferir("bloco cuja tela de entrada e nenhum fica oculto (e a capacidade some junto)", [blocosOcultos(semRiseAi, ["/rise-ai", "/configuracoes"]), semRiseAi.has("riseAi.chat")], [["/rise-ai"], false]);
+    conferir("bloco que nao tem tela de entrada no catalogo fica oculto (falha fechada)", blocosOcultos(admin, ["/naoExiste"]), ["/naoExiste"]);
+    const totalProdutos = RECURSOS.filter((recurso) => recurso.grupo === "/produtos" && recurso.delegavel).length;
+    conferir("contar os liberados de um grupo", contarLiberados(resolver([funcao(["tela.produtos", "ver"])]), "/produtos"), { liberados: 1, total: totalProdutos });
+    const totalTelas = RECURSOS.filter((recurso) => recurso.tipo === "tela" && recurso.delegavel).length;
+    conferir(
+      "contar as telas liberadas de todos os grupos",
+      contarLiberados(resolver([funcao(["tela.produtos", "ver"], ["tela.produtos.cadastro", "ver"], ["dado.custo", "ver"])]), null, { tipo: "tela" }),
+      { liberados: 2, total: totalTelas },
+    );
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
