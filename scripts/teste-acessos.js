@@ -106,6 +106,69 @@ try {
     conferir("apagar o usuario leva as excecoes", await prisma.excecaoDoUsuario.count({ where: { usuarioId: usuario.id } }), 0);
   }
 
+  // --- catalogo: a lista unica de recursos (src/lib/acessos/recursos.js) ---
+  {
+    const { RECURSOS, NIVEIS_POR_TIPO, NAO_DELEGAVEIS, ordemDoNivel, recursoPorId, validarNivel, gruposDaMatriz } = await import(
+      "../src/lib/acessos/recursos.js"
+    );
+    const { blocos } = await import("../src/lib/blocos.js");
+    const ids = RECURSOS.map((recurso) => recurso.id);
+    conferir("ids do catalogo sao unicos", ids.length === new Set(ids).size, true);
+    conferir("todo recurso tem um tipo conhecido", RECURSOS.filter((recurso) => !NIVEIS_POR_TIPO[recurso.tipo]).map((recurso) => recurso.id), []);
+    // Configuracoes entra no menu na Tarefa 10, no lugar de Integracoes, que vira cartao dentro dela.
+    const hrefs = new Set([...blocos.map((bloco) => bloco.href), "/configuracoes"]);
+    conferir(
+      "todo grupo e um bloco do menu ou os dados sensiveis",
+      RECURSOS.filter((recurso) => recurso.grupo !== "dados" && !hrefs.has(recurso.grupo)).map((recurso) => recurso.id),
+      [],
+    );
+    conferir("todo pai existe e vem antes do filho", RECURSOS.filter((recurso, i) => recurso.pai && (ids.indexOf(recurso.pai) < 0 || ids.indexOf(recurso.pai) > i)).map((recurso) => recurso.id), []);
+    const entradas = new Set(RECURSOS.filter((recurso) => recurso.tipo === "tela" && !recurso.pai).map((recurso) => recurso.grupo));
+    conferir(
+      "todo bloco do menu (menos Integracoes, que vira cartao) tem uma tela de entrada sem pai",
+      [...hrefs].filter((href) => href !== "/integracoes" && !entradas.has(href)),
+      [],
+    );
+    conferir("so Usuarios e funcoes nao e delegavel", NAO_DELEGAVEIS, ["tela.configuracoes.usuarios"]);
+    conferir(
+      "os sete dados sensiveis estao no grupo dos dados, com a dica de onde aparecem",
+      RECURSOS.filter((recurso) => recurso.grupo === "dados").map((recurso) => [recurso.id, Boolean(recurso.dica)]),
+      [
+        ["dado.custo", true],
+        ["dado.margem", true],
+        ["dado.localizacao", true],
+        ["dado.estoqueExato", true],
+        ["dado.concorrentes", true],
+        ["dado.pessoalDoCliente", true],
+        ["dado.financeiro", true],
+      ],
+    );
+    conferir(
+      "ids que as outras tarefas usam existem",
+      [
+        "tela.painel", "cartao.painel.produtos", "cartao.painel.anunciosPublicados", "tela.produtos", "tela.produtos.cadastro",
+        "acao.produtos.sincronizarBling", "acao.vps.deploy", "tela.riseAi", "riseAi.chat", "riseAi.revisao", "riseAi.conhecimento",
+        "riseAi.consumo", "riseAi.configuracoes", "tela.configuracoes", "tela.configuracoes.usuarios", "tela.integracoes",
+      ].filter((id) => !recursoPorId(id)),
+      [],
+    );
+    conferir("recurso que nao existe", recursoPorId("tela.naoExiste"), null);
+    conferir(
+      "niveis validos por tipo",
+      [validarNivel("tela.produtos", "excluir"), validarNivel("dado.custo", "excluir"), validarNivel("acao.vps.deploy", "executar"), validarNivel("acao.vps.deploy", "ver"), validarNivel("cartao.painel.produtos", "editar"), validarNivel("tela.naoExiste", "ver")],
+      [true, false, true, false, false, false],
+    );
+    conferir(
+      "ordem dos niveis (executar vale como ver; nivel desconhecido fica abaixo de tudo)",
+      ["nenhum", "ver", "executar", "editar", "excluir", "voar"].map(ordemDoNivel),
+      [0, 1, 1, 2, 3, -1],
+    );
+    const grupos = gruposDaMatriz();
+    conferir("a matriz termina nos dados sensiveis e nao tem grupo vazio", [grupos.at(-1).grupo, grupos.filter((g) => g.recursos.length === 0).length], ["dados", 0]);
+    conferir("a matriz nao mostra o que nao e delegavel", grupos.flatMap((g) => g.recursos).some((recurso) => !recurso.delegavel), false);
+    conferir("o grupo da matriz leva o nome da tela de entrada", grupos.find((g) => g.grupo === "/rise-ai").rotulo, "Rise AI");
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
