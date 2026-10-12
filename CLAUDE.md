@@ -102,6 +102,38 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
     `semAcento` no `teste-imagens`); código que reconhece mensagem por regex aceita as duas grafias
     (`/n[aã]o configurada/` em `integracoes/lojaintegrada.js`).
 
+**Padrão visual** (decidido pelo dono em 12/10/2026, depois de muitas correções pedidas tela a tela: "o Claude
+deixa a tela poluída e difícil de entender"). O Rise é uma ferramenta de uso diário: toda tela é **densa, silenciosa
+e escaneável**. Antes de desenhar uma tela ou janela nova, a sessão escreve UMA linha para si: "nesta tela o operador
+precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada regra abaixo veio de uma correção real.
+
+1. **Hierarquia:** uma ação principal por tela, em destaque; as demais em ícone, menu ou pop-up. Nunca três botões
+   do mesmo peso lado a lado.
+2. **Nada de texto explicativo fixo.** Instrução, ajuda e aviso de rotina vão para a bolha "i" (`BolhaDeAjuda`) ou
+   para o `title`; o parágrafo embaixo do campo não existe (Cadastros, 18/09). Aviso colorido só para erro real ou
+   para dinheiro/estoque; estado normal é cor e ícone, não frase (o aviso azul "campos preenchidos" foi retirado em
+   16/09: a cor verde já diz).
+3. **Rótulo diz o que faz:** botão com verbo + objeto ("Clonar a partir de um código"), no vocabulário do operador
+   ("Fontes", "Atualizar dados", "Características"); a explicação fica só na bolha. Nome de aba igual ao do cadastro
+   de Produto ("Peso e dimensões", "Tributação").
+4. **Mostrar só o que tem dado:** ícone, coluna ou caixa sem valor some (ícones de marca/peso/NCM do cadastro; a
+   caixa de reserva do fornecedor); coluna que repete o que a aba já diz sai (coluna "Fornecedor/Concorrente" em
+   Fontes).
+5. **Agrupar em abas, não empilhar:** formulário ou janela com mais de um assunto usa abas lado a lado (Cliente,
+   JanelaDescricao). Cartões empilhados e "resumo dos dois tipos lado a lado" foram recusados: a lista inteira de um
+   tipo por vez.
+6. **Página de bloco = cartões** (Ferramentas, Cadastros, Canais de Venda); dentro da tela, tabela paginada (100 por
+   página) com filtros compactos no topo.
+7. **Edição longa abre janela por cima** (prompt da descrição, texto grande), para a área principal manter o espaço.
+8. **Resposta ao clique é estado, não texto:** recusa vira botão desabilitado com o motivo no `title` e em uma linha;
+   botão nunca some sem dizer por quê (pop-up do Bling). Marcação precisa ser visível (verde `emerald`, não
+   `sky-50`, que sumia na tela).
+9. **Textos curtos**, com acento (regra acima). Rótulo de botão de aviso em uma palavra ("Sair / Salvar / Cancelar");
+   o destrutivo fica por último e sempre com pop-up listando os itens.
+10. **Revisão antes de entregar:** a sessão passa a tela por `ecc:make-interfaces-feel-better` (espaço, alinhamento,
+    estados de botão) e confere no navegador em largura de notebook. Tela nova segue o desenho anotado do dono, sem
+    acrescentar o que ele não pediu.
+
 ## Estado
 
 | Bloco | Situação |
