@@ -156,7 +156,13 @@ function galeriaDaTray(html, tray, urlBase) {
   //
   // A segunda forma pede numero depois do id de proposito: um hash como
   // "..._71ff6f9c..." nao pode ser confundido com o produto 71.
-  const doProduto = new RegExp(`^${id}_|_${id}_\\d+_`);
+  //
+  // NUMERO CURTO depois do id (Kalatec, 12/10/2026): a convencao nova da Tray e
+  // "{slug}_{indice}_{carimbo de 14 digitos}_{hash}", sem id nenhum, e numa loja cujo
+  // idProduct e 1 o "_1_" do INDICE casava com "_${id}_", e o carimbo casava com "\\d+":
+  // tres miniaturas de outros produtos (ventilador, rolamento, curso) entravam na
+  // galeria do motor de passo. Indice tem ate 3 digitos; carimbo tem 14.
+  const doProduto = new RegExp(`^${id}_|_${id}_\\d{1,3}_`);
 
   const achadas = [];
 
@@ -669,8 +675,20 @@ function especificacoesDeLista(texto) {
     /caracter[ií]sticas/i.test(linha) &&
     (ehTitulo(linha) || linha.split(/\s+/).length <= 3);
 
+  // "Caracteristicas do Motor de passo" (Kalatec, 12/10/2026): o titulo leva o NOME do
+  // produto, sem dois-pontos e em caixa normal, e a ficha (14 itens "- Nome: valor")
+  // vinha vazia. Vale so quando a linha COMECA pela palavra do vocabulario, e curta e a
+  // linha seguinte ja e item MARCADO: e a lista, e nao uma frase, que prova o titulo.
+  const proximaNaoVazia = (indice) => linhas.slice(indice + 1).find((linha) => linha) ?? "";
+  const ehSecaoComNome = (linha, indice) =>
+    linha.length < 60 &&
+    linha.split(/\s+/).length <= 8 &&
+    /^(especifica[cç][õo]es|ficha t[eé]cnica|dados t[eé]cnicos|caracter[ií]sticas)\b/i.test(linha) &&
+    /^\s*[-•*]\s/.test(proximaNaoVazia(indice));
+
   let inicio = linhas.findIndex(ehSecaoDeFicha);
   if (inicio === -1) inicio = linhas.findIndex(ehSecaoDeCaracteristicas);
+  if (inicio === -1) inicio = linhas.findIndex(ehSecaoComNome);
 
   // Sem secao de especificacoes, nao ha o que ler. Varrer o texto inteiro atras
   // de "rotulo: valor" parecia mais generoso e nao era: numa pagina real isso
@@ -2303,8 +2321,11 @@ export function normalizarPagina({
       )
     : juntas;
 
+  // A LISTA DA DESCRICAO SOMA a tabela, como a lista HTML ja somava (Mamute): na Kalatec
+  // a tabela traz 4 linhas (Modelo, Marca, Itens, Garantia) e a ficha de verdade, 14 itens,
+  // esta no texto da descricao; "tabela OU texto" deixava a ficha pela metade.
   const specifications = semLinhasDeCodigo(
-    semFichaDaLoja.length > 0 ? semFichaDaLoja : especificacoesDeLista(description),
+    juntarFichas(semFichaDaLoja, especificacoesDeLista(description)),
     identificadoresDeVariante,
   );
 

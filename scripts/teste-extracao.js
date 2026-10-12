@@ -2401,5 +2401,26 @@ console.log("\n— loja em outro dominio apontada pelo robots.txt —");
   conferir("robots: sem sitemaps", lojasApontadasPeloRobots(null, "x.com"), []);
 }
 
+// Kalatec (Tray, 12/10/2026): idProduct 1 casava o indice de toda foto da loja, e a ficha
+// "Caracteristicas do Motor de passo" (titulo com nome, sem dois-pontos) ficava de fora.
+console.log("\n— Tray (Kalatec): galeria com id pequeno e ficha com nome no titulo —");
+{
+  const htmlKalatec = `<html><head>
+<script type="application/ld+json">{"@type":"Product","name":"Motor de Passo Nema 23","sku":"1","image":"https://images.tcdn.com.br/img/img_prod/706232/motor_nema_23_1_20251016165327_254cce8d4585.jpg","description":"Motor de passo.","offers":{"price":"159.00","availability":"http://schema.org/InStock"}}</script>
+<script>dataLayer = [{"idProduct":"1","nameProduct":"Motor de Passo Nema 23","category":"Nema 23","price":"159.00","reference":"3939","availability":"YES"}];</script></head><body>
+<div itemscope itemtype="http://schema.org/Product"><h1 itemprop="name">Motor de Passo Nema 23</h1>
+<img src="https://images.tcdn.com.br/img/img_prod/706232/90_motor_nema_23_1_4_20190625140319.png">
+<img data-src="https://images.tcdn.com.br/img/img_prod/706232/180_rolamento_linear_kh2030_pp_1_20251031162739_ee8c27cf2d8d.jpg" alt="Rolamento Linear">
+<img data-src="https://images.tcdn.com.br/img/img_prod/706232/180_curso_de_clp_1_20251108181732_b581455112d6.jpg" alt="Curso">
+<table><tr><td>Modelo</td><td>KTC-HT23-400-K</td></tr><tr><td>Marca</td><td>Kalatec</td></tr></table>
+<div class="description"><p>Motor de passo de 19 Kg.cm.</p><p>Caracter&iacute;sticas do Motor de passo</p><p>- Motor de Passo Nema 23</p><p>- C&oacute;digo Kalatec: KTC-HT23-400-K</p><p>- Flange: 56,0mm</p><p>- Torque Est&aacute;tico Bipolar: 1.9Nm (19 Kgf.cm)</p><p>- Quantidade de Fios: 08</p></div>
+</div></body></html>`;
+  const k = normalizarPagina({ html: htmlKalatec, url: "https://loja.kalatec.com.br/motor-de-passo/motor-de-passo-2nm-nema23", fonte: "Kalatec" }).produtos[0];
+  const arquivos = k.images.map((u) => u.split("/").pop());
+  conferir("kalatec: miniaturas 180_ de outros produtos (indice _1_ + carimbo) ficam de fora", arquivos.some((a) => /rolamento|curso/.test(a)), false);
+  conferir("kalatec: a foto principal e a do proprio produto (_1_4_) ficam", [arquivos.some((a) => /^motor_nema_23_1_2025/.test(a)), arquivos.some((a) => /motor_nema_23_1_4_/.test(a))], [true, true]);
+  conferir("kalatec: ficha = tabela + lista da descricao com titulo com nome", k.specifications.map((l) => l.nome), ["Modelo", "Marca", null, "Código Kalatec", "Flange", "Torque Estático Bipolar", "Quantidade de Fios"]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
