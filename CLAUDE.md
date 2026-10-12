@@ -1431,6 +1431,7 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   junta pelo handle em `documentos` (e em `specifications`, se um dia a tabela em texto for preenchida; hoje vem só em
   imagem). Falha na base é aviso no teste, nunca erro: o catálogo vale sozinho. O "Amostra variada" do teste pula os endereços já mostrados (`evitar`) antes de tirar os três (o dono viu os mesmos três se repetirem em 11/10/2026). Cadastrar como CONCORRENTE pelo endereço
   do site público; resultado do teste é PARCIAL (sem EAN, NCM e características na maioria).
+- **Kalatec (12/10/2026): o endereço certo é `https://loja.kalatec.com.br/` (Tray, 186 produtos, teste PARCIAL como toda Tray).** O dono cadastrou `www.kalatec.com.br`, que é o site institucional em WordPress (o Rise chutou PrestaShop com confiança baixa e abriu 25 páginas sem produto). Como o robots.txt do site lista `Sitemap: https://loja.kalatec.com.br/sitemap.xml`, o teste ganhou o passo "Loja em outro endereço" e a frase "teste https://loja.kalatec.com.br/" na mensagem de falha (`lojasApontadasPeloRobots` em `sitemap.js`, pura; ignora o próprio host com ou sem `www` e o `blog.*`). Nenhuma mudança na coleta em si.
 - **Makerhero é lida pela Store API, não pela página** ("WooCommerce Store API" nas origens), e a API não traz o PIX.
   `colherWooCommerce` abre a página dos PRIMEIROS produtos, lê o "R$ X no PIX" do Simulador de Parcelas
   (`precosDoSimuladorWoo`) e aprende a regra da loja com a lógica da Tray (`aprenderRegraDePagamento` /

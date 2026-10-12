@@ -1,4 +1,4 @@
-import { buscarPagina, podeVisitar, ritmoPedido } from "./buscar";
+import { buscarPagina, podeVisitar, ritmoPedido, sitemapsDeclarados } from "./buscar";
 import { backendDoMagentoPwa, colherMagentoPwa } from "./magento-pwa";
 import { colherWooCommerce } from "./woocommerce";
 import { pareceListagem, pareceProduto, rastrear } from "./descobrir";
@@ -13,7 +13,7 @@ import {
 } from "./plataformas";
 import { lerAVista, novaMemoriaDePagamento } from "./pagamento";
 import { enderecoComparavel } from "./texto-html";
-import { descobrirSitemaps, lerSitemaps } from "./sitemap";
+import { descobrirSitemaps, lerSitemaps, lojasApontadasPeloRobots } from "./sitemap";
 
 /**
  * Colheita de produtos de uma fonte.
@@ -722,6 +722,13 @@ export async function colherProdutos({
     passos.push(passo("Extração concluída", true, [...formatos].join(", ") || "—"));
   }
 
+  // Site institucional com a loja em outro dominio (Kalatec: www = WordPress, loja.* = Tray): o
+  // robots.txt ja lido diz onde ela esta, e a mensagem de falha sugere o endereco certo.
+  const outrasLojas = achados() > 0 ? [] : lojasApontadasPeloRobots(await sitemapsDeclarados(alvo.origin), alvo.hostname);
+  if (outrasLojas.length > 0) {
+    passos.push(passo("Loja em outro endereço", false, `o robots.txt aponta ${outrasLojas.join(", ")}: teste esse endereço`));
+  }
+
   return {
     ok: achados() > 0,
     retomados,
@@ -734,7 +741,10 @@ export async function colherProdutos({
         : "Não foram encontrados produtos válidos. O site não publica JSON-LD, Microdata nem OpenGraph de produto nas páginas que abrimos." +
           (plataforma.id === "desconhecida"
             ? ""
-            : ` A loja roda em ${plataforma.nome}: ${plataforma.entrega.resumo}`),
+            : ` A loja roda em ${plataforma.nome}: ${plataforma.entrega.resumo}`) +
+          (outrasLojas.length > 0
+            ? ` O robots.txt deste site aponta a loja em outro endereço: teste https://${outrasLojas[0]}/.`
+            : ""),
     passos,
     produtos: encontrados.slice(0, limite),
     formatos: [...formatos],

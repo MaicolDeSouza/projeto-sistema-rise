@@ -2390,5 +2390,16 @@ console.log("\n— catalogo do Shopify por tras de site proprio (Prado) —");
   ], ["prado-automacao-industrial.myshopify.com", "prado-automacao-industrial.myshopify.com", "prado-automacao-industrial.myshopify.com", null]);
 }
 
+// Kalatec (12/10/2026): o site institucional aponta a loja em outro dominio pelo robots.txt.
+console.log("\n— loja em outro dominio apontada pelo robots.txt —");
+{
+  const { lojasApontadasPeloRobots } = await import("../src/lib/coleta/sitemap.js");
+  const sitemaps = ["https://www.kalatec.com.br/sitemap_index.xml", "https://loja.kalatec.com.br/sitemap.xml", "https://blog.kalatec.com.br/sitemap_index.xml", "lixo"];
+  conferir("robots: so a loja, sem o proprio site (com ou sem www) e sem o blog", lojasApontadasPeloRobots(sitemaps, "www.kalatec.com.br"), ["loja.kalatec.com.br"]);
+  conferir("robots: cadastrado sem www tambem", lojasApontadasPeloRobots(sitemaps, "kalatec.com.br"), ["loja.kalatec.com.br"]);
+  conferir("robots: sitemap no proprio dominio nao sugere nada", lojasApontadasPeloRobots(["https://www.eletrodex.net/sitemap.xml"], "www.eletrodex.net"), []);
+  conferir("robots: sem sitemaps", lojasApontadasPeloRobots(null, "x.com"), []);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

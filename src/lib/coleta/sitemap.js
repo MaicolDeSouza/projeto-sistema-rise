@@ -172,3 +172,25 @@ export async function lerSitemaps(
 }
 
 export const paraTeste = { conteudo, blocos, comoTexto };
+
+/**
+ * Lojas em OUTRO dominio que o robots.txt do site aponta (Kalatec, 12/10/2026): o dono cadastrou
+ * www.kalatec.com.br, que e o site institucional em WordPress, e o teste deu zero; o robots.txt
+ * dele lista `Sitemap: https://loja.kalatec.com.br/sitemap.xml`, que e a loja (Tray). Devolve os
+ * hosts diferentes do site, sem o blog e sem repetir, para a mensagem de falha sugerir o endereco.
+ * Pura.
+ */
+export function lojasApontadasPeloRobots(sitemaps, hostname) {
+  const semWww = (host) => String(host ?? "").toLowerCase().replace(/^www\./, "");
+  const proprio = semWww(hostname);
+  const hosts = new Set();
+  for (const endereco of sitemaps ?? []) {
+    try {
+      const host = semWww(new URL(endereco).hostname);
+      if (host && host !== proprio && !/^blog\./.test(host)) hosts.add(host);
+    } catch {
+      // Linha de sitemap que nao e endereco: ignorada.
+    }
+  }
+  return [...hosts];
+}
