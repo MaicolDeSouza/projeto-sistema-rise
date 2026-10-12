@@ -114,7 +114,7 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 | Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
-| Rise AI | Assistente de atendimento (Entrega 1, pronta e **ainda sem deploy**): a equipe cola a pergunta de um cliente e recebe o texto pronto para copiar, com preço, estoque e link da loja. Modelo local (LM Studio, no PC do dono) como padrão e a API da Anthropic como reserva; conversas guardadas; 👎 vira sugestão de correção que o **dono** aprova; Revisão do dia, Configurações e Consumo para administradores. Ver "Rise AI (Entrega 1)" |
+| Rise AI | Assistente de atendimento (Entrega 1, pronta e **ainda sem deploy**): a equipe cola a pergunta de um cliente e recebe o texto pronto para copiar, com preço, estoque e link da loja. Feito para modelo local (LM Studio) como padrão e a API da Anthropic como reserva, mas o modelo local não serve no notebook do dono (medido em 11/10/2026): na prática a Anthropic é o Padrão; conversas guardadas; 👎 vira sugestão de correção que o **dono** aprova; Revisão do dia, Configurações e Consumo para administradores. Ver "Rise AI (Entrega 1)" |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
 **A publicação nunca foi ligada.** `ML_PUBLICACAO`, `BLING_ESCRITA` e `LI_ESCRITA` estão em `false`, e
@@ -3447,14 +3447,21 @@ o LM Studio para a internet).
 **Para pôr no ar (só com o "sobe" e o ok do dono; nada foi mudado na VPS)**
 1. `.env` da VPS (por SSH, arquivo temporário, nunca no texto do comando): `RISE_AI_ADMINS=<usuário do dono no Tinyauth>`,
    `ESTOQUE_AUTOMATICO_BLING=true`; o usuário da esposa em `TINYAUTH_AUTH_USERS`.
-2. `sshd`: `GatewayPorts clientspecified` (`sudo sshd -t && sudo systemctl reload ssh`) e o firewall deixar a rede dos
-   contêineres chegar à ponte: `sudo ufw allow from 172.16.0.0/12 to 172.17.0.1 port 1234 proto tcp` (o `ufw` já nega o resto).
-3. Deploy normal pelo cartão "Atualizar a VPS": aplica a migration (com backup antes) e o `extra_hosts` do compose.
-4. No PC: LM Studio com o servidor local ligado e `npm run ia:pc` aberto. Na tela Configurações da VPS: Testar conexão do
-   LM Studio (`http://host.docker.internal:1234/v1`), habilitar o modelo e escolhê-lo como Padrão.
-5. **A medir pelo dono:** `npm run medir:lmstudio -- --modelo=<id>` (o LM Studio não estava no ar quando a Entrega foi
-   fechada, então o tempo até o primeiro token e os tokens/s do modelo dele não foram medidos; o padrão de 45 s da spec é aposta).
-6. No dia seguinte, conferir no `LogIntegracao` que o `POST /oauth/token` do Bling aparece no máximo uma vez por renovação.
+2. Deploy normal pelo cartão "Atualizar a VPS": aplica a migration (com backup antes) e o `extra_hosts` do compose.
+3. Na tela Configurações da VPS, o dono escolhe a **Anthropic (`claude-haiku-5-5`) como Padrão** (decisão de 11/10/2026, abaixo).
+   O padrão de fábrica do código continua "LM Studio padrão + Anthropic reserva", de propósito (o dono pediu para não mudar o
+   código): sem essa escolha, toda resposta sai pela reserva, com a faixa azul.
+4. No dia seguinte, conferir no `LogIntegracao` que o `POST /oauth/token` do Bling aparece no máximo uma vez por renovação.
+5. **Só se um dia houver modelo local** num PC que aguente: `sshd` com `GatewayPorts clientspecified` (`sudo sshd -t && sudo
+   systemctl reload ssh`) e `sudo ufw allow from 172.16.0.0/12 to 172.17.0.1 port 1234 proto tcp`; no PC, `npm run ia:pc`; na
+   tela, Testar conexão do LM Studio (`http://host.docker.internal:1234/v1`), habilitar o modelo e escolhê-lo como Padrão.
+
+**O modelo local NÃO serve no notebook do dono (medido em 11/10/2026, com o ok dele):** LM Studio 0.4.26 e o
+Qwen3-4B-Instruct-2507 (Q4_K_M, 2,5 GB, 16k de contexto) num i7-1355U com vídeo integrado Iris Xe e 16 GB. O motor Vulkan
+2.55 cai na GPU (`vk::Queue::submit: ErrorDeviceLost`); o 2.54 funciona, mas escreve ~3,5 tokens/s (uma frase em 11–13 s); só
+o processador é pior (24–59 s para a mesma frase). Uma pergunta do tamanho do Rise (~6 mil tokens de prompt) passou de 5
+minutos sem a primeira palavra, na bateria e na tomada, e o motor caiu de novo. Decisão do dono: "não vale a pena". O LM
+Studio ficou instalado e desligado (não inicia com o Windows). Modelo local só num PC com placa de vídeo dedicada.
 
 **Em aberto (decidir):** excluir uma conversa APAGA de verdade (a esposa poderia apagar o que o dono quer ler: considerar
 esconder em vez de apagar); `effort: "low"` fixo no adaptador da Anthropic; o formulário de Configurações guarda valores
