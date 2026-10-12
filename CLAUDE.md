@@ -4290,56 +4290,23 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
 
 ## Trabalho em paralelo: worktrees
 
-Desde 18/09/2026 o dono trabalha em **duas sessões ao mesmo tempo**, cada uma no seu **worktree**
-(uma segunda cópia da pasta, ligada ao mesmo histórico do git, com branch própria). O que uma
-sessão edita não aparece na outra até o merge.
+**As worktrees `sistema-rise-agente-1` e `sistema-rise-agente-2` foram removidas em 12/10/2026** (pedido do dono: não
+usa mais as duas frentes "Agente 1" e "Agente 2"). Os branches `agente-1` e `agente-2` foram apagados aqui e no GitHub;
+todo o trabalho deles já estava na `main`. O `dados/` de cada uma era um atalho (junction) para o `dados/` desta pasta:
+**o atalho foi tirado antes de apagar as pastas**, e os arquivos de verdade ficaram (1.567 antes e depois). As duas
+entradas `agente-*` do `launch.json` da pasta de cima também saíram.
 
-**"Agente 1" e "Agente 2" são o nome que o dono dá às duas FRENTES de trabalho (as duas
-sessões), não a agentes de nuvem nem a subagentes.** O nome não diz a área: a área de cada uma é
-combinada a cada vez (até 18/09/2026, Agente 1 = Produtos e Agente 2 = Cadastros). Era
-`produtos`/`cadastros` no primeiro dia; renomeado a pedido dele no mesmo dia.
+Hoje há **uma pasta só** (`sistema-rise`, branch `main`), e várias sessões do Claude podem trabalhar nela ao mesmo tempo:
 
-| Pasta (em `C:\00-Dev\Projeto_sistema_Rise\`) | Branch | Frente | Servidor |
-| --- | --- | --- | --- |
-| `sistema-rise` | `main` | integração: merges, testes finais, **worker** | livre (usar 3002) |
-| `sistema-rise-agente-1` | `agente-1` | frente 1 (hoje: Produtos, anúncios) | **3000** (`sistema-rise`) |
-| `sistema-rise-agente-2` | `agente-2` | frente 2 (hoje: Cadastros) | **3001** (`sistema-rise-3001`) |
-
-**Perguntas que ele já fez, com a resposta:**
-
-- **Quem altera o banco?** As duas podem, **uma de cada vez** (regra do schema, abaixo). Não há
-  uma frente "dona" do banco.
-- **Uma sessão depende da outra?** Não para trabalhar: cada uma edita, roda e testa sozinha. Só
-  se encontram no banco (regra do schema) e no merge final.
-- **Mudar na frente 1 altera o Rise da frente 2?** O **código não**: são pastas e branches
-  separadas, e só chega lá com o merge na `main` seguido de `git merge main` na outra. O **banco
-  e o `dados/` SIM**, na hora: são um só. O que uma frente grava aparece na outra, e uma migration
-  aplicada muda o banco das duas (a outra só não conhece as tabelas novas no código).
-
-- **O que é copiado e o que é compartilhado:** `.env` e `certificates/` são **cópias** (o git os
-  ignora). O `ENCRYPTION_KEY` do `.env` tem que ser o mesmo nas três pastas, senão os tokens
-  cifrados no banco viram lixo. `dados/` é um **atalho (junction) para o mesmo `dados/`**: o banco
-  é um só, e as imagens de produto e os originais de fornecedor que ele aponta têm que ser os
-  mesmos arquivos. `node_modules` e `src/generated` são de cada pasta (`npm ci` em cada uma).
-- **A porta 3000 é da frente 1** (que hoje cuida de Produtos e anúncios) porque o OAuth do
-  Mercado Livre depende dela. Quem usa
-  a 3001 (`launch.json` → `sistema-rise-3001`) não consegue refazer OAuth, mas o resto funciona.
-- **REGRA DO SCHEMA — o banco é um só e o `migrate diff` compara o banco VIVO com o schema da
-  sua pasta.** Se a sessão A aplicou uma migration e a B ainda não tem o schema dela, o diff da B
-  propõe **`DROP TABLE` das tabelas novas da A**. Portanto: (1) **só uma sessão mexe no schema por
-  vez**; (2) a que terminou faz o merge na `main`; (3) a outra faz `git merge main` **antes** de
-  gerar a migration dela; (4) depois de qualquer migration, `npx prisma generate` e **reiniciar o
-  servidor** nas outras pastas. Conferir o SQL do diff antes de aplicar (já pede edição à mão por
-  causa dos índices que só existem no SQL).
-- **Worker só sobe da pasta principal (`main`)**: ele roda o código da pasta onde foi iniciado, e
-  dois workers disputariam a fila (o segundo sai com código 3). Mudança em `src/lib/coleta/*` só
-  vale no worker depois de chegar à `main` e ele ser reiniciado.
-- **CLAUDE.md:** cada sessão escreve só na seção da sua frente, para o merge não gerar conflito.
-- **Cruzamentos das duas frentes**, feitos por UMA sessão só depois de a outra ter feito o merge:
-  o campo Marca do produto usando o cadastro de Marcas, `ProdutoConcorrente.concorrenteId`, e o
-  fornecedor do produto lendo o cadastro de Fornecedores.
-- **Ritual de fim de sessão:** cada sessão commita e dá push na **sua** branch; o merge na `main`
-  é feito na pasta principal.
+- **Cada sessão commita só os próprios arquivos**, depois de conferir o `git status` (outra sessão pode ter o mesmo
+  arquivo alterado; no `CLAUDE.md`, commitar só o próprio trecho e conferir o HEAD depois).
+- **Regra do schema:** o banco é um só e o `migrate diff` compara o banco VIVO com o schema; **só uma sessão mexe no
+  schema por vez**, e depois de uma migration o `db.js` recria o client sozinho (reiniciar o servidor se a tela disser
+  "banco indisponível").
+- **Worker: um por vez** (a trava do Postgres garante; o segundo sai com código 3).
+- Se um dia voltar a trabalhar com worktrees, o desenho antigo está no histórico deste arquivo (antes de 12/10/2026):
+  `.env` e `certificates/` copiados, `dados/` como atalho para o mesmo `dados/`, porta 3000 para quem refaz OAuth, e
+  **tirar o atalho antes de apagar a pasta** (apagar a pasta com o atalho dentro pode apagar o `dados/` de verdade).
 
 ## Trabalhando neste projeto
 
