@@ -270,6 +270,38 @@ try {
     conferir("ultimo acesso: grava a cada 10 minutos", [precisaGravarAcesso(null, agora), precisaGravarAcesso(new Date(agora - 9 * 60000), agora), precisaGravarAcesso(new Date(agora - 11 * 60000), agora)], [true, false, true]);
   }
 
+  // --- involucro: toda Server Action passa por aqui (src/lib/acessos/involucro.js, puro) ---
+  {
+    const { executarComSessao } = await import("../src/lib/acessos/involucro.js");
+    const { ErroDeAcesso } = await import("../src/lib/acessos/erros.js");
+    const { ErroDeUso } = await import("../src/lib/riseAi/erros.js");
+    const sessaoQuePode = async () => ({ login: "zz-ac-um", pode: () => true });
+    const sessaoQueNaoPode = async () => ({ login: "zz-ac-um", pode: () => false });
+    const errosNoConsole = [];
+    const consoleOriginal = console.error;
+    console.error = (...partes) => errosNoConsole.push(partes.join(" "));
+    try {
+      conferir("pode: devolve ok e o que o trabalho devolveu", await executarComSessao(sessaoQuePode, "riseAi.revisao", "ver", async () => ({ x: 1 })), { ok: true, x: 1 });
+      let rodou = false;
+      conferir(
+        "nao pode: recusa com o nome do recurso, sem rodar o trabalho",
+        [await executarComSessao(sessaoQueNaoPode, "riseAi.revisao", "ver", async () => { rodou = true; return {}; }), rodou],
+        [{ ok: false, erro: "Sem permissão para Rise AI › Revisão do dia." }, false],
+      );
+      conferir("erro de uso vira a mensagem", await executarComSessao(sessaoQuePode, "riseAi.chat", "editar", async () => { throw new ErroDeUso("Conversa não encontrada."); }), { ok: false, erro: "Conversa não encontrada." });
+      conferir("erro de acesso lancado dentro do trabalho tambem recusa", await executarComSessao(sessaoQuePode, "riseAi.chat", "editar", async () => { throw new ErroDeAcesso("dado.custo", "ver"); }), { ok: false, erro: "Sem permissão para Custo e fornecedores." });
+      conferir(
+        "defeito nosso vira o aviso generico e vai para o log",
+        [await executarComSessao(sessaoQuePode, "riseAi.chat", "editar", async () => { throw new TypeError("x is undefined"); }), errosNoConsole.length],
+        [{ ok: false, erro: "Não foi possível concluir agora. Tente de novo em instantes." }, 1],
+      );
+      conferir("um ok:false do trabalho vence o ok:true", await executarComSessao(sessaoQuePode, "riseAi.chat", "editar", async () => ({ ok: false, erro: "y" })), { ok: false, erro: "y" });
+      conferir("falha ao montar a sessao vira o aviso generico", (await executarComSessao(async () => { throw new Error("banco"); }, "riseAi.chat", "ver", async () => ({}))).ok, false);
+    } finally {
+      console.error = consoleOriginal;
+    }
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
