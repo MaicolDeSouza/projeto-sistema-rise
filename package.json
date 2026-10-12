@@ -50,7 +50,8 @@
     "teste:fila-pc": "node scripts/teste-fila-pc.js",
     "teste:vps": "node scripts/teste-vps.js",
     "teste:rise-ai": "node scripts/teste-rise-ai.js",
-    "teste:acessos": "node scripts/teste-acessos.js"
+    "teste:acessos": "node scripts/teste-acessos.js",
+    "acessos:admin": "node scripts/acessos-admin.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

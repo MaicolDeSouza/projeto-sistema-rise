@@ -302,6 +302,52 @@ try {
     }
   }
 
+  // --- semeadura: Administrador e Atendimento na partida, e o acessos:admin (src/lib/acessos/semeadura.js) ---
+  {
+    const { PERMISSOES_DA_ATENDIMENTO, semearAcessos, promoverAdministrador } = await import("../src/lib/acessos/semeadura.js");
+    const { validarNivel, recursoPorId } = await import("../src/lib/acessos/recursos.js");
+    // Nomes e chave de teste: a semeadura de verdade (Administrador, Atendimento, "atendimento") nunca e tocada aqui.
+    // Chave propria: o bloco do banco, acima, ja deixou "zz-ac-atendimento" gravada (e a semeadura a respeitaria).
+    const opcoes = { nomes: { administrador: "ZZ-AC Administrador", atendimento: "ZZ-AC Atendimento" }, chaves: { atendimento: "zz-ac-semeadura" } };
+    const env = { RISE_AI_ADMINS: "ZZ-AC-Dono, pc" };
+
+    conferir("permissoes da Atendimento sao todas validas e delegaveis", PERMISSOES_DA_ATENDIMENTO.filter(({ recurso, nivel }) => !validarNivel(recurso, nivel) || !recursoPorId(recurso).delegavel), []);
+    const nivelDe = (id) => PERMISSOES_DA_ATENDIMENTO.find((p) => p.recurso === id)?.nivel ?? "nenhum";
+    conferir(
+      "Atendimento: chat do Rise AI, Produtos e custo em ver; nada de acao, Revisao ou Configuracoes",
+      [nivelDe("tela.riseAi"), nivelDe("riseAi.chat"), nivelDe("tela.produtos"), nivelDe("dado.custo"), nivelDe("riseAi.revisao"), nivelDe("tela.configuracoes"), PERMISSOES_DA_ATENDIMENTO.some((p) => p.recurso.startsWith("acao."))],
+      ["ver", "editar", "ver", "ver", "nenhum", "nenhum", false],
+    );
+
+    const primeira = await semearAcessos({ prisma, env, ...opcoes });
+    const atendimento = await prisma.funcaoRise.findUnique({ where: { nome: "ZZ-AC Atendimento" }, include: { permissoes: true } });
+    const administrador = await prisma.funcaoRise.findUnique({ where: { nome: "ZZ-AC Administrador" } });
+    const dono = await prisma.usuarioRise.findUnique({ where: { login: "zz-ac-dono" }, include: { funcoes: true } });
+    conferir(
+      "primeira semeadura: Administrador fixa, Atendimento com as permissoes, o login do .env (reservado de fora) com Administrador",
+      [administrador.fixa, atendimento.permissoes.length, primeira.atendimentoCriada, primeira.usuariosCriados, dono.funcoes.map((f) => f.funcaoId)],
+      [true, PERMISSOES_DA_ATENDIMENTO.length, true, ["zz-ac-dono"], [administrador.id]],
+    );
+    const segunda = await semearAcessos({ prisma, env, ...opcoes });
+    conferir("segunda semeadura nao cria nada", [segunda.atendimentoCriada, segunda.usuariosCriados, segunda.administradorId], [false, [], administrador.id]);
+    await prisma.funcaoRise.delete({ where: { id: atendimento.id } });
+    await prisma.usuarioFuncao.deleteMany({ where: { usuarioId: dono.id } });
+    const terceira = await semearAcessos({ prisma, env, ...opcoes });
+    conferir(
+      "a Atendimento excluida nao renasce, e a funcao tirada do usuario nao volta",
+      [terceira.atendimentoCriada, await prisma.funcaoRise.count({ where: { nome: "ZZ-AC Atendimento" } }), await prisma.usuarioFuncao.count({ where: { usuarioId: dono.id } })],
+      [false, 0, 0],
+    );
+
+    await prisma.usuarioRise.update({ where: { id: dono.id }, data: { ativo: false } });
+    const promovido = await promoverAdministrador({ prisma, login: " ZZ-AC-Dono ", nomeAdministrador: "ZZ-AC Administrador" });
+    const depois = await prisma.usuarioRise.findUnique({ where: { id: dono.id }, include: { funcoes: true } });
+    conferir("acessos:admin reativa e liga a Administrador", [promovido.criado, depois.ativo, depois.funcoes.map((f) => f.funcaoId)], [false, true, [administrador.id]]);
+    const novo = await promoverAdministrador({ prisma, login: "zz-ac-novo", nomeAdministrador: "ZZ-AC Administrador" });
+    conferir("acessos:admin cria quem nao existe", [novo.criado, await prisma.usuarioFuncao.count({ where: { usuario: { login: "zz-ac-novo" }, funcaoId: administrador.id } })], [true, 1]);
+    conferir("acessos:admin recusa login reservado ou vazio", [await codigoDoErro(promoverAdministrador({ prisma, login: "pc", nomeAdministrador: "ZZ-AC Administrador" })), await codigoDoErro(promoverAdministrador({ prisma, login: "  ", nomeAdministrador: "ZZ-AC Administrador" }))], ["Este login não pode ser usado.", "Informe o login."]);
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;

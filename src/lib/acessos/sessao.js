@@ -56,15 +56,18 @@ export function loginDaRequisicao(cabecalhos, env) {
   return { ambiente, login, motivo: null };
 }
 
-/** O login esta em `RISE_AI_ADMINS`? E o quebra-vidro: vale sempre, alem da tabela (spec §4). */
-export function quebraVidro(login, env) {
-  const procurado = normalizarLogin(login);
-  if (!procurado) return false;
+/** Os logins de `RISE_AI_ADMINS`, normalizados, sem vazios e sem os reservados. A semeadura e o quebra-vidro leem daqui. */
+export function loginsAdministradores(env) {
   return String(env?.RISE_AI_ADMINS ?? "")
     .split(",")
     .map(normalizarLogin)
-    .filter(Boolean)
-    .includes(procurado);
+    .filter((login) => login && !LOGINS_RESERVADOS.includes(login));
+}
+
+/** O login esta em `RISE_AI_ADMINS`? E o quebra-vidro: vale sempre, alem da tabela (spec §4). */
+export function quebraVidro(login, env) {
+  const procurado = normalizarLogin(login);
+  return Boolean(procurado) && loginsAdministradores(env).includes(procurado);
 }
 
 /**
