@@ -723,6 +723,102 @@ model SugestaoIA {
 }
 
 // ---------------------------------------------------------------------------
+// Acessos (spec docs/superpowers/specs/2026-10-12-acessos-design.md)
+// ---------------------------------------------------------------------------
+//
+// Quem entra no Rise continua sendo decidido pelo login (Tinyauth); aqui se decide o que cada pessoa VE e EDITA.
+// Os recursos (telas, dados sensiveis, cartoes, acoes) e os niveis validos de cada um moram em codigo
+// (src/lib/acessos/recursos.js): por isso `recurso` e `nivel` sao texto, e nao enum. Um recurso que sai do catalogo
+// numa versao seguinte fica gravado, mas a resolucao o ignora.
+
+/// Uma pessoa que usa o Rise. `login` e o do Tinyauth, em minusculas e aparado (normalizarLogin): e a chave que o
+/// Remote-User encontra. Inativo vale como "nao cadastrado" em todo lugar; nao ha exclusao (spec, revisao 2).
+model UsuarioRise {
+  id             String    @id @default(cuid())
+  login          String    @unique
+  nome           String
+  /// O nome que assina as respostas no WhatsApp (Entrega B do agente).
+  assinatura     String?
+  /// O chat do Telegram vinculado (Entrega C do agente): um chat so liga a um usuario.
+  telegramChatId String?   @unique
+  ativo          Boolean   @default(true)
+  criadoEm       DateTime  @default(now())
+  /// Gravado no maximo a cada 10 minutos, sem segurar a requisicao.
+  ultimoAcessoEm DateTime?
+
+  funcoes  UsuarioFuncao[]
+  excecoes ExcecaoDoUsuario[]
+}
+
+/// Um conjunto de permissoes com nome ("Atendimento"). O que a funcao nao lista e `nenhum`.
+model FuncaoRise {
+  id           String   @id @default(cuid())
+  nome         String   @unique
+  descricao    String?
+  /// Administrador: ve e edita tudo, nao se apaga nem se edita.
+  fixa         Boolean  @default(false)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  permissoes PermissaoDaFuncao[]
+  usuarios   UsuarioFuncao[]
+}
+
+model PermissaoDaFuncao {
+  id       String     @id @default(cuid())
+  funcaoId String
+  funcao   FuncaoRise @relation(fields: [funcaoId], references: [id], onDelete: Cascade)
+  /// Id do catalogo (src/lib/acessos/recursos.js).
+  recurso  String
+  /// nenhum | ver | editar | excluir | executar, conforme o tipo do recurso.
+  nivel    String
+
+  @@unique([funcaoId, recurso])
+}
+
+model UsuarioFuncao {
+  usuarioId String
+  usuario   UsuarioRise @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  funcaoId  String
+  funcao    FuncaoRise  @relation(fields: [funcaoId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, funcaoId])
+}
+
+/// Um nivel pessoal que vence o das funcoes (para mais ou para menos).
+model ExcecaoDoUsuario {
+  id        String      @id @default(cuid())
+  usuarioId String
+  usuario   UsuarioRise @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  recurso   String
+  nivel     String
+
+  @@unique([usuarioId, recurso])
+}
+
+/// Quem mudou o que, com o antes e o depois. Nunca guarda segredo (token, chave): so o que a tela mostra.
+model AuditoriaDeAcesso {
+  id     String   @id @default(cuid())
+  quando DateTime @default(now())
+  /// O login de quem fez a mudanca.
+  quem   String
+  /// "usuario.salvar", "usuario.desativar", "funcao.salvar", "funcao.excluir", "riseAi.configuracoes"...
+  oQue   String
+  /// O id do usuario ou da funcao; "configuracao" para o Rise AI.
+  alvo   String
+  antes  Json?
+  depois Json?
+
+  @@index([alvo, quando])
+}
+
+/// Marca do que a semeadura da partida ja fez uma vez: a funcao Atendimento nao renasce depois de excluida.
+model SemeaduraDeAcessos {
+  chave   String   @id
+  feitaEm DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
 // Fornecedores
 // ---------------------------------------------------------------------------
 
