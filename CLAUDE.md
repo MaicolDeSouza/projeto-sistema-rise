@@ -3500,6 +3500,29 @@ Studio ficou instalado e desligado (não inicia com o Windows). Modelo local só
 esconder em vez de apagar); `effort: "low"` fixo no adaptador da Anthropic; o formulário de Configurações guarda valores
 iguais ao padrão de fábrica ao salvar (uma melhoria futura de um limite do código não chega a quem já salvou).
 
+### Fase 2 (specs aprovadas em 12/10/2026, NADA construído ainda)
+
+Brainstorming de 12/10/2026 a partir de um tutorial de agente de WhatsApp. **Duas specs aprovadas pelo dono**, depois de
+uma revisão de segurança e uma de arquitetura (consolidado e decisões em
+`docs/superpowers/investigacoes/2026-10-12-revisao-specs-rise-ia-acessos.md`):
+- `docs/superpowers/specs/2026-10-12-acessos-design.md`: **Acessos**, para o Rise inteiro: funções, usuários (login do
+  Tinyauth + funções + exceções), permissões por tela, por **dado sensível transversal** (custo, margem, localização...),
+  por campo (todo campo nasce "ver") e por cartão do Painel; bloco **Configurações** (cartões Usuários e funções,
+  Integrações, Rise IA, como links para as rotas de hoje); tudo conferido no servidor, inclusive ações de leitura e rotas
+  `/api/*`; Salvar nunca apaga campo que a pessoa não edita. Três lançamentos; o 1.º (núcleo + Rise IA) vem antes de tudo.
+- `docs/superpowers/specs/2026-10-12-rise-ia-agente-design.md`: **o agente**: chat fluido com Parar e anexos (imagem,
+  áudio, PDF, XLSX/CSV, DOCX; XLS fora), internet por interruptor só no chat interno, dois orçamentos (R$ 70 clientes /
+  R$ 30 interno, PTAX), documentos de ensino (sem pgvector), Telegram só do dono com ações **só por botão**, WhatsApp pela
+  **Evolution API** (contêiner próprio, redes separadas, serviço `ia` separado do worker, IA no primeiro atendimento 24 h,
+  "Assistente 4hobby", caixa de entrada com Andrea e Maicol, a IA nunca retoma sozinha), produto e anúncio automáticos
+  (revisão pendente → **Conferido** → rascunhos ML/LI → o dono publica), métricas quando o Pedidos existir. GPT-4.1 mini
+  principal, Haiku 5.5 reserva. Chat na loja da LI descartado.
+- **Ordem confirmada:** subir a Entrega 1 (com a Anthropic como Padrão) → Acessos lançamento 1 → A (chat) → C1 (avisos
+  Telegram) → B (WhatsApp) → C2 (bot) → E (produto/anúncio) → D (métricas). **Pré-requisitos do dono:** conta/chave da
+  OpenAI; 2.º fator do Tinyauth antes de C e B; dump do backup criptografado antes de B; ok para os contêineres `ia` e
+  `evolution` e as redes separadas; desligar as mensagens automáticas do WhatsApp Business na virada.
+- **Próximo passo:** plano do lançamento 1 de Acessos com `superpowers:writing-plans`, execução inline, uma frente só.
+
 ## Decisões de arquitetura
 
 - **Produtos é o cadastro base.** Todo anúncio deriva dele. O `Anuncio` guarda só o que é
