@@ -68,7 +68,7 @@ pela API Responses; ordem com a Entrega 1 no ar antes.
 As specs foram refeitas com o plugin de UI/UX (Acessos §5 e agente §5a) e ganharam o bloco "Contra bot" (agente §9).
 Duas revisões novas, as duas em Claude Opus 5.5: **segurança** (12 achados) e **código e arquitetura** (15 achados),
 lendo as specs, a spec da Entrega 1 e o código. Abaixo o consolidado, agrupado por assunto, com a correção
-recomendada. **Nada disto entrou nas specs ainda**: espera a decisão do dono (seção "Decisões" no fim).
+recomendada. **Tudo entrou nas specs na mesma noite**, com as sete decisões aprovadas pelo dono ("Opção 1"); cada trecho está marcado "revisão 2".
 
 ## A. Entrega E: a revisão da IA no produto (os dois revisores)
 
@@ -252,9 +252,9 @@ abas do Produto batem; `ConfiguracaoIA` comporta os grupos novos; `Conexao.servi
 `MensagemIA.papel`, `avisos` e `estruturado` existem; `ConhecimentoIA.visibilidade` já é o interno/público; a rota
 `conversar` confere `Origin` com `envioDoProprioRise`; os nomes `teste:*` seguem o padrão.
 
-## Decisões (esperando o dono)
+## Decisões (aprovadas pelo dono, "Opção 1")
 
-Tudo acima é recomendado para entrar nas specs. Os pontos que mudam uma decisão anterior dele ou têm custo próprio:
+Tudo acima entrou nas specs. Os pontos que mudam uma decisão anterior dele ou têm custo próprio:
 (a) **Excluir usuário sai; só Desativar** (item 20); (b) **tetos novos contra bot**: R$ 7 por dia no canal e R$ 0,50 por
 contato nas primeiras 24 h, e o 16.º contato da hora não vira suspeito (itens 6 e 7); (c) **Acessos L2 entra na ordem
 antes da B** (item 28); (d) **na B os avisos do Telegram só têm o link "Abrir no Rise"**; os botões Assumir, Bloquear e

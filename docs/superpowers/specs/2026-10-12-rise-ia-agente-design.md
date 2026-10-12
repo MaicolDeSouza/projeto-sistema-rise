@@ -2,7 +2,9 @@
 
 Data: 12/10/2026 (revisada no mesmo dia depois de uma revisão de segurança e uma de arquitetura; o que mudou está
 marcado "revisão"; e **refeita no mesmo dia com o plugin de UI/UX** do dono: a seção 5a é o desenho completo das telas,
-com a skill `frontend-design`, o Padrão visual do `CLAUDE.md` e a revisão `make-interfaces-feel-better`). Decidido em
+com a skill `frontend-design`, o Padrão visual do `CLAUDE.md` e a revisão `make-interfaces-feel-better`; e **ajustada na
+revisão 2**, na noite do mesmo dia, depois de uma segunda revisão de segurança e de código, marcada "revisão 2";
+consolidado em `docs/superpowers/investigacoes/2026-10-12-revisao-specs-rise-ia-acessos.md`). Decidido em
 conversa com o dono (Maicol) a partir de um tutorial de agente de WhatsApp (spec e 8
 planos em `docs.zip`, diagrama em PDF) e do que o Rise AI já tem. Continua a spec `2026-10-11-rise-ai-design.md`
 (Entrega 1, pronta e ainda sem deploy): tudo aqui é construído **dentro do Rise**, sobre a mesma camada de provedores, o
@@ -98,7 +100,8 @@ Reserva** (o teto não somaria).
   precisa ler o CPF ou e-mail que o cliente mandou) e é **mascarado só ao ir para o modelo** (histórico, contexto e
   sugestões incluídos; a Entrega 1 mascarava ao gravar, e o chat do Rise continua assim). Tudo fica guardado, sem prazo
   automático; o administrador ganha "apagar mensagens anteriores a <data>" e "apagar este contato e tudo dele" (banco,
-  `dados/` e a Evolution). Foto de perfil do contato não é guardada. Áudio e foto de cliente vão sem máscara ao provedor
+  `dados/` e, pela fila do serviço `ia`, a Evolution: `wa.apagarContato`, §9). Foto de perfil do contato não é guardada.
+  **Mascarado também ao ir para o Telegram** (revisão 2): o trecho do cliente num aviso passa pela mesma máscara. Áudio e foto de cliente vão sem máscara ao provedor
   de transcrição/visão (EUA); o dono decidiu não avisar o cliente nem atualizar a política do site: o risco é dele.
 - **Evolution API é conexão não oficial** (risco de bloqueio do número aceito): a IA só responde a quem escreveu, com
   atraso humano, nunca em massa, e avisa o dono se a conexão cair.
@@ -135,11 +138,17 @@ perfil ausente ou desconhecido é erro. Um teste de guarda roda toda ferramenta 
 **Atendente e administrador:** permissões do projeto Acessos (funções, usuários, dados sensíveis transversais). A IA só
 oferece ao modelo as ferramentas e os campos que a pessoa vê nas telas: **se vê custo na tela, vê custo no chat**
 (decisão do dono). Sem a permissão, a ferramenta não é oferecida e a IA diz "isso eu não posso mostrar para o seu
-acesso" (a ferramenta devolve um marcador de campo restrito, para o modelo saber o que dizer).
+acesso" (a ferramenta devolve um marcador de campo restrito, para o modelo saber o que dizer). **Exceção (revisão 2,
+decisão do dono): "escreva a resposta para o cliente" roda com as ferramentas do perfil cliente** e com o filtro de
+saída do WhatsApp, mesmo para quem vê custo no chat: sem o quadro separado da Entrega 1, era a única barreira entre o
+custo e o texto copiado para o cliente.
 
 **Conhecimento com visibilidade:** nota e documento são **públicos** (a IA usa com cliente) ou **internos** (atendente e
 administrador). Padrão interno; o administrador marca público. Trechos herdam a visibilidade do documento, e a busca e a
-injeção automática filtram por ela.
+injeção automática filtram por ela. **Sugestão nascida de conversa de cliente** (👎 numa resposta do WhatsApp, ou o
+analisador noturno lendo a conversa) leva o selo "veio de conversa com cliente", vai ao modelo com a conversa marcada
+como dado de terceiro, e a nota que sair dela **nasce interna**; "tornar público" é um passo separado, do administrador
+(revisão 2: "a 4hobby troca sem nota em até 1 ano", dito por um cliente, não pode virar conhecimento público).
 
 ## 5. Entrega A: o chat novo no Rise
 
@@ -147,9 +156,12 @@ injeção automática filtram por ela.
   "Para a equipe". Texto corrido com formatação leve, **desenhada com um renderizador seguro** (revisão): sem HTML cru,
   sem imagem vinda do texto do modelo, link só `http/https` com domínio à vista e `rel="noopener noreferrer"`, links de
   produto montados pelo código a partir do SKU. O botão **Copiar** fica em cada resposta, e "escreva a resposta para o
-  cliente" produz texto puro para colar.
-- **Botão Parar** (revisão): um pedido explícito (`POST /api/rise-ai/parar`, com o id da conversa), não o fechamento da
-  conexão (que também acontece ao recarregar a página). Aborta o `AbortController` do laço com um motivo próprio
+  cliente" produz texto puro para colar, **com o perfil cliente** (§4a). Sem os marcadores de seção, a Entrega A **tira**
+  o aviso `sem_separacao` e a coluna dele no Consumo (senão toda resposta nova seria marcada), e as mensagens da
+  Entrega 1, que têm "### Para a equipe" cru no `conteudo`, são desenhadas pelo `estruturado.respostaCliente` (revisão 2).
+- **Botão Parar** (revisão): um pedido explícito (`POST /api/rise-ai/parar`, com o id da conversa, `Origin` conferido
+  como na rota `conversar` e só pela dona da conversa; revisão 2), não o fechamento da conexão (que também acontece ao
+  recarregar a página). Aborta o `AbortController` do laço com um motivo próprio
   (`interrompida`, distinto de `tempo`, para **não** acionar a reserva). O texto parcial é acumulado e gravado marcado
   "interrompida", com o custo estimado por caracteres (marcado `estimado`) quando o provedor não devolveu o uso.
 - **Anexos no campo de texto:** colar, arrastar ou o botão de upload. Tipos: imagem (PNG, JPG, WebP), PDF, Excel (XLSX,
@@ -164,10 +176,14 @@ injeção automática filtram por ela.
 **Como o anexo é processado** (vale para o WhatsApp; revisão endureceu):
 - Arquivo em `dados/rise-ai/anexos/<mensagemId>/<nome gerado>`; linha `AnexoIA` (tipo pelos **bytes**, nome original
   tratado como texto de terceiro, tamanho, caminho, texto extraído ou transcrição, estado `PENDENTE / LIDO / FALHOU` com
-  motivo). Servido por **rota própria com login e permissão**, sempre `Content-Disposition: attachment` e `nosniff`,
-  nunca pelo caminho público `/api/arquivos`.
-- A extração roda **no serviço `ia`, num processo filho** com limite de memória, tempo e tamanho (páginas, linhas,
-  caracteres). ZIP (XLSX, DOCX) conferido pelo diretório central antes de abrir (tamanho descompactado e razão); arquivo
+  motivo). Servido por **rota própria com login e permissão** e pela regra de dono ("conversa visível para esta
+  sessão": a dona no canal RISE, a permissão da caixa no WHATSAPP; revisão 2), sempre `Content-Disposition: attachment`
+  e `nosniff`, nunca pelo caminho público `/api/arquivos`.
+- A extração roda **num processo filho** (do `app` na Entrega A, do serviço `ia` a partir da B) com limite de memória,
+  tempo e tamanho (páginas, linhas, caracteres), e **com o ambiente vazio** (revisão 2): o filho nasce com `env` só com
+  o limite de memória, sem `DATABASE_URL`, sem `ENCRYPTION_KEY` e sem chave de API, recebe os bytes por stdin e devolve
+  só texto por stdout; um teste roda o filho e confere que o ambiente está vazio dentro dele. Uma falha no pdf.js, no
+  exceljs, no libvips ou no leitor de DOCX, explorada por um arquivo forjado mandado pelo WhatsApp, não alcança os tokens. ZIP (XLSX, DOCX) conferido pelo diretório central antes de abrir (tamanho descompactado e razão); arquivo
   com macro recusado; DOCX só texto cru, sem seguir referência externa; PDF com `isEvalSupported: false`; PDF escaneado
   (sem texto) vira imagens das páginas para o modelo; imagem **reencodada** pelo `sharp` (tira EXIF/GPS e polyglot,
   lado maior ~1568 px) com o teto de pixels lido do cabeçalho.
@@ -235,13 +251,18 @@ Copiar · 👍 · 👎 · Propor correção     GPT-4.1 mini · 3,2 s · R$ 0,00
 - **Estado vazio** (duas linhas, como hoje): "Pergunte ou cole a mensagem do cliente." / "A resposta vem com preço,
   estoque e link reais do catálogo." Erro de conexão: a caixa vermelha de hoje com "Tentar de novo". Anexo que falhou é
   dito pela própria IA no texto (§5), além do chip.
-- **Trilho esquerdo:** a lista de conversas de hoje ganha, no topo, o par **Minhas conversas · Caixa de entrada (3)**. O
-  par aparece para quem tem a caixa de entrada em Acessos; o número (quantas esperam uma pessoa) só quando é maior que
-  zero.
+- **Trilho esquerdo** (a partir da Entrega B): a lista de conversas de hoje ganha, no topo, o par **Minhas conversas ·
+  Caixa de entrada (3)**. O par aparece para quem tem a caixa de entrada em Acessos; o número (quantas esperam uma
+  pessoa) só quando é maior que zero. Na Entrega A o trilho é o de hoje.
 
-### 5a.2 A caixa de entrada (`/rise-ai/caixa-de-entrada`; Entrega B)
+### 5a.2 A caixa de entrada (`/rise-ai/caixa-de-entrada/<conversaId>`; Entrega B)
 
 Linha-guia: a Andrea vê primeiro quem está esperando uma pessoa e há quanto tempo; a ação principal é Assumir.
+
+**Rotas próprias** (revisão 2): a caixa é um grupo de rotas com **layout próprio** (o layout de `/rise-ai` monta só as
+conversas de quem está logado), cada conversa tem URL (`/rise-ai/caixa-de-entrada/<conversaId>`, a que o "Abrir no
+Rise" do Telegram usa), e a conversa de WhatsApp é lida **por permissão** (caixa de entrada em Acessos), nunca pelo
+`usuario` (que no WhatsApp é o JID). `ConversaIA.perfil` deriva do `canal`, sem padrão no schema.
 
 ```
 Minhas conversas · [Caixa de entrada 3]   │ Marcos · (54) 99999-0001      Com a IA     [Assumir] [⋯]
@@ -257,7 +278,8 @@ Esperando pessoa 3 · Com a IA 12 · Comigo 2 │──────────�
   `emerald` com a inicial = pessoa, `amber` = aguardando retorno, `slate` = encerrada), nome ou telefone, trecho da
   última mensagem em uma linha, e **o tempo desde a última mensagem do cliente** em `tabular-nums`, que fica `amber`
   quando passa de 30 min sem resposta humana (o mesmo gatilho do aviso do Telegram). Não lida = negrito. **"Esperando
-  pessoa"** = conversa com pessoa ou aguardando retorno cuja última mensagem é do cliente. **Ordem:** esperando pessoa
+  pessoa"** = conversa com pessoa (com ou sem atendente, §9) ou aguardando retorno cuja última mensagem é do cliente;
+  conversa de contato **suspeito** (§9) fica fora dessa contagem e do número do título. **Ordem:** esperando pessoa
   (a mais antiga primeiro), depois com a IA, depois as minhas, depois o resto. Filtros como chips com contagem, só os
   que têm valor > 0 (regra 4): Esperando pessoa · Com a IA · Comigo · Aguardando retorno · Encerradas. Busca por nome e
   telefone. A rolagem só acrescenta embaixo; chegou mensagem com a lista rolada, um selo "novas ↓" leva até ela, sem
@@ -265,11 +287,14 @@ Esperando pessoa 3 · Com a IA 12 · Comigo 2 │──────────�
 - **Cabeçalho da conversa:** nome, telefone, etiquetas (`Badge`, só se houver), e o **estado** como chip: "Com a IA"
   (`acento`), "Com Andrea desde 10:32" (`emerald`), "Aguardando retorno" (`amber`), "Encerrada" (neutro). **A ação
   principal depende do estado:** não é minha → **Assumir**; é minha → **Devolver à IA**. No "⋯": "Passar para…" (os
-  atendentes ativos) e, por último, "Encerrar" (popup com o nome e a data). Tudo conferido pelas permissões de Acessos,
-  não pela dona (§9).
+  atendentes ativos), "Bloquear" ou "Liberar" (contato suspeito, §9) e, por último, "Encerrar" (popup com o nome e a
+  data). Tudo conferido pelas permissões de Acessos, não pela dona (§9); Encerrar, nota interna, Bloquear e Liberar são
+  ações `executar` próprias no catálogo (revisão 2), e a resposta humana sai pela fila do serviço `ia` (§9).
 - **Mensagens:** cliente à esquerda (`bg-fundo`), IA e pessoa à direita (`acento/10`, o balão da pessoa no chat de hoje)
   com a linha pequena da assinatura ("Assistente 4hobby" / "Andrea") e a hora; anexos como chips (áudio com a
-  transcrição embaixo; imagem como miniatura com contorno neutro, abre pela rota de anexos); **nota interna** como linha
+  transcrição embaixo; imagem como miniatura com contorno neutro, abre pela rota de anexos). O texto do cliente é
+  **texto puro, sem markdown e sem URL clicável**, e vem **mascarado** para quem não tem `dado.pessoalDoCliente`
+  (revisão 2); **nota interna** como linha
   `amber` clara com "nota interna · Andrea 10:42", visível só para a equipe (nunca vai ao modelo nem ao cliente); 👎 só
   nas mensagens da IA.
 - **Campo de resposta:** habilitado só quando a conversa é minha; senão, desabilitado com o texto "Assuma a conversa
@@ -295,24 +320,35 @@ Linha-guia: o dono vê primeiro o que a IA já sabe; a ação principal é adici
 
 ### 5a.4 O formulário do produto com a revisão da IA (Entrega E)
 
-Linha-guia: o dono vê primeiro o que a IA propôs mudar; a ação principal é Marcar Conferido e aplicar.
+Linha-guia: o dono vê primeiro o que a IA propôs mudar; a ação principal é Salvar e marcar Conferido.
 
 ```
-← Arduino Uno SMD (100234)                                  ✓ Conferido   [Salvar]
-▲ Revisão da IA pendente · 7 campos, 3 fotos · pedida por Maicol às 14:10   [Ver diferenças] [Recusar]
+← Arduino Uno SMD (100234)                                     [Salvar e marcar Conferido]
+▲ Revisão da IA · 7 campos, 3 fotos · pedida por Maicol às 14:10   [Ver diferenças] [Recusar]
 [Características] [Composição] [Descrição] …      Título base ● [Arduino Uno R3 SMD…]
 ```
 
 - **Uma faixa `amber`** logo abaixo do `PageHeader` (é pendência, não erro), com a contagem, quem pediu e quando, e dois
-  botões: **Ver diferenças** (principal) e Recusar (popup "Descartar a revisão e os arquivos temporários?"). Cada campo
-  com valor proposto ganha um **ponto `amber` ao lado do rótulo** (`title`: "proposto: <valor>"); o formulário continua
-  editável e mostra o que está gravado.
-- **Ver diferenças** abre uma `Janela` larga: tabela Campo · Atual · Proposto, uma caixa de marcação por linha, todas
-  marcadas, **exceto NCM, GTIN e origem fiscal**, que nascem desmarcadas com o `Badge` "fiscal" (§6: aprovação explícita);
-  fotos como miniaturas com contorno neutro e caixa de marcação; listas (documentos, referências) como linhas "N itens".
-  Rodapé: Cancelar e **Marcar Conferido e aplicar (N)**. Aplicar = a ação `alternarConferido` de hoje mais a gravação
-  das linhas marcadas; o que ficou desmarcado é descartado. Conflito de versão (`atualizadoEm`): a janela mostra o erro
-  "O produto mudou desde a proposta. Recarregue." e nada é gravado.
+  botões: **Ver diferenças** (principal) e Recusar (popup "Descartar a revisão e os arquivos dela?"). Cada campo com
+  valor proposto ganha um **ponto `amber` ao lado do rótulo** (`title`: "proposto: <valor>"); o formulário continua
+  editável e mostra o que está gravado. Os valores propostos **vêm do banco** (`RevisaoDeProdutoIA`), nunca do navegador,
+  e passam por `aplicarPermissoesDeCampo` e pela projeção de dado sensível antes de chegar à tela (revisão 2: quem não vê
+  custo não vê o custo proposto).
+- **Ver diferenças** abre uma `Janela` larga: tabela Campo · Atual · Proposto, uma caixa de marcação por linha. Nascem
+  **desmarcados** NCM, GTIN e origem fiscal (`Badge` "fiscal"; §6: aprovação explícita) e também **preço, custo, estoque e
+  situação** (revisão 2: texto de concorrente lido como referência não pode empurrar um preço); fotos como miniaturas
+  com contorno neutro e caixa de marcação; documentos e referências **um por linha, com a origem**. Rodapé: Cancelar e
+  **Aplicar nos campos (N)**: põe os valores marcados **nos campos do formulário**, como o `aplicar` do Clonar, e nada
+  é gravado ainda; o que ficou desmarcado é descartado ao Salvar.
+- **Quem grava é o Salvar normal do produto** (revisão 2: "Aplicar" em duas chamadas pulava as regras do `salvarProduto`,
+  e `alternarConferido` hoje não confere nada no servidor): com uma revisão aplicada, o botão do rodapé vira **Salvar e
+  marcar Conferido** e grava, **na mesma transação**, os campos, as fotos e documentos do lote da revisão, o Conferido e
+  o encerramento da revisão, conferindo `atualizadoEm` contra o momento em que a proposta foi lida ("O produto mudou
+  desde a proposta. Recarregue."). Todas as regras do Salvar valem (maiúsculas, EAN repetido, custo do fornecedor
+  padrão, localização e retrato dos kits, só foto validada fica). **Produto novo** abre em `/produtos/novo?revisao=<id>`,
+  sem linha em `Produto` antes do Salvar (a revisão guarda o SKU proposto).
+- **O lote da revisão** mora em `dados/rise-ai/revisoes/<id>/`, **fora de `dados/temporarios`** (revisão 2: a limpeza de 24 h
+  do worker apagaria os arquivos antes de uma revisão de fim de semana), e só sai no Salvar ou no Recusar.
 - **Lista de Produtos:** a linha com revisão pendente ganha o selo `amber` "revisão da IA" (só quando existe, regra 4) e um
   filtro "Com revisão da IA".
 - **No chat e no Telegram**, o pedido ("crie o produto X", "complete o 100101") termina com uma linha e um link: "Revisão
@@ -327,14 +363,20 @@ Linha-guia: o dono vê primeiro qual modelo responde; a ação principal é Salv
     conexão).
   - **Orçamentos:** dois cartões, **Clientes (WhatsApp)** e **Interno (chat, Telegram, anúncios)**, cada um com o valor
     em reais editável, o **gasto do mês como barra** (`amber` a partir de 80 %, vermelha em 100 %) e "R$ 48,10 de R$ 70,00"
-    em `tabular-nums`; uma linha pequena com a cotação PTAX do dia usada. No cartão Clientes, os três **limites de
-    contato** de §9 (mensagens por hora, contatos novos por hora, R$ por contato no mês) como campos curtos numa linha,
-    com a bolha "i" dizendo o que acontece ao bater (vira suspeito, aviso no Telegram).
+    em `tabular-nums`; uma linha pequena com a cotação PTAX do dia usada. No cartão Clientes, os **limites** de §9 (teto
+    por dia, mensagens por contato por hora, contatos novos por hora, R$ por contato nas primeiras 24 h e R$ por contato
+    no mês) como campos curtos numa linha, com a bolha "i" dizendo o que acontece ao bater (contato: vira suspeito e
+    aviso no Telegram; dia ou contatos novos: frase fixa e um aviso por hora).
   - **Canais:** **Internet**, um interruptor só ("Pesquisar na internet no chat interno"; o WhatsApp nunca, §3, então
-    não há segundo interruptor); **Telegram**, um cartão no desenho de `CartaoConector`: token (campo só de escrita, em
-    `FormData`), estado (vinculado a quem), interruptor "Bot ligado" e a lista dos **avisos** como interruptores (os oito
-    de §7); **WhatsApp**, outro cartão: estado da instância (`Badge` Conectado / Desconectado com a hora), **Mostrar QR**
-    (buscado na hora, só administrador, some em 60 s), "Desconectar", e o interruptor **"Loja fechada hoje"**.
+    não há segundo interruptor, e é um campo só em `ConfiguracaoIA.dados`); **Telegram**, um cartão no desenho de
+    `CartaoConector`: token (campo só de escrita, em `FormData`; trocar pede popup), estado (vinculado a quem),
+    interruptor "Bot ligado" e a lista dos **avisos** como interruptores (os de §7); **WhatsApp**, outro cartão: estado da
+    instância (`Badge` Conectado / Desconectado com a hora), **Mostrar QR** (pedido pela fila ao serviço `ia`, `wa.qr`;
+    o QR volta numa linha efêmera apagada ao ser lida ou em 60 s; só Administrador), "Desconectar" (popup: "Para voltar
+    é preciso ler o QR de novo com o celular da loja"; `wa.desconectar`), e o interruptor **"Loja fechada hoje"**.
+    **Permissões** (revisão 2): cada aba é um recurso do catálogo de Acessos e "Loja fechada hoje" é uma ação `executar`
+    própria; os cartões WhatsApp e Telegram e o prompt do cliente **não são delegáveis** (só Administrador, como
+    "Usuários e funções"); QR, Desconectar, token, bot, internet, orçamentos e limites entram na `AuditoriaDeAcesso`.
   - **Atendimento:** horário da loja (dias e dois turnos), tempos (silêncio de 8 s, 30 min sem resposta, 48 h / 7 dias),
     e os **dois prompts** (chat interno e WhatsApp), cada um com "Restaurar padrão" e, recolhida, a **versão anterior**
     ("alterado por Maicol em 12/10 às 14:10", com o texto).
@@ -351,8 +393,11 @@ WhatsApp · Telegram). Nada mais muda.
 Linha-guia: o dono lê em três linhas o que aconteceu e decide com um botão.
 
 - **Aviso** = até quatro linhas em texto puro (sem `parse_mode`, §7): o que aconteceu, quem, quando, e o trecho do
-  cliente quando houver; uma linha de botões com **até três**, sempre verbo e objeto: "Assumir", "Abrir no Rise",
-  "Enviar ao cliente", "Cancelar", "Aprovar", "Rejeitar", "Bloquear", "Liberar".
+  cliente quando houver, **mascarado, cortado em ~120 caracteres e com `/`, `://` e `@` neutralizados** (revisão 2: o
+  Telegram torna clicável URL, e-mail, telefone e `/comando` mesmo sem `parse_mode`); uma linha de botões com **até
+  três**, sempre verbo e objeto: "Assumir", "Abrir no Rise", "Enviar ao cliente", "Cancelar", "Aprovar", "Rejeitar",
+  "Bloquear", "Liberar". **Na Entrega B, antes do bot (C2), o aviso leva só o link "Abrir no Rise"**: botão de ação
+  exige receber updates, que só o C2 tem (revisão 2).
 - **Proposta de ação** mostra o efeito exato entre aspas (o texto que sairia para o cliente) e dois botões; só uma
   proposta aberta por conversa; botão vencido responde "Esse pedido venceu. Peça de novo." e nada acontece.
 - **Resumo do dia (20h)**, cinco linhas: conversas; passadas a pessoa; aguardando retorno; "custo R$ 12,40 de R$ 70,00
@@ -378,14 +423,16 @@ Linha-guia: o dono lê em três linhas o que aconteceu e decide com um botão.
 
 - **Produto primeiro.** Por pedido no chat ou no Telegram ("crie o produto X a partir de..." ou "complete o 100101"), a
   IA monta o cadastro: títulos, descrição no padrão da loja, medidas e NCM das referências, documentos ligados, fotos
-  importadas. **Tudo fica numa área temporária** até a aprovação: os arquivos no lote temporário do cadastro
-  (`dados/temporarios/<lote>`, o mesmo mecanismo do formulário de produto) e os campos numa **revisão pendente** do
-  produto (`RevisaoDeProdutoIA`: o produto, os valores propostos campo a campo, o lote, quem pediu, quando). O cadastro ao
-  vivo **não muda**.
-- **O dono revisa no formulário do produto**, que mostra a revisão pendente lado a lado com o que está gravado, e aprova
-  marcando **Conferido ("CONF")**. Só então os valores entram no cadastro, os arquivos saem do temporário para a pasta do
-  produto, a revisão é encerrada e o lote apagado. Recusar descarta a revisão e o lote. Isso vale para produto novo e para
-  edição de produto existente; em produto já Conferido, aprovar reconfirma.
+  importadas. **Tudo fica numa área própria** até a aprovação: os arquivos em `dados/rise-ai/revisoes/<id>/` (o mesmo
+  formato do lote do formulário, mas **fora** de `dados/temporarios`, que o worker limpa em 24 h; revisão 2) e os campos
+  numa **revisão pendente** (`RevisaoDeProdutoIA`: o produto, ou o SKU proposto quando é novo, os valores propostos
+  campo a campo, quem pediu, quando). O cadastro ao vivo **não muda**.
+- **O dono revisa no formulário do produto** (desenho em §5a.4), que mostra a revisão lado a lado com o que está
+  gravado; "Aplicar nos campos" põe os valores marcados no formulário, e o **Salvar normal, que vira "Salvar e marcar
+  Conferido"**, grava os campos, os arquivos e o Conferido ("CONF") **numa transação só**, conferindo `atualizadoEm`
+  (revisão 2: era "aplicar e marcar" em duas chamadas, que pulavam as regras do Salvar). A revisão é encerrada e a pasta
+  dela apagada no Salvar; Recusar descarta os dois. Vale para produto novo (`/produtos/novo?revisao=<id>`, sem linha em
+  `Produto` antes do Salvar) e para edição de produto existente; em produto já Conferido, salvar reconfirma.
 - **Depois do CONF**, e só então, a IA pode gerar os **rascunhos do Mercado Livre e da Loja Integrada** (funções do editor:
   categoria, título, ficha, preço por margem, descrição; SEO e categorias). **Publicar continua sendo clique do dono**, sob
   as travas de hoje; publicação pela IA é etapa futura.
@@ -400,9 +447,14 @@ Linha-guia: o dono lê em três linhas o que aconteceu e decide com um botão.
 
 - Bot do Telegram (token cifrado em `Conexao`, serviço `TELEGRAM`), lido pelo serviço `ia` por long polling: sem porta
   pública nem mudança no Caddy. **Vínculo do chat por código de uso único** gerado no Rise (`/vincular CÓDIGO`), só
-  chat privado; a cada update o serviço relê o usuário (`ativo`, permissões); outro chat é ignorado e registrado. Token
-  mascarado em todo log; mensagens sem `parse_mode` (texto de cliente nunca vira link no chat do dono); idempotência por
-  `update_id` gravada **antes** do efeito; interruptor "desligar o bot agora" nas Configurações.
+  chat privado, e só para Administrador: código de **10 ou mais caracteres aleatórios**, guardado como **hash** em
+  `UsuarioRise` com validade de 10 min; **5 tentativas erradas num chat silenciam o chat e anulam o código**; o vínculo
+  só vale depois de o dono **confirmar na tela** o nome e o @ de quem mandou; `telegramChatId` único (revisão 2: o bot é
+  público). Na Entrega C1, sem polling, o vínculo é uma leitura curta do `getUpdates` durante os 10 min do código. A cada
+  update o serviço relê o usuário (`ativo`, permissões); outro chat é ignorado e registrado. Token mascarado em todo
+  log, **inclusive em `LogIntegracao.endpoint` e em `Conexao.ultimoErro`** (que vai para a tela), porque ele vai na URL
+  (`/bot<token>/...`); mensagens sem `parse_mode` e com o trecho do cliente mascarado e neutralizado (§5a.7); idempotência
+  por `update_id` gravada **antes** do efeito; interruptor "desligar o bot agora" nas Configurações.
 - **Avisos** (cada um com interruptor): resumo do dia às 20h (conversas, custo, 👎 esperando aprovação); conversa passada
   a humano; **cliente sem resposta humana há 30 min** (com botão "Assumir"); "aguardando retorno" acumulado, num resumo
   na abertura da loja (não um aviso por mensagem noturna); produto que zerou; erro no serviço `ia`, no worker ou na
@@ -441,7 +493,12 @@ Linha-guia: o dono lê em três linhas o que aconteceu e decide com um botão.
   `forward_auth`, e o app só aceita `Remote-User` acompanhado dele (comparação de tempo constante), conferido num
   `proxy.js`; sem ele, o pedido vale como sem login. O caminho do webhook é bloqueado no Caddy (`respond 404`).
 - **O webhook chega ao serviço `ia`** (`http://ia:<porta>/whatsapp`), com segredo em **cabeçalho** (fora de logs), só os
-  eventos de mensagem e de conexão, base64 desligado. O Rise usa o **token da instância**, não a chave global.
+  eventos de mensagem e de conexão, base64 desligado. O Rise usa o **token da instância**, não a chave global. **O
+  servidor HTTP do `ia` expõe só esse `POST /whatsapp`.**
+- **Toda ordem do `app` à Evolution vai pela fila** (revisão 2): o `app` nunca alcança a Evolution, então a resposta
+  humana da caixa de entrada, o QR, o Desconectar, o estado da instância e o "apagar este contato" viram tarefas
+  (`wa.enviar`, `wa.qr`, `wa.desconectar`, `wa.apagarContato`) atendidas pelo `ia`; o QR volta numa linha efêmera,
+  apagada ao ser lida ou em 60 s; o estado da instância é o que o `ia` gravou por último.
 - Uma instância, o número da loja (WhatsApp Business, celular da 4hobby); QR mostrado só a administrador, buscado na hora,
   nunca em log. Na conexão, **as mensagens automáticas do aplicativo são desligadas** (decisão do dono).
 - O `npm run backup` não inclui o banco `evolution`: recuperar é ler o QR de novo (no roteiro). A `copia:atualizar` apaga
@@ -449,7 +506,9 @@ Linha-guia: o dono lê em três linhas o que aconteceu e decide com um botão.
 
 **Caminho de uma mensagem**
 1. Webhook → segredo → **filtro antes de gravar**: só conversa direta (grupos, `@broadcast`, status e newsletter
-   descartados; vCard e localização ignorados) → idempotência pelo id → teto por contato também na entrada → confirma na
+   descartados; vCard e localização ignorados; **contato "Não IA" e contato bloqueado descartados**, só com um contador
+   por dia e sem baixar mídia; revisão 2: senão as conversas pessoais do celular e as do bot bloqueado entrariam cruas
+   no banco, na caixa e no backup) → idempotência pelo id → teto por contato também na entrada → confirma na
    Evolution, pelo id, que a mensagem existe (contra forja) → `ContatoIA` por **JID** (único; telefone quando a Evolution
    o entrega) → mensagem numa `ConversaIA` de canal `WHATSAPP` (texto guardado cru) → **uma tarefa aberta por conversa**,
    reagendada para "agora + 8 s" a cada mensagem nova (o silêncio de 8 s sem ninguém dormir) → 200.
@@ -472,19 +531,24 @@ tem a seção "Para a equipe" (nunca enviar o que não foi separado), e é edit�
 anterior guardada e quem mudou.
 
 **Donos da conversa e estados (revisão fechou a tabela)**
-- `dona ∈ {IA, HUMANO, AGUARDANDO_RETORNO}` + `donaUsuarioId` (quem, quando HUMANO) + `encerradaEm` (ortogonal).
+- `dona ∈ {IA, HUMANO, AGUARDANDO_RETORNO}` + `donaUsuarioId` (quem, quando HUMANO; **nulo = "pessoa, sem atendente"**,
+  a fila "Esperando pessoa" da caixa; revisão 2) + `encerradaEm` (ortogonal).
 - Transições: IA→HUMANO (cliente pede pessoa; IA não acha nos dados do Rise; assunto de pagamento, pedido, reclamação ou
-  troca, sempre humano até o Pedidos existir; dois erros seguidos; Andrea respondeu do celular; botão Assumir), com
-  motivo gravado; HUMANO→HUMANO (Passar para <atendente>, com comentário); HUMANO→IA **só por botão humano** ("Devolver
-  à IA"); **a IA nunca retoma sozinha** (decisão do dono). IA→AGUARDANDO_RETORNO (fora do horário com pedido de pessoa;
-  teto estourado; mensagem velha); AGUARDANDO_RETORNO→HUMANO (Assumir). Encerrar: por botão, ou 48 h sem mensagem **só
-  em conversa da IA**; conversa com humano ou aguardando retorno encerra após 7 dias. Mensagem em conversa encerrada
-  abre outra.
+  troca, sempre humano até o Pedidos existir; dois erros seguidos; Andrea respondeu do celular: todos esses caem em
+  "pessoa, sem atendente", porque o Rise não sabe quem vai atender; botão Assumir: com atendente), com motivo gravado;
+  HUMANO→HUMANO (Assumir uma conversa sem atendente; Passar para <atendente>, com comentário); HUMANO→IA **só por botão
+  humano** ("Devolver à IA"); **a IA nunca retoma sozinha** (decisão do dono). IA→AGUARDANDO_RETORNO (fora do horário com
+  pedido de pessoa; teto estourado; mensagem velha; contato suspeito); HUMANO→AGUARDANDO_RETORNO por botão ("Aguardar
+  retorno", e o destino escolhido ao desativar um usuário); AGUARDANDO_RETORNO→HUMANO (Assumir);
+  AGUARDANDO_RETORNO→IA **só pelo Liberar** de um contato suspeito. Encerrar: por botão, ou 48 h sem mensagem **só em
+  conversa da IA**; conversa com humano ou aguardando retorno encerra após 7 dias. Mensagem em conversa encerrada abre
+  outra.
 - **Cliente sem resposta humana há 30 min** (conversa HUMANO ou AGUARDANDO_RETORNO com mensagem do cliente mais nova que
   a última humana): aviso ao Maicol no Telegram com botão **Assumir**; o cliente recebe uma frase fixa de espera uma vez.
 - **Horário da loja: segunda a sexta, 9h–12h e 14h–17h.** A IA responde dúvida de produto **24 h**; o horário só vale
   quando é preciso uma pessoa: dentro dele, a Andrea com aviso; fora, a IA explica o horário, diz que alguém retorna e
-  marca "aguardando retorno". "Loja fechada hoje" por comando no Telegram e botão nas Configurações.
+  marca "aguardando retorno". "Loja fechada hoje" por **botão** no Telegram (uma proposta com Confirmar, nunca um
+  `/comando` em texto: revisão 2) e interruptor nas Configurações.
 - Caixa de entrada no Rise (desenho em §5a): lista com filtros, conversa à direita atualizada por consulta leve de diferenças a cada poucos
   segundos (pausada com a aba oculta; alerta no título da aba quando chega conversa para a Andrea), botões Assumir,
   Passar, Devolver à IA, Encerrar, nota interna (tabela própria, nunca no histórico enviado ao modelo). Resposta humana
@@ -492,39 +556,55 @@ anterior guardada e quem mudou.
   conversa"; a Andrea pode dar 👎.
 - **Virada:** quem trocou mensagem com a loja nos últimos 7 dias começa com a Andrea (lista lida da Evolution só no dia
   da virada, sem guardar histórico); o histórico antigo não entra. Contatos pessoais no celular: etiqueta "Não IA" no
-  WhatsApp Business, que o Rise respeita.
+  WhatsApp Business, que o Rise lê e **descarta antes de gravar** (filtro do webhook; revisão 2).
 - **Proteções:** idempotência; exclusão por conversa; limite por contato por hora (entrada e saída) e de contatos novos
   por hora; **detector de laço** (N respostas seguidas sem progresso ou mensagens quase iguais → passa a humano e cala a
   IA); orçamento do cliente separado; Evolution desconectada → nenhum envio, aviso no Telegram e no healthchecks, estado
   na caixa; nunca mensagem ativa.
-- **Contra bot e abuso de crédito (decisão do dono em 12/10/2026).** O orçamento reservado antes de cada chamada já é o
-  limite duro (um bot nunca gasta mais que os R$ 70 do canal); estas quatro regras seguram antes de chegar lá:
-  1. **Os limites têm número de fábrica**, editáveis na aba Orçamentos (§5a.5): **20 mensagens por contato por hora**,
-     **15 contatos novos por hora** e **R$ 3,00 por contato por mês**; ficam em `ConfiguracaoIA.dados` (§10).
-  2. **Contato que bate em qualquer limite vira "suspeito"**: a IA para de responder a ele (nem a frase fixa, para não
-     alimentar o bot nem marcar o número da loja como spam), a conversa vai para "aguardando retorno" com o motivo
-     "limite", e o Maicol recebe **um** aviso no Telegram com os botões **Bloquear** e **Liberar**. Bloquear põe no
-     `ContatoIA` a etiqueta **"Não IA"** (a mesma dos contatos pessoais); Liberar zera o contador daquele contato. A
-     caixa de entrada mostra o contato com o selo "suspeito" e os mesmos dois botões.
-  3. **Filtro barato antes do modelo:** mensagem vazia, só emoji, só link, ou texto idêntico à mensagem anterior do mesmo
+- **Contra bot e abuso de crédito (decisão do dono em 12/10/2026; ajustada na revisão 2).** O orçamento reservado antes
+  de cada chamada já é o limite duro (um bot nunca gasta mais que os R$ 70 do canal); estas regras seguram antes:
+  1. **Os limites têm número de fábrica**, editáveis na aba Orçamentos (§5a.5) e guardados em `ConfiguracaoIA.dados`
+     (§10): **R$ 7,00 por dia no canal** (um décimo do mês), **20 mensagens por contato por hora**, **15 contatos novos
+     por hora**, **R$ 0,50 por contato nas primeiras 24 h** e **R$ 3,00 por contato por mês** (revisão 2: só com os
+     limites por contato, um bot gastava R$ 45 por hora trocando de número).
+  2. **Contato que bate num limite próprio** (mensagens por hora, custo nas 24 h ou no mês) **vira "suspeito"**: a IA
+     para de responder a ele (nem a frase fixa, para não alimentar o bot nem marcar o número da loja como spam), a
+     conversa vai para "aguardando retorno" com o motivo "limite" e **fica fora** da regra dos 30 min, das contagens
+     da caixa e do título da aba, e o Maicol recebe **um** aviso no Telegram com os botões **Bloquear** e **Liberar**
+     (na Entrega B, só o link "Abrir no Rise"; os botões vêm com o C2). A caixa de entrada mostra o contato com o
+     selo "suspeito" e os mesmos dois botões, que são ações `executar` próprias em Acessos (não de qualquer atendente).
+     **Bloquear** marca `bloqueadoEm` no `ContatoIA` (estado próprio, distinto da etiqueta "Não IA" dos contatos pessoais;
+     os dois são descartados antes de gravar, no filtro do webhook). **Liberar** marca `liberadoEm`, zera os contadores
+     daquele contato (`mensagensNaHora`, `custoNas24h`, `custoNoMes`, em `ContatoIA`) e **devolve a conversa à IA**, a
+     única transição AGUARDANDO_RETORNO→IA.
+  3. **Limite do dia ou de contatos novos estourado** não marca ninguém: os contatos novos vão para "aguardando
+     retorno" **com** a frase fixa (o 16.º contato da hora é quase sempre um cliente real, ou um dia de movimento), e
+     sai **um** aviso agregado por hora no Telegram.
+  4. **Filtro barato antes do modelo:** mensagem vazia, só emoji, só link, ou texto idêntico à mensagem anterior do mesmo
      contato não chama a IA (grava, conta no limite por hora, e não responde). Custa zero.
-  4. **A frase fixa sai no máximo uma vez por contato por dia**, em qualquer situação em que a IA não responde (teto
-     estourado, fora do horário, mensagem velha, limite); hoje isso valia só para o caso dos 30 min.
+  5. **A frase fixa sai no máximo uma vez por contato por dia**, em qualquer situação em que a IA não responde (teto
+     estourado, fora do horário, mensagem velha, limite do dia ou de contatos novos); contato suspeito não a recebe.
 
 ## 10. Banco (aditivo; enums em migration própria, sem uso no mesmo arquivo)
 
-- `ConversaIA`: `canal` (RISE | WHATSAPP | TELEGRAM), `contatoId`, `dona`, `donaUsuarioId`, `donaDesde`, `motivoDaPassagem`,
-  `encerradaEm`; em conversa de WhatsApp, `usuario` recebe o JID do contato. Índices `(canal, dona, atualizadoEm)`,
+- `ConversaIA`: `canal` (RISE | WHATSAPP | TELEGRAM), `contatoId`, `dona`, `donaUsuarioId` (nulo = pessoa sem
+  atendente), `donaDesde`, `motivoDaPassagem`, `encerradaEm`; em conversa de WhatsApp, `usuario` recebe o JID do
+  contato, e a leitura é por permissão, não por `usuario`; `perfil` deriva do `canal`, **sem padrão no schema** (revisão 2). Índices `(canal, dona, atualizadoEm)`,
   `(contatoId)`, único parcial `(contatoId) WHERE encerradaEm IS NULL` (só no SQL).
 - `MensagemIA`: `papel` ganha `HUMANO` (e todos os consumidores de `papel` tratam o valor novo: laço, sugestões, chat,
   revisão), `assinatura`, `interrompida`, `idExterno` **com prefixo por canal** (`wa:`, `tg:`), único quando presente.
-- Novas: `ContatoIA` (jid único, telefone, nome, etiquetas, observações), `AnexoIA`, `DocumentoIA`, `TrechoIA`, `TarefaIA`
-  (ou `Job` tipo `ia.*`), `NotaDaConversaIA`, `GastoIA` (tipo, provedor, valor, referência, criadoEm), `RevisaoDeProdutoIA`,
-  `PropostaDeAcaoIA` (nonce, efeito, prazo, decidida), `VersaoDePromptIA`. O atendente é o `UsuarioRise` de Acessos.
-- `ConfiguracaoIA.dados` ganha: internet (por canal), orçamentos, **limites de contato** (mensagens por contato por hora,
-  contatos novos por hora, custo por contato no mês; §9), tempos (8 s, 30 min, inatividade), avisos do Telegram,
-  horário da loja, "fechada hoje", bot ligado. Todo grupo novo entra em `GRUPOS` e no esquema zod da configuração; o
-  padrão de fábrica do Padrão muda para o GPT.
+- Novas: `ContatoIA` (jid único, telefone, nome, etiquetas, observações; e, da revisão 2, `suspeitoEm`, `motivo`,
+  `liberadoEm`, `bloqueadoEm` e os contadores `mensagensNaHora`, `custoNas24h`, `custoNoMes`), `AnexoIA`, `DocumentoIA`,
+  `TrechoIA`, `TarefaIA` (ou `Job` tipo `ia.*`; inclui as tarefas `wa.*` do `app` para a Evolution), `NotaDaConversaIA`,
+  `GastoIA` (tipo, provedor, valor, referência, criadoEm), `RevisaoDeProdutoIA` (`produtoId` nulo e `skuProposto` quando
+  o produto é novo), `PropostaDeAcaoIA` (nonce, efeito, prazo, decidida), `VersaoDePromptIA`. O atendente é o
+  `UsuarioRise` de Acessos, que ganha `codigoDeVinculoHash` e `codigoDeVinculoExpiraEm` (§7).
+- `ConfiguracaoIA.dados` ganha: internet (**um campo só**, o chat interno; revisão 2), orçamentos, **limites** (teto por
+  dia do canal, mensagens por contato por hora, contatos novos por hora, custo por contato nas 24 h e no mês; §9), tempos
+  (8 s, 30 min, inatividade), avisos do Telegram, horário da loja, "fechada hoje", bot ligado. Todo grupo novo entra em
+  `GRUPOS` e no esquema zod da configuração. **O padrão de fábrica do Padrão não muda** (revisão 2): na VPS o Padrão
+  salvo na tela (Anthropic) substitui o de fábrica inteiro, então a troca para o GPT-4.1 mini é um **passo de tela** no
+  roteiro da Entrega A.
 - `Conexao` ganha `TELEGRAM`, `EVOLUTION` e `OPENAI` já é.
 
 ## 11. O que fica para o construtor
@@ -542,7 +622,8 @@ próprios por área no padrão do projeto (`teste:fila-ia`, `teste:whatsapp` com
 2. Avisos de mensagens noturnas viram um resumo na abertura da loja, não um aviso por mensagem.
 3. Na virada, 7 dias com a Andrea; histórico antigo não entra; grupos ignorados; quem não é cliente vai a humano com motivo
    "não é atendimento".
-4. "Loja fechada hoje" por comando, sem calendário de feriados.
+4. "Loja fechada hoje" por botão no Telegram e interruptor na tela, sem calendário de feriados (revisão 2: era "por
+   comando"; comando com efeito só por botão).
 5. Resumo do dia às 20h.
 6. Caixa de entrada por consulta de diferenças, não websocket.
 7. Cotação do teto pelo PTAX.
@@ -561,13 +642,29 @@ Da revisão UI/UX (12/10/2026):
 15. Produto com revisão pendente ganha selo e filtro na lista de Produtos.
 16. Cada aviso do Telegram tem no máximo quatro linhas e três botões.
 
+Da revisão 2 (noite de 12/10/2026, aprovadas pelo dono, "Opção 1"):
+
+17. Tetos contra bot: R$ 7 por dia no canal e R$ 0,50 por contato nas primeiras 24 h; o 16.º contato da hora não vira
+    suspeito.
+18. Na Entrega B os avisos do Telegram só têm o link "Abrir no Rise"; os botões chegam com o C2.
+19. A revisão da IA é aplicada nos campos do formulário e gravada pelo Salvar normal, que marca Conferido na mesma
+    transação; produto novo por `/produtos/novo?revisao=<id>`.
+20. "Escreva a resposta para o cliente" usa o perfil cliente, mesmo para quem vê custo no chat.
+21. WhatsApp, Telegram e o prompt do cliente não são delegáveis em Acessos.
+22. Toda ordem do `app` à Evolution vai pela fila do serviço `ia`.
+23. A caixa de entrada tem rotas e layout próprios; o par "Minhas conversas · Caixa de entrada" só existe a partir da B.
+24. Sugestão nascida de conversa de cliente nasce interna, com selo.
+
 ## 13. Ordem e entregas
 
 **Subir a Entrega 1 agora** (com a Anthropic como Padrão na tela; SSE, login e migration nunca passaram pelo Caddy em
-produção) → **Acessos, lançamento 1** (núcleo, Rise IA, bloco Configurações) → **A** (A1: Parar, anexos, teto, GastoIA,
-contrato com imagem; A2: documentos, embeddings, `buscarVariosProdutos`) → **C1** (só avisos pelo Telegram, sem polling)
-→ **B** (WhatsApp; exige o ok do contêiner da Evolution, redes separadas, 2.º fator e dump criptografado) → **C2** (bot
-bidirecional) → **E** (produto com revisão pendente e CONF, depois anúncios) → **D** (D1 já junto de C; D2 com o Pedidos).
+produção) → **Acessos, lançamento 1** (núcleo, Rise AI, bloco Configurações, dados sensíveis no catálogo) → **A** (A1:
+Parar, anexos com o filho do `app`, teto, GastoIA, contrato com imagem, a troca para o GPT como passo de tela; A2:
+documentos, embeddings, `buscarVariosProdutos`) → **C1** (só avisos pelo Telegram, sem polling, com o link "Abrir no
+Rise") → **Acessos, lançamento 2** (o resto do Rise sob o invólucro; **é ele que dá o login à Andrea**; revisão 2) →
+**B** (WhatsApp; exige o ok do contêiner da Evolution, redes separadas, 2.º fator e dump criptografado) → **C2** (bot
+bidirecional, os botões dos avisos) → **E** (produto com revisão e "Salvar e marcar Conferido", depois anúncios) → **D**
+(D1 já junto de C; D2 com o Pedidos). O lançamento 3 de Acessos (campos) entra quando o dono quiser restringir um campo.
 Os revisores recomendaram o WhatsApp antes do anúncio (é onde está o valor; o anúncio é o mais arriscado), e o dono
 **confirmou esta ordem em 12/10/2026** (a original era A → E → C → D → B). Cada entrega com teste automático,
 roteiro de testes do dono na tela e deploy só com o "sobe".
@@ -576,7 +673,7 @@ roteiro de testes do dono na tela e deploy só com o "sobe".
 
 Spec aprovada pelo dono em 12/10/2026 ("Opção 1"), junto com a de Acessos, depois das revisões de segurança e de
 arquitetura (consolidado em `docs/superpowers/investigacoes/2026-10-12-revisao-specs-rise-ia-acessos.md`). Refeita com o
-plugin de UI/UX no mesmo dia: §5a e as decisões 9 a 16 de §12 esperam a conferência do dono; o resto continua como
-aprovado.
+plugin de UI/UX no mesmo dia (§5a e as decisões 9 a 16 de §12) e ajustada na revisão 2 na noite do mesmo dia (as
+decisões 17 a 24 de §12, aprovadas pelo dono como "Opção 1"). Nada em aberto.
 Próximo passo: o plano do lançamento 1 de Acessos (`superpowers:writing-plans`), depois os planos de A, C1, B, C2, E e D,
 um por vez.

@@ -3,7 +3,9 @@
 Data: 12/10/2026 (revisada no mesmo dia depois de uma revisão de segurança e uma de arquitetura, marcadas "revisão";
 e **refeita no mesmo dia com o plugin de UI/UX** do dono: a seção 5 virou o desenho completo das telas, com a skill
 `frontend-design`, o Padrão visual do `CLAUDE.md` e a revisão `make-interfaces-feel-better`; o que mudou está marcado
-"UI/UX"). Pedido do dono durante o brainstorming da fase 2 do Rise IA (`2026-10-12-rise-ia-agente-design.md`). É um
+"UI/UX"; e **ajustada na revisão 2**, na noite do mesmo dia, depois de uma segunda revisão de segurança e de código sobre
+as telas, marcada "revisão 2"; consolidado em `docs/superpowers/investigacoes/2026-10-12-revisao-specs-rise-ia-acessos.md`).
+Pedido do dono durante o brainstorming da fase 2 do Rise IA (`2026-10-12-rise-ia-agente-design.md`). É um
 projeto próprio, para o Rise inteiro, e seu primeiro lançamento vem **antes** da Entrega A do agente.
 
 ## 1. Por quê
@@ -52,8 +54,10 @@ apaga o que a pessoa não via; o dono se trancar fora (sempre há um administrad
   quem esconde é o dado sensível, não o campo). Campo que existe no formulário e não está no catálogo **falha o teste**,
   nunca chega a rodar.
 - **Função:** nome, descrição e um nível por recurso (o que não está listado é `nenhum`). **Administrador** é fixa, vê e
-  edita tudo, não se apaga nem se edita; **"Usuários e funções" não é delegável** (só Administrador, conferido em código)
-  e ninguém concede nível acima do próprio.
+  edita tudo, não se apaga nem se edita; **"Usuários e funções" não é delegável** (só Administrador, conferido em código),
+  e **também não são delegáveis** (revisão 2) os recursos do Rise AI que falam com todos os clientes: **WhatsApp**
+  (QR, Desconectar, instância), **Telegram** (token, bot) e **o prompt do canal do cliente**; ninguém concede nível
+  acima do próprio.
 - **Usuário:** login do Tinyauth (único, gravado em minúsculas), nome, assinatura (WhatsApp), chat do Telegram (vinculado
   por código de uso único, ver a spec do agente), `ativo`, funções (uma ou mais) e **exceções** (um nível por recurso que
   vence a função). Permissão efetiva = o maior nível entre as funções, depois as exceções. `ativo = false` vale como
@@ -69,9 +73,11 @@ apaga o que a pessoa não via; o dono se trancar fora (sempre há um administrad
   `exigirAcesso` (um `proxy.js` nega por padrão o que não está no mapa rota → recurso); **toda Server Action**, de leitura
   ou de escrita, passa por um invólucro único que recebe o recurso e o nível e **devolve o dado já projetado** pelas
   permissões (as ações de leitura devolvem custo hoje e são chamáveis do console por qualquer logado). Hoje são 158 ações
-  em 18 arquivos e 9 rotas; um **teste-guarda estático** percorre todo `page.jsx`, `route.js` e arquivo `"use server"` e
-  falha se faltar a conferência (ou se o arquivo não estiver numa lista de exceções explícita), no molde do teste que
-  exige `executarComoAdministrador` no Rise IA.
+  em 18 arquivos e 9 rotas; um **teste-guarda estático** percorre todo `page.jsx`, **`layout.jsx`** (o do Rise AI já lê
+  conversas sem conferência), **`generateMetadata`**, `route.js` e arquivo `"use server"` e falha se faltar a conferência
+  (ou se o arquivo não estiver numa lista de exceções explícita), no molde do teste que exige
+  `executarComoAdministrador` no Rise AI (revisão 2: layouts e metadados entraram). **Rota ou ação por id** (conversa,
+  mensagem, anexo) passa, além do recurso, pela regra de dono: uma função única "registro visível para esta sessão".
 - **Valores derivados** de um dado sensível (margem e sua cor, custo total do kit, "valor do estoque a custo", `CustosDoML`,
   preço de fornecedor na lupa) declaram `dependeDe` no catálogo e seguem o dado.
 - **Tela em `ver`:** campos de texto `readOnly`, listas e caixas `disabled`, botões de salvar, excluir e popups de edição
@@ -90,17 +96,31 @@ apaga o que a pessoa não via; o dono se trancar fora (sempre há um administrad
   Painel continua a tela inicial de todos (decisão do dono). Desenho na tela 5 de §5.
 - **Administrador sempre existe** (revisão): `RISE_AI_ADMINS` continua valendo **sempre**, como quebra-vidro, além da
   tabela; a semeadura (os logins da variável viram usuários Administrador) é um passo idempotente na partida do `app`,
-  não uma migration; o último administrador ativo não pode ser desativado nem removido. Na VPS, sem variável e sem tabela,
-  ninguém administra e a tela diz isso. Um login do Tinyauth não cadastrado vê o Painel vazio e "peça acesso ao
-  administrador". Recuperação por script (`npm run acessos:admin -- <login>`, por SSH).
-- **PC de desenvolvimento** (revisão): "pc" é administrador **só** com o ambiente declarado e o pedido vindo do loopback
-  pelo socket (nunca pelo cabeçalho `Host`, que o cliente escolhe); o `next dev` passa a escutar em `127.0.0.1`; e
-  `RISE_SIMULAR_LOGIN=<login>` (ignorada em produção) permite testar a Andrea no PC sem produção.
+  não uma migration, e **só cria o que falta** (revisão 2): não devolve função tirada, e a Atendimento é criada uma vez
+  só, com marca gravada, para não renascer a cada deploy depois de excluída. O login que está na variável aparece na
+  tela com o selo **"Administrador pelo .env"**, e nele Ativo e a remoção da função ficam desabilitados (`title`: "tire
+  o login de `RISE_AI_ADMINS` na VPS"): a tela nunca mostra o contrário do que o servidor faz. O último administrador
+  ativo não pode ser desativado. Na VPS, sem variável e sem tabela, ninguém administra e a tela diz isso. Um login do
+  Tinyauth não cadastrado vê o Painel vazio e "peça acesso ao administrador". Recuperação por script
+  (`npm run acessos:admin -- <login>`, por SSH). **Logins reservados** (revisão 2): `pc` e `desconhecido` (os que o código
+  de hoje usa sem login) não podem ser cadastrados, e o **segredo de borda** do Caddy (spec do agente, §9) é conferido
+  em `acessos/sessao.js` com `timingSafeEqual`, não só no `proxy.js`, cujo `matcher` não pode deixar rota de fora.
+- **PC de desenvolvimento** (revisão; revisão 2 corrigiu): "pc" é administrador **só** com o ambiente declarado (sem
+  `RISE_PRODUCAO`) e com o `next dev` escutando em `127.0.0.1` (`--hostname 127.0.0.1` no script `dev`): no Next 16 página,
+  layout e Server Action só veem `headers()`, não o socket, então a garantia é o endereço em que o servidor escuta,
+  nunca o cabeçalho `Host`. `RISE_SIMULAR_LOGIN=<login>` (ignorada em produção; o deploy recusa um `.env` que a
+  contenha) permite testar a Andrea no PC. **Com o banco do PC fora do ar**, o PC entra como "pc" sem menu filtrado e
+  só Integrações abre: é lá que mora o cartão que traz o banco da VPS.
 - **"Ver como"** só calcula e mostra o menu e as telas que a pessoa vê (somente leitura); nunca troca a sessão.
-- **Auditoria:** quem mudou função, exceção ou usuário, com o antes e o depois. `ultimoAcessoEm` gravado no máximo a cada
-  10 minutos.
-- **Rise IA herda:** `exigirAdministrador` vira alias de `executarComAcesso(recurso, nivel)`; o teste-guarda do Rise IA é
-  atualizado de propósito, sem afrouxar. O perfil **cliente** (WhatsApp) é fixo em código, fora do catálogo editável.
+- **Auditoria:** quem mudou função, exceção ou usuário, com o antes e o depois; e (revisão 2) as ações de configuração
+  do Rise AI que falam com os clientes: QR, Desconectar, token, bot, internet, orçamentos e limites (antes e depois,
+  nunca o segredo). `ultimoAcessoEm` gravado no máximo a cada 10 minutos.
+- **Rise AI herda** (revisão 2 corrigiu): hoje `exigirAdministrador(sessao)` é uma conferência síncrona que lança, e quem
+  envolve as ações é `executarComoAdministrador(trabalho)`, sem recurso. Cada ação do Rise AI passa a
+  `executarComAcesso(recurso, nivel, trabalho)` com o **recurso dela** (chat, caixa de entrada, Revisão, Conhecimento,
+  Consumo, cada aba das Configurações), e o teste-guarda do lançamento 1 exige esse invólucro com recurso do catálogo
+  em **todo** `src/app/rise-ai/` e `src/app/api/rise-ai/` (o de hoje só lê dois arquivos). O perfil **cliente**
+  (WhatsApp) é fixo em código, fora do catálogo editável.
 - As permissões são lidas do banco a cada requisição; nada em cache que sobreviva a uma mudança.
 
 ## 5. Telas (UI/UX, 12/10/2026)
@@ -133,7 +153,8 @@ resto é quieto e reaproveita o que o Rise já tem.
 `/configuracoes/usuarios/novo`, `/configuracoes/usuarios/<id>`, `/configuracoes/funcoes/nova`,
 `/configuracoes/funcoes/<id>`. Os cartões Integrações e Rise IA continuam apontando para `/integracoes` e
 `/rise-ai/configuracoes` (revisão: são ~50 referências; nenhuma rota se move). Todas as telas de `/configuracoes/*`
-acendem o item Configurações do menu (`ehRotaAtiva` por prefixo).
+acendem o item Configurações do menu (`ehRotaAtiva` por prefixo), **e também `/integracoes` e `/rise-ai/configuracoes`**
+(revisão 2: fora de `blocos.js`, Integrações não acenderia item nenhum; o item ganha uma lista de rotas extras).
 
 ### 5.2 Tela 1: o menu e a página Configurações (lançamento 1)
 
@@ -150,7 +171,7 @@ Linha-guia: o operador vê primeiro os cartões que pode abrir; a ação princip
   | --- | --- | --- | --- |
   | Usuários e funções | Quem entra no Rise e o que cada um vê e edita. | "2 usuários · 2 funções" | só Administrador |
   | Integrações | Conexões com o Bling, o Mercado Livre e a Loja Integrada. | "3 conectadas" ou "1 expirada · 2 conectadas" (a pior situação primeiro) | recurso próprio |
-  | Rise IA | Modelos, chaves, orçamentos e o texto do assistente. | "Padrão: Anthropic · claude-haiku-5-5" | recurso próprio |
+  | Rise AI | Modelos, chaves, orçamentos e o texto do assistente. | "Padrão: Anthropic · claude-haiku-5-5" | recurso próprio |
 
 - Sem banner, sem texto de ajuda, sem estado vazio: quem não vê cartão algum não vê o item no menu.
 
@@ -168,7 +189,8 @@ Maicol      maicol    [Administrador 🔒]  (você)    hoje 09:12
 Andrea      andrea    [Atendimento]                  ontem 17:40
 ```
 
-- **Duas abas** (regra 5), no desenho das abas da Revisão do Rise AI; a ação principal do cabeçalho troca com a aba
+- **Duas abas** (regra 5), no desenho das abas do cadastro de Produto (barra com `border-b-2`, a ativa em `border-acento`;
+  revisão 2: as da Revisão do Rise AI são pílulas, fora do padrão); a ação principal do cabeçalho troca com a aba
   ("Adicionar usuário" / "Criar função"). A tabela é a de hoje (100 por página).
 - **Aba Usuários:** Nome, Login, Funções (um `Badge` neutro por função; Administrador com o cadeado), Último acesso
   (relativo, `tabular-nums`, `title` com a data completa). A linha inteira abre `/configuracoes/usuarios/<id>`. A própria
@@ -191,9 +213,9 @@ Nome [Atendimento      ]   Descrição [Atende clientes pelo WhatsApp e pelo Ris
 │ Cadastros     6/6 │ Produtos (lista)                      ○       ●      ○      ○   │
 │ Produtos    ● 3/4 │ Produtos › cadastro                   ○       ●      ○      ○   │
 │ Canais de V.  2/5 │ Produtos › canais do produto          ●       ○      ○      ○   │
-│ Rise IA       4/9 │ ───── Ações ─────                   nenhum  executar            │
-│ Dados sens.   3/7 │ Sincronizar com o Bling               ●       ○                 │
-│ Ações         0/9 │ Marcar Conferido                      ●       ○                 │
+│ Rise AI       4/9 │ ───── Ações ─────                   nenhum  executar            │
+│ Configurações 0/3 │ Sincronizar com o Bling               ●       ○                 │
+│ Dados sens.   3/7 │ Marcar Conferido                      ●       ○                 │
 └───────────────────┴────────────────────────────────────────────────────────────────┘
 3 alterações não salvas                                           [Cancelar] [Salvar]
 ```
@@ -201,9 +223,12 @@ Nome [Atendimento      ]   Descrição [Atende clientes pelo WhatsApp e pelo Ris
 - **Cabeçalho:** `PageHeader` com a seta para `/configuracoes/usuarios`, o nome da função como título, "Ver como"
   (ícone de olho, secundário) e **Salvar** (principal). Nome e Descrição numa linha só; nome repetido vira erro embaixo
   do campo ao salvar.
-- **Trilho de grupos à esquerda** (um grupo por vez, regra 5, em vez de 20 seções empilhadas): os blocos do menu na
-  ordem de `blocos.js`, depois **Rise IA**, **Cartões do Painel**, **Dados sensíveis** e **Ações**. Cada grupo mostra
-  "liberados/total" em `tabular-nums` e um ponto `acento` quando tem alteração não salva. Largura fixa de 200 px.
+- **Trilho de grupos à esquerda** (um grupo por vez, regra 5, em vez de 20 seções empilhadas): **um grupo por bloco de
+  `blocos.js`**, na ordem do menu, com tudo o que é daquele bloco dentro (as telas, as sub-telas, as ações e, no Painel,
+  os cartões; no Rise AI, as capacidades; em Configurações, Integrações e as abas do Rise AI), e um último grupo
+  transversal, **Dados sensíveis** (revisão 2: grupos "Cartões do Painel" e "Ações" separados repetiam blocos). Cada
+  grupo mostra "liberados/total" em `tabular-nums` e um ponto `acento` quando tem alteração não salva. Largura fixa de
+  200 px.
 - **Lista do grupo à direita:** uma linha por recurso; sub-telas indentadas com "›" (Produtos › cadastro). Tela em
   `nenhum` esmaece as sub-telas e os campos dela (o efetivo é `nenhum`, §3). Em cada linha, o nível é um **grupo de
   rádio em forma de segmentos** (`nenhum / ver / editar / excluir`; ações só `nenhum / executar`; cartões só
@@ -213,7 +238,8 @@ Nome [Atendimento      ]   Descrição [Atende clientes pelo WhatsApp e pelo Ris
   inclui `ver`). A busca filtra as linhas de **todos** os grupos (as de outros grupos aparecem com o nome do grupo na
   frente), para "custo" achar `dado.custo`, a coluna da lista e o campo da aba.
 - **Dados sensíveis** é um grupo com os sete recursos de §3, cada um com a bolha dizendo onde aparece ("custo:
-  cadastro, lista, kit, indicadores, lupa, ML e chat"). **"Usuários e funções" não tem linha** (não é delegável, §3).
+  cadastro, lista, kit, indicadores, lupa, ML e chat"). **Não têm linha** os recursos não delegáveis de §3: "Usuários e
+  funções", e os de WhatsApp, Telegram e prompt do cliente no grupo Rise AI (revisão 2).
 - **Campos** (lançamento 3): a linha da tela ganha uma seta que abre os campos dela agrupados pela aba do formulário, com
   `nenhum / ver / editar`; até lá a seta não existe (regra 4).
 - **Rodapé fixo** só quando há alteração (regra 4): "N alterações não salvas", Cancelar e Salvar. Sair da página com
@@ -229,24 +255,30 @@ Nome [Atendimento      ]   Descrição [Atende clientes pelo WhatsApp e pelo Ris
 Linha-guia: o dono vê primeiro quem é a pessoa e o que ela pode; a ação principal é Salvar.
 
 ```
-← Andrea                                                         [Ver como ▢] [⋯] [Salvar]
+← Andrea                                                             [Ver como ▢] [Salvar]
 [Dados] [Acesso] [Histórico]
 Nome  [Andrea          ]   Login [andrea   ] (i)   Assinatura [Andrea ] (i)   Ativo (●)
-Telegram   Não vinculado   [Gerar código de vínculo]            ← só com o bot configurado
+Telegram   Não vinculado   [Gerar código de vínculo]   ← só Administrador, só com o bot configurado
 ```
 
 - **Aba Dados:** Nome; Login (minúsculas; bolha: "o mesmo login da tela de entrada do Rise, criado por SSH"); Assinatura
-  (bolha: "nome que assina as respostas no WhatsApp; nasce com o primeiro nome"); **Ativo** como interruptor. A linha
-  **Telegram** só existe quando o bot está configurado (Entrega C da spec do agente): "Não vinculado" + **Gerar código
-  de vínculo** (mostra o código de uso único e "vale por 10 min; envie `/vincular CÓDIGO` ao bot"), ou "Vinculado em
-  dd/mm às hh:mm" + Desvincular.
+  (bolha: "nome que assina as respostas no WhatsApp; nasce com o primeiro nome"); **Ativo** como interruptor (no login
+  que vem de `RISE_AI_ADMINS`, desabilitado com o selo "Administrador pelo .env", §4). A linha **Telegram** só existe
+  para **Administrador** e quando o bot está configurado (Entrega C da spec do agente; o bot é só do dono): "Não
+  vinculado" + **Gerar código de vínculo** (mostra o código de uso único, 10 ou mais caracteres aleatórios guardado
+  como hash, e "vale por 10 min; envie `/vincular CÓDIGO` ao bot"); quando alguém manda o código, a linha passa a
+  "Pedido de <nome> (@usuario) · **Confirmar** · Recusar", e o vínculo só vale depois do Confirmar (revisão 2: o bot é
+  público, e 5 tentativas erradas num chat o silenciam e anulam o código); vinculado: "Vinculado em dd/mm às hh:mm" +
+  Desvincular. `telegramChatId` é único.
 - **Aba Acesso:** **Funções** como lista de caixas de marcação (nome, descrição e "12 de 31 telas"); **Exceções** como
   tabela compacta (Recurso · Nível · lixeira) que só aparece quando há alguma, com "Adicionar exceção" abrindo uma
   `Janela` (busca de recurso + segmentos de nível). Sem função e sem exceção, a pessoa entra e vê o Painel vazio
   (tela 5): a aba diz isso numa linha quieta ("Sem função: vê só o Painel vazio."), que some ao marcar uma.
-- **Aba Histórico** (UI/UX, decisão minha, §10): a `AuditoriaDeAcesso` desta pessoa, mais recente primeiro: Quando ·
-  Quem · O quê · Antes → Depois; 100 por página; `EmptyState` "Nenhuma alteração registrada." quando vazia.
-- **Ver como** (cabeçalho): `Janela` larga, somente leitura, "O que Andrea vê", calculada **do que está salvo**: o menu
+- **Aba Histórico** (UI/UX, decisão minha, §10; lançamento 2): a `AuditoriaDeAcesso` desta pessoa, mais recente
+  primeiro: Quando · Quem · O quê · Antes → Depois; 100 por página; `EmptyState` "Nenhuma alteração registrada." quando
+  vazia. Até o lançamento 2 a aba não existe (regra 4).
+- **Ver como** (cabeçalho; lançamento 2): `Janela` larga, somente leitura, "O que Andrea vê", calculada **do que está
+  salvo** pela mesma função de resolução do `pode()` (a prévia nunca diverge do real): o menu
   que ela terá (blocos e sub-telas com o nível em `Badge`), os cartões do Painel, os dados sensíveis e as ações
   liberadas; o que é `nenhum` não aparece. Com alteração não salva o botão fica desabilitado com `title` "Salve para
   calcular" (regra 8).
@@ -254,8 +286,9 @@ Telegram   Não vinculado   [Gerar código de vínculo]            ← só com o
   abre, no Salvar, o popup "N conversas estão com Andrea. Para onde vão?" com três opções em rádio (Devolver à IA ·
   Passar para <atendente> · Aguardando retorno); sem conversas o popup não existe. O interruptor do **último
   administrador ativo** fica desabilitado com `title` "último administrador ativo".
-- **Excluir usuário:** no "⋯", por último; popup "Excluir Andrea? Saem as funções, as exceções e o vínculo do Telegram.
-  Conversas e histórico ficam." Desabilitado para o último administrador ativo.
+- **Não existe "Excluir usuário"** (revisão 2, decisão do dono): excluir liberaria o login para outra pessoa herdar as
+  conversas do Rise (ligadas pela string `usuario`) e deixaria conversas do WhatsApp sem dona. Desativar cobre tudo:
+  inativo vale como não cadastrado em todo lugar, o login fica reservado, histórico e conversas continuam coerentes.
 - **Novo usuário** (`/configuracoes/usuarios/novo`): a mesma tela, abas Dados e Acesso, título "Novo usuário".
 
 ### 5.6 Tela 5: o Rise de quem tem acesso limitado (menu e Painel, lançamento 2)
@@ -295,8 +328,9 @@ Linha-guia: a Andrea vê o cadastro inteiro como ele é; não há ação princip
 
 ### 5.8 Integrações e Rise IA dentro de Configurações
 
-As duas telas não mudam; o `PageHeader` de cada uma ganha a seta de voltar para `/configuracoes`, e a lista de blocos do
-Painel passa a mostrar o cartão **Configurações** no lugar de Integrações.
+As duas telas não mudam de lugar. Integrações ganha, no `PageHeader`, a seta de voltar para `/configuracoes`. A tela do
+Rise AI **não ganha seta** (revisão 2): ela mora no trilho do Rise AI, não usa `PageHeader`, e o link "Configurações" do
+trilho já leva a ela. A lista de blocos do Painel passa a mostrar o cartão **Configurações** no lugar de Integrações.
 
 ### 5.9 Acabamento (revisão `make-interfaces-feel-better`)
 
@@ -332,11 +366,15 @@ O que o construtor aplica, no padrão do projeto, e o que a revisão da tela pro
 
 ## 8. Lançamentos (revisão)
 
-1. **Núcleo:** tabelas, catálogo, `acessos/sessao.js`, invólucro das ações, semeadura, o menu e as telas 1 a 4 de §5
-   (Configurações, Usuários e funções, a função com a matriz, o usuário), e as telas e ações do **Rise IA** sob o novo
-   esquema. É a única dependência real da Entrega A do agente.
-2. **O resto do Rise:** mapa rota → recurso, as 158 ações e as 9 rotas sob o invólucro, dados sensíveis transversais,
-   as telas 5 e 6 (menu e Painel filtrados, tela em `ver`), teste-guarda. A Andrea só ganha login depois deste.
+1. **Núcleo:** tabelas, catálogo (**já com os sete dados sensíveis de §3**, lidos por `pode()` nas ferramentas do Rise AI:
+   sem isso "se vê custo na tela, vê custo no chat" não vale na Entrega A; revisão 2), `acessos/sessao.js`, invólucro
+   das ações, semeadura, o menu e as telas 1 a 4 de §5 (Configurações, Usuários e funções, a função com a matriz, o
+   usuário, **sem** "Ver como" e sem a aba Histórico), e as telas e ações do **Rise AI** sob o novo esquema, com o
+   teste-guarda cobrindo `src/app/rise-ai/` e `src/app/api/rise-ai/`. É a única dependência real da Entrega A do agente.
+2. **O resto do Rise:** mapa rota → recurso, as 158 ações e as 9 rotas sob o invólucro, a projeção dos dados sensíveis
+   em todas as telas, as telas 5 e 6 (menu e Painel filtrados, tela em `ver`), "Ver como" e a aba Histórico, o
+   teste-guarda completo. **A Andrea só ganha login depois deste, por isso ele vem antes da Entrega B** (WhatsApp) na
+   ordem da spec do agente (§13 dela; revisão 2).
 3. **Campos:** permissão campo a campo, `aplicarPermissoesDeCampo` em cada formulário, o catálogo de campos conferido contra
    os `name=` dos formulários, a seta de campos na matriz. No primeiro dia da Andrea isso não faz falta (tudo `ver`).
 
@@ -356,10 +394,20 @@ estático, Salvar com campos travados, dados `ZZ-AC-*`). Antes de cada lançamen
    janelas: a matriz precisa da largura inteira.
 3. **A matriz mostra um grupo por vez**, com o trilho à esquerda e "todos desta lista" por coluna; a busca atravessa os
    grupos.
-4. **"Ver como" é uma janela de leitura** calculada do que está salvo, no usuário e na função.
-5. **O histórico da auditoria aparece como terceira aba do usuário** (a spec dizia só "gravar"; sem tela ninguém leria).
+4. **"Ver como" é uma janela de leitura** calculada do que está salvo, no usuário e na função (lançamento 2).
+5. **O histórico da auditoria aparece como terceira aba do usuário** (a spec dizia só "gravar"; sem tela ninguém leria;
+   lançamento 2).
 6. **O rodapé do menu mostra a função** no lugar de "conectado".
 7. **A linha do Telegram** no usuário só aparece quando o bot existir; o popup do destino das conversas, só a partir da
    Entrega B.
 8. **Tela em `ver` ganha só o selo "Somente leitura"** no cabeçalho; nada mais muda de lugar.
 9. **Endereço de tela sem acesso dá 404**, não uma página "sem permissão": quem não vê não sabe que existe.
+
+Da revisão 2 (noite de 12/10/2026, aprovadas pelo dono, "Opção 1"):
+
+10. **Não existe Excluir usuário; só Desativar.**
+11. **WhatsApp, Telegram e o prompt do cliente não são delegáveis**, como "Usuários e funções".
+12. **O nome na tela é "Rise AI"**, o do bloco do menu, em todo lugar (a spec do agente continua se chamando "Rise IA").
+13. **As abas seguem o desenho do cadastro de Produto**, não as pílulas da Revisão.
+14. **Um grupo por bloco na matriz**, mais "Dados sensíveis"; os ex-grupos "Cartões do Painel" e "Ações" entram nos blocos.
+15. **"Ver como" e Histórico ficam para o lançamento 2**, que entra na ordem antes do WhatsApp.
