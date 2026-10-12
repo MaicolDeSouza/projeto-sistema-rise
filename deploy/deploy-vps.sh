@@ -23,6 +23,19 @@ if grep -qE '^[[:space:]]*COLETA_PERMITIR_REDE_LOCAL=' .env; then
   exit 1
 fi
 
+# Acessos (12/10/2026): simular o login de outra pessoa e coisa do PC. A imagem de producao ja a ignora; aqui ela para.
+if grep -qE '^[[:space:]]*RISE_SIMULAR_LOGIN=' .env; then
+  echo "RISE_SIMULAR_LOGIN esta no .env: e uma chave do PC de desenvolvimento e nao pode ficar na producao. Tire a linha e rode de novo. Nada foi feito."
+  exit 1
+fi
+
+# Sem o segredo de borda o app nao aceita login nenhum (src/lib/acessos/sessao.js): o Rise subiria trancado para todos,
+# inclusive o dono. Melhor parar antes de trocar os conteineres.
+if ! grep -qE '^[[:space:]]*RISE_SEGREDO_DE_BORDA=[^[:space:]]{32,}' .env; then
+  echo "Falta RISE_SEGREDO_DE_BORDA no .env (32 caracteres ou mais; gere com: openssl rand -hex 32). Sem ele ninguem entra no Rise. Nada foi feito."
+  exit 1
+fi
+
 # O `set -e` encerra o script no meio, e sem isto o dono ficaria diante do erro cru do Prisma ou do Docker, com o
 # worker parado e sem saber o que fazer. Cada etapa diz seu nome em PASSO; o backup so existe se houve migration.
 PASSO="preparando"

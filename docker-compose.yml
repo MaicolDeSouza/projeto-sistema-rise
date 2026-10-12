@@ -102,6 +102,10 @@ services:
     # 2.11.4 ou maior: as anteriores tinham falha no copy_headers do forward_auth (conferir no ensaio).
     image: caddy:2
     restart: unless-stopped
+    # So o segredo de borda (Acessos): o Caddy nao recebe o .env inteiro. Vem do .env do projeto pela interpolacao do
+    # compose; o deploy-vps.sh recusa subir sem ele.
+    environment:
+      - RISE_SEGREDO_DE_BORDA=${RISE_SEGREDO_DE_BORDA:-}
     ports:
       - "80:80"
       - "443:443"

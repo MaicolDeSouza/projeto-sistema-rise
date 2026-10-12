@@ -35,6 +35,8 @@ rise.4hobby.com.br {
 	request_header -Remote-Name
 	request_header -Remote-Email
 	request_header -Remote-Groups
+	# O segredo de borda (Acessos, 12/10/2026): so o ramo com login o grava, mais abaixo. O que vier de fora sai aqui.
+	request_header -X-Rise-Borda
 
 	# Trilha de acesso (JSON, no log do Docker, que gira em 5 arquivos de 10 MB): sem isto nao ha como saber quem
 	# pediu o que na rota publica, nem base para um limite de taxa. O Caddy ja deixa Cookie e Authorization fora
@@ -91,7 +93,11 @@ rise.4hobby.com.br {
 				uri /api/auth/caddy
 				copy_headers Remote-User
 			}
-			reverse_proxy app:3000
+			# O app so aceita o Remote-User acompanhado deste segredo (src/lib/acessos/sessao.js): um conteiner da rede
+			# que falasse direto com o app mandaria o Remote-User que quisesse. O ramo publico (@arquivos) nao o leva.
+			reverse_proxy app:3000 {
+				header_up X-Rise-Borda {env.RISE_SEGREDO_DE_BORDA}
+			}
 		}
 	}
 }
