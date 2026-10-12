@@ -225,6 +225,51 @@ try {
     );
   }
 
+  // --- sessao: quem e a pessoa e o que pode (src/lib/acessos/sessao.js, pura) ---
+  {
+    const { LOGINS_RESERVADOS, normalizarLogin, loginDaRequisicao, montarSessao, quebraVidro, precisaGravarAcesso } = await import(
+      "../src/lib/acessos/sessao.js"
+    );
+    const vps = { RISE_PRODUCAO: "1", RISE_SEGREDO_DE_BORDA: "segredo-de-teste-123" };
+    const pedido = (cabecalhos) => new Headers(cabecalhos);
+    const daVps = (cabecalhos, env = vps) => loginDaRequisicao(pedido(cabecalhos), env);
+
+    conferir("logins reservados", LOGINS_RESERVADOS, ["pc", "desconhecido"]);
+    conferir("normalizar login: minusculas, aparado, sem controle, vazio vira vazio", [normalizarLogin(" Maicol "), normalizarLogin("AN\u0007DREA"), normalizarLogin(null), normalizarLogin("x".repeat(80)).length], ["maicol", "andrea", "", 60]);
+    conferir("VPS: Remote-User com espaco e maiuscula e o mesmo login, com o segredo certo", daVps({ "remote-user": " Maicol ", "x-rise-borda": "segredo-de-teste-123" }), { ambiente: "vps", login: "maicol", motivo: null });
+    conferir("VPS: segredo errado vale como sem login", daVps({ "remote-user": "maicol", "x-rise-borda": "outro" }), { ambiente: "vps", login: null, motivo: "sem-login" });
+    conferir("VPS: segredo ausente vale como sem login", daVps({ "remote-user": "maicol" }), { ambiente: "vps", login: null, motivo: "sem-login" });
+    conferir("VPS: sem a variavel do segredo ninguem entra", daVps({ "remote-user": "maicol", "x-rise-borda": "" }, { RISE_PRODUCAO: "1" }), { ambiente: "vps", login: null, motivo: "sem-segredo" });
+    conferir("VPS: login reservado nao entra", daVps({ "remote-user": "PC", "x-rise-borda": "segredo-de-teste-123" }), { ambiente: "vps", login: null, motivo: "reservado" });
+    conferir("VPS: RISE_SIMULAR_LOGIN e ignorada", daVps({ "remote-user": "maicol", "x-rise-borda": "segredo-de-teste-123" }, { ...vps, RISE_SIMULAR_LOGIN: "andrea" }), { ambiente: "vps", login: "maicol", motivo: null });
+    conferir("PC sem simulacao e o login pc", loginDaRequisicao(pedido({ "remote-user": "maicol" }), {}), { ambiente: "pc", login: "pc", motivo: null });
+    conferir("PC com RISE_SIMULAR_LOGIN", loginDaRequisicao(pedido({}), { RISE_SIMULAR_LOGIN: " Andrea " }), { ambiente: "pc", login: "andrea", motivo: "simulado" });
+    conferir("quebra-vidro compara sem caixa e ignora vazio", [quebraVidro("maicol", { RISE_AI_ADMINS: " Maicol , outro" }), quebraVidro("andrea", { RISE_AI_ADMINS: "maicol" }), quebraVidro(null, { RISE_AI_ADMINS: "maicol" }), quebraVidro("maicol", {})], [true, false, false, false]);
+
+    const atendimento = { fixa: false, permissoes: [{ recurso: "tela.riseAi", nivel: "ver" }, { recurso: "riseAi.chat", nivel: "editar" }] };
+    const usuario = (extra = {}) => ({ login: "andrea", ativo: true, funcoes: [{ funcao: atendimento }], excecoes: [], ...extra });
+    const pc = montarSessao({ ambiente: "pc", login: "pc", motivo: null, usuario: null, quebraVidro: false });
+    conferir("PC sem simulacao e administrador e pode tudo", [pc.estado, pc.administrador, pc.pode("tela.configuracoes.usuarios", "editar"), pc.simulando], ["ok", true, true, null]);
+    const simuladoSemCadastro = montarSessao({ ambiente: "pc", login: "andrea", motivo: "simulado", usuario: null, quebraVidro: false });
+    conferir("PC simulado sem cadastro nao pode nada", [simuladoSemCadastro.estado, simuladoSemCadastro.administrador, simuladoSemCadastro.pode("tela.riseAi", "ver"), simuladoSemCadastro.simulando], ["nao-cadastrado", false, false, "andrea"]);
+    const andrea = montarSessao({ ambiente: "vps", login: "andrea", motivo: null, usuario: usuario(), quebraVidro: false });
+    conferir("a funcao Atendimento conversa e nao revisa", [andrea.estado, andrea.administrador, andrea.pode("riseAi.chat", "editar"), andrea.pode("riseAi.revisao", "ver")], ["ok", false, true, false]);
+    const inativa = montarSessao({ ambiente: "vps", login: "andrea", motivo: null, usuario: usuario({ ativo: false }), quebraVidro: false });
+    conferir("usuario inativo vale como sem acesso", [inativa.estado, inativa.pode("riseAi.chat", "ver")], ["inativo", false]);
+    const dono = montarSessao({ ambiente: "vps", login: "maicol", motivo: null, usuario: usuario({ login: "maicol", ativo: false }), quebraVidro: true });
+    conferir("quebra-vidro e administrador mesmo inativo", [dono.estado, dono.administrador, dono.pode("tela.configuracoes.usuarios", "editar")], ["ok", true, true]);
+    const fixa = montarSessao({ ambiente: "vps", login: "maicol", motivo: null, usuario: usuario({ login: "maicol", funcoes: [{ funcao: { fixa: true, permissoes: [] } }] }), quebraVidro: false });
+    conferir("quem tem a funcao fixa e administrador", [fixa.administrador, fixa.pode("acao.vps.deploy", "executar")], [true, true]);
+    const semSegredo = montarSessao({ ambiente: "vps", login: null, motivo: "sem-segredo", usuario: null, quebraVidro: false });
+    conferir("sem segredo de borda: estado proprio e nada liberado", [semSegredo.estado, semSegredo.pode("tela.painel", "ver")], ["sem-segredo", false]);
+    const bancoForaNaVps = montarSessao({ ambiente: "vps", login: "andrea", motivo: null, usuario: null, quebraVidro: false, erroBanco: true });
+    const bancoForaNoPc = montarSessao({ ambiente: "pc", login: "andrea", motivo: "simulado", usuario: null, quebraVidro: false, erroBanco: true });
+    conferir("banco fora: na VPS nada; no PC administrador (para Integracoes abrir)", [bancoForaNaVps.estado, bancoForaNaVps.administrador, bancoForaNoPc.estado, bancoForaNoPc.administrador], ["erro-banco", false, "erro-banco", true]);
+
+    const agora = new Date("2026-10-12T20:00:00Z");
+    conferir("ultimo acesso: grava a cada 10 minutos", [precisaGravarAcesso(null, agora), precisaGravarAcesso(new Date(agora - 9 * 60000), agora), precisaGravarAcesso(new Date(agora - 11 * 60000), agora)], [true, false, true]);
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
