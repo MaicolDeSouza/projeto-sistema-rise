@@ -2046,6 +2046,24 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
       origemSemLoja({ nome: "Pinos PWM", valor: "6", referencias: [] }, refsDaOrigem, "UNO R3 6 SMD"), { tipo: "ia", apontadas: [] });
     conferir("origem: sem texto do produto, e 'ia'", origemSemLoja({ nome: "Microcontrolador", valor: "ATmega328P", referencias: [] }, refsDaOrigem, ""), { tipo: "ia", apontadas: [] });
 
+    // O mesmo valor escrito de outro jeito (13/10/2026): "10 bits" na IA e "10-Bits" na loja. O ADC do 100101 ficava sem
+    // fonte porque "10bits" nao aparece em "10-bits", mesmo com a IA citando todas as referencias.
+    const refsBits = [
+      { nome: "Placa", descricao: "", especificacoes: [{ nome: "Tipos GPIO", valor: "Pinos digitais I/O (14), pinos analógicos 10-Bits (6 canais)" }], fonte: { nome: "Curto Circuito" } },
+      { nome: "Outra", descricao: "ADC de 10 bit e 3 canais", especificacoes: [], fonte: { nome: "Saravati" } },
+      { nome: "Mega", descricao: "ADC de 110 bits", especificacoes: [{ nome: "Memória Flash", valor: "32KB" }], fonte: { nome: "Eletrogate" } },
+    ];
+    conferir("hifen e plural: '10 bits' casa com '10-Bits' e com '10 bit', e nao com '110 bits'",
+      lojasDaCaracteristica({ nome: "Resolução do ADC", valor: "10 bits", referencias: [1, 2, 3] }, refsBits), ["Curto Circuito", "Saravati"]);
+    conferir("numero que e parte de outro numero nao casa: '2KB' nao esta em '32KB'",
+      lojasDaCaracteristica({ nome: "Memória RAM", valor: "2KB SRAM", referencias: [3] }, refsBits), []);
+    const { lojasQueTrazem } = await import("../src/lib/ia/divergencias.js");
+    conferir("busca em todas as referencias quando a IA nao aponta nenhuma",
+      lojasQueTrazem({ nome: "Resolução do ADC", valor: "10 bits", referencias: [] }, refsBits), ["Curto Circuito", "Saravati"]);
+    conferir("busca em todas: valor curto ('6', '5V') nao e procurado; valor que ninguem traz, vazio",
+      [lojasQueTrazem({ nome: "Pinos PWM", valor: "6" }, refsBits), lojasQueTrazem({ nome: "Tensão", valor: "5V" }, refsBits), lojasQueTrazem({ nome: "X", valor: "ATmega328P" }, refsBits), lojasQueTrazem(null, null)],
+      [[], [], [], []]);
+
     // O texto da dica do rotulo "IA" / "Cadastro".
     const { dicaDaOrigem } = await import("../src/lib/ia/revisaoDescricao.js");
     const avisoIA = "Escrito pela IA: nenhuma loja nem o cadastro do produto traz este valor. Confira antes de salvar.";

@@ -9,7 +9,7 @@ import { limparSugestoesDeCategoria, montarPedidoDeCategorias } from "@/lib/cana
 
 import { PADRAO_TITULO } from "./padraoTitulo";
 import { integrarDecisoes } from "./decisoes";
-import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica, origemSemLoja } from "./divergencias";
+import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica, lojasQueTrazem, origemSemLoja } from "./divergencias";
 import { compactarUnidades, formatarLinhaTecnica, normalizarTerminologiaEletrica } from "./revisaoDescricao";
 
 /**
@@ -806,7 +806,12 @@ export async function gerarDescricao(
   for (const item of integrado.caracteristicas) {
     if (!item?.nome || !item?.valor) continue;
     const chave = formatarLinhaTecnica(`- ${semPontuacaoFinal(item.nome)}: ${semPontuacaoFinal(item.valor)};`);
-    if (!fontesDasLinhas[chave]) origensDasLinhas[chave] = origemSemLoja(item, linhas, proprio);
+    if (fontesDasLinhas[chave]) continue;
+    // A IA nao apontou a referencia certa (ou apontou e o texto nao confirma): procura o valor no texto de TODAS. O ADC do
+    // 100101 estava na ficha da Curto Circuito ("10-Bits") e a linha ficava sem fonte.
+    const achadas = lojasQueTrazem(item, linhas);
+    if (achadas.length > 0) fontesDasLinhas[chave] = achadas;
+    else origensDasLinhas[chave] = origemSemLoja(item, linhas, proprio);
   }
   return {
     texto: textoFinal,

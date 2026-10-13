@@ -2318,7 +2318,11 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       veio a fonte"): antes a linha ficava sem nada ao lado. `origemSemLoja` (`divergencias.js`) diz **"Cadastro"** quando o
       valor está no título, na marca, no modelo, na descrição atual ou nas peças do kit (número solto, como "6", nunca conta),
       e **"IA"** (âmbar) quando nada traz o valor. A dica do "IA" diz isso e lista, uma por linha, as referências que a IA
-      apontou sem o texto delas confirmar (`dicaDaOrigem`). A IA não tem fonte além das referências que recebeu: para
+      apontou sem o texto delas confirmar (`dicaDaOrigem`). **Antes de dizer "IA", o sistema procura o valor no texto de
+      TODAS as referências** (`lojasQueTrazem`, valor com 4+ caracteres): a IA às vezes aponta a loja errada ou nenhuma, e o
+      ADC do 100101 estava na ficha da Curto Circuito ("10-Bits"). A conferência por texto agora tolera hífen e plural
+      ("10 bits" = "10-Bits" = "10 bit") e **não deixa um número casar com o fim de outro** ("2KB" não está em "32KB",
+      "10 bits" não está em "110 bits"; antes confirmava a loja errada). A IA não tem fonte além das referências que recebeu: para
       ter uma fonte de verdade nessas linhas falta a conferência na internet (só pesquisada, não construída). Vai em
       `origensDasLinhas` no resultado de `gerarDescricao` (`{ "- Nome: valor;": { tipo, apontadas } }`). **Dica das lojas:**
       uma por linha ("Loja: produto"), em vez de tudo corrido com " · " (`dicaDasFontes`); vale nas opções dos quadros e no

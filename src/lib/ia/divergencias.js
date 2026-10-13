@@ -70,12 +70,21 @@ function textoDaReferencia(referencia) {
 /// "7~12v", "de6ate20v"): o numero, um conector e o OUTRO numero antes da unidade. Sem o outro numero ("7amperes")
 /// nao e faixa. Antes a Tensao de Alimentacao voltava sem loja com tres lojas publicando "7-12V" (13/10/2026).
 const NUMERO_E_UNIDADE = /^(\d+(?:\.\d+)?)([a-z]+)$/;
+const escapar = (texto) => texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 function pedacoNoTexto(pedaco, texto) {
-  if (texto.includes(pedaco)) return true;
+  if (!/^\d/.test(pedaco)) return texto.includes(pedaco);
+  // O numero que abre o pedaco nao pode ser o fim de OUTRO numero: "2kb" nao esta em "32kb", "10bits" nao esta em
+  // "110 bits" (antes confirmava a loja errada).
+  if (new RegExp(`(?<![0-9.])${escapar(pedaco)}`).test(texto)) return true;
   const partes = NUMERO_E_UNIDADE.exec(pedaco);
   if (!partes) return false;
-  const numero = partes[1].replace(/\./g, "\\.");
-  return new RegExp(`(?:^|[^0-9.])${numero}(?:[-~–—/]|ate|a|e)\\d+(?:\\.\\d+)?${partes[2]}`).test(texto);
+  const numero = escapar(partes[1]);
+  const unidade = partes[2];
+  // O mesmo valor escrito de outro jeito (13/10/2026): "10 bits" na IA e "10-Bits" ou "10 bit" na loja, hifen entre o
+  // numero e a unidade e singular ou plural. O ADC do 100101 ficava sem fonte por causa do hifen.
+  const base = unidade.length > 3 && unidade.endsWith("s") ? unidade.slice(0, -1) : unidade;
+  if (new RegExp(`(?<![0-9.])${numero}-?${base}s?`).test(texto)) return true;
+  return new RegExp(`(?:^|[^0-9.])${numero}(?:[-~–—/]|ate|a|e)\\d+(?:\\.\\d+)?${unidade}`).test(texto);
 }
 
 /**
@@ -110,6 +119,18 @@ export function lojasDaCaracteristica(item, referencias) {
     if (exigidos.every((pedaco) => pedacoNoTexto(pedaco, texto))) lojas.push(nome);
   }
   return lojas;
+}
+
+/**
+ * As lojas cujo texto traz o valor, sem depender de a IA ter apontado a referencia certa (pedido do dono em 13/10/2026:
+ * "o ADC veio de algum lugar"): a IA as vezes aponta a loja errada ou nenhuma. So procura valor com 4 caracteres ou mais
+ * (letras e numeros): "6" ou "5V" estao em qualquer texto e nao provam nada.
+ */
+export function lojasQueTrazem(item, referencias) {
+  const lista = Array.isArray(referencias) ? referencias : [];
+  const valor = normalizar(String(item?.valor ?? "")).replace(/[^a-z0-9]/g, "");
+  if (valor.length < 4 || lista.length === 0) return [];
+  return lojasDaCaracteristica({ ...item, referencias: lista.map((_, indice) => indice + 1) }, lista);
 }
 
 /**
