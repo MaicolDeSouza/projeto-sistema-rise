@@ -244,3 +244,15 @@ export async function excluirFuncao(id, { quem } = {}) {
     return { ok: true };
   });
 }
+
+/**
+ * Esta pessoa e o ultimo administrador ativo? A tela trava o interruptor Ativo dela com o motivo (regra 8 do Padrao
+ * visual); quem recusa de verdade e o `salvarUsuario`, que refaz a conta com as funcoes fixas travadas.
+ */
+export async function ehUltimoAdministradorAtivo(id) {
+  const fixas = (await prisma.funcaoRise.findMany({ where: { fixa: true }, select: { id: true } })).map((funcao) => funcao.id);
+  const usuario = await prisma.usuarioRise.findUnique({ where: { id: String(id ?? "") }, include: { funcoes: true } });
+  if (!usuario?.ativo || !usuario.funcoes.some((vinculo) => fixas.includes(vinculo.funcaoId))) return false;
+  const outros = await prisma.usuarioRise.count({ where: { id: { not: usuario.id }, ativo: true, funcoes: { some: { funcaoId: { in: fixas } } } } });
+  return outros === 0;
+}
