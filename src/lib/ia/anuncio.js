@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { LIMITE_TITULO_ML } from "@/lib/limites";
 import { linhaDeDimensoes, linhaDePeso, medidasDoProdutoColetado } from "@/lib/medidas";
 import { casaPalavra, indiceDePalavras, normalizar, palavrasDoTermo } from "@/lib/texto";
+import { lerChave } from "@/lib/riseAi/configuracao";
 
 import { limparSugestoesDeCategoria, montarPedidoDeCategorias } from "@/lib/canaisDeVenda/li/categorias";
 
@@ -11,6 +12,8 @@ import { PADRAO_TITULO } from "./padraoTitulo";
 import { integrarDecisoes } from "./decisoes";
 import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica, lojasQueTrazem, origemSemLoja } from "./divergencias";
 import { compactarUnidades, formatarLinhaTecnica, normalizarTerminologiaEletrica } from "./revisaoDescricao";
+import { criarFetchDaOpenAI } from "./gptComoAnthropic";
+import { ehModeloGpt } from "./modelosDaDescricao";
 
 /**
  * Titulo e descricao de produto escritos pela IA a partir de produtos de
@@ -24,6 +27,7 @@ import { compactarUnidades, formatarLinhaTecnica, normalizarTerminologiaEletrica
 // `IA_MODELO` troca por PROCESSO (a bancada roda um processo por modelo); no dia a dia o modelo e o do codigo.
 const MODELO = process.env.IA_MODELO?.trim() || "claude-opus-5-5";
 const ENDPOINT = "https://api.anthropic.com/v1/messages";
+const ENDPOINT_OPENAI = "https://api.openai.com/v1/chat/completions";
 
 // Tarefas em que o raciocinio extra nao paga: a descricao so extrai, padroniza e formata o que as lojas dizem.
 // Medido em 13/10/2026 (Opus 5, sem effort): 3.941 dos 6.129 tokens de saida eram raciocinio interno. As demais
@@ -75,6 +79,27 @@ function obterCliente() {
   // da loja seguiria para o servidor que estiver nela.
   cliente ??= new Anthropic({ baseURL: "https://api.anthropic.com" });
   return cliente;
+}
+
+/**
+ * O cliente do modelo pedido (14/10/2026: o dono escolhe Opus 5.5 ou GPT 6.1 Sol na janela da descricao). Modelo da
+ * Anthropic usa o cliente de sempre. Modelo GPT recebe um cliente PROPRIO, criado so com um `fetch` que traduz a chamada
+ * para a OpenAI (`gptComoAnthropic`): o `fetch` global e o cliente da Anthropic nao mudam. A chave da OpenAI e a
+ * cadastrada em Rise AI > Configuracoes (ou `OPENAI_API_KEY` no .env); a `apiKey` do SDK e so um marcador, que nunca
+ * sai daqui.
+ */
+async function clienteDoModelo(modelo) {
+  if (!ehModeloGpt(modelo)) return obterCliente();
+  const chave = await lerChave("openai");
+  if (!chave) {
+    throw new Error("A chave da OpenAI não está cadastrada. Cadastre em Rise AI > Configurações e tente de novo.");
+  }
+  return new Anthropic({
+    apiKey: "chave-da-openai-fica-no-fetch",
+    baseURL: "https://api.anthropic.com",
+    maxRetries: 0, // geracao paga: erro mostra na tela, nao se repete sozinho
+    fetch: criarFetchDaOpenAI({ obterChave: async () => chave }),
+  });
 }
 
 async function lerReferencias(ids) {
@@ -180,16 +205,16 @@ async function lerPecasParaDescricao(pecas) {
   };
 }
 
-async function registrar({ tarefa, referencias, inicio, resposta, erro }) {
+async function registrar({ tarefa, referencias, inicio, resposta, erro, modelo = MODELO }) {
   try {
     await prisma.logIntegracao.create({
       data: {
-        servico: "ANTHROPIC",
+        servico: ehModeloGpt(modelo) ? "OPENAI" : "ANTHROPIC",
         metodo: "POST",
-        endpoint: ENDPOINT,
+        endpoint: ehModeloGpt(modelo) ? ENDPOINT_OPENAI : ENDPOINT,
         statusHttp: erro ? (erro.status ?? null) : 200,
         duracaoMs: Date.now() - inicio,
-        requestResumo: JSON.stringify({ tarefa, modelo: MODELO, referencias }),
+        requestResumo: JSON.stringify({ tarefa, modelo, referencias }),
         responseResumo: resposta
           ? JSON.stringify({
               modelo: resposta.model,
@@ -205,7 +230,11 @@ async function registrar({ tarefa, referencias, inicio, resposta, erro }) {
   }
 }
 
-function mensagemDeErro(erro) {
+function mensagemDeErro(erro, modelo = MODELO) {
+  // O cliente do GPT e o mesmo SDK: a chave recusada e a da OpenAI, e a mensagem tem de dizer isso.
+  if (ehModeloGpt(modelo) && (erro instanceof Anthropic.AuthenticationError || erro instanceof Anthropic.PermissionDeniedError)) {
+    return `A OpenAI recusou a chave ou a permissão (${erro.message}). Confira em Rise AI > Configurações.`;
+  }
   if (erro instanceof Anthropic.AuthenticationError) {
     return "A chave ANTHROPIC_API_KEY foi recusada. Confira o valor no .env.";
   }
@@ -221,29 +250,28 @@ function mensagemDeErro(erro) {
   return erro.message;
 }
 
-async function chamar({ tarefa, quantidade, sistema, pedido, formato }) {
-  const client = obterCliente();
+async function chamar({ tarefa, quantidade, sistema, pedido, formato, modelo = MODELO }) {
+  const client = await clienteDoModelo(modelo);
   const inicio = Date.now();
 
   let resposta;
   try {
     resposta = await client.beta.messages.create({
-      model: MODELO,
+      model: modelo,
       max_tokens: 16000,
       // Se o modelo recusar, outro responde na mesma chamada em vez de a tela
-      // mostrar erro por um texto de produto eletronico.
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
+      // mostrar erro por um texto de produto eletronico. (So a Anthropic tem esse recurso.)
+      ...(ehModeloGpt(modelo) ? {} : { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" }),
       system: sistema,
       messages: [{ role: "user", content: pedido }],
       ...configDeSaida(tarefa, formato),
     });
   } catch (erro) {
-    await registrar({ tarefa, referencias: quantidade, inicio, erro });
-    throw new Error(mensagemDeErro(erro));
+    await registrar({ tarefa, referencias: quantidade, inicio, erro, modelo });
+    throw new Error(mensagemDeErro(erro, modelo));
   }
 
-  await registrar({ tarefa, referencias: quantidade, inicio, resposta });
+  await registrar({ tarefa, referencias: quantidade, inicio, resposta, modelo });
 
   if (resposta.stop_reason === "refusal") {
     throw new Error("A IA recusou gerar este texto. Tente marcar outras referências.");
@@ -687,7 +715,7 @@ export function montarDescricao({
  */
 export async function gerarDescricao(
   ids,
-  { titulo = "", sku = "", medidas = {}, marca = "", modelo = "", descricao = "", pecas = [] } = {},
+  { titulo = "", sku = "", medidas = {}, marca = "", modelo = "", descricao = "", pecas = [], modeloIA = MODELO } = {},
   instrucoes = PROMPT_DESCRICAO_PADRAO,
 ) {
   // Kit (pedido do dono em 10/10/2026): as pecas entram como referencia, e os Itens inclusos saem delas.
@@ -735,6 +763,7 @@ export async function gerarDescricao(
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
     const texto = await chamar({
       tarefa: "descricao",
+      modelo: modeloIA,
       quantidade,
       sistema: blocosDoSistema(SISTEMA, instrucoes),
       pedido: blocosDoPedido(

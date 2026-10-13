@@ -21,6 +21,7 @@ import {
   promptsDaDescricao,
   salvarPromptDaDescricao,
 } from "@/app/produtos/acoes";
+import { MODELOS_DA_DESCRICAO, MODELO_PADRAO_DA_DESCRICAO } from "@/lib/ia/modelosDaDescricao";
 import { linhasDeEspecificacao, medidasDaDescricao } from "@/lib/medidas";
 import { adicionarEspecificacao, formatarLinhaTecnica, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, organizarDescricao, removerEspecificacao, editarOpcaoDeParagrafo, excluirOpcaoDeParagrafo, moverQuadroNoEstado, removerLinha, substituirCodigoDosItens, substituirEspecificacao, substituirLinha, trocarParagrafo } from "@/lib/ia/revisaoDescricao";
 import LinhasDescricao from "./LinhasDescricao";
@@ -300,6 +301,8 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
   const [prompt, setPrompt] = useState(null);
   const [nomePrompt, setNomePrompt] = useState("");
   const [maximoPrompt, setMaximoPrompt] = useState(0);
+  // O modelo que escreve a descricao (pedido do dono em 14/10/2026): Opus 5.5 (padrao) ou GPT 6.1 Sol. O servidor confere o id.
+  const [modeloIA, setModeloIA] = useState(MODELO_PADRAO_DA_DESCRICAO);
   // O escolhido antes do "Novo prompt": descartar o novo volta para ele.
   const [anteriorId, setAnteriorId] = useState(null);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
@@ -479,7 +482,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
     iniciarGeracao(async () => {
       try {
         // O prompt da caixa; sem ele (ainda lendo, ou a leitura falhou) o servidor usa o salvo.
-        const resultado = await criarDescricaoIA(idsParaGerar, { ...atual, pecas: pecasParaGerar }, prompt ?? undefined);
+        const resultado = await criarDescricaoIA(idsParaGerar, { ...atual, pecas: pecasParaGerar }, prompt ?? undefined, modeloIA);
         if (geracao !== geracaoAtual.current) return;
         if (!resultado.ok) {
           setErro(resultado.erro);
@@ -1078,6 +1081,22 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
                     </option>
                   ))
                 )}
+              </select>
+              {/* A caixa do modelo (desenho do dono em 14/10/2026), ao lado do prompt: so os dois que entregam a descricao completa. */}
+              <select
+                id="descricao-modelo-ia"
+                aria-label="Modelo de IA"
+                title="Modelo de IA que escreve a descrição"
+                value={modeloIA}
+                onChange={(evento) => setModeloIA(evento.target.value)}
+                disabled={gerando}
+                className="min-w-0 rounded border border-borda bg-superficie px-2 py-1 text-xs focus:border-acento focus:outline-none disabled:opacity-60"
+              >
+                {MODELOS_DA_DESCRICAO.map((modelo) => (
+                  <option key={modelo.id} value={modelo.id}>
+                    {modelo.nome}
+                  </option>
+                ))}
               </select>
               <button
                 type="button"

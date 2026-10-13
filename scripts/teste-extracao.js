@@ -2079,7 +2079,8 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   // OpenAI (a chave cadastrada e restrita e nao tem o escopo da API Responses), e a resposta volta no formato Anthropic.
   // So dev: nada de producao usa.
   {
-    const { paraChatDaOpenAI, paraMensagemDaAnthropic } = await import("./lib/gptComoAnthropic.js");
+    const { paraChatDaOpenAI, paraMensagemDaAnthropic, criarFetchDaOpenAI } = await import("../src/lib/ia/gptComoAnthropic.js");
+    const { MODELOS_DA_DESCRICAO, MODELO_PADRAO_DA_DESCRICAO, ehModeloGpt, modeloDaDescricao } = await import("../src/lib/ia/modelosDaDescricao.js");
     const corpoAnthropic = {
       model: "gpt-6.1-sol", max_tokens: 16000, fallbacks: "default",
       system: [{ type: "text", text: "PAPEL" }, { type: "text", text: "PROMPT", cache_control: { type: "ephemeral" } }],
@@ -2105,6 +2106,44 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
       [paraMensagemDaAnthropic({ ...respostaOpenAI, choices: [{ finish_reason: "length", message: { content: "{" } }] }, "m").stop_reason,
         paraMensagemDaAnthropic({ ...respostaOpenAI, choices: [{ finish_reason: "stop", message: { content: null, refusal: "nao" } }] }, "m").stop_reason],
       ["max_tokens", "refusal"]);
+
+    // O seletor de modelo da janela "Criar descricao" (14/10/2026): so os dois modelos que o dono escolheu, e o servidor
+    // nunca aceita outro id vindo do navegador.
+    conferir("modelos da descricao: GPT 6.1 Sol (padrao, o primeiro) e Opus 5.5",
+      [MODELOS_DA_DESCRICAO.map((m) => m.id), MODELO_PADRAO_DA_DESCRICAO], [["gpt-6.1-sol", "claude-opus-5-5"], "gpt-6.1-sol"]);
+    conferir("modeloDaDescricao: sem escolha vale o padrao, os dois ids passam e outro id e recusado",
+      [modeloDaDescricao(undefined), modeloDaDescricao(""), modeloDaDescricao("gpt-6.1-sol"), modeloDaDescricao("claude-opus-5-5"), modeloDaDescricao("gpt-6-astra"), modeloDaDescricao({ id: "x" })],
+      ["gpt-6.1-sol", "gpt-6.1-sol", "gpt-6.1-sol", "claude-opus-5-5", null, null]);
+    conferir("ehModeloGpt: gpt-* e o* (raciocinio) vao para a OpenAI, claude-* nao",
+      [ehModeloGpt("gpt-6.1-sol"), ehModeloGpt("o3"), ehModeloGpt("claude-opus-5-5"), ehModeloGpt(undefined)], [true, true, false, false]);
+
+    // O `fetch` do cliente da IA que fala com a OpenAI: nada do `fetch` global muda, e a chave so vai no cabecalho.
+    {
+      const chamadas = [];
+      const falso = async (url, opcoes) => {
+        chamadas.push({ url: String(url), opcoes });
+        return new Response(JSON.stringify(respostaOpenAI), { status: 200, headers: { "content-type": "application/json" } });
+      };
+      const meuFetch = criarFetchDaOpenAI({ obterChave: async () => "sk-de-teste", fetchOriginal: falso });
+      const resposta = await meuFetch("https://api.anthropic.com/v1/messages?beta=true", { method: "POST", body: JSON.stringify(corpoAnthropic) });
+      const json = await resposta.json();
+      conferir("fetch da OpenAI: vai para o chat/completions com a chave no cabecalho e o corpo traduzido",
+        [chamadas.length, chamadas[0].url, chamadas[0].opcoes.headers.authorization, JSON.parse(chamadas[0].opcoes.body).model],
+        [1, "https://api.openai.com/v1/chat/completions", "Bearer sk-de-teste", "gpt-6.1-sol"]);
+      conferir("fetch da OpenAI: a resposta volta como Message da Anthropic, com o modelo PEDIDO (o preco e achado por ele)",
+        [resposta.status, json.type, json.model, json.usage.cache_read_input_tokens], [200, "message", "gpt-6.1-sol", 800]);
+      const outro = await meuFetch("https://exemplo.invalid/qualquer", { method: "GET" });
+      conferir("fetch da OpenAI: o que nao e /v1/messages passa direto", [chamadas.length, chamadas[1].url, outro.status], [2, "https://exemplo.invalid/qualquer", 200]);
+
+      const recusado = criarFetchDaOpenAI({
+        obterChave: async () => "sk-ruim",
+        fetchOriginal: async () => new Response(JSON.stringify({ error: { message: "Missing scopes" } }), { status: 401, headers: { "content-type": "application/json" } }),
+      });
+      const negada = await recusado("https://api.anthropic.com/v1/messages", { method: "POST", body: JSON.stringify(corpoAnthropic) });
+      const corpoNegado = await negada.json();
+      conferir("fetch da OpenAI: erro da OpenAI vira erro no formato da Anthropic, com o mesmo status",
+        [negada.status, corpoNegado.type, corpoNegado.error.message], [401, "error", "Missing scopes"]);
+    }
   }
 
   // O pedido manda a IA apontar as referencias de cada caracteristica (so com referencias de verdade).

@@ -27,6 +27,7 @@ import {
   MAXIMO_PROMPT_DESCRICAO,
   MAXIMO_REFERENCIAS,
 } from "@/lib/ia/anuncio";
+import { modeloDaDescricao } from "@/lib/ia/modelosDaDescricao";
 import * as bibliotecaDePrompts from "@/lib/ia/promptsDescricao";
 import { normalizar } from "@/lib/texto";
 import { descartarLote } from "@/lib/imagens/lote";
@@ -234,9 +235,12 @@ export async function buscarDescricoesParaProduto(idsReferencias = []) {
 /**
  * Descricao no modelo da loja, escrita pela IA a partir das referencias marcadas.
  * `produto` leva o Nome e o Codigo do formulario: titulo e "Itens inclusos (Cod:)".
+ * `modelo` e o id escolhido na janela (Opus 5.5 ou GPT 6.1 Sol): conferido aqui contra a lista, nunca aceito como veio.
  */
-export async function criarDescricaoIA(ids, produto, instrucoes) {
+export async function criarDescricaoIA(ids, produto, instrucoes, modelo) {
   try {
+    const modeloIA = modeloDaDescricao(modelo);
+    if (modeloIA === null) return { ok: false, erro: "Modelo de IA desconhecido. Escolha um da lista." };
     // `instrucoes` e o prompt da caixa da janela (o escolhido na lista, ou editado so para esta geracao). Sem ele,
     // o prompt marcado como padrao na biblioteca.
     let prompt;
@@ -247,7 +251,7 @@ export async function criarDescricaoIA(ids, produto, instrucoes) {
       if (!conferido.ok) return conferido;
       prompt = conferido.texto;
     }
-    return { ok: true, ...(await gerarDescricao(ids, produto, prompt)) };
+    return { ok: true, ...(await gerarDescricao(ids, { ...produto, modeloIA }, prompt)) };
   } catch (erro) {
     return { ok: false, erro: erro.message };
   }

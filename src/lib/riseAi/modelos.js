@@ -60,6 +60,8 @@ export const PRECOS_USD_POR_MILHAO = {
   "claude-haiku-5-5": { entrada: 0.1, saida: 0.5 },
   "claude-sonnet-5-5": { entrada: 2, saida: 10 },
   "claude-opus-5-5": { entrada: 4, saida: 20 },
+  // GPT 6.1 Sol (13/10/2026, medido na bancada da descricao): US$ 2/10 por milhao. A leitura em cache custa 5% da entrada.
+  "gpt-6.1-sol": { entrada: 2, saida: 10, pesoDoCacheLido: 0.05 },
 };
 
 /** Modelos que a tela oferece mesmo sem consultar o provedor (os demais vêm de `listarModelos`). */

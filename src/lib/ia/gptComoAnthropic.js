@@ -1,15 +1,14 @@
 /**
- * Faz a `chamar` da descricao (que fala o formato da API Messages da Anthropic) conversar com a OpenAI, SO NA BANCADA
- * (pedido do dono em 13/10/2026: testar GPT na descricao do 100101 para comparar qualidade e custo). Nada de producao
- * usa isto: o Rise segue falando so com a Anthropic.
+ * Faz a `chamar` da descricao (que fala o formato da API Messages da Anthropic) conversar com a OpenAI, sem mudar o resto
+ * do Rise: o pedido vira uma chamada a API Chat Completions e a resposta volta montada como uma Message da Anthropic, com
+ * o cache e o raciocinio separados no `usage` (por isso o registro e a soma do gasto nao percebem a troca).
  *
- * Como: o cliente da Anthropic e criado na primeira chamada, entao o processo da bancada troca o `fetch` global antes
- * dela. O pedido para `api.anthropic.com/v1/messages` vira uma chamada a API Chat Completions da OpenAI (o prompt vai
- * na mensagem `system`, o pedido na `user`, o JSON estrito em `response_format` e o effort em `reasoning_effort`), e a
- * resposta volta montada como uma Message da Anthropic, com o cache e o raciocinio separados no `usage` (e por isso o
- * resto do Rise, que registra e soma o gasto, nao percebe a troca).
+ * Nasceu na bancada (13/10/2026) e virou parte do Rise quando o dono escolheu o GPT 6.1 Sol como segundo modelo da
+ * descricao (14/10/2026). Como: o cliente da Anthropic aceita um `fetch` proprio, entao so o cliente criado para um
+ * modelo GPT recebe este (`criarFetchDaOpenAI`); o `fetch` global e o cliente da Anthropic nao mudam. O prompt vai na
+ * mensagem `system`, o pedido na `user`, o JSON estrito em `response_format` e o effort em `reasoning_effort`.
  *
- * Por que Chat Completions e nao Responses: a chave da OpenAI cadastrada no Rise e restrita e a API Responses recusou
+ * Por que Chat Completions e nao Responses: a chave da OpenAI cadastrada no Rise e restrita, e a API Responses a recusou
  * (401, falta o escopo `api.responses.write`).
  */
 
@@ -35,7 +34,10 @@ export function paraChatDaOpenAI(corpo) {
   return pedido;
 }
 
-/** A resposta da API Chat Completions -> uma Message da Anthropic (texto, motivo da parada e uso). */
+/**
+ * A resposta da API Chat Completions -> uma Message da Anthropic (texto, motivo da parada e uso). O `model` devolvido e o
+ * PEDIDO, e nao o nome datado que a OpenAI manda de volta: e por ele que se acha o preco do modelo.
+ */
 export function paraMensagemDaAnthropic(resposta, modeloPedido) {
   const escolha = resposta.choices?.[0] ?? {};
   const mensagem = escolha.message ?? {};
@@ -45,7 +47,7 @@ export function paraMensagemDaAnthropic(resposta, modeloPedido) {
     id: resposta.id,
     type: "message",
     role: "assistant",
-    model: resposta.model ?? modeloPedido,
+    model: modeloPedido ?? resposta.model,
     content: [{ type: "text", text: mensagem.content ?? "" }],
     stop_reason: mensagem.refusal ? "refusal" : escolha.finish_reason === "length" ? "max_tokens" : "end_turn",
     stop_sequence: null,
@@ -60,11 +62,11 @@ export function paraMensagemDaAnthropic(resposta, modeloPedido) {
 }
 
 /**
- * Troca o `fetch` global: o que o SDK da Anthropic manda para `/v1/messages` vai para a OpenAI. Qualquer outro endereco
+ * O `fetch` para o cliente da Anthropic: o que o SDK manda para `/v1/messages` vai para a OpenAI. Qualquer outro endereco
  * passa direto. `obterChave` devolve a chave da OpenAI (nunca e impressa nem gravada).
  */
-export function instalarAdaptadorOpenAI({ obterChave, fetchOriginal = globalThis.fetch }) {
-  globalThis.fetch = async (entrada, opcoes) => {
+export function criarFetchDaOpenAI({ obterChave, fetchOriginal = globalThis.fetch }) {
+  return async (entrada, opcoes) => {
     const url = String(entrada?.url ?? entrada);
     if (!/api\.anthropic\.com\/v1\/messages/.test(url)) return fetchOriginal(entrada, opcoes);
 

@@ -87,14 +87,9 @@ const PRECOS_OPENAI = {
 };
 
 if (argumentos.filho) {
-  // Modelo GPT: o cliente da Anthropic e criado na primeira chamada, entao o adaptador troca o `fetch` antes dela.
+  // Modelo GPT (`IA_MODELO=gpt-...`): a propria `chamar` do Rise o manda para a OpenAI (`lib/ia/gptComoAnthropic`), pela chave
+  // cadastrada em Rise AI > Configuracoes. So o custo daqui e dos modelos que a tabela do Rise ainda nao tem.
   const ehGpt = /^(gpt-|o\d)/.test(process.env.IA_MODELO ?? "");
-  if (ehGpt) {
-    process.env.ANTHROPIC_API_KEY ||= "adaptador-openai"; // a `chamar` exige a variavel; a chamada nunca chega la
-    const { instalarAdaptadorOpenAI } = await import("./lib/gptComoAnthropic.js");
-    const { lerChave } = await import("@/lib/riseAi/configuracao");
-    instalarAdaptadorOpenAI({ obterChave: () => lerChave("openai") });
-  }
   const { gerarDescricao, MODELO_IA, esforcoDaTarefa } = await import("@/lib/ia/anuncio");
   const { custoDaChamada } = await import("@/lib/riseAi/modelos");
   const { cotacaoDoDolar } = await import("@/lib/cotacaoDolar");
@@ -118,7 +113,7 @@ if (argumentos.filho) {
 
   // Os tokens saem do log de cada chamada (a descricao pode fazer duas: a segunda encurta paragrafo longo).
   const logs = await prisma.logIntegracao.findMany({
-    where: { servico: "ANTHROPIC", criadoEm: { gte: inicio }, requestResumo: { contains: '"tarefa":"descricao"' } },
+    where: { servico: { in: ["ANTHROPIC", "OPENAI"] }, criadoEm: { gte: inicio }, requestResumo: { contains: '"tarefa":"descricao"' } },
     select: { responseResumo: true },
   });
   const tokens = { chamadas: logs.length, entrada: 0, saida: 0, pensamento: 0, cacheLido: 0, cacheGravado: 0, semCache: 0 };

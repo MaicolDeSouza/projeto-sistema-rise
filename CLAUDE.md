@@ -164,7 +164,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 605 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 664 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.HH.MM do deploy, em São Paulo; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -201,7 +201,7 @@ npm run teste:acessos             # 124 asserções de Acessos: catálogo, resol
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
 npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio
-npm run bancada:descricao -- --sku=100101 --prompt=<arquivo|nome|sistema> --modelos=claude-opus-5-5,claude-sonnet-5-5   # gera a descrição do MESMO produto em cada modelo (um processo por modelo) e escreve o relatório lado a lado em dados/diag/. SEM `--rodar` não chama a IA (nada gasta); com `--rodar` gasta de verdade (~R$ 1 por geração no Opus 5.5). Modelo `gpt-*` (ou `o*`) vai pela chave da OpenAI cadastrada no Rise, por um adaptador só de bancada (Chat Completions; a Responses foi recusada: a chave é restrita), com o custo pela tabela da OpenAI × a cotação do sistema
+npm run bancada:descricao -- --sku=100101 --prompt=<arquivo|nome|sistema> --modelos=claude-opus-5-5,claude-sonnet-5-5   # gera a descrição do MESMO produto em cada modelo (um processo por modelo) e escreve o relatório lado a lado em dados/diag/. SEM `--rodar` não chama a IA (nada gasta); com `--rodar` gasta de verdade (~R$ 1 por geração no Opus 5.5). Modelo `gpt-*` (ou `o*`) vai pela chave da OpenAI cadastrada no Rise, pelo mesmo caminho do Rise (`src/lib/ia/gptComoAnthropic.js`, Chat Completions; a Responses foi recusada: a chave é restrita), com o custo pela tabela da OpenAI × a cotação do sistema
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -1981,7 +1981,20 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
   pedido também tem cache (a retentativa de parágrafo longo manda a nota num bloco à parte, para o cache bater): ver
   `blocosDoSistema` e `blocosDoPedido`. `IA_MODELO` troca o modelo por PROCESSO (constante lida na carga, de propósito:
   a assinatura de `chamar` e a linha do gasto são de outra frente). **Bancada:** `npm run bancada:descricao` (ver
-  "Rodar"). GPT na bancada (13/10/2026): `scripts/lib/gptComoAnthropic.js` troca o `fetch` global do processo filho (nada de produção o usa). Resultado no 100101 com o prompt do Arduino (13/10/2026): `gpt-6.1-sol` R$ 0,34 em 52 s, qualidade equivalente à do Opus (junta os quadros, padroniza os nomes, mesmas recomendadas); `gpt-6-luna` R$ 0,015 em 25 s e `gpt-4.1-mini` R$ 0,055 em 22 s FALHAM no que importa (não padronizam os nomes: "Tensão de Alimentação" sai duas ou três vezes com valores diferentes no texto final; somem 7 a 10 campos principais em vez de "?"). Ficam como candidatos só a tarefas simples (título, SEO). Com o cache quente o Opus (R$ 0,38) empata em custo com o Sol. Medido em 13/10/2026 no 100101 (1ª geração, cache frio): Opus 5.5 R$ 1,15 (R$ 0,38 com o cache quente) e `claude-sonnet-5-5` R$ 0,54 em 17 s. O Sonnet padroniza e funde os quadros como o Opus (mesmas recomendadas), mas traz 13 linhas comuns contra 17, não junta as duas opções de Microcontrolador e escreve a tensão sem "5V pela USB". Por isso a descrição segue no Opus 5.5.
+  "Rodar"). GPT na bancada (13/10/2026; o adaptador é o mesmo da janela, ver "Escolha do modelo" abaixo). Resultado no 100101 com o prompt do Arduino (13/10/2026): `gpt-6.1-sol` R$ 0,34 em 52 s, qualidade equivalente à do Opus (junta os quadros, padroniza os nomes, mesmas recomendadas); `gpt-6-luna` R$ 0,015 em 25 s e `gpt-4.1-mini` R$ 0,055 em 22 s FALHAM no que importa (não padronizam os nomes: "Tensão de Alimentação" sai duas ou três vezes com valores diferentes no texto final; somem 7 a 10 campos principais em vez de "?"). Ficam como candidatos só a tarefas simples (título, SEO). Com o cache quente o Opus (R$ 0,38) empata em custo com o Sol. Medido em 13/10/2026 no 100101 (1ª geração, cache frio): Opus 5.5 R$ 1,15 (R$ 0,38 com o cache quente) e `claude-sonnet-5-5` R$ 0,54 em 17 s. O Sonnet padroniza e funde os quadros como o Opus (mesmas recomendadas), mas traz 13 linhas comuns contra 17, não junta as duas opções de Microcontrolador e escreve a tensão sem "5V pela USB". Por isso a descrição segue no Opus 5.5.
+- **Escolha do modelo na janela "Criar descrição"** (pedido do dono em 14/10/2026, depois de medir cinco modelos na bancada):
+  uma caixa ao lado do prompt com **GPT 6.1 Sol** (padrão, já vem selecionado: pedido do dono no mesmo dia) e **Claude Opus 5.5** (`MODELOS_DA_DESCRICAO`,
+  `src/lib/ia/modelosDaDescricao.js`, sem imports). O navegador manda só o id e `criarDescricaoIA` o confere
+  (`modeloDaDescricao`: vazio vale o padrão, id fora da lista é recusado). `gerarDescricao` recebe `modeloIA` e `chamar`
+  recebe `modelo` (padrão: o do código ou `IA_MODELO`). Para modelo GPT, `clienteDoModelo` cria um cliente do SDK da
+  Anthropic só com um `fetch` próprio (`criarFetchDaOpenAI`, `src/lib/ia/gptComoAnthropic.js`) que traduz a chamada para a
+  API **Chat Completions** da OpenAI e devolve uma Message da Anthropic; o `fetch` global e o cliente da Anthropic não
+  mudam. O prompt vai em `system`, o JSON estrito em `response_format` e o effort em `reasoning_effort`; sem `fallbacks` e
+  sem retentativa automática (`maxRetries: 0`). A chave é a de Rise AI > Configurações (Conexao OPENAI) ou
+  `OPENAI_API_KEY`; **na VPS é preciso cadastrá-la lá** (o banco é outro). O log vai para `LogIntegracao` com servico
+  `OPENAI`. Custo: GPT 6.1 Sol a US$ 2/10 por milhão e cache lido a 5% da entrada (`pesoDoCacheLido` em
+  `PRECOS_USD_POR_MILHAO`), na linha de gasto da tela. A escolha vale só enquanto a página está aberta (não é gravada).
+  Conferido na tela em 14/10/2026 (100101, prompt do sistema): R$ 0,29 em ~35 s. **Só vale no ar depois do deploy.**
 - **Gasto de cada geração na tela** (pedido do dono em 12/10/2026): descrição, título, SEO e categorias da LI mostram
   "Claude Opus 5 · N tokens (entrada / saída) · R$ X" ao lado do botão (`GastoDaIA`, `src/components/ui/`). Quem gera
   cria um `novoGasto()` (`src/lib/ia/gasto.js`), o `chamar` soma cada resposta (a descrição pode fazer 2 chamadas) e a
@@ -2331,7 +2344,10 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       vale com qualquer prompt da biblioteca. **Campo novo ou sinônimo novo é só ajustar o prompt.** Exceções: nome que
       começa por peso, dimens, tamanho, medidas, altura, largura, comprimento, profundidade ou espessura é medida e some das
       características; Dimensões e Peso são escritos pelo código e nunca renomeados (`IDS_FIXOS`); o prompt cabe em 12.000
-      caracteres (o do Arduino está em 11.884 com CRLF). **Só vale no ar depois do deploy** e com o prompt novo salvo na
+      caracteres (o do Arduino está em 11.963 com CRLF). **O prompt do Arduino (14/10/2026) manda TODOS os 28 campos obrigatórios
+      aparecerem, com valor "?" quando não há dado (o operador pesquisa e preenche à mão), e aceita campos a mais**; os nomes
+      são "Pinos Digitais I/O" e "Saídas PWM" (escrita "6 (entre os pinos digitais)", para o cliente não somar). Medido no
+      100101 com Opus e Sol: 28 de 28 presentes, 4 a 5 com "?". **Só vale no ar depois do deploy** e com o prompt novo salvo na
       biblioteca da VPS.
     - **Origem da linha que nenhuma loja confirma** (13/10/2026, pedido do dono: "se veio pela IA, deve mostrar de onde
       veio a fonte"): antes a linha ficava sem nada ao lado. `origemSemLoja` (`divergencias.js`) diz **"Cadastro"** quando o
