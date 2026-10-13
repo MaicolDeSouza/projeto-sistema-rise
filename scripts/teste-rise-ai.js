@@ -29,6 +29,9 @@ function conferir(nome, obtido, esperado) {
 const guardados = {
   configuracao: await prisma.configuracaoIA.findUnique({ where: { id: "unica" } }),
   ollama: await prisma.conexao.findUnique({ where: { servico: "OLLAMA" } }),
+  // A chave real da OpenAI do dono (cadastrada em 13/10/2026): o teste de chaves assume "sem Conexao", entao ela sai do
+  // caminho e volta no fim.
+  openai: await prisma.conexao.findUnique({ where: { servico: "OPENAI" } }),
 };
 
 async function devolverOQueEraDoDono() {
@@ -43,6 +46,10 @@ async function devolverOQueEraDoDono() {
     await prisma.conexao.upsert({ where: { servico: "OLLAMA" }, update: resto, create: guardados.ollama });
   } else {
     await prisma.conexao.deleteMany({ where: { servico: "OLLAMA" } });
+  }
+  if (guardados.openai) {
+    const { id, ...resto } = guardados.openai;
+    await prisma.conexao.upsert({ where: { servico: "OPENAI" }, update: resto, create: guardados.openai });
   }
 }
 
@@ -212,6 +219,7 @@ try {
     conferir("gravar valor invalido e recusado e nada muda", [recusada.ok, (await lerConfiguracao("pc")).maxTokensResposta], [false, 1500]);
 
     // Chaves: Conexao cifrada, com o .env como reserva.
+    await prisma.conexao.deleteMany({ where: { servico: "OPENAI" } });
     conferir("chave do env quando nao ha Conexao", await lerChave("openai", { OPENAI_API_KEY: "sk-env" }), "sk-env");
     conferir("sem chave nenhuma", await lerChave("openai", {}), null);
     conferir("provedor local nao tem chave", await lerChave("lmstudio", { LMSTUDIO: "x" }), null);
