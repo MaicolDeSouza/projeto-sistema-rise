@@ -387,6 +387,39 @@ try {
     conferir("o padrao do Rise AI", [detalheDoRiseAi({ provedor: "anthropic", modelo: "claude-haiku-5-5" }, provedores), detalheDoRiseAi(null, provedores), detalheDoRiseAi({ provedor: "x", modelo: "m" }, provedores)], ["Padrão: Anthropic · claude-haiku-5-5", "Sem modelo padrão", "Padrão: x · m"]);
   }
 
+  // --- banco: leitura de usuarios e funcoes para as telas (src/lib/acessos/banco.js) ---
+  {
+    const { listarUsuarios, carregarUsuario, listarFuncoes, carregarFuncao, usuarioParaTela } = await import("../src/lib/acessos/banco.js");
+    const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
+    const env = { RISE_AI_ADMINS: "zz-ac-l1" };
+    const leitura = await prisma.funcaoRise.create({ data: { nome: "ZZ-AC Leitura", descricao: "so ver", permissoes: { create: [{ recurso: "tela.produtos", nivel: "ver" }, { recurso: "tela.produtos.cadastro", nivel: "ver" }, { recurso: "dado.custo", nivel: "ver" }] } } });
+    await prisma.funcaoRise.create({ data: { nome: "ZZ-AC Vazia" } });
+    const um = await prisma.usuarioRise.create({ data: { login: "zz-ac-l1", nome: "ZZ Um", funcoes: { create: [{ funcaoId: leitura.id }] }, excecoes: { create: [{ recurso: "dado.custo", nivel: "nenhum" }] } } });
+    await prisma.usuarioRise.create({ data: { login: "zz-ac-l2", nome: "ZZ Dois", ativo: false } });
+    // So os registros deste bloco (o da semeadura, acima, deixa os seus ate o limpar do fim).
+    const deTeste = (lista) => lista.filter((u) => u.login.startsWith("zz-ac-l")).map((u) => u.login);
+
+    conferir("lista sem os inativos", deTeste(await listarUsuarios({ env })), ["zz-ac-l1"]);
+    conferir("lista com os inativos, por nome", deTeste(await listarUsuarios({ inativos: true, env })), ["zz-ac-l2", "zz-ac-l1"]);
+    conferir("busca pelo login sem caixa e pelo nome", [deTeste(await listarUsuarios({ busca: "ZZ-AC-L1", env })), deTeste(await listarUsuarios({ busca: "dois", inativos: true, env }))], [["zz-ac-l1"], ["zz-ac-l2"]]);
+    const primeiro = (await listarUsuarios({ busca: "zz-ac-l1", env }))[0];
+    conferir("o usuario traz as funcoes e o selo do .env", [primeiro.funcoes.map((f) => f.nome), primeiro.peloEnv], [["ZZ-AC Leitura"], true]);
+    const carregado = await carregarUsuario(um.id, { env });
+    conferir("carregar usuario: ids das funcoes, as excecoes e o selo", [carregado.funcoes, carregado.excecoes, carregado.peloEnv], [[leitura.id], [{ recurso: "dado.custo", nivel: "nenhum" }], true]);
+    conferir("carregar usuario que nao existe", await carregarUsuario("nao-existe", { env }), null);
+    conferir("para a tela: datas em texto e nulo vira vazio", [typeof usuarioParaTela(carregado).criadoEm, usuarioParaTela(carregado).assinatura, usuarioParaTela(carregado).ultimoAcessoEm], ["string", "", null]);
+    const funcoes = (await listarFuncoes()).filter((f) => ["ZZ-AC Leitura", "ZZ-AC Vazia"].includes(f.nome));
+    const totalTelas = RECURSOS.filter((r) => r.tipo === "tela" && r.delegavel).length;
+    conferir(
+      "lista de funcoes: quantos usuarios e telas liberadas",
+      funcoes.map((f) => [f.nome, f.usuarios, f.telasLiberadas]),
+      [["ZZ-AC Leitura", 1, { liberados: 2, total: totalTelas }], ["ZZ-AC Vazia", 0, { liberados: 0, total: totalTelas }]],
+    );
+    const funcao = await carregarFuncao(leitura.id);
+    conferir("carregar funcao: permissoes como objeto e quem a tem", [funcao.permissoes, funcao.usuarios.map((u) => u.nome)], [{ "tela.produtos": "ver", "tela.produtos.cadastro": "ver", "dado.custo": "ver" }, ["ZZ Um"]]);
+    conferir("carregar funcao que nao existe", await carregarFuncao("nao-existe"), null);
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
