@@ -1,5 +1,5 @@
 import { PROVEDORES } from "./modelos";
-import { PROMPT_ATENDIMENTO_PADRAO } from "./prompt";
+import { PROMPT_ATENDIMENTO_PADRAO, PROMPT_INTERNO_PADRAO } from "./prompt";
 
 /**
  * Leitura dos formulários das telas de administração do Rise AI (Server Actions). Sem banco e sem Next: o teste usa
@@ -84,6 +84,10 @@ export function parcialDaConfiguracao(dados) {
   if (tem(dados, "promptAtendimento")) {
     const prompt = comoLinhasUnix(dados.get("promptAtendimento"));
     parcial.prompts = { atendimento: !prompt || prompt === comoLinhasUnix(PROMPT_ATENDIMENTO_PADRAO) ? null : prompt };
+  }
+  if (tem(dados, "promptInterno")) {
+    const prompt = comoLinhasUnix(dados.get("promptInterno"));
+    parcial.prompts = { ...(parcial.prompts ?? {}), interno: !prompt || prompt === comoLinhasUnix(PROMPT_INTERNO_PADRAO) ? null : prompt };
   }
   return parcial;
 }

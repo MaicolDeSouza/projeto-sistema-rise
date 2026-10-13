@@ -43,7 +43,8 @@ export function configuracaoPadrao(ambiente) {
     contextoMaxTokens: 12000,
     modelosHabilitados: { lmstudio: [], ollama: [], openai: [], anthropic: ["claude-haiku-5-5"], gemini: [] },
     taxaPorUsuarioPorMinuto: 20,
-    prompts: { atendimento: null },
+    // `atendimento` = o estilo do texto ao CLIENTE (Entrega 1); `interno` = o estilo das respostas a equipe no chat (A1).
+    prompts: { atendimento: null, interno: null },
     // Teto de gasto do mes em reais (spec §3): os clientes (WhatsApp) e o uso interno (chat, Telegram, anuncios).
     orcamentos: { clientesBrl: 70, internoBrl: 30 },
     // "Pesquisar na internet" no chat interno: nasce desligado e o WhatsApp nunca pesquisa (spec §3).
@@ -87,7 +88,10 @@ const EsquemaDaConfiguracao = z.object({
   contextoMaxTokens: inteiro(2000, 100000, "Contexto máximo"),
   modelosHabilitados: z.object(Object.fromEntries(IDS.map((id) => [id, z.array(z.string().max(200))]))),
   taxaPorUsuarioPorMinuto: inteiro(1, 200, "Perguntas por minuto"),
-  prompts: z.object({ atendimento: z.string().max(12000, "O prompt passa de 12.000 caracteres.").nullable() }),
+  prompts: z.object({
+    atendimento: z.string().max(12000, "O prompt passa de 12.000 caracteres.").nullable(),
+    interno: z.string().max(12000, "O prompt passa de 12.000 caracteres.").nullable(),
+  }),
   orcamentos: z.object({ clientesBrl: reais(5000, "Orçamento dos clientes"), internoBrl: reais(5000, "Orçamento interno") }),
   internet: z.boolean({ message: "Use ligado ou desligado." }),
 });

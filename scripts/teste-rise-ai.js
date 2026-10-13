@@ -760,7 +760,7 @@ try {
   // -------------------------------------------------------------------------
   {
     const { separarResposta, produtosCitados, tituloDaConversa, estimarTokens, cortarHistorico, extrairJson } = await import("../src/lib/riseAi/resposta.js");
-    const { montarSistema, mensagemDeConhecimento, SISTEMA_FIXO, PROMPT_ATENDIMENTO_PADRAO } = await import("../src/lib/riseAi/prompt.js");
+    const { montarSistema, mensagemDeConhecimento, SISTEMA_FIXO, SISTEMA_DO_CLIENTE, PROMPT_ATENDIMENTO_PADRAO, PROMPT_INTERNO_PADRAO } = await import("../src/lib/riseAi/prompt.js");
     const { mensagensParaOpenAI } = await import("../src/lib/riseAi/provedores/openaiCompativel.js");
     const { responder } = await import("../src/lib/riseAi/conversa.js");
     const { carregarConversa, listarConversas, renomearConversa, excluirConversa, avaliarMensagem } = await import("../src/lib/riseAi/conversas.js");
@@ -820,9 +820,15 @@ try {
     );
     conferir("historico que cabe inteiro", cortarHistorico([{ papel: "usuario", conteudo: "oi" }, { papel: "assistente", conteudo: "ola" }], 100).length, 2);
     conferir("sistema estavel entre pedidos", montarSistema({ perfil: "admin" }) === montarSistema({ perfil: "admin" }), true);
-    conferir("sistema = regras fixas + estilo", montarSistema({}) === `${SISTEMA_FIXO}\n\n${PROMPT_ATENDIMENTO_PADRAO}`, true);
-    conferir("o estilo da tela substitui o padrao, nunca as regras fixas", montarSistema({ promptAtendimento: "ESTILO NOVO" }).startsWith(SISTEMA_FIXO) && montarSistema({ promptAtendimento: "ESTILO NOVO" }).endsWith("ESTILO NOVO"), true);
-    conferir("as regras fixas dizem o formato e proibem custo", [SISTEMA_FIXO.includes("### Resposta para o cliente"), SISTEMA_FIXO.includes("### Para a equipe"), /custo/i.test(SISTEMA_FIXO)], [true, true, true]);
+    conferir("sistema = regras fixas + estilo da equipe", montarSistema({}) === `${SISTEMA_FIXO}\n\n${PROMPT_INTERNO_PADRAO}`, true);
+    conferir("o estilo da tela substitui o padrao, nunca as regras fixas", montarSistema({ promptInterno: "ESTILO NOVO" }).startsWith(SISTEMA_FIXO) && montarSistema({ promptInterno: "ESTILO NOVO" }).endsWith("ESTILO NOVO"), true);
+    conferir("as regras fixas nao exigem mais os dois titulos e seguem proibindo custo no texto ao cliente", [SISTEMA_FIXO.includes("### Resposta para o cliente"), SISTEMA_FIXO.includes("### Para a equipe"), /custo/i.test(SISTEMA_FIXO)], [false, false, true]);
+    conferir("o interno pede texto corrido e deixa usar negrito e lista", [/corrido/i.test(SISTEMA_FIXO), SISTEMA_FIXO.includes("**negrito**")], [true, true]);
+    conferir("sistema do cliente = regras do cliente + estilo ao cliente", montarSistema({ modo: "cliente" }) === `${SISTEMA_DO_CLIENTE}\n\n${PROMPT_ATENDIMENTO_PADRAO}`, true);
+    conferir("sistema do cliente: texto puro e sem convite ao negrito", [/texto puro/i.test(montarSistema({ modo: "cliente" })), montarSistema({ modo: "cliente" }).includes("**negrito**")], [true, false]);
+    conferir("o estilo salvo para o cliente troca so o estilo", montarSistema({ modo: "cliente", promptCliente: "ESTILO CLIENTE" }) === `${SISTEMA_DO_CLIENTE}\n\nESTILO CLIENTE`, true);
+    conferir("internet ligada acrescenta a regra da pesquisa, so no interno", [montarSistema({ internet: true }).includes("pesquisarNaInternet"), montarSistema({}).includes("pesquisarNaInternet"), montarSistema({ modo: "cliente", internet: true }).includes("pesquisarNaInternet")], [true, false, false]);
+    conferir("as mesmas opcoes dao o mesmo texto (cache do prefixo)", montarSistema({ internet: true }) === montarSistema({ internet: true }), true);
     conferir("sistema sem data nem nome (estavel para o cache de prefixo)", /\b20\d\d\b/.test(montarSistema({})), false);
     // Visto na tela em 11/10/2026: o modelo escreveu **negrito** no texto do cliente, e no WhatsApp os asteriscos aparecem.
     conferir("o estilo pede texto puro, sem markdown (o cliente le no WhatsApp)", [/texto puro/i.test(PROMPT_ATENDIMENTO_PADRAO), /markdown/i.test(PROMPT_ATENDIMENTO_PADRAO)], [true, true]);
@@ -874,7 +880,9 @@ try {
     });
     conferir("cartoes vem das ferramentas", r1.mensagem.estruturado.produtos.map((p) => p.sku), ["ZZ-IA-UNO"]);
     conferir("o cartao da tela nao leva custo nem localizacao", ["custo" in r1.mensagem.estruturado.produtos[0], "localizacao" in r1.mensagem.estruturado.produtos[0], r1.mensagem.estruturado.produtos[0].urlLoja], [false, false, "https://www.4hobby.com.br/placa-zzia-uno"]);
-    conferir("quadro do cliente e equipe", [r1.mensagem.estruturado.respostaCliente.startsWith("Olá!"), r1.mensagem.estruturado.paraEquipe], [true, "Nano sem estoque."]);
+    conferir("mensagem nova: sem os dois quadros, com o modo e as fontes", ["respostaCliente" in r1.mensagem.estruturado, "paraEquipe" in r1.mensagem.estruturado, "outrosConsultados" in r1.mensagem.estruturado, r1.mensagem.estruturado.modo, r1.mensagem.estruturado.fontes], [false, false, false, "interno", []]);
+    conferir("mensagem nova: o texto inteiro do modelo fica no conteudo e o aviso sem_separacao nao existe mais", [r1.mensagem.conteudo.includes("Nano sem estoque."), r1.mensagem.avisos.includes("sem_separacao")], [true, false]);
+    conferir("os produtos citados levam so o que a tela e os links precisam", Object.keys(r1.mensagem.estruturado.produtos[0]).sort(), ["nome", "sku", "urlLoja"]);
     conferir("modelo e custo zero no local", [r1.mensagem.provedor, r1.mensagem.modelo, Number(r1.mensagem.custoBrl), r1.mensagem.motivoDaReserva], ["lmstudio", "falso-1", 0, null]);
     conferir("uso somado das duas rodadas", [r1.mensagem.tokensEntrada, r1.mensagem.tokensSaida], [1100, 120]);
     conferir("eventos na ordem", eventos.filter((nome) => nome !== "texto"), ["inicio", "ferramenta", "ferramenta", "ferramenta", "ferramenta", "fim"]);
@@ -962,7 +970,7 @@ try {
       usuario: "ZZ-IA-TESTE",
       dependencias: deps(criarProvedorFalso({ roteiro: [{ chamadas: [{ nome: "buscarProdutos", argumentos: { termos: "zzxqv 48v 40a" } }] }, { texto: "Não encontrei no catálogo." }] }), falsoReservaOk()),
     });
-    conferir("avisos sem_resultado e sem_separacao", [...r6.mensagem.avisos].sort(), ["sem_resultado", "sem_separacao"]);
+    conferir("aviso sem_resultado (e nenhum sem_separacao)", [...r6.mensagem.avisos].sort(), ["sem_resultado"]);
     conferir("sem resultado: nenhum cartao inventado", r6.mensagem.estruturado.produtos, []);
     const muitas = Array.from({ length: 9 }, () => ({ chamadas: [{ nome: "consultarPreco", argumentos: { skus: ["ZZ-IA-UNO"] } }] }));
     const r7 = await responder({
@@ -1106,7 +1114,7 @@ try {
     const paraATela = mensagemParaTela(noBanco);
     conferir(
       "mensagem para a tela: numeros e texto simples",
-      [typeof paraATela.custoBrl, typeof paraATela.custoUsd, typeof paraATela.criadoEm, paraATela.papel, paraATela.provedor, paraATela.estruturado.respostaCliente.startsWith("Olá!"), Array.isArray(paraATela.avisos)],
+      [typeof paraATela.custoBrl, typeof paraATela.custoUsd, typeof paraATela.criadoEm, paraATela.papel, paraATela.provedor, paraATela.conteudo.includes("Olá!"), Array.isArray(paraATela.avisos)],
       ["number", "number", "string", "ASSISTENTE", "lmstudio", true, true],
     );
     conferir("mensagem para a tela: sem custo vira null, nao zero", mensagemParaTela({ ...noBanco, custoBrl: null, custoUsd: null }).custoBrl, null);
@@ -1372,7 +1380,7 @@ try {
     const { consumoPorDia, totaisDoPeriodo, periodoDosUltimosDias } = await import("../src/lib/riseAi/consumo.js");
     const { parcialDaConfiguracao, idsDosModelos } = await import("../src/lib/riseAi/formularios.js");
     const { configuracaoPadrao, validarConfiguracao } = await import("../src/lib/riseAi/configuracao.js");
-    const { PROMPT_ATENDIMENTO_PADRAO } = await import("../src/lib/riseAi/prompt.js");
+    const { PROMPT_ATENDIMENTO_PADRAO, PROMPT_INTERNO_PADRAO } = await import("../src/lib/riseAi/prompt.js");
     console.log("\nConsumo");
 
     // --- o consumo por dia, provedor e modelo (as conversas dos blocos anteriores estao no banco) ---
@@ -1381,7 +1389,7 @@ try {
     const doFalso = linhas.filter((linha) => linha.provedor === "lmstudio" && linha.modelo === "falso-1");
     conferir("agrega por dia e modelo", doFalso.length === 1 && doFalso[0].respostas >= 1 && doFalso[0].dia === hoje, true);
     conferir("conta reservas e negativas", linhas.some((linha) => linha.reservas >= 1) && linhas.some((linha) => linha.negativas >= 1), true);
-    conferir("conta as falhas e as respostas sem separacao", linhas.some((linha) => linha.falhas >= 1) && linhas.some((linha) => linha.semSeparacao >= 1), true);
+    conferir("conta as falhas", linhas.some((linha) => linha.falhas >= 1), true);
     const daReserva = linhas.find((linha) => linha.provedor === "anthropic" && linha.modelo === "claude-haiku-5-5");
     conferir(
       "tokens e custo do dia sao numeros (a reserva tem preco)",
@@ -1456,6 +1464,10 @@ try {
     );
     conferir("reserva sem provedor = sem reserva", parcialDaConfiguracao(formulario({ reservaProvedor: "", reservaModelo: "claude-haiku-5-5" })), { reserva: null });
     conferir("prompt igual ao padrao do codigo = nulo (uma melhoria futura do padrao chega a quem nunca mexeu)", parcialDaConfiguracao(formulario({ promptAtendimento: `  ${PROMPT_ATENDIMENTO_PADRAO}\r\n` })), { prompts: { atendimento: null } });
+    conferir("prompt interno igual ao padrao do codigo = nulo", parcialDaConfiguracao(formulario({ promptInterno: `  ${PROMPT_INTERNO_PADRAO}\r\n` })), { prompts: { interno: null } });
+    conferir("os dois prompts no mesmo formulario", parcialDaConfiguracao(formulario({ promptInterno: "A", promptAtendimento: "B" })), { prompts: { atendimento: "B", interno: "A" } });
+    conferir("os dois prompts nascem nulos", configuracaoPadrao("pc").prompts, { atendimento: null, interno: null });
+    conferir("prompt interno acima de 12000 caracteres e recusado no campo", Object.keys(validarConfiguracao({ ...configuracaoPadrao("pc"), prompts: { atendimento: null, interno: "x".repeat(12001) } }).erros ?? {}), ["prompts.interno"]);
     conferir("prompt vazio = nulo", parcialDaConfiguracao(formulario({ promptAtendimento: "   " })), { prompts: { atendimento: null } });
     conferir("prompt proprio vai aparado e com quebras de linha do Unix", parcialDaConfiguracao(formulario({ promptAtendimento: "  Tom: formal.\r\nSem emoji.  " })), { prompts: { atendimento: "Tom: formal.\nSem emoji." } });
     conferir("numero em branco ou com letra nao e aceito (o aviso do campo vem da validacao)", [parcialDaConfiguracao(formulario({ totalMs: "" })).tempoLimite.totalMs, parcialDaConfiguracao(formulario({ maxTokensResposta: "mil" })).maxTokensResposta].map(Number.isNaN), [true, true]);

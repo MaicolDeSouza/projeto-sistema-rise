@@ -15,7 +15,7 @@ import { mensagemDeConhecimento, montarSistema } from "./prompt";
 import { ErroDoProvedor, ehErroDeProvedor } from "./provedores/contrato";
 import { criarProvedor as criarProvedorReal } from "./provedores/index";
 import { provedorDisponivel as provedorDisponivelReal } from "./provedores/saude";
-import { cortarHistorico, estimarTokens, produtosCitados, separarResposta, tituloDaConversa } from "./resposta";
+import { cortarHistorico, estimarTokens, produtosCitados, tituloDaConversa } from "./resposta";
 
 /**
  * O laço da conversa do Rise AI (spec §5.4): recebe a pergunta, monta o contexto, escolhe o provedor (o padrão, ou a
@@ -351,7 +351,9 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
     if (doConhecimento) mensagens.push(doConhecimento);
     mensagens.push({ papel: "usuario", conteudo: perguntaMascarada });
 
-    const sistema = montarSistema({ promptAtendimento: config.prompts?.atendimento ?? null });
+    // Modo `interno` ate a Tarefa 8 trazer o modo cliente; a internet entra na Tarefa 13.
+    const modo = "interno";
+    const sistema = montarSistema({ modo, promptInterno: config.prompts?.interno ?? null, promptCliente: config.prompts?.atendimento ?? null });
     const criar =
       dependencias.criarProvedor ??
       (async (provedorId) => criarProvedorReal(provedorId, { endpoint: config.endpoints?.[provedorId], chave: await lerChave(provedorId) }));
@@ -440,20 +442,19 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
       return { conversaId: conversa.id, mensagem };
     }
 
-    const { respostaCliente, paraEquipe, semSeparacao } = separarResposta(resultado.texto);
-    const { citados, outros } = produtosCitados(resultado.texto, resultado.cartoes);
+    const { citados } = produtosCitados(resultado.texto, resultado.cartoes);
     const avisos = new Set(resultado.avisos);
-    if (semSeparacao) avisos.add("sem_separacao");
     if (resultado.buscouSemResultado && citados.length === 0) avisos.add("sem_resultado");
 
     const mensagem = await gravarMensagem(conversa.id, {
       papel: "ASSISTENTE",
       conteudo: resultado.texto,
+      // O texto inteiro do modelo fica no `conteudo`. Aqui vai so o que a tela precisa para desenhar com seguranca: os produtos
+      // citados (nome, codigo e o link montado pelo codigo a partir do cadastro) e, depois, as fontes da pesquisa.
       estruturado: {
-        respostaCliente,
-        paraEquipe,
-        produtos: citados,
-        outrosConsultados: outros,
+        modo,
+        produtos: citados.map(({ sku, nome, urlLoja }) => ({ sku, nome, urlLoja })),
+        fontes: [],
         conhecimentoUsado: notas.map(({ id, assunto }) => ({ id, assunto })),
         ferramentas: resultado.trilha,
         mascarados,
@@ -469,7 +470,7 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
       avisos: [...avisos],
     });
     await prisma.conversaIA.update({ where: { id: conversa.id }, data: { atualizadoEm: new Date() } });
-    aoEvento("fim", { mensagemId: mensagem.id, uso: resultado.uso, custo: resultado.custo, produtos: citados, avisos: [...avisos] });
+    aoEvento("fim", { mensagemId: mensagem.id, uso: resultado.uso, custo: resultado.custo, produtos: mensagem.estruturado.produtos, avisos: [...avisos] });
     return { conversaId: conversa.id, mensagem };
   } finally {
     if (ocupada) emAndamento.delete(ocupada);
