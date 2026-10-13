@@ -11,11 +11,25 @@ export const reais = (valor) => `R$ ${Number(valor).toLocaleString("pt-BR", { mi
  * O custo de uma resposta. Preço de modelo não cadastrado é `null` e NÃO vira "R$ 0,00": zero é o que o modelo local
  * custa, e confundir os dois esconderia gasto de API. Até 4 casas: uma resposta de Haiku custa centésimos de centavo.
  */
-export function custoEmTexto(custoBrl) {
+export function custoEmTexto(custoBrl, { estimado = false } = {}) {
   if (custoBrl === null || custoBrl === undefined) return "preço não cadastrado";
   if (custoBrl === 0) return "R$ 0,00";
-  return `R$ ${custoBrl.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+  // "~" quando o provedor não devolveu o uso (resposta cortada pelo Parar): o valor sai dos caracteres, não de uma medida.
+  return `${estimado ? "~" : ""}R$ ${custoBrl.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 }
+
+/** A linha de estado do chat enquanto a IA consulta (o evento `ferramenta` traz o nome). */
+const ROTULOS_DAS_FERRAMENTAS = {
+  pesquisarNaInternet: "pesquisando na internet…",
+  buscarConhecimento: "consultando o conhecimento…",
+  buscarProdutos: "consultando produtos…",
+  consultarProduto: "consultando produtos…",
+  consultarPreco: "consultando produtos…",
+  consultarEstoque: "consultando produtos…",
+  compararProdutos: "consultando produtos…",
+  buscarProdutosSimilares: "consultando produtos…",
+};
+export const rotuloDaFerramenta = (nome) => ROTULOS_DAS_FERRAMENTAS[nome] ?? "consultando…";
 
 export function duracaoEmTexto(ms) {
   if (ms < 1000) return `${ms} ms`;

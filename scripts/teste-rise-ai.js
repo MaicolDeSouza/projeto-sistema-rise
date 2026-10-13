@@ -2402,6 +2402,23 @@ try {
     conferir("TextoDaIA so abre link com noopener noreferrer", [fonteDoComponente.includes('rel="noopener noreferrer"'), /<a\s/.test(fonteDoComponente)], [true, true]);
   }
 
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 11 — A resposta em texto corrido: o que a barra da resposta escreve
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: barra da resposta");
+  {
+    const { custoEmTexto, rotuloDaFerramenta } = await import("../src/components/riseAi/formatos.js");
+    conferir("custo normal", custoEmTexto(0.0036), "R$ 0,0036");
+    conferir("custo estimado leva o til", custoEmTexto(0.0036, { estimado: true }), "~R$ 0,0036");
+    conferir("custo zero do modelo local nao ganha til", custoEmTexto(0, { estimado: true }), "R$ 0,00");
+    conferir("sem preco cadastrado nao vira zero nem estimado", custoEmTexto(null, { estimado: true }), "preço não cadastrado");
+    conferir(
+      "linha de estado por ferramenta",
+      ["pesquisarNaInternet", "buscarProdutos", "buscarConhecimento", "compararProdutos", "algumaNova"].map(rotuloDaFerramenta),
+      ["pesquisando na internet…", "consultando produtos…", "consultando o conhecimento…", "consultando produtos…", "consultando…"],
+    );
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();

@@ -66,24 +66,25 @@ export default function ProporCorrecao({ mensagem }) {
     });
   }
 
-  const botao = "inline-flex items-center gap-1 rounded-md border border-borda px-2 py-1 text-xs text-suave hover:bg-superficie disabled:opacity-60";
+  const botao =
+    "inline-flex h-10 items-center gap-1.5 rounded-md border border-transparent px-2.5 text-xs text-suave transition-[background-color,border-color,opacity] duration-150 hover:bg-fundo focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none disabled:opacity-60";
 
+  // Peças soltas da barra da resposta (`BarraDaResposta` é um flex-wrap): os botões ficam na linha e o formulário, quando
+  // abre, vai para uma linha própria embaixo (`order-last basis-full`).
   return (
-    <div className="flex flex-col gap-2 border-t border-borda pt-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => setAberto((valor) => !valor)} aria-expanded={aberto} className={botao}>
-          <Lightbulb size={13} /> Propor correção
+    <>
+      <button type="button" onClick={() => setAberto((valor) => !valor)} aria-expanded={aberto} className={botao}>
+        <Lightbulb size={14} /> Propor correção
+      </button>
+      {mensagem.avaliacao === -1 && (
+        <button type="button" disabled={pendente} onClick={pedirSugestao} className={botao} title="A IA lê a conversa e propõe a regra; só vale quando você aprova">
+          <Sparkles size={14} /> {pendente ? "Pedindo…" : "Pedir sugestão à IA"}
         </button>
-        {mensagem.avaliacao === -1 && (
-          <button type="button" disabled={pendente} onClick={pedirSugestao} className={botao} title="A IA lê a conversa e propõe a regra; só vale quando você aprova">
-            <Sparkles size={13} /> {pendente ? "Pedindo…" : "Pedir sugestão à IA"}
-          </button>
-        )}
-        {aviso && <span className="text-xs text-emerald-700">{aviso}</span>}
-      </div>
+      )}
+      {aviso && <span className="text-xs text-emerald-700">{aviso}</span>}
 
       {aberto && (
-        <form onSubmit={guardar} className="flex flex-col gap-2 rounded-md border border-borda bg-superficie p-3">
+        <form onSubmit={guardar} className="order-last flex basis-full flex-col gap-2 rounded-md border border-borda bg-superficie p-3">
           <label className="text-xs font-medium">
             O que estava errado?
             <input value={problema} onChange={(evento) => setProblema(evento.target.value)} maxLength={120} className={`${campo} mt-1 font-normal`} placeholder="Ex.: indicou o Mega para ligar um LED" />
@@ -113,7 +114,7 @@ export default function ProporCorrecao({ mensagem }) {
           </div>
         </form>
       )}
-      {!aberto && erro && <p className="text-xs text-red-700">{erro}</p>}
-    </div>
+      {!aberto && erro && <p className="order-last basis-full text-xs text-red-700">{erro}</p>}
+    </>
   );
 }
