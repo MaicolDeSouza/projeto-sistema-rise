@@ -464,7 +464,7 @@ export async function sugerirCategoriasIA({ titulo = "", marca = "", descricao =
 /// Texto fixo do fim da descricao, igual em todo anuncio da loja (modelo do dono).
 export const GARANTIA_PADRAO = "Garantia Legal de 90 dias (contra defeitos de fabricação)";
 
-const FORMATO_DESCRICAO = {
+export const FORMATO_DESCRICAO = {
   type: "json_schema",
   schema: {
     type: "object",
@@ -513,8 +513,26 @@ const FORMATO_DESCRICAO = {
             id: { type: "string" },
             opcao: { type: ["integer", "null"] },
             motivo: { type: "string" },
+            // O nome PADRONIZADO do prompt para o dado, as ids de divergencia que sao esse mesmo campo, o valor da
+            // opcao escolhida no padrao do prompt e os grupos de opcoes que sao o mesmo valor escrito de outro jeito.
+            // O Rise funde os quadros por isso (`fundirDivergencias`); sem campo, o quadro fica como esta.
+            campo: { type: ["string", "null"] },
+            ids: { type: "array", items: { type: "string" } },
+            valor: { type: ["string", "null"] },
+            iguais: {
+              type: "array",
+              items: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { id: { type: "string" }, opcao: { type: "integer" } },
+                  required: ["id", "opcao"],
+                  additionalProperties: false,
+                },
+              },
+            },
           },
-          required: ["id", "opcao", "motivo"],
+          required: ["id", "opcao", "motivo", "campo", "ids", "valor", "iguais"],
           additionalProperties: false,
         },
       },
@@ -857,7 +875,10 @@ export const PROMPT_DESCRICAO_PADRAO =
   "embalagem. NÃO coloque peso nem " +
   "dimensões em caracteristicas: essas linhas são escritas à parte.\n\n" +
   "- decisoes: para CADA divergência, indique id, índice da opção recomendada (ou null se não " +
-  "houver evidência suficiente) e motivo breve. Prefira a variante do mesmo produto do título, " +
+  "houver evidência suficiente), motivo breve e, em campo, o NOME PADRONIZADO deste prompt para o dado " +
+  "(divergências do mesmo campo recebem o mesmo nome, todas as ids em ids e uma só escolha; opções que " +
+  "são o mesmo valor escrito de outro jeito vão em iguais; em valor, a opção escolhida no padrão do " +
+  "prompt). Prefira a variante do mesmo produto do título, " +
   "a medida do corpo em vez da embalagem e dados corroborados por fontes independentes. " +
   "Uma medida com ordem de eixos presumida é menos confiável que uma medida com eixos " +
   "declarados. Para corrente, diferencie limite de pico e operação contínua: não recomende o pico " +
@@ -913,6 +934,15 @@ const INSTRUCAO_DE_REFERENCIAS =
   "das referências que trazem aquela especificação com esse valor. Deixe vazio se a especificação não está em " +
   "nenhuma referência (por exemplo, se veio só do nome do produto).";
 
+/// Vai logo depois das divergencias (e so quando ha): a IA e o motor de sinonimos dos quadros. Fica no pedido, e nao no
+/// prompt da biblioteca, para valer com qualquer prompt do dono; o prompt so precisa ter os nomes padronizados.
+export const INSTRUCAO_DE_DECISOES =
+  "Em decisoes, dê a cada divergência acima o NOME PADRONIZADO do prompt em campo. Divergências que são o mesmo " +
+  "campo (rótulos diferentes das lojas para o mesmo dado) recebem o mesmo nome, com todas as suas ids em ids e UMA " +
+  "escolha (id e opcao). Em iguais, junte as opções que são o mesmo valor escrito de outro jeito: cada grupo é uma " +
+  "lista de {id, opcao}. Em valor, escreva a opção escolhida no padrão do prompt. Se o prompt não tiver nome " +
+  "padronizado para o dado, use o rótulo da loja e deixe iguais vazio.";
+
 export function montarPedidoDaDescricao({ titulo = "", referencias, listaDeMedidas = [], divergencias = [], instrucoes, semReferencias = false }) {
   return (
     (titulo.trim() ? `Produto que a loja vai anunciar: ${titulo.trim()}\n\n` : "") +
@@ -926,10 +956,12 @@ export function montarPedidoDaDescricao({ titulo = "", referencias, listaDeMedid
       ? `Divergências a revisar pelo operador (opcoes numeradas a partir de zero):\n${JSON.stringify(
           divergencias.map(({ id, campo, opcoes }) => ({
             id, campo, opcoes: opcoes.map(({ valor, fontes, aviso }) => ({
-              valor, aviso, fontes: fontes.map(({ nome, produto }) => `${nome}: ${produto}`),
+              // "Referência N" e nao o nome da loja: o texto e da Rise e nao pode citar concorrente. Sem numero
+              // (nao acontece na geracao de verdade), cai no nome do produto, nunca no da loja.
+              valor, aviso, fontes: fontes.map(({ produto, numero }) => (Number.isInteger(numero) ? `Referência ${numero}` : produto)),
             })),
           })),
-        )}\n\n`
+        )}\n\n${INSTRUCAO_DE_DECISOES}\n\n`
       : "") +
     instrucoes
   );

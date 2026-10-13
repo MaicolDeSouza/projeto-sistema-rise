@@ -1940,6 +1940,22 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   // O pedido manda a IA apontar as referencias de cada caracteristica (so com referencias de verdade).
   conferir("o pedido com referencias pede os numeros de cada caracteristica", montarPedidoDaDescricao({ ...dados, instrucoes: "P" }).includes("campo referencias"), true);
   conferir("sem referencias o pedido nao fala de numeros", montarPedidoDaDescricao({ ...dados, referencias: "Nome: X", semReferencias: true, instrucoes: "P" }).includes("campo referencias"), false);
+
+  // As decisoes da IA nomeiam os quadros (pedido do dono em 13/10/2026): o pedido manda "Referência N" (nunca a loja)
+  // e a instrucao das decisoes; o esquema traz campo, ids, valor e iguais.
+  const { FORMATO_DESCRICAO, INSTRUCAO_DE_DECISOES } = await import("../src/lib/ia/anuncio.js");
+  const comDiv = montarPedidoDaDescricao({
+    ...dados, instrucoes: "P",
+    divergencias: [{ id: "spec:x", campo: "X", opcoes: [{ valor: "1", aviso: null, fontes: [{ id: "a", nome: "Loja Secreta", produto: "Prod", numero: 2 }] }] }],
+  });
+  conferir("divergencias no pedido: a fonte e 'Referência N', nunca a loja", [comDiv.includes("Referência 2"), comDiv.includes("Loja Secreta")], [true, false]);
+  conferir("divergencias no pedido: a instrucao das decisoes vai junto, e so com divergencia",
+    [comDiv.includes(INSTRUCAO_DE_DECISOES), montarPedidoDaDescricao({ ...dados, instrucoes: "P" }).includes(INSTRUCAO_DE_DECISOES)], [true, false]);
+  const itemDecisao = FORMATO_DESCRICAO.schema.properties.decisoes.items;
+  conferir("esquema das decisoes: campo, ids, valor e iguais, todos obrigatorios",
+    [Object.keys(itemDecisao.properties).sort(), itemDecisao.required.slice().sort()],
+    [["campo", "id", "ids", "iguais", "motivo", "opcao", "valor"], ["campo", "id", "ids", "iguais", "motivo", "opcao", "valor"]]);
+  conferir("o prompt padrao do codigo pede o campo padronizado nas decisoes", /campo.*padronizad/i.test(PROMPT_DESCRICAO_PADRAO), true);
 }
 
 console.log("\n— Download do arquivo do produto: o nome real no cabecalho, e nao o hash —");
