@@ -537,6 +537,7 @@ try {
       "src/app/anuncios/page.jsx",
       "src/app/api/arquivos/[...caminho]/route.js",
       "src/app/api/mercados/arquivo-fonte/[id]/[nome]/route.js",
+      "src/app/api/mercados/documento/route.js",
       "src/app/api/mercados/miniatura/[id]/route.js",
       "src/app/api/oauth/[servico]/callback/route.js",
       "src/app/api/oauth/[servico]/iniciar/route.js",
