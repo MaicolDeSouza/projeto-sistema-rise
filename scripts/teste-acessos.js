@@ -468,6 +468,22 @@ try {
     conferir("a exclusao lista quem tinha a funcao", trilha[4].antes?.usuarios, []);
   }
 
+  // --- usuarios e funcoes: o texto do ultimo acesso, no fuso da loja (src/lib/configuracoes/detalhes.js) ---
+  {
+    const { textoDoUltimoAcesso } = await import("../src/lib/configuracoes/detalhes.js");
+    const agora = new Date("2026-10-12T15:00:00Z");
+    conferir(
+      "ultimo acesso: hoje, ontem, data e nunca (horario de Sao Paulo)",
+      [new Date("2026-10-12T12:12:00Z"), new Date("2026-10-11T20:40:00Z"), new Date("2026-10-01T12:00:00Z"), null].map((data) => textoDoUltimoAcesso(data, agora)),
+      [
+        { texto: "hoje 09:12", titulo: "12/10/2026 09:12" },
+        { texto: "ontem 17:40", titulo: "11/10/2026 17:40" },
+        { texto: "01/10/26", titulo: "01/10/2026 09:00" },
+        { texto: "nunca", titulo: "Ainda não entrou" },
+      ],
+    );
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;

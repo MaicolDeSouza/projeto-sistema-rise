@@ -32,3 +32,20 @@ export function detalheDoRiseAi(padrao, provedores) {
   const rotulo = provedores.find((provedor) => provedor.id === padrao.provedor)?.rotulo ?? padrao.provedor;
   return `Padrão: ${rotulo} · ${padrao.modelo}`;
 }
+
+const FUSO = "America/Sao_Paulo";
+const diaEmSp = (data) => new Date(data).toLocaleDateString("sv-SE", { timeZone: FUSO });
+const horaEmSp = (data) => new Date(data).toLocaleTimeString("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit" });
+
+/**
+ * O "Último acesso" da lista de usuarios (spec de Acessos, §5.3): "hoje 09:12", "ontem 17:40" ou a data curta, no fuso
+ * da loja, e o `title` com a data completa. Calculado no servidor (o navegador e o servidor dariam horas diferentes).
+ */
+export function textoDoUltimoAcesso(data, agora = new Date()) {
+  if (!data) return { texto: "nunca", titulo: "Ainda não entrou" };
+  const dia = diaEmSp(data);
+  const titulo = `${new Date(data).toLocaleDateString("pt-BR", { timeZone: FUSO })} ${horaEmSp(data)}`;
+  if (dia === diaEmSp(agora)) return { texto: `hoje ${horaEmSp(data)}`, titulo };
+  if (dia === diaEmSp(new Date(agora).getTime() - 24 * 60 * 60 * 1000)) return { texto: `ontem ${horaEmSp(data)}`, titulo };
+  return { texto: new Date(data).toLocaleDateString("pt-BR", { timeZone: FUSO, day: "2-digit", month: "2-digit", year: "2-digit" }), titulo };
+}
