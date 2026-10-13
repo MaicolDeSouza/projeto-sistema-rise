@@ -8,7 +8,8 @@ import { casaPalavra, indiceDePalavras, normalizar, palavrasDoTermo } from "@/li
 import { limparSugestoesDeCategoria, montarPedidoDeCategorias } from "@/lib/canaisDeVenda/li/categorias";
 
 import { PADRAO_TITULO } from "./padraoTitulo";
-import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica, recomendacaoDaDivergencia } from "./divergencias";
+import { integrarDecisoes } from "./decisoes";
+import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica } from "./divergencias";
 import { compactarUnidades, formatarLinhaTecnica, normalizarTerminologiaEletrica } from "./revisaoDescricao";
 
 /**
@@ -732,32 +733,8 @@ export async function gerarDescricao(
 
   const idsDivergentes = new Set(divergencias.map((item) => item.id));
   const caracteristicasDaIA = Array.isArray(conteudo.caracteristicas) ? conteudo.caracteristicas : [];
-  const posicoes = new Map();
-  let caracteristicasComuns = 0;
-  const comuns = [];
-  for (const item of caracteristicasDaIA) {
-    const id = idDaCaracteristica(item?.nome);
-    if (idsDivergentes.has(id)) posicoes.set(id, caracteristicasComuns);
-    else if (!ESPEC_DE_MEDIDA.test(String(item?.nome ?? "").trim()) && item?.nome && item?.valor) {
-      comuns.push(item);
-      caracteristicasComuns++;
-    }
-  }
-  const prioridade = (nome) => {
-    const chave = normalizar(String(nome ?? ""));
-    if (/modelo|chip de interface|microcontrolador|micro.controlador|processador/.test(chave)) return 10;
-    if (/usb|conversor/.test(chave)) return 20;
-    if (/clock|frequencia|velocidade/.test(chave)) return 30;
-    if (/tensao|voltagem|alimentacao/.test(chave)) return 40;
-    if (/pinos|portas|entrada|saida|gpio/.test(chave)) return 50;
-    if (/memoria|flash|sram|eeprom|rom|ram/.test(chave)) return 60;
-    if (/corrente/.test(chave)) return 70;
-    return 80;
-  };
-  const posicaoInferida = (campo) => {
-    const indice = comuns.findIndex((item) => prioridade(item.nome) > prioridade(campo));
-    return indice < 0 ? comuns.length : indice;
-  };
+  // Os quadros fundidos pelo nome padronizado que a IA devolveu e a posicao de cada um (ver `integrarDecisoes`).
+  const integrado = integrarDecisoes({ caracteristicas: caracteristicasDaIA, divergencias, decisoes: conteudo.decisoes });
   // Sem referencia, a medida que a IA devolver nao tem de onde ter saido: so contam as do formulario.
   const medidasFinais = juntarMedidas(medidas, semReferencias ? {} : conteudo, reservaDasReferencias(medidasPorReferencia, titulo));
   if (idsDivergentes.has("dimensoes")) {
@@ -768,24 +745,25 @@ export async function gerarDescricao(
     titulo,
     sku,
     paragrafos,
-    caracteristicas: caracteristicasDaIA
-      .filter((item) => !idsDivergentes.has(idDaCaracteristica(item?.nome))),
+    caracteristicas: integrado.caracteristicas,
     itensInclusos:
       doKit.itens.length > 0 ? doKit.itens : Array.isArray(conteudo.itensInclusos) ? conteudo.itensInclusos : [],
     medidas: medidasFinais,
   });
-  const decisoes = new Map((Array.isArray(conteudo.decisoes) ? conteudo.decisoes : [])
-    .map((item) => [item.id, item]));
   // A loja de cada linha comum (nome da loja no fim da linha): chave = a linha como aparece no texto. As do kit
-  // (pecas) nao entram: so loja de verdade. Sem loja confirmada pelo texto, a linha fica fora do mapa.
+  // (pecas) nao entram: so loja de verdade. Sem loja confirmada pelo texto, a linha fica fora do mapa. Item da IA que
+  // virou quadro ou linha resolvida nao conta aqui (a linha dele e outra); as lojas da resolvida vem das opcoes.
   const fontesDasLinhas = {};
   if (temLojas) {
     for (const item of caracteristicasDaIA) {
-      if (!item?.nome || !item?.valor || idsDivergentes.has(idDaCaracteristica(item.nome))) continue;
+      if (!item?.nome || !item?.valor || integrado.substituidas.has(idDaCaracteristica(item.nome))) continue;
       const lojas = lojasDaCaracteristica(item, linhas);
       if (lojas.length > 0) {
         fontesDasLinhas[formatarLinhaTecnica(`- ${semPontuacaoFinal(item.nome)}: ${semPontuacaoFinal(item.valor)};`)] = lojas;
       }
+    }
+    for (const { campo, valor, lojas } of integrado.resolvidas) {
+      if (lojas.length > 0) fontesDasLinhas[formatarLinhaTecnica(`- ${semPontuacaoFinal(campo)}: ${semPontuacaoFinal(valor)};`)] = lojas;
     }
   }
   return {
@@ -794,18 +772,8 @@ export async function gerarDescricao(
     // As opcoes de cada um dos dois primeiros paragrafos: `[[p1a, p1b, p1c], [p2a, p2b, p2c]]`. O texto
     // acima usa a primeira de cada uma.
     opcoesParagrafos,
-    divergencias: divergencias.map((item) => {
-      // Sempre ha uma recomendada (10/10/2026), com a regra de pico x continua (ver `recomendacaoDaDivergencia`).
-      const { recomendada, motivo } = recomendacaoDaDivergencia(item, decisoes.get(item.id));
-      return {
-        ...item,
-        recomendada,
-        motivo,
-        posicao: item.id === "dimensoes" ? caracteristicasComuns :
-          item.id === "peso" ? caracteristicasComuns + 1 :
-            posicoes.get(item.id) ?? posicaoInferida(item.campo),
-      };
-    }),
+    // Os quadros ja fundidos, com a recomendada de cada um (sempre ha uma, 10/10/2026: ver `recomendacaoDaDivergencia`).
+    divergencias: integrado.quadros,
   };
 }
 
