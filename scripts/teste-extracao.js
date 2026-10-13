@@ -1740,12 +1740,27 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   conferir("acima do teto e recusado, com erro em portugues", limparPromptDaDescricao("x".repeat(MAXIMO_PROMPT_DESCRICAO + 1)),
     { ok: false, erro: `O prompt passa de ${MAXIMO_PROMPT_DESCRICAO} caracteres.` });
 
-  // montarPedidoDaDescricao: dados do produto primeiro, o prompt (padrao ou editado) depois.
+  // montarPedidoDaDescricao: so os dados do produto. O prompt (padrao ou editado) vai no `system`, depois do papel e com
+  // cache (13/10/2026): o prefixo estavel vem antes do que muda e e lido a 10% do preco nas geracoes seguintes.
   const dados = { titulo: "PLACA X", referencias: "<referencia>a</referencia>", listaDeMedidas: ["- Referência 1 (A): peso 7 g"], divergencias: [] };
+  const { blocosDoSistema, blocosDoPedido, configDeSaida, esforcoDaTarefa, MODELO_IA } = await import("../src/lib/ia/anuncio.js");
   const editado = montarPedidoDaDescricao({ ...dados, instrucoes: "Escreva tudo em uma frase." });
-  conferir("o prompt editado e o que vai para a IA, no fim do pedido", editado.endsWith("\n\nEscreva tudo em uma frase."), true);
-  conferir("os dados do produto continuam antes do prompt", [editado.startsWith("Produto que a loja vai anunciar: PLACA X\n\n"),
-    editado.includes("Referências:\n\n<referencia>a</referencia>"), editado.includes("Peso e medidas já encontrados")], [true, true, true]);
+  conferir("o prompt editado vai no system (papel, depois o prompt com cache), e nao mais no pedido",
+    [editado.includes("Escreva tudo em uma frase."), blocosDoSistema("PAPEL", "Escreva tudo em uma frase.").map((b) => [b.text, Boolean(b.cache_control)])],
+    [false, [["PAPEL", false], ["Escreva tudo em uma frase.", true]]]);
+  conferir("sem prompt, o system tem so o papel", blocosDoSistema("PAPEL").length, 1);
+  conferir("os dados do produto continuam no pedido, sem sobra no fim", [editado.startsWith("Produto que a loja vai anunciar: PLACA X\n\n"),
+    editado.includes("Referências:\n\n<referencia>a</referencia>"), editado.includes("Peso e medidas já encontrados"), editado.endsWith("peso 7 g")], [true, true, true, true]);
+  const primeiraChamada = blocosDoPedido("PEDIDO", null);
+  const retentativa = blocosDoPedido("PEDIDO", "Na tentativa anterior...");
+  conferir("cache: o bloco do pedido tem cache e e identico na retentativa; a nota vai depois, sem cache",
+    [Boolean(primeiraChamada[0].cache_control), JSON.stringify(retentativa[0]) === JSON.stringify(primeiraChamada[0]), retentativa.length, Boolean(retentativa[1].cache_control)],
+    [true, true, 2, false]);
+  conferir("effort: a descricao pede low; as outras tarefas nao mandam effort", [esforcoDaTarefa("descricao"), esforcoDaTarefa("titulos"), esforcoDaTarefa("seo-li"), esforcoDaTarefa(undefined)], ["low", null, null, null]);
+  conferir("output_config: o formato e o effort juntos na descricao; so o formato nas outras; nada sem nenhum dos dois",
+    [configDeSaida("descricao", { type: "json_schema" }), configDeSaida("titulos", { type: "json_schema" }), configDeSaida("titulos", null), configDeSaida("descricao", null)],
+    [{ output_config: { format: { type: "json_schema" }, effort: "low" } }, { output_config: { format: { type: "json_schema" } } }, {}, { output_config: { effort: "low" } }]);
+  if (!process.env.IA_MODELO) conferir("modelo: o padrao da IA e o Opus 5.5 (IA_MODELO sobrepoe por processo)", MODELO_IA, "claude-opus-5-5");
   conferir("o prompt padrao nao entra junto com o editado", editado.includes("Escreva o conteúdo da descrição"), false);
   conferir("sem titulo, o pedido comeca nas referencias", montarPedidoDaDescricao({ ...dados, titulo: "", instrucoes: "P" }).startsWith("Referências:"), true);
 
@@ -1759,7 +1774,7 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   const semRefs = montarPedidoDaDescricao({ titulo: "Placa X", referencias: "Nome: Placa X", semReferencias: true, instrucoes: "P" });
   conferir("sem referencias: o pedido diz que nao ha referencias e manda nao inventar especificacao",
     [semRefs.includes("Não há referências de outras lojas"), semRefs.includes("Dados do próprio produto:\n\nNome: Placa X"),
-      /NUNCA invente/.test(semRefs), semRefs.includes("Referências:\n\n"), semRefs.endsWith("\n\nP")],
+      /NUNCA invente/.test(semRefs), semRefs.includes("Referências:\n\n"), semRefs.endsWith("Nome: Placa X")],
     [true, true, true, false, true]);
   conferir("com referencias, a regra de nao inventar nao entra", montarPedidoDaDescricao({ ...dados, instrucoes: "P" }).includes("Não há referências de outras lojas"), false);
 

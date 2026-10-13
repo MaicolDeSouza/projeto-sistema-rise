@@ -20,8 +20,39 @@ import { compactarUnidades, formatarLinhaTecnica, normalizarTerminologiaEletrica
  * vindo do navegador deixaria qualquer coisa entrar no prompt.
  */
 
-const MODELO = "claude-opus-5";
+// Opus 5.5 (13/10/2026): o Opus atual, US$ 4/20 por milhao de tokens (o Opus 5 custava 5/25), no mesmo nivel.
+// `IA_MODELO` troca por PROCESSO (a bancada roda um processo por modelo); no dia a dia o modelo e o do codigo.
+const MODELO = process.env.IA_MODELO?.trim() || "claude-opus-5-5";
 const ENDPOINT = "https://api.anthropic.com/v1/messages";
+
+// Tarefas em que o raciocinio extra nao paga: a descricao so extrai, padroniza e formata o que as lojas dizem.
+// Medido em 13/10/2026 (Opus 5, sem effort): 3.941 dos 6.129 tokens de saida eram raciocinio interno. As demais
+// tarefas nao mandam effort (ficam no padrao do modelo).
+const ESFORCO_POR_TAREFA = { descricao: "low" };
+export const esforcoDaTarefa = (tarefa) => ESFORCO_POR_TAREFA[tarefa] ?? null;
+
+/// O `output_config` da chamada: o formato JSON e/ou o effort da tarefa; nada se nenhum dos dois.
+export function configDeSaida(tarefa, formato) {
+  const esforco = esforcoDaTarefa(tarefa);
+  if (!formato && !esforco) return {};
+  return { output_config: { ...(formato ? { format: formato } : {}), ...(esforco ? { effort: esforco } : {}) } };
+}
+
+/// O `system` da descricao: o papel e, depois, o prompt da biblioteca com cache. O prefixo estavel vem antes do que muda
+/// a cada produto, e as geracoes seguintes (cache de 5 min) leem o prompt a 10% do preco.
+export function blocosDoSistema(papel, instrucoes) {
+  const blocos = [{ type: "text", text: papel }];
+  if (instrucoes) blocos.push({ type: "text", text: instrucoes, cache_control: { type: "ephemeral" } });
+  return blocos;
+}
+
+/// O pedido da descricao com cache, e a nota da retentativa (parágrafo longo) num bloco a parte: o bloco do pedido tem de
+/// ser identico ao da primeira chamada para o cache bater (ai a retentativa le as ~25 mil entradas a 10%).
+export function blocosDoPedido(pedido, nota) {
+  const blocos = [{ type: "text", text: pedido, cache_control: { type: "ephemeral" } }];
+  if (nota) blocos.push({ type: "text", text: nota });
+  return blocos;
+}
 
 /// Acima disso a marcacao deixa de ser referencia e vira o catalogo inteiro, e
 /// o prompt cresce sem ganho.
@@ -205,7 +236,7 @@ async function chamar({ tarefa, quantidade, sistema, pedido, formato }) {
       fallbacks: "default",
       system: sistema,
       messages: [{ role: "user", content: pedido }],
-      ...(formato ? { output_config: { format: formato } } : {}),
+      ...configDeSaida(tarefa, formato),
     });
   } catch (erro) {
     await registrar({ tarefa, referencias: quantidade, inicio, erro });
@@ -694,7 +725,7 @@ export async function gerarDescricao(
       return `- Referência ${ref.numero} (${ref.nome}): ${partes.join("; ")}`;
     });
 
-  const pedido = montarPedidoDaDescricao({ titulo, referencias, listaDeMedidas, divergencias, instrucoes, semReferencias });
+  const pedido = montarPedidoDaDescricao({ titulo, referencias, listaDeMedidas, divergencias, semReferencias });
 
   // Opcao de paragrafo acima do limite volta para a IA encurtar, uma vez, dizendo quais passaram.
   // Cortar no codigo quebraria a frase no meio.
@@ -705,11 +736,11 @@ export async function gerarDescricao(
     const texto = await chamar({
       tarefa: "descricao",
       quantidade,
-      sistema: SISTEMA,
-      pedido:
-        pedido +
-        (longos.length > 0
-          ? `\n\nNa tentativa anterior estas opções de parágrafo passaram de ${LIMITE_PARAGRAFO} ` +
+      sistema: blocosDoSistema(SISTEMA, instrucoes),
+      pedido: blocosDoPedido(
+        pedido,
+        longos.length > 0
+          ? `Na tentativa anterior estas opções de parágrafo passaram de ${LIMITE_PARAGRAFO} ` +
             `caracteres; reescreva TODAS as opções, mais curtas, mantendo o que informa:\n${longos.join("\n")}`
           : ""),
       formato: FORMATO_DESCRICAO,
@@ -911,7 +942,8 @@ export const INSTRUCAO_DE_DECISOES =
   "lista de {id, opcao}. Em valor, escreva a opção escolhida no padrão do prompt. Se o prompt não tiver nome " +
   "padronizado para o dado, use o rótulo da loja e deixe iguais vazio.";
 
-export function montarPedidoDaDescricao({ titulo = "", referencias, listaDeMedidas = [], divergencias = [], instrucoes, semReferencias = false }) {
+// So os dados do produto: o prompt (padrao ou editado) vai no `system`, com cache (ver `blocosDoSistema`).
+export function montarPedidoDaDescricao({ titulo = "", referencias, listaDeMedidas = [], divergencias = [], semReferencias = false }) {
   return (
     (titulo.trim() ? `Produto que a loja vai anunciar: ${titulo.trim()}\n\n` : "") +
     (semReferencias
@@ -930,9 +962,8 @@ export function montarPedidoDaDescricao({ titulo = "", referencias, listaDeMedid
             })),
           })),
         )}\n\n${INSTRUCAO_DE_DECISOES}\n\n`
-      : "") +
-    instrucoes
-  );
+      : "")
+  ).trimEnd();
 }
 
 // Os prompts SALVOS (a biblioteca com nome, desde 09/10/2026) moram em `promptsDescricao.js`.
