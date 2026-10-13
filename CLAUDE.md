@@ -2281,7 +2281,10 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       `caracteristicas`, `referencias` (os números das referências de onde o tirou; o pedido manda isso, em
       `INSTRUCAO_DE_REFERENCIAS`, e o nome da loja **continua sem ir para a IA**). O Rise **confere no texto de cada
       referência** (nome, descrição e ficha) se o valor está lá (os pedaços com número, como "16mhz", ou, sem número,
-      todas as palavras) e só então mostra a loja; senão a linha fica **sem nome de loja**. Especificação que não veio de
+      todas as palavras) e só então mostra a loja; senão a linha fica **sem nome de loja**. **Faixa casa pelos números**
+      (`pedacoNoTexto`, 13/10/2026): "7V a 12V" da IA confirma em loja que escreve "7-12V", "7~12V" ou "de 6 até 20 V"
+      (número, conector e o outro número antes da unidade; "7 ampères" não é faixa). Antes a Tensão de Alimentação
+      voltava sem loja com três lojas publicando "7-12V". Especificação que não veio de
       concorrente nem de fornecedor também fica sem nome (pedido do dono). `gerarDescricao` devolve
       `fontesDasLinhas` (`{ "- Nome: valor;": [lojas] }`, chave = a linha formatada); só valem as referências de loja,
       não as peças de um kit. Vale só para a geração nova: texto digitado ou levado da esquerda não tem loja.

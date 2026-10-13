@@ -1802,6 +1802,23 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
     [[], [], []]);
   conferir("loja repetida entra uma vez", lojasDaCaracteristica({ nome: "Clock", valor: "16MHz", referencias: [1, 1] }, refs), ["Usinainfo"]);
 
+  // Faixas (pedido do dono em 13/10/2026): a loja escreve "7-12V", "7~12V" ou "de 6 ate 20 V", com a unidade so no
+  // fim, e a IA escreve "7V a 12V". A conferencia casa os NUMEROS da faixa, nao "numero+unidade": antes a linha de
+  // Tensao de Alimentacao voltava sem loja mesmo com tres lojas publicando "7-12V".
+  const faixas = [
+    { nome: "Uno R3", descricao: "", especificacoes: [{ nome: "Tensão de entrada (recomendada)", valor: "7-12V" }, { nome: "Tensão de entrada (limites)", valor: "6-20V" }], fonte: { nome: "Casa da Robótica" } },
+    { nome: "Uno SMD", descricao: "Alimentação de 7~12V pelo jack.", especificacoes: [], fonte: { nome: "Saravati" } },
+    { nome: "Nano", descricao: "Funciona de 6 até 20 V no pino VIN.", especificacoes: [], fonte: { nome: "Usinainfo" } },
+    { nome: "Mega", descricao: "Consome 7 ampères e aceita 12V.", especificacoes: [], fonte: { nome: "Mamute" } },
+  ];
+  conferir("faixa: recomendado e limite com hifen na loja casam com 'NV a MV' da IA",
+    lojasDaCaracteristica({ nome: "Tensão de Alimentação", valor: "7V a 12V por VIN ou jack (limite 6V a 20V)", referencias: [1] }, faixas), ["Casa da Robótica"]);
+  conferir("faixa: hifen e til casam; loja sem o numero inicial nao",
+    lojasDaCaracteristica({ nome: "Tensão de Alimentação", valor: "7V a 12V", referencias: [1, 2, 3] }, faixas), ["Casa da Robótica", "Saravati"]);
+  conferir("faixa: 'de 6 ate 20 V' casa com '6V a 20V'", lojasDaCaracteristica({ nome: "Tensão de Alimentação", valor: "6V a 20V", referencias: [3] }, faixas), ["Usinainfo"]);
+  conferir("faixa: numero seguido de outra palavra ('7 amperes') nao e faixa", lojasDaCaracteristica({ nome: "Tensão de Alimentação", valor: "7V a 12V", referencias: [4] }, faixas), []);
+  conferir("faixa: outro numero inicial nao casa", lojasDaCaracteristica({ nome: "Tensão de Alimentação", valor: "9V a 12V", referencias: [1] }, faixas), []);
+
   // Editar uma linha comum das especificacoes (pedido do dono em 10/10/2026): volta no formato "- Nome: valor;".
   const { substituirEspecificacao } = await import("../src/lib/ia/revisaoDescricao.js");
   const base = "TITULO\n\nEspecificações técnicas:\n- Clock: 16 MHz;\n- Tensão: 5V;\n\nGarantia:\n- 90 dias;";

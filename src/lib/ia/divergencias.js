@@ -66,6 +66,18 @@ function textoDaReferencia(referencia) {
   return normalizar(partes.filter(Boolean).join(" ")).replace(/,/g, ".").replace(/\s+/g, "");
 }
 
+/// Um pedaco com numero da IA ("7v") casa tambem com a faixa que a loja escreve com a unidade so no fim ("7-12v",
+/// "7~12v", "de6ate20v"): o numero, um conector e o OUTRO numero antes da unidade. Sem o outro numero ("7amperes")
+/// nao e faixa. Antes a Tensao de Alimentacao voltava sem loja com tres lojas publicando "7-12V" (13/10/2026).
+const NUMERO_E_UNIDADE = /^(\d+(?:\.\d+)?)([a-z]+)$/;
+function pedacoNoTexto(pedaco, texto) {
+  if (texto.includes(pedaco)) return true;
+  const partes = NUMERO_E_UNIDADE.exec(pedaco);
+  if (!partes) return false;
+  const numero = partes[1].replace(/\./g, "\\.");
+  return new RegExp(`(?:^|[^0-9.])${numero}(?:[-~–—/]|ate|a|e)\\d+(?:\\.\\d+)?${partes[2]}`).test(texto);
+}
+
 /**
  * As lojas de onde veio uma especificacao COMUM da descricao (pedido do dono em 10/10/2026: o nome da loja no fim
  * da linha). A IA aponta os numeros das referencias de onde tirou o item (`item.referencias`), mas ela pode errar o
@@ -95,7 +107,7 @@ export function lojasDaCaracteristica(item, referencias) {
     const nome = referencias[numero - 1]?.fonte?.nome;
     if (!nome || lojas.includes(nome)) continue;
     const texto = textoDaReferencia(referencias[numero - 1]);
-    if (exigidos.every((pedaco) => texto.includes(pedaco))) lojas.push(nome);
+    if (exigidos.every((pedaco) => pedacoNoTexto(pedaco, texto))) lojas.push(nome);
   }
   return lojas;
 }
