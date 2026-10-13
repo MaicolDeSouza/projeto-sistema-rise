@@ -511,16 +511,36 @@ export async function colherProdutos({
   // Teto da leitura. Nomeado porque a contagem do catalogo precisa saber se
   // parou por acabar o sitemap ou por bater aqui — a diferenca entre
   // "a loja tem 500 produtos" e "a loja tem pelo menos 500".
-  const TETO_SITEMAP = Math.max(500, limite * 20);
+  const produtoDaNuvemshop = (endereco) =>
+    plataforma.id === "nuvemshop" && /\/produtos\/[^/?#]+\/?$/i.test(endereco.split("?")[0]);
+  // ASP.NET (Eletropecas, 13/10/2026): a categoria "/produtos/.../serie-29000" e "/produtos/.../clip-01-para-bateria-2032"
+  // termina em numero e o `pareceProduto` a tomava por produto. Nessa plataforma o produto e SO "/{slug}/p".
+  const produtoDoAspNet = (endereco) =>
+    plataforma.id === "aspnet-uploads" && /\/[^/]+\/p\/?$/i.test(endereco.split("?")[0]);
+  const grupo = (endereco) => {
+    if (plataforma.id === "aspnet-uploads") return produtoDoAspNet(endereco) ? 0 : pareceListagem(endereco) ? 2 : 1;
+    return pareceProduto(endereco) || produtoDaNuvemshop(endereco) ? 0 : pareceListagem(endereco) ? 2 : 1;
+  };
+  const TETO_PADRAO_DO_SITEMAP = Math.max(500, limite * 20);
+  let TETO_SITEMAP = TETO_PADRAO_DO_SITEMAP;
 
   if (sitemaps.length > 0) {
-    const leitura = await lerSitemaps(sitemaps, {
-      prefixo: prefixo ?? undefined,
-      maxSitemaps: 6,
-      limite: TETO_SITEMAP,
-      sinal,
-    });
+    const ler = (teto) =>
+      lerSitemaps(sitemaps, { prefixo: prefixo ?? undefined, maxSitemaps: 6, limite: teto, sinal });
+    let leitura = await ler(TETO_SITEMAP);
     conferirSinal();
+
+    // SITEMAP PLANO COM AS CATEGORIAS ANTES DOS PRODUTOS (Eletropecas, 13/10/2026): o arquivo unico lista 1.017
+    // categorias e so DEPOIS 14.694 produtos (`/{slug}/p`). Cortado nos primeiros 500, nenhum produto entrava, e a
+    // varredura so "funcionava" porque os cards das listagens eram lidos como produto (sem codigo nem foto). Quando o
+    // corte bate no teto e nao ha um produto sequer, relê o arquivo inteiro e o grupo "produto primeiro" faz o resto.
+    const semProdutoNoCorte =
+      leitura.urls.length >= TETO_SITEMAP && !leitura.urls.some((item) => grupo(item.url) === 0);
+    if (semProdutoNoCorte) {
+      TETO_SITEMAP = 60000;
+      leitura = await ler(TETO_SITEMAP);
+      conferirSinal();
+    }
     // Produto primeiro, listagem por ultimo, o resto no meio — na ordem do
     // sitemap dentro de cada grupo. Sem isto a amostra do "Testar fonte" (8
     // enderecos) caia inteira nas categorias que o sitemap lista antes.
@@ -529,10 +549,6 @@ export async function colherProdutos({
     // contato e da FAQ: a "Amostra variada" da Policomp (10/10/2026) esgotava os
     // poucos com numero e so abria pagina institucional. So nesta plataforma: na
     // Eletrus "/produtos/..." e categoria.
-    const produtoDaNuvemshop = (endereco) =>
-      plataforma.id === "nuvemshop" && /\/produtos\/[^/?#]+\/?$/i.test(endereco.split("?")[0]);
-    const grupo = (endereco) =>
-      pareceProduto(endereco) || produtoDaNuvemshop(endereco) ? 0 : pareceListagem(endereco) ? 2 : 1;
     // So enderecos da loja. O robots.txt da Mamute Eletronica declara tambem o
     // sitemap do BLOG (outro subdominio): os posts entrariam na fila e na conta
     // de "produtos no site". O arquivo do sitemap pode estar num CDN; o que ele

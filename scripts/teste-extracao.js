@@ -2604,5 +2604,30 @@ console.log("\n— redirecionamento entre o dominio e o www —");
   conferir("www: outro nome continua outro dominio (subdominio, sufixo, outro site, vazio)", [mesmoSiteSemWww("loja.com.br", "loja.com.br.atacante.com"), mesmoSiteSemWww("loja.kalatec.com.br", "www.kalatec.com.br"), mesmoSiteSemWww("a.com.br", "b.com.br"), mesmoSiteSemWww("", "")], [false, false, false, false]);
 }
 
+// Eletropecas (ASP.NET, tema novo, 13/10/2026): codigo fora do span do rotulo, descricao sem abas, breadcrumb com
+// outras classes, listagem com cards `produto__item` e o menu "Controle Bimanual" que virava documento.
+console.log("\n— ASP.NET, tema novo (Eletropecas) —");
+{
+  const detalhe = `<html><body><nav><a href="/produtos/controladores/controles-diversos/controle--bimanual">Controle Bimanual</a></nav>
+<ul class="loja__breadcrumb py-4 d-flex"><li><a href="/">Home</a></li><li><a href="/produtos/resistores"><p class="content ">Resistores </p></a></li><li><a href="/produtos/resistores/resistores-de-fio"><p class="content ">Resistores de Fio </p></a></li><li><p class="content active">Resistor de Fio Axial 20W 15 K</p></li></ul>
+<div itemscope itemtype="http://schema.org/Product"><meta itemprop="name" content="Resistor de Fio Axial 20W 15 K">
+<img data-src="https://www.eletropecas.com/_uploads/ProdutoDestaque/ProdutoDestaque_2504_orig.jpg" data-zoom-image="x">
+<div class="detalhe_informacoes detalhe__produto--info"><h1 itemprop="name" class="t">Resistor de Fio Axial 20W 15 K</h1>
+<div class="detalhe_informacoes_cod_ref"><p class="fs-7">
+ Cód: <span class="text-dark">2948</span>
+</p><p>Marca: <span class="text-dark" itemprop="brand" content="Importado">Importado</span></p></div>
+<div itemprop="offers" itemscope itemtype="http://schema.org/Offer"><meta itemprop="price" content="19.80"/><a class="comprar-btn">comprar</a></div></div>
+<input type="hidden" value="2948" id="pcod" /></div>
+<div class="col-12 produto__descricao"><h2>Descri&#231;&#227;o</h2><p>Resistor de fio axial.</p><p>Marcas Dispon&#237;veis: ROYALOHM, TYOHM.</p></div></body></html>`;
+  const e = normalizarPagina({ html: detalhe, url: "https://www.eletropecas.com/resistor-de-fio-axial-20w-15-k/p", fonte: "Eletropecas" }).produtos[0];
+  conferir("eletropecas: codigo, marca, preco e categoria do tema novo", [e?.code, e?.brand, e?.prices.normal, e?.category], ["2948", "Importado", 19.8, "Resistores > Resistores de Fio"]);
+  conferir("eletropecas: descricao do bloco produto__descricao, sem o titulo", [/Marcas Dispon/.test(e?.description ?? ""), /^Descri/.test(e?.description ?? "")], [true, false]);
+  conferir("eletropecas: o menu Controle Bimanual nao e documento", e?.documentos.length, 0);
+  conferir("eletropecas: manual de verdade ainda e documento", normalizarPagina({ html: detalhe.replace("</body>", `<a href="/arquivos/manual-do-resistor.pdf">Manual do resistor</a></body>`), url: "https://www.eletropecas.com/resistor-de-fio-axial-20w-15-k/p", fonte: "Eletropecas" }).produtos[0]?.documentos.length, 1);
+  const vitrine = `<html><body><div class="produto__item position-relative" itemscope itemtype="https://schema.org/Product"><figure itemprop="image"><meta itemprop="contentUrl" content="https://www.eletropecas.com/_uploads/ProdutoDestaque/ProdutoDestaque_17422_detalhe.jpg"></figure><p>Cód: 24547</p><a href="/suporte-para-bateria-clip-01/p"><h3>Suporte para Bateria CLIP-01</h3></a><meta itemprop="price" content="5.19"></div></body></html>`;
+  const l = normalizarPagina({ html: vitrine, url: "https://www.eletropecas.com/produtos/baterias-e-pilhas/suporte-para-pilhas/clip-01", fonte: "Eletropecas" });
+  conferir("eletropecas: listagem com cards produto__item nao vira produto", [l.produtos.length, l.motivo], [0, "listagem de produtos, nao pagina de produto"]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

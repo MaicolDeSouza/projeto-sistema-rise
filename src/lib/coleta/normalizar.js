@@ -1296,7 +1296,8 @@ function conteudoDoDiv(html, inicio) {
 function ehListagemAspNet(html) {
   return (
     /\/_uploads\/Produto/i.test(html) &&
-    /produto__item--box/.test(html) &&
+    // `produto__item--box` (Eletru's) ou `produto__item` (tema novo da Eletropecas, 13/10/2026): o card da vitrine.
+    /produto__item\b/.test(html) &&
     !/detalhe_informacoes_cod_ref/.test(html)
   );
 }
@@ -1323,7 +1324,12 @@ function daVitrineAspNet(html, url) {
   const textoPainel = comoTexto(painel) ?? "";
 
   const nome = comoTexto(/itemprop="name"[^>]*>([\s\S]*?)<\/h1>/.exec(painel)?.[1]);
-  const codigo = comoTexto(/<span>\s*C(?:ó|&#243;|o)d:\s*([^<]+)<\/span>/i.exec(painel)?.[1]);
+  // Tema novo da Eletropecas (13/10/2026): `<p>Cód: <span class="text-dark">2948</span></p>`, com o codigo FORA do
+  // span do rotulo; o campo escondido `pcod` repete o mesmo valor e fecha o caso.
+  const codigo =
+    comoTexto(/<span>\s*C(?:ó|&#243;|o)d:\s*([^<]+)<\/span>/i.exec(painel)?.[1]) ??
+    comoTexto(/C(?:ó|&#243;|o)d:\s*<span[^>]*>([^<]+)<\/span>/i.exec(painel)?.[1]) ??
+    comoTexto(/id="pcod"/.test(html) ? /<input[^>]*value="([^"]*)"[^>]*id="pcod"/i.exec(html)?.[1] : null);
 
   // "Ref:" so vale como referencia de fabricante quando NAO e o nome cortado: o
   // ERP da loja preenche o campo com a descricao em 30 letras quando nao ha
@@ -1351,7 +1357,7 @@ function daVitrineAspNet(html, url) {
 
   // Categoria: o caminho do breadcrumb antes do proprio produto (o degrau
   // "active" e o produto). Caminho inteiro desde 09/10/2026 — ver categoria.js.
-  const trilha = /<ul class="loja__breadcrumb">([\s\S]*?)<\/ul>/.exec(html)?.[1] ?? "";
+  const trilha = /<ul class="loja__breadcrumb[^"]*">([\s\S]*?)<\/ul>/.exec(html)?.[1] ?? "";
   const degraus = [...trilha.matchAll(/<p class="content\s*([^"]*)">([\s\S]*?)<\/p>/g)]
     .filter((degrau) => !/active/.test(degrau[1]))
     .map((degrau) => comoTexto(degrau[2]))
@@ -1384,7 +1390,13 @@ function daVitrineAspNet(html, url) {
   }
   const abaDe = (padrao) => Object.entries(abas).find(([rotulo]) => padrao.test(rotulo))?.[1] ?? null;
 
-  const blocoDescricao = abaDe(/descri/);
+  // Sem abas (tema novo da Eletropecas): a descricao fica no bloco `produto__descricao`, abaixo do titulo "Descricao".
+  const inicioDescricao = html.search(/class="[^"]*\bproduto__descricao\b[^"]*"[^>]*>/);
+  const blocoSemAbas =
+    inicioDescricao >= 0
+      ? conteudoDoDiv(html, html.indexOf(">", inicioDescricao) + 1).replace(/<h[1-6]\b[^>]*>[\s\S]*?<\/h[1-6]>/i, "")
+      : null;
+  const blocoDescricao = abaDe(/descri/) ?? blocoSemAbas;
   const descricao = blocoDescricao
     ? comoTexto(blocoDescricao.replace(/<li\b[^>]*>/gi, "\n- "))
     : null;
@@ -1640,7 +1652,7 @@ const ENDPOINT_DE_ANEXO = /controller=attachment|\/attachments?\/|\/anexos?\/|\/
 /// O que o link diz que é. Vocabulario de DOCUMENTO, nao de pagina: "blog",
 /// "tutorial" e "projeto" ficam de fora de proposito — sao conteudo da loja.
 const NOME_DE_DOCUMENTO =
-  /datasheet|data sheet|manual|esquem[aá]tico|esquema el[eé]trico|diagrama|cat[aá]logo|ficha t[eé]cnica|firmware|biblioteca|documenta[cç]/i;
+  /datasheet|data sheet|\bmanual|manuais|esquem[aá]tico|esquema el[eé]trico|diagrama|cat[aá]logo|ficha t[eé]cnica|firmware|biblioteca|documenta[cç]/i;
 
 /// Teto por produto. Passando disso nao e a ficha do item, e um repositorio da
 /// loja inteira — guardar tudo encheria o campo de material de outro produto.
