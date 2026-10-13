@@ -742,7 +742,8 @@ export async function gerarDescricao(
         longos.length > 0
           ? `Na tentativa anterior estas opções de parágrafo passaram de ${LIMITE_PARAGRAFO} ` +
             `caracteres; reescreva TODAS as opções, mais curtas, mantendo o que informa:\n${longos.join("\n")}`
-          : ""),
+          : null,
+      ),
       formato: FORMATO_DESCRICAO,
     });
 
