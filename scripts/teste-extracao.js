@@ -2767,5 +2767,30 @@ console.log("\n— catalogo de esteiras em PDF (Tespo) —");
   conferir("tespo: marca Tespo e sem o cabecalho MEDIDA INTERNA nao le (outro catalogo)", [por("03154").marca, esteirasDoPdf("03154 ESTEIRA PORTA CABOS\nT10.10 10,6X10,6 15X13 46 18 20 49 107gr")], ["Tespo", []]);
 }
 
+// Tespo (13/10/2026): documentos de cada esteira no site (desenho da serie em PDF e modelo 3D em STEP).
+console.log("\n— Tespo: documentos das esteiras no site —");
+{
+  const { serieDaEsteira, serieDoItem, documentosDasEsteirasDoSite, juntarDocumentosDasEsteiras } = await import("../src/lib/coleta/tespo.js");
+  conferir("tespo: serie pelo nome do arquivo ou do modelo (CR e F. normalizados; outro PDF nao e serie)", [serieDaEsteira("T10.10"), serieDaEsteira("t100.25 cr"), serieDaEsteira("F.T50.35"), serieDaEsteira("T75.35 CR"), serieDaEsteira("TS010"), serieDaEsteira("Prensa-Cabo")], ["T10.10", "T100.25CR", "F.T50.35", "T75.35CR", null, null]);
+  conferir("tespo: serie do item: C/ REFORCO e C/R viram CR", [serieDoItem("ESTEIRA PORTA CABOS T100.35 R75mm C/ REFORÇO"), serieDoItem("ESTEIRA PORTA CABOS T50.25 C/R"), serieDoItem("ESTEIRA PORTA CABOS T10.10.R18mm"), serieDoItem("CJ. TERMINAL T10.10"), serieDoItem("CONJUNTO TERMINAL 75X50 103X65")], ["T100.35CR", "T50.25CR", "T10.10", "T10.10", null]);
+  const casa = `<a href="https://www.tespoinjetados.com.br/wp-content/uploads/2016/04/T10.10.pdf">T10.10</a><a href="/wp-content/uploads/2023/07/T100.25CR.pdf">x</a><a href="/wp-content/uploads/2022/06/TS20.pdf">caixa</a><a href="/wp-content/uploads/2016/05/corredica-central-03572.pdf">corredica</a>`;
+  const baixa = `<table><tr><td><h3>Modelo T10.10</h3></td><td><a href="/wp-content/uploads/2021/11/Elo-T10.10.stp">e</a></td><td><a href="/wp-content/uploads/2022/09/Ponteiras-10.10.stp">p</a></td></tr></table>`
+    + `<table><tr><td><h3>Modelo T50.25 e T50.25CR</h3></td><td><a href="/wp-content/uploads/2021/11/Elo-T50.25.stp">e</a></td><td><a href="/wp-content/uploads/2022/09/Ponteiras-50.25.stp">p</a></td></tr></table>`;
+  const { series, avisos } = await documentosDasEsteirasDoSite({ paginas: { "/": casa, "/downloads/": baixa } });
+  conferir("tespo: so PDF de esteira entra (caixa e corredica ficam de fora); STEP de elo e ponteira por modelo", [[...series.keys()].sort(), series.get("T10.10").desenho.titulo, series.get("T10.10").elo.url.split("/").pop(), series.get("T10.10").ponteira.url.split("/").pop(), avisos], [["T10.10", "T100.25CR", "T50.25", "T50.25CR"], "Desenho da série T10.10 (PDF)", "Elo-T10.10.stp", "Ponteiras-10.10.stp", []]);
+  conferir("tespo: Modelo A e B vale para as duas series", [series.get("T50.25").elo.url === series.get("T50.25CR").elo.url, series.get("T100.25CR").elo], [true, undefined]);
+  const itens = [
+    { sku: "1", desc: "ESTEIRA PORTA CABOS T10.10.R18mm", especificacoes: [] },
+    { sku: "2", desc: "CJ. TERMINAL T10.10", especificacoes: [] },
+    { sku: "3", desc: "ESTEIRA PORTA CABOS T50.25 C/R", especificacoes: [] },
+    { sku: "4", desc: "CONJUNTO TERMINAL", especificacoes: [{ nome: "Medida interna (Li x Ai)", valor: "50 x 25 mm" }] },
+    { sku: "5", desc: "ESTEIRA PORTA CABOS T999.99", especificacoes: [] },
+  ];
+  const comDoc = juntarDocumentosDasEsteiras(itens, series);
+  conferir("tespo: esteira leva desenho + elo; terminal, desenho + ponteira; terminal sem modelo usa a medida interna; serie inexistente fica sem", [comDoc, itens.map((i) => (i.documentos ?? []).map((d) => (/desenho/i.test(d.titulo) ? "desenho" : /ponteira/i.test(d.titulo) ? "ponteira" : "elo")).join("+"))], [4, ["desenho+elo", "desenho+ponteira", "elo", "ponteira", ""]]);
+  const falha = await documentosDasEsteirasDoSite({ paginas: { "/": "", "/downloads/": "" } });
+  conferir("tespo: site sem documento de esteira vira aviso, nunca erro", [falha.series.size, falha.avisos.length], [0, 1]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

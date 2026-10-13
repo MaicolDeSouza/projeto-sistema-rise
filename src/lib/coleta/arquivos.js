@@ -2,6 +2,7 @@ import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { mesclarNoExistente } from "./mesclar";
 import { comoNumero, comoTexto } from "./texto-html";
 import { normalizarPagina } from "./normalizar";
+import { documentosDasEsteirasDoSite, juntarDocumentosDasEsteiras } from "./tespo";
 
 /**
  * Leitura de arquivo trazido do fornecedor.
@@ -236,6 +237,8 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
     },
     description: comoTexto(valorDe(bruto, CAMPOS.descricao)) ?? nome,
     specifications: semImpostos(especificacoes),
+    // Documentos que o leitor do arquivo ja achou (as esteiras da Tespo: desenho e modelo 3D do site).
+    documentos: Array.isArray(bruto.documentos) ? bruto.documentos.map((documento) => ({ ...documento })) : [],
     variants: [],
     seo: {},
     collectedAt: new Date().toISOString(),
@@ -805,6 +808,7 @@ export async function lerArquivo({ nome, bytes, fonte }) {
   let imagensPorCodigo = null;
   let modalidade = null;
   let siteSugerido = null;
+  let origemExtra = "";
 
   if (formato === "xlsx") {
     const { itens, imagens, aviso, folha, linhaCabecalho } = await lerPlanilha(bytes);
@@ -818,12 +822,25 @@ export async function lerArquivo({ nome, bytes, fonte }) {
     const { texto, tabela } = await textoDoPdf(bytes);
     const orcamento = orcamentoDoPdf(texto);
     const esteiras = orcamento.length || tabela.length ? [] : esteirasDoPdf(texto);
+    // UNICA EXCECAO a "arquivo nao usa rede" (13/10/2026): os documentos de cada esteira (desenho da serie em PDF e os
+    // modelos 3D em STEP) moram no SITE da Tespo, que nao publica os itens com codigo. Falha do site e aviso, nunca erro:
+    // o catalogo vale sozinho. Ver tespo.js.
+    if (esteiras.length > 0) {
+      try {
+        const { series, avisos: avisosDoSite } = await documentosDasEsteirasDoSite();
+        const comDocumento = juntarDocumentosDasEsteiras(esteiras, series);
+        avisos.push(...avisosDoSite.map((aviso) => `documentos do site da Tespo não lidos: ${aviso}`));
+        if (comDocumento > 0) origemExtra = ` · ${comDocumento} com documentos do site`;
+      } catch (erro) {
+        avisos.push(`documentos do site da Tespo não lidos: ${erro?.message ?? erro}`);
+      }
+    }
     brutos = orcamento.length ? orcamento : tabela.length ? tabela : esteiras.length ? esteiras : linhasDePdf(texto);
     siteSugerido = sitePublicadoNoPdf(texto);
     origem = orcamento.length
       ? "orçamento em PDF do fornecedor"
       : esteiras.length
-        ? "catálogo de esteiras em PDF (tabela de medidas)"
+        ? `catálogo de esteiras em PDF (tabela de medidas)${origemExtra}`
         : "catalogo em PDF do fornecedor";
     if (brutos.length === 0 && texto.length > 0) {
       avisos.push(
