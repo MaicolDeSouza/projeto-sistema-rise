@@ -36,6 +36,13 @@ const tem = (dados, nome) => dados.has(nome);
 const texto = (dados, nome) => String(dados.get(nome) ?? "").trim();
 /** Campo numérico: em branco ou com letra vira NaN, e a validação da configuração diz "informe um número" naquele campo. */
 const numeroDoCampo = (dados, nome) => (texto(dados, nome) === "" ? Number.NaN : Number(texto(dados, nome)));
+/** Valor em reais do campo: "45,50", "1.234,50" ou "45.5"; em branco ou com letra vira NaN (a validacao diz "informe um número"). */
+function reaisDoCampo(dados, nome) {
+  const bruto = texto(dados, nome).replace(/R\$|\s/g, "");
+  if (bruto === "") return Number.NaN;
+  const normal = bruto.includes(",") ? bruto.replace(/\./g, "").replace(",", ".") : bruto;
+  return /^\d+(\.\d+)?$/.test(normal) ? Number(normal) : Number.NaN;
+}
 const comoLinhasUnix = (valor) => String(valor ?? "").replace(/\r\n?/g, "\n").trim();
 
 /**
@@ -61,6 +68,15 @@ export function parcialDaConfiguracao(dados) {
   if (Object.keys(tempos).length) parcial.tempoLimite = tempos;
   for (const nome of ["maxChamadasDeFerramenta", "maxTokensResposta", "contextoMaxTokens", "taxaPorUsuarioPorMinuto"]) {
     if (tem(dados, nome)) parcial[nome] = numeroDoCampo(dados, nome);
+  }
+  const orcamentos = {};
+  if (tem(dados, "orcamentoClientesBrl")) orcamentos.clientesBrl = reaisDoCampo(dados, "orcamentoClientesBrl");
+  if (tem(dados, "orcamentoInternoBrl")) orcamentos.internoBrl = reaisDoCampo(dados, "orcamentoInternoBrl");
+  if (Object.keys(orcamentos).length) parcial.orcamentos = orcamentos;
+  if (tem(dados, "internet")) {
+    // O interruptor manda "true" ou "false"; qualquer outra coisa segue como veio e a validacao recusa no campo.
+    const valor = texto(dados, "internet");
+    parcial.internet = valor === "true" ? true : valor === "false" ? false : valor;
   }
   const endpoints = {};
   for (const { id } of PROVEDORES) if (tem(dados, `endpoint.${id}`)) endpoints[id] = texto(dados, `endpoint.${id}`);

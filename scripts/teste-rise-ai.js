@@ -1676,6 +1676,54 @@ try {
     conferir("versao de prompt gravada", await prisma.versaoDePromptIA.count({ where: { canal: "zz-ia-interno" } }), 1);
   }
 
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 2 — Configuracao: orcamentos e internet
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: configuracao");
+  {
+    const { configuracaoPadrao, validarConfiguracao, gravarConfiguracao, lerConfiguracao } = await import("../src/lib/riseAi/configuracao.js");
+    const { parcialDaConfiguracao } = await import("../src/lib/riseAi/formularios.js");
+    await prisma.configuracaoIA.deleteMany({ where: { id: "unica" } });
+
+    conferir("padrao: orcamentos 70 e 30", configuracaoPadrao("pc").orcamentos, { clientesBrl: 70, internoBrl: 30 });
+    conferir("padrao: internet desligada", configuracaoPadrao("pc").internet, false);
+
+    const base = configuracaoPadrao("pc");
+    const errosDe = (mudanca) => validarConfiguracao({ ...base, ...mudanca }).erros ?? {};
+    conferir("orcamento negativo e recusado no campo certo", Object.keys(errosDe({ orcamentos: { clientesBrl: 70, internoBrl: -1 } })), ["orcamentos.internoBrl"]);
+    conferir("orcamento NaN e recusado", Object.keys(errosDe({ orcamentos: { clientesBrl: 70, internoBrl: Number.NaN } })), ["orcamentos.internoBrl"]);
+    conferir("orcamento acima de 5000 e recusado", Object.keys(errosDe({ orcamentos: { clientesBrl: 6000, internoBrl: 30 } })), ["orcamentos.clientesBrl"]);
+    conferir("orcamento com 3 casas e recusado", Object.keys(errosDe({ orcamentos: { clientesBrl: 70, internoBrl: 10.123 } })), ["orcamentos.internoBrl"]);
+    conferir("internet precisa ser booleano", Object.keys(errosDe({ internet: "sim" })), ["internet"]);
+    conferir("orcamento valido passa", validarConfiguracao({ ...base, orcamentos: { clientesBrl: 70, internoBrl: 45.5 } }).ok, true);
+
+    conferir("gravar o interno mantem o dos clientes", (await gravarConfiguracao({ orcamentos: { internoBrl: 45 } }, { usuario: "ZZ-IA-TESTE" })).ok, true);
+    const lida = await lerConfiguracao("pc");
+    conferir("lida: interno 45, clientes 70", lida.orcamentos, { clientesBrl: 70, internoBrl: 45 });
+    conferir("salvar o orcamento nao mexe no padrao", lida.padrao, base.padrao);
+    conferir("so o salvo e gravado", Object.keys((await prisma.configuracaoIA.findUnique({ where: { id: "unica" } })).dados), ["orcamentos"]);
+
+    await prisma.configuracaoIA.update({ where: { id: "unica" }, data: { dados: { maxChamadasDeFerramenta: 5 } } });
+    const antiga = await lerConfiguracao("pc");
+    conferir("configuracao salva antes das chaves novas le com os padroes novos", [antiga.orcamentos, antiga.internet, antiga.maxChamadasDeFerramenta], [{ clientesBrl: 70, internoBrl: 30 }, false, 5]);
+
+    const formulario = (campos) => {
+      const dados = new FormData();
+      for (const [nome, valor] of Object.entries(campos)) dados.set(nome, valor);
+      return dados;
+    };
+    conferir("formulario: virgula decimal", parcialDaConfiguracao(formulario({ orcamentoInternoBrl: "45,50" })), { orcamentos: { internoBrl: 45.5 } });
+    conferir("formulario: dos dois orcamentos", parcialDaConfiguracao(formulario({ orcamentoClientesBrl: "70", orcamentoInternoBrl: "30" })), { orcamentos: { clientesBrl: 70, internoBrl: 30 } });
+    conferir("formulario: internet ligada", parcialDaConfiguracao(formulario({ internet: "true" })), { internet: true });
+    conferir("formulario: internet desligada", parcialDaConfiguracao(formulario({ internet: "false" })), { internet: false });
+    const vazio = await gravarConfiguracao(parcialDaConfiguracao(formulario({ orcamentoInternoBrl: "" })), { usuario: "ZZ-IA-TESTE" });
+    conferir("orcamento vazio: erro no campo, nada gravado", [vazio.ok, vazio.erros?.["orcamentos.internoBrl"]], [false, "Orçamento interno: informe um número."]);
+    const lixo = await gravarConfiguracao(parcialDaConfiguracao(formulario({ internet: "talvez" })), { usuario: "ZZ-IA-TESTE" });
+    conferir("internet com valor estranho e recusada", [lixo.ok, Object.keys(lixo.erros ?? {})], [false, ["internet"]]);
+
+    await prisma.configuracaoIA.deleteMany({ where: { id: "unica" } });
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();

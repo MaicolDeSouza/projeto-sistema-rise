@@ -44,6 +44,10 @@ export function configuracaoPadrao(ambiente) {
     modelosHabilitados: { lmstudio: [], ollama: [], openai: [], anthropic: ["claude-haiku-5-5"], gemini: [] },
     taxaPorUsuarioPorMinuto: 20,
     prompts: { atendimento: null },
+    // Teto de gasto do mes em reais (spec §3): os clientes (WhatsApp) e o uso interno (chat, Telegram, anuncios).
+    orcamentos: { clientesBrl: 70, internoBrl: 30 },
+    // "Pesquisar na internet" no chat interno: nasce desligado e o WhatsApp nunca pesquisa (spec §3).
+    internet: false,
   };
 }
 
@@ -57,6 +61,13 @@ const Endereco = z.string().regex(/^https?:\/\/\S+$/i, "O endereço precisa come
 
 const inteiro = (minimo, maximo, rotulo) =>
   z.number({ message: `${rotulo}: informe um número.` }).int(`${rotulo}: use um número inteiro.`).min(minimo, `${rotulo}: no mínimo ${minimo}.`).max(maximo, `${rotulo}: no máximo ${maximo}.`);
+
+const reais = (maximo, rotulo) =>
+  z
+    .number({ message: `${rotulo}: informe um número.` })
+    .min(0, `${rotulo}: não pode ser negativo.`)
+    .max(maximo, `${rotulo}: no máximo ${maximo}.`)
+    .refine((valor) => Math.abs(valor * 100 - Math.round(valor * 100)) < 1e-6, `${rotulo}: use no máximo 2 casas decimais.`);
 
 const EsquemaDaConfiguracao = z.object({
   padrao: Escolha,
@@ -77,6 +88,8 @@ const EsquemaDaConfiguracao = z.object({
   modelosHabilitados: z.object(Object.fromEntries(IDS.map((id) => [id, z.array(z.string().max(200))]))),
   taxaPorUsuarioPorMinuto: inteiro(1, 200, "Perguntas por minuto"),
   prompts: z.object({ atendimento: z.string().max(12000, "O prompt passa de 12.000 caracteres.").nullable() }),
+  orcamentos: z.object({ clientesBrl: reais(5000, "Orçamento dos clientes"), internoBrl: reais(5000, "Orçamento interno") }),
+  internet: z.boolean({ message: "Use ligado ou desligado." }),
 });
 
 /** @returns {{ ok: true, dados: object } | { ok: false, erros: Record<string, string> }} */
@@ -92,7 +105,7 @@ export function validarConfiguracao(dados) {
 }
 
 /** Os grupos que se mesclam chave a chave; o resto de 1º nível o salvo substitui inteiro (`reserva: null` inclusive). */
-const GRUPOS = ["endpoints", "modelosHabilitados", "tempoLimite", "prompts"];
+const GRUPOS = ["endpoints", "modelosHabilitados", "tempoLimite", "prompts", "orcamentos"];
 
 function mesclar(base, parcial) {
   const resultado = { ...base };
