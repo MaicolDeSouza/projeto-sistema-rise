@@ -136,3 +136,13 @@ export function estimarCustoMaximoBrl({ provedor, modelo, tokensEntrada, maxToke
   const usd = ((Number(tokensEntrada) || 0) / 1e6) * preco.entrada + ((Number(maxTokensSaida) || 0) / 1e6) * preco.saida;
   return arredondar(usd * cotacaoDoDolar().valor);
 }
+
+/**
+ * O que o cabeçalho do chat mostra (spec §5a.1): o modelo padrão, se a internet está ligada e como está o orçamento interno
+ * (o chip de aviso a partir de 80% e o campo de texto bloqueado em 100%). As páginas do chat leem isto no servidor.
+ */
+export async function estadoDoChat() {
+  const config = await lerConfiguracao();
+  const orcamento = await estadoDoOrcamento("INTERNO", { config });
+  return { padrao: config.padrao, internet: Boolean(config.internet), orcamento: { nivel: orcamento.nivel, percentual: orcamento.percentual } };
+}

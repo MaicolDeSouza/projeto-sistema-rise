@@ -762,7 +762,7 @@ try {
   // Tarefa 9 — Resposta, prompt e o laco da conversa
   // -------------------------------------------------------------------------
   {
-    const { separarResposta, produtosCitados, tituloDaConversa, estimarTokens, cortarHistorico, extrairJson } = await import("../src/lib/riseAi/resposta.js");
+    const { produtosCitados, tituloDaConversa, estimarTokens, cortarHistorico, extrairJson } = await import("../src/lib/riseAi/resposta.js");
     const { montarSistema, mensagemDeConhecimento, SISTEMA_FIXO, SISTEMA_DO_CLIENTE, PROMPT_ATENDIMENTO_PADRAO, PROMPT_INTERNO_PADRAO } = await import("../src/lib/riseAi/prompt.js");
     const { mensagensParaOpenAI } = await import("../src/lib/riseAi/provedores/openaiCompativel.js");
     const { responder } = await import("../src/lib/riseAi/conversa.js");
@@ -773,23 +773,6 @@ try {
     const { criarProvedorFalso } = await import("./lib/provedorFalso.js");
 
     console.log("\nResposta e prompt");
-    conferir(
-      "separa os dois blocos",
-      separarResposta("### Resposta para o cliente\nOlá!\n\n### Para a equipe\nUsei o Uno."),
-      { respostaCliente: "Olá!", paraEquipe: "Usei o Uno.", semSeparacao: false },
-    );
-    conferir("sem marcador", separarResposta("Olá! Serve o Uno."), { respostaCliente: "Olá! Serve o Uno.", paraEquipe: "", semSeparacao: true });
-    conferir(
-      "marcador em negrito, sem acento e em outra caixa",
-      separarResposta("**Resposta Para O Cliente:**\nOi\n\n## para a equipe\nNota"),
-      { respostaCliente: "Oi", paraEquipe: "Nota", semSeparacao: false },
-    );
-    conferir(
-      "so o marcador da equipe: o que vem antes ainda e do cliente, nunca da equipe",
-      separarResposta("Texto do cliente.\n### Para a equipe\nInterno: custo R$ 20"),
-      { respostaCliente: "Texto do cliente.", paraEquipe: "Interno: custo R$ 20", semSeparacao: true },
-    );
-    conferir("resposta vazia", separarResposta(""), { respostaCliente: "", paraEquipe: "", semSeparacao: true });
 
     const candidatos = [
       { sku: "100101", nome: "PLACA UNO R3 SMD CH340" },
@@ -2417,6 +2400,35 @@ try {
       ["pesquisarNaInternet", "buscarProdutos", "buscarConhecimento", "compararProdutos", "algumaNova"].map(rotuloDaFerramenta),
       ["pesquisando na internet…", "consultando produtos…", "consultando o conhecimento…", "consultando produtos…", "consultando…"],
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 12 — O campo de texto, Enviar/Parar e o cabecalho: o fluxo e o estado que o cabecalho le
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: chat");
+  {
+    const { eventosDoFluxo } = await import("../src/components/riseAi/fluxo.js");
+    const { eventoSSE } = await import("../src/lib/riseAi/sse.js");
+    const { estadoDoChat } = await import("../src/lib/riseAi/orcamento.js");
+    const lerTudo = async (corpo) => {
+      const eventos = [];
+      for await (const evento of eventosDoFluxo(corpo)) eventos.push(evento);
+      return eventos;
+    };
+    const fim = { mensagemId: "m1", uso: { entrada: 10, saida: 5 }, custo: { usd: 0.0001, brl: 0.0006 }, produtos: [], avisos: [], interrompida: true, custoEstimado: true };
+    const bytes = new TextEncoder().encode(eventoSSE("texto", { delta: "Olá" }) + eventoSSE("fim", fim));
+    const inteiro = new ReadableStream({ start(controle) { controle.enqueue(bytes); controle.close(); } });
+    conferir("o evento fim chega com interrompida e custoEstimado", (await lerTudo(inteiro)).at(-1), { nome: "fim", dados: fim });
+
+    // Um pedaco de rede parte o evento fim ao meio (e um acento no meio de outro).
+    const corte = Math.floor(bytes.length * 0.8);
+    const picado = new ReadableStream({ start(controle) { controle.enqueue(bytes.slice(0, corte)); controle.enqueue(bytes.slice(corte)); controle.close(); } });
+    const partidos = await lerTudo(picado);
+    conferir("fim partido entre dois pedacos de rede", [partidos.map((e) => e.nome), partidos.at(-1).dados.interrompida], [["texto", "fim"], true]);
+
+    // O cabecalho: modelo padrao, internet e orcamento, lidos no servidor.
+    const estado = await estadoDoChat();
+    conferir("o estado do chat traz o padrao, a internet e o orcamento", [Object.keys(estado).sort(), typeof estado.internet, ["normal", "aviso", "esgotado"].includes(estado.orcamento.nivel), typeof estado.orcamento.percentual], [["internet", "orcamento", "padrao"], "boolean", true, "number"]);
   }
 
   // ---- novos blocos entram antes desta linha ----

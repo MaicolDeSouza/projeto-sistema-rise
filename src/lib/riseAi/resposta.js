@@ -1,50 +1,10 @@
 import { normalizar, palavrasDoTermo } from "@/lib/texto";
 
 /**
- * Funções puras sobre o texto da conversa: separar a resposta em "cliente" e "equipe", descobrir quais produtos o
+ * Funções puras sobre o texto da conversa: descobrir quais produtos o
  * texto cita, dar título à conversa, cortar o histórico para caber no contexto e achar um JSON no meio de texto.
  * Sem banco, sem rede e sem imports de Next: o laço da conversa, as sugestões e o teste usam o mesmo arquivo.
  */
-
-const TITULO_DO_CLIENTE = "resposta para o cliente";
-const TITULO_DA_EQUIPE = "para a equipe";
-
-/** "**Resposta Para O Cliente:**" e "### resposta para o cliente" valem o mesmo título: modelo pequeno varia o enfeite. */
-const comoTitulo = (linha) => normalizar(linha.replace(/[#*_`:]/g, " ")).replace(/\s+/g, " ").trim();
-
-/**
- * Separa o texto do modelo nos dois blocos que o prompt exige (`### Resposta para o cliente` e `### Para a equipe`).
- *
- * O que vai ao cliente nunca recebe o que é da equipe: sem o título do cliente, vale o que vem ANTES do título da
- * equipe (e tudo, se não há título nenhum). `semSeparacao` conta na métrica de qualidade do modelo.
- *
- * @returns {{ respostaCliente: string, paraEquipe: string, semSeparacao: boolean }}
- */
-export function separarResposta(texto) {
-  const linhas = String(texto ?? "").split(/\r?\n/);
-  let indiceCliente = -1;
-  let indiceEquipe = -1;
-  linhas.forEach((linha, indice) => {
-    const titulo = comoTitulo(linha);
-    if (indiceCliente < 0 && titulo === TITULO_DO_CLIENTE) indiceCliente = indice;
-    else if (indiceEquipe < 0 && titulo === TITULO_DA_EQUIPE) indiceEquipe = indice;
-  });
-
-  const trecho = (de, ate) => linhas.slice(de, ate < 0 ? undefined : ate).join("\n").trim();
-
-  if (indiceCliente >= 0) {
-    const equipeDepois = indiceEquipe > indiceCliente;
-    return {
-      respostaCliente: equipeDepois ? trecho(indiceCliente + 1, indiceEquipe) : trecho(indiceCliente + 1, -1),
-      paraEquipe: indiceEquipe < 0 ? "" : equipeDepois ? trecho(indiceEquipe + 1, -1) : trecho(indiceEquipe + 1, indiceCliente),
-      semSeparacao: false,
-    };
-  }
-  if (indiceEquipe >= 0) {
-    return { respostaCliente: trecho(0, indiceEquipe), paraEquipe: trecho(indiceEquipe + 1, -1), semSeparacao: true };
-  }
-  return { respostaCliente: trecho(0, -1), paraEquipe: "", semSeparacao: true };
-}
 
 const compactar = (texto) => texto.replace(/[^a-z0-9]/g, "");
 

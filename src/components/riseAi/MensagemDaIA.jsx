@@ -7,14 +7,6 @@ import BarraDaResposta from "./BarraDaResposta";
 import TextoDaIA from "./TextoDaIA";
 import { rotuloDoMotivo } from "./formatos";
 
-/**
- * O texto que a IA está escrevendo, enquanto chega (o `Chat` o usa até a Tarefa 12 trocar o fluxo): texto corrido, sem caixa.
- * Existe só para o `Chat` de hoje continuar funcionando; sai quando o `Chat` passar a desenhar a resposta com `TextoDaIA`.
- */
-export function QuadroDoCliente({ texto }) {
-  return <TextoDaIA texto={texto} />;
-}
-
 /** Os endereços que podem ser clicáveis nesta resposta: o link da loja dos produtos citados e as fontes da pesquisa. */
 function linksDaResposta(estruturado) {
   return [...(estruturado.produtos ?? []).map((produto) => produto.urlLoja), ...(estruturado.fontes ?? []).map((fonte) => fonte.url)].filter(Boolean);

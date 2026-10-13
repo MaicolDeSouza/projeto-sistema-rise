@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 
 import Chat from "@/components/riseAi/Chat";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
-import { lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { carregarConversa, mensagemParaTela } from "@/lib/riseAi/conversas";
+import { estadoDoChat } from "@/lib/riseAi/orcamento";
 import { sessaoDoRiseAi } from "../sessao";
 
 export const metadata = { title: "Rise AI | Sistema Rise" };
@@ -19,7 +19,7 @@ export default async function ConversaPage({ params }) {
   const sessao = sessaoDoRiseAi(acesso);
   const conversa = await carregarConversa(conversaId, { usuario: sessao.usuario });
   if (!conversa) notFound();
-  const configuracao = await lerConfiguracao();
+  const estado = await estadoDoChat();
 
   return (
     <Chat
@@ -28,7 +28,9 @@ export default async function ConversaPage({ params }) {
       titulo={conversa.titulo}
       criadaEm={conversa.criadoEm.toISOString()}
       mensagensIniciais={conversa.mensagens.map(mensagemParaTela)}
-      padrao={configuracao.padrao}
+      padrao={estado.padrao}
+      internet={estado.internet}
+      orcamento={estado.orcamento}
       podeEnsinar={acesso.pode("riseAi.conhecimento", "editar")}
     />
   );
