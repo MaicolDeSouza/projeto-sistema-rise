@@ -1724,6 +1724,43 @@ try {
     await prisma.configuracaoIA.deleteMany({ where: { id: "unica" } });
   }
 
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 3 — Preco do GPT-4.1 mini e o adaptador da OpenAI
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: OpenAI");
+  {
+    const { custoDaChamada, MODELOS_SUGERIDOS } = await import("../src/lib/riseAi/modelos.js");
+    const { criarProvedorOpenAICompativel } = await import("../src/lib/riseAi/provedores/openaiCompativel.js");
+    const { cotacaoDoDolar } = await import("../src/lib/cotacaoDolar.js");
+
+    const milhao = custoDaChamada({ provedor: "openai", modelo: "gpt-4.1-mini", tokensEntrada: 1e6, tokensSaida: 1e6 });
+    conferir("gpt-4.1-mini: US$ 0,40 de entrada + US$ 1,60 de saida por milhao", milhao?.usd, 2);
+    conferir("gpt-4.1-mini em reais pela cotacao do sistema", milhao?.brl, Math.round(2 * cotacaoDoDolar().valor * 1e4) / 1e4);
+    conferir("a tela sugere o gpt-4.1-mini para a OpenAI", MODELOS_SUGERIDOS.openai, ["gpt-4.1-mini"]);
+
+    const sseCurto = `data: ${JSON.stringify({ choices: [{ delta: { content: "x" }, finish_reason: "stop" }] })}\n\ndata: [DONE]\n\n`;
+    const corpoDe = async (id) => {
+      const guardado = [];
+      const provedor = criarProvedorOpenAICompativel({
+        id,
+        rotulo: id,
+        endpoint: "http://falso/v1",
+        chave: id === "openai" ? "sk-falsa" : null,
+        fetchImpl: async (url, init) => {
+          guardado.push(JSON.parse(init.body));
+          return new Response(sseCurto, { status: 200 });
+        },
+      });
+      await provedor.conversar({ modelo: "m", sistema: "S", mensagens: [{ papel: "usuario", conteudo: "oi" }], maxTokens: 1500 });
+      return guardado[0];
+    };
+    const daOpenai = await corpoDe("openai");
+    conferir("openai: max_completion_tokens e sem max_tokens", [daOpenai.max_completion_tokens, "max_tokens" in daOpenai], [1500, false]);
+    conferir("openai: sem temperature (os modelos novos recusam)", "temperature" in daOpenai, false);
+    const doLocal = await corpoDe("lmstudio");
+    conferir("lmstudio continua com max_tokens e temperature", [doLocal.max_tokens, typeof doLocal.temperature, "max_completion_tokens" in doLocal], [1500, "number", false]);
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();

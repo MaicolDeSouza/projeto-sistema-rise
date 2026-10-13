@@ -124,9 +124,15 @@ export function criarProvedorOpenAICompativel({ id, rotulo = id, endpoint, chave
       messages: mensagensParaOpenAI(sistema, mensagens),
       stream: true,
       stream_options: { include_usage: true },
-      max_tokens: maxTokens,
-      temperature: temperatura,
     };
+    if (id === "openai") {
+      // Os modelos novos da OpenAI recusam `max_tokens` (pedem `max_completion_tokens`) e qualquer `temperature` que nao
+      // seja a padrao; os servidores locais e o Gemini continuam no formato antigo.
+      corpo.max_completion_tokens = maxTokens;
+    } else {
+      corpo.max_tokens = maxTokens;
+      corpo.temperature = temperatura;
+    }
     if (ferramentas.length) {
       corpo.tools = ferramentasParaOpenAI(ferramentas);
       corpo.tool_choice = "auto";
