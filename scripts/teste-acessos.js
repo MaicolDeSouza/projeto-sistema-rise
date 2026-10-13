@@ -513,6 +513,93 @@ try {
     conferir("para enviar: so o que esta acima de nenhum", permissoesParaEnvio({ "tela.produtos": "ver", "dado.custo": "nenhum" }), { "tela.produtos": "ver" });
   }
 
+  // --- guarda estatico do lancamento 1: toda pagina, layout, rota e arquivo de acoes de src/app confere o acesso ---
+  {
+    const { readFileSync, readdirSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const raiz = fileURLToPath(new URL("../", import.meta.url));
+    const ler = (caminho) => readFileSync(join(raiz, caminho), "utf8");
+    const arquivosDe = (pasta) =>
+      readdirSync(join(raiz, pasta)).flatMap((nome) => {
+        const caminho = `${pasta}/${nome}`;
+        return statSync(join(raiz, caminho)).isDirectory() ? arquivosDe(caminho) : [caminho];
+      });
+    const ehAlvo = (caminho) => ["/page.jsx", "/layout.jsx", "/route.js"].some((fim) => caminho.endsWith(fim)) || ler(caminho).startsWith('"use server"');
+    const alvos = arquivosDe("src/app").filter((caminho) => caminho.endsWith(".js") || caminho.endsWith(".jsx")).filter(ehAlvo);
+    const confere = (fonte) => fonte.includes("exigirAcessoNaPagina(") || fonte.includes("executarComAcesso(") || (fonte.includes("sessaoDeAcessos(") && fonte.includes("recusarRota("));
+    // Sem recurso de proposito: o layout raiz MONTA a sessao (o menu e o rodape), e o Sair e de quem esta logado.
+    const SEM_RECURSO = ["src/app/layout.jsx","src/app/api/sair/route.js"];
+    // O resto do Rise, que entra no lancamento 2 (spec §8). A lista SO ENCOLHE: esvaziar no lancamento 2.
+    const EXCECOES_DO_LANCAMENTO_1 = [
+      "src/app/anuncios/[id]/page.jsx",
+      "src/app/anuncios/novo/page.jsx",
+      "src/app/anuncios/page.jsx",
+      "src/app/api/arquivos/[...caminho]/route.js",
+      "src/app/api/mercados/arquivo-fonte/[id]/[nome]/route.js",
+      "src/app/api/mercados/miniatura/[id]/route.js",
+      "src/app/api/oauth/[servico]/callback/route.js",
+      "src/app/api/oauth/[servico]/iniciar/route.js",
+      "src/app/api/produtos/documento-referencia/route.js",
+      "src/app/api/temporarios/[...caminho]/route.js",
+      "src/app/cadastros/[tipo]/[id]/page.jsx",
+      "src/app/cadastros/[tipo]/novo/page.jsx",
+      "src/app/cadastros/[tipo]/page.jsx",
+      "src/app/cadastros/acoes-clientes.js",
+      "src/app/cadastros/acoes-transportadoras.js",
+      "src/app/cadastros/acoes.js",
+      "src/app/cadastros/page.jsx",
+      "src/app/canais-de-venda/loja-integrada/[id]/page.jsx",
+      "src/app/canais-de-venda/loja-integrada/acoes.js",
+      "src/app/canais-de-venda/loja-integrada/novo/page.jsx",
+      "src/app/canais-de-venda/loja-integrada/page.jsx",
+      "src/app/canais-de-venda/mercado-livre/[id]/page.jsx",
+      "src/app/canais-de-venda/mercado-livre/acoes.js",
+      "src/app/canais-de-venda/mercado-livre/configuracoes/page.jsx",
+      "src/app/canais-de-venda/mercado-livre/novo/page.jsx",
+      "src/app/canais-de-venda/mercado-livre/page.jsx",
+      "src/app/canais-de-venda/page.jsx",
+      "src/app/estoque/page.jsx",
+      "src/app/ferramentas/acoes.js",
+      "src/app/ferramentas/cotacao-dolar/page.jsx",
+      "src/app/ferramentas/imagem-para-svg/page.jsx",
+      "src/app/ferramentas/page.jsx",
+      "src/app/financeiro/page.jsx",
+      "src/app/indicadores/estoque/page.jsx",
+      "src/app/indicadores/page.jsx",
+      "src/app/integracoes/acoes-vps.js",
+      "src/app/integracoes/acoes.js",
+      "src/app/integracoes/page.jsx",
+      "src/app/mercados/acoes.js",
+      "src/app/mercados/fontes/page.jsx",
+      "src/app/mercados/page.jsx",
+      "src/app/page.jsx",
+      "src/app/pedidos/page.jsx",
+      "src/app/produtos/[id]/canais/[canal]/page.jsx",
+      "src/app/produtos/[id]/page.jsx",
+      "src/app/produtos/acoes-bling.js",
+      "src/app/produtos/acoes-edicao-rapida.js",
+      "src/app/produtos/acoes-imagens.js",
+      "src/app/produtos/acoes-li.js",
+      "src/app/produtos/acoes-nanobanana.js",
+      "src/app/produtos/acoes.js",
+      "src/app/produtos/novo/page.jsx",
+      "src/app/produtos/page.jsx",
+      "src/app/relatorios/page.jsx",
+    ];
+    conferir("o guarda olha todas as paginas, layouts, rotas e acoes de src/app", alvos.length >= 60, true);
+    conferir(
+      "todo alvo fora das listas confere o acesso",
+      alvos.filter((caminho) => !SEM_RECURSO.includes(caminho) && !EXCECOES_DO_LANCAMENTO_1.includes(caminho) && !confere(ler(caminho))),
+      [],
+    );
+    conferir("a lista de excecoes so encolhe: quem ja confere sai dela", EXCECOES_DO_LANCAMENTO_1.filter((caminho) => confere(ler(caminho))), []);
+    conferir("a lista de excecoes so tem arquivo que existe", EXCECOES_DO_LANCAMENTO_1.filter((caminho) => !alvos.includes(caminho)), []);
+    const servidor = ler("src/lib/acessos/servidor.js");
+    conferir("a sessao do servidor monta, grava o ultimo acesso e responde 404", ["montarSessao(", "precisaGravarAcesso(", "notFound("].map((trecho) => servidor.includes(trecho)), [true, true, true]);
+    conferir("src/lib/sessao.js continua sem import (o layout, o /api/sair e o teste:vps dependem disso)", ler("src/lib/sessao.js").includes("import "), false);
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
