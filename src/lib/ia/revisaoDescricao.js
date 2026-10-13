@@ -26,12 +26,16 @@ export function formatarLinhaTecnica(texto) {
 }
 
 /**
- * A dica das lojas de uma opcao (pedido do dono em 13/10/2026): cada loja numa linha, "Loja: produto", em vez de tudo
- * corrido. A dica nativa do navegador quebra no "\n" (o `SeloPosicaoDePreco` ja faz assim). Sem o nome do produto, so a loja.
+ * A dica das lojas de uma opcao: cada loja numa linha, "Loja: caracteristica como a loja publicou" (pedido do dono em
+ * 13/10/2026: "4hobby: Microcontrolador: Atmega328P", e nao o titulo do produto). A dica nativa do navegador quebra
+ * no "\n" (o `SeloPosicaoDePreco` ja faz assim). Sem a caracteristica cai no titulo do produto, e sem ele so a loja.
  */
 export function dicaDasFontes(fontes) {
   return (Array.isArray(fontes) ? fontes : [])
-    .map((fonte) => (fonte?.produto ? `${fonte.nome}: ${fonte.produto}` : String(fonte?.nome ?? "")))
+    .map((fonte) => {
+      const texto = fonte?.caracteristica || fonte?.produto;
+      return texto ? `${fonte.nome}: ${texto}` : String(fonte?.nome ?? "");
+    })
     .filter(Boolean)
     .join("\n");
 }

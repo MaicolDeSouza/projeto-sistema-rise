@@ -10,6 +10,7 @@ import JanelaAnuncioML from "@/components/anuncios/ml/JanelaAnuncioML";
 import JanelaAnuncioLI from "@/components/anuncios/li/JanelaAnuncioLI";
 import { rotuloDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import Copiar from "@/components/ui/Copiar";
+import FotoComLupa from "@/components/ui/FotoComLupa";
 import ConferidoProduto from "./ConferidoProduto";
 import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPecasDoKit, PopupPreco } from "./EdicaoRapida";
 import IconeBling from "./IconeBling";
@@ -40,19 +41,16 @@ function Miniatura({ url, alt }) {
     );
   }
 
+  // Lupa ao passar o mouse e foto grande ao clicar: o padrao do Rise (`FotoComLupa`).
   return (
-    <div className="relative h-11 w-11 overflow-hidden rounded border border-borda bg-superficie">
+    <FotoComLupa src={url} alt={alt}>
       {ehLocal(url) ? (
-        <Image src={url} alt={alt} fill sizes="44px" className="object-contain" />
+        <Image src={url} alt="" fill sizes="44px" className="object-contain" />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={url}
-          alt={alt}
-          className="absolute inset-0 h-full w-full object-contain"
-        />
+        <img src={url} alt="" className="absolute inset-0 h-full w-full object-contain" />
       )}
-    </div>
+    </FotoComLupa>
   );
 }
 
@@ -112,22 +110,6 @@ export default function LinhaProduto({
             {achado}
           </span>
         )}
-      </td>
-
-      <td className="px-3 py-2.5 text-center">
-        <div className="flex items-center gap-1">
-          <ConferidoProduto produto={produto} />
-          {/* O "!" do kit (pedido do dono em 10/10/2026): uma peca mudou desde o ultimo Salvar do kit. */}
-          {produto.pecasAlteradas > 0 && (
-            <span
-              title={`${produto.pecasAlteradas === 1 ? "Uma peça do kit mudou" : `${produto.pecasAlteradas} peças do kit mudaram`} desde o último Salvar. Abra o kit para ver o que mudou.`}
-              aria-label={`${produto.pecasAlteradas} peça(s) do kit mudaram desde o último Salvar`}
-              className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white"
-            >
-              !
-            </span>
-          )}
-        </div>
       </td>
 
       <td className="px-3 py-2.5">
@@ -195,8 +177,12 @@ export default function LinhaProduto({
           pop-up; o Bling, a janela da sincronizacao). A Loja Integrada tambem
           (icone com selo e pop-up de diferencas). Provisorio, a pedido do dono: a Shopee segue em preto fosco, sem ligar ao estado de integracao (a
           situacao real deles volta aqui depois). */}
-      <td className="px-3 py-2.5">
+      {/* O icone "Rise" (Conferido, com o "!" do kit) abre a fila, a esquerda do Bling; o menu ⋮ fecha
+          a linha na mesma celula (pedido do dono em 12/10/2026: a coluna Conf. e a coluna vazia ao lado
+          de Canais sairam). */}
+      <td className="relative px-3 py-2.5">
         <div className="flex items-center gap-1.5">
+          <ConferidoProduto produto={produto} />
           {CANAIS.map((canal) =>
             canal.id === "BLING" ? (
               <IconeBling key={canal.id} iconeBling={iconeBling} aoClicar={() => setJanelaBling(true)} />
@@ -239,10 +225,18 @@ export default function LinhaProduto({
               />
             ),
           )}
-        </div>
-      </td>
 
-      <td className="relative px-3 py-2.5 text-right">
+          <button
+            type="button"
+            onClick={() => setMenuAberto((aberto) => !aberto)}
+            aria-label="Ações do produto"
+            aria-expanded={menuAberto}
+            className="ml-auto rounded p-1 text-suave hover:bg-fundo hover:text-texto"
+          >
+            <EllipsisVertical size={16} />
+          </button>
+        </div>
+
         {editando === "localizacao" && <PopupLocalizacao produto={produto} aoFechar={fecharEdicao} />}
         {editando === "pecasDoKit" && <PopupPecasDoKit produto={produto} aoFechar={fecharEdicao} />}
         {editando === "preco" && <PopupPreco produto={produto} aoFechar={fecharEdicao} />}
@@ -254,16 +248,6 @@ export default function LinhaProduto({
 
         {/* Acoes do produto (pedido do dono em 09/10/2026): so Clonar e Excluir. Os "Cadastrar no
             Bling/LI/ML/Shopee" desabilitados que moravam aqui sairam; cada canal tem o proprio icone. */}
-        <button
-          type="button"
-          onClick={() => setMenuAberto((aberto) => !aberto)}
-          aria-label="Ações do produto"
-          aria-expanded={menuAberto}
-          className="rounded p-1 text-suave hover:bg-fundo hover:text-texto"
-        >
-          <EllipsisVertical size={16} />
-        </button>
-
         {menuAberto && (
           <>
             <div

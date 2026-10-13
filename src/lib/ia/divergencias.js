@@ -169,7 +169,7 @@ export function origemSemLoja(item, referencias, proprio) {
 export function identificarDivergencias(referencias) {
   const campos = new Map();
 
-  function registrar(id, campo, valor, linha, referencia, aviso = null) {
+  function registrar(id, campo, valor, linha, referencia, aviso = null, original = null) {
     if (!valor || !linha) return;
     if (!campos.has(id)) campos.set(id, { id, campo, opcoes: new Map() });
     const grupo = campos.get(id);
@@ -180,7 +180,11 @@ export function identificarDivergencias(referencias) {
     const opcao = grupo.opcoes.get(identidade);
     if (!opcao.fontes.some((fonte) => fonte.id === referencia.id)) {
       // `numero` e o "Referência N" que a IA ve no pedido: o nome da loja nao vai para ela, so o numero.
-      opcao.fontes.push({ id: referencia.id, nome: referencia.fonte.nome, produto: referencia.nome, numero: referencias.indexOf(referencia) + 1 });
+      // `caracteristica` e o que ESTA loja publicou ("Microcontrolador: Atmega328P"), que pode diferir do texto da
+      // opcao (a opcao junta lojas que escrevem o mesmo valor com outro rotulo). A dica do mouse a mostra no lugar do
+      // titulo do produto (pedido do dono em 13/10/2026). Medidas nao tem rotulo da loja: vale o da linha.
+      const caracteristica = original ?? String(linha).replace(/^-\s*/, "").replace(/;\s*$/, "");
+      opcao.fontes.push({ id: referencia.id, nome: referencia.fonte.nome, produto: referencia.nome, caracteristica, numero: referencias.indexOf(referencia) + 1 });
     }
   }
 
@@ -211,7 +215,7 @@ export function identificarDivergencias(referencias) {
       const id = `spec:${chave(nome)}`;
       if (!nome || !valor || ehMedida.test(nome) || ROTULOS_DE_CATALOGO.has(chave(nome)) || vistosNaFonte.has(id)) continue;
       vistosNaFonte.add(id);
-      registrar(id, nome, valor, `- ${nome}: ${valor};`, referencia);
+      registrar(id, nome, valor, `- ${nome}: ${valor};`, referencia, null, `${nome}: ${valor}`);
     }
   }
 

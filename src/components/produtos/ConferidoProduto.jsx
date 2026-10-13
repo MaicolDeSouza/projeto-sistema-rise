@@ -2,7 +2,7 @@
 
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useState, useTransition } from "react";
-import { Loader, Square, SquareCheckBig, X } from "lucide-react";
+import { Loader, X } from "lucide-react";
 
 import { alternarConferido } from "@/app/produtos/acoes";
 
@@ -44,22 +44,43 @@ export default function ConferidoProduto({ produto }) {
     });
   }
 
-  const rotulo = conferido
-    ? `Conferido: ${produto.tituloBase}`
-    : `Marcar como conferido: ${produto.tituloBase}`;
+  // Cor e selo sozinhos nao dizem o estado: o mesmo texto vai no nome acessivel e na dica.
+  const pecasAlteradas = produto.pecasAlteradas ?? 0;
+  const partes = [conferido ? "conferido" : "não conferido (clique para marcar)"];
+  if (pecasAlteradas > 0) {
+    partes.push(
+      `${pecasAlteradas === 1 ? "uma peça do kit mudou" : `${pecasAlteradas} peças do kit mudaram`} desde o último Salvar (abra o kit para ver)`,
+    );
+  }
+  const rotuloDoIcone = `Rise: ${partes.join(" e ")}`;
 
   return (
     <>
+      {/* Icone "Rise" na coluna Canais, no molde dos outros: verde = conferido, fosco = nao. O selo "!"
+          (uma peca do kit mudou desde o ultimo Salvar) fica no canto, como nos icones dos canais. */}
       <button
         type="button"
         onClick={abrir}
-        aria-label={rotulo}
-        title={conferido ? "Conferido" : "Marcar como conferido"}
-        className={`rounded p-1 transition hover:bg-fundo ${
-          conferido ? "text-emerald-600" : "text-suave hover:text-texto"
-        }`}
+        aria-label={rotuloDoIcone}
+        title={rotuloDoIcone}
+        className="relative shrink-0 rounded hover:ring-2 hover:ring-sky-200 focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none"
       >
-        {conferido ? <SquareCheckBig size={20} /> : <Square size={20} />}
+        <span
+          aria-hidden="true"
+          className={`flex h-[22px] w-[22px] items-center justify-center rounded text-[13px] leading-none font-bold text-white ${
+            conferido ? "bg-emerald-600" : "bg-neutral-500 opacity-70"
+          }`}
+        >
+          R
+        </span>
+        {pecasAlteradas > 0 && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[10px] leading-none font-bold text-amber-950 ring-2 ring-superficie"
+          >
+            !
+          </span>
+        )}
       </button>
 
       {aberto && (

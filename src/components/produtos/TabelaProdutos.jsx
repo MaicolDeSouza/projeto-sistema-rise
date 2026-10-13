@@ -252,9 +252,6 @@ export default function TabelaProdutos({
               <tr className="divide-x divide-borda">
                 <th className="px-3 py-2.5 font-medium">Imagem</th>
                 <th className="px-3 py-2.5 font-medium">Nome</th>
-                {/* "Conf." — nome curto pedido pelo dono em 22/09/2026 para a
-                    coluna de ConferidoProduto, que ate aqui nao tinha rotulo. */}
-                <th className="w-10 px-3 py-2.5" title="Conferido">Conf.</th>
                 {COLUNAS_ORDENAVEIS.map(({ campo, rotulo }) => (
                   <CabecalhoOrdenavel
                     key={campo}
@@ -266,7 +263,6 @@ export default function TabelaProdutos({
                   />
                 ))}
                 <th className="px-3 py-2.5 font-medium">Canais</th>
-                <th className="w-10 px-3 py-2.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
