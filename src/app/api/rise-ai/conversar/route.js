@@ -1,4 +1,4 @@
-import { usuarioDaSessao } from "@/lib/riseAi/acesso";
+import { recusarRota, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { responder } from "@/lib/riseAi/conversa";
 import { fluxoDeEventos } from "@/lib/riseAi/sse";
 import { envioDoProprioRise } from "@/lib/sessao";
@@ -10,7 +10,8 @@ import { envioDoProprioRise } from "@/lib/sessao";
  *
  * Fica atrás do login do Caddy (só `/api/arquivos` é público) e, como `/api/sair`, só aceita o envio do próprio Rise
  * (`Origin` igual ao `Host`): outra página não consegue fazer o navegador de quem está logado perguntar à IA.
- * O dono da conversa é o nome do login; quem manda `usuario` no corpo é ignorado.
+ * O dono da conversa é o nome do login; quem manda `usuario` no corpo é ignorado. Sem o recurso "Rise AI › Chat" em
+ * editar (Acessos), 403 sem corpo.
  */
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,9 @@ export async function POST(pedido) {
     return new Response("Pedido recusado: o chat só aceita o envio do próprio Rise.", { status: 403 });
   }
 
+  const acesso = await sessaoDeAcessos();
+  if (!acesso.pode("riseAi.chat", "editar")) return recusarRota();
+
   let corpo;
   try {
     corpo = await pedido.json();
@@ -41,7 +45,7 @@ export async function POST(pedido) {
   }
   const texto = typeof corpo?.texto === "string" ? corpo.texto : "";
   const conversaId = typeof corpo?.conversaId === "string" && corpo.conversaId ? corpo.conversaId : null;
-  const usuario = usuarioDaSessao(pedido.headers, process.env);
+  const usuario = acesso.login ?? "desconhecido";
 
   const fluxo = fluxoDeEventos(async (enviar) => {
     await responder({ conversaId, texto, usuario, aoEvento: enviar });

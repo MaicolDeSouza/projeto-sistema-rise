@@ -3,7 +3,8 @@ import FormularioConfiguracao from "@/components/riseAi/FormularioConfiguracao";
 import { estadoDasChaves, lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { MODELOS_SUGERIDOS, PROVEDORES, endpointPadrao } from "@/lib/riseAi/modelos";
 import { PROMPT_ATENDIMENTO_PADRAO } from "@/lib/riseAi/prompt";
-import { sessaoAtual } from "../sessao";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { sessaoDoRiseAi } from "../sessao";
 
 export const metadata = { title: "Configurações | Rise AI" };
 export const dynamic = "force-dynamic";
@@ -11,19 +12,11 @@ export const dynamic = "force-dynamic";
 const comoTexto = (data) => (data ? data.toISOString() : null);
 
 /**
- * As configurações do Rise AI, só para administradores (os demais veem o aviso; a conferência é do servidor). A página
+ * As configurações do Rise AI, só para quem tem o recurso em Acessos (os demais têm 404; a conferência é do servidor). A página
  * lê a chave só para saber SE existe e DE ONDE vem: nenhuma chave, nem cifrada, chega ao navegador.
  */
 export default async function ConfiguracoesPage() {
-  const sessao = await sessaoAtual();
-  if (!sessao.administrador) {
-    return (
-      <section className="rounded-lg border border-borda bg-superficie p-6 text-sm">
-        <h1 className="font-semibold">Só administradores do Rise AI</h1>
-        <p className="mt-1 text-suave">As configurações do assistente são de quem o administra. Peça ao dono do Rise para incluir seu nome na lista de administradores.</p>
-      </section>
-    );
-  }
+  const sessao = sessaoDoRiseAi(await exigirAcessoNaPagina("riseAi.configuracoes", "ver"));
 
   const [configuracao, chaves] = await Promise.all([lerConfiguracao(), estadoDasChaves()]);
   const provedores = PROVEDORES.map((provedor) => ({
@@ -65,7 +58,7 @@ export default async function ConfiguracoesPage() {
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
       <div>
         <h1 className="text-lg font-semibold">Configurações do Rise AI</h1>
-        <p className="mt-1 text-sm text-suave">Os provedores de IA, qual deles responde e como. Só administradores veem esta tela.</p>
+        <p className="mt-1 text-sm text-suave">Os provedores de IA, qual deles responde e como.</p>
       </div>
       <FormularioConfiguracao inicial={inicial} provedores={escolhas} promptPadrao={PROMPT_ATENDIMENTO_PADRAO} />
       <div className="grid gap-4 xl:grid-cols-2">

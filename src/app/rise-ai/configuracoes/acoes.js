@@ -10,10 +10,11 @@ import { provedorPorId } from "@/lib/riseAi/modelos";
 import { ehErroDeProvedor } from "@/lib/riseAi/provedores/contrato";
 import { criarProvedor } from "@/lib/riseAi/provedores/index";
 import { esquecerSaude } from "@/lib/riseAi/provedores/saude";
-import { executarComoAdministrador } from "../administrador";
+import { executarComAcesso } from "@/lib/acessos/servidor";
+import { comSessaoDoRiseAi } from "../sessao";
 
 /**
- * Ações da tela de configurações do Rise AI. TODAS passam por `executarComoAdministrador` (o administrador é conferido
+ * Ações da tela de configurações do Rise AI. TODAS passam por `executarComAcesso` (o recurso de Acessos de cada uma) (o administrador é conferido
  * no servidor antes de qualquer leitura). Finas: a regra mora em `src/lib/riseAi/`, que já é testado.
  *
  * A CHAVE de um provedor vai sempre num `FormData` e nunca volta: o `next dev` imprime no terminal os argumentos de
@@ -35,7 +36,7 @@ function provedorConhecido(id) {
  * `erros` por campo (`padrao.modelo`, `tempoLimite.totalMs`, `endpoints.lmstudio`…), para a tela marcar o campo certo.
  */
 export async function salvarConfiguracaoAcao(formData) {
-  return executarComoAdministrador(async (sessao) => {
+  return executarComAcesso("riseAi.configuracoes", "editar", comSessaoDoRiseAi(async (sessao) => {
     const parcial = parcialDaConfiguracao(formData);
     if (Object.keys(parcial).length === 0) throw new ErroDeUso("Nada para salvar.");
     const resultado = await gravarConfiguracao(parcial, { usuario: sessao.usuario });
@@ -43,12 +44,12 @@ export async function salvarConfiguracaoAcao(formData) {
     esquecerSaude();
     atualizarTelas();
     return {};
-  });
+  }));
 }
 
 /** Guarda a chave (campo `chave`, só de escrita). Só provedor que usa chave. */
 export async function salvarChaveAcao(provedor, formData) {
-  return executarComoAdministrador(async () => {
+  return executarComAcesso("riseAi.configuracoes", "editar", comSessaoDoRiseAi(async () => {
     if (!provedorConhecido(provedor).precisaDeChave) throw new ErroDeUso("Este provedor não usa chave.");
     const chave = String(formData.get("chave") ?? "").trim();
     if (!chave) throw new ErroDeUso("Informe a chave.");
@@ -56,18 +57,18 @@ export async function salvarChaveAcao(provedor, formData) {
     esquecerSaude();
     atualizarTelas();
     return {};
-  });
+  }));
 }
 
 /** Apaga a chave cadastrada na tela. A do `.env` (`ANTHROPIC_API_KEY`...) não é nossa: continua valendo, e a tela diz. */
 export async function removerChaveAcao(provedor) {
-  return executarComoAdministrador(async () => {
+  return executarComAcesso("riseAi.configuracoes", "editar", comSessaoDoRiseAi(async () => {
     provedorConhecido(provedor);
     await desconectar(SERVICO_DO_PROVEDOR[provedor]);
     esquecerSaude();
     atualizarTelas();
     return {};
-  });
+  }));
 }
 
 /**
@@ -75,7 +76,7 @@ export async function removerChaveAcao(provedor) {
  * modelos encontrados, ou o erro (`ok: false`): o teste que falha não é falha da ação, e a tela mostra o motivo.
  */
 export async function testarProvedorAcao(provedor) {
-  return executarComoAdministrador(async () => {
+  return executarComAcesso("riseAi.configuracoes", "editar", comSessaoDoRiseAi(async () => {
     provedorConhecido(provedor);
     const configuracao = await lerConfiguracao();
     let resultado;
@@ -91,16 +92,16 @@ export async function testarProvedorAcao(provedor) {
     await registrarTeste(SERVICO_DO_PROVEDOR[provedor], { ok, erro });
     atualizarTelas();
     return { ok, latenciaMs, modelos, erro };
-  });
+  }));
 }
 
 /** Os modelos que aparecem nas listas Padrão e Reserva: os marcados nas caixas (`modelo`, repetido). */
 export async function habilitarModelosAcao(provedor, formData) {
-  return executarComoAdministrador(async (sessao) => {
+  return executarComAcesso("riseAi.configuracoes", "editar", comSessaoDoRiseAi(async (sessao) => {
     provedorConhecido(provedor);
     const resultado = await gravarConfiguracao({ modelosHabilitados: { [provedor]: idsDosModelos(formData) } }, { usuario: sessao.usuario });
     if (!resultado.ok) return { ok: false, erro: "Corrija os campos marcados.", erros: resultado.erros };
     atualizarTelas();
     return {};
-  });
+  }));
 }

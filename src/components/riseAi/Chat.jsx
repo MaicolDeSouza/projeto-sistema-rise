@@ -25,9 +25,9 @@ const MAXIMO_DA_PERGUNTA = 8000;
  * A conversa só nasce na primeira pergunta: o evento `inicio` traz o id e, ao fim, a URL troca para `/rise-ai/<id>`.
  *
  * @param {{ conversaId: string | null, titulo?: string, criadaEm?: string, mensagensIniciais: object[],
- *   padrao: { provedor: string, modelo: string }, administrador: boolean }} props
+ *   padrao: { provedor: string, modelo: string }, podeEnsinar?: boolean }} props
  */
-export default function Chat({ conversaId, titulo, criadaEm, mensagensIniciais, padrao, administrador = false }) {
+export default function Chat({ conversaId, titulo, criadaEm, mensagensIniciais, padrao, podeEnsinar = false }) {
   const router = useRouter();
   const [mensagens, setMensagens] = useState(mensagensIniciais);
   const [texto, setTexto] = useState("");
@@ -165,7 +165,7 @@ export default function Chat({ conversaId, titulo, criadaEm, mensagensIniciais, 
             </div>
           ) : (
             <MensagemDaIA key={mensagem.id} mensagem={mensagem} aoTentarDeNovo={tentarDeNovo}>
-              {administrador && !mensagem.id.startsWith("local-") && <ProporCorrecao mensagem={mensagem} />}
+              {podeEnsinar && !mensagem.id.startsWith("local-") && <ProporCorrecao mensagem={mensagem} />}
             </MensagemDaIA>
           ),
         )}

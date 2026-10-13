@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 
 import Chat from "@/components/riseAi/Chat";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { carregarConversa, mensagemParaTela } from "@/lib/riseAi/conversas";
-import { sessaoAtual } from "../sessao";
+import { sessaoDoRiseAi } from "../sessao";
 
 export const metadata = { title: "Rise AI | Sistema Rise" };
 export const dynamic = "force-dynamic";
@@ -14,7 +15,8 @@ export const dynamic = "force-dynamic";
  */
 export default async function ConversaPage({ params }) {
   const { conversaId } = await params;
-  const sessao = await sessaoAtual();
+  const acesso = await exigirAcessoNaPagina("riseAi.chat", "ver");
+  const sessao = sessaoDoRiseAi(acesso);
   const conversa = await carregarConversa(conversaId, { usuario: sessao.usuario });
   if (!conversa) notFound();
   const configuracao = await lerConfiguracao();
@@ -27,7 +29,7 @@ export default async function ConversaPage({ params }) {
       criadaEm={conversa.criadoEm.toISOString()}
       mensagensIniciais={conversa.mensagens.map(mensagemParaTela)}
       padrao={configuracao.padrao}
-      administrador={sessao.administrador}
+      podeEnsinar={acesso.pode("riseAi.conhecimento", "editar")}
     />
   );
 }

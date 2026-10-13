@@ -2,7 +2,7 @@ import RevisaoDoDia from "@/components/riseAi/RevisaoDoDia";
 import { conhecimentoParaTela, listarConhecimento } from "@/lib/riseAi/conhecimento";
 import { conversasDoDia, hojeEmSaoPaulo, limitesDoDia, resumoDoDia } from "@/lib/riseAi/revisao";
 import { listarSugestoes } from "@/lib/riseAi/sugestoes";
-import { sessaoAtual } from "../sessao";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 
 export const metadata = { title: "Revisão do dia | Rise AI" };
 export const dynamic = "force-dynamic";
@@ -19,19 +19,11 @@ function diaDaRevisao(pedido, hoje) {
 }
 
 /**
- * A Revisão do dia: só administradores do Rise AI (os demais veem o aviso). A conferência é do servidor — a página não
+ * A Revisão do dia: só quem tem o recurso em Acessos (os demais têm 404). A conferência é do servidor — a página não
  * lê nada de conversa alheia antes de saber quem está pedindo.
  */
 export default async function RevisaoPage({ searchParams }) {
-  const sessao = await sessaoAtual();
-  if (!sessao.administrador) {
-    return (
-      <section className="rounded-lg border border-borda bg-superficie p-6 text-sm">
-        <h1 className="font-semibold">Só administradores do Rise AI</h1>
-        <p className="mt-1 text-suave">A revisão das conversas é de quem administra o assistente. Peça ao dono do Rise para incluir seu nome na lista de administradores.</p>
-      </section>
-    );
-  }
+  await exigirAcessoNaPagina("riseAi.revisao", "ver");
 
   const hoje = hojeEmSaoPaulo();
   const dia = diaDaRevisao((await searchParams).dia, hoje);

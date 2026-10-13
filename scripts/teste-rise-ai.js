@@ -148,45 +148,11 @@ try {
   // Tarefa 4 — Acesso, configuracao e chaves
   // -------------------------------------------------------------------------
   {
-    const { ehAdministrador, usuarioDaSessao, exigirAdministrador } = await import("../src/lib/riseAi/acesso.js");
     const { configuracaoPadrao, validarConfiguracao, lerConfiguracao, gravarConfiguracao, lerChave, gravarChave, estadoDasChaves } =
       await import("../src/lib/riseAi/configuracao.js");
     const { criarLimitador } = await import("../src/lib/riseAi/limite.js");
-    console.log("\nAcesso e configuracao");
-
-    conferir("PC: todo mundo e admin", ehAdministrador("ana", {}), true);
-    conferir(
-      "VPS: so quem esta na lista",
-      [
-        ehAdministrador("Maicol", { RISE_PRODUCAO: "1", RISE_AI_ADMINS: "maicol, outro" }),
-        ehAdministrador("ana", { RISE_PRODUCAO: "1", RISE_AI_ADMINS: "maicol" }),
-      ],
-      [true, false],
-    );
-    conferir("VPS sem lista: ninguem", ehAdministrador("Maicol", { RISE_PRODUCAO: "1" }), false);
-    conferir("VPS sem nome: ninguem", ehAdministrador("", { RISE_PRODUCAO: "1", RISE_AI_ADMINS: "," }), false);
-    conferir(
-      "usuario da sessao: PC e VPS",
-      [
-        usuarioDaSessao(new Headers(), {}),
-        usuarioDaSessao(new Headers({ "remote-user": "Maicol" }), { RISE_PRODUCAO: "1" }),
-        usuarioDaSessao(new Headers(), { RISE_PRODUCAO: "1" }),
-      ],
-      ["pc", "Maicol", "desconhecido"],
-    );
-    conferir(
-      "exigirAdministrador lanca",
-      (() => {
-        try {
-          exigirAdministrador({ administrador: false });
-          return "passou";
-        } catch (erro) {
-          return erro.message;
-        }
-      })(),
-      "Só administradores do Rise AI podem fazer isso.",
-    );
-    conferir("exigirAdministrador deixa passar o admin", exigirAdministrador({ administrador: true }), undefined);
+    // Quem e administrador e o login da requisicao sairam daqui (acesso.js) para Acessos: o teste:acessos os cobre.
+    console.log("\nConfiguracao");
 
     const padrao = configuracaoPadrao("pc");
     conferir(
@@ -1301,19 +1267,42 @@ try {
     conferir("mensagem nova depois da revisao volta a conversa para a fila", (await conversasDoDia(dia, { administrador: true })).find((conversa) => conversa.id === r2.conversaId).revisadaEm, null);
     conferir("marcar revisada: conversa que nao existe", await mensagemDe(marcarRevisada("nao-existe", "ZZ-IA-TESTE")), "Conversa não encontrada.");
 
-    // As acoes de administracao nao rodam em Node puro (next/cache). O que se garante aqui: TODA acao exportada passa por
-    // `executarComoAdministrador`, que confere o administrador no servidor antes de qualquer leitura; acao nova sem isso
-    // falha este teste (vale para a Revisao e para as Configuracoes).
+    // As acoes, paginas e rotas do Rise AI nao rodam em Node puro (next/cache, next/headers). O que se garante aqui
+    // (Acessos, lancamento 1): TODA acao exportada passa por `executarComAcesso` com um recurso do catalogo e um nivel
+    // valido; toda pagina, layout e rota confere o acesso antes de ler; o involucro antigo e o acesso.js sumiram.
     {
-      const { readFileSync } = await import("node:fs");
-      const ler = (caminho) => readFileSync(new URL(`../src/app/rise-ai/${caminho}`, import.meta.url), "utf8");
+      const { readFileSync, existsSync, readdirSync, statSync } = await import("node:fs");
+      const { join } = await import("node:path");
+      const { recursoPorId, validarNivel } = await import("../src/lib/acessos/recursos.js");
+      const { fileURLToPath } = await import("node:url");
+      const raiz = fileURLToPath(new URL("../", import.meta.url));
+      const ler = (caminho) => readFileSync(join(raiz, caminho), "utf8").replace(/\r\n/g, "\n");
       const acoesDe = (fonte) => [...fonte.matchAll(/export async function (\w+)\([^)]*\) \{\n([\s\S]*?)\n\}\n/g)];
-      for (const [arquivo, minimo] of [["revisao/acoes.js", 10], ["configuracoes/acoes.js", 5]]) {
+      for (const [arquivo, minimo] of [["src/app/rise-ai/acoes.js", 5], ["src/app/rise-ai/revisao/acoes.js", 10], ["src/app/rise-ai/configuracoes/acoes.js", 5]]) {
         const acoes = acoesDe(ler(arquivo));
         conferir(`${arquivo}: tem as acoes esperadas`, acoes.length >= minimo, true);
-        conferir(`${arquivo}: toda acao passa por executarComoAdministrador`, acoes.filter(([, , corpo]) => !/^\s*return executarComoAdministrador\(/.test(corpo)).map(([, nome]) => nome), []);
+        const fora = acoes.filter(([, , corpo]) => {
+          const casou = /^\s*return executarComAcesso\("([\w.]+)", "(\w+)",/.exec(corpo);
+          return !casou || !recursoPorId(casou[1]) || !validarNivel(casou[1], casou[2]);
+        });
+        conferir(`${arquivo}: toda acao passa por executarComAcesso com recurso e nivel do catalogo`, fora.map(([, nome]) => nome), []);
       }
-      conferir("o involucro exige o administrador antes de rodar a acao", /exigirAdministrador\(sessao\);\s*return \{ ok: true, \.\.\.\(await trabalho\(sessao\)\) \}/.test(ler("administrador.js")), true);
+      const arquivosDe = (pasta) =>
+        readdirSync(join(raiz, pasta)).flatMap((nome) => {
+          const caminho = `${pasta}/${nome}`;
+          return statSync(join(raiz, caminho)).isDirectory() ? arquivosDe(caminho) : [caminho];
+        });
+      const telas = [...arquivosDe("src/app/rise-ai"), ...arquivosDe("src/app/api/rise-ai")].filter((caminho) => /\/(page|layout)\.jsx$|\/route\.js$/.test(caminho));
+      conferir("as paginas, layouts e rotas do Rise AI que o guarda olha", telas.length >= 7, true);
+      conferir(
+        "toda pagina, layout e rota do Rise AI confere o acesso",
+        telas.filter((caminho) => {
+          const fonte = ler(caminho);
+          return caminho.endsWith("route.js") ? !(fonte.includes("sessaoDeAcessos(") && fonte.includes("recusarRota(")) : !fonte.includes("exigirAcessoNaPagina(");
+        }),
+        [],
+      );
+      conferir("o involucro antigo e o acesso.js sairam", [existsSync(join(raiz, "src/app/rise-ai/administrador.js")), existsSync(join(raiz, "src/lib/riseAi/acesso.js"))], [false, false]);
     }
 
     // --- o que as telas da revisao usam (puro: roda no servidor e as acoes o chamam) ---

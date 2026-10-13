@@ -3,7 +3,7 @@ import Link from "next/link";
 import TabelaDeConsumo from "@/components/riseAi/TabelaDeConsumo";
 import { consumoPorDia, periodoDosUltimosDias, totaisDoPeriodo } from "@/lib/riseAi/consumo";
 import { hojeEmSaoPaulo } from "@/lib/riseAi/revisao";
-import { sessaoAtual } from "../sessao";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 
 export const metadata = { title: "Consumo | Rise AI" };
 export const dynamic = "force-dynamic";
@@ -11,19 +11,11 @@ export const dynamic = "force-dynamic";
 const PERIODOS = [7, 30, 90];
 
 /**
- * O consumo do Rise AI, só para administradores: respostas, tokens, custo, tempo e problemas por dia e por modelo, nos
+ * O consumo do Rise AI, só para quem tem o recurso em Acessos (os demais têm 404): respostas, tokens, custo, tempo e problemas por dia e por modelo, nos
  * últimos 7, 30 ou 90 dias (`?dias=`; qualquer outro valor vira 30).
  */
 export default async function ConsumoPage({ searchParams }) {
-  const sessao = await sessaoAtual();
-  if (!sessao.administrador) {
-    return (
-      <section className="rounded-lg border border-borda bg-superficie p-6 text-sm">
-        <h1 className="font-semibold">Só administradores do Rise AI</h1>
-        <p className="mt-1 text-suave">O consumo e o custo do assistente são de quem o administra. Peça ao dono do Rise para incluir seu nome na lista de administradores.</p>
-      </section>
-    );
-  }
+  await exigirAcessoNaPagina("riseAi.consumo", "ver");
 
   const pedido = Number((await searchParams).dias);
   const dias = PERIODOS.includes(pedido) ? pedido : 30;

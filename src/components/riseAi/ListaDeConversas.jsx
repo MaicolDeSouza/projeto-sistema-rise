@@ -9,11 +9,13 @@ import { buscarConversasAcao } from "@/app/rise-ai/acoes";
 
 const FUSO = "America/Sao_Paulo";
 
-const LINKS_DO_ADMINISTRADOR = [
-  { href: "/rise-ai/revisao", rotulo: "Revisão do dia", Icone: ClipboardCheck },
-  { href: "/rise-ai/consumo", rotulo: "Consumo", Icone: BarChart3 },
-  { href: "/rise-ai/configuracoes", rotulo: "Configurações", Icone: Settings },
-];
+// O ícone de cada link mora aqui: um componente React não atravessa do servidor para o navegador, então o layout manda
+// só `{ href, rotulo }`, já filtrado pelas permissões de Acessos.
+const ICONES = {
+  "/rise-ai/revisao": ClipboardCheck,
+  "/rise-ai/consumo": BarChart3,
+  "/rise-ai/configuracoes": Settings,
+};
 const dia = (data) => new Date(data).toLocaleDateString("sv-SE", { timeZone: FUSO });
 
 /** "Hoje", "Ontem" ou "Antes": o dia de cada conversa no fuso da loja (servidor e navegador chegam ao mesmo texto). */
@@ -36,12 +38,13 @@ function agrupar(conversas) {
  * A lista lateral de conversas (as de quem está logado), com "+ Nova conversa" e a busca no título e no texto das
  * mensagens. "Nova conversa" só abre o chat em branco: a conversa nasce na primeira pergunta.
  *
- * Para administrador, os links da Revisão, do Consumo e das Configurações ficam logo abaixo (cada página confere de novo
- * no servidor).
+ * Os links da Revisão, do Consumo e das Configurações ficam logo abaixo, só os que a pessoa pode abrir (o layout filtra
+ * pelas permissões de Acessos, e cada página confere de novo no servidor). "Nova conversa" só para quem conversa.
  *
- * @param {{ conversas: { id: string, titulo: string, atualizadoEm: string }[], administrador?: boolean }} props
+ * @param {{ conversas: { id: string, titulo: string, atualizadoEm: string }[], links?: { href: string, rotulo: string }[],
+ *   podeConversar?: boolean }} props
  */
-export default function ListaDeConversas({ conversas, administrador = false }) {
+export default function ListaDeConversas({ conversas, links = [], podeConversar = true }) {
   const pathname = usePathname();
   const [busca, setBusca] = useState("");
   const [achadas, setAchadas] = useState([]);
@@ -61,22 +64,27 @@ export default function ListaDeConversas({ conversas, administrador = false }) {
 
   return (
     <aside className="flex max-h-56 w-full shrink-0 flex-col gap-3 overflow-hidden rounded-lg border border-borda bg-superficie p-3 lg:max-h-none lg:w-64">
-      <Link href="/rise-ai" className="inline-flex items-center justify-center gap-1.5 rounded-md bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90">
-        <Plus size={15} /> Nova conversa
-      </Link>
+      {podeConversar && (
+        <Link href="/rise-ai" className="inline-flex items-center justify-center gap-1.5 rounded-md bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90">
+          <Plus size={15} /> Nova conversa
+        </Link>
+      )}
 
-      {administrador && (
+      {links.length > 0 && (
         <nav className="flex flex-col gap-1" aria-label="Administração do Rise AI">
-          {LINKS_DO_ADMINISTRADOR.map(({ href, rotulo, Icone }) => (
-            <Link
-              key={href}
-              href={href}
-              aria-current={pathname === href ? "page" : undefined}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-fundo ${pathname === href ? "bg-fundo font-medium" : "text-suave"}`}
-            >
-              <Icone size={15} /> {rotulo}
-            </Link>
-          ))}
+          {links.map(({ href, rotulo }) => {
+            const Icone = ICONES[href] ?? Settings;
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={pathname === href ? "page" : undefined}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-fundo ${pathname === href ? "bg-fundo font-medium" : "text-suave"}`}
+              >
+                <Icone size={15} /> {rotulo}
+              </Link>
+            );
+          })}
         </nav>
       )}
 
