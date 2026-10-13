@@ -1818,6 +1818,98 @@ try {
     conferir("esquecida volta a fixa", cotacaoDoDolar(t0).valor, COTACAO_DOLAR_FIXA);
   }
 
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 5 — Orcamento e GastoIA (meses falsos de 2025: o gasto real do dono nunca entra na conta)
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: orcamento");
+  {
+    const { mesDeSaoPaulo, gastoDoMes, estadoDoOrcamento, reservarOrcamento, liquidarReserva, registrarGasto, estimarCustoMaximoBrl } = await import("../src/lib/riseAi/orcamento.js");
+    const config = (internoBrl, clientesBrl = 70) => ({ orcamentos: { clientesBrl, internoBrl } });
+    const dono = await prisma.conversaIA.create({ data: { titulo: "ZZ-IA orcamento", usuario: "ZZ-IA-ORC" } });
+    const mensagem = (custoBrl, criadoEm, { provedor = "anthropic", modelo = "claude-haiku-5-5", avisos = [] } = {}) =>
+      prisma.mensagemIA.create({ data: { conversaId: dono.id, papel: "ASSISTENTE", conteudo: "r", provedor, modelo, custoBrl, avisos, criadoEm: new Date(criadoEm) } });
+
+    // O mes de Sao Paulo
+    const virada = mesDeSaoPaulo(new Date("2026-10-01T02:00:00Z"));
+    conferir("2026-10-01 02h UTC ainda e setembro em Sao Paulo", virada.mes, "2026-09");
+    const marco = mesDeSaoPaulo(new Date("2025-03-15T15:00:00Z"));
+    conferir("limites de marco em UTC", [marco.mes, marco.inicio.toISOString(), marco.fim.toISOString()], ["2025-03", "2025-03-01T03:00:00.000Z", "2025-04-01T03:00:00.000Z"]);
+
+    // Gasto do mes: MensagemIA + GastoIA, so do mes certo
+    await mensagem(5, "2025-03-10T12:00:00Z");
+    await mensagem(1, "2025-04-01T02:30:00Z"); // 31/03 23h30 em Sao Paulo: ainda marco
+    await mensagem(100, "2025-02-28T12:00:00Z"); // fevereiro
+    await mensagem(100, "2025-04-01T03:30:00Z"); // 01/04 00h30 em Sao Paulo: abril
+    await mensagem(null, "2025-03-11T12:00:00Z"); // API sem preco cadastrado
+    await mensagem(null, "2025-03-11T13:00:00Z", { provedor: "lmstudio", modelo: "local" }); // local nao conta como sem preco
+    await mensagem(null, "2025-03-11T14:00:00Z", { avisos: ["erro"] }); // mensagem de erro nao conta como sem preco
+    await registrarGasto({ tipo: "BUSCA", escopo: "INTERNO", provedor: "anthropic", valorUsd: 0.5, valorBrl: 3.2, referencia: "ZZ-IA-m1", detalhe: { buscas: 3 } });
+    await prisma.gastoIA.updateMany({ where: { referencia: "ZZ-IA-m1" }, data: { criadoEm: new Date("2025-03-12T12:00:00Z") } });
+    await registrarGasto({ tipo: "BUSCA", escopo: "CLIENTES", provedor: "openai", valorUsd: 1, valorBrl: 6, referencia: "ZZ-IA-m2" });
+    await prisma.gastoIA.updateMany({ where: { referencia: "ZZ-IA-m2" }, data: { criadoEm: new Date("2025-03-12T12:00:00Z") } });
+    const agoraMarco = Date.UTC(2025, 2, 15, 15, 0, 0);
+    const interno = await gastoDoMes("INTERNO", { agora: agoraMarco });
+    conferir("INTERNO soma as respostas e o GastoIA do mes (5 + 1 + 3,2)", interno.gastoBrl, 9.2);
+    conferir("INTERNO: sem reserva e uma resposta sem preco", [interno.reservadoBrl, interno.semPreco], [0, 1]);
+    conferir("CLIENTES soma so o GastoIA CLIENTES", (await gastoDoMes("CLIENTES", { agora: agoraMarco })).gastoBrl, 6);
+
+    // Niveis (julho de 2025)
+    const agoraJulho = Date.UTC(2025, 6, 15, 15, 0, 0);
+    const gastar = async (valor, ref) => {
+      await registrarGasto({ tipo: "BUSCA", provedor: "anthropic", valorUsd: valor / 6, valorBrl: valor, referencia: ref });
+      await prisma.gastoIA.updateMany({ where: { referencia: ref }, data: { criadoEm: new Date("2025-07-10T12:00:00Z") } });
+    };
+    await gastar(23.7, "ZZ-IA-n1");
+    let estado = await estadoDoOrcamento("INTERNO", { agora: agoraJulho, config: config(30) });
+    conferir("79% do teto: normal", [estado.percentual, estado.nivel, estado.tetoBrl], [79, "normal", 30]);
+    await gastar(0.3, "ZZ-IA-n2");
+    estado = await estadoDoOrcamento("INTERNO", { agora: agoraJulho, config: config(30) });
+    conferir("80% do teto: aviso", [estado.percentual, estado.nivel], [80, "aviso"]);
+    await gastar(6, "ZZ-IA-n3");
+    estado = await estadoDoOrcamento("INTERNO", { agora: agoraJulho, config: config(30) });
+    conferir("100% do teto: esgotado", [estado.percentual, estado.nivel], [100, "esgotado"]);
+    conferir("teto zero: esgotado", (await estadoDoOrcamento("INTERNO", { agora: agoraJulho, config: config(0) })).nivel, "esgotado");
+    conferir("o teto dos clientes e o outro", (await estadoDoOrcamento("CLIENTES", { agora: agoraJulho, config: config(30, 70) })).tetoBrl, 70);
+
+    // Reservas (maio de 2025)
+    const agoraMaio = Date.UTC(2025, 4, 15, 15, 0, 0);
+    await gastar(4, "ZZ-IA-r0");
+    await prisma.gastoIA.updateMany({ where: { referencia: "ZZ-IA-r0" }, data: { criadoEm: new Date("2025-05-10T12:00:00Z") } });
+    const r1 = await reservarOrcamento("INTERNO", 5, { dono: "ZZ-IA-r1", agora: agoraMaio, config: config(10) });
+    conferir("cabe no teto: reserva feita", [r1.ok, typeof r1.reservaId], [true, "string"]);
+    const r2 = await reservarOrcamento("INTERNO", 2, { dono: "ZZ-IA-r2", agora: agoraMaio, config: config(10) });
+    conferir("a reserva conta: 4 + 5 + 2 passa de 10", [r2.ok, r2.motivo], [false, "esgotado"]);
+    await prisma.reservaDeGastoIA.create({ data: { escopo: "INTERNO", valorBrl: 100, dono: "ZZ-IA-exp", criadaEm: new Date(agoraMaio - 3600000), expiraEm: new Date(agoraMaio - 1000) } });
+    conferir("reserva expirada nao conta", (await gastoDoMes("INTERNO", { agora: agoraMaio })).reservadoBrl, 5);
+    await liquidarReserva(r1.reservaId);
+    const r3 = await reservarOrcamento("INTERNO", 2, { dono: "ZZ-IA-r3", agora: agoraMaio, config: config(10) });
+    conferir("liquidar devolve o espaco", r3.ok, true);
+    await liquidarReserva(r3.reservaId);
+    const zero = await reservarOrcamento("INTERNO", 0, { dono: "ZZ-IA-r4", agora: agoraMaio, config: config(0) });
+    conferir("estimativa zero (modelo local) passa mesmo com teto zero e nao grava nada", [zero.ok, zero.reservaId, await prisma.reservaDeGastoIA.count({ where: { dono: "ZZ-IA-r4" } })], [true, null, 0]);
+    await liquidarReserva(null);
+
+    // Concorrencia (junho de 2025): 20 pedidos de R$ 1 contra um teto de R$ 10 e gasto zero
+    const agoraJunho = Date.UTC(2025, 5, 15, 15, 0, 0);
+    const juntos = await Promise.all(Array.from({ length: 20 }, (_, i) => reservarOrcamento("INTERNO", 1, { dono: `ZZ-IA-c${i}`, agora: agoraJunho, config: config(10) })));
+    conferir("20 pedidos simultaneos: exatamente 10 passam", juntos.filter((r) => r.ok).length, 10);
+    conferir("a soma das reservas e o teto", (await gastoDoMes("INTERNO", { agora: agoraJunho })).reservadoBrl, 10);
+
+    // Estimativa do custo maximo
+    const cotacao = (await import("../src/lib/cotacaoDolar.js")).cotacaoDoDolar().valor;
+    conferir("local custa zero", estimarCustoMaximoBrl({ provedor: "lmstudio", modelo: "qualquer", tokensEntrada: 5000, maxTokensSaida: 1500 }), 0);
+    conferir("modelo de API sem preco: zero", estimarCustoMaximoBrl({ provedor: "anthropic", modelo: "claude-x", tokensEntrada: 5000, maxTokensSaida: 1500 }), 0);
+    conferir("provedor desconhecido (o falso dos testes): zero", estimarCustoMaximoBrl({ provedor: "falso", modelo: "falso-1", tokensEntrada: 5000, maxTokensSaida: 1500 }), 0);
+    conferir(
+      "gpt-4.1-mini: entrada + saida maxima, em reais",
+      estimarCustoMaximoBrl({ provedor: "openai", modelo: "gpt-4.1-mini", tokensEntrada: 10000, maxTokensSaida: 1500 }),
+      Math.round(((10000 / 1e6) * 0.4 + (1500 / 1e6) * 1.6) * cotacao * 1e4) / 1e4,
+    );
+
+    const gasto = await registrarGasto({ tipo: "TRANSCRICAO", escopo: "CLIENTES", provedor: "openai", modelo: "m", valorUsd: 0.003, valorBrl: 0.018, referencia: "ZZ-IA-g1", detalhe: { segundos: 60 } });
+    conferir("registrarGasto grava a linha", [gasto.tipo, gasto.escopo, Number(gasto.valorBrl), gasto.detalhe], ["TRANSCRICAO", "CLIENTES", 0.018, { segundos: 60 }]);
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();
