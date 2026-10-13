@@ -2329,6 +2329,79 @@ try {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 10 — Analisador de texto seguro (o que o modelo escreve nunca vira HTML)
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: texto seguro");
+  {
+    const { blocosDoTexto, textoPuroDoTexto, ehEnderecoSeguro } = await import("../src/lib/riseAi/textoSeguro.js");
+    const { readFileSync } = await import("node:fs");
+    const trechosDe = (texto, opcoes) => blocosDoTexto(texto, opcoes).flatMap((bloco) => (bloco.tipo === "lista" ? bloco.itens.flat() : bloco.trechos));
+    const tipos = (texto, opcoes) => [...new Set(trechosDe(texto, opcoes).map((trecho) => trecho.tipo))];
+    const juntos = (texto, opcoes) => trechosDe(texto, opcoes).map((trecho) => trecho.texto ?? "").join("");
+
+    // HTML e imagem nunca viram elemento
+    conferir("script fica como texto", [tipos("<script>alert(1)</script>"), juntos("<script>alert(1)</script>")], [["texto"], "<script>alert(1)</script>"]);
+    conferir("img com onerror fica como texto", [tipos("<img src=x onerror=alert(1)>"), juntos("<img src=x onerror=alert(1)>")], [["texto"], "<img src=x onerror=alert(1)>"]);
+    conferir("imagem em markdown vira so o texto alternativo", [tipos("![x](https://a.com/p.png)"), juntos("![x](https://a.com/p.png)")], [["texto"], "x"]);
+
+    // Endereco
+    conferir("javascript: nunca vira link, e o endereco some", [tipos("[ver](javascript:alert(1))"), juntos("[ver](javascript:alert(1))")], [["texto"], "ver"]);
+    conferir("link cujo texto mente o dominio mostra o dominio real", juntos("[4hobby.com.br](https://evil.com/x)"), "4hobby.com.br (evil.com)");
+    conferir("fora da lista permitida nao ha href", tipos("[4hobby.com.br](https://evil.com/x)"), ["texto"]);
+    conferir("na lista permitida vira link com o dominio", trechosDe("[4hobby.com.br](https://evil.com/x)", { linksPermitidos: ["https://evil.com/x"] }), [{ tipo: "link", texto: "4hobby.com.br", href: "https://evil.com/x", dominio: "evil.com" }]);
+    conferir("endereco solto permitido e o ponto final fica de fora", trechosDe("Veja https://www.4hobby.com.br/uno.", { linksPermitidos: ["https://www.4hobby.com.br/uno"] }), [
+      { tipo: "texto", texto: "Veja " },
+      { tipo: "link", texto: "https://www.4hobby.com.br/uno", href: "https://www.4hobby.com.br/uno", dominio: "www.4hobby.com.br" },
+      { tipo: "texto", texto: "." },
+    ]);
+    conferir("endereco solto nao permitido e so texto", [tipos("Veja https://evil.com/x agora"), juntos("Veja https://evil.com/x agora")], [["texto"], "Veja https://evil.com/x agora"]);
+    conferir(
+      "ehEnderecoSeguro",
+      ["https://www.4hobby.com.br/uno", "http://a.com", "javascript:alert(1)", "data:text/html,x", "ftp://x.com", "https://localhost", "https://user:pass@host.com/", "https://a b.com", ""].map(ehEnderecoSeguro),
+      [true, true, false, false, false, false, false, false, false],
+    );
+
+    // Formatacao
+    conferir("negrito", trechosDe("**R$ 89,90**"), [{ tipo: "negrito", texto: "R$ 89,90" }]);
+    conferir("italico com asterisco e com sublinhado", [trechosDe("*oi*")[0].tipo, trechosDe("_oi_")[0].tipo], ["italico", "italico"]);
+    conferir("snake_case nao vira italico", tipos("o campo SELLER_SKU e outro_nome"), ["texto"]);
+    conferir("codigo", trechosDe("use `analogRead`"), [{ tipo: "texto", texto: "use " }, { tipo: "codigo", texto: "analogRead" }]);
+    conferir("titulo", blocosDoTexto("### Título"), [{ tipo: "titulo", trechos: [{ tipo: "texto", texto: "Título" }] }]);
+    const lista = blocosDoTexto("- a\n- b");
+    conferir("lista com marcador", [lista.length, lista[0].tipo, lista[0].ordenada, lista[0].itens.length], [1, "lista", false, 2]);
+    const ordenada = blocosDoTexto("1. um\n2. dois");
+    conferir("lista numerada", [ordenada[0].tipo, ordenada[0].ordenada, ordenada[0].itens.length], ["lista", true, 2]);
+    conferir("paragrafos separados por linha em branco", blocosDoTexto("um\n\ndois").map((bloco) => bloco.tipo), ["paragrafo", "paragrafo"]);
+    conferir("quebra simples dentro do paragrafo", trechosDe("um\ndois").map((trecho) => trecho.tipo), ["texto", "quebra", "texto"]);
+    conferir("CRLF vale como LF", JSON.stringify(blocosDoTexto("um\r\n\r\ndois")), JSON.stringify(blocosDoTexto("um\n\ndois")));
+    conferir("marcacao aberta no meio do fluxo aparece como esta", trechosDe("**negr"), [{ tipo: "texto", texto: "**negr" }]);
+    conferir("lista de bolinha com asterisco", blocosDoTexto("* a\n* b")[0].itens.length, 2);
+
+    // Robustez: texto enorme e padroes que fariam regex patologica
+    {
+      const inicio = Date.now();
+      blocosDoTexto("palavra ".repeat(6500));
+      blocosDoTexto("* ".repeat(20000));
+      blocosDoTexto("**a ".repeat(10000));
+      blocosDoTexto("[x](".repeat(8000));
+      blocosDoTexto("_a ".repeat(15000));
+      conferir("texto enorme e padroes patologicos analisam sem travar", Date.now() - inicio < 3000, true);
+    }
+
+    // O que o Copiar copia
+    conferir("texto puro: sem marcas, lista com hifen", textoPuroDoTexto("**R$ 89,90**\n- a\n- b"), "R$ 89,90\n- a\n- b");
+    conferir("texto puro: lista numerada e titulo", textoPuroDoTexto("### Título\n1. um\n2. dois"), "Título\n1. um\n2. dois");
+    conferir("texto puro: link em markdown mantem o endereco", textoPuroDoTexto("Veja [o Uno](https://www.4hobby.com.br/uno)"), "Veja o Uno (https://www.4hobby.com.br/uno)");
+    conferir("texto puro: endereco perigoso some", textoPuroDoTexto("[ver](javascript:alert(1))"), "ver");
+    conferir("texto puro: o endereco escrito a mao fica", textoPuroDoTexto("Link: https://www.4hobby.com.br/uno"), "Link: https://www.4hobby.com.br/uno");
+
+    // O componente nunca injeta HTML
+    const fonteDoComponente = readFileSync(new URL("../src/components/riseAi/TextoDaIA.jsx", import.meta.url), "utf8");
+    conferir("TextoDaIA nao usa dangerouslySetInnerHTML", fonteDoComponente.includes("dangerouslySetInnerHTML"), false);
+    conferir("TextoDaIA so abre link com noopener noreferrer", [fonteDoComponente.includes('rel="noopener noreferrer"'), /<a\s/.test(fonteDoComponente)], [true, true]);
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();
