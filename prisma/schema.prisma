@@ -657,6 +657,9 @@ model MensagemIA {
   /// sem_separacao, limite_de_ferramentas, sem_resultado, erro, sugestao_nao_gerada...
   avisos String[] @default([])
 
+  /// Resposta que o botao Parar cortou: o `conteudo` e o texto parcial e o custo e estimado pelos caracteres.
+  interrompida Boolean @default(false)
+
   criadoEm DateTime @default(now())
 
   @@index([conversaId, criadoEm])
@@ -720,6 +723,62 @@ model SugestaoIA {
   criadoEm DateTime @default(now())
 
   @@index([status, criadoEm])
+}
+
+// Entrega A1 (spec docs/superpowers/specs/2026-10-12-rise-ia-agente-design.md, §3 e §10)
+
+enum TipoDeGastoIA {
+  TRANSCRICAO
+  EMBEDDING
+  BUSCA
+}
+
+enum EscopoDeGastoIA {
+  CLIENTES
+  INTERNO
+}
+
+/// Gasto que NAO e de uma resposta do chat (essas guardam o custo na propria MensagemIA): transcricao, embeddings, busca.
+model GastoIA {
+  id         String          @id @default(cuid())
+  tipo       TipoDeGastoIA
+  escopo     EscopoDeGastoIA @default(INTERNO)
+  provedor   String
+  modelo     String?
+  valorUsd   Decimal         @db.Decimal(12, 6)
+  valorBrl   Decimal         @db.Decimal(12, 4)
+  /// A conversa, mensagem ou anexo que originou o gasto.
+  referencia String?
+  /// buscas, segundos de audio, tokens...
+  detalhe    Json?
+  criadoEm   DateTime        @default(now())
+
+  @@index([escopo, criadoEm])
+}
+
+/// Dinheiro separado ANTES de uma chamada paga e devolvido quando ela termina; a que ninguem devolveu expira sozinha.
+model ReservaDeGastoIA {
+  id       String          @id @default(cuid())
+  escopo   EscopoDeGastoIA
+  valorBrl Decimal         @db.Decimal(12, 4)
+  /// Quem pediu (a conversa); o teste usa "ZZ-IA-...".
+  dono     String
+  criadaEm DateTime        @default(now())
+  expiraEm DateTime
+
+  @@index([escopo, expiraEm])
+}
+
+/// Cada vez que um prompt e salvo na aba Atendimento; a "versao anterior" da tela e o registro antes do ultimo.
+model VersaoDePromptIA {
+  id          String   @id @default(cuid())
+  /// "interno" ou "cliente".
+  canal       String
+  texto       String
+  alteradoPor String
+  alteradoEm  DateTime @default(now())
+
+  @@index([canal, alteradoEm])
 }
 
 // ---------------------------------------------------------------------------

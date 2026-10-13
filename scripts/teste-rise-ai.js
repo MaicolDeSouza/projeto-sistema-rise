@@ -55,6 +55,10 @@ async function devolverOQueEraDoDono() {
 
 /** Apaga tudo o que os testes criam. Roda no comeco (resto de uma execucao que caiu) e no fim. */
 async function limpar() {
+  // Entrega A1: gasto, reservas e versoes de prompt de teste.
+  await prisma.gastoIA.deleteMany({ where: { referencia: { startsWith: "ZZ-IA-" } } });
+  await prisma.reservaDeGastoIA.deleteMany({ where: { dono: { startsWith: "ZZ-IA-" } } });
+  await prisma.versaoDePromptIA.deleteMany({ where: { canal: { startsWith: "zz-ia-" } } });
   await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "ZZ-IA-" } } });
   await prisma.conhecimentoIA.deleteMany({ where: { assunto: { startsWith: "ZZ-IA" } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-IA-" } } });
@@ -1643,6 +1647,33 @@ try {
     } finally {
       rmSync(pasta, { recursive: true, force: true });
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 1 — Banco: GastoIA, ReservaDeGastoIA, VersaoDePromptIA e MensagemIA.interrompida
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: banco");
+  {
+    const conversaA = await prisma.conversaIA.create({ data: { titulo: "ZZ-IA A1 banco", usuario: "ZZ-IA-TESTE" } });
+    const cortada = await prisma.mensagemIA.create({
+      data: { conversaId: conversaA.id, papel: "ASSISTENTE", conteudo: "texto parcial", interrompida: true, avisos: [] },
+    });
+    const normal = await prisma.mensagemIA.create({ data: { conversaId: conversaA.id, papel: "ASSISTENTE", conteudo: "inteira", avisos: [] } });
+    conferir("mensagem interrompida", (await prisma.mensagemIA.findUnique({ where: { id: cortada.id } })).interrompida, true);
+    conferir("interrompida nasce falsa", (await prisma.mensagemIA.findUnique({ where: { id: normal.id } })).interrompida, false);
+
+    const gasto = await prisma.gastoIA.create({
+      data: { tipo: "BUSCA", provedor: "anthropic", valorUsd: 0.01, valorBrl: 0.06, referencia: "ZZ-IA-ref", detalhe: { buscas: 1 } },
+    });
+    conferir("gasto nasce INTERNO", gasto.escopo, "INTERNO");
+    conferir("gasto guarda o valor em reais", Number(gasto.valorBrl), 0.06);
+    conferir("gasto guarda o detalhe", (await prisma.gastoIA.findUnique({ where: { id: gasto.id } })).detalhe, { buscas: 1 });
+
+    await prisma.reservaDeGastoIA.create({ data: { escopo: "INTERNO", valorBrl: 1.5, dono: "ZZ-IA-dono", expiraEm: new Date(Date.now() + 60000) } });
+    conferir("reserva gravada", await prisma.reservaDeGastoIA.count({ where: { dono: "ZZ-IA-dono" } }), 1);
+
+    await prisma.versaoDePromptIA.create({ data: { canal: "zz-ia-interno", texto: "prompt", alteradoPor: "ZZ-IA-TESTE" } });
+    conferir("versao de prompt gravada", await prisma.versaoDePromptIA.count({ where: { canal: "zz-ia-interno" } }), 1);
   }
 
   // ---- novos blocos entram antes desta linha ----
