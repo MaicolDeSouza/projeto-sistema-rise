@@ -16,6 +16,7 @@
     "db:studio": "prisma studio",
     "seed": "prisma db seed",
     "diagnostico": "node scripts/diagnostico.js",
+    "bancada:descricao": "node scripts/bancada-descricao.js",
     "worker": "node scripts/worker.js",
     "teste:coleta": "node scripts/teste-coleta.js",
     "teste:cadastros": "node scripts/teste-cadastros.js",
