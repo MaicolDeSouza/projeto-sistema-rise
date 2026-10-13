@@ -76,9 +76,28 @@ async function carregarProduto(sku) {
 }
 
 // ---------------------------------------------------------------------------------------------- processo filho
+// US$ por 1 milhao de tokens (pagina oficial da OpenAI, conferida em 13/10/2026). `emCache` e o preco do que o cache automatico lê.
+const PRECOS_OPENAI = {
+  "gpt-6.1-sol": { entrada: 2, emCache: 0.1, saida: 10 },
+  "gpt-6-sol": { entrada: 2, emCache: 0.2, saida: 10 },
+  "gpt-6-luna": { entrada: 0.1, emCache: 0.01, saida: 0.5 },
+  "gpt-6-astra": { entrada: 10, emCache: 1, saida: 50 },
+  "gpt-5.4-mini": { entrada: 0.75, emCache: 0.075, saida: 4.5 },
+  "gpt-4.1-mini": { entrada: 0.4, emCache: 0.1, saida: 1.6 },
+};
+
 if (argumentos.filho) {
+  // Modelo GPT: o cliente da Anthropic e criado na primeira chamada, entao o adaptador troca o `fetch` antes dela.
+  const ehGpt = /^(gpt-|o\d)/.test(process.env.IA_MODELO ?? "");
+  if (ehGpt) {
+    process.env.ANTHROPIC_API_KEY ||= "adaptador-openai"; // a `chamar` exige a variavel; a chamada nunca chega la
+    const { instalarAdaptadorOpenAI } = await import("./lib/gptComoAnthropic.js");
+    const { lerChave } = await import("@/lib/riseAi/configuracao");
+    instalarAdaptadorOpenAI({ obterChave: () => lerChave("openai") });
+  }
   const { gerarDescricao, MODELO_IA, esforcoDaTarefa } = await import("@/lib/ia/anuncio");
   const { custoDaChamada } = await import("@/lib/riseAi/modelos");
+  const { cotacaoDoDolar } = await import("@/lib/cotacaoDolar");
   const { produto, ids } = await carregarProduto(argumentos.sku);
   const prompt = await carregarPrompt(argumentos.prompt);
 
@@ -114,7 +133,15 @@ if (argumentos.filho) {
   tokens.entrada = tokens.semCache + tokens.cacheLido + tokens.cacheGravado;
   // Gravar no cache custa 1,25x e ler 0,1x o preco de entrada (como a Anthropic cobra).
   const entradaPonderada = tokens.semCache + tokens.cacheGravado * 1.25 + tokens.cacheLido * 0.1;
-  const custo = custoDaChamada({ provedor: "anthropic", modelo: MODELO_IA, tokensEntrada: entradaPonderada, tokensSaida: tokens.saida });
+  let custo;
+  if (ehGpt) {
+    // Na OpenAI o raciocinio ja vem dentro de `output_tokens`, e o cache automatico lido custa o preco de "emCache".
+    const preco = PRECOS_OPENAI[MODELO_IA];
+    const usd = preco ? (tokens.semCache * preco.entrada + tokens.cacheLido * preco.emCache + tokens.saida * preco.saida) / 1e6 : null;
+    custo = usd === null ? null : { usd, brl: usd * cotacaoDoDolar().valor };
+  } else {
+    custo = custoDaChamada({ provedor: "anthropic", modelo: MODELO_IA, tokensEntrada: entradaPonderada, tokensSaida: tokens.saida });
+  }
 
   writeFileSync(
     String(argumentos.saida),
@@ -199,6 +226,28 @@ function especificacoes(texto) {
   return mapa;
 }
 
+/**
+ * O texto final com a opcao RECOMENDADA pela IA em cada quadro de divergencia, na posicao que a IA reservou (quantas linhas
+ * comuns vem antes dele; posicao alem da ultima vai para o fim, na ordem dos quadros). O texto "opcoes 1 de cada" nao tem
+ * essas linhas: Microcontrolador, Tensao, Dimensoes e Peso, quando divergem, so existem dentro dos quadros.
+ */
+function textoComRecomendadas(texto, quadros) {
+  const linhas = String(texto ?? "").split("\n");
+  const inicio = linhas.findIndex((linha) => /^Especificações técnicas:/i.test(linha));
+  if (inicio < 0 || quadros.length === 0) return texto ?? "";
+  let fim = inicio + 1;
+  while (fim < linhas.length && linhas[fim].trim()) fim += 1;
+  const comuns = linhas.slice(inicio + 1, fim);
+  const doQuadro = (quadro) => quadro.opcoes[quadro.recomendada ?? 0]?.linha;
+  const montadas = [];
+  for (let posicao = 0; posicao <= comuns.length; posicao += 1) {
+    for (const quadro of quadros.filter((q) => q.posicao === posicao)) if (doQuadro(quadro)) montadas.push(doQuadro(quadro));
+    if (posicao < comuns.length) montadas.push(comuns[posicao]);
+  }
+  for (const quadro of quadros.filter((q) => q.posicao > comuns.length)) if (doQuadro(quadro)) montadas.push(doQuadro(quadro));
+  return [...linhas.slice(0, inicio + 1), ...montadas, ...linhas.slice(fim)].join("\n");
+}
+
 const dois = (valor) => String(valor).padStart(2, "0");
 const agora = new Date();
 const carimbo = `${agora.getFullYear()}${dois(agora.getMonth() + 1)}${dois(agora.getDate())}-${dois(agora.getHours())}${dois(agora.getMinutes())}`;
@@ -242,6 +291,7 @@ for (const r of resultados) {
     md.push("");
   }
   md.push("### Texto final (opções 1 de cada)", "", "```text", r.texto ?? "", "```");
+  if (r.quadros.length > 0) md.push("", "### Texto final com as recomendadas da IA", "", "```text", textoComRecomendadas(r.texto, r.quadros), "```");
 }
 
 writeFileSync(arquivo, md.join("\n"));

@@ -201,7 +201,7 @@ npm run teste:acessos             # 124 asserções de Acessos: catálogo, resol
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
 npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio
-npm run bancada:descricao -- --sku=100101 --prompt=<arquivo|nome|sistema> --modelos=claude-opus-5-5,claude-sonnet-5-5   # gera a descrição do MESMO produto em cada modelo (um processo por modelo) e escreve o relatório lado a lado em dados/diag/. SEM `--rodar` não chama a IA (nada gasta); com `--rodar` gasta de verdade (~R$ 1 por geração no Opus 5.5)
+npm run bancada:descricao -- --sku=100101 --prompt=<arquivo|nome|sistema> --modelos=claude-opus-5-5,claude-sonnet-5-5   # gera a descrição do MESMO produto em cada modelo (um processo por modelo) e escreve o relatório lado a lado em dados/diag/. SEM `--rodar` não chama a IA (nada gasta); com `--rodar` gasta de verdade (~R$ 1 por geração no Opus 5.5). Modelo `gpt-*` (ou `o*`) vai pela chave da OpenAI cadastrada no Rise, por um adaptador só de bancada (Chat Completions; a Responses foi recusada: a chave é restrita), com o custo pela tabela da OpenAI × a cotação do sistema
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -1977,7 +1977,7 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
   pedido também tem cache (a retentativa de parágrafo longo manda a nota num bloco à parte, para o cache bater): ver
   `blocosDoSistema` e `blocosDoPedido`. `IA_MODELO` troca o modelo por PROCESSO (constante lida na carga, de propósito:
   a assinatura de `chamar` e a linha do gasto são de outra frente). **Bancada:** `npm run bancada:descricao` (ver
-  "Rodar"). A rodada paga Opus 5.5 × Sonnet 5.5 ainda NÃO foi feita; a economia estimada é de R$ 1,75 para ~R$ 0,97
+  "Rodar"). GPT na bancada (13/10/2026): `scripts/lib/gptComoAnthropic.js` troca o `fetch` global do processo filho (nada de produção o usa). Primeiro resultado no 100101: `gpt-6.1-sol` R$ 0,34 em 52 s. A rodada paga Opus 5.5 × Sonnet 5.5 ainda NÃO foi feita; a economia estimada é de R$ 1,75 para ~R$ 0,97
   (Opus 5.5 + effort low + cache), e ~R$ 0,38 se o Sonnet servir.
 - **`baseURL` fixo em `https://api.anthropic.com`.** O SDK lê `ANTHROPIC_BASE_URL` do ambiente,
   e nesta máquina essa variável existe (vem de outras ferramentas). Sem fixar, a chave da

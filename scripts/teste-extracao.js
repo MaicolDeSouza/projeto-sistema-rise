@@ -2075,6 +2075,38 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
       [dicaDaOrigem({ tipo: "cadastro", apontadas: [] }), dicaDaOrigem(null), dicaDaOrigem(undefined)], ["Este valor está no título ou no cadastro do produto.", "", ""]);
   }
 
+  // O adaptador GPT da bancada (13/10/2026): o pedido da `chamar` (formato Anthropic) vira uma chamada a API Chat Completions da
+  // OpenAI (a chave cadastrada e restrita e nao tem o escopo da API Responses), e a resposta volta no formato Anthropic.
+  // So dev: nada de producao usa.
+  {
+    const { paraChatDaOpenAI, paraMensagemDaAnthropic } = await import("./lib/gptComoAnthropic.js");
+    const corpoAnthropic = {
+      model: "gpt-6.1-sol", max_tokens: 16000, fallbacks: "default",
+      system: [{ type: "text", text: "PAPEL" }, { type: "text", text: "PROMPT", cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: [{ type: "text", text: "PEDIDO", cache_control: { type: "ephemeral" } }, { type: "text", text: "NOTA" }] }],
+      output_config: { format: { type: "json_schema", schema: { type: "object" } }, effort: "low" },
+    };
+    conferir("GPT: o pedido vira Chat Completions (system, user, JSON estrito e effort)", paraChatDaOpenAI(corpoAnthropic),
+      { model: "gpt-6.1-sol", messages: [{ role: "system", content: "PAPEL\n\nPROMPT" }, { role: "user", content: "PEDIDO\n\nNOTA" }],
+        max_completion_tokens: 16000, store: false,
+        response_format: { type: "json_schema", json_schema: { name: "resposta", strict: true, schema: { type: "object" } } }, reasoning_effort: "low" });
+    conferir("GPT: modelo que nao raciocina (gpt-4.1-mini) nao leva reasoning_effort", "reasoning_effort" in paraChatDaOpenAI({ ...corpoAnthropic, model: "gpt-4.1-mini" }), false);
+    const respostaOpenAI = {
+      id: "chatcmpl_1", model: "gpt-6.1-sol",
+      choices: [{ finish_reason: "stop", message: { role: "assistant", content: "{\"a\":1}", refusal: null } }],
+      usage: { prompt_tokens: 1000, prompt_tokens_details: { cached_tokens: 800 }, completion_tokens: 300, completion_tokens_details: { reasoning_tokens: 120 } },
+    };
+    conferir("GPT: a resposta volta no formato Anthropic, com o cache e o raciocinio separados",
+      paraMensagemDaAnthropic(respostaOpenAI, "gpt-6.1-sol"),
+      { id: "chatcmpl_1", type: "message", role: "assistant", model: "gpt-6.1-sol", content: [{ type: "text", text: "{\"a\":1}" }],
+        stop_reason: "end_turn", stop_sequence: null,
+        usage: { input_tokens: 200, cache_read_input_tokens: 800, cache_creation_input_tokens: 0, output_tokens: 300, output_tokens_details: { thinking_tokens: 120 } } });
+    conferir("GPT: resposta cortada vira max_tokens e recusa vira refusal",
+      [paraMensagemDaAnthropic({ ...respostaOpenAI, choices: [{ finish_reason: "length", message: { content: "{" } }] }, "m").stop_reason,
+        paraMensagemDaAnthropic({ ...respostaOpenAI, choices: [{ finish_reason: "stop", message: { content: null, refusal: "nao" } }] }, "m").stop_reason],
+      ["max_tokens", "refusal"]);
+  }
+
   // O pedido manda a IA apontar as referencias de cada caracteristica (so com referencias de verdade).
   conferir("o pedido com referencias pede os numeros de cada caracteristica", montarPedidoDaDescricao({ ...dados, instrucoes: "P" }).includes("campo referencias"), true);
   conferir("sem referencias o pedido nao fala de numeros", montarPedidoDaDescricao({ ...dados, referencias: "Nome: X", semReferencias: true, instrucoes: "P" }).includes("campo referencias"), false);
