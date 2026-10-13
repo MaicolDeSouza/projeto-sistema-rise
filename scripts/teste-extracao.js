@@ -2801,5 +2801,24 @@ console.log("\n— Tespo: documentos das esteiras no site —");
   conferir("tespo: site sem documento de esteira vira aviso, nunca erro", [falha.series.size, falha.avisos.length], [0, 1]);
 }
 
+// Kalatec (13/10/2026): mesmo codigo em produtos diferentes e produto montado pelo catalogo quando a pagina nao traz dado.
+console.log("\n— Kalatec: codigo repetido e produto do catalogo —");
+{
+  const { chaveSemColisao } = await import("../src/lib/coleta/linha.js");
+  const { produtoDoItemDoCatalogo } = await import("../src/lib/coleta/catalogo.js");
+  const a = { url: "https://loja.kalatec.com.br/guia-linear/guia-linear-kalatec-hr-15-300mm", nome: "KR15-300 - GUIA LINEAR" };
+  const b = { url: "https://loja.kalatec.com.br/guia-linear/guia-linear-hr-15-600mm", nome: "KR15-600 - GUIA LINEAR" };
+  conferir("chave: sem dono, a chave fica", chaveSemColisao("codigo:4560", b, undefined), "codigo:4560");
+  conferir("chave: o mesmo produto (mesmo endereco) continua com a chave, com barra no fim e sem caixa", chaveSemColisao("codigo:4560", { ...a, url: a.url.toUpperCase() + "/" }, a), "codigo:4560");
+  conferir("chave: endereco e nome diferentes = outro produto, com o ultimo trecho do endereco", chaveSemColisao("codigo:4560", b, a), "codigo:4560#guia-linear-hr-15-600mm");
+  conferir("chave: mesmo nome por dois enderecos (Usinainfo) continua um produto so", chaveSemColisao("codigo:09109", { url: "https://x.com/a/p-1", nome: "Sensor X" }, { url: "https://x.com/b/p-1", nome: "SENSOR  x" }), "codigo:09109");
+  conferir("chave: sem endereco nao separa; chave que nao e de codigo nao muda", [chaveSemColisao("codigo:1", { url: null, nome: "A" }, a), chaveSemColisao("url:https://x/y", b, a)], ["codigo:1", "url:https://x/y"]);
+  const item = { id: "107", name: "G213V- DRIVE GECKO", price: "690.00", promotional_price: "0", available: "0", brand: "Gecko Drive ", model: "G213V", ean: "", ncm: "85044029", url: { https: "https://loja.kalatec.com.br/driver/gecko-g213v" }, ProductImage: [{ https: "https://images.tcdn.com.br/img/a.jpg" }] };
+  const p = produtoDoItemDoCatalogo(item, "https://loja.kalatec.com.br");
+  conferir("catalogo: nome, preco, marca, NCM, foto e endereco do item", [p.name, p.prices.normal, p.prices.promotional, p.brand, p.ncm, p.images.length, p.url], ["G213V- DRIVE GECKO", 690, null, "Gecko Drive", "85044029", 1, "https://loja.kalatec.com.br/driver/gecko-g213v"]);
+  conferir("catalogo: sem codigo vira N/A com a origem dizendo; indisponivel = zero", [p.code, p.origens.code, p.stock.status, p.stock.quantity], ["N/A", "sem codigo no catalogo nem na pagina — marcado N/A", "OUT_OF_STOCK", 0]);
+  conferir("catalogo: preco zero fica sem preco (e o teste de validade do concorrente o descarta); sem nome ou endereco nao vira produto", [produtoDoItemDoCatalogo({ ...item, price: "0.00" }, "https://loja.kalatec.com.br").prices.normal, produtoDoItemDoCatalogo({ ...item, name: "" }, "https://x.com"), produtoDoItemDoCatalogo({ name: "X" }, "https://x.com")], [null, null, null]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

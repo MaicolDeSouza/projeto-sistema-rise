@@ -145,6 +145,58 @@ export function urlDoItem(item, origem) {
 }
 
 /**
+ * Produto montado SO com o item do catalogo publico, para a pagina que nao traz dado nenhum (Kalatec, 13/10/2026: 36 itens
+ * desativados da Tray, cuja pagina responde sem dataLayer nem microdata). Traz o que o catalogo tem: nome, preco, marca,
+ * modelo, EAN, NCM, fotos e disponibilidade. O CODIGO da loja nao esta no catalogo (so na pagina), entao o produto entra
+ * como `N/A` e a chave do banco e o endereco.
+ *
+ * @returns {object|null} null quando o item nao tem nome ou endereco
+ */
+export function produtoDoItemDoCatalogo(item, origem, { plataforma = null, coletadoEm = new Date() } = {}) {
+  const nome = typeof item?.name === "string" ? item.name.trim() : "";
+  const url = urlDoItem(item, origem);
+  if (!nome || !url) return null;
+
+  const texto = (valor) => (typeof valor === "string" && valor.trim() ? valor.trim() : null);
+  const numero = (valor) => {
+    const n = Number(valor);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const imagens = camposDoCatalogo(item, origem)?.imagens ?? [];
+  const disponivel = String(item.available) === "1";
+
+  return {
+    name: nome,
+    code: "N/A",
+    mpn: null,
+    ean: texto(item.ean),
+    brand: texto(item.brand),
+    model: texto(item.model),
+    category: null,
+    ncm: texto(item.ncm),
+    url,
+    images: imagens,
+    prices: { normal: numero(item.price), promotional: numero(item.promotional_price), reserva: null, comImpostos: null },
+    taxes: [],
+    stock: { status: disponivel ? "AVAILABLE" : "OUT_OF_STOCK", quantity: disponivel ? null : 0, aChegar: null },
+    description: null,
+    specifications: [],
+    documentos: [],
+    variants: [],
+    seo: {},
+    plataforma: plataforma ? { id: plataforma.id, nome: plataforma.nome, confianca: plataforma.confianca } : null,
+    collectedAt: coletadoEm.toISOString(),
+    origens: {
+      name: "catalogo publico da plataforma (a pagina do produto nao traz dados)",
+      code: "sem codigo no catalogo nem na pagina — marcado N/A",
+      precoNormal: "price do catalogo publico",
+      status: "available do catalogo publico",
+      ...(imagens.length ? { images: `${imagens.length} foto(s) declarada(s) no catalogo` } : {}),
+    },
+  };
+}
+
+/**
  * Os campos do catalogo que valem mais que os da pagina.
  *
  * So imagens e NCM, e por motivo medido: a lista de imagens e declarada pela

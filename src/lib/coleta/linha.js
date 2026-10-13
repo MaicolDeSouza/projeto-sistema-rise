@@ -68,6 +68,46 @@ export function chaveDoProduto(produto) {
 }
 
 /**
+ * Dois produtos DIFERENTES que a loja publica com o MESMO codigo (Kalatec, 13/10/2026): as variantes de tamanho das guias
+ * lineares (KR15-300 e KR15-600 com o codigo 4560) e dois cursos com o 4081. A chave do banco e `fonte + codigo`, e o
+ * segundo produto reescrevia o primeiro: 5 produtos disponiveis ficavam de fora.
+ *
+ * `dono` e quem ja ocupa a chave `codigo:X` (no mesmo lote ou no banco). So sao DIFERENTES quando os dois tem endereco e
+ * os enderecos divergem E o nome tambem diverge: o mesmo produto aberto por dois enderecos (a Usinainfo e o OpenCart
+ * listam o mesmo item por varios caminhos, com o mesmo nome) continua sendo um so. O de fora ganha `codigo:X#<ultimo
+ * trecho do endereco>`, e o que ja estava la fica como esta: a chave de cada um nao muda de uma varredura para a outra.
+ *
+ * @param {string} chave  a chave `codigo:...` calculada para o produto
+ * @param {{url?: string|null, nome?: string|null}} produto
+ * @param {{url?: string|null, nome?: string|null}|undefined} dono
+ */
+export function chaveSemColisao(chave, produto, dono) {
+  if (!chave?.startsWith("codigo:") || !dono) return chave;
+
+  const url = comoTexto(produto?.url);
+  const urlDoDono = comoTexto(dono.url);
+  if (!url || !urlDoDono) return chave;
+
+  const caminho = (endereco) => {
+    try {
+      const alvo = new URL(endereco);
+      return `${alvo.host.toLowerCase()}${alvo.pathname.replace(/\/+$/, "")}${alvo.search}`;
+    } catch {
+      return endereco;
+    }
+  };
+  if (caminho(url) === caminho(urlDoDono)) return chave;
+  // Nome comparado sem caixa, sem acento e com os espacos juntos ("Sensor X" e "SENSOR  x" sao o mesmo).
+  const nomeDe = (valor) => normalizar(valor ?? "").replace(/\s+/g, " ");
+  if (nomeDe(produto?.nome) === nomeDe(dono.nome)) return chave;
+
+  const trecho = decodeURIComponent(
+    new URL(url, "https://x.invalid").pathname.split("/").filter(Boolean).pop() ?? "",
+  ).toLowerCase();
+  return trecho ? `${chave}#${trecho}` : chave;
+}
+
+/**
  * JSON com as chaves em ordem alfabetica.
  *
  * O JSONB do Postgres NAO guarda a ordem das chaves: `origens` e `seo` voltam do

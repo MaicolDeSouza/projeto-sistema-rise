@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { normalizar } from "@/lib/texto";
 import { EXPRESSAO_AMPLA_COLETADO, ondeAchou, palavrasDaBusca, textoDaFicha, todasAsPalavrasOuTambem } from "@/lib/buscaAmpla";
 
-import { linhaDePreco, linhaDoProduto, mudouPreco, produtoDaLinha } from "./linha";
+import { chaveSemColisao, linhaDePreco, linhaDoProduto, mudouPreco, produtoDaLinha } from "./linha";
 
 /// Decimal do Prisma vira numero: a tela compara e formata precos.
 const numeroDoBanco = (valor) => (valor === null || valor === undefined ? null : Number(valor));
@@ -92,11 +92,36 @@ export async function gravarColeta({
   const porChave = new Map();
   let semChave = 0;
 
+  const linhasDoLote = [];
   for (const produto of produtos) {
     const linha = linhaDoProduto(produto, { origem });
     if (!linha.chave) {
       semChave++;
       continue;
+    }
+    linhasDoLote.push(linha);
+  }
+
+  // CODIGO REPETIDO EM PRODUTOS DIFERENTES (Kalatec): quem ja ocupa a chave `codigo:X` e o dono dela; o produto
+  // diferente que chega depois ganha `codigo:X#<trecho do endereco>`. O dono vem do lote (quem chegou primeiro) ou do
+  // banco. Ver `chaveSemColisao`.
+  const chavesDeCodigo = [...new Set(linhasDoLote.map((linha) => linha.chave).filter((chave) => chave.startsWith("codigo:")))];
+  const donosDoBanco = chavesDeCodigo.length
+    ? new Map(
+        (
+          await prisma.produtoColetado.findMany({
+            where: { fonteId: fonte.id, chave: { in: chavesDeCodigo } },
+            select: { chave: true, url: true, nome: true },
+          })
+        ).map((dono) => [dono.chave, dono]),
+      )
+    : new Map();
+  const donosDoLote = new Map();
+  for (const linha of linhasDoLote) {
+    const base = linha.chave;
+    linha.chave = chaveSemColisao(base, linha, donosDoLote.get(base) ?? donosDoBanco.get(base));
+    if (base.startsWith("codigo:") && linha.chave === base && !donosDoLote.has(base)) {
+      donosDoLote.set(base, { url: linha.url, nome: linha.nome });
     }
     if (!porChave.has(linha.chave)) porChave.set(linha.chave, linha);
   }

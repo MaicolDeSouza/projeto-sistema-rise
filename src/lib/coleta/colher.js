@@ -4,8 +4,8 @@ import { backendDoMagentoPwa, colherMagentoPwa } from "./magento-pwa";
 import { colherWooCommerce } from "./woocommerce";
 import { pareceListagem, pareceProduto, rastrear } from "./descobrir";
 import { ehProdutoValido, normalizarPagina } from "./normalizar";
-import { camposDoCatalogo, lerCatalogo, urlDoItem } from "./catalogo";
-import { chaveDoProduto } from "./linha";
+import { camposDoCatalogo, lerCatalogo, produtoDoItemDoCatalogo, urlDoItem } from "./catalogo";
+import { chaveDoProduto, chaveSemColisao } from "./linha";
 import {
   catalogoPublicoDe,
   identidadeDoEndereco,
@@ -327,6 +327,8 @@ export async function colherProdutos({
   const encontrados = [];
   const formatos = new Set();
   const vistas = new Set();
+  // Quem ocupou cada chave `codigo:X` nesta colheita (endereco e nome), para o mesmo codigo em produto diferente nao ser descartado.
+  const donosDaColheita = new Map();
   let visitas = 0;
 
   /*
@@ -408,9 +410,13 @@ export async function colherProdutos({
       // duas vezes na tela enquanto o banco guardava uma linha so — e a segunda
       // visita reescrevia a linha. Variacao com codigo proprio divide a URL com o
       // produto de origem, mas o codigo dela e outro, entao continua separada.
-      const chave = chaveDoProduto(produto) ?? `${produto.code ?? ""}|${produto.url}`;
+      // Mesmo codigo em produto DIFERENTE (outro endereco e outro nome) conta como outro: o banco guarda os dois (ver
+      // `chaveSemColisao`), e descartar o segundo aqui o tirava da gravacao.
+      const base = chaveDoProduto(produto) ?? `${produto.code ?? ""}|${produto.url}`;
+      const chave = chaveSemColisao(base, { url: produto.url, nome: produto.name }, donosDaColheita.get(base));
       if (vistas.has(chave)) continue;
       vistas.add(chave);
+      if (!donosDaColheita.has(base)) donosDaColheita.set(base, { url: produto.url, nome: produto.name });
       if (produto.url) {
         tratados.add(enderecoComparavel(produto.url));
         const id = identidade(produto.url);
@@ -486,6 +492,16 @@ export async function colherProdutos({
     );
     visitas++;
     guardar(tentativa.produtos, tentativa.formatos);
+
+    // A pagina nao traz dado de produto (Kalatec: os 36 itens desativados/esgotados da Tray vem sem dataLayer nem
+    // microdata), mas o catalogo publico da loja tem nome, preco, fotos e disponibilidade: o produto sai dele, com a
+    // origem dizendo isso. So vale se passar na mesma validacao dos produtos da pagina (concorrente sem preco fica de fora).
+    if (tentativa.produtos.length === 0) {
+      const doCatalogo = produtoDoItemDoCatalogo(item, alvo.origin, { plataforma });
+      if (doCatalogo && ehProdutoValido(doCatalogo, tipo)) {
+        guardar([doCatalogo], ["catalogo-publico"]);
+      }
+    }
 
     if (aoProgredir) aoProgredir({ visitadas: visitas, produtos: achados(), retomados });
   }
