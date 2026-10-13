@@ -60,6 +60,8 @@ export default async function IntegracoesPage({ searchParams }) {
     <>
       <PageHeader
         titulo="Integrações"
+        voltarPara="/configuracoes"
+        voltarRotulo="Configurações"
         descricao="Conexões com os sistemas externos. Conecte a conta, acompanhe a situação e teste o acesso quando precisar."
       />
 

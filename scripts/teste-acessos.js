@@ -348,6 +348,19 @@ try {
     conferir("acessos:admin recusa login reservado ou vazio", [await codigoDoErro(promoverAdministrador({ prisma, login: "pc", nomeAdministrador: "ZZ-AC Administrador" })), await codigoDoErro(promoverAdministrador({ prisma, login: "  ", nomeAdministrador: "ZZ-AC Administrador" }))], ["Este login não pode ser usado.", "Informe o login."]);
   }
 
+  // --- menu: Configuracoes por ultimo, Integracoes vira cartao (src/lib/blocos.js) ---
+  {
+    const { blocos, ehRotaAtiva } = await import("../src/lib/blocos.js");
+    const configuracoes = blocos.at(-1);
+    conferir("Configuracoes e o ultimo item do menu, e Integracoes saiu", [configuracoes.href, configuracoes.rotulo, blocos.some((bloco) => bloco.href === "/integracoes")], ["/configuracoes", "Configurações", false]);
+    conferir(
+      "Configuracoes acende em /configuracoes/*, em /integracoes e na tela de configuracoes do Rise AI",
+      ["/configuracoes", "/configuracoes/usuarios", "/integracoes", "/rise-ai/configuracoes", "/produtos"].map((rota) => ehRotaAtiva(rota, configuracoes.href, configuracoes.rotasExtras)),
+      [true, true, true, true, false],
+    );
+    conferir("o Rise AI continua aceso na tela de configuracoes dele, e o Painel so na raiz", [ehRotaAtiva("/rise-ai/configuracoes", "/rise-ai"), ehRotaAtiva("/", "/"), ehRotaAtiva("/produtos", "/")], [true, true, false]);
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;

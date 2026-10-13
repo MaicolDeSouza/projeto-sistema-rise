@@ -8,7 +8,7 @@ import {
   Radar,
   PieChart,
   Sparkles,
-  Cable,
+  Settings,
   ShoppingCart,
   Store,
   Wallet,
@@ -28,6 +28,8 @@ import {
  * @property {boolean} pronto  Falso enquanto o bloco ainda nao foi implementado.
  * @property {{href: string, rotulo: string, icone: React.ComponentType}[]} [filhos]
  *   Subitens em cascata sob o bloco. So um nivel: cada filho e um link simples.
+ * @property {string[]} [rotasExtras]  Rotas fora do prefixo do bloco que tambem o acendem (Configuracoes: as telas
+ *   que viraram cartao dele sem mudar de endereco).
  */
 
 /** @type {Bloco[]} */
@@ -132,13 +134,6 @@ export const blocos = [
     pronto: false,
   },
   {
-    href: "/integracoes",
-    rotulo: "Integrações",
-    icone: Cable,
-    resumo: "Conexões com Bling, Mercado Livre e Loja Integrada",
-    pronto: true,
-  },
-  {
     // Utilitarios que nao pertencem a um bloco de negocio. So icone e texto na
     // barra lateral, SEM cascata (teste de desenho pedido pelo dono em
     // 20/09/2026): as ferramentas aparecem como cartoes na propria pagina
@@ -149,9 +144,21 @@ export const blocos = [
     resumo: "Utilitários do dia a dia, como converter imagem em SVG",
     pronto: true,
   },
+  {
+    // Acessos (12/10/2026): por ultimo. Usuarios e funcoes, Integracoes (que saiu do menu) e as configuracoes do
+    // Rise AI viram CARTOES na pagina, como Ferramentas; as rotas nao mudam de lugar (sao ~50 referencias), entao
+    // as duas de fora do prefixo acendem este item pelas `rotasExtras`.
+    href: "/configuracoes",
+    rotulo: "Configurações",
+    icone: Settings,
+    resumo: "Usuários e funções, integrações e o Rise AI",
+    pronto: true,
+    rotasExtras: ["/integracoes", "/rise-ai/configuracoes"],
+  },
 ];
 
-export function ehRotaAtiva(pathname, href) {
+export function ehRotaAtiva(pathname, href, rotasExtras = []) {
+  const dentro = (base) => pathname === base || pathname.startsWith(`${base}/`);
   if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return dentro(href) || rotasExtras.some(dentro);
 }

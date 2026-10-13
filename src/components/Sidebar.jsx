@@ -42,7 +42,12 @@ function Usuario({ sessao, recolhida }) {
         {!recolhida && (
           <span className="min-w-0">
             <span className="block truncate text-sm text-white">PC de desenvolvimento</span>
-            <span className="block text-[11px] text-menu-texto/60">sem login</span>
+            {/* RISE_SIMULAR_LOGIN (Acessos): o PC mostra o Rise de outra pessoa. E estado, nao aviso: uma linha em ambar. */}
+            {sessao.simulando ? (
+              <span className="block truncate text-[11px] text-amber-300">simulando {sessao.simulando}</span>
+            ) : (
+              <span className="block text-[11px] text-menu-texto/60">sem login</span>
+            )}
           </span>
         )}
       </div>
@@ -91,7 +96,11 @@ function Usuario({ sessao, recolhida }) {
   );
 }
 
-export default function Sidebar({ sessao = null }) {
+/**
+ * `hrefsOcultos`: os blocos que a pessoa nao ve (Acessos), calculados no servidor pelo layout. Esconder aqui e so o
+ * menu: cada pagina confere de novo e responde 404.
+ */
+export default function Sidebar({ sessao = null, hrefsOcultos = [] }) {
   const pathname = usePathname();
 
   const recolhida = useSyncExternalStore(
@@ -120,17 +129,18 @@ export default function Sidebar({ sessao = null }) {
   // Bloco aparece se o proprio nome casa (com todos os filhos) ou se algum filho
   // casar (so com os que casaram): quem procura "marcas" acha Cadastros > Marcas.
   const blocosFiltrados = useMemo(() => {
+    const visiveis = blocos.filter((bloco) => !hrefsOcultos.includes(bloco.href));
     const termo = normalizar(busca);
-    if (!termo) return blocos;
+    if (!termo) return visiveis;
 
-    return blocos.flatMap((bloco) => {
+    return visiveis.flatMap((bloco) => {
       if (normalizar(bloco.rotulo).includes(termo)) return [bloco];
       const filhos = (bloco.filhos ?? []).filter((filho) =>
         normalizar(filho.rotulo).includes(termo),
       );
       return filhos.length > 0 ? [{ ...bloco, filhos }] : [];
     });
-  }, [busca]);
+  }, [busca, hrefsOcultos]);
 
   return (
     <>
@@ -237,7 +247,7 @@ export default function Sidebar({ sessao = null }) {
         */}
         <nav className="flex-1 space-y-1 overflow-y-auto px-2 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {blocosFiltrados.map((bloco) => {
-            const ativo = ehRotaAtiva(pathname, bloco.href);
+            const ativo = ehRotaAtiva(pathname, bloco.href, bloco.rotasExtras);
 
             return (
               <SidebarItem
