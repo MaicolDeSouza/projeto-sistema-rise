@@ -1819,6 +1819,66 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   conferir("faixa: numero seguido de outra palavra ('7 amperes') nao e faixa", lojasDaCaracteristica({ nome: "Tensão de Alimentação", valor: "7V a 12V", referencias: [4] }, faixas), []);
   conferir("faixa: outro numero inicial nao casa", lojasDaCaracteristica({ nome: "Tensão de Alimentação", valor: "9V a 12V", referencias: [1] }, faixas), []);
 
+  // Quadros fundidos pelo campo padronizado (pedido do dono em 13/10/2026): a IA e o motor de sinonimos dos quadros.
+  // "Tensao de entrada (recomendada)" e "Tensao de Entrada" viram UM quadro "Tensão de Alimentação".
+  {
+    const { fundirDivergencias } = await import("../src/lib/ia/decisoes.js");
+    const { identificarDivergencias: identificar } = await import("../src/lib/ia/divergencias.js");
+    const ref = (numero, nome) => ({ id: "r" + numero, nome, produto: "P" + numero, numero });
+    const divs = [
+      { id: "spec:tensaodeentradarecomendada", campo: "Tensão de entrada (recomendada)", opcoes: [
+        { valor: "7-9V", linha: "- Tensão de entrada (recomendada): 7-9V;", aviso: null, fontes: [ref(1, "Usinainfo")] },
+        { valor: "7-12v", linha: "- Tensão de entrada (recomendada): 7-12v;", aviso: null, fontes: [ref(4, "Casa da Robótica"), ref(5, "Smartkits")] } ] },
+      { id: "spec:tensaodeentrada", campo: "Tensão de Entrada", opcoes: [
+        { valor: "7-9V", linha: "- Tensão de Entrada: 7-9V;", aviso: null, fontes: [ref(3, "Eletrogate")] },
+        { valor: "5-12V", linha: "- Tensão de Entrada: 5-12V;", aviso: null, fontes: [ref(11, "Piscaled")] } ] },
+      { id: "spec:entradasanalogicas", campo: "Entradas analógicas", opcoes: [
+        { valor: "6", linha: "- Entradas analógicas: 6;", aviso: null, fontes: [ref(6, "Easytronics")] },
+        { valor: "6 (A0-A5)", linha: "- Entradas analógicas: 6 (A0-A5);", aviso: null, fontes: [ref(7, "Mamute"), ref(10, "4hobby")] } ] },
+    ];
+    const decisoes = [
+      { id: "spec:tensaodeentradarecomendada", opcao: 1, motivo: "3 lojas", campo: "Tensão de Alimentação",
+        ids: ["spec:tensaodeentradarecomendada", "spec:tensaodeentrada"], valor: "7V a 12V por VIN ou jack",
+        iguais: [[{ id: "spec:tensaodeentradarecomendada", opcao: 0 }, { id: "spec:tensaodeentrada", opcao: 0 }]] },
+      { id: "spec:entradasanalogicas", opcao: 1, motivo: "mesmo valor", campo: "Entradas Analógicas", ids: ["spec:entradasanalogicas"],
+        valor: "6 (A0-A5)", iguais: [[{ id: "spec:entradasanalogicas", opcao: 0 }, { id: "spec:entradasanalogicas", opcao: 1 }]] },
+    ];
+    const fundido = fundirDivergencias(divs, decisoes);
+    conferir("fusao: dois quadros do mesmo campo viram um, com o nome do prompt",
+      [fundido.quadros.length, fundido.quadros[0].campo, fundido.quadros[0].ids],
+      [1, "Tensão de Alimentação", ["spec:tensaodeentradarecomendada", "spec:tensaodeentrada"]]);
+    conferir("fusao: opcoes unidas (iguais somam as lojas) e linhas com o nome do prompt",
+      fundido.quadros[0].opcoes.map((o) => [o.linha, o.fontes.map((f) => f.nome)]),
+      [["- Tensão de Alimentação: 7-9V;", ["Usinainfo", "Eletrogate"]],
+        ["- Tensão de Alimentação: 7V a 12V por VIN ou jack;", ["Casa da Robótica", "Smartkits"]],
+        ["- Tensão de Alimentação: 5-12V;", ["Piscaled"]]]);
+    conferir("fusao: a escolhida e a recomendada, com o valor padronizado e o da loja guardado",
+      [fundido.quadros[0].recomendada, fundido.quadros[0].opcoes[1].valorDaLoja, fundido.quadros[0].motivo], [1, "7-12v", "3 lojas"]);
+    conferir("fusao: quadro em que tudo e igual vira linha resolvida, com lojas e numeros", fundido.resolvidas,
+      [{ campo: "Entradas Analógicas", valor: "6 (A0-A5)", linha: "- Entradas Analógicas: 6 (A0-A5);",
+        fontes: [ref(6, "Easytronics"), ref(7, "Mamute"), ref(10, "4hobby")], referencias: [6, 7, 10] }]);
+    conferir("fusao: decisao no formato antigo deixa o quadro como esta",
+      fundirDivergencias(divs.slice(0, 1), [{ id: "spec:tensaodeentradarecomendada", opcao: 0, motivo: "m" }])
+        .quadros.map((q) => [q.campo, q.recomendada, q.opcoes[0].linha]),
+      [["Tensão de entrada (recomendada)", 0, "- Tensão de entrada (recomendada): 7-9V;"]]);
+    conferir("fusao: id desconhecido e opcao fora da lista sao ignorados; sem decisao valida, recomenda a de mais lojas",
+      fundirDivergencias(divs.slice(0, 1), [
+        { id: "spec:nada", opcao: 0, motivo: "", campo: "X", ids: ["spec:nada"], valor: null, iguais: [] },
+        { id: "spec:tensaodeentradarecomendada", opcao: 9, motivo: "", campo: "Tensão de Alimentação", ids: [], valor: null,
+          iguais: [[{ id: "spec:tensaodeentradarecomendada", opcao: 7 }]] },
+      ]).quadros.map((q) => [q.campo, q.recomendada, q.opcoes.length]),
+      [["Tensão de Alimentação", 1, 2]]);
+    conferir("fusao: id reivindicado por duas decisoes fica com a primeira",
+      fundirDivergencias(divs.slice(0, 2), [
+        { id: "spec:tensaodeentradarecomendada", opcao: 1, motivo: "", campo: "A", ids: ["spec:tensaodeentradarecomendada", "spec:tensaodeentrada"], valor: null, iguais: [] },
+        { id: "spec:tensaodeentrada", opcao: 0, motivo: "", campo: "B", ids: ["spec:tensaodeentrada"], valor: null, iguais: [] },
+      ]).quadros.map((q) => q.campo), ["A"]);
+    conferir("fusao: a numeracao das fontes vem de identificarDivergencias", identificar([
+      { id: "a", nome: "X", descricao: "", especificacoes: [{ nome: "Clock", valor: "16MHz" }], fonte: { nome: "L1" } },
+      { id: "b", nome: "Y", descricao: "", especificacoes: [{ nome: "Clock", valor: "20MHz" }], fonte: { nome: "L2" } },
+    ])[0].opcoes.map((o) => o.fontes[0].numero), [1, 2]);
+  }
+
   // Editar uma linha comum das especificacoes (pedido do dono em 10/10/2026): volta no formato "- Nome: valor;".
   const { substituirEspecificacao } = await import("../src/lib/ia/revisaoDescricao.js");
   const base = "TITULO\n\nEspecificações técnicas:\n- Clock: 16 MHz;\n- Tensão: 5V;\n\nGarantia:\n- 90 dias;";

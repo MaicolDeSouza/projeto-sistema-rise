@@ -5,7 +5,7 @@ const chave = (texto) => normalizar(texto).replace(/[^a-z0-9]/g, "");
 const ehMedida = /^(peso|dimens|tamanho|medidas|altura|largura|comprimento|profundidade|espessura)/i;
 const ROTULOS_DE_CATALOGO = new Set(["modelo", "marca"]);
 
-function identidadeDoValor(campo, valor) {
+export function identidadeDoValor(campo, valor) {
   const rotulo = chave(campo);
   const texto = normalizar(valor).replace(/,/g, ".");
   // O mesmo numero com explicacao adicional nao e uma divergencia. A ficha
@@ -126,7 +126,8 @@ export function identificarDivergencias(referencias) {
     }
     const opcao = grupo.opcoes.get(identidade);
     if (!opcao.fontes.some((fonte) => fonte.id === referencia.id)) {
-      opcao.fontes.push({ id: referencia.id, nome: referencia.fonte.nome, produto: referencia.nome });
+      // `numero` e o "Referência N" que a IA ve no pedido: o nome da loja nao vai para ela, so o numero.
+      opcao.fontes.push({ id: referencia.id, nome: referencia.fonte.nome, produto: referencia.nome, numero: referencias.indexOf(referencia) + 1 });
     }
   }
 
