@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { salvarConfiguracaoAcao } from "@/app/rise-ai/configuracoes/acoes";
+import { salvarAbaAcao } from "@/app/rise-ai/configuracoes/acoes";
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import Card from "@/components/ui/Card";
 
@@ -94,7 +94,7 @@ export default function FormularioConfiguracao({ inicial, provedores, promptPadr
     setAviso(null);
     setErros({});
     iniciar(async () => {
-      const resultado = await salvarConfiguracaoAcao(dados);
+      const resultado = await salvarAbaAcao("modelos", dados);
       if (!resultado.ok) {
         setErros(resultado.erros ?? {});
         return setAviso({ tipo: "erro", texto: resultado.erro });

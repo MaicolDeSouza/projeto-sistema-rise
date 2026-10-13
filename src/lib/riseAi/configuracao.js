@@ -137,18 +137,27 @@ export async function lerConfiguracao(ambiente = ambienteAtual()) {
  * Grava só o que mudou. Valida o RESULTADO da mesclagem: valor inválido volta como `{ ok: false, erros }` e nada é
  * gravado.
  *
+ * `auditoria` roda DENTRO da mesma transação da gravação (a trilha de auditoria e o histórico dos prompts entram juntos
+ * com a mudança, ou nenhum dos dois), recebendo a configuração que valia antes e a que vale depois (as duas com o padrão
+ * de fábrica por baixo).
+ *
  * @param {object} parcial
- * @param {{ usuario: string, ambiente?: "pc"|"vps" }} opcoes
+ * @param {{ usuario: string, ambiente?: "pc"|"vps", auditoria?: (tx: object, quadro: { antes: object, depois: object }) => Promise<void> }} opcoes
  */
-export async function gravarConfiguracao(parcial, { usuario, ambiente = ambienteAtual() }) {
-  const salvo = mesclar(await lerSalvo(), parcial);
-  const validacao = validarConfiguracao(mesclar(configuracaoPadrao(ambiente), salvo));
+export async function gravarConfiguracao(parcial, { usuario, ambiente = ambienteAtual(), auditoria = null }) {
+  const salvoAntes = await lerSalvo();
+  const salvo = mesclar(salvoAntes, parcial);
+  const padrao = configuracaoPadrao(ambiente);
+  const validacao = validarConfiguracao(mesclar(padrao, salvo));
   if (!validacao.ok) return validacao;
 
-  await prisma.configuracaoIA.upsert({
-    where: { id: "unica" },
-    update: { dados: salvo, atualizadoPor: usuario },
-    create: { id: "unica", dados: salvo, atualizadoPor: usuario },
+  await prisma.$transaction(async (tx) => {
+    await tx.configuracaoIA.upsert({
+      where: { id: "unica" },
+      update: { dados: salvo, atualizadoPor: usuario },
+      create: { id: "unica", dados: salvo, atualizadoPor: usuario },
+    });
+    if (auditoria) await auditoria(tx, { antes: mesclar(padrao, salvoAntes), depois: validacao.dados });
   });
   return { ok: true, dados: validacao.dados };
 }

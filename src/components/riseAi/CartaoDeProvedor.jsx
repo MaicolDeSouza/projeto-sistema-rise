@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, Plug } from "lucide-react";
 
-import { habilitarModelosAcao, removerChaveAcao, salvarChaveAcao, salvarConfiguracaoAcao, testarProvedorAcao } from "@/app/rise-ai/configuracoes/acoes";
+import { habilitarModelosAcao, removerChaveAcao, salvarAbaAcao, salvarChaveAcao, testarProvedorAcao } from "@/app/rise-ai/configuracoes/acoes";
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -56,7 +56,7 @@ export default function CartaoDeProvedor({ provedor }) {
   function salvarEndpoint() {
     const dados = new FormData();
     dados.set(`endpoint.${provedor.id}`, endpoint);
-    executar(() => salvarConfiguracaoAcao(dados), () => setAviso({ tipo: "ok", texto: "Endereço salvo." }));
+    executar(() => salvarAbaAcao("modelos", dados), () => setAviso({ tipo: "ok", texto: "Endereço salvo." }));
   }
 
   function guardarChave(evento) {

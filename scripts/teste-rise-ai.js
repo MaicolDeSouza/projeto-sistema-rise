@@ -33,6 +33,9 @@ function conferir(nome, obtido, esperado) {
   );
 }
 
+/** O JSONB do Postgres devolve as chaves de um objeto em outra ordem (as curtas primeiro): compara sem depender dela. */
+const ord = (valor) => (valor === undefined ? valor : JSON.parse(JSON.stringify(valor, (_, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x))));
+
 /** O que e do dono e os testes mexem: lido antes e devolvido no fim (a linha unica da configuracao e a Conexao OLLAMA). */
 const guardados = {
   configuracao: await prisma.configuracaoIA.findUnique({ where: { id: "unica" } }),
@@ -40,6 +43,8 @@ const guardados = {
   // A chave real da OpenAI do dono (cadastrada em 13/10/2026): o teste de chaves assume "sem Conexao", entao ela sai do
   // caminho e volta no fim.
   openai: await prisma.conexao.findUnique({ where: { servico: "OPENAI" } }),
+  // As versoes dos dois prompts: as abas gravam em "interno" e "cliente", e o limite de 20 poderia apagar uma do dono.
+  versoes: await prisma.versaoDePromptIA.findMany({ where: { canal: { in: ["interno", "cliente"] } } }),
 };
 
 async function devolverOQueEraDoDono() {
@@ -59,6 +64,8 @@ async function devolverOQueEraDoDono() {
     const { id, ...resto } = guardados.openai;
     await prisma.conexao.upsert({ where: { servico: "OPENAI" }, update: resto, create: guardados.openai });
   }
+  await prisma.versaoDePromptIA.deleteMany({ where: { canal: { in: ["interno", "cliente"] } } });
+  if (guardados.versoes.length) await prisma.versaoDePromptIA.createMany({ data: guardados.versoes });
 }
 
 /** Apaga tudo o que os testes criam. Roda no comeco (resto de uma execucao que caiu) e no fim. */
@@ -67,6 +74,7 @@ async function limpar() {
   await prisma.gastoIA.deleteMany({ where: { referencia: { startsWith: "ZZ-IA-" } } });
   await prisma.reservaDeGastoIA.deleteMany({ where: { dono: { startsWith: "ZZ-IA-" } } });
   await prisma.versaoDePromptIA.deleteMany({ where: { canal: { startsWith: "zz-ia-" } } });
+  await prisma.auditoriaDeAcesso.deleteMany({ where: { quem: { startsWith: "ZZ-IA-" } } });
   await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "ZZ-IA-" } } });
   await prisma.conhecimentoIA.deleteMany({ where: { assunto: { startsWith: "ZZ-IA" } } });
   // A peca de um kit e RESTRICT: o kit sai antes (e a composicao dele), senao o produto da peca nao se apaga.
@@ -1305,6 +1313,7 @@ try {
       const { readFileSync, existsSync, readdirSync, statSync } = await import("node:fs");
       const { join } = await import("node:path");
       const { recursoPorId, validarNivel } = await import("../src/lib/acessos/recursos.js");
+      const { RECURSO_DA_ABA } = await import("../src/lib/riseAi/abasDeConfiguracao.js");
       const { fileURLToPath } = await import("node:url");
       const raiz = fileURLToPath(new URL("../", import.meta.url));
       const ler = (caminho) => readFileSync(join(raiz, caminho), "utf8").replace(/\r\n/g, "\n");
@@ -1313,8 +1322,11 @@ try {
         const acoes = acoesDe(ler(arquivo));
         conferir(`${arquivo}: tem as acoes esperadas`, acoes.length >= minimo, true);
         const fora = acoes.filter(([, , corpo]) => {
-          const casou = /^\s*return executarComAcesso\("([\w.]+)", "(\w+)",/.exec(corpo);
-          return !casou || !recursoPorId(casou[1]) || !validarNivel(casou[1], casou[2]);
+          // O recurso e um literal do catalogo ou, na acao que salva uma aba, o da aba (`RECURSO_DA_ABA[aba]`): nesse caso as quatro valem.
+          const casou = /^\s*return executarComAcesso\(("[\w.]+"|RECURSO_DA_ABA\[aba\]), "(\w+)",/.exec(corpo);
+          if (!casou) return true;
+          const recursos = casou[1] === "RECURSO_DA_ABA[aba]" ? Object.values(RECURSO_DA_ABA) : [casou[1].slice(1, -1)];
+          return recursos.some((id) => !recursoPorId(id) || !validarNivel(id, casou[2]));
         });
         conferir(`${arquivo}: toda acao passa por executarComAcesso com recurso e nivel do catalogo`, fora.map(([, nome]) => nome), []);
       }
@@ -2443,8 +2455,6 @@ try {
     const { configuracaoPadrao } = await import("../src/lib/riseAi/configuracao.js");
     const { criarLimitador } = await import("../src/lib/riseAi/limite.js");
     const { criarProvedorFalso } = await import("./lib/provedorFalso.js");
-    // O JSONB do Postgres devolve as chaves de um objeto em outra ordem (as curtas primeiro): compara sem depender dela.
-    const ord = (valor) => (valor === undefined ? valor : JSON.parse(JSON.stringify(valor, (_, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x))));
 
     // --- a chamada a Anthropic, com um SDK falso ---
     const sdkFalso = (respostas) => {
@@ -2555,6 +2565,94 @@ try {
     const modoCliente = criarProvedorFalso({ roteiro: [{ texto: "ok" }] });
     await responder({ texto: "oi", usuario, modo: "cliente", dependencias: deps(modoCliente) });
     conferir("laco: modo cliente nunca recebe a internet, mesmo ligada", modoCliente.pedidos[0].ferramentas.some((f) => f.nome === "pesquisarNaInternet"), false);
+  }
+
+  // -------------------------------------------------------------------------
+  // Entrega A, Tarefa 15 — as quatro abas de configuracao (lib, auditoria e versoes dos prompts)
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: abas de configuracao");
+  {
+    const { ABAS, RECURSO_DA_ABA, salvarAba } = await import("../src/lib/riseAi/abasDeConfiguracao.js");
+    const { registrarVersaoDePrompt, versaoAnterior } = await import("../src/lib/riseAi/versoesDePrompt.js");
+    const { gravarConfiguracao, lerConfiguracao } = await import("../src/lib/riseAi/configuracao.js");
+    const { ErroDeUso } = await import("../src/lib/riseAi/erros.js");
+    const quem = "ZZ-IA-ABAS";
+    const formulario = (campos) => {
+      const dados = new FormData();
+      for (const [nome, valor] of Object.entries(campos)) dados.set(nome, valor);
+      return dados;
+    };
+    const recursosDasAbas = Object.values(RECURSO_DA_ABA);
+    const podeTudo = (id) => recursosDasAbas.includes(id) || id === "riseAi.configuracoes.promptCliente";
+    const semPromptCliente = (id) => recursosDasAbas.includes(id);
+    const auditorias = (oQue) => prisma.auditoriaDeAcesso.findMany({ where: { quem, oQue }, orderBy: { quando: "asc" } });
+
+    conferir("as abas e os recursos de Acessos de cada uma", [ABAS, RECURSO_DA_ABA], [
+      ["modelos", "orcamentos", "canais", "atendimento"],
+      { modelos: "riseAi.configuracoes.modelos", orcamentos: "riseAi.configuracoes.orcamentos", canais: "riseAi.configuracoes.canais", atendimento: "riseAi.configuracoes.atendimento" },
+    ]);
+
+    // Estado conhecido: o que o dono tem fica guardado e volta no fim.
+    await prisma.configuracaoIA.deleteMany({ where: { id: "unica" } });
+    await gravarConfiguracao({ padrao: { provedor: "ollama", modelo: "zz-modelo" }, internet: false }, { usuario: quem });
+
+    // --- orcamentos ---
+    const r1 = await salvarAba("orcamentos", formulario({ orcamentoClientesBrl: "80", orcamentoInternoBrl: "45,50", internet: "true", padraoModelo: "outro", promptInterno: "nao e desta aba" }), { usuario: quem, pode: podeTudo });
+    const c1 = await lerConfiguracao();
+    conferir("orcamentos grava so os orcamentos (o padrao, a internet e os prompts ficam)", [r1.ok, ord(c1.orcamentos), c1.internet, ord(c1.padrao), c1.prompts.interno], [true, ord({ clientesBrl: 80, internoBrl: 45.5 }), false, ord({ provedor: "ollama", modelo: "zz-modelo" }), null]);
+    const a1 = await auditorias("rise-ai.orcamentos");
+    conferir("auditoria do orcamento: antes e depois so dos campos tocados, na tabela certa", [a1.length, a1[0]?.alvo, ord(a1[0]?.antes), ord(a1[0]?.depois)], [1, "ConfiguracaoIA", ord({ clientesBrl: 70, internoBrl: 30 }), ord({ clientesBrl: 80, internoBrl: 45.5 })]);
+
+    const invalido = await salvarAba("orcamentos", formulario({ orcamentoInternoBrl: "-1" }), { usuario: quem, pode: podeTudo });
+    conferir("orcamento negativo: erro no campo, nada gravado e nada auditado", [invalido.ok, typeof invalido.erros?.["orcamentos.internoBrl"], ord((await lerConfiguracao()).orcamentos), (await auditorias("rise-ai.orcamentos")).length], [false, "string", ord({ clientesBrl: 80, internoBrl: 45.5 }), 1]);
+    const igual = await salvarAba("orcamentos", formulario({ orcamentoClientesBrl: "80", orcamentoInternoBrl: "45,50" }), { usuario: quem, pode: podeTudo });
+    conferir("salvar os mesmos valores nao gera linha de auditoria", [igual.ok, (await auditorias("rise-ai.orcamentos")).length], [true, 1]);
+
+    // --- canais ---
+    const r2 = await salvarAba("canais", formulario({ internet: "true" }), { usuario: quem, pode: podeTudo });
+    const a2 = await auditorias("rise-ai.internet");
+    conferir("canais grava a internet e audita", [r2.ok, (await lerConfiguracao()).internet, a2.length, ord(a2[0]?.antes), ord(a2[0]?.depois)], [true, true, 1, ord({ internet: false }), ord({ internet: true })]);
+    const talvez = await salvarAba("canais", formulario({ internet: "talvez" }), { usuario: quem, pode: podeTudo });
+    conferir("internet com valor estranho: erro no campo e nada muda", [talvez.ok, typeof talvez.erros?.internet, (await lerConfiguracao()).internet], [false, "string", true]);
+
+    // --- atendimento: os dois prompts e as versoes ---
+    const p1 = await salvarAba("atendimento", formulario({ promptInterno: "Seja direto." }), { usuario: quem, pode: podeTudo });
+    conferir("o prompt interno e gravado e a primeira versao nao tem anterior", [p1.ok, (await lerConfiguracao()).prompts.interno, await versaoAnterior("interno")], [true, "Seja direto.", null]);
+    const p2 = await salvarAba("atendimento", formulario({ promptInterno: "Seja direto e curto." }), { usuario: quem, pode: podeTudo });
+    const anterior = await versaoAnterior("interno");
+    conferir("depois do segundo salvamento a versao anterior e a primeira, com quem e quando", [p2.ok, anterior?.texto, anterior?.alteradoPor, anterior?.alteradoEm instanceof Date], [true, "Seja direto.", quem, true]);
+    const ap = await auditorias("rise-ai.prompt");
+    conferir("a auditoria do prompt leva so o canal e o tamanho, nunca o texto", [ap.length, ord(ap[1]?.antes), ord(ap[1]?.depois), JSON.stringify(ap).includes("Seja direto")], [2, ord({ canal: "interno", tamanho: 12 }), ord({ canal: "interno", tamanho: 20 }), false]);
+    await salvarAba("atendimento", formulario({ promptInterno: "Seja direto e curto." }), { usuario: quem, pode: podeTudo });
+    conferir("prompt igual ao salvo: nenhuma versao nova", await prisma.versaoDePromptIA.count({ where: { canal: "interno" } }), 2);
+
+    const semPermissao = await salvarAba("atendimento", formulario({ promptInterno: "Nao deve gravar", promptCliente: "Tom formal." }), { usuario: quem, pode: semPromptCliente });
+    const c2 = await lerConfiguracao();
+    conferir(
+      "prompt do cliente sem a permissao: recusado e NADA daquela aba e gravado",
+      [semPermissao.ok, semPermissao.erro, c2.prompts.interno, c2.prompts.atendimento, await prisma.versaoDePromptIA.count({ where: { canal: "cliente" } })],
+      [false, "Só o administrador altera o prompt das respostas ao cliente.", "Seja direto e curto.", null, 0],
+    );
+    const comPermissao = await salvarAba("atendimento", formulario({ promptCliente: "Tom formal." }), { usuario: quem, pode: podeTudo });
+    conferir("prompt do cliente com a permissao: grava e guarda a versao", [comPermissao.ok, (await lerConfiguracao()).prompts.atendimento, (await prisma.versaoDePromptIA.findMany({ where: { canal: "cliente" } })).map((v) => v.texto)], [true, "Tom formal.", ["Tom formal."]]);
+
+    // --- as 20 versoes mais recentes por canal ---
+    for (let i = 1; i <= 21; i++) await registrarVersaoDePrompt("zz-ia-cap", "v" + i, quem);
+    const guardadas = (await prisma.versaoDePromptIA.findMany({ where: { canal: "zz-ia-cap" } })).map((v) => v.texto);
+    conferir("a 21a versao apaga a mais antiga", [guardadas.length, guardadas.includes("v1"), guardadas.includes("v2"), guardadas.includes("v21")], [20, false, true, true]);
+    conferir("a anterior de um canal com 20 versoes e a 20a", (await versaoAnterior("zz-ia-cap"))?.texto, "v20");
+
+    // --- recusas ---
+    conferir("aba que nao existe: erro de uso", await salvarAba("inexistente", formulario({}), { usuario: quem, pode: podeTudo }).then(() => "nao lancou", (erro) => erro instanceof ErroDeUso), true);
+    conferir("nada para salvar: erro de uso", await salvarAba("canais", formulario({ outraCoisa: "x" }), { usuario: quem, pode: podeTudo }).then(() => "nao lancou", (erro) => erro instanceof ErroDeUso), true);
+    const antesDeRecusar = ord(await lerConfiguracao());
+    const semAba = await salvarAba("canais", formulario({ internet: "false" }), { usuario: quem, pode: (id) => id !== "riseAi.configuracoes.canais" });
+    conferir("sem o recurso da aba em editar: recusado e nada muda", [semAba.ok, ord(await lerConfiguracao())], [false, antesDeRecusar]);
+
+    // --- salvar Modelos nao mexe no resto ---
+    const modelos = await salvarAba("modelos", formulario({ padraoProvedor: "ollama", padraoModelo: "zz-modelo-2", orcamentoInternoBrl: "1", internet: "false", promptInterno: "nao deve gravar" }), { usuario: quem, pode: podeTudo });
+    const c3 = await lerConfiguracao();
+    conferir("salvar Modelos nao mexe em orcamentos, internet nem prompts", [modelos.ok, c3.padrao.modelo, ord(c3.orcamentos), c3.internet, c3.prompts.interno], [true, "zz-modelo-2", ord({ clientesBrl: 80, internoBrl: 45.5 }), true, "Seja direto e curto."]);
   }
 
   // ---- novos blocos entram antes desta linha ----
