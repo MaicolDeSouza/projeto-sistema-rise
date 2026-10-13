@@ -5,6 +5,18 @@ import zlib from "node:zlib";
 import { lookupPublico, validarEnderecoDeBusca } from "../redePublica.js";
 
 /**
+ * Os dois nomes sao do MESMO site? So o prefixo `www.` pode diferir (neoyama.com.br <-> www.neoyama.com.br,
+ * karimex.com.br <-> www.karimex.com.br, 12/10/2026): o dono cadastra um e o servidor da loja redireciona para o
+ * outro, e o teste dizia "Redirecionou para outro dominio". Qualquer outro nome continua sendo outro dominio
+ * (`loja.com.br.atacante.com`, `outra.com.br`). Pura.
+ */
+export function mesmoSiteSemWww(hostA, hostB) {
+  const base = (host) => String(host ?? "").toLowerCase().replace(/^www\./, "");
+  const a = base(hostA);
+  return a !== "" && a === base(hostB);
+}
+
+/**
  * Cliente HTTP da coleta, sobre `node:http`/`node:https` — e NAO sobre `fetch`.
  *
  * POR QUE NAO FETCH (16/09/2026). O `fetch` do Node e o `undici`, e o undici
@@ -244,7 +256,7 @@ export async function obter(
       if (saltos >= MAXIMO_REDIRECIONAMENTOS) throw new Error("Redirecionamentos demais");
 
       const proxima = new URL(local, url);
-      if (mesmoDominio && proxima.hostname !== hostOriginal) {
+      if (mesmoDominio && !mesmoSiteSemWww(proxima.hostname, hostOriginal)) {
         return {
           status,
           cabecalhos: cabecalhosDe(resposta),

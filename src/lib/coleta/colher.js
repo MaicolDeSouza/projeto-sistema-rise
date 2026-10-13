@@ -1,4 +1,5 @@
 import { buscarPagina, podeVisitar, ritmoPedido, sitemapsDeclarados } from "./buscar";
+import { mesmoSiteSemWww } from "./http";
 import { backendDoMagentoPwa, colherMagentoPwa } from "./magento-pwa";
 import { colherWooCommerce } from "./woocommerce";
 import { pareceListagem, pareceProduto, rastrear } from "./descobrir";
@@ -161,6 +162,19 @@ export async function colherProdutos({
     };
   }
   passos.push(passo("Site acessível", true));
+
+  // A loja redireciona o dominio para o `www.` (ou o contrario): neoyama.com.br e karimex.com.br, 12/10/2026. Daqui em
+  // diante o ENDERECO CANONICO e o do destino, porque e com ele que os links, o sitemap e o robots.txt da loja
+  // aparecem escritos; a regra de "mesma origem" da navegacao continua estrita (so este salto, e so o `www.`).
+  try {
+    const final = home.urlFinal ? new URL(home.urlFinal) : null;
+    if (final && final.hostname !== alvo.hostname && mesmoSiteSemWww(final.hostname, alvo.hostname) && final.protocol === alvo.protocol) {
+      alvo = new URL(final.origin + (alvo.pathname === "/" ? "/" : alvo.pathname) + alvo.search);
+      passos.push(passo("Endereço canônico", true, `a loja redireciona para ${final.hostname}`));
+    }
+  } catch {
+    // Sem endereco final legivel: segue com o cadastrado.
+  }
 
   // PRIMEIRO PASSO DA ANALISE: quem serve esta loja.
   //

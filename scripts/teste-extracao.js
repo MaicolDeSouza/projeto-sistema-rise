@@ -2422,5 +2422,14 @@ console.log("\n— Tray (Kalatec): galeria com id pequeno e ficha com nome no ti
   conferir("kalatec: ficha = tabela + lista da descricao com titulo com nome", k.specifications.map((l) => l.nome), ["Modelo", "Marca", null, "Código Kalatec", "Flange", "Torque Estático Bipolar", "Quantidade de Fios"]);
 }
 
+// Neoyama e Karimex (12/10/2026): cadastrada sem www e redirecionada para ele (ou o contrario) nao e outro dominio.
+console.log("\n— redirecionamento entre o dominio e o www —");
+{
+  const { mesmoSiteSemWww } = await import("../src/lib/coleta/http.js");
+  const { mesmaOrigem } = await import("../src/lib/coleta/descobrir.js");
+  conferir("www: apex e www sao o mesmo site, nos dois sentidos, sem caixa", [mesmoSiteSemWww("neoyama.com.br", "www.neoyama.com.br"), mesmoSiteSemWww("WWW.Karimex.com.br", "karimex.com.br"), mesmoSiteSemWww("loja.com.br", "loja.com.br")], [true, true, true]);
+  conferir("www: outro nome continua outro dominio (subdominio, sufixo, outro site, vazio)", [mesmoSiteSemWww("loja.com.br", "loja.com.br.atacante.com"), mesmoSiteSemWww("loja.kalatec.com.br", "www.kalatec.com.br"), mesmoSiteSemWww("a.com.br", "b.com.br"), mesmoSiteSemWww("", "")], [false, false, false, false]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
