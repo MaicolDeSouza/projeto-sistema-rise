@@ -148,6 +148,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
 | Rise AI | Assistente de atendimento (Entrega 1, pronta e **ainda sem deploy**): a equipe cola a pergunta de um cliente e recebe o texto pronto para copiar, com preço, estoque e link da loja. Feito para modelo local (LM Studio) como padrão e a API da Anthropic como reserva, mas o modelo local não serve no notebook do dono (medido em 11/10/2026): na prática a Anthropic é o Padrão; conversas guardadas; 👎 vira sugestão de correção que o **dono** aprova; Revisão do dia, Configurações e Consumo para administradores. Ver "Rise AI (Entrega 1)" |
+| Configurações (Acessos) | Lançamento 1 pronto e **sem deploy** (12/10/2026): usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. Ver "Acessos (lançamento 1)" |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
 **A publicação nunca foi ligada.** `ML_PUBLICACAO`, `BLING_ESCRITA` e `LI_ESCRITA` estão em `false`, e
@@ -195,7 +196,9 @@ npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 685 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
-npm run teste:rise-ai             # 379 asserções do Rise AI (Entrega 1): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo, configuração, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
+npm run teste:rise-ai             # 383 asserções do Rise AI (Entrega 1): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo, configuração, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
+npm run teste:acessos             # 124 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz e o guarda estático de src/app. Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
+npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
 npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio
 ```
@@ -3502,7 +3505,7 @@ Studio ficou instalado e desligado (não inicia com o Windows). Modelo local só
 esconder em vez de apagar); `effort: "low"` fixo no adaptador da Anthropic; o formulário de Configurações guarda valores
 iguais ao padrão de fábrica ao salvar (uma melhoria futura de um limite do código não chega a quem já salvou).
 
-### Fase 2 (specs aprovadas em 12/10/2026, NADA construído ainda)
+### Fase 2 (specs aprovadas em 12/10/2026; Acessos lançamento 1 pronto, sem deploy)
 
 Brainstorming de 12/10/2026 a partir de um tutorial de agente de WhatsApp. **Duas specs aprovadas pelo dono**, depois de
 uma revisão de segurança e uma de arquitetura (consolidado e decisões em
@@ -3520,10 +3523,78 @@ uma revisão de segurança e uma de arquitetura (consolidado e decisões em
   (revisão pendente → **Conferido** → rascunhos ML/LI → o dono publica), métricas quando o Pedidos existir. GPT-4.1 mini
   principal, Haiku 5.5 reserva. Chat na loja da LI descartado.
 - **Ordem confirmada:** subir a Entrega 1 (com a Anthropic como Padrão) → Acessos lançamento 1 → A (chat) → C1 (avisos
-  Telegram) → B (WhatsApp) → C2 (bot) → E (produto/anúncio) → D (métricas). **Pré-requisitos do dono:** conta/chave da
+  Telegram) → Acessos lançamento 2 (é ele que dá login à Andrea) → B (WhatsApp) → C2 (bot) → E (produto/anúncio) → D (métricas). **Pré-requisitos do dono:** conta/chave da
   OpenAI; 2.º fator do Tinyauth antes de C e B; dump do backup criptografado antes de B; ok para os contêineres `ia` e
   `evolution` e as redes separadas; desligar as mensagens automáticas do WhatsApp Business na virada.
-- **Próximo passo:** plano do lançamento 1 de Acessos com `superpowers:writing-plans`, execução inline, uma frente só.
+- **Revisão 2 das specs** (12/10/2026, à noite): telas refeitas com o plugin UI/UX e 33 ajustes de segurança e código, consolidados em
+  `docs/superpowers/investigacoes/2026-10-12-revisao-specs-rise-ia-acessos.md`.
+- **Acessos lançamento 1 PRONTO em 12/10/2026, sem deploy** (seção "Acessos (lançamento 1)", abaixo). **Próximo passo:** o
+  "sobe" da Entrega 1 junto com o lançamento 1 (duas variáveis novas no `.env` da VPS), depois o plano da Entrega A.
+
+## Acessos (lançamento 1, 12/10/2026)
+
+Pedido do dono na fase 2 do Rise AI. Spec: `docs/superpowers/specs/2026-10-12-acessos-design.md` (revisão 2); plano (18 tarefas,
+executado inline na `main`): `docs/superpowers/plans/2026-10-12-acessos-lancamento-1.md`. **Pronto e testado, SEM DEPLOY.** O
+lançamento 2 (o resto do Rise sob o invólucro, Painel e menu filtrados, tela em `ver`, "Ver como", Histórico) é o que dá login à
+Andrea; o 3 é a permissão por campo.
+
+**Onde mora cada parte**
+- `src/lib/acessos/`: `recursos.js` (o catálogo, sem imports: uma tela de entrada por bloco do menu, sub-telas, cartões do Painel,
+  ações, capacidades do Rise AI e os sete dados sensíveis; "Usuários e funções" não delegável), `resolucao.js` (o nível efetivo,
+  puro), `sessao.js` (login da requisição, segredo de borda, quebra-vidro, PC simulado; puro), `servidor.js` (`sessaoDeAcessos`
+  com `cache()` por requisição, `exigirAcesso`, `exigirAcessoNaPagina` = 404, `recusarRota` = 403 sem corpo, `executarComAcesso`),
+  `involucro.js`, `semeadura.js`, `banco.js` (leitura e gravação com auditoria), `validacao.js` e `matriz.js`.
+- Telas: `src/app/configuracoes/` (os cartões, `usuarios`, `usuarios/novo`, `usuarios/[id]`, `funcoes/nova`, `funcoes/[id]` e
+  `acoes.js`) e `src/components/acessos/` (`UsuariosEFuncoes`, `FormularioFuncao`, `MatrizDePermissoes`, `SeletorDeNivel`,
+  `FormularioUsuario`).
+- Banco: migration `20261012_acessos` (só aditiva): `UsuarioRise`, `FuncaoRise`, `PermissaoDaFuncao`, `UsuarioFuncao`,
+  `ExcecaoDoUsuario`, `AuditoriaDeAcesso` e `SemeaduraDeAcessos`.
+- Teste: `npm run teste:acessos`, com o **guarda estático**: toda página, layout, rota e arquivo `"use server"` de `src/app` confere o
+  acesso, salvo `SEM_RECURSO` (o layout raiz e o `/api/sair`) e `EXCECOES_DO_LANCAMENTO_1` (54 arquivos do resto do Rise). **A
+  lista só encolhe** (o teste falha se um arquivo dela já conferir) e deve esvaziar no lançamento 2.
+
+**Regras que custaram pensar**
+- **Segredo de borda:** na VPS o `Remote-User` só vale com o `X-Rise-Borda` igual a `RISE_SEGREDO_DE_BORDA` (em tempo constante).
+  O Caddy apaga o cabeçalho que vem de fora e o grava só no ramo com login; o contêiner `caddy` recebe só essa variável. **Sem ela
+  ninguém entra**, e o `deploy-vps.sh` recusa subir sem ela (32+ caracteres) e recusa um `.env` com `RISE_SIMULAR_LOGIN`.
+- **PC:** administrador por ambiente (sem `RISE_PRODUCAO`) e sem ler o banco, então abre mesmo com o Postgres fora do ar. O `next
+  dev` passa a escutar só em `127.0.0.1` (`--hostname`; vale no próximo reinício). `RISE_SIMULAR_LOGIN=<login>` no `.env` do PC
+  mostra o Rise como outra pessoa (o rodapé do menu diz "simulando <login>").
+- **Quebra-vidro:** `RISE_AI_ADMINS` vale sempre. O login dali aparece com o selo "Administrador pelo .env" e, pela tela, não fica
+  inativo, não perde a função fixa e não troca de login. A **semeadura** roda no `register()` do `instrumentation.js`, nos dois
+  ambientes, e só cria o que falta: a função Administrador, a Atendimento **uma vez só** (marca em `SemeaduraDeAcessos`, para não
+  renascer depois de excluída) e o usuário de cada login do `.env` que ainda não existe. `npm run acessos:admin -- <login>` é o
+  caminho de volta.
+- **Último administrador ativo** não fica inativo nem perde a função fixa: conferido em `salvarUsuario` com as funções fixas
+  travadas (`FOR UPDATE`). Não existe Excluir usuário, só Desativar (revisão 2).
+- **Rise AI:** toda ação passa por `executarComAcesso` com o recurso dela (`riseAi.chat`, `riseAi.revisao`, `riseAi.conhecimento`,
+  `riseAi.configuracoes`); as páginas dão 404 sem o recurso; a rota `conversar` dá 403 sem `riseAi.chat` editar. O `administrador`
+  da sessão do Rise AI passou a ser `pode("riseAi.revisao", "ver")`. Saíram `src/app/rise-ai/administrador.js` e
+  `src/lib/riseAi/acesso.js`. As ferramentas recebem `pode`: sem `dado.custo`, custo e fornecedores vêm `"[restrito]"`; sem
+  `dado.estoqueExato`, o estoque vira a faixa (disponível, poucas unidades, em falta) e o saldo do Bling sai.
+- **Menu:** Integrações saiu do menu e virou cartão; Configurações é o último item e acende também em `/integracoes` e em
+  `/rise-ai/configuracoes` (`rotasExtras` em `blocos.js`). Neste lançamento só o Rise AI e Configurações somem do menu de quem não
+  os vê; os outros blocos são do lançamento 2.
+- **Gravação:** a auditoria vai na mesma transação (antes e depois; `Prisma.DbNull` para o nulo); funções e exceções são trocadas por
+  inteiro; recurso não delegável é recusado na validação **e** ignorado na resolução.
+
+**Para pôr no ar (só com o "sobe" do dono):** no `.env` da VPS, por SSH (arquivo temporário, nunca no texto do comando),
+`RISE_SEGREDO_DE_BORDA=<openssl rand -hex 32>` e `RISE_AI_ADMINS=<login do dono no Tinyauth>`; deploy pelo cartão "Atualizar a VPS"
+(aplica `20261011_rise_ai` e `20261012_acessos`); conferir que o dono entra e aparece como "Administrador pelo .env". A Andrea **não**
+ganha login no Tinyauth ainda (lançamento 2).
+
+**Roteiro do dono (no Rise do PC):**
+1. O menu termina em Configurações; Integrações saiu do menu. A página Configurações tem três cartões com o detalhe vivo.
+2. Usuários e funções › Funções: Administrador (cadeado, só leitura, "29 de 29") e, depois do próximo reinício do servidor, a
+   Atendimento.
+3. Criar a função "Teste": marcar Cadastros com "Todos desta lista" em ver; o trilho mostra o ponto e o rodapé conta as alterações;
+   Salvar abre a página da função; excluir pelo "⋯" mostra quem perde a função.
+4. Pôr `RISE_AI_ADMINS=maicol` no `.env` do PC e reiniciar: em Usuários aparece `maicol` com "Administrador pelo .env" e o Ativo
+   travado.
+5. Criar o usuário `andrea` com a Atendimento. Pôr `RISE_SIMULAR_LOGIN=andrea` e reiniciar: o rodapé diz "simulando andrea",
+   Configurações some do menu, `/configuracoes` e `/rise-ai/revisao` dão 404, o chat abre sem os links de administração.
+6. Tirar a Atendimento da `andrea` (sem a simulação), simular de novo: o Rise AI some do menu e `/rise-ai` dá 404.
+7. Tirar `RISE_SIMULAR_LOGIN` e reiniciar: tudo volta.
 
 ## Decisões de arquitetura
 
