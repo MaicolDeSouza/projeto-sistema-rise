@@ -59,9 +59,17 @@ export async function testarPorListagem(listarModelos) {
 }
 
 /**
+ * O motivo que o botão Parar dá ao `AbortController.abort(motivo)`. Os adaptadores o leem em `sinal.reason` e distinguem
+ * "a pessoa mandou parar" (`interrompida`) de "o relógio estourou" (`tempo`): só o segundo manda a resposta para a reserva.
+ */
+export const MOTIVO_PARADA = "interrompida";
+
+/**
  * `tipo` diz o que fazer: `conexao` (recusou ou ninguém respondeu), `autenticacao` (chave recusada), `limite` (429),
- * `tempo` (estourou o tempo), `resposta` (HTTP de erro ou corpo que não se entende) e, do laço, `ferramenta_malformada`.
- * O laço cai para a reserva por qualquer um deles, desde que nenhum texto da resposta já tenha chegado à tela.
+ * `tempo` (estourou o tempo), `resposta` (HTTP de erro ou corpo que não se entende), `interrompida` (a pessoa apertou
+ * Parar: NÃO cai para a reserva, a resposta parcial é gravada) e, do laço, `ferramenta_malformada`.
+ * O laço cai para a reserva por qualquer um deles (menos `interrompida`), desde que nenhum texto da resposta já tenha
+ * chegado à tela.
  */
 export class ErroDoProvedor extends Error {
   /** @param {string} mensagem @param {{ tipo: string, status?: number | null, causa?: unknown }} detalhes */

@@ -4,8 +4,10 @@
  * laço da conversa só depende do contrato, não de um adaptador.
  *
  * Cada item do `roteiro` responde a UMA chamada de `conversar`, na ordem:
- *   { texto?, chamadas?: [{ nome, argumentos } | { malformada: true }], uso?, atrasoMs?, motivoParada?,
+ *   { texto?, chamadas?: [{ nome, argumentos } | { malformada: true }], uso?, atrasoMs?, atrasoDepoisDoTextoMs?, motivoParada?,
  *     erro?: "conexao" | "autenticacao" | ..., erroDepoisDoTexto?: "conexao" | ... }
+ * `atrasoMs` espera ANTES do texto; `atrasoDepoisDoTextoMs`, DEPOIS de entregar o texto (e antes de terminar a resposta): e o
+ * que deixa o botao Parar cortar uma resposta com texto parcial. As duas esperas acabam com o sinal de cancelamento.
  * Roteiro esgotado responde um texto fixo. `pedidos` guarda uma CÓPIA do que cada chamada recebeu (o laço acrescenta
  * mensagens à mesma lista ao longo das rodadas).
  */
@@ -15,12 +17,12 @@ function erroFalso(tipo) {
   return Object.assign(new Error(`provedor falso: ${tipo}`), { name: "ErroDoProvedor", tipo, status: null });
 }
 
-/** Espera `ms`, mas desiste (como o provedor real) se o sinal de cancelamento disparar. */
+/** Espera `ms`, mas desiste (como o provedor real) se o sinal de cancelamento disparar: `interrompida` se foi o botao Parar. */
 function esperar(ms, sinal) {
   return new Promise((resolver, rejeitar) => {
     const aoCancelar = () => {
       clearTimeout(relogio);
-      rejeitar(erroFalso("tempo"));
+      rejeitar(erroFalso(sinal?.reason === "interrompida" ? "interrompida" : "tempo"));
     };
     const relogio = setTimeout(() => {
       sinal?.removeEventListener("abort", aoCancelar);
@@ -61,6 +63,7 @@ export function criarProvedorFalso({ id = "falso", roteiro = [] } = {}) {
         pedido.aoTexto?.(passo.texto.slice(meio));
       }
       if (passo.erroDepoisDoTexto) throw erroFalso(passo.erroDepoisDoTexto);
+      if (passo.atrasoDepoisDoTextoMs) await esperar(passo.atrasoDepoisDoTextoMs, pedido.sinal);
 
       const chamadasDeFerramenta = (passo.chamadas ?? []).map((chamada, indice) =>
         chamada.malformada

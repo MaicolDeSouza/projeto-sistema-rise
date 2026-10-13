@@ -25,3 +25,20 @@ export class OrcamentoEsgotado extends Error {
     this.custo = custo;
   }
 }
+
+/**
+ * A pessoa apertou Parar (spec §5): o laço termina a resposta com o que já escreveu. NÃO é falha de provedor (a reserva não
+ * é tentada). Leva o texto parcial, o que a resposta já gastou e o que foi consultado, para a mensagem ser gravada.
+ */
+export class RespostaInterrompida extends Error {
+  /** @param {{ textoParcial?: string, uso?: { entrada: number, saida: number }, custo?: { usd: number, brl: number } | null, trilha?: object[], cartoes?: object[] }} dados */
+  constructor({ textoParcial = "", uso = { entrada: 0, saida: 0 }, custo = null, trilha = [], cartoes = [] } = {}) {
+    super("A resposta foi interrompida.");
+    this.name = "RespostaInterrompida";
+    this.textoParcial = textoParcial;
+    this.uso = uso;
+    this.custo = custo;
+    this.trilha = trilha;
+    this.cartoes = cartoes;
+  }
+}

@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 import { MODELOS_SUGERIDOS } from "../modelos";
-import { ErroDoProvedor, testarPorListagem } from "./contrato";
+import { ErroDoProvedor, MOTIVO_PARADA, testarPorListagem } from "./contrato";
 
 /**
  * Adaptador da Anthropic pelo SDK oficial (o mesmo que o `src/lib/ia/anuncio.js` usa nos anúncios).
@@ -15,9 +15,15 @@ const ENDERECO = "https://api.anthropic.com";
 
 const MOTIVOS = { end_turn: "fim", stop_sequence: "fim", tool_use: "ferramenta", max_tokens: "max_tokens", refusal: "recusa" };
 
-/** O erro do SDK vira `ErroDoProvedor` com o `tipo` que o laço da conversa entende. */
-function traduzirErro(erro) {
+/**
+ * O erro do SDK vira `ErroDoProvedor` com o `tipo` que o laço da conversa entende. `sinal` é o do pedido: se o aborto veio
+ * do botão Parar (`sinal.reason`), o tipo é `interrompida`, e não `tempo`.
+ */
+function traduzirErro(erro, sinal = null) {
   if (erro instanceof ErroDoProvedor) return erro;
+  if (sinal?.aborted && sinal.reason === MOTIVO_PARADA) {
+    return new ErroDoProvedor("A resposta foi interrompida.", { tipo: "interrompida", causa: erro });
+  }
   // O timeout é um APIConnectionError: precisa vir antes do teste de conexão.
   if (erro instanceof Anthropic.APIUserAbortError || erro instanceof Anthropic.APIConnectionTimeoutError || erro?.name === "AbortError") {
     return new ErroDoProvedor("A Anthropic não respondeu a tempo.", { tipo: "tempo", causa: erro });
@@ -121,7 +127,7 @@ export function criarProvedorAnthropic({ chave = null, cliente = null }) {
       fluxo.on("text", (delta) => aoTexto(delta));
       final = await fluxo.finalMessage();
     } catch (erro) {
-      throw traduzirErro(erro);
+      throw traduzirErro(erro, sinal);
     }
 
     const blocos = final.content ?? [];

@@ -2153,6 +2153,182 @@ try {
     conferir("modo explicito", forcado.pedidos[0].sistema === montarSistema({ modo: "cliente" }), true);
   }
 
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 9 — Botao Parar (servidor)
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: Parar");
+  {
+    const { responder } = await import("../src/lib/riseAi/conversa.js");
+    const { configuracaoPadrao } = await import("../src/lib/riseAi/configuracao.js");
+    const { criarLimitador } = await import("../src/lib/riseAi/limite.js");
+    const { fluxoDeEventos } = await import("../src/lib/riseAi/sse.js");
+    const { pararResposta, registrarResposta, MOTIVO_PARADA } = await import("../src/lib/riseAi/paradas.js");
+    const { criarProvedorOpenAICompativel } = await import("../src/lib/riseAi/provedores/openaiCompativel.js");
+    const { criarProvedorAnthropic } = await import("../src/lib/riseAi/provedores/anthropic.js");
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const { criarProvedorFalso } = await import("./lib/provedorFalso.js");
+    const usuario = "ZZ-IA-PARAR";
+
+    conferir("o motivo do Parar", MOTIVO_PARADA, "interrompida");
+
+    const deps = (padrao, reserva) => ({
+      configuracao: { ...configuracaoPadrao("pc"), padrao: { provedor: "lmstudio", modelo: "falso-1" }, tempoLimite: { primeiroTokenMs: 5000, totalMs: 10000 } },
+      criarProvedor: (id) => (id === "lmstudio" ? padrao : reserva),
+      provedorDisponivel: async () => true,
+      limitador: criarLimitador({ porMinuto: 1000 }),
+      agoraDoOrcamento: () => Date.UTC(2025, 10, 15, 15),
+    });
+    const reservaIntocada = () => criarProvedorFalso({ id: "anthropic", roteiro: [{ texto: "reserva" }] });
+    /** Comeca uma resposta sem esperar o fim, e deixa esperar por um evento. */
+    const comecar = (dependencias, extra = {}) => {
+      const eventos = [];
+      const esperas = [];
+      const aoEvento = (nome, dados) => {
+        eventos.push({ nome, dados });
+        for (const espera of esperas.filter((candidata) => candidata.nome === nome)) espera.resolver(dados);
+      };
+      const esperar = (nome) =>
+        new Promise((resolver) => {
+          const ja = eventos.find((evento) => evento.nome === nome);
+          if (ja) resolver(ja.dados);
+          else esperas.push({ nome, resolver });
+        });
+      const promessa = responder({ texto: "uma pergunta que a equipe vai interromper", usuario, aoEvento, dependencias, ...extra });
+      return { promessa, eventos, esperar };
+    };
+
+    // Parar no meio do texto: o que ja apareceu fica gravado, marcado, com custo estimado, e a reserva NAO entra.
+    {
+      const padrao = criarProvedorFalso({ roteiro: [{ texto: "Resposta parcial que o Parar corta", atrasoDepoisDoTextoMs: 5000, uso: { entrada: 100, saida: 20 } }] });
+      const reserva = reservaIntocada();
+      const a = comecar(deps(padrao, reserva));
+      const inicio = await a.esperar("inicio");
+      await a.esperar("texto");
+      conferir("pararResposta durante a resposta", pararResposta(inicio.conversaId, { usuario }), { parou: true });
+      const r = await a.promessa;
+      conferir("interrompida: marcada, com o texto parcial", [r.mensagem.interrompida, r.mensagem.conteudo], [true, "Resposta parcial que o Parar corta"]);
+      conferir("interrompida: sem aviso de erro, custo marcado como estimado", [r.mensagem.avisos.includes("erro"), r.mensagem.estruturado.custoEstimado, r.mensagem.motivoDaReserva], [false, true, null]);
+      conferir("interrompida: a reserva (outro provedor) nao foi chamada", reserva.pedidos.length, 0);
+      conferir("interrompida: o custo vira tokens estimados pelos caracteres", [r.mensagem.tokensEntrada > 0, r.mensagem.tokensSaida], [true, Math.ceil("Resposta parcial que o Parar corta".length / 4)]);
+      const fim = a.eventos.find((evento) => evento.nome === "fim")?.dados;
+      conferir("o evento fim diz que foi interrompida", [fim?.interrompida, fim?.custoEstimado, fim?.mensagemId === r.mensagem.id], [true, true, true]);
+      conferir("nada fica reservado", await prisma.reservaDeGastoIA.count({ where: { dono: inicio.conversaId } }), 0);
+      conferir("parar de novo, depois do fim, nao faz nada", pararResposta(inicio.conversaId, { usuario }), { parou: false });
+
+      // A conversa fica livre: uma pergunta nova na mesma conversa funciona.
+      const livre = await responder({ conversaId: inicio.conversaId, texto: "e agora?", usuario, dependencias: deps(criarProvedorFalso({ roteiro: [{ texto: "agora sim" }] }), reservaIntocada()) });
+      conferir("a conversa fica livre depois de parar", [livre.mensagem.conteudo, livre.mensagem.interrompida], ["agora sim", false]);
+    }
+
+    // Parar antes do primeiro token: mensagem vazia, marcada.
+    {
+      const padrao = criarProvedorFalso({ roteiro: [{ atrasoMs: 5000, texto: "nunca chega" }] });
+      const b = comecar(deps(padrao, reservaIntocada()));
+      const inicio = await b.esperar("inicio");
+      pararResposta(inicio.conversaId, { usuario });
+      const r = await b.promessa;
+      conferir("parar antes do primeiro token: mensagem vazia, marcada", [r.mensagem.conteudo, r.mensagem.interrompida, r.mensagem.avisos.includes("erro")], ["", true, false]);
+    }
+
+    // Outra pessoa nao para a resposta; a segunda aba nao entra; sem resposta nao ha o que parar.
+    {
+      const padrao = criarProvedorFalso({ roteiro: [{ texto: "completa", atrasoDepoisDoTextoMs: 400 }, { texto: "segunda" }] });
+      const c = comecar(deps(padrao, reservaIntocada()));
+      const inicio = await c.esperar("inicio");
+      await c.esperar("texto");
+      conferir("outra pessoa nao para a resposta", pararResposta(inicio.conversaId, { usuario: "ZZ-IA-OUTRO" }), { parou: false });
+      const segundaAba = await responder({ conversaId: inicio.conversaId, texto: "outra aba", usuario, dependencias: deps(padrao, reservaIntocada()) }).then(() => "respondeu", (erro) => erro.message);
+      conferir("a segunda aba recebe o aviso e a primeira nao e afetada", segundaAba, "Espere a resposta anterior terminar.");
+      const r = await c.promessa;
+      conferir("a resposta terminou inteira", [r.mensagem.conteudo, r.mensagem.interrompida], ["completa", false]);
+    }
+    conferir("conversa que nao existe: nada a parar", pararResposta("nao-existe", { usuario }), { parou: false });
+    {
+      const controle = new AbortController();
+      const desregistrar = registrarResposta("ZZ-IA-reg", usuario, controle);
+      desregistrar();
+      conferir("resposta desregistrada nao e mais parada", [pararResposta("ZZ-IA-reg", { usuario }), controle.signal.aborted], [{ parou: false }, false]);
+    }
+
+    // Recarregar a pagina (o cliente do fluxo some) NAO para a resposta: ela termina e e gravada.
+    {
+      const padrao = criarProvedorFalso({ roteiro: [{ texto: "Resposta que termina sozinha", atrasoDepoisDoTextoMs: 300 }] });
+      let idDaConversa = null;
+      const fluxo = fluxoDeEventos(async (enviar) => {
+        await responder({
+          texto: "pergunta de quem recarrega",
+          usuario,
+          aoEvento: (nome, dados) => {
+            if (nome === "inicio") idDaConversa = dados.conversaId;
+            enviar(nome, dados);
+          },
+          dependencias: deps(padrao, reservaIntocada()),
+        });
+      });
+      const leitor = fluxo.getReader();
+      await leitor.read();
+      await leitor.cancel();
+      await new Promise((resolver) => setTimeout(resolver, 1200));
+      const gravadas = await prisma.mensagemIA.findMany({ where: { conversaId: idDaConversa, papel: "ASSISTENTE" } });
+      conferir("fechar a conexao nao para: a resposta termina e e gravada", [gravadas.length, gravadas[0]?.interrompida, gravadas[0]?.conteudo], [1, false, "Resposta que termina sozinha"]);
+    }
+
+    // Os adaptadores: o motivo do aborto decide entre Parar e tempo.
+    {
+      const abortavel = (url, init) =>
+        new Promise((resolver, rejeitar) => {
+          init.signal.addEventListener("abort", () => rejeitar(Object.assign(new Error("abortado"), { name: "AbortError" })), { once: true });
+        });
+      const lendo = (url, init) =>
+        Promise.resolve(
+          new Response(
+            new ReadableStream({
+              start(controle) {
+                init.signal.addEventListener("abort", () => controle.error(Object.assign(new Error("abortado"), { name: "AbortError" })), { once: true });
+              },
+            }),
+            { status: 200 },
+          ),
+        );
+      const pedidoSimples = { modelo: "m", sistema: "S", mensagens: [{ papel: "usuario", conteudo: "oi" }], maxTokens: 5 };
+      const tipoDo = async (provedor, motivo) => {
+        const controle = new AbortController();
+        const promessa = provedor.conversar({ ...pedidoSimples, sinal: controle.signal }).then(() => "nao lancou", (erro) => erro.tipo);
+        await new Promise((resolver) => setTimeout(resolver, 20));
+        if (motivo === undefined) controle.abort();
+        else controle.abort(motivo);
+        return promessa;
+      };
+      const naRede = criarProvedorOpenAICompativel({ id: "openai", endpoint: "http://falso/v1", chave: "k", fetchImpl: abortavel });
+      const noFluxo = criarProvedorOpenAICompativel({ id: "openai", endpoint: "http://falso/v1", chave: "k", fetchImpl: lendo });
+      conferir("openai (esperando a rede): Parar", await tipoDo(naRede, "interrompida"), "interrompida");
+      conferir("openai (esperando a rede): aborto comum e tempo", await tipoDo(naRede, undefined), "tempo");
+      conferir("openai (lendo o fluxo): Parar", await tipoDo(noFluxo, "interrompida"), "interrompida");
+      conferir("openai (lendo o fluxo): aborto comum e tempo", await tipoDo(noFluxo, undefined), "tempo");
+
+      const sdkFalso = {
+        messages: {
+          stream: () => ({
+            on() {
+              return this;
+            },
+            finalMessage: async () => {
+              throw new Anthropic.APIUserAbortError();
+            },
+          }),
+        },
+        models: { list: async () => ({ data: [] }) },
+      };
+      const daAnthropic = criarProvedorAnthropic({ chave: "x", cliente: sdkFalso });
+      const controleA = new AbortController();
+      controleA.abort("interrompida");
+      conferir("anthropic: Parar", await daAnthropic.conversar({ ...pedidoSimples, sinal: controleA.signal }).then(() => "nao lancou", (erro) => erro.tipo), "interrompida");
+      const controleB = new AbortController();
+      controleB.abort();
+      conferir("anthropic: aborto comum e tempo", await daAnthropic.conversar({ ...pedidoSimples, sinal: controleB.signal }).then(() => "nao lancou", (erro) => erro.tipo), "tempo");
+    }
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();

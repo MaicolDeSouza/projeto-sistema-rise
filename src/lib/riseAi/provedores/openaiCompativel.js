@@ -1,4 +1,4 @@
-import { ErroDoProvedor, erroDeStatus, testarPorListagem } from "./contrato";
+import { ErroDoProvedor, MOTIVO_PARADA, erroDeStatus, testarPorListagem } from "./contrato";
 
 /**
  * Adaptador para a API "chat/completions" da OpenAI e de tudo o que fala igual: LM Studio, Ollama, OpenAI e o Gemini
@@ -45,6 +45,9 @@ const MOTIVOS = { stop: "fim", tool_calls: "ferramenta", function_call: "ferrame
 
 const ehAbortError = (erro) => erro?.name === "AbortError" || erro?.name === "TimeoutError";
 
+/** O aborto veio do botao Parar (e nao do relogio do laco): a resposta parcial e gravada e a reserva nao entra. */
+const foiParada = (sinal) => Boolean(sinal?.aborted) && sinal.reason === MOTIVO_PARADA;
+
 /** Estimativa quando o servidor não devolve `usage` (alguns locais não devolvem): 1 token a cada 4 caracteres. */
 const estimarTokens = (caracteres) => Math.ceil(caracteres / 4);
 
@@ -88,6 +91,7 @@ export function criarProvedorOpenAICompativel({ id, rotulo = id, endpoint, chave
       resposta = await fetchImpl(`${base}${caminho}`, init);
     } catch (erro) {
       if (ehAbortError(erro) || init.signal?.aborted) {
+        if (foiParada(init.signal)) throw new ErroDoProvedor(`${rotulo}: resposta interrompida.`, { tipo: "interrompida", causa: erro });
         throw new ErroDoProvedor(`${rotulo} não respondeu a tempo.`, { tipo: "tempo", causa: erro });
       }
       throw new ErroDoProvedor(`Sem conexão com ${rotulo} (${base}).`, { tipo: "conexao", causa: erro });
@@ -220,6 +224,7 @@ export function criarProvedorOpenAICompativel({ id, rotulo = id, endpoint, chave
     } catch (erro) {
       if (erro instanceof ErroDoProvedor) throw erro;
       if (ehAbortError(erro) || sinal?.aborted) {
+        if (foiParada(sinal)) throw new ErroDoProvedor(`${rotulo}: resposta interrompida.`, { tipo: "interrompida", causa: erro });
         throw new ErroDoProvedor(`${rotulo} não terminou a resposta a tempo.`, { tipo: "tempo", causa: erro });
       }
       throw new ErroDoProvedor(`A conexão com ${rotulo} caiu no meio da resposta.`, { tipo: "conexao", causa: erro });

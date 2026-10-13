@@ -5,7 +5,7 @@ import { registrarChamadaDoProvedor } from "./auditoria";
 import { lerChave, lerConfiguracao } from "./configuracao";
 import { recuperarConhecimento, textoDoConhecimentoParaPrompt } from "./conhecimento";
 import { criarConversa, gravarMensagem } from "./conversas";
-import { ErroDeUso, OrcamentoEsgotado } from "./erros";
+import { ErroDeUso, OrcamentoEsgotado, RespostaInterrompida } from "./erros";
 import { definicoesParaProvedor, executarFerramenta } from "./ferramentas/index";
 import { criarLimitador } from "./limite";
 import { mascararDadosPessoais } from "./mascarar";
@@ -13,7 +13,8 @@ import { custoDaChamada } from "./modelos";
 import { estimarCustoMaximoBrl, liquidarReserva, reservarOrcamento } from "./orcamento";
 import { limparTextoParaOCliente, pedidoParaOCliente } from "./modoCliente";
 import { mensagemDeConhecimento, montarSistema } from "./prompt";
-import { ErroDoProvedor, ehErroDeProvedor } from "./provedores/contrato";
+import { registrarResposta } from "./paradas";
+import { ErroDoProvedor, MOTIVO_PARADA, ehErroDeProvedor } from "./provedores/contrato";
 import { criarProvedor as criarProvedorReal } from "./provedores/index";
 import { provedorDisponivel as provedorDisponivelReal } from "./provedores/saude";
 import { cortarHistorico, estimarTokens, produtosCitados, tituloDaConversa } from "./resposta";
@@ -64,12 +65,16 @@ class FalhaNoProvedor extends Error {
 /**
  * Os dois relógios de uma tentativa: o do PRIMEIRO TOKEN (rearmado a cada chamada ao provedor, desarmado no primeiro
  * pedaço de texto) e o TOTAL da resposta. Estourar qualquer um cancela a chamada pelo `sinal`, e o adaptador a traduz
- * em erro de `tempo`.
+ * em erro de `tempo`. A parada pedida pela pessoa (`sinalDeParada`, o botão Parar) aborta o MESMO sinal, mas com o motivo
+ * `interrompida`: o adaptador a traduz em erro de `interrompida`, que não aciona a reserva.
  */
-function criarRelogio({ primeiroTokenMs, totalMs }) {
+function criarRelogio({ primeiroTokenMs, totalMs }, sinalDeParada = null) {
   const controle = new AbortController();
   let doPrimeiro = null;
   const doTotal = setTimeout(() => controle.abort(), totalMs);
+  const aoParar = () => controle.abort(MOTIVO_PARADA);
+  if (sinalDeParada?.aborted) aoParar();
+  else sinalDeParada?.addEventListener("abort", aoParar, { once: true });
   return {
     sinal: controle.signal,
     armarPrimeiroToken() {
@@ -82,6 +87,7 @@ function criarRelogio({ primeiroTokenMs, totalMs }) {
     encerrar() {
       clearTimeout(doPrimeiro);
       clearTimeout(doTotal);
+      sinalDeParada?.removeEventListener("abort", aoParar);
     },
   };
 }
@@ -102,8 +108,8 @@ const FERRAMENTAS_QUE_TRAZEM_PRODUTO = new Set(["buscarProdutos", "buscarProduto
  * Uma tentativa completa com UM provedor: chama, executa as ferramentas que ele pedir, chama de novo, até a resposta
  * final. Lança `FalhaNoProvedor` se o provedor falhar (a reserva decide o que fazer) e o erro cru se o defeito for nosso.
  */
-async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento, conversaId, agoraDoOrcamento }) {
-  const relogio = criarRelogio(config.tempoLimite);
+async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento, conversaId, agoraDoOrcamento, sinalDeParada }) {
+  const relogio = criarRelogio(config.tempoLimite, sinalDeParada);
   const trabalho = [...mensagens];
   const ferramentas = definicoesParaProvedor(perfil);
   const trilha = [];
@@ -119,12 +125,31 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
   let brl = 0;
   let custoCompleto = true;
   let textoNaTela = false;
+  // O texto que a rodada em curso ja escreveu: e o que fica gravado se a pessoa apertar Parar.
+  let textoDaRodada = "";
   let final = null;
+
+  /** A resposta cortada pelo Parar: com o texto parcial e o que ja gastou (a chamada cortada nao devolve o uso: estima pelos caracteres). */
+  const interromper = (chamadaEmCurso) => {
+    let uso = { entrada: tokensEntrada, saida: tokensSaida };
+    let custo = custoCompleto ? { usd, brl } : null;
+    if (chamadaEmCurso) {
+      const entrada = estimarTokens(sistema) + estimarTokens(JSON.stringify(trabalho)) + estimarTokens(JSON.stringify(ferramentas));
+      const saida = estimarTokens(textoDaRodada);
+      uso = { entrada: tokensEntrada + entrada, saida: tokensSaida + saida };
+      const daRodada = custoDaChamada({ provedor: id, modelo, tokensEntrada: entrada, tokensSaida: saida });
+      custo = custo && daRodada ? { usd: usd + daRodada.usd, brl: brl + daRodada.brl } : null;
+    }
+    if (custo) custo = { usd: arredondar(custo.usd, 6), brl: arredondar(custo.brl, 4) };
+    return new RespostaInterrompida({ textoParcial: chamadaEmCurso ? textoDaRodada : "", uso, custo, trilha, cartoes: [...cartoes.values()] });
+  };
 
   try {
     // Margem sobre o limite de ferramentas: depois dele a chamada vai sem ferramentas e o modelo só pode responder.
     const maximoDeRodadas = config.maxChamadasDeFerramenta + 4;
     for (let rodada = 0; rodada < maximoDeRodadas && !final; rodada++) {
+      if (sinalDeParada?.aborted) throw interromper(false);
+      textoDaRodada = "";
       const inicioDaChamada = Date.now();
       // O dinheiro e separado ANTES de cada chamada paga (spec §3), somando o que as rodadas anteriores DESTA resposta ja custaram
       // (ainda nao gravado na mensagem). Modelo local e sem preco estimam zero e passam sem tocar no banco.
@@ -154,6 +179,7 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
           aoTexto: (delta) => {
             relogio.primeiroTokenChegou();
             textoNaTela = true;
+            textoDaRodada += delta;
             aoEvento("texto", { delta });
           },
         });
@@ -195,6 +221,7 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
       if (textoNaTela) {
         aoEvento("descartar", {});
         textoNaTela = false;
+        textoDaRodada = "";
       }
       quebradasSeguidas = chamadas.some((chamada) => chamada.malformada) ? quebradasSeguidas + 1 : 0;
       if (quebradasSeguidas >= 2) {
@@ -251,6 +278,8 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
       custo: custoCompleto ? { usd: arredondar(usd, 6), brl: arredondar(brl, 4) } : null,
     };
   } catch (erro) {
+    // Parar: a chamada em curso foi cortada pela pessoa. Nao e falha do provedor, entao a reserva nao e tentada.
+    if (erro?.tipo === "interrompida") throw interromper(true);
     if (ehErroDeProvedor(erro)) throw new FalhaNoProvedor(erro, textoNaTela);
     throw erro;
   } finally {
@@ -298,6 +327,7 @@ export async function responder({ conversaId = null, texto, usuario, modo = "aut
 
   // Síncrono, antes de qualquer espera: duas chamadas seguidas na mesma conversa não passam as duas.
   let ocupada = null;
+  let desregistrar = () => {};
   if (conversaId) {
     if (emAndamento.has(conversaId)) throw new ErroDeUso("Espere a resposta anterior terminar.");
     emAndamento.add(conversaId);
@@ -359,6 +389,9 @@ export async function responder({ conversaId = null, texto, usuario, modo = "aut
     if (doConhecimento) mensagens.push(doConhecimento);
     mensagens.push({ papel: "usuario", conteudo: perguntaMascarada });
 
+    // O botao Parar (`POST /api/rise-ai/parar`) aborta este controle; a conversa so tem id depois de criada.
+    const parada = new AbortController();
+    desregistrar = registrarResposta(conversa.id, usuario, parada);
     // A internet entra na Tarefa 13.
     const sistema = montarSistema({ modo: modoFinal, promptInterno: config.prompts?.interno ?? null, promptCliente: config.prompts?.atendimento ?? null });
     const criar =
@@ -385,7 +418,7 @@ export async function responder({ conversaId = null, texto, usuario, modo = "aut
         throw erro;
       }
       aoEvento("inicio", { conversaId: conversa.id, provedor: escolha.provedor, modelo: escolha.modelo, modo: modoFinal });
-      return rodarLaco({ id: escolha.provedor, modelo: escolha.modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento, conversaId: conversa.id, agoraDoOrcamento: dependencias.agoraDoOrcamento?.() ?? Date.now() });
+      return rodarLaco({ id: escolha.provedor, modelo: escolha.modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento, conversaId: conversa.id, agoraDoOrcamento: dependencias.agoraDoOrcamento?.() ?? Date.now(), sinalDeParada: parada.signal });
     }
 
     let resultado = null;
@@ -394,6 +427,7 @@ export async function responder({ conversaId = null, texto, usuario, modo = "aut
     let falhaReserva = null;
     let erroInesperado = null;
     let orcamentoEsgotado = null;
+    let interrompida = null;
     const semModelo = !escolhaPadrao.modelo;
     try {
       if (semModelo) {
@@ -421,6 +455,8 @@ export async function responder({ conversaId = null, texto, usuario, modo = "aut
     } catch (erro) {
       if (erro instanceof OrcamentoEsgotado) {
         orcamentoEsgotado = erro;
+      } else if (erro instanceof RespostaInterrompida) {
+        interrompida = erro;
       } else {
         console.error("[rise-ai] falha inesperada ao responder:", erro);
         erroInesperado = erro;
@@ -428,6 +464,39 @@ export async function responder({ conversaId = null, texto, usuario, modo = "aut
     }
 
     const duracaoMs = Date.now() - inicio;
+
+    // Parar: grava o que a resposta ja escreveu, marcado, com o custo ESTIMADO (a chamada cortada nao devolveu o uso).
+    if (interrompida) {
+      let textoParcial = interrompida.textoParcial;
+      if (modoFinal === "cliente") textoParcial = limparTextoParaOCliente(textoParcial, { linksPermitidos: interrompida.cartoes.map((cartao) => cartao.urlLoja) }).texto;
+      const { citados } = produtosCitados(textoParcial, interrompida.cartoes);
+      const mensagem = await gravarMensagem(conversa.id, {
+        papel: "ASSISTENTE",
+        conteudo: textoParcial,
+        estruturado: {
+          modo: modoFinal,
+          produtos: citados.map(({ sku, nome, urlLoja }) => ({ sku, nome, urlLoja })),
+          fontes: [],
+          conhecimentoUsado: notas.map(({ id, assunto }) => ({ id, assunto })),
+          ferramentas: interrompida.trilha,
+          mascarados,
+          custoEstimado: true,
+        },
+        provedor: escolhaFinal.provedor,
+        modelo: escolhaFinal.modelo || null,
+        motivoDaReserva,
+        tokensEntrada: interrompida.uso.entrada,
+        tokensSaida: interrompida.uso.saida,
+        custoUsd: interrompida.custo?.usd ?? null,
+        custoBrl: interrompida.custo?.brl ?? null,
+        duracaoMs,
+        avisos: [],
+        interrompida: true,
+      });
+      await prisma.conversaIA.update({ where: { id: conversa.id }, data: { atualizadoEm: new Date() } });
+      aoEvento("fim", { mensagemId: mensagem.id, uso: interrompida.uso, custo: interrompida.custo, produtos: mensagem.estruturado.produtos, avisos: [], interrompida: true, custoEstimado: true });
+      return { conversaId: conversa.id, mensagem };
+    }
 
     if (!resultado) {
       const mensagemDeErro = textoDoErro({ erroInesperado, orcamentoEsgotado, semModelo, escolhaReserva, falhaPadrao, falhaReserva });
@@ -487,6 +556,7 @@ export async function responder({ conversaId = null, texto, usuario, modo = "aut
     aoEvento("fim", { mensagemId: mensagem.id, uso: resultado.uso, custo: resultado.custo, produtos: mensagem.estruturado.produtos, avisos: [...avisos] });
     return { conversaId: conversa.id, mensagem };
   } finally {
+    desregistrar();
     if (ocupada) emAndamento.delete(ocupada);
   }
 }

@@ -141,6 +141,7 @@ export function mensagemParaTela(mensagem) {
     comentario: mensagem.comentario ?? null,
     avaliadoPor: mensagem.avaliadoPor ?? null,
     avisos: mensagem.avisos ?? [],
+    interrompida: Boolean(mensagem.interrompida),
     criadoEm: mensagem.criadoEm instanceof Date ? mensagem.criadoEm.toISOString() : String(mensagem.criadoEm),
   };
 }
