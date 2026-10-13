@@ -420,6 +420,54 @@ try {
     conferir("carregar funcao que nao existe", await carregarFuncao("nao-existe"), null);
   }
 
+  // --- banco: gravacao com validacao e auditoria (src/lib/acessos/validacao.js e banco.js) ---
+  {
+    const { validarUsuario, validarFuncao, podeDesativar } = await import("../src/lib/acessos/validacao.js");
+    const { salvarUsuario, salvarFuncao, excluirFuncao } = await import("../src/lib/acessos/banco.js");
+    const quem = { quem: "zz-ac-dono", env: { RISE_AI_ADMINS: "zz-ac-env" } };
+
+    conferir("login reservado e vazio", [validarUsuario({ login: "PC", nome: "x" }).erros.login, validarUsuario({ login: " ", nome: "x" }).erros.login], ["Este login não pode ser usado.", "Informe o login."]);
+    conferir("nome obrigatorio", validarUsuario({ login: "zz-ac-v", nome: " " }).erros.nome, "Informe o nome.");
+    conferir("excecao com nivel invalido ou recurso nao delegavel", [validarUsuario({ login: "zz-ac-v", nome: "V", excecoes: [{ recurso: "dado.custo", nivel: "excluir" }] }).erros.excecoes, validarUsuario({ login: "zz-ac-v", nome: "V", excecoes: [{ recurso: "tela.configuracoes.usuarios", nivel: "ver" }] }).erros.excecoes], ["Exceção inválida: dado.custo.", "Exceção inválida: tela.configuracoes.usuarios."]);
+    const valido = validarUsuario({ login: " ZZ-AC-V ", nome: " Vê ", assinatura: "  ", ativo: true, funcoes: ["a", "a"], excecoes: [{ recurso: "dado.custo", nivel: "nenhum" }] });
+    conferir("usuario valido: login normalizado, sem repetir funcao, assinatura vazia vira nula", [valido.ok, valido.dados.login, valido.dados.nome, valido.dados.assinatura, valido.dados.funcoes], [true, "zz-ac-v", "Vê", null, ["a"]]);
+    conferir("funcao: nome obrigatorio, o nome da fixa e reservado, recurso nao delegavel recusado", [validarFuncao({ nome: "" }).erros.nome, validarFuncao({ nome: "administrador" }).erros.nome, validarFuncao({ nome: "X", permissoes: { "tela.configuracoes.usuarios": "ver" } }).erros.permissoes], ["Informe o nome.", "Este nome é da função fixa.", "Permissão inválida: tela.configuracoes.usuarios."]);
+    conferir("funcao valida: so o que esta acima de nenhum", validarFuncao({ nome: " Vendas ", permissoes: { "tela.produtos": "ver", "dado.custo": "nenhum" } }).dados, { nome: "Vendas", descricao: null, permissoes: [{ recurso: "tela.produtos", nivel: "ver" }] });
+    conferir(
+      "pode desativar: nunca o ultimo administrador, nunca quem vem do .env",
+      [podeDesativar({ ehAdministrador: true, outrosAdministradoresAtivos: 0, peloEnv: false }), podeDesativar({ ehAdministrador: true, outrosAdministradoresAtivos: 1, peloEnv: false }), podeDesativar({ ehAdministrador: false, outrosAdministradoresAtivos: 0, peloEnv: false }), podeDesativar({ ehAdministrador: false, outrosAdministradoresAtivos: 3, peloEnv: true })],
+      [false, true, true, false],
+    );
+
+    const funcao = await salvarFuncao({ nome: "ZZ-AC Gravada", descricao: "teste", permissoes: { "tela.produtos": "ver" } }, quem);
+    conferir("criar funcao", funcao.ok, true);
+    conferir("nome de funcao repetido, sem caixa", (await salvarFuncao({ nome: "zz-ac gravada" }, quem)).erros?.nome, "Já existe uma função com este nome.");
+    const editada = await salvarFuncao({ id: funcao.id, nome: "ZZ-AC Gravada", permissoes: { "tela.produtos": "editar", "dado.custo": "ver" } }, quem);
+    conferir("editar troca as permissoes por inteiro", [editada.ok, (await prisma.permissaoDaFuncao.findMany({ where: { funcaoId: funcao.id }, orderBy: { recurso: "asc" } })).map((p) => `${p.recurso}=${p.nivel}`)], [true, ["dado.custo=ver", "tela.produtos=editar"]]);
+    const fixa = await prisma.funcaoRise.create({ data: { nome: "ZZ-AC Fixa", fixa: true } });
+    conferir("a fixa nao se edita nem se exclui", [(await salvarFuncao({ id: fixa.id, nome: "ZZ-AC Fixa" }, quem)).erro, (await excluirFuncao(fixa.id, quem)).erro], ["A função Administrador não se edita.", "A função Administrador não se exclui."]);
+
+    const usuario = await salvarUsuario({ login: "zz-ac-g1", nome: "G1", ativo: true, funcoes: [funcao.id], excecoes: [] }, quem);
+    conferir("criar usuario", usuario.ok, true);
+    conferir("login repetido", (await salvarUsuario({ login: "ZZ-AC-G1", nome: "Outro", ativo: true }, quem)).erros?.login, "Já existe um usuário com este login.");
+    conferir("funcao que nao existe", (await salvarUsuario({ login: "zz-ac-g2", nome: "G2", ativo: true, funcoes: ["nao-existe"] }, quem)).erros?.funcoes, "Função não encontrada.");
+    const env = await prisma.usuarioRise.create({ data: { login: "zz-ac-env", nome: "Env", funcoes: { create: [{ funcaoId: fixa.id }] } } });
+    conferir(
+      "quem vem do .env nao fica inativo nem perde a funcao fixa",
+      [(await salvarUsuario({ id: env.id, login: "zz-ac-env", nome: "Env", ativo: false, funcoes: [fixa.id] }, quem)).erros?.ativo, (await salvarUsuario({ id: env.id, login: "zz-ac-env", nome: "Env", ativo: true, funcoes: [] }, quem)).erros?.ativo],
+      ["Este login vem de RISE_AI_ADMINS; tire-o lá primeiro.", "Este login vem de RISE_AI_ADMINS; tire-o lá primeiro."],
+    );
+    await salvarUsuario({ id: usuario.id, login: "zz-ac-g1", nome: "G1 editado", ativo: false, funcoes: [], excecoes: [{ recurso: "dado.custo", nivel: "nenhum" }] }, quem);
+    const depois = await prisma.usuarioRise.findUnique({ where: { id: usuario.id }, include: { funcoes: true, excecoes: true } });
+    conferir("editar usuario troca funcoes e excecoes por inteiro", [depois.nome, depois.ativo, depois.funcoes.length, depois.excecoes.map((e) => e.recurso)], ["G1 editado", false, 0, ["dado.custo"]]);
+    const excluida = await excluirFuncao(funcao.id, quem);
+    conferir("excluir funcao", [excluida.ok, await prisma.funcaoRise.count({ where: { id: funcao.id } })], [true, 0]);
+    const trilha = await prisma.auditoriaDeAcesso.findMany({ where: { quem: "zz-ac-dono" }, orderBy: { quando: "asc" } });
+    conferir("cada gravacao deixa a trilha, com antes e depois", trilha.map((linha) => linha.oQue), ["funcao.salvar", "funcao.salvar", "usuario.salvar", "usuario.salvar", "funcao.excluir"]);
+    conferir("a trilha do usuario editado tem o antes e o depois diferentes", (() => { const linha = trilha[3]; return [linha.antes?.nome, linha.depois?.nome, linha.depois?.ativo]; })(), ["G1", "G1 editado", false]);
+    conferir("a exclusao lista quem tinha a funcao", trilha[4].antes?.usuarios, []);
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
