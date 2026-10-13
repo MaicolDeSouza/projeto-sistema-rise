@@ -129,7 +129,22 @@ try {
       [...hrefs].filter((href) => href !== "/integracoes" && !entradas.has(href)),
       [],
     );
-    conferir("so Usuarios e funcoes nao e delegavel", NAO_DELEGAVEIS, ["tela.configuracoes.usuarios"]);
+    conferir("so Usuarios e funcoes e o prompt das respostas ao cliente nao sao delegaveis", NAO_DELEGAVEIS, ["riseAi.configuracoes.promptCliente", "tela.configuracoes.usuarios"]);
+    // As abas de Configuracoes do Rise AI (Entrega A, Tarefa 14): cada aba e uma capacidade, delegavel; o prompt do cliente nao.
+    const abasDoRiseAi = ["modelos", "orcamentos", "canais", "atendimento"].map((aba) => `riseAi.configuracoes.${aba}`);
+    const cincoDasAbas = [...abasDoRiseAi, "riseAi.configuracoes.promptCliente"];
+    conferir(
+      "as cinco capacidades das abas existem, com o pai certo e depois dele",
+      cincoDasAbas.map((id) => [recursoPorId(id)?.tipo, recursoPorId(id)?.pai, ids.indexOf(recursoPorId(id)?.pai) >= 0 && ids.indexOf(recursoPorId(id)?.pai) < ids.indexOf(id)]),
+      [...abasDoRiseAi.map(() => ["capacidade", "riseAi.configuracoes", true]), ["capacidade", "riseAi.configuracoes.atendimento", true]],
+    );
+    conferir("so o prompt do cliente e exclusivo do Administrador", cincoDasAbas.map((id) => recursoPorId(id)?.delegavel), [true, true, true, true, false]);
+    conferir("rotulos das abas", abasDoRiseAi.map((id) => recursoPorId(id)?.rotulo), ["Rise AI › Configurações › Modelos", "Rise AI › Configurações › Orçamentos", "Rise AI › Configurações › Canais", "Rise AI › Configurações › Atendimento"]);
+    conferir(
+      "a matriz mostra as quatro abas no grupo do Rise AI e nenhuma linha do prompt do cliente",
+      gruposDaMatriz().find((g) => g.grupo === "/rise-ai").recursos.map((r) => r.id).filter((id) => id.startsWith("riseAi.configuracoes.")),
+      abasDoRiseAi,
+    );
     conferir(
       "os sete dados sensiveis estao no grupo dos dados, com a dica de onde aparecem",
       RECURSOS.filter((recurso) => recurso.grupo === "dados").map((recurso) => [recurso.id, Boolean(recurso.dica)]),
@@ -149,6 +164,7 @@ try {
         "tela.painel", "cartao.painel.produtos", "cartao.painel.anunciosPublicados", "tela.produtos", "tela.produtos.cadastro",
         "acao.produtos.sincronizarBling", "acao.vps.deploy", "tela.riseAi", "riseAi.chat", "riseAi.revisao", "riseAi.conhecimento",
         "riseAi.consumo", "riseAi.configuracoes", "tela.configuracoes", "tela.configuracoes.usuarios", "tela.integracoes",
+        "riseAi.configuracoes.modelos", "riseAi.configuracoes.orcamentos", "riseAi.configuracoes.canais", "riseAi.configuracoes.atendimento", "riseAi.configuracoes.promptCliente",
       ].filter((id) => !recursoPorId(id)),
       [],
     );
@@ -193,6 +209,19 @@ try {
       ["excluir", "editar", "executar", "excluir", "ver", "editar"],
     );
     conferir("administrador tem todos os recursos do catalogo", admin.size, RECURSOS.length);
+    conferir(
+      "administrador tem as quatro abas de Configuracoes do Rise AI e o prompt do cliente",
+      ["modelos", "orcamentos", "canais", "atendimento", "promptCliente"].map((aba) => admin.get(`riseAi.configuracoes.${aba}`)),
+      ["editar", "editar", "editar", "editar", "editar"],
+    );
+    conferir(
+      "o prompt do cliente gravado numa funcao ou excecao nao vale (so pelo administrador)",
+      [
+        resolver([funcao(["tela.riseAi", "ver"], ["riseAi.configuracoes.promptCliente", "editar"])]).has("riseAi.configuracoes.promptCliente"),
+        resolver([funcao(["tela.riseAi", "ver"])], [excecao("riseAi.configuracoes.promptCliente", "editar")]).has("riseAi.configuracoes.promptCliente"),
+      ],
+      [false, false],
+    );
     conferir(
       "recurso fora do catalogo e nivel invalido sao ignorados sem lancar",
       [...resolver([funcao(["tela.naoExiste", "ver"], ["tela.produtos", "voar"], ["dado.custo", "excluir"])]).keys()],
@@ -313,6 +342,7 @@ try {
 
     conferir("permissoes da Atendimento sao todas validas e delegaveis", PERMISSOES_DA_ATENDIMENTO.filter(({ recurso, nivel }) => !validarNivel(recurso, nivel) || !recursoPorId(recurso).delegavel), []);
     const nivelDe = (id) => PERMISSOES_DA_ATENDIMENTO.find((p) => p.recurso === id)?.nivel ?? "nenhum";
+    conferir("Atendimento nao tem nenhuma aba de Configuracoes do Rise AI", PERMISSOES_DA_ATENDIMENTO.filter((p) => p.recurso.startsWith("riseAi.configuracoes")), []);
     conferir(
       "Atendimento: chat do Rise AI, Produtos e custo em ver; nada de acao, Revisao ou Configuracoes",
       [nivelDe("tela.riseAi"), nivelDe("riseAi.chat"), nivelDe("tela.produtos"), nivelDe("dado.custo"), nivelDe("riseAi.revisao"), nivelDe("tela.configuracoes"), PERMISSOES_DA_ATENDIMENTO.some((p) => p.recurso.startsWith("acao."))],
@@ -431,6 +461,11 @@ try {
     conferir("excecao com nivel invalido ou recurso nao delegavel", [validarUsuario({ login: "zz-ac-v", nome: "V", excecoes: [{ recurso: "dado.custo", nivel: "excluir" }] }).erros.excecoes, validarUsuario({ login: "zz-ac-v", nome: "V", excecoes: [{ recurso: "tela.configuracoes.usuarios", nivel: "ver" }] }).erros.excecoes], ["Exceção inválida: dado.custo.", "Exceção inválida: tela.configuracoes.usuarios."]);
     const valido = validarUsuario({ login: " ZZ-AC-V ", nome: " Vê ", assinatura: "  ", ativo: true, funcoes: ["a", "a"], excecoes: [{ recurso: "dado.custo", nivel: "nenhum" }] });
     conferir("usuario valido: login normalizado, sem repetir funcao, assinatura vazia vira nula", [valido.ok, valido.dados.login, valido.dados.nome, valido.dados.assinatura, valido.dados.funcoes], [true, "zz-ac-v", "Vê", null, ["a"]]);
+    conferir(
+      "funcao: conceder o prompt das respostas ao cliente e recusado (so o Administrador altera)",
+      validarFuncao({ nome: "X", permissoes: { "riseAi.configuracoes.promptCliente": "editar" } }).erros.permissoes,
+      "Permissão inválida: riseAi.configuracoes.promptCliente.",
+    );
     conferir("funcao: nome obrigatorio, o nome da fixa e reservado, recurso nao delegavel recusado", [validarFuncao({ nome: "" }).erros.nome, validarFuncao({ nome: "administrador" }).erros.nome, validarFuncao({ nome: "X", permissoes: { "tela.configuracoes.usuarios": "ver" } }).erros.permissoes], ["Informe o nome.", "Este nome é da função fixa.", "Permissão inválida: tela.configuracoes.usuarios."]);
     conferir("funcao valida: so o que esta acima de nenhum", validarFuncao({ nome: " Vendas ", permissoes: { "tela.produtos": "ver", "dado.custo": "nenhum" } }).dados, { nome: "Vendas", descricao: null, permissoes: [{ recurso: "tela.produtos", nivel: "ver" }] });
     conferir(

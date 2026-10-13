@@ -38,6 +38,8 @@ const sub = (id, rotulo, pai, extra = {}) => ({ id, rotulo, tipo: "tela", pai, d
 const cartao = (id, rotulo, pai) => ({ id, rotulo, tipo: "cartao", pai, delegavel: true });
 const acao = (id, rotulo, pai, dica) => ({ id, rotulo, tipo: "acao", pai, delegavel: true, ...(dica ? { dica } : {}) });
 const capacidade = (id, rotulo, pai, dica) => ({ id, rotulo, tipo: "capacidade", pai, delegavel: true, ...(dica ? { dica } : {}) });
+/** Uma capacidade que so o Administrador tem (conferido em codigo): nunca aparece na matriz nem vale numa funcao ou excecao. */
+const naoDelegavel = (id, rotulo, pai, dica) => ({ id, rotulo, tipo: "capacidade", pai, delegavel: false, ...(dica ? { dica } : {}) });
 const dado = (id, rotulo, dica) => ({ id, rotulo, tipo: "dado", grupo: "dados", delegavel: true, dica });
 
 /** O catalogo, na ordem do menu. Quem nao tem `grupo` herda o do pai (preenchido abaixo). */
@@ -86,6 +88,11 @@ const LISTA = [
   capacidade("riseAi.conhecimento", "Rise AI › Conhecimento", "tela.riseAi", "Ensina a IA: notas e correções."),
   capacidade("riseAi.consumo", "Rise AI › Consumo", "tela.riseAi"),
   capacidade("riseAi.configuracoes", "Rise AI › Configurações", "tela.riseAi", "Modelos, chaves e limites."),
+  capacidade("riseAi.configuracoes.modelos", "Rise AI › Configurações › Modelos", "riseAi.configuracoes", "Modelo padrão e reserva, chaves, tempos e limites."),
+  capacidade("riseAi.configuracoes.orcamentos", "Rise AI › Configurações › Orçamentos", "riseAi.configuracoes", "Quanto a IA pode gastar por mês."),
+  capacidade("riseAi.configuracoes.canais", "Rise AI › Configurações › Canais", "riseAi.configuracoes", "Pesquisar na internet e os canais de atendimento."),
+  capacidade("riseAi.configuracoes.atendimento", "Rise AI › Configurações › Atendimento", "riseAi.configuracoes", "O estilo das respostas do chat interno."),
+  naoDelegavel("riseAi.configuracoes.promptCliente", "Rise AI › Configurações › Atendimento › Prompt das respostas ao cliente", "riseAi.configuracoes.atendimento"),
 
   tela("tela.pedidos", "Pedidos", "/pedidos"),
   tela("tela.estoque", "Estoque", "/estoque"),
