@@ -1,6 +1,7 @@
 "use client";
 
 import { propsDoFundo } from "@/lib/fundoDaJanela";
+import { linkDoDocumento } from "@/lib/documentoMercados";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   ArrowUp,
@@ -1017,11 +1018,13 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
             */
             conteudo: dados.documentos?.length > 0 && (
               <ul className="space-y-1">
-                {dados.documentos.map((documento) => (
+                {dados.documentos.map((documento) => {
+                  const { href, baixar } = linkDoDocumento(documento);
+                  return (
                   <li key={documento.url}>
                     <a
-                      href={documento.url}
-                      target="_blank"
+                      href={href}
+                      {...(baixar ? { download: "" } : { target: "_blank" })}
                       rel="noopener noreferrer"
                       className="inline-flex max-w-full items-center gap-1.5 text-sm text-acento hover:underline"
                       title={documento.url}
@@ -1030,7 +1033,8 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
                       <span className="truncate">{documento.titulo}</span>
                     </a>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             ),
           },

@@ -202,7 +202,12 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
     url: null,
     // A foto vem do mapa da pagina salva, casada pelo codigo. Sem codigo
     // nao ha como casar, e ficar sem foto e melhor que mostrar a de outro.
-    images: codigo && imagens?.get(codigo) ? [imagens.get(codigo)] : [],
+    images:
+      Array.isArray(bruto.imagens) && bruto.imagens.length > 0
+        ? bruto.imagens.filter((endereco) => typeof endereco === "string")
+        : codigo && imagens?.get(codigo)
+          ? [imagens.get(codigo)]
+          : [],
     prices: {
       // `normal` e sempre o de PRONTA ENTREGA. O que se paga pelo que ainda
       // vai chegar fica separado: os dois costumam divergir, e um campo so

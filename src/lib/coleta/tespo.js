@@ -58,14 +58,25 @@ export async function documentosDasEsteirasDoSite({ sinal = null, paginas = null
     return resposta.corpo;
   };
 
-  // 1) PDF de desenho de cada serie, na pagina inicial.
+  // 1) Pagina inicial: a secao "Nossa linha de esteiras" tem um bloco por LINHA ("LINHA 10", "LINHA 25 REFORCO"...), com
+  // a FOTO da linha e os PDFs de desenho dos modelos dela. A foto e a da linha (mostra varios modelos), e vale para todas
+  // as series do bloco: e a imagem que o site mostra do produto.
   const inicio = await ler("/");
-  for (const [, endereco] of inicio.matchAll(/href=["']([^"']+\.pdf)["']/gi)) {
-    const arquivo = decodeURIComponent(endereco.split("/").pop() ?? "").replace(/\.pdf$/i, "");
-    if (!/^(?:F\.?)?T\s?\d+\.\d+(?:\s?CR)?$/i.test(arquivo)) continue;
-    const serie = serieDaEsteira(arquivo);
-    if (!serie) continue;
-    de(serie).desenho ??= { titulo: `Desenho da série ${serie} (PDF)`, url: new URL(endereco, SITE).toString() };
+  const cabecalhos = [...inicio.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)]
+    .filter((achado) => /^LINHA\s/i.test(limpa(achado[1])))
+    .map((achado) => achado.index);
+  const blocos = cabecalhos.map((posicao, indice) => inicio.slice(posicao, cabecalhos[indice + 1] ?? inicio.length));
+  for (const bloco of blocos) {
+    const foto = /<img[^>]+src=["']([^"']*\/uploads\/[^"']+\.(?:jpe?g|png|webp))["']/i.exec(bloco)?.[1];
+    for (const [, endereco] of bloco.matchAll(/href=["']([^"']+\.pdf)["']/gi)) {
+      const arquivo = decodeURIComponent(endereco.split("/").pop() ?? "").replace(/\.pdf$/i, "");
+      if (!/^(?:F\.?)?T\s?\d+\.\d+(?:\s?CR)?$/i.test(arquivo)) continue;
+      const serie = serieDaEsteira(arquivo);
+      if (!serie) continue;
+      const alvo = de(serie);
+      alvo.desenho ??= { titulo: `Desenho da série ${serie} (PDF)`, url: new URL(endereco, SITE).toString() };
+      if (foto) alvo.foto ??= new URL(foto, SITE).toString();
+    }
   }
 
   // 2) Modelo 3D em STEP do elo e da ponteira, na pagina de downloads: uma tabela por modelo.
@@ -115,6 +126,7 @@ export function juntarDocumentosDasEsteiras(itens, series) {
     const documentos = [dados.desenho, ehTerminal ? dados.ponteira : dados.elo].filter(Boolean);
     if (documentos.length === 0) continue;
     item.documentos = documentos;
+    if (dados.foto) item.imagens = [dados.foto];
     comDocumento++;
   }
   return comDocumento;

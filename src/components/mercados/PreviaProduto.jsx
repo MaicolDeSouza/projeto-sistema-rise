@@ -1,5 +1,6 @@
 "use client";
 
+import { linkDoDocumento } from "@/lib/documentoMercados";
 import { useState } from "react";
 import { Check, ImageOff, X } from "lucide-react";
 
@@ -497,20 +498,24 @@ export default function PreviaProduto({ produto, indice }) {
             <span className="ml-1">({documentos.length})</span>
           </p>
           <ul className="space-y-1">
-            {documentos.map((documento) => (
-              <li key={documento.url}>
-                <a
-                  href={documento.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex max-w-full items-center gap-1.5 text-xs text-acento hover:underline"
-                  title={documento.url}
-                >
-                  <span aria-hidden>↓</span>
-                  <span className="truncate">{documento.titulo}</span>
-                </a>
-              </li>
-            ))}
+            {documentos.map((documento) => {
+              // Arquivo de CAD passa pelo servidor para BAIXAR (a loja o entrega como texto): ver documentoMercados.js.
+              const { href, baixar } = linkDoDocumento(documento);
+              return (
+                <li key={documento.url}>
+                  <a
+                    href={href}
+                    {...(baixar ? { download: "" } : { target: "_blank" })}
+                    rel="noopener noreferrer"
+                    className="inline-flex max-w-full items-center gap-1.5 text-xs text-acento hover:underline"
+                    title={documento.url}
+                  >
+                    <span aria-hidden>↓</span>
+                    <span className="truncate">{documento.titulo}</span>
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

@@ -2773,7 +2773,8 @@ console.log("\n— Tespo: documentos das esteiras no site —");
   const { serieDaEsteira, serieDoItem, documentosDasEsteirasDoSite, juntarDocumentosDasEsteiras } = await import("../src/lib/coleta/tespo.js");
   conferir("tespo: serie pelo nome do arquivo ou do modelo (CR e F. normalizados; outro PDF nao e serie)", [serieDaEsteira("T10.10"), serieDaEsteira("t100.25 cr"), serieDaEsteira("F.T50.35"), serieDaEsteira("T75.35 CR"), serieDaEsteira("TS010"), serieDaEsteira("Prensa-Cabo")], ["T10.10", "T100.25CR", "F.T50.35", "T75.35CR", null, null]);
   conferir("tespo: serie do item: C/ REFORCO e C/R viram CR", [serieDoItem("ESTEIRA PORTA CABOS T100.35 R75mm C/ REFORÇO"), serieDoItem("ESTEIRA PORTA CABOS T50.25 C/R"), serieDoItem("ESTEIRA PORTA CABOS T10.10.R18mm"), serieDoItem("CJ. TERMINAL T10.10"), serieDoItem("CONJUNTO TERMINAL 75X50 103X65")], ["T100.35CR", "T50.25CR", "T10.10", "T10.10", null]);
-  const casa = `<a href="https://www.tespoinjetados.com.br/wp-content/uploads/2016/04/T10.10.pdf">T10.10</a><a href="/wp-content/uploads/2023/07/T100.25CR.pdf">x</a><a href="/wp-content/uploads/2022/06/TS20.pdf">caixa</a><a href="/wp-content/uploads/2016/05/corredica-central-03572.pdf">corredica</a>`;
+  const casa = `<h1><strong>LINHA 10</strong></h1><img src="https://www.tespoinjetados.com.br/wp-content/uploads/2021/11/Linha-10.jpg"><a href="https://www.tespoinjetados.com.br/wp-content/uploads/2016/04/T10.10.pdf">T10.10</a>`
+    + `<h1>LINHA 25 REFORÇO</h1><img src="/wp-content/uploads/2021/11/Linha-25CR.jpg"><a href="/wp-content/uploads/2023/07/T100.25CR.pdf">x</a><a href="/wp-content/uploads/2022/06/TS20.pdf">caixa</a><a href="/wp-content/uploads/2016/05/corredica-central-03572.pdf">corredica</a>`;
   const baixa = `<table><tr><td><h3>Modelo T10.10</h3></td><td><a href="/wp-content/uploads/2021/11/Elo-T10.10.stp">e</a></td><td><a href="/wp-content/uploads/2022/09/Ponteiras-10.10.stp">p</a></td></tr></table>`
     + `<table><tr><td><h3>Modelo T50.25 e T50.25CR</h3></td><td><a href="/wp-content/uploads/2021/11/Elo-T50.25.stp">e</a></td><td><a href="/wp-content/uploads/2022/09/Ponteiras-50.25.stp">p</a></td></tr></table>`;
   const { series, avisos } = await documentosDasEsteirasDoSite({ paginas: { "/": casa, "/downloads/": baixa } });
@@ -2788,6 +2789,13 @@ console.log("\n— Tespo: documentos das esteiras no site —");
   ];
   const comDoc = juntarDocumentosDasEsteiras(itens, series);
   conferir("tespo: esteira leva desenho + elo; terminal, desenho + ponteira; terminal sem modelo usa a medida interna; serie inexistente fica sem", [comDoc, itens.map((i) => (i.documentos ?? []).map((d) => (/desenho/i.test(d.titulo) ? "desenho" : /ponteira/i.test(d.titulo) ? "ponteira" : "elo")).join("+"))], [4, ["desenho+elo", "desenho+ponteira", "elo", "ponteira", ""]]);
+  conferir("tespo: a foto da LINHA do site vale para as series do bloco (a primeira imagem, e so ela)", [series.get("T10.10").foto, series.get("T100.25CR").foto], ["https://www.tespoinjetados.com.br/wp-content/uploads/2021/11/Linha-10.jpg", "https://www.tespoinjetados.com.br/wp-content/uploads/2021/11/Linha-25CR.jpg"]);
+  const comFoto = [{ sku: "1", desc: "ESTEIRA PORTA CABOS T10.10.R18mm", especificacoes: [] }];
+  juntarDocumentosDasEsteiras(comFoto, series);
+  conferir("tespo: o item ganha a foto da linha em `imagens`", comFoto[0].imagens, ["https://www.tespoinjetados.com.br/wp-content/uploads/2021/11/Linha-10.jpg"]);
+  const { linkDoDocumento } = await import("../src/lib/documentoMercados.js");
+  conferir("link: PDF e imagem abrem no endereco da loja; STEP, IGES e ZIP baixam pelo servidor", [linkDoDocumento({ url: "https://x.com/a.pdf" }), linkDoDocumento({ url: "https://x.com/Elo-T10.10.stp", titulo: "Modelo 3D do elo (STEP)" }).baixar, linkDoDocumento({ url: "https://x.com/a.igs?v=2" }).baixar, linkDoDocumento({ url: "https://x.com/a.zip" }).baixar, linkDoDocumento({ url: "https://x.com/a.jpg" }).baixar], [{ href: "https://x.com/a.pdf", baixar: false }, true, true, true, false]);
+  conferir("link: o endereco da loja vai codificado no parametro `url` e o titulo junto", linkDoDocumento({ url: "https://x.com/Elo T.stp", titulo: "Modelo 3D" }).href, "/api/mercados/documento?url=https%3A%2F%2Fx.com%2FElo+T.stp&titulo=Modelo+3D");
   const falha = await documentosDasEsteirasDoSite({ paginas: { "/": "", "/downloads/": "" } });
   conferir("tespo: site sem documento de esteira vira aviso, nunca erro", [falha.series.size, falha.avisos.length], [0, 1]);
 }

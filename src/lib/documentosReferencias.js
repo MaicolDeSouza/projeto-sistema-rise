@@ -13,7 +13,7 @@ const formatosConsultados = new Map();
 const REDE_PUBLICA = { lookup: lookupPublico, validar: validarEnderecoPublico };
 
 function formatoPeloNome(valor) {
-  const extensao = String(valor ?? "").match(/\.(pdf|jpe?g|png|zip|rar|7z|docx?|xlsx?|pptx?|csv|txt|stl|dxf|step|ino|hex)(?:[?#]|$)/i)?.[1];
+  const extensao = String(valor ?? "").match(/\.(pdf|jpe?g|png|zip|rar|7z|docx?|xlsx?|pptx?|csv|txt|stl|dxf|step|stp|igs|iges|dwg|ino|hex)(?:[?#]|$)/i)?.[1];
   return extensao ? (extensao.toLowerCase() === "jpeg" ? "JPG" : extensao.toUpperCase()) : null;
 }
 
@@ -130,7 +130,7 @@ export async function localizarDocumentoDaReferencia(referenciaId, indice) {
 }
 
 function tipoDoArquivo(bytes, url, contentType) {
-  const extensao = url.pathname.match(/\.(zip|rar|7z|docx?|xlsx?|pptx?|csv|txt|stl|dxf|step|ino|hex)$/i)?.[1]?.toLowerCase();
+  const extensao = url.pathname.match(/\.(zip|rar|7z|docx?|xlsx?|pptx?|csv|txt|stl|dxf|step|stp|igs|iges|dwg|ino|hex)$/i)?.[1]?.toLowerCase();
   if (bytes.subarray(0, 5).toString() === "%PDF-") return { mime: "application/pdf", ext: "pdf" };
   if (bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) return { mime: "image/jpeg", ext: "jpg" };
   if (bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
@@ -173,7 +173,7 @@ export async function baixarDocumento(documento) {
   const base = String(documento.titulo || "documento")
     .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "")
-    .replace(/\.(pdf|jpe?g|png|zip|rar|7z|docx?|xlsx?|pptx?|csv|txt|stl|dxf|step|ino|hex)$/i, "")
+    .replace(/\.(pdf|jpe?g|png|zip|rar|7z|docx?|xlsx?|pptx?|csv|txt|stl|dxf|step|stp|igs|iges|dwg|ino|hex)$/i, "")
     .slice(0, 80) || "documento";
   return { bytes, mime: tipo.mime, nome: `${base}.${tipo.ext}` };
 }
