@@ -29,7 +29,9 @@ export default function CartaoDeProduto({ produto, esmaecido = false }) {
   const lidoEm = produto.estoqueLidoEm ? Math.floor(new Date(produto.estoqueLidoEm).getTime() / 60_000) : null;
   const minutos = lidoEm !== null && agora !== null ? Math.max(0, agora - lidoEm) : null;
   const idade = lidoEm !== null && agora === null ? "" : idadeDoSaldo(minutos);
-  const semEstoque = produto.estoque <= 0;
+  // Sem `dado.estoqueExato` (Acessos) o estoque chega como faixa ("disponível", "poucas unidades", "em falta").
+  const faixa = typeof produto.estoque === "string" ? produto.estoque : null;
+  const semEstoque = faixa ? faixa === "em falta" : produto.estoque <= 0;
 
   return (
     <div className={`flex items-start gap-3 rounded-lg border border-borda bg-superficie p-3 ${esmaecido ? "opacity-75" : ""}`}>
@@ -40,7 +42,7 @@ export default function CartaoDeProduto({ produto, esmaecido = false }) {
         <p className="mt-0.5 text-sm text-suave">
           {produto.preco === null ? "sem preço" : reais(produto.preco)} ·{" "}
           <span className={`font-medium ${semEstoque ? "text-red-700" : "text-emerald-700"}`}>
-            {semEstoque ? "sem estoque" : `${produto.estoque} em estoque`}
+            {faixa ?? (semEstoque ? "sem estoque" : `${produto.estoque} em estoque`)}
           </span>
           {idade && <span className="text-xs"> ({idade})</span>}
         </p>

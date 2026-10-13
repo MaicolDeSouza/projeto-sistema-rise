@@ -48,7 +48,8 @@ export async function POST(pedido) {
   const usuario = acesso.login ?? "desconhecido";
 
   const fluxo = fluxoDeEventos(async (enviar) => {
-    await responder({ conversaId, texto, usuario, aoEvento: enviar });
+    // As ferramentas seguem os dados sensiveis de quem pergunta (Acessos): se ve custo na tela, ve custo no chat.
+    await responder({ conversaId, texto, usuario, pode: acesso.pode, aoEvento: enviar });
   });
   return new Response(fluxo, { headers: CABECALHOS_DO_FLUXO });
 }

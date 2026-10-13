@@ -644,6 +644,21 @@ try {
     );
     conferir("compararProdutos pede pelo menos 2", (await executar("compararProdutos", { skus: ["ZZ-IA-UNO"] })).ok, false);
     conferir("similares pela ferramenta", (await executar("buscarProdutosSimilares", { sku: "ZZ-IA-UNO" })).resultado.map((p) => p.sku).filter((s) => s.startsWith("ZZ-IA-")), ["ZZ-IA-NANO"]);
+
+    // Acessos (lancamento 1, Tarefa 9): as ferramentas seguem os dados sensiveis da pessoa. "Se ve custo na tela, ve
+    // custo no chat"; sem a permissao, o campo vem marcado como restrito (o modelo sabe o que dizer).
+    const negando = (...ids) => ({ perfil: "admin", usuario: "ZZ-IA-T9", pode: (id) => !ids.includes(id) });
+    const semCusto = (await executar("consultarProduto", { sku: "ZZ-IA-UNO" }, negando("dado.custo"))).resultado;
+    conferir("sem dado.custo: custo e fornecedores restritos, o preco fica", [semCusto.custo, semCusto.fornecedores, typeof semCusto.preco, Array.isArray(semCusto.concorrentes)], ["[restrito]", "[restrito]", "number", true]);
+    const semOutros = (await executar("consultarProduto", { sku: "ZZ-IA-UNO" }, negando("dado.localizacao", "dado.concorrentes"))).resultado;
+    conferir("sem localizacao e concorrentes: os dois restritos, o custo fica", [semOutros.localizacao, semOutros.concorrentes, typeof semOutros.custo], ["[restrito]", "[restrito]", "number"]);
+    const semQuantidade = (await executar("consultarEstoque", { skus: ["ZZ-IA-UNO", "ZZ-IA-NANO"] }, negando("dado.estoqueExato"))).resultado;
+    conferir("sem estoque exato: so a faixa, e o saldo do Bling restrito", semQuantidade.map((linha) => [linha.estoque, linha.blingSaldo]), [["disponível", "[restrito]"], ["em falta", "[restrito]"]]);
+    const buscaSemQuantidade = (await executar("buscarProdutos", { termos: "zzia nano" }, negando("dado.estoqueExato"))).resultado;
+    conferir("buscar sem estoque exato tambem devolve a faixa", buscaSemQuantidade.filter((p) => p.sku === "ZZ-IA-NANO").map((p) => p.estoque), ["em falta"]);
+    const busca = await import("../src/lib/riseAi/busca.js");
+    conferir("faixa de estoque", [0, -2, 1, 3, 4, null].map((n) => busca.faixaDeEstoque?.(n)), ["em falta", "em falta", "poucas unidades", "poucas unidades", "disponível", "em falta"]);
+    conferir("cartao sem pode: como antes (numero)", typeof busca.cartaoDoProduto({ sku: "X", id: "x", tituloBase: "X", estoque: 2 }).estoque, "number");
   }
 
   // -------------------------------------------------------------------------

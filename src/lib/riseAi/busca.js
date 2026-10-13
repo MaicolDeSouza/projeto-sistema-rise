@@ -37,12 +37,23 @@ export function fichaResumo(descricaoBase) {
   return texto || (linhas[0] ?? "").slice(0, LIMITE_DA_FICHA);
 }
 
+/** O marcador de um campo que a pessoa não pode ver (Acessos): o modelo sabe dizer "isso eu não posso mostrar". */
+export const RESTRITO = "[restrito]";
+
+/** O estoque sem a quantidade, para quem não tem `dado.estoqueExato` (e, na Entrega B, para o cliente). */
+export function faixaDeEstoque(quantidade) {
+  const n = Number(quantidade);
+  if (!Number.isFinite(n) || n <= 0) return "em falta";
+  return n <= 3 ? "poucas unidades" : "disponível";
+}
+
 /**
  * O produto como o assistente e a tela o veem. Preço, estoque (com a hora em que o saldo foi lido do Bling), se está
  * na loja e os links. O PERFIL decide o resto: só o administrador recebe custo, localização e o link interno — a
- * autorização é daqui, nunca do prompt.
+ * autorização é daqui, nunca do prompt. Dentro do perfil admin, `pode` (as permissões de Acessos de quem pergunta)
+ * restringe os dados sensíveis: sem custo ou localização, o campo vem `RESTRITO`; sem estoque exato, só a faixa.
  */
-export function cartaoDoProduto(produto, { perfil = "admin" } = {}) {
+export function cartaoDoProduto(produto, { perfil = "admin", pode = () => true } = {}) {
   const cartao = {
     sku: produto.sku,
     id: produto.id,
@@ -50,7 +61,7 @@ export function cartaoDoProduto(produto, { perfil = "admin" } = {}) {
     marca: produto.marca ?? null,
     modelo: produto.modelo ?? null,
     preco: numero(produto.precoVenda),
-    estoque: produto.estoque,
+    estoque: pode("dado.estoqueExato", "ver") ? produto.estoque : faixaDeEstoque(produto.estoque),
     // Texto (ISO), não Date: o cartão vai para o JSON da mensagem e para a tela.
     estoqueLidoEm: produto.blingSaldoLidoEm ? new Date(produto.blingSaldoLidoEm).toISOString() : null,
     temNaLoja: Boolean(produto.urlLojaIntegrada),
@@ -61,8 +72,8 @@ export function cartaoDoProduto(produto, { perfil = "admin" } = {}) {
   if (perfil === "admin") {
     cartao.urlRise = `/produtos/${produto.id}`;
     // O custo do cadastro e, na falta dele, o do rascunho do Bling (de onde vêm os produtos importados).
-    cartao.custo = numero(produto.custo) ?? numero(produto.fornecedorRascunho?.precoCusto);
-    cartao.localizacao = produto.localizacao ?? null;
+    cartao.custo = pode("dado.custo", "ver") ? (numero(produto.custo) ?? numero(produto.fornecedorRascunho?.precoCusto)) : RESTRITO;
+    cartao.localizacao = pode("dado.localizacao", "ver") ? (produto.localizacao ?? null) : RESTRITO;
   }
   return cartao;
 }

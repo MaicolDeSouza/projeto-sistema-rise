@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { linhasDeEspecificacao } from "@/lib/medidas";
 import { normalizar } from "@/lib/texto";
-import { buscarProdutosNoCatalogo, buscarProdutosParecidos, cartaoDoProduto } from "../busca";
+import { RESTRITO, buscarProdutosNoCatalogo, buscarProdutosParecidos, cartaoDoProduto, faixaDeEstoque } from "../busca";
 import { ErroDeFerramenta } from "./erro";
 
 /**
@@ -19,9 +19,15 @@ const numero = (valor) => (valor === null || valor === undefined ? null : Number
 const sku = z.string().trim().min(1).max(40).describe("Código (SKU) do produto, como no cadastro");
 const listaDeSkus = (minimo, maximo) => z.array(sku).min(minimo).max(maximo);
 
+/** As permissões de Acessos de quem pergunta; quem chama sem elas (sugestões, testes) vê como antes. */
+const podeDe = (contexto) => contexto?.pode ?? (() => true);
+
+/** A quantidade, ou só a faixa para quem não tem `dado.estoqueExato`. */
+const estoqueVisivel = (quantidade, contexto) => (podeDe(contexto)("dado.estoqueExato", "ver") ? quantidade : faixaDeEstoque(quantidade));
+
 /** O cartão que o modelo lê: sem custo nem localização (o texto do cliente não pode citá-los). */
-function cartaoParaOModelo(produto, perfil) {
-  const { custo, localizacao, ...resto } = cartaoDoProduto(produto, { perfil });
+function cartaoParaOModelo(produto, contexto) {
+  const { custo, localizacao, ...resto } = cartaoDoProduto(produto, { perfil: contexto.perfil, pode: podeDe(contexto) });
   void custo;
   void localizacao;
   return resto;
@@ -55,7 +61,7 @@ export const FERRAMENTAS_DE_PRODUTO = [
     }),
     async executar({ termos, apenasComEstoque, precoMaximo, limite }, contexto) {
       const { produtos } = await buscarProdutosNoCatalogo(termos, { apenasComEstoque, precoMaximo, limite, perfil: contexto.perfil });
-      return produtos.map((produto) => cartaoParaOModelo(produto, contexto.perfil));
+      return produtos.map((produto) => cartaoParaOModelo(produto, contexto));
     },
   },
   {
@@ -81,7 +87,7 @@ export const FERRAMENTAS_DE_PRODUTO = [
       if (!produto) throw semProduto(codigo);
 
       const resultado = {
-        ...cartaoDoProduto(produto, { perfil: contexto.perfil }),
+        ...cartaoDoProduto(produto, { perfil: contexto.perfil, pode: podeDe(contexto) }),
         descricao: (produto.descricaoBase ?? "").slice(0, 3000),
         ficha: linhasDeEspecificacao(produto.descricaoBase),
         fotos: produto.arquivos.filter((arquivo) => arquivo.tipo === "IMAGEM" && arquivo.papel === "FOTO").length,
@@ -89,14 +95,15 @@ export const FERRAMENTAS_DE_PRODUTO = [
         kit: produto.componentes.map((peca) => ({ sku: peca.componente.sku, nome: peca.componente.tituloBase, quantidade: peca.quantidade })),
       };
       if (contexto.perfil === "admin") {
-        resultado.fornecedores = produto.fornecedores.map((vinculo) => ({
+        const pode = podeDe(contexto);
+        resultado.fornecedores = !pode("dado.custo", "ver") ? RESTRITO : produto.fornecedores.map((vinculo) => ({
           nome: vinculo.fornecedor.nome,
           custo: numero(vinculo.precoCusto),
           codigo: vinculo.codigo ?? null,
           padrao: vinculo.padrao,
         }));
         // Preço NORMAL do concorrente (regra do sistema); o promocional só na falta dele.
-        resultado.concorrentes = produto.concorrentes.map((vinculo) => ({
+        resultado.concorrentes = !pode("dado.concorrentes", "ver") ? RESTRITO : produto.concorrentes.map((vinculo) => ({
           fonte: vinculo.produtoColetado?.fonte.nome ?? vinculo.fonteManual ?? null,
           nome: vinculo.produtoColetado?.nome ?? vinculo.nomeManual ?? null,
           preco: numero(vinculo.produtoColetado ? (vinculo.produtoColetado.precoNormal ?? vinculo.produtoColetado.precoPromocional) : vinculo.precoManual),
@@ -112,16 +119,17 @@ export const FERRAMENTAS_DE_PRODUTO = [
       "Sempre diga ao usuário há quanto tempo o estoque foi lido quando a resposta depender dele.",
     perfis: ["admin"],
     esquema: z.object({ skus: listaDeSkus(1, 20) }),
-    async executar({ skus }) {
+    async executar({ skus }, contexto) {
       const produtos = await produtosPorCodigo(skus);
+      const exato = podeDe(contexto)("dado.estoqueExato", "ver");
       return skus.map((codigo, indice) => {
         const produto = produtos[indice];
         if (!produto) return { sku: codigo, encontrado: false };
         return {
           sku: produto.sku,
-          estoque: produto.estoque,
+          estoque: estoqueVisivel(produto.estoque, contexto),
           estoqueLidoEm: produto.blingSaldoLidoEm ? new Date(produto.blingSaldoLidoEm).toISOString() : null,
-          blingSaldo: produto.blingSaldo ?? null,
+          blingSaldo: exato ? (produto.blingSaldo ?? null) : RESTRITO,
         };
       });
     },
@@ -145,7 +153,7 @@ export const FERRAMENTAS_DE_PRODUTO = [
       "Característica que um produto não informa vem como null: não invente o valor.",
     perfis: ["admin"],
     esquema: z.object({ skus: listaDeSkus(2, 5) }),
-    async executar({ skus }) {
+    async executar({ skus }, contexto) {
       const produtos = await produtosPorCodigo(skus);
       produtos.forEach((produto, indice) => {
         if (!produto) throw semProduto(skus[indice]);
@@ -162,7 +170,7 @@ export const FERRAMENTAS_DE_PRODUTO = [
         }
       }
       return {
-        produtos: produtos.map((produto) => ({ sku: produto.sku, nome: produto.tituloBase, preco: numero(produto.precoVenda), estoque: produto.estoque })),
+        produtos: produtos.map((produto) => ({ sku: produto.sku, nome: produto.tituloBase, preco: numero(produto.precoVenda), estoque: estoqueVisivel(produto.estoque, contexto) })),
         caracteristicas: [...caracteristicas.values()],
       };
     },
@@ -178,7 +186,7 @@ export const FERRAMENTAS_DE_PRODUTO = [
       const [produto] = await produtosPorCodigo([codigo]);
       if (!produto) throw semProduto(codigo);
       const parecidos = await buscarProdutosParecidos(produto, { perfil: contexto.perfil });
-      return parecidos.map((parecido) => cartaoParaOModelo(parecido, contexto.perfil));
+      return parecidos.map((parecido) => cartaoParaOModelo(parecido, contexto));
     },
   },
 ];

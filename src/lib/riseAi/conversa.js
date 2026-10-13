@@ -99,7 +99,7 @@ const FERRAMENTAS_QUE_TRAZEM_PRODUTO = new Set(["buscarProdutos", "buscarProduto
  * Uma tentativa completa com UM provedor: chama, executa as ferramentas que ele pedir, chama de novo, até a resposta
  * final. Lança `FalhaNoProvedor` se o provedor falhar (a reserva decide o que fazer) e o erro cru se o defeito for nosso.
  */
-async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, perfil, usuario, aoEvento }) {
+async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento }) {
   const relogio = criarRelogio(config.tempoLimite);
   const trabalho = [...mensagens];
   const ferramentas = definicoesParaProvedor(perfil);
@@ -200,7 +200,7 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
         } else {
           chamadasFeitas++;
           aoEvento("ferramenta", { nome: chamada.nome, estado: "inicio" });
-          const executada = await executarFerramenta(chamada.nome, chamada.argumentos, { perfil, usuario });
+          const executada = await executarFerramenta(chamada.nome, chamada.argumentos, { perfil, usuario, pode });
           aoEvento("ferramenta", { nome: chamada.nome, estado: "fim", ok: executada.ok });
           trilha.push({ nome: chamada.nome, argumentos: chamada.argumentos, ok: executada.ok, duracaoMs: executada.duracaoMs });
           if (executada.ok) {
@@ -262,7 +262,7 @@ function textoDoErro({ erroInesperado, semModelo, escolhaReserva, falhaPadrao, f
  *   Eventos de `aoEvento`: `inicio`, `texto`, `descartar`, `ferramenta`, `reserva`, `fim`, `erro`.
  * @returns {Promise<{ conversaId: string, mensagem: object }>}  a mensagem do assistente (ou a de erro, com o aviso "erro")
  */
-export async function responder({ conversaId = null, texto, usuario, perfil = "admin", aoEvento = () => {}, dependencias = {} }) {
+export async function responder({ conversaId = null, texto, usuario, perfil = "admin", pode, aoEvento = () => {}, dependencias = {} }) {
   const pergunta = String(texto ?? "").trim();
   if (!pergunta) throw new ErroDeUso("Escreva a pergunta.");
   if (pergunta.length > MAXIMO_DA_PERGUNTA) throw new ErroDeUso("A pergunta passa de 8.000 caracteres.");
@@ -350,7 +350,7 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
         throw erro;
       }
       aoEvento("inicio", { conversaId: conversa.id, provedor: escolha.provedor, modelo: escolha.modelo });
-      return rodarLaco({ id: escolha.provedor, modelo: escolha.modelo, provedor, config, sistema, mensagens, perfil, usuario, aoEvento });
+      return rodarLaco({ id: escolha.provedor, modelo: escolha.modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento });
     }
 
     let resultado = null;
