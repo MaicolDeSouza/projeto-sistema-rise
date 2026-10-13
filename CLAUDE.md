@@ -3534,7 +3534,8 @@ uma revisão de segurança e uma de arquitetura (consolidado e decisões em
 ## Acessos (lançamento 1, 12/10/2026)
 
 Pedido do dono na fase 2 do Rise AI. Spec: `docs/superpowers/specs/2026-10-12-acessos-design.md` (revisão 2); plano (18 tarefas,
-executado inline na `main`): `docs/superpowers/plans/2026-10-12-acessos-lancamento-1.md`. **Pronto e testado, SEM DEPLOY.** O
+executado inline na `main`): `docs/superpowers/plans/2026-10-12-acessos-lancamento-1.md`; as decisões que tomei na execução e a
+revisão final estão em `docs/superpowers/plans/2026-10-12-acessos-lancamento-1-decisoes.md`. **Pronto e testado, SEM DEPLOY.** O
 lançamento 2 (o resto do Rise sob o invólucro, Painel e menu filtrados, tela em `ver`, "Ver como", Histórico) é o que dá login à
 Andrea; o 3 é a permissão por campo.
 
