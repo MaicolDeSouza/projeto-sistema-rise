@@ -484,6 +484,35 @@ try {
     );
   }
 
+  // --- matriz: as regras puras da tela da funcao (src/lib/acessos/matriz.js) ---
+  {
+    const { filtrarRecursos, aplicarTodosDaLista, contarAlteracoes, nivelPorTecla, permissoesParaEnvio } = await import("../src/lib/acessos/matriz.js");
+    const { gruposDaMatriz, recursoPorId } = await import("../src/lib/acessos/recursos.js");
+    const grupos = gruposDaMatriz();
+    const achados = filtrarRecursos(grupos, "CUSTO");
+    conferir("a busca atravessa os grupos, sem caixa, e diz o grupo", [achados.some((r) => r.id === "dado.custo"), achados.find((r) => r.id === "dado.custo")?.grupoRotulo], [true, "Dados sensíveis"]);
+    conferir("busca sem acento acha com acento", filtrarRecursos(grupos, "relatorios").map((r) => r.id), ["tela.relatorios"]);
+    const produtos = grupos.find((g) => g.grupo === "/produtos").recursos;
+    const todosVer = aplicarTodosDaLista({ "tela.produtos": "editar", "tela.cadastros": "ver" }, produtos, "ver");
+    conferir(
+      "todos desta lista: so os visiveis, e acao nao ganha ver",
+      [todosVer["tela.produtos"], todosVer["tela.produtos.cadastro"], todosVer["acao.produtos.sincronizarBling"], todosVer["tela.cadastros"]],
+      ["ver", "ver", undefined, "ver"],
+    );
+    conferir("todos desta lista em nenhum tira as linhas", Object.keys(aplicarTodosDaLista({ "tela.produtos": "ver", "tela.cadastros": "ver" }, produtos, "nenhum")), ["tela.cadastros"]);
+    conferir(
+      "contar alteracoes: nenhum ausente e nenhum presente sao iguais, e recurso fora do catalogo nao quebra",
+      [contarAlteracoes({ "tela.produtos": "ver" }, { "tela.produtos": "ver", "dado.custo": "nenhum" }), contarAlteracoes({ "tela.produtos": "ver", "tela.antiga": "ver" }, { "tela.produtos": "editar", "tela.antiga": "ver" })],
+      [0, 1],
+    );
+    conferir(
+      "tecla do nivel conforme o tipo",
+      [nivelPorTecla(recursoPorId("tela.produtos"), "3"), nivelPorTecla(recursoPorId("acao.vps.deploy"), "1"), nivelPorTecla(recursoPorId("cartao.painel.produtos"), "2"), nivelPorTecla(recursoPorId("dado.custo"), "x")],
+      ["excluir", "executar", null, null],
+    );
+    conferir("para enviar: so o que esta acima de nenhum", permissoesParaEnvio({ "tela.produtos": "ver", "dado.custo": "nenhum" }), { "tela.produtos": "ver" });
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
