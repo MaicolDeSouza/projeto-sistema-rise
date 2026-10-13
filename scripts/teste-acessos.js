@@ -361,6 +361,32 @@ try {
     conferir("o Rise AI continua aceso na tela de configuracoes dele, e o Painel so na raiz", [ehRotaAtiva("/rise-ai/configuracoes", "/rise-ai"), ehRotaAtiva("/", "/"), ehRotaAtiva("/produtos", "/")], [true, true, false]);
   }
 
+  // --- configuracoes: os cartoes e o detalhe vivo de cada um (src/lib/configuracoes/) ---
+  {
+    const { CARTOES_DE_CONFIGURACOES } = await import("../src/lib/configuracoes/catalogo.js");
+    const { detalheDeUsuarios, detalheDeIntegracoes, detalheDoRiseAi } = await import("../src/lib/configuracoes/detalhes.js");
+    conferir("os tres cartoes, cada um com o seu recurso", CARTOES_DE_CONFIGURACOES.map((cartao) => [cartao.href, cartao.recurso]), [
+      ["/configuracoes/usuarios", "tela.configuracoes.usuarios"],
+      ["/integracoes", "tela.integracoes"],
+      ["/rise-ai/configuracoes", "riseAi.configuracoes"],
+    ]);
+    conferir("usuarios e funcoes, no plural e no singular", [detalheDeUsuarios({ usuarios: 2, funcoes: 2 }), detalheDeUsuarios({ usuarios: 1, funcoes: 1 }), detalheDeUsuarios({ usuarios: 0, funcoes: 2 })], ["2 usuários · 2 funções", "1 usuário · 1 função", "0 usuários · 2 funções"]);
+    const conectores = [{ id: "BLING" }, { id: "MERCADO_LIVRE" }, { id: "LOJA_INTEGRADA" }];
+    const conexoes = (pares) => new Map(pares.map(([servico, status]) => [servico, { status }]));
+    conferir(
+      "integracoes: a pior situacao primeiro, so o que tem valor",
+      [
+        detalheDeIntegracoes(conectores, conexoes([["BLING", "CONECTADO"], ["MERCADO_LIVRE", "CONECTADO"], ["LOJA_INTEGRADA", "CONECTADO"]])),
+        detalheDeIntegracoes(conectores, conexoes([["BLING", "CONECTADO"], ["MERCADO_LIVRE", "EXPIRADO"], ["LOJA_INTEGRADA", "CONECTADO"]])),
+        detalheDeIntegracoes(conectores, conexoes([["BLING", "ERRO"], ["MERCADO_LIVRE", "CONECTADO"]])),
+        detalheDeIntegracoes([], new Map()),
+      ],
+      ["3 conectadas", "1 expirada · 2 conectadas", "1 com erro · 1 não configurada · 1 conectada", "nenhuma conectada"],
+    );
+    const provedores = [{ id: "anthropic", rotulo: "Anthropic" }];
+    conferir("o padrao do Rise AI", [detalheDoRiseAi({ provedor: "anthropic", modelo: "claude-haiku-5-5" }, provedores), detalheDoRiseAi(null, provedores), detalheDoRiseAi({ provedor: "x", modelo: "m" }, provedores)], ["Padrão: Anthropic · claude-haiku-5-5", "Sem modelo padrão", "Padrão: x · m"]);
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
