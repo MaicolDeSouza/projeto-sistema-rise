@@ -174,7 +174,8 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
   const estoque = comoNumero(valorDe(bruto, CAMPOS.estoque));
   const aChegar = comoNumero(valorDe(bruto, CAMPOS.estoqueAChegar));
 
-  const especificacoes = [];
+  // Fichas que o leitor do arquivo ja montou (o catalogo de esteiras da Tespo traz as medidas em colunas).
+  const especificacoes = Array.isArray(bruto.especificacoes) ? bruto.especificacoes.map((linha) => ({ ...linha })) : [];
   const ipi = valorDe(bruto, CAMPOS.ipi);
   if (ipi !== null) especificacoes.push({ nome: "IPI", valor: String(ipi) });
   const encapsulamento = comoTexto(valorDe(bruto, CAMPOS.encapsulamento));
@@ -530,6 +531,105 @@ function linhasDePdf(texto) {
 }
 
 /**
+ * CATALOGO DE ESTEIRAS PORTA-CABOS EM PDF (Tespo Injetados, 13/10/2026).
+ *
+ * Cada item e uma linha de tabela com o codigo de 5 digitos no inicio, e o texto extraido do PDF
+ * a parte em DUAS linhas:
+ *
+ *   03154 ESTEIRA PORTA CABOS
+ *   T10.10.R18mm 10,6X10,6 15X13 46 18 20 49 107gr
+ *
+ * A primeira traz codigo e tipo; a segunda, o modelo, a medida interna (Li x Ai), a externa
+ * (Le x Ae) e os numeros da tabela (altura H, raio R, passo P, elos por metro e peso por metro).
+ * O conjunto terminal vem numa linha so: "03155 CJ. TERMINAL T10.10 10,6X10,6 15X13". O leitor de
+ * linhas tabuladas da Santana achava 4 itens dos 118 deste catalogo. Unidade: milimetros (o
+ * proprio catalogo diz "Unidade de medida: milimetros").
+ *
+ * So entra o que tem codigo no inicio da linha. Os acessorios citados dentro do texto ("Separador
+ * de cabos (Cod. 03860)") nao tem medida nem nome proprio, e ficam de fora: inventar um nome para
+ * eles seria chute.
+ *
+ * Tabela sem preco por desenho do fornecedor. Fica de fora quando o texto nao tem o cabecalho
+ * "MEDIDA INTERNA": catalogo de outro fornecedor com codigo de 5 digitos nao pode ser lido assim.
+ *
+ * @returns {Array<{sku, desc, categoria, marca, especificacoes}>}
+ */
+export function esteirasDoPdf(texto) {
+  if (!/MEDIDA INTERNA/i.test(texto ?? "")) return [];
+
+  const linhas = texto.split("\n").map((linha) => linha.replace(/\t+/g, " ").replace(/\s+/g, " ").trim());
+  const medida = String.raw`\d+(?:[.,]\d+)?\s*[xX]\s*\d+(?:[.,]\d+)?`;
+  const reMedidas = new RegExp(`(${medida})\\s+(${medida})`);
+  const itens = [];
+  const vistos = new Set();
+
+  for (let i = 0; i < linhas.length; i++) {
+    const abre = /^(\d{5})\s+(.+)$/.exec(linhas[i]);
+    if (!abre) continue;
+    const [, codigo, resto] = abre;
+    if (vistos.has(codigo)) continue;
+
+    const ehTerminal = /^(?:CJ|CONJ|CONJUNTO)\b/i.test(resto);
+    const ehEsteira = /^ESTEIRA PORTA CABOS\b/i.test(resto);
+    if (!ehTerminal && !ehEsteira) continue;
+
+    // A linha de baixo: a segunda metade da esteira. O terminal nao precisa dela.
+    const seguinte = ehEsteira ? (linhas[i + 1] ?? "") : "";
+    const junto = ehEsteira ? `${resto} ${seguinte}` : resto;
+
+    const compacta = (valor) => valor.replace(/\s+/g, "").replace(/x/i, "x").toUpperCase().replace("X", " x ");
+    const achou = reMedidas.exec(junto);
+    const umaSo = achou ? null : new RegExp(medida).exec(junto);
+    if (!achou && !umaSo) continue;
+
+    const encontrada = achou ?? umaSo;
+    const antes = junto.slice(0, encontrada.index).trim();
+    const depois = junto.slice(encontrada.index + encontrada[0].length).trim();
+
+    const especificacoes = [];
+    if (achou) {
+      especificacoes.push({ nome: "Medida interna (Li x Ai)", valor: `${compacta(achou[1])} mm` });
+      especificacoes.push({ nome: "Medida externa (Le x Ae)", valor: `${compacta(achou[2])} mm` });
+    } else {
+      // Linha com UMA medida so (T15.18: "25,3X23"): o modelo "T<Li>.<Ai>" diz se ela e a interna ou a externa.
+      const modelo = /\bT\s*(\d+(?:[.,]\d+)?)\.(\d+(?:[.,]\d+)?)/i.exec(antes);
+      const valor = compacta(umaSo[0]);
+      const ehInterna = modelo && valor === compacta(`${modelo[1]}x${modelo[2]}`);
+      especificacoes.push({ nome: ehInterna ? "Medida interna (Li x Ai)" : "Medida externa (Le x Ae)", valor: `${valor} mm` });
+    }
+
+    if (ehEsteira) {
+      const peso = /(\d+(?:[.,]\d+)?)\s*(kg|gr|g)\b/i.exec(depois);
+      const numeros = (peso ? depois.slice(0, peso.index) : depois).match(/\d+(?:[.,]\d+)?/g) ?? [];
+      // Os dois ultimos numeros antes do peso sao o passo e os elos por metro; com quatro, altura e raio
+      // vem na frente (algumas linhas do catalogo perdem essas duas colunas e o raio so esta no modelo).
+      // Tres numeros sao ambiguos (falta uma coluna e nao da para saber qual): ficam so o peso e as medidas.
+      if (numeros.length === 2 || numeros.length >= 4) {
+        const [passo, elos] = numeros.slice(-2);
+        if (numeros.length >= 4) {
+          especificacoes.push({ nome: "Altura (H)", valor: `${numeros[numeros.length - 4]} mm` });
+          especificacoes.push({ nome: "Raio (R)", valor: `${numeros[numeros.length - 3]} mm` });
+        }
+        especificacoes.push({ nome: "Passo (P)", valor: `${passo} mm` });
+        especificacoes.push({ nome: "Elos por metro", valor: elos });
+      }
+      if (peso) especificacoes.push({ nome: "Peso por metro", valor: `${peso[1]} ${peso[2].toLowerCase() === "kg" ? "kg" : "g"}` });
+    }
+
+    vistos.add(codigo);
+    itens.push({
+      sku: codigo,
+      desc: ehEsteira ? antes.replace(/\s+/g, " ") : antes,
+      categoria: ehEsteira ? "Esteira porta-cabos" : "Terminal de fixação",
+      marca: "Tespo",
+      especificacoes,
+    });
+  }
+
+  return itens;
+}
+
+/**
  * ORCAMENTO em PDF (R&AC, 10/10/2026): "50 RAC4042 - CH.GANGORRA ...<tab>2,65 132,28" =
  * quantidade, codigo, descricao abreviada, unitario e total. Nao e tabela de precos: cada
  * valor vale para a QUANTIDADE pedida, e so entram os itens do orcamento.
@@ -717,9 +817,14 @@ export async function lerArquivo({ nome, bytes, fonte }) {
   } else if (formato === "pdf") {
     const { texto, tabela } = await textoDoPdf(bytes);
     const orcamento = orcamentoDoPdf(texto);
-    brutos = orcamento.length ? orcamento : tabela.length ? tabela : linhasDePdf(texto);
+    const esteiras = orcamento.length || tabela.length ? [] : esteirasDoPdf(texto);
+    brutos = orcamento.length ? orcamento : tabela.length ? tabela : esteiras.length ? esteiras : linhasDePdf(texto);
     siteSugerido = sitePublicadoNoPdf(texto);
-    origem = orcamento.length ? "orçamento em PDF do fornecedor" : "catalogo em PDF do fornecedor";
+    origem = orcamento.length
+      ? "orçamento em PDF do fornecedor"
+      : esteiras.length
+        ? "catálogo de esteiras em PDF (tabela de medidas)"
+        : "catalogo em PDF do fornecedor";
     if (brutos.length === 0 && texto.length > 0) {
       avisos.push(
         "O PDF tem texto, mas nenhuma linha com cara de produto. Catálogo em imagem, ou colunas em outro formato.",

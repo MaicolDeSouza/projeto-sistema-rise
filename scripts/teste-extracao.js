@@ -2709,5 +2709,31 @@ console.log("\n— Eletropecas: desconto no pix calculado e Sobre o produto —"
   conferir("eletropecas: centavos inteiros, meio para cima (19,80 -> 18,81)", centavo.prices.promotional, 18.81);
 }
 
+// Tespo (13/10/2026): catalogo de esteiras porta-cabos em PDF, cada item em DUAS linhas de texto.
+console.log("\n— catalogo de esteiras em PDF (Tespo) —");
+{
+  const { esteirasDoPdf } = await import("../src/lib/coleta/arquivos.js");
+  const texto = [
+    "MATRIZARIA | INJETADOS", "CÓDIGO DESCRIÇÃO MEDIDA INTERNA	(Li x Ai) MEDIDA EXTERNA (Le x Ae)",
+    "03154 ESTEIRA PORTA CABOS", "T10.10.R18mm 10,6X10,6 15X13 46 18 20 49 107gr",
+    "04228 ESTEIRA PORTA CABOS", "T75.60.R130 75x60 110x80 97 10 2760gr",
+    "03641 ESTEIRA PORTA CABOS", "T100.35 R75mm C/ REFORÇO 100x35 124x50 185 75 56 18 1900gr",
+    "04012 ESTEIRA PORTA CABOS", "T15.18.R38 25,3X23 100 38 32 260gr",
+    "03155 CJ. TERMINAL T10.10 10,6X10,6 15X13", "Disponível em 3 raios.",
+    "03154 ESTEIRA PORTA CABOS", "T10.10.R18mm 10,6X10,6 15X13 46 18 20 49 107gr",
+    "Separador de cabos (Cód. 03860)", "99910.2166",
+  ].join("\n");
+  const itens = esteirasDoPdf(texto);
+  const por = (c) => itens.find((i) => i.sku === c);
+  const ficha = (c) => Object.fromEntries(por(c).especificacoes.map((l) => [l.nome, l.valor]));
+  conferir("tespo: um item por codigo (o repetido entra uma vez; acessorio citado no texto e telefone ficam de fora)", itens.map((i) => i.sku), ["03154", "04228", "03641", "04012", "03155"]);
+  conferir("tespo: nome = tipo + modelo, da segunda linha", [por("03154").desc, por("03641").desc], ["ESTEIRA PORTA CABOS T10.10.R18mm", "ESTEIRA PORTA CABOS T100.35 R75mm C/ REFORÇO"]);
+  conferir("tespo: 4 numeros = altura, raio, passo e elos; peso por metro", ficha("03154"), { "Medida interna (Li x Ai)": "10,6 x 10,6 mm", "Medida externa (Le x Ae)": "15 x 13 mm", "Altura (H)": "46 mm", "Raio (R)": "18 mm", "Passo (P)": "20 mm", "Elos por metro": "49", "Peso por metro": "107 g" });
+  conferir("tespo: 2 numeros = so passo e elos (altura e raio nao inventados)", ficha("04228"), { "Medida interna (Li x Ai)": "75 x 60 mm", "Medida externa (Le x Ae)": "110 x 80 mm", "Passo (P)": "97 mm", "Elos por metro": "10", "Peso por metro": "2760 g" });
+  conferir("tespo: uma medida so, o modelo diz se e interna ou externa; 3 numeros sao ambiguos e ficam de fora", ficha("04012"), { "Medida externa (Le x Ae)": "25,3 x 23 mm", "Peso por metro": "260 g" });
+  conferir("tespo: terminal numa linha so, sem peso", [por("03155").categoria, ficha("03155")], ["Terminal de fixação", { "Medida interna (Li x Ai)": "10,6 x 10,6 mm", "Medida externa (Le x Ae)": "15 x 13 mm" }]);
+  conferir("tespo: marca Tespo e sem o cabecalho MEDIDA INTERNA nao le (outro catalogo)", [por("03154").marca, esteirasDoPdf("03154 ESTEIRA PORTA CABOS\nT10.10 10,6X10,6 15X13 46 18 20 49 107gr")], ["Tespo", []]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
