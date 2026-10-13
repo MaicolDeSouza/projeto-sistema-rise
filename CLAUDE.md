@@ -1978,8 +1978,22 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
   pedido também tem cache (a retentativa de parágrafo longo manda a nota num bloco à parte, para o cache bater): ver
   `blocosDoSistema` e `blocosDoPedido`. `IA_MODELO` troca o modelo por PROCESSO (constante lida na carga, de propósito:
   a assinatura de `chamar` e a linha do gasto são de outra frente). **Bancada:** `npm run bancada:descricao` (ver
-  "Rodar"). GPT na bancada (13/10/2026): `scripts/lib/gptComoAnthropic.js` troca o `fetch` global do processo filho (nada de produção o usa). Resultado no 100101 com o prompt do Arduino (13/10/2026): `gpt-6.1-sol` R$ 0,34 em 52 s, qualidade equivalente à do Opus (junta os quadros, padroniza os nomes, mesmas recomendadas); `gpt-6-luna` R$ 0,015 em 25 s e `gpt-4.1-mini` R$ 0,055 em 22 s FALHAM no que importa (não padronizam os nomes: "Tensão de Alimentação" sai duas ou três vezes com valores diferentes no texto final; somem 7 a 10 campos principais em vez de "?"). Ficam como candidatos só a tarefas simples (título, SEO). Com o cache quente o Opus (R$ 0,38) empata em custo com o Sol. A rodada paga Opus 5.5 × Sonnet 5.5 ainda NÃO foi feita; a economia estimada é de R$ 1,75 para ~R$ 0,97
-  (Opus 5.5 + effort low + cache), e ~R$ 0,38 se o Sonnet servir.
+  "Rodar"). GPT na bancada (13/10/2026): `scripts/lib/gptComoAnthropic.js` troca o `fetch` global do processo filho (nada de produção o usa). Resultado no 100101 com o prompt do Arduino (13/10/2026): `gpt-6.1-sol` R$ 0,34 em 52 s, qualidade equivalente à do Opus (junta os quadros, padroniza os nomes, mesmas recomendadas); `gpt-6-luna` R$ 0,015 em 25 s e `gpt-4.1-mini` R$ 0,055 em 22 s FALHAM no que importa (não padronizam os nomes: "Tensão de Alimentação" sai duas ou três vezes com valores diferentes no texto final; somem 7 a 10 campos principais em vez de "?"). Ficam como candidatos só a tarefas simples (título, SEO). Com o cache quente o Opus (R$ 0,38) empata em custo com o Sol. Medido em 13/10/2026 no 100101 (1ª geração, cache frio): Opus 5.5 R$ 1,15 (R$ 0,38 com o cache quente) e `claude-sonnet-5-5` R$ 0,54 em 17 s. O Sonnet padroniza e funde os quadros como o Opus (mesmas recomendadas), mas traz 13 linhas comuns contra 17, não junta as duas opções de Microcontrolador e escreve a tensão sem "5V pela USB". Por isso a descrição segue no Opus 5.5.
+- **Gasto de cada geração na tela** (pedido do dono em 12/10/2026): descrição, título, SEO e categorias da LI mostram
+  "Claude Opus 5 · N tokens (entrada / saída) · R$ X" ao lado do botão (`GastoDaIA`, `src/components/ui/`). Quem gera
+  cria um `novoGasto()` (`src/lib/ia/gasto.js`), o `chamar` soma cada resposta (a descrição pode fazer 2 chamadas) e a
+  ação devolve `gasto` **também no erro** (o que falhou no meio já foi cobrado). Custo pela tabela do Rise AI
+  (`PRECOS_USD_POR_MILHAO`, onde o `claude-opus-5` entrou a US$ 5/25) e pela cotação fixa do sistema; cache lido 0,1x e
+  gravado 1,25x. Os textos do ML (`tituloML`, `fichaML`, `categoriaML`) ainda não mostram. **Próximo passo combinado
+  (Opção 1):** escolher Claude ou GPT na mesma linha, quando o dono tiver a chave da OpenAI.
+- **Total gasto no produto** (pedido do dono em 12/10/2026): ao lado do Salvar, "IA salvo" (o total gravado em
+  `Produto.gastoIA`, migration `20261012_produto_gasto_ia`) e, em âmbar, "Nesta edição" (títulos e descrições gerados
+  desde que a tela abriu, `GastoDoProduto`). O Salvar **soma** a edição ao total, na mesma transação do produto
+  (`gastoDoFormulario` confere o campo oculto `gastoIA`; inválido vira nada, nunca erro). Gerar e não salvar não conta.
+  "Salvou os dados mas não as fotos/documentos" devolve `gastoGravado` e a tela zera a edição (o segundo Salvar não
+  soma duas vezes). O clone nasce sem o total. SEO e categorias da LI mostram o gasto na aba, mas **não entram no total
+  do produto** (são salvos pelo editor da LI, não pelo Salvar do produto). Conferido em 12/10/2026 no ZZ-TESTE-BLING
+  com um gasto fictício: 0,60 + 0,60 = 1,20 no banco e na tela (depois zerado).
 - **`baseURL` fixo em `https://api.anthropic.com`.** O SDK lê `ANTHROPIC_BASE_URL` do ambiente,
   e nesta máquina essa variável existe (vem de outras ferramentas). Sem fixar, a chave da
   loja iria para outro servidor.
