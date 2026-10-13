@@ -20,8 +20,20 @@ function parametrosDe(esquema) {
   return resto;
 }
 
+/**
+ * Os perfis do código: `admin` (a equipe, com as permissões de Acessos) e `publico` (o "perfil cliente" da spec §4a, fixo
+ * em código: lista permitida de ferramentas e de campos). NÃO existe perfil padrão: ausente ou desconhecido é erro, para
+ * um esquecimento nunca virar "administrador".
+ */
+export const PERFIS = ["admin", "publico"];
+
+export function exigirPerfil(perfil) {
+  if (!PERFIS.includes(perfil)) throw new Error(`Perfil de ferramentas desconhecido: ${String(perfil)}`);
+}
+
 /** @returns {{ nome: string, descricao: string, parametros: object }[]}  só as ferramentas que o perfil pode usar */
 export function definicoesParaProvedor(perfil) {
+  exigirPerfil(perfil);
   return FERRAMENTAS.filter((ferramenta) => ferramenta.perfis.includes(perfil)).map((ferramenta) => ({
     nome: ferramenta.nome,
     descricao: ferramenta.descricao,
@@ -39,9 +51,12 @@ export function definicoesParaProvedor(perfil) {
  * @param {{ perfil: "admin" | "publico", usuario?: string }} contexto
  * @returns {Promise<{ ok: true, resultado: any, duracaoMs: number } | { ok: false, erro: string, duracaoMs: number }>}
  */
-export async function executarFerramenta(nome, argumentosBrutos, contexto = { perfil: "admin" }) {
+export async function executarFerramenta(nome, argumentosBrutos, contexto) {
   const inicio = Date.now();
   const falha = (erro) => ({ ok: false, erro, duracaoMs: Date.now() - inicio });
+
+  // Sem perfil padrão: quem esquece o perfil não vira administrador.
+  if (!PERFIS.includes(contexto?.perfil)) return falha("Perfil desconhecido.");
 
   const ferramenta = FERRAMENTAS.find((candidata) => candidata.nome === nome);
   if (!ferramenta) return falha(`Ferramenta desconhecida: ${nome}.`);

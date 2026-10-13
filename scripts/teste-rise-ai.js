@@ -69,7 +69,10 @@ async function limpar() {
   await prisma.versaoDePromptIA.deleteMany({ where: { canal: { startsWith: "zz-ia-" } } });
   await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "ZZ-IA-" } } });
   await prisma.conhecimentoIA.deleteMany({ where: { assunto: { startsWith: "ZZ-IA" } } });
+  // A peca de um kit e RESTRICT: o kit sai antes (e a composicao dele), senao o produto da peca nao se apaga.
+  await prisma.produtoComponente.deleteMany({ where: { kit: { sku: { startsWith: "ZZ-IA-" } } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-IA-" } } });
+  await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: "ZZ-IA" } } });
   await prisma.logIntegracao.deleteMany({ where: { endpoint: "falso-1" } });
   // A reserva de fabrica (anthropic/claude-haiku-5-5) responde pelos provedores falsos e o laco registra a chamada como
   // se fosse real. Chamada de verdade a API leva centenas de ms; a dos falsos, 0 a poucos ms.
@@ -633,13 +636,13 @@ try {
       ["buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto"],
     );
     conferir("o schema vai sem $schema, como objeto, com termos obrigatorio", [defs.every((d) => d.parametros.type === "object" && !("$schema" in d.parametros)), defs.find((d) => d.nome === "buscarProdutos").parametros.required], [true, ["termos"]]);
-    conferir("publico nao recebe ferramenta de produto", definicoesParaProvedor("publico").map((d) => d.nome).filter((nome) => nome !== "buscarConhecimento"), []);
+    conferir("publico recebe so as ferramentas seguras (sem estoque numerico)", definicoesParaProvedor("publico").map((d) => d.nome).sort(), ["buscarConhecimento", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarPreco", "consultarProduto"]);
 
     const executar = (nome, args, contexto = { perfil: "admin" }) => executarFerramenta(nome, args, contexto);
     conferir("zod recusa argumento invalido", (await executar("consultarProduto", { sku: "x".repeat(500) })).ok, false);
     conferir("zod recusa limite fora da faixa", (await executar("buscarProdutos", { termos: "zzia", limite: 50 })).ok, false);
     conferir("ferramenta inexistente", (await executar("apagarTudo", {})).ok, false);
-    conferir("perfil sem permissao", (await executar("consultarProduto", { sku: "ZZ-IA-UNO" }, { perfil: "publico" })).ok, false);
+    conferir("perfil sem permissao", (await executar("consultarEstoque", { skus: ["ZZ-IA-UNO"] }, { perfil: "publico" })).ok, false);
     const achados = await executar("buscarProdutos", { termos: "placa zzia ch340", apenasComEstoque: true });
     conferir("buscarProdutos devolve cartoes sem custo", [achados.ok, achados.resultado.map((p) => p.sku), "custo" in achados.resultado[0], typeof achados.duracaoMs], [true, ["ZZ-IA-UNO"], false, "number"]);
     conferir("buscarProdutos sem resultado e lista vazia", (await executar("buscarProdutos", { termos: "zzqq nenhum produto assim" })).resultado, []);
@@ -751,7 +754,7 @@ try {
     // A ferramenta do modelo.
     const pelaFerramenta = await executarFerramenta("buscarConhecimento", { termos: "arduino para iniciante acender led" }, { perfil: "admin" });
     conferir("ferramenta buscarConhecimento", [pelaFerramenta.ok, deTeste(pelaFerramenta.resultado).map((nota) => nota.id), Object.keys(pelaFerramenta.resultado[0]).sort()], [true, [aprovada.id], ["assunto", "conteudo", "id", "produtos"]]);
-    conferir("buscarConhecimento tambem serve ao perfil publico", definicoesParaProvedor("publico").map((d) => d.nome), ["buscarConhecimento"]);
+    conferir("buscarConhecimento tambem serve ao perfil publico", definicoesParaProvedor("publico").map((d) => d.nome).includes("buscarConhecimento"), true);
     conferir("a ferramenta recusa termos vazios", (await executarFerramenta("buscarConhecimento", { termos: "" }, { perfil: "admin" })).ok, false);
   }
 
@@ -2020,6 +2023,134 @@ try {
       conferir("jaGastoBrl menor deixa passar", aceita.ok, true);
       await prisma.reservaDeGastoIA.deleteMany({ where: { dono: "ZZ-IA-j2" } });
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 8 — Perfil cliente seguro e o modo "texto para o cliente"
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: perfil cliente");
+  {
+    const { pedidoParaOCliente, limparTextoParaOCliente } = await import("../src/lib/riseAi/modoCliente.js");
+    const { FERRAMENTAS, PERFIS, definicoesParaProvedor, executarFerramenta } = await import("../src/lib/riseAi/ferramentas/index.js");
+    const { responder } = await import("../src/lib/riseAi/conversa.js");
+    const { montarSistema } = await import("../src/lib/riseAi/prompt.js");
+    const { configuracaoPadrao } = await import("../src/lib/riseAi/configuracao.js");
+    const { criarLimitador } = await import("../src/lib/riseAi/limite.js");
+    const { criarProvedorFalso } = await import("./lib/provedorFalso.js");
+
+    // --- o pedido de texto para o cliente ---
+    conferir(
+      "pedidoParaOCliente: o que e pedido de texto",
+      ["Escreva a resposta para o cliente", "redija uma mensagem pro cliente sobre o Uno", "Prepare o texto para o cliente", "responda ao cliente"].map(pedidoParaOCliente),
+      [true, true, true, true],
+    );
+    conferir(
+      "pedidoParaOCliente: o que NAO e",
+      ["qual o custo do Uno?", "o cliente perguntou se o Nano serve, o que respondo?", "como escrever para o cliente?", "", null].map(pedidoParaOCliente),
+      [false, false, false, false, false],
+    );
+
+    // --- o filtro de saida ---
+    const filtrado = limparTextoParaOCliente("**Olá!** Veja https://evil.com/x e https://4hobby.com.br/uno.\nLink: https://evil.com/y\n# Título\n- item", { linksPermitidos: ["https://4hobby.com.br/uno"] });
+    conferir("filtro: sem marcas de markdown", [filtrado.texto.includes("**"), filtrado.texto.includes("# ")], [false, false]);
+    conferir("filtro: tira o endereco de fora e mantem o permitido", [filtrado.texto.includes("evil.com"), filtrado.texto.includes("https://4hobby.com.br/uno")], [false, true]);
+    conferir("filtro: aviso do link removido e nenhum termo interno", filtrado.avisos, ["link_removido"]);
+    conferir("filtro: linha que ficou so com 'Link:' sai", filtrado.texto.split("\n").some((linha) => linha.trim() === "Link:"), false);
+    conferir("filtro: termo interno avisa", limparTextoParaOCliente("O custo e R$ 20", {}).avisos, ["termo_interno"]);
+    conferir("filtro: link em markdown vira texto", limparTextoParaOCliente("Veja [aqui](https://evil.com/z)", {}).texto.includes("evil.com"), false);
+
+    // --- perfis: nunca ha um padrao ---
+    conferir("os perfis do codigo", PERFIS, ["admin", "publico"]);
+    conferir("definicoes sem perfil lancam", (() => { try { definicoesParaProvedor(); return "nao lancou"; } catch { return "lancou"; } })(), "lancou");
+    conferir("definicoes de perfil desconhecido lancam", (() => { try { definicoesParaProvedor("x"); return "nao lancou"; } catch { return "lancou"; } })(), "lancou");
+    const semPerfil = await executarFerramenta("buscarProdutos", { termos: "x" }, {});
+    conferir("executar sem perfil nunca assume admin", [semPerfil.ok, semPerfil.erro], [false, "Perfil desconhecido."]);
+    const semContexto = await executarFerramenta("buscarProdutos", { termos: "x" });
+    conferir("executar sem contexto tambem recusa", [semContexto.ok, semContexto.erro], [false, "Perfil desconhecido."]);
+    conferir("consultarEstoque nao e oferecida ao perfil cliente", definicoesParaProvedor("publico").some((d) => d.nome === "consultarEstoque"), false);
+
+    // --- a guarda: nenhuma ferramenta publica mostra o que e interno ---
+    const base = { ativo: true, conferido: true };
+    const fornecedor = await prisma.fornecedor.create({ data: { nome: "ZZ-IA Forn", estrangeiro: true } });
+    const pub = await prisma.produto.create({
+      data: {
+        ...base, sku: "ZZ-IA-CPUB", tituloBase: "PLACA ZZIA CLIENTE PUBLICADA", precoVenda: 50, custo: 12.34, estoque: 7, localizacao: "ZZ-IA-LOC-9",
+        urlLojaIntegrada: "https://www.4hobby.com.br/zzia-cliente-pub", descricaoBase: "PLACA ZZIA CLIENTE\nEspecificações técnicas:\n- Tensão: 5V;",
+        fornecedores: { create: { fornecedorId: fornecedor.id, precoCusto: 12.34, padrao: true } },
+      },
+    });
+    const priv = await prisma.produto.create({
+      data: { ...base, sku: "ZZ-IA-CPRIV", tituloBase: "PLACA ZZIA CLIENTE PRIVADA", precoVenda: 49, custo: 11, estoque: 3, descricaoBase: "Especificações técnicas:\n- Tensão: 5V;" },
+    });
+    const kit = await prisma.produto.create({
+      data: {
+        ...base, sku: "ZZ-IA-CKIT", tituloBase: "KIT ZZIA CLIENTE", tipo: "COMPOSICAO", precoVenda: 120, estoque: 2, urlLojaIntegrada: "https://www.4hobby.com.br/zzia-cliente-kit",
+        componentes: { create: [{ componenteId: pub.id, quantidade: 1, ordem: 0 }, { componenteId: priv.id, quantidade: 2, ordem: 1 }] },
+      },
+    });
+    const argumentos = {
+      buscarProdutos: { termos: "zzia cliente" },
+      consultarProduto: { sku: kit.sku },
+      consultarPreco: { skus: [pub.sku, priv.sku] },
+      compararProdutos: { skus: [pub.sku, kit.sku] },
+      buscarProdutosSimilares: { sku: pub.sku },
+      buscarConhecimento: { termos: "zzia" },
+    };
+    const publicas = FERRAMENTAS.filter((ferramenta) => ferramenta.perfis.includes("publico"));
+    conferir("toda ferramenta publica tem argumentos no guarda", publicas.map((f) => f.nome).filter((nome) => !argumentos[nome]), []);
+    const proibidos = ['"custo"', '"localizacao"', '"fornecedores"', '"concorrentes"', '"urlRise"', '"blingSaldo"', '"margem"', "12.34", "ZZ-IA-LOC-9", "ZZ-IA Forn", '"estoque":7', "PRIVADA"];
+    for (const ferramenta of publicas) {
+      // `pode` liberando tudo: o perfil cliente nao pode depender da permissao de quem pergunta.
+      const r = await executarFerramenta(ferramenta.nome, argumentos[ferramenta.nome], { perfil: "publico", usuario: "ZZ-IA-T", pode: () => true });
+      const texto = JSON.stringify(r);
+      conferir(`perfil cliente: ${ferramenta.nome} roda e nao mostra nada interno`, [r.ok, proibidos.filter((p) => texto.includes(p))], [true, []]);
+    }
+    const buscaPublica = (await executarFerramenta("buscarProdutos", { termos: "zzia cliente" }, { perfil: "publico", pode: () => true })).resultado;
+    conferir("busca do cliente: so o publicado, com o estoque em faixa", buscaPublica.map((p) => [p.sku, p.estoque]).filter(([s]) => s.startsWith("ZZ-IA-C")), [["ZZ-IA-CKIT", "poucas unidades"], ["ZZ-IA-CPUB", "disponível"]]);
+    const consultaKit = (await executarFerramenta("consultarProduto", { sku: kit.sku }, { perfil: "publico", pode: () => true })).resultado;
+    conferir("kit do cliente: a peca nao publicada some", consultaKit.kit.map((peca) => peca.sku), ["ZZ-IA-CPUB"]);
+    const consultaPriv = await executarFerramenta("consultarProduto", { sku: priv.sku }, { perfil: "publico" });
+    conferir("produto fora da loja nao existe para o cliente", [consultaPriv.ok, consultaPriv.erro], [false, "Não existe produto com o código ZZ-IA-CPRIV."]);
+    const similaresDoPriv = await executarFerramenta("buscarProdutosSimilares", { sku: priv.sku }, { perfil: "publico" });
+    conferir("similares de produto fora da loja: tambem nao existe", similaresDoPriv.ok, false);
+    conferir("o administrador continua vendo custo e localizacao", JSON.stringify((await executarFerramenta("consultarProduto", { sku: pub.sku }, { perfil: "admin", pode: () => true })).resultado).includes("ZZ-IA-LOC-9"), true);
+
+    // --- o modo cliente no laco ---
+    const deps = (padrao) => ({
+      configuracao: { ...configuracaoPadrao("pc"), padrao: { provedor: "lmstudio", modelo: "falso-1" }, tempoLimite: { primeiroTokenMs: 2000, totalMs: 5000 } },
+      criarProvedor: () => padrao,
+      provedorDisponivel: async () => true,
+      limitador: criarLimitador({ porMinuto: 1000 }),
+      agoraDoOrcamento: () => Date.UTC(2025, 9, 15, 15),
+    });
+    const usuario = "ZZ-IA-MODO";
+    const interno = criarProvedorFalso({ roteiro: [{ texto: "O custo do Uno e R$ 12,34, fornecedor ZZ-IA Forn." }] });
+    const primeira = await responder({ texto: "qual o custo do Uno?", usuario, dependencias: deps(interno) });
+    conferir("pergunta comum roda no modo interno", [primeira.mensagem.estruturado.modo, interno.pedidos[0].sistema === montarSistema({ modo: "interno" })], ["interno", true]);
+
+    const cliente = criarProvedorFalso({
+      roteiro: [
+        { chamadas: [{ nome: "buscarProdutos", argumentos: { termos: "zzia cliente publicada" } }] },
+        { texto: "**Olá!** O PLACA ZZIA CLIENTE PUBLICADA (ZZ-IA-CPUB) custa R$ 50,00.\nLink: https://www.4hobby.com.br/zzia-cliente-pub\nVeja também https://evil.com/x. O custo para nós é R$ 12." },
+      ],
+    });
+    const pedido = await responder({ conversaId: primeira.conversaId, texto: "escreva a resposta para o cliente sobre a placa zzia cliente", usuario, dependencias: deps(cliente) });
+    const visto = cliente.pedidos[0];
+    conferir("modo cliente: o sistema e o do cliente", visto.sistema === montarSistema({ modo: "cliente" }), true);
+    conferir("modo cliente: sem consultarEstoque nem internet", visto.ferramentas.map((f) => f.nome).filter((nome) => ["consultarEstoque", "pesquisarNaInternet"].includes(nome)), []);
+    conferir("modo cliente: o historico leva so o que a equipe escreveu, nunca as respostas anteriores da IA", [JSON.stringify(visto.mensagens).includes("12,34"), JSON.stringify(visto.mensagens).includes("qual o custo do Uno?")], [false, true]);
+    conferir("modo cliente: a mensagem fica marcada e o texto sai limpo", [pedido.mensagem.estruturado.modo, pedido.mensagem.conteudo.includes("**"), pedido.mensagem.conteudo.includes("evil.com"), pedido.mensagem.conteudo.includes("https://www.4hobby.com.br/zzia-cliente-pub")], ["cliente", false, false, true]);
+    conferir("modo cliente: avisos do filtro", ["link_removido", "termo_interno"].every((a) => pedido.mensagem.avisos.includes(a)), true);
+    conferir("a conversa continua da equipe no banco", (await prisma.conversaIA.findUnique({ where: { id: pedido.conversaId } })).perfil, "ADMIN");
+
+    const volta = criarProvedorFalso({ roteiro: [{ texto: "ok" }] });
+    await responder({ conversaId: primeira.conversaId, texto: "quanto custa o Uno para nós?", usuario, dependencias: deps(volta) });
+    conferir("depois do modo cliente, a pergunta comum volta ao interno", volta.pedidos[0].sistema === montarSistema({ modo: "interno" }), true);
+
+    // modo explicito vale sobre a frase
+    const forcado = criarProvedorFalso({ roteiro: [{ texto: "ok" }] });
+    await responder({ conversaId: primeira.conversaId, texto: "oi", usuario, modo: "cliente", dependencias: deps(forcado) });
+    conferir("modo explicito", forcado.pedidos[0].sistema === montarSistema({ modo: "cliente" }), true);
   }
 
   // ---- novos blocos entram antes desta linha ----

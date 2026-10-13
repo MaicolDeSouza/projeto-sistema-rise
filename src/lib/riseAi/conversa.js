@@ -11,6 +11,7 @@ import { criarLimitador } from "./limite";
 import { mascararDadosPessoais } from "./mascarar";
 import { custoDaChamada } from "./modelos";
 import { estimarCustoMaximoBrl, liquidarReserva, reservarOrcamento } from "./orcamento";
+import { limparTextoParaOCliente, pedidoParaOCliente } from "./modoCliente";
 import { mensagemDeConhecimento, montarSistema } from "./prompt";
 import { ErroDoProvedor, ehErroDeProvedor } from "./provedores/contrato";
 import { criarProvedor as criarProvedorReal } from "./provedores/index";
@@ -279,15 +280,19 @@ function textoDoErro({ erroInesperado, orcamentoEsgotado, semModelo, escolhaRese
 
 /**
  * @param {{
- *   conversaId?: string | null, texto: string, usuario: string, perfil?: "admin" | "publico",
+ *   conversaId?: string | null, texto: string, usuario: string, modo?: "interno" | "cliente" | "auto",
  *   aoEvento?: (nome: string, dados: object) => void,
  *   dependencias?: { configuracao?: object, criarProvedor?: Function, provedorDisponivel?: Function, agora?: () => number, limitador?: { permitir: Function } }
  * }} pedido
  *   Eventos de `aoEvento`: `inicio`, `texto`, `descartar`, `ferramenta`, `reserva`, `fim`, `erro`.
  * @returns {Promise<{ conversaId: string, mensagem: object }>}  a mensagem do assistente (ou a de erro, com o aviso "erro")
  */
-export async function responder({ conversaId = null, texto, usuario, perfil = "admin", pode, aoEvento = () => {}, dependencias = {} }) {
+export async function responder({ conversaId = null, texto, usuario, modo = "auto", pode, aoEvento = () => {}, dependencias = {} }) {
   const pergunta = String(texto ?? "").trim();
+  // `cliente` = a equipe pediu um texto para ENVIAR a um cliente ("escreva a resposta para o cliente"): roda com o perfil
+  // cliente (so dado publico), sem internet e sem as respostas anteriores da IA. `auto` decide pela frase do pedido.
+  const modoFinal = modo === "auto" ? (pedidoParaOCliente(pergunta) ? "cliente" : "interno") : modo === "cliente" ? "cliente" : "interno";
+  const perfil = modoFinal === "cliente" ? "publico" : "admin";
   if (!pergunta) throw new ErroDeUso("Escreva a pergunta.");
   if (pergunta.length > MAXIMO_DA_PERGUNTA) throw new ErroDeUso("A pergunta passa de 8.000 caracteres.");
 
@@ -322,16 +327,19 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
       if (!conversa || conversa.usuario !== usuario) throw new ErroDeUso("Conversa não encontrada.");
       anteriores = conversa.mensagens;
     } else {
-      conversa = await criarConversa({ usuario, perfil: perfil === "publico" ? "PUBLICO" : "ADMIN", titulo: tituloDaConversa(perguntaMascarada) });
+      // A conversa e sempre da equipe (ADMIN no banco); o que muda no modo cliente e o perfil das FERRAMENTAS desta resposta.
+      conversa = await criarConversa({ usuario, perfil: "ADMIN", titulo: tituloDaConversa(perguntaMascarada) });
       emAndamento.add(conversa.id);
       ocupada = conversa.id;
     }
 
     // O histórico que o modelo vê: o texto de cada resposta como o modelo o escreveu, sem as mensagens de erro, cortado
     // para caber no contexto e sempre começando por uma mensagem do usuário.
+    // No modo cliente o historico leva SO o que a equipe escreveu: as respostas anteriores da IA podem ter custo e fornecedor,
+    // e o texto para o cliente nao pode herdar nada disso.
     const historico = cortarHistorico(
       anteriores
-        .filter((mensagem) => !(mensagem.papel === "ASSISTENTE" && mensagem.avisos?.includes("erro")))
+        .filter((mensagem) => !(mensagem.papel === "ASSISTENTE" && (mensagem.avisos?.includes("erro") || modoFinal === "cliente")))
         .map((mensagem) => ({ papel: mensagem.papel === "USUARIO" ? "usuario" : "assistente", conteudo: mensagem.conteudo })),
       config.contextoMaxTokens,
     );
@@ -351,9 +359,8 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
     if (doConhecimento) mensagens.push(doConhecimento);
     mensagens.push({ papel: "usuario", conteudo: perguntaMascarada });
 
-    // Modo `interno` ate a Tarefa 8 trazer o modo cliente; a internet entra na Tarefa 13.
-    const modo = "interno";
-    const sistema = montarSistema({ modo, promptInterno: config.prompts?.interno ?? null, promptCliente: config.prompts?.atendimento ?? null });
+    // A internet entra na Tarefa 13.
+    const sistema = montarSistema({ modo: modoFinal, promptInterno: config.prompts?.interno ?? null, promptCliente: config.prompts?.atendimento ?? null });
     const criar =
       dependencias.criarProvedor ??
       (async (provedorId) => criarProvedorReal(provedorId, { endpoint: config.endpoints?.[provedorId], chave: await lerChave(provedorId) }));
@@ -377,7 +384,7 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
         if (ehErroDeProvedor(erro)) throw new FalhaNoProvedor(erro, false);
         throw erro;
       }
-      aoEvento("inicio", { conversaId: conversa.id, provedor: escolha.provedor, modelo: escolha.modelo });
+      aoEvento("inicio", { conversaId: conversa.id, provedor: escolha.provedor, modelo: escolha.modelo, modo: modoFinal });
       return rodarLaco({ id: escolha.provedor, modelo: escolha.modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento, conversaId: conversa.id, agoraDoOrcamento: dependencias.agoraDoOrcamento?.() ?? Date.now() });
     }
 
@@ -442,17 +449,24 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
       return { conversaId: conversa.id, mensagem };
     }
 
-    const { citados } = produtosCitados(resultado.texto, resultado.cartoes);
+    // Texto para o cliente: sem markdown e sem nenhum endereco que nao tenha vindo de uma ferramenta (so o `urlLoja` vale).
+    let textoFinal = resultado.texto;
     const avisos = new Set(resultado.avisos);
+    if (modoFinal === "cliente") {
+      const limpo = limparTextoParaOCliente(resultado.texto, { linksPermitidos: resultado.cartoes.map((cartao) => cartao.urlLoja) });
+      textoFinal = limpo.texto;
+      for (const aviso of limpo.avisos) avisos.add(aviso);
+    }
+    const { citados } = produtosCitados(textoFinal, resultado.cartoes);
     if (resultado.buscouSemResultado && citados.length === 0) avisos.add("sem_resultado");
 
     const mensagem = await gravarMensagem(conversa.id, {
       papel: "ASSISTENTE",
-      conteudo: resultado.texto,
+      conteudo: textoFinal,
       // O texto inteiro do modelo fica no `conteudo`. Aqui vai so o que a tela precisa para desenhar com seguranca: os produtos
       // citados (nome, codigo e o link montado pelo codigo a partir do cadastro) e, depois, as fontes da pesquisa.
       estruturado: {
-        modo,
+        modo: modoFinal,
         produtos: citados.map(({ sku, nome, urlLoja }) => ({ sku, nome, urlLoja })),
         fontes: [],
         conhecimentoUsado: notas.map(({ id, assunto }) => ({ id, assunto })),
