@@ -2,7 +2,7 @@ import { linhaDeDimensoes, linhaDePeso, linhasDeEspecificacao, medidasDoProdutoC
 import { normalizar } from "../texto.js";
 
 const chave = (texto) => normalizar(texto).replace(/[^a-z0-9]/g, "");
-const ehMedida = /^(peso|dimens|tamanho|medidas|altura|largura|comprimento|profundidade|espessura)/i;
+export const ehMedida = /^(peso|dimens|tamanho|medidas|altura|largura|comprimento|profundidade|espessura)/i;
 const ROTULOS_DE_CATALOGO = new Set(["modelo", "marca"]);
 
 export function identidadeDoValor(campo, valor) {

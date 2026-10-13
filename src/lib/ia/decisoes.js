@@ -1,4 +1,5 @@
-import { identidadeDoValor, recomendacaoDaDivergencia } from "./divergencias.js";
+import { normalizar } from "../texto.js";
+import { ehMedida, idDaCaracteristica, identidadeDoValor, recomendacaoDaDivergencia } from "./divergencias.js";
 
 // Os quadros de divergencia nascem em `identificarDivergencias` com o ROTULO CRU da loja ("Tensão de entrada
 // (recomendada)", "Tensão de Entrada"), e a padronizacao do prompt nunca passa por la. A IA e o motor de sinonimos:
@@ -144,4 +145,95 @@ function fundirGrupo(grupo, porId) {
     { opcao: indiceEscolhido, motivo: decisao.motivo },
   );
   return { quadro: { id: ids[0], ids, campo, opcoes, recomendada, motivo } };
+}
+
+// Onde cada tipo de caracteristica fica na lista quando a IA nao reservou a posicao (a mesma ordem que o prompt
+// pede: modelo e chip, USB, clock, tensao, pinos, memorias, corrente, o resto).
+function prioridade(nome) {
+  const chave = normalizar(String(nome ?? ""));
+  if (/modelo|chip de interface|microcontrolador|micro.controlador|processador/.test(chave)) return 10;
+  if (/usb|conversor/.test(chave)) return 20;
+  if (/clock|frequencia|velocidade/.test(chave)) return 30;
+  if (/tensao|voltagem|alimentacao/.test(chave)) return 40;
+  if (/pinos|portas|entrada|saida|gpio/.test(chave)) return 50;
+  if (/memoria|flash|sram|eeprom|rom|ram/.test(chave)) return 60;
+  if (/corrente/.test(chave)) return 70;
+  return 80;
+}
+
+/**
+ * Encaixa os quadros fundidos e as linhas resolvidas na lista de caracteristicas da IA.
+ *
+ * A IA reserva a posicao de um campo divergente com uma caracteristica de valor "" e o nome padronizado (ou, no formato
+ * antigo, o nome da loja). A reserva marca o lugar e sai da lista; uma linha comum com o mesmo nome de um quadro
+ * tambem sai (senao a linha apareceria duas vezes), e o quadro fica no lugar dela. Quadro ou linha resolvida sem
+ * reserva entra pela prioridade do nome. Dimensoes e peso ficam no fim, como sempre.
+ *
+ * @param {{ caracteristicas: Array<{ nome: string, valor: string, referencias: number[] }>, divergencias: object[], decisoes: object[] }} entrada
+ * @returns {{ caracteristicas: object[], quadros: object[], resolvidas: Array<{ campo: string, valor: string, lojas: string[] }>, substituidas: Set<string> }}
+ *   `caracteristicas`: so as linhas comuns (as resolvidas ja dentro, no lugar certo). `quadros`: com `posicao` = quantas
+ *   linhas comuns vem antes. `substituidas`: as chaves (`idDaCaracteristica`) de itens da IA trocados por quadro ou
+ *   resolvida, para a loja de cada linha nao ser calculada em cima de um item que saiu.
+ */
+export function integrarDecisoes({ caracteristicas, divergencias, decisoes }) {
+  const { quadros, resolvidas } = fundirDivergencias(divergencias, decisoes);
+  const comPosicaoLivre = quadros.filter((quadro) => !IDS_FIXOS.has(quadro.id));
+
+  const alvos = new Map();
+  for (const quadro of comPosicaoLivre) {
+    for (const chave of [...quadro.ids, idDaCaracteristica(quadro.campo)]) if (!alvos.has(chave)) alvos.set(chave, { quadro });
+  }
+  for (const resolvida of resolvidas) {
+    const chave = idDaCaracteristica(resolvida.campo);
+    if (!alvos.has(chave)) alvos.set(chave, { resolvida });
+  }
+
+  const espacos = [];
+  const colocados = new Set();
+  const substituidas = new Set();
+  for (const item of lista(caracteristicas)) {
+    const chave = idDaCaracteristica(item?.nome);
+    const alvo = alvos.get(chave);
+    if (alvo) {
+      substituidas.add(chave);
+      const dono = alvo.quadro ?? alvo.resolvida;
+      if (!colocados.has(dono)) {
+        colocados.add(dono);
+        espacos.push(alvo);
+      }
+      continue;
+    }
+    if (item?.nome && item?.valor && !ehMedida.test(String(item.nome).trim())) espacos.push({ comum: item });
+  }
+
+  const nomeDoEspaco = (espaco) => espaco.comum?.nome ?? espaco.resolvida?.campo;
+  const semReserva = [...comPosicaoLivre.map((quadro) => ({ quadro })), ...resolvidas.map((resolvida) => ({ resolvida }))];
+  for (const alvo of semReserva) {
+    const dono = alvo.quadro ?? alvo.resolvida;
+    if (colocados.has(dono)) continue;
+    const indice = espacos.findIndex((espaco) => !espaco.quadro && prioridade(nomeDoEspaco(espaco)) > prioridade(dono.campo));
+    espacos.splice(indice < 0 ? espacos.length : indice, 0, alvo);
+  }
+
+  let comuns = 0;
+  const posicoes = new Map();
+  const linhas = [];
+  for (const espaco of espacos) {
+    if (espaco.quadro) {
+      posicoes.set(espaco.quadro, comuns);
+      continue;
+    }
+    comuns++;
+    linhas.push(espaco.comum ?? { nome: espaco.resolvida.campo, valor: espaco.resolvida.valor, referencias: espaco.resolvida.referencias });
+  }
+
+  return {
+    caracteristicas: linhas,
+    quadros: quadros.map((quadro) => ({
+      ...quadro,
+      posicao: quadro.id === "dimensoes" ? comuns : quadro.id === "peso" ? comuns + 1 : posicoes.get(quadro) ?? comuns,
+    })),
+    resolvidas: resolvidas.map(({ campo, valor, fontes }) => ({ campo, valor, lojas: [...new Set(fontes.map((fonte) => fonte.nome))] })),
+    substituidas,
+  };
 }

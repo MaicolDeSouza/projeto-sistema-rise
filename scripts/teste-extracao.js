@@ -1879,6 +1879,71 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
     ])[0].opcoes.map((o) => o.fontes[0].numero), [1, 2]);
   }
 
+  // Os quadros fundidos entram na posicao que a IA reservou (pedido do dono em 13/10/2026): a reserva e a
+  // caracteristica com o nome padronizado e valor "". Quadro sem divergencia vira linha comum.
+  {
+    const { integrarDecisoes } = await import("../src/lib/ia/decisoes.js");
+    const ref = (numero, nome) => ({ id: "r" + numero, nome, produto: "P" + numero, numero });
+    const divs = [
+      { id: "spec:tensaodeentrada", campo: "Tensão de Entrada", opcoes: [
+        { valor: "7-9V", linha: "- Tensão de Entrada: 7-9V;", aviso: null, fontes: [ref(1, "Usinainfo")] },
+        { valor: "7-12V", linha: "- Tensão de Entrada: 7-12V;", aviso: null, fontes: [ref(2, "Eletrogate"), ref(3, "4hobby")] } ] },
+      { id: "spec:entradasanalogicas", campo: "Entradas analógicas", opcoes: [
+        { valor: "6", linha: "- Entradas analógicas: 6;", aviso: null, fontes: [ref(4, "Easytronics")] },
+        { valor: "6 (A0-A5)", linha: "- Entradas analógicas: 6 (A0-A5);", aviso: null, fontes: [ref(5, "Mamute")] } ] },
+      { id: "dimensoes", campo: "Dimensoes", opcoes: [
+        { valor: "68x53x10mm", linha: "- Dimensões(CxLxA): 68x53x10mm;", aviso: null, fontes: [ref(1, "Usinainfo")] },
+        { valor: "55x75x13mm", linha: "- Dimensões(CxLxA): 55x75x13mm;", aviso: null, fontes: [ref(6, "Curto Circuito")] } ] },
+    ];
+    const decisoes = [
+      { id: "spec:tensaodeentrada", opcao: 1, motivo: "m", campo: "Tensão de Alimentação", ids: ["spec:tensaodeentrada"], valor: "7V a 12V", iguais: [] },
+      { id: "spec:entradasanalogicas", opcao: 1, motivo: "", campo: "Entradas Analógicas", ids: ["spec:entradasanalogicas"], valor: "6 (A0-A5)",
+        iguais: [[{ id: "spec:entradasanalogicas", opcao: 0 }, { id: "spec:entradasanalogicas", opcao: 1 }]] },
+      { id: "dimensoes", opcao: 0, motivo: "", campo: "Dimensões (CxLxA)", ids: ["dimensoes"], valor: null, iguais: [] },
+    ];
+    const caracteristicas = [
+      { nome: "Microcontrolador", valor: "ATmega328P", referencias: [1] },
+      { nome: "Frequência de Clock", valor: "16MHz", referencias: [1] },
+      { nome: "Tensão de Alimentação", valor: "", referencias: [] },
+      { nome: "Entradas Analógicas", valor: "", referencias: [] },
+      { nome: "Chip de Interface USB", valor: "CH340", referencias: [1] },
+      { nome: "Pinos PWM", valor: "6", referencias: [1] },
+      { nome: "Dimensões", valor: "68x53", referencias: [] },
+    ];
+    const integrado = integrarDecisoes({ caracteristicas, divergencias: divs, decisoes });
+    conferir("integrar: a reserva da IA define a posicao do quadro; as medidas ficam no fim",
+      integrado.quadros.map((q) => [q.campo, q.posicao]), [["Tensão de Alimentação", 2], ["Dimensoes", 5]]);
+    conferir("integrar: a resolvida entra no lugar da reserva, com as referencias; reserva e medida somem da lista",
+      integrado.caracteristicas, [
+        { nome: "Microcontrolador", valor: "ATmega328P", referencias: [1] },
+        { nome: "Frequência de Clock", valor: "16MHz", referencias: [1] },
+        { nome: "Entradas Analógicas", valor: "6 (A0-A5)", referencias: [4, 5] },
+        { nome: "Chip de Interface USB", valor: "CH340", referencias: [1] },
+        { nome: "Pinos PWM", valor: "6", referencias: [1] },
+      ]);
+    conferir("integrar: as lojas da resolvida e as chaves substituidas",
+      [integrado.resolvidas, [...integrado.substituidas].sort()],
+      [[{ campo: "Entradas Analógicas", valor: "6 (A0-A5)", lojas: ["Easytronics", "Mamute"] }],
+        ["spec:entradasanalogicas", "spec:tensaodealimentacao"]]);
+    const comLinhaComum = integrarDecisoes({
+      caracteristicas: [{ nome: "Microcontrolador", valor: "ATmega328P", referencias: [] }, { nome: "Tensão de Alimentação", valor: "7V a 12V", referencias: [2] }, { nome: "Pinos PWM", valor: "6", referencias: [] }],
+      divergencias: divs.slice(0, 1), decisoes: decisoes.slice(0, 1),
+    });
+    conferir("integrar: linha comum com o nome do campo de um quadro sai (nao aparece duas vezes) e marca a posicao",
+      [comLinhaComum.caracteristicas.map((c) => c.nome), comLinhaComum.quadros[0].posicao], [["Microcontrolador", "Pinos PWM"], 1]);
+    const semReserva = integrarDecisoes({
+      caracteristicas: [{ nome: "Microcontrolador", valor: "ATmega328P", referencias: [] }, { nome: "Frequência de Clock", valor: "16MHz", referencias: [] }, { nome: "Pinos PWM", valor: "6", referencias: [] }],
+      divergencias: divs.slice(0, 1), decisoes: decisoes.slice(0, 1),
+    });
+    conferir("integrar: quadro sem reserva da IA entra pela prioridade do nome (tensao antes dos pinos)",
+      [semReserva.quadros[0].posicao, semReserva.caracteristicas.length], [2, 3]);
+    conferir("integrar: resposta no formato antigo mantem a reserva pelo nome da loja",
+      integrarDecisoes({
+        caracteristicas: [{ nome: "Microcontrolador", valor: "X", referencias: [] }, { nome: "Tensão de Entrada", valor: "", referencias: [] }, { nome: "Pinos PWM", valor: "6", referencias: [] }],
+        divergencias: divs.slice(0, 1), decisoes: [{ id: "spec:tensaodeentrada", opcao: 1, motivo: "m" }],
+      }).quadros.map((q) => [q.campo, q.posicao]), [["Tensão de Entrada", 1]]);
+  }
+
   // Editar uma linha comum das especificacoes (pedido do dono em 10/10/2026): volta no formato "- Nome: valor;".
   const { substituirEspecificacao } = await import("../src/lib/ia/revisaoDescricao.js");
   const base = "TITULO\n\nEspecificações técnicas:\n- Clock: 16 MHz;\n- Tensão: 5V;\n\nGarantia:\n- 90 dias;";
