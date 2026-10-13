@@ -1761,6 +1761,63 @@ try {
     conferir("lmstudio continua com max_tokens e temperature", [doLocal.max_tokens, typeof doLocal.temperature, "max_completion_tokens" in doLocal], [1500, "number", false]);
   }
 
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 4 — Cotacao do dia (PTAX)
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: cotacao");
+  {
+    const { cotacaoDoDolar, definirCotacaoDoDia, esquecerCotacaoDoDia, COTACAO_DOLAR_FIXA } = await import("../src/lib/cotacaoDolar.js");
+    const { garantirCotacaoDoDia, esquecerFalhaDaCotacao } = await import("../src/lib/cotacaoDoDia.js");
+    const hora = 60 * 60 * 1000;
+    const t0 = Date.UTC(2026, 9, 13, 15, 0, 0);
+    const respostaDoBc = (venda) =>
+      new Response(JSON.stringify({ value: [{ cotacaoCompra: venda - 0.0065, cotacaoVenda: venda, dataHoraCotacao: "2026-10-09 13:03:00.0" }] }), { status: 200 });
+    const contador = (fabrica) => {
+      const chamadas = [];
+      return { chamadas, buscar: async (url) => (chamadas.push(url), fabrica()) };
+    };
+
+    esquecerCotacaoDoDia();
+    conferir("sem cotacao do dia vale a fixa", cotacaoDoDolar(t0), { valor: COTACAO_DOLAR_FIXA, origem: "fixa" });
+
+    const bom = contador(() => respostaDoBc(5.1575));
+    const lida = await garantirCotacaoDoDia({ buscar: bom.buscar, agora: t0 });
+    conferir("PTAX lido: a venda mais recente", lida, { valor: 5.1575, origem: "ptax", data: "2026-10-09" });
+    conferir("cotacaoDoDolar passa a devolver o PTAX", cotacaoDoDolar(t0 + 1000), { valor: 5.1575, origem: "ptax", data: "2026-10-09" });
+    conferir("a consulta nao leva $select (o BC da 403 a partir da VPS)", bom.chamadas.some((url) => url.includes("$select")), false);
+    await garantirCotacaoDoDia({ buscar: bom.buscar, agora: t0 + 30 * 60 * 1000 });
+    conferir("dentro de 1 hora nao consulta de novo", bom.chamadas.length, 1);
+    await garantirCotacaoDoDia({ buscar: bom.buscar, agora: t0 + 61 * 60 * 1000 });
+    conferir("depois de 1 hora consulta de novo", bom.chamadas.length, 2);
+    conferir("cotacao com mais de 36 horas vale a fixa", cotacaoDoDolar(t0 + 61 * 60 * 1000 + 37 * hora).origem, "fixa");
+
+    esquecerCotacaoDoDia();
+    esquecerFalhaDaCotacao();
+    const caido = contador(() => {
+      throw new Error("rede fora");
+    });
+    const semRede = await garantirCotacaoDoDia({ buscar: caido.buscar, agora: t0 });
+    conferir("rede fora: fica na fixa sem lancar", [semRede.valor, semRede.origem], [COTACAO_DOLAR_FIXA, "fixa"]);
+    await garantirCotacaoDoDia({ buscar: caido.buscar, agora: t0 + 60 * 1000 });
+    conferir("depois de uma falha espera 5 minutos para tentar", caido.chamadas.length, 1);
+    await garantirCotacaoDoDia({ buscar: caido.buscar, agora: t0 + 6 * 60 * 1000 });
+    conferir("passados 5 minutos tenta de novo", caido.chamadas.length, 2);
+
+    esquecerCotacaoDoDia();
+    esquecerFalhaDaCotacao();
+    const vazio = contador(() => new Response(JSON.stringify({ value: [] }), { status: 200 }));
+    conferir("resposta sem linha boa: fixa", (await garantirCotacaoDoDia({ buscar: vazio.buscar, agora: t0 })).origem, "fixa");
+    esquecerFalhaDaCotacao();
+    const erroHttp = contador(() => new Response("", { status: 403 }));
+    conferir("HTTP 403: fixa, sem lancar", (await garantirCotacaoDoDia({ buscar: erroHttp.buscar, agora: t0 + 10 * 60 * 1000 })).origem, "fixa");
+
+    esquecerFalhaDaCotacao();
+    definirCotacaoDoDia({ valor: 5, data: "2026-10-09" }, t0);
+    conferir("definida e fresca", cotacaoDoDolar(t0 + hora).valor, 5);
+    esquecerCotacaoDoDia();
+    conferir("esquecida volta a fixa", cotacaoDoDolar(t0).valor, COTACAO_DOLAR_FIXA);
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();

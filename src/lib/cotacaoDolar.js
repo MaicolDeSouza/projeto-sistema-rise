@@ -22,8 +22,29 @@
 
 export const COTACAO_DOLAR_FIXA = 6;
 
-/** @returns {{ valor: number, origem: "fixa" }} */
-export function cotacaoDoDolar() {
+// A cotacao do dia (PTAX), quando alguem a buscou: `garantirCotacaoDoDia` (`cotacaoDoDia.js`, so servidor) a guarda aqui.
+// Fica em memoria do processo e vale por 36 horas (um PTAX de sexta ainda vale no domingo); depois disso, a fixa.
+// Quem so le (`emReais`, a tela do Photoroom) continua sincrono e sem saber de onde veio o numero.
+const VALIDADE_DA_COTACAO_MS = 36 * 60 * 60 * 1000;
+let doDia = null;
+
+/** Guarda a cotacao do dia. `agora` e so para o teste. */
+export function definirCotacaoDoDia({ valor, data }, agora = Date.now()) {
+  doDia = { valor, data, guardadaEm: agora };
+}
+
+export function esquecerCotacaoDoDia() {
+  doDia = null;
+}
+
+/** Ha quanto tempo a cotacao do dia foi guardada (ms), ou `null` se nao ha. */
+export function idadeDaCotacaoDoDia(agora = Date.now()) {
+  return doDia ? agora - doDia.guardadaEm : null;
+}
+
+/** @returns {{ valor: number, origem: "ptax", data: string } | { valor: number, origem: "fixa" }} */
+export function cotacaoDoDolar(agora = Date.now()) {
+  if (doDia && agora - doDia.guardadaEm < VALIDADE_DA_COTACAO_MS) return { valor: doDia.valor, origem: "ptax", data: doDia.data };
   return { valor: COTACAO_DOLAR_FIXA, origem: "fixa" };
 }
 
