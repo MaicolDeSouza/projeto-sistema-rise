@@ -2629,5 +2629,27 @@ console.log("\n— ASP.NET, tema novo (Eletropecas) —");
   conferir("eletropecas: listagem com cards produto__item nao vira produto", [l.produtos.length, l.motivo], [0, "listagem de produtos, nao pagina de produto"]);
 }
 
+// Eletropecas (13/10/2026): "5% de desconto no pix e no boleto" sem o valor, e o "Sobre o produto" na descricao.
+console.log("\n— Eletropecas: desconto no pix calculado e Sobre o produto —");
+{
+  const pagina = (sobre, bloco) => `<html><body><ul class="loja__breadcrumb py-4"><li><p class="content ">Chaves </p></li><li><p class="content active">Chave</p></li></ul>
+<div itemscope itemtype="http://schema.org/Product"><meta itemprop="name" content="Chave de Fenda">
+<div class="detalhe_informacoes detalhe__produto--info"><h1 itemprop="name">Chave de Fenda</h1>
+<div class="detalhe_informacoes_cod_ref"><p>Cód: <span class="text-dark">20375</span></p></div>
+<div itemprop="offers" itemscope itemtype="http://schema.org/Offer"><meta itemprop="price" content="141.00"/>
+<div class="produto__valor__parcelas"><div class="produto__boleto"></div><div class="produto__pix"></div><p> 5% de desconto no pix e no boleto bancário</p></div>
+<a class="comprar-btn">comprar</a></div></div>
+<p>Sobre o produto:</p><p itemprop="description" class="fs-7">${sobre}</p></div>
+<div class="produto__descricao"><h2>Descri&#231;&#227;o</h2>${bloco}</div></body></html>`;
+  const a = normalizarPagina({ html: pagina("Chave de fenda com cabo rotativo em PVC.", "<p>Chave de Fenda Piergiacomi PG1-2</p><p>Cabo anatomico</p>"), url: "https://www.eletropecas.com/chave/p", fonte: "Eletropecas" }).produtos[0];
+  conferir("eletropecas: normal e o de tabela; o desconto de 5% do pix vira o promocional calculado (141 -> 133,95)", [a.prices.normal, a.prices.promotional], [141, 133.95]);
+  conferir("eletropecas: a origem diz que o a vista foi calculado", /^calculado: 5% de desconto no pix e no boleto/.test(a.origens.precoPromocional ?? ""), true);
+  conferir("eletropecas: Sobre o produto abre a descricao, antes do bloco Descricao", [/^Sobre o produto:/.test(a.description), a.description.indexOf("cabo rotativo") < a.description.indexOf("Piergiacomi")], [true, true]);
+  const repetido = normalizarPagina({ html: pagina("Chave de Fenda Piergiacomi PG1-2.", "<p>Chave de Fenda Piergiacomi PG1-2</p><p>Cabo anatomico</p>"), url: "https://www.eletropecas.com/chave/p", fonte: "Eletropecas" }).produtos[0];
+  conferir("eletropecas: Sobre o produto que o bloco ja repete nao duplica a descricao", [repetido.description.split("Piergiacomi").length - 1, /^Sobre o produto/.test(repetido.description)], [1, false]);
+  const centavo = normalizarPagina({ html: pagina("x", "<p>y</p>").replace("141.00", "19.80"), url: "https://www.eletropecas.com/chave/p", fonte: "Eletropecas" }).produtos[0];
+  conferir("eletropecas: centavos inteiros, meio para cima (19,80 -> 18,81)", centavo.prices.promotional, 18.81);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

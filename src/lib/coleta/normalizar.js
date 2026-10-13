@@ -1347,7 +1347,21 @@ function daVitrineAspNet(html, url) {
 
   const preco = comoNumero(/itemprop="price"[^>]*content="([\d.]+)"/.exec(painel)?.[1]);
   const de = comoNumero(/\bDe:\s*R\$\s*([\d.,]+)/i.exec(textoPainel)?.[1]);
-  const aVista = comoNumero(/Ou\s*R\$\s*([\d.,]+)\s*(?:à|a)\s*vista/i.exec(textoPainel)?.[1]);
+  const aVistaEscrito = comoNumero(/Ou\s*R\$\s*([\d.,]+)\s*(?:à|a)\s*vista/i.exec(textoPainel)?.[1]);
+
+  // Tema novo da Eletropecas (13/10/2026): a pagina so ESCREVE "5% de desconto no pix e no boleto bancario", sem o valor
+  // (os dois blocos `produto__pix` e `produto__boleto` vem vazios). O percentual e lido da pagina, produto a produto, e o
+  // a vista e CALCULADO em centavos, arredondando meio para cima: sem isso o preco com desconto nunca aparecia. E o
+  // promocional (so informacao): o normal continua sendo o de tabela. O arredondamento do centavo da loja nao foi
+  // medido (a pagina nao mostra o valor), e a origem do campo diz que foi calculado.
+  const descontoPct = comoNumero(
+    /(\d+(?:[.,]\d+)?)\s*%\s*de\s+desconto\s+(?:no|via|pagando\s+com|para)\s+(?:o\s+)?(?:pix|boleto)/i.exec(textoPainel)?.[1],
+  );
+  const aVistaCalculada =
+    aVistaEscrito === null && preco !== null && descontoPct > 0 && descontoPct < 100
+      ? Math.round(Math.round(preco * 100) * (1 - descontoPct / 100)) / 100
+      : null;
+  const aVista = aVistaEscrito ?? aVistaCalculada;
 
   const disponibilidade = /comprar-btn/.test(painel)
     ? "http://schema.org/InStock"
@@ -1397,9 +1411,21 @@ function daVitrineAspNet(html, url) {
       ? conteudoDoDiv(html, html.indexOf(">", inicioDescricao) + 1).replace(/<h[1-6]\b[^>]*>[\s\S]*?<\/h[1-6]>/i, "")
       : null;
   const blocoDescricao = abaDe(/descri/) ?? blocoSemAbas;
-  const descricao = blocoDescricao
+  const textoDaDescricao = blocoDescricao
     ? comoTexto(blocoDescricao.replace(/<li\b[^>]*>/gi, "\n- "))
     : null;
+
+  // "SOBRE O PRODUTO" (Eletropecas, 13/10/2026): o resumo que a loja poe no painel, em `itemprop="description"`, e parte
+  // da descricao (pedido do dono). Vai ANTES do bloco "Descricao", e fica de fora quando o bloco ja o traz (a loja
+  // costuma repetir a primeira linha).
+  const sobreOProduto = comoTexto(/itemprop="description"[^>]*>([\s\S]*?)<\/p>/i.exec(html)?.[1]);
+  const soAlfanumerico = (texto) => soLetrasENumeros(texto ?? "");
+  const sobreJaNoBloco =
+    sobreOProduto && textoDaDescricao && soAlfanumerico(textoDaDescricao).includes(soAlfanumerico(sobreOProduto));
+  const descricao =
+    sobreOProduto && !sobreJaNoBloco
+      ? [`Sobre o produto:\n${sobreOProduto}`, textoDaDescricao].filter(Boolean).join("\n\n")
+      : textoDaDescricao;
 
   const especificacoes = [];
   const blocoFicha = abaDe(/caracter|especifica|ficha/);
@@ -1423,6 +1449,8 @@ function daVitrineAspNet(html, url) {
     preco,
     de,
     aVista,
+    aVistaCalculada: aVistaCalculada !== null,
+    descontoPct: aVistaCalculada !== null ? descontoPct : null,
     disponibilidade,
     categoria,
     imagens,
@@ -2427,7 +2455,9 @@ export function normalizarPagina({
         : simuladorWoo?.aVista && prices.promotional === simuladorWoo.aVista
           ? "bloco de preco da pagina (simulador de parcelas): preco no PIX"
         : aspnet?.aVista && prices.promotional === aspnet.aVista
-          ? "a vista escrito na pagina"
+          ? aspnet.aVistaCalculada
+            ? `calculado: ${aspnet.descontoPct}% de desconto no pix e no boleto, escrito na pagina (a loja nao mostra o valor)`
+            : "a vista escrito na pagina"
           : magentoAVista && prices.promotional === magentoAVista.aVista
           ? `calculado: desconto a vista de ${magentoAVista.desconto}% do parcelamento da loja`
           : "menor preco da pagina";
