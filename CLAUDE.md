@@ -164,7 +164,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 531 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 605 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.HH.MM do deploy, em São Paulo; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -201,6 +201,7 @@ npm run teste:acessos             # 124 asserções de Acessos: catálogo, resol
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
 npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio
+npm run bancada:descricao -- --sku=100101 --prompt=<arquivo|nome|sistema> --modelos=claude-opus-5-5,claude-sonnet-5-5   # gera a descrição do MESMO produto em cada modelo (um processo por modelo) e escreve o relatório lado a lado em dados/diag/. SEM `--rodar` não chama a IA (nada gasta); com `--rodar` gasta de verdade (~R$ 1 por geração no Opus 5.5)
 ```
 
 **Backup semanal agendado** (pedido do dono em 16/09/2026): tarefa do Agendador de Tarefas do
@@ -1969,8 +1970,15 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
   uma nova tentativa, em vez de cortar no meio da palavra.
 - **O cliente manda só ids.** O conteúdo das referências é lido do banco no servidor, e o
   **nome da loja não entra no prompt**: o que não entra não vaza para o texto da Rise.
-- **Modelo `claude-opus-5`** com `fallbacks: "default"` (beta
-  `server-side-fallback-2026-07-01`), no máximo 20 referências.
+- **Modelo `claude-opus-5-5`** (Opus 5.5, desde 13/10/2026; era o `claude-opus-5`) com `fallbacks: "default"` (beta
+  `server-side-fallback-2026-07-01`), no máximo 20 referências. **`effort: "low"` na descrição** (`ESFORCO_POR_TAREFA`;
+  as outras tarefas não mandam effort): medido na geração do 100101, 3.941 dos 6.129 tokens de saída eram raciocínio do
+  Opus 5 (R$ 1,75 por geração). **O prompt da biblioteca vai no `system`**, depois do papel e com `cache_control`, e o
+  pedido também tem cache (a retentativa de parágrafo longo manda a nota num bloco à parte, para o cache bater): ver
+  `blocosDoSistema` e `blocosDoPedido`. `IA_MODELO` troca o modelo por PROCESSO (constante lida na carga, de propósito:
+  a assinatura de `chamar` e a linha do gasto são de outra frente). **Bancada:** `npm run bancada:descricao` (ver
+  "Rodar"). A rodada paga Opus 5.5 × Sonnet 5.5 ainda NÃO foi feita; a economia estimada é de R$ 1,75 para ~R$ 0,97
+  (Opus 5.5 + effort low + cache), e ~R$ 0,38 se o Sonnet servir.
 - **`baseURL` fixo em `https://api.anthropic.com`.** O SDK lê `ANTHROPIC_BASE_URL` do ambiente,
   e nesta máquina essa variável existe (vem de outras ferramentas). Sem fixar, a chave da
   loja iria para outro servidor.
@@ -2291,6 +2299,22 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       concorrente nem de fornecedor também fica sem nome (pedido do dono). `gerarDescricao` devolve
       `fontesDasLinhas` (`{ "- Nome: valor;": [lojas] }`, chave = a linha formatada); só valem as referências de loja,
       não as peças de um kit. Vale só para a geração nova: texto digitado ou levado da esquerda não tem loja.
+    - **Quadros canônicos** (13/10/2026, pedido do dono): os quadros de divergência nascem de `identificarDivergencias` com
+      o RÓTULO CRU da loja ("Tensão de entrada (recomendada)" e "Tensão de Entrada" eram dois quadros, e a linha final saía
+      com 7-12V e 7-9V juntas), e a padronização do prompt não chegava lá. Agora a IA é o motor de sinônimos: cada
+      `decisao` devolve `campo` (o nome padronizado do prompt), `ids` (os quadros que são o mesmo campo), `valor` (a opção
+      escolhida no padrão do prompt) e `iguais` (opções que são o mesmo valor escrito de outro jeito).
+      `fundirDivergencias` (`src/lib/ia/decisoes.js`) junta os quadros, reescreve as linhas como `- <campo>: <valor da
+      loja>;` (a escolhida leva o valor da IA) e manda para `resolvidas` o grupo em que tudo era o mesmo valor (vira linha
+      comum, com as lojas de todas as opções); `integrarDecisoes` põe cada quadro na posição que a IA reservou
+      (característica com o nome padronizado e valor `""`; quadro sem reserva entra pela prioridade do nome). Resposta no
+      formato antigo, id desconhecido e opção fora da lista são ignorados (o quadro fica como antes). O pedido manda
+      "Referência N" no lugar do nome da loja (`fontes[].numero`) e a `INSTRUCAO_DE_DECISOES` junto das divergências, então
+      vale com qualquer prompt da biblioteca. **Campo novo ou sinônimo novo é só ajustar o prompt.** Exceções: nome que
+      começa por peso, dimens, tamanho, medidas, altura, largura, comprimento, profundidade ou espessura é medida e some das
+      características; Dimensões e Peso são escritos pelo código e nunca renomeados (`IDS_FIXOS`); o prompt cabe em 12.000
+      caracteres (o do Arduino está em 11.884 com CRLF). **Só vale no ar depois do deploy** e com o prompt novo salvo na
+      biblioteca da VPS.
     - Testes: `teste:extracao` (lojas, `substituirEspecificacao`, `moverQuadroNoEstado`, o pedido com e sem referências).
   - **Quatro ajustes seguintes, também de 10/10/2026** (pedidos do dono):
     - **Referências já na primeira abertura.** A janela abria com "(0)" e o aviso de que não havia concorrente: os
