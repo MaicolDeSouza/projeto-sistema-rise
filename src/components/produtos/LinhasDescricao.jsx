@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, GripVertical, Pencil, Trash2, X } from "lucide-react";
-import { codigoDosItensInclusos, ehCabecalhoDeSecao, formatarLinhaTecnica, limitesEspecificacoes } from "@/lib/ia/revisaoDescricao";
+import { codigoDosItensInclusos, dicaDaOrigem, dicaDasFontes, ehCabecalhoDeSecao, formatarLinhaTecnica, limitesEspecificacoes } from "@/lib/ia/revisaoDescricao";
 
 const CORES = [
   { base: "border-amber-400 bg-amber-50", marcada: "border-amber-600 bg-amber-200" },
@@ -29,7 +29,7 @@ export default function LinhasDescricao({
   texto, divergencias, opcoesRestantes, selecoes, confirmadas,
   aoSelecionar, aoEditarOpcao, aoExcluirOpcao, aoExcluirLinha, aoMover, aoMoverPasso, rolagem,
   paragrafos = [], escolhidosParagrafos = [], aoEscolherParagrafo,
-  fontesDasLinhas = {}, linhasEditadas = new Set(), ordemDosQuadros = [], aoEditarLinha, aoMoverGrupo,
+  fontesDasLinhas = {}, origensDasLinhas = {}, linhasEditadas = new Set(), ordemDosQuadros = [], aoEditarLinha, aoMoverGrupo,
   // O codigo dos Itens inclusos: o do produto vem sugerido, e o lapis da linha o deixa editavel.
   codigoSugerido = "", aoEditarCodigo,
   // Lapis e lixeira em TODOS os campos (pedido do dono em 10/10/2026): as linhas que nao sao especificacao (titulo,
@@ -247,7 +247,7 @@ export default function LinhasDescricao({
           role="radio"
           aria-checked={marcada}
           onClick={() => aoSelecionar(divergencia.id, opcaoIndice)}
-          title={opcao.fontes.map((fonte) => fonte.nome + ": " + fonte.produto).join(" · ")}
+          title={dicaDasFontes(opcao.fontes)}
           className="flex min-w-0 flex-1 items-start gap-2 px-2 py-1.5 text-left"
         >
           <Circulo marcada={marcada} />
@@ -349,6 +349,8 @@ export default function LinhasDescricao({
             ? "editada"
             : (fontesDasLinhas[marcaDaLinha] ?? []).join(", ")
           : "";
+        // Linha que nenhuma loja confirma: de onde veio (cadastro ou IA), em vez de ficar sem nada (13/10/2026).
+        const origem = tecnica && !loja ? (origensDasLinhas[marcaDaLinha] ?? null) : null;
         const destacada = destaque?.tipo === "linha" && destaque.indice === indice;
         // A linha "Itens inclusos: (Cod:...)": o codigo tem o proprio lapis.
         const codigoDaLinha = tecnica ? null : codigoDosItensInclusos(linha);
@@ -457,7 +459,16 @@ export default function LinhasDescricao({
             )}
             <span className="min-w-0 flex-1 whitespace-pre-wrap px-2 py-1.5">{linha || " "}</span>
             {loja && (
-              <span className={"max-w-[12rem] shrink-0 truncate px-1 py-1.5 font-sans text-[11px] text-suave " + (loja === "editada" ? "italic" : "")}>{loja}</span>
+              <span
+                title={loja === "editada" ? undefined : (fontesDasLinhas[marcaDaLinha] ?? []).join("\n")}
+                className={"max-w-[12rem] shrink-0 truncate px-1 py-1.5 font-sans text-[11px] text-suave " + (loja === "editada" ? "italic" : "")}
+              >{loja}</span>
+            )}
+            {origem && (
+              <span
+                title={dicaDaOrigem(origem)}
+                className={"shrink-0 px-1 py-1.5 font-sans text-[11px] " + (origem.tipo === "ia" ? "font-semibold text-amber-700" : "text-suave")}
+              >{origem.tipo === "ia" ? "IA" : "Cadastro"}</span>
             )}
             {codigoDaLinha !== null && (
               <>

@@ -2314,6 +2314,15 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       características; Dimensões e Peso são escritos pelo código e nunca renomeados (`IDS_FIXOS`); o prompt cabe em 12.000
       caracteres (o do Arduino está em 11.884 com CRLF). **Só vale no ar depois do deploy** e com o prompt novo salvo na
       biblioteca da VPS.
+    - **Origem da linha que nenhuma loja confirma** (13/10/2026, pedido do dono: "se veio pela IA, deve mostrar de onde
+      veio a fonte"): antes a linha ficava sem nada ao lado. `origemSemLoja` (`divergencias.js`) diz **"Cadastro"** quando o
+      valor está no título, na marca, no modelo, na descrição atual ou nas peças do kit (número solto, como "6", nunca conta),
+      e **"IA"** (âmbar) quando nada traz o valor. A dica do "IA" diz isso e lista, uma por linha, as referências que a IA
+      apontou sem o texto delas confirmar (`dicaDaOrigem`). A IA não tem fonte além das referências que recebeu: para
+      ter uma fonte de verdade nessas linhas falta a conferência na internet (só pesquisada, não construída). Vai em
+      `origensDasLinhas` no resultado de `gerarDescricao` (`{ "- Nome: valor;": { tipo, apontadas } }`). **Dica das lojas:**
+      uma por linha ("Loja: produto"), em vez de tudo corrido com " · " (`dicaDasFontes`); vale nas opções dos quadros e no
+      rótulo das lojas das linhas comuns (que é cortado em 12rem). Não há outra dica de lojas no Rise.
     - Testes: `teste:extracao` (lojas, `substituirEspecificacao`, `moverQuadroNoEstado`, o pedido com e sem referências).
   - **Quatro ajustes seguintes, também de 10/10/2026** (pedidos do dono):
     - **Referências já na primeira abertura.** A janela abria com "(0)" e o aviso de que não havia concorrente: os

@@ -266,6 +266,8 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
   // so o que o texto da loja confirma. As linhas que o dono editou no lapis (`linhasEditadas`) mostram "editada".
   // `ordemDosQuadros` desempata os quadros de parametro na mesma posicao, ao subir e descer.
   const [fontesDasLinhas, setFontesDasLinhas] = useState({});
+  // De onde vem a linha que nenhuma loja confirma (13/10/2026): { "- Nome: valor;": { tipo: "cadastro" | "ia", apontadas } }.
+  const [origensDasLinhas, setOrigensDasLinhas] = useState({});
   const [linhasEditadas, setLinhasEditadas] = useState(() => new Set());
   const [ordemDosQuadros, setOrdemDosQuadros] = useState([]);
   const [erro, setErro] = useState(null);
@@ -331,6 +333,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
     setTextoFinalizado(null);
     setConfirmandoReajuste(false);
     setFontesDasLinhas({});
+    setOrigensDasLinhas({});
     setLinhasEditadas(new Set());
     setOrdemDosQuadros([]);
     geracaoAtual.current++;
@@ -488,6 +491,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
         // O texto usa a primeira opcao de cada paragrafo; o dono troca na lista de opcoes.
         setOpcoesParagrafos(resultado.opcoesParagrafos ?? []);
         setFontesDasLinhas(resultado.fontesDasLinhas ?? {});
+        setOrigensDasLinhas(resultado.origensDasLinhas ?? {});
         setLinhasEditadas(new Set());
         setOrdemDosQuadros((resultado.divergencias ?? []).map((item) => item.id));
         setEscolhidosParagrafos([0, 0]);
@@ -726,6 +730,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
     setAntesDeFinalizar(null);
     setTextoFinalizado(null);
     setFontesDasLinhas({});
+    setOrigensDasLinhas({});
     setLinhasEditadas(new Set());
     setOrdemDosQuadros([]);
   }
@@ -1183,6 +1188,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
                     aoMoverPasso={moverPorPasso}
                     rolagem={rolagemDescricao}
                     fontesDasLinhas={fontesDasLinhas}
+                    origensDasLinhas={origensDasLinhas}
                     linhasEditadas={linhasEditadas}
                     ordemDosQuadros={ordemDosQuadros}
                     aoEditarLinha={editarLinha}

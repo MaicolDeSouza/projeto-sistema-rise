@@ -9,7 +9,7 @@ import { limparSugestoesDeCategoria, montarPedidoDeCategorias } from "@/lib/cana
 
 import { PADRAO_TITULO } from "./padraoTitulo";
 import { integrarDecisoes } from "./decisoes";
-import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica } from "./divergencias";
+import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica, origemSemLoja } from "./divergencias";
 import { compactarUnidades, formatarLinhaTecnica, normalizarTerminologiaEletrica } from "./revisaoDescricao";
 
 /**
@@ -798,9 +798,20 @@ export async function gerarDescricao(
       if (lojas.length > 0) fontesDasLinhas[formatarLinhaTecnica(`- ${semPontuacaoFinal(campo)}: ${semPontuacaoFinal(valor)};`)] = lojas;
     }
   }
+  // De onde vem a linha que NENHUMA loja confirma (pedido do dono em 13/10/2026: "se veio pela IA, deve mostrar de onde
+  // veio a fonte"): "cadastro" quando o valor esta no titulo, na marca, no modelo, na descricao atual ou nas pecas do
+  // kit; "ia" quando nada traz o valor (as referencias que ela apontou sem o texto confirmar vao junto).
+  const proprio = [titulo, marca, modelo, descricao, doKit.texto].filter(Boolean).join(" ");
+  const origensDasLinhas = {};
+  for (const item of integrado.caracteristicas) {
+    if (!item?.nome || !item?.valor) continue;
+    const chave = formatarLinhaTecnica(`- ${semPontuacaoFinal(item.nome)}: ${semPontuacaoFinal(item.valor)};`);
+    if (!fontesDasLinhas[chave]) origensDasLinhas[chave] = origemSemLoja(item, linhas, proprio);
+  }
   return {
     texto: textoFinal,
     fontesDasLinhas,
+    origensDasLinhas,
     // As opcoes de cada um dos dois primeiros paragrafos: `[[p1a, p1b, p1c], [p2a, p2b, p2c]]`. O texto
     // acima usa a primeira de cada uma.
     opcoesParagrafos,

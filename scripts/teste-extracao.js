@@ -2017,6 +2017,46 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   conferir("nao mexe no estado de entrada, nem em id que nao existe",
     [quadros[0].posicao, moverQuadroNoEstado(quadros, ["a"], "z", { posicao: 1 }).divergencias === quadros, moverQuadroNoEstado(quadros, [], "a", { posicao: 9 }).ordem], [2, true, ["b", "c", "a"]]);
 
+  // A dica das lojas de uma opcao (pedido do dono em 13/10/2026): cada loja numa linha, "Loja: produto", e nao tudo
+  // corrido separado por " · " (a dica nativa do navegador quebra no "\n").
+  const { dicaDasFontes } = await import("../src/lib/ia/revisaoDescricao.js");
+  conferir("dica das lojas: uma por linha, loja e produto",
+    dicaDasFontes([{ nome: "Usinainfo", produto: "Placa Uno SMD" }, { nome: "Eletrogate", produto: "Uno R3 SMD CH340" }, { nome: "4hobby", produto: "Placa compatível Uno" }]),
+    "Usinainfo: Placa Uno SMD\nEletrogate: Uno R3 SMD CH340\n4hobby: Placa compatível Uno");
+  conferir("dica das lojas: produto ausente mostra so a loja; lista vazia ou nula, texto vazio",
+    [dicaDasFontes([{ nome: "Usinainfo", produto: null }, { nome: "Saravati" }]), dicaDasFontes([]), dicaDasFontes(null)], ["Usinainfo\nSaravati", "", ""]);
+
+  // De onde veio uma linha que NENHUMA loja confirma (pedido do dono em 13/10/2026: "se veio pela IA, deve mostrar de
+  // onde veio a fonte"): do titulo/cadastro do proprio produto, ou da IA (com as referencias que ela apontou).
+  {
+    const { origemSemLoja } = await import("../src/lib/ia/divergencias.js");
+    const refsDaOrigem = [
+      { nome: "Placa Uno R3", descricao: "", especificacoes: [{ nome: "Clock", valor: "16MHz" }], fonte: { nome: "Usinainfo" } },
+      { nome: "Arduino Mega", descricao: "", especificacoes: [], fonte: { nome: "Eletrogate" } },
+    ];
+    const proprio = "PLACA COMPATIVEL ARDUINO UNO R3 SMD CH340 COM CABO USB";
+    conferir("origem: valor que esta no titulo do produto e 'cadastro'",
+      origemSemLoja({ nome: "Chip de Interface USB", valor: "CH340", referencias: [] }, refsDaOrigem, proprio), { tipo: "cadastro", apontadas: [] });
+    conferir("origem: valor que nada traz e 'ia', sem referencia apontada",
+      origemSemLoja({ nome: "Resolução do ADC", valor: "10 bits", referencias: [] }, refsDaOrigem, proprio), { tipo: "ia", apontadas: [] });
+    conferir("origem: a IA apontou uma referencia que nao confirma: 'ia', com a loja e o produto apontados",
+      origemSemLoja({ nome: "Resolução do ADC", valor: "10 bits", referencias: [2, 9, "x"] }, refsDaOrigem, proprio),
+      { tipo: "ia", apontadas: [{ loja: "Eletrogate", produto: "Arduino Mega" }] });
+    conferir("origem: numero solto nao vira 'cadastro' so porque o titulo tem esse digito",
+      origemSemLoja({ nome: "Pinos PWM", valor: "6", referencias: [] }, refsDaOrigem, "UNO R3 6 SMD"), { tipo: "ia", apontadas: [] });
+    conferir("origem: sem texto do produto, e 'ia'", origemSemLoja({ nome: "Microcontrolador", valor: "ATmega328P", referencias: [] }, refsDaOrigem, ""), { tipo: "ia", apontadas: [] });
+
+    // O texto da dica do rotulo "IA" / "Cadastro".
+    const { dicaDaOrigem } = await import("../src/lib/ia/revisaoDescricao.js");
+    const avisoIA = "Escrito pela IA: nenhuma loja nem o cadastro do produto traz este valor. Confira antes de salvar.";
+    conferir("dica da origem: IA sem referencia apontada", dicaDaOrigem({ tipo: "ia", apontadas: [] }), avisoIA);
+    conferir("dica da origem: IA com referencias apontadas, uma por linha",
+      dicaDaOrigem({ tipo: "ia", apontadas: [{ loja: "Eletrogate", produto: "Arduino Mega" }, { loja: "Saravati", produto: null }] }),
+      `${avisoIA}\n\nA IA apontou, mas o texto não confirma:\nEletrogate: Arduino Mega\nSaravati`);
+    conferir("dica da origem: cadastro; sem origem, vazio",
+      [dicaDaOrigem({ tipo: "cadastro", apontadas: [] }), dicaDaOrigem(null), dicaDaOrigem(undefined)], ["Este valor está no título ou no cadastro do produto.", "", ""]);
+  }
+
   // O pedido manda a IA apontar as referencias de cada caracteristica (so com referencias de verdade).
   conferir("o pedido com referencias pede os numeros de cada caracteristica", montarPedidoDaDescricao({ ...dados, instrucoes: "P" }).includes("campo referencias"), true);
   conferir("sem referencias o pedido nao fala de numeros", montarPedidoDaDescricao({ ...dados, referencias: "Nome: X", semReferencias: true, instrucoes: "P" }).includes("campo referencias"), false);

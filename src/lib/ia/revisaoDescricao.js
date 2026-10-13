@@ -25,6 +25,30 @@ export function formatarLinhaTecnica(texto) {
   return normalizarTerminologiaEletrica(compactarUnidades(texto));
 }
 
+/**
+ * A dica das lojas de uma opcao (pedido do dono em 13/10/2026): cada loja numa linha, "Loja: produto", em vez de tudo
+ * corrido. A dica nativa do navegador quebra no "\n" (o `SeloPosicaoDePreco` ja faz assim). Sem o nome do produto, so a loja.
+ */
+export function dicaDasFontes(fontes) {
+  return (Array.isArray(fontes) ? fontes : [])
+    .map((fonte) => (fonte?.produto ? `${fonte.nome}: ${fonte.produto}` : String(fonte?.nome ?? "")))
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * A dica do rotulo "Cadastro" / "IA" de uma linha que nenhuma loja confirma (pedido do dono em 13/10/2026): de onde veio
+ * o valor. Sobre a "IA", diz o que e verdade: nenhuma loja nem o cadastro traz o valor, e quais referencias ela apontou.
+ */
+export function dicaDaOrigem(origem) {
+  if (!origem) return "";
+  if (origem.tipo === "cadastro") return "Este valor está no título ou no cadastro do produto.";
+  const linhas = ["Escrito pela IA: nenhuma loja nem o cadastro do produto traz este valor. Confira antes de salvar."];
+  const apontadas = (origem.apontadas ?? []).map((item) => (item.produto ? `${item.loja}: ${item.produto}` : item.loja));
+  if (apontadas.length > 0) linhas.push("", "A IA apontou, mas o texto não confirma:", ...apontadas);
+  return linhas.join("\n");
+}
+
 export function limitesEspecificacoes(texto) {
   const linhas = String(texto).split("\n");
   const cabecalho = linhas.findIndex((linha) => linha.trim() === CABECALHO);

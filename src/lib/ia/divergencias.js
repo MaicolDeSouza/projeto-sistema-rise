@@ -112,6 +112,38 @@ export function lojasDaCaracteristica(item, referencias) {
   return lojas;
 }
 
+/**
+ * De onde veio uma especificacao que NENHUMA loja confirma (pedido do dono em 13/10/2026: "se veio pela IA, deve
+ * mostrar de onde veio a fonte"). `proprio` e o texto do proprio produto (titulo, marca, modelo, descricao atual, pecas
+ * do kit): valor que esta la e do "cadastro"; o resto e da IA, e as referencias que ela APONTOU (mas cujo texto nao
+ * confirma o valor) vao junto, para o operador conferir. A IA nao tem fonte alem das referencias que recebeu, entao
+ * nao ha o que inventar aqui: so se diz que o valor e dela. Numero solto ("6") nunca conta como cadastro, porque
+ * qualquer titulo tem algum digito. Chamar so quando `lojasDaCaracteristica` voltou vazio.
+ *
+ * @returns {{ tipo: "cadastro" | "ia", apontadas: Array<{ loja: string, produto: string }> }}
+ */
+export function origemSemLoja(item, referencias, proprio) {
+  const lista = Array.isArray(referencias) ? referencias : [];
+  const numeros = Array.isArray(item?.referencias) ? item.referencias.filter(Number.isInteger) : [];
+  const apontadas = [];
+  for (const numero of numeros) {
+    const referencia = lista[numero - 1];
+    const loja = referencia?.fonte?.nome;
+    if (loja && !apontadas.some((outra) => outra.loja === loja && outra.produto === referencia.nome)) {
+      apontadas.push({ loja, produto: referencia.nome });
+    }
+  }
+
+  const texto = String(proprio ?? "").trim();
+  const valor = normalizar(String(item?.valor ?? "")).replace(/[^a-z0-9]/g, "");
+  const noProprio = texto && valor.length >= 3 &&
+    lojasDaCaracteristica(
+      { nome: item?.nome, valor: item?.valor, referencias: [1] },
+      [{ nome: texto, descricao: "", especificacoes: [], fonte: { nome: "Cadastro" } }],
+    ).length > 0;
+  return noProprio ? { tipo: "cadastro", apontadas: [] } : { tipo: "ia", apontadas };
+}
+
 /** Compara fatos publicados por lojas distintas sem confundir unidade ou ordem dos eixos. */
 export function identificarDivergencias(referencias) {
   const campos = new Map();
