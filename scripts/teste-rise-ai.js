@@ -16,6 +16,14 @@ register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
 const { prisma } = await import("../src/lib/db.js");
 
+// O laco do chat pede a cotacao do dia ao Banco Central (`garantirCotacaoDoDia`); teste nao fala com a internet, e a
+// cotacao tem de ficar a fixa (as contas de custo dos blocos antigos assumem R$ 6,00). Quem testa a busca passa o seu `buscar`.
+const fetchDeVerdade = globalThis.fetch;
+globalThis.fetch = (entrada, ...resto) => {
+  if (String(entrada?.url ?? entrada).includes("olinda.bcb.gov.br")) return Promise.reject(new Error("sem rede nos testes"));
+  return fetchDeVerdade(entrada, ...resto);
+};
+
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
   const ok = JSON.stringify(obtido) === JSON.stringify(esperado);
@@ -837,6 +845,8 @@ try {
       criarProvedor: (id) => (id === "lmstudio" ? padrao : reserva),
       provedorDisponivel: async () => true,
       limitador: criarLimitador({ porMinuto: 1000 }),
+      // O orcamento (Entrega A1) olha o gasto do mes: um mes falso sem nada, para o gasto real do dono nao entrar na conta.
+      agoraDoOrcamento: () => Date.UTC(2025, 0, 15, 15),
     });
     const falsoReservaOk = (usoDaReserva = { entrada: 1000, saida: 1000 }) =>
       criarProvedorFalso({ id: "anthropic", roteiro: [{ texto: "### Resposta para o cliente\nReserva.\n\n### Para a equipe\n-", uso: usoDaReserva }] });
@@ -1908,6 +1918,96 @@ try {
 
     const gasto = await registrarGasto({ tipo: "TRANSCRICAO", escopo: "CLIENTES", provedor: "openai", modelo: "m", valorUsd: 0.003, valorBrl: 0.018, referencia: "ZZ-IA-g1", detalhe: { segundos: 60 } });
     conferir("registrarGasto grava a linha", [gasto.tipo, gasto.escopo, Number(gasto.valorBrl), gasto.detalhe], ["TRANSCRICAO", "CLIENTES", 0.018, { segundos: 60 }]);
+  }
+
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 6 — O laco da conversa respeita o teto (mes falso: setembro de 2025)
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: laco com orcamento");
+  {
+    const { responder } = await import("../src/lib/riseAi/conversa.js");
+    const { configuracaoPadrao } = await import("../src/lib/riseAi/configuracao.js");
+    const { criarLimitador } = await import("../src/lib/riseAi/limite.js");
+    const { criarProvedorFalso } = await import("./lib/provedorFalso.js");
+    const { reservarOrcamento } = await import("../src/lib/riseAi/orcamento.js");
+    const agoraFalso = Date.UTC(2025, 8, 15, 15, 0, 0);
+    const montar = (padrao, reserva, { internoBrl = 1000, escolha = { provedor: "openai", modelo: "gpt-4.1-mini" } } = {}) => ({
+      configuracao: {
+        ...configuracaoPadrao("pc"),
+        padrao: escolha,
+        reserva: { provedor: "anthropic", modelo: "claude-haiku-5-5" },
+        tempoLimite: { primeiroTokenMs: 2000, totalMs: 5000 },
+        orcamentos: { clientesBrl: 70, internoBrl },
+      },
+      criarProvedor: (id) => (id === escolha.provedor ? padrao : reserva),
+      provedorDisponivel: async () => true,
+      limitador: criarLimitador({ porMinuto: 1000 }),
+      agoraDoOrcamento: () => agoraFalso,
+    });
+    const reservaIntocada = () => criarProvedorFalso({ id: "anthropic", roteiro: [{ texto: "reserva" }] });
+    const usuario = "ZZ-IA-ORC2";
+
+    // Teto de R$ 0,01: a primeira chamada ja nao cabe. Nada e chamado, nem a reserva.
+    {
+      const padrao = criarProvedorFalso({ id: "openai", roteiro: [{ texto: "oi" }] });
+      const reserva = reservaIntocada();
+      const r = await responder({ texto: "oi", usuario, dependencias: montar(padrao, reserva, { internoBrl: 0.01 }) });
+      conferir("teto estourado: mensagem de erro com o aviso do orcamento", [...r.mensagem.avisos].sort(), ["erro", "orcamento_esgotado"]);
+      conferir("teto estourado: o provedor nem e chamado, e a reserva tambem nao", [padrao.pedidos.length, reserva.pedidos.length], [0, 0]);
+      conferir("o texto diz que so o administrador aumenta", r.mensagem.conteudo.includes("Só o administrador pode aumentá-lo em Configurações"), true);
+    }
+
+    // Teto folgado: responde e devolve toda reserva.
+    {
+      const padrao = criarProvedorFalso({ id: "openai", roteiro: [{ texto: "Oi!", uso: { entrada: 1000, saida: 100 } }] });
+      const r = await responder({ texto: "oi", usuario, dependencias: montar(padrao, reservaIntocada()) });
+      conferir("teto folgado: responde normalmente", [r.mensagem.avisos.includes("erro"), r.mensagem.conteudo], [false, "Oi!"]);
+      conferir("a reserva de cada chamada e liquidada", await prisma.reservaDeGastoIA.count({ where: { dono: r.conversaId } }), 0);
+      conferir("o custo real fica na resposta (gpt-4.1-mini, 1000 + 100 tokens)", Number(r.mensagem.custoUsd), 0.00056);
+    }
+
+    // Estouro no MEIO do laco: a primeira rodada ja custou mais que o teto (3 milhoes de tokens de entrada = R$ 7,20).
+    {
+      const padrao = criarProvedorFalso({
+        id: "openai",
+        roteiro: [{ chamadas: [{ nome: "consultarPreco", argumentos: { skus: ["ZZ-IA-UNO"] } }], uso: { entrada: 3_000_000, saida: 0 } }, { texto: "nunca chega aqui" }],
+      });
+      const reserva = reservaIntocada();
+      const r = await responder({ texto: "preco do uno", usuario, dependencias: montar(padrao, reserva, { internoBrl: 3 }) });
+      conferir("estouro no meio do laco: so a primeira rodada foi chamada", [padrao.pedidos.length, reserva.pedidos.length], [1, 0]);
+      conferir("estouro no meio do laco: aviso do orcamento e nenhum erro lancado", [...r.mensagem.avisos].sort(), ["erro", "orcamento_esgotado"]);
+      conferir("o que a primeira rodada gastou fica registrado na mensagem de erro", [r.mensagem.tokensEntrada, Number(r.mensagem.custoBrl)], [3_000_000, 7.2]);
+      conferir("nada fica reservado", await prisma.reservaDeGastoIA.count({ where: { dono: r.conversaId } }), 0);
+    }
+
+    // Modelo local nunca e barrado, nem com teto zero; modelo de API sem preco tambem nao (nao ha o que reservar).
+    {
+      const local = criarProvedorFalso({ id: "lmstudio", roteiro: [{ texto: "local" }] });
+      const r = await responder({ texto: "oi", usuario, dependencias: montar(local, reservaIntocada(), { internoBrl: 0, escolha: { provedor: "lmstudio", modelo: "falso-1" } }) });
+      conferir("modelo local com teto zero responde", [r.mensagem.avisos.includes("erro"), r.mensagem.conteudo], [false, "local"]);
+      const semPreco = criarProvedorFalso({ id: "anthropic", roteiro: [{ texto: "sem preco" }] });
+      const s = await responder({ texto: "oi", usuario, dependencias: montar(semPreco, semPreco, { internoBrl: 0, escolha: { provedor: "anthropic", modelo: "claude-x" } }) });
+      conferir("modelo de API sem preco com teto zero responde, com custo nulo", [s.mensagem.avisos.includes("erro"), s.mensagem.custoBrl], [false, null]);
+    }
+
+    // O padrao cai e a RESERVA e que esbarra no teto: mesmo recado, e o padrao foi chamado uma vez.
+    {
+      const padrao = criarProvedorFalso({ id: "lmstudio", roteiro: [{ erro: "conexao" }] });
+      const reserva = reservaIntocada();
+      const r = await responder({ texto: "oi", usuario, dependencias: montar(padrao, reserva, { internoBrl: 0.0001, escolha: { provedor: "lmstudio", modelo: "falso-1" } }) });
+      conferir("a reserva barrada pelo teto: recado do orcamento", [...r.mensagem.avisos].sort(), ["erro", "orcamento_esgotado"]);
+      conferir("a reserva barrada: o padrao foi chamado e a reserva nao", [padrao.pedidos.length, reserva.pedidos.length], [1, 0]);
+    }
+
+    // O que a resposta em andamento ja gastou entra na conta da proxima chamada.
+    {
+      const config = { orcamentos: { clientesBrl: 70, internoBrl: 10 } };
+      const negada = await reservarOrcamento("INTERNO", 1, { dono: "ZZ-IA-j1", agora: agoraFalso, config, jaGastoBrl: 9.5 });
+      conferir("jaGastoBrl entra na conta", [negada.ok, negada.motivo], [false, "esgotado"]);
+      const aceita = await reservarOrcamento("INTERNO", 1, { dono: "ZZ-IA-j2", agora: agoraFalso, config, jaGastoBrl: 8 });
+      conferir("jaGastoBrl menor deixa passar", aceita.ok, true);
+      await prisma.reservaDeGastoIA.deleteMany({ where: { dono: "ZZ-IA-j2" } });
+    }
   }
 
   // ---- novos blocos entram antes desta linha ----

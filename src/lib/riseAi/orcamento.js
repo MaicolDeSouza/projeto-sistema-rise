@@ -87,10 +87,11 @@ export async function estadoDoOrcamento(escopo, { agora = Date.now(), config } =
 /**
  * Separa `estimadoBrl` do orcamento ANTES da chamada paga. Estimativa zero (modelo local ou sem preco) passa sem tocar no
  * banco. A conta e a reserva rodam sob `pg_advisory_xact_lock`: duas chamadas simultaneas veem uma a reserva da outra.
+ * `jaGastoBrl` e o que a resposta em andamento ja custou nas rodadas anteriores e ainda nao esta gravado na `MensagemIA`.
  *
  * @returns {Promise<{ ok: true, reservaId: string | null } | { ok: false, motivo: "esgotado", estado: object }>}
  */
-export async function reservarOrcamento(escopo, estimadoBrl, { dono = "sem-dono", agora = Date.now(), config } = {}) {
+export async function reservarOrcamento(escopo, estimadoBrl, { dono = "sem-dono", agora = Date.now(), config, jaGastoBrl = 0 } = {}) {
   if (!(estimadoBrl > 0)) return { ok: true, reservaId: null };
   const configuracao = config ?? (await lerConfiguracao());
   const tetoBrl = tetoDe(escopo, configuracao);
@@ -99,7 +100,7 @@ export async function reservarOrcamento(escopo, estimadoBrl, { dono = "sem-dono"
     async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('rise-ia-orcamento'))`;
       const soma = await somarMes(tx, escopo, agora);
-      const total = Math.round((soma.gastoBrl + soma.reservadoBrl + estimadoBrl) * 100);
+      const total = Math.round((soma.gastoBrl + soma.reservadoBrl + jaGastoBrl + estimadoBrl) * 100);
       if (total > Math.round(tetoBrl * 100)) return { ok: false, motivo: "esgotado", estado: estadoDe(escopo, tetoBrl, soma) };
       const reserva = await tx.reservaDeGastoIA.create({
         data: { escopo, valorBrl: arredondar(estimadoBrl), dono, criadaEm: new Date(agora), expiraEm: new Date(agora + VALIDADE_DA_RESERVA_MS) },

@@ -1,19 +1,21 @@
 import { prisma } from "@/lib/db";
+import { garantirCotacaoDoDia } from "@/lib/cotacaoDoDia";
 
 import { registrarChamadaDoProvedor } from "./auditoria";
 import { lerChave, lerConfiguracao } from "./configuracao";
 import { recuperarConhecimento, textoDoConhecimentoParaPrompt } from "./conhecimento";
 import { criarConversa, gravarMensagem } from "./conversas";
-import { ErroDeUso } from "./erros";
+import { ErroDeUso, OrcamentoEsgotado } from "./erros";
 import { definicoesParaProvedor, executarFerramenta } from "./ferramentas/index";
 import { criarLimitador } from "./limite";
 import { mascararDadosPessoais } from "./mascarar";
 import { custoDaChamada } from "./modelos";
+import { estimarCustoMaximoBrl, liquidarReserva, reservarOrcamento } from "./orcamento";
 import { mensagemDeConhecimento, montarSistema } from "./prompt";
 import { ErroDoProvedor, ehErroDeProvedor } from "./provedores/contrato";
 import { criarProvedor as criarProvedorReal } from "./provedores/index";
 import { provedorDisponivel as provedorDisponivelReal } from "./provedores/saude";
-import { cortarHistorico, produtosCitados, separarResposta, tituloDaConversa } from "./resposta";
+import { cortarHistorico, estimarTokens, produtosCitados, separarResposta, tituloDaConversa } from "./resposta";
 
 /**
  * O laço da conversa do Rise AI (spec §5.4): recebe a pergunta, monta o contexto, escolhe o provedor (o padrão, ou a
@@ -99,7 +101,7 @@ const FERRAMENTAS_QUE_TRAZEM_PRODUTO = new Set(["buscarProdutos", "buscarProduto
  * Uma tentativa completa com UM provedor: chama, executa as ferramentas que ele pedir, chama de novo, até a resposta
  * final. Lança `FalhaNoProvedor` se o provedor falhar (a reserva decide o que fazer) e o erro cru se o defeito for nosso.
  */
-async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento }) {
+async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento, conversaId, agoraDoOrcamento }) {
   const relogio = criarRelogio(config.tempoLimite);
   const trabalho = [...mensagens];
   const ferramentas = definicoesParaProvedor(perfil);
@@ -123,6 +125,21 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
     const maximoDeRodadas = config.maxChamadasDeFerramenta + 4;
     for (let rodada = 0; rodada < maximoDeRodadas && !final; rodada++) {
       const inicioDaChamada = Date.now();
+      // O dinheiro e separado ANTES de cada chamada paga (spec §3), somando o que as rodadas anteriores DESTA resposta ja custaram
+      // (ainda nao gravado na mensagem). Modelo local e sem preco estimam zero e passam sem tocar no banco.
+      const estimadoBrl = estimarCustoMaximoBrl({
+        provedor: id,
+        modelo,
+        tokensEntrada: estimarTokens(sistema) + estimarTokens(JSON.stringify(trabalho)) + estimarTokens(JSON.stringify(ferramentas)),
+        maxTokensSaida: config.maxTokensResposta,
+      });
+      const reserva = await reservarOrcamento("INTERNO", estimadoBrl, { dono: conversaId, agora: agoraDoOrcamento, config, jaGastoBrl: brl });
+      if (!reserva.ok) {
+        throw new OrcamentoEsgotado(reserva.estado, {
+          uso: { entrada: tokensEntrada, saida: tokensSaida },
+          custo: custoCompleto ? { usd: arredondar(usd, 6), brl: arredondar(brl, 4) } : null,
+        });
+      }
       relogio.armarPrimeiroToken();
       let resposta;
       try {
@@ -144,6 +161,7 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
         throw erro;
       } finally {
         relogio.primeiroTokenChegou();
+        await liquidarReserva(reserva.reservaId);
       }
       await registrarChamadaDoProvedor({
         provedor: id,
@@ -240,7 +258,13 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
 }
 
 /** O texto de erro que a pessoa lê, conforme o que falhou. A mensagem de banco ou de código nunca vai para a tela. */
-function textoDoErro({ erroInesperado, semModelo, escolhaReserva, falhaPadrao, falhaReserva }) {
+const emReais = (valor) => `R$ ${Number(valor ?? 0).toFixed(2).replace(".", ",")}`;
+
+function textoDoErro({ erroInesperado, orcamentoEsgotado, semModelo, escolhaReserva, falhaPadrao, falhaReserva }) {
+  if (orcamentoEsgotado) {
+    const { gastoBrl, tetoBrl } = orcamentoEsgotado.estado;
+    return `O orçamento interno do mês acabou (${emReais(gastoBrl)} de ${emReais(tetoBrl)}). Só o administrador pode aumentá-lo em Configurações.`;
+  }
   if (erroInesperado) return "Não foi possível responder agora. Tente de novo em instantes.";
   if (semModelo && !escolhaReserva) return "Escolha o modelo padrão do Rise AI em Configurações.";
   if (falhaPadrao?.textoEmitido) return `${falhaPadrao.causa.message} A resposta foi interrompida; tente de novo.`;
@@ -277,6 +301,8 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
 
   try {
     const inicio = Date.now();
+    // A cotacao do dolar do dia (PTAX) entra nas contas de custo e de orcamento; nunca lanca e, sem rede, vale a fixa.
+    await garantirCotacaoDoDia();
     const config = dependencias.configuracao ?? (await lerConfiguracao());
     const limitador = dependencias.limitador ?? limitadorDaConfiguracao(config);
     if (!limitador.permitir(usuario, dependencias.agora?.() ?? Date.now())) {
@@ -350,7 +376,7 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
         throw erro;
       }
       aoEvento("inicio", { conversaId: conversa.id, provedor: escolha.provedor, modelo: escolha.modelo });
-      return rodarLaco({ id: escolha.provedor, modelo: escolha.modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento });
+      return rodarLaco({ id: escolha.provedor, modelo: escolha.modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento, conversaId: conversa.id, agoraDoOrcamento: dependencias.agoraDoOrcamento?.() ?? Date.now() });
     }
 
     let resultado = null;
@@ -358,6 +384,7 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
     let falhaPadrao = null;
     let falhaReserva = null;
     let erroInesperado = null;
+    let orcamentoEsgotado = null;
     const semModelo = !escolhaPadrao.modelo;
     try {
       if (semModelo) {
@@ -383,14 +410,20 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
         }
       }
     } catch (erro) {
-      console.error("[rise-ai] falha inesperada ao responder:", erro);
-      erroInesperado = erro;
+      if (erro instanceof OrcamentoEsgotado) {
+        orcamentoEsgotado = erro;
+      } else {
+        console.error("[rise-ai] falha inesperada ao responder:", erro);
+        erroInesperado = erro;
+      }
     }
 
     const duracaoMs = Date.now() - inicio;
 
     if (!resultado) {
-      const mensagemDeErro = textoDoErro({ erroInesperado, semModelo, escolhaReserva, falhaPadrao, falhaReserva });
+      const mensagemDeErro = textoDoErro({ erroInesperado, orcamentoEsgotado, semModelo, escolhaReserva, falhaPadrao, falhaReserva });
+      // O que a resposta ja gastou antes de o teto barrar a proxima rodada e dinheiro de verdade: fica registrado.
+      const gasto = orcamentoEsgotado?.custo && orcamentoEsgotado.uso?.entrada > 0 ? orcamentoEsgotado : null;
       const mensagem = await gravarMensagem(conversa.id, {
         papel: "ASSISTENTE",
         conteudo: mensagemDeErro,
@@ -399,7 +432,8 @@ export async function responder({ conversaId = null, texto, usuario, perfil = "a
         modelo: escolhaFinal.modelo || null,
         motivoDaReserva,
         duracaoMs,
-        avisos: ["erro"],
+        avisos: orcamentoEsgotado ? ["erro", "orcamento_esgotado"] : ["erro"],
+        ...(gasto ? { tokensEntrada: gasto.uso.entrada, tokensSaida: gasto.uso.saida, custoUsd: gasto.custo.usd, custoBrl: gasto.custo.brl } : {}),
       });
       await prisma.conversaIA.update({ where: { id: conversa.id }, data: { atualizadoEm: new Date() } });
       aoEvento("erro", { mensagem: mensagemDeErro });
