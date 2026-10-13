@@ -12,6 +12,7 @@ import { mascararDadosPessoais } from "./mascarar";
 import { custoDaChamada } from "./modelos";
 import { estimarCustoMaximoBrl, liquidarReserva, reservarOrcamento } from "./orcamento";
 import { limparTextoParaOCliente, pedidoParaOCliente } from "./modoCliente";
+import { ehEnderecoSeguro } from "./textoSeguro";
 import { mensagemDeConhecimento, montarSistema } from "./prompt";
 import { registrarResposta } from "./paradas";
 import { ErroDoProvedor, MOTIVO_PARADA, ehErroDeProvedor } from "./provedores/contrato";
@@ -108,12 +109,14 @@ const FERRAMENTAS_QUE_TRAZEM_PRODUTO = new Set(["buscarProdutos", "buscarProduto
  * Uma tentativa completa com UM provedor: chama, executa as ferramentas que ele pedir, chama de novo, até a resposta
  * final. Lança `FalhaNoProvedor` se o provedor falhar (a reserva decide o que fazer) e o erro cru se o defeito for nosso.
  */
-async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento, conversaId, agoraDoOrcamento, sinalDeParada }) {
+async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento, conversaId, agoraDoOrcamento, sinalDeParada, internet = false, pesquisar }) {
   const relogio = criarRelogio(config.tempoLimite, sinalDeParada);
   const trabalho = [...mensagens];
-  const ferramentas = definicoesParaProvedor(perfil);
+  const ferramentas = definicoesParaProvedor(perfil, { internet });
   const trilha = [];
   const cartoes = new Map();
+  // As fontes da pesquisa na internet, sem repetir o endereço: o que a tela mostra embaixo da resposta.
+  const fontes = new Map();
   const avisos = new Set();
   let chamadasFeitas = 0;
   let quebradasSeguidas = 0;
@@ -141,7 +144,7 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
       custo = custo && daRodada ? { usd: usd + daRodada.usd, brl: brl + daRodada.brl } : null;
     }
     if (custo) custo = { usd: arredondar(custo.usd, 6), brl: arredondar(custo.brl, 4) };
-    return new RespostaInterrompida({ textoParcial: chamadaEmCurso ? textoDaRodada : "", uso, custo, trilha, cartoes: [...cartoes.values()] });
+    return new RespostaInterrompida({ textoParcial: chamadaEmCurso ? textoDaRodada : "", uso, custo, trilha, cartoes: [...cartoes.values()], fontes: [...fontes.values()] });
   };
 
   try {
@@ -246,11 +249,17 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
         } else {
           chamadasFeitas++;
           aoEvento("ferramenta", { nome: chamada.nome, estado: "inicio" });
-          const executada = await executarFerramenta(chamada.nome, chamada.argumentos, { perfil, usuario, pode });
+          // `jaGastoBrl`: o que as rodadas anteriores desta resposta custaram e ainda não está gravado (a pesquisa o soma ao separar o dinheiro).
+          const executada = await executarFerramenta(chamada.nome, chamada.argumentos, { perfil, usuario, pode, internet, conversaId, agoraDoOrcamento, config, jaGastoBrl: brl, sinal: sinalDeParada, pesquisar });
           aoEvento("ferramenta", { nome: chamada.nome, estado: "fim", ok: executada.ok });
           trilha.push({ nome: chamada.nome, argumentos: chamada.argumentos, ok: executada.ok, duracaoMs: executada.duracaoMs });
           if (executada.ok) {
             if (chamada.nome === "buscarProdutos" && Array.isArray(executada.resultado) && executada.resultado.length === 0) buscouSemResultado = true;
+            if (chamada.nome === "pesquisarNaInternet") {
+              for (const fonte of executada.resultado?.fontes ?? []) {
+                if (ehEnderecoSeguro(fonte?.url) && !fontes.has(fonte.url)) fontes.set(fonte.url, { titulo: String(fonte.titulo ?? fonte.url).slice(0, 200), url: fonte.url });
+              }
+            }
             if (FERRAMENTAS_QUE_TRAZEM_PRODUTO.has(chamada.nome)) {
               const itens = Array.isArray(executada.resultado) ? executada.resultado : [executada.resultado];
               for (const item of itens) if (item?.sku && item?.nome) cartoes.set(item.sku, cartaoDaTela(item));
@@ -273,6 +282,7 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
       avisos,
       trilha,
       cartoes: [...cartoes.values()],
+      fontes: [...fontes.values()],
       buscouSemResultado,
       uso: { entrada: tokensEntrada, saida: tokensSaida },
       custo: custoCompleto ? { usd: arredondar(usd, 6), brl: arredondar(brl, 4) } : null,
@@ -311,7 +321,7 @@ function textoDoErro({ erroInesperado, orcamentoEsgotado, semModelo, escolhaRese
  * @param {{
  *   conversaId?: string | null, texto: string, usuario: string, modo?: "interno" | "cliente" | "auto",
  *   aoEvento?: (nome: string, dados: object) => void,
- *   dependencias?: { configuracao?: object, criarProvedor?: Function, provedorDisponivel?: Function, agora?: () => number, limitador?: { permitir: Function } }
+ *   dependencias?: { configuracao?: object, criarProvedor?: Function, provedorDisponivel?: Function, agora?: () => number, limitador?: { permitir: Function }, agoraDoOrcamento?: () => number, pesquisarNaInternet?: Function }
  * }} pedido
  *   Eventos de `aoEvento`: `inicio`, `texto`, `descartar`, `ferramenta`, `reserva`, `fim`, `erro`.
  * @returns {Promise<{ conversaId: string, mensagem: object }>}  a mensagem do assistente (ou a de erro, com o aviso "erro")
@@ -392,8 +402,9 @@ export async function responder({ conversaId = null, texto, usuario, modo = "aut
     // O botao Parar (`POST /api/rise-ai/parar`) aborta este controle; a conversa so tem id depois de criada.
     const parada = new AbortController();
     desregistrar = registrarResposta(conversa.id, usuario, parada);
-    // A internet entra na Tarefa 13.
-    const sistema = montarSistema({ modo: modoFinal, promptInterno: config.prompts?.interno ?? null, promptCliente: config.prompts?.atendimento ?? null });
+    // A internet é do chat da equipe e do interruptor: o modo cliente nunca pesquisa, mesmo com o interruptor ligado.
+    const internet = Boolean(config.internet) && modoFinal === "interno";
+    const sistema = montarSistema({ modo: modoFinal, promptInterno: config.prompts?.interno ?? null, promptCliente: config.prompts?.atendimento ?? null, internet });
     const criar =
       dependencias.criarProvedor ??
       (async (provedorId) => criarProvedorReal(provedorId, { endpoint: config.endpoints?.[provedorId], chave: await lerChave(provedorId) }));
@@ -418,7 +429,7 @@ export async function responder({ conversaId = null, texto, usuario, modo = "aut
         throw erro;
       }
       aoEvento("inicio", { conversaId: conversa.id, provedor: escolha.provedor, modelo: escolha.modelo, modo: modoFinal });
-      return rodarLaco({ id: escolha.provedor, modelo: escolha.modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento, conversaId: conversa.id, agoraDoOrcamento: dependencias.agoraDoOrcamento?.() ?? Date.now(), sinalDeParada: parada.signal });
+      return rodarLaco({ id: escolha.provedor, modelo: escolha.modelo, provedor, config, sistema, mensagens, perfil, usuario, pode, aoEvento, conversaId: conversa.id, agoraDoOrcamento: dependencias.agoraDoOrcamento?.() ?? Date.now(), sinalDeParada: parada.signal, internet, pesquisar: dependencias.pesquisarNaInternet });
     }
 
     let resultado = null;
@@ -476,7 +487,7 @@ export async function responder({ conversaId = null, texto, usuario, modo = "aut
         estruturado: {
           modo: modoFinal,
           produtos: citados.map(({ sku, nome, urlLoja }) => ({ sku, nome, urlLoja })),
-          fontes: [],
+          fontes: interrompida.fontes,
           conhecimentoUsado: notas.map(({ id, assunto }) => ({ id, assunto })),
           ferramentas: interrompida.trilha,
           mascarados,
@@ -537,7 +548,7 @@ export async function responder({ conversaId = null, texto, usuario, modo = "aut
       estruturado: {
         modo: modoFinal,
         produtos: citados.map(({ sku, nome, urlLoja }) => ({ sku, nome, urlLoja })),
-        fontes: [],
+        fontes: resultado.fontes,
         conhecimentoUsado: notas.map(({ id, assunto }) => ({ id, assunto })),
         ferramentas: resultado.trilha,
         mascarados,

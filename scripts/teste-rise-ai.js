@@ -2431,6 +2431,132 @@ try {
     conferir("o estado do chat traz o padrao, a internet e o orcamento", [Object.keys(estado).sort(), typeof estado.internet, ["normal", "aviso", "esgotado"].includes(estado.orcamento.nivel), typeof estado.orcamento.percentual], [["internet", "orcamento", "padrao"], "boolean", true, "number"]);
   }
 
+  // -------------------------------------------------------------------------
+  // Entrega A1, Tarefa 13 — A ferramenta "pesquisar na internet" (busca falsa: nenhuma chamada paga)
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: internet");
+  {
+    const { pesquisarComAnthropic } = await import("../src/lib/ia/pesquisaGeral.js");
+    const { FERRAMENTAS, definicoesParaProvedor, executarFerramenta } = await import("../src/lib/riseAi/ferramentas/index.js");
+    const { responder } = await import("../src/lib/riseAi/conversa.js");
+    const { montarSistema } = await import("../src/lib/riseAi/prompt.js");
+    const { configuracaoPadrao } = await import("../src/lib/riseAi/configuracao.js");
+    const { criarLimitador } = await import("../src/lib/riseAi/limite.js");
+    const { criarProvedorFalso } = await import("./lib/provedorFalso.js");
+    // O JSONB do Postgres devolve as chaves de um objeto em outra ordem (as curtas primeiro): compara sem depender dela.
+    const ord = (valor) => (valor === undefined ? valor : JSON.parse(JSON.stringify(valor, (_, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x))));
+
+    // --- a chamada a Anthropic, com um SDK falso ---
+    const sdkFalso = (respostas) => {
+      const chamadas = [];
+      return {
+        chamadas,
+        messages: {
+          create: async (parametros) => {
+            chamadas.push(structuredClone(parametros));
+            const proxima = respostas.shift();
+            if (proxima instanceof Error) throw proxima;
+            return proxima;
+          },
+        },
+      };
+    };
+    const erroHttp = (status) => Object.assign(new Error(`HTTP ${status}`), { status });
+    const resposta = (content, extra = {}) => ({
+      content,
+      stop_reason: "end_turn",
+      usage: { input_tokens: 1000, output_tokens: 100, server_tool_use: { web_search_requests: 2 } },
+      model: "claude-haiku-5-5",
+      ...extra,
+    });
+    const resultados = { type: "web_search_tool_result", tool_use_id: "s1", content: [{ type: "web_search_result", url: "https://a.com/1", title: "A" }, { type: "web_search_result", url: "https://b.com/2", title: "B" }] };
+    const comCitacao = { type: "text", text: "O ATmega328P roda a 16 MHz.", citations: [{ type: "web_search_result_location", url: "https://www.microchip.com/x", title: "Microchip" }, { type: "web_search_result_location", url: "https://www.microchip.com/x", title: "Microchip" }] };
+
+    const sdk1 = sdkFalso([resposta([{ type: "server_tool_use", id: "s1", name: "web_search", input: { query: "q" } }, resultados, comCitacao])]);
+    const achado = await pesquisarComAnthropic({ consulta: "clock do atmega328p", cliente: sdk1 });
+    conferir("pesquisa: resumo, fonte citada (sem repetir), buscas e uso", [achado.resumo, achado.fontes, achado.buscas, achado.uso, achado.modelo], ["O ATmega328P roda a 16 MHz.", [{ titulo: "Microchip", url: "https://www.microchip.com/x" }], 2, { entrada: 1000, saida: 100 }, "claude-haiku-5-5"]);
+    conferir(
+      "pesquisa: a ferramenta e a busca basica com limite, e nunca web_fetch",
+      [sdk1.chamadas[0].tools, sdk1.chamadas[0].model, JSON.stringify(sdk1.chamadas[0]).includes("web_fetch")],
+      [[{ type: "web_search_20250305", name: "web_search", max_uses: 3 }], "claude-haiku-5-5", false],
+    );
+    const semCitacao = await pesquisarComAnthropic({ consulta: "x", cliente: sdkFalso([resposta([resultados, { type: "text", text: "Sem citacao." }])]) });
+    conferir("sem citacao, as fontes sao os resultados da busca", semCitacao.fontes.map((f) => f.url), ["https://a.com/1", "https://b.com/2"]);
+    const perigosa = await pesquisarComAnthropic({
+      consulta: "x",
+      cliente: sdkFalso([resposta([{ type: "text", text: "ok", citations: [{ type: "web_search_result_location", url: "javascript:alert(1)", title: "x" }, { type: "web_search_result_location", url: "https://ok.com/p", title: "ok" }] }])]),
+    });
+    conferir("fonte com endereco perigoso fica de fora", perigosa.fontes.map((f) => f.url), ["https://ok.com/p"]);
+    const longa = await pesquisarComAnthropic({ consulta: "x", cliente: sdkFalso([resposta([{ type: "text", text: "a".repeat(5000) }])]) });
+    conferir("resumo cortado em 3000 caracteres", longa.resumo.length, 3000);
+
+    const pausada = sdkFalso([resposta([{ type: "text", text: "parte" }], { stop_reason: "pause_turn" }), resposta([{ type: "text", text: "fim" }])]);
+    const continuada = await pesquisarComAnthropic({ consulta: "x", cliente: pausada });
+    conferir("pause_turn: continua devolvendo a mensagem pausada", [pausada.chamadas.length, pausada.chamadas[1].messages.at(-1).role, continuada.resumo], [2, "assistant", "partefim"]);
+
+    const fallback = sdkFalso([erroHttp(400), resposta([{ type: "text", text: "pelo sonnet" }], { model: "claude-sonnet-5-5" })]);
+    const doSonnet = await pesquisarComAnthropic({ consulta: "x", cliente: fallback });
+    conferir("o Haiku recusa a ferramenta: tenta o Sonnet", [fallback.chamadas.map((c) => c.model), doSonnet.modelo], [["claude-haiku-5-5", "claude-sonnet-5-5"], "claude-sonnet-5-5"]);
+    conferir("os dois recusam: erro", await pesquisarComAnthropic({ consulta: "x", cliente: sdkFalso([erroHttp(400), erroHttp(404)]) }).then(() => "nao lancou", (erro) => erro.status), 404);
+    conferir("erro de rede nao tenta outro modelo", await pesquisarComAnthropic({ consulta: "x", cliente: sdkFalso([erroHttp(500), resposta([{ type: "text", text: "nao devia" }])]) }).then(() => "nao lancou", (erro) => erro.status), 500);
+    conferir("recusa do modelo vira erro", await pesquisarComAnthropic({ consulta: "x", cliente: sdkFalso([resposta([{ type: "text", text: "" }], { stop_reason: "refusal" })]) }).then(() => "nao lancou", () => "lancou"), "lancou");
+    conferir("resposta sem texto vira erro", await pesquisarComAnthropic({ consulta: "x", cliente: sdkFalso([resposta([resultados])]) }).then(() => "nao lancou", () => "lancou"), "lancou");
+
+    // --- quem recebe a ferramenta ---
+    const nomes = (perfil, internet) => definicoesParaProvedor(perfil, { internet }).map((d) => d.nome);
+    conferir("internet ligada, perfil admin: a ferramenta vai por ultimo", nomes("admin", true).at(-1), "pesquisarNaInternet");
+    conferir("internet desligada: nao ha ferramenta", nomes("admin", false).includes("pesquisarNaInternet"), false);
+    conferir("perfil cliente nunca recebe, nem com a internet ligada", nomes("publico", true).includes("pesquisarNaInternet"), false);
+    conferir("a lista e a mesma de uma pergunta para outra (cache do prefixo)", JSON.stringify(nomes("admin", true)) === JSON.stringify(nomes("admin", true)), true);
+    conferir("a ferramenta nao esta no catalogo comum (o guarda do perfil cliente nao a enxerga)", FERRAMENTAS.some((f) => f.nome === "pesquisarNaInternet"), false);
+
+    // --- a ferramenta: custo, orcamento e fontes ---
+    let buscasFeitas = 0;
+    const pesquisarFalso = async ({ consulta }) => {
+      buscasFeitas++;
+      return { resumo: `achei sobre ${consulta}`, fontes: [{ titulo: "Microchip", url: "https://www.microchip.com/x" }], buscas: 2, uso: { entrada: 1000, saida: 100 }, modelo: "claude-haiku-5-5" };
+    };
+    const contexto = (internoBrl, extra = {}) => ({
+      perfil: "admin", usuario: "ZZ-IA-NET", internet: true, conversaId: "ZZ-IA-net1", agoraDoOrcamento: Date.UTC(2025, 11, 15, 15),
+      config: { orcamentos: { clientesBrl: 70, internoBrl } }, pesquisar: pesquisarFalso, ...extra,
+    });
+    const feita = await executarFerramenta("pesquisarNaInternet", { consulta: "clock do atmega328p" }, contexto(100));
+    conferir("a ferramenta devolve o resumo e as fontes", [feita.ok, feita.resultado?.resumo, feita.resultado?.fontes], [true, "achei sobre clock do atmega328p", [{ titulo: "Microchip", url: "https://www.microchip.com/x" }]]);
+    const gasto = await prisma.gastoIA.findFirst({ where: { referencia: "ZZ-IA-net1" } });
+    conferir("GastoIA BUSCA: tokens + 2 buscas de US$ 0,01, em reais pela cotacao", [gasto?.tipo, gasto?.escopo, gasto?.provedor, Number(gasto?.valorUsd), Number(gasto?.valorBrl), ord(gasto?.detalhe)], ["BUSCA", "INTERNO", "anthropic", 0.02015, 0.1209, ord({ buscas: 2, entrada: 1000, saida: 100 })]);
+    conferir("a reserva da pesquisa foi devolvida", await prisma.reservaDeGastoIA.count({ where: { dono: "ZZ-IA-net1" } }), 0);
+
+    const antes = buscasFeitas;
+    const barrada = await executarFerramenta("pesquisarNaInternet", { consulta: "outra" }, contexto(0));
+    conferir("teto zerado: a ferramenta recusa e a busca nem sai", [barrada.ok, barrada.erro, buscasFeitas - antes], [false, "Orçamento interno do mês esgotado.", 0]);
+    const desligada = await executarFerramenta("pesquisarNaInternet", { consulta: "x" }, contexto(100, { internet: false }));
+    conferir("internet desligada: a ferramenta nao existe", [desligada.ok, desligada.erro], [false, "Ferramenta desconhecida: pesquisarNaInternet."]);
+    const noCliente = await executarFerramenta("pesquisarNaInternet", { consulta: "x" }, contexto(100, { perfil: "publico" }));
+    conferir("perfil cliente: nem com o interruptor", noCliente.ok, false);
+    conferir("consulta curta demais e recusada", (await executarFerramenta("pesquisarNaInternet", { consulta: "x" }, contexto(100))).ok, false);
+
+    // --- no laco da conversa ---
+    const usuario = "ZZ-IA-NETL";
+    const deps = (padrao, { internet = true } = {}) => ({
+      configuracao: { ...configuracaoPadrao("pc"), padrao: { provedor: "lmstudio", modelo: "falso-1" }, tempoLimite: { primeiroTokenMs: 2000, totalMs: 5000 }, internet },
+      criarProvedor: () => padrao,
+      provedorDisponivel: async () => true,
+      limitador: criarLimitador({ porMinuto: 1000 }),
+      agoraDoOrcamento: () => Date.UTC(2025, 11, 15, 15),
+      pesquisarNaInternet: pesquisarFalso,
+    });
+    const comBusca = criarProvedorFalso({ roteiro: [{ chamadas: [{ nome: "pesquisarNaInternet", argumentos: { consulta: "clock do atmega328p" } }] }, { texto: "O clock e 16 MHz (fonte: Microchip)." }] });
+    const r = await responder({ texto: "qual o clock do atmega328p?", usuario, dependencias: deps(comBusca) });
+    conferir("laco: a ferramenta foi oferecida, o sistema tem a regra e a resposta guarda as fontes", [comBusca.pedidos[0].ferramentas.map((f) => f.nome).at(-1), comBusca.pedidos[0].sistema === montarSistema({ internet: true }), ord(r.mensagem.estruturado.fontes)], ["pesquisarNaInternet", true, ord([{ titulo: "Microchip", url: "https://www.microchip.com/x" }])]);
+    conferir("laco: a pesquisa aparece na trilha de ferramentas", r.mensagem.estruturado.ferramentas.map((f) => [f.nome, f.ok]), [["pesquisarNaInternet", true]]);
+    const semNet = criarProvedorFalso({ roteiro: [{ texto: "ok" }] });
+    await responder({ texto: "oi", usuario, dependencias: deps(semNet, { internet: false }) });
+    conferir("laco: internet desligada, sem ferramenta e sem a regra", [semNet.pedidos[0].ferramentas.some((f) => f.nome === "pesquisarNaInternet"), semNet.pedidos[0].sistema === montarSistema({})], [false, true]);
+    const modoCliente = criarProvedorFalso({ roteiro: [{ texto: "ok" }] });
+    await responder({ texto: "oi", usuario, modo: "cliente", dependencias: deps(modoCliente) });
+    conferir("laco: modo cliente nunca recebe a internet, mesmo ligada", modoCliente.pedidos[0].ferramentas.some((f) => f.nome === "pesquisarNaInternet"), false);
+  }
+
   // ---- novos blocos entram antes desta linha ----
 } finally {
   await limpar();

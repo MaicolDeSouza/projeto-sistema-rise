@@ -2,14 +2,18 @@ import { z } from "zod";
 
 import { FERRAMENTAS_DE_CONHECIMENTO } from "./conhecimento";
 import { ErroDeFerramenta } from "./erro";
+import { FERRAMENTA_DE_INTERNET } from "./internet";
 import { FERRAMENTAS_DE_PRODUTO } from "./produtos";
 
 /**
  * O catálogo de ferramentas do Rise AI e o único caminho do modelo até o banco (spec §5.5): ele pede pelo NOME, e o
  * Rise valida os argumentos (zod), confere o perfil e executa. Nunca SQL, nunca Prisma, nunca endpoint.
  *
- * Cada ferramenta: `{ nome, descricao, perfis, esquema, executar(args, contexto) }`, com `contexto = { perfil, usuario }`.
+ * Cada ferramenta: `{ nome, descricao, perfis, esquema, executar(args, contexto) }`, com `contexto = { perfil, usuario, pode }`.
  * Ferramenta nova = uma entrada num dos módulos desta pasta.
+ *
+ * A pesquisa na internet NÃO está em `FERRAMENTAS`: ela só existe quando o chat da equipe liga o interruptor (`internet`),
+ * então o perfil cliente e o guarda de teste que percorre o catálogo não a enxergam.
  */
 export const FERRAMENTAS = [...FERRAMENTAS_DE_PRODUTO, ...FERRAMENTAS_DE_CONHECIMENTO];
 
@@ -31,10 +35,17 @@ export function exigirPerfil(perfil) {
   if (!PERFIS.includes(perfil)) throw new Error(`Perfil de ferramentas desconhecido: ${String(perfil)}`);
 }
 
-/** @returns {{ nome: string, descricao: string, parametros: object }[]}  só as ferramentas que o perfil pode usar */
-export function definicoesParaProvedor(perfil) {
+/**
+ * @param {"admin" | "publico"} perfil
+ * @param {{ internet?: boolean }} [opcoes]  `internet` acrescenta a pesquisa, sempre POR ÚLTIMO (a lista é a mesma de uma pergunta
+ *   para outra, e o provedor guarda em cache o prefixo); só vale para a equipe
+ * @returns {{ nome: string, descricao: string, parametros: object }[]}  só as ferramentas que o perfil pode usar
+ */
+export function definicoesParaProvedor(perfil, { internet = false } = {}) {
   exigirPerfil(perfil);
-  return FERRAMENTAS.filter((ferramenta) => ferramenta.perfis.includes(perfil)).map((ferramenta) => ({
+  const doPerfil = FERRAMENTAS.filter((ferramenta) => ferramenta.perfis.includes(perfil));
+  const lista = internet && perfil === "admin" ? [...doPerfil, FERRAMENTA_DE_INTERNET] : doPerfil;
+  return lista.map((ferramenta) => ({
     nome: ferramenta.nome,
     descricao: ferramenta.descricao,
     parametros: parametrosDe(ferramenta.esquema),
@@ -48,7 +59,8 @@ export function definicoesParaProvedor(perfil) {
  *
  * @param {string} nome
  * @param {unknown} argumentosBrutos
- * @param {{ perfil: "admin" | "publico", usuario?: string }} contexto
+ * @param {{ perfil: "admin" | "publico", usuario?: string, pode?: Function, internet?: boolean, conversaId?: string, agoraDoOrcamento?: number, config?: object, jaGastoBrl?: number, sinal?: AbortSignal, pesquisar?: Function }} contexto
+ *   `internet` é o interruptor do chat da equipe: sem ele a pesquisa nem existe (o provedor poderia inventar o nome).
  * @returns {Promise<{ ok: true, resultado: any, duracaoMs: number } | { ok: false, erro: string, duracaoMs: number }>}
  */
 export async function executarFerramenta(nome, argumentosBrutos, contexto) {
@@ -58,7 +70,7 @@ export async function executarFerramenta(nome, argumentosBrutos, contexto) {
   // Sem perfil padrão: quem esquece o perfil não vira administrador.
   if (!PERFIS.includes(contexto?.perfil)) return falha("Perfil desconhecido.");
 
-  const ferramenta = FERRAMENTAS.find((candidata) => candidata.nome === nome);
+  const ferramenta = contexto.internet && nome === FERRAMENTA_DE_INTERNET.nome ? FERRAMENTA_DE_INTERNET : FERRAMENTAS.find((candidata) => candidata.nome === nome);
   if (!ferramenta) return falha(`Ferramenta desconhecida: ${nome}.`);
   if (!ferramenta.perfis.includes(contexto.perfil)) return falha("Esta ferramenta não está disponível para este perfil.");
 

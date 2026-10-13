@@ -31,8 +31,8 @@ export class OrcamentoEsgotado extends Error {
  * é tentada). Leva o texto parcial, o que a resposta já gastou e o que foi consultado, para a mensagem ser gravada.
  */
 export class RespostaInterrompida extends Error {
-  /** @param {{ textoParcial?: string, uso?: { entrada: number, saida: number }, custo?: { usd: number, brl: number } | null, trilha?: object[], cartoes?: object[] }} dados */
-  constructor({ textoParcial = "", uso = { entrada: 0, saida: 0 }, custo = null, trilha = [], cartoes = [] } = {}) {
+  /** @param {{ textoParcial?: string, uso?: { entrada: number, saida: number }, custo?: { usd: number, brl: number } | null, trilha?: object[], cartoes?: object[], fontes?: object[] }} dados */
+  constructor({ textoParcial = "", uso = { entrada: 0, saida: 0 }, custo = null, trilha = [], cartoes = [], fontes = [] } = {}) {
     super("A resposta foi interrompida.");
     this.name = "RespostaInterrompida";
     this.textoParcial = textoParcial;
@@ -40,5 +40,6 @@ export class RespostaInterrompida extends Error {
     this.custo = custo;
     this.trilha = trilha;
     this.cartoes = cartoes;
+    this.fontes = fontes;
   }
 }
