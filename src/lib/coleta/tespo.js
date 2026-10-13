@@ -18,6 +18,9 @@ import { buscarPagina } from "./buscar";
 
 const SITE = "https://www.tespoinjetados.com.br";
 
+/// O endereco de cada item das esteiras: o site nao tem pagina por produto, entao o link e a pagina inicial (pedido do dono, 13/10/2026).
+export const PAGINA_INICIAL_DA_TESPO = `${SITE}/`;
+
 const limpa = (texto) => texto.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
 
 /** "T100.25 CR", "t100.25cr", "F.T50.35" -> "T100.25CR", "F.T50.35". Null se nao for uma serie de esteira. */

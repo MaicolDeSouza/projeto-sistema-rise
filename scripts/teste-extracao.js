@@ -2764,6 +2764,7 @@ console.log("\n— catalogo de esteiras em PDF (Tespo) —");
   conferir("tespo: 2 numeros = so passo e elos (altura e raio nao inventados)", ficha("04228"), { "Medida interna (Li x Ai)": "75 x 60 mm", "Medida externa (Le x Ae)": "110 x 80 mm", "Passo (P)": "97 mm", "Elos por metro": "10", "Peso por metro": "2760 g" });
   conferir("tespo: uma medida so, o modelo diz se e interna ou externa; 3 numeros sao ambiguos e ficam de fora", ficha("04012"), { "Medida externa (Le x Ae)": "25,3 x 23 mm", "Peso por metro": "260 g" });
   conferir("tespo: terminal numa linha so, sem peso", [por("03155").categoria, ficha("03155")], ["Terminal de fixação", { "Medida interna (Li x Ai)": "10,6 x 10,6 mm", "Medida externa (Le x Ae)": "15 x 13 mm" }]);
+  conferir("tespo: o link de cada item e a pagina inicial do site (nao ha pagina por produto)", itens.map((i) => i.urlDoFornecedor), Array(itens.length).fill("https://www.tespoinjetados.com.br/"));
   conferir("tespo: marca Tespo e sem o cabecalho MEDIDA INTERNA nao le (outro catalogo)", [por("03154").marca, esteirasDoPdf("03154 ESTEIRA PORTA CABOS\nT10.10 10,6X10,6 15X13 46 18 20 49 107gr")], ["Tespo", []]);
 }
 

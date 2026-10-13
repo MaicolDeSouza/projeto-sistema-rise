@@ -2,7 +2,7 @@ import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { mesclarNoExistente } from "./mesclar";
 import { comoNumero, comoTexto } from "./texto-html";
 import { normalizarPagina } from "./normalizar";
-import { documentosDasEsteirasDoSite, juntarDocumentosDasEsteiras } from "./tespo";
+import { PAGINA_INICIAL_DA_TESPO, documentosDasEsteirasDoSite, juntarDocumentosDasEsteiras } from "./tespo";
 
 /**
  * Leitura de arquivo trazido do fornecedor.
@@ -199,7 +199,9 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
     model: null,
     category: comoTexto(valorDe(bruto, CAMPOS.categoria)),
     ncm: comoTexto(valorDe(bruto, CAMPOS.ncm)),
-    url: null,
+    // So o leitor que ja sabe o endereco o informa (`urlDoFornecedor`): as esteiras da Tespo apontam para a pagina inicial,
+    // porque o site nao tem pagina por produto. Os outros leitores seguem sem endereco.
+    url: typeof bruto.urlDoFornecedor === "string" && /^https?:\/\//i.test(bruto.urlDoFornecedor) ? bruto.urlDoFornecedor : null,
     // A foto vem do mapa da pagina salva, casada pelo codigo. Sem codigo
     // nao ha como casar, e ficar sem foto e melhor que mostrar a de outro.
     images:
@@ -630,6 +632,7 @@ export function esteirasDoPdf(texto) {
       desc: ehEsteira ? antes.replace(/\s+/g, " ") : antes,
       categoria: ehEsteira ? "Esteira porta-cabos" : "Terminal de fixação",
       marca: "Tespo",
+      urlDoFornecedor: PAGINA_INICIAL_DA_TESPO,
       especificacoes,
     });
   }
