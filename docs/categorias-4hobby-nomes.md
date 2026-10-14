@@ -1,6 +1,6 @@
 # Árvore final de categorias da loja 4hobby (uma família por folha)
 
-Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 folhas) foi refeita porque nome de folha não pode listar produtos diferentes; em 07/10 o dono aceitou as 17 fusões de folhas pequenas (133 folhas, 12 topos); em 14/10 ele enxugou os topos (12 → 10), tirou o nível intermediário "Movimento Linear", criou o topo Kits Educacionais reduziu Placas Embarcadas a quatro folhas, uma por família de placa, com shields, interfaces e gravadores dentro da placa a que servem, enxugou os módulos de Módulos e Sensores a seis folhas (os sensores ficaram como estavam) e refez Displays e Telas por tipo de tela, sem folha própria para a Nextion. O CSV `categorias-4hobby-mapeamento.csv` já reflete esta árvore.
+Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 folhas) foi refeita porque nome de folha não pode listar produtos diferentes; em 07/10 o dono aceitou as 17 fusões de folhas pequenas (133 folhas, 12 topos); em 14/10 ele enxugou os topos (12 → 10), tirou o nível intermediário "Movimento Linear", criou o topo Kits Educacionais reduziu Placas Embarcadas a quatro folhas, uma por família de placa, com shields, interfaces e gravadores dentro da placa a que servem, enxugou os módulos de Módulos e Sensores a seis folhas (os sensores ficaram como estavam) refez Displays e Telas por tipo de tela, sem folha própria para a Nextion, e criou o topo Cabos e Conectores (cabos e conectores de painel), deixando em Componentes Eletrônicos só os conectores de PCB e as barras de pinos. O CSV `categorias-4hobby-mapeamento.csv` já reflete esta árvore.
 
 ## Regras que valem para nome novo
 
@@ -10,9 +10,9 @@ Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 fol
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **10 topos e 120 folhas** para 1.301 produtos publicáveis (119 folhas com produto próprio e uma, Shields e Placas de Interface, só com produtos de 2ª categoria; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+Resultado: **11 topos e 118 folhas** para 1.301 produtos publicáveis (117 folhas com produto próprio e uma, Shields e Placas de Interface, só com produtos de 2ª categoria; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
 
-Com dois níveis e uma família por folha, dois topos ficam com menu longo: CNC (28 folhas) e Componentes Eletrônicos (27). É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
+Com dois níveis e uma família por folha, só CNC fica com menu longo (28 folhas). É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
 ## Árvore, com a quantidade de produtos de hoje
 
@@ -59,7 +59,7 @@ Módulos em seis folhas (decisão do dono em 14/10/2026: relé, conversores de s
 
 Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica separada). Telas TFT junta as 15 Nextion (Basic, Enhanced, Intelligent) com as expansões e o conector delas, as 3 telas de 7" para Raspberry Pi com o case da oficial (todas com Placas Raspberry Pi como 2ª categoria), a 3,5" touch ILI9488 e a 1,8" ST7735: são todas LCD TFT, a diferença é só a interface (serial, HDMI/DSI, SPI). Displays LCD 16x2 e 20x4 são os alfanuméricos de caracteres, com o módulo I2C e o LCD shield; o nome traz os tamanhos para não confundir com as telas TFT, que os títulos também chamam de "LCD".
 
-### Componentes Eletrônicos (310)
+### Componentes Eletrônicos (201)
 
 - Resistores (18)
 - Potenciômetros e Trimpots (11)
@@ -73,21 +73,24 @@ Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica sep
 - Fusíveis e Filtros (3) ◂ pequena
 - Interruptores e Tomadas de Painel (5)
 - Chaves e Push Buttons (19)
-- Conectores JST (18)
-- Conectores Dupont (7)
+- Conectores para PCB (31)
 - Barras de Pinos (15)
+
+Conectores para PCB (decisão do dono em 14/10/2026) junta o que se solda na placa ou liga fio à placa: JST XH e PH com terminais, Dupont com terminais e os bornes KRE/KF e BR7. Barras de Pinos fica como folha própria, a pedido dele. Os conectores de painel e de cabo (Mike, P4/P10, XLR/XT60/banana, DB/RJ45/HDMI, terminais) e os cabos foram para o topo Cabos e Conectores. Plugs P4 e P10 tem 2 itens de PCB (P4 fêmea para PCB e P10 fêmea painel/PCB) no meio de 8 de cabo e painel: a família ficou inteira em Cabos e Conectores para não se partir.
+
+### Cabos e Conectores (91)
+
+- Fios e Cabos Elétricos (15)
+- Cabos USB e HDMI (14)
+- Cabos de Extensão para Painel (11)
 - Conectores Mike GX12 e GX16 (9)
 - Plugs P4 e P10 (10)
 - Conectores XLR, XT60 e Banana (6)
-- Bornes KRE e KF (6)
-- Terminais e Emendas (6)
 - Adaptadores DB9, RJ45 e HDMI (14)
-- Cabos de Extensão para Painel (11)
-- Cabos USB e HDMI (14)
-- Jumpers e Garras Jacaré (7)
-- Fios e Cabos Elétricos (15)
-- Termo Retrátil (11)
+- Terminais e Emendas (6)
 - Abraçadeiras e Organizadores de Cabos (6)
+
+Topo criado pelo dono em 14/10/2026 para cabos, conectores de painel e adaptadores (o que não se solda na PCB). Jumpers, garras jacaré e termo retrátil foram para Ferramentas e Prototipagem, por decisão dele.
 
 ### Automação Industrial (90)
 
@@ -157,9 +160,11 @@ Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica sep
 - Máquinas e Equipamentos (8)
 - Softwares e Serviços (8)
 
-### Ferramentas e Prototipagem (57)
+### Ferramentas e Prototipagem (75)
 
 - Protoboards e Placas Fenolite (8)
+- Jumpers e Garras Jacaré (7)
+- Termo Retrátil (11)
 - Ferramentas e Solda (7)
 - Instrumentos de Medição (6)
 - Espaçadores e Parafusos Nylon (6)
@@ -191,7 +196,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Módulos e Sensores**: os 14 grupos de módulos viraram os 5 ditados por ele (Módulos Relé e Acionamento, Conversores de Sinais, Módulos Wireless e IoT, Antenas e Acessórios, Shields e Placas de Interface) mais Módulos RTC e Memória, que mantive por falta de lugar. Os 14 grupos de sensores não mudaram. Cartões micro SD e leitor USB foram para Placas Raspberry Pi (pedido dele); teclados matriciais para Chaves e Push Buttons, joystick para Potenciômetros e Trimpots, encoders KY-040/HW-040 para Encoders Incrementais e o TTP223 para Sensores Indutivos e Capacitivos; ethernet shields, data logger shield e joystick shield foram para Placas Arduino, e os HATs CAN e o gateway LoRa para Placas Raspberry Pi, todos com a 2ª categoria de shields.
 - **Displays e Telas** passou de 5 para 4 folhas, por tipo de tela: Telas TFT (Nextion, telas de Raspberry, SPI), Displays LCD 16x2 e 20x4, Displays OLED e Displays 7 Segmentos e Matriz LED. Telas Nextion e Telas para Raspberry Pi deixaram de ser folhas.
 - **Módulos** e **Sensores** viraram um topo, **Módulos e Sensores**.
-- **Conectores e Cabos** entrou em **Componentes Eletrônicos** (as 15 folhas continuam iguais). Cabos USB e HDMI fica aí, no bloco de cabos.
+- **Conectores e Cabos** entrou em **Componentes Eletrônicos**; depois, na mesma data, ele separou de novo: os conectores de PCB (JST, Dupont, KRE/KF) viraram a folha **Conectores para PCB** e **Barras de Pinos** ficou, os dois em Componentes; cabos, conectores de painel (Mike, P4/P10, XLR/XT60/banana, DB/RJ45/HDMI), terminais e abraçadeiras foram para o topo novo **Cabos e Conectores**; jumpers, garras jacaré e termo retrátil foram para **Ferramentas e Prototipagem**.
 - **Movimento Linear** deixou de existir como nível: as 12 folhas ficam direto em CNC.
 - **Softwares e Serviços** virou uma folha única dentro de CNC (6 dos 8 itens são LightBurn/Mach3 e seus serviços de configuração).
 - Novo topo **Kits Educacionais**, com duas folhas.
