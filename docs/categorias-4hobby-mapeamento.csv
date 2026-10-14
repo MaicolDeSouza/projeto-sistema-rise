@@ -25,7 +25,7 @@
 100211;"DATA LOGGER SHIELD COM RTC DS1307 PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";28.80;20
 100212;"MÓDULO GPS UBLOX NEO-6M GY-GPS6MV2 COM ANTENA CERÂMICA";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";46.90;12
 100215;"MODULO CNC SHIELD V3 PARA ARDUINO";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"2 - Módulos e shields";28.80;28
-100216;"MOTOR SHIELD L293 DRIVER PONTE H PARA ARDUINO";Motores e Robótica;Ponte H e Controladores de Motor DC;;G_ponteh;"";"2 - Módulos e shields";27.70;30
+100216;"MOTOR SHIELD L293 DRIVER PONTE H PARA ARDUINO";Motores;Drivers e Controladores;;G_drv;"";"2 - Módulos e shields";27.70;30
 100218;"MÓDULO RELÉ 1 CANAL 5V 10A";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";7.20;3
 100219;"MÓDULO RELÉ ESTADO SÓLIDO SSR 1CANAL 5V 2A";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";14.40;38
 100220;"MÓDULO RELÉ ESTADO SÓLIDO SSR 4 CANAIS 5V 2A";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";54.40;20
@@ -33,7 +33,7 @@
 100222;"ADAPTADOR MÓDULO WIFI ESP8266 ESP-01 PARA PROTOBOARD";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"2 - Módulos e shields";4.90;12
 100223;"ADAPTADOR USB PARA MÓDULO WIFI ESP8266 ESP-01";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"2 - Módulos e shields";14.60;5
 100224;"PLACA BORNE INTERFACE PARA ARDUINO NANO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";19.20;18
-100225;"MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003";Motores e Robótica;Motores de Passo;;G_passo;"";"2 - Módulos e shields";16.00;3
+100225;"MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003";Motores;Motores de Passo;;G_passo;"";"2 - Módulos e shields";16.00;3
 100229;"MODULO SENSOR DE TENSÃO AC 0 A 250VAC SAÍDA 0 A 5V ZMPT101B";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"2 - Módulos e shields";18.40;26
 100230;"MODULO 4 CANAIS COM OPTOACOPLADOR 3,6 A 30VDC";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";16.00;0
 100232;"MODULO RELÉ 5V 1 CANAL COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";15.40;5
@@ -59,23 +59,23 @@
 100258;"Multiplexador CD74HC4067 CMOS Analógico Digital 16 Canais para Arduino *100258";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";12.00;16
 100259;"MODULO RELÉ 5V 6 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";37.00;17
 100260;"MÓDULO AMPLIFICADOR  MAX31865 PT100";Módulos e Sensores;Sensores de Temperatura e Umidade;;C_temp;"";"";;10
-100261;"SIMULADOR DE CARGA RESISTIVA USB 15W 3A";Fontes e Baterias;Voltímetros e Testadores;;F_volt;"";"Módulos";55.00;5
+100261;"SIMULADOR DE CARGA RESISTIVA USB 15W 3A";Componentes Eletrônicos;Voltímetros e Testadores;;I_volt;"";"Módulos";55.00;5
 100263;"RELÉ TEMPORIZADOR DIGITAL AJUSTÁVEL XY-J02";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"Módulos";49.00;3
 100264_z;"CNC Shield V4 keyesStudio*100264";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"";87.00;5
 100265;"MÓDULO OPTOACOPLADOR  ISOLADOR 4 CANAIS 3,3 A 30VDC";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";48.00;34
 100266;"MÓDULO SENSOR DETECTOR DE CHAMA DE FOGO";Módulos e Sensores;Sensores de Gás e Chama;;C_gas;"";"2 - Módulos e shields";8.00;27
 100267;"MÓDULO SENSOR DE VIBRAÇÃO SW-420";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"2 - Módulos e shields";10.00;20
 100268;"MODULO SENSOR DE SOM KY-038";Componentes Eletrônicos;Buzzers, Alto-falantes e Áudio;;I_buzz;"";"2 - Módulos e shields";12.00;13
-100270;"MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO";Fontes e Baterias;Placas BMS e Testadores de Bateria;;F_bms;"";"Baterias e Acessórios";38.00;0
-100271;"Rele com soquete 24VDC 10A";Automação Industrial;Controladores de Temperatura e SSR;;E_ctrl;"";"";;10
+100270;"MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO";Componentes Eletrônicos;Placas BMS e Testadores de Bateria;;I_bms;"";"Baterias e Acessórios";38.00;0
+100271;"Rele com soquete 24VDC 10A";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";;10
 100272;"MÓDULO MULTIFUNÇÕES SHIELD PARA ARDUINO NÍVEL INTERMEDIÁRIO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";31.70;6
-100273;"MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A";Fontes e Baterias;Carregadores de Bateria e Painel Solar;;F_carr;"";"2 - Módulos e shields";30.00;0
+100273;"MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A";Componentes Eletrônicos;Carregadores de Bateria e Painel Solar;;I_carr;"";"2 - Módulos e shields";30.00;0
 100274;"ANALISADOR LÓGICO 24MHZ 8 CANAIS";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Conversores";69.00;1
 100275;"MÓDULO BÚSSOLA ELETRONICA  HMC5883L GY-273";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"";;0
 100276;"Sensor de inclinação e vibração SW-200D";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"";;20
-100277;"TERMOSTATO DIGITAL REXC100 FK02-M*DA (RELE)";Automação Industrial;Controladores de Temperatura e SSR;;E_ctrl;"";"";;5
-100278;"TERMOSTATO REX-C100FK02-- V*DA (SSR)";Automação Industrial;Controladores de Temperatura e SSR;;E_ctrl;"";"";;3
-100279;"KIT CONTROLADOR REX-C100 SSR + RELÉ SSR 40A + DISSIPADOR";Automação Industrial;Controladores de Temperatura e SSR;;E_ctrl;"";"";;3
+100277;"TERMOSTATO DIGITAL REXC100 FK02-M*DA (RELE)";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";;5
+100278;"TERMOSTATO REX-C100FK02-- V*DA (SSR)";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";;3
+100279;"KIT CONTROLADOR REX-C100 SSR + RELÉ SSR 40A + DISSIPADOR";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";;3
 100280;"Mini autofalante para arduino 4R 3W";Componentes Eletrônicos;Buzzers, Alto-falantes e Áudio;;I_buzz;"";"";9.90;10
 100303;"DISPLAY LCD 16X2 COM FUNDO AZUL";Displays e Telas;Displays LCD 16x2 e 20x4;;D_lcd;"";"3 - Telas e LCD";23.90;20
 100305;"TELA LCD NEXTION 5″ 800X480 BASIC IHM TOUCH";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";977.60;0
@@ -125,7 +125,7 @@
 101004;"CASE ACRÍLICO PARA ARDUÍNO MEGA 2560 16U2";Placas Embarcadas;Placas Arduino;;A_ard;"";"2 - Módulos e shields";11.80;30
 101006;"CASE PARA ARDUINO UNO R3 EM PLASTICO ENCAIXÁVEL";Placas Embarcadas;Placas Arduino;;A_ard;"";"2 - Módulos e shields";8.00;1
 101007;"CASE ACRÍLICO PARA ARDUÍNO MEGA 2560 CH340";Placas Embarcadas;Placas Arduino;;A_ard;"";"2 - Módulos e shields";11.80;20
-101008;"Motor de R140 20mm 1.5 a 4.5V DC*101008";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";8.40;17
+101008;"Motor de R140 20mm 1.5 a 4.5V DC*101008";Motores;Motores DC;;G_dc;"";"";8.40;17
 101010;"Interface placa perfurada Arduino mega com bornes *101010";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"";125.00;5
 101480;"Potenciômetro linear 500K WH148";Componentes Eletrônicos;Potenciômetros e Trimpots;;I_pot;"";"";4.50;50
 109902;"KIT CONTROLE REMOTO INFRAVERMELHO COM RECEPTOR";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";12.90;12
@@ -149,20 +149,20 @@
 111003;"MINI TECLADO SEM FIO COM MOUSE TOUCH";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";33.30;2
 111006;"Leitor Adaptador Usb Para Cartão Micro Sd  *111006";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";2.90;50
 111007;"CARTÃO MICRO SD 64GB 80MB/S CLASSE10 SANDISK";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";56.00;3
-111008;"FONTE CHAVEADA 5V 3A MICRO USB PARA RASPBERRY PI3 ESP32";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";44.90;17
+111008;"FONTE CHAVEADA 5V 3A MICRO USB PARA RASPBERRY PI3 ESP32";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";44.90;17
 111010;"KIT 03 PEÇAS DISSIPADOR DE CALOR PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";5.60;58
 111011;"KIT ADAPTADOR RASPBERRYPI ZERO HDMI USB PINOS COM 03 PÇS";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";31.90;4
 111016_4h;"Divisor Splitter HDMI 1 Hdmi Macho Para 2 Hdmi Fêmea *111016";Cabos e Conectores;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";30.00;4
 111017;"Divisor cabo HDMI Splitter HDMI 1x4 com fonte *111017";Cabos e Conectores;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";92.99;1
 111018;"Conversor HDMI para VGA *111018";Cabos e Conectores;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";41.90;2
 111019;"ADAPTADOR MICRO HDMI MACHO PARA HDMI FÊMEA";Cabos e Conectores;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"Conversores";12.00;40
-111020;"FONTE CHAVEADA 5V 3A TIPO C PARA RASPBERRY PI4  RPI4 *111020";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"";57.00;8
+111020;"FONTE CHAVEADA 5V 3A TIPO C PARA RASPBERRY PI4  RPI4 *111020";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"";57.00;8
 111021;"Microventilador para RaspberryPi 5V 30x30mm *111021";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";13.00;16
 111022;"CASE OFICIAL RASPBERRY PI4 RPI4 BRANCO E VERMELHO *111022";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";52.80;17
 111023;"OBSOLETO-DISSIPADOR PARA RASPBERRY PI4 RPI4 ALTA PERFORMANCE *111023";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";116.30;0
 111024_z;"DISSIPADOR EM ALUMÍNIO RASPBERRY PI4 RPI4 KIT 4 PEÇAS*111024";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";18.35;16
 111025;"CASE RASPBERRY PI4 RPI4 EM ABS PRETO COM COOLER *111025";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";82.00;10
-111027;"Fonte chaveada 5V 3.1A saida tipoC *111027";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"";30.00;22
+111027;"Fonte chaveada 5V 3.1A saida tipoC *111027";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"";30.00;22
 111029;"CASE OFICIAL RASPBERRY PI3 RPI3 BRANCO E VERMELHO *111029";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";30.00;5
 111030;"MICROFONE USB PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";55.00;0
 111031;"Case para tela LCD 7 pol Oficial Raspberry Pi4 preto";Displays e Telas;Telas TFT;;D_tft;"Placas Embarcadas > Placas Raspberry Pi";"";179.90;0
@@ -202,7 +202,7 @@
 120209;"PILLOW BLOCK FECHADO 8MM SC8UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";19.20;24
 120210;"ROLAMENTO 608ZZ BLINDADO ABEC1 8X22X7MM";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Polias e Roldanas";2.00;71
 120211;"PILLOW BLOCK FECHADO 10MM SC10UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";39.60;10
-120212;"BOMBA DE AR COMPRESSOR PARA MAQUINA GRAVAÇÃO A LASER";Motores e Robótica;Mini Bombas de Água e Ar;;G_bomba;"CNC, Laser e Impressão 3D > Peças para Laser CO2";"Acessórios";722.00;1
+120212;"BOMBA DE AR COMPRESSOR PARA MAQUINA GRAVAÇÃO A LASER";Motores;Motores DC;;G_dc;"CNC, Laser e Impressão 3D > Peças para Laser CO2";"Acessórios";722.00;1
 120213;"Maquina laser 10w TTS-10";CNC, Laser e Impressão 3D;Máquinas e Equipamentos;;H_maq;"";"";;1
 120224;"ROLAMENTO LINEAR 10MM LM10UU";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";7.90;21
 120225;"ROLAMENTO LINEAR LMK12UU COM FLANGE QUADRADA PARA EIXO 12MM";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";30.40;32
@@ -240,52 +240,52 @@
 120344;"GUIA LINEAR MGN15H 350MM COM PATIM";CNC, Laser e Impressão 3D;Guias Lineares MGN;;H_guia;"";"Eixo Linear / Guia Linear";255.00;3
 120345;"GUIA LINEAR MGN15H 800MM COM PATIM";CNC, Laser e Impressão 3D;Guias Lineares MGN;;H_guia;"";"";447.00;0
 120345_z;"EIXO LINEAR 12MM SUPORTE ALUMINIO TEMPERADO CROMADO *120345";CNC, Laser e Impressão 3D;Eixos Lineares;;H_eixo;"";"";265.00;13
-120404;"MOTOR DC 775 150W 12-24V DC 20000RPM MINI SPINDLE";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"Motores";90.00;6
-120405;"Motor spindle industrial 1.1HP refrigerado a ar com inversor *120405";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"";3100.00;0
-120406;"Motor spindle industrial 3HP refrigerado a ar com inversor *120406";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"";3580.00;0
-120407;"Motor spindle industrial 3CV refrigerado a água com inversor *120407";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"";3850.00;0
-120408;"Inversor de frequência 2,2kw 3cv 220v Monofásico";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"";;3
-120409;"MOTOR DC 775 24V DC 15000RPM MINI SPINDLE PCB";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"Motores";132.00;0
-120410;"Motor spindle industrial 3CV refrigerado a água";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"";;0
-120411;"Suporte em alumínio para spindle 80mm de diametro";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"";;0
-120412;"MOTOR SPINDLE INDUSTRIAL 3CV REFRIGERADO A ÁGUA COM INVERSOR";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"4 - Spindles";2800.00;3
-120413;"Kit Motor spindle industrial 3CV refrigerado a ar com inversor";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"";2400.00;1
-120414;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 10 Rpm";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";69.90;5
-120415;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 20 Rpm";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";69.90;5
-120416;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 150 Rpm";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";90.00;5
-120417;"KIT SPINDLE MOTOR CNC 800W 20000RPM COM SUPORTE E FONTE";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"";1190.00;2
-120509;"MOTOR DE PASSO NEMA 17 - 1.7A  4,2KGF 17HS4401";Motores e Robótica;Motores de Passo;;G_passo;"";"Motor de passo";72.00;11
-120511_4h;"MOTOR DE PASSO  NEMA23 19KGF 2,1A CNC ROUTER *120511";Motores e Robótica;Motores de Passo;;G_passo;"";"";319.00;0
-120512;"MOTOR DE PASSO NEMA34 90KGF 3A  CNC ROUTER PLASMA";Motores e Robótica;Motores de Passo;;G_passo;"";"";700.00;0
-120513;"MOTOR DE PASSO NEMA34 35KGF CNC ROUTER PLASMA";Motores e Robótica;Motores de Passo;;G_passo;"";"Motor de passo";579.00;2
-120514;"MOTOR DE PASSO NEMA34 120KGF DUPLO EIXO  *120514";Motores e Robótica;Motores de Passo;;G_passo;"";"";697.00;3
-120515;"Motor de passo Nema17 4,2Kgf 0.9graus *120515";Motores e Robótica;Motores de Passo;;G_passo;"";"";150.00;3
-120516;"MOTOR DE PASSO NEMA 23 - 2,8A 12,6KGF";Motores e Robótica;Motores de Passo;;G_passo;"";"Motor de passo";139.20;4
-120517;"MOTOR DE PASSO NEMA 23 - 3A 22KGF";Motores e Robótica;Motores de Passo;;G_passo;"";"Motor de passo";205.00;5
-120518;"MOTOR DE PASSO NEMA 34 - 2,8A 68KGF";Motores e Robótica;Motores de Passo;;G_passo;"";"Motor de passo";504.00;0
-120520;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 45KGF 6,0A";Motores e Robótica;Easy Servo e Servo AC;;G_easy;"";"Motor de passo";1120.00;1
-120521;"MOTOR DE PASSO NEMA 17 - 2A  5,9KGF 17hs8401";Motores e Robótica;Motores de Passo;;G_passo;"";"";;0
-120522;"Redutor planetário Nema34 4:1";Motores e Robótica;Motores de Passo;;G_passo;"";"";;2
-120523;"Servo motor AC 400w sem freio com drive";Motores e Robótica;Easy Servo e Servo AC;;G_easy;"";"";;1
-120524;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF";Motores e Robótica;Easy Servo e Servo AC;;G_easy;"";"";;0
-120525;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF COM FREIO";Motores e Robótica;Easy Servo e Servo AC;;G_easy;"";"";;0
-120526;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF";Motores e Robótica;Easy Servo e Servo AC;;G_easy;"";"";;0
-120527;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF COM FREIO";Motores e Robótica;Easy Servo e Servo AC;;G_easy;"";"";;0
-120604;"DRIVER MOTOR DE PASSO A4988 COM DISSIPADOR";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"Driver";12.80;71
-120605;"DRIVER MOTOR DE PASSO DRV8825 COM DISSIPADOR";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"Driver";16.00;35
-120607;"CONTROLADOR DE VELOCIDADE PARA MOTOR DC 6-90V 15A PWM";Motores e Robótica;Ponte H e Controladores de Motor DC;;G_ponteh;"";"Módulos";73.00;24
-120608;"CONTROLADOR PWM DE VELOCIDADE PARA MOTOR DC 10-50V 40A 2000W";Motores e Robótica;Ponte H e Controladores de Motor DC;;G_ponteh;"";"Módulos";127.00;8
-120609;"MODULO DE EXPANSÃO PARA DRIVER A4988 DRV8825";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"2 - Módulos e shields";16.00;10
-120610;"DRIVER SILENCIOSO MOTOR DE PASSO TMC2100 IMPRESSORA 3D";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"Driver";46.00;0
-120611;"MODULO DIODO PROTEÇÃO PARA DRIVER DRV8825 A4988 TMC2100";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"2 - Módulos e shields";23.00;27
-120614;"DRIVER PROFISSIONAL DM556 5,6A PARA MOTOR DE PASSO";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"Driver";143.00;0
-120615_z;"Drive TMC2130 *120615";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"";63.00;5
-120616_z;"Drive TMC2208 *120616";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"";48.30;5
-120617;"DRIVE DSP PARA MOTOR DE PASSO DM860H 7,2A COM COOLER *120617";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"";525.00;6
-120618;"Drive TMC2209 *120618";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"";49.90;3
-120619;"Drive para motor de passo TB6560*120619";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"";81.90;6
-120620;"Extensão drive externo *120620";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"";15.00;10
-120621;"Easy drive";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"";1230.00;2
+120404;"MOTOR DC 775 150W 12-24V DC 20000RPM MINI SPINDLE";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"Motores";90.00;6
+120405;"Motor spindle industrial 1.1HP refrigerado a ar com inversor *120405";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";3100.00;0
+120406;"Motor spindle industrial 3HP refrigerado a ar com inversor *120406";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";3580.00;0
+120407;"Motor spindle industrial 3CV refrigerado a água com inversor *120407";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";3850.00;0
+120408;"Inversor de frequência 2,2kw 3cv 220v Monofásico";Automação Industrial;Inversores de Frequência;;E_inv;"";"";;3
+120409;"MOTOR DC 775 24V DC 15000RPM MINI SPINDLE PCB";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"Motores";132.00;0
+120410;"Motor spindle industrial 3CV refrigerado a água";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";;0
+120411;"Suporte em alumínio para spindle 80mm de diametro";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";;0
+120412;"MOTOR SPINDLE INDUSTRIAL 3CV REFRIGERADO A ÁGUA COM INVERSOR";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"4 - Spindles";2800.00;3
+120413;"Kit Motor spindle industrial 3CV refrigerado a ar com inversor";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";2400.00;1
+120414;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 10 Rpm";Motores;Motores DC;;G_dc;"";"";69.90;5
+120415;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 20 Rpm";Motores;Motores DC;;G_dc;"";"";69.90;5
+120416;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 150 Rpm";Motores;Motores DC;;G_dc;"";"";90.00;5
+120417;"KIT SPINDLE MOTOR CNC 800W 20000RPM COM SUPORTE E FONTE";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";1190.00;2
+120509;"MOTOR DE PASSO NEMA 17 - 1.7A  4,2KGF 17HS4401";Motores;Motores de Passo;;G_passo;"";"Motor de passo";72.00;11
+120511_4h;"MOTOR DE PASSO  NEMA23 19KGF 2,1A CNC ROUTER *120511";Motores;Motores de Passo;;G_passo;"";"";319.00;0
+120512;"MOTOR DE PASSO NEMA34 90KGF 3A  CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"";"";700.00;0
+120513;"MOTOR DE PASSO NEMA34 35KGF CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"";"Motor de passo";579.00;2
+120514;"MOTOR DE PASSO NEMA34 120KGF DUPLO EIXO  *120514";Motores;Motores de Passo;;G_passo;"";"";697.00;3
+120515;"Motor de passo Nema17 4,2Kgf 0.9graus *120515";Motores;Motores de Passo;;G_passo;"";"";150.00;3
+120516;"MOTOR DE PASSO NEMA 23 - 2,8A 12,6KGF";Motores;Motores de Passo;;G_passo;"";"Motor de passo";139.20;4
+120517;"MOTOR DE PASSO NEMA 23 - 3A 22KGF";Motores;Motores de Passo;;G_passo;"";"Motor de passo";205.00;5
+120518;"MOTOR DE PASSO NEMA 34 - 2,8A 68KGF";Motores;Motores de Passo;;G_passo;"";"Motor de passo";504.00;0
+120520;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 45KGF 6,0A";Motores;Easy Servo e Servo AC;;G_easy;"";"Motor de passo";1120.00;1
+120521;"MOTOR DE PASSO NEMA 17 - 2A  5,9KGF 17hs8401";Motores;Motores de Passo;;G_passo;"";"";;0
+120522;"Redutor planetário Nema34 4:1";Motores;Motores de Passo;;G_passo;"";"";;2
+120523;"Servo motor AC 400w sem freio com drive";Motores;Easy Servo e Servo AC;;G_easy;"";"";;1
+120524;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF";Motores;Easy Servo e Servo AC;;G_easy;"";"";;0
+120525;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF COM FREIO";Motores;Easy Servo e Servo AC;;G_easy;"";"";;0
+120526;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF";Motores;Easy Servo e Servo AC;;G_easy;"";"";;0
+120527;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF COM FREIO";Motores;Easy Servo e Servo AC;;G_easy;"";"";;0
+120604;"DRIVER MOTOR DE PASSO A4988 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"";"Driver";12.80;71
+120605;"DRIVER MOTOR DE PASSO DRV8825 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"";"Driver";16.00;35
+120607;"CONTROLADOR DE VELOCIDADE PARA MOTOR DC 6-90V 15A PWM";Motores;Drivers e Controladores;;G_drv;"";"Módulos";73.00;24
+120608;"CONTROLADOR PWM DE VELOCIDADE PARA MOTOR DC 10-50V 40A 2000W";Motores;Drivers e Controladores;;G_drv;"";"Módulos";127.00;8
+120609;"MODULO DE EXPANSÃO PARA DRIVER A4988 DRV8825";Motores;Drivers e Controladores;;G_drv;"";"2 - Módulos e shields";16.00;10
+120610;"DRIVER SILENCIOSO MOTOR DE PASSO TMC2100 IMPRESSORA 3D";Motores;Drivers e Controladores;;G_drv;"";"Driver";46.00;0
+120611;"MODULO DIODO PROTEÇÃO PARA DRIVER DRV8825 A4988 TMC2100";Motores;Drivers e Controladores;;G_drv;"";"2 - Módulos e shields";23.00;27
+120614;"DRIVER PROFISSIONAL DM556 5,6A PARA MOTOR DE PASSO";Motores;Drivers e Controladores;;G_drv;"";"Driver";143.00;0
+120615_z;"Drive TMC2130 *120615";Motores;Drivers e Controladores;;G_drv;"";"";63.00;5
+120616_z;"Drive TMC2208 *120616";Motores;Drivers e Controladores;;G_drv;"";"";48.30;5
+120617;"DRIVE DSP PARA MOTOR DE PASSO DM860H 7,2A COM COOLER *120617";Motores;Drivers e Controladores;;G_drv;"";"";525.00;6
+120618;"Drive TMC2209 *120618";Motores;Drivers e Controladores;;G_drv;"";"";49.90;3
+120619;"Drive para motor de passo TB6560*120619";Motores;Drivers e Controladores;;G_drv;"";"";81.90;6
+120620;"Extensão drive externo *120620";Motores;Drivers e Controladores;;G_drv;"";"";15.00;10
+120621;"Easy drive";Motores;Drivers e Controladores;;G_drv;"";"";1230.00;2
 120701;"POLIA GT2 20 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias GT2 e Roldanas V-Slot;;H_polia;"";"Polias e Roldanas";9.60;46
 120702;"POLIA GT2 40 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias GT2 e Roldanas V-Slot;;H_polia;"";"Polias e Roldanas";19.20;22
 120703;"POLIA GT2 60 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias GT2 e Roldanas V-Slot;;H_polia;"";"Polias e Roldanas";35.40;74
@@ -387,8 +387,8 @@
 121023;"CONJUNTO MANCAL BK12 BF12 PARA FUSO DE ESFERA";CNC, Laser e Impressão 3D;Mancais KP e KFL;;H_mancal;"";"Mancais e Suportes";200.00;2
 121024;"SUPORTE EM ALUMINIO PARA POLIA PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Suportes de Motor de Passo;;H_supmotor;"";"Acessórios";40.00;1
 121028;"ESTEIRA PORTA CABOS 75X25MM R100MM 1MT COM PONTEIRAS";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"Esteira Porta Cabos";334.90;5
-121030;"RELE ESTADO SOLIDO 40A SSR-40DD IN 3-32VDC OUT 5-60VDC";Automação Industrial;Controladores de Temperatura e SSR;;E_ctrl;"";"Geral";72.00;10
-121031;"NEBULIZADOR PULVERIZADOR PARA ROUTER TORNO FRESA CNC";CNC, Laser e Impressão 3D;Spindles e Inversores;;H_spindle;"";"Acessórios";84.00;3
+121030;"RELE ESTADO SOLIDO 40A SSR-40DD IN 3-32VDC OUT 5-60VDC";Automação Industrial;Controladores Industriais;;E_ctrl;"";"Geral";72.00;10
+121031;"NEBULIZADOR PULVERIZADOR PARA ROUTER TORNO FRESA CNC";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"Acessórios";84.00;3
 121034;"PORCA EXCÊNTRICA FURO 5MM ALTURA 6,35MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Porcas Martelo e Excêntricas;;H_porca;"";"Hardware";4.80;33
 121035;"PORCA EXCÊNTRICA FURO 5MM ALTURA 6MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Porcas Martelo e Excêntricas;;H_porca;"";"Hardware";4.40;55
 121036;"PORCA MARTELO M5 TIPO T PARA PERFIL 20 CANAL 6";CNC, Laser e Impressão 3D;Porcas Martelo e Excêntricas;;H_porca;"";"Hardware";1.00;98
@@ -410,7 +410,7 @@
 121053;"SUPORTE PARA ALOJAMENTO DE MOTOR NEMA 17 E POLIA OPENBUILDS";CNC, Laser e Impressão 3D;Suportes de Motor de Passo;;H_supmotor;"";"Acessórios";51.20;1
 121054_z;"Acabamento plastico tampa preto para perfil 20x20 V-slot *121054";CNC, Laser e Impressão 3D;Espaçadores e Acabamentos V-Slot;;H_esp;"";"";1.70;0
 121056;"CASTANHA TR8 ANTI FOLGA PASSO 2MM  PARA FUSO TRAPEZOIDAL 8MM";CNC, Laser e Impressão 3D;Castanhas e Antifolga TR8;;H_cast;"";"Fusos";20.90;39
-121057;"Rele estado solido DC para AC 40A SSR-40DA  *121057";Automação Industrial;Controladores de Temperatura e SSR;;E_ctrl;"";"";57.00;22
+121057;"Rele estado solido DC para AC 40A SSR-40DA  *121057";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";57.00;22
 121058;"Porca martelo M4 tipo T fixa para perfil v-slot 20 *121058";CNC, Laser e Impressão 3D;Porcas Martelo e Excêntricas;;H_porca;"";"";2.00;12
 121060;"Porca martelo M5 tipo T fixa para perfil v-slot 20 *121060";CNC, Laser e Impressão 3D;Porcas Martelo e Excêntricas;;H_porca;"";"";2.00;97
 121061;"Acabamento plastico preto para perfil 20x20 normal *121061";CNC, Laser e Impressão 3D;Espaçadores e Acabamentos V-Slot;;H_esp;"";"";4.00;21
@@ -463,7 +463,7 @@
 121202;"Suporte Para Motor de Passo Nema23  90graus em L *121202";CNC, Laser e Impressão 3D;Suportes de Motor de Passo;;H_supmotor;"";"";39.90;53
 121203_4h;"Suporte para Motor de passo NEMA17 Reto 6 furos *121203";CNC, Laser e Impressão 3D;Suportes de Motor de Passo;;H_supmotor;"";"";25.00;21
 121205;"SUPORTE EM L 90° PARA MOTOR DE PASSO NEMA 17";CNC, Laser e Impressão 3D;Suportes de Motor de Passo;;H_supmotor;"";"Acessórios";30.00;0
-121208;"ELETROÍMÃ SOLENÓIDE 24VDC 8KG";Motores e Robótica;Eletroímãs e Válvulas Solenoide;;G_ima;"";"";64.00;10
+121208;"ELETROÍMÃ SOLENÓIDE 24VDC 8KG";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"";64.00;10
 121209;"Kit com 100 Imã De Neodímio 5x1 Redondo Pequeno 5mm X 1mm N35";Ferramentas e Prototipagem;Imãs de Neodímio;;K_ima;"";"";42.00;0
 121210;"Imã De Neodímio Redondo 10x2mm N35";Ferramentas e Prototipagem;Imãs de Neodímio;;K_ima;"";"";;200
 121211;"Imã De Neodímio Redondo 5x2mm N35";Ferramentas e Prototipagem;Imãs de Neodímio;;K_ima;"";"";;500
@@ -497,11 +497,11 @@
 121612;"Laser de gravação 5W";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";1758.00;0
 121613;"Laser de gravação 10W";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";2350.00;5
 121701;"Conjunto pick place com valvula vacuo para maquina de montagem placa smd *121701";CNC, Laser e Impressão 3D;Máquinas e Equipamentos;;H_maq;"";"";470.00;1
-121801;"MINI BOMBA DE AR VACUO 12V";Motores e Robótica;Mini Bombas de Água e Ar;;G_bomba;"";"Mini Bomba Água/Ar";49.00;6
-121802;"MINI BOMBA DE ÁGUA 12V RS385 2L/MIN";Motores e Robótica;Mini Bombas de Água e Ar;;G_bomba;"";"Mini Bomba Água/Ar";58.00;9
-121803;"MINI BOMBA DA ÁGUA SUBMERSA 110/220VAC BIVOLT 3L/MIN";Motores e Robótica;Mini Bombas de Água e Ar;;G_bomba;"";"Mini Bomba Água/Ar";65.00;1
-121804;"MINI BOMBA DE ÁGUA SUBMERSÍVEL 5V";Motores e Robótica;Mini Bombas de Água e Ar;;G_bomba;"";"";;10
-121805;"MINI BOMBA DE AR VACUO 12V 0,4 a 1,2 l/min 370 saida frontal";Motores e Robótica;Mini Bombas de Água e Ar;;G_bomba;"";"";49.00;16
+121801;"MINI BOMBA DE AR VACUO 12V";Motores;Motores DC;;G_dc;"";"Mini Bomba Água/Ar";49.00;6
+121802;"MINI BOMBA DE ÁGUA 12V RS385 2L/MIN";Motores;Motores DC;;G_dc;"";"Mini Bomba Água/Ar";58.00;9
+121803;"MINI BOMBA DA ÁGUA SUBMERSA 110/220VAC BIVOLT 3L/MIN";Motores;Motores DC;;G_dc;"";"Mini Bomba Água/Ar";65.00;1
+121804;"MINI BOMBA DE ÁGUA SUBMERSÍVEL 5V";Motores;Motores DC;;G_dc;"";"";;10
+121805;"MINI BOMBA DE AR VACUO 12V 0,4 a 1,2 l/min 370 saida frontal";Motores;Motores DC;;G_dc;"";"";49.00;16
 122002;"MAQUINA GRAVADORA DE CUIA ROTATIVA COM LASER DE 10W";CNC, Laser e Impressão 3D;Máquinas e Equipamentos;;H_maq;"";"Equipamentos";5390.00;0
 122004;"ATUADOR LINEAR 800MM SLIDER AUTOMÁTICO EM ALUMÍNIO";CNC, Laser e Impressão 3D;Máquinas e Equipamentos;;H_maq;"";"";4132.00;3
 122005;"ATUADOR LINEAR 300MM SLIDER MANUAL EM ALUMINIO";CNC, Laser e Impressão 3D;Máquinas e Equipamentos;;H_maq;"";"";697.00;5
@@ -513,9 +513,9 @@
 122106_z;"Perfil de aluminio 20x40 V-slot *122106";CNC, Laser e Impressão 3D;Perfis de Alumínio V-Slot;;H_perfil;"";"";87.00;0
 122107_z;"Perfil de aluminio 30x30 furo M8*122107";CNC, Laser e Impressão 3D;Perfis de Alumínio V-Slot;;H_perfil;"";"";92.00;0
 122108;"Borracha para Fixação de Chapas para Perfis Canal 6 *122108";CNC, Laser e Impressão 3D;Perfis de Alumínio V-Slot;;H_perfil;"";"";15.00;5
-122201;"Encoder Incremental Rotativo 600 Pulsos Por Volta *122201";Automação Industrial;Encoders Incrementais;;E_enc;"";"";215.00;9
-122202;"ENCODER INCREMENTAL ROTATIVO 400 PULSOS NPN 5-24VDC EIXO 6MM";Automação Industrial;Encoders Incrementais;;E_enc;"";"Encoder";154.00;0
-122203;"ENCODER INCREMENTAL ROTATIVO 1000PULSOS NPN 5-24VDC EIXO 6MM";Automação Industrial;Encoders Incrementais;;E_enc;"";"Encoder";178.00;2
+122201;"Encoder Incremental Rotativo 600 Pulsos Por Volta *122201";Automação Industrial;Encoders;;E_enc;"";"";215.00;9
+122202;"ENCODER INCREMENTAL ROTATIVO 400 PULSOS NPN 5-24VDC EIXO 6MM";Automação Industrial;Encoders;;E_enc;"";"Encoder";154.00;0
+122203;"ENCODER INCREMENTAL ROTATIVO 1000PULSOS NPN 5-24VDC EIXO 6MM";Automação Industrial;Encoders;;E_enc;"";"Encoder";178.00;2
 122301;"Cremalheira dentes reto modulo1 / 15x15x2000mm *122301";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";268.00;4
 122302;"Cremalheira dentes reto modulo1,5 / 17X17X2000mm *122302";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";310.00;2
 122303;"Cremalheira dentes reto modulo2 / 20X20X2000mm *122303";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";375.00;2
@@ -528,26 +528,26 @@
 122310;"Engrenagem Reta mód2 18dentes diâmetro 40mm Furo10mm *122310";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";65.00;1
 122311;"Engren. Helicoidal mód1 20dentes diâm23,20mm Furo8mm *122311";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";94.00;0
 122313;"Cremalheira Helicoidal modulo 1,25 dentes temperados 670mm *122313";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";254.00;0
-122402;"Bomba da agua para laser co2 p2430 25w 8,5l/min*122402";Motores e Robótica;Mini Bombas de Água e Ar;;G_bomba;"CNC, Laser e Impressão 3D > Peças para Laser CO2";"";350.00;0
-122403;"Bomba da agua para spindle CO2 80W  3500l/h ipx8 220v *122403";Motores e Robótica;Mini Bombas de Água e Ar;;G_bomba;"CNC, Laser e Impressão 3D > Spindles e Inversores";"";246.90;1
+122402;"Bomba da agua para laser co2 p2430 25w 8,5l/min*122402";Motores;Motores DC;;G_dc;"CNC, Laser e Impressão 3D > Peças para Laser CO2";"";350.00;0
+122403;"Bomba da agua para spindle CO2 80W  3500l/h ipx8 220v *122403";Motores;Motores DC;;G_dc;"CNC, Laser e Impressão 3D > Spindles";"";246.90;1
 122404;"INTERRUPTOR PRESSOSTATO DE ÁGUA SENSOR HT-30 PARA CO2 *122404";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";110.00;1
 122405;"Mangueira tubo silicone 8mm CO2 *122405";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;1
-122408;"Bomba da agua para spindle 25W 2500l/h 220V";Motores e Robótica;Mini Bombas de Água e Ar;;G_bomba;"CNC, Laser e Impressão 3D > Spindles e Inversores";"";;0
-130101;"Controlador Pixhawk *130101";Motores e Robótica;Servos e Motores para Aeromodelismo;;G_servo;"";"";;1
-130401;"MICRO SERVO MOTOR 9G SG90 180° COM ACESSÓRIOS";Motores e Robótica;Servos e Motores para Aeromodelismo;;G_servo;"";"Motores";14.40;11
-130402;"MICRO SERVO MOTOR MG996R COM ENGRENAGEM METÁLICAS 180 GRAUS";Motores e Robótica;Servos e Motores para Aeromodelismo;;G_servo;"";"Motores";39.00;9
-130404;"SERVO MOTOR MG996R  360  GRAUS";Motores e Robótica;Servos e Motores para Aeromodelismo;;G_servo;"";"";;10
-130501;"MICROMOTOR N20 DC 6V 30RPM COM CAIXA DE REDUÇÃO";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"Motores";29.90;6
-130502;"MICROMOTOR N20 DC 6V 200RPM COM CAIXA DE REDUÇÃO";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"Motores";25.00;0
-130503;"MICROMOTOR N20 DC 12V 50RPM COM CAIXA DE REDUÇÃO";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"Motores";25.00;0
-130504;"MICROMOTOR N20 DC 12V 300RPM COM CAIXA DE REDUÇÃO";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"Motores";25.00;0
-130505;"Moto redutor 3v 15RPM com caixa de redução *130505";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";19.00;10
-130506;"MICROMOTOR N20 DC 6V 50RPM COM CAIXA DE REDUÇÃO";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";25.90;10
-130507;"MICROMOTOR N20 DC 6V 100RPM COM CAIXA DE REDUÇÃO";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";25.90;10
-130508;"MICROMOTOR N20 DC 6V 1000RPM COM CAIXA DE REDUÇÃO";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";25.90;10
-130601_z;"Motor Brushless Racestar 2845 2600KV a prova d agua *130601";Motores e Robótica;Servos e Motores para Aeromodelismo;;G_servo;"";"";143.20;8
-130701;"ESC 50A para motor Bruhless Hobbywing Skywalker 2-4S";Motores e Robótica;Servos e Motores para Aeromodelismo;;G_servo;"";"";119.30;1
-131001_z;"Tubo Pitot airspeed velocidade vento Aeromodelismo *131001";Motores e Robótica;Servos e Motores para Aeromodelismo;;G_servo;"";"";60.00;1
+122408;"Bomba da agua para spindle 25W 2500l/h 220V";Motores;Motores DC;;G_dc;"CNC, Laser e Impressão 3D > Spindles";"";;0
+130101;"Controlador Pixhawk *130101";Motores;Servos e Motores para Aeromodelismo;;G_servo;"";"";;1
+130401;"MICRO SERVO MOTOR 9G SG90 180° COM ACESSÓRIOS";Motores;Servos e Motores para Aeromodelismo;;G_servo;"";"Motores";14.40;11
+130402;"MICRO SERVO MOTOR MG996R COM ENGRENAGEM METÁLICAS 180 GRAUS";Motores;Servos e Motores para Aeromodelismo;;G_servo;"";"Motores";39.00;9
+130404;"SERVO MOTOR MG996R  360  GRAUS";Motores;Servos e Motores para Aeromodelismo;;G_servo;"";"";;10
+130501;"MICROMOTOR N20 DC 6V 30RPM COM CAIXA DE REDUÇÃO";Motores;Motores DC;;G_dc;"";"Motores";29.90;6
+130502;"MICROMOTOR N20 DC 6V 200RPM COM CAIXA DE REDUÇÃO";Motores;Motores DC;;G_dc;"";"Motores";25.00;0
+130503;"MICROMOTOR N20 DC 12V 50RPM COM CAIXA DE REDUÇÃO";Motores;Motores DC;;G_dc;"";"Motores";25.00;0
+130504;"MICROMOTOR N20 DC 12V 300RPM COM CAIXA DE REDUÇÃO";Motores;Motores DC;;G_dc;"";"Motores";25.00;0
+130505;"Moto redutor 3v 15RPM com caixa de redução *130505";Motores;Motores DC;;G_dc;"";"";19.00;10
+130506;"MICROMOTOR N20 DC 6V 50RPM COM CAIXA DE REDUÇÃO";Motores;Motores DC;;G_dc;"";"";25.90;10
+130507;"MICROMOTOR N20 DC 6V 100RPM COM CAIXA DE REDUÇÃO";Motores;Motores DC;;G_dc;"";"";25.90;10
+130508;"MICROMOTOR N20 DC 6V 1000RPM COM CAIXA DE REDUÇÃO";Motores;Motores DC;;G_dc;"";"";25.90;10
+130601_z;"Motor Brushless Racestar 2845 2600KV a prova d agua *130601";Motores;Servos e Motores para Aeromodelismo;;G_servo;"";"";143.20;8
+130701;"ESC 50A para motor Bruhless Hobbywing Skywalker 2-4S";Motores;Servos e Motores para Aeromodelismo;;G_servo;"";"";119.30;1
+131001_z;"Tubo Pitot airspeed velocidade vento Aeromodelismo *131001";Motores;Servos e Motores para Aeromodelismo;;G_servo;"";"";60.00;1
 150101;"Conta giro *150101";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";129.90;1
 150905;"IMPRESSORA 3D CREALITY ENDER3 MONTADA E CONFIGURADA";CNC, Laser e Impressão 3D;Máquinas e Equipamentos;;H_maq;"";"Equipamentos";3290.00;0
 151177;"KIT DIDATICO COM CAIXA ORGANIZADORA (Eletrônico e Robótica) *151177";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"";469.00;0
@@ -631,13 +631,13 @@
 190207;"Sensor de corrente AC 5A com rele 5V";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"";48.00;8
 190208;"Sensor de corrente trifásico 0-50V saída 0-10V";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"";;1
 190209;"Sensor de tensao trifásico 0-500VAC saída 0-10V";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"";;0
-190301;"SENSOR INDUTIVO DE PROXIMIDADE PNP M12 6-36VDC 3 FIOS NA";Módulos e Sensores;Sensores Indutivos e Capacitivos;;C_ind;"";"Sensores";32.00;7
-190302;"SENSOR INDUTIVO DE PROXIMIDADE NPN M12 6-36VDC 3 FIOS NA";Módulos e Sensores;Sensores Indutivos e Capacitivos;;C_ind;"";"Sensores";30.40;20
+190301;"SENSOR INDUTIVO DE PROXIMIDADE PNP M12 6-36VDC 3 FIOS NA";Automação Industrial;Sensores Industriais;;E_sens;"";"Sensores";32.00;7
+190302;"SENSOR INDUTIVO DE PROXIMIDADE NPN M12 6-36VDC 3 FIOS NA";Automação Industrial;Sensores Industriais;;E_sens;"";"Sensores";30.40;20
 190303_z;"Sensor de Proximidade Infravermelho E18-D80NK  *190303";Módulos e Sensores;Sensores de Distância e Proximidade;;C_dist;"";"";42.00;15
-190304_z;"Sensor capacitivo 1-10mm NPN NO DC 6-36 V 300mA *190304";Módulos e Sensores;Sensores Indutivos e Capacitivos;;C_ind;"";"";75.00;2
-190305;"Sensor capacitivo 1-10mm PNP NO DC 6-36 V 300mA *190305";Módulos e Sensores;Sensores Indutivos e Capacitivos;;C_ind;"";"";75.00;3
-190306;"SENSOR INDUTIVO DE PROXIMIDADE NPN NC 10-30VDC SN04-N2";Módulos e Sensores;Sensores Indutivos e Capacitivos;;C_ind;"";"Sensores";32.00;0
-190307;"SENSOR INDUTIVO DE PROXIMIDADE NPN NO 10-30VDC SN04-N";Módulos e Sensores;Sensores Indutivos e Capacitivos;;C_ind;"";"Sensores";32.00;6
+190304_z;"Sensor capacitivo 1-10mm NPN NO DC 6-36 V 300mA *190304";Automação Industrial;Sensores Industriais;;E_sens;"";"";75.00;2
+190305;"Sensor capacitivo 1-10mm PNP NO DC 6-36 V 300mA *190305";Automação Industrial;Sensores Industriais;;E_sens;"";"";75.00;3
+190306;"SENSOR INDUTIVO DE PROXIMIDADE NPN NC 10-30VDC SN04-N2";Automação Industrial;Sensores Industriais;;E_sens;"";"Sensores";32.00;0
+190307;"SENSOR INDUTIVO DE PROXIMIDADE NPN NO 10-30VDC SN04-N";Automação Industrial;Sensores Industriais;;E_sens;"";"Sensores";32.00;6
 190501;"SENSOR DE FLUXO DE ÁGUA 1/2POL 1-30L/MIN";Módulos e Sensores;Sensores de Fluxo de Água;;C_fluxo;"";"Sensor de fluxo";29.60;27
 190502;"SENSOR DE FLUXO DE ÁGUA 3/4POL 1-60L/MIN";Módulos e Sensores;Sensores de Fluxo de Água;;C_fluxo;"";"Sensor de fluxo";69.00;4
 190503;"SENSOR DE FLUXO DE ÁGUA 1 POL 1-60L/MIN";Módulos e Sensores;Sensores de Fluxo de Água;;C_fluxo;"";"Sensor de fluxo";114.00;79
@@ -658,8 +658,8 @@
 190804;"SENSOR DE TEMPERATURA DIGITAL DS18B20 TO-92";Módulos e Sensores;Sensores de Temperatura e Umidade;;C_temp;"";"Componentes";7.20;28
 190805;"SENSOR DE TEMPERATURA DS18B20 PROVA DA ÁGUA CABO 1MT";Módulos e Sensores;Sensores de Temperatura e Umidade;;C_temp;"";"Sensores";13.60;12
 190806;"Sensor de Temperatura NTC 10K 5mm *190806";Módulos e Sensores;Sensores de Temperatura e Umidade;;C_temp;"";"";2.30;88
-190807;"Controlador temperatura termostato chocadeira Bivolt *190807";Automação Industrial;Controladores de Temperatura e SSR;;E_ctrl;"";"";62.00;9
-190808;"Controlador temperatura chocadeira Bivolt DST1020 *190808";Automação Industrial;Controladores de Temperatura e SSR;;E_ctrl;"";"";132.00;2
+190807;"Controlador temperatura termostato chocadeira Bivolt *190807";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";62.00;9
+190808;"Controlador temperatura chocadeira Bivolt DST1020 *190808";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";132.00;2
 190809;"Sensor de temperatura Max31865";Módulos e Sensores;Sensores de Temperatura e Umidade;;C_temp;"";"";;4
 190810;"Sensor de temperatura para termopar Max31855";Módulos e Sensores;Sensores de Temperatura e Umidade;;C_temp;"";"";;4
 190901;"SENSOR DE UMIDADE DO SOLO HIGRÔMETRO COM MODULO E CABOS";Módulos e Sensores;Sensores de Umidade do Solo e Chuva;;C_solo;"";"Sensores";11.90;3
@@ -688,9 +688,9 @@
 191803;"CHAVEIRO RFID 13.56MHZ COM TAG PARA CONTROLE DE ACESSO";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"5 - Acessórios";2.90;98
 191804;"CARTÃO RFID PROGRAMÁVEL MIFARE MFS50 13.56MHZ";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"5 - Acessórios";2.30;26
 191811;"Modulo Leitor E Gravador Nfc Rfid - Pn532 V3 +1 Tags*191811";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"";120.00;0
-191901;"PASTILHA TERMOELÉTRICA PELTIER 12V TEC1-12706";Automação Industrial;Pastilhas Peltier;;E_pelt;"";"Geral";29.60;13
-191903_z;"Junta de isolamento para pastilha peltier 40x40mm *191903";Automação Industrial;Pastilhas Peltier;;E_pelt;"";"";5.00;96
-191904;"Bloco alumínio refrigeração agua 40x40x12mm *191904";Automação Industrial;Pastilhas Peltier;;E_pelt;"";"";34.90;7
+191901;"PASTILHA TERMOELÉTRICA PELTIER 12V TEC1-12706";Módulos e Sensores;Pastilhas Peltier;;B_pelt;"";"Geral";29.60;13
+191903_z;"Junta de isolamento para pastilha peltier 40x40mm *191903";Módulos e Sensores;Pastilhas Peltier;;B_pelt;"";"";5.00;96
+191904;"Bloco alumínio refrigeração agua 40x40x12mm *191904";Módulos e Sensores;Pastilhas Peltier;;B_pelt;"";"";34.90;7
 192001;"SENSOR MAGNÉTICO REED SWITCH NA 2X14MM 0,5A";Módulos e Sensores;Sensores Magnéticos Reed e Hall;;C_mag;"";"Sensores";2.30;227
 192002;"SENSOR MAGNÉTICO REED SWITCH 3 PINOS CONTATO NA NF";Módulos e Sensores;Sensores Magnéticos Reed e Hall;;C_mag;"";"Sensores";4.90;0
 192003;"SENSOR MAGNÉTICO MC-38 COM FIO PARA ALARME E AUTOMAÇÃO";Módulos e Sensores;Sensores Magnéticos Reed e Hall;;C_mag;"";"Sensores";12.00;6
@@ -724,18 +724,18 @@
 200116;"CONVERSOR USB TIPO C PARA TTL FTDI UART RS232 5V 3.3V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";18.90;10
 200117;"Cabo db9 serial macho para IHM DOP delta 3m";Automação Industrial;IHM;;E_ihm;"";"";110.00;5
 200118;"Cabo serial Waveshare USB para TTL de 6 pinos FTDI";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";279.00;1
-200201;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP BOOST XL6009";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"Conversores";10.40;116
-200202;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP DOWN LM2596";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"Conversores";14.90;16
+200201;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP BOOST XL6009";Componentes Eletrônicos;Conversores DC-DC Step Up e Step Down;;I_dcdc;"";"Conversores";10.40;116
+200202;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP DOWN LM2596";Componentes Eletrônicos;Conversores DC-DC Step Up e Step Down;;I_dcdc;"";"Conversores";14.90;16
 200203;"CONVERSOR DE NIVEL LÓGICO 2 CANAIS BIDIRECIONAL 3V3 5V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";3.60;14
 200204;"CONVERSOR DE NIVEL LÓGICO 4 CANAIS BIDIRECIONAL 3V3 5V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";4.00;22
-200205;"Conversor step Down 12/24V para 5V 10A *200205";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"";78.00;11
-200206;"Conversor step Down 300w 5-40v para 1.2-35v  *200206";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"";62.00;4
-200207;"CONVERSOR DE TENSÃO DC-DC STEP DOWN 25W 9-36V PARA USB 5V";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"Conversores";49.00;17
-200224;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP 150W 35V 10A";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"Conversores";38.00;5
-200225;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEPUP BOOST 400W 12A";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"Conversores";58.00;10
-200226;"CONVERSOR DE TENSÃO AJUSTÁVEL STEPUP STEPDOWN XY-SJVA";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"Conversores";35.00;0
-200227;"Modulo regulador tensão step down LM2596 com display";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"";33.90;10
-200228;"Modulo regulador tensão step up XL6009 com display";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"";33.90;10
+200205;"Conversor step Down 12/24V para 5V 10A *200205";Componentes Eletrônicos;Conversores DC-DC Step Up e Step Down;;I_dcdc;"";"";78.00;11
+200206;"Conversor step Down 300w 5-40v para 1.2-35v  *200206";Componentes Eletrônicos;Conversores DC-DC Step Up e Step Down;;I_dcdc;"";"";62.00;4
+200207;"CONVERSOR DE TENSÃO DC-DC STEP DOWN 25W 9-36V PARA USB 5V";Componentes Eletrônicos;Conversores DC-DC Step Up e Step Down;;I_dcdc;"";"Conversores";49.00;17
+200224;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP 150W 35V 10A";Componentes Eletrônicos;Conversores DC-DC Step Up e Step Down;;I_dcdc;"";"Conversores";38.00;5
+200225;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEPUP BOOST 400W 12A";Componentes Eletrônicos;Conversores DC-DC Step Up e Step Down;;I_dcdc;"";"Conversores";58.00;10
+200226;"CONVERSOR DE TENSÃO AJUSTÁVEL STEPUP STEPDOWN XY-SJVA";Componentes Eletrônicos;Conversores DC-DC Step Up e Step Down;;I_dcdc;"";"Conversores";35.00;0
+200227;"Modulo regulador tensão step down LM2596 com display";Componentes Eletrônicos;Conversores DC-DC Step Up e Step Down;;I_dcdc;"";"";33.90;10
+200228;"Modulo regulador tensão step up XL6009 com display";Componentes Eletrônicos;Conversores DC-DC Step Up e Step Down;;I_dcdc;"";"";33.90;10
 200301;"MODULO CONVERSOR HX711 PARA CÉLULA DE CARGA";Módulos e Sensores;Células de Carga;;C_carga;"";"2 - Módulos e shields";6.40;41
 200302;"CONVERSOR CORRENTE PARA TENSÂO 4-20MA PARA 0-15V AJUSTAVEL";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";14.30;6
 200303;"CONVERSOR TENSÃO PARA CORRENTE 0-24V AJUSTAVEL PARA 4-20MA";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";25.50;0
@@ -750,11 +750,11 @@
 200314;"MÓDULO EMISSOR INFRAVERMELHO KY-005";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";7.00;38
 200315;"LED EMISSOR INFRAVERMELHO 5mm";Componentes Eletrônicos;LEDs e Soquetes;;I_led;"";"";;100
 200316;"CONVERSOR CORRENTE PARA TENSÂO 4-20MA PARA 0-10V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";;16
-200317;"Gerador de pulso para motor de passo";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"";39.90;10
+200317;"Gerador de pulso para motor de passo";Motores;Drivers e Controladores;;G_drv;"";"";39.90;10
 200501;"MÓDULO CONVERSOR TENSÃO 0-5V 0-10V PARA PWM MACH3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"2 - Módulos e shields";17.60;9
 200502;"MÓDULO CONVERSOR PWM PARA TENSÃO 0-10V MACH3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"2 - Módulos e shields";19.20;0
 200506;"MODULO PWM MOSFET IRF520 KEYES";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";6.50;18
-200507;"MÓDULO PWM PCA9685 I2C 16 CANAIS PARA SERVO MOTOR";Motores e Robótica;Servos e Motores para Aeromodelismo;;G_servo;"";"2 - Módulos e shields";45.00;0
+200507;"MÓDULO PWM PCA9685 I2C 16 CANAIS PARA SERVO MOTOR";Motores;Servos e Motores para Aeromodelismo;;G_servo;"";"2 - Módulos e shields";45.00;0
 200509;"MODULO RS485 CAN BUS HAT PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";148.00;0
 200510;"MODULO CAN BUS COM 2 CANAIS ISOLADOS HAT PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";362.00;0
 200511;"MÓDULO CAN BUS MCP2515 TJA1050 COM INTERFACE SPI";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";24.00;11
@@ -763,78 +763,78 @@
 200515;"Modulo conversor ttl para rs485 xy-485";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";25.00;10
 200516;"MODULO RS485 2 CANAIS ISOLADOS HAT PARA RASPBERRY PI";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";246.00;0
 200517;"CONVERSOR RS485 PARA ETHERNET TCP/IP USR-TCP232-304 COM FONTE";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"Conversores";278.90;0
-200518;"MINI MÓDULO CONTROLADOR PWM 4,5 ˜ 35V 5A PN35";Motores e Robótica;Ponte H e Controladores de Motor DC;;G_ponteh;"";"";11.90;4
-200519;"MINI FONTE HI-LINK SAIDA 24VDC";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"";48.90;5
+200518;"MINI MÓDULO CONTROLADOR PWM 4,5 ˜ 35V 5A PN35";Motores;Drivers e Controladores;;G_drv;"";"";11.90;4
+200519;"MINI FONTE HI-LINK SAIDA 24VDC";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"";48.90;5
 200601;"Modulo Dimmer 2000W  AC 2KW 16A  *200601";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"";24.90;16
 200602;"DIMMER CONTROLADOR AC MOTOR LÂMPADA RESISTÊNCIA 220V 10000W";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"Módulos";149.00;1
 201203;"Suporte do Laser em Alumino *201203*";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";198.90;0
-210103;"VOLTÍMETRO AMPERÍMETRO DIGITAL DC 100V 10A PARA PAINEL";Fontes e Baterias;Voltímetros e Testadores;;F_volt;"";"Módulos";43.00;83
-210104;"VOLTÍMETRO DIGITAL 3 DÍGITOS 4.5V A 30VDC VERMELHO";Fontes e Baterias;Voltímetros e Testadores;;F_volt;"";"Módulos";24.00;15
-210105;"TESTADOR USB COM VOLTÍMETRO E AMPERÍMETRO 13 EM 1";Fontes e Baterias;Voltímetros e Testadores;;F_volt;"";"Módulos";95.00;1
-210106;"Medidor De Tensão E Corrente 6x1 Ac 100a  80-260 Painel *210106";Fontes e Baterias;Voltímetros e Testadores;;F_volt;"";"";153.00;0
-210107;"MEDIDOR DE ENERGIA AC VOLTÍMETRO AMPERÍMETRO 260VAC 100A";Fontes e Baterias;Voltímetros e Testadores;;F_volt;"";"Módulos";89.00;0
-220101;"FONTE CHAVEADA 9V 1A BIVOLT PLUG P4 PARA ARDUINO";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";18.40;17
-220105;"Modulo BMS 7S 20A 24V";Fontes e Baterias;Placas BMS e Testadores de Bateria;;F_bms;"";"";;5
-220203;"FONTE CHAVEADA 12V 5A RMS 60W BIVOLT ANDELI COM PLUG P4";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";48.00;8
-220204;"FONTE CHAVEADA 12V 6A RMS 72W BIVOLT ANDELI COM PLUG P4";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";55.00;12
-220205;"FONTE CHAVEADA 12V 10A RMS 120W BIVOLT ANDELI COM PLUG P4";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";93.00;13
-220206;"FONTE CHAVEADA 12V 29A RMS 350W ANDELI";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";110.00;10
-220207;"FONTE POE 12V 1A BIVOLT";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";52.00;9
-220208;"FONTE CHAVEADA 5V 1A BIVOLT PLUG P4";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";24.90;7
-220301;"FONTE CHAVEADA 24V 10,4A 250W RMS ANDELI";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";143.00;7
+210103;"VOLTÍMETRO AMPERÍMETRO DIGITAL DC 100V 10A PARA PAINEL";Componentes Eletrônicos;Voltímetros e Testadores;;I_volt;"";"Módulos";43.00;83
+210104;"VOLTÍMETRO DIGITAL 3 DÍGITOS 4.5V A 30VDC VERMELHO";Componentes Eletrônicos;Voltímetros e Testadores;;I_volt;"";"Módulos";24.00;15
+210105;"TESTADOR USB COM VOLTÍMETRO E AMPERÍMETRO 13 EM 1";Componentes Eletrônicos;Voltímetros e Testadores;;I_volt;"";"Módulos";95.00;1
+210106;"Medidor De Tensão E Corrente 6x1 Ac 100a  80-260 Painel *210106";Componentes Eletrônicos;Voltímetros e Testadores;;I_volt;"";"";153.00;0
+210107;"MEDIDOR DE ENERGIA AC VOLTÍMETRO AMPERÍMETRO 260VAC 100A";Componentes Eletrônicos;Voltímetros e Testadores;;I_volt;"";"Módulos";89.00;0
+220101;"FONTE CHAVEADA 9V 1A BIVOLT PLUG P4 PARA ARDUINO";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";18.40;17
+220105;"Modulo BMS 7S 20A 24V";Componentes Eletrônicos;Placas BMS e Testadores de Bateria;;I_bms;"";"";;5
+220203;"FONTE CHAVEADA 12V 5A RMS 60W BIVOLT ANDELI COM PLUG P4";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";48.00;8
+220204;"FONTE CHAVEADA 12V 6A RMS 72W BIVOLT ANDELI COM PLUG P4";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";55.00;12
+220205;"FONTE CHAVEADA 12V 10A RMS 120W BIVOLT ANDELI COM PLUG P4";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";93.00;13
+220206;"FONTE CHAVEADA 12V 29A RMS 350W ANDELI";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";110.00;10
+220207;"FONTE POE 12V 1A BIVOLT";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";52.00;9
+220208;"FONTE CHAVEADA 5V 1A BIVOLT PLUG P4";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";24.90;7
+220301;"FONTE CHAVEADA 24V 10,4A 250W RMS ANDELI";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";143.00;7
 220302;"OBSOLETO-Fonte Chaveada 24v 20a 480w Ideal Para Cnc Shield    *220302";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";260.00;0
-220303;"FONTE CHAVEADA 12V 10A RMS 120W ANDELI";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";98.00;8
-220304;"FONTE CHAVEADA 5V 5A 25W BIVOLT";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";85.00;5
-220306;"FONTE CHAVEADA 24V 20,8A RMS 500W ANDELI";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";322.00;0
-220310;"FONTE CHAVEADA 24V 12.5A RMS 300W ANDELI";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";150.50;7
-220402;"fonte chaveada 48v 500w 10a andeli spindle cnc *220402";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"";299.00;0
-220403;"FONTE CHAVEADA 48V 7,3A RMS 350W ANDELI";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";180.00;9
-220504_z;"Conversor de tensão 24V para 5V *220504";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"";25.00;19
-220505;"MINI FONTE HI-LINK SAIDA 5VDC 3W 0.6A ENTRADA 100-240VAC";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";34.90;20
-220506;"MINI FONTE HI-LINK SAIDA 3.3VDC 3W 1A ENTRADA 100-240VAC";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";34.90;21
-220507;"MINI FONTE HI-LINK SAIDA 12VDC 3W 0.25A ENTRADA 100-240VAC";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";34.90;6
-220602;"BATERIA CR1220 3V PARA DATALOGGER RTC";Fontes e Baterias;Baterias e Pilhas;;F_bat;"";"Baterias e Acessórios";3.70;43
-220603;"BATERIA LR44 1,5V ALCALINA";Fontes e Baterias;Baterias e Pilhas;;F_bat;"";"Baterias e Acessórios";1.60;2
-220604;"BATERIA CR2032 3V PARA DATALOGGER RTC";Fontes e Baterias;Baterias e Pilhas;;F_bat;"";"Baterias e Acessórios";3.00;22
-220607_z;"Bateria CR2016 3v Controle *220607";Fontes e Baterias;Baterias e Pilhas;;F_bat;"";"";3.19;114
-220608;"BATERIA 18650 LITIO LI-ION RECARREGÁVEL 3.7V 2550MAH EVE";Fontes e Baterias;Baterias e Pilhas;;F_bat;"";"Baterias e Acessórios";34.90;34
-220609;"bateria 9V alcalina";Fontes e Baterias;Baterias e Pilhas;;F_bat;"";"";19.70;1
-220702;"MÓDULO CARREGADOR SOLAR CN3065 PARA BATERIA LIPO";Fontes e Baterias;Carregadores de Bateria e Painel Solar;;F_carr;"";"2 - Módulos e shields";14.90;0
-220705;"Carregador bateria TP4056 para 18650 micro USB *220705";Fontes e Baterias;Carregadores de Bateria e Painel Solar;;F_carr;"";"";7.50;14
-220706;"Carregador bateria shield keyestudio *220706";Fontes e Baterias;Carregadores de Bateria e Painel Solar;;F_carr;"";"";;4
-220708;"LiitoKala Lii-M4S 18650";Fontes e Baterias;Carregadores de Bateria e Painel Solar;;F_carr;"";"";;3
-220801;"PLACA PAINEL CÉLULA SOLAR FOTOVOLTAICA 6V 1W 110X60MM";Fontes e Baterias;Carregadores de Bateria e Painel Solar;;F_carr;"";"5 - Acessórios";28.90;10
-220901;"Fonte chaveada 7,5v 1A Plug P4 *220901";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"";22.00;0
+220303;"FONTE CHAVEADA 12V 10A RMS 120W ANDELI";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";98.00;8
+220304;"FONTE CHAVEADA 5V 5A 25W BIVOLT";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";85.00;5
+220306;"FONTE CHAVEADA 24V 20,8A RMS 500W ANDELI";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";322.00;0
+220310;"FONTE CHAVEADA 24V 12.5A RMS 300W ANDELI";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";150.50;7
+220402;"fonte chaveada 48v 500w 10a andeli spindle cnc *220402";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"";299.00;0
+220403;"FONTE CHAVEADA 48V 7,3A RMS 350W ANDELI";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";180.00;9
+220504_z;"Conversor de tensão 24V para 5V *220504";Componentes Eletrônicos;Conversores DC-DC Step Up e Step Down;;I_dcdc;"";"";25.00;19
+220505;"MINI FONTE HI-LINK SAIDA 5VDC 3W 0.6A ENTRADA 100-240VAC";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";34.90;20
+220506;"MINI FONTE HI-LINK SAIDA 3.3VDC 3W 1A ENTRADA 100-240VAC";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";34.90;21
+220507;"MINI FONTE HI-LINK SAIDA 12VDC 3W 0.25A ENTRADA 100-240VAC";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"Fontes";34.90;6
+220602;"BATERIA CR1220 3V PARA DATALOGGER RTC";Componentes Eletrônicos;Pilhas e Baterias;;I_bat;"";"Baterias e Acessórios";3.70;43
+220603;"BATERIA LR44 1,5V ALCALINA";Componentes Eletrônicos;Pilhas e Baterias;;I_bat;"";"Baterias e Acessórios";1.60;2
+220604;"BATERIA CR2032 3V PARA DATALOGGER RTC";Componentes Eletrônicos;Pilhas e Baterias;;I_bat;"";"Baterias e Acessórios";3.00;22
+220607_z;"Bateria CR2016 3v Controle *220607";Componentes Eletrônicos;Pilhas e Baterias;;I_bat;"";"";3.19;114
+220608;"BATERIA 18650 LITIO LI-ION RECARREGÁVEL 3.7V 2550MAH EVE";Componentes Eletrônicos;Pilhas e Baterias;;I_bat;"";"Baterias e Acessórios";34.90;34
+220609;"bateria 9V alcalina";Componentes Eletrônicos;Pilhas e Baterias;;I_bat;"";"";19.70;1
+220702;"MÓDULO CARREGADOR SOLAR CN3065 PARA BATERIA LIPO";Componentes Eletrônicos;Carregadores de Bateria e Painel Solar;;I_carr;"";"2 - Módulos e shields";14.90;0
+220705;"Carregador bateria TP4056 para 18650 micro USB *220705";Componentes Eletrônicos;Carregadores de Bateria e Painel Solar;;I_carr;"";"";7.50;14
+220706;"Carregador bateria shield keyestudio *220706";Componentes Eletrônicos;Carregadores de Bateria e Painel Solar;;I_carr;"";"";;4
+220708;"LiitoKala Lii-M4S 18650";Componentes Eletrônicos;Carregadores de Bateria e Painel Solar;;I_carr;"";"";;3
+220801;"PLACA PAINEL CÉLULA SOLAR FOTOVOLTAICA 6V 1W 110X60MM";Componentes Eletrônicos;Carregadores de Bateria e Painel Solar;;I_carr;"";"5 - Acessórios";28.90;10
+220901;"Fonte chaveada 7,5v 1A Plug P4 *220901";Componentes Eletrônicos;Fontes Chaveadas;;I_fonte;"";"";22.00;0
 221001;"OBSOLETO-Fonte Chaveada 72V 13A entrada 220V *221001";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";475.20;0
-221101;"PLACA BMS 3S 10A 12,6V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Baterias;Placas BMS e Testadores de Bateria;;F_bms;"";"Baterias e Acessórios";16.00;17
-221102;"PLACA BMS 1S 10A 4,2V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Baterias;Placas BMS e Testadores de Bateria;;F_bms;"";"Baterias e Acessórios";12.00;6
-221103;"PLACA BMS 2S 3A 8,4V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Baterias;Placas BMS e Testadores de Bateria;;F_bms;"";"Baterias e Acessórios";10.00;2
-221104;"PLACA BMS 4S 40A 16,8V BALANCEAMENTO PROTEÇÃO BATERIA LÍTIO";Fontes e Baterias;Placas BMS e Testadores de Bateria;;F_bms;"";"Baterias e Acessórios";25.90;20
-221105;"PLACA BMS 3S 40A";Fontes e Baterias;Placas BMS e Testadores de Bateria;;F_bms;"";"";40.00;10
-229901;"CASE PARA BATERIA 9V COM CHAVE";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"Baterias e Acessórios";5.60;22
-229902;"PLUG PARA BATERIA 9V TIPO CLIP COM CONECTOR P4 PARA ARDUINO";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"Conectores e Bornes";1.90;41
-229903;"Suporte pack duplo para 2 baterias 18650";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"";1.50;59
-229904;"SUPORTE MONTÁVEL MODULAR PARA PACK DE BATERIAS 18650";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"Baterias e Acessórios";1.00;119
-229905;"SUPORTE PARA PACK DE BATERIAS DE LÍTIO 18650 3X4 4S3P";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"";15.00;10
-229906;"PLUG PARA BATERIA 9V TIPO CLIP";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"";4.30;15
-229907;"SUPORTE PARA BATERIA CR2025 2032 COM CHAVE E RABICHO";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"";3.90;15
-229908;"PLUG PARA BATERIA 9V TIPO CLIP rigido";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"";3.00;100
-230201;"KIT MOTOR DC 3-6V COM REDUÇÃO E RODA 65MM";Motores e Robótica;Chassis e Rodas para Robótica;;G_chassi;"";"Motores";12.80;45
-230203;"Motor dc 12v com redução 30RPM JGA25-370 *230203";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";68.00;0
-230205_z;"Motor dc 12v com redução 300RPM JGA25-370 *230205";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";77.00;0
-230206;"MICRO MOTOR DC COM CAIXA DE REDUÇÃO 24VDC 35RPM  5.5KGF.CM";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"Motores";178.00;46
-230208;"Motor DC  3-6v Com Caixa de Redução Sem Roda";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";9.90;0
-230209;"Mini Motor Dc 3 A 6v Para Robótica Arduino";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";5.90;4
-230210;"Mini Motor Dc 1 A 3v Para Robótica Arduino";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";2.90;30
-230301;"DRIVER MOTOR PONTE H DUPLA L298 MOTOR PASSO OU DC";Motores e Robótica;Ponte H e Controladores de Motor DC;;G_ponteh;"";"Driver";15.90;9
-230302;"Ponte H Monster simples Vnh2sp30 30a 16V  (Vnh3asp30) *230302";Motores e Robótica;Ponte H e Controladores de Motor DC;;G_ponteh;"";"";;4
-230303;"Ponte H Monster dupla Vnh3asp30 30a 16V *230303";Motores e Robótica;Ponte H e Controladores de Motor DC;;G_ponteh;"";"";;3
-230304;"MÓDULO DRIVER PONTE H 43A BTS7960B PARA MOTOR DC";Motores e Robótica;Ponte H e Controladores de Motor DC;;G_ponteh;"";"2 - Módulos e shields";99.00;34
-231001;"Suporte em L motor DC JGA25-370  *231001";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";15.00;7
-239901;"KIT CHASSI ROBÔ 2WD COM 2 RODAS EM ACRÍLICO";Motores e Robótica;Chassis e Rodas para Robótica;;G_chassi;"";"Carros Robóticos";46.40;18
-239903;"KIT CHASSI ROBÔ 2WD REDONDO COM 2 RODAS EM ACRÍLICO";Motores e Robótica;Chassis e Rodas para Robótica;;G_chassi;"";"";138.00;0
-239904;"DISCO ENCODER 20DENTES PARA PROJETOS COM CARRINHOS ROBÓTICOS";Motores e Robótica;Chassis e Rodas para Robótica;;G_chassi;"";"Carros Robóticos";1.20;12
-239905;"MÓDULO DO SENSOR DE VELOCIDADE";Motores e Robótica;Chassis e Rodas para Robótica;;G_chassi;"";"";;10
+221101;"PLACA BMS 3S 10A 12,6V PROTEÇÃO PARA BATERIA LÍTIO";Componentes Eletrônicos;Placas BMS e Testadores de Bateria;;I_bms;"";"Baterias e Acessórios";16.00;17
+221102;"PLACA BMS 1S 10A 4,2V PROTEÇÃO PARA BATERIA LÍTIO";Componentes Eletrônicos;Placas BMS e Testadores de Bateria;;I_bms;"";"Baterias e Acessórios";12.00;6
+221103;"PLACA BMS 2S 3A 8,4V PROTEÇÃO PARA BATERIA LÍTIO";Componentes Eletrônicos;Placas BMS e Testadores de Bateria;;I_bms;"";"Baterias e Acessórios";10.00;2
+221104;"PLACA BMS 4S 40A 16,8V BALANCEAMENTO PROTEÇÃO BATERIA LÍTIO";Componentes Eletrônicos;Placas BMS e Testadores de Bateria;;I_bms;"";"Baterias e Acessórios";25.90;20
+221105;"PLACA BMS 3S 40A";Componentes Eletrônicos;Placas BMS e Testadores de Bateria;;I_bms;"";"";40.00;10
+229901;"CASE PARA BATERIA 9V COM CHAVE";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"Baterias e Acessórios";5.60;22
+229902;"PLUG PARA BATERIA 9V TIPO CLIP COM CONECTOR P4 PARA ARDUINO";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"Conectores e Bornes";1.90;41
+229903;"Suporte pack duplo para 2 baterias 18650";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"";1.50;59
+229904;"SUPORTE MONTÁVEL MODULAR PARA PACK DE BATERIAS 18650";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"Baterias e Acessórios";1.00;119
+229905;"SUPORTE PARA PACK DE BATERIAS DE LÍTIO 18650 3X4 4S3P";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"";15.00;10
+229906;"PLUG PARA BATERIA 9V TIPO CLIP";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"";4.30;15
+229907;"SUPORTE PARA BATERIA CR2025 2032 COM CHAVE E RABICHO";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"";3.90;15
+229908;"PLUG PARA BATERIA 9V TIPO CLIP rigido";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"";3.00;100
+230201;"KIT MOTOR DC 3-6V COM REDUÇÃO E RODA 65MM";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"Motores";12.80;45
+230203;"Motor dc 12v com redução 30RPM JGA25-370 *230203";Motores;Motores DC;;G_dc;"";"";68.00;0
+230205_z;"Motor dc 12v com redução 300RPM JGA25-370 *230205";Motores;Motores DC;;G_dc;"";"";77.00;0
+230206;"MICRO MOTOR DC COM CAIXA DE REDUÇÃO 24VDC 35RPM  5.5KGF.CM";Motores;Motores DC;;G_dc;"";"Motores";178.00;46
+230208;"Motor DC  3-6v Com Caixa de Redução Sem Roda";Motores;Motores DC;;G_dc;"";"";9.90;0
+230209;"Mini Motor Dc 3 A 6v Para Robótica Arduino";Motores;Motores DC;;G_dc;"";"";5.90;4
+230210;"Mini Motor Dc 1 A 3v Para Robótica Arduino";Motores;Motores DC;;G_dc;"";"";2.90;30
+230301;"DRIVER MOTOR PONTE H DUPLA L298 MOTOR PASSO OU DC";Motores;Drivers e Controladores;;G_drv;"";"Driver";15.90;9
+230302;"Ponte H Monster simples Vnh2sp30 30a 16V  (Vnh3asp30) *230302";Motores;Drivers e Controladores;;G_drv;"";"";;4
+230303;"Ponte H Monster dupla Vnh3asp30 30a 16V *230303";Motores;Drivers e Controladores;;G_drv;"";"";;3
+230304;"MÓDULO DRIVER PONTE H 43A BTS7960B PARA MOTOR DC";Motores;Drivers e Controladores;;G_drv;"";"2 - Módulos e shields";99.00;34
+231001;"Suporte em L motor DC JGA25-370  *231001";Motores;Motores DC;;G_dc;"";"";15.00;7
+239901;"KIT CHASSI ROBÔ 2WD COM 2 RODAS EM ACRÍLICO";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"Carros Robóticos";46.40;18
+239903;"KIT CHASSI ROBÔ 2WD REDONDO COM 2 RODAS EM ACRÍLICO";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"";138.00;0
+239904;"DISCO ENCODER 20DENTES PARA PROJETOS COM CARRINHOS ROBÓTICOS";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"Carros Robóticos";1.20;12
+239905;"MÓDULO DO SENSOR DE VELOCIDADE";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"";;10
 239906;"MÓDULO LEITOR BIOMÉTRICO DY50";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"";;5
 241001;"Filtro de linha monofásico 20A CW4L2-20A para laser *241001";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;3
 241002;"Radiador para laser 240mm *241002";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;0
@@ -854,8 +854,8 @@
 260301;"DISPLAY LCD 1.8 TFT MODULO ST7735 128X160PX";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";42.90;19
 270201;"GRAVADOR PROGRAMADOR DEBUGGER PARA PIC PICKIT3 USB";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"5 - Acessórios";150.40;0
 270202;"GRAVADOR PROGRAMADOR DEBUGGER SEGGER J-LINK V9 ARM STM32";Placas Embarcadas;Placas STM32;;A_stm;"";"5 - Acessórios";259.00;4
-280101;"Conexões rapida PC4-M6 4mm rosca M6 Mangueira nao passante *280101";Motores e Robótica;Eletroímãs e Válvulas Solenoide;;G_ima;"";"";5.87;24
-280102;"Conexões rapida PC4-01 4mm rosca 1/8 Mangueira não passante *280102";Motores e Robótica;Eletroímãs e Válvulas Solenoide;;G_ima;"";"";5.87;28
+280101;"Conexões rapida PC4-M6 4mm rosca M6 Mangueira nao passante *280101";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"";5.87;24
+280102;"Conexões rapida PC4-01 4mm rosca 1/8 Mangueira não passante *280102";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"";5.87;28
 301025;"Sensor de Luminosidade TSL2561";Módulos e Sensores;Sensores de Luz e Cor;;C_luz;"";"";79.00;1
 600201_z;"Parafuso com manopla de aperto m3x8 *600201";Ferramentas e Prototipagem;Parafusos, Buchas e Fixação;;K_paraf;"";"";8.00;76
 600202;"Parafuso com manopla de aperto m4x8 *600202";Ferramentas e Prototipagem;Parafusos, Buchas e Fixação;;K_paraf;"";"";8.00;12
@@ -930,12 +930,12 @@
 900902;"CONECTOR BORNE 3 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"Conectores e Bornes";1.50;470
 900903_z;"Conector KF301 KRE 5mm 2Pinos *900903";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";1.57;324
 900904_z;"Conector KF301 KRE 5mm 3Pinos *900904";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";1.67;284
-900905;"Terminal femea sem trava para bateria *900905";Fontes e Baterias;Níquel e Terminais para Bateria;;F_niq;"";"";1.00;50
-900906;"Capa plástica branca para terminal femea sem trava para bateria *900906";Fontes e Baterias;Níquel e Terminais para Bateria;;F_niq;"";"";0.70;50
-900907;"NÍQUEL PARA SOLDAR BATERIAS 18650 0,1X5MM TIRA COM 100MM";Fontes e Baterias;Níquel e Terminais para Bateria;;F_niq;"";"Baterias e Acessórios";1.50;60
-900908;"NÍQUEL PARA SOLDAR BATERIAS 18650 0,15X8MM TIRA COM 100MM";Fontes e Baterias;Níquel e Terminais para Bateria;;F_niq;"";"Baterias e Acessórios";2.30;90
-900911;"FITA NÍQUEL DUPLA PARA SOLDAR BATERIAS 18650 0,12X27MM 1MT";Fontes e Baterias;Níquel e Terminais para Bateria;;F_niq;"";"Baterias e Acessórios";22.00;9
-901001;"SUPORTE PARA PLACA DE CIRCUITO IMPRESSO TRILHO DIN - 1PAR";Automação Industrial;Trilho DIN, Canaletas e Suportes;;E_trilho;"";"Geral";15.90;298
+900905;"Terminal femea sem trava para bateria *900905";Componentes Eletrônicos;Níquel e Terminais para Bateria;;I_niq;"";"";1.00;50
+900906;"Capa plástica branca para terminal femea sem trava para bateria *900906";Componentes Eletrônicos;Níquel e Terminais para Bateria;;I_niq;"";"";0.70;50
+900907;"NÍQUEL PARA SOLDAR BATERIAS 18650 0,1X5MM TIRA COM 100MM";Componentes Eletrônicos;Níquel e Terminais para Bateria;;I_niq;"";"Baterias e Acessórios";1.50;60
+900908;"NÍQUEL PARA SOLDAR BATERIAS 18650 0,15X8MM TIRA COM 100MM";Componentes Eletrônicos;Níquel e Terminais para Bateria;;I_niq;"";"Baterias e Acessórios";2.30;90
+900911;"FITA NÍQUEL DUPLA PARA SOLDAR BATERIAS 18650 0,12X27MM 1MT";Componentes Eletrônicos;Níquel e Terminais para Bateria;;I_niq;"";"Baterias e Acessórios";22.00;9
+901001;"SUPORTE PARA PLACA DE CIRCUITO IMPRESSO TRILHO DIN - 1PAR";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Geral";15.90;298
 901101;"KIT 700 TERMINAIS TUBULAR ILHOS";Cabos e Conectores;Terminais e Emendas;;J_term;"";"Conectores e Bornes";56.00;5
 901201;"CONECTOR DB25 FÊMEA PAINEL PARA CABO FLAT";Cabos e Conectores;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"Conectores e Bornes";14.50;11
 901202;"CONECTOR DB25 MACHO PAINEL PARA CABO FLAT";Cabos e Conectores;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"Conectores e Bornes";14.50;16
@@ -954,7 +954,7 @@
 901704;"PLUG P10 J10 ESTÉREO FÊMEA PARA PAINEL";Cabos e Conectores;Plugs P4 e P10;;J_plug;"";"Conectores e Bornes";3.20;0
 901801;"PLUG CANON XLR PAINEL FÊMEA 4 VIAS PARA PAINEL";Cabos e Conectores;Conectores XLR, XT60 e Banana;;J_xlr;"";"Conectores e Bornes";29.90;2
 901802;"Plug Canon painel macho 04 vias *901802";Cabos e Conectores;Conectores XLR, XT60 e Banana;;J_xlr;"";"";10.00;9
-901901;"ESPAÇADOR ISOLADOR PARA PCB PORCA PARAFUSO NYLON M3 180 PÇS";Ferramentas e Prototipagem;Espaçadores e Parafusos Nylon;;K_espac;"";"Hardware";51.90;0
+901901;"ESPAÇADOR ISOLADOR PARA PCB PORCA PARAFUSO NYLON M3 180 PÇS";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"Hardware";51.90;0
 902101;"KIT 280 CONECTORES TERMINAIS DIVERSOS TAMANHOS COM CASE";Cabos e Conectores;Terminais e Emendas;;J_term;"";"Conectores e Bornes";94.00;0
 902201;"Conector borne BR7 2 vias macho e femea *902201";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";;50
 902202;"Conector borne BR7 2 vias macho e femea 90 graus";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";;0
@@ -969,7 +969,7 @@
 910203;"TOMADA PAINEL COM CHAVE ILUMINADA E PORTA FUSÍVEL 10A";Componentes Eletrônicos;Interruptores e Tomadas de Painel;;I_interr;"";"Geral";25.50;9
 910204;"CHAVE 3 TERMINAIS MINI SWITCH SPDT";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";2.10;75
 910207;"CHAVE MICRO CHAVE SELETORA 2 POSIÇÕES 6 PINOS PCB";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";1.00;130
-910209;"CHAVE SECCIONADORA 3 PÓLOS 20A MONTAGEM PAINEL METALTEX *910209";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"";67.90;0
+910209;"CHAVE SECCIONADORA 3 PÓLOS 20A MONTAGEM PAINEL METALTEX *910209";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";67.90;0
 910210;"INTERRUPTOR CHAVE LIGA DESLIGA PRETO TIPO ABAJUR";Componentes Eletrônicos;Interruptores e Tomadas de Painel;;I_interr;"";"Chaves e Botões";10.00;33
 910211_z;"Micro Chave Kcd1-101 On Off Mini 2 Pinos 10X15mm 3A *910211";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";2.00;82
 910212;"TOMADA PAINEL 250V 10A 3 PINOS MODELO C14";Componentes Eletrônicos;Interruptores e Tomadas de Painel;;I_interr;"";"Geral";5.20;29
@@ -982,33 +982,33 @@
 910220;"CHAVE GANGORRA 3 POSIÇÕES 6A/250V REDONDA PRETO";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";4.50;1
 910221_z;"Chave liga desliga 2 posições com chave *910221";Componentes Eletrônicos;Interruptores e Tomadas de Painel;;I_interr;"";"";39.00;9
 910222;"Chave Botão Quadrado Na Sem Trava Preto Pbs-12a 3a 250v";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;10
-910301;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE HW-040";Automação Industrial;Encoders Incrementais;;E_enc;"";"2 - Módulos e shields";10.90;23
-910302;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE KY-040";Automação Industrial;Encoders Incrementais;;E_enc;"";"";12.00;45
-910401_AZ;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Azul";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";3.90;83
-910401_BR;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Branco";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";3.90;92
-910401_PR;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Preto";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";3.90;93
-910401_VD;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Verde";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";3.90;90
+910301;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE HW-040";Automação Industrial;Encoders;;E_enc;"";"2 - Módulos e shields";10.90;23
+910302;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE KY-040";Automação Industrial;Encoders;;E_enc;"";"";12.00;45
+910401_AZ;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Azul";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";3.90;83
+910401_BR;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Branco";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";3.90;92
+910401_PR;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Preto";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";3.90;93
+910401_VD;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Verde";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";3.90;90
 910402;"CHAVE DE PULSO TÁCTIL PUSH BUTTON 6X6X5MM";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";0.30;18
 910403;"CHAVE DE PULSO TIPO PUSH BUTTON 12X12MM COM CAPA COLORIDA";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";1.30;169
-910404;"BOTÃO DE PULSO 22MM PRETO COM CONTATO NA";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Chaves e Botões";20.00;1
-910406_4h;"Botão pulso 22mm vermelho com contato NF Metaltex *910406";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"";18.00;5
-910407;"Botão pulso 22mm Azul com contato NA Metaltex *910407";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Chaves e Botões";18.00;1
+910404;"BOTÃO DE PULSO 22MM PRETO COM CONTATO NA";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Chaves e Botões";20.00;1
+910406_4h;"Botão pulso 22mm vermelho com contato NF Metaltex *910406";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";18.00;5
+910407;"Botão pulso 22mm Azul com contato NA Metaltex *910407";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Chaves e Botões";18.00;1
 910409;"Chave de pulso táctil SMD tipo Push Botton  5x5x1mm *910409";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;20
-910410_AZ;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Azul";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";30.00;9
-910410_VD;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Verde";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";30.00;5
-910410_VM;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Vermelho";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";30.00;7
-910411;"TAMPÃO TAPA FURO 22MM PARA PAINEL ELÉTRICO";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Geral";10.00;9
-910412_z;"Soquete para Botão metal Antivandalismo Iluminado *910412";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";12.00;18
-910414_CT;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 24V SIMBOLO LIGA DESLIGA Trava: Com trava";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";52.17;20
-910414_ST;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 24V SIMBOLO LIGA DESLIGA Trava: Sem trava";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";52.17;16
-910415;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 12V SIMBOLO LIGA DESLIGA COM RETENCAO *910415";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";;19
-910416;"CHAVE SELETORA 2 POSIÇÕES FIXAS 22MM COM CONTATO NA";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"";32.00;0
+910410_AZ;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Azul";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";30.00;9
+910410_VD;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Verde";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";30.00;5
+910410_VM;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Vermelho";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";30.00;7
+910411;"TAMPÃO TAPA FURO 22MM PARA PAINEL ELÉTRICO";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Geral";10.00;9
+910412_z;"Soquete para Botão metal Antivandalismo Iluminado *910412";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";12.00;18
+910414_CT;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 24V SIMBOLO LIGA DESLIGA Trava: Com trava";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";52.17;20
+910414_ST;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 24V SIMBOLO LIGA DESLIGA Trava: Sem trava";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";52.17;16
+910415;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 12V SIMBOLO LIGA DESLIGA COM RETENCAO *910415";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";;19
+910416;"CHAVE SELETORA 2 POSIÇÕES FIXAS 22MM COM CONTATO NA";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";32.00;0
 910501;"TECLADO MEMBRANA MATRICIAL 4X4 16 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Teclados";7.90;9
 910502;"TECLADO MEMBRANA MATRICIAL 4X3 12 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Teclados";7.90;47
 910503;"TECLADO MATRICIAL RIGIDO KARET 4X4 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;7
 910504;"TECLADO MATRICIAL RIGIDO KARET 4X3 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;7
-910601;"BOTÃO DE EMERGÊNCIA TIPO COGUMELO COM RETENÇÃO 2NF";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Chaves e Botões";28.80;8
-910701;"CONTATO PARA BOTOEIRA NF NC ZB2";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Chaves e Botões";6.10;55
+910601;"BOTÃO DE EMERGÊNCIA TIPO COGUMELO COM RETENÇÃO 2NF";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Chaves e Botões";28.80;8
+910701;"CONTATO PARA BOTOEIRA NF NC ZB2";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Chaves e Botões";6.10;55
 920102;"Mosfet IRLU014PBF SMD NPN *920102";Componentes Eletrônicos;Transistores e MOSFETs;;I_trans;"";"";;29
 920103;"Mosfet FQD60N03 NPN 5v para 24V *920103";Componentes Eletrônicos;Transistores e MOSFETs;;I_trans;"";"";;100
 920104;"Mosfet IRFZ44N TO-220 *920104";Componentes Eletrônicos;Transistores e MOSFETs;;I_trans;"";"";;30
@@ -1160,7 +1160,7 @@
 930303;"CABO FLAT COLORIDO 20 VIAS 26AWG 01 METRO";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"Cabos";10.00;0
 930304;"Cabo PP 105G 300/500V 4 Vias 0,30mm2 Preto (Veias Pr/Br/Vm/Am)";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"";18.40;6
 930340;"PROTOBOARD 1660 PONTOS COM BASE METÁLICA PARA PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";69.90;5
-930342;"Mini Suporte Incolor P/ Sensor Ultrassónico";Motores e Robótica;Chassis e Rodas para Robótica;;G_chassi;"";"";12.90;10
+930342;"Mini Suporte Incolor P/ Sensor Ultrassónico";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"";12.90;10
 930401;"CABO JST SM02  MACHO FÊMEA 20CM 02 VIAS";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"Cabos";4.90;180
 930402;"CABO JST SM03 MACHO FÊMEA 15CM 03 VIAS";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"Cabos";5.50;5
 930601;"CABO DE DADOS USB MICRO USB PARA NODEMCU ESP32";Cabos e Conectores;Cabos USB e HDMI;;J_usb;"";"Cabos";11.20;2
@@ -1184,17 +1184,17 @@
 940104;"PLACA FENOLITE PERFURADA 7X9CM PARA PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";3.20;2
 940105;"PROTOBOARD 400 FUROS PONTOS MB102 PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";8.90;5
 940106;"PLACA DE FENOLITE VIRGEM 10X10MM FACE SIMPLES";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";4.80;8
-940301;"PLAQUETA DE IDENTIFICAÇÃO PARA BOTÃO 22MM PLÁSTICO";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Geral";1.20;0
-940302;"Placa de identificação Botoeira de emergência *940302";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"";9.90;0
-940401;"SINALIZADOR LUMINOSO LED VERDE 24V 22MM PARA PAINEL";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Leds e Lampadas";10.90;7
-940402;"SINALIZADOR LUMINOSO LED AZUL 24V 22MM PARA PAINEL";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Leds e Lampadas";10.90;23
-940403;"SINALIZADOR LUMINOSO LED VERMELHO 24V 22MM PARA PAINEL";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Leds e Lampadas";10.90;18
-940404;"SINALIZADOR LUMINOSO LED AMARELO 24V 22MM PARA PAINEL";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Leds e Lampadas";10.90;16
-940501;"ELETROÍMÃ SOLENÓIDE 24VDC 5KG 50N";Motores e Robótica;Eletroímãs e Válvulas Solenoide;;G_ima;"";"Eletroímas";64.00;0
-940502;"ELETROÍMÃ SOLENÓIDE 24VDC 3KG 30N";Motores e Robótica;Eletroímãs e Válvulas Solenoide;;G_ima;"";"Eletroímas";26.30;18
-940503;"ELETROÍMÃ SOLENÓIDE 24VDC 10KG 100N";Motores e Robótica;Eletroímãs e Válvulas Solenoide;;G_ima;"";"Eletroímas";95.00;1
-940504;"ELETROÍMÃ SOLENOIDE ATUADOR 12VDC 10MM 5N";Motores e Robótica;Eletroímãs e Válvulas Solenoide;;G_ima;"";"Eletroímas";36.00;10
-940505;"VÁLVULA SOLENOIDE PARA ÁGUA 12V ROSCA 1/2""";Motores e Robótica;Eletroímãs e Válvulas Solenoide;;G_ima;"";"Válvulas";52.00;10
+940301;"PLAQUETA DE IDENTIFICAÇÃO PARA BOTÃO 22MM PLÁSTICO";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Geral";1.20;0
+940302;"Placa de identificação Botoeira de emergência *940302";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";9.90;0
+940401;"SINALIZADOR LUMINOSO LED VERDE 24V 22MM PARA PAINEL";Automação Industrial;Sinalizadores;;E_sinal;"";"Leds e Lampadas";10.90;7
+940402;"SINALIZADOR LUMINOSO LED AZUL 24V 22MM PARA PAINEL";Automação Industrial;Sinalizadores;;E_sinal;"";"Leds e Lampadas";10.90;23
+940403;"SINALIZADOR LUMINOSO LED VERMELHO 24V 22MM PARA PAINEL";Automação Industrial;Sinalizadores;;E_sinal;"";"Leds e Lampadas";10.90;18
+940404;"SINALIZADOR LUMINOSO LED AMARELO 24V 22MM PARA PAINEL";Automação Industrial;Sinalizadores;;E_sinal;"";"Leds e Lampadas";10.90;16
+940501;"ELETROÍMÃ SOLENÓIDE 24VDC 5KG 50N";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"Eletroímas";64.00;0
+940502;"ELETROÍMÃ SOLENÓIDE 24VDC 3KG 30N";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"Eletroímas";26.30;18
+940503;"ELETROÍMÃ SOLENÓIDE 24VDC 10KG 100N";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"Eletroímas";95.00;1
+940504;"ELETROÍMÃ SOLENOIDE ATUADOR 12VDC 10MM 5N";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"Eletroímas";36.00;10
+940505;"VÁLVULA SOLENOIDE PARA ÁGUA 12V ROSCA 1/2""";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"Válvulas";52.00;10
 940703;"KIT TERMO RETRÁTIL COLORIDO 280 PEÇAS COM CASE";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"Espaguete Termoretratil";35.00;9
 940704;"KIT TERMO RETRÁTIL COLORIDO 328PEÇAS DIVERSAS MEDIDAS";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"Espaguete Termoretratil";35.00;9
 940705_4h;"Tubo Termo retrátil 1,0/0,65mm Preto 600v com 1mt *940705";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"";2.00;200
@@ -1218,35 +1218,35 @@
 940805;"PRESILHA ADESIVA 19X19MM PARA FIXAÇÃO DE CABOS";Cabos e Conectores;Abraçadeiras e Organizadores de Cabos;;J_abrac;"";"Geral";1.00;40
 940901;"ALICATE DE CORTE PARA ELETRÔNICA";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"Ferramentas";16.00;6
 940902;"Kit maleta de ferramenta para eletronica";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";579.00;0
-941001_z;"Espaçadores de Circuito Impresso 5mm de altura *941001";Ferramentas e Prototipagem;Espaçadores e Parafusos Nylon;;K_espac;"";"";1.00;110
-941002;"Espaçadores de Circuito Impresso 15mm de altura *941002";Ferramentas e Prototipagem;Espaçadores e Parafusos Nylon;;K_espac;"";"";2.50;7
-941003;"ESPAÇADOR PLÁSTICO NYLON ISOLANTE 15MM M3 MACHO/FÊMEA";Ferramentas e Prototipagem;Espaçadores e Parafusos Nylon;;K_espac;"";"Hardware";1.30;0
-941004;"ESPAÇADOR PLÁSTICO NYLON ISOLANTE 6MM M3 FÊMEA/FÊMEA";Ferramentas e Prototipagem;Espaçadores e Parafusos Nylon;;K_espac;"";"Hardware";0.80;52
-941005;"PARAFUSO PLÁSTICO NYLON ISOLANTE M3X5MM";Ferramentas e Prototipagem;Espaçadores e Parafusos Nylon;;K_espac;"";"Hardware";0.60;51
-941102_2;"SUPORTE PARA PILHA AA PARALELO CASE TIPO CANOA Para: 2 Pilhas";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"";3.00;19
-941102_4;"SUPORTE PARA PILHA AA PARALELO CASE TIPO CANOA Para: 4 Pilhas";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"";4.00;61
-941103;"Suporte para 2 pilhas AA com Chave Liga/Desliga";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"";4.90;10
-941104;"MÓDULO SHIELD DUPLO BATERIA 18650 PARA ARDUINO ESP32 RPI";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"2 - Módulos e shields";45.90;10
-941105;"MÓDULO SHIELD BATERIA 18650 PARA ARDUINO ESP32 RPI";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"2 - Módulos e shields";39.90;1
-941106;"SUPORTE PARA 01 BATERIA 18650 LI-ION CASE TIPO CANOA";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"Baterias e Acessórios";6.00;178
-941107;"SUPORTE PARA 02 BATERIAS 18650 LI-ION CASE TIPO CANOA";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"Baterias e Acessórios";4.00;32
-941108;"SUPORTE PARA 03 BATERIAS 18650 LI-ION CASE TIPO CANOA";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"Baterias e Acessórios";11.00;20
-941109;"SUPORTE PARA 04 BATERIAS 18650 LI-ION CASE TIPO CANOA";Fontes e Baterias;Suportes de Pilha e Bateria;;F_sup;"";"Baterias e Acessórios";5.60;89
+941001_z;"Espaçadores de Circuito Impresso 5mm de altura *941001";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"";1.00;110
+941002;"Espaçadores de Circuito Impresso 15mm de altura *941002";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"";2.50;7
+941003;"ESPAÇADOR PLÁSTICO NYLON ISOLANTE 15MM M3 MACHO/FÊMEA";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"Hardware";1.30;0
+941004;"ESPAÇADOR PLÁSTICO NYLON ISOLANTE 6MM M3 FÊMEA/FÊMEA";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"Hardware";0.80;52
+941005;"PARAFUSO PLÁSTICO NYLON ISOLANTE M3X5MM";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"Hardware";0.60;51
+941102_2;"SUPORTE PARA PILHA AA PARALELO CASE TIPO CANOA Para: 2 Pilhas";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"";3.00;19
+941102_4;"SUPORTE PARA PILHA AA PARALELO CASE TIPO CANOA Para: 4 Pilhas";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"";4.00;61
+941103;"Suporte para 2 pilhas AA com Chave Liga/Desliga";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"";4.90;10
+941104;"MÓDULO SHIELD DUPLO BATERIA 18650 PARA ARDUINO ESP32 RPI";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"2 - Módulos e shields";45.90;10
+941105;"MÓDULO SHIELD BATERIA 18650 PARA ARDUINO ESP32 RPI";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"2 - Módulos e shields";39.90;1
+941106;"SUPORTE PARA 01 BATERIA 18650 LI-ION CASE TIPO CANOA";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"Baterias e Acessórios";6.00;178
+941107;"SUPORTE PARA 02 BATERIAS 18650 LI-ION CASE TIPO CANOA";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"Baterias e Acessórios";4.00;32
+941108;"SUPORTE PARA 03 BATERIAS 18650 LI-ION CASE TIPO CANOA";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"Baterias e Acessórios";11.00;20
+941109;"SUPORTE PARA 04 BATERIAS 18650 LI-ION CASE TIPO CANOA";Componentes Eletrônicos;Suportes de Pilha e Bateria;;I_sup;"";"Baterias e Acessórios";5.60;89
 941202_z;"Fonte de bancada Regulável 15V 2A Yaxun 1502 *941202";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";279.00;0
 941203;"Fonte de bancada Regulável 32V 6A Unit utp1306 *941203";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";;0
 941401;"Lupa profissional de bancada com garras *941401";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";52.87;1
 941501;"ESTAÇÃO DE SOLDA RETRABALHO SMD YAXUN YX 881D+ (220V)*941501";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";387.40;0
 941506;"ESTAÇÃO DE SOLDA PONTO 5000W COM ACESSÓRIOS P/ BATERIA 18650";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"Baterias e Acessórios";599.00;1
 951101;"Multímetro Digital Yaxun yx-9205A+ *951101";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";;2
-951201;"SUPORTE PCI FÊMEA PRETO PARA TRILHO DIN *951201";Automação Industrial;Trilho DIN, Canaletas e Suportes;;E_trilho;"";"";8.40;15
-951202;"SUPORTE PCI MACHO PRETO PARA TRILHO DIN *951202";Automação Industrial;Trilho DIN, Canaletas e Suportes;;E_trilho;"";"";8.40;15
-951203;"SUPORTE PCI 5MM PRETO PARA TRILHO DIN *951203";Automação Industrial;Trilho DIN, Canaletas e Suportes;;E_trilho;"";"";4.50;96
-951204;"SUPORTE PCI 20MM PRETO PARA TRILHO DIN *951204";Automação Industrial;Trilho DIN, Canaletas e Suportes;;E_trilho;"";"";5.00;93
-951205;"SUPORTE PCI 30MM PRETO PARA TRILHO DIN  *951205";Automação Industrial;Trilho DIN, Canaletas e Suportes;;E_trilho;"";"";5.50;1
-951206;"SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206";Automação Industrial;Trilho DIN, Canaletas e Suportes;;E_trilho;"";"";7.00;10
+951201;"SUPORTE PCI FÊMEA PRETO PARA TRILHO DIN *951201";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";8.40;15
+951202;"SUPORTE PCI MACHO PRETO PARA TRILHO DIN *951202";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";8.40;15
+951203;"SUPORTE PCI 5MM PRETO PARA TRILHO DIN *951203";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";4.50;96
+951204;"SUPORTE PCI 20MM PRETO PARA TRILHO DIN *951204";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";5.00;93
+951205;"SUPORTE PCI 30MM PRETO PARA TRILHO DIN  *951205";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";5.50;1
+951206;"SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";7.00;10
 951302;"Rolinho estanho 22g 1mm 60/40 Cobix *951302";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";10.00;31
 960102;"KIT PARAFUSO ALLEN SEM CABEÇA 200 PEÇAS";Ferramentas e Prototipagem;Parafusos, Buchas e Fixação;;K_paraf;"";"Hardware";68.90;0
-960201;"Suporte 45 graus trilho dim *960201";Automação Industrial;Trilho DIN, Canaletas e Suportes;;E_trilho;"";"";11.00;3
+960201;"Suporte 45 graus trilho dim *960201";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";11.00;3
 960301_4h;"Abraçadeira de Nylon 3,7x202mm preta com 100un *960301";Cabos e Conectores;Abraçadeiras e Organizadores de Cabos;;J_abrac;"";"";18.90;4
 960302_4h;"Abraçadeira de Nylon 2,5x108mm cor preto com 100un *960302";Cabos e Conectores;Abraçadeiras e Organizadores de Cabos;;J_abrac;"";"";13.00;0
 960401;"Bucha de redução M6 X 1,0 interno M8 X 1,25 externo inserto metálico *960401";Ferramentas e Prototipagem;Parafusos, Buchas e Fixação;;K_paraf;"";"";5.00;10
@@ -1271,37 +1271,37 @@
 960713;"caixa plástica modelo PB-211";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"";"";69.90;5
 960714;"CAIXA PLASTICA organizadora";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"";"";;30
 960801;"Anel elástico DI 9mm para fuso de esfera 16mm *960801";CNC, Laser e Impressão 3D;Fusos de Esferas;;H_fesf;"";"";;5
-962438;"SENSOR TOQUE CAPACITIVO - TTP223B";Módulos e Sensores;Sensores Indutivos e Capacitivos;;C_ind;"";"";3.21;12
+962438;"SENSOR TOQUE CAPACITIVO - TTP223B";Módulos e Sensores;Sensores de Distância e Proximidade;;C_dist;"";"";3.21;12
 969693;"MODULO SENSOR DE LUMINOSIDADE LDR";Módulos e Sensores;Sensores de Luz e Cor;;C_luz;"";"";8.50;3
 970104;"MODULO INTERFACE PARA ESP32 30 PINOS COM BORNE E ESPAÇADORES";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";130.00;36
 970106;"MODULO INTERFACE PARA HELTEC ESP32 LORA COM BORNES";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";140.00;15
 970201;"Projeto especial _ Maquina Colagem";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";;0
-980101;"Quadro elétrico metálico para comando 400x300x200 *980101";Automação Industrial;Quadros Elétricos e Prensa Cabos;;E_quadro;"";"";188.90;0
-980102;"Quadro elétrico metálico para comando 300x300x200 *980102";Automação Industrial;Quadros Elétricos e Prensa Cabos;;E_quadro;"";"";169.00;11
-980103;"Quadro elétrico metálico para comando 300x300x150 *980103";Automação Industrial;Quadros Elétricos e Prensa Cabos;;E_quadro;"";"";155.22;0
-980104;"Quadro elétrico metálico para comando 500x300x200";Automação Industrial;Quadros Elétricos e Prensa Cabos;;E_quadro;"";"";224.00;0
-980203;"Prensa Cabo Nylon Pg9 Cinza Claro";Automação Industrial;Quadros Elétricos e Prensa Cabos;;E_quadro;"";"";;30
-980301_z;"FILTRO PARA MICROVENTILADOR 80X80MM *980301";Automação Industrial;Microventiladores;;E_vent;"";"";18.49;5
-980302;"MICROVENTILADOR COOLER 24VDC 80X80X25MM";Automação Industrial;Microventiladores;;E_vent;"";"Microventilador";45.00;1
-980303_4h;"Grade metálica para microventilador 80x80mm *980303";Automação Industrial;Microventiladores;;E_vent;"";"";7.00;6
-980304;"MICROVENTILADOR COOLER 12VDC 80X80X25MM";Automação Industrial;Microventiladores;;E_vent;"";"Microventilador";14.00;6
-980305;"MICROVENTILADOR COOLER 12VDC 40X40X10MM";Automação Industrial;Microventiladores;;E_vent;"";"Microventilador";15.00;0
-980306;"Microventilador 12Vdc 30x30x10mm com rolamento *980306";Automação Industrial;Microventiladores;;E_vent;"";"";35.00;8
-980307;"Microventilador coller 12VDC 60X60X25MM com rolamento";Automação Industrial;Microventiladores;;E_vent;"";"";;5
-980401_z;"Borne mola terra tarjado 2.5mm para trilho DIM *980401";Automação Industrial;Bornes para Trilho DIN;;E_borne;"";"";9.48;18
-980402;"BORNE SIMPLES 2.5MM TIPO MOLA PARA TRILHO DIN";Automação Industrial;Bornes para Trilho DIN;;E_borne;"";"Conectores e Bornes";4.50;16
-980403;"BORNE SIMPLES 4MM TIPO MOLA PARA TRILHO DIN";Automação Industrial;Bornes para Trilho DIN;;E_borne;"";"Conectores e Bornes";7.00;47
-980404;"Jumper para borne mola 2.5mm com 10 pontas *980404";Automação Industrial;Bornes para Trilho DIN;;E_borne;"";"";25.00;7
-980405;"Jumper para borne mola 4mm com 10 pontas *980405";Automação Industrial;Bornes para Trilho DIN;;E_borne;"";"";;7
-980406;"BORNE DUPLO 2.5MM TIPO MOLA PARA TRILHO DIN *980406";Automação Industrial;Bornes para Trilho DIN;;E_borne;"";"";7.00;50
-980407;"Tampa borne mola 2.5mm trilho DIM *980407";Automação Industrial;Bornes para Trilho DIN;;E_borne;"";"";;19
-980408;"Tampa borne mola duplo 2.5mm trilho DIM *980408";Automação Industrial;Bornes para Trilho DIN;;E_borne;"";"";7.00;9
-980409;"Tampa borne mola 4mm trilho DIM *980409";Automação Industrial;Bornes para Trilho DIN;;E_borne;"";"";7.00;19
-980601;"Trilho Dim para painel barra com 2 metros *980601";Automação Industrial;Trilho DIN, Canaletas e Suportes;;E_trilho;"";"";34.90;1
-980701;"Canaleta plastica para painel 30x30mm com 2 metros *980701";Automação Industrial;Trilho DIN, Canaletas e Suportes;;E_trilho;"";"";43.50;1
-980801;"Prensa cabo plástico 3/4"" cor branco *980801";Automação Industrial;Quadros Elétricos e Prensa Cabos;;E_quadro;"";"";7.50;59
-980802;"Prensa cabo plastico 1/2' cor preto *980802";Automação Industrial;Quadros Elétricos e Prensa Cabos;;E_quadro;"";"";6.50;87
-980804;"Prensa cabo plastico 1/2' cor cinza claro *980804";Automação Industrial;Quadros Elétricos e Prensa Cabos;;E_quadro;"";"";;0
+980101;"Quadro elétrico metálico para comando 400x300x200 *980101";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";188.90;0
+980102;"Quadro elétrico metálico para comando 300x300x200 *980102";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";169.00;11
+980103;"Quadro elétrico metálico para comando 300x300x150 *980103";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";155.22;0
+980104;"Quadro elétrico metálico para comando 500x300x200";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";224.00;0
+980203;"Prensa Cabo Nylon Pg9 Cinza Claro";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";;30
+980301_z;"FILTRO PARA MICROVENTILADOR 80X80MM *980301";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";18.49;5
+980302;"MICROVENTILADOR COOLER 24VDC 80X80X25MM";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Microventilador";45.00;1
+980303_4h;"Grade metálica para microventilador 80x80mm *980303";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";7.00;6
+980304;"MICROVENTILADOR COOLER 12VDC 80X80X25MM";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Microventilador";14.00;6
+980305;"MICROVENTILADOR COOLER 12VDC 40X40X10MM";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Microventilador";15.00;0
+980306;"Microventilador 12Vdc 30x30x10mm com rolamento *980306";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";35.00;8
+980307;"Microventilador coller 12VDC 60X60X25MM com rolamento";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";;5
+980401_z;"Borne mola terra tarjado 2.5mm para trilho DIM *980401";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";9.48;18
+980402;"BORNE SIMPLES 2.5MM TIPO MOLA PARA TRILHO DIN";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";4.50;16
+980403;"BORNE SIMPLES 4MM TIPO MOLA PARA TRILHO DIN";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";7.00;47
+980404;"Jumper para borne mola 2.5mm com 10 pontas *980404";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";25.00;7
+980405;"Jumper para borne mola 4mm com 10 pontas *980405";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";;7
+980406;"BORNE DUPLO 2.5MM TIPO MOLA PARA TRILHO DIN *980406";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";7.00;50
+980407;"Tampa borne mola 2.5mm trilho DIM *980407";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";;19
+980408;"Tampa borne mola duplo 2.5mm trilho DIM *980408";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";7.00;9
+980409;"Tampa borne mola 4mm trilho DIM *980409";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";7.00;19
+980601;"Trilho Dim para painel barra com 2 metros *980601";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";34.90;1
+980701;"Canaleta plastica para painel 30x30mm com 2 metros *980701";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";43.50;1
+980801;"Prensa cabo plástico 3/4"" cor branco *980801";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";7.50;59
+980802;"Prensa cabo plastico 1/2' cor preto *980802";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";6.50;87
+980804;"Prensa cabo plastico 1/2' cor cinza claro *980804";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";;0
 990201;"KIT ARDUINO UNO AVANÇADO COM MALETA PLÁSTICA";Kits Educacionais;Kits Arduino;;M_kitard;"";"4 - Kits";310.00;29
 990202;"KIT ARDUINO INICIANTE COM CAIXA ORGANIZADORA";Kits Educacionais;Kits Arduino;;M_kitard;"";"4 - Kits";72.90;6
 990203;"KIT 37 SENSORES PARA ARDUINO";Kits Educacionais;Kits Arduino;;M_kitard;"";"";;3
