@@ -1,6 +1,6 @@
 # Árvore final de categorias da loja 4hobby (uma família por folha)
 
-Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 folhas) foi refeita porque nome de folha não pode listar produtos diferentes; em 07/10 o dono aceitou as 17 fusões de folhas pequenas (133 folhas, 12 topos); em 14/10 ele enxugou os topos (12 → 10), tirou o nível intermediário "Movimento Linear", criou o topo Kits Educacionais reduziu Placas Embarcadas a quatro folhas, uma por família de placa, com shields, interfaces e gravadores dentro da placa a que servem, e enxugou os módulos de Módulos e Sensores a seis folhas (os sensores ficaram como estavam). O CSV `categorias-4hobby-mapeamento.csv` já reflete esta árvore.
+Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 folhas) foi refeita porque nome de folha não pode listar produtos diferentes; em 07/10 o dono aceitou as 17 fusões de folhas pequenas (133 folhas, 12 topos); em 14/10 ele enxugou os topos (12 → 10), tirou o nível intermediário "Movimento Linear", criou o topo Kits Educacionais reduziu Placas Embarcadas a quatro folhas, uma por família de placa, com shields, interfaces e gravadores dentro da placa a que servem, enxugou os módulos de Módulos e Sensores a seis folhas (os sensores ficaram como estavam) e refez Displays e Telas por tipo de tela, sem folha própria para a Nextion. O CSV `categorias-4hobby-mapeamento.csv` já reflete esta árvore.
 
 ## Regras que valem para nome novo
 
@@ -10,7 +10,7 @@ Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 fol
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **10 topos e 121 folhas** para 1.301 produtos publicáveis (120 folhas com produto próprio e uma, Shields e Placas de Interface, só com produtos de 2ª categoria; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+Resultado: **10 topos e 120 folhas** para 1.301 produtos publicáveis (119 folhas com produto próprio e uma, Shields e Placas de Interface, só com produtos de 2ª categoria; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
 
 Com dois níveis e uma família por folha, dois topos ficam com menu longo: CNC (28 folhas) e Componentes Eletrônicos (27). É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
@@ -52,11 +52,12 @@ Módulos em seis folhas (decisão do dono em 14/10/2026: relé, conversores de s
 
 ### Displays e Telas (36)
 
-- Telas Nextion (18)
-- Displays LCD (5)
-- Displays OLED e TFT (4) ◂ pequena
-- Telas para Raspberry Pi (4) ◂ pequena
+- Telas TFT (24)
+- Displays LCD 16x2 e 20x4 (5)
+- Displays OLED (2) ◂ pequena
 - Displays 7 Segmentos e Matriz LED (5)
+
+Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica separada). Telas TFT junta as 15 Nextion (Basic, Enhanced, Intelligent) com as expansões e o conector delas, as 3 telas de 7" para Raspberry Pi com o case da oficial (todas com Placas Raspberry Pi como 2ª categoria), a 3,5" touch ILI9488 e a 1,8" ST7735: são todas LCD TFT, a diferença é só a interface (serial, HDMI/DSI, SPI). Displays LCD 16x2 e 20x4 são os alfanuméricos de caracteres, com o módulo I2C e o LCD shield; o nome traz os tamanhos para não confundir com as telas TFT, que os títulos também chamam de "LCD".
 
 ### Componentes Eletrônicos (310)
 
@@ -179,6 +180,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 
 - 4 bombas de água de laser/spindle (120212, 122402, 122403, 122408): ficam em Mini Bombas de Água e Ar e aparecem também em Peças para Laser CO2 / Spindles e Inversores.
 - 6 cabos HDMI, micro HDMI, DP e hub OTG (930213, 930607_z, 930701, 930702_4h, 930703_4h, 930704_z): ficam em Cabos USB e HDMI e aparecem também em Placas Raspberry Pi.
+- 3 telas de 7" para Raspberry Pi e o case da oficial (110304, 110306, 110307, 111031): ficam em Telas TFT e aparecem também em Placas Raspberry Pi.
 - 20 shields, HATs, placas de interface com bornes e o gravador AVR ISP (100112, 100201, 100204, 100207, 100211, 100224, 100233, 100272, 101001, 101002, 101010, 170107, 170707, 200509, 200510, 260104, 260108, 910103, 970104, 970106): ficam na placa correspondente e aparecem também em **Módulos e Sensores > Shields e Placas de Interface**, folha que existe só para isso (pedido do dono em 14/10/2026: "todos os módulos e shields de Arduino também devem ser mostrados na categoria Módulos"). O script da LI precisa criar essa folha mesmo sem produto próprio.
 - Arduino Mega WiFi com ESP8266 (100108): fica em Placas Arduino e aparece também em Placas Espressif ESP32 e ESP8266.
 - Serviço de programação para CLP e IHM (999905): fica em Softwares e Serviços e aparece também em CLP e Expansões.
@@ -187,6 +189,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 
 - "Arduino, ESP32 e Embarcados" passou a **Placas Embarcadas**; os kits saíram dela. Depois, na mesma data, ela passou de 8 para **4 folhas, uma por família de placa** (Placas Arduino, Placas Espressif ESP32 e ESP8266, Placas STM32, Placas Raspberry Pi): Shields e Cases, Placas de Interface com Bornes e Gravadores e Programadores deixaram de ser folhas, cada produto foi para a placa a que serve, e os shields e interfaces ganharam a 2ª categoria em Módulos e Sensores. Único sem placa própria: o gravador PICkit3 (270201, para PIC, que não tem placa no catálogo) foi para Componentes Eletrônicos > Circuitos Integrados, junto do ATmega328P.
 - **Módulos e Sensores**: os 14 grupos de módulos viraram os 5 ditados por ele (Módulos Relé e Acionamento, Conversores de Sinais, Módulos Wireless e IoT, Antenas e Acessórios, Shields e Placas de Interface) mais Módulos RTC e Memória, que mantive por falta de lugar. Os 14 grupos de sensores não mudaram. Cartões micro SD e leitor USB foram para Placas Raspberry Pi (pedido dele); teclados matriciais para Chaves e Push Buttons, joystick para Potenciômetros e Trimpots, encoders KY-040/HW-040 para Encoders Incrementais e o TTP223 para Sensores Indutivos e Capacitivos; ethernet shields, data logger shield e joystick shield foram para Placas Arduino, e os HATs CAN e o gateway LoRa para Placas Raspberry Pi, todos com a 2ª categoria de shields.
+- **Displays e Telas** passou de 5 para 4 folhas, por tipo de tela: Telas TFT (Nextion, telas de Raspberry, SPI), Displays LCD 16x2 e 20x4, Displays OLED e Displays 7 Segmentos e Matriz LED. Telas Nextion e Telas para Raspberry Pi deixaram de ser folhas.
 - **Módulos** e **Sensores** viraram um topo, **Módulos e Sensores**.
 - **Conectores e Cabos** entrou em **Componentes Eletrônicos** (as 15 folhas continuam iguais). Cabos USB e HDMI fica aí, no bloco de cabos.
 - **Movimento Linear** deixou de existir como nível: as 12 folhas ficam direto em CNC.

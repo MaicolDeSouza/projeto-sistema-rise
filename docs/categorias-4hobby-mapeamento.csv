@@ -19,8 +19,8 @@
 100205;"MODULO RELÉ 5V 8 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";44.90;3
 100206;"MODULO RELÉ 5V 4 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";25.90;20
 100207;"MODULO ETHERNET SHIELD ENC28J60 PARA ARDUINO NANO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";60.80;4
-100208;"MODULO SERIAL I2C PARA DISPLAY LCD 16X2 E 20X2";Displays e Telas;Displays LCD;;D_lcd;"";"2 - Módulos e shields";7.40;46
-100209;"DISPLAY LCD SHIELD COM BOTÕES PARA ARDUINO";Displays e Telas;Displays LCD;;D_lcd;"";"2 - Módulos e shields";33.90;4
+100208;"MODULO SERIAL I2C PARA DISPLAY LCD 16X2 E 20X2";Displays e Telas;Displays LCD 16x2 e 20x4;;D_lcd;"";"2 - Módulos e shields";7.40;46
+100209;"DISPLAY LCD SHIELD COM BOTÕES PARA ARDUINO";Displays e Telas;Displays LCD 16x2 e 20x4;;D_lcd;"";"2 - Módulos e shields";33.90;4
 100210;"MODULO LEITOR DE CARTÃO MICRO SD";Módulos e Sensores;Módulos RTC e Memória;;B_rtc;"";"2 - Módulos e shields";7.40;96
 100211;"DATA LOGGER SHIELD COM RTC DS1307 PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";28.80;20
 100212;"MÓDULO GPS UBLOX NEO-6M GY-GPS6MV2 COM ANTENA CERÂMICA";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";46.90;12
@@ -77,32 +77,32 @@
 100278;"TERMOSTATO REX-C100FK02-- V*DA (SSR)";Automação Industrial;Controladores de Temperatura e SSR;;E_ctrl;"";"";;3
 100279;"KIT CONTROLADOR REX-C100 SSR + RELÉ SSR 40A + DISSIPADOR";Automação Industrial;Controladores de Temperatura e SSR;;E_ctrl;"";"";;3
 100280;"Mini autofalante para arduino 4R 3W";Componentes Eletrônicos;Buzzers, Alto-falantes e Áudio;;I_buzz;"";"";9.90;10
-100303;"DISPLAY LCD 16X2 COM FUNDO AZUL";Displays e Telas;Displays LCD;;D_lcd;"";"3 - Telas e LCD";23.90;20
-100305;"TELA LCD NEXTION 5″ 800X480 BASIC IHM TOUCH";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";977.60;0
-100306;"TELA LCD NEXTION 7″ 800X480 BASIC IHM TOUCH";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";1075.00;0
+100303;"DISPLAY LCD 16X2 COM FUNDO AZUL";Displays e Telas;Displays LCD 16x2 e 20x4;;D_lcd;"";"3 - Telas e LCD";23.90;20
+100305;"TELA LCD NEXTION 5″ 800X480 BASIC IHM TOUCH";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";977.60;0
+100306;"TELA LCD NEXTION 7″ 800X480 BASIC IHM TOUCH";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";1075.00;0
 100307;"MODULO 74HC595 DISPLAY 7 SEGMENTOS 4 DÍGITOS";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"";"2 - Módulos e shields";13.60;9
 100308;"MODULO TM1637 RELÓGIO DIGITAL DISPLAY 7 SEGMENTOS 4 DÍGITOS";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"";"2 - Módulos e shields";9.80;20
 100309;"DISPLAY MATRIZ DE LED 8X8MM MAX7219 VERDE";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"";"2 - Módulos e shields";21.90;20
-100310;"DISPLAY LCD OLED I2C 0.96POL 128X64PX AZUL AMARELO";Displays e Telas;Displays OLED e TFT;;D_oled;"";"3 - Telas e LCD";28.90;27
-100311;"TELA LCD NEXTION 4.3″ 480x272 BASIC IHM TOUCH";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";535.00;0
-100312;"TELA LCD NEXTION 7″ 800X480 ENHANCED IHM TOUCH";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";1290.00;0
-100313;"PLACA EXPANSÃO TECLADO PARA TELA NEXTION ENHANCED";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";32.00;3
-100314;"EXPANSÃO I/OS PARA TELA NEXTION ENHANCED";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";35.20;0
-100315;"TELA LCD NEXTION 3.5″ 480x320 BASIC IHM TOUCH";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";499.00;0
-100316;"DISPLAY 2004 LCD 20X4 COM FUNDO AZUL";Displays e Telas;Displays LCD;;D_lcd;"";"3 - Telas e LCD";39.90;29
-100317;"tela lcd nextion 4,3 enhanced 480x272 ihm touch *100317";Displays e Telas;Telas Nextion;;D_nex;"";"";592.00;0
-100318;"TELA LCD NEXTION 3.2 polegadas 400×240 ENHANCED IHM TOUCH";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";437.90;0
-100319;"tela  nextion 3.2 pol 400x240px ihm touch nx4024t032";Displays e Telas;Telas Nextion;;D_nex;"";"";489.00;0
-100320;"tela lcd nextion 7 enhanced touch capacitivo c/ case *100320";Displays e Telas;Telas Nextion;;D_nex;"";"";1250.00;0
-100321;"TELA LCD NEXTION 7″ 800X480 INTELLIGENT IHM TOUCH CAPACITIVO";Displays e Telas;Telas Nextion;;D_nex;"";"";1300.00;0
-100322;"TELA LCD NEXTION 5″ 800X480 ENHANCED IHM TOUCH";Displays e Telas;Telas Nextion;;D_nex;"";"";1166.00;2
-100323;"DISPLAY LCD TOUCH 3.5 POLEGADAS SPI 480X320 ILI9488";Displays e Telas;Displays OLED e TFT;;D_oled;"";"3 - Telas e LCD";154.90;0
-100324;"TELA LCD NEXTION 4.3 POLEGADAS INTELLIGENT IHM TOUCH";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";837.00;0
-100325;"TELA LCD NEXTION 5 POLEGADAS INTELLIGENT IHM TOUCH";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";1060.00;2
-100326;"TELA LCD NEXTION 7 POLEGADAS INTELLIGENT IHM TOUCH";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";1264.90;0
-100327;"DISPLAY LCD 16X2 FUNDO VERDE COM MODULO I2C";Displays e Telas;Displays LCD;;D_lcd;"";"3 - Telas e LCD";25.90;3
-100328;"TELA LCD NEXTION 7 POLEGADAS INTELLIGENT IHM TOUCH COM CASE";Displays e Telas;Telas Nextion;;D_nex;"";"3 - Telas e LCD";1353.00;11
-100329;"DISPLAY LCD OLED I2C 0.96POL 128X64PX AZUL";Displays e Telas;Displays OLED e TFT;;D_oled;"";"";28.90;8
+100310;"DISPLAY LCD OLED I2C 0.96POL 128X64PX AZUL AMARELO";Displays e Telas;Displays OLED;;D_oled;"";"3 - Telas e LCD";28.90;27
+100311;"TELA LCD NEXTION 4.3″ 480x272 BASIC IHM TOUCH";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";535.00;0
+100312;"TELA LCD NEXTION 7″ 800X480 ENHANCED IHM TOUCH";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";1290.00;0
+100313;"PLACA EXPANSÃO TECLADO PARA TELA NEXTION ENHANCED";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";32.00;3
+100314;"EXPANSÃO I/OS PARA TELA NEXTION ENHANCED";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";35.20;0
+100315;"TELA LCD NEXTION 3.5″ 480x320 BASIC IHM TOUCH";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";499.00;0
+100316;"DISPLAY 2004 LCD 20X4 COM FUNDO AZUL";Displays e Telas;Displays LCD 16x2 e 20x4;;D_lcd;"";"3 - Telas e LCD";39.90;29
+100317;"tela lcd nextion 4,3 enhanced 480x272 ihm touch *100317";Displays e Telas;Telas TFT;;D_tft;"";"";592.00;0
+100318;"TELA LCD NEXTION 3.2 polegadas 400×240 ENHANCED IHM TOUCH";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";437.90;0
+100319;"tela  nextion 3.2 pol 400x240px ihm touch nx4024t032";Displays e Telas;Telas TFT;;D_tft;"";"";489.00;0
+100320;"tela lcd nextion 7 enhanced touch capacitivo c/ case *100320";Displays e Telas;Telas TFT;;D_tft;"";"";1250.00;0
+100321;"TELA LCD NEXTION 7″ 800X480 INTELLIGENT IHM TOUCH CAPACITIVO";Displays e Telas;Telas TFT;;D_tft;"";"";1300.00;0
+100322;"TELA LCD NEXTION 5″ 800X480 ENHANCED IHM TOUCH";Displays e Telas;Telas TFT;;D_tft;"";"";1166.00;2
+100323;"DISPLAY LCD TOUCH 3.5 POLEGADAS SPI 480X320 ILI9488";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";154.90;0
+100324;"TELA LCD NEXTION 4.3 POLEGADAS INTELLIGENT IHM TOUCH";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";837.00;0
+100325;"TELA LCD NEXTION 5 POLEGADAS INTELLIGENT IHM TOUCH";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";1060.00;2
+100326;"TELA LCD NEXTION 7 POLEGADAS INTELLIGENT IHM TOUCH";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";1264.90;0
+100327;"DISPLAY LCD 16X2 FUNDO VERDE COM MODULO I2C";Displays e Telas;Displays LCD 16x2 e 20x4;;D_lcd;"";"3 - Telas e LCD";25.90;3
+100328;"TELA LCD NEXTION 7 POLEGADAS INTELLIGENT IHM TOUCH COM CASE";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";1353.00;11
+100329;"DISPLAY LCD OLED I2C 0.96POL 128X64PX AZUL";Displays e Telas;Displays OLED;;D_oled;"";"";28.90;8
 100401;"CLP DELTA DVP14SS211T 8 ENTRADAS 6 SAIDAS DIGITAL TRANSISTOR";Automação Industrial;CLP e Expansões;;E_clp;"";"1 - CLPs e IHMs";672.00;3
 100402;"IHM COM CLP INCORPORADO DELTA TP04P-16TP1T 8DI 8DO TRANSISTOR";Automação Industrial;CLP e Expansões;;E_clp;"";"1 - CLPs e IHMs";1790.00;1
 100403;"CLP DELTADVP12SE11T";Automação Industrial;CLP e Expansões;;E_clp;"";"";;2
@@ -134,9 +134,9 @@
 110201;"PLACA EXPANSÃO GPIO RASPBERRY PI2 PI3 Pi4 COM FLAT";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";34.00;11
 110203;"POE HAT PARA RASPBERRYPI 3B+ RPI4 POWER OVER ETHERNET*110203";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";317.00;0
 110226;"CASE RASPBERRY PI3 RPI3 EM ACRILICO COM COOLER *111026";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";45.00;1
-110304;"TELA LCD WAVESHARE HDMI 7 TOUCH 1024X600 RASPBERRYPI";Displays e Telas;Telas para Raspberry Pi;;D_rpi;"";"3 - Telas e LCD";862.00;1
-110306;"TELA LCD OFICIAL RASPBERRY PI 7 POL 800X480 TOUCH";Displays e Telas;Telas para Raspberry Pi;;D_rpi;"";"3 - Telas e LCD";1249.00;0
-110307;"TELA LCD HDMI 7 TOUCH 1024X600 SEM TOUCH PARA RASPBERRYPI";Displays e Telas;Telas para Raspberry Pi;;D_rpi;"";"";397.00;0
+110304;"TELA LCD WAVESHARE HDMI 7 TOUCH 1024X600 RASPBERRYPI";Displays e Telas;Telas TFT;;D_tft;"Placas Embarcadas > Placas Raspberry Pi";"3 - Telas e LCD";862.00;1
+110306;"TELA LCD OFICIAL RASPBERRY PI 7 POL 800X480 TOUCH";Displays e Telas;Telas TFT;;D_tft;"Placas Embarcadas > Placas Raspberry Pi";"3 - Telas e LCD";1249.00;0
+110307;"TELA LCD HDMI 7 TOUCH 1024X600 SEM TOUCH PARA RASPBERRYPI";Displays e Telas;Telas TFT;;D_tft;"Placas Embarcadas > Placas Raspberry Pi";"";397.00;0
 110402;"FLAT ADAPTADOR 16CM PARA CÂMERA  RASPBERRYPI ZERO W";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";14.00;9
 110403;"CÂMERA PARA RASPBERRY PI 5MP V1.3";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"2 - Módulos e shields";75.00;2
 110404;"CABO FLAT 30CM EXTENSOR PARA CÂMERA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"Cabos";15.00;0
@@ -165,7 +165,7 @@
 111027;"Fonte chaveada 5V 3.1A saida tipoC *111027";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"";30.00;22
 111029;"CASE OFICIAL RASPBERRY PI3 RPI3 BRANCO E VERMELHO *111029";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";30.00;5
 111030;"MICROFONE USB PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";55.00;0
-111031;"Case para tela LCD 7 pol Oficial Raspberry Pi4 preto";Displays e Telas;Telas para Raspberry Pi;;D_rpi;"";"";179.90;0
+111031;"Case para tela LCD 7 pol Oficial Raspberry Pi4 preto";Displays e Telas;Telas TFT;;D_tft;"Placas Embarcadas > Placas Raspberry Pi";"";179.90;0
 111032;"ADAPTADOR VÍDEO WAVLINK MULTI DISPLAY USB PARA HDMI VGA DVI";Componentes Eletrônicos;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";418.00;1
 120101;"INTERFACE CONTROLADORA USB PARA CNC 4EIXOS COM CABO + MACH3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"Placas de controle";439.00;2
 120102;"INTERFACE CONTROLADORA PARA CNC 5 EIXOS COM CABO + MACH3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"Placas de controle";58.90;0
@@ -851,7 +851,7 @@
 260108;"Placa interface STM32F446RE";Placas Embarcadas;Placas STM32;;A_stm;"Módulos e Sensores > Shields e Placas de Interface";"";147.00;0
 260109;"PLACA STM32 NUCLEO-H755ZI-Q STM32H755ZI MCU Nucleo-144";Placas Embarcadas;Placas STM32;;A_stm;"";"";799.00;1
 260201;"GRAVADOR PROGRAMADOR ST-LINK V2 STM8 STM32";Placas Embarcadas;Placas STM32;;A_stm;"";"5 - Acessórios";25.90;4
-260301;"DISPLAY LCD 1.8 TFT MODULO ST7735 128X160PX";Displays e Telas;Displays OLED e TFT;;D_oled;"";"3 - Telas e LCD";42.90;19
+260301;"DISPLAY LCD 1.8 TFT MODULO ST7735 128X160PX";Displays e Telas;Telas TFT;;D_tft;"";"3 - Telas e LCD";42.90;19
 270201;"GRAVADOR PROGRAMADOR DEBUGGER PARA PIC PICKIT3 USB";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"5 - Acessórios";150.40;0
 270202;"GRAVADOR PROGRAMADOR DEBUGGER SEGGER J-LINK V9 ARM STM32";Placas Embarcadas;Placas STM32;;A_stm;"";"5 - Acessórios";259.00;4
 280101;"Conexões rapida PC4-M6 4mm rosca M6 Mangueira nao passante *280101";Motores e Robótica;Eletroímãs e Válvulas Solenoide;;G_ima;"";"";5.87;24
@@ -943,7 +943,7 @@
 901301;"CONECTOR JST PH 2MM 6 PINOS COMPLETO";Componentes Eletrônicos;Conectores JST;;J_jst;"";"Conectores e Bornes";2.00;0
 901302;"CONECTOR 4 PINOS COMPLETO PH 2MM";Componentes Eletrônicos;Conectores JST;;J_jst;"";"";;48
 901303;"CONECTOR JST PH 2MM 10 PINOS COMPLETO";Componentes Eletrônicos;Conectores JST;;J_jst;"";"Conectores e Bornes";3.50;8
-901501;"Conector 10 vias molex 52610-1090 para flat tela nextion enhaced *901501";Displays e Telas;Telas Nextion;;D_nex;"";"";14.90;9
+901501;"Conector 10 vias molex 52610-1090 para flat tela nextion enhaced *901501";Displays e Telas;Telas TFT;;D_tft;"";"";14.90;9
 901601;"CABO PIGTAIL U.FL IPEX IPX COM CONECTOR SMA 15CM";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";5.90;0
 901602;"PLUG CONECTOR SMA MACHO PARA CABO RG-58";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";3.20;1
 901603;"PLUG CONECTOR SMA FEMEA ROSCA EXTERNA PARA CABO RG-58";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";3.20;2
