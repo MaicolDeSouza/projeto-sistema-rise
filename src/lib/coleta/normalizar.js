@@ -1775,11 +1775,18 @@ function documentosDaPagina(html, urlBase) {
     // Link para a PROPRIA pagina (href="#" ou "#aba"): nao leva a documento
     // nenhum. O botao "Catalogo de produtos" da Oceantech virava o endereco da
     // pagina do produto com "#".
+    //
+    // E link reconhecido SO PELO TEXTO que aponta para OUTRA PAGINA DO MESMO SITE e nao tem extensao nem endpoint de
+    // anexo e navegacao, nao arquivo (Easytronics, 14/10/2026: o item "Manuais" do menu, que leva a categoria
+    // /eletrica-eletronica/ferramentas/manuais, virava documento do Arduino Uno no item 100101). Documento de verdade
+    // sem extensao esta em endpoint de anexo (ja valeu acima) ou em dominio de arquivo (Google Drive), nunca numa pagina
+    // do proprio site. `www.` e o dominio sem ele contam como o mesmo site.
     if (!ehArquivo) {
       try {
         const alvo = new URL(endereco);
         const pagina = new URL(urlBase);
-        if (alvo.origin === pagina.origin && alvo.pathname === pagina.pathname) continue;
+        const semWww = (host) => host.toLowerCase().replace(/^www\./, "");
+        if (semWww(alvo.hostname) === semWww(pagina.hostname)) continue;
       } catch {
         // endereco ou base que nao abrem como URL: segue para as regras abaixo.
       }

@@ -2859,5 +2859,14 @@ console.log("\n— Kalatec: codigo repetido e produto do catalogo —");
   conferir("catalogo: preco zero fica sem preco (e o teste de validade do concorrente o descarta); sem nome ou endereco nao vira produto", [produtoDoItemDoCatalogo({ ...item, price: "0.00" }, "https://loja.kalatec.com.br").prices.normal, produtoDoItemDoCatalogo({ ...item, name: "" }, "https://x.com"), produtoDoItemDoCatalogo({ name: "X" }, "https://x.com")], [null, null, null]);
 }
 
+// Easytronics (14/10/2026): o item "Manuais" do menu (categoria do proprio site) virava documento do Arduino Uno.
+console.log("\n— link de menu nao e documento —");
+{
+  const pagina = (links) => `<html><head><script type="application/ld+json">{"@type":"Product","name":"Arduino Uno","sku":"1041","offers":{"price":"79.90"}}</script></head><body>${links}</body></html>`;
+  const docs = (links) => normalizarPagina({ html: pagina(links), url: "https://www.easytronics.com.br/arduino-uno", fonte: "Easytronics" }).produtos[0].documentos.map((d) => d.titulo);
+  conferir("documento: menu Manuais (categoria do proprio site, sem extensao) nao e documento, com ou sem www", [docs(`<a href="/eletrica-eletronica/ferramentas/manuais">Manuais</a>`), docs(`<a href="https://easytronics.com.br/ferramentas/datasheet-e-manuais">Datasheet</a>`)], [[], []]);
+  conferir("documento: arquivo de verdade segue valendo (extensao, anexo e dominio de arquivo)", [docs(`<a href="/arquivos/manual.pdf">Manuais</a>`), docs(`<a href="/index.php?controller=attachment&id_attachment=101">Datasheet</a>`), docs(`<a href="https://drive.google.com/file/d/abc/view">Manual de instrucoes</a>`)], [["Manuais"], ["Datasheet"], ["Manual de instrucoes"]]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
