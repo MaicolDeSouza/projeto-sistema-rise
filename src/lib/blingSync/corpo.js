@@ -9,12 +9,34 @@ import { emCm } from "@/lib/integracoes/importarBling";
  * entao o que se envia e o que se comparou.
  *
  * Nunca entram no corpo: codigo (so o POST o leva, como identificador), situacao, imagens e
- * video (`midia`), `fornecedor` (so se grava por /produtos/fornecedores), `actionEstoque` (o
- * valor `Z` zera os saldos), categoria, variacoes e campos personalizados.
+ * video (`midia`: as fotos vao num PATCH proprio, `montarCorpoDeFotos`), `fornecedor` (so se grava por
+ * /produtos/fornecedores), `actionEstoque` (o valor `Z` zera os saldos), categoria, variacoes e campos
+ * personalizados.
  *
  * A `estrutura` (composicao do kit) so entra para KIT e com os ids das pecas que o ENVIO acabou de
  * achar no Bling pelo codigo (`pecasNoBling`, Emenda 11): nunca um `blingId` guardado no Rise.
  */
+
+/**
+ * Corpo do `PATCH /produtos/{id}` que MEXE NAS FOTOS: `midia.imagens.imagensURL` com os links publicos que o
+ * Bling vai baixar. Uma lista com links acrescenta os que ele ainda nao tem; a lista VAZIA apaga todas as
+ * fotos (medido em 14/10/2026, ver `fotos.js`). A documentacao do Bling exige mandar `midia.video` junto com
+ * `midia.imagens`, entao vai o endereco de video que o produto ja tem (vazio se nao tem), para nao mexer nele.
+ *
+ * So endereco http/https entra: o link vem do `APP_URL_PUBLICA` + o nome gerado pelo Rise, e um valor
+ * estranho nao pode virar pedido do Bling baixar outra coisa.
+ *
+ * @param {string} videoUrl o `midia.video.url` do produto no Bling ("" se nao tem).
+ * @param {string[]} links
+ */
+export function montarCorpoDeFotos(videoUrl, links) {
+  return {
+    midia: {
+      video: { url: String(videoUrl ?? "") },
+      imagens: { imagensURL: (links ?? []).filter((link) => /^https?:\/\//i.test(String(link ?? ""))).map((link) => ({ link })) },
+    },
+  };
+}
 
 /// O tipo de estoque de um kit criado pelo Rise: "V" (virtual), o Bling calcula o saldo pelas pecas, a
 /// mesma conta do Rise (`estoqueDoKit`). Com "F" o kit teria estoque proprio, que ninguem lanca.

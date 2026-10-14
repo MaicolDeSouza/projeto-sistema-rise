@@ -65,6 +65,16 @@ function valorNaFrase(campo, valor) {
   return texto.length > LIMITE_DO_VALOR_NA_FRASE ? `${texto.slice(0, LIMITE_DO_VALOR_NA_FRASE)}...` : texto;
 }
 
+/// A linha das fotos de um envio ("Fotos: 3 enviada(s)..."), ou null quando nenhuma foto foi enviada. `substituir`
+/// avisa que as antigas do Bling foram trocadas: e o unico caso em que o envio apaga algo la.
+function linhaDeFotos(fotos) {
+  const enviadas = inteiro(fotos?.enviadas);
+  if (enviadas === 0) return null;
+  return fotos.acao === "substituir"
+    ? `Fotos: ${enviadas} enviada(s), no lugar das que o Bling tinha.`
+    : `Fotos: ${enviadas} enviada(s) ao Bling.`;
+}
+
 /// O rotulo do campo se a tela o conhece; senao o proprio id (nunca uma chave herdada do objeto).
 function rotuloDe(rotulos, campo) {
   return rotulos && Object.hasOwn(rotulos, campo) ? rotulos[campo] : campo;
@@ -111,7 +121,12 @@ export function mudouNoBling(tipo, resultado) {
   if (!resultado) return false;
   const ok = resultado.ok === true;
   if (tipo === "sincronizar") {
-    return ok || inteiro(resultado.alterados?.length) > 0 || inteiro(resultado.fornecedores?.enviados) > 0;
+    return (
+      ok ||
+      inteiro(resultado.alterados?.length) > 0 ||
+      inteiro(resultado.fornecedores?.enviados) > 0 ||
+      inteiro(resultado.fotos?.enviadas) > 0
+    );
   }
   if (tipo === "cadastrar") return ok || Boolean(resultado.blingId);
   if (tipo === "estoque") return ok || inteiro(resultado.enviados) > 0;
@@ -143,6 +158,8 @@ export function resumirEnvio(tipo, resultado, rotulos = {}) {
       ({ campo, de, para }) => `${rotuloDe(rotulos, campo)}: de ${valorNaFrase(campo, de)} para ${valorNaFrase(campo, para)}`,
     );
     if (fornecedores > 0) linhas.push(`Fornecedores enviados: ${fornecedores}.`);
+    const linhaDasFotos = linhaDeFotos(resultado.fotos);
+    if (linhaDasFotos) linhas.push(linhaDasFotos);
 
     if (ok) {
       return linhas.length > 0
@@ -154,7 +171,7 @@ export function resumirEnvio(tipo, resultado, rotulos = {}) {
 
   if (tipo === "cadastrar") {
     const id = resultado.blingId ? ` (id ${resultado.blingId})` : "";
-    if (ok) return { titulo: `Produto cadastrado no Bling${id}.`, linhas: [] };
+    if (ok) return { titulo: `Produto cadastrado no Bling${id}.`, linhas: [linhaDeFotos(resultado.fotos)].filter(Boolean) };
     return resultado.blingId ? { titulo: `O produto foi criado no Bling${id}, mas o envio não terminou.`, linhas: [] } : null;
   }
 

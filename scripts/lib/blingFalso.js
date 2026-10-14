@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 /**
  * Bling FALSO para os testes da sincronizacao Rise <-> Bling (plano de 04/10/2026).
  *
@@ -20,6 +22,12 @@
  *
  * Id inexistente: `GET /produtos/{id}` da 404 `RESOURCE_NOT_FOUND` (medido no Bling real em
  * 04/10/2026), enquanto `GET /estoques/saldos?idsProdutos[]=` da 200 com `data: []`.
+ *
+ * FOTOS (medido no Bling real em 14/10/2026, produto de teste): o PATCH com `midia.imagens.imagensURL` responde
+ * 200 e o Bling baixa EM SEGUNDO PLANO (o falso aplica depois de `fotosAposLeituras` leituras do produto);
+ * uma lista ACRESCENTA as fotos que ele ainda nao tem (a mesma origem de novo nao duplica); a lista VAZIA
+ * apaga TODAS; PATCH sem `midia` nao mexe nas fotos. O arquivo guardado e identico ao enviado: o teste dos
+ * bytes de cada origem em `bytesDasOrigens` e os recebe de volta por `falso.bytesDaFoto(linkDoS3)`.
  *
  * Endpoint que ele nao conhece LANCA um erro ("nao suportado"): e erro do teste ou do
  * falso, e esconder isso atras de um 404 faria o teste passar sem provar nada.
@@ -164,6 +172,12 @@ function tamanhoDaUrl(rota, consulta) {
  *   falham (padrao: todas).
  * @param {string[]} [opcoes.codigosLiberados] se preenchida, `exigirEscrita` recusa os codigos
  *   fora dela (a segunda trava do cliente real). Padrao: aceita todos.
+ * @param {number} [opcoes.fotosAposLeituras] quantas leituras de `GET /produtos/{id}` passam antes de o
+ *   Bling "terminar de baixar" as fotos de um PATCH (padrao 1: a primeira leitura ainda mostra o antigo).
+ * @param {Object<string, Buffer>} [opcoes.bytesDasOrigens] o conteudo de cada link publico que o Bling vai
+ *   baixar; sem ele, o conteudo da foto e o proprio link.
+ * @param {Object<string, Buffer>} [opcoes.bytesDasFotos] o conteudo das fotos que ja estavam no produto
+ *   (`midia.imagens.internas[].link` da carga inicial).
  * @param {boolean} [opcoes.exigirEscritaObrigatorio] padrao `true`: `post`, `put` e `patch` LANCAM
  *   erro de teste se `exigirEscrita` nao foi chamada (e aceita) antes nesta instancia. `false` so
  *   para os testes que exercitam os endpoints do proprio falso sem ter um sku a pedir.
@@ -177,6 +191,13 @@ export function criarBlingFalso(opcoes = {}) {
   const codigosLiberados = (opcoes.codigosLiberados ?? []).map((codigo) => minusculo(codigo).trim());
   const exigirEscritaObrigatorio = opcoes.exigirEscritaObrigatorio ?? true;
   let escritaLiberada = false; // vira true na primeira exigirEscrita aceita desta instancia
+
+  // Fotos: o que o Bling ainda vai fazer (`{ restantes, links }` por produto), de onde veio cada foto (para
+  // nao duplicar) e o conteudo de cada link do S3.
+  const fotosAposLeituras = opcoes.fotosAposLeituras ?? 1;
+  const filaDeFotos = new Map(); // id do produto -> [{ restantes, links }]
+  const origensDasFotos = new Map(); // id do produto -> origens ja baixadas
+  const bytesDosLinks = new Map(Object.entries(opcoes.bytesDasFotos ?? {}));
 
   const produtos = new Map(); // id -> produto como o Bling o guarda (sem o saldo)
   const saldos = new Map(); // id do produto -> { virtual, fisico }
@@ -216,6 +237,19 @@ export function criarBlingFalso(opcoes = {}) {
     if (!corpo || typeof corpo !== "object") return;
     for (const [chave, valor] of Object.entries(corpo)) {
       if (ignorarSomenteLeitura && SOMENTE_LEITURA_DO_PRODUTO.has(chave)) continue;
+      // `midia` num PATCH/POST: o video troca na hora; as fotos entram na fila (o Bling baixa depois) e as
+      // que ja estao no produto continuam la ate a fila rodar. Na carga inicial `midia` fica como veio.
+      if (chave === "midia" && ignorarSomenteLeitura) {
+        const atual = produto.midia ?? { video: { url: "" }, imagens: { externas: [], internas: [], imagensURL: [] } };
+        produto.midia = { ...atual, ...(valor?.video ? { video: copia(valor.video) } : {}) };
+        const links = valor?.imagens?.imagensURL;
+        if (Array.isArray(links)) {
+          const fila = filaDeFotos.get(produto.id) ?? [];
+          fila.push({ restantes: fotosAposLeituras, links: links.map((item) => item?.link).filter(Boolean) });
+          filaDeFotos.set(produto.id, fila);
+        }
+        continue;
+      }
       const novo = copia(valor);
       // O saldo e somente-leitura: so POST /estoques o muda.
       if (chave === "estoque" && novo && typeof novo === "object") delete novo.saldoVirtualTotal;
@@ -323,6 +357,46 @@ export function criarBlingFalso(opcoes = {}) {
   // Formatos de resposta
   // ---------------------------------------------------------------------------
 
+  /// O link do S3 de uma foto baixada de `origem`. O conteudo e o que o teste deu para a origem (ou a propria
+  /// origem), guardado por link: e o que `falso.bytesDaFoto` devolve.
+  function linkDoS3(origem) {
+    const hash = createHash("sha1").update(origem).digest("hex");
+    const link = `https://orgbling.s3.amazonaws.com/falso/${hash}?Expires=9999999999`;
+    if (!bytesDosLinks.has(link)) bytesDosLinks.set(link, opcoes.bytesDasOrigens?.[origem] ?? Buffer.from(origem));
+    return link;
+  }
+
+  /// Roda a fila de fotos de um produto: cada leitura e um passo, e o que ja "terminou de baixar" e aplicado
+  /// na ordem do envio. Lista vazia apaga todas; lista com links acrescenta so as origens que ainda nao veio.
+  function avancarFotos(produto) {
+    const fila = filaDeFotos.get(produto.id);
+    if (!fila?.length) return;
+    const pendentes = [];
+    for (const passo of fila) {
+      passo.restantes -= 1;
+      if (passo.restantes > 0) {
+        pendentes.push(passo);
+        continue;
+      }
+      const imagens = (produto.midia ??= { video: { url: "" }, imagens: {} }).imagens ?? (produto.midia.imagens = {});
+      const origens = origensDasFotos.get(produto.id) ?? [];
+      if (passo.links.length === 0) {
+        imagens.internas = [];
+        origens.length = 0;
+      } else {
+        imagens.internas ??= [];
+        for (const origem of passo.links) {
+          if (origens.includes(origem)) continue;
+          origens.push(origem);
+          const link = linkDoS3(origem);
+          imagens.internas.push({ link, linkMiniatura: link.replace("/falso/", "/falso/t/"), validade: "2026-10-21 18:00:00" });
+        }
+      }
+      origensDasFotos.set(produto.id, origens);
+    }
+    filaDeFotos.set(produto.id, pendentes);
+  }
+
   /// O produto como GET /produtos/{id} o devolve: o saldo vem junto, em estoque.saldoVirtualTotal.
   function produtoCompleto(produto) {
     const saida = copia(produto);
@@ -395,6 +469,7 @@ export function criarBlingFalso(opcoes = {}) {
         const produto = produtos.get(Number(id));
         // Medido no Bling real: id que nao existe da 404. O `data: []` (200) e o formato de
         // /estoques/saldos?idsProdutos[]=, nao deste endpoint.
+        if (produto) avancarFotos(produto);
         return produto ? resposta(200, { data: produtoCompleto(produto) }) : naoEncontrado();
       },
     ],
@@ -768,6 +843,13 @@ export function criarBlingFalso(opcoes = {}) {
     produto(idOuCodigo) {
       const produto = acharProduto(idOuCodigo);
       return produto ? produtoCompleto(produto) : null;
+    },
+    /// O conteudo de uma foto pelo link do S3 que o Bling devolveu (o que o servidor baixaria). Link
+    /// desconhecido lanca, como um download que falha.
+    bytesDaFoto(link) {
+      const bytes = bytesDosLinks.get(link);
+      if (!bytes) throw new Error(`Bling falso: foto desconhecida (${link})`);
+      return bytes;
     },
     /// O saldo virtual do produto (id ou codigo), ou null se ele nao existe.
     saldo(idOuCodigo) {

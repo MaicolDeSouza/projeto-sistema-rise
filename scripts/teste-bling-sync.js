@@ -1401,7 +1401,7 @@ try {
         const falso = criarBlingFalso({ produtos: [umNoBling({ codigo: "zz-bs-2" })], saldos: { "zz-bs-2": 12 } });
         const existe = await lerParaPopup(produto.id, falso);
         conferir("popup existe: ok, sku e situacao (o Bling guarda o codigo em outra caixa e ainda assim e o mesmo)", [existe.ok, existe.sku, existe.situacao], [true, "ZZ-BS-2", "existe"]);
-        conferir("popup existe: sem a chave erro, e todas as outras", Object.keys(existe).sort(), ["avisos", "diferencas", "escrita", "estoque", "iguais", "ok", "situacao", "sku"]);
+        conferir("popup existe: sem a chave erro, e todas as outras", Object.keys(existe).sort(), ["avisos", "diferencas", "escrita", "estoque", "fotos", "iguais", "ok", "situacao", "sku"]);
         conferir("popup existe: so o preco difere (90 no Rise, 95 no Bling); o resto bate depois de normalizar", existe.diferencas.map(resumo), [{ campo: "preco", tipo: "diferente", rise: 90, bling: 95 }]);
         conferir("popup existe: a diferenca traz o rotulo da tela", existe.diferencas[0].rotulo, "Preço");
         conferir("popup existe: iguais conta os campos iguais (19 menos o preco)", [existe.iguais, existe.iguais + existe.diferencas.length === CAMPOS_DE_ENVIO.length], [18, true]);
@@ -1464,7 +1464,7 @@ try {
         const limite = await lerComFalha({ metodo: "GET", caminho: "/produtos", status: 429, mensagem: "Muitas chamadas" });
         conferir("popup falha 429: ok false, situacao null e erro em portugues que fala do limite de chamadas", [limite.ok, limite.situacao, casaTexto(limite.erro, /limite de chamadas/)], [false, null, true]);
         conferir("popup falha: o resultado mantem todas as chaves e o que o Rise ja sabia (estoque e avisos)", [Object.keys(limite).sort(), limite.estoque, limite.avisos.length], [
-          ["avisos", "diferencas", "erro", "escrita", "estoque", "iguais", "ok", "situacao", "sku"],
+          ["avisos", "diferencas", "erro", "escrita", "estoque", "fotos", "iguais", "ok", "situacao", "sku"],
           { blingSaldo: 20, riseEstoque: 7, pendentes: 2 },
           2,
         ]);
@@ -3216,6 +3216,292 @@ try {
     });
     const lidoSumiu = await lerParaPopup(kit.id, falsoSumiu);
     conferir("pop-up de kit com peca que sumiu do Bling: ok false com o motivo", [lidoSumiu.ok, casaTexto(lidoSumiu.erro, /nao existe mais/)], [false, true]);
+  }
+
+  // -------------------------------------------------------------------------
+  // Fotos na sincronizacao (14/10/2026): o Bling acumula, nao duplica, so lista vazia apaga e baixa em
+  // segundo plano (medido no produto de teste ZZ-TESTE-BLING)
+  // -------------------------------------------------------------------------
+  console.log("\nFotos");
+  {
+    const { fotosDoBling, fotosDoRise, planoDasFotos, resumoDasFotos } = await import("../src/lib/blingSync/fotos.js");
+    const { montarCorpoDeFotos } = await import("../src/lib/blingSync/corpo.js");
+    const casaTexto = (texto, regex) => typeof texto === "string" && regex.test(texto.normalize("NFD").replace(/\p{M}/gu, ""));
+    const hex = (n) => String(n).padStart(32, "a");
+    const BASE = "https://rise.teste";
+    const urlDe = (sku, n) => `${BASE}/api/arquivos/${sku}/imagens/${hex(n)}.jpg`;
+    const conteudoDe = (n) => Buffer.from(`conteudo-da-foto-${n}`);
+
+    // --- Regras puras ---
+    const produtoDeFotos = { sku: "ZZ-BS-FOTO", arquivos: [{ arquivo: `${hex(1)}.jpg` }, { arquivo: `${hex(2)}.jpg` }, { arquivo: "" }] };
+    conferir(
+      "fotos do Rise: nome, caminho relativo (a tela) e endereco publico (o Bling), sem barra dupla e sem arquivo vazio",
+      fotosDoRise(produtoDeFotos, `${BASE}/`),
+      [1, 2].map((n) => ({ arquivo: `${hex(n)}.jpg`, caminho: `/api/arquivos/ZZ-BS-FOTO/imagens/${hex(n)}.jpg`, url: urlDe("ZZ-BS-FOTO", n) })),
+    );
+    conferir("fotos do Rise sem APP_URL_PUBLICA: o endereco publico e null", fotosDoRise(produtoDeFotos, "").map((foto) => foto.url), [null, null]);
+
+    const blingComFotos = {
+      midia: {
+        imagens: {
+          internas: [
+            { link: "https://orgbling.s3.amazonaws.com/c/a1?Expires=1", linkMiniatura: "https://orgbling.s3.amazonaws.com/c/t/a1?Expires=1" },
+            { link: "https://orgbling.s3.amazonaws.com/c/a1?Expires=1", linkMiniatura: "https://orgbling.s3.amazonaws.com/c/t/a1?Expires=1" },
+            { link: "javascript:alert(1)" },
+            { link: "https://orgbling.s3.amazonaws.com/c/a2?Expires=1" },
+          ],
+          externas: [{ link: "https://fora.exemplo.com/f.jpg" }],
+        },
+      },
+    };
+    conferir(
+      "fotos do Bling: internas e externas, sem repetir e sem link que nao e http(s); sem miniatura usa o link",
+      fotosDoBling(blingComFotos).map((foto) => [foto.link, foto.miniatura]),
+      [
+        ["https://orgbling.s3.amazonaws.com/c/a1?Expires=1", "https://orgbling.s3.amazonaws.com/c/t/a1?Expires=1"],
+        ["https://orgbling.s3.amazonaws.com/c/a2?Expires=1", "https://orgbling.s3.amazonaws.com/c/a2?Expires=1"],
+        ["https://fora.exemplo.com/f.jpg", "https://fora.exemplo.com/f.jpg"],
+      ],
+    );
+    conferir("fotos do Bling: produto sem midia = lista vazia", [fotosDoBling({}).length, fotosDoBling(null).length], [0, 0]);
+
+    // O plano: o que o Sincronizar faz com as fotos, pelo CONTEUDO (md5) e pela ordem.
+    const plano = (rise, bling) => {
+      const { acao, enviar, porContagem } = planoDasFotos(rise, bling);
+      return [acao, enviar, porContagem];
+    };
+    conferir("plano: Bling sem foto = acrescenta todas", plano(["A", "B", "C"], []), ["acrescentar", [0, 1, 2], false]);
+    conferir("plano: Bling com as primeiras do Rise na mesma ordem = acrescenta so as que faltam", plano(["A", "B", "C"], ["A"]), ["acrescentar", [1, 2], false]);
+    conferir("plano: fotos iguais e na mesma ordem = nenhuma", plano(["A", "B", "C"], ["A", "B", "C"]), ["nenhuma", [], false]);
+    conferir("plano: o Bling tem foto que o Rise nao tem = substitui", plano(["A", "B", "C"], ["X"]), ["substituir", [0, 1, 2], false]);
+    conferir("plano: a mesma quantidade com uma foto trocada = substitui", plano(["A", "B", "C"], ["A", "B", "X"]), ["substituir", [0, 1, 2], false]);
+    conferir("plano: ordem diferente (a primeira e a principal) = substitui", plano(["A", "B", "C"], ["A", "C", "B"]), ["substituir", [0, 1, 2], false]);
+    conferir("plano: o Bling tem fotos a mais = substitui", plano(["A", "B"], ["A", "B", "C"]), ["substituir", [0, 1], false]);
+    conferir("plano: Rise sem foto nunca apaga a do Bling", plano([], ["X", "Y"]), ["nenhuma", [], false]);
+    conferir("plano: fotos do Rise com o mesmo conteudo contam uma so (o Bling guarda uma)", [plano(["A", "A", "B"], ["A", "B"]), plano(["A", "A", "B"], [])], [["nenhuma", [], false], ["acrescentar", [0, 2], false]]);
+    conferir("plano: sem abrir alguma foto do Bling compara pela quantidade (igual = nenhuma, diferente = substitui)", [plano(["A", "B"], [null, null]), plano(["A", "B"], [null])], [["nenhuma", [], true], ["substituir", [0, 1], true]]);
+
+    const resumo = resumoDasFotos([{ caminho: "/c0", url: "https://x/c0" }], [{ link: "https://s3/a", miniatura: "https://s3/t/a" }], planoDasFotos(["A"], ["X"]));
+    conferir(
+      "resumo: os dois lados, a acao, quantas enviar e se pode enviar",
+      [resumo.rise.total, resumo.bling.total, resumo.acao, resumo.quantasEnviar, resumo.diferente, resumo.podeEnviar, resumo.motivo],
+      [1, 1, "substituir", 1, true, true, null],
+    );
+    const semEndereco = resumoDasFotos([{ caminho: "/c0", url: null }], [], planoDasFotos(["A"], []));
+    conferir("resumo: sem APP_URL_PUBLICA nao pode enviar e diz por que", [semEndereco.podeEnviar, /APP_URL_PUBLICA/.test(semEndereco.motivo)], [false, true]);
+
+    conferir(
+      "corpo das fotos: o video do produto vai junto (o Bling exige) e so link http(s) entra",
+      montarCorpoDeFotos("https://youtu.be/x", ["https://a/1.jpg", "javascript:alert(1)", "", "http://a/2.jpg"]),
+      { midia: { video: { url: "https://youtu.be/x" }, imagens: { imagensURL: [{ link: "https://a/1.jpg" }, { link: "http://a/2.jpg" }] } } },
+    );
+    conferir("corpo das fotos: lista vazia e video ausente = apagar tudo, video vazio", montarCorpoDeFotos(undefined, []), { midia: { video: { url: "" }, imagens: { imagensURL: [] } } });
+
+    // A leitura de verdade (disco): a memoria do hash nao pode esconder que a foto sumiu depois de lida.
+    {
+      const { mkdir, rm, unlink, writeFile } = await import("node:fs/promises");
+      const { caminhoDe } = await import("../src/lib/arquivos.js");
+      const { md5DasFotosDoRise } = await import("../src/lib/blingSync/fotos.js");
+      const { createHash } = await import("node:crypto");
+      const caminho = caminhoDe("ZZ-BS-FOTOREAL", "IMAGEM", `${hex(7)}.jpg`);
+      const pasta = caminho.replace(/[\\/]imagens[\\/][^\\/]+$/, "");
+      try {
+        await mkdir(caminho.replace(/[^\\/]+$/, ""), { recursive: true });
+        await writeFile(caminho, "conteudo-no-disco");
+        const esperado = createHash("md5").update("conteudo-no-disco").digest("hex");
+        const lerAgora = () => md5DasFotosDoRise({ sku: "ZZ-BS-FOTOREAL" }, [{ arquivo: `${hex(7)}.jpg` }]);
+        conferir("disco: o md5 do arquivo e o do conteudo (e a segunda leitura, da memoria, igual)", [await lerAgora(), await lerAgora()], [[esperado], [esperado]]);
+        await unlink(caminho);
+        conferir("disco: o arquivo sumiu depois de lido: volta null mesmo com a memoria", await lerAgora(), [null]);
+      } finally {
+        await rm(pasta, { recursive: true, force: true });
+      }
+    }
+
+    // --- Banco + Bling falso ---
+    const enderecoAntes = config.appUrlPublica;
+    config.appUrlPublica = BASE;
+    try {
+      const produto = await prisma.produto.create({ data: { sku: "ZZ-BS-FOTO", tituloBase: "Produto com fotos", precoVenda: "10.00", unidade: "UN" } });
+      await prisma.produtoArquivo.createMany({
+        data: [
+          { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO", arquivo: `${hex(1)}.jpg`, principal: false, ordem: 1 },
+          { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO", arquivo: `${hex(2)}.jpg`, principal: true, ordem: 0 },
+          { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO", arquivo: `${hex(3)}.jpg`, principal: false, ordem: 2 },
+          // A reserva nao e foto do produto, e documento tambem nao: nunca entram na comparacao nem no envio.
+          { produtoId: produto.id, tipo: "IMAGEM", papel: "RESERVA", arquivo: `${hex(4)}.jpg`, ordem: 3 },
+          { produtoId: produto.id, tipo: "DOCUMENTO", papel: "FOTO", arquivo: `${hex(5)}.pdf`, ordem: 4 },
+        ],
+      });
+      // Ordem de envio: a principal primeiro (2), depois por ordem (1, 3).
+      const ORDEM = [2, 1, 3];
+      const arquivoDe = (n) => `${hex(n)}.jpg`;
+      const bytesDoRise = async (_sku, arquivo) => {
+        const n = [1, 2, 3].find((numero) => arquivoDe(numero) === arquivo);
+        if (!n) throw new Error("ENOENT");
+        return conteudoDe(n);
+      };
+      const bytesDasOrigens = Object.fromEntries([1, 2, 3].map((n) => [urlDe("ZZ-BS-FOTO", n), conteudoDe(n)]));
+      const noBling = (extra = {}) => ({ id: 15000000901, codigo: "ZZ-BS-FOTO", nome: "Produto com fotos", preco: 10, unidade: "UN", formato: "S", ...extra });
+      const semFotos = { video: { url: "" }, imagens: { externas: [], internas: [], imagensURL: [] } };
+      const novoFalsoDeFotos = (opcoes = {}) => criarBlingFalso({ bytesDasOrigens, ...opcoes });
+      const depsDe = (falso) => ({ bytesDoRise, bytesDoBling: async (link) => falso.bytesDaFoto(link), esperar: async () => {} });
+      const doMetodoBs = (falso, metodo) => falso.chamadas.filter((chamada) => chamada.metodo === metodo);
+      const patchesDeFotos = (falso) => doMetodoBs(falso, "PATCH").filter((chamada) => chamada.corpo?.midia);
+      const linksDe = (chamada) => chamada.corpo.midia.imagens.imagensURL.map((item) => item.link);
+      const conteudosNoBling = (falso) => falso.produto("ZZ-BS-FOTO").midia.imagens.internas.map((imagem) => falso.bytesDaFoto(imagem.link).toString());
+
+      // --- O pop-up: as fotos dos dois lados e o que o Sincronizar vai fazer ---
+      {
+        const falso = novoFalsoDeFotos({ produtos: [noBling({ midia: semFotos })] });
+        const popup = await lerParaPopup(produto.id, falso, depsDe(falso));
+        conferir(
+          "pop-up: so as 3 fotos validadas do Rise (a principal primeiro, sem reserva nem documento); Bling sem foto = acrescenta as 3",
+          [popup.ok, popup.fotos.rise.total, popup.fotos.rise.itens.map((foto) => foto.caminho.slice(-36)), popup.fotos.bling.total, popup.fotos.acao, popup.fotos.quantasEnviar, popup.fotos.podeEnviar],
+          [true, 3, ORDEM.map((n) => arquivoDe(n)), 0, "acrescentar", 3, true],
+        );
+        conferir("pop-up: as fotos nao entram nos campos (nem na contagem de iguais nem nas diferencas)", [popup.diferencas.some((item) => item.campo === "fotos"), popup.iguais + popup.diferencas.length], [false, CAMPOS_DE_ENVIO.length]);
+        const semBling = await lerParaPopup(produto.id, criarBlingFalso({ produtos: [] }), depsDe(falso));
+        conferir("pop-up de codigo fora do Bling: sem fotos para comparar (null)", [semBling.situacao, semBling.fotos], ["nao_existe", null]);
+      }
+
+      // --- Sincronizar: Bling sem foto -> manda as 3, na ordem, e o Bling guarda as 3 ---
+      {
+        const falso = novoFalsoDeFotos({ produtos: [noBling({ midia: semFotos })] });
+        const resultado = await sincronizarProduto(produto.id, falso, depsDe(falso));
+        conferir("sincronizar sem foto no Bling: ok e 3 fotos enviadas (acrescentar)", [resultado.ok, resultado.fotos, resultado.aviso], [true, { acao: "acrescentar", enviadas: 3 }, undefined]);
+        const envios = patchesDeFotos(falso);
+        conferir("sincronizar: UM PATCH de fotos, com os 3 links publicos na ordem do cadastro (principal primeiro) e o video do produto", [envios.length, linksDe(envios[0]), envios[0].corpo.midia.video], [1, ORDEM.map((n) => urlDe("ZZ-BS-FOTO", n)), { url: "" }]);
+        conferir("sincronizar: o Bling guardou as 3 (conteudo e ordem do Rise)", conteudosNoBling(falso), ORDEM.map((n) => conteudoDe(n).toString()));
+        conferir("sincronizar: so o PATCH de fotos (os campos ja estavam iguais)", doMetodoBs(falso, "PATCH").length, 1);
+
+        // Clique seguinte: o Bling ja tem tudo, nada sai.
+        const antes = falso.chamadas.length;
+        const segundo = await sincronizarProduto(produto.id, falso, depsDe(falso));
+        conferir("sincronizar de novo: ok, sem foto nenhuma enviada e nenhum PATCH", [segundo.ok, segundo.fotos, falso.chamadas.slice(antes).filter((chamada) => chamada.metodo === "PATCH").length], [true, undefined, 0]);
+      }
+
+      // --- O Bling tem so a primeira do Rise: acrescenta as 2 que faltam (nunca manda a que ja tem) ---
+      {
+        const linkPrimeira = "https://orgbling.s3.amazonaws.com/original/primeira?Expires=1";
+        const falso = novoFalsoDeFotos({
+          produtos: [noBling({ midia: { ...semFotos, imagens: { externas: [], internas: [{ link: linkPrimeira, linkMiniatura: linkPrimeira, validade: "2026-10-21 18:00:00" }], imagensURL: [] } } })],
+          bytesDasFotos: { [linkPrimeira]: conteudoDe(2) },
+        });
+        const resultado = await sincronizarProduto(produto.id, falso, depsDe(falso));
+        const envios = patchesDeFotos(falso);
+        conferir("Bling com a primeira: ok e 2 enviadas (acrescentar)", [resultado.ok, resultado.fotos], [true, { acao: "acrescentar", enviadas: 2 }]);
+        conferir("Bling com a primeira: so os 2 links que faltam (nao confia na desduplicacao do Bling)", [envios.length, linksDe(envios[0])], [1, [urlDe("ZZ-BS-FOTO", 1), urlDe("ZZ-BS-FOTO", 3)]]);
+        conferir("Bling com a primeira: ficou com as 3 na ordem do Rise", conteudosNoBling(falso), ORDEM.map((n) => conteudoDe(n).toString()));
+      }
+
+      // --- O Bling tem foto que o Rise nao tem: APAGA (lista vazia) e so depois manda as 3 ---
+      {
+        const l1 = "https://orgbling.s3.amazonaws.com/velha/1?Expires=1";
+        const l2 = "https://orgbling.s3.amazonaws.com/velha/2?Expires=1";
+        const falso = novoFalsoDeFotos({
+          produtos: [noBling({ midia: { ...semFotos, video: { url: "https://youtu.be/abc" }, imagens: { externas: [], internas: [{ link: l1 }, { link: l2 }], imagensURL: [] } } })],
+          bytesDasFotos: { [l1]: Buffer.from("velha-1"), [l2]: Buffer.from("velha-2") },
+        });
+        const resultado = await sincronizarProduto(produto.id, falso, depsDe(falso));
+        const envios = patchesDeFotos(falso);
+        conferir("Bling com fotos que o Rise nao tem: ok, 3 enviadas no lugar das antigas (substituir)", [resultado.ok, resultado.fotos], [true, { acao: "substituir", enviadas: 3 }]);
+        conferir(
+          "substituir: primeiro a lista VAZIA (so assim o Bling tira foto), depois as 3, e o video do Bling vai nos dois",
+          [envios.length, linksDe(envios[0]), linksDe(envios[1]), envios.map((envio) => envio.corpo.midia.video.url)],
+          [2, [], ORDEM.map((n) => urlDe("ZZ-BS-FOTO", n)), ["https://youtu.be/abc", "https://youtu.be/abc"]],
+        );
+        conferir("substituir: o Bling ficou so com as do Rise, na ordem", conteudosNoBling(falso), ORDEM.map((n) => conteudoDe(n).toString()));
+      }
+
+      // --- O Bling nao termina de apagar: para antes de mandar as novas ---
+      {
+        const l1 = "https://orgbling.s3.amazonaws.com/velha/9?Expires=1";
+        const falso = novoFalsoDeFotos({
+          produtos: [noBling({ midia: { ...semFotos, imagens: { externas: [], internas: [{ link: l1 }], imagensURL: [] } } })],
+          bytesDasFotos: { [l1]: Buffer.from("velha-9") },
+          fotosAposLeituras: 9999,
+        });
+        const resultado = await sincronizarProduto(produto.id, falso, depsDe(falso));
+        conferir(
+          "Bling que nao termina de apagar: ok false, so a lista vazia foi enviada (nenhuma foto nova) e a mensagem manda sincronizar de novo",
+          [resultado.ok, casaTexto(resultado.erro, /ainda nao terminou de apagar/), patchesDeFotos(falso).length, linksDe(patchesDeFotos(falso)[0])],
+          [false, true, 1, []],
+        );
+      }
+
+      // --- O Bling aceitou e ainda baixa: ok, com aviso (nao e erro) ---
+      {
+        const falso = novoFalsoDeFotos({ produtos: [noBling({ midia: semFotos })], fotosAposLeituras: 9999 });
+        const resultado = await sincronizarProduto(produto.id, falso, depsDe(falso));
+        conferir("Bling ainda baixando: ok true, 3 enviadas e o aviso diz que mostra 0 de 3 e que reenviar e seguro", [resultado.ok, resultado.fotos?.enviadas, casaTexto(resultado.aviso, /mostra 0 de 3/), casaTexto(resultado.aviso, /nao duplica/)], [true, 3, true, true]);
+      }
+
+      // --- Foto do Rise que nao abre no disco: recusa tudo ANTES de escrever (nem os campos vao) ---
+      {
+        const falso = novoFalsoDeFotos({ produtos: [noBling({ preco: 20, midia: semFotos })] });
+        const sumiu = { ...depsDe(falso), bytesDoRise: async (sku, arquivo) => (arquivo === arquivoDe(1) ? Promise.reject(new Error("ENOENT")) : conteudoDe(2)) };
+        const resultado = await sincronizarProduto(produto.id, falso, sumiu);
+        conferir(
+          "foto sumida do disco: ok false dizendo qual, e NENHUM PATCH (nem o do preco)",
+          [resultado.ok, resultado.erro?.includes(arquivoDe(1)), doMetodoBs(falso, "PATCH").length],
+          [false, true, 0],
+        );
+      }
+
+      // --- Sem APP_URL_PUBLICA (o Rise do PC): os campos vao, as fotos ficam de fora, com o aviso ---
+      {
+        config.appUrlPublica = "";
+        const falso = novoFalsoDeFotos({ produtos: [noBling({ preco: 20, midia: semFotos })] });
+        const resultado = await sincronizarProduto(produto.id, falso, depsDe(falso));
+        config.appUrlPublica = BASE;
+        conferir(
+          "sem endereco publico: ok, o preco foi, as fotos foram puladas com o aviso e nenhum PATCH levou midia",
+          [resultado.ok, resultado.alterados.map((item) => item.campo), resultado.fotos, casaTexto(resultado.aviso, /APP_URL_PUBLICA/), patchesDeFotos(falso).length],
+          [true, ["preco"], { acao: "pulada", enviadas: 0 }, true, 0],
+        );
+      }
+
+      // --- Rise sem foto: nunca mexe nas do Bling ---
+      {
+        const produtoSemFoto = await prisma.produto.create({ data: { sku: "ZZ-BS-SEMFOTO", tituloBase: "Produto sem fotos", precoVenda: "10.00", unidade: "UN" } });
+        const l1 = "https://orgbling.s3.amazonaws.com/do-bling/1?Expires=1";
+        const falso = novoFalsoDeFotos({
+          produtos: [{ id: 15000000902, codigo: "ZZ-BS-SEMFOTO", nome: "Produto sem fotos", preco: 10, unidade: "UN", formato: "S", midia: { ...semFotos, imagens: { externas: [], internas: [{ link: l1 }], imagensURL: [] } } }],
+          bytesDasFotos: { [l1]: Buffer.from("do-bling") },
+        });
+        const resultado = await sincronizarProduto(produtoSemFoto.id, falso, depsDe(falso));
+        conferir("Rise sem foto: ok, nenhum PATCH de foto e a foto do Bling continua", [resultado.ok, resultado.fotos, patchesDeFotos(falso).length, falso.produto("ZZ-BS-SEMFOTO").midia.imagens.internas.length], [true, undefined, 0, 1]);
+      }
+
+      // --- Cadastrar: o produto nasce e as fotos vao em seguida (o POST nao leva midia) ---
+      {
+        const falso = novoFalsoDeFotos({ produtos: [] });
+        const resultado = await cadastrarNoBling(produto.id, falso, depsDe(falso));
+        const post = doMetodoBs(falso, "POST").find((chamada) => chamada.caminho === "/produtos");
+        conferir("cadastrar com fotos: ok e 3 fotos enviadas", [resultado.ok, resultado.fotos], [true, { acao: "acrescentar", enviadas: 3 }]);
+        conferir("cadastrar: o POST nao leva midia, e as fotos vao num PATCH logo depois, no id que o POST devolveu", [post && "midia" in post.corpo, patchesDeFotos(falso).length, patchesDeFotos(falso)[0].caminho === `/produtos/${resultado.blingId}`], [false, 1, true]);
+        conferir("cadastrar: o Bling ficou com as 3 fotos na ordem do Rise", conteudosNoBling(falso), ORDEM.map((n) => conteudoDe(n).toString()));
+      }
+
+      // --- Cadastrar com foto sumida do disco: nada e criado ---
+      {
+        const falso = novoFalsoDeFotos({ produtos: [] });
+        const resultado = await cadastrarNoBling(produto.id, falso, { ...depsDe(falso), bytesDoRise: async () => Promise.reject(new Error("ENOENT")) });
+        conferir("cadastrar com foto sumida: ok false e nenhum POST (nada criado no Bling)", [resultado.ok, doMetodoBs(falso, "POST").length], [false, 0]);
+      }
+
+      // --- O resumo na tela (client-safe) ---
+      {
+        const { mudouNoBling: mudou, resumirEnvio: resumir } = await import("../src/lib/blingSync/apresentacao.js");
+        conferir("resumo do envio com fotos acrescentadas", resumir("sincronizar", { ok: true, alterados: [], fotos: { acao: "acrescentar", enviadas: 3 } }), { titulo: "Sincronizado com o Bling.", linhas: ["Fotos: 3 enviada(s) ao Bling."] });
+        conferir("resumo do envio com fotos substituidas diz que trocou as do Bling", resumir("sincronizar", { ok: true, alterados: [], fotos: { acao: "substituir", enviadas: 2 } }).linhas, ["Fotos: 2 enviada(s), no lugar das que o Bling tinha."]);
+        conferir("sem foto enviada e sem campo: a frase de nada para enviar", resumir("sincronizar", { ok: true, alterados: [] }).titulo, "Nada para enviar: o Bling já estava igual ao Rise.");
+        conferir("mudouNoBling: so a foto enviada, mesmo com falha depois, pede a releitura", [mudou("sincronizar", { ok: false, alterados: [], fotos: { enviadas: 2 } }), mudou("sincronizar", { ok: false, alterados: [] })], [true, false]);
+      }
+    } finally {
+      config.appUrlPublica = enderecoAntes;
+    }
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

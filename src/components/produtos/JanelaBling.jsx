@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CircleCheck, Loader } from "lucide-react";
+import { CircleCheck, ImageOff, Loader, RefreshCw, X } from "lucide-react";
 
 import {
   abrirJanelaBling,
@@ -10,28 +10,31 @@ import {
   sincronizarComBling,
 } from "@/app/produtos/acoes-bling";
 import { mudouNoBling, resumirEnvio, valorParaTela } from "@/lib/blingSync/apresentacao";
-import { Popup } from "./EdicaoRapida";
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 
 /**
- * Pop-up aberto pelo icone do Bling na lista de Produtos: o que o Bling tem sob o codigo do produto,
- * comparado campo a campo com o Rise, e os envios (sincronizar os campos, cadastrar o produto, enviar
- * os ajustes de estoque). Cada abertura monta a janela do zero e le o Bling de novo
+ * Janela aberta pelo icone do Bling na lista de Produtos: o que o Bling tem sob o codigo do produto,
+ * comparado campo a campo com o Rise, e os envios (sincronizar os campos e as fotos, cadastrar o produto,
+ * enviar os ajustes de estoque). Cada abertura monta a janela do zero e le o Bling de novo
  * (`abrirJanelaBling`, que so le).
  *
- * Estados do corpo: carregando; erro de leitura (token, limite, codigo duplicado: a mensagem vem da
- * acao); codigo que nao existe no Bling ("Cadastrar no Bling"); ou a lista de diferencas, os avisos e
- * o bloco de estoque. O botao principal do rodape muda com o estado e e sempre o envio que faz
- * sentido nele.
+ * Desenho (pedido do dono em 14/10/2026: "similar a tela de divergencias da LI, grande como na LI"): a mesma
+ * janela do editor da Loja Integrada (`max-w-5xl`, presa no alto, cabecalho, corpo que rola e rodape), com as
+ * diferencas no molde da aba Divergencias dela. Nesta tela o operador precisa ver primeiro o que difere entre
+ * o Rise e o Bling, e a acao principal e "Sincronizar com o Bling".
  *
- * A escrita no Bling tem duas travas no servidor. Com elas fechadas os botoes de envio CONTINUAM
- * aqui, e ao clicar a acao devolve o motivo, que a janela mostra em vermelho: nunca em silencio, e
- * nunca um botao que some e deixa o operador sem saber por que. Os botoes so ficam desabilitados
- * enquanto um envio roda (a trava de "um envio por produto" da lib so vale dentro de um processo, e
- * o clique duplo nao pode mandar o mesmo ajuste duas vezes).
+ * Estados do corpo: carregando; erro de leitura (token, limite, codigo duplicado: a mensagem vem da acao);
+ * codigo que nao existe no Bling ("Cadastrar no Bling"); ou as diferencas, as fotos, os avisos e o estoque.
  *
- * Este arquivo so chama as Server Actions de `acoes-bling.js`. A lib de sincronizacao e de servidor
- * (usa `node:crypto` e o banco): o texto e as contas daqui vem de `lib/blingSync/apresentacao.js`, e
- * os rotulos dos campos, das diferencas que a propria leitura devolve.
+ * A escrita no Bling tem duas travas no servidor. Com elas fechadas os botoes de envio CONTINUAM aqui, e ao
+ * clicar a acao devolve o motivo, que a janela mostra em vermelho: nunca em silencio, e nunca um botao que
+ * some e deixa o operador sem saber por que. Os botoes so ficam desabilitados enquanto um envio roda (a trava
+ * de "um envio por produto" da lib so vale dentro de um processo, e o clique duplo nao pode mandar o mesmo
+ * ajuste duas vezes).
+ *
+ * Este arquivo so chama as Server Actions de `acoes-bling.js`. A lib de sincronizacao e de servidor (usa
+ * `node:crypto` e o banco): o texto e as contas daqui vem de `lib/blingSync/apresentacao.js`, e os rotulos
+ * dos campos, das diferencas que a propria leitura devolve.
  */
 
 /// A acao ja devolve `{ ok: false }` para o que da errado no servidor; isto cobre a rede caindo. Num
@@ -64,7 +67,7 @@ const CLASSE_DO_BOTAO_SECUNDARIO =
 function Valor({ campo, valor, quandoVazio }) {
   const texto = valorParaTela(campo, valor);
   if (texto === null) return <span className="text-suave italic">{quandoVazio}</span>;
-  return <span className="block max-h-24 overflow-y-auto break-words whitespace-pre-wrap">{texto}</span>;
+  return <span className="block max-h-40 overflow-y-auto break-words whitespace-pre-wrap">{texto}</span>;
 }
 
 /**
@@ -75,14 +78,14 @@ function Valor({ campo, valor, quandoVazio }) {
 function LinhaDeDiferenca({ item }) {
   const vazioNoRise = item.tipo === "vazioNoRise";
   return (
-    <li className={`rounded border p-2 ${vazioNoRise ? "border-borda bg-fundo/60 text-suave" : "border-amber-200 bg-amber-50/50"}`}>
-      <p className="text-xs font-medium text-texto">
+    <li className={`rounded border p-3 ${vazioNoRise ? "border-borda bg-fundo/60 text-suave" : "border-amber-200 bg-amber-50/50"}`}>
+      <p className="text-sm font-medium text-texto">
         {item.rotulo}
-        <span className="ml-1.5 font-normal text-suave">{vazioNoRise ? "só tem no Bling" : "diferente"}</span>
+        <span className="ml-1.5 text-xs font-normal text-suave">{vazioNoRise ? "só tem no Bling" : "diferente"}</span>
       </p>
-      <dl className="mt-1 grid grid-cols-2 gap-3 text-xs">
+      <dl className="mt-1.5 grid grid-cols-2 gap-3 text-xs">
         <div className="min-w-0">
-          <dt className="text-[11px] text-suave">No Rise</dt>
+          <dt className="text-[11px] text-suave">No Rise (salvo)</dt>
           <dd>
             <Valor campo={item.campo} valor={item.rise} quandoVazio="vazio no Rise (não será enviado)" />
           </dd>
@@ -98,35 +101,127 @@ function LinhaDeDiferenca({ item }) {
   );
 }
 
+/// Quantas miniaturas cabem numa linha da janela antes do "+N".
+const MINIATURAS_VISIVEIS = 12;
+
+/// A fila de miniaturas de um lado. Foto que nao abre (link do Bling vencido, arquivo sumido) some do quadro
+/// e fica a contagem, que e o que a comparacao usa.
+function Miniaturas({ itens, campo, vazio }) {
+  if (itens.length === 0) {
+    return (
+      <span className="flex items-center gap-1.5 text-suave italic">
+        <ImageOff size={14} />
+        {vazio}
+      </span>
+    );
+  }
+  const visiveis = itens.slice(0, MINIATURAS_VISIVEIS);
+  return (
+    <ul className="flex flex-wrap gap-1.5">
+      {visiveis.map((item, posicao) => (
+        <li key={`${posicao}-${item[campo]}`} className="h-14 w-14 shrink-0 overflow-hidden rounded border border-borda bg-white">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={item[campo]} alt={`Foto ${posicao + 1}`} loading="lazy" className="h-full w-full object-contain" />
+        </li>
+      ))}
+      {itens.length > visiveis.length && (
+        <li className="flex h-14 w-14 shrink-0 items-center justify-center rounded border border-borda bg-fundo text-xs text-suave">
+          +{itens.length - visiveis.length}
+        </li>
+      )}
+    </ul>
+  );
+}
+
+/// O que o Sincronizar faz com as fotos, dito em uma linha: so aparece quando ele vai mexer nelas. "Trocar" e o
+/// unico caso em que o envio apaga algo no Bling (ele so tira foto com a lista vazia), por isso vem dito.
+function textoDaAcaoDeFotos(fotos) {
+  if (fotos.acao === "acrescentar") return `O Sincronizar envia ${fotos.quantasEnviar} foto(s) que faltam no Bling.`;
+  if (fotos.acao === "substituir") return "O Sincronizar troca as fotos do Bling pelas do Rise.";
+  return null;
+}
+
+/**
+ * As fotos dos dois lados. So aparece quando algum lado tem foto (caixa sem dado some). A comparacao e pelo
+ * CONTEUDO das fotos (o Bling guarda o arquivo identico ao enviado), nao so pela quantidade; sem conseguir abrir
+ * alguma, cai na quantidade e diz. Foto so no Bling (o Rise nao tem nenhuma) fica em cinza: nada e enviado, foto
+ * vazia no Rise nunca apaga.
+ */
+function BlocoDeFotos({ fotos }) {
+  if (!fotos || (fotos.rise.total === 0 && fotos.bling.total === 0)) return null;
+  const soNoBling = fotos.rise.total === 0;
+  const tom = soNoBling ? "border-borda bg-fundo/60 text-suave" : fotos.diferente ? "border-amber-200 bg-amber-50/50" : "border-borda";
+  let estado = "iguais";
+  if (soNoBling) estado = "só tem no Bling";
+  else if (fotos.acao === "acrescentar") estado = "faltam no Bling";
+  else if (fotos.acao === "substituir") estado = "diferentes";
+  else if (fotos.porContagem) estado = "mesma quantidade";
+  const acao = fotos.podeEnviar ? textoDaAcaoDeFotos(fotos) : null;
+  return (
+    <section aria-label="Fotos" className={`rounded border p-3 ${tom}`}>
+      <p className="text-sm font-medium text-texto">
+        Fotos
+        <span className="ml-1.5 text-xs font-normal text-suave">{estado}</span>
+      </p>
+      <dl className="mt-1.5 grid grid-cols-2 gap-3 text-xs">
+        <div className="min-w-0">
+          <dt className="text-[11px] text-suave">No Rise ({fotos.rise.total})</dt>
+          <dd className="mt-1">
+            <Miniaturas itens={fotos.rise.itens} campo="caminho" vazio="sem foto no Rise (não será enviado)" />
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-[11px] text-suave">No Bling ({fotos.bling.total})</dt>
+          <dd className="mt-1">
+            <Miniaturas itens={fotos.bling.itens} campo="miniatura" vazio="sem foto no Bling" />
+          </dd>
+        </div>
+      </dl>
+      {acao && <p className="mt-2 text-xs text-amber-900">{acao}</p>}
+      {fotos.motivo && <p className="mt-2 text-xs text-amber-800">{fotos.motivo}</p>}
+    </section>
+  );
+}
+
 /**
  * As diferencas e quantos campos sao iguais. Os iguais ficam so na contagem: a leitura devolve o
  * numero, nao a lista deles, e os rotulos dos campos vivem numa lib de servidor que o navegador nao
  * importa.
  */
-function Diferencas({ diferencas, iguais }) {
+function Diferencas({ diferencas, fotos, iguais, lerDeNovo, lendo }) {
+  const diferentes = diferencas.filter((item) => item.tipo === "diferente").length + (fotos?.diferente ? 1 : 0);
   const textoDosIguais = `${iguais} ${iguais === 1 ? "campo igual" : "campos iguais"}`;
 
-  if (diferencas.length === 0) {
-    return (
-      <section aria-label="Diferenças entre o Rise e o Bling">
-        <p className={`rounded border p-2 text-xs ${CLASSE_DO_TOM.ok}`}>
-          Nenhuma diferença: {textoDosIguais} no Rise e no Bling.
-        </p>
-      </section>
-    );
-  }
-
   return (
-    <section aria-label="Diferenças entre o Rise e o Bling">
-      <p className="text-xs font-medium">
-        Diferenças entre o Rise e o Bling <span className="font-normal text-suave">({diferencas.length})</span>
-      </p>
-      <ul className="mt-1.5 space-y-1.5">
-        {diferencas.map((item) => (
-          <LinhaDeDiferenca key={item.campo} item={item} />
-        ))}
-      </ul>
-      {iguais > 0 && <p className="mt-1.5 text-xs text-suave">{textoDosIguais}</p>}
+    <section aria-label="Diferenças entre o Rise e o Bling" className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {diferentes === 0 && diferencas.length === 0 ? (
+          <p className={`rounded border px-3 py-1.5 text-sm ${CLASSE_DO_TOM.ok}`}>Nenhuma diferença: {textoDosIguais} no Rise e no Bling.</p>
+        ) : (
+          <p className="text-sm">
+            <span className="font-semibold">{diferentes} item(ns) diferente(s)</span> entre o produto salvo no Rise e o Bling.
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={lerDeNovo}
+          disabled={lendo}
+          className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-xs hover:bg-fundo disabled:opacity-60"
+        >
+          {lendo ? <Loader size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+          Ler o Bling de novo
+        </button>
+      </div>
+
+      {diferencas.length > 0 && (
+        <ul className="space-y-2">
+          {diferencas.map((item) => (
+            <LinhaDeDiferenca key={item.campo} item={item} />
+          ))}
+        </ul>
+      )}
+      <BlocoDeFotos fotos={fotos} />
+      {iguais > 0 && diferencas.length > 0 && <p className="text-xs text-suave">{textoDosIguais} no Rise e no Bling.</p>}
     </section>
   );
 }
@@ -168,6 +263,16 @@ export default function JanelaBling({ produto, aoFechar }) {
       montada.current = false;
     };
   }, [produto.id]);
+
+  // O Esc fecha a janela. Efeito proprio: `aoFechar` muda a cada render da lista, e se ele entrasse no efeito
+  // da abertura o foco voltaria para a janela toda hora.
+  useEffect(() => {
+    function aoTeclar(evento) {
+      if (evento.key === "Escape") aoFechar();
+    }
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, [aoFechar]);
 
   const carregando = leitura === null;
   const pendente = carregando || ocupado;
@@ -243,150 +348,209 @@ export default function JanelaBling({ produto, aoFechar }) {
   // Sem o sku a leitura falhou antes de achar o produto no Rise: nao ha estoque a mostrar.
   const mostraEstoque = Boolean(estoque && leitura?.sku);
   const escritaBloqueada = leitura?.ok && leitura.escrita?.liberada === false;
+  const temAviso = Boolean(erro || envio);
 
+  // Presa no ALTO, como a do editor da Loja Integrada: centralizada, ela subia e descia a cada leitura.
   return (
-    <Popup
-      titulo="Sincronização com o Bling"
-      produto={produto}
-      aoFechar={aoFechar}
-      aoEnviar={principal.executar}
-      rotuloBotao={rotuloDoBotao}
-      pendente={pendente}
-      erro={erro}
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/50 p-4 pt-[4vh] text-left font-normal normal-case"
+      {...propsDoFundo(() => aoFechar())}
     >
-      <div ref={foco} tabIndex={-1} aria-busy={pendente} className="max-h-[45vh] space-y-3 overflow-y-auto pr-1 focus:outline-none">
-        {carregando ? (
-          <p role="status" className="flex items-center gap-2 py-6 text-sm text-suave">
-            <Loader size={16} className="animate-spin" />
-            Lendo o Bling...
-          </p>
-        ) : (
-          <>
-            {!leitura.ok && (
-              <p role="alert" className={`rounded border p-2.5 text-xs ${CLASSE_DO_TOM.erro}`}>
-                {leitura.erro ?? "Não foi possível ler o Bling."}
-              </p>
-            )}
-
-            {leitura.ok && leitura.situacao === "nao_existe" && (
-              <section aria-label="Produto fora do Bling" className="rounded border border-borda bg-fundo p-2.5 text-xs">
-                <p className="font-medium">Este código não está no Bling</p>
-                <p className="mt-1 text-suave">
-                  O código <span className="font-mono">{leitura.sku}</span> não foi achado entre os produtos ativos do Bling.
-                  &quot;Cadastrar no Bling&quot; cria o produto lá com os dados do Rise. Se ele existe inativo no Bling, reative-o
-                  lá em vez de cadastrar.
-                </p>
-              </section>
-            )}
-
-            {leitura.ok && leitura.situacao === "existe" && (
-              <Diferencas diferencas={leitura.diferencas ?? []} iguais={leitura.iguais ?? 0} />
-            )}
-
-            {avisos.length > 0 && (
-              <ul className={`space-y-1 rounded border p-2 text-xs ${CLASSE_DO_TOM.atencao}`}>
-                {avisos.map((aviso, indice) => (
-                  <li key={`${indice}-${aviso}`}>{aviso}</li>
-                ))}
-              </ul>
-            )}
-
-            {mostraEstoque && (
-              <section aria-label="Estoque" className="rounded border border-borda p-2.5">
-                <p className="text-xs font-medium">Estoque</p>
-                <dl className="mt-1.5 grid grid-cols-3 gap-2">
-                  <div>
-                    <dt className="text-[11px] text-suave">Saldo no Bling</dt>
-                    <dd className="text-base tabular-nums">{estoque.blingSaldo ?? "não lido"}</dd>
-                    {/* Sem leitura agora (codigo fora do Bling ou erro), o saldo e o ultimo guardado no Rise. */}
-                    {estoque.blingSaldo !== null && (
-                      <dd className="text-[11px] text-suave">{leitura.situacao === "existe" ? "lido agora" : "último lido"}</dd>
-                    )}
-                  </div>
-                  <div>
-                    <dt className="text-[11px] text-suave">Estoque no Rise</dt>
-                    <dd className="text-base tabular-nums">{estoque.riseEstoque}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[11px] text-suave">Ajustes pendentes</dt>
-                    <dd className="text-base tabular-nums">{estoque.pendentes}</dd>
-                  </div>
-                </dl>
-                <p className="mt-1.5 text-[11px] text-suave">O estoque do Rise é o saldo do Bling mais os ajustes ainda não enviados.</p>
-
-                {leitura.ok && leitura.situacao === "existe" && estoque.pendentes > 0 && !depositos && (
-                  <button type="button" onClick={() => enviarEstoque()} disabled={pendente} className={`mt-2 ${CLASSE_DO_BOTAO_SECUNDARIO}`}>
-                    {qual === "estoque" && <Loader size={13} className="animate-spin" />}
-                    {qual === "estoque" ? "Enviando..." : "Enviar ajustes de estoque"}
-                  </button>
-                )}
-
-                {depositos && (
-                  <fieldset className={`mt-2 rounded border p-2.5 ${CLASSE_DO_TOM.atencao}`}>
-                    <legend className="px-1 text-xs font-medium">Escolha o depósito</legend>
-                    <p className="text-xs">{depositos.motivo}</p>
-                    {/* O Enter num radio enviaria o formulario inteiro, e o botao principal do rodape e
-                        outro envio (sincronizar): aqui o Enter nao faz nada. */}
-                    <div
-                      className="mt-1.5 space-y-1"
-                      onKeyDown={(evento) => {
-                        if (evento.key === "Enter") evento.preventDefault();
-                      }}
-                    >
-                      {depositos.lista.map((item) => (
-                        <label key={item.id} className="flex cursor-pointer items-center gap-2 text-xs">
-                          <input
-                            type="radio"
-                            name="deposito-bling"
-                            checked={deposito === item.id}
-                            onChange={() => setDeposito(item.id)}
-                            disabled={pendente}
-                          />
-                          {item.descricao || `Depósito ${item.id}`}
-                        </label>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => enviarEstoque(deposito)}
-                      disabled={pendente || deposito === null}
-                      className={`mt-2 ${CLASSE_DO_BOTAO_SECUNDARIO}`}
-                    >
-                      {qual === "estoque" && <Loader size={13} className="animate-spin" />}
-                      {qual === "estoque" ? "Enviando..." : "Enviar ajustes neste depósito"}
-                    </button>
-                  </fieldset>
-                )}
-              </section>
-            )}
-
-            {escritaBloqueada && (
-              <p className={`rounded border p-2 text-xs ${CLASSE_DO_TOM.atencao}`}>
-                <span className="font-medium">Envio ao Bling bloqueado.</span> {leitura.escrita.motivo}
-              </p>
-            )}
-          </>
-        )}
-      </div>
-
-      {envio && (
-        <div role="status" className={`mt-3 rounded border p-2.5 text-xs ${CLASSE_DO_TOM[envio.ok ? "ok" : "atencao"]}`}>
-          {envio.titulo && (
-            <p className="flex items-start gap-1.5 font-medium">
-              {envio.ok && <CircleCheck size={14} className="mt-px shrink-0" />}
-              {envio.titulo}
+      <section
+        ref={foco}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Sincronização com o Bling"
+        aria-busy={pendente}
+        className="flex max-h-full w-full max-w-5xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl focus:outline-none"
+      >
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-5 py-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Sincronização com o Bling</p>
+            <p className="mt-0.5 truncate text-xs text-suave">
+              <span className="font-mono">{produto.sku}</span> · {produto.tituloBase}
             </p>
+          </div>
+          <button type="button" onClick={aoFechar} aria-label="Fechar" className="rounded p-1 text-suave hover:bg-fundo">
+            <X size={16} />
+          </button>
+        </header>
+
+        {temAviso && (
+          <div className="shrink-0 space-y-2 px-5 pt-3">
+            {erro && (
+              <p role="alert" className={`rounded border px-3 py-2 text-sm ${CLASSE_DO_TOM.erro}`}>
+                {erro}
+              </p>
+            )}
+            {envio && (
+              <div role="status" className={`rounded border px-3 py-2 text-sm ${CLASSE_DO_TOM[envio.ok ? "ok" : "atencao"]}`}>
+                {envio.titulo && (
+                  <p className="flex items-start gap-1.5 font-medium">
+                    {envio.ok && <CircleCheck size={15} className="mt-0.5 shrink-0" />}
+                    {envio.titulo}
+                  </p>
+                )}
+                {envio.linhas.length > 0 && (
+                  <ul className="mt-1 max-h-28 list-disc space-y-0.5 overflow-y-auto pl-5 text-xs">
+                    {envio.linhas.map((linha, indice) => (
+                      <li key={`${indice}-${linha}`}>{linha}</li>
+                    ))}
+                  </ul>
+                )}
+                {envio.aviso && <p className={envio.titulo ? "mt-1 text-xs" : "text-xs"}>{envio.aviso}</p>}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+          {carregando ? (
+            <p role="status" className="flex items-center gap-2 py-6 text-sm text-suave">
+              <Loader size={16} className="animate-spin" />
+              Lendo o Bling...
+            </p>
+          ) : (
+            <>
+              {!leitura.ok && (
+                <p role="alert" className={`rounded border px-3 py-2 text-sm ${CLASSE_DO_TOM.erro}`}>
+                  {leitura.erro ?? "Não foi possível ler o Bling."}
+                </p>
+              )}
+
+              {leitura.ok && leitura.situacao === "nao_existe" && (
+                <section aria-label="Produto fora do Bling" className="rounded border border-borda bg-fundo p-3 text-sm">
+                  <p className="font-medium">Este código não está no Bling</p>
+                  <p className="mt-1 text-xs text-suave">
+                    O código <span className="font-mono">{leitura.sku}</span> não foi achado entre os produtos ativos do Bling.
+                    &quot;Cadastrar no Bling&quot; cria o produto lá com os dados do Rise. Se ele existe inativo no Bling, reative-o
+                    lá em vez de cadastrar.
+                  </p>
+                </section>
+              )}
+
+              {leitura.ok && leitura.situacao === "existe" && (
+                <Diferencas
+                  diferencas={leitura.diferencas ?? []}
+                  fotos={leitura.fotos ?? null}
+                  iguais={leitura.iguais ?? 0}
+                  lerDeNovo={lerDeNovo}
+                  lendo={pendente}
+                />
+              )}
+
+              {avisos.length > 0 && (
+                <ul className={`space-y-1 rounded border p-3 text-xs ${CLASSE_DO_TOM.atencao}`}>
+                  {avisos.map((aviso, indice) => (
+                    <li key={`${indice}-${aviso}`}>{aviso}</li>
+                  ))}
+                </ul>
+              )}
+
+              {mostraEstoque && (
+                <section aria-label="Estoque" className="rounded border border-borda p-3">
+                  <p className="text-sm font-medium">Estoque</p>
+                  <dl className="mt-2 grid grid-cols-3 gap-3">
+                    <div>
+                      <dt className="text-[11px] text-suave">Saldo no Bling</dt>
+                      <dd className="text-base tabular-nums">{estoque.blingSaldo ?? "não lido"}</dd>
+                      {/* Sem leitura agora (codigo fora do Bling ou erro), o saldo e o ultimo guardado no Rise. */}
+                      {estoque.blingSaldo !== null && (
+                        <dd className="text-[11px] text-suave">{leitura.situacao === "existe" ? "lido agora" : "último lido"}</dd>
+                      )}
+                    </div>
+                    <div>
+                      <dt className="text-[11px] text-suave">Estoque no Rise</dt>
+                      <dd className="text-base tabular-nums">{estoque.riseEstoque}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] text-suave">Ajustes pendentes</dt>
+                      <dd className="text-base tabular-nums">{estoque.pendentes}</dd>
+                    </div>
+                  </dl>
+                  <p className="mt-2 text-[11px] text-suave">O estoque do Rise é o saldo do Bling mais os ajustes ainda não enviados.</p>
+
+                  {leitura.ok && leitura.situacao === "existe" && estoque.pendentes > 0 && !depositos && (
+                    <button type="button" onClick={() => enviarEstoque()} disabled={pendente} className={`mt-2 ${CLASSE_DO_BOTAO_SECUNDARIO}`}>
+                      {qual === "estoque" && <Loader size={13} className="animate-spin" />}
+                      {qual === "estoque" ? "Enviando..." : "Enviar ajustes de estoque"}
+                    </button>
+                  )}
+
+                  {depositos && (
+                    <fieldset className={`mt-2 rounded border p-3 ${CLASSE_DO_TOM.atencao}`}>
+                      <legend className="px-1 text-xs font-medium">Escolha o depósito</legend>
+                      <p className="text-xs">{depositos.motivo}</p>
+                      {/* O Enter num radio enviaria o formulario inteiro, e o botao principal do rodape e
+                          outro envio (sincronizar): aqui o Enter nao faz nada. */}
+                      <div
+                        className="mt-1.5 space-y-1"
+                        onKeyDown={(evento) => {
+                          if (evento.key === "Enter") evento.preventDefault();
+                        }}
+                      >
+                        {depositos.lista.map((item) => (
+                          <label key={item.id} className="flex cursor-pointer items-center gap-2 text-xs">
+                            <input
+                              type="radio"
+                              name="deposito-bling"
+                              checked={deposito === item.id}
+                              onChange={() => setDeposito(item.id)}
+                              disabled={pendente}
+                            />
+                            {item.descricao || `Depósito ${item.id}`}
+                          </label>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => enviarEstoque(deposito)}
+                        disabled={pendente || deposito === null}
+                        className={`mt-2 ${CLASSE_DO_BOTAO_SECUNDARIO}`}
+                      >
+                        {qual === "estoque" && <Loader size={13} className="animate-spin" />}
+                        {qual === "estoque" ? "Enviando..." : "Enviar ajustes neste depósito"}
+                      </button>
+                    </fieldset>
+                  )}
+                </section>
+              )}
+            </>
           )}
-          {envio.linhas.length > 0 && (
-            <ul className="mt-1 max-h-24 list-disc space-y-0.5 overflow-y-auto pl-5">
-              {envio.linhas.map((linha, indice) => (
-                <li key={`${indice}-${linha}`}>{linha}</li>
-              ))}
-            </ul>
-          )}
-          {envio.aviso && <p className={envio.titulo ? "mt-1" : ""}>{envio.aviso}</p>}
         </div>
-      )}
-    </Popup>
+
+        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-borda px-5 py-3">
+          {/* A trava fechada nao esconde o botao: o motivo fica aqui, em uma linha, e o clique devolve o mesmo
+              motivo em vermelho. */}
+          <p className="min-w-0 flex-1 truncate text-xs text-amber-800" title={escritaBloqueada ? leitura.escrita.motivo : undefined}>
+            {escritaBloqueada && (
+              <>
+                <span className="font-medium">Envio ao Bling bloqueado.</span> {leitura.escrita.motivo}
+              </>
+            )}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={aoFechar}
+              disabled={ocupado}
+              className="rounded border border-borda px-4 py-2 text-sm hover:bg-fundo disabled:opacity-50"
+            >
+              Fechar
+            </button>
+            <button
+              type="button"
+              onClick={principal.executar}
+              disabled={pendente}
+              className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pendente && <Loader size={14} className="animate-spin" />}
+              {rotuloDoBotao}
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
   );
 }

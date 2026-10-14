@@ -9,6 +9,7 @@ import {
   normalizarDoRise,
 } from "@/lib/blingSync/campos";
 import { clienteBling, exigirCodigoLiberado } from "@/lib/blingSync/cliente";
+import { fotosDoBling, fotosDoRise, md5DasFotosDoBling, md5DasFotosDoRise, planoDasFotos, resumoDasFotos } from "@/lib/blingSync/fotos";
 
 /**
  * Leitura do produto para o pop-up da sincronizacao: o que o Bling tem sob o codigo (SKU)
@@ -169,6 +170,12 @@ export async function lerProdutoDoRise(produtoId) {
         where: { enviadoAoBlingEm: null },
         orderBy: [{ criadoEm: "asc" }, { id: "asc" }],
       },
+      // As fotos VALIDADAS (sem a reserva), a principal primeiro: o que a janela compara e o que o envio manda.
+      arquivos: {
+        where: { tipo: "IMAGEM", papel: "FOTO" },
+        orderBy: [{ principal: "desc" }, { ordem: "asc" }, { criadoEm: "asc" }],
+        select: { arquivo: true },
+      },
       // As pecas do kit (so o codigo e a quantidade): a composicao e comparada e enviada por codigo.
       componentes: {
         select: { quantidade: true, componente: { select: { sku: true } } },
@@ -206,8 +213,21 @@ function escritaDoProduto(sku) {
   }
 }
 
+/// As fotos dos dois lados e o que o Sincronizar faz com elas. So as abre quando o Rise tem foto: sem foto no
+/// Rise nada sera enviado, e baixar as do Bling a toa gastaria tempo.
+async function resumirFotos(produto, bling, { bytesDoRise, bytesDoBling } = {}) {
+  const doRise = fotosDoRise(produto, config.appUrlPublica);
+  const doBling = fotosDoBling(bling);
+  if (doRise.length === 0) return resumoDasFotos(doRise, doBling, { acao: "nenhuma", enviar: [], porContagem: false });
+  const [md5Rise, md5Bling] = await Promise.all([
+    md5DasFotosDoRise(produto, doRise, { bytesDoRise }),
+    md5DasFotosDoBling(doBling, { bytesDoBling }),
+  ]);
+  return resumoDasFotos(doRise, doBling, planoDasFotos(md5Rise, md5Bling));
+}
+
 /// O resultado na forma que a tela espera. Quando falha, `erro` entra logo depois de `ok`.
-function resultado({ ok, erro, sku = "", situacao = null, diferencasLidas = [], iguais = 0, avisos = [], estoque, escrita }) {
+function resultado({ ok, erro, sku = "", situacao = null, diferencasLidas = [], iguais = 0, avisos = [], fotos = null, estoque, escrita }) {
   return {
     ok,
     ...(erro ? { erro } : {}),
@@ -216,6 +236,8 @@ function resultado({ ok, erro, sku = "", situacao = null, diferencasLidas = [], 
     diferencas: diferencasLidas,
     iguais,
     avisos,
+    // As fotos dos dois lados (`resumoDasFotos`); null quando nao ha produto no Bling para comparar.
+    fotos,
     estoque: estoque ?? { blingSaldo: null, riseEstoque: 0, pendentes: 0 },
     escrita: escrita ?? { liberada: false, motivo: null },
   };
@@ -239,10 +261,14 @@ function resultado({ ok, erro, sku = "", situacao = null, diferencasLidas = [], 
  * desconta reservas), e na falta dele o ultimo saldo guardado no Rise (`Produto.blingSaldo`), ou
  * null se nunca foi lido. Esta funcao NAO grava esse saldo: so o botao da lista o atualiza.
  *
+ * `fotos` compara as fotos dos dois lados pelo CONTEUDO (md5; ver `fotos.js`) e diz o que o Sincronizar faz
+ * com elas. Falha ao abrir as fotos nao derruba o pop-up: cai na comparacao pela quantidade.
+ *
  * @param {string} produtoId id do `Produto` no Rise (nao o SKU).
  * @param {ReturnType<typeof clienteBling>} [cliente]
+ * @param {{bytesDoRise?: Function, bytesDoBling?: Function}} [dependencias] o teste troca a leitura das fotos.
  */
-export async function lerParaPopup(produtoId, cliente = clienteBling()) {
+export async function lerParaPopup(produtoId, cliente = clienteBling(), dependencias = {}) {
   let produto;
   try {
     produto = await lerProdutoDoRise(produtoId);
@@ -301,6 +327,7 @@ export async function lerParaPopup(produtoId, cliente = clienteBling()) {
     situacao: "existe",
     diferencasLidas: lista,
     iguais: CAMPOS_DE_ENVIO.length - lista.length,
+    fotos: await resumirFotos(produto, achado.produto, dependencias),
     estoque: estoqueCom(Number.isFinite(saldoLido) ? saldoLido : null),
   });
 }

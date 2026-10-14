@@ -9,7 +9,9 @@ import {
   pecasDoRise,
 } from "@/lib/blingSync/campos";
 import { clienteBling } from "@/lib/blingSync/cliente";
-import { montarCorpoDeCadastro, montarCorpoParcial } from "@/lib/blingSync/corpo";
+import { montarCorpoDeCadastro, montarCorpoDeFotos, montarCorpoParcial } from "@/lib/blingSync/corpo";
+import { fotosDoBling, fotosDoRise, md5DasFotosDoBling, md5DasFotosDoRise, planoDasFotos } from "@/lib/blingSync/fotos";
+import { config } from "@/lib/integracoes/config";
 import { buscarNoBling, codigosDasPecasNoBling, lerProdutoDoRise } from "@/lib/blingSync/leitura";
 import { lerSaldosDoBling } from "@/lib/blingSync/saldos";
 import { prisma } from "@/lib/db";
@@ -226,6 +228,117 @@ async function lerCodigosDasPecas(cliente, bling) {
   } catch (erro) {
     throw new FalhaDoEnvio(`Não foi possível ler a composição do kit no Bling, e nada foi enviado: ${mensagemDe(erro)}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Fotos: o Bling baixa por link, em segundo plano, e so tira foto com lista vazia (medido em 14/10/2026)
+// ---------------------------------------------------------------------------
+
+/// A leitura que confere se o Bling ja terminou: a cada 3 s, ate 60 s. O Bling responde 200 ao PATCH e baixa
+/// a foto depois (alguns segundos), entao a leitura logo em seguida ainda mostra a lista antiga.
+const TENTATIVAS_DAS_FOTOS = 20;
+const INTERVALO_DAS_FOTOS_MS = 3000;
+const esperarPadrao = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/// Quantas fotos o Bling mostra agora no produto, ate bater `quantidade` ou acabarem as tentativas.
+async function aguardarFotos(cliente, idNoBling, quantidade, esperar) {
+  let total = -1;
+  for (let tentativa = 0; tentativa < TENTATIVAS_DAS_FOTOS; tentativa++) {
+    const resposta = await ler(cliente, `/produtos/${idNoBling}`, undefined, "a conferência das fotos");
+    total = fotosDoBling(resposta.dados?.data).length;
+    if (total === quantidade) return { chegou: true, total };
+    await esperar(INTERVALO_DAS_FOTOS_MS);
+  }
+  return { chegou: false, total };
+}
+
+/**
+ * Decide o que fazer com as fotos ANTES de qualquer escrita: abre as do Rise (md5 do conteudo) e as do Bling
+ * e compara (`planoDasFotos`). Foto do Rise que nao esta no disco recusa o envio inteiro, antes de mexer em
+ * nada: apagar as do Bling e nao conseguir mandar as novas deixaria o produto sem foto.
+ *
+ * Sem foto no Rise, nada se faz (foto vazia nunca apaga a do Bling). Sem `APP_URL_PUBLICA` (o Rise do PC) o
+ * Bling nao alcanca as fotos: o envio dos campos segue e as fotos ficam de fora, com o aviso.
+ *
+ * @param {object|null} bling o produto lido no Bling (`null` no cadastro: ainda nao tem foto nem video).
+ */
+async function prepararFotos(produto, bling, dependencias) {
+  const fotosRise = fotosDoRise(produto, config.appUrlPublica);
+  if (fotosRise.length === 0) return { acao: "nenhuma", enviar: [], jaTem: 0, videoUrl: "" };
+  if (fotosRise.some((foto) => !foto.url)) {
+    return {
+      acao: "pulada",
+      enviar: [],
+      jaTem: 0,
+      videoUrl: "",
+      aviso: "As fotos não foram enviadas: este Rise não tem endereço público (APP_URL_PUBLICA) e o Bling só busca foto por link público. Use o Rise da VPS.",
+    };
+  }
+
+  const md5Rise = await md5DasFotosDoRise(produto, fotosRise, { bytesDoRise: dependencias.bytesDoRise });
+  const sumida = fotosRise.find((_, indice) => md5Rise[indice] === null);
+  if (sumida) {
+    throw new FalhaDoEnvio(`A foto ${sumida.arquivo} não abre no disco do Rise: nenhuma foto foi enviada e nada foi alterado no Bling. Reenvie a foto no cadastro do produto.`);
+  }
+
+  const doBling = fotosDoBling(bling);
+  const md5Bling = await md5DasFotosDoBling(doBling, { bytesDoBling: dependencias.bytesDoBling });
+  const plano = planoDasFotos(md5Rise, md5Bling);
+  return {
+    acao: plano.acao,
+    enviar: plano.enviar.map((indice) => fotosRise[indice].url),
+    jaTem: doBling.length,
+    videoUrl: String(bling?.midia?.video?.url ?? ""),
+  };
+}
+
+/**
+ * Executa o plano de `prepararFotos` no produto do Bling.
+ *
+ * - `acrescentar`: manda so as que faltam e espera o Bling baixar.
+ * - `substituir`: manda a lista VAZIA (e a unica forma de tirar foto), espera o Bling apagar de verdade e so
+ *   entao manda as do Rise. Se ele nao terminar de apagar em 60 s, para: nada novo foi enviado e o proximo
+ *   Sincronizar recomeca (o estado do Bling e o que decide o plano, nao uma lembranca nossa).
+ * - Depois do envio, se o Bling ainda nao mostra todas, nao e erro: ele aceitou e segue baixando. Vai como
+ *   aviso, e repetir o envio seria seguro (ele nao duplica).
+ *
+ * @returns {Promise<{acao: string, enviadas: number, aviso?: string|null}>}
+ */
+async function executarFotos(cliente, idNoBling, plano, dependencias) {
+  if (plano.acao === "nenhuma") return { acao: "nenhuma", enviadas: 0 };
+  if (plano.acao === "pulada") return { acao: "pulada", enviadas: 0, aviso: plano.aviso };
+  const esperar = dependencias.esperar ?? esperarPadrao;
+
+  let jaTem = plano.jaTem;
+  if (plano.acao === "substituir" && jaTem > 0) {
+    await escrever(() => cliente.patch(`/produtos/${idNoBling}`, montarCorpoDeFotos(plano.videoUrl, [])), "a retirada das fotos antigas");
+    const apagadas = await aguardarFotos(cliente, idNoBling, 0, esperar);
+    if (!apagadas.chegou) {
+      throw new FalhaDoEnvio(
+        `O Bling ainda não terminou de apagar as fotos antigas (mostra ${apagadas.total}). Nenhuma foto nova foi enviada; sincronize de novo em alguns instantes.`,
+      );
+    }
+    jaTem = 0;
+  }
+
+  await escrever(() => cliente.patch(`/produtos/${idNoBling}`, montarCorpoDeFotos(plano.videoUrl, plano.enviar)), "o envio das fotos");
+  const esperadas = jaTem + plano.enviar.length;
+  const conferido = await aguardarFotos(cliente, idNoBling, esperadas, esperar);
+  return {
+    acao: plano.acao,
+    enviadas: plano.enviar.length,
+    aviso: conferido.chegou
+      ? null
+      : `O Bling aceitou as fotos, mas ainda mostra ${conferido.total} de ${esperadas}: ele baixa em segundo plano. Leia o Bling de novo em instantes; reenviar é seguro (ele não duplica).`,
+  };
+}
+
+/// Roda as fotos e conta o resultado em `saida.fotos` (so quando algo foi feito ou pulado). A falha do meio
+/// do caminho (Bling nao terminou de apagar) sobe como FalhaDoEnvio, e o que ja foi fica na `saida`.
+async function executarFotosDoEnvio(cliente, idNoBling, plano, saida, dependencias) {
+  const resultado = await executarFotos(cliente, idNoBling, plano, dependencias);
+  if (resultado.acao !== "nenhuma") saida.fotos = { acao: resultado.acao, enviadas: resultado.enviadas };
+  return resultado;
 }
 
 /// Recusa o nome acima do limite do Bling, com o tamanho (contado em caracteres, nao em bytes).
@@ -517,11 +630,17 @@ const avisosSemCnpj = (produto) => fornecedoresSemCnpj(produto.fornecedores).map
  * `fornecedores.enviados` = vinculos criados ou atualizados; `avisos` = fornecedores sem CNPJ, que
  * nao vao (nao e falha).
  *
+ * FOTOS (14/10/2026): o plano sai ANTES de qualquer escrita (`prepararFotos`: foto sumida do disco recusa o
+ * envio inteiro) e roda depois dos campos, antes dos fornecedores. So aparece `fotos` no resultado quando algo
+ * foi feito ou pulado; `aviso` leva o que o operador precisa ler (fotos puladas, Bling ainda baixando).
+ *
  * @param {string} produtoId id do `Produto` no Rise (nao o SKU).
  * @param {ReturnType<typeof clienteBling>} [cliente]
- * @returns {Promise<{ok: boolean, erro?: string, alterados: {campo: string, de: unknown, para: unknown}[], fornecedores: {enviados: number, avisos: string[]}}>}
+ * @param {{bytesDoRise?: Function, bytesDoBling?: Function, esperar?: (ms: number) => Promise<void>}} [dependencias]
+ *   o teste troca a leitura das fotos e a espera.
+ * @returns {Promise<{ok: boolean, erro?: string, alterados: {campo: string, de: unknown, para: unknown}[], fornecedores: {enviados: number, avisos: string[]}, fotos?: {acao: string, enviadas: number}, aviso?: string}>}
  */
-export async function sincronizarProduto(produtoId, cliente = clienteBling()) {
+export async function sincronizarProduto(produtoId, cliente = clienteBling(), dependencias = {}) {
   const saida = { alterados: [], fornecedores: { enviados: 0, avisos: [] } };
   const falhou = (erro) => ({ ok: false, erro, ...saida });
 
@@ -558,6 +677,9 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling()) {
         pecasNoBling = await acharPecasNoBling(cliente, produto);
       }
 
+      // As fotos: decide antes de escrever (foto sumida do disco recusa tudo, sem mexer no Bling).
+      const planoDasFotos = await prepararFotos(produto, achado.produto, dependencias);
+
       if (mudaram.length > 0) {
         const corpo = montarCorpoParcial(achado.produto, campos, mudaram.map((diferenca) => diferenca.campo), { pecasNoBling });
         if ("nome" in corpo) exigirNomeNoLimite(corpo.nome);
@@ -565,6 +687,9 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling()) {
         saida.alterados = mudaram.map((diferenca) => ({ campo: diferenca.campo, de: diferenca.bling, para: diferenca.rise }));
         await gravarCopia(produto.id, achado.produto, saida.alterados);
       }
+
+      const fotos = await executarFotosDoEnvio(cliente, achado.id, planoDasFotos, saida, dependencias);
+      if (fotos.aviso) saida.aviso = fotos.aviso;
 
       const fornecedores = normalizarFornecedoresDoRise(produto.fornecedores);
       const envio = await enviarFornecedores(cliente, achado.id, fornecedores);
@@ -593,11 +718,17 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling()) {
  * de 120 caracteres. Se o cadastro deu certo e um fornecedor falhou, devolve `ok: false` COM o
  * `blingId`: o produto ja existe la, e o proximo passo e "Sincronizar".
  *
+ * As fotos do Rise vao junto (14/10/2026): o plano sai antes do `POST` (foto sumida do disco recusa o
+ * cadastro, sem criar nada) e as fotos sao enviadas depois do produto existir, com os mesmos passos de
+ * `sincronizarProduto`. Foto que falha depois do cadastro devolve `ok: false` com o `blingId`: o produto ja
+ * existe la, e "Sincronizar" refaz as fotos (o estado do Bling decide o que falta).
+ *
  * @param {string} produtoId id do `Produto` no Rise (nao o SKU).
  * @param {ReturnType<typeof clienteBling>} [cliente]
- * @returns {Promise<{ok: boolean, erro?: string, blingId?: number}>}
+ * @param {{bytesDoRise?: Function, bytesDoBling?: Function, esperar?: (ms: number) => Promise<void>}} [dependencias]
+ * @returns {Promise<{ok: boolean, erro?: string, blingId?: number, fotos?: {acao: string, enviadas: number}, aviso?: string}>}
  */
-export async function cadastrarNoBling(produtoId, cliente = clienteBling()) {
+export async function cadastrarNoBling(produtoId, cliente = clienteBling(), dependencias = {}) {
   const falhou = (erro, blingId) => ({ ok: false, erro, ...(blingId ? { blingId } : {}) });
 
   return umPorVez(produtoId, falhou, async () => {
@@ -623,7 +754,10 @@ export async function cadastrarNoBling(produtoId, cliente = clienteBling()) {
       // sao achadas no Bling ANTES do POST; faltando uma, nada e criado.
       const pecasNoBling = produto.tipo === "COMPOSICAO" ? await acharPecasNoBling(cliente, produto) : undefined;
 
-      const criado = await escrever(() => cliente.post("/produtos", montarCorpoDeCadastro(sku, campos, { pecasNoBling })), "o cadastro do produto");
+      // As fotos: decide antes do POST (foto sumida do disco recusa o cadastro, sem criar nada).
+      const planoDasFotos = await prepararFotos(produto, null, dependencias);
+
+      const criado =await escrever(() => cliente.post("/produtos", montarCorpoDeCadastro(sku, campos, { pecasNoBling })), "o cadastro do produto");
       blingId = idOuNull(criado.dados?.data?.id);
       if (!blingId) {
         throw new FalhaDoEnvio("O Bling aceitou o cadastro, mas não devolveu o id do produto. Confira no Bling antes de tentar de novo.");
@@ -639,12 +773,20 @@ export async function cadastrarNoBling(produtoId, cliente = clienteBling()) {
         throw new FalhaDoEnvio(`O produto foi cadastrado no Bling (id ${blingId}), mas foi alterado no Rise durante o envio e o id não foi gravado. Use Sincronizar.`);
       }
 
+      const saida = {};
+      try {
+        const fotos = await executarFotosDoEnvio(cliente, blingId, planoDasFotos, saida, dependencias);
+        if (fotos.aviso) saida.aviso = fotos.aviso;
+      } catch (erro) {
+        throw new FalhaDoEnvio(`O produto foi cadastrado no Bling (id ${blingId}), mas as fotos não foram enviadas: ${textoDaFalha(erro)} Use Sincronizar.`);
+      }
+
       const fornecedores = normalizarFornecedoresDoRise(produto.fornecedores);
       const envio = await enviarFornecedores(cliente, blingId, fornecedores);
       if (envio.falhas.length) throw falhaDosFornecedores(envio.falhas, `O produto foi cadastrado no Bling (id ${blingId}), mas `);
 
       await gravarSincronizado(produto, campos, fornecedores);
-      return { ok: true, blingId };
+      return { ok: true, blingId, ...saida };
     } catch (erro) {
       return falhou(textoDaFalha(erro), blingId);
     }
