@@ -235,7 +235,7 @@ npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (hando
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
-npm run teste:bling-sync          # 685 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
+npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 623 asserções do Rise AI (Entrega 1 e A1): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
 npm run teste:acessos             # 132 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz e o guarda estático de src/app. Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
@@ -2974,11 +2974,11 @@ real de 05/10/2026").
 - **Fornecedores por CNPJ, todos os vinculados.** Se o contato não existe no Bling, é criado lá. Contato
   achado **só por nome** é reaproveitado **somente se não tiver documento** (emenda 3b): na investigação, 578 dos
   603 contatos Fornecedor do Bling não têm CNPJ, e criar de novo duplicaria quase todos.
-- **Ativo/inativo não é enviado.** Nem categoria, variações, campos personalizados, fotos e vídeo
+- **Ativo/inativo não é enviado.** Nem categoria, variações, campos personalizados e vídeo
   (ver "O que nunca entra no corpo"). A **composição do kit** passou a ir em 07/10/2026 (ver "Produto com
   composição (kit)").
-- **A foto principal fica para quando o sistema estiver na VPS:** o Bling só aceita imagem por link público, e
-  as fotos do Rise estão em disco local.
+- **As fotos vão ao Bling desde 14/10/2026** (ver "Fotos na sincronização com o Bling"). Antes ficavam para a VPS,
+  porque o Bling só aceita imagem por link público; na VPS a rota de fotos é pública.
 - **O estoque do Bling para o Rise só pelo botão manual** "Sincronizar estoque com Bling". O controle
   automático também fica para a VPS.
 - **Conflito de estoque:** o estoque do Rise = saldo do Bling + ajustes pendentes do Rise. Os ajustes
@@ -2999,7 +2999,7 @@ real de 05/10/2026").
 - **Banco:** `Produto.blingSincronizadoEm`, `blingAssinatura` e `blingSaldo`; `MovimentoEstoque.enviadoAoBlingEm`
   (nulo = ajuste pendente); `BlingCopiaProduto` (o produto do Bling como estava antes de cada sobrescrita, os 3
   mais recentes por produto).
-- **Teste:** `npm run teste:bling-sync` (`scripts/teste-bling-sync.js`), 685 asserções, **SEM rede**: o Bling
+- **Teste:** `npm run teste:bling-sync` (`scripts/teste-bling-sync.js`), 733 asserções, **SEM rede**: o Bling
   falso (`scripts/lib/blingFalso.js`) tem o mesmo formato do cliente real e **recusa escrita sem um
   `exigirEscrita` antes**. Postgres local, só escreve produtos `ZZ-BS-*`.
 
@@ -3025,9 +3025,10 @@ real de 05/10/2026").
 
 ### O que nunca entra no corpo (`corpo.js`)
 
-Código (só o `POST` o leva, como identificador), situação, imagens e vídeo (`midia`), `fornecedor` (só se grava
+Código (só o `POST` o leva, como identificador), situação, vídeo, `fornecedor` (só se grava
 por `/produtos/fornecedores`), `actionEstoque` (o valor `Z` **zera os saldos**), categoria, variações e
-campos personalizados (a `estrutura` só vai para kit, ver "Produto com composição (kit)"). O envio é por **`PATCH`**, não `PUT`: a documentação do Bling diz que só os campos
+campos personalizados (a `estrutura` só vai para kit, ver "Produto com composição (kit)"; as **fotos** vão num `PATCH`
+só delas, `montarCorpoDeFotos`, ver "Fotos na sincronização com o Bling"). O envio é por **`PATCH`**, não `PUT`: a documentação do Bling diz que só os campos
 informados mudam, e o `PUT` não diz o que faz com o campo omitido. Só vai o que **mudou**: cada grupo tocado
 (`dimensoes`, `estoque`, `tributacao`) vai por inteiro, mesclado com o que o Bling já tem, e o grupo que ninguém
 tocou não vai. **Campo vazio no Rise nunca apaga nada no Bling.**
@@ -3139,12 +3140,70 @@ Mesmo esquema (travas abertas só no ambiente do script, `.env` intocado):
   produto de teste não tem fotos, então não dá para provar que isso preserva as fotos do Bling. Só entra com um
   teste que prove.
 
+### Fotos na sincronização com o Bling (14/10/2026)
+
+Pedido do dono: "ao sincronizar o anúncio do Rise com o Bling não está sincronizando a foto", junto com a janela do
+Bling no molde da aba Divergências da LI. Até ali nenhuma foto ia, porque o Bling só aceita imagem por **link público**
+(`midia.imagens.imagensURL[].link`). Na VPS `/api/arquivos/<SKU>/imagens/<arquivo>` é pública e `APP_URL_PUBLICA` tem o
+endereço; o Bling baixa dali. Regras em `src/lib/blingSync/fotos.js`, envio em `envio.js` (`prepararFotos`,
+`executarFotos`), corpo em `corpo.js` (`montarCorpoDeFotos`).
+
+**Como o Bling trata foto, MEDIDO em 14/10/2026 no produto de teste ZZ-TESTE-BLING** (com OK do dono; as URLs eram
+fotos públicas do 100101; o produto de teste ficou sem foto no fim):
+- O `PATCH` responde **200 na hora** e o Bling baixa **em segundo plano** (alguns segundos): a leitura logo depois
+  ainda mostra a lista antiga. A primeira medição ficou inconclusiva por isso (a lista vazia só apagou depois de
+  eu ler); a segunda esperou o número de fotos estabilizar.
+- Uma lista de links **ACRESCENTA** as fotos que ele ainda não tem (`[U1,U2]` e depois `[U3]` = 3 fotos). **Não troca.**
+- **A mesma foto de novo não duplica** (`[U3]` outra vez e `[U1,U3]` depois: continuou 3).
+- **Lista VAZIA apaga TODAS** as fotos, e é a única forma de tirar uma pelo API.
+- `PATCH` **sem `midia`** não mexe nas fotos.
+- O arquivo guardado no S3 é **idêntico** ao enviado (o md5 do conteúdo bate nas três fotos). Por isso dá para saber
+  exatamente quais fotos o Bling já tem, e não só a quantidade.
+- A documentação exige mandar `midia.video` **junto** com `midia.imagens`: vai o endereço de vídeo que o produto já tem
+  (vazio se não tem), para não mexer nele. Aceito com `video.url: ""`.
+- `internas[]` traz `link` e `linkMiniatura` do S3 (expiram em ~7 dias) e `validade`; `externas[]` e `imagensURL[]`
+  vêm vazios.
+
+**O que o Sincronizar faz** (`planoDasFotos`, comparando o md5 do conteúdo e a ORDEM, porque a primeira é a principal):
+- fotos já iguais: **nada**;
+- o Bling não tem foto, ou tem só as primeiras do Rise na mesma ordem: **acrescenta só as que faltam** (nunca se
+  confia na desduplicação do Bling: só vai o que falta);
+- o Bling tem foto que o Rise não tem, ou a ordem difere: **troca**: manda a lista **vazia**, espera o Bling apagar
+  de verdade (confere a cada 3 s, até 60 s) e só então manda as do Rise. É o único caso em que o envio apaga algo lá,
+  e a janela diz "O Sincronizar troca as fotos do Bling pelas do Rise";
+- **Rise sem foto: nunca mexe nas do Bling** (a mesma regra dos campos: vazio no Rise não apaga).
+
+**Proteções** (cada uma veio de um risco real: trocar é "apagar e mandar", e o Bling pode ficar sem foto):
+- **O plano sai ANTES de qualquer escrita** (`prepararFotos`): foto do Rise que não abre no disco **recusa o envio
+  inteiro**, inclusive os campos, e o cadastro, sem criar nada. A memória de hash (por nome de arquivo, que nunca se
+  reutiliza) poupa só o cálculo, **nunca a conferência de que o arquivo existe**: o teste achou isso (foto que sumiu
+  depois de lida ainda parecia enviável).
+- Se o Bling não terminar de apagar em 60 s, **para antes de mandar as novas** e diz para sincronizar de novo (o estado
+  do Bling decide o plano, não uma lembrança nossa; refazer é seguro).
+- Depois de mandar, se o Bling ainda não mostra todas, **não é erro**: aviso "ainda mostra X de Y... reenviar é seguro".
+- **Sem `APP_URL_PUBLICA` (o Rise do PC)** o Bling não alcança as fotos: os campos vão e as fotos ficam de fora, com
+  o aviso. O PC só deve sincronizar foto para teste; o envio de verdade é pela VPS.
+- Cadastrar um produto novo manda as fotos **depois** do `POST` (que não leva `midia`), com os mesmos passos; se as
+  fotos falharem, o resultado é `ok: false` com o `blingId` (o produto existe lá) e "Sincronizar" refaz.
+- O envio de foto passa pelas mesmas duas travas de escrita e nunca repete sozinho.
+
+**Na janela** (`JanelaBling.jsx`, agora no molde do editor da LI: `max-w-5xl`, presa no alto, cabeçalho, corpo que rola,
+rodapé; diferenças no molde da aba Divergências): o bloco **Fotos** mostra miniaturas dos dois lados (as do Rise pelo
+caminho relativo; as do Bling pela `linkMiniatura` do S3) e o estado: "iguais", "faltam no Bling", "diferentes" ou
+"só tem no Bling" (Rise sem foto). Foto **não entra em `CAMPOS_DE_ENVIO` nem na assinatura do ícone**: quase todo
+produto tem foto, e entrar lá acenderia o "!" em todo produto já sincronizado. O ícone da lista **não** acusa
+diferença de foto (só campos e estoque).
+
+**Custo:** abrir a janela de um produto com foto baixa as fotos do Bling uma vez (md5; ~250 KB cada) e as do Rise
+vêm do disco; depois fica na memória do processo (teto de 2.000 por lado).
+
+**Não medido / pendente:** o limite de fotos por produto no Bling (o Rise guarda até 100 validadas); o teste de ponta a
+ponta pela tela com o Rise da VPS (o PC não tem `APP_URL_PUBLICA`, então o envio real pela tela só dá na VPS).
+
 ### Limitações e pendências conhecidas
 
-- **PENDÊNCIA REGISTRADA: estoque automático e foto principal quando o sistema estiver na VPS.** A **foto
-  principal** depende de uma URL pública (as fotos moram em `dados/produtos/`, sem rota pública), e o **controle
-  automático do estoque** (hoje só o botão manual) também espera a VPS. Até lá: foto só pelo Bling, estoque só
-  pelo botão e pelos ajustes enviados.
+- **PENDÊNCIA REGISTRADA: estoque automático.** O **controle automático do estoque** (hoje só o botão manual)
+  segue pendente. A foto deixou de ser pendência em 14/10/2026 (ver "Fotos na sincronização com o Bling").
 - **"N campos iguais" no pop-up não expande:** `lerParaPopup` só devolve a contagem.
 - **O "Cadastrar no Bling" do pop-up NÃO cria o `Anuncio` BLING com `idExterno`** (a importação cria). As telas de
   Anúncios podem oferecer "Cadastrar no Bling" de novo para um produto cadastrado assim.
