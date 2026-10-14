@@ -5,6 +5,7 @@ import { Check, Loader, Sparkles } from "lucide-react";
 
 import { sugerirCategoriasLI } from "@/app/canais-de-venda/loja-integrada/acoes";
 import MensagensDoCampo from "@/components/anuncios/ml/MensagensDoCampo";
+import GastoDaIA from "@/components/ui/GastoDaIA";
 import { comAncestrais } from "@/lib/canaisDeVenda/li/categorias";
 import ArvoreDeCategorias from "./ArvoreDeCategorias";
 
@@ -28,6 +29,7 @@ async function chamar(acao, ...argumentos) {
 export default function AbaCategorias({ rascunho, contexto, alterar, problemas, recarregarCategorias }) {
   const [sugestoes, setSugestoes] = useState(null);
   const [erro, setErro] = useState(null);
+  const [gasto, setGasto] = useState(null);
   const [pensando, iniciar] = useTransition();
   const categorias = contexto.categoriasDaLI ?? null;
   const marcadas = rascunho.categorias ?? [];
@@ -36,6 +38,7 @@ export default function AbaCategorias({ rascunho, contexto, alterar, problemas, 
     setErro(null);
     iniciar(async () => {
       const resultado = await chamar(sugerirCategoriasLI, rascunho.produtoId, rascunho.titulo ?? "");
+      setGasto(resultado.gasto ?? null);
       if (resultado.ok) setSugestoes(resultado.sugestoes);
       else setErro(resultado.erro);
     });
@@ -67,6 +70,8 @@ export default function AbaCategorias({ rascunho, contexto, alterar, problemas, 
           {pensando ? "Pensando..." : sugestoes ? "Sugerir de novo com IA" : "Sugerir com IA"}
         </button>
       </div>
+      {/* Quanto custou a ultima sugestao (pedido do dono em 12/10/2026). */}
+      <GastoDaIA gasto={gasto} className="text-right" />
 
       {erro && <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">{erro}</p>}
 

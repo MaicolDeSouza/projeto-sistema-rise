@@ -8,6 +8,7 @@ import { lerChave } from "@/lib/riseAi/configuracao";
 
 import { limparSugestoesDeCategoria, montarPedidoDeCategorias } from "@/lib/canaisDeVenda/li/categorias";
 
+import { somarAoGasto } from "./gasto";
 import { PADRAO_TITULO } from "./padraoTitulo";
 import { integrarDecisoes } from "./decisoes";
 import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica, lojasQueTrazem, origemSemLoja } from "./divergencias";
@@ -250,7 +251,9 @@ function mensagemDeErro(erro, modelo = MODELO) {
   return erro.message;
 }
 
-async function chamar({ tarefa, quantidade, sistema, pedido, formato, modelo = MODELO }) {
+// `gasto` (opcional, `novoGasto()` de `./gasto`): cada resposta soma nele os tokens e o modelo, para a tela dizer
+// quanto a geracao custou. Soma ANTES de olhar recusa e corte: a chamada foi cobrada do mesmo jeito.
+async function chamar({ tarefa, quantidade, sistema, pedido, formato, gasto = null, modelo = MODELO }) {
   const client = await clienteDoModelo(modelo);
   const inicio = Date.now();
 
@@ -272,6 +275,7 @@ async function chamar({ tarefa, quantidade, sistema, pedido, formato, modelo = M
   }
 
   await registrar({ tarefa, referencias: quantidade, inicio, resposta, modelo });
+  somarAoGasto(gasto, resposta, modelo);
 
   if (resposta.stop_reason === "refusal") {
     throw new Error("A IA recusou gerar este texto. Tente marcar outras referências.");
@@ -324,7 +328,7 @@ function limparTitulo(texto) {
  * uma segunda chamada pede so as que faltaram — cortar no meio de uma palavra
  * deixaria o titulo quebrado no anuncio.
  */
-export async function gerarTitulos(ids, palavras) {
+export async function gerarTitulos(ids, palavras, gasto = null) {
   const { texto: referencias, quantidade } = await lerReferencias(ids);
 
   const base =
@@ -354,6 +358,7 @@ export async function gerarTitulos(ids, palavras) {
       sistema: SISTEMA,
       pedido,
       formato: FORMATO_TITULOS,
+      gasto,
     });
 
     let candidatos;
@@ -453,7 +458,7 @@ export function montarPedidoSeo({ titulo = "", descricao = "", concorrentes = []
  * Opcoes de meta description para a aba SEO da Loja Integrada, no molde de `gerarTitulos`: as que
  * saem da faixa ou repetem o titulo voltam uma vez para a IA, mostrando as recusadas.
  */
-export async function gerarDescriptionsSeo({ titulo = "", descricao = "", concorrentes = [] }) {
+export async function gerarDescriptionsSeo({ titulo = "", descricao = "", concorrentes = [], gasto = null }) {
   const base = montarPedidoSeo({ titulo, descricao, concorrentes });
   const opcoes = [];
   const recusadas = [];
@@ -464,7 +469,7 @@ export async function gerarDescriptionsSeo({ titulo = "", descricao = "", concor
       (recusadas.length > 0
         ? `\n\nRecusadas (fora de ${FAIXA_DESCRIPTION_SEO.minimo + 10} a ${FAIXA_DESCRIPTION_SEO.maximo} caracteres ou repetindo o título): ${recusadas.map((texto) => `"${texto}" (${texto.length})`).join(" | ")}`
         : "");
-    const texto = await chamar({ tarefa: "seo-li", quantidade: concorrentes.length, sistema: SISTEMA, pedido, formato: FORMATO_DESCRIPTIONS });
+    const texto = await chamar({ tarefa: "seo-li", quantidade: concorrentes.length, sistema: SISTEMA, pedido, formato: FORMATO_DESCRIPTIONS, gasto });
     let candidatas;
     try {
       candidatas = JSON.parse(texto).descriptions;
@@ -501,7 +506,7 @@ const FORMATO_CATEGORIAS = {
  * Sugere a(s) categoria(s) da Loja Integrada para o produto (pedido do dono em 07/10/2026). A IA so
  * escolhe da arvore real da loja, pelo id; o que nao existe nela e descartado (`limparSugestoesDeCategoria`).
  */
-export async function sugerirCategoriasIA({ titulo = "", marca = "", descricao = "", categorias = [] }) {
+export async function sugerirCategoriasIA({ titulo = "", marca = "", descricao = "", categorias = [], gasto = null }) {
   if (!categorias.length) throw new Error("A lista de categorias da loja não foi lida. Recarregue as categorias e tente de novo.");
   const texto = await chamar({
     tarefa: "categoria-li",
@@ -509,6 +514,7 @@ export async function sugerirCategoriasIA({ titulo = "", marca = "", descricao =
     sistema: SISTEMA,
     pedido: montarPedidoDeCategorias({ titulo, marca, descricao, categorias }),
     formato: FORMATO_CATEGORIAS,
+    gasto,
   });
   let bruto;
   try {
@@ -717,6 +723,7 @@ export async function gerarDescricao(
   ids,
   { titulo = "", sku = "", medidas = {}, marca = "", modelo = "", descricao = "", pecas = [], modeloIA = MODELO } = {},
   instrucoes = PROMPT_DESCRICAO_PADRAO,
+  gasto = null,
 ) {
   // Kit (pedido do dono em 10/10/2026): as pecas entram como referencia, e os Itens inclusos saem delas.
   const doKit = await lerPecasParaDescricao(pecas);
@@ -774,6 +781,7 @@ export async function gerarDescricao(
           : null,
       ),
       formato: FORMATO_DESCRICAO,
+      gasto,
     });
 
     try {

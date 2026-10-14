@@ -236,6 +236,11 @@ model Produto {
   /// confirma em vinculo de verdade e zera este campo.
   fornecedorRascunho Json?
 
+  /// Total ja gasto com IA no cadastro deste produto (descricao e titulo; pedido do dono em 12/10/2026):
+  /// {chamadas, entrada, saida, usd, brl, atualizadoEm}. Soma a cada Salvar o gasto da edicao (`lib/ia/gasto.js`,
+  /// `acumularGasto`); gerar e nao salvar nao conta. O clone nasce sem ele.
+  gastoIA Json?
+
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 

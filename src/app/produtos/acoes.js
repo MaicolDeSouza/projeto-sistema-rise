@@ -27,6 +27,7 @@ import {
   MAXIMO_PROMPT_DESCRICAO,
   MAXIMO_REFERENCIAS,
 } from "@/lib/ia/anuncio";
+import { gastoDoFormulario, novoGasto, resumoDoGasto, somarResumos } from "@/lib/ia/gasto";
 import { modeloDaDescricao } from "@/lib/ia/modelosDaDescricao";
 import * as bibliotecaDePrompts from "@/lib/ia/promptsDescricao";
 import { normalizar } from "@/lib/texto";
@@ -120,10 +121,12 @@ export async function buscarPorPalavras(termo, vinculos = {}) {
 
 /** Opcoes de titulo no padrao da loja, escritas pela IA a partir das referencias. */
 export async function criarTitulosIA(ids, palavras) {
+  // O gasto volta tambem no erro: a chamada que falhou no meio ja foi cobrada.
+  const gasto = novoGasto();
   try {
-    return { ok: true, opcoes: await gerarTitulos(ids, palavras) };
+    return { ok: true, opcoes: await gerarTitulos(ids, palavras, gasto), gasto: resumoDoGasto(gasto) };
   } catch (erro) {
-    return { ok: false, erro: erro.message };
+    return { ok: false, erro: erro.message, gasto: resumoDoGasto(gasto) };
   }
 }
 
@@ -238,6 +241,7 @@ export async function buscarDescricoesParaProduto(idsReferencias = []) {
  * `modelo` e o id escolhido na janela (Opus 5.5 ou GPT 6.1 Sol): conferido aqui contra a lista, nunca aceito como veio.
  */
 export async function criarDescricaoIA(ids, produto, instrucoes, modelo) {
+  const gasto = novoGasto();
   try {
     const modeloIA = modeloDaDescricao(modelo);
     if (modeloIA === null) return { ok: false, erro: "Modelo de IA desconhecido. Escolha um da lista." };
@@ -251,9 +255,9 @@ export async function criarDescricaoIA(ids, produto, instrucoes, modelo) {
       if (!conferido.ok) return conferido;
       prompt = conferido.texto;
     }
-    return { ok: true, ...(await gerarDescricao(ids, { ...produto, modeloIA }, prompt)) };
+    return { ok: true, ...(await gerarDescricao(ids, { ...produto, modeloIA }, prompt, gasto)), gasto: resumoDoGasto(gasto) };
   } catch (erro) {
-    return { ok: false, erro: erro.message };
+    return { ok: false, erro: erro.message, gasto: resumoDoGasto(gasto) };
   }
 }
 
@@ -673,9 +677,16 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     const localizacaoDoKit = await localizacaoDoKitNoSalvar(id, composicao);
     if (localizacaoDoKit !== undefined) dados.localizacao = localizacaoDoKit;
 
+    // Gasto com IA desta edicao (descricao e titulo gerados desde que a tela abriu; pedido do dono em 12/10/2026):
+    // SOMA ao total ja guardado no produto, na mesma transacao do Salvar (um Salvar que falha nao conta, e o
+    // seguinte nao conta duas vezes). Gerar e nao salvar nao entra.
+    const gastoDaEdicao = gastoDoFormulario(formData.get("gastoIA"));
+    const comGasto = (guardado) =>
+      gastoDaEdicao ? { gastoIA: { ...somarResumos(guardado ?? null, gastoDaEdicao), atualizadoEm: new Date().toISOString() } } : {};
+
     if (!id) {
       const produto = await prisma.$transaction(async (tx) => {
-        const criado = await tx.produto.create({ data: dados });
+        const criado = await tx.produto.create({ data: { ...dados, ...comGasto(null) } });
         await gravarComposicaoDoCadastro(criado.id, composicao, tx);
         return criado;
       });
@@ -757,7 +768,10 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     }
 
     const produto = await prisma.$transaction(async (tx) => {
-      const salvo = await tx.produto.update({ where: { id }, data: dados });
+      const guardado = gastoDaEdicao
+        ? (await tx.produto.findUnique({ where: { id }, select: { gastoIA: true } }))?.gastoIA
+        : null;
+      const salvo = await tx.produto.update({ where: { id }, data: { ...dados, ...comGasto(guardado) } });
       await gravarComposicaoDoCadastro(id, composicao, tx);
       // Peca que mudou de lugar (ou de codigo) leva junto os kits que a usam (no mesmo commit da peca).
       if (composicao.tipo !== "COMPOSICAO") await propagarLocalizacaoDaPeca(id, tx);
@@ -775,6 +789,8 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       return {
         ok: false,
         erro: "Os dados foram salvos, mas as fotos não foram gravadas. Clique em Salvar de novo.",
+        // O gasto com IA ja entrou no produto: a tela o zera, para o segundo Salvar nao somar de novo.
+        gastoGravado: Boolean(gastoDaEdicao),
       };
     }
     // Documentos e certificado: os excluidos na tela saem e os enviados (ou anexados) entram, so agora (pedido do
@@ -787,6 +803,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       return {
         ok: false,
         erro: "Os dados e as fotos foram salvos, mas os documentos não foram gravados. Clique em Salvar de novo.",
+        gastoGravado: Boolean(gastoDaEdicao),
       };
     }
     await descartarLote(String(formData.get("loteTemporario") ?? "")).catch(() => {});

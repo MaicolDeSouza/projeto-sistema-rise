@@ -29,6 +29,17 @@ import {
 } from "lucide-react";
 
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import GastoDaIA, { GastoDoProduto } from "@/components/ui/GastoDaIA";
+import { somarResumos } from "@/lib/ia/gasto";
+
+/** O gasto que foi no Salvar (campo oculto `gastoIA`), para a tela passa-lo ao total quando o servidor ja o gravou. */
+function lerGastoEnviado(formData) {
+  try {
+    return JSON.parse(String(formData.get("gastoIA") || "null"));
+  } catch {
+    return null;
+  }
+}
 import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import { UNIDADES } from "@/lib/unidades";
@@ -46,6 +57,9 @@ import EditorDescricao from "./EditorDescricao";
 import Fornecedores from "./Fornecedores";
 import JanelaDescricao from "./JanelaDescricao";
 import PainelDeImagens from "./PainelDeImagens";
+import BannerDeRascunho from "./BannerDeRascunho";
+import { useRascunhoAutomatico } from "./useRascunhoAutomatico";
+import { chaveDoRascunho } from "@/lib/rascunhoDoCadastro";
 import ReferenciasDeMercado, { MAXIMO_MARCADOS } from "./ReferenciasDeMercado";
 import SeloPosicaoDePreco from "./SeloPosicaoDePreco";
 import {
@@ -360,6 +374,8 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
                 </span>
               </button>
             )}
+            {/* Quanto custou a ultima geracao (pedido do dono em 12/10/2026). */}
+            <GastoDaIA gasto={ia.gastoTitulo} className="px-2 pt-1" />
           </div>
         </ListaFlutuante>
       )}
@@ -1666,6 +1682,15 @@ export default function FormularioProduto({
   const [iaEmCurso, setIaEmCurso] = useState(null);
   const [erroIA, setErroIA] = useState(null);
   const [opcoesTitulo, setOpcoesTitulo] = useState(null);
+  // Quanto custou a ultima geracao de titulos (vem tambem no erro: a chamada que falhou no meio ja foi cobrada).
+  const [gastoTitulo, setGastoTitulo] = useState(null);
+  // Gasto com IA (pedido do dono em 12/10/2026): o total ja salvo no produto e o desta edicao (titulos e descricoes
+  // gerados desde que a tela abriu), que o Salvar soma ao total. O clone nasce sem o do original.
+  const [gastoSalvo, setGastoSalvo] = useState(produto?.gastoIA ?? null);
+  const [gastoDaEdicao, setGastoDaEdicao] = useState(null);
+  const somarAoGastoDaEdicao = (gasto) => {
+    if (gasto) setGastoDaEdicao((atual) => somarResumos(atual, gasto));
+  };
   // Fotos do produto novo, ja padronizadas no servidor (lote temporario). A ordem e a da lista, e
   // a PRIMEIRA e a principal (pedido do dono em 21/09/2026: ele ordena arrastando as miniaturas,
   // e a mais a esquerda vira a principal). Nao ha estado proprio da principal.
@@ -2067,6 +2092,8 @@ export default function FormularioProduto({
     // A descricao tem janela propria (JanelaDescricao); aqui so o titulo.
     iniciarIA(async () => {
       const resultado = await tentar(() => criarTitulosIA(ids, palavras));
+      setGastoTitulo(resultado.gasto ?? null);
+      somarAoGastoDaEdicao(resultado.gasto);
       if (!resultado.ok) {
         setErroIA({ qual, texto: resultado.erro });
         return;
@@ -2122,11 +2149,60 @@ export default function FormularioProduto({
     emCurso: iaEmCurso,
     erro: erroIA,
     opcoesTitulo: opcoesTitulo?.opcoes ?? null,
+    gastoTitulo,
   };
 
   // O resultado e tratado dentro da propria acao, e nao num efeito: reagir a
   // mudanca de estado com setState dentro de useEffect provoca renderizacoes em
   // cascata (e a regra do React 19 barra).
+  // RASCUNHO AUTOMATICO (pedido do dono em 13/10/2026): o que se edita fica guardado neste navegador
+  // (localStorage) e volta depois de recarregar a pagina; o banco so muda no Salvar, e ao salvar ou cancelar o
+  // rascunho some. A regra mora em `lib/rascunhoDoCadastro.js` e o relogio em `useRascunhoAutomatico`.
+  const rascunho = useRascunhoAutomatico({
+    chave: chaveDoRascunho({ produtoId: produto?.id ?? null, cloneId: clone?.origem.id ?? null }),
+    baseEm: produto?.atualizadoEm ?? null,
+    formulario,
+    lerCampos: lerFormulario,
+    estado: {
+      alterado,
+      tipo,
+      pecas,
+      fornecedores: fornecedoresRascunho,
+      concorrentes: concorrentesRascunho,
+      lote: loteTemporario,
+      imagens: imagensLote,
+      preservadas: fotosPreservadas,
+      reservaExcluida,
+      temporarios,
+      documentosExcluidos,
+      gastoDaEdicao,
+    },
+  });
+
+  function recuperarRascunho() {
+    const guardado = rascunho.guardado;
+    if (!guardado) return;
+    // Os campos soltos voltam pelo mesmo caminho do Salvar recusado: valores iniciais novos e remontagem.
+    setPreenchido((atual) => ({ ...(atual ?? produto ?? {}), ...guardado.campos }));
+    setVersao((anterior) => anterior + 1);
+    setTipo(guardado.tipo);
+    setPecas(guardado.pecas);
+    setFornecedoresRascunho(guardado.fornecedores);
+    setConcorrentesRascunho(guardado.concorrentes);
+    // As fotos e os documentos enviados so voltam se o lote temporario ainda existe (rascunho de mais de 20 h perde).
+    if (guardado.fotos.lote) {
+      setLoteTemporario(guardado.fotos.lote);
+      setImagensLote(guardado.fotos.imagens);
+      setFotosPreservadas(guardado.fotos.preservadas);
+      setReservaExcluida(guardado.fotos.reservaExcluida);
+      setTemporarios(guardado.temporarios);
+    }
+    setDocumentosExcluidos(guardado.documentosExcluidos);
+    setGastoDaEdicao(guardado.gastoDaEdicao);
+    setAlterado(true);
+    rascunho.aplicado();
+  }
+
   const [estado, acao, enviando] = useActionState(
     async (anterior, formData) => {
       // O painel guarda mais fotos do que o produto leva (as candidatas dos produtos marcados na
@@ -2156,6 +2232,12 @@ export default function FormularioProduto({
       campo escrito a mao fora do cadastro inicial sumia. Guardar o que foi
       enviado como valor inicial faz o reset devolver os mesmos valores.
     */
+      // "Os dados foram salvos, mas as fotos (ou os documentos) nao": o gasto desta edicao JA entrou no produto. Passa
+      // para o total salvo e zera, senao o segundo Salvar somaria de novo.
+      if (resultado.gastoGravado) {
+        setGastoSalvo((salvo) => somarResumos(salvo, lerGastoEnviado(formData)));
+        setGastoDaEdicao(null);
+      }
       if (!resultado.ok) {
         const enviados = Object.fromEntries(formData.entries());
         enviados.ativo = enviados.ativo === "on";
@@ -2169,6 +2251,8 @@ export default function FormularioProduto({
 
       if (resultado.ok) {
         setAlterado(false);
+        // Salvou no banco: o rascunho cumpriu o papel (pedido do dono em 13/10/2026).
+        rascunho.encerrar();
 
         // Os dois voltam para a lista (pedido do dono em 10/10/2026: o produto novo FICAVA na tela, de quando fotos,
         // documentos e fornecedores so entravam depois de o produto existir; hoje tudo entra antes do Salvar). A
@@ -2730,6 +2814,8 @@ export default function FormularioProduto({
   // Sem confirmacao (pedido do dono em 18/09/2026): Cancelar sempre descarta e
   // volta para a lista, direto.
   function cancelar() {
+    // Cancelar desfaz tudo: o rascunho tambem some, senao voltaria no proximo cadastro.
+    rascunho.encerrar();
     // O lote do painel (as fotos copiadas, as previas) nao serve mais.
     if (loteTemporario) tentar(() => descartarLoteDeArquivos(loteTemporario));
     router.push("/produtos");
@@ -2743,6 +2829,12 @@ export default function FormularioProduto({
       onChange={() => {
         setAlterado(true);
         if (estado?.erro) setErroDispensado(estado);
+      }}
+      // A cada tecla (o onChange so dispara ao sair do campo): marca como alterado ja na digitacao, senao quem digita e
+      // recarrega sem sair do campo perderia tudo, e o rascunho espera a pausa na digitacao para gravar.
+      onInput={() => {
+        setAlterado(true);
+        rascunho.agendar();
       }}
       className="space-y-4"
     >
@@ -2800,6 +2892,8 @@ export default function FormularioProduto({
         name="concorrentesRascunho"
         value={JSON.stringify(concorrentesRascunho)}
       />
+      {/* Gasto com IA desta edicao (descricao e titulo): o Salvar soma ao total do produto (pedido do dono em 12/10/2026). */}
+      <input type="hidden" name="gastoIA" value={gastoDaEdicao ? JSON.stringify(gastoDaEdicao) : ""} />
 
       {/* ---------- Acoes no topo ---------- */}
       <div className="flex flex-wrap items-center gap-2">
@@ -2826,17 +2920,38 @@ export default function FormularioProduto({
           <span className="text-sm text-red-700">{estado.erro}</span>
         )}
 
-        {novo && (
-          <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+          {/* A garantia de que nada se perde ao recarregar: discreta, so depois da primeira gravacao. */}
+          {rascunho.salvoEm && (
+            <span
+              className="text-[11px] text-suave tabular-nums"
+              title="Suas alterações ficam guardadas neste navegador até você salvar ou cancelar o cadastro."
+            >
+              Rascunho salvo às {new Date(rascunho.salvoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          {/* Quanto este produto ja custou de IA e quanto esta edicao vai somar (pedido do dono em 12/10/2026). */}
+          <GastoDoProduto salvo={gastoSalvo} edicao={gastoDaEdicao} />
+          {novo && (
             <BuscarPorCodigo
               codigoAtual={() =>
                 formulario.current?.elements.namedItem("sku")?.value
               }
               aoEscolher={preencher}
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+      {/* Ha alteracoes nao salvas guardadas neste navegador (pedido do dono em 13/10/2026): recuperar ou descartar. */}
+      {rascunho.guardado && (
+        <BannerDeRascunho
+          rascunho={rascunho.guardado}
+          aguardando={carregandoFotosDoProduto || importandoImagens}
+          aoRecuperar={recuperarRascunho}
+          aoDescartar={rascunho.descartar}
+        />
+      )}
 
       {erroAcao && (
         <p className="rounded bg-red-50 p-3 text-sm text-red-800">{erroAcao}</p>
@@ -3044,6 +3159,7 @@ export default function FormularioProduto({
       {/* Fora dos trechos remontados, pelo mesmo motivo da janela da lupa. */}
       <JanelaDescricao
         ref={janelaDescricao}
+        aoGastar={somarAoGastoDaEdicao}
         // So o que esta cadastrado na aba Fornecedores / Concorrentes (salvo ou nao) e o marcado na lupa
         // (pedido do dono em 07/10/2026): a janela nao procura mais pelo Nome no catalogo das lojas.
         ids={[...new Set([...idsMarcados, ...vinculosItens.map((item) => item.id)])]}

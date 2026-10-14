@@ -87,6 +87,39 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   O `onClick` com `target === currentTarget` fechava também quando se selecionava o texto de um campo e se arrastava
   para fora (o navegador manda o `click` ao ancestral comum): a janela fechava e o digitado se perdia. O estado é por
   elemento (`WeakMap`), porque há janela dentro de janela. **Janela nova usa o `propsDoFundo`, nunca o `onClick` direto.**
+- **Foto pequena (miniatura de produto):** mouse em cima abre uma **prévia ampliada** (260 px, acima da linha) e o
+  clique abre a **foto grande** (`FotoComLupa`, `src/components/ui/`, decidido pelo dono em 12/10/2026). Miniatura nova
+  usa esse componente, nunca monta o seu. A lista de Produtos já usa; **`ReferenciasDeMercado.jsx` ainda tem a cópia
+  própria** (`Foto`, com o mesmo desenho) e as telas de fotos do produto usam `ImagemComZoom`, que é outro caso (zoom
+  dentro da caixa, para comparar duas fotos). Migrar as cópias é pedido do dono, não dívida.
+- **Rascunho automático do cadastro de produto** (pedido do dono em 13/10/2026, opção 1: no navegador): tudo o que ele
+  edita fica no `localStorage` e volta ao recarregar a página; o banco só muda no Salvar, e **ao salvar ou cancelar o
+  rascunho some**. Chave `rise:rascunho:produto:<id>` (`:novo` e `rise:rascunho:clone:<id>` no cadastro novo e no
+  clone). Entra: os campos do formulário, o tipo e as peças do kit, fornecedores e concorrentes, as fotos do painel
+  (com o lote temporário), documentos enviados ou excluídos e o gasto com IA da edição; **não** entra o que é só tela
+  (lupa marcada, opções de título, aba aberta). Regra pura em `lib/rascunhoDoCadastro.js` (montar, ler, validade:
+  texto 7 dias; fotos e documentos só 20 h, porque o worker apaga o lote com 24 h), `localStorage` com try/catch em
+  `lib/rascunhoNoNavegador.js` e o relógio em `components/produtos/useRascunhoAutomatico.js` (grava 800 ms depois da
+  última tecla e na hora ao sair da aba; só com o cadastro alterado; nunca enquanto o aviso estiver pendente).
+  - **Ao abrir com rascunho:** aviso âmbar "Alterações não salvas deste cadastro, de hoje às 17:06" com **Recuperar**
+    (principal; espera as fotos do produto carregarem) e **Descartar**. Se o produto foi salvo de novo depois do rascunho
+    (`Produto.atualizadoEm` ≠ o da época), o aviso diz que recuperar sobrescreve o que mudou.
+  - **O `input` marca "alterado", e não só o `change`** (que só dispara ao sair do campo): senão quem digita e recarrega
+    sem sair do campo perderia tudo (achado na tela). E a primeira gravação resolve o aviso (`setResolvido`): o que
+    está no armazenamento passou a ser o rascunho DESTA tela, não um antigo esperando decisão (sem isso o aviso
+    reaparecia sozinho e travava as gravações).
+  - **Lido com `useSyncExternalStore`** (o React 19 barra `setState` em efeito). Janela privada ou armazenamento cheio
+    só tiram o rascunho; o cadastro funciona igual. Conferido na tela no ZZ-TESTE-BLING: gravar, Recuperar, Descartar,
+    Cancelar e Salvar apagando. **Não testado:** o gravar-ao-sair-da-aba (`pagehide`), a volta das fotos com o lote já
+    expirado e o rascunho de clone.
+- **Última escolha de prompt e de modelo da descrição** (pedido do dono em 13/10/2026): fica no `localStorage`
+  (`rise:descricao:preferencia`, `lib/preferenciaDaDescricao.js`), vale para todo produto e volta ao abrir "Criar
+  descrição". Só o que o **dono escolhe** é gravado (trocar no seletor, criar, excluir, "Usar como padrão"); o que a
+  janela aplica sozinha ao abrir **não** (`aplicarLista(..., lembrar)`), senão o padrão de hoje viraria "a escolha" e o
+  "Usar como padrão" de amanhã perderia para ele. Prompt excluído ou modelo que saiu da lista cai no padrão, sem erro.
+- **Ícone de estado na coluna Canais:** o ícone **Rise** (Conferido, verde/fosco, com o "!" do kit) vem antes do Bling;
+  cor = estado, selo "!" no canto superior direito, texto do estado no `title` e no `aria-label`. A coluna "Conf." e a
+  coluna vazia depois de Canais saíram em 12/10/2026 (o menu ⋮ mora no fim da célula Canais).
 - **Lista longa:** paginada, 100 por página, filtro por parâmetro repetido (`?fonte=A&fonte=B`), e
   nenhuma marcada quer dizer todas (Mercados).
 - **Texto da tela COM acento** (decidido pelo dono em 07/10/2026; até ali era sem acento): `Pessoa Física`,
@@ -2324,6 +2357,12 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       `caracteristicas`, `referencias` (os números das referências de onde o tirou; o pedido manda isso, em
       `INSTRUCAO_DE_REFERENCIAS`, e o nome da loja **continua sem ir para a IA**). O Rise **confere no texto de cada
       referência** (nome, descrição e ficha) se o valor está lá (os pedaços com número, como "16mhz", ou, sem número,
+    - **Dica da opção = a característica original da loja** (pedido do dono em 13/10/2026): ao passar o mouse numa
+      opção do quadro, cada loja aparece como `4hobby: Microcontrolador: Atmega328P`, e não mais com o título do produto
+      (`4hobby: Placa Arduino compatível...`). `identificarDivergencias` guarda em cada fonte da opção a `caracteristica`
+      (o `nome: valor` exatamente como a loja publicou; nas medidas, a linha da opção sem o marcador) e
+      `dicaDasFontes` (`revisaoDescricao.js`) a usa, caindo no título do produto e depois só na loja se faltar. A dica
+      do rótulo "IA" (`dicaDaOrigem`) segue com o título do produto apontado.
       todas as palavras) e só então mostra a loja; senão a linha fica **sem nome de loja**. **Faixa casa pelos números**
       (`pedacoNoTexto`, 13/10/2026): "7V a 12V" da IA confirma em loja que escreve "7-12V", "7~12V" ou "de 6 até 20 V"
       (número, conector e o outro número antes da unidade; "7 ampères" não é faixa). Antes a Tensão de Alimentação
@@ -2431,6 +2470,23 @@ pedidos do dono em 04/10/2026):
   - O painel diz o que vai acontecer: "N fotos · M validadas · K sem validar serão excluídas ao salvar", e o
     limite de 100 conta só as validadas (`FormularioProduto` confere o que está sendo enviado). O texto da tela
     é "validada"; o nome no código segue `finalizada`.
+- **As validadas formam fila à esquerda, na ordem da escolha** (pedido do dono em 13/10/2026): ao validar uma foto
+  ("Escolher essa"), ela vai para logo depois da última validada; ao tirar a validação, vai para o começo das não
+  validadas (`finalizar`, em `PainelDeImagens.jsx`). Como a primeira da tira é a principal, a primeira que ele escolhe
+  vira a principal. Foto que já estava validada e só trocou de versão (melhorada, comprada) **não sai do lugar**
+  (`manterLugar`); a que já estava no estado pedido também não. As marcadas para excluir ficam no fim e não entram.
+  Arrastar continua valendo. Conferido na tela com o 100101 (desvalidar e validar em ordem inversa; Cancelar desfez).
+- **O consumo do Photoroom e do Nano Banana mora na aba de cada um** (`JanelaDeFotos.jsx`, `usoDaAba`): uma linha
+  discreta logo abaixo do nome da aba aberta ("Prévias hoje: 0/100 · Compras no mês: R$ 0,00" e "Gerações hoje: 0/50 ·
+  Gasto no mês: R$ 0,00"). O rodapé da janela ficou só com a tira de fotos, a bolha "i" e Cancelar/Salvar.
+- **Ao validar, o cursor pula para a foto à direita** (pedido do dono em 14/10/2026): depois de "Escolher essa" a foto
+  vai para a fila da esquerda e o cursor passa para a que estava **logo ao lado dela, à direita, na ordem de antes**
+  (mesmo que essa já esteja validada: segue a ordem original do carrossel). Na última foto não há vizinha e o cursor
+  fica. Vale para os três "Escolher essa" (original, Photoroom, Nano Banana, e a compra da prévia); "Validada ✕" não
+  move o cursor (`finalizar`, em `PainelDeImagens.jsx`). Conferido na tela com o 100101.
+- **Anterior / próxima foto ficam logo abaixo do "Escolher essa / Excluir"** (pedido do dono em 13/10/2026, `‹ 1 / 7 ›`,
+  prop `abaixo` do `Quadro` e `navegacao` da `FotoEmRevisao`): saíram das laterais da janela. As setas do teclado
+  continuam valendo (o `keydown` é no `document`).
   - **A coluna `ProdutoArquivo.finalizada` (migration `20261004_arquivo_finalizada`) ficou SEM USO.** Nasceu
     na primeira versão, que gravava o check; na mesma sessão a regra virou "só validada é salva", e gravar o
     check deixou de ter função. Nada a lê nem a escreve. **A migration da reserva (`20261005_nano_banana_reserva`)

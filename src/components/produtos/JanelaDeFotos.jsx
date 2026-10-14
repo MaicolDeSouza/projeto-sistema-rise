@@ -100,7 +100,7 @@ async function tentar(acao) {
   }
 }
 
-function Quadro({ titulo, legenda, acima, botoes, children }) {
+function Quadro({ titulo, legenda, acima, botoes, abaixo = null, children }) {
   return (
     <figure className="mx-auto flex flex-col gap-1.5" style={{ width: LADO_DA_FOTO }}>
       <p className="text-center text-xs font-medium text-suave">{titulo}</p>
@@ -114,6 +114,9 @@ function Quadro({ titulo, legenda, acima, botoes, children }) {
       </figcaption>
       <div className="flex min-h-8 flex-wrap items-center justify-center gap-1.5">{acima}</div>
       <div className="flex min-h-9 flex-nowrap items-center justify-center gap-1.5">{botoes}</div>
+      {/* A navegacao entre as fotos (anterior / proxima) mora aqui, logo abaixo do "Escolher essa" (pedido do dono
+          em 13/10/2026): estava nas laterais da janela, longe de onde o dono decide a foto. */}
+      {abaixo && <div className="flex items-center justify-center gap-2 pt-0.5">{abaixo}</div>}
     </figure>
   );
 }
@@ -182,6 +185,7 @@ function FotoEmRevisao({
   aoExcluir,
   aoEscolherVersao,
   aoAtualizarFoto,
+  navegacao = null,
 }) {
   const [erro, setErro] = useState(null);
   const [confirmando, setConfirmando] = useState(false);
@@ -426,7 +430,7 @@ function FotoEmRevisao({
   // O site de cada servico, para usar fora do Rise (pedido do dono em 06/10/2026): so o icone ao lado do nome
   // da aba. Um link com texto parecia uma terceira ferramenta. O icone e um <a> FORA do botao da aba (link
   // dentro de botao nao vale em HTML), e clicar nele nao troca de aba.
-  const abas = (
+  const abasEmLinha = (
     <span className="flex w-full gap-1" role="tablist">
       {[
         ["photoroom", "Photoroom", { nome: "Photoroom", url: "https://app.photoroom.com" }],
@@ -464,6 +468,22 @@ function FotoEmRevisao({
     </span>
   );
 
+  // O consumo de cada servico mora na PROPRIA aba, logo abaixo do nome (pedido do dono em 13/10/2026): o rodape fica
+  // so com a tira de fotos. Uma linha curta e discreta, so da aba aberta; sem leitura do servidor, nao aparece.
+  const usoDaAba =
+    aba === "nanobanana"
+      ? estadoNB?.uso &&
+        `Gerações hoje: ${estadoNB.uso.hoje}/${estadoNB.uso.limiteDia} · Gasto no mês: ${reais(estadoNB.gastoMesBrl ?? 0)}`
+      : estado?.uso &&
+        `Prévias hoje: ${estado.uso.previasHoje}/${estado.uso.limiteDia} · Compras no mês: ${reais(estado.gastoMesBrl ?? 0)}`;
+
+  const abas = (
+    <span className="flex w-full flex-col gap-1">
+      {abasEmLinha}
+      {usoDaAba && <span className="text-center text-[11px] font-normal text-suave tabular-nums">{usoDaAba}</span>}
+    </span>
+  );
+
   return (
     <div className="space-y-3">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -471,6 +491,7 @@ function FotoEmRevisao({
           titulo={temPaga ? "Original" : "Foto atual"}
           legenda={legendaEsquerda}
           botoes={botoesEsquerda}
+          abaixo={navegacao}
         >
           <ImagemComZoom
             src={urlDaOriginal}
@@ -644,8 +665,6 @@ export default function JanelaDeFotos({
     };
   }, []);
 
-  const uso = estado?.uso;
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3"
@@ -685,21 +704,38 @@ export default function JanelaDeFotos({
             </p>
           )}
           {atual && (
-          <div className="flex items-stretch gap-2">
-            <button
-              type="button"
-              onClick={() => aoEscolher(imagens[indice - 1].base)}
-              disabled={indice <= 0}
-              aria-label="Foto anterior"
-              title="Foto anterior (seta para à esquerda)"
-              className="flex w-9 shrink-0 items-center justify-center self-center rounded-full border border-borda py-6 text-suave hover:bg-fundo disabled:opacity-30 disabled:hover:bg-transparent"
-            >
-              <ChevronLeft size={20} />
-            </button>
-
-            <div className="min-w-0 flex-1">
+          <div>
+            <div className="min-w-0">
               <FotoEmRevisao
                 key={atual.base}
+                // Anterior e proxima, abaixo do "Escolher essa". As setas do teclado continuam valendo.
+                navegacao={
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => aoEscolher(imagens[indice - 1].base)}
+                      disabled={indice <= 0}
+                      aria-label="Foto anterior"
+                      title="Foto anterior (seta para à esquerda)"
+                      className="flex h-8 w-10 items-center justify-center rounded-md border border-borda text-suave hover:bg-fundo hover:text-texto focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none disabled:opacity-30 disabled:hover:bg-transparent"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <span className="min-w-12 text-center text-xs text-suave tabular-nums" aria-live="polite">
+                      {indice + 1} / {total}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => aoEscolher(imagens[indice + 1].base)}
+                      disabled={indice >= total - 1}
+                      aria-label="Próxima foto"
+                      title="Próxima foto (seta para à direita)"
+                      className="flex h-8 w-10 items-center justify-center rounded-md border border-borda text-suave hover:bg-fundo hover:text-texto focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none disabled:opacity-30 disabled:hover:bg-transparent"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </>
+                }
                 lote={lote}
                 imagem={atual}
                 outras={imagens}
@@ -733,17 +769,6 @@ export default function JanelaDeFotos({
                 aoEscolherVersao={aoEscolherVersao}
               />
             </div>
-
-            <button
-              type="button"
-              onClick={() => aoEscolher(imagens[indice + 1].base)}
-              disabled={indice >= total - 1}
-              aria-label="Próxima foto"
-              title="Próxima foto (seta para à direita)"
-              className="flex w-9 shrink-0 items-center justify-center self-center rounded-full border border-borda py-6 text-suave hover:bg-fundo disabled:opacity-30 disabled:hover:bg-transparent"
-            >
-              <ChevronRight size={20} />
-            </button>
           </div>
           )}
         </div>
@@ -822,22 +847,8 @@ export default function JanelaDeFotos({
             variante="inline"
           />
 
-          {/* Em DUAS linhas e mais curto (pedido do dono em 21/09/2026): o espaco que sobra vai para mais
-              miniaturas na tira. */}
-          {uso && (
-            <span className="hidden shrink-0 text-[10px] leading-tight text-suave md:block">
-              <span className="block">Prévias hoje: {uso.previasHoje}/{uso.limiteDia}</span>
-              <span className="block">
-                Compras no mês: {reais(estado.gastoMesBrl ?? 0)}
-              </span>
-            </span>
-          )}
-          {estadoNB?.uso && (
-            <span className="hidden shrink-0 text-[10px] leading-tight text-suave md:block">
-              <span className="block">Nano Banana hoje: {estadoNB.uso.hoje}/{estadoNB.uso.limiteDia}</span>
-              <span className="block">Nano Banana no mês: {reais(estadoNB.gastoMesBrl ?? 0)}</span>
-            </span>
-          )}
+          {/* O consumo do Photoroom e do Nano Banana saiu daqui (13/10/2026): cada um aparece na sua aba, e toda a
+              largura do rodape e das fotos. */}
 
           {/* Salvar guarda tudo o que foi feito nas fotos; Cancelar desfaz tudo e mantem as de antes. */}
           <button

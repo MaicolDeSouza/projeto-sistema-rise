@@ -60,7 +60,10 @@ export const PRECOS_USD_POR_MILHAO = {
   "claude-haiku-5-5": { entrada: 0.1, saida: 0.5 },
   "claude-sonnet-5-5": { entrada: 2, saida: 10 },
   "claude-opus-5-5": { entrada: 4, saida: 20 },
-  // GPT 6.1 Sol (13/10/2026, medido na bancada da descricao): US$ 2/10 por milhao. A leitura em cache custa 5% da entrada.
+  // O modelo do texto do cadastro (descricao, titulo, SEO, categorias): `MODELO` em `ia/anuncio.js`. Preco de 06/10/2026.
+  "claude-opus-5": { entrada: 5, saida: 25 },
+  // GPT 6.1 Sol (13/10/2026, medido na bancada da descricao). A leitura em cache custa 0,1 por milhao, ou seja 5% da entrada
+  // (e nao os 10% da Anthropic): `pesoDoCacheLido` e esse peso, usado por `somarAoGasto`.
   "gpt-6.1-sol": { entrada: 2, saida: 10, pesoDoCacheLido: 0.05 },
   // GPT-4.1 mini, o principal do canal dos clientes e do chat interno (spec §12). Conferido em 13/10/2026 na pagina de modelos
   // da OpenAI: entrada US$ 0,40, entrada em cache US$ 0,10 (25%) e saida US$ 1,60 por milhao.

@@ -22,8 +22,10 @@ import {
   salvarPromptDaDescricao,
 } from "@/app/produtos/acoes";
 import { MODELOS_DA_DESCRICAO, MODELO_PADRAO_DA_DESCRICAO } from "@/lib/ia/modelosDaDescricao";
+import { gravarPreferenciaDaDescricao, lerPreferenciaDaDescricao } from "@/lib/preferenciaDaDescricao";
 import { linhasDeEspecificacao, medidasDaDescricao } from "@/lib/medidas";
 import { adicionarEspecificacao, formatarLinhaTecnica, garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, moverEspecificacao, moverEspecificacaoPorPasso, organizarDescricao, removerEspecificacao, editarOpcaoDeParagrafo, excluirOpcaoDeParagrafo, moverQuadroNoEstado, removerLinha, substituirCodigoDosItens, substituirEspecificacao, substituirLinha, trocarParagrafo } from "@/lib/ia/revisaoDescricao";
+import GastoDaIA from "@/components/ui/GastoDaIA";
 import LinhasDescricao from "./LinhasDescricao";
 
 /// Cor do ponto de cada aba: verde fornecedor, amarelo concorrente — as mesmas
@@ -240,7 +242,8 @@ const SEM_REFERENCIAS =
  * O formulario abre pelo `ref` (`abrir`). `lerProduto` devolve o Nome e o Codigo
  * NO MOMENTO da geracao: titulo e "Itens inclusos: (Cod:...)" saem deles.
  */
-export default function JanelaDescricao({ ref, ids, lendoReferencias = false, descricaoAtual = null, lerProduto, aoUsar, pecas = [] }) {
+// `aoGastar(gasto)`: cada geracao avisa o formulario quanto custou, para o total do produto (pedido do dono em 12/10/2026).
+export default function JanelaDescricao({ ref, ids, lendoReferencias = false, descricaoAtual = null, lerProduto, aoUsar, aoGastar = null, pecas = [] }) {
   const [aberta, setAberta] = useState(false);
   const [detalhes, setDetalhes] = useState(null);
   // KIT (pedido do dono em 10/10/2026): a descricao do cadastro de cada peca, lida ao abrir. Viram abas de
@@ -272,6 +275,7 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
   const [linhasEditadas, setLinhasEditadas] = useState(() => new Set());
   const [ordemDosQuadros, setOrdemDosQuadros] = useState([]);
   const [erro, setErro] = useState(null);
+  const [gasto, setGasto] = useState(null);
   const [produto, setProduto] = useState({ titulo: "", sku: "" });
   const leituraAtual = useRef(0);
   const geracaoAtual = useRef(0);
@@ -363,7 +367,11 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
     setAnteriorId(null);
     setSaidaDoPrompt(null);
     setConfirmandoExclusao(false);
-    // A lista chega sozinha, sem esperar as referencias (a busca leva segundos), e ja vem com o PADRAO escolhido.
+    // A ultima escolha de prompt e de modelo volta (lida aqui, num evento, e nao na renderizacao: o servidor nao tem
+    // localStorage).
+    const preferencia = lerPreferenciaDaDescricao();
+    setModeloIA(preferencia.modeloId ?? MODELO_PADRAO_DA_DESCRICAO);
+    // A lista chega sozinha, sem esperar as referencias (a busca leva segundos), e ja vem com o prompt escolhido.
     promptsDaDescricao()
       .then((resposta) => {
         if (leitura !== leituraAtual.current) return;
@@ -372,7 +380,10 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
           return;
         }
         setMaximoPrompt(resposta.maximo);
-        aplicarLista(resposta.prompts, (resposta.prompts.find((item) => item.padrao) ?? resposta.prompts[0]).id);
+        // O ULTIMO prompt que o dono usou (localStorage, pedido dele em 13/10/2026); se ele nao existe mais (foi
+        // excluido) ou nunca escolheu, o padrao da biblioteca.
+        const lembrado = resposta.prompts.find((item) => item.id === preferencia.promptId);
+        aplicarLista(resposta.prompts, (lembrado ?? resposta.prompts.find((item) => item.padrao) ?? resposta.prompts[0]).id, false);
       })
       .catch(() => {
         if (leitura === leituraAtual.current) setErroPrompt("Não deu para ler os prompts salvos. A geração usa o padrão mesmo assim.");
@@ -483,7 +494,11 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
       try {
         // O prompt da caixa; sem ele (ainda lendo, ou a leitura falhou) o servidor usa o salvo.
         const resultado = await criarDescricaoIA(idsParaGerar, { ...atual, pecas: pecasParaGerar }, prompt ?? undefined, modeloIA);
+        // O gasto conta mesmo se a geracao foi trocada por outra no meio: a chamada foi cobrada.
+        if (resultado.gasto) aoGastar?.(resultado.gasto);
         if (geracao !== geracaoAtual.current) return;
+        // O gasto vem tambem no erro (a chamada que falhou no meio ja foi cobrada).
+        setGasto(resultado.gasto ?? null);
         if (!resultado.ok) {
           setErro(resultado.erro);
           return;
@@ -739,8 +754,12 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
   }
 
   /** Poe a lista nova e escolhe `id` nela (o texto e o nome vao para a caixa). */
-  function aplicarLista(lista, id) {
+  // `lembrar`: guarda o prompt para a proxima abertura. So o que o DONO escolhe (trocar no seletor, criar, excluir,
+  // "Usar como padrao") conta; o que a janela aplica sozinha ao abrir nao pode ser gravado, senao o prompt padrao de
+  // hoje viraria "a escolha" e o "Usar como padrao" de amanha perderia para ele.
+  function aplicarLista(lista, id, lembrar = true) {
     const escolhido = lista.find((item) => item.id === id) ?? lista[0];
+    if (lembrar) gravarPreferenciaDaDescricao({ promptId: escolhido.id });
     setPrompts(lista);
     setPromptId(escolhido.id);
     setPrompt(escolhido.texto);
@@ -1088,7 +1107,11 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
                 aria-label="Modelo de IA"
                 title="Modelo de IA que escreve a descrição"
                 value={modeloIA}
-                onChange={(evento) => setModeloIA(evento.target.value)}
+                onChange={(evento) => {
+                  setModeloIA(evento.target.value);
+                  // O ultimo modelo usado volta na proxima abertura (pedido do dono em 13/10/2026).
+                  gravarPreferenciaDaDescricao({ modeloId: evento.target.value });
+                }}
                 disabled={gerando}
                 className="min-w-0 rounded border border-borda bg-superficie px-2 py-1 text-xs focus:border-acento focus:outline-none disabled:opacity-60"
               >
@@ -1164,6 +1187,8 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
               </button>
             </div>
 
+            {/* Quanto custou a ultima geracao (pedido do dono em 12/10/2026). */}
+            <GastoDaIA gasto={gasto} className="mb-2" />
             {erro && <p className="mb-2 text-sm text-red-700">{erro}</p>}
 
             <div ref={rolagemDescricao} className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">

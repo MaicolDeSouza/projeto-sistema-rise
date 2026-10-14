@@ -7,6 +7,7 @@ import { gerarSeoIALI, seoConcorrentesLI } from "@/app/canais-de-venda/loja-inte
 import { CLASSE_CAMPO } from "@/components/cadastros/Campo";
 import MensagensDoCampo from "@/components/anuncios/ml/MensagensDoCampo";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import GastoDaIA from "@/components/ui/GastoDaIA";
 import { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaFrase } from "@/lib/canaisDeVenda/li/seo";
 import { slugDe } from "@/lib/canaisDeVenda/li/slug";
 
@@ -127,6 +128,7 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
   const [aberta, setAberta] = useState(null);
   const [opcoesIA, setOpcoesIA] = useState([]);
   const [erroIA, setErroIA] = useState(null);
+  const [gastoIA, setGastoIA] = useState(null);
   const [gerando, iniciarGeracao] = useTransition();
 
   const produtoId = rascunho.produtoId;
@@ -162,6 +164,8 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
     setErroIA(null);
     iniciarGeracao(async () => {
       const resultado = await chamar(gerarSeoIALI, produtoId, rascunho.titulo ?? "");
+      // O gasto vem tambem no erro (a chamada que falhou no meio ja foi cobrada).
+      setGastoIA(resultado.gasto ?? null);
       if (resultado.ok) setOpcoesIA(resultado.opcoes);
       else setErroIA(resultado.erro);
     });
@@ -262,6 +266,8 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
                     <span className="ml-auto text-[11px] font-normal text-suave">3 opções de 140 a 160 caracteres</span>
                   </button>
                 )}
+                {/* Quanto custou a ultima geracao (pedido do dono em 12/10/2026). */}
+                <GastoDaIA gasto={gastoIA} className="px-2 pt-1" />
               </div>
             </ListaDeOpcoes>
           </div>

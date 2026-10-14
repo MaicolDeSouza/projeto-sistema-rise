@@ -284,10 +284,36 @@ export default function PainelDeImagens({
 
   // "Finalizada" marca que o dono ja decidiu por esta foto (o check verde). Vai no Salvar do produto
   // (`ProdutoArquivo.finalizada`) e volta ao reabrir; ate ele salvar, so existe aqui na tela.
-  function finalizar(base, valor) {
-    mudarLista((anteriores) =>
-      anteriores.map((outra) => (outra.base === base ? { ...outra, finalizada: valor } : outra)),
-    );
+  //
+  // As validadas FORMAM FILA A ESQUERDA, na ordem em que foram escolhidas (pedido do dono em 13/10/2026): a foto que
+  // acaba de ser validada vai para logo depois da ultima validada, e a que perde a validacao vai para o comeco das nao
+  // validadas. Como a primeira da tira e a principal do produto, a primeira que o dono escolhe vira a principal. Quem
+  // ja estava no estado pedido nao se mexe (nem a ordem que o dono arrastou). As marcadas para excluir ficam no fim e
+  // nao entram na conta.
+  // `manterLugar`: a foto ja estava validada e so trocou de versao (`trocar` zera a validacao no meio): fica onde esta.
+  //
+  // O CURSOR PULA PARA A PROXIMA (pedido do dono em 14/10/2026): ao validar, a foto vai para a fila da esquerda e o
+  // cursor ia junto, obrigando a percorrer o carrossel ate a proxima. Agora ele vai para a foto que estava logo a
+  // DIREITA da validada na ordem de antes (mesmo que essa ja esteja validada: segue a ordem original do carrossel).
+  // Na ultima foto nao ha vizinha e o cursor fica. So ao validar: "Validada x" (`valor` falso) nao move o cursor.
+  function finalizar(base, valor, manterLugar = false) {
+    if (valor) {
+      const visiveis = janelaAberta ? visiveisDaJanela : imagens;
+      const posicao = visiveis.findIndex((imagem) => imagem.base === base);
+      const vizinha = posicao >= 0 ? visiveis[posicao + 1] : null;
+      if (vizinha) setFoco(vizinha.base);
+    }
+    mudarLista((anteriores) => {
+      const alvo = anteriores.find((outra) => outra.base === base);
+      if (!alvo) return anteriores;
+      if (manterLugar || Boolean(alvo.finalizada) === valor) {
+        return anteriores.map((outra) => (outra.base === base ? { ...outra, finalizada: valor } : outra));
+      }
+      const resto = anteriores.filter((outra) => outra.base !== base);
+      const ultimaValidada = resto.reduce((ultima, outra, posicao) => (outra.finalizada && !outra.excluida ? posicao : ultima), -1);
+      resto.splice(ultimaValidada + 1, 0, { ...alvo, finalizada: valor });
+      return resto;
+    });
   }
 
   // Troca uma foto na lista mantendo a posicao e o que ja se sabia dela. O conteudo mudou
@@ -311,7 +337,8 @@ export default function PainelDeImagens({
         return;
       }
       trocar(resposta.imagem);
-      finalizar(imagem.base, true);
+      // Ja validada e so mudou de versao: nao sai do lugar da fila.
+      finalizar(imagem.base, true, Boolean(imagem.finalizada));
       setErro(null);
     });
   }
@@ -319,8 +346,9 @@ export default function PainelDeImagens({
   // Comprou: a melhorada passa a ser a foto do produto e ja fica finalizada, porque "Escolher essa"
   // na previa e a compra.
   function aoComprar(nova) {
+    const eraValidada = imagens.find((outra) => outra.base === nova.base)?.finalizada;
     trocar(nova);
-    finalizar(nova.base, true);
+    finalizar(nova.base, true, Boolean(eraValidada));
   }
 
   // Exclui a foto INTEIRA (a padronizada, a original guardada, a previa e a melhorada; o servidor

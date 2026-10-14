@@ -9,6 +9,7 @@ import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
 import { listarCategoriasDaLI, listarMarcasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
 import { seoDosConcorrentes } from "@/lib/canaisDeVenda/li/seoConcorrentes";
 import { gerarDescriptionsSeo, sugerirCategoriasIA } from "@/lib/ia/anuncio";
+import { novoGasto, resumoDoGasto } from "@/lib/ia/gasto";
 
 /**
  * Acoes do servidor do canal Loja Integrada (Canais de Venda): o editor do anuncio e
@@ -112,14 +113,16 @@ export async function seoConcorrentesLI(produtoId) {
  */
 export async function gerarSeoIALI(produtoId, titulo) {
   if (!ehId(produtoId) || typeof titulo !== "string" || titulo.length > 255) return PEDIDO_INVALIDO;
+  // O gasto volta tambem no erro: a chamada que falhou no meio ja foi cobrada.
+  const gasto = novoGasto();
   try {
     const [produto, concorrentes] = await Promise.all([contextoDoProduto(produtoId), seoDosConcorrentes(produtoId)]);
     if (!produto) return { ok: false, erro: "Produto não encontrado." };
-    const opcoes = await gerarDescriptionsSeo({ titulo: titulo.trim() || produto.tituloBase, descricao: produto.descricaoBase ?? "", concorrentes });
-    return { ok: true, opcoes };
+    const opcoes = await gerarDescriptionsSeo({ titulo: titulo.trim() || produto.tituloBase, descricao: produto.descricaoBase ?? "", concorrentes, gasto });
+    return { ok: true, opcoes, gasto: resumoDoGasto(gasto) };
   } catch (erro) {
     console.error("[loja integrada] seo com IA", erro);
-    return { ok: false, erro: erro.message || "Não foi possível gerar com a IA. Tente de novo." };
+    return { ok: false, erro: erro.message || "Não foi possível gerar com a IA. Tente de novo.", gasto: resumoDoGasto(gasto) };
   }
 }
 
@@ -129,14 +132,15 @@ export async function gerarSeoIALI(produtoId, titulo) {
  */
 export async function sugerirCategoriasLI(produtoId, titulo) {
   if (!ehId(produtoId) || typeof titulo !== "string" || titulo.length > 255) return PEDIDO_INVALIDO;
+  const gasto = novoGasto();
   try {
     const [produto, categorias] = await Promise.all([contextoDoProduto(produtoId), listarCategoriasDaLI(clienteLI())]);
     if (!produto) return { ok: false, erro: "Produto não encontrado." };
-    const sugestoes = await sugerirCategoriasIA({ titulo: titulo.trim() || produto.tituloBase, marca: produto.marca ?? "", descricao: produto.descricaoBase ?? "", categorias });
-    return { ok: true, sugestoes };
+    const sugestoes = await sugerirCategoriasIA({ titulo: titulo.trim() || produto.tituloBase, marca: produto.marca ?? "", descricao: produto.descricaoBase ?? "", categorias, gasto });
+    return { ok: true, sugestoes, gasto: resumoDoGasto(gasto) };
   } catch (erro) {
     console.error("[loja integrada] categoria com IA", erro);
-    return { ok: false, erro: erro.message || "Não foi possível sugerir com a IA. Tente de novo." };
+    return { ok: false, erro: erro.message || "Não foi possível sugerir com a IA. Tente de novo.", gasto: resumoDoGasto(gasto) };
   }
 }
 

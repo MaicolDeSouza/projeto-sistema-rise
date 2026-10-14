@@ -76,6 +76,11 @@ export async function carregarProdutoParaFormulario(id) {
     // Fornecedor extraido do Bling na importacao — so RASCUNHO, ate o operador
     // salvar o produto (ver FormularioProduto e salvarProduto).
     fornecedorRascunho: registro.fornecedorRascunho ?? null,
+    // Total ja gasto com IA neste produto, somado a cada Salvar (pedido do dono em 12/10/2026). So leitura na tela.
+    gastoIA: registro.gastoIA ?? null,
+    // Quando o produto foi salvo pela ultima vez: o rascunho automatico guarda isto para avisar, ao voltar, que
+    // alguem mexeu no produto nesse meio tempo (`lib/rascunhoDoCadastro.js`).
+    atualizadoEm: registro.atualizadoEm?.toISOString() ?? null,
     precoVenda: registro.precoVenda ? Number(registro.precoVenda) : "",
     pesoKg: registro.pesoKg ? Number(registro.pesoKg) : "",
     alturaCm: registro.alturaCm ? Number(registro.alturaCm) : "",
@@ -160,6 +165,10 @@ export function dadosParaClone({ produto, fornecedores, concorrentes }) {
     mudancasDasPecas: _mudancas,
     fornecedorRascunho,
     tipo,
+    // O gasto com IA e do original: o clone comeca do zero.
+    gastoIA: _gasto,
+    // A data de salvamento tambem e do original.
+    atualizadoEm: _atualizadoEm,
     ...campos
   } = produto;
 

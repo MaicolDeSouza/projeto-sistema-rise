@@ -1520,6 +1520,15 @@ console.log("\n— portal com login (Santana, Add Suite) —");
   conferir("cada medida conserva a loja de origem", dimensoes.opcoes.map((item) => item.fontes[0].nome), ["Piscaled", "Usinainfo", "Saravati"]);
   conferir("medida sem eixos declara a suposicao", Boolean(dimensoes.opcoes[0].aviso), true);
   conferir("medida com eixos declarados nao recebe aviso", dimensoes.opcoes[2].aviso, null);
+  // A dica do mouse mostra a loja e a caracteristica COMO ELA PUBLICOU, e nao o titulo do produto (13/10/2026).
+  const { dicaDasFontes } = await import("../src/lib/ia/revisaoDescricao.js");
+  const micro = identificarDivergencias([
+    { id: "h", nome: "Placa Arduino compativel UNO R3", fonte: { nome: "4hobby" }, especificacoes: [{ nome: "Microcontrolador", valor: "Atmega328P" }] },
+    { id: "o", nome: "Arduino UNO", fonte: { nome: "Outra loja" }, especificacoes: [{ nome: "Microcontrolador", valor: "Atmega328PB" }] },
+  ])[0];
+  conferir("dica: loja e caracteristica original, sem o titulo do produto", micro.opcoes.map((opcao) => dicaDasFontes(opcao.fontes)), ["4hobby: Microcontrolador: Atmega328P", "Outra loja: Microcontrolador: Atmega328PB"]);
+  conferir("dica de medida: a linha da opcao, sem o marcador", dimensoes.opcoes.map((opcao) => dicaDasFontes(opcao.fontes)), ["Piscaled: Dimensões(CxL): 45x19mm", "Usinainfo: Dimensões(CxLxA): 68x53x10mm", "Saravati: Dimensões(CxLxA): 53x68x12mm"]);
+  conferir("dica sem caracteristica cai no titulo do produto, e sem ele so na loja", dicaDasFontes([{ nome: "A", produto: "Titulo" }, { nome: "B" }]), "A: Titulo\nB");
   conferir("valores iguais nao criam escolha falsa", identificarDivergencias([referencias[0], { ...referencias[0], id: "p2", fonte: { nome: "Outra loja" } }]), []);
   const correntes = identificarDivergencias([
     { id: "a", nome: "UNO", fonte: { nome: "Loja A" }, especificacoes: [{ nome: "Corrente por pino I/O", valor: "40 mA" }] },
@@ -2724,6 +2733,50 @@ console.log("\n— Tray (Kalatec): galeria com id pequeno e ficha com nome no ti
   conferir("kalatec: ficha = tabela + lista da descricao com titulo com nome", k.specifications.map((l) => l.nome), ["Modelo", "Marca", null, "Código Kalatec", "Flange", "Torque Estático Bipolar", "Quantidade de Fios"]);
 }
 
+// Gasto da geracao com IA (pedido do dono em 12/10/2026): tokens e reais de descricao, titulo, SEO e categorias.
+console.log("\n— Gasto da geracao com IA —");
+{
+  const { novoGasto, somarAoGasto, resumoDoGasto } = await import("../src/lib/ia/gasto.js");
+  conferir("gasto: sem chamada nenhuma, nada a mostrar", resumoDoGasto(novoGasto()), null);
+
+  // A descricao com a segunda chamada (o paragrafo longo volta para encurtar): as duas somam.
+  const g = novoGasto();
+  somarAoGasto(g, { model: "claude-opus-5", usage: { input_tokens: 6000, output_tokens: 1000 } }, "claude-opus-5");
+  somarAoGasto(g, { model: "claude-opus-5", usage: { input_tokens: 4000, output_tokens: 1000 } }, "claude-opus-5");
+  somarAoGasto(g, null, "claude-opus-5"); // erro de rede: nao custa nada
+  const r = resumoDoGasto(g);
+  // 10.000 de entrada a US$ 5/milhao + 2.000 de saida a US$ 25/milhao = US$ 0,10; a R$ 6,00 = R$ 0,60.
+  conferir("gasto: duas chamadas somam tokens e custo", [r.modelo, r.chamadas, r.entrada, r.saida, r.total, r.usd, r.brl], ["Claude Opus 5", 2, 10000, 2000, 12000, 0.1, 0.6]);
+
+  // Cache: o lido e o gravado entram no total de entrada, mas no custo com o peso da Anthropic (0,1x e 1,25x).
+  const c = novoGasto();
+  somarAoGasto(c, { model: "claude-opus-5", usage: { input_tokens: 0, cache_read_input_tokens: 1000000, cache_creation_input_tokens: 0, output_tokens: 0 } });
+  conferir("gasto: 1 milhao lido do cache custa 0,1x (US$ 0,50)", [resumoDoGasto(c).entrada, resumoDoGasto(c).usd], [1000000, 0.5]);
+
+  // Modelo sem preco cadastrado: a tela diz "preco nao cadastrado", nunca R$ 0,00.
+  const s = novoGasto();
+  somarAoGasto(s, { model: "claude-modelo-novo", usage: { input_tokens: 10, output_tokens: 10 } });
+  conferir("gasto: modelo sem preco devolve reais nulo", [resumoDoGasto(s).modelo, resumoDoGasto(s).brl], ["claude-modelo-novo", null]);
+
+  // Total do produto (12/10/2026): o salvo + o desta edicao, e o que o navegador manda no Salvar.
+  const { somarResumos, gastoDoFormulario } = await import("../src/lib/ia/gasto.js");
+  const salvo = { modelo: "Claude Opus 5", chamadas: 1, entrada: 100, saida: 50, total: 150, usd: 0.01, brl: 0.06, atualizadoEm: "2026-10-12T10:00:00.000Z" };
+  const soma = somarResumos(salvo, r);
+  conferir("produto: salvo + edicao somam", [soma.chamadas, soma.entrada, soma.saida, soma.total, soma.usd, soma.brl], [3, 10100, 2050, 12150, 0.11, 0.66]);
+  conferir("produto: sem salvo, fica a edicao; sem edicao, fica o salvo", [somarResumos(null, r) === r, somarResumos(salvo, null) === salvo], [true, true]);
+  conferir("produto: reais nulo de um lado deixa o total em nulo (nunca soma parcial)", somarResumos(salvo, { ...r, brl: null }).brl, null);
+  conferir("produto: o mesmo modelo nao se repete no nome", somarResumos(salvo, r).modelo, "Claude Opus 5");
+  conferir("formulario: gasto valido e lido", gastoDoFormulario(JSON.stringify(r)), { modelo: "Claude Opus 5", chamadas: 2, entrada: 10000, saida: 2000, total: 12000, usd: 0.1, brl: 0.6 });
+  conferir("formulario: vazio, texto, negativo e absurdo viram nada (o Salvar nao falha)", [
+    gastoDoFormulario(""),
+    gastoDoFormulario("abc"),
+    gastoDoFormulario(JSON.stringify({ ...r, entrada: -5 })),
+    gastoDoFormulario(JSON.stringify({ ...r, brl: 1e9 })),
+    gastoDoFormulario(JSON.stringify({ ...r, chamadas: 0 })),
+    gastoDoFormulario(null),
+  ], [null, null, null, null, null, null]);
+}
+
 // Neoyama e Karimex (12/10/2026): cadastrada sem www e redirecionada para ele (ou o contrario) nao e outro dominio.
 console.log("\n— redirecionamento entre o dominio e o www —");
 {
@@ -2866,6 +2919,70 @@ console.log("\n— link de menu nao e documento —");
   const docs = (links) => normalizarPagina({ html: pagina(links), url: "https://www.easytronics.com.br/arduino-uno", fonte: "Easytronics" }).produtos[0].documentos.map((d) => d.titulo);
   conferir("documento: menu Manuais (categoria do proprio site, sem extensao) nao e documento, com ou sem www", [docs(`<a href="/eletrica-eletronica/ferramentas/manuais">Manuais</a>`), docs(`<a href="https://easytronics.com.br/ferramentas/datasheet-e-manuais">Datasheet</a>`)], [[], []]);
   conferir("documento: arquivo de verdade segue valendo (extensao, anexo e dominio de arquivo)", [docs(`<a href="/arquivos/manual.pdf">Manuais</a>`), docs(`<a href="/index.php?controller=attachment&id_attachment=101">Datasheet</a>`), docs(`<a href="https://drive.google.com/file/d/abc/view">Manual de instrucoes</a>`)], [["Manuais"], ["Datasheet"], ["Manual de instrucoes"]]);
+}
+
+// Rascunho automatico do cadastro e preferencia da descricao (13/10/2026): o que vai para o localStorage e o que volta.
+console.log("\n— Rascunho do cadastro e preferencia da descricao —");
+{
+  const { chaveDoRascunho, camposParaRascunho, montarRascunho, lerRascunho, VALIDADE_DO_TEXTO_MS, VALIDADE_DOS_ARQUIVOS_MS } = await import("../src/lib/rascunhoDoCadastro.js");
+  const { conferirPreferenciaDaDescricao } = await import("../src/lib/preferenciaDaDescricao.js");
+  const agora = Date.parse("2026-10-13T15:00:00.000Z");
+  const antes = (ms) => agora - ms;
+
+  conferir("chave: um por produto, um para o novo, um por clone", [
+    chaveDoRascunho({ produtoId: "p1" }),
+    chaveDoRascunho({}),
+    chaveDoRascunho({ cloneId: "c9" }),
+    chaveDoRascunho({ produtoId: "p1", cloneId: "c9" }),
+  ], ["rise:rascunho:produto:p1", "rise:rascunho:produto:novo", "rise:rascunho:clone:c9", "rise:rascunho:produto:p1"]);
+
+  conferir("campos: so texto e ativo; estado do React, arquivo e lixo ficam de fora", camposParaRascunho({
+    tituloBase: "Placa", ativo: true, tipo: "COMPOSICAO", fornecedoresRascunho: "[]", imagensDoLote: "[]",
+    loteTemporario: "x", gastoIA: "", arquivo: { name: "a.pdf" }, numero: 5, enorme: "a".repeat(200_001),
+  }), { tituloBase: "Placa", ativo: true });
+
+  const estado = {
+    tipo: "COMPOSICAO", pecas: [{ componenteId: "a", quantidade: 2 }], fornecedores: [{ id: "f1" }], concorrentes: [],
+    lote: "lote-1", imagens: [{ base: "foto1", finalizada: true }], preservadas: [], reservaExcluida: ["r1"],
+    temporarios: [{ arquivo: "d.pdf" }], documentosExcluidos: ["x"], gastoDaEdicao: { chamadas: 1 },
+  };
+  const montado = montarRascunho({ campos: { tituloBase: "Placa", sku: "100" }, estado, baseEm: "2026-10-13T10:00:00.000Z", agora: antes(60_000) });
+  const lido = lerRascunho(JSON.stringify(montado), { agora, baseEmAtual: "2026-10-13T10:00:00.000Z" });
+  conferir("rascunho: ida e volta guarda tudo o que se edita", [lido.campos, lido.tipo, lido.pecas, lido.fornecedores, lido.fotos.lote, lido.fotos.imagens, lido.fotos.reservaExcluida, lido.temporarios, lido.documentosExcluidos, lido.gastoDaEdicao], [
+    { tituloBase: "Placa", sku: "100" }, "COMPOSICAO", [{ componenteId: "a", quantidade: 2 }], [{ id: "f1" }], "lote-1", [{ base: "foto1", finalizada: true }], ["r1"], [{ arquivo: "d.pdf" }], ["x"], { chamadas: 1 },
+  ]);
+  conferir("rascunho recente: sem aviso de produto mudado nem de arquivo expirado", [lido.produtoMudou, lido.arquivosExpiraram], [false, false]);
+  conferir("rascunho: produto salvo de novo depois dele avisa", lerRascunho(JSON.stringify(montado), { agora, baseEmAtual: "2026-10-13T14:00:00.000Z" }).produtoMudou, true);
+  conferir("rascunho: cadastro novo (sem baseEm) nunca acusa produto mudado", lerRascunho(JSON.stringify({ ...montado, baseEm: null }), { agora, baseEmAtual: null }).produtoMudou, false);
+
+  // Mais de 20 h: o texto volta, as fotos e os documentos enviados nao (o lote temporario some com 24 h).
+  const velho = lerRascunho(JSON.stringify({ ...montado, salvoEm: new Date(antes(VALIDADE_DOS_ARQUIVOS_MS + 60_000)).toISOString() }), { agora });
+  conferir("rascunho de mais de 20 h: texto fica, fotos e documentos saem", [velho.campos.tituloBase, velho.arquivosExpiraram, velho.fotos.lote, velho.fotos.imagens, velho.temporarios], ["Placa", true, "", [], []]);
+
+  conferir("rascunho invalido vira nada", [
+    lerRascunho(null, { agora }),
+    lerRascunho("", { agora }),
+    lerRascunho("{nao e json", { agora }),
+    lerRascunho(JSON.stringify({ ...montado, v: 2 }), { agora }),
+    lerRascunho(JSON.stringify({ ...montado, salvoEm: new Date(antes(VALIDADE_DO_TEXTO_MS + 60_000)).toISOString() }), { agora }),
+    lerRascunho(JSON.stringify({ ...montado, salvoEm: new Date(agora + 3_600_000).toISOString() }), { agora }),
+    lerRascunho(JSON.stringify({ ...montado, salvoEm: "ontem" }), { agora }),
+    lerRascunho(JSON.stringify({ ...montado, campos: {} }), { agora }),
+    lerRascunho(JSON.stringify([1, 2]), { agora }),
+  ], [null, null, null, null, null, null, null, null, null]);
+
+  const torto = lerRascunho(JSON.stringify({ ...montado, pecas: "x", fornecedores: null, tipo: "OUTRO", fotos: { lote: 5, imagens: [1, { base: "ok" }, { base: 7 }] }, gastoDaEdicao: [1] }), { agora });
+  conferir("rascunho com formas erradas: listas viram vazias e o tipo volta a Simples", [torto.pecas, torto.fornecedores, torto.tipo, torto.fotos.lote, torto.fotos.imagens, torto.gastoDaEdicao], [[], [], "SIMPLES", "", [{ base: "ok" }], null]);
+
+  conferir("preferencia: modelo da lista e prompt em texto passam", conferirPreferenciaDaDescricao({ promptId: "abc", modeloId: "claude-opus-5-5" }), { promptId: "abc", modeloId: "claude-opus-5-5" });
+  const nada = { promptId: null, modeloId: null };
+  conferir("preferencia: modelo que saiu da lista, prompt vazio ou enorme e lixo viram nada", [
+    conferirPreferenciaDaDescricao({ promptId: "", modeloId: "gpt-3" }),
+    conferirPreferenciaDaDescricao({ promptId: "a".repeat(101), modeloId: 5 }),
+    conferirPreferenciaDaDescricao(null),
+    conferirPreferenciaDaDescricao("texto"),
+    conferirPreferenciaDaDescricao([1]),
+  ], [nada, nada, nada, nada, nada]);
 }
 
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
