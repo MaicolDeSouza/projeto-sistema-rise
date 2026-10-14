@@ -2357,12 +2357,6 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       `caracteristicas`, `referencias` (os números das referências de onde o tirou; o pedido manda isso, em
       `INSTRUCAO_DE_REFERENCIAS`, e o nome da loja **continua sem ir para a IA**). O Rise **confere no texto de cada
       referência** (nome, descrição e ficha) se o valor está lá (os pedaços com número, como "16mhz", ou, sem número,
-    - **Dica da opção = a característica original da loja** (pedido do dono em 13/10/2026): ao passar o mouse numa
-      opção do quadro, cada loja aparece como `4hobby: Microcontrolador: Atmega328P`, e não mais com o título do produto
-      (`4hobby: Placa Arduino compatível...`). `identificarDivergencias` guarda em cada fonte da opção a `caracteristica`
-      (o `nome: valor` exatamente como a loja publicou; nas medidas, a linha da opção sem o marcador) e
-      `dicaDasFontes` (`revisaoDescricao.js`) a usa, caindo no título do produto e depois só na loja se faltar. A dica
-      do rótulo "IA" (`dicaDaOrigem`) segue com o título do produto apontado.
       todas as palavras) e só então mostra a loja; senão a linha fica **sem nome de loja**. **Faixa casa pelos números**
       (`pedacoNoTexto`, 13/10/2026): "7V a 12V" da IA confirma em loja que escreve "7-12V", "7~12V" ou "de 6 até 20 V"
       (número, conector e o outro número antes da unidade; "7 ampères" não é faixa). Antes a Tensão de Alimentação
@@ -2370,6 +2364,12 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       concorrente nem de fornecedor também fica sem nome (pedido do dono). `gerarDescricao` devolve
       `fontesDasLinhas` (`{ "- Nome: valor;": [lojas] }`, chave = a linha formatada); só valem as referências de loja,
       não as peças de um kit. Vale só para a geração nova: texto digitado ou levado da esquerda não tem loja.
+    - **Dica da opção = a característica original da loja** (pedido do dono em 13/10/2026): ao passar o mouse numa
+      opção do quadro, cada loja aparece como `4hobby: Microcontrolador: Atmega328P`, e não mais com o título do produto
+      (`4hobby: Placa Arduino compatível...`). `identificarDivergencias` guarda em cada fonte da opção a `caracteristica`
+      (o `nome: valor` exatamente como a loja publicou; nas medidas, a linha da opção sem o marcador) e
+      `dicaDasFontes` (`revisaoDescricao.js`) a usa, caindo no título do produto e depois só na loja se faltar. A dica
+      do rótulo "IA" (`dicaDaOrigem`) segue com o título do produto apontado.
     - **Quadros canônicos** (13/10/2026, pedido do dono): os quadros de divergência nascem de `identificarDivergencias` com
       o RÓTULO CRU da loja ("Tensão de entrada (recomendada)" e "Tensão de Entrada" eram dois quadros, e a linha final saía
       com 7-12V e 7-9V juntas), e a padronização do prompt não chegava lá. Agora a IA é o motor de sinônimos: cada
@@ -2470,6 +2470,13 @@ pedidos do dono em 04/10/2026):
   - O painel diz o que vai acontecer: "N fotos · M validadas · K sem validar serão excluídas ao salvar", e o
     limite de 100 conta só as validadas (`FormularioProduto` confere o que está sendo enviado). O texto da tela
     é "validada"; o nome no código segue `finalizada`.
+  - **A coluna `ProdutoArquivo.finalizada` (migration `20261004_arquivo_finalizada`) ficou SEM USO.** Nasceu
+    na primeira versão, que gravava o check; na mesma sessão a regra virou "só validada é salva", e gravar o
+    check deixou de ter função. Nada a lê nem a escreve. **A migration da reserva (`20261005_nano_banana_reserva`)
+    também NÃO a removeu:** o servidor da outra frente roda com o client antigo, que a lista em toda consulta, e
+    um `DROP COLUMN` o derrubaria. Fica para a próxima migration, quando as duas frentes tiverem o client novo.
+  - Trocar o conteúdo da foto (Melhorar, voltar ao original) zera a validação na tela (`trocar`): a decisão do
+    dono recomeça. Testado em `teste:imagens` (os três destinos, campo ausente, todas sem check).
 - **As validadas formam fila à esquerda, na ordem da escolha** (pedido do dono em 13/10/2026): ao validar uma foto
   ("Escolher essa"), ela vai para logo depois da última validada; ao tirar a validação, vai para o começo das não
   validadas (`finalizar`, em `PainelDeImagens.jsx`). Como a primeira da tira é a principal, a primeira que ele escolhe
@@ -2487,13 +2494,6 @@ pedidos do dono em 04/10/2026):
 - **Anterior / próxima foto ficam logo abaixo do "Escolher essa / Excluir"** (pedido do dono em 13/10/2026, `‹ 1 / 7 ›`,
   prop `abaixo` do `Quadro` e `navegacao` da `FotoEmRevisao`): saíram das laterais da janela. As setas do teclado
   continuam valendo (o `keydown` é no `document`).
-  - **A coluna `ProdutoArquivo.finalizada` (migration `20261004_arquivo_finalizada`) ficou SEM USO.** Nasceu
-    na primeira versão, que gravava o check; na mesma sessão a regra virou "só validada é salva", e gravar o
-    check deixou de ter função. Nada a lê nem a escreve. **A migration da reserva (`20261005_nano_banana_reserva`)
-    também NÃO a removeu:** o servidor da outra frente roda com o client antigo, que a lista em toda consulta, e
-    um `DROP COLUMN` o derrubaria. Fica para a próxima migration, quando as duas frentes tiverem o client novo.
-  - Trocar o conteúdo da foto (Melhorar, voltar ao original) zera a validação na tela (`trocar`): a decisão do
-    dono recomeça. Testado em `teste:imagens` (os três destinos, campo ausente, todas sem check).
 - **A foto ampliada ganhou setas** (`AmpliacaoDeFoto`, em `ImagemComZoom.jsx`): clicar na foto principal abre
   a ampliada com seta anterior/próxima, as setas do teclado e o contador "2 / 5". As setas **não dão a volta**
   (na primeira o "anterior" apaga, na última o "próxima"), e a foto do painel de trás acompanha (usa o mesmo `ir`
