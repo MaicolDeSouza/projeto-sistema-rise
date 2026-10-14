@@ -9,6 +9,7 @@ import {
   enviarEstoqueAoBling,
   sincronizarComBling,
 } from "@/app/produtos/acoes-bling";
+import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { mudouNoBling, resumirEnvio, valorParaTela } from "@/lib/blingSync/apresentacao";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 
@@ -52,6 +53,13 @@ async function chamar(acao, argumentos, escreve) {
     };
   }
 }
+
+/// O titulo do aviso de conclusao de cada envio.
+const TITULO_DA_CONCLUSAO = {
+  sincronizar: "Sincronização concluída",
+  cadastrar: "Cadastro concluído",
+  estoque: "Estoque enviado",
+};
 
 const CLASSE_DO_TOM = {
   erro: "border-red-200 bg-red-50 text-red-800",
@@ -236,6 +244,8 @@ export default function JanelaBling({ produto, aoFechar }) {
   const [qual, setQual] = useState(null);
   const [erro, setErro] = useState(null);
   const [envio, setEnvio] = useState(null);
+  // O aviso de conclusao (popup com OK) de um envio que deu certo; `null` = nenhum aberto.
+  const [conclusao, setConclusao] = useState(null);
   // O Bling tem mais de um deposito e nenhum padrao: `{lista, motivo}` ate o operador escolher.
   const [depositos, setDepositos] = useState(null);
   const [deposito, setDeposito] = useState(null);
@@ -286,6 +296,7 @@ export default function JanelaBling({ produto, aoFechar }) {
   function enviar(tipo, executar) {
     setErro(null);
     setEnvio(null);
+    setConclusao(null);
     setDepositos(null);
     setQual(tipo);
     const rotulos = Object.fromEntries((leitura?.diferencas ?? []).map((item) => [item.campo, item.rotulo]));
@@ -295,7 +306,18 @@ export default function JanelaBling({ produto, aoFechar }) {
         const resultado = await executar();
         const resumo = resumirEnvio(tipo, resultado, rotulos);
         const aviso = resultado.aviso ?? null;
-        setEnvio(resumo || aviso ? { ok: resultado.ok === true, titulo: resumo?.titulo ?? null, linhas: resumo?.linhas ?? [], aviso } : null);
+        if (resultado.ok === true) {
+          // Deu certo: o popup com OK conta o que foi feito (pedido do dono em 14/10/2026). A falha, ou o que foi
+          // enviado antes dela, continua no quadro da janela, onde o operador a le enquanto decide.
+          setConclusao({
+            titulo: TITULO_DA_CONCLUSAO[tipo] ?? "Envio concluído",
+            mensagem: resumo?.titulo ?? null,
+            linhas: resumo?.linhas ?? [],
+            aviso,
+          });
+        } else {
+          setEnvio(resumo || aviso ? { ok: false, titulo: resumo?.titulo ?? null, linhas: resumo?.linhas ?? [], aviso } : null);
+        }
 
         if (!resultado.ok) {
           if (Array.isArray(resultado.precisaDeposito) && resultado.precisaDeposito.length > 0) {
@@ -551,6 +573,8 @@ export default function JanelaBling({ produto, aoFechar }) {
           </div>
         </footer>
       </section>
+
+      {conclusao && <ConclusaoDoEnvio {...conclusao} aoFechar={() => setConclusao(null)} />}
     </div>
   );
 }

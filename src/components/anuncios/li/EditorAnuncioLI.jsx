@@ -9,6 +9,7 @@ import { abrirAnuncioLI, ligarNoBlingDaLI, listarCategoriasLI, listarMarcasLI, s
 import { abrirJanelaLI, cadastrarProdutoNaLI, sincronizarComLI } from "@/app/produtos/acoes-li";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
+import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { mudouNaLI, resumirEnvioLI } from "@/lib/canaisDeVenda/li/apresentacao";
 import { STATUS_LI } from "@/lib/canaisDeVenda/li/rotulos";
 import { ABAS_LI, validarRascunhoLI } from "@/lib/canaisDeVenda/li/validacao";
@@ -92,6 +93,8 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   const [bling, setBling] = useState(null);
   const [lendo, setLendo] = useState(true);
   const [envio, setEnvio] = useState(null);
+  // O popup com OK de um envio que deu certo (padrao de sincronizacao, pedido do dono em 14/10/2026).
+  const [conclusao, setConclusao] = useState(null);
   const [pergunta, setPergunta] = useState(null);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
   const [ocupado, iniciarTrabalho] = useTransition();
@@ -256,7 +259,12 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     const resultado = await chamarEnvio(tipo === "cadastrar" ? cadastrarProdutoNaLI : sincronizarComLI, produtoId);
     if (!montado.current) return;
     const resumo = resumirEnvioLI(tipo, resultado, rotulos);
-    setEnvio(resumo ? { ok: resultado.ok === true, titulo: resumo.titulo, linhas: resumo.linhas } : null);
+    if (resultado.ok === true) {
+      // Deu certo: popup com OK. A falha continua no quadro da janela, que o operador le enquanto decide.
+      setConclusao({ titulo: tipo === "cadastrar" ? "Cadastro concluído" : "Sincronização concluída", mensagem: resumo?.titulo ?? null, linhas: resumo?.linhas ?? [] });
+    } else {
+      setEnvio(resumo ? { ok: false, titulo: resumo.titulo, linhas: resumo.linhas } : null);
+    }
     if (!resultado.ok) setMensagem({ tipo: "erro", texto: resultado.erro ?? "O envio não foi concluído." });
     if (resultado.ok) setStatusAtual("PUBLICADO");
     if (mudouNaLI(tipo, resultado)) {
@@ -269,6 +277,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   function pedirEnvio() {
     setMensagem(null);
     setEnvio(null);
+    setConclusao(null);
     if (alterado || idAtual === null) {
       setPergunta("enviar");
       return;
@@ -414,6 +423,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
       )}
     </>
   );
+  const caixaDeConclusao = conclusao && <ConclusaoDoEnvio {...conclusao} aoFechar={() => setConclusao(null)} />;
   const temAviso = Boolean(mensagem || envio || situacaoDaLoja || avisoDoBling);
 
   const barra = (
@@ -535,6 +545,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
         </div>
         <div className="sticky bottom-0 z-10 rounded-lg border border-borda bg-superficie shadow-lg">{rodape}</div>
         {caixaDePergunta}
+        {caixaDeConclusao}
       </div>
     );
   }
@@ -596,6 +607,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
         </div>
       )}
       {caixaDePergunta}
+      {caixaDeConclusao}
     </div>
   );
 }

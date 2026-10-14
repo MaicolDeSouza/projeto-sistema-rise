@@ -94,6 +94,16 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   janela de Fotos, a de Descrição e as Configurações do Rise AI; desde 14/10/2026 o **Cancelar do cadastro de
   produto** (`pedirCancelamento`, em `FormularioProduto.jsx`; o "Sair sem salvar" também apaga o rascunho e o lote de
   fotos). Substitui o "sem confirmação" de 18/09/2026. O botão Voltar (seta) do cadastro ainda não pergunta.
+- **Sincronização ou envio que DEU CERTO termina num popup com OK** (pedido do dono em 14/10/2026: "ao finalizar a
+  sincronização, deve mostrar um popup informando que foi bem sucedida e um botão de OK"; não havia componente pronto,
+  só faixas dentro da janela). Componente `ConclusaoDoEnvio` (`src/components/ui/`, `role="alertdialog"`, círculo verde,
+  título, a frase e a lista do que foi feito, o aviso âmbar do que ficou pendente e o botão **OK** com o foco; OK, Enter,
+  Esc e clique fora fecham, e o Esc/Enter são ouvidos na captura para não fechar também a janela de baixo). **Só o
+  sucesso passa por ele:** a falha e o resultado parcial continuam em vermelho/âmbar dentro da janela, que precisa ficar
+  à vista enquanto o operador decide. Já usam: a janela do Bling (Sincronizar, Cadastrar e Enviar estoque, depois de
+  reler o Bling) e o editor da Loja Integrada (Sincronizar e Cadastrar). **Canal novo com envio usa o mesmo componente**,
+  para a conclusão parecer igual em todo lugar; o Publicar do ML tem a janela de resultado própria (`JanelaPublicarML`) e
+  não foi trocado.
 - **Foto pequena (miniatura de produto):** mouse em cima abre uma **prévia ampliada** (260 px, acima da linha) e o
   clique abre a **foto grande** (`FotoComLupa`, `src/components/ui/`, decidido pelo dono em 12/10/2026). Miniatura nova
   usa esse componente, nunca monta o seu. A lista de Produtos já usa; **`ReferenciasDeMercado.jsx` ainda tem a cópia
