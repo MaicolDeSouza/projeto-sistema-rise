@@ -1,6 +1,6 @@
 # Árvore final de categorias da loja 4hobby (uma família por folha)
 
-Data: 07/10/2026. Esta é a árvore **aprovada**: a de 06/10 (76 folhas) foi refeita depois do retorno do dono de que nome de folha não pode listar produtos diferentes, e as 17 fusões de folhas pequenas propostas em seguida foram aceitas por ele em 07/10/2026. O CSV `categorias-4hobby-mapeamento.csv` já reflete esta árvore.
+Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 folhas) foi refeita porque nome de folha não pode listar produtos diferentes; em 07/10 o dono aceitou as 17 fusões de folhas pequenas (133 folhas, 12 topos); em 14/10 ele enxugou os topos (12 → 10), tirou o nível intermediário "Movimento Linear" e criou o topo Kits Educacionais. O CSV `categorias-4hobby-mapeamento.csv` já reflete esta árvore.
 
 ## Regras que valem para nome novo
 
@@ -8,12 +8,15 @@ Data: 07/10/2026. Esta é a árvore **aprovada**: a de 06/10 (76 folhas) foi ref
 2. **O nome se sustenta sozinho** (vira URL e título da página na LI): "Sensores de Temperatura e Umidade", não "Temperatura".
 3. Sem dois-pontos, sem parênteses, sem número de ordenação; sigla só quando é o que o cliente digita (CLP, IHM, LED, RFID, CNC, SSR, ESP32, GT2).
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
+5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **12 topos, 1 intermediária (Movimento Linear) e 133 folhas** para 1.301 produtos publicáveis (média de 10 por folha). Nove folhas ficam com 3 ou 4 produtos de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome.
+Resultado: **10 topos e 133 folhas** para 1.301 produtos publicáveis (média de 10 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+
+Com dois níveis e uma família por folha, três topos ficam com menu longo: Módulos e Sensores (28 folhas), CNC (28) e Componentes Eletrônicos (27). É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
 ## Árvore, com a quantidade de produtos de hoje
 
-### Arduino, ESP32 e Embarcados (83)
+### Placas Embarcadas (78)
 
 - Placas Arduino Compatíveis (10)
 - Placas ESP32 (11)
@@ -23,9 +26,8 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 133 folhas** para 1
 - Placas de Interface com Bornes (9)
 - Shields e Cases para Arduino (7)
 - Gravadores e Programadores (4) ◂ pequena
-- Kits Arduino e Educacionais (5)
 
-### Módulos (97)
+### Módulos e Sensores (194)
 
 - Módulos Relé (9)
 - Módulos de Acionamento (6)
@@ -41,9 +43,6 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 133 folhas** para 1
 - Módulos RTC e Memória (5)
 - Teclados Matriciais e Botões Touch (5)
 - Joysticks e Controles Remotos (7)
-
-### Sensores (97)
-
 - Sensores de Temperatura e Umidade (14)
 - Sensores de Distância e Proximidade (8)
 - Sensores de Movimento e Vibração (5)
@@ -66,6 +65,36 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 133 folhas** para 1
 - Displays OLED e TFT (4) ◂ pequena
 - Telas para Raspberry Pi (4) ◂ pequena
 - Displays 7 Segmentos e Matriz LED (5)
+
+### Componentes Eletrônicos (304)
+
+- Resistores (18)
+- Potenciômetros e Trimpots (10)
+- Capacitores e Cristais (8)
+- Diodos (10)
+- Transistores e MOSFETs (16)
+- Circuitos Integrados (32)
+- Reguladores de Tensão (5)
+- LEDs e Soquetes (20)
+- Buzzers, Alto-falantes e Áudio (7)
+- Fusíveis e Filtros (3) ◂ pequena
+- Interruptores e Tomadas de Painel (5)
+- Chaves e Push Buttons (15)
+- Conectores JST (18)
+- Conectores Dupont (7)
+- Barras de Pinos (15)
+- Conectores Mike GX12 e GX16 (9)
+- Plugs P4 e P10 (10)
+- Conectores XLR, XT60 e Banana (6)
+- Bornes KRE e KF (6)
+- Terminais e Emendas (6)
+- Adaptadores DB9, RJ45 e HDMI (14)
+- Cabos de Extensão para Painel (11)
+- Cabos USB e HDMI (14)
+- Jumpers e Garras Jacaré (7)
+- Fios e Cabos Elétricos (15)
+- Termo Retrátil (11)
+- Abraçadeiras e Organizadores de Cabos (6)
 
 ### Automação Industrial (90)
 
@@ -104,21 +133,20 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 133 folhas** para 1
 - Eletroímãs e Válvulas Solenoide (8)
 - Chassis e Rodas para Robótica (6)
 
-### CNC, Laser e Impressão 3D (359)
+### CNC, Laser e Impressão 3D (367)
 
-- Movimento Linear (intermediária)
-  - Fusos de Esferas (7)
-  - Fusos Trapezoidais (10)
-  - Castanhas e Antifolga TR8 (12)
-  - Eixos Lineares (8)
-  - Guias Lineares MGN (6)
-  - Rolamentos e Pillow Block (20)
-  - Mancais KP e KFL (7)
-  - Suportes de Eixo SK e SHF (9)
-  - Acoplamentos (21)
-  - Correias GT2 e HTD (19)
-  - Polias GT2 e Roldanas V-Slot (35)
-  - Cremalheiras e Engrenagens (12)
+- Fusos de Esferas (7)
+- Fusos Trapezoidais (10)
+- Castanhas e Antifolga TR8 (12)
+- Eixos Lineares (8)
+- Guias Lineares MGN (6)
+- Rolamentos e Pillow Block (20)
+- Mancais KP e KFL (7)
+- Suportes de Eixo SK e SHF (9)
+- Acoplamentos (21)
+- Correias GT2 e HTD (19)
+- Polias GT2 e Roldanas V-Slot (35)
+- Cremalheiras e Engrenagens (12)
 - Perfis de Alumínio V-Slot (8)
 - Suportes de Motor de Passo (6)
 - Porcas Martelo e Excêntricas (14)
@@ -134,41 +162,9 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 133 folhas** para 1
 - Mesas Aquecidas (9)
 - Acessórios para Impressora 3D (11)
 - Máquinas e Equipamentos (8)
+- Softwares e Serviços (8)
 
-### Componentes Eletrônicos (149)
-
-- Resistores (18)
-- Potenciômetros e Trimpots (10)
-- Capacitores e Cristais (8)
-- Diodos (10)
-- Transistores e MOSFETs (16)
-- Circuitos Integrados (32)
-- Reguladores de Tensão (5)
-- LEDs e Soquetes (20)
-- Buzzers, Alto-falantes e Áudio (7)
-- Fusíveis e Filtros (3) ◂ pequena
-- Interruptores e Tomadas de Painel (5)
-- Chaves e Push Buttons (15)
-
-### Conectores e Cabos (155)
-
-- Conectores JST (18)
-- Conectores Dupont (7)
-- Barras de Pinos (15)
-- Conectores Mike GX12 e GX16 (9)
-- Plugs P4 e P10 (10)
-- Conectores XLR, XT60 e Banana (6)
-- Bornes KRE e KF (6)
-- Terminais e Emendas (6)
-- Adaptadores DB9, RJ45 e HDMI (14)
-- Cabos de Extensão para Painel (11)
-- Cabos USB e HDMI (14)
-- Jumpers e Garras Jacaré (7)
-- Fios e Cabos Elétricos (15)
-- Termo Retrátil (11)
-- Abraçadeiras e Organizadores de Cabos (6)
-
-### Prototipagem e Ferramentas (57)
+### Ferramentas e Prototipagem (57)
 
 - Protoboards e Placas Fenolite (8)
 - Ferramentas e Solda (7)
@@ -178,10 +174,31 @@ Resultado: **12 topos, 1 intermediária (Movimento Linear) e 133 folhas** para 1
 - Parafusos, Buchas e Fixação (13)
 - Caixas Plásticas e Organizadores (14)
 
-### Softwares e Serviços (8)
+### Kits Educacionais (5)
 
-- Softwares (4) ◂ pequena
-- Serviços (4) ◂ pequena
+- Kits Arduino (3) ◂ pequena
+- Kits de Eletrônica e Robótica (2) ◂ pequena
+
+Topo criado a pedido do dono para receber os kits que serão montados no Rise (produto com composição). Hoje tem os 3 kits Arduino (iniciante, avançado, 37 sensores), o kit Micro:bit V2 e o kit didático de eletrônica e robótica.
+
+## Segunda categoria
+
+Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categoria_secundaria` do CSV marca:
+
+- 4 bombas de água de laser/spindle (120212, 122402, 122403, 122408): ficam em Mini Bombas de Água e Ar e aparecem também em Peças para Laser CO2 / Spindles e Inversores.
+- 6 cabos HDMI, micro HDMI, DP e hub OTG (930213, 930607_z, 930701, 930702_4h, 930703_4h, 930704_z): ficam em Cabos USB e HDMI e aparecem também em Raspberry Pi e Acessórios.
+- Serviço de programação para CLP e IHM (999905): fica em Softwares e Serviços e aparece também em CLP e Expansões.
+
+## Mudanças de 14/10/2026 (ditadas pelo dono)
+
+- "Arduino, ESP32 e Embarcados" passou a **Placas Embarcadas**; os kits saíram dela.
+- **Módulos** e **Sensores** viraram um topo, **Módulos e Sensores**.
+- **Conectores e Cabos** entrou em **Componentes Eletrônicos** (as 15 folhas continuam iguais). Cabos USB e HDMI fica aí, no bloco de cabos.
+- **Movimento Linear** deixou de existir como nível: as 12 folhas ficam direto em CNC.
+- **Softwares e Serviços** virou uma folha única dentro de CNC (6 dos 8 itens são LightBurn/Mach3 e seus serviços de configuração).
+- Novo topo **Kits Educacionais**, com duas folhas.
+- "Prototipagem e Ferramentas" passou a **Ferramentas e Prototipagem** (ferramentas é a palavra que o cliente procura).
+- Displays e Telas, Fontes e Baterias, Motores e Robótica e Ferramentas e Prototipagem continuam como topo por decisão do dono (recomendação minha era fundir Displays em Módulos e Sensores e juntar Robótica com Kits; ele preferiu manter).
 
 ## Fusões aplicadas em 07/10/2026
 

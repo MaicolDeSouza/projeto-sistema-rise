@@ -7,7 +7,7 @@ Arquivo companheiro: `docs/categorias-4hobby-mapeamento.csv` (1.315 linhas: sku,
 ## 1. Resumo
 
 - O site hoje tem **6 categorias de topo e 59 folhas**, mas 784 produtos no ar contra **1.315 no catálogo**: 629 produtos vendáveis não têm lugar na árvore atual.
-- A proposta é uma árvore de **12 categorias de topo, 2 níveis** (3º nível só em "Movimento Linear", como a Impacto CNC faz), **133 folhas**, todas com produto de verdade dentro (ver seção 4).
+- A proposta é uma árvore de **10 categorias de topo, 2 níveis** (sem nível intermediário), **133 folhas**, todas com produto de verdade dentro (ver seção 4).
 - Cada um dos 1.315 SKUs já está classificado no CSV. 14 ficam fora do site (6 "OBSOLETO", 6 "USO E CONSUMO", 1 projeto especial, 1 teste do Bling).
 - Decisões que são suas estão na seção 7.
 
@@ -38,26 +38,24 @@ Arquivo companheiro: `docs/categorias-4hobby-mapeamento.csv` (1.315 linhas: sku,
 
 Conclusões: 9 a 11 categorias de topo é a norma; sensores viram subcategorias por grandeza medida; displays aparecem no topo em 3 de 8 lojas; quem vende CNC usa 3 níveis na mecânica; quem vende industrial separa botoeira de borne.
 
-## 4. Árvore final (refeita em 06 e 07/10/2026)
+## 4. Árvore final (refeita em 06, 07 e 14/10/2026)
 
-A primeira versão desta seção tinha 76 folhas com nomes que listavam produtos diferentes ("Gás, Chama, Som, Luz e Cor"). O dono recusou esse desenho em 06/10/2026, e as folhas foram refeitas com **uma família de produto por folha**; as 17 fusões de folhas pequenas propostas depois foram aceitas em 07/10/2026. A árvore inteira, com as quantidades e as regras de nome, está em `categorias-4hobby-nomes.md`, e o CSV já a reflete.
+A primeira versão desta seção tinha 76 folhas com nomes que listavam produtos diferentes ("Gás, Chama, Som, Luz e Cor"). O dono recusou esse desenho em 06/10/2026, e as folhas foram refeitas com **uma família de produto por folha**; as 17 fusões de folhas pequenas propostas depois foram aceitas em 07/10/2026. Em 14/10/2026 ele enxugou os topos (12 → 10), tirou o nível intermediário "Movimento Linear" e criou o topo Kits Educacionais. A árvore inteira, com as quantidades e as regras de nome, está em `categorias-4hobby-nomes.md`, e o CSV já a reflete.
 
-Categorias de topo (12, com os produtos de hoje):
+Categorias de topo (10, com os produtos de hoje):
 
-- Arduino, ESP32 e Embarcados (83)
-- Módulos (97)
-- Sensores (97)
+- Placas Embarcadas (78)
+- Módulos e Sensores (194)
 - Displays e Telas (36)
+- Componentes Eletrônicos (304, com Conectores e Cabos dentro)
 - Automação Industrial (90)
 - Fontes e Baterias (80)
 - Motores e Robótica (90)
-- CNC, Laser e Impressão 3D (359)
-- Componentes Eletrônicos (149)
-- Conectores e Cabos (155)
-- Prototipagem e Ferramentas (57)
-- Softwares e Serviços (8)
+- CNC, Laser e Impressão 3D (367, com Softwares e Serviços dentro e as 12 folhas de Movimento Linear direto nela)
+- Ferramentas e Prototipagem (57)
+- Kits Educacionais (5)
 
-Total: 12 topos, a intermediária "Movimento Linear" em CNC e **133 folhas**. Nenhuma folha "Outros"; 9 folhas ficam com 3 ou 4 produtos de propósito, por serem famílias que o cliente procura pelo nome (Encoders Incrementais, Pastilhas Peltier, Imãs de Neodímio, Fusíveis e Filtros, Gravadores e Programadores, Displays OLED e TFT, Telas para Raspberry Pi, Softwares, Serviços).
+Total: 10 topos, dois níveis só e **133 folhas**. Nenhuma folha "Outros"; 9 folhas ficam com 2 a 4 produtos de propósito, por serem famílias que o cliente procura pelo nome ou que vão crescer (Encoders Incrementais, Pastilhas Peltier, Imãs de Neodímio, Fusíveis e Filtros, Gravadores e Programadores, Displays OLED e TFT, Telas para Raspberry Pi, Kits Arduino, Kits de Eletrônica e Robótica). Com dois níveis e uma família por folha, Módulos e Sensores (28 folhas), CNC (28) e Componentes Eletrônicos (27) ficam com menu longo: é o custo das duas escolhas do dono.
 
 ## 5. De onde cada categoria atual vai (672 produtos conferidos)
 
@@ -116,6 +114,8 @@ Atenção: muitos desses têm **título fora do padrão** (minúsculas, `*SKU` n
 
 **Decidido pelo dono em 06/10/2026, todas na opção recomendada:** 12 categorias de topo (7.1); três níveis em Movimento Linear (7.2); bombas em "Bombas, Válvulas e Solenoides" com Laser ou Spindles como segunda categoria, e o motor 775 em "Spindles, Inversores e Acessórios" (7.3 e 7.4); os 629 produtos fora do site entram todos na LI (7.6). A coluna `categoria_secundaria` do CSV já traz a segunda categoria dos 4 itens de 7.3. Folhas pequenas (7.5) ficam mantidas até aviso em contrário. Em aberto só a lista de itens individuais no fim desta seção.
 
+**Revisto pelo dono em 14/10/2026:** 7.1 passou a **10 topos** (Módulos e Sensores num topo só; Conectores e Cabos dentro de Componentes Eletrônicos; Softwares e Serviços como folha única dentro de CNC; "Arduino, ESP32 e Embarcados" virou Placas Embarcadas; novo topo Kits Educacionais, com Kits Arduino e Kits de Eletrônica e Robótica). Displays e Telas, Fontes e Baterias, Motores e Robótica e Ferramentas e Prototipagem continuam no topo por escolha dele (a recomendação era fundir Displays em Módulos e Sensores e juntar Robótica com Kits). 7.2 passou à **opção 2, achatar**: as 12 folhas de Movimento Linear ficam direto em CNC. Cabos USB e HDMI ficam em Componentes Eletrônicos, no bloco de cabos, com Raspberry Pi e Acessórios como 2ª categoria dos 6 cabos HDMI. Árvore em `categorias-4hobby-nomes.md`.
+
 **7.1 Tamanho do menu**
 - **Opção 1 (recomendada): 12 categorias de topo**, como na seção 4. Displays e Telas fica no topo porque a linha Nextion (18 itens, ticket de R$ 400 a R$ 1.350) merece um clique só; Softwares e Serviços fica no topo porque o site já tem "Serviços" e são itens de natureza diferente.
 - Opção 2: 10 categorias. Displays e Telas vira subcategoria de Placas e Embarcados; Softwares e Serviços vira subcategoria de CNC. Menu mais curto, Nextion a dois cliques.
@@ -160,7 +160,7 @@ Atenção: muitos desses têm **título fora do padrão** (minúsculas, `*SKU` n
 
 - **Categorias do Bling e da LI são independentes, sem vínculo, e o dono quer que continue assim** (decisão de 06/10/2026). O Rise cuida das categorias **direto na API da Loja Integrada**, com o Personal Token que a integração em andamento já usa; o Bling não entra nessa parte.
 - **O que a API da LI permite, conforme a especificação oficial** (`api-docs.lojaintegrada.com.br`, OpenAPI "API Loja Integrada v2", lida em 06/10/2026): `POST /v1/categoria` cria (campos `nome`, obrigatório; `descricao`; `categoria_pai`, o id da categoria pai para subcategoria; `id_externo`, um id nosso para depois buscar e alterar por ele); `GET /v1/categoria` lista com paginação; `GET` e `PUT /v1/categoria/{id}` leem e alteram (`nome`, `categoria_pai`). **Não existe DELETE para categoria**: excluir uma categoria é só pelo painel da LI. Leitura real feita em 06/10/2026: a loja tem **124 categorias** hoje, com os campos `id`, `id_externo`, `categoria_pai`, `descricao`, `nome`, `seo`, `url`.
-- **Consequência para a migração:** o Rise pode criar as 133 folhas, a intermediária e as 12 categorias de topo pela API, gravando o SKU/chave nosso em `id_externo`, e pode **renomear e mover** categorias existentes (PUT em `categoria_pai`) para reaproveitar as 124 atuais em vez de criar tudo do zero. O que sobrar sem uso é apagado à mão no painel. A escrita fica atrás da trava `LOJA_INTEGRADA_WRITE_ENABLED`, hoje `false`.
+- **Consequência para a migração:** o Rise pode criar as 10 categorias de topo e as 133 folhas pela API, gravando o SKU/chave nosso em `id_externo`, e pode **renomear e mover** categorias existentes (PUT em `categoria_pai`) para reaproveitar as 124 atuais em vez de criar tudo do zero. O que sobrar sem uso é apagado à mão no painel. A escrita fica atrás da trava `LOJA_INTEGRADA_WRITE_ENABLED`, hoje `false`.
 - **No Rise não existe campo de categoria em `Produto`** (conferido no `schema.prisma`). A sessão de envio vai precisar de uma tabela de categorias (árvore com pai, nome, ordem, id na LI, `id_externo`) e de um campo no produto apontando para a folha. O CSV deste trabalho já é o conteúdo inicial dessa tabela e desse campo.
 - **Mais de uma categoria por produto**: a LI aceita (o produto tem a lista `categorias`); a segunda categoria dos itens da seção 7.3 vai pela API junto com o produto.
 - **URLs antigas**: as categorias atuais têm URL própria e já estão no Google. Ao criar as novas, conferir se o painel da LI oferece redirecionamento 301; se não, manter as antigas ocultas (sem link no menu) por alguns meses em vez de apagar.
