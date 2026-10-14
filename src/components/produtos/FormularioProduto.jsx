@@ -60,6 +60,7 @@ import PainelDeImagens from "./PainelDeImagens";
 import BannerDeRascunho from "./BannerDeRascunho";
 import { useRascunhoAutomatico } from "./useRascunhoAutomatico";
 import { chaveDoRascunho } from "@/lib/rascunhoDoCadastro";
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 import ReferenciasDeMercado, { MAXIMO_MARCADOS } from "./ReferenciasDeMercado";
 import SeloPosicaoDePreco from "./SeloPosicaoDePreco";
 import {
@@ -2811,8 +2812,26 @@ export default function FormularioProduto({
     }
   }
 
-  // Sem confirmacao (pedido do dono em 18/09/2026): Cancelar sempre descarta e
-  // volta para a lista, direto.
+  // Cancelar PERGUNTA quando ha alteracao (pedido do dono em 14/10/2026, que trocou o "sem confirmacao" de
+  // 18/09/2026): o pop-up "Sair sem salvar?" e o mesmo dos editores de anuncio (`EditorAnuncioLI`/`EditorAnuncioML`).
+  // Sem alteracao sai direto, como sempre. Continuar editando, Esc e clicar fora voltam ao formulario sem perder nada.
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false);
+
+  function pedirCancelamento() {
+    if (alterado) setConfirmandoSaida(true);
+    else cancelar();
+  }
+
+  useEffect(() => {
+    if (!confirmandoSaida) return undefined;
+    function aoTeclar(evento) {
+      if (evento.key === "Escape" && !evento.repeat) setConfirmandoSaida(false);
+    }
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, [confirmandoSaida]);
+
+  // So sai de verdade pelo "Sair sem salvar" (ou sem alteracao): descarta tudo e volta para a lista.
   function cancelar() {
     // Cancelar desfaz tudo: o rascunho tambem some, senao voltaria no proximo cadastro.
     rascunho.encerrar();
@@ -2907,7 +2926,7 @@ export default function FormularioProduto({
         </button>
         <button
           type="button"
-          onClick={cancelar}
+          onClick={pedirCancelamento}
           className="rounded border border-borda px-4 py-2 text-sm hover:bg-fundo"
         >
           Cancelar
@@ -2942,6 +2961,44 @@ export default function FormularioProduto({
           )}
         </div>
       </div>
+
+      {/* "Sair sem salvar?" (pedido do dono em 14/10/2026): o mesmo pop-up dos editores de anuncio. O foco cai em
+          "Continuar editando", o botao seguro; "Sair sem salvar" e o vermelho. */}
+      {confirmandoSaida && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case"
+          {...propsDoFundo(() => setConfirmandoSaida(false))}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="produto-sair-titulo"
+            className="w-full max-w-sm rounded-lg border border-borda bg-superficie p-4 shadow-2xl"
+          >
+            <p id="produto-sair-titulo" className="text-sm font-semibold">
+              Sair sem salvar?
+            </p>
+            <p className="mt-1 text-sm text-suave">As alterações deste cadastro ainda não foram salvas e serão perdidas.</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setConfirmandoSaida(false)}
+                className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+              >
+                Continuar editando
+              </button>
+              <button
+                type="button"
+                onClick={cancelar}
+                className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Sair sem salvar
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* Ha alteracoes nao salvas guardadas neste navegador (pedido do dono em 13/10/2026): recuperar ou descartar. */}
       {rascunho.guardado && (

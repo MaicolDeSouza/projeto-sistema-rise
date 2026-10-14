@@ -87,6 +87,13 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   O `onClick` com `target === currentTarget` fechava também quando se selecionava o texto de um campo e se arrastava
   para fora (o navegador manda o `click` ao ancestral comum): a janela fechava e o digitado se perdia. O estado é por
   elemento (`WeakMap`), porque há janela dentro de janela. **Janela nova usa o `propsDoFundo`, nunca o `onClick` direto.**
+- **Sair sem salvar?** (pedido do dono em 14/10/2026, no desenho dos editores de anúncio): formulário ou janela com
+  alteração não salva **pergunta antes de descartar**, com o pop-up "Sair sem salvar?" (`role="alertdialog"`, título,
+  uma linha, **Continuar editando** com o foco e **Sair sem salvar** em vermelho; clicar fora e Esc também continuam
+  editando, `propsDoFundo`). Sem alteração, sai direto. Já seguem: os editores de anúncio ML e LI (X, Esc e fora), a
+  janela de Fotos, a de Descrição e as Configurações do Rise AI; desde 14/10/2026 o **Cancelar do cadastro de
+  produto** (`pedirCancelamento`, em `FormularioProduto.jsx`; o "Sair sem salvar" também apaga o rascunho e o lote de
+  fotos). Substitui o "sem confirmação" de 18/09/2026. O botão Voltar (seta) do cadastro ainda não pergunta.
 - **Foto pequena (miniatura de produto):** mouse em cima abre uma **prévia ampliada** (260 px, acima da linha) e o
   clique abre a **foto grande** (`FotoComLupa`, `src/components/ui/`, decidido pelo dono em 12/10/2026). Miniatura nova
   usa esse componente, nunca monta o seu. A lista de Produtos já usa; **`ReferenciasDeMercado.jsx` ainda tem a cópia
