@@ -1,6 +1,6 @@
 # Árvore final de categorias da loja 4hobby (uma família por folha)
 
-Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 folhas) foi refeita porque nome de folha não pode listar produtos diferentes; em 07/10 o dono aceitou as 17 fusões de folhas pequenas (133 folhas, 12 topos); em 14/10 ele enxugou os topos (12 → 10), tirou o nível intermediário "Movimento Linear", criou o topo Kits Educacionais e reduziu Placas Embarcadas a quatro folhas, uma por família de placa, com shields, interfaces e gravadores dentro da placa a que servem. O CSV `categorias-4hobby-mapeamento.csv` já reflete esta árvore.
+Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 folhas) foi refeita porque nome de folha não pode listar produtos diferentes; em 07/10 o dono aceitou as 17 fusões de folhas pequenas (133 folhas, 12 topos); em 14/10 ele enxugou os topos (12 → 10), tirou o nível intermediário "Movimento Linear", criou o topo Kits Educacionais reduziu Placas Embarcadas a quatro folhas, uma por família de placa, com shields, interfaces e gravadores dentro da placa a que servem, e enxugou os módulos de Módulos e Sensores a seis folhas (os sensores ficaram como estavam). O CSV `categorias-4hobby-mapeamento.csv` já reflete esta árvore.
 
 ## Regras que valem para nome novo
 
@@ -10,42 +10,33 @@ Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 fol
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **10 topos e 130 folhas** para 1.301 produtos publicáveis (129 folhas com produto próprio e uma, Shields e Placas de Interface, só com produtos de 2ª categoria; média de 10 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+Resultado: **10 topos e 121 folhas** para 1.301 produtos publicáveis (120 folhas com produto próprio e uma, Shields e Placas de Interface, só com produtos de 2ª categoria; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
 
-Com dois níveis e uma família por folha, três topos ficam com menu longo: Módulos e Sensores (29 folhas), CNC (28) e Componentes Eletrônicos (27). É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
+Com dois níveis e uma família por folha, dois topos ficam com menu longo: CNC (28 folhas) e Componentes Eletrônicos (27). É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
 ## Árvore, com a quantidade de produtos de hoje
 
-### Placas Embarcadas (77)
+### Placas Embarcadas (88)
 
-- Placas Arduino (23)
+- Placas Arduino (27)
 - Placas Espressif ESP32 e ESP8266 (22)
 - Placas STM32 (10)
-- Placas Raspberry Pi (22)
+- Placas Raspberry Pi (29)
 
-Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases, placas de interface com bornes e gravadores ficam dentro da placa a que servem: protoshield, shield multifunções, shield expansor Nano, as interfaces com bornes para Uno/Mega/Nano, os cases e o gravador AVR ISP em Placas Arduino; o Arduino Mega WiFi e os adaptadores de ESP-01/ESP-07/ESP-12 em Placas Espressif, junto das interfaces para ESP32 e Heltec; as interfaces Bluepill/F446RE, o ST-Link e o J-Link em Placas STM32. Os acessórios de Raspberry (cases, câmeras, dissipadores, HATs, controles USB) continuam em Placas Raspberry Pi.
+Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases, placas de interface com bornes e gravadores ficam dentro da placa a que servem: protoshield, shield multifunções, shield expansor Nano, os dois ethernet shields, o data logger shield, o joystick shield, as interfaces com bornes para Uno/Mega/Nano, os cases e o gravador AVR ISP em Placas Arduino; o Arduino Mega WiFi e os adaptadores de ESP-01/ESP-07/ESP-12 em Placas Espressif, junto das interfaces para ESP32 e Heltec; as interfaces Bluepill/F446RE, o ST-Link e o J-Link em Placas STM32. Os acessórios de Raspberry (cases, câmeras, dissipadores, HATs de CAN e PoE, gateway LoRa, controles USB) e, por decisão do dono, os cartões micro SD e o leitor USB ficam em Placas Raspberry Pi.
 
-### Módulos e Sensores (194)
+### Módulos e Sensores (176)
 
-- Módulos Relé (9)
-- Módulos de Acionamento (6)
-- Conversores Seriais RS485 e RS232 (10)
-- Módulos CAN Bus (5)
-- Módulos Ethernet (5)
-- Conversores 4-20mA e 0-10V (6)
-- Conversores de Nível Lógico, ADC e DAC (9)
-- Módulos Wireless e IoT (14)
-- Antenas e Pigtails (5)
-- Módulos RFID e Biometria (6)
-- Cartões e Leitores Micro SD (5)
+- Módulos Relé e Acionamento (15)
+- Conversores de Sinais (29)
+- Módulos Wireless e IoT (24)
+- Antenas e Acessórios (5)
 - Módulos RTC e Memória (5)
-- Teclados Matriciais e Botões Touch (5)
-- Joysticks e Controles Remotos (7)
-- Shields e Placas de Interface (13 como 2ª categoria, nenhum próprio)
+- Shields e Placas de Interface (20 como 2ª categoria, nenhum próprio)
 - Sensores de Temperatura e Umidade (14)
 - Sensores de Distância e Proximidade (8)
 - Sensores de Movimento e Vibração (5)
-- Sensores Indutivos e Capacitivos (6)
+- Sensores Indutivos e Capacitivos (7)
 - Chaves Fim de Curso (7)
 - Sensores Magnéticos Reed e Hall (5)
 - Sensores de Corrente e Tensão (9)
@@ -57,6 +48,8 @@ Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases
 - Células de Carga (7)
 - Transdutores Piezoelétricos (5)
 
+Módulos em seis folhas (decisão do dono em 14/10/2026: relé, conversores de sinais, wireless e IoT, antenas e acessórios e shields; os 14 grupos de sensores ficaram como estavam). Módulos Relé e Acionamento junta relés, optoacopladores, MOSFET e dimmers; Conversores de Sinais junta RS485/RS232, CAN, 4-20mA/0-10V, nível lógico, ADC/DAC e o conversor RS485-Ethernet; Módulos Wireless e IoT junta WiFi, Bluetooth, RF 433MHz/nRF24, GPS/GSM, Sonoff, os módulos Ethernet, RFID/NFC com tags e cartões, o leitor biométrico e o infravermelho. **Módulos RTC e Memória** (RTC DS1307/DS3231, EEPROM e o módulo leitor micro SD) ficou porque não cabe em nenhuma das cinco: é a única folha de módulo fora da lista dele. Saíram para outros topos: teclados matriciais → Chaves e Push Buttons; joystick → Potenciômetros e Trimpots; encoders KY-040/HW-040 → Encoders Incrementais; sensor de toque TTP223 → Sensores Indutivos e Capacitivos; cartões micro SD e leitor USB → Placas Raspberry Pi.
+
 ### Displays e Telas (36)
 
 - Telas Nextion (18)
@@ -65,10 +58,10 @@ Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases
 - Telas para Raspberry Pi (4) ◂ pequena
 - Displays 7 Segmentos e Matriz LED (5)
 
-### Componentes Eletrônicos (305)
+### Componentes Eletrônicos (310)
 
 - Resistores (18)
-- Potenciômetros e Trimpots (10)
+- Potenciômetros e Trimpots (11)
 - Capacitores e Cristais (8)
 - Diodos (10)
 - Transistores e MOSFETs (16)
@@ -78,7 +71,7 @@ Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases
 - Buzzers, Alto-falantes e Áudio (7)
 - Fusíveis e Filtros (3) ◂ pequena
 - Interruptores e Tomadas de Painel (5)
-- Chaves e Push Buttons (15)
+- Chaves e Push Buttons (19)
 - Conectores JST (18)
 - Conectores Dupont (7)
 - Barras de Pinos (15)
@@ -102,7 +95,7 @@ Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases
 - Botoeiras e Sinalizadores 22mm (14)
 - Botões Metálicos Iluminados (11)
 - Controladores de Temperatura e SSR (8)
-- Encoders Incrementais (3) ◂ pequena
+- Encoders Incrementais (5)
 - Bornes para Trilho DIN (9)
 - Trilho DIN, Canaletas e Suportes (10)
 - Quadros Elétricos e Prensa Cabos (8)
@@ -186,13 +179,14 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 
 - 4 bombas de água de laser/spindle (120212, 122402, 122403, 122408): ficam em Mini Bombas de Água e Ar e aparecem também em Peças para Laser CO2 / Spindles e Inversores.
 - 6 cabos HDMI, micro HDMI, DP e hub OTG (930213, 930607_z, 930701, 930702_4h, 930703_4h, 930704_z): ficam em Cabos USB e HDMI e aparecem também em Placas Raspberry Pi.
-- 13 shields, placas de interface com bornes e o gravador AVR ISP (100112, 100204, 100224, 100233, 100272, 101001, 101002, 101010, 170107, 260104, 260108, 970104, 970106): ficam na placa correspondente e aparecem também em **Módulos e Sensores > Shields e Placas de Interface**, folha que existe só para isso (pedido do dono em 14/10/2026: "todos os módulos e shields de Arduino também devem ser mostrados na categoria Módulos"). O script da LI precisa criar essa folha mesmo sem produto próprio.
+- 20 shields, HATs, placas de interface com bornes e o gravador AVR ISP (100112, 100201, 100204, 100207, 100211, 100224, 100233, 100272, 101001, 101002, 101010, 170107, 170707, 200509, 200510, 260104, 260108, 910103, 970104, 970106): ficam na placa correspondente e aparecem também em **Módulos e Sensores > Shields e Placas de Interface**, folha que existe só para isso (pedido do dono em 14/10/2026: "todos os módulos e shields de Arduino também devem ser mostrados na categoria Módulos"). O script da LI precisa criar essa folha mesmo sem produto próprio.
 - Arduino Mega WiFi com ESP8266 (100108): fica em Placas Arduino e aparece também em Placas Espressif ESP32 e ESP8266.
 - Serviço de programação para CLP e IHM (999905): fica em Softwares e Serviços e aparece também em CLP e Expansões.
 
 ## Mudanças de 14/10/2026 (ditadas pelo dono)
 
 - "Arduino, ESP32 e Embarcados" passou a **Placas Embarcadas**; os kits saíram dela. Depois, na mesma data, ela passou de 8 para **4 folhas, uma por família de placa** (Placas Arduino, Placas Espressif ESP32 e ESP8266, Placas STM32, Placas Raspberry Pi): Shields e Cases, Placas de Interface com Bornes e Gravadores e Programadores deixaram de ser folhas, cada produto foi para a placa a que serve, e os shields e interfaces ganharam a 2ª categoria em Módulos e Sensores. Único sem placa própria: o gravador PICkit3 (270201, para PIC, que não tem placa no catálogo) foi para Componentes Eletrônicos > Circuitos Integrados, junto do ATmega328P.
+- **Módulos e Sensores**: os 14 grupos de módulos viraram os 5 ditados por ele (Módulos Relé e Acionamento, Conversores de Sinais, Módulos Wireless e IoT, Antenas e Acessórios, Shields e Placas de Interface) mais Módulos RTC e Memória, que mantive por falta de lugar. Os 14 grupos de sensores não mudaram. Cartões micro SD e leitor USB foram para Placas Raspberry Pi (pedido dele); teclados matriciais para Chaves e Push Buttons, joystick para Potenciômetros e Trimpots, encoders KY-040/HW-040 para Encoders Incrementais e o TTP223 para Sensores Indutivos e Capacitivos; ethernet shields, data logger shield e joystick shield foram para Placas Arduino, e os HATs CAN e o gateway LoRa para Placas Raspberry Pi, todos com a 2ª categoria de shields.
 - **Módulos** e **Sensores** viraram um topo, **Módulos e Sensores**.
 - **Conectores e Cabos** entrou em **Componentes Eletrônicos** (as 15 folhas continuam iguais). Cabos USB e HDMI fica aí, no bloco de cabos.
 - **Movimento Linear** deixou de existir como nível: as 12 folhas ficam direto em CNC.

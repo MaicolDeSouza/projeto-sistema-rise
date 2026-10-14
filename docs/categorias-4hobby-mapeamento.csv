@@ -12,37 +12,37 @@
 100113;"Arduino Pro micro ATmega32U4 *100113";Placas Embarcadas;Placas Arduino;;A_ard;"";"";56.00;8
 100114;"Kit Placa Educacional Microbit V2 com acessórios";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"";399.00;0
 100115;"MINI CONTROLADOR COMPATÍVEL COM raspberry PI PICO RP2040 133MHZ";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";;10
-100201;"MODULO ETHERNET SHIELD W5100 PARA ARDUINO";Módulos e Sensores;Módulos Ethernet;;B_eth;"";"2 - Módulos e shields";70.90;10
-100202;"MODULO ETHERNET ENC28J60";Módulos e Sensores;Módulos Ethernet;;B_eth;"";"2 - Módulos e shields";44.90;9
+100201;"MODULO ETHERNET SHIELD W5100 PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";70.90;10
+100202;"MODULO ETHERNET ENC28J60";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";44.90;9
 100203;"MÓDULO RTC DS1307 RELÓGIO TEMPO REAL COM BATERIA";Módulos e Sensores;Módulos RTC e Memória;;B_rtc;"";"2 - Módulos e shields";12.90;31
 100204;"PROTOSHIELD COM PROTOBOARD 170 FUROS PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";22.90;13
-100205;"MODULO RELÉ 5V 8 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";44.90;3
-100206;"MODULO RELÉ 5V 4 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";25.90;20
-100207;"MODULO ETHERNET SHIELD ENC28J60 PARA ARDUINO NANO";Módulos e Sensores;Módulos Ethernet;;B_eth;"";"2 - Módulos e shields";60.80;4
+100205;"MODULO RELÉ 5V 8 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";44.90;3
+100206;"MODULO RELÉ 5V 4 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";25.90;20
+100207;"MODULO ETHERNET SHIELD ENC28J60 PARA ARDUINO NANO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";60.80;4
 100208;"MODULO SERIAL I2C PARA DISPLAY LCD 16X2 E 20X2";Displays e Telas;Displays LCD;;D_lcd;"";"2 - Módulos e shields";7.40;46
 100209;"DISPLAY LCD SHIELD COM BOTÕES PARA ARDUINO";Displays e Telas;Displays LCD;;D_lcd;"";"2 - Módulos e shields";33.90;4
-100210;"MODULO LEITOR DE CARTÃO MICRO SD";Módulos e Sensores;Cartões e Leitores Micro SD;;B_sd;"";"2 - Módulos e shields";7.40;96
-100211;"DATA LOGGER SHIELD COM RTC DS1307 PARA ARDUINO";Módulos e Sensores;Módulos RTC e Memória;;B_rtc;"";"2 - Módulos e shields";28.80;20
+100210;"MODULO LEITOR DE CARTÃO MICRO SD";Módulos e Sensores;Módulos RTC e Memória;;B_rtc;"";"2 - Módulos e shields";7.40;96
+100211;"DATA LOGGER SHIELD COM RTC DS1307 PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";28.80;20
 100212;"MÓDULO GPS UBLOX NEO-6M GY-GPS6MV2 COM ANTENA CERÂMICA";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";46.90;12
 100215;"MODULO CNC SHIELD V3 PARA ARDUINO";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"2 - Módulos e shields";28.80;28
 100216;"MOTOR SHIELD L293 DRIVER PONTE H PARA ARDUINO";Motores e Robótica;Ponte H e Controladores de Motor DC;;G_ponteh;"";"2 - Módulos e shields";27.70;30
-100218;"MÓDULO RELÉ 1 CANAL 5V 10A";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";7.20;3
-100219;"MÓDULO RELÉ ESTADO SÓLIDO SSR 1CANAL 5V 2A";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";14.40;38
-100220;"MÓDULO RELÉ ESTADO SÓLIDO SSR 4 CANAIS 5V 2A";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";54.40;20
+100218;"MÓDULO RELÉ 1 CANAL 5V 10A";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";7.20;3
+100219;"MÓDULO RELÉ ESTADO SÓLIDO SSR 1CANAL 5V 2A";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";14.40;38
+100220;"MÓDULO RELÉ ESTADO SÓLIDO SSR 4 CANAIS 5V 2A";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";54.40;20
 100221;"PLACA BASE ADAPTADOR PARA ESP07 ESP08 ESP12E";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"2 - Módulos e shields";11.20;43
 100222;"ADAPTADOR MÓDULO WIFI ESP8266 ESP-01 PARA PROTOBOARD";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"2 - Módulos e shields";4.90;12
 100223;"ADAPTADOR USB PARA MÓDULO WIFI ESP8266 ESP-01";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"2 - Módulos e shields";14.60;5
 100224;"PLACA BORNE INTERFACE PARA ARDUINO NANO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";19.20;18
 100225;"MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003";Motores e Robótica;Motores de Passo;;G_passo;"";"2 - Módulos e shields";16.00;3
 100229;"MODULO SENSOR DE TENSÃO AC 0 A 250VAC SAÍDA 0 A 5V ZMPT101B";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"2 - Módulos e shields";18.40;26
-100230;"MODULO 4 CANAIS COM OPTOACOPLADOR 3,6 A 30VDC";Módulos e Sensores;Módulos de Acionamento;;B_acion;"";"2 - Módulos e shields";16.00;0
-100232;"MODULO RELÉ 5V 1 CANAL COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";15.40;5
+100230;"MODULO 4 CANAIS COM OPTOACOPLADOR 3,6 A 30VDC";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";16.00;0
+100232;"MODULO RELÉ 5V 1 CANAL COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";15.40;5
 100233;"PROGRAMADOR BOOTLOADER AVR ISP SHIELD  PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";36.80;7
 100234;"DATA LOGGER RTC DS1307 PARA REGISTRO DE DADOS COM BATERIA";Módulos e Sensores;Módulos RTC e Memória;;B_rtc;"";"2 - Módulos e shields";29.80;13
-100235;"MÓDULO EXPANSOR DE PORTAS VIA I2C 8BITS PCF8574";Módulos e Sensores;Conversores de Nível Lógico, ADC e DAC;;B_adc;"";"2 - Módulos e shields";9.50;2
-100237;"MODULO RELÉ 5V 2 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";12.00;16
+100235;"MÓDULO EXPANSOR DE PORTAS VIA I2C 8BITS PCF8574";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";9.50;2
+100237;"MODULO RELÉ 5V 2 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";12.00;16
 100239;"SENSOR DE TENSÃO AC 127/220V SAÍDA PARA ARDUINO CLP";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"Sensores";20.80;0
-100242;"MINI MÓDULO W5500 TCP/IP LITE ETHERNET";Módulos e Sensores;Módulos Ethernet;;B_eth;"";"";52.00;0
+100242;"MINI MÓDULO W5500 TCP/IP LITE ETHERNET";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"";52.00;0
 100243;"SENSOR DE GÁS MQ-135 PARA GASES TÓXICOS";Módulos e Sensores;Sensores de Gás e Chama;;C_gas;"";"Sensores";16.90;12
 100245;"SENSOR DE GÁS MQ-3 ÁLCOOL";Módulos e Sensores;Sensores de Gás e Chama;;C_gas;"";"Sensores";16.90;15
 100246;"SENSOR DE GÁS MQ-5 GLP E GÁS NATURAL";Módulos e Sensores;Sensores de Gás e Chama;;C_gas;"";"Sensores";16.90;29
@@ -51,18 +51,18 @@
 100249;"SENSOR DE GÁS MQ-8 HIDROGÊNIO";Módulos e Sensores;Sensores de Gás e Chama;;C_gas;"";"Sensores";16.90;14
 100250;"SENSOR DE GÁS MQ-9 MONÓXIDO DE CARBONO";Módulos e Sensores;Sensores de Gás e Chama;;C_gas;"";"Sensores";16.90;14
 100251;"Módulo Rtc Ds3231 *100251";Módulos e Sensores;Módulos RTC e Memória;;B_rtc;"";"";21.00;0
-100252;"MODULO OPTOACOPLADOR ARDUINO PARA CLP MOSFET 24V 5A";Módulos e Sensores;Módulos de Acionamento;;B_acion;"";"2 - Módulos e shields";68.00;0
+100252;"MODULO OPTOACOPLADOR ARDUINO PARA CLP MOSFET 24V 5A";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";68.00;0
 100253;"SENSOR DE GÁS METANO MQ-4";Módulos e Sensores;Sensores de Gás e Chama;;C_gas;"";"Sensores";16.90;10
 100255;"MODULO SIM808 GSM GPRS SMS GPS COM ANTENAS";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";249.00;3
 100256;"MÓDULO SEMÁFORO SINALEIRA LED 8MM";Componentes Eletrônicos;LEDs e Soquetes;;I_led;"";"2 - Módulos e shields";5.90;18
 100257;"MODULO MP3 DFPLAYER MINI PLAYER DE ÁUDIO";Componentes Eletrônicos;Buzzers, Alto-falantes e Áudio;;I_buzz;"";"2 - Módulos e shields";19.50;16
-100258;"Multiplexador CD74HC4067 CMOS Analógico Digital 16 Canais para Arduino *100258";Módulos e Sensores;Conversores de Nível Lógico, ADC e DAC;;B_adc;"";"";12.00;16
-100259;"MODULO RELÉ 5V 6 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";37.00;17
+100258;"Multiplexador CD74HC4067 CMOS Analógico Digital 16 Canais para Arduino *100258";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";12.00;16
+100259;"MODULO RELÉ 5V 6 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";37.00;17
 100260;"MÓDULO AMPLIFICADOR  MAX31865 PT100";Módulos e Sensores;Sensores de Temperatura e Umidade;;C_temp;"";"";;10
 100261;"SIMULADOR DE CARGA RESISTIVA USB 15W 3A";Fontes e Baterias;Voltímetros e Testadores;;F_volt;"";"Módulos";55.00;5
-100263;"RELÉ TEMPORIZADOR DIGITAL AJUSTÁVEL XY-J02";Módulos e Sensores;Módulos Relé;;B_rele;"";"Módulos";49.00;3
+100263;"RELÉ TEMPORIZADOR DIGITAL AJUSTÁVEL XY-J02";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"Módulos";49.00;3
 100264_z;"CNC Shield V4 keyesStudio*100264";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"";87.00;5
-100265;"MÓDULO OPTOACOPLADOR  ISOLADOR 4 CANAIS 3,3 A 30VDC";Módulos e Sensores;Módulos de Acionamento;;B_acion;"";"2 - Módulos e shields";48.00;34
+100265;"MÓDULO OPTOACOPLADOR  ISOLADOR 4 CANAIS 3,3 A 30VDC";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";48.00;34
 100266;"MÓDULO SENSOR DETECTOR DE CHAMA DE FOGO";Módulos e Sensores;Sensores de Gás e Chama;;C_gas;"";"2 - Módulos e shields";8.00;27
 100267;"MÓDULO SENSOR DE VIBRAÇÃO SW-420";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"2 - Módulos e shields";10.00;20
 100268;"MODULO SENSOR DE SOM KY-038";Componentes Eletrônicos;Buzzers, Alto-falantes e Áudio;;I_buzz;"";"2 - Módulos e shields";12.00;13
@@ -128,7 +128,7 @@
 101008;"Motor de R140 20mm 1.5 a 4.5V DC*101008";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";8.40;17
 101010;"Interface placa perfurada Arduino mega com bornes *101010";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"";125.00;5
 101480;"Potenciômetro linear 500K WH148";Componentes Eletrônicos;Potenciômetros e Trimpots;;I_pot;"";"";4.50;50
-109902;"KIT CONTROLE REMOTO INFRAVERMELHO COM RECEPTOR";Módulos e Sensores;Joysticks e Controles Remotos;;B_joy;"";"2 - Módulos e shields";12.90;12
+109902;"KIT CONTROLE REMOTO INFRAVERMELHO COM RECEPTOR";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";12.90;12
 110103;"Raspberry Pi3 Model B+ Quadcore 1.4ghz";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";699.00;0
 110105;"RASPBERRY PI4 MODELO B 2GB RAM 1,5GHZ QUAD CORE *110105";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";1540.00;0
 110201;"PLACA EXPANSÃO GPIO RASPBERRY PI2 PI3 Pi4 COM FLAT";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";34.00;11
@@ -144,11 +144,11 @@
 110406;"Flat 60cm para camera RPI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";25.00;18
 110501;"Controle super nintendo USB *110501";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";24.90;1
 110502;"controle xbox 360 com receptor *110502";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";199.90;1
-111001;"CARTÃO MICRO SD 16GB 80MB/S CLASSE10 SANDISK";Módulos e Sensores;Cartões e Leitores Micro SD;;B_sd;"";"5 - Acessórios";39.90;2
-111002;"CARTÃO MICRO SD 32GB 100MB/S CLASSE10 SANDISK";Módulos e Sensores;Cartões e Leitores Micro SD;;B_sd;"";"5 - Acessórios";64.00;0
+111001;"CARTÃO MICRO SD 16GB 80MB/S CLASSE10 SANDISK";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";39.90;2
+111002;"CARTÃO MICRO SD 32GB 100MB/S CLASSE10 SANDISK";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";64.00;0
 111003;"MINI TECLADO SEM FIO COM MOUSE TOUCH";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";33.30;2
-111006;"Leitor Adaptador Usb Para Cartão Micro Sd  *111006";Módulos e Sensores;Cartões e Leitores Micro SD;;B_sd;"";"";2.90;50
-111007;"CARTÃO MICRO SD 64GB 80MB/S CLASSE10 SANDISK";Módulos e Sensores;Cartões e Leitores Micro SD;;B_sd;"";"5 - Acessórios";56.00;3
+111006;"Leitor Adaptador Usb Para Cartão Micro Sd  *111006";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";2.90;50
+111007;"CARTÃO MICRO SD 64GB 80MB/S CLASSE10 SANDISK";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";56.00;3
 111008;"FONTE CHAVEADA 5V 3A MICRO USB PARA RASPBERRY PI3 ESP32";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";44.90;17
 111010;"KIT 03 PEÇAS DISSIPADOR DE CALOR PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";5.60;58
 111011;"KIT ADAPTADOR RASPBERRYPI ZERO HDMI USB PINOS COM 03 PÇS";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";31.90;4
@@ -579,9 +579,9 @@
 170501;"MODULO RF 433MHZ WIRELESS TRANSMISSOR RECEPTOR";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";9.60;9
 170502;"MÓDULO RELÉ COM CONTROLE 433MHZ 1 CANAL 12V 10A";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"Módulos";57.00;20
 170706;"PLACA ESP32 LORA V2 SX1276 915MHZ WIFI BLE DISPLAY OLED";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";189.00;0
-170707;"ADAPTADOR GATEWAY LORA HT-M01 PARA RPI ZERO";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";168.00;0
+170707;"ADAPTADOR GATEWAY LORA HT-M01 PARA RPI ZERO";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";168.00;0
 170709;"PLACA ESP32 LORA V3 SX1276 915MHZ WIFI BLE DISPLAY OLED";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";247.00;0
-170802;"ANTENA MOVEL 868MHZ 915MHZ GSM 3G GANHO 7DBI CABO 3MTS";Módulos e Sensores;Antenas e Pigtails;;B_ant;"";"Antenas";52.00;0
+170802;"ANTENA MOVEL 868MHZ 915MHZ GSM 3G GANHO 7DBI CABO 3MTS";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";52.00;0
 180201;"PLACA RAMPS 1.4 SHIELD ARDUINO MEGA PARA IMPRESSORA 3D";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"Placas de controle";36.80;5
 180302;"DISPLAY TELA LCD 128X64 RAMPS CONTROLE IMPRESSORA 3D";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Geral";116.80;7
 180304;"DISPLAY TELA LCD 2004 PARA RAMPS CONTROLE IMPRESSORA 3D";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Geral";91.00;2
@@ -683,11 +683,11 @@
 191603;"TRANSDUTOR PASTILHA PIEZOELÉTRICO 35MM SEM CABO";Módulos e Sensores;Transdutores Piezoelétricos;;C_piezo;"";"Sensores";2.10;284
 191604;"TRANSDUTOR PASTILHA PIEZOELÉTRICO 35MM COM CABO";Módulos e Sensores;Transdutores Piezoelétricos;;C_piezo;"";"Sensores";2.50;0
 191701;"ACELERÔMETRO GIROSCÓPIO 3 EIXOS 6 DOF MPU6050";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"2 - Módulos e shields";21.60;20
-191801;"KIT LEITOR RFID RC522 COM CARTÃO E TAG MIFARE 13.56MHZ";Módulos e Sensores;Módulos RFID e Biometria;;B_rfid;"";"2 - Módulos e shields";17.50;6
-191802;"TAG ADESIVO RFID MIFARE NTAG213 NFC 13.56MHZ REGRAVÁVEL";Módulos e Sensores;Módulos RFID e Biometria;;B_rfid;"";"Sensores";1.50;6
-191803;"CHAVEIRO RFID 13.56MHZ COM TAG PARA CONTROLE DE ACESSO";Módulos e Sensores;Módulos RFID e Biometria;;B_rfid;"";"5 - Acessórios";2.90;98
-191804;"CARTÃO RFID PROGRAMÁVEL MIFARE MFS50 13.56MHZ";Módulos e Sensores;Módulos RFID e Biometria;;B_rfid;"";"5 - Acessórios";2.30;26
-191811;"Modulo Leitor E Gravador Nfc Rfid - Pn532 V3 +1 Tags*191811";Módulos e Sensores;Módulos RFID e Biometria;;B_rfid;"";"";120.00;0
+191801;"KIT LEITOR RFID RC522 COM CARTÃO E TAG MIFARE 13.56MHZ";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";17.50;6
+191802;"TAG ADESIVO RFID MIFARE NTAG213 NFC 13.56MHZ REGRAVÁVEL";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"Sensores";1.50;6
+191803;"CHAVEIRO RFID 13.56MHZ COM TAG PARA CONTROLE DE ACESSO";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"5 - Acessórios";2.90;98
+191804;"CARTÃO RFID PROGRAMÁVEL MIFARE MFS50 13.56MHZ";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"5 - Acessórios";2.30;26
+191811;"Modulo Leitor E Gravador Nfc Rfid - Pn532 V3 +1 Tags*191811";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"";120.00;0
 191901;"PASTILHA TERMOELÉTRICA PELTIER 12V TEC1-12706";Automação Industrial;Pastilhas Peltier;;E_pelt;"";"Geral";29.60;13
 191903_z;"Junta de isolamento para pastilha peltier 40x40mm *191903";Automação Industrial;Pastilhas Peltier;;E_pelt;"";"";5.00;96
 191904;"Bloco alumínio refrigeração agua 40x40x12mm *191904";Automação Industrial;Pastilhas Peltier;;E_pelt;"";"";34.90;7
@@ -710,24 +710,24 @@
 192802;"SENSOR DE NÍVEL DE ÁGUA VERTICAL TIPO BOIA";Módulos e Sensores;Sensores de Nível de Água;;C_nivel;"";"Sensores";20.00;3
 192803;"SENSOR DE NÍVEL DE LÍQUIDOS SEM CONTATO  XKC-Y25-V";Módulos e Sensores;Sensores de Nível de Água;;C_nivel;"";"Sensores";67.90;0
 192804;"CONTROLADOR DE NÍVEL DE ÁGUA AUTOMÁTICO XH-M203 COM RELE";Módulos e Sensores;Sensores de Nível de Água;;C_nivel;"";"Módulos";64.00;10
-200102;"CONVERSOR USB PARA RS485 COM BORNE";Módulos e Sensores;Conversores Seriais RS485 e RS232;;B_serial;"";"Conversores";13.30;54
-200104;"MÓDULO CONVERSOR TTL PARA RS485 BIDIRECIONAL";Módulos e Sensores;Conversores Seriais RS485 e RS232;;B_serial;"";"2 - Módulos e shields";5.60;15
-200106;"CONVERSOR ADAPTADOR USB PARA SERIAL RS232 DB9";Módulos e Sensores;Conversores Seriais RS485 e RS232;;B_serial;"";"Conversores";20.00;14
-200108;"CONVERSOR USB PARA TTL FTDI UART RS232 5V 3.3V";Módulos e Sensores;Conversores Seriais RS485 e RS232;;B_serial;"";"Conversores";18.90;78
-200109;"CONVERSOR ADAPTADOR USB PARA SERIAL RS232 COM CABO";Módulos e Sensores;Conversores Seriais RS485 e RS232;;B_serial;"";"Conversores";16.90;20
+200102;"CONVERSOR USB PARA RS485 COM BORNE";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"Conversores";13.30;54
+200104;"MÓDULO CONVERSOR TTL PARA RS485 BIDIRECIONAL";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";5.60;15
+200106;"CONVERSOR ADAPTADOR USB PARA SERIAL RS232 DB9";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"Conversores";20.00;14
+200108;"CONVERSOR USB PARA TTL FTDI UART RS232 5V 3.3V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"Conversores";18.90;78
+200109;"CONVERSOR ADAPTADOR USB PARA SERIAL RS232 COM CABO";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"Conversores";16.90;20
 200110;"ADAPTADOR ETHERNET USB 3.0 PARA RJ45 10/100/1000MPBS";Componentes Eletrônicos;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"Conversores";99.00;9
 200111;"Cabo adaptador RJ45 POE 1 par";Componentes Eletrônicos;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";;10
 200112;"Emenda simples RJ45";Componentes Eletrônicos;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";;29
 200113;"Extensor USB via RJ45";Componentes Eletrônicos;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";;1
-200114;"MÓDULO DB9 CONVERSOR  MAX3232 RS232 TTL SERIAL";Módulos e Sensores;Conversores Seriais RS485 e RS232;;B_serial;"";"";10.00;10
+200114;"MÓDULO DB9 CONVERSOR  MAX3232 RS232 TTL SERIAL";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";10.00;10
 200115;"Cabo db9 macho e femea 1,5mt";Componentes Eletrônicos;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";;10
-200116;"CONVERSOR USB TIPO C PARA TTL FTDI UART RS232 5V 3.3V";Módulos e Sensores;Conversores Seriais RS485 e RS232;;B_serial;"";"";18.90;10
+200116;"CONVERSOR USB TIPO C PARA TTL FTDI UART RS232 5V 3.3V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";18.90;10
 200117;"Cabo db9 serial macho para IHM DOP delta 3m";Automação Industrial;IHM;;E_ihm;"";"";110.00;5
-200118;"Cabo serial Waveshare USB para TTL de 6 pinos FTDI";Módulos e Sensores;Conversores Seriais RS485 e RS232;;B_serial;"";"";279.00;1
+200118;"Cabo serial Waveshare USB para TTL de 6 pinos FTDI";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";279.00;1
 200201;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP BOOST XL6009";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"Conversores";10.40;116
 200202;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP DOWN LM2596";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"Conversores";14.90;16
-200203;"CONVERSOR DE NIVEL LÓGICO 2 CANAIS BIDIRECIONAL 3V3 5V";Módulos e Sensores;Conversores de Nível Lógico, ADC e DAC;;B_adc;"";"2 - Módulos e shields";3.60;14
-200204;"CONVERSOR DE NIVEL LÓGICO 4 CANAIS BIDIRECIONAL 3V3 5V";Módulos e Sensores;Conversores de Nível Lógico, ADC e DAC;;B_adc;"";"2 - Módulos e shields";4.00;22
+200203;"CONVERSOR DE NIVEL LÓGICO 2 CANAIS BIDIRECIONAL 3V3 5V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";3.60;14
+200204;"CONVERSOR DE NIVEL LÓGICO 4 CANAIS BIDIRECIONAL 3V3 5V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";4.00;22
 200205;"Conversor step Down 12/24V para 5V 10A *200205";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"";78.00;11
 200206;"Conversor step Down 300w 5-40v para 1.2-35v  *200206";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"";62.00;4
 200207;"CONVERSOR DE TENSÃO DC-DC STEP DOWN 25W 9-36V PARA USB 5V";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"Conversores";49.00;17
@@ -737,36 +737,36 @@
 200227;"Modulo regulador tensão step down LM2596 com display";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"";33.90;10
 200228;"Modulo regulador tensão step up XL6009 com display";Fontes e Baterias;Conversores DC-DC Step Up e Step Down;;F_dcdc;"";"";33.90;10
 200301;"MODULO CONVERSOR HX711 PARA CÉLULA DE CARGA";Módulos e Sensores;Células de Carga;;C_carga;"";"2 - Módulos e shields";6.40;41
-200302;"CONVERSOR CORRENTE PARA TENSÂO 4-20MA PARA 0-15V AJUSTAVEL";Módulos e Sensores;Conversores 4-20mA e 0-10V;;B_420;"";"2 - Módulos e shields";14.30;6
-200303;"CONVERSOR TENSÃO PARA CORRENTE 0-24V AJUSTAVEL PARA 4-20MA";Módulos e Sensores;Conversores 4-20mA e 0-10V;;B_420;"";"2 - Módulos e shields";25.50;0
-200304;"MÓDULO CONVERSOR DIGITAL ANALÓGICO MCP4725 I2C";Módulos e Sensores;Conversores de Nível Lógico, ADC e DAC;;B_adc;"";"2 - Módulos e shields";16.00;8
-200305;"CONVERSOR ANALÓGICO DIGITAL ADS1115 16 BITS 4 CANAIS ADC";Módulos e Sensores;Conversores de Nível Lógico, ADC e DAC;;B_adc;"";"2 - Módulos e shields";21.60;8
-200308;"Módulo Potenciômetro Digital 10K X9C103S *200308";Módulos e Sensores;Conversores de Nível Lógico, ADC e DAC;;B_adc;"";"";24.80;19
-200309;"Modulo gerador de corrente 4-20ma *200309";Módulos e Sensores;Conversores 4-20mA e 0-10V;;B_420;"";"";89.00;0
-200310;"Modulo conversor 0-5v pra 0-10v *200310";Módulos e Sensores;Conversores 4-20mA e 0-10V;;B_420;"";"";99.00;2
-200311;"Gerador de Sinal PWM XY-PWM1 com Display LCD de 1Hz-150Khz *200311";Módulos e Sensores;Conversores de Nível Lógico, ADC e DAC;;B_adc;"";"";69.00;11
-200312;"MÓDULO AMPLIFICADOR  DE SINAL LM358 GANHO DE ATÉ 100X";Módulos e Sensores;Conversores de Nível Lógico, ADC e DAC;;B_adc;"";"2 - Módulos e shields";11.00;1
-200313;"MÓDULO RECEPTOR INFRAVERMELHO KY-022";Módulos e Sensores;Joysticks e Controles Remotos;;B_joy;"";"2 - Módulos e shields";4.90;34
-200314;"MÓDULO EMISSOR INFRAVERMELHO KY-005";Módulos e Sensores;Joysticks e Controles Remotos;;B_joy;"";"2 - Módulos e shields";7.00;38
+200302;"CONVERSOR CORRENTE PARA TENSÂO 4-20MA PARA 0-15V AJUSTAVEL";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";14.30;6
+200303;"CONVERSOR TENSÃO PARA CORRENTE 0-24V AJUSTAVEL PARA 4-20MA";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";25.50;0
+200304;"MÓDULO CONVERSOR DIGITAL ANALÓGICO MCP4725 I2C";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";16.00;8
+200305;"CONVERSOR ANALÓGICO DIGITAL ADS1115 16 BITS 4 CANAIS ADC";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";21.60;8
+200308;"Módulo Potenciômetro Digital 10K X9C103S *200308";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";24.80;19
+200309;"Modulo gerador de corrente 4-20ma *200309";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";89.00;0
+200310;"Modulo conversor 0-5v pra 0-10v *200310";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";99.00;2
+200311;"Gerador de Sinal PWM XY-PWM1 com Display LCD de 1Hz-150Khz *200311";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";69.00;11
+200312;"MÓDULO AMPLIFICADOR  DE SINAL LM358 GANHO DE ATÉ 100X";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";11.00;1
+200313;"MÓDULO RECEPTOR INFRAVERMELHO KY-022";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";4.90;34
+200314;"MÓDULO EMISSOR INFRAVERMELHO KY-005";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";7.00;38
 200315;"LED EMISSOR INFRAVERMELHO 5mm";Componentes Eletrônicos;LEDs e Soquetes;;I_led;"";"";;100
-200316;"CONVERSOR CORRENTE PARA TENSÂO 4-20MA PARA 0-10V";Módulos e Sensores;Conversores 4-20mA e 0-10V;;B_420;"";"";;16
+200316;"CONVERSOR CORRENTE PARA TENSÂO 4-20MA PARA 0-10V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";;16
 200317;"Gerador de pulso para motor de passo";Motores e Robótica;Drivers de Motor de Passo;;G_drvpasso;"";"";39.90;10
 200501;"MÓDULO CONVERSOR TENSÃO 0-5V 0-10V PARA PWM MACH3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"2 - Módulos e shields";17.60;9
 200502;"MÓDULO CONVERSOR PWM PARA TENSÃO 0-10V MACH3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"2 - Módulos e shields";19.20;0
-200506;"MODULO PWM MOSFET IRF520 KEYES";Módulos e Sensores;Módulos de Acionamento;;B_acion;"";"2 - Módulos e shields";6.50;18
+200506;"MODULO PWM MOSFET IRF520 KEYES";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";6.50;18
 200507;"MÓDULO PWM PCA9685 I2C 16 CANAIS PARA SERVO MOTOR";Motores e Robótica;Servos e Motores para Aeromodelismo;;G_servo;"";"2 - Módulos e shields";45.00;0
-200509;"MODULO RS485 CAN BUS HAT PARA RASPBERRY PI";Módulos e Sensores;Módulos CAN Bus;;B_can;"";"2 - Módulos e shields";148.00;0
-200510;"MODULO CAN BUS COM 2 CANAIS ISOLADOS HAT PARA RASPBERRY PI";Módulos e Sensores;Módulos CAN Bus;;B_can;"";"2 - Módulos e shields";362.00;0
-200511;"MÓDULO CAN BUS MCP2515 TJA1050 COM INTERFACE SPI";Módulos e Sensores;Módulos CAN Bus;;B_can;"";"2 - Módulos e shields";24.00;11
-200513;"MÓDULO CAN BUS TJA1051";Módulos e Sensores;Módulos CAN Bus;;B_can;"";"";;8
-200514;"MÓDULO CAN BUS TJA1050";Módulos e Sensores;Módulos CAN Bus;;B_can;"";"";35.00;15
-200515;"Modulo conversor ttl para rs485 xy-485";Módulos e Sensores;Conversores Seriais RS485 e RS232;;B_serial;"";"";25.00;10
-200516;"MODULO RS485 2 CANAIS ISOLADOS HAT PARA RASPBERRY PI";Módulos e Sensores;Conversores Seriais RS485 e RS232;;B_serial;"";"2 - Módulos e shields";246.00;0
-200517;"CONVERSOR RS485 PARA ETHERNET TCP/IP USR-TCP232-304 COM FONTE";Módulos e Sensores;Módulos Ethernet;;B_eth;"";"Conversores";278.90;0
+200509;"MODULO RS485 CAN BUS HAT PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";148.00;0
+200510;"MODULO CAN BUS COM 2 CANAIS ISOLADOS HAT PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";362.00;0
+200511;"MÓDULO CAN BUS MCP2515 TJA1050 COM INTERFACE SPI";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";24.00;11
+200513;"MÓDULO CAN BUS TJA1051";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";;8
+200514;"MÓDULO CAN BUS TJA1050";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";35.00;15
+200515;"Modulo conversor ttl para rs485 xy-485";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";25.00;10
+200516;"MODULO RS485 2 CANAIS ISOLADOS HAT PARA RASPBERRY PI";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";246.00;0
+200517;"CONVERSOR RS485 PARA ETHERNET TCP/IP USR-TCP232-304 COM FONTE";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"Conversores";278.90;0
 200518;"MINI MÓDULO CONTROLADOR PWM 4,5 ˜ 35V 5A PN35";Motores e Robótica;Ponte H e Controladores de Motor DC;;G_ponteh;"";"";11.90;4
 200519;"MINI FONTE HI-LINK SAIDA 24VDC";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"";48.90;5
-200601;"Modulo Dimmer 2000W  AC 2KW 16A  *200601";Módulos e Sensores;Módulos de Acionamento;;B_acion;"";"";24.90;16
-200602;"DIMMER CONTROLADOR AC MOTOR LÂMPADA RESISTÊNCIA 220V 10000W";Módulos e Sensores;Módulos de Acionamento;;B_acion;"";"Módulos";149.00;1
+200601;"Modulo Dimmer 2000W  AC 2KW 16A  *200601";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"";24.90;16
+200602;"DIMMER CONTROLADOR AC MOTOR LÂMPADA RESISTÊNCIA 220V 10000W";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"Módulos";149.00;1
 201203;"Suporte do Laser em Alumino *201203*";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";198.90;0
 210103;"VOLTÍMETRO AMPERÍMETRO DIGITAL DC 100V 10A PARA PAINEL";Fontes e Baterias;Voltímetros e Testadores;;F_volt;"";"Módulos";43.00;83
 210104;"VOLTÍMETRO DIGITAL 3 DÍGITOS 4.5V A 30VDC VERMELHO";Fontes e Baterias;Voltímetros e Testadores;;F_volt;"";"Módulos";24.00;15
@@ -835,13 +835,13 @@
 239903;"KIT CHASSI ROBÔ 2WD REDONDO COM 2 RODAS EM ACRÍLICO";Motores e Robótica;Chassis e Rodas para Robótica;;G_chassi;"";"";138.00;0
 239904;"DISCO ENCODER 20DENTES PARA PROJETOS COM CARRINHOS ROBÓTICOS";Motores e Robótica;Chassis e Rodas para Robótica;;G_chassi;"";"Carros Robóticos";1.20;12
 239905;"MÓDULO DO SENSOR DE VELOCIDADE";Motores e Robótica;Chassis e Rodas para Robótica;;G_chassi;"";"";;10
-239906;"MÓDULO LEITOR BIOMÉTRICO DY50";Módulos e Sensores;Módulos RFID e Biometria;;B_rfid;"";"";;5
+239906;"MÓDULO LEITOR BIOMÉTRICO DY50";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"";;5
 241001;"Filtro de linha monofásico 20A CW4L2-20A para laser *241001";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;3
 241002;"Radiador para laser 240mm *241002";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;0
 241003;"Filtro de ferrite 5mm  *241003";Componentes Eletrônicos;Fusíveis e Filtros;;I_fus;"";"";7.20;42
 241004;"Filtro de ferrite 9mm  *241004";Componentes Eletrônicos;Fusíveis e Filtros;;I_fus;"";"";;6
 244210;"Sensor de Nível de Água - T1592";Módulos e Sensores;Sensores de Nível de Água;;C_nivel;"";"";12.00;2
-258199;"Modulo Conversor de Corrente para Tensão 4mA a 20mA para 0 a 3.3v, 0 a 5v ou 0 a 10v";Módulos e Sensores;Conversores 4-20mA e 0-10V;;B_420;"";"";29.90;0
+258199;"Modulo Conversor de Corrente para Tensão 4mA a 20mA para 0 a 3.3v, 0 a 5v ou 0 a 10v";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";29.90;0
 260101;"PLACA STM32 MAPLE MINI ARM CORTEX M3 STM32F103CBT6 32BITS";Placas Embarcadas;Placas STM32;;A_stm;"";"1 - Placas Embarcados";49.90;35
 260102;"Placa STM8 stm8s103f3p6  *260102";Placas Embarcadas;Placas STM32;;A_stm;"";"";25.00;27
 260103;"PLACA STM32 ARM CORTEX M3 STM32F103C8T6 BLUEPILL";Placas Embarcadas;Placas STM32;;A_stm;"";"1 - Placas Embarcados";28.90;22
@@ -944,10 +944,10 @@
 901302;"CONECTOR 4 PINOS COMPLETO PH 2MM";Componentes Eletrônicos;Conectores JST;;J_jst;"";"";;48
 901303;"CONECTOR JST PH 2MM 10 PINOS COMPLETO";Componentes Eletrônicos;Conectores JST;;J_jst;"";"Conectores e Bornes";3.50;8
 901501;"Conector 10 vias molex 52610-1090 para flat tela nextion enhaced *901501";Displays e Telas;Telas Nextion;;D_nex;"";"";14.90;9
-901601;"CABO PIGTAIL U.FL IPEX IPX COM CONECTOR SMA 15CM";Módulos e Sensores;Antenas e Pigtails;;B_ant;"";"Antenas";5.90;0
-901602;"PLUG CONECTOR SMA MACHO PARA CABO RG-58";Módulos e Sensores;Antenas e Pigtails;;B_ant;"";"Antenas";3.20;1
-901603;"PLUG CONECTOR SMA FEMEA ROSCA EXTERNA PARA CABO RG-58";Módulos e Sensores;Antenas e Pigtails;;B_ant;"";"Antenas";3.20;2
-901604;"ANTENA WIFI 2.4GHZ 3DBI CABO 15CM PARA ESP32 ESP8266 ESP-07";Módulos e Sensores;Antenas e Pigtails;;B_ant;"";"Antenas";19.90;8
+901601;"CABO PIGTAIL U.FL IPEX IPX COM CONECTOR SMA 15CM";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";5.90;0
+901602;"PLUG CONECTOR SMA MACHO PARA CABO RG-58";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";3.20;1
+901603;"PLUG CONECTOR SMA FEMEA ROSCA EXTERNA PARA CABO RG-58";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";3.20;2
+901604;"ANTENA WIFI 2.4GHZ 3DBI CABO 15CM PARA ESP32 ESP8266 ESP-07";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";19.90;8
 901701;"PLUG JACK P10 J10 ESTEREO FEMEA PARA PAINEL PCB";Componentes Eletrônicos;Plugs P4 e P10;;J_plug;"";"Conectores e Bornes";2.50;2
 901702;"PLUG JACK P10 ESTEREO MACHO METALICO";Componentes Eletrônicos;Plugs P4 e P10;;J_plug;"";"Conectores e Bornes";8.80;18
 901703;"PLUG P10 ESTEREO MACHO PLASTICO PRETO";Componentes Eletrônicos;Plugs P4 e P10;;J_plug;"";"Conectores e Bornes";3.90;37
@@ -962,8 +962,8 @@
 902401;"KIT CONECTOR EMENDA 2,3,5 VIAS PARA FIOS COM 60 PEÇAS";Componentes Eletrônicos;Terminais e Emendas;;J_term;"";"Conectores e Bornes";119.00;7
 902403;"CONECTOR EMENDA 3 VIAS PARA FIOS ENGATE RÁPIDO";Componentes Eletrônicos;Terminais e Emendas;;J_term;"";"Conectores e Bornes";2.50;51
 902404;"CONECTOR EMENDA 5 VIAS PARA FIOS ENGATE RÁPIDO";Componentes Eletrônicos;Terminais e Emendas;;J_term;"";"Conectores e Bornes";5.90;95
-910102;"MÓDULO JOYSTICK 3 EIXOS XYZ COM CHAVE";Módulos e Sensores;Joysticks e Controles Remotos;;B_joy;"";"2 - Módulos e shields";9.90;40
-910103;"JOYSTICK SHIELD PARA ARDUINO";Módulos e Sensores;Joysticks e Controles Remotos;;B_joy;"";"";;5
+910102;"MÓDULO JOYSTICK 3 EIXOS XYZ COM CHAVE";Componentes Eletrônicos;Potenciômetros e Trimpots;;I_pot;"";"2 - Módulos e shields";9.90;40
+910103;"JOYSTICK SHIELD PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"";;5
 910201;"CHAVE GANGORRA 2 POSIÇÕES 6A/250V REDONDA PRETO";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";1.80;76
 910202;"CHAVE GANGORRA 2 POSIÇÕES KCD1-101 6A/250V RETANGULAR PRETO";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";3.70;120
 910203;"TOMADA PAINEL COM CHAVE ILUMINADA E PORTA FUSÍVEL 10A";Componentes Eletrônicos;Interruptores e Tomadas de Painel;;I_interr;"";"Geral";25.50;9
@@ -982,8 +982,8 @@
 910220;"CHAVE GANGORRA 3 POSIÇÕES 6A/250V REDONDA PRETO";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";4.50;1
 910221_z;"Chave liga desliga 2 posições com chave *910221";Componentes Eletrônicos;Interruptores e Tomadas de Painel;;I_interr;"";"";39.00;9
 910222;"Chave Botão Quadrado Na Sem Trava Preto Pbs-12a 3a 250v";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;10
-910301;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE HW-040";Módulos e Sensores;Joysticks e Controles Remotos;;B_joy;"";"2 - Módulos e shields";10.90;23
-910302;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE KY-040";Módulos e Sensores;Joysticks e Controles Remotos;;B_joy;"";"";12.00;45
+910301;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE HW-040";Automação Industrial;Encoders Incrementais;;E_enc;"";"2 - Módulos e shields";10.90;23
+910302;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE KY-040";Automação Industrial;Encoders Incrementais;;E_enc;"";"";12.00;45
 910401_AZ;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Azul";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";3.90;83
 910401_BR;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Branco";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";3.90;92
 910401_PR;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Preto";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";3.90;93
@@ -1003,10 +1003,10 @@
 910414_ST;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 24V SIMBOLO LIGA DESLIGA Trava: Sem trava";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";52.17;16
 910415;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 12V SIMBOLO LIGA DESLIGA COM RETENCAO *910415";Automação Industrial;Botões Metálicos Iluminados;;E_botmet;"";"";;19
 910416;"CHAVE SELETORA 2 POSIÇÕES FIXAS 22MM COM CONTATO NA";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"";32.00;0
-910501;"TECLADO MEMBRANA MATRICIAL 4X4 16 TECLAS";Módulos e Sensores;Teclados Matriciais e Botões Touch;;B_tecl;"";"Teclados";7.90;9
-910502;"TECLADO MEMBRANA MATRICIAL 4X3 12 TECLAS";Módulos e Sensores;Teclados Matriciais e Botões Touch;;B_tecl;"";"Teclados";7.90;47
-910503;"TECLADO MATRICIAL RIGIDO KARET 4X4 TECLAS";Módulos e Sensores;Teclados Matriciais e Botões Touch;;B_tecl;"";"";;7
-910504;"TECLADO MATRICIAL RIGIDO KARET 4X3 TECLAS";Módulos e Sensores;Teclados Matriciais e Botões Touch;;B_tecl;"";"";;7
+910501;"TECLADO MEMBRANA MATRICIAL 4X4 16 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Teclados";7.90;9
+910502;"TECLADO MEMBRANA MATRICIAL 4X3 12 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Teclados";7.90;47
+910503;"TECLADO MATRICIAL RIGIDO KARET 4X4 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;7
+910504;"TECLADO MATRICIAL RIGIDO KARET 4X3 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;7
 910601;"BOTÃO DE EMERGÊNCIA TIPO COGUMELO COM RETENÇÃO 2NF";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Chaves e Botões";28.80;8
 910701;"CONTATO PARA BOTOEIRA NF NC ZB2";Automação Industrial;Botoeiras e Sinalizadores 22mm;;E_bot22;"";"Chaves e Botões";6.10;55
 920102;"Mosfet IRLU014PBF SMD NPN *920102";Componentes Eletrônicos;Transistores e MOSFETs;;I_trans;"";"";;29
@@ -1271,7 +1271,7 @@
 960713;"caixa plástica modelo PB-211";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"";"";69.90;5
 960714;"CAIXA PLASTICA organizadora";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"";"";;30
 960801;"Anel elástico DI 9mm para fuso de esfera 16mm *960801";CNC, Laser e Impressão 3D;Fusos de Esferas;;H_fesf;"";"";;5
-962438;"SENSOR TOQUE CAPACITIVO - TTP223B";Módulos e Sensores;Teclados Matriciais e Botões Touch;;B_tecl;"";"";3.21;12
+962438;"SENSOR TOQUE CAPACITIVO - TTP223B";Módulos e Sensores;Sensores Indutivos e Capacitivos;;C_ind;"";"";3.21;12
 969693;"MODULO SENSOR DE LUMINOSIDADE LDR";Módulos e Sensores;Sensores de Luz e Cor;;C_luz;"";"";8.50;3
 970104;"MODULO INTERFACE PARA ESP32 30 PINOS COM BORNE E ESPAÇADORES";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";130.00;36
 970106;"MODULO INTERFACE PARA HELTEC ESP32 LORA COM BORNES";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";140.00;15
