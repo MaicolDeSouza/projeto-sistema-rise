@@ -147,8 +147,8 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
-| Rise AI | Assistente de atendimento (Entrega 1, pronta e **ainda sem deploy**): a equipe cola a pergunta de um cliente e recebe o texto pronto para copiar, com preço, estoque e link da loja. Feito para modelo local (LM Studio) como padrão e a API da Anthropic como reserva, mas o modelo local não serve no notebook do dono (medido em 11/10/2026): na prática a Anthropic é o Padrão; conversas guardadas; 👎 vira sugestão de correção que o **dono** aprova; Revisão do dia, Configurações e Consumo para administradores. Ver "Rise AI (Entrega 1)" |
-| Configurações (Acessos) | Lançamento 1 pronto e **sem deploy** (12/10/2026): usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. Ver "Acessos (lançamento 1)" |
+| Rise AI | Assistente de atendimento (Entrega 1, na VPS desde 13/10/2026; a Entrega A1, com chat fluido, orçamento e internet, está pronta e **ainda sem deploy**): a equipe cola a pergunta de um cliente e recebe o texto pronto para copiar, com preço, estoque e link da loja. Feito para modelo local (LM Studio) como padrão e a API da Anthropic como reserva, mas o modelo local não serve no notebook do dono (medido em 11/10/2026): na prática a Anthropic é o Padrão; conversas guardadas; 👎 vira sugestão de correção que o **dono** aprova; Revisão do dia, Configurações e Consumo para administradores. Ver "Rise AI (Entrega 1)" |
+| Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. Ver "Acessos (lançamento 1)" |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
 **A publicação nunca foi ligada.** `ML_PUBLICACAO`, `BLING_ESCRITA` e `LI_ESCRITA` estão em `false`, e
@@ -196,8 +196,8 @@ npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 685 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
-npm run teste:rise-ai             # 383 asserções do Rise AI (Entrega 1): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo, configuração, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
-npm run teste:acessos             # 124 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz e o guarda estático de src/app. Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
+npm run teste:rise-ai             # 623 asserções do Rise AI (Entrega 1 e A1): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
+npm run teste:acessos             # 132 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz e o guarda estático de src/app. Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
 npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio
@@ -3607,8 +3607,78 @@ uma revisão de segurança e uma de arquitetura (consolidado e decisões em
   `evolution` e as redes separadas; desligar as mensagens automáticas do WhatsApp Business na virada.
 - **Revisão 2 das specs** (12/10/2026, à noite): telas refeitas com o plugin UI/UX e 33 ajustes de segurança e código, consolidados em
   `docs/superpowers/investigacoes/2026-10-12-revisao-specs-rise-ia-acessos.md`.
-- **Acessos lançamento 1 PRONTO em 12/10/2026, sem deploy** (seção "Acessos (lançamento 1)", abaixo). **Próximo passo:** o
-  "sobe" da Entrega 1 junto com o lançamento 1 (duas variáveis novas no `.env` da VPS), depois o plano da Entrega A.
+- **Acessos lançamento 1 PRONTO em 12/10/2026** (seção "Acessos (lançamento 1)", abaixo) e **no ar na VPS junto com a Entrega 1
+  desde 13/10/2026** (commit `7d9d806`, migrations `20261011_rise_ai` e `20261012_acessos` aplicadas). **Entrega A1 PRONTA em
+  13/10/2026, sem deploy** (seção abaixo). **Próximo passo:** o ok do dono e o "sobe" da A1; depois o plano da Entrega C1 (avisos
+  no Telegram).
+
+### Entrega A1: chat fluido, orçamento, internet e abas (13/10/2026)
+
+Primeira parte da Entrega A da spec do agente. Plano (18 tarefas, executado inline na `main`, commits `c1e1ef6` a `d95b79f`):
+`docs/superpowers/plans/2026-10-13-rise-ia-entrega-a1.md`. **As decisões, o que custa se estiverem erradas, a revisão final e o que
+NÃO foi visto num servidor real** estão em `docs/superpowers/plans/2026-10-13-rise-ia-entrega-a1-decisoes.md`. **Pronto e testado,
+SEM DEPLOY.** Ficaram para depois os anexos do chat (📎: imagem, áudio, PDF, planilha, DOCX) e as Entregas A2, B e C.
+
+**Onde mora cada parte** (`src/lib/riseAi/`, salvo onde dito)
+- `orcamento.js`: `reservarOrcamento` (trava `pg_advisory_xact_lock`; a reserva é uma linha de `ReservaDeGastoIA` que vale 10 min),
+  `liquidarReserva`, `registrarGasto` (`GastoIA`), `estadoDoOrcamento` (normal, aviso a partir de 80 %, esgotado),
+  `estimarCustoMaximoBrl` e `estadoDoChat`. A cotação do dia é `src/lib/cotacaoDoDia.js` (`garantirCotacaoDoDia`, nunca lança).
+- `conversa.js`: o laço reserva o orçamento ANTES de cada rodada (somando o que a resposta já gastou, `jaGastoBrl`) e para com
+  `OrcamentoEsgotado`; `modo` interno ou cliente; o `AbortController` do Parar (`paradas.js` e `POST /api/rise-ai/parar`); as
+  `fontes` da pesquisa em `estruturado.fontes`.
+- `ferramentas/internet.js` (`pesquisarNaInternet`, fora do catálogo comum) e `src/lib/ia/pesquisaGeral.js` (a chamada à Anthropic).
+- `modoCliente.js` e o perfil `publico` em `ferramentas/`; `textoSeguro.js` e `src/components/riseAi/TextoDaIA.jsx`.
+- Chat: `MensagemDaIA`, `BarraDaResposta`, `Chat` (Enviar e Parar no mesmo lugar, Esc para), `ControlesDaConversa`.
+- Configurações: `abasDeConfiguracao.js` (`salvarAba`, `ABAS`, `RECURSO_DA_ABA`), `versoesDePrompt.js`, e em `src/components/riseAi/`
+  `ConfiguracoesEmAbas`, `FormularioConfiguracao` (Modelos), `AbaOrcamentos`, `AbaCanais`, `AbaAtendimento`, `BarraDeOrcamento`
+  (também no Consumo) e `salvarDaAba.jsx`. `consumo.js` ganhou `gastosOutrosPorDia` e `linhasComOutros`.
+- Acessos: `riseAi.configuracoes.modelos|orcamentos|canais|atendimento` (capacidades) e `riseAi.configuracoes.promptCliente`
+  (**só o Administrador**, não delegável).
+- Banco: migration `20261013_rise_ia_entrega_a` (`GastoIA`, `ReservaDeGastoIA`, `VersaoDePromptIA`, `MensagemIA.interrompida`).
+
+**Regras que custaram pensar**
+- **Orçamento:** R$ 70 (clientes) e R$ 30 (interno), editáveis em Configurações › Orçamentos. Gasto do mês de São Paulo = `MensagemIA.custoBrl`
+  + `GastoIA`. Aviso a partir de 80 % (chip "Orçamento interno N %" no chat); em 100 % o chat mostra o erro e o campo de texto desabilita,
+  e só o administrador aumenta. Modelo local, modelo sem preço e provedor desconhecido custam zero na conta; as respostas de API
+  sem preço aparecem avisadas. Dólar: PTAX do dia, com a fixa de R$ 6,00 se o Banco Central não responder (e ele responde 403 a
+  pedido com `$select` a partir da VPS).
+- **Parar:** motivo `interrompida` (não aciona a reserva); a resposta fica gravada com o texto parcial, o selo "interrompida" e o custo
+  **estimado por caracteres** (`~`). Recarregar a página NÃO para: a resposta termina e é gravada. Só a dona da conversa para, e o
+  registro é em memória do processo.
+- **Texto seguro:** o que o modelo escreve nunca vira HTML; só é clicável o endereço de `linksPermitidos` (o `urlLoja` dos produtos
+  citados e as fontes da pesquisa), com o domínio à vista. O botão Copiar entrega texto puro.
+- **Modo cliente:** a frase "escreva a resposta para o cliente" roda com o perfil `publico` (sem custo, fornecedor, localização,
+  concorrentes, margem nem saldo do Bling; estoque só em faixa; só produto ativo e publicado), sem internet e com um histórico que leva
+  só as mensagens do USUÁRIO. O código não tem perfil padrão: perfil ausente é erro.
+- **Internet:** um interruptor (Configurações › Canais), desligado de fábrica, só no chat da equipe. A busca é a ferramenta do servidor
+  da Anthropic (até 3 buscas, US$ 0,01 cada) com o Haiku e, se a API a recusar, o Sonnet; fonte citada e **nunca `web_fetch`**. O gasto
+  vai para `GastoIA` e aparece na coluna "Outros" do Consumo.
+- **Abas de Configurações:** cada uma grava só os campos dela e confere o recurso dela em "editar"; orçamentos, internet e prompts entram
+  na `AuditoriaDeAcesso` na mesma transação, e os dois prompts guardam as 20 versões mais recentes (a "versão anterior" aparece na aba).
+  Sem permissão de editar, o `fieldset` trava os campos e o motivo vai no `title`; trocar de aba com alteração não salva pergunta.
+- **Teste:** o que mexe em dinheiro usa meses falsos de 2025 (`dependencias.agoraDoOrcamento`); o gasto da pesquisa leva o id da
+  conversa, então o `limpar()` o apaga por esse id (antes ele deixava R$ 0,12 de mentira por rodada no orçamento do dono).
+
+**Para pôr no ar (só com o "sobe"):** deploy normal pelo cartão "Atualizar a VPS" (aplica a migration `20261013_rise_ia_entrega_a`,
+com backup antes); nenhuma variável nova no `.env`. O passo 10 do roteiro precisa da chave da OpenAI cadastrada **na VPS** (o banco é outro).
+
+**Roteiro do dono (no Rise do PC, depois de reiniciar o servidor):**
+1. Rise AI › Configurações tem quatro abas (Modelos, Orçamentos, Canais, Atendimento). Orçamentos mostra R$ 70 e R$ 30 e as barras do mês.
+2. Orçamentos: trocar o interno para `45,50` e Salvar; a barra mostra o novo teto. Digitar `abc` mostra o erro no campo e não grava.
+3. No chat, perguntar "qual Arduino para acender um LED?": a resposta é texto corrido (sem quadro), com Copiar, 👍/👎, o modelo, o
+   tempo e o custo. Copiar cola o texto puro.
+4. Perguntar algo longo e clicar **Parar** no meio: a resposta fica com o selo "interrompida" e o custo com "~". Recarregar a página
+   no meio de outra resposta: ela termina e aparece no histórico.
+5. Escrever "escreva a resposta para o cliente": o texto sai puro, com o chip "texto para o cliente", sem custo nem fornecedor.
+6. Canais: ligar a internet; o chip "Internet ligada" aparece no chat; perguntar um dado técnico fora do catálogo; a resposta cita a
+   fonte com link; em Consumo aparece o gasto em "Outros".
+7. Orçamento interno em R$ 0,01 e perguntar algo com um modelo de API: o campo de texto desabilita e a mensagem diz que só o
+   administrador aumenta. Voltar o teto a R$ 30.
+8. Consumo: as duas barras no topo, a coluna Outros e nenhuma coluna "Sem separação".
+9. Abrir uma conversa **antiga** (da Entrega 1): a resposta aparece sem o "### Para a equipe" cru.
+10. **Troca para o GPT-4.1 mini** (quando a chave da OpenAI existir na VPS): Configurações › Modelos › cartão OpenAI → colar a chave →
+    Testar conexão → habilitar `gpt-4.1-mini` → Padrão = OpenAI / `gpt-4.1-mini`, Reserva = Anthropic / `claude-haiku-5-5` → Salvar →
+    perguntar de novo e conferir o selo do modelo e o custo.
 
 ## Acessos (lançamento 1, 12/10/2026)
 
