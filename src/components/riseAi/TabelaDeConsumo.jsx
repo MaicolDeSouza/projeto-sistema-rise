@@ -8,13 +8,30 @@ const CABECALHOS = [
   { rotulo: "Respostas", ajuda: "Respostas que o modelo deu (as mensagens de erro ficam em Falhas)." },
   { rotulo: "Tokens", ajuda: "Entrada (o que o modelo leu) e saída (o que escreveu)." },
   { rotulo: "Custo", ajuda: "Estimado na hora da resposta: preço do modelo × tokens × dólar do dia. Modelo no seu PC custa zero." },
+  { rotulo: "Outros", ajuda: "O que não é resposta do chat: pesquisa na internet, transcrição de áudio e embeddings. O valor do dia aparece na primeira linha dele; passe o mouse para ver por tipo." },
   { rotulo: "Tempo médio", ajuda: "Do envio da pergunta ao fim da resposta." },
   { rotulo: "Reservas", ajuda: "Respostas em que a reserva assumiu porque o modelo padrão falhou." },
   { rotulo: "Falhas", ajuda: "Respostas que terminaram em erro." },
   { rotulo: "👎", ajuda: "Respostas sinalizadas como erradas." },
   { rotulo: "Sem resultado", ajuda: "A busca no catálogo não achou produto." },
-  { rotulo: "Sem separação", ajuda: "O modelo não separou o texto do cliente do texto da equipe." },
 ];
+
+const TIPOS_DE_OUTROS = { BUSCA: "Pesquisa na internet", TRANSCRICAO: "Transcrição de áudio", EMBEDDING: "Embeddings" };
+
+/** O gasto "Outros" do dia, com o detalhe por tipo no mouse; `null` (a linha não é a primeira do dia, ou não houve gasto) fica em branco. */
+function Outros({ gasto }) {
+  if (!gasto) return <span className="text-suave">—</span>;
+  const detalhe = Object.entries(gasto.porTipo)
+    .filter(([, brl]) => brl > 0)
+    .map(([tipo, brl]) => `${TIPOS_DE_OUTROS[tipo] ?? tipo}: ${custoEmTexto(brl)}`)
+    .join("\n");
+  return (
+    <span title={detalhe || undefined}>
+      {custoEmTexto(gasto.brl)}
+      <span className="block text-xs text-suave">{dolar(gasto.usd)}</span>
+    </span>
+  );
+}
 
 function Custo({ custoBrl, custoUsd, semCusto, respostas, local }) {
   if (local) return <span className="text-suave">no seu PC</span>;
@@ -57,24 +74,44 @@ export default function TabelaDeConsumo({ linhas, totais }) {
           {linhas.map((linha) => (
             <tr key={`${linha.dia}|${linha.provedor}|${linha.modelo}`} className="align-top">
               <td className="px-3 py-2 whitespace-nowrap">{comoData(linha.dia)}</td>
-              <td className="px-3 py-2">
-                {rotuloDoProvedor(linha.provedor) || "—"}
-                <span className="block text-xs text-suave">{linha.modelo ?? "sem modelo"}</span>
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums">{numero(linha.respostas)}</td>
-              <td className="px-3 py-2 text-right text-xs tabular-nums">
-                {numero(linha.tokensEntrada)}
-                <span className="block text-suave">{numero(linha.tokensSaida)}</span>
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums">
-                <Custo custoBrl={linha.custoBrl} custoUsd={linha.custoUsd} semCusto={linha.semCusto} respostas={linha.respostas} local={ehLocal(linha.provedor)} />
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums">{linha.respostas ? duracaoEmTexto(linha.duracaoMediaMs) : "—"}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{numero(linha.reservas)}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{numero(linha.falhas)}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{numero(linha.negativas)}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{numero(linha.semResultado)}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{numero(linha.semSeparacao)}</td>
+              {linha.semModelo ? (
+                // Dia que só teve gasto Outros: não há resposta, então não há modelo nem contagem para mostrar.
+                <>
+                  <td className="px-3 py-2 text-suave">—</td>
+                  <td className="px-3 py-2 text-right text-suave" colSpan={3}>
+                    —
+                  </td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Outros gasto={linha.outros} />
+                  </td>
+                  <td className="px-3 py-2 text-right text-suave" colSpan={5}>
+                    —
+                  </td>
+                </>
+              ) : (
+                <>
+                  <td className="px-3 py-2">
+                    {rotuloDoProvedor(linha.provedor) || "—"}
+                    <span className="block text-xs text-suave">{linha.modelo ?? "sem modelo"}</span>
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">{numero(linha.respostas)}</td>
+                  <td className="px-3 py-2 text-right text-xs tabular-nums">
+                    {numero(linha.tokensEntrada)}
+                    <span className="block text-suave">{numero(linha.tokensSaida)}</span>
+                  </td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Custo custoBrl={linha.custoBrl} custoUsd={linha.custoUsd} semCusto={linha.semCusto} respostas={linha.respostas} local={ehLocal(linha.provedor)} />
+                  </td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Outros gasto={linha.outros} />
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">{linha.respostas ? duracaoEmTexto(linha.duracaoMediaMs) : "—"}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{numero(linha.reservas)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{numero(linha.falhas)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{numero(linha.negativas)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{numero(linha.semResultado)}</td>
+                </>
+              )}
             </tr>
           ))}
         </tbody>
@@ -88,17 +125,17 @@ export default function TabelaDeConsumo({ linhas, totais }) {
               {numero(totais.tokensEntrada)}
               <span className="block text-suave">{numero(totais.tokensSaida)}</span>
             </td>
-            <td className="px-3 py-2 text-right tabular-nums">
+            <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
               {custoEmTexto(totais.custoBrl)}
               <span className="block text-xs font-normal text-suave">{dolar(totais.custoUsd)}</span>
               {totais.semCusto > 0 && <span className="block text-xs font-normal text-amber-700">{totais.semCusto} sem preço cadastrado</span>}
             </td>
+            <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{totais.outrosBrl > 0 ? custoEmTexto(totais.outrosBrl) : <span className="font-normal text-suave">—</span>}</td>
             <td className="px-3 py-2 text-right tabular-nums">{totais.respostas ? duracaoEmTexto(totais.duracaoMediaMs) : "—"}</td>
             <td className="px-3 py-2 text-right tabular-nums">{numero(totais.reservas)}</td>
             <td className="px-3 py-2 text-right tabular-nums">{numero(totais.falhas)}</td>
             <td className="px-3 py-2 text-right tabular-nums">{numero(totais.negativas)}</td>
             <td className="px-3 py-2 text-right tabular-nums">{numero(totais.semResultado)}</td>
-            <td className="px-3 py-2 text-right tabular-nums">{numero(totais.semSeparacao)}</td>
           </tr>
         </tfoot>
       </table>

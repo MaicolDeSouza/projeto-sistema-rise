@@ -20,8 +20,10 @@ export default function BarraDeOrcamento({ rotulo, gastoBrl, tetoBrl, percentual
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3 text-sm">
-        <span className="text-suave">{rotulo}</span>
-        <span className="tabular-nums">
+        <span className="truncate text-suave" title={rotulo}>
+          {rotulo}
+        </span>
+        <span className="shrink-0 tabular-nums whitespace-nowrap">
           <strong className="font-semibold">{gasto}</strong> <span className="text-suave">de {teto} ({percentual.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} %)</span>
         </span>
       </div>

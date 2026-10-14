@@ -71,8 +71,11 @@ async function devolverOQueEraDoDono() {
 /** Apaga tudo o que os testes criam. Roda no comeco (resto de uma execucao que caiu) e no fim. */
 async function limpar() {
   // Entrega A1: gasto, reservas e versoes de prompt de teste.
-  await prisma.gastoIA.deleteMany({ where: { referencia: { startsWith: "ZZ-IA-" } } });
-  await prisma.reservaDeGastoIA.deleteMany({ where: { dono: { startsWith: "ZZ-IA-" } } });
+  // O gasto da pesquisa e a reserva do laco levam o id da CONVERSA (um cuid, sem o prefixo): sai pelo id das conversas de teste,
+  // antes de elas serem apagadas, senao cada rodada deixaria uma linha de gasto de mentira no orcamento do dono.
+  const conversasDeTeste = (await prisma.conversaIA.findMany({ where: { usuario: { startsWith: "ZZ-IA-" } }, select: { id: true } })).map((conversa) => conversa.id);
+  await prisma.gastoIA.deleteMany({ where: { OR: [{ referencia: { startsWith: "ZZ-IA-" } }, { referencia: { in: conversasDeTeste } }] } });
+  await prisma.reservaDeGastoIA.deleteMany({ where: { OR: [{ dono: { startsWith: "ZZ-IA-" } }, { dono: { in: conversasDeTeste } }] } });
   await prisma.versaoDePromptIA.deleteMany({ where: { canal: { startsWith: "zz-ia-" } } });
   await prisma.auditoriaDeAcesso.deleteMany({ where: { quem: { startsWith: "ZZ-IA-" } } });
   await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "ZZ-IA-" } } });
@@ -1414,15 +1417,16 @@ try {
     );
 
     const totais = totaisDoPeriodo([
-      { respostas: 2, tokensEntrada: 100, tokensSaida: 10, custoBrl: 0.5, custoUsd: 0.1, duracaoMediaMs: 1000, reservas: 1, falhas: 0, negativas: 1, semResultado: 0, semSeparacao: 2, semCusto: 0 },
-      { respostas: 6, tokensEntrada: 300, tokensSaida: 30, custoBrl: 0.25, custoUsd: 0.05, duracaoMediaMs: 2000, reservas: 0, falhas: 1, negativas: 0, semResultado: 1, semSeparacao: 0, semCusto: 3 },
-    ]);
+      { respostas: 2, tokensEntrada: 100, tokensSaida: 10, custoBrl: 0.5, custoUsd: 0.1, duracaoMediaMs: 1000, reservas: 1, falhas: 0, negativas: 1, semResultado: 0, semCusto: 0 },
+      { respostas: 6, tokensEntrada: 300, tokensSaida: 30, custoBrl: 0.25, custoUsd: 0.05, duracaoMediaMs: 2000, reservas: 0, falhas: 1, negativas: 0, semResultado: 1, semCusto: 3 },
+    ], [{ brl: 0.1209 }, { brl: 0.5 }]);
     conferir(
       "totais do periodo somam e ponderam o tempo medio pelas respostas",
       totais,
-      { respostas: 8, tokensEntrada: 400, tokensSaida: 40, custoBrl: 0.75, custoUsd: 0.15, duracaoMediaMs: 1750, reservas: 1, falhas: 1, negativas: 1, semResultado: 1, semSeparacao: 2, semCusto: 3 },
+      { respostas: 8, tokensEntrada: 400, tokensSaida: 40, custoBrl: 0.75, custoUsd: 0.15, outrosBrl: 0.6209, duracaoMediaMs: 1750, reservas: 1, falhas: 1, negativas: 1, semResultado: 1, semCusto: 3 },
     );
-    conferir("totais de nada", totaisDoPeriodo([]).respostas, 0);
+    conferir("totais de nada", [totaisDoPeriodo([]).respostas, totaisDoPeriodo([]).outrosBrl], [0, 0]);
+    conferir("a coluna e a contagem Sem separacao sairam do consumo", [linhas.some((linha) => "semSeparacao" in linha), "semSeparacao" in totais], [false, false]);
     conferir("os ultimos 7 dias incluem hoje", [periodoDosUltimosDias(7, "2026-10-11"), periodoDosUltimosDias(30, "2026-03-05")], [{ de: "2026-10-05", ate: "2026-10-11" }, { de: "2026-02-04", ate: "2026-03-05" }]);
 
     // --- o formulario de configuracoes vira o parcial que `gravarConfiguracao` entende ---
@@ -2653,6 +2657,52 @@ try {
     const modelos = await salvarAba("modelos", formulario({ padraoProvedor: "ollama", padraoModelo: "zz-modelo-2", orcamentoInternoBrl: "1", internet: "false", promptInterno: "nao deve gravar" }), { usuario: quem, pode: podeTudo });
     const c3 = await lerConfiguracao();
     conferir("salvar Modelos nao mexe em orcamentos, internet nem prompts", [modelos.ok, c3.padrao.modelo, ord(c3.orcamentos), c3.internet, c3.prompts.interno], [true, "zz-modelo-2", ord({ clientesBrl: 80, internoBrl: 45.5 }), true, "Seja direto e curto."]);
+  }
+
+  // -------------------------------------------------------------------------
+  // Entrega A, Tarefa 17 — Consumo com os orcamentos: a coluna Outros (GastoIA por dia)
+  // -------------------------------------------------------------------------
+  console.log("\nEntrega A: consumo com os orcamentos");
+  {
+    const { gastosOutrosPorDia, linhasComOutros } = await import("../src/lib/riseAi/consumo.js");
+    // Meses de 2025, sem nenhum gasto real: o teste so enxerga o que ele mesmo grava.
+    const gasto = (tipo, brl, usd, criadoEm) => ({ tipo, escopo: "INTERNO", provedor: "anthropic", valorUsd: usd, valorBrl: brl, referencia: "ZZ-IA-consumo", criadoEm: new Date(criadoEm) });
+    await prisma.gastoIA.createMany({
+      data: [
+        // 23h do dia 1 em Sao Paulo = 02h UTC do dia 2: conta no dia 1
+        gasto("BUSCA", 0.1209, 0.02015, "2025-10-02T02:00:00Z"),
+        gasto("EMBEDDING", 0.05, 0.01, "2025-10-01T15:00:00Z"),
+        gasto("TRANSCRICAO", 0.2, 0.04, "2025-10-02T12:00:00Z"),
+        // fora do periodo pedido
+        gasto("BUSCA", 9, 2, "2025-11-15T12:00:00Z"),
+      ],
+    });
+    const outros = await gastosOutrosPorDia({ de: "2025-10-01", ate: "2025-10-31" });
+    conferir(
+      "gastos Outros por dia de Sao Paulo, por tipo, do mais recente ao mais antigo, sem outros meses",
+      outros.map((dia) => [dia.dia, dia.brl, dia.usd, dia.porTipo]),
+      [
+        ["2025-10-02", 0.2, 0.04, { TRANSCRICAO: 0.2, EMBEDDING: 0, BUSCA: 0 }],
+        ["2025-10-01", 0.1709, 0.03015, { TRANSCRICAO: 0, EMBEDDING: 0.05, BUSCA: 0.1209 }],
+      ],
+    );
+    conferir("sem gasto no periodo: lista vazia", await gastosOutrosPorDia({ de: "2020-01-01", ate: "2020-01-02" }), []);
+    conferir(
+      "periodo invalido nos Outros",
+      [await gastosOutrosPorDia({ de: "2025-10-05", ate: "2025-10-01" }).then(() => "ok", (erro) => erro.message), await gastosOutrosPorDia({ de: "ontem", ate: "2025-10-01" }).then(() => "ok", (erro) => erro.message)],
+      ["Período inválido.", "Dia inválido."],
+    );
+
+    // --- as linhas da tabela: o valor do dia aparece na primeira linha dele; dia so com Outros ganha uma linha sem modelo ---
+    const resposta = (dia, modelo) => ({ dia, provedor: "anthropic", modelo, respostas: 1, tokensEntrada: 10, tokensSaida: 1, custoBrl: 0.01, custoUsd: 0.002, duracaoMediaMs: 500, reservas: 0, falhas: 0, negativas: 0, semResultado: 0, semCusto: 0 });
+    const juntas = linhasComOutros([resposta("2025-10-03", "claude-haiku-5-5"), resposta("2025-10-01", "claude-haiku-5-5"), resposta("2025-10-01", "claude-sonnet-5-5")], outros);
+    conferir(
+      "dias do mais recente ao mais antigo, o valor do dia so na primeira linha, e o dia so com Outros sem modelo",
+      juntas.map((linha) => [linha.dia, linha.modelo, linha.outros?.brl ?? null, Boolean(linha.semModelo)]),
+      [["2025-10-03", "claude-haiku-5-5", null, false], ["2025-10-02", null, 0.2, true], ["2025-10-01", "claude-haiku-5-5", 0.1709, false], ["2025-10-01", "claude-sonnet-5-5", null, false]],
+    );
+    conferir("a linha de so Outros nao conta respostas", [juntas[1].respostas, juntas[1].custoBrl], [0, 0]);
+    conferir("sem Outros, as linhas ficam como vieram", linhasComOutros([resposta("2025-10-01", "x")], []).map((linha) => [linha.dia, linha.outros]), [["2025-10-01", null]]);
   }
 
   // ---- novos blocos entram antes desta linha ----
