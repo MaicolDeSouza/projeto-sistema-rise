@@ -1,21 +1,21 @@
 ﻿sku;titulo;nivel1;nivel2;nivel3;chave;categoria_secundaria;categoria_atual_site;preco;estoque
-100101;"PLACA COMPATIVEL ARDUINO UNO R3 SMD CH340 COM CABO USB";Placas Embarcadas;Placas Arduino Compatíveis;;A_ard;"";"1 - Placas Embarcados";38.90;20
-100103;"PLACA COMPATÍVEL ARDUINO NANO V3 COM CABO MINI USB";Placas Embarcadas;Placas Arduino Compatíveis;;A_ard;"";"1 - Placas Embarcados";34.90;0
-100104;"PLACA COMPATIVEL ARDUINO MEGA 2560 R3 CH340 COM CABO USB";Placas Embarcadas;Placas Arduino Compatíveis;;A_ard;"";"1 - Placas Embarcados";179.20;0
-100105;"PLACA COMPATIVEL ARDUINO UNO R3 ATMEGA16U2 COM CABO USB";Placas Embarcadas;Placas Arduino Compatíveis;;A_ard;"";"1 - Placas Embarcados";72.00;15
-100106;"MÓDULO DIGISPARK ATTINY85 USB TIPO C";Placas Embarcadas;Placas Arduino Compatíveis;;A_ard;"";"";;10
-100107;"PLACA COMPATIVEL ARDUINO MEGA 2560 ATMEGA 16U2 COM CABO USB";Placas Embarcadas;Placas Arduino Compatíveis;;A_ard;"";"1 - Placas Embarcados";202.80;5
-100108;"Arduino mega wifi com esp8266";Placas Embarcadas;Módulos ESP8266;;A_esp8266;"";"";197.00;5
-100110;"ARDUINO NANO 4.0 ATMEGA328 COM PLACA BASE TERMINAL";Placas Embarcadas;Placas Arduino Compatíveis;;A_ard;"";"1 - Placas Embarcados";77.60;12
-100111;"ARDUINO PRO MINI ATMEGA 328P 5V 16 MHZ";Placas Embarcadas;Placas Arduino Compatíveis;;A_ard;"";"1 - Placas Embarcados";32.80;7
-100112;"PLACA SHIELD EXPANSOR PARA ARDUINO NANO 3.0";Placas Embarcadas;Shields e Cases para Arduino;;A_shd;"";"2 - Módulos e shields";19.90;10
-100113;"Arduino Pro micro ATmega32U4 *100113";Placas Embarcadas;Placas Arduino Compatíveis;;A_ard;"";"";56.00;8
+100101;"PLACA COMPATIVEL ARDUINO UNO R3 SMD CH340 COM CABO USB";Placas Embarcadas;Placas Arduino;;A_ard;"";"1 - Placas Embarcados";38.90;20
+100103;"PLACA COMPATÍVEL ARDUINO NANO V3 COM CABO MINI USB";Placas Embarcadas;Placas Arduino;;A_ard;"";"1 - Placas Embarcados";34.90;0
+100104;"PLACA COMPATIVEL ARDUINO MEGA 2560 R3 CH340 COM CABO USB";Placas Embarcadas;Placas Arduino;;A_ard;"";"1 - Placas Embarcados";179.20;0
+100105;"PLACA COMPATIVEL ARDUINO UNO R3 ATMEGA16U2 COM CABO USB";Placas Embarcadas;Placas Arduino;;A_ard;"";"1 - Placas Embarcados";72.00;15
+100106;"MÓDULO DIGISPARK ATTINY85 USB TIPO C";Placas Embarcadas;Placas Arduino;;A_ard;"";"";;10
+100107;"PLACA COMPATIVEL ARDUINO MEGA 2560 ATMEGA 16U2 COM CABO USB";Placas Embarcadas;Placas Arduino;;A_ard;"";"1 - Placas Embarcados";202.80;5
+100108;"Arduino mega wifi com esp8266";Placas Embarcadas;Placas Arduino;;A_ard;"Placas Embarcadas > Placas Espressif ESP32 e ESP8266";"";197.00;5
+100110;"ARDUINO NANO 4.0 ATMEGA328 COM PLACA BASE TERMINAL";Placas Embarcadas;Placas Arduino;;A_ard;"";"1 - Placas Embarcados";77.60;12
+100111;"ARDUINO PRO MINI ATMEGA 328P 5V 16 MHZ";Placas Embarcadas;Placas Arduino;;A_ard;"";"1 - Placas Embarcados";32.80;7
+100112;"PLACA SHIELD EXPANSOR PARA ARDUINO NANO 3.0";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";19.90;10
+100113;"Arduino Pro micro ATmega32U4 *100113";Placas Embarcadas;Placas Arduino;;A_ard;"";"";56.00;8
 100114;"Kit Placa Educacional Microbit V2 com acessórios";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"";399.00;0
-100115;"MINI CONTROLADOR COMPATÍVEL COM raspberry PI PICO RP2040 133MHZ";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";;10
+100115;"MINI CONTROLADOR COMPATÍVEL COM raspberry PI PICO RP2040 133MHZ";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";;10
 100201;"MODULO ETHERNET SHIELD W5100 PARA ARDUINO";Módulos e Sensores;Módulos Ethernet;;B_eth;"";"2 - Módulos e shields";70.90;10
 100202;"MODULO ETHERNET ENC28J60";Módulos e Sensores;Módulos Ethernet;;B_eth;"";"2 - Módulos e shields";44.90;9
 100203;"MÓDULO RTC DS1307 RELÓGIO TEMPO REAL COM BATERIA";Módulos e Sensores;Módulos RTC e Memória;;B_rtc;"";"2 - Módulos e shields";12.90;31
-100204;"PROTOSHIELD COM PROTOBOARD 170 FUROS PARA ARDUINO";Placas Embarcadas;Shields e Cases para Arduino;;A_shd;"";"2 - Módulos e shields";22.90;13
+100204;"PROTOSHIELD COM PROTOBOARD 170 FUROS PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";22.90;13
 100205;"MODULO RELÉ 5V 8 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";44.90;3
 100206;"MODULO RELÉ 5V 4 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";25.90;20
 100207;"MODULO ETHERNET SHIELD ENC28J60 PARA ARDUINO NANO";Módulos e Sensores;Módulos Ethernet;;B_eth;"";"2 - Módulos e shields";60.80;4
@@ -29,15 +29,15 @@
 100218;"MÓDULO RELÉ 1 CANAL 5V 10A";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";7.20;3
 100219;"MÓDULO RELÉ ESTADO SÓLIDO SSR 1CANAL 5V 2A";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";14.40;38
 100220;"MÓDULO RELÉ ESTADO SÓLIDO SSR 4 CANAIS 5V 2A";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";54.40;20
-100221;"PLACA BASE ADAPTADOR PARA ESP07 ESP08 ESP12E";Placas Embarcadas;Módulos ESP8266;;A_esp8266;"";"2 - Módulos e shields";11.20;43
-100222;"ADAPTADOR MÓDULO WIFI ESP8266 ESP-01 PARA PROTOBOARD";Placas Embarcadas;Módulos ESP8266;;A_esp8266;"";"2 - Módulos e shields";4.90;12
-100223;"ADAPTADOR USB PARA MÓDULO WIFI ESP8266 ESP-01";Placas Embarcadas;Módulos ESP8266;;A_esp8266;"";"2 - Módulos e shields";14.60;5
-100224;"PLACA BORNE INTERFACE PARA ARDUINO NANO";Placas Embarcadas;Placas de Interface com Bornes;;A_int;"";"2 - Módulos e shields";19.20;18
+100221;"PLACA BASE ADAPTADOR PARA ESP07 ESP08 ESP12E";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"2 - Módulos e shields";11.20;43
+100222;"ADAPTADOR MÓDULO WIFI ESP8266 ESP-01 PARA PROTOBOARD";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"2 - Módulos e shields";4.90;12
+100223;"ADAPTADOR USB PARA MÓDULO WIFI ESP8266 ESP-01";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"2 - Módulos e shields";14.60;5
+100224;"PLACA BORNE INTERFACE PARA ARDUINO NANO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";19.20;18
 100225;"MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003";Motores e Robótica;Motores de Passo;;G_passo;"";"2 - Módulos e shields";16.00;3
 100229;"MODULO SENSOR DE TENSÃO AC 0 A 250VAC SAÍDA 0 A 5V ZMPT101B";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"2 - Módulos e shields";18.40;26
 100230;"MODULO 4 CANAIS COM OPTOACOPLADOR 3,6 A 30VDC";Módulos e Sensores;Módulos de Acionamento;;B_acion;"";"2 - Módulos e shields";16.00;0
 100232;"MODULO RELÉ 5V 1 CANAL COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";15.40;5
-100233;"PROGRAMADOR BOOTLOADER AVR ISP SHIELD  PARA ARDUINO";Placas Embarcadas;Gravadores e Programadores;;A_grav;"";"2 - Módulos e shields";36.80;7
+100233;"PROGRAMADOR BOOTLOADER AVR ISP SHIELD  PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";36.80;7
 100234;"DATA LOGGER RTC DS1307 PARA REGISTRO DE DADOS COM BATERIA";Módulos e Sensores;Módulos RTC e Memória;;B_rtc;"";"2 - Módulos e shields";29.80;13
 100235;"MÓDULO EXPANSOR DE PORTAS VIA I2C 8BITS PCF8574";Módulos e Sensores;Conversores de Nível Lógico, ADC e DAC;;B_adc;"";"2 - Módulos e shields";9.50;2
 100237;"MODULO RELÉ 5V 2 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé;;B_rele;"";"2 - Módulos e shields";12.00;16
@@ -68,7 +68,7 @@
 100268;"MODULO SENSOR DE SOM KY-038";Componentes Eletrônicos;Buzzers, Alto-falantes e Áudio;;I_buzz;"";"2 - Módulos e shields";12.00;13
 100270;"MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO";Fontes e Baterias;Placas BMS e Testadores de Bateria;;F_bms;"";"Baterias e Acessórios";38.00;0
 100271;"Rele com soquete 24VDC 10A";Automação Industrial;Controladores de Temperatura e SSR;;E_ctrl;"";"";;10
-100272;"MÓDULO MULTIFUNÇÕES SHIELD PARA ARDUINO NÍVEL INTERMEDIÁRIO";Placas Embarcadas;Shields e Cases para Arduino;;A_shd;"";"2 - Módulos e shields";31.70;6
+100272;"MÓDULO MULTIFUNÇÕES SHIELD PARA ARDUINO NÍVEL INTERMEDIÁRIO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";31.70;6
 100273;"MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A";Fontes e Baterias;Carregadores de Bateria e Painel Solar;;F_carr;"";"2 - Módulos e shields";30.00;0
 100274;"ANALISADOR LÓGICO 24MHZ 8 CANAIS";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Conversores";69.00;1
 100275;"MÓDULO BÚSSOLA ELETRONICA  HMC5883L GY-273";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"";;0
@@ -119,52 +119,52 @@
 100507;"IHM TOUCH 4,3 POLEGADAS SAMKOON EA-043A";Automação Industrial;IHM;;E_ihm;"";"1 - CLPs e IHMs";619.00;2
 100508;"IHM DELTA 4,3 POLEGADAS DOP-103BQ";Automação Industrial;IHM;;E_ihm;"";"1 - CLPs e IHMs";1329.00;1
 100601;"CABO USB PARA PROGRAMAÇÃO CLP DELTA DVP";Automação Industrial;CLP e Expansões;;E_clp;"";"Cabos";137.90;5
-101001;"INTERFACE PARA ARDUINO MEGA ENCAIXE TRILHO DIN PARA PAINEL";Placas Embarcadas;Placas de Interface com Bornes;;A_int;"";"2 - Módulos e shields";284.20;2
-101002;"INTERFACE PARA ARDUINO UNO ENCAIXE TRILHO DIN PARA PAINEL";Placas Embarcadas;Placas de Interface com Bornes;;A_int;"";"2 - Módulos e shields";208.60;0
-101003;"CASE ACRÍLICO PARA ARDUINO UNO";Placas Embarcadas;Shields e Cases para Arduino;;A_shd;"";"2 - Módulos e shields";20.80;21
-101004;"CASE ACRÍLICO PARA ARDUÍNO MEGA 2560 16U2";Placas Embarcadas;Shields e Cases para Arduino;;A_shd;"";"2 - Módulos e shields";11.80;30
-101006;"CASE PARA ARDUINO UNO R3 EM PLASTICO ENCAIXÁVEL";Placas Embarcadas;Shields e Cases para Arduino;;A_shd;"";"2 - Módulos e shields";8.00;1
-101007;"CASE ACRÍLICO PARA ARDUÍNO MEGA 2560 CH340";Placas Embarcadas;Shields e Cases para Arduino;;A_shd;"";"2 - Módulos e shields";11.80;20
+101001;"INTERFACE PARA ARDUINO MEGA ENCAIXE TRILHO DIN PARA PAINEL";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";284.20;2
+101002;"INTERFACE PARA ARDUINO UNO ENCAIXE TRILHO DIN PARA PAINEL";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";208.60;0
+101003;"CASE ACRÍLICO PARA ARDUINO UNO";Placas Embarcadas;Placas Arduino;;A_ard;"";"2 - Módulos e shields";20.80;21
+101004;"CASE ACRÍLICO PARA ARDUÍNO MEGA 2560 16U2";Placas Embarcadas;Placas Arduino;;A_ard;"";"2 - Módulos e shields";11.80;30
+101006;"CASE PARA ARDUINO UNO R3 EM PLASTICO ENCAIXÁVEL";Placas Embarcadas;Placas Arduino;;A_ard;"";"2 - Módulos e shields";8.00;1
+101007;"CASE ACRÍLICO PARA ARDUÍNO MEGA 2560 CH340";Placas Embarcadas;Placas Arduino;;A_ard;"";"2 - Módulos e shields";11.80;20
 101008;"Motor de R140 20mm 1.5 a 4.5V DC*101008";Motores e Robótica;Motores DC e Caixas de Redução;;G_dc;"";"";8.40;17
-101010;"Interface placa perfurada Arduino mega com bornes *101010";Placas Embarcadas;Placas de Interface com Bornes;;A_int;"";"";125.00;5
+101010;"Interface placa perfurada Arduino mega com bornes *101010";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields e Placas de Interface";"";125.00;5
 101480;"Potenciômetro linear 500K WH148";Componentes Eletrônicos;Potenciômetros e Trimpots;;I_pot;"";"";4.50;50
 109902;"KIT CONTROLE REMOTO INFRAVERMELHO COM RECEPTOR";Módulos e Sensores;Joysticks e Controles Remotos;;B_joy;"";"2 - Módulos e shields";12.90;12
-110103;"Raspberry Pi3 Model B+ Quadcore 1.4ghz";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";699.00;0
-110105;"RASPBERRY PI4 MODELO B 2GB RAM 1,5GHZ QUAD CORE *110105";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";1540.00;0
-110201;"PLACA EXPANSÃO GPIO RASPBERRY PI2 PI3 Pi4 COM FLAT";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"5 - Acessórios";34.00;11
-110203;"POE HAT PARA RASPBERRYPI 3B+ RPI4 POWER OVER ETHERNET*110203";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";317.00;0
-110226;"CASE RASPBERRY PI3 RPI3 EM ACRILICO COM COOLER *111026";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";45.00;1
+110103;"Raspberry Pi3 Model B+ Quadcore 1.4ghz";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";699.00;0
+110105;"RASPBERRY PI4 MODELO B 2GB RAM 1,5GHZ QUAD CORE *110105";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";1540.00;0
+110201;"PLACA EXPANSÃO GPIO RASPBERRY PI2 PI3 Pi4 COM FLAT";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";34.00;11
+110203;"POE HAT PARA RASPBERRYPI 3B+ RPI4 POWER OVER ETHERNET*110203";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";317.00;0
+110226;"CASE RASPBERRY PI3 RPI3 EM ACRILICO COM COOLER *111026";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";45.00;1
 110304;"TELA LCD WAVESHARE HDMI 7 TOUCH 1024X600 RASPBERRYPI";Displays e Telas;Telas para Raspberry Pi;;D_rpi;"";"3 - Telas e LCD";862.00;1
 110306;"TELA LCD OFICIAL RASPBERRY PI 7 POL 800X480 TOUCH";Displays e Telas;Telas para Raspberry Pi;;D_rpi;"";"3 - Telas e LCD";1249.00;0
 110307;"TELA LCD HDMI 7 TOUCH 1024X600 SEM TOUCH PARA RASPBERRYPI";Displays e Telas;Telas para Raspberry Pi;;D_rpi;"";"";397.00;0
-110402;"FLAT ADAPTADOR 16CM PARA CÂMERA  RASPBERRYPI ZERO W";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"5 - Acessórios";14.00;9
-110403;"CÂMERA PARA RASPBERRY PI 5MP V1.3";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"2 - Módulos e shields";75.00;2
-110404;"CABO FLAT 30CM EXTENSOR PARA CÂMERA RASPBERRY PI";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"Cabos";15.00;0
-110405;"Câmera Para Raspberry 8mp 1080p V2 noir noturno";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";;0
-110406;"Flat 60cm para camera RPI";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";25.00;18
-110501;"Controle super nintendo USB *110501";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";24.90;1
-110502;"controle xbox 360 com receptor *110502";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";199.90;1
+110402;"FLAT ADAPTADOR 16CM PARA CÂMERA  RASPBERRYPI ZERO W";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";14.00;9
+110403;"CÂMERA PARA RASPBERRY PI 5MP V1.3";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"2 - Módulos e shields";75.00;2
+110404;"CABO FLAT 30CM EXTENSOR PARA CÂMERA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"Cabos";15.00;0
+110405;"Câmera Para Raspberry 8mp 1080p V2 noir noturno";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";;0
+110406;"Flat 60cm para camera RPI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";25.00;18
+110501;"Controle super nintendo USB *110501";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";24.90;1
+110502;"controle xbox 360 com receptor *110502";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";199.90;1
 111001;"CARTÃO MICRO SD 16GB 80MB/S CLASSE10 SANDISK";Módulos e Sensores;Cartões e Leitores Micro SD;;B_sd;"";"5 - Acessórios";39.90;2
 111002;"CARTÃO MICRO SD 32GB 100MB/S CLASSE10 SANDISK";Módulos e Sensores;Cartões e Leitores Micro SD;;B_sd;"";"5 - Acessórios";64.00;0
-111003;"MINI TECLADO SEM FIO COM MOUSE TOUCH";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"5 - Acessórios";33.30;2
+111003;"MINI TECLADO SEM FIO COM MOUSE TOUCH";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";33.30;2
 111006;"Leitor Adaptador Usb Para Cartão Micro Sd  *111006";Módulos e Sensores;Cartões e Leitores Micro SD;;B_sd;"";"";2.90;50
 111007;"CARTÃO MICRO SD 64GB 80MB/S CLASSE10 SANDISK";Módulos e Sensores;Cartões e Leitores Micro SD;;B_sd;"";"5 - Acessórios";56.00;3
 111008;"FONTE CHAVEADA 5V 3A MICRO USB PARA RASPBERRY PI3 ESP32";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"Fontes";44.90;17
-111010;"KIT 03 PEÇAS DISSIPADOR DE CALOR PARA RASPBERRY PI";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"5 - Acessórios";5.60;58
-111011;"KIT ADAPTADOR RASPBERRYPI ZERO HDMI USB PINOS COM 03 PÇS";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"5 - Acessórios";31.90;4
+111010;"KIT 03 PEÇAS DISSIPADOR DE CALOR PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";5.60;58
+111011;"KIT ADAPTADOR RASPBERRYPI ZERO HDMI USB PINOS COM 03 PÇS";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";31.90;4
 111016_4h;"Divisor Splitter HDMI 1 Hdmi Macho Para 2 Hdmi Fêmea *111016";Componentes Eletrônicos;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";30.00;4
 111017;"Divisor cabo HDMI Splitter HDMI 1x4 com fonte *111017";Componentes Eletrônicos;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";92.99;1
 111018;"Conversor HDMI para VGA *111018";Componentes Eletrônicos;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";41.90;2
 111019;"ADAPTADOR MICRO HDMI MACHO PARA HDMI FÊMEA";Componentes Eletrônicos;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"Conversores";12.00;40
 111020;"FONTE CHAVEADA 5V 3A TIPO C PARA RASPBERRY PI4  RPI4 *111020";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"";57.00;8
-111021;"Microventilador para RaspberryPi 5V 30x30mm *111021";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";13.00;16
-111022;"CASE OFICIAL RASPBERRY PI4 RPI4 BRANCO E VERMELHO *111022";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";52.80;17
+111021;"Microventilador para RaspberryPi 5V 30x30mm *111021";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";13.00;16
+111022;"CASE OFICIAL RASPBERRY PI4 RPI4 BRANCO E VERMELHO *111022";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";52.80;17
 111023;"OBSOLETO-DISSIPADOR PARA RASPBERRY PI4 RPI4 ALTA PERFORMANCE *111023";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";116.30;0
-111024_z;"DISSIPADOR EM ALUMÍNIO RASPBERRY PI4 RPI4 KIT 4 PEÇAS*111024";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";18.35;16
-111025;"CASE RASPBERRY PI4 RPI4 EM ABS PRETO COM COOLER *111025";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";82.00;10
+111024_z;"DISSIPADOR EM ALUMÍNIO RASPBERRY PI4 RPI4 KIT 4 PEÇAS*111024";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";18.35;16
+111025;"CASE RASPBERRY PI4 RPI4 EM ABS PRETO COM COOLER *111025";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";82.00;10
 111027;"Fonte chaveada 5V 3.1A saida tipoC *111027";Fontes e Baterias;Fontes Chaveadas;;F_fonte;"";"";30.00;22
-111029;"CASE OFICIAL RASPBERRY PI3 RPI3 BRANCO E VERMELHO *111029";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"";30.00;5
-111030;"MICROFONE USB PARA RASPBERRY PI";Placas Embarcadas;Raspberry Pi e Acessórios;;A_rpi;"";"5 - Acessórios";55.00;0
+111029;"CASE OFICIAL RASPBERRY PI3 RPI3 BRANCO E VERMELHO *111029";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";30.00;5
+111030;"MICROFONE USB PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";55.00;0
 111031;"Case para tela LCD 7 pol Oficial Raspberry Pi4 preto";Displays e Telas;Telas para Raspberry Pi;;D_rpi;"";"";179.90;0
 111032;"ADAPTADOR VÍDEO WAVLINK MULTI DISPLAY USB PARA HDMI VGA DVI";Componentes Eletrônicos;Adaptadores DB9, RJ45 e HDMI;;J_adapt;"";"";418.00;1
 120101;"INTERFACE CONTROLADORA USB PARA CNC 4EIXOS COM CABO + MACH3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"Placas de controle";439.00;2
@@ -551,36 +551,36 @@
 150101;"Conta giro *150101";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";129.90;1
 150905;"IMPRESSORA 3D CREALITY ENDER3 MONTADA E CONFIGURADA";CNC, Laser e Impressão 3D;Máquinas e Equipamentos;;H_maq;"";"Equipamentos";3290.00;0
 151177;"KIT DIDATICO COM CAIXA ORGANIZADORA (Eletrônico e Robótica) *151177";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"";469.00;0
-170101;"PLACA WIFI NODEMCU V3 ESP8266 ESP12 COM CHIP USB CP2102";Placas Embarcadas;Módulos ESP8266;;A_esp8266;"";"1 - Placas Embarcados";32.00;7
-170102;"MODULO PLACA ESP32 DUAL CORE WIFI BLUETOOTH IOT";Placas Embarcadas;Placas ESP32;;A_esp32;"";"1 - Placas Embarcados";54.90;13
-170103;"MÓDULO WIFI ESP8266 ESP-12F";Placas Embarcadas;Módulos ESP8266;;A_esp8266;"";"2 - Módulos e shields";30.00;10
-170104;"PLACA ESPDUINO ESP32 D1 R32 IOT WIFI BLUETOOTH";Placas Embarcadas;Placas ESP32;;A_esp32;"";"1 - Placas Embarcados";64.00;25
-170105;"MODULO ESP32-CAM ESP32S CAMERA OV2640 2MP COM GRAVADOR";Placas Embarcadas;Placas ESP32;;A_esp32;"";"1 - Placas Embarcados";119.90;4
-170106;"MODULO PLACA ESP32 38 PINOS WIFI BLUETOOTH IOT";Placas Embarcadas;Placas ESP32;;A_esp32;"";"1 - Placas Embarcados";54.90;1
-170107;"PLACA BORNE INTERFACE PARA ESP32 38 PINOS WROOM-32 WROOM-32U";Placas Embarcadas;Placas de Interface com Bornes;;A_int;"";"2 - Módulos e shields";46.00;11
-170109;"PLACA ESP32 WROOM 32U WIFI BLUETOOTH COM ANTENA EXTERNA";Placas Embarcadas;Placas ESP32;;A_esp32;"";"1 - Placas Embarcados";79.90;0
-170110;"PLACA ESP32 WIFI BLUETOOTH COM DISPLAY OLED";Placas Embarcadas;Placas ESP32;;A_esp32;"";"1 - Placas Embarcados";107.90;5
-170112;"Placa ESP32 TTGO com case para bateria 18650";Placas Embarcadas;Placas ESP32;;A_esp32;"";"";125.00;5
-170113;"PLACA ESP32 DOIT DEVKITC V4 WROOM-32D WIFI BLUETOOTH";Placas Embarcadas;Placas ESP32;;A_esp32;"";"1 - Placas Embarcados";54.90;4
-170114;"PLACA ESP32 TIPO C WROOM 32U WIFI BLUETOOTH ANTENA EXTERNA";Placas Embarcadas;Placas ESP32;;A_esp32;"";"1 - Placas Embarcados";79.90;39
+170101;"PLACA WIFI NODEMCU V3 ESP8266 ESP12 COM CHIP USB CP2102";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";32.00;7
+170102;"MODULO PLACA ESP32 DUAL CORE WIFI BLUETOOTH IOT";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";54.90;13
+170103;"MÓDULO WIFI ESP8266 ESP-12F";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"2 - Módulos e shields";30.00;10
+170104;"PLACA ESPDUINO ESP32 D1 R32 IOT WIFI BLUETOOTH";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";64.00;25
+170105;"MODULO ESP32-CAM ESP32S CAMERA OV2640 2MP COM GRAVADOR";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";119.90;4
+170106;"MODULO PLACA ESP32 38 PINOS WIFI BLUETOOTH IOT";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";54.90;1
+170107;"PLACA BORNE INTERFACE PARA ESP32 38 PINOS WROOM-32 WROOM-32U";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";46.00;11
+170109;"PLACA ESP32 WROOM 32U WIFI BLUETOOTH COM ANTENA EXTERNA";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";79.90;0
+170110;"PLACA ESP32 WIFI BLUETOOTH COM DISPLAY OLED";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";107.90;5
+170112;"Placa ESP32 TTGO com case para bateria 18650";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"";125.00;5
+170113;"PLACA ESP32 DOIT DEVKITC V4 WROOM-32D WIFI BLUETOOTH";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";54.90;4
+170114;"PLACA ESP32 TIPO C WROOM 32U WIFI BLUETOOTH ANTENA EXTERNA";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";79.90;39
 170207;"MÓDULO BLUETOOTH SERIAL HC-05 MESTRE ESCRAVO";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";42.00;59
 170209;"MÓDULO BLUETOOTH SERIAL HC-06 ESCRAVO";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";37.30;31
 170301;"INTERRUPTOR WIFI INTELIGENTE SONOFF AUTOMAÇÃO RESIDENCIAL";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"Módulos";83.72;0
-170401;"MÓDULO WIFI ESP8266 ESP-12F";Placas Embarcadas;Módulos ESP8266;;A_esp8266;"";"2 - Módulos e shields";20.80;19
-170402;"MÓDULO WIFI ESP8266 ESP-01";Placas Embarcadas;Módulos ESP8266;;A_esp8266;"";"2 - Módulos e shields";16.80;19
+170401;"MÓDULO WIFI ESP8266 ESP-12F";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"2 - Módulos e shields";20.80;19
+170402;"MÓDULO WIFI ESP8266 ESP-01";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"2 - Módulos e shields";16.80;19
 170403;"ADAPTADOR RECEPTOR WIRELESS WIFI USB 150MBPS";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"Conversores";22.40;25
 170404;"MÓDULO WIRELESS NRF24L01 2.4GHZ RF COM ANTENA";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";24.90;2
 170405;"MÓDULO RELE WIFI PARA ESP-01 ESP8266 1 CANAL";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";28.00;4
-170406;"Módulo Wireless Esp-07 para antena externa";Placas Embarcadas;Módulos ESP8266;;A_esp8266;"";"";37.00;8
+170406;"Módulo Wireless Esp-07 para antena externa";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"";37.00;8
 170407;"ADAPTADOR WIFI USB ALFA AWUS036ACM PARA RASPBERRY PI LINUX";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"";;0
 170408;"MÓDULO WIRELESS NRF24L01 2.4GHZ RF COM SAIDA ANTENA EXTERNA";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";24.90;0
-170409;"PLACA ARDUINO NANO RF COM NRF24L01";Placas Embarcadas;Placas Arduino Compatíveis;;A_ard;"";"1 - Placas Embarcados";83.00;4
+170409;"PLACA ARDUINO NANO RF COM NRF24L01";Placas Embarcadas;Placas Arduino;;A_ard;"";"1 - Placas Embarcados";83.00;4
 170410;"ADAPTADOR PARA NRF24L01 COM REGULADOR";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";9.90;10
 170501;"MODULO RF 433MHZ WIRELESS TRANSMISSOR RECEPTOR";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";9.60;9
 170502;"MÓDULO RELÉ COM CONTROLE 433MHZ 1 CANAL 12V 10A";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"Módulos";57.00;20
-170706;"PLACA ESP32 LORA V2 SX1276 915MHZ WIFI BLE DISPLAY OLED";Placas Embarcadas;Placas ESP32;;A_esp32;"";"1 - Placas Embarcados";189.00;0
+170706;"PLACA ESP32 LORA V2 SX1276 915MHZ WIFI BLE DISPLAY OLED";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";189.00;0
 170707;"ADAPTADOR GATEWAY LORA HT-M01 PARA RPI ZERO";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";168.00;0
-170709;"PLACA ESP32 LORA V3 SX1276 915MHZ WIFI BLE DISPLAY OLED";Placas Embarcadas;Placas ESP32;;A_esp32;"";"1 - Placas Embarcados";247.00;0
+170709;"PLACA ESP32 LORA V3 SX1276 915MHZ WIFI BLE DISPLAY OLED";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"";"1 - Placas Embarcados";247.00;0
 170802;"ANTENA MOVEL 868MHZ 915MHZ GSM 3G GANHO 7DBI CABO 3MTS";Módulos e Sensores;Antenas e Pigtails;;B_ant;"";"Antenas";52.00;0
 180201;"PLACA RAMPS 1.4 SHIELD ARDUINO MEGA PARA IMPRESSORA 3D";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"Placas de controle";36.80;5
 180302;"DISPLAY TELA LCD 128X64 RAMPS CONTROLE IMPRESSORA 3D";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Geral";116.80;7
@@ -845,15 +845,15 @@
 260101;"PLACA STM32 MAPLE MINI ARM CORTEX M3 STM32F103CBT6 32BITS";Placas Embarcadas;Placas STM32;;A_stm;"";"1 - Placas Embarcados";49.90;35
 260102;"Placa STM8 stm8s103f3p6  *260102";Placas Embarcadas;Placas STM32;;A_stm;"";"";25.00;27
 260103;"PLACA STM32 ARM CORTEX M3 STM32F103C8T6 BLUEPILL";Placas Embarcadas;Placas STM32;;A_stm;"";"1 - Placas Embarcados";28.90;22
-260104;"PLACA BORNE INTERFACE PARA STM32 BLUEPILL";Placas Embarcadas;Placas de Interface com Bornes;;A_int;"";"2 - Módulos e shields";38.00;17
+260104;"PLACA BORNE INTERFACE PARA STM32 BLUEPILL";Placas Embarcadas;Placas STM32;;A_stm;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";38.00;17
 260106;"PLACA STM32 ARM CORTEX M4 NÚCLEO F446RE STM32F446RE";Placas Embarcadas;Placas STM32;;A_stm;"";"1 - Placas Embarcados";490.00;13
 260107;"PLACA STM32 ARM CORTEX M3 STM32F103C6T6 BLUEPILL";Placas Embarcadas;Placas STM32;;A_stm;"";"";53.00;9
-260108;"Placa interface STM32F446RE";Placas Embarcadas;Placas de Interface com Bornes;;A_int;"";"";147.00;0
+260108;"Placa interface STM32F446RE";Placas Embarcadas;Placas STM32;;A_stm;"Módulos e Sensores > Shields e Placas de Interface";"";147.00;0
 260109;"PLACA STM32 NUCLEO-H755ZI-Q STM32H755ZI MCU Nucleo-144";Placas Embarcadas;Placas STM32;;A_stm;"";"";799.00;1
-260201;"GRAVADOR PROGRAMADOR ST-LINK V2 STM8 STM32";Placas Embarcadas;Gravadores e Programadores;;A_grav;"";"5 - Acessórios";25.90;4
+260201;"GRAVADOR PROGRAMADOR ST-LINK V2 STM8 STM32";Placas Embarcadas;Placas STM32;;A_stm;"";"5 - Acessórios";25.90;4
 260301;"DISPLAY LCD 1.8 TFT MODULO ST7735 128X160PX";Displays e Telas;Displays OLED e TFT;;D_oled;"";"3 - Telas e LCD";42.90;19
-270201;"GRAVADOR PROGRAMADOR DEBUGGER PARA PIC PICKIT3 USB";Placas Embarcadas;Gravadores e Programadores;;A_grav;"";"5 - Acessórios";150.40;0
-270202;"GRAVADOR PROGRAMADOR DEBUGGER SEGGER J-LINK V9 ARM STM32";Placas Embarcadas;Gravadores e Programadores;;A_grav;"";"5 - Acessórios";259.00;4
+270201;"GRAVADOR PROGRAMADOR DEBUGGER PARA PIC PICKIT3 USB";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"5 - Acessórios";150.40;0
+270202;"GRAVADOR PROGRAMADOR DEBUGGER SEGGER J-LINK V9 ARM STM32";Placas Embarcadas;Placas STM32;;A_stm;"";"5 - Acessórios";259.00;4
 280101;"Conexões rapida PC4-M6 4mm rosca M6 Mangueira nao passante *280101";Motores e Robótica;Eletroímãs e Válvulas Solenoide;;G_ima;"";"";5.87;24
 280102;"Conexões rapida PC4-01 4mm rosca 1/8 Mangueira não passante *280102";Motores e Robótica;Eletroímãs e Válvulas Solenoide;;G_ima;"";"";5.87;28
 301025;"Sensor de Luminosidade TSL2561";Módulos e Sensores;Sensores de Luz e Cor;;C_luz;"";"";79.00;1
@@ -1153,7 +1153,7 @@
 930210;"CABO EXTENSÃO HDMI 30CM PARA PAINEL";Componentes Eletrônicos;Cabos de Extensão para Painel;;J_ext;"";"Cabos";24.40;2
 930211;"CABO DE ENERGIA TRIPOLAR 10A 3X0,75MM 1,50MT  *930211";Componentes Eletrônicos;Fios e Cabos Elétricos;;J_fio;"";"";26.68;8
 930212;"Cabo Extensão USB 3.0 e HDMI 1mt com Acessórios *930212";Componentes Eletrônicos;Cabos de Extensão para Painel;;J_ext;"";"";148.00;1
-930213;"Cabo extensão HDMI 30cm macho macho *930213";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Raspberry Pi e Acessórios";"";26.00;12
+930213;"Cabo extensão HDMI 30cm macho macho *930213";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Placas Raspberry Pi";"";26.00;12
 930216;"Cabo extensão tipo A para painel 25cm 90graus lado direito";Componentes Eletrônicos;Cabos de Extensão para Painel;;J_ext;"";"";26.45;10
 930217;"Cabo Extensão Usb tipo B Para Painel  1,5 mt *930217";Componentes Eletrônicos;Cabos de Extensão para Painel;;J_ext;"";"";42.30;8
 930219;"CABO EXTENSÃO USB 2MT PARA PAINEL COM ACESSÓRIOS";Componentes Eletrônicos;Cabos de Extensão para Painel;;J_ext;"";"";72.80;7
@@ -1169,11 +1169,11 @@
 930605;"CABO EXTENSÃO USB TIPO A PARA TIPO B MACHO 1MT";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"";"";12.90;20
 930605_4h;"Cabo extensão USB macho femea 1,8m *930605";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"";"";13.00;17
 930606;"Cabo extensao USB tipo A para micro USB 1,2m *930606";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"";"";18.00;25
-930607_z;"Cabo OTG HUB micro USB com saídas USB e micro USB *930607";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Raspberry Pi e Acessórios";"";39.00;9
-930701;"CABO HDMI 19 PINOS 3MTS COMPATÍVEL COM TV MONITOR PROJETOR";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Raspberry Pi e Acessórios";"Cabos";29.90;0
-930702_4h;"Cabo Hdmi 1,8mts com filtro *930702";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Raspberry Pi e Acessórios";"";23.00;34
-930703_4h;"CABO HDMI X MICRO HDMI 4K 19 PINOS 2MTS *930703";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Raspberry Pi e Acessórios";"";39.00;8
-930704_z;"Cabo adaptador Display port DP para HDMI *930704";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Raspberry Pi e Acessórios";"";32.30;41
+930607_z;"Cabo OTG HUB micro USB com saídas USB e micro USB *930607";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Placas Raspberry Pi";"";39.00;9
+930701;"CABO HDMI 19 PINOS 3MTS COMPATÍVEL COM TV MONITOR PROJETOR";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Placas Raspberry Pi";"Cabos";29.90;0
+930702_4h;"Cabo Hdmi 1,8mts com filtro *930702";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Placas Raspberry Pi";"";23.00;34
+930703_4h;"CABO HDMI X MICRO HDMI 4K 19 PINOS 2MTS *930703";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Placas Raspberry Pi";"";39.00;8
+930704_z;"Cabo adaptador Display port DP para HDMI *930704";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"Placas Embarcadas > Placas Raspberry Pi";"";32.30;41
 930705;"CABO EXTENSÃO USB TIPO A PARA USB TIPO C 1M";Componentes Eletrônicos;Cabos USB e HDMI;;J_usb;"";"Cabos";17.00;6
 930801_z;"Cabo Rgb colorido 04 Vias Ideal Motor De Passo 22awg  *930801";Componentes Eletrônicos;Fios e Cabos Elétricos;;J_fio;"";"";5.00;23
 931201_4h;"Cabo de rede ethernet RJ45 montado cat5  3Mts azul *931201";Componentes Eletrônicos;Fios e Cabos Elétricos;;J_fio;"";"";12.00;7
@@ -1273,8 +1273,8 @@
 960801;"Anel elástico DI 9mm para fuso de esfera 16mm *960801";CNC, Laser e Impressão 3D;Fusos de Esferas;;H_fesf;"";"";;5
 962438;"SENSOR TOQUE CAPACITIVO - TTP223B";Módulos e Sensores;Teclados Matriciais e Botões Touch;;B_tecl;"";"";3.21;12
 969693;"MODULO SENSOR DE LUMINOSIDADE LDR";Módulos e Sensores;Sensores de Luz e Cor;;C_luz;"";"";8.50;3
-970104;"MODULO INTERFACE PARA ESP32 30 PINOS COM BORNE E ESPAÇADORES";Placas Embarcadas;Placas de Interface com Bornes;;A_int;"";"2 - Módulos e shields";130.00;36
-970106;"MODULO INTERFACE PARA HELTEC ESP32 LORA COM BORNES";Placas Embarcadas;Placas de Interface com Bornes;;A_int;"";"2 - Módulos e shields";140.00;15
+970104;"MODULO INTERFACE PARA ESP32 30 PINOS COM BORNE E ESPAÇADORES";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";130.00;36
+970106;"MODULO INTERFACE PARA HELTEC ESP32 LORA COM BORNES";Placas Embarcadas;Placas Espressif ESP32 e ESP8266;;A_esp;"Módulos e Sensores > Shields e Placas de Interface";"2 - Módulos e shields";140.00;15
 970201;"Projeto especial _ Maquina Colagem";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";;0
 980101;"Quadro elétrico metálico para comando 400x300x200 *980101";Automação Industrial;Quadros Elétricos e Prensa Cabos;;E_quadro;"";"";188.90;0
 980102;"Quadro elétrico metálico para comando 300x300x200 *980102";Automação Industrial;Quadros Elétricos e Prensa Cabos;;E_quadro;"";"";169.00;11
