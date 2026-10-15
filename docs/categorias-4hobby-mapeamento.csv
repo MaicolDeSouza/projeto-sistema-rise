@@ -891,45 +891,45 @@
 900213;"Barra de pinos fêmea 19 vias  *900213";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"";2.00;95
 900214;"Barra de pinos fêmea 20 vias  *900214";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"";2.50;150
 900215;"Barra de pinos fêmea 7 vias";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"";2.00;160
-900308;"KIT CONECTOR 230 PEÇAS JST XH 2/3/4/5 VIAS + TERMINAIS";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";29.90;0
-900309;"KIT CONECTOR 250 PEÇAS JST XH 6/7/8/9/10 VIAS + TERMINAIS";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";38.90;0
+900308;"KIT CONECTOR 230 PEÇAS JST XH 2/3/4/5 VIAS + TERMINAIS";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";29.90;0
+900309;"KIT CONECTOR 250 PEÇAS JST XH 6/7/8/9/10 VIAS + TERMINAIS";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";38.90;0
 900310;"CABO MICRO JST PH 2 PINOS PARA CARREGADOR DE BATERIA";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";1.50;52
 900311;"CABO MICRO JST SH1 2 VIAS PASSO 1.25MM P/ BATERIA ESP32 LORA";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";2.50;4
-900312;"CONECTOR MICRO JST SH1 2 VIAS PASSO 1.25MM PARA PCB";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";1.90;284
-900314_10;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 10 Vias";Componentes Eletrônicos;Conectores;;I_pcb;"";"";3.00;174
-900314_2;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 2 Vias";Componentes Eletrônicos;Conectores;;I_pcb;"";"";1.90;187
-900314_3;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 3 Vias";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";2.00;86
-900314_4;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 4 Vias";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";2.10;88
-900314_5;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 5 Vias";Componentes Eletrônicos;Conectores;;I_pcb;"";"";2.30;80
-900314_6;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 6 Vias";Componentes Eletrônicos;Conectores;;I_pcb;"";"";2.40;200
-900314_7;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 7 Vias";Componentes Eletrônicos;Conectores;;I_pcb;"";"";2.50;200
-900314_8;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 8 Vias";Componentes Eletrônicos;Conectores;;I_pcb;"";"";2.60;100
-900314_9;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 9 Vias";Componentes Eletrônicos;Conectores;;I_pcb;"";"";2.90;139
-900315;"CONECTOR JST-XH COMPLETO COM TERMINAIS 2 VIAS";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";1.80;0
-900316;"CONECTOR JST-XH COMPLETO COM TERMINAIS 5 VIAS";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";2.30;0
-900317;"CONECTOR JST-XH COMPLETO COM TERMINAIS 7 VIAS";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";2.20;5
-900403;"CONECTOR DUPONT 1 VIA COM TERMINAIS FÊMEA";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";0.40;5
-900404;"CONECTOR DUPONT 1 VIA COM TERMINAIS MACHO";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";0.40;200
-900406_2;"CONECTOR DUPONT FÊMEA COM TERMINAIS VIAS: 2 VIAS";Componentes Eletrônicos;Conectores;;I_pcb;"";"";1.90;255
-900406_3;"CONECTOR DUPONT FÊMEA COM TERMINAIS VIAS: 3 VIAS";Componentes Eletrônicos;Conectores;;I_pcb;"";"";1.90;364
-900406_4;"CONECTOR DUPONT FÊMEA COM TERMINAIS VIAS: 4 VIAS";Componentes Eletrônicos;Conectores;;I_pcb;"";"";2.00;520
-900407;"KIT CONECTOR  DUPONT 620 PEÇAS COM TERMINIAS + CASE";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";61.90;16
-900408;"CONECTOR DUPONT 10 VIAS 2,54MM COM TERMINAIS FÊMEA";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";2.50;30
+900312;"CONECTOR MICRO JST SH1 2 VIAS PASSO 1.25MM PARA PCB";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.90;284
+900314_10;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 10 Vias";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";3.00;174
+900314_2;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 2 Vias";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";1.90;187
+900314_3;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 3 Vias";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";2.00;86
+900314_4;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 4 Vias";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";2.10;88
+900314_5;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 5 Vias";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";2.30;80
+900314_6;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 6 Vias";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";2.40;200
+900314_7;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 7 Vias";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";2.50;200
+900314_8;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 8 Vias";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";2.60;100
+900314_9;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 9 Vias";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";2.90;139
+900315;"CONECTOR JST-XH COMPLETO COM TERMINAIS 2 VIAS";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.80;0
+900316;"CONECTOR JST-XH COMPLETO COM TERMINAIS 5 VIAS";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";2.30;0
+900317;"CONECTOR JST-XH COMPLETO COM TERMINAIS 7 VIAS";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";2.20;5
+900403;"CONECTOR DUPONT 1 VIA COM TERMINAIS FÊMEA";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";0.40;5
+900404;"CONECTOR DUPONT 1 VIA COM TERMINAIS MACHO";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";0.40;200
+900406_2;"CONECTOR DUPONT FÊMEA COM TERMINAIS VIAS: 2 VIAS";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";1.90;255
+900406_3;"CONECTOR DUPONT FÊMEA COM TERMINAIS VIAS: 3 VIAS";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";1.90;364
+900406_4;"CONECTOR DUPONT FÊMEA COM TERMINAIS VIAS: 4 VIAS";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";2.00;520
+900407;"KIT CONECTOR  DUPONT 620 PEÇAS COM TERMINIAS + CASE";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";61.90;16
+900408;"CONECTOR DUPONT 10 VIAS 2,54MM COM TERMINAIS FÊMEA";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";2.50;30
 900501;"MINI JUMPER 2.54 PRETO PARA PLACA MÃE";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"Conectores e Bornes";0.80;24
 900601;"ADAPTADOR PLUG RJ45 CAT6 FÊMEA/FÊMEA PARA PAINEL";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";28.50;5
-900701;"PLUG JACK P4 MACHO COM PARAFUSO BORNE";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";1.60;75
-900702;"PLUG JACK P4 FÊMEA COM PARAFUSO BORNE";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";3.10;109
-900703;"PLUG JACK P4 MACHO SOLDAVEL COM RABICHO";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";1.00;273
-900704;"PLUG JACK P4 FEMEA SOLDAVEL PARA PAINEL";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";2.50;44
-900705;"PLUG CONECTOR P4 5.5MM X 2.1MM BORDA METALICA";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";1.20;0
-900706_4h;"Plug conector jack P4 femea 5.5x2.1mm  para PCB *900706";Componentes Eletrônicos;Conectores;;I_pcb;"";"";2.00;39
+900701;"PLUG JACK P4 MACHO COM PARAFUSO BORNE";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.60;75
+900702;"PLUG JACK P4 FÊMEA COM PARAFUSO BORNE";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";3.10;109
+900703;"PLUG JACK P4 MACHO SOLDAVEL COM RABICHO";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.00;273
+900704;"PLUG JACK P4 FEMEA SOLDAVEL PARA PAINEL";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";2.50;44
+900705;"PLUG CONECTOR P4 5.5MM X 2.1MM BORDA METALICA";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.20;0
+900706_4h;"Plug conector jack P4 femea 5.5x2.1mm  para PCB *900706";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";2.00;39
 900707;"conector plug para pino banana fêmea vermelho";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";4.90;15
 900708;"conector plug para pino banana fêmea preto";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";4.90;15
 900801;"CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";5.50;221
-900901;"CONECTOR BORNE 2 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";1.30;1200
-900902;"CONECTOR BORNE 3 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";1.50;470
-900903_z;"Conector KF301 KRE 5mm 2Pinos *900903";Componentes Eletrônicos;Conectores;;I_pcb;"";"";1.57;324
-900904_z;"Conector KF301 KRE 5mm 3Pinos *900904";Componentes Eletrônicos;Conectores;;I_pcb;"";"";1.67;284
+900901;"CONECTOR BORNE 2 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.30;1200
+900902;"CONECTOR BORNE 3 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.50;470
+900903_z;"Conector KF301 KRE 5mm 2Pinos *900903";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";1.57;324
+900904_z;"Conector KF301 KRE 5mm 3Pinos *900904";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";1.67;284
 900905;"Terminal femea sem trava para bateria *900905";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";1.00;50
 900906;"Capa plástica branca para terminal femea sem trava para bateria *900906";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";0.70;50
 900907;"NÍQUEL PARA SOLDAR BATERIAS 18650 0,1X5MM TIRA COM 100MM";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";1.50;60
@@ -940,9 +940,9 @@
 901201;"CONECTOR DB25 FÊMEA PAINEL PARA CABO FLAT";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";14.50;11
 901202;"CONECTOR DB25 MACHO PAINEL PARA CABO FLAT";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";14.50;16
 901203;"Conector DB9 fêmea com capa";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";8.00;19
-901301;"CONECTOR JST PH 2MM 6 PINOS COMPLETO";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";2.00;0
-901302;"CONECTOR 4 PINOS COMPLETO PH 2MM";Componentes Eletrônicos;Conectores;;I_pcb;"";"";;48
-901303;"CONECTOR JST PH 2MM 10 PINOS COMPLETO";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";3.50;8
+901301;"CONECTOR JST PH 2MM 6 PINOS COMPLETO";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";2.00;0
+901302;"CONECTOR 4 PINOS COMPLETO PH 2MM";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";;48
+901303;"CONECTOR JST PH 2MM 10 PINOS COMPLETO";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";3.50;8
 901501;"Conector 10 vias molex 52610-1090 para flat tela nextion enhaced *901501";Displays e Telas;Telas Gráficas TFT;;D_tft;"";"";14.90;9
 901601;"CABO PIGTAIL U.FL IPEX IPX COM CONECTOR SMA 15CM";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";5.90;0
 901602;"PLUG CONECTOR SMA MACHO PARA CABO RG-58";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";3.20;1
@@ -956,8 +956,8 @@
 901802;"Plug Canon painel macho 04 vias *901802";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";10.00;9
 901901;"ESPAÇADOR ISOLADOR PARA PCB PORCA PARAFUSO NYLON M3 180 PÇS";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"Hardware";51.90;0
 902101;"KIT 280 CONECTORES TERMINAIS DIVERSOS TAMANHOS COM CASE";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";94.00;0
-902201;"Conector borne BR7 2 vias macho e femea *902201";Componentes Eletrônicos;Conectores;;I_pcb;"";"";;50
-902202;"Conector borne BR7 2 vias macho e femea 90 graus";Componentes Eletrônicos;Conectores;;I_pcb;"";"";;0
+902201;"Conector borne BR7 2 vias macho e femea *902201";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";;50
+902202;"Conector borne BR7 2 vias macho e femea 90 graus";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";;0
 902301_z;"Conector banana 3,5mm para RC LIPO Motor banhado a ouro *902301";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";2.90;19
 902401;"KIT CONECTOR EMENDA 2,3,5 VIAS PARA FIOS COM 60 PEÇAS";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";119.00;7
 902403;"CONECTOR EMENDA 3 VIAS PARA FIOS ENGATE RÁPIDO";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";2.50;51
