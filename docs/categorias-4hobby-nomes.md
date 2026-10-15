@@ -75,16 +75,16 @@ Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica sep
 - Potenciômetros e Trimpots (11)
 - Cristais Osciladores (1) ◂ pequena
 - LEDs e Soquetes (20)
+- Filtros de Ferrite (2) ◂ pequena
 - Displays 7 Segmentos (4 como 2ª categoria, nenhum próprio)
+- Buzzers, Alto-falantes e Áudio (7)
 - Barras de Pinos (15)
 - Fusíveis (1) ◂ pequena
-- Buzzers, Alto-falantes e Áudio (7)
 - Chaves e Push Buttons (18)
 - Plugs e Conectores (46)
 - Terminais e Acessórios (6)
 - Espaçadores e Isoladores (6)
 - Suportes para PCB (7)
-- Filtros de Ferrite (2) ◂ pequena
 - Lasers Sinalizadores (3)
 - Caixas Plásticas e Organizadores (14 como 2ª categoria, nenhum próprio)
 
@@ -252,6 +252,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Ordem de CNC** (15/10/2026, ditada por ele): Parafusos, Porcas e Acessórios (era a 10) passa para logo acima de Máquinas (a 20), ficando 19; as outras mantêm a ordem.
 - **Ordem de Placas Embarcadas** (15/10/2026, ditada por ele, "1, 2, 4, 3"): Placas Arduino, Placas ESP32, Placas STM32 e Placas Raspberry Pi, nessa sequência (01 a 04). Numa 1ª leitura eu tinha deixado o Raspberry Pi em 03; ele corrigiu.
 - **Ajustes em Módulos e Sensores e Fontes** (15/10/2026, ditados por ele): Chaves Fim de Curso (era a 17) passa a logo abaixo de Transdutores Piezoelétricos (22) e Teclados Matriciais (era a 9) a logo acima de Eletroímãs e Válvulas Solenoide (23), as duas entre os Transdutores e os Eletroímãs, nessa sequência; **Painéis Solares** (a 26, com 1 produto, 220801) foi para o fim de Fontes e Conversores, como folha 05.
+- **Ajustes de ordem em Componentes Eletrônicos** (15/10/2026, ditados por ele): Buzzers, Alto-falantes e Áudio (era a 13) passa a logo abaixo de Displays 7 Segmentos (10) e Filtros de Ferrite (era a 19) a logo abaixo de LEDs e Soquetes (9); as demais seguem na ordem que tinham.
 
 ## Fusões aplicadas em 07/10/2026
 

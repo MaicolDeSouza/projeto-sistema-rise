@@ -617,14 +617,29 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 920719 LED amarelo difuso 5MM
 - 920720 LED vermelho difuso 5MM
 
-### 10 - Displays 7 Segmentos (4)
+### 10 - Filtros de Ferrite (2)
+
+- 241003 Filtro de ferrite 5mm  *241003
+- 241004 Filtro de ferrite 9mm  *241004
+
+### 11 - Displays 7 Segmentos (4)
 
 - 100307 MODULO 74HC595 DISPLAY 7 SEGMENTOS 4 DÍGITOS (2a, fica em Displays e Matriz de LED)
 - 100308 MODULO TM1637 RELÓGIO DIGITAL DISPLAY 7 SEGMENTOS 4 DÍGITOS (2a, fica em Displays e Matriz de LED)
 - 921701_z Display 7 segmentos Catodo Comum 0,56" *921701 (2a, fica em Displays e Matriz de LED)
 - 921702_z Display 7 segmentos anodo Comum 0,56" *921702 (2a, fica em Displays e Matriz de LED)
 
-### 11 - Barras de Pinos (15)
+### 12 - Buzzers, Alto-falantes e Áudio (7)
+
+- 100257 MODULO MP3 DFPLAYER MINI PLAYER DE ÁUDIO
+- 100268 MODULO SENSOR DE SOM KY-038
+- 100280 Mini autofalante para arduino 4R 3W
+- 920201 BUZZER ATIVO 5V 12MM BEEP CONTINUO
+- 920202 BUZZER ATIVO 12V 100DB SHD4216 BEEP CONTINUO
+- 920203 Buzzer Contínuo Sirene Alta Sfm-20b D C 3-24v
+- 920204 BUZZER PASSIVO 5V 12MM BEEP CONTINUO
+
+### 13 - Barras de Pinos (15)
 
 - 900201 BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° MACHO
 - 900202 BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° FÊMEA
@@ -642,21 +657,11 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 900215 Barra de pinos fêmea 7 vias
 - 900501 MINI JUMPER 2.54 PRETO PARA PLACA MÃE
 
-### 12 - Fusíveis (1)
+### 14 - Fusíveis (1)
 
 - 920602 Fusível grande 5A *920602
 
-### 13 - Buzzers, Alto-falantes e Áudio (7)
-
-- 100257 MODULO MP3 DFPLAYER MINI PLAYER DE ÁUDIO
-- 100268 MODULO SENSOR DE SOM KY-038
-- 100280 Mini autofalante para arduino 4R 3W
-- 920201 BUZZER ATIVO 5V 12MM BEEP CONTINUO
-- 920202 BUZZER ATIVO 12V 100DB SHD4216 BEEP CONTINUO
-- 920203 Buzzer Contínuo Sirene Alta Sfm-20b D C 3-24v
-- 920204 BUZZER PASSIVO 5V 12MM BEEP CONTINUO
-
-### 14 - Chaves e Push Buttons (18)
+### 15 - Chaves e Push Buttons (18)
 
 - 910201 CHAVE GANGORRA 2 POSIÇÕES 6A/250V REDONDA PRETO
 - 910202 CHAVE GANGORRA 2 POSIÇÕES KCD1-101 6A/250V RETANGULAR PRETO
@@ -677,7 +682,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 910403 CHAVE DE PULSO TIPO PUSH BUTTON 12X12MM COM CAPA COLORIDA
 - 910409 Chave de pulso táctil SMD tipo Push Botton  5x5x1mm *910409
 
-### 15 - Plugs e Conectores (46)
+### 16 - Plugs e Conectores (46)
 
 - 900308 KIT CONECTOR 230 PEÇAS JST XH 2/3/4/5 VIAS + TERMINAIS
 - 900309 KIT CONECTOR 250 PEÇAS JST XH 6/7/8/9/10 VIAS + TERMINAIS
@@ -726,7 +731,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 902202 Conector borne BR7 2 vias macho e femea 90 graus
 - 902301_z Conector banana 3,5mm para RC LIPO Motor banhado a ouro *902301
 
-### 16 - Terminais e Acessórios (6)
+### 17 - Terminais e Acessórios (6)
 
 - 632581 TERMINAL OLHAL FURO 6 - PRÉ-ISOLADO PVC - VM CABO 0,50 A 1,50MM
 - 901101 KIT 700 TERMINAIS TUBULAR ILHOS
@@ -735,7 +740,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 902403 CONECTOR EMENDA 3 VIAS PARA FIOS ENGATE RÁPIDO
 - 902404 CONECTOR EMENDA 5 VIAS PARA FIOS ENGATE RÁPIDO
 
-### 17 - Espaçadores e Isoladores (6)
+### 18 - Espaçadores e Isoladores (6)
 
 - 901901 ESPAÇADOR ISOLADOR PARA PCB PORCA PARAFUSO NYLON M3 180 PÇS
 - 941001_z Espaçadores de Circuito Impresso 5mm de altura *941001
@@ -744,7 +749,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 941004 ESPAÇADOR PLÁSTICO NYLON ISOLANTE 6MM M3 FÊMEA/FÊMEA
 - 941005 PARAFUSO PLÁSTICO NYLON ISOLANTE M3X5MM
 
-### 18 - Suportes para PCB (7)
+### 19 - Suportes para PCB (7)
 
 - 901001 SUPORTE PARA PLACA DE CIRCUITO IMPRESSO TRILHO DIN - 1PAR
 - 951201 SUPORTE PCI FÊMEA PRETO PARA TRILHO DIN *951201
@@ -753,11 +758,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 951204 SUPORTE PCI 20MM PRETO PARA TRILHO DIN *951204
 - 951205 SUPORTE PCI 30MM PRETO PARA TRILHO DIN  *951205
 - 951206 SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206
-
-### 19 - Filtros de Ferrite (2)
-
-- 241003 Filtro de ferrite 5mm  *241003
-- 241004 Filtro de ferrite 9mm  *241004
 
 ### 20 - Lasers Sinalizadores (3)
 
