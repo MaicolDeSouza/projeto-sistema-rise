@@ -10,9 +10,9 @@ Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 fol
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **10 topos e 100 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (96 folhas com produto próprio e quatro só com produtos de 2ª categoria: Shields para Embarcados, em Módulos e Sensores, Displays, em Componentes Eletrônicos, e Motores de Passo e Servo Drive e Drivers de Motor de Passo, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+Resultado: **10 topos e 101 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (96 folhas com produto próprio e cinco só com produtos de 2ª categoria: Shields para Embarcados e Conversores DC-DC, em Módulos e Sensores, Displays, em Componentes Eletrônicos, e Motores de Passo e Servo Drive e Drivers de Motor de Passo, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
 
-Com dois níveis e uma família por folha, Módulos e Sensores (24 folhas, contando a de shields), CNC (19) e Componentes Eletrônicos (19) ficam com menu longo. É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
+Com dois níveis e uma família por folha, Módulos e Sensores (25 folhas, contando as de 2ª categoria), CNC (19) e Componentes Eletrônicos (20) ficam com menu longo. É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
 ## Árvore, com a quantidade de produtos de hoje
 
@@ -30,6 +30,7 @@ Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases
 - Módulos Relé e Acionamento (15)
 - Módulos Wireless e IoT (24)
 - Conversores de Sinais (29)
+- Conversores DC-DC (11 como 2ª categoria, nenhum próprio)
 - Shields para Embarcados (20 como 2ª categoria, nenhum próprio)
 - Módulos RTC e Memória (5)
 - Teclados Matriciais (4) ◂ pequena
@@ -63,7 +64,7 @@ Módulos em seis folhas (decisão do dono em 14/10/2026: relé, conversores de s
 
 Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica separada). Toda tela TFT é gráfica (painel LCD de matriz ativa, pixel a pixel), por isso o nome que ele pediu, "Telas Gráficas TFT", sem parênteses; a OLED também é gráfica, mas é outra tecnologia e fica na folha dela. Telas Gráficas TFT junta as 15 Nextion (Basic, Enhanced, Intelligent) com as expansões e o conector delas, as 3 telas de 7" para Raspberry Pi com o case da oficial (todas com Placas Raspberry Pi como 2ª categoria), a 3,5" touch ILI9488 e a 1,8" ST7735: são todas LCD TFT, a diferença é só a interface (serial, HDMI/DSI, SPI). Displays LCD são os alfanuméricos de caracteres (16x2 e 20x4), com o módulo I2C e o LCD shield; o dono preferiu o nome curto, mesmo com os títulos das Nextion e das TFT também dizendo "LCD".
 
-### Componentes Eletrônicos (280)
+### Componentes Eletrônicos (287)
 
 - Resistores (18)
 - Diodos (10)
@@ -81,12 +82,12 @@ Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica sep
 - Barras de Pinos (15)
 - Terminais e Acessórios (6)
 - Espaçadores e Isoladores (6)
-- Fontes Chaveadas e Conversores DC-DC (33)
-- Baterias e Acessórios (40)
+- Suportes para PCI (7)
+- Fontes e Baterias (73)
 - Fusíveis (1) ◂ pequena
 - Filtros de Ferrite (2) ◂ pequena
 
-Terminais e Acessórios (terminais, emendas e ilhoses) voltou de Cabos e Conectores a pedido do dono; as abraçadeiras passaram por aqui e foram para Automação Industrial > Elétrica e Acessórios, com as tomadas de painel. Na última passada dele: Capacitores e Cristais Osciladores separados, Fusíveis e Filtros de Ferrite separados (ele disse "filtros"; o "de Ferrite" é para o nome se sustentar sozinho), e os interruptores tipo abajur entraram em Chaves e Push Buttons. Fontes e Baterias deixou de ser topo a pedido do dono em 14/10/2026 ("fontes deve se juntar a outra categoria, veja qual faz mais sentido"): as 7 folhas vieram para cá e depois ele as enxugou: **Baterias e Acessórios** junta pilhas e baterias, suportes de pilha, níquel e terminais, placas BMS e testadores e carregadores; **Fontes Chaveadas e Conversores DC-DC** junta as fontes com os step up/step down; o painel solar de 6V foi para Módulos e Sensores e Voltímetros e Testadores para Ferramentas e Prototipagem. Motivo da escolha de Componentes: Pilhas e Baterias já estava aqui e o resto é a família dela (suportes, níquel, BMS, carregadores); fontes chaveadas, conversores DC-DC e voltímetros são alimentação, que nas lojas do ramo mora em Eletrônica. Em Automação Industrial só as fontes Andeli de 12/24/48V fariam sentido, e em Módulos e Sensores só os conversores DC-DC; partir a família não valia. Espaçadores e Isoladores (espaçadores de PCB, nylon isolante e parafusos nylon) veio de Ferramentas e Prototipagem, também a pedido dele. Conectores para PCB (decisão do dono em 14/10/2026) junta o que se solda na placa ou liga fio à placa: JST XH e PH com terminais, Dupont com terminais e os bornes KRE/KF e BR7. Barras de Pinos fica como folha própria, a pedido dele. Os conectores de painel e de cabo (Mike, P4/P10, XLR/XT60/banana, DB/RJ45/HDMI) e os cabos foram para o topo Cabos e Conectores (hoje Fios e Cabos); os conectores de painel acabaram em Automação Industrial > Elétrica e Acessórios e os adaptadores ficaram com os cabos. Plugs P4 e P10 tem 2 itens de PCB (P4 fêmea para PCB e P10 fêmea painel/PCB) no meio de 8 de cabo e painel: a família ficou inteira em Cabos e Conectores para não se partir.
+**Suportes para PCI** (15/10/2026) recebe os 6 suportes de PCI para trilho DIN e o suporte de placa de circuito impresso para trilho DIN (951201 a 951206 e 901001), que estavam em Elétrica e Acessórios, em Automação; ficam só aqui (ele pediu "vira uma nova categoria", sem manter lá). **Fontes e Baterias** (15/10/2026) junta as antigas Fontes Chaveadas e Conversores DC-DC e Baterias e Acessórios, a pedido dele ("Baterias e Acessórios vai dentro de fonte"): 73 produtos, a maior folha do menu, e como são duas famílias numa folha só o nome cita as duas; os conversores também aparecem em Módulos e Sensores. Terminais e Acessórios (terminais, emendas e ilhoses) voltou de Cabos e Conectores a pedido do dono; as abraçadeiras passaram por aqui e foram para Automação Industrial > Elétrica e Acessórios, com as tomadas de painel. Na última passada dele: Capacitores e Cristais Osciladores separados, Fusíveis e Filtros de Ferrite separados (ele disse "filtros"; o "de Ferrite" é para o nome se sustentar sozinho), e os interruptores tipo abajur entraram em Chaves e Push Buttons. Fontes e Baterias deixou de ser topo a pedido do dono em 14/10/2026 ("fontes deve se juntar a outra categoria, veja qual faz mais sentido"): as 7 folhas vieram para cá e depois ele as enxugou: **Baterias e Acessórios** junta pilhas e baterias, suportes de pilha, níquel e terminais, placas BMS e testadores e carregadores; **Fontes Chaveadas e Conversores DC-DC** junta as fontes com os step up/step down; o painel solar de 6V foi para Módulos e Sensores e Voltímetros e Testadores para Ferramentas e Prototipagem. Motivo da escolha de Componentes: Pilhas e Baterias já estava aqui e o resto é a família dela (suportes, níquel, BMS, carregadores); fontes chaveadas, conversores DC-DC e voltímetros são alimentação, que nas lojas do ramo mora em Eletrônica. Em Automação Industrial só as fontes Andeli de 12/24/48V fariam sentido, e em Módulos e Sensores só os conversores DC-DC; partir a família não valia. Espaçadores e Isoladores (espaçadores de PCB, nylon isolante e parafusos nylon) veio de Ferramentas e Prototipagem, também a pedido dele. Conectores para PCB (decisão do dono em 14/10/2026) junta o que se solda na placa ou liga fio à placa: JST XH e PH com terminais, Dupont com terminais e os bornes KRE/KF e BR7. Barras de Pinos fica como folha própria, a pedido dele. Os conectores de painel e de cabo (Mike, P4/P10, XLR/XT60/banana, DB/RJ45/HDMI) e os cabos foram para o topo Cabos e Conectores (hoje Fios e Cabos); os conectores de painel acabaram em Automação Industrial > Elétrica e Acessórios e os adaptadores ficaram com os cabos. Plugs P4 e P10 tem 2 itens de PCB (P4 fêmea para PCB e P10 fêmea painel/PCB) no meio de 8 de cabo e painel: a família ficou inteira em Cabos e Conectores para não se partir.
 
 ### Fios e Cabos (54)
 
@@ -97,7 +98,7 @@ Terminais e Acessórios (terminais, emendas e ilhoses) voltou de Cabos e Conecto
 
 Renomeado **Fios e Cabos** em 15/10/2026, sem folha de conectores: os 25 conectores de cabo e painel (Mike GX12/GX16, XLR, XT60 e banana, plugs P4/P10) foram para Automação Industrial > Elétrica e Acessórios, a pedido dele (a folha mais cheia do menu, com 67 produtos). Topo criado pelo dono em 14/10/2026 para cabos, conectores de painel e adaptadores (o que não se solda na PCB) e enxugado por ele na mesma data: Cabos USB e Cabos HDMI separados, cada um com as extensões para painel dentro (os dois cabos combinados USB + HDMI ficam em Cabos USB e aparecem também em Cabos HDMI); Conectores para Cabo e Painel junta os metálicos Mike GX12/GX16, os XLR, XT60 e banana e os plugs P4/P10; Adaptadores para Cabos é o antigo "Adaptadores DB9, RJ45 e HDMI" com o nome sem siglas, como ele pediu (os dois nomes finais são dele). Terminais e Emendas virou Terminais e Acessórios e voltou para Componentes Eletrônicos, junto com Abraçadeiras e Organizadores de Cabos; jumpers, garras jacaré e termo retrátil foram para Ferramentas e Prototipagem.
 
-### Automação Industrial (129)
+### Automação Industrial (122)
 
 - CLP (8)
 - IHM (9)
@@ -107,7 +108,7 @@ Renomeado **Fios e Cabos** em 15/10/2026, sem folha de conectores: os 25 conecto
 - Encoders (5)
 - Chaves e Botoeiras (21)
 - Sinalizadores (4) ◂ pequena
-- Elétrica e Acessórios (67)
+- Elétrica e Acessórios (60)
 
 Nove folhas ditadas pelo dono em 14/10/2026. Inversores de Frequência recebe o inversor avulso de 2,2 kW ("inversores vai para Automação"); os kits de spindle com inversor continuam em CNC > Spindles, porque são vendidos como conjunto. Chaves e Botoeiras junta as botoeiras 22mm (pulso, emergência, seletora, seccionadora, contatos, tampões e plaquetas) com os botões metálicos iluminados e antivandalismo; Sinalizadores são os luminosos LED 22mm para painel; Controladores Industriais é o antigo "Controladores de Temperatura e SSR" (REX-C100, termostatos, relés SSR e o relé com soquete); Elétrica e Acessórios junta bornes para trilho DIN, trilho, canaletas e suportes, quadros elétricos, prensa cabos e microventiladores, e depois recebeu as tomadas de painel e as abraçadeiras e organizadores de cabos, vindas de Componentes, e por fim os 25 conectores de cabo e painel (Mike, XLR, XT60, banana, P4/P10), vindos de Cabos e Conectores; Sensores Industriais recebe os indutivos e capacitivos M12/M18 PNP/NPN que estavam em Módulos e Sensores. Pastilhas Peltier foi para Módulos e Sensores.
 
@@ -179,6 +180,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - 4 bombas de água de laser/spindle (120212, 122402, 122403, 122408): ficam em Motores > Motores DC (as mini bombas entraram lá) e aparecem também em Peças para Laser CO2 / Spindles.
 - 5 cabos HDMI, micro HDMI e DP (930213, 930701, 930702_4h, 930703_4h, 930704_z) em Cabos HDMI e o hub OTG (930607_z) em Cabos USB: aparecem também em Placas Raspberry Pi.
 - 2 cabos de extensão combinados USB + HDMI para painel (930204, 930212): ficam em Cabos USB e aparecem também em Cabos HDMI.
+- 11 conversores DC-DC step up e step down (200201, 200202, 200205, 200206, 200207, 200224, 200225, 200226, 200227, 200228, 220504_z): ficam em Componentes Eletrônicos > Fontes e Baterias e aparecem também em **Módulos e Sensores > Conversores DC-DC**, folha que existe só para isso (pedido dele em 15/10/2026). As fontes chaveadas, as mini fontes Hi-Link e as baterias ficam só em Fontes e Baterias.
 - 4 displays de 7 segmentos (100307, 100308, 921701_z, 921702_z): ficam em Displays e Telas > Displays 7 Segmentos e Matriz LED e aparecem também em **Componentes Eletrônicos > Displays**, folha que existe só para isso (pedido dele em 15/10/2026: levar para Componentes e manter em Displays). A matriz de LED 8x8 MAX7219 (100309) ficou só em Displays e Telas; se ele quiser, entra também.
 - 24 motores de passo (com os suportes) e servo drives: ficam em Motores e aparecem também em **CNC > Motores de Passo e Servo Drive**, folha que existe só para isso.
 - 13 drivers de motor de passo (A4988, DRV8825, TMC2100/2130/2208/2209, DM556, DM860H, TB6560, Easy drive, extensão e proteção): ficam em Motores > Drivers e Controladores e aparecem também em **CNC > Drivers de Motor de Passo**, folha só para isso; o gerador de pulso para motor de passo (200317) aparece em CNC > Controladores CNC.
@@ -216,6 +218,8 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Teclados Matriciais** ganhou folha própria em Módulos e Sensores (15/10/2026): os 4 teclados de membrana e rígidos saíram de Chaves e Push Buttons; o sensor de toque TTP223 continua em Sensores de Distância e Proximidade.
 - **Cabos e Conectores virou Fios e Cabos** (15/10/2026): os 25 conectores de cabo e painel (Mike, XLR, XT60, banana, P4/P10) foram para Automação Industrial > Elétrica e Acessórios; o topo ficou com Fios e Cabos Elétricos, Cabos USB, Cabos HDMI e Adaptadores para Cabos (54 produtos). Conectores para PCB, Barras de Pinos e Terminais continuam em Componentes, e as Fontes também (a dúvida dele sobre elas ficou em aberto).
 - **Displays**: nova folha em Componentes Eletrônicos, só de 2ª categoria, com os 4 displays de 7 segmentos, que continuam também em Displays e Telas (15/10/2026).
+- **Baterias e Acessórios foi para dentro de Fontes** (15/10/2026): as duas folhas de Componentes viraram **Fontes e Baterias** (73 produtos: fontes chaveadas, conversores, pilhas e baterias, suportes, níquel, BMS e carregadores). **Conversores DC-DC** ganhou folha em Módulos e Sensores, só de 2ª categoria, com os 11 conversores, que continuam também em Fontes e Baterias.
+- **Suportes para PCI**: nova folha em Componentes Eletrônicos (15/10/2026) com os 7 suportes de placa para trilho DIN, que saíram de Automação Industrial > Elétrica e Acessórios.
 
 ## Fusões aplicadas em 07/10/2026
 

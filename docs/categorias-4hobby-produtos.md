@@ -194,7 +194,21 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 200517 CONVERSOR RS485 PARA ETHERNET TCP/IP USR-TCP232-304 COM FONTE
 - 258199 Modulo Conversor de Corrente para Tensão 4mA a 20mA para 0 a 3.3v, 0 a 5v ou 0 a 10v
 
-### 04 - Shields para Embarcados (20)
+### 04 - Conversores DC-DC (11)
+
+- 200201 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP BOOST XL6009 (2a, fica em Fontes e Baterias)
+- 200202 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP DOWN LM2596 (2a, fica em Fontes e Baterias)
+- 200205 Conversor step Down 12/24V para 5V 10A *200205 (2a, fica em Fontes e Baterias)
+- 200206 Conversor step Down 300w 5-40v para 1.2-35v  *200206 (2a, fica em Fontes e Baterias)
+- 200207 CONVERSOR DE TENSÃO DC-DC STEP DOWN 25W 9-36V PARA USB 5V (2a, fica em Fontes e Baterias)
+- 200224 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP 150W 35V 10A (2a, fica em Fontes e Baterias)
+- 200225 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEPUP BOOST 400W 12A (2a, fica em Fontes e Baterias)
+- 200226 CONVERSOR DE TENSÃO AJUSTÁVEL STEPUP STEPDOWN XY-SJVA (2a, fica em Fontes e Baterias)
+- 200227 Modulo regulador tensão step down LM2596 com display (2a, fica em Fontes e Baterias)
+- 200228 Modulo regulador tensão step up XL6009 com display (2a, fica em Fontes e Baterias)
+- 220504_z Conversor de tensão 24V para 5V *220504 (2a, fica em Fontes e Baterias)
+
+### 05 - Shields para Embarcados (20)
 
 - 100112 PLACA SHIELD EXPANSOR PARA ARDUINO NANO 3.0 (2a, fica em Placas Arduino)
 - 100201 MODULO ETHERNET SHIELD W5100 PARA ARDUINO (2a, fica em Placas Arduino)
@@ -217,7 +231,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 970104 MODULO INTERFACE PARA ESP32 30 PINOS COM BORNE E ESPAÇADORES (2a, fica em Placas ESP32)
 - 970106 MODULO INTERFACE PARA HELTEC ESP32 LORA COM BORNES (2a, fica em Placas ESP32)
 
-### 05 - Módulos RTC e Memória (5)
+### 06 - Módulos RTC e Memória (5)
 
 - 100203 MÓDULO RTC DS1307 RELÓGIO TEMPO REAL COM BATERIA
 - 100210 MODULO LEITOR DE CARTÃO MICRO SD
@@ -225,14 +239,14 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 100251 Módulo Rtc Ds3231 *100251
 - 922005 MÓDULO DE MEMÓRIA EEPROM AT24C256
 
-### 06 - Teclados Matriciais (4)
+### 07 - Teclados Matriciais (4)
 
 - 910501 TECLADO MEMBRANA MATRICIAL 4X4 16 TECLAS
 - 910502 TECLADO MEMBRANA MATRICIAL 4X3 12 TECLAS
 - 910503 TECLADO MATRICIAL RIGIDO KARET 4X4 TECLAS
 - 910504 TECLADO MATRICIAL RIGIDO KARET 4X3 TECLAS
 
-### 07 - Antenas e Acessórios (5)
+### 08 - Antenas e Acessórios (5)
 
 - 170802 ANTENA MOVEL 868MHZ 915MHZ GSM 3G GANHO 7DBI CABO 3MTS
 - 901601 CABO PIGTAIL U.FL IPEX IPX COM CONECTOR SMA 15CM
@@ -240,7 +254,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 901603 PLUG CONECTOR SMA FEMEA ROSCA EXTERNA PARA CABO RG-58
 - 901604 ANTENA WIFI 2.4GHZ 3DBI CABO 15CM PARA ESP32 ESP8266 ESP-07
 
-### 08 - Sensores de Temperatura e Umidade (14)
+### 09 - Sensores de Temperatura e Umidade (14)
 
 - 100260 MÓDULO AMPLIFICADOR  MAX31865 PT100
 - 180811 SENSOR TERMOPAR TIPO K 0 A 600 GRAUS
@@ -257,7 +271,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 191501 SENSOR DE UMIDADE E TEMPERATURA AM2302 DHT22 ORIGINAL
 - 191502 MÓDULO SENSOR DE UMIDADE E TEMPERATURA AM2302 DHT22
 
-### 09 - Sensores de Distância e Proximidade (9)
+### 10 - Sensores de Distância e Proximidade (9)
 
 - 190303_z Sensor de Proximidade Infravermelho E18-D80NK  *190303
 - 190606 MÓDULO SEGUIDOR LINHA TCRT5000 SENSOR INFRAVERMELHO
@@ -269,7 +283,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 191303 SENSOR DISTÂNCIA LASER VL53L0X
 - 962438 SENSOR TOQUE CAPACITIVO - TTP223B
 
-### 10 - Sensores de Corrente e Tensão (9)
+### 11 - Sensores de Corrente e Tensão (9)
 
 - 100229 MODULO SENSOR DE TENSÃO AC 0 A 250VAC SAÍDA 0 A 5V ZMPT101B
 - 100239 SENSOR DE TENSÃO AC 127/220V SAÍDA PARA ARDUINO CLP
@@ -281,7 +295,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 190208 Sensor de corrente trifásico 0-50V saída 0-10V
 - 190209 Sensor de tensao trifásico 0-500VAC saída 0-10V
 
-### 11 - Sensores de Gás e Chama (9)
+### 12 - Sensores de Gás e Chama (9)
 
 - 100243 SENSOR DE GÁS MQ-135 PARA GASES TÓXICOS
 - 100245 SENSOR DE GÁS MQ-3 ÁLCOOL
@@ -293,7 +307,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 100253 SENSOR DE GÁS METANO MQ-4
 - 100266 MÓDULO SENSOR DETECTOR DE CHAMA DE FOGO
 
-### 12 - Sensores de Luz e Cor (7)
+### 13 - Sensores de Luz e Cor (7)
 
 - 190101 SENSOR DE RADIAÇÃO SOLAR ULTRAVIOLETA ML8511
 - 191101 SENSOR DE LUMINOSIDADE BH1750FVI LUX
@@ -303,7 +317,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 301025 Sensor de Luminosidade TSL2561
 - 969693 MODULO SENSOR DE LUMINOSIDADE LDR
 
-### 13 - Sensores de Movimento e Vibração (5)
+### 14 - Sensores de Movimento e Vibração (5)
 
 - 100267 MÓDULO SENSOR DE VIBRAÇÃO SW-420
 - 100275 MÓDULO BÚSSOLA ELETRONICA  HMC5883L GY-273
@@ -311,7 +325,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 191202 SENSOR DE PRESENÇA MOVIMENTO PIR HC-SR501
 - 191701 ACELERÔMETRO GIROSCÓPIO 3 EIXOS 6 DOF MPU6050
 
-### 14 - Sensores Magnéticos Reed e Hall (5)
+### 15 - Sensores Magnéticos Reed e Hall (5)
 
 - 191103 MÓDULO SENSOR MAGNÉTICO  DE EFEITO HALL 3144
 - 192001 SENSOR MAGNÉTICO REED SWITCH NA 2X14MM 0,5A
@@ -319,7 +333,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 192003 SENSOR MAGNÉTICO MC-38 COM FIO PARA ALARME E AUTOMAÇÃO
 - 192004 SENSOR MAGNÉTICO REED SWITCH 3 PINOS CONTATO NA NF RI-90
 
-### 15 - Chaves Fim de Curso (7)
+### 16 - Chaves Fim de Curso (7)
 
 - 180501 MICRO CHAVE FIM DE CURSO KW11-3Z 5A 250V IMPRESSORA 3D
 - 192101 MODULO CHAVE FIM DE CURSO COM CABO
@@ -329,7 +343,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 192108 Chave fim de curso de pulso AZ-7310 *192108
 - 192110 Chave fim de curso de pulso haste longa CMV103D para laser *192110
 
-### 16 - Sensores de Fluxo de Água (5)
+### 17 - Sensores de Fluxo de Água (5)
 
 - 190501 SENSOR DE FLUXO DE ÁGUA 1/2POL 1-30L/MIN
 - 190502 SENSOR DE FLUXO DE ÁGUA 3/4POL 1-60L/MIN
@@ -337,7 +351,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 190505 Sensor de fluxo de agua em metal YF-B10 1pol 2 a 50l/min
 - 190506 Sensor de fluxo de agua em inox 1pol 2 a 50l/min
 
-### 17 - Sensores de Nível de Água (5)
+### 18 - Sensores de Nível de Água (5)
 
 - 192801_z Sensor de nivel horizontal plastico *192801
 - 192802 SENSOR DE NÍVEL DE ÁGUA VERTICAL TIPO BOIA
@@ -345,7 +359,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 192804 CONTROLADOR DE NÍVEL DE ÁGUA AUTOMÁTICO XH-M203 COM RELE
 - 244210 Sensor de Nível de Água - T1592
 
-### 18 - Sensores de Umidade do Solo e Chuva (5)
+### 19 - Sensores de Umidade do Solo e Chuva (5)
 
 - 190901 SENSOR DE UMIDADE DO SOLO HIGRÔMETRO COM MODULO E CABOS
 - 190902 SENSOR DE UMIDADE DO SOLO ACIONAMENTO AUTOMATICO COM RELE 12V
@@ -353,7 +367,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 192401 SENSOR DE CHUVA COM MODULO CONVERSOR E CABOS
 - 192402 sensor de chuva com modulo rele 5V
 
-### 19 - Células de Carga (7)
+### 20 - Células de Carga (7)
 
 - 190601 CÉLULA DE CARGA SENSOR DE PESO 1KG PARA BALANÇA
 - 190602 CÉLULA DE CARGA SENSOR DE PESO 5KG PARA BALANÇA
@@ -363,7 +377,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 190608 CÉLULA DE CARGA SENSOR DE PESO 10KG PARA BALANÇA
 - 200301 MODULO CONVERSOR HX711 PARA CÉLULA DE CARGA
 
-### 20 - Transdutores Piezoelétricos (5)
+### 21 - Transdutores Piezoelétricos (5)
 
 - 190611 Sensor extensometro BF350 com fio *190611
 - 191601 TRANSDUTOR PASTILHA PIEZOELÉTRICO 27MM SEM CABO
@@ -371,7 +385,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 191603 TRANSDUTOR PASTILHA PIEZOELÉTRICO 35MM SEM CABO
 - 191604 TRANSDUTOR PASTILHA PIEZOELÉTRICO 35MM COM CABO
 
-### 21 - Eletroímãs e Válvulas Solenoide (8)
+### 22 - Eletroímãs e Válvulas Solenoide (8)
 
 - 121208 ELETROÍMÃ SOLENÓIDE 24VDC 8KG
 - 280101 Conexões rapida PC4-M6 4mm rosca M6 Mangueira nao passante *280101
@@ -382,19 +396,19 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 940504 ELETROÍMÃ SOLENOIDE ATUADOR 12VDC 10MM 5N
 - 940505 VÁLVULA SOLENOIDE PARA ÁGUA 12V ROSCA 1/2"
 
-### 22 - Pastilhas Peltier (3)
+### 23 - Pastilhas Peltier (3)
 
 - 191901 PASTILHA TERMOELÉTRICA PELTIER 12V TEC1-12706
 - 191903_z Junta de isolamento para pastilha peltier 40x40mm *191903
 - 191904 Bloco alumínio refrigeração agua 40x40x12mm *191904
 
-### 23 - Imãs de Neodímio (3)
+### 24 - Imãs de Neodímio (3)
 
 - 121209 Kit com 100 Imã De Neodímio 5x1 Redondo Pequeno 5mm X 1mm N35
 - 121210 Imã De Neodímio Redondo 10x2mm N35
 - 121211 Imã De Neodímio Redondo 5x2mm N35
 
-### 24 - Painéis Solares (1)
+### 25 - Painéis Solares (1)
 
 - 220801 PLACA PAINEL CÉLULA SOLAR FOTOVOLTAICA 6V 1W 110X60MM
 
@@ -706,8 +720,20 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 941004 ESPAÇADOR PLÁSTICO NYLON ISOLANTE 6MM M3 FÊMEA/FÊMEA
 - 941005 PARAFUSO PLÁSTICO NYLON ISOLANTE M3X5MM
 
-### 17 - Fontes Chaveadas e Conversores DC-DC (33)
+### 17 - Suportes para PCI (7)
 
+- 901001 SUPORTE PARA PLACA DE CIRCUITO IMPRESSO TRILHO DIN - 1PAR
+- 951201 SUPORTE PCI FÊMEA PRETO PARA TRILHO DIN *951201
+- 951202 SUPORTE PCI MACHO PRETO PARA TRILHO DIN *951202
+- 951203 SUPORTE PCI 5MM PRETO PARA TRILHO DIN *951203
+- 951204 SUPORTE PCI 20MM PRETO PARA TRILHO DIN *951204
+- 951205 SUPORTE PCI 30MM PRETO PARA TRILHO DIN  *951205
+- 951206 SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206
+
+### 18 - Fontes e Baterias (73)
+
+- 100270 MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO
+- 100273 MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A
 - 111008 FONTE CHAVEADA 5V 3A MICRO USB PARA RASPBERRY PI3 ESP32
 - 111020 FONTE CHAVEADA 5V 3A TIPO C PARA RASPBERRY PI4  RPI4 *111020
 - 111027 Fonte chaveada 5V 3.1A saida tipoC *111027
@@ -723,6 +749,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 200228 Modulo regulador tensão step up XL6009 com display
 - 200519 MINI FONTE HI-LINK SAIDA 24VDC
 - 220101 FONTE CHAVEADA 9V 1A BIVOLT PLUG P4 PARA ARDUINO
+- 220105 Modulo BMS 7S 20A 24V
 - 220203 FONTE CHAVEADA 12V 5A RMS 60W BIVOLT ANDELI COM PLUG P4
 - 220204 FONTE CHAVEADA 12V 6A RMS 72W BIVOLT ANDELI COM PLUG P4
 - 220205 FONTE CHAVEADA 12V 10A RMS 120W BIVOLT ANDELI COM PLUG P4
@@ -740,13 +767,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 220505 MINI FONTE HI-LINK SAIDA 5VDC 3W 0.6A ENTRADA 100-240VAC
 - 220506 MINI FONTE HI-LINK SAIDA 3.3VDC 3W 1A ENTRADA 100-240VAC
 - 220507 MINI FONTE HI-LINK SAIDA 12VDC 3W 0.25A ENTRADA 100-240VAC
-- 220901 Fonte chaveada 7,5v 1A Plug P4 *220901
-
-### 18 - Baterias e Acessórios (40)
-
-- 100270 MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO
-- 100273 MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A
-- 220105 Modulo BMS 7S 20A 24V
 - 220602 BATERIA CR1220 3V PARA DATALOGGER RTC
 - 220603 BATERIA LR44 1,5V ALCALINA
 - 220604 BATERIA CR2032 3V PARA DATALOGGER RTC
@@ -757,6 +777,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 220705 Carregador bateria TP4056 para 18650 micro USB *220705
 - 220706 Carregador bateria shield keyestudio *220706
 - 220708 LiitoKala Lii-M4S 18650
+- 220901 Fonte chaveada 7,5v 1A Plug P4 *220901
 - 221101 PLACA BMS 3S 10A 12,6V PROTEÇÃO PARA BATERIA LÍTIO
 - 221102 PLACA BMS 1S 10A 4,2V PROTEÇÃO PARA BATERIA LÍTIO
 - 221103 PLACA BMS 2S 3A 8,4V PROTEÇÃO PARA BATERIA LÍTIO
@@ -952,7 +973,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 940403 SINALIZADOR LUMINOSO LED VERMELHO 24V 22MM PARA PAINEL
 - 940404 SINALIZADOR LUMINOSO LED AMARELO 24V 22MM PARA PAINEL
 
-### 09 - Elétrica e Acessórios (67)
+### 09 - Elétrica e Acessórios (60)
 
 - 900101 CONECTOR METALICO MIKE GX12 PLUG MACHO E FÊMEA 4 PINOS
 - 900106 CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 2 VIAS
@@ -972,7 +993,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 900707 conector plug para pino banana fêmea vermelho
 - 900708 conector plug para pino banana fêmea preto
 - 900801 CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO
-- 901001 SUPORTE PARA PLACA DE CIRCUITO IMPRESSO TRILHO DIN - 1PAR
 - 901701 PLUG JACK P10 J10 ESTEREO FEMEA PARA PAINEL PCB
 - 901702 PLUG JACK P10 ESTEREO MACHO METALICO
 - 901703 PLUG P10 ESTEREO MACHO PLASTICO PRETO
@@ -986,12 +1006,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 940802_z Espiral Organizador De Cabos 1/4 6,35mm *940802
 - 940803_4h Espiral Organizador De Cabos 1/2" 12,7mm preto *940803
 - 940805 PRESILHA ADESIVA 19X19MM PARA FIXAÇÃO DE CABOS
-- 951201 SUPORTE PCI FÊMEA PRETO PARA TRILHO DIN *951201
-- 951202 SUPORTE PCI MACHO PRETO PARA TRILHO DIN *951202
-- 951203 SUPORTE PCI 5MM PRETO PARA TRILHO DIN *951203
-- 951204 SUPORTE PCI 20MM PRETO PARA TRILHO DIN *951204
-- 951205 SUPORTE PCI 30MM PRETO PARA TRILHO DIN  *951205
-- 951206 SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206
 - 960201 Suporte 45 graus trilho dim *960201
 - 960301_4h Abraçadeira de Nylon 3,7x202mm preta com 100un *960301
 - 960302_4h Abraçadeira de Nylon 2,5x108mm cor preto com 100un *960302
