@@ -10,7 +10,7 @@ Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 fol
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **10 topos e 101 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (96 folhas com produto próprio e cinco só com produtos de 2ª categoria: Shields para Embarcados e Conversores DC-DC, em Módulos e Sensores, Displays, em Componentes Eletrônicos, e Motores de Passo e Servo Drive e Drivers de Motor de Passo, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+Resultado: **10 topos e 101 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (96 folhas com produto próprio e cinco só com produtos de 2ª categoria: Shields para Embarcados e Conversores DC-DC, em Módulos e Sensores, Displays 7 Segmentos, em Componentes Eletrônicos, e Motores de Passo e Servo Drive e Drivers de Motor de Passo, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
 
 Com dois níveis e uma família por folha, Módulos e Sensores (25 folhas, contando as de 2ª categoria), CNC (19) e Componentes Eletrônicos (20) ficam com menu longo. É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
@@ -75,7 +75,7 @@ Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica sep
 - Potenciômetros e Trimpots (11)
 - Cristais Osciladores (1) ◂ pequena
 - LEDs e Soquetes (20)
-- Displays (4 como 2ª categoria, nenhum próprio)
+- Displays 7 Segmentos (4 como 2ª categoria, nenhum próprio)
 - Buzzers, Alto-falantes e Áudio (7)
 - Chaves e Push Buttons (18)
 - Conectores para PCB (31)
@@ -181,7 +181,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - 5 cabos HDMI, micro HDMI e DP (930213, 930701, 930702_4h, 930703_4h, 930704_z) em Cabos HDMI e o hub OTG (930607_z) em Cabos USB: aparecem também em Placas Raspberry Pi.
 - 2 cabos de extensão combinados USB + HDMI para painel (930204, 930212): ficam em Cabos USB e aparecem também em Cabos HDMI.
 - 11 conversores DC-DC step up e step down (200201, 200202, 200205, 200206, 200207, 200224, 200225, 200226, 200227, 200228, 220504_z): ficam em Componentes Eletrônicos > Fontes e Baterias e aparecem também em **Módulos e Sensores > Conversores DC-DC**, folha que existe só para isso (pedido dele em 15/10/2026). As fontes chaveadas, as mini fontes Hi-Link e as baterias ficam só em Fontes e Baterias.
-- 4 displays de 7 segmentos (100307, 100308, 921701_z, 921702_z): ficam em Displays e Telas > Displays 7 Segmentos e Matriz LED e aparecem também em **Componentes Eletrônicos > Displays**, folha que existe só para isso (pedido dele em 15/10/2026: levar para Componentes e manter em Displays). A matriz de LED 8x8 MAX7219 (100309) ficou só em Displays e Telas; se ele quiser, entra também.
+- 4 displays de 7 segmentos (100307, 100308, 921701_z, 921702_z): ficam em Displays e Telas > Displays 7 Segmentos e Matriz LED e aparecem também em **Componentes Eletrônicos > Displays 7 Segmentos**, folha que existe só para isso (pedido dele em 15/10/2026: levar para Componentes e manter em Displays). A matriz de LED 8x8 MAX7219 (100309) ficou só em Displays e Telas; se ele quiser, entra também.
 - 24 motores de passo (com os suportes) e servo drives: ficam em Motores e aparecem também em **CNC > Motores de Passo e Servo Drive**, folha que existe só para isso.
 - 13 drivers de motor de passo (A4988, DRV8825, TMC2100/2130/2208/2209, DM556, DM860H, TB6560, Easy drive, extensão e proteção): ficam em Motores > Drivers e Controladores e aparecem também em **CNC > Drivers de Motor de Passo**, folha só para isso; o gerador de pulso para motor de passo (200317) aparece em CNC > Controladores CNC.
 - 3 telas de 7" para Raspberry Pi e o case da oficial (110304, 110306, 110307, 111031): ficam em Telas Gráficas TFT e aparecem também em Placas Raspberry Pi.
@@ -217,7 +217,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 
 - **Teclados Matriciais** ganhou folha própria em Módulos e Sensores (15/10/2026): os 4 teclados de membrana e rígidos saíram de Chaves e Push Buttons; o sensor de toque TTP223 continua em Sensores de Distância e Proximidade.
 - **Cabos e Conectores virou Fios e Cabos** (15/10/2026): os 25 conectores de cabo e painel (Mike, XLR, XT60, banana, P4/P10) foram para Automação Industrial > Elétrica e Acessórios; o topo ficou com Fios e Cabos Elétricos, Cabos USB, Cabos HDMI e Adaptadores para Cabos (54 produtos). Conectores para PCB, Barras de Pinos e Terminais continuam em Componentes, e as Fontes também (a dúvida dele sobre elas ficou em aberto).
-- **Displays**: nova folha em Componentes Eletrônicos, só de 2ª categoria, com os 4 displays de 7 segmentos, que continuam também em Displays e Telas (15/10/2026).
+- **Displays 7 Segmentos** (primeiro chamada Displays): nova folha em Componentes Eletrônicos, só de 2ª categoria, com os 4 displays de 7 segmentos, que continuam também em Displays e Telas (15/10/2026).
 - **Baterias e Acessórios foi para dentro de Fontes** (15/10/2026): as duas folhas de Componentes viraram **Fontes e Baterias** (73 produtos: fontes chaveadas, conversores, pilhas e baterias, suportes, níquel, BMS e carregadores). **Conversores DC-DC** ganhou folha em Módulos e Sensores, só de 2ª categoria, com os 11 conversores, que continuam também em Fontes e Baterias.
 - **Suportes para PCI**: nova folha em Componentes Eletrônicos (15/10/2026) com os 7 suportes de placa para trilho DIN, que saíram de Automação Industrial > Elétrica e Acessórios.
 

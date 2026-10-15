@@ -612,7 +612,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 920719 LED amarelo difuso 5MM
 - 920720 LED vermelho difuso 5MM
 
-### 10 - Displays (4)
+### 10 - Displays 7 Segmentos (4)
 
 - 100307 MODULO 74HC595 DISPLAY 7 SEGMENTOS 4 DÍGITOS (2a, fica em Displays 7 Segmentos e Matriz LED)
 - 100308 MODULO TM1637 RELÓGIO DIGITAL DISPLAY 7 SEGMENTOS 4 DÍGITOS (2a, fica em Displays 7 Segmentos e Matriz LED)

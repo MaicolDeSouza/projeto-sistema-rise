@@ -45,7 +45,7 @@
 4;Componentes Eletrônicos;T_componentes;7;Potenciômetros e Trimpots;I_pot;propria;11;0;07 - Potenciômetros e Trimpots
 4;Componentes Eletrônicos;T_componentes;8;Cristais Osciladores;I_crist;propria;1;0;08 - Cristais Osciladores
 4;Componentes Eletrônicos;T_componentes;9;LEDs e Soquetes;I_led;propria;20;0;09 - LEDs e Soquetes
-4;Componentes Eletrônicos;T_componentes;10;Displays;I_disp;segunda;0;4;10 - Displays
+4;Componentes Eletrônicos;T_componentes;10;Displays 7 Segmentos;I_disp;segunda;0;4;10 - Displays 7 Segmentos
 4;Componentes Eletrônicos;T_componentes;11;Buzzers, Alto-falantes e Áudio;I_buzz;propria;7;0;11 - Buzzers, Alto-falantes e Áudio
 4;Componentes Eletrônicos;T_componentes;12;Chaves e Push Buttons;I_gang;propria;18;0;12 - Chaves e Push Buttons
 4;Componentes Eletrônicos;T_componentes;13;Conectores para PCB;I_pcb;propria;31;0;13 - Conectores para PCB
