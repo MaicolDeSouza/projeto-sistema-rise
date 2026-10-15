@@ -15,7 +15,8 @@ const ARVORE=[
  ['Placas Embarcadas','T_placas',['Placas Arduino','Placas ESP32','Placas Raspberry Pi','Placas STM32']],
  ['Módulos e Sensores','T_modulos',['Módulos Relé e Acionamento','Módulos Wireless e IoT','Conversores de Sinais',['Conversores DC-DC','B_dcdc'],['Shields para Embarcados','B_shield'],'Módulos RTC e Memória','Teclados Matriciais','Antenas e Acessórios','Sensores de Temperatura e Umidade','Sensores de Distância e Proximidade','Sensores de Corrente e Tensão','Sensores de Gás e Chama','Sensores de Luz e Cor','Sensores de Movimento e Vibração','Sensores Magnéticos Reed e Hall','Chaves Fim de Curso','Sensores de Fluxo de Água','Sensores de Nível de Água','Sensores de Umidade do Solo e Chuva','Células de Carga','Transdutores Piezoelétricos','Eletroímãs e Válvulas Solenoide','Pastilhas Peltier','Imãs de Neodímio','Painéis Solares']],
  ['Displays e Telas','T_displays',['Telas Gráficas TFT','Displays LCD','Displays OLED','Displays 7 Segmentos e Matriz LED']],
- ['Componentes Eletrônicos','T_componentes',['Resistores','Diodos','Transistores e MOSFETs','Circuitos Integrados','Reguladores de Tensão','Capacitores','Potenciômetros e Trimpots','Cristais Osciladores','LEDs e Soquetes',['Displays 7 Segmentos','I_disp'],'Buzzers, Alto-falantes e Áudio','Chaves e Push Buttons','Conectores para PCB','Barras de Pinos','Terminais e Acessórios','Espaçadores e Isoladores','Suportes para PCI','Fontes e Baterias','Fusíveis','Filtros de Ferrite']],
+ ['Componentes Eletrônicos','T_componentes',['Resistores','Diodos','Transistores e MOSFETs','Circuitos Integrados','Reguladores de Tensão','Capacitores','Potenciômetros e Trimpots','Cristais Osciladores','LEDs e Soquetes',['Displays 7 Segmentos','I_disp'],'Buzzers, Alto-falantes e Áudio','Chaves e Push Buttons','Conectores para PCB','Barras de Pinos','Terminais e Acessórios','Espaçadores e Isoladores','Suportes para PCI','Fusíveis','Filtros de Ferrite']],
+ ['Fontes e Conversores','T_fontes',['Fontes Chaveadas',['Transformadores','F_trafo','reservada'],'Conversores DC-DC','Baterias e Acessórios']],
  ['Fios e Cabos','T_cabos',['Fios e Cabos Elétricos','Cabos USB','Cabos HDMI','Adaptadores para Cabos']],
  ['Automação Industrial','T_automacao',['CLP','IHM','Controladores Industriais','Inversores de Frequência','Sensores Industriais','Encoders','Chaves e Botoeiras','Sinalizadores','Elétrica e Acessórios']],
  ['Motores','T_motores',['Motores de Passo','Motores DC','Drivers e Controladores','Easy Servo','Servo Drive']],
@@ -33,10 +34,11 @@ const out=['ordem_topo;topo;chave_topo;ordem_folha;folha;chave;tipo;produtos_pro
 ARVORE.forEach(([topo,ct,folhas],ti)=>{
   out.push([ti+1,topo,ct,0,'','','topo',0,0,naLi(ti+1,topo)].join(';'));
   folhas.forEach((f,fi)=>{const nome=Array.isArray(f)?f[0]:f;const k=topo+' > '+nome;naArvore.add(k);
-    const propria=!Array.isArray(f);const chave=propria?chaveDe[k]:f[1];
-    if(propria&&!chave) throw new Error('folha da árvore sem produto no mapeamento: '+k);
-    if(!propria&&qtd[k]) throw new Error('folha só de 2ª tem produto próprio: '+k);
-    out.push([ti+1,topo,ct,fi+1,nome,chave,propria?'propria':'segunda',qtd[k]||0,secund[k]||0,naLi(fi+1,nome)].join(';'));
+    const tipoF=Array.isArray(f)?(f[2]==='reservada'?'reservada':'segunda'):'propria';const chave=tipoF==='propria'?chaveDe[k]:f[1];
+    if(tipoF==='propria'&&!chave) throw new Error('folha da árvore sem produto no mapeamento: '+k);
+    if(tipoF==='segunda'&&qtd[k]) throw new Error('folha só de 2ª tem produto próprio: '+k);
+    if(tipoF==='reservada'&&(qtd[k]||secund[k])) throw new Error('folha reservada já tem produto: '+k);
+    out.push([ti+1,topo,ct,fi+1,nome,chave,tipoF,qtd[k]||0,secund[k]||0,naLi(fi+1,nome)].join(';'));
   });
 });
 for(const k of Object.keys(qtd)) if(!naArvore.has(k)) throw new Error('folha do mapeamento fora da árvore: '+k);
@@ -52,7 +54,7 @@ ARVORE.forEach(([topo,,folhas],ti)=>{
     const nome=Array.isArray(f)?f[0]:f;const k=topo+' > '+nome;
     const prop=rows.filter(r=>r.nivel1===topo&&r.nivel2===nome);
     const seg=rows.filter(r=>r.categoria_secundaria===k);
-    md.push('','### '+naLi(fi+1,nome)+' ('+(prop.length+seg.length)+')','');
+    md.push('','### '+naLi(fi+1,nome)+' ('+(prop.length+seg.length)+')'+(Array.isArray(f)&&f[2]==='reservada'?' - reservada, sem produto hoje':''),'');
     for(const r of prop) md.push('- '+r.sku+' '+r.titulo);
     for(const r of seg) md.push('- '+r.sku+' '+r.titulo+' (2a, fica em '+r.nivel2+')');
   });
@@ -64,6 +66,6 @@ for(const r of semCat) md.push('- '+r.sku+' '+r.titulo);
 md.push('','## Fora do site ('+naoPub.length+')','');
 for(const r of naoPub) md.push('- '+r.sku+' '+r.titulo);
 fs.writeFileSync(LISTA,md.join('\n')+'\n');
-const nTopos=ARVORE.length,nFolhas=ARVORE.reduce((a,[,,f])=>a+f.length,0),nSeg=ARVORE.reduce((a,[,,f])=>a+f.filter(Array.isArray).length,0);
-console.log('ok: topos',nTopos,'| folhas',nFolhas,'(próprias',nFolhas-nSeg,', só 2ª',nSeg,') | linhas',final.length);
+const nTopos=ARVORE.length,nFolhas=ARVORE.reduce((a,[,,f])=>a+f.length,0),nSeg=ARVORE.reduce((a,[,,f])=>a+f.filter(x=>Array.isArray(x)&&x[2]!=='reservada').length,0),nRes=ARVORE.reduce((a,[,,f])=>a+f.filter(x=>Array.isArray(x)&&x[2]==='reservada').length,0);
+console.log('ok: topos',nTopos,'| folhas',nFolhas,'(próprias',nFolhas-nSeg-nRes,', só 2ª',nSeg,', reservadas',nRes,') | linhas',final.length);
 console.log('conferência: folhas no mapeamento',Object.keys(qtd).length,'| 2ª distintas',Object.keys(secund).length);

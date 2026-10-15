@@ -196,17 +196,17 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 
 ### 04 - Conversores DC-DC (11)
 
-- 200201 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP BOOST XL6009 (2a, fica em Fontes e Baterias)
-- 200202 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP DOWN LM2596 (2a, fica em Fontes e Baterias)
-- 200205 Conversor step Down 12/24V para 5V 10A *200205 (2a, fica em Fontes e Baterias)
-- 200206 Conversor step Down 300w 5-40v para 1.2-35v  *200206 (2a, fica em Fontes e Baterias)
-- 200207 CONVERSOR DE TENSÃO DC-DC STEP DOWN 25W 9-36V PARA USB 5V (2a, fica em Fontes e Baterias)
-- 200224 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP 150W 35V 10A (2a, fica em Fontes e Baterias)
-- 200225 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEPUP BOOST 400W 12A (2a, fica em Fontes e Baterias)
-- 200226 CONVERSOR DE TENSÃO AJUSTÁVEL STEPUP STEPDOWN XY-SJVA (2a, fica em Fontes e Baterias)
-- 200227 Modulo regulador tensão step down LM2596 com display (2a, fica em Fontes e Baterias)
-- 200228 Modulo regulador tensão step up XL6009 com display (2a, fica em Fontes e Baterias)
-- 220504_z Conversor de tensão 24V para 5V *220504 (2a, fica em Fontes e Baterias)
+- 200201 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP BOOST XL6009 (2a, fica em Conversores DC-DC)
+- 200202 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP DOWN LM2596 (2a, fica em Conversores DC-DC)
+- 200205 Conversor step Down 12/24V para 5V 10A *200205 (2a, fica em Conversores DC-DC)
+- 200206 Conversor step Down 300w 5-40v para 1.2-35v  *200206 (2a, fica em Conversores DC-DC)
+- 200207 CONVERSOR DE TENSÃO DC-DC STEP DOWN 25W 9-36V PARA USB 5V (2a, fica em Conversores DC-DC)
+- 200224 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP 150W 35V 10A (2a, fica em Conversores DC-DC)
+- 200225 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEPUP BOOST 400W 12A (2a, fica em Conversores DC-DC)
+- 200226 CONVERSOR DE TENSÃO AJUSTÁVEL STEPUP STEPDOWN XY-SJVA (2a, fica em Conversores DC-DC)
+- 200227 Modulo regulador tensão step down LM2596 com display (2a, fica em Conversores DC-DC)
+- 200228 Modulo regulador tensão step up XL6009 com display (2a, fica em Conversores DC-DC)
+- 220504_z Conversor de tensão 24V para 5V *220504 (2a, fica em Conversores DC-DC)
 
 ### 05 - Shields para Embarcados (20)
 
@@ -730,26 +730,24 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 951205 SUPORTE PCI 30MM PRETO PARA TRILHO DIN  *951205
 - 951206 SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206
 
-### 18 - Fontes e Baterias (73)
+### 18 - Fusíveis (1)
 
-- 100270 MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO
-- 100273 MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A
+- 920602 Fusível grande 5A *920602
+
+### 19 - Filtros de Ferrite (2)
+
+- 241003 Filtro de ferrite 5mm  *241003
+- 241004 Filtro de ferrite 9mm  *241004
+
+## 05 - Fontes e Conversores
+
+### 01 - Fontes Chaveadas (22)
+
 - 111008 FONTE CHAVEADA 5V 3A MICRO USB PARA RASPBERRY PI3 ESP32
 - 111020 FONTE CHAVEADA 5V 3A TIPO C PARA RASPBERRY PI4  RPI4 *111020
 - 111027 Fonte chaveada 5V 3.1A saida tipoC *111027
-- 200201 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP BOOST XL6009
-- 200202 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP DOWN LM2596
-- 200205 Conversor step Down 12/24V para 5V 10A *200205
-- 200206 Conversor step Down 300w 5-40v para 1.2-35v  *200206
-- 200207 CONVERSOR DE TENSÃO DC-DC STEP DOWN 25W 9-36V PARA USB 5V
-- 200224 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP 150W 35V 10A
-- 200225 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEPUP BOOST 400W 12A
-- 200226 CONVERSOR DE TENSÃO AJUSTÁVEL STEPUP STEPDOWN XY-SJVA
-- 200227 Modulo regulador tensão step down LM2596 com display
-- 200228 Modulo regulador tensão step up XL6009 com display
 - 200519 MINI FONTE HI-LINK SAIDA 24VDC
 - 220101 FONTE CHAVEADA 9V 1A BIVOLT PLUG P4 PARA ARDUINO
-- 220105 Modulo BMS 7S 20A 24V
 - 220203 FONTE CHAVEADA 12V 5A RMS 60W BIVOLT ANDELI COM PLUG P4
 - 220204 FONTE CHAVEADA 12V 6A RMS 72W BIVOLT ANDELI COM PLUG P4
 - 220205 FONTE CHAVEADA 12V 10A RMS 120W BIVOLT ANDELI COM PLUG P4
@@ -763,10 +761,33 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 220310 FONTE CHAVEADA 24V 12.5A RMS 300W ANDELI
 - 220402 fonte chaveada 48v 500w 10a andeli spindle cnc *220402
 - 220403 FONTE CHAVEADA 48V 7,3A RMS 350W ANDELI
-- 220504_z Conversor de tensão 24V para 5V *220504
 - 220505 MINI FONTE HI-LINK SAIDA 5VDC 3W 0.6A ENTRADA 100-240VAC
 - 220506 MINI FONTE HI-LINK SAIDA 3.3VDC 3W 1A ENTRADA 100-240VAC
 - 220507 MINI FONTE HI-LINK SAIDA 12VDC 3W 0.25A ENTRADA 100-240VAC
+- 220901 Fonte chaveada 7,5v 1A Plug P4 *220901
+
+### 02 - Transformadores (0) - reservada, sem produto hoje
+
+
+### 03 - Conversores DC-DC (11)
+
+- 200201 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP BOOST XL6009
+- 200202 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP DOWN LM2596
+- 200205 Conversor step Down 12/24V para 5V 10A *200205
+- 200206 Conversor step Down 300w 5-40v para 1.2-35v  *200206
+- 200207 CONVERSOR DE TENSÃO DC-DC STEP DOWN 25W 9-36V PARA USB 5V
+- 200224 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP 150W 35V 10A
+- 200225 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEPUP BOOST 400W 12A
+- 200226 CONVERSOR DE TENSÃO AJUSTÁVEL STEPUP STEPDOWN XY-SJVA
+- 200227 Modulo regulador tensão step down LM2596 com display
+- 200228 Modulo regulador tensão step up XL6009 com display
+- 220504_z Conversor de tensão 24V para 5V *220504
+
+### 04 - Baterias e Acessórios (40)
+
+- 100270 MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO
+- 100273 MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A
+- 220105 Modulo BMS 7S 20A 24V
 - 220602 BATERIA CR1220 3V PARA DATALOGGER RTC
 - 220603 BATERIA LR44 1,5V ALCALINA
 - 220604 BATERIA CR2032 3V PARA DATALOGGER RTC
@@ -777,7 +798,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 220705 Carregador bateria TP4056 para 18650 micro USB *220705
 - 220706 Carregador bateria shield keyestudio *220706
 - 220708 LiitoKala Lii-M4S 18650
-- 220901 Fonte chaveada 7,5v 1A Plug P4 *220901
 - 221101 PLACA BMS 3S 10A 12,6V PROTEÇÃO PARA BATERIA LÍTIO
 - 221102 PLACA BMS 1S 10A 4,2V PROTEÇÃO PARA BATERIA LÍTIO
 - 221103 PLACA BMS 2S 3A 8,4V PROTEÇÃO PARA BATERIA LÍTIO
@@ -806,16 +826,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 941108 SUPORTE PARA 03 BATERIAS 18650 LI-ION CASE TIPO CANOA
 - 941109 SUPORTE PARA 04 BATERIAS 18650 LI-ION CASE TIPO CANOA
 
-### 19 - Fusíveis (1)
-
-- 920602 Fusível grande 5A *920602
-
-### 20 - Filtros de Ferrite (2)
-
-- 241003 Filtro de ferrite 5mm  *241003
-- 241004 Filtro de ferrite 9mm  *241004
-
-## 05 - Fios e Cabos
+## 06 - Fios e Cabos
 
 ### 01 - Fios e Cabos Elétricos (15)
 
@@ -885,7 +896,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 901202 CONECTOR DB25 MACHO PAINEL PARA CABO FLAT
 - 901203 Conector DB9 fêmea com capa
 
-## 06 - Automação Industrial
+## 07 - Automação Industrial
 
 ### 01 - CLP (8)
 
@@ -1036,7 +1047,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 980802 Prensa cabo plastico 1/2' cor preto *980802
 - 980804 Prensa cabo plastico 1/2' cor cinza claro *980804
 
-## 07 - Motores
+## 08 - Motores
 
 ### 01 - Motores de Passo (18)
 
@@ -1135,7 +1146,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 
 - 120523 Servo motor AC 400w sem freio com drive
 
-## 08 - CNC, Laser e Impressão 3D
+## 09 - CNC, Laser e Impressão 3D
 
 ### 01 - Fusos e Castanhas (29)
 
@@ -1610,7 +1621,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 999913 SOFTWARE MACH3 LICENÇA ORIGINAL CNC ROUTER PLASMA TORNO FRESA
 - 999920 COMPUTADOR COMPLETO WIN7 32BITS PORTA PARALELA PARA MACH3
 
-## 09 - Ferramentas e Prototipagem
+## 10 - Ferramentas e Prototipagem
 
 ### 01 - Protoboards e Placas Fenolite (8)
 
@@ -1690,7 +1701,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 940712_4h Tubo Termo retrátil 16/8mm Preto 600V com 1mt *940712
 - 940713_4h Tubo Termo retrátil 20/10mm Preto 600V com 1mt *940713
 
-## 10 - Kits Educacionais
+## 11 - Kits Educacionais
 
 ### 01 - Kits Arduino (3)
 

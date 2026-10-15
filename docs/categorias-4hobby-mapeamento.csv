@@ -66,10 +66,10 @@
 100266;"MÓDULO SENSOR DETECTOR DE CHAMA DE FOGO";Módulos e Sensores;Sensores de Gás e Chama;;C_gas;"";"2 - Módulos e shields";8.00;27
 100267;"MÓDULO SENSOR DE VIBRAÇÃO SW-420";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"2 - Módulos e shields";10.00;20
 100268;"MODULO SENSOR DE SOM KY-038";Componentes Eletrônicos;Buzzers, Alto-falantes e Áudio;;I_buzz;"";"2 - Módulos e shields";12.00;13
-100270;"MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";38.00;0
+100270;"MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";38.00;0
 100271;"Rele com soquete 24VDC 10A";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";;10
 100272;"MÓDULO MULTIFUNÇÕES SHIELD PARA ARDUINO NÍVEL INTERMEDIÁRIO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";31.70;6
-100273;"MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"2 - Módulos e shields";30.00;0
+100273;"MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"2 - Módulos e shields";30.00;0
 100274;"ANALISADOR LÓGICO 24MHZ 8 CANAIS";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Conversores";69.00;1
 100275;"MÓDULO BÚSSOLA ELETRONICA  HMC5883L GY-273";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"";;0
 100276;"Sensor de inclinação e vibração SW-200D";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"";;20
@@ -149,20 +149,20 @@
 111003;"MINI TECLADO SEM FIO COM MOUSE TOUCH";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";33.30;2
 111006;"Leitor Adaptador Usb Para Cartão Micro Sd  *111006";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";2.90;50
 111007;"CARTÃO MICRO SD 64GB 80MB/S CLASSE10 SANDISK";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";56.00;3
-111008;"FONTE CHAVEADA 5V 3A MICRO USB PARA RASPBERRY PI3 ESP32";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";44.90;17
+111008;"FONTE CHAVEADA 5V 3A MICRO USB PARA RASPBERRY PI3 ESP32";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";44.90;17
 111010;"KIT 03 PEÇAS DISSIPADOR DE CALOR PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";5.60;58
 111011;"KIT ADAPTADOR RASPBERRYPI ZERO HDMI USB PINOS COM 03 PÇS";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";31.90;4
 111016_4h;"Divisor Splitter HDMI 1 Hdmi Macho Para 2 Hdmi Fêmea *111016";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";30.00;4
 111017;"Divisor cabo HDMI Splitter HDMI 1x4 com fonte *111017";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";92.99;1
 111018;"Conversor HDMI para VGA *111018";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";41.90;2
 111019;"ADAPTADOR MICRO HDMI MACHO PARA HDMI FÊMEA";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conversores";12.00;40
-111020;"FONTE CHAVEADA 5V 3A TIPO C PARA RASPBERRY PI4  RPI4 *111020";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";57.00;8
+111020;"FONTE CHAVEADA 5V 3A TIPO C PARA RASPBERRY PI4  RPI4 *111020";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"";57.00;8
 111021;"Microventilador para RaspberryPi 5V 30x30mm *111021";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";13.00;16
 111022;"CASE OFICIAL RASPBERRY PI4 RPI4 BRANCO E VERMELHO *111022";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";52.80;17
 111023;"OBSOLETO-DISSIPADOR PARA RASPBERRY PI4 RPI4 ALTA PERFORMANCE *111023";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";116.30;0
 111024_z;"DISSIPADOR EM ALUMÍNIO RASPBERRY PI4 RPI4 KIT 4 PEÇAS*111024";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";18.35;16
 111025;"CASE RASPBERRY PI4 RPI4 EM ABS PRETO COM COOLER *111025";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";82.00;10
-111027;"Fonte chaveada 5V 3.1A saida tipoC *111027";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";30.00;22
+111027;"Fonte chaveada 5V 3.1A saida tipoC *111027";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"";30.00;22
 111029;"CASE OFICIAL RASPBERRY PI3 RPI3 BRANCO E VERMELHO *111029";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";30.00;5
 111030;"MICROFONE USB PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";55.00;0
 111031;"Case para tela LCD 7 pol Oficial Raspberry Pi4 preto";Displays e Telas;Telas Gráficas TFT;;D_tft;"Placas Embarcadas > Placas Raspberry Pi";"";179.90;0
@@ -724,18 +724,18 @@
 200116;"CONVERSOR USB TIPO C PARA TTL FTDI UART RS232 5V 3.3V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";18.90;10
 200117;"Cabo db9 serial macho para IHM DOP delta 3m";Automação Industrial;IHM;;E_ihm;"";"";110.00;5
 200118;"Cabo serial Waveshare USB para TTL de 6 pinos FTDI";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";279.00;1
-200201;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP BOOST XL6009";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"Módulos e Sensores > Conversores DC-DC";"Conversores";10.40;116
-200202;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP DOWN LM2596";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"Módulos e Sensores > Conversores DC-DC";"Conversores";14.90;16
+200201;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP BOOST XL6009";Fontes e Conversores;Conversores DC-DC;;F_dcdc;"Módulos e Sensores > Conversores DC-DC";"Conversores";10.40;116
+200202;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP DOWN LM2596";Fontes e Conversores;Conversores DC-DC;;F_dcdc;"Módulos e Sensores > Conversores DC-DC";"Conversores";14.90;16
 200203;"CONVERSOR DE NIVEL LÓGICO 2 CANAIS BIDIRECIONAL 3V3 5V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";3.60;14
 200204;"CONVERSOR DE NIVEL LÓGICO 4 CANAIS BIDIRECIONAL 3V3 5V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";4.00;22
-200205;"Conversor step Down 12/24V para 5V 10A *200205";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"Módulos e Sensores > Conversores DC-DC";"";78.00;11
-200206;"Conversor step Down 300w 5-40v para 1.2-35v  *200206";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"Módulos e Sensores > Conversores DC-DC";"";62.00;4
-200207;"CONVERSOR DE TENSÃO DC-DC STEP DOWN 25W 9-36V PARA USB 5V";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"Módulos e Sensores > Conversores DC-DC";"Conversores";49.00;17
-200224;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP 150W 35V 10A";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"Módulos e Sensores > Conversores DC-DC";"Conversores";38.00;5
-200225;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEPUP BOOST 400W 12A";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"Módulos e Sensores > Conversores DC-DC";"Conversores";58.00;10
-200226;"CONVERSOR DE TENSÃO AJUSTÁVEL STEPUP STEPDOWN XY-SJVA";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"Módulos e Sensores > Conversores DC-DC";"Conversores";35.00;0
-200227;"Modulo regulador tensão step down LM2596 com display";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"Módulos e Sensores > Conversores DC-DC";"";33.90;10
-200228;"Modulo regulador tensão step up XL6009 com display";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"Módulos e Sensores > Conversores DC-DC";"";33.90;10
+200205;"Conversor step Down 12/24V para 5V 10A *200205";Fontes e Conversores;Conversores DC-DC;;F_dcdc;"Módulos e Sensores > Conversores DC-DC";"";78.00;11
+200206;"Conversor step Down 300w 5-40v para 1.2-35v  *200206";Fontes e Conversores;Conversores DC-DC;;F_dcdc;"Módulos e Sensores > Conversores DC-DC";"";62.00;4
+200207;"CONVERSOR DE TENSÃO DC-DC STEP DOWN 25W 9-36V PARA USB 5V";Fontes e Conversores;Conversores DC-DC;;F_dcdc;"Módulos e Sensores > Conversores DC-DC";"Conversores";49.00;17
+200224;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP 150W 35V 10A";Fontes e Conversores;Conversores DC-DC;;F_dcdc;"Módulos e Sensores > Conversores DC-DC";"Conversores";38.00;5
+200225;"CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEPUP BOOST 400W 12A";Fontes e Conversores;Conversores DC-DC;;F_dcdc;"Módulos e Sensores > Conversores DC-DC";"Conversores";58.00;10
+200226;"CONVERSOR DE TENSÃO AJUSTÁVEL STEPUP STEPDOWN XY-SJVA";Fontes e Conversores;Conversores DC-DC;;F_dcdc;"Módulos e Sensores > Conversores DC-DC";"Conversores";35.00;0
+200227;"Modulo regulador tensão step down LM2596 com display";Fontes e Conversores;Conversores DC-DC;;F_dcdc;"Módulos e Sensores > Conversores DC-DC";"";33.90;10
+200228;"Modulo regulador tensão step up XL6009 com display";Fontes e Conversores;Conversores DC-DC;;F_dcdc;"Módulos e Sensores > Conversores DC-DC";"";33.90;10
 200301;"MODULO CONVERSOR HX711 PARA CÉLULA DE CARGA";Módulos e Sensores;Células de Carga;;C_carga;"";"2 - Módulos e shields";6.40;41
 200302;"CONVERSOR CORRENTE PARA TENSÂO 4-20MA PARA 0-15V AJUSTAVEL";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";14.30;6
 200303;"CONVERSOR TENSÃO PARA CORRENTE 0-24V AJUSTAVEL PARA 4-20MA";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";25.50;0
@@ -764,7 +764,7 @@
 200516;"MODULO RS485 2 CANAIS ISOLADOS HAT PARA RASPBERRY PI";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"2 - Módulos e shields";246.00;0
 200517;"CONVERSOR RS485 PARA ETHERNET TCP/IP USR-TCP232-304 COM FONTE";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"Conversores";278.90;0
 200518;"MINI MÓDULO CONTROLADOR PWM 4,5 ˜ 35V 5A PN35";Motores;Drivers e Controladores;;G_drv;"";"";11.90;4
-200519;"MINI FONTE HI-LINK SAIDA 24VDC";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";48.90;5
+200519;"MINI FONTE HI-LINK SAIDA 24VDC";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"";48.90;5
 200601;"Modulo Dimmer 2000W  AC 2KW 16A  *200601";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"";24.90;16
 200602;"DIMMER CONTROLADOR AC MOTOR LÂMPADA RESISTÊNCIA 220V 10000W";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"Módulos";149.00;1
 201203;"Suporte do Laser em Alumino *201203*";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";198.90;0
@@ -773,52 +773,52 @@
 210105;"TESTADOR USB COM VOLTÍMETRO E AMPERÍMETRO 13 EM 1";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";95.00;1
 210106;"Medidor De Tensão E Corrente 6x1 Ac 100a  80-260 Painel *210106";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";153.00;0
 210107;"MEDIDOR DE ENERGIA AC VOLTÍMETRO AMPERÍMETRO 260VAC 100A";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";89.00;0
-220101;"FONTE CHAVEADA 9V 1A BIVOLT PLUG P4 PARA ARDUINO";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";18.40;17
-220105;"Modulo BMS 7S 20A 24V";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";;5
-220203;"FONTE CHAVEADA 12V 5A RMS 60W BIVOLT ANDELI COM PLUG P4";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";48.00;8
-220204;"FONTE CHAVEADA 12V 6A RMS 72W BIVOLT ANDELI COM PLUG P4";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";55.00;12
-220205;"FONTE CHAVEADA 12V 10A RMS 120W BIVOLT ANDELI COM PLUG P4";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";93.00;13
-220206;"FONTE CHAVEADA 12V 29A RMS 350W ANDELI";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";110.00;10
-220207;"FONTE POE 12V 1A BIVOLT";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";52.00;9
-220208;"FONTE CHAVEADA 5V 1A BIVOLT PLUG P4";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";24.90;7
-220301;"FONTE CHAVEADA 24V 10,4A 250W RMS ANDELI";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";143.00;7
+220101;"FONTE CHAVEADA 9V 1A BIVOLT PLUG P4 PARA ARDUINO";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";18.40;17
+220105;"Modulo BMS 7S 20A 24V";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";;5
+220203;"FONTE CHAVEADA 12V 5A RMS 60W BIVOLT ANDELI COM PLUG P4";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";48.00;8
+220204;"FONTE CHAVEADA 12V 6A RMS 72W BIVOLT ANDELI COM PLUG P4";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";55.00;12
+220205;"FONTE CHAVEADA 12V 10A RMS 120W BIVOLT ANDELI COM PLUG P4";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";93.00;13
+220206;"FONTE CHAVEADA 12V 29A RMS 350W ANDELI";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";110.00;10
+220207;"FONTE POE 12V 1A BIVOLT";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";52.00;9
+220208;"FONTE CHAVEADA 5V 1A BIVOLT PLUG P4";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";24.90;7
+220301;"FONTE CHAVEADA 24V 10,4A 250W RMS ANDELI";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";143.00;7
 220302;"OBSOLETO-Fonte Chaveada 24v 20a 480w Ideal Para Cnc Shield    *220302";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";260.00;0
-220303;"FONTE CHAVEADA 12V 10A RMS 120W ANDELI";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";98.00;8
-220304;"FONTE CHAVEADA 5V 5A 25W BIVOLT";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";85.00;5
-220306;"FONTE CHAVEADA 24V 20,8A RMS 500W ANDELI";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";322.00;0
-220310;"FONTE CHAVEADA 24V 12.5A RMS 300W ANDELI";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";150.50;7
-220402;"fonte chaveada 48v 500w 10a andeli spindle cnc *220402";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";299.00;0
-220403;"FONTE CHAVEADA 48V 7,3A RMS 350W ANDELI";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";180.00;9
-220504_z;"Conversor de tensão 24V para 5V *220504";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"Módulos e Sensores > Conversores DC-DC";"";25.00;19
-220505;"MINI FONTE HI-LINK SAIDA 5VDC 3W 0.6A ENTRADA 100-240VAC";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";34.90;20
-220506;"MINI FONTE HI-LINK SAIDA 3.3VDC 3W 1A ENTRADA 100-240VAC";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";34.90;21
-220507;"MINI FONTE HI-LINK SAIDA 12VDC 3W 0.25A ENTRADA 100-240VAC";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Fontes";34.90;6
-220602;"BATERIA CR1220 3V PARA DATALOGGER RTC";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";3.70;43
-220603;"BATERIA LR44 1,5V ALCALINA";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";1.60;2
-220604;"BATERIA CR2032 3V PARA DATALOGGER RTC";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";3.00;22
-220607_z;"Bateria CR2016 3v Controle *220607";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";3.19;114
-220608;"BATERIA 18650 LITIO LI-ION RECARREGÁVEL 3.7V 2550MAH EVE";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";34.90;34
-220609;"bateria 9V alcalina";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";19.70;1
-220702;"MÓDULO CARREGADOR SOLAR CN3065 PARA BATERIA LIPO";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"2 - Módulos e shields";14.90;0
-220705;"Carregador bateria TP4056 para 18650 micro USB *220705";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";7.50;14
-220706;"Carregador bateria shield keyestudio *220706";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";;4
-220708;"LiitoKala Lii-M4S 18650";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";;3
+220303;"FONTE CHAVEADA 12V 10A RMS 120W ANDELI";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";98.00;8
+220304;"FONTE CHAVEADA 5V 5A 25W BIVOLT";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";85.00;5
+220306;"FONTE CHAVEADA 24V 20,8A RMS 500W ANDELI";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";322.00;0
+220310;"FONTE CHAVEADA 24V 12.5A RMS 300W ANDELI";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";150.50;7
+220402;"fonte chaveada 48v 500w 10a andeli spindle cnc *220402";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"";299.00;0
+220403;"FONTE CHAVEADA 48V 7,3A RMS 350W ANDELI";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";180.00;9
+220504_z;"Conversor de tensão 24V para 5V *220504";Fontes e Conversores;Conversores DC-DC;;F_dcdc;"Módulos e Sensores > Conversores DC-DC";"";25.00;19
+220505;"MINI FONTE HI-LINK SAIDA 5VDC 3W 0.6A ENTRADA 100-240VAC";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";34.90;20
+220506;"MINI FONTE HI-LINK SAIDA 3.3VDC 3W 1A ENTRADA 100-240VAC";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";34.90;21
+220507;"MINI FONTE HI-LINK SAIDA 12VDC 3W 0.25A ENTRADA 100-240VAC";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";34.90;6
+220602;"BATERIA CR1220 3V PARA DATALOGGER RTC";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";3.70;43
+220603;"BATERIA LR44 1,5V ALCALINA";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";1.60;2
+220604;"BATERIA CR2032 3V PARA DATALOGGER RTC";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";3.00;22
+220607_z;"Bateria CR2016 3v Controle *220607";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";3.19;114
+220608;"BATERIA 18650 LITIO LI-ION RECARREGÁVEL 3.7V 2550MAH EVE";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";34.90;34
+220609;"bateria 9V alcalina";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";19.70;1
+220702;"MÓDULO CARREGADOR SOLAR CN3065 PARA BATERIA LIPO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"2 - Módulos e shields";14.90;0
+220705;"Carregador bateria TP4056 para 18650 micro USB *220705";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";7.50;14
+220706;"Carregador bateria shield keyestudio *220706";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";;4
+220708;"LiitoKala Lii-M4S 18650";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";;3
 220801;"PLACA PAINEL CÉLULA SOLAR FOTOVOLTAICA 6V 1W 110X60MM";Módulos e Sensores;Painéis Solares;;B_solar;"";"5 - Acessórios";28.90;10
-220901;"Fonte chaveada 7,5v 1A Plug P4 *220901";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";22.00;0
+220901;"Fonte chaveada 7,5v 1A Plug P4 *220901";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"";22.00;0
 221001;"OBSOLETO-Fonte Chaveada 72V 13A entrada 220V *221001";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";475.20;0
-221101;"PLACA BMS 3S 10A 12,6V PROTEÇÃO PARA BATERIA LÍTIO";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";16.00;17
-221102;"PLACA BMS 1S 10A 4,2V PROTEÇÃO PARA BATERIA LÍTIO";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";12.00;6
-221103;"PLACA BMS 2S 3A 8,4V PROTEÇÃO PARA BATERIA LÍTIO";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";10.00;2
-221104;"PLACA BMS 4S 40A 16,8V BALANCEAMENTO PROTEÇÃO BATERIA LÍTIO";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";25.90;20
-221105;"PLACA BMS 3S 40A";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";40.00;10
-229901;"CASE PARA BATERIA 9V COM CHAVE";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";5.60;22
-229902;"PLUG PARA BATERIA 9V TIPO CLIP COM CONECTOR P4 PARA ARDUINO";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Conectores e Bornes";1.90;41
-229903;"Suporte pack duplo para 2 baterias 18650";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";1.50;59
-229904;"SUPORTE MONTÁVEL MODULAR PARA PACK DE BATERIAS 18650";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";1.00;119
-229905;"SUPORTE PARA PACK DE BATERIAS DE LÍTIO 18650 3X4 4S3P";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";15.00;10
-229906;"PLUG PARA BATERIA 9V TIPO CLIP";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";4.30;15
-229907;"SUPORTE PARA BATERIA CR2025 2032 COM CHAVE E RABICHO";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";3.90;15
-229908;"PLUG PARA BATERIA 9V TIPO CLIP rigido";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";3.00;100
+221101;"PLACA BMS 3S 10A 12,6V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";16.00;17
+221102;"PLACA BMS 1S 10A 4,2V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";12.00;6
+221103;"PLACA BMS 2S 3A 8,4V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";10.00;2
+221104;"PLACA BMS 4S 40A 16,8V BALANCEAMENTO PROTEÇÃO BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";25.90;20
+221105;"PLACA BMS 3S 40A";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";40.00;10
+229901;"CASE PARA BATERIA 9V COM CHAVE";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";5.60;22
+229902;"PLUG PARA BATERIA 9V TIPO CLIP COM CONECTOR P4 PARA ARDUINO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Conectores e Bornes";1.90;41
+229903;"Suporte pack duplo para 2 baterias 18650";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";1.50;59
+229904;"SUPORTE MONTÁVEL MODULAR PARA PACK DE BATERIAS 18650";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";1.00;119
+229905;"SUPORTE PARA PACK DE BATERIAS DE LÍTIO 18650 3X4 4S3P";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";15.00;10
+229906;"PLUG PARA BATERIA 9V TIPO CLIP";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";4.30;15
+229907;"SUPORTE PARA BATERIA CR2025 2032 COM CHAVE E RABICHO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";3.90;15
+229908;"PLUG PARA BATERIA 9V TIPO CLIP rigido";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";3.00;100
 230201;"KIT MOTOR DC 3-6V COM REDUÇÃO E RODA 65MM";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"Motores";12.80;45
 230203;"Motor dc 12v com redução 30RPM JGA25-370 *230203";Motores;Motores DC;;G_dc;"";"";68.00;0
 230205_z;"Motor dc 12v com redução 300RPM JGA25-370 *230205";Motores;Motores DC;;G_dc;"";"";77.00;0
@@ -930,11 +930,11 @@
 900902;"CONECTOR BORNE 3 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"Conectores e Bornes";1.50;470
 900903_z;"Conector KF301 KRE 5mm 2Pinos *900903";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";1.57;324
 900904_z;"Conector KF301 KRE 5mm 3Pinos *900904";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";1.67;284
-900905;"Terminal femea sem trava para bateria *900905";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";1.00;50
-900906;"Capa plástica branca para terminal femea sem trava para bateria *900906";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";0.70;50
-900907;"NÍQUEL PARA SOLDAR BATERIAS 18650 0,1X5MM TIRA COM 100MM";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";1.50;60
-900908;"NÍQUEL PARA SOLDAR BATERIAS 18650 0,15X8MM TIRA COM 100MM";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";2.30;90
-900911;"FITA NÍQUEL DUPLA PARA SOLDAR BATERIAS 18650 0,12X27MM 1MT";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";22.00;9
+900905;"Terminal femea sem trava para bateria *900905";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";1.00;50
+900906;"Capa plástica branca para terminal femea sem trava para bateria *900906";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";0.70;50
+900907;"NÍQUEL PARA SOLDAR BATERIAS 18650 0,1X5MM TIRA COM 100MM";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";1.50;60
+900908;"NÍQUEL PARA SOLDAR BATERIAS 18650 0,15X8MM TIRA COM 100MM";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";2.30;90
+900911;"FITA NÍQUEL DUPLA PARA SOLDAR BATERIAS 18650 0,12X27MM 1MT";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";22.00;9
 901001;"SUPORTE PARA PLACA DE CIRCUITO IMPRESSO TRILHO DIN - 1PAR";Componentes Eletrônicos;Suportes para PCI;;I_suppci;"";"Geral";15.90;298
 901101;"KIT 700 TERMINAIS TUBULAR ILHOS";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";56.00;5
 901201;"CONECTOR DB25 FÊMEA PAINEL PARA CABO FLAT";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";14.50;11
@@ -1223,15 +1223,15 @@
 941003;"ESPAÇADOR PLÁSTICO NYLON ISOLANTE 15MM M3 MACHO/FÊMEA";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"Hardware";1.30;0
 941004;"ESPAÇADOR PLÁSTICO NYLON ISOLANTE 6MM M3 FÊMEA/FÊMEA";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"Hardware";0.80;52
 941005;"PARAFUSO PLÁSTICO NYLON ISOLANTE M3X5MM";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"Hardware";0.60;51
-941102_2;"SUPORTE PARA PILHA AA PARALELO CASE TIPO CANOA Para: 2 Pilhas";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";3.00;19
-941102_4;"SUPORTE PARA PILHA AA PARALELO CASE TIPO CANOA Para: 4 Pilhas";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";4.00;61
-941103;"Suporte para 2 pilhas AA com Chave Liga/Desliga";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"";4.90;10
-941104;"MÓDULO SHIELD DUPLO BATERIA 18650 PARA ARDUINO ESP32 RPI";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"2 - Módulos e shields";45.90;10
-941105;"MÓDULO SHIELD BATERIA 18650 PARA ARDUINO ESP32 RPI";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"2 - Módulos e shields";39.90;1
-941106;"SUPORTE PARA 01 BATERIA 18650 LI-ION CASE TIPO CANOA";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";6.00;178
-941107;"SUPORTE PARA 02 BATERIAS 18650 LI-ION CASE TIPO CANOA";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";4.00;32
-941108;"SUPORTE PARA 03 BATERIAS 18650 LI-ION CASE TIPO CANOA";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";11.00;20
-941109;"SUPORTE PARA 04 BATERIAS 18650 LI-ION CASE TIPO CANOA";Componentes Eletrônicos;Fontes e Baterias;;I_fonte;"";"Baterias e Acessórios";5.60;89
+941102_2;"SUPORTE PARA PILHA AA PARALELO CASE TIPO CANOA Para: 2 Pilhas";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";3.00;19
+941102_4;"SUPORTE PARA PILHA AA PARALELO CASE TIPO CANOA Para: 4 Pilhas";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";4.00;61
+941103;"Suporte para 2 pilhas AA com Chave Liga/Desliga";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";4.90;10
+941104;"MÓDULO SHIELD DUPLO BATERIA 18650 PARA ARDUINO ESP32 RPI";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"2 - Módulos e shields";45.90;10
+941105;"MÓDULO SHIELD BATERIA 18650 PARA ARDUINO ESP32 RPI";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"2 - Módulos e shields";39.90;1
+941106;"SUPORTE PARA 01 BATERIA 18650 LI-ION CASE TIPO CANOA";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";6.00;178
+941107;"SUPORTE PARA 02 BATERIAS 18650 LI-ION CASE TIPO CANOA";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";4.00;32
+941108;"SUPORTE PARA 03 BATERIAS 18650 LI-ION CASE TIPO CANOA";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";11.00;20
+941109;"SUPORTE PARA 04 BATERIAS 18650 LI-ION CASE TIPO CANOA";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";5.60;89
 941202_z;"Fonte de bancada Regulável 15V 2A Yaxun 1502 *941202";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";279.00;0
 941203;"Fonte de bancada Regulável 32V 6A Unit utp1306 *941203";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";;0
 941401;"Lupa profissional de bancada com garras *941401";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";52.87;1
