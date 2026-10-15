@@ -20,36 +20,36 @@ Com dois níveis e uma família por folha, Módulos e Sensores (23 folhas, conta
 
 - Placas Arduino (27)
 - Placas ESP32 (22)
-- Placas STM32 (10)
 - Placas Raspberry Pi (29)
+- Placas STM32 (10)
 
 Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases, placas de interface com bornes e gravadores ficam dentro da placa a que servem: protoshield, shield multifunções, shield expansor Nano, os dois ethernet shields, o data logger shield, o joystick shield, as interfaces com bornes para Uno/Mega/Nano, os cases e o gravador AVR ISP em Placas Arduino; o Arduino Mega WiFi e os adaptadores de ESP-01/ESP-07/ESP-12 em Placas ESP32 (as ESP8266 ficam aí, com o nome curto que ele pediu), junto das interfaces para ESP32 e Heltec; as interfaces Bluepill/F446RE, o ST-Link e o J-Link em Placas STM32. Os acessórios de Raspberry (cases, câmeras, dissipadores, HATs de CAN e PoE, gateway LoRa, controles USB) e, por decisão do dono, os cartões micro SD e o leitor USB ficam em Placas Raspberry Pi.
 
 ### Módulos e Sensores (185)
 
 - Módulos Relé e Acionamento (15)
-- Conversores de Sinais (29)
 - Módulos Wireless e IoT (24)
-- Antenas e Acessórios (5)
-- Módulos RTC e Memória (5)
+- Conversores de Sinais (29)
 - Shields para Embarcados (20 como 2ª categoria, nenhum próprio)
-- Eletroímãs e Válvulas Solenoide (8)
-- Pastilhas Peltier (3) ◂ pequena
-- Painéis Solares (1) ◂ pequena
-- Imãs de Neodímio (3) ◂ pequena
+- Módulos RTC e Memória (5)
+- Antenas e Acessórios (5)
 - Sensores de Temperatura e Umidade (14)
+- Sensores de Distância e Proximidade (9)
+- Sensores de Corrente e Tensão (9)
 - Sensores de Gás e Chama (9)
 - Sensores de Luz e Cor (7)
-- Sensores de Umidade do Solo e Chuva (5)
-- Sensores de Distância e Proximidade (9)
 - Sensores de Movimento e Vibração (5)
 - Sensores Magnéticos Reed e Hall (5)
 - Chaves Fim de Curso (7)
-- Sensores de Corrente e Tensão (9)
 - Sensores de Fluxo de Água (5)
 - Sensores de Nível de Água (5)
+- Sensores de Umidade do Solo e Chuva (5)
 - Células de Carga (7)
 - Transdutores Piezoelétricos (5)
+- Eletroímãs e Válvulas Solenoide (8)
+- Pastilhas Peltier (3) ◂ pequena
+- Imãs de Neodímio (3) ◂ pequena
+- Painéis Solares (1) ◂ pequena
 
 Módulos em seis folhas (decisão do dono em 14/10/2026: relé, conversores de sinais, wireless e IoT, antenas e acessórios e shields; os grupos de sensores ficaram como estavam, menos Sensores Indutivos e Capacitivos, que foi para Automação Industrial como Sensores Industriais). Pastilhas Peltier veio de Automação Industrial, Eletroímãs e Válvulas Solenoide de Motores e Imãs de Neodímio de Ferramentas e Prototipagem, por decisão dele. O painel solar de 6V veio de Componentes ("painel solar vai para Módulos") e ficou em folha própria, Painéis Solares, com 1 produto, porque não cabia em nenhuma outra. Módulos Relé e Acionamento junta relés, optoacopladores, MOSFET e dimmers; Conversores de Sinais junta RS485/RS232, CAN, 4-20mA/0-10V, nível lógico, ADC/DAC e o conversor RS485-Ethernet; Módulos Wireless e IoT junta WiFi, Bluetooth, RF 433MHz/nRF24, GPS/GSM, Sonoff, os módulos Ethernet, RFID/NFC com tags e cartões, o leitor biométrico e o infravermelho. **Módulos RTC e Memória** (RTC DS1307/DS3231, EEPROM e o módulo leitor micro SD) ficou porque não cabe em nenhuma das cinco: é a única folha de módulo fora da lista dele. Saíram para outros topos: teclados matriciais → Chaves e Push Buttons; joystick → Potenciômetros e Trimpots; encoders KY-040/HW-040 → Encoders Incrementais; sensor de toque TTP223 → Sensores de Distância e Proximidade; cartões micro SD e leitor USB → Placas Raspberry Pi.
 
@@ -65,15 +65,13 @@ Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica sep
 ### Componentes Eletrônicos (284)
 
 - Resistores (18)
-- Potenciômetros e Trimpots (11)
-- Capacitores (7)
-- Cristais Osciladores (1) ◂ pequena
-- Filtros de Ferrite (2) ◂ pequena
-- Fusíveis (1) ◂ pequena
 - Diodos (10)
 - Transistores e MOSFETs (16)
-- Reguladores de Tensão (5)
 - Circuitos Integrados (33)
+- Reguladores de Tensão (5)
+- Capacitores (7)
+- Potenciômetros e Trimpots (11)
+- Cristais Osciladores (1) ◂ pequena
 - LEDs e Soquetes (20)
 - Buzzers, Alto-falantes e Áudio (7)
 - Chaves e Push Buttons (22)
@@ -83,6 +81,8 @@ Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica sep
 - Espaçadores e Isoladores (6)
 - Fontes Chaveadas e Conversores DC-DC (33)
 - Baterias e Acessórios (40)
+- Fusíveis (1) ◂ pequena
+- Filtros de Ferrite (2) ◂ pequena
 
 Terminais e Acessórios (terminais, emendas e ilhoses) voltou de Cabos e Conectores a pedido do dono; as abraçadeiras passaram por aqui e foram para Automação Industrial > Elétrica e Acessórios, com as tomadas de painel. Na última passada dele: Capacitores e Cristais Osciladores separados, Fusíveis e Filtros de Ferrite separados (ele disse "filtros"; o "de Ferrite" é para o nome se sustentar sozinho), e os interruptores tipo abajur entraram em Chaves e Push Buttons. Fontes e Baterias deixou de ser topo a pedido do dono em 14/10/2026 ("fontes deve se juntar a outra categoria, veja qual faz mais sentido"): as 7 folhas vieram para cá e depois ele as enxugou: **Baterias e Acessórios** junta pilhas e baterias, suportes de pilha, níquel e terminais, placas BMS e testadores e carregadores; **Fontes Chaveadas e Conversores DC-DC** junta as fontes com os step up/step down; o painel solar de 6V foi para Módulos e Sensores e Voltímetros e Testadores para Ferramentas e Prototipagem. Motivo da escolha de Componentes: Pilhas e Baterias já estava aqui e o resto é a família dela (suportes, níquel, BMS, carregadores); fontes chaveadas, conversores DC-DC e voltímetros são alimentação, que nas lojas do ramo mora em Eletrônica. Em Automação Industrial só as fontes Andeli de 12/24/48V fariam sentido, e em Módulos e Sensores só os conversores DC-DC; partir a família não valia. Espaçadores e Isoladores (espaçadores de PCB, nylon isolante e parafusos nylon) veio de Ferramentas e Prototipagem, também a pedido dele. Conectores para PCB (decisão do dono em 14/10/2026) junta o que se solda na placa ou liga fio à placa: JST XH e PH com terminais, Dupont com terminais e os bornes KRE/KF e BR7. Barras de Pinos fica como folha própria, a pedido dele. Os conectores de painel e de cabo (Mike, P4/P10, XLR/XT60/banana, DB/RJ45/HDMI) e os cabos foram para o topo Cabos e Conectores. Plugs P4 e P10 tem 2 itens de PCB (P4 fêmea para PCB e P10 fêmea painel/PCB) no meio de 8 de cabo e painel: a família ficou inteira em Cabos e Conectores para não se partir.
 
@@ -100,8 +100,8 @@ Topo criado pelo dono em 14/10/2026 para cabos, conectores de painel e adaptador
 
 - CLP (8)
 - IHM (9)
-- Inversores de Frequência (1) ◂ pequena
 - Controladores Industriais (8)
+- Inversores de Frequência (1) ◂ pequena
 - Sensores Industriais (6)
 - Encoders (5)
 - Chaves e Botoeiras (21)
@@ -113,25 +113,25 @@ Nove folhas ditadas pelo dono em 14/10/2026. Inversores de Frequência recebe o 
 ### Motores (82)
 
 - Motores de Passo (18)
-- Easy Servo (5)
-- Servo Drive (1) ◂ pequena
 - Motores DC (36)
 - Drivers e Controladores (22)
+- Easy Servo (5)
+- Servo Drive (1) ◂ pequena
 
 Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motores de Passo inclui os suportes de motor (vindos de CNC); Easy Servo (motor de passo com encoder + driver, 45 a 120 kgf) ganhou folha própria a pedido dele e Servo Drive ficou com o servo motor AC 400 W com drive; Motores DC junta os motores DC com caixa de redução, as mini bombas de água e ar e os micro servos e motores para aeromodelismo (SG90, MG996R, brushless, ESC, Pixhawk, PCA9685), tudo pedido dele; Drivers e Controladores junta os drivers de motor de passo (A4988, TMC, DM556, DM860H) com as pontes H e os controladores PWM de motor DC. Eletroímãs e Válvulas Solenoide foi para Módulos e Sensores e Chassis e Rodas para Robótica para Kits Educacionais.
 
 ### CNC, Laser e Impressão 3D (368)
 
-- Perfis de Alumínio e Acessórios (33)
-- Parafusos, Porcas e Acessórios (22)
 - Fusos e Castanhas (29)
 - Eixos e Guias Lineares (16)
-- Mancais e Suportes de Eixo (16)
 - Rolamentos e Pillow Block (20)
+- Mancais e Suportes de Eixo (16)
 - Acoplamentos (21)
 - Correias (19)
 - Polias e Roldanas (35)
 - Cremalheiras e Engrenagens (12)
+- Perfis de Alumínio e Acessórios (33)
+- Parafusos, Porcas e Acessórios (22)
 - Esteiras Porta Cabos (22)
 - Controladores CNC (13)
 - Motores de Passo e Servo Drive (24 como 2ª categoria, nenhum próprio)
@@ -150,10 +150,10 @@ Dezenove folhas ditadas pelo dono em 14/10/2026. Parafusos, Porcas e Acessórios
 
 - Protoboards e Placas Fenolite (8)
 - Jumpers e Garras Jacaré (7)
-- Termo Retrátil (11)
 - Ferramentas e Solda (8)
 - Instrumentos de Medição (12)
 - Caixas Plásticas e Organizadores (14)
+- Termo Retrátil (11)
 
 Imãs de Neodímio foi para Módulos e Sensores e Parafusos, Buchas e Fixação para CNC, Laser e Impressão 3D; os voltímetros e testadores vieram de Componentes e entraram em Instrumentos de Medição. Tudo por decisão do dono em 14/10/2026.
 
@@ -167,7 +167,7 @@ Topo criado a pedido do dono para receber os kits que serão montados no Rise (p
 
 ## Ordem no menu
 
-Pedido do dono em 14/10/2026: dentro de cada topo as folhas ficam **agrupadas por tipo**, na ordem em que aparecem nas listas acima (em Componentes: passivos, semicondutores, optoeletrônica e som, chaves, conectores, alimentação; em Módulos e Sensores: módulos, depois sensores agrupados por ambiente, posição e movimento, elétrica, líquidos, força; em CNC: estrutura, movimento linear, eletrônica e spindle, laser, impressão 3D, software; em Automação: controle, sensores, comando e sinalização, elétrica). A ordem dos topos é a das seções. Ela está gravada em `categorias-4hobby-arvore.csv` (ordem_topo, topo, chave_topo, ordem_folha, folha, chave, tipo, produtos próprios, produtos de 2ª, nome_na_li), gerado por `scripts/categorias-gerar-arvore.cjs`, que é a tabela de categorias que o Rise vai usar.
+Pedido do dono em 14/10/2026, refinado em 15/10: dentro de cada topo, **as famílias principais vêm primeiro, as vizinhas logo em seguida, e as pequenas e os acessórios no fim**, na ordem em que aparecem nas listas acima (em Componentes: Resistores, Diodos, Transistores, CIs e Reguladores, depois Capacitores, Potenciômetros e Cristais, LEDs e som, chaves, conectores de placa, alimentação, e por último Fusíveis e Filtros; em Módulos e Sensores: os módulos, os sensores do mais procurado ao menos, e atuadores e energia no fim; em CNC: movimento linear, estrutura, eletrônica e motores, usinagem, laser, impressão 3D, software; em Automação: controle, sensores, comando e sinalização, elétrica). A primeira versão, agrupada por família técnica (passivos, semicondutores...), ele recusou: não era isso. A ordem dos topos é a das seções. Ela está gravada em `categorias-4hobby-arvore.csv` (ordem_topo, topo, chave_topo, ordem_folha, folha, chave, tipo, produtos próprios, produtos de 2ª, nome_na_li), gerado por `scripts/categorias-gerar-arvore.cjs`, que é a tabela de categorias que o Rise vai usar.
 
 **A API da Loja Integrada não tem campo de ordem** para categoria (o POST aceita só nome, descrição, categoria_pai e id_externo; "posicao" existe só em imagem de produto) e **o menu da loja lista as categorias em ordem alfabética** (conferido na home da www.4hobby.com.br em 14/10/2026: as subcategorias aparecem de Antenas a Válvulas, e no CNC de Acessórios a Rolamento, independente da ordem de criação). O dono já contornava isso com número no nome ("1 - Placas Embarcados"). Decisão dele em 14/10/2026: **o nome gravado na LI leva o número de ordem**, e a coluna `nome_na_li` do arquivo da árvore já traz ("01 - Placas Embarcadas", "04 - Resistores"). Duas regras que o próprio site ensina: (a) **dois dígitos**, senão "10 -" fica antes de "2 -"; (b) **criar a categoria com o nome limpo e renomear depois com o número**, porque a LI mantém a URL original no rename ("1 - CLPs e IHMs" vive em /clps-e-ihms, "4 - Spindles" em /fresas-brocas-spindles), enquanto a criada já com número ganha URL feia (/1-placas). O script da LI vai fazer POST com o nome limpo e PUT com o nome numerado, e o teste com uma categoria confirma que a URL fica limpa. O título da página da categoria mostra o número, como já mostra hoje; é o custo aceito.
 
