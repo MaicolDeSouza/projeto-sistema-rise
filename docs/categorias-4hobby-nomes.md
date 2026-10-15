@@ -32,22 +32,22 @@ Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases
 - Módulos Wireless e IoT (24)
 - Antenas e Acessórios (5)
 - Módulos RTC e Memória (5)
-- Pastilhas Peltier (3) ◂ pequena
-- Eletroímãs e Válvulas Solenoide (8)
-- Imãs de Neodímio (3) ◂ pequena
-- Painéis Solares (1) ◂ pequena
 - Shields para Embarcados (20 como 2ª categoria, nenhum próprio)
+- Eletroímãs e Válvulas Solenoide (8)
+- Pastilhas Peltier (3) ◂ pequena
+- Painéis Solares (1) ◂ pequena
+- Imãs de Neodímio (3) ◂ pequena
 - Sensores de Temperatura e Umidade (14)
-- Sensores de Distância e Proximidade (9)
-- Sensores de Movimento e Vibração (5)
-- Chaves Fim de Curso (7)
-- Sensores Magnéticos Reed e Hall (5)
-- Sensores de Corrente e Tensão (9)
 - Sensores de Gás e Chama (9)
 - Sensores de Luz e Cor (7)
+- Sensores de Umidade do Solo e Chuva (5)
+- Sensores de Distância e Proximidade (9)
+- Sensores de Movimento e Vibração (5)
+- Sensores Magnéticos Reed e Hall (5)
+- Chaves Fim de Curso (7)
+- Sensores de Corrente e Tensão (9)
 - Sensores de Fluxo de Água (5)
 - Sensores de Nível de Água (5)
-- Sensores de Umidade do Solo e Chuva (5)
 - Células de Carga (7)
 - Transdutores Piezoelétricos (5)
 
@@ -68,21 +68,21 @@ Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica sep
 - Potenciômetros e Trimpots (11)
 - Capacitores (7)
 - Cristais Osciladores (1) ◂ pequena
+- Filtros de Ferrite (2) ◂ pequena
+- Fusíveis (1) ◂ pequena
 - Diodos (10)
 - Transistores e MOSFETs (16)
-- Circuitos Integrados (33)
 - Reguladores de Tensão (5)
+- Circuitos Integrados (33)
 - LEDs e Soquetes (20)
 - Buzzers, Alto-falantes e Áudio (7)
-- Fusíveis (1) ◂ pequena
-- Filtros de Ferrite (2) ◂ pequena
 - Chaves e Push Buttons (22)
 - Conectores para PCB (31)
 - Barras de Pinos (15)
-- Espaçadores e Isoladores (6)
-- Baterias e Acessórios (40)
-- Fontes Chaveadas e Conversores DC-DC (33)
 - Terminais e Acessórios (6)
+- Espaçadores e Isoladores (6)
+- Fontes Chaveadas e Conversores DC-DC (33)
+- Baterias e Acessórios (40)
 
 Terminais e Acessórios (terminais, emendas e ilhoses) voltou de Cabos e Conectores a pedido do dono; as abraçadeiras passaram por aqui e foram para Automação Industrial > Elétrica e Acessórios, com as tomadas de painel. Na última passada dele: Capacitores e Cristais Osciladores separados, Fusíveis e Filtros de Ferrite separados (ele disse "filtros"; o "de Ferrite" é para o nome se sustentar sozinho), e os interruptores tipo abajur entraram em Chaves e Push Buttons. Fontes e Baterias deixou de ser topo a pedido do dono em 14/10/2026 ("fontes deve se juntar a outra categoria, veja qual faz mais sentido"): as 7 folhas vieram para cá e depois ele as enxugou: **Baterias e Acessórios** junta pilhas e baterias, suportes de pilha, níquel e terminais, placas BMS e testadores e carregadores; **Fontes Chaveadas e Conversores DC-DC** junta as fontes com os step up/step down; o painel solar de 6V foi para Módulos e Sensores e Voltímetros e Testadores para Ferramentas e Prototipagem. Motivo da escolha de Componentes: Pilhas e Baterias já estava aqui e o resto é a família dela (suportes, níquel, BMS, carregadores); fontes chaveadas, conversores DC-DC e voltímetros são alimentação, que nas lojas do ramo mora em Eletrônica. Em Automação Industrial só as fontes Andeli de 12/24/48V fariam sentido, e em Módulos e Sensores só os conversores DC-DC; partir a família não valia. Espaçadores e Isoladores (espaçadores de PCB, nylon isolante e parafusos nylon) veio de Ferramentas e Prototipagem, também a pedido dele. Conectores para PCB (decisão do dono em 14/10/2026) junta o que se solda na placa ou liga fio à placa: JST XH e PH com terminais, Dupont com terminais e os bornes KRE/KF e BR7. Barras de Pinos fica como folha própria, a pedido dele. Os conectores de painel e de cabo (Mike, P4/P10, XLR/XT60/banana, DB/RJ45/HDMI) e os cabos foram para o topo Cabos e Conectores. Plugs P4 e P10 tem 2 itens de PCB (P4 fêmea para PCB e P10 fêmea painel/PCB) no meio de 8 de cabo e painel: a família ficou inteira em Cabos e Conectores para não se partir.
 
@@ -100,13 +100,13 @@ Topo criado pelo dono em 14/10/2026 para cabos, conectores de painel e adaptador
 
 - CLP (8)
 - IHM (9)
+- Inversores de Frequência (1) ◂ pequena
+- Controladores Industriais (8)
+- Sensores Industriais (6)
+- Encoders (5)
 - Chaves e Botoeiras (21)
 - Sinalizadores (4) ◂ pequena
-- Controladores Industriais (8)
-- Encoders (5)
 - Elétrica e Acessórios (42)
-- Sensores Industriais (6)
-- Inversores de Frequência (1) ◂ pequena
 
 Nove folhas ditadas pelo dono em 14/10/2026. Inversores de Frequência recebe o inversor avulso de 2,2 kW ("inversores vai para Automação"); os kits de spindle com inversor continuam em CNC > Spindles, porque são vendidos como conjunto. Chaves e Botoeiras junta as botoeiras 22mm (pulso, emergência, seletora, seccionadora, contatos, tampões e plaquetas) com os botões metálicos iluminados e antivandalismo; Sinalizadores são os luminosos LED 22mm para painel; Controladores Industriais é o antigo "Controladores de Temperatura e SSR" (REX-C100, termostatos, relés SSR e o relé com soquete); Elétrica e Acessórios junta bornes para trilho DIN, trilho, canaletas e suportes, quadros elétricos, prensa cabos e microventiladores, e depois recebeu as tomadas de painel e as abraçadeiras e organizadores de cabos, vindas de Componentes; Sensores Industriais recebe os indutivos e capacitivos M12/M18 PNP/NPN que estavam em Módulos e Sensores. Pastilhas Peltier foi para Módulos e Sensores.
 
@@ -122,6 +122,8 @@ Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motor
 
 ### CNC, Laser e Impressão 3D (368)
 
+- Perfis de Alumínio e Acessórios (33)
+- Parafusos, Porcas e Acessórios (22)
 - Fusos e Castanhas (29)
 - Eixos e Guias Lineares (16)
 - Mancais e Suportes de Eixo (16)
@@ -130,13 +132,11 @@ Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motor
 - Correias (19)
 - Polias e Roldanas (35)
 - Cremalheiras e Engrenagens (12)
-- Perfis de Alumínio e Acessórios (33)
-- Parafusos, Porcas e Acessórios (22)
 - Esteiras Porta Cabos (22)
 - Controladores CNC (13)
-- Spindles (11)
 - Motores de Passo e Servo Drive (24 como 2ª categoria, nenhum próprio)
 - Drivers de Motor de Passo (13 como 2ª categoria, nenhum próprio)
+- Spindles (11)
 - Fresas, Brocas e Pinças (24)
 - Módulos Laser de Diodo (12)
 - Peças para Laser CO2 (17)
@@ -164,6 +164,12 @@ Imãs de Neodímio foi para Módulos e Sensores e Parafusos, Buchas e Fixação 
 - Chassis e Rodas para Robótica (6)
 
 Topo criado a pedido do dono para receber os kits que serão montados no Rise (produto com composição). Hoje tem os 3 kits Arduino (iniciante, avançado, 37 sensores), o kit Micro:bit V2 e o kit didático de eletrônica e robótica.
+
+## Ordem no menu
+
+Pedido do dono em 14/10/2026: dentro de cada topo as folhas ficam **agrupadas por tipo**, na ordem em que aparecem nas listas acima (em Componentes: passivos, semicondutores, optoeletrônica e som, chaves, conectores, alimentação; em Módulos e Sensores: módulos, depois sensores agrupados por ambiente, posição e movimento, elétrica, líquidos, força; em CNC: estrutura, movimento linear, eletrônica e spindle, laser, impressão 3D, software; em Automação: controle, sensores, comando e sinalização, elétrica). A ordem dos topos é a das seções. Ela está gravada em `categorias-4hobby-arvore.csv` (ordem_topo, topo, chave_topo, ordem_folha, folha, chave, tipo, produtos próprios, produtos de 2ª), que é a tabela de categorias que o Rise vai usar.
+
+**A API da Loja Integrada não tem campo de ordem** para categoria (o POST aceita só nome, descrição, categoria_pai e id_externo; "posicao" existe só em imagem de produto). O script cria as categorias na ordem do arquivo, que é a ordem em que a loja as lista; mudar depois é arrastar no painel. Por isso o nome não leva número de ordenação, como o site antigo fazia ("1 - Placas Embarcados").
 
 ## Segunda categoria
 
