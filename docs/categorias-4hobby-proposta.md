@@ -45,10 +45,10 @@ A primeira versão desta seção tinha 76 folhas com nomes que listavam produtos
 Categorias de topo (11, com os produtos de hoje):
 
 - Placas Embarcadas (88, em 4 folhas: Placas Arduino, Placas ESP32, Placas STM32, Placas Raspberry Pi)
-- Módulos e Sensores (189, com Teclados Matriciais e as folhas Conversores DC-DC e Módulos BMS para Bateria, só de 2ª categoria: módulos em 6 folhas mais Pastilhas Peltier, Eletroímãs e Válvulas Solenoide, Imãs de Neodímio e Painéis Solares, sensores em 13, mais a folha Shields para Embarcados, que só recebe 2ª categoria)
+- Módulos e Sensores (188, com Teclados Matriciais e as folhas Conversores DC-DC e Módulos BMS para Bateria, só de 2ª categoria: módulos em 6 folhas mais Pastilhas Peltier, Eletroímãs e Válvulas Solenoide, Imãs de Neodímio (Painéis Solares passou para Fontes e Conversores), sensores em 13, mais a folha Shields para Embarcados, que só recebe 2ª categoria)
 - Displays e Telas (36, em 4 folhas por tipo de tela: Telas Gráficas TFT, Displays LCD, Displays OLED, Displays e Matriz de LED)
 - Componentes Eletrônicos (232, com Displays 7 Segmentos (só 2ª categoria), Plugs e Conectores, Barras de Pinos, Espaçadores e Isoladores, Terminais e Acessórios e Suportes para PCB, mais a folha Caixas Plásticas e Organizadores só de 2ª categoria; Capacitores e Cristais Osciladores e Fusíveis e Filtros de Ferrite separados)
-- Fontes e Conversores (80, em 4 folhas: Fontes Chaveadas, Transformadores (reservada, sem produto), Conversores DC-DC, Baterias e Acessórios)
+- Fontes e Conversores (81, em 5 folhas: Fontes Chaveadas, Transformadores (reservada, sem produto), Conversores DC-DC, Baterias e Acessórios, Painéis Solares)
 - Fios e Cabos (54, em 4 folhas: Fios e Cabos Elétricos, Cabos USB, Cabos HDMI, Adaptadores para Cabos)
 - Automação Industrial (106, em 9 folhas: CLP, IHM, Chaves e Botoeiras, Sinalizadores, Controladores Industriais, Encoders, Componentes Elétricos, Sensores Industriais, Inversores de Frequência)
 - Motores (82, em 5 folhas: Motores de Passo, Easy Servo, Servo Drive, Motores DC, Drivers e Controladores)

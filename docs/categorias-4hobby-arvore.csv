@@ -13,24 +13,23 @@
 2;Módulos e Sensores;T_modulos;6;Módulos Relé e Acionamento;B_rele;propria;15;0;06 - Módulos Relé e Acionamento
 2;Módulos e Sensores;T_modulos;7;Conversores DC-DC;B_dcdc;segunda;0;11;07 - Conversores DC-DC
 2;Módulos e Sensores;T_modulos;8;Módulos BMS para Bateria;B_bms;segunda;0;6;08 - Módulos BMS para Bateria
-2;Módulos e Sensores;T_modulos;9;Teclados Matriciais;B_tecl;propria;4;0;09 - Teclados Matriciais
-2;Módulos e Sensores;T_modulos;10;Sensores de Temperatura e Umidade;C_temp;propria;14;0;10 - Sensores de Temperatura e Umidade
-2;Módulos e Sensores;T_modulos;11;Sensores de Distância e Proximidade;C_dist;propria;9;0;11 - Sensores de Distância e Proximidade
-2;Módulos e Sensores;T_modulos;12;Sensores de Corrente e Tensão;C_corr;propria;9;0;12 - Sensores de Corrente e Tensão
-2;Módulos e Sensores;T_modulos;13;Sensores de Gás e Chama;C_gas;propria;9;0;13 - Sensores de Gás e Chama
-2;Módulos e Sensores;T_modulos;14;Sensores de Luz e Cor;C_luz;propria;7;0;14 - Sensores de Luz e Cor
-2;Módulos e Sensores;T_modulos;15;Sensores de Movimento e Vibração;C_mov;propria;5;0;15 - Sensores de Movimento e Vibração
-2;Módulos e Sensores;T_modulos;16;Sensores Magnéticos Reed e Hall;C_mag;propria;5;0;16 - Sensores Magnéticos Reed e Hall
-2;Módulos e Sensores;T_modulos;17;Chaves Fim de Curso;C_fim;propria;7;0;17 - Chaves Fim de Curso
-2;Módulos e Sensores;T_modulos;18;Sensores de Fluxo de Água;C_fluxo;propria;5;0;18 - Sensores de Fluxo de Água
-2;Módulos e Sensores;T_modulos;19;Sensores de Nível de Água;C_nivel;propria;5;0;19 - Sensores de Nível de Água
-2;Módulos e Sensores;T_modulos;20;Sensores de Umidade do Solo e Chuva;C_solo;propria;5;0;20 - Sensores de Umidade do Solo e Chuva
-2;Módulos e Sensores;T_modulos;21;Células de Carga;C_carga;propria;7;0;21 - Células de Carga
-2;Módulos e Sensores;T_modulos;22;Transdutores Piezoelétricos;C_piezo;propria;5;0;22 - Transdutores Piezoelétricos
+2;Módulos e Sensores;T_modulos;9;Sensores de Temperatura e Umidade;C_temp;propria;14;0;09 - Sensores de Temperatura e Umidade
+2;Módulos e Sensores;T_modulos;10;Sensores de Distância e Proximidade;C_dist;propria;9;0;10 - Sensores de Distância e Proximidade
+2;Módulos e Sensores;T_modulos;11;Sensores de Corrente e Tensão;C_corr;propria;9;0;11 - Sensores de Corrente e Tensão
+2;Módulos e Sensores;T_modulos;12;Sensores de Gás e Chama;C_gas;propria;9;0;12 - Sensores de Gás e Chama
+2;Módulos e Sensores;T_modulos;13;Sensores de Luz e Cor;C_luz;propria;7;0;13 - Sensores de Luz e Cor
+2;Módulos e Sensores;T_modulos;14;Sensores de Movimento e Vibração;C_mov;propria;5;0;14 - Sensores de Movimento e Vibração
+2;Módulos e Sensores;T_modulos;15;Sensores Magnéticos Reed e Hall;C_mag;propria;5;0;15 - Sensores Magnéticos Reed e Hall
+2;Módulos e Sensores;T_modulos;16;Sensores de Fluxo de Água;C_fluxo;propria;5;0;16 - Sensores de Fluxo de Água
+2;Módulos e Sensores;T_modulos;17;Sensores de Nível de Água;C_nivel;propria;5;0;17 - Sensores de Nível de Água
+2;Módulos e Sensores;T_modulos;18;Sensores de Umidade do Solo e Chuva;C_solo;propria;5;0;18 - Sensores de Umidade do Solo e Chuva
+2;Módulos e Sensores;T_modulos;19;Células de Carga;C_carga;propria;7;0;19 - Células de Carga
+2;Módulos e Sensores;T_modulos;20;Transdutores Piezoelétricos;C_piezo;propria;5;0;20 - Transdutores Piezoelétricos
+2;Módulos e Sensores;T_modulos;21;Chaves Fim de Curso;C_fim;propria;7;0;21 - Chaves Fim de Curso
+2;Módulos e Sensores;T_modulos;22;Teclados Matriciais;B_tecl;propria;4;0;22 - Teclados Matriciais
 2;Módulos e Sensores;T_modulos;23;Eletroímãs e Válvulas Solenoide;B_ima;propria;8;0;23 - Eletroímãs e Válvulas Solenoide
 2;Módulos e Sensores;T_modulos;24;Pastilhas Peltier;B_pelt;propria;3;0;24 - Pastilhas Peltier
 2;Módulos e Sensores;T_modulos;25;Imãs de Neodímio;B_neod;propria;3;0;25 - Imãs de Neodímio
-2;Módulos e Sensores;T_modulos;26;Painéis Solares;B_solar;propria;1;0;26 - Painéis Solares
 3;Displays e Telas;T_displays;0;;;topo;0;0;03 - Displays e Telas
 3;Displays e Telas;T_displays;1;Telas Gráficas TFT;D_tft;propria;24;0;01 - Telas Gráficas TFT
 3;Displays e Telas;T_displays;2;Displays LCD;D_lcd;propria;5;0;02 - Displays LCD
@@ -63,6 +62,7 @@
 5;Fontes e Conversores;T_fontes;2;Transformadores;F_trafo;reservada;0;0;02 - Transformadores
 5;Fontes e Conversores;T_fontes;3;Conversores DC-DC;F_dcdc;propria;11;0;03 - Conversores DC-DC
 5;Fontes e Conversores;T_fontes;4;Baterias e Acessórios;F_bat;propria;47;0;04 - Baterias e Acessórios
+5;Fontes e Conversores;T_fontes;5;Painéis Solares;F_solar;propria;1;0;05 - Painéis Solares
 6;Fios e Cabos;T_cabos;0;;;topo;0;0;06 - Fios e Cabos
 6;Fios e Cabos;T_cabos;1;Fios e Cabos Elétricos;J_fio;propria;15;3;01 - Fios e Cabos Elétricos
 6;Fios e Cabos;T_cabos;2;Cabos USB;J_usb;propria;19;0;02 - Cabos USB

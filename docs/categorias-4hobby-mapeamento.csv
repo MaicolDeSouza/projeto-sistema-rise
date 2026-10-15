@@ -803,7 +803,7 @@
 220705;"Carregador bateria TP4056 para 18650 micro USB *220705";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";7.50;14
 220706;"Carregador bateria shield keyestudio *220706";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";;4
 220708;"LiitoKala Lii-M4S 18650";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";;3
-220801;"PLACA PAINEL CÉLULA SOLAR FOTOVOLTAICA 6V 1W 110X60MM";Módulos e Sensores;Painéis Solares;;B_solar;"";"5 - Acessórios";28.90;10
+220801;"PLACA PAINEL CÉLULA SOLAR FOTOVOLTAICA 6V 1W 110X60MM";Fontes e Conversores;Painéis Solares;;F_solar;"";"5 - Acessórios";28.90;10
 220901;"Fonte chaveada 7,5v 1A Plug P4 *220901";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"";22.00;0
 221001;"OBSOLETO-Fonte Chaveada 72V 13A entrada 220V *221001";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";475.20;0
 221101;"PLACA BMS 3S 10A 12,6V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"Módulos e Sensores > Módulos BMS para Bateria";"Baterias e Acessórios";16.00;17
