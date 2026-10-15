@@ -659,7 +659,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 910403 CHAVE DE PULSO TIPO PUSH BUTTON 12X12MM COM CAPA COLORIDA
 - 910409 Chave de pulso táctil SMD tipo Push Botton  5x5x1mm *910409
 
-### 13 - Plugs e Conectores (44)
+### 13 - Plugs e Conectores (46)
 
 - 900308 KIT CONECTOR 230 PEÇAS JST XH 2/3/4/5 VIAS + TERMINAIS
 - 900309 KIT CONECTOR 250 PEÇAS JST XH 6/7/8/9/10 VIAS + TERMINAIS
@@ -689,6 +689,8 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 900704 PLUG JACK P4 FEMEA SOLDAVEL PARA PAINEL
 - 900705 PLUG CONECTOR P4 5.5MM X 2.1MM BORDA METALICA
 - 900706_4h Plug conector jack P4 femea 5.5x2.1mm  para PCB *900706
+- 900707 conector plug para pino banana fêmea vermelho
+- 900708 conector plug para pino banana fêmea preto
 - 900901 CONECTOR BORNE 2 PINOS KF350 PASSO 3,5MM VERDE
 - 900902 CONECTOR BORNE 3 PINOS KF350 PASSO 3,5MM VERDE
 - 900903_z Conector KF301 KRE 5mm 2Pinos *900903
@@ -822,7 +824,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 200228 Modulo regulador tensão step up XL6009 com display
 - 220504_z Conversor de tensão 24V para 5V *220504
 
-### 04 - Baterias e Acessórios (40)
+### 04 - Baterias e Acessórios (41)
 
 - 100270 MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO
 - 100273 MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A
@@ -850,6 +852,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 229906 PLUG PARA BATERIA 9V TIPO CLIP
 - 229907 SUPORTE PARA BATERIA CR2025 2032 COM CHAVE E RABICHO
 - 229908 PLUG PARA BATERIA 9V TIPO CLIP rigido
+- 900801 CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO
 - 900905 Terminal femea sem trava para bateria *900905
 - 900906 Capa plástica branca para terminal femea sem trava para bateria *900906
 - 900907 NÍQUEL PARA SOLDAR BATERIAS 18650 0,1X5MM TIRA COM 100MM
@@ -1026,7 +1029,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 940403 SINALIZADOR LUMINOSO LED VERMELHO 24V 22MM PARA PAINEL
 - 940404 SINALIZADOR LUMINOSO LED AMARELO 24V 22MM PARA PAINEL
 
-### 09 - Componentes Elétricos (47)
+### 09 - Componentes Elétricos (44)
 
 - 900101 CONECTOR METALICO MIKE GX12 PLUG MACHO E FÊMEA 4 PINOS
 - 900106 CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 2 VIAS
@@ -1037,9 +1040,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 900112 PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 3 VIAS
 - 900113 CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 4 VIAS
 - 900114 CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 8 VIAS
-- 900707 conector plug para pino banana fêmea vermelho
-- 900708 conector plug para pino banana fêmea preto
-- 900801 CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO
 - 910203 TOMADA PAINEL COM CHAVE ILUMINADA E PORTA FUSÍVEL 10A
 - 910212 TOMADA PAINEL 250V 10A 3 PINOS MODELO C14
 - 940801_z Presilha Fixador de nylon 15x10mm para abraçadeiras *940801
@@ -1472,7 +1472,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 200502 MÓDULO CONVERSOR PWM PARA TENSÃO 0-10V MACH3
 - 200317 Gerador de pulso para motor de passo (2a, fica em Drivers e Controladores)
 
-### 13 - Motores de Passo e Servo Drive (24)
+### 13 - Motores e Drivers (37)
 
 - 100225 MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003 (2a, fica em Motores de Passo)
 - 120509 MOTOR DE PASSO NEMA 17 - 1.7A  4,2KGF 17HS4401 (2a, fica em Motores de Passo)
@@ -1492,15 +1492,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 120525 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF COM FREIO (2a, fica em Easy Servo)
 - 120526 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF (2a, fica em Easy Servo)
 - 120527 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF COM FREIO (2a, fica em Easy Servo)
-- 121024 SUPORTE EM ALUMINIO PARA POLIA PADRÃO OPENBUILDS (2a, fica em Motores de Passo)
-- 121053 SUPORTE PARA ALOJAMENTO DE MOTOR NEMA 17 E POLIA OPENBUILDS (2a, fica em Motores de Passo)
-- 121201_4h Suporte para Motor de passo NEMA17 Reto 2 furos *121201 (2a, fica em Motores de Passo)
-- 121202 Suporte Para Motor de Passo Nema23  90graus em L *121202 (2a, fica em Motores de Passo)
-- 121203_4h Suporte para Motor de passo NEMA17 Reto 6 furos *121203 (2a, fica em Motores de Passo)
-- 121205 SUPORTE EM L 90° PARA MOTOR DE PASSO NEMA 17 (2a, fica em Motores de Passo)
-
-### 14 - Drivers de Motor de Passo (13)
-
 - 120604 DRIVER MOTOR DE PASSO A4988 COM DISSIPADOR (2a, fica em Drivers e Controladores)
 - 120605 DRIVER MOTOR DE PASSO DRV8825 COM DISSIPADOR (2a, fica em Drivers e Controladores)
 - 120609 MODULO DE EXPANSÃO PARA DRIVER A4988 DRV8825 (2a, fica em Drivers e Controladores)
@@ -1514,8 +1505,14 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 120619 Drive para motor de passo TB6560*120619 (2a, fica em Drivers e Controladores)
 - 120620 Extensão drive externo *120620 (2a, fica em Drivers e Controladores)
 - 120621 Easy drive (2a, fica em Drivers e Controladores)
+- 121024 SUPORTE EM ALUMINIO PARA POLIA PADRÃO OPENBUILDS (2a, fica em Motores de Passo)
+- 121053 SUPORTE PARA ALOJAMENTO DE MOTOR NEMA 17 E POLIA OPENBUILDS (2a, fica em Motores de Passo)
+- 121201_4h Suporte para Motor de passo NEMA17 Reto 2 furos *121201 (2a, fica em Motores de Passo)
+- 121202 Suporte Para Motor de Passo Nema23  90graus em L *121202 (2a, fica em Motores de Passo)
+- 121203_4h Suporte para Motor de passo NEMA17 Reto 6 furos *121203 (2a, fica em Motores de Passo)
+- 121205 SUPORTE EM L 90° PARA MOTOR DE PASSO NEMA 17 (2a, fica em Motores de Passo)
 
-### 15 - Spindles (13)
+### 14 - Spindles (13)
 
 - 120404 MOTOR DC 775 150W 12-24V DC 20000RPM MINI SPINDLE
 - 120405 Motor spindle industrial 1.1HP refrigerado a ar com inversor *120405
@@ -1531,7 +1528,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 122403 Bomba da agua para spindle CO2 80W  3500l/h ipx8 220v *122403 (2a, fica em Motores DC)
 - 122408 Bomba da agua para spindle 25W 2500l/h 220V (2a, fica em Motores DC)
 
-### 16 - Fresas, Brocas e Pinças (24)
+### 15 - Fresas, Brocas e Pinças (24)
 
 - 120901 KIT COM 10 BROCAS 0,3 A 1,2MM PARA PCB
 - 120903 KIT COM 10 FRESAS RAIADAS 0.8 A 3.17MM HASTE 3.17MM
@@ -1558,7 +1555,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 120936_z Jogo 5pçs Pinça ER11 3,175mm, 4mm, 6mm, 6,35mm, 8mm *120936
 - 120937 KIT MINI MANDRIL PARA MOTOR 5 PINÇAS PARA BROCAS 0,3 A 3MM
 
-### 17 - Módulos Laser de Diodo (12)
+### 16 - Módulos Laser de Diodo (12)
 
 - 120213 Maquina laser 10w TTS-10
 - 121605 LASER SINALIZADOR VERMELHO FORMATO CRUZ 650NM 5MW
@@ -1573,7 +1570,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 600207 Conjunto frame em inox maquina gravadora Ciclope *600207
 - 600208 Conjunto peças impressas para maquina gravadora Ciclope350 *600208
 
-### 18 - Peças para Laser CO2 (19)
+### 17 - Peças para Laser CO2 (19)
 
 - 120108 Fonte para tubo laser co2 40w *120108
 - 120109_z FIO CABO ALTA TENSAO PARA LASER CO2 *120109
@@ -1595,7 +1592,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 120212 BOMBA DE AR COMPRESSOR PARA MAQUINA GRAVAÇÃO A LASER (2a, fica em Motores DC)
 - 122402 Bomba da agua para laser co2 p2430 25w 8,5l/min*122402 (2a, fica em Motores DC)
 
-### 19 - Mesas Aquecidas e Extrusoras (30)
+### 18 - Mesas Aquecidas e Extrusoras (30)
 
 - 121011 MODULO MOSFET PARA EXTRUSORA MESA AQUECIDA IMPRESSORA 3D
 - 180402 MESA AQUECIDA HEATBED 214X214X3MM MK3 COM CABOS
@@ -1628,7 +1625,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 180623 bico 0.4mm ender3
 - 180901 Kit com 4 Parafuso Mola Alinhamento Mesa Aquecida Impressora 3d *180901
 
-### 20 - Acessórios para Impressora 3D (12)
+### 19 - Acessórios para Impressora 3D (12)
 
 - 150905 IMPRESSORA 3D CREALITY ENDER3 MONTADA E CONFIGURADA
 - 180302 DISPLAY TELA LCD 128X64 RAMPS CONTROLE IMPRESSORA 3D
@@ -1643,7 +1640,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 960404 Inserto metálico para impressora 3D M4X5X5mm
 - 960405 Inserto metálico para impressora 3D M3X5X4mm
 
-### 21 - Softwares (4)
+### 20 - Softwares (4)
 
 - 999908 SOFTWARE LIGHTBURN LICENÇA ORIGINAL PARA LASER DE DIODO
 - 999911 SOFTWARE LIGHTBURN LICENÇA ORIGINAL PARA LASER DE FIBRA E CO2

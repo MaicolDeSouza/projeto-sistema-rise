@@ -33,7 +33,7 @@
 100222;"ADAPTADOR MÓDULO WIFI ESP8266 ESP-01 PARA PROTOBOARD";Placas Embarcadas;Placas ESP32;;A_esp;"";"2 - Módulos e shields";4.90;12
 100223;"ADAPTADOR USB PARA MÓDULO WIFI ESP8266 ESP-01";Placas Embarcadas;Placas ESP32;;A_esp;"";"2 - Módulos e shields";14.60;5
 100224;"PLACA BORNE INTERFACE PARA ARDUINO NANO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";19.20;18
-100225;"MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"2 - Módulos e shields";16.00;3
+100225;"MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"2 - Módulos e shields";16.00;3
 100229;"MODULO SENSOR DE TENSÃO AC 0 A 250VAC SAÍDA 0 A 5V ZMPT101B";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"2 - Módulos e shields";18.40;26
 100230;"MODULO 4 CANAIS COM OPTOACOPLADOR 3,6 A 30VDC";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";16.00;0
 100232;"MODULO RELÉ 5V 1 CANAL COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";15.40;5
@@ -254,38 +254,38 @@
 120415;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 20 Rpm";Motores;Motores DC;;G_dc;"";"";69.90;5
 120416;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 150 Rpm";Motores;Motores DC;;G_dc;"";"";90.00;5
 120417;"KIT SPINDLE MOTOR CNC 800W 20000RPM COM SUPORTE E FONTE";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";1190.00;2
-120509;"MOTOR DE PASSO NEMA 17 - 1.7A  4,2KGF 17HS4401";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";72.00;11
-120511_4h;"MOTOR DE PASSO  NEMA23 19KGF 2,1A CNC ROUTER *120511";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";319.00;0
-120512;"MOTOR DE PASSO NEMA34 90KGF 3A  CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";700.00;0
-120513;"MOTOR DE PASSO NEMA34 35KGF CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";579.00;2
-120514;"MOTOR DE PASSO NEMA34 120KGF DUPLO EIXO  *120514";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";697.00;3
-120515;"Motor de passo Nema17 4,2Kgf 0.9graus *120515";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";150.00;3
-120516;"MOTOR DE PASSO NEMA 23 - 2,8A 12,6KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";139.20;4
-120517;"MOTOR DE PASSO NEMA 23 - 3A 22KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";205.00;5
-120518;"MOTOR DE PASSO NEMA 34 - 2,8A 68KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";504.00;0
-120520;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 45KGF 6,0A";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";1120.00;1
-120521;"MOTOR DE PASSO NEMA 17 - 2A  5,9KGF 17hs8401";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;0
-120522;"Redutor planetário Nema34 4:1";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;2
-120523;"Servo motor AC 400w sem freio com drive";Motores;Servo Drive;;G_servoac;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;1
-120524;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;0
-120525;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF COM FREIO";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;0
-120526;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;0
-120527;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF COM FREIO";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;0
-120604;"DRIVER MOTOR DE PASSO A4988 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"Driver";12.80;71
-120605;"DRIVER MOTOR DE PASSO DRV8825 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"Driver";16.00;35
+120509;"MOTOR DE PASSO NEMA 17 - 1.7A  4,2KGF 17HS4401";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";72.00;11
+120511_4h;"MOTOR DE PASSO  NEMA23 19KGF 2,1A CNC ROUTER *120511";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";319.00;0
+120512;"MOTOR DE PASSO NEMA34 90KGF 3A  CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";700.00;0
+120513;"MOTOR DE PASSO NEMA34 35KGF CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";579.00;2
+120514;"MOTOR DE PASSO NEMA34 120KGF DUPLO EIXO  *120514";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";697.00;3
+120515;"Motor de passo Nema17 4,2Kgf 0.9graus *120515";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";150.00;3
+120516;"MOTOR DE PASSO NEMA 23 - 2,8A 12,6KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";139.20;4
+120517;"MOTOR DE PASSO NEMA 23 - 3A 22KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";205.00;5
+120518;"MOTOR DE PASSO NEMA 34 - 2,8A 68KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";504.00;0
+120520;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 45KGF 6,0A";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";1120.00;1
+120521;"MOTOR DE PASSO NEMA 17 - 2A  5,9KGF 17hs8401";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;0
+120522;"Redutor planetário Nema34 4:1";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;2
+120523;"Servo motor AC 400w sem freio com drive";Motores;Servo Drive;;G_servoac;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;1
+120524;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;0
+120525;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF COM FREIO";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;0
+120526;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;0
+120527;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF COM FREIO";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;0
+120604;"DRIVER MOTOR DE PASSO A4988 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"Driver";12.80;71
+120605;"DRIVER MOTOR DE PASSO DRV8825 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"Driver";16.00;35
 120607;"CONTROLADOR DE VELOCIDADE PARA MOTOR DC 6-90V 15A PWM";Motores;Drivers e Controladores;;G_drv;"";"Módulos";73.00;24
 120608;"CONTROLADOR PWM DE VELOCIDADE PARA MOTOR DC 10-50V 40A 2000W";Motores;Drivers e Controladores;;G_drv;"";"Módulos";127.00;8
-120609;"MODULO DE EXPANSÃO PARA DRIVER A4988 DRV8825";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"2 - Módulos e shields";16.00;10
-120610;"DRIVER SILENCIOSO MOTOR DE PASSO TMC2100 IMPRESSORA 3D";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"Driver";46.00;0
-120611;"MODULO DIODO PROTEÇÃO PARA DRIVER DRV8825 A4988 TMC2100";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"2 - Módulos e shields";23.00;27
-120614;"DRIVER PROFISSIONAL DM556 5,6A PARA MOTOR DE PASSO";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"Driver";143.00;0
-120615_z;"Drive TMC2130 *120615";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";63.00;5
-120616_z;"Drive TMC2208 *120616";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";48.30;5
-120617;"DRIVE DSP PARA MOTOR DE PASSO DM860H 7,2A COM COOLER *120617";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";525.00;6
-120618;"Drive TMC2209 *120618";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";49.90;3
-120619;"Drive para motor de passo TB6560*120619";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";81.90;6
-120620;"Extensão drive externo *120620";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";15.00;10
-120621;"Easy drive";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";1230.00;2
+120609;"MODULO DE EXPANSÃO PARA DRIVER A4988 DRV8825";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"2 - Módulos e shields";16.00;10
+120610;"DRIVER SILENCIOSO MOTOR DE PASSO TMC2100 IMPRESSORA 3D";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"Driver";46.00;0
+120611;"MODULO DIODO PROTEÇÃO PARA DRIVER DRV8825 A4988 TMC2100";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"2 - Módulos e shields";23.00;27
+120614;"DRIVER PROFISSIONAL DM556 5,6A PARA MOTOR DE PASSO";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"Driver";143.00;0
+120615_z;"Drive TMC2130 *120615";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";63.00;5
+120616_z;"Drive TMC2208 *120616";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";48.30;5
+120617;"DRIVE DSP PARA MOTOR DE PASSO DM860H 7,2A COM COOLER *120617";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";525.00;6
+120618;"Drive TMC2209 *120618";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";49.90;3
+120619;"Drive para motor de passo TB6560*120619";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";81.90;6
+120620;"Extensão drive externo *120620";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";15.00;10
+120621;"Easy drive";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";1230.00;2
 120701;"POLIA GT2 20 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";9.60;46
 120702;"POLIA GT2 40 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";19.20;22
 120703;"POLIA GT2 60 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";35.40;74
@@ -385,7 +385,7 @@
 121021;"MANCAL KP001 COM ROLAMENTO PARA EIXO 12MM";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";16.00;34
 121022;"SUPORTE PARA CASTANHA DE FUSO DE ESFERAS 16MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Mancais e Suportes";35.90;18
 121023;"CONJUNTO MANCAL BK12 BF12 PARA FUSO DE ESFERA";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";200.00;2
-121024;"SUPORTE EM ALUMINIO PARA POLIA PADRÃO OPENBUILDS";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Acessórios";40.00;1
+121024;"SUPORTE EM ALUMINIO PARA POLIA PADRÃO OPENBUILDS";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Acessórios";40.00;1
 121028;"ESTEIRA PORTA CABOS 75X25MM R100MM 1MT COM PONTEIRAS";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"Esteira Porta Cabos";334.90;5
 121030;"RELE ESTADO SOLIDO 40A SSR-40DD IN 3-32VDC OUT 5-60VDC";Automação Industrial;Controladores Industriais;;E_ctrl;"";"Geral";72.00;10
 121031;"NEBULIZADOR PULVERIZADOR PARA ROUTER TORNO FRESA CNC";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"Acessórios";84.00;3
@@ -407,7 +407,7 @@
 121050;"PORCA FINA M5 X 3MM PASSO 0,8MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";1.00;91
 121051;"SISTEMA ANTIFOLGA TR8 PASSO 2MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Acessórios";13.60;18
 121052;"SUPORTE PARA EIXO LINEAR 10MM SK10 MANCAL FIXO";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";10.30;39
-121053;"SUPORTE PARA ALOJAMENTO DE MOTOR NEMA 17 E POLIA OPENBUILDS";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Acessórios";51.20;1
+121053;"SUPORTE PARA ALOJAMENTO DE MOTOR NEMA 17 E POLIA OPENBUILDS";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Acessórios";51.20;1
 121054_z;"Acabamento plastico tampa preto para perfil 20x20 V-slot *121054";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";1.70;0
 121056;"CASTANHA TR8 ANTI FOLGA PASSO 2MM  PARA FUSO TRAPEZOIDAL 8MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";20.90;39
 121057;"Rele estado solido DC para AC 40A SSR-40DA  *121057";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";57.00;22
@@ -459,10 +459,10 @@
 121119;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6X6MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;19
 121120;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6X8MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;4
 121121;"ACOPLAMENTO FLEXÍVEL REFORÇADO 10X14MM D30L35";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";49.90;12
-121201_4h;"Suporte para Motor de passo NEMA17 Reto 2 furos *121201";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";15.00;24
-121202;"Suporte Para Motor de Passo Nema23  90graus em L *121202";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";39.90;53
-121203_4h;"Suporte para Motor de passo NEMA17 Reto 6 furos *121203";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";25.00;21
-121205;"SUPORTE EM L 90° PARA MOTOR DE PASSO NEMA 17";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Acessórios";30.00;0
+121201_4h;"Suporte para Motor de passo NEMA17 Reto 2 furos *121201";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";15.00;24
+121202;"Suporte Para Motor de Passo Nema23  90graus em L *121202";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";39.90;53
+121203_4h;"Suporte para Motor de passo NEMA17 Reto 6 furos *121203";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";25.00;21
+121205;"SUPORTE EM L 90° PARA MOTOR DE PASSO NEMA 17";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Acessórios";30.00;0
 121208;"ELETROÍMÃ SOLENÓIDE 24VDC 8KG";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"";64.00;10
 121209;"Kit com 100 Imã De Neodímio 5x1 Redondo Pequeno 5mm X 1mm N35";Módulos e Sensores;Imãs de Neodímio;;B_neod;"";"";42.00;0
 121210;"Imã De Neodímio Redondo 10x2mm N35";Módulos e Sensores;Imãs de Neodímio;;B_neod;"";"";;200
@@ -923,9 +923,9 @@
 900704;"PLUG JACK P4 FEMEA SOLDAVEL PARA PAINEL";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";2.50;44
 900705;"PLUG CONECTOR P4 5.5MM X 2.1MM BORDA METALICA";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.20;0
 900706_4h;"Plug conector jack P4 femea 5.5x2.1mm  para PCB *900706";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";2.00;39
-900707;"conector plug para pino banana fêmea vermelho";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";4.90;15
-900708;"conector plug para pino banana fêmea preto";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";4.90;15
-900801;"CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";5.50;221
+900707;"conector plug para pino banana fêmea vermelho";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";4.90;15
+900708;"conector plug para pino banana fêmea preto";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";4.90;15
+900801;"CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Conectores e Bornes";5.50;221
 900901;"CONECTOR BORNE 2 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.30;1200
 900902;"CONECTOR BORNE 3 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.50;470
 900903_z;"Conector KF301 KRE 5mm 2Pinos *900903";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";1.57;324
