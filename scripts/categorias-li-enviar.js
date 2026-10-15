@@ -280,7 +280,13 @@ for (const c of categoriasDoPlano) {
     // So `nome` (e `categoria_pai` na folha). Medido em 15/10/2026: `id_externo` no POST da 400 sem corpo,
     // e `descricao: ""`/`categoria_pai: null` explicitos tambem; so `{ nome }` respondeu 201 com o objeto criado.
     const corpo = { nome: c.nomeLimpo, ...(c.paiChave ? { categoria_pai: `/v1/categoria/${idsPorChave.get(c.paiChave)}` } : {}) };
-    const r = await cliente.post("/categoria", corpo);
+    let r = await cliente.post("/categoria", corpo);
+    // Nome igual a outro da loja (a LI recusa nome repetido): so a folha tem saida, criando ja com o numero
+    // (a URL sai com o numero, "1-nome"); topo repetido para e o dono decide o nome.
+    if (!r?.ok && c.paiChave && /J. existe uma categoria/i.test(JSON.stringify(r?.dados ?? ""))) {
+      console.log(`  "${c.nomeLimpo}" ja existe na loja com esse nome: criando como "${c.nomeNaLI}"`);
+      r = await cliente.post("/categoria", { ...corpo, nome: c.nomeNaLI });
+    }
     if (!r?.ok) throw new Error(`POST /categoria "${c.nomeLimpo}": ${textoDaRecusa(r)}`);
     if (!r.dados?.id) throw new Error(`POST /categoria "${c.nomeLimpo}" respondeu ${r.status} sem o id: ${JSON.stringify(r.dados)?.slice(0, 200)}`);
     existente = r.dados;
@@ -297,15 +303,50 @@ for (const c of categoriasDoPlano) {
 
   // `id_externo` NAO e gravavel pela API (POST e PUT com ele dao 400, medido em 15/10/2026): a categoria e
   // reconhecida pelo nome debaixo do mesmo pai (`acharExistente`). Falta so o numero no nome.
-  if (atual.nome === c.nomeNaLI) continue;
+  if (atual.nome !== c.nomeNaLI) {
+    cliente.exigirEscrita(skusDoTopo[0]);
+    // O PUT leva o que a LI devolveu, sem as chaves so de leitura e sem nulos/vazios (que deram 400 no POST).
+    const base = Object.fromEntries(Object.entries(semSoLeitura(atual)).filter(([, v]) => v !== null && v !== ""));
+    const r = await cliente.put(`/categoria/${id}`, { ...base, nome: c.nomeNaLI });
+    if (!r?.ok) throw new Error(`PUT /categoria/${id} (renomear para "${c.nomeNaLI}"): ${textoDaRecusa(r)}`);
+    const depois = await lerUm(`/categoria/${id}`);
+    console.log(`    agora: "${depois.nome}" | id_externo ${depois.id_externo ?? "(vazio)"} | url ${depois.url}`);
+    if (depois.nome !== c.nomeNaLI) throw new Error(`Categoria ${id} continua "${depois.nome}" depois do PUT (esperado "${c.nomeNaLI}"). Parando.`);
+  }
+  await preencherSeo(id, c);
+}
+
+// SEO da categoria (pedido do dono em 15/10/2026): so preenche o que esta VAZIO, nunca sobrescreve texto.
+// Sem numero de produtos no texto (ele envelheceria); titulo ate 70 e descricao ate 160 caracteres.
+function textosDeSeo(c) {
+  const topo = nomeDoTopoDe(c);
+  const cortar = (texto, max) => (texto.length <= max ? texto : `${texto.slice(0, max - 1).trimEnd()}…`);
+  if (!c.paiChave) {
+    return {
+      title: cortar(`${c.nomeLimpo} | 4hobby`, 70),
+      description: cortar(`${c.nomeLimpo} na 4hobby: veja as categorias, preços e estoque. Eletrônica, automação e CNC com envio para todo o Brasil.`, 160),
+    };
+  }
+  const longa = `Compre ${c.nomeLimpo} na 4hobby: veja preços, estoque e fotos em ${topo}. Eletrônica, automação e CNC com envio para todo o Brasil.`;
+  const curta = `Compre ${c.nomeLimpo} na 4hobby: veja preços, estoque e fotos em ${topo}. Envio para todo o Brasil.`;
+  const title = `${c.nomeLimpo} | ${topo} | 4hobby`;
+  return { title: title.length <= 70 ? title : cortar(`${c.nomeLimpo} | 4hobby`, 70), description: cortar(longa.length <= 160 ? longa : curta, 160) };
+}
+function nomeDoTopoDe(c) {
+  return c.paiChave ? precisa.get(c.paiChave)?.nomeLimpo ?? nomeDoTopo : c.nomeLimpo;
+}
+async function preencherSeo(id, c) {
+  const atual = await lerUm(`/categoria/${id}`);
+  const idSeo = idDaUri(atual.seo);
+  if (!idSeo) return;
+  const seo = await lerUm(`/seo/${idSeo}`);
+  const novo = textosDeSeo(c);
+  const corpo = { title: seo.title || novo.title, description: seo.description || novo.description };
+  if (corpo.title === (seo.title ?? "") && corpo.description === (seo.description ?? "")) return;
   cliente.exigirEscrita(skusDoTopo[0]);
-  // O PUT leva o que a LI devolveu, sem as chaves so de leitura e sem nulos/vazios (que deram 400 no POST).
-  const base = Object.fromEntries(Object.entries(semSoLeitura(atual)).filter(([, v]) => v !== null && v !== ""));
-  const r = await cliente.put(`/categoria/${id}`, { ...base, nome: c.nomeNaLI });
-  if (!r?.ok) throw new Error(`PUT /categoria/${id} (renomear para "${c.nomeNaLI}"): ${textoDaRecusa(r)}`);
-  const depois = await lerUm(`/categoria/${id}`);
-  console.log(`    agora: "${depois.nome}" | id_externo ${depois.id_externo ?? "(vazio)"} | url ${depois.url}`);
-  if (depois.nome !== c.nomeNaLI) throw new Error(`Categoria ${id} continua "${depois.nome}" depois do PUT (esperado "${c.nomeNaLI}"). Parando.`);
+  const r = await cliente.put(`/seo/${idSeo}`, corpo);
+  if (!r?.ok) throw new Error(`PUT /seo/${idSeo} (categoria ${id}): ${textoDaRecusa(r)}`);
+  console.log(`    SEO: "${corpo.title}"`);
 }
 
 // ---- produtos
