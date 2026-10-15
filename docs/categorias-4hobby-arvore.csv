@@ -5,15 +5,15 @@
 1;Placas Embarcadas;T_placas;3;Placas Raspberry Pi;A_rpi;propria;29;10;03 - Placas Raspberry Pi
 1;Placas Embarcadas;T_placas;4;Placas STM32;A_stm;propria;10;0;04 - Placas STM32
 2;Módulos e Sensores;T_modulos;0;;;topo;0;0;02 - Módulos e Sensores
-2;Módulos e Sensores;T_modulos;1;Módulos Relé e Acionamento;B_rele;propria;15;0;01 - Módulos Relé e Acionamento
+2;Módulos e Sensores;T_modulos;1;Shields para Embarcados;B_shield;segunda;0;20;01 - Shields para Embarcados
 2;Módulos e Sensores;T_modulos;2;Módulos Wireless e IoT;B_wifi;propria;24;0;02 - Módulos Wireless e IoT
-2;Módulos e Sensores;T_modulos;3;Conversores de Sinais;B_conv;propria;29;0;03 - Conversores de Sinais
-2;Módulos e Sensores;T_modulos;4;Conversores DC-DC;B_dcdc;segunda;0;11;04 - Conversores DC-DC
-2;Módulos e Sensores;T_modulos;5;Módulos BMS para Bateria;B_bms;segunda;0;6;05 - Módulos BMS para Bateria
-2;Módulos e Sensores;T_modulos;6;Shields para Embarcados;B_shield;segunda;0;20;06 - Shields para Embarcados
-2;Módulos e Sensores;T_modulos;7;Módulos RTC e Memória;B_rtc;propria;5;0;07 - Módulos RTC e Memória
-2;Módulos e Sensores;T_modulos;8;Teclados Matriciais;B_tecl;propria;4;0;08 - Teclados Matriciais
-2;Módulos e Sensores;T_modulos;9;Antenas e Acessórios;B_ant;propria;5;0;09 - Antenas e Acessórios
+2;Módulos e Sensores;T_modulos;3;Antenas e Acessórios;B_ant;propria;5;0;03 - Antenas e Acessórios
+2;Módulos e Sensores;T_modulos;4;Conversores de Sinais;B_conv;propria;29;0;04 - Conversores de Sinais
+2;Módulos e Sensores;T_modulos;5;Módulos RTC e Memória;B_rtc;propria;5;0;05 - Módulos RTC e Memória
+2;Módulos e Sensores;T_modulos;6;Módulos Relé e Acionamento;B_rele;propria;15;0;06 - Módulos Relé e Acionamento
+2;Módulos e Sensores;T_modulos;7;Conversores DC-DC;B_dcdc;segunda;0;11;07 - Conversores DC-DC
+2;Módulos e Sensores;T_modulos;8;Módulos BMS para Bateria;B_bms;segunda;0;6;08 - Módulos BMS para Bateria
+2;Módulos e Sensores;T_modulos;9;Teclados Matriciais;B_tecl;propria;4;0;09 - Teclados Matriciais
 2;Módulos e Sensores;T_modulos;10;Sensores de Temperatura e Umidade;C_temp;propria;14;0;10 - Sensores de Temperatura e Umidade
 2;Módulos e Sensores;T_modulos;11;Sensores de Distância e Proximidade;C_dist;propria;9;0;11 - Sensores de Distância e Proximidade
 2;Módulos e Sensores;T_modulos;12;Sensores de Corrente e Tensão;C_corr;propria;9;0;12 - Sensores de Corrente e Tensão
@@ -35,7 +35,7 @@
 3;Displays e Telas;T_displays;1;Telas Gráficas TFT;D_tft;propria;24;0;01 - Telas Gráficas TFT
 3;Displays e Telas;T_displays;2;Displays LCD;D_lcd;propria;5;0;02 - Displays LCD
 3;Displays e Telas;T_displays;3;Displays OLED;D_oled;propria;2;0;03 - Displays OLED
-3;Displays e Telas;T_displays;4;Displays 7 Segmentos e Matriz LED;D_7seg;propria;5;0;04 - Displays 7 Segmentos e Matriz LED
+3;Displays e Telas;T_displays;4;Displays e Matriz de LED;D_7seg;propria;5;0;04 - Displays e Matriz de LED
 4;Componentes Eletrônicos;T_componentes;0;;;topo;0;0;04 - Componentes Eletrônicos
 4;Componentes Eletrônicos;T_componentes;1;Resistores;I_res;propria;18;0;01 - Resistores
 4;Componentes Eletrônicos;T_componentes;2;Diodos;I_diodo;propria;10;0;02 - Diodos

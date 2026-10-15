@@ -27,15 +27,15 @@ Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases
 
 ### Módulos e Sensores (189)
 
-- Módulos Relé e Acionamento (15)
+- Shields para Embarcados (20 como 2ª categoria, nenhum próprio)
 - Módulos Wireless e IoT (24)
+- Antenas e Acessórios (5)
 - Conversores de Sinais (29)
+- Módulos RTC e Memória (5)
+- Módulos Relé e Acionamento (15)
 - Conversores DC-DC (11 como 2ª categoria, nenhum próprio)
 - Módulos BMS para Bateria (6 como 2ª categoria, nenhum próprio)
-- Shields para Embarcados (20 como 2ª categoria, nenhum próprio)
-- Módulos RTC e Memória (5)
 - Teclados Matriciais (4) ◂ pequena
-- Antenas e Acessórios (5)
 - Sensores de Temperatura e Umidade (14)
 - Sensores de Distância e Proximidade (9)
 - Sensores de Corrente e Tensão (9)
@@ -61,7 +61,7 @@ Módulos em seis folhas (decisão do dono em 14/10/2026: relé, conversores de s
 - Telas Gráficas TFT (24)
 - Displays LCD (5)
 - Displays OLED (2) ◂ pequena
-- Displays 7 Segmentos e Matriz LED (5)
+- Displays e Matriz de LED (5)
 
 Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica separada). Toda tela TFT é gráfica (painel LCD de matriz ativa, pixel a pixel), por isso o nome que ele pediu, "Telas Gráficas TFT", sem parênteses; a OLED também é gráfica, mas é outra tecnologia e fica na folha dela. Telas Gráficas TFT junta as 15 Nextion (Basic, Enhanced, Intelligent) com as expansões e o conector delas, as 3 telas de 7" para Raspberry Pi com o case da oficial (todas com Placas Raspberry Pi como 2ª categoria), a 3,5" touch ILI9488 e a 1,8" ST7735: são todas LCD TFT, a diferença é só a interface (serial, HDMI/DSI, SPI). Displays LCD são os alfanuméricos de caracteres (16x2 e 20x4), com o módulo I2C e o LCD shield; o dono preferiu o nome curto, mesmo com os títulos das Nextion e das TFT também dizendo "LCD".
 
@@ -191,7 +191,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - 5 cabos HDMI, micro HDMI e DP (930213, 930701, 930702_4h, 930703_4h, 930704_z) em Cabos HDMI e o hub OTG (930607_z) em Cabos USB: aparecem também em Placas Raspberry Pi.
 - 2 cabos de extensão combinados USB + HDMI para painel (930204, 930212): ficam em Cabos USB e aparecem também em Cabos HDMI.
 - 11 conversores DC-DC step up e step down (200201, 200202, 200205, 200206, 200207, 200224, 200225, 200226, 200227, 200228, 220504_z): ficam em Fontes e Conversores > Conversores DC-DC e aparecem também em **Módulos e Sensores > Conversores DC-DC**, folha que existe só para isso (pedido dele em 15/10/2026). As fontes chaveadas, as mini fontes Hi-Link e as baterias ficam só no topo Fontes e Conversores.
-- 4 displays de 7 segmentos (100307, 100308, 921701_z, 921702_z): ficam em Displays e Telas > Displays 7 Segmentos e Matriz LED e aparecem também em **Componentes Eletrônicos > Displays 7 Segmentos**, folha que existe só para isso (pedido dele em 15/10/2026: levar para Componentes e manter em Displays). A matriz de LED 8x8 MAX7219 (100309) ficou só em Displays e Telas; se ele quiser, entra também.
+- 4 displays de 7 segmentos (100307, 100308, 921701_z, 921702_z): ficam em Displays e Telas > Displays e Matriz de LED e aparecem também em **Componentes Eletrônicos > Displays 7 Segmentos**, folha que existe só para isso (pedido dele em 15/10/2026: levar para Componentes e manter em Displays). A matriz de LED 8x8 MAX7219 (100309) ficou só em Displays e Telas; se ele quiser, entra também.
 - 3 jumpers Dupont de 20 cm (930104 macho-fêmea, 930105 macho-macho, 930106 fêmea-fêmea): ficam em Ferramentas e Prototipagem > Jumpers e Garras Jacaré e aparecem também em **Fios e Cabos > Fios e Cabos Elétricos** (pedido dele em 15/10/2026: "também entram"). Os outros jumpers (kits de 65 e 140 peças, os de 10 cm estanhados) e a garra jacaré ficam só em Jumpers e Garras Jacaré; se ele quiser todos lá, é só dizer.
 - 6 placas e módulos BMS (220105, 221101, 221102, 221103, 221104, 221105): ficam em Fontes e Conversores > Baterias e Acessórios e aparecem também em **Módulos e Sensores > Módulos BMS para Bateria**, folha só para isso (pedido dele em 15/10/2026: "mas mantenha BMS de baterias também"). O módulo testador de capacidade para bateria de lítio (100270) não é BMS e ficou só em Baterias e Acessórios.
 - 14 caixas plásticas e organizadores: ficam em Ferramentas e Prototipagem > Caixas Plásticas e Organizadores e aparecem também em **Componentes Eletrônicos > Caixas Plásticas e Organizadores**, folha só para isso (pedido dele em 15/10/2026).
@@ -206,7 +206,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 
 - "Arduino, ESP32 e Embarcados" passou a **Placas Embarcadas**; os kits saíram dela. Depois, na mesma data, ela passou de 8 para **4 folhas, uma por família de placa** (Placas Arduino, Placas Espressif ESP32 e ESP8266, Placas STM32, Placas Raspberry Pi): Shields e Cases, Placas de Interface com Bornes e Gravadores e Programadores deixaram de ser folhas, cada produto foi para a placa a que serve, e os shields e interfaces ganharam a 2ª categoria em Módulos e Sensores. Único sem placa própria: o gravador PICkit3 (270201, para PIC, que não tem placa no catálogo) foi para Componentes Eletrônicos > Circuitos Integrados, junto do ATmega328P.
 - **Módulos e Sensores**: os 14 grupos de módulos viraram os 5 ditados por ele (Módulos Relé e Acionamento, Conversores de Sinais, Módulos Wireless e IoT, Antenas e Acessórios, Shields e Placas de Interface) mais Módulos RTC e Memória, que mantive por falta de lugar. Os 14 grupos de sensores não mudaram. Cartões micro SD e leitor USB foram para Placas Raspberry Pi (pedido dele); teclados matriciais para Chaves e Push Buttons, joystick para Potenciômetros e Trimpots, encoders KY-040/HW-040 para Encoders Incrementais e o TTP223 para Sensores Indutivos e Capacitivos; ethernet shields, data logger shield e joystick shield foram para Placas Arduino, e os HATs CAN e o gateway LoRa para Placas Raspberry Pi, todos com a 2ª categoria de shields.
-- **Displays e Telas** passou de 5 para 4 folhas, por tipo de tela: Telas Gráficas TFT (Nextion, telas de Raspberry, SPI; nome dele, "Telas Gráficas (TFT)", sem os parênteses), Displays LCD, Displays OLED e Displays 7 Segmentos e Matriz LED. Telas Nextion e Telas para Raspberry Pi deixaram de ser folhas.
+- **Displays e Telas** passou de 5 para 4 folhas, por tipo de tela: Telas Gráficas TFT (Nextion, telas de Raspberry, SPI; nome dele, "Telas Gráficas (TFT)", sem os parênteses), Displays LCD, Displays OLED e Displays e Matriz de LED. Telas Nextion e Telas para Raspberry Pi deixaram de ser folhas.
 - **Módulos** e **Sensores** viraram um topo, **Módulos e Sensores**.
 - **Conectores e Cabos** entrou em **Componentes Eletrônicos**; depois, na mesma data, ele separou de novo: os conectores de PCB (JST, Dupont, KRE/KF) viraram a folha **Conectores para PCB** e **Barras de Pinos** ficou, os dois em Componentes; cabos, conectores de painel (Mike, P4/P10, XLR/XT60/banana, DB/RJ45/HDMI), terminais e abraçadeiras foram para o topo novo **Cabos e Conectores**; jumpers, garras jacaré e termo retrátil foram para **Ferramentas e Prototipagem**.
 - **Automação Industrial** passou de 11 para 8 folhas ditadas por ele: CLP e Expansões, IHM, Chaves e Botoeiras (botoeiras 22mm + botões metálicos), Sinalizadores (folha nova), Controladores Industriais, Encoders, Elétrica e Acessórios (bornes, trilho DIN, quadros, ventiladores) e Sensores Industriais (os indutivos e capacitivos que estavam em Módulos e Sensores). Pastilhas Peltier foi para Módulos e Sensores; o sensor de toque TTP223, que não é industrial, ficou em Sensores de Distância e Proximidade.
@@ -245,6 +245,8 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Kits Educacionais** ficou com 2 folhas (15/10/2026): Chassis e Rodas para Robótica (6 produtos) juntou-se a Kits de Eletrônica e Robótica, que passa a ter 8.
 - **Lasers Sinalizadores**: nova folha em Componentes Eletrônicos (15/10/2026) com os 3 lasers sinalizadores vermelhos de 650 nm (cruz, linha e ponto: 121605, 121606, 121607), que saíram de CNC > Módulos Laser de Diodo (agora com 5). Ele disse "Laser Sinalizadores"; pus no plural, "Lasers Sinalizadores", que é o nome que o cliente digita.
 - **Termoretráteis de PVC para baterias** (940714 a 940719, "uso e consumo", fora do site) entraram em Fontes e Conversores > Baterias e Acessórios (15/10/2026). Ficam fora do site agora 8 itens: 6 "OBSOLETO-", o projeto especial e o produto de teste.
+- **Ordem do início de Módulos e Sensores** (15/10/2026, ditada por ele): Shields para Embarcados, Módulos Wireless e IoT, Antenas e Acessórios, Conversores de Sinais, Módulos RTC e Memória e Módulos Relé e Acionamento, nessa sequência; as demais (Conversores DC-DC, Módulos BMS, Teclados e os sensores) seguem na ordem que já tinham, depois dessas.
+- **Displays e Matriz de LED**: a folha de Displays e Telas antes chamada Displays 7 Segmentos e Matriz LED passa a se chamar Displays e Matriz de LED (15/10/2026). A folha só de 2ª categoria de Componentes continua Displays 7 Segmentos.
 
 ## Fusões aplicadas em 07/10/2026
 

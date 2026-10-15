@@ -80,9 +80,9 @@
 100303;"DISPLAY LCD 16X2 COM FUNDO AZUL";Displays e Telas;Displays LCD;;D_lcd;"";"3 - Telas e LCD";23.90;20
 100305;"TELA LCD NEXTION 5″ 800X480 BASIC IHM TOUCH";Displays e Telas;Telas Gráficas TFT;;D_tft;"";"3 - Telas e LCD";977.60;0
 100306;"TELA LCD NEXTION 7″ 800X480 BASIC IHM TOUCH";Displays e Telas;Telas Gráficas TFT;;D_tft;"";"3 - Telas e LCD";1075.00;0
-100307;"MODULO 74HC595 DISPLAY 7 SEGMENTOS 4 DÍGITOS";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"Componentes Eletrônicos > Displays 7 Segmentos";"2 - Módulos e shields";13.60;9
-100308;"MODULO TM1637 RELÓGIO DIGITAL DISPLAY 7 SEGMENTOS 4 DÍGITOS";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"Componentes Eletrônicos > Displays 7 Segmentos";"2 - Módulos e shields";9.80;20
-100309;"DISPLAY MATRIZ DE LED 8X8MM MAX7219 VERDE";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"";"2 - Módulos e shields";21.90;20
+100307;"MODULO 74HC595 DISPLAY 7 SEGMENTOS 4 DÍGITOS";Displays e Telas;Displays e Matriz de LED;;D_7seg;"Componentes Eletrônicos > Displays 7 Segmentos";"2 - Módulos e shields";13.60;9
+100308;"MODULO TM1637 RELÓGIO DIGITAL DISPLAY 7 SEGMENTOS 4 DÍGITOS";Displays e Telas;Displays e Matriz de LED;;D_7seg;"Componentes Eletrônicos > Displays 7 Segmentos";"2 - Módulos e shields";9.80;20
+100309;"DISPLAY MATRIZ DE LED 8X8MM MAX7219 VERDE";Displays e Telas;Displays e Matriz de LED;;D_7seg;"";"2 - Módulos e shields";21.90;20
 100310;"DISPLAY LCD OLED I2C 0.96POL 128X64PX AZUL AMARELO";Displays e Telas;Displays OLED;;D_oled;"";"3 - Telas e LCD";28.90;27
 100311;"TELA LCD NEXTION 4.3″ 480x272 BASIC IHM TOUCH";Displays e Telas;Telas Gráficas TFT;;D_tft;"";"3 - Telas e LCD";535.00;0
 100312;"TELA LCD NEXTION 7″ 800X480 ENHANCED IHM TOUCH";Displays e Telas;Telas Gráficas TFT;;D_tft;"";"3 - Telas e LCD";1290.00;0
@@ -1127,8 +1127,8 @@
 921302_z;"Agenda para guardar componentes SMD 20 paginas  *921302";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";83.00;5
 921401_z;"Kit Cristal oscilador 35 peças 7 valores *921401";Componentes Eletrônicos;Cristais Osciladores;;I_crist;"";"";42.30;4
 921501_4h;"Soquetes para circuitos integrados CI Kit com 66pçs *921501";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";43.00;4
-921701_z;"Display 7 segmentos Catodo Comum 0,56"" *921701";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"Componentes Eletrônicos > Displays 7 Segmentos";"";3.90;46
-921702_z;"Display 7 segmentos anodo Comum 0,56"" *921702";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"Componentes Eletrônicos > Displays 7 Segmentos";"";3.90;94
+921701_z;"Display 7 segmentos Catodo Comum 0,56"" *921701";Displays e Telas;Displays e Matriz de LED;;D_7seg;"Componentes Eletrônicos > Displays 7 Segmentos";"";3.90;46
+921702_z;"Display 7 segmentos anodo Comum 0,56"" *921702";Displays e Telas;Displays e Matriz de LED;;D_7seg;"Componentes Eletrônicos > Displays 7 Segmentos";"";3.90;94
 922001;"Optoacoplador PC817 SOP-4 SMD *922001";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";;100
 922002;"memoria eeprom 24lc512 *922002";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";;50
 922003;"memoria eeprom 24lc512 SMD *922003";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";;0
