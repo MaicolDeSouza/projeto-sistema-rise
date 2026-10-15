@@ -10,9 +10,9 @@ Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 fol
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **11 topos e 105 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (98 folhas com produto próprio, uma reservada sem produto (Transformadores) e seis só com produtos de 2ª categoria: Shields para Embarcados e Conversores DC-DC, em Módulos e Sensores, Displays 7 Segmentos e Caixas Plásticas e Organizadores, em Componentes Eletrônicos, e Motores de Passo e Servo Drive e Drivers de Motor de Passo, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+Resultado: **11 topos e 106 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (98 folhas com produto próprio, uma reservada sem produto (Transformadores) e sete só com produtos de 2ª categoria: Shields para Embarcados, Conversores DC-DC e Módulos BMS para Bateria, em Módulos e Sensores, Displays 7 Segmentos e Caixas Plásticas e Organizadores, em Componentes Eletrônicos, e Motores de Passo e Servo Drive e Drivers de Motor de Passo, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
 
-Com dois níveis e uma família por folha, Módulos e Sensores (25 folhas, contando as de 2ª categoria), CNC (19) e Componentes Eletrônicos (20) ficam com menu longo. É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
+Com dois níveis e uma família por folha, Módulos e Sensores (26 folhas, contando as de 2ª categoria), CNC (19) e Componentes Eletrônicos (20) ficam com menu longo. É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
 ## Árvore, com a quantidade de produtos de hoje
 
@@ -31,6 +31,7 @@ Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases
 - Módulos Wireless e IoT (24)
 - Conversores de Sinais (29)
 - Conversores DC-DC (11 como 2ª categoria, nenhum próprio)
+- Módulos BMS para Bateria (6 como 2ª categoria, nenhum próprio)
 - Shields para Embarcados (20 como 2ª categoria, nenhum próprio)
 - Módulos RTC e Memória (5)
 - Teclados Matriciais (4) ◂ pequena
@@ -192,6 +193,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - 11 conversores DC-DC step up e step down (200201, 200202, 200205, 200206, 200207, 200224, 200225, 200226, 200227, 200228, 220504_z): ficam em Fontes e Conversores > Conversores DC-DC e aparecem também em **Módulos e Sensores > Conversores DC-DC**, folha que existe só para isso (pedido dele em 15/10/2026). As fontes chaveadas, as mini fontes Hi-Link e as baterias ficam só no topo Fontes e Conversores.
 - 4 displays de 7 segmentos (100307, 100308, 921701_z, 921702_z): ficam em Displays e Telas > Displays 7 Segmentos e Matriz LED e aparecem também em **Componentes Eletrônicos > Displays 7 Segmentos**, folha que existe só para isso (pedido dele em 15/10/2026: levar para Componentes e manter em Displays). A matriz de LED 8x8 MAX7219 (100309) ficou só em Displays e Telas; se ele quiser, entra também.
 - 3 jumpers Dupont de 20 cm (930104 macho-fêmea, 930105 macho-macho, 930106 fêmea-fêmea): ficam em Ferramentas e Prototipagem > Jumpers e Garras Jacaré e aparecem também em **Fios e Cabos > Fios e Cabos Elétricos** (pedido dele em 15/10/2026: "também entram"). Os outros jumpers (kits de 65 e 140 peças, os de 10 cm estanhados) e a garra jacaré ficam só em Jumpers e Garras Jacaré; se ele quiser todos lá, é só dizer.
+- 6 placas e módulos BMS (220105, 221101, 221102, 221103, 221104, 221105): ficam em Fontes e Conversores > Baterias e Acessórios e aparecem também em **Módulos e Sensores > Módulos BMS para Bateria**, folha só para isso (pedido dele em 15/10/2026: "mas mantenha BMS de baterias também"). O módulo testador de capacidade para bateria de lítio (100270) não é BMS e ficou só em Baterias e Acessórios.
 - 14 caixas plásticas e organizadores: ficam em Ferramentas e Prototipagem > Caixas Plásticas e Organizadores e aparecem também em **Componentes Eletrônicos > Caixas Plásticas e Organizadores**, folha só para isso (pedido dele em 15/10/2026).
 - 24 motores de passo (com os suportes) e servo drives: ficam em Motores e aparecem também em **CNC > Motores de Passo e Servo Drive**, folha que existe só para isso.
 - 13 drivers de motor de passo (A4988, DRV8825, TMC2100/2130/2208/2209, DM556, DM860H, TB6560, Easy drive, extensão e proteção): ficam em Motores > Drivers e Controladores e aparecem também em **CNC > Drivers de Motor de Passo**, folha só para isso; o gerador de pulso para motor de passo (200317) aparece em CNC > Controladores CNC.
@@ -233,6 +235,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Suportes para PCI**: nova folha em Componentes Eletrônicos (15/10/2026) com os 7 suportes de placa para trilho DIN, que saíram de Automação Industrial > Elétrica e Acessórios.
 - **Fontes e Conversores virou topo** (15/10/2026), com Fontes Chaveadas, Transformadores (reservada: nenhum produto no catálogo), Conversores DC-DC e Baterias e Acessórios; saiu de Componentes Eletrônicos. A loja fica com 11 topos.
 - **Caixas Plásticas e Organizadores** continua em Ferramentas e Prototipagem e aparece também em Componentes Eletrônicos como 2ª categoria (15/10/2026; numa 1ª leitura eu a tinha movido); **3 jumpers de 20 cm** aparecem também em Fios e Cabos > Fios e Cabos Elétricos (2ª categoria).
+- **Módulos BMS para Bateria**: nova folha em Módulos e Sensores, só de 2ª categoria, com as 6 placas e módulos BMS, que continuam em Baterias e Acessórios (15/10/2026).
 
 ## Fusões aplicadas em 07/10/2026
 

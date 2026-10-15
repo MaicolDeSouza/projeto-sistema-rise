@@ -774,7 +774,7 @@
 210106;"Medidor De Tensão E Corrente 6x1 Ac 100a  80-260 Painel *210106";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";153.00;0
 210107;"MEDIDOR DE ENERGIA AC VOLTÍMETRO AMPERÍMETRO 260VAC 100A";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";89.00;0
 220101;"FONTE CHAVEADA 9V 1A BIVOLT PLUG P4 PARA ARDUINO";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";18.40;17
-220105;"Modulo BMS 7S 20A 24V";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";;5
+220105;"Modulo BMS 7S 20A 24V";Fontes e Conversores;Baterias e Acessórios;;F_bat;"Módulos e Sensores > Módulos BMS para Bateria";"";;5
 220203;"FONTE CHAVEADA 12V 5A RMS 60W BIVOLT ANDELI COM PLUG P4";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";48.00;8
 220204;"FONTE CHAVEADA 12V 6A RMS 72W BIVOLT ANDELI COM PLUG P4";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";55.00;12
 220205;"FONTE CHAVEADA 12V 10A RMS 120W BIVOLT ANDELI COM PLUG P4";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";93.00;13
@@ -806,11 +806,11 @@
 220801;"PLACA PAINEL CÉLULA SOLAR FOTOVOLTAICA 6V 1W 110X60MM";Módulos e Sensores;Painéis Solares;;B_solar;"";"5 - Acessórios";28.90;10
 220901;"Fonte chaveada 7,5v 1A Plug P4 *220901";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"";22.00;0
 221001;"OBSOLETO-Fonte Chaveada 72V 13A entrada 220V *221001";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";475.20;0
-221101;"PLACA BMS 3S 10A 12,6V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";16.00;17
-221102;"PLACA BMS 1S 10A 4,2V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";12.00;6
-221103;"PLACA BMS 2S 3A 8,4V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";10.00;2
-221104;"PLACA BMS 4S 40A 16,8V BALANCEAMENTO PROTEÇÃO BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";25.90;20
-221105;"PLACA BMS 3S 40A";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";40.00;10
+221101;"PLACA BMS 3S 10A 12,6V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"Módulos e Sensores > Módulos BMS para Bateria";"Baterias e Acessórios";16.00;17
+221102;"PLACA BMS 1S 10A 4,2V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"Módulos e Sensores > Módulos BMS para Bateria";"Baterias e Acessórios";12.00;6
+221103;"PLACA BMS 2S 3A 8,4V PROTEÇÃO PARA BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"Módulos e Sensores > Módulos BMS para Bateria";"Baterias e Acessórios";10.00;2
+221104;"PLACA BMS 4S 40A 16,8V BALANCEAMENTO PROTEÇÃO BATERIA LÍTIO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"Módulos e Sensores > Módulos BMS para Bateria";"Baterias e Acessórios";25.90;20
+221105;"PLACA BMS 3S 40A";Fontes e Conversores;Baterias e Acessórios;;F_bat;"Módulos e Sensores > Módulos BMS para Bateria";"";40.00;10
 229901;"CASE PARA BATERIA 9V COM CHAVE";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";5.60;22
 229902;"PLUG PARA BATERIA 9V TIPO CLIP COM CONECTOR P4 PARA ARDUINO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Conectores e Bornes";1.90;41
 229903;"Suporte pack duplo para 2 baterias 18650";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";1.50;59
