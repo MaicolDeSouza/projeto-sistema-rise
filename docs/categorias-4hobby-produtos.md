@@ -732,20 +732,20 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 
 ### 18 - Caixas Plásticas e Organizadores (14)
 
-- 960701_4h CAIXA ORGANIZADORA TRANSPARENTE GRANDE P/ ELETRÔNICA *960701
-- 960702_4h CAIXA ORGANIZADORA TRANSPARENTE MEDIA P/ ELETRÔNICA *960702
-- 960703 CAIXA PLASTICA 15 DIVISÓRIAS 17x10x2CM
-- 960704 CAIXA PLASTICA 24 DIVISÓRIAS 19*12.5*3.3CM
-- 960705 caixa plástica modelo PB-075
-- 960706 caixa plástica modelo PB-108 TE
-- 960707 caixa plástica modelo PB-112 TE
-- 960708 caixa plástica modelo PB-108
-- 960709 caixa plástica modelo PB-112
-- 960710 caixa plástica modelo PB-114
-- 960711 caixa plástica modelo PB-060
-- 960712 caixa plástica modelo PB-040
-- 960713 caixa plástica modelo PB-211
-- 960714 CAIXA PLASTICA organizadora
+- 960701_4h CAIXA ORGANIZADORA TRANSPARENTE GRANDE P/ ELETRÔNICA *960701 (2a, fica em Caixas Plásticas e Organizadores)
+- 960702_4h CAIXA ORGANIZADORA TRANSPARENTE MEDIA P/ ELETRÔNICA *960702 (2a, fica em Caixas Plásticas e Organizadores)
+- 960703 CAIXA PLASTICA 15 DIVISÓRIAS 17x10x2CM (2a, fica em Caixas Plásticas e Organizadores)
+- 960704 CAIXA PLASTICA 24 DIVISÓRIAS 19*12.5*3.3CM (2a, fica em Caixas Plásticas e Organizadores)
+- 960705 caixa plástica modelo PB-075 (2a, fica em Caixas Plásticas e Organizadores)
+- 960706 caixa plástica modelo PB-108 TE (2a, fica em Caixas Plásticas e Organizadores)
+- 960707 caixa plástica modelo PB-112 TE (2a, fica em Caixas Plásticas e Organizadores)
+- 960708 caixa plástica modelo PB-108 (2a, fica em Caixas Plásticas e Organizadores)
+- 960709 caixa plástica modelo PB-112 (2a, fica em Caixas Plásticas e Organizadores)
+- 960710 caixa plástica modelo PB-114 (2a, fica em Caixas Plásticas e Organizadores)
+- 960711 caixa plástica modelo PB-060 (2a, fica em Caixas Plásticas e Organizadores)
+- 960712 caixa plástica modelo PB-040 (2a, fica em Caixas Plásticas e Organizadores)
+- 960713 caixa plástica modelo PB-211 (2a, fica em Caixas Plásticas e Organizadores)
+- 960714 CAIXA PLASTICA organizadora (2a, fica em Caixas Plásticas e Organizadores)
 
 ### 19 - Fusíveis (1)
 
@@ -1690,7 +1690,24 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 941203 Fonte de bancada Regulável 32V 6A Unit utp1306 *941203
 - 951101 Multímetro Digital Yaxun yx-9205A+ *951101
 
-### 05 - Termo Retrátil (11)
+### 05 - Caixas Plásticas e Organizadores (14)
+
+- 960701_4h CAIXA ORGANIZADORA TRANSPARENTE GRANDE P/ ELETRÔNICA *960701
+- 960702_4h CAIXA ORGANIZADORA TRANSPARENTE MEDIA P/ ELETRÔNICA *960702
+- 960703 CAIXA PLASTICA 15 DIVISÓRIAS 17x10x2CM
+- 960704 CAIXA PLASTICA 24 DIVISÓRIAS 19*12.5*3.3CM
+- 960705 caixa plástica modelo PB-075
+- 960706 caixa plástica modelo PB-108 TE
+- 960707 caixa plástica modelo PB-112 TE
+- 960708 caixa plástica modelo PB-108
+- 960709 caixa plástica modelo PB-112
+- 960710 caixa plástica modelo PB-114
+- 960711 caixa plástica modelo PB-060
+- 960712 caixa plástica modelo PB-040
+- 960713 caixa plástica modelo PB-211
+- 960714 CAIXA PLASTICA organizadora
+
+### 06 - Termo Retrátil (11)
 
 - 940703 KIT TERMO RETRÁTIL COLORIDO 280 PEÇAS COM CASE
 - 940704 KIT TERMO RETRÁTIL COLORIDO 328PEÇAS DIVERSAS MEDIDAS

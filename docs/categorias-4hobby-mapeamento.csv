@@ -1256,20 +1256,20 @@
 960405;"Inserto metálico para impressora 3D M3X5X4mm";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";1.00;101
 960501;"Pezinho Pé Nivelador Base 40 *960501";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";9.00;2
 960601;"Dobradiça Plástica e metalica Forsetti *960601";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";15.00;2
-960701_4h;"CAIXA ORGANIZADORA TRANSPARENTE GRANDE P/ ELETRÔNICA *960701";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";29.90;0
-960702_4h;"CAIXA ORGANIZADORA TRANSPARENTE MEDIA P/ ELETRÔNICA *960702";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";20.00;1
-960703;"CAIXA PLASTICA 15 DIVISÓRIAS 17x10x2CM";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";;20
-960704;"CAIXA PLASTICA 24 DIVISÓRIAS 19*12.5*3.3CM";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";;20
-960705;"caixa plástica modelo PB-075";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";19.90;20
-960706;"caixa plástica modelo PB-108 TE";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";18.90;20
-960707;"caixa plástica modelo PB-112 TE";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";30.90;20
-960708;"caixa plástica modelo PB-108";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";17.90;20
-960709;"caixa plástica modelo PB-112";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";30.90;20
-960710;"caixa plástica modelo PB-114";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";39.90;20
-960711;"caixa plástica modelo PB-060";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";6.90;20
-960712;"caixa plástica modelo PB-040";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";3.90;20
-960713;"caixa plástica modelo PB-211";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";69.90;5
-960714;"CAIXA PLASTICA organizadora";Componentes Eletrônicos;Caixas Plásticas e Organizadores;;I_caixa;"";"";;30
+960701_4h;"CAIXA ORGANIZADORA TRANSPARENTE GRANDE P/ ELETRÔNICA *960701";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";29.90;0
+960702_4h;"CAIXA ORGANIZADORA TRANSPARENTE MEDIA P/ ELETRÔNICA *960702";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";20.00;1
+960703;"CAIXA PLASTICA 15 DIVISÓRIAS 17x10x2CM";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";;20
+960704;"CAIXA PLASTICA 24 DIVISÓRIAS 19*12.5*3.3CM";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";;20
+960705;"caixa plástica modelo PB-075";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";19.90;20
+960706;"caixa plástica modelo PB-108 TE";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";18.90;20
+960707;"caixa plástica modelo PB-112 TE";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";30.90;20
+960708;"caixa plástica modelo PB-108";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";17.90;20
+960709;"caixa plástica modelo PB-112";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";30.90;20
+960710;"caixa plástica modelo PB-114";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";39.90;20
+960711;"caixa plástica modelo PB-060";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";6.90;20
+960712;"caixa plástica modelo PB-040";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";3.90;20
+960713;"caixa plástica modelo PB-211";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";69.90;5
+960714;"CAIXA PLASTICA organizadora";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";;30
 960801;"Anel elástico DI 9mm para fuso de esfera 16mm *960801";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"";;5
 962438;"SENSOR TOQUE CAPACITIVO - TTP223B";Módulos e Sensores;Sensores de Distância e Proximidade;;C_dist;"";"";3.21;12
 969693;"MODULO SENSOR DE LUMINOSIDADE LDR";Módulos e Sensores;Sensores de Luz e Cor;;C_luz;"";"";8.50;3
