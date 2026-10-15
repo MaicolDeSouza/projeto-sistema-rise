@@ -8,9 +8,9 @@
 2;Módulos e Sensores;T_modulos;1;Shields para Embarcados;B_shield;segunda;0;20;01 - Shields para Embarcados
 2;Módulos e Sensores;T_modulos;2;Módulos Wireless e IoT;B_wifi;propria;24;0;02 - Módulos Wireless e IoT
 2;Módulos e Sensores;T_modulos;3;Antenas e Acessórios;B_ant;propria;5;0;03 - Antenas e Acessórios
-2;Módulos e Sensores;T_modulos;4;Conversores de Sinais;B_conv;propria;29;0;04 - Conversores de Sinais
-2;Módulos e Sensores;T_modulos;5;Módulos RTC e Memória;B_rtc;propria;5;0;05 - Módulos RTC e Memória
-2;Módulos e Sensores;T_modulos;6;Módulos Relé e Acionamento;B_rele;propria;15;0;06 - Módulos Relé e Acionamento
+2;Módulos e Sensores;T_modulos;4;Módulos RTC e Memória;B_rtc;propria;5;0;04 - Módulos RTC e Memória
+2;Módulos e Sensores;T_modulos;5;Módulos Relé e Acionamento;B_rele;propria;15;0;05 - Módulos Relé e Acionamento
+2;Módulos e Sensores;T_modulos;6;Conversores de Sinais;B_conv;propria;29;0;06 - Conversores de Sinais
 2;Módulos e Sensores;T_modulos;7;Conversores DC-DC;B_dcdc;segunda;0;11;07 - Conversores DC-DC
 2;Módulos e Sensores;T_modulos;8;Módulos BMS para Bateria;B_bms;segunda;0;6;08 - Módulos BMS para Bateria
 2;Módulos e Sensores;T_modulos;9;Sensores de Temperatura e Umidade;C_temp;propria;14;0;09 - Sensores de Temperatura e Umidade
@@ -44,8 +44,8 @@
 4;Componentes Eletrônicos;T_componentes;6;Reguladores de Tensão;I_reg;propria;5;0;06 - Reguladores de Tensão
 4;Componentes Eletrônicos;T_componentes;7;Potenciômetros e Trimpots;I_pot;propria;11;0;07 - Potenciômetros e Trimpots
 4;Componentes Eletrônicos;T_componentes;8;Cristais Osciladores;I_crist;propria;1;0;08 - Cristais Osciladores
-4;Componentes Eletrônicos;T_componentes;9;LEDs e Soquetes;I_led;propria;20;0;09 - LEDs e Soquetes
-4;Componentes Eletrônicos;T_componentes;10;Filtros de Ferrite;I_filt;propria;2;0;10 - Filtros de Ferrite
+4;Componentes Eletrônicos;T_componentes;9;Filtros de Ferrite;I_filt;propria;2;0;09 - Filtros de Ferrite
+4;Componentes Eletrônicos;T_componentes;10;LEDs e Soquetes;I_led;propria;20;0;10 - LEDs e Soquetes
 4;Componentes Eletrônicos;T_componentes;11;Displays 7 Segmentos;I_disp;segunda;0;4;11 - Displays 7 Segmentos
 4;Componentes Eletrônicos;T_componentes;12;Buzzers, Alto-falantes e Áudio;I_buzz;propria;7;0;12 - Buzzers, Alto-falantes e Áudio
 4;Componentes Eletrônicos;T_componentes;13;Barras de Pinos;I_barra;propria;15;0;13 - Barras de Pinos

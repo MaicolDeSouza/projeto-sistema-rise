@@ -30,9 +30,9 @@ Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases
 - Shields para Embarcados (20 como 2ª categoria, nenhum próprio)
 - Módulos Wireless e IoT (24)
 - Antenas e Acessórios (5)
-- Conversores de Sinais (29)
 - Módulos RTC e Memória (5)
 - Módulos Relé e Acionamento (15)
+- Conversores de Sinais (29)
 - Conversores DC-DC (11 como 2ª categoria, nenhum próprio)
 - Módulos BMS para Bateria (6 como 2ª categoria, nenhum próprio)
 - Sensores de Temperatura e Umidade (14)
@@ -74,8 +74,8 @@ Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica sep
 - Reguladores de Tensão (5)
 - Potenciômetros e Trimpots (11)
 - Cristais Osciladores (1) ◂ pequena
-- LEDs e Soquetes (20)
 - Filtros de Ferrite (2) ◂ pequena
+- LEDs e Soquetes (20)
 - Displays 7 Segmentos (4 como 2ª categoria, nenhum próprio)
 - Buzzers, Alto-falantes e Áudio (7)
 - Barras de Pinos (15)
@@ -245,14 +245,14 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Kits Educacionais** ficou com 2 folhas (15/10/2026): Chassis e Rodas para Robótica (6 produtos) juntou-se a Kits de Eletrônica e Robótica, que passa a ter 8.
 - **Lasers Sinalizadores**: nova folha em Componentes Eletrônicos (15/10/2026) com os 3 lasers sinalizadores vermelhos de 650 nm (cruz, linha e ponto: 121605, 121606, 121607), que saíram de CNC > Módulos Laser de Diodo (agora com 5). Ele disse "Laser Sinalizadores"; pus no plural, "Lasers Sinalizadores", que é o nome que o cliente digita.
 - **Termoretráteis de PVC para baterias** (940714 a 940719, "uso e consumo", fora do site) entraram em Fontes e Conversores > Baterias e Acessórios (15/10/2026). Ficam fora do site agora 8 itens: 6 "OBSOLETO-", o projeto especial e o produto de teste.
-- **Ordem do início de Módulos e Sensores** (15/10/2026, ditada por ele): Shields para Embarcados, Módulos Wireless e IoT, Antenas e Acessórios, Conversores de Sinais, Módulos RTC e Memória e Módulos Relé e Acionamento, nessa sequência; as demais (Conversores DC-DC, Módulos BMS, Teclados e os sensores) seguem na ordem que já tinham, depois dessas.
+- **Ordem do início de Módulos e Sensores** (15/10/2026, ditada por ele): Shields para Embarcados, Módulos Wireless e IoT, Antenas e Acessórios, Módulos RTC e Memória, Módulos Relé e Acionamento e Conversores de Sinais, nessa sequência; as demais (Conversores DC-DC, Módulos BMS, Teclados e os sensores) seguem na ordem que já tinham, depois dessas. Ele primeiro pediu "o item 7 fica abaixo do item 4" e, em seguida, "na verdade o item 4 vai ficar acima do item 7": li a correção como Conversores de Sinais descendo para ficar logo acima de Conversores DC-DC (o que desfaz o primeiro pedido).
 - **Displays e Matriz de LED**: a folha de Displays e Telas antes chamada Displays 7 Segmentos e Matriz LED passa a se chamar Displays e Matriz de LED (15/10/2026). A folha só de 2ª categoria de Componentes continua Displays 7 Segmentos.
 - **Ordem e nome em Componentes Eletrônicos** (15/10/2026, ditados por ele): Capacitores logo abaixo de Diodos; Barras de Pinos logo abaixo de Displays 7 Segmentos e Fusíveis logo abaixo de Barras de Pinos; Lasers Sinalizadores penúltimo e Caixas Plásticas e Organizadores último; e Suportes para PCI virou **Suportes para PCB** (plural, como as outras folhas; os títulos dos produtos dizem "suporte PCI").
 - **Ordem de Motores** (15/10/2026, ditada por ele): Motores de Passo, Easy Servo, Servo Drive, Motores DC e Drivers e Controladores.
 - **Ordem de CNC** (15/10/2026, ditada por ele): Parafusos, Porcas e Acessórios (era a 10) passa para logo acima de Máquinas (a 20), ficando 19; as outras mantêm a ordem.
 - **Ordem de Placas Embarcadas** (15/10/2026, ditada por ele, "1, 2, 4, 3"): Placas Arduino, Placas ESP32, Placas STM32 e Placas Raspberry Pi, nessa sequência (01 a 04). Numa 1ª leitura eu tinha deixado o Raspberry Pi em 03; ele corrigiu.
 - **Ajustes em Módulos e Sensores e Fontes** (15/10/2026, ditados por ele): Chaves Fim de Curso (era a 17) passa a logo abaixo de Transdutores Piezoelétricos (22) e Teclados Matriciais (era a 9) a logo acima de Eletroímãs e Válvulas Solenoide (23), as duas entre os Transdutores e os Eletroímãs, nessa sequência; **Painéis Solares** (a 26, com 1 produto, 220801) foi para o fim de Fontes e Conversores, como folha 05.
-- **Ajustes de ordem em Componentes Eletrônicos** (15/10/2026, ditados por ele): Buzzers, Alto-falantes e Áudio (era a 13) passa a logo abaixo de Displays 7 Segmentos (10) e Filtros de Ferrite (era a 19) a logo abaixo de LEDs e Soquetes (9); as demais seguem na ordem que tinham.
+- **Ajustes de ordem em Componentes Eletrônicos** (15/10/2026, ditados por ele): Buzzers, Alto-falantes e Áudio (era a 13) passa a logo abaixo de Displays 7 Segmentos (10) e Filtros de Ferrite (era a 19) a logo abaixo de LEDs e Soquetes (9); as demais seguem na ordem que tinham. Depois, no mesmo dia, ele pediu "o item 10 fica acima do item 9": Filtros de Ferrite passou a logo ACIMA de LEDs e Soquetes (09 Filtros de Ferrite, 10 LEDs e Soquetes).
 
 ## Fusões aplicadas em 07/10/2026
 
