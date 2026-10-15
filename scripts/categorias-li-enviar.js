@@ -162,7 +162,23 @@ for (const p of produtosRise.filter((x) => chavesDasFolhas.has(x.chave))) {
 // Ordem de criacao: topos antes das folhas, na ordem da arvore.
 const ordemDaArvore = new Map(arvore.map((l, i) => [l.tipo === "topo" ? l.chave_topo : l.chave, i]));
 const categoriasDoPlano = [...precisa.values()].sort((a, b) => ordemDaArvore.get(a.chave) - ordemDaArvore.get(b.chave));
-const jaExistentes = new Map(categoriasDaLI.filter((c) => c.id_externo).map((c) => [String(c.id_externo), c]));
+// Categoria que ja existe na loja: pelo id_externo (quando o PUT o gravou) ou pelo nome (limpo ou numerado)
+// debaixo do mesmo pai. Sem isso, rodar de novo depois de uma falha no meio criaria a mesma categoria duas vezes.
+function acharExistente(c, lista, idsPorChave = new Map()) {
+  const porExterno = lista.find((x) => String(x.id_externo ?? "") === c.chave);
+  if (porExterno) return porExterno;
+  const paiId = c.paiChave ? idsPorChave.get(c.paiChave) : null;
+  const paiLinha = c.paiChave ? precisa.get(c.paiChave) : null;
+  const nomesDoPai = paiLinha ? new Set([paiLinha.nomeLimpo, paiLinha.nomeNaLI]) : null;
+  const porId = new Map(lista.map((x) => [String(x.id), x]));
+  return lista.find((x) => {
+    if (x.nome !== c.nomeLimpo && x.nome !== c.nomeNaLI) return false;
+    const paiDeX = idDaUri(x.categoria_pai);
+    if (!c.paiChave) return !paiDeX;
+    if (paiId) return paiDeX === String(paiId);
+    return Boolean(paiDeX) && nomesDoPai.has(porId.get(paiDeX)?.nome);
+  }) ?? null;
+}
 
 // Categorias finais de cada produto (ids so existem depois de criar; aqui por chave)
 function chavesAlvo(item) {
@@ -178,8 +194,8 @@ function relatorio() {
   console.log(`\n=== Topo ${nomeDoTopo} (${chaveTopo}) | modo ${MODO} | 2ª categoria de outros topos: ${SEGUNDA ? "SIM" : "não"} | ${EXECUTAR ? "EXECUTAR" : "SIMULAÇÃO (nada será gravado)"} ===`);
   console.log(`\nCategorias a ter na LI (${categoriasDoPlano.length}):`);
   for (const c of categoriasDoPlano) {
-    const existe = jaExistentes.get(c.chave);
-    console.log(`  ${c.paiChave ? "   └ " : ""}${c.nomeNaLI}  [${c.chave}]  ${existe ? `JÁ EXISTE (id ${existe.id})` : "criar"}`);
+    const existe = acharExistente(c, categoriasDaLI);
+    console.log(`  ${c.paiChave ? "   └ " : ""}${c.nomeNaLI}  [${c.chave}]  ${existe ? `JÁ EXISTE (id ${existe.id}, nome "${existe.nome}", url ${existe.url})` : "criar"}`);
   }
   console.log(`\nProdutos do topo no Rise: ${skusDoTopo.length} | já na LI: ${produtosDoPlano.length} | NÃO estão na LI (ficam de fora): ${foraDaLI.length}`);
   if (foraDaLI.length) console.log(`  fora da LI: ${foraDaLI.map((p) => p.sku).join(", ")}`);
@@ -251,34 +267,40 @@ conferirTrava();
 // ---- categorias
 const idsPorChave = new Map();
 console.log("\n--- Categorias ---");
+const categoriasAgora = [...categoriasDaLI];
 for (const c of categoriasDoPlano) {
-  let existente = jaExistentes.get(c.chave);
+  let existente = acharExistente(c, categoriasAgora, idsPorChave);
   if (!existente) {
     cliente.exigirEscrita(skusDoTopo[0]);
-    // Sem chave nula nem vazia: a 1ª tentativa (descricao "" e categoria_pai null explicitos) deu 400 sem corpo.
-    const corpo = { nome: c.nomeLimpo, id_externo: c.chave, ...(c.paiChave ? { categoria_pai: uriDaCategoria(idsPorChave.get(c.paiChave)) } : {}) };
+    // So `nome` (e `categoria_pai` na folha). Medido em 15/10/2026: `id_externo` no POST da 400 sem corpo,
+    // e `descricao: ""`/`categoria_pai: null` explicitos tambem; so `{ nome }` respondeu 201 com o objeto criado.
+    const corpo = { nome: c.nomeLimpo, ...(c.paiChave ? { categoria_pai: `/v1/categoria/${idsPorChave.get(c.paiChave)}` } : {}) };
     const r = await cliente.post("/categoria", corpo);
     if (!r?.ok) throw new Error(`POST /categoria "${c.nomeLimpo}": ${textoDaRecusa(r)}`);
-    console.log(`  criada "${c.nomeLimpo}" -> resposta: ${JSON.stringify(r.dados)?.slice(0, 200) ?? "(sem corpo)"}`);
-    existente = (r.dados && (r.dados.id || r.dados.resource_uri)) ? r.dados : null;
-    if (!existente?.id && !existente?.resource_uri) {
-      const lista = await todos("/categoria");
-      existente = lista.find((x) => String(x.id_externo) === c.chave);
-    }
-    if (!existente) throw new Error(`Não achei a categoria "${c.nomeLimpo}" depois de criar (id_externo ${c.chave}).`);
+    if (!r.dados?.id) throw new Error(`POST /categoria "${c.nomeLimpo}" respondeu ${r.status} sem o id: ${JSON.stringify(r.dados)?.slice(0, 200)}`);
+    existente = r.dados;
+    categoriasAgora.push(existente);
+    console.log(`  criada "${c.nomeLimpo}" -> id ${existente.id} | url ${existente.url} | pai ${existente.categoria_pai ?? "(topo)"}`);
   }
-  const id = String(existente.id ?? idDaUri(existente.resource_uri));
+  const id = String(existente.id);
   idsPorChave.set(c.chave, id);
   const atual = await lerUm(`/categoria/${id}`);
-  console.log(`  ${c.chave}: id ${id} | nome "${atual.nome}" | url ${atual.url}`);
-  if (atual.nome !== c.nomeNaLI) {
-    cliente.exigirEscrita(skusDoTopo[0]);
-    const corpoDoPut = Object.fromEntries(Object.entries({ ...semSoLeitura(atual), nome: c.nomeNaLI }).filter(([, v]) => v !== null && v !== ""));
-    const r = await cliente.put(`/categoria/${id}`, corpoDoPut);
-    if (!r?.ok) throw new Error(`PUT /categoria/${id} (renomear para "${c.nomeNaLI}"): ${textoDaRecusa(r)}`);
-    const depois = await lerUm(`/categoria/${id}`);
-    console.log(`    renomeada -> "${depois.nome}" | url ${depois.url}`);
-  }
+  const paiEsperado = c.paiChave ? String(idsPorChave.get(c.paiChave)) : null;
+  const paiLido = idDaUri(atual.categoria_pai);
+  if ((paiLido ?? null) !== paiEsperado) throw new Error(`Categoria ${id} ("${atual.nome}") esta debaixo de ${paiLido ?? "(topo)"}, esperado ${paiEsperado ?? "(topo)"}. Parando.`);
+  console.log(`  ${c.chave}: id ${id} | nome "${atual.nome}" | id_externo ${atual.id_externo ?? "(vazio)"} | url ${atual.url}`);
+
+  // `id_externo` NAO e gravavel pela API (POST e PUT com ele dao 400, medido em 15/10/2026): a categoria e
+  // reconhecida pelo nome debaixo do mesmo pai (`acharExistente`). Falta so o numero no nome.
+  if (atual.nome === c.nomeNaLI) continue;
+  cliente.exigirEscrita(skusDoTopo[0]);
+  // O PUT leva o que a LI devolveu, sem as chaves so de leitura e sem nulos/vazios (que deram 400 no POST).
+  const base = Object.fromEntries(Object.entries(semSoLeitura(atual)).filter(([, v]) => v !== null && v !== ""));
+  const r = await cliente.put(`/categoria/${id}`, { ...base, nome: c.nomeNaLI });
+  if (!r?.ok) throw new Error(`PUT /categoria/${id} (renomear para "${c.nomeNaLI}"): ${textoDaRecusa(r)}`);
+  const depois = await lerUm(`/categoria/${id}`);
+  console.log(`    agora: "${depois.nome}" | id_externo ${depois.id_externo ?? "(vazio)"} | url ${depois.url}`);
+  if (depois.nome !== c.nomeNaLI) throw new Error(`Categoria ${id} continua "${depois.nome}" depois do PUT (esperado "${c.nomeNaLI}"). Parando.`);
 }
 
 // ---- produtos
