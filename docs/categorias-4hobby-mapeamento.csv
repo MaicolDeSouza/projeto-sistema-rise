@@ -203,7 +203,7 @@
 120210;"ROLAMENTO 608ZZ BLINDADO ABEC1 8X22X7MM";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Polias e Roldanas";2.00;71
 120211;"PILLOW BLOCK FECHADO 10MM SC10UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";39.60;10
 120212;"BOMBA DE AR COMPRESSOR PARA MAQUINA GRAVAÇÃO A LASER";Motores;Motores DC;;G_dc;"CNC, Laser e Impressão 3D > Peças para Laser CO2";"Acessórios";722.00;1
-120213;"Maquina laser 10w TTS-10";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";;1
+120213;"Maquina laser 10w TTS-10";CNC, Laser e Impressão 3D;Máquinas;;H_maq;"";"";;1
 120224;"ROLAMENTO LINEAR 10MM LM10UU";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";7.90;21
 120225;"ROLAMENTO LINEAR LMK12UU COM FLANGE QUADRADA PARA EIXO 12MM";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";30.40;32
 120226;"ROLAMENTO LINEAR LMK8UU COM FLANGE QUADRADA PARA EIXO 8MM";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";17.50;1
@@ -502,7 +502,7 @@
 121803;"MINI BOMBA DA ÁGUA SUBMERSA 110/220VAC BIVOLT 3L/MIN";Motores;Motores DC;;G_dc;"";"Mini Bomba Água/Ar";65.00;1
 121804;"MINI BOMBA DE ÁGUA SUBMERSÍVEL 5V";Motores;Motores DC;;G_dc;"";"";;10
 121805;"MINI BOMBA DE AR VACUO 12V 0,4 a 1,2 l/min 370 saida frontal";Motores;Motores DC;;G_dc;"";"";49.00;16
-122002;"MAQUINA GRAVADORA DE CUIA ROTATIVA COM LASER DE 10W";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"Equipamentos";5390.00;0
+122002;"MAQUINA GRAVADORA DE CUIA ROTATIVA COM LASER DE 10W";CNC, Laser e Impressão 3D;Máquinas;;H_maq;"";"Equipamentos";5390.00;0
 122004;"ATUADOR LINEAR 800MM SLIDER AUTOMÁTICO EM ALUMÍNIO";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";4132.00;3
 122005;"ATUADOR LINEAR 300MM SLIDER MANUAL EM ALUMINIO";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";697.00;5
 122101;"Perfil de aluminio V-slot 20x60 *122101";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";;0
@@ -863,8 +863,8 @@
 600204;"Parafuso com corpo usinado 8mm rosca M6 50mm *600204";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;10
 600205;"Parafuso com corpo usinado 8mm rosca M6 45mm *600205";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;7
 600206;"Parafuso com corpo usinado 8mm rosca M6 40mm *600206";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;10
-600207;"Conjunto frame em inox maquina gravadora Ciclope *600207";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";300.00;0
-600208;"Conjunto peças impressas para maquina gravadora Ciclope350 *600208";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";100.00;0
+600207;"Conjunto frame em inox maquina gravadora Ciclope *600207";CNC, Laser e Impressão 3D;Máquinas;;H_maq;"";"";300.00;0
+600208;"Conjunto peças impressas para maquina gravadora Ciclope350 *600208";CNC, Laser e Impressão 3D;Máquinas;;H_maq;"";"";100.00;0
 600210;"Mola 13x40mm *600210";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";5.00;0
 600214;"Parafuso com manopla de aperto m5x12";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;38
 632581;"TERMINAL OLHAL FURO 6 - PRÉ-ISOLADO PVC - VM CABO 0,50 A 1,50MM";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"";0.60;1

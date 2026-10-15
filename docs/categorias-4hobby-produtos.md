@@ -1555,9 +1555,8 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 120936_z Jogo 5pçs Pinça ER11 3,175mm, 4mm, 6mm, 6,35mm, 8mm *120936
 - 120937 KIT MINI MANDRIL PARA MOTOR 5 PINÇAS PARA BROCAS 0,3 A 3MM
 
-### 16 - Módulos Laser de Diodo (12)
+### 16 - Módulos Laser de Diodo (8)
 
-- 120213 Maquina laser 10w TTS-10
 - 121605 LASER SINALIZADOR VERMELHO FORMATO CRUZ 650NM 5MW
 - 121606 LASER SINALIZADOR VERMELHO FORMATO LINHA 650NM 5MW
 - 121607 LASER SINALIZADOR VERMELHO FORMATO PONTO 650NM 5MW
@@ -1565,10 +1564,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 121610 Laser 4hobby 5W *121610
 - 121612 Laser de gravação 5W
 - 121613 Laser de gravação 10W
-- 122002 MAQUINA GRAVADORA DE CUIA ROTATIVA COM LASER DE 10W
 - 201203 Suporte do Laser em Alumino *201203*
-- 600207 Conjunto frame em inox maquina gravadora Ciclope *600207
-- 600208 Conjunto peças impressas para maquina gravadora Ciclope350 *600208
 
 ### 17 - Peças para Laser CO2 (19)
 
@@ -1640,7 +1636,14 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 960404 Inserto metálico para impressora 3D M4X5X5mm
 - 960405 Inserto metálico para impressora 3D M3X5X4mm
 
-### 20 - Softwares (4)
+### 20 - Máquinas (4)
+
+- 120213 Maquina laser 10w TTS-10
+- 122002 MAQUINA GRAVADORA DE CUIA ROTATIVA COM LASER DE 10W
+- 600207 Conjunto frame em inox maquina gravadora Ciclope *600207
+- 600208 Conjunto peças impressas para maquina gravadora Ciclope350 *600208
+
+### 21 - Softwares (4)
 
 - 999908 SOFTWARE LIGHTBURN LICENÇA ORIGINAL PARA LASER DE DIODO
 - 999911 SOFTWARE LIGHTBURN LICENÇA ORIGINAL PARA LASER DE FIBRA E CO2

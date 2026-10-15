@@ -99,11 +99,12 @@
 9;CNC, Laser e Impressão 3D;T_cnc;13;Motores e Drivers;H_motdrv;segunda;0;37;13 - Motores e Drivers
 9;CNC, Laser e Impressão 3D;T_cnc;14;Spindles;H_spindle;propria;11;2;14 - Spindles
 9;CNC, Laser e Impressão 3D;T_cnc;15;Fresas, Brocas e Pinças;H_fresa;propria;24;0;15 - Fresas, Brocas e Pinças
-9;CNC, Laser e Impressão 3D;T_cnc;16;Módulos Laser de Diodo;H_laser;propria;12;0;16 - Módulos Laser de Diodo
+9;CNC, Laser e Impressão 3D;T_cnc;16;Módulos Laser de Diodo;H_laser;propria;8;0;16 - Módulos Laser de Diodo
 9;CNC, Laser e Impressão 3D;T_cnc;17;Peças para Laser CO2;H_co2;propria;17;2;17 - Peças para Laser CO2
 9;CNC, Laser e Impressão 3D;T_cnc;18;Mesas Aquecidas e Extrusoras;H_mesa;propria;30;0;18 - Mesas Aquecidas e Extrusoras
 9;CNC, Laser e Impressão 3D;T_cnc;19;Acessórios para Impressora 3D;H_acess3d;propria;12;0;19 - Acessórios para Impressora 3D
-9;CNC, Laser e Impressão 3D;T_cnc;20;Softwares;H_soft;propria;4;0;20 - Softwares
+9;CNC, Laser e Impressão 3D;T_cnc;20;Máquinas;H_maq;propria;4;0;20 - Máquinas
+9;CNC, Laser e Impressão 3D;T_cnc;21;Softwares;H_soft;propria;4;0;21 - Softwares
 10;Ferramentas e Prototipagem;T_ferramentas;0;;;topo;0;0;10 - Ferramentas e Prototipagem
 10;Ferramentas e Prototipagem;T_ferramentas;1;Protoboards e Placas Fenolite;K_proto;propria;8;0;01 - Protoboards e Placas Fenolite
 10;Ferramentas e Prototipagem;T_ferramentas;2;Jumpers e Garras Jacaré;K_jump;propria;7;0;02 - Jumpers e Garras Jacaré

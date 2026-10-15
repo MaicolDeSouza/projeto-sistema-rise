@@ -10,7 +10,7 @@ Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 fol
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **11 topos e 105 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (98 folhas com produto próprio, uma reservada sem produto (Transformadores) e seis só com produtos de 2ª categoria: Shields para Embarcados, Conversores DC-DC e Módulos BMS para Bateria, em Módulos e Sensores, Displays 7 Segmentos e Caixas Plásticas e Organizadores, em Componentes Eletrônicos, e Motores e Drivers, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+Resultado: **11 topos e 106 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (99 folhas com produto próprio, uma reservada sem produto (Transformadores) e seis só com produtos de 2ª categoria: Shields para Embarcados, Conversores DC-DC e Módulos BMS para Bateria, em Módulos e Sensores, Displays 7 Segmentos e Caixas Plásticas e Organizadores, em Componentes Eletrônicos, e Motores e Drivers, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
 
 Com dois níveis e uma família por folha, Módulos e Sensores (26 folhas, contando as de 2ª categoria), CNC (19) e Componentes Eletrônicos (20) ficam com menu longo. É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
@@ -149,10 +149,11 @@ Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motor
 - Motores e Drivers (37 como 2ª categoria, nenhum próprio)
 - Spindles (11)
 - Fresas, Brocas e Pinças (24)
-- Módulos Laser de Diodo (12)
+- Módulos Laser de Diodo (8)
 - Peças para Laser CO2 (17)
 - Mesas Aquecidas e Extrusoras (30)
 - Acessórios para Impressora 3D (12)
+- Máquinas (4) ◂ pequena
 - Softwares (4) ◂ pequena
 
 Dezenove folhas ditadas pelo dono em 14/10/2026. Parafusos, Porcas e Acessórios veio de Ferramentas e Prototipagem a pedido dele ("avaliar qual é melhor": manoplas de aperto, parafusos usinados, allen, buchas, pé nivelador e dobradiça são ferragem de máquina, não de bancada) e recebeu as porcas excêntricas, a porca fina OpenBuilds, os espaçadores de alumínio e as arruelas de precisão; as porcas martelo foram para Perfis de Alumínio e Acessórios, junto dos perfis, cantoneiras, acabamentos e batentes. Correias e Polias e Roldanas perderam as siglas do nome (GT2, HTD, V-Slot), como ele pediu. Motores de Passo e Servo Drive e Drivers de Motor de Passo existem só como 2ª categoria (os produtos moram em Motores): foi a resposta ao "motores e drivers também devem fazer parte de CNC"; concordei para motores de passo, servo drives e drivers de passo, que são de quem monta CNC e impressora 3D, e não para ponte H, PWM e motores DC, que ficam só em Motores. O gerador de pulso para motor de passo aparece em Controladores CNC (nome novo de Placas Controladoras CNC). A folha de motores não se chama só "Motores" para a URL não bater com a do topo Motores. Fusos e Castanhas junta fusos de esferas, trapezoidais e castanhas/antifolga ("não separar esfera e trapezoidal"); Eixos e Guias Lineares junta eixos, guias MGN e os dois atuadores lineares; Mancais e Suportes de Eixo junta mancais KP/KFL e suportes SK/SHF; Perfis de Alumínio e Acessórios junta perfis V-Slot, cantoneiras, acabamentos, batentes e porcas martelo; Mesas Aquecidas e Extrusoras junta mesas, hotends, bicos e extrusoras. Suportes de Motor de Passo foi para Motores. **Máquinas e Equipamentos deixou de ser folha** ("saem"): as duas máquinas laser e os dois conjuntos da gravadora Ciclope foram para Módulos Laser de Diodo, os atuadores lineares para Eixos e Guias Lineares, a Ender3 montada para Acessórios para Impressora 3D e o conjunto pick-and-place para Ferramentas e Solda; se "saem" queria dizer "fora do site", é só marcar NÃO PUBLICAR. **Softwares ficou sem os serviços**: os 4 serviços (programação para embarcados e para CLP/IHM, configuração de LightBurn e de Mach3) ficam publicados **sem categoria** (marcados SEM CATEGORIA no CSV), acháveis pela busca e não pelo menu; se ele quiser uma folha Serviços, falta dizer em qual topo.
@@ -240,6 +241,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Conectores virou Plugs e Conectores** (15/10/2026), em Componentes Eletrônicos, já que a folha também leva os plugs jack P4. A URL nova (/plugs-e-conectores) deixa de colidir com a /conectores do site atual.
 - **Elétrica e Acessórios virou Componentes Elétricos** (15/10/2026), em Automação Industrial, com 47 produtos (bornes, trilho DIN, quadros, ventiladores, tomadas de painel, abraçadeiras e o resto). O nome é parecido com o do topo Componentes Eletrônicos (elétricos x eletrônicos), mas as URLs são diferentes.
 - **Motores e Drivers** (CNC, 15/10/2026): as duas folhas de 2ª categoria (Motores de Passo e Servo Drive, 24 produtos, e Drivers de Motor de Passo, 13) viraram uma só, Motores e Drivers, com 37 produtos; os produtos continuam em Motores. A loja fica com 105 folhas.
+- **Máquinas** voltou como folha em CNC (15/10/2026), com as 4 gravadoras laser que estavam em Módulos Laser de Diodo: a máquina laser 10W TTS-10 (120213), a gravadora de cuia rotativa 10W (122002) e os dois conjuntos da gravadora Ciclope, frame em inox e peças impressas (600207, 600208). Módulos Laser de Diodo ficou só com os módulos e acessórios de laser (8). A Ender3 montada (150905), o pick-and-place (121701) e os atuadores lineares seguem onde estão; se ele quiser, entram em Máquinas também.
 
 ## Fusões aplicadas em 07/10/2026
 
