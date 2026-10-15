@@ -24,7 +24,7 @@
 100210;"MODULO LEITOR DE CARTÃO MICRO SD";Módulos e Sensores;Módulos RTC e Memória;;B_rtc;"";"2 - Módulos e shields";7.40;96
 100211;"DATA LOGGER SHIELD COM RTC DS1307 PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";28.80;20
 100212;"MÓDULO GPS UBLOX NEO-6M GY-GPS6MV2 COM ANTENA CERÂMICA";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";46.90;12
-100215;"MODULO CNC SHIELD V3 PARA ARDUINO";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"2 - Módulos e shields";28.80;28
+100215;"MODULO CNC SHIELD V3 PARA ARDUINO";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"2 - Módulos e shields";28.80;28
 100216;"MOTOR SHIELD L293 DRIVER PONTE H PARA ARDUINO";Motores;Drivers e Controladores;;G_drv;"";"2 - Módulos e shields";27.70;30
 100218;"MÓDULO RELÉ 1 CANAL 5V 10A";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";7.20;3
 100219;"MÓDULO RELÉ ESTADO SÓLIDO SSR 1CANAL 5V 2A";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";14.40;38
@@ -33,7 +33,7 @@
 100222;"ADAPTADOR MÓDULO WIFI ESP8266 ESP-01 PARA PROTOBOARD";Placas Embarcadas;Placas ESP32;;A_esp;"";"2 - Módulos e shields";4.90;12
 100223;"ADAPTADOR USB PARA MÓDULO WIFI ESP8266 ESP-01";Placas Embarcadas;Placas ESP32;;A_esp;"";"2 - Módulos e shields";14.60;5
 100224;"PLACA BORNE INTERFACE PARA ARDUINO NANO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";19.20;18
-100225;"MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003";Motores;Motores de Passo;;G_passo;"";"2 - Módulos e shields";16.00;3
+100225;"MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"2 - Módulos e shields";16.00;3
 100229;"MODULO SENSOR DE TENSÃO AC 0 A 250VAC SAÍDA 0 A 5V ZMPT101B";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"2 - Módulos e shields";18.40;26
 100230;"MODULO 4 CANAIS COM OPTOACOPLADOR 3,6 A 30VDC";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";16.00;0
 100232;"MODULO RELÉ 5V 1 CANAL COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";15.40;5
@@ -61,7 +61,7 @@
 100260;"MÓDULO AMPLIFICADOR  MAX31865 PT100";Módulos e Sensores;Sensores de Temperatura e Umidade;;C_temp;"";"";;10
 100261;"SIMULADOR DE CARGA RESISTIVA USB 15W 3A";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";55.00;5
 100263;"RELÉ TEMPORIZADOR DIGITAL AJUSTÁVEL XY-J02";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"Módulos";49.00;3
-100264_z;"CNC Shield V4 keyesStudio*100264";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"";87.00;5
+100264_z;"CNC Shield V4 keyesStudio*100264";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"";87.00;5
 100265;"MÓDULO OPTOACOPLADOR  ISOLADOR 4 CANAIS 3,3 A 30VDC";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";48.00;34
 100266;"MÓDULO SENSOR DETECTOR DE CHAMA DE FOGO";Módulos e Sensores;Sensores de Gás e Chama;;C_gas;"";"2 - Módulos e shields";8.00;27
 100267;"MÓDULO SENSOR DE VIBRAÇÃO SW-420";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"2 - Módulos e shields";10.00;20
@@ -167,11 +167,11 @@
 111030;"MICROFONE USB PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";55.00;0
 111031;"Case para tela LCD 7 pol Oficial Raspberry Pi4 preto";Displays e Telas;Telas Gráficas TFT;;D_tft;"Placas Embarcadas > Placas Raspberry Pi";"";179.90;0
 111032;"ADAPTADOR VÍDEO WAVLINK MULTI DISPLAY USB PARA HDMI VGA DVI";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"";418.00;1
-120101;"INTERFACE CONTROLADORA USB PARA CNC 4EIXOS COM CABO + MACH3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"Placas de controle";439.00;2
-120102;"INTERFACE CONTROLADORA PARA CNC 5 EIXOS COM CABO + MACH3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"Placas de controle";58.90;0
-120103;"Interface controladora USB Cnc 4 Eixos + Cabo + Mach3 RNR ecomotion";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"";219.90;7
-120105;"PLACA MKS DLC PARA CNC ROUTER LASER GRBL COM CABO USB";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"Placas de controle";270.00;1
-120107;"Interface controladora laser CO2 RDC6445G *120107";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"";;0
+120101;"INTERFACE CONTROLADORA USB PARA CNC 4EIXOS COM CABO + MACH3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";439.00;2
+120102;"INTERFACE CONTROLADORA PARA CNC 5 EIXOS COM CABO + MACH3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";58.90;0
+120103;"Interface controladora USB Cnc 4 Eixos + Cabo + Mach3 RNR ecomotion";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"";219.90;7
+120105;"PLACA MKS DLC PARA CNC ROUTER LASER GRBL COM CABO USB";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";270.00;1
+120107;"Interface controladora laser CO2 RDC6445G *120107";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"";;0
 120108;"Fonte para tubo laser co2 40w *120108";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";887.00;0
 120109_z;"FIO CABO ALTA TENSAO PARA LASER CO2 *120109";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";40.00;0
 120110;"Conector para cabo alta tensao sado em laser co2*120110";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";65.00;1
@@ -190,7 +190,7 @@
 120127;"Suporte para tubo de laser CO2(par)";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";245.00;1
 120128;"Mangueira flexível para camera";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;2
 120129;"Kit redução 60 dentes motor Nema23 para laser CO2";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"";;1
-120130;"Interface controladora USB Cnc 5 Eixos + Cabo + Mach3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"";230.00;2
+120130;"Interface controladora USB Cnc 5 Eixos + Cabo + Mach3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"";230.00;2
 120201;"PILLOW BLOCK FECHADO 16MM SC16UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";35.90;16
 120202;"PILLOW BLOCK ABERTO 16MM SBR16UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";35.20;13
 120203;"PILLOW BLOCK ABERTO 20MM SBR20UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";43.20;29
@@ -254,38 +254,38 @@
 120415;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 20 Rpm";Motores;Motores DC;;G_dc;"";"";69.90;5
 120416;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 150 Rpm";Motores;Motores DC;;G_dc;"";"";90.00;5
 120417;"KIT SPINDLE MOTOR CNC 800W 20000RPM COM SUPORTE E FONTE";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";1190.00;2
-120509;"MOTOR DE PASSO NEMA 17 - 1.7A  4,2KGF 17HS4401";Motores;Motores de Passo;;G_passo;"";"Motor de passo";72.00;11
-120511_4h;"MOTOR DE PASSO  NEMA23 19KGF 2,1A CNC ROUTER *120511";Motores;Motores de Passo;;G_passo;"";"";319.00;0
-120512;"MOTOR DE PASSO NEMA34 90KGF 3A  CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"";"";700.00;0
-120513;"MOTOR DE PASSO NEMA34 35KGF CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"";"Motor de passo";579.00;2
-120514;"MOTOR DE PASSO NEMA34 120KGF DUPLO EIXO  *120514";Motores;Motores de Passo;;G_passo;"";"";697.00;3
-120515;"Motor de passo Nema17 4,2Kgf 0.9graus *120515";Motores;Motores de Passo;;G_passo;"";"";150.00;3
-120516;"MOTOR DE PASSO NEMA 23 - 2,8A 12,6KGF";Motores;Motores de Passo;;G_passo;"";"Motor de passo";139.20;4
-120517;"MOTOR DE PASSO NEMA 23 - 3A 22KGF";Motores;Motores de Passo;;G_passo;"";"Motor de passo";205.00;5
-120518;"MOTOR DE PASSO NEMA 34 - 2,8A 68KGF";Motores;Motores de Passo;;G_passo;"";"Motor de passo";504.00;0
-120520;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 45KGF 6,0A";Motores;Servo Drive;;G_easy;"";"Motor de passo";1120.00;1
-120521;"MOTOR DE PASSO NEMA 17 - 2A  5,9KGF 17hs8401";Motores;Motores de Passo;;G_passo;"";"";;0
-120522;"Redutor planetário Nema34 4:1";Motores;Motores de Passo;;G_passo;"";"";;2
-120523;"Servo motor AC 400w sem freio com drive";Motores;Servo Drive;;G_easy;"";"";;1
-120524;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF";Motores;Servo Drive;;G_easy;"";"";;0
-120525;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF COM FREIO";Motores;Servo Drive;;G_easy;"";"";;0
-120526;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF";Motores;Servo Drive;;G_easy;"";"";;0
-120527;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF COM FREIO";Motores;Servo Drive;;G_easy;"";"";;0
-120604;"DRIVER MOTOR DE PASSO A4988 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"";"Driver";12.80;71
-120605;"DRIVER MOTOR DE PASSO DRV8825 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"";"Driver";16.00;35
+120509;"MOTOR DE PASSO NEMA 17 - 1.7A  4,2KGF 17HS4401";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";72.00;11
+120511_4h;"MOTOR DE PASSO  NEMA23 19KGF 2,1A CNC ROUTER *120511";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";319.00;0
+120512;"MOTOR DE PASSO NEMA34 90KGF 3A  CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";700.00;0
+120513;"MOTOR DE PASSO NEMA34 35KGF CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";579.00;2
+120514;"MOTOR DE PASSO NEMA34 120KGF DUPLO EIXO  *120514";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";697.00;3
+120515;"Motor de passo Nema17 4,2Kgf 0.9graus *120515";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";150.00;3
+120516;"MOTOR DE PASSO NEMA 23 - 2,8A 12,6KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";139.20;4
+120517;"MOTOR DE PASSO NEMA 23 - 3A 22KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";205.00;5
+120518;"MOTOR DE PASSO NEMA 34 - 2,8A 68KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";504.00;0
+120520;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 45KGF 6,0A";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Motor de passo";1120.00;1
+120521;"MOTOR DE PASSO NEMA 17 - 2A  5,9KGF 17hs8401";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;0
+120522;"Redutor planetário Nema34 4:1";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;2
+120523;"Servo motor AC 400w sem freio com drive";Motores;Servo Drive;;G_servoac;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;1
+120524;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;0
+120525;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF COM FREIO";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;0
+120526;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;0
+120527;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF COM FREIO";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";;0
+120604;"DRIVER MOTOR DE PASSO A4988 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"Driver";12.80;71
+120605;"DRIVER MOTOR DE PASSO DRV8825 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"Driver";16.00;35
 120607;"CONTROLADOR DE VELOCIDADE PARA MOTOR DC 6-90V 15A PWM";Motores;Drivers e Controladores;;G_drv;"";"Módulos";73.00;24
 120608;"CONTROLADOR PWM DE VELOCIDADE PARA MOTOR DC 10-50V 40A 2000W";Motores;Drivers e Controladores;;G_drv;"";"Módulos";127.00;8
-120609;"MODULO DE EXPANSÃO PARA DRIVER A4988 DRV8825";Motores;Drivers e Controladores;;G_drv;"";"2 - Módulos e shields";16.00;10
-120610;"DRIVER SILENCIOSO MOTOR DE PASSO TMC2100 IMPRESSORA 3D";Motores;Drivers e Controladores;;G_drv;"";"Driver";46.00;0
-120611;"MODULO DIODO PROTEÇÃO PARA DRIVER DRV8825 A4988 TMC2100";Motores;Drivers e Controladores;;G_drv;"";"2 - Módulos e shields";23.00;27
-120614;"DRIVER PROFISSIONAL DM556 5,6A PARA MOTOR DE PASSO";Motores;Drivers e Controladores;;G_drv;"";"Driver";143.00;0
-120615_z;"Drive TMC2130 *120615";Motores;Drivers e Controladores;;G_drv;"";"";63.00;5
-120616_z;"Drive TMC2208 *120616";Motores;Drivers e Controladores;;G_drv;"";"";48.30;5
-120617;"DRIVE DSP PARA MOTOR DE PASSO DM860H 7,2A COM COOLER *120617";Motores;Drivers e Controladores;;G_drv;"";"";525.00;6
-120618;"Drive TMC2209 *120618";Motores;Drivers e Controladores;;G_drv;"";"";49.90;3
-120619;"Drive para motor de passo TB6560*120619";Motores;Drivers e Controladores;;G_drv;"";"";81.90;6
-120620;"Extensão drive externo *120620";Motores;Drivers e Controladores;;G_drv;"";"";15.00;10
-120621;"Easy drive";Motores;Drivers e Controladores;;G_drv;"";"";1230.00;2
+120609;"MODULO DE EXPANSÃO PARA DRIVER A4988 DRV8825";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"2 - Módulos e shields";16.00;10
+120610;"DRIVER SILENCIOSO MOTOR DE PASSO TMC2100 IMPRESSORA 3D";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"Driver";46.00;0
+120611;"MODULO DIODO PROTEÇÃO PARA DRIVER DRV8825 A4988 TMC2100";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"2 - Módulos e shields";23.00;27
+120614;"DRIVER PROFISSIONAL DM556 5,6A PARA MOTOR DE PASSO";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"Driver";143.00;0
+120615_z;"Drive TMC2130 *120615";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";63.00;5
+120616_z;"Drive TMC2208 *120616";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";48.30;5
+120617;"DRIVE DSP PARA MOTOR DE PASSO DM860H 7,2A COM COOLER *120617";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";525.00;6
+120618;"Drive TMC2209 *120618";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";49.90;3
+120619;"Drive para motor de passo TB6560*120619";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";81.90;6
+120620;"Extensão drive externo *120620";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";15.00;10
+120621;"Easy drive";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Drivers de Motor de Passo";"";1230.00;2
 120701;"POLIA GT2 20 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";9.60;46
 120702;"POLIA GT2 40 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";19.20;22
 120703;"POLIA GT2 60 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";35.40;74
@@ -369,8 +369,8 @@
 121005;"MANCAL KFL08 COM ROLAMENTO PARA EIXO 8MM";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";17.60;24
 121006;"CASTANHA TR8 ANTI FOLGA PASSO 8MM  PARA FUSO TRAPEZOIDAL 8MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";20.90;18
 121007;"BLOCO DE ALUMÍNIO PARA CASTANHA TRAPEZOIDAL TR8";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Acessórios";39.50;5
-121008;"SENSOR PROBE ZERAMENTO EIXO Z PARA CNC ROUTER";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"Geral";29.90;0
-121009;"CABO PARALELO DB25 PORTA LPT MACHO FÊMEA MACH3 CNC 1,5MT";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"Cabos";52.90;8
+121008;"SENSOR PROBE ZERAMENTO EIXO Z PARA CNC ROUTER";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Geral";29.90;0
+121009;"CABO PARALELO DB25 PORTA LPT MACHO FÊMEA MACH3 CNC 1,5MT";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Cabos";52.90;8
 121010;"TENSOR MOLA ESTICADORA PARA CORREIA GT2 LARGURA 6MM";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"Acessórios";1.20;207
 121011;"MODULO MOSFET PARA EXTRUSORA MESA AQUECIDA IMPRESSORA 3D";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"2 - Módulos e shields";50.00;14
 121012;"FIXADOR EMENDA PARA CORREIA GT2";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"Acessórios";4.60;37
@@ -385,7 +385,7 @@
 121021;"MANCAL KP001 COM ROLAMENTO PARA EIXO 12MM";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";16.00;34
 121022;"SUPORTE PARA CASTANHA DE FUSO DE ESFERAS 16MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Mancais e Suportes";35.90;18
 121023;"CONJUNTO MANCAL BK12 BF12 PARA FUSO DE ESFERA";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";200.00;2
-121024;"SUPORTE EM ALUMINIO PARA POLIA PADRÃO OPENBUILDS";Motores;Motores de Passo;;G_passo;"";"Acessórios";40.00;1
+121024;"SUPORTE EM ALUMINIO PARA POLIA PADRÃO OPENBUILDS";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Acessórios";40.00;1
 121028;"ESTEIRA PORTA CABOS 75X25MM R100MM 1MT COM PONTEIRAS";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"Esteira Porta Cabos";334.90;5
 121030;"RELE ESTADO SOLIDO 40A SSR-40DD IN 3-32VDC OUT 5-60VDC";Automação Industrial;Controladores Industriais;;E_ctrl;"";"Geral";72.00;10
 121031;"NEBULIZADOR PULVERIZADOR PARA ROUTER TORNO FRESA CNC";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"Acessórios";84.00;3
@@ -407,7 +407,7 @@
 121050;"PORCA FINA M5 X 3MM PASSO 0,8MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";1.00;91
 121051;"SISTEMA ANTIFOLGA TR8 PASSO 2MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Acessórios";13.60;18
 121052;"SUPORTE PARA EIXO LINEAR 10MM SK10 MANCAL FIXO";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";10.30;39
-121053;"SUPORTE PARA ALOJAMENTO DE MOTOR NEMA 17 E POLIA OPENBUILDS";Motores;Motores de Passo;;G_passo;"";"Acessórios";51.20;1
+121053;"SUPORTE PARA ALOJAMENTO DE MOTOR NEMA 17 E POLIA OPENBUILDS";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Acessórios";51.20;1
 121054_z;"Acabamento plastico tampa preto para perfil 20x20 V-slot *121054";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";1.70;0
 121056;"CASTANHA TR8 ANTI FOLGA PASSO 2MM  PARA FUSO TRAPEZOIDAL 8MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";20.90;39
 121057;"Rele estado solido DC para AC 40A SSR-40DA  *121057";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";57.00;22
@@ -459,10 +459,10 @@
 121119;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6X6MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;19
 121120;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6X8MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;4
 121121;"ACOPLAMENTO FLEXÍVEL REFORÇADO 10X14MM D30L35";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";49.90;12
-121201_4h;"Suporte para Motor de passo NEMA17 Reto 2 furos *121201";Motores;Motores de Passo;;G_passo;"";"";15.00;24
-121202;"Suporte Para Motor de Passo Nema23  90graus em L *121202";Motores;Motores de Passo;;G_passo;"";"";39.90;53
-121203_4h;"Suporte para Motor de passo NEMA17 Reto 6 furos *121203";Motores;Motores de Passo;;G_passo;"";"";25.00;21
-121205;"SUPORTE EM L 90° PARA MOTOR DE PASSO NEMA 17";Motores;Motores de Passo;;G_passo;"";"Acessórios";30.00;0
+121201_4h;"Suporte para Motor de passo NEMA17 Reto 2 furos *121201";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";15.00;24
+121202;"Suporte Para Motor de Passo Nema23  90graus em L *121202";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";39.90;53
+121203_4h;"Suporte para Motor de passo NEMA17 Reto 6 furos *121203";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"";25.00;21
+121205;"SUPORTE EM L 90° PARA MOTOR DE PASSO NEMA 17";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores de Passo e Servo Drive";"Acessórios";30.00;0
 121208;"ELETROÍMÃ SOLENÓIDE 24VDC 8KG";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"";64.00;10
 121209;"Kit com 100 Imã De Neodímio 5x1 Redondo Pequeno 5mm X 1mm N35";Módulos e Sensores;Imãs de Neodímio;;B_neod;"";"";42.00;0
 121210;"Imã De Neodímio Redondo 10x2mm N35";Módulos e Sensores;Imãs de Neodímio;;B_neod;"";"";;200
@@ -582,7 +582,7 @@
 170707;"ADAPTADOR GATEWAY LORA HT-M01 PARA RPI ZERO";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";168.00;0
 170709;"PLACA ESP32 LORA V3 SX1276 915MHZ WIFI BLE DISPLAY OLED";Placas Embarcadas;Placas ESP32;;A_esp;"";"1 - Placas Embarcados";247.00;0
 170802;"ANTENA MOVEL 868MHZ 915MHZ GSM 3G GANHO 7DBI CABO 3MTS";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";52.00;0
-180201;"PLACA RAMPS 1.4 SHIELD ARDUINO MEGA PARA IMPRESSORA 3D";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"Placas de controle";36.80;5
+180201;"PLACA RAMPS 1.4 SHIELD ARDUINO MEGA PARA IMPRESSORA 3D";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";36.80;5
 180302;"DISPLAY TELA LCD 128X64 RAMPS CONTROLE IMPRESSORA 3D";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Geral";116.80;7
 180304;"DISPLAY TELA LCD 2004 PARA RAMPS CONTROLE IMPRESSORA 3D";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Geral";91.00;2
 180402;"MESA AQUECIDA HEATBED 214X214X3MM MK3 COM CABOS";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Geral";140.00;0
@@ -750,9 +750,9 @@
 200314;"MÓDULO EMISSOR INFRAVERMELHO KY-005";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";7.00;38
 200315;"LED EMISSOR INFRAVERMELHO 5mm";Componentes Eletrônicos;LEDs e Soquetes;;I_led;"";"";;100
 200316;"CONVERSOR CORRENTE PARA TENSÂO 4-20MA PARA 0-10V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";;16
-200317;"Gerador de pulso para motor de passo";Motores;Drivers e Controladores;;G_drv;"";"";39.90;10
-200501;"MÓDULO CONVERSOR TENSÃO 0-5V 0-10V PARA PWM MACH3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"2 - Módulos e shields";17.60;9
-200502;"MÓDULO CONVERSOR PWM PARA TENSÃO 0-10V MACH3";CNC, Laser e Impressão 3D;Placas Controladoras CNC;;H_ctrl;"";"2 - Módulos e shields";19.20;0
+200317;"Gerador de pulso para motor de passo";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Controladores CNC";"";39.90;10
+200501;"MÓDULO CONVERSOR TENSÃO 0-5V 0-10V PARA PWM MACH3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"2 - Módulos e shields";17.60;9
+200502;"MÓDULO CONVERSOR PWM PARA TENSÃO 0-10V MACH3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"2 - Módulos e shields";19.20;0
 200506;"MODULO PWM MOSFET IRF520 KEYES";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";6.50;18
 200507;"MÓDULO PWM PCA9685 I2C 16 CANAIS PARA SERVO MOTOR";Motores;Motores DC;;G_dc;"";"2 - Módulos e shields";45.00;0
 200509;"MODULO RS485 CAN BUS HAT PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";148.00;0
@@ -838,8 +838,8 @@
 239906;"MÓDULO LEITOR BIOMÉTRICO DY50";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"";;5
 241001;"Filtro de linha monofásico 20A CW4L2-20A para laser *241001";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;3
 241002;"Radiador para laser 240mm *241002";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;0
-241003;"Filtro de ferrite 5mm  *241003";Componentes Eletrônicos;Fusíveis e Filtros;;I_fus;"";"";7.20;42
-241004;"Filtro de ferrite 9mm  *241004";Componentes Eletrônicos;Fusíveis e Filtros;;I_fus;"";"";;6
+241003;"Filtro de ferrite 5mm  *241003";Componentes Eletrônicos;Filtros de Ferrite;;I_filt;"";"";7.20;42
+241004;"Filtro de ferrite 9mm  *241004";Componentes Eletrônicos;Filtros de Ferrite;;I_filt;"";"";;6
 244210;"Sensor de Nível de Água - T1592";Módulos e Sensores;Sensores de Nível de Água;;C_nivel;"";"";12.00;2
 258199;"Modulo Conversor de Corrente para Tensão 4mA a 20mA para 0 a 3.3v, 0 a 5v ou 0 a 10v";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";29.90;0
 260101;"PLACA STM32 MAPLE MINI ARM CORTEX M3 STM32F103CBT6 32BITS";Placas Embarcadas;Placas STM32;;A_stm;"";"1 - Placas Embarcados";49.90;35
@@ -966,21 +966,21 @@
 910103;"JOYSTICK SHIELD PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields para Embarcados";"";;5
 910201;"CHAVE GANGORRA 2 POSIÇÕES 6A/250V REDONDA PRETO";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";1.80;76
 910202;"CHAVE GANGORRA 2 POSIÇÕES KCD1-101 6A/250V RETANGULAR PRETO";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";3.70;120
-910203;"TOMADA PAINEL COM CHAVE ILUMINADA E PORTA FUSÍVEL 10A";Componentes Eletrônicos;Interruptores e Tomadas de Painel;;I_interr;"";"Geral";25.50;9
+910203;"TOMADA PAINEL COM CHAVE ILUMINADA E PORTA FUSÍVEL 10A";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Geral";25.50;9
 910204;"CHAVE 3 TERMINAIS MINI SWITCH SPDT";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";2.10;75
 910207;"CHAVE MICRO CHAVE SELETORA 2 POSIÇÕES 6 PINOS PCB";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";1.00;130
 910209;"CHAVE SECCIONADORA 3 PÓLOS 20A MONTAGEM PAINEL METALTEX *910209";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";67.90;0
-910210;"INTERRUPTOR CHAVE LIGA DESLIGA PRETO TIPO ABAJUR";Componentes Eletrônicos;Interruptores e Tomadas de Painel;;I_interr;"";"Chaves e Botões";10.00;33
+910210;"INTERRUPTOR CHAVE LIGA DESLIGA PRETO TIPO ABAJUR";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";10.00;33
 910211_z;"Micro Chave Kcd1-101 On Off Mini 2 Pinos 10X15mm 3A *910211";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";2.00;82
-910212;"TOMADA PAINEL 250V 10A 3 PINOS MODELO C14";Componentes Eletrônicos;Interruptores e Tomadas de Painel;;I_interr;"";"Geral";5.20;29
+910212;"TOMADA PAINEL 250V 10A 3 PINOS MODELO C14";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Geral";5.20;29
 910214;"CHAVE ALAVANCA 2 POSICOES 3 POLOS ON/OFF *910214";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";5.00;69
 910215_4h;"CHAVE ALAVANCA MTS-103 METALICA 3 POSICOES 3 POLOS *910215";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";4.00;39
 910216_4h;"CHAVE ALAVANCA MTS-203 METALICA 3 POSICOES 6 POLOS  *910216";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";6.00;35
 910217_4h;"CHAVE ALAVANCA MTS-202 METALICA 2 POSICOES 6 POLOS *910217";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";6.00;46
 910218;"CAPA DE PROTEÇÃO PARA CHAVE ALAVANCA METÁLICA";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";5.00;42
-910219;"INTERRUPTOR CHAVE LIGA DESLIGA PRETO TIPO ABAJUR SAIDA P4";Componentes Eletrônicos;Interruptores e Tomadas de Painel;;I_interr;"";"Chaves e Botões";12.00;6
+910219;"INTERRUPTOR CHAVE LIGA DESLIGA PRETO TIPO ABAJUR SAIDA P4";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";12.00;6
 910220;"CHAVE GANGORRA 3 POSIÇÕES 6A/250V REDONDA PRETO";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";4.50;1
-910221_z;"Chave liga desliga 2 posições com chave *910221";Componentes Eletrônicos;Interruptores e Tomadas de Painel;;I_interr;"";"";39.00;9
+910221_z;"Chave liga desliga 2 posições com chave *910221";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";39.00;9
 910222;"Chave Botão Quadrado Na Sem Trava Preto Pbs-12a 3a 250v";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;10
 910301;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE HW-040";Automação Industrial;Encoders;;E_enc;"";"2 - Módulos e shields";10.90;23
 910302;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE KY-040";Automação Industrial;Encoders;;E_enc;"";"";12.00;45
@@ -1054,7 +1054,7 @@
 920506;"Diodo zener 5v1 1n4733 LL34 SMD 1/2W *920506";Componentes Eletrônicos;Diodos;;I_diodo;"";"";;100
 920507;"DIODO RETIFICADOR RÁPIDO SCHOTTKY 30SQ045 30A 45V";Componentes Eletrônicos;Diodos;;I_diodo;"";"Componentes";7.50;98
 920508;"10A10 PTH - Diodo Retificador 10A";Componentes Eletrônicos;Diodos;;I_diodo;"";"";3.00;28
-920602;"Fusível grande 5A *920602";Componentes Eletrônicos;Fusíveis e Filtros;;I_fus;"";"";2.90;45
+920602;"Fusível grande 5A *920602";Componentes Eletrônicos;Fusíveis;;I_fus;"";"";2.90;45
 920701;"LED VERMELHO DIFUSO 3MM";Componentes Eletrônicos;LEDs e Soquetes;;I_led;"";"Leds e Lampadas";0.20;75
 920702;"LED AZUL DIFUSO 3MM";Componentes Eletrônicos;LEDs e Soquetes;;I_led;"";"Leds e Lampadas";0.20;1000
 920703;"LED AMARELO DIFUSO 3MM";Componentes Eletrônicos;LEDs e Soquetes;;I_led;"";"Leds e Lampadas";0.20;144
@@ -1077,13 +1077,13 @@
 920804;"Chip optoacoplador TCMT4100  SMD SOP-16 *920804";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";;47
 920805;"chip Multiplexador para display 7 segmentos 74HC595 *920805";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";;80
 920806;"Chip CI multiplexador CD4051";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";;20
-920901;"KIT CAPACITOR CERÂMICO 50V 10 VALORES 300 PEÇAS";Componentes Eletrônicos;Capacitores e Cristais;;I_cap;"";"Componentes";50.00;0
-920902;"Kit Capacitor Eletrolitico x200 unidades 15 Valores";Componentes Eletrônicos;Capacitores e Cristais;;I_cap;"";"";54.70;4
-920905;"Capacitor eletrolítico 10uF 50V *920905";Componentes Eletrônicos;Capacitores e Cristais;;I_cap;"";"";1.90;58
-920906;"Capacitor eletrolítico 100uF 16V SMD *920906";Componentes Eletrônicos;Capacitores e Cristais;;I_cap;"";"";;70
-920907;"Capacitor 100nF 50V 0805 SMD *920907";Componentes Eletrônicos;Capacitores e Cristais;;I_cap;"";"";;200
-920908;"Capacitor 470nF 50V 0805 SMD *920908";Componentes Eletrônicos;Capacitores e Cristais;;I_cap;"";"";;200
-920909;"Capacitor 100uf 35v";Componentes Eletrônicos;Capacitores e Cristais;;I_cap;"";"";3.90;10
+920901;"KIT CAPACITOR CERÂMICO 50V 10 VALORES 300 PEÇAS";Componentes Eletrônicos;Capacitores;;I_cap;"";"Componentes";50.00;0
+920902;"Kit Capacitor Eletrolitico x200 unidades 15 Valores";Componentes Eletrônicos;Capacitores;;I_cap;"";"";54.70;4
+920905;"Capacitor eletrolítico 10uF 50V *920905";Componentes Eletrônicos;Capacitores;;I_cap;"";"";1.90;58
+920906;"Capacitor eletrolítico 100uF 16V SMD *920906";Componentes Eletrônicos;Capacitores;;I_cap;"";"";;70
+920907;"Capacitor 100nF 50V 0805 SMD *920907";Componentes Eletrônicos;Capacitores;;I_cap;"";"";;200
+920908;"Capacitor 470nF 50V 0805 SMD *920908";Componentes Eletrônicos;Capacitores;;I_cap;"";"";;200
+920909;"Capacitor 100uf 35v";Componentes Eletrônicos;Capacitores;;I_cap;"";"";3.90;10
 921001;"KIT TRANSISTOR TO-92 DIVERSOS MODELOS 600PEÇAS";Componentes Eletrônicos;Transistores e MOSFETs;;I_trans;"";"Componentes";50.00;0
 921002;"Kit 180 transistor SMD SOT-23 18 tipos *921002";Componentes Eletrônicos;Transistores e MOSFETs;;I_trans;"";"";39.00;5
 921003;"Transistor BC547 TO-92";Componentes Eletrônicos;Transistores e MOSFETs;;I_trans;"";"";0.30;1000
@@ -1125,7 +1125,7 @@
 921106;"Regulador de tensão 78L05 SOT-89 SMD *921106";Componentes Eletrônicos;Reguladores de Tensão;;I_reg;"";"";;100
 921201_z;"Knob plastico colorido para potenciômetro *921201";Componentes Eletrônicos;Potenciômetros e Trimpots;;I_pot;"";"";4.00;33
 921302_z;"Agenda para guardar componentes SMD 20 paginas  *921302";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";83.00;5
-921401_z;"Kit Cristal oscilador 35 peças 7 valores *921401";Componentes Eletrônicos;Capacitores e Cristais;;I_cap;"";"";42.30;4
+921401_z;"Kit Cristal oscilador 35 peças 7 valores *921401";Componentes Eletrônicos;Cristais Osciladores;;I_crist;"";"";42.30;4
 921501_4h;"Soquetes para circuitos integrados CI Kit com 66pçs *921501";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";43.00;4
 921701_z;"Display 7 segmentos Catodo Comum 0,56"" *921701";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"";"";3.90;46
 921702_z;"Display 7 segmentos anodo Comum 0,56"" *921702";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"";"";3.90;94
@@ -1212,10 +1212,10 @@
 940717;"USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 150mm 1mt";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";;2
 940718;"USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 180mm 1mt";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";;2
 940719;"USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 200mm 1mt";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";;2
-940801_z;"Presilha Fixador de nylon 15x10mm para abraçadeiras *940801";Componentes Eletrônicos;Abraçadeiras e Organizadores de Cabos;;I_abrac;"";"";1.50;96
-940802_z;"Espiral Organizador De Cabos 1/4 6,35mm *940802";Componentes Eletrônicos;Abraçadeiras e Organizadores de Cabos;;I_abrac;"";"";3.00;50
-940803_4h;"Espiral Organizador De Cabos 1/2"" 12,7mm preto *940803";Componentes Eletrônicos;Abraçadeiras e Organizadores de Cabos;;I_abrac;"";"";4.00;52
-940805;"PRESILHA ADESIVA 19X19MM PARA FIXAÇÃO DE CABOS";Componentes Eletrônicos;Abraçadeiras e Organizadores de Cabos;;I_abrac;"";"Geral";1.00;40
+940801_z;"Presilha Fixador de nylon 15x10mm para abraçadeiras *940801";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";1.50;96
+940802_z;"Espiral Organizador De Cabos 1/4 6,35mm *940802";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";3.00;50
+940803_4h;"Espiral Organizador De Cabos 1/2"" 12,7mm preto *940803";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";4.00;52
+940805;"PRESILHA ADESIVA 19X19MM PARA FIXAÇÃO DE CABOS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Geral";1.00;40
 940901;"ALICATE DE CORTE PARA ELETRÔNICA";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"Ferramentas";16.00;6
 940902;"Kit maleta de ferramenta para eletronica";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";579.00;0
 941001_z;"Espaçadores de Circuito Impresso 5mm de altura *941001";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"";1.00;110
@@ -1247,8 +1247,8 @@
 951302;"Rolinho estanho 22g 1mm 60/40 Cobix *951302";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";10.00;31
 960102;"KIT PARAFUSO ALLEN SEM CABEÇA 200 PEÇAS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";68.90;0
 960201;"Suporte 45 graus trilho dim *960201";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";11.00;3
-960301_4h;"Abraçadeira de Nylon 3,7x202mm preta com 100un *960301";Componentes Eletrônicos;Abraçadeiras e Organizadores de Cabos;;I_abrac;"";"";18.90;4
-960302_4h;"Abraçadeira de Nylon 2,5x108mm cor preto com 100un *960302";Componentes Eletrônicos;Abraçadeiras e Organizadores de Cabos;;I_abrac;"";"";13.00;0
+960301_4h;"Abraçadeira de Nylon 3,7x202mm preta com 100un *960301";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";18.90;4
+960302_4h;"Abraçadeira de Nylon 2,5x108mm cor preto com 100un *960302";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";13.00;0
 960401;"Bucha de redução M6 X 1,0 interno M8 X 1,25 externo inserto metálico *960401";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";5.00;10
 960402;"Bucha de redução M14 para M8 20mm comprimento *960402";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";8.00;4
 960403;"Inserto metálico para impressora 3D M5X5X6mm";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";1.00;148

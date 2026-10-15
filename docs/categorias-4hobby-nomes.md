@@ -10,7 +10,7 @@ Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 fol
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **10 topos e 96 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (95 folhas com produto próprio e uma, Shields e Placas de Interface, só com produtos de 2ª categoria; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+Resultado: **10 topos e 99 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (96 folhas com produto próprio e três só com produtos de 2ª categoria: Shields para Embarcados, em Módulos e Sensores, e Motores de Passo e Servo Drive e Drivers de Motor de Passo, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
 
 Com dois níveis e uma família por folha, Módulos e Sensores (23 folhas, contando a de shields), CNC (19) e Componentes Eletrônicos (19) ficam com menu longo. É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
@@ -62,29 +62,29 @@ Módulos em seis folhas (decisão do dono em 14/10/2026: relé, conversores de s
 
 Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica separada). Toda tela TFT é gráfica (painel LCD de matriz ativa, pixel a pixel), por isso o nome que ele pediu, "Telas Gráficas TFT", sem parênteses; a OLED também é gráfica, mas é outra tecnologia e fica na folha dela. Telas Gráficas TFT junta as 15 Nextion (Basic, Enhanced, Intelligent) com as expansões e o conector delas, as 3 telas de 7" para Raspberry Pi com o case da oficial (todas com Placas Raspberry Pi como 2ª categoria), a 3,5" touch ILI9488 e a 1,8" ST7735: são todas LCD TFT, a diferença é só a interface (serial, HDMI/DSI, SPI). Displays LCD são os alfanuméricos de caracteres (16x2 e 20x4), com o módulo I2C e o LCD shield; o dono preferiu o nome curto, mesmo com os títulos das Nextion e das TFT também dizendo "LCD".
 
-### Componentes Eletrônicos (292)
+### Componentes Eletrônicos (284)
 
 - Resistores (18)
 - Potenciômetros e Trimpots (11)
-- Capacitores e Cristais (8)
+- Capacitores (7)
+- Cristais Osciladores (1) ◂ pequena
 - Diodos (10)
 - Transistores e MOSFETs (16)
 - Circuitos Integrados (33)
 - Reguladores de Tensão (5)
 - LEDs e Soquetes (20)
 - Buzzers, Alto-falantes e Áudio (7)
-- Fusíveis e Filtros (3) ◂ pequena
-- Interruptores e Tomadas de Painel (5)
-- Chaves e Push Buttons (19)
+- Fusíveis (1) ◂ pequena
+- Filtros de Ferrite (2) ◂ pequena
+- Chaves e Push Buttons (22)
 - Conectores para PCB (31)
 - Barras de Pinos (15)
 - Espaçadores e Isoladores (6)
 - Baterias e Acessórios (40)
 - Fontes Chaveadas e Conversores DC-DC (33)
 - Terminais e Acessórios (6)
-- Abraçadeiras e Organizadores de Cabos (6)
 
-Terminais e Acessórios (terminais, emendas e ilhoses) e Abraçadeiras e Organizadores de Cabos voltaram de Cabos e Conectores a pedido do dono. Fontes e Baterias deixou de ser topo a pedido do dono em 14/10/2026 ("fontes deve se juntar a outra categoria, veja qual faz mais sentido"): as 7 folhas vieram para cá e depois ele as enxugou: **Baterias e Acessórios** junta pilhas e baterias, suportes de pilha, níquel e terminais, placas BMS e testadores e carregadores; **Fontes Chaveadas e Conversores DC-DC** junta as fontes com os step up/step down; o painel solar de 6V foi para Módulos e Sensores e Voltímetros e Testadores para Ferramentas e Prototipagem. Motivo da escolha de Componentes: Pilhas e Baterias já estava aqui e o resto é a família dela (suportes, níquel, BMS, carregadores); fontes chaveadas, conversores DC-DC e voltímetros são alimentação, que nas lojas do ramo mora em Eletrônica. Em Automação Industrial só as fontes Andeli de 12/24/48V fariam sentido, e em Módulos e Sensores só os conversores DC-DC; partir a família não valia. Espaçadores e Isoladores (espaçadores de PCB, nylon isolante e parafusos nylon) veio de Ferramentas e Prototipagem, também a pedido dele. Conectores para PCB (decisão do dono em 14/10/2026) junta o que se solda na placa ou liga fio à placa: JST XH e PH com terminais, Dupont com terminais e os bornes KRE/KF e BR7. Barras de Pinos fica como folha própria, a pedido dele. Os conectores de painel e de cabo (Mike, P4/P10, XLR/XT60/banana, DB/RJ45/HDMI) e os cabos foram para o topo Cabos e Conectores. Plugs P4 e P10 tem 2 itens de PCB (P4 fêmea para PCB e P10 fêmea painel/PCB) no meio de 8 de cabo e painel: a família ficou inteira em Cabos e Conectores para não se partir.
+Terminais e Acessórios (terminais, emendas e ilhoses) voltou de Cabos e Conectores a pedido do dono; as abraçadeiras passaram por aqui e foram para Automação Industrial > Elétrica e Acessórios, com as tomadas de painel. Na última passada dele: Capacitores e Cristais Osciladores separados, Fusíveis e Filtros de Ferrite separados (ele disse "filtros"; o "de Ferrite" é para o nome se sustentar sozinho), e os interruptores tipo abajur entraram em Chaves e Push Buttons. Fontes e Baterias deixou de ser topo a pedido do dono em 14/10/2026 ("fontes deve se juntar a outra categoria, veja qual faz mais sentido"): as 7 folhas vieram para cá e depois ele as enxugou: **Baterias e Acessórios** junta pilhas e baterias, suportes de pilha, níquel e terminais, placas BMS e testadores e carregadores; **Fontes Chaveadas e Conversores DC-DC** junta as fontes com os step up/step down; o painel solar de 6V foi para Módulos e Sensores e Voltímetros e Testadores para Ferramentas e Prototipagem. Motivo da escolha de Componentes: Pilhas e Baterias já estava aqui e o resto é a família dela (suportes, níquel, BMS, carregadores); fontes chaveadas, conversores DC-DC e voltímetros são alimentação, que nas lojas do ramo mora em Eletrônica. Em Automação Industrial só as fontes Andeli de 12/24/48V fariam sentido, e em Módulos e Sensores só os conversores DC-DC; partir a família não valia. Espaçadores e Isoladores (espaçadores de PCB, nylon isolante e parafusos nylon) veio de Ferramentas e Prototipagem, também a pedido dele. Conectores para PCB (decisão do dono em 14/10/2026) junta o que se solda na placa ou liga fio à placa: JST XH e PH com terminais, Dupont com terminais e os bornes KRE/KF e BR7. Barras de Pinos fica como folha própria, a pedido dele. Os conectores de painel e de cabo (Mike, P4/P10, XLR/XT60/banana, DB/RJ45/HDMI) e os cabos foram para o topo Cabos e Conectores. Plugs P4 e P10 tem 2 itens de PCB (P4 fêmea para PCB e P10 fêmea painel/PCB) no meio de 8 de cabo e painel: a família ficou inteira em Cabos e Conectores para não se partir.
 
 ### Cabos e Conectores (79)
 
@@ -96,7 +96,7 @@ Terminais e Acessórios (terminais, emendas e ilhoses) e Abraçadeiras e Organiz
 
 Topo criado pelo dono em 14/10/2026 para cabos, conectores de painel e adaptadores (o que não se solda na PCB) e enxugado por ele na mesma data: Cabos USB e Cabos HDMI separados, cada um com as extensões para painel dentro (os dois cabos combinados USB + HDMI ficam em Cabos USB e aparecem também em Cabos HDMI); Conectores para Cabo e Painel junta os metálicos Mike GX12/GX16, os XLR, XT60 e banana e os plugs P4/P10; Adaptadores para Cabos é o antigo "Adaptadores DB9, RJ45 e HDMI" com o nome sem siglas, como ele pediu (os dois nomes finais são dele). Terminais e Emendas virou Terminais e Acessórios e voltou para Componentes Eletrônicos, junto com Abraçadeiras e Organizadores de Cabos; jumpers, garras jacaré e termo retrátil foram para Ferramentas e Prototipagem.
 
-### Automação Industrial (96)
+### Automação Industrial (104)
 
 - CLP (8)
 - IHM (9)
@@ -104,20 +104,21 @@ Topo criado pelo dono em 14/10/2026 para cabos, conectores de painel e adaptador
 - Sinalizadores (4) ◂ pequena
 - Controladores Industriais (8)
 - Encoders (5)
-- Elétrica e Acessórios (34)
+- Elétrica e Acessórios (42)
 - Sensores Industriais (6)
 - Inversores de Frequência (1) ◂ pequena
 
-Nove folhas ditadas pelo dono em 14/10/2026. Inversores de Frequência recebe o inversor avulso de 2,2 kW ("inversores vai para Automação"); os kits de spindle com inversor continuam em CNC > Spindles, porque são vendidos como conjunto. Chaves e Botoeiras junta as botoeiras 22mm (pulso, emergência, seletora, seccionadora, contatos, tampões e plaquetas) com os botões metálicos iluminados e antivandalismo; Sinalizadores são os luminosos LED 22mm para painel; Controladores Industriais é o antigo "Controladores de Temperatura e SSR" (REX-C100, termostatos, relés SSR e o relé com soquete); Elétrica e Acessórios junta bornes para trilho DIN, trilho, canaletas e suportes, quadros elétricos, prensa cabos e microventiladores; Sensores Industriais recebe os indutivos e capacitivos M12/M18 PNP/NPN que estavam em Módulos e Sensores. Pastilhas Peltier foi para Módulos e Sensores.
+Nove folhas ditadas pelo dono em 14/10/2026. Inversores de Frequência recebe o inversor avulso de 2,2 kW ("inversores vai para Automação"); os kits de spindle com inversor continuam em CNC > Spindles, porque são vendidos como conjunto. Chaves e Botoeiras junta as botoeiras 22mm (pulso, emergência, seletora, seccionadora, contatos, tampões e plaquetas) com os botões metálicos iluminados e antivandalismo; Sinalizadores são os luminosos LED 22mm para painel; Controladores Industriais é o antigo "Controladores de Temperatura e SSR" (REX-C100, termostatos, relés SSR e o relé com soquete); Elétrica e Acessórios junta bornes para trilho DIN, trilho, canaletas e suportes, quadros elétricos, prensa cabos e microventiladores, e depois recebeu as tomadas de painel e as abraçadeiras e organizadores de cabos, vindas de Componentes; Sensores Industriais recebe os indutivos e capacitivos M12/M18 PNP/NPN que estavam em Módulos e Sensores. Pastilhas Peltier foi para Módulos e Sensores.
 
 ### Motores (82)
 
 - Motores de Passo (18)
-- Servo Drive (6)
+- Easy Servo (5)
+- Servo Drive (1) ◂ pequena
 - Motores DC (36)
 - Drivers e Controladores (22)
 
-Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em quatro folhas. Motores de Passo inclui os suportes de motor (vindos de CNC); Servo Drive é o antigo "Easy Servo e Servo AC" (motor + drive, nome dele); Motores DC junta os motores DC com caixa de redução, as mini bombas de água e ar e os micro servos e motores para aeromodelismo (SG90, MG996R, brushless, ESC, Pixhawk, PCA9685), tudo pedido dele; Drivers e Controladores junta os drivers de motor de passo (A4988, TMC, DM556, DM860H) com as pontes H e os controladores PWM de motor DC. Eletroímãs e Válvulas Solenoide foi para Módulos e Sensores e Chassis e Rodas para Robótica para Kits Educacionais.
+Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motores de Passo inclui os suportes de motor (vindos de CNC); Easy Servo (motor de passo com encoder + driver, 45 a 120 kgf) ganhou folha própria a pedido dele e Servo Drive ficou com o servo motor AC 400 W com drive; Motores DC junta os motores DC com caixa de redução, as mini bombas de água e ar e os micro servos e motores para aeromodelismo (SG90, MG996R, brushless, ESC, Pixhawk, PCA9685), tudo pedido dele; Drivers e Controladores junta os drivers de motor de passo (A4988, TMC, DM556, DM860H) com as pontes H e os controladores PWM de motor DC. Eletroímãs e Válvulas Solenoide foi para Módulos e Sensores e Chassis e Rodas para Robótica para Kits Educacionais.
 
 ### CNC, Laser e Impressão 3D (368)
 
@@ -132,8 +133,10 @@ Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em quatro folhas. Moto
 - Perfis de Alumínio e Acessórios (33)
 - Parafusos, Porcas e Acessórios (22)
 - Esteiras Porta Cabos (22)
-- Placas Controladoras CNC (13)
+- Controladores CNC (13)
 - Spindles (11)
+- Motores de Passo e Servo Drive (24 como 2ª categoria, nenhum próprio)
+- Drivers de Motor de Passo (13 como 2ª categoria, nenhum próprio)
 - Fresas, Brocas e Pinças (24)
 - Módulos Laser de Diodo (12)
 - Peças para Laser CO2 (17)
@@ -141,7 +144,7 @@ Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em quatro folhas. Moto
 - Acessórios para Impressora 3D (12)
 - Softwares (4) ◂ pequena
 
-Dezenove folhas ditadas pelo dono em 14/10/2026. Parafusos, Porcas e Acessórios veio de Ferramentas e Prototipagem a pedido dele ("avaliar qual é melhor": manoplas de aperto, parafusos usinados, allen, buchas, pé nivelador e dobradiça são ferragem de máquina, não de bancada) e recebeu as porcas excêntricas, a porca fina OpenBuilds, os espaçadores de alumínio e as arruelas de precisão; as porcas martelo foram para Perfis de Alumínio e Acessórios, junto dos perfis, cantoneiras, acabamentos e batentes. Correias e Polias e Roldanas perderam as siglas do nome (GT2, HTD, V-Slot), como ele pediu. Fusos e Castanhas junta fusos de esferas, trapezoidais e castanhas/antifolga ("não separar esfera e trapezoidal"); Eixos e Guias Lineares junta eixos, guias MGN e os dois atuadores lineares; Mancais e Suportes de Eixo junta mancais KP/KFL e suportes SK/SHF; Perfis de Alumínio e Acessórios junta perfis V-Slot, cantoneiras, acabamentos, batentes e porcas martelo; Mesas Aquecidas e Extrusoras junta mesas, hotends, bicos e extrusoras. Suportes de Motor de Passo foi para Motores. **Máquinas e Equipamentos deixou de ser folha** ("saem"): as duas máquinas laser e os dois conjuntos da gravadora Ciclope foram para Módulos Laser de Diodo, os atuadores lineares para Eixos e Guias Lineares, a Ender3 montada para Acessórios para Impressora 3D e o conjunto pick-and-place para Ferramentas e Solda; se "saem" queria dizer "fora do site", é só marcar NÃO PUBLICAR. **Softwares ficou sem os serviços**: os 4 serviços (programação para embarcados e para CLP/IHM, configuração de LightBurn e de Mach3) ficam publicados **sem categoria** (marcados SEM CATEGORIA no CSV), acháveis pela busca e não pelo menu; se ele quiser uma folha Serviços, falta dizer em qual topo.
+Dezenove folhas ditadas pelo dono em 14/10/2026. Parafusos, Porcas e Acessórios veio de Ferramentas e Prototipagem a pedido dele ("avaliar qual é melhor": manoplas de aperto, parafusos usinados, allen, buchas, pé nivelador e dobradiça são ferragem de máquina, não de bancada) e recebeu as porcas excêntricas, a porca fina OpenBuilds, os espaçadores de alumínio e as arruelas de precisão; as porcas martelo foram para Perfis de Alumínio e Acessórios, junto dos perfis, cantoneiras, acabamentos e batentes. Correias e Polias e Roldanas perderam as siglas do nome (GT2, HTD, V-Slot), como ele pediu. Motores de Passo e Servo Drive e Drivers de Motor de Passo existem só como 2ª categoria (os produtos moram em Motores): foi a resposta ao "motores e drivers também devem fazer parte de CNC"; concordei para motores de passo, servo drives e drivers de passo, que são de quem monta CNC e impressora 3D, e não para ponte H, PWM e motores DC, que ficam só em Motores. O gerador de pulso para motor de passo aparece em Controladores CNC (nome novo de Placas Controladoras CNC). A folha de motores não se chama só "Motores" para a URL não bater com a do topo Motores. Fusos e Castanhas junta fusos de esferas, trapezoidais e castanhas/antifolga ("não separar esfera e trapezoidal"); Eixos e Guias Lineares junta eixos, guias MGN e os dois atuadores lineares; Mancais e Suportes de Eixo junta mancais KP/KFL e suportes SK/SHF; Perfis de Alumínio e Acessórios junta perfis V-Slot, cantoneiras, acabamentos, batentes e porcas martelo; Mesas Aquecidas e Extrusoras junta mesas, hotends, bicos e extrusoras. Suportes de Motor de Passo foi para Motores. **Máquinas e Equipamentos deixou de ser folha** ("saem"): as duas máquinas laser e os dois conjuntos da gravadora Ciclope foram para Módulos Laser de Diodo, os atuadores lineares para Eixos e Guias Lineares, a Ender3 montada para Acessórios para Impressora 3D e o conjunto pick-and-place para Ferramentas e Solda; se "saem" queria dizer "fora do site", é só marcar NÃO PUBLICAR. **Softwares ficou sem os serviços**: os 4 serviços (programação para embarcados e para CLP/IHM, configuração de LightBurn e de Mach3) ficam publicados **sem categoria** (marcados SEM CATEGORIA no CSV), acháveis pela busca e não pelo menu; se ele quiser uma folha Serviços, falta dizer em qual topo.
 
 ### Ferramentas e Prototipagem (60)
 
@@ -169,6 +172,8 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - 4 bombas de água de laser/spindle (120212, 122402, 122403, 122408): ficam em Motores > Motores DC (as mini bombas entraram lá) e aparecem também em Peças para Laser CO2 / Spindles.
 - 5 cabos HDMI, micro HDMI e DP (930213, 930701, 930702_4h, 930703_4h, 930704_z) em Cabos HDMI e o hub OTG (930607_z) em Cabos USB: aparecem também em Placas Raspberry Pi.
 - 2 cabos de extensão combinados USB + HDMI para painel (930204, 930212): ficam em Cabos USB e aparecem também em Cabos HDMI.
+- 24 motores de passo (com os suportes) e servo drives: ficam em Motores e aparecem também em **CNC > Motores de Passo e Servo Drive**, folha que existe só para isso.
+- 13 drivers de motor de passo (A4988, DRV8825, TMC2100/2130/2208/2209, DM556, DM860H, TB6560, Easy drive, extensão e proteção): ficam em Motores > Drivers e Controladores e aparecem também em **CNC > Drivers de Motor de Passo**, folha só para isso; o gerador de pulso para motor de passo (200317) aparece em CNC > Controladores CNC.
 - 3 telas de 7" para Raspberry Pi e o case da oficial (110304, 110306, 110307, 111031): ficam em Telas Gráficas TFT e aparecem também em Placas Raspberry Pi.
 - 20 shields, HATs, placas de interface com bornes e o gravador AVR ISP (100112, 100201, 100204, 100207, 100211, 100224, 100233, 100272, 101001, 101002, 101010, 170107, 170707, 200509, 200510, 260104, 260108, 910103, 970104, 970106): ficam na placa correspondente e aparecem também em **Módulos e Sensores > Shields para Embarcados**, folha que existe só para isso (pedido do dono em 14/10/2026: "todos os módulos e shields de Arduino também devem ser mostrados na categoria Módulos"). O script da LI precisa criar essa folha mesmo sem produto próprio.
 - Arduino Mega WiFi com ESP8266 (100108): fica em Placas Arduino e aparece também em Placas ESP32.
@@ -191,7 +196,9 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Baterias e fontes enxugadas** em Componentes: Pilhas e Baterias virou **Baterias e Acessórios**, com suportes, níquel, BMS/testadores e carregadores dentro; Fontes Chaveadas somou com os conversores DC-DC (**Fontes Chaveadas e Conversores DC-DC**); o painel solar foi para Módulos e Sensores (Painéis Solares) e Voltímetros e Testadores para Ferramentas e Prototipagem.
 - **Cabos e Conectores** enxugado por ele a 5 folhas: Cabos USB e Cabos HDMI separados, com as extensões para painel dentro de cada um; Conectores para Cabo e Painel (Mike + XLR/XT60/banana + plugs P4/P10); Adaptadores para Cabos (sem siglas no nome); Terminais e Acessórios e Abraçadeiras e Organizadores de Cabos voltaram para Componentes Eletrônicos.
 - **CLP** perdeu o "e Expansões" do nome, a pedido dele (as expansões continuam dentro).
-- **Motores em 4 folhas**: suportes dentro de Motores de Passo; Easy Servo e Servo AC virou Servo Drive; micro servos e motores para aeromodelismo entraram em Motores DC. **CNC**: Correias e Polias e Roldanas sem siglas; porcas martelo dentro de Perfis de Alumínio e Acessórios; Parafusos, Porcas e Acessórios (ex-Parafusos, Buchas e Fixação) com as excêntricas, a porca fina e os espaçadores de alumínio. **Ferramentas**: Voltímetros e Testadores dentro de Instrumentos de Medição.
+- **Motores em 5 folhas**: suportes dentro de Motores de Passo; Easy Servo e Servo AC virou Servo Drive e, logo depois, Easy Servo ganhou folha própria (Servo Drive ficou com o servo AC); micro servos e motores para aeromodelismo entraram em Motores DC. **CNC**: Correias e Polias e Roldanas sem siglas; porcas martelo dentro de Perfis de Alumínio e Acessórios; Parafusos, Porcas e Acessórios (ex-Parafusos, Buchas e Fixação) com as excêntricas, a porca fina e os espaçadores de alumínio. **Ferramentas**: Voltímetros e Testadores dentro de Instrumentos de Medição.
+- **Componentes, última passada**: Capacitores e Cristais Osciladores separados; Fusíveis e Filtros de Ferrite separados; interruptores em Chaves e Push Buttons; tomadas de painel e abraçadeiras foram para Automação Industrial > Elétrica e Acessórios.
+- **Motores de passo e drivers também em CNC** (pergunta dele, "concorda?"): sim para motores de passo, servo drives e drivers de passo, como 2ª categoria em duas folhas novas de CNC (Motores de Passo e Servo Drive; Drivers de Motor de Passo); não para ponte H, PWM e motores DC. Placas Controladoras CNC virou Controladores CNC e recebe o gerador de pulso.
 - **Movimento Linear** deixou de existir como nível: as 12 folhas ficam direto em CNC.
 - **Softwares e Serviços** virou uma folha única dentro de CNC (6 dos 8 itens são LightBurn/Mach3 e seus serviços de configuração).
 - Novo topo **Kits Educacionais**, com duas folhas.
