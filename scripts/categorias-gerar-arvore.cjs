@@ -4,6 +4,7 @@
 const fs=require('fs');const path=require('path');const DOCS=path.join(__dirname,'..','docs');
 const MAPA=path.join(DOCS,'categorias-4hobby-mapeamento.csv');
 const SAIDA=path.join(DOCS,'categorias-4hobby-arvore.csv');
+const LISTA=path.join(DOCS,'categorias-4hobby-produtos.md'); // arvore com os produtos de cada folha, para o dono conferir
 const txt=fs.readFileSync(MAPA,'utf8').replace(/^\uFEFF/,'');
 const linhas=txt.split(/\r?\n/).filter(Boolean);const cab=linhas[0].split(';');
 function parse(l){const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const c=l[i];if(q){if(c==='"'){if(l[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}else{if(c==='"')q=true;else if(c===';'){out.push(cur);cur='';}else cur+=c;}}out.push(cur);return out;}
@@ -43,6 +44,26 @@ for(const k of Object.keys(secund)) if(!naArvore.has(k)) throw new Error('2ª ca
 // linha do topo: tipo "topo"
 const final=out;
 fs.writeFileSync(SAIDA,'\uFEFF'+final.join('\r\n')+'\r\n');
+// lista de conferencia: cada folha com os produtos (SKU e titulo), na ordem da arvore; 2a categoria marcada
+const md=['# Categorias da loja 4hobby com os produtos de cada folha','','Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-mapeamento.csv. Nome como vai na LI; entre parenteses, a quantidade. Produto marcado com (2a) mora em outra folha e aparece aqui tambem.',''];
+ARVORE.forEach(([topo,,folhas],ti)=>{
+  md.push('## '+naLi(ti+1,topo));
+  folhas.forEach((f,fi)=>{
+    const nome=Array.isArray(f)?f[0]:f;const k=topo+' > '+nome;
+    const prop=rows.filter(r=>r.nivel1===topo&&r.nivel2===nome);
+    const seg=rows.filter(r=>r.categoria_secundaria===k);
+    md.push('','### '+naLi(fi+1,nome)+' ('+(prop.length+seg.length)+')','');
+    for(const r of prop) md.push('- '+r.sku+' '+r.titulo);
+    for(const r of seg) md.push('- '+r.sku+' '+r.titulo+' (2a, fica em '+r.nivel2+')');
+  });
+  md.push('');
+});
+const semCat=rows.filter(r=>r.nivel1==='SEM CATEGORIA'),naoPub=rows.filter(r=>r.nivel1==='N\u00C3O PUBLICAR');
+md.push('## Publicados sem categoria ('+semCat.length+')','');
+for(const r of semCat) md.push('- '+r.sku+' '+r.titulo);
+md.push('','## Fora do site ('+naoPub.length+')','');
+for(const r of naoPub) md.push('- '+r.sku+' '+r.titulo);
+fs.writeFileSync(LISTA,md.join('\n')+'\n');
 const nTopos=ARVORE.length,nFolhas=ARVORE.reduce((a,[,,f])=>a+f.length,0),nSeg=ARVORE.reduce((a,[,,f])=>a+f.filter(Array.isArray).length,0);
 console.log('ok: topos',nTopos,'| folhas',nFolhas,'(próprias',nFolhas-nSeg,', só 2ª',nSeg,') | linhas',final.length);
 console.log('conferência: folhas no mapeamento',Object.keys(qtd).length,'| 2ª distintas',Object.keys(secund).length);
