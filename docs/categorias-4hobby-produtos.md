@@ -830,7 +830,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 200228 Modulo regulador tensão step up XL6009 com display
 - 220504_z Conversor de tensão 24V para 5V *220504
 
-### 04 - Baterias e Acessórios (41)
+### 04 - Baterias e Acessórios (47)
 
 - 100270 MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO
 - 100273 MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A
@@ -864,6 +864,12 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 900907 NÍQUEL PARA SOLDAR BATERIAS 18650 0,1X5MM TIRA COM 100MM
 - 900908 NÍQUEL PARA SOLDAR BATERIAS 18650 0,15X8MM TIRA COM 100MM
 - 900911 FITA NÍQUEL DUPLA PARA SOLDAR BATERIAS 18650 0,12X27MM 1MT
+- 940714 USO E CONSUMO-Termoretratil PVC azul para baterias diametro 85mm 1mt
+- 940715 USO E CONSUMO-Termoretratil PVC azul para baterias diametro 120mm 1mt
+- 940716 USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 130mm 1mt
+- 940717 USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 150mm 1mt
+- 940718 USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 180mm 1mt
+- 940719 USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 200mm 1mt
 - 941102_2 SUPORTE PARA PILHA AA PARALELO CASE TIPO CANOA Para: 2 Pilhas
 - 941102_4 SUPORTE PARA PILHA AA PARALELO CASE TIPO CANOA Para: 4 Pilhas
 - 941103 Suporte para 2 pilhas AA com Chave Liga/Desliga
@@ -1759,7 +1765,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 999906 SERVIÇO DE CONFIGURAÇÃO PARA SOFTWARE LASER LIGHTBURN
 - 999907 SERVIÇO DE CONFIGURAÇÃO PARA SOFTWARE CNC MACH3
 
-## Fora do site (14)
+## Fora do site (8)
 
 - 111023 OBSOLETO-DISSIPADOR PARA RASPBERRY PI4 RPI4 ALTA PERFORMANCE *111023
 - 121063 OBSOLETO-Porca martelo quadrada fixa M5 perfil 20 *121063
@@ -1767,11 +1773,5 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 180613 OBSOLETO-BLOCO ALUMÍNIO EXTRUSORA E3D V6 HOTEND 20X16X12MM *180613
 - 220302 OBSOLETO-Fonte Chaveada 24v 20a 480w Ideal Para Cnc Shield    *220302
 - 221001 OBSOLETO-Fonte Chaveada 72V 13A entrada 220V *221001
-- 940714 USO E CONSUMO-Termoretratil PVC azul para baterias diametro 85mm 1mt
-- 940715 USO E CONSUMO-Termoretratil PVC azul para baterias diametro 120mm 1mt
-- 940716 USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 130mm 1mt
-- 940717 USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 150mm 1mt
-- 940718 USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 180mm 1mt
-- 940719 USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 200mm 1mt
 - 970201 Projeto especial _ Maquina Colagem
 - ZZ-TESTE-BLING PRODUTO DE TESTE DA SINCRONIZACAO RISE BLING (NAO USAR)
