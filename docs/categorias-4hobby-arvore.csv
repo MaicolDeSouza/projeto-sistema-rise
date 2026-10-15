@@ -39,25 +39,25 @@
 4;Componentes Eletrônicos;T_componentes;0;;;topo;0;0;04 - Componentes Eletrônicos
 4;Componentes Eletrônicos;T_componentes;1;Resistores;I_res;propria;18;0;01 - Resistores
 4;Componentes Eletrônicos;T_componentes;2;Diodos;I_diodo;propria;10;0;02 - Diodos
-4;Componentes Eletrônicos;T_componentes;3;Transistores e MOSFETs;I_trans;propria;16;0;03 - Transistores e MOSFETs
-4;Componentes Eletrônicos;T_componentes;4;Circuitos Integrados;I_ci;propria;33;0;04 - Circuitos Integrados
-4;Componentes Eletrônicos;T_componentes;5;Reguladores de Tensão;I_reg;propria;5;0;05 - Reguladores de Tensão
-4;Componentes Eletrônicos;T_componentes;6;Capacitores;I_cap;propria;7;0;06 - Capacitores
+4;Componentes Eletrônicos;T_componentes;3;Capacitores;I_cap;propria;7;0;03 - Capacitores
+4;Componentes Eletrônicos;T_componentes;4;Transistores e MOSFETs;I_trans;propria;16;0;04 - Transistores e MOSFETs
+4;Componentes Eletrônicos;T_componentes;5;Circuitos Integrados;I_ci;propria;33;0;05 - Circuitos Integrados
+4;Componentes Eletrônicos;T_componentes;6;Reguladores de Tensão;I_reg;propria;5;0;06 - Reguladores de Tensão
 4;Componentes Eletrônicos;T_componentes;7;Potenciômetros e Trimpots;I_pot;propria;11;0;07 - Potenciômetros e Trimpots
 4;Componentes Eletrônicos;T_componentes;8;Cristais Osciladores;I_crist;propria;1;0;08 - Cristais Osciladores
 4;Componentes Eletrônicos;T_componentes;9;LEDs e Soquetes;I_led;propria;20;0;09 - LEDs e Soquetes
 4;Componentes Eletrônicos;T_componentes;10;Displays 7 Segmentos;I_disp;segunda;0;4;10 - Displays 7 Segmentos
-4;Componentes Eletrônicos;T_componentes;11;Lasers Sinalizadores;I_lasersin;propria;3;0;11 - Lasers Sinalizadores
-4;Componentes Eletrônicos;T_componentes;12;Buzzers, Alto-falantes e Áudio;I_buzz;propria;7;0;12 - Buzzers, Alto-falantes e Áudio
-4;Componentes Eletrônicos;T_componentes;13;Chaves e Push Buttons;I_gang;propria;18;0;13 - Chaves e Push Buttons
-4;Componentes Eletrônicos;T_componentes;14;Plugs e Conectores;I_pcb;propria;46;0;14 - Plugs e Conectores
-4;Componentes Eletrônicos;T_componentes;15;Barras de Pinos;I_barra;propria;15;0;15 - Barras de Pinos
+4;Componentes Eletrônicos;T_componentes;11;Barras de Pinos;I_barra;propria;15;0;11 - Barras de Pinos
+4;Componentes Eletrônicos;T_componentes;12;Fusíveis;I_fus;propria;1;0;12 - Fusíveis
+4;Componentes Eletrônicos;T_componentes;13;Buzzers, Alto-falantes e Áudio;I_buzz;propria;7;0;13 - Buzzers, Alto-falantes e Áudio
+4;Componentes Eletrônicos;T_componentes;14;Chaves e Push Buttons;I_gang;propria;18;0;14 - Chaves e Push Buttons
+4;Componentes Eletrônicos;T_componentes;15;Plugs e Conectores;I_pcb;propria;46;0;15 - Plugs e Conectores
 4;Componentes Eletrônicos;T_componentes;16;Terminais e Acessórios;I_term;propria;6;0;16 - Terminais e Acessórios
 4;Componentes Eletrônicos;T_componentes;17;Espaçadores e Isoladores;I_espac;propria;6;0;17 - Espaçadores e Isoladores
-4;Componentes Eletrônicos;T_componentes;18;Suportes para PCI;I_suppci;propria;7;0;18 - Suportes para PCI
-4;Componentes Eletrônicos;T_componentes;19;Caixas Plásticas e Organizadores;I_caixa;segunda;0;14;19 - Caixas Plásticas e Organizadores
-4;Componentes Eletrônicos;T_componentes;20;Fusíveis;I_fus;propria;1;0;20 - Fusíveis
-4;Componentes Eletrônicos;T_componentes;21;Filtros de Ferrite;I_filt;propria;2;0;21 - Filtros de Ferrite
+4;Componentes Eletrônicos;T_componentes;18;Suportes para PCB;I_suppci;propria;7;0;18 - Suportes para PCB
+4;Componentes Eletrônicos;T_componentes;19;Filtros de Ferrite;I_filt;propria;2;0;19 - Filtros de Ferrite
+4;Componentes Eletrônicos;T_componentes;20;Lasers Sinalizadores;I_lasersin;propria;3;0;20 - Lasers Sinalizadores
+4;Componentes Eletrônicos;T_componentes;21;Caixas Plásticas e Organizadores;I_caixa;segunda;0;14;21 - Caixas Plásticas e Organizadores
 5;Fontes e Conversores;T_fontes;0;;;topo;0;0;05 - Fontes e Conversores
 5;Fontes e Conversores;T_fontes;1;Fontes Chaveadas;F_fonte;propria;22;0;01 - Fontes Chaveadas
 5;Fontes e Conversores;T_fontes;2;Transformadores;F_trafo;reservada;0;0;02 - Transformadores

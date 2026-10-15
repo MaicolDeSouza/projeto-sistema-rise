@@ -935,7 +935,7 @@
 900907;"NÍQUEL PARA SOLDAR BATERIAS 18650 0,1X5MM TIRA COM 100MM";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";1.50;60
 900908;"NÍQUEL PARA SOLDAR BATERIAS 18650 0,15X8MM TIRA COM 100MM";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";2.30;90
 900911;"FITA NÍQUEL DUPLA PARA SOLDAR BATERIAS 18650 0,12X27MM 1MT";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";22.00;9
-901001;"SUPORTE PARA PLACA DE CIRCUITO IMPRESSO TRILHO DIN - 1PAR";Componentes Eletrônicos;Suportes para PCI;;I_suppci;"";"Geral";15.90;298
+901001;"SUPORTE PARA PLACA DE CIRCUITO IMPRESSO TRILHO DIN - 1PAR";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"Geral";15.90;298
 901101;"KIT 700 TERMINAIS TUBULAR ILHOS";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";56.00;5
 901201;"CONECTOR DB25 FÊMEA PAINEL PARA CABO FLAT";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";14.50;11
 901202;"CONECTOR DB25 MACHO PAINEL PARA CABO FLAT";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";14.50;16
@@ -1238,12 +1238,12 @@
 941501;"ESTAÇÃO DE SOLDA RETRABALHO SMD YAXUN YX 881D+ (220V)*941501";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";387.40;0
 941506;"ESTAÇÃO DE SOLDA PONTO 5000W COM ACESSÓRIOS P/ BATERIA 18650";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"Baterias e Acessórios";599.00;1
 951101;"Multímetro Digital Yaxun yx-9205A+ *951101";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";;2
-951201;"SUPORTE PCI FÊMEA PRETO PARA TRILHO DIN *951201";Componentes Eletrônicos;Suportes para PCI;;I_suppci;"";"";8.40;15
-951202;"SUPORTE PCI MACHO PRETO PARA TRILHO DIN *951202";Componentes Eletrônicos;Suportes para PCI;;I_suppci;"";"";8.40;15
-951203;"SUPORTE PCI 5MM PRETO PARA TRILHO DIN *951203";Componentes Eletrônicos;Suportes para PCI;;I_suppci;"";"";4.50;96
-951204;"SUPORTE PCI 20MM PRETO PARA TRILHO DIN *951204";Componentes Eletrônicos;Suportes para PCI;;I_suppci;"";"";5.00;93
-951205;"SUPORTE PCI 30MM PRETO PARA TRILHO DIN  *951205";Componentes Eletrônicos;Suportes para PCI;;I_suppci;"";"";5.50;1
-951206;"SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206";Componentes Eletrônicos;Suportes para PCI;;I_suppci;"";"";7.00;10
+951201;"SUPORTE PCI FÊMEA PRETO PARA TRILHO DIN *951201";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";8.40;15
+951202;"SUPORTE PCI MACHO PRETO PARA TRILHO DIN *951202";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";8.40;15
+951203;"SUPORTE PCI 5MM PRETO PARA TRILHO DIN *951203";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";4.50;96
+951204;"SUPORTE PCI 20MM PRETO PARA TRILHO DIN *951204";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";5.00;93
+951205;"SUPORTE PCI 30MM PRETO PARA TRILHO DIN  *951205";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";5.50;1
+951206;"SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";7.00;10
 951302;"Rolinho estanho 22g 1mm 60/40 Cobix *951302";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";10.00;31
 960102;"KIT PARAFUSO ALLEN SEM CABEÇA 200 PEÇAS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";68.90;0
 960201;"Suporte 45 graus trilho dim *960201";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";11.00;3

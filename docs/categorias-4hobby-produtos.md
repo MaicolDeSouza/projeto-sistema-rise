@@ -507,7 +507,17 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 921028 MUR160 DIP On Semi China
 - 921029 MUR1660G DIP On Semi China
 
-### 03 - Transistores e MOSFETs (16)
+### 03 - Capacitores (7)
+
+- 920901 KIT CAPACITOR CERÂMICO 50V 10 VALORES 300 PEÇAS
+- 920902 Kit Capacitor Eletrolitico x200 unidades 15 Valores
+- 920905 Capacitor eletrolítico 10uF 50V *920905
+- 920906 Capacitor eletrolítico 100uF 16V SMD *920906
+- 920907 Capacitor 100nF 50V 0805 SMD *920907
+- 920908 Capacitor 470nF 50V 0805 SMD *920908
+- 920909 Capacitor 100uf 35v
+
+### 04 - Transistores e MOSFETs (16)
 
 - 920102 Mosfet IRLU014PBF SMD NPN *920102
 - 920103 Mosfet FQD60N03 NPN 5v para 24V *920103
@@ -526,7 +536,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 921031 TIP127 TO-220 ST China
 - 921032 TIP142 DIP TO247
 
-### 04 - Circuitos Integrados (33)
+### 05 - Circuitos Integrados (33)
 
 - 270201 GRAVADOR PROGRAMADOR DEBUGGER PARA PIC PICKIT3 USB
 - 920106 Drive para mosfet IR2118S sop-8 SMD *920106
@@ -562,23 +572,13 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 922003 memoria eeprom 24lc512 SMD *922003
 - 922004 CI AOP LM358 *922004
 
-### 05 - Reguladores de Tensão (5)
+### 06 - Reguladores de Tensão (5)
 
 - 921101 Regulador de tensão AMS1117 5v *921101
 - 921102 Kit 70 regulador de tensão AMS SMD 7 tipos *921102
 - 921103 Kit 80 regulador de tensão 78lXX SMD SOT-89 10 tipos *921103
 - 921105_z Regulador de tensão AMS1117 3,3v *921105
 - 921106 Regulador de tensão 78L05 SOT-89 SMD *921106
-
-### 06 - Capacitores (7)
-
-- 920901 KIT CAPACITOR CERÂMICO 50V 10 VALORES 300 PEÇAS
-- 920902 Kit Capacitor Eletrolitico x200 unidades 15 Valores
-- 920905 Capacitor eletrolítico 10uF 50V *920905
-- 920906 Capacitor eletrolítico 100uF 16V SMD *920906
-- 920907 Capacitor 100nF 50V 0805 SMD *920907
-- 920908 Capacitor 470nF 50V 0805 SMD *920908
-- 920909 Capacitor 100uf 35v
 
 ### 07 - Potenciômetros e Trimpots (11)
 
@@ -628,13 +628,29 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 921701_z Display 7 segmentos Catodo Comum 0,56" *921701 (2a, fica em Displays e Matriz de LED)
 - 921702_z Display 7 segmentos anodo Comum 0,56" *921702 (2a, fica em Displays e Matriz de LED)
 
-### 11 - Lasers Sinalizadores (3)
+### 11 - Barras de Pinos (15)
 
-- 121605 LASER SINALIZADOR VERMELHO FORMATO CRUZ 650NM 5MW
-- 121606 LASER SINALIZADOR VERMELHO FORMATO LINHA 650NM 5MW
-- 121607 LASER SINALIZADOR VERMELHO FORMATO PONTO 650NM 5MW
+- 900201 BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° MACHO
+- 900202 BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° FÊMEA
+- 900204 BARRA DE PINOS FÊMEA 2,54MM 10 VIAS PINOS LONGOS 11MM
+- 900205 BARRA DE PINOS FÊMEA 2,54MM 6 VIAS PINOS LONGOS 11MM
+- 900206 BARRA DE PINOS FÊMEA 2,54MM 8 VIAS PINOS LONGOS 11MM
+- 900207 BARRA DE PINOS 2X40VIAS PASSO 2,54MM 180° MACHO
+- 900208_z Barra de pinos fêmea 6 vias  *900208
+- 900209 Barra de pinos fêmea 8 vias  *900209
+- 900210 Barra de pinos fêmea 10 vias  *900210
+- 900211 Barra de pinos fêmea 15 vias  *900211
+- 900212 Barra de pinos fêmea 18 vias pinos
+- 900213 Barra de pinos fêmea 19 vias  *900213
+- 900214 Barra de pinos fêmea 20 vias  *900214
+- 900215 Barra de pinos fêmea 7 vias
+- 900501 MINI JUMPER 2.54 PRETO PARA PLACA MÃE
 
-### 12 - Buzzers, Alto-falantes e Áudio (7)
+### 12 - Fusíveis (1)
+
+- 920602 Fusível grande 5A *920602
+
+### 13 - Buzzers, Alto-falantes e Áudio (7)
 
 - 100257 MODULO MP3 DFPLAYER MINI PLAYER DE ÁUDIO
 - 100268 MODULO SENSOR DE SOM KY-038
@@ -644,7 +660,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 920203 Buzzer Contínuo Sirene Alta Sfm-20b D C 3-24v
 - 920204 BUZZER PASSIVO 5V 12MM BEEP CONTINUO
 
-### 13 - Chaves e Push Buttons (18)
+### 14 - Chaves e Push Buttons (18)
 
 - 910201 CHAVE GANGORRA 2 POSIÇÕES 6A/250V REDONDA PRETO
 - 910202 CHAVE GANGORRA 2 POSIÇÕES KCD1-101 6A/250V RETANGULAR PRETO
@@ -665,7 +681,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 910403 CHAVE DE PULSO TIPO PUSH BUTTON 12X12MM COM CAPA COLORIDA
 - 910409 Chave de pulso táctil SMD tipo Push Botton  5x5x1mm *910409
 
-### 14 - Plugs e Conectores (46)
+### 15 - Plugs e Conectores (46)
 
 - 900308 KIT CONECTOR 230 PEÇAS JST XH 2/3/4/5 VIAS + TERMINAIS
 - 900309 KIT CONECTOR 250 PEÇAS JST XH 6/7/8/9/10 VIAS + TERMINAIS
@@ -714,24 +730,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 902202 Conector borne BR7 2 vias macho e femea 90 graus
 - 902301_z Conector banana 3,5mm para RC LIPO Motor banhado a ouro *902301
 
-### 15 - Barras de Pinos (15)
-
-- 900201 BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° MACHO
-- 900202 BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° FÊMEA
-- 900204 BARRA DE PINOS FÊMEA 2,54MM 10 VIAS PINOS LONGOS 11MM
-- 900205 BARRA DE PINOS FÊMEA 2,54MM 6 VIAS PINOS LONGOS 11MM
-- 900206 BARRA DE PINOS FÊMEA 2,54MM 8 VIAS PINOS LONGOS 11MM
-- 900207 BARRA DE PINOS 2X40VIAS PASSO 2,54MM 180° MACHO
-- 900208_z Barra de pinos fêmea 6 vias  *900208
-- 900209 Barra de pinos fêmea 8 vias  *900209
-- 900210 Barra de pinos fêmea 10 vias  *900210
-- 900211 Barra de pinos fêmea 15 vias  *900211
-- 900212 Barra de pinos fêmea 18 vias pinos
-- 900213 Barra de pinos fêmea 19 vias  *900213
-- 900214 Barra de pinos fêmea 20 vias  *900214
-- 900215 Barra de pinos fêmea 7 vias
-- 900501 MINI JUMPER 2.54 PRETO PARA PLACA MÃE
-
 ### 16 - Terminais e Acessórios (6)
 
 - 632581 TERMINAL OLHAL FURO 6 - PRÉ-ISOLADO PVC - VM CABO 0,50 A 1,50MM
@@ -750,7 +748,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 941004 ESPAÇADOR PLÁSTICO NYLON ISOLANTE 6MM M3 FÊMEA/FÊMEA
 - 941005 PARAFUSO PLÁSTICO NYLON ISOLANTE M3X5MM
 
-### 18 - Suportes para PCI (7)
+### 18 - Suportes para PCB (7)
 
 - 901001 SUPORTE PARA PLACA DE CIRCUITO IMPRESSO TRILHO DIN - 1PAR
 - 951201 SUPORTE PCI FÊMEA PRETO PARA TRILHO DIN *951201
@@ -760,7 +758,18 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 951205 SUPORTE PCI 30MM PRETO PARA TRILHO DIN  *951205
 - 951206 SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206
 
-### 19 - Caixas Plásticas e Organizadores (14)
+### 19 - Filtros de Ferrite (2)
+
+- 241003 Filtro de ferrite 5mm  *241003
+- 241004 Filtro de ferrite 9mm  *241004
+
+### 20 - Lasers Sinalizadores (3)
+
+- 121605 LASER SINALIZADOR VERMELHO FORMATO CRUZ 650NM 5MW
+- 121606 LASER SINALIZADOR VERMELHO FORMATO LINHA 650NM 5MW
+- 121607 LASER SINALIZADOR VERMELHO FORMATO PONTO 650NM 5MW
+
+### 21 - Caixas Plásticas e Organizadores (14)
 
 - 960701_4h CAIXA ORGANIZADORA TRANSPARENTE GRANDE P/ ELETRÔNICA *960701 (2a, fica em Caixas Plásticas e Organizadores)
 - 960702_4h CAIXA ORGANIZADORA TRANSPARENTE MEDIA P/ ELETRÔNICA *960702 (2a, fica em Caixas Plásticas e Organizadores)
@@ -776,15 +785,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 960712 caixa plástica modelo PB-040 (2a, fica em Caixas Plásticas e Organizadores)
 - 960713 caixa plástica modelo PB-211 (2a, fica em Caixas Plásticas e Organizadores)
 - 960714 CAIXA PLASTICA organizadora (2a, fica em Caixas Plásticas e Organizadores)
-
-### 20 - Fusíveis (1)
-
-- 920602 Fusível grande 5A *920602
-
-### 21 - Filtros de Ferrite (2)
-
-- 241003 Filtro de ferrite 5mm  *241003
-- 241004 Filtro de ferrite 9mm  *241004
 
 ## 05 - Fontes e Conversores
 
