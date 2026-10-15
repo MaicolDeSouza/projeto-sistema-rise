@@ -49,7 +49,7 @@
 4;Componentes Eletrônicos;T_componentes;10;Displays 7 Segmentos;I_disp;segunda;0;4;10 - Displays 7 Segmentos
 4;Componentes Eletrônicos;T_componentes;11;Buzzers, Alto-falantes e Áudio;I_buzz;propria;7;0;11 - Buzzers, Alto-falantes e Áudio
 4;Componentes Eletrônicos;T_componentes;12;Chaves e Push Buttons;I_gang;propria;18;0;12 - Chaves e Push Buttons
-4;Componentes Eletrônicos;T_componentes;13;Plugs e Conectores;I_pcb;propria;37;0;13 - Plugs e Conectores
+4;Componentes Eletrônicos;T_componentes;13;Plugs e Conectores;I_pcb;propria;44;0;13 - Plugs e Conectores
 4;Componentes Eletrônicos;T_componentes;14;Barras de Pinos;I_barra;propria;15;0;14 - Barras de Pinos
 4;Componentes Eletrônicos;T_componentes;15;Terminais e Acessórios;I_term;propria;6;0;15 - Terminais e Acessórios
 4;Componentes Eletrônicos;T_componentes;16;Espaçadores e Isoladores;I_espac;propria;6;0;16 - Espaçadores e Isoladores
@@ -76,7 +76,7 @@
 7;Automação Industrial;T_automacao;6;Encoders;E_enc;propria;5;0;06 - Encoders
 7;Automação Industrial;T_automacao;7;Chaves e Botoeiras;E_bot;propria;21;0;07 - Chaves e Botoeiras
 7;Automação Industrial;T_automacao;8;Sinalizadores;E_sinal;propria;4;0;08 - Sinalizadores
-7;Automação Industrial;T_automacao;9;Elétrica e Acessórios;E_eletr;propria;54;0;09 - Elétrica e Acessórios
+7;Automação Industrial;T_automacao;9;Elétrica e Acessórios;E_eletr;propria;47;0;09 - Elétrica e Acessórios
 8;Motores;T_motores;0;;;topo;0;0;08 - Motores
 8;Motores;T_motores;1;Motores de Passo;G_passo;propria;18;0;01 - Motores de Passo
 8;Motores;T_motores;2;Motores DC;G_dc;propria;36;0;02 - Motores DC

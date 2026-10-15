@@ -948,17 +948,17 @@
 901602;"PLUG CONECTOR SMA MACHO PARA CABO RG-58";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";3.20;1
 901603;"PLUG CONECTOR SMA FEMEA ROSCA EXTERNA PARA CABO RG-58";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";3.20;2
 901604;"ANTENA WIFI 2.4GHZ 3DBI CABO 15CM PARA ESP32 ESP8266 ESP-07";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";19.90;8
-901701;"PLUG JACK P10 J10 ESTEREO FEMEA PARA PAINEL PCB";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";2.50;2
-901702;"PLUG JACK P10 ESTEREO MACHO METALICO";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";8.80;18
-901703;"PLUG P10 ESTEREO MACHO PLASTICO PRETO";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";3.90;37
-901704;"PLUG P10 J10 ESTÉREO FÊMEA PARA PAINEL";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";3.20;0
-901801;"PLUG CANON XLR PAINEL FÊMEA 4 VIAS PARA PAINEL";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";29.90;2
-901802;"Plug Canon painel macho 04 vias *901802";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";10.00;9
+901701;"PLUG JACK P10 J10 ESTEREO FEMEA PARA PAINEL PCB";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";2.50;2
+901702;"PLUG JACK P10 ESTEREO MACHO METALICO";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";8.80;18
+901703;"PLUG P10 ESTEREO MACHO PLASTICO PRETO";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";3.90;37
+901704;"PLUG P10 J10 ESTÉREO FÊMEA PARA PAINEL";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";3.20;0
+901801;"PLUG CANON XLR PAINEL FÊMEA 4 VIAS PARA PAINEL";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";29.90;2
+901802;"Plug Canon painel macho 04 vias *901802";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";10.00;9
 901901;"ESPAÇADOR ISOLADOR PARA PCB PORCA PARAFUSO NYLON M3 180 PÇS";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"Hardware";51.90;0
 902101;"KIT 280 CONECTORES TERMINAIS DIVERSOS TAMANHOS COM CASE";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";94.00;0
 902201;"Conector borne BR7 2 vias macho e femea *902201";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";;50
 902202;"Conector borne BR7 2 vias macho e femea 90 graus";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";;0
-902301_z;"Conector banana 3,5mm para RC LIPO Motor banhado a ouro *902301";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";2.90;19
+902301_z;"Conector banana 3,5mm para RC LIPO Motor banhado a ouro *902301";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";2.90;19
 902401;"KIT CONECTOR EMENDA 2,3,5 VIAS PARA FIOS COM 60 PEÇAS";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";119.00;7
 902403;"CONECTOR EMENDA 3 VIAS PARA FIOS ENGATE RÁPIDO";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";2.50;51
 902404;"CONECTOR EMENDA 5 VIAS PARA FIOS ENGATE RÁPIDO";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";5.90;95

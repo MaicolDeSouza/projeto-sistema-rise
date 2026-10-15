@@ -659,7 +659,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 910403 CHAVE DE PULSO TIPO PUSH BUTTON 12X12MM COM CAPA COLORIDA
 - 910409 Chave de pulso táctil SMD tipo Push Botton  5x5x1mm *910409
 
-### 13 - Plugs e Conectores (37)
+### 13 - Plugs e Conectores (44)
 
 - 900308 KIT CONECTOR 230 PEÇAS JST XH 2/3/4/5 VIAS + TERMINAIS
 - 900309 KIT CONECTOR 250 PEÇAS JST XH 6/7/8/9/10 VIAS + TERMINAIS
@@ -696,8 +696,15 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 901301 CONECTOR JST PH 2MM 6 PINOS COMPLETO
 - 901302 CONECTOR 4 PINOS COMPLETO PH 2MM
 - 901303 CONECTOR JST PH 2MM 10 PINOS COMPLETO
+- 901701 PLUG JACK P10 J10 ESTEREO FEMEA PARA PAINEL PCB
+- 901702 PLUG JACK P10 ESTEREO MACHO METALICO
+- 901703 PLUG P10 ESTEREO MACHO PLASTICO PRETO
+- 901704 PLUG P10 J10 ESTÉREO FÊMEA PARA PAINEL
+- 901801 PLUG CANON XLR PAINEL FÊMEA 4 VIAS PARA PAINEL
+- 901802 Plug Canon painel macho 04 vias *901802
 - 902201 Conector borne BR7 2 vias macho e femea *902201
 - 902202 Conector borne BR7 2 vias macho e femea 90 graus
+- 902301_z Conector banana 3,5mm para RC LIPO Motor banhado a ouro *902301
 
 ### 14 - Barras de Pinos (15)
 
@@ -1019,7 +1026,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 940403 SINALIZADOR LUMINOSO LED VERMELHO 24V 22MM PARA PAINEL
 - 940404 SINALIZADOR LUMINOSO LED AMARELO 24V 22MM PARA PAINEL
 
-### 09 - Elétrica e Acessórios (54)
+### 09 - Elétrica e Acessórios (47)
 
 - 900101 CONECTOR METALICO MIKE GX12 PLUG MACHO E FÊMEA 4 PINOS
 - 900106 CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 2 VIAS
@@ -1033,13 +1040,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 900707 conector plug para pino banana fêmea vermelho
 - 900708 conector plug para pino banana fêmea preto
 - 900801 CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO
-- 901701 PLUG JACK P10 J10 ESTEREO FEMEA PARA PAINEL PCB
-- 901702 PLUG JACK P10 ESTEREO MACHO METALICO
-- 901703 PLUG P10 ESTEREO MACHO PLASTICO PRETO
-- 901704 PLUG P10 J10 ESTÉREO FÊMEA PARA PAINEL
-- 901801 PLUG CANON XLR PAINEL FÊMEA 4 VIAS PARA PAINEL
-- 901802 Plug Canon painel macho 04 vias *901802
-- 902301_z Conector banana 3,5mm para RC LIPO Motor banhado a ouro *902301
 - 910203 TOMADA PAINEL COM CHAVE ILUMINADA E PORTA FUSÍVEL 10A
 - 910212 TOMADA PAINEL 250V 10A 3 PINOS MODELO C14
 - 940801_z Presilha Fixador de nylon 15x10mm para abraçadeiras *940801
