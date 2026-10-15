@@ -917,12 +917,12 @@
 900408;"CONECTOR DUPONT 10 VIAS 2,54MM COM TERMINAIS FÊMEA";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";2.50;30
 900501;"MINI JUMPER 2.54 PRETO PARA PLACA MÃE";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"Conectores e Bornes";0.80;24
 900601;"ADAPTADOR PLUG RJ45 CAT6 FÊMEA/FÊMEA PARA PAINEL";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";28.50;5
-900701;"PLUG JACK P4 MACHO COM PARAFUSO BORNE";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";1.60;75
-900702;"PLUG JACK P4 FÊMEA COM PARAFUSO BORNE";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";3.10;109
-900703;"PLUG JACK P4 MACHO SOLDAVEL COM RABICHO";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";1.00;273
-900704;"PLUG JACK P4 FEMEA SOLDAVEL PARA PAINEL";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";2.50;44
-900705;"PLUG CONECTOR P4 5.5MM X 2.1MM BORDA METALICA";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";1.20;0
-900706_4h;"Plug conector jack P4 femea 5.5x2.1mm  para PCB *900706";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";2.00;39
+900701;"PLUG JACK P4 MACHO COM PARAFUSO BORNE";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";1.60;75
+900702;"PLUG JACK P4 FÊMEA COM PARAFUSO BORNE";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";3.10;109
+900703;"PLUG JACK P4 MACHO SOLDAVEL COM RABICHO";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";1.00;273
+900704;"PLUG JACK P4 FEMEA SOLDAVEL PARA PAINEL";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";2.50;44
+900705;"PLUG CONECTOR P4 5.5MM X 2.1MM BORDA METALICA";Componentes Eletrônicos;Conectores;;I_pcb;"";"Conectores e Bornes";1.20;0
+900706_4h;"Plug conector jack P4 femea 5.5x2.1mm  para PCB *900706";Componentes Eletrônicos;Conectores;;I_pcb;"";"";2.00;39
 900707;"conector plug para pino banana fêmea vermelho";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";4.90;15
 900708;"conector plug para pino banana fêmea preto";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";4.90;15
 900801;"CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";5.50;221
