@@ -1187,7 +1187,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 230303 Ponte H Monster dupla Vnh3asp30 30a 16V *230303
 - 230304 MÓDULO DRIVER PONTE H 43A BTS7960B PARA MOTOR DC
 
-## 09 - CNC, Laser e Impressão 3D
+## 09 - CNC / Laser / 3D
 
 ### 01 - Fusos e Castanhas (29)
 
@@ -1659,7 +1659,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 999913 SOFTWARE MACH3 LICENÇA ORIGINAL CNC ROUTER PLASMA TORNO FRESA
 - 999920 COMPUTADOR COMPLETO WIN7 32BITS PORTA PARALELA PARA MACH3
 
-## 10 - Ferramentas e Prototipagem
+## 10 - Prototipagem
 
 ### 01 - Protoboards e Placas Fenolite (8)
 

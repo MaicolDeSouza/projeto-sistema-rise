@@ -133,7 +133,7 @@ Nove folhas ditadas pelo dono em 14/10/2026. Inversores de Frequência recebe o 
 
 Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motores de Passo inclui os suportes de motor (vindos de CNC); Easy Servo (motor de passo com encoder + driver, 45 a 120 kgf) ganhou folha própria a pedido dele e Servo Drive ficou com o servo motor AC 400 W com drive; Motores DC junta os motores DC com caixa de redução, as mini bombas de água e ar e os micro servos e motores para aeromodelismo (SG90, MG996R, brushless, ESC, Pixhawk, PCA9685), tudo pedido dele; Drivers e Controladores junta os drivers de motor de passo (A4988, TMC, DM556, DM860H) com as pontes H e os controladores PWM de motor DC. Eletroímãs e Válvulas Solenoide foi para Módulos e Sensores e Chassis e Rodas para Robótica para Kits Educacionais.
 
-### CNC, Laser e Impressão 3D (365)
+### CNC / Laser / 3D (365)
 
 - Fusos e Castanhas (29)
 - Eixos e Guias Lineares (16)
@@ -159,7 +159,7 @@ Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motor
 
 Dezenove folhas ditadas pelo dono em 14/10/2026. Parafusos, Porcas e Acessórios veio de Ferramentas e Prototipagem a pedido dele ("avaliar qual é melhor": manoplas de aperto, parafusos usinados, allen, buchas, pé nivelador e dobradiça são ferragem de máquina, não de bancada) e recebeu as porcas excêntricas, a porca fina OpenBuilds, os espaçadores de alumínio e as arruelas de precisão; as porcas martelo foram para Perfis de Alumínio e Acessórios, junto dos perfis, cantoneiras, acabamentos e batentes. Correias e Polias e Roldanas perderam as siglas do nome (GT2, HTD, V-Slot), como ele pediu. Motores de Passo e Servo Drive e Drivers de Motor de Passo existem só como 2ª categoria (os produtos moram em Motores): foi a resposta ao "motores e drivers também devem fazer parte de CNC"; concordei para motores de passo, servo drives e drivers de passo, que são de quem monta CNC e impressora 3D, e não para ponte H, PWM e motores DC, que ficam só em Motores. O gerador de pulso para motor de passo aparece em Controladores CNC (nome novo de Placas Controladoras CNC). A folha de motores não se chama só "Motores" para a URL não bater com a do topo Motores. Fusos e Castanhas junta fusos de esferas, trapezoidais e castanhas/antifolga ("não separar esfera e trapezoidal"); Eixos e Guias Lineares junta eixos, guias MGN e os dois atuadores lineares; Mancais e Suportes de Eixo junta mancais KP/KFL e suportes SK/SHF; Perfis de Alumínio e Acessórios junta perfis V-Slot, cantoneiras, acabamentos, batentes e porcas martelo; Mesas Aquecidas e Extrusoras junta mesas, hotends, bicos e extrusoras. Suportes de Motor de Passo foi para Motores. **Máquinas e Equipamentos deixou de ser folha** ("saem"): as duas máquinas laser e os dois conjuntos da gravadora Ciclope foram para Módulos Laser de Diodo, os atuadores lineares para Eixos e Guias Lineares, a Ender3 montada para Acessórios para Impressora 3D e o conjunto pick-and-place para Ferramentas e Solda; se "saem" queria dizer "fora do site", é só marcar NÃO PUBLICAR. **Softwares ficou sem os serviços**: os 4 serviços (programação para embarcados e para CLP/IHM, configuração de LightBurn e de Mach3) ficam publicados **sem categoria** (marcados SEM CATEGORIA no CSV), acháveis pela busca e não pelo menu; se ele quiser uma folha Serviços, falta dizer em qual topo.
 
-### Ferramentas e Prototipagem (60)
+### Prototipagem (60)
 
 - Protoboards e Placas Fenolite (8)
 - Jumpers e Garras Jacaré (7)
@@ -263,3 +263,5 @@ Shields + Cases para Arduino; Optoacoplador + MOSFET e Dimmer (Módulos de Acion
 ## Próximo passo
 
 Ajustes pontuais que o dono ditar (nome, produto trocando de folha) entram no CSV e aqui. Só então o script da Loja Integrada é escrito (criar as categorias pela API, reatribuir os 681 produtos que casam por SKU).
+
+- **Nomes de topo encurtados para o menu da loja caber em 2 linhas** (15/10/2026, pedido do dono): **CNC, Laser e Impressão 3D virou "CNC / Laser / 3D"** e **Ferramentas e Prototipagem virou "Prototipagem"**. Trocado na loja pela API (a URL não muda: /cnc--laser-e-impress-o-3d e /ferramentas-e-prototipagem) e no mapeamento, no gerador e na árvore. Os textos antigos deste arquivo ainda citam os nomes de antes.

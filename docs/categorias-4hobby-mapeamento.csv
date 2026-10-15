@@ -24,7 +24,7 @@
 100210;"MODULO LEITOR DE CARTÃO MICRO SD";Módulos e Sensores;Módulos RTC e Memória;;B_rtc;"";"2 - Módulos e shields";7.40;96
 100211;"DATA LOGGER SHIELD COM RTC DS1307 PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";28.80;20
 100212;"MÓDULO GPS UBLOX NEO-6M GY-GPS6MV2 COM ANTENA CERÂMICA";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";46.90;12
-100215;"MODULO CNC SHIELD V3 PARA ARDUINO";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"2 - Módulos e shields";28.80;28
+100215;"MODULO CNC SHIELD V3 PARA ARDUINO";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"2 - Módulos e shields";28.80;28
 100216;"MOTOR SHIELD L293 DRIVER PONTE H PARA ARDUINO";Motores;Drivers e Controladores;;G_drv;"";"2 - Módulos e shields";27.70;30
 100218;"MÓDULO RELÉ 1 CANAL 5V 10A";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";7.20;3
 100219;"MÓDULO RELÉ ESTADO SÓLIDO SSR 1CANAL 5V 2A";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";14.40;38
@@ -33,7 +33,7 @@
 100222;"ADAPTADOR MÓDULO WIFI ESP8266 ESP-01 PARA PROTOBOARD";Placas Embarcadas;Placas ESP32;;A_esp;"";"2 - Módulos e shields";4.90;12
 100223;"ADAPTADOR USB PARA MÓDULO WIFI ESP8266 ESP-01";Placas Embarcadas;Placas ESP32;;A_esp;"";"2 - Módulos e shields";14.60;5
 100224;"PLACA BORNE INTERFACE PARA ARDUINO NANO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";19.20;18
-100225;"MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"2 - Módulos e shields";16.00;3
+100225;"MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"2 - Módulos e shields";16.00;3
 100229;"MODULO SENSOR DE TENSÃO AC 0 A 250VAC SAÍDA 0 A 5V ZMPT101B";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"2 - Módulos e shields";18.40;26
 100230;"MODULO 4 CANAIS COM OPTOACOPLADOR 3,6 A 30VDC";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";16.00;0
 100232;"MODULO RELÉ 5V 1 CANAL COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";15.40;5
@@ -59,9 +59,9 @@
 100258;"Multiplexador CD74HC4067 CMOS Analógico Digital 16 Canais para Arduino *100258";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";12.00;16
 100259;"MODULO RELÉ 5V 6 CANAIS COM OPTOACOPLADOR";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";37.00;17
 100260;"MÓDULO AMPLIFICADOR  MAX31865 PT100";Módulos e Sensores;Sensores de Temperatura e Umidade;;C_temp;"";"";;10
-100261;"SIMULADOR DE CARGA RESISTIVA USB 15W 3A";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";55.00;5
+100261;"SIMULADOR DE CARGA RESISTIVA USB 15W 3A";Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";55.00;5
 100263;"RELÉ TEMPORIZADOR DIGITAL AJUSTÁVEL XY-J02";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"Módulos";49.00;3
-100264_z;"CNC Shield V4 keyesStudio*100264";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"";87.00;5
+100264_z;"CNC Shield V4 keyesStudio*100264";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"";87.00;5
 100265;"MÓDULO OPTOACOPLADOR  ISOLADOR 4 CANAIS 3,3 A 30VDC";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";48.00;34
 100266;"MÓDULO SENSOR DETECTOR DE CHAMA DE FOGO";Módulos e Sensores;Sensores de Gás e Chama;;C_gas;"";"2 - Módulos e shields";8.00;27
 100267;"MÓDULO SENSOR DE VIBRAÇÃO SW-420";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"2 - Módulos e shields";10.00;20
@@ -70,7 +70,7 @@
 100271;"Rele com soquete 24VDC 10A";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";;10
 100272;"MÓDULO MULTIFUNÇÕES SHIELD PARA ARDUINO NÍVEL INTERMEDIÁRIO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";31.70;6
 100273;"MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"2 - Módulos e shields";30.00;0
-100274;"ANALISADOR LÓGICO 24MHZ 8 CANAIS";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Conversores";69.00;1
+100274;"ANALISADOR LÓGICO 24MHZ 8 CANAIS";Prototipagem;Instrumentos de Medição;;K_instr;"";"Conversores";69.00;1
 100275;"MÓDULO BÚSSOLA ELETRONICA  HMC5883L GY-273";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"";;0
 100276;"Sensor de inclinação e vibração SW-200D";Módulos e Sensores;Sensores de Movimento e Vibração;;C_mov;"";"";;20
 100277;"TERMOSTATO DIGITAL REXC100 FK02-M*DA (RELE)";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";;5
@@ -167,372 +167,372 @@
 111030;"MICROFONE USB PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";55.00;0
 111031;"Case para tela LCD 7 pol Oficial Raspberry Pi4 preto";Displays e Telas;Telas Gráficas TFT;;D_tft;"Placas Embarcadas > Placas Raspberry Pi";"";179.90;0
 111032;"ADAPTADOR VÍDEO WAVLINK MULTI DISPLAY USB PARA HDMI VGA DVI";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";418.00;1
-120101;"INTERFACE CONTROLADORA USB PARA CNC 4EIXOS COM CABO + MACH3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";439.00;2
-120102;"INTERFACE CONTROLADORA PARA CNC 5 EIXOS COM CABO + MACH3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";58.90;0
-120103;"Interface controladora USB Cnc 4 Eixos + Cabo + Mach3 RNR ecomotion";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"";219.90;7
-120105;"PLACA MKS DLC PARA CNC ROUTER LASER GRBL COM CABO USB";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";270.00;1
-120107;"Interface controladora laser CO2 RDC6445G *120107";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"";;0
-120108;"Fonte para tubo laser co2 40w *120108";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";887.00;0
-120109_z;"FIO CABO ALTA TENSAO PARA LASER CO2 *120109";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";40.00;0
-120110;"Conector para cabo alta tensao sado em laser co2*120110";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";65.00;1
-120111;"Fonte para tubo laser co2 100w  *120111";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;2
-120112;"Kit espelho e lentes com suporte laser co2 *120112";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";1035.00;1
-120116;"Medidor potencia laser *120116";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;0
+120101;"INTERFACE CONTROLADORA USB PARA CNC 4EIXOS COM CABO + MACH3";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";439.00;2
+120102;"INTERFACE CONTROLADORA PARA CNC 5 EIXOS COM CABO + MACH3";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";58.90;0
+120103;"Interface controladora USB Cnc 4 Eixos + Cabo + Mach3 RNR ecomotion";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"";219.90;7
+120105;"PLACA MKS DLC PARA CNC ROUTER LASER GRBL COM CABO USB";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";270.00;1
+120107;"Interface controladora laser CO2 RDC6445G *120107";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"";;0
+120108;"Fonte para tubo laser co2 40w *120108";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";887.00;0
+120109_z;"FIO CABO ALTA TENSAO PARA LASER CO2 *120109";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";40.00;0
+120110;"Conector para cabo alta tensao sado em laser co2*120110";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";65.00;1
+120111;"Fonte para tubo laser co2 100w  *120111";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";;2
+120112;"Kit espelho e lentes com suporte laser co2 *120112";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";1035.00;1
+120116;"Medidor potencia laser *120116";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";;0
 120117;"Fio de silicone vermelho 14AWG *120117";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;5
 120118;"Fio de silicone preto 14AWG *120118";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;5
 120119;"Fio de silicone vermelho 15AWG *120119";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;5
 120120;"Fio de silicone preto 15AWG *120120";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;5
-120121;"Oculos protecao laser *120121";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";57.00;5
-120122;"Espuma proteção dupla face para  tubo laser 25mm de largura *120122";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;0
-120123;"Medidor potencia laser 0-10W *120123";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;0
+120121;"Oculos protecao laser *120121";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";57.00;5
+120122;"Espuma proteção dupla face para  tubo laser 25mm de largura *120122";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";;0
+120123;"Medidor potencia laser 0-10W *120123";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";;0
 120124;"Fio de silicone preto e vermelho 16AWG *120124";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;11
 120125;"Fio de silicone preto e vermelho 24AWG *120125";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;10
-120127;"Suporte para tubo de laser CO2(par)";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";245.00;1
-120128;"Mangueira flexível para camera";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;2
-120129;"Kit redução 60 dentes motor Nema23 para laser CO2";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"";;1
-120130;"Interface controladora USB Cnc 5 Eixos + Cabo + Mach3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"";230.00;2
-120201;"PILLOW BLOCK FECHADO 16MM SC16UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";35.90;16
-120202;"PILLOW BLOCK ABERTO 16MM SBR16UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";35.20;13
-120203;"PILLOW BLOCK ABERTO 20MM SBR20UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";43.20;29
-120204;"ROLAMENTO LINEAR 8MM LM8UU";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";7.40;56
-120205;"ROLAMENTO LINEAR 16MM LM16UU";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";15.70;49
-120206;"PILLOW BLOCK FECHADO 20MM SC20UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";34.70;10
-120207;"ROLAMENTO LINEAR 12MM LM12UU";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";10.40;8
-120208;"PILLOW BLOCK FECHADO 12MM SC12UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";20.80;14
-120209;"PILLOW BLOCK FECHADO 8MM SC8UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";19.20;24
-120210;"ROLAMENTO 608ZZ BLINDADO ABEC1 8X22X7MM";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Polias e Roldanas";2.00;71
-120211;"PILLOW BLOCK FECHADO 10MM SC10UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";39.60;10
-120212;"BOMBA DE AR COMPRESSOR PARA MAQUINA GRAVAÇÃO A LASER";Motores;Motores DC;;G_dc;"CNC, Laser e Impressão 3D > Peças para Laser CO2";"Acessórios";722.00;1
-120213;"Maquina laser 10w TTS-10";CNC, Laser e Impressão 3D;Máquinas;;H_maq;"";"";;1
-120224;"ROLAMENTO LINEAR 10MM LM10UU";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";7.90;21
-120225;"ROLAMENTO LINEAR LMK12UU COM FLANGE QUADRADA PARA EIXO 12MM";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";30.40;32
-120226;"ROLAMENTO LINEAR LMK8UU COM FLANGE QUADRADA PARA EIXO 8MM";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";17.50;1
-120227;"ROLAMENTO LINEAR LMK16UU COM FLANGE QUADRADA PARA EIXO 16MM";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";30.40;18
-120228;"ROLAMENTO COM FLANGE F608ZZ (8X22X7MM)";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Polias e Roldanas";12.30;44
-120229;"PILLOW BLOCK ABERTO 12MM SBR12UU COM ROLAMENTO LINEAR";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";54.00;36
-120230;"ROLAMENTO LINEAR LMK10UU COM FLANGE QUADRADA PARA EIXO 10MM";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";37.00;25
-120231;"ROLAMENTO LINEAR LMK20UU COM FLANGE QUADRADA PARA EIXO 20MM";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";55.00;4
-120232;"Rolamento com flange F688ZZ 8x16x5mm";CNC, Laser e Impressão 3D;Rolamentos e Pillow Block;;H_rol;"";"";;46
-120301;"CASTANHA PORCA TR8 PASSO 8MM LATÃO PARA FUSO TRAPEZOIDAL";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";12.90;23
-120302;"FUSO TRAPEZOIDAL TR8 500MM PASSO 8MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";53.90;45
-120303;"FUSO TRAPEZOIDAL TR8 300MM PASSO 8MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";33.90;22
-120305;"EIXO LINEAR 16MM H7 TEMPERADO RETIFICADO CROMADO 1MT";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"Eixo Linear / Guia Linear";198.00;7
-120306;"FUSO TRAPEZOIDAL TR8 350MM PASSO 8MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";34.90;14
-120308_4h;"Eixo linear 8mm H7 1mt Temperado Cromado para Cnc *120308";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";149.00;0
-120309;"Eixo linear 12mm H7 1mt Temperado Cromado para Cnc *120309";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";145.00;5
-120310_4h;"Eixo linear 20mm H7 1mt Temperado Cromado para Cnc *120310";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";225.00;0
-120313;"FUSO DE ESFERAS SFU1605 16MM X 700MM PASSO 5MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";629.00;5
-120315;"FUSO DE ESFERAS SFU1605 16MM X 500MM PASSO 5MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";429.00;2
-120316;"FUSO DE ESFERAS SFU1605 16MM X 300MM PASSO 5MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";329.00;2
-120317;"castanha rm1605 para fuso de esfera";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"";159.90;4
-120318;"FUSO TRAPEZOIDAL TR8 500MM PASSO 2MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";66.90;0
-120319;"CASTANHA PORCA TR8 PASSO 2MM LATÃO PARA FUSO TRAPEZOIDAL";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";11.90;30
-120326;"FUSO TRAPEZOIDAL TR8 100MM PASSO 2MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";29.90;1
-120327;"FUSO TRAPEZOIDAL TR8 200MM PASSO 2MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";43.90;8
-120328;"FUSO TRAPEZOIDAL TR8 300MM PASSO 2MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";56.90;0
-120336_4h;"Eixo linear 10mm H7 1mt Temperado Cromado para Cnc *120336";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";135.00;2
-120338;"FUSO TRAPEZOIDAL TR8 600MM PASSO 2MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";129.90;0
-120339;"FUSO TRAPEZOIDAL TR8 600MM PASSO 8MM COM CASTANHA";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";99.00;3
-120340;"Kit Fuso trapezoidal 1200mm passo 8mm + 2 KP08 + acoplamento 8x8mm";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"";330.00;0
-120341_4h;"EIXO LINEAR 16MM SUPORTE ALUMINIO TEMPERADO CROMADO *120341";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";321.00;8
-120342;"EIXO LINEAR 20MM SUPORTE ALUMINIO TEMPERADO CROMADO *120342";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";368.00;14
-120343;"GUIA LINEAR MGN15H 700MM COM PATIM";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"Eixo Linear / Guia Linear";430.00;0
-120344;"GUIA LINEAR MGN15H 350MM COM PATIM";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"Eixo Linear / Guia Linear";255.00;3
-120345;"GUIA LINEAR MGN15H 800MM COM PATIM";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";447.00;0
-120345_z;"EIXO LINEAR 12MM SUPORTE ALUMINIO TEMPERADO CROMADO *120345";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";265.00;13
-120404;"MOTOR DC 775 150W 12-24V DC 20000RPM MINI SPINDLE";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"Motores";90.00;6
-120405;"Motor spindle industrial 1.1HP refrigerado a ar com inversor *120405";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";3100.00;0
-120406;"Motor spindle industrial 3HP refrigerado a ar com inversor *120406";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";3580.00;0
-120407;"Motor spindle industrial 3CV refrigerado a água com inversor *120407";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";3850.00;0
+120127;"Suporte para tubo de laser CO2(par)";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";245.00;1
+120128;"Mangueira flexível para camera";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";;2
+120129;"Kit redução 60 dentes motor Nema23 para laser CO2";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"";;1
+120130;"Interface controladora USB Cnc 5 Eixos + Cabo + Mach3";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"";230.00;2
+120201;"PILLOW BLOCK FECHADO 16MM SC16UU COM ROLAMENTO LINEAR";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";35.90;16
+120202;"PILLOW BLOCK ABERTO 16MM SBR16UU COM ROLAMENTO LINEAR";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";35.20;13
+120203;"PILLOW BLOCK ABERTO 20MM SBR20UU COM ROLAMENTO LINEAR";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";43.20;29
+120204;"ROLAMENTO LINEAR 8MM LM8UU";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";7.40;56
+120205;"ROLAMENTO LINEAR 16MM LM16UU";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";15.70;49
+120206;"PILLOW BLOCK FECHADO 20MM SC20UU COM ROLAMENTO LINEAR";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";34.70;10
+120207;"ROLAMENTO LINEAR 12MM LM12UU";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";10.40;8
+120208;"PILLOW BLOCK FECHADO 12MM SC12UU COM ROLAMENTO LINEAR";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";20.80;14
+120209;"PILLOW BLOCK FECHADO 8MM SC8UU COM ROLAMENTO LINEAR";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";19.20;24
+120210;"ROLAMENTO 608ZZ BLINDADO ABEC1 8X22X7MM";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Polias e Roldanas";2.00;71
+120211;"PILLOW BLOCK FECHADO 10MM SC10UU COM ROLAMENTO LINEAR";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";39.60;10
+120212;"BOMBA DE AR COMPRESSOR PARA MAQUINA GRAVAÇÃO A LASER";Motores;Motores DC;;G_dc;"CNC / Laser / 3D > Peças para Laser CO2";"Acessórios";722.00;1
+120213;"Maquina laser 10w TTS-10";CNC / Laser / 3D;Máquinas;;H_maq;"";"";;1
+120224;"ROLAMENTO LINEAR 10MM LM10UU";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";7.90;21
+120225;"ROLAMENTO LINEAR LMK12UU COM FLANGE QUADRADA PARA EIXO 12MM";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";30.40;32
+120226;"ROLAMENTO LINEAR LMK8UU COM FLANGE QUADRADA PARA EIXO 8MM";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";17.50;1
+120227;"ROLAMENTO LINEAR LMK16UU COM FLANGE QUADRADA PARA EIXO 16MM";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";30.40;18
+120228;"ROLAMENTO COM FLANGE F608ZZ (8X22X7MM)";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Polias e Roldanas";12.30;44
+120229;"PILLOW BLOCK ABERTO 12MM SBR12UU COM ROLAMENTO LINEAR";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";54.00;36
+120230;"ROLAMENTO LINEAR LMK10UU COM FLANGE QUADRADA PARA EIXO 10MM";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";37.00;25
+120231;"ROLAMENTO LINEAR LMK20UU COM FLANGE QUADRADA PARA EIXO 20MM";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"Rolamento Linear e Pillow Block";55.00;4
+120232;"Rolamento com flange F688ZZ 8x16x5mm";CNC / Laser / 3D;Rolamentos e Pillow Block;;H_rol;"";"";;46
+120301;"CASTANHA PORCA TR8 PASSO 8MM LATÃO PARA FUSO TRAPEZOIDAL";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";12.90;23
+120302;"FUSO TRAPEZOIDAL TR8 500MM PASSO 8MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";53.90;45
+120303;"FUSO TRAPEZOIDAL TR8 300MM PASSO 8MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";33.90;22
+120305;"EIXO LINEAR 16MM H7 TEMPERADO RETIFICADO CROMADO 1MT";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"Eixo Linear / Guia Linear";198.00;7
+120306;"FUSO TRAPEZOIDAL TR8 350MM PASSO 8MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";34.90;14
+120308_4h;"Eixo linear 8mm H7 1mt Temperado Cromado para Cnc *120308";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"";149.00;0
+120309;"Eixo linear 12mm H7 1mt Temperado Cromado para Cnc *120309";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"";145.00;5
+120310_4h;"Eixo linear 20mm H7 1mt Temperado Cromado para Cnc *120310";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"";225.00;0
+120313;"FUSO DE ESFERAS SFU1605 16MM X 700MM PASSO 5MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";629.00;5
+120315;"FUSO DE ESFERAS SFU1605 16MM X 500MM PASSO 5MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";429.00;2
+120316;"FUSO DE ESFERAS SFU1605 16MM X 300MM PASSO 5MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";329.00;2
+120317;"castanha rm1605 para fuso de esfera";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"";159.90;4
+120318;"FUSO TRAPEZOIDAL TR8 500MM PASSO 2MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";66.90;0
+120319;"CASTANHA PORCA TR8 PASSO 2MM LATÃO PARA FUSO TRAPEZOIDAL";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";11.90;30
+120326;"FUSO TRAPEZOIDAL TR8 100MM PASSO 2MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";29.90;1
+120327;"FUSO TRAPEZOIDAL TR8 200MM PASSO 2MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";43.90;8
+120328;"FUSO TRAPEZOIDAL TR8 300MM PASSO 2MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";56.90;0
+120336_4h;"Eixo linear 10mm H7 1mt Temperado Cromado para Cnc *120336";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"";135.00;2
+120338;"FUSO TRAPEZOIDAL TR8 600MM PASSO 2MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";129.90;0
+120339;"FUSO TRAPEZOIDAL TR8 600MM PASSO 8MM COM CASTANHA";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";99.00;3
+120340;"Kit Fuso trapezoidal 1200mm passo 8mm + 2 KP08 + acoplamento 8x8mm";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"";330.00;0
+120341_4h;"EIXO LINEAR 16MM SUPORTE ALUMINIO TEMPERADO CROMADO *120341";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"";321.00;8
+120342;"EIXO LINEAR 20MM SUPORTE ALUMINIO TEMPERADO CROMADO *120342";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"";368.00;14
+120343;"GUIA LINEAR MGN15H 700MM COM PATIM";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"Eixo Linear / Guia Linear";430.00;0
+120344;"GUIA LINEAR MGN15H 350MM COM PATIM";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"Eixo Linear / Guia Linear";255.00;3
+120345;"GUIA LINEAR MGN15H 800MM COM PATIM";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"";447.00;0
+120345_z;"EIXO LINEAR 12MM SUPORTE ALUMINIO TEMPERADO CROMADO *120345";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"";265.00;13
+120404;"MOTOR DC 775 150W 12-24V DC 20000RPM MINI SPINDLE";CNC / Laser / 3D;Spindles;;H_spindle;"";"Motores";90.00;6
+120405;"Motor spindle industrial 1.1HP refrigerado a ar com inversor *120405";CNC / Laser / 3D;Spindles;;H_spindle;"";"";3100.00;0
+120406;"Motor spindle industrial 3HP refrigerado a ar com inversor *120406";CNC / Laser / 3D;Spindles;;H_spindle;"";"";3580.00;0
+120407;"Motor spindle industrial 3CV refrigerado a água com inversor *120407";CNC / Laser / 3D;Spindles;;H_spindle;"";"";3850.00;0
 120408;"Inversor de frequência 2,2kw 3cv 220v Monofásico";Automação Industrial;Inversores de Frequência;;E_inv;"";"";;3
-120409;"MOTOR DC 775 24V DC 15000RPM MINI SPINDLE PCB";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"Motores";132.00;0
-120410;"Motor spindle industrial 3CV refrigerado a água";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";;0
-120411;"Suporte em alumínio para spindle 80mm de diametro";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";;0
-120412;"MOTOR SPINDLE INDUSTRIAL 3CV REFRIGERADO A ÁGUA COM INVERSOR";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"4 - Spindles";2800.00;3
-120413;"Kit Motor spindle industrial 3CV refrigerado a ar com inversor";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";2400.00;1
+120409;"MOTOR DC 775 24V DC 15000RPM MINI SPINDLE PCB";CNC / Laser / 3D;Spindles;;H_spindle;"";"Motores";132.00;0
+120410;"Motor spindle industrial 3CV refrigerado a água";CNC / Laser / 3D;Spindles;;H_spindle;"";"";;0
+120411;"Suporte em alumínio para spindle 80mm de diametro";CNC / Laser / 3D;Spindles;;H_spindle;"";"";;0
+120412;"MOTOR SPINDLE INDUSTRIAL 3CV REFRIGERADO A ÁGUA COM INVERSOR";CNC / Laser / 3D;Spindles;;H_spindle;"";"4 - Spindles";2800.00;3
+120413;"Kit Motor spindle industrial 3CV refrigerado a ar com inversor";CNC / Laser / 3D;Spindles;;H_spindle;"";"";2400.00;1
 120414;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 10 Rpm";Motores;Motores DC;;G_dc;"";"";69.90;5
 120415;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 20 Rpm";Motores;Motores DC;;G_dc;"";"";69.90;5
 120416;"MOTOR DC COM REDUÇÃO METÁLICA REVERSÍVEL JGY370 12v 150 Rpm";Motores;Motores DC;;G_dc;"";"";90.00;5
-120417;"KIT SPINDLE MOTOR CNC 800W 20000RPM COM SUPORTE E FONTE";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"";1190.00;2
-120509;"MOTOR DE PASSO NEMA 17 - 1.7A  4,2KGF 17HS4401";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";72.00;11
-120511_4h;"MOTOR DE PASSO  NEMA23 19KGF 2,1A CNC ROUTER *120511";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";319.00;0
-120512;"MOTOR DE PASSO NEMA34 90KGF 3A  CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";700.00;0
-120513;"MOTOR DE PASSO NEMA34 35KGF CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";579.00;2
-120514;"MOTOR DE PASSO NEMA34 120KGF DUPLO EIXO  *120514";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";697.00;3
-120515;"Motor de passo Nema17 4,2Kgf 0.9graus *120515";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";150.00;3
-120516;"MOTOR DE PASSO NEMA 23 - 2,8A 12,6KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";139.20;4
-120517;"MOTOR DE PASSO NEMA 23 - 3A 22KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";205.00;5
-120518;"MOTOR DE PASSO NEMA 34 - 2,8A 68KGF";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";504.00;0
-120520;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 45KGF 6,0A";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores e Drivers";"Motor de passo";1120.00;1
-120521;"MOTOR DE PASSO NEMA 17 - 2A  5,9KGF 17hs8401";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;0
-120522;"Redutor planetário Nema34 4:1";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;2
-120523;"Servo motor AC 400w sem freio com drive";Motores;Servo Drive;;G_servoac;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;1
-120524;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;0
-120525;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF COM FREIO";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;0
-120526;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;0
-120527;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF COM FREIO";Motores;Easy Servo;;G_easy;"CNC, Laser e Impressão 3D > Motores e Drivers";"";;0
-120604;"DRIVER MOTOR DE PASSO A4988 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"Driver";12.80;71
-120605;"DRIVER MOTOR DE PASSO DRV8825 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"Driver";16.00;35
+120417;"KIT SPINDLE MOTOR CNC 800W 20000RPM COM SUPORTE E FONTE";CNC / Laser / 3D;Spindles;;H_spindle;"";"";1190.00;2
+120509;"MOTOR DE PASSO NEMA 17 - 1.7A  4,2KGF 17HS4401";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"Motor de passo";72.00;11
+120511_4h;"MOTOR DE PASSO  NEMA23 19KGF 2,1A CNC ROUTER *120511";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"";319.00;0
+120512;"MOTOR DE PASSO NEMA34 90KGF 3A  CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"";700.00;0
+120513;"MOTOR DE PASSO NEMA34 35KGF CNC ROUTER PLASMA";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"Motor de passo";579.00;2
+120514;"MOTOR DE PASSO NEMA34 120KGF DUPLO EIXO  *120514";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"";697.00;3
+120515;"Motor de passo Nema17 4,2Kgf 0.9graus *120515";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"";150.00;3
+120516;"MOTOR DE PASSO NEMA 23 - 2,8A 12,6KGF";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"Motor de passo";139.20;4
+120517;"MOTOR DE PASSO NEMA 23 - 3A 22KGF";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"Motor de passo";205.00;5
+120518;"MOTOR DE PASSO NEMA 34 - 2,8A 68KGF";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"Motor de passo";504.00;0
+120520;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 45KGF 6,0A";Motores;Easy Servo;;G_easy;"CNC / Laser / 3D > Motores e Drivers";"Motor de passo";1120.00;1
+120521;"MOTOR DE PASSO NEMA 17 - 2A  5,9KGF 17hs8401";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"";;0
+120522;"Redutor planetário Nema34 4:1";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"";;2
+120523;"Servo motor AC 400w sem freio com drive";Motores;Servo Drive;;G_servoac;"CNC / Laser / 3D > Motores e Drivers";"";;1
+120524;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF";Motores;Easy Servo;;G_easy;"CNC / Laser / 3D > Motores e Drivers";"";;0
+120525;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF COM FREIO";Motores;Easy Servo;;G_easy;"CNC / Laser / 3D > Motores e Drivers";"";;0
+120526;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF";Motores;Easy Servo;;G_easy;"CNC / Laser / 3D > Motores e Drivers";"";;0
+120527;"MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF COM FREIO";Motores;Easy Servo;;G_easy;"CNC / Laser / 3D > Motores e Drivers";"";;0
+120604;"DRIVER MOTOR DE PASSO A4988 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"Driver";12.80;71
+120605;"DRIVER MOTOR DE PASSO DRV8825 COM DISSIPADOR";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"Driver";16.00;35
 120607;"CONTROLADOR DE VELOCIDADE PARA MOTOR DC 6-90V 15A PWM";Motores;Drivers e Controladores;;G_drv;"";"Módulos";73.00;24
 120608;"CONTROLADOR PWM DE VELOCIDADE PARA MOTOR DC 10-50V 40A 2000W";Motores;Drivers e Controladores;;G_drv;"";"Módulos";127.00;8
-120609;"MODULO DE EXPANSÃO PARA DRIVER A4988 DRV8825";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"2 - Módulos e shields";16.00;10
-120610;"DRIVER SILENCIOSO MOTOR DE PASSO TMC2100 IMPRESSORA 3D";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"Driver";46.00;0
-120611;"MODULO DIODO PROTEÇÃO PARA DRIVER DRV8825 A4988 TMC2100";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"2 - Módulos e shields";23.00;27
-120614;"DRIVER PROFISSIONAL DM556 5,6A PARA MOTOR DE PASSO";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"Driver";143.00;0
-120615_z;"Drive TMC2130 *120615";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";63.00;5
-120616_z;"Drive TMC2208 *120616";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";48.30;5
-120617;"DRIVE DSP PARA MOTOR DE PASSO DM860H 7,2A COM COOLER *120617";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";525.00;6
-120618;"Drive TMC2209 *120618";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";49.90;3
-120619;"Drive para motor de passo TB6560*120619";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";81.90;6
-120620;"Extensão drive externo *120620";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";15.00;10
-120621;"Easy drive";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Motores e Drivers";"";1230.00;2
-120701;"POLIA GT2 20 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";9.60;46
-120702;"POLIA GT2 40 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";19.20;22
-120703;"POLIA GT2 60 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";35.40;74
-120704;"POLIA ROLDANA 24MM D-TYPE PARA PERFIL V-SLOT";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";12.90;72
-120705;"POLIA ROLDANA 24MM V-TYPE PARA PERFIL V-SLOT";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";9.90;16
-120706;"POLIA GT2 16 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";12.40;18
-120707;"POLIA GT2 20 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";13.00;61
-120708;"POLIA GT2 PASSIVA 20 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";12.70;28
-120709;"POLIA GT2 20 DENTES COM FURO 6,35MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";10.15;167
-120710;"POLIA GT2 PASSIVA LISA COM FURO 5MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";10.60;8
-120711;"POLIA ROLDANA 24MM V-TYPE EM METAL PARA PERFIL V-SLOT";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";31.90;0
-120712;"POLIA ROLDANA 15MM D-TYPE PARA PERFIL V-SLOT";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";10.90;76
-120714;"POLIA PASSIVA LISA COM FURO 5MM PARA CORREIA 9MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";13.20;0
-120715;"POLIA GT2 30 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";23.20;10
-120716;"POLIA GT2 30 DENTES COM FURO 6,35MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";24.00;10
-120717;"POLIA GT2 30 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";24.80;39
-120720;"POLIA GT2 PASSIVA 20 DENTES COM FURO 5MM PARA CORREIA 10MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";11.20;45
-120721;"POLIA GT2 PASSIVA LISA COM FURO 5MM PARA CORREIA 10MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";11.20;38
-120722;"POLIA GT2 20 DENTES FURO 5MM PARA CORREIA 10MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";18.00;40
-120723;"POLIA GT2 20 DENTES FURO 6,35MM PARA CORREIA 10MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";19.50;15
-120724;"POLIA GT2 20 DENTES FURO 8MM PARA CORREIA 10MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";18.00;40
-120725;"POLIA GT2 60 DENTES COM FURO 6,35MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";35.40;32
-120727_z;"Polia GT2 10mm 30 dentes furo 5mm openbuiders *120727";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"";19.90;20
-120728_z;"Polia GT2 10mm 32 dentes furo 8mm openbuiders *120728";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"";27.00;24
-120729_z;"Polia GT2 10mm 30 dentes furo 8mm openbuiders *120729";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"";27.00;28
-120730;"Polia GT2 10mm 32 dentes furo 5mm openbuiders *120730";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"";14.90;18
-120732;"POLIA GT2 80 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";124.00;9
-120733;"POLIA GT2 20 DENTES COM FURO 6MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";14.00;50
-120735;"POLIA HTD3M 40 DENTES COM FURO 10MM PARA CORREIA 10MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";82.00;10
-120736;"POLIA HTD3M 15 DENTES COM FURO 6,35MM PARA CORREIA 10MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";24.00;1
-120737;"POLIA HTD3M 24 DENTES COM FURO 10MM PARA CORREIA 10MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";30.00;3
-120738;"POLIA GT2 12 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"";;20
-120739;"POLIA GT2 16 DENTES COM FURO 5MM PARA CORREIA 10MM";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"";14.90;10
-120740;"POLIA PASSIVA LISA COM FURO 5MM PARA CORREIA 9MM em metal";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"";18.70;14
-120801;"CORREIA DENTADA GT2 ALMA DE FIBRA COM LARGURA 6MM 1MT";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"Correias";10.40;30
-120802;"CORREIA DENTADA GT2 FECHADA 200MM 100 DENTES COM LARGURA 6MM";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"Correias";9.60;34
-120803;"CORREIA DENTADA GT2 FECHADA 400MM 200 DENTES COM LARGURA 6MM";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"Correias";15.90;0
-120804;"CORREIA DENTADA GT2 FECHADA 852MM 426 DENTES COM LARGURA 6MM";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"Correias";22.10;18
-120805;"CORREIA DENTADA GT2 ALMA DE AÇO COM LARGURA 6MM 1MT";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"Correias";6.30;26
-120807;"CORREIA DENTADA GT2 ALMA DE AÇO COM LARGURA 10MM 1MT";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"Correias";16.90;53
-120808;"Correia Gt2 122mm sincronizada Fechada 61 Dentes 6mm*120808";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"";12.00;38
-120809;"Correia Gt2 300mm sincronizada Fechada 150 Dentes 6mm*120809";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"";14.90;28
-120810;"Correia Gt2 3000mm sincronizada Fechada 9mm *120810";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"";65.00;5
-120811;"Correia Dentada 9mm Gt2 Preta  com alma de aço *120811";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"";19.00;3
-120812;"Correia Gt2 2500mm sincronizada Fechada 6mm *120812";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"";59.00;5
-120813;"Correia Gt2 2220mm sincronizada Fechada 6mm *120813";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"";55.00;5
-120814;"CORREIA DENTADA HTD3M FECHADA 2160MM 720 DENTES LARGURA 9MM";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"Correias";158.00;4
-120816;"Correia Gt2 110mm sincronizada Fechada 55 Dentes 6mm";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"";12.00;20
-120817;"Correia Gt2 112mm sincronizada Fechada 56 Dentes 6mm";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"";12.00;20
-120818;"Correia Gt2 158mm sincronizada Fechada 79 Dentes 6mm";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"";12.00;8
-120819;"CORREIA DENTADA GT2 ALMA DE FIBRA COM LARGURA 10MM 1MT";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"";;9
-120901;"KIT COM 10 BROCAS 0,3 A 1,2MM PARA PCB";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";22.60;16
-120903;"KIT COM 10 FRESAS RAIADAS 0.8 A 3.17MM HASTE 3.17MM";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";83.20;3
-120906;"FRESA TOPO 2 CORTES RETOS PARALELOS 2X17MM PARA MDF PEAD";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";18.30;84
-120910;"Fresa para granito mármore 0,3mm 90 graus haste 6mm *120910";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";194.90;1
-120911;"FRESA V CARVING 30º 0,2MM CÔNICA METAL DURO";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";4.40;5
-120912;"FRESA V CARVING 20º 0,1MM CÔNICA METAL DURO";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";4.40;8
-120913;"FRESA VBIT 6X32MM 90º CÔNICA PARA ENTALHE EM MADEIRA";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";28.80;10
-120914;"FRESA VBIT 6X22MM 60º CÔNICA PARA ENTALHE EM MADEIRA";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";33.60;7
-120915;"FRESA DE DESBASTE RETA 6X32MM";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";48.00;14
-120916;"FRESA DE DESBASTE RETA 6X20MM";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";33.60;11
-120919;"FRESA ESPIRAL HELICOIDAL 1 CORTE 2MM X 17MM HASTE 3,17MM";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";20.00;0
-120920;"FRESA ESPIRAL HELICOIDAL 1 CORTE 3,175MM X 17MM HASTE 3,17MM";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";20.00;6
-120921;"FRESA ESPIRAL HELICOIDAL 1 CORTE 3,175MM X 22MM HASTE 3,17MM";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";20.00;0
-120923;"FRESA 2 CORTES RETOS PARALELOS 3.175X17MM PARA MDF PEAD";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";23.90;6
-120924_z;"kit 6pçs Fresa cônica ball nose R0,5 a R2mm *120924";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";234.00;1
-120925;"FRESA MEIA CANA 6X10MM SULCO TABUA DE CARNE";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";50.00;1
-120928;"Fresa V Carving 20º 0,1mm qualidade superior *120928";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";35.00;1
-120929_z;"Fresa V Carving 30º 0,1mm qualidade superior *120929";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";38.00;9
-120931;"Fresa V Carving 20º 0,1mm 3 faces piramidal*120931";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";30.00;1
-120932;"Fresa V Carving 30º 0,1mm 3 faces piramidal*120932";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";32.00;10
-120933_z;"Fresa V Carving 30º 0,2mm 3 faces piramidal*120933";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";32.00;1
-120934;"FRESA DE DESBASTE RETA 8X32MM";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";65.00;16
-120936_z;"Jogo 5pçs Pinça ER11 3,175mm, 4mm, 6mm, 6,35mm, 8mm *120936";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";137.00;3
-120937;"KIT MINI MANDRIL PARA MOTOR 5 PINÇAS PARA BROCAS 0,3 A 3MM";CNC, Laser e Impressão 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";32.90;2
-121000;"PORCA MARTELO M3 TIPO T PARA PERFIL 30 CANAL 8";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.10;104
-121001;"SUPORTE PARA EIXO LINEAR 16MM SHF16 MANCAL FIXO";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";16.50;16
-121002;"SUPORTE PARA EIXO LINEAR 16MM SK16 MANCAL FIXO";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";12.80;7
-121003;"SUPORTE PARA EIXO LINEAR 8MM SK8 MANCAL FIXO";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";9.60;26
-121004;"MANCAL KP08 COM ROLAMENTO PARA EIXO 8MM";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";13.20;0
-121005;"MANCAL KFL08 COM ROLAMENTO PARA EIXO 8MM";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";17.60;24
-121006;"CASTANHA TR8 ANTI FOLGA PASSO 8MM  PARA FUSO TRAPEZOIDAL 8MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";20.90;18
-121007;"BLOCO DE ALUMÍNIO PARA CASTANHA TRAPEZOIDAL TR8";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Acessórios";39.50;5
-121008;"SENSOR PROBE ZERAMENTO EIXO Z PARA CNC ROUTER";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Geral";29.90;0
-121009;"CABO PARALELO DB25 PORTA LPT MACHO FÊMEA MACH3 CNC 1,5MT";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Cabos";52.90;8
-121010;"TENSOR MOLA ESTICADORA PARA CORREIA GT2 LARGURA 6MM";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"Acessórios";1.20;207
-121011;"MODULO MOSFET PARA EXTRUSORA MESA AQUECIDA IMPRESSORA 3D";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"2 - Módulos e shields";50.00;14
-121012;"FIXADOR EMENDA PARA CORREIA GT2";CNC, Laser e Impressão 3D;Correias;;H_corr;"";"Acessórios";4.60;37
-121013;"SUPORTE PARA EIXO LINEAR 12MM SK12 MANCAL FIXO";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";11.90;20
-121014;"SUPORTE PARA EIXO LINEAR 20MM SK20 MANCAL FIXO";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";19.20;7
-121015;"SUPORTE PARA EIXO LINEAR 8MM SHF8 MANCAL FIXO";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";11.60;83
-121016;"SUPORTE PARA EIXO LINEAR 12MM SHF12 MANCAL FIXO";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";12.80;27
-121017;"SUPORTE PARA EIXO LINEAR 20MM SHF20 MANCAL FIXO";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";19.20;49
-121018;"MANCAL KFL001 KFL12 COM ROLAMENTO PARA EIXO 12MM";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";13.60;22
-121019;"MANCAL KFL000 KFL10  COM ROLAMENTO PARA EIXO 10MM";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";16.00;15
-121020;"MANCAL KP000 COM ROLAMENTO PARA EIXO 10MM";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";16.00;71
-121021;"MANCAL KP001 COM ROLAMENTO PARA EIXO 12MM";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";16.00;34
-121022;"SUPORTE PARA CASTANHA DE FUSO DE ESFERAS 16MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Mancais e Suportes";35.90;18
-121023;"CONJUNTO MANCAL BK12 BF12 PARA FUSO DE ESFERA";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";200.00;2
-121024;"SUPORTE EM ALUMINIO PARA POLIA PADRÃO OPENBUILDS";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Acessórios";40.00;1
-121028;"ESTEIRA PORTA CABOS 75X25MM R100MM 1MT COM PONTEIRAS";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"Esteira Porta Cabos";334.90;5
+120609;"MODULO DE EXPANSÃO PARA DRIVER A4988 DRV8825";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"2 - Módulos e shields";16.00;10
+120610;"DRIVER SILENCIOSO MOTOR DE PASSO TMC2100 IMPRESSORA 3D";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"Driver";46.00;0
+120611;"MODULO DIODO PROTEÇÃO PARA DRIVER DRV8825 A4988 TMC2100";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"2 - Módulos e shields";23.00;27
+120614;"DRIVER PROFISSIONAL DM556 5,6A PARA MOTOR DE PASSO";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"Driver";143.00;0
+120615_z;"Drive TMC2130 *120615";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"";63.00;5
+120616_z;"Drive TMC2208 *120616";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"";48.30;5
+120617;"DRIVE DSP PARA MOTOR DE PASSO DM860H 7,2A COM COOLER *120617";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"";525.00;6
+120618;"Drive TMC2209 *120618";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"";49.90;3
+120619;"Drive para motor de passo TB6560*120619";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"";81.90;6
+120620;"Extensão drive externo *120620";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"";15.00;10
+120621;"Easy drive";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Motores e Drivers";"";1230.00;2
+120701;"POLIA GT2 20 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";9.60;46
+120702;"POLIA GT2 40 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";19.20;22
+120703;"POLIA GT2 60 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";35.40;74
+120704;"POLIA ROLDANA 24MM D-TYPE PARA PERFIL V-SLOT";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";12.90;72
+120705;"POLIA ROLDANA 24MM V-TYPE PARA PERFIL V-SLOT";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";9.90;16
+120706;"POLIA GT2 16 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";12.40;18
+120707;"POLIA GT2 20 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";13.00;61
+120708;"POLIA GT2 PASSIVA 20 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";12.70;28
+120709;"POLIA GT2 20 DENTES COM FURO 6,35MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";10.15;167
+120710;"POLIA GT2 PASSIVA LISA COM FURO 5MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";10.60;8
+120711;"POLIA ROLDANA 24MM V-TYPE EM METAL PARA PERFIL V-SLOT";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";31.90;0
+120712;"POLIA ROLDANA 15MM D-TYPE PARA PERFIL V-SLOT";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";10.90;76
+120714;"POLIA PASSIVA LISA COM FURO 5MM PARA CORREIA 9MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";13.20;0
+120715;"POLIA GT2 30 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";23.20;10
+120716;"POLIA GT2 30 DENTES COM FURO 6,35MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";24.00;10
+120717;"POLIA GT2 30 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";24.80;39
+120720;"POLIA GT2 PASSIVA 20 DENTES COM FURO 5MM PARA CORREIA 10MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";11.20;45
+120721;"POLIA GT2 PASSIVA LISA COM FURO 5MM PARA CORREIA 10MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";11.20;38
+120722;"POLIA GT2 20 DENTES FURO 5MM PARA CORREIA 10MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";18.00;40
+120723;"POLIA GT2 20 DENTES FURO 6,35MM PARA CORREIA 10MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";19.50;15
+120724;"POLIA GT2 20 DENTES FURO 8MM PARA CORREIA 10MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";18.00;40
+120725;"POLIA GT2 60 DENTES COM FURO 6,35MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";35.40;32
+120727_z;"Polia GT2 10mm 30 dentes furo 5mm openbuiders *120727";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"";19.90;20
+120728_z;"Polia GT2 10mm 32 dentes furo 8mm openbuiders *120728";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"";27.00;24
+120729_z;"Polia GT2 10mm 30 dentes furo 8mm openbuiders *120729";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"";27.00;28
+120730;"Polia GT2 10mm 32 dentes furo 5mm openbuiders *120730";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"";14.90;18
+120732;"POLIA GT2 80 DENTES COM FURO 8MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";124.00;9
+120733;"POLIA GT2 20 DENTES COM FURO 6MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";14.00;50
+120735;"POLIA HTD3M 40 DENTES COM FURO 10MM PARA CORREIA 10MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";82.00;10
+120736;"POLIA HTD3M 15 DENTES COM FURO 6,35MM PARA CORREIA 10MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";24.00;1
+120737;"POLIA HTD3M 24 DENTES COM FURO 10MM PARA CORREIA 10MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"Polias e Roldanas";30.00;3
+120738;"POLIA GT2 12 DENTES COM FURO 5MM PARA CORREIA 6MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"";;20
+120739;"POLIA GT2 16 DENTES COM FURO 5MM PARA CORREIA 10MM";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"";14.90;10
+120740;"POLIA PASSIVA LISA COM FURO 5MM PARA CORREIA 9MM em metal";CNC / Laser / 3D;Polias e Roldanas;;H_polia;"";"";18.70;14
+120801;"CORREIA DENTADA GT2 ALMA DE FIBRA COM LARGURA 6MM 1MT";CNC / Laser / 3D;Correias;;H_corr;"";"Correias";10.40;30
+120802;"CORREIA DENTADA GT2 FECHADA 200MM 100 DENTES COM LARGURA 6MM";CNC / Laser / 3D;Correias;;H_corr;"";"Correias";9.60;34
+120803;"CORREIA DENTADA GT2 FECHADA 400MM 200 DENTES COM LARGURA 6MM";CNC / Laser / 3D;Correias;;H_corr;"";"Correias";15.90;0
+120804;"CORREIA DENTADA GT2 FECHADA 852MM 426 DENTES COM LARGURA 6MM";CNC / Laser / 3D;Correias;;H_corr;"";"Correias";22.10;18
+120805;"CORREIA DENTADA GT2 ALMA DE AÇO COM LARGURA 6MM 1MT";CNC / Laser / 3D;Correias;;H_corr;"";"Correias";6.30;26
+120807;"CORREIA DENTADA GT2 ALMA DE AÇO COM LARGURA 10MM 1MT";CNC / Laser / 3D;Correias;;H_corr;"";"Correias";16.90;53
+120808;"Correia Gt2 122mm sincronizada Fechada 61 Dentes 6mm*120808";CNC / Laser / 3D;Correias;;H_corr;"";"";12.00;38
+120809;"Correia Gt2 300mm sincronizada Fechada 150 Dentes 6mm*120809";CNC / Laser / 3D;Correias;;H_corr;"";"";14.90;28
+120810;"Correia Gt2 3000mm sincronizada Fechada 9mm *120810";CNC / Laser / 3D;Correias;;H_corr;"";"";65.00;5
+120811;"Correia Dentada 9mm Gt2 Preta  com alma de aço *120811";CNC / Laser / 3D;Correias;;H_corr;"";"";19.00;3
+120812;"Correia Gt2 2500mm sincronizada Fechada 6mm *120812";CNC / Laser / 3D;Correias;;H_corr;"";"";59.00;5
+120813;"Correia Gt2 2220mm sincronizada Fechada 6mm *120813";CNC / Laser / 3D;Correias;;H_corr;"";"";55.00;5
+120814;"CORREIA DENTADA HTD3M FECHADA 2160MM 720 DENTES LARGURA 9MM";CNC / Laser / 3D;Correias;;H_corr;"";"Correias";158.00;4
+120816;"Correia Gt2 110mm sincronizada Fechada 55 Dentes 6mm";CNC / Laser / 3D;Correias;;H_corr;"";"";12.00;20
+120817;"Correia Gt2 112mm sincronizada Fechada 56 Dentes 6mm";CNC / Laser / 3D;Correias;;H_corr;"";"";12.00;20
+120818;"Correia Gt2 158mm sincronizada Fechada 79 Dentes 6mm";CNC / Laser / 3D;Correias;;H_corr;"";"";12.00;8
+120819;"CORREIA DENTADA GT2 ALMA DE FIBRA COM LARGURA 10MM 1MT";CNC / Laser / 3D;Correias;;H_corr;"";"";;9
+120901;"KIT COM 10 BROCAS 0,3 A 1,2MM PARA PCB";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";22.60;16
+120903;"KIT COM 10 FRESAS RAIADAS 0.8 A 3.17MM HASTE 3.17MM";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";83.20;3
+120906;"FRESA TOPO 2 CORTES RETOS PARALELOS 2X17MM PARA MDF PEAD";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";18.30;84
+120910;"Fresa para granito mármore 0,3mm 90 graus haste 6mm *120910";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";194.90;1
+120911;"FRESA V CARVING 30º 0,2MM CÔNICA METAL DURO";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";4.40;5
+120912;"FRESA V CARVING 20º 0,1MM CÔNICA METAL DURO";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";4.40;8
+120913;"FRESA VBIT 6X32MM 90º CÔNICA PARA ENTALHE EM MADEIRA";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";28.80;10
+120914;"FRESA VBIT 6X22MM 60º CÔNICA PARA ENTALHE EM MADEIRA";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";33.60;7
+120915;"FRESA DE DESBASTE RETA 6X32MM";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";48.00;14
+120916;"FRESA DE DESBASTE RETA 6X20MM";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";33.60;11
+120919;"FRESA ESPIRAL HELICOIDAL 1 CORTE 2MM X 17MM HASTE 3,17MM";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";20.00;0
+120920;"FRESA ESPIRAL HELICOIDAL 1 CORTE 3,175MM X 17MM HASTE 3,17MM";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";20.00;6
+120921;"FRESA ESPIRAL HELICOIDAL 1 CORTE 3,175MM X 22MM HASTE 3,17MM";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";20.00;0
+120923;"FRESA 2 CORTES RETOS PARALELOS 3.175X17MM PARA MDF PEAD";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";23.90;6
+120924_z;"kit 6pçs Fresa cônica ball nose R0,5 a R2mm *120924";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";234.00;1
+120925;"FRESA MEIA CANA 6X10MM SULCO TABUA DE CARNE";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";50.00;1
+120928;"Fresa V Carving 20º 0,1mm qualidade superior *120928";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";35.00;1
+120929_z;"Fresa V Carving 30º 0,1mm qualidade superior *120929";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";38.00;9
+120931;"Fresa V Carving 20º 0,1mm 3 faces piramidal*120931";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";30.00;1
+120932;"Fresa V Carving 30º 0,1mm 3 faces piramidal*120932";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";32.00;10
+120933_z;"Fresa V Carving 30º 0,2mm 3 faces piramidal*120933";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";32.00;1
+120934;"FRESA DE DESBASTE RETA 8X32MM";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";65.00;16
+120936_z;"Jogo 5pçs Pinça ER11 3,175mm, 4mm, 6mm, 6,35mm, 8mm *120936";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"";137.00;3
+120937;"KIT MINI MANDRIL PARA MOTOR 5 PINÇAS PARA BROCAS 0,3 A 3MM";CNC / Laser / 3D;Fresas, Brocas e Pinças;;H_fresa;"";"Fresas e Brocas";32.90;2
+121000;"PORCA MARTELO M3 TIPO T PARA PERFIL 30 CANAL 8";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.10;104
+121001;"SUPORTE PARA EIXO LINEAR 16MM SHF16 MANCAL FIXO";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";16.50;16
+121002;"SUPORTE PARA EIXO LINEAR 16MM SK16 MANCAL FIXO";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";12.80;7
+121003;"SUPORTE PARA EIXO LINEAR 8MM SK8 MANCAL FIXO";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";9.60;26
+121004;"MANCAL KP08 COM ROLAMENTO PARA EIXO 8MM";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";13.20;0
+121005;"MANCAL KFL08 COM ROLAMENTO PARA EIXO 8MM";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";17.60;24
+121006;"CASTANHA TR8 ANTI FOLGA PASSO 8MM  PARA FUSO TRAPEZOIDAL 8MM";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";20.90;18
+121007;"BLOCO DE ALUMÍNIO PARA CASTANHA TRAPEZOIDAL TR8";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Acessórios";39.50;5
+121008;"SENSOR PROBE ZERAMENTO EIXO Z PARA CNC ROUTER";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"Geral";29.90;0
+121009;"CABO PARALELO DB25 PORTA LPT MACHO FÊMEA MACH3 CNC 1,5MT";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"Cabos";52.90;8
+121010;"TENSOR MOLA ESTICADORA PARA CORREIA GT2 LARGURA 6MM";CNC / Laser / 3D;Correias;;H_corr;"";"Acessórios";1.20;207
+121011;"MODULO MOSFET PARA EXTRUSORA MESA AQUECIDA IMPRESSORA 3D";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"2 - Módulos e shields";50.00;14
+121012;"FIXADOR EMENDA PARA CORREIA GT2";CNC / Laser / 3D;Correias;;H_corr;"";"Acessórios";4.60;37
+121013;"SUPORTE PARA EIXO LINEAR 12MM SK12 MANCAL FIXO";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";11.90;20
+121014;"SUPORTE PARA EIXO LINEAR 20MM SK20 MANCAL FIXO";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";19.20;7
+121015;"SUPORTE PARA EIXO LINEAR 8MM SHF8 MANCAL FIXO";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";11.60;83
+121016;"SUPORTE PARA EIXO LINEAR 12MM SHF12 MANCAL FIXO";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";12.80;27
+121017;"SUPORTE PARA EIXO LINEAR 20MM SHF20 MANCAL FIXO";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";19.20;49
+121018;"MANCAL KFL001 KFL12 COM ROLAMENTO PARA EIXO 12MM";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";13.60;22
+121019;"MANCAL KFL000 KFL10  COM ROLAMENTO PARA EIXO 10MM";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";16.00;15
+121020;"MANCAL KP000 COM ROLAMENTO PARA EIXO 10MM";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";16.00;71
+121021;"MANCAL KP001 COM ROLAMENTO PARA EIXO 12MM";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";16.00;34
+121022;"SUPORTE PARA CASTANHA DE FUSO DE ESFERAS 16MM";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Mancais e Suportes";35.90;18
+121023;"CONJUNTO MANCAL BK12 BF12 PARA FUSO DE ESFERA";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";200.00;2
+121024;"SUPORTE EM ALUMINIO PARA POLIA PADRÃO OPENBUILDS";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"Acessórios";40.00;1
+121028;"ESTEIRA PORTA CABOS 75X25MM R100MM 1MT COM PONTEIRAS";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"Esteira Porta Cabos";334.90;5
 121030;"RELE ESTADO SOLIDO 40A SSR-40DD IN 3-32VDC OUT 5-60VDC";Automação Industrial;Controladores Industriais;;E_ctrl;"";"Geral";72.00;10
-121031;"NEBULIZADOR PULVERIZADOR PARA ROUTER TORNO FRESA CNC";CNC, Laser e Impressão 3D;Spindles;;H_spindle;"";"Acessórios";84.00;3
-121034;"PORCA EXCÊNTRICA FURO 5MM ALTURA 6,35MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";4.80;33
-121035;"PORCA EXCÊNTRICA FURO 5MM ALTURA 6MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";4.40;55
-121036;"PORCA MARTELO M5 TIPO T PARA PERFIL 20 CANAL 6";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Hardware";1.00;98
-121037;"ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 6,35MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Acessórios";1.20;124
-121038;"ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 6MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Acessórios";1.20;300
-121039;"ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 3MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Acessórios";0.80;140
-121040;"LIMITADOR BATENTE MECÂNICO PARA EIXO 8MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Acessórios";5.20;64
-121041;"ESPAÇADOR ARRUELA DE PRECISÃO 5X8X1MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Acessórios";0.80;124
-121042;"ESPAÇADOR ARRUELA DE PRECISÃO 5X10X1MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Acessórios";0.80;62
-121043;"CANTONEIRA EM ALUMINIO PARA PERFIL DE ALUMÍNIO 2020";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Acessórios";3.10;27
-121045;"CANTONEIRA ALUMINIO 3 VIAS PARA PERFIL DE ALUMINIO 2020";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Acessórios";11.90;1
-121046;"SISTEMA ANTIFOLGA TR8 PASSO 8MM PADRÃO OPENBUIDS";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Acessórios";13.60;33
-121047;"SISTEMA CASTANHA TR8 PASSO 8MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Acessórios";12.90;2
-121048;"PORCA MARTELO M4 TIPO T PARA PERFIL 20 CANAL 6";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Hardware";1.00;80
-121049;"PORCA MARTELO M6 TIPO T PARA PERFIL 30 CANAL 8";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Hardware";2.10;48
-121050;"PORCA FINA M5 X 3MM PASSO 0,8MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";1.00;91
-121051;"SISTEMA ANTIFOLGA TR8 PASSO 2MM PADRÃO OPENBUILDS";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Acessórios";13.60;18
-121052;"SUPORTE PARA EIXO LINEAR 10MM SK10 MANCAL FIXO";CNC, Laser e Impressão 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";10.30;39
-121053;"SUPORTE PARA ALOJAMENTO DE MOTOR NEMA 17 E POLIA OPENBUILDS";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Acessórios";51.20;1
-121054_z;"Acabamento plastico tampa preto para perfil 20x20 V-slot *121054";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";1.70;0
-121056;"CASTANHA TR8 ANTI FOLGA PASSO 2MM  PARA FUSO TRAPEZOIDAL 8MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";20.90;39
+121031;"NEBULIZADOR PULVERIZADOR PARA ROUTER TORNO FRESA CNC";CNC / Laser / 3D;Spindles;;H_spindle;"";"Acessórios";84.00;3
+121034;"PORCA EXCÊNTRICA FURO 5MM ALTURA 6,35MM PADRÃO OPENBUILDS";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";4.80;33
+121035;"PORCA EXCÊNTRICA FURO 5MM ALTURA 6MM PADRÃO OPENBUILDS";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";4.40;55
+121036;"PORCA MARTELO M5 TIPO T PARA PERFIL 20 CANAL 6";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Hardware";1.00;98
+121037;"ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 6,35MM PADRÃO OPENBUILDS";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Acessórios";1.20;124
+121038;"ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 6MM PADRÃO OPENBUILDS";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Acessórios";1.20;300
+121039;"ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 3MM PADRÃO OPENBUILDS";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Acessórios";0.80;140
+121040;"LIMITADOR BATENTE MECÂNICO PARA EIXO 8MM PADRÃO OPENBUILDS";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Acessórios";5.20;64
+121041;"ESPAÇADOR ARRUELA DE PRECISÃO 5X8X1MM PADRÃO OPENBUILDS";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Acessórios";0.80;124
+121042;"ESPAÇADOR ARRUELA DE PRECISÃO 5X10X1MM PADRÃO OPENBUILDS";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Acessórios";0.80;62
+121043;"CANTONEIRA EM ALUMINIO PARA PERFIL DE ALUMÍNIO 2020";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Acessórios";3.10;27
+121045;"CANTONEIRA ALUMINIO 3 VIAS PARA PERFIL DE ALUMINIO 2020";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Acessórios";11.90;1
+121046;"SISTEMA ANTIFOLGA TR8 PASSO 8MM PADRÃO OPENBUIDS";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Acessórios";13.60;33
+121047;"SISTEMA CASTANHA TR8 PASSO 8MM PADRÃO OPENBUILDS";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Acessórios";12.90;2
+121048;"PORCA MARTELO M4 TIPO T PARA PERFIL 20 CANAL 6";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Hardware";1.00;80
+121049;"PORCA MARTELO M6 TIPO T PARA PERFIL 30 CANAL 8";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Hardware";2.10;48
+121050;"PORCA FINA M5 X 3MM PASSO 0,8MM PADRÃO OPENBUILDS";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";1.00;91
+121051;"SISTEMA ANTIFOLGA TR8 PASSO 2MM PADRÃO OPENBUILDS";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Acessórios";13.60;18
+121052;"SUPORTE PARA EIXO LINEAR 10MM SK10 MANCAL FIXO";CNC / Laser / 3D;Mancais e Suportes de Eixo;;H_mancal;"";"Mancais e Suportes";10.30;39
+121053;"SUPORTE PARA ALOJAMENTO DE MOTOR NEMA 17 E POLIA OPENBUILDS";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"Acessórios";51.20;1
+121054_z;"Acabamento plastico tampa preto para perfil 20x20 V-slot *121054";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";1.70;0
+121056;"CASTANHA TR8 ANTI FOLGA PASSO 2MM  PARA FUSO TRAPEZOIDAL 8MM";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";20.90;39
 121057;"Rele estado solido DC para AC 40A SSR-40DA  *121057";Automação Industrial;Controladores Industriais;;E_ctrl;"";"";57.00;22
-121058;"Porca martelo M4 tipo T fixa para perfil v-slot 20 *121058";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.00;12
-121060;"Porca martelo M5 tipo T fixa para perfil v-slot 20 *121060";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.00;97
-121061;"Acabamento plastico preto para perfil 20x20 normal *121061";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";4.00;21
-121062_z;"ACABAMENTO PLASTICO PARA PERFIL V-SLOT 2040 *121062";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";7.90;110
+121058;"Porca martelo M4 tipo T fixa para perfil v-slot 20 *121058";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.00;12
+121060;"Porca martelo M5 tipo T fixa para perfil v-slot 20 *121060";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.00;97
+121061;"Acabamento plastico preto para perfil 20x20 normal *121061";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";4.00;21
+121062_z;"ACABAMENTO PLASTICO PARA PERFIL V-SLOT 2040 *121062";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";7.90;110
 121063;"OBSOLETO-Porca martelo quadrada fixa M5 perfil 20 *121063";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";;0
-121064_4h;"Porca martelo M4 perfil 30 giratória *121064";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.50;317
-121065;"SUPORTE PARA CASTANHA DE FUSO DE ESFERAS 12MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Mancais e Suportes";53.90;3
-121066;"Plaqueta universal preta 65.5mm x 65.5mm x 3mm openbuids para laser *121066";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";32.00;5
-121067;"Cantoneira Quadrado alumínio para perfil 2020  *121067";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";10.90;3
-121068_4h;"Porca martelo M5 tipo T com mola p/ perfil v-slot 20 *121068";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.80;145
-121069;"CANTONEIRA ALUMINIO 20X28MM PARA PERFIL DE ALUMÍNIO";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Acessórios";6.50;22
-121070;"Porca martelo M3 tipo T fixa para perfil v-slot 20 *121070";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.00;358
-121071;"BLOCO DE ALUMÍNIO PARA CASTANHA ANTIFOLGA TRAPEZOIDAL TR8";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Mancais e Suportes";47.90;10
-121072;"Cantoneira aluminio liso em L 2020 openbuids *121072";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";7.00;41
-121073;"Arruela de precisão inox 8x14x1mm *121073";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;9
-121076;"PORCA MARTELO M6 TIPO T PARA PERFIL 40 CANAL 8";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Hardware";3.50;3
-121077;"PORCA MARTELO M4 TIPO T PARA PERFIL 40 CANAL 8";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Hardware";3.50;12
-121078;"Cantoneira em Alumínio 100x100mm largura 28mm";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";33.00;0
-121079;"Cantoneira em Alumínio 38x38mm largura 15mm cor natural para rosca M5";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";;0
-121080;"Cantoneira em Alumínio 38x38mm largura 15mm cor preta para rosca M5";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";;0
-121081;"Guia linear MGN15 modelo H 150mm com patins";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";320.00;2
-121082;"Limitador mecânico batente 8x25x10mm";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";;3
-121083;"GUIA LINEAR MGN15H 400MM COM PATIM";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"Eixo Linear / Guia Linear";320.00;1
-121084;"GUIA LINEAR MGN12H 400MM COM PATIM";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"Eixo Linear / Guia Linear";258.00;0
-121085;"CASTANHA TR8 ANTI FOLGA PASSO 2MM RETANGULAR TRAPEZOIDAL 8MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";19.90;6
-121086;"CASTANHA TR8 ANTI FOLGA PASSO 8MM RETANGULAR TRAPEZOIDAL 8MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";19.90;6
-121087;"CASTANHA TR8 ANTI FOLGA PASSO 4MM RETANGULAR TRAPEZOIDAL 8MM";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"";46.00;4
-121101;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 8X10MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;17
-121102;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 5X8MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;19
-121103;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 5X5MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;68
-121104;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6,35X8MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;4
-121105;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 8X8MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;94
-121106;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6,35X10MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;30
-121107;"ACOPLAMENTO FLEXÍVEL REFORÇADO 6,35X10MM D20L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";38.90;37
-121108;"ACOPLAMENTO FLEXÍVEL REFORÇADO 8X10MM D20L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";38.90;20
-121109_3;"FLANGE RÍGIDA ACOPLAMENTO PARA MOTOR Diâmetro do Furo:3mm";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"";23.31;25
-121109_4;"FLANGE RÍGIDA ACOPLAMENTO PARA MOTOR Diâmetro do Furo:4mm";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"";23.31;22
-121109_5;"FLANGE RÍGIDA ACOPLAMENTO PARA MOTOR Diâmetro do Furo:5mm";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"";23.31;29
-121109_635;"FLANGE RÍGIDA ACOPLAMENTO PARA MOTOR Diâmetro do Furo:6,35mm";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"";23.31;29
-121110;"ACOPLAMENTO RÍGIDO 5X8MM EM ALUMINIO";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";10.90;25
-121111;"ACOPLAMENTO RÍGIDO 6,35X8MM EM ALUMINIO";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";10.90;66
-121112;"ACOPLAMENTO RÍGIDO 8X8MM EM ALUMINIO";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";10.90;8
-121116;"ACOPLAMENTO FLEXÍVEL REFORÇADO 8X8MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";38.90;32
-121117;"ACOPLAMENTO FLEXÍVEL REFORÇADO 6,35X8MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";38.90;23
-121118;"ACOPLAMENTO FLEXÍVEL REFORÇADO 5X8MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";38.90;26
-121119;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6X6MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;19
-121120;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6X8MM D19L25";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;4
-121121;"ACOPLAMENTO FLEXÍVEL REFORÇADO 10X14MM D30L35";CNC, Laser e Impressão 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";49.90;12
-121201_4h;"Suporte para Motor de passo NEMA17 Reto 2 furos *121201";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";15.00;24
-121202;"Suporte Para Motor de Passo Nema23  90graus em L *121202";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";39.90;53
-121203_4h;"Suporte para Motor de passo NEMA17 Reto 6 furos *121203";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"";25.00;21
-121205;"SUPORTE EM L 90° PARA MOTOR DE PASSO NEMA 17";Motores;Motores de Passo;;G_passo;"CNC, Laser e Impressão 3D > Motores e Drivers";"Acessórios";30.00;0
+121064_4h;"Porca martelo M4 perfil 30 giratória *121064";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.50;317
+121065;"SUPORTE PARA CASTANHA DE FUSO DE ESFERAS 12MM";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Mancais e Suportes";53.90;3
+121066;"Plaqueta universal preta 65.5mm x 65.5mm x 3mm openbuids para laser *121066";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";32.00;5
+121067;"Cantoneira Quadrado alumínio para perfil 2020  *121067";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";10.90;3
+121068_4h;"Porca martelo M5 tipo T com mola p/ perfil v-slot 20 *121068";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.80;145
+121069;"CANTONEIRA ALUMINIO 20X28MM PARA PERFIL DE ALUMÍNIO";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Acessórios";6.50;22
+121070;"Porca martelo M3 tipo T fixa para perfil v-slot 20 *121070";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";2.00;358
+121071;"BLOCO DE ALUMÍNIO PARA CASTANHA ANTIFOLGA TRAPEZOIDAL TR8";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Mancais e Suportes";47.90;10
+121072;"Cantoneira aluminio liso em L 2020 openbuids *121072";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";7.00;41
+121073;"Arruela de precisão inox 8x14x1mm *121073";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;9
+121076;"PORCA MARTELO M6 TIPO T PARA PERFIL 40 CANAL 8";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Hardware";3.50;3
+121077;"PORCA MARTELO M4 TIPO T PARA PERFIL 40 CANAL 8";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Hardware";3.50;12
+121078;"Cantoneira em Alumínio 100x100mm largura 28mm";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";33.00;0
+121079;"Cantoneira em Alumínio 38x38mm largura 15mm cor natural para rosca M5";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";;0
+121080;"Cantoneira em Alumínio 38x38mm largura 15mm cor preta para rosca M5";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";;0
+121081;"Guia linear MGN15 modelo H 150mm com patins";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"";320.00;2
+121082;"Limitador mecânico batente 8x25x10mm";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";;3
+121083;"GUIA LINEAR MGN15H 400MM COM PATIM";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"Eixo Linear / Guia Linear";320.00;1
+121084;"GUIA LINEAR MGN12H 400MM COM PATIM";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"Eixo Linear / Guia Linear";258.00;0
+121085;"CASTANHA TR8 ANTI FOLGA PASSO 2MM RETANGULAR TRAPEZOIDAL 8MM";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";19.90;6
+121086;"CASTANHA TR8 ANTI FOLGA PASSO 8MM RETANGULAR TRAPEZOIDAL 8MM";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"Fusos";19.90;6
+121087;"CASTANHA TR8 ANTI FOLGA PASSO 4MM RETANGULAR TRAPEZOIDAL 8MM";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"";46.00;4
+121101;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 8X10MM D19L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;17
+121102;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 5X8MM D19L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;19
+121103;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 5X5MM D19L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;68
+121104;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6,35X8MM D19L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;4
+121105;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 8X8MM D19L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;94
+121106;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6,35X10MM D19L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;30
+121107;"ACOPLAMENTO FLEXÍVEL REFORÇADO 6,35X10MM D20L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";38.90;37
+121108;"ACOPLAMENTO FLEXÍVEL REFORÇADO 8X10MM D20L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";38.90;20
+121109_3;"FLANGE RÍGIDA ACOPLAMENTO PARA MOTOR Diâmetro do Furo:3mm";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"";23.31;25
+121109_4;"FLANGE RÍGIDA ACOPLAMENTO PARA MOTOR Diâmetro do Furo:4mm";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"";23.31;22
+121109_5;"FLANGE RÍGIDA ACOPLAMENTO PARA MOTOR Diâmetro do Furo:5mm";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"";23.31;29
+121109_635;"FLANGE RÍGIDA ACOPLAMENTO PARA MOTOR Diâmetro do Furo:6,35mm";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"";23.31;29
+121110;"ACOPLAMENTO RÍGIDO 5X8MM EM ALUMINIO";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";10.90;25
+121111;"ACOPLAMENTO RÍGIDO 6,35X8MM EM ALUMINIO";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";10.90;66
+121112;"ACOPLAMENTO RÍGIDO 8X8MM EM ALUMINIO";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";10.90;8
+121116;"ACOPLAMENTO FLEXÍVEL REFORÇADO 8X8MM D19L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";38.90;32
+121117;"ACOPLAMENTO FLEXÍVEL REFORÇADO 6,35X8MM D19L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";38.90;23
+121118;"ACOPLAMENTO FLEXÍVEL REFORÇADO 5X8MM D19L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";38.90;26
+121119;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6X6MM D19L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;19
+121120;"ACOPLAMENTO FLEXÍVEL PARA MOTOR DE PASSO 6X8MM D19L25";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";12.90;4
+121121;"ACOPLAMENTO FLEXÍVEL REFORÇADO 10X14MM D30L35";CNC / Laser / 3D;Acoplamentos;;H_acopl;"";"Acoplamentos";49.90;12
+121201_4h;"Suporte para Motor de passo NEMA17 Reto 2 furos *121201";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"";15.00;24
+121202;"Suporte Para Motor de Passo Nema23  90graus em L *121202";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"";39.90;53
+121203_4h;"Suporte para Motor de passo NEMA17 Reto 6 furos *121203";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"";25.00;21
+121205;"SUPORTE EM L 90° PARA MOTOR DE PASSO NEMA 17";Motores;Motores de Passo;;G_passo;"CNC / Laser / 3D > Motores e Drivers";"Acessórios";30.00;0
 121208;"ELETROÍMÃ SOLENÓIDE 24VDC 8KG";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"";64.00;10
 121209;"Kit com 100 Imã De Neodímio 5x1 Redondo Pequeno 5mm X 1mm N35";Módulos e Sensores;Imãs de Neodímio;;B_neod;"";"";42.00;0
 121210;"Imã De Neodímio Redondo 10x2mm N35";Módulos e Sensores;Imãs de Neodímio;;B_neod;"";"";;200
 121211;"Imã De Neodímio Redondo 5x2mm N35";Módulos e Sensores;Imãs de Neodímio;;B_neod;"";"";;500
-121301;"ESTEIRA PORTA CABOS 10X10MM R18 1MT COM PONTEIRAS *121301";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";102.00;34
-121302;"ESTEIRA PORTA CABOS 20X10MM R18 1MT COM PONTEIRAS";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"Esteira Porta Cabos";79.90;18
-121303_4h;"ESTEIRA PORTA CABOS 28X20MM R28 1MT COM PONTEIRAS *121303";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";173.50;10
-121304;"ESTEIRA PORTA CABOS 25X25MM R55 1MT COM PONTEIRAS *121304";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";246.54;10
-121305;"ESTEIRA PORTA CABOS 1MT 40X25MM R55 COM PONTEIRAS";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"Esteira Porta Cabos";266.40;5
-121306_4h;"Esteira Porta Cabos 50x50mm R100 1mt com ponteiras *121306";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";396.90;10
-121307_4h;"Esteira Porta Cabos 75x50mm R100 1mt com ponteiras *121307";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";445.60;10
-121308;"ESTEIRA PORTA CABOS 10X10MM R28 1MT COM PONTEIRAS *121308";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";78.90;15
-121309_4h;"ESTEIRA PORTA CABOS 10X10MM R38 1MT COM PONTEIRAS *121309";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";78.90;22
-121310_4h;"ESTEIRA PORTA CABOS 20X10MM R28 1MT COM PONTEIRAS *121310";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";92.74;16
-121311;"ESTEIRA PORTA CABOS 20X10MM R38 1MT COM PONTEIRAS *121311";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";92.74;10
-121312_4h;"Esteira Porta Cabos 28X20mm R38 1MT COM PONTEIRAS *121312";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";173.56;6
-121314;"ESTEIRA PORTA CABOS 25X25MM R100 1MT COM PONTEIRAS *121314";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";246.54;10
-121315;"Esteira Porta Cabos 40X25mm R75 1mt com ponteiras *121315";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";266.32;10
-121319_4h;"Esteira Porta Cabos 1mt 100x50mm R100 *121319";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";524.94;0
-121323_4h;"Esteira Porta Cabos 50x35mm R75 1mt com ponteiras*121323";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";280.90;8
-121324_4h;"Esteira Porta Cabos 75x35mm R75 1mt com ponteiras *121324";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";349.90;9
-121325_4h;"Esteira Porta Cabos 100x35mm R75 1mt com ponteiras *121325";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";437.50;10
-121327;"Terminal de fixação esteira porta cabos 125mmx50mm*121327";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";;0
-121328;"Terminal de fixação esteira porta cabos 100mmx50mm*121328";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";;0
-121329;"Terminal de fixação esteira porta cabos 10mmx10mm";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";25.00;0
+121301;"ESTEIRA PORTA CABOS 10X10MM R18 1MT COM PONTEIRAS *121301";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";102.00;34
+121302;"ESTEIRA PORTA CABOS 20X10MM R18 1MT COM PONTEIRAS";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"Esteira Porta Cabos";79.90;18
+121303_4h;"ESTEIRA PORTA CABOS 28X20MM R28 1MT COM PONTEIRAS *121303";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";173.50;10
+121304;"ESTEIRA PORTA CABOS 25X25MM R55 1MT COM PONTEIRAS *121304";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";246.54;10
+121305;"ESTEIRA PORTA CABOS 1MT 40X25MM R55 COM PONTEIRAS";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"Esteira Porta Cabos";266.40;5
+121306_4h;"Esteira Porta Cabos 50x50mm R100 1mt com ponteiras *121306";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";396.90;10
+121307_4h;"Esteira Porta Cabos 75x50mm R100 1mt com ponteiras *121307";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";445.60;10
+121308;"ESTEIRA PORTA CABOS 10X10MM R28 1MT COM PONTEIRAS *121308";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";78.90;15
+121309_4h;"ESTEIRA PORTA CABOS 10X10MM R38 1MT COM PONTEIRAS *121309";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";78.90;22
+121310_4h;"ESTEIRA PORTA CABOS 20X10MM R28 1MT COM PONTEIRAS *121310";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";92.74;16
+121311;"ESTEIRA PORTA CABOS 20X10MM R38 1MT COM PONTEIRAS *121311";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";92.74;10
+121312_4h;"Esteira Porta Cabos 28X20mm R38 1MT COM PONTEIRAS *121312";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";173.56;6
+121314;"ESTEIRA PORTA CABOS 25X25MM R100 1MT COM PONTEIRAS *121314";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";246.54;10
+121315;"Esteira Porta Cabos 40X25mm R75 1mt com ponteiras *121315";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";266.32;10
+121319_4h;"Esteira Porta Cabos 1mt 100x50mm R100 *121319";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";524.94;0
+121323_4h;"Esteira Porta Cabos 50x35mm R75 1mt com ponteiras*121323";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";280.90;8
+121324_4h;"Esteira Porta Cabos 75x35mm R75 1mt com ponteiras *121324";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";349.90;9
+121325_4h;"Esteira Porta Cabos 100x35mm R75 1mt com ponteiras *121325";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";437.50;10
+121327;"Terminal de fixação esteira porta cabos 125mmx50mm*121327";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";;0
+121328;"Terminal de fixação esteira porta cabos 100mmx50mm*121328";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";;0
+121329;"Terminal de fixação esteira porta cabos 10mmx10mm";CNC / Laser / 3D;Esteiras Porta Cabos;;H_esteira;"";"";25.00;0
 121604;"OBSOLETO-LASER 15W 12V COM FONTE GRAVAÇÃO MDF ACRÍLICO EVA *121604";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";1867.00;0
 121605;"LASER SINALIZADOR VERMELHO FORMATO CRUZ 650NM 5MW";Componentes Eletrônicos;Lasers Sinalizadores;;I_lasersin;"";"Geral";19.20;0
 121606;"LASER SINALIZADOR VERMELHO FORMATO LINHA 650NM 5MW";Componentes Eletrônicos;Lasers Sinalizadores;;I_lasersin;"";"Geral";19.20;21
 121607;"LASER SINALIZADOR VERMELHO FORMATO PONTO 650NM 5MW";Componentes Eletrônicos;Lasers Sinalizadores;;I_lasersin;"";"Geral";29.90;1
-121609;"Carcaça aluminio para laser 12mm *121609";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";;0
-121610;"Laser 4hobby 5W *121610";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";2452.00;0
-121612;"Laser de gravação 5W";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";1758.00;0
-121613;"Laser de gravação 10W";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";2350.00;5
-121701;"Conjunto pick place com valvula vacuo para maquina de montagem placa smd *121701";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";470.00;1
+121609;"Carcaça aluminio para laser 12mm *121609";CNC / Laser / 3D;Módulos Laser de Diodo;;H_laser;"";"";;0
+121610;"Laser 4hobby 5W *121610";CNC / Laser / 3D;Módulos Laser de Diodo;;H_laser;"";"";2452.00;0
+121612;"Laser de gravação 5W";CNC / Laser / 3D;Módulos Laser de Diodo;;H_laser;"";"";1758.00;0
+121613;"Laser de gravação 10W";CNC / Laser / 3D;Módulos Laser de Diodo;;H_laser;"";"";2350.00;5
+121701;"Conjunto pick place com valvula vacuo para maquina de montagem placa smd *121701";Prototipagem;Ferramentas e Solda;;K_ferr;"";"";470.00;1
 121801;"MINI BOMBA DE AR VACUO 12V";Motores;Motores DC;;G_dc;"";"Mini Bomba Água/Ar";49.00;6
 121802;"MINI BOMBA DE ÁGUA 12V RS385 2L/MIN";Motores;Motores DC;;G_dc;"";"Mini Bomba Água/Ar";58.00;9
 121803;"MINI BOMBA DA ÁGUA SUBMERSA 110/220VAC BIVOLT 3L/MIN";Motores;Motores DC;;G_dc;"";"Mini Bomba Água/Ar";65.00;1
 121804;"MINI BOMBA DE ÁGUA SUBMERSÍVEL 5V";Motores;Motores DC;;G_dc;"";"";;10
 121805;"MINI BOMBA DE AR VACUO 12V 0,4 a 1,2 l/min 370 saida frontal";Motores;Motores DC;;G_dc;"";"";49.00;16
-122002;"MAQUINA GRAVADORA DE CUIA ROTATIVA COM LASER DE 10W";CNC, Laser e Impressão 3D;Máquinas;;H_maq;"";"Equipamentos";5390.00;0
-122004;"ATUADOR LINEAR 800MM SLIDER AUTOMÁTICO EM ALUMÍNIO";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";4132.00;3
-122005;"ATUADOR LINEAR 300MM SLIDER MANUAL EM ALUMINIO";CNC, Laser e Impressão 3D;Eixos e Guias Lineares;;H_eixo;"";"";697.00;5
-122101;"Perfil de aluminio V-slot 20x60 *122101";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";;0
-122102;"Perfil de aluminio V-slot 20x80 *122102";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";184.00;0
-122103;"Perfil de aluminio V-slot 40x80 C-bean *122103";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";310.00;0
-122104_z;"Perfil de aluminio V-slot 20x20 *122104";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Perfis de Alumínio";55.00;9
-122105_z;"Perfil de aluminio 20x20 *122105";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";61.00;7
-122106_z;"Perfil de aluminio 20x40 V-slot *122106";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";87.00;0
-122107_z;"Perfil de aluminio 30x30 furo M8*122107";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";92.00;0
-122108;"Borracha para Fixação de Chapas para Perfis Canal 6 *122108";CNC, Laser e Impressão 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";15.00;5
+122002;"MAQUINA GRAVADORA DE CUIA ROTATIVA COM LASER DE 10W";CNC / Laser / 3D;Máquinas;;H_maq;"";"Equipamentos";5390.00;0
+122004;"ATUADOR LINEAR 800MM SLIDER AUTOMÁTICO EM ALUMÍNIO";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"";4132.00;3
+122005;"ATUADOR LINEAR 300MM SLIDER MANUAL EM ALUMINIO";CNC / Laser / 3D;Eixos e Guias Lineares;;H_eixo;"";"";697.00;5
+122101;"Perfil de aluminio V-slot 20x60 *122101";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";;0
+122102;"Perfil de aluminio V-slot 20x80 *122102";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";184.00;0
+122103;"Perfil de aluminio V-slot 40x80 C-bean *122103";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";310.00;0
+122104_z;"Perfil de aluminio V-slot 20x20 *122104";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"Perfis de Alumínio";55.00;9
+122105_z;"Perfil de aluminio 20x20 *122105";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";61.00;7
+122106_z;"Perfil de aluminio 20x40 V-slot *122106";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";87.00;0
+122107_z;"Perfil de aluminio 30x30 furo M8*122107";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";92.00;0
+122108;"Borracha para Fixação de Chapas para Perfis Canal 6 *122108";CNC / Laser / 3D;Perfis de Alumínio e Acessórios;;H_perfil;"";"";15.00;5
 122201;"Encoder Incremental Rotativo 600 Pulsos Por Volta *122201";Automação Industrial;Encoders;;E_enc;"";"";215.00;9
 122202;"ENCODER INCREMENTAL ROTATIVO 400 PULSOS NPN 5-24VDC EIXO 6MM";Automação Industrial;Encoders;;E_enc;"";"Encoder";154.00;0
 122203;"ENCODER INCREMENTAL ROTATIVO 1000PULSOS NPN 5-24VDC EIXO 6MM";Automação Industrial;Encoders;;E_enc;"";"Encoder";178.00;2
-122301;"Cremalheira dentes reto modulo1 / 15x15x2000mm *122301";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";268.00;4
-122302;"Cremalheira dentes reto modulo1,5 / 17X17X2000mm *122302";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";310.00;2
-122303;"Cremalheira dentes reto modulo2 / 20X20X2000mm *122303";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";375.00;2
-122304;"Cremalheira Helicoidal modulo1 / 15x15x2000mm *122304";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";323.00;1
-122305;"Engrenagem Reta mód1 20dentes diâmetro 22mm Furo 8mm*122305";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";44.00;0
-122306;"Engrenagem Reta mód1 31dentes diâmetro 33mm Furo 10mm*122306";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";48.00;3
-122307;"Engrenagem Reta mód1,5 18dentes diâmetro 30mm Furo8mm*122307";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";42.00;1
-122308;"Engrenagem Reta mód1,5 25dentes diâm40,5mm Furo10mm*122308";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";61.00;1
-122309;"Engrenagem Reta mód2 15dentes diâmetro34mm Furo10mm *122309";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";55.00;1
-122310;"Engrenagem Reta mód2 18dentes diâmetro 40mm Furo10mm *122310";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";65.00;1
-122311;"Engren. Helicoidal mód1 20dentes diâm23,20mm Furo8mm *122311";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";94.00;0
-122313;"Cremalheira Helicoidal modulo 1,25 dentes temperados 670mm *122313";CNC, Laser e Impressão 3D;Cremalheiras e Engrenagens;;H_crem;"";"";254.00;0
-122402;"Bomba da agua para laser co2 p2430 25w 8,5l/min*122402";Motores;Motores DC;;G_dc;"CNC, Laser e Impressão 3D > Peças para Laser CO2";"";350.00;0
-122403;"Bomba da agua para spindle CO2 80W  3500l/h ipx8 220v *122403";Motores;Motores DC;;G_dc;"CNC, Laser e Impressão 3D > Spindles";"";246.90;1
-122404;"INTERRUPTOR PRESSOSTATO DE ÁGUA SENSOR HT-30 PARA CO2 *122404";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";110.00;1
-122405;"Mangueira tubo silicone 8mm CO2 *122405";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;1
-122408;"Bomba da agua para spindle 25W 2500l/h 220V";Motores;Motores DC;;G_dc;"CNC, Laser e Impressão 3D > Spindles";"";;0
+122301;"Cremalheira dentes reto modulo1 / 15x15x2000mm *122301";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";268.00;4
+122302;"Cremalheira dentes reto modulo1,5 / 17X17X2000mm *122302";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";310.00;2
+122303;"Cremalheira dentes reto modulo2 / 20X20X2000mm *122303";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";375.00;2
+122304;"Cremalheira Helicoidal modulo1 / 15x15x2000mm *122304";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";323.00;1
+122305;"Engrenagem Reta mód1 20dentes diâmetro 22mm Furo 8mm*122305";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";44.00;0
+122306;"Engrenagem Reta mód1 31dentes diâmetro 33mm Furo 10mm*122306";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";48.00;3
+122307;"Engrenagem Reta mód1,5 18dentes diâmetro 30mm Furo8mm*122307";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";42.00;1
+122308;"Engrenagem Reta mód1,5 25dentes diâm40,5mm Furo10mm*122308";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";61.00;1
+122309;"Engrenagem Reta mód2 15dentes diâmetro34mm Furo10mm *122309";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";55.00;1
+122310;"Engrenagem Reta mód2 18dentes diâmetro 40mm Furo10mm *122310";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";65.00;1
+122311;"Engren. Helicoidal mód1 20dentes diâm23,20mm Furo8mm *122311";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";94.00;0
+122313;"Cremalheira Helicoidal modulo 1,25 dentes temperados 670mm *122313";CNC / Laser / 3D;Cremalheiras e Engrenagens;;H_crem;"";"";254.00;0
+122402;"Bomba da agua para laser co2 p2430 25w 8,5l/min*122402";Motores;Motores DC;;G_dc;"CNC / Laser / 3D > Peças para Laser CO2";"";350.00;0
+122403;"Bomba da agua para spindle CO2 80W  3500l/h ipx8 220v *122403";Motores;Motores DC;;G_dc;"CNC / Laser / 3D > Spindles";"";246.90;1
+122404;"INTERRUPTOR PRESSOSTATO DE ÁGUA SENSOR HT-30 PARA CO2 *122404";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";110.00;1
+122405;"Mangueira tubo silicone 8mm CO2 *122405";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";;1
+122408;"Bomba da agua para spindle 25W 2500l/h 220V";Motores;Motores DC;;G_dc;"CNC / Laser / 3D > Spindles";"";;0
 130101;"Controlador Pixhawk *130101";Motores;Motores DC;;G_dc;"";"";;1
 130401;"MICRO SERVO MOTOR 9G SG90 180° COM ACESSÓRIOS";Motores;Motores DC;;G_dc;"";"Motores";14.40;11
 130402;"MICRO SERVO MOTOR MG996R COM ENGRENAGEM METÁLICAS 180 GRAUS";Motores;Motores DC;;G_dc;"";"Motores";39.00;9
@@ -548,8 +548,8 @@
 130601_z;"Motor Brushless Racestar 2845 2600KV a prova d agua *130601";Motores;Motores DC;;G_dc;"";"";143.20;8
 130701;"ESC 50A para motor Bruhless Hobbywing Skywalker 2-4S";Motores;Motores DC;;G_dc;"";"";119.30;1
 131001_z;"Tubo Pitot airspeed velocidade vento Aeromodelismo *131001";Motores;Motores DC;;G_dc;"";"";60.00;1
-150101;"Conta giro *150101";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";129.90;1
-150905;"IMPRESSORA 3D CREALITY ENDER3 MONTADA E CONFIGURADA";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Equipamentos";3290.00;0
+150101;"Conta giro *150101";Prototipagem;Instrumentos de Medição;;K_instr;"";"";129.90;1
+150905;"IMPRESSORA 3D CREALITY ENDER3 MONTADA E CONFIGURADA";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Equipamentos";3290.00;0
 151177;"KIT DIDATICO COM CAIXA ORGANIZADORA (Eletrônico e Robótica) *151177";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"";469.00;0
 170101;"PLACA WIFI NODEMCU V3 ESP8266 ESP12 COM CHIP USB CP2102";Placas Embarcadas;Placas ESP32;;A_esp;"";"1 - Placas Embarcados";32.00;7
 170102;"MODULO PLACA ESP32 DUAL CORE WIFI BLUETOOTH IOT";Placas Embarcadas;Placas ESP32;;A_esp;"";"1 - Placas Embarcados";54.90;13
@@ -582,52 +582,52 @@
 170707;"ADAPTADOR GATEWAY LORA HT-M01 PARA RPI ZERO";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";168.00;0
 170709;"PLACA ESP32 LORA V3 SX1276 915MHZ WIFI BLE DISPLAY OLED";Placas Embarcadas;Placas ESP32;;A_esp;"";"1 - Placas Embarcados";247.00;0
 170802;"ANTENA MOVEL 868MHZ 915MHZ GSM 3G GANHO 7DBI CABO 3MTS";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";52.00;0
-180201;"PLACA RAMPS 1.4 SHIELD ARDUINO MEGA PARA IMPRESSORA 3D";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";36.80;5
-180302;"DISPLAY TELA LCD 128X64 RAMPS CONTROLE IMPRESSORA 3D";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Geral";116.80;7
-180304;"DISPLAY TELA LCD 2004 PARA RAMPS CONTROLE IMPRESSORA 3D";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Geral";91.00;2
-180402;"MESA AQUECIDA HEATBED 214X214X3MM MK3 COM CABOS";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Geral";140.00;0
-180403;"Cama mesa aquecida 240x240mm 12V *180403";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";118.30;1
-180404;"Cama mesa aquecida 328x328mm 127/220V *180404";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";259.00;1
-180405;"Vidro temperado para mesa aquecida 328x328mm *180405";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";39.00;1
-180406;"Cama mesa aquecida 420x420mm 127/220V *180406";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";389.00;1
-180407;"Vidro temperado para mesa aquecida 420x420mm *180407";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";39.00;1
-180408;"Cama mesa aquecida 520x520mm 127/220V *180408";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";399.00;1
+180201;"PLACA RAMPS 1.4 SHIELD ARDUINO MEGA PARA IMPRESSORA 3D";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";36.80;5
+180302;"DISPLAY TELA LCD 128X64 RAMPS CONTROLE IMPRESSORA 3D";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Geral";116.80;7
+180304;"DISPLAY TELA LCD 2004 PARA RAMPS CONTROLE IMPRESSORA 3D";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Geral";91.00;2
+180402;"MESA AQUECIDA HEATBED 214X214X3MM MK3 COM CABOS";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Geral";140.00;0
+180403;"Cama mesa aquecida 240x240mm 12V *180403";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";118.30;1
+180404;"Cama mesa aquecida 328x328mm 127/220V *180404";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";259.00;1
+180405;"Vidro temperado para mesa aquecida 328x328mm *180405";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";39.00;1
+180406;"Cama mesa aquecida 420x420mm 127/220V *180406";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";389.00;1
+180407;"Vidro temperado para mesa aquecida 420x420mm *180407";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";39.00;1
+180408;"Cama mesa aquecida 520x520mm 127/220V *180408";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";399.00;1
 180501;"MICRO CHAVE FIM DE CURSO KW11-3Z 5A 250V IMPRESSORA 3D";Módulos e Sensores;Chaves Fim de Curso;;C_fim;"";"Sensores";4.50;23
-180601;"EXTRUSORA HOTEND E3D V6 BOWDEN BICO 0.4MM 1,75MM 12V";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Geral";75.00;7
-180602;"CARTUCHO AQUECIMENTO 12V 40W EXTRUSORA PARA IMPRESSORA 3D";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Geral";16.60;33
-180603;"TERMISTOR NTC 100K 3950 COM CABO PARA IMPRESSORA 3D";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Sensores";8.90;26
-180604;"BICO EXTRUSORA 0,4MM FILAMENTO 1,75MM IMPRESSORA 3D E3D V6";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";3.90;130
-180605;"ENGRENAGEM EXTRUSORA MK7 MK8 26 DENTES IMPRESSORA 3D";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Cremalheira e Pinhão";15.60;2
-180606;"TUBO PTFE 2X4MM PARA FILAMENTO 1,75MM 1MT IMPRESSORA 3D";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";14.90;0
-180607;"GARGANTA COM TEFLON EXTRUSORA E3D V6 PARA FILAMENTO 1,75MM";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";12.00;13
-180608;"BICO EXTRUSORA 0,4MM FILAMENTO 1,75MM IMPRESSORA MK8";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";5.50;65
-180609;"KIT TRACIONADOR EXTRUSORA MK8 ALL METAL ALUMINIO BOWDEN";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";119.00;5
-180610;"KIT EXTRUSORA HOTEND ANET A2 A8 MK8 12V 40W";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Geral";45.00;1
-180611;"GARGANTA COM TEFLON PTFE EXTRUSORA ANET MK8 M6X30MM 1,75MM";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";10.90;10
-180612;"EXTRUSORA HOTEND E3D V6 DIRECT DRIVE BICO 0.4MM 1,75MM 12V";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Geral";75.90;19
+180601;"EXTRUSORA HOTEND E3D V6 BOWDEN BICO 0.4MM 1,75MM 12V";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Geral";75.00;7
+180602;"CARTUCHO AQUECIMENTO 12V 40W EXTRUSORA PARA IMPRESSORA 3D";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Geral";16.60;33
+180603;"TERMISTOR NTC 100K 3950 COM CABO PARA IMPRESSORA 3D";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Sensores";8.90;26
+180604;"BICO EXTRUSORA 0,4MM FILAMENTO 1,75MM IMPRESSORA 3D E3D V6";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";3.90;130
+180605;"ENGRENAGEM EXTRUSORA MK7 MK8 26 DENTES IMPRESSORA 3D";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Cremalheira e Pinhão";15.60;2
+180606;"TUBO PTFE 2X4MM PARA FILAMENTO 1,75MM 1MT IMPRESSORA 3D";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";14.90;0
+180607;"GARGANTA COM TEFLON EXTRUSORA E3D V6 PARA FILAMENTO 1,75MM";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";12.00;13
+180608;"BICO EXTRUSORA 0,4MM FILAMENTO 1,75MM IMPRESSORA MK8";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";5.50;65
+180609;"KIT TRACIONADOR EXTRUSORA MK8 ALL METAL ALUMINIO BOWDEN";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";119.00;5
+180610;"KIT EXTRUSORA HOTEND ANET A2 A8 MK8 12V 40W";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Geral";45.00;1
+180611;"GARGANTA COM TEFLON PTFE EXTRUSORA ANET MK8 M6X30MM 1,75MM";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Acessórios";10.90;10
+180612;"EXTRUSORA HOTEND E3D V6 DIRECT DRIVE BICO 0.4MM 1,75MM 12V";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"Geral";75.90;19
 180613;"OBSOLETO-BLOCO ALUMÍNIO EXTRUSORA E3D V6 HOTEND 20X16X12MM *180613";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";6.90;0
-180614;"Garganta com teflon extrusora V6 short distance 1,75mm *180614";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";11.90;15
-180615_z;"Bico Noozle hotend extrusora 0.3mm Impressora 3d  *180615";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";4.90;100
-180616;"Sistema Bowden lado direito tracionador filamento alumínio MK8 *180616";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";94.00;3
-180618;"kit completo tracionador extrusor MK8 com motor*180618";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";180.00;1
-180619;"Bico extruso MK8 0,4mm 6mm largura M6 *180619";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";5.90;98
-180620;"Cartucho aquecimento resistencia 24v 40W extrusora impressora 3D *180620";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";12.90;28
-180621;"Garganta ender3";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";10.90;8
-180622;"bico 1mm ender3";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";;9
-180623;"bico 0.4mm ender3";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";;21
+180614;"Garganta com teflon extrusora V6 short distance 1,75mm *180614";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";11.90;15
+180615_z;"Bico Noozle hotend extrusora 0.3mm Impressora 3d  *180615";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";4.90;100
+180616;"Sistema Bowden lado direito tracionador filamento alumínio MK8 *180616";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";94.00;3
+180618;"kit completo tracionador extrusor MK8 com motor*180618";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";180.00;1
+180619;"Bico extruso MK8 0,4mm 6mm largura M6 *180619";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";5.90;98
+180620;"Cartucho aquecimento resistencia 24v 40W extrusora impressora 3D *180620";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";12.90;28
+180621;"Garganta ender3";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";10.90;8
+180622;"bico 1mm ender3";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";;9
+180623;"bico 0.4mm ender3";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";;21
 180811;"SENSOR TERMOPAR TIPO K 0 A 600 GRAUS";Módulos e Sensores;Sensores de Temperatura e Umidade;;C_temp;"";"";;10
-180901;"Kit com 4 Parafuso Mola Alinhamento Mesa Aquecida Impressora 3d *180901";CNC, Laser e Impressão 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";14.00;9
-180902_z;"FITA POLIAMIDA TIPO KAPTON 20MM 30MT ALTA TEMPERATURA*180902";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";44.30;40
-180903_z;"Agulha de limpeza para bico impressora 3D 0,3mm *180903";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";8.30;19
-180904_z;"Agulha de limpeza para bico impressora 3D 0,4mm *180904";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";8.30;19
-180905;"SENSOR DETECTOR DE FALTA DE FILAMENTO PRETO";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Geral";20.90;6
+180901;"Kit com 4 Parafuso Mola Alinhamento Mesa Aquecida Impressora 3d *180901";CNC / Laser / 3D;Mesas Aquecidas e Extrusoras;;H_mesa;"";"";14.00;9
+180902_z;"FITA POLIAMIDA TIPO KAPTON 20MM 30MT ALTA TEMPERATURA*180902";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";44.30;40
+180903_z;"Agulha de limpeza para bico impressora 3D 0,3mm *180903";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";8.30;19
+180904_z;"Agulha de limpeza para bico impressora 3D 0,4mm *180904";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";8.30;19
+180905;"SENSOR DETECTOR DE FALTA DE FILAMENTO PRETO";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Geral";20.90;6
 190101;"SENSOR DE RADIAÇÃO SOLAR ULTRAVIOLETA ML8511";Módulos e Sensores;Sensores de Luz e Cor;;C_luz;"";"2 - Módulos e shields";215.00;2
 190201;"MODULO SENSOR DE CORRENTE ACS712 30A";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"2 - Módulos e shields";16.80;24
 190202;"SENSOR DE CORRENTE NÃO INVASIVO 100A SAIDA 50MA SCT013";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"Sensores";57.60;19
 190203;"SENSOR DE CORRENTE NÃO INVASIVO 30A AC - SCT-013-030";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"Sensores";55.90;6
 190204;"Modulo Sensor De Corrente Acs712 5A  *190204";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"";18.00;10
-190205;"AMPERÍMETRO ANALÓGICO 50MA 85C1 PARA LASER CO2";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"Geral";73.00;5
-190206_z;"Amperimetro analogico 30ma para laser *190206";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";73.00;4
+190205;"AMPERÍMETRO ANALÓGICO 50MA 85C1 PARA LASER CO2";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"Geral";73.00;5
+190206_z;"Amperimetro analogico 30ma para laser *190206";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";73.00;4
 190207;"Sensor de corrente AC 5A com rele 5V";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"";48.00;8
 190208;"Sensor de corrente trifásico 0-50V saída 0-10V";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"";;1
 190209;"Sensor de tensao trifásico 0-500VAC saída 0-10V";Módulos e Sensores;Sensores de Corrente e Tensão;;C_corr;"";"";;0
@@ -701,7 +701,7 @@
 192107_z;"Chave fim de curso haste longa sem rolete AZ-7120 *192107";Módulos e Sensores;Chaves Fim de Curso;;C_fim;"";"";45.00;4
 192108;"Chave fim de curso de pulso AZ-7310 *192108";Módulos e Sensores;Chaves Fim de Curso;;C_fim;"";"";43.00;0
 192110;"Chave fim de curso de pulso haste longa CMV103D para laser *192110";Módulos e Sensores;Chaves Fim de Curso;;C_fim;"";"";20.00;3
-192301;"Sensor Nivelamento Automático Touch Impressora 3d *192301";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";;5
+192301;"Sensor Nivelamento Automático Touch Impressora 3d *192301";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";;5
 192401;"SENSOR DE CHUVA COM MODULO CONVERSOR E CABOS";Módulos e Sensores;Sensores de Umidade do Solo e Chuva;;C_solo;"";"Sensores";8.80;35
 192402;"sensor de chuva com modulo rele 5V";Módulos e Sensores;Sensores de Umidade do Solo e Chuva;;C_solo;"";"";;11
 192601;"SENSOR DE COR RGB COM FILTRO DE IR TCS34725";Módulos e Sensores;Sensores de Luz e Cor;;C_luz;"";"Sensores";28.20;0
@@ -750,9 +750,9 @@
 200314;"MÓDULO EMISSOR INFRAVERMELHO KY-005";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"2 - Módulos e shields";7.00;38
 200315;"LED EMISSOR INFRAVERMELHO 5mm";Componentes Eletrônicos;LEDs e Soquetes;;I_led;"";"";;100
 200316;"CONVERSOR CORRENTE PARA TENSÂO 4-20MA PARA 0-10V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";;16
-200317;"Gerador de pulso para motor de passo";Motores;Drivers e Controladores;;G_drv;"CNC, Laser e Impressão 3D > Controladores CNC";"";39.90;10
-200501;"MÓDULO CONVERSOR TENSÃO 0-5V 0-10V PARA PWM MACH3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"2 - Módulos e shields";17.60;9
-200502;"MÓDULO CONVERSOR PWM PARA TENSÃO 0-10V MACH3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"2 - Módulos e shields";19.20;0
+200317;"Gerador de pulso para motor de passo";Motores;Drivers e Controladores;;G_drv;"CNC / Laser / 3D > Controladores CNC";"";39.90;10
+200501;"MÓDULO CONVERSOR TENSÃO 0-5V 0-10V PARA PWM MACH3";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"2 - Módulos e shields";17.60;9
+200502;"MÓDULO CONVERSOR PWM PARA TENSÃO 0-10V MACH3";CNC / Laser / 3D;Controladores CNC;;H_ctrl;"";"2 - Módulos e shields";19.20;0
 200506;"MODULO PWM MOSFET IRF520 KEYES";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"2 - Módulos e shields";6.50;18
 200507;"MÓDULO PWM PCA9685 I2C 16 CANAIS PARA SERVO MOTOR";Motores;Motores DC;;G_dc;"";"2 - Módulos e shields";45.00;0
 200509;"MODULO RS485 CAN BUS HAT PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";148.00;0
@@ -767,12 +767,12 @@
 200519;"MINI FONTE HI-LINK SAIDA 24VDC";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"";48.90;5
 200601;"Modulo Dimmer 2000W  AC 2KW 16A  *200601";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"";24.90;16
 200602;"DIMMER CONTROLADOR AC MOTOR LÂMPADA RESISTÊNCIA 220V 10000W";Módulos e Sensores;Módulos Relé e Acionamento;;B_rele;"";"Módulos";149.00;1
-201203;"Suporte do Laser em Alumino *201203*";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";198.90;0
-210103;"VOLTÍMETRO AMPERÍMETRO DIGITAL DC 100V 10A PARA PAINEL";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";43.00;83
-210104;"VOLTÍMETRO DIGITAL 3 DÍGITOS 4.5V A 30VDC VERMELHO";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";24.00;15
-210105;"TESTADOR USB COM VOLTÍMETRO E AMPERÍMETRO 13 EM 1";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";95.00;1
-210106;"Medidor De Tensão E Corrente 6x1 Ac 100a  80-260 Painel *210106";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";153.00;0
-210107;"MEDIDOR DE ENERGIA AC VOLTÍMETRO AMPERÍMETRO 260VAC 100A";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";89.00;0
+201203;"Suporte do Laser em Alumino *201203*";CNC / Laser / 3D;Módulos Laser de Diodo;;H_laser;"";"";198.90;0
+210103;"VOLTÍMETRO AMPERÍMETRO DIGITAL DC 100V 10A PARA PAINEL";Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";43.00;83
+210104;"VOLTÍMETRO DIGITAL 3 DÍGITOS 4.5V A 30VDC VERMELHO";Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";24.00;15
+210105;"TESTADOR USB COM VOLTÍMETRO E AMPERÍMETRO 13 EM 1";Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";95.00;1
+210106;"Medidor De Tensão E Corrente 6x1 Ac 100a  80-260 Painel *210106";Prototipagem;Instrumentos de Medição;;K_instr;"";"";153.00;0
+210107;"MEDIDOR DE ENERGIA AC VOLTÍMETRO AMPERÍMETRO 260VAC 100A";Prototipagem;Instrumentos de Medição;;K_instr;"";"Módulos";89.00;0
 220101;"FONTE CHAVEADA 9V 1A BIVOLT PLUG P4 PARA ARDUINO";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";18.40;17
 220105;"Modulo BMS 7S 20A 24V";Fontes e Conversores;Baterias e Acessórios;;F_bat;"Módulos e Sensores > Módulos BMS para Bateria";"";;5
 220203;"FONTE CHAVEADA 12V 5A RMS 60W BIVOLT ANDELI COM PLUG P4";Fontes e Conversores;Fontes Chaveadas;;F_fonte;"";"Fontes";48.00;8
@@ -836,8 +836,8 @@
 239904;"DISCO ENCODER 20DENTES PARA PROJETOS COM CARRINHOS ROBÓTICOS";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"Carros Robóticos";1.20;12
 239905;"MÓDULO DO SENSOR DE VELOCIDADE";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"";;10
 239906;"MÓDULO LEITOR BIOMÉTRICO DY50";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"";;5
-241001;"Filtro de linha monofásico 20A CW4L2-20A para laser *241001";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;3
-241002;"Radiador para laser 240mm *241002";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;0
+241001;"Filtro de linha monofásico 20A CW4L2-20A para laser *241001";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";;3
+241002;"Radiador para laser 240mm *241002";CNC / Laser / 3D;Peças para Laser CO2;;H_co2;"";"";;0
 241003;"Filtro de ferrite 5mm  *241003";Componentes Eletrônicos;Filtros de Ferrite;;I_filt;"";"";7.20;42
 241004;"Filtro de ferrite 9mm  *241004";Componentes Eletrônicos;Filtros de Ferrite;;I_filt;"";"";;6
 244210;"Sensor de Nível de Água - T1592";Módulos e Sensores;Sensores de Nível de Água;;C_nivel;"";"";12.00;2
@@ -857,16 +857,16 @@
 280101;"Conexões rapida PC4-M6 4mm rosca M6 Mangueira nao passante *280101";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"";5.87;24
 280102;"Conexões rapida PC4-01 4mm rosca 1/8 Mangueira não passante *280102";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"";5.87;28
 301025;"Sensor de Luminosidade TSL2561";Módulos e Sensores;Sensores de Luz e Cor;;C_luz;"";"";79.00;1
-600201_z;"Parafuso com manopla de aperto m3x8 *600201";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";8.00;76
-600202;"Parafuso com manopla de aperto m4x8 *600202";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";8.00;12
-600203_z;"Parafuso com manopla de aperto m5x8 *600203";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";8.00;26
-600204;"Parafuso com corpo usinado 8mm rosca M6 50mm *600204";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;10
-600205;"Parafuso com corpo usinado 8mm rosca M6 45mm *600205";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;7
-600206;"Parafuso com corpo usinado 8mm rosca M6 40mm *600206";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;10
-600207;"Conjunto frame em inox maquina gravadora Ciclope *600207";CNC, Laser e Impressão 3D;Máquinas;;H_maq;"";"";300.00;0
-600208;"Conjunto peças impressas para maquina gravadora Ciclope350 *600208";CNC, Laser e Impressão 3D;Máquinas;;H_maq;"";"";100.00;0
-600210;"Mola 13x40mm *600210";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";5.00;0
-600214;"Parafuso com manopla de aperto m5x12";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;38
+600201_z;"Parafuso com manopla de aperto m3x8 *600201";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";8.00;76
+600202;"Parafuso com manopla de aperto m4x8 *600202";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";8.00;12
+600203_z;"Parafuso com manopla de aperto m5x8 *600203";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";8.00;26
+600204;"Parafuso com corpo usinado 8mm rosca M6 50mm *600204";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;10
+600205;"Parafuso com corpo usinado 8mm rosca M6 45mm *600205";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;7
+600206;"Parafuso com corpo usinado 8mm rosca M6 40mm *600206";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;10
+600207;"Conjunto frame em inox maquina gravadora Ciclope *600207";CNC / Laser / 3D;Máquinas;;H_maq;"";"";300.00;0
+600208;"Conjunto peças impressas para maquina gravadora Ciclope350 *600208";CNC / Laser / 3D;Máquinas;;H_maq;"";"";100.00;0
+600210;"Mola 13x40mm *600210";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";5.00;0
+600214;"Parafuso com manopla de aperto m5x12";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;38
 632581;"TERMINAL OLHAL FURO 6 - PRÉ-ISOLADO PVC - VM CABO 0,50 A 1,50MM";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"";0.60;1
 900101;"CONECTOR METALICO MIKE GX12 PLUG MACHO E FÊMEA 4 PINOS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";12.70;50
 900106;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 2 VIAS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";17.30;24
@@ -1124,7 +1124,7 @@
 921105_z;"Regulador de tensão AMS1117 3,3v *921105";Componentes Eletrônicos;Reguladores de Tensão;;I_reg;"";"";2.45;95
 921106;"Regulador de tensão 78L05 SOT-89 SMD *921106";Componentes Eletrônicos;Reguladores de Tensão;;I_reg;"";"";;100
 921201_z;"Knob plastico colorido para potenciômetro *921201";Componentes Eletrônicos;Potenciômetros e Trimpots;;I_pot;"";"";4.00;33
-921302_z;"Agenda para guardar componentes SMD 20 paginas  *921302";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";83.00;5
+921302_z;"Agenda para guardar componentes SMD 20 paginas  *921302";Prototipagem;Ferramentas e Solda;;K_ferr;"";"";83.00;5
 921401_z;"Kit Cristal oscilador 35 peças 7 valores *921401";Componentes Eletrônicos;Cristais Osciladores;;I_crist;"";"";42.30;4
 921501_4h;"Soquetes para circuitos integrados CI Kit com 66pçs *921501";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";43.00;4
 921701_z;"Display 7 segmentos Catodo Comum 0,56"" *921701";Displays e Telas;Displays e Matriz de LED;;D_7seg;"Componentes Eletrônicos > Displays 7 Segmentos";"";3.90;46
@@ -1134,21 +1134,21 @@
 922003;"memoria eeprom 24lc512 SMD *922003";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";;0
 922004;"CI AOP LM358 *922004";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";;0
 922005;"MÓDULO DE MEMÓRIA EEPROM AT24C256";Módulos e Sensores;Módulos RTC e Memória;;B_rtc;"";"2 - Módulos e shields";15.00;23
-930104;"JUMPER DUPONT COLORIDO 40 FIOS 20CM MACHO FÊMEA";Ferramentas e Prototipagem;Jumpers e Garras Jacaré;;K_jump;"Fios e Cabos > Fios e Cabos Elétricos";"Cabos";15.90;19
-930105;"JUMPER DUPONT COLORIDO 40 FIOS 20CM MACHO MACHO";Ferramentas e Prototipagem;Jumpers e Garras Jacaré;;K_jump;"Fios e Cabos > Fios e Cabos Elétricos";"Cabos";15.90;35
-930106;"JUMPER DUPONT COLORIDO 40 FIOS 20CM FÊMEA FÊMEA";Ferramentas e Prototipagem;Jumpers e Garras Jacaré;;K_jump;"Fios e Cabos > Fios e Cabos Elétricos";"Cabos";15.90;11
-930107;"KIT JUMPER MACHO MACHO X65 SORTIDOS";Ferramentas e Prototipagem;Jumpers e Garras Jacaré;;K_jump;"";"";;20
-930108;"KIT 100 PEÇAS JUMPER CABO ESTANHADO 10CM - VERMELHO/PRETO";Ferramentas e Prototipagem;Jumpers e Garras Jacaré;;K_jump;"";"";;15
-930109;"KIT JUMPER DE FIO PARA PROTOBOARD COM 140 PCS - RIGIDO";Ferramentas e Prototipagem;Jumpers e Garras Jacaré;;K_jump;"";"";;14
-930112;"Cabo Garra Jacaré de  50cm";Ferramentas e Prototipagem;Jumpers e Garras Jacaré;;K_jump;"";"";2.30;900
-930113;"Par de cabo para multímetro ponta de teste";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";23.90;0
-930172;"PROTOBOARD 2420 PONTOS COM BASE METÁLICA PARA PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";105.90;0
+930104;"JUMPER DUPONT COLORIDO 40 FIOS 20CM MACHO FÊMEA";Prototipagem;Jumpers e Garras Jacaré;;K_jump;"Fios e Cabos > Fios e Cabos Elétricos";"Cabos";15.90;19
+930105;"JUMPER DUPONT COLORIDO 40 FIOS 20CM MACHO MACHO";Prototipagem;Jumpers e Garras Jacaré;;K_jump;"Fios e Cabos > Fios e Cabos Elétricos";"Cabos";15.90;35
+930106;"JUMPER DUPONT COLORIDO 40 FIOS 20CM FÊMEA FÊMEA";Prototipagem;Jumpers e Garras Jacaré;;K_jump;"Fios e Cabos > Fios e Cabos Elétricos";"Cabos";15.90;11
+930107;"KIT JUMPER MACHO MACHO X65 SORTIDOS";Prototipagem;Jumpers e Garras Jacaré;;K_jump;"";"";;20
+930108;"KIT 100 PEÇAS JUMPER CABO ESTANHADO 10CM - VERMELHO/PRETO";Prototipagem;Jumpers e Garras Jacaré;;K_jump;"";"";;15
+930109;"KIT JUMPER DE FIO PARA PROTOBOARD COM 140 PCS - RIGIDO";Prototipagem;Jumpers e Garras Jacaré;;K_jump;"";"";;14
+930112;"Cabo Garra Jacaré de  50cm";Prototipagem;Jumpers e Garras Jacaré;;K_jump;"";"";2.30;900
+930113;"Par de cabo para multímetro ponta de teste";Prototipagem;Instrumentos de Medição;;K_instr;"";"";23.90;0
+930172;"PROTOBOARD 2420 PONTOS COM BASE METÁLICA PARA PROTOTIPAGEM";Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";105.90;0
 930201;"CABO EXTENSÃO USB 3.0 TIPO A 30CM PARA PAINEL";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";28.30;24
 930202;"CABO EXTENSÃO USB 2.0 TIPO A 30CM PARA PAINEL";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";28.70;1195
 930203;"CABO EXTENSÃO USB 1MT PARA PAINEL COM ACESSÓRIOS";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";94.00;27
 930204;"CABO EXTENSÃO USB E HDMI 1MT PARA PAINEL COM ACESSÓRIOS";Fios e Cabos;Cabos USB;;J_usb;"Fios e Cabos > Cabos HDMI";"Cabos";141.00;233
 930205;"CABO EXTENSÃO USB 1MT PARA PAINEL COM 02 USB E ACESSÓRIOS";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";100.80;0
-930207;"CABO EXTENSÃO CARTÃO MICRO SD 48CM IMPRESSORA 3D";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Cabos";38.40;6
+930207;"CABO EXTENSÃO CARTÃO MICRO SD 48CM IMPRESSORA 3D";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Cabos";38.40;6
 930208;"CABO EXTENSÃO USB 2.0 TIPO B 50CM PARA PAINEL";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";20.00;24
 930210;"CABO EXTENSÃO HDMI 30CM PARA PAINEL";Fios e Cabos;Cabos HDMI;;J_hdmi;"";"Cabos";24.40;2
 930211;"CABO DE ENERGIA TRIPOLAR 10A 3X0,75MM 1,50MT  *930211";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";26.68;8
@@ -1159,7 +1159,7 @@
 930219;"CABO EXTENSÃO USB 2MT PARA PAINEL COM ACESSÓRIOS";Fios e Cabos;Cabos USB;;J_usb;"";"";72.80;7
 930303;"CABO FLAT COLORIDO 20 VIAS 26AWG 01 METRO";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";10.00;0
 930304;"Cabo PP 105G 300/500V 4 Vias 0,30mm2 Preto (Veias Pr/Br/Vm/Am)";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";18.40;6
-930340;"PROTOBOARD 1660 PONTOS COM BASE METÁLICA PARA PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";69.90;5
+930340;"PROTOBOARD 1660 PONTOS COM BASE METÁLICA PARA PROTOTIPAGEM";Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";69.90;5
 930342;"Mini Suporte Incolor P/ Sensor Ultrassónico";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"";12.90;10
 930401;"CABO JST SM02  MACHO FÊMEA 20CM 02 VIAS";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";4.90;180
 930402;"CABO JST SM03 MACHO FÊMEA 15CM 03 VIAS";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";5.50;5
@@ -1178,12 +1178,12 @@
 930801_z;"Cabo Rgb colorido 04 Vias Ideal Motor De Passo 22awg  *930801";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";5.00;23
 931201_4h;"Cabo de rede ethernet RJ45 montado cat5  3Mts azul *931201";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";12.00;7
 931302;"Cabo V3 mini USB com 1,5m";Fios e Cabos;Cabos USB;;J_usb;"";"";34.00;5
-940101;"MINI PROTOBOARD 170 FUROS";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";2.99;52
-940102;"PROTOBOARD 830 FUROS PONTOS MB102 PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";11.90;42
-940103;"MODULO FONTE PARA PROTOBOARD 3.3V 5V COM INTERRUPTOR";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"2 - Módulos e shields";9.50;36
-940104;"PLACA FENOLITE PERFURADA 7X9CM PARA PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";3.20;2
-940105;"PROTOBOARD 400 FUROS PONTOS MB102 PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";8.90;5
-940106;"PLACA DE FENOLITE VIRGEM 10X10MM FACE SIMPLES";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";4.80;8
+940101;"MINI PROTOBOARD 170 FUROS";Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";2.99;52
+940102;"PROTOBOARD 830 FUROS PONTOS MB102 PROTOTIPAGEM";Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";11.90;42
+940103;"MODULO FONTE PARA PROTOBOARD 3.3V 5V COM INTERRUPTOR";Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"2 - Módulos e shields";9.50;36
+940104;"PLACA FENOLITE PERFURADA 7X9CM PARA PROTOTIPAGEM";Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";3.20;2
+940105;"PROTOBOARD 400 FUROS PONTOS MB102 PROTOTIPAGEM";Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";8.90;5
+940106;"PLACA DE FENOLITE VIRGEM 10X10MM FACE SIMPLES";Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";4.80;8
 940301;"PLAQUETA DE IDENTIFICAÇÃO PARA BOTÃO 22MM PLÁSTICO";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Geral";1.20;0
 940302;"Placa de identificação Botoeira de emergência *940302";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";9.90;0
 940401;"SINALIZADOR LUMINOSO LED VERDE 24V 22MM PARA PAINEL";Automação Industrial;Sinalizadores;;E_sinal;"";"Leds e Lampadas";10.90;7
@@ -1195,17 +1195,17 @@
 940503;"ELETROÍMÃ SOLENÓIDE 24VDC 10KG 100N";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"Eletroímas";95.00;1
 940504;"ELETROÍMÃ SOLENOIDE ATUADOR 12VDC 10MM 5N";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"Eletroímas";36.00;10
 940505;"VÁLVULA SOLENOIDE PARA ÁGUA 12V ROSCA 1/2""";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"Válvulas";52.00;10
-940703;"KIT TERMO RETRÁTIL COLORIDO 280 PEÇAS COM CASE";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"Espaguete Termoretratil";35.00;9
-940704;"KIT TERMO RETRÁTIL COLORIDO 328PEÇAS DIVERSAS MEDIDAS";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"Espaguete Termoretratil";35.00;9
-940705_4h;"Tubo Termo retrátil 1,0/0,65mm Preto 600v com 1mt *940705";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"";2.00;200
-940706_4h;"Tubo Termo retrátil 3,0/1,5mm Preto 600V com 1mt *940706";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"";2.30;200
-940707_4h;"Tubo Termo retrátil  4,5/2,3mm Preto 600V com 1mt  *940707";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"";3.00;100
-940708_4h;"Tubo Termo retrátil 6/3mm Preto 600V com 1mt *940708";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"";3.50;96
-940709_4h;"Tubo Termo retrátil 8/4mm Preto 600V com 1mt  *940709";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"";4.00;96
-940710_4h;"Tubo Termo retrátil 10/5mm Preto 600V com 1mt *940710";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"";4.30;100
-940711_4h;"Tubo Termo retrátil 13,0/6,5mm Preto 600V com 1mt  *940711";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"";5.00;100
-940712_4h;"Tubo Termo retrátil 16/8mm Preto 600V com 1mt *940712";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"";7.00;96
-940713_4h;"Tubo Termo retrátil 20/10mm Preto 600V com 1mt *940713";Ferramentas e Prototipagem;Termo Retrátil;;K_termo;"";"";8.00;96
+940703;"KIT TERMO RETRÁTIL COLORIDO 280 PEÇAS COM CASE";Prototipagem;Termo Retrátil;;K_termo;"";"Espaguete Termoretratil";35.00;9
+940704;"KIT TERMO RETRÁTIL COLORIDO 328PEÇAS DIVERSAS MEDIDAS";Prototipagem;Termo Retrátil;;K_termo;"";"Espaguete Termoretratil";35.00;9
+940705_4h;"Tubo Termo retrátil 1,0/0,65mm Preto 600v com 1mt *940705";Prototipagem;Termo Retrátil;;K_termo;"";"";2.00;200
+940706_4h;"Tubo Termo retrátil 3,0/1,5mm Preto 600V com 1mt *940706";Prototipagem;Termo Retrátil;;K_termo;"";"";2.30;200
+940707_4h;"Tubo Termo retrátil  4,5/2,3mm Preto 600V com 1mt  *940707";Prototipagem;Termo Retrátil;;K_termo;"";"";3.00;100
+940708_4h;"Tubo Termo retrátil 6/3mm Preto 600V com 1mt *940708";Prototipagem;Termo Retrátil;;K_termo;"";"";3.50;96
+940709_4h;"Tubo Termo retrátil 8/4mm Preto 600V com 1mt  *940709";Prototipagem;Termo Retrátil;;K_termo;"";"";4.00;96
+940710_4h;"Tubo Termo retrátil 10/5mm Preto 600V com 1mt *940710";Prototipagem;Termo Retrátil;;K_termo;"";"";4.30;100
+940711_4h;"Tubo Termo retrátil 13,0/6,5mm Preto 600V com 1mt  *940711";Prototipagem;Termo Retrátil;;K_termo;"";"";5.00;100
+940712_4h;"Tubo Termo retrátil 16/8mm Preto 600V com 1mt *940712";Prototipagem;Termo Retrátil;;K_termo;"";"";7.00;96
+940713_4h;"Tubo Termo retrátil 20/10mm Preto 600V com 1mt *940713";Prototipagem;Termo Retrátil;;K_termo;"";"";8.00;96
 940714;"USO E CONSUMO-Termoretratil PVC azul para baterias diametro 85mm 1mt";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";;2
 940715;"USO E CONSUMO-Termoretratil PVC azul para baterias diametro 120mm 1mt";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";;2
 940716;"USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 130mm 1mt";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";;2
@@ -1216,8 +1216,8 @@
 940802_z;"Espiral Organizador De Cabos 1/4 6,35mm *940802";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";3.00;50
 940803_4h;"Espiral Organizador De Cabos 1/2"" 12,7mm preto *940803";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";4.00;52
 940805;"PRESILHA ADESIVA 19X19MM PARA FIXAÇÃO DE CABOS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Geral";1.00;40
-940901;"ALICATE DE CORTE PARA ELETRÔNICA";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"Ferramentas";16.00;6
-940902;"Kit maleta de ferramenta para eletronica";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";579.00;0
+940901;"ALICATE DE CORTE PARA ELETRÔNICA";Prototipagem;Ferramentas e Solda;;K_ferr;"";"Ferramentas";16.00;6
+940902;"Kit maleta de ferramenta para eletronica";Prototipagem;Ferramentas e Solda;;K_ferr;"";"";579.00;0
 941001_z;"Espaçadores de Circuito Impresso 5mm de altura *941001";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"";1.00;110
 941002;"Espaçadores de Circuito Impresso 15mm de altura *941002";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"";2.50;7
 941003;"ESPAÇADOR PLÁSTICO NYLON ISOLANTE 15MM M3 MACHO/FÊMEA";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"Hardware";1.30;0
@@ -1232,45 +1232,45 @@
 941107;"SUPORTE PARA 02 BATERIAS 18650 LI-ION CASE TIPO CANOA";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";4.00;32
 941108;"SUPORTE PARA 03 BATERIAS 18650 LI-ION CASE TIPO CANOA";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";11.00;20
 941109;"SUPORTE PARA 04 BATERIAS 18650 LI-ION CASE TIPO CANOA";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"Baterias e Acessórios";5.60;89
-941202_z;"Fonte de bancada Regulável 15V 2A Yaxun 1502 *941202";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";279.00;0
-941203;"Fonte de bancada Regulável 32V 6A Unit utp1306 *941203";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";;0
-941401;"Lupa profissional de bancada com garras *941401";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";52.87;1
-941501;"ESTAÇÃO DE SOLDA RETRABALHO SMD YAXUN YX 881D+ (220V)*941501";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";387.40;0
-941506;"ESTAÇÃO DE SOLDA PONTO 5000W COM ACESSÓRIOS P/ BATERIA 18650";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"Baterias e Acessórios";599.00;1
-951101;"Multímetro Digital Yaxun yx-9205A+ *951101";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";;2
+941202_z;"Fonte de bancada Regulável 15V 2A Yaxun 1502 *941202";Prototipagem;Instrumentos de Medição;;K_instr;"";"";279.00;0
+941203;"Fonte de bancada Regulável 32V 6A Unit utp1306 *941203";Prototipagem;Instrumentos de Medição;;K_instr;"";"";;0
+941401;"Lupa profissional de bancada com garras *941401";Prototipagem;Ferramentas e Solda;;K_ferr;"";"";52.87;1
+941501;"ESTAÇÃO DE SOLDA RETRABALHO SMD YAXUN YX 881D+ (220V)*941501";Prototipagem;Ferramentas e Solda;;K_ferr;"";"";387.40;0
+941506;"ESTAÇÃO DE SOLDA PONTO 5000W COM ACESSÓRIOS P/ BATERIA 18650";Prototipagem;Ferramentas e Solda;;K_ferr;"";"Baterias e Acessórios";599.00;1
+951101;"Multímetro Digital Yaxun yx-9205A+ *951101";Prototipagem;Instrumentos de Medição;;K_instr;"";"";;2
 951201;"SUPORTE PCI FÊMEA PRETO PARA TRILHO DIN *951201";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";8.40;15
 951202;"SUPORTE PCI MACHO PRETO PARA TRILHO DIN *951202";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";8.40;15
 951203;"SUPORTE PCI 5MM PRETO PARA TRILHO DIN *951203";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";4.50;96
 951204;"SUPORTE PCI 20MM PRETO PARA TRILHO DIN *951204";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";5.00;93
 951205;"SUPORTE PCI 30MM PRETO PARA TRILHO DIN  *951205";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";5.50;1
 951206;"SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206";Componentes Eletrônicos;Suportes para PCB;;I_suppci;"";"";7.00;10
-951302;"Rolinho estanho 22g 1mm 60/40 Cobix *951302";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";10.00;31
-960102;"KIT PARAFUSO ALLEN SEM CABEÇA 200 PEÇAS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";68.90;0
+951302;"Rolinho estanho 22g 1mm 60/40 Cobix *951302";Prototipagem;Ferramentas e Solda;;K_ferr;"";"";10.00;31
+960102;"KIT PARAFUSO ALLEN SEM CABEÇA 200 PEÇAS";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";68.90;0
 960201;"Suporte 45 graus trilho dim *960201";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";11.00;3
 960301_4h;"Abraçadeira de Nylon 3,7x202mm preta com 100un *960301";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";18.90;4
 960302_4h;"Abraçadeira de Nylon 2,5x108mm cor preto com 100un *960302";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";13.00;0
-960401;"Bucha de redução M6 X 1,0 interno M8 X 1,25 externo inserto metálico *960401";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";5.00;10
-960402;"Bucha de redução M14 para M8 20mm comprimento *960402";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";8.00;4
-960403;"Inserto metálico para impressora 3D M5X5X6mm";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";1.00;148
-960404;"Inserto metálico para impressora 3D M4X5X5mm";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";1.00;150
-960405;"Inserto metálico para impressora 3D M3X5X4mm";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";1.00;101
-960501;"Pezinho Pé Nivelador Base 40 *960501";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";9.00;2
-960601;"Dobradiça Plástica e metalica Forsetti *960601";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";15.00;2
-960701_4h;"CAIXA ORGANIZADORA TRANSPARENTE GRANDE P/ ELETRÔNICA *960701";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";29.90;0
-960702_4h;"CAIXA ORGANIZADORA TRANSPARENTE MEDIA P/ ELETRÔNICA *960702";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";20.00;1
-960703;"CAIXA PLASTICA 15 DIVISÓRIAS 17x10x2CM";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";;20
-960704;"CAIXA PLASTICA 24 DIVISÓRIAS 19*12.5*3.3CM";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";;20
-960705;"caixa plástica modelo PB-075";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";19.90;20
-960706;"caixa plástica modelo PB-108 TE";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";18.90;20
-960707;"caixa plástica modelo PB-112 TE";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";30.90;20
-960708;"caixa plástica modelo PB-108";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";17.90;20
-960709;"caixa plástica modelo PB-112";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";30.90;20
-960710;"caixa plástica modelo PB-114";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";39.90;20
-960711;"caixa plástica modelo PB-060";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";6.90;20
-960712;"caixa plástica modelo PB-040";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";3.90;20
-960713;"caixa plástica modelo PB-211";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";69.90;5
-960714;"CAIXA PLASTICA organizadora";Ferramentas e Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";;30
-960801;"Anel elástico DI 9mm para fuso de esfera 16mm *960801";CNC, Laser e Impressão 3D;Fusos e Castanhas;;H_fuso;"";"";;5
+960401;"Bucha de redução M6 X 1,0 interno M8 X 1,25 externo inserto metálico *960401";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";5.00;10
+960402;"Bucha de redução M14 para M8 20mm comprimento *960402";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";8.00;4
+960403;"Inserto metálico para impressora 3D M5X5X6mm";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";1.00;148
+960404;"Inserto metálico para impressora 3D M4X5X5mm";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";1.00;150
+960405;"Inserto metálico para impressora 3D M3X5X4mm";CNC / Laser / 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";1.00;101
+960501;"Pezinho Pé Nivelador Base 40 *960501";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";9.00;2
+960601;"Dobradiça Plástica e metalica Forsetti *960601";CNC / Laser / 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";15.00;2
+960701_4h;"CAIXA ORGANIZADORA TRANSPARENTE GRANDE P/ ELETRÔNICA *960701";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";29.90;0
+960702_4h;"CAIXA ORGANIZADORA TRANSPARENTE MEDIA P/ ELETRÔNICA *960702";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";20.00;1
+960703;"CAIXA PLASTICA 15 DIVISÓRIAS 17x10x2CM";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";;20
+960704;"CAIXA PLASTICA 24 DIVISÓRIAS 19*12.5*3.3CM";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";;20
+960705;"caixa plástica modelo PB-075";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";19.90;20
+960706;"caixa plástica modelo PB-108 TE";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";18.90;20
+960707;"caixa plástica modelo PB-112 TE";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";30.90;20
+960708;"caixa plástica modelo PB-108";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";17.90;20
+960709;"caixa plástica modelo PB-112";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";30.90;20
+960710;"caixa plástica modelo PB-114";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";39.90;20
+960711;"caixa plástica modelo PB-060";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";6.90;20
+960712;"caixa plástica modelo PB-040";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";3.90;20
+960713;"caixa plástica modelo PB-211";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";69.90;5
+960714;"CAIXA PLASTICA organizadora";Prototipagem;Caixas Plásticas e Organizadores;;K_caixa;"Componentes Eletrônicos > Caixas Plásticas e Organizadores";"";;30
+960801;"Anel elástico DI 9mm para fuso de esfera 16mm *960801";CNC / Laser / 3D;Fusos e Castanhas;;H_fuso;"";"";;5
 962438;"SENSOR TOQUE CAPACITIVO - TTP223B";Módulos e Sensores;Sensores de Distância e Proximidade;;C_dist;"";"";3.21;12
 969693;"MODULO SENSOR DE LUMINOSIDADE LDR";Módulos e Sensores;Sensores de Luz e Cor;;C_luz;"";"";8.50;3
 970104;"MODULO INTERFACE PARA ESP32 30 PINOS COM BORNE E ESPAÇADORES";Placas Embarcadas;Placas ESP32;;A_esp;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";130.00;36
@@ -1309,8 +1309,8 @@
 999905;"SERVIÇO DE PROGRAMAÇÃO PARA CLP E IHM";SEM CATEGORIA;;;Z_serv;"";"";150.00;998
 999906;"SERVIÇO DE CONFIGURAÇÃO PARA SOFTWARE LASER LIGHTBURN";SEM CATEGORIA;;;Z_serv;"";"";100.00;986
 999907;"SERVIÇO DE CONFIGURAÇÃO PARA SOFTWARE CNC MACH3";SEM CATEGORIA;;;Z_serv;"";"";120.00;990
-999908;"SOFTWARE LIGHTBURN LICENÇA ORIGINAL PARA LASER DE DIODO";CNC, Laser e Impressão 3D;Softwares;;H_soft;"";"3 - Softwares";787.00;991
-999911;"SOFTWARE LIGHTBURN LICENÇA ORIGINAL PARA LASER DE FIBRA E CO2";CNC, Laser e Impressão 3D;Softwares;;H_soft;"";"3 - Softwares";1489.00;1000
-999913;"SOFTWARE MACH3 LICENÇA ORIGINAL CNC ROUTER PLASMA TORNO FRESA";CNC, Laser e Impressão 3D;Softwares;;H_soft;"";"3 - Softwares";1080.00;986
-999920;"COMPUTADOR COMPLETO WIN7 32BITS PORTA PARALELA PARA MACH3";CNC, Laser e Impressão 3D;Softwares;;H_soft;"";"";1790.00;0
+999908;"SOFTWARE LIGHTBURN LICENÇA ORIGINAL PARA LASER DE DIODO";CNC / Laser / 3D;Softwares;;H_soft;"";"3 - Softwares";787.00;991
+999911;"SOFTWARE LIGHTBURN LICENÇA ORIGINAL PARA LASER DE FIBRA E CO2";CNC / Laser / 3D;Softwares;;H_soft;"";"3 - Softwares";1489.00;1000
+999913;"SOFTWARE MACH3 LICENÇA ORIGINAL CNC ROUTER PLASMA TORNO FRESA";CNC / Laser / 3D;Softwares;;H_soft;"";"3 - Softwares";1080.00;986
+999920;"COMPUTADOR COMPLETO WIN7 32BITS PORTA PARALELA PARA MACH3";CNC / Laser / 3D;Softwares;;H_soft;"";"";1790.00;0
 ZZ-TESTE-BLING;"PRODUTO DE TESTE DA SINCRONIZACAO RISE BLING (NAO USAR)";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";15.00;5
