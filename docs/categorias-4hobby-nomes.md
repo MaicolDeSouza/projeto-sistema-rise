@@ -118,9 +118,9 @@ Renomeado **Fios e Cabos** em 15/10/2026, sem folha de conectores: os 25 conecto
 - Encoders (5)
 - Chaves e Botoeiras (21)
 - Sinalizadores (4) ◂ pequena
-- Elétrica e Acessórios (47)
+- Componentes Elétricos (47)
 
-Nove folhas ditadas pelo dono em 14/10/2026. Inversores de Frequência recebe o inversor avulso de 2,2 kW ("inversores vai para Automação"); os kits de spindle com inversor continuam em CNC > Spindles, porque são vendidos como conjunto. Chaves e Botoeiras junta as botoeiras 22mm (pulso, emergência, seletora, seccionadora, contatos, tampões e plaquetas) com os botões metálicos iluminados e antivandalismo; Sinalizadores são os luminosos LED 22mm para painel; Controladores Industriais é o antigo "Controladores de Temperatura e SSR" (REX-C100, termostatos, relés SSR e o relé com soquete); Elétrica e Acessórios junta bornes para trilho DIN, trilho, canaletas e suportes, quadros elétricos, prensa cabos e microventiladores, e depois recebeu as tomadas de painel e as abraçadeiras e organizadores de cabos, vindas de Componentes, e por fim os 25 conectores de cabo e painel (Mike, XLR, XT60, banana, P4/P10), vindos de Cabos e Conectores; Sensores Industriais recebe os indutivos e capacitivos M12/M18 PNP/NPN que estavam em Módulos e Sensores. Pastilhas Peltier foi para Módulos e Sensores.
+Nove folhas ditadas pelo dono em 14/10/2026. Inversores de Frequência recebe o inversor avulso de 2,2 kW ("inversores vai para Automação"); os kits de spindle com inversor continuam em CNC > Spindles, porque são vendidos como conjunto. Chaves e Botoeiras junta as botoeiras 22mm (pulso, emergência, seletora, seccionadora, contatos, tampões e plaquetas) com os botões metálicos iluminados e antivandalismo; Sinalizadores são os luminosos LED 22mm para painel; Controladores Industriais é o antigo "Controladores de Temperatura e SSR" (REX-C100, termostatos, relés SSR e o relé com soquete); Componentes Elétricos (era Elétrica e Acessórios; renomeada pelo dono em 15/10/2026) junta bornes para trilho DIN, trilho, canaletas e suportes, quadros elétricos, prensa cabos e microventiladores, e depois recebeu as tomadas de painel e as abraçadeiras e organizadores de cabos, vindas de Componentes, e por fim os 25 conectores de cabo e painel (Mike, XLR, XT60, banana, P4/P10), vindos de Cabos e Conectores; Sensores Industriais recebe os indutivos e capacitivos M12/M18 PNP/NPN que estavam em Módulos e Sensores. Pastilhas Peltier foi para Módulos e Sensores.
 
 ### Motores (82)
 
@@ -239,6 +239,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Conectores para PCB virou apenas Conectores** (15/10/2026), em Componentes Eletrônicos, com os 31 produtos de sempre (JST, Dupont, KRE/KF e BR7). O site atual já tem uma categoria com a URL /conectores: ao criar a nova, a LI pode pôr um sufixo na URL (conectores-2) até a antiga ser renomeada ou apagada.
 - **Plugs jack P4** (6 produtos: 900701 a 900706_4h) foram de Automação > Elétrica e Acessórios para Componentes Eletrônicos > Conectores (15/10/2026); no mesmo dia ele mandou atrás os 4 plugs P10 (901701 a 901704), os 2 plugs Canon (901801, 901802) e o conector banana 3,5 mm 902301_z, 7 produtos a mais (Plugs e Conectores passa a 44); as bananas 900707 e 900708 e o XT60 900801 ficaram em Elétrica e Acessórios.
 - **Conectores virou Plugs e Conectores** (15/10/2026), em Componentes Eletrônicos, já que a folha também leva os plugs jack P4. A URL nova (/plugs-e-conectores) deixa de colidir com a /conectores do site atual.
+- **Elétrica e Acessórios virou Componentes Elétricos** (15/10/2026), em Automação Industrial, com 47 produtos (bornes, trilho DIN, quadros, ventiladores, tomadas de painel, abraçadeiras e o resto). O nome é parecido com o do topo Componentes Eletrônicos (elétricos x eletrônicos), mas as URLs são diferentes.
 
 ## Fusões aplicadas em 07/10/2026
 

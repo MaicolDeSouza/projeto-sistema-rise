@@ -868,15 +868,15 @@
 600210;"Mola 13x40mm *600210";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";5.00;0
 600214;"Parafuso com manopla de aperto m5x12";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;38
 632581;"TERMINAL OLHAL FURO 6 - PRÉ-ISOLADO PVC - VM CABO 0,50 A 1,50MM";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"";0.60;1
-900101;"CONECTOR METALICO MIKE GX12 PLUG MACHO E FÊMEA 4 PINOS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";12.70;50
-900106;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 2 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";17.30;24
-900108;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 10 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";17.00;54
-900109;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 2 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";12.00;113
-900110;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 4 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";13.00;52
-900111;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 8 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";15.00;285
-900112;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 3 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";13.00;45
-900113;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 4 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";17.00;38
-900114;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 8 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";19.00;359
+900101;"CONECTOR METALICO MIKE GX12 PLUG MACHO E FÊMEA 4 PINOS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";12.70;50
+900106;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 2 VIAS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";17.30;24
+900108;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 10 VIAS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";17.00;54
+900109;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 2 VIAS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";12.00;113
+900110;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 4 VIAS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";13.00;52
+900111;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 8 VIAS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";15.00;285
+900112;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 3 VIAS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";13.00;45
+900113;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 4 VIAS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";17.00;38
+900114;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 8 VIAS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";19.00;359
 900201;"BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° MACHO";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"Conectores e Bornes";1.10;831
 900202;"BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° FÊMEA";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"Conectores e Bornes";1.60;0
 900204;"BARRA DE PINOS FÊMEA 2,54MM 10 VIAS PINOS LONGOS 11MM";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"Conectores e Bornes";3.00;130
@@ -923,9 +923,9 @@
 900704;"PLUG JACK P4 FEMEA SOLDAVEL PARA PAINEL";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";2.50;44
 900705;"PLUG CONECTOR P4 5.5MM X 2.1MM BORDA METALICA";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.20;0
 900706_4h;"Plug conector jack P4 femea 5.5x2.1mm  para PCB *900706";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";2.00;39
-900707;"conector plug para pino banana fêmea vermelho";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";4.90;15
-900708;"conector plug para pino banana fêmea preto";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";4.90;15
-900801;"CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";5.50;221
+900707;"conector plug para pino banana fêmea vermelho";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";4.90;15
+900708;"conector plug para pino banana fêmea preto";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";4.90;15
+900801;"CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";5.50;221
 900901;"CONECTOR BORNE 2 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.30;1200
 900902;"CONECTOR BORNE 3 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"Conectores e Bornes";1.50;470
 900903_z;"Conector KF301 KRE 5mm 2Pinos *900903";Componentes Eletrônicos;Plugs e Conectores;;I_pcb;"";"";1.57;324
@@ -966,13 +966,13 @@
 910103;"JOYSTICK SHIELD PARA ARDUINO";Placas Embarcadas;Placas Arduino;;A_ard;"Módulos e Sensores > Shields para Embarcados";"";;5
 910201;"CHAVE GANGORRA 2 POSIÇÕES 6A/250V REDONDA PRETO";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";1.80;76
 910202;"CHAVE GANGORRA 2 POSIÇÕES KCD1-101 6A/250V RETANGULAR PRETO";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";3.70;120
-910203;"TOMADA PAINEL COM CHAVE ILUMINADA E PORTA FUSÍVEL 10A";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Geral";25.50;9
+910203;"TOMADA PAINEL COM CHAVE ILUMINADA E PORTA FUSÍVEL 10A";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Geral";25.50;9
 910204;"CHAVE 3 TERMINAIS MINI SWITCH SPDT";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";2.10;75
 910207;"CHAVE MICRO CHAVE SELETORA 2 POSIÇÕES 6 PINOS PCB";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";1.00;130
 910209;"CHAVE SECCIONADORA 3 PÓLOS 20A MONTAGEM PAINEL METALTEX *910209";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";67.90;0
 910210;"INTERRUPTOR CHAVE LIGA DESLIGA PRETO TIPO ABAJUR";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";10.00;33
 910211_z;"Micro Chave Kcd1-101 On Off Mini 2 Pinos 10X15mm 3A *910211";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";2.00;82
-910212;"TOMADA PAINEL 250V 10A 3 PINOS MODELO C14";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Geral";5.20;29
+910212;"TOMADA PAINEL 250V 10A 3 PINOS MODELO C14";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Geral";5.20;29
 910214;"CHAVE ALAVANCA 2 POSICOES 3 POLOS ON/OFF *910214";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";5.00;69
 910215_4h;"CHAVE ALAVANCA MTS-103 METALICA 3 POSICOES 3 POLOS *910215";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";4.00;39
 910216_4h;"CHAVE ALAVANCA MTS-203 METALICA 3 POSICOES 6 POLOS  *910216";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";6.00;35
@@ -1212,10 +1212,10 @@
 940717;"USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 150mm 1mt";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";;2
 940718;"USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 180mm 1mt";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";;2
 940719;"USO E CONSUMO-Termoretratil PVC azul para baterias diâmetro 200mm 1mt";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";;2
-940801_z;"Presilha Fixador de nylon 15x10mm para abraçadeiras *940801";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";1.50;96
-940802_z;"Espiral Organizador De Cabos 1/4 6,35mm *940802";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";3.00;50
-940803_4h;"Espiral Organizador De Cabos 1/2"" 12,7mm preto *940803";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";4.00;52
-940805;"PRESILHA ADESIVA 19X19MM PARA FIXAÇÃO DE CABOS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Geral";1.00;40
+940801_z;"Presilha Fixador de nylon 15x10mm para abraçadeiras *940801";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";1.50;96
+940802_z;"Espiral Organizador De Cabos 1/4 6,35mm *940802";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";3.00;50
+940803_4h;"Espiral Organizador De Cabos 1/2"" 12,7mm preto *940803";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";4.00;52
+940805;"PRESILHA ADESIVA 19X19MM PARA FIXAÇÃO DE CABOS";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Geral";1.00;40
 940901;"ALICATE DE CORTE PARA ELETRÔNICA";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"Ferramentas";16.00;6
 940902;"Kit maleta de ferramenta para eletronica";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";579.00;0
 941001_z;"Espaçadores de Circuito Impresso 5mm de altura *941001";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"";1.00;110
@@ -1246,9 +1246,9 @@
 951206;"SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206";Componentes Eletrônicos;Suportes para PCI;;I_suppci;"";"";7.00;10
 951302;"Rolinho estanho 22g 1mm 60/40 Cobix *951302";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";10.00;31
 960102;"KIT PARAFUSO ALLEN SEM CABEÇA 200 PEÇAS";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"Hardware";68.90;0
-960201;"Suporte 45 graus trilho dim *960201";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";11.00;3
-960301_4h;"Abraçadeira de Nylon 3,7x202mm preta com 100un *960301";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";18.90;4
-960302_4h;"Abraçadeira de Nylon 2,5x108mm cor preto com 100un *960302";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";13.00;0
+960201;"Suporte 45 graus trilho dim *960201";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";11.00;3
+960301_4h;"Abraçadeira de Nylon 3,7x202mm preta com 100un *960301";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";18.90;4
+960302_4h;"Abraçadeira de Nylon 2,5x108mm cor preto com 100un *960302";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";13.00;0
 960401;"Bucha de redução M6 X 1,0 interno M8 X 1,25 externo inserto metálico *960401";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";5.00;10
 960402;"Bucha de redução M14 para M8 20mm comprimento *960402";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";8.00;4
 960403;"Inserto metálico para impressora 3D M5X5X6mm";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"";1.00;148
@@ -1276,32 +1276,32 @@
 970104;"MODULO INTERFACE PARA ESP32 30 PINOS COM BORNE E ESPAÇADORES";Placas Embarcadas;Placas ESP32;;A_esp;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";130.00;36
 970106;"MODULO INTERFACE PARA HELTEC ESP32 LORA COM BORNES";Placas Embarcadas;Placas ESP32;;A_esp;"Módulos e Sensores > Shields para Embarcados";"2 - Módulos e shields";140.00;15
 970201;"Projeto especial _ Maquina Colagem";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";;0
-980101;"Quadro elétrico metálico para comando 400x300x200 *980101";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";188.90;0
-980102;"Quadro elétrico metálico para comando 300x300x200 *980102";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";169.00;11
-980103;"Quadro elétrico metálico para comando 300x300x150 *980103";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";155.22;0
-980104;"Quadro elétrico metálico para comando 500x300x200";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";224.00;0
-980203;"Prensa Cabo Nylon Pg9 Cinza Claro";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";;30
-980301_z;"FILTRO PARA MICROVENTILADOR 80X80MM *980301";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";18.49;5
-980302;"MICROVENTILADOR COOLER 24VDC 80X80X25MM";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Microventilador";45.00;1
-980303_4h;"Grade metálica para microventilador 80x80mm *980303";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";7.00;6
-980304;"MICROVENTILADOR COOLER 12VDC 80X80X25MM";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Microventilador";14.00;6
-980305;"MICROVENTILADOR COOLER 12VDC 40X40X10MM";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Microventilador";15.00;0
-980306;"Microventilador 12Vdc 30x30x10mm com rolamento *980306";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";35.00;8
-980307;"Microventilador coller 12VDC 60X60X25MM com rolamento";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";;5
-980401_z;"Borne mola terra tarjado 2.5mm para trilho DIM *980401";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";9.48;18
-980402;"BORNE SIMPLES 2.5MM TIPO MOLA PARA TRILHO DIN";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";4.50;16
-980403;"BORNE SIMPLES 4MM TIPO MOLA PARA TRILHO DIN";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";7.00;47
-980404;"Jumper para borne mola 2.5mm com 10 pontas *980404";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";25.00;7
-980405;"Jumper para borne mola 4mm com 10 pontas *980405";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";;7
-980406;"BORNE DUPLO 2.5MM TIPO MOLA PARA TRILHO DIN *980406";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";7.00;50
-980407;"Tampa borne mola 2.5mm trilho DIM *980407";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";;19
-980408;"Tampa borne mola duplo 2.5mm trilho DIM *980408";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";7.00;9
-980409;"Tampa borne mola 4mm trilho DIM *980409";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";7.00;19
-980601;"Trilho Dim para painel barra com 2 metros *980601";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";34.90;1
-980701;"Canaleta plastica para painel 30x30mm com 2 metros *980701";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";43.50;1
-980801;"Prensa cabo plástico 3/4"" cor branco *980801";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";7.50;59
-980802;"Prensa cabo plastico 1/2' cor preto *980802";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";6.50;87
-980804;"Prensa cabo plastico 1/2' cor cinza claro *980804";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";;0
+980101;"Quadro elétrico metálico para comando 400x300x200 *980101";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";188.90;0
+980102;"Quadro elétrico metálico para comando 300x300x200 *980102";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";169.00;11
+980103;"Quadro elétrico metálico para comando 300x300x150 *980103";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";155.22;0
+980104;"Quadro elétrico metálico para comando 500x300x200";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";224.00;0
+980203;"Prensa Cabo Nylon Pg9 Cinza Claro";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";;30
+980301_z;"FILTRO PARA MICROVENTILADOR 80X80MM *980301";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";18.49;5
+980302;"MICROVENTILADOR COOLER 24VDC 80X80X25MM";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Microventilador";45.00;1
+980303_4h;"Grade metálica para microventilador 80x80mm *980303";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";7.00;6
+980304;"MICROVENTILADOR COOLER 12VDC 80X80X25MM";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Microventilador";14.00;6
+980305;"MICROVENTILADOR COOLER 12VDC 40X40X10MM";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Microventilador";15.00;0
+980306;"Microventilador 12Vdc 30x30x10mm com rolamento *980306";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";35.00;8
+980307;"Microventilador coller 12VDC 60X60X25MM com rolamento";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";;5
+980401_z;"Borne mola terra tarjado 2.5mm para trilho DIM *980401";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";9.48;18
+980402;"BORNE SIMPLES 2.5MM TIPO MOLA PARA TRILHO DIN";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";4.50;16
+980403;"BORNE SIMPLES 4MM TIPO MOLA PARA TRILHO DIN";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Conectores e Bornes";7.00;47
+980404;"Jumper para borne mola 2.5mm com 10 pontas *980404";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";25.00;7
+980405;"Jumper para borne mola 4mm com 10 pontas *980405";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";;7
+980406;"BORNE DUPLO 2.5MM TIPO MOLA PARA TRILHO DIN *980406";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";7.00;50
+980407;"Tampa borne mola 2.5mm trilho DIM *980407";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";;19
+980408;"Tampa borne mola duplo 2.5mm trilho DIM *980408";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";7.00;9
+980409;"Tampa borne mola 4mm trilho DIM *980409";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";7.00;19
+980601;"Trilho Dim para painel barra com 2 metros *980601";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";34.90;1
+980701;"Canaleta plastica para painel 30x30mm com 2 metros *980701";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";43.50;1
+980801;"Prensa cabo plástico 3/4"" cor branco *980801";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";7.50;59
+980802;"Prensa cabo plastico 1/2' cor preto *980802";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";6.50;87
+980804;"Prensa cabo plastico 1/2' cor cinza claro *980804";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";;0
 990201;"KIT ARDUINO UNO AVANÇADO COM MALETA PLÁSTICA";Kits Educacionais;Kits Arduino;;M_kitard;"";"4 - Kits";310.00;29
 990202;"KIT ARDUINO INICIANTE COM CAIXA ORGANIZADORA";Kits Educacionais;Kits Arduino;;M_kitard;"";"4 - Kits";72.90;6
 990203;"KIT 37 SENSORES PARA ARDUINO";Kits Educacionais;Kits Arduino;;M_kitard;"";"";;3
