@@ -2,8 +2,8 @@
 1;Placas Embarcadas;T_placas;0;;;topo;0;0;01 - Placas Embarcadas
 1;Placas Embarcadas;T_placas;1;Placas Arduino;A_ard;propria;27;0;01 - Placas Arduino
 1;Placas Embarcadas;T_placas;2;Placas ESP32;A_esp;propria;22;1;02 - Placas ESP32
-1;Placas Embarcadas;T_placas;3;Placas Raspberry Pi;A_rpi;propria;29;10;03 - Placas Raspberry Pi
-1;Placas Embarcadas;T_placas;4;Placas STM32;A_stm;propria;10;0;04 - Placas STM32
+1;Placas Embarcadas;T_placas;3;Placas STM32;A_stm;propria;10;0;03 - Placas STM32
+1;Placas Embarcadas;T_placas;4;Placas Raspberry Pi;A_rpi;propria;29;10;04 - Placas Raspberry Pi
 2;Módulos e Sensores;T_modulos;0;;;topo;0;0;02 - Módulos e Sensores
 2;Módulos e Sensores;T_modulos;1;Shields para Embarcados;B_shield;segunda;0;20;01 - Shields para Embarcados
 2;Módulos e Sensores;T_modulos;2;Módulos Wireless e IoT;B_wifi;propria;24;0;02 - Módulos Wireless e IoT

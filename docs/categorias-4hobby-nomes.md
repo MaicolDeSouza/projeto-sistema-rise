@@ -20,8 +20,8 @@ Com dois níveis e uma família por folha, Módulos e Sensores (26 folhas, conta
 
 - Placas Arduino (27)
 - Placas ESP32 (22)
-- Placas Raspberry Pi (29)
 - Placas STM32 (10)
+- Placas Raspberry Pi (29)
 
 Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases, placas de interface com bornes e gravadores ficam dentro da placa a que servem: protoshield, shield multifunções, shield expansor Nano, os dois ethernet shields, o data logger shield, o joystick shield, as interfaces com bornes para Uno/Mega/Nano, os cases e o gravador AVR ISP em Placas Arduino; o Arduino Mega WiFi e os adaptadores de ESP-01/ESP-07/ESP-12 em Placas ESP32 (as ESP8266 ficam aí, com o nome curto que ele pediu), junto das interfaces para ESP32 e Heltec; as interfaces Bluepill/F446RE, o ST-Link e o J-Link em Placas STM32. Os acessórios de Raspberry (cases, câmeras, dissipadores, HATs de CAN e PoE, gateway LoRa, controles USB) e, por decisão do dono, os cartões micro SD e o leitor USB ficam em Placas Raspberry Pi.
 
@@ -250,6 +250,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Ordem e nome em Componentes Eletrônicos** (15/10/2026, ditados por ele): Capacitores logo abaixo de Diodos; Barras de Pinos logo abaixo de Displays 7 Segmentos e Fusíveis logo abaixo de Barras de Pinos; Lasers Sinalizadores penúltimo e Caixas Plásticas e Organizadores último; e Suportes para PCI virou **Suportes para PCB** (plural, como as outras folhas; os títulos dos produtos dizem "suporte PCI").
 - **Ordem de Motores** (15/10/2026, ditada por ele): Motores de Passo, Easy Servo, Servo Drive, Motores DC e Drivers e Controladores.
 - **Ordem de CNC** (15/10/2026, ditada por ele): Parafusos, Porcas e Acessórios (era a 10) passa para logo acima de Máquinas (a 20), ficando 19; as outras mantêm a ordem.
+- **Ordem de Placas Embarcadas** (15/10/2026, ditada por ele, "1, 2, 4, 3"): Placas Arduino, Placas ESP32, Placas STM32 e Placas Raspberry Pi, nessa sequência (01 a 04). Numa 1ª leitura eu tinha deixado o Raspberry Pi em 03; ele corrigiu.
 
 ## Fusões aplicadas em 07/10/2026
 
