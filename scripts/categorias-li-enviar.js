@@ -171,13 +171,18 @@ function acharExistente(c, lista, idsPorChave = new Map()) {
   const paiLinha = c.paiChave ? precisa.get(c.paiChave) : null;
   const nomesDoPai = paiLinha ? new Set([paiLinha.nomeLimpo, paiLinha.nomeNaLI]) : null;
   const porId = new Map(lista.map((x) => [String(x.id), x]));
-  return lista.find((x) => {
-    if (x.nome !== c.nomeLimpo && x.nome !== c.nomeNaLI) return false;
+  // Com ou sem o numero na frente ("01 - Placas Arduino" = "Placas Arduino"): o topo perdeu o numero em
+  // 15/10/2026 e, sem isso, o script nao reconheceu o antigo e CRIOU uma 2a arvore inteira.
+  const semNumero = (nome) => String(nome ?? "").replace(/^\d{2} - /, "");
+  const achadas = lista.filter((x) => {
+    if (semNumero(x.nome) !== c.nomeLimpo) return false;
     const paiDeX = idDaUri(x.categoria_pai);
     if (!c.paiChave) return !paiDeX;
     if (paiId) return paiDeX === String(paiId);
-    return Boolean(paiDeX) && nomesDoPai.has(porId.get(paiDeX)?.nome);
-  }) ?? null;
+    return Boolean(paiDeX) && [...nomesDoPai].some((n) => semNumero(porId.get(paiDeX)?.nome) === semNumero(n));
+  });
+  // Mais de uma igual: fica a mais antiga (a de menor id).
+  return achadas.sort((a, b) => a.id - b.id)[0] ?? null;
 }
 
 // Categorias finais de cada produto (ids so existem depois de criar; aqui por chave)

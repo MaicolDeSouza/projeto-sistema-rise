@@ -32,7 +32,7 @@ const naArvore=new Set();// nome_na_li: a LI ordena o menu em ordem alfabetica (
 const naLi=(n,nome)=>String(n).padStart(2,'0')+' - '+nome;
 const out=['ordem_topo;topo;chave_topo;ordem_folha;folha;chave;tipo;produtos_proprios;produtos_2a;nome_na_li'];
 ARVORE.forEach(([topo,ct,folhas],ti)=>{
-  out.push([ti+1,topo,ct,0,'','','topo',0,0,naLi(ti+1,topo)].join(';'));
+  out.push([ti+1,topo,ct,0,'','','topo',0,0,topo].join(';'));// o topo vai SEM numero (pedido do dono em 15/10/2026: o menu de topo na LI e ordenado a mao pelo painel; so as folhas levam o numero)
   folhas.forEach((f,fi)=>{const nome=Array.isArray(f)?f[0]:f;const k=topo+' > '+nome;naArvore.add(k);
     const tipoF=Array.isArray(f)?(f[2]==='reservada'?'reservada':'segunda'):'propria';const chave=tipoF==='propria'?chaveDe[k]:f[1];
     if(tipoF==='propria'&&!chave) throw new Error('folha da árvore sem produto no mapeamento: '+k);
