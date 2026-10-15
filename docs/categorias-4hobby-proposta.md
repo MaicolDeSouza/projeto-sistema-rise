@@ -7,7 +7,7 @@ Arquivo companheiro: `docs/categorias-4hobby-mapeamento.csv` (1.315 linhas: sku,
 ## 1. Resumo
 
 - O site hoje tem **6 categorias de topo e 59 folhas**, mas 784 produtos no ar contra **1.315 no catálogo**: 629 produtos vendáveis não têm lugar na árvore atual.
-- A proposta é uma árvore de **10 categorias de topo, 2 níveis** (sem nível intermediário), **99 folhas**, todas com produto de verdade dentro (ver seção 4); os 4 serviços ficam publicados sem categoria.
+- A proposta é uma árvore de **10 categorias de topo, 2 níveis** (sem nível intermediário), **100 folhas**, todas com produto de verdade dentro (ver seção 4); os 4 serviços ficam publicados sem categoria.
 - Cada um dos 1.315 SKUs já está classificado no CSV. 14 ficam fora do site (6 "OBSOLETO", 6 "USO E CONSUMO", 1 projeto especial, 1 teste do Bling).
 - Decisões que são suas estão na seção 7.
 
@@ -45,9 +45,9 @@ A primeira versão desta seção tinha 76 folhas com nomes que listavam produtos
 Categorias de topo (10, com os produtos de hoje):
 
 - Placas Embarcadas (88, em 4 folhas: Placas Arduino, Placas ESP32, Placas STM32, Placas Raspberry Pi)
-- Módulos e Sensores (185: módulos em 6 folhas mais Pastilhas Peltier, Eletroímãs e Válvulas Solenoide, Imãs de Neodímio e Painéis Solares, sensores em 13, mais a folha Shields para Embarcados, que só recebe 2ª categoria)
+- Módulos e Sensores (189, com Teclados Matriciais: módulos em 6 folhas mais Pastilhas Peltier, Eletroímãs e Válvulas Solenoide, Imãs de Neodímio e Painéis Solares, sensores em 13, mais a folha Shields para Embarcados, que só recebe 2ª categoria)
 - Displays e Telas (36, em 4 folhas por tipo de tela: Telas Gráficas TFT, Displays LCD, Displays OLED, Displays 7 Segmentos e Matriz LED)
-- Componentes Eletrônicos (284, com Conectores para PCB, Barras de Pinos, Espaçadores e Isoladores, Baterias e Acessórios, Fontes Chaveadas e Conversores DC-DC e Terminais e Acessórios; Capacitores e Cristais Osciladores e Fusíveis e Filtros de Ferrite separados)
+- Componentes Eletrônicos (280, com Conectores para PCB, Barras de Pinos, Espaçadores e Isoladores, Baterias e Acessórios, Fontes Chaveadas e Conversores DC-DC e Terminais e Acessórios; Capacitores e Cristais Osciladores e Fusíveis e Filtros de Ferrite separados)
 - Cabos e Conectores (79, em 5 folhas: Fios e Cabos Elétricos, Cabos USB, Cabos HDMI, Conectores para Cabo e Painel, Adaptadores para Cabos)
 - Automação Industrial (104, em 9 folhas: CLP, IHM, Chaves e Botoeiras, Sinalizadores, Controladores Industriais, Encoders, Elétrica e Acessórios, Sensores Industriais, Inversores de Frequência)
 - Motores (82, em 5 folhas: Motores de Passo, Easy Servo, Servo Drive, Motores DC, Drivers e Controladores)
@@ -55,7 +55,7 @@ Categorias de topo (10, com os produtos de hoje):
 - Ferramentas e Prototipagem (60, com Jumpers e Garras Jacaré e Termo Retrátil; voltímetros dentro de Instrumentos de Medição; imãs e parafusos saíram)
 - Kits Educacionais (11, com Chassis e Rodas para Robótica)
 
-Total: 10 topos, dois níveis só e **99 folhas** (96 com produto próprio e três só de 2ª categoria); os 4 serviços ficam publicados sem categoria. Nenhuma folha "Outros"; 13 folhas ficam com 1 a 4 produtos de propósito, por serem famílias que o cliente procura pelo nome ou que vão crescer (Pastilhas Peltier, Painéis Solares, Imãs de Neodímio, Cristais Osciladores, Fusíveis, Filtros de Ferrite, Servo Drive, Displays OLED, Sinalizadores, Inversores de Frequência, Softwares, Kits Arduino, Kits de Eletrônica e Robótica). Com dois níveis e uma família por folha, Módulos e Sensores (28 folhas), CNC (28) e Componentes Eletrônicos (27) ficam com menu longo: é o custo das duas escolhas do dono.
+Total: 10 topos, dois níveis só e **100 folhas** (97 com produto próprio e três só de 2ª categoria); os 4 serviços ficam publicados sem categoria. Nenhuma folha "Outros"; 13 folhas ficam com 1 a 4 produtos de propósito, por serem famílias que o cliente procura pelo nome ou que vão crescer (Pastilhas Peltier, Painéis Solares, Imãs de Neodímio, Cristais Osciladores, Fusíveis, Filtros de Ferrite, Servo Drive, Displays OLED, Sinalizadores, Inversores de Frequência, Softwares, Kits Arduino, Kits de Eletrônica e Robótica). Com dois níveis e uma família por folha, Módulos e Sensores (28 folhas), CNC (28) e Componentes Eletrônicos (27) ficam com menu longo: é o custo das duas escolhas do dono.
 
 ## 5. De onde cada categoria atual vai (672 produtos conferidos)
 
@@ -160,7 +160,7 @@ Atenção: muitos desses têm **título fora do padrão** (minúsculas, `*SKU` n
 
 - **Categorias do Bling e da LI são independentes, sem vínculo, e o dono quer que continue assim** (decisão de 06/10/2026). O Rise cuida das categorias **direto na API da Loja Integrada**, com o Personal Token que a integração em andamento já usa; o Bling não entra nessa parte.
 - **O que a API da LI permite, conforme a especificação oficial** (`api-docs.lojaintegrada.com.br`, OpenAPI "API Loja Integrada v2", lida em 06/10/2026): `POST /v1/categoria` cria (campos `nome`, obrigatório; `descricao`; `categoria_pai`, o id da categoria pai para subcategoria; `id_externo`, um id nosso para depois buscar e alterar por ele); `GET /v1/categoria` lista com paginação; `GET` e `PUT /v1/categoria/{id}` leem e alteram (`nome`, `categoria_pai`). **Não existe DELETE para categoria**: excluir uma categoria é só pelo painel da LI. Leitura real feita em 06/10/2026: a loja tem **124 categorias** hoje, com os campos `id`, `id_externo`, `categoria_pai`, `descricao`, `nome`, `seo`, `url`.
-- **Consequência para a migração:** o Rise pode criar as 10 categorias de topo e as 99 folhas pela API, na ordem por tipo gravada em `categorias-4hobby-arvore.csv` (a API não tem campo de ordem e o menu da loja é alfabético, conferido no site em 14/10/2026; por isso o nome gravado na LI leva o número de ordem com dois dígitos, coluna `nome_na_li`, criando com o nome limpo e renomeando depois para a URL ficar limpa),, gravando o SKU/chave nosso em `id_externo`, e pode **renomear e mover** categorias existentes (PUT em `categoria_pai`) para reaproveitar as 124 atuais em vez de criar tudo do zero. O que sobrar sem uso é apagado à mão no painel. A escrita fica atrás da trava `LOJA_INTEGRADA_WRITE_ENABLED`, hoje `false`.
+- **Consequência para a migração:** o Rise pode criar as 10 categorias de topo e as 100 folhas pela API, na ordem por tipo gravada em `categorias-4hobby-arvore.csv` (a API não tem campo de ordem e o menu da loja é alfabético, conferido no site em 14/10/2026; por isso o nome gravado na LI leva o número de ordem com dois dígitos, coluna `nome_na_li`, criando com o nome limpo e renomeando depois para a URL ficar limpa),, gravando o SKU/chave nosso em `id_externo`, e pode **renomear e mover** categorias existentes (PUT em `categoria_pai`) para reaproveitar as 124 atuais em vez de criar tudo do zero. O que sobrar sem uso é apagado à mão no painel. A escrita fica atrás da trava `LOJA_INTEGRADA_WRITE_ENABLED`, hoje `false`.
 - **No Rise não existe campo de categoria em `Produto`** (conferido no `schema.prisma`). A sessão de envio vai precisar de uma tabela de categorias (árvore com pai, nome, ordem, id na LI, `id_externo`) e de um campo no produto apontando para a folha. O CSV deste trabalho já é o conteúdo inicial dessa tabela e desse campo.
 - **Mais de uma categoria por produto**: a LI aceita (o produto tem a lista `categorias`); a segunda categoria dos itens da seção 7.3 vai pela API junto com o produto.
 - **URLs antigas**: as categorias atuais têm URL própria e já estão no Google. Ao criar as novas, conferir se o painel da LI oferece redirecionamento 301; se não, manter as antigas ocultas (sem link no menu) por alguns meses em vez de apagar.

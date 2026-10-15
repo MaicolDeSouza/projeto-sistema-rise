@@ -10,9 +10,9 @@ Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 fol
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **10 topos e 99 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (96 folhas com produto próprio e três só com produtos de 2ª categoria: Shields para Embarcados, em Módulos e Sensores, e Motores de Passo e Servo Drive e Drivers de Motor de Passo, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+Resultado: **10 topos e 100 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (97 folhas com produto próprio e três só com produtos de 2ª categoria: Shields para Embarcados, em Módulos e Sensores, e Motores de Passo e Servo Drive e Drivers de Motor de Passo, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
 
-Com dois níveis e uma família por folha, Módulos e Sensores (23 folhas, contando a de shields), CNC (19) e Componentes Eletrônicos (19) ficam com menu longo. É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
+Com dois níveis e uma família por folha, Módulos e Sensores (24 folhas, contando a de shields), CNC (19) e Componentes Eletrônicos (19) ficam com menu longo. É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
 ## Árvore, com a quantidade de produtos de hoje
 
@@ -25,13 +25,14 @@ Com dois níveis e uma família por folha, Módulos e Sensores (23 folhas, conta
 
 Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases, placas de interface com bornes e gravadores ficam dentro da placa a que servem: protoshield, shield multifunções, shield expansor Nano, os dois ethernet shields, o data logger shield, o joystick shield, as interfaces com bornes para Uno/Mega/Nano, os cases e o gravador AVR ISP em Placas Arduino; o Arduino Mega WiFi e os adaptadores de ESP-01/ESP-07/ESP-12 em Placas ESP32 (as ESP8266 ficam aí, com o nome curto que ele pediu), junto das interfaces para ESP32 e Heltec; as interfaces Bluepill/F446RE, o ST-Link e o J-Link em Placas STM32. Os acessórios de Raspberry (cases, câmeras, dissipadores, HATs de CAN e PoE, gateway LoRa, controles USB) e, por decisão do dono, os cartões micro SD e o leitor USB ficam em Placas Raspberry Pi.
 
-### Módulos e Sensores (185)
+### Módulos e Sensores (189)
 
 - Módulos Relé e Acionamento (15)
 - Módulos Wireless e IoT (24)
 - Conversores de Sinais (29)
 - Shields para Embarcados (20 como 2ª categoria, nenhum próprio)
 - Módulos RTC e Memória (5)
+- Teclados Matriciais (4) ◂ pequena
 - Antenas e Acessórios (5)
 - Sensores de Temperatura e Umidade (14)
 - Sensores de Distância e Proximidade (9)
@@ -51,7 +52,7 @@ Uma folha por família de placa (decisão do dono em 14/10/2026). Shields, cases
 - Imãs de Neodímio (3) ◂ pequena
 - Painéis Solares (1) ◂ pequena
 
-Módulos em seis folhas (decisão do dono em 14/10/2026: relé, conversores de sinais, wireless e IoT, antenas e acessórios e shields; os grupos de sensores ficaram como estavam, menos Sensores Indutivos e Capacitivos, que foi para Automação Industrial como Sensores Industriais). Pastilhas Peltier veio de Automação Industrial, Eletroímãs e Válvulas Solenoide de Motores e Imãs de Neodímio de Ferramentas e Prototipagem, por decisão dele. O painel solar de 6V veio de Componentes ("painel solar vai para Módulos") e ficou em folha própria, Painéis Solares, com 1 produto, porque não cabia em nenhuma outra. Módulos Relé e Acionamento junta relés, optoacopladores, MOSFET e dimmers; Conversores de Sinais junta RS485/RS232, CAN, 4-20mA/0-10V, nível lógico, ADC/DAC e o conversor RS485-Ethernet; Módulos Wireless e IoT junta WiFi, Bluetooth, RF 433MHz/nRF24, GPS/GSM, Sonoff, os módulos Ethernet, RFID/NFC com tags e cartões, o leitor biométrico e o infravermelho. **Módulos RTC e Memória** (RTC DS1307/DS3231, EEPROM e o módulo leitor micro SD) ficou porque não cabe em nenhuma das cinco: é a única folha de módulo fora da lista dele. Saíram para outros topos: teclados matriciais → Chaves e Push Buttons; joystick → Potenciômetros e Trimpots; encoders KY-040/HW-040 → Encoders Incrementais; sensor de toque TTP223 → Sensores de Distância e Proximidade; cartões micro SD e leitor USB → Placas Raspberry Pi.
+Módulos em seis folhas (decisão do dono em 14/10/2026: relé, conversores de sinais, wireless e IoT, antenas e acessórios e shields; os grupos de sensores ficaram como estavam, menos Sensores Indutivos e Capacitivos, que foi para Automação Industrial como Sensores Industriais). Pastilhas Peltier veio de Automação Industrial, Eletroímãs e Válvulas Solenoide de Motores e Imãs de Neodímio de Ferramentas e Prototipagem, por decisão dele. O painel solar de 6V veio de Componentes ("painel solar vai para Módulos") e ficou em folha própria, Painéis Solares, com 1 produto, porque não cabia em nenhuma outra. Módulos Relé e Acionamento junta relés, optoacopladores, MOSFET e dimmers; Conversores de Sinais junta RS485/RS232, CAN, 4-20mA/0-10V, nível lógico, ADC/DAC e o conversor RS485-Ethernet; Módulos Wireless e IoT junta WiFi, Bluetooth, RF 433MHz/nRF24, GPS/GSM, Sonoff, os módulos Ethernet, RFID/NFC com tags e cartões, o leitor biométrico e o infravermelho. **Módulos RTC e Memória** (RTC DS1307/DS3231, EEPROM e o módulo leitor micro SD) ficou porque não cabe em nenhuma das cinco: é a única folha de módulo fora da lista dele. Saíram para outros topos: teclados matriciais → folha própria Teclados Matriciais, em Módulos e Sensores (pedido dele em 15/10/2026, depois de terem passado por Chaves e Push Buttons); joystick → Potenciômetros e Trimpots; encoders KY-040/HW-040 → Encoders Incrementais; sensor de toque TTP223 → Sensores de Distância e Proximidade; cartões micro SD e leitor USB → Placas Raspberry Pi.
 
 ### Displays e Telas (36)
 
@@ -62,7 +63,7 @@ Módulos em seis folhas (decisão do dono em 14/10/2026: relé, conversores de s
 
 Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica separada). Toda tela TFT é gráfica (painel LCD de matriz ativa, pixel a pixel), por isso o nome que ele pediu, "Telas Gráficas TFT", sem parênteses; a OLED também é gráfica, mas é outra tecnologia e fica na folha dela. Telas Gráficas TFT junta as 15 Nextion (Basic, Enhanced, Intelligent) com as expansões e o conector delas, as 3 telas de 7" para Raspberry Pi com o case da oficial (todas com Placas Raspberry Pi como 2ª categoria), a 3,5" touch ILI9488 e a 1,8" ST7735: são todas LCD TFT, a diferença é só a interface (serial, HDMI/DSI, SPI). Displays LCD são os alfanuméricos de caracteres (16x2 e 20x4), com o módulo I2C e o LCD shield; o dono preferiu o nome curto, mesmo com os títulos das Nextion e das TFT também dizendo "LCD".
 
-### Componentes Eletrônicos (284)
+### Componentes Eletrônicos (280)
 
 - Resistores (18)
 - Diodos (10)
@@ -74,7 +75,7 @@ Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica sep
 - Cristais Osciladores (1) ◂ pequena
 - LEDs e Soquetes (20)
 - Buzzers, Alto-falantes e Áudio (7)
-- Chaves e Push Buttons (22)
+- Chaves e Push Buttons (18)
 - Conectores para PCB (31)
 - Barras de Pinos (15)
 - Terminais e Acessórios (6)
@@ -210,6 +211,8 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - Novo topo **Kits Educacionais**, com duas folhas.
 - "Prototipagem e Ferramentas" passou a **Ferramentas e Prototipagem** (ferramentas é a palavra que o cliente procura).
 - Displays e Telas, Motores e Robótica e Ferramentas e Prototipagem continuam como topo por decisão do dono (recomendação minha era fundir Displays em Módulos e Sensores e juntar Robótica com Kits; ele preferiu manter). Fontes e Baterias também ficou nessa rodada, até ele mandar dissolver no fim do dia (abaixo).
+
+- **Teclados Matriciais** ganhou folha própria em Módulos e Sensores (15/10/2026): os 4 teclados de membrana e rígidos saíram de Chaves e Push Buttons; o sensor de toque TTP223 continua em Sensores de Distância e Proximidade.
 
 ## Fusões aplicadas em 07/10/2026
 

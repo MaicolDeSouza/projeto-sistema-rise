@@ -1003,10 +1003,10 @@
 910414_ST;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 24V SIMBOLO LIGA DESLIGA Trava: Sem trava";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";52.17;16
 910415;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 12V SIMBOLO LIGA DESLIGA COM RETENCAO *910415";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";;19
 910416;"CHAVE SELETORA 2 POSIÇÕES FIXAS 22MM COM CONTATO NA";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";32.00;0
-910501;"TECLADO MEMBRANA MATRICIAL 4X4 16 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Teclados";7.90;9
-910502;"TECLADO MEMBRANA MATRICIAL 4X3 12 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Teclados";7.90;47
-910503;"TECLADO MATRICIAL RIGIDO KARET 4X4 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;7
-910504;"TECLADO MATRICIAL RIGIDO KARET 4X3 TECLAS";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;7
+910501;"TECLADO MEMBRANA MATRICIAL 4X4 16 TECLAS";Módulos e Sensores;Teclados Matriciais;;B_tecl;"";"Teclados";7.90;9
+910502;"TECLADO MEMBRANA MATRICIAL 4X3 12 TECLAS";Módulos e Sensores;Teclados Matriciais;;B_tecl;"";"Teclados";7.90;47
+910503;"TECLADO MATRICIAL RIGIDO KARET 4X4 TECLAS";Módulos e Sensores;Teclados Matriciais;;B_tecl;"";"";;7
+910504;"TECLADO MATRICIAL RIGIDO KARET 4X3 TECLAS";Módulos e Sensores;Teclados Matriciais;;B_tecl;"";"";;7
 910601;"BOTÃO DE EMERGÊNCIA TIPO COGUMELO COM RETENÇÃO 2NF";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Chaves e Botões";28.80;8
 910701;"CONTATO PARA BOTOEIRA NF NC ZB2";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Chaves e Botões";6.10;55
 920102;"Mosfet IRLU014PBF SMD NPN *920102";Componentes Eletrônicos;Transistores e MOSFETs;;I_trans;"";"";;29

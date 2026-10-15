@@ -225,7 +225,14 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 100251 Módulo Rtc Ds3231 *100251
 - 922005 MÓDULO DE MEMÓRIA EEPROM AT24C256
 
-### 06 - Antenas e Acessórios (5)
+### 06 - Teclados Matriciais (4)
+
+- 910501 TECLADO MEMBRANA MATRICIAL 4X4 16 TECLAS
+- 910502 TECLADO MEMBRANA MATRICIAL 4X3 12 TECLAS
+- 910503 TECLADO MATRICIAL RIGIDO KARET 4X4 TECLAS
+- 910504 TECLADO MATRICIAL RIGIDO KARET 4X3 TECLAS
+
+### 07 - Antenas e Acessórios (5)
 
 - 170802 ANTENA MOVEL 868MHZ 915MHZ GSM 3G GANHO 7DBI CABO 3MTS
 - 901601 CABO PIGTAIL U.FL IPEX IPX COM CONECTOR SMA 15CM
@@ -233,7 +240,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 901603 PLUG CONECTOR SMA FEMEA ROSCA EXTERNA PARA CABO RG-58
 - 901604 ANTENA WIFI 2.4GHZ 3DBI CABO 15CM PARA ESP32 ESP8266 ESP-07
 
-### 07 - Sensores de Temperatura e Umidade (14)
+### 08 - Sensores de Temperatura e Umidade (14)
 
 - 100260 MÓDULO AMPLIFICADOR  MAX31865 PT100
 - 180811 SENSOR TERMOPAR TIPO K 0 A 600 GRAUS
@@ -250,7 +257,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 191501 SENSOR DE UMIDADE E TEMPERATURA AM2302 DHT22 ORIGINAL
 - 191502 MÓDULO SENSOR DE UMIDADE E TEMPERATURA AM2302 DHT22
 
-### 08 - Sensores de Distância e Proximidade (9)
+### 09 - Sensores de Distância e Proximidade (9)
 
 - 190303_z Sensor de Proximidade Infravermelho E18-D80NK  *190303
 - 190606 MÓDULO SEGUIDOR LINHA TCRT5000 SENSOR INFRAVERMELHO
@@ -262,7 +269,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 191303 SENSOR DISTÂNCIA LASER VL53L0X
 - 962438 SENSOR TOQUE CAPACITIVO - TTP223B
 
-### 09 - Sensores de Corrente e Tensão (9)
+### 10 - Sensores de Corrente e Tensão (9)
 
 - 100229 MODULO SENSOR DE TENSÃO AC 0 A 250VAC SAÍDA 0 A 5V ZMPT101B
 - 100239 SENSOR DE TENSÃO AC 127/220V SAÍDA PARA ARDUINO CLP
@@ -274,7 +281,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 190208 Sensor de corrente trifásico 0-50V saída 0-10V
 - 190209 Sensor de tensao trifásico 0-500VAC saída 0-10V
 
-### 10 - Sensores de Gás e Chama (9)
+### 11 - Sensores de Gás e Chama (9)
 
 - 100243 SENSOR DE GÁS MQ-135 PARA GASES TÓXICOS
 - 100245 SENSOR DE GÁS MQ-3 ÁLCOOL
@@ -286,7 +293,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 100253 SENSOR DE GÁS METANO MQ-4
 - 100266 MÓDULO SENSOR DETECTOR DE CHAMA DE FOGO
 
-### 11 - Sensores de Luz e Cor (7)
+### 12 - Sensores de Luz e Cor (7)
 
 - 190101 SENSOR DE RADIAÇÃO SOLAR ULTRAVIOLETA ML8511
 - 191101 SENSOR DE LUMINOSIDADE BH1750FVI LUX
@@ -296,7 +303,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 301025 Sensor de Luminosidade TSL2561
 - 969693 MODULO SENSOR DE LUMINOSIDADE LDR
 
-### 12 - Sensores de Movimento e Vibração (5)
+### 13 - Sensores de Movimento e Vibração (5)
 
 - 100267 MÓDULO SENSOR DE VIBRAÇÃO SW-420
 - 100275 MÓDULO BÚSSOLA ELETRONICA  HMC5883L GY-273
@@ -304,7 +311,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 191202 SENSOR DE PRESENÇA MOVIMENTO PIR HC-SR501
 - 191701 ACELERÔMETRO GIROSCÓPIO 3 EIXOS 6 DOF MPU6050
 
-### 13 - Sensores Magnéticos Reed e Hall (5)
+### 14 - Sensores Magnéticos Reed e Hall (5)
 
 - 191103 MÓDULO SENSOR MAGNÉTICO  DE EFEITO HALL 3144
 - 192001 SENSOR MAGNÉTICO REED SWITCH NA 2X14MM 0,5A
@@ -312,7 +319,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 192003 SENSOR MAGNÉTICO MC-38 COM FIO PARA ALARME E AUTOMAÇÃO
 - 192004 SENSOR MAGNÉTICO REED SWITCH 3 PINOS CONTATO NA NF RI-90
 
-### 14 - Chaves Fim de Curso (7)
+### 15 - Chaves Fim de Curso (7)
 
 - 180501 MICRO CHAVE FIM DE CURSO KW11-3Z 5A 250V IMPRESSORA 3D
 - 192101 MODULO CHAVE FIM DE CURSO COM CABO
@@ -322,7 +329,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 192108 Chave fim de curso de pulso AZ-7310 *192108
 - 192110 Chave fim de curso de pulso haste longa CMV103D para laser *192110
 
-### 15 - Sensores de Fluxo de Água (5)
+### 16 - Sensores de Fluxo de Água (5)
 
 - 190501 SENSOR DE FLUXO DE ÁGUA 1/2POL 1-30L/MIN
 - 190502 SENSOR DE FLUXO DE ÁGUA 3/4POL 1-60L/MIN
@@ -330,7 +337,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 190505 Sensor de fluxo de agua em metal YF-B10 1pol 2 a 50l/min
 - 190506 Sensor de fluxo de agua em inox 1pol 2 a 50l/min
 
-### 16 - Sensores de Nível de Água (5)
+### 17 - Sensores de Nível de Água (5)
 
 - 192801_z Sensor de nivel horizontal plastico *192801
 - 192802 SENSOR DE NÍVEL DE ÁGUA VERTICAL TIPO BOIA
@@ -338,7 +345,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 192804 CONTROLADOR DE NÍVEL DE ÁGUA AUTOMÁTICO XH-M203 COM RELE
 - 244210 Sensor de Nível de Água - T1592
 
-### 17 - Sensores de Umidade do Solo e Chuva (5)
+### 18 - Sensores de Umidade do Solo e Chuva (5)
 
 - 190901 SENSOR DE UMIDADE DO SOLO HIGRÔMETRO COM MODULO E CABOS
 - 190902 SENSOR DE UMIDADE DO SOLO ACIONAMENTO AUTOMATICO COM RELE 12V
@@ -346,7 +353,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 192401 SENSOR DE CHUVA COM MODULO CONVERSOR E CABOS
 - 192402 sensor de chuva com modulo rele 5V
 
-### 18 - Células de Carga (7)
+### 19 - Células de Carga (7)
 
 - 190601 CÉLULA DE CARGA SENSOR DE PESO 1KG PARA BALANÇA
 - 190602 CÉLULA DE CARGA SENSOR DE PESO 5KG PARA BALANÇA
@@ -356,7 +363,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 190608 CÉLULA DE CARGA SENSOR DE PESO 10KG PARA BALANÇA
 - 200301 MODULO CONVERSOR HX711 PARA CÉLULA DE CARGA
 
-### 19 - Transdutores Piezoelétricos (5)
+### 20 - Transdutores Piezoelétricos (5)
 
 - 190611 Sensor extensometro BF350 com fio *190611
 - 191601 TRANSDUTOR PASTILHA PIEZOELÉTRICO 27MM SEM CABO
@@ -364,7 +371,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 191603 TRANSDUTOR PASTILHA PIEZOELÉTRICO 35MM SEM CABO
 - 191604 TRANSDUTOR PASTILHA PIEZOELÉTRICO 35MM COM CABO
 
-### 20 - Eletroímãs e Válvulas Solenoide (8)
+### 21 - Eletroímãs e Válvulas Solenoide (8)
 
 - 121208 ELETROÍMÃ SOLENÓIDE 24VDC 8KG
 - 280101 Conexões rapida PC4-M6 4mm rosca M6 Mangueira nao passante *280101
@@ -375,19 +382,19 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 940504 ELETROÍMÃ SOLENOIDE ATUADOR 12VDC 10MM 5N
 - 940505 VÁLVULA SOLENOIDE PARA ÁGUA 12V ROSCA 1/2"
 
-### 21 - Pastilhas Peltier (3)
+### 22 - Pastilhas Peltier (3)
 
 - 191901 PASTILHA TERMOELÉTRICA PELTIER 12V TEC1-12706
 - 191903_z Junta de isolamento para pastilha peltier 40x40mm *191903
 - 191904 Bloco alumínio refrigeração agua 40x40x12mm *191904
 
-### 22 - Imãs de Neodímio (3)
+### 23 - Imãs de Neodímio (3)
 
 - 121209 Kit com 100 Imã De Neodímio 5x1 Redondo Pequeno 5mm X 1mm N35
 - 121210 Imã De Neodímio Redondo 10x2mm N35
 - 121211 Imã De Neodímio Redondo 5x2mm N35
 
-### 23 - Painéis Solares (1)
+### 24 - Painéis Solares (1)
 
 - 220801 PLACA PAINEL CÉLULA SOLAR FOTOVOLTAICA 6V 1W 110X60MM
 
@@ -601,7 +608,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 920203 Buzzer Contínuo Sirene Alta Sfm-20b D C 3-24v
 - 920204 BUZZER PASSIVO 5V 12MM BEEP CONTINUO
 
-### 11 - Chaves e Push Buttons (22)
+### 11 - Chaves e Push Buttons (18)
 
 - 910201 CHAVE GANGORRA 2 POSIÇÕES 6A/250V REDONDA PRETO
 - 910202 CHAVE GANGORRA 2 POSIÇÕES KCD1-101 6A/250V RETANGULAR PRETO
@@ -621,10 +628,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 910402 CHAVE DE PULSO TÁCTIL PUSH BUTTON 6X6X5MM
 - 910403 CHAVE DE PULSO TIPO PUSH BUTTON 12X12MM COM CAPA COLORIDA
 - 910409 Chave de pulso táctil SMD tipo Push Botton  5x5x1mm *910409
-- 910501 TECLADO MEMBRANA MATRICIAL 4X4 16 TECLAS
-- 910502 TECLADO MEMBRANA MATRICIAL 4X3 12 TECLAS
-- 910503 TECLADO MATRICIAL RIGIDO KARET 4X4 TECLAS
-- 910504 TECLADO MATRICIAL RIGIDO KARET 4X3 TECLAS
 
 ### 12 - Conectores para PCB (31)
 
