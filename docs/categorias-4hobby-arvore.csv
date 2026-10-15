@@ -53,15 +53,16 @@
 4;Componentes Eletrônicos;T_componentes;15;Terminais e Acessórios;I_term;propria;6;0;15 - Terminais e Acessórios
 4;Componentes Eletrônicos;T_componentes;16;Espaçadores e Isoladores;I_espac;propria;6;0;16 - Espaçadores e Isoladores
 4;Componentes Eletrônicos;T_componentes;17;Suportes para PCI;I_suppci;propria;7;0;17 - Suportes para PCI
-4;Componentes Eletrônicos;T_componentes;18;Fusíveis;I_fus;propria;1;0;18 - Fusíveis
-4;Componentes Eletrônicos;T_componentes;19;Filtros de Ferrite;I_filt;propria;2;0;19 - Filtros de Ferrite
+4;Componentes Eletrônicos;T_componentes;18;Caixas Plásticas e Organizadores;I_caixa;propria;14;0;18 - Caixas Plásticas e Organizadores
+4;Componentes Eletrônicos;T_componentes;19;Fusíveis;I_fus;propria;1;0;19 - Fusíveis
+4;Componentes Eletrônicos;T_componentes;20;Filtros de Ferrite;I_filt;propria;2;0;20 - Filtros de Ferrite
 5;Fontes e Conversores;T_fontes;0;;;topo;0;0;05 - Fontes e Conversores
 5;Fontes e Conversores;T_fontes;1;Fontes Chaveadas;F_fonte;propria;22;0;01 - Fontes Chaveadas
 5;Fontes e Conversores;T_fontes;2;Transformadores;F_trafo;reservada;0;0;02 - Transformadores
 5;Fontes e Conversores;T_fontes;3;Conversores DC-DC;F_dcdc;propria;11;0;03 - Conversores DC-DC
 5;Fontes e Conversores;T_fontes;4;Baterias e Acessórios;F_bat;propria;40;0;04 - Baterias e Acessórios
 6;Fios e Cabos;T_cabos;0;;;topo;0;0;06 - Fios e Cabos
-6;Fios e Cabos;T_cabos;1;Fios e Cabos Elétricos;J_fio;propria;15;0;01 - Fios e Cabos Elétricos
+6;Fios e Cabos;T_cabos;1;Fios e Cabos Elétricos;J_fio;propria;15;3;01 - Fios e Cabos Elétricos
 6;Fios e Cabos;T_cabos;2;Cabos USB;J_usb;propria;19;0;02 - Cabos USB
 6;Fios e Cabos;T_cabos;3;Cabos HDMI;J_hdmi;propria;6;2;03 - Cabos HDMI
 6;Fios e Cabos;T_cabos;4;Adaptadores para Cabos;J_adapt;propria;14;0;04 - Adaptadores para Cabos
@@ -108,8 +109,7 @@
 10;Ferramentas e Prototipagem;T_ferramentas;2;Jumpers e Garras Jacaré;K_jump;propria;7;0;02 - Jumpers e Garras Jacaré
 10;Ferramentas e Prototipagem;T_ferramentas;3;Ferramentas e Solda;K_ferr;propria;8;0;03 - Ferramentas e Solda
 10;Ferramentas e Prototipagem;T_ferramentas;4;Instrumentos de Medição;K_instr;propria;12;0;04 - Instrumentos de Medição
-10;Ferramentas e Prototipagem;T_ferramentas;5;Caixas Plásticas e Organizadores;K_caixa;propria;14;0;05 - Caixas Plásticas e Organizadores
-10;Ferramentas e Prototipagem;T_ferramentas;6;Termo Retrátil;K_termo;propria;11;0;06 - Termo Retrátil
+10;Ferramentas e Prototipagem;T_ferramentas;5;Termo Retrátil;K_termo;propria;11;0;05 - Termo Retrátil
 11;Kits Educacionais;T_kits;0;;;topo;0;0;11 - Kits Educacionais
 11;Kits Educacionais;T_kits;1;Kits Arduino;M_kitard;propria;3;0;01 - Kits Arduino
 11;Kits Educacionais;T_kits;2;Kits de Eletrônica e Robótica;M_kitele;propria;2;0;02 - Kits de Eletrônica e Robótica

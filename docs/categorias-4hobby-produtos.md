@@ -730,11 +730,28 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 951205 SUPORTE PCI 30MM PRETO PARA TRILHO DIN  *951205
 - 951206 SUPORTE PCI 45MM PRETO PARA TRILHO DIN *951206
 
-### 18 - Fusíveis (1)
+### 18 - Caixas Plásticas e Organizadores (14)
+
+- 960701_4h CAIXA ORGANIZADORA TRANSPARENTE GRANDE P/ ELETRÔNICA *960701
+- 960702_4h CAIXA ORGANIZADORA TRANSPARENTE MEDIA P/ ELETRÔNICA *960702
+- 960703 CAIXA PLASTICA 15 DIVISÓRIAS 17x10x2CM
+- 960704 CAIXA PLASTICA 24 DIVISÓRIAS 19*12.5*3.3CM
+- 960705 caixa plástica modelo PB-075
+- 960706 caixa plástica modelo PB-108 TE
+- 960707 caixa plástica modelo PB-112 TE
+- 960708 caixa plástica modelo PB-108
+- 960709 caixa plástica modelo PB-112
+- 960710 caixa plástica modelo PB-114
+- 960711 caixa plástica modelo PB-060
+- 960712 caixa plástica modelo PB-040
+- 960713 caixa plástica modelo PB-211
+- 960714 CAIXA PLASTICA organizadora
+
+### 19 - Fusíveis (1)
 
 - 920602 Fusível grande 5A *920602
 
-### 19 - Filtros de Ferrite (2)
+### 20 - Filtros de Ferrite (2)
 
 - 241003 Filtro de ferrite 5mm  *241003
 - 241004 Filtro de ferrite 9mm  *241004
@@ -828,7 +845,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 
 ## 06 - Fios e Cabos
 
-### 01 - Fios e Cabos Elétricos (15)
+### 01 - Fios e Cabos Elétricos (18)
 
 - 120117 Fio de silicone vermelho 14AWG *120117
 - 120118 Fio de silicone preto 14AWG *120118
@@ -845,6 +862,9 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 930402 CABO JST SM03 MACHO FÊMEA 15CM 03 VIAS
 - 930801_z Cabo Rgb colorido 04 Vias Ideal Motor De Passo 22awg  *930801
 - 931201_4h Cabo de rede ethernet RJ45 montado cat5  3Mts azul *931201
+- 930104 JUMPER DUPONT COLORIDO 40 FIOS 20CM MACHO FÊMEA (2a, fica em Jumpers e Garras Jacaré)
+- 930105 JUMPER DUPONT COLORIDO 40 FIOS 20CM MACHO MACHO (2a, fica em Jumpers e Garras Jacaré)
+- 930106 JUMPER DUPONT COLORIDO 40 FIOS 20CM FÊMEA FÊMEA (2a, fica em Jumpers e Garras Jacaré)
 
 ### 02 - Cabos USB (19)
 
@@ -1670,24 +1690,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 941203 Fonte de bancada Regulável 32V 6A Unit utp1306 *941203
 - 951101 Multímetro Digital Yaxun yx-9205A+ *951101
 
-### 05 - Caixas Plásticas e Organizadores (14)
-
-- 960701_4h CAIXA ORGANIZADORA TRANSPARENTE GRANDE P/ ELETRÔNICA *960701
-- 960702_4h CAIXA ORGANIZADORA TRANSPARENTE MEDIA P/ ELETRÔNICA *960702
-- 960703 CAIXA PLASTICA 15 DIVISÓRIAS 17x10x2CM
-- 960704 CAIXA PLASTICA 24 DIVISÓRIAS 19*12.5*3.3CM
-- 960705 caixa plástica modelo PB-075
-- 960706 caixa plástica modelo PB-108 TE
-- 960707 caixa plástica modelo PB-112 TE
-- 960708 caixa plástica modelo PB-108
-- 960709 caixa plástica modelo PB-112
-- 960710 caixa plástica modelo PB-114
-- 960711 caixa plástica modelo PB-060
-- 960712 caixa plástica modelo PB-040
-- 960713 caixa plástica modelo PB-211
-- 960714 CAIXA PLASTICA organizadora
-
-### 06 - Termo Retrátil (11)
+### 05 - Termo Retrátil (11)
 
 - 940703 KIT TERMO RETRÁTIL COLORIDO 280 PEÇAS COM CASE
 - 940704 KIT TERMO RETRÁTIL COLORIDO 328PEÇAS DIVERSAS MEDIDAS
