@@ -126,10 +126,10 @@ Nove folhas ditadas pelo dono em 14/10/2026. Inversores de Frequência recebe o 
 ### Motores (82)
 
 - Motores de Passo (18)
-- Motores DC (36)
-- Drivers e Controladores (22)
 - Easy Servo (5)
 - Servo Drive (1) ◂ pequena
+- Motores DC (36)
+- Drivers e Controladores (22)
 
 Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motores de Passo inclui os suportes de motor (vindos de CNC); Easy Servo (motor de passo com encoder + driver, 45 a 120 kgf) ganhou folha própria a pedido dele e Servo Drive ficou com o servo motor AC 400 W com drive; Motores DC junta os motores DC com caixa de redução, as mini bombas de água e ar e os micro servos e motores para aeromodelismo (SG90, MG996R, brushless, ESC, Pixhawk, PCA9685), tudo pedido dele; Drivers e Controladores junta os drivers de motor de passo (A4988, TMC, DM556, DM860H) com as pontes H e os controladores PWM de motor DC. Eletroímãs e Válvulas Solenoide foi para Módulos e Sensores e Chassis e Rodas para Robótica para Kits Educacionais.
 
@@ -248,6 +248,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Ordem do início de Módulos e Sensores** (15/10/2026, ditada por ele): Shields para Embarcados, Módulos Wireless e IoT, Antenas e Acessórios, Conversores de Sinais, Módulos RTC e Memória e Módulos Relé e Acionamento, nessa sequência; as demais (Conversores DC-DC, Módulos BMS, Teclados e os sensores) seguem na ordem que já tinham, depois dessas.
 - **Displays e Matriz de LED**: a folha de Displays e Telas antes chamada Displays 7 Segmentos e Matriz LED passa a se chamar Displays e Matriz de LED (15/10/2026). A folha só de 2ª categoria de Componentes continua Displays 7 Segmentos.
 - **Ordem e nome em Componentes Eletrônicos** (15/10/2026, ditados por ele): Capacitores logo abaixo de Diodos; Barras de Pinos logo abaixo de Displays 7 Segmentos e Fusíveis logo abaixo de Barras de Pinos; Lasers Sinalizadores penúltimo e Caixas Plásticas e Organizadores último; e Suportes para PCI virou **Suportes para PCB** (plural, como as outras folhas; os títulos dos produtos dizem "suporte PCI").
+- **Ordem de Motores** (15/10/2026, ditada por ele): Motores de Passo, Easy Servo, Servo Drive, Motores DC e Drivers e Controladores.
 
 ## Fusões aplicadas em 07/10/2026
 

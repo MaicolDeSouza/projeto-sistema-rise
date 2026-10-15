@@ -1111,7 +1111,19 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 121203_4h Suporte para Motor de passo NEMA17 Reto 6 furos *121203
 - 121205 SUPORTE EM L 90° PARA MOTOR DE PASSO NEMA 17
 
-### 02 - Motores DC (36)
+### 02 - Easy Servo (5)
+
+- 120520 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 45KGF 6,0A
+- 120524 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF
+- 120525 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF COM FREIO
+- 120526 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF
+- 120527 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF COM FREIO
+
+### 03 - Servo Drive (1)
+
+- 120523 Servo motor AC 400w sem freio com drive
+
+### 04 - Motores DC (36)
 
 - 101008 Motor de R140 20mm 1.5 a 4.5V DC*101008
 - 120212 BOMBA DE AR COMPRESSOR PARA MAQUINA GRAVAÇÃO A LASER
@@ -1150,7 +1162,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 230210 Mini Motor Dc 1 A 3v Para Robótica Arduino
 - 231001 Suporte em L motor DC JGA25-370  *231001
 
-### 03 - Drivers e Controladores (22)
+### 05 - Drivers e Controladores (22)
 
 - 100216 MOTOR SHIELD L293 DRIVER PONTE H PARA ARDUINO
 - 120604 DRIVER MOTOR DE PASSO A4988 COM DISSIPADOR
@@ -1174,18 +1186,6 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 230302 Ponte H Monster simples Vnh2sp30 30a 16V  (Vnh3asp30) *230302
 - 230303 Ponte H Monster dupla Vnh3asp30 30a 16V *230303
 - 230304 MÓDULO DRIVER PONTE H 43A BTS7960B PARA MOTOR DC
-
-### 04 - Easy Servo (5)
-
-- 120520 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 45KGF 6,0A
-- 120524 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF
-- 120525 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 85KGF COM FREIO
-- 120526 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF
-- 120527 MOTOR DE PASSO COM ENCODER EASY SERVO + DRIVER 120KGF COM FREIO
-
-### 05 - Servo Drive (1)
-
-- 120523 Servo motor AC 400w sem freio com drive
 
 ## 09 - CNC, Laser e Impressão 3D
 

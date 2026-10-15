@@ -80,10 +80,10 @@
 7;Automação Industrial;T_automacao;9;Componentes Elétricos;E_eletr;propria;44;0;09 - Componentes Elétricos
 8;Motores;T_motores;0;;;topo;0;0;08 - Motores
 8;Motores;T_motores;1;Motores de Passo;G_passo;propria;18;0;01 - Motores de Passo
-8;Motores;T_motores;2;Motores DC;G_dc;propria;36;0;02 - Motores DC
-8;Motores;T_motores;3;Drivers e Controladores;G_drv;propria;22;0;03 - Drivers e Controladores
-8;Motores;T_motores;4;Easy Servo;G_easy;propria;5;0;04 - Easy Servo
-8;Motores;T_motores;5;Servo Drive;G_servoac;propria;1;0;05 - Servo Drive
+8;Motores;T_motores;2;Easy Servo;G_easy;propria;5;0;02 - Easy Servo
+8;Motores;T_motores;3;Servo Drive;G_servoac;propria;1;0;03 - Servo Drive
+8;Motores;T_motores;4;Motores DC;G_dc;propria;36;0;04 - Motores DC
+8;Motores;T_motores;5;Drivers e Controladores;G_drv;propria;22;0;05 - Drivers e Controladores
 9;CNC, Laser e Impressão 3D;T_cnc;0;;;topo;0;0;09 - CNC, Laser e Impressão 3D
 9;CNC, Laser e Impressão 3D;T_cnc;1;Fusos e Castanhas;H_fuso;propria;29;0;01 - Fusos e Castanhas
 9;CNC, Laser e Impressão 3D;T_cnc;2;Eixos e Guias Lineares;H_eixo;propria;16;0;02 - Eixos e Guias Lineares

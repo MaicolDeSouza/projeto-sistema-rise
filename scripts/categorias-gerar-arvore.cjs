@@ -19,7 +19,7 @@ const ARVORE=[
  ['Fontes e Conversores','T_fontes',['Fontes Chaveadas',['Transformadores','F_trafo','reservada'],'Conversores DC-DC','Baterias e Acessórios']],
  ['Fios e Cabos','T_cabos',['Fios e Cabos Elétricos','Cabos USB','Cabos HDMI','Adaptadores para Cabos']],
  ['Automação Industrial','T_automacao',['CLP','IHM','Controladores Industriais','Inversores de Frequência','Sensores Industriais','Encoders','Chaves e Botoeiras','Sinalizadores','Componentes Elétricos']],
- ['Motores','T_motores',['Motores de Passo','Motores DC','Drivers e Controladores','Easy Servo','Servo Drive']],
+ ['Motores','T_motores',['Motores de Passo','Easy Servo','Servo Drive','Motores DC','Drivers e Controladores']],
  ['CNC, Laser e Impressão 3D','T_cnc',['Fusos e Castanhas','Eixos e Guias Lineares','Rolamentos e Pillow Block','Mancais e Suportes de Eixo','Acoplamentos','Correias','Polias e Roldanas','Cremalheiras e Engrenagens','Perfis de Alumínio e Acessórios','Parafusos, Porcas e Acessórios','Esteiras Porta Cabos','Controladores CNC',['Motores e Drivers','H_motdrv'],'Spindles','Fresas, Brocas e Pinças','Módulos Laser de Diodo','Peças para Laser CO2','Mesas Aquecidas e Extrusoras','Acessórios para Impressora 3D','Máquinas','Softwares']],
  ['Ferramentas e Prototipagem','T_ferramentas',['Protoboards e Placas Fenolite','Jumpers e Garras Jacaré','Ferramentas e Solda','Instrumentos de Medição','Caixas Plásticas e Organizadores','Termo Retrátil']],
  ['Kits Educacionais','T_kits',['Kits Arduino','Kits de Eletrônica e Robótica']],
