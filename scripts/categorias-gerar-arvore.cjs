@@ -24,14 +24,17 @@ const ARVORE=[
 // chave e contagem de cada folha própria, a partir do mapeamento
 const chaveDe={},qtd={};const secund={};
 for(const r of rows){ if(r.nivel1==='NÃO PUBLICAR'||r.nivel1==='SEM CATEGORIA')continue; const k=r.nivel1+' > '+r.nivel2; qtd[k]=(qtd[k]||0)+1; if(chaveDe[k]&&chaveDe[k]!==r.chave) throw new Error('folha com 2 chaves: '+k+' '+chaveDe[k]+' '+r.chave); chaveDe[k]=r.chave; if(r.categoria_secundaria) secund[r.categoria_secundaria]=(secund[r.categoria_secundaria]||0)+1; }
-const naArvore=new Set();const out=['ordem_topo;topo;chave_topo;ordem_folha;folha;chave;tipo;produtos_proprios;produtos_2a'];
+const naArvore=new Set();// nome_na_li: a LI ordena o menu em ordem alfabetica (conferido no site em 14/10/2026), entao o nome na loja leva o
+// numero de ordem com dois digitos; o nome limpo fica em 'folha'/'topo' (URL, titulo, Rise).
+const naLi=(n,nome)=>String(n).padStart(2,'0')+' - '+nome;
+const out=['ordem_topo;topo;chave_topo;ordem_folha;folha;chave;tipo;produtos_proprios;produtos_2a;nome_na_li'];
 ARVORE.forEach(([topo,ct,folhas],ti)=>{
-  out.push([ti+1,topo,ct,0,'','','topo',0,0].join(';'));
+  out.push([ti+1,topo,ct,0,'','','topo',0,0,naLi(ti+1,topo)].join(';'));
   folhas.forEach((f,fi)=>{const nome=Array.isArray(f)?f[0]:f;const k=topo+' > '+nome;naArvore.add(k);
     const propria=!Array.isArray(f);const chave=propria?chaveDe[k]:f[1];
     if(propria&&!chave) throw new Error('folha da árvore sem produto no mapeamento: '+k);
     if(!propria&&qtd[k]) throw new Error('folha só de 2ª tem produto próprio: '+k);
-    out.push([ti+1,topo,ct,fi+1,nome,chave,propria?'propria':'segunda',qtd[k]||0,secund[k]||0].join(';'));
+    out.push([ti+1,topo,ct,fi+1,nome,chave,propria?'propria':'segunda',qtd[k]||0,secund[k]||0,naLi(fi+1,nome)].join(';'));
   });
 });
 for(const k of Object.keys(qtd)) if(!naArvore.has(k)) throw new Error('folha do mapeamento fora da árvore: '+k);

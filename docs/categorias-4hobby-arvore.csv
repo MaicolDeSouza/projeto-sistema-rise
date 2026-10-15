@@ -1,110 +1,110 @@
-﻿ordem_topo;topo;chave_topo;ordem_folha;folha;chave;tipo;produtos_proprios;produtos_2a
-1;Placas Embarcadas;T_placas;0;;;topo;0;0
-1;Placas Embarcadas;T_placas;1;Placas Arduino;A_ard;propria;27;0
-1;Placas Embarcadas;T_placas;2;Placas ESP32;A_esp;propria;22;1
-1;Placas Embarcadas;T_placas;3;Placas STM32;A_stm;propria;10;0
-1;Placas Embarcadas;T_placas;4;Placas Raspberry Pi;A_rpi;propria;29;10
-2;Módulos e Sensores;T_modulos;0;;;topo;0;0
-2;Módulos e Sensores;T_modulos;1;Módulos Relé e Acionamento;B_rele;propria;15;0
-2;Módulos e Sensores;T_modulos;2;Conversores de Sinais;B_conv;propria;29;0
-2;Módulos e Sensores;T_modulos;3;Módulos Wireless e IoT;B_wifi;propria;24;0
-2;Módulos e Sensores;T_modulos;4;Antenas e Acessórios;B_ant;propria;5;0
-2;Módulos e Sensores;T_modulos;5;Módulos RTC e Memória;B_rtc;propria;5;0
-2;Módulos e Sensores;T_modulos;6;Shields para Embarcados;B_shield;segunda;0;20
-2;Módulos e Sensores;T_modulos;7;Eletroímãs e Válvulas Solenoide;B_ima;propria;8;0
-2;Módulos e Sensores;T_modulos;8;Pastilhas Peltier;B_pelt;propria;3;0
-2;Módulos e Sensores;T_modulos;9;Painéis Solares;B_solar;propria;1;0
-2;Módulos e Sensores;T_modulos;10;Imãs de Neodímio;B_neod;propria;3;0
-2;Módulos e Sensores;T_modulos;11;Sensores de Temperatura e Umidade;C_temp;propria;14;0
-2;Módulos e Sensores;T_modulos;12;Sensores de Gás e Chama;C_gas;propria;9;0
-2;Módulos e Sensores;T_modulos;13;Sensores de Luz e Cor;C_luz;propria;7;0
-2;Módulos e Sensores;T_modulos;14;Sensores de Umidade do Solo e Chuva;C_solo;propria;5;0
-2;Módulos e Sensores;T_modulos;15;Sensores de Distância e Proximidade;C_dist;propria;9;0
-2;Módulos e Sensores;T_modulos;16;Sensores de Movimento e Vibração;C_mov;propria;5;0
-2;Módulos e Sensores;T_modulos;17;Sensores Magnéticos Reed e Hall;C_mag;propria;5;0
-2;Módulos e Sensores;T_modulos;18;Chaves Fim de Curso;C_fim;propria;7;0
-2;Módulos e Sensores;T_modulos;19;Sensores de Corrente e Tensão;C_corr;propria;9;0
-2;Módulos e Sensores;T_modulos;20;Sensores de Fluxo de Água;C_fluxo;propria;5;0
-2;Módulos e Sensores;T_modulos;21;Sensores de Nível de Água;C_nivel;propria;5;0
-2;Módulos e Sensores;T_modulos;22;Células de Carga;C_carga;propria;7;0
-2;Módulos e Sensores;T_modulos;23;Transdutores Piezoelétricos;C_piezo;propria;5;0
-3;Displays e Telas;T_displays;0;;;topo;0;0
-3;Displays e Telas;T_displays;1;Telas Gráficas TFT;D_tft;propria;24;0
-3;Displays e Telas;T_displays;2;Displays LCD;D_lcd;propria;5;0
-3;Displays e Telas;T_displays;3;Displays OLED;D_oled;propria;2;0
-3;Displays e Telas;T_displays;4;Displays 7 Segmentos e Matriz LED;D_7seg;propria;5;0
-4;Componentes Eletrônicos;T_componentes;0;;;topo;0;0
-4;Componentes Eletrônicos;T_componentes;1;Resistores;I_res;propria;18;0
-4;Componentes Eletrônicos;T_componentes;2;Potenciômetros e Trimpots;I_pot;propria;11;0
-4;Componentes Eletrônicos;T_componentes;3;Capacitores;I_cap;propria;7;0
-4;Componentes Eletrônicos;T_componentes;4;Cristais Osciladores;I_crist;propria;1;0
-4;Componentes Eletrônicos;T_componentes;5;Filtros de Ferrite;I_filt;propria;2;0
-4;Componentes Eletrônicos;T_componentes;6;Fusíveis;I_fus;propria;1;0
-4;Componentes Eletrônicos;T_componentes;7;Diodos;I_diodo;propria;10;0
-4;Componentes Eletrônicos;T_componentes;8;Transistores e MOSFETs;I_trans;propria;16;0
-4;Componentes Eletrônicos;T_componentes;9;Reguladores de Tensão;I_reg;propria;5;0
-4;Componentes Eletrônicos;T_componentes;10;Circuitos Integrados;I_ci;propria;33;0
-4;Componentes Eletrônicos;T_componentes;11;LEDs e Soquetes;I_led;propria;20;0
-4;Componentes Eletrônicos;T_componentes;12;Buzzers, Alto-falantes e Áudio;I_buzz;propria;7;0
-4;Componentes Eletrônicos;T_componentes;13;Chaves e Push Buttons;I_gang;propria;22;0
-4;Componentes Eletrônicos;T_componentes;14;Conectores para PCB;I_pcb;propria;31;0
-4;Componentes Eletrônicos;T_componentes;15;Barras de Pinos;I_barra;propria;15;0
-4;Componentes Eletrônicos;T_componentes;16;Terminais e Acessórios;I_term;propria;6;0
-4;Componentes Eletrônicos;T_componentes;17;Espaçadores e Isoladores;I_espac;propria;6;0
-4;Componentes Eletrônicos;T_componentes;18;Fontes Chaveadas e Conversores DC-DC;I_fonte;propria;33;0
-4;Componentes Eletrônicos;T_componentes;19;Baterias e Acessórios;I_bat;propria;40;0
-5;Cabos e Conectores;T_cabos;0;;;topo;0;0
-5;Cabos e Conectores;T_cabos;1;Fios e Cabos Elétricos;J_fio;propria;15;0
-5;Cabos e Conectores;T_cabos;2;Cabos USB;J_usb;propria;19;0
-5;Cabos e Conectores;T_cabos;3;Cabos HDMI;J_hdmi;propria;6;2
-5;Cabos e Conectores;T_cabos;4;Conectores para Cabo e Painel;J_con;propria;25;0
-5;Cabos e Conectores;T_cabos;5;Adaptadores para Cabos;J_adapt;propria;14;0
-6;Automação Industrial;T_automacao;0;;;topo;0;0
-6;Automação Industrial;T_automacao;1;CLP;E_clp;propria;8;0
-6;Automação Industrial;T_automacao;2;IHM;E_ihm;propria;9;0
-6;Automação Industrial;T_automacao;3;Inversores de Frequência;E_inv;propria;1;0
-6;Automação Industrial;T_automacao;4;Controladores Industriais;E_ctrl;propria;8;0
-6;Automação Industrial;T_automacao;5;Sensores Industriais;E_sens;propria;6;0
-6;Automação Industrial;T_automacao;6;Encoders;E_enc;propria;5;0
-6;Automação Industrial;T_automacao;7;Chaves e Botoeiras;E_bot;propria;21;0
-6;Automação Industrial;T_automacao;8;Sinalizadores;E_sinal;propria;4;0
-6;Automação Industrial;T_automacao;9;Elétrica e Acessórios;E_eletr;propria;42;0
-7;Motores;T_motores;0;;;topo;0;0
-7;Motores;T_motores;1;Motores de Passo;G_passo;propria;18;0
-7;Motores;T_motores;2;Easy Servo;G_easy;propria;5;0
-7;Motores;T_motores;3;Servo Drive;G_servoac;propria;1;0
-7;Motores;T_motores;4;Motores DC;G_dc;propria;36;0
-7;Motores;T_motores;5;Drivers e Controladores;G_drv;propria;22;0
-8;CNC, Laser e Impressão 3D;T_cnc;0;;;topo;0;0
-8;CNC, Laser e Impressão 3D;T_cnc;1;Perfis de Alumínio e Acessórios;H_perfil;propria;33;0
-8;CNC, Laser e Impressão 3D;T_cnc;2;Parafusos, Porcas e Acessórios;H_paraf;propria;22;0
-8;CNC, Laser e Impressão 3D;T_cnc;3;Fusos e Castanhas;H_fuso;propria;29;0
-8;CNC, Laser e Impressão 3D;T_cnc;4;Eixos e Guias Lineares;H_eixo;propria;16;0
-8;CNC, Laser e Impressão 3D;T_cnc;5;Mancais e Suportes de Eixo;H_mancal;propria;16;0
-8;CNC, Laser e Impressão 3D;T_cnc;6;Rolamentos e Pillow Block;H_rol;propria;20;0
-8;CNC, Laser e Impressão 3D;T_cnc;7;Acoplamentos;H_acopl;propria;21;0
-8;CNC, Laser e Impressão 3D;T_cnc;8;Correias;H_corr;propria;19;0
-8;CNC, Laser e Impressão 3D;T_cnc;9;Polias e Roldanas;H_polia;propria;35;0
-8;CNC, Laser e Impressão 3D;T_cnc;10;Cremalheiras e Engrenagens;H_crem;propria;12;0
-8;CNC, Laser e Impressão 3D;T_cnc;11;Esteiras Porta Cabos;H_esteira;propria;22;0
-8;CNC, Laser e Impressão 3D;T_cnc;12;Controladores CNC;H_ctrl;propria;13;1
-8;CNC, Laser e Impressão 3D;T_cnc;13;Motores de Passo e Servo Drive;H_motpasso;segunda;0;24
-8;CNC, Laser e Impressão 3D;T_cnc;14;Drivers de Motor de Passo;H_drvpasso;segunda;0;13
-8;CNC, Laser e Impressão 3D;T_cnc;15;Spindles;H_spindle;propria;11;2
-8;CNC, Laser e Impressão 3D;T_cnc;16;Fresas, Brocas e Pinças;H_fresa;propria;24;0
-8;CNC, Laser e Impressão 3D;T_cnc;17;Módulos Laser de Diodo;H_laser;propria;12;0
-8;CNC, Laser e Impressão 3D;T_cnc;18;Peças para Laser CO2;H_co2;propria;17;2
-8;CNC, Laser e Impressão 3D;T_cnc;19;Mesas Aquecidas e Extrusoras;H_mesa;propria;30;0
-8;CNC, Laser e Impressão 3D;T_cnc;20;Acessórios para Impressora 3D;H_acess3d;propria;12;0
-8;CNC, Laser e Impressão 3D;T_cnc;21;Softwares;H_soft;propria;4;0
-9;Ferramentas e Prototipagem;T_ferramentas;0;;;topo;0;0
-9;Ferramentas e Prototipagem;T_ferramentas;1;Protoboards e Placas Fenolite;K_proto;propria;8;0
-9;Ferramentas e Prototipagem;T_ferramentas;2;Jumpers e Garras Jacaré;K_jump;propria;7;0
-9;Ferramentas e Prototipagem;T_ferramentas;3;Termo Retrátil;K_termo;propria;11;0
-9;Ferramentas e Prototipagem;T_ferramentas;4;Ferramentas e Solda;K_ferr;propria;8;0
-9;Ferramentas e Prototipagem;T_ferramentas;5;Instrumentos de Medição;K_instr;propria;12;0
-9;Ferramentas e Prototipagem;T_ferramentas;6;Caixas Plásticas e Organizadores;K_caixa;propria;14;0
-10;Kits Educacionais;T_kits;0;;;topo;0;0
-10;Kits Educacionais;T_kits;1;Kits Arduino;M_kitard;propria;3;0
-10;Kits Educacionais;T_kits;2;Kits de Eletrônica e Robótica;M_kitele;propria;2;0
-10;Kits Educacionais;T_kits;3;Chassis e Rodas para Robótica;M_chassi;propria;6;0
+﻿ordem_topo;topo;chave_topo;ordem_folha;folha;chave;tipo;produtos_proprios;produtos_2a;nome_na_li
+1;Placas Embarcadas;T_placas;0;;;topo;0;0;01 - Placas Embarcadas
+1;Placas Embarcadas;T_placas;1;Placas Arduino;A_ard;propria;27;0;01 - Placas Arduino
+1;Placas Embarcadas;T_placas;2;Placas ESP32;A_esp;propria;22;1;02 - Placas ESP32
+1;Placas Embarcadas;T_placas;3;Placas STM32;A_stm;propria;10;0;03 - Placas STM32
+1;Placas Embarcadas;T_placas;4;Placas Raspberry Pi;A_rpi;propria;29;10;04 - Placas Raspberry Pi
+2;Módulos e Sensores;T_modulos;0;;;topo;0;0;02 - Módulos e Sensores
+2;Módulos e Sensores;T_modulos;1;Módulos Relé e Acionamento;B_rele;propria;15;0;01 - Módulos Relé e Acionamento
+2;Módulos e Sensores;T_modulos;2;Conversores de Sinais;B_conv;propria;29;0;02 - Conversores de Sinais
+2;Módulos e Sensores;T_modulos;3;Módulos Wireless e IoT;B_wifi;propria;24;0;03 - Módulos Wireless e IoT
+2;Módulos e Sensores;T_modulos;4;Antenas e Acessórios;B_ant;propria;5;0;04 - Antenas e Acessórios
+2;Módulos e Sensores;T_modulos;5;Módulos RTC e Memória;B_rtc;propria;5;0;05 - Módulos RTC e Memória
+2;Módulos e Sensores;T_modulos;6;Shields para Embarcados;B_shield;segunda;0;20;06 - Shields para Embarcados
+2;Módulos e Sensores;T_modulos;7;Eletroímãs e Válvulas Solenoide;B_ima;propria;8;0;07 - Eletroímãs e Válvulas Solenoide
+2;Módulos e Sensores;T_modulos;8;Pastilhas Peltier;B_pelt;propria;3;0;08 - Pastilhas Peltier
+2;Módulos e Sensores;T_modulos;9;Painéis Solares;B_solar;propria;1;0;09 - Painéis Solares
+2;Módulos e Sensores;T_modulos;10;Imãs de Neodímio;B_neod;propria;3;0;10 - Imãs de Neodímio
+2;Módulos e Sensores;T_modulos;11;Sensores de Temperatura e Umidade;C_temp;propria;14;0;11 - Sensores de Temperatura e Umidade
+2;Módulos e Sensores;T_modulos;12;Sensores de Gás e Chama;C_gas;propria;9;0;12 - Sensores de Gás e Chama
+2;Módulos e Sensores;T_modulos;13;Sensores de Luz e Cor;C_luz;propria;7;0;13 - Sensores de Luz e Cor
+2;Módulos e Sensores;T_modulos;14;Sensores de Umidade do Solo e Chuva;C_solo;propria;5;0;14 - Sensores de Umidade do Solo e Chuva
+2;Módulos e Sensores;T_modulos;15;Sensores de Distância e Proximidade;C_dist;propria;9;0;15 - Sensores de Distância e Proximidade
+2;Módulos e Sensores;T_modulos;16;Sensores de Movimento e Vibração;C_mov;propria;5;0;16 - Sensores de Movimento e Vibração
+2;Módulos e Sensores;T_modulos;17;Sensores Magnéticos Reed e Hall;C_mag;propria;5;0;17 - Sensores Magnéticos Reed e Hall
+2;Módulos e Sensores;T_modulos;18;Chaves Fim de Curso;C_fim;propria;7;0;18 - Chaves Fim de Curso
+2;Módulos e Sensores;T_modulos;19;Sensores de Corrente e Tensão;C_corr;propria;9;0;19 - Sensores de Corrente e Tensão
+2;Módulos e Sensores;T_modulos;20;Sensores de Fluxo de Água;C_fluxo;propria;5;0;20 - Sensores de Fluxo de Água
+2;Módulos e Sensores;T_modulos;21;Sensores de Nível de Água;C_nivel;propria;5;0;21 - Sensores de Nível de Água
+2;Módulos e Sensores;T_modulos;22;Células de Carga;C_carga;propria;7;0;22 - Células de Carga
+2;Módulos e Sensores;T_modulos;23;Transdutores Piezoelétricos;C_piezo;propria;5;0;23 - Transdutores Piezoelétricos
+3;Displays e Telas;T_displays;0;;;topo;0;0;03 - Displays e Telas
+3;Displays e Telas;T_displays;1;Telas Gráficas TFT;D_tft;propria;24;0;01 - Telas Gráficas TFT
+3;Displays e Telas;T_displays;2;Displays LCD;D_lcd;propria;5;0;02 - Displays LCD
+3;Displays e Telas;T_displays;3;Displays OLED;D_oled;propria;2;0;03 - Displays OLED
+3;Displays e Telas;T_displays;4;Displays 7 Segmentos e Matriz LED;D_7seg;propria;5;0;04 - Displays 7 Segmentos e Matriz LED
+4;Componentes Eletrônicos;T_componentes;0;;;topo;0;0;04 - Componentes Eletrônicos
+4;Componentes Eletrônicos;T_componentes;1;Resistores;I_res;propria;18;0;01 - Resistores
+4;Componentes Eletrônicos;T_componentes;2;Potenciômetros e Trimpots;I_pot;propria;11;0;02 - Potenciômetros e Trimpots
+4;Componentes Eletrônicos;T_componentes;3;Capacitores;I_cap;propria;7;0;03 - Capacitores
+4;Componentes Eletrônicos;T_componentes;4;Cristais Osciladores;I_crist;propria;1;0;04 - Cristais Osciladores
+4;Componentes Eletrônicos;T_componentes;5;Filtros de Ferrite;I_filt;propria;2;0;05 - Filtros de Ferrite
+4;Componentes Eletrônicos;T_componentes;6;Fusíveis;I_fus;propria;1;0;06 - Fusíveis
+4;Componentes Eletrônicos;T_componentes;7;Diodos;I_diodo;propria;10;0;07 - Diodos
+4;Componentes Eletrônicos;T_componentes;8;Transistores e MOSFETs;I_trans;propria;16;0;08 - Transistores e MOSFETs
+4;Componentes Eletrônicos;T_componentes;9;Reguladores de Tensão;I_reg;propria;5;0;09 - Reguladores de Tensão
+4;Componentes Eletrônicos;T_componentes;10;Circuitos Integrados;I_ci;propria;33;0;10 - Circuitos Integrados
+4;Componentes Eletrônicos;T_componentes;11;LEDs e Soquetes;I_led;propria;20;0;11 - LEDs e Soquetes
+4;Componentes Eletrônicos;T_componentes;12;Buzzers, Alto-falantes e Áudio;I_buzz;propria;7;0;12 - Buzzers, Alto-falantes e Áudio
+4;Componentes Eletrônicos;T_componentes;13;Chaves e Push Buttons;I_gang;propria;22;0;13 - Chaves e Push Buttons
+4;Componentes Eletrônicos;T_componentes;14;Conectores para PCB;I_pcb;propria;31;0;14 - Conectores para PCB
+4;Componentes Eletrônicos;T_componentes;15;Barras de Pinos;I_barra;propria;15;0;15 - Barras de Pinos
+4;Componentes Eletrônicos;T_componentes;16;Terminais e Acessórios;I_term;propria;6;0;16 - Terminais e Acessórios
+4;Componentes Eletrônicos;T_componentes;17;Espaçadores e Isoladores;I_espac;propria;6;0;17 - Espaçadores e Isoladores
+4;Componentes Eletrônicos;T_componentes;18;Fontes Chaveadas e Conversores DC-DC;I_fonte;propria;33;0;18 - Fontes Chaveadas e Conversores DC-DC
+4;Componentes Eletrônicos;T_componentes;19;Baterias e Acessórios;I_bat;propria;40;0;19 - Baterias e Acessórios
+5;Cabos e Conectores;T_cabos;0;;;topo;0;0;05 - Cabos e Conectores
+5;Cabos e Conectores;T_cabos;1;Fios e Cabos Elétricos;J_fio;propria;15;0;01 - Fios e Cabos Elétricos
+5;Cabos e Conectores;T_cabos;2;Cabos USB;J_usb;propria;19;0;02 - Cabos USB
+5;Cabos e Conectores;T_cabos;3;Cabos HDMI;J_hdmi;propria;6;2;03 - Cabos HDMI
+5;Cabos e Conectores;T_cabos;4;Conectores para Cabo e Painel;J_con;propria;25;0;04 - Conectores para Cabo e Painel
+5;Cabos e Conectores;T_cabos;5;Adaptadores para Cabos;J_adapt;propria;14;0;05 - Adaptadores para Cabos
+6;Automação Industrial;T_automacao;0;;;topo;0;0;06 - Automação Industrial
+6;Automação Industrial;T_automacao;1;CLP;E_clp;propria;8;0;01 - CLP
+6;Automação Industrial;T_automacao;2;IHM;E_ihm;propria;9;0;02 - IHM
+6;Automação Industrial;T_automacao;3;Inversores de Frequência;E_inv;propria;1;0;03 - Inversores de Frequência
+6;Automação Industrial;T_automacao;4;Controladores Industriais;E_ctrl;propria;8;0;04 - Controladores Industriais
+6;Automação Industrial;T_automacao;5;Sensores Industriais;E_sens;propria;6;0;05 - Sensores Industriais
+6;Automação Industrial;T_automacao;6;Encoders;E_enc;propria;5;0;06 - Encoders
+6;Automação Industrial;T_automacao;7;Chaves e Botoeiras;E_bot;propria;21;0;07 - Chaves e Botoeiras
+6;Automação Industrial;T_automacao;8;Sinalizadores;E_sinal;propria;4;0;08 - Sinalizadores
+6;Automação Industrial;T_automacao;9;Elétrica e Acessórios;E_eletr;propria;42;0;09 - Elétrica e Acessórios
+7;Motores;T_motores;0;;;topo;0;0;07 - Motores
+7;Motores;T_motores;1;Motores de Passo;G_passo;propria;18;0;01 - Motores de Passo
+7;Motores;T_motores;2;Easy Servo;G_easy;propria;5;0;02 - Easy Servo
+7;Motores;T_motores;3;Servo Drive;G_servoac;propria;1;0;03 - Servo Drive
+7;Motores;T_motores;4;Motores DC;G_dc;propria;36;0;04 - Motores DC
+7;Motores;T_motores;5;Drivers e Controladores;G_drv;propria;22;0;05 - Drivers e Controladores
+8;CNC, Laser e Impressão 3D;T_cnc;0;;;topo;0;0;08 - CNC, Laser e Impressão 3D
+8;CNC, Laser e Impressão 3D;T_cnc;1;Perfis de Alumínio e Acessórios;H_perfil;propria;33;0;01 - Perfis de Alumínio e Acessórios
+8;CNC, Laser e Impressão 3D;T_cnc;2;Parafusos, Porcas e Acessórios;H_paraf;propria;22;0;02 - Parafusos, Porcas e Acessórios
+8;CNC, Laser e Impressão 3D;T_cnc;3;Fusos e Castanhas;H_fuso;propria;29;0;03 - Fusos e Castanhas
+8;CNC, Laser e Impressão 3D;T_cnc;4;Eixos e Guias Lineares;H_eixo;propria;16;0;04 - Eixos e Guias Lineares
+8;CNC, Laser e Impressão 3D;T_cnc;5;Mancais e Suportes de Eixo;H_mancal;propria;16;0;05 - Mancais e Suportes de Eixo
+8;CNC, Laser e Impressão 3D;T_cnc;6;Rolamentos e Pillow Block;H_rol;propria;20;0;06 - Rolamentos e Pillow Block
+8;CNC, Laser e Impressão 3D;T_cnc;7;Acoplamentos;H_acopl;propria;21;0;07 - Acoplamentos
+8;CNC, Laser e Impressão 3D;T_cnc;8;Correias;H_corr;propria;19;0;08 - Correias
+8;CNC, Laser e Impressão 3D;T_cnc;9;Polias e Roldanas;H_polia;propria;35;0;09 - Polias e Roldanas
+8;CNC, Laser e Impressão 3D;T_cnc;10;Cremalheiras e Engrenagens;H_crem;propria;12;0;10 - Cremalheiras e Engrenagens
+8;CNC, Laser e Impressão 3D;T_cnc;11;Esteiras Porta Cabos;H_esteira;propria;22;0;11 - Esteiras Porta Cabos
+8;CNC, Laser e Impressão 3D;T_cnc;12;Controladores CNC;H_ctrl;propria;13;1;12 - Controladores CNC
+8;CNC, Laser e Impressão 3D;T_cnc;13;Motores de Passo e Servo Drive;H_motpasso;segunda;0;24;13 - Motores de Passo e Servo Drive
+8;CNC, Laser e Impressão 3D;T_cnc;14;Drivers de Motor de Passo;H_drvpasso;segunda;0;13;14 - Drivers de Motor de Passo
+8;CNC, Laser e Impressão 3D;T_cnc;15;Spindles;H_spindle;propria;11;2;15 - Spindles
+8;CNC, Laser e Impressão 3D;T_cnc;16;Fresas, Brocas e Pinças;H_fresa;propria;24;0;16 - Fresas, Brocas e Pinças
+8;CNC, Laser e Impressão 3D;T_cnc;17;Módulos Laser de Diodo;H_laser;propria;12;0;17 - Módulos Laser de Diodo
+8;CNC, Laser e Impressão 3D;T_cnc;18;Peças para Laser CO2;H_co2;propria;17;2;18 - Peças para Laser CO2
+8;CNC, Laser e Impressão 3D;T_cnc;19;Mesas Aquecidas e Extrusoras;H_mesa;propria;30;0;19 - Mesas Aquecidas e Extrusoras
+8;CNC, Laser e Impressão 3D;T_cnc;20;Acessórios para Impressora 3D;H_acess3d;propria;12;0;20 - Acessórios para Impressora 3D
+8;CNC, Laser e Impressão 3D;T_cnc;21;Softwares;H_soft;propria;4;0;21 - Softwares
+9;Ferramentas e Prototipagem;T_ferramentas;0;;;topo;0;0;09 - Ferramentas e Prototipagem
+9;Ferramentas e Prototipagem;T_ferramentas;1;Protoboards e Placas Fenolite;K_proto;propria;8;0;01 - Protoboards e Placas Fenolite
+9;Ferramentas e Prototipagem;T_ferramentas;2;Jumpers e Garras Jacaré;K_jump;propria;7;0;02 - Jumpers e Garras Jacaré
+9;Ferramentas e Prototipagem;T_ferramentas;3;Termo Retrátil;K_termo;propria;11;0;03 - Termo Retrátil
+9;Ferramentas e Prototipagem;T_ferramentas;4;Ferramentas e Solda;K_ferr;propria;8;0;04 - Ferramentas e Solda
+9;Ferramentas e Prototipagem;T_ferramentas;5;Instrumentos de Medição;K_instr;propria;12;0;05 - Instrumentos de Medição
+9;Ferramentas e Prototipagem;T_ferramentas;6;Caixas Plásticas e Organizadores;K_caixa;propria;14;0;06 - Caixas Plásticas e Organizadores
+10;Kits Educacionais;T_kits;0;;;topo;0;0;10 - Kits Educacionais
+10;Kits Educacionais;T_kits;1;Kits Arduino;M_kitard;propria;3;0;01 - Kits Arduino
+10;Kits Educacionais;T_kits;2;Kits de Eletrônica e Robótica;M_kitele;propria;2;0;02 - Kits de Eletrônica e Robótica
+10;Kits Educacionais;T_kits;3;Chassis e Rodas para Robótica;M_chassi;propria;6;0;03 - Chassis e Rodas para Robótica
