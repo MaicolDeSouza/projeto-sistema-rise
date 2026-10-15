@@ -144,7 +144,6 @@ Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motor
 - Polias e Roldanas (35)
 - Cremalheiras e Engrenagens (12)
 - Perfis de Alumínio e Acessórios (33)
-- Parafusos, Porcas e Acessórios (22)
 - Esteiras Porta Cabos (22)
 - Controladores CNC (13)
 - Motores e Drivers (37 como 2ª categoria, nenhum próprio)
@@ -154,6 +153,7 @@ Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motor
 - Peças para Laser CO2 (17)
 - Mesas Aquecidas e Extrusoras (30)
 - Acessórios para Impressora 3D (12)
+- Parafusos, Porcas e Acessórios (22)
 - Máquinas (4) ◂ pequena
 - Softwares (4) ◂ pequena
 
@@ -249,6 +249,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Displays e Matriz de LED**: a folha de Displays e Telas antes chamada Displays 7 Segmentos e Matriz LED passa a se chamar Displays e Matriz de LED (15/10/2026). A folha só de 2ª categoria de Componentes continua Displays 7 Segmentos.
 - **Ordem e nome em Componentes Eletrônicos** (15/10/2026, ditados por ele): Capacitores logo abaixo de Diodos; Barras de Pinos logo abaixo de Displays 7 Segmentos e Fusíveis logo abaixo de Barras de Pinos; Lasers Sinalizadores penúltimo e Caixas Plásticas e Organizadores último; e Suportes para PCI virou **Suportes para PCB** (plural, como as outras folhas; os títulos dos produtos dizem "suporte PCI").
 - **Ordem de Motores** (15/10/2026, ditada por ele): Motores de Passo, Easy Servo, Servo Drive, Motores DC e Drivers e Controladores.
+- **Ordem de CNC** (15/10/2026, ditada por ele): Parafusos, Porcas e Acessórios (era a 10) passa para logo acima de Máquinas (a 20), ficando 19; as outras mantêm a ordem.
 
 ## Fusões aplicadas em 07/10/2026
 

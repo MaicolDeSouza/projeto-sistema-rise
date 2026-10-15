@@ -1417,32 +1417,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 122107_z Perfil de aluminio 30x30 furo M8*122107
 - 122108 Borracha para Fixação de Chapas para Perfis Canal 6 *122108
 
-### 10 - Parafusos, Porcas e Acessórios (22)
-
-- 121034 PORCA EXCÊNTRICA FURO 5MM ALTURA 6,35MM PADRÃO OPENBUILDS
-- 121035 PORCA EXCÊNTRICA FURO 5MM ALTURA 6MM PADRÃO OPENBUILDS
-- 121037 ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 6,35MM PADRÃO OPENBUILDS
-- 121038 ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 6MM PADRÃO OPENBUILDS
-- 121039 ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 3MM PADRÃO OPENBUILDS
-- 121041 ESPAÇADOR ARRUELA DE PRECISÃO 5X8X1MM PADRÃO OPENBUILDS
-- 121042 ESPAÇADOR ARRUELA DE PRECISÃO 5X10X1MM PADRÃO OPENBUILDS
-- 121050 PORCA FINA M5 X 3MM PASSO 0,8MM PADRÃO OPENBUILDS
-- 121073 Arruela de precisão inox 8x14x1mm *121073
-- 600201_z Parafuso com manopla de aperto m3x8 *600201
-- 600202 Parafuso com manopla de aperto m4x8 *600202
-- 600203_z Parafuso com manopla de aperto m5x8 *600203
-- 600204 Parafuso com corpo usinado 8mm rosca M6 50mm *600204
-- 600205 Parafuso com corpo usinado 8mm rosca M6 45mm *600205
-- 600206 Parafuso com corpo usinado 8mm rosca M6 40mm *600206
-- 600210 Mola 13x40mm *600210
-- 600214 Parafuso com manopla de aperto m5x12
-- 960102 KIT PARAFUSO ALLEN SEM CABEÇA 200 PEÇAS
-- 960401 Bucha de redução M6 X 1,0 interno M8 X 1,25 externo inserto metálico *960401
-- 960402 Bucha de redução M14 para M8 20mm comprimento *960402
-- 960501 Pezinho Pé Nivelador Base 40 *960501
-- 960601 Dobradiça Plástica e metalica Forsetti *960601
-
-### 11 - Esteiras Porta Cabos (22)
+### 10 - Esteiras Porta Cabos (22)
 
 - 121028 ESTEIRA PORTA CABOS 75X25MM R100MM 1MT COM PONTEIRAS
 - 121301 ESTEIRA PORTA CABOS 10X10MM R18 1MT COM PONTEIRAS *121301
@@ -1467,7 +1442,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 121328 Terminal de fixação esteira porta cabos 100mmx50mm*121328
 - 121329 Terminal de fixação esteira porta cabos 10mmx10mm
 
-### 12 - Controladores CNC (14)
+### 11 - Controladores CNC (14)
 
 - 100215 MODULO CNC SHIELD V3 PARA ARDUINO
 - 100264_z CNC Shield V4 keyesStudio*100264
@@ -1484,7 +1459,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 200502 MÓDULO CONVERSOR PWM PARA TENSÃO 0-10V MACH3
 - 200317 Gerador de pulso para motor de passo (2a, fica em Drivers e Controladores)
 
-### 13 - Motores e Drivers (37)
+### 12 - Motores e Drivers (37)
 
 - 100225 MOTOR DE PASSO 28BYJ-48 COM MODULO DRIVER ULN2003 (2a, fica em Motores de Passo)
 - 120509 MOTOR DE PASSO NEMA 17 - 1.7A  4,2KGF 17HS4401 (2a, fica em Motores de Passo)
@@ -1524,7 +1499,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 121203_4h Suporte para Motor de passo NEMA17 Reto 6 furos *121203 (2a, fica em Motores de Passo)
 - 121205 SUPORTE EM L 90° PARA MOTOR DE PASSO NEMA 17 (2a, fica em Motores de Passo)
 
-### 14 - Spindles (13)
+### 13 - Spindles (13)
 
 - 120404 MOTOR DC 775 150W 12-24V DC 20000RPM MINI SPINDLE
 - 120405 Motor spindle industrial 1.1HP refrigerado a ar com inversor *120405
@@ -1540,7 +1515,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 122403 Bomba da agua para spindle CO2 80W  3500l/h ipx8 220v *122403 (2a, fica em Motores DC)
 - 122408 Bomba da agua para spindle 25W 2500l/h 220V (2a, fica em Motores DC)
 
-### 15 - Fresas, Brocas e Pinças (24)
+### 14 - Fresas, Brocas e Pinças (24)
 
 - 120901 KIT COM 10 BROCAS 0,3 A 1,2MM PARA PCB
 - 120903 KIT COM 10 FRESAS RAIADAS 0.8 A 3.17MM HASTE 3.17MM
@@ -1567,7 +1542,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 120936_z Jogo 5pçs Pinça ER11 3,175mm, 4mm, 6mm, 6,35mm, 8mm *120936
 - 120937 KIT MINI MANDRIL PARA MOTOR 5 PINÇAS PARA BROCAS 0,3 A 3MM
 
-### 16 - Módulos Laser de Diodo (5)
+### 15 - Módulos Laser de Diodo (5)
 
 - 121609 Carcaça aluminio para laser 12mm *121609
 - 121610 Laser 4hobby 5W *121610
@@ -1575,7 +1550,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 121613 Laser de gravação 10W
 - 201203 Suporte do Laser em Alumino *201203*
 
-### 17 - Peças para Laser CO2 (19)
+### 16 - Peças para Laser CO2 (19)
 
 - 120108 Fonte para tubo laser co2 40w *120108
 - 120109_z FIO CABO ALTA TENSAO PARA LASER CO2 *120109
@@ -1597,7 +1572,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 120212 BOMBA DE AR COMPRESSOR PARA MAQUINA GRAVAÇÃO A LASER (2a, fica em Motores DC)
 - 122402 Bomba da agua para laser co2 p2430 25w 8,5l/min*122402 (2a, fica em Motores DC)
 
-### 18 - Mesas Aquecidas e Extrusoras (30)
+### 17 - Mesas Aquecidas e Extrusoras (30)
 
 - 121011 MODULO MOSFET PARA EXTRUSORA MESA AQUECIDA IMPRESSORA 3D
 - 180402 MESA AQUECIDA HEATBED 214X214X3MM MK3 COM CABOS
@@ -1630,7 +1605,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 180623 bico 0.4mm ender3
 - 180901 Kit com 4 Parafuso Mola Alinhamento Mesa Aquecida Impressora 3d *180901
 
-### 19 - Acessórios para Impressora 3D (12)
+### 18 - Acessórios para Impressora 3D (12)
 
 - 150905 IMPRESSORA 3D CREALITY ENDER3 MONTADA E CONFIGURADA
 - 180302 DISPLAY TELA LCD 128X64 RAMPS CONTROLE IMPRESSORA 3D
@@ -1644,6 +1619,31 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 960403 Inserto metálico para impressora 3D M5X5X6mm
 - 960404 Inserto metálico para impressora 3D M4X5X5mm
 - 960405 Inserto metálico para impressora 3D M3X5X4mm
+
+### 19 - Parafusos, Porcas e Acessórios (22)
+
+- 121034 PORCA EXCÊNTRICA FURO 5MM ALTURA 6,35MM PADRÃO OPENBUILDS
+- 121035 PORCA EXCÊNTRICA FURO 5MM ALTURA 6MM PADRÃO OPENBUILDS
+- 121037 ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 6,35MM PADRÃO OPENBUILDS
+- 121038 ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 6MM PADRÃO OPENBUILDS
+- 121039 ESPAÇADOR ALUMÍNIO FURO 5MM ALTURA 3MM PADRÃO OPENBUILDS
+- 121041 ESPAÇADOR ARRUELA DE PRECISÃO 5X8X1MM PADRÃO OPENBUILDS
+- 121042 ESPAÇADOR ARRUELA DE PRECISÃO 5X10X1MM PADRÃO OPENBUILDS
+- 121050 PORCA FINA M5 X 3MM PASSO 0,8MM PADRÃO OPENBUILDS
+- 121073 Arruela de precisão inox 8x14x1mm *121073
+- 600201_z Parafuso com manopla de aperto m3x8 *600201
+- 600202 Parafuso com manopla de aperto m4x8 *600202
+- 600203_z Parafuso com manopla de aperto m5x8 *600203
+- 600204 Parafuso com corpo usinado 8mm rosca M6 50mm *600204
+- 600205 Parafuso com corpo usinado 8mm rosca M6 45mm *600205
+- 600206 Parafuso com corpo usinado 8mm rosca M6 40mm *600206
+- 600210 Mola 13x40mm *600210
+- 600214 Parafuso com manopla de aperto m5x12
+- 960102 KIT PARAFUSO ALLEN SEM CABEÇA 200 PEÇAS
+- 960401 Bucha de redução M6 X 1,0 interno M8 X 1,25 externo inserto metálico *960401
+- 960402 Bucha de redução M14 para M8 20mm comprimento *960402
+- 960501 Pezinho Pé Nivelador Base 40 *960501
+- 960601 Dobradiça Plástica e metalica Forsetti *960601
 
 ### 20 - Máquinas (4)
 
