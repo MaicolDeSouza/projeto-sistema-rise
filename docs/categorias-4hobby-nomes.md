@@ -10,7 +10,7 @@ Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 fol
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **11 topos e 105 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (98 folhas com produto próprio, uma reservada sem produto (Transformadores) e seis só com produtos de 2ª categoria: Shields para Embarcados, Conversores DC-DC e Módulos BMS para Bateria, em Módulos e Sensores, Displays 7 Segmentos e Caixas Plásticas e Organizadores, em Componentes Eletrônicos, e Motores e Drivers, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+Resultado: **11 topos e 106 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (99 folhas com produto próprio, uma reservada sem produto (Transformadores) e seis só com produtos de 2ª categoria: Shields para Embarcados, Conversores DC-DC e Módulos BMS para Bateria, em Módulos e Sensores, Displays 7 Segmentos e Caixas Plásticas e Organizadores, em Componentes Eletrônicos, e Motores e Drivers, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
 
 Com dois níveis e uma família por folha, Módulos e Sensores (26 folhas, contando as de 2ª categoria), CNC (19) e Componentes Eletrônicos (20) ficam com menu longo. É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
@@ -65,7 +65,7 @@ Módulos em seis folhas (decisão do dono em 14/10/2026: relé, conversores de s
 
 Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica separada). Toda tela TFT é gráfica (painel LCD de matriz ativa, pixel a pixel), por isso o nome que ele pediu, "Telas Gráficas TFT", sem parênteses; a OLED também é gráfica, mas é outra tecnologia e fica na folha dela. Telas Gráficas TFT junta as 15 Nextion (Basic, Enhanced, Intelligent) com as expansões e o conector delas, as 3 telas de 7" para Raspberry Pi com o case da oficial (todas com Placas Raspberry Pi como 2ª categoria), a 3,5" touch ILI9488 e a 1,8" ST7735: são todas LCD TFT, a diferença é só a interface (serial, HDMI/DSI, SPI). Displays LCD são os alfanuméricos de caracteres (16x2 e 20x4), com o módulo I2C e o LCD shield; o dono preferiu o nome curto, mesmo com os títulos das Nextion e das TFT também dizendo "LCD".
 
-### Componentes Eletrônicos (229)
+### Componentes Eletrônicos (232)
 
 - Resistores (18)
 - Diodos (10)
@@ -77,6 +77,7 @@ Folhas por tipo de tela (decisão do dono em 14/10/2026: a Nextion não fica sep
 - Cristais Osciladores (1) ◂ pequena
 - LEDs e Soquetes (20)
 - Displays 7 Segmentos (4 como 2ª categoria, nenhum próprio)
+- Lasers Sinalizadores (3)
 - Buzzers, Alto-falantes e Áudio (7)
 - Chaves e Push Buttons (18)
 - Plugs e Conectores (46)
@@ -132,7 +133,7 @@ Nove folhas ditadas pelo dono em 14/10/2026. Inversores de Frequência recebe o 
 
 Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motores de Passo inclui os suportes de motor (vindos de CNC); Easy Servo (motor de passo com encoder + driver, 45 a 120 kgf) ganhou folha própria a pedido dele e Servo Drive ficou com o servo motor AC 400 W com drive; Motores DC junta os motores DC com caixa de redução, as mini bombas de água e ar e os micro servos e motores para aeromodelismo (SG90, MG996R, brushless, ESC, Pixhawk, PCA9685), tudo pedido dele; Drivers e Controladores junta os drivers de motor de passo (A4988, TMC, DM556, DM860H) com as pontes H e os controladores PWM de motor DC. Eletroímãs e Válvulas Solenoide foi para Módulos e Sensores e Chassis e Rodas para Robótica para Kits Educacionais.
 
-### CNC, Laser e Impressão 3D (368)
+### CNC, Laser e Impressão 3D (365)
 
 - Fusos e Castanhas (29)
 - Eixos e Guias Lineares (16)
@@ -149,7 +150,7 @@ Topo renomeado pelo dono em 14/10/2026 (sem "Robótica"), em cinco folhas. Motor
 - Motores e Drivers (37 como 2ª categoria, nenhum próprio)
 - Spindles (11)
 - Fresas, Brocas e Pinças (24)
-- Módulos Laser de Diodo (8)
+- Módulos Laser de Diodo (5)
 - Peças para Laser CO2 (17)
 - Mesas Aquecidas e Extrusoras (30)
 - Acessórios para Impressora 3D (12)
@@ -242,6 +243,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Motores e Drivers** (CNC, 15/10/2026): as duas folhas de 2ª categoria (Motores de Passo e Servo Drive, 24 produtos, e Drivers de Motor de Passo, 13) viraram uma só, Motores e Drivers, com 37 produtos; os produtos continuam em Motores. A loja fica com 105 folhas.
 - **Máquinas** voltou como folha em CNC (15/10/2026), com as 4 gravadoras laser que estavam em Módulos Laser de Diodo: a máquina laser 10W TTS-10 (120213), a gravadora de cuia rotativa 10W (122002) e os dois conjuntos da gravadora Ciclope, frame em inox e peças impressas (600207, 600208). Módulos Laser de Diodo ficou só com os módulos e acessórios de laser (8). A Ender3 montada (150905), o pick-and-place (121701) e os atuadores lineares seguem onde estão; se ele quiser, entram em Máquinas também.
 - **Kits Educacionais** ficou com 2 folhas (15/10/2026): Chassis e Rodas para Robótica (6 produtos) juntou-se a Kits de Eletrônica e Robótica, que passa a ter 8.
+- **Lasers Sinalizadores**: nova folha em Componentes Eletrônicos (15/10/2026) com os 3 lasers sinalizadores vermelhos de 650 nm (cruz, linha e ponto: 121605, 121606, 121607), que saíram de CNC > Módulos Laser de Diodo (agora com 5). Ele disse "Laser Sinalizadores"; pus no plural, "Lasers Sinalizadores", que é o nome que o cliente digita.
 
 ## Fusões aplicadas em 07/10/2026
 

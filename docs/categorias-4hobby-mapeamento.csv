@@ -489,9 +489,9 @@
 121328;"Terminal de fixação esteira porta cabos 100mmx50mm*121328";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";;0
 121329;"Terminal de fixação esteira porta cabos 10mmx10mm";CNC, Laser e Impressão 3D;Esteiras Porta Cabos;;H_esteira;"";"";25.00;0
 121604;"OBSOLETO-LASER 15W 12V COM FONTE GRAVAÇÃO MDF ACRÍLICO EVA *121604";NÃO PUBLICAR;Obsoleto, uso interno ou teste;;X_nao;"";"";1867.00;0
-121605;"LASER SINALIZADOR VERMELHO FORMATO CRUZ 650NM 5MW";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"Geral";19.20;0
-121606;"LASER SINALIZADOR VERMELHO FORMATO LINHA 650NM 5MW";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"Geral";19.20;21
-121607;"LASER SINALIZADOR VERMELHO FORMATO PONTO 650NM 5MW";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"Geral";29.90;1
+121605;"LASER SINALIZADOR VERMELHO FORMATO CRUZ 650NM 5MW";Componentes Eletrônicos;Lasers Sinalizadores;;I_lasersin;"";"Geral";19.20;0
+121606;"LASER SINALIZADOR VERMELHO FORMATO LINHA 650NM 5MW";Componentes Eletrônicos;Lasers Sinalizadores;;I_lasersin;"";"Geral";19.20;21
+121607;"LASER SINALIZADOR VERMELHO FORMATO PONTO 650NM 5MW";Componentes Eletrônicos;Lasers Sinalizadores;;I_lasersin;"";"Geral";29.90;1
 121609;"Carcaça aluminio para laser 12mm *121609";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";;0
 121610;"Laser 4hobby 5W *121610";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";2452.00;0
 121612;"Laser de gravação 5W";CNC, Laser e Impressão 3D;Módulos Laser de Diodo;;H_laser;"";"";1758.00;0
