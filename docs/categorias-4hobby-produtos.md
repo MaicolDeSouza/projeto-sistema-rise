@@ -659,7 +659,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 910403 CHAVE DE PULSO TIPO PUSH BUTTON 12X12MM COM CAPA COLORIDA
 - 910409 Chave de pulso táctil SMD tipo Push Botton  5x5x1mm *910409
 
-### 13 - Conectores para PCB (31)
+### 13 - Conectores (31)
 
 - 900308 KIT CONECTOR 230 PEÇAS JST XH 2/3/4/5 VIAS + TERMINAIS
 - 900309 KIT CONECTOR 250 PEÇAS JST XH 6/7/8/9/10 VIAS + TERMINAIS

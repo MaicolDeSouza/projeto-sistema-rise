@@ -49,7 +49,7 @@
 4;Componentes Eletrônicos;T_componentes;10;Displays 7 Segmentos;I_disp;segunda;0;4;10 - Displays 7 Segmentos
 4;Componentes Eletrônicos;T_componentes;11;Buzzers, Alto-falantes e Áudio;I_buzz;propria;7;0;11 - Buzzers, Alto-falantes e Áudio
 4;Componentes Eletrônicos;T_componentes;12;Chaves e Push Buttons;I_gang;propria;18;0;12 - Chaves e Push Buttons
-4;Componentes Eletrônicos;T_componentes;13;Conectores para PCB;I_pcb;propria;31;0;13 - Conectores para PCB
+4;Componentes Eletrônicos;T_componentes;13;Conectores;I_pcb;propria;31;0;13 - Conectores
 4;Componentes Eletrônicos;T_componentes;14;Barras de Pinos;I_barra;propria;15;0;14 - Barras de Pinos
 4;Componentes Eletrônicos;T_componentes;15;Terminais e Acessórios;I_term;propria;6;0;15 - Terminais e Acessórios
 4;Componentes Eletrônicos;T_componentes;16;Espaçadores e Isoladores;I_espac;propria;6;0;16 - Espaçadores e Isoladores
