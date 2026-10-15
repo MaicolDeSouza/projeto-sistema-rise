@@ -80,8 +80,8 @@
 100303;"DISPLAY LCD 16X2 COM FUNDO AZUL";Displays e Telas;Displays LCD;;D_lcd;"";"3 - Telas e LCD";23.90;20
 100305;"TELA LCD NEXTION 5″ 800X480 BASIC IHM TOUCH";Displays e Telas;Telas Gráficas TFT;;D_tft;"";"3 - Telas e LCD";977.60;0
 100306;"TELA LCD NEXTION 7″ 800X480 BASIC IHM TOUCH";Displays e Telas;Telas Gráficas TFT;;D_tft;"";"3 - Telas e LCD";1075.00;0
-100307;"MODULO 74HC595 DISPLAY 7 SEGMENTOS 4 DÍGITOS";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"";"2 - Módulos e shields";13.60;9
-100308;"MODULO TM1637 RELÓGIO DIGITAL DISPLAY 7 SEGMENTOS 4 DÍGITOS";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"";"2 - Módulos e shields";9.80;20
+100307;"MODULO 74HC595 DISPLAY 7 SEGMENTOS 4 DÍGITOS";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"Componentes Eletrônicos > Displays";"2 - Módulos e shields";13.60;9
+100308;"MODULO TM1637 RELÓGIO DIGITAL DISPLAY 7 SEGMENTOS 4 DÍGITOS";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"Componentes Eletrônicos > Displays";"2 - Módulos e shields";9.80;20
 100309;"DISPLAY MATRIZ DE LED 8X8MM MAX7219 VERDE";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"";"2 - Módulos e shields";21.90;20
 100310;"DISPLAY LCD OLED I2C 0.96POL 128X64PX AZUL AMARELO";Displays e Telas;Displays OLED;;D_oled;"";"3 - Telas e LCD";28.90;27
 100311;"TELA LCD NEXTION 4.3″ 480x272 BASIC IHM TOUCH";Displays e Telas;Telas Gráficas TFT;;D_tft;"";"3 - Telas e LCD";535.00;0
@@ -152,10 +152,10 @@
 111008;"FONTE CHAVEADA 5V 3A MICRO USB PARA RASPBERRY PI3 ESP32";Componentes Eletrônicos;Fontes Chaveadas e Conversores DC-DC;;I_fonte;"";"Fontes";44.90;17
 111010;"KIT 03 PEÇAS DISSIPADOR DE CALOR PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";5.60;58
 111011;"KIT ADAPTADOR RASPBERRYPI ZERO HDMI USB PINOS COM 03 PÇS";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";31.90;4
-111016_4h;"Divisor Splitter HDMI 1 Hdmi Macho Para 2 Hdmi Fêmea *111016";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"";30.00;4
-111017;"Divisor cabo HDMI Splitter HDMI 1x4 com fonte *111017";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"";92.99;1
-111018;"Conversor HDMI para VGA *111018";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"";41.90;2
-111019;"ADAPTADOR MICRO HDMI MACHO PARA HDMI FÊMEA";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"Conversores";12.00;40
+111016_4h;"Divisor Splitter HDMI 1 Hdmi Macho Para 2 Hdmi Fêmea *111016";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";30.00;4
+111017;"Divisor cabo HDMI Splitter HDMI 1x4 com fonte *111017";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";92.99;1
+111018;"Conversor HDMI para VGA *111018";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";41.90;2
+111019;"ADAPTADOR MICRO HDMI MACHO PARA HDMI FÊMEA";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conversores";12.00;40
 111020;"FONTE CHAVEADA 5V 3A TIPO C PARA RASPBERRY PI4  RPI4 *111020";Componentes Eletrônicos;Fontes Chaveadas e Conversores DC-DC;;I_fonte;"";"";57.00;8
 111021;"Microventilador para RaspberryPi 5V 30x30mm *111021";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";13.00;16
 111022;"CASE OFICIAL RASPBERRY PI4 RPI4 BRANCO E VERMELHO *111022";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";52.80;17
@@ -166,7 +166,7 @@
 111029;"CASE OFICIAL RASPBERRY PI3 RPI3 BRANCO E VERMELHO *111029";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"";30.00;5
 111030;"MICROFONE USB PARA RASPBERRY PI";Placas Embarcadas;Placas Raspberry Pi;;A_rpi;"";"5 - Acessórios";55.00;0
 111031;"Case para tela LCD 7 pol Oficial Raspberry Pi4 preto";Displays e Telas;Telas Gráficas TFT;;D_tft;"Placas Embarcadas > Placas Raspberry Pi";"";179.90;0
-111032;"ADAPTADOR VÍDEO WAVLINK MULTI DISPLAY USB PARA HDMI VGA DVI";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"";418.00;1
+111032;"ADAPTADOR VÍDEO WAVLINK MULTI DISPLAY USB PARA HDMI VGA DVI";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";418.00;1
 120101;"INTERFACE CONTROLADORA USB PARA CNC 4EIXOS COM CABO + MACH3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";439.00;2
 120102;"INTERFACE CONTROLADORA PARA CNC 5 EIXOS COM CABO + MACH3";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"Placas de controle";58.90;0
 120103;"Interface controladora USB Cnc 4 Eixos + Cabo + Mach3 RNR ecomotion";CNC, Laser e Impressão 3D;Controladores CNC;;H_ctrl;"";"";219.90;7
@@ -178,15 +178,15 @@
 120111;"Fonte para tubo laser co2 100w  *120111";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;2
 120112;"Kit espelho e lentes com suporte laser co2 *120112";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";1035.00;1
 120116;"Medidor potencia laser *120116";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;0
-120117;"Fio de silicone vermelho 14AWG *120117";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"";;5
-120118;"Fio de silicone preto 14AWG *120118";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"";;5
-120119;"Fio de silicone vermelho 15AWG *120119";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"";;5
-120120;"Fio de silicone preto 15AWG *120120";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"";;5
+120117;"Fio de silicone vermelho 14AWG *120117";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;5
+120118;"Fio de silicone preto 14AWG *120118";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;5
+120119;"Fio de silicone vermelho 15AWG *120119";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;5
+120120;"Fio de silicone preto 15AWG *120120";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;5
 120121;"Oculos protecao laser *120121";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";57.00;5
 120122;"Espuma proteção dupla face para  tubo laser 25mm de largura *120122";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;0
 120123;"Medidor potencia laser 0-10W *120123";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;0
-120124;"Fio de silicone preto e vermelho 16AWG *120124";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"";;11
-120125;"Fio de silicone preto e vermelho 24AWG *120125";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"";;10
+120124;"Fio de silicone preto e vermelho 16AWG *120124";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;11
+120125;"Fio de silicone preto e vermelho 24AWG *120125";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";;10
 120127;"Suporte para tubo de laser CO2(par)";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";245.00;1
 120128;"Mangueira flexível para camera";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;2
 120129;"Kit redução 60 dentes motor Nema23 para laser CO2";CNC, Laser e Impressão 3D;Polias e Roldanas;;H_polia;"";"";;1
@@ -715,12 +715,12 @@
 200106;"CONVERSOR ADAPTADOR USB PARA SERIAL RS232 DB9";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"Conversores";20.00;14
 200108;"CONVERSOR USB PARA TTL FTDI UART RS232 5V 3.3V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"Conversores";18.90;78
 200109;"CONVERSOR ADAPTADOR USB PARA SERIAL RS232 COM CABO";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"Conversores";16.90;20
-200110;"ADAPTADOR ETHERNET USB 3.0 PARA RJ45 10/100/1000MPBS";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"Conversores";99.00;9
-200111;"Cabo adaptador RJ45 POE 1 par";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"";;10
-200112;"Emenda simples RJ45";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"";;29
-200113;"Extensor USB via RJ45";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"";;1
+200110;"ADAPTADOR ETHERNET USB 3.0 PARA RJ45 10/100/1000MPBS";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conversores";99.00;9
+200111;"Cabo adaptador RJ45 POE 1 par";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";;10
+200112;"Emenda simples RJ45";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";;29
+200113;"Extensor USB via RJ45";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";;1
 200114;"MÓDULO DB9 CONVERSOR  MAX3232 RS232 TTL SERIAL";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";10.00;10
-200115;"Cabo db9 macho e femea 1,5mt";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"";;10
+200115;"Cabo db9 macho e femea 1,5mt";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";;10
 200116;"CONVERSOR USB TIPO C PARA TTL FTDI UART RS232 5V 3.3V";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";18.90;10
 200117;"Cabo db9 serial macho para IHM DOP delta 3m";Automação Industrial;IHM;;E_ihm;"";"";110.00;5
 200118;"Cabo serial Waveshare USB para TTL de 6 pinos FTDI";Módulos e Sensores;Conversores de Sinais;;B_conv;"";"";279.00;1
@@ -868,15 +868,15 @@
 600210;"Mola 13x40mm *600210";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";5.00;0
 600214;"Parafuso com manopla de aperto m5x12";CNC, Laser e Impressão 3D;Parafusos, Porcas e Acessórios;;H_paraf;"";"";;38
 632581;"TERMINAL OLHAL FURO 6 - PRÉ-ISOLADO PVC - VM CABO 0,50 A 1,50MM";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"";0.60;1
-900101;"CONECTOR METALICO MIKE GX12 PLUG MACHO E FÊMEA 4 PINOS";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";12.70;50
-900106;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 2 VIAS";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";17.30;24
-900108;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 10 VIAS";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";17.00;54
-900109;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 2 VIAS";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";12.00;113
-900110;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 4 VIAS";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";13.00;52
-900111;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 8 VIAS";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";15.00;285
-900112;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 3 VIAS";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";13.00;45
-900113;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 4 VIAS";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";17.00;38
-900114;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 8 VIAS";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";19.00;359
+900101;"CONECTOR METALICO MIKE GX12 PLUG MACHO E FÊMEA 4 PINOS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";12.70;50
+900106;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 2 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";17.30;24
+900108;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 10 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";17.00;54
+900109;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 2 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";12.00;113
+900110;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 4 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";13.00;52
+900111;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 8 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";15.00;285
+900112;"PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 3 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";13.00;45
+900113;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 4 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";17.00;38
+900114;"CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 8 VIAS";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";19.00;359
 900201;"BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° MACHO";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"Conectores e Bornes";1.10;831
 900202;"BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° FÊMEA";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"Conectores e Bornes";1.60;0
 900204;"BARRA DE PINOS FÊMEA 2,54MM 10 VIAS PINOS LONGOS 11MM";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"Conectores e Bornes";3.00;130
@@ -893,8 +893,8 @@
 900215;"Barra de pinos fêmea 7 vias";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"";2.00;160
 900308;"KIT CONECTOR 230 PEÇAS JST XH 2/3/4/5 VIAS + TERMINAIS";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"Conectores e Bornes";29.90;0
 900309;"KIT CONECTOR 250 PEÇAS JST XH 6/7/8/9/10 VIAS + TERMINAIS";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"Conectores e Bornes";38.90;0
-900310;"CABO MICRO JST PH 2 PINOS PARA CARREGADOR DE BATERIA";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"Cabos";1.50;52
-900311;"CABO MICRO JST SH1 2 VIAS PASSO 1.25MM P/ BATERIA ESP32 LORA";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"Cabos";2.50;4
+900310;"CABO MICRO JST PH 2 PINOS PARA CARREGADOR DE BATERIA";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";1.50;52
+900311;"CABO MICRO JST SH1 2 VIAS PASSO 1.25MM P/ BATERIA ESP32 LORA";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";2.50;4
 900312;"CONECTOR MICRO JST SH1 2 VIAS PASSO 1.25MM PARA PCB";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"Conectores e Bornes";1.90;284
 900314_10;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 10 Vias";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";3.00;174
 900314_2;"CONECTOR JST-XH COMPLETO COM TERMINAIS Vias: 2 Vias";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";1.90;187
@@ -916,16 +916,16 @@
 900407;"KIT CONECTOR  DUPONT 620 PEÇAS COM TERMINIAS + CASE";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"Conectores e Bornes";61.90;16
 900408;"CONECTOR DUPONT 10 VIAS 2,54MM COM TERMINAIS FÊMEA";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"Conectores e Bornes";2.50;30
 900501;"MINI JUMPER 2.54 PRETO PARA PLACA MÃE";Componentes Eletrônicos;Barras de Pinos;;I_barra;"";"Conectores e Bornes";0.80;24
-900601;"ADAPTADOR PLUG RJ45 CAT6 FÊMEA/FÊMEA PARA PAINEL";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";28.50;5
-900701;"PLUG JACK P4 MACHO COM PARAFUSO BORNE";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";1.60;75
-900702;"PLUG JACK P4 FÊMEA COM PARAFUSO BORNE";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";3.10;109
-900703;"PLUG JACK P4 MACHO SOLDAVEL COM RABICHO";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";1.00;273
-900704;"PLUG JACK P4 FEMEA SOLDAVEL PARA PAINEL";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";2.50;44
-900705;"PLUG CONECTOR P4 5.5MM X 2.1MM BORDA METALICA";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";1.20;0
-900706_4h;"Plug conector jack P4 femea 5.5x2.1mm  para PCB *900706";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"";2.00;39
-900707;"conector plug para pino banana fêmea vermelho";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"";4.90;15
-900708;"conector plug para pino banana fêmea preto";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"";4.90;15
-900801;"CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";5.50;221
+900601;"ADAPTADOR PLUG RJ45 CAT6 FÊMEA/FÊMEA PARA PAINEL";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";28.50;5
+900701;"PLUG JACK P4 MACHO COM PARAFUSO BORNE";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";1.60;75
+900702;"PLUG JACK P4 FÊMEA COM PARAFUSO BORNE";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";3.10;109
+900703;"PLUG JACK P4 MACHO SOLDAVEL COM RABICHO";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";1.00;273
+900704;"PLUG JACK P4 FEMEA SOLDAVEL PARA PAINEL";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";2.50;44
+900705;"PLUG CONECTOR P4 5.5MM X 2.1MM BORDA METALICA";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";1.20;0
+900706_4h;"Plug conector jack P4 femea 5.5x2.1mm  para PCB *900706";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";2.00;39
+900707;"conector plug para pino banana fêmea vermelho";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";4.90;15
+900708;"conector plug para pino banana fêmea preto";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";4.90;15
+900801;"CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";5.50;221
 900901;"CONECTOR BORNE 2 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"Conectores e Bornes";1.30;1200
 900902;"CONECTOR BORNE 3 PINOS KF350 PASSO 3,5MM VERDE";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"Conectores e Bornes";1.50;470
 900903_z;"Conector KF301 KRE 5mm 2Pinos *900903";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";1.57;324
@@ -937,9 +937,9 @@
 900911;"FITA NÍQUEL DUPLA PARA SOLDAR BATERIAS 18650 0,12X27MM 1MT";Componentes Eletrônicos;Baterias e Acessórios;;I_bat;"";"Baterias e Acessórios";22.00;9
 901001;"SUPORTE PARA PLACA DE CIRCUITO IMPRESSO TRILHO DIN - 1PAR";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Geral";15.90;298
 901101;"KIT 700 TERMINAIS TUBULAR ILHOS";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";56.00;5
-901201;"CONECTOR DB25 FÊMEA PAINEL PARA CABO FLAT";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";14.50;11
-901202;"CONECTOR DB25 MACHO PAINEL PARA CABO FLAT";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";14.50;16
-901203;"Conector DB9 fêmea com capa";Cabos e Conectores;Adaptadores para Cabos;;J_adapt;"";"";8.00;19
+901201;"CONECTOR DB25 FÊMEA PAINEL PARA CABO FLAT";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";14.50;11
+901202;"CONECTOR DB25 MACHO PAINEL PARA CABO FLAT";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"Conectores e Bornes";14.50;16
+901203;"Conector DB9 fêmea com capa";Fios e Cabos;Adaptadores para Cabos;;J_adapt;"";"";8.00;19
 901301;"CONECTOR JST PH 2MM 6 PINOS COMPLETO";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"Conectores e Bornes";2.00;0
 901302;"CONECTOR 4 PINOS COMPLETO PH 2MM";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";;48
 901303;"CONECTOR JST PH 2MM 10 PINOS COMPLETO";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"Conectores e Bornes";3.50;8
@@ -948,17 +948,17 @@
 901602;"PLUG CONECTOR SMA MACHO PARA CABO RG-58";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";3.20;1
 901603;"PLUG CONECTOR SMA FEMEA ROSCA EXTERNA PARA CABO RG-58";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";3.20;2
 901604;"ANTENA WIFI 2.4GHZ 3DBI CABO 15CM PARA ESP32 ESP8266 ESP-07";Módulos e Sensores;Antenas e Acessórios;;B_ant;"";"Antenas";19.90;8
-901701;"PLUG JACK P10 J10 ESTEREO FEMEA PARA PAINEL PCB";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";2.50;2
-901702;"PLUG JACK P10 ESTEREO MACHO METALICO";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";8.80;18
-901703;"PLUG P10 ESTEREO MACHO PLASTICO PRETO";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";3.90;37
-901704;"PLUG P10 J10 ESTÉREO FÊMEA PARA PAINEL";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";3.20;0
-901801;"PLUG CANON XLR PAINEL FÊMEA 4 VIAS PARA PAINEL";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"Conectores e Bornes";29.90;2
-901802;"Plug Canon painel macho 04 vias *901802";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"";10.00;9
+901701;"PLUG JACK P10 J10 ESTEREO FEMEA PARA PAINEL PCB";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";2.50;2
+901702;"PLUG JACK P10 ESTEREO MACHO METALICO";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";8.80;18
+901703;"PLUG P10 ESTEREO MACHO PLASTICO PRETO";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";3.90;37
+901704;"PLUG P10 J10 ESTÉREO FÊMEA PARA PAINEL";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";3.20;0
+901801;"PLUG CANON XLR PAINEL FÊMEA 4 VIAS PARA PAINEL";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"Conectores e Bornes";29.90;2
+901802;"Plug Canon painel macho 04 vias *901802";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";10.00;9
 901901;"ESPAÇADOR ISOLADOR PARA PCB PORCA PARAFUSO NYLON M3 180 PÇS";Componentes Eletrônicos;Espaçadores e Isoladores;;I_espac;"";"Hardware";51.90;0
 902101;"KIT 280 CONECTORES TERMINAIS DIVERSOS TAMANHOS COM CASE";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";94.00;0
 902201;"Conector borne BR7 2 vias macho e femea *902201";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";;50
 902202;"Conector borne BR7 2 vias macho e femea 90 graus";Componentes Eletrônicos;Conectores para PCB;;I_pcb;"";"";;0
-902301_z;"Conector banana 3,5mm para RC LIPO Motor banhado a ouro *902301";Cabos e Conectores;Conectores para Cabo e Painel;;J_con;"";"";2.90;19
+902301_z;"Conector banana 3,5mm para RC LIPO Motor banhado a ouro *902301";Automação Industrial;Elétrica e Acessórios;;E_eletr;"";"";2.90;19
 902401;"KIT CONECTOR EMENDA 2,3,5 VIAS PARA FIOS COM 60 PEÇAS";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";119.00;7
 902403;"CONECTOR EMENDA 3 VIAS PARA FIOS ENGATE RÁPIDO";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";2.50;51
 902404;"CONECTOR EMENDA 5 VIAS PARA FIOS ENGATE RÁPIDO";Componentes Eletrônicos;Terminais e Acessórios;;I_term;"";"Conectores e Bornes";5.90;95
@@ -1127,8 +1127,8 @@
 921302_z;"Agenda para guardar componentes SMD 20 paginas  *921302";Ferramentas e Prototipagem;Ferramentas e Solda;;K_ferr;"";"";83.00;5
 921401_z;"Kit Cristal oscilador 35 peças 7 valores *921401";Componentes Eletrônicos;Cristais Osciladores;;I_crist;"";"";42.30;4
 921501_4h;"Soquetes para circuitos integrados CI Kit com 66pçs *921501";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";43.00;4
-921701_z;"Display 7 segmentos Catodo Comum 0,56"" *921701";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"";"";3.90;46
-921702_z;"Display 7 segmentos anodo Comum 0,56"" *921702";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"";"";3.90;94
+921701_z;"Display 7 segmentos Catodo Comum 0,56"" *921701";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"Componentes Eletrônicos > Displays";"";3.90;46
+921702_z;"Display 7 segmentos anodo Comum 0,56"" *921702";Displays e Telas;Displays 7 Segmentos e Matriz LED;;D_7seg;"Componentes Eletrônicos > Displays";"";3.90;94
 922001;"Optoacoplador PC817 SOP-4 SMD *922001";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";;100
 922002;"memoria eeprom 24lc512 *922002";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";;50
 922003;"memoria eeprom 24lc512 SMD *922003";Componentes Eletrônicos;Circuitos Integrados;;I_ci;"";"";;0
@@ -1143,41 +1143,41 @@
 930112;"Cabo Garra Jacaré de  50cm";Ferramentas e Prototipagem;Jumpers e Garras Jacaré;;K_jump;"";"";2.30;900
 930113;"Par de cabo para multímetro ponta de teste";Ferramentas e Prototipagem;Instrumentos de Medição;;K_instr;"";"";23.90;0
 930172;"PROTOBOARD 2420 PONTOS COM BASE METÁLICA PARA PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";105.90;0
-930201;"CABO EXTENSÃO USB 3.0 TIPO A 30CM PARA PAINEL";Cabos e Conectores;Cabos USB;;J_usb;"";"Cabos";28.30;24
-930202;"CABO EXTENSÃO USB 2.0 TIPO A 30CM PARA PAINEL";Cabos e Conectores;Cabos USB;;J_usb;"";"Cabos";28.70;1195
-930203;"CABO EXTENSÃO USB 1MT PARA PAINEL COM ACESSÓRIOS";Cabos e Conectores;Cabos USB;;J_usb;"";"Cabos";94.00;27
-930204;"CABO EXTENSÃO USB E HDMI 1MT PARA PAINEL COM ACESSÓRIOS";Cabos e Conectores;Cabos USB;;J_usb;"Cabos e Conectores > Cabos HDMI";"Cabos";141.00;233
-930205;"CABO EXTENSÃO USB 1MT PARA PAINEL COM 02 USB E ACESSÓRIOS";Cabos e Conectores;Cabos USB;;J_usb;"";"Cabos";100.80;0
+930201;"CABO EXTENSÃO USB 3.0 TIPO A 30CM PARA PAINEL";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";28.30;24
+930202;"CABO EXTENSÃO USB 2.0 TIPO A 30CM PARA PAINEL";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";28.70;1195
+930203;"CABO EXTENSÃO USB 1MT PARA PAINEL COM ACESSÓRIOS";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";94.00;27
+930204;"CABO EXTENSÃO USB E HDMI 1MT PARA PAINEL COM ACESSÓRIOS";Fios e Cabos;Cabos USB;;J_usb;"Fios e Cabos > Cabos HDMI";"Cabos";141.00;233
+930205;"CABO EXTENSÃO USB 1MT PARA PAINEL COM 02 USB E ACESSÓRIOS";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";100.80;0
 930207;"CABO EXTENSÃO CARTÃO MICRO SD 48CM IMPRESSORA 3D";CNC, Laser e Impressão 3D;Acessórios para Impressora 3D;;H_acess3d;"";"Cabos";38.40;6
-930208;"CABO EXTENSÃO USB 2.0 TIPO B 50CM PARA PAINEL";Cabos e Conectores;Cabos USB;;J_usb;"";"Cabos";20.00;24
-930210;"CABO EXTENSÃO HDMI 30CM PARA PAINEL";Cabos e Conectores;Cabos HDMI;;J_hdmi;"";"Cabos";24.40;2
-930211;"CABO DE ENERGIA TRIPOLAR 10A 3X0,75MM 1,50MT  *930211";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"";26.68;8
-930212;"Cabo Extensão USB 3.0 e HDMI 1mt com Acessórios *930212";Cabos e Conectores;Cabos USB;;J_usb;"Cabos e Conectores > Cabos HDMI";"";148.00;1
-930213;"Cabo extensão HDMI 30cm macho macho *930213";Cabos e Conectores;Cabos HDMI;;J_hdmi;"Placas Embarcadas > Placas Raspberry Pi";"";26.00;12
-930216;"Cabo extensão tipo A para painel 25cm 90graus lado direito";Cabos e Conectores;Cabos USB;;J_usb;"";"";26.45;10
-930217;"Cabo Extensão Usb tipo B Para Painel  1,5 mt *930217";Cabos e Conectores;Cabos USB;;J_usb;"";"";42.30;8
-930219;"CABO EXTENSÃO USB 2MT PARA PAINEL COM ACESSÓRIOS";Cabos e Conectores;Cabos USB;;J_usb;"";"";72.80;7
-930303;"CABO FLAT COLORIDO 20 VIAS 26AWG 01 METRO";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"Cabos";10.00;0
-930304;"Cabo PP 105G 300/500V 4 Vias 0,30mm2 Preto (Veias Pr/Br/Vm/Am)";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"";18.40;6
+930208;"CABO EXTENSÃO USB 2.0 TIPO B 50CM PARA PAINEL";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";20.00;24
+930210;"CABO EXTENSÃO HDMI 30CM PARA PAINEL";Fios e Cabos;Cabos HDMI;;J_hdmi;"";"Cabos";24.40;2
+930211;"CABO DE ENERGIA TRIPOLAR 10A 3X0,75MM 1,50MT  *930211";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";26.68;8
+930212;"Cabo Extensão USB 3.0 e HDMI 1mt com Acessórios *930212";Fios e Cabos;Cabos USB;;J_usb;"Fios e Cabos > Cabos HDMI";"";148.00;1
+930213;"Cabo extensão HDMI 30cm macho macho *930213";Fios e Cabos;Cabos HDMI;;J_hdmi;"Placas Embarcadas > Placas Raspberry Pi";"";26.00;12
+930216;"Cabo extensão tipo A para painel 25cm 90graus lado direito";Fios e Cabos;Cabos USB;;J_usb;"";"";26.45;10
+930217;"Cabo Extensão Usb tipo B Para Painel  1,5 mt *930217";Fios e Cabos;Cabos USB;;J_usb;"";"";42.30;8
+930219;"CABO EXTENSÃO USB 2MT PARA PAINEL COM ACESSÓRIOS";Fios e Cabos;Cabos USB;;J_usb;"";"";72.80;7
+930303;"CABO FLAT COLORIDO 20 VIAS 26AWG 01 METRO";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";10.00;0
+930304;"Cabo PP 105G 300/500V 4 Vias 0,30mm2 Preto (Veias Pr/Br/Vm/Am)";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";18.40;6
 930340;"PROTOBOARD 1660 PONTOS COM BASE METÁLICA PARA PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";69.90;5
 930342;"Mini Suporte Incolor P/ Sensor Ultrassónico";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"";12.90;10
-930401;"CABO JST SM02  MACHO FÊMEA 20CM 02 VIAS";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"Cabos";4.90;180
-930402;"CABO JST SM03 MACHO FÊMEA 15CM 03 VIAS";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"Cabos";5.50;5
-930601;"CABO DE DADOS USB MICRO USB PARA NODEMCU ESP32";Cabos e Conectores;Cabos USB;;J_usb;"";"Cabos";11.20;2
-930602;"CABO DE DADOS USB TIPO C";Cabos e Conectores;Cabos USB;;J_usb;"";"";11.90;15
-930603;"CABO EXTENSÃO USB TIPO A PARA TIPO B MACHO COM FILTRO 1,8MT";Cabos e Conectores;Cabos USB;;J_usb;"";"Cabos";19.00;22
-930605;"CABO EXTENSÃO USB TIPO A PARA TIPO B MACHO 1MT";Cabos e Conectores;Cabos USB;;J_usb;"";"";12.90;20
-930605_4h;"Cabo extensão USB macho femea 1,8m *930605";Cabos e Conectores;Cabos USB;;J_usb;"";"";13.00;17
-930606;"Cabo extensao USB tipo A para micro USB 1,2m *930606";Cabos e Conectores;Cabos USB;;J_usb;"";"";18.00;25
-930607_z;"Cabo OTG HUB micro USB com saídas USB e micro USB *930607";Cabos e Conectores;Cabos USB;;J_usb;"Placas Embarcadas > Placas Raspberry Pi";"";39.00;9
-930701;"CABO HDMI 19 PINOS 3MTS COMPATÍVEL COM TV MONITOR PROJETOR";Cabos e Conectores;Cabos HDMI;;J_hdmi;"Placas Embarcadas > Placas Raspberry Pi";"Cabos";29.90;0
-930702_4h;"Cabo Hdmi 1,8mts com filtro *930702";Cabos e Conectores;Cabos HDMI;;J_hdmi;"Placas Embarcadas > Placas Raspberry Pi";"";23.00;34
-930703_4h;"CABO HDMI X MICRO HDMI 4K 19 PINOS 2MTS *930703";Cabos e Conectores;Cabos HDMI;;J_hdmi;"Placas Embarcadas > Placas Raspberry Pi";"";39.00;8
-930704_z;"Cabo adaptador Display port DP para HDMI *930704";Cabos e Conectores;Cabos HDMI;;J_hdmi;"Placas Embarcadas > Placas Raspberry Pi";"";32.30;41
-930705;"CABO EXTENSÃO USB TIPO A PARA USB TIPO C 1M";Cabos e Conectores;Cabos USB;;J_usb;"";"Cabos";17.00;6
-930801_z;"Cabo Rgb colorido 04 Vias Ideal Motor De Passo 22awg  *930801";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"";5.00;23
-931201_4h;"Cabo de rede ethernet RJ45 montado cat5  3Mts azul *931201";Cabos e Conectores;Fios e Cabos Elétricos;;J_fio;"";"";12.00;7
-931302;"Cabo V3 mini USB com 1,5m";Cabos e Conectores;Cabos USB;;J_usb;"";"";34.00;5
+930401;"CABO JST SM02  MACHO FÊMEA 20CM 02 VIAS";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";4.90;180
+930402;"CABO JST SM03 MACHO FÊMEA 15CM 03 VIAS";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";5.50;5
+930601;"CABO DE DADOS USB MICRO USB PARA NODEMCU ESP32";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";11.20;2
+930602;"CABO DE DADOS USB TIPO C";Fios e Cabos;Cabos USB;;J_usb;"";"";11.90;15
+930603;"CABO EXTENSÃO USB TIPO A PARA TIPO B MACHO COM FILTRO 1,8MT";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";19.00;22
+930605;"CABO EXTENSÃO USB TIPO A PARA TIPO B MACHO 1MT";Fios e Cabos;Cabos USB;;J_usb;"";"";12.90;20
+930605_4h;"Cabo extensão USB macho femea 1,8m *930605";Fios e Cabos;Cabos USB;;J_usb;"";"";13.00;17
+930606;"Cabo extensao USB tipo A para micro USB 1,2m *930606";Fios e Cabos;Cabos USB;;J_usb;"";"";18.00;25
+930607_z;"Cabo OTG HUB micro USB com saídas USB e micro USB *930607";Fios e Cabos;Cabos USB;;J_usb;"Placas Embarcadas > Placas Raspberry Pi";"";39.00;9
+930701;"CABO HDMI 19 PINOS 3MTS COMPATÍVEL COM TV MONITOR PROJETOR";Fios e Cabos;Cabos HDMI;;J_hdmi;"Placas Embarcadas > Placas Raspberry Pi";"Cabos";29.90;0
+930702_4h;"Cabo Hdmi 1,8mts com filtro *930702";Fios e Cabos;Cabos HDMI;;J_hdmi;"Placas Embarcadas > Placas Raspberry Pi";"";23.00;34
+930703_4h;"CABO HDMI X MICRO HDMI 4K 19 PINOS 2MTS *930703";Fios e Cabos;Cabos HDMI;;J_hdmi;"Placas Embarcadas > Placas Raspberry Pi";"";39.00;8
+930704_z;"Cabo adaptador Display port DP para HDMI *930704";Fios e Cabos;Cabos HDMI;;J_hdmi;"Placas Embarcadas > Placas Raspberry Pi";"";32.30;41
+930705;"CABO EXTENSÃO USB TIPO A PARA USB TIPO C 1M";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";17.00;6
+930801_z;"Cabo Rgb colorido 04 Vias Ideal Motor De Passo 22awg  *930801";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";5.00;23
+931201_4h;"Cabo de rede ethernet RJ45 montado cat5  3Mts azul *931201";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";12.00;7
+931302;"Cabo V3 mini USB com 1,5m";Fios e Cabos;Cabos USB;;J_usb;"";"";34.00;5
 940101;"MINI PROTOBOARD 170 FUROS";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";2.99;52
 940102;"PROTOBOARD 830 FUROS PONTOS MB102 PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";11.90;42
 940103;"MODULO FONTE PARA PROTOBOARD 3.3V 5V COM INTERRUPTOR";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"2 - Módulos e shields";9.50;36

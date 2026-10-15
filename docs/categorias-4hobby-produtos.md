@@ -598,7 +598,14 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 920719 LED amarelo difuso 5MM
 - 920720 LED vermelho difuso 5MM
 
-### 10 - Buzzers, Alto-falantes e Áudio (7)
+### 10 - Displays (4)
+
+- 100307 MODULO 74HC595 DISPLAY 7 SEGMENTOS 4 DÍGITOS (2a, fica em Displays 7 Segmentos e Matriz LED)
+- 100308 MODULO TM1637 RELÓGIO DIGITAL DISPLAY 7 SEGMENTOS 4 DÍGITOS (2a, fica em Displays 7 Segmentos e Matriz LED)
+- 921701_z Display 7 segmentos Catodo Comum 0,56" *921701 (2a, fica em Displays 7 Segmentos e Matriz LED)
+- 921702_z Display 7 segmentos anodo Comum 0,56" *921702 (2a, fica em Displays 7 Segmentos e Matriz LED)
+
+### 11 - Buzzers, Alto-falantes e Áudio (7)
 
 - 100257 MODULO MP3 DFPLAYER MINI PLAYER DE ÁUDIO
 - 100268 MODULO SENSOR DE SOM KY-038
@@ -608,7 +615,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 920203 Buzzer Contínuo Sirene Alta Sfm-20b D C 3-24v
 - 920204 BUZZER PASSIVO 5V 12MM BEEP CONTINUO
 
-### 11 - Chaves e Push Buttons (18)
+### 12 - Chaves e Push Buttons (18)
 
 - 910201 CHAVE GANGORRA 2 POSIÇÕES 6A/250V REDONDA PRETO
 - 910202 CHAVE GANGORRA 2 POSIÇÕES KCD1-101 6A/250V RETANGULAR PRETO
@@ -629,7 +636,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 910403 CHAVE DE PULSO TIPO PUSH BUTTON 12X12MM COM CAPA COLORIDA
 - 910409 Chave de pulso táctil SMD tipo Push Botton  5x5x1mm *910409
 
-### 12 - Conectores para PCB (31)
+### 13 - Conectores para PCB (31)
 
 - 900308 KIT CONECTOR 230 PEÇAS JST XH 2/3/4/5 VIAS + TERMINAIS
 - 900309 KIT CONECTOR 250 PEÇAS JST XH 6/7/8/9/10 VIAS + TERMINAIS
@@ -663,7 +670,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 902201 Conector borne BR7 2 vias macho e femea *902201
 - 902202 Conector borne BR7 2 vias macho e femea 90 graus
 
-### 13 - Barras de Pinos (15)
+### 14 - Barras de Pinos (15)
 
 - 900201 BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° MACHO
 - 900202 BARRA DE PINOS 1X40VIAS PASSO 2,54MM 180° FÊMEA
@@ -681,7 +688,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 900215 Barra de pinos fêmea 7 vias
 - 900501 MINI JUMPER 2.54 PRETO PARA PLACA MÃE
 
-### 14 - Terminais e Acessórios (6)
+### 15 - Terminais e Acessórios (6)
 
 - 632581 TERMINAL OLHAL FURO 6 - PRÉ-ISOLADO PVC - VM CABO 0,50 A 1,50MM
 - 901101 KIT 700 TERMINAIS TUBULAR ILHOS
@@ -690,7 +697,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 902403 CONECTOR EMENDA 3 VIAS PARA FIOS ENGATE RÁPIDO
 - 902404 CONECTOR EMENDA 5 VIAS PARA FIOS ENGATE RÁPIDO
 
-### 15 - Espaçadores e Isoladores (6)
+### 16 - Espaçadores e Isoladores (6)
 
 - 901901 ESPAÇADOR ISOLADOR PARA PCB PORCA PARAFUSO NYLON M3 180 PÇS
 - 941001_z Espaçadores de Circuito Impresso 5mm de altura *941001
@@ -699,7 +706,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 941004 ESPAÇADOR PLÁSTICO NYLON ISOLANTE 6MM M3 FÊMEA/FÊMEA
 - 941005 PARAFUSO PLÁSTICO NYLON ISOLANTE M3X5MM
 
-### 16 - Fontes Chaveadas e Conversores DC-DC (33)
+### 17 - Fontes Chaveadas e Conversores DC-DC (33)
 
 - 111008 FONTE CHAVEADA 5V 3A MICRO USB PARA RASPBERRY PI3 ESP32
 - 111020 FONTE CHAVEADA 5V 3A TIPO C PARA RASPBERRY PI4  RPI4 *111020
@@ -735,7 +742,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 220507 MINI FONTE HI-LINK SAIDA 12VDC 3W 0.25A ENTRADA 100-240VAC
 - 220901 Fonte chaveada 7,5v 1A Plug P4 *220901
 
-### 17 - Baterias e Acessórios (40)
+### 18 - Baterias e Acessórios (40)
 
 - 100270 MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO
 - 100273 MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A
@@ -778,16 +785,16 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 941108 SUPORTE PARA 03 BATERIAS 18650 LI-ION CASE TIPO CANOA
 - 941109 SUPORTE PARA 04 BATERIAS 18650 LI-ION CASE TIPO CANOA
 
-### 18 - Fusíveis (1)
+### 19 - Fusíveis (1)
 
 - 920602 Fusível grande 5A *920602
 
-### 19 - Filtros de Ferrite (2)
+### 20 - Filtros de Ferrite (2)
 
 - 241003 Filtro de ferrite 5mm  *241003
 - 241004 Filtro de ferrite 9mm  *241004
 
-## 05 - Cabos e Conectores
+## 05 - Fios e Cabos
 
 ### 01 - Fios e Cabos Elétricos (15)
 
@@ -840,35 +847,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 930204 CABO EXTENSÃO USB E HDMI 1MT PARA PAINEL COM ACESSÓRIOS (2a, fica em Cabos USB)
 - 930212 Cabo Extensão USB 3.0 e HDMI 1mt com Acessórios *930212 (2a, fica em Cabos USB)
 
-### 04 - Conectores para Cabo e Painel (25)
-
-- 900101 CONECTOR METALICO MIKE GX12 PLUG MACHO E FÊMEA 4 PINOS
-- 900106 CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 2 VIAS
-- 900108 PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 10 VIAS
-- 900109 PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 2 VIAS
-- 900110 PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 4 VIAS
-- 900111 PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 8 VIAS
-- 900112 PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 3 VIAS
-- 900113 CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 4 VIAS
-- 900114 CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 8 VIAS
-- 900701 PLUG JACK P4 MACHO COM PARAFUSO BORNE
-- 900702 PLUG JACK P4 FÊMEA COM PARAFUSO BORNE
-- 900703 PLUG JACK P4 MACHO SOLDAVEL COM RABICHO
-- 900704 PLUG JACK P4 FEMEA SOLDAVEL PARA PAINEL
-- 900705 PLUG CONECTOR P4 5.5MM X 2.1MM BORDA METALICA
-- 900706_4h Plug conector jack P4 femea 5.5x2.1mm  para PCB *900706
-- 900707 conector plug para pino banana fêmea vermelho
-- 900708 conector plug para pino banana fêmea preto
-- 900801 CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO
-- 901701 PLUG JACK P10 J10 ESTEREO FEMEA PARA PAINEL PCB
-- 901702 PLUG JACK P10 ESTEREO MACHO METALICO
-- 901703 PLUG P10 ESTEREO MACHO PLASTICO PRETO
-- 901704 PLUG P10 J10 ESTÉREO FÊMEA PARA PAINEL
-- 901801 PLUG CANON XLR PAINEL FÊMEA 4 VIAS PARA PAINEL
-- 901802 Plug Canon painel macho 04 vias *901802
-- 902301_z Conector banana 3,5mm para RC LIPO Motor banhado a ouro *902301
-
-### 05 - Adaptadores para Cabos (14)
+### 04 - Adaptadores para Cabos (14)
 
 - 111016_4h Divisor Splitter HDMI 1 Hdmi Macho Para 2 Hdmi Fêmea *111016
 - 111017 Divisor cabo HDMI Splitter HDMI 1x4 com fonte *111017
@@ -973,9 +952,34 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 940403 SINALIZADOR LUMINOSO LED VERMELHO 24V 22MM PARA PAINEL
 - 940404 SINALIZADOR LUMINOSO LED AMARELO 24V 22MM PARA PAINEL
 
-### 09 - Elétrica e Acessórios (42)
+### 09 - Elétrica e Acessórios (67)
 
+- 900101 CONECTOR METALICO MIKE GX12 PLUG MACHO E FÊMEA 4 PINOS
+- 900106 CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 2 VIAS
+- 900108 PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 10 VIAS
+- 900109 PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 2 VIAS
+- 900110 PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 4 VIAS
+- 900111 PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 8 VIAS
+- 900112 PLUG CONECTOR METÁLICO MIKE GX16 PARA PAINEL 3 VIAS
+- 900113 CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 4 VIAS
+- 900114 CONECTOR METÁLICO MIKE GX16 MACHO E FÊMEA 8 VIAS
+- 900701 PLUG JACK P4 MACHO COM PARAFUSO BORNE
+- 900702 PLUG JACK P4 FÊMEA COM PARAFUSO BORNE
+- 900703 PLUG JACK P4 MACHO SOLDAVEL COM RABICHO
+- 900704 PLUG JACK P4 FEMEA SOLDAVEL PARA PAINEL
+- 900705 PLUG CONECTOR P4 5.5MM X 2.1MM BORDA METALICA
+- 900706_4h Plug conector jack P4 femea 5.5x2.1mm  para PCB *900706
+- 900707 conector plug para pino banana fêmea vermelho
+- 900708 conector plug para pino banana fêmea preto
+- 900801 CONECTOR XT60 MACHO E FÊMEA PARA BATERIA MODELISMO
 - 901001 SUPORTE PARA PLACA DE CIRCUITO IMPRESSO TRILHO DIN - 1PAR
+- 901701 PLUG JACK P10 J10 ESTEREO FEMEA PARA PAINEL PCB
+- 901702 PLUG JACK P10 ESTEREO MACHO METALICO
+- 901703 PLUG P10 ESTEREO MACHO PLASTICO PRETO
+- 901704 PLUG P10 J10 ESTÉREO FÊMEA PARA PAINEL
+- 901801 PLUG CANON XLR PAINEL FÊMEA 4 VIAS PARA PAINEL
+- 901802 Plug Canon painel macho 04 vias *901802
+- 902301_z Conector banana 3,5mm para RC LIPO Motor banhado a ouro *902301
 - 910203 TOMADA PAINEL COM CHAVE ILUMINADA E PORTA FUSÍVEL 10A
 - 910212 TOMADA PAINEL 250V 10A 3 PINOS MODELO C14
 - 940801_z Presilha Fixador de nylon 15x10mm para abraçadeiras *940801

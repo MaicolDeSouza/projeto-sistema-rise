@@ -44,22 +44,22 @@
 4;Componentes Eletrônicos;T_componentes;7;Potenciômetros e Trimpots;I_pot;propria;11;0;07 - Potenciômetros e Trimpots
 4;Componentes Eletrônicos;T_componentes;8;Cristais Osciladores;I_crist;propria;1;0;08 - Cristais Osciladores
 4;Componentes Eletrônicos;T_componentes;9;LEDs e Soquetes;I_led;propria;20;0;09 - LEDs e Soquetes
-4;Componentes Eletrônicos;T_componentes;10;Buzzers, Alto-falantes e Áudio;I_buzz;propria;7;0;10 - Buzzers, Alto-falantes e Áudio
-4;Componentes Eletrônicos;T_componentes;11;Chaves e Push Buttons;I_gang;propria;18;0;11 - Chaves e Push Buttons
-4;Componentes Eletrônicos;T_componentes;12;Conectores para PCB;I_pcb;propria;31;0;12 - Conectores para PCB
-4;Componentes Eletrônicos;T_componentes;13;Barras de Pinos;I_barra;propria;15;0;13 - Barras de Pinos
-4;Componentes Eletrônicos;T_componentes;14;Terminais e Acessórios;I_term;propria;6;0;14 - Terminais e Acessórios
-4;Componentes Eletrônicos;T_componentes;15;Espaçadores e Isoladores;I_espac;propria;6;0;15 - Espaçadores e Isoladores
-4;Componentes Eletrônicos;T_componentes;16;Fontes Chaveadas e Conversores DC-DC;I_fonte;propria;33;0;16 - Fontes Chaveadas e Conversores DC-DC
-4;Componentes Eletrônicos;T_componentes;17;Baterias e Acessórios;I_bat;propria;40;0;17 - Baterias e Acessórios
-4;Componentes Eletrônicos;T_componentes;18;Fusíveis;I_fus;propria;1;0;18 - Fusíveis
-4;Componentes Eletrônicos;T_componentes;19;Filtros de Ferrite;I_filt;propria;2;0;19 - Filtros de Ferrite
-5;Cabos e Conectores;T_cabos;0;;;topo;0;0;05 - Cabos e Conectores
-5;Cabos e Conectores;T_cabos;1;Fios e Cabos Elétricos;J_fio;propria;15;0;01 - Fios e Cabos Elétricos
-5;Cabos e Conectores;T_cabos;2;Cabos USB;J_usb;propria;19;0;02 - Cabos USB
-5;Cabos e Conectores;T_cabos;3;Cabos HDMI;J_hdmi;propria;6;2;03 - Cabos HDMI
-5;Cabos e Conectores;T_cabos;4;Conectores para Cabo e Painel;J_con;propria;25;0;04 - Conectores para Cabo e Painel
-5;Cabos e Conectores;T_cabos;5;Adaptadores para Cabos;J_adapt;propria;14;0;05 - Adaptadores para Cabos
+4;Componentes Eletrônicos;T_componentes;10;Displays;I_disp;segunda;0;4;10 - Displays
+4;Componentes Eletrônicos;T_componentes;11;Buzzers, Alto-falantes e Áudio;I_buzz;propria;7;0;11 - Buzzers, Alto-falantes e Áudio
+4;Componentes Eletrônicos;T_componentes;12;Chaves e Push Buttons;I_gang;propria;18;0;12 - Chaves e Push Buttons
+4;Componentes Eletrônicos;T_componentes;13;Conectores para PCB;I_pcb;propria;31;0;13 - Conectores para PCB
+4;Componentes Eletrônicos;T_componentes;14;Barras de Pinos;I_barra;propria;15;0;14 - Barras de Pinos
+4;Componentes Eletrônicos;T_componentes;15;Terminais e Acessórios;I_term;propria;6;0;15 - Terminais e Acessórios
+4;Componentes Eletrônicos;T_componentes;16;Espaçadores e Isoladores;I_espac;propria;6;0;16 - Espaçadores e Isoladores
+4;Componentes Eletrônicos;T_componentes;17;Fontes Chaveadas e Conversores DC-DC;I_fonte;propria;33;0;17 - Fontes Chaveadas e Conversores DC-DC
+4;Componentes Eletrônicos;T_componentes;18;Baterias e Acessórios;I_bat;propria;40;0;18 - Baterias e Acessórios
+4;Componentes Eletrônicos;T_componentes;19;Fusíveis;I_fus;propria;1;0;19 - Fusíveis
+4;Componentes Eletrônicos;T_componentes;20;Filtros de Ferrite;I_filt;propria;2;0;20 - Filtros de Ferrite
+5;Fios e Cabos;T_cabos;0;;;topo;0;0;05 - Fios e Cabos
+5;Fios e Cabos;T_cabos;1;Fios e Cabos Elétricos;J_fio;propria;15;0;01 - Fios e Cabos Elétricos
+5;Fios e Cabos;T_cabos;2;Cabos USB;J_usb;propria;19;0;02 - Cabos USB
+5;Fios e Cabos;T_cabos;3;Cabos HDMI;J_hdmi;propria;6;2;03 - Cabos HDMI
+5;Fios e Cabos;T_cabos;4;Adaptadores para Cabos;J_adapt;propria;14;0;04 - Adaptadores para Cabos
 6;Automação Industrial;T_automacao;0;;;topo;0;0;06 - Automação Industrial
 6;Automação Industrial;T_automacao;1;CLP;E_clp;propria;8;0;01 - CLP
 6;Automação Industrial;T_automacao;2;IHM;E_ihm;propria;9;0;02 - IHM
@@ -69,7 +69,7 @@
 6;Automação Industrial;T_automacao;6;Encoders;E_enc;propria;5;0;06 - Encoders
 6;Automação Industrial;T_automacao;7;Chaves e Botoeiras;E_bot;propria;21;0;07 - Chaves e Botoeiras
 6;Automação Industrial;T_automacao;8;Sinalizadores;E_sinal;propria;4;0;08 - Sinalizadores
-6;Automação Industrial;T_automacao;9;Elétrica e Acessórios;E_eletr;propria;42;0;09 - Elétrica e Acessórios
+6;Automação Industrial;T_automacao;9;Elétrica e Acessórios;E_eletr;propria;67;0;09 - Elétrica e Acessórios
 7;Motores;T_motores;0;;;topo;0;0;07 - Motores
 7;Motores;T_motores;1;Motores de Passo;G_passo;propria;18;0;01 - Motores de Passo
 7;Motores;T_motores;2;Motores DC;G_dc;propria;36;0;02 - Motores DC
