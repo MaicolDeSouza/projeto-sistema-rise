@@ -819,7 +819,7 @@
 229906;"PLUG PARA BATERIA 9V TIPO CLIP";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";4.30;15
 229907;"SUPORTE PARA BATERIA CR2025 2032 COM CHAVE E RABICHO";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";3.90;15
 229908;"PLUG PARA BATERIA 9V TIPO CLIP rigido";Fontes e Conversores;Baterias e Acessórios;;F_bat;"";"";3.00;100
-230201;"KIT MOTOR DC 3-6V COM REDUÇÃO E RODA 65MM";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"Motores";12.80;45
+230201;"KIT MOTOR DC 3-6V COM REDUÇÃO E RODA 65MM";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"Motores";12.80;45
 230203;"Motor dc 12v com redução 30RPM JGA25-370 *230203";Motores;Motores DC;;G_dc;"";"";68.00;0
 230205_z;"Motor dc 12v com redução 300RPM JGA25-370 *230205";Motores;Motores DC;;G_dc;"";"";77.00;0
 230206;"MICRO MOTOR DC COM CAIXA DE REDUÇÃO 24VDC 35RPM  5.5KGF.CM";Motores;Motores DC;;G_dc;"";"Motores";178.00;46
@@ -831,10 +831,10 @@
 230303;"Ponte H Monster dupla Vnh3asp30 30a 16V *230303";Motores;Drivers e Controladores;;G_drv;"";"";;3
 230304;"MÓDULO DRIVER PONTE H 43A BTS7960B PARA MOTOR DC";Motores;Drivers e Controladores;;G_drv;"";"2 - Módulos e shields";99.00;34
 231001;"Suporte em L motor DC JGA25-370  *231001";Motores;Motores DC;;G_dc;"";"";15.00;7
-239901;"KIT CHASSI ROBÔ 2WD COM 2 RODAS EM ACRÍLICO";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"Carros Robóticos";46.40;18
-239903;"KIT CHASSI ROBÔ 2WD REDONDO COM 2 RODAS EM ACRÍLICO";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"";138.00;0
-239904;"DISCO ENCODER 20DENTES PARA PROJETOS COM CARRINHOS ROBÓTICOS";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"Carros Robóticos";1.20;12
-239905;"MÓDULO DO SENSOR DE VELOCIDADE";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"";;10
+239901;"KIT CHASSI ROBÔ 2WD COM 2 RODAS EM ACRÍLICO";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"Carros Robóticos";46.40;18
+239903;"KIT CHASSI ROBÔ 2WD REDONDO COM 2 RODAS EM ACRÍLICO";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"";138.00;0
+239904;"DISCO ENCODER 20DENTES PARA PROJETOS COM CARRINHOS ROBÓTICOS";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"Carros Robóticos";1.20;12
+239905;"MÓDULO DO SENSOR DE VELOCIDADE";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"";;10
 239906;"MÓDULO LEITOR BIOMÉTRICO DY50";Módulos e Sensores;Módulos Wireless e IoT;;B_wifi;"";"";;5
 241001;"Filtro de linha monofásico 20A CW4L2-20A para laser *241001";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;3
 241002;"Radiador para laser 240mm *241002";CNC, Laser e Impressão 3D;Peças para Laser CO2;;H_co2;"";"";;0
@@ -1160,7 +1160,7 @@
 930303;"CABO FLAT COLORIDO 20 VIAS 26AWG 01 METRO";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";10.00;0
 930304;"Cabo PP 105G 300/500V 4 Vias 0,30mm2 Preto (Veias Pr/Br/Vm/Am)";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"";18.40;6
 930340;"PROTOBOARD 1660 PONTOS COM BASE METÁLICA PARA PROTOTIPAGEM";Ferramentas e Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";69.90;5
-930342;"Mini Suporte Incolor P/ Sensor Ultrassónico";Kits Educacionais;Chassis e Rodas para Robótica;;M_chassi;"";"";12.90;10
+930342;"Mini Suporte Incolor P/ Sensor Ultrassónico";Kits Educacionais;Kits de Eletrônica e Robótica;;M_kitele;"";"";12.90;10
 930401;"CABO JST SM02  MACHO FÊMEA 20CM 02 VIAS";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";4.90;180
 930402;"CABO JST SM03 MACHO FÊMEA 15CM 03 VIAS";Fios e Cabos;Fios e Cabos Elétricos;;J_fio;"";"Cabos";5.50;5
 930601;"CABO DE DADOS USB MICRO USB PARA NODEMCU ESP32";Fios e Cabos;Cabos USB;;J_usb;"";"Cabos";11.20;2

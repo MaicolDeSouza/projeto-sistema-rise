@@ -10,7 +10,7 @@ Data: 14/10/2026. Esta é a árvore **aprovada**. Histórico: a de 06/10 (76 fol
 4. Nada vai para "Outros". Produto sem família própria fica na família mais próxima.
 5. **Dois níveis só** (topo > folha). Não existe nível intermediário.
 
-Resultado: **11 topos e 106 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (99 folhas com produto próprio, uma reservada sem produto (Transformadores) e seis só com produtos de 2ª categoria: Shields para Embarcados, Conversores DC-DC e Módulos BMS para Bateria, em Módulos e Sensores, Displays 7 Segmentos e Caixas Plásticas e Organizadores, em Componentes Eletrônicos, e Motores e Drivers, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
+Resultado: **11 topos e 105 folhas** para 1.301 produtos publicáveis, 4 deles (os serviços) publicados sem categoria (98 folhas com produto próprio, uma reservada sem produto (Transformadores) e seis só com produtos de 2ª categoria: Shields para Embarcados, Conversores DC-DC e Módulos BMS para Bateria, em Módulos e Sensores, Displays 7 Segmentos e Caixas Plásticas e Organizadores, em Componentes Eletrônicos, e Motores e Drivers, em CNC; média de 11 por folha). Folhas com 2 a 4 produtos ficam de propósito (marcadas ◂ pequena): são famílias que o cliente procura pelo nome ou que vão crescer (kits).
 
 Com dois níveis e uma família por folha, Módulos e Sensores (26 folhas, contando as de 2ª categoria), CNC (19) e Componentes Eletrônicos (20) ficam com menu longo. É o custo das duas escolhas do dono (topo enxuto + folha de uma família); os temas da Loja Integrada mostram essas listas em colunas.
 
@@ -172,8 +172,7 @@ Imãs de Neodímio foi para Módulos e Sensores e Parafusos, Buchas e Fixação 
 ### Kits Educacionais (11)
 
 - Kits Arduino (3) ◂ pequena
-- Kits de Eletrônica e Robótica (2) ◂ pequena
-- Chassis e Rodas para Robótica (6)
+- Kits de Eletrônica e Robótica (8)
 
 Topo criado a pedido do dono para receber os kits que serão montados no Rise (produto com composição). Hoje tem os 3 kits Arduino (iniciante, avançado, 37 sensores), o kit Micro:bit V2 e o kit didático de eletrônica e robótica.
 
@@ -242,6 +241,7 @@ Produto na Loja Integrada pode estar em mais de uma categoria. A coluna `categor
 - **Elétrica e Acessórios virou Componentes Elétricos** (15/10/2026), em Automação Industrial, com 47 produtos (bornes, trilho DIN, quadros, ventiladores, tomadas de painel, abraçadeiras e o resto). O nome é parecido com o do topo Componentes Eletrônicos (elétricos x eletrônicos), mas as URLs são diferentes.
 - **Motores e Drivers** (CNC, 15/10/2026): as duas folhas de 2ª categoria (Motores de Passo e Servo Drive, 24 produtos, e Drivers de Motor de Passo, 13) viraram uma só, Motores e Drivers, com 37 produtos; os produtos continuam em Motores. A loja fica com 105 folhas.
 - **Máquinas** voltou como folha em CNC (15/10/2026), com as 4 gravadoras laser que estavam em Módulos Laser de Diodo: a máquina laser 10W TTS-10 (120213), a gravadora de cuia rotativa 10W (122002) e os dois conjuntos da gravadora Ciclope, frame em inox e peças impressas (600207, 600208). Módulos Laser de Diodo ficou só com os módulos e acessórios de laser (8). A Ender3 montada (150905), o pick-and-place (121701) e os atuadores lineares seguem onde estão; se ele quiser, entram em Máquinas também.
+- **Kits Educacionais** ficou com 2 folhas (15/10/2026): Chassis e Rodas para Robótica (6 produtos) juntou-se a Kits de Eletrônica e Robótica, que passa a ter 8.
 
 ## Fusões aplicadas em 07/10/2026
 

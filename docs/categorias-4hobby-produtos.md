@@ -1738,13 +1738,10 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 990202 KIT ARDUINO INICIANTE COM CAIXA ORGANIZADORA
 - 990203 KIT 37 SENSORES PARA ARDUINO
 
-### 02 - Kits de Eletrônica e Robótica (2)
+### 02 - Kits de Eletrônica e Robótica (8)
 
 - 100114 Kit Placa Educacional Microbit V2 com acessórios
 - 151177 KIT DIDATICO COM CAIXA ORGANIZADORA (Eletrônico e Robótica) *151177
-
-### 03 - Chassis e Rodas para Robótica (6)
-
 - 230201 KIT MOTOR DC 3-6V COM REDUÇÃO E RODA 65MM
 - 239901 KIT CHASSI ROBÔ 2WD COM 2 RODAS EM ACRÍLICO
 - 239903 KIT CHASSI ROBÔ 2WD REDONDO COM 2 RODAS EM ACRÍLICO
