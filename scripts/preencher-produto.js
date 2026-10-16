@@ -40,11 +40,12 @@ const NAO_COPIA = new Set([
   "blingSaldo", "blingSaldoLidoEm", "conferido", "fornecedorRascunho", "gastoIA", "criadoEm", "atualizadoEm",
 ]);
 
-const COMANDOS = new Set(["ler", "ofertas", "clonar"]);
+const COMANDOS = new Set(["ler", "ofertas", "descricao", "clonar"]);
 const inicio = process.argv.findIndex((arg, posicao) => posicao >= 1 && COMANDOS.has(arg));
 const [comando, ...resto] = inicio >= 0 ? process.argv.slice(inicio) : [];
 const simular = resto.includes("--simular");
 const argumentos = resto.filter((arg) => !arg.startsWith("--"));
+const opcao = (nome) => resto.find((arg) => arg.startsWith(`--${nome}=`))?.split("=").slice(1).join("=") ?? null;
 
 function sair(codigo, mensagem) {
   if (mensagem) console[codigo === 0 ? "log" : "error"](mensagem);
@@ -123,9 +124,78 @@ async function ofertas(sku) {
       loja: l.fonte.nome, codigo: l.codigo, nome: l.nome, marca: l.marca, modelo: l.modelo, ean: l.ean, ncm: l.ncm,
       precoNormal: l.precoNormal, precoPromocional: l.precoPromocional, estoque: l.estoqueStatus, quantidade: l.quantidade,
       ausenteDesde: l.ausenteDesde, vistoEm: l.vistoEm, url: l.url,
-      fotos: listaDeImagens(l.imagens).length, descricaoCaracteres: (l.descricao ?? "").length,
+      fotos: listaDeImagens(l.imagens).length, imagens: listaDeImagens(l.imagens), descricaoCaracteres: (l.descricao ?? "").length,
       fichaItens: Array.isArray(l.especificacoes) ? l.especificacoes.length : 0, documentos: Array.isArray(l.documentos) ? l.documentos.length : 0,
     })),
+  }, null, 2));
+  return sair(0);
+}
+
+/**
+ * Gera a descricao nova do produto com um prompt da biblioteca e os concorrentes VINCULADOS como referencia, pelo mesmo
+ * caminho da janela "Criar descricao" (`gerarDescricao`) e monta o texto FINAL como o "Finalizar descricao" da tela faz
+ * quando o dono nao escolhe nada: cada quadro de divergencia com a opcao RECOMENDADA pela IA. NAO grava nada no produto;
+ * a unica coisa que fica no banco e o log da chamada paga (LogIntegracao), como na tela. Chama a IA: custa dinheiro.
+ *
+ *   descricao <sku> --prompt=<nome do prompt> [--modelo=<id do modelo>]
+ */
+async function descricao(sku) {
+  const produto = await prisma.produto.findUnique({ where: { sku } });
+  if (!produto) return sair(1, `Produto ${sku} nao existe.`);
+  const vinculos = await prisma.produtoConcorrente.findMany({ where: { produtoId: produto.id }, select: { produtoColetadoId: true } });
+  const ids = vinculos.map((v) => v.produtoColetadoId).filter(Boolean);
+  if (ids.length === 0) return sair(1, "O produto nao tem concorrente vinculado do Rise. Nada foi gerado.");
+
+  let instrucoes;
+  const nomeDoPrompt = opcao("prompt");
+  if (nomeDoPrompt) {
+    const prompt = await prisma.promptDescricao.findFirst({ where: { nome: { equals: nomeDoPrompt, mode: "insensitive" } } });
+    if (!prompt) {
+      const nomes = (await prisma.promptDescricao.findMany({ select: { id: true, nome: true, padrao: true } })).map((p) => `${p.nome} (${p.id})${p.padrao ? " [padrao]" : ""}`);
+      return sair(1, `Nao ha prompt chamado "${nomeDoPrompt}" na biblioteca. Existem: ${nomes.join("; ") || "nenhum salvo (so o do sistema)"}.`);
+    }
+    instrucoes = prompt.texto;
+  }
+  const numero = (valor) => (valor === null || valor === undefined ? null : Number(valor) || null);
+  const modeloIA = opcao("modelo");
+  const { gerarDescricao } = await import(pathToFileURL(`${RAIZ}/src/lib/ia/anuncio.js`).href);
+  const { garantirSecaoEspecificacoes, inserirEspecificacaoNaPosicao, formatarLinhaTecnica, organizarDescricao } = await import(pathToFileURL(`${RAIZ}/src/lib/ia/revisaoDescricao.js`).href);
+
+  const inicio = new Date();
+  let resultado;
+  try {
+    resultado = await gerarDescricao(ids, {
+      titulo: produto.tituloBase, sku: produto.sku, marca: produto.marca ?? "", modelo: produto.modelo ?? "", descricao: produto.descricaoBase ?? "",
+      medidas: { pesoKg: numero(produto.pesoKg), alturaCm: numero(produto.alturaCm), larguraCm: numero(produto.larguraCm), comprimentoCm: numero(produto.comprimentoCm) },
+      pecas: [], ...(modeloIA ? { modeloIA } : {}),
+    }, instrucoes);
+  } catch (erro) {
+    return sair(1, `A geracao falhou: ${erro.message}`);
+  }
+
+  // O "Finalizar" da tela sem nenhuma escolha do dono (`calcularFinal`): a recomendada de cada quadro, na ordem de posicao.
+  const quadros = resultado.divergencias ?? [];
+  let texto = quadros.length > 0 ? garantirSecaoEspecificacoes(resultado.texto) : resultado.texto;
+  const ignoradas = [];
+  const ordenados = [...quadros].sort((a, b) => (a.posicao - b.posicao) || (quadros.indexOf(a) - quadros.indexOf(b)));
+  for (const quadro of ordenados) {
+    const escolhida = Number.isInteger(quadro.recomendada) ? quadro.recomendada : 0;
+    const linha = quadro.opcoes[escolhida]?.linha;
+    if (!linha) continue;
+    texto = inserirEspecificacaoNaPosicao(texto, linha, quadro.posicao ?? Number.POSITIVE_INFINITY, ignoradas);
+    ignoradas.push(formatarLinhaTecnica(linha));
+  }
+  const textoFinal = organizarDescricao(texto);
+
+  const logs = await prisma.logIntegracao.findMany({
+    where: { criadoEm: { gte: inicio }, servico: { in: ["ANTHROPIC", "OPENAI"] } }, orderBy: { criadoEm: "asc" },
+    select: { servico: true, statusHttp: true, duracaoMs: true, requestResumo: true, responseResumo: true, erro: true },
+  });
+  console.log(JSON.stringify({
+    produto: produto.sku, prompt: nomeDoPrompt, modeloPedido: modeloIA ?? "(padrao da janela)", referencias: ids.length,
+    textoFinal, textoBruto: resultado.texto, opcoesParagrafos: resultado.opcoesParagrafos,
+    quadros: quadros.map((q) => ({ campo: q.campo, recomendada: q.recomendada, motivo: q.motivo ?? null, opcoes: q.opcoes.map((o) => ({ linha: o.linha, lojas: [...new Set(o.fontes.map((f) => f.nome))] })) })),
+    chamadasPagas: logs,
   }, null, 2));
   return sair(0);
 }
@@ -209,5 +279,6 @@ async function clonar(origem, novo) {
 
 if (comando === "ler" && argumentos.length === 1) await ler(argumentos[0]);
 else if (comando === "ofertas" && argumentos.length === 1) await ofertas(argumentos[0]);
+else if (comando === "descricao" && argumentos.length === 1) await descricao(argumentos[0]);
 else if (comando === "clonar" && argumentos.length === 2) await clonar(argumentos[0], argumentos[1]);
-else await sair(2, "Uso:\n  ler <sku>\n  ofertas <sku>\n  clonar <sku> <novo> [--simular]");
+else await sair(2, "Uso:\n  ler <sku>\n  ofertas <sku>\n  descricao <sku> --prompt=<nome> [--modelo=<id>]\n  clonar <sku> <novo> [--simular]");
