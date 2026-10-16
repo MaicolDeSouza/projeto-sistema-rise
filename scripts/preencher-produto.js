@@ -40,7 +40,7 @@ const NAO_COPIA = new Set([
   "blingSaldo", "blingSaldoLidoEm", "conferido", "fornecedorRascunho", "gastoIA", "criadoEm", "atualizadoEm",
 ]);
 
-const COMANDOS = new Set(["ler", "clonar"]);
+const COMANDOS = new Set(["ler", "ofertas", "clonar"]);
 const inicio = process.argv.findIndex((arg, posicao) => posicao >= 1 && COMANDOS.has(arg));
 const [comando, ...resto] = inicio >= 0 ? process.argv.slice(inicio) : [];
 const simular = resto.includes("--simular");
@@ -89,6 +89,43 @@ async function ler(sku) {
       : { loja: v.fonteManual, nome: v.nomeManual, codigo: v.codigoManual, preco: v.precoManual, manual: true })),
     pecasDoKit: pecas.map((p) => ({ sku: p.componente.sku, quantidade: p.quantidade })),
     anuncios,
+  }, null, 2));
+  return sair(0);
+}
+
+/**
+ * O que os concorrentes VINCULADOS ao produto publicam (so leitura): cada oferta (loja, preco, estoque, fotos, descricao)
+ * e, por campo, os valores achados com as lojas que os publicam. Os valores agregados vem de
+ * `lerCamposDasReferencias`, a mesma funcao das indicacoes da lupa do cadastro (EAN so com tamanho de codigo de barras,
+ * marca igual ao nome da loja descartada, medidas lidas da ficha e do texto), para o relatorio bater com a tela.
+ */
+async function ofertas(sku) {
+  const produto = await prisma.produto.findUnique({ where: { sku }, select: { id: true, sku: true, tituloBase: true } });
+  if (!produto) return sair(1, `Produto ${sku} nao existe.`);
+  const vinculos = await prisma.produtoConcorrente.findMany({ where: { produtoId: produto.id } });
+  const ids = vinculos.map((v) => v.produtoColetadoId).filter(Boolean);
+  const { lerCamposDasReferencias } = await import(pathToFileURL(`${RAIZ}/src/lib/camposDasReferencias.js`).href);
+  const campos = await lerCamposDasReferencias(ids);
+  const linhas = await prisma.produtoColetado.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true, codigo: true, nome: true, marca: true, modelo: true, ean: true, ncm: true, url: true, precoNormal: true, precoPromocional: true,
+      estoqueStatus: true, quantidade: true, imagens: true, descricao: true, especificacoes: true, documentos: true, ausenteDesde: true, vistoEm: true,
+      fonte: { select: { nome: true } },
+    },
+  });
+  const listaDeImagens = (valor) => (Array.isArray(valor) ? valor.map((i) => (typeof i === "string" ? i : i?.url ?? i?.src ?? null)).filter(Boolean) : []);
+  console.log(JSON.stringify({
+    produto: { sku: produto.sku, titulo: produto.tituloBase },
+    vinculados: { doRise: ids.length, manuais: vinculos.length - ids.length },
+    agregado: Object.fromEntries(Object.entries(campos).map(([nome, lista]) => [nome, lista.map((i) => ({ valor: i.valor, lojas: i.fontes, ...(i.origem ? { origem: i.origem } : {}) }))])),
+    ofertas: linhas.map((l) => ({
+      loja: l.fonte.nome, codigo: l.codigo, nome: l.nome, marca: l.marca, modelo: l.modelo, ean: l.ean, ncm: l.ncm,
+      precoNormal: l.precoNormal, precoPromocional: l.precoPromocional, estoque: l.estoqueStatus, quantidade: l.quantidade,
+      ausenteDesde: l.ausenteDesde, vistoEm: l.vistoEm, url: l.url,
+      fotos: listaDeImagens(l.imagens).length, descricaoCaracteres: (l.descricao ?? "").length,
+      fichaItens: Array.isArray(l.especificacoes) ? l.especificacoes.length : 0, documentos: Array.isArray(l.documentos) ? l.documentos.length : 0,
+    })),
   }, null, 2));
   return sair(0);
 }
@@ -171,5 +208,6 @@ async function clonar(origem, novo) {
 }
 
 if (comando === "ler" && argumentos.length === 1) await ler(argumentos[0]);
+else if (comando === "ofertas" && argumentos.length === 1) await ofertas(argumentos[0]);
 else if (comando === "clonar" && argumentos.length === 2) await clonar(argumentos[0], argumentos[1]);
-else await sair(2, "Uso:\n  ler <sku>\n  clonar <sku> <novo> [--simular]");
+else await sair(2, "Uso:\n  ler <sku>\n  ofertas <sku>\n  clonar <sku> <novo> [--simular]");
