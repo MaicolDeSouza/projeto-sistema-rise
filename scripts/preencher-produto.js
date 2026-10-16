@@ -40,7 +40,7 @@ const NAO_COPIA = new Set([
   "blingSaldo", "blingSaldoLidoEm", "conferido", "fornecedorRascunho", "gastoIA", "criadoEm", "atualizadoEm",
 ]);
 
-const COMANDOS = new Set(["ler", "ofertas", "descricao", "clonar"]);
+const COMANDOS = new Set(["ler", "ofertas", "descricao", "gravar", "clonar"]);
 const inicio = process.argv.findIndex((arg, posicao) => posicao >= 1 && COMANDOS.has(arg));
 const [comando, ...resto] = inicio >= 0 ? process.argv.slice(inicio) : [];
 const simular = resto.includes("--simular");
@@ -200,6 +200,93 @@ async function descricao(sku) {
   return sair(0);
 }
 
+/**
+ * Grava num produto o que o dono APROVOU, lendo um plano em JSON (caminho de arquivo DENTRO do conteiner). Um codigo por
+ * vez; recusa produto Conferido (o portao e do dono); imprime em "ANTES" os valores velhos para o dono guardar no PC.
+ * Nao chama Bling, ML nem LI. Plano:
+ *   { sku, descricaoBase?, fotos?: { novas: [{ id, base64 }], ordem: ["nova:<id>" | "<arquivo>"], paraReserva: ["<arquivo>"] } }
+ * `ordem` e a lista FINAL das fotos (a primeira vira a principal); foto atual que sai dela tem de estar em `paraReserva`
+ * (vai para a reserva do produto, nao e apagada).
+ */
+async function gravar(caminhoDoPlano) {
+  const { readFile, unlink, writeFile } = await import("node:fs/promises");
+  const { randomUUID } = await import("node:crypto");
+  const plano = JSON.parse(await readFile(caminhoDoPlano, "utf8"));
+  const produto = await prisma.produto.findUnique({ where: { sku: plano.sku } });
+  if (!produto) return sair(1, `Produto ${plano.sku} nao existe.`);
+  if (produto.conferido) return sair(1, `${plano.sku} esta Conferido: nada foi gravado (o portao e do dono).`);
+
+  const atuais = await prisma.produtoArquivo.findMany({ where: { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" } });
+  const porNome = new Map(atuais.map((a) => [a.arquivo, a]));
+  const fotos = plano.fotos;
+  if (fotos) {
+    const ordem = fotos.ordem ?? [];
+    const sai = new Set(fotos.paraReserva ?? []);
+    for (const item of ordem) if (!item.startsWith("nova:") && !porNome.has(item)) return sair(1, `Foto ${item} nao e uma foto atual do produto. Nada foi gravado.`);
+    for (const nome of sai) if (!porNome.has(nome)) return sair(1, `Foto ${nome} (reserva) nao e uma foto atual. Nada foi gravado.`);
+    const mantidas = new Set(ordem.filter((i) => !i.startsWith("nova:")));
+    const esquecidas = atuais.filter((a) => !mantidas.has(a.arquivo) && !sai.has(a.arquivo));
+    if (esquecidas.length > 0) return sair(1, `Fotos atuais que o plano nao mantem nem manda para a reserva: ${esquecidas.map((a) => a.arquivo).join(", ")}. Nada foi gravado.`);
+    for (const item of ordem) if (item.startsWith("nova:") && !(fotos.novas ?? []).some((n) => `nova:${n.id}` === item)) return sair(1, `${item} nao esta em "novas". Nada foi gravado.`);
+  }
+
+  console.log("ANTES:", JSON.stringify({
+    sku: produto.sku, descricaoBase: produto.descricaoBase,
+    fotos: atuais.map((a) => ({ arquivo: a.arquivo, ordem: a.ordem, principal: a.principal, mimeType: a.mimeType, tamanhoBytes: a.tamanhoBytes })),
+  }));
+
+  const { padronizarImagem } = await import(pathToFileURL(`${RAIZ}/src/lib/imagens/padronizar.js`).href);
+  const { gravarNaReserva } = await import(pathToFileURL(`${RAIZ}/src/lib/imagens/reserva.js`).href);
+
+  const criados = []; // arquivos escritos nesta rodada (apagados se o banco falhar)
+  const naReserva = [];
+  try {
+    const nomeDaNova = new Map();
+    for (const nova of fotos?.novas ?? []) {
+      const padrao = await padronizarImagem(Buffer.from(nova.base64, "base64"));
+      if (!padrao.ok) throw new Error(`Foto nova ${nova.id}: ${padrao.erro}`);
+      const nome = `${randomUUID().replaceAll("-", "")}.jpg`;
+      const destino = caminhoDe(plano.sku, "IMAGEM", nome);
+      await mkdir(path.dirname(destino), { recursive: true });
+      await writeFile(destino, padrao.bytes);
+      criados.push(destino);
+      nomeDaNova.set(`nova:${nova.id}`, { nome, tamanho: padrao.bytes.length, nomeOriginal: nova.nomeOriginal ?? null });
+    }
+    for (const nome of fotos?.paraReserva ?? []) {
+      const guardada = await gravarNaReserva(plano.sku, await readFile(caminhoDe(plano.sku, "IMAGEM", nome)));
+      naReserva.push({ antigo: nome, ...guardada });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (typeof plano.descricaoBase === "string") await tx.produto.update({ where: { id: produto.id }, data: { descricaoBase: plano.descricaoBase } });
+      if (fotos) {
+        for (const r of naReserva) {
+          const linha = porNome.get(r.antigo);
+          await tx.produtoArquivo.update({ where: { id: linha.id }, data: { papel: "RESERVA", arquivo: r.nome, principal: false, ordem: 0, mimeType: r.mimeType, tamanhoBytes: r.tamanhoBytes } });
+        }
+        let posicao = 0;
+        for (const item of fotos.ordem) {
+          const principal = posicao === 0;
+          if (item.startsWith("nova:")) {
+            const n = nomeDaNova.get(item);
+            await tx.produtoArquivo.create({ data: { produtoId: produto.id, tipo: "IMAGEM", arquivo: n.nome, nomeOriginal: n.nomeOriginal, mimeType: "image/jpeg", tamanhoBytes: n.tamanho, principal, ordem: posicao, papel: "FOTO", versao: "original" } });
+          } else {
+            await tx.produtoArquivo.update({ where: { id: porNome.get(item).id }, data: { principal, ordem: posicao } });
+          }
+          posicao += 1;
+        }
+      }
+    });
+  } catch (erro) {
+    for (const arquivo of criados) await unlink(arquivo).catch(() => {});
+    for (const r of naReserva) await unlink(path.join(pastaDoProduto(plano.sku), "reserva", r.nome)).catch(() => {});
+    return sair(1, `Falhou; nada mudou no banco e os arquivos novos foram apagados: ${erro.message}`);
+  }
+  // So agora os arquivos antigos que foram para a reserva saem de imagens/ (o banco ja aponta para a reserva).
+  for (const r of naReserva) await unlink(caminhoDe(plano.sku, "IMAGEM", r.antigo)).catch(() => {});
+  return sair(0, `GRAVADO em ${plano.sku}: descricao ${typeof plano.descricaoBase === "string" ? "sim" : "nao"}, fotos ${fotos ? fotos.ordem.length : "intactas"}, para a reserva ${naReserva.length}. Confira com: ler ${plano.sku}`);
+}
+
 async function clonar(origem, novo) {
   if (!skuValido(origem) || !skuValido(novo)) return sair(2, "Codigo invalido: use letras, numeros, ponto, hifen e sublinhado.");
   if (origem.toLowerCase() === novo.toLowerCase()) return sair(2, "O codigo novo precisa ser diferente do original.");
@@ -280,5 +367,6 @@ async function clonar(origem, novo) {
 if (comando === "ler" && argumentos.length === 1) await ler(argumentos[0]);
 else if (comando === "ofertas" && argumentos.length === 1) await ofertas(argumentos[0]);
 else if (comando === "descricao" && argumentos.length === 1) await descricao(argumentos[0]);
+else if (comando === "gravar" && argumentos.length === 1) await gravar(argumentos[0]);
 else if (comando === "clonar" && argumentos.length === 2) await clonar(argumentos[0], argumentos[1]);
-else await sair(2, "Uso:\n  ler <sku>\n  ofertas <sku>\n  descricao <sku> --prompt=<nome> [--modelo=<id>]\n  clonar <sku> <novo> [--simular]");
+else await sair(2, "Uso:\n  ler <sku>\n  ofertas <sku>\n  descricao <sku> --prompt=<nome> [--modelo=<id>]\n  gravar <plano.json no conteiner>\n  clonar <sku> <novo> [--simular]");
