@@ -4642,6 +4642,34 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   pasta), e não em `dados/logs/`, onde ficam só os que o contêiner escreve (`worker-*.log`, `backup.log`). Escrita nova
   do host dentro de `dados/` não entra.
 
+## Preencher produto pelo servidor (script por SSH)
+
+Pedido do dono em 14/10/2026: ele faz a varredura dos concorrentes e passa um código (ex.: 100101); a sessão lê o que há
+no banco da **VPS** e, com **plano aprovado por ele**, grava o cadastro do produto (fotos, descrição, EAN, NCM...) com
+as mesmas funções do Rise, sem passar pela tela. O produto fica **não Conferido** (o portão é do dono) e nada é enviado
+a Bling, Mercado Livre ou Loja Integrada.
+
+- **Script:** `scripts/preencher-produto.js`, no repositório (revisável). Roda na VPS pela **entrada do comando**, sem
+  deixar arquivo lá, **dentro do contêiner `app`** (que já tem o banco e as chaves no ambiente; a sessão nunca lê nem
+  imprime segredo):
+  `ssh -i ~/.ssh/rise_vps rise@179.199.150.221 "cd /srv/rise/app && docker compose exec -T app node --input-type=module - <comando> <args>" < scripts/preencher-produto.js`
+  No PC: `node scripts/preencher-produto.js <comando> <args>` (usa o `.env`). O Postgres da VPS não aceita conexão de
+  fora (porta só em 127.0.0.1): o caminho é sempre SSH + contêiner.
+- **Comandos hoje:** `ler <sku>` (só consulta: produto, arquivos com tamanho no banco e no disco, fornecedores,
+  concorrentes, peças, anúncios) e `clonar <sku> <novo> [--simular]` (produto de teste copiado, como o "Clonar" da tela:
+  campos, fotos e documentos, fornecedores, concorrentes e peças; **não** leva estoque, localização, Conferido, Bling, link
+  da LI, anúncios nem a reserva de imagens; o **EAN fica vazio**, porque o Salvar recusa o mesmo GTIN em dois
+  produtos). Arquivos entram antes do banco, e se o banco falhar a pasta nova é apagada. Recusa SKU existente (sem
+  diferenciar caixa), pasta existente e arquivo da origem que falta no disco. Não cita colunas recentes: a VPS pode
+  estar com o banco atrás do PC (o código lá é o do último deploy).
+- **Próximos comandos (ainda não existem):** `gravar <plano.json>`, só com plano aprovado, um código por vez, com
+  backup dos valores antigos guardado no PC e recusando produto Conferido. As funções de foto e de descrição moram em
+  parte nas Server Actions (que dependem do Next e não rodam em script): pode ser preciso mover um pedaço para a camada
+  interna, por isso o primeiro teste é num produto de teste.
+- **Conferido em 14/10/2026:** `ler 100103` e `clonar 100103 100103-teste` na VPS (24 campos, 5 fotos, 3 documentos, 2
+  fornecedores, 13 concorrentes; original intacto, cópia com todos os arquivos no disco). **A cópia `100103-teste` fica
+  na VPS até o dono apagar** (menu do produto).
+
 ## Trabalho em paralelo: worktrees
 
 **As worktrees `sistema-rise-agente-1` e `sistema-rise-agente-2` foram removidas em 12/10/2026** (pedido do dono: não
