@@ -205,6 +205,11 @@ que a sessão segue a cada produto. Mudar critério é editar o roteiro, não o 
 
 - **Conferido ligado** (`ConferidoProduto`) apaga a proposta: a linha, a pasta `proposta/` inteira. Nada do que não foi
   aplicado sobrevive.
+- **Aviso antes de apagar** (decisão do dono em 19/10/2026): se a proposta tem itens **não aplicados** ao produto (seção
+  nunca aplicada, ou aplicada e o produto mudou depois), o Conferido abre o pop-up "Há N itens da proposta não aplicados"
+  listando as seções (Título, Fotos, Descrição...), com **Conferir e apagar** e **Voltar**. Sem item pendente, confere
+  direto, sem pop-up. A conferência de "aplicado" é por seção: a proposta guarda, por seção, a assinatura do valor que foi
+  aplicado ao formulário, e compara com o que está gravado no produto.
 - Desligar o Conferido depois não recria nada.
 - Proposta com mais de 30 dias sem Conferido: fica (é trabalho feito); o relatório da lista avisa (escolha da sessão;
   o dono pode pedir prazo).
@@ -219,7 +224,8 @@ que a sessão segue a cada produto. Mudar critério é editar o roteiro, não o 
   dúvida = GENÉRICA. Garantia 3 meses. EAN pelos 5 passos, nunca inventar. Descrição primeiro, prompt indicado ou o
   padrão do Rise, "?" só depois de pesquisa profunda. Estoque mínimo e máximo são do dono (avisar se em branco).
   Peso e medidas: a Usinainfo primeiro; sem ela, a medida mais repetida nos concorrentes. NCM: a Fortek primeiro, depois
-  outro fornecedor ou o NCM mais repetido entre os fornecedores. Origem fiscal: 2 com fornecedor, 0 sem.
+  outro fornecedor ou o NCM mais repetido entre os fornecedores. Origem fiscal: 2 com fornecedor, 0 sem. O Conferido
+  avisa antes de apagar uma proposta com itens não aplicados.
 
 ## Escolhas da sessão (marcar no documento, o dono pode mudar)
 
