@@ -141,8 +141,10 @@ Um produto por vez. A sessão recebe o código e segue a ordem abaixo; cada pass
 
 ### 10. Peso e medidas
 
-- Lidas das fichas e das descrições dos concorrentes pela regra do Rise (`medidas.js`); a mais repetida ou a oficial
-  do fabricante vence, com a origem. Campo já preenchido no produto vence a proposta.
+- Lidas das fichas e das descrições dos concorrentes pela regra do Rise (`medidas.js`). **Preferência pela Usinainfo**
+  (decisão do dono em 19/10/2026): se ela está entre os concorrentes vinculados e publica a medida, é a dela que vale.
+  Sem a Usinainfo (ou sem a medida nela), vence a **mais repetida** entre os demais concorrentes; empate, a do
+  fabricante. Sempre com a origem. Campo já preenchido no produto vence a proposta.
 
 ### 11. Documentos técnicos
 
@@ -206,12 +208,12 @@ que a sessão segue a cada produto. Mudar critério é editar o roteiro, não o 
   primeiros, percentual quebrado aceito, margem = a conta do Rise. Marca e modelo pela varredura, Arduino = GENÉRICA,
   dúvida = GENÉRICA. Garantia 3 meses. EAN pelos 5 passos, nunca inventar. Descrição primeiro, prompt indicado ou o
   padrão do Rise, "?" só depois de pesquisa profunda. Estoque mínimo e máximo são do dono (avisar se em branco).
+  Peso e medidas: a Usinainfo primeiro; sem ela, a medida mais repetida nos concorrentes.
 
 ## Escolhas da sessão (marcar no documento, o dono pode mudar)
 
 - Modelo sem evidência fica vazio.
 - NCM e tributação só comparados, nunca propostos.
-- Peso e medidas propostas pela regra de `medidas.js`.
 - Documentos: listar e baixar PDFs de fabricante; anexar é do dono.
 - Catálogo do ML como 4º lugar de consulta do EAN.
 - Fotos candidatas padronizadas 1024x1024 ao entrar na proposta.
