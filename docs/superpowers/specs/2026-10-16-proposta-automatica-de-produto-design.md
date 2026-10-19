@@ -27,7 +27,8 @@ cadastro.
 
 - Publicar ou sincronizar com Bling, Mercado Livre ou Loja Integrada (continua pelos caminhos de hoje, sob trava).
 - Substituir a janela "Criar descrição" da tela, que continua existindo com a API para quem quiser usá-la.
-- Estoque, estoque mínimo e máximo, localização, NCM e tributação: a sessão não propõe (só avisa).
+- Estoque, estoque mínimo e máximo, localização e o resto da tributação (CEST, SPED, percentual de tributos): a sessão
+  não propõe (só avisa). NCM e origem são propostos (passo 10a).
 - Rodar sozinho (agendado). O fluxo é disparado pelo dono, um produto por vez.
 
 ## Anti-goals (o que faria isto fracassar mesmo funcionando)
@@ -146,6 +147,15 @@ Um produto por vez. A sessão recebe o código e segue a ordem abaixo; cada pass
   Sem a Usinainfo (ou sem a medida nela), vence a **mais repetida** entre os demais concorrentes; empate, a do
   fabricante. Sempre com a origem. Campo já preenchido no produto vence a proposta.
 
+### 10a. NCM e origem (decisão do dono em 19/10/2026)
+
+- **NCM:** o da **Fortek**, quando ela é fornecedor vinculado e publica NCM para o produto. Sem a Fortek, o NCM de outro
+  fornecedor vinculado; com vários fornecedores divergindo, o NCM **mais repetido** entre eles. Sem nenhum fornecedor
+  com NCM, o campo fica como está e o relatório lista o que os concorrentes publicam (para o contador). Sempre com a
+  origem ("Fortek, código 02-268").
+- **Origem fiscal:** **2** (Estrangeira, adquirida no mercado interno) quando há fornecedor vinculado; sem fornecedor,
+  **0** (Nacional). Campo já preenchido no produto vence a proposta.
+
 ### 11. Documentos técnicos
 
 - Lista os datasheets e manuais que os concorrentes publicam (`documentos`), com link. Baixa para a proposta os PDFs
@@ -154,7 +164,7 @@ Um produto por vez. A sessão recebe o código e segue a ordem abaixo; cada pass
 ### 12. Relatório final
 
 Texto curto na proposta: o que foi feito, as divergências resolvidas, as dúvidas, o que ficou "?" ou vazio, estoque
-mínimo e máximo em branco (o dono define), NCM diferente do que os concorrentes publicam (para o contador), fotos de
+mínimo e máximo em branco (o dono define), NCM dos concorrentes diferente do proposto (para o contador), fotos de
 concorrentes (uso é decisão do dono).
 
 ## Onde mora a proposta
@@ -208,12 +218,13 @@ que a sessão segue a cada produto. Mudar critério é editar o roteiro, não o 
   primeiros, percentual quebrado aceito, margem = a conta do Rise. Marca e modelo pela varredura, Arduino = GENÉRICA,
   dúvida = GENÉRICA. Garantia 3 meses. EAN pelos 5 passos, nunca inventar. Descrição primeiro, prompt indicado ou o
   padrão do Rise, "?" só depois de pesquisa profunda. Estoque mínimo e máximo são do dono (avisar se em branco).
-  Peso e medidas: a Usinainfo primeiro; sem ela, a medida mais repetida nos concorrentes.
+  Peso e medidas: a Usinainfo primeiro; sem ela, a medida mais repetida nos concorrentes. NCM: a Fortek primeiro, depois
+  outro fornecedor ou o NCM mais repetido entre os fornecedores. Origem fiscal: 2 com fornecedor, 0 sem.
 
 ## Escolhas da sessão (marcar no documento, o dono pode mudar)
 
 - Modelo sem evidência fica vazio.
-- NCM e tributação só comparados, nunca propostos.
+- CEST, SPED e percentual de tributos só comparados, nunca propostos (NCM e origem são do dono, passo 10a).
 - Documentos: listar e baixar PDFs de fabricante; anexar é do dono.
 - Catálogo do ML como 4º lugar de consulta do EAN.
 - Fotos candidatas padronizadas 1024x1024 ao entrar na proposta.
