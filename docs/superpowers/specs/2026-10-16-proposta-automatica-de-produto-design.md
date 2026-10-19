@@ -116,7 +116,8 @@ Um produto por vez. A sessão recebe o código e segue a ordem abaixo; cada pass
 
 - Base: custo do **fornecedor padrão** (sem custo, não há sugestão e o relatório diz). Concorrentes pela regra de
   posição do Rise (`posicaoDePreco`: 1º é o mais barato, cada loja uma vez pelo menor preço normal, sem estoque fica
-  de fora). Margem é a conta do Rise (`margem.js`: lucro líquido sobre o custo com os 6% de imposto já descontados).
+  de fora). Margem é a conta do Rise (`calcularMargem` em `margem.js`: lucro líquido, com os 6% de imposto já
+  descontados, dividido pelo **preço de venda**; preço para a margem m = custo ÷ (0,94 − m)).
 - Saída: **3 opções** com 40%, 50% e 60% de margem, cada uma com o preço e a posição ("R$ 34,90 → 6º de 11"); mais a
   **recomendada**: a maior margem (percentual quebrado aceito) que ainda deixa o produto **entre os 5 primeiros**. Se
   nem 40% chega aos 5 primeiros, mostra as 3 e diz qual margem seria preciso.
