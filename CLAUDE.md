@@ -4662,10 +4662,23 @@ a Bling, Mercado Livre ou Loja Integrada.
   produtos). Arquivos entram antes do banco, e se o banco falhar a pasta nova é apagada. Recusa SKU existente (sem
   diferenciar caixa), pasta existente e arquivo da origem que falta no disco. Não cita colunas recentes: a VPS pode
   estar com o banco atrás do PC (o código lá é o do último deploy).
-- **Próximos comandos (ainda não existem):** `gravar <plano.json>`, só com plano aprovado, um código por vez, com
-  backup dos valores antigos guardado no PC e recusando produto Conferido. As funções de foto e de descrição moram em
-  parte nas Server Actions (que dependem do Next e não rodam em script): pode ser preciso mover um pedaço para a camada
-  interna, por isso o primeiro teste é num produto de teste.
+  - `ofertas <sku>` (só consulta): concorrentes e fornecedores vinculados com preço normal, estoque, EAN, NCM, marca,
+    modelo, medidas, ficha, descrição, documentos e as URLs das fotos.
+  - `descricao <sku> --prompt=<nome> [--modelo=<id>]`: gera a descrição pela **API paga do Rise** e só imprime. Fora do
+    fluxo da proposta (o dono não quer pagar a API nisso); fica para comparar.
+  - `gravar <plano.json>`: grava descrição e fotos **direto no produto** (o ensaio manual de 16/10/2026 no
+    `100103-teste`), imprimindo os valores antigos em `ANTES`; recusa produto Conferido e produto com proposta aberta.
+    As fotos que saem vão para a reserva.
+  - `proposta <sku> --plano=<json>` e `proposta <sku> --ler`: a **proposta automática** (item abaixo).
+- **Proposta automática de produto** (spec `docs/superpowers/specs/2026-10-16-proposta-automatica-de-produto-design.md`,
+  plano `docs/superpowers/plans/2026-10-19-proposta-automatica-de-produto.md`): a sessão, **sem a API do Rise**, segue o
+  roteiro fixo `docs/superpowers/roteiros/proposta-de-produto.md` (descrição, títulos, fotos, campos, preço, EAN,
+  documentos, relatório) e grava cada seção em `PropostaDeProduto` (uma por produto, JSON por seção) e em
+  `dados/produtos/<SKU>/proposta/` (fotos candidatas padronizadas e PDFs, rota só com login). **Nada muda no produto**
+  até o dono aplicar e salvar; o **Conferido** é a aprovação e apaga a proposta. Regras puras em `src/lib/proposta/`
+  (`regras.js`: preço por margem com a posição, medidas com a Usinainfo primeiro, NCM com a Fortek primeiro, origem fiscal;
+  `plano.js`: validação; `aplicadas.js`: o que ainda não foi aplicado; `banco.js`: gravação). Teste `npm run teste:proposta`.
+  **Parte 1 (banco + script) pronta em 20/10/2026, sem deploy**; a tela e o Conferido são a Parte 2.
 - **Conferido em 14/10/2026:** `ler 100103` e `clonar 100103 100103-teste` na VPS (24 campos, 5 fotos, 3 documentos, 2
   fornecedores, 13 concorrentes; original intacto, cópia com todos os arquivos no disco). **A cópia `100103-teste` fica
   na VPS até o dono apagar** (menu do produto).
