@@ -125,6 +125,9 @@ export default async function ProdutosPage({ searchParams }) {
         // Para o icone do Bling: os fornecedores (entram na assinatura dos campos) e quantos
         // ajustes de estoque ainda nao foram ao Bling. So banco: a lista nao chama o Bling.
         ...INCLUDE_DO_ICONE_BLING,
+        // Pesquisa profunda: a loja de cada concorrente, para o selo "achado no concorrente" (os fornecedores e o
+        // rascunho do Bling ja vem acima).
+        ...(ampla ? { concorrentes: { select: { fonteManual: true, produtoColetado: { select: { fonte: { select: { nome: true } } } } } } } : {}),
       },
     });
   } catch (excecao) {

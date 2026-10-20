@@ -105,9 +105,44 @@ export function ondeAchou(nome, lugares, palavras) {
 export async function idsDaBuscaDeProdutos(busca, { ampla = false } = {}) {
   const palavras = palavrasDaBusca(busca);
   if (palavras.length === 0) return null;
-  const expressao = ampla ? EXPRESSAO_AMPLA_PRODUTO : EXPRESSAO_BUSCA_PRODUTO;
-  const linhas = await prisma.$queryRaw`SELECT id FROM "Produto" WHERE ${todasAsPalavras(expressao, palavras)}`;
+  // Na ampla, cada palavra vale tambem pelos VINCULOS do produto (pedido do dono em 20/10/2026, opcao 2: "patola" traz
+  // os produtos do fornecedor Patola). A expressao do indice nao muda: o OR vem ao lado, como o nome da fonte no Scraper.
+  const condicao = ampla
+    ? todasAsPalavrasOuTambem(EXPRESSAO_AMPLA_PRODUTO, palavras, palavraNosVinculos)
+    : todasAsPalavras(EXPRESSAO_BUSCA_PRODUTO, palavras);
+  const linhas = await prisma.$queryRaw`SELECT "Produto"."id" FROM "Produto" WHERE ${condicao}`;
   return linhas.map((linha) => linha.id);
+}
+
+/// Fornecedor vinculado: o nome dele e o codigo e a descricao do produto nele (aba Fornecedores).
+const TEXTO_DO_FORNECEDOR = semAcento(juntar([`f."nome"`, `pf."codigo"`, `pf."descricao"`]));
+/// Fornecedor em rascunho, vindo da importacao do Bling (vira vinculo no Salvar): nome, codigo e descricao.
+const TEXTO_DO_RASCUNHO = semAcento(
+  juntar([`"Produto"."fornecedorRascunho"->>'nome'`, `"Produto"."fornecedorRascunho"->>'codigo'`, `"Produto"."fornecedorRascunho"->>'descricao'`]),
+);
+/// Concorrente vinculado: so a LOJA (a do produto coletado ou a digitada a mao).
+const TEXTO_DO_CONCORRENTE = semAcento(juntar([`fc."nome"`, `v."fonteManual"`]));
+
+/** A palavra nos vinculos do produto: fornecedor (vinculo e rascunho do Bling) e loja do concorrente. */
+function palavraNosVinculos(palavra) {
+  const parecida = `%${palavra}%`;
+  return Prisma.sql` OR "Produto"."id" IN (SELECT pf."produtoId" FROM "ProdutoFornecedor" pf JOIN "Fornecedor" f ON f."id" = pf."fornecedorId" WHERE ${Prisma.raw(TEXTO_DO_FORNECEDOR)} LIKE ${parecida})
+    OR ${Prisma.raw(TEXTO_DO_RASCUNHO)} LIKE ${parecida}
+    OR "Produto"."id" IN (SELECT v."produtoId" FROM "ProdutoConcorrente" v LEFT JOIN "ProdutoColetado" pc ON pc."id" = v."produtoColetadoId" LEFT JOIN "FonteColeta" fc ON fc."id" = pc."fonteId" WHERE ${Prisma.raw(TEXTO_DO_CONCORRENTE)} LIKE ${parecida})`;
+}
+
+/** O texto dos vinculos de um produto lido com `fornecedores`, `concorrentes` e `fornecedorRascunho`, para o selo. */
+function textoDosVinculos(produto) {
+  const rascunho = produto.fornecedorRascunho ?? {};
+  const fornecedores = [
+    ...(produto.fornecedores ?? []).flatMap((v) => [v.fornecedor?.nome, v.codigo, v.descricao]),
+    rascunho.nome,
+    rascunho.codigo,
+    rascunho.descricao,
+  ];
+  const concorrentes = (produto.concorrentes ?? []).flatMap((v) => [v.produtoColetado?.fonte?.nome, v.fonteManual]);
+  const junto = (lista) => lista.filter(Boolean).join(" ");
+  return { fornecedor: junto(fornecedores), concorrente: junto(concorrentes) };
 }
 
 /** O selo da linha de Produtos na busca ampla: onde estao as palavras que nao estao no nome nem no codigo. */
@@ -119,6 +154,9 @@ export function ondeAchouNoProduto(produto, palavras) {
       ["NCM", produto.ncm],
       ["homologação", produto.numeroHomologacao],
       ["localização", produto.localizacao],
+      // So aparecem quando a pagina leu os vinculos (a lista de Produtos le na busca ampla).
+      ["fornecedor", textoDosVinculos(produto).fornecedor],
+      ["concorrente", textoDosVinculos(produto).concorrente],
     ],
     palavras,
   );
@@ -127,7 +165,7 @@ export function ondeAchouNoProduto(produto, palavras) {
 /** A frase do selo: ["descrição", "SEO"] -> "achado na descrição e no SEO". Lista vazia -> null (sem selo). */
 export function textoDoSelo(lugares) {
   if (!Array.isArray(lugares) || lugares.length === 0) return null;
-  const comArtigo = lugares.map((lugar) => (["SEO", "NCM"].includes(lugar) ? `no ${lugar}` : `na ${lugar}`));
+  const comArtigo = lugares.map((lugar) => (["SEO", "NCM", "fornecedor", "concorrente"].includes(lugar) ? `no ${lugar}` : `na ${lugar}`));
   const juntos = comArtigo.length === 1 ? comArtigo[0] : `${comArtigo.slice(0, -1).join(", ")} e ${comArtigo.at(-1)}`;
   return `achado ${juntos}`;
 }

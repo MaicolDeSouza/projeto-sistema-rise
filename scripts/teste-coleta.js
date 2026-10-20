@@ -443,8 +443,30 @@ try {
   conferir("produtos, sem palavras: nenhuma restricao (null)", await idsDaBuscaDeProdutos("   "), null);
   const segundo = await prisma.produto.findUnique({ where: { sku: "ZZ-AMPLA-2" } });
   conferir("produtos: o selo diz onde achou", ondeAchouNoProduto(segundo, ["zzproduto"]), ["descrição"]);
+
+  // Pesquisa profunda pelos VINCULOS (pedido do dono em 20/10/2026: "patola" traz os produtos do fornecedor Patola):
+  // o nome do fornecedor, o codigo e a descricao do produto nele, o rascunho do Bling e a loja do concorrente.
+  const forn = await prisma.fornecedor.create({ data: { nome: "ZZ Fornpatolinha" } });
+  const p1 = await prisma.produto.findUnique({ where: { sku: "ZZ-AMPLA-1" } });
+  await prisma.produtoFornecedor.create({ data: { produtoId: p1.id, fornecedorId: forn.id, codigo: "ZZCOD-77", descricao: "zzdescforn item" } });
+  await prisma.produto.update({ where: { sku: "ZZ-AMPLA-2" }, data: { fornecedorRascunho: { nome: "ZZ Rascunhoblíng", codigo: "zzrasc-9" } } });
+  const p3 = await prisma.produto.findUnique({ where: { sku: "ZZ-AMPLA-3" } });
+  await prisma.produtoConcorrente.create({ data: { produtoId: p3.id, fonteManual: "ZZ Lojaconcorrente" } });
+  conferir("vinculos: o nome do fornecedor acha o produto", await skus(await idsDaBuscaDeProdutos("fornpatolinha", { ampla: true })), ["ZZ-AMPLA-1"]);
+  conferir("vinculos: o codigo no fornecedor acha", await skus(await idsDaBuscaDeProdutos("zzcod-77", { ampla: true })), ["ZZ-AMPLA-1"]);
+  conferir("vinculos: a descricao no fornecedor acha", await skus(await idsDaBuscaDeProdutos("zzdescforn", { ampla: true })), ["ZZ-AMPLA-1"]);
+  conferir("vinculos: o rascunho do Bling acha (sem acento)", await skus(await idsDaBuscaDeProdutos("rascunhobling", { ampla: true })), ["ZZ-AMPLA-2"]);
+  conferir("vinculos: o codigo do rascunho acha", await skus(await idsDaBuscaDeProdutos("zzrasc-9", { ampla: true })), ["ZZ-AMPLA-2"]);
+  conferir("vinculos: a loja do concorrente acha", await skus(await idsDaBuscaDeProdutos("lojaconcorrente", { ampla: true })), ["ZZ-AMPLA-3"]);
+  conferir("vinculos: uma palavra pelo fornecedor e outra pelo nome", await skus(await idsDaBuscaDeProdutos("fornpatolinha modulo", { ampla: true })), ["ZZ-AMPLA-1"]);
+  conferir("vinculos: a busca normal NAO procura nos vinculos", await idsDaBuscaDeProdutos("fornpatolinha"), []);
+  const comVinculos = { ...p1, fornecedores: [{ fornecedor: { nome: "ZZ Fornpatolinha" }, codigo: "ZZCOD-77", descricao: null }], concorrentes: [] };
+  conferir("vinculos: o selo diz que achou no fornecedor", ondeAchouNoProduto(comVinculos, ["fornpatolinha"]), ["fornecedor"]);
+  const comConcorrente = { ...p3, fornecedores: [], concorrentes: [{ fonteManual: "ZZ Lojaconcorrente", produtoColetado: null }] };
+  conferir("vinculos: o selo diz que achou no concorrente", ondeAchouNoProduto(comConcorrente, ["lojaconcorrente"]), ["concorrente"]);
 } finally {
   await prisma.produto.deleteMany({ where: { sku: { in: SKUS_AMPLA } } });
+  await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornpatolinha" } });
 }
 
 // ---------------------------------------------------------------------------

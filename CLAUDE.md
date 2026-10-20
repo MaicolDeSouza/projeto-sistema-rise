@@ -494,6 +494,18 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   - **Produtos:** a busca NORMAL também passou a usar índice (todas as palavras, em qualquer ordem, no nome,
     código, marca, modelo e EAN; antes era o texto inteiro, só em nome e código). O índice devolve os ids; ordem e
     página continuam no Prisma, então Produtos não põe "pelo nome primeiro".
+  - **Produtos, Pesquisa profunda pelos VÍNCULOS** (pedido do dono em 20/10/2026, opção 2: "patola" tem de trazer os
+    produtos do fornecedor Patola): cada palavra vale também se estiver no **nome do fornecedor vinculado**, no **código
+    e na descrição do produto nesse fornecedor**, no **fornecedor em rascunho do Bling** (nome, código, descrição) ou na
+    **loja do concorrente** (a do produto coletado ou a digitada à mão). É um `OR id IN (subconsulta)` ao lado da
+    expressão do índice (`palavraNosVinculos` em `buscaAmpla.js`, pelo `todasAsPalavrasOuTambem` do Scraper); a busca
+    normal não muda. Selo "achado no fornecedor" / "achado no concorrente" (a lista lê as lojas dos concorrentes só com a
+    Pesquisa profunda ligada). Medido no PC: "patola" acha 9 produtos (todos pelo rascunho do Bling: a Patola não está
+    cadastrada como fornecedor) em ~0,5 s.
+  - **Voltar do produto para a lista como ela estava** (pedido do dono em 20/10/2026): a lista guarda o próprio endereço
+    (pesquisa, página, ordem, Pesquisa profunda) no `sessionStorage` da aba, e o Cancelar, o Salvar e a seta do cadastro
+    voltam para ele (`lib/ultimaListaDeProdutos.js`, `components/produtos/ListaDeProdutosNaAba.jsx`, prop `voltar` do
+    `PageHeader`). Fechar a aba esquece. Teste `npm run teste:navegacao`.
   - Migration feita à mão: o próximo `migrate diff` vai propor apagar esses três índices. Tirar essas linhas.
 - **O saldo anterior fica guardado** (`quantidadeAnterior`, `quantidadeAnteriorEm`), pedido do
   dono em 15/09/2026 para montar depois o histórico de venda: com os dois números e as duas
