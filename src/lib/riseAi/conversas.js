@@ -15,8 +15,9 @@ const LIMITE_DO_TITULO = 120;
 
 const ordemDasMensagens = [{ criadoEm: "asc" }, { id: "asc" }];
 
-export async function criarConversa({ usuario, perfil = "ADMIN", titulo }) {
-  return prisma.conversaIA.create({ data: { usuario, perfil: perfil === "PUBLICO" ? "PUBLICO" : "ADMIN", titulo } });
+/** `canal`: "CHAT" (o chat do Rise AI) ou "MCP" (as dúvidas anotadas pelo Claude/ChatGPT); outro valor vira CHAT. */
+export async function criarConversa({ usuario, perfil = "ADMIN", titulo, canal = "CHAT" }) {
+  return prisma.conversaIA.create({ data: { usuario, perfil: perfil === "PUBLICO" ? "PUBLICO" : "ADMIN", titulo, canal: canal === "MCP" ? "MCP" : "CHAT" } });
 }
 
 /**

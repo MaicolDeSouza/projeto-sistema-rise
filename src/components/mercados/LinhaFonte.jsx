@@ -7,6 +7,7 @@ import { Ban, ExternalLink, FolderTree, Info, Loader, Monitor, Pause, Pencil, Pl
 import Badge from "@/components/ui/Badge";
 import ArquivosDaFonte from "@/components/mercados/ArquivosDaFonte";
 import CategoriasDaFonte from "@/components/mercados/CategoriasDaFonte";
+import EnderecosDaFonte from "@/components/mercados/EnderecosDaFonte";
 import { AVISO_DO_PEDIDO, DICA_DE_CADASTRO, PASSOS_DO_PEDIDO } from "@/components/mercados/procedimentoPeloPc";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import {
@@ -88,6 +89,9 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
   const [editando, setEditando] = useState(false);
   // Portal com login (Santana): o painel de categorias e login abre embaixo da linha.
   const [vendoCategorias, setVendoCategorias] = useState(false);
+  // Fonte de SITE (nao portal, nao so de arquivo): a lista de enderecos varridos (20/10/2026).
+  const [vendoEnderecos, setVendoEnderecos] = useState(false);
+  const ehDeSite = !fonte.portal && !String(fonte.dominio).endsWith(".invalid");
   const [erro, setErro] = useState(null);
 
   // O endereco completo, para o link abrir o site. O dominio guardado nao tem
@@ -353,6 +357,18 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
               </button>
             )}
 
+            {ehDeSite && (
+              <button
+                type="button"
+                onClick={() => setVendoEnderecos((antes) => !antes)}
+                className={botao}
+                title="Lojas inteiras ou categorias que esta fonte varre"
+              >
+                <FolderTree size={12} />
+                Endereços ({Math.max((fonte.categorias ?? []).length, 1)})
+              </button>
+            )}
+
             {fonte.varridaNoPc && noPc ? (
               /*
                 FONTE DO PC, NO RISE DO PC: o "Varrer agora" liga o worker do PC so para ela (worker-pc.js --fonte),
@@ -535,6 +551,14 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
         <tr>
           <td colSpan={COLUNAS_BASE + (mostrarLista ? 1 : 0)} className="px-3 pb-3">
             <CategoriasDaFonte fonte={fonte} />
+          </td>
+        </tr>
+      )}
+
+      {vendoEnderecos && ehDeSite && (
+        <tr>
+          <td colSpan={COLUNAS_BASE + (mostrarLista ? 1 : 0)} className="px-3 pb-3">
+            <EnderecosDaFonte fonte={fonte} />
           </td>
         </tr>
       )}

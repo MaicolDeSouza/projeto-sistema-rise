@@ -6,7 +6,8 @@ import {
   gravarColeta,
   lerProdutosDaFonte,
 } from "./banco";
-import { colherProdutos, enderecoComparavel } from "./colher";
+import { colherProdutos, colherVariasUrls, enderecoComparavel } from "./colher";
+import { enderecosDaVarredura } from "./enderecos";
 import { podeVisitar } from "./buscar";
 import { conciliar, quedaSuspeita } from "./conciliar";
 import { catalogoJsDoEndereco, catalogoShopifyDoEndereco, portalDoEndereco, regrasDoFornecedor } from "./fornecedores";
@@ -550,11 +551,17 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
     });
   };
 
+  // OS ENDERECOS DA FONTE (20/10/2026): a lista de categorias que o operador cadastrou, uma colheita por endereco; sem
+  // lista, a loja inteira como sempre foi (com o filtro de texto antigo da Secao, se a fonte tiver um).
+  const comLista = Array.isArray(fonte.categorias) && fonte.categorias.some((item) => item?.url);
+  const enderecos = enderecosDaVarredura(fonte.categorias, enderecoDaFonte(fonte));
+
   let colheita;
   try {
-    colheita = await colherProdutos({
-      url: enderecoDaFonte(fonte),
-      secao: fonte.prefixoUrl ?? undefined,
+    colheita = await (comLista ? colherVariasUrls : colherProdutos)({
+      ...(comLista
+        ? { enderecos }
+        : { url: enderecoDaFonte(fonte), secao: fonte.prefixoUrl ?? undefined }),
       nome: fonte.nome,
       tipo: fonte.tipo,
       limite,
@@ -638,6 +645,15 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
     precosMudaram: acumulado.precosMudaram + final.precosMudaram,
     semChave: acumulado.semChave + final.semChave,
   };
+
+  // Quantos produtos cada endereco da lista rendeu, para a tela de Enderecos mostrar ao lado do link. So os que a
+  // varredura mediu: o total de um endereco que nao disse quantos tem nao apaga o numero bom da vez anterior.
+  if (comLista && Array.isArray(colheita.porUrl)) {
+    await atualizarTotaisDasCategorias(
+      fonte.id,
+      colheita.porUrl.map((item) => ({ url: item.url, total: item.produtosNoSite ?? item.produtos, lidos: item.produtos })),
+    ).catch((falha) => console.error(`totais dos enderecos nao gravados: ${falha.message}`));
+  }
 
   return {
     total: esperado,

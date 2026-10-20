@@ -109,9 +109,11 @@ function CartaoPlataforma({ teste }) {
             {teste.produtosNoSiteParcial ? "+" : ""}
           </span>{" "}
           produto(s){" "}
-          {teste.produtosNoSiteFonte === "catalogo"
-            ? "no catálogo público da loja"
-            : "publicados no sitemap"}
+          {teste.produtosNoSiteFonte === "categoria"
+            ? "listados na categoria"
+            : teste.produtosNoSiteFonte === "catalogo"
+              ? "no catálogo público da loja"
+              : "publicados no sitemap"}
           {teste.produtosNoSiteParcial
             ? " — a leitura parou no teto, então o catálogo é maior que isso"
             : ""}
@@ -378,7 +380,8 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
   const [tipo, setTipo] = useState(tipoInicial);
   const [peloPc, setPeloPc] = useState(false);
   const [url, setUrl] = useState("");
-  const [secao, setSecao] = useState("");
+  // Enderecos ALEM do primeiro (20/10/2026): a loja inteira ou categorias da mesma loja, tres produtos de cada no teste.
+  const [extras, setExtras] = useState([]);
   const [teste, setTeste] = useState(null);
   const [arquivos, setArquivos] = useState([]);
   const [erro, setErro] = useState(null);
@@ -400,6 +403,13 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
     as demais categorias entram depois, na linha da fonte.
   */
   const ehPortal = Boolean(portalDoEndereco(url));
+  const todasAsUrls = [url, ...extras].map((item) => item.trim()).filter(Boolean);
+
+  function mudarExtra(indice, valor) {
+    setExtras((atuais) => atuais.map((item, i) => (i === indice ? valor : item)));
+    setTeste(null);
+    setErro(null);
+  }
 
   /**
    * O resultado do teste e limpo a cada mudanca de endereco.
@@ -449,7 +459,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
         url.trim()
           ? testarFonteAcao({
               url,
-              secao,
+              urls: todasAsUrls,
               nome,
               tipo,
               // So manda evitar com o toggle ligado: desligado, o teste tem
@@ -487,7 +497,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
         nome,
         url,
         tipo,
-        secao,
+        ...(ehPortal ? {} : { urls: todasAsUrls }),
         ...(soNoPc ? { soNoPc: true } : {}),
         ...(peloPc && !ehPortal && arquivos.length === 0 ? { varridaNoPc: true } : {}),
         resumo: teste?.campos
@@ -500,7 +510,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
       let resultado;
       if (arquivos.length > 0) {
         const formulario = comArquivos(arquivos, nome, tipo, url);
-        formulario.set("secao", secao);
+        formulario.set("secao", "");
         formulario.set("resumo", dados.resumo ?? "");
         formulario.set("produtosNoSite", String(dados.produtosNoSite ?? ""));
         resultado = await salvarFonteComArquivos(formulario);
@@ -515,7 +525,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
 
       setUrl("");
       setNome("");
-      setSecao("");
+      setExtras([]);
       setTeste(null);
       setArquivos([]);
       setUsuario("");
@@ -650,24 +660,46 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
             </span>
           </div>
         ) : (
-        <label>
-          <span className="mb-1 block text-xs text-suave">
-            Seção / categoria <span className="text-suave">(opcional)</span>
+        <div className="grid content-start gap-2">
+          <span className="block text-xs text-suave">
+            Mais endereços da mesma loja <span className="text-suave">(opcional)</span>
+            <BolhaDeAjuda
+              variante="inline"
+              texto="Cole o endereço da categoria como você a abre no navegador (ex.: loja.com.br/gabinetes). Cada endereço rende três produtos no teste e é varrido na coleta; um produto que está em duas categorias entra uma vez."
+            />
           </span>
-          <input
-            type="text"
-            value={secao}
-            onChange={(evento) => {
-              setSecao(evento.target.value);
-              setTeste(null);
-            }}
-            placeholder="/arduino-74"
-            className={CAMPO}
-          />
-          <span className="mt-1 block text-xs text-suave">
-            Limita a coleta a um trecho do site. Em branco, cobre a loja inteira. Em loja VTEX (como a Patolastore), escreva o caminho da categoria, por exemplo &ldquo;gabinetes&rdquo;.
-          </span>
-        </label>
+          {extras.map((valor, indice) => (
+            <div key={indice} className="flex items-center gap-1.5">
+              <input
+                type="url"
+                value={valor}
+                onChange={(evento) => mudarExtra(indice, evento.target.value)}
+                placeholder="https://site-do-fornecedor.com.br/outra-categoria"
+                className={CAMPO}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setExtras((atuais) => atuais.filter((_, i) => i !== indice));
+                  setTeste(null);
+                }}
+                aria-label="Tirar este endereço"
+                title="Tirar este endereço"
+                className="rounded p-1.5 text-suave hover:bg-fundo hover:text-texto"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => setExtras((atuais) => [...atuais, ""])}
+            className="inline-flex w-fit items-center gap-1 text-xs text-acento hover:underline"
+          >
+            <Plus size={12} />
+            adicionar outra URL
+          </button>
+        </div>
         )}
       </div>
 

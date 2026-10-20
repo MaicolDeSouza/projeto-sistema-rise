@@ -14,6 +14,7 @@ import { coletaPausada, definirPausaColeta } from "@/lib/coleta/controle";
 import { iniciarWorkerPc } from "@/lib/coleta/workerPc";
 import { portalDoEndereco, regrasDoFornecedor } from "@/lib/coleta/fornecedores";
 import { testarFonte } from "@/lib/coleta/testar";
+import { conferirEnderecos, listaParaGravar } from "@/lib/coleta/enderecos";
 import { parametrosDaCategoria, testarPortal } from "@/lib/coleta/portal-addsuite";
 import { cifrar } from "@/lib/crypto";
 import { garantirCadastroDaFonte } from "@/lib/cadastros";
@@ -43,9 +44,11 @@ const FonteSchema = z.object({
  * abre paginas de verdade e so aprova se conseguir montar produto com nome,
  * endereco e preco.
  */
-export async function testarFonteAcao({ url, secao, nome, tipo, evitar }) {
+export async function testarFonteAcao({ url, secao, nome, tipo, evitar, urls }) {
   try {
-    return await testarFonte({ url, secao, nome, tipo, evitar });
+    // `urls`: a lista de enderecos da fonte (loja inteira ou categorias). So texto; quem confere e o teste.
+    const lista = Array.isArray(urls) ? urls.slice(0, 40).map((item) => String(item ?? "")) : undefined;
+    return await testarFonte({ url, secao, nome, tipo, evitar, urls: lista });
   } catch (erro) {
     return {
       resultado: "FALHA",
@@ -315,7 +318,20 @@ async function salvarFonteInterna({
   senha,
   soNoPc = false,
   varridaNoPc = false,
+  urls,
 }, { arquivoValidado = false } = {}) {
+  // OS ENDERECOS DA FONTE (20/10/2026): uma lista de enderecos da MESMA loja (a loja inteira ou categorias). O primeiro
+  // dita o endereco da fonte; sem lista, vale o `url` e o filtro de texto da `secao` de sempre (cadastro por arquivo,
+  // portal com login, chamadas antigas).
+  let lista = null;
+  if (Array.isArray(urls) && urls.some((item) => String(item ?? "").trim()) && !portalDoEndereco(url)) {
+    const conferido = conferirEnderecos(urls.slice(0, 40).map((item) => String(item ?? "")));
+    if (!conferido.ok) return { ok: false, erro: conferido.erro };
+    lista = conferido.enderecos;
+    url = lista[0].url;
+    secao = null;
+  }
+
   const analise = FonteSchema.safeParse({ nome, url, tipo, secao });
   if (!analise.success) {
     return { ok: false, erro: analise.error.issues[0].message };
@@ -338,6 +354,15 @@ async function salvarFonteInterna({
     : await podeVisitar(alvo.toString());
   if (!permissao.permitido && !arquivoValidado) {
     return { ok: false, erro: `O robots.txt deste site nos bloqueia: ${permissao.motivo}` };
+  }
+  // Cada endereco da lista tem o proprio caminho no robots.txt: a categoria pode estar barrada com a home liberada.
+  if (lista && !sitePeloPc) {
+    for (const endereco of lista.slice(1)) {
+      const outra = await podeVisitar(endereco.url);
+      if (!outra.permitido) {
+        return { ok: false, erro: `O robots.txt deste site nos bloqueia ${endereco.caminho}: ${outra.motivo}` };
+      }
+    }
   }
 
   const prefixoUrl = analise.data.secao?.trim() || null;
@@ -373,7 +398,9 @@ async function salvarFonteInterna({
   if (existente) {
     return {
       ok: false,
-      erro: `"${existente.nome}" já acompanha ${alvo.hostname}${prefixoUrl ?? ""}.`,
+      erro: lista
+        ? `"${existente.nome}" já acompanha ${alvo.hostname}. Para varrer outra categoria desta loja, acrescente o endereço na linha da fonte (Endereços).`
+        : `"${existente.nome}" já acompanha ${alvo.hostname}${prefixoUrl ?? ""}.`,
     };
   }
 
@@ -399,6 +426,8 @@ async function salvarFonteInterna({
           ? { varridaNoPc: true }
           : {}),
         ...doPortal,
+        // A lista de enderecos varridos (so a loja inteira = sem lista, como sempre).
+        ...(lista && listaParaGravar(lista).length > 0 ? { categorias: listaParaGravar(lista) } : {}),
         // Quantos produtos o site declarou ter no momento do teste. Guardado no
         // cadastro para a tela dizer o quanto do catalogo ja foi coletado sem
         // precisar reabrir o sitemap a cada renderizacao.
@@ -740,6 +769,68 @@ export async function removerCategoria(fonteId, url) {
   if (erro) return { ok: false, erro };
   if (categorias.length <= 1) {
     return { ok: false, erro: "A fonte precisa de pelo menos uma categoria. Para parar de varrer, use Pausar." };
+  }
+
+  await prisma.fonteColeta.update({
+    where: { id: fonte.id },
+    data: { categorias: categorias.filter((item) => item.url !== url) },
+  });
+  revalidatePath("/mercados/fontes");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Enderecos varridos de uma fonte de SITE (20/10/2026)
+// ---------------------------------------------------------------------------
+
+async function fonteDeSite(fonteId) {
+  const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId } });
+  if (!fonte) return { erro: "Fonte não encontrada." };
+  if (portalDoEndereco(fonte.dominio)) {
+    return { erro: "Esta fonte é um portal com login: as categorias dela ficam em Categorias." };
+  }
+  if (fonte.dominio.endsWith(".invalid")) return { erro: "Esta fonte é só de arquivo: não tem site para varrer." };
+  const categorias = Array.isArray(fonte.categorias) ? fonte.categorias.filter((item) => item?.url) : [];
+  // Sem lista, o endereco implicito e a loja inteira (como a fonte sempre foi varrida).
+  const base = /^https?:\/\//i.test(fonte.dominio) ? `${fonte.dominio.replace(/\/+$/, "")}/` : `https://${fonte.dominio}/`;
+  return { fonte, categorias, base };
+}
+
+/**
+ * Acrescenta um endereco (categoria ou a loja inteira) a uma fonte de site. Nao abre a pagina: quem confere e a proxima
+ * varredura, que registra quantos produtos o endereco rendeu. Aqui se garante que e da MESMA loja, que o robots.txt deixa
+ * e que nao repete.
+ */
+export async function adicionarEndereco(fonteId, url) {
+  const { fonte, categorias, base, erro } = await fonteDeSite(fonteId);
+  if (erro) return { ok: false, erro };
+
+  const atuais = categorias.length > 0 ? categorias.map((item) => item.url) : [base];
+  const conferido = conferirEnderecos([...atuais, String(url ?? "")]);
+  if (!conferido.ok) return { ok: false, erro: conferido.erro };
+  if (conferido.enderecos.length === atuais.length) return { ok: false, erro: "Este endereço já está na fonte." };
+
+  const novo = conferido.enderecos[conferido.enderecos.length - 1];
+  const permissao = await podeVisitar(novo.url);
+  if (!permissao.permitido) return { ok: false, erro: `O robots.txt deste site nos bloqueia: ${permissao.motivo}` };
+
+  const existentes = new Map(categorias.map((item) => [item.url, item]));
+  const lista = conferido.enderecos.map(
+    (endereco) =>
+      existentes.get(endereco.url) ?? { url: endereco.url, total: null, adicionadaEm: new Date().toISOString() },
+  );
+
+  await prisma.fonteColeta.update({ where: { id: fonte.id }, data: { categorias: lista } });
+  revalidatePath("/mercados/fontes");
+  return { ok: true };
+}
+
+/** Tira o endereco da varredura. Os produtos ja coletados dele FICAM (saem da tabela so se a loja os tirar do ar). */
+export async function removerEndereco(fonteId, url) {
+  const { fonte, categorias, erro } = await fonteDeSite(fonteId);
+  if (erro) return { ok: false, erro };
+  if (categorias.length <= 1) {
+    return { ok: false, erro: "A fonte precisa de pelo menos um endereço. Para parar de varrer, use Pausar." };
   }
 
   await prisma.fonteColeta.update({

@@ -16,6 +16,7 @@ import { lerAVista, novaMemoriaDePagamento } from "./pagamento";
 import { enderecoComparavel } from "./texto-html";
 import { descobrirSitemaps, lerSitemaps, lojasApontadasPeloRobots } from "./sitemap";
 import { categoriaDaVtex, lerCategoriaDaVtex } from "./vtex";
+import { dentroDaCategoria, lerListagemDaCategoria } from "./listagem";
 
 /**
  * Colheita de produtos de uma fonte.
@@ -90,7 +91,10 @@ async function tentarUrl(url, fonte, plataforma, doCatalogo = null, memoriaPagam
 /**
  * @param {object} entrada
  * @param {string}  entrada.url        endereco da fonte
- * @param {string} [entrada.secao]     limita a um trecho do site
+ * @param {string} [entrada.secao]     limita a um trecho do site (filtro de texto sobre o endereco; so o cadastro antigo)
+ * @param {boolean} [entrada.categoria] `url` e o endereco de uma CATEGORIA: so os produtos dela entram (20/10/2026). Em
+ *   loja VTEX pela busca publica da categoria; nas demais pela listagem da propria pagina (e suas paginas). Endereco
+ *   que e uma pagina de PRODUTO cai no caminho de sempre (a loja inteira).
  * @param {string} [entrada.nome]
  * @param {string} [entrada.tipo]
  * @param {number} [entrada.limite]    quantos produtos colher
@@ -124,6 +128,7 @@ export async function colherProdutos({
   aoGuardar,
   sinal = null,
   jaColetadas = null,
+  categoria = false,
 }) {
   const conferirSinal = () => sinal?.throwIfAborted();
   let retomados = 0;
@@ -253,10 +258,13 @@ export async function colherProdutos({
     };
   }
 
-  const prefixo = secao?.trim() || null;
+  // Endereco de categoria: o caminho da pagina (ou a consulta) diz qual. A raiz da loja e a loja inteira.
+  const emCategoria = categoria === true && (alvo.pathname.replace(/\/+$/, "") !== "" || alvo.search !== "");
+  // O filtro de texto da Secao antiga e outro mecanismo: com endereco de categoria ele nao se aplica.
+  const prefixo = emCategoria ? null : secao?.trim() || null;
   const fonte = { name: nome ?? alvo.hostname, type: tipo ?? "OUTRO" };
 
-  if (graphqlPwa) {
+  if (graphqlPwa && !emCategoria) {
     const leitura = await colherMagentoPwa({
       graphql: graphqlPwa,
       origem: alvo.origin,
@@ -292,7 +300,7 @@ export async function colherProdutos({
     };
   }
 
-  if (plataforma.id === "woocommerce" && catalogo?.url) {
+  if (plataforma.id === "woocommerce" && catalogo?.url && !emCategoria) {
     const leitura = await colherWooCommerce({
       catalogo, origem: alvo.origin, secao: prefixo, limite,
       orcamento: tetoVisitas, fonte, plataforma, jaColetadas,
@@ -435,6 +443,10 @@ export async function colherProdutos({
   visitas++;
   guardar(daPropria.produtos, daPropria.formatos);
 
+  // CATEGORIA POR LISTAGEM (20/10/2026): a pagina da categoria lista os produtos. Se o endereco colado era, na verdade, uma
+  // pagina de produto, a colheita segue como sempre (a loja inteira) e esta leitura nao entra.
+  const modoListagem = emCategoria && plataforma.id !== "vtex" && daPropria.produtos.length === 0;
+
   // 1.5) Catalogo publico da plataforma, quando ela publica um.
   //
   // Vem ANTES do sitemap porque responde melhor a mesma pergunta: quantos
@@ -450,7 +462,7 @@ export async function colherProdutos({
   // CATEGORIA DE LOJA VTEX (Patolastore, 20/10/2026): a Secao e o caminho de uma categoria ("gabinetes"). Na VTEX o endereco do
   // produto nao carrega a categoria, entao o filtro de texto nunca a achava; a busca publica por categoria lista os
   // produtos dela. Vale no lugar do catalogo generico (que nesta plataforma nem filtra categoria).
-  const categoriaDaVtexPedida = plataforma.id === "vtex" ? categoriaDaVtex(prefixo) : null;
+  const categoriaDaVtexPedida = plataforma.id === "vtex" ? categoriaDaVtex(emCategoria ? alvo.pathname : prefixo) : null;
 
   if (categoriaDaVtexPedida) {
     const leitura = await lerCategoriaDaVtex({ origem: alvo.origin, categoria: categoriaDaVtexPedida, limite, sinal });
@@ -466,6 +478,27 @@ export async function colherProdutos({
         leitura.erro
           ? `a loja não respondeu à busca da categoria "${categoriaDaVtexPedida}": ${leitura.erro}`
           : `${leitura.total ?? itensDoCatalogo.length} produto(s) na categoria "${categoriaDaVtexPedida}"`,
+      ),
+    );
+  } else if (modoListagem) {
+    // O que o teste pula (`evitar`) sai depois; pedir uma folga evita parar na primeira pagina com tudo ja visto.
+    const leitura = await lerListagemDaCategoria({ url: alvo.toString(), limite: limite + (evitar?.size ?? 0), sinal });
+    conferirSinal();
+    itensDoCatalogo = leitura.itens;
+    // So e o tamanho da categoria quando a paginacao acabou; com o limite do teste, a leitura para antes.
+    totalDoCatalogo = leitura.completa && !leitura.erro ? leitura.itens.length : null;
+
+    passos.push(
+      passo(
+        "Categoria lida",
+        !leitura.erro && itensDoCatalogo.length > 0,
+        leitura.erro
+          ? `a página não abriu: ${leitura.erro}`
+          : itensDoCatalogo.length === 0
+            ? "não encontrei produtos listados nesta página — confira se o endereço é de uma categoria"
+            : leitura.completa
+              ? `${itensDoCatalogo.length} produto(s) listado(s) em ${leitura.paginas} página(s) da categoria`
+              : `${itensDoCatalogo.length} produto(s) listado(s) até aqui — a categoria tem mais (o total sai na coleta completa)`,
       ),
     );
   } else if (catalogo) {
@@ -540,7 +573,10 @@ export async function colherProdutos({
     typeof totalDoCatalogo === "number" &&
     totalDoCatalogo > 0 &&
     itensDoCatalogo.length >= totalDoCatalogo;
-  const precisaDoSitemap = achados() < limite && !catalogoCompleto;
+  // CATEGORIA: a lista dela e o universo. Sem isso o sitemap e a navegacao saiam da categoria e colhiam a loja inteira
+  // (a VTEX com categoria pequena, p. ex., seguia para o resto do site atras de produto para completar o pedido).
+  const universoFechado = Boolean(categoriaDaVtexPedida) || (modoListagem && itensDoCatalogo.length > 0);
+  const precisaDoSitemap = achados() < limite && !catalogoCompleto && !universoFechado && !modoListagem;
 
   conferirSinal();
   const sitemaps = precisaDoSitemap ? await descobrirSitemaps(alvo.origin, { sinal }) : [];
@@ -691,7 +727,7 @@ export async function colherProdutos({
 
   // 3) Navegacao, quando o sitemap nao bastou. Nem toda loja publica sitemap de
   // produto: ha quem declare no robots.txt um sitemap de rotas de busca.
-  if (achados() < limite && visitas < tetoVisitas && !catalogoCompleto) {
+  if (achados() < limite && visitas < tetoVisitas && !catalogoCompleto && !universoFechado) {
     const abertasAntes = visitas;
     const retomadosAntes = retomados;
 
@@ -701,6 +737,9 @@ export async function colherProdutos({
       orcamento: tetoVisitas - visitas,
       pararApos: limite - retomadosAntes,
       sinal,
+      // Categoria cuja listagem nao rendeu produto: navega a partir dela, mas so por dentro dela e sem seguir os links
+      // de uma pagina de produto (relacionados). O menu e o rodape nao levam a navegacao para a loja inteira.
+      expandir: modoListagem ? (pagina, ehProduto) => !ehProduto && dentroDaCategoria(alvo.toString(), pagina) : undefined,
       // Pagina de produto ja gravada nao e aberta de novo. Os links dela ficam de
       // fora — e a categoria que a listou continua sendo lida.
       // Produto ja tratado nesta colheita (aberto pelo catalogo ou pelo sitemap)
@@ -827,6 +866,134 @@ export async function colherProdutos({
     // De onde saiu a contagem. A tela dizia "publicados no sitemap" mesmo
     // quando o numero vinha do catalogo da plataforma — os 2.296 da Casa da
     // Robotica sao do /web_api/products, e nao do sitemap.
-    produtosNoSiteFonte: produtosNoSite === null ? null : totalDoCatalogo !== null ? "catalogo" : "sitemap",
+    // "categoria": o total e o da lista da categoria (VTEX ou listagem da pagina), e nao o da loja.
+    produtosNoSiteFonte:
+      produtosNoSite === null
+        ? null
+        : totalDoCatalogo !== null
+          ? categoriaDaVtexPedida || modoListagem ? "categoria" : "catalogo"
+          : "sitemap",
+  };
+}
+
+/**
+ * Colhe VARIOS enderecos da mesma loja (categorias, ou a loja inteira) como uma colheita so (20/10/2026).
+ *
+ * Cada endereco passa por `colherProdutos`, um depois do outro, com o que sobrou do limite. O produto que aparece em
+ * duas categorias entra UMA vez (a mesma chave do banco), e o andamento soma as colheitas.
+ *
+ * @param {object} entrada o mesmo de `colherProdutos`, menos `url`/`categoria`/`secao`
+ * @param {{ url: string, categoria: boolean }[]} entrada.enderecos
+ */
+export async function colherVariasUrls({ enderecos, limite = 3, orcamento, aoProgredir, aoGuardar, ...resto }) {
+  const primeira = enderecos[0];
+  const rotulo = (endereco) => {
+    try {
+      const alvo = new URL(endereco);
+      return alvo.pathname === "/" && !alvo.search ? "loja inteira" : `${alvo.pathname}${alvo.search}`;
+    } catch {
+      return endereco;
+    }
+  };
+
+  const entregues = new Set();
+  const donos = new Map();
+  const todos = [];
+  const formatos = new Set();
+  const passos = [];
+  const porUrl = [];
+  let visitas = 0;
+  let retomados = 0;
+  let produtosNoSite = 0;
+  let totalConhecido = true;
+  let parcial = false;
+  let fonteDaContagem = null;
+  let primeiro = null;
+
+  for (const entrada of enderecos) {
+    if (todos.length + retomados >= limite) break;
+
+    const rotuloDaUrl = rotulo(entrada.url);
+    const produtosAntes = todos.length;
+    const retomadosAntes = retomados;
+    const visitasAntes = visitas;
+
+    const colheita = await colherProdutos({
+      ...resto,
+      url: entrada.url,
+      categoria: entrada.categoria,
+      limite: limite - todos.length - retomados,
+      orcamento: orcamento === undefined ? undefined : Math.max(orcamento - visitas, 1),
+      aoProgredir: aoProgredir
+        ? ({ visitadas, produtos, retomados: retomadosDaVez }) =>
+            aoProgredir({
+              visitadas: visitasAntes + visitadas,
+              produtos: produtosAntes + retomadosAntes + produtos + (retomadosDaVez ?? 0),
+              retomados: retomadosAntes + (retomadosDaVez ?? 0),
+            })
+        : undefined,
+      aoGuardar: (produto) => {
+        // A mesma chave do banco: o produto de duas categorias vira uma linha so.
+        const base = chaveDoProduto(produto) ?? `${produto.code ?? ""}|${produto.url}`;
+        const chave = chaveSemColisao(base, { url: produto.url, nome: produto.name }, donos.get(base));
+        if (entregues.has(chave)) return;
+        entregues.add(chave);
+        if (!donos.has(base)) donos.set(base, { url: produto.url, nome: produto.name });
+        todos.push(enderecos.length > 1 ? { ...produto, origemDaLeitura: rotuloDaUrl } : produto);
+        aoGuardar?.(produto);
+      },
+    });
+
+    primeiro ??= colheita;
+    visitas += colheita.visitas ?? 0;
+    retomados += colheita.retomados ?? 0;
+    for (const formato of colheita.formatos ?? []) formatos.add(formato);
+    for (const item of colheita.passos ?? []) {
+      passos.push({ ...item, nome: enderecos.length > 1 ? `[${rotuloDaUrl}] ${item.nome}` : item.nome });
+    }
+
+    // Produto ja entregue por uma categoria anterior nao entra de novo (ver `aoGuardar` acima): `todos` so tem o novo.
+    const novos = todos.length - produtosAntes;
+
+    if (typeof colheita.produtosNoSite === "number") produtosNoSite += colheita.produtosNoSite;
+    else totalConhecido = false;
+    if (colheita.produtosNoSiteParcial) parcial = true;
+    fonteDaContagem ??= colheita.produtosNoSiteFonte ?? null;
+
+    porUrl.push({
+      url: entrada.url,
+      rotulo: rotuloDaUrl,
+      ok: colheita.ok,
+      motivo: colheita.motivo ?? null,
+      produtos: novos + (colheita.retomados ?? 0),
+      produtosNoSite: typeof colheita.produtosNoSite === "number" ? colheita.produtosNoSite : null,
+    });
+  }
+
+  const achou = todos.length + retomados > 0;
+  const semResposta = porUrl.filter((item) => !item.ok);
+
+  return {
+    ok: achou,
+    retomados,
+    motivo: achou
+      ? null
+      : semResposta.length === 1 || enderecos.length === 1
+        ? (semResposta[0]?.motivo ?? primeiro?.motivo ?? "Não foram encontrados produtos válidos.")
+        : `Nenhum dos ${enderecos.length} endereços rendeu produto: ${semResposta.map((item) => `${item.rotulo} (${item.motivo ?? "sem produto"})`).join("; ")}`,
+    passos,
+    produtos: todos.slice(0, limite),
+    formatos: [...formatos],
+    visitas,
+    dominio: primeira ? (primeiro?.dominio ?? null) : null,
+    prefixoUrl: null,
+    ritmoMs: primeiro?.ritmoMs ?? null,
+    plataforma: primeiro?.plataforma ?? null,
+    catalogo: primeiro?.catalogo ?? null,
+    // So se todas as categorias disseram o tamanho: somar umas e esquecer outras daria um total que ninguem provou.
+    produtosNoSite: totalConhecido && porUrl.length === enderecos.length ? produtosNoSite : null,
+    produtosNoSiteParcial: parcial,
+    produtosNoSiteFonte: totalConhecido ? fonteDaContagem : null,
+    porUrl,
   };
 }

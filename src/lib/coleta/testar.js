@@ -5,6 +5,7 @@ import { colherProdutos } from "./colher";
 import { colherCatalogoJs } from "./catalogo-js";
 import { colherCatalogoShopify } from "./catalogo-shopify";
 import { catalogoJsDoEndereco, catalogoShopifyDoEndereco } from "./fornecedores";
+import { conferirEnderecos, rotuloDoEndereco } from "./enderecos";
 
 /**
  * Teste de uma fonte.
@@ -202,7 +203,123 @@ async function testarCatalogoShopify({ url, nome, tipo, evitar }, catalogo) {
   };
 }
 
-export async function testarFonte({ url, secao, nome, tipo, evitar }) {
+/**
+ * Testa a fonte. `urls` (20/10/2026) e a lista de enderecos que a fonte vai varrer: a loja inteira ou categorias, tres
+ * produtos de CADA UM. Sem `urls`, vale o `url` (+ `secao`) de sempre.
+ */
+export async function testarFonte({ url, secao, nome, tipo, evitar, urls }) {
+  const lista = (urls ?? []).filter((item) => String(item ?? "").trim());
+  if (lista.length > 0) {
+    const conferido = conferirEnderecos(lista);
+    if (!conferido.ok) return falhaDaLista(conferido.erro);
+    const [primeiro] = conferido.enderecos;
+
+    // Loja que so se le por arquivo/catalogo proprio (R&AC, Prado) nao tem listagem de categoria: vale o endereco da loja.
+    if (catalogoJsDoEndereco(primeiro.url) || catalogoShopifyDoEndereco(primeiro.url)) {
+      return testarUma({ url: primeiro.url, nome, tipo, evitar });
+    }
+    if (conferido.enderecos.length === 1) {
+      return testarUma({ url: primeiro.url, secao, nome, tipo, evitar, categoria: !primeiro.lojaInteira });
+    }
+    return testarVarias(conferido.enderecos, { nome, tipo, evitar });
+  }
+  return testarUma({ url, secao, nome, tipo, evitar });
+}
+
+function falhaDaLista(motivo) {
+  return {
+    resultado: "FALHA",
+    motivo,
+    passos: [{ nome: "Endereços válidos", ok: false, detalhe: motivo }],
+    produtos: [],
+    campos: null,
+    formatos: [],
+    plataforma: null,
+    catalogoPublico: null,
+    produtosNoSite: null,
+    produtosNoSiteParcial: false,
+  };
+}
+
+/**
+ * Varios enderecos: cada um e testado sozinho (tres produtos) e o relatorio junta tudo, com cada passo e cada produto
+ * dizendo de qual endereco veio. SUCESSO so se TODOS renderam; um que falha deixa a fonte em PARCIAL, e o motivo diz qual.
+ */
+async function testarVarias(enderecos, { nome, tipo, evitar }) {
+  const itens = [];
+  for (const endereco of enderecos) {
+    const rotulo = rotuloDoEndereco(endereco.url);
+    const resultado = await testarUma({ url: endereco.url, nome, tipo, evitar, categoria: !endereco.lojaInteira });
+    itens.push({ endereco, rotulo, resultado });
+  }
+
+  const vistos = new Set();
+  const produtos = [];
+  for (const { rotulo, resultado } of itens) {
+    for (const produto of resultado.produtos ?? []) {
+      const chave = produto.url ? enderecoComparavel(produto.url) : null;
+      if (chave && vistos.has(chave)) continue;
+      if (chave) vistos.add(chave);
+      produtos.push({ ...produto, origemDaLeitura: rotulo });
+    }
+  }
+
+  const encontrados = new Set();
+  const ausentes = new Set();
+  for (const { resultado } of itens) for (const campo of resultado.campos?.encontrados ?? []) encontrados.add(campo);
+  for (const { resultado } of itens) {
+    for (const campo of resultado.campos?.ausentes ?? []) if (!encontrados.has(campo)) ausentes.add(campo);
+  }
+
+  const semProduto = itens.filter(({ resultado }) => (resultado.produtos ?? []).length === 0);
+  const incompletos = itens.filter(({ resultado }) => (resultado.produtos ?? []).length > 0 && resultado.resultado !== "SUCESSO");
+  const motivoDe = ({ rotulo, resultado }) => `${rotulo}: ${resultado.motivo ?? "sem produto"}`;
+
+  let resultado;
+  let motivo = null;
+  if (produtos.length === 0) {
+    resultado = "FALHA";
+    motivo = `Nenhum dos ${itens.length} endereços rendeu produto. ${semProduto.map(motivoDe).join(" · ")}`;
+  } else if (semProduto.length === 0 && incompletos.length === 0 && ausentes.size === 0) {
+    resultado = "SUCESSO";
+  } else {
+    resultado = "PARCIAL";
+    if (semProduto.length > 0) {
+      motivo = `${semProduto.length} de ${itens.length} endereços não renderam produto. ${semProduto.map(motivoDe).join(" · ")}`;
+    }
+  }
+
+  const tamanhos = itens.map(({ resultado: item }) => item.produtosNoSite);
+  const todosSabem = tamanhos.every((valor) => typeof valor === "number");
+  const comPlataforma = itens.find(({ resultado: item }) => item.plataforma);
+
+  return {
+    resultado,
+    motivo,
+    passos: itens.flatMap(({ rotulo, resultado: item }) => (item.passos ?? []).map((passo) => ({ ...passo, nome: `[${rotulo}] ${passo.nome}` }))),
+    produtos,
+    formatos: [...new Set(itens.flatMap(({ resultado: item }) => item.formatos ?? []))],
+    campos: { encontrados: [...encontrados], ausentes: [...ausentes] },
+    prefixoUrl: null,
+    dominio: itens.find(({ resultado: item }) => item.dominio)?.resultado.dominio ?? null,
+    plataforma: comPlataforma?.resultado.plataforma ?? null,
+    catalogoPublico: itens.find(({ resultado: item }) => item.catalogoPublico)?.resultado.catalogoPublico ?? null,
+    // So se todos disseram o tamanho: somar uns e esquecer outros daria um total que ninguem provou.
+    produtosNoSite: todosSabem ? tamanhos.reduce((soma, valor) => soma + valor, 0) : null,
+    produtosNoSiteParcial: itens.some(({ resultado: item }) => item.produtosNoSiteParcial),
+    produtosNoSiteFonte: todosSabem ? (itens[0].resultado.produtosNoSiteFonte ?? null) : null,
+    porUrl: itens.map(({ endereco, rotulo, resultado: item }) => ({
+      url: endereco.url,
+      rotulo,
+      resultado: item.resultado,
+      produtos: (item.produtos ?? []).length,
+      produtosNoSite: typeof item.produtosNoSite === "number" ? item.produtosNoSite : null,
+      motivo: item.motivo ?? null,
+    })),
+  };
+}
+
+async function testarUma({ url, secao, nome, tipo, evitar, categoria = false }) {
   const catalogoJs = catalogoJsDoEndereco(url);
   if (catalogoJs) return testarCatalogoJs({ url, nome, tipo }, catalogoJs);
   const catalogoShopify = catalogoShopifyDoEndereco(url);
@@ -211,6 +328,7 @@ export async function testarFonte({ url, secao, nome, tipo, evitar }) {
   const colheita = await colherProdutos({
     url,
     secao,
+    categoria,
     nome,
     tipo,
     // Colhe exatamente o minimo. O teste responde "da para ler este site?", e
@@ -252,6 +370,7 @@ export async function testarFonte({ url, secao, nome, tipo, evitar }) {
       catalogoPublico,
       produtosNoSite: colheita.produtosNoSite ?? null,
       produtosNoSiteParcial: colheita.produtosNoSiteParcial ?? false,
+      produtosNoSiteFonte: colheita.produtosNoSiteFonte ?? null,
     };
   }
 
@@ -293,5 +412,6 @@ export async function testarFonte({ url, secao, nome, tipo, evitar }) {
     catalogoPublico,
     produtosNoSite: colheita.produtosNoSite ?? null,
     produtosNoSiteParcial: colheita.produtosNoSiteParcial ?? false,
+    produtosNoSiteFonte: colheita.produtosNoSiteFonte ?? null,
   };
 }

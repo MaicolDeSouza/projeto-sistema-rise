@@ -106,6 +106,11 @@ export function mesmaOrigem(url, origem) {
   }
 }
 
+/** O caminho esta na lista do que nunca e produto (carrinho, login, busca, blog, arquivo de imagem...)? */
+export function ehCaminhoIgnorado(url) {
+  return IGNORAR.some((padrao) => padrao.test(url));
+}
+
 function ehSeguivel(url, origem, prefixo) {
   if (!mesmaOrigem(url, origem)) return false;
   if (parametroRuim(url)) return false;
@@ -169,6 +174,9 @@ const SEM_ACHADO = 300;
  *   uma varredura travada.
  * @param {AbortSignal} [opcoes.sinal] cancela o rastreamento entre paginas e a
  *   requisicao em voo
+ * @param {(url: string, ehProduto: boolean) => boolean} [opcoes.expandir] decide se os LINKS da pagina aberta entram
+ *   na fila. Sem ela, todos entram (navegacao pela loja inteira). A varredura de uma CATEGORIA a usa para nao sair
+ *   dela: so se segue o que parte de uma pagina da propria categoria que nao e produto.
  */
 export async function rastrear({
   semente,
@@ -180,6 +188,7 @@ export async function rastrear({
   paginasConhecidas,
   sinal = null,
   pular = null,
+  expandir = null,
   pararSemAchado = SEM_ACHADO,
   buscar = buscarPagina,
 }) {
@@ -258,7 +267,7 @@ export async function rastrear({
     // Quem parece produto fura a fila; o resto vai para o fim. Sem isso, um
     // site com cinquenta categorias gasta cinquenta visitas antes do primeiro
     // produto.
-    for (const link of linksDe(resposta.corpo, url, origem, prefixo)) {
+    for (const link of expandir && !expandir(url, Boolean(dados.encontrado)) ? [] : linksDe(resposta.corpo, url, origem, prefixo)) {
       if (jaVistas.has(link)) continue;
       jaVistas.add(link);
 

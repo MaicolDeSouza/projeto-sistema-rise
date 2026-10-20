@@ -81,6 +81,7 @@ async function limpar() {
   await prisma.chamadaMcp.deleteMany({ where: { login: { startsWith: "zz-mcp-" } } });
   await prisma.clienteMcp.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
   await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "zz-mcp-" } } });
+  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-MCP-" } } });
   // Usuarios antes das funcoes (o vinculo sai junto com o usuario).
   await prisma.usuarioRise.deleteMany({ where: { login: { startsWith: "zz-mcp-" } } });
   await prisma.funcaoRise.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
@@ -703,6 +704,100 @@ try {
         origemPelosCabecalhos(cabecalhos({ host: "localhost:3000", "x-forwarded-proto": "http" }), {}),
       ],
       ["https://rise.4hobby.com.br", "https://localhost:3000", "http://localhost:3000"],
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Tarefa 8 — O servidor MCP: as ferramentas de leitura com o pode() do login, o registro de cada chamada e anotarDuvida
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nServidor MCP");
+    const { responderMcp, INSTRUCOES } = await import("../src/lib/mcp/servidor.js");
+    const { argumentosParaRegistro } = await import("../src/lib/mcp/registro.js");
+    await prisma.produto.create({ data: { ativo: true, conferido: true, sku: "ZZ-MCP-1", tituloBase: "PLACA ZZMCP TESTE", precoVenda: 20, custo: 10, estoque: 7 } });
+
+    const login = "zz-mcp-andrea";
+    const restritos = ["dado.custo", "dado.margem", "dado.concorrentes", "dado.financeiro"];
+    const autenticacao = (pode, quem = login) => ({ login: quem, clienteId: "zz-mcp-cliente", clienteNome: "Claude", escopos: ["consultar"], familia: "zz-mcp-familia", expiraEm: new Date(Date.now() + 3600e3), administrador: false, pode });
+    const andrea = autenticacao((id) => !restritos.includes(id));
+    let id = 100;
+    const chamar = async (nome, argumentos, quem = andrea) =>
+      (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/call", { name: nome, arguments: argumentos }, { id: id++ }), quem)))?.result ?? null;
+    const textoDe = (resultado) => resultado?.content?.[0]?.text ?? "";
+    const chamadas = () => prisma.chamadaMcp.findMany({ where: { login }, orderBy: { quando: "asc" } });
+
+    const descoberta = (await lerRespostaMcp(await responderMcp(pedidoMcp("server/discover", {}, { id: id++ }), andrea)))?.result;
+    const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), andrea)))?.result?.tools ?? [];
+    conferir(
+      "as 7 ferramentas de leitura e a anotarDuvida, nas instrucoes a ordem de anotar",
+      [
+        lista.map((ferramenta) => ferramenta.name).sort(),
+        lista.filter((ferramenta) => ferramenta.annotations?.readOnlyHint).length,
+        descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
+      ],
+      [["anotarDuvida", "buscarConhecimento", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto"], 7, true],
+    );
+
+    const ficha = await chamar("consultarProduto", { sku: "ZZ-MCP-1" });
+    conferir(
+      "consultarProduto pelo login sem custo: preco sim, custo restrito",
+      [ficha?.isError ?? false, textoDe(ficha).includes('"preco":20'), textoDe(ficha).includes('"custo":"[restrito]"'), textoDe(ficha).includes('"custo":10')],
+      [false, true, true, false],
+    );
+    const fichaDoDono = await chamar("consultarProduto", { sku: "ZZ-MCP-1" }, autenticacao(() => true, "zz-mcp-dono"));
+    conferir("o mesmo produto para quem ve custo traz o custo", textoDe(fichaDoDono).includes('"custo":10'), true);
+
+    await chamar("buscarProdutos", { termos: "zzmcp ligar 54988990008" });
+    const inexistente = await chamar("consultarProduto", { sku: "ZZ-MCP-NAO-EXISTE" });
+    conferir("produto que nao existe: isError com a mensagem da ferramenta", [inexistente?.isError, textoDe(inexistente).includes("ZZ-MCP-NAO-EXISTE")], [true, true]);
+    const internet = await lerRespostaMcp(await responderMcp(pedidoMcp("tools/call", { name: "pesquisarNaInternet", arguments: { consulta: "arduino" } }, { id: id++ }), andrea));
+    conferir("pesquisarNaInternet nao existe pelo MCP", Boolean(internet?.error || internet?.result?.isError), true);
+
+    const registradas = await chamadas();
+    conferir(
+      "cada chamada registrada (quem, cliente, ferramenta, ok, tempo), com o telefone mascarado e sem a que nao existe",
+      [
+        registradas.map((chamada) => [chamada.ferramenta, chamada.ok, chamada.clienteNome]),
+        JSON.stringify(registradas.map((chamada) => chamada.argumentos)).includes("54988990008"),
+        registradas.every((chamada) => Number.isInteger(chamada.duracaoMs)),
+      ],
+      [[["consultarProduto", true, "Claude"], ["buscarProdutos", true, "Claude"], ["consultarProduto", false, "Claude"]], false, true],
+    );
+    conferir("argumentos longos sao cortados para o registro", argumentosParaRegistro({ texto: "x".repeat(5000) }).cortado, true);
+
+    const anotada = await chamar("anotarDuvida", {
+      pergunta: "Tem o ZZ-MCP-1? Fale com ana@exemplo.com",
+      resposta: "Temos 7 unidades por R$ 20,00.",
+      anexos: [{ nome: "lista.pdf", tipo: "application/pdf", texto: "Item 1: ZZ-MCP-1 (54988990008)" }],
+    });
+    const conversas = await prisma.conversaIA.findMany({ where: { usuario: login, canal: "MCP" }, include: { mensagens: { orderBy: [{ criadoEm: "asc" }, { id: "asc" }] } } });
+    const [pergunta, resposta] = conversas[0]?.mensagens ?? [];
+    conferir(
+      "anotarDuvida grava a conversa do dia do canal MCP com a pergunta mascarada e o anexo como texto",
+      [anotada?.isError ?? false, conversas.length, conversas[0]?.titulo.startsWith("Dúvidas pelo Claude · "), pergunta?.papel, pergunta?.conteudo.includes("ana@exemplo.com"), pergunta?.estruturado?.anexos?.[0]?.nome, JSON.stringify(pergunta?.estruturado).includes("54988990008")],
+      [false, 1, true, "USUARIO", false, "lista.pdf", false],
+    );
+    conferir(
+      "a resposta fica como do assistente 'mcp/Claude', custo zero (nao nulo) e com as ferramentas usadas antes",
+      [resposta?.papel, resposta?.provedor, resposta?.modelo, Number(resposta?.custoBrl), resposta?.custoBrl === null, resposta?.estruturado?.ferramentas?.map((ferramenta) => ferramenta.nome)],
+      ["ASSISTENTE", "mcp", "Claude", 0, false, ["consultarProduto", "buscarProdutos", "consultarProduto"]],
+    );
+
+    await chamar("consultarPreco", { skus: ["ZZ-MCP-1"] });
+    await chamar("anotarDuvida", { pergunta: "E o preço?", resposta: "R$ 20,00." });
+    const depois = await prisma.conversaIA.findMany({ where: { usuario: login, canal: "MCP" }, include: { mensagens: { orderBy: [{ criadoEm: "asc" }, { id: "asc" }] } } });
+    conferir(
+      "a segunda duvida do dia entra na mesma conversa, so com as ferramentas desde a anotacao anterior",
+      [depois.length, depois[0]?.mensagens.length, depois[0]?.mensagens[3]?.estruturado?.ferramentas?.map((ferramenta) => ferramenta.nome)],
+      [1, 4, ["consultarPreco"]],
+    );
+
+    const muitos = await chamar("anotarDuvida", { pergunta: "x", resposta: "y", anexos: Array.from({ length: 6 }, (_, n) => ({ nome: `a${n}.txt`, texto: "t" })) });
+    const grande = await chamar("anotarDuvida", { pergunta: "x", resposta: "y", anexos: [{ nome: "a.txt", texto: "t".repeat(20001) }] });
+    conferir(
+      "mais de 5 anexos ou anexo acima de 20.000 caracteres: isError e nada gravado",
+      [muitos?.isError, grande?.isError, await prisma.mensagemIA.count({ where: { conversaId: depois[0]?.id } })],
+      [true, true, 4],
     );
   }
 
