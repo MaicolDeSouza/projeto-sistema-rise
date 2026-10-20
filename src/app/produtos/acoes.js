@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { negarSemAcesso, podeAgora } from "@/lib/acessos/servidor";
 
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
@@ -58,8 +59,42 @@ import {
  * importacao so le o Bling, e a IA (titulo e descricao) so recebe dados do banco.
  */
 
+/*
+  ACESSO (pedido do dono em 20/10/2026): toda acao exportada confere o acesso na PRIMEIRA linha, no servidor. Esconder o
+  botao na tela nao protege nada: a acao e chamavel do console. `negarSemAcesso` devolve a recusa no formato `{ ok: false,
+  erro }` que estas acoes ja usam, e as que devolvem lista usam `podeAgora`. As regras vem de `acessosDoCadastro`
+  (src/lib/acessos/produto.js): as ferramentas de referencia exigem Editar, Custo e Concorrentes; as de IA, Editar e a
+  acao de gerar texto. O teste:acessos confere que nenhuma acao exportada daqui fica sem a conferencia.
+*/
+
+/** A peca do kit leva o custo e o fornecedor dela; quem nao ve Custo recebe a peca sem os dois. */
+async function semCustoDasPecas(pecas) {
+  if (await podeAgora("dado.custo", "ver")) return pecas;
+  return pecas.map((peca) => ({ ...peca, custo: null, fornecedor: null }));
+}
+
+/** As ferramentas que vem de fornecedores e concorrentes (lupa, listas de escolha, "$"): Editar, Custo e Concorrentes. */
+async function negarSemReferencias() {
+  return (
+    (await negarSemAcesso("tela.produtos.cadastro", "editar")) ??
+    (await negarSemAcesso("dado.custo", "ver")) ??
+    (await negarSemAcesso("dado.concorrentes", "ver"))
+  );
+}
+
+/** Criar descricao e titulo com IA (chamada paga): Editar e a acao de gerar texto; com referencias, tambem as delas. */
+async function negarSemIA(comReferencias = false) {
+  return (
+    (await negarSemAcesso("tela.produtos.cadastro", "editar")) ??
+    (await negarSemAcesso("acao.produtos.gerarTextoComIA", "executar")) ??
+    (comReferencias ? await negarSemReferencias() : null)
+  );
+}
+
 /** Marca, modelo e homologacao das referencias marcadas, para escolher. */
 export async function camposDasReferencias(ids) {
+  const negado = await negarSemReferencias();
+  if (negado) return negado;
   try {
     return { ok: true, ...(await lerCamposDasReferencias(ids)) };
   } catch (erro) {
@@ -82,6 +117,8 @@ const ULTIMO_SKU_AUTOMATICO = 259999;
  * codigo repetido.
  */
 export async function gerarSku() {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
   try {
     const [usados, anuncios] = await Promise.all([
       prisma.produto.findMany({ where: { sku: { startsWith: "25" } }, select: { sku: true } }),
@@ -104,6 +141,8 @@ export async function gerarSku() {
 
 /** Produtos da Rise, de fornecedores e de concorrentes com este codigo. */
 export async function buscarPorCodigo(codigo) {
+  const negado = await negarSemReferencias();
+  if (negado) return negado;
   try {
     return { ok: true, resultados: await buscarProdutoPorCodigo(codigo) };
   } catch (erro) {
@@ -113,6 +152,8 @@ export async function buscarPorCodigo(codigo) {
 
 /** Fornecedores e concorrentes com todas as palavras, para marcar como referencia. */
 export async function buscarPorPalavras(termo, vinculos = {}) {
+  const negado = await negarSemReferencias();
+  if (negado) return negado;
   try {
     return { ok: true, ...(await buscarReferencias(termo, vinculos)) };
   } catch (erro) {
@@ -122,6 +163,8 @@ export async function buscarPorPalavras(termo, vinculos = {}) {
 
 /** Opcoes de titulo no padrao da loja, escritas pela IA a partir das referencias. */
 export async function criarTitulosIA(ids, palavras) {
+  const negado = await negarSemIA((ids ?? []).length > 0);
+  if (negado) return negado;
   // O gasto volta tambem no erro: a chamada que falhou no meio ja foi cobrada.
   const gasto = novoGasto();
   try {
@@ -133,6 +176,8 @@ export async function criarTitulosIA(ids, palavras) {
 
 /** O texto e a ficha de cada referencia marcada, para a janela "Criar descricao". */
 export async function detalhesDasReferencias(ids) {
+  const negado = await negarSemReferencias();
+  if (negado) return negado;
   try {
     return { ok: true, itens: await lerDetalhesDasReferencias(ids) };
   } catch (erro) {
@@ -142,6 +187,10 @@ export async function detalhesDasReferencias(ids) {
 
 /** Busca leve para vincular um item coletado pela coluna Codigo. */
 export async function buscarItemColetadoPorCodigo(codigoBruto, tipo) {
+  const negado =
+    (await negarSemAcesso("tela.produtos.cadastro", "editar")) ??
+    (await negarSemAcesso(tipo === "FORNECEDOR" ? "dado.custo" : "dado.concorrentes", "ver"));
+  if (negado) return negado;
   const codigo = String(codigoBruto ?? "").trim().slice(0, 100);
   if (!codigo) return { ok: false, erro: "Informe o código antes de buscar." };
   const tipos = tipo === "FORNECEDOR" ? ["FORNECEDOR"] : ["CONCORRENTE", "OUTRO"];
@@ -173,6 +222,8 @@ export async function buscarItemColetadoPorCodigo(codigoBruto, tipo) {
 
 /** Documentos publicados pelas referencias escolhidas na lupa. */
 export async function documentosDasReferencias(ids, produtoId = null) {
+  const negado = await negarSemReferencias();
+  if (negado) return negado;
   try {
     const referencias = new Set();
     if (produtoId) {
@@ -220,6 +271,8 @@ export async function documentosDasReferencias(ids, produtoId = null) {
  * pediu para valer em todo produto). Sem referencia, a lista vem vazia e a janela diz o que fazer.
  */
 export async function buscarDescricoesParaProduto(idsReferencias = []) {
+  const negado = await negarSemIA((idsReferencias ?? []).length > 0);
+  if (negado) return negado;
   try {
     const ids = [...new Set((Array.isArray(idsReferencias) ? idsReferencias : []).filter((id) => typeof id === "string" && id))]
       .slice(0, MAXIMO_REFERENCIAS);
@@ -242,6 +295,8 @@ export async function buscarDescricoesParaProduto(idsReferencias = []) {
  * `modelo` e o id escolhido na janela (Opus 5.5 ou GPT 6.1 Sol): conferido aqui contra a lista, nunca aceito como veio.
  */
 export async function criarDescricaoIA(ids, produto, instrucoes, modelo) {
+  const negado = await negarSemIA((ids ?? []).length > 0);
+  if (negado) return negado;
   const gasto = novoGasto();
   try {
     const modeloIA = modeloDaDescricao(modelo);
@@ -281,25 +336,35 @@ async function comALista(acao) {
 
 /** A lista de prompts e o teto de caracteres, para a janela abrir com o padrao escolhido. */
 export async function promptsDaDescricao() {
+  const negado = await negarSemIA();
+  if (negado) return negado;
   return comALista(async () => ({ ok: true, maximo: MAXIMO_PROMPT_DESCRICAO }));
 }
 
 /** "Salvar como novo". */
 export async function criarPromptDaDescricao(nome, texto) {
+  const negado = await negarSemIA();
+  if (negado) return negado;
   return comALista(() => bibliotecaDePrompts.criarPromptDaDescricao(nome, texto));
 }
 
 /** "Salvar": nome e texto do prompt escolhido. */
 export async function salvarPromptDaDescricao(id, nome, texto) {
+  const negado = await negarSemIA();
+  if (negado) return negado;
   return comALista(() => bibliotecaDePrompts.salvarPromptDaDescricao(id, nome, texto));
 }
 
 export async function excluirPromptDaDescricao(id) {
+  const negado = await negarSemIA();
+  if (negado) return negado;
   return comALista(() => bibliotecaDePrompts.excluirPromptDaDescricao(id));
 }
 
 /** "Usar como padrão": o que ja vem escolhido ao abrir a janela. */
 export async function definirPromptPadraoDaDescricao(id) {
+  const negado = await negarSemIA();
+  if (negado) return negado;
   return comALista(() => bibliotecaDePrompts.definirPromptPadraoDaDescricao(id));
 }
 
@@ -308,6 +373,8 @@ export async function definirPromptPadraoDaDescricao(id) {
  * o botao trazia o catalogo inteiro). O codigo vem do navegador: so texto, e a lib confere o resto.
  */
 export async function importarDoBlingPorCodigo(codigo) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
   if (typeof codigo !== "string") return { ok: false, erro: "Informe o código do produto no Bling." };
   try {
     const resultado = await importarPorCodigoDoBling(codigo);
@@ -541,6 +608,8 @@ async function gravarImagensDoPainel(produto, formData) {
 
 /** Envio de documento ou certificado num produto que ainda nao foi salvo. */
 export async function enviarArquivoTemporario(lote, tipo, formData) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
   try {
     const resultado = await salvarArquivoTemporario(lote, tipo, formData.get("arquivo"));
     if (!resultado.ok) return resultado;
@@ -559,6 +628,8 @@ export async function enviarArquivoTemporario(lote, tipo, formData) {
  * podem ser removidos, e o Salvar os move para o clone. Do navegador vem so o id; os arquivos saem do banco.
  */
 export async function copiarDocumentosParaClone(lote, produtoId) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
   try {
     const produto = await prisma.produto.findUnique({
       where: { id: String(produtoId ?? "") },
@@ -587,6 +658,8 @@ export async function copiarDocumentosParaClone(lote, produtoId) {
 }
 
 export async function removerArquivoTemporario(lote, tipo, nome) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
   try {
     await apagarArquivoTemporario(lote, tipo, nome);
     return { ok: true };
@@ -596,6 +669,14 @@ export async function removerArquivoTemporario(lote, tipo, nome) {
 }
 
 export async function salvarProduto(id, _estadoAnterior, formData) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
+  // O que a pessoa nao pode ver nao vale no Salvar (pedido do dono em 20/10/2026): a tela nao desenha a secao e nao manda
+  // a lista, e se mandasse ela seria ignorada. O Salvar RECONCILIA a lista inteira (remove quem saiu), entao uma lista
+  // ausente quer dizer "nao mexer", nunca "esvaziar": sem isto, salvar apagaria fornecedores e concorrentes que a pessoa
+  // nem via. Ver `gravarFornecedoresRascunho` e `gravarConcorrentesRascunho`.
+  if (!(await podeAgora("dado.custo", "ver"))) formData.delete("fornecedoresRascunho");
+  if (!(await podeAgora("dado.concorrentes", "ver"))) formData.delete("concorrentesRascunho");
   const bruto = Object.fromEntries(formData.entries());
   const resultado = ProdutoSchema.safeParse({
     ...bruto,
@@ -866,6 +947,8 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
 }
 
 export async function enviarArquivo(produtoId, tipo, _estadoAnterior, formData) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
   const produto = await prisma.produto.findUnique({
     where: { id: produtoId },
     select: { sku: true },
@@ -932,6 +1015,8 @@ export async function enviarArquivo(produtoId, tipo, _estadoAnterior, formData) 
 }
 
 export async function removerArquivo(arquivoId) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
   const registro = await prisma.produtoArquivo.findUnique({
     where: { id: arquivoId },
     include: { produto: { select: { sku: true } } },
@@ -977,6 +1062,8 @@ export async function removerArquivo(arquivoId) {
  * banco na proxima visita sem precisar de revalidacao.
  */
 export async function definirImagemPrincipal(arquivoId) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
   const escolhida = await prisma.produtoArquivo.findUnique({
     where: { id: arquivoId },
     select: { id: true, produtoId: true, tipo: true, papel: true },
@@ -1004,6 +1091,8 @@ export async function definirImagemPrincipal(arquivoId) {
 }
 
 export async function excluirProduto(id) {
+  const negado = await negarSemAcesso("tela.produtos", "excluir");
+  if (negado) return negado;
   const produto = await prisma.produto.findUnique({
     where: { id },
     include: { anuncios: true },
@@ -1070,6 +1159,8 @@ export async function excluirProdutos(ids) {
  * agora grava de verdade, para a contagem "(N verificados)" da lista ser real.
  */
 export async function alternarConferido(id, valor) {
+  const negado = await negarSemAcesso("acao.produtos.marcarConferido", "executar");
+  if (negado) return negado;
   try {
     await prisma.produto.update({ where: { id }, data: { conferido: Boolean(valor) } });
     revalidatePath("/produtos");
@@ -1125,6 +1216,8 @@ async function recalcularCusto(produtoId) {
  * uuid do navegador (linha nova). Funciona igual nos dois casos.
  */
 async function gravarFornecedoresRascunho(produto, formData) {
+  // Campo ausente: a pessoa nao tem o dado (ou a tela nao o mandou). Nao e lista vazia: nao mexe em nada.
+  if (formData.get("fornecedoresRascunho") === null) return;
   let lista = [];
   try {
     lista = JSON.parse(String(formData.get("fornecedoresRascunho") ?? "[]"));
@@ -1174,6 +1267,8 @@ async function gravarFornecedoresRascunho(produto, formData) {
 }
 
 export async function listarFornecedores() {
+  // Esta lista devolve um array (as paginas do servidor a usam): sem o dado, vazia.
+  if (!(await podeAgora("dado.custo", "ver"))) return [];
   return prisma.fornecedor.findMany({
     orderBy: { nome: "asc" },
     select: { id: true, nome: true },
@@ -1189,6 +1284,8 @@ export async function listarFornecedores() {
  * para o operador notar quando o valor coletado mudou desde a negociacao.
  */
 export async function consultarEstoqueFornecedores(vinculos) {
+  const negado = await negarSemAcesso("dado.custo", "ver");
+  if (negado) return negado;
   const lista = (Array.isArray(vinculos) ? vinculos : []).slice(0, 100)
     .filter((item) => typeof item?.id === "string" && typeof item?.nome === "string");
   const criterios = lista.flatMap((item) => {
@@ -1242,6 +1339,8 @@ export async function consultarEstoqueFornecedores(vinculos) {
 }
 
 export async function listarConcorrentesCadastrados() {
+  // Esta lista devolve um array (as paginas do servidor a usam): sem o dado, vazia.
+  if (!(await podeAgora("dado.concorrentes", "ver"))) return [];
   return prisma.concorrente.findMany({
     orderBy: { nome: "asc" },
     select: { id: true, nome: true },
@@ -1249,6 +1348,8 @@ export async function listarConcorrentesCadastrados() {
 }
 
 export async function consultarSituacaoConcorrentes(ids) {
+  const negado = await negarSemAcesso("dado.concorrentes", "ver");
+  if (negado) return negado;
   const lista = [...new Set((Array.isArray(ids) ? ids : []).filter((id) => typeof id === "string"))].slice(0, 100);
   if (!lista.length) return { ok: true, itens: {} };
   try {
@@ -1267,6 +1368,8 @@ export async function consultarSituacaoConcorrentes(ids) {
 }
 
 export async function salvarFornecedorDoProduto(produtoId, vinculoId, dados) {
+  const negado = (await negarSemAcesso("tela.produtos.cadastro", "editar")) ?? (await negarSemAcesso("dado.custo", "ver"));
+  if (negado) return negado;
   const resultado = FornecedorSchema.safeParse(dados);
   if (!resultado.success) {
     return { ok: false, erros: errosPorCampo(resultado) };
@@ -1315,6 +1418,8 @@ export async function salvarFornecedorDoProduto(produtoId, vinculoId, dados) {
 }
 
 export async function definirFornecedorPadrao(vinculoId) {
+  const negado = (await negarSemAcesso("tela.produtos.cadastro", "editar")) ?? (await negarSemAcesso("dado.custo", "ver"));
+  if (negado) return negado;
   const alvo = await prisma.produtoFornecedor.findUnique({
     where: { id: vinculoId },
     select: { produtoId: true },
@@ -1338,6 +1443,8 @@ export async function definirFornecedorPadrao(vinculoId) {
 }
 
 export async function removerFornecedorDoProduto(vinculoId) {
+  const negado = (await negarSemAcesso("tela.produtos.cadastro", "editar")) ?? (await negarSemAcesso("dado.custo", "ver"));
+  if (negado) return negado;
   const alvo = await prisma.produtoFornecedor.findUnique({
     where: { id: vinculoId },
     select: { produtoId: true, padrao: true },
@@ -1395,6 +1502,8 @@ const ConcorrenteSchema = z
   });
 
 export async function salvarConcorrenteDoProduto(produtoId, vinculoId, dados) {
+  const negado = (await negarSemAcesso("tela.produtos.cadastro", "editar")) ?? (await negarSemAcesso("dado.concorrentes", "ver"));
+  if (negado) return negado;
   const resultado = ConcorrenteSchema.safeParse(dados);
   if (!resultado.success) {
     return { ok: false, erros: errosPorCampo(resultado) };
@@ -1444,6 +1553,8 @@ export async function salvarConcorrenteDoProduto(produtoId, vinculoId, dados) {
 }
 
 export async function removerConcorrenteDoProduto(vinculoId) {
+  const negado = (await negarSemAcesso("tela.produtos.cadastro", "editar")) ?? (await negarSemAcesso("dado.concorrentes", "ver"));
+  if (negado) return negado;
   const alvo = await prisma.produtoConcorrente.findUnique({
     where: { id: vinculoId },
     select: { produtoId: true },
@@ -1472,6 +1583,8 @@ export async function removerConcorrenteDoProduto(vinculoId) {
  * nova ganha um uuid do navegador, que nunca bate com um id do banco).
  */
 async function gravarConcorrentesRascunho(produto, formData) {
+  // Campo ausente: a pessoa nao tem o dado (ou a tela nao o mandou). Nao e lista vazia: nao mexe em nada.
+  if (formData.get("concorrentesRascunho") === null) return;
   let lista = [];
   try {
     lista = JSON.parse(String(formData.get("concorrentesRascunho") ?? "[]"));
@@ -1532,9 +1645,11 @@ async function gravarConcorrentesRascunho(produto, formData) {
  * quem decide o que pode ser peca e `pecasParaKit` (simples, Conferido e vinculado ao Bling).
  */
 export async function buscarPecasParaKit(termo, excluir = []) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
   try {
     const { itens, barrados } = await pecasParaKit(termo, excluir);
-    return { ok: true, itens, barrados };
+    return { ok: true, itens: await semCustoDasPecas(itens), barrados };
   } catch (erro) {
     console.error("[composicao] busca de pecas", erro);
     return { ok: false, erro: "Não foi possível buscar os produtos. Tente de novo." };
@@ -1546,8 +1661,11 @@ export async function buscarPecasParaKit(termo, excluir = []) {
  * decide se ele pode ser peca e `pecaDeOrigemParaKit` (simples, Conferido e vinculado ao Bling).
  */
 export async function pecaDeOrigemDoKit(id) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
   try {
-    return await pecaDeOrigemParaKit(String(id ?? ""));
+    const resultado = await pecaDeOrigemParaKit(String(id ?? ""));
+    return resultado.ok ? { ...resultado, peca: (await semCustoDasPecas([resultado.peca]))[0] } : resultado;
   } catch (erro) {
     console.error("[composicao] peca de origem", erro);
     return { ok: false, sku: null, faltas: ["não foi possível ler o produto de origem"] };
@@ -1556,6 +1674,8 @@ export async function pecaDeOrigemDoKit(id) {
 
 /** Documentos e certificados das pecas, para a aba Documentos tecnicos do kit (so leitura). */
 export async function documentosDasPecasDoKit(ids) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "ver");
+  if (negado) return negado;
   try {
     return { ok: true, pecas: await documentosDasPecas(Array.isArray(ids) ? ids : []) };
   } catch (erro) {
@@ -1566,6 +1686,8 @@ export async function documentosDasPecasDoKit(ids) {
 
 /** A descricao do cadastro de cada peca, para a janela "Criar descricao" do kit. */
 export async function descricoesDasPecasDoKit(ids) {
+  const negado = await negarSemIA();
+  if (negado) return negado;
   try {
     return { ok: true, pecas: await descricoesDasPecas(Array.isArray(ids) ? ids : []) };
   } catch (erro) {
@@ -1581,6 +1703,8 @@ export async function descricoesDasPecasDoKit(ids) {
  * fornecedor e concorrente o dono baixa e confere antes.
  */
 export async function anexarDocumentoDaPeca(lote, arquivoId) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
   try {
     const registro = await prisma.produtoArquivo.findUnique({
       where: { id: String(arquivoId ?? "") },

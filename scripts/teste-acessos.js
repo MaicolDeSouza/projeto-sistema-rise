@@ -548,6 +548,54 @@ try {
     conferir("para enviar: so o que esta acima de nenhum", permissoesParaEnvio({ "tela.produtos": "ver", "dado.custo": "nenhum" }), { "tela.produtos": "ver" });
   }
 
+  // --- Produtos: o que a pessoa pode fazer no cadastro (pedido do dono em 20/10/2026) ---
+  {
+    const { acessosDoCadastro } = await import("../src/lib/acessos/produto.js");
+    const com = (...ids) => (id, nivel) => ids.includes(`${id}:${nivel}`) || (nivel === "ver" && ids.includes(`${id}:editar`));
+    const TUDO = ["tela.produtos.cadastro:editar", "dado.custo:ver", "dado.concorrentes:ver", "dado.margem:ver", "acao.produtos.gerarTextoComIA:executar"];
+    conferir("quem edita com todos os dados: tudo liberado e margem sempre visivel", acessosDoCadastro(com(...TUDO)), {
+      editar: true, custo: true, concorrentes: true, referencias: true, ia: true, margem: "sempre",
+    });
+    conferir(
+      "so ver: formulario somente leitura, sem ferramentas, margem atras do olho",
+      acessosDoCadastro(com("tela.produtos.cadastro:ver", "dado.custo:ver", "dado.concorrentes:ver", "dado.margem:ver")),
+      { editar: false, custo: true, concorrentes: true, referencias: false, ia: false, margem: "olho" },
+    );
+    conferir(
+      "a margem exige Margem E Custo: sem um deles nao ha nem o olho",
+      [
+        acessosDoCadastro(com("tela.produtos.cadastro:ver", "dado.margem:ver")).margem,
+        acessosDoCadastro(com("tela.produtos.cadastro:editar", "dado.custo:ver")).margem,
+        acessosDoCadastro(com("tela.produtos.cadastro:editar", "dado.margem:ver", "dado.custo:ver")).margem,
+      ],
+      ["nenhuma", "nenhuma", "sempre"],
+    );
+    conferir(
+      "as ferramentas de referencia exigem Editar, Custo E Concorrentes; a IA exige Editar E a acao",
+      [
+        acessosDoCadastro(com("tela.produtos.cadastro:editar", "dado.custo:ver")).referencias,
+        acessosDoCadastro(com("tela.produtos.cadastro:editar", "dado.concorrentes:ver")).referencias,
+        acessosDoCadastro(com("tela.produtos.cadastro:editar", "acao.produtos.gerarTextoComIA:executar")).ia,
+        acessosDoCadastro(com("tela.produtos.cadastro:ver", "acao.produtos.gerarTextoComIA:executar")).ia,
+      ],
+      [false, false, true, false],
+    );
+    const { projetarParaAcessos } = await import("../src/lib/produtoParaFormulario.js");
+    const dados = {
+      produto: { fornecedorRascunho: { nome: "X" }, composicao: [{ sku: "A", custo: 5, fornecedor: "F", quantidade: 1 }] },
+      fornecedores: [{ nome: "F" }],
+      concorrentes: [{ nome: "C" }],
+    };
+    const semNada = projetarParaAcessos(dados, { custo: false, concorrentes: false });
+    conferir(
+      "sem Custo e sem Concorrentes: nada disso sai do servidor para a tela",
+      [semNada.fornecedores, semNada.concorrentes, semNada.produto.fornecedorRascunho, semNada.produto.composicao[0].custo, semNada.produto.composicao[0].fornecedor],
+      [[], [], null, null, null],
+    );
+    conferir("com os dois dados os dados seguem como estao", projetarParaAcessos(dados, { custo: true, concorrentes: true }), dados);
+    conferir("o objeto recebido nao e alterado", [dados.fornecedores.length, dados.produto.composicao[0].custo], [1, 5]);
+  }
+
   // --- guarda estatico do lancamento 1: toda pagina, layout, rota e arquivo de acoes de src/app confere o acesso ---
   {
     const { readFileSync, readdirSync, statSync } = await import("node:fs");
@@ -562,7 +610,20 @@ try {
       });
     const ehAlvo = (caminho) => ["/page.jsx", "/layout.jsx", "/route.js"].some((fim) => caminho.endsWith(fim)) || ler(caminho).startsWith('"use server"');
     const alvos = arquivosDe("src/app").filter((caminho) => caminho.endsWith(".js") || caminho.endsWith(".jsx")).filter(ehAlvo);
-    const confere = (fonte) => fonte.includes("exigirAcessoNaPagina(") || fonte.includes("executarComAcesso(") || (fonte.includes("sessaoDeAcessos(") && fonte.includes("recusarRota("));
+    // Arquivo de acoes guardado FUNCAO A FUNCAO (negarSemAcesso e afins): cada export confere nas primeiras linhas. As
+    // que delegam a outra funcao ja guardada ficam na lista (excluirProdutos chama excluirProduto, que confere).
+    const DELEGAM = ["excluirProdutos"];
+    const cadaExportConfere = (fonte) => {
+      const pedacos = fonte.split(/^export async function /m).slice(1);
+      return (
+        pedacos.length > 0 &&
+        pedacos.every((pedaco) => {
+          const nome = pedaco.slice(0, pedaco.indexOf("("));
+          return DELEGAM.includes(nome) || /negarSem|podeAgora/.test(pedaco.split(/\r?\n/).slice(0, 7).join(" "));
+        })
+      );
+    };
+    const confere = (fonte) => (fonte.includes("negarSemAcesso(") && cadaExportConfere(fonte)) || fonte.includes("exigirAcessoNaPagina(") || fonte.includes("executarComAcesso(") || (fonte.includes("sessaoDeAcessos(") && fonte.includes("recusarRota("));
     // Sem recurso de proposito: o layout raiz MONTA a sessao (o menu e o rodape), e o Sair e de quem esta logado.
     const SEM_RECURSO = ["src/app/layout.jsx","src/app/api/sair/route.js"];
     // O resto do Rise, que entra no lancamento 2 (spec §8). A lista SO ENCOLHE: esvaziar no lancamento 2.
@@ -612,14 +673,11 @@ try {
       "src/app/page.jsx",
       "src/app/pedidos/page.jsx",
       "src/app/produtos/[id]/canais/[canal]/page.jsx",
-      "src/app/produtos/[id]/page.jsx",
       "src/app/produtos/acoes-bling.js",
       "src/app/produtos/acoes-edicao-rapida.js",
       "src/app/produtos/acoes-imagens.js",
       "src/app/produtos/acoes-li.js",
       "src/app/produtos/acoes-nanobanana.js",
-      "src/app/produtos/acoes.js",
-      "src/app/produtos/novo/page.jsx",
       "src/app/produtos/page.jsx",
       "src/app/relatorios/page.jsx",
     ];

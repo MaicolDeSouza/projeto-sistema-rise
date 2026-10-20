@@ -4,7 +4,9 @@ import { Copy } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import FormularioProduto from "@/components/produtos/FormularioProduto";
 import { listarFornecedores } from "@/app/produtos/acoes";
-import { carregarProdutoParaFormulario, dadosParaClone } from "@/lib/produtoParaFormulario";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { acessosDoCadastro } from "@/lib/acessos/produto";
+import { carregarProdutoParaFormulario, dadosParaClone, projetarParaAcessos } from "@/lib/produtoParaFormulario";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,12 @@ export const dynamic = "force-dynamic";
 // novo, ja preenchido com o produto de origem (ver `dadosParaClone`). Id que nao existe abre o cadastro vazio.
 export default async function NovoProdutoPage({ searchParams }) {
   const { clonar } = (await searchParams) ?? {};
-  const original = typeof clonar === "string" && clonar ? await carregarProdutoParaFormulario(clonar) : null;
+  // Cadastrar um produto novo e editar: sem Produtos › cadastro em Editar a pagina nao existe para a pessoa (404). O
+  // clone leva so o que ela pode ver (custo e concorrentes saem no servidor).
+  const sessao = await exigirAcessoNaPagina("tela.produtos.cadastro", "editar");
+  const acessos = acessosDoCadastro(sessao.pode);
+  const original =
+    typeof clonar === "string" && clonar ? projetarParaAcessos(await carregarProdutoParaFormulario(clonar), acessos) : null;
   const clone = original ? dadosParaClone(original) : null;
   const catalogoFornecedores = clone ? await listarFornecedores() : [];
 
@@ -42,6 +49,7 @@ export default async function NovoProdutoPage({ searchParams }) {
         produto={null}
         clone={clone}
         catalogoFornecedores={catalogoFornecedores}
+        acessos={acessos}
       />
     </>
   );

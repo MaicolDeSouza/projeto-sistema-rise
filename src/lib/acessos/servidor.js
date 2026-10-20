@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { ErroDeAcesso } from "./erros.js";
 import { executarComSessao } from "./involucro.js";
+import { recursoPorId } from "./recursos.js";
 import { loginDaRequisicao, montarSessao, precisaGravarAcesso, quebraVidro } from "./sessao.js";
 
 /**
@@ -17,7 +18,15 @@ import { loginDaRequisicao, montarSessao, precisaGravarAcesso, quebraVidro } fro
  */
 export const sessaoDeAcessos = cache(async () => {
   const env = process.env;
-  const { ambiente, login, motivo } = loginDaRequisicao(await headers(), env);
+  // Fora de uma requisicao (script, teste, tarefa do servidor) nao ha cabecalhos: `headers()` lanca. No PC isso e a
+  // maquina do dono (administrador por ambiente, como sempre); na VPS nao ha login e a falha e fechada.
+  let cabecalhos = null;
+  try {
+    cabecalhos = await headers();
+  } catch {
+    cabecalhos = null;
+  }
+  const { ambiente, login, motivo } = loginDaRequisicao(cabecalhos, env);
   const peloEnv = quebraVidro(login, env);
   if (!login || (ambiente === "pc" && motivo !== "simulado")) {
     return montarSessao({ ambiente, login, motivo, usuario: null, quebraVidro: peloEnv });
@@ -60,6 +69,32 @@ export async function exigirAcessoNaPagina(id, nivel) {
 /** Para rotas `/api/*`: 403 sem corpo (nada de mensagem que diga o que existe atras). */
 export function recusarRota() {
   return new Response(null, { status: 403 });
+}
+
+/**
+ * Para Server Actions que devolvem o PROPRIO formato e nao cabem no `executarComAcesso` (que embrulha tudo em `{ ok,
+ * ... }`): `null` se a pessoa tem o nivel; senao a recusa no formato das acoes, `{ ok: false, erro }`. Uso, na primeira
+ * linha da acao: `const negado = await negarSemAcesso("tela.produtos.cadastro", "editar"); if (negado) return negado;`.
+ * Falha ao ler a sessao e falha fechada.
+ */
+export async function negarSemAcesso(id, nivel) {
+  try {
+    const sessao = await sessaoDeAcessos();
+    if (sessao.pode(id, nivel)) return null;
+  } catch (erro) {
+    console.error("[acessos] falha ao conferir a permissão:", erro?.message ?? erro);
+  }
+  return { ok: false, erro: `Sem permissão para ${recursoPorId(id)?.rotulo ?? "isso"}.` };
+}
+
+/** A pessoa tem `nivel` em `id` agora? Para acao que devolve lista (sem permissao devolve `valorSeNegado`) e para decidir o que ler. */
+export async function podeAgora(id, nivel) {
+  try {
+    return (await sessaoDeAcessos()).pode(id, nivel);
+  } catch (erro) {
+    console.error("[acessos] falha ao conferir a permissão:", erro?.message ?? erro);
+    return false;
+  }
 }
 
 /** O involucro das Server Actions: confere o recurso antes de rodar o trabalho e devolve `{ ok, ... }`. */

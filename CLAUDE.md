@@ -247,7 +247,7 @@ npm run teste:fundo               # 9 asserções da regra do fundo das janelas 
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 623 asserções do Rise AI (Entrega 1 e A1): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
-npm run teste:acessos             # 132 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz e o guarda estático de src/app. Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
+npm run teste:acessos             # 139 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição e o guarda estático de src/app. Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
 npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio
@@ -3879,6 +3879,42 @@ ganha login no Tinyauth ainda (lançamento 2).
    Configurações some do menu, `/configuracoes` e `/rise-ai/revisao` dão 404, o chat abre sem os links de administração.
 6. Tirar a Atendimento da `andrea` (sem a simulação), simular de novo: o Rise AI some do menu e `/rise-ai` dá 404.
 7. Tirar `RISE_SIMULAR_LOGIN` e reiniciar: tudo volta.
+
+### Cadastro de Produto por poder de edição (20/10/2026)
+
+Pedido do dono: algumas ferramentas do cadastro só para quem edita ("administrador" = Editar em Produtos › cadastro), e a
+margem atrás de um olho para quem só vê. **Primeiro pedaço do Lançamento 2** (Produtos entra no controle; o resto do Rise
+segue na lista de exceções). Regra única em `src/lib/acessos/produto.js` (`acessosDoCadastro`, pura, testada em
+`teste:acessos`), usada pelas páginas, pelas ações e pela tela:
+
+- `editar` = `tela.produtos.cadastro` em Editar. Sem ele o formulário abre **somente leitura** (selo "Somente leitura"
+  no título, sem Salvar, "Cancelar" vira "Voltar", `fieldset disabled` nos painéis; as abas e os links de download seguem
+  funcionando).
+- `referencias` = editar **E** `dado.custo` **E** `dado.concorrentes` (a lupa mostra custo e preço de concorrente, não há como
+  entregar metade): lupa do Nome, "$", listas de escolha de marca/modelo/homologação/EAN/peso/medidas/NCM, "Escolher o
+  título" das referências, "Clonar a partir de um código" e documentos das referências.
+- `ia` = editar **E** `acao.produtos.gerarTextoComIA` em Executar: "Criar descrição" e o bloco "Com IA" da lista de títulos.
+- `margem` = `nenhuma` sem `dado.margem` ou sem `dado.custo`; `sempre` com Editar (indicador e calculadora); `olho` só com Ver:
+  o olho (`span role="button"`, **não** `button`, porque o fieldset desabilitado não deixaria clicar) mostra
+  `(39.0% / R$ 13,41)` ao clique e some ao recarregar.
+- A **aba Fornecedores / Concorrentes** segue a matriz: a seção de fornecedores exige `dado.custo` e a de concorrentes
+  `dado.concorrentes`; sem os dois a aba fica só com o estoque mínimo e máximo. A varinha do código só aparece com Editar.
+- **Esconder na tela não basta.** `projetarParaAcessos` (`produtoParaFormulario.js`) tira do que sai do servidor os
+  fornecedores, o rascunho do Bling, o custo das peças do kit e os concorrentes; o formulário não manda as listas escondidas
+  e `salvarProduto`/`gravarFornecedoresRascunho`/`gravarConcorrentesRascunho` **não mexem no que a pessoa não via**.
+  `/produtos/novo` dá 404 sem Editar; `/produtos/[id]` dá 404 sem Ver.
+- **Todas as ações de `produtos/acoes.js` conferem na 1ª linha** (`negarSemAcesso`, `negarSemReferencias`, `negarSemIA`,
+  `podeAgora` em `src/lib/acessos/servidor.js`), mantendo o formato de retorno de cada uma; as de lista devolvem `[]`.
+  Exceção consciente: `excluirProdutos` delega a `excluirProduto`, que confere `tela.produtos` em Excluir. O teste-guarda
+  confere **função a função** (`cadaExportConfere`).
+- `sessaoDeAcessos` tolera a falta de requisição (script/teste): no PC vira administrador, na VPS falha fechada.
+- **Ficou de fora (resto do Lançamento 2):** a lista de Produtos (popup de preço com margem), `acoes-bling`, `acoes-edicao-rapida`,
+  `acoes-imagens`, `acoes-li`, `acoes-nanobanana` e `api/produtos/documento-referencia` (continuam na lista de exceções);
+  `dado.localizacao` e `dado.estoqueExato` não foram aplicados ao cadastro; no modo leitura o painel de fotos aparece com os
+  botões desabilitados (as miniaturas não navegam).
+- Conferido na tela com login simulado (`RISE_SIMULAR_LOGIN`, usuário e função de teste apagados depois): só leitura (sem
+  Salvar, olho funcionando, abas desabilitadas) e "edita sem custo nem concorrentes" (sem lupa, "$", calculadora, Criar
+  descrição; aba Fornecedores só com o estoque).
 
 ## Decisões de arquitetura
 

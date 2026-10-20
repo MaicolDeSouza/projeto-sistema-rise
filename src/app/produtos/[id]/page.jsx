@@ -1,9 +1,13 @@
 import { notFound } from "next/navigation";
+import { Lock } from "lucide-react";
 
 import { separarCanais } from "@/lib/canais";
 import { config } from "@/lib/integracoes/config";
-import { carregarProdutoParaFormulario } from "@/lib/produtoParaFormulario";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { acessosDoCadastro } from "@/lib/acessos/produto";
+import { carregarProdutoParaFormulario, projetarParaAcessos } from "@/lib/produtoParaFormulario";
 import { listarFornecedores } from "@/app/produtos/acoes";
+import Badge from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
 import FormularioProduto from "@/components/produtos/FormularioProduto";
 
@@ -14,7 +18,12 @@ export default async function EditarProdutoPage({ params, searchParams }) {
   // Avisos do Salvar de um produto novo (documentos, fotos, fornecedores, concorrentes).
   const busca = await searchParams;
 
-  const dados = await carregarProdutoParaFormulario(id);
+  // Sem Produtos › cadastro em Ver, a pagina nao existe para a pessoa (404). Com Ver e sem Editar, abre so para leitura
+  // (pedido do dono em 20/10/2026), e o que ela nao pode ver (custo, concorrentes) nem sai do servidor.
+  const sessao = await exigirAcessoNaPagina("tela.produtos.cadastro", "ver");
+  const acessos = acessosDoCadastro(sessao.pode);
+
+  const dados = projetarParaAcessos(await carregarProdutoParaFormulario(id), acessos);
   if (!dados) notFound();
   const { registro, produto, arquivos, fornecedores, concorrentes } = dados;
 
@@ -34,6 +43,16 @@ export default async function EditarProdutoPage({ params, searchParams }) {
           integrados.length
             ? `SKU ${registro.sku} · integrado com ${integrados.map((c) => c.nome).join(", ")}`
             : `SKU ${registro.sku}`
+        }
+        acao={
+          !acessos.editar && (
+            <span title="Seu acesso ao cadastro de Produtos é de leitura">
+              <Badge>
+                <Lock size={12} className="mr-1" />
+                Somente leitura
+              </Badge>
+            </span>
+          )
         }
       />
 
@@ -72,6 +91,7 @@ export default async function EditarProdutoPage({ params, searchParams }) {
         concorrentes={concorrentes}
         catalogoFornecedores={catalogoFornecedores}
         dominioLojaIntegrada={config.lojaIntegrada.dominio}
+        acessos={acessos}
       />
     </>
   );

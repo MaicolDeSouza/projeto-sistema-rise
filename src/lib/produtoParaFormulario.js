@@ -149,6 +149,36 @@ export async function carregarProdutoParaFormulario(id) {
 }
 
 /**
+ * Tira do que vai para a TELA o que a pessoa nao pode ver (pedido do dono em 20/10/2026): sem Custo, nem fornecedores,
+ * nem o custo e o fornecedor das pecas do kit, nem o rascunho do fornecedor do Bling; sem Concorrentes, nem os
+ * concorrentes. Esconder so na tela nao basta (o dado iria no HTML): a projecao e aqui, no servidor. `acessos` nulo
+ * (sem restricao) devolve os dados como estao. Nao muda o objeto recebido.
+ *
+ * O Salvar nao apaga o que a pessoa nao via: o formulario nao manda as listas escondidas e o servidor so reconcilia
+ * a lista da qual a pessoa tem o dado (`salvarProduto`).
+ *
+ * @param {{ produto: object, fornecedores: object[], concorrentes: object[] } & object} dados o retorno de `carregarProdutoParaFormulario`
+ * @param {{ custo: boolean, concorrentes: boolean } | null} acessos `acessosDoCadastro`
+ */
+export function projetarParaAcessos(dados, acessos) {
+  if (!dados || !acessos) return dados;
+  const semCusto = !acessos.custo;
+  const semConcorrentes = !acessos.concorrentes;
+  if (!semCusto && !semConcorrentes) return dados;
+  const produto = { ...dados.produto };
+  if (semCusto) {
+    produto.fornecedorRascunho = null;
+    produto.composicao = (produto.composicao ?? []).map((peca) => ({ ...peca, custo: null, fornecedor: null }));
+  }
+  return {
+    ...dados,
+    produto,
+    fornecedores: semCusto ? [] : dados.fornecedores,
+    concorrentes: semConcorrentes ? [] : dados.concorrentes,
+  };
+}
+
+/**
  * O "Clonar" da lista (pedido do dono em 09/10/2026): o produto novo nasce com os campos, as pecas do kit,
  * os fornecedores e os concorrentes do original. Nada e gravado ate o Salvar, que trata tudo como produto
  * novo. Fotos e documentos sao copiados pela tela para o lote temporario (`acoes-imagens`, `acoes`).

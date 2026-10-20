@@ -15,6 +15,8 @@ import {
   Calculator,
   Download,
   ExternalLink,
+  Eye,
+  EyeOff,
   FileText,
   Hammer,
   ListChecks,
@@ -86,6 +88,10 @@ import {
   removerArquivoTemporario,
   salvarProduto,
 } from "@/app/produtos/acoes";
+
+/// O que o formulario faz quando NAO recebe `acessos` (a tela de hoje, sem restricao). O calculo de verdade e
+/// `acessosDoCadastro` (src/lib/acessos/produto.js), feito no servidor pelas paginas.
+const ACESSO_TOTAL = { editar: true, custo: true, concorrentes: true, referencias: true, ia: true, margem: "sempre" };
 
 const ABAS = [
   { id: "caracteristicas", rotulo: "Características" },
@@ -362,6 +368,8 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
             </ul>
           )}
 
+          {/* Com IA so para quem tem a acao (chamada paga; pedido do dono em 20/10/2026). */}
+          {ia.permiteIA !== false && (
           <div className="mt-2 border-t border-borda pt-2">
             <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppercase">Com IA</p>
             {opcoesDaIA ? (
@@ -398,6 +406,7 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
             {/* Quanto custou a ultima geracao (pedido do dono em 12/10/2026). */}
             <GastoDaIA gasto={ia.gastoTitulo} className="px-2 pt-1" />
           </div>
+          )}
         </ListaFlutuante>
       )}
     </div>
@@ -481,6 +490,8 @@ function CampoComIcone({
   // input ganha mais espaco reservado (pr-24 em vez de pr-11) — os demais usos
   // de CampoComIcone nao passam isto e ficam identicos a antes.
   iconeExtra,
+  // O espaco reservado a direita quando ha `iconeExtra` (o do olho sozinho cabe em bem menos que o da margem aberta).
+  reservaExtra = "pr-56",
   prefixo,
   children,
   ...props
@@ -501,7 +512,7 @@ function CampoComIcone({
           ref={entrada}
           id={nome}
           name={nome}
-          className={`${CLASSE_CAMPO} ${iconeExtra ? "pr-56" : "pr-11"} ${prefixo ? "pl-9" : ""} ${
+          className={`${CLASSE_CAMPO} ${iconeExtra ? reservaExtra : "pr-11"} ${prefixo ? "pl-9" : ""} ${
             erro ? "border-red-400" : "border-borda focus:border-acento"
           }`}
           {...props}
@@ -571,7 +582,7 @@ function ListaFlutuante({ largura, espaco = "mt-1", aoFechar, children }) {
 }
 
 /** Codigo com gerador automatico na faixa 25xxxx. */
-function CampoSku({ inicial, erro, aoAlterar, usos }) {
+function CampoSku({ inicial, erro, aoAlterar, usos, comVarinha = true }) {
   const entrada = useRef(null);
   const [gerando, iniciar] = useTransition();
   const [falha, setFalha] = useState(null);
@@ -599,6 +610,9 @@ function CampoSku({ inicial, erro, aoAlterar, usos }) {
       erro={erro ?? falha}
       ajuda="Letras, números, ponto, hífen e sublinhado. É o nome da pasta de arquivos."
       icone={
+        // A varinha sugere o proximo 25xxxx: so para quem edita (pedido do dono em 20/10/2026; dois cadastros abertos
+        // juntos recebiam o mesmo numero).
+        !comVarinha ? undefined : (
         <button
           type="button"
           onClick={gerar}
@@ -615,6 +629,7 @@ function CampoSku({ inicial, erro, aoAlterar, usos }) {
             <WandSparkles size={16} />
           )}
         </button>
+        )
       }
     />
   );
@@ -725,10 +740,26 @@ function corDaMargem(preco, custo) {
   return margem >= 60 ? "text-emerald-600" : "text-yellow-600";
 }
 
-function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, aoAlterar, aoMudarValor, usos }) {
+function CampoPreco({
+  inicial,
+  erro,
+  referencias,
+  custo,
+  precoAtual,
+  posicao,
+  aoAlterar,
+  aoMudarValor,
+  usos,
+  // `"sempre"` (quem edita: margem e calculadora), `"olho"` (so leitura: a margem aparece ao clicar no olho, e some ao
+  // recarregar) ou `"nenhuma"` (sem a permissao Margem). Pedido do dono em 20/10/2026.
+  margemModo = "sempre",
+  // O "$" (precos das referencias) so existe para quem usa as ferramentas de referencia.
+  comReferencias = true,
+}) {
   const entrada = useRef(null);
   const [aberto, setAberto] = useState(false);
   const [abertoMargem, setAbertoMargem] = useState(false);
+  const [margemVisivel, setMargemVisivel] = useState(false);
 
   // Campos do PAINEL de margem (ListaFlutuante propria, ver abaixo): tres
   // valores que descrevem o mesmo numero de tres jeitos — preco, % de lucro e
@@ -863,39 +894,70 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
       onChange={aoMudarPrecoPrincipal}
       onBlur={aoSair}
       erro={erro}
+      reservaExtra={margemModo === "olho" && !margemVisivel ? "pr-20" : "pr-56"}
       iconeExtra={
-        <>
-          {/* Indicador (percentual de lucro / lucro em reais), pedido do dono
-              em 22/09/2026: vermelho abaixo do custo, amarelo com lucro
-              menor que 60%, verde a partir de 60%. So mostra o dado — quem
-              edita e o painel, abaixo. */}
-          {temCusto && margemAtual !== null && (
-            <button
-              type="button"
-              onClick={() => setAbertoMargem((atual) => !atual)}
-              title={`Percentual de lucro / lucro em reais, já com ${(IMPOSTO_PADRAO * 100).toFixed(0)}% de imposto descontado — clique para editar`}
-              className={`shrink-0 text-sm font-semibold tabular-nums whitespace-nowrap hover:underline ${corIndicador}`}
-            >
-              ({margemAtual.toFixed(1)}% / {reais(lucroAtual)})
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setAbertoMargem((atual) => !atual)}
-            disabled={!temCusto}
-            title={
-              temCusto
-                ? "Calcular a partir do custo do fornecedor padrão"
-                : "Marque um fornecedor padrão com preço de custo para calcular a margem"
-            }
-            aria-label="Calcular margem a partir do custo do fornecedor"
-            className={`relative shrink-0 rounded p-1.5 hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-40 ${COR_DE_USO.funcao}`}
-          >
-            <Calculator size={16} />
-          </button>
-        </>
+        margemModo === "nenhuma" ? undefined : (
+          <>
+            {/* O OLHO (so leitura, pedido do dono em 20/10/2026): a margem fica escondida e aparece ao clicar. Quem edita
+                a ve sempre. A margem sai do custo, que esta na aba Fornecedores: o olho e conveniencia de tela, nao barreira. */}
+            {margemModo === "olho" && (
+              // `span`, e nao `button`: o olho so existe em modo leitura, onde o `fieldset` do formulario esta
+              // desabilitado, e um botao ali dentro nao responderia ao clique.
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setMargemVisivel((atual) => !atual)}
+                onKeyDown={(evento) => {
+                  if (evento.key !== "Enter" && evento.key !== " ") return;
+                  evento.preventDefault();
+                  setMargemVisivel((atual) => !atual);
+                }}
+                title={margemVisivel ? "Ocultar a margem" : "Mostrar a margem"}
+                aria-label={margemVisivel ? "Ocultar a margem" : "Mostrar a margem"}
+                aria-pressed={margemVisivel}
+                className={`shrink-0 cursor-pointer rounded p-1.5 hover:bg-fundo ${COR_DE_USO.funcao}`}
+              >
+                {margemVisivel ? <EyeOff size={16} /> : <Eye size={16} />}
+              </span>
+            )}
+            {/* Indicador (percentual de lucro / lucro em reais), pedido do dono em 22/09/2026: vermelho abaixo do
+                custo, amarelo com lucro menor que 60%, verde a partir de 60%. So mostra o dado; quem edita e o painel. */}
+            {temCusto && margemAtual !== null && margemModo === "sempre" && (
+              <button
+                type="button"
+                onClick={() => setAbertoMargem((atual) => !atual)}
+                title={`Percentual de lucro / lucro em reais, já com ${(IMPOSTO_PADRAO * 100).toFixed(0)}% de imposto descontado — clique para editar`}
+                className={`shrink-0 text-sm font-semibold tabular-nums whitespace-nowrap hover:underline ${corIndicador}`}
+              >
+                ({margemAtual.toFixed(1)}% / {reais(lucroAtual)})
+              </button>
+            )}
+            {temCusto && margemAtual !== null && margemModo === "olho" && margemVisivel && (
+              <span className={`shrink-0 text-sm font-semibold tabular-nums whitespace-nowrap ${corIndicador}`}>
+                ({margemAtual.toFixed(1)}% / {reais(lucroAtual)})
+              </span>
+            )}
+            {margemModo === "sempre" && (
+              <button
+                type="button"
+                onClick={() => setAbertoMargem((atual) => !atual)}
+                disabled={!temCusto}
+                title={
+                  temCusto
+                    ? "Calcular a partir do custo do fornecedor padrão"
+                    : "Marque um fornecedor padrão com preço de custo para calcular a margem"
+                }
+                aria-label="Calcular margem a partir do custo do fornecedor"
+                className={`relative shrink-0 rounded p-1.5 hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-40 ${COR_DE_USO.funcao}`}
+              >
+                <Calculator size={16} />
+              </button>
+            )}
+          </>
+        )
       }
       icone={
+        !comReferencias ? undefined : (
         <button
           type="button"
           onClick={() => setAberto((atual) => !atual)}
@@ -915,9 +977,10 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
             usado={usos.tem("precoVenda")}
           />
         </button>
+        )
       }
     >
-      {aberto && (
+      {aberto && comReferencias && (
         <ListaFlutuante largura="w-[30rem]" aoFechar={() => setAberto(false)}>
           <div className="flex items-center justify-between px-2 pt-1 pb-2">
             <span className="text-sm font-semibold">Escolha um preço</span>
@@ -979,7 +1042,7 @@ function CampoPreco({ inicial, erro, referencias, custo, precoAtual, posicao, ao
           entre si pelo mesmo par de contas de calcularMargem/
           calcularPrecoDaMargem. Sem custo do fornecedor padrao nao ha o que
           calcular, e o botao que abre fica desabilitado. */}
-      {abertoMargem && temCusto && (
+      {abertoMargem && temCusto && margemModo === "sempre" && (
         <ListaFlutuante largura="w-72" aoFechar={() => setAbertoMargem(false)}>
           <div className="flex items-center justify-between px-2 pt-1 pb-2">
             <span className="text-sm font-semibold">Margem</span>
@@ -1233,6 +1296,8 @@ function CampoNome({
   aoEscolherTitulo,
   referencias,
   usos,
+  comLupa = true,
+  comTitulos = true,
 }) {
   const [tamanho, setTamanho] = useState((inicial ?? "").length);
   const excedeu = tamanho > LIMITE_TITULO_ML;
@@ -1268,7 +1333,9 @@ function CampoNome({
           />
           {erro && <p className="mt-1 text-[11px] text-red-700">{erro}</p>}
         </div>
-        {/* Busca produtos de fornecedores e concorrentes com as palavras do Nome. */}
+        {/* Busca produtos de fornecedores e concorrentes com as palavras do Nome. So para quem edita e ve custo e
+            concorrentes (pedido do dono em 20/10/2026). */}
+        {comLupa && (
         <button
           type="button"
           onClick={() => aoBuscar(entrada.current?.value ?? "")}
@@ -1284,14 +1351,17 @@ function CampoNome({
           <Contador quantidade={ia.quantos} usado />
           <BolhaDeAjuda texto="Marca produtos parecidos de fornecedores e concorrentes como referência: preenche preço, marca, modelo e medidas, e cria título e descrição com IA." />
         </button>
+        )}
         {/* Aparece depois que produtos foram marcados na janela da lupa. */}
-        <ListaDeTitulos
-          usado={usos.tem("titulo")}
-          ia={ia}
-          referencias={referencias}
-          aoCriar={aoCriarIA}
-          aoEscolher={aoEscolherTitulo}
-        />
+        {comTitulos && (
+          <ListaDeTitulos
+            usado={usos.tem("titulo")}
+            ia={ia}
+            referencias={referencias}
+            aoCriar={aoCriarIA}
+            aoEscolher={aoEscolherTitulo}
+          />
+        )}
       </div>
       <ErroIA ia={ia} qual="titulo" />
     </div>
@@ -1642,8 +1712,12 @@ export default function FormularioProduto({
   // "Clonar" da lista (pedido do dono em 09/10/2026): o cadastro novo nasce com os dados de outro produto (ver
   // `dadosParaClone`). `produto` continua null: para o Salvar e para as abas, e um produto novo.
   clone = null,
+  // O que a pessoa pode fazer neste cadastro (`acessosDoCadastro`, pedido do dono em 20/10/2026). Sem restricao por
+  // padrao: telas que ainda nao passam o prop seguem como eram. A conferencia de verdade e do servidor.
+  acessos = ACESSO_TOTAL,
 }) {
   const router = useRouter();
+  const somenteLeitura = !acessos.editar;
   const [aba, setAba] = useState("caracteristicas");
   const [aberturaDocumentos, setAberturaDocumentos] = useState(0);
   // Tipo do produto e pecas do kit: estado da tela (a aba Composicao edita em memoria, e so o Salvar grava).
@@ -2138,7 +2212,7 @@ export default function FormularioProduto({
     formulario.current?.elements.namedItem(nome)?.value ?? "";
 
   // NCM do kit: os NCMs das pecas entram na lista do campo, antes das referencias de mercado.
-  const ncmDasPecas = tipo === "COMPOSICAO"
+  const ncmDasPecas = tipo === "COMPOSICAO" && acessos.editar
     ? ncmsDasPecas(pecas).map((grupo) => ({ valor: grupo.ncm, origem: `Peça ${grupo.pecas.join(", ")}`, fontes: ["Peças do kit"] }))
     : [];
 
@@ -2174,7 +2248,9 @@ export default function FormularioProduto({
     opcoesTitulo: opcoesTitulo?.opcoes ?? null,
     gastoTitulo,
     // As 3 opcoes de titulo da proposta automatica (tag IA, com a recomendada), na lista "Escolher o titulo".
-    propostaTitulos: produto?.proposta?.secoes?.titulos ?? null,
+    propostaTitulos: acessos.editar ? (produto?.proposta?.secoes?.titulos ?? null) : null,
+    // Sem a permissao de gerar texto com IA, a lista de titulos nao oferece o bloco "Com IA".
+    permiteIA: acessos.ia,
   };
 
   /** "Aplicar escolhidos ao formulario" do quadro Proposta: so preenche os campos; o Salvar grava. */
@@ -2642,6 +2718,8 @@ export default function FormularioProduto({
     .sort()
     .join(",");
   useEffect(() => {
+    // Sem o dado Concorrentes nao ha lista para consultar (e o servidor devolveria vazio).
+    if (!acessos.concorrentes) return;
     let valido = true;
     consultarSituacaoConcorrentes(chaveDosColetados ? chaveDosColetados.split(",") : [])
       .then((resposta) => {
@@ -2653,7 +2731,7 @@ export default function FormularioProduto({
     return () => {
       valido = false;
     };
-  }, [chaveDosColetados]);
+  }, [chaveDosColetados, acessos.concorrentes]);
 
   // "2º de 10" ao lado de Preco venda e de Concorrentes (pedido do dono em 06/10/2026): o preco que esta no
   // campo AGORA contra a lista de concorrentes da tela, salva ou nao. Ver lib/posicaoDePreco.js.
@@ -2687,6 +2765,8 @@ export default function FormularioProduto({
     concorrentes: [...idsConcorrentesAtuais].sort(),
   });
   useEffect(() => {
+    // As indicacoes dos vinculos sao ferramenta de referencia: sem ela, nao se le o acervo coletado.
+    if (!acessos.referencias) return;
     const { fornecedores: lista, concorrentes: ids } = JSON.parse(assinaturaVinculos);
     let valido = true;
     // Espera a digitacao parar: o nome de um fornecedor novo muda a cada tecla, e a busca le o acervo.
@@ -2712,11 +2792,12 @@ export default function FormularioProduto({
       valido = false;
       clearTimeout(espera);
     };
-  }, [assinaturaVinculos]);
+  }, [assinaturaVinculos, acessos.referencias]);
 
   // Ha fornecedor ou concorrente salvo ainda sendo lido? (sem nenhum, nao ha o que esperar)
   const vinculadosAgora = JSON.parse(assinaturaVinculos);
   const lendoVinculos =
+    acessos.referencias &&
     (vinculadosAgora.fornecedores.length > 0 || vinculadosAgora.concorrentes.length > 0) &&
     assinaturaLida !== assinaturaVinculos;
 
@@ -2727,6 +2808,7 @@ export default function FormularioProduto({
   const idsDasIndicacoes = [...new Set([...idsDaLupa, ...vinculosItens.map((item) => item.id)])];
   const chaveDasIndicacoes = [...idsDasIndicacoes].sort().join(",");
   useEffect(() => {
+    if (!acessos.referencias) return;
     const ids = chaveDasIndicacoes ? chaveDasIndicacoes.split(",") : [];
     let valido = true;
     iniciarLeituraRefs(async () => {
@@ -2736,7 +2818,7 @@ export default function FormularioProduto({
     return () => {
       valido = false;
     };
-  }, [chaveDasIndicacoes]);
+  }, [chaveDasIndicacoes, acessos.referencias]);
 
   /**
    * Por padrao parte do que JA esta digitado e sobrepoe so o que veio com
@@ -2927,11 +3009,14 @@ export default function FormularioProduto({
       {/* Documentos ja gravados que o dono excluiu na tela: so o Salvar apaga. */}
       <input type="hidden" name="documentosExcluidos" value={JSON.stringify(documentosExcluidos)} />
       {/* Fornecedores adicionados antes de o produto existir (ver Fornecedores.jsx). */}
-      <input
-        type="hidden"
-        name="fornecedoresRascunho"
-        value={JSON.stringify(fornecedoresRascunho)}
-      />
+      {/* Sem o dado Custo a lista nem sai do servidor, e o campo nao vai: o Salvar nao mexe nos fornecedores. */}
+      {acessos.custo && (
+        <input
+          type="hidden"
+          name="fornecedoresRascunho"
+          value={JSON.stringify(fornecedoresRascunho)}
+        />
+      )}
       {/* Pecas do kit (aba Composicao). So o id e a quantidade: o servidor le o resto do banco. No tipo
           Simples o servidor ignora a lista e apaga as pecas gravadas. */}
       <input
@@ -2940,31 +3025,36 @@ export default function FormularioProduto({
         value={JSON.stringify(pecas.map((peca) => ({ componenteId: peca.componenteId, quantidade: peca.quantidade })))}
       />
       {/* Concorrentes adicionados antes de o produto existir (ver Concorrentes.jsx). */}
-      <input
-        type="hidden"
-        name="concorrentesRascunho"
-        value={JSON.stringify(concorrentesRascunho)}
-      />
+      {acessos.concorrentes && (
+        <input
+          type="hidden"
+          name="concorrentesRascunho"
+          value={JSON.stringify(concorrentesRascunho)}
+        />
+      )}
       {/* Gasto com IA desta edicao (descricao e titulo): o Salvar soma ao total do produto (pedido do dono em 12/10/2026). */}
       <input type="hidden" name="gastoIA" value={gastoDaEdicao ? JSON.stringify(gastoDaEdicao) : ""} />
       <input type="hidden" name="propostaAplicada" value={JSON.stringify(propostaAplicada)} />
 
       {/* ---------- Acoes no topo ---------- */}
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="submit"
-          disabled={enviando || carregandoFotosDoProduto}
-          className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-        >
-          {enviando && <Loader size={14} className="animate-spin" />}
-          Salvar
-        </button>
+        {/* So leitura (pedido do dono em 20/10/2026): sem Salvar, e o Cancelar vira Voltar. */}
+        {!somenteLeitura && (
+          <button
+            type="submit"
+            disabled={enviando || carregandoFotosDoProduto}
+            className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {enviando && <Loader size={14} className="animate-spin" />}
+            Salvar
+          </button>
+        )}
         <button
           type="button"
           onClick={pedirCancelamento}
           className="rounded border border-borda px-4 py-2 text-sm hover:bg-fundo"
         >
-          Cancelar
+          {somenteLeitura ? "Voltar" : "Cancelar"}
         </button>
 
         {estado?.ok && (
@@ -2976,7 +3066,7 @@ export default function FormularioProduto({
 
         <div className="ml-auto flex items-center gap-3">
           {/* A garantia de que nada se perde ao recarregar: discreta, so depois da primeira gravacao. */}
-          {rascunho.salvoEm && (
+          {!somenteLeitura && rascunho.salvoEm && (
             <span
               className="text-[11px] text-suave tabular-nums"
               title="Suas alterações ficam guardadas neste navegador até você salvar ou cancelar o cadastro."
@@ -2985,8 +3075,8 @@ export default function FormularioProduto({
             </span>
           )}
           {/* Quanto este produto ja custou de IA e quanto esta edicao vai somar (pedido do dono em 12/10/2026). */}
-          <GastoDoProduto salvo={gastoSalvo} edicao={gastoDaEdicao} />
-          {novo && (
+          {!somenteLeitura && <GastoDoProduto salvo={gastoSalvo} edicao={gastoDaEdicao} />}
+          {novo && acessos.referencias && (
             <BuscarPorCodigo
               codigoAtual={() =>
                 formulario.current?.elements.namedItem("sku")?.value
@@ -3036,7 +3126,7 @@ export default function FormularioProduto({
       )}
 
       {/* Ha alteracoes nao salvas guardadas neste navegador (pedido do dono em 13/10/2026): recuperar ou descartar. */}
-      {rascunho.guardado && (
+      {!somenteLeitura && rascunho.guardado && (
         <BannerDeRascunho
           rascunho={rascunho.guardado}
           aguardando={carregandoFotosDoProduto || importandoImagens}
@@ -3046,7 +3136,7 @@ export default function FormularioProduto({
       )}
 
       {/* Proposta automatica da sessao do Claude (spec 2026-10-16): so preenche o formulario; o Salvar grava. */}
-      {produto?.proposta && (
+      {acessos.editar && produto?.proposta && (
         <QuadroDaProposta proposta={produto.proposta} aoAplicar={aplicarProposta} aplicadasNestaEdicao={propostaAplicada} />
       )}
 
@@ -3085,7 +3175,8 @@ export default function FormularioProduto({
       <Fragment key={`geral-${versao}`}>
         {/* ---------- Visao geral ---------- */}
         <Card>
-          <div className="grid gap-5 lg:grid-cols-[18rem_1fr]">
+          {/* So leitura: o `fieldset` desabilita todos os campos de uma vez (pedido do dono em 20/10/2026). */}
+          <fieldset disabled={somenteLeitura} className="m-0 grid min-w-0 gap-5 border-0 p-0 lg:grid-cols-[18rem_1fr]">
             <div className="lg:col-span-2">
               <CampoNome
                 inicial={v("tituloBase")}
@@ -3096,6 +3187,8 @@ export default function FormularioProduto({
                 aoEscolherTitulo={escolherTitulo}
                 referencias={referenciasDasIndicacoes}
                 usos={usos}
+                comLupa={acessos.referencias}
+                comTitulos={acessos.editar && (acessos.referencias || Boolean(ia.propostaTitulos))}
               />
             </div>
 
@@ -3132,6 +3225,7 @@ export default function FormularioProduto({
                 erro={erros.sku}
                 aoAlterar={() => setAlterado(true)}
                 usos={usos}
+                comVarinha={acessos.editar}
               />
               <Campo
                 nome="localizacao"
@@ -3159,6 +3253,8 @@ export default function FormularioProduto({
                 aoAlterar={() => setAlterado(true)}
                 aoMudarValor={setPrecoVendaTexto}
                 usos={usos}
+                margemModo={acessos.margem}
+                comReferencias={acessos.referencias}
               />
               {/* Unidade em cima e Tipo embaixo (pedido do dono em 10/10/2026, que desfez a troca de 07/10). A Unidade
                   segue o Tipo (KIT ou UN) e continua aberta para escolher. */}
@@ -3234,7 +3330,7 @@ export default function FormularioProduto({
               />
               </div>
             </div>
-          </div>
+          </fieldset>
         </Card>
       </Fragment>
 
@@ -3242,6 +3338,7 @@ export default function FormularioProduto({
         Fora dos trechos remontados: preencher o Nome com o titulo da IA troca a
         `versao`, e a busca e a marcacao nao podem sumir junto.
       */}
+      {acessos.referencias && (
       <ReferenciasDeMercado
         ref={referencias}
         marcados={marcados}
@@ -3252,8 +3349,10 @@ export default function FormularioProduto({
         fornecedoresLigados={usaFornecedorRascunho ? fornecedoresRascunho : fornecedores}
         idsConcorrentesLigados={idsConcorrentesAtuais}
       />
+      )}
 
       {/* Fora dos trechos remontados, pelo mesmo motivo da janela da lupa. */}
+      {acessos.ia && (
       <JanelaDescricao
         ref={janelaDescricao}
         aoGastar={somarAoGastoDaEdicao}
@@ -3286,6 +3385,7 @@ export default function FormularioProduto({
           setAba("descricao");
         }}
       />
+      )}
 
       <Fragment key={`abas-${versao}`}>
         {/* ---------- Abas ---------- */}
@@ -3312,7 +3412,7 @@ export default function FormularioProduto({
 
           {/* Todas as abas ficam montadas e apenas escondidas: campo desmontado
               nao entra no FormData, e salvar de uma aba invalidaria as outras. */}
-          <div className="p-5">
+          <fieldset disabled={somenteLeitura} className="m-0 min-w-0 border-0 p-5">
             <div className={aba === "caracteristicas" ? "space-y-5" : "hidden"}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <CampoDeReferencias
@@ -3445,15 +3545,18 @@ export default function FormularioProduto({
                   desabilitado={carregandoFotosDoProduto}
                 />
               )}
-              <DocumentosDasReferencias
-                key={aberturaDocumentos}
-                ids={idsMarcados}
-                ativo={aba === "documentos"}
-                produtoId={produto?.id ?? null}
-              />
+              {acessos.referencias && (
+                <DocumentosDasReferencias
+                  key={aberturaDocumentos}
+                  ids={idsMarcados}
+                  ativo={aba === "documentos"}
+                  produtoId={produto?.id ?? null}
+                />
+              )}
             </div>
 
             <div className={aba === "descricao" ? "" : "hidden"}>
+              {acessos.ia && (
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <div className="relative inline-flex shrink-0">
                   <button
@@ -3471,6 +3574,7 @@ export default function FormularioProduto({
                   />
                 </div>
               </div>
+              )}
               <EditorDescricao
                 nome="descricaoBase"
                 valorInicial={v("descricaoBase")}
@@ -3646,7 +3750,8 @@ export default function FormularioProduto({
               {/* Kit: a tabela de fornecedores e a das PECAS, so leitura (pedido do dono em 07/10/2026; sem
                   "Padrão" nem "Adicionar fornecedor"). A tabela editavel fica montada e escondida: os
                   vinculos que o kit ja tinha continuam indo no envio, e nada some no Salvar. */}
-              {ehKit && <FornecedoresDoKit pecas={pecas} ativo={aba === "fornecedores"} />}
+              {ehKit && acessos.custo && <FornecedoresDoKit pecas={pecas} ativo={aba === "fornecedores"} />}
+              {acessos.custo && (
               <div className={ehKit ? "hidden" : ""}>
                 <Fornecedores
                   ref={fornecedoresRef}
@@ -3660,7 +3765,9 @@ export default function FormularioProduto({
                   sugestoes={sugestoesFornecedor}
                 />
               </div>
+              )}
 
+              {acessos.concorrentes && (
               <Concorrentes
                 ref={concorrentesRef}
                 produtoId={produto?.id ?? null}
@@ -3673,8 +3780,9 @@ export default function FormularioProduto({
                 precoProduto={precoVendaAtual}
                 seloDoTitulo={<SeloPosicaoDePreco posicao={posicaoDoPreco} />}
               />
+              )}
             </div>
-          </div>
+          </fieldset>
         </Card>
       </Fragment>
 
