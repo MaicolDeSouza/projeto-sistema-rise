@@ -624,8 +624,17 @@ try {
       );
     };
     const confere = (fonte) => (fonte.includes("negarSemAcesso(") && cadaExportConfere(fonte)) || fonte.includes("exigirAcessoNaPagina(") || fonte.includes("executarComAcesso(") || (fonte.includes("sessaoDeAcessos(") && fonte.includes("recusarRota("));
-    // Sem recurso de proposito: o layout raiz MONTA a sessao (o menu e o rodape), e o Sair e de quem esta logado.
-    const SEM_RECURSO = ["src/app/layout.jsx","src/app/api/sair/route.js"];
+    // Sem recurso de proposito: o layout raiz MONTA a sessao (o menu e o rodape), e o Sair e de quem esta logado. As quatro do
+    // protocolo OAuth/MCP sao publicas por desenho (o Claude e o ChatGPT chegam sem login do Tinyauth): os metadados nao tem
+    // segredo, o registro nao da acesso a nada, e o token exige o codigo + PKCE. Quem autentica o /mcp e src/lib/mcp/portao.js.
+    const SEM_RECURSO = [
+      "src/app/layout.jsx",
+      "src/app/api/sair/route.js",
+      "src/app/.well-known/oauth-protected-resource/[[...resto]]/route.js",
+      "src/app/.well-known/oauth-authorization-server/route.js",
+      "src/app/mcp/oauth/register/route.js",
+      "src/app/mcp/oauth/token/route.js",
+    ];
     // O resto do Rise, que entra no lancamento 2 (spec §8). A lista SO ENCOLHE: esvaziar no lancamento 2.
     const EXCECOES_DO_LANCAMENTO_1 = [
       "src/app/anuncios/[id]/page.jsx",

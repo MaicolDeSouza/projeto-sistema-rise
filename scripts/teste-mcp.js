@@ -550,6 +550,94 @@ try {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 6 — Rotas publicas do protocolo: os dois metadados, o registro dinamico e o endpoint de token
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nRotas do OAuth");
+    // As rotas leem o process.env (como no servidor): a origem publica de teste so durante este bloco.
+    const appUrlAntes = process.env.APP_URL_PUBLICA;
+    process.env.APP_URL_PUBLICA = "https://rise.teste";
+    try {
+      const recurso = await import("../src/app/.well-known/oauth-protected-resource/[[...resto]]/route.js");
+      const servidor = await import("../src/app/.well-known/oauth-authorization-server/route.js");
+      const registro = await import("../src/app/mcp/oauth/register/route.js");
+      const token = await import("../src/app/mcp/oauth/token/route.js");
+      const banco = await import("../src/lib/mcp/oauthBanco.js");
+      const { metadadosDoRecurso, metadadosDoServidor } = await import("../src/lib/mcp/oauth.js");
+      const params = (resto) => ({ params: Promise.resolve(resto === undefined ? {} : { resto }) });
+      const get = (caminho, cabecalhos = {}) => new Request(`https://rise.teste${caminho}`, { headers: cabecalhos });
+
+      const metadadoRaiz = await recurso.GET(get("/.well-known/oauth-protected-resource"), params(undefined));
+      const metadadoMcp = await recurso.GET(get("/.well-known/oauth-protected-resource/mcp"), params(["mcp"]));
+      conferir(
+        "metadado do recurso na raiz e em /mcp, com cache curto e CORS",
+        [metadadoRaiz.status, await metadadoRaiz.json(), metadadoMcp.status, await metadadoMcp.json(), metadadoMcp.headers.get("cache-control"), metadadoMcp.headers.get("access-control-allow-origin")],
+        [200, metadadosDoRecurso("https://rise.teste"), 200, metadadosDoRecurso("https://rise.teste"), "public, max-age=300", "*"],
+      );
+      conferir("metadado do recurso com outro sufixo: 404", (await recurso.GET(get("/.well-known/oauth-protected-resource/outro"), params(["outro"]))).status, 404);
+      const metadadoServidor = await servidor.GET(get("/.well-known/oauth-authorization-server"));
+      conferir("metadado do servidor de autorizacao", [metadadoServidor.status, await metadadoServidor.json()], [200, metadadosDoServidor("https://rise.teste")]);
+      conferir("Host de outro nome: 421", [(await servidor.GET(get("/.well-known/oauth-authorization-server", { host: "atacante.com" }))).status, (await recurso.GET(get("/.well-known/oauth-protected-resource", { host: "atacante.com" }), params(undefined))).status], [421, 421]);
+      const opcoes = await servidor.OPTIONS(get("/.well-known/oauth-authorization-server"));
+      conferir("OPTIONS dos metadados: 204 com CORS", [opcoes.status, opcoes.headers.get("access-control-allow-origin"), opcoes.headers.get("access-control-allow-methods")], [204, "*", "GET, OPTIONS"]);
+
+      const registrar = (corpo, cabecalhos = {}) =>
+        registro.POST(new Request("https://rise.teste/mcp/oauth/register", { method: "POST", headers: { "content-type": "application/json", ...cabecalhos }, body: typeof corpo === "string" ? corpo : JSON.stringify(corpo) }));
+      const doClaude = { client_name: "ZZ-MCP Claude", redirect_uris: ["https://claude.ai/api/mcp/auth_callback"], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"], token_endpoint_auth_method: "none" };
+      const respostaRegistro = await registrar(doClaude);
+      const registrado = await respostaRegistro.json();
+      conferir(
+        "registro do claude.ai: 201 com o client_id, que existe no banco",
+        [respostaRegistro.status, registrado.client_name, registrado.redirect_uris, registrado.token_endpoint_auth_method, typeof registrado.client_id_issued_at, Boolean(await banco.carregarCliente(registrado.client_id))],
+        [201, "ZZ-MCP Claude", ["https://claude.ai/api/mcp/auth_callback"], "none", "number", true],
+      );
+      const ruim = await registrar({ ...doClaude, redirect_uris: ["https://atacante.com/cb"] });
+      conferir("registro com retorno de fora: 400 invalid_redirect_uri", [ruim.status, (await ruim.json()).error], [400, "invalid_redirect_uri"]);
+      conferir("registro com corpo que nao e JSON: 400", [(await registrar("{nao e json")).status], [400]);
+      conferir("registro com Host de outro nome: 421", (await registrar(doClaude, { host: "atacante.com" })).status, 421);
+      // Ja foram 3 pedidos neste minuto (o de Host errado nao conta: e recusado antes do limite). O limite e 10 por minuto.
+      const extras = [];
+      for (let vez = 0; vez < 8; vez++) extras.push((await registrar({ ...doClaude, client_name: `ZZ-MCP extra ${vez}` })).status);
+      conferir("do 4.o ao 10.o registro passam; o 11.o no mesmo minuto leva 429", extras, [201, 201, 201, 201, 201, 201, 201, 429]);
+
+      const verificador = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+      const retorno = "https://claude.ai/api/mcp/auth_callback";
+      const novoCodigo = () => banco.emitirCodigo({ clienteId: registrado.client_id, login: "zz-mcp-andrea", redirectUri: retorno, codeChallenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", resource: "https://rise.teste/mcp", escopos: ["consultar"] });
+      const pedirToken = (campos, { json = false, cabecalhos = {} } = {}) =>
+        token.POST(
+          new Request("https://rise.teste/mcp/oauth/token", {
+            method: "POST",
+            headers: { "content-type": json ? "application/json" : "application/x-www-form-urlencoded", ...cabecalhos },
+            body: json ? JSON.stringify(campos) : new URLSearchParams(campos).toString(),
+          }),
+        );
+      const bom = await pedirToken({ grant_type: "authorization_code", code: await novoCodigo(), code_verifier: verificador, client_id: registrado.client_id, redirect_uri: retorno, resource: "https://rise.teste/mcp" });
+      const tokens = await bom.json();
+      conferir("troca do codigo pelo formulario: 200, Bearer, 3600 s, sem cache", [bom.status, tokens.token_type, tokens.expires_in, typeof tokens.refresh_token, bom.headers.get("cache-control")], [200, "Bearer", 3600, "string", "no-store"]);
+      const peloJson = await pedirToken({ grant_type: "authorization_code", code: await novoCodigo(), code_verifier: verificador, client_id: registrado.client_id, redirect_uri: retorno }, { json: true });
+      conferir("troca do codigo por JSON tambem vale", peloJson.status, 200);
+      const renovado = await pedirToken({ grant_type: "refresh_token", refresh_token: tokens.refresh_token, client_id: registrado.client_id });
+      conferir("renovacao: 200 com um refresh novo", [renovado.status, (await renovado.json()).refresh_token !== tokens.refresh_token], [200, true]);
+      const resumo = async (resposta) => [resposta.status, (await resposta.json()).error];
+      conferir(
+        "token recusado: grant desconhecido, sem grant, cliente inventado, codigo errado, refresh reusado",
+        [
+          await resumo(await pedirToken({ grant_type: "password", client_id: registrado.client_id })),
+          await resumo(await pedirToken({ client_id: registrado.client_id })),
+          await resumo(await pedirToken({ grant_type: "authorization_code", code: "x", code_verifier: verificador, client_id: "inventado", redirect_uri: retorno })),
+          await resumo(await pedirToken({ grant_type: "authorization_code", code: "x", code_verifier: verificador, client_id: registrado.client_id, redirect_uri: retorno })),
+          await resumo(await pedirToken({ grant_type: "refresh_token", refresh_token: tokens.refresh_token, client_id: registrado.client_id })),
+        ],
+        [[400, "unsupported_grant_type"], [400, "invalid_request"], [401, "invalid_client"], [400, "invalid_grant"], [400, "invalid_grant"]],
+      );
+      conferir("token com Host de outro nome: 421", (await pedirToken({ grant_type: "refresh_token" }, { cabecalhos: { host: "atacante.com" } })).status, 421);
+    } finally {
+      if (appUrlAntes === undefined) delete process.env.APP_URL_PUBLICA;
+      else process.env.APP_URL_PUBLICA = appUrlAntes;
+    }
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;

@@ -227,6 +227,18 @@ export function respostaJson(status, corpo, cabecalhos = {}) {
   return new Response(JSON.stringify(corpo), { status, headers: { "content-type": "application/json", "cache-control": "no-store", ...cabecalhos } });
 }
 
+/**
+ * Os dois metadados (`/.well-known/*`): publicos, com CORS aberto (sao leitura e nao levam segredo nenhum) e 5 minutos de
+ * cache, o mesmo tempo que o claude.ai guarda o que descobriu.
+ */
+const CORS_DOS_METADADOS = { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, OPTIONS", "access-control-allow-headers": "mcp-protocol-version" };
+export const respostaDeMetadado = (corpo) =>
+  new Response(JSON.stringify(corpo), { status: 200, headers: { "content-type": "application/json", "cache-control": "public, max-age=300", ...CORS_DOS_METADADOS } });
+export const respostaDeOptions = () => new Response(null, { status: 204, headers: CORS_DOS_METADADOS });
+
+/** O pedido veio para outro nome (ver `hostPermitido`): 421 "Misdirected Request", sem corpo. */
+export const respostaDeHostErrado = () => new Response(null, { status: 421 });
+
 const semAspas = (texto) => String(texto).replace(/["\\]/g, "");
 
 /**
