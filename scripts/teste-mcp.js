@@ -84,6 +84,13 @@ async function limpar() {
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-MCP-" } } });
   // Os produtos coletados saem junto com a fonte (Cascade).
   await prisma.fonteColeta.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
+  // As fotos mensais nao tem chave estrangeira (sobrevivem ao produto); os cadastros: cliente antes da transportadora (Restrict).
+  await prisma.fotoMensalProduto.deleteMany({ where: { sku: { startsWith: "ZZ-MCP-" } } });
+  await prisma.cliente.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
+  await prisma.transportadora.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
+  await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
+  await prisma.concorrente.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
+  await prisma.marca.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
   // Usuarios antes das funcoes (o vinculo sai junto com o usuario).
   await prisma.usuarioRise.deleteMany({ where: { login: { startsWith: "zz-mcp-" } } });
   await prisma.funcaoRise.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
@@ -737,7 +744,11 @@ try {
         lista.filter((ferramenta) => ferramenta.annotations?.readOnlyHint).length,
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
-      [["anotarDuvida", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto"], 8, true],
+      [
+        ["anotarDuvida", "anunciosDoProduto", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "historicoDePreco", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras"],
+        16,
+        true,
+      ],
     );
 
     const ficha = await chamar("consultarProduto", { sku: "ZZ-MCP-1" });
@@ -992,6 +1003,137 @@ try {
     conferir("busca sem nada: listas vazias", (await chamar({ termos: "zz-mcp-nada-assim" }, dono)).dados.fornecedores, []);
     conferir("termos vazios sao recusados pelo esquema", Boolean((await chamar({ termos: "" }, dono)).erro), true);
     conferir("cada chamada registrada", await prisma.chamadaMcp.count({ where: { login: "zz-mcp-mercado", ferramenta: "buscarNoMercado" } }) >= 6, true);
+  }
+
+  // -------------------------------------------------------------------------
+  // Os dados principais do Rise pelo MCP (pedido do dono em 20/10/2026): filtros do catalogo, anuncios, historico de preco
+  // e todos os cadastros. So leitura, cada dado sensivel com o seu acesso.
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nDados do Rise");
+    const { responderMcp } = await import("../src/lib/mcp/servidor.js");
+    let id = 900;
+    const quem = (pode) => ({ login: "zz-mcp-dados", clienteId: null, clienteNome: "Claude", escopos: ["consultar"], familia: "zz-mcp-familia", expiraEm: new Date(Date.now() + 3600e3), administrador: false, pode });
+    const tudo = quem(() => true);
+    const sem = (...recursos) => quem((recurso) => !recursos.includes(recurso));
+    const chamar = async (nome, argumentos, autenticacao = tudo) => {
+      const resposta = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/call", { name: nome, arguments: argumentos }, { id: id++ }), autenticacao)))?.result;
+      return resposta?.isError ? { erro: resposta.content?.[0]?.text } : JSON.parse(resposta?.content?.[0]?.text ?? "null");
+    };
+
+    // --- o catalogo de teste ---
+    const p1 = await prisma.produto.create({ data: { sku: "ZZ-MCP-P1", tituloBase: "ZZMCP PRODUTO UM", marca: "ZZ-MCP MARCA", precoVenda: 10, custo: 4, estoque: 0, estoqueMinimo: 2, conferido: false } });
+    const p2 = await prisma.produto.create({ data: { sku: "ZZ-MCP-P2", tituloBase: "ZZMCP PRODUTO DOIS", marca: "ZZ-MCP MARCA", precoVenda: 49, custo: 20, estoque: 5, estoqueMinimo: 10, conferido: true, blingId: "999" } });
+    const p3 = await prisma.produto.create({ data: { sku: "ZZ-MCP-P3", tituloBase: "ZZMCP PRODUTO TRES", precoVenda: 30, custo: 12, estoque: 20, conferido: true, urlLojaIntegrada: "https://loja.invalid/p3" } });
+    await prisma.produto.create({ data: { sku: "ZZ-MCP-P4", tituloBase: "ZZMCP PRODUTO INATIVO", precoVenda: 5, estoque: 0, ativo: false } });
+    await prisma.anuncio.create({ data: { produtoId: p2.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", titulo: "ZZMCP ANUNCIO", idExterno: "MLB-ZZ1", urlExterna: "https://ml.invalid/zz1", publicadoEm: new Date("2026-10-01T12:00:00Z"), dados: { tipoAnuncio: "gold_pro", preco: 52.9 } } });
+    await prisma.anuncio.create({ data: { produtoId: p2.id, canal: "MERCADO_LIVRE", status: "RASCUNHO", dados: { tipoAnuncio: "gold_special", preco: 47.9 } } });
+    await prisma.anuncio.create({ data: { produtoId: p3.id, canal: "LOJA_INTEGRADA", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "LI-ZZ3", urlExterna: "https://loja.invalid/p3", sincronizadoEm: new Date("2026-10-02T12:00:00Z") } });
+
+    // --- filtrarProdutos ---
+    const filtrar = async (filtros, autenticacao) => (await chamar("filtrarProdutos", { termos: "zz-mcp-p", filtros }, autenticacao)).produtos?.map((produto) => produto.sku);
+    conferir(
+      "filtros: sem estoque, abaixo do minimo, sem anuncio no ML, nao conferidos, sem Bling, sem foto e os inativos",
+      [await filtrar(["semEstoque"]), await filtrar(["abaixoDoMinimo"]), await filtrar(["semAnuncioML"]), await filtrar(["naoConferidos"]), await filtrar(["semBling"]), await filtrar(["semFoto"]), await filtrar(["inativos"])],
+      [["ZZ-MCP-P1"], ["ZZ-MCP-P1", "ZZ-MCP-P2"], ["ZZ-MCP-P1", "ZZ-MCP-P3"], ["ZZ-MCP-P1"], ["ZZ-MCP-P1", "ZZ-MCP-P3"], ["ZZ-MCP-P1", "ZZ-MCP-P2", "ZZ-MCP-P3"], ["ZZ-MCP-P4"]],
+    );
+    conferir("filtros juntos valem todos (E) e o total vem junto", [await filtrar(["semEstoque", "naoConferidos"]), (await chamar("filtrarProdutos", { termos: "zz-mcp-p", filtros: ["semFoto"], limite: 1 })).total], [["ZZ-MCP-P1"], 3]);
+    const linhaP2 = (await chamar("filtrarProdutos", { termos: "zz-mcp-p2" })).produtos[0];
+    conferir(
+      "a linha traz preco, estoque, minimo, custo, conferido e os canais",
+      [linhaP2.preco, linhaP2.estoque, linhaP2.estoqueMinimo, linhaP2.custo, linhaP2.conferido, linhaP2.canais],
+      [49, 5, 10, 20, true, { bling: true, mercadoLivre: 1, lojaIntegrada: false }],
+    );
+    const restrita = (await chamar("filtrarProdutos", { termos: "zz-mcp-p2" }, sem("dado.custo", "dado.estoqueExato"))).produtos[0];
+    conferir("sem custo nem estoque exato: custo restrito e estoque em faixa", [restrita.custo, restrita.estoque], ["[restrito]", "disponível"]);
+    conferir("sem estoque exato, o filtro abaixo do minimo e recusado", (await chamar("filtrarProdutos", { filtros: ["abaixoDoMinimo"] }, sem("dado.estoqueExato"))).erro, "Este login não pode filtrar pelo estoque mínimo (precisa do estoque exato).");
+
+    // --- anunciosDoProduto ---
+    const anuncios = await chamar("anunciosDoProduto", { sku: "zz-mcp-p2" });
+    conferir(
+      "anuncios: os do ML com tipo, preco, estado e link; o Bling vinculado; sem Loja Integrada",
+      [anuncios.sku, anuncios.mercadoLivre.map((anuncio) => [anuncio.tipo, anuncio.preco, anuncio.status, anuncio.situacao, anuncio.url]), anuncios.bling.vinculado, anuncios.lojaIntegrada],
+      ["ZZ-MCP-P2", [["Premium", 52.9, "PUBLICADO", "ATIVA", "https://ml.invalid/zz1"], ["Clássico", 47.9, "RASCUNHO", "DESCONHECIDA", null]], true, null],
+    );
+    const daLoja = await chamar("anunciosDoProduto", { sku: "ZZ-MCP-P3" });
+    conferir("a Loja Integrada com o link e quando sincronizou; sem Bling", [daLoja.lojaIntegrada?.url, daLoja.lojaIntegrada?.sincronizadoEm, daLoja.bling.vinculado, daLoja.mercadoLivre], ["https://loja.invalid/p3", "2026-10-02T12:00:00.000Z", false, []]);
+    conferir("produto que nao existe", (await chamar("anunciosDoProduto", { sku: "ZZ-MCP-NADA" })).erro, "Produto não encontrado: ZZ-MCP-NADA.");
+
+    // --- historicoDePreco ---
+    const fonteConcorrente = await prisma.fonteColeta.create({ data: { nome: "ZZ-MCP Loja Rival", dominio: "zz-mcp-rival.invalid", tipo: "CONCORRENTE", ultimaColetaEm: new Date() } });
+    const rival = await prisma.produtoColetado.create({ data: { fonteId: fonteConcorrente.id, chave: "codigo:R1", origem: "site", codigo: "R1", nome: "Produto rival", precoNormal: 55, vistoEm: new Date() } });
+    await prisma.precoHistorico.createMany({ data: [{ produtoId: rival.id, precoNormal: 60, coletadoEm: new Date("2026-09-01T12:00:00Z") }, { produtoId: rival.id, precoNormal: 55, precoPromocional: 52, coletadoEm: new Date("2026-10-01T12:00:00Z") }] });
+    await prisma.produtoConcorrente.create({ data: { produtoId: p2.id, produtoColetadoId: rival.id } });
+    await prisma.fotoMensalProduto.create({ data: { produtoId: p2.id, mes: new Date("2025-09-01T00:00:00Z"), sku: "ZZ-MCP-P2", titulo: "ZZMCP PRODUTO DOIS", ativo: true, precoVenda: 45, custo: 19, estoque: 8, canais: [], produtoAtualizadoEm: new Date() } });
+    const historico = await chamar("historicoDePreco", { sku: "ZZ-MCP-P2" });
+    conferir(
+      "historico do produto: os meses (preco, custo, estoque) e a serie de cada concorrente ligado, do mais antigo ao mais novo",
+      [historico.meses.map((mes) => [mes.mes, mes.precoVenda, mes.custo, mes.estoque]), historico.concorrentes.map((concorrente) => [concorrente.fonte, concorrente.precoAtual, concorrente.serie.map((ponto) => ponto.precoNormal)])],
+      [[["2025-09", 45, 19, 8]], [["ZZ-MCP Loja Rival", 55, [60, 55]]]],
+    );
+    const historicoRestrito = await chamar("historicoDePreco", { sku: "ZZ-MCP-P2" }, sem("dado.custo", "dado.concorrentes", "dado.estoqueExato"));
+    conferir("sem os acessos: custo e concorrentes restritos, estoque em faixa", [historicoRestrito.meses[0].custo, historicoRestrito.concorrentes, historicoRestrito.meses[0].estoque], ["[restrito]", "[restrito]", "disponível"]);
+    const pelaFonte = await chamar("historicoDePreco", { fonte: "zz-mcp loja rival", codigo: "R1" });
+    conferir("historico de um produto coletado pela fonte e o codigo", [pelaFonte.coletado?.nome, pelaFonte.coletado?.serie.length], ["Produto rival", 2]);
+    conferir("historico sem sku nem fonte e codigo", Boolean((await chamar("historicoDePreco", {})).erro), true);
+
+    // --- cadastros ---
+    const fonteFornecedor = await prisma.fonteColeta.create({ data: { nome: "ZZ-MCP Distribuidora", dominio: "zz-mcp-distribuidora.invalid", tipo: "FORNECEDOR" } });
+    await prisma.produtoColetado.create({ data: { fonteId: fonteFornecedor.id, chave: "codigo:D1", origem: "arquivo", codigo: "D1", nome: "Item D1" } });
+    const fornecedor = await prisma.fornecedor.create({ data: { nome: "ZZ-MCP Distribuidora", cnpj: "11.222.333/0001-81", contato: "Joana", prazoEntregaDias: 5, condicoesPagamento: "28 dias", pedidoMinimo: 300, fonteId: fonteFornecedor.id } });
+    await prisma.fornecedor.create({ data: { nome: "ZZ-MCP Antiga", estrangeiro: true, ativo: false } });
+    await prisma.produtoFornecedor.create({ data: { produtoId: p2.id, fornecedorId: fornecedor.id, precoCusto: 20, padrao: true } });
+    const fornecedores = await chamar("listarFornecedores", { termos: "zz-mcp" });
+    conferir(
+      "fornecedores: os ativos, com contato, prazo, condicoes, pedido minimo, a fonte e as contagens",
+      fornecedores.fornecedores.map((linha) => [linha.nome, linha.cnpj, linha.contato, linha.prazoEntregaDias, linha.condicoesPagamento, linha.pedidoMinimo, linha.fonte?.dominio, linha.fonte?.produtosColetados, linha.produtosVinculados]),
+      [["ZZ-MCP Distribuidora", "11.222.333/0001-81", "Joana", 5, "28 dias", 300, "zz-mcp-distribuidora.invalid", 1, 1]],
+    );
+    conferir("com os inativos aparece o estrangeiro", (await chamar("listarFornecedores", { termos: "zz-mcp", incluirInativos: true })).fornecedores.map((linha) => [linha.nome, linha.estrangeiro, linha.ativo]), [["ZZ-MCP Antiga", true, false], ["ZZ-MCP Distribuidora", false, true]]);
+    conferir("fornecedores sem dado.custo: recusado", (await chamar("listarFornecedores", {}, sem("dado.custo"))).erro, "Este login não pode ver os fornecedores (precisa do acesso a custo e fornecedores).");
+
+    await prisma.concorrente.create({ data: { nome: "ZZ-MCP Loja Rival", site: "https://zz-mcp-rival.invalid", fonteId: fonteConcorrente.id } });
+    const concorrentes = await chamar("listarConcorrentes", { termos: "zz-mcp" });
+    conferir("concorrentes com a fonte, os coletados e os produtos do Rise ligados", concorrentes.concorrentes.map((linha) => [linha.nome, linha.site, linha.fonte?.produtosColetados, linha.produtosVinculados, typeof linha.fonte?.ultimaColetaEm]), [["ZZ-MCP Loja Rival", "https://zz-mcp-rival.invalid", 1, 1, "string"]]);
+    conferir("concorrentes sem dado.concorrentes: recusado", (await chamar("listarConcorrentes", {}, sem("dado.concorrentes"))).erro, "Este login não pode ver os concorrentes.");
+
+    const transportadora = await prisma.transportadora.create({ data: { nome: "ZZ-MCP Transportes", modalidade: "RODOVIARIA", cidade: "Caxias do Sul", uf: "RS", telefone: "54988990008", prazoEntregaDias: 3, urlRastreamento: "https://rastreio.invalid" } });
+    await prisma.cliente.create({
+      data: {
+        nome: "ZZ-MCP Cliente Silva",
+        tipoPessoa: "FISICA",
+        documento: "529.982.247-25",
+        telefone: "54988990008",
+        email: "zz-mcp@cliente.invalid",
+        transportadoraId: transportadora.id,
+        observacoes: "prefere entrega pela manha",
+        enderecos: { create: [{ tipo: "GERAL", cep: "95000-000", uf: "RS", cidade: "Caxias do Sul", bairro: "Centro", logradouro: "Rua Um", numero: "10" }] },
+        contatos: { create: [] },
+      },
+    });
+    const transportadoras = await chamar("listarTransportadoras", { termos: "zz-mcp" });
+    conferir("transportadoras com modalidade, cidade, telefone formatado, prazo e quantos clientes a preferem", transportadoras.transportadoras.map((linha) => [linha.nome, linha.modalidade, linha.cidade, linha.uf, linha.telefone, linha.prazoEntregaDias, linha.clientes]), [["ZZ-MCP Transportes", "Transportadora rodoviária", "Caxias do Sul", "RS", "(54) 98899-0008", 3, 1]]);
+
+    await prisma.marca.create({ data: { nome: "ZZ-MCP MARCA", observacoes: "marca de teste" } });
+    conferir("marcas com quantos produtos do Rise a usam", (await chamar("listarMarcas", { termos: "zz-mcp" })).marcas.map((linha) => [linha.nome, linha.observacoes, linha.produtos]), [["ZZ-MCP MARCA", "marca de teste", 2]]);
+
+    const clientes = await chamar("listarClientes", { termos: "zz-mcp" });
+    const cliente = clientes.clientes[0];
+    conferir(
+      "clientes: documento, contatos, endereco, transportadora e observacoes para quem ve dados pessoais",
+      [cliente.nome, cliente.tipoPessoa, cliente.documento, cliente.telefone, cliente.email, cliente.endereco?.cidade, cliente.endereco?.logradouro, cliente.transportadora, cliente.observacoes],
+      ["ZZ-MCP Cliente Silva", "Pessoa Física", "529.982.247-25", "(54) 98899-0008", "zz-mcp@cliente.invalid", "Caxias do Sul", "Rua Um", "ZZ-MCP Transportes", "prefere entrega pela manha"],
+    );
+    const semPessoal = (await chamar("listarClientes", { termos: "zz-mcp" }, sem("dado.pessoalDoCliente"))).clientes[0];
+    conferir(
+      "sem dado.pessoalDoCliente: o nome, o tipo, a cidade e a transportadora ficam; documento, contatos, endereco e observacoes nao",
+      [semPessoal.nome, semPessoal.cidade, semPessoal.transportadora, semPessoal.documento, semPessoal.telefone, semPessoal.email, semPessoal.endereco, semPessoal.observacoes],
+      ["ZZ-MCP Cliente Silva", "Caxias do Sul", "ZZ-MCP Transportes", "[restrito]", "[restrito]", "[restrito]", "[restrito]", "[restrito]"],
+    );
+    conferir("sem dado pessoal, a busca pelo CPF nao acha (nao confirma que o documento existe)", (await chamar("listarClientes", { termos: "529.982.247-25" }, sem("dado.pessoalDoCliente"))).clientes, []);
+    conferir("com dado pessoal, acha pelo CPF", (await chamar("listarClientes", { termos: "529.982.247-25" })).clientes.map((linha) => linha.nome), ["ZZ-MCP Cliente Silva"]);
+    const registrados = await prisma.chamadaMcp.findMany({ where: { login: "zz-mcp-dados", ferramenta: "listarClientes" } });
+    conferir("o registro da chamada nao guarda o CPF nem o telefone em claro", JSON.stringify(registrados.map((linha) => linha.argumentos)).includes("529.982.247-25"), false);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)

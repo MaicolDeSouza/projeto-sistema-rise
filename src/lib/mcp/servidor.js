@@ -2,6 +2,8 @@ import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 
 import { FERRAMENTAS, executarFerramenta } from "@/lib/riseAi/ferramentas";
 import { FERRAMENTA_ANOTAR } from "./anotacoes.js";
+import { FERRAMENTAS_DE_CADASTRO } from "./cadastros.js";
+import { FERRAMENTAS_DO_CATALOGO } from "./catalogo.js";
 import { FERRAMENTA_MERCADO } from "./mercado.js";
 import { autenticacaoParaSdk } from "./portao.js";
 import { registrarChamadaMcp } from "./registro.js";
@@ -18,6 +20,7 @@ import { registrarChamadaMcp } from "./registro.js";
 export const INSTRUCOES = [
   "Você está conectado ao Rise, o sistema da 4hobby, uma loja brasileira de eletrônicos e componentes para projetos.",
   "Use as ferramentas para consultar produtos, preços, estoque e o conhecimento aprovado da loja antes de responder sobre eles.",
+  "Além do catálogo, o Rise tem: os produtos de fornecedores e concorrentes coletados (buscarNoMercado), listas do catálogo por situação (filtrarProdutos), os anúncios de um produto (anunciosDoProduto), o histórico de preço (historicoDePreco) e os cadastros (fornecedores, concorrentes, transportadoras, marcas e clientes).",
   "O preço é sempre o de venda normal da loja. O estoque pode vir como faixa (disponível, poucas unidades, em falta), conforme o acesso de quem está conectado.",
   "\"[restrito]\" quer dizer que este login não pode ver aquele dado: não tente deduzi-lo e não diga que ele não existe.",
   "Nunca invente produto, preço, estoque ou especificação: se a ferramenta não trouxer, diga que não achou no Rise.",
@@ -30,9 +33,11 @@ const ANOTACAO = { readOnlyHint: false, destructiveHint: false, idempotentHint: 
 
 /**
  * As ferramentas que existem SO no MCP, fora do catalogo do Rise AI (o perfil do cliente nunca as ve): a pesquisa nos
- * fornecedores e concorrentes coletados e a anotacao da duvida. Conferem o `pode()` do login por conta propria.
+ * fornecedores e concorrentes coletados, os filtros do catalogo, os anuncios, o historico de preco, os cadastros e a
+ * anotacao da duvida. Conferem o `pode()` do login por conta propria. So a anotacao escreve.
  */
-const SO_DO_MCP = [FERRAMENTA_MERCADO, FERRAMENTA_ANOTAR];
+const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FERRAMENTAS_DE_CADASTRO];
+const SO_DO_MCP = [...SO_LEITURA_DO_MCP, FERRAMENTA_ANOTAR];
 
 const resposta = (resultado) => ({ content: [{ type: "text", text: JSON.stringify(resultado) }] });
 const respostaDeErro = (mensagem) => ({ content: [{ type: "text", text: mensagem }], isError: true });
@@ -84,9 +89,11 @@ export function montarServidorMcp(autenticacao, { agora, registrar = registrarCh
       executar(ferramenta.nome, argumentos),
     );
   }
-  servidor.registerTool(FERRAMENTA_MERCADO.nome, { description: FERRAMENTA_MERCADO.descricao, inputSchema: FERRAMENTA_MERCADO.esquema, annotations: SO_LEITURA }, (argumentos) =>
-    executar(FERRAMENTA_MERCADO.nome, argumentos),
-  );
+  for (const ferramenta of SO_LEITURA_DO_MCP) {
+    servidor.registerTool(ferramenta.nome, { description: ferramenta.descricao, inputSchema: ferramenta.esquema, annotations: SO_LEITURA }, (argumentos) =>
+      executar(ferramenta.nome, argumentos),
+    );
+  }
   servidor.registerTool(FERRAMENTA_ANOTAR.nome, { description: FERRAMENTA_ANOTAR.descricao, inputSchema: FERRAMENTA_ANOTAR.esquema, annotations: ANOTACAO }, (argumentos) =>
     executar(FERRAMENTA_ANOTAR.nome, argumentos),
   );
