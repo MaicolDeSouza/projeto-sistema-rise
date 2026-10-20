@@ -52,6 +52,7 @@
     "teste:vps": "node scripts/teste-vps.js",
     "teste:rise-ai": "node scripts/teste-rise-ai.js",
     "teste:acessos": "node scripts/teste-acessos.js",
+    "teste:proposta": "node scripts/teste-proposta.js",
     "acessos:admin": "node scripts/acessos-admin.js"
   },
   "dependencies": {
