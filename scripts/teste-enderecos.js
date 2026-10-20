@@ -38,6 +38,15 @@ conferir("varredura: lista marca categoria", enderecosDaVarredura([{ url: "https
 ]);
 conferir("rotulo", [rotuloDoEndereco("https://loja.com.br/"), rotuloDoEndereco("https://loja.com.br/a/b")], ["loja inteira", "/a/b"]);
 
+// VTEX, pagina de produto (Patolastore): tabela vs a vista e galeria grande.
+{
+  const { dadosDaPaginaVtex } = await import("../src/lib/coleta/vtex-pagina.js");
+  const html = '"productListPriceFrom":"3.59","productPriceFrom":"3.23" <meta property="og:image" content="http://x.vteximg.com.br/arquivos/meta-image.png?v=1"> <img src="https://x.vteximg.com.br/arquivos/ids/1-500-500/A.jpg?v=2"> <a href="https://x.vteximg.com.br/arquivos/ids/1-1000-1000/A.jpg?v=2"> <a href="https://x.vteximg.com.br/arquivos/ids/9-500-500/banner.jpg">';
+  const v = dadosDaPaginaVtex(html);
+  conferir("vtex pagina: tabela, a vista e so a foto grande da galeria", [v.normal, v.aVista, v.imagens], [3.59, 3.23, ["https://x.vteximg.com.br/arquivos/ids/1-1000-1000/A.jpg?v=2"]]);
+  conferir("vtex pagina: pagina de outra plataforma e null", dadosDaPaginaVtex("<html></html>"), null);
+}
+
 // A listagem importa buscar.js sem extensao: precisa do resolvedor de alias do projeto.
 try {
   const { produtosDaListagem, paginasSeguintes, numeroDaPagina, dentroDaCategoria } = await import("../src/lib/coleta/listagem.js");

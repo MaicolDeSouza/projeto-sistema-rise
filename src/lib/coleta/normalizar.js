@@ -1,5 +1,6 @@
 import { extrairProduto } from "./extrair";
 import { precosDaForseti } from "./forseti";
+import { dadosDaPaginaVtex } from "./vtex-pagina";
 import { ehListagemDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
 import { caminhoDeCategoria, caminhoDoJsonLd } from "./categoria";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
@@ -2124,10 +2125,13 @@ export function normalizarPagina({
   const forseti = precosDaForseti(html, url);
   const robocore = precosDaRoboCore(html, url, micro?.skuFonte ?? estruturado?.skuFonte);
   const simuladorWoo = precosDoSimuladorWoo(html);
+  // VTEX: o preco de tabela e a foto grande so existem nos JSONs da pagina (ver vtex-pagina.js).
+  const vtexPagina = dadosDaPaginaVtex(html);
 
   const declaradoNormal =
     (trayComRiscado ? trayPrecoVenda : null) ??
     aspnet?.de ??
+    vtexPagina?.normal ??
     simuladorWoo?.normal ??
     forseti?.normal ??
     robocore?.normal ??
@@ -2170,6 +2174,7 @@ export function normalizarPagina({
     forseti?.aVista ?? null,
     robocore?.aVista ?? null,
     simuladorWoo?.aVista ?? null,
+    vtexPagina?.aVista ?? null,
   ].filter((n) => typeof n === "number");
 
   const prices = decidirPrecos({ declaradoNormal, candidatos });
@@ -2303,12 +2308,15 @@ export function normalizarPagina({
   // listagem da Tray trunca em QUATRO imagens por produto (medido: todo item
   // da listagem tem 4; o detalhe do mesmo produto tem 9). Deixando o catalogo
   // vencer sozinho, cinco fotos que a pagina tinha eram perdidas.
-  const images = semRepetir([
-    ...(doCatalogo?.imagens ?? []),
-    ...doMagento,
-    ...estruturadas,
-    ...galeria,
-  ]);
+  // VTEX: a galeria da pagina (as fotos grandes) vence; o og:image dela e o banner da loja, nao o produto.
+  const images = vtexPagina?.imagens?.length
+    ? semRepetir([...(doCatalogo?.imagens ?? []), ...vtexPagina.imagens])
+    : semRepetir([
+        ...(doCatalogo?.imagens ?? []),
+        ...doMagento,
+        ...estruturadas,
+        ...galeria,
+      ]);
 
   // --- descricao ------------------------------------------------------------
   // A plataforma ASP.NET ja le a propria aba (aspnet.descricao).
@@ -2438,7 +2446,9 @@ export function normalizarPagina({
   if (prices.normal !== null) {
     origens.precoNormal = trayComRiscado
       ? `dataLayer da Tray (priceSell); o price de R$ ${trayPrecoTabela.toFixed(2).replace(".", ",")} e o riscado`
-      : declaradoNormal
+      : vtexPagina?.normal && declaradoNormal === vtexPagina.normal
+        ? "preco de tabela da VTEX (listPrice); o itemprop price e o a vista"
+        : declaradoNormal
         ? "preco de tabela declarado"
         : "maior preco da pagina";
   }
