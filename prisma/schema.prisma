@@ -257,8 +257,33 @@ model Produto {
   componentes ProdutoComponente[] @relation("KitPecas")
   usadoEm     ProdutoComponente[] @relation("PecaKits")
 
+  /// O trabalho da sessao do Claude para este produto, ate o dono aprovar (Conferido). Ver PropostaDeProduto.
+  proposta PropostaDeProduto?
+
   @@index([marca])
   @@index([ativo])
+}
+
+/// Proposta automatica de produto (spec 2026-10-16-proposta-automatica-de-produto-design.md): o que a sessao do Claude
+/// pesquisou e propoe para o cadastro (descricao, titulos, fotos, campos, preco, EAN, documentos, relatorio), SEM mexer
+/// no produto. Temporaria: o Conferido do dono a apaga. Uma por produto.
+model PropostaDeProduto {
+  id        String  @id @default(cuid())
+  produtoId String  @unique
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  /// Versao do roteiro da sessao que gerou a proposta (docs/superpowers/roteiros/proposta-de-produto.md).
+  versaoDoRoteiro String @default("1")
+
+  /// Uma chave por secao: descricao, titulos, fotos, campos, preco, ean, documentos, relatorio.
+  secoes Json
+
+  /// Por secao, a assinatura do valor que o dono aplicou ao produto e salvou. Secao sem assinatura (ou com o produto
+  /// diferente dela) e "nao aplicada", e o Conferido avisa antes de apagar.
+  aplicadas Json @default("{}")
+
+  criadaEm     DateTime @default(now())
+  atualizadaEm DateTime @updatedAt
 }
 
 /// Uma peca de um produto com composicao (kit): qual produto e quantas unidades.

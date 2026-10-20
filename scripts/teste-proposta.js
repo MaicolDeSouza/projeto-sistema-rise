@@ -1,4 +1,7 @@
+import "dotenv/config";
 import assert from "node:assert/strict";
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
 
 import { escolherMedidas, escolherNcm, opcoesDePreco, origemFiscal, precoParaMargem } from "../src/lib/proposta/regras.js";
 import { calcularMargem } from "../src/lib/margem.js";
@@ -91,6 +94,40 @@ function conferir(nome, condicao) {
 
   conferir("origem fiscal com fornecedor = 2", origemFiscal(true) === 2);
   conferir("origem fiscal sem fornecedor = 0", origemFiscal(false) === 0);
+}
+
+// ---------------------------------------------------------------------------
+// Banco: a tabela PropostaDeProduto (uma por produto, apagada junto com ele). Postgres local; so escreve ZZ-PROP-*.
+// ---------------------------------------------------------------------------
+register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
+const { prisma } = await import("../src/lib/db.js");
+
+async function limpar() {
+  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PROP-" } } });
+}
+
+try {
+  await limpar();
+  {
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-1", tituloBase: "PRODUTO DE TESTE DA PROPOSTA" } });
+    const criada = await prisma.propostaDeProduto.create({ data: { produtoId: produto.id, secoes: { titulos: { opcoes: [] } } } });
+    conferir("banco: a proposta nasce com aplicadas vazio", JSON.stringify(criada.aplicadas) === "{}");
+    conferir("banco: a proposta nasce com a versao 1 do roteiro", criada.versaoDoRoteiro === "1");
+    const lida = await prisma.propostaDeProduto.findUnique({ where: { produtoId: produto.id } });
+    conferir("banco: a secao volta como foi gravada", Array.isArray(lida?.secoes?.titulos?.opcoes));
+    let recusou = false;
+    try {
+      await prisma.propostaDeProduto.create({ data: { produtoId: produto.id, secoes: {} } });
+    } catch {
+      recusou = true;
+    }
+    conferir("banco: uma proposta so por produto", recusou);
+    await prisma.produto.delete({ where: { id: produto.id } });
+    conferir("banco: apagar o produto apaga a proposta", (await prisma.propostaDeProduto.findUnique({ where: { id: criada.id } })) === null);
+  }
+} finally {
+  await limpar();
+  await prisma.$disconnect();
 }
 
 console.log(`\n${contagem} asserções ok`);
