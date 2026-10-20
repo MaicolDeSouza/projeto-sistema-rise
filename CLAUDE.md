@@ -3868,6 +3868,11 @@ servidor real: `docs/superpowers/plans/2026-10-20-mcp-rise-e-rumo-do-rise-ai-dec
     busca não olha documento nem contato, para não confirmar que um CPF existe). **Decisão do dono:** dar os clientes ao MCP sabendo
     que esses dados vão para a nuvem do Claude ou do ChatGPT de quem pergunta.
   - Estoque exato só com `dado.estoqueExato` (sem ele, a faixa; e o filtro abaixoDoMinimo é recusado). Medido no PC: 4 a 470 ms.
+- **As horas saem no horário de Brasília** (pedido do dono em 20/10/2026: o claude.ai mostrava "21:51" para uma leitura de estoque
+  das 18:51, porque recebia UTC). `src/lib/mcp/horario.js` (`horasDeBrasilia`, pura) troca toda hora UTC (texto `...Z` ou `Date`) do
+  resultado de qualquer ferramenta pela de São Paulo com o fuso escrito (`2026-10-20T18:51:02-03:00`), na `resposta` do
+  `servidor.js`, e as instruções dizem para mostrar como veio. Data sem hora fica como está. **Só no MCP:** as telas e o WhatsApp
+  seguem com UTC.
 - **Onde mora:** `src/lib/mcp/` (`oauth.js`: as regras puras do OAuth, Host e Origin; `oauthBanco.js`: clientes, códigos, tokens,
   rotação, revogação por família e conexões; `portao.js`: `exigirTokenMcp`; `autorizacao.js`: a tela Autorizar; `servidor.js`: o
   `McpServer` e as ferramentas; `registro.js`: `ChamadaMcp`; `anotacoes.js`: `anotarDuvida`; `conexoes.js`: a aba Conexões). Rotas

@@ -1056,7 +1056,7 @@ try {
       ["ZZ-MCP-P2", [["Premium", 52.9, "PUBLICADO", "ATIVA", "https://ml.invalid/zz1"], ["Clássico", 47.9, "RASCUNHO", "DESCONHECIDA", null]], true, null],
     );
     const daLoja = await chamar("anunciosDoProduto", { sku: "ZZ-MCP-P3" });
-    conferir("a Loja Integrada com o link e quando sincronizou; sem Bling", [daLoja.lojaIntegrada?.url, daLoja.lojaIntegrada?.sincronizadoEm, daLoja.bling.vinculado, daLoja.mercadoLivre], ["https://loja.invalid/p3", "2026-10-02T12:00:00.000Z", false, []]);
+    conferir("a Loja Integrada com o link e quando sincronizou; sem Bling", [daLoja.lojaIntegrada?.url, daLoja.lojaIntegrada?.sincronizadoEm, daLoja.bling.vinculado, daLoja.mercadoLivre], ["https://loja.invalid/p3", "2026-10-02T09:00:00-03:00", false, []]);
     conferir("produto que nao existe", (await chamar("anunciosDoProduto", { sku: "ZZ-MCP-NADA" })).erro, "Produto não encontrado: ZZ-MCP-NADA.");
 
     // --- historicoDePreco ---
@@ -1134,6 +1134,23 @@ try {
     conferir("com dado pessoal, acha pelo CPF", (await chamar("listarClientes", { termos: "529.982.247-25" })).clientes.map((linha) => linha.nome), ["ZZ-MCP Cliente Silva"]);
     const registrados = await prisma.chamadaMcp.findMany({ where: { login: "zz-mcp-dados", ferramenta: "listarClientes" } });
     conferir("o registro da chamada nao guarda o CPF nem o telefone em claro", JSON.stringify(registrados.map((linha) => linha.argumentos)).includes("529.982.247-25"), false);
+  }
+
+  // -------------------------------------------------------------------------
+  // As horas pelo MCP no horario de Brasilia (pedido do dono em 20/10/2026: o claude.ai mostrou "21:51" para uma leitura
+  // de estoque das 18:51, porque recebia a hora em UTC)
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nHorário de Brasília");
+    const { horasDeBrasilia } = await import("../src/lib/mcp/horario.js");
+    const { INSTRUCOES } = await import("../src/lib/mcp/servidor.js");
+    conferir(
+      "toda hora UTC vira Brasilia com o fuso escrito; data sem hora, texto com hora no meio, numero e nulo ficam",
+      horasDeBrasilia({ a: "2026-10-20T21:51:02.113Z", b: ["2026-01-01T03:00:00Z", { c: "2026-10-20T02:30:00Z" }], d: "2026-10-20", e: "lido 2026-10-20T21:51:02Z", f: 5, g: null, h: "2025-09" }),
+      { a: "2026-10-20T18:51:02-03:00", b: ["2026-01-01T00:00:00-03:00", { c: "2026-10-19T23:30:00-03:00" }], d: "2026-10-20", e: "lido 2026-10-20T21:51:02Z", f: 5, g: null, h: "2025-09" },
+    );
+    conferir("Date vira texto de Brasilia tambem", horasDeBrasilia({ quando: new Date("2026-10-20T21:51:02Z") }), { quando: "2026-10-20T18:51:02-03:00" });
+    conferir("as instrucoes dizem que as horas ja estao em Brasilia", INSTRUCOES.includes("horário de Brasília"), true);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)

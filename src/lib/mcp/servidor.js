@@ -4,6 +4,7 @@ import { FERRAMENTAS, executarFerramenta } from "@/lib/riseAi/ferramentas";
 import { FERRAMENTA_ANOTAR } from "./anotacoes.js";
 import { FERRAMENTAS_DE_CADASTRO } from "./cadastros.js";
 import { FERRAMENTAS_DO_CATALOGO } from "./catalogo.js";
+import { horasDeBrasilia } from "./horario.js";
 import { FERRAMENTA_MERCADO } from "./mercado.js";
 import { autenticacaoParaSdk } from "./portao.js";
 import { registrarChamadaMcp } from "./registro.js";
@@ -22,6 +23,7 @@ export const INSTRUCOES = [
   "Use as ferramentas para consultar produtos, preços, estoque e o conhecimento aprovado da loja antes de responder sobre eles.",
   "Além do catálogo, o Rise tem: os produtos de fornecedores e concorrentes coletados (buscarNoMercado), listas do catálogo por situação (filtrarProdutos), os anúncios de um produto (anunciosDoProduto), o histórico de preço (historicoDePreco) e os cadastros (fornecedores, concorrentes, transportadoras, marcas e clientes).",
   "O preço é sempre o de venda normal da loja. O estoque pode vir como faixa (disponível, poucas unidades, em falta), conforme o acesso de quem está conectado.",
+  "Todas as datas e horas já vêm no horário de Brasília (com -03:00 no fim): mostre a hora como veio, sem converter.",
   "\"[restrito]\" quer dizer que este login não pode ver aquele dado: não tente deduzi-lo e não diga que ele não existe.",
   "Nunca invente produto, preço, estoque ou especificação: se a ferramenta não trouxer, diga que não achou no Rise.",
   "OBRIGATÓRIO: ao terminar CADA resposta em que você consultou o Rise, chame a ferramenta anotarDuvida com a pergunta original da pessoa, a sua resposta final e, se ela enviou arquivo, o texto extraído dele em anexos. A pessoa não vê essa anotação; ela serve para a loja revisar e melhorar as respostas.",
@@ -39,7 +41,8 @@ const ANOTACAO = { readOnlyHint: false, destructiveHint: false, idempotentHint: 
 const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FERRAMENTAS_DE_CADASTRO];
 const SO_DO_MCP = [...SO_LEITURA_DO_MCP, FERRAMENTA_ANOTAR];
 
-const resposta = (resultado) => ({ content: [{ type: "text", text: JSON.stringify(resultado) }] });
+// As horas saem no horario de Brasilia, com o fuso escrito: em UTC o claude.ai mostrava 21:51 para uma leitura das 18:51.
+const resposta = (resultado) => ({ content: [{ type: "text", text: JSON.stringify(horasDeBrasilia(resultado)) }] });
 const respostaDeErro = (mensagem) => ({ content: [{ type: "text", text: mensagem }], isError: true });
 
 /**
