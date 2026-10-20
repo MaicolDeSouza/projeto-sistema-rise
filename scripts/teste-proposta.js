@@ -102,6 +102,24 @@ function conferir(nome, condicao) {
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 const { prisma } = await import("../src/lib/db.js");
 
+// ---------------------------------------------------------------------------
+// Disco: a pasta proposta/ (fotos candidatas e PDFs baixados), com nome gerado por nos
+// ---------------------------------------------------------------------------
+{
+  const { PASTA_PROPOSTA, caminhoDaProposta, urlDaProposta, apagarPastaDaProposta } = await import("../src/lib/arquivos.js");
+  const nome = "0123456789abcdef0123456789abcdef.jpg";
+  conferir("disco: a pasta se chama proposta", PASTA_PROPOSTA === "proposta");
+  conferir("disco: nome com ../ e recusado", caminhoDaProposta("100103", "../x.jpg") === null);
+  conferir("disco: nome que nao e o do sistema e recusado", caminhoDaProposta("100103", "abc.jpg") === null);
+  conferir("disco: extensao fora de jpg/pdf e recusada", caminhoDaProposta("100103", nome.replace(".jpg", ".zip")) === null);
+  conferir("disco: SKU invalido e recusado", caminhoDaProposta("../etc", nome) === null);
+  conferir("disco: nome valido termina em proposta/<nome>", /[\\/]100103[\\/]proposta[\\/]0123456789abcdef0123456789abcdef\.jpg$/.test(caminhoDaProposta("100103", nome) ?? ""));
+  conferir("disco: PDF tambem vale", caminhoDaProposta("100103", nome.replace(".jpg", ".pdf")) !== null);
+  conferir("disco: urlDaProposta monta o endereco da rota", urlDaProposta("100103-teste", nome) === `/api/arquivos/100103-teste/proposta/${nome}`);
+  // apagarPastaDaProposta com SKU invalido nao apaga nada e nao lanca.
+  conferir("disco: apagar com SKU invalido nao faz nada", (await apagarPastaDaProposta("..")) === false);
+}
+
 async function limpar() {
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PROP-" } } });
 }

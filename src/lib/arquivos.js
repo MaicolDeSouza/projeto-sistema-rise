@@ -122,6 +122,32 @@ export function caminhoDaReserva(sku, nome) {
 }
 
 /**
+ * Pasta da PROPOSTA automatica do produto (dados/produtos/<SKU>/proposta/, spec 2026-10-16): as fotos candidatas que a
+ * sessao do Claude baixou (JPEG padronizado) e os PDFs de fabricante, ate o dono aprovar (Conferido). Fora de `PASTAS`
+ * pelo mesmo motivo da reserva: nao e foto do produto, e nenhuma leitura de foto pode enxerga-la. A rota a serve so
+ * com login (o Caddy so libera imagens/documentos/certificados).
+ */
+export const PASTA_PROPOSTA = "proposta";
+
+/** Caminho absoluto de um arquivo da proposta, ou null se o SKU ou o nome (32 hex + .jpg/.pdf) nao forem os nossos. */
+export function caminhoDaProposta(sku, nome) {
+  if (!skuValido(sku) || !/^[0-9a-f]{32}\.(jpg|pdf)$/.test(nome ?? "")) return null;
+  return path.join(RAIZ, sku, PASTA_PROPOSTA, nome);
+}
+
+/** Endereco pelo qual a tela pede um arquivo da proposta. Calculado, nunca gravado. */
+export function urlDaProposta(sku, nome) {
+  return `/api/arquivos/${encodeURIComponent(sku)}/${PASTA_PROPOSTA}/${nome}`;
+}
+
+/** Apaga a pasta da proposta inteira (o Conferido). Devolve false sem tocar no disco quando o SKU nao e valido. */
+export async function apagarPastaDaProposta(sku) {
+  if (!skuValido(sku)) return false;
+  await rm(path.join(RAIZ, sku, PASTA_PROPOSTA), { recursive: true, force: true });
+  return true;
+}
+
+/**
  * O arquivo como FLUXO para servir numa Response, e nao inteiro na memoria (documento e ZIP chegam a 20 MB, a rota
  * e publica). O arquivo so e ABERTO na primeira leitura: `fs.createReadStream` abre na construcao, e quando
  * ninguem le o corpo (o Next nao le nem cancela o corpo de um HEAD: so encerra a resposta) o descritor ficava

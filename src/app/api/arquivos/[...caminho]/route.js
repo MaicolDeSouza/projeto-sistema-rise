@@ -2,10 +2,12 @@ import { stat } from "node:fs/promises";
 
 import { prisma } from "@/lib/db";
 import {
+  PASTA_PROPOSTA,
   PASTA_RESERVA,
   TIPOS_POR_PASTA,
   TIPO_POR_EXTENSAO,
   cabecalhoDeArquivo,
+  caminhoDaProposta,
   caminhoDaReserva,
   caminhoDe,
   fluxoDeArquivo,
@@ -64,6 +66,22 @@ export async function GET(requisicao, { params }) {
         "Content-Length": String(tamanhoReserva),
         // O nome e gerado na gravacao e nunca reutilizado: pode cachear para sempre.
         "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
+  }
+
+  // Proposta automatica (fotos candidatas e PDFs que a sessao do Claude baixou). Atras do login: o Caddy so deixa
+  // imagens/documentos/certificados passarem sem ele. Sem consulta ao banco: o nome e gerado por nos.
+  if (pasta === PASTA_PROPOSTA) {
+    const absolutoProposta = caminhoDaProposta(sku, nome);
+    if (!absolutoProposta) return new Response("Caminho inválido.", { status: 400 });
+    const tamanhoProposta = await tamanhoDe(absolutoProposta);
+    if (tamanhoProposta === null) return new Response("Arquivo não encontrado.", { status: 404 });
+    return new Response(fluxoDeArquivo(absolutoProposta), {
+      headers: {
+        "Content-Type": nome.endsWith(".pdf") ? "application/pdf" : "image/jpeg",
+        "Content-Length": String(tamanhoProposta),
+        "Cache-Control": "private, max-age=31536000, immutable",
       },
     });
   }
