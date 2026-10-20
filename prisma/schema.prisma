@@ -597,6 +597,13 @@ enum PerfilIA {
   PUBLICO
 }
 
+/// De onde a conversa veio. CHAT: o chat do Rise AI (Entrega 1 e A1, saiu da tela em 20/10/2026; as antigas ficam).
+/// MCP: as duvidas que o Claude/ChatGPT anotou pela ferramenta `anotarDuvida` (uma conversa por login por dia).
+enum CanalIA {
+  CHAT
+  MCP
+}
+
 enum PapelMensagemIA {
   USUARIO
   ASSISTENTE
@@ -642,6 +649,7 @@ model ConversaIA {
   /// O nome do login (Remote-User do Tinyauth); "pc" no Rise do PC, que nao tem login.
   usuario String
   perfil  PerfilIA @default(ADMIN)
+  canal   CanalIA  @default(CHAT)
 
   /// A revisao noturna do dono: quando e por quem a conversa foi marcada como revisada.
   revisadaEm  DateTime?
@@ -655,6 +663,8 @@ model ConversaIA {
 
   @@index([usuario, atualizadoEm])
   @@index([criadoEm])
+  /// A conversa do dia do MCP de um login (anotarDuvida acha ou cria por aqui).
+  @@index([canal, usuario, criadoEm])
 }
 
 model MensagemIA {
@@ -905,6 +915,80 @@ model AuditoriaDeAcesso {
 model SemeaduraDeAcessos {
   chave   String   @id
   feitaEm DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Servidor MCP (plano de 20/10/2026): o Rise como servidor de autorizacao OAuth do proprio /mcp
+// ---------------------------------------------------------------------------
+// Codigo e tokens sao guardados SO como SHA-256 (src/lib/mcp/oauth.js): quem le o banco ou um dump nao consegue usar nenhum.
+
+/// O cliente que se registrou sozinho (RFC 7591): o claude.ai, o ChatGPT, o Claude Code. Publico (sem segredo, PKCE).
+model ClienteMcp {
+  id           String   @id @default(cuid())
+  nome         String
+  /// So enderecos da lista permitida (claude.ai, chatgpt.com e o retorno local do Claude Code).
+  redirectUris String[]
+  criadoEm     DateTime @default(now())
+
+  codigos CodigoMcp[]
+  tokens  TokenMcp[]
+}
+
+/// O codigo da tela "Autorizar": uso unico, 5 minutos, preso ao PKCE, ao endereco de volta e ao recurso pedidos.
+model CodigoMcp {
+  id            String     @id @default(cuid())
+  hash          String     @unique
+  clienteId     String
+  cliente       ClienteMcp @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  /// O login do Rise de quem autorizou.
+  login         String
+  redirectUri   String
+  codeChallenge String
+  resource      String
+  escopos       String[]
+  expiraEm      DateTime
+  /// Preenchido na troca; um segundo uso revoga o que este codigo emitiu (sinal de roubo).
+  usadoEm       DateTime?
+  criadoEm      DateTime   @default(now())
+}
+
+/// Um par acesso (1 h) + renovacao (30 dias). A renovacao gira a cada uso: o par antigo fica com `substituidoEm`, e usar
+/// de novo uma renovacao ja trocada revoga a `familia` inteira (todos os pares que nasceram do mesmo codigo).
+model TokenMcp {
+  id                String     @id @default(cuid())
+  hashAcesso        String     @unique
+  hashRenovacao     String     @unique
+  /// O id do codigo que deu origem: a "conexao" que a tela mostra e o Desconectar revoga.
+  familia           String
+  clienteId         String
+  cliente           ClienteMcp @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  login             String
+  escopos           String[]
+  expiraEm          DateTime
+  renovacaoExpiraEm DateTime
+  revogadoEm        DateTime?
+  substituidoEm     DateTime?
+  criadoEm          DateTime   @default(now())
+
+  @@index([login])
+  @@index([familia])
+}
+
+/// Cada chamada de ferramenta que chegou pelo /mcp: quem, por qual cliente, o que, quando, se deu certo e quanto levou.
+/// Os argumentos vao mascarados (telefone, e-mail, CPF/CNPJ). Sem chave estrangeira: o registro sobrevive ao cliente apagado.
+model ChamadaMcp {
+  id          String   @id @default(cuid())
+  quando      DateTime @default(now())
+  login       String
+  clienteId   String?
+  clienteNome String
+  ferramenta  String
+  argumentos  Json?
+  ok          Boolean
+  erro        String?
+  duracaoMs   Int
+
+  @@index([login, quando])
 }
 
 // ---------------------------------------------------------------------------

@@ -14,6 +14,8 @@ const { register } = await import("node:module");
 const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
+const { prisma } = await import("../src/lib/db.js");
+const { Prisma } = await import("@/generated/prisma/client");
 const { z } = await import("zod");
 const { CLIENT_CAPABILITIES_META_KEY, CLIENT_INFO_META_KEY, McpServer, PROTOCOL_VERSION_META_KEY, createMcpHandler } = await import("@modelcontextprotocol/server");
 
@@ -26,6 +28,16 @@ function conferir(nome, obtido, esperado) {
   const ok = JSON.stringify(obtido) === JSON.stringify(esperado);
   if (!ok) falhas++;
   console.log(`${ok ? "ok   " : "FALHA"} ${nome}${ok ? "" : ` -> obtido ${JSON.stringify(obtido)}, esperado ${JSON.stringify(esperado)}`}`);
+}
+
+/** O codigo do erro do Prisma (P2002...) ou a mensagem; `null` quando a promessa deu certo. */
+async function codigoDoErro(promessa) {
+  try {
+    await promessa;
+    return null;
+  } catch (erro) {
+    return erro?.code ?? String(erro?.message ?? erro);
+  }
 }
 
 /** A resposta do /mcp vem em JSON ou em SSE (um evento `data:` com a mensagem JSON-RPC): devolve a mensagem nos dois casos. */
@@ -64,8 +76,12 @@ function pedidoMcp(metodo, parametros = {}, { era = "moderna", id = 1, cabecalho
   });
 }
 
-/** Apaga tudo o que os testes criam. Os blocos que gravam no banco (Tarefa 2 em diante) acrescentam aqui o que apagam. */
-async function limpar() {}
+/** Apaga tudo o que os testes criam. Tokens e codigos saem junto com o cliente (Cascade). */
+async function limpar() {
+  await prisma.chamadaMcp.deleteMany({ where: { login: { startsWith: "zz-mcp-" } } });
+  await prisma.clienteMcp.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
+  await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "zz-mcp-" } } });
+}
 
 try {
   await limpar();
@@ -124,6 +140,35 @@ try {
     conferir("GET no /mcp responde 405", get.status, 405);
     conferir("a fabrica rodou uma vez por pedido, nas duas eras", [eras.length >= 5, eras.includes("modern"), eras.includes("legacy")], [true, true, true]);
     await handler.close();
+  }
+
+  // -------------------------------------------------------------------------
+  // Tarefa 2 — Banco: clientes OAuth, codigos e tokens (so hash), ChamadaMcp e o canal da conversa
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nBanco");
+    const agora = new Date();
+    const depois = (ms) => new Date(agora.getTime() + ms);
+    const cliente = await prisma.clienteMcp.create({ data: { nome: "ZZ-MCP Teste", redirectUris: ["https://claude.ai/api/mcp/auth_callback"] } });
+    const token = await prisma.tokenMcp.create({
+      data: { hashAcesso: "zz-mcp-acesso-1", hashRenovacao: "zz-mcp-renovacao-1", familia: "zz-mcp-familia-1", clienteId: cliente.id, login: "zz-mcp-um", escopos: ["consultar"], expiraEm: depois(3600e3), renovacaoExpiraEm: depois(30 * 864e5) },
+    });
+    const codigo = await prisma.codigoMcp.create({
+      data: { hash: "zz-mcp-codigo-1", clienteId: cliente.id, login: "zz-mcp-um", redirectUri: "https://claude.ai/api/mcp/auth_callback", codeChallenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", resource: "https://rise.teste/mcp", escopos: ["consultar"], expiraEm: depois(300e3) },
+    });
+    conferir("cliente com token e codigo, nada revogado nem usado", [token.revogadoEm, token.substituidoEm, codigo.usadoEm, cliente.redirectUris], [null, null, null, ["https://claude.ai/api/mcp/auth_callback"]]);
+    const repetido = (campos) => prisma.tokenMcp.create({ data: { hashAcesso: "zz-mcp-acesso-2", hashRenovacao: "zz-mcp-renovacao-2", familia: "zz-mcp-familia-1", clienteId: cliente.id, login: "zz-mcp-um", escopos: [], expiraEm: agora, renovacaoExpiraEm: agora, ...campos } });
+    conferir("hash do acesso e da renovacao sao unicos", [await codigoDoErro(repetido({ hashAcesso: "zz-mcp-acesso-1" })), await codigoDoErro(repetido({ hashRenovacao: "zz-mcp-renovacao-1" }))], ["P2002", "P2002"]);
+    conferir("hash do codigo e unico", await codigoDoErro(prisma.codigoMcp.create({ data: { ...codigo, id: undefined } })), "P2002");
+    await prisma.clienteMcp.delete({ where: { id: cliente.id } });
+    conferir("apagar o cliente leva os tokens e os codigos dele", [await prisma.tokenMcp.count({ where: { id: token.id } }), await prisma.codigoMcp.count({ where: { id: codigo.id } })], [0, 0]);
+
+    const conversa = await prisma.conversaIA.create({ data: { titulo: "ZZ-MCP teste", usuario: "zz-mcp-um" } });
+    const doMcp = await prisma.conversaIA.create({ data: { titulo: "ZZ-MCP duvidas", usuario: "zz-mcp-um", canal: "MCP" } });
+    conferir("conversa sem canal nasce CHAT; a do MCP guarda MCP", [conversa.canal, doMcp.canal], ["CHAT", "MCP"]);
+
+    const chamada = await prisma.chamadaMcp.create({ data: { login: "zz-mcp-um", clienteId: null, clienteNome: "Claude", ferramenta: "buscarProdutos", argumentos: Prisma.DbNull, ok: true, duracaoMs: 12 } });
+    conferir("ChamadaMcp grava sem argumentos e com a hora", [chamada.argumentos, chamada.erro, chamada.quando instanceof Date], [null, null, true]);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
