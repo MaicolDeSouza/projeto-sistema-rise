@@ -220,9 +220,9 @@ export default function BotaoAtualizar({ fonteId, rotulo = "Atualizar dados" }) 
                     <th className="pb-1 text-right font-medium">Produtos</th>
                     <th
                       className="pb-1 text-right font-medium"
-                      title="Segundos, em média, para coletar cada produto novo"
+                      title="Produtos novos coletados por minuto, em média (a conta é 60 ÷ segundos por produto)"
                     >
-                      Seg/prod.
+                      Prod./min.
                     </th>
                     <th className="pb-1 text-right font-medium">Falta</th>
                   </tr>
@@ -331,8 +331,9 @@ function LinhaDeVarredura({ job }) {
         {totalConhecido && <span className="text-suave"> ({percentual}%)</span>}
       </td>
       <td className="py-1.5 text-right tabular-nums">
+        {/* O worker mede segundos por produto; a tela mostra o inverso, produtos por minuto (pedido do dono em 20/10/2026). */}
         {job.segundosPorProduto
-          ? job.segundosPorProduto.toLocaleString("pt-BR", { maximumFractionDigits: 1 })
+          ? (60 / job.segundosPorProduto).toLocaleString("pt-BR", { maximumFractionDigits: 1 })
           : "—"}
       </td>
       <td className="py-1.5 text-right tabular-nums">{falta ?? "—"}</td>
