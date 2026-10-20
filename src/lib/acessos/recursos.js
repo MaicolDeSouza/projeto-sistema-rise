@@ -83,7 +83,8 @@ const LISTA = [
   acao("acao.scraper.varrer", "Varrer fontes", "tela.scraper.fontes"),
 
   tela("tela.riseAi", "Rise AI", "/rise-ai"),
-  capacidade("riseAi.chat", "Rise AI › Chat", "tela.riseAi", "Ver = ler as próprias conversas; editar = conversar."),
+  // O id e o do antigo chat (saiu da tela em 20/10/2026): mudar o id apagaria a permissao em silencio.
+  capacidade("riseAi.chat", "Rise AI › Acesso pelo Claude e ChatGPT", "tela.riseAi", "Ver = ver as próprias conexões; editar = conectar e consultar pelo Claude ou ChatGPT."),
   capacidade("riseAi.revisao", "Rise AI › Revisão do dia", "tela.riseAi", "Lê as conversas de todos e aprova as sugestões."),
   capacidade("riseAi.conhecimento", "Rise AI › Conhecimento", "tela.riseAi", "Ensina a IA: notas e correções."),
   capacidade("riseAi.consumo", "Rise AI › Consumo", "tela.riseAi"),

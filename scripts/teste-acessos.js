@@ -169,6 +169,8 @@ try {
       [],
     );
     conferir("recurso que nao existe", recursoPorId("tela.naoExiste"), null);
+    // O id do antigo chat ficou de proposito (mudar o id apaga a permissao em silencio); o que mudou foi o que ele libera.
+    conferir("riseAi.chat libera o acesso pelo Claude e ChatGPT", [recursoPorId("riseAi.chat").rotulo, recursoPorId("riseAi.chat").pai], ["Rise AI › Acesso pelo Claude e ChatGPT", "tela.riseAi"]);
     conferir(
       "niveis validos por tipo",
       [validarNivel("tela.produtos", "excluir"), validarNivel("dado.custo", "excluir"), validarNivel("acao.vps.deploy", "executar"), validarNivel("acao.vps.deploy", "ver"), validarNivel("cartao.painel.produtos", "editar"), validarNivel("tela.naoExiste", "ver")],

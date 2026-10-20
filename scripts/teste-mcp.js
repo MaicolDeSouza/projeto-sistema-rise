@@ -638,6 +638,74 @@ try {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 7 — A tela Autorizar: o pedido conferido, a decisao que emite o codigo e a volta ao cliente
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nAutorizar");
+    const { prepararAutorizacao, decidirAutorizacao } = await import("../src/lib/mcp/autorizacao.js");
+    const { origemPelosCabecalhos } = await import("../src/lib/mcp/oauth.js");
+    const banco = await import("../src/lib/mcp/oauthBanco.js");
+    const origem = "https://rise.teste";
+    const retorno = "https://claude.ai/api/mcp/auth_callback";
+    const cliente = await banco.registrarCliente({ nome: "ZZ-MCP Claude", redirectUris: [retorno, "http://localhost/callback"] });
+    const params = {
+      response_type: "code",
+      client_id: cliente.clientId,
+      redirect_uri: retorno,
+      code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+      code_challenge_method: "S256",
+      state: "estado-1",
+      resource: "https://rise.teste/mcp",
+      scope: "consultar",
+    };
+
+    conferir(
+      "preparar: o nome do cliente e para onde o codigo volta",
+      await prepararAutorizacao(params, { origem }),
+      { ok: true, cliente: { nome: "ZZ-MCP Claude" }, destino: "claude.ai", params: { client_id: cliente.clientId, redirect_uri: retorno, code_challenge: params.code_challenge, code_challenge_method: "S256", state: "estado-1", resource: "https://rise.teste/mcp", scope: "consultar" } },
+    );
+    conferir("preparar: retorno local aparece como este computador", (await prepararAutorizacao({ ...params, redirect_uri: "http://localhost:4567/callback" }, { origem })).destino, "este computador (Claude Code)");
+    conferir(
+      "preparar: cliente desconhecido e retorno fora do registro ficam na tela, sem endereco de volta",
+      [await prepararAutorizacao({ ...params, client_id: "inventado" }, { origem }), (await prepararAutorizacao({ ...params, redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect" }, { origem })).url],
+      [{ ok: false, motivo: "Cliente desconhecido." }, undefined],
+    );
+    const escopoRuim = await prepararAutorizacao({ ...params, scope: "escrever" }, { origem });
+    conferir("preparar: escopo errado volta ao cliente com o erro", [escopoRuim.ok, new URL(escopoRuim.url).searchParams.get("error"), new URL(escopoRuim.url).searchParams.get("state")], [false, "invalid_scope", "estado-1"]);
+
+    const autorizado = await decidirAutorizacao({ params, login: "zz-mcp-andrea", decisao: "autorizar", origem });
+    const volta = new URL(autorizado.url);
+    conferir("autorizar: volta ao claude.ai com code, state e iss", [autorizado.ok, `${volta.origin}${volta.pathname}`, volta.searchParams.get("state"), volta.searchParams.get("iss"), Boolean(volta.searchParams.get("code"))], [true, retorno, "estado-1", origem, true]);
+    const troca = await banco.trocarCodigo({ codigo: volta.searchParams.get("code"), clientId: cliente.clientId, redirectUri: retorno, codeVerifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk" });
+    conferir("o codigo da tela troca por um token do login que autorizou", (await banco.validarTokenDeAcesso(troca.tokens?.access_token))?.login, "zz-mcp-andrea");
+
+    const recusado = new URL((await decidirAutorizacao({ params, login: "zz-mcp-andrea", decisao: "recusar", origem })).url);
+    conferir("recusar: volta com access_denied e o state, sem codigo", [recusado.searchParams.get("error"), recusado.searchParams.get("state"), recusado.searchParams.has("code")], ["access_denied", "estado-1", false]);
+    conferir(
+      "decidir recusa sem endereco de volta: cliente desconhecido, retorno de fora, decisao estranha, sem login",
+      [
+        await decidirAutorizacao({ params: { ...params, client_id: "inventado" }, login: "zz-mcp-andrea", decisao: "autorizar", origem }),
+        (await decidirAutorizacao({ params: { ...params, redirect_uri: "https://atacante.com/cb" }, login: "zz-mcp-andrea", decisao: "autorizar", origem })).url,
+        await decidirAutorizacao({ params, login: "zz-mcp-andrea", decisao: "talvez", origem }),
+        await decidirAutorizacao({ params, login: "", decisao: "autorizar", origem }),
+      ],
+      [{ ok: false, motivo: "Cliente desconhecido." }, undefined, { ok: false, motivo: "Decisão inválida." }, { ok: false, motivo: "Entre no Rise para autorizar." }],
+    );
+    conferir("decidir com escopo errado nao emite codigo", [await prisma.codigoMcp.count({ where: { clienteId: cliente.clientId } }), (await decidirAutorizacao({ params: { ...params, scope: "escrever" }, login: "zz-mcp-andrea", decisao: "autorizar", origem })).ok, await prisma.codigoMcp.count({ where: { clienteId: cliente.clientId } })], [1, false, 1]);
+
+    const cabecalhos = (mapa) => new Headers(mapa);
+    conferir(
+      "origem pela requisicao da tela: APP_URL_PUBLICA; sem ela, o host e o protocolo do pedido",
+      [
+        origemPelosCabecalhos(cabecalhos({ host: "app:3000" }), { APP_URL_PUBLICA: "https://rise.4hobby.com.br/" }),
+        origemPelosCabecalhos(cabecalhos({ host: "localhost:3000" }), {}),
+        origemPelosCabecalhos(cabecalhos({ host: "localhost:3000", "x-forwarded-proto": "http" }), {}),
+      ],
+      ["https://rise.4hobby.com.br", "https://localhost:3000", "http://localhost:3000"],
+    );
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;

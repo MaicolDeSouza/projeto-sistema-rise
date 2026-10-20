@@ -73,6 +73,14 @@ export function origemDoRise(request, env = process.env) {
   return new URL(request.url).origin;
 }
 
+/** A mesma origem a partir dos cabecalhos (a Server Action da tela Autorizar nao tem o `Request`). */
+export function origemPelosCabecalhos(cabecalhos, env = process.env) {
+  const publica = urlOuNulo(String(env.APP_URL_PUBLICA ?? "").trim());
+  if (publica) return publica.origin;
+  const protocolo = cabecalhos.get("x-forwarded-proto") === "http" ? "http" : "https";
+  return `${protocolo}://${cabecalhos.get("host")}`;
+}
+
 const hostDoPedido = (request) => (request.headers.get("host") ?? new URL(request.url).host).toLowerCase();
 
 /**
