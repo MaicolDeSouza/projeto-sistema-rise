@@ -164,3 +164,19 @@ branco, NCM dos concorrentes diferente do proposto, lembrete das fotos de concor
 ## Ao terminar
 
 `proposta <SKU> --ler` e conferir as 8 seções. Dizer ao dono, em português, o resumo e o que ele precisa olhar.
+
+## Aprendido na primeira rodada (20/10/2026, `100103-teste` no banco do PC)
+
+- **Gravar as 8 seções levou 43 s** (43 candidatas padronizadas); a pesquisa e a análise vêm antes e levam mais.
+- **Sites de EAN recusam leitura automática** (EAN-Search, Product-Search e Cosmos dão 403 ao `WebFetch`): consultar
+  pelo **navegador do app** (EAN-Search e Product-Search abrem; o Cosmos pede a verificação da Cloudflare, que não se
+  contorna: registrar "não consultado"). A busca por palavras-chave traz só EANs **de outros vendedores** (cada loja
+  europeia com o próprio código): não servem como o EAN do produto.
+- **Catálogo do ML por GTIN** não foi consultado nesta rodada: fazer pela VPS (o token de lá) quando a rodada for lá.
+- **Baixar PDF é download de arquivo:** pede o "pode" do dono (nome, origem e tamanho). Sem ele, a seção `documentos`
+  leva só os links, e o relatório diz o que o produto já tem.
+- **Campos já preenchidos** (peso, medidas, NCM, origem) ficam fora de `campos`; quando a regra (Usinainfo primeiro)
+  aponta outro valor, o relatório mostra os dois e o dono decide. As linhas Dimensões e Peso da descrição seguem o campo
+  do produto.
+- **A recomendada de preço pode ficar abaixo de 40%** (no Nano: 39%, R$ 34,37, 5º de 11), porque é a maior margem que
+  ainda fica entre os 5 primeiros. A própria loja (4hobby, vinculada como concorrente) fica fora da conta.
