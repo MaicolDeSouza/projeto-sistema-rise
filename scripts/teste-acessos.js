@@ -625,7 +625,13 @@ try {
         })
       );
     };
-    const confere = (fonte) => (fonte.includes("negarSemAcesso(") && cadaExportConfere(fonte)) || fonte.includes("exigirAcessoNaPagina(") || fonte.includes("executarComAcesso(") || (fonte.includes("sessaoDeAcessos(") && fonte.includes("recusarRota("));
+    // `exigirTokenMcp(` (o /mcp): o login vem do token do Rise, e o portao monta a sessao de Acessos dele a cada chamada.
+    const confere = (fonte) =>
+      (fonte.includes("negarSemAcesso(") && cadaExportConfere(fonte)) ||
+      fonte.includes("exigirAcessoNaPagina(") ||
+      fonte.includes("executarComAcesso(") ||
+      (fonte.includes("sessaoDeAcessos(") && fonte.includes("recusarRota(")) ||
+      fonte.includes("exigirTokenMcp(");
     // Sem recurso de proposito: o layout raiz MONTA a sessao (o menu e o rodape), e o Sair e de quem esta logado. As quatro do
     // protocolo OAuth/MCP sao publicas por desenho (o Claude e o ChatGPT chegam sem login do Tinyauth): os metadados nao tem
     // segredo, o registro nao da acesso a nada, e o token exige o codigo + PKCE. Quem autentica o /mcp e src/lib/mcp/portao.js.

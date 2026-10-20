@@ -801,6 +801,60 @@ try {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 9 — A rota /mcp: so POST com token; GET e DELETE 405; Origin e Host conferidos; as duas eras do protocolo
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nRota /mcp");
+    const appUrlAntes = process.env.APP_URL_PUBLICA;
+    process.env.APP_URL_PUBLICA = "https://rise.teste";
+    try {
+      const rota = await import("../src/app/mcp/route.js");
+      const banco = await import("../src/lib/mcp/oauthBanco.js");
+      // Os logins zz-mcp-andrea (com o acesso) e zz-mcp-inativa vem do bloco do portao (Tarefa 5); o ZZ-MCP-1, da Tarefa 8.
+      const cliente = await banco.registrarCliente({ nome: "ZZ-MCP Rota", redirectUris: ["https://claude.ai/api/mcp/auth_callback"] });
+      const tokenDe = async (login) => {
+        const codigo = await banco.emitirCodigo({ clienteId: cliente.clientId, login, redirectUri: "https://claude.ai/api/mcp/auth_callback", codeChallenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", resource: "https://rise.teste/mcp", escopos: ["consultar"] });
+        return (await banco.trocarCodigo({ codigo, clientId: cliente.clientId, redirectUri: "https://claude.ai/api/mcp/auth_callback", codeVerifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk" })).tokens.access_token;
+      };
+      const tokenAndrea = await tokenDe("zz-mcp-andrea");
+      const comToken = (token, cabecalhos = {}) => ({ authorization: `Bearer ${token}`, ...cabecalhos });
+
+      const semToken = await rota.POST(pedidoMcp("server/discover", {}, { id: 1 }));
+      conferir("POST sem token: 401 com o desafio para o claude.ai iniciar o login", [semToken.status, semToken.headers.get("www-authenticate")], [401, 'Bearer resource_metadata="https://rise.teste/.well-known/oauth-protected-resource/mcp"']);
+
+      const descoberta = await rota.POST(pedidoMcp("server/discover", {}, { id: 2, cabecalhos: comToken(tokenAndrea) }));
+      conferir("POST com token, era nova: o discover responde com as instrucoes", [descoberta.status, Boolean((await lerRespostaMcp(descoberta))?.result?.instructions)], [200, true]);
+      const antigo = await rota.POST(
+        pedidoMcp("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "antigo", version: "1" } }, { era: "antiga", id: 3, cabecalhos: comToken(tokenAndrea, { "mcp-session-id": "qualquer" }) }),
+      );
+      conferir("cliente de 2025 (initialize com Mcp-Session-Id) tambem e atendido", [antigo.status, typeof (await lerRespostaMcp(antigo))?.result?.protocolVersion], [200, "string"]);
+
+      const antes = await prisma.chamadaMcp.count({ where: { login: "zz-mcp-andrea" } });
+      const chamada = await rota.POST(pedidoMcp("tools/call", { name: "consultarEstoque", arguments: { skus: ["ZZ-MCP-1"] } }, { id: 4, cabecalhos: comToken(tokenAndrea) }));
+      conferir(
+        "tools/call pela rota executa e registra a chamada",
+        [chamada.status, (await lerRespostaMcp(chamada))?.result?.isError ?? false, (await prisma.chamadaMcp.count({ where: { login: "zz-mcp-andrea" } })) - antes],
+        [200, false, 1],
+      );
+
+      const get = await rota.GET(new Request("https://rise.teste/mcp", { headers: comToken(tokenAndrea) }));
+      const del = await rota.DELETE(new Request("https://rise.teste/mcp", { method: "DELETE", headers: comToken(tokenAndrea) }));
+      conferir("GET e DELETE: 405 com Allow: POST (sem sessoes)", [get.status, get.headers.get("allow"), del.status], [405, "POST", 405]);
+
+      const deOutroSite = await rota.POST(pedidoMcp("server/discover", {}, { id: 5, cabecalhos: comToken(tokenAndrea, { origin: "https://atacante.com" }) }));
+      const outroNome = await rota.POST(pedidoMcp("server/discover", {}, { id: 6, cabecalhos: comToken(tokenAndrea, { host: "atacante.com" }) }));
+      conferir("Origin de outro site: 403; Host de outro nome: 421", [deOutroSite.status, outroNome.status], [403, 421]);
+
+      const tokenInativa = await tokenDe("zz-mcp-inativa");
+      const inativa = await rota.POST(pedidoMcp("tools/call", { name: "consultarProduto", arguments: { sku: "ZZ-MCP-1" } }, { id: 7, cabecalhos: comToken(tokenInativa) }));
+      conferir("usuario inativo: 401 e nenhuma chamada registrada", [inativa.status, await prisma.chamadaMcp.count({ where: { login: "zz-mcp-inativa" } })], [401, 0]);
+    } finally {
+      if (appUrlAntes === undefined) delete process.env.APP_URL_PUBLICA;
+      else process.env.APP_URL_PUBLICA = appUrlAntes;
+    }
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
