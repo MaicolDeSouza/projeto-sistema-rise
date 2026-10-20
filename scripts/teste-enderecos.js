@@ -47,6 +47,21 @@ conferir("rotulo", [rotuloDoEndereco("https://loja.com.br/"), rotuloDoEndereco("
   conferir("vtex pagina: pagina de outra plataforma e null", dadosDaPaginaVtex("<html></html>"), null);
 }
 
+// Orcamento de venda em PDF (Patola): codigo com mais de uma palavra, descricao em duas linhas, IPI.
+{
+  const { orcamentoDeVendaDoPdf } = await import("../src/lib/coleta/arquivos.js");
+  const texto = [
+    "Item 	Qtde Código 	Descrição 	Unit.R$ 	Total R$ 	Subst", "Tributaria", "IPI%",
+    "01 	20 PB-108 TE PB-108 TE.CX E TP TE C/ABA EM ABS", "PRETO COMUM. 9,92 	198,40 	0,00 	9,75",
+    "03 	20 PB-108 	PB-108.CX EM ABS PRETO COMUM. TP", "LISA S/ABA EM ABS CINZA FILTRO. 9,31 	186,20 	0,00 	9,75",
+    "09 	5 PB-211 	PB-211 (ABS ) 	36,50 	182,50 	0,00 	9,75",
+    "Total", "Mercadorias", "1.861,90",
+  ].join("\n");
+  const itens = orcamentoDeVendaDoPdf("Home\n" + texto);
+  conferir("orcamento de venda: codigo, preco sem IPI e IPI", itens.map((i) => [i.sku, i.preco, i.ipi, i.unidades_orcadas]), [["PB-108 TE", 9.92, 9.75, 20], ["PB-108", 9.31, 9.75, 20], ["PB-211", 36.5, 9.75, 5]]);
+  conferir("orcamento de venda: texto de outro formato nao rende nada", orcamentoDeVendaDoPdf("qualquer texto"), []);
+}
+
 // A listagem importa buscar.js sem extensao: precisa do resolvedor de alias do projeto.
 try {
   const { produtosDaListagem, paginasSeguintes, numeroDaPagina, dentroDaCategoria, doMaiorBloco } = await import("../src/lib/coleta/listagem.js");

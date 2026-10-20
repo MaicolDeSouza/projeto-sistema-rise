@@ -671,6 +671,57 @@ export function orcamentoDoPdf(texto) {
   return itens;
 }
 
+/**
+ * ORCAMENTO DE VENDA em PDF (Patola, 20/10/2026): "Item Qtde Codigo Descricao Unit.R$ Total R$ Subst.Tributaria IPI%".
+ * Cada item e "01 <tab>20 PB-108 TE PB-108 TE.CX E TP ... 9,92 <tab>198,40 <tab>0,00 <tab>9,75", e a descricao pode quebrar
+ * em duas linhas antes dos valores. O codigo pode ter mais de uma palavra ("PB-108 TE"), e a descricao SEMPRE recomeca pelo
+ * codigo ("PB-108 TE.CX..."): o codigo e o que vem antes da segunda aparicao da primeira palavra.
+ *
+ * O unitario e o preco SEM IPI (o orcamento destaca o IPI a parte) e vira o preco normal; o IPI vira imposto, e a tela mostra
+ * o preco com impostos. A quantidade e a do orcamento, nao estoque (`unidades_orcadas`).
+ *
+ * @returns {Array<{sku, desc, preco, ipi, unidades_orcadas}>}
+ */
+export function orcamentoDeVendaDoPdf(texto) {
+  const numero = (valor) => Number(valor.replace(/\./g, "").replace(",", "."));
+  if (!/Unit\.R\$[\s\S]*Total R\$/i.test(texto)) return [];
+
+  const corpo = texto.split(/\nItem\b[^\n]*Unit\.R\$/i)[1] ?? "";
+  const ate = corpo.search(/\nTotal\s*\n?\s*Mercadorias/i);
+  const linhas = (ate >= 0 ? corpo.slice(0, ate) : corpo).split("\n");
+
+  const blocos = [];
+  for (const bruta of linhas) {
+    const linha = bruta.trim();
+    if (!linha) continue;
+    if (/^\d{2}\s+\d[\d.]*\s+\S/.test(linha)) blocos.push(linha);
+    else if (blocos.length > 0 && !/^(Subst|Tributaria|IPI%?)\b/i.test(linha)) blocos[blocos.length - 1] += ` ${linha}`;
+  }
+
+  const fim = /^\d{2}\s+([\d.]+)\s+(.+?)\s+([\d.]+,\d{2})\s+([\d.]+,\d{2})\s+([\d.]+,\d{2})\s+([\d.]+,\d{2})$/;
+  const itens = [];
+  const vistos = new Set();
+
+  for (const bloco of blocos) {
+    const achado = fim.exec(bloco.replace(/\s+/g, " "));
+    if (!achado) continue;
+    const quantidade = numero(achado[1]);
+    const preco = numero(achado[3]);
+    const meio = achado[2].trim();
+    if (!(quantidade > 0) || !(preco > 0)) continue;
+
+    const primeira = meio.split(" ")[0];
+    const repetida = meio.indexOf(` ${primeira}`, 1);
+    const sku = (repetida > 0 ? meio.slice(0, repetida) : primeira).trim();
+    const desc = (repetida > 0 ? meio.slice(repetida + 1) : meio).trim();
+    if (!sku || vistos.has(sku)) continue;
+    vistos.add(sku);
+    itens.push({ sku, desc, preco, ipi: numero(achado[6]), unidades_orcadas: quantidade });
+  }
+
+  return itens;
+}
+
 /** Catalogos com colunas visuais podem perder todos os separadores no getText(). */
 async function linhasDeTabelaVisualPdf(leitor) {
   const documento = await leitor.load();
@@ -828,7 +879,10 @@ export async function lerArquivo({ nome, bytes, fonte }) {
     if (aviso) avisos.push(aviso);
   } else if (formato === "pdf") {
     const { texto, tabela } = await textoDoPdf(bytes);
-    const orcamento = orcamentoDoPdf(texto);
+    const orcamento = (() => {
+      const racEAfins = orcamentoDoPdf(texto);
+      return racEAfins.length ? racEAfins : orcamentoDeVendaDoPdf(texto);
+    })();
     const esteiras = orcamento.length || tabela.length ? [] : esteirasDoPdf(texto);
     // UNICA EXCECAO a "arquivo nao usa rede" (13/10/2026): os documentos de cada esteira (desenho da serie em PDF e os
     // modelos 3D em STEP) moram no SITE da Tespo, que nao publica os itens com codigo. Falha do site e aviso, nunca erro:
