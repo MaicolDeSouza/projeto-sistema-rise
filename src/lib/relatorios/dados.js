@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 
+import { dataDaChave } from "./semana";
+
 /**
  * Os numeros do relatorio semanal (20/10/2026): o que a rodada achou. So leitura do banco.
  *
@@ -35,8 +37,10 @@ export function situacaoDaLoja({ job, fonte }) {
  * @param {object} entrada
  * @param {Date} entrada.inicioEm  quando a rodada comecou
  * @param {{id: string, nome: string}[]} entrada.fontes  as lojas que a rodada enfileirou
+ * @param {string} [entrada.semana] chave da rodada ("2026-10-24"); a manual ("manual-...") compara o saldo de agora com o ultimo
+ *   sabado guardado
  */
-export async function montarDadosDoRelatorio({ inicioEm, fontes }) {
+export async function montarDadosDoRelatorio({ inicioEm, fontes, semana = null }) {
   const ids = fontes.map((fonte) => fonte.id);
 
   const [cadastradas, jobs, pcs] = await Promise.all([
@@ -103,35 +107,8 @@ export async function montarDadosDoRelatorio({ inicioEm, fontes }) {
     }))
     .sort((a, b) => a.loja.localeCompare(b.loja, "pt-BR"));
 
-  // Estimativa de vendas: queda do saldo, so onde a loja informa a quantidade (`quantidade` e `quantidadeAnterior` ao
-  // mesmo tempo). O saldo anterior e o da leitura de antes; so conta o que MUDOU nesta rodada.
-  const candidatos = concorrentes.length
-    ? await prisma.produtoColetado.findMany({
-        where: {
-          fonteId: { in: concorrentes.map((fonte) => fonte.id) },
-          quantidade: { not: null },
-          quantidadeAnterior: { not: null },
-          atualizadoEm: { gte: inicioEm },
-          ausenteDesde: null,
-        },
-        select: { fonteId: true, codigo: true, nome: true, url: true, quantidade: true, quantidadeAnterior: true, precoNormal: true, precoPromocional: true },
-      })
-    : [];
   const nomeDeConcorrente = new Map(concorrentes.map((fonte) => [fonte.id, fonte.nome]));
-  const maisVendidos = candidatos
-    .map((produto) => ({
-      loja: nomeDeConcorrente.get(produto.fonteId),
-      codigo: produto.codigo,
-      nome: produto.nome,
-      url: produto.url,
-      de: produto.quantidadeAnterior,
-      para: produto.quantidade,
-      vendidos: produto.quantidadeAnterior - produto.quantidade,
-      preco: produto.precoNormal !== null ? Number(produto.precoNormal) : produto.precoPromocional !== null ? Number(produto.precoPromocional) : null,
-    }))
-    .filter((item) => item.vendidos > 0)
-    .sort((a, b) => b.vendidos - a.vendidos)
-    .slice(0, TOTAL_DOS_MAIS_VENDIDOS);
+  const maisVendidos = await estimarMaisVendidos({ idsDosConcorrentes: concorrentes.map((fonte) => fonte.id), nomeDeConcorrente, inicioEm, semana });
 
   const comQuantidade = new Set(
     (
@@ -155,4 +132,98 @@ export async function montarDadosDoRelatorio({ inicioEm, fontes }) {
       novos: novos.reduce((soma, loja) => soma + loja.total, 0),
     },
   };
+}
+
+const comoPreco = (normal, promocional) => (normal !== null ? Number(normal) : promocional !== null ? Number(promocional) : null);
+
+/**
+ * Os mais vendidos, ESTIMADOS pela queda do saldo (nenhuma loja publica vendas). Duas fontes, nesta ordem:
+ *
+ * 1) SABADO COM SABADO (`QuantidadeSemanal`): o saldo desta rodada contra o da rodada anterior guardada (a mais recente com
+ *    semana menor). Na rodada manual, o saldo de agora contra o ultimo sabado guardado. E o que enxerga semanas e nao se
+ *    confunde com varredura manual no meio da semana;
+ * 2) o saldo anterior que a propria coleta guarda (`quantidadeAnterior`), so para o produto que ainda NAO tem sabado anterior
+ *    guardado (as primeiras semanas): vale a queda que aconteceu nesta rodada.
+ *
+ * Reposicao de estoque na semana faz a estimativa ficar abaixo do real (ou sumir).
+ */
+async function estimarMaisVendidos({ idsDosConcorrentes, nomeDeConcorrente, inicioEm, semana }) {
+  if (idsDosConcorrentes.length === 0) return [];
+  const real = Boolean(semana && dataDaChave(semana));
+
+  const dosSabados = real
+    ? await prisma.$queryRaw`
+        SELECT p."id", p."fonteId", p."codigo", p."nome", p."url", p."precoNormal", p."precoPromocional",
+               b."quantidade" AS "de", a."quantidade" AS "para", b."semana" AS "deSemana"
+        FROM "QuantidadeSemanal" a
+        JOIN "ProdutoColetado" p ON p."id" = a."produtoId"
+        JOIN LATERAL (
+          SELECT "quantidade", "semana" FROM "QuantidadeSemanal"
+          WHERE "produtoId" = a."produtoId" AND "semana" < a."semana" ORDER BY "semana" DESC LIMIT 1
+        ) b ON true
+        WHERE a."semana" = ${semana} AND p."fonteId" = ANY(${idsDosConcorrentes}::text[]) AND b."quantidade" > a."quantidade"
+        ORDER BY (b."quantidade" - a."quantidade") DESC LIMIT 40`
+    : await prisma.$queryRaw`
+        SELECT p."id", p."fonteId", p."codigo", p."nome", p."url", p."precoNormal", p."precoPromocional",
+               b."quantidade" AS "de", p."quantidade" AS "para", b."semana" AS "deSemana"
+        FROM "ProdutoColetado" p
+        JOIN LATERAL (
+          SELECT "quantidade", "semana" FROM "QuantidadeSemanal" WHERE "produtoId" = p."id" ORDER BY "semana" DESC LIMIT 1
+        ) b ON true
+        WHERE p."fonteId" = ANY(${idsDosConcorrentes}::text[]) AND p."quantidade" IS NOT NULL AND p."ausenteDesde" IS NULL
+          AND b."quantidade" > p."quantidade"
+        ORDER BY (b."quantidade" - p."quantidade") DESC LIMIT 40`;
+
+  const itens = dosSabados.map((linha) => ({
+    id: linha.id,
+    loja: nomeDeConcorrente.get(linha.fonteId),
+    codigo: linha.codigo,
+    nome: linha.nome,
+    url: linha.url,
+    de: linha.de,
+    para: linha.para,
+    vendidos: linha.de - linha.para,
+    preco: comoPreco(linha.precoNormal, linha.precoPromocional),
+    desde: linha.deSemana,
+  }));
+
+  // Sem sabado anterior guardado: a queda que a coleta registrou nesta rodada.
+  const candidatos = await prisma.produtoColetado.findMany({
+    where: {
+      fonteId: { in: idsDosConcorrentes },
+      quantidade: { not: null },
+      quantidadeAnterior: { not: null },
+      atualizadoEm: { gte: inicioEm },
+      ausenteDesde: null,
+    },
+    select: { id: true, fonteId: true, codigo: true, nome: true, url: true, quantidade: true, quantidadeAnterior: true, precoNormal: true, precoPromocional: true },
+  });
+  const comHistorico = candidatos.length
+    ? new Set(
+        (
+          await prisma.quantidadeSemanal.findMany({
+            where: { produtoId: { in: candidatos.map((produto) => produto.id) }, ...(real ? { semana: { lt: semana } } : {}) },
+            select: { produtoId: true },
+            distinct: ["produtoId"],
+          })
+        ).map((linha) => linha.produtoId),
+      )
+    : new Set();
+  for (const produto of candidatos) {
+    if (comHistorico.has(produto.id) || produto.quantidadeAnterior - produto.quantidade <= 0) continue;
+    itens.push({
+      id: produto.id,
+      loja: nomeDeConcorrente.get(produto.fonteId),
+      codigo: produto.codigo,
+      nome: produto.nome,
+      url: produto.url,
+      de: produto.quantidadeAnterior,
+      para: produto.quantidade,
+      vendidos: produto.quantidadeAnterior - produto.quantidade,
+      preco: comoPreco(produto.precoNormal, produto.precoPromocional),
+      desde: null,
+    });
+  }
+
+  return itens.sort((a, b) => b.vendidos - a.vendidos).slice(0, TOTAL_DOS_MAIS_VENDIDOS);
 }

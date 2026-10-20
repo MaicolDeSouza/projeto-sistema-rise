@@ -3,7 +3,7 @@ import { enfileirar } from "@/lib/coleta/fila";
 
 import { montarDadosDoRelatorio } from "./dados";
 import { gerarPdfDoRelatorio } from "./pdf";
-import { rodadaDevida } from "./semana";
+import { dataDaChave, rodadaDevida } from "./semana";
 
 /**
  * A rotina semanal da coleta e do relatorio (20/10/2026), chamada pelo worker normal a cada volta.
@@ -26,9 +26,37 @@ export async function fontesDaRodada() {
   });
 }
 
+/** Quantas semanas de saldo se guardam (a estimativa so olha a anterior; o resto e historico para o dono). */
+export const SEMANAS_DE_ESTOQUE_GUARDADAS = 26;
+
+/**
+ * Guarda o saldo de estoque dos concorrentes desta rodada: so o que foi LIDO nela (`vistoEm` desde o inicio; loja que falhou
+ * nao grava o saldo velho como se fosse de hoje). Idempotente (uma linha por produto e semana). So rodada de sabado: o
+ * "Gerar agora" nao fotografa. Apaga o que passou de `SEMANAS_DE_ESTOQUE_GUARDADAS`.
+ */
+export async function fotografarEstoque(rodada) {
+  if (!dataDaChave(rodada.semana)) return { guardados: 0 };
+  const ids = (Array.isArray(rodada.fontes) ? rodada.fontes : []).map((fonte) => fonte.id);
+  if (ids.length === 0) return { guardados: 0 };
+
+  const guardados = await prisma.$executeRaw`
+    INSERT INTO "QuantidadeSemanal" ("id", "produtoId", "semana", "quantidade", "lidoEm")
+    SELECT gen_random_uuid()::text, p."id", ${rodada.semana}, p."quantidade", p."vistoEm"
+    FROM "ProdutoColetado" p
+    JOIN "FonteColeta" f ON f."id" = p."fonteId"
+    WHERE p."fonteId" = ANY(${ids}::text[]) AND f."tipo" = 'CONCORRENTE'
+      AND p."quantidade" IS NOT NULL AND p."ausenteDesde" IS NULL AND p."vistoEm" >= ${rodada.inicioEm}
+    ON CONFLICT ("produtoId", "semana") DO NOTHING`;
+
+  const limite = new Date(rodada.inicioEm.getTime() - SEMANAS_DE_ESTOQUE_GUARDADAS * 7 * 86400000).toISOString().slice(0, 10);
+  await prisma.$executeRaw`DELETE FROM "QuantidadeSemanal" WHERE "semana" < ${limite}`;
+  return { guardados };
+}
+
 async function gerarEFechar(rodada, { incompleto = false, agora = new Date() } = {}) {
   try {
-    const dados = await montarDadosDoRelatorio({ inicioEm: rodada.inicioEm, fontes: rodada.fontes });
+    await fotografarEstoque(rodada);
+    const dados = await montarDadosDoRelatorio({ inicioEm: rodada.inicioEm, fontes: rodada.fontes, semana: rodada.semana });
     const pdf = await gerarPdfDoRelatorio({ semana: rodada.semana, inicioEm: rodada.inicioEm, fimEm: agora, dados, incompleto });
     await prisma.relatorioSemanal.update({
       where: { id: rodada.id },

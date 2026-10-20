@@ -97,7 +97,7 @@ export function gerarPdfDoRelatorio({ semana, inicioEm, fimEm, dados, incompleto
 
     titulo("3. Os 10 mais vendidos dos concorrentes (estimativa)");
     normal(
-      "Nenhuma loja publica vendas. A estimativa é a queda do saldo em estoque entre a leitura anterior e a desta rodada, e só vale para concorrentes que informam a quantidade. Reposição de estoque na mesma semana faz a estimativa ficar abaixo do real.",
+      "Nenhuma loja publica vendas. A estimativa é a queda do saldo em estoque entre o sábado anterior guardado e esta rodada (nas primeiras semanas, ainda sem sábado anterior, vale a queda que a coleta registrou), e só vale para concorrentes que informam a quantidade. Reposição de estoque na semana faz a estimativa ficar abaixo do real.",
       CINZA,
       8,
     );
@@ -111,7 +111,7 @@ export function gerarPdfDoRelatorio({ semana, inicioEm, fimEm, dados, incompleto
     }
     dados.maisVendidos.forEach((item, indice) => {
       doc.font("Helvetica-Bold").fontSize(9).fillColor("#111827").text(`${indice + 1}. ${item.nome ?? "(sem nome)"}`);
-      normal(`${item.loja}${item.codigo && item.codigo !== "N/A" ? ` · ${item.codigo}` : ""} · ${dinheiro(item.preco)} · estoque de ${item.de} para ${item.para} = ${item.vendidos} vendido(s) estimado(s)`);
+      normal(`${item.loja}${item.codigo && item.codigo !== "N/A" ? ` · ${item.codigo}` : ""} · ${dinheiro(item.preco)} · estoque de ${item.de}${item.desde && dataDaChave(item.desde) ? ` (sábado ${dataDaChave(item.desde).slice(0, 5)})` : ""} para ${item.para} = ${item.vendidos} vendido(s) estimado(s)`);
       link(item.url);
       doc.moveDown(0.3);
     });

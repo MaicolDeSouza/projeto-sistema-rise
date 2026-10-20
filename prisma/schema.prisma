@@ -1342,6 +1342,20 @@ model RelatorioSemanal {
   criadoEm DateTime  @default(now())
 }
 
+/// O saldo de estoque de cada produto de concorrente a cada rodada semanal (20/10/2026): o relatorio compara sabado com sabado
+/// e enxerga as semanas anteriores. `semana` e a chave da rodada ("2026-10-24"), como em RelatorioSemanal; `lidoEm` e quando a
+/// loja foi de fato lida. Sem chave estrangeira, de proposito (como as fotos mensais): o historico sobrevive ao produto.
+model QuantidadeSemanal {
+  id         String   @id @default(cuid())
+  produtoId  String
+  semana     String
+  quantidade Int
+  lidoEm     DateTime
+
+  @@unique([produtoId, semana])
+  @@index([semana])
+}
+
 model Job {
   id      String    @id @default(cuid())
   tipo    String
