@@ -2,6 +2,7 @@ import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { mesclarNoExistente } from "./mesclar";
 import { comoNumero, comoTexto } from "./texto-html";
 import { normalizarPagina } from "./normalizar";
+import { juntarComAPatolastore } from "./patolastore";
 import { PAGINA_INICIAL_DA_TESPO, documentosDasEsteirasDoSite, juntarDocumentosDasEsteiras } from "./tespo";
 
 /**
@@ -898,9 +899,20 @@ export async function lerArquivo({ nome, bytes, fonte }) {
       }
     }
     brutos = orcamento.length ? orcamento : tabela.length ? tabela : esteiras.length ? esteiras : linhasDePdf(texto);
+    // OUTRA EXCECAO a "arquivo nao usa rede" (20/10/2026): o orcamento da Patola so tem codigo e preco; foto, descricao e ficha
+    // estao na Patolastore, casados pela referencia do fabricante. Falha da loja e aviso, nunca erro.
+    if (orcamento.length > 0 && /PATOLA Eletropl/i.test(texto)) {
+      try {
+        const junto = await juntarComAPatolastore(brutos);
+        avisos.push(...junto.avisos);
+        if (junto.casados > 0) origemExtra = ` · ${junto.casados} de ${brutos.length} com foto, descrição e ficha da Patolastore`;
+      } catch (erro) {
+        avisos.push(`Patolastore não consultada: ${erro?.message ?? erro}`);
+      }
+    }
     siteSugerido = sitePublicadoNoPdf(texto);
     origem = orcamento.length
-      ? "orçamento em PDF do fornecedor"
+      ? `orçamento em PDF do fornecedor${origemExtra}`
       : esteiras.length
         ? `catálogo de esteiras em PDF (tabela de medidas)${origemExtra}`
         : "catalogo em PDF do fornecedor";

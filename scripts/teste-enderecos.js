@@ -62,6 +62,22 @@ conferir("rotulo", [rotuloDoEndereco("https://loja.com.br/"), rotuloDoEndereco("
   conferir("orcamento de venda: texto de outro formato nao rende nada", orcamentoDeVendaDoPdf("qualquer texto"), []);
 }
 
+// Patolastore: casa o codigo do orcamento com a referencia do fabricante e completa o item (sem rede: busca simulada).
+{
+  const { escolherPorReferencia, dadosDoProdutoDaPatolastore, juntarComAPatolastore } = await import("../src/lib/coleta/patolastore.js");
+  const produto = (ref, extra = {}) => ({ productReference: ref, productName: `Caixa ${ref}`, brand: "Patola", description: "<p>Caixa <b>ABS</b></p>", categories: ["/Gabinetes/Uso Geral/"], link: "https://www.patolastore.com.br/x/p", allSpecifications: ["MODELO"], MODELO: [ref], items: [{ ean: "", images: [{ imageUrl: "http://l.vteximg.com.br/arquivos/ids/10/a.jpg?v=1" }, { imageUrl: "http://l.vteximg.com.br/arquivos/ids/10-500-500/a.jpg" }] }], ...extra });
+  const lista = [produto("PB-108/2"), produto("PB-108 PT"), produto("PB-108 TE")];
+  conferir("patolastore: referencia igual vence, sem caixa nem espacos a mais", escolherPorReferencia(lista, "pb-108  te")?.produto.productReference, "PB-108 TE");
+  conferir("patolastore: so o sufixo PT casa quando nao ha igual, e vem marcado como aproximado", [escolherPorReferencia(lista, "PB-108")?.produto.productReference, escolherPorReferencia(lista, "PB-108")?.aproximado], ["PB-108 PT", true]);
+  conferir("patolastore: sem referencia parecida nao casa (PB-108/2 nao e PB-108)", escolherPorReferencia([produto("PB-108/2")], "PB-108"), null);
+  const d = dadosDoProdutoDaPatolastore(produto("PB-114"));
+  conferir("patolastore: foto grande sem repetir, categoria, ficha da loja e texto", [d.imagens, d.categoria, d.especificacoes, d.descricao, d.marca], [["https://l.vteximg.com.br/arquivos/ids/10-1000-1000/a.jpg?v=1"], "Gabinetes > Uso Geral", [{ nome: "Modelo", valor: "PB-114" }], "Caixa ABS", "Patola"]);
+  const brutos = [{ sku: "PB-114", desc: "PB-114.CX", preco: 1 }, { sku: "XX-1", desc: "XX-1", preco: 2 }];
+  const buscar = async (url) => ({ ok: true, corpo: JSON.stringify(url.includes("PB-114") ? [produto("PB-114")] : []) });
+  const r = await juntarComAPatolastore(brutos, { buscar });
+  conferir("patolastore: completa o item que casou e avisa o que ficou sem casar", [r.casados, brutos[0].desc, brutos[0].imagens.length, brutos[1].desc, r.avisos.length], [1, "Caixa PB-114", 1, "XX-1", 1]);
+}
+
 // A listagem importa buscar.js sem extensao: precisa do resolvedor de alias do projeto.
 try {
   const { produtosDaListagem, paginasSeguintes, numeroDaPagina, dentroDaCategoria, doMaiorBloco } = await import("../src/lib/coleta/listagem.js");
