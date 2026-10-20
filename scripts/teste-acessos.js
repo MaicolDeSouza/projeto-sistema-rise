@@ -131,17 +131,19 @@ try {
     );
     conferir("so Usuarios e funcoes e o prompt das respostas ao cliente nao sao delegaveis", NAO_DELEGAVEIS, ["riseAi.configuracoes.promptCliente", "tela.configuracoes.usuarios"]);
     // As abas de Configuracoes do Rise AI (Entrega A, Tarefa 14): cada aba e uma capacidade, delegavel; o prompt do cliente nao.
-    const abasDoRiseAi = ["modelos", "orcamentos", "canais", "atendimento"].map((aba) => `riseAi.configuracoes.${aba}`);
+    // A aba Canais saiu com o chat interno (decisao C1 do dono, 20/10/2026).
+    const abasDoRiseAi = ["modelos", "orcamentos", "atendimento"].map((aba) => `riseAi.configuracoes.${aba}`);
     const cincoDasAbas = [...abasDoRiseAi, "riseAi.configuracoes.promptCliente"];
+    conferir("a capacidade da aba Canais saiu do catalogo", recursoPorId("riseAi.configuracoes.canais"), null);
     conferir(
-      "as cinco capacidades das abas existem, com o pai certo e depois dele",
+      "as quatro capacidades das abas existem, com o pai certo e depois dele",
       cincoDasAbas.map((id) => [recursoPorId(id)?.tipo, recursoPorId(id)?.pai, ids.indexOf(recursoPorId(id)?.pai) >= 0 && ids.indexOf(recursoPorId(id)?.pai) < ids.indexOf(id)]),
       [...abasDoRiseAi.map(() => ["capacidade", "riseAi.configuracoes", true]), ["capacidade", "riseAi.configuracoes.atendimento", true]],
     );
-    conferir("so o prompt do cliente e exclusivo do Administrador", cincoDasAbas.map((id) => recursoPorId(id)?.delegavel), [true, true, true, true, false]);
-    conferir("rotulos das abas", abasDoRiseAi.map((id) => recursoPorId(id)?.rotulo), ["Rise AI › Configurações › Modelos", "Rise AI › Configurações › Orçamentos", "Rise AI › Configurações › Canais", "Rise AI › Configurações › Atendimento"]);
+    conferir("so o prompt do cliente e exclusivo do Administrador", cincoDasAbas.map((id) => recursoPorId(id)?.delegavel), [true, true, true, false]);
+    conferir("rotulos das abas", abasDoRiseAi.map((id) => recursoPorId(id)?.rotulo), ["Rise AI › Configurações › Modelos", "Rise AI › Configurações › Orçamentos", "Rise AI › Configurações › Atendimento"]);
     conferir(
-      "a matriz mostra as quatro abas no grupo do Rise AI e nenhuma linha do prompt do cliente",
+      "a matriz mostra as tres abas no grupo do Rise AI e nenhuma linha do prompt do cliente",
       gruposDaMatriz().find((g) => g.grupo === "/rise-ai").recursos.map((r) => r.id).filter((id) => id.startsWith("riseAi.configuracoes.")),
       abasDoRiseAi,
     );
@@ -164,7 +166,7 @@ try {
         "tela.painel", "cartao.painel.produtos", "cartao.painel.anunciosPublicados", "tela.produtos", "tela.produtos.cadastro",
         "acao.produtos.sincronizarBling", "acao.vps.deploy", "tela.riseAi", "riseAi.chat", "riseAi.revisao", "riseAi.conhecimento",
         "riseAi.consumo", "riseAi.configuracoes", "tela.configuracoes", "tela.configuracoes.usuarios", "tela.integracoes",
-        "riseAi.configuracoes.modelos", "riseAi.configuracoes.orcamentos", "riseAi.configuracoes.canais", "riseAi.configuracoes.atendimento", "riseAi.configuracoes.promptCliente",
+        "riseAi.configuracoes.modelos", "riseAi.configuracoes.orcamentos", "riseAi.configuracoes.atendimento", "riseAi.configuracoes.promptCliente",
       ].filter((id) => !recursoPorId(id)),
       [],
     );
@@ -212,9 +214,9 @@ try {
     );
     conferir("administrador tem todos os recursos do catalogo", admin.size, RECURSOS.length);
     conferir(
-      "administrador tem as quatro abas de Configuracoes do Rise AI e o prompt do cliente",
-      ["modelos", "orcamentos", "canais", "atendimento", "promptCliente"].map((aba) => admin.get(`riseAi.configuracoes.${aba}`)),
-      ["editar", "editar", "editar", "editar", "editar"],
+      "administrador tem as tres abas de Configuracoes do Rise AI e o prompt do cliente",
+      ["modelos", "orcamentos", "atendimento", "promptCliente"].map((aba) => admin.get(`riseAi.configuracoes.${aba}`)),
+      ["editar", "editar", "editar", "editar"],
     );
     conferir(
       "o prompt do cliente gravado numa funcao ou excecao nao vale (so pelo administrador)",

@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import AbaAtendimento from "@/components/riseAi/AbaAtendimento";
-import AbaCanais from "@/components/riseAi/AbaCanais";
 import AbaOrcamentos from "@/components/riseAi/AbaOrcamentos";
 import CartaoDeProvedor from "@/components/riseAi/CartaoDeProvedor";
 import ConfiguracoesEmAbas from "@/components/riseAi/ConfiguracoesEmAbas";
@@ -13,14 +12,14 @@ import { ABAS, RECURSO_DA_ABA } from "@/lib/riseAi/abasDeConfiguracao";
 import { estadoDasChaves, lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { MODELOS_SUGERIDOS, PROVEDORES, endpointPadrao } from "@/lib/riseAi/modelos";
 import { estadoDoOrcamento } from "@/lib/riseAi/orcamento";
-import { PROMPT_ATENDIMENTO_PADRAO, PROMPT_INTERNO_PADRAO } from "@/lib/riseAi/prompt";
+import { PROMPT_ATENDIMENTO_PADRAO } from "@/lib/riseAi/prompt";
 import { versaoAnterior } from "@/lib/riseAi/versoesDePrompt";
 import { sessaoDoRiseAi } from "../sessao";
 
 export const metadata = { title: "Configurações | Rise AI" };
 export const dynamic = "force-dynamic";
 
-const ROTULOS = { modelos: "Modelos", orcamentos: "Orçamentos", canais: "Canais", atendimento: "Atendimento" };
+const ROTULOS = { modelos: "Modelos", orcamentos: "Orçamentos", atendimento: "Atendimento" };
 const RECURSO_DO_PROMPT_DO_CLIENTE = "riseAi.configuracoes.promptCliente";
 
 const comoTexto = (data) => (data ? data.toISOString() : null);
@@ -50,15 +49,17 @@ async function versaoParaATela(canal) {
 }
 
 /**
- * As configurações do Rise AI, em quatro abas (Modelos, Orçamentos, Canais e Atendimento). A página existe para quem tem o
- * recurso `riseAi.configuracoes`; cada aba aparece só para quem tem o recurso dela, e sem nenhuma o resultado é 404 (a
- * conferência é do servidor, e cada Salvar confere de novo). A página lê a chave só para saber SE existe e DE ONDE vem:
+ * As configurações do Rise AI, em três abas (Modelos, Orçamentos e Atendimento; a Canais, o orçamento interno e o prompt
+ * interno saíram com o chat, decisão C1 de 20/10/2026). A página existe para quem tem o recurso `riseAi.configuracoes`; cada
+ * aba aparece só para quem tem o recurso dela (a Atendimento, que hoje é só o prompt do cliente, só para quem pode esse
+ * prompt), e sem nenhuma o resultado é 404 (a conferência é do servidor, e cada Salvar confere de novo). A página lê a chave só para saber SE existe e DE ONDE vem:
  * nenhuma chave, nem cifrada, chega ao navegador.
  */
 export default async function ConfiguracoesPage() {
   const acesso = await exigirAcessoNaPagina("riseAi.configuracoes", "ver");
   const sessao = sessaoDoRiseAi(acesso);
-  const visiveis = ABAS.filter((aba) => acesso.pode(RECURSO_DA_ABA[aba], "ver"));
+  const podePromptCliente = acesso.pode(RECURSO_DO_PROMPT_DO_CLIENTE, "editar");
+  const visiveis = ABAS.filter((aba) => acesso.pode(RECURSO_DA_ABA[aba], "ver") && (aba !== "atendimento" || podePromptCliente));
   if (visiveis.length === 0) notFound();
   const podeEditar = (aba) => acesso.pode(RECURSO_DA_ABA[aba], "editar");
 
@@ -115,34 +116,23 @@ export default async function ConfiguracoesPage() {
   }
 
   if (visiveis.includes("orcamentos")) {
-    const [clientes, interno, cotacao] = await Promise.all([
-      estadoDoOrcamento("CLIENTES", { config: configuracao }),
-      estadoDoOrcamento("INTERNO", { config: configuracao }),
-      textoDaCotacao(),
-    ]);
+    const [clientes, cotacao] = await Promise.all([estadoDoOrcamento("CLIENTES", { config: configuracao }), textoDaCotacao()]);
     paineis.orcamentos = (
       <AbaOrcamentos
         podeEditar={podeEditar("orcamentos")}
-        inicial={{ clientes: emReais(configuracao.orcamentos.clientesBrl), interno: emReais(configuracao.orcamentos.internoBrl) }}
-        estados={{ clientes, interno }}
+        inicial={{ clientes: emReais(configuracao.orcamentos.clientesBrl) }}
+        estados={{ clientes }}
         cotacao={cotacao}
       />
     );
   }
 
-  if (visiveis.includes("canais")) {
-    paineis.canais = <AbaCanais podeEditar={podeEditar("canais")} internet={Boolean(configuracao.internet)} />;
-  }
-
   if (visiveis.includes("atendimento")) {
-    const podePromptCliente = acesso.pode(RECURSO_DO_PROMPT_DO_CLIENTE, "editar");
-    const [anteriorInterno, anteriorCliente] = await Promise.all([versaoParaATela("interno"), podePromptCliente ? versaoParaATela("cliente") : null]);
+    const anteriorCliente = await versaoParaATela("cliente");
     paineis.atendimento = (
       <AbaAtendimento
         podeEditar={podeEditar("atendimento")}
-        podePromptCliente={podePromptCliente}
-        interno={{ texto: configuracao.prompts.interno ?? PROMPT_INTERNO_PADRAO, padrao: PROMPT_INTERNO_PADRAO, anterior: anteriorInterno }}
-        cliente={podePromptCliente ? { texto: configuracao.prompts.atendimento ?? PROMPT_ATENDIMENTO_PADRAO, padrao: PROMPT_ATENDIMENTO_PADRAO, anterior: anteriorCliente } : null}
+        cliente={{ texto: configuracao.prompts.atendimento ?? PROMPT_ATENDIMENTO_PADRAO, padrao: PROMPT_ATENDIMENTO_PADRAO, anterior: anteriorCliente }}
       />
     );
   }

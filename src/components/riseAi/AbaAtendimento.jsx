@@ -63,27 +63,23 @@ function CampoDePrompt({ nome, rotulo, ajuda, valor, aoMudar, padrao, anterior, 
 }
 
 /**
- * A aba Atendimento: o estilo dos textos da IA. O prompt do chat interno é de quem pode editar a aba; o das respostas ao cliente só
- * existe para o Administrador (`podePromptCliente`, conferido no servidor também). As regras de honestidade e o formato da resposta são do
- * código e não se editam aqui.
+ * A aba Atendimento: o prompt das respostas ao cliente (o WhatsApp, quando entrar), que só existe para o Administrador (a
+ * página só mostra a aba a quem pode, e o servidor confere de novo). O prompt do chat interno saiu com o chat (decisão C1,
+ * 20/10/2026). As regras de honestidade e o formato da resposta são do código e não se editam aqui.
  *
- * @param {{ podeEditar: boolean, podePromptCliente: boolean,
- *   interno: { texto: string, padrao: string, anterior: { texto: string, nota: string } | null },
- *   cliente: { texto: string, padrao: string, anterior: { texto: string, nota: string } | null } | null }} props
+ * @param {{ podeEditar: boolean, cliente: { texto: string, padrao: string, anterior: { texto: string, nota: string } | null } }} props
  */
-export default function AbaAtendimento({ podeEditar, podePromptCliente, interno, cliente }) {
-  const [textoInterno, setTextoInterno] = useState(interno.texto);
-  const [textoCliente, setTextoCliente] = useState(cliente?.texto ?? "");
+export default function AbaAtendimento({ podeEditar, cliente }) {
+  const [textoCliente, setTextoCliente] = useState(cliente.texto);
   const { erros, aviso, pendente, salvar } = useSalvarAba("atendimento");
 
-  const sujo = comoLinhasUnix(textoInterno) !== comoLinhasUnix(interno.texto) || (podePromptCliente && cliente && comoLinhasUnix(textoCliente) !== comoLinhasUnix(cliente.texto));
-  useAlteracaoDaAba("atendimento", Boolean(sujo));
+  const sujo = comoLinhasUnix(textoCliente) !== comoLinhasUnix(cliente.texto);
+  useAlteracaoDaAba("atendimento", sujo);
 
   function aoEnviar(evento) {
     evento.preventDefault();
     const dados = new FormData();
-    dados.set("promptInterno", textoInterno);
-    if (podePromptCliente && cliente) dados.set("promptCliente", textoCliente);
+    dados.set("promptCliente", textoCliente);
     salvar(dados);
   }
 
@@ -91,28 +87,16 @@ export default function AbaAtendimento({ podeEditar, podePromptCliente, interno,
     <form onSubmit={aoEnviar}>
       <fieldset disabled={!podeEditar} title={podeEditar ? undefined : MOTIVO_SO_LEITURA} className="flex min-w-0 flex-col gap-6">
         <CampoDePrompt
-          nome="promptInterno"
-          rotulo="Prompt do chat interno"
-          ajuda="O estilo das respostas da IA à equipe no chat: tom, formato e o que priorizar. As regras de honestidade (nunca inventar preço nem estoque) e o formato da resposta são do código e não mudam aqui."
-          valor={textoInterno}
-          aoMudar={setTextoInterno}
-          padrao={interno.padrao}
-          anterior={interno.anterior}
-          erro={erros["prompts.interno"]}
+          nome="promptCliente"
+          rotulo="Prompt das respostas ao cliente"
+          ajuda="O estilo do texto pronto para mandar ao cliente: tom, abertura, fecho e como citar preço e link. Só o administrador altera. As regras de honestidade e o formato são do código."
+          valor={textoCliente}
+          aoMudar={setTextoCliente}
+          padrao={cliente.padrao}
+          anterior={cliente.anterior}
+          erro={erros["prompts.atendimento"] ?? erros.promptCliente}
         />
-        {podePromptCliente && cliente && (
-          <CampoDePrompt
-            nome="promptCliente"
-            rotulo="Prompt das respostas ao cliente"
-            ajuda="O estilo do texto pronto para mandar ao cliente: tom, abertura, fecho e como citar preço e link. Só o administrador altera. As regras de honestidade e o formato são do código."
-            valor={textoCliente}
-            aoMudar={setTextoCliente}
-            padrao={cliente.padrao}
-            anterior={cliente.anterior}
-            erro={erros["prompts.atendimento"] ?? erros.promptCliente}
-          />
-        )}
-        <RodapeDaAba pendente={pendente} aviso={aviso} podeEditar={podeEditar} sujo={Boolean(sujo)} />
+        <RodapeDaAba pendente={pendente} aviso={aviso} podeEditar={podeEditar} sujo={sujo} />
       </fieldset>
     </form>
   );

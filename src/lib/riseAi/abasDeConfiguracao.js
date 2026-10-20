@@ -7,21 +7,23 @@ import { PROMPT_ATENDIMENTO_PADRAO, PROMPT_INTERNO_PADRAO } from "./prompt";
 import { registrarVersaoDePrompt } from "./versoesDePrompt";
 
 /**
- * As quatro abas de Configurações do Rise AI (spec §5a.5). Cada uma grava SÓ os campos dela, com o recurso de Acessos dela
- * em "editar", e o que mexe em dinheiro, na internet ou nos prompts entra na trilha de auditoria na MESMA transação.
+ * As três abas de Configurações do Rise AI (spec §5a.5). Cada uma grava SÓ os campos dela, com o recurso de Acessos dela
+ * em "editar", e o que mexe em dinheiro ou nos prompts entra na trilha de auditoria na MESMA transação.
  *
  *   modelos      Padrão, Reserva, tempos, limites e endereços (as chaves e o "Testar conexão" têm ações próprias)
- *   orcamentos   o teto de gasto do mês dos clientes e o interno
- *   canais       o interruptor "Pesquisar na internet" do chat interno
- *   atendimento  o prompt do chat interno e, só para o Administrador, o das respostas ao cliente
+ *   orcamentos   o teto de gasto do mês dos clientes
+ *   atendimento  só para o Administrador: o prompt das respostas ao cliente
+ *
+ * O chat interno saiu (decisão C1 do dono, 20/10/2026), e com ele a aba Canais (a internet), o orçamento interno e o
+ * prompt interno. Os três continuam gravados e lidos por `responder` (o Telegram decide se os usa); só não se editam
+ * mais pela tela, e um campo deles que chegue num formulário é ignorado como campo de outra aba.
  */
 
-export const ABAS = ["modelos", "orcamentos", "canais", "atendimento"];
+export const ABAS = ["modelos", "orcamentos", "atendimento"];
 
 export const RECURSO_DA_ABA = {
   modelos: "riseAi.configuracoes.modelos",
   orcamentos: "riseAi.configuracoes.orcamentos",
-  canais: "riseAi.configuracoes.canais",
   atendimento: "riseAi.configuracoes.atendimento",
 };
 
@@ -30,9 +32,8 @@ const RECURSO_DO_PROMPT_DO_CLIENTE = "riseAi.configuracoes.promptCliente";
 
 const CAMPOS_DA_ABA = {
   modelos: ["padraoProvedor", "padraoModelo", "reservaProvedor", "reservaModelo", "primeiroTokenMs", "totalMs", "maxChamadasDeFerramenta", "maxTokensResposta", "contextoMaxTokens", "taxaPorUsuarioPorMinuto"],
-  orcamentos: ["orcamentoClientesBrl", "orcamentoInternoBrl"],
-  canais: ["internet"],
-  atendimento: ["promptInterno", "promptCliente"],
+  orcamentos: ["orcamentoClientesBrl"],
+  atendimento: ["promptCliente"],
 };
 
 const ehCampoDaAba = (aba, nome) => CAMPOS_DA_ABA[aba].includes(nome) || (aba === "modelos" && nome.startsWith("endpoint."));

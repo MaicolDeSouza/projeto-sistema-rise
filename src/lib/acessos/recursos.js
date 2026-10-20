@@ -90,9 +90,10 @@ const LISTA = [
   capacidade("riseAi.consumo", "Rise AI › Consumo", "tela.riseAi"),
   capacidade("riseAi.configuracoes", "Rise AI › Configurações", "tela.riseAi", "Modelos, chaves e limites."),
   capacidade("riseAi.configuracoes.modelos", "Rise AI › Configurações › Modelos", "riseAi.configuracoes", "Modelo padrão e reserva, chaves, tempos e limites."),
-  capacidade("riseAi.configuracoes.orcamentos", "Rise AI › Configurações › Orçamentos", "riseAi.configuracoes", "Quanto a IA pode gastar por mês."),
-  capacidade("riseAi.configuracoes.canais", "Rise AI › Configurações › Canais", "riseAi.configuracoes", "Pesquisar na internet e os canais de atendimento."),
-  capacidade("riseAi.configuracoes.atendimento", "Rise AI › Configurações › Atendimento", "riseAi.configuracoes", "O estilo das respostas do chat interno."),
+  capacidade("riseAi.configuracoes.orcamentos", "Rise AI › Configurações › Orçamentos", "riseAi.configuracoes", "Quanto a IA pode gastar por mês com os clientes."),
+  // A aba Canais (a internet do chat interno) saiu com o chat (decisão C1, 20/10/2026). Permissão gravada com o id dela
+  // fica no banco sem efeito: a resolução e a matriz ignoram id que não está aqui.
+  capacidade("riseAi.configuracoes.atendimento", "Rise AI › Configurações › Atendimento", "riseAi.configuracoes", "O prompt das respostas ao cliente."),
   naoDelegavel("riseAi.configuracoes.promptCliente", "Rise AI › Configurações › Atendimento › Prompt das respostas ao cliente", "riseAi.configuracoes.atendimento"),
 
   tela("tela.pedidos", "Pedidos", "/pedidos"),

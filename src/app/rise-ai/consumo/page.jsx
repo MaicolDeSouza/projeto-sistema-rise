@@ -30,9 +30,9 @@ export default async function ConsumoPage({ searchParams }) {
   // O dólar do dia (nunca lança): o custo das respostas e a pesquisa já foram calculados com a cotação da hora, e a tela de
   // Orçamentos usa a mesma; aqui só se garante que o PTAX esteja em memória se ninguém conversou desde a partida.
   await garantirCotacaoDoDia();
-  const [clientes, interno, respostas, outros] = await Promise.all([
+  // Só o orçamento dos clientes: o interno saiu da tela com o chat interno (decisão C1, 20/10/2026).
+  const [clientes, respostas, outros] = await Promise.all([
     estadoDoOrcamento("CLIENTES"),
-    estadoDoOrcamento("INTERNO"),
     consumoPorDia(periodo),
     gastosOutrosPorDia(periodo),
   ]);
@@ -60,9 +60,8 @@ export default async function ConsumoPage({ searchParams }) {
       </div>
       <section className="flex flex-col gap-3 rounded-lg border border-borda bg-superficie p-4">
         <h2 className="text-sm font-semibold">Orçamento de {mes}</h2>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="max-w-xl">
           <BarraDeOrcamento rotulo="Clientes (WhatsApp)" {...paraABarra(clientes)} />
-          <BarraDeOrcamento rotulo="Interno" {...paraABarra(interno)} />
         </div>
       </section>
       <TabelaDeConsumo linhas={linhasComOutros(respostas, outros)} totais={totaisDoPeriodo(respostas, outros)} />
