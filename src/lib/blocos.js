@@ -102,7 +102,7 @@ export const blocos = [
     href: "/rise-ai",
     rotulo: "Rise AI",
     icone: Sparkles,
-    resumo: "Assistente de IA para responder clientes e consultar o catálogo",
+    resumo: "Acesso pelo Claude e ChatGPT, dúvidas anotadas, conhecimento e consumo",
     pronto: true,
   },
   {

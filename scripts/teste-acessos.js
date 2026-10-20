@@ -706,6 +706,13 @@ try {
     );
     conferir("a lista de excecoes so encolhe: quem ja confere sai dela", EXCECOES_DO_LANCAMENTO_1.filter((caminho) => confere(ler(caminho))), []);
     conferir("a lista de excecoes so tem arquivo que existe", EXCECOES_DO_LANCAMENTO_1.filter((caminho) => !alvos.includes(caminho)), []);
+    // Decisao C1 do dono (20/10/2026): o chat interno saiu da tela; o acesso pelo Claude/ChatGPT e pelo /mcp.
+    {
+      const { existsSync } = await import("node:fs");
+      const doChat = ["src/app/rise-ai/[conversaId]/page.jsx", "src/app/api/rise-ai/conversar/route.js", "src/app/api/rise-ai/parar/route.js", "src/components/riseAi/Chat.jsx", "src/components/riseAi/ListaDeConversas.jsx", "src/components/riseAi/ControlesDaConversa.jsx", "src/components/riseAi/fluxo.js"];
+      conferir("o chat interno saiu (paginas, rotas e componentes)", doChat.filter((caminho) => existsSync(join(raiz, caminho))), []);
+      conferir("nenhuma tela importa o chat", alvos.filter((caminho) => /riseAi\/(Chat|ListaDeConversas|ControlesDaConversa)"/.test(ler(caminho))), []);
+    }
     const servidor = ler("src/lib/acessos/servidor.js");
     conferir("a sessao do servidor monta, grava o ultimo acesso e responde 404", ["montarSessao(", "precisaGravarAcesso(", "notFound("].map((trecho) => servidor.includes(trecho)), [true, true, true]);
     conferir("src/lib/sessao.js continua sem import (o layout, o /api/sair e o teste:vps dependem disso)", ler("src/lib/sessao.js").includes("import "), false);

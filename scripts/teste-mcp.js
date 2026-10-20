@@ -880,6 +880,38 @@ try {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 11 — A tela Conexoes: o endereco para colar, as conexoes vivas do login e o Desconectar
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nConexões");
+    const { enderecoDoMcp, conexoesParaTela, desconectar } = await import("../src/lib/mcp/conexoes.js");
+    const banco = await import("../src/lib/mcp/oauthBanco.js");
+    const login = "zz-mcp-conexoes";
+    const retorno = "https://claude.ai/api/mcp/auth_callback";
+    const agora = Date.now();
+    conferir("o endereco para colar no claude.ai", [enderecoDoMcp("https://rise.4hobby.com.br"), enderecoDoMcp("https://localhost:3000/")], ["https://rise.4hobby.com.br/mcp", "https://localhost:3000/mcp"]);
+
+    const cliente = await banco.registrarCliente({ nome: "ZZ-MCP ChatGPT", redirectUris: [retorno] });
+    const conectar = async () => {
+      const codigo = await banco.emitirCodigo({ clienteId: cliente.clientId, login, redirectUri: retorno, codeChallenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", resource: "https://rise.teste/mcp", escopos: ["consultar"] }, { agora });
+      return (await banco.trocarCodigo({ codigo, clientId: cliente.clientId, redirectUri: retorno, codeVerifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk" }, { agora })).tokens;
+    };
+    const token = await conectar();
+    const lista = await conexoesParaTela(login, { agora: agora + 1000 });
+    conferir(
+      "a tela recebe cliente e datas em texto ISO (o componente do navegador nao recebe Date)",
+      [lista.length, lista[0]?.cliente, typeof lista[0]?.conectadoEm, new Date(lista[0]?.valeAte).getTime() - agora, typeof lista[0]?.familia],
+      [1, "ZZ-MCP ChatGPT", "string", 30 * 864e5, "string"],
+    );
+    conferir("sem conexao, lista vazia", await conexoesParaTela("zz-mcp-sem-conexao", { agora }), []);
+
+    conferir("desconectar a familia de outro login e recusado com a mensagem", await codigoDoErro(desconectar(lista[0].familia, "zz-mcp-outra", { agora })), "Conexão não encontrada.");
+    conferir("o token segue valendo depois da recusa", Boolean(await banco.validarTokenDeAcesso(token.access_token, { agora })), true);
+    conferir("desconectar a propria: o token cai na hora e a lista esvazia", [(await desconectar(lista[0].familia, login, { agora })).revogados, await banco.validarTokenDeAcesso(token.access_token, { agora }), await conexoesParaTela(login, { agora })], [1, null, []]);
+    conferir("desconectar de novo a mesma e recusado", await codigoDoErro(desconectar(lista[0].familia, login, { agora })), "Conexão não encontrada.");
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;

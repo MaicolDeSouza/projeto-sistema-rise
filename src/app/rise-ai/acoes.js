@@ -3,53 +3,19 @@
 import { revalidatePath } from "next/cache";
 
 import { executarComAcesso } from "@/lib/acessos/servidor";
+import { desconectar } from "@/lib/mcp/conexoes";
 import { ErroDeUso } from "@/lib/riseAi/erros";
-import { avaliarMensagem, carregarMensagem, conversaParaLista, excluirConversa, listarConversas, mensagemParaTela, renomearConversa } from "@/lib/riseAi/conversas";
+import { avaliarMensagem, mensagemParaTela } from "@/lib/riseAi/conversas";
 import { gerarSugestaoParaMensagem } from "@/lib/riseAi/sugestoes";
 import { comSessaoDoRiseAi } from "./sessao";
 
 /**
- * Ações do chat (renomear, excluir, avaliar, reler uma mensagem). TODAS passam por `executarComAcesso` com o recurso
- * "Rise AI › Chat" (ver para ler, editar para mudar), conferido no servidor antes de qualquer leitura; a sessão vem
- * dos cabeçalhos do servidor, nunca do navegador. Finas: a regra mora em `src/lib/riseAi/conversas.js`, que já é
- * testado. Devolvem `{ ok, ... }`.
+ * Ações do Rise AI fora da Revisão e das Configurações: avaliar uma resposta e desconectar o Claude ou o ChatGPT. TODAS
+ * passam por `executarComAcesso` com o recurso "Rise AI › Acesso pelo Claude e ChatGPT" (`riseAi.chat`), conferido no
+ * servidor antes de qualquer leitura; a sessão vem dos cabeçalhos do servidor, nunca do navegador. Devolvem `{ ok, ... }`.
  *
- * Não existe "criar conversa" aqui: "Nova conversa" abre o chat em branco, e a conversa só nasce na primeira pergunta
- * (`responder` a cria). Conversa vazia no histórico seria só ruído.
+ * O chat interno saiu (decisão C1 do dono, 20/10/2026), e com ele buscar, renomear e excluir conversa e reler mensagem.
  */
-
-/** A busca da lista lateral: no título e no texto das mensagens, só nas conversas de quem pergunta. */
-export async function buscarConversasAcao(busca) {
-  return executarComAcesso("riseAi.chat", "ver", comSessaoDoRiseAi(async (sessao) => {
-    const conversas = await listarConversas({ usuario: sessao.usuario, busca: String(busca ?? ""), limite: 50 });
-    return { conversas: conversas.map(conversaParaLista) };
-  }));
-}
-
-export async function renomearConversaAcao(id, formData) {
-  return executarComAcesso("riseAi.chat", "editar", comSessaoDoRiseAi(async (sessao) => {
-    await renomearConversa(id, formData.get("titulo"), sessao);
-    revalidatePath("/rise-ai", "layout");
-    return {};
-  }));
-}
-
-export async function excluirConversaAcao(id) {
-  return executarComAcesso("riseAi.chat", "editar", comSessaoDoRiseAi(async (sessao) => {
-    await excluirConversa(id, sessao);
-    revalidatePath("/rise-ai", "layout");
-    return {};
-  }));
-}
-
-/** A mensagem pronta para a tela (o `fim` do fluxo só traz o id): a do usuário, ou qualquer uma para o administrador. */
-export async function carregarMensagemAcao(id) {
-  return executarComAcesso("riseAi.chat", "ver", comSessaoDoRiseAi(async (sessao) => {
-    const mensagem = await carregarMensagem(id, sessao);
-    if (!mensagem) throw new ErroDeUso("Mensagem não encontrada.");
-    return { mensagem: mensagemParaTela(mensagem) };
-  }));
-}
 
 /**
  * 👍, 👎 ou tirar a avaliação. `avaliacao` chega do formulário como "1", "-1" ou "0" (tirar); o comentário é opcional.
@@ -74,4 +40,13 @@ export async function avaliarMensagemAcao(id, formData) {
     revalidatePath("/rise-ai", "layout");
     return { mensagem: mensagemParaTela(avaliada) };
   }));
+}
+
+/** Desconectar uma conexão da aba Conexões: só a do próprio login (o token cai no próximo pedido do Claude ou do ChatGPT). */
+export async function desconectarAcao(familia) {
+  return executarComAcesso("riseAi.chat", "editar", async (sessao) => {
+    await desconectar(String(familia ?? ""), sessao.login);
+    revalidatePath("/rise-ai");
+    return {};
+  });
 }

@@ -1122,43 +1122,11 @@ try {
   }
 
   // -------------------------------------------------------------------------
-  // Tarefa 11 — O que a tela do chat usa e roda em Node (leitura do fluxo SSE, formatos)
+  // Tarefa 11 — Os formatos que a Revisao e o Consumo usam e rodam em Node (a leitura do fluxo SSE saiu com o chat, C1)
   // -------------------------------------------------------------------------
   {
-    const { eventosDoFluxo } = await import("../src/components/riseAi/fluxo.js");
     const { custoEmTexto, duracaoEmTexto, idadeDoSaldo, rotuloDoMotivo, rotuloDoProvedor, ehLocal, reais } = await import("../src/components/riseAi/formatos.js");
-    const { eventoSSE } = await import("../src/lib/riseAi/sse.js");
-    console.log("\nFluxo e formatos da tela do chat");
-
-    const corpoDe = (...pedacos) =>
-      new ReadableStream({
-        start(controle) {
-          for (const pedaco of pedacos) controle.enqueue(typeof pedaco === "string" ? new TextEncoder().encode(pedaco) : pedaco);
-          controle.close();
-        },
-      });
-    const lerTudo = async (corpo) => {
-      const lidos = [];
-      for await (const evento of eventosDoFluxo(corpo)) lidos.push(evento);
-      return lidos;
-    };
-
-    conferir(
-      "varios eventos num pedaco so",
-      await lerTudo(corpoDe(eventoSSE("inicio", { a: 1 }) + eventoSSE("texto", { delta: "Olá" }) + eventoSSE("fim", {}))),
-      [{ nome: "inicio", dados: { a: 1 } }, { nome: "texto", dados: { delta: "Olá" } }, { nome: "fim", dados: {} }],
-    );
-    const bytes = new TextEncoder().encode(eventoSSE("texto", { delta: "Olá, tudo bem?" }) + eventoSSE("fim", { ok: true }));
-    const corte = bytes.indexOf(0xc3) + 1; // no meio do "á"
-    conferir(
-      "evento e acento partidos entre pedacos de rede",
-      await lerTudo(corpoDe(bytes.slice(0, 9), bytes.slice(9, corte), bytes.slice(corte))),
-      [{ nome: "texto", dados: { delta: "Olá, tudo bem?" } }, { nome: "fim", dados: { ok: true } }],
-    );
-    conferir("fim de linha CRLF (proxy)", await lerTudo(corpoDe('event: texto\r\ndata: {"delta":"x"}\r\n\r\n')), [{ nome: "texto", dados: { delta: "x" } }]);
-    conferir("comentario e JSON quebrado sao ignorados", await lerTudo(corpoDe(': keep-alive\n\nevent: texto\ndata: {quebrado\n\n' + eventoSSE("fim", {}))), [{ nome: "fim", dados: {} }]);
-    conferir("evento sem a linha em branco final ainda sai", await lerTudo(corpoDe('event: fim\ndata: {"x":1}')), [{ nome: "fim", dados: { x: 1 } }]);
-    conferir("corpo vazio", await lerTudo(corpoDe()), []);
+    console.log("\nFormatos da tela");
 
     conferir("custo: preco desconhecido nao e zero", [custoEmTexto(null), custoEmTexto(undefined), custoEmTexto(0), custoEmTexto(0.0036), custoEmTexto(1.5)], ["preço não cadastrado", "preço não cadastrado", "R$ 0,00", "R$ 0,0036", "R$ 1,50"]);
     conferir("duracao", [duracaoEmTexto(420), duracaoEmTexto(4210), duracaoEmTexto(12000)], ["420 ms", "4,2 s", "12 s"]);
@@ -1321,7 +1289,7 @@ try {
       const raiz = fileURLToPath(new URL("../", import.meta.url));
       const ler = (caminho) => readFileSync(join(raiz, caminho), "utf8").replace(/\r\n/g, "\n");
       const acoesDe = (fonte) => [...fonte.matchAll(/export async function (\w+)\([^)]*\) \{\n([\s\S]*?)\n\}\n/g)];
-      for (const [arquivo, minimo] of [["src/app/rise-ai/acoes.js", 5], ["src/app/rise-ai/revisao/acoes.js", 10], ["src/app/rise-ai/configuracoes/acoes.js", 5]]) {
+      for (const [arquivo, minimo] of [["src/app/rise-ai/acoes.js", 2], ["src/app/rise-ai/revisao/acoes.js", 10], ["src/app/rise-ai/configuracoes/acoes.js", 5]]) {
         const acoes = acoesDe(ler(arquivo));
         conferir(`${arquivo}: tem as acoes esperadas`, acoes.length >= minimo, true);
         const fora = acoes.filter(([, , corpo]) => {
@@ -1338,8 +1306,8 @@ try {
           const caminho = `${pasta}/${nome}`;
           return statSync(join(raiz, caminho)).isDirectory() ? arquivosDe(caminho) : [caminho];
         });
-      const telas = [...arquivosDe("src/app/rise-ai"), ...arquivosDe("src/app/api/rise-ai")].filter((caminho) => /\/(page|layout)\.jsx$|\/route\.js$/.test(caminho));
-      conferir("as paginas, layouts e rotas do Rise AI que o guarda olha", telas.length >= 7, true);
+      const telas = arquivosDe("src/app/rise-ai").filter((caminho) => /\/(page|layout)\.jsx$|\/route\.js$/.test(caminho));
+      conferir("as paginas, layouts e rotas do Rise AI que o guarda olha", telas.length >= 5, true);
       conferir(
         "toda pagina, layout e rota do Rise AI confere o acesso",
         telas.filter((caminho) => {
@@ -2423,25 +2391,7 @@ try {
   // -------------------------------------------------------------------------
   console.log("\nEntrega A: chat");
   {
-    const { eventosDoFluxo } = await import("../src/components/riseAi/fluxo.js");
-    const { eventoSSE } = await import("../src/lib/riseAi/sse.js");
     const { estadoDoChat } = await import("../src/lib/riseAi/orcamento.js");
-    const lerTudo = async (corpo) => {
-      const eventos = [];
-      for await (const evento of eventosDoFluxo(corpo)) eventos.push(evento);
-      return eventos;
-    };
-    const fim = { mensagemId: "m1", uso: { entrada: 10, saida: 5 }, custo: { usd: 0.0001, brl: 0.0006 }, produtos: [], avisos: [], interrompida: true, custoEstimado: true };
-    const bytes = new TextEncoder().encode(eventoSSE("texto", { delta: "Olá" }) + eventoSSE("fim", fim));
-    const inteiro = new ReadableStream({ start(controle) { controle.enqueue(bytes); controle.close(); } });
-    conferir("o evento fim chega com interrompida e custoEstimado", (await lerTudo(inteiro)).at(-1), { nome: "fim", dados: fim });
-
-    // Um pedaco de rede parte o evento fim ao meio (e um acento no meio de outro).
-    const corte = Math.floor(bytes.length * 0.8);
-    const picado = new ReadableStream({ start(controle) { controle.enqueue(bytes.slice(0, corte)); controle.enqueue(bytes.slice(corte)); controle.close(); } });
-    const partidos = await lerTudo(picado);
-    conferir("fim partido entre dois pedacos de rede", [partidos.map((e) => e.nome), partidos.at(-1).dados.interrompida], [["texto", "fim"], true]);
-
     // O cabecalho: modelo padrao, internet e orcamento, lidos no servidor.
     const estado = await estadoDoChat();
     conferir("o estado do chat traz o padrao, a internet e o orcamento", [Object.keys(estado).sort(), typeof estado.internet, ["normal", "aviso", "esgotado"].includes(estado.orcamento.nivel), typeof estado.orcamento.percentual], [["internet", "orcamento", "padrao"], "boolean", true, "number"]);

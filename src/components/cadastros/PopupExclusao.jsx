@@ -6,7 +6,8 @@ import { Loader, X } from "lucide-react";
 /**
  * Confirmacao de exclusao num popup que NOMEIA o que sera apagado — no molde do
  * de Produtos (18/09/2026), onde um `confirm()` nativo sem nome deixou passar o
- * item errado. `aviso` e a consequencia (o que mais some junto).
+ * item errado. `aviso` e a consequencia (o que mais some junto). `rotulo` troca o
+ * texto do botao vermelho quando a acao destrutiva nao e excluir (Desconectar, no Rise AI).
  */
 export default function PopupExclusao({
   titulo,
@@ -16,6 +17,7 @@ export default function PopupExclusao({
   pendente,
   aoConfirmar,
   aoCancelar,
+  rotulo = "Excluir",
 }) {
   return (
     <div
@@ -62,7 +64,7 @@ export default function PopupExclusao({
             className="inline-flex items-center gap-1.5 rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
             {pendente && <Loader size={13} className="animate-spin" />}
-            Excluir
+            {rotulo}
           </button>
         </div>
       </section>
