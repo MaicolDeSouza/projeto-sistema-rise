@@ -18,7 +18,6 @@ set -euo pipefail
 cd /srv/rise/app 2>/dev/null || cd "$(dirname "$0")/.."
 [ -f .env ] || { echo "Sem .env aqui ($(pwd)): rode na VPS, em /srv/rise/app." >&2; exit 1; }
 
-MINIMO_DA_SENHA=12
 modo="criar"
 case "${1:-}" in
   --remover) modo="remover"; login="${2:-}" ;;
@@ -47,11 +46,12 @@ if [ "$modo" = "criar" ] || [ "$modo" = "simular" ]; then
     senha="$(openssl rand -hex 16)"
   else
     { true </dev/tty; } 2>/dev/null || { echo "Sem terminal para digitar a senha: rode com ssh -t. Nada foi mudado." >&2; exit 1; }
-    read -rsp "Senha nova para $login (mínimo $MINIMO_DA_SENHA caracteres): " senha < /dev/tty; echo
+    read -rsp "Senha nova para $login: " senha < /dev/tty; echo
     read -rsp "Repita a senha: " repetida < /dev/tty; echo
     [ "$senha" = "$repetida" ] || { echo "As senhas não conferem. Nada foi mudado." >&2; exit 1; }
     unset repetida
-    [ "${#senha}" -ge "$MINIMO_DA_SENHA" ] || { echo "Senha curta: use $MINIMO_DA_SENHA caracteres ou mais (o login é a única porta do Rise). Nada foi mudado." >&2; exit 1; }
+    # Sem minimo de tamanho (decisao do dono em 20/10/2026); so a senha vazia e recusada.
+    [ -n "$senha" ] || { echo "Senha vazia. Nada foi mudado." >&2; exit 1; }
   fi
   # bcrypt custo 10, o formato que o Tinyauth le ($2y$). A senha vai pela entrada (-i), nunca pelos argumentos.
   codigo="$(printf '%s' "$senha" | htpasswd -niBC 10 "$login" | tr -d '\r\n')"

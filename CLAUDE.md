@@ -4679,7 +4679,8 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   origin/main:deploy/usuario-tinyauth.sh | bash -s -- andrea"`. Também `--remover <login>` (nunca o último), `--listar` (só nomes) e
   `--simular <login>` (senha aleatória, numa cópia, sem mudar nada). Grava só a linha `TINYAUTH_AUTH_USERS` (com `$$`), copia o
   `.env` antes para `~/.env.antes-tinyauth-*`, recria só o contêiner `auth`, confere e diz se o usuário do Rise existe. Trocar a
-  senha mantém o nome como estava ("Maicol"). Senha mínima de 12. O código bcrypt do `htpasswd` foi conferido com o
+  senha mantém o nome como estava ("Maicol"). Sem mínimo de tamanho (decisão do dono em 20/10/2026); só a vazia é recusada. O
+  código bcrypt do `htpasswd` foi conferido com o
   `tinyauth user verify`. A sessão do Claude não digita a senha de ninguém.
 - **Deploy só quando o dono disser "sobe":**
   `ssh ... "cd /srv/rise/app && git fetch -q --tags origin && git checkout -q --detach origin/main && ./deploy/deploy-vps.sh"`
