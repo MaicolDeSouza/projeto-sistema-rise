@@ -181,7 +181,7 @@ const { prisma } = await import("../src/lib/db.js");
 async function limpar() {
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PROP-" } } });
   const { rm } = await import("node:fs/promises");
-  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2", "ZZ-PROP-3", "ZZ-PROP-4"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
+  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2", "ZZ-PROP-3", "ZZ-PROP-4", "ZZ-PROP-5"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -373,6 +373,39 @@ try {
     conferir("salvar fotos: a secao fotos fica marcada como aplicada", typeof (await lerProposta("ZZ-PROP-4")).aplicadas.fotos === "string");
     const { rm } = await import("node:fs/promises");
     await rm(`dados/temporarios/${lote}`, { recursive: true, force: true });
+  }
+
+  // Conferido (Tarefa 9): com secao pendente, avisa e nao confere; confirmado, confere e apaga a proposta inteira.
+  {
+    const { existsSync } = await import("node:fs");
+    const { gravarProposta, lerProposta, marcarSecoesAplicadas } = await import("../src/lib/proposta/banco.js");
+    const { conferirComProposta } = await import("../src/lib/proposta/conferir.js");
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-5", tituloBase: "TITULO ANTIGO" } });
+    await gravarProposta("ZZ-PROP-5", { secao: "titulos", conteudo: { opcoes: ["NOVO A", "NOVO B", "NOVO C"], recomendada: 0 } });
+    await gravarProposta("ZZ-PROP-5", { secao: "documentos", conteudo: { itens: [{ id: "d1", titulo: "Datasheet", url: "https://x.test/d.pdf" }] } }, { bytes: new Map([["d1", Buffer.from("%PDF-1.4\n")]]) });
+    conferir("conferido: a pasta proposta/ existe antes", existsSync("dados/produtos/ZZ-PROP-5/proposta"));
+
+    const pendente = await conferirComProposta(produto.id, true);
+    conferir("conferido: com titulos pendente, avisa", pendente.ok === false && JSON.stringify(pendente.pendentes) === '["titulos"]');
+    conferir("conferido: e o produto continua nao conferido", (await prisma.produto.findUnique({ where: { id: produto.id } })).conferido === false);
+    conferir("conferido: e a proposta continua", (await lerProposta("ZZ-PROP-5")) !== null);
+
+    const confirmado = await conferirComProposta(produto.id, true, { apagarProposta: true });
+    conferir("conferido: confirmado, confere", confirmado.ok === true && (await prisma.produto.findUnique({ where: { id: produto.id } })).conferido === true);
+    conferir("conferido: confirmado, a proposta some", (await lerProposta("ZZ-PROP-5")) === null);
+    conferir("conferido: confirmado, a pasta proposta/ some", !existsSync("dados/produtos/ZZ-PROP-5/proposta"));
+
+    conferir("conferido: desmarcar sem proposta funciona", (await conferirComProposta(produto.id, false)).ok === true);
+    conferir("conferido: marcar de novo sem proposta funciona", (await conferirComProposta(produto.id, true)).ok === true);
+
+    // Tudo aplicado: confere direto, sem pergunta, e apaga a proposta.
+    await prisma.produto.update({ where: { id: produto.id }, data: { conferido: false, tituloBase: "NOVO A" } });
+    await gravarProposta("ZZ-PROP-5", { secao: "titulos", conteudo: { opcoes: ["NOVO A", "NOVO B", "NOVO C"], recomendada: 0 } });
+    await marcarSecoesAplicadas(produto.id, ["titulos"]);
+    const direto = await conferirComProposta(produto.id, true);
+    conferir("conferido: sem pendencia, confere direto", direto.ok === true && !direto.pendentes);
+    conferir("conferido: sem pendencia, a proposta tambem some", (await lerProposta("ZZ-PROP-5")) === null);
+    conferir("conferido: produto inexistente da erro", (await conferirComProposta("id-que-nao-existe", true)).ok === false);
   }
 
   // O script: `proposta --ler` e o `gravar` recusando produto com proposta aberta (roda o script de verdade, no PC).

@@ -30,6 +30,7 @@ import {
 } from "@/lib/ia/anuncio";
 import { gastoDoFormulario, novoGasto, resumoDoGasto, somarResumos } from "@/lib/ia/gasto";
 import { marcarSecoesAplicadas } from "@/lib/proposta/banco";
+import { conferirComProposta } from "@/lib/proposta/conferir";
 import { modeloDaDescricao } from "@/lib/ia/modelosDaDescricao";
 import * as bibliotecaDePrompts from "@/lib/ia/promptsDescricao";
 import { normalizar } from "@/lib/texto";
@@ -1158,13 +1159,15 @@ export async function excluirProdutos(ids) {
  * Antes vivia so no navegador (ConferidoProduto.jsx) e sumia ao recarregar;
  * agora grava de verdade, para a contagem "(N verificados)" da lista ser real.
  */
-export async function alternarConferido(id, valor) {
+export async function alternarConferido(id, valor, opcoes = {}) {
   const negado = await negarSemAcesso("acao.produtos.marcarConferido", "executar");
   if (negado) return negado;
   try {
-    await prisma.produto.update({ where: { id }, data: { conferido: Boolean(valor) } });
-    revalidatePath("/produtos");
-    return { ok: true };
+    // O Conferido aprova e apaga a proposta automatica; com secao nao aplicada devolve `pendentes` e nao confere ate
+    // o dono confirmar (`apagarProposta`). Ver src/lib/proposta/conferir.js.
+    const resultado = await conferirComProposta(id, valor, { apagarProposta: opcoes?.apagarProposta === true });
+    if (resultado.ok) revalidatePath("/produtos");
+    return resultado;
   } catch (erro) {
     return { ok: false, erro: erro.message };
   }

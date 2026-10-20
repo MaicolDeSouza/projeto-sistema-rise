@@ -10,6 +10,11 @@ import { alternarConferido } from "@/app/produtos/acoes";
 // proposito, e so um controle interno de conferencia, nao uma protecao.
 const CODIGO_PROVISORIO = "123";
 
+// Nomes das secoes da proposta automatica na pergunta do Conferido (os mesmos do quadro "Proposta" do cadastro).
+const NOMES_DAS_SECOES = {
+  titulos: "Título", descricao: "Descrição", campos: "Campos", preco: "Preço", ean: "EAN", fotos: "Fotos",
+};
+
 /**
  * Marca "produto totalmente conferido" — controle interno do dono. Clicar abre
  * um popup que pede o codigo; so com o codigo certo a marca alterna.
@@ -24,6 +29,8 @@ export default function ConferidoProduto({ produto }) {
   const [aberto, setAberto] = useState(false);
   const [codigo, setCodigo] = useState("");
   const [erro, setErro] = useState(false);
+  // Secoes da proposta automatica ainda nao aplicadas (a pergunta antes de apagar a proposta). Null = sem pergunta.
+  const [pendentes, setPendentes] = useState(null);
   const [pendente, iniciarTransicao] = useTransition();
 
   function abrir() {
@@ -39,9 +46,27 @@ export default function ConferidoProduto({ produto }) {
       return;
     }
     iniciarTransicao(async () => {
-      await alternarConferido(produto.id, !conferido);
+      const resposta = await alternarConferido(produto.id, !conferido);
+      // Proposta automatica com secao nao aplicada: a janela vira a pergunta, e nada foi conferido ainda.
+      if (resposta?.pendentes) {
+        setPendentes(resposta.pendentes);
+        return;
+      }
       setAberto(false);
     });
+  }
+
+  function conferirEApagar() {
+    iniciarTransicao(async () => {
+      await alternarConferido(produto.id, true, { apagarProposta: true });
+      setPendentes(null);
+      setAberto(false);
+    });
+  }
+
+  function fechar() {
+    setPendentes(null);
+    setAberto(false);
   }
 
   // Cor e selo sozinhos nao dizem o estado: o mesmo texto vai no nome acessivel e na dica.
@@ -83,7 +108,53 @@ export default function ConferidoProduto({ produto }) {
         )}
       </button>
 
-      {aberto && (
+      {aberto && pendentes && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left"
+          {...propsDoFundo(fechar)}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={`pendentes-${produto.id}`}
+            className="w-full max-w-sm overflow-hidden rounded-lg border border-borda bg-superficie shadow-2xl"
+          >
+            <div className="space-y-2 p-4 text-sm">
+              <h2 id={`pendentes-${produto.id}`} className="font-semibold">
+                {pendentes.length === 1 ? "Há 1 item da proposta não aplicado" : `Há ${pendentes.length} itens da proposta não aplicados`}
+              </h2>
+              <p className="text-suave">Conferir apaga a proposta, e o que não foi aplicado se perde:</p>
+              <ul className="list-disc pl-5">
+                {pendentes.map((secao) => (
+                  <li key={secao}>{NOMES_DAS_SECOES[secao] ?? secao}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-borda p-3">
+              <button
+                type="button"
+                onClick={fechar}
+                autoFocus
+                disabled={pendente}
+                className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:opacity-50"
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={conferirEApagar}
+                disabled={pendente}
+                className="inline-flex items-center gap-1.5 rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {pendente && <Loader size={13} className="animate-spin" />}
+                Conferir e apagar
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {aberto && !pendentes && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left"
           {...propsDoFundo(() => setAberto(false))}
