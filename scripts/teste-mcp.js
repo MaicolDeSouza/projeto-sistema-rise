@@ -171,6 +171,193 @@ try {
     conferir("ChamadaMcp grava sem argumentos e com a hora", [chamada.argumentos, chamada.erro, chamada.quando instanceof Date], [null, null, true]);
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 3 — Regras puras do OAuth (metadados, redirects, registro, pedido de autorizacao, PKCE, hashes, Host/Origin)
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nOAuth puro");
+    const oauth = await import("../src/lib/mcp/oauth.js");
+    const origem = "https://rise.teste";
+
+    conferir("validades e escopo", [oauth.ESCOPO, oauth.VALIDADE_DO_CODIGO_MS, oauth.VALIDADE_DO_ACESSO_S, oauth.VALIDADE_DA_RENOVACAO_MS], ["consultar", 300000, 3600, 2592000000]);
+    conferir("metadados do recurso (RFC 9728)", oauth.metadadosDoRecurso(origem), {
+      resource: "https://rise.teste/mcp",
+      authorization_servers: ["https://rise.teste"],
+      scopes_supported: ["consultar"],
+      bearer_methods_supported: ["header"],
+      resource_name: "Rise",
+    });
+    conferir("metadados do servidor de autorizacao (RFC 8414)", oauth.metadadosDoServidor(origem), {
+      issuer: "https://rise.teste",
+      authorization_endpoint: "https://rise.teste/mcp/oauth/authorize",
+      token_endpoint: "https://rise.teste/mcp/oauth/token",
+      registration_endpoint: "https://rise.teste/mcp/oauth/register",
+      response_types_supported: ["code"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
+      code_challenge_methods_supported: ["S256"],
+      token_endpoint_auth_methods_supported: ["none"],
+      scopes_supported: ["consultar"],
+      authorization_response_iss_parameter_supported: true,
+    });
+
+    const bons = [
+      "https://claude.ai/api/mcp/auth_callback",
+      "https://chatgpt.com/connector_platform_oauth_redirect",
+      "https://chatgpt.com/connector/oauth/abc_123-X",
+      "http://localhost/callback",
+      "http://127.0.0.1:51234/callback",
+    ];
+    const ruins = [
+      "https://claude.ai/outra",
+      "http://claude.ai/api/mcp/auth_callback",
+      "https://claude.ai.atacante.com/api/mcp/auth_callback",
+      "https://user@claude.ai/api/mcp/auth_callback",
+      "https://claude.ai/api/mcp/auth_callback#x",
+      "https://chatgpt.com/connector/oauth/",
+      "https://chatgpt.com/connector/oauth/a/b",
+      "http://localhost/x",
+      "https://localhost/callback",
+      "http://localhost.atacante.com/callback",
+      "javascript:alert(1)",
+      "nao e url",
+    ];
+    conferir("redirects permitidos", bons.map(oauth.redirectPermitido), bons.map(() => true));
+    conferir("redirects recusados", ruins.map(oauth.redirectPermitido), ruins.map(() => false));
+    conferir(
+      "mesmo redirect: porta do loopback nao conta, o resto e exato",
+      [
+        oauth.mesmoRedirect("http://localhost/callback", "http://localhost:51234/callback"),
+        oauth.mesmoRedirect("http://localhost/callback", "http://127.0.0.1/callback"),
+        oauth.mesmoRedirect("https://claude.ai/api/mcp/auth_callback", "https://claude.ai/api/mcp/auth_callback"),
+        oauth.mesmoRedirect("https://claude.ai/api/mcp/auth_callback", "https://chatgpt.com/connector_platform_oauth_redirect"),
+      ],
+      [true, false, true, false],
+    );
+
+    const doClaude = { client_name: "Claude", redirect_uris: ["https://claude.ai/api/mcp/auth_callback"], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"], token_endpoint_auth_method: "none" };
+    conferir("registro do claude.ai e aceito", oauth.validarRegistro(doClaude), { ok: true, cliente: { nome: "Claude", redirectUris: ["https://claude.ai/api/mcp/auth_callback"] } });
+    conferir("registro sem nome vira 'Cliente MCP'; nome longo e cortado em 60", [oauth.validarRegistro({ redirect_uris: ["http://localhost/callback"] }).cliente?.nome, oauth.validarRegistro({ ...doClaude, client_name: "x".repeat(80) }).cliente?.nome.length], ["Cliente MCP", 60]);
+    conferir(
+      "registro recusado: sem redirect, redirect de fora, segredo de cliente, grant e response desconhecidos, corpo que nao e objeto",
+      [
+        oauth.validarRegistro({ ...doClaude, redirect_uris: [] }).erro,
+        oauth.validarRegistro({ ...doClaude, redirect_uris: ["https://atacante.com/cb"] }).erro,
+        oauth.validarRegistro({ ...doClaude, token_endpoint_auth_method: "client_secret_basic" }).erro,
+        oauth.validarRegistro({ ...doClaude, grant_types: ["client_credentials"] }).erro,
+        oauth.validarRegistro({ ...doClaude, response_types: ["token"] }).erro,
+        oauth.validarRegistro(null).erro,
+      ],
+      ["invalid_redirect_uri", "invalid_redirect_uri", "invalid_client_metadata", "invalid_client_metadata", "invalid_client_metadata", "invalid_client_metadata"],
+    );
+
+    const cliente = { id: "cliente-1", nome: "Claude", redirectUris: ["https://claude.ai/api/mcp/auth_callback", "http://localhost/callback"] };
+    const desafio = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+    const pedidoBom = { response_type: "code", client_id: "cliente-1", redirect_uri: "https://claude.ai/api/mcp/auth_callback", code_challenge: desafio, code_challenge_method: "S256", state: "abc", resource: "https://rise.teste/mcp", scope: "consultar" };
+    const validar = (mudancas) => oauth.validarPedidoDeAutorizacao({ ...pedidoBom, ...mudancas }, cliente, { recursoEsperado: "https://rise.teste/mcp" });
+    conferir("pedido de autorizacao bom", validar({}), {
+      ok: true,
+      pedido: { clientId: "cliente-1", redirectUri: "https://claude.ai/api/mcp/auth_callback", codeChallenge: desafio, state: "abc", resource: "https://rise.teste/mcp", escopos: ["consultar"] },
+    });
+    conferir("aceita URLSearchParams, sem scope e sem resource (vale o esperado)", oauth.validarPedidoDeAutorizacao(new URLSearchParams({ ...pedidoBom, scope: "", resource: "" }), cliente, { recursoEsperado: "https://rise.teste/mcp" }).pedido?.resource, "https://rise.teste/mcp");
+    conferir("loopback do Claude Code com outra porta passa", validar({ redirect_uri: "http://localhost:4567/callback" }).pedido?.redirectUri, "http://localhost:4567/callback");
+    const resumo = (resultado) => [resultado.ok, resultado.erro, resultado.redirecionavel];
+    conferir(
+      "pedidos recusados, e quais podem voltar ao cliente com o erro",
+      [
+        resumo(validar({ code_challenge: "" })),
+        resumo(validar({ code_challenge_method: "plain" })),
+        resumo(validar({ code_challenge: "curto" })),
+        resumo(validar({ redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect" })),
+        resumo(validar({ redirect_uri: "" })),
+        resumo(validar({ resource: "https://rise.teste/outro" })),
+        resumo(validar({ scope: "consultar escrever" })),
+        resumo(validar({ client_id: "outro" })),
+        resumo(validar({ response_type: "token" })),
+        resumo(oauth.validarPedidoDeAutorizacao(pedidoBom, null, { recursoEsperado: "https://rise.teste/mcp" })),
+      ],
+      [
+        [false, "invalid_request", true],
+        [false, "invalid_request", true],
+        [false, "invalid_request", true],
+        [false, "invalid_request", false],
+        [false, "invalid_request", false],
+        [false, "invalid_target", true],
+        [false, "invalid_scope", true],
+        [false, "invalid_client", false],
+        [false, "unsupported_response_type", true],
+        [false, "invalid_client", false],
+      ],
+    );
+
+    // O par do RFC 7636, apendice B.
+    conferir(
+      "PKCE S256",
+      [oauth.conferirPkce("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", desafio), oauth.conferirPkce("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXl", desafio), oauth.conferirPkce("curto", desafio), oauth.conferirPkce(undefined, desafio)],
+      [true, false, false, false],
+    );
+    const segredo = oauth.gerarSegredo();
+    conferir(
+      "segredo aleatorio em base64url e hash sha-256 hex",
+      [/^[A-Za-z0-9_-]{43}$/.test(segredo), segredo === oauth.gerarSegredo(), oauth.hashDoSegredo("abc"), oauth.hashDoSegredo(segredo) === segredo],
+      [true, false, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", false],
+    );
+
+    conferir(
+      "url de retorno com code, state e iss; a de erro com error e error_description",
+      [
+        oauth.urlDeRetorno("https://claude.ai/api/mcp/auth_callback", { code: "c1", state: "s 1", iss: origem }),
+        oauth.urlDeRetorno("http://localhost:4567/callback?x=1", { code: "c1", iss: origem }),
+        oauth.urlDeErro("https://claude.ai/api/mcp/auth_callback", { erro: "access_denied", descricao: "Recusado.", state: "s", iss: origem }),
+      ],
+      [
+        "https://claude.ai/api/mcp/auth_callback?code=c1&state=s+1&iss=https%3A%2F%2Frise.teste",
+        "http://localhost:4567/callback?x=1&code=c1&iss=https%3A%2F%2Frise.teste",
+        "https://claude.ai/api/mcp/auth_callback?error=access_denied&error_description=Recusado.&state=s&iss=https%3A%2F%2Frise.teste",
+      ],
+    );
+    const json = oauth.respostaJson(400, { error: "invalid_request" });
+    conferir("resposta JSON sem cache", [json.status, json.headers.get("content-type"), json.headers.get("cache-control"), await json.json()], [400, "application/json", "no-store", { error: "invalid_request" }]);
+    conferir(
+      "desafio do WWW-Authenticate",
+      [oauth.cabecalhoDeDesafio(origem), oauth.cabecalhoDeDesafio(origem, { erro: "invalid_token", descricao: 'Token "inválido".' }), oauth.cabecalhoDeDesafio(origem, { erro: "insufficient_scope", escopo: "consultar" })],
+      [
+        'Bearer resource_metadata="https://rise.teste/.well-known/oauth-protected-resource/mcp"',
+        'Bearer resource_metadata="https://rise.teste/.well-known/oauth-protected-resource/mcp", error="invalid_token", error_description="Token inválido."',
+        'Bearer resource_metadata="https://rise.teste/.well-known/oauth-protected-resource/mcp", error="insufficient_scope", scope="consultar"',
+      ],
+    );
+
+    const pedido = (url, cabecalhos = {}) => new Request(url, { headers: cabecalhos });
+    const vps = { APP_URL_PUBLICA: "https://rise.4hobby.com.br/" };
+    conferir(
+      "origem do Rise: APP_URL_PUBLICA sem a barra; sem ela, a do pedido",
+      [oauth.origemDoRise(pedido("http://app:3000/mcp"), vps), oauth.origemDoRise(pedido("https://localhost:3000/mcp"), {})],
+      ["https://rise.4hobby.com.br", "https://localhost:3000"],
+    );
+    conferir(
+      "Host: na VPS so o da APP_URL_PUBLICA; no PC so localhost e 127.0.0.1",
+      [
+        oauth.hostPermitido(pedido("http://app:3000/mcp", { host: "rise.4hobby.com.br" }), vps),
+        oauth.hostPermitido(pedido("http://app:3000/mcp", { host: "RISE.4hobby.com.br" }), vps),
+        oauth.hostPermitido(pedido("http://app:3000/mcp", { host: "atacante.com" }), vps),
+        oauth.hostPermitido(pedido("https://localhost:3000/mcp", { host: "localhost:3000" }), {}),
+        oauth.hostPermitido(pedido("https://127.0.0.1:3000/mcp", { host: "127.0.0.1:3000" }), {}),
+        oauth.hostPermitido(pedido("https://localhost:3000/mcp", { host: "rebinding.atacante.com:3000" }), {}),
+      ],
+      [true, true, false, true, true, false],
+    );
+    conferir(
+      "Origin: ausente passa; so a do proprio Rise; 'null' e outro site nao",
+      [
+        oauth.originPermitida(pedido("https://rise.4hobby.com.br/mcp"), vps),
+        oauth.originPermitida(pedido("https://rise.4hobby.com.br/mcp", { origin: "https://rise.4hobby.com.br" }), vps),
+        oauth.originPermitida(pedido("https://rise.4hobby.com.br/mcp", { origin: "https://atacante.com" }), vps),
+        oauth.originPermitida(pedido("https://rise.4hobby.com.br/mcp", { origin: "null" }), vps),
+      ],
+      [true, true, false, false],
+    );
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
