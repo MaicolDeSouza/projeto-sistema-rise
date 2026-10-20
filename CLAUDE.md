@@ -4673,6 +4673,14 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   127.0.0.1), `app`, `worker` (mesma imagem), `auth` (Tinyauth, o login) e `caddy` (HTTPS e roteamento). O `.env` da VPS
   é um arquivo à parte, nunca passa pelo git: chave nova ou trava mudada se grava lá por SSH (arquivo temporário lido
   por um script, **nunca no texto de um comando**) e depois `docker compose up -d --force-recreate app worker`.
+- **Login do Tinyauth (criar, trocar a senha, remover):** `deploy/usuario-tinyauth.sh` (20/10/2026, Opção 3 do dono, até o Rise ter
+  a tela "Definir senha"). O dono roda pelo SSH com terminal, e a senha é digitada escondida (vai ao `htpasswd -iB` pela entrada,
+  nunca num argumento): `ssh -t -i ~/.ssh/rise_vps rise@179.199.150.221 "cd /srv/rise/app && git fetch -q origin && git show
+  origin/main:deploy/usuario-tinyauth.sh | bash -s -- andrea"`. Também `--remover <login>` (nunca o último), `--listar` (só nomes) e
+  `--simular <login>` (senha aleatória, numa cópia, sem mudar nada). Grava só a linha `TINYAUTH_AUTH_USERS` (com `$$`), copia o
+  `.env` antes para `~/.env.antes-tinyauth-*`, recria só o contêiner `auth`, confere e diz se o usuário do Rise existe. Trocar a
+  senha mantém o nome como estava ("Maicol"). Senha mínima de 12. O código bcrypt do `htpasswd` foi conferido com o
+  `tinyauth user verify`. A sessão do Claude não digita a senha de ninguém.
 - **Deploy só quando o dono disser "sobe":**
   `ssh ... "cd /srv/rise/app && git fetch -q --tags origin && git checkout -q --detach origin/main && ./deploy/deploy-vps.sh"`
   (baixar antes de rodar, porque o próprio script pode ter mudado). Ele valida o Caddyfile, constrói a imagem com o site
