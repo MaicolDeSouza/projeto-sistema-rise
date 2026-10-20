@@ -2,6 +2,7 @@ import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 
 import { FERRAMENTAS, executarFerramenta } from "@/lib/riseAi/ferramentas";
 import { FERRAMENTA_ANOTAR } from "./anotacoes.js";
+import { FERRAMENTA_MERCADO } from "./mercado.js";
 import { autenticacaoParaSdk } from "./portao.js";
 import { registrarChamadaMcp } from "./registro.js";
 
@@ -27,6 +28,12 @@ const INFORMACOES = { name: "rise", title: "Rise (4hobby)", version: "1.0.0" };
 const SO_LEITURA = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
 const ANOTACAO = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
+/**
+ * As ferramentas que existem SO no MCP, fora do catalogo do Rise AI (o perfil do cliente nunca as ve): a pesquisa nos
+ * fornecedores e concorrentes coletados e a anotacao da duvida. Conferem o `pode()` do login por conta propria.
+ */
+const SO_DO_MCP = [FERRAMENTA_MERCADO, FERRAMENTA_ANOTAR];
+
 const resposta = (resultado) => ({ content: [{ type: "text", text: JSON.stringify(resultado) }] });
 const respostaDeErro = (mensagem) => ({ content: [{ type: "text", text: mensagem }], isError: true });
 
@@ -48,12 +55,13 @@ export function montarServidorMcp(autenticacao, { agora, registrar = registrarCh
   async function executar(nome, argumentos) {
     const inicio = Date.now();
     let resultado;
-    if (nome === FERRAMENTA_ANOTAR.nome) {
+    const doMcp = SO_DO_MCP.find((ferramenta) => ferramenta.nome === nome);
+    if (doMcp) {
       try {
-        resultado = { ok: true, resultado: await FERRAMENTA_ANOTAR.executar(argumentos, contexto) };
+        resultado = { ok: true, resultado: await doMcp.executar(doMcp.esquema.parse(argumentos ?? {}), contexto) };
       } catch (erro) {
-        if (erro?.name !== "ErroDeFerramenta") console.error("[mcp] falha ao anotar a dúvida:", erro);
-        resultado = { ok: false, erro: erro?.name === "ErroDeFerramenta" ? erro.message : "Não foi possível anotar agora." };
+        if (erro?.name !== "ErroDeFerramenta") console.error(`[mcp] falha na ferramenta ${nome}:`, erro);
+        resultado = { ok: false, erro: erro?.name === "ErroDeFerramenta" ? erro.message : "Não foi possível concluir agora. Tente de novo em instantes." };
       }
     } else {
       resultado = await executarFerramenta(nome, argumentos, contexto);
@@ -76,6 +84,9 @@ export function montarServidorMcp(autenticacao, { agora, registrar = registrarCh
       executar(ferramenta.nome, argumentos),
     );
   }
+  servidor.registerTool(FERRAMENTA_MERCADO.nome, { description: FERRAMENTA_MERCADO.descricao, inputSchema: FERRAMENTA_MERCADO.esquema, annotations: SO_LEITURA }, (argumentos) =>
+    executar(FERRAMENTA_MERCADO.nome, argumentos),
+  );
   servidor.registerTool(FERRAMENTA_ANOTAR.nome, { description: FERRAMENTA_ANOTAR.descricao, inputSchema: FERRAMENTA_ANOTAR.esquema, annotations: ANOTACAO }, (argumentos) =>
     executar(FERRAMENTA_ANOTAR.nome, argumentos),
   );

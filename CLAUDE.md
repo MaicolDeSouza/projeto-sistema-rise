@@ -247,7 +247,7 @@ npm run teste:fundo               # 9 asserções da regra do fundo das janelas 
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
-npm run teste:mcp                 # 127 asserções do servidor MCP: sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
+npm run teste:mcp                 # 138 asserções do servidor MCP (com o buscarNoMercado): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
 npm run teste:acessos             # 143 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição e o guarda estático de src/app. Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 137 asserções da proposta automática de produto: regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
@@ -3844,8 +3844,16 @@ servidor real: `docs/superpowers/plans/2026-10-20-mcp-rise-e-rumo-do-rise-ai-dec
 
 - **O endereço:** `https://rise.4hobby.com.br/mcp` (a rota é `/mcp`, não `/api/mcp`). Ferramentas só de leitura, as mesmas do
   Rise AI: `buscarProdutos`, `consultarProduto`, `consultarEstoque`, `consultarPreco`, `compararProdutos`, `buscarProdutosSimilares`,
-  `buscarConhecimento`, mais `anotarDuvida`. **Fora:** `pesquisarNaInternet` e qualquer escrita de dado. **O `/mcp` nunca chama
-  provedor de IA.**
+  `buscarConhecimento`, mais `buscarNoMercado` e `anotarDuvida`. **Fora:** `pesquisarNaInternet` e qualquer escrita de dado. **O `/mcp`
+  nunca chama provedor de IA.**
+- **`buscarNoMercado`** (pedido do dono em 20/10/2026, depois do primeiro teste real: o R13-507 não estava no catálogo e o MCP não
+  via os 60 anúncios dele na coleta): pesquisa os produtos COLETADOS de fornecedores e concorrentes pela mesma busca do Scraper
+  (`listarProdutos`: todas as palavras, como trecho, com o índice de trigramas; "vermelh" acha vermelho e vermelha, e "r13-507" não
+  acha "R 13-507", o que a descrição da ferramenta manda tentar). Mora em `src/lib/mcp/mercado.js` e existe **só no MCP** (fora do
+  catálogo do Rise AI, como o `anotarDuvida`: o perfil do WhatsApp nunca a vê). Fornecedores só com `dado.custo`, concorrentes só
+  com `dado.concorrentes` (o lado sem acesso vem "[restrito]"; sem os dois, recusa sem ler o banco). Preço: no concorrente o NORMAL
+  (o promocional só informa); no fornecedor o que se paga (`precoQueSePaga` = com impostos quando a lista traz, senão o normal).
+  Cada lado vem do menor para o maior, com `menorFornecedor` e `menorConcorrente`, a fonte e quando foi visto. Medido no PC: ~0,5 s.
 - **Onde mora:** `src/lib/mcp/` (`oauth.js`: as regras puras do OAuth, Host e Origin; `oauthBanco.js`: clientes, códigos, tokens,
   rotação, revogação por família e conexões; `portao.js`: `exigirTokenMcp`; `autorizacao.js`: a tela Autorizar; `servidor.js`: o
   `McpServer` e as ferramentas; `registro.js`: `ChamadaMcp`; `anotacoes.js`: `anotarDuvida`; `conexoes.js`: a aba Conexões). Rotas

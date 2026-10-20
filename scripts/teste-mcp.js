@@ -82,6 +82,8 @@ async function limpar() {
   await prisma.clienteMcp.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
   await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "zz-mcp-" } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-MCP-" } } });
+  // Os produtos coletados saem junto com a fonte (Cascade).
+  await prisma.fonteColeta.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
   // Usuarios antes das funcoes (o vinculo sai junto com o usuario).
   await prisma.usuarioRise.deleteMany({ where: { login: { startsWith: "zz-mcp-" } } });
   await prisma.funcaoRise.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
@@ -735,7 +737,7 @@ try {
         lista.filter((ferramenta) => ferramenta.annotations?.readOnlyHint).length,
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
-      [["anotarDuvida", "buscarConhecimento", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto"], 7, true],
+      [["anotarDuvida", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto"], 8, true],
     );
 
     const ficha = await chamar("consultarProduto", { sku: "ZZ-MCP-1" });
@@ -936,6 +938,60 @@ try {
     conferir("o selo da resposta: conta propria, verde (custo zero)", [rotuloDoProvedor("mcp"), ehLocal("mcp"), rotuloDoProvedor("anthropic"), ehLocal("anthropic")], ["conta própria", true, "Anthropic", false]);
     const conversaDoChat = (await conversasDoDia(hoje, { administrador: true })).find((conversa) => conversa.canal === "CHAT");
     conferir("conversa do chat antigo (se houver hoje) fica sem cliente", conversaDoChat ? conversaDoChat.cliente : null, null);
+  }
+
+  // -------------------------------------------------------------------------
+  // buscarNoMercado (pedido do dono em 20/10/2026, depois do primeiro teste real): fornecedores e concorrentes coletados
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nMercado");
+    const { responderMcp } = await import("../src/lib/mcp/servidor.js");
+    const fornecedor = await prisma.fonteColeta.create({ data: { nome: "ZZ-MCP Fornecedor", dominio: "zz-mcp-fornecedor.invalid", tipo: "FORNECEDOR" } });
+    const concorrente = await prisma.fonteColeta.create({ data: { nome: "ZZ-MCP Concorrente", dominio: "zz-mcp-concorrente.invalid", tipo: "CONCORRENTE" } });
+    const produto = (fonte, codigo, nome, campos) =>
+      prisma.produtoColetado.create({ data: { fonteId: fonte.id, chave: `codigo:${codigo}`, origem: "site", codigo, nome, buscaTexto: `${nome} ${codigo}`.toLowerCase(), vistoEm: new Date(), ...campos } });
+    await produto(fornecedor, "F1", "Chave Botao ZZR13-507 - VERMELHA", { precoNormal: 1.29, estoqueStatus: "IN_STOCK", quantidade: 235 });
+    await produto(fornecedor, "F2", "Chave Botao ZZR13-507 16mm - Vermelho", { precoNormal: 1.29, precoComImpostos: 1.42, estoqueStatus: "IN_STOCK", quantidade: 500, impostos: [{ nome: "IPI", percentual: 10 }] });
+    await produto(fornecedor, "F3", "Chave Botao ZZR13-507 - AZUL", { precoNormal: 1.1 });
+    await produto(concorrente, "C1", "Botao Pulsador ZZR13-507 Vermelho", { precoNormal: 3.6, estoqueStatus: "AVAILABLE", url: "https://zz-mcp-concorrente.invalid/c1" });
+    await produto(concorrente, "C2", "Botao Pulsador ZZR13-507 Vermelho", { precoNormal: 2.2, precoPromocional: 2.13, estoqueStatus: "AVAILABLE", url: "https://zz-mcp-concorrente.invalid/c2" });
+    await produto(concorrente, "C3", "Botao Pulsador ZZR13-507 Vermelho sem preco", { estoqueStatus: "OUT_OF_STOCK", quantidade: 0 });
+
+    let id = 500;
+    const quem = (login, pode) => ({ login, clienteId: null, clienteNome: "Claude", escopos: ["consultar"], familia: "zz-mcp-familia", expiraEm: new Date(Date.now() + 3600e3), administrador: false, pode });
+    const chamar = async (argumentos, autenticacao) => {
+      const resposta = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/call", { name: "buscarNoMercado", arguments: argumentos }, { id: id++ }), autenticacao)))?.result;
+      return { erro: resposta?.isError ? resposta.content?.[0]?.text : null, dados: resposta?.isError ? null : JSON.parse(resposta?.content?.[0]?.text ?? "null") };
+    };
+    const dono = quem("zz-mcp-mercado", () => true);
+
+    const tudo = (await chamar({ termos: "zzr13-507 vermelh" }, dono)).dados;
+    conferir(
+      "fornecedores do menor ao maior preco que se paga (com impostos quando a lista traz), a cor filtrada pelo trecho",
+      tudo.fornecedores.map((linha) => [linha.fonte, linha.codigo, linha.precoQueSePaga, linha.preco, linha.precoComImpostos, linha.estoque.quantidade]),
+      [["ZZ-MCP Fornecedor", "F1", 1.29, 1.29, null, 235], ["ZZ-MCP Fornecedor", "F2", 1.42, 1.29, 1.42, 500]],
+    );
+    conferir(
+      "concorrentes pelo preco NORMAL (o promocional so como informacao), o sem preco no fim, com o link",
+      tudo.concorrentes.map((linha) => [linha.codigo, linha.preco, linha.precoPromocional, linha.url !== null]),
+      [["C2", 2.2, 2.13, true], ["C1", 3.6, null, true], ["C3", null, null, false]],
+    );
+    conferir("o resumo traz o menor de cada lado", [tudo.menorFornecedor?.codigo, tudo.menorFornecedor?.precoQueSePaga, tudo.menorConcorrente?.codigo, tudo.menorConcorrente?.preco], ["F1", 1.29, "C2", 2.2]);
+
+    const soFornecedor = (await chamar({ termos: "zzr13-507", tipo: "fornecedor" }, dono)).dados;
+    conferir("tipo fornecedor: so a lista dos fornecedores, a azul incluida", [soFornecedor.fornecedores.map((linha) => linha.codigo), "concorrentes" in soFornecedor], [["F3", "F1", "F2"], false]);
+    const comEstoque = (await chamar({ termos: "zzr13-507 vermelh", tipo: "concorrente", apenasComEstoque: true }, dono)).dados;
+    conferir("apenasComEstoque tira o esgotado", comEstoque.concorrentes.map((linha) => linha.codigo), ["C2", "C1"]);
+
+    const semCusto = (await chamar({ termos: "zzr13-507 vermelh" }, quem("zz-mcp-mercado", (recurso) => recurso !== "dado.custo"))).dados;
+    conferir("sem dado.custo: fornecedores restritos, concorrentes continuam", [semCusto.fornecedores, semCusto.menorFornecedor, semCusto.concorrentes.length], ["[restrito]", "[restrito]", 3]);
+    const semConcorrentes = (await chamar({ termos: "zzr13-507 vermelh" }, quem("zz-mcp-mercado", (recurso) => recurso !== "dado.concorrentes"))).dados;
+    conferir("sem dado.concorrentes: concorrentes restritos, fornecedores continuam", [semConcorrentes.concorrentes, semConcorrentes.fornecedores.length], ["[restrito]", 2]);
+    const semNada = await chamar({ termos: "zzr13-507" }, quem("zz-mcp-mercado", (recurso) => recurso !== "dado.custo" && recurso !== "dado.concorrentes"));
+    conferir("sem os dois: recusa com a frase, sem ler o banco", semNada.erro, "Este login não pode ver fornecedores nem concorrentes.");
+    conferir("busca sem nada: listas vazias", (await chamar({ termos: "zz-mcp-nada-assim" }, dono)).dados.fornecedores, []);
+    conferir("termos vazios sao recusados pelo esquema", Boolean((await chamar({ termos: "" }, dono)).erro), true);
+    conferir("cada chamada registrada", await prisma.chamadaMcp.count({ where: { login: "zz-mcp-mercado", ferramenta: "buscarNoMercado" } }) >= 6, true);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
