@@ -93,7 +93,6 @@ export default async function FontesPage({ searchParams }) {
     id: fonte.id,
     nome: fonte.nome,
     dominio: fonte.dominio,
-    prefixoUrl: fonte.prefixoUrl,
     tipo: fonte.tipo,
     ativa: fonte.ativa,
     varridaNoPc: fonte.varridaNoPc,

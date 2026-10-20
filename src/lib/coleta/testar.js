@@ -125,7 +125,6 @@ async function testarCatalogoJs({ url, nome, tipo }, catalogo) {
       encontrados: Object.entries(presentes).filter(([, tem]) => tem).map(([campo]) => ROTULOS_CAMPOS[campo]),
       ausentes: Object.entries(presentes).filter(([, tem]) => !tem).map(([campo]) => ROTULOS_CAMPOS[campo]),
     },
-    prefixoUrl: null,
     dominio: new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname,
     plataforma: null,
     catalogoPublico: null,
@@ -187,7 +186,6 @@ async function testarCatalogoShopify({ url, nome, tipo, evitar }, catalogo) {
     produtos: amostra,
     formatos: ["catalogo-shopify"],
     campos: { encontrados, ausentes },
-    prefixoUrl: null,
     dominio,
     plataforma,
     catalogoPublico: {
@@ -205,9 +203,9 @@ async function testarCatalogoShopify({ url, nome, tipo, evitar }, catalogo) {
 
 /**
  * Testa a fonte. `urls` (20/10/2026) e a lista de enderecos que a fonte vai varrer: a loja inteira ou categorias, tres
- * produtos de CADA UM. Sem `urls`, vale o `url` (+ `secao`) de sempre.
+ * produtos de CADA UM. Sem `urls`, vale o `url`.
  */
-export async function testarFonte({ url, secao, nome, tipo, evitar, urls }) {
+export async function testarFonte({ url, nome, tipo, evitar, urls }) {
   const lista = (urls ?? []).filter((item) => String(item ?? "").trim());
   if (lista.length > 0) {
     const conferido = conferirEnderecos(lista);
@@ -219,11 +217,11 @@ export async function testarFonte({ url, secao, nome, tipo, evitar, urls }) {
       return testarUma({ url: primeiro.url, nome, tipo, evitar });
     }
     if (conferido.enderecos.length === 1) {
-      return testarUma({ url: primeiro.url, secao, nome, tipo, evitar, categoria: !primeiro.lojaInteira });
+      return testarUma({ url: primeiro.url, nome, tipo, evitar, categoria: !primeiro.lojaInteira });
     }
     return testarVarias(conferido.enderecos, { nome, tipo, evitar });
   }
-  return testarUma({ url, secao, nome, tipo, evitar });
+  return testarUma({ url, nome, tipo, evitar });
 }
 
 function falhaDaLista(motivo) {
@@ -300,7 +298,6 @@ async function testarVarias(enderecos, { nome, tipo, evitar }) {
     produtos,
     formatos: [...new Set(itens.flatMap(({ resultado: item }) => item.formatos ?? []))],
     campos: { encontrados: [...encontrados], ausentes: [...ausentes] },
-    prefixoUrl: null,
     dominio: itens.find(({ resultado: item }) => item.dominio)?.resultado.dominio ?? null,
     plataforma: comPlataforma?.resultado.plataforma ?? null,
     catalogoPublico: itens.find(({ resultado: item }) => item.catalogoPublico)?.resultado.catalogoPublico ?? null,
@@ -319,7 +316,7 @@ async function testarVarias(enderecos, { nome, tipo, evitar }) {
   };
 }
 
-async function testarUma({ url, secao, nome, tipo, evitar, categoria = false }) {
+async function testarUma({ url, nome, tipo, evitar, categoria = false }) {
   const catalogoJs = catalogoJsDoEndereco(url);
   if (catalogoJs) return testarCatalogoJs({ url, nome, tipo }, catalogoJs);
   const catalogoShopify = catalogoShopifyDoEndereco(url);
@@ -327,7 +324,6 @@ async function testarUma({ url, secao, nome, tipo, evitar, categoria = false }) 
 
   const colheita = await colherProdutos({
     url,
-    secao,
     categoria,
     nome,
     tipo,
@@ -406,7 +402,6 @@ async function testarUma({ url, secao, nome, tipo, evitar, categoria = false }) 
     produtos,
     formatos: colheita.formatos,
     campos: { encontrados, ausentes },
-    prefixoUrl: colheita.prefixoUrl,
     dominio: colheita.dominio,
     plataforma,
     catalogoPublico,

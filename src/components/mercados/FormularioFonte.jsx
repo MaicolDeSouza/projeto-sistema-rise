@@ -510,7 +510,6 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
       let resultado;
       if (arquivos.length > 0) {
         const formulario = comArquivos(arquivos, nome, tipo, url);
-        formulario.set("secao", "");
         formulario.set("resumo", dados.resumo ?? "");
         formulario.set("produtosNoSite", String(dados.produtosNoSite ?? ""));
         resultado = await salvarFonteComArquivos(formulario);

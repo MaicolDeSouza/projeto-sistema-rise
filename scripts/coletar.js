@@ -57,11 +57,7 @@ async function fonteDe(url) {
     return { erro: `${alvo.hostname} nao e uma fonte cadastrada — cadastre em /mercados/fontes` };
   }
 
-  // Mais de uma fonte no mesmo dominio e trecho diferente: vale a do caminho colado.
-  const fonte =
-    fontes.find((f) => f.prefixoUrl && alvo.pathname.startsWith(f.prefixoUrl)) ??
-    fontes.find((f) => !f.prefixoUrl) ??
-    fontes[0];
+  const fonte = fontes[0];
 
   // Fornecedor com lista se atualiza reprocessando a lista. Gravar a vitrine por
   // aqui marcaria a ultima coleta como "site", e a trava de queda — que so
@@ -93,7 +89,6 @@ const resultados = await Promise.all(
     try {
       const colheita = await colherProdutos({
         url: `https://${fonte.dominio}/`,
-        secao: fonte.prefixoUrl ?? undefined,
         nome,
         tipo: fonte.tipo,
         limite,

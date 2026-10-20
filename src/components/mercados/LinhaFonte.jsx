@@ -97,7 +97,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
   // O endereco completo, para o link abrir o site. O dominio guardado nao tem
   // esquema, e <a href="www.loja.com"> vira caminho relativo do nosso proprio
   // site — o clique levaria a /mercados/www.loja.com.
-  const enderecoDoSite = `https://${fonte.dominio}${fonte.prefixoUrl ?? ""}`;
+  const enderecoDoSite = `https://${fonte.dominio}`;
   const somenteCatalogo = fonte.dominio.endsWith(".invalid");
 
   /** Poe so esta fonte na fila; o worker a varre ao lado das outras. */
@@ -233,7 +233,6 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
                 className="mt-0.5 inline-flex items-center gap-1 font-mono text-xs text-acento hover:underline"
               >
                 {fonte.dominio}
-                {fonte.prefixoUrl ?? ""}
                 <ExternalLink size={11} />
               </a>}
 

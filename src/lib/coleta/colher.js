@@ -91,7 +91,6 @@ async function tentarUrl(url, fonte, plataforma, doCatalogo = null, memoriaPagam
 /**
  * @param {object} entrada
  * @param {string}  entrada.url        endereco da fonte
- * @param {string} [entrada.secao]     limita a um trecho do site (filtro de texto sobre o endereco; so o cadastro antigo)
  * @param {boolean} [entrada.categoria] `url` e o endereco de uma CATEGORIA: so os produtos dela entram (20/10/2026). Em
  *   loja VTEX pela busca publica da categoria; nas demais pela listagem da propria pagina (e suas paginas). Endereco
  *   que e uma pagina de PRODUTO cai no caminho de sempre (a loja inteira).
@@ -118,7 +117,6 @@ async function tentarUrl(url, fonte, plataforma, doCatalogo = null, memoriaPagam
  */
 export async function colherProdutos({
   url,
-  secao,
   nome,
   tipo,
   limite = 3,
@@ -260,15 +258,15 @@ export async function colherProdutos({
 
   // Endereco de categoria: o caminho da pagina (ou a consulta) diz qual. A raiz da loja e a loja inteira.
   const emCategoria = categoria === true && (alvo.pathname.replace(/\/+$/, "") !== "" || alvo.search !== "");
-  // O filtro de texto da Secao antiga e outro mecanismo: com endereco de categoria ele nao se aplica.
-  const prefixo = emCategoria ? null : secao?.trim() || null;
+  // O caminho da categoria ("categoria-produto/arduino"): as lojas que listam por categoria na propria API (Woo, Magento PWA) o usam.
+  const caminhoDaCategoria = emCategoria ? alvo.pathname.replace(/^\/+|\/+$/g, "") : null;
   const fonte = { name: nome ?? alvo.hostname, type: tipo ?? "OUTRO" };
 
-  if (graphqlPwa && !emCategoria) {
+  if (graphqlPwa) {
     const leitura = await colherMagentoPwa({
       graphql: graphqlPwa,
       origem: alvo.origin,
-      secao: prefixo,
+      secao: caminhoDaCategoria,
       limite,
       orcamento: orcamento ?? limite * 3 + 10,
       fonte,
@@ -290,7 +288,6 @@ export async function colherProdutos({
       visitas: leitura.visitas,
       retomados: leitura.retomados,
       dominio: alvo.hostname,
-      prefixoUrl: prefixo,
       ritmoMs: ritmo,
       plataforma,
       catalogo: null,
@@ -300,9 +297,9 @@ export async function colherProdutos({
     };
   }
 
-  if (plataforma.id === "woocommerce" && catalogo?.url && !emCategoria) {
+  if (plataforma.id === "woocommerce" && catalogo?.url) {
     const leitura = await colherWooCommerce({
-      catalogo, origem: alvo.origin, secao: prefixo, limite,
+      catalogo, origem: alvo.origin, secao: caminhoDaCategoria, limite,
       orcamento: tetoVisitas, fonte, plataforma, jaColetadas,
       // Ja no formato comparavel (sem barra final nem #), como o leitor compara.
       evitar: evitar ? new Set([...evitar].map((endereco) => enderecoComparavel(endereco))) : null,
@@ -321,7 +318,7 @@ export async function colherProdutos({
       return {
         ok: true, motivo: null, passos, produtos: leitura.produtos,
         formatos: ["woocommerce-store-api"], visitas: leitura.visitas + 1,
-        retomados: leitura.retomados, dominio: alvo.hostname, prefixoUrl: prefixo,
+        retomados: leitura.retomados, dominio: alvo.hostname,
         ritmoMs: ritmo, plataforma, catalogo,
         produtosNoSite: leitura.total, produtosNoSiteParcial: false,
         produtosNoSiteFonte: leitura.total === null ? null : "catalogo",
@@ -462,7 +459,7 @@ export async function colherProdutos({
   // CATEGORIA DE LOJA VTEX (Patolastore, 20/10/2026): a Secao e o caminho de uma categoria ("gabinetes"). Na VTEX o endereco do
   // produto nao carrega a categoria, entao o filtro de texto nunca a achava; a busca publica por categoria lista os
   // produtos dela. Vale no lugar do catalogo generico (que nesta plataforma nem filtra categoria).
-  const categoriaDaVtexPedida = plataforma.id === "vtex" ? categoriaDaVtex(emCategoria ? alvo.pathname : prefixo) : null;
+  const categoriaDaVtexPedida = plataforma.id === "vtex" && emCategoria ? categoriaDaVtex(alvo.pathname) : null;
 
   if (categoriaDaVtexPedida) {
     const leitura = await lerCategoriaDaVtex({ origem: alvo.origin, categoria: categoriaDaVtexPedida, limite, sinal });
@@ -600,7 +597,7 @@ export async function colherProdutos({
 
   if (sitemaps.length > 0) {
     const ler = (teto) =>
-      lerSitemaps(sitemaps, { prefixo: prefixo ?? undefined, maxSitemaps: 6, limite: teto, sinal });
+      lerSitemaps(sitemaps, { maxSitemaps: 6, limite: teto, sinal });
     let leitura = await ler(TETO_SITEMAP);
     conferirSinal();
 
@@ -733,7 +730,6 @@ export async function colherProdutos({
 
     const varredura = await rastrear({
       semente: alvo.toString(),
-      prefixo: prefixo ?? undefined,
       orcamento: tetoVisitas - visitas,
       pararApos: limite - retomadosAntes,
       sinal,
@@ -857,7 +853,6 @@ export async function colherProdutos({
     formatos: [...formatos],
     visitas,
     dominio: alvo.hostname,
-    prefixoUrl: prefixo,
     ritmoMs: ritmo,
     plataforma,
     catalogo,
@@ -882,7 +877,7 @@ export async function colherProdutos({
  * Cada endereco passa por `colherProdutos`, um depois do outro, com o que sobrou do limite. O produto que aparece em
  * duas categorias entra UMA vez (a mesma chave do banco), e o andamento soma as colheitas.
  *
- * @param {object} entrada o mesmo de `colherProdutos`, menos `url`/`categoria`/`secao`
+ * @param {object} entrada o mesmo de `colherProdutos`, menos `url`/`categoria`
  * @param {{ url: string, categoria: boolean }[]} entrada.enderecos
  */
 export async function colherVariasUrls({ enderecos, limite = 3, orcamento, aoProgredir, aoGuardar, ...resto }) {
@@ -986,7 +981,6 @@ export async function colherVariasUrls({ enderecos, limite = 3, orcamento, aoPro
     formatos: [...formatos],
     visitas,
     dominio: primeira ? (primeiro?.dominio ?? null) : null,
-    prefixoUrl: null,
     ritmoMs: primeiro?.ritmoMs ?? null,
     plataforma: primeiro?.plataforma ?? null,
     catalogo: primeiro?.catalogo ?? null,

@@ -55,7 +55,6 @@ export default function EnderecosDaFonte({ fonte }) {
               <p className="text-xs text-suave">
                 {rotuloDoEndereco(item.url) === "loja inteira" ? "loja inteira" : "categoria"}
                 {typeof item.total === "number" && ` · ${item.total.toLocaleString("pt-BR")} produto(s)`}
-                {item.implicito && fonte.prefixoUrl ? ` · filtro de texto: ${fonte.prefixoUrl}` : ""}
               </p>
             </div>
             <div className="flex gap-1.5">

@@ -43,11 +43,8 @@ for (const pasta of pastas) {
 
   const coleta = await lerJson(arquivoProdutos);
   const dominio = coleta.fonte?.dominio ?? pasta.name;
-  const secao = coleta.fonte?.secao ?? null;
 
-  const fonte =
-    (await prisma.fonteColeta.findFirst({ where: { dominio, prefixoUrl: secao } })) ??
-    (await prisma.fonteColeta.findFirst({ where: { dominio } }));
+  const fonte = await prisma.fonteColeta.findFirst({ where: { dominio } });
 
   const produtos = coleta.produtos ?? [];
   const chaves = new Set(produtos.map(chaveDoProduto).filter(Boolean));

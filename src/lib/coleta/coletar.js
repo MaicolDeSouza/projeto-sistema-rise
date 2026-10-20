@@ -211,7 +211,6 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
         })
       : await colherProdutos({
       url: enderecoDaFonte(fonte),
-      secao: fonte.prefixoUrl ?? undefined,
       nome: fonte.nome,
       tipo: fonte.tipo,
       limite: limiteDaFonte(),
@@ -566,7 +565,7 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
     colheita = await (comLista ? colherVariasUrls : colherProdutos)({
       ...(comLista
         ? { enderecos }
-        : { url: enderecoDaFonte(fonte), secao: fonte.prefixoUrl ?? undefined }),
+        : { url: enderecoDaFonte(fonte) }),
       nome: fonte.nome,
       tipo: fonte.tipo,
       limite,

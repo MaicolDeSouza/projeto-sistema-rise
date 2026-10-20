@@ -30,7 +30,6 @@ const FonteSchema = z.object({
   nome: z.string().trim().min(1, "Informe um nome para a fonte."),
   url: z.string().trim().min(1, "Informe o endereço do site."),
   tipo: z.enum(["CONCORRENTE", "FORNECEDOR", "OUTRO"]),
-  secao: z.string().trim().optional().nullable(),
 });
 
 // ---------------------------------------------------------------------------
@@ -44,11 +43,11 @@ const FonteSchema = z.object({
  * abre paginas de verdade e so aprova se conseguir montar produto com nome,
  * endereco e preco.
  */
-export async function testarFonteAcao({ url, secao, nome, tipo, evitar, urls }) {
+export async function testarFonteAcao({ url, nome, tipo, evitar, urls }) {
   try {
     // `urls`: a lista de enderecos da fonte (loja inteira ou categorias). So texto; quem confere e o teste.
     const lista = Array.isArray(urls) ? urls.slice(0, 40).map((item) => String(item ?? "")) : undefined;
-    return await testarFonte({ url, secao, nome, tipo, evitar, urls: lista });
+    return await testarFonte({ url, nome, tipo, evitar, urls: lista });
   } catch (erro) {
     return {
       resultado: "FALHA",
@@ -310,7 +309,6 @@ async function salvarFonteInterna({
   nome,
   url,
   tipo,
-  secao,
   resumo,
   produtosNoSite,
   produtosNoSiteParcial,
@@ -321,7 +319,7 @@ async function salvarFonteInterna({
   urls,
 }, { arquivoValidado = false } = {}) {
   // OS ENDERECOS DA FONTE (20/10/2026): uma lista de enderecos da MESMA loja (a loja inteira ou categorias). O primeiro
-  // dita o endereco da fonte; sem lista, vale o `url` e o filtro de texto da `secao` de sempre (cadastro por arquivo,
+  // dita o endereco da fonte; sem lista, vale o `url` (cadastro por arquivo,
   // portal com login, chamadas antigas).
   let lista = null;
   if (Array.isArray(urls) && urls.some((item) => String(item ?? "").trim()) && !portalDoEndereco(url)) {
@@ -329,10 +327,9 @@ async function salvarFonteInterna({
     if (!conferido.ok) return { ok: false, erro: conferido.erro };
     lista = conferido.enderecos;
     url = lista[0].url;
-    secao = null;
   }
 
-  const analise = FonteSchema.safeParse({ nome, url, tipo, secao });
+  const analise = FonteSchema.safeParse({ nome, url, tipo });
   if (!analise.success) {
     return { ok: false, erro: analise.error.issues[0].message };
   }
@@ -365,8 +362,6 @@ async function salvarFonteInterna({
     }
   }
 
-  const prefixoUrl = analise.data.secao?.trim() || null;
-
   /*
     PORTAL COM LOGIN (Santana): o link salvo e a PRIMEIRA categoria, e o login vai
     cifrado. Sem login nao ha fonte — o portal nao mostra preco a ninguem.
@@ -392,15 +387,13 @@ async function salvarFonteInterna({
   }
 
   const existente = await prisma.fonteColeta.findFirst({
-    where: { dominio: alvo.hostname, prefixoUrl },
+    where: { dominio: alvo.hostname },
   });
 
   if (existente) {
     return {
       ok: false,
-      erro: lista
-        ? `"${existente.nome}" já acompanha ${alvo.hostname}. Para varrer outra categoria desta loja, acrescente o endereço na linha da fonte (Endereços).`
-        : `"${existente.nome}" já acompanha ${alvo.hostname}${prefixoUrl ?? ""}.`,
+      erro: `"${existente.nome}" já acompanha ${alvo.hostname}. Para varrer outra categoria desta loja, acrescente o endereço na linha da fonte (Endereços).`,
     };
   }
 
@@ -413,7 +406,6 @@ async function salvarFonteInterna({
         nome: analise.data.nome,
         dominio: alvo.hostname,
         tipo: analise.data.tipo,
-        prefixoUrl,
         // Catalogo enviado pelo operador pode ser reprocessado sem visitar o site.
         robotsPermite: arquivoValidado || permissao.permitido,
         amostraResumo: sitePeloPc
@@ -488,8 +480,7 @@ export async function salvarFonteComArquivos(dados) {
   } catch {
     return { ok: false, erro: "Endereço inválido." };
   }
-  const secao = String(dados.get("secao") ?? "").trim() || null;
-  const existente = await prisma.fonteColeta.findFirst({ where: { dominio, prefixoUrl: secao } });
+  const existente = await prisma.fonteColeta.findFirst({ where: { dominio } });
   if (existente && existente.tipo === tipo && existente.nome.trim().toLowerCase() === nome.toLowerCase()) {
     try {
       const atualizado = await enviarArquivosDaFonte(existente.id, dados);
@@ -501,7 +492,7 @@ export async function salvarFonteComArquivos(dados) {
   let salvo;
   try {
     salvo = await salvarFonteInterna({
-      nome, url, tipo, secao,
+      nome, url, tipo,
       resumo: String(dados.get("resumo") ?? "") || null,
       produtosNoSite: Number(dados.get("produtosNoSite")) || null,
       produtosNoSiteParcial: false,
@@ -565,7 +556,6 @@ export async function editarFonte(id, { nome, url }) {
       const existente = await prisma.fonteColeta.findFirst({
         where: {
           dominio: alvo.hostname,
-          prefixoUrl: fonte.prefixoUrl,
           id: { not: id },
         },
       });

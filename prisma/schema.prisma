@@ -1415,11 +1415,6 @@ model FonteColeta {
   dominio String
   tipo    TipoFonte
 
-  /// Limita a varredura a um trecho do site (ex.: "/informatica/"). O
-  /// concorrente pode vender de tudo, e varrer o supermercado inteiro para
-  /// achar eletronicos gasta uma hora por nada.
-  prefixoUrl String?
-
   urlSitemap String?
 
   /// Falso quando o robots.txt do site nos barra. A fonte continua cadastrada e
@@ -1507,7 +1502,7 @@ model FonteColeta {
   fornecedores Fornecedor[]
   concorrentes Concorrente[]
 
-  @@unique([dominio, prefixoUrl])
+  @@unique([dominio])
   @@index([ativa, proximaVarreduraEm])
 }
 
