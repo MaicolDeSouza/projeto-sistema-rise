@@ -185,7 +185,7 @@ export function jobLargado(job, agora = Date.now()) {
  *   para si uma fonte de teste no meio do teste, em 16/09/2026.
  * @returns {Promise<number>} quantas entraram
  */
-export async function enfileirar(fontes, { teste = false } = {}) {
+export async function enfileirar(fontes, { teste = false, endereco = null } = {}) {
   if (fontes.length === 0) return 0;
   const { count } = await prisma.job.createMany({
     data: fontes.map((fonte) => ({
@@ -197,6 +197,8 @@ export async function enfileirar(fontes, { teste = false } = {}) {
         total: 0,
         feitas: 0,
         ...(teste ? { teste: true } : {}),
+        // "Varrer so este endereco" (a categoria de uma fonte com lista de enderecos).
+        ...(endereco ? { endereco } : {}),
       },
     })),
     skipDuplicates: true,

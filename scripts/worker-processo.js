@@ -325,7 +325,11 @@ async function executar(job) {
         };
         estado.ultimaAtividade = agora;
       },
-      { sinal: controle.signal, inicioDaVarredura: retomando ? inicioDaVarredura : null },
+      {
+        sinal: controle.signal,
+        inicioDaVarredura: retomando ? inicioDaVarredura : null,
+        enderecoUnico: job.payload?.endereco ?? null,
+      },
     ).then(
       (resultado) => ({ resultado }),
       (erro) => ({ erro }),

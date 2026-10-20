@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Loader, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Loader, Play, Plus, Trash2 } from "lucide-react";
 
-import { adicionarEndereco, removerEndereco } from "@/app/mercados/acoes";
+import { adicionarEndereco, removerEndereco, varrerEndereco } from "@/app/mercados/acoes";
 import { rotuloDoEndereco } from "@/lib/coleta/enderecos";
 
 /**
@@ -17,12 +17,14 @@ export default function EnderecosDaFonte({ fonte }) {
   const [pendente, iniciar] = useTransition();
   const [novo, setNovo] = useState("");
   const [erro, setErro] = useState(null);
+  const [aviso, setAviso] = useState(null);
 
   const lista = (fonte.categorias ?? []).filter((item) => item?.url);
   const itens = lista.length > 0 ? lista : [{ url: `https://${fonte.dominio}/`, implicito: true }];
 
   function executar(acao, sucesso) {
     setErro(null);
+    setAviso(null);
     iniciar(async () => {
       const resultado = await acao();
       if (!resultado.ok) {
@@ -56,6 +58,19 @@ export default function EnderecosDaFonte({ fonte }) {
                 {item.implicito && fonte.prefixoUrl ? ` · filtro de texto: ${fonte.prefixoUrl}` : ""}
               </p>
             </div>
+            <div className="flex gap-1.5">
+            {!item.implicito && itens.length > 1 && (
+              <button
+                type="button"
+                onClick={() => executar(() => varrerEndereco(fonte.id, item.url), () => setAviso("Na fila: só este endereço será varrido."))}
+                disabled={pendente}
+                title="Varrer só este endereço, sem mexer no resto da fonte"
+                className="inline-flex items-center gap-1 rounded border border-borda px-2 py-1 text-xs hover:bg-fundo disabled:opacity-40"
+              >
+                <Play size={12} />
+                Varrer
+              </button>
+            )}
             <button
               type="button"
               onClick={() => executar(() => removerEndereco(fonte.id, item.url))}
@@ -70,6 +85,7 @@ export default function EnderecosDaFonte({ fonte }) {
               <Trash2 size={12} />
               Remover
             </button>
+            </div>
           </li>
         ))}
       </ul>
@@ -100,6 +116,7 @@ export default function EnderecosDaFonte({ fonte }) {
           Adicionar
         </button>
       </form>
+      {aviso && <p className="text-xs text-emerald-700">{aviso}</p>}
       {erro && <p className="text-xs text-red-700">{erro}</p>}
     </div>
   );

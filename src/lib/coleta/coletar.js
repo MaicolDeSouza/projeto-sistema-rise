@@ -464,7 +464,7 @@ async function varrerCatalogoDeLista(fonte, aoProgredir, sinal, { colher, resumo
   };
 }
 
-export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVarredura = null } = {}) {
+export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVarredura = null, enderecoUnico = null } = {}) {
   const comecou = Date.now();
 
   // PORTAL COM LOGIN, por categoria: tem caminho proprio, e vem antes da lista
@@ -554,7 +554,12 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
   // OS ENDERECOS DA FONTE (20/10/2026): a lista de categorias que o operador cadastrou, uma colheita por endereco; sem
   // lista, a loja inteira como sempre foi (com o filtro de texto antigo da Secao, se a fonte tiver um).
   const comLista = Array.isArray(fonte.categorias) && fonte.categorias.some((item) => item?.url);
-  const enderecos = enderecosDaVarredura(fonte.categorias, enderecoDaFonte(fonte));
+  const todosOsEnderecos = enderecosDaVarredura(fonte.categorias, enderecoDaFonte(fonte));
+  // "Varrer so este endereco": uma categoria da lista. Varredura parcial NAO fecha a coleta da fonte (o resto da loja nao foi
+  // visto agora e apareceria como "nao visto desde" na tela).
+  const soUm = comLista && enderecoUnico ? todosOsEnderecos.filter((item) => item.url === enderecoUnico) : [];
+  const parcial = soUm.length > 0 && todosOsEnderecos.length > 1;
+  const enderecos = soUm.length > 0 ? soUm : todosOsEnderecos;
 
   let colheita;
   try {
@@ -631,6 +636,7 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
     fonte,
     produtos: buffer,
     origem: "site",
+    ...(parcial ? { fecharColeta: false } : {}),
     resumo,
     duracaoMs: Date.now() - comecou,
     inicioDaColeta: inicio,

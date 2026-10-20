@@ -825,6 +825,26 @@ export async function adicionarEndereco(fonteId, url) {
   return { ok: true };
 }
 
+/**
+ * "Varrer so este endereco": poe a fonte na fila com o endereco no pedido; o worker varre so ele e nao fecha a coleta da
+ * fonte. Mesmas recusas do "Varrer agora" (pausada, robots, so pelo PC, ja na fila).
+ */
+export async function varrerEndereco(fonteId, url) {
+  if (coletaPausada()) return { ok: false, erro: "Varredura pausada. Clique em Continuar antes de atualizar." };
+  const { fonte, categorias, erro } = await fonteDeSite(fonteId);
+  if (erro) return { ok: false, erro };
+  if (!categorias.some((item) => item.url === url)) return { ok: false, erro: "Este endereço não está na lista da fonte." };
+  if (fonte.varridaNoPc) return { ok: false, erro: "Esta fonte é varrida só pelo PC: abra o Rise no seu PC e clique em Varrer agora nela." };
+  if (!fonte.robotsPermite) return { ok: false, erro: "O robots.txt deste site nos bloqueia." };
+  if (!fonte.ativa) return { ok: false, erro: "Fonte pausada. Use Retomar antes de varrer." };
+
+  const enfileiradas = await enfileirar([fonte], { endereco: url });
+  revalidatePath("/mercados/fontes");
+  revalidatePath("/mercados");
+  if (enfileiradas === 0) return { ok: false, erro: "Esta fonte já está na fila ou em varredura." };
+  return { ok: true };
+}
+
 /** Tira o endereco da varredura. Os produtos ja coletados dele FICAM (saem da tabela so se a loja os tirar do ar). */
 export async function removerEndereco(fonteId, url) {
   const { fonte, categorias, erro } = await fonteDeSite(fonteId);

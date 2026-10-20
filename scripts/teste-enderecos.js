@@ -49,7 +49,7 @@ conferir("rotulo", [rotuloDoEndereco("https://loja.com.br/"), rotuloDoEndereco("
 
 // A listagem importa buscar.js sem extensao: precisa do resolvedor de alias do projeto.
 try {
-  const { produtosDaListagem, paginasSeguintes, numeroDaPagina, dentroDaCategoria } = await import("../src/lib/coleta/listagem.js");
+  const { produtosDaListagem, paginasSeguintes, numeroDaPagina, dentroDaCategoria, doMaiorBloco } = await import("../src/lib/coleta/listagem.js");
   const html = `<nav><a href="/institucional">Sobre</a><a href="/cat/outra">Outra</a></nav>
     <div class="card"><a href="/motor-a"><img src="a.jpg"></a><a href="/motor-a">Motor A</a><span>R$ 10,00</span></div>
     <div class="card"><a href="/motor-b"><img src="b.jpg"></a><a href="/motor-b">Motor B</a><span>R$ 20,00</span></div>
@@ -60,6 +60,9 @@ try {
     "https://loja.com.br/cat/motores?page=3",
   ]);
   conferir("listagem: numero da pagina e dentro da categoria", [numeroDaPagina("https://x.com/c/page/3"), dentroDaCategoria("https://x.com/c", "https://x.com/c/sub"), dentroDaCategoria("https://x.com/c", "https://x.com/d")], [3, true, false]);
+  const bloco = (inicio, n) => Array.from({ length: n }, (_, i) => ({ url: `u${inicio}-${i}`, indice: inicio + i * 1000 }));
+  conferir("listagem: carrossel (bloco menor e distante) sai", doMaiorBloco([...bloco(0, 12), ...bloco(200000, 4)]).length, 12);
+  conferir("listagem: sem bloco claramente maior fica tudo", doMaiorBloco([...bloco(0, 4), ...bloco(200000, 3)]).length, 7);
 } catch (erro) {
   console.log("listagem nao testada aqui (precisa do resolvedor de alias):", erro.message);
 }

@@ -123,6 +123,30 @@ function itensDoJsonLd(html, base) {
 }
 
 /**
+ * O bloco MAIOR de candidatos: os cards da listagem ficam juntos no HTML, e carrossel de "mais vendidos" ou de relacionados
+ * e outro bloco, mais longe e com menos itens (Kalatec /guia-linear trouxe produtos de outras categorias). Divide onde o
+ * vazio entre dois candidatos passa de 5x o vazio tipico e fica com o maior; se o maior nao for pelo menos o dobro do
+ * segundo (nao da para dizer qual e a listagem), fica tudo. Pura.
+ */
+export function doMaiorBloco(candidatos) {
+  if (candidatos.length < 4) return candidatos;
+  const ordenados = [...candidatos].sort((a, b) => a.indice - b.indice);
+  const vazios = ordenados.slice(1).map((item, i) => item.indice - ordenados[i].indice).sort((a, b) => a - b);
+  const tipico = Math.max(vazios[Math.floor(vazios.length / 2)], 1);
+
+  const blocos = [[ordenados[0]]];
+  for (let i = 1; i < ordenados.length; i++) {
+    if (ordenados[i].indice - ordenados[i - 1].indice > tipico * 5) blocos.push([]);
+    blocos[blocos.length - 1].push(ordenados[i]);
+  }
+  if (blocos.length === 1) return candidatos;
+
+  const porTamanho = [...blocos].sort((a, b) => b.length - a.length);
+  if (porTamanho[0].length < porTamanho[1].length * 2) return candidatos;
+  return porTamanho[0];
+}
+
+/**
  * Carrossel de "mais vendidos" e relacionados tem preco e link como o card da categoria. Quando a loja poe a categoria no
  * caminho do produto (/guia-linear/produto-x), os que estao sob o caminho da pagina sao os da categoria e os outros saem;
  * quando nenhum esta, a loja nao faz isso e fica tudo.
@@ -181,10 +205,10 @@ export function produtosDaListagem(html, base) {
 
   for (const preco of texto.matchAll(PRECO)) {
     const anteriores = links.filter((ancora) => ancora.indice < preco.index && preco.index - ancora.indice <= JANELA_DO_CARD);
-    for (const ancora of anteriores.slice(-LINKS_POR_PRECO)) candidatos.push(ancora.url);
+    for (const ancora of anteriores.slice(-LINKS_POR_PRECO)) candidatos.push({ url: ancora.url, indice: ancora.indice });
   }
 
-  if (candidatos.length > 0) return soDaCategoria(unicos(candidatos), base);
+  if (candidatos.length > 0) return soDaCategoria(unicos(doMaiorBloco(candidatos).map((item) => item.url)), base);
 
   return unicos(links.filter((ancora) => /<img\b|data-src=|background-image/i.test(ancora.dentro)).map((ancora) => ancora.url));
 }
