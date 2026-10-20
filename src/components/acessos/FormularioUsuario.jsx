@@ -12,6 +12,7 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import PageHeader from "@/components/ui/PageHeader";
 import { filtrarRecursos } from "@/lib/acessos/matriz";
 import { gruposDaMatriz, recursoPorId } from "@/lib/acessos/recursos";
+import EntradaNoRise from "./EntradaNoRise";
 import SeletorDeNivel from "./SeletorDeNivel";
 
 const ABAS = [
@@ -44,7 +45,7 @@ const ErroDoCampo = ({ erro }) => (erro ? <span className="mt-1 block text-xs te
  * ponto no titulo dela (o molde do cadastro de Cliente). Sem Excluir (so Desativar), sem Telegram e sem "Ver como"
  * neste lancamento.
  */
-export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrador = false }) {
+export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrador = false, entrada = null }) {
   const router = useRouter();
   const [aba, setAba] = useState("dados");
   const [login, setLogin] = useState(usuario.login);
@@ -129,7 +130,7 @@ export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrado
               <ErroDoCampo erro={erros.nome} />
             </label>
             <label className="block">
-              <Rotulo texto="Login" ajuda="O mesmo login da tela de entrada do Rise, criado por SSH." />
+              <Rotulo texto="Login" ajuda="O login do Rise, em minúsculas. A senha da tela de entrada é definida embaixo, em Entrada no Rise." />
               <input
                 value={login}
                 onChange={(evento) => setLogin(evento.target.value.toLowerCase())}
@@ -165,6 +166,16 @@ export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrado
               <ErroDoCampo erro={erros.ativo} />
             </div>
           </div>
+          {/* O login de entrada e do usuario JA salvo (com o login e o Ativo gravados), e nao do que esta sendo digitado. */}
+          {usuario.id && entrada && (
+            <EntradaNoRise
+              usuarioId={usuario.id}
+              login={usuario.login}
+              nomeSugerido={usuario.nome.toLowerCase() === usuario.login ? usuario.nome : usuario.login}
+              ativo={usuario.ativo}
+              entrada={entrada}
+            />
+          )}
         </Painel>
 
         <Painel id="acesso" aba={aba}>

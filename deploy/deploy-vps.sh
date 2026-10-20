@@ -108,6 +108,13 @@ if [ "${PENDENTE}" = 1 ]; then
   docker compose run --rm --no-deps app npx prisma migrate deploy
 fi
 
+# O arquivo de logins que o Rise grava (Configuracoes › Usuarios › Entrada no Rise): o Tinyauth CAI se ele nao existir
+# (medido em 20/10/2026), e o `up -d` abaixo o recria. Criado pela imagem do app (como o app o grava), e nao pelo host: o
+# host nao escreve onde o conteiner escreve (ver o crontab). Vazio vale: os logins do .env continuam entrando.
+PASSO="preparando o arquivo de logins"
+docker run --rm -v "${PWD}/dados:/app/dados" --entrypoint sh rise:latest -c \
+  'mkdir -p /app/dados/tinyauth && { [ -f /app/dados/tinyauth/usuarios ] || : > /app/dados/tinyauth/usuarios; } && chmod 755 /app/dados/tinyauth && chmod 644 /app/dados/tinyauth/usuarios' </dev/null
+
 PASSO="trocando os conteineres"
 docker compose up -d
 

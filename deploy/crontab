@@ -14,3 +14,6 @@ MAILTO=""
 30 3 * * * cd /srv/rise/app && ./deploy/backup-externo.sh >> /home/rise/logs/cron.log 2>&1
 # Logs do worker com mais de 30 dias, aos domingos.
 0 4 * * 0  cd /srv/rise/app && ./deploy/limpar-logs.sh >> /home/rise/logs/cron.log 2>&1
+# Logins do Rise (Configuracoes › Usuarios › Entrada no Rise): reinicia o Tinyauth quando o arquivo deles muda. Quieto
+# quando nada mudou; uma linha no log quando aplica ou quando recusa um arquivo fora do formato.
+* * * * *  cd /srv/rise/app && ./deploy/aplicar-logins.sh >> /home/rise/logs/cron.log 2>&1

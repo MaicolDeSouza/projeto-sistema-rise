@@ -92,10 +92,17 @@ services:
       # Sem usuario o Tinyauth nao sobe, e o Caddy recusa tudo (falha fechada). Opcional aqui so para o
       # `npm run db:up` do PC, que nao tem login, continuar validando este arquivo.
       TINYAUTH_AUTH_USERS: ${TINYAUTH_AUTH_USERS:-}
+      # Os logins que o Rise define (Configuracoes › Usuarios › Entrada no Rise, 20/10/2026), JUNTO com os do .env acima
+      # (que ficam como reserva de emergencia). O Tinyauth so le o arquivo na partida e CAI sem ele: o deploy o cria antes
+      # de subir, o Rise nunca o apaga, e o vigia do cron (deploy/aplicar-logins.sh) reinicia este conteiner quando muda.
+      TINYAUTH_AUTH_USERSFILE: /logins/usuarios
       TINYAUTH_AUTH_SECURECOOKIE: "true"
       TINYAUTH_AUTH_SESSIONEXPIRY: "604800"
       # A rede do compose; o Caddy e quem fala com o Tinyauth.
       TINYAUTH_AUTH_TRUSTEDPROXIES: 172.16.0.0/12
+    volumes:
+      # A PASTA, so para leitura: o Rise troca o arquivo por um novo (rename), e a pasta montada ve o arquivo novo.
+      - ./dados/tinyauth:/logins:ro
     logging: *logs
 
   caddy:

@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 
 import FormularioUsuario from "@/components/acessos/FormularioUsuario";
 import { carregarUsuario, ehUltimoAdministradorAtivo, funcaoParaTela, listarFuncoes, usuarioParaTela } from "@/lib/acessos/banco";
+import { estadoDoLogin } from "@/lib/acessos/loginTinyauth";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { ambienteDoRise } from "@/lib/sessao";
 
 export const metadata = { title: "Usuário | Sistema Rise" };
 export const dynamic = "force-dynamic";
@@ -13,5 +15,7 @@ export default async function UsuarioPage({ params }) {
   const { id } = await params;
   const [usuario, funcoes, ultimoAdministrador] = await Promise.all([carregarUsuario(id), listarFuncoes(), ehUltimoAdministradorAtivo(id)]);
   if (!usuario) notFound();
-  return <FormularioUsuario key={usuario.id} usuario={usuarioParaTela(usuario)} funcoes={funcoes.map(funcaoParaTela)} ultimoAdministrador={ultimoAdministrador} />;
+  // Como a pessoa entra na tela de entrada (o .env da VPS, o arquivo que o Rise grava, ou ainda nao entra).
+  const entrada = { ...(await estadoDoLogin(usuario.login)), naVps: ambienteDoRise(process.env) === "vps" };
+  return <FormularioUsuario key={usuario.id} usuario={usuarioParaTela(usuario)} funcoes={funcoes.map(funcaoParaTela)} ultimoAdministrador={ultimoAdministrador} entrada={entrada} />;
 }

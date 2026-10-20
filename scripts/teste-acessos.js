@@ -720,6 +720,74 @@ try {
     conferir("src/lib/sessao.js continua sem import (o layout, o /api/sair e o teste:vps dependem disso)", ler("src/lib/sessao.js").includes("import "), false);
   }
 
+  // --- O login do Tinyauth pelo Rise (Opcao 1 do dono, 20/10/2026): o arquivo de usuarios que o Tinyauth le ---
+  {
+    console.log("\nLogin do Tinyauth");
+    const { mkdtemp, readFile, rm, writeFile, stat } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const bcrypt = (await import("bcryptjs")).default;
+    const login = await import("../src/lib/acessos/loginTinyauth.js");
+    const pasta = await mkdtemp(join(tmpdir(), "zz-ac-tinyauth-"));
+    const arquivo = join(pasta, "usuarios");
+    const env = { TINYAUTH_AUTH_USERS: "Maicol:$2y$05$abcdefghijklmnopqrstuuabcdefghijklmnopqrstuvwxyzABCDE" };
+    const opcoes = { arquivo, env, quem: "zz-ac-dono" };
+    try {
+      await writeFile(arquivo, "");
+      conferir("nomes do .env (quebra-vidro), sem diferenciar maiusculas", [...login.nomesDoEnv(env)], ["maicol"]);
+      conferir("nome de entrada: letras, numeros, ponto, hifen e sublinhado; 2 a 40", ["Andrea", "andrea.s", "a", "and rea", "and:rea", "x".repeat(41)].map(login.nomeDeEntradaValido), [true, true, false, false, false, false]);
+
+      const criado = await login.definirSenha({ login: "zz-ac-andrea", nome: "ZZ-AC-Andrea", senha: "segredo-1" }, opcoes);
+      const linhas = (await readFile(arquivo, "utf8")).split("\n").filter(Boolean);
+      conferir("definir: uma linha nome:codigo (bcrypt, $ simples), com o nome como foi escrito", [criado.ok, linhas.length, linhas[0].split(":")[0], /^\$2[aby]\$10\$.{53}$/.test(linhas[0].slice(linhas[0].indexOf(":") + 1))], [true, 1, "ZZ-AC-Andrea", true]);
+      conferir("o codigo confere com a senha (e nao com outra)", [bcrypt.compareSync("segredo-1", linhas[0].split(":").slice(1).join(":")), bcrypt.compareSync("outra", linhas[0].split(":").slice(1).join(":"))], [true, false]);
+      conferir("o arquivo nunca tem a senha em texto", (await readFile(arquivo, "utf8")).includes("segredo-1"), false);
+      conferir("estado: gerido pelo Rise, com o nome de entrada", await login.estadoDoLogin("zz-ac-andrea", opcoes), { onde: "rise", nome: "ZZ-AC-Andrea" });
+
+      await login.definirSenha({ login: "zz-ac-andrea", nome: "zz-ac-andrea", senha: "segredo-2" }, opcoes);
+      const trocadas = (await readFile(arquivo, "utf8")).split("\n").filter(Boolean);
+      conferir("trocar a senha (e a escrita do nome) nao duplica a linha", [trocadas.length, trocadas[0].split(":")[0], bcrypt.compareSync("segredo-2", trocadas[0].split(":").slice(1).join(":"))], [1, "zz-ac-andrea", true]);
+
+      const recusas = await Promise.all([
+        login.definirSenha({ login: "zz-ac-andrea", nome: "Outra", senha: "x" }, opcoes),
+        login.definirSenha({ login: "zz-ac-andrea", nome: "zz-ac-andrea", senha: "" }, opcoes),
+        login.definirSenha({ login: "zz-ac-andrea", nome: "zz-ac-andrea", senha: "é".repeat(40) }, opcoes),
+        login.definirSenha({ login: "maicol", nome: "Maicol", senha: "nova" }, opcoes),
+        login.definirSenha({ login: "zz-ac-andrea", nome: "zz ac", senha: "x" }, opcoes),
+      ]);
+      conferir(
+        "recusas: nome que nao e o login, senha vazia, senha acima de 72 bytes, login do .env e nome invalido",
+        recusas.map((resultado) => [resultado.ok, Object.keys(resultado.erros ?? {})[0] ?? null]),
+        [[false, "nome"], [false, "senha"], [false, "senha"], [false, "geral"], [false, "nome"]],
+      );
+      conferir("a recusa do .env diz o porque", recusas[3].erro, "Este login entra pelo .env da VPS (reserva de emergência): troque a senha pelo script deploy/usuario-tinyauth.sh.");
+      conferir("estado do login do .env e de quem nao tem", [await login.estadoDoLogin("maicol", opcoes), await login.estadoDoLogin("zz-ac-ninguem", opcoes)], [{ onde: "env", nome: "Maicol" }, { onde: "nenhum", nome: null }]);
+
+      await login.definirSenha({ login: "zz-ac-beto", nome: "zz-ac-beto", senha: "b" }, opcoes);
+      conferir("remover tira so a linha dele", [(await login.removerLogin("zz-ac-andrea", opcoes)).removido, (await login.lerLogins({ arquivo })).map((linha) => linha.nome)], [true, ["zz-ac-beto"]]);
+      conferir("remover quem nao tem login nao mexe no arquivo", (await login.removerLogin("zz-ac-andrea", opcoes)).removido, false);
+      conferir("linha estranha no arquivo e ignorada na leitura e some na proxima gravacao", await (async () => {
+        await writeFile(arquivo, `${(await readFile(arquivo, "utf8")).trim()}\nlixo sem codigo\n\n`);
+        await login.definirSenha({ login: "zz-ac-cida", nome: "zz-ac-cida", senha: "c" }, opcoes);
+        return (await readFile(arquivo, "utf8")).split("\n").filter(Boolean).map((linha) => linha.split(":")[0]);
+      })(), ["zz-ac-beto", "zz-ac-cida"]);
+      conferir("o arquivo fica legivel pelo Tinyauth (644)", ((await stat(arquivo)).mode & 0o777).toString(8), process.platform === "win32" ? ((await stat(arquivo)).mode & 0o777).toString(8) : "644");
+      const auditorias = await prisma.auditoriaDeAcesso.findMany({ where: { quem: "zz-ac-dono", oQue: { startsWith: "acessos.login" } }, orderBy: { quando: "asc" } });
+      conferir(
+        "cada mudanca entra na auditoria, sem a senha nem o codigo",
+        [auditorias.map((linha) => linha.oQue), JSON.stringify(auditorias).includes("segredo"), JSON.stringify(auditorias).includes("$2")],
+        [["acessos.login.senha", "acessos.login.senha", "acessos.login.senha", "acessos.login.remover", "acessos.login.senha"], false, false],
+      );
+      conferir("sem o arquivo (o Tinyauth nao sobe sem ele), a gravacao o cria", await (async () => {
+        await rm(arquivo);
+        await login.definirSenha({ login: "zz-ac-beto", nome: "zz-ac-beto", senha: "b" }, opcoes);
+        return (await login.lerLogins({ arquivo })).map((linha) => linha.nome);
+      })(), ["zz-ac-beto"]);
+    } finally {
+      await rm(pasta, { recursive: true, force: true });
+    }
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;

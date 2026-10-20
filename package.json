@@ -64,6 +64,7 @@
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@visioncortex/vtracer": "1.0.0-alpha.4",
+    "bcryptjs": "3.0.3",
     "exceljs": "^4.4.0",
     "image-size": "^2.0.4",
     "lucide-react": "^1.32.0",

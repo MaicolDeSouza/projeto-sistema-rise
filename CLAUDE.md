@@ -4684,6 +4684,21 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   senha mantém o nome como estava ("Maicol"). Sem mínimo de tamanho (decisão do dono em 20/10/2026); só a vazia é recusada. O
   código bcrypt do `htpasswd` foi conferido com o
   `tinyauth user verify`. A sessão do Claude não digita a senha de ninguém.
+- **Senha pelo próprio Rise** (Opção 1 do dono, 20/10/2026; o script acima fica para o login do `.env`): em Configurações › Usuários
+  › [usuário] › aba Dados, a seção **Entrada no Rise** mostra como a pessoa entra e tem **Definir senha / Trocar senha** e **Remover
+  login**, só para o Administrador (`tela.configuracoes.usuarios`, não delegável) e só na VPS. Regras em `src/lib/acessos/loginTinyauth.js`:
+  - O Rise grava `dados/tinyauth/usuarios` (`nome:código bcrypt`, uma linha por pessoa, `bcryptjs` 3.0.3; a senha nunca é gravada nem
+    volta), que o Tinyauth lê por `TINYAUTH_AUTH_USERSFILE` (pasta montada só para leitura no `auth`), JUNTO com o `TINYAUTH_AUTH_USERS`
+    do `.env`. **O login do `.env` (o do dono) não se edita pela tela**: é a reserva de emergência e muda só pelo script.
+  - O "Nome para entrar" é o login com outra caixa, se quiser ("Andrea" para `andrea`). Senha sem mínimo (decisão do dono), até 72
+    bytes (o bcrypt ignora o resto). Desativar o usuário ou trocar o login dele tira o login do arquivo. Toda mudança vai para a
+    `AuditoriaDeAcesso` (`acessos.login.senha` / `acessos.login.remover`), sem a senha nem o código.
+  - **Medido num Tinyauth v5 descartável:** ele só lê o arquivo na partida, junta arquivo e `.env`, sobe com o arquivo vazio e CAI sem
+    ele; `restart` mantém as sessões e recriar o contêiner as perde. Por isso: o deploy cria o arquivo antes de subir (pela imagem
+    do app, não pelo host), o Rise nunca o apaga, e o vigia **`deploy/aplicar-logins.sh`** (cron do host, a cada minuto) confere o
+    formato e faz `docker compose restart auth` quando o arquivo muda (marca em `~/logs/tinyauth-usuarios.sha256`). Arquivo fora
+    do formato não reinicia (avisa uma vez no `cron.log`). O app não tem acesso ao Docker, de propósito.
+  - **O primeiro deploy com isso recria o `auth`** (a configuração mudou): todo mundo entra de novo uma vez.
 - **Deploy só quando o dono disser "sobe":**
   `ssh ... "cd /srv/rise/app && git fetch -q --tags origin && git checkout -q --detach origin/main && ./deploy/deploy-vps.sh"`
   (baixar antes de rodar, porque o próprio script pode ter mudado). Ele valida o Caddyfile, constrói a imagem com o site
