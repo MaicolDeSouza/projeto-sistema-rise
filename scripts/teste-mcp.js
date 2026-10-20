@@ -855,6 +855,31 @@ try {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 10 — Caddyfile: o protocolo publico, a tela Autorizar atras do login
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nCaddyfile");
+    const { readFileSync } = await import("node:fs");
+    const caddy = readFileSync(new URL("../deploy/caddy/Caddyfile", import.meta.url), "utf8");
+    // O bloco @mcp e o handle dele, e o handle sem matcher (o do login) que vem depois.
+    const matcher = /@mcp \{\s*path ([^\n}]+)\r?\n\s*\}/.exec(caddy);
+    const caminhos = (matcher?.[1] ?? "").trim().split(/\s+/);
+    const ramo = /handle @mcp \{([\s\S]*?)\n\t\}/.exec(caddy)?.[1] ?? "";
+    conferir(
+      "o ramo publico tem so os caminhos do protocolo",
+      caminhos,
+      ["/mcp", "/mcp/oauth/token", "/mcp/oauth/register", "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/*", "/.well-known/oauth-authorization-server", "/.well-known/oauth-authorization-server/*"],
+    );
+    conferir("a tela Autorizar (e qualquer outro /mcp/*) NAO esta no ramo publico", caminhos.some((caminho) => caminho.includes("authorize") || caminho === "/mcp/*" || caminho === "/mcp/oauth/*"), false);
+    conferir("o ramo publico so repassa ao app: sem forward_auth e sem o segredo de borda", [ramo.includes("reverse_proxy app:3000"), ramo.includes("forward_auth"), ramo.includes("X-Rise-Borda")], [true, false, false]);
+    conferir(
+      "o @mcp vem antes do handle com login, e os Remote-* e o X-Rise-Borda de fora continuam saindo para todos",
+      [caddy.indexOf("handle @mcp") > 0 && caddy.indexOf("handle @mcp") < caddy.lastIndexOf("\thandle {"), caddy.includes("request_header -Remote-User"), caddy.includes("request_header -X-Rise-Borda")],
+      [true, true, true],
+    );
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;

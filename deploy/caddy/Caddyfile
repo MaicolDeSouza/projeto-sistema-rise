@@ -81,6 +81,18 @@ rise.4hobby.com.br {
 		reverse_proxy app:3000
 	}
 
+	# Servidor MCP (20/10/2026): o Claude e o ChatGPT (a nuvem deles) falam com o Rise por token proprio
+	# (src/lib/mcp/portao.js, conferido a cada pedido), sem o login do Tinyauth. SO estes caminhos, exatos: o /mcp, o
+	# token, o registro dinamico e os dois metadados. A tela "Autorizar" (/mcp/oauth/authorize) fica no ramo com login,
+	# de proposito: e la que a pessoa entra com o login do Rise. Sem forward_auth e sem o X-Rise-Borda: o app nao le
+	# login nenhum aqui (os Remote-* de fora ja sairam no topo).
+	@mcp {
+		path /mcp /mcp/oauth/token /mcp/oauth/register /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/* /.well-known/oauth-authorization-server /.well-known/oauth-authorization-server/*
+	}
+	handle @mcp {
+		reverse_proxy app:3000
+	}
+
 	# Todo o resto passa pelo login. `route` mantem a ordem escrita (o Caddy reordena diretivas soltas): o
 	# Remote-User que vier do navegador sai ANTES de o forward_auth copiar o verdadeiro, que e o que os niveis
 	# de acesso do Rise vao ler.
