@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 
 import Conexoes from "@/components/riseAi/Conexoes";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
-import { conexoesParaTela, enderecoDoMcp } from "@/lib/mcp/conexoes";
+import { conexoesDaEquipe, conexoesParaTela, enderecoDoMcp } from "@/lib/mcp/conexoes";
 import { origemPelosCabecalhos } from "@/lib/mcp/oauth";
 
 export const metadata = { title: "Rise AI | Sistema Rise" };
@@ -16,5 +16,8 @@ export default async function RiseAiPage() {
   const acesso = await exigirAcessoNaPagina("riseAi.chat", "ver");
   const endereco = enderecoDoMcp(origemPelosCabecalhos(await headers()));
   const conexoes = await conexoesParaTela(acesso.login ?? "");
-  return <Conexoes endereco={endereco} conexoes={conexoes} podeEditar={acesso.pode("riseAi.chat", "editar")} />;
+  // O Administrador ("Usuarios e funcoes", nao delegavel) ve tambem as conexoes do resto da equipe e pode desconecta-las.
+  const administrador = acesso.pode("tela.configuracoes.usuarios", "editar");
+  const equipe = administrador ? (await conexoesDaEquipe()).filter((conexao) => conexao.login !== acesso.login) : null;
+  return <Conexoes endereco={endereco} conexoes={conexoes} equipe={equipe} podeEditar={acesso.pode("riseAi.chat", "editar")} />;
 }

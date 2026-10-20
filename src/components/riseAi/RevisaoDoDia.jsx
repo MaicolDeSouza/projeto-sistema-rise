@@ -6,6 +6,7 @@ import { CheckCheck, Loader, ThumbsDown } from "lucide-react";
 
 import { carregarConversaParaRevisaoAcao, marcarRevisadaAcao } from "@/app/rise-ai/revisao/acoes";
 import ConhecimentoLista from "./ConhecimentoLista";
+import ConsultasDoDia from "./ConsultasDoDia";
 import MensagemDaIA from "./MensagemDaIA";
 import ProporCorrecao from "./ProporCorrecao";
 import SugestoesDaIA from "./SugestoesDaIA";
@@ -112,7 +113,7 @@ function LeituraDaConversa({ leitura, resumo, aoMarcar, marcando }) {
  * @param {{ dia: string, hoje: string, conversas: object[], resumo: { custoBrl: number, respostasPorModelo: Record<string, number> },
  *   sugestoes: object[], notas: object[] }} props
  */
-export default function RevisaoDoDia({ dia, hoje, conversas, resumo, sugestoes, notas }) {
+export default function RevisaoDoDia({ dia, hoje, conversas, resumo, sugestoes, notas, consultas = [] }) {
   const router = useRouter();
   const [aba, setAba] = useState("conversas");
   const [aberta, setAberta] = useState(null);
@@ -139,6 +140,7 @@ export default function RevisaoDoDia({ dia, hoje, conversas, resumo, sugestoes, 
     { id: "conversas", rotulo: "Conversas", quantidade: conversas.length },
     { id: "sugestoes", rotulo: "Sugestões da IA", quantidade: sugestoes.length },
     { id: "conhecimento", rotulo: "Conhecimento", quantidade: notas.length },
+    { id: "consultas", rotulo: "Consultas", quantidade: consultas.reduce((soma, grupo) => soma + grupo.total, 0) },
   ];
   const modelos = Object.entries(resumo.respostasPorModelo);
 
@@ -200,6 +202,9 @@ export default function RevisaoDoDia({ dia, hoje, conversas, resumo, sugestoes, 
 
         <div hidden={aba !== "sugestoes"} className="min-h-0 flex-1 overflow-y-auto p-4">
           <SugestoesDaIA sugestoes={sugestoes} />
+        </div>
+        <div hidden={aba !== "consultas"} className="min-h-0 flex-1 overflow-y-auto p-4">
+          <ConsultasDoDia consultas={consultas} />
         </div>
         <div hidden={aba !== "conhecimento"} className="min-h-0 flex-1 overflow-y-auto p-4">
           <ConhecimentoLista notas={notas} />

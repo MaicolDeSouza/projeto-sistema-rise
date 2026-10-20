@@ -1153,6 +1153,87 @@ try {
     conferir("as instrucoes dizem que as horas ja estao em Brasilia", INSTRUCOES.includes("horário de Brasília"), true);
   }
 
+  // -------------------------------------------------------------------------
+  // "Sempre salvar o historico" (pedido do dono em 20/10/2026: o claude.ai da Andrea consultou 5 vezes e nunca anotou):
+  // o lembrete em cada resposta, as consultas do dia na Revisao (anotadas ou nao) e as conexoes da equipe
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nConsultas e lembrete");
+    const { responderMcp } = await import("../src/lib/mcp/servidor.js");
+    const { consultasDoDia, resumoDaChamada } = await import("../src/lib/mcp/consultas.js");
+    const { conexoesDaEquipe, desconectarDaEquipe } = await import("../src/lib/mcp/conexoes.js");
+    const { hojeEmSaoPaulo } = await import("../src/lib/ferramentas/cotacao.js");
+    const { limitesDoDia } = await import("../src/lib/riseAi/revisao.js");
+    const banco = await import("../src/lib/mcp/oauthBanco.js");
+
+    // --- o lembrete ---
+    let id = 1500;
+    const quem = { login: "zz-mcp-lembrete", clienteId: null, clienteNome: "Claude", escopos: ["consultar"], familia: "zz-mcp-familia", expiraEm: new Date(Date.now() + 3600e3), administrador: false, pode: () => true };
+    const chamar = async (nome, argumentos) => (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/call", { name: nome, arguments: argumentos }, { id: id++ }), quem)))?.result;
+    const preco = await chamar("consultarPreco", { skus: ["ZZ-MCP-NAO-HA"] });
+    const anotada = await chamar("anotarDuvida", { pergunta: "zz teste do lembrete", resposta: "ok" });
+    conferir(
+      "toda resposta de consulta traz o lembrete de anotar; a da anotacao nao",
+      [preco?.content?.length, /anotarDuvida/.test(preco?.content?.[1]?.text ?? ""), anotada?.content?.length],
+      [2, true, 1],
+    );
+    const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem)))?.result?.tools ?? [];
+    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+
+    // --- as consultas do dia ---
+    const { inicio } = limitesDoDia(hojeEmSaoPaulo());
+    const as = (horas, minutos) => new Date(inicio.getTime() + (horas * 60 + minutos) * 60e3);
+    const chamada = (horas, minutos, ferramenta, argumentos, ok = true, erro = null) =>
+      ({ login: "zz-mcp-consultas", clienteId: null, clienteNome: "Claude", ferramenta, argumentos, ok, erro, duracaoMs: 10, quando: as(horas, minutos) });
+    await prisma.chamadaMcp.createMany({
+      data: [
+        chamada(11, 20, "buscarConhecimento", { termos: "garantia" }),
+        chamada(12, 0, "buscarProdutos", { termos: "sensor ultrassonico" }),
+        chamada(12, 1, "consultarEstoque", { skus: ["100101"] }),
+        chamada(12, 2, "anotarDuvida", { pergunta: "...", resposta: "..." }),
+        chamada(12, 10, "consultarPreco", { skus: ["100101", "100103"] }),
+        chamada(12, 11, "consultarProduto", { sku: "ZZ" }, false, "Produto não encontrado: ZZ."),
+        { ...chamada(0, 0, "buscarProdutos", { termos: "de ontem" }), quando: new Date(inicio.getTime() - 3600e3) },
+      ],
+    });
+    const dia = (await consultasDoDia(hojeEmSaoPaulo(), { administrador: true })).find((grupo) => grupo.login === "zz-mcp-consultas");
+    conferir(
+      "consultas do dia por pessoa: so de hoje, sem a anotacao, com o que foi pesquisado e se ficou anotada (a anotacao cobre os 30 min antes dela)",
+      [dia?.cliente, dia?.total, dia?.semAnotacao, dia?.chamadas.map((linha) => [linha.hora, linha.resumo, linha.ok, linha.anotada])],
+      ["Claude", 5, 3, [["11:20", "conhecimento: garantia", true, false], ["12:00", "buscou: sensor ultrassonico", true, true], ["12:01", "estoque de 100101", true, true], ["12:10", "preço de 100101, 100103", true, false], ["12:11", "ficha de ZZ", false, false]]],
+    );
+    conferir("a consulta que falhou traz o erro", dia?.chamadas.at(-1)?.erro, "Produto não encontrado: ZZ.");
+    conferir("so o administrador le as consultas", await codigoDoErro(consultasDoDia(hojeEmSaoPaulo(), { administrador: false })), "Só administradores do Rise AI podem ver a revisão.");
+    conferir(
+      "resumo de cada ferramenta, e argumento cortado ou estranho nao quebra",
+      [
+        resumoDaChamada("buscarNoMercado", { termos: "r13-507 vermelh" }),
+        resumoDaChamada("filtrarProdutos", { filtros: ["semEstoque", "naoConferidos"], termos: "arduino" }),
+        resumoDaChamada("historicoDePreco", { fonte: "Mamute", codigo: "11553" }),
+        resumoDaChamada("listarClientes", { termos: "silva" }),
+        resumoDaChamada("compararProdutos", { skus: ["1", "2"] }),
+        resumoDaChamada("buscarProdutos", { cortado: true, inicio: "{\"termos\":\"x" }),
+        resumoDaChamada("ferramentaNova", null),
+      ],
+      ["mercado: r13-507 vermelh", "filtros: semEstoque, naoConferidos · arduino", "histórico de 11553 em Mamute", "clientes: silva", "comparou 1, 2", "buscou (argumentos longos)", "ferramentaNova"],
+    );
+
+    // --- conexoes da equipe ---
+    const retorno = "https://claude.ai/api/mcp/auth_callback";
+    const cliente = await banco.registrarCliente({ nome: "ZZ-MCP Claude da equipe", redirectUris: [retorno] });
+    const conectar = async (login) => {
+      const codigo = await banco.emitirCodigo({ clienteId: cliente.clientId, login, redirectUri: retorno, codeChallenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", resource: "https://rise.teste/mcp", escopos: ["consultar"] });
+      return (await banco.trocarCodigo({ codigo, clientId: cliente.clientId, redirectUri: retorno, codeVerifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk" })).tokens;
+    };
+    await conectar("zz-mcp-eq1");
+    const daEq2 = await conectar("zz-mcp-eq2");
+    const equipe = (await conexoesDaEquipe()).filter((linha) => linha.login.startsWith("zz-mcp-eq"));
+    conferir("conexoes da equipe: todas, com o login de cada uma e as datas em texto", equipe.map((linha) => [linha.login, linha.cliente, typeof linha.conectadoEm]).sort(), [["zz-mcp-eq1", "ZZ-MCP Claude da equipe", "string"], ["zz-mcp-eq2", "ZZ-MCP Claude da equipe", "string"]]);
+    const familia = equipe.find((linha) => linha.login === "zz-mcp-eq2").familia;
+    conferir("o administrador desconecta a de outra pessoa: o token dela cai", [(await desconectarDaEquipe(familia)).login, await banco.validarTokenDeAcesso(daEq2.access_token)], ["zz-mcp-eq2", null]);
+    conferir("desconectar de novo, ou familia que nao existe", [await codigoDoErro(desconectarDaEquipe(familia)), await codigoDoErro(desconectarDaEquipe("nao-existe"))], ["Conexão não encontrada.", "Conexão não encontrada."]);
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;

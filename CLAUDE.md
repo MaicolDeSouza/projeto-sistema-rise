@@ -3873,6 +3873,16 @@ servidor real: `docs/superpowers/plans/2026-10-20-mcp-rise-e-rumo-do-rise-ai-dec
   resultado de qualquer ferramenta pela de São Paulo com o fuso escrito (`2026-10-20T18:51:02-03:00`), na `resposta` do
   `servidor.js`, e as instruções dizem para mostrar como veio. Data sem hora fica como está. **Só no MCP:** as telas e o WhatsApp
   seguem com UTC.
+- **"Sempre salvar o histórico"** (pedido do dono em 20/10/2026: o claude.ai da Andrea consultou 5 vezes e nunca chamou o
+  `anotarDuvida`; as INSTRUÇÕES do servidor não bastam). Três partes:
+  - **Lembrete:** toda resposta de consulta traz um segundo texto ("quando terminar, chame anotarDuvida...") e a descrição de cada
+    ferramenta de consulta termina lembrando o mesmo (`LEMBRETE`/`NA_DESCRICAO` em `servidor.js`). O modelo sempre lê o resultado.
+  - **Aba Consultas na Revisão do dia** (`src/lib/mcp/consultas.js`, `ConsultasDoDia.jsx`): o registro `ChamadaMcp` do dia por
+    pessoa e cliente, com o que foi pesquisado (`resumoDaChamada`) e se ficou **anotada** (a regra do `chamadasRecentes`: a anotação
+    cobre as consultas desde a anterior, até 30 min antes dela). **A garantia de verdade:** o Rise só recebe a pergunta e a resposta
+    quando o modelo anota; a consulta, sempre.
+  - **Conexões da equipe** na aba Conexões, só para o Administrador (`tela.configuracoes.usuarios` editar): as conexões das outras
+    pessoas com o login, e o Desconectar delas (`conexoesDaEquipe`, `desconectarDaEquipe`, `desconectarDaEquipeAcao`).
 - **Onde mora:** `src/lib/mcp/` (`oauth.js`: as regras puras do OAuth, Host e Origin; `oauthBanco.js`: clientes, códigos, tokens,
   rotação, revogação por família e conexões; `portao.js`: `exigirTokenMcp`; `autorizacao.js`: a tela Autorizar; `servidor.js`: o
   `McpServer` e as ferramentas; `registro.js`: `ChamadaMcp`; `anotacoes.js`: `anotarDuvida`; `conexoes.js`: a aba Conexões). Rotas

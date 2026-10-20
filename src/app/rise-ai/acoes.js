@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { executarComAcesso } from "@/lib/acessos/servidor";
-import { desconectar } from "@/lib/mcp/conexoes";
+import { desconectar, desconectarDaEquipe } from "@/lib/mcp/conexoes";
 import { ErroDeUso } from "@/lib/riseAi/erros";
 import { avaliarMensagem, mensagemParaTela } from "@/lib/riseAi/conversas";
 import { gerarSugestaoParaMensagem } from "@/lib/riseAi/sugestoes";
@@ -46,6 +46,18 @@ export async function avaliarMensagemAcao(id, formData) {
 export async function desconectarAcao(familia) {
   return executarComAcesso("riseAi.chat", "editar", async (sessao) => {
     await desconectar(String(familia ?? ""), sessao.login);
+    revalidatePath("/rise-ai");
+    return {};
+  });
+}
+
+/**
+ * Desconectar a conexao de outra pessoa da equipe (aba Conexoes, "Conexoes da equipe"): so o Administrador, pelo recurso
+ * "Usuarios e funcoes" (nao delegavel), o mesmo que define quem entra no Rise.
+ */
+export async function desconectarDaEquipeAcao(familia) {
+  return executarComAcesso("tela.configuracoes.usuarios", "editar", async () => {
+    await desconectarDaEquipe(String(familia ?? ""));
     revalidatePath("/rise-ai");
     return {};
   });

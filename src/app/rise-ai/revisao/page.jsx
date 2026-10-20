@@ -2,6 +2,7 @@ import RevisaoDoDia from "@/components/riseAi/RevisaoDoDia";
 import { conhecimentoParaTela, listarConhecimento } from "@/lib/riseAi/conhecimento";
 import { conversasDoDia, hojeEmSaoPaulo, limitesDoDia, resumoDoDia } from "@/lib/riseAi/revisao";
 import { listarSugestoes } from "@/lib/riseAi/sugestoes";
+import { consultasDoDia } from "@/lib/mcp/consultas";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 
 export const metadata = { title: "Revisão do dia | Rise AI" };
@@ -27,12 +28,14 @@ export default async function RevisaoPage({ searchParams }) {
 
   const hoje = hojeEmSaoPaulo();
   const dia = diaDaRevisao((await searchParams).dia, hoje);
-  const [conversas, resumo, sugestoes, notas] = await Promise.all([
+  const [conversas, resumo, sugestoes, notas, consultas] = await Promise.all([
     conversasDoDia(dia, { administrador: true }),
     resumoDoDia(dia),
     listarSugestoes({ status: "PENDENTE" }),
     listarConhecimento({ limite: 300 }),
+    // O que cada pessoa consultou pelo Claude/ChatGPT, anotado ou nao (a aba Consultas).
+    consultasDoDia(dia, { administrador: true }),
   ]);
 
-  return <RevisaoDoDia key={dia} dia={dia} hoje={hoje} conversas={conversas} resumo={resumo} sugestoes={sugestoes} notas={notas.map(conhecimentoParaTela)} />;
+  return <RevisaoDoDia key={dia} dia={dia} hoje={hoje} conversas={conversas} resumo={resumo} sugestoes={sugestoes} notas={notas.map(conhecimentoParaTela)} consultas={consultas} />;
 }
