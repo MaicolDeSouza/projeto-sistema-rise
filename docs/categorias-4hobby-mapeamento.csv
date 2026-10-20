@@ -969,7 +969,7 @@
 910203;"TOMADA PAINEL COM CHAVE ILUMINADA E PORTA FUSÍVEL 10A";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Geral";25.50;9
 910204;"CHAVE 3 TERMINAIS MINI SWITCH SPDT";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";2.10;75
 910207;"CHAVE MICRO CHAVE SELETORA 2 POSIÇÕES 6 PINOS PCB";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";1.00;130
-910209;"CHAVE SECCIONADORA 3 PÓLOS 20A MONTAGEM PAINEL METALTEX *910209";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";67.90;0
+910209;"CHAVE SECCIONADORA 3 PÓLOS 20A MONTAGEM PAINEL METALTEX *910209";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";67.90;0
 910210;"INTERRUPTOR CHAVE LIGA DESLIGA PRETO TIPO ABAJUR";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";10.00;33
 910211_z;"Micro Chave Kcd1-101 On Off Mini 2 Pinos 10X15mm 3A *910211";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";2.00;82
 910212;"TOMADA PAINEL 250V 10A 3 PINOS MODELO C14";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Geral";5.20;29
@@ -984,31 +984,31 @@
 910222;"Chave Botão Quadrado Na Sem Trava Preto Pbs-12a 3a 250v";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;10
 910301;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE HW-040";Automação Industrial;Encoders;;E_enc;"";"2 - Módulos e shields";10.90;23
 910302;"MODULO ENCODER ROTATIVO DE PULSO COM CHAVE KY-040";Automação Industrial;Encoders;;E_enc;"";"";12.00;45
-910401_AZ;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Azul";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";3.90;83
-910401_BR;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Branco";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";3.90;92
-910401_PR;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Preto";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";3.90;93
-910401_VD;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Verde";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";3.90;90
+910401_AZ;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Azul";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";3.90;83
+910401_BR;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Branco";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";3.90;92
+910401_PR;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Preto";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";3.90;93
+910401_VD;"BOTÃO INTERRUPTOR METÁLICO DE PULSO 10MM COLORIDO Cor: Verde";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";3.90;90
 910402;"CHAVE DE PULSO TÁCTIL PUSH BUTTON 6X6X5MM";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";0.30;18
 910403;"CHAVE DE PULSO TIPO PUSH BUTTON 12X12MM COM CAPA COLORIDA";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"Chaves e Botões";1.30;169
-910404;"BOTÃO DE PULSO 22MM PRETO COM CONTATO NA";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Chaves e Botões";20.00;1
-910406_4h;"Botão pulso 22mm vermelho com contato NF Metaltex *910406";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";18.00;5
-910407;"Botão pulso 22mm Azul com contato NA Metaltex *910407";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Chaves e Botões";18.00;1
+910404;"BOTÃO DE PULSO 22MM PRETO COM CONTATO NA";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Chaves e Botões";20.00;1
+910406_4h;"Botão pulso 22mm vermelho com contato NF Metaltex *910406";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";18.00;5
+910407;"Botão pulso 22mm Azul com contato NA Metaltex *910407";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Chaves e Botões";18.00;1
 910409;"Chave de pulso táctil SMD tipo Push Botton  5x5x1mm *910409";Componentes Eletrônicos;Chaves e Push Buttons;;I_gang;"";"";;20
-910410_AZ;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Azul";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";30.00;9
-910410_VD;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Verde";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";30.00;5
-910410_VM;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Vermelho";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";30.00;7
-910411;"TAMPÃO TAPA FURO 22MM PARA PAINEL ELÉTRICO";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Geral";10.00;9
-910412_z;"Soquete para Botão metal Antivandalismo Iluminado *910412";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";12.00;18
-910414_CT;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 24V SIMBOLO LIGA DESLIGA Trava: Com trava";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";52.17;20
-910414_ST;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 24V SIMBOLO LIGA DESLIGA Trava: Sem trava";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";52.17;16
-910415;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 12V SIMBOLO LIGA DESLIGA COM RETENCAO *910415";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";;19
-910416;"CHAVE SELETORA 2 POSIÇÕES FIXAS 22MM COM CONTATO NA";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";32.00;0
+910410_AZ;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Azul";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";30.00;9
+910410_VD;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Verde";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";30.00;5
+910410_VM;"BOTÃO DE PULSO METÁLICO ILUMINADO 24V INOX Cor: Vermelho";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";30.00;7
+910411;"TAMPÃO TAPA FURO 22MM PARA PAINEL ELÉTRICO";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Geral";10.00;9
+910412_z;"Soquete para Botão metal Antivandalismo Iluminado *910412";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";12.00;18
+910414_CT;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 24V SIMBOLO LIGA DESLIGA Trava: Com trava";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";52.17;20
+910414_ST;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 24V SIMBOLO LIGA DESLIGA Trava: Sem trava";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";52.17;16
+910415;"BOTÃO METAL ANTIVANDALISMO ILUMINADO VERDE 16MM 12V SIMBOLO LIGA DESLIGA COM RETENCAO *910415";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";;19
+910416;"CHAVE SELETORA 2 POSIÇÕES FIXAS 22MM COM CONTATO NA";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";32.00;0
 910501;"TECLADO MEMBRANA MATRICIAL 4X4 16 TECLAS";Módulos e Sensores;Teclados Matriciais;;B_tecl;"";"Teclados";7.90;9
 910502;"TECLADO MEMBRANA MATRICIAL 4X3 12 TECLAS";Módulos e Sensores;Teclados Matriciais;;B_tecl;"";"Teclados";7.90;47
 910503;"TECLADO MATRICIAL RIGIDO KARET 4X4 TECLAS";Módulos e Sensores;Teclados Matriciais;;B_tecl;"";"";;7
 910504;"TECLADO MATRICIAL RIGIDO KARET 4X3 TECLAS";Módulos e Sensores;Teclados Matriciais;;B_tecl;"";"";;7
-910601;"BOTÃO DE EMERGÊNCIA TIPO COGUMELO COM RETENÇÃO 2NF";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Chaves e Botões";28.80;8
-910701;"CONTATO PARA BOTOEIRA NF NC ZB2";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Chaves e Botões";6.10;55
+910601;"BOTÃO DE EMERGÊNCIA TIPO COGUMELO COM RETENÇÃO 2NF";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Chaves e Botões";28.80;8
+910701;"CONTATO PARA BOTOEIRA NF NC ZB2";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Chaves e Botões";6.10;55
 920102;"Mosfet IRLU014PBF SMD NPN *920102";Componentes Eletrônicos;Transistores e MOSFETs;;I_trans;"";"";;29
 920103;"Mosfet FQD60N03 NPN 5v para 24V *920103";Componentes Eletrônicos;Transistores e MOSFETs;;I_trans;"";"";;100
 920104;"Mosfet IRFZ44N TO-220 *920104";Componentes Eletrônicos;Transistores e MOSFETs;;I_trans;"";"";;30
@@ -1184,12 +1184,12 @@
 940104;"PLACA FENOLITE PERFURADA 7X9CM PARA PROTOTIPAGEM";Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";3.20;2
 940105;"PROTOBOARD 400 FUROS PONTOS MB102 PROTOTIPAGEM";Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";8.90;5
 940106;"PLACA DE FENOLITE VIRGEM 10X10MM FACE SIMPLES";Prototipagem;Protoboards e Placas Fenolite;;K_proto;"";"Prototipagem";4.80;8
-940301;"PLAQUETA DE IDENTIFICAÇÃO PARA BOTÃO 22MM PLÁSTICO";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"Geral";1.20;0
-940302;"Placa de identificação Botoeira de emergência *940302";Automação Industrial;Chaves e Botoeiras;;E_bot;"";"";9.90;0
-940401;"SINALIZADOR LUMINOSO LED VERDE 24V 22MM PARA PAINEL";Automação Industrial;Sinalizadores;;E_sinal;"";"Leds e Lampadas";10.90;7
-940402;"SINALIZADOR LUMINOSO LED AZUL 24V 22MM PARA PAINEL";Automação Industrial;Sinalizadores;;E_sinal;"";"Leds e Lampadas";10.90;23
-940403;"SINALIZADOR LUMINOSO LED VERMELHO 24V 22MM PARA PAINEL";Automação Industrial;Sinalizadores;;E_sinal;"";"Leds e Lampadas";10.90;18
-940404;"SINALIZADOR LUMINOSO LED AMARELO 24V 22MM PARA PAINEL";Automação Industrial;Sinalizadores;;E_sinal;"";"Leds e Lampadas";10.90;16
+940301;"PLAQUETA DE IDENTIFICAÇÃO PARA BOTÃO 22MM PLÁSTICO";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Geral";1.20;0
+940302;"Placa de identificação Botoeira de emergência *940302";Automação Industrial;Componentes Elétricos;;E_eletr;"";"";9.90;0
+940401;"SINALIZADOR LUMINOSO LED VERDE 24V 22MM PARA PAINEL";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Leds e Lampadas";10.90;7
+940402;"SINALIZADOR LUMINOSO LED AZUL 24V 22MM PARA PAINEL";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Leds e Lampadas";10.90;23
+940403;"SINALIZADOR LUMINOSO LED VERMELHO 24V 22MM PARA PAINEL";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Leds e Lampadas";10.90;18
+940404;"SINALIZADOR LUMINOSO LED AMARELO 24V 22MM PARA PAINEL";Automação Industrial;Componentes Elétricos;;E_eletr;"";"Leds e Lampadas";10.90;16
 940501;"ELETROÍMÃ SOLENÓIDE 24VDC 5KG 50N";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"Eletroímas";64.00;0
 940502;"ELETROÍMÃ SOLENÓIDE 24VDC 3KG 30N";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"Eletroímas";26.30;18
 940503;"ELETROÍMÃ SOLENÓIDE 24VDC 10KG 100N";Módulos e Sensores;Eletroímãs e Válvulas Solenoide;;B_ima;"";"Eletroímas";95.00;1

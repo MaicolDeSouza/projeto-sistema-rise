@@ -75,9 +75,7 @@
 7;Automação Industrial;T_automacao;4;Inversores de Frequência;E_inv;propria;1;0;04 - Inversores de Frequência
 7;Automação Industrial;T_automacao;5;Sensores Industriais;E_sens;propria;6;0;05 - Sensores Industriais
 7;Automação Industrial;T_automacao;6;Encoders;E_enc;propria;5;0;06 - Encoders
-7;Automação Industrial;T_automacao;7;Chaves e Botoeiras;E_bot;propria;21;0;07 - Chaves e Botoeiras
-7;Automação Industrial;T_automacao;8;Sinalizadores;E_sinal;propria;4;0;08 - Sinalizadores
-7;Automação Industrial;T_automacao;9;Componentes Elétricos;E_eletr;propria;44;0;09 - Componentes Elétricos
+7;Automação Industrial;T_automacao;7;Componentes Elétricos;E_eletr;propria;69;0;07 - Componentes Elétricos
 8;Motores;T_motores;0;;;topo;0;0;Motores
 8;Motores;T_motores;1;Motores de Passo;G_passo;propria;18;0;01 - Motores de Passo
 8;Motores;T_motores;2;Easy Servo;G_easy;propria;5;0;02 - Easy Servo

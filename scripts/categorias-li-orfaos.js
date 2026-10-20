@@ -49,7 +49,8 @@ const DESTINOS = {
   "930218": ["Fios e Cabos > Cabos USB", "Fios e Cabos > Cabos HDMI"],
   "930604": ["Fios e Cabos > Cabos USB"],
   "121401": ["Automação Industrial > Encoders"],
-  "910602": ["Automação Industrial > Chaves e Botoeiras"],
+  // Chaves e Botoeiras virou parte de Componentes Elétricos em 20/10/2026 (pedido do dono).
+  "910602": ["Automação Industrial > Componentes Elétricos"],
   "120126": ["Motores > Drivers e Controladores", "CNC / Laser / 3D > Motores e Drivers"],
   "120330": ["CNC / Laser / 3D > Fusos e Castanhas"],
   "121032": ["CNC / Laser / 3D > Fusos e Castanhas"],
@@ -66,7 +67,10 @@ const DESTINOS = {
   "999906": [],
   "999907": [],
 };
-const SKUS = Object.keys(DESTINOS);
+// `--so=910602,121401` restringe a rodada a esses SKUs (a lista inteira reescreveria produtos ja certos).
+const soEstes = (process.argv.find((a) => a.startsWith("--so=")) ?? "").replace("--so=", "").split(",").map((s) => s.trim()).filter(Boolean);
+for (const sku of soEstes) if (!(sku in DESTINOS)) throw new Error(`--so: SKU ${sku} nao esta na lista de DESTINOS`);
+const SKUS = soEstes.length ? soEstes : Object.keys(DESTINOS);
 
 const idDaUri = (uri) => String(uri ?? "").split("/").filter(Boolean).at(-1) ?? null;
 const semNumero = (nome) => String(nome ?? "").replace(/^\d{2} - /, "");
