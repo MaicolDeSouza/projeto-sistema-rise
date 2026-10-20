@@ -52,6 +52,12 @@ const { tirarFotoMensal } = await import("../src/lib/coleta/fotos.js");
 const { limparTemporariosAntigos } = await import("../src/lib/arquivos.js");
 const { servidorEhWindows } = await import("../src/lib/copiaLocal.js");
 const { rodarSincronizacaoDeEstoque } = await import("../src/lib/riseAi/estoqueAutomatico.js");
+const { conferirRotinaSemanal } = await import("../src/lib/relatorios/rotina.js");
+
+/// A rodada semanal (todo sabado 00:00, horario de Sao Paulo) e o relatorio dela: conferida a cada minuto, o que e barato
+/// (uma consulta). `RELATORIO_SEMANAL=false` desliga. So o worker normal, o da VPS.
+const CONFERE_ROTINA_SEMANAL_MS = 60 * 1000;
+let rotinaSemanalConferidaEm = 0;
 
 /// De quanto em quanto tempo se confere se a foto mensal e devida. A foto e uma por
 /// mes, entao a conferencia e barata; a hora so evita consultar o banco a cada volta.
@@ -446,6 +452,14 @@ async function laco() {
         if (foto.tirou) {
           log(`foto mensal ${foto.mes}: ${foto.coleta} produto(s) de fornecedor/concorrente, ${foto.produtos} da loja`);
         }
+      }
+      // A rodada semanal e o relatorio. A abertura respeita a pausa da coleta (pausar nao pode ser desfeito por um relogio);
+      // gerar o PDF de uma rodada ja aberta nao.
+      if (!FONTES && !SO_NO_PC && process.env.RELATORIO_SEMANAL !== "false" && Date.now() - rotinaSemanalConferidaEm >= CONFERE_ROTINA_SEMANAL_MS) {
+        rotinaSemanalConferidaEm = Date.now();
+        const rotina = await conferirRotinaSemanal({ pausada: coletaPausada() });
+        if (rotina.abertura?.aberta) log(`rodada semanal ${rotina.abertura.semana}: ${rotina.abertura.enfileiradas} de ${rotina.abertura.fontes} fonte(s) na fila`);
+        for (const fechada of rotina.fechadas ?? []) log(`relatório semanal ${fechada.semana}: ${fechada.ok ? "gerado" : `falhou (${fechada.erro})`}`);
       }
       // Os temporarios do cadastro de produto (fora do `coletaPausada`, como a foto). So o worker normal: o de teste e o do PC
       // nao mexem na pasta de dados do site.

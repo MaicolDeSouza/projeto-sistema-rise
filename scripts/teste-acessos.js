@@ -698,7 +698,6 @@ try {
       "src/app/produtos/acoes-li.js",
       "src/app/produtos/acoes-nanobanana.js",
       "src/app/produtos/page.jsx",
-      "src/app/relatorios/page.jsx",
     ];
     conferir("o guarda olha todas as paginas, layouts, rotas e acoes de src/app", alvos.length >= 60, true);
     conferir(

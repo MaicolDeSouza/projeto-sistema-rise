@@ -1323,6 +1323,25 @@ model ProdutoConcorrente {
 }
 
 /// Fila de trabalho processada pelo worker (publicacao, sincronizacao).
+/// Relatorio semanal da coleta (20/10/2026): a rodada de todo sabado 00:00 (America/Sao_Paulo) e o que ela achou.
+/// `semana` e o sabado da rodada ("2026-10-24"), unico: uma rodada por semana (a manual vai como "manual-<hora>").
+/// COLETANDO enquanto as varreduras da rodada correm; PRONTO quando o PDF foi gerado; ERRO se a geracao falhou.
+model RelatorioSemanal {
+  id       String    @id @default(cuid())
+  semana   String    @unique
+  status   String
+  inicioEm DateTime
+  fimEm    DateTime?
+  /// As fontes que a rodada enfileirou: [{id, nome}].
+  fontes   Json
+  /// Os numeros do relatorio (lojas com erro, produtos novos, ...), para a lista da tela.
+  resumo   Json?
+  /// O PDF pronto (algumas dezenas de KB; entra no backup do banco junto).
+  pdf      Bytes?
+  erro     String?
+  criadoEm DateTime  @default(now())
+}
+
 model Job {
   id      String    @id @default(cuid())
   tipo    String

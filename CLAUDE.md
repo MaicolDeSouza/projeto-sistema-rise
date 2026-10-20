@@ -199,7 +199,8 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
 | Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. Ver "Servidor MCP (20/10/2026)" e "Rise AI (Entrega 1)" |
 | Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. Ver "Acessos (lançamento 1)" |
-| Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
+| Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
+| Pedidos, Estoque, Financeiro | Esqueleto |
 
 **A publicação nunca foi ligada.** `ML_PUBLICACAO`, `BLING_ESCRITA` e `LI_ESCRITA` estão em `false`, e
 `exigirTravaLiberada` em `src/lib/integracoes/config.js` barra todo `POST`/`PUT` antes da
@@ -4029,6 +4030,16 @@ segue na lista de exceções). Regra única em `src/lib/acessos/produto.js` (`ac
 - Conferido na tela com login simulado (`RISE_SIMULAR_LOGIN`, usuário e função de teste apagados depois): só leitura (sem
   Salvar, olho funcionando, abas desabilitadas) e "edita sem custo nem concorrentes" (sem lupa, "$", calculadora, Criar
   descrição; aba Fornecedores só com o estoque).
+
+## Relatório semanal da coleta (20/10/2026)
+
+Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com **erro de leitura por loja**, **produtos novos dos concorrentes com o link** e **os 10 mais vendidos** dos concorrentes que informam estoque, **em Relatórios e em PDF para baixar**. **Pronto e testado, SEM DEPLOY.**
+
+- **Gatilho:** o worker normal (o da VPS) chama `conferirRotinaSemanal` a cada minuto (`worker-processo.js`; `RELATORIO_SEMANAL=false` desliga). No sábado 00:00 de São Paulo (`rodadaDevida`, `src/lib/relatorios/semana.js`) ele abre a rodada (`RelatorioSemanal`, uma por semana: `semana` = o sábado, única; migration `20261020_relatorio_semanal`, só tabela nova) e enfileira as fontes **ativas, liberadas pelo robots e que a VPS alcança** (as marcadas "Varrer pelo PC" ficam de fora e saem no relatório como "só varrida pelo PC"). **Janela de 48 h:** worker desligado no sábado, a rodada sai na primeira volta até o fim do domingo; ligar o worker numa quarta **não** dispara varredura. Coleta pausada na tela: a rodada não abre (tirar a pausa no sábado ainda a abre).
+- **Fechamento:** sem varredura aberta das fontes da rodada (ou passadas 48 h, e então o PDF diz "a rodada não terminou"), `fecharRodadasProntas` gera o PDF (`pdfkit` 0.17.2, fonte Helvetica, em `serverExternalPackages`) e o guarda em `RelatorioSemanal.pdf` (bytes no banco, entra no backup). Uma rodada com a geração falha fica em ERRO com o motivo.
+- **Conteúdo** (`dados.js`, `pdf.js`): (1) **leitura das lojas**: o último job de cada fonte na rodada (concluído = "lida sem erro", falhou = a mensagem do erro, não terminou = aberta); (2) **produtos novos dos concorrentes**: criados desde o início da rodada, por loja, com código, preço normal e link (até 100 por loja; a loja cadastrada na rodada só aparece na lista de lojas novas); (3) **10 mais vendidos = ESTIMATIVA**: a queda do saldo (`quantidadeAnterior` para `quantidade`) que mudou na rodada, só dos concorrentes que informam quantidade; o PDF avisa que reposição na mesma semana faz a estimativa ficar abaixo do real.
+- **Tela:** `/relatorios` (recurso `tela.relatorios`: ver lista e baixar; editar = "Gerar agora") com a tabela das rodadas e o botão **Baixar**; "Gerar agora" monta o relatório dos **últimos 7 dias com o que já está no banco, sem varrer**. Download em `/api/relatorios/<id>/pdf` (403 sem acesso, `no-store`).
+- **Não visto:** a rodada de sábado de verdade (só o "Gerar agora" no PC e o PDF com dados simulados foram vistos), o PDF com centenas de produtos novos (paginação do pdfkit sem teste de volume) e o primeiro sábado na VPS.
 
 ## Decisões de arquitetura
 

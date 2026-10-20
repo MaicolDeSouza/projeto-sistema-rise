@@ -130,8 +130,8 @@ export const blocos = [
     href: "/relatorios",
     rotulo: "Relatórios",
     icone: PieChart,
-    resumo: "Indicadores e exportações",
-    pronto: false,
+    resumo: "Relatório semanal da coleta em PDF",
+    pronto: true,
   },
   {
     // Utilitarios que nao pertencem a um bloco de negocio. So icone e texto na

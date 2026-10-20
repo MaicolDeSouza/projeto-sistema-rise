@@ -49,7 +49,7 @@ const nextConfig = {
   // WASM gerado pelo wasm-pack que le o proprio `.wasm` do disco, relativo ao
   // arquivo. Empacotado, o caminho se perde. O `sharp` traz binario nativo
   // (libvips) e nao pode ser empacotado de jeito nenhum.
-  serverExternalPackages: ["pdf-parse", "@visioncortex/vtracer", "sharp"],
+  serverExternalPackages: ["pdf-parse", "pdfkit", "@visioncortex/vtracer", "sharp"],
 
   experimental: {
     serverActions: {

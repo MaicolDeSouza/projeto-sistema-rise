@@ -78,6 +78,22 @@ conferir("rotulo", [rotuloDoEndereco("https://loja.com.br/"), rotuloDoEndereco("
   conferir("patolastore: completa o item que casou e avisa o que ficou sem casar", [r.casados, brutos[0].desc, brutos[0].imagens.length, brutos[1].desc, r.avisos.length], [1, "Caixa PB-114", 1, "XX-1", 1]);
 }
 
+// Relatorio semanal: o sabado 00:00 de Sao Paulo, a janela de 48 h e a situacao de cada loja.
+{
+  const { rodadaDevida, ultimoSabado, proximoSabado, dataDaChave } = await import("../src/lib/relatorios/semana.js");
+  const { situacaoDaLoja } = await import("../src/lib/relatorios/dados.js");
+  // 24/10/2026 e sabado. 00:00 em Sao Paulo = 03:00 UTC.
+  conferir("semana: sabado 00:01 em SP ja e a rodada do dia", rodadaDevida(new Date("2026-10-24T03:01:00Z"))?.chave, "2026-10-24");
+  conferir("semana: sexta 23:59 em SP ainda nao e", rodadaDevida(new Date("2026-10-24T02:59:00Z")), null);
+  conferir("semana: domingo 23:00 em SP ainda esta na janela de recuperacao", rodadaDevida(new Date("2026-10-26T02:00:00Z"))?.chave, "2026-10-24");
+  conferir("semana: quarta nao dispara (ligar o worker no meio da semana nao varre tudo)", rodadaDevida(new Date("2026-10-28T15:00:00Z")), null);
+  conferir("semana: o sabado 00:00 e as 03:00 UTC; o ultimo sabado de uma quarta e o anterior", [ultimoSabado(new Date("2026-10-24T05:00:00Z")).inicio.toISOString(), ultimoSabado(new Date("2026-10-28T15:00:00Z")).chave], ["2026-10-24T03:00:00.000Z", "2026-10-24"]);
+  conferir("semana: proximo sabado", [proximoSabado(new Date("2026-10-20T15:00:00Z")).toISOString(), proximoSabado(new Date("2026-10-24T05:00:00Z")).toISOString()], ["2026-10-24T03:00:00.000Z", "2026-10-31T03:00:00.000Z"]);
+  conferir("semana: data da chave; a manual nao tem", [dataDaChave("2026-10-24"), dataDaChave("manual-123")], ["24/10/2026", null]);
+  conferir("loja: concluida e ok; falha traz o erro; aberta nao terminou", [situacaoDaLoja({ job: { status: "CONCLUIDO" }, fonte: {} }).situacao, situacaoDaLoja({ job: { status: "FALHOU", erro: "HTTP 503" }, fonte: {} }).texto, situacaoDaLoja({ job: { status: "PROCESSANDO" }, fonte: {} }).situacao], ["ok", "HTTP 503", "aberta"]);
+  conferir("loja: sem job, a do PC e a pulada se explicam", [situacaoDaLoja({ job: null, fonte: { varridaNoPc: true } }).situacao, situacaoDaLoja({ job: null, fonte: {} }).situacao], ["so-pc", "pulada"]);
+}
+
 // A listagem importa buscar.js sem extensao: precisa do resolvedor de alias do projeto.
 try {
   const { produtosDaListagem, paginasSeguintes, numeroDaPagina, dentroDaCategoria, doMaiorBloco } = await import("../src/lib/coleta/listagem.js");
