@@ -59,8 +59,11 @@ const ehSinalizada = (mensagem) => mensagem.avaliacao === -1 || Boolean(mensagem
  * `suspeita` vale mesmo na conversa sinalizada (os selos mostram os dois); a ORDEM é que põe a sinalizada na frente.
  * `suspeitas` diz por quê: "sem_resultado", "limite_de_ferramentas", "erro" e/ou "reserva".
  *
- * @returns {Promise<{ id: string, titulo: string, usuario: string, horaInicio: string, respostas: number, modelos: string[],
- *   custoBrl: number, sinalizada: boolean, suspeita: boolean, suspeitas: string[], revisadaEm: string | null }[]>}
+ * `canal` diz de onde veio a conversa: "CHAT" (o chat interno, até 20/10/2026) ou "MCP" (as dúvidas que o Claude ou o
+ * ChatGPT anotaram pelo `anotarDuvida`); no MCP, `cliente` é o nome do cliente ("Claude"), que a resposta guarda em `modelo`.
+ *
+ * @returns {Promise<{ id: string, titulo: string, usuario: string, canal: "CHAT" | "MCP", cliente: string | null, horaInicio: string,
+ *   respostas: number, modelos: string[], custoBrl: number, sinalizada: boolean, suspeita: boolean, suspeitas: string[], revisadaEm: string | null }[]>}
  */
 export async function conversasDoDia(dia, { administrador = false } = {}) {
   exigirAdministrador(administrador);
@@ -89,6 +92,8 @@ export async function conversasDoDia(dia, { administrador = false } = {}) {
       id: conversa.id,
       titulo: conversa.titulo,
       usuario: conversa.usuario,
+      canal: conversa.canal,
+      cliente: conversa.canal === "MCP" ? (respostas.find((mensagem) => mensagem.modelo)?.modelo ?? null) : null,
       horaInicio: horaDeSaoPaulo(conversa.mensagens[0].criadoEm),
       respostas: respostas.length,
       modelos,

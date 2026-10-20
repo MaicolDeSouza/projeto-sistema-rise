@@ -1,4 +1,4 @@
-import { custoEmTexto, duracaoEmTexto, ehLocal, rotuloDoProvedor } from "./formatos";
+import { PROVEDOR_DO_MCP, custoEmTexto, duracaoEmTexto, ehLocal, rotuloDoProvedor } from "./formatos";
 
 const numero = (valor) => Number(valor).toLocaleString("pt-BR");
 const comoData = (dia) => dia.split("-").reverse().join("/");
@@ -33,7 +33,9 @@ function Outros({ gasto }) {
   );
 }
 
-function Custo({ custoBrl, custoUsd, semCusto, respostas, local }) {
+function Custo({ custoBrl, custoUsd, semCusto, respostas, local, contaPropria }) {
+  // As dúvidas anotadas pelo Claude/ChatGPT foram respondidas na conta da pessoa: zero para o Rise, mas não "no seu PC".
+  if (contaPropria) return <span className="text-suave">conta própria</span>;
   if (local) return <span className="text-suave">no seu PC</span>;
   // Nenhuma resposta da linha tem preço: "R$ 0,00" diria que não custou nada, e o que falta é o preço do modelo.
   if (semCusto > 0 && semCusto >= respostas) return <span className="text-amber-700">preço não cadastrado</span>;
@@ -100,7 +102,7 @@ export default function TabelaDeConsumo({ linhas, totais }) {
                     <span className="block text-suave">{numero(linha.tokensSaida)}</span>
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
-                    <Custo custoBrl={linha.custoBrl} custoUsd={linha.custoUsd} semCusto={linha.semCusto} respostas={linha.respostas} local={ehLocal(linha.provedor)} />
+                    <Custo custoBrl={linha.custoBrl} custoUsd={linha.custoUsd} semCusto={linha.semCusto} respostas={linha.respostas} local={ehLocal(linha.provedor)} contaPropria={linha.provedor === PROVEDOR_DO_MCP} />
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                     <Outros gasto={linha.outros} />

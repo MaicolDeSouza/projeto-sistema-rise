@@ -58,7 +58,13 @@ const MOTIVOS = {
 };
 export const rotuloDoMotivo = (motivo) => MOTIVOS[motivo] ?? "o modelo padrão falhou";
 
-export const rotuloDoProvedor = (id) => provedorPorId(id)?.rotulo ?? id ?? "";
+/**
+ * As respostas que o Claude ou o ChatGPT anotaram pelo MCP (`anotarDuvida`) ficam com o provedor "mcp": foram escritas na
+ * conta da própria pessoa, e o Rise não pagou nada por elas.
+ */
+export const PROVEDOR_DO_MCP = "mcp";
 
-/** Modelo local (no PC do dono) custa zero e ganha o selo verde; o de API, o azul. */
-export const ehLocal = (id) => provedorPorId(id)?.local === true;
+export const rotuloDoProvedor = (id) => (id === PROVEDOR_DO_MCP ? "conta própria" : (provedorPorId(id)?.rotulo ?? id ?? ""));
+
+/** Modelo local (no PC do dono) e a conta própria do MCP custam zero e ganham o selo verde; o de API, o azul. */
+export const ehLocal = (id) => id === PROVEDOR_DO_MCP || provedorPorId(id)?.local === true;

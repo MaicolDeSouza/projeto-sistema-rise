@@ -912,6 +912,32 @@ try {
     conferir("desconectar de novo a mesma e recusado", await codigoDoErro(desconectar(lista[0].familia, login, { agora })), "Conexão não encontrada.");
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 13 — A Revisao do dia com as duvidas anotadas pelo Claude/ChatGPT
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nRevisão do dia");
+    const { anotarDuvida } = await import("../src/lib/mcp/anotacoes.js");
+    const { conversasDoDia, resumoDoDia } = await import("../src/lib/riseAi/revisao.js");
+    const { hojeEmSaoPaulo } = await import("../src/lib/ferramentas/cotacao.js");
+    const { ehLocal, rotuloDoProvedor } = await import("../src/components/riseAi/formatos.js");
+    const login = "zz-mcp-revisao";
+    await anotarDuvida({ login, clienteNome: "Claude", pergunta: "O sensor HC-SR04 funciona em 3,3 V?", resposta: "Não: ele pede 5 V.", anexos: [{ nome: "lista.txt", texto: "HC-SR04 x2" }] });
+    const hoje = hojeEmSaoPaulo();
+    const item = (await conversasDoDia(hoje, { administrador: true })).find((conversa) => conversa.usuario === login);
+    conferir(
+      "a conversa do MCP aparece na Revisao com o canal, o cliente, o modelo e custo zero",
+      [item?.canal, item?.cliente, item?.modelos, item?.custoBrl, item?.suspeita, item?.respostas],
+      ["MCP", "Claude", ["mcp/Claude"], 0, false, 1],
+    );
+    const resposta = await prisma.mensagemIA.findFirst({ where: { conversa: { usuario: login }, papel: "ASSISTENTE" } });
+    conferir("a resposta do MCP tem custo 0 (e nao nulo: nao conta como 'sem preco' no orcamento)", Number(resposta?.custoBrl), 0);
+    conferir("o resumo do dia conta a resposta em mcp/Claude", ((await resumoDoDia(hoje)).respostasPorModelo["mcp/Claude"] ?? 0) >= 1, true);
+    conferir("o selo da resposta: conta propria, verde (custo zero)", [rotuloDoProvedor("mcp"), ehLocal("mcp"), rotuloDoProvedor("anthropic"), ehLocal("anthropic")], ["conta própria", true, "Anthropic", false]);
+    const conversaDoChat = (await conversasDoDia(hoje, { administrador: true })).find((conversa) => conversa.canal === "CHAT");
+    conferir("conversa do chat antigo (se houver hoje) fica sem cliente", conversaDoChat ? conversaDoChat.cliente : null, null);
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;

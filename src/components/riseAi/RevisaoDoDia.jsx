@@ -23,10 +23,16 @@ const rotuloDoModelo = (chave) => {
   return `${rotuloDoProvedor(provedor)} · ${resto.join("/")}`;
 };
 
+const SELO = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs";
+
+/** De onde veio a dúvida: só as do MCP têm (o chat interno saiu em 20/10/2026). */
+const SeloDoCliente = ({ cliente }) => (cliente ? <span className={`${SELO} bg-violet-100 text-violet-800`}>pelo {cliente}</span> : null);
+
 function Selos({ conversa }) {
-  const selo = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs";
+  const selo = SELO;
   return (
     <div className="flex flex-wrap gap-1">
+      <SeloDoCliente cliente={conversa.cliente} />
       {conversa.sinalizada && (
         <span className={`${selo} bg-red-100 text-red-800`}>
           <ThumbsDown size={11} /> sinalizada
@@ -59,7 +65,9 @@ function LeituraDaConversa({ leitura, resumo, aoMarcar, marcando }) {
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-borda px-4 py-2.5">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold">{leitura.conversa.titulo}</h2>
-          <p className="text-xs text-suave">de {leitura.conversa.usuario}</p>
+          <p className="flex items-center gap-1.5 text-xs text-suave">
+            de {leitura.conversa.usuario} <SeloDoCliente cliente={resumo?.cliente} />
+          </p>
         </div>
         <button
           type="button"
@@ -73,8 +81,17 @@ function LeituraDaConversa({ leitura, resumo, aoMarcar, marcando }) {
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
         {leitura.mensagens.map((mensagem) =>
           mensagem.papel === "USUARIO" ? (
-            <div key={mensagem.id} className="max-w-[85%] self-end rounded-lg bg-acento/10 px-4 py-2.5 text-sm whitespace-pre-line">
-              {mensagem.conteudo}
+            <div key={mensagem.id} className="flex max-w-[85%] flex-col gap-2 self-end rounded-lg bg-acento/10 px-4 py-2.5 text-sm">
+              <span className="whitespace-pre-line">{mensagem.conteudo}</span>
+              {/* Os arquivos que a pessoa mandou ao Claude/ChatGPT chegam só como o texto que o modelo extraiu (decisão B do dono). */}
+              {(mensagem.estruturado?.anexos ?? []).map((anexo, indice) => (
+                <details key={indice} className="rounded-md border border-borda bg-superficie px-3 text-xs">
+                  <summary className="-mx-3 cursor-pointer rounded-md px-3 py-2 select-none focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none focus-visible:ring-inset">
+                    📎 {anexo.nome} · {Number(anexo.caracteres ?? anexo.texto?.length ?? 0).toLocaleString("pt-BR")} caracteres
+                  </summary>
+                  <pre className="max-h-60 overflow-y-auto pb-2 font-sans leading-relaxed whitespace-pre-wrap">{anexo.texto}</pre>
+                </details>
+              ))}
             </div>
           ) : (
             <MensagemDaIA key={mensagem.id} mensagem={mensagem}>
