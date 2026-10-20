@@ -614,8 +614,12 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
           </select>
         </label>
 
+        <div>
         <label>
-          <span className="mb-1 block text-xs text-suave">URL</span>
+          <span className="mb-1 block text-xs text-suave">
+            URL
+            {!ehPortal && <BolhaDeAjuda variante="inline" texto="Cole o endereço da categoria como você a abre no navegador (ex.: loja.com.br/gabinetes). Cada endereço rende três produtos no teste e é varrido na coleta; um produto que está em duas categorias entra uma vez." />}
+          </span>
           <input
             type="url"
             value={url}
@@ -624,8 +628,44 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
             className={CAMPO}
           />
         </label>
+        {!ehPortal && (
+        <div className="mt-2 grid gap-2">
+          {extras.map((valor, indice) => (
+            <div key={indice} className="flex items-center gap-1.5">
+              <input
+                type="url"
+                value={valor}
+                onChange={(evento) => mudarExtra(indice, evento.target.value)}
+                placeholder="https://site-do-fornecedor.com.br/outra-categoria"
+                className={CAMPO}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setExtras((atuais) => atuais.filter((_, i) => i !== indice));
+                  setTeste(null);
+                }}
+                aria-label="Tirar este endereço"
+                title="Tirar este endereço"
+                className="rounded p-1.5 text-suave hover:bg-fundo hover:text-texto"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => setExtras((atuais) => [...atuais, ""])}
+            className="inline-flex w-fit items-center gap-1 text-xs text-acento hover:underline"
+          >
+            <Plus size={12} />
+            adicionar outra URL
+          </button>
+        </div>
+        )}
+        </div>
 
-        {ehPortal ? (
+        {ehPortal && (
           <div className="grid gap-3">
             <label>
               <span className="mb-1 block text-xs text-suave">E-mail do portal</span>
@@ -659,47 +699,6 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
               adiciona depois, em Categorias, na linha da fonte. O login fica cifrado.
             </span>
           </div>
-        ) : (
-        <div className="grid content-start gap-2">
-          <span className="block text-xs text-suave">
-            Mais endereços da mesma loja <span className="text-suave">(opcional)</span>
-            <BolhaDeAjuda
-              variante="inline"
-              texto="Cole o endereço da categoria como você a abre no navegador (ex.: loja.com.br/gabinetes). Cada endereço rende três produtos no teste e é varrido na coleta; um produto que está em duas categorias entra uma vez."
-            />
-          </span>
-          {extras.map((valor, indice) => (
-            <div key={indice} className="flex items-center gap-1.5">
-              <input
-                type="url"
-                value={valor}
-                onChange={(evento) => mudarExtra(indice, evento.target.value)}
-                placeholder="https://site-do-fornecedor.com.br/outra-categoria"
-                className={CAMPO}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setExtras((atuais) => atuais.filter((_, i) => i !== indice));
-                  setTeste(null);
-                }}
-                aria-label="Tirar este endereço"
-                title="Tirar este endereço"
-                className="rounded p-1.5 text-suave hover:bg-fundo hover:text-texto"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => setExtras((atuais) => [...atuais, ""])}
-            className="inline-flex w-fit items-center gap-1 text-xs text-acento hover:underline"
-          >
-            <Plus size={12} />
-            adicionar outra URL
-          </button>
-        </div>
         )}
       </div>
 
