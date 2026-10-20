@@ -248,6 +248,7 @@ npm run teste:composicao          # 136 asserções do produto com composição 
 npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 623 asserções do Rise AI (Entrega 1 e A1): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
 npm run teste:acessos             # 139 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição e o guarda estático de src/app. Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
+npm run teste:proposta            # 137 asserções da proposta automática de produto: regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
 npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio
@@ -4712,7 +4713,24 @@ a Bling, Mercado Livre ou Loja Integrada.
   até o dono aplicar e salvar; o **Conferido** é a aprovação e apaga a proposta. Regras puras em `src/lib/proposta/`
   (`regras.js`: preço por margem com a posição, medidas com a Usinainfo primeiro, NCM com a Fortek primeiro, origem fiscal;
   `plano.js`: validação; `aplicadas.js`: o que ainda não foi aplicado; `banco.js`: gravação). Teste `npm run teste:proposta`.
-  **Parte 1 (banco + script) pronta em 20/10/2026, sem deploy**; a tela e o Conferido são a Parte 2.
+  **Pronta em 20/10/2026 (as 10 tarefas do plano), SEM deploy.** Ensaio no `100103-teste` do banco do PC.
+  - **Tela (cadastro do produto):** quadro **"Proposta"** no topo (`QuadroDaProposta.jsx`, só com proposta), uma linha
+    por seção com estado (pendente, falta salvar, aplicada), "Ver" (janela com opções, lojas, links, descartados) e a
+    ação principal **"Aplicar escolhidos ao formulário"** (`camposDoFormularioDaProposta` em `aplicar.js`), que só
+    preenche os campos; o **Salvar** grava e marca as seções aplicadas (campo oculto `propostaAplicada` →
+    `marcarSecoesAplicadas`, assinatura do produto GRAVADO: mexer no campo depois volta a pendente). As 3 opções de
+    título entram na lista "Escolher o título" (bloco "Da proposta", tag IA, recomendada).
+  - **Fotos (aba Imagens):** botão **"Proposta (N)"** ao lado de "Reserva" abre `FotosDaProposta.jsx` (candidatas com
+    check e ordem); **"Aplicar fotos"** traz as baixadas para o lote validadas (`trazerFotosDaProposta`, em
+    `acoes-imagens.js`) e monta a lista (`fotosDoPainelComAProposta`): escolhidas primeiro, na ordem; as **fotos atuais
+    que saem levam `paraReserva`** e o Salvar as desce para a **reserva** (`reconciliarImagensDoProduto`), nunca apaga.
+  - **Conferido (`ConferidoProduto.jsx` → `alternarConferido` → `conferirComProposta`, `conferir.js`):** com seção
+    não aplicada, devolve `pendentes` e a janela pergunta **"Há N itens da proposta não aplicados"** (Voltar /
+    Conferir e apagar); sem pendência, confere direto. Conferir apaga a linha e a pasta `proposta/`.
+  - **"Tem o que aplicar?" é uma regra só** (`temOQueAplicar`): EAN vazio, preço sem opção e campos vazios não ficam
+    pendentes (o Conferido não pergunta por seção impossível de aplicar). Fotos sempre conta.
+  - **O ESLint não acusa variável inexistente** (sem `no-undef`): edição de tela barrada pelo GateGuard no meio de um
+    lote deixa função faltando e o lint passa. Conferir na tela, sempre.
 - **Conferido em 14/10/2026:** `ler 100103` e `clonar 100103 100103-teste` na VPS (24 campos, 5 fotos, 3 documentos, 2
   fornecedores, 13 concorrentes; original intacto, cópia com todos os arquivos no disco). **A cópia `100103-teste` fica
   na VPS até o dono apagar** (menu do produto).
