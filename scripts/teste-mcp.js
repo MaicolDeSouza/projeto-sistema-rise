@@ -358,6 +358,102 @@ try {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Tarefa 4 — Clientes, codigos e tokens no banco (so hash), com rotacao e revogacao por familia
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nOAuth no banco");
+    const banco = await import("../src/lib/mcp/oauthBanco.js");
+    const { hashDoSegredo } = await import("../src/lib/mcp/oauth.js");
+    const login = "zz-mcp-andrea";
+    const verificador = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+    const desafio = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+    const retorno = "https://claude.ai/api/mcp/auth_callback";
+    const recurso = "https://rise.teste/mcp";
+    const agora = Date.now();
+
+    const registrado = await banco.registrarCliente({ nome: "ZZ-MCP Claude", redirectUris: [retorno] });
+    conferir("registrar e carregar o cliente", await banco.carregarCliente(registrado.clientId), { id: registrado.clientId, nome: "ZZ-MCP Claude", redirectUris: [retorno] });
+    conferir("cliente inexistente ou id que nao e texto", [await banco.carregarCliente("nao-existe"), await banco.carregarCliente(undefined), await banco.carregarCliente({ id: 1 })], [null, null, null]);
+
+    const novoCodigo = () => banco.emitirCodigo({ clienteId: registrado.clientId, login, redirectUri: retorno, codeChallenge: desafio, resource: recurso, escopos: ["consultar"] }, { agora });
+    const trocar = (codigo, mudancas = {}, opcoes = { agora }) =>
+      banco.trocarCodigo({ codigo, clientId: registrado.clientId, redirectUri: retorno, codeVerifier: verificador, resource: recurso, ...mudancas }, opcoes);
+
+    const codigo = await novoCodigo();
+    const guardado = await prisma.codigoMcp.findFirst({ where: { clienteId: registrado.clientId } });
+    conferir("o banco guarda so o hash do codigo", [guardado.hash === codigo, guardado.hash === hashDoSegredo(codigo), guardado.expiraEm.getTime() - agora], [false, true, 300000]);
+
+    const troca = await trocar(codigo);
+    conferir("troca boa devolve acesso e renovacao", [troca.ok, troca.tokens?.token_type, troca.tokens?.expires_in, troca.tokens?.scope, typeof troca.tokens?.access_token, typeof troca.tokens?.refresh_token], [true, "Bearer", 3600, "consultar", "string", "string"]);
+    conferir(
+      "o token vale e o banco nao tem o texto dele",
+      [(await banco.validarTokenDeAcesso(troca.tokens.access_token, { agora }))?.login, (await banco.validarTokenDeAcesso(troca.tokens.access_token, { agora }))?.clienteNome, await prisma.tokenMcp.count({ where: { OR: [{ hashAcesso: troca.tokens.access_token }, { hashRenovacao: troca.tokens.refresh_token }] } })],
+      [login, "ZZ-MCP Claude", 0],
+    );
+    conferir("acesso vence em 1 hora", await banco.validarTokenDeAcesso(troca.tokens.access_token, { agora: agora + 3601e3 }), null);
+
+    const reuso = await trocar(codigo);
+    conferir("codigo usado de novo: invalid_grant e o token da primeira troca cai", [reuso.erro, await banco.validarTokenDeAcesso(troca.tokens.access_token, { agora })], ["invalid_grant", null]);
+
+    const recusas = [
+      await trocar(await novoCodigo(), { codeVerifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXl" }),
+      await trocar(await novoCodigo(), { redirectUri: "http://localhost/callback" }),
+      await trocar(await novoCodigo(), { resource: "https://rise.teste/outro" }),
+      await trocar(await novoCodigo(), {}, { agora: agora + 6 * 60e3 }),
+      await trocar(await novoCodigo(), { clientId: "outro-cliente" }),
+      await trocar("codigo-que-nao-existe"),
+      await trocar(undefined),
+    ];
+    conferir(
+      "troca recusada: PKCE, retorno, recurso, codigo vencido, outro cliente, codigo inventado e sem codigo",
+      recusas.map((resultado) => [resultado.ok, resultado.erro]),
+      [[false, "invalid_grant"], [false, "invalid_grant"], [false, "invalid_grant"], [false, "invalid_grant"], [false, "invalid_grant"], [false, "invalid_grant"], [false, "invalid_request"]],
+    );
+    conferir("troca sem resource vale o do codigo", (await trocar(await novoCodigo(), { resource: undefined })).ok, true);
+
+    const primeiro = (await trocar(await novoCodigo())).tokens;
+    const renovado = await banco.renovarToken({ refreshToken: primeiro.refresh_token, clientId: registrado.clientId }, { agora });
+    conferir(
+      "renovacao gira o par: o antigo cai, o novo vale",
+      [renovado.ok, renovado.tokens.refresh_token !== primeiro.refresh_token, await banco.validarTokenDeAcesso(primeiro.access_token, { agora }), (await banco.validarTokenDeAcesso(renovado.tokens.access_token, { agora }))?.login],
+      [true, true, null, login],
+    );
+    const roubada = await banco.renovarToken({ refreshToken: primeiro.refresh_token, clientId: registrado.clientId }, { agora });
+    conferir("renovacao ja trocada usada de novo: invalid_grant e a familia inteira cai", [roubada.erro, await banco.validarTokenDeAcesso(renovado.tokens.access_token, { agora })], ["invalid_grant", null]);
+
+    const outro = (await trocar(await novoCodigo())).tokens;
+    conferir(
+      "renovacao recusada: outro cliente, vencida (31 dias), inventada e sem texto",
+      [
+        (await banco.renovarToken({ refreshToken: outro.refresh_token, clientId: "outro-cliente" }, { agora })).erro,
+        (await banco.renovarToken({ refreshToken: outro.refresh_token, clientId: registrado.clientId }, { agora: agora + 31 * 864e5 })).erro,
+        (await banco.renovarToken({ refreshToken: "inventada", clientId: registrado.clientId }, { agora })).erro,
+        (await banco.renovarToken({ refreshToken: undefined, clientId: registrado.clientId }, { agora })).erro,
+      ],
+      ["invalid_grant", "invalid_grant", "invalid_grant", "invalid_request"],
+    );
+    conferir("a renovacao recusada por outro cliente nao derruba a conexao", Boolean(await banco.validarTokenDeAcesso(outro.access_token, { agora })), true);
+
+    // Conexoes: so as familias vivas do login. Os blocos acima deixaram algumas vivas: revogar todas e montar duas do zero
+    // deixa a conta exata.
+    await prisma.tokenMcp.updateMany({ where: { login }, data: { revogadoEm: new Date(agora) } });
+    const familiaViva = (await trocar(await novoCodigo())).tokens;
+    const familiaRevogada = (await trocar(await novoCodigo())).tokens;
+    const doToken = async (token) => (await banco.validarTokenDeAcesso(token.access_token, { agora })).familia;
+    const revogar = await doToken(familiaRevogada);
+    conferir("desconectar uma conexao de outro login nao revoga nada", (await banco.revogarConexao(revogar, "zz-mcp-outra", { agora })).revogados, 0);
+    conferir("desconectar a propria conexao revoga a familia", (await banco.revogarConexao(revogar, login, { agora })).revogados, 1);
+    await banco.renovarToken({ refreshToken: familiaViva.refresh_token, clientId: registrado.clientId }, { agora: agora + 1000 });
+    const conexoes = await banco.listarConexoesDoLogin(login, { agora: agora + 2000 });
+    conferir(
+      "conexoes: so a viva, uma linha mesmo depois de renovar, com a data em que nasceu",
+      [conexoes.length, conexoes[0]?.familia === (await prisma.tokenMcp.findFirst({ where: { hashAcesso: hashDoSegredo(familiaViva.access_token) } }))?.familia, conexoes[0]?.clienteNome, conexoes[0]?.criadoEm instanceof Date],
+      [1, true, "ZZ-MCP Claude", true],
+    );
+    conferir("conexoes de quem nao tem nenhuma", await banco.listarConexoesDoLogin("zz-mcp-ninguem", { agora }), []);
+  }
+
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
 } catch (erro) {
   falhas++;
