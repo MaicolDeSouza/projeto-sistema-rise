@@ -1,0 +1,52 @@
+﻿topo;categoria;url_atual;url_sugerida;motivo
+Placas Embarcadas;01 - Placas Arduino;/placas-arduino-24473269;/placas-arduino;tem numero de id no fim
+(topo);Módulos e Sensores;/m-dulos-e-sensores;/modulos-e-sensores;acento virou hifen
+Módulos e Sensores;02 - Módulos Wireless e IoT;/m-dulos-wireless-e-iot;/modulos-wireless-e-iot;acento virou hifen
+Módulos e Sensores;03 - Antenas e Acessórios;/antenas-e-acess-rios;/antenas-e-acessorios;acento virou hifen
+Módulos e Sensores;04 - Módulos RTC e Memória;/m-dulos-rtc-e-mem-ria;/modulos-rtc-e-memoria;acento virou hifen
+Módulos e Sensores;05 - Módulos Relé e Acionamento;/m-dulos-rel--e-acionamento;/modulos-rele-e-acionamento;acento virou hifen
+Módulos e Sensores;10 - Sensores de Distância e Proximidade;/sensores-de-dist-ncia-e-proximidade;/sensores-de-distancia-e-proximidade;acento virou hifen
+Módulos e Sensores;11 - Sensores de Corrente e Tensão;/sensores-de-corrente-e-tens-o;/sensores-de-corrente-e-tensao;acento virou hifen
+Módulos e Sensores;12 - Sensores de Gás e Chama;/sensores-de-g-s-e-chama;/sensores-de-gas-e-chama;acento virou hifen
+Módulos e Sensores;14 - Sensores de Movimento e Vibração;/sensores-de-movimento-e-vibra-o;/sensores-de-movimento-e-vibracao;acento virou hifen
+Módulos e Sensores;15 - Sensores Magnéticos Reed e Hall;/sensores-magn-ticos-reed-e-hall;/sensores-magneticos-reed-e-hall;acento virou hifen
+Módulos e Sensores;16 - Sensores de Fluxo de Água;/sensores-de-fluxo-de--gua;/sensores-de-fluxo-de-agua;acento virou hifen
+Módulos e Sensores;17 - Sensores de Nível de Água;/sensores-de-n-vel-de--gua;/sensores-de-nivel-de-agua;acento virou hifen
+Módulos e Sensores;19 - Células de Carga;/c-lulas-de-carga;/celulas-de-carga;acento virou hifen
+Módulos e Sensores;20 - Transdutores Piezoelétricos;/transdutores-piezoel-tricos;/transdutores-piezoeletricos;acento virou hifen
+Módulos e Sensores;23 - Eletroímãs e Válvulas Solenoide;/eletro-m-s-e-v-lvulas-solenoide;/eletroimas-e-valvulas-solenoide;acento virou hifen
+Módulos e Sensores;25 - Imãs de Neodímio;/im-s-de-neod-mio;/imas-de-neodimio;acento virou hifen
+Displays e Telas;01 - Telas Gráficas TFT;/telas-gr-ficas-tft;/telas-graficas-tft;acento virou hifen
+(topo);Componentes Eletrônicos;/componentes-eletr-nicos;/componentes-eletronicos;acento virou hifen
+Componentes Eletrônicos;06 - Reguladores de Tensão;/reguladores-de-tens-o;/reguladores-de-tensao;acento virou hifen
+Componentes Eletrônicos;07 - Potenciômetros e Trimpots;/potenci-metros-e-trimpots;/potenciometros-e-trimpots;acento virou hifen
+Componentes Eletrônicos;12 - Buzzers, Alto-falantes e Áudio;/buzzers--alto-falantes-e--udio;/buzzers-alto-falantes-e-audio;acento virou hifen
+Componentes Eletrônicos;14 - Fusíveis;/fus-veis;/fusiveis;acento virou hifen
+Componentes Eletrônicos;17 - Terminais e Acessórios;/terminais-e-acess-rios;/terminais-e-acessorios;acento virou hifen
+Componentes Eletrônicos;18 - Espaçadores e Isoladores;/espa-adores-e-isoladores;/espacadores-e-isoladores;acento virou hifen
+Módulos e Sensores;08 - Módulos BMS para Bateria;/m-dulos-bms-para-bateria;/modulos-bms-para-bateria;acento virou hifen
+Fontes e Conversores;03 - Conversores DC-DC;/conversores-dc-dc-24473361;/conversores-dc-dc;tem numero de id; a url limpa JA existe em outra categoria
+Fontes e Conversores;04 - Baterias e Acessórios;/baterias-e-acess-rios;/baterias-e-acessorios;acento virou hifen
+Fontes e Conversores;05 - Painéis Solares;/pain-is-solares;/paineis-solares;acento virou hifen
+Fios e Cabos;01 - Fios e Cabos Elétricos;/fios-e-cabos-el-tricos;/fios-e-cabos-eletricos;acento virou hifen
+(topo);Automação Industrial;/automa-o-industrial;/automacao-industrial;acento virou hifen
+Automação Industrial;04 - Inversores de Frequência;/inversores-de-frequ-ncia;/inversores-de-frequencia;acento virou hifen
+Automação Industrial;07 - Componentes Elétricos;/componentes-el-tricos;/componentes-eletricos;acento virou hifen
+(topo);Motores;/motores-24473384;/motores;tem numero de id no fim
+(topo);CNC / Laser / 3D;/cnc--laser-e-impress-o-3d;/cnc-laser-3d;acento virou hifen
+CNC / Laser / 3D;16 - Peças para Laser CO2;/pe-as-para-laser-co2;/pecas-para-laser-co2;acento virou hifen
+CNC / Laser / 3D;06 - Correias;/correias-24473398;/correias;tem numero de id no fim
+CNC / Laser / 3D;09 - Perfis de Alumínio e Acessórios;/perfis-de-alum-nio-e-acess-rios;/perfis-de-aluminio-e-acessorios;acento virou hifen
+CNC / Laser / 3D;13 - Spindles;/spindles-24473404;/spindles;tem numero de id no fim
+CNC / Laser / 3D;14 - Fresas, Brocas e Pinças;/fresas--brocas-e-pin-as;/fresas-brocas-e-pincas;acento virou hifen
+CNC / Laser / 3D;15 - Módulos Laser de Diodo;/m-dulos-laser-de-diodo;/modulos-laser-de-diodo;acento virou hifen
+CNC / Laser / 3D;18 - Acessórios para Impressora 3D;/acess-rios-para-impressora-3d;/acessorios-para-impressora-3d;acento virou hifen
+CNC / Laser / 3D;19 - Parafusos, Porcas e Acessórios;/parafusos--porcas-e-acess-rios;/parafusos-porcas-e-acessorios;acento virou hifen
+CNC / Laser / 3D;20 - Máquinas;/m-quinas;/maquinas;acento virou hifen
+CNC / Laser / 3D;21 - Softwares;/softwares-24473411;/softwares;tem numero de id no fim
+(topo);Prototipagem;/ferramentas-e-prototipagem;/prototipagem;acento virou hifen
+Prototipagem;02 - Jumpers e Garras Jacaré;/jumpers-e-garras-jacar-;/jumpers-e-garras-jacare;acento virou hifen
+Prototipagem;04 - Instrumentos de Medição;/instrumentos-de-medi-o;/instrumentos-de-medicao;acento virou hifen
+Prototipagem;05 - Caixas Plásticas e Organizadores;/caixas-pl-sticas-e-organizadores;/caixas-plasticas-e-organizadores;acento virou hifen
+Prototipagem;06 - Termo Retrátil;/termo-retr-til;/termo-retratil;acento virou hifen
+Kits Educacionais;02 - Kits de Eletrônica e Robótica;/kits-de-eletr-nica-e-rob-tica;/kits-de-eletronica-e-robotica;acento virou hifen
