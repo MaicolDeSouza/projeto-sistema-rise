@@ -97,6 +97,45 @@ function conferir(nome, condicao) {
 }
 
 // ---------------------------------------------------------------------------
+// Aplicar ao formulario (puro): o que cada secao escolhida poe nos campos
+// ---------------------------------------------------------------------------
+{
+  const { camposDoFormularioDaProposta, SECOES_APLICAVEIS } = await import("../src/lib/proposta/aplicar.js");
+  const secoes = {
+    descricao: { texto: "PLACA\r\n\r\nTexto." },
+    titulos: { opcoes: ["OPCAO A", "OPCAO B", "OPCAO C"], recomendada: 1 },
+    campos: { marca: { valor: "GENÉRICA", origem: "x" }, garantiaMeses: { valor: 3, origem: "x" }, codigo: { valor: "250010", origem: "x" }, pesoKg: { valor: 0.007, origem: "x" } },
+    preco: { opcoes: [{ margem: 40, preco: 35 }, { margem: 50, preco: 42.96 }, { margem: 60, preco: 55.59 }], recomendada: { margem: 39, preco: 34.37 } },
+    ean: { escolhido: { valor: "7891234567895", origem: "x" }, descartados: [] },
+    fotos: { candidatas: [] },
+  };
+  const todas = { secoes: ["descricao", "titulos", "campos", "preco", "ean"] };
+  const comSku = camposDoFormularioDaProposta(secoes, todas, { sku: "100103" });
+  conferir("aplicar: sem escolha, o titulo e o recomendado", comSku.campos.tituloBase === "OPCAO B");
+  conferir("aplicar: a descricao entra", comSku.campos.descricaoBase === "PLACA\r\n\r\nTexto.");
+  conferir("aplicar: sem escolha, o preco e o recomendado", comSku.campos.precoVenda === 34.37);
+  conferir("aplicar: os campos com valor entram", comSku.campos.marca === "GENÉRICA" && comSku.campos.garantiaMeses === 3 && comSku.campos.pesoKg === 0.007);
+  conferir("aplicar: o EAN escolhido entra", comSku.campos.ean === "7891234567895");
+  conferir("aplicar: produto com SKU nao recebe o codigo", !("sku" in comSku.campos));
+  conferir("aplicar: devolve as secoes aplicadas", JSON.stringify(comSku.secoes) === JSON.stringify(todas.secoes));
+
+  const semSku = camposDoFormularioDaProposta(secoes, todas, { sku: "" });
+  conferir("aplicar: produto sem SKU recebe o codigo da proposta", semSku.campos.sku === "250010");
+
+  const escolhido = camposDoFormularioDaProposta(secoes, { secoes: ["titulos", "preco"], titulo: 2, preco: 50 }, { sku: "1" });
+  conferir("aplicar: o titulo escolhido vale", escolhido.campos.tituloBase === "OPCAO C");
+  conferir("aplicar: a margem escolhida vale", escolhido.campos.precoVenda === 42.96);
+  conferir("aplicar: secao nao marcada nao entra", !("descricaoBase" in escolhido.campos) && !("marca" in escolhido.campos));
+
+  const semRecomendada = camposDoFormularioDaProposta({ preco: { opcoes: secoes.preco.opcoes, recomendada: null } }, { secoes: ["preco"] }, { sku: "1" });
+  conferir("aplicar: sem recomendada e sem escolha, o preco nao muda", !("precoVenda" in semRecomendada.campos) && semRecomendada.secoes.length === 0);
+  const eanVazio = camposDoFormularioDaProposta({ ean: { escolhido: null, descartados: [] } }, { secoes: ["ean"] }, { sku: "1" });
+  conferir("aplicar: EAN vazio na proposta nao apaga o do produto", !("ean" in eanVazio.campos));
+  conferir("aplicar: fotos, documentos e relatorio nao sao aplicaveis aqui", !SECOES_APLICAVEIS.includes("fotos") && !SECOES_APLICAVEIS.includes("documentos"));
+  conferir("aplicar: secao ausente na proposta e ignorada", camposDoFormularioDaProposta({}, todas, { sku: "1" }).secoes.length === 0);
+}
+
+// ---------------------------------------------------------------------------
 // Banco: a tabela PropostaDeProduto (uma por produto, apagada junto com ele). Postgres local; so escreve ZZ-PROP-*.
 // ---------------------------------------------------------------------------
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
@@ -123,7 +162,7 @@ const { prisma } = await import("../src/lib/db.js");
 async function limpar() {
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PROP-" } } });
   const { rm } = await import("node:fs/promises");
-  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
+  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2", "ZZ-PROP-3"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -223,8 +262,11 @@ try {
     const proposta = await lerProposta("ZZ-PROP-1");
     const atual = { ...(await prisma.produto.findUnique({ where: { id: produto.id } })), fotos: [] };
     const pendentes = secoesNaoAplicadas(proposta, atual);
-    conferir("aplicadas: titulos, preco e fotos estao pendentes", ["titulos", "preco", "fotos"].every((s) => pendentes.includes(s)));
+    conferir("aplicadas: titulos e fotos estao pendentes", ["titulos", "fotos"].every((s) => pendentes.includes(s)));
+    conferir("aplicadas: preco sem opcao (sem custo) nao fica pendente", !pendentes.includes("preco"));
     conferir("aplicadas: documentos nunca fica pendente", !pendentes.includes("documentos"));
+    const semNadaAAplicar = { secoes: { ean: { escolhido: null, descartados: [] }, campos: {}, preco: { opcoes: [], recomendada: null, motivoSemRecomendada: "x" } }, aplicadas: {} };
+    conferir("aplicadas: EAN vazio, campos vazios e preco sem opcao nao ficam pendentes", secoesNaoAplicadas(semNadaAAplicar, atual).length === 0);
     const marcada = { ...proposta, aplicadas: { titulos: assinaturaDaSecao("titulos", atual) } };
     conferir("aplicadas: com a assinatura, titulos sai da lista", !secoesNaoAplicadas(marcada, atual).includes("titulos"));
     conferir("aplicadas: o produto mudou depois, titulos volta", secoesNaoAplicadas(marcada, { ...atual, tituloBase: "OUTRO" }).includes("titulos"));
@@ -237,6 +279,27 @@ try {
     await apagarProposta(produto.id, "ZZ-PROP-1");
     conferir("apagar: a proposta sumiu", (await lerProposta("ZZ-PROP-1")) === null);
     conferir("apagar: a pasta proposta/ sumiu", !existsSync("dados/produtos/ZZ-PROP-1/proposta"));
+  }
+
+  // Depois do Salvar: as secoes que o dono aplicou ficam marcadas com a assinatura do produto GRAVADO.
+  {
+    const { gravarProposta, lerProposta, marcarSecoesAplicadas, propostaParaFormulario } = await import("../src/lib/proposta/banco.js");
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-3", tituloBase: "TITULO ANTIGO" } });
+    await gravarProposta("ZZ-PROP-3", { secao: "titulos", conteudo: { opcoes: ["NOVO A", "NOVO B", "NOVO C"], recomendada: 0 } });
+    await gravarProposta("ZZ-PROP-3", { secao: "relatorio", conteudo: { texto: "ok" } });
+    let tela = await propostaParaFormulario(produto.id);
+    conferir("formulario: a proposta vem com as secoes", tela?.secoes?.titulos?.opcoes?.length === 3);
+    conferir("formulario: titulos vem como nao aplicada", tela.naoAplicadas.includes("titulos"));
+    await prisma.produto.update({ where: { id: produto.id }, data: { tituloBase: "NOVO A" } });
+    await marcarSecoesAplicadas(produto.id, ["titulos", "fotos", "inventada"]);
+    const marcada = await lerProposta("ZZ-PROP-3");
+    conferir("salvar: titulos ficou marcada", typeof marcada.aplicadas.titulos === "string");
+    conferir("salvar: secao que nao e aplicavel aqui nao e marcada", !("fotos" in marcada.aplicadas) && !("inventada" in marcada.aplicadas));
+    tela = await propostaParaFormulario(produto.id);
+    conferir("formulario: depois do Salvar, titulos sai das nao aplicadas", !tela.naoAplicadas.includes("titulos"));
+    await marcarSecoesAplicadas("id-que-nao-existe", ["titulos"]);
+    conferir("salvar: produto sem proposta nao da erro", true);
+    conferir("formulario: produto sem proposta devolve null", (await propostaParaFormulario("id-que-nao-existe")) === null);
   }
 
   // O script: `proposta --ler` e o `gravar` recusando produto com proposta aberta (roda o script de verdade, no PC).

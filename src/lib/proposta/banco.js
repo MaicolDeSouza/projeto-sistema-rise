@@ -2,10 +2,12 @@ import { randomUUID } from "node:crypto";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { apagarPastaDaProposta, caminhoDaProposta } from "@/lib/arquivos";
+import { apagarPastaDaProposta, caminhoDaProposta, urlDaProposta, urlDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 
+import { SECOES_APLICAVEIS } from "./aplicar";
+import { assinaturaDaSecao, secoesNaoAplicadas } from "./aplicadas";
 import { validarPlano } from "./plano";
 
 /**
@@ -108,6 +110,56 @@ export async function gravarProposta(sku, plano, { bytes = new Map() } = {}) {
 export async function lerProposta(sku) {
   const produto = await prisma.produto.findUnique({ where: { sku }, select: { id: true, sku: true, proposta: true } });
   return produto?.proposta ? { ...produto.proposta, sku: produto.sku } : null;
+}
+
+/** O produto gravado como `assinaturaDaSecao` o le: os campos e os nomes das fotos FOTO, na ordem. */
+async function produtoParaAssinatura(produtoId) {
+  const produto = await prisma.produto.findUnique({
+    where: { id: produtoId },
+    include: { arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" }, select: { arquivo: true } } },
+  });
+  return produto ? { ...produto, fotos: produto.arquivos.map((foto) => foto.arquivo) } : null;
+}
+
+/**
+ * A proposta como a tela do cadastro a recebe (so dados simples), com as secoes ainda nao aplicadas e o endereco de
+ * cada foto candidata e documento baixado. Sem proposta, null.
+ */
+export async function propostaParaFormulario(produtoId) {
+  const proposta = await prisma.propostaDeProduto.findUnique({ where: { produtoId: String(produtoId ?? "") } });
+  if (!proposta) return null;
+  const produto = await produtoParaAssinatura(proposta.produtoId);
+  if (!produto) return null;
+  const urls = {};
+  for (const candidata of proposta.secoes?.fotos?.candidatas ?? []) {
+    if (candidata.arquivo) urls[`foto:${candidata.id}`] = urlDaProposta(produto.sku, candidata.arquivo);
+    else if (candidata.fotoAtual) urls[`foto:${candidata.id}`] = urlDe(produto.sku, "IMAGEM", candidata.fotoAtual);
+  }
+  for (const item of proposta.secoes?.documentos?.itens ?? []) {
+    if (item.arquivo) urls[`documento:${item.id}`] = urlDaProposta(produto.sku, item.arquivo);
+  }
+  return {
+    secoes: proposta.secoes,
+    naoAplicadas: secoesNaoAplicadas(proposta, produto),
+    urls,
+    versaoDoRoteiro: proposta.versaoDoRoteiro,
+    atualizadaEm: proposta.atualizadaEm.toISOString(),
+  };
+}
+
+/**
+ * Depois do Salvar do cadastro: as secoes que o dono aplicou ao formulario ficam marcadas com a assinatura do produto
+ * GRAVADO (se ele mexer no campo depois, a secao volta a ficar pendente). Sem proposta, nao faz nada.
+ */
+export async function marcarSecoesAplicadas(produtoId, secoes) {
+  const validas = (secoes ?? []).filter((secao) => SECOES_APLICAVEIS.includes(secao));
+  if (validas.length === 0) return;
+  const proposta = await prisma.propostaDeProduto.findUnique({ where: { produtoId: String(produtoId ?? "") } });
+  if (!proposta) return;
+  const produto = await produtoParaAssinatura(proposta.produtoId);
+  const aplicadas = { ...(proposta.aplicadas ?? {}) };
+  for (const secao of validas) if (proposta.secoes?.[secao]) aplicadas[secao] = assinaturaDaSecao(secao, produto);
+  await prisma.propostaDeProduto.update({ where: { id: proposta.id }, data: { aplicadas } });
 }
 
 /** Apaga a proposta (linha e pasta proposta/). Sem proposta, nao faz nada. */

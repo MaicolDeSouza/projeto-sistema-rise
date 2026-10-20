@@ -58,6 +58,8 @@ import Fornecedores from "./Fornecedores";
 import JanelaDescricao from "./JanelaDescricao";
 import PainelDeImagens from "./PainelDeImagens";
 import BannerDeRascunho from "./BannerDeRascunho";
+import QuadroDaProposta from "./QuadroDaProposta";
+import { camposDoFormularioDaProposta } from "@/lib/proposta/aplicar";
 import { useRascunhoAutomatico } from "./useRascunhoAutomatico";
 import { chaveDoRascunho } from "@/lib/rascunhoDoCadastro";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
@@ -280,7 +282,8 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
   // `referencias` = as marcadas na lupa E os fornecedores/concorrentes salvos (pedido do dono em 06/10/2026:
   // os titulos aparecem sempre, sem precisar marcar na lupa).
   const quantas = referencias.length;
-  if (quantas === 0) return null;
+  const daProposta = ia.propostaTitulos;
+  if (quantas === 0 && !daProposta) return null;
 
   const emCurso = ia.gerando && ia.emCurso === "titulo";
   const opcoesDaIA = ia.opcoesTitulo;
@@ -328,6 +331,23 @@ function ListaDeTitulos({ ia, referencias, aoCriar, aoEscolher, usado }) {
               <X size={14} />
             </button>
           </div>
+
+          {daProposta && (
+            <>
+              <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppercase">Da proposta</p>
+              <ul className="mb-2 space-y-1">
+                {daProposta.opcoes.map((titulo, indice) => (
+                  <LinhaDeTitulo
+                    key={titulo}
+                    titulo={titulo}
+                    selo="IA"
+                    origem={indice === daProposta.recomendada ? "recomendada" : undefined}
+                    aoEscolher={escolher}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
 
           <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppercase">
             Das referências ({porTitulo.size})
@@ -1689,6 +1709,8 @@ export default function FormularioProduto({
   // gerados desde que a tela abriu), que o Salvar soma ao total. O clone nasce sem o do original.
   const [gastoSalvo, setGastoSalvo] = useState(produto?.gastoIA ?? null);
   const [gastoDaEdicao, setGastoDaEdicao] = useState(null);
+  // Secoes da proposta automatica aplicadas nesta edicao (vao no Salvar, que as marca como aplicadas).
+  const [propostaAplicada, setPropostaAplicada] = useState([]);
   const somarAoGastoDaEdicao = (gasto) => {
     if (gasto) setGastoDaEdicao((atual) => somarResumos(atual, gasto));
   };
@@ -2151,7 +2173,19 @@ export default function FormularioProduto({
     erro: erroIA,
     opcoesTitulo: opcoesTitulo?.opcoes ?? null,
     gastoTitulo,
+    // As 3 opcoes de titulo da proposta automatica (tag IA, com a recomendada), na lista "Escolher o titulo".
+    propostaTitulos: produto?.proposta?.secoes?.titulos ?? null,
   };
+
+  /** "Aplicar escolhidos ao formulario" do quadro Proposta: so preenche os campos; o Salvar grava. */
+  function aplicarProposta(escolhas) {
+    const { campos, secoes } = camposDoFormularioDaProposta(produto?.proposta?.secoes ?? {}, escolhas, {
+      sku: lerFormulario(formulario.current).sku,
+    });
+    if (secoes.length === 0) return;
+    aplicar(campos);
+    setPropostaAplicada((atual) => [...new Set([...atual, ...secoes])]);
+  }
 
   // O resultado e tratado dentro da propria acao, e nao num efeito: reagir a
   // mudanca de estado com setState dentro de useEffect provoca renderizacoes em
@@ -2913,6 +2947,7 @@ export default function FormularioProduto({
       />
       {/* Gasto com IA desta edicao (descricao e titulo): o Salvar soma ao total do produto (pedido do dono em 12/10/2026). */}
       <input type="hidden" name="gastoIA" value={gastoDaEdicao ? JSON.stringify(gastoDaEdicao) : ""} />
+      <input type="hidden" name="propostaAplicada" value={JSON.stringify(propostaAplicada)} />
 
       {/* ---------- Acoes no topo ---------- */}
       <div className="flex flex-wrap items-center gap-2">
@@ -3008,6 +3043,11 @@ export default function FormularioProduto({
           aoRecuperar={recuperarRascunho}
           aoDescartar={rascunho.descartar}
         />
+      )}
+
+      {/* Proposta automatica da sessao do Claude (spec 2026-10-16): so preenche o formulario; o Salvar grava. */}
+      {produto?.proposta && (
+        <QuadroDaProposta proposta={produto.proposta} aoAplicar={aplicarProposta} aplicadasNestaEdicao={propostaAplicada} />
       )}
 
       {erroAcao && (

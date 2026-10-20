@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { lerPecasDoKit, mudancasDosKits, pecaParaTela } from "@/lib/composicaoBanco";
+import { propostaParaFormulario } from "@/lib/proposta/banco";
 
 /**
  * O produto como o FormularioProduto o recebe, lido do banco. Mora aqui (e nao na pagina de edicao) porque
@@ -87,6 +88,9 @@ export async function carregarProdutoParaFormulario(id) {
     larguraCm: registro.larguraCm ? Number(registro.larguraCm) : "",
     comprimentoCm: registro.comprimentoCm ? Number(registro.comprimentoCm) : "",
     ativo: registro.ativo,
+    // A proposta automatica da sessao do Claude (spec 2026-10-16), ate o Conferido. So leitura na tela: o quadro
+    // "Proposta" so preenche o formulario, e o Salvar marca as secoes aplicadas.
+    proposta: await propostaParaFormulario(registro.id),
   };
 
   // Agrupa por tipo e calcula o endereco a partir do SKU atual — o endereco nao
@@ -169,6 +173,8 @@ export function dadosParaClone({ produto, fornecedores, concorrentes }) {
     gastoIA: _gasto,
     // A data de salvamento tambem e do original.
     atualizadoEm: _atualizadoEm,
+    // A proposta automatica e do original (e apagada no Conferido dele): o clone nasce sem.
+    proposta: _proposta,
     ...campos
   } = produto;
 

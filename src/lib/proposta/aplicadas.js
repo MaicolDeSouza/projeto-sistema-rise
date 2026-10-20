@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { temOQueAplicar } from "./aplicar.js";
+
 /**
  * "Esta secao da proposta ja foi aplicada?" (spec 2026-10-16, Aprovacao e limpeza). Quando o dono aplica uma secao e
  * salva, o servidor guarda em `PropostaDeProduto.aplicadas[secao]` a assinatura dos campos do produto que a secao
@@ -43,5 +45,11 @@ export function assinaturaDaSecao(secao, produto) {
 export function secoesNaoAplicadas(proposta, produto) {
   const secoes = Object.keys(proposta?.secoes ?? {});
   const aplicadas = proposta?.aplicadas ?? {};
-  return secoes.filter((secao) => !SECOES_SEM_PENDENCIA.includes(secao) && aplicadas[secao] !== assinaturaDaSecao(secao, produto));
+  // Fotos tem o "Aplicar" proprio (aba Imagens) e entra como pendente; as outras, so se tem o que aplicar.
+  return secoes.filter(
+    (secao) =>
+      !SECOES_SEM_PENDENCIA.includes(secao) &&
+      (secao === "fotos" || temOQueAplicar(secao, proposta.secoes[secao])) &&
+      aplicadas[secao] !== assinaturaDaSecao(secao, produto),
+  );
 }

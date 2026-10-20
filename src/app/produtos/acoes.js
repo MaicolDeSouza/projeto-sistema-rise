@@ -28,6 +28,7 @@ import {
   MAXIMO_REFERENCIAS,
 } from "@/lib/ia/anuncio";
 import { gastoDoFormulario, novoGasto, resumoDoGasto, somarResumos } from "@/lib/ia/gasto";
+import { marcarSecoesAplicadas } from "@/lib/proposta/banco";
 import { modeloDaDescricao } from "@/lib/ia/modelosDaDescricao";
 import * as bibliotecaDePrompts from "@/lib/ia/promptsDescricao";
 import { normalizar } from "@/lib/texto";
@@ -838,6 +839,15 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       await prisma.produto
         .update({ where: { id }, data: { fornecedorRascunho: Prisma.DbNull } })
         .catch((erro) => console.error("Falha ao limpar o fornecedor em rascunho:", erro.message));
+    }
+
+    // Proposta automatica: as secoes que o dono aplicou ao formulario ficam marcadas com o produto GRAVADO (o
+    // Conferido avisa das que faltam). Falha aqui nao derruba o Salvar: o pior e o Conferido perguntar a toa.
+    try {
+      const aplicadas = JSON.parse(String(formData.get("propostaAplicada") || "[]"));
+      if (Array.isArray(aplicadas) && aplicadas.length > 0) await marcarSecoesAplicadas(id, aplicadas.map(String));
+    } catch (erro) {
+      console.error("Falha ao marcar as secoes aplicadas da proposta:", erro.message);
     }
 
     revalidatePath("/produtos");
