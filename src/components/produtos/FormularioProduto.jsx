@@ -2998,6 +2998,8 @@ export default function FormularioProduto({
             versao: imagem.versao ?? "original",
             // O grupo liga a foto as versoes dela na reserva (nulo = a propria foto, sem reserva).
             grupo: imagem.grupo ?? null,
+            // Foto atual tirada ao aplicar as fotos da proposta: o Salvar a guarda na reserva em vez de apagar.
+            paraReserva: imagem.paraReserva === true,
           })),
         )}
       />
@@ -3215,6 +3217,9 @@ export default function FormularioProduto({
                   reserva={reserva}
                   reservaExcluida={reservaExcluida}
                   setReservaExcluida={setReservaExcluida}
+                  proposta={produto?.proposta ?? null}
+                  produtoId={produto?.id ?? null}
+                  aoAplicarFotosDaProposta={() => setPropostaAplicada((atual) => [...new Set([...atual, "fotos"])])}
                 />
               </div>
             </div>

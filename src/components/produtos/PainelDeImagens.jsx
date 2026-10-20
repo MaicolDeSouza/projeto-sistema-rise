@@ -21,9 +21,12 @@ import {
   removerImagemDoLote,
   removerImagensDoLote,
   trazerDaReserva,
+  trazerFotosDaProposta,
 } from "@/app/produtos/acoes-imagens";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/limites";
+import { fotosDoPainelComAProposta } from "@/lib/proposta/aplicar";
+import FotosDaProposta from "./FotosDaProposta";
 import { AmpliacaoDeFoto, ImagemComZoom } from "./ImagemComZoom";
 import JanelaDeFotos from "./JanelaDeFotos";
 import ReservaDeImagens from "./ReservaDeImagens";
@@ -117,6 +120,10 @@ export default function PainelDeImagens({
   reserva = null,
   reservaExcluida = [],
   setReservaExcluida = () => {},
+  // Proposta automatica (spec 2026-10-16): as fotos candidatas e o "Aplicar fotos". Sem proposta, nada muda.
+  proposta = null,
+  produtoId = null,
+  aoAplicarFotosDaProposta = () => {},
 }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [foco, setFoco] = useState(null);
@@ -130,6 +137,7 @@ export default function PainelDeImagens({
   // Foto paga que o dono clicou uma vez em "Excluir": o segundo clique confirma.
   const [paraConfirmar, setParaConfirmar] = useState(null);
   const [reservaAberta, setReservaAberta] = useState(false);
+  const [propostaAberta, setPropostaAberta] = useState(false);
   const entrada = useRef(null);
 
   const janelaAberta = rascunho !== null;
@@ -154,7 +162,9 @@ export default function PainelDeImagens({
   // Validadas = com o check verde (`finalizada`). So elas sao salvas (04/10/2026): as demais sao excluidas
   // no Salvar, e por isso o limite do produto conta so as validadas.
   const finalizadas = imagens.filter((imagem) => imagem.finalizada).length;
-  const naoValidadas = imagens.length - finalizadas;
+  // A foto atual tirada ao aplicar as fotos da proposta (`paraReserva`) nao e excluida: vai para a reserva.
+  const paraReserva = imagens.filter((imagem) => !imagem.finalizada && imagem.paraReserva).length;
+  const naoValidadas = imagens.length - finalizadas - paraReserva;
   const excedente = finalizadas - MAXIMO_IMAGENS;
 
   // Com a janela aberta as alteracoes vao para o rascunho; fora dela, direto para as fotos.
@@ -176,6 +186,53 @@ export default function PainelDeImagens({
         <Archive size={12} /> Reserva ({reservaVisivel.length})
       </button>
     ) : null;
+
+  // PROPOSTA automatica: o botao so aparece quando ha fotos candidatas.
+  const candidatasDaProposta = proposta?.secoes?.fotos?.candidatas ?? [];
+  const botaoDaProposta =
+    candidatasDaProposta.length > 0 && produtoId ? (
+      <button
+        type="button"
+        onClick={() => setPropostaAberta(true)}
+        disabled={ocupado}
+        title="As fotos que a proposta escolheu e as outras candidatas"
+        className="inline-flex items-center gap-1 rounded border border-emerald-600 px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-fundo disabled:opacity-50"
+      >
+        <Check size={12} /> Proposta ({candidatasDaProposta.filter((c) => c.escolhida).length})
+      </button>
+    ) : null;
+
+  // "Aplicar fotos": as escolhidas entram validadas, na ordem; as atuais que ficaram de fora vao para a reserva.
+  function aplicarFotosDaProposta(ids) {
+    iniciarTransicao(async () => {
+      const porId = new Map(candidatasDaProposta.map((c) => [c.id, c]));
+      const novas = ids.filter((id) => porId.get(id)?.arquivo && !porId.get(id)?.fotoAtual);
+      if (imagens.length + novas.length > MAXIMO_FOTOS_NO_PAINEL) {
+        setErro(`Limite de ${MAXIMO_FOTOS_NO_PAINEL} fotos no painel: exclua algumas antes de aplicar.`);
+        return;
+      }
+      let trazidas = [];
+      if (novas.length > 0) {
+        const resposta = await tentar(() => trazerFotosDaProposta(garantirLote(), produtoId, novas));
+        if (!resposta.ok) {
+          setErro(resposta.erro);
+          return;
+        }
+        trazidas = resposta.imagens;
+      }
+      const escolhas = ids.map((id) => {
+        const candidata = porId.get(id);
+        return candidata?.fotoAtual ? { arquivoId: proposta.idsDasFotosAtuais?.[candidata.fotoAtual] } : { candidataId: id };
+      });
+      const lista = fotosDoPainelComAProposta(imagens, trazidas, escolhas);
+      setImagens(lista);
+      setFoco(lista[0]?.base ?? null);
+      setPropostaAberta(false);
+      setErro(null);
+      aoAlterar();
+      aoAplicarFotosDaProposta();
+    });
+  }
 
   // "Escolher essa" na reserva: a imagem entra no carrossel, ja validada, NO LUGAR da foto do mesmo grupo (ela
   // desce para a reserva no Salvar); sem foto do grupo, entra no fim.
@@ -585,6 +642,7 @@ export default function PainelDeImagens({
           >
             <Sparkles size={12} /> Melhorar
           </button>
+          {botaoDaProposta}
           {botaoDaReserva}
           {/*
             Baixa a foto que esta na tela (a padronizada 1024x1024, ou a melhorada, se foi a escolhida).
@@ -628,7 +686,12 @@ export default function PainelDeImagens({
       )}
 
       {/* Sem foto nenhuma mas com reserva (todas excluidas): o botao ainda precisa de um lugar. */}
-      {!atual && botaoDaReserva && <div className="mt-1.5 flex shrink-0">{botaoDaReserva}</div>}
+      {!atual && (botaoDaProposta || botaoDaReserva) && (
+        <div className="mt-1.5 flex shrink-0 gap-1.5">
+          {botaoDaProposta}
+          {botaoDaReserva}
+        </div>
+      )}
 
       <div className="mt-2 shrink-0">
         <TiraDeFotos
@@ -666,6 +729,7 @@ export default function PainelDeImagens({
               : ` · máximo ${MAXIMO_IMAGENS}`}
             {naoValidadas > 0 &&
               ` · ${naoValidadas} sem validar ${naoValidadas === 1 ? "será excluída" : "serão excluídas"} ao salvar`}
+            {paraReserva > 0 && ` · ${paraReserva} ${paraReserva === 1 ? "vai" : "vão"} para a reserva ao salvar`}
           </span>
           {/* Mensagem informativa: icone "i" (padrao do sistema), e nao texto fixo nem dica escondida. */}
           <BolhaDeAjuda
@@ -700,6 +764,16 @@ export default function PainelDeImagens({
           posicao={indice}
           total={imagens.length}
           aoNavegar={ir}
+        />
+      )}
+
+      {propostaAberta && (
+        <FotosDaProposta
+          fotos={proposta?.secoes?.fotos}
+          urls={proposta?.urls}
+          aoAplicar={aplicarFotosDaProposta}
+          aoFechar={() => setPropostaAberta(false)}
+          ocupado={ocupado}
         />
       )}
 

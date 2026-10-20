@@ -51,7 +51,7 @@ function resumo(secao, conteudo) {
   }
   if (secao === "fotos") {
     const candidatas = conteudo.candidatas ?? [];
-    return `${candidatas.filter((c) => c.escolhida).length} escolhidas de ${candidatas.length}, aplicadas na aba Imagens`;
+    return `${candidatas.filter((c) => c.escolhida).length} escolhidas de ${candidatas.length}; aplicar na aba Imagens (Proposta)`;
   }
   if (secao === "documentos") return `${(conteudo.itens ?? []).length} documento(s)`;
   if (secao === "relatorio") return String(conteudo.texto ?? "").split(/\r?\n/)[0];
@@ -83,7 +83,8 @@ export default function QuadroDaProposta({ proposta, aoAplicar, aplicadasNestaEd
   if (presentes.length === 0) return null;
 
   const estadoDe = (secao) => {
-    if (!aplicavel(secao, secoes[secao])) return null;
+    // Fotos se aplica na aba Imagens, mas tem estado como as outras.
+    if (secao !== "fotos" && !aplicavel(secao, secoes[secao])) return null;
     if (aplicadasNestaEdicao.includes(secao)) return "falta salvar";
     return (proposta.naoAplicadas ?? []).includes(secao) ? "pendente" : "aplicada";
   };

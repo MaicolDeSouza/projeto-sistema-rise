@@ -28,7 +28,7 @@ import {
 import { imagemParaTela, versoesParaTela } from "@/lib/imagens/paraTela";
 import { lerDaReserva } from "@/lib/imagens/reserva";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
-import { caminhoDe, loteValido, urlDaReserva } from "@/lib/arquivos";
+import { caminhoDaProposta, caminhoDe, loteValido, urlDaReserva } from "@/lib/arquivos";
 import { cotacaoDoDolar, emReais } from "@/lib/cotacaoDolar";
 import {
   CUSTO_COMPRA_USD,
@@ -375,6 +375,53 @@ export async function trazerDaReserva(lote, reservaId) {
         reservaId: linha.id,
       }),
     };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
+}
+
+/**
+ * "Aplicar fotos" da proposta automatica (spec 2026-10-16): as candidatas escolhidas entram no lote ja VALIDADAS,
+ * na ordem pedida, como fotos novas. Quem grava e o Salvar. O navegador manda so os ids das candidatas; o arquivo e
+ * lido da pasta proposta/ do produto dono da proposta. Candidata que e foto atual (`fotoAtual`) nao entra por aqui:
+ * ela ja esta no painel, e a tela so a valida. Id que nao existe fica de fora, em `faltaram`.
+ */
+export async function trazerFotosDaProposta(lote, produtoId, ids) {
+  const invalido = conferir(lote);
+  if (invalido) return { ok: false, erro: invalido };
+
+  try {
+    const produto = await prisma.produto.findUnique({
+      where: { id: String(produtoId ?? "") },
+      select: { sku: true, proposta: { select: { secoes: true } } },
+    });
+    const candidatas = produto?.proposta?.secoes?.fotos?.candidatas;
+    if (!Array.isArray(candidatas)) return { ok: false, erro: "Este produto não tem fotos na proposta." };
+
+    const imagens = [];
+    const faltaram = [];
+    for (const id of Array.isArray(ids) ? ids.map(String) : []) {
+      const candidata = candidatas.find((item) => item.id === id);
+      const caminho = candidata?.arquivo ? caminhoDaProposta(produto.sku, candidata.arquivo) : null;
+      if (!caminho) {
+        faltaram.push(id);
+        continue;
+      }
+      const resultado = await adicionarImagem(lote, await readFile(caminho));
+      if (!resultado.ok) {
+        faltaram.push(id);
+        continue;
+      }
+      imagens.push(
+        imagemParaTela(lote, resultado.base, {
+          ampliada: resultado.ampliada,
+          origem: { largura: resultado.origem.largura, altura: resultado.origem.altura },
+          finalizada: true,
+          candidataId: id,
+        }),
+      );
+    }
+    return { ok: true, imagens, faltaram };
   } catch (erro) {
     return { ok: false, erro: erro.message };
   }

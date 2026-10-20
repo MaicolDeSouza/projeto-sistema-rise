@@ -25,6 +25,33 @@ export function temOQueAplicar(secao, conteudo) {
   return temValor(conteudo.texto);
 }
 
+/**
+ * "Aplicar fotos" (aba Imagens): a lista do painel depois de aplicar as fotos escolhidas da proposta. As escolhidas
+ * vem primeiro, VALIDADAS, na ordem das `escolhas` (a primeira e a principal); as outras fotos continuam no painel sem
+ * o check, e a que ja era do produto (`arquivoId`) leva `paraReserva`, para o Salvar a guardar na reserva em vez de
+ * apagar (regra do dono: as atuais que saem nao se perdem). Nada some do painel: o dono ainda pode mudar antes do Salvar.
+ *
+ * @param {Array<{ base: string, arquivoId?: string, finalizada?: boolean }>} painel as fotos do painel agora
+ * @param {Array<{ base: string, candidataId: string }>} novas as que `trazerFotosDaProposta` acabou de pôr no lote
+ * @param {Array<{ candidataId?: string, arquivoId?: string }>} escolhas na ordem: candidata baixada ou foto atual
+ */
+export function fotosDoPainelComAProposta(painel, novas, escolhas) {
+  const escolhidas = [];
+  const usadas = new Set();
+  for (const escolha of escolhas ?? []) {
+    const foto = escolha.arquivoId
+      ? painel.find((item) => item.arquivoId === escolha.arquivoId)
+      : novas.find((item) => item.candidataId === escolha.candidataId);
+    if (!foto || usadas.has(foto.base)) continue;
+    usadas.add(foto.base);
+    escolhidas.push({ ...foto, finalizada: true, paraReserva: false });
+  }
+  const resto = [...painel, ...novas]
+    .filter((item) => !usadas.has(item.base))
+    .map((item) => ({ ...item, finalizada: false, paraReserva: Boolean(item.arquivoId) }));
+  return [...escolhidas, ...resto];
+}
+
 /** Campos da secao `campos` e o campo do formulario de cada um (`codigo` vai para o SKU). */
 const CAMPO_DO_FORMULARIO = {
   marca: "marca", modelo: "modelo", unidade: "unidade", garantiaMeses: "garantiaMeses", codigo: "sku", ncm: "ncm",

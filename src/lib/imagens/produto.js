@@ -92,6 +92,9 @@ export async function reconciliarImagensDoProduto({ produto, lote, itens, preser
       // So rotulo: nenhuma regra de seguranca depende dele.
       versao: VERSOES.includes(item.versao) ? item.versao : "original",
       grupo: typeof item.grupo === "string" && item.grupo ? item.grupo : null,
+      // Foto atual que o dono tirou ao aplicar as fotos da proposta (spec 2026-10-16): desce para a reserva em vez de
+      // ser apagada. So vale para foto que ja era do produto e nao foi validada.
+      paraReserva: item.paraReserva === true,
     });
   }
   const validadas = lista.filter((item) => item.validada);
@@ -189,6 +192,13 @@ export async function reconciliarImagensDoProduto({ produto, lote, itens, preser
   const pagasSemValidar = new Set();
   for (const item of lista.filter((i) => !i.validada)) {
     const versoes = await versoesDoItem(lote, item.base);
+    // Foto atual marcada para a reserva (proposta): os bytes dela descem, e a linha FOTO sai, como a paga sem validar.
+    const linhaParaReserva = item.paraReserva && item.arquivoId ? porId.get(item.arquivoId) : null;
+    if (linhaParaReserva) {
+      const grupo = grupoDoItem(item, linhaParaReserva);
+      candidata(grupo, linhaParaReserva.versao, await bytesDaFoto(produto.sku, linhaParaReserva.arquivo));
+      pagasSemValidar.add(linhaParaReserva.id);
+    }
     if (!versoes.some((v) => v.versao !== "original")) continue;
     const linha = item.arquivoId ? porId.get(item.arquivoId) : null;
     const grupo = grupoDoItem(item, linha);

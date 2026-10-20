@@ -133,6 +133,25 @@ function conferir(nome, condicao) {
   conferir("aplicar: EAN vazio na proposta nao apaga o do produto", !("ean" in eanVazio.campos));
   conferir("aplicar: fotos, documentos e relatorio nao sao aplicaveis aqui", !SECOES_APLICAVEIS.includes("fotos") && !SECOES_APLICAVEIS.includes("documentos"));
   conferir("aplicar: secao ausente na proposta e ignorada", camposDoFormularioDaProposta({}, todas, { sku: "1" }).secoes.length === 0);
+
+  // "Aplicar fotos": a lista do painel depois de aplicar.
+  const { fotosDoPainelComAProposta } = await import("../src/lib/proposta/aplicar.js");
+  const painel = [
+    { base: "a1", arquivoId: "id-a1", finalizada: true },
+    { base: "a2", arquivoId: "id-a2", finalizada: true },
+    { base: "x9", finalizada: false },
+  ];
+  const novas = [{ base: "n1", finalizada: true, candidataId: "21" }, { base: "n2", finalizada: true, candidataId: "28" }];
+  const escolhas = [{ candidataId: "21" }, { arquivoId: "id-a2" }, { candidataId: "28" }];
+  const final = fotosDoPainelComAProposta(painel, novas, escolhas);
+  conferir("aplicar fotos: as escolhidas vem primeiro, na ordem", JSON.stringify(final.slice(0, 3).map((i) => i.base)) === '["n1","a2","n2"]');
+  conferir("aplicar fotos: as escolhidas ficam validadas", final.slice(0, 3).every((i) => i.finalizada === true && !i.paraReserva));
+  const a1 = final.find((i) => i.base === "a1");
+  conferir("aplicar fotos: a foto atual que saiu vai para a reserva", a1.finalizada === false && a1.paraReserva === true);
+  const x9 = final.find((i) => i.base === "x9");
+  conferir("aplicar fotos: candidata que nao e do produto so perde o check", x9.finalizada === false && !x9.paraReserva);
+  conferir("aplicar fotos: nenhuma foto some do painel", final.length === 5);
+  conferir("aplicar fotos: escolha que nao achou a foto e ignorada", fotosDoPainelComAProposta(painel, [], [{ candidataId: "99" }, { arquivoId: "id-a1" }])[0].base === "a1");
 }
 
 // ---------------------------------------------------------------------------
@@ -162,7 +181,7 @@ const { prisma } = await import("../src/lib/db.js");
 async function limpar() {
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PROP-" } } });
   const { rm } = await import("node:fs/promises");
-  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2", "ZZ-PROP-3"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
+  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2", "ZZ-PROP-3", "ZZ-PROP-4"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -300,6 +319,60 @@ try {
     await marcarSecoesAplicadas("id-que-nao-existe", ["titulos"]);
     conferir("salvar: produto sem proposta nao da erro", true);
     conferir("formulario: produto sem proposta devolve null", (await propostaParaFormulario("id-que-nao-existe")) === null);
+  }
+
+  // Fotos (Tarefa 8): a candidata da proposta entra no lote validada, e a foto atual que sai vai para a reserva.
+  {
+    const { randomUUID } = await import("node:crypto");
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    const { existsSync } = await import("node:fs");
+    const { default: sharp } = await import("sharp");
+    const { gravarProposta, marcarSecoesAplicadas, lerProposta } = await import("../src/lib/proposta/banco.js");
+    const { trazerFotosDaProposta } = await import("../src/app/produtos/acoes-imagens.js");
+    const { reconciliarImagensDoProduto } = await import("../src/lib/imagens/produto.js");
+    const jpeg = (cor) => sharp({ create: { width: 700, height: 500, channels: 3, background: cor } }).jpeg().toBuffer();
+
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-4", tituloBase: "TESTE DAS FOTOS DA PROPOSTA" } });
+    const fotosAtuais = [];
+    await mkdir("dados/produtos/ZZ-PROP-4/imagens", { recursive: true });
+    for (const [ordem, cor] of ["#a33", "#3a3"].entries()) {
+      const nome = `${randomUUID().replaceAll("-", "")}.jpg`;
+      await writeFile(`dados/produtos/ZZ-PROP-4/imagens/${nome}`, await jpeg(cor));
+      fotosAtuais.push(await prisma.produtoArquivo.create({ data: { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO", arquivo: nome, mimeType: "image/jpeg", ordem, principal: ordem === 0 } }));
+    }
+    const candidata = (id, escolhida, ordem) => ({ id, origem: { loja: "Loja X", url: `https://x.test/${id}.jpg` }, escolhida, ...(escolhida ? { ordem } : {}), motivo: "teste" });
+    // Com menos de 6 candidatas a validacao exige todas escolhidas.
+    const gravada = await gravarProposta("ZZ-PROP-4", { secao: "fotos", conteudo: { candidatas: [candidata("c1", true, 1), candidata("c2", true, 0), candidata("c3", true, 2)] } }, {
+      bytes: new Map([["c1", await jpeg("#33a")], ["c2", await jpeg("#aa3")], ["c3", await jpeg("#3aa")]]),
+    });
+
+    conferir("fotos: a proposta de teste foi gravada", gravada.ok === true);
+    const lote = randomUUID();
+    const trazidas = await trazerFotosDaProposta(lote, produto.id, ["c2", "c1", "inexistente"]);
+    conferir("fotos: trazer devolve so as candidatas que existem", trazidas.ok === true && trazidas.imagens.length === 2);
+    conferir("fotos: na ordem pedida", JSON.stringify(trazidas.imagens.map((i) => i.candidataId)) === '["c2","c1"]');
+    conferir("fotos: entram validadas", trazidas.imagens.every((i) => i.finalizada === true));
+    conferir("fotos: o arquivo esta no lote", trazidas.imagens.every((i) => existsSync(`dados/temporarios/${lote}/imagens/${i.base}.jpg`)));
+    conferir("fotos: produto de outra pessoa nao serve de origem", (await trazerFotosDaProposta(lote, "id-que-nao-existe", ["c1"])).ok === false);
+
+    // O Salvar: as duas novas viram FOTO; a atual 1 sai para a reserva (paraReserva); a atual 2 sem a marca sai de vez.
+    const itens = [
+      ...trazidas.imagens.map((i) => ({ base: i.base, finalizada: true, versao: "original" })),
+      { base: "a".repeat(32), arquivoId: fotosAtuais[0].id, finalizada: false, paraReserva: true },
+      { base: "b".repeat(32), arquivoId: fotosAtuais[1].id, finalizada: false },
+    ];
+    await reconciliarImagensDoProduto({ produto, lote, itens });
+    const depois = await prisma.produtoArquivo.findMany({ where: { produtoId: produto.id, tipo: "IMAGEM" }, orderBy: { ordem: "asc" } });
+    const fotos = depois.filter((linha) => linha.papel === "FOTO");
+    const reserva = depois.filter((linha) => linha.papel === "RESERVA");
+    conferir("salvar fotos: as 2 da proposta viraram FOTO", fotos.length === 2 && fotos[0].principal);
+    conferir("salvar fotos: a atual marcada foi para a reserva", reserva.length === 1);
+    conferir("salvar fotos: a atual sem marca saiu de vez", !depois.some((linha) => linha.id === fotosAtuais[1].id));
+
+    await marcarSecoesAplicadas(produto.id, ["fotos"]);
+    conferir("salvar fotos: a secao fotos fica marcada como aplicada", typeof (await lerProposta("ZZ-PROP-4")).aplicadas.fotos === "string");
+    const { rm } = await import("node:fs/promises");
+    await rm(`dados/temporarios/${lote}`, { recursive: true, force: true });
   }
 
   // O script: `proposta --ler` e o `gravar` recusando produto com proposta aberta (roda o script de verdade, no PC).

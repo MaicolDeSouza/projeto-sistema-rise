@@ -138,10 +138,16 @@ export async function propostaParaFormulario(produtoId) {
   for (const item of proposta.secoes?.documentos?.itens ?? []) {
     if (item.arquivo) urls[`documento:${item.id}`] = urlDaProposta(produto.sku, item.arquivo);
   }
+  // A candidata que e foto atual cita o NOME do arquivo; o painel conhece a foto pelo id da linha.
+  const linhas = await prisma.produtoArquivo.findMany({
+    where: { produtoId: proposta.produtoId, tipo: "IMAGEM", papel: "FOTO" },
+    select: { id: true, arquivo: true },
+  });
   return {
     secoes: proposta.secoes,
     naoAplicadas: secoesNaoAplicadas(proposta, produto),
     urls,
+    idsDasFotosAtuais: Object.fromEntries(linhas.map((linha) => [linha.arquivo, linha.id])),
     versaoDoRoteiro: proposta.versaoDoRoteiro,
     atualizadaEm: proposta.atualizadaEm.toISOString(),
   };
@@ -152,7 +158,8 @@ export async function propostaParaFormulario(produtoId) {
  * GRAVADO (se ele mexer no campo depois, a secao volta a ficar pendente). Sem proposta, nao faz nada.
  */
 export async function marcarSecoesAplicadas(produtoId, secoes) {
-  const validas = (secoes ?? []).filter((secao) => SECOES_APLICAVEIS.includes(secao));
+  // Fotos tem o "Aplicar" proprio (aba Imagens), mas e aplicada e marcada do mesmo jeito.
+  const validas = (secoes ?? []).filter((secao) => SECOES_APLICAVEIS.includes(secao) || secao === "fotos");
   if (validas.length === 0) return;
   const proposta = await prisma.propostaDeProduto.findUnique({ where: { produtoId: String(produtoId ?? "") } });
   if (!proposta) return;
