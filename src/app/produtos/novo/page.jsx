@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Copy } from "lucide-react";
 
 import PageHeader from "@/components/ui/PageHeader";
+import { SetaParaListaDeProdutos } from "@/components/produtos/ListaDeProdutosNaAba";
 import FormularioProduto from "@/components/produtos/FormularioProduto";
 import { listarFornecedores } from "@/app/produtos/acoes";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
@@ -28,7 +29,7 @@ export default async function NovoProdutoPage({ searchParams }) {
 
   return (
     <>
-      <PageHeader titulo="Novo produto" voltarPara="/produtos" voltarRotulo="Voltar para produtos" />
+      <PageHeader titulo="Novo produto" voltar={<SetaParaListaDeProdutos />} />
 
       {clone && (
         <p className="mb-4 flex flex-wrap items-center gap-1.5 rounded border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">

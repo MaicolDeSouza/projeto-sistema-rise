@@ -25,6 +25,7 @@
     "teste:enderecos": "node scripts/teste-enderecos.js",
     "teste:indicadores": "node scripts/teste-indicadores.js",
     "teste:fundo": "node scripts/teste-fundo-da-janela.js",
+    "teste:navegacao": "node scripts/teste-navegacao.js",
     "teste:robocore": "node scripts/teste-robocore.js",
     "teste:svg": "node scripts/teste-svg.js",
     "teste:cotacao": "node scripts/teste-cotacao.js",

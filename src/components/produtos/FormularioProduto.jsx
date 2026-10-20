@@ -61,6 +61,7 @@ import JanelaDescricao from "./JanelaDescricao";
 import PainelDeImagens from "./PainelDeImagens";
 import BannerDeRascunho from "./BannerDeRascunho";
 import QuadroDaProposta from "./QuadroDaProposta";
+import { listaComParametros, lerUltimaLista } from "@/lib/ultimaListaDeProdutos";
 import { camposDoFormularioDaProposta } from "@/lib/proposta/aplicar";
 import { useRascunhoAutomatico } from "./useRascunhoAutomatico";
 import { chaveDoRascunho } from "@/lib/rascunhoDoCadastro";
@@ -2369,14 +2370,18 @@ export default function FormularioProduto({
         // documentos e fornecedores so entravam depois de o produto existir; hoje tudo entra antes do Salvar). A
         // lista ordena pelo ultimo alterado, entao o novo vem no topo, destacado (`novo`). Os avisos de algo que nao
         // foi gravado vao na URL e aparecem na lista, senao a foto recusada sumiria em silencio.
-        if (produto) router.push("/produtos");
+        // A volta e para a lista como ela estava nesta aba (pesquisa, pagina, ordem: pedido do dono em 20/10/2026).
+        if (produto) router.push(lerUltimaLista());
         else if (resultado.id) {
-          const busca = new URLSearchParams({ novo: resultado.id });
-          if (resultado.avisoImagens) busca.set("fotos", "falhou");
-          if (resultado.avisoArquivos) busca.set("documentos", "falhou");
-          if (resultado.avisoFornecedores) busca.set("fornecedores", "falhou");
-          if (resultado.avisoConcorrentes) busca.set("concorrentes", "falhou");
-          router.replace(`/produtos?${busca}`);
+          router.replace(
+            listaComParametros(lerUltimaLista(), {
+              novo: resultado.id,
+              fotos: resultado.avisoImagens ? "falhou" : null,
+              documentos: resultado.avisoArquivos ? "falhou" : null,
+              fornecedores: resultado.avisoFornecedores ? "falhou" : null,
+              concorrentes: resultado.avisoConcorrentes ? "falhou" : null,
+            }),
+          );
         }
       }
 
@@ -2953,7 +2958,7 @@ export default function FormularioProduto({
     rascunho.encerrar();
     // O lote do painel (as fotos copiadas, as previas) nao serve mais.
     if (loteTemporario) tentar(() => descartarLoteDeArquivos(loteTemporario));
-    router.push("/produtos");
+    router.push(lerUltimaLista());
   }
 
 

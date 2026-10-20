@@ -7,12 +7,15 @@ import { ArrowLeft } from "lucide-react";
  * que ficava acima do titulo e gastava altura a toa. So a seta, sem texto; o `voltarRotulo` e o
  * nome acessivel e a dica ao passar o mouse.
  */
-export default function PageHeader({ titulo, descricao, acao, voltarPara, voltarRotulo = "Voltar" }) {
+export default function PageHeader({ titulo, descricao, acao, voltarPara, voltarRotulo = "Voltar", voltar = null }) {
+  // `voltar`: uma seta pronta que decide o destino no navegador (a lista de Produtos lembrada na aba); passa na frente
+  // de `voltarPara`, que e um endereco fixo.
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
         <div className="flex items-center gap-2">
-          {voltarPara && (
+          {voltar}
+          {!voltar && voltarPara && (
             <Link
               href={voltarPara}
               aria-label={voltarRotulo}

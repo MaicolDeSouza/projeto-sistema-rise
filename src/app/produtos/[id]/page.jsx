@@ -9,6 +9,7 @@ import { carregarProdutoParaFormulario, projetarParaAcessos } from "@/lib/produt
 import { listarFornecedores } from "@/app/produtos/acoes";
 import Badge from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
+import { SetaParaListaDeProdutos } from "@/components/produtos/ListaDeProdutosNaAba";
 import FormularioProduto from "@/components/produtos/FormularioProduto";
 
 export const dynamic = "force-dynamic";
@@ -37,8 +38,7 @@ export default async function EditarProdutoPage({ params, searchParams }) {
           porque traz o SKU e os canais integrados. */}
       <PageHeader
         titulo={registro.tituloBase}
-        voltarPara="/produtos"
-        voltarRotulo="Voltar para produtos"
+        voltar={<SetaParaListaDeProdutos />}
         descricao={
           integrados.length
             ? `SKU ${registro.sku} · integrado com ${integrados.map((c) => c.nome).join(", ")}`

@@ -12,6 +12,7 @@ import { iconeLIDoProduto } from "@/lib/canaisDeVenda/li/estado";
 import { mudancasDosKits } from "@/lib/composicaoBanco";
 import { localizacaoDoKit } from "@/lib/composicao";
 import PageHeader from "@/components/ui/PageHeader";
+import { LembrarListaDeProdutos } from "@/components/produtos/ListaDeProdutosNaAba";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import Paginacao from "@/components/mercados/Paginacao";
 import TabelaProdutos from "@/components/produtos/TabelaProdutos";
@@ -211,8 +212,14 @@ export default async function ProdutosPage({ searchParams }) {
     }),
   }));
 
+  // A lista como esta (pesquisa, pagina, ordem): o cadastro volta para ela (pedido do dono em 20/10/2026).
+  const consultaDaLista = new URLSearchParams(
+    Object.entries(params ?? {}).flatMap(([nome, valor]) => (Array.isArray(valor) ? valor : [valor]).map((item) => [nome, String(item)])),
+  ).toString();
+
   return (
     <>
+      <LembrarListaDeProdutos consulta={consultaDaLista} />
       <PageHeader
         titulo="Produtos"
         descricao="O cadastro base da loja. Todo anúncio nos canais deriva de um produto daqui."
