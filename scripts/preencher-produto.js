@@ -1,10 +1,18 @@
 /**
  * Preencher produto do Rise pelo servidor (pedido do dono em 14/10/2026): o dono faz a varredura dos concorrentes e
  * passa o codigo; este script LE o que ha no banco e, com plano aprovado, GRAVA o cadastro (fotos, descricao, EAN,
- * NCM...) com as mesmas funcoes do Rise, sem passar pela tela. Hoje tem dois comandos:
+ * NCM...) com as mesmas funcoes do Rise, sem passar pela tela. Comandos:
  *
  *   ler <sku>                      so consulta e imprime o produto (nada e gravado)
+ *   ofertas <sku>                  so consulta: concorrentes e fornecedores vinculados, com campos e fotos
+ *   descricao <sku> --prompt=<nome>  gera a descricao pela API do Rise (PAGA) e imprime; nao grava
+ *   proposta <sku> --plano=<json>  grava UMA secao da proposta automatica (spec 2026-10-16); nao mexe no produto
+ *   proposta <sku> --ler           imprime a proposta
+ *   gravar <plano.json>            grava descricao e fotos direto no produto (caminho manual; recusa proposta aberta)
  *   clonar <sku> <novo> [--simular]  cria um produto de TESTE copiado de <sku> (como o "Clonar" da tela)
+ *
+ * O plano da proposta e `{ secao, conteudo, arquivos?: { "<id da candidata ou do documento>": "<base64>" } }`; o
+ * formato de cada secao esta em src/lib/proposta/plano.js e no roteiro docs/superpowers/roteiros/proposta-de-produto.md.
  *
  * COMO RODA NA VPS (o arquivo viaja pela entrada do comando e NAO fica la):
  *
@@ -40,7 +48,7 @@ const NAO_COPIA = new Set([
   "blingSaldo", "blingSaldoLidoEm", "conferido", "fornecedorRascunho", "gastoIA", "criadoEm", "atualizadoEm",
 ]);
 
-const COMANDOS = new Set(["ler", "ofertas", "descricao", "gravar", "clonar"]);
+const COMANDOS = new Set(["ler", "ofertas", "descricao", "proposta", "gravar", "clonar"]);
 const inicio = process.argv.findIndex((arg, posicao) => posicao >= 1 && COMANDOS.has(arg));
 const [comando, ...resto] = inicio >= 0 ? process.argv.slice(inicio) : [];
 const simular = resto.includes("--simular");
@@ -215,6 +223,11 @@ async function gravar(caminhoDoPlano) {
   const produto = await prisma.produto.findUnique({ where: { sku: plano.sku } });
   if (!produto) return sair(1, `Produto ${plano.sku} nao existe.`);
   if (produto.conferido) return sair(1, `${plano.sku} esta Conferido: nada foi gravado (o portao e do dono).`);
+  // Dois caminhos escrevendo no mesmo produto se atropelam: com proposta aberta, o trabalho vai pela proposta. O
+  // `?.` cobre a VPS antes do deploy da tabela (client sem o modelo).
+  if (prisma.propostaDeProduto && (await prisma.propostaDeProduto.findUnique({ where: { produtoId: produto.id }, select: { id: true } }))) {
+    return sair(1, `${plano.sku} tem proposta aberta: use o comando proposta (ou o dono aprova/apaga a proposta). Nada foi gravado.`);
+  }
 
   const atuais = await prisma.produtoArquivo.findMany({ where: { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" } });
   const porNome = new Map(atuais.map((a) => [a.arquivo, a]));
@@ -285,6 +298,23 @@ async function gravar(caminhoDoPlano) {
   // So agora os arquivos antigos que foram para a reserva saem de imagens/ (o banco ja aponta para a reserva).
   for (const r of naReserva) await unlink(caminhoDe(plano.sku, "IMAGEM", r.antigo)).catch(() => {});
   return sair(0, `GRAVADO em ${plano.sku}: descricao ${typeof plano.descricaoBase === "string" ? "sim" : "nao"}, fotos ${fotos ? fotos.ordem.length : "intactas"}, para a reserva ${naReserva.length}. Confira com: ler ${plano.sku}`);
+}
+
+/** `proposta <sku> --plano=<arquivo>` grava uma secao; `proposta <sku> --ler` imprime a proposta. */
+async function proposta(sku) {
+  const { gravarProposta, lerProposta } = await import(pathToFileURL(`${RAIZ}/src/lib/proposta/banco.js`).href);
+  if (resto.includes("--ler")) {
+    const lida = await lerProposta(sku);
+    return sair(lida ? 0 : 1, lida ? JSON.stringify(lida, null, 2) : `${sku} nao tem proposta.`);
+  }
+  const caminho = opcao("plano");
+  if (!caminho) return sair(2, "Uso: proposta <sku> --plano=<arquivo json>  ou  proposta <sku> --ler");
+  const { readFile } = await import("node:fs/promises");
+  const plano = JSON.parse(await readFile(caminho, "utf8"));
+  const bytes = new Map(Object.entries(plano.arquivos ?? {}).map(([id, base64]) => [id, Buffer.from(base64, "base64")]));
+  const resultado = await gravarProposta(sku, { secao: plano.secao, conteudo: plano.conteudo }, { bytes });
+  if (!resultado.ok) return sair(1, `Nada foi gravado: ${resultado.erro}`);
+  return sair(0, `PROPOSTA de ${sku}: secao ${plano.secao} gravada. Secoes: ${resultado.secoes.join(", ")}.${resultado.aviso ? ` Aviso: ${resultado.aviso}` : ""}`);
 }
 
 async function clonar(origem, novo) {
@@ -367,6 +397,7 @@ async function clonar(origem, novo) {
 if (comando === "ler" && argumentos.length === 1) await ler(argumentos[0]);
 else if (comando === "ofertas" && argumentos.length === 1) await ofertas(argumentos[0]);
 else if (comando === "descricao" && argumentos.length === 1) await descricao(argumentos[0]);
+else if (comando === "proposta" && argumentos.length === 1) await proposta(argumentos[0]);
 else if (comando === "gravar" && argumentos.length === 1) await gravar(argumentos[0]);
 else if (comando === "clonar" && argumentos.length === 2) await clonar(argumentos[0], argumentos[1]);
-else await sair(2, "Uso:\n  ler <sku>\n  ofertas <sku>\n  descricao <sku> --prompt=<nome> [--modelo=<id>]\n  gravar <plano.json no conteiner>\n  clonar <sku> <novo> [--simular]");
+else await sair(2, "Uso:\n  ler <sku>\n  ofertas <sku>\n  descricao <sku> --prompt=<nome> [--modelo=<id>]\n  proposta <sku> --plano=<json> | --ler\n  gravar <plano.json no conteiner>\n  clonar <sku> <novo> [--simular]");

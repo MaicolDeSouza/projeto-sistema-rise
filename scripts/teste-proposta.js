@@ -122,6 +122,41 @@ const { prisma } = await import("../src/lib/db.js");
 
 async function limpar() {
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PROP-" } } });
+  const { rm } = await import("node:fs/promises");
+  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
+}
+
+// ---------------------------------------------------------------------------
+// Validacao do plano (pura): secoes conhecidas, 3 titulos de ate 60, 6 a 8 fotos escolhidas
+// ---------------------------------------------------------------------------
+const { validarPlano } = await import("../src/lib/proposta/plano.js");
+{
+  const foto = (id, escolhida, ordem) => ({ id: String(id), origem: { loja: "Loja", url: `https://x.test/${id}.jpg` }, escolhida, ordem, motivo: "teste" });
+  const fotos = (total, escolhidas) => ({
+    secao: "fotos",
+    conteudo: { candidatas: Array.from({ length: total }, (_, i) => foto(i, i < escolhidas, i < escolhidas ? i : undefined)) },
+  });
+  const titulos = (opcoes, recomendada = 0) => ({ secao: "titulos", conteudo: { opcoes, recomendada, concorrentes: [] } });
+
+  conferir("plano: secao desconhecida e recusada", validarPlano({ secao: "estoque", conteudo: {} }).ok === false);
+  conferir("plano: 3 titulos validos passam", validarPlano(titulos(["A", "B", "C"], 1)).ok === true);
+  conferir("plano: titulo de 61 caracteres e recusado", validarPlano(titulos(["A", "B", "X".repeat(61)])).ok === false);
+  conferir("plano: 2 titulos sao recusados", validarPlano(titulos(["A", "B"])).ok === false);
+  conferir("plano: recomendada fora de 0..2 e recusada", validarPlano(titulos(["A", "B", "C"], 3)).ok === false);
+  conferir("plano: 5 fotos escolhidas de 10 sao recusadas", validarPlano(fotos(10, 5)).ok === false);
+  conferir("plano: 9 fotos escolhidas de 12 sao recusadas", validarPlano(fotos(12, 9)).ok === false);
+  conferir("plano: 7 fotos escolhidas de 12 passam", validarPlano(fotos(12, 7)).ok === true);
+  const poucas = validarPlano(fotos(3, 3));
+  conferir("plano: com so 3 candidatas, as 3 escolhidas passam com aviso", poucas.ok === true && /candidatas/.test(poucas.aviso ?? ""));
+  conferir("plano: candidata escolhida sem ordem e recusada", validarPlano({ secao: "fotos", conteudo: { candidatas: [foto(1, true)] } }).ok === false);
+  conferir("plano: id de candidata repetido e recusado", validarPlano({ secao: "fotos", conteudo: { candidatas: [foto(1, false), foto(1, false)] } }).ok === false);
+  conferir("plano: campo fora da lista e recusado", validarPlano({ secao: "campos", conteudo: { estoque: { valor: 3, origem: "x" } } }).ok === false);
+  conferir("plano: campo sem origem e recusado", validarPlano({ secao: "campos", conteudo: { marca: { valor: "GENÉRICA" } } }).ok === false);
+  conferir("plano: marca com origem passa", validarPlano({ secao: "campos", conteudo: { marca: { valor: "GENÉRICA", origem: "placa compatível" } } }).ok === true);
+  conferir("plano: EAN com 11 digitos e recusado", validarPlano({ secao: "ean", conteudo: { escolhido: { valor: "12345678901", origem: "x" }, descartados: [] } }).ok === false);
+  conferir("plano: EAN vazio (nada confiavel) passa", validarPlano({ secao: "ean", conteudo: { escolhido: null, descartados: [{ valor: "7671459174876", motivo: "prefixo nao brasileiro" }] } }).ok === true);
+  conferir("plano: descricao vazia e recusada", validarPlano({ secao: "descricao", conteudo: { texto: "  " } }).ok === false);
+  conferir("plano: relatorio com texto passa", validarPlano({ secao: "relatorio", conteudo: { texto: "Feito." } }).ok === true);
 }
 
 try {
@@ -142,6 +177,92 @@ try {
     conferir("banco: uma proposta so por produto", recusou);
     await prisma.produto.delete({ where: { id: produto.id } });
     conferir("banco: apagar o produto apaga a proposta", (await prisma.propostaDeProduto.findUnique({ where: { id: criada.id } })) === null);
+  }
+
+  // Gravacao por secao, fotos padronizadas na pasta proposta/, secoes nao aplicadas e apagar.
+  {
+    const { existsSync, readdirSync } = await import("node:fs");
+    const { default: sharp } = await import("sharp");
+    const { gravarProposta, lerProposta, apagarProposta } = await import("../src/lib/proposta/banco.js");
+    const { assinaturaDaSecao, secoesNaoAplicadas } = await import("../src/lib/proposta/aplicadas.js");
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-1", tituloBase: "PRODUTO DE TESTE DA PROPOSTA" } });
+    const titulos = { secao: "titulos", conteudo: { opcoes: ["OPCAO A", "OPCAO B", "OPCAO C"], recomendada: 1, concorrentes: ["TITULO DA LOJA"] } };
+
+    const r1 = await gravarProposta("ZZ-PROP-1", titulos);
+    conferir("gravar: a primeira secao cria a proposta", r1.ok === true && JSON.stringify(r1.secoes) === '["titulos"]');
+    const r2 = await gravarProposta("ZZ-PROP-1", { secao: "preco", conteudo: { opcoes: [], recomendada: null, motivoSemRecomendada: "sem custo" } });
+    conferir("gravar: outra secao mantem a primeira", r2.ok === true && r2.secoes.includes("titulos") && r2.secoes.includes("preco"));
+    await gravarProposta("ZZ-PROP-1", { ...titulos, conteudo: { ...titulos.conteudo, opcoes: ["NOVA A", "NOVA B", "NOVA C"] } });
+    conferir("gravar: a mesma secao e substituida", (await lerProposta("ZZ-PROP-1")).secoes.titulos.opcoes[0] === "NOVA A");
+    conferir("gravar: o produto nao muda", (await prisma.produto.findUnique({ where: { id: produto.id } })).tituloBase === "PRODUTO DE TESTE DA PROPOSTA");
+
+    const png = await sharp({ create: { width: 600, height: 400, channels: 3, background: "#2a6" } }).png().toBuffer();
+    const fotoPlano = { secao: "fotos", conteudo: { candidatas: [{ id: "c1", origem: { loja: "Loja X", url: "https://x.test/1.png" }, escolhida: true, ordem: 0, motivo: "placa com cabo" }] } };
+    const r3 = await gravarProposta("ZZ-PROP-1", fotoPlano, { bytes: new Map([["c1", png]]) });
+    const candidata = (await lerProposta("ZZ-PROP-1")).secoes.fotos.candidatas[0];
+    conferir("fotos: gravou com aviso de poucas candidatas", r3.ok === true && /candidatas/.test(r3.aviso ?? ""));
+    conferir("fotos: a candidata ganhou o nome do arquivo", /^[0-9a-f]{32}\.jpg$/.test(candidata.arquivo ?? ""));
+    const caminho = `dados/produtos/ZZ-PROP-1/proposta/${candidata.arquivo}`;
+    const meta = existsSync(caminho) ? await sharp(caminho).metadata() : {};
+    conferir("fotos: o arquivo foi padronizado em JPEG 1024x1024", meta.format === "jpeg" && meta.width === 1024 && meta.height === 1024);
+    conferir("fotos: nenhuma linha de ProdutoArquivo foi criada", (await prisma.produtoArquivo.count({ where: { produtoId: produto.id } })) === 0);
+
+    const semBytes = await gravarProposta("ZZ-PROP-1", { secao: "fotos", conteudo: { candidatas: [{ ...fotoPlano.conteudo.candidatas[0], id: "c2" }] } });
+    conferir("fotos: candidata sem bytes nem foto atual e recusada", semBytes.ok === false);
+    conferir("fotos: a recusa nao apagou a foto anterior", existsSync(caminho));
+
+    await gravarProposta("ZZ-PROP-1", { secao: "fotos", conteudo: { candidatas: [] } });
+    conferir("fotos: substituir a secao apaga o arquivo que saiu", !existsSync(caminho) && readdirSync("dados/produtos/ZZ-PROP-1/proposta").length === 0);
+
+    const pdf = Buffer.from("%PDF-1.4\n%teste\n");
+    const docs = await gravarProposta("ZZ-PROP-1", { secao: "documentos", conteudo: { itens: [{ id: "d1", titulo: "Datasheet", url: "https://x.test/d.pdf" }] } }, { bytes: new Map([["d1", pdf]]) });
+    conferir("documentos: PDF vai para a pasta da proposta", docs.ok === true && /^[0-9a-f]{32}\.pdf$/.test((await lerProposta("ZZ-PROP-1")).secoes.documentos.itens[0].arquivo ?? ""));
+    const falso = await gravarProposta("ZZ-PROP-1", { secao: "documentos", conteudo: { itens: [{ id: "d2", titulo: "Falso", url: "https://x.test/f.pdf" }] } }, { bytes: new Map([["d2", Buffer.from("<html>")]]) });
+    conferir("documentos: arquivo que nao e PDF e recusado", falso.ok === false);
+
+    const proposta = await lerProposta("ZZ-PROP-1");
+    const atual = { ...(await prisma.produto.findUnique({ where: { id: produto.id } })), fotos: [] };
+    const pendentes = secoesNaoAplicadas(proposta, atual);
+    conferir("aplicadas: titulos, preco e fotos estao pendentes", ["titulos", "preco", "fotos"].every((s) => pendentes.includes(s)));
+    conferir("aplicadas: documentos nunca fica pendente", !pendentes.includes("documentos"));
+    const marcada = { ...proposta, aplicadas: { titulos: assinaturaDaSecao("titulos", atual) } };
+    conferir("aplicadas: com a assinatura, titulos sai da lista", !secoesNaoAplicadas(marcada, atual).includes("titulos"));
+    conferir("aplicadas: o produto mudou depois, titulos volta", secoesNaoAplicadas(marcada, { ...atual, tituloBase: "OUTRO" }).includes("titulos"));
+
+    await prisma.produto.update({ where: { id: produto.id }, data: { conferido: true } });
+    const conferido = await gravarProposta("ZZ-PROP-1", titulos);
+    conferir("gravar: produto Conferido e recusado", conferido.ok === false && /Conferido/.test(conferido.erro));
+    conferir("gravar: produto inexistente e recusado", (await gravarProposta("ZZ-PROP-NAO", titulos)).ok === false);
+
+    await apagarProposta(produto.id, "ZZ-PROP-1");
+    conferir("apagar: a proposta sumiu", (await lerProposta("ZZ-PROP-1")) === null);
+    conferir("apagar: a pasta proposta/ sumiu", !existsSync("dados/produtos/ZZ-PROP-1/proposta"));
+  }
+
+  // O script: `proposta --ler` e o `gravar` recusando produto com proposta aberta (roda o script de verdade, no PC).
+  {
+    const { execFileSync } = await import("node:child_process");
+    const { writeFileSync, mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    await prisma.produto.create({ data: { sku: "ZZ-PROP-2", tituloBase: "PRODUTO DE TESTE DO SCRIPT" } });
+    const pasta = mkdtempSync(`${tmpdir()}/rise-proposta-`);
+    const plano = `${pasta}/plano.json`;
+    writeFileSync(plano, JSON.stringify({ secao: "relatorio", conteudo: { texto: "Relatório do teste." } }));
+    const rodar = (...args) => {
+      try {
+        return { codigo: 0, saida: execFileSync("node", ["scripts/preencher-produto.js", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }) };
+      } catch (erro) {
+        return { codigo: erro.status, saida: `${erro.stdout ?? ""}${erro.stderr ?? ""}` };
+      }
+    };
+    const gravado = rodar("proposta", "ZZ-PROP-2", `--plano=${plano}`);
+    conferir("script: proposta --plano grava a secao", gravado.codigo === 0 && /relatorio/.test(gravado.saida));
+    const lido = rodar("proposta", "ZZ-PROP-2", "--ler");
+    conferir("script: proposta --ler mostra a secao", lido.codigo === 0 && /Relatório do teste/.test(lido.saida));
+    writeFileSync(plano, JSON.stringify({ sku: "ZZ-PROP-2", descricaoBase: "nao deve gravar" }));
+    const recusado = rodar("gravar", plano);
+    conferir("script: gravar recusa produto com proposta aberta", recusado.codigo !== 0 && /proposta aberta/.test(recusado.saida));
+    conferir("script: a descricao nao mudou", (await prisma.produto.findUnique({ where: { sku: "ZZ-PROP-2" } })).descricaoBase !== "nao deve gravar");
   }
 } finally {
   await limpar();
