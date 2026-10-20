@@ -665,7 +665,7 @@ export default function FormularioFonte({ tipoInicial = "CONCORRENTE" }) {
             className={CAMPO}
           />
           <span className="mt-1 block text-xs text-suave">
-            Limita a coleta a um trecho do site. Em branco, cobre a loja inteira.
+            Limita a coleta a um trecho do site. Em branco, cobre a loja inteira. Em loja VTEX (como a Patolastore), escreva o caminho da categoria, por exemplo &ldquo;gabinetes&rdquo;.
           </span>
         </label>
         )}

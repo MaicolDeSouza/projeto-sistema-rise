@@ -15,6 +15,7 @@ import {
 import { lerAVista, novaMemoriaDePagamento } from "./pagamento";
 import { enderecoComparavel } from "./texto-html";
 import { descobrirSitemaps, lerSitemaps, lojasApontadasPeloRobots } from "./sitemap";
+import { categoriaDaVtex, lerCategoriaDaVtex } from "./vtex";
 
 /**
  * Colheita de produtos de uma fonte.
@@ -446,7 +447,28 @@ export async function colherProdutos({
   let itensDoCatalogo = [];
   let totalDoCatalogo = null;
 
-  if (catalogo) {
+  // CATEGORIA DE LOJA VTEX (Patolastore, 20/10/2026): a Secao e o caminho de uma categoria ("gabinetes"). Na VTEX o endereco do
+  // produto nao carrega a categoria, entao o filtro de texto nunca a achava; a busca publica por categoria lista os
+  // produtos dela. Vale no lugar do catalogo generico (que nesta plataforma nem filtra categoria).
+  const categoriaDaVtexPedida = plataforma.id === "vtex" ? categoriaDaVtex(prefixo) : null;
+
+  if (categoriaDaVtexPedida) {
+    const leitura = await lerCategoriaDaVtex({ origem: alvo.origin, categoria: categoriaDaVtexPedida, limite, sinal });
+    conferirSinal();
+    // So e o total da categoria quando a lista veio inteira; com o limite do teste, e o que a loja declarou.
+    totalDoCatalogo = leitura.total;
+    itensDoCatalogo = leitura.itens;
+
+    passos.push(
+      passo(
+        "Categoria lida",
+        !leitura.erro && itensDoCatalogo.length > 0,
+        leitura.erro
+          ? `a loja não respondeu à busca da categoria "${categoriaDaVtexPedida}": ${leitura.erro}`
+          : `${leitura.total ?? itensDoCatalogo.length} produto(s) na categoria "${categoriaDaVtexPedida}"`,
+      ),
+    );
+  } else if (catalogo) {
     const leitura = await lerCatalogo(catalogo, { limite, sinal });
     conferirSinal();
     totalDoCatalogo = leitura.total;

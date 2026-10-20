@@ -2985,5 +2985,14 @@ console.log("\n— Rascunho do cadastro e preferencia da descricao —");
   ], [nada, nada, nada, nada, nada]);
 }
 
+// Patolastore (VTEX, 20/10/2026): a Secao e o caminho de uma categoria; o filtro de texto nao a achava.
+console.log("\n— categoria de loja VTEX —");
+{
+  const { categoriaDaVtex, totalDoCabecalhoResources } = await import("../src/lib/coleta/vtex.js");
+  conferir("vtex: a Secao vira o caminho da categoria (barras, endereco completo, subcategoria)", [categoriaDaVtex("gabinetes"), categoriaDaVtex(" /gabinetes/ "), categoriaDaVtex("https://www.patolastore.com.br/gabinetes"), categoriaDaVtex("gabinetes/linha-pbo")], ["gabinetes", "gabinetes", "gabinetes", "gabinetes/linha-pbo"]);
+  conferir("vtex: vazio, produto /p e texto que nao e caminho nao sao categoria", [categoriaDaVtex(""), categoriaDaVtex(null), categoriaDaVtex("/caixa-patola/p"), categoriaDaVtex("gabinete gamer"), categoriaDaVtex("a?b=1")], [null, null, null, null, null]);
+  conferir("vtex: total do cabecalho resources", [totalDoCabecalhoResources("0-49/264"), totalDoCabecalhoResources("0-9/10"), totalDoCabecalhoResources(""), totalDoCabecalhoResources(undefined)], [264, 10, null, null]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
