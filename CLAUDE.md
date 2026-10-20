@@ -197,7 +197,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
-| Rise AI | Assistente de atendimento (Entrega 1, na VPS desde 13/10/2026; a Entrega A1, com chat fluido, orçamento e internet, está pronta e **ainda sem deploy**): a equipe cola a pergunta de um cliente e recebe o texto pronto para copiar, com preço, estoque e link da loja. Feito para modelo local (LM Studio) como padrão e a API da Anthropic como reserva, mas o modelo local não serve no notebook do dono (medido em 11/10/2026): na prática a Anthropic é o Padrão; conversas guardadas; 👎 vira sugestão de correção que o **dono** aprova; Revisão do dia, Configurações e Consumo para administradores. Ver "Rise AI (Entrega 1)" |
+| Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. Ver "Servidor MCP (20/10/2026)" e "Rise AI (Entrega 1)" |
 | Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. Ver "Acessos (lançamento 1)" |
 | Pedidos, Estoque, Financeiro, Relatórios | Esqueleto |
 
@@ -246,8 +246,9 @@ npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
-npm run teste:rise-ai             # 623 asserções do Rise AI (Entrega 1 e A1): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
-npm run teste:acessos             # 139 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição e o guarda estático de src/app. Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
+npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
+npm run teste:mcp                 # 127 asserções do servidor MCP: sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
+npm run teste:acessos             # 143 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição e o guarda estático de src/app. Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 137 asserções da proposta automática de produto: regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
@@ -3741,10 +3742,19 @@ uma revisão de segurança e uma de arquitetura (consolidado e decisões em
   `docs/superpowers/investigacoes/2026-10-12-revisao-specs-rise-ia-acessos.md`.
 - **Acessos lançamento 1 PRONTO em 12/10/2026** (seção "Acessos (lançamento 1)", abaixo) e **no ar na VPS junto com a Entrega 1
   desde 13/10/2026** (commit `7d9d806`, migrations `20261011_rise_ai` e `20261012_acessos` aplicadas). **Entrega A1 PRONTA em
-  13/10/2026, sem deploy** (seção abaixo). **Próximo passo:** o ok do dono e o "sobe" da A1; depois o plano da Entrega C1 (avisos
-  no Telegram).
+  13/10/2026, sem deploy** (seção abaixo). **Mudança de rumo em 20/10/2026** (plano
+  `docs/superpowers/plans/2026-10-20-mcp-rise-e-rumo-do-rise-ai.md`): o chat interno da Entrega A saiu da tela, o acesso aos dados
+  é pelo Claude ou pelo ChatGPT, pelo servidor MCP (seção "Servidor MCP", abaixo), e a **Entrega E (produto e anúncio
+  automáticos) foi abortada** como entrega do Rise AI: segue por outra sessão, pelo Claude desktop via SSH (a proposta
+  automática de produto, `PropostaDeProduto`). Próximo: o "sobe" e depois os avisos no Telegram.
 
 ### Entrega A1: chat fluido, orçamento, internet e abas (13/10/2026)
+
+**O chat desta entrega saiu da tela em 20/10/2026, antes de subir** (decisão do dono: item C, opção 1, do plano do MCP).
+Saíram a página da conversa, as rotas `conversar` e `parar`, o `Chat`, a lista de conversas, a aba Canais (a internet), o
+orçamento interno e o prompt interno. A lib (`conversa.js`, `paradas.js`, `orcamento.js`, a pesquisa na internet, o modo
+cliente) ficou inteira para o WhatsApp, e o orçamento interno, a internet e o prompt interno continuam gravados (só não se
+editam pela tela). O que segue descreve a entrega como foi feita; o roteiro do dono no fim é histórico.
 
 Primeira parte da Entrega A da spec do agente. Plano (18 tarefas, executado inline na `main`, commits `c1e1ef6` a `d95b79f`):
 `docs/superpowers/plans/2026-10-13-rise-ia-entrega-a1.md`. **As decisões, o que custa se estiverem erradas, a revisão final e o que
@@ -3811,6 +3821,62 @@ com backup antes); nenhuma variável nova no `.env`. O passo 10 do roteiro preci
 10. **Troca para o GPT-4.1 mini** (quando a chave da OpenAI existir na VPS): Configurações › Modelos › cartão OpenAI → colar a chave →
     Testar conexão → habilitar `gpt-4.1-mini` → Padrão = OpenAI / `gpt-4.1-mini`, Reserva = Anthropic / `claude-haiku-5-5` → Salvar →
     perguntar de novo e conferir o selo do modelo e o custo.
+
+## Servidor MCP (20/10/2026)
+
+Mudança de rumo do Rise AI pedida pelo dono: a equipe (a Andrea primeiro) consulta o Rise pelo **claude.ai, no plano grátis**, ou
+pelo **ChatGPT**, com um conector só e sem custo de API para o Rise. Plano: `docs/superpowers/plans/2026-10-20-mcp-rise-e-rumo-do-rise-ai.md`
+(as respostas do dono às 7 dúvidas estão nele); decisões da execução, o que custa se estiverem erradas e o que não foi visto num
+servidor real: `docs/superpowers/plans/2026-10-20-mcp-rise-e-rumo-do-rise-ai-decisoes.md`. **Pronto e testado no PC, SEM DEPLOY.**
+
+- **O endereço:** `https://rise.4hobby.com.br/mcp` (a rota é `/mcp`, não `/api/mcp`). Ferramentas só de leitura, as mesmas do
+  Rise AI: `buscarProdutos`, `consultarProduto`, `consultarEstoque`, `consultarPreco`, `compararProdutos`, `buscarProdutosSimilares`,
+  `buscarConhecimento`, mais `anotarDuvida`. **Fora:** `pesquisarNaInternet` e qualquer escrita de dado. **O `/mcp` nunca chama
+  provedor de IA.**
+- **Onde mora:** `src/lib/mcp/` (`oauth.js`: as regras puras do OAuth, Host e Origin; `oauthBanco.js`: clientes, códigos, tokens,
+  rotação, revogação por família e conexões; `portao.js`: `exigirTokenMcp`; `autorizacao.js`: a tela Autorizar; `servidor.js`: o
+  `McpServer` e as ferramentas; `registro.js`: `ChamadaMcp`; `anotacoes.js`: `anotarDuvida`; `conexoes.js`: a aba Conexões). Rotas
+  `src/app/mcp/route.js` (só POST), `src/app/mcp/oauth/register` e `token`, a tela `src/app/mcp/oauth/authorize/` e os metadados em
+  `src/app/.well-known/`. Banco: migration `20261020_mcp_rise` (aditiva: `ClienteMcp`, `CodigoMcp`, `TokenMcp`, `ChamadaMcp`,
+  `enum CanalIA` e `ConversaIA.canal`). Teste: `npm run teste:mcp`.
+- **SDK `@modelcontextprotocol/server` 2.3.1, sem `mcp-handler`**, sem estado: a revisão 2026-07-28 do protocolo (o SDK não a
+  exporta; mandar a `LATEST_PROTOCOL_VERSION` dele, que é a última da era antiga, dá 400) e os clientes de 2025 pelo `initialize`.
+  GET, DELETE, PUT e PATCH dão 405. Modo de resposta "auto" (o "json" imprime um aviso a cada handler).
+- **OAuth 2.1 com o Rise como servidor de autorização:** só registro dinâmico (DCR), cliente público, PKCE S256, `resource` (RFC
+  8707) e `iss` (RFC 9207). **Lista FECHADA de retorno:** `https://claude.ai/api/mcp/auth_callback`,
+  `https://chatgpt.com/connector_platform_oauth_redirect`, `https://chatgpt.com/connector/oauth/<id>` e `localhost`/`127.0.0.1`
+  `/callback` em qualquer porta (Claude Code). Código de uso único (reusar derruba a família), acesso de 1 h, renovação de 30 dias
+  com rotação (renovação reusada derruba a família; renovar invalida também o acesso antigo). **Todo segredo fica só como hash
+  SHA-256 no banco**; o texto existe só na resposta que o entrega.
+- **Cada pessoa entra com o login dela.** A tela "Autorizar" (`/mcp/oauth/authorize`) fica ATRÁS do Tinyauth e exige
+  `riseAi.chat` em editar; o token leva o login, e a cada chamada o portão monta a sessão de Acessos dele (`permissoesDoLogin`):
+  perfil `admin` com o `pode()` do login. **O MCP confere só os `dado.*`** (custo, margem, fornecedores, concorrentes, financeiro),
+  não as telas. Usuário desativado, sem `riseAi.chat` editar ou token revogado cai no pedido seguinte (401 ou 403); erro de banco
+  no portão é 503 com `Retry-After` (um 401 faria o Claude pedir o login de novo).
+- **Caddy:** o matcher `@mcp` (os caminhos EXATOS `/mcp`, `/mcp/oauth/token`, `/mcp/oauth/register` e os dois `/.well-known`) vai
+  direto ao app, sem `forward_auth` e sem o `X-Rise-Borda`, antes do `handle` com login. O resto de `/mcp/*` (a tela Autorizar)
+  continua atrás do login. O app confere o Host (421, contra DNS rebinding) e recusa Origin de outro site (403).
+- **Toda chamada fica registrada** em `ChamadaMcp` (quem, cliente, ferramenta, argumentos mascarados e cortados em 2.000
+  caracteres, ok ou erro, duração). Argumento que o zod do SDK recusa não chega ao registro.
+- **`anotarDuvida`** (decisão A, opção 1): as instruções do servidor pedem ao modelo que a chame no fim de cada resposta; o
+  registro de toda chamada é a garantia. Grava na conversa "Dúvidas pelo Claude · dd/mm" (canal MCP, uma por pessoa, cliente e
+  dia de São Paulo): a pergunta mascarada (telefone, e-mail, CPF), a resposta com provedor `mcp`, o cliente no `modelo`, custo 0 e
+  as consultas dos últimos 30 minutos. **Arquivos só como o texto que o modelo extraiu** (decisão B, opção 1), até 5 de 20.000
+  caracteres; nunca os bytes. A Revisão do dia mostra o chip "pelo Claude", o selo verde "conta própria" e o anexo expansível.
+- **Aba Conexões** (`/rise-ai`, `Conexoes.jsx`): o endereço com "Copiar endereço", os passos na bolha "i" e as conexões vivas da
+  própria pessoa (cliente, conectado em, vale até) com Desconectar atrás de confirmação. O id `riseAi.chat` ficou (trocar apagaria a
+  permissão em silêncio); o rótulo virou "Rise AI › Acesso pelo Claude e ChatGPT".
+
+**Para pôr no ar (só com o "sobe"):** deploy normal pelo cartão "Atualizar a VPS" (leva junto as migrations pendentes das outras
+frentes, com backup antes; o deploy valida e recarrega o `Caddyfile`). Conferir de fora: `GET
+/.well-known/oauth-protected-resource/mcp` devolve o JSON e `POST /mcp` sem token dá 401 com `WWW-Authenticate`. Antes da Andrea
+(passos do dono): o usuário dela no Tinyauth; o usuário `andrea` no Rise com a função Atendimento; e tirar da Atendimento custo,
+margem, concorrentes e financeiro.
+
+**Roteiro do dono (depois do deploy):** (1) claude.ai › Configurações › Conectores › Adicionar conector personalizado, colar
+`https://rise.4hobby.com.br/mcp` e conectar: abre o login do Rise e a tela Autorizar; Autorizar volta ao claude.ai conectado. (2)
+Perguntar o preço do 100101: a resposta traz o preço do Rise. (3) Rise AI › Revisão do dia: "Dúvidas pelo Claude · dd/mm" com a
+pergunta e a resposta. (4) Rise AI › Conexões: a conexão aparece; Desconectar faz o Claude pedir a conexão de novo.
 
 ## Acessos (lançamento 1, 12/10/2026)
 

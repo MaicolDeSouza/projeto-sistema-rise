@@ -1,5 +1,11 @@
 # Rise IA, fase 2: o agente da 4hobby
 
+> **Mudança de rumo em 20/10/2026** (plano `docs/superpowers/plans/2026-10-20-mcp-rise-e-rumo-do-rise-ai.md`): o chat interno
+> da Entrega A saiu da tela antes de subir; a equipe consulta o Rise pelo Claude ou pelo ChatGPT, pelo servidor MCP do Rise
+> (`/mcp`, só leitura, sem IA paga), e as dúvidas que eles anotam entram na Revisão do dia. A **Entrega E** (produto e anúncio
+> automáticos) foi **abortada** aqui: segue por outra sessão, pelo Claude desktop via SSH. O resto desta spec (WhatsApp,
+> Telegram, orçamento dos clientes, documentos de ensino) continua valendo, e a lib `src/lib/riseAi/` é o motor dele.
+
 Data: 12/10/2026 (revisada no mesmo dia depois de uma revisão de segurança e uma de arquitetura; o que mudou está
 marcado "revisão"; e **refeita no mesmo dia com o plugin de UI/UX** do dono: a seção 5a é o desenho completo das telas,
 com a skill `frontend-design`, o Padrão visual do `CLAUDE.md` e a revisão `make-interfaces-feel-better`; e **ajustada na
