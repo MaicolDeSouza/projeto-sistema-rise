@@ -4676,8 +4676,10 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
 - **Login do Tinyauth (criar, trocar a senha, remover):** `deploy/usuario-tinyauth.sh` (20/10/2026, Opção 3 do dono, até o Rise ter
   a tela "Definir senha"). O dono roda pelo SSH com terminal, e a senha é digitada escondida (vai ao `htpasswd -iB` pela entrada,
   nunca num argumento): `ssh -t -i ~/.ssh/rise_vps rise@179.199.150.221 "cd /srv/rise/app && git fetch -q origin && git show
-  origin/main:deploy/usuario-tinyauth.sh | bash -s -- andrea"`. Também `--remover <login>` (nunca o último), `--listar` (só nomes) e
-  `--simular <login>` (senha aleatória, numa cópia, sem mudar nada). Grava só a linha `TINYAUTH_AUTH_USERS` (com `$$`), copia o
+  origin/main:deploy/usuario-tinyauth.sh | bash -s -- andrea"`. Também `--remover <login>` (nunca o último), `--listar` (só nomes),
+  `--renomear <atual> <novo>` (só a escrita do nome, mantendo a senha; ex.: andrea → Andrea) e `--simular` na frente de qualquer
+  modo (numa cópia, sem mudar nada). **O Tinyauth diferencia maiúsculas no nome** (quem entra digita exatamente como está), e o Rise
+  não (põe em minúsculas o login que chega: "Andrea" no Tinyauth é o usuário `andrea` do Rise). Grava só a linha `TINYAUTH_AUTH_USERS` (com `$$`), copia o
   `.env` antes para `~/.env.antes-tinyauth-*`, recria só o contêiner `auth`, confere e diz se o usuário do Rise existe. Trocar a
   senha mantém o nome como estava ("Maicol"). Sem mínimo de tamanho (decisão do dono em 20/10/2026); só a vazia é recusada. O
   código bcrypt do `htpasswd` foi conferido com o
