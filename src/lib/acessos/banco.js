@@ -1,8 +1,9 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { ambienteDoRise } from "@/lib/sessao";
 import { ErroDeUso } from "@/lib/riseAi/erros";
 import { contarLiberados, resolverPermissoes } from "./resolucao.js";
-import { normalizarLogin, quebraVidro } from "./sessao.js";
+import { LOGINS_RESERVADOS, montarSessao, normalizarLogin, quebraVidro } from "./sessao.js";
 import { podeDesativar, validarFuncao, validarUsuario } from "./validacao.js";
 
 /**
@@ -255,4 +256,32 @@ export async function ehUltimoAdministradorAtivo(id) {
   if (!usuario?.ativo || !usuario.funcoes.some((vinculo) => fixas.includes(vinculo.funcaoId))) return false;
   const outros = await prisma.usuarioRise.count({ where: { id: { not: usuario.id }, ativo: true, funcoes: { some: { funcaoId: { in: fixas } } } } });
   return outros === 0;
+}
+
+/**
+ * A sessao de Acessos de um login que NAO veio de uma requisicao com login (o token do /mcp): as mesmas funcoes, excecoes,
+ * quebra-vidro e "inativo" da tela, pela mesma `montarSessao`. Mudou na matriz de Usuarios e funcoes, vale aqui na
+ * proxima chamada.
+ *
+ * Sempre como VPS (`montarSessao` faz do PC sem simulacao um administrador, e qualquer token viraria administrador). A
+ * unica excecao e o login "pc" no Rise do PC, que e a maquina do dono e e assim que a tela Autorizar do PC grava o token.
+ *
+ * @returns {Promise<{ estado: "ok"|"inativo"|"nao-cadastrado"|"erro-banco", administrador: boolean, permissoes: Map<string,string>,
+ *   pode: (id: string, nivel: string) => boolean }>}
+ */
+export async function permissoesDoLogin(bruto, { env = process.env } = {}) {
+  const login = normalizarLogin(bruto);
+  if (login === "pc" && ambienteDoRise(env) === "pc") return montarSessao({ ambiente: "pc", login, motivo: null });
+  // Vazio ou reservado ("pc" na VPS, "desconhecido"): ninguem com esse login existe, e a sessao fica sem nada.
+  if (!login || LOGINS_RESERVADOS.includes(login)) return { ...montarSessao({ ambiente: "vps", login: null, motivo: "token" }), estado: "nao-cadastrado" };
+  try {
+    const usuario = await prisma.usuarioRise.findUnique({
+      where: { login },
+      include: { funcoes: { include: { funcao: { include: { permissoes: true } } } }, excecoes: true },
+    });
+    return montarSessao({ ambiente: "vps", login, motivo: "token", usuario, quebraVidro: quebraVidro(login, env) });
+  } catch (erro) {
+    console.error("[acessos] banco indisponível ao ler a sessão do token:", erro?.message ?? erro);
+    return { ...montarSessao({ ambiente: "vps", login, motivo: "token", usuario: null }), estado: "erro-banco" };
+  }
 }

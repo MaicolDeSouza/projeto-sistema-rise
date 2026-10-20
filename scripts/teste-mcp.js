@@ -81,6 +81,9 @@ async function limpar() {
   await prisma.chamadaMcp.deleteMany({ where: { login: { startsWith: "zz-mcp-" } } });
   await prisma.clienteMcp.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
   await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "zz-mcp-" } } });
+  // Usuarios antes das funcoes (o vinculo sai junto com o usuario).
+  await prisma.usuarioRise.deleteMany({ where: { login: { startsWith: "zz-mcp-" } } });
+  await prisma.funcaoRise.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
 }
 
 try {
@@ -452,6 +455,99 @@ try {
       [1, true, "ZZ-MCP Claude", true],
     );
     conferir("conexoes de quem nao tem nenhuma", await banco.listarConexoesDoLogin("zz-mcp-ninguem", { agora }), []);
+  }
+
+  // -------------------------------------------------------------------------
+  // Tarefa 5 — A sessao de Acessos pelo login do token e o portao 401/403 do /mcp
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nPortão");
+    const { permissoesDoLogin } = await import("../src/lib/acessos/banco.js");
+    const { exigirTokenMcp, autenticacaoParaSdk } = await import("../src/lib/mcp/portao.js");
+    const banco = await import("../src/lib/mcp/oauthBanco.js");
+    const agora = Date.now();
+    const env = { APP_URL_PUBLICA: "https://rise.teste", RISE_PRODUCAO: "1" };
+
+    const funcao = await prisma.funcaoRise.create({
+      data: { nome: "ZZ-MCP Atendimento", permissoes: { create: [{ recurso: "tela.riseAi", nivel: "ver" }, { recurso: "riseAi.chat", nivel: "editar" }, { recurso: "dado.estoqueExato", nivel: "ver" }] } },
+    });
+    const soTela = await prisma.funcaoRise.create({ data: { nome: "ZZ-MCP So tela", permissoes: { create: [{ recurso: "tela.riseAi", nivel: "ver" }] } } });
+    const usuario = (login, funcaoId, extra = {}) => prisma.usuarioRise.create({ data: { login, nome: login, ...extra, funcoes: { create: [{ funcaoId }] } } });
+    await usuario("zz-mcp-andrea", funcao.id);
+    await usuario("zz-mcp-sem", soTela.id);
+    await usuario("zz-mcp-inativa", funcao.id, { ativo: false });
+    await usuario("zz-mcp-excecao", funcao.id, { excecoes: { create: [{ recurso: "dado.custo", nivel: "ver" }] } });
+
+    const andrea = await permissoesDoLogin("zz-mcp-andrea", { env });
+    conferir(
+      "sessao pelo login: a funcao vale, sem custo, estoque exato liberado",
+      [andrea.estado, andrea.administrador, andrea.pode("riseAi.chat", "editar"), andrea.pode("dado.custo", "ver"), andrea.pode("dado.estoqueExato", "ver")],
+      ["ok", false, true, false, true],
+    );
+    conferir("a excecao pessoal vale como na tela", (await permissoesDoLogin("zz-mcp-excecao", { env })).pode("dado.custo", "ver"), true);
+    conferir(
+      "inativo, nao cadastrado e vazio",
+      [(await permissoesDoLogin("zz-mcp-inativa", { env })).estado, (await permissoesDoLogin("zz-mcp-ninguem", { env })).estado, (await permissoesDoLogin("", { env })).estado],
+      ["inativo", "nao-cadastrado", "nao-cadastrado"],
+    );
+    conferir(
+      "administrador pelo .env; 'pc' so e administrador no Rise do PC",
+      [
+        (await permissoesDoLogin("zz-mcp-andrea", { env: { ...env, RISE_AI_ADMINS: "ZZ-MCP-Andrea" } })).administrador,
+        (await permissoesDoLogin("pc", { env: {} })).administrador,
+        (await permissoesDoLogin("pc", { env })).estado,
+      ],
+      [true, true, "nao-cadastrado"],
+    );
+
+    const cliente = await banco.registrarCliente({ nome: "ZZ-MCP Claude", redirectUris: ["https://claude.ai/api/mcp/auth_callback"] });
+    const tokenDe = async (login) => {
+      const codigo = await banco.emitirCodigo({ clienteId: cliente.clientId, login, redirectUri: "https://claude.ai/api/mcp/auth_callback", codeChallenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", resource: "https://rise.teste/mcp", escopos: ["consultar"] }, { agora });
+      return (await banco.trocarCodigo({ codigo, clientId: cliente.clientId, redirectUri: "https://claude.ai/api/mcp/auth_callback", codeVerifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk" }, { agora })).tokens.access_token;
+    };
+    const pedido = (autorizacao) => new Request("https://rise.teste/mcp", { method: "POST", headers: autorizacao ? { authorization: autorizacao } : {} });
+    const portao = (autorizacao, opcoes = {}) => exigirTokenMcp(pedido(autorizacao), { env, agora, ...opcoes });
+    const resumo = async (resultado) =>
+      resultado.ok ? ["ok"] : [resultado.resposta.status, resultado.resposta.headers.get("www-authenticate"), (await resultado.resposta.json()).error];
+    const desafio = 'Bearer resource_metadata="https://rise.teste/.well-known/oauth-protected-resource/mcp"';
+    const invalido = `${desafio}, error="invalid_token", error_description="Token inválido ou vencido."`;
+
+    const tokenAndrea = await tokenDe("zz-mcp-andrea");
+    conferir("sem Authorization: 401 com o desafio (sem error)", await resumo(await portao(null)), [401, desafio, "unauthorized"]);
+    conferir("Authorization que nao e Bearer: 401 invalid_token", await resumo(await portao("Basic eDp5")), [401, invalido, "invalid_token"]);
+    conferir("token inventado: 401 invalid_token", await resumo(await portao("Bearer inventado")), [401, invalido, "invalid_token"]);
+    conferir("token vencido: 401 invalid_token", await resumo(await portao(`Bearer ${tokenAndrea}`, { agora: agora + 2 * 3600e3 })), [401, invalido, "invalid_token"]);
+    conferir("usuario inativo: 401 igual ao do token vencido (nao revela o motivo)", await resumo(await portao(`Bearer ${await tokenDe("zz-mcp-inativa")}`)), [401, invalido, "invalid_token"]);
+    conferir("login que nao existe mais: 401", (await resumo(await portao(`Bearer ${await tokenDe("zz-mcp-ninguem")}`)))[0], 401);
+    conferir(
+      "sem o Acesso pelo Claude e ChatGPT: 403 insufficient_scope",
+      await resumo(await portao(`Bearer ${await tokenDe("zz-mcp-sem")}`)),
+      [403, `${desafio}, error="insufficient_scope", error_description="Sem acesso ao Rise pelo Claude ou ChatGPT.", scope="consultar"`, "insufficient_scope"],
+    );
+
+    const bom = await portao(`Bearer ${tokenAndrea}`);
+    conferir(
+      "token bom: a autenticacao com o login, o cliente e as permissoes",
+      [bom.ok, bom.autenticacao?.login, bom.autenticacao?.clienteNome, bom.autenticacao?.administrador, bom.autenticacao?.pode("dado.custo", "ver"), bom.autenticacao?.pode("riseAi.chat", "editar")],
+      [true, "zz-mcp-andrea", "ZZ-MCP Claude", false, false, true],
+    );
+    conferir("'bearer' minusculo tambem vale (RFC 6750)", (await portao(`bearer ${tokenAndrea}`)).ok, true);
+
+    await prisma.usuarioRise.update({ where: { login: "zz-mcp-andrea" }, data: { ativo: false } });
+    conferir("desativar o usuario corta o token que ja estava valendo, na hora", (await resumo(await portao(`Bearer ${tokenAndrea}`)))[0], 401);
+    await prisma.usuarioRise.update({ where: { login: "zz-mcp-andrea" }, data: { ativo: true } });
+
+    const foraDoAr = await portao(`Bearer ${tokenAndrea}`, { dependencias: { permissoesDoLogin: async () => ({ estado: "erro-banco", pode: () => false }) } });
+    conferir("banco fora do ar: 503 (um 401 mandaria o Claude pedir login de novo)", [foraDoAr.resposta?.status, foraDoAr.resposta?.headers.get("retry-after")], [503, "30"]);
+    const lancou = await portao(`Bearer ${tokenAndrea}`, { dependencias: { validarTokenDeAcesso: async () => { throw new Error("banco"); } } });
+    conferir("erro ao ler o token tambem vira 503", lancou.resposta?.status, 503);
+
+    const sdk = autenticacaoParaSdk(bom.autenticacao);
+    conferir(
+      "authInfo do SDK sem o texto do token, com a validade em segundos",
+      [sdk.token, sdk.clientId, sdk.scopes, sdk.expiresAt === Math.floor(bom.autenticacao.expiraEm.getTime() / 1000), sdk.extra.autenticacao.login],
+      ["", cliente.clientId, ["consultar"], true, "zz-mcp-andrea"],
+    );
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
