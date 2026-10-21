@@ -57,7 +57,9 @@ const opcao = (nome) => resto.find((arg) => arg.startsWith(`--${nome}=`))?.split
 
 function sair(codigo, mensagem) {
   if (mensagem) console[codigo === 0 ? "log" : "error"](mensagem);
-  return prisma.$disconnect().finally(() => process.exit(codigo));
+  // Espera a saida terminar de sair antes de encerrar: por SSH a saida e um pipe, e o process.exit direto cortava o
+  // `ofertas` em 64 KB (visto na VPS em 21/10/2026). A escrita vazia so chama de volta depois das anteriores.
+  return prisma.$disconnect().finally(() => process.stdout.write("", () => process.stderr.write("", () => process.exit(codigo))));
 }
 
 async function tamanhoEmDisco(sku, arquivo) {
