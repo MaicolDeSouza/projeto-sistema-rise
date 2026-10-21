@@ -75,6 +75,7 @@ const LISTA = [
   acao("acao.produtos.sincronizarBling", "Sincronizar com o Bling", "tela.produtos", "Envio de campos, fornecedores e ajustes de estoque, e o botão Sincronizar estoque."),
   acao("acao.produtos.marcarConferido", "Marcar Conferido", "tela.produtos"),
   acao("acao.produtos.gerarTextoComIA", "Gerar título e descrição com IA", "tela.produtos.cadastro", "Chamada paga à Anthropic."),
+  acao("acao.produtos.proporCadastro", "Propor cadastro (proposta automática)", "tela.produtos.cadastro", "Montar a proposta de cadastro pelo Claude ou ChatGPT (MCP); nunca altera o produto."),
   acao("acao.fotos.nanoBanana", "Gerar foto com Nano Banana", "tela.produtos.cadastro", "Chamada paga ao Google."),
   acao("acao.fotos.photoroom", "Melhorar foto com Photoroom", "tela.produtos.cadastro", "Chamada paga ao Photoroom."),
 

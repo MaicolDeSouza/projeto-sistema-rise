@@ -4,7 +4,7 @@
  * NCM...) com as mesmas funcoes do Rise, sem passar pela tela. Comandos:
  *
  *   ler <sku>                      so consulta e imprime o produto (nada e gravado)
- *   ofertas <sku>                  so consulta: concorrentes e fornecedores vinculados, com campos e fotos
+ *   ofertas <sku> [--prompt=<nome>]  so consulta: o que a proposta le (o mesmo lerParaProposta do MCP)
  *   descricao <sku> --prompt=<nome>  gera a descricao pela API do Rise (PAGA) e imprime; nao grava
  *   proposta <sku> --plano=<json>  grava UMA secao da proposta automatica (spec 2026-10-16); nao mexe no produto
  *   proposta <sku> --ler           imprime a proposta
@@ -103,39 +103,17 @@ async function ler(sku) {
 }
 
 /**
- * O que os concorrentes VINCULADOS ao produto publicam (so leitura): cada oferta (loja, preco, estoque, fotos, descricao)
- * e, por campo, os valores achados com as lojas que os publicam. Os valores agregados vem de
- * `lerCamposDasReferencias`, a mesma funcao das indicacoes da lupa do cadastro (EAN so com tamanho de codigo de barras,
- * marca igual ao nome da loja descartada, medidas lidas da ficha e do texto), para o relatorio bater com a tela.
+ * O que a proposta precisa ler (so leitura): o produto, os fornecedores e os concorrentes vinculados (com as fotos, cada
+ * uma com o id que o MCP usa para baixar), o agregado por campo e os prompts. E o MESMO `lerParaProposta` da ferramenta
+ * do MCP (src/lib/proposta/leitura.js), para os dois caminhos verem a mesma coisa. `--prompt=<nome>` traz o texto dele.
  */
 async function ofertas(sku) {
-  const produto = await prisma.produto.findUnique({ where: { sku }, select: { id: true, sku: true, tituloBase: true } });
-  if (!produto) return sair(1, `Produto ${sku} nao existe.`);
-  const vinculos = await prisma.produtoConcorrente.findMany({ where: { produtoId: produto.id } });
-  const ids = vinculos.map((v) => v.produtoColetadoId).filter(Boolean);
-  const { lerCamposDasReferencias } = await import(pathToFileURL(`${RAIZ}/src/lib/camposDasReferencias.js`).href);
-  const campos = await lerCamposDasReferencias(ids);
-  const linhas = await prisma.produtoColetado.findMany({
-    where: { id: { in: ids } },
-    select: {
-      id: true, codigo: true, nome: true, marca: true, modelo: true, ean: true, ncm: true, url: true, precoNormal: true, precoPromocional: true,
-      estoqueStatus: true, quantidade: true, imagens: true, descricao: true, especificacoes: true, documentos: true, ausenteDesde: true, vistoEm: true,
-      fonte: { select: { nome: true } },
-    },
-  });
-  const listaDeImagens = (valor) => (Array.isArray(valor) ? valor.map((i) => (typeof i === "string" ? i : i?.url ?? i?.src ?? null)).filter(Boolean) : []);
-  console.log(JSON.stringify({
-    produto: { sku: produto.sku, titulo: produto.tituloBase },
-    vinculados: { doRise: ids.length, manuais: vinculos.length - ids.length },
-    agregado: Object.fromEntries(Object.entries(campos).map(([nome, lista]) => [nome, lista.map((i) => ({ valor: i.valor, lojas: i.fontes, ...(i.origem ? { origem: i.origem } : {}) }))])),
-    ofertas: linhas.map((l) => ({
-      loja: l.fonte.nome, codigo: l.codigo, nome: l.nome, marca: l.marca, modelo: l.modelo, ean: l.ean, ncm: l.ncm,
-      precoNormal: l.precoNormal, precoPromocional: l.precoPromocional, estoque: l.estoqueStatus, quantidade: l.quantidade,
-      ausenteDesde: l.ausenteDesde, vistoEm: l.vistoEm, url: l.url,
-      fotos: listaDeImagens(l.imagens).length, imagens: listaDeImagens(l.imagens), descricaoCaracteres: (l.descricao ?? "").length,
-      fichaItens: Array.isArray(l.especificacoes) ? l.especificacoes.length : 0, documentos: Array.isArray(l.documentos) ? l.documentos.length : 0,
-    })),
-  }, null, 2));
+  const { lerParaProposta } = await import(pathToFileURL(`${RAIZ}/src/lib/proposta/leitura.js`).href);
+  try {
+    console.log(JSON.stringify(await lerParaProposta(sku, { prompt: opcao("prompt") }), null, 2));
+  } catch (erro) {
+    return sair(1, erro.message);
+  }
   return sair(0);
 }
 

@@ -180,8 +180,11 @@ const { prisma } = await import("../src/lib/db.js");
 
 async function limpar() {
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PROP-" } } });
+  // O fornecedor e Restrict (sai depois dos produtos); os produtos coletados saem junto com a fonte (Cascade).
+  await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: "ZZ-PROP " } } });
+  await prisma.fonteColeta.deleteMany({ where: { dominio: { startsWith: "zz-prop-" } } });
   const { rm } = await import("node:fs/promises");
-  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2", "ZZ-PROP-3", "ZZ-PROP-4", "ZZ-PROP-5"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
+  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2", "ZZ-PROP-3", "ZZ-PROP-4", "ZZ-PROP-5", "ZZ-PROP-6", "ZZ-PROP-7"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -432,6 +435,68 @@ try {
     const recusado = rodar("gravar", plano);
     conferir("script: gravar recusa produto com proposta aberta", recusado.codigo !== 0 && /proposta aberta/.test(recusado.saida));
     conferir("script: a descricao nao mudou", (await prisma.produto.findUnique({ where: { sku: "ZZ-PROP-2" } })).descricaoBase !== "nao deve gravar");
+  }
+
+  // Leitura para a proposta (MCP, Tarefa 1): o que lerParaProposta entrega e o id das fotos das ofertas.
+  {
+    const { lerParaProposta, fotoDaOferta } = await import("../src/lib/proposta/leitura.js");
+    const loja = await prisma.fonteColeta.create({ data: { nome: "ZZ-PROP Loja", dominio: "zz-prop-loja.invalid", tipo: "CONCORRENTE" } });
+    const distribuidora = await prisma.fonteColeta.create({ data: { nome: "ZZ-PROP Distribuidora", dominio: "zz-prop-distribuidora.invalid", tipo: "FORNECEDOR" } });
+    const coletado = await prisma.produtoColetado.create({
+      data: {
+        fonteId: loja.id, chave: "codigo:L1", origem: "site", codigo: "L1", nome: "Placa ZZ-PROP da loja", precoNormal: 49.9, precoPromocional: 45,
+        estoqueStatus: "IN_STOCK", ean: "7891234567895", marca: "GENÉRICA", url: "https://zz-prop-loja.invalid/l1", descricao: "x".repeat(4000),
+        imagens: ["https://zz-prop-loja.invalid/1.jpg", { url: "https://zz-prop-loja.invalid/2.jpg" }],
+        especificacoes: [{ nome: "Tensão", valor: "5V" }], documentos: [{ titulo: "Datasheet", url: "https://zz-prop-loja.invalid/d.pdf" }],
+      },
+    });
+    const solto = await prisma.produtoColetado.create({ data: { fonteId: loja.id, chave: "codigo:L2", origem: "site", codigo: "L2", nome: "Outro produto", imagens: ["https://zz-prop-loja.invalid/9.jpg"] } });
+    await prisma.produtoColetado.create({ data: { fonteId: distribuidora.id, chave: "codigo:F1", origem: "arquivo", codigo: "F1", nome: "Item F1", ncm: "85340000" } });
+    const fornecedor = await prisma.fornecedor.create({ data: { nome: "ZZ-PROP Distribuidora", fonteId: distribuidora.id } });
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-6", tituloBase: "PLACA ZZ PROP", marca: "GENÉRICA", estoqueMinimo: null } });
+    await prisma.produtoConcorrente.create({ data: { produtoId: produto.id, produtoColetadoId: coletado.id } });
+    await prisma.produtoFornecedor.create({ data: { produtoId: produto.id, fornecedorId: fornecedor.id, codigo: "F1", precoCusto: 12, padrao: true } });
+
+    const lido = await lerParaProposta("ZZ-PROP-6");
+    const oferta = lido.concorrentes[0];
+    conferir("leitura: o produto com sku, titulo, campos e sem Conferido", lido.produto.sku === "ZZ-PROP-6" && lido.produto.titulo === "PLACA ZZ PROP" && lido.produto.campos.marca === "GENÉRICA" && lido.produto.conferido === false);
+    conferir("leitura: a oferta vinculada com loja, preco normal, EAN e as 2 fotos", lido.concorrentes.length === 1 && oferta.loja === "ZZ-PROP Loja" && oferta.precoNormal === 49.9 && oferta.ean === "7891234567895" && oferta.fotos.length === 2);
+    conferir("leitura: as fotos com id <coletado>:<indice> e a url", oferta.fotos[0].id === `${coletado.id}:0` && oferta.fotos[1].url === "https://zz-prop-loja.invalid/2.jpg");
+    conferir("leitura: a descricao da oferta cortada em 3.000", oferta.descricao.length === 3000);
+    conferir("leitura: documentos como links e a ficha", oferta.documentos[0]?.url === "https://zz-prop-loja.invalid/d.pdf" && oferta.ficha[0]?.valor === "5V");
+    const vinculo = lido.fornecedores[0];
+    conferir("leitura: o fornecedor com custo, codigo, padrao e o NCM da lista dele", vinculo?.nome === "ZZ-PROP Distribuidora" && vinculo.custo === 12 && vinculo.codigo === "F1" && vinculo.padrao === true && vinculo.ncm === "85340000");
+    conferir("leitura: o agregado por campo (o EAN com a loja)", lido.agregado.ean.some((item) => item.valor === "7891234567895" && item.lojas.includes("ZZ-PROP Loja")));
+    conferir("leitura: os prompts da biblioteca, o do sistema primeiro, e sem texto sem pedir", lido.prompts[0]?.nome === "Padrão do sistema" && lido.promptTexto === null);
+    conferir("leitura: sem proposta ainda", lido.proposta === null);
+    const comPrompt = await lerParaProposta("ZZ-PROP-6", { prompt: "padrão do sistema" });
+    conferir("leitura: com o prompt pedido (sem caixa), o texto dele", typeof comPrompt.promptTexto === "string" && comPrompt.promptTexto.length > 100);
+    let semPrompt = "";
+    try {
+      await lerParaProposta("ZZ-PROP-6", { prompt: "ZZ prompt que nao existe" });
+    } catch (erro) {
+      semPrompt = erro.message;
+    }
+    conferir("leitura: prompt que nao existe e recusado com os nomes que existem", /não existe/.test(semPrompt) && /Padrão do sistema/.test(semPrompt));
+    let semProduto = "";
+    try {
+      await lerParaProposta("ZZ-PROP-NAO-HA");
+    } catch (erro) {
+      semProduto = erro.message;
+    }
+    conferir("leitura: produto que nao existe e recusado", /ZZ-PROP-NAO-HA/.test(semProduto));
+
+    conferir("fotoDaOferta: o id da oferta vinculada devolve a url e a loja", JSON.stringify(await fotoDaOferta("ZZ-PROP-6", `${coletado.id}:1`)) === JSON.stringify({ url: "https://zz-prop-loja.invalid/2.jpg", loja: "ZZ-PROP Loja" }));
+    conferir("fotoDaOferta: foto de produto coletado NAO vinculado = null", (await fotoDaOferta("ZZ-PROP-6", `${solto.id}:0`)) === null);
+    conferir("fotoDaOferta: indice fora da lista = null", (await fotoDaOferta("ZZ-PROP-6", `${coletado.id}:7`)) === null);
+    conferir("fotoDaOferta: id sem formato = null", (await fotoDaOferta("ZZ-PROP-6", "https://outro.site/x.jpg")) === null && (await fotoDaOferta("ZZ-PROP-6", `${coletado.id}:-1`)) === null);
+
+    await prisma.produto.update({ where: { id: produto.id }, data: { conferido: true } });
+    conferir("leitura: produto Conferido vem marcado (o MCP recusa)", (await lerParaProposta("ZZ-PROP-6")).produto.conferido === true);
+
+    const rascunho = await prisma.produto.create({ data: { sku: "ZZ-PROP-7", tituloBase: "SO RASCUNHO", fornecedorRascunho: { nome: "Fornecedor do Bling", codigo: "B1", precoCusto: 8.5 } } });
+    const doBling = (await lerParaProposta("ZZ-PROP-7")).fornecedores;
+    conferir("leitura: sem vinculo confirmado, o fornecedor em rascunho do Bling", rascunho && doBling.length === 1 && doBling[0].nome === "Fornecedor do Bling" && doBling[0].custo === 8.5 && doBling[0].rascunho === true);
   }
 } finally {
   await limpar();

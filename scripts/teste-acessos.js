@@ -213,6 +213,12 @@ try {
       ["excluir", "editar", "executar", "excluir", "ver", "editar"],
     );
     conferir("administrador tem todos os recursos do catalogo", admin.size, RECURSOS.length);
+    const propor = (await import("../src/lib/acessos/recursos.js")).recursoPorId("acao.produtos.proporCadastro");
+    conferir(
+      "a acao Propor cadastro (proposta pelo MCP) existe, e do cadastro de Produto e o administrador a executa",
+      [propor?.tipo, propor?.pai, admin.get("acao.produtos.proporCadastro")],
+      ["acao", "tela.produtos.cadastro", "executar"],
+    );
     conferir(
       "administrador tem as tres abas de Configuracoes do Rise AI e o prompt do cliente",
       ["modelos", "orcamentos", "atendimento", "promptCliente"].map((aba) => admin.get(`riseAi.configuracoes.${aba}`)),

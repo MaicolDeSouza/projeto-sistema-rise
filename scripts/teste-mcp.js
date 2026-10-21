@@ -41,6 +41,9 @@ async function codigoDoErro(promessa) {
 }
 
 /** A resposta do /mcp vem em JSON ou em SSE (um evento `data:` com a mensagem JSON-RPC): devolve a mensagem nos dois casos. */
+// As ferramentas da proposta de produto (plano 2026-10-21): nao levam o lembrete de anotar duvida.
+const PROPOSTA = ["lerParaProposta", "lerProposta"];
+
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
   if (!(resposta.headers.get("content-type") ?? "").includes("text/event-stream")) return texto ? JSON.parse(texto) : null;
@@ -745,8 +748,8 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "historicoDePreco", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras"],
-        16,
+        ["anotarDuvida", "anunciosDoProduto", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras"],
+        18,
         true,
       ],
     );
@@ -1178,7 +1181,7 @@ try {
       [2, true, 1],
     );
     const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem)))?.result?.tools ?? [];
-    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
 
     // --- as consultas do dia ---
     const { inicio } = limitesDoDia(hojeEmSaoPaulo());
@@ -1232,6 +1235,57 @@ try {
     const familia = equipe.find((linha) => linha.login === "zz-mcp-eq2").familia;
     conferir("o administrador desconecta a de outra pessoa: o token dela cai", [(await desconectarDaEquipe(familia)).login, await banco.validarTokenDeAcesso(daEq2.access_token)], ["zz-mcp-eq2", null]);
     conferir("desconectar de novo, ou familia que nao existe", [await codigoDoErro(desconectarDaEquipe(familia)), await codigoDoErro(desconectarDaEquipe("nao-existe"))], ["Conexão não encontrada.", "Conexão não encontrada."]);
+  }
+
+  // -------------------------------------------------------------------------
+  // Proposta de produto pelo MCP (plano 2026-10-21, Tarefa 1): as ferramentas de leitura, o acesso e sem o lembrete
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nProposta pelo MCP: leitura");
+    const { responderMcp } = await import("../src/lib/mcp/servidor.js");
+    const { gravarProposta } = await import("../src/lib/proposta/banco.js");
+    await prisma.produto.create({ data: { sku: "ZZ-MCP-PROP", tituloBase: "ZZMCP PRODUTO DA PROPOSTA" } });
+    await prisma.produto.create({ data: { sku: "ZZ-MCP-PROP-OK", tituloBase: "ZZMCP JA APROVADO", conferido: true } });
+    let id = 2000;
+    const quem = (pode) => ({ login: "zz-mcp-proposta", clienteId: null, clienteNome: "Claude", escopos: ["consultar"], familia: "zz-mcp-familia", expiraEm: new Date(Date.now() + 3600e3), administrador: false, pode });
+    const dono = quem(() => true);
+    const chamar = async (nome, argumentos, autenticacao = dono) =>
+      (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/call", { name: nome, arguments: argumentos }, { id: id++ }), autenticacao)))?.result ?? null;
+    const textoDe = (resultado) => resultado?.content?.[0]?.text ?? "";
+
+    const lida = await chamar("lerParaProposta", { sku: "ZZ-MCP-PROP" });
+    conferir(
+      "lerParaProposta: o JSON do produto, SEM o lembrete de anotar",
+      [lida?.isError ?? false, lida?.content?.length, JSON.parse(textoDe(lida) || "{}")?.produto?.sku],
+      [false, 1, "ZZ-MCP-PROP"],
+    );
+    for (const [semEste, rotulo] of [["acao.produtos.proporCadastro", "Propor cadastro"], ["dado.custo", "custo"], ["dado.concorrentes", "concorrentes"]]) {
+      const recusada = await chamar("lerParaProposta", { sku: "ZZ-MCP-PROP" }, quem((recurso) => recurso !== semEste));
+      conferir(`sem ${semEste}: recusa e diz o que falta`, [recusada?.isError, textoDe(recusada).includes(rotulo)], [true, true]);
+    }
+    const aprovado = await chamar("lerParaProposta", { sku: "ZZ-MCP-PROP-OK" });
+    conferir("produto Conferido: recusa com 'já aprovado: nada a propor'", [aprovado?.isError, textoDe(aprovado).includes("já aprovado: nada a propor")], [true, true]);
+    const naoHa = await chamar("lerParaProposta", { sku: "ZZ-MCP-NAO-HA" });
+    conferir("produto que nao existe: recusa com o sku", [naoHa?.isError, textoDe(naoHa).includes("ZZ-MCP-NAO-HA")], [true, true]);
+
+    const vazia = await chamar("lerProposta", { sku: "ZZ-MCP-PROP" });
+    conferir("lerProposta sem proposta: proposta null", [vazia?.isError ?? false, JSON.parse(textoDe(vazia) || "{}").proposta], [false, null]);
+    await gravarProposta("ZZ-MCP-PROP", { secao: "titulos", conteudo: { opcoes: ["ZZ A", "ZZ B", "ZZ C"], recomendada: 0, concorrentes: [] } });
+    const comSecao = JSON.parse(textoDe(await chamar("lerProposta", { sku: "ZZ-MCP-PROP" })) || "{}");
+    conferir("lerProposta: as secoes gravadas e as nao aplicadas", [Object.keys(comSecao.proposta?.secoes ?? {}), comSecao.proposta?.naoAplicadas], [["titulos"], ["titulos"]]);
+    conferir("lerParaProposta mostra a proposta aberta", JSON.parse(textoDe(await chamar("lerParaProposta", { sku: "ZZ-MCP-PROP" })) || "{}").proposta?.secoes, ["titulos"]);
+    const semAcesso = await chamar("lerProposta", { sku: "ZZ-MCP-PROP" }, quem((recurso) => recurso !== "acao.produtos.proporCadastro"));
+    conferir("lerProposta sem o recurso: recusa", semAcesso?.isError, true);
+
+    const registradas = await prisma.chamadaMcp.findMany({ where: { login: "zz-mcp-proposta" } });
+    conferir("as chamadas da proposta ficam na ChamadaMcp, as recusadas com ok false", [registradas.length >= 9, registradas.filter((chamada) => !chamada.ok).length], [true, 6]);
+    const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), dono)))?.result?.tools ?? [];
+    const daProposta = lista.filter((ferramenta) => PROPOSTA.includes(ferramenta.name));
+    conferir(
+      "as duas de leitura com readOnlyHint e sem o lembrete na descricao",
+      [daProposta.map((ferramenta) => ferramenta.name).sort(), daProposta.every((ferramenta) => ferramenta.annotations?.readOnlyHint && !ferramenta.description.includes("anotarDuvida"))],
+      [["lerParaProposta", "lerProposta"], true],
+    );
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
