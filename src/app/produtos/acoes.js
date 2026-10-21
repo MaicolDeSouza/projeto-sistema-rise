@@ -39,6 +39,8 @@ import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { reconciliarImagensDoProduto } from "@/lib/imagens/produto";
 import { importarPorCodigoDoBling } from "@/lib/integracoes/importarBling";
 import { UNIDADES } from "@/lib/unidades";
+import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
+import { conferirEanNoML } from "@/lib/canaisDeVenda/ml/eanNoCatalogo";
 import {
   MAXIMO_IMAGENS,
   apagarArquivo,
@@ -1722,4 +1724,19 @@ export async function anexarDocumentoDaPeca(lote, arquivoId) {
   } catch (erro) {
     return { ok: false, erro: erro.message };
   }
+}
+
+/**
+ * O EAN do produto e de verdade e e deste produto? (pedido do dono em 21/10/2026, opcao 1). So leitura: confere o formato,
+ * o digito verificador e o catalogo do Mercado Livre. `{ ok, aviso }`; sem conseguir falar com o ML, `aviso: null`.
+ */
+export async function conferirEanNoMercadoLivre(ean, sku, titulo) {
+  const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
+  if (negado) return negado;
+  const resultado = await conferirEanNoML(clienteML(), {
+    ean: String(ean ?? "").slice(0, 40),
+    sku: String(sku ?? "").slice(0, 60),
+    titulo: String(titulo ?? "").slice(0, 300),
+  });
+  return { ok: true, ...resultado };
 }

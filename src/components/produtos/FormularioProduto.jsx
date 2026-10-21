@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   BadgeDollarSign,
   Calculator,
   Download,
@@ -79,6 +80,7 @@ import {
   buscarPorPalavras,
   camposDasReferencias,
   consultarSituacaoConcorrentes,
+  conferirEanNoMercadoLivre,
   criarTitulosIA,
   anexarDocumentoDaPeca,
   copiarDocumentosParaClone,
@@ -2738,6 +2740,42 @@ export default function FormularioProduto({
     };
   }, [chaveDosColetados, acessos.concorrentes]);
 
+  // O EAN do produto e de verdade e e deste produto? (pedido do dono em 21/10/2026, opcao 1): formato, digito verificador e
+  // o catalogo do Mercado Livre. So quem edita; confere ao abrir, ao sair do campo e ao escolher um EAN da lista.
+  const [avisoEan, setAvisoEan] = useState(null);
+  const eanConferido = useRef(null);
+  function conferirEan() {
+    if (!acessos.editar) return;
+    const ean = valorDoCampo("ean").trim();
+    if (ean === eanConferido.current) return;
+    eanConferido.current = ean;
+    if (!ean) {
+      setAvisoEan(null);
+      return;
+    }
+    conferirEanNoMercadoLivre(ean, valorDoCampo("sku"), valorDoCampo("tituloBase"))
+      .then((resposta) => {
+        if (eanConferido.current === ean) setAvisoEan(resposta?.ok ? resposta.aviso : null);
+      })
+      .catch(() => {});
+  }
+  const eanInicial = String(produto?.ean ?? clone?.campos?.ean ?? "").trim();
+  const skuInicial = produto?.sku ?? "";
+  const tituloInicial = produto?.tituloBase ?? clone?.campos?.tituloBase ?? "";
+  useEffect(() => {
+    if (!acessos.editar || !eanInicial) return;
+    eanConferido.current = eanInicial;
+    let valido = true;
+    conferirEanNoMercadoLivre(eanInicial, skuInicial, tituloInicial)
+      .then((resposta) => {
+        if (valido && eanConferido.current === eanInicial) setAvisoEan(resposta?.ok ? resposta.aviso : null);
+      })
+      .catch(() => {});
+    return () => {
+      valido = false;
+    };
+  }, [acessos.editar, eanInicial, skuInicial, tituloInicial]);
+
   // "2º de 10" ao lado de Preco venda e de Concorrentes (pedido do dono em 06/10/2026): o preco que esta no
   // campo AGORA contra a lista de concorrentes da tela, salva ou nao. Ver lib/posicaoDePreco.js.
   const posicaoDoPreco = posicaoDePreco(
@@ -3480,7 +3518,7 @@ export default function FormularioProduto({
                   usos={usos}
                   vazio="Nenhuma referência (lupa ou vínculos salvos) publica o número de homologação. Poucas lojas publicam: a maioria escreve só 'certificado pela Anatel'."
                 />
-                <div>
+                <div onBlur={conferirEan}>
                   <CampoDeReferencias
                     nome="ean"
                     rotulo="GTIN / EAN"
@@ -3490,11 +3528,33 @@ export default function FormularioProduto({
                     ids={idsDasIndicacoes}
                     valores={valoresRefs?.ean}
                     carregando={lendoRefs}
-                    aoAlterar={() => setAlterado(true)}
+                    aoAlterar={() => {
+                      setAlterado(true);
+                      conferirEan();
+                    }}
                     usos={usos}
                     vazio="Nenhuma referência publica um código de barras válido."
                   />
                   <LinksDeConsulta campo="ean" sites={SITES_DO_EAN} lerCampo={valorDoCampo} />
+                  {avisoEan && (
+                    <p role="status" className="mt-1.5 flex items-start gap-1.5 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-[12px] text-amber-900">
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                      <span>
+                        {avisoEan.texto}
+                        {avisoEan.itens?.map((item) => (
+                          <a
+                            key={item.id}
+                            href={`https://www.mercadolivre.com.br/p/${item.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ml-1 font-medium underline"
+                          >
+                            {item.nome}
+                          </a>
+                        ))}
+                      </span>
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

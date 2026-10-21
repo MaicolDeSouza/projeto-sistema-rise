@@ -2185,6 +2185,18 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
     verificação da Cloudflare). **Consulta pela API foi descartada** (06/10/2026): o Cosmos é pago (a partir de
     R$ 499,99/mês para 100 consultas por dia; o plano grátis citado em resumos de busca não aparece na página
     de preços), e o EAN-Search também cobra. Ficam só os links.
+  - **Conferência do EAN no Mercado Livre** (pedido do dono em 21/10/2026, opção 1): o EAN que o produto JÁ TEM é
+    conferido ao abrir o cadastro, ao sair do campo e ao escolher um da lista (só quem edita). Aviso âmbar embaixo do campo
+    quando o formato está errado, o dígito verificador não confere (conta da GS1), o código é o do produto completado com
+    zeros (o 100106 tinha `0000000100106`) ou, no catálogo do ML, o código é de OUTRO produto (o mesmo `0000000100106` é de
+    uma loção; vem o nome com link para `mercadolivre.com.br/p/<id>`). Catálogo sem o código ou com nome parecido (2+
+    palavras em comum) não avisa; ML fora do ar também não. Regras puras em `src/lib/eanNoMercadoLivre.js`, consulta em
+    `canaisDeVenda/ml/eanNoCatalogo.js` (`GET /products/search?site_id=MLB&status=active&product_identifier=<EAN>`, só
+    leitura, memória de 6 h por EAN), ação `conferirEanNoMercadoLivre`. **Buscar o EAN pelo NOME foi medido e descartado**:
+    em peça genérica cada vendedor registra o próprio código (o "Uno R3 SMD" tem 6 GTINs em 5 cadastros do catálogo), e
+    usar um deles seria pôr o código de barras de outra empresa na NF-e. A lista de todos os suspeitos sai de
+    `scripts/conferir-ean-ml.js` (roda na VPS pela entrada do SSH; o ML responde 429 a rajadas, por isso a pausa de 300 ms
+    e a segunda volta).
   - Medido em 06/10/2026 no 100103, servidor de desenvolvimento: as indicações aparecem uns 17 s depois de abrir
     a página. As ações do servidor rodam uma de cada vez, e a preparação das fotos vem antes. Testes em
     `teste-cadastros` ("Indicações dos vínculos salvos").

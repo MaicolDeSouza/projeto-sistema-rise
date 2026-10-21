@@ -2994,5 +2994,46 @@ console.log("\n— categoria de loja VTEX —");
   conferir("vtex: total do cabecalho resources", [totalDoCabecalhoResources("0-49/264"), totalDoCabecalhoResources("0-9/10"), totalDoCabecalhoResources(""), totalDoCabecalhoResources(undefined)], [264, 10, null, null]);
 }
 
+// EAN do produto conferido no catalogo do Mercado Livre (pedido do dono em 21/10/2026, opcao 1).
+console.log("\n— EAN no Mercado Livre —");
+{
+  const { digitoVerificadorOk, problemaLocalDoEan, nomesParecidos, avisoDoCatalogo } = await import("../src/lib/eanNoMercadoLivre.js");
+  const { conferirEanNoML, itensDoCatalogoPorEan } = await import("../src/lib/canaisDeVenda/ml/eanNoCatalogo.js");
+  conferir("ean: digito verificador (EAN-13, EAN-8, UPC-A, GTIN-14) certo e errado", [
+    digitoVerificadorOk("7640152110139"), digitoVerificadorOk("7891262495597"), digitoVerificadorOk("96385074"), digitoVerificadorOk("036000291452"), digitoVerificadorOk("17891262495594"),
+    digitoVerificadorOk("7640152110138"), digitoVerificadorOk("abc"), digitoVerificadorOk(""),
+  ], [true, true, true, true, true, false, false, false]);
+  conferir("ean: problemas locais (formato, digito, codigo do produto com zeros) e o que passa", [
+    problemaLocalDoEan("12345", "100101")?.tipo, problemaLocalDoEan("7640152110138", "100101")?.tipo,
+    problemaLocalDoEan("0000000100106", "100106")?.tipo, problemaLocalDoEan("7640152110139", "100101"), problemaLocalDoEan("", "100101"),
+  ], ["formato", "digito", "interno", null, null]);
+  conferir("ean: nomes parecidos (sem acento, sem palavras vazias) e diferentes", [
+    nomesParecidos("PLACA COMPATIVEL ARDUINO UNO R3 SMD CH340 COM CABO USB", "Unidade Uno R3 Smd com cabo USB compatível com Ide Arduino"),
+    nomesParecidos("MÓDULO DIGISPARK ATTINY85 USB TIPO C", "Biobellus - Loção descongestionante, tonificante e refrescante"),
+  ], [true, false]);
+  conferir("ean: catalogo vazio ou com o mesmo produto nao avisa; so de outro produto avisa com ate 2 nomes", [
+    avisoDoCatalogo([], "Placa Uno"),
+    avisoDoCatalogo([{ id: "MLB1", nome: "Placa Uno R3 SMD" }], "PLACA UNO R3"),
+    avisoDoCatalogo([{ id: "MLB2", nome: "Locao A" }, { id: "MLB3", nome: "Locao B" }, { id: "MLB4", nome: "Locao C" }], "Modulo Digispark")?.itens.map((i) => i.id),
+  ], [null, null, ["MLB2", "MLB3"]]);
+
+  const pedidos = [];
+  const mlFalso = {
+    get: async (caminho, params) => {
+      pedidos.push([caminho, params.product_identifier]);
+      if (params.product_identifier === "7891262495597") return { ok: false, status: 500, dados: null };
+      return { ok: true, status: 200, dados: { results: [{ id: "MLB9", name: "Biobellus - Locao descongestionante" }] } };
+    },
+  };
+  const outro = await conferirEanNoML(mlFalso, { ean: "7640152110139", sku: "X1", titulo: "Placa Uno" }, { agora: 1 });
+  await conferirEanNoML(mlFalso, { ean: "7640152110139", sku: "X1", titulo: "Placa Uno" }, { agora: 2 });
+  const zeros = await conferirEanNoML(mlFalso, { ean: "0000000100106", sku: "100106", titulo: "Digispark" });
+  const semMl = await conferirEanNoML(mlFalso, { ean: "7891262495597", sku: "X2", titulo: "Mega" });
+  conferir("ean: consulta o ML so com o EAN, guarda na memoria, nao consulta o codigo com zeros e nao avisa sem o ML", [
+    outro.aviso?.tipo, outro.aviso?.itens[0].id, zeros.aviso?.tipo, semMl, pedidos.length, pedidos[0],
+  ], ["outro", "MLB9", "interno", { aviso: null, semConsulta: true }, 2, ["/products/search", "7640152110139"]]);
+  conferir("ean: EAN invalido nao vai ao ML", await itensDoCatalogoPorEan(mlFalso, "123"), []);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
