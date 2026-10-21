@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Eye, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, FileText, X } from "lucide-react";
 
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
@@ -20,7 +20,8 @@ const NOMES = {
   titulos: "Título", descricao: "Descrição", campos: "Campos", preco: "Preço", ean: "EAN",
   fotos: "Fotos", documentos: "Documentos", relatorio: "Relatório",
 };
-const ORDEM = ["titulos", "descricao", "campos", "preco", "ean", "fotos", "documentos", "relatorio"];
+// A ordem das linhas e a do dono (21/10/2026); o relatorio nao vira linha, e o botao do cabecalho.
+const ORDEM = ["titulos", "preco", "descricao", "campos", "ean", "fotos", "documentos", "relatorio"];
 const ROTULO_DO_CAMPO = {
   marca: "Marca", modelo: "Modelo", unidade: "Unidade", garantiaMeses: "Garantia (meses)", codigo: "Código", ncm: "NCM",
   origem: "Origem", pesoKg: "Peso (kg)", alturaCm: "Altura (cm)", larguraCm: "Largura (cm)", comprimentoCm: "Comprimento (cm)",
@@ -28,7 +29,15 @@ const ROTULO_DO_CAMPO = {
 
 const reais = (valor) => (typeof valor === "number" ? valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—");
 const posicaoTexto = (posicao) => (posicao ? `${posicao.posicao}º de ${posicao.total}` : "sem posição");
-const descricaoDaOpcaoDePreco = (opcao) => `${reais(opcao.preco)} · ${opcao.margem}% · ${posicaoTexto(opcao.posicao)}`;
+// A margem vem em porcentagem (46) pelo roteiro, mas a conversa do claude.ai ja gravou como fracao (0.46): as duas
+// viram "46%". Formato pedido pelo dono em 21/10/2026: "R$ 39,38 (46% margem)".
+const margemTexto = (margem) => {
+  const numero = Number(margem);
+  if (!Number.isFinite(numero)) return "";
+  const porcento = numero > 0 && numero <= 1 ? numero * 100 : numero;
+  return `${porcento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+};
+const descricaoDaOpcaoDePreco = (opcao) => `${reais(opcao.preco)} (${margemTexto(opcao.margem)} margem) · ${posicaoTexto(opcao.posicao)}`;
 
 /** Uma frase por secao: o que a proposta traz, sem abrir o detalhe. */
 function resumo(secao, conteudo) {
@@ -141,12 +150,22 @@ export default function QuadroDaProposta({ proposta, aoAplicar, aplicadasNestaEd
             texto="O que a pesquisa propõe para este produto. Marque as seções e clique em Aplicar: os campos do formulário são preenchidos, e nada é gravado até o Salvar. O Conferido aprova e apaga a proposta."
           />
         </span>
+        {/* O relatorio so se le: em vez de uma linha da lista, um botao no cabecalho (pedido do dono em 21/10/2026). */}
+        {secoes.relatorio && (
+          <button
+            type="button"
+            onClick={() => setVendo("relatorio")}
+            className="ml-auto inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+          >
+            <FileText size={15} /> Relatório
+          </button>
+        )}
         <button
           type="button"
           onClick={aplicar}
           disabled={marcadas.size === 0}
           title={marcadas.size === 0 ? "Marque pelo menos uma seção" : undefined}
-          className="ml-auto rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className={`${secoes.relatorio ? "" : "ml-auto "}rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50`}
         >
           Aplicar escolhidos ao formulário
         </button>
@@ -154,7 +173,7 @@ export default function QuadroDaProposta({ proposta, aoAplicar, aplicadasNestaEd
 
       {aberto && (
         <ul className="divide-y divide-borda border-t border-borda">
-          {presentes.map((secao) => {
+          {presentes.filter((secao) => secao !== "relatorio").map((secao) => {
             const conteudo = secoes[secao];
             const podeAplicar = aplicavel(secao, conteudo);
             return (
@@ -343,7 +362,7 @@ function DetalheDaSecao({ secao, conteudo, urls }) {
           <tbody className="divide-y divide-borda">
             {linhas.map((opcao) => (
               <tr key={`${opcao.margem}-${opcao.recomendada ? "r" : ""}`} className={opcao.recomendada ? "font-semibold" : ""}>
-                <td className="py-1.5">{opcao.margem}%</td>
+                <td className="py-1.5">{margemTexto(opcao.margem)}</td>
                 <td className="py-1.5">{reais(opcao.preco)}</td>
                 <td className="py-1.5">{posicaoTexto(opcao.posicao)}</td>
                 <td className="py-1.5 text-xs text-emerald-700">{opcao.recomendada ? "recomendada" : ""}</td>

@@ -63,7 +63,7 @@ export function ImagemComZoom({ src, alt, zoom, setZoom, aoAmpliar, className = 
  * ali nao existe) nao passa nada e fica como era, com as setas do teclado engolidas. As setas nao dao a
  * volta: na primeira o "anterior" apaga, na ultima o "proxima", como as do painel.
  */
-export function AmpliacaoDeFoto({ src, alt, aoFechar, posicao = 0, total = 0, aoNavegar = null }) {
+export function AmpliacaoDeFoto({ src, alt, aoFechar, posicao = 0, total = 0, aoNavegar = null, children = null }) {
   const navegavel = Boolean(aoNavegar) && total > 1;
   const ultima = total - 1;
 
@@ -99,6 +99,16 @@ export function AmpliacaoDeFoto({ src, alt, aoFechar, posicao = 0, total = 0, ao
       >
         <X size={18} />
       </button>
+
+      {/* Faixa opcional embaixo (a janela "Fotos da proposta" poe ali a loja e o Escolher/Retirar); o clique nela nao fecha. */}
+      {children && (
+        <div
+          className="absolute bottom-12 left-1/2 flex max-w-[90%] -translate-x-1/2 cursor-default items-center gap-3 rounded-lg bg-white/95 px-3 py-2 text-sm text-slate-800 shadow"
+          onClick={(evento) => evento.stopPropagation()}
+        >
+          {children}
+        </div>
+      )}
 
       {navegavel && (
         <>

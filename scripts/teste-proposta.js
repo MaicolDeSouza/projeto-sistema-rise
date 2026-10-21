@@ -152,6 +152,16 @@ function conferir(nome, condicao) {
   conferir("aplicar fotos: candidata que nao e do produto so perde o check", x9.finalizada === false && !x9.paraReserva);
   conferir("aplicar fotos: nenhuma foto some do painel", final.length === 5);
   conferir("aplicar fotos: escolha que nao achou a foto e ignorada", fotosDoPainelComAProposta(painel, [], [{ candidataId: "99" }, { arquivoId: "id-a1" }])[0].base === "a1");
+
+  // Arrastar na janela "Fotos da proposta" (pedido do dono em 21/10/2026): so as escolhidas tem ordem.
+  const { moverNaOrdem } = await import("../src/lib/proposta/aplicar.js");
+  const ordem = ["a", "b", "c", "d", "e"];
+  conferir("arrastar: a 5ª sobre a 1ª vira a 1ª", moverNaOrdem(ordem, "e", "a").join() === "e,a,b,c,d");
+  conferir("arrastar: a 1ª sobre a 3ª vai para a 3ª posicao", moverNaOrdem(ordem, "a", "c").join() === "b,c,a,d,e");
+  conferir("arrastar: nao escolhida sobre a 2ª e escolhida nessa posicao", moverNaOrdem(ordem, "x", "b").join() === "a,x,b,c,d,e");
+  conferir("arrastar: soltar sobre uma nao escolhida nao muda nada", moverNaOrdem(ordem, "b", "x").join() === ordem.join());
+  conferir("arrastar: soltar sobre ela mesma nao muda nada", moverNaOrdem(ordem, "c", "c").join() === ordem.join());
+  conferir("arrastar: a lista original fica intacta", ordem.join() === "a,b,c,d,e");
 }
 
 // ---------------------------------------------------------------------------

@@ -91,7 +91,7 @@ posição, EAN, o que ficou "?", fotos escolhidas). Conteúdo de cada seção:
 - fotos: { "candidatas": [{ "id", "arquivo" (de baixarCandidatas) ou "fotoAtual", "origem": { "loja" }, "escolhida",
   "ordem" (só nas escolhidas, 0 = a principal), "motivo" }] }
 - campos: { "<campo>": { "valor", "origem" } }
-- preco: { "custo", "opcoes": [{ "margem", "preco", "posicao": { "posicao", "total" } }], "recomendada": { ...igual }
+- preco: { "custo", "opcoes": [{ "margem" (em porcentagem: 46, nunca 0.46), "preco", "posicao": { "posicao", "total" } }], "recomendada": { ...igual }
   ou null, "motivoSemRecomendada": texto ou null }
 - ean: { "escolhido": { "valor", "origem" } ou null, "descartados": [{ "valor", "motivo" }], "buscas": [] }
 - documentos: { "itens": [{ "id", "titulo", "url", "loja" }] }

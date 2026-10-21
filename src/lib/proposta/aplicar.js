@@ -35,6 +35,19 @@ export function temOQueAplicar(secao, conteudo) {
  * @param {Array<{ base: string, candidataId: string }>} novas as que `trazerFotosDaProposta` acabou de pôr no lote
  * @param {Array<{ candidataId?: string, arquivoId?: string }>} escolhas na ordem: candidata baixada ou foto atual
  */
+/**
+ * Arrastar na janela "Fotos da proposta" (pedido do dono em 21/10/2026, "levar a foto 5 para ser a 1"): so as
+ * ESCOLHIDAS tem ordem. Soltar `id` sobre a escolhida `alvoId` poe `id` na posicao dela (as outras andam uma casa);
+ * se `id` nao estava escolhida, ela entra escolhida ali. Soltar sobre uma nao escolhida, ou sobre ela mesma, nao muda
+ * nada. Devolve uma lista nova.
+ */
+export function moverNaOrdem(ordem, id, alvoId) {
+  const destino = ordem.indexOf(alvoId);
+  if (destino < 0 || id === alvoId) return [...ordem];
+  const sem = ordem.filter((item) => item !== id);
+  return [...sem.slice(0, destino), id, ...sem.slice(destino)];
+}
+
 export function fotosDoPainelComAProposta(painel, novas, escolhas) {
   const escolhidas = [];
   const usadas = new Set();
