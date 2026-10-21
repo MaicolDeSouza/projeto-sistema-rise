@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { propostaParaFormulario } from "@/lib/proposta/banco";
 import { baixarCandidatas, MAXIMO_POR_CHAMADA } from "@/lib/proposta/candidatas";
+import { folhaDeContato, POR_PAGINA } from "@/lib/proposta/folha";
 import { lerParaProposta } from "@/lib/proposta/leitura";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
@@ -89,4 +90,27 @@ const BAIXAR_CANDIDATAS = {
   },
 };
 
-export const FERRAMENTAS_DA_PROPOSTA = [LER_PARA_PROPOSTA, LER_PROPOSTA, BAIXAR_CANDIDATAS];
+const FOLHA_DE_CONTATO = {
+  nome: "folhaDeContato",
+  descricao: [
+    `Mostra numa imagem só, numeradas, as fotos atuais do produto (borda verde) e as candidatas baixadas, até ${POR_PAGINA} por página, para você olhar e escolher as da seção fotos.`,
+    "A legenda em texto diz o número, o id, o arquivo e a loja de cada uma. Mais fotos: peça a próxima página.",
+  ].join(" "),
+  esquema: z.object({
+    sku: SKU,
+    pagina: z.number().int().min(1).max(50).optional().describe("Página da folha (1 em diante; padrão 1)"),
+    tamanho: z.union([z.literal(160), z.literal(256)]).optional().describe("Tamanho de cada foto na folha: 160 ou 256 (padrão)"),
+  }),
+  anotacoes: SO_LEITURA,
+  async executar({ sku, pagina, tamanho }, contexto) {
+    exigirProposta(contexto);
+    return folhaDeContato(sku, { pagina, tamanho });
+  },
+  // A folha volta como IMAGEM do MCP (o modelo a ve) e a legenda como texto; o JPEG nunca vai dentro do JSON.
+  paraConteudo: ({ jpeg, ...legenda }) => [
+    { type: "image", mimeType: "image/jpeg", data: jpeg.toString("base64") },
+    { type: "text", text: JSON.stringify(legenda) },
+  ],
+};
+
+export const FERRAMENTAS_DA_PROPOSTA = [LER_PARA_PROPOSTA, LER_PROPOSTA, BAIXAR_CANDIDATAS, FOLHA_DE_CONTATO];

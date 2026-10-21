@@ -184,7 +184,7 @@ async function limpar() {
   await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: "ZZ-PROP " } } });
   await prisma.fonteColeta.deleteMany({ where: { dominio: { startsWith: "zz-prop-" } } });
   const { rm } = await import("node:fs/promises");
-  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2", "ZZ-PROP-3", "ZZ-PROP-4", "ZZ-PROP-5", "ZZ-PROP-6", "ZZ-PROP-7", "ZZ-PROP-8"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
+  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2", "ZZ-PROP-3", "ZZ-PROP-4", "ZZ-PROP-5", "ZZ-PROP-6", "ZZ-PROP-7", "ZZ-PROP-8", "ZZ-PROP-9"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -572,6 +572,63 @@ try {
       aprovado = erro.message;
     }
     conferir("candidatas: produto Conferido recusa", /já aprovado/.test(aprovado));
+  }
+
+  // Folha de contato (MCP, Tarefa 3): as fotos atuais e as candidatas numa imagem, com a legenda numero -> id/arquivo/loja.
+  {
+    const { mkdirSync, writeFileSync } = await import("node:fs");
+    const { default: sharp } = await import("sharp");
+    const { folhaDeContato, POR_PAGINA } = await import("../src/lib/proposta/folha.js");
+    const { gravarIndiceDeCandidatas } = await import("../src/lib/proposta/banco.js");
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-9", tituloBase: "PRODUTO DA FOLHA" } });
+    const jpeg = (cor) => sharp({ create: { width: 300, height: 200, channels: 3, background: cor } }).jpeg().toBuffer();
+    const nome = (letra, i) => `${letra}${String(i).padStart(31, "0")}.jpg`;
+    mkdirSync("dados/produtos/ZZ-PROP-9/imagens", { recursive: true });
+    mkdirSync("dados/produtos/ZZ-PROP-9/proposta", { recursive: true });
+    for (const i of [1, 2]) {
+      writeFileSync(`dados/produtos/ZZ-PROP-9/imagens/${nome("a", i)}`, await jpeg("#c33"));
+      await prisma.produtoArquivo.create({ data: { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO", arquivo: nome("a", i), ordem: i } });
+    }
+    const indice = {};
+    for (const i of [1, 2, 3]) {
+      writeFileSync(`dados/produtos/ZZ-PROP-9/proposta/${nome("b", i)}`, await jpeg("#33c"));
+      indice[`coletado${i}:0`] = { arquivo: nome("b", i), loja: `Loja ${i}`, largura: 1024, altura: 1024 };
+    }
+    await gravarIndiceDeCandidatas("ZZ-PROP-9", indice);
+
+    const folha = await folhaDeContato("ZZ-PROP-9");
+    const meta = await sharp(folha.jpeg).metadata();
+    conferir("folha: 2 atuais primeiro e as 3 candidatas, numeradas de 1 a 5", folha.legenda.length === 5 && folha.legenda.map((l) => l.numero).join() === "1,2,3,4,5" && folha.legenda[0].atual && folha.legenda[1].atual && !folha.legenda[2].atual);
+    conferir("folha: a candidata leva o id, o arquivo e a loja; a atual, o arquivo", folha.legenda[2].id === "coletado1:0" && folha.legenda[2].arquivo === nome("b", 1) && folha.legenda[2].loja === "Loja 1" && folha.legenda[0].arquivo === nome("a", 1));
+    conferir("folha: um JPEG que abre, numa pagina so, sem aviso", meta.format === "jpeg" && meta.width > 0 && folha.pagina === 1 && folha.paginas === 1 && folha.aviso === null);
+    const pequena = await sharp((await folhaDeContato("ZZ-PROP-9", { tamanho: 160 })).jpeg).metadata();
+    conferir("folha: tamanho 160 sai menor que o 256", pequena.width < meta.width);
+
+    for (let i = 4; i <= 28; i++) writeFileSync(`dados/produtos/ZZ-PROP-9/proposta/${nome("c", i)}`, await jpeg("#3c3"));
+    const primeira = await folhaDeContato("ZZ-PROP-9");
+    const segunda = await folhaDeContato("ZZ-PROP-9", { pagina: 2 });
+    conferir(`folha: 30 fotos dao 2 paginas de ate ${POR_PAGINA}`, POR_PAGINA === 24 && primeira.paginas === 2 && primeira.legenda.length === 24 && segunda.legenda.length === 6);
+    conferir("folha: a numeracao continua na segunda pagina", segunda.legenda[0].numero === 25);
+    conferir("folha: foto da pasta sem indice entra com o arquivo e sem id", segunda.legenda.some((l) => l.arquivo === nome("c", 28) && l.id === null));
+    const alem = await folhaDeContato("ZZ-PROP-9", { pagina: 9 });
+    conferir("folha: pagina alem da ultima devolve a ultima com aviso", alem.pagina === 2 && /última/.test(alem.aviso ?? ""));
+
+    const vazio = await prisma.produto.create({ data: { sku: "ZZ-PROP-10", tituloBase: "SEM FOTOS" } });
+    let semFotos = "";
+    try {
+      await folhaDeContato("ZZ-PROP-10");
+    } catch (erro) {
+      semFotos = erro.message;
+    }
+    conferir("folha: produto sem foto nenhuma e recusado, apontando baixarCandidatas", vazio && /baixarCandidatas/.test(semFotos));
+    await prisma.produto.update({ where: { id: produto.id }, data: { conferido: true } });
+    let aprovado = "";
+    try {
+      await folhaDeContato("ZZ-PROP-9");
+    } catch (erro) {
+      aprovado = erro.message;
+    }
+    conferir("folha: produto Conferido recusa", /já aprovado/.test(aprovado));
   }
 } finally {
   await limpar();

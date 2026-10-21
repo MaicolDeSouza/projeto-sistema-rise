@@ -100,6 +100,8 @@ export function montarServidorMcp(autenticacao, { agora, registrar = registrarCh
       duracaoMs: Date.now() - inicio,
     });
     if (!resultado.ok) return respostaDeErro(resultado.erro);
+    // A folha de contato da proposta volta como imagem do MCP, nao como texto JSON.
+    if (doMcp?.paraConteudo) return { content: doMcp.paraConteudo(resultado.resultado) };
     return SEM_LEMBRETE.has(nome) ? resposta(resultado.resultado) : respostaComLembrete(resultado.resultado);
   }
 

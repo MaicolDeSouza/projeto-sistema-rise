@@ -42,7 +42,7 @@ async function codigoDoErro(promessa) {
 
 /** A resposta do /mcp vem em JSON ou em SSE (um evento `data:` com a mensagem JSON-RPC): devolve a mensagem nos dois casos. */
 // As ferramentas da proposta de produto (plano 2026-10-21): nao levam o lembrete de anotar duvida.
-const PROPOSTA = ["baixarCandidatas", "lerParaProposta", "lerProposta"];
+const PROPOSTA = ["baixarCandidatas", "folhaDeContato", "lerParaProposta", "lerProposta"];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -748,8 +748,8 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras"],
-        18,
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras"],
+        19,
         true,
       ],
     );
@@ -1287,7 +1287,7 @@ try {
         daProposta.map((ferramenta) => [ferramenta.name, Boolean(ferramenta.annotations?.readOnlyHint)]).sort(),
         daProposta.some((ferramenta) => ferramenta.description.includes("anotarDuvida")),
       ],
-      [[["baixarCandidatas", false], ["lerParaProposta", true], ["lerProposta", true]], false],
+      [[["baixarCandidatas", false], ["folhaDeContato", true], ["lerParaProposta", true], ["lerProposta", true]], false],
     );
 
     // Tarefa 2: baixarCandidatas pelo MCP (so ids que nao sao das ofertas: nada vai a rede).
@@ -1298,6 +1298,28 @@ try {
     conferir("baixarCandidatas sem o recurso: recusa", semPermissao?.isError, true);
     const demais = await chamar("baixarCandidatas", { sku: "ZZ-MCP-PROP", ids: Array.from({ length: 21 }, (_, i) => `x:${i}`) });
     conferir("baixarCandidatas com 21 ids: recusa", demais?.isError, true);
+
+    // Tarefa 3: a folha de contato volta como IMAGEM do MCP, com a legenda em texto.
+    const semFotos = await chamar("folhaDeContato", { sku: "ZZ-MCP-PROP" });
+    conferir("folhaDeContato sem foto nenhuma: recusa apontando baixarCandidatas", [semFotos?.isError, textoDe(semFotos).includes("baixarCandidatas")], [true, true]);
+    const { mkdir, writeFile, rm } = await import("node:fs/promises");
+    const { default: sharp } = await import("sharp");
+    const pastaDaFolha = "dados/produtos/ZZ-MCP-PROP/proposta";
+    try {
+      await mkdir(pastaDaFolha, { recursive: true });
+      await writeFile(`${pastaDaFolha}/${"e".repeat(32)}.jpg`, await sharp({ create: { width: 200, height: 200, channels: 3, background: "#c33" } }).jpeg().toBuffer());
+      const folha = await chamar("folhaDeContato", { sku: "ZZ-MCP-PROP", tamanho: 160 });
+      const legenda = JSON.parse(folha?.content?.[1]?.text ?? "{}");
+      conferir(
+        "folhaDeContato: a imagem JPEG em base64 primeiro e a legenda em texto, sem o lembrete",
+        [folha?.isError ?? false, folha?.content?.[0]?.type, folha?.content?.[0]?.mimeType, (folha?.content?.[0]?.data ?? "").length > 100, legenda.legenda?.length, folha?.content?.length],
+        [false, "image", "image/jpeg", true, 1, 2],
+      );
+      const semRecurso = await chamar("folhaDeContato", { sku: "ZZ-MCP-PROP" }, quem((recurso) => recurso !== "acao.produtos.proporCadastro"));
+      conferir("folhaDeContato sem o recurso: recusa", semRecurso?.isError, true);
+    } finally {
+      await rm("dados/produtos/ZZ-MCP-PROP", { recursive: true, force: true });
+    }
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
