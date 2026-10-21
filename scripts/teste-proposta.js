@@ -614,6 +614,54 @@ try {
     conferir("links: o aviso da gravacao diz quantos nao abrem", /2 de 3/.test(gravado.aviso ?? ""));
   }
 
+  // Roteiro unico (Tarefa 1): o Rise calcula o preco, da o proximo codigo e recusa EAN de outro produto.
+  {
+    const { gravarProposta, lerProposta } = await import("../src/lib/proposta/banco.js");
+    const { lerParaProposta } = await import("../src/lib/proposta/leitura.js");
+    const { proximoCodigoLivre } = await import("../src/lib/proposta/codigo.js");
+    const fonte = (nome, dominio) => prisma.fonteColeta.create({ data: { nome, dominio, tipo: "CONCORRENTE" } });
+    const coletado = (f, codigo, campos) => prisma.produtoColetado.create({ data: { fonteId: f.id, chave: `codigo:${codigo}`, origem: "site", codigo, nome: `Item ${codigo}`, ...campos } });
+    const [a, b, c, propria] = await Promise.all([
+      fonte("ZZ-PROP Preco A", "zz-prop-precoa.invalid"),
+      fonte("ZZ-PROP Preco B", "zz-prop-precob.invalid"),
+      fonte("ZZ-PROP Preco C", "zz-prop-precoc.invalid"),
+      fonte("ZZ-PROP 4hobby", "zz-prop-loja4hobby.invalid"),
+    ]);
+    const itens = await Promise.all([
+      coletado(a, "PA", { precoNormal: 30, estoqueStatus: "IN_STOCK" }),
+      coletado(b, "PB", { precoNormal: 40, precoPromocional: 38, estoqueStatus: "IN_STOCK" }),
+      coletado(c, "PC", { precoNormal: 25, estoqueStatus: "OUT_OF_STOCK" }),
+      coletado(propria, "PD", { precoNormal: 20, estoqueStatus: "IN_STOCK" }),
+    ]);
+    const fornecedor = await prisma.fornecedor.create({ data: { nome: "ZZ-PROP Fornecedor Preco" } });
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-11", tituloBase: "PRODUTO DO PRECO" } });
+    for (const item of itens) await prisma.produtoConcorrente.create({ data: { produtoId: produto.id, produtoColetadoId: item.id } });
+    await prisma.produtoFornecedor.create({ data: { produtoId: produto.id, fornecedorId: fornecedor.id, precoCusto: 10, padrao: true } });
+
+    const lixo = { custo: 999, opcoes: [{ margem: 0.46, preco: 1, posicao: null }], recomendada: null, motivoSemRecomendada: "inventado", observacao: "nota da conversa" };
+    const gravado = await gravarProposta("ZZ-PROP-11", { secao: "preco", conteudo: lixo });
+    const preco = (await lerProposta("ZZ-PROP-11")).secoes.preco;
+    conferir("preco: o Rise recalcula com o custo do fornecedor padrao (os numeros mandados sao ignorados)", gravado.ok === true && preco.custo === 10 && preco.opcoes.map((o) => o.margem).join() === "40,50,60");
+    conferir("preco: a observacao da conversa fica", preco.observacao === "nota da conversa");
+    conferir("preco: so entram os com estoque e sem a propria loja (2 lojas + o produto)", preco.opcoes[0].posicao?.total === 3);
+    conferir("preco: a lista diz quem entrou e quem ficou de fora", preco.concorrentesUsados?.length === 2 && preco.foraDaConta?.some((f) => /4hobby/i.test(f.loja)) && preco.foraDaConta?.some((f) => f.loja === "ZZ-PROP Preco C"));
+    conferir("preco: com recomendada (margem inteira)", Number.isInteger(preco.recomendada?.margem) && preco.motivoSemRecomendada === null);
+
+    await prisma.produto.create({ data: { sku: "ZZ-PROP-12", tituloBase: "SEM CUSTO" } });
+    const semCusto = await gravarProposta("ZZ-PROP-12", { secao: "preco", conteudo: {} });
+    conferir("preco: sem custo, sem recomendada e com o motivo", semCusto.ok === true && (await lerProposta("ZZ-PROP-12")).secoes.preco.recomendada === null);
+
+    const proximo = await proximoCodigoLivre();
+    conferir("codigo: o proximo 25xxxx livre", /^25\d{4}$/.test(proximo) && !(await prisma.produto.findUnique({ where: { sku: proximo } })));
+    conferir("codigo: a leitura traz o proximo codigo", (await lerParaProposta("ZZ-PROP-11")).proximoCodigo === proximo);
+
+    await prisma.produto.update({ where: { sku: "ZZ-PROP-12" }, data: { ean: "7890000000017" } });
+    const repetido = await gravarProposta("ZZ-PROP-11", { secao: "ean", conteudo: { escolhido: { valor: "7890000000017", origem: "x" }, descartados: [] } });
+    conferir("ean: o EAN de outro produto do Rise e recusado, dizendo qual", repetido.ok === false && /ZZ-PROP-12/.test(repetido.erro ?? ""));
+    const livre = await gravarProposta("ZZ-PROP-11", { secao: "ean", conteudo: { escolhido: { valor: "7890000000024", origem: "x" }, descartados: [] } });
+    conferir("ean: EAN que ninguem usa passa", livre.ok === true);
+  }
+
   // Folha de contato (MCP, Tarefa 3): as fotos atuais e as candidatas numa imagem, com a legenda numero -> id/arquivo/loja.
   {
     const { mkdirSync, writeFileSync } = await import("node:fs");

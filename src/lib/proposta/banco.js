@@ -9,6 +9,7 @@ import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { SECOES_APLICAVEIS } from "./aplicar";
 import { assinaturaDaSecao, secoesNaoAplicadas } from "./aplicadas";
 import { conferirLinksDosDocumentos } from "./links";
+import { precoCalculadoDaProposta } from "./preco";
 import { validarPlano } from "./plano";
 
 /**
@@ -82,11 +83,25 @@ async function gravarArquivo(sku, nome, bytes, criados) {
  * @returns {Promise<{ ok: true, secoes: string[], aviso: string|null } | { ok: false, erro: string }>}
  */
 export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink = null } = {}) {
+  // Preco: quem calcula e o Rise (roteiro unico, 21/10/2026); da conversa so fica a observacao.
+  if (plano?.secao === "preco") {
+    const alvo = await prisma.produto.findUnique({ where: { sku: String(sku ?? "") }, select: { id: true } });
+    if (alvo) {
+      const observacao = typeof plano.conteudo?.observacao === "string" ? plano.conteudo.observacao : undefined;
+      plano = { ...plano, conteudo: { ...(await precoCalculadoDaProposta(alvo.id)), ...(observacao ? { observacao } : {}) } };
+    }
+  }
   const validado = validarPlano(plano);
   if (!validado.ok) return validado;
   const produto = await prisma.produto.findUnique({ where: { sku }, select: { id: true, conferido: true } });
   if (!produto) return { ok: false, erro: `Produto ${sku} não existe.` };
   if (produto.conferido) return { ok: false, erro: `${sku} está Conferido: a proposta não é gravada (o dono já aprovou).` };
+
+  // EAN de OUTRO produto do Rise nunca e proposto: o Salvar recusaria o mesmo GTIN em dois produtos.
+  if (validado.secao === "ean" && plano.conteudo?.escolhido?.valor) {
+    const dono = await prisma.produto.findFirst({ where: { ean: String(plano.conteudo.escolhido.valor), NOT: { id: produto.id } }, select: { sku: true } });
+    if (dono) return { ok: false, erro: `ean: ${plano.conteudo.escolhido.valor} já é o EAN do produto ${dono.sku} no Rise; ponha nos descartados.` };
+  }
 
   const anterior = await prisma.propostaDeProduto.findUnique({ where: { produtoId: produto.id } });
   const conteudo = structuredClone(plano.conteudo);

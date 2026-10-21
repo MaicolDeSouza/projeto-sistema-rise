@@ -4,6 +4,7 @@ import { listarPromptsDaDescricao } from "@/lib/ia/promptsDescricao";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
 import { propostaParaFormulario } from "./banco";
+import { proximoCodigoLivre } from "./codigo";
 
 /**
  * O que a proposta automatica de produto precisa LER (spec 2026-10-21, proposta pelo MCP): o produto, os fornecedores e
@@ -105,7 +106,7 @@ export async function lerParaProposta(sku, { prompt = null } = {}) {
 
   const vinculos = await prisma.produtoConcorrente.findMany({ where: { produtoId: produto.id }, orderBy: { criadoEm: "asc" } });
   const ids = vinculos.map((vinculo) => vinculo.produtoColetadoId).filter(Boolean);
-  const [linhas, agregado, fornecedores, prompts, proposta] = await Promise.all([
+  const [linhas, agregado, fornecedores, prompts, proposta, proximoCodigo] = await Promise.all([
     prisma.produtoColetado.findMany({
       where: { id: { in: ids } },
       select: {
@@ -118,6 +119,8 @@ export async function lerParaProposta(sku, { prompt = null } = {}) {
     fornecedoresDoProduto(produto),
     listarPromptsDaDescricao(),
     propostaParaFormulario(produto.id),
+    // A LLM nao enxerga o maior codigo usado: o proximo 25xxxx livre vem pronto (so se o produto nao tiver codigo).
+    proximoCodigoLivre(),
   ]);
   const porId = new Map(linhas.map((linha) => [linha.id, linha]));
   const concorrentes = vinculos.flatMap((vinculo) => {
@@ -147,6 +150,7 @@ export async function lerParaProposta(sku, { prompt = null } = {}) {
     agregado: Object.fromEntries(
       Object.entries(agregado).map(([campo, lista]) => [campo, lista.map((item) => ({ valor: item.valor, lojas: item.fontes, ...(item.origem ? { origem: item.origem } : {}) }))]),
     ),
+    proximoCodigo,
     prompts: prompts.map((item) => ({ nome: item.nome, padrao: item.padrao })),
     promptTexto: prompt ? promptPedido(prompts, prompt) : null,
     proposta: proposta ? { secoes: Object.keys(proposta.secoes ?? {}), naoAplicadas: proposta.naoAplicadas } : null,

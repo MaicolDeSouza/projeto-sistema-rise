@@ -41,6 +41,7 @@ import { importarPorCodigoDoBling } from "@/lib/integracoes/importarBling";
 import { UNIDADES } from "@/lib/unidades";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import { conferirEanNoML } from "@/lib/canaisDeVenda/ml/eanNoCatalogo";
+import { proximoCodigoLivre } from "@/lib/proposta/codigo";
 import {
   MAXIMO_IMAGENS,
   apagarArquivo,
@@ -105,10 +106,8 @@ export async function camposDasReferencias(ids) {
   }
 }
 
-/// Faixa dos codigos gerados automaticamente: 25xxxx, pedido do dono em 16/09/2026.
-const SKU_AUTOMATICO = /^25\d{4}$/;
-const PRIMEIRO_SKU_AUTOMATICO = 250001;
-const ULTIMO_SKU_AUTOMATICO = 259999;
+/// Faixa dos codigos gerados automaticamente: 25xxxx, pedido do dono em 16/09/2026 (constantes em
+/// src/lib/proposta/codigo.js).
 
 /**
  * O proximo codigo livre da faixa 25xxxx: o maior ja usado mais um.
@@ -123,20 +122,10 @@ export async function gerarSku() {
   const negado = await negarSemAcesso("tela.produtos.cadastro", "editar");
   if (negado) return negado;
   try {
-    const [usados, anuncios] = await Promise.all([
-      prisma.produto.findMany({ where: { sku: { startsWith: "25" } }, select: { sku: true } }),
-      // O codigo do kit de um anuncio do ML vira um produto no Bling ao publicar: um produto novo com
-      // o mesmo 25xxxx seria recusado la (codigo repetido).
-      prisma.anuncio.findMany({ where: { canal: "MERCADO_LIVRE" }, select: { dados: true } }),
-    ]);
-    const maior = [...usados.map((produto) => produto.sku), ...anuncios.map((anuncio) => String(anuncio.dados?.composicao?.codigo ?? ""))]
-      .filter((sku) => SKU_AUTOMATICO.test(sku))
-      .reduce((atual, sku) => Math.max(atual, Number(sku)), PRIMEIRO_SKU_AUTOMATICO - 1);
-
-    if (maior >= ULTIMO_SKU_AUTOMATICO) {
-      return { ok: false, erro: "A faixa 25xxxx acabou (259999 já existe)." };
-    }
-    return { ok: true, sku: String(maior + 1) };
+    // A regra mora em src/lib/proposta/codigo.js: a proposta (roteiro unico) usa a mesma.
+    const sku = await proximoCodigoLivre();
+    if (!sku) return { ok: false, erro: "A faixa 25xxxx acabou (259999 já existe)." };
+    return { ok: true, sku };
   } catch (erro) {
     return { ok: false, erro: erro.message };
   }
