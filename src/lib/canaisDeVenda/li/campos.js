@@ -100,6 +100,10 @@ const medida = (valor) => {
   return numero === null ? null : Math.ceil(Number(numero.toFixed(3)));
 };
 
+const LINK_NA_MESMA_ABA = /<a\b(?![^>]*\btarget\s*=\s*["']?_blank)[^>]*\bhref/i;
+const marcarLinkNaMesmaAba = (html, textoDaLI) =>
+  textoDaLI && LINK_NA_MESMA_ABA.test(String(html ?? "")) ? `${textoDaLI}\n(link abre na mesma aba)` : textoDaLI;
+
 const idsOrdenados = (lista) => [...new Set((lista ?? []).map((id) => texto(id)).filter(Boolean))].sort();
 
 const idDaUri = (uri) => texto(String(uri ?? "").split("/").filter(Boolean).at(-1));
@@ -165,7 +169,9 @@ export function normalizarDaLI(produtoLI, seo, { marcaNome = null } = {}) {
           .replace(/^produto\//, "")
           .replace(/\.html?$/, "") || null
       : null,
-    descricao: htmlParaTexto(l.descricao_completa, { paragrafos: true }),
+    // A comparacao e pelo texto, e o link sem target="_blank" (antes de 21/10/2026) tem o mesmo texto: a marca
+    // faz a descricao contar como diferente e o Sincronizar a reenviar com os links abrindo em outra aba.
+    descricao: marcarLinkNaMesmaAba(l.descricao_completa, htmlParaTexto(l.descricao_completa, { paragrafos: true })),
     ncm: soDigitos(l.ncm),
     gtin: texto(l.gtin),
     mpn: texto(l.mpn),

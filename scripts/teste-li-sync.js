@@ -105,10 +105,13 @@ try {
       P("<strong>PLACA UNO R3</strong>") + P("A Placa faz X.") + P("<strong>Especificações técnicas:</strong><br>- SRAM: 2KB;<br>- Peso: 24g;") + P("<strong>Itens inclusos: (Cód:100101)</strong><br>- 01 Placa;") + P("<strong>Garantia:</strong><br>- Garantia Legal de 90 dias;"),
     );
     const docs = [{ url: "https://rise.exemplo/a.pdf?v=2", nome: "Datasheet <v2>.pdf" }, { url: "javascript:alert(1)", nome: "x" }];
-    const blocoDocs = P("<strong>Documentos / Arquivos para download:</strong><br>- <a href=\"https://rise.exemplo/a.pdf?v=2\">Datasheet &lt;v2&gt;.pdf</a>;");
+    const blocoDocs = P("<strong>Documentos / Arquivos para download:</strong><br>- <a href=\"https://rise.exemplo/a.pdf?v=2\" target=\"_blank\" rel=\"noopener\">Datasheet &lt;v2&gt;.pdf</a>;");
     conferir("documentos logo abaixo das Especificacoes tecnicas (so http)", montarDescricaoLI({ descricao: texto, documentos: docs }).includes(P("<strong>Especificações técnicas:</strong><br>- SRAM: 2KB;<br>- Peso: 24g;") + blocoDocs + P("<strong>Itens inclusos: (Cód:100101)</strong><br>- 01 Placa;")), true);
     conferir("sem Especificacoes, documentos acima de Garantia", montarDescricaoLI({ descricao: "Texto.\n\nGarantia:\n- 90 dias;", documentos: docs }), P("Texto.") + blocoDocs + P("<strong>Garantia:</strong><br>- 90 dias;"));
     conferir("sem as duas secoes, documentos no fim do texto", montarDescricaoLI({ descricao: "Texto.", documentos: docs }), P("Texto.") + blocoDocs);
+    const lidaComLink = (html) => normalizarDaLI({ descricao_completa: html }, null, {}).descricao;
+    conferir("link da loja sem target conta como diferente", lidaComLink('<p>A <a href="x.pdf">doc</a></p>').endsWith("(link abre na mesma aba)"), true);
+    conferir("link da loja com target igual ao do Rise", lidaComLink('<p>A <a href="x.pdf" target="_blank" rel="noopener">doc</a></p>').includes("mesma aba"), false);
     conferir("sem documento com http, nao ha secao", montarDescricaoLI({ descricao: "Texto.", documentos: [{ url: "javascript:x", nome: "x" }] }), P("Texto."));
     conferir("frases fixas sairam da LI: passadas, nao entram", montarDescricaoLI({ descricao: "Texto & tal", frases: ["Com nota fiscal"] }), P("Texto &amp; tal"));
     conferir("linha de lista que termina em dois-pontos nao vira titulo", montarDescricaoLI({ descricao: "Uso:\n- Tensao:" }), P("<strong>Uso:</strong><br>- Tensao:"));

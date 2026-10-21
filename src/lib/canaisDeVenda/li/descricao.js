@@ -91,7 +91,8 @@ export function montarDescricaoLI({ descricao, documentos = [] } = {}) {
     if (grupo.length === 1 && grupo[0] === MARCA_DOS_DOCUMENTOS) {
       return paragrafo([
         `<strong>${escapar(TITULO_DOS_DOCUMENTOS)}</strong>`,
-        ...docs.map((doc) => `- <a href="${escapar(doc.url)}">${escapar(doc.nome ?? doc.url)}</a>;`),
+        // Abre em outra aba (pedido do dono em 21/10/2026): o cliente nao perde a pagina do produto.
+        ...docs.map((doc) => `- <a href="${escapar(doc.url)}" target="_blank" rel="noopener">${escapar(doc.nome ?? doc.url)}</a>;`),
       ]);
     }
     return paragrafo(
