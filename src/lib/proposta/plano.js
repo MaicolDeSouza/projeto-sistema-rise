@@ -15,7 +15,8 @@ export const CAMPOS_DA_PROPOSTA = [
 
 export const LIMITE_DO_TITULO = 60;
 export const FOTOS_MINIMAS = 6;
-export const FOTOS_MAXIMAS = 8;
+// O dono passou de "6 a 8" para exatamente 6 em 21/10/2026.
+export const FOTOS_MAXIMAS = 6;
 
 const texto = (valor) => typeof valor === "string" && valor.trim() !== "";
 const erro = (mensagem) => ({ ok: false, erro: mensagem });
@@ -54,7 +55,7 @@ function validarFotos(conteudo) {
     if (escolhidas !== candidatas.length) return erro(`fotos: com só ${candidatas.length} candidatas, todas entram.`);
     return { ok: true, aviso: candidatas.length === 0 ? null : `só ${candidatas.length} candidatas: menos que as ${FOTOS_MINIMAS} pedidas.` };
   }
-  if (escolhidas < FOTOS_MINIMAS || escolhidas > FOTOS_MAXIMAS) return erro(`fotos: são de ${FOTOS_MINIMAS} a ${FOTOS_MAXIMAS} escolhidas (vieram ${escolhidas}).`);
+  if (escolhidas < FOTOS_MINIMAS || escolhidas > FOTOS_MAXIMAS) return erro(FOTOS_MINIMAS === FOTOS_MAXIMAS ? `fotos: são ${FOTOS_MINIMAS} escolhidas (vieram ${escolhidas}).` : `fotos: são de ${FOTOS_MINIMAS} a ${FOTOS_MAXIMAS} escolhidas (vieram ${escolhidas}).`);
   return { ok: true };
 }
 

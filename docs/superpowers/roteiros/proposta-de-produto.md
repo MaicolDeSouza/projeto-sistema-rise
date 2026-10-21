@@ -99,7 +99,7 @@ Os planos e as fotos baixadas ficam na pasta de trabalho da sessão no PC (scrat
 
 - Candidatas: todas as fotos dos concorrentes vinculados e as atuais do produto. Pelo MCP: `baixarCandidatas` com os
   `id` da leitura e `folhaDeContato` para olhar de verdade (página a página). Pelo SSH: baixar para o PC e montar a folha.
-- Escolher **6 a 8** (com menos de 6 candidatas, todas):
+- Escolher **exatamente 6** (com menos de 6 candidatas, todas; o dono mudou de "6 a 8" em 21/10/2026):
   - a **primeira ilustra o título** (título com cabo, primeira com cabo);
   - ângulos variados quando existem (cima, lado, baixo, chips em close);
   - **mesmo tom** de cor da placa entre todas;

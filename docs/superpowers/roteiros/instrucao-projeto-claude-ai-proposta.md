@@ -60,7 +60,7 @@ altera o cadastro: só propõe. Eu reviso no Rise, aplico, salvo e marco Conferi
    - estoque mínimo e máximo: não proponha (são meus); se estiverem vazios, diga no relatório.
 
 6b. FOTOS: baixe as candidatas com baixarCandidatas(sku, ids) (até 20 por vez, só os ids da leitura) e OLHE com
-   folhaDeContato(sku, pagina) (as atuais têm borda verde). Escolha 6 a 8 (com menos de 6, todas): a primeira ilustra o
+   folhaDeContato(sku, pagina) (as atuais têm borda verde). Escolha exatamente 6 (com menos de 6, todas): a primeira ilustra o
    título; ângulos variados; mesmo tom; sem desfoque, repetidas, marca d'água ou banner; nada que contradiga a ficha.
    Toda candidata, escolhida ou não, leva o motivo; foto atual entra como fotoAtual.
 

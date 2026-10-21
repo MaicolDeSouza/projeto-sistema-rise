@@ -198,7 +198,7 @@ async function limpar() {
 }
 
 // ---------------------------------------------------------------------------
-// Validacao do plano (pura): secoes conhecidas, 3 titulos de ate 60, 6 a 8 fotos escolhidas
+// Validacao do plano (pura): secoes conhecidas, 3 titulos de ate 60, exatamente 6 fotos escolhidas (dono, 21/10/2026)
 // ---------------------------------------------------------------------------
 const { validarPlano } = await import("../src/lib/proposta/plano.js");
 {
@@ -215,8 +215,9 @@ const { validarPlano } = await import("../src/lib/proposta/plano.js");
   conferir("plano: 2 titulos sao recusados", validarPlano(titulos(["A", "B"])).ok === false);
   conferir("plano: recomendada fora de 0..2 e recusada", validarPlano(titulos(["A", "B", "C"], 3)).ok === false);
   conferir("plano: 5 fotos escolhidas de 10 sao recusadas", validarPlano(fotos(10, 5)).ok === false);
-  conferir("plano: 9 fotos escolhidas de 12 sao recusadas", validarPlano(fotos(12, 9)).ok === false);
-  conferir("plano: 7 fotos escolhidas de 12 passam", validarPlano(fotos(12, 7)).ok === true);
+  conferir("plano: 7 fotos escolhidas de 12 sao recusadas", validarPlano(fotos(12, 7)).ok === false);
+  conferir("plano: 6 fotos escolhidas de 12 passam", validarPlano(fotos(12, 6)).ok === true);
+  conferir("plano: 5 fotos escolhidas de 12 sao recusadas", validarPlano(fotos(12, 5)).ok === false);
   const poucas = validarPlano(fotos(3, 3));
   conferir("plano: com so 3 candidatas, as 3 escolhidas passam com aviso", poucas.ok === true && /candidatas/.test(poucas.aviso ?? ""));
   conferir("plano: candidata escolhida sem ordem e recusada", validarPlano({ secao: "fotos", conteudo: { candidatas: [foto(1, true)] } }).ok === false);
