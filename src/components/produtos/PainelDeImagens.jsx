@@ -77,6 +77,8 @@ const assinatura = (lista) =>
 
 /// A foto tem alguma versao gerada PAGA guardada (Photoroom comprado ou Nano Banana gerado)? O Cancelar da
 /// janela nao devolve o dinheiro, e excluir uma foto paga pede um clique a mais.
+// O botao "Reserva (N)" esta fora da tela desde 21/10/2026 (pedido do dono); a reserva continua guardando.
+const MOSTRAR_RESERVA = false;
 const temPaga = (imagem) => Boolean(imagem?.versoes?.photoroom || imagem?.versoes?.nanobanana);
 
 /// O selo da foto que esta no produto, pela versao.
@@ -174,8 +176,11 @@ export default function PainelDeImagens({
   // trazido para o carrossel nao conta: o numero do botao e o que ainda esta guardado e a vista.
   const trazidasDaReserva = new Set(imagens.map((imagem) => imagem.reservaId).filter(Boolean));
   const reservaVisivel = (reserva ?? []).filter((item) => !reservaExcluida.includes(item.id) && !trazidasDaReserva.has(item.id));
+  // O botao saiu da tela a pedido do dono em 21/10/2026 ("esta confusa"; Opcao "so o botao"): o Salvar continua
+  // guardando na reserva por tras (original, versao paga nao validada, foto que a proposta tira), e nada se perde.
+  // Para trazer o botao de volta, e so tirar o `MOSTRAR_RESERVA &&`.
   const botaoDaReserva =
-    reserva !== null && reservaVisivel.length > 0 ? (
+    MOSTRAR_RESERVA && reserva !== null && reservaVisivel.length > 0 ? (
       <button
         type="button"
         onClick={() => setReservaAberta(true)}
@@ -729,7 +734,7 @@ export default function PainelDeImagens({
               : ` · máximo ${MAXIMO_IMAGENS}`}
             {naoValidadas > 0 &&
               ` · ${naoValidadas} sem validar ${naoValidadas === 1 ? "será excluída" : "serão excluídas"} ao salvar`}
-            {paraReserva > 0 && ` · ${paraReserva} ${paraReserva === 1 ? "vai" : "vão"} para a reserva ao salvar`}
+            {paraReserva > 0 && ` · ${paraReserva} ${paraReserva === 1 ? "sai" : "saem"} do carrossel ao salvar (${paraReserva === 1 ? "fica guardada" : "ficam guardadas"})`}
           </span>
           {/* Mensagem informativa: icone "i" (padrao do sistema), e nao texto fixo nem dica escondida. */}
           <BolhaDeAjuda
