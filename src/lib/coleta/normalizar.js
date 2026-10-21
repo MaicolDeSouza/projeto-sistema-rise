@@ -1,7 +1,7 @@
 import { extrairProduto } from "./extrair";
 import { precosDaForseti } from "./forseti";
 import { dadosDaPaginaVtex } from "./vtex-pagina";
-import { ehListagemDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
+import { ehListagemDaNuvemshop, galeriaDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
 import { caminhoDeCategoria, caminhoDoJsonLd } from "./categoria";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
@@ -1190,9 +1190,17 @@ function juntarFichas(primeira, segunda) {
   const rotulos = new Set(
     primeira.filter((item) => item.nome).map((item) => item.nome.toLowerCase()),
   );
+
+  // A MESMA linha lida duas vezes (Neoyama, 20/10/2026): a lista com rotulo ("Tensao de saida" / "24 VDC") e o texto da
+  // descricao ("Tensao de saida 24 VDC", sem dois-pontos) saiam as duas, a segunda sem nome. Linha SEM nome cujo texto e
+  // "rotulo valor" de uma linha com nome ja lida e repeticao e nao entra.
+  const chave = (texto) => String(texto ?? "").toLowerCase().replace(/[:;.,]/g, " ").replace(/\s+/g, " ").trim();
+  const lidas = new Set(primeira.filter((item) => item.nome).map((item) => chave(`${item.nome} ${item.valor}`)));
+  const repetida = (item) => !item.nome && lidas.has(chave(item.valor));
+
   return [
     ...primeira,
-    ...segunda.filter((item) => !item.nome || !rotulos.has(item.nome.toLowerCase())),
+    ...segunda.filter((item) => (!item.nome && !repetida(item)) || (item.nome && !rotulos.has(item.nome.toLowerCase()))),
   ];
 }
 
@@ -2309,12 +2317,17 @@ export function normalizarPagina({
   // da listagem tem 4; o detalhe do mesmo produto tem 9). Deixando o catalogo
   // vencer sozinho, cinco fotos que a pagina tinha eram perdidas.
   // VTEX: a galeria da pagina (as fotos grandes) vence; o og:image dela e o banner da loja, nao o produto.
+  // NUVEMSHOP: todas as fotos do produto moram na mesma pasta do CDN, entao a galeria generica (que usa a pasta para separar
+  // foto do produto de foto de vizinho) desiste e sobrava so a principal (Neoyama, 20/10/2026: 5 fotos, 1 lida). Aqui a
+  // galeria e o proprio carrossel da pagina.
+  const doCarrosselNuvemshop = galeriaDaNuvemshop(html);
   const images = vtexPagina?.imagens?.length
     ? semRepetir([...(doCatalogo?.imagens ?? []), ...vtexPagina.imagens])
     : semRepetir([
         ...(doCatalogo?.imagens ?? []),
         ...doMagento,
         ...estruturadas,
+        ...doCarrosselNuvemshop,
         ...galeria,
       ]);
 

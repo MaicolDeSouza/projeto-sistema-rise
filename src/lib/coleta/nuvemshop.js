@@ -73,6 +73,29 @@ function nomesDasOpcoes(html) {
  * "Catalogo de produtos" do menu como documento. A Nuvemshop diz o tipo da
  * pagina na classe do <body>: so "template-product" e pagina de produto.
  */
+/**
+ * As fotos do produto, do CARROSSEL da pagina (`js-swiper-product`, ate a paginacao dele): o tema Toluca (Neoyama) tem uma
+ * `js-product-slide` por foto, com o endereco nos atributos de imagem, na ordem em que a loja mostra. Pura. Pagina que nao
+ * e de Nuvemshop, ou sem carrossel, devolve vazio (a leitura generica segue como estava).
+ */
+export function galeriaDaNuvemshop(html) {
+  const texto = String(html ?? "");
+  if (!/mitiendanube\.com/i.test(texto)) return [];
+  const inicio = texto.search(/class=["'][^"']*js-swiper-product swiper-container/i);
+  if (inicio < 0) return [];
+  const fim = texto.indexOf("js-swiper-product-pagination", inicio);
+  const trecho = texto.slice(inicio, fim > inicio ? fim : inicio + 60000);
+
+  const vistas = new Set();
+  const fotos = [];
+  for (const achado of trecho.matchAll(/(?:https?:)?\/\/[^"'\s,]+\/products\/([^"'\s,/]+?)-\d+-\d+\.(?:webp|jpe?g|png)/gi)) {
+    if (vistas.has(achado[1])) continue;
+    vistas.add(achado[1]);
+    fotos.push(achado[0].startsWith("//") ? `https:${achado[0]}` : achado[0]);
+  }
+  return fotos;
+}
+
 export function ehListagemDaNuvemshop(html) {
   if (typeof html !== "string" || !/mitiendanube\.com/i.test(html)) return false;
 

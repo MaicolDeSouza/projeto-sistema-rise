@@ -94,6 +94,18 @@ conferir("rotulo", [rotuloDoEndereco("https://loja.com.br/"), rotuloDoEndereco("
   conferir("loja: sem job, a do PC e a pulada se explicam", [situacaoDaLoja({ job: null, fonte: { varridaNoPc: true } }).situacao, situacaoDaLoja({ job: null, fonte: {} }).situacao], ["so-pc", "pulada"]);
 }
 
+// Nuvemshop (Neoyama): as fotos do produto vem do carrossel da pagina, na ordem dele, e a ficha nao repete a linha lida duas vezes.
+{
+  const { galeriaDaNuvemshop } = await import("../src/lib/coleta/nuvemshop.js");
+  const cdn = "//dcdn-us.mitiendanube.com/stores/007/075/123/products";
+  const html = `<link href="${cdn}/x.css"> <div class="js-swiper-product swiper-container product-detail-slider">
+    <div class="js-product-slide"><img data-srcset='${cdn}/01-aaa-480-0.webp 480w, ${cdn}/01-aaa-640-0.webp 640w'></div>
+    <div class="js-product-slide"><img data-srcset='${cdn}/02-bbb-480-0.webp 480w, ${cdn}/02-bbb-1024-1024.webp 1024w'></div></div>
+    <div class="js-swiper-product-pagination"></div> <img src="${cdn}/99-relacionado-480-0.webp">`;
+  conferir("nuvemshop: so as fotos do carrossel, na ordem e sem repetir o tamanho", galeriaDaNuvemshop(html), ["https://dcdn-us.mitiendanube.com/stores/007/075/123/products/01-aaa-480-0.webp", "https://dcdn-us.mitiendanube.com/stores/007/075/123/products/02-bbb-480-0.webp"]);
+  conferir("nuvemshop: pagina de outra plataforma ou sem carrossel nao rende foto", [galeriaDaNuvemshop("<img src='/x.jpg'>"), galeriaDaNuvemshop(`<img src="${cdn}/a-1-1.webp">`)], [[], []]);
+}
+
 // A listagem importa buscar.js sem extensao: precisa do resolvedor de alias do projeto.
 try {
   const { produtosDaListagem, paginasSeguintes, numeroDaPagina, dentroDaCategoria, doMaiorBloco } = await import("../src/lib/coleta/listagem.js");
