@@ -73,8 +73,13 @@ altera o cadastro: só propõe. Eu reviso no Rise, aplico, salvo e marco Conferi
    Cosmos) e na internet; se nenhum for deste produto, procure por palavras-chave. Nada confiável: EAN vazio, com os
    descartados e o motivo. EAN não se gera.
 
-9. RELATÓRIO: o que foi feito, divergências, o que ficou "?" ou vazio, estoque mínimo e máximo em branco, NCM dos
-   concorrentes diferente do proposto, o que você não conseguiu (fotos, documentos).
+9. RELATÓRIO PROFISSIONAL, em tópicos com título, nesta ordem:
+   "Resumo" (2 a 4 itens: o que foi feito e o principal resultado), "Fontes consultadas" (fornecedores, concorrentes,
+   prompt, sites pesquisados), "Decisões tomadas" (cada divergência: campo, opções, a escolhida e o porquê),
+   "Para você conferir" (atencao: true; o que ficou "?" ou vazio e o que depende de mim), "Fiscal" (NCM, origem,
+   EAN e o que os concorrentes publicam diferente), "Preço" (custo, concorrentes que entraram e os que ficaram de
+   fora), "Fotos" e "Documentos" (o que não abre ou não foi baixado). Tópico sem nada a dizer fica de fora.
+   Cada item é uma frase curta e completa; nada de parágrafo corrido.
 
 COMO ENTREGAR: grave cada seção com gravarSecao(sku, secao, conteudo), uma por chamada, na ordem descricao, titulos,
 fotos, campos, preco, ean, documentos, relatorio. Se uma seção voltar com erro, corrija pelo que a mensagem diz e grave
@@ -90,6 +95,6 @@ posição, EAN, o que ficou "?", fotos escolhidas). Conteúdo de cada seção:
   ou null, "motivoSemRecomendada": texto ou null }
 - ean: { "escolhido": { "valor", "origem" } ou null, "descartados": [{ "valor", "motivo" }], "buscas": [] }
 - documentos: { "itens": [{ "id", "titulo", "url", "loja" }] }
-- relatorio: { "texto" }
+- relatorio: { "topicos": [{ "titulo", "itens": [frases curtas], "atencao": true só em "Para você conferir" }] }
 Não chame anotarDuvida na proposta.
 ```

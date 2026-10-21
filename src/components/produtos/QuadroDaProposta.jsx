@@ -53,8 +53,15 @@ function resumo(secao, conteudo) {
     const candidatas = conteudo.candidatas ?? [];
     return `${candidatas.filter((c) => c.escolhida).length} escolhidas de ${candidatas.length}; aplicar na aba Imagens (Proposta)`;
   }
-  if (secao === "documentos") return `${(conteudo.itens ?? []).length} documento(s)`;
-  if (secao === "relatorio") return String(conteudo.texto ?? "").split(/\r?\n/)[0];
+  if (secao === "documentos") {
+    const itens = conteudo.itens ?? [];
+    const quebrados = itens.filter((item) => item.link && !item.link.ok).length;
+    return `${itens.length} documento(s)${quebrados ? ` · ${quebrados} não ${quebrados === 1 ? "abre" : "abrem"}` : ""}`;
+  }
+  if (secao === "relatorio") {
+    if (Array.isArray(conteudo.topicos)) return conteudo.topicos[0]?.itens?.[0] ?? "";
+    return String(conteudo.texto ?? "").split(/\r?\n/)[0];
+  }
   return "";
 }
 
@@ -391,17 +398,46 @@ function DetalheDaSecao({ secao, conteudo, urls }) {
     return (
       <>
         <ul className="space-y-1.5">
-          {(conteudo.itens ?? []).map((item) => (
-            <li key={item.id}>
-              <Link href={urls[`documento:${item.id}`] ?? item.url}>{item.titulo}</Link>
-              {item.loja && <span className="text-suave"> ({item.loja})</span>}
-            </li>
-          ))}
+          {(conteudo.itens ?? []).map((item) => {
+            // O link que o Rise testou ao gravar e nao abriu fica riscado, com o motivo (pedido do dono em 21/10/2026).
+            const quebrado = item.link && !item.link.ok;
+            const motivo = quebrado ? (item.link.status ? `não abre (${item.link.status})` : `não abre (${item.link.erro ?? "sem resposta"})`) : null;
+            return (
+              <li key={item.id} className={quebrado ? "text-suave" : undefined}>
+                {quebrado ? (
+                  <span className="break-all line-through" title={item.url}>{item.titulo}</span>
+                ) : (
+                  <Link href={urls[`documento:${item.id}`] ?? item.url}>{item.titulo}</Link>
+                )}
+                {item.loja && <span className="text-suave"> ({item.loja})</span>}
+                {motivo && <span className="ml-1.5 rounded bg-fundo px-1.5 py-0.5 text-xs">{motivo}</span>}
+              </li>
+            );
+          })}
         </ul>
         {conteudo.observacao && <p className="mt-2 text-suave">{conteudo.observacao}</p>}
       </>
     );
   }
-  if (secao === "relatorio") return <pre className="font-sans text-sm whitespace-pre-wrap">{conteudo.texto}</pre>;
+  if (secao === "relatorio") {
+    // Em topicos (desde 21/10/2026): titulo e a lista de cada um; "atencao" vem destacado (e o que o dono precisa olhar).
+    if (Array.isArray(conteudo.topicos)) {
+      return (
+        <div className="space-y-4">
+          {conteudo.topicos.map((topico, i) => (
+            <section key={i} className={topico.atencao ? "rounded border-l-4 border-amber-400 bg-amber-50 py-2 pr-3 pl-3" : undefined}>
+              <h3 className={`mb-1.5 text-xs font-semibold tracking-wide uppercase ${topico.atencao ? "text-amber-800" : "text-suave"}`}>{topico.titulo}</h3>
+              <ul className="list-disc space-y-1 pl-5 text-sm">
+                {topico.itens.map((item, j) => (
+                  <li key={j}>{item}</li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      );
+    }
+    return <pre className="font-sans text-sm whitespace-pre-wrap">{conteudo.texto}</pre>;
+  }
   return null;
 }

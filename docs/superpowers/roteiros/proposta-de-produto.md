@@ -176,12 +176,22 @@ reserva (SSH, com o "pode" do dono; o script confere que é PDF).
 
 ## Passo 8 — relatório (seção `relatorio`, por último)
 
-Texto curto: o que foi feito, divergências resolvidas, dúvidas, o que ficou `?` ou vazio, estoque mínimo e máximo em
-branco, NCM dos concorrentes diferente do proposto, lembrete das fotos de concorrentes, tempo gasto.
+Relatório profissional EM TÓPICOS (pedido do dono em 21/10/2026: o texto corrido estava confuso), nesta ordem:
+"Resumo" (2 a 4 itens: o que foi feito e o principal resultado), "Fontes consultadas" (fornecedores, concorrentes,
+prompt, sites pesquisados), "Decisões tomadas" (cada divergência: campo, opções, a escolhida e o porquê),
+"Para você conferir" (atencao: true; o que ficou "?" ou vazio e o que depende de mim), "Fiscal" (NCM, origem,
+EAN e o que os concorrentes publicam diferente), "Preço" (custo, concorrentes que entraram e os que ficaram de
+fora), "Fotos" e "Documentos" (o que não abre ou não foi baixado). Tópico sem nada a dizer fica de fora.
+Cada item é uma frase curta e completa; nada de parágrafo corrido.
 
 ```json
-{ "secao": "relatorio", "conteudo": { "texto": "..." } }
+{ "secao": "relatorio", "conteudo": { "topicos": [
+  { "titulo": "Resumo", "itens": ["Proposta completa com 8 seções.", "Preço recomendado R$ 39,38 (5º de 9)."] },
+  { "titulo": "Para você conferir", "atencao": true, "itens": ["Temperatura de operação ficou \"?\": nenhuma fonte."] }
+] } }
 ```
+
+O formato antigo (`{ "texto" }`) continua aceito, para as propostas já gravadas.
 
 ## Ao terminar
 

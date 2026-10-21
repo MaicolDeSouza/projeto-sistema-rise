@@ -8,6 +8,7 @@ import { padronizarImagem } from "@/lib/imagens/padronizar";
 
 import { SECOES_APLICAVEIS } from "./aplicar";
 import { assinaturaDaSecao, secoesNaoAplicadas } from "./aplicadas";
+import { conferirLinksDosDocumentos } from "./links";
 import { validarPlano } from "./plano";
 
 /**
@@ -80,7 +81,7 @@ async function gravarArquivo(sku, nome, bytes, criados) {
  * @param {{ bytes?: Map<string, Buffer> }} [opcoes] bytes das fotos e PDFs novos, pelo id da candidata ou do documento
  * @returns {Promise<{ ok: true, secoes: string[], aviso: string|null } | { ok: false, erro: string }>}
  */
-export async function gravarProposta(sku, plano, { bytes = new Map() } = {}) {
+export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink = null } = {}) {
   const validado = validarPlano(plano);
   if (!validado.ok) return validado;
   const produto = await prisma.produto.findUnique({ where: { sku }, select: { id: true, conferido: true } });
@@ -93,6 +94,7 @@ export async function gravarProposta(sku, plano, { bytes = new Map() } = {}) {
   const citadosAntes = new Set(arquivosDaSecao(secao, anterior?.secoes?.[secao]));
   const criados = [];
   let baixadas = null;
+  let avisoDosLinks = null;
 
   try {
     if (secao === "fotos") {
@@ -123,6 +125,9 @@ export async function gravarProposta(sku, plano, { bytes = new Map() } = {}) {
         item.arquivo = novoNome("pdf");
         await gravarArquivo(sku, item.arquivo, recebidos, criados);
       }
+      // Documento so com link: o Rise testa se abre e marca o que nao abre (o 404 da Eletrogate de 21/10/2026).
+      const { testados, quebrados } = await conferirLinksDosDocumentos(conteudo.itens, testarLink ? { testar: testarLink } : {});
+      if (quebrados) avisoDosLinks = `${quebrados} de ${testados} ${testados === 1 ? "link não abre" : "links não abrem"} (marcados na proposta).`;
     }
 
     const secoes = { ...(anterior?.secoes ?? {}), [secao]: conteudo };
@@ -148,7 +153,7 @@ export async function gravarProposta(sku, plano, { bytes = new Map() } = {}) {
       const restante = Object.fromEntries(Object.entries(indice).filter(([, item]) => citadosAgora.has(item?.arquivo)));
       if (Object.keys(restante).length !== Object.keys(indice).length) await gravarIndiceDeCandidatas(sku, restante);
     }
-    return { ok: true, secoes: Object.keys(secoes), aviso: validado.aviso ?? null };
+    return { ok: true, secoes: Object.keys(secoes), aviso: [validado.aviso, avisoDosLinks].filter(Boolean).join(" ") || null };
   } catch (falha) {
     for (const arquivo of criados) await unlink(arquivo).catch(() => {});
     return { ok: false, erro: falha.message };

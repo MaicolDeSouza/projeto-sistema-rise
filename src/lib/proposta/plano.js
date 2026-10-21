@@ -103,13 +103,34 @@ const VALIDADORES = {
   preco: validarPreco,
   ean: validarEan,
   documentos: validarDocumentos,
-  relatorio: (conteudo) => (texto(conteudo?.texto) ? { ok: true } : erro("relatorio: o texto está vazio.")),
+  relatorio: validarRelatorio,
 };
 
 /**
  * @param {{ secao: string, conteudo: unknown }} plano
  * @returns {{ ok: true, secao: string, aviso?: string|null } | { ok: false, erro: string }}
  */
+/*
+ * Relatorio em TOPICOS (pedido do dono em 21/10/2026: "um relatorio profissional, com os topicos divididos"):
+ * `{ topicos: [{ titulo, itens: [texto], atencao? }] }`, cada topico um titulo curto e uma lista. O formato antigo
+ * (`{ texto }`, um bloco corrido) continua valendo para as propostas ja gravadas.
+ */
+const MAXIMO_DE_TOPICOS = 12;
+const MAXIMO_DE_ITENS = 30;
+function validarRelatorio(conteudo) {
+  if (!Array.isArray(conteudo?.topicos)) return texto(conteudo?.texto) ? { ok: true } : erro("relatorio: mande topicos (ou o texto).");
+  const topicos = conteudo.topicos;
+  if (topicos.length === 0) return erro("relatorio: nenhum tópico.");
+  if (topicos.length > MAXIMO_DE_TOPICOS) return erro(`relatorio: no máximo ${MAXIMO_DE_TOPICOS} tópicos.`);
+  for (const [i, topico] of topicos.entries()) {
+    if (!texto(topico?.titulo) || String(topico.titulo).trim().length > 60) return erro(`relatorio: o tópico ${i + 1} precisa de um título de até 60 caracteres.`);
+    if (!Array.isArray(topico.itens) || topico.itens.length === 0) return erro(`relatorio: o tópico "${topico.titulo}" está sem itens.`);
+    if (topico.itens.length > MAXIMO_DE_ITENS) return erro(`relatorio: o tópico "${topico.titulo}" passa de ${MAXIMO_DE_ITENS} itens.`);
+    if (topico.itens.some((item) => !texto(item))) return erro(`relatorio: o tópico "${topico.titulo}" tem item vazio.`);
+  }
+  return { ok: true };
+}
+
 export function validarPlano(plano) {
   const secao = plano?.secao;
   if (!SECOES.includes(secao)) return erro(`seção desconhecida: ${secao}. Use uma de: ${SECOES.join(", ")}.`);

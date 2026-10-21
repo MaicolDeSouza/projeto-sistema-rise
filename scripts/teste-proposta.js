@@ -218,6 +218,11 @@ const { validarPlano } = await import("../src/lib/proposta/plano.js");
   conferir("plano: EAN vazio (nada confiavel) passa", validarPlano({ secao: "ean", conteudo: { escolhido: null, descartados: [{ valor: "7671459174876", motivo: "prefixo nao brasileiro" }] } }).ok === true);
   conferir("plano: descricao vazia e recusada", validarPlano({ secao: "descricao", conteudo: { texto: "  " } }).ok === false);
   conferir("plano: relatorio com texto passa", validarPlano({ secao: "relatorio", conteudo: { texto: "Feito." } }).ok === true);
+  const topico = (titulo, itens, extra = {}) => ({ titulo, itens, ...extra });
+  conferir("plano: relatorio em topicos passa", validarPlano({ secao: "relatorio", conteudo: { topicos: [topico("Resumo", ["Feito."]), topico("Para você conferir", ["NCM"], { atencao: true })] } }).ok === true);
+  conferir("plano: relatorio com topico sem titulo e recusado", validarPlano({ secao: "relatorio", conteudo: { topicos: [topico(" ", ["x"])] } }).ok === false);
+  conferir("plano: relatorio com topico sem itens e recusado", validarPlano({ secao: "relatorio", conteudo: { topicos: [topico("Resumo", [])] } }).ok === false);
+  conferir("plano: relatorio sem texto nem topicos e recusado", validarPlano({ secao: "relatorio", conteudo: { topicos: [] } }).ok === false);
 }
 
 try {
@@ -572,6 +577,30 @@ try {
       aprovado = erro.message;
     }
     conferir("candidatas: produto Conferido recusa", /já aprovado/.test(aprovado));
+  }
+
+  // Documentos so com link: o Rise testa cada um ao gravar e marca o que nao abre (pedido do dono em 21/10/2026).
+  {
+    const { gravarProposta, lerProposta } = await import("../src/lib/proposta/banco.js");
+    await prisma.produto.update({ where: { sku: "ZZ-PROP-8" }, data: { conferido: false } });
+    const testados = [];
+    const testarLink = async (url) => {
+      testados.push(url);
+      if (url.includes("cai")) throw new Error("tempo esgotado");
+      return url.includes("quebrado") ? { ok: false, status: 404 } : { ok: true, status: 200 };
+    };
+    const itens = [
+      { id: "l1", titulo: "Datasheet bom", url: "https://zz.test/bom.pdf", loja: "A" },
+      { id: "l2", titulo: "Driver quebrado", url: "https://zz.test/quebrado.zip", loja: "B" },
+      { id: "l3", titulo: "Manual que cai", url: "https://zz.test/cai.docx", loja: "B" },
+    ];
+    const gravado = await gravarProposta("ZZ-PROP-8", { secao: "documentos", conteudo: { itens } }, { testarLink });
+    const lidos = (await lerProposta("ZZ-PROP-8")).secoes.documentos.itens;
+    conferir("links: cada link testado uma vez", gravado.ok === true && testados.length === 3);
+    conferir("links: o que abre fica ok com o status", lidos[0].link?.ok === true && lidos[0].link?.status === 200 && typeof lidos[0].link?.conferidoEm === "string");
+    conferir("links: o 404 fica marcado como nao abre", lidos[1].link?.ok === false && lidos[1].link?.status === 404);
+    conferir("links: falha de rede fica marcada sem status, com o motivo", lidos[2].link?.ok === false && lidos[2].link?.status === null && /tempo/.test(lidos[2].link?.erro ?? ""));
+    conferir("links: o aviso da gravacao diz quantos nao abrem", /2 de 3/.test(gravado.aviso ?? ""));
   }
 
   // Folha de contato (MCP, Tarefa 3): as fotos atuais e as candidatas numa imagem, com a legenda numero -> id/arquivo/loja.
