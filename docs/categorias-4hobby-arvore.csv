@@ -59,10 +59,10 @@
 4;Componentes Eletrônicos;T_componentes;21;Caixas Plásticas e Organizadores;I_caixa;segunda;0;14;21 - Caixas Plásticas e Organizadores
 5;Fontes e Conversores;T_fontes;0;;;topo;0;0;Fontes e Conversores
 5;Fontes e Conversores;T_fontes;1;Fontes Chaveadas;F_fonte;propria;22;0;01 - Fontes Chaveadas
-5;Fontes e Conversores;T_fontes;2;Transformadores;F_trafo;reservada;0;0;02 - Transformadores
-5;Fontes e Conversores;T_fontes;3;Conversores DC-DC;F_dcdc;propria;11;0;03 - Conversores DC-DC
-5;Fontes e Conversores;T_fontes;4;Baterias e Acessórios;F_bat;propria;47;0;04 - Baterias e Acessórios
-5;Fontes e Conversores;T_fontes;5;Painéis Solares;F_solar;propria;1;0;05 - Painéis Solares
+5;Fontes e Conversores;T_fontes;2;Conversores DC-DC;F_dcdc;propria;11;0;02 - Conversores DC-DC
+5;Fontes e Conversores;T_fontes;3;Baterias e Acessórios;F_bat;propria;47;0;03 - Baterias e Acessórios
+5;Fontes e Conversores;T_fontes;4;Painéis Solares;F_solar;propria;1;0;04 - Painéis Solares
+5;Fontes e Conversores;T_fontes;5;Transformadores;F_trafo;reservada;0;0;05 - Transformadores
 6;Fios e Cabos;T_cabos;0;;;topo;0;0;Fios e Cabos
 6;Fios e Cabos;T_cabos;1;Fios e Cabos Elétricos;J_fio;propria;15;3;01 - Fios e Cabos Elétricos
 6;Fios e Cabos;T_cabos;2;Cabos USB;J_usb;propria;19;0;02 - Cabos USB

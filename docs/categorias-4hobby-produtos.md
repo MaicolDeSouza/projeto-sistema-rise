@@ -809,10 +809,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 220507 MINI FONTE HI-LINK SAIDA 12VDC 3W 0.25A ENTRADA 100-240VAC
 - 220901 Fonte chaveada 7,5v 1A Plug P4 *220901
 
-### 02 - Transformadores (0) - reservada, sem produto hoje
-
-
-### 03 - Conversores DC-DC (11)
+### 02 - Conversores DC-DC (11)
 
 - 200201 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP UP BOOST XL6009
 - 200202 CONVERSOR DE TENSÃO AJUSTÁVEL DC/DC STEP DOWN LM2596
@@ -826,7 +823,7 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 200228 Modulo regulador tensão step up XL6009 com display
 - 220504_z Conversor de tensão 24V para 5V *220504
 
-### 04 - Baterias e Acessórios (47)
+### 03 - Baterias e Acessórios (47)
 
 - 100270 MÓDULO TESTADOR DE CAPACIDADE PARA BATERIA DE LÍTIO
 - 100273 MODULO CARREGADOR SEM FIO POR INDUÇÃO 5V 1A
@@ -876,9 +873,12 @@ Gerado por scripts/categorias-gerar-arvore.cjs a partir de categorias-4hobby-map
 - 941108 SUPORTE PARA 03 BATERIAS 18650 LI-ION CASE TIPO CANOA
 - 941109 SUPORTE PARA 04 BATERIAS 18650 LI-ION CASE TIPO CANOA
 
-### 05 - Painéis Solares (1)
+### 04 - Painéis Solares (1)
 
 - 220801 PLACA PAINEL CÉLULA SOLAR FOTOVOLTAICA 6V 1W 110X60MM
+
+### 05 - Transformadores (0) - reservada, sem produto hoje
+
 
 ## 06 - Fios e Cabos
 
