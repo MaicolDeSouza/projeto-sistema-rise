@@ -186,6 +186,7 @@ function FotoEmRevisao({
   aoEscolherVersao,
   aoAtualizarFoto,
   navegacao = null,
+  aoAmpliarAtual = null,
 }) {
   const [erro, setErro] = useState(null);
   const [confirmando, setConfirmando] = useState(false);
@@ -498,7 +499,7 @@ function FotoEmRevisao({
             alt="Foto atual do produto"
             zoom={zoom}
             setZoom={setZoom}
-            aoAmpliar={() => setAmpliada({ src: urlDaOriginal, alt: "Foto atual do produto" })}
+            aoAmpliar={aoAmpliarAtual ?? (() => setAmpliada({ src: urlDaOriginal, alt: "Foto atual do produto" }))}
             className="h-full w-full"
           />
         </Quadro>
@@ -601,6 +602,9 @@ export default function JanelaDeFotos({
   // A faixa de pergunta antes de sair: "sair" (X, Esc ou clique fora, com alteracoes) ou "cancelar"
   // (Cancelar, quando ha compra nesta janela, que nao tem volta).
   const [barra, setBarra] = useState(null);
+  // A foto atual ampliada mora AQUI, e nao na FotoEmRevisao: ela e remontada a cada foto (key), e a ampliada precisa
+  // continuar aberta ao passar pelas setas do carrossel (pedido do dono em 21/10/2026).
+  const [ampliandoAtual, setAmpliandoAtual] = useState(false);
 
   const total = imagens.length;
   const indice = atual ? imagens.findIndex((imagem) => imagem.base === atual.base) : -1;
@@ -703,11 +707,25 @@ export default function JanelaDeFotos({
               Todas as fotos foram excluídas. Cancele para trazer de volta, ou salve para ficar sem elas.
             </p>
           )}
+          {ampliandoAtual && atual && (
+            <AmpliacaoDeFoto
+              src={atual.urls?.original ?? atual.url}
+              alt={`Foto ${indice + 1} do produto`}
+              aoFechar={() => setAmpliandoAtual(false)}
+              posicao={indice}
+              total={total}
+              aoNavegar={(passo) => {
+                const proxima = imagens[indice + passo];
+                if (proxima) aoEscolher(proxima.base);
+              }}
+            />
+          )}
           {atual && (
           <div>
             <div className="min-w-0">
               <FotoEmRevisao
                 key={atual.base}
+                aoAmpliarAtual={() => setAmpliandoAtual(true)}
                 // Anterior e proxima, abaixo do "Escolher essa". As setas do teclado continuam valendo.
                 navegacao={
                   <>
