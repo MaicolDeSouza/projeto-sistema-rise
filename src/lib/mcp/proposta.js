@@ -6,6 +6,7 @@ import { baixarCandidatas, MAXIMO_POR_CHAMADA } from "@/lib/proposta/candidatas"
 import { folhaDeContato, POR_PAGINA } from "@/lib/proposta/folha";
 import { lerParaProposta } from "@/lib/proposta/leitura";
 import { SECOES } from "@/lib/proposta/plano";
+import { ROTEIRO, VERSAO_DO_ROTEIRO } from "@/lib/proposta/roteiro";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
 /**
@@ -140,4 +141,16 @@ const GRAVAR_SECAO = {
   },
 };
 
-export const FERRAMENTAS_DA_PROPOSTA = [LER_PARA_PROPOSTA, LER_PROPOSTA, BAIXAR_CANDIDATAS, FOLHA_DE_CONTATO, GRAVAR_SECAO];
+const ROTEIRO_DA_PROPOSTA = {
+  nome: "roteiroDaProposta",
+  descricao:
+    "Primeira chamada de toda proposta de cadastro: devolve o roteiro (as regras de cada seção, o formato do conteúdo e a ordem das ferramentas) e a versão dele. Siga exatamente; é o mesmo para qualquer assistente.",
+  esquema: z.object({}),
+  anotacoes: SO_LEITURA,
+  async executar(_argumentos, contexto) {
+    exigirProposta(contexto);
+    return { versao: VERSAO_DO_ROTEIRO, roteiro: ROTEIRO };
+  },
+};
+
+export const FERRAMENTAS_DA_PROPOSTA = [ROTEIRO_DA_PROPOSTA, LER_PARA_PROPOSTA, LER_PROPOSTA, BAIXAR_CANDIDATAS, FOLHA_DE_CONTATO, GRAVAR_SECAO];

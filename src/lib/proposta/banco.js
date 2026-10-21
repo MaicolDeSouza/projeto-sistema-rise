@@ -11,6 +11,7 @@ import { assinaturaDaSecao, secoesNaoAplicadas } from "./aplicadas";
 import { conferirLinksDosDocumentos } from "./links";
 import { precoCalculadoDaProposta } from "./preco";
 import { validarPlano } from "./plano";
+import { VERSAO_DO_ROTEIRO } from "./roteiro";
 
 /**
  * Gravacao da proposta automatica de produto (spec 2026-10-16). Uma secao por chamada: cria a proposta ou SUBSTITUI a
@@ -151,8 +152,9 @@ export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink
     delete aplicadas[secao];
     await prisma.propostaDeProduto.upsert({
       where: { produtoId: produto.id },
-      create: { produtoId: produto.id, secoes, aplicadas },
-      update: { secoes, aplicadas },
+      // Cada secao gravada carimba a versao do roteiro em vigor (roteiro unico de 21/10/2026).
+      create: { produtoId: produto.id, secoes, aplicadas, versaoDoRoteiro: VERSAO_DO_ROTEIRO },
+      update: { secoes, aplicadas, versaoDoRoteiro: VERSAO_DO_ROTEIRO },
     });
 
     const citadosAgora = new Set(arquivosDaSecao(secao, conteudo));

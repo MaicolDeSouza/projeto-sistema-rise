@@ -42,7 +42,7 @@ async function codigoDoErro(promessa) {
 
 /** A resposta do /mcp vem em JSON ou em SSE (um evento `data:` com a mensagem JSON-RPC): devolve a mensagem nos dois casos. */
 // As ferramentas da proposta de produto (plano 2026-10-21): nao levam o lembrete de anotar duvida.
-const PROPOSTA = ["baixarCandidatas", "folhaDeContato", "gravarSecao", "lerParaProposta", "lerProposta"];
+const PROPOSTA = ["baixarCandidatas", "folhaDeContato", "gravarSecao", "lerParaProposta", "lerProposta", "roteiroDaProposta"];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -748,8 +748,8 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "gravarSecao", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras"],
-        19,
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "gravarSecao", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras", "roteiroDaProposta"],
+        20,
         true,
       ],
     );
@@ -1294,7 +1294,7 @@ try {
         daProposta.map((ferramenta) => [ferramenta.name, Boolean(ferramenta.annotations?.readOnlyHint)]).sort(),
         daProposta.some((ferramenta) => ferramenta.description.includes("anotarDuvida")),
       ],
-      [[["baixarCandidatas", false], ["folhaDeContato", true], ["gravarSecao", false], ["lerParaProposta", true], ["lerProposta", true]], false],
+      [[["baixarCandidatas", false], ["folhaDeContato", true], ["gravarSecao", false], ["lerParaProposta", true], ["lerProposta", true], ["roteiroDaProposta", true]], false],
     );
 
     // Tarefa 2: baixarCandidatas pelo MCP (so ids que nao sao das ofertas: nada vai a rede).
@@ -1344,7 +1344,21 @@ try {
     conferir("gravarSecao sem o recurso: recusa", semPoder?.isError, true);
     const produtoDepois = await prisma.produto.findUnique({ where: { sku: "ZZ-MCP-PROP" }, select: { tituloBase: true, _count: { select: { arquivos: true } } } });
     conferir("gravarSecao nao mexe no produto (titulo e arquivos)", [produtoDepois.tituloBase, produtoDepois._count.arquivos], ["ZZMCP PRODUTO DA PROPOSTA", 0]);
-    conferir("as instrucoes do servidor citam o caminho da proposta", ["lerParaProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao"].every((nome) => instrucoesDoServidor.includes(nome)), true);
+    conferir("as instrucoes do servidor citam o caminho da proposta", ["roteiroDaProposta", "lerParaProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao"].every((nome) => instrucoesDoServidor.includes(nome)), true);
+
+    // Roteiro unico (Tarefa 2): o mesmo texto de regras para qualquer LLM, com a versao.
+    const { VERSAO_DO_ROTEIRO } = await import("../src/lib/proposta/roteiro.js");
+    const roteiro = await chamar("roteiroDaProposta", {});
+    const corpoDoRoteiro = JSON.parse(textoDe(roteiro) || "{}");
+    conferir(
+      "roteiroDaProposta: devolve a versao e o texto com as 8 secoes e o caminho das ferramentas, sem lembrete",
+      [roteiro?.isError ?? false, corpoDoRoteiro.versao, ["descricao", "titulos", "fotos", "campos", "preco", "ean", "documentos", "relatorio", "gravarSecao", "folhaDeContato"].every((termo) => (corpoDoRoteiro.roteiro ?? "").includes(termo)), roteiro?.content?.length],
+      [false, VERSAO_DO_ROTEIRO, true, 1],
+    );
+    const roteiroSemAcesso = await chamar("roteiroDaProposta", {}, quem((recurso) => recurso !== "acao.produtos.proporCadastro"));
+    conferir("roteiroDaProposta sem o recurso: recusa", roteiroSemAcesso?.isError, true);
+    const versaoGravada = (await prisma.propostaDeProduto.findFirst({ where: { produto: { sku: "ZZ-MCP-PROP" } }, select: { versaoDoRoteiro: true } }))?.versaoDoRoteiro;
+    conferir("a proposta gravada leva a versao do roteiro em vigor", versaoGravada, VERSAO_DO_ROTEIRO);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
