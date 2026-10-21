@@ -713,10 +713,18 @@ export async function colherProdutos({
   // Onde a plataforma repete o produto por caminho de categoria, o sitemap conta
   // ENDERECOS de um mesmo produto varias vezes (Solda Fria: 38.839 para ~8,6 mil).
   // Conta-se por identidade; sem identidade, e cada endereco (como sempre foi).
+  // Na Nuvemshop e no ASP.NET o sitemap mistura categorias, paginas institucionais e blog com os produtos (Neoyama: 181
+  // enderecos, 149 de produto, 153 na propria loja). Onde se sabe reconhecer o endereco de produto, so ele conta.
+  const enderecosDeProdutoDoSitemap =
+    plataforma.id === "nuvemshop"
+      ? urlsSitemap.filter(produtoDaNuvemshop)
+      : plataforma.id === "aspnet-uploads"
+        ? urlsSitemap.filter(produtoDoAspNet)
+        : urlsSitemap;
   const produtosNoSite =
     totalDoCatalogo ??
     (produtosDoSitemap > 0
-      ? new Set(urlsSitemap.map((endereco) => identidade(endereco) ?? endereco)).size
+      ? new Set(enderecosDeProdutoDoSitemap.map((endereco) => identidade(endereco) ?? endereco)).size
       : null);
 
   const produtosNoSiteParcial =
