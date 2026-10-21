@@ -3860,6 +3860,8 @@ servidor real: `docs/superpowers/plans/2026-10-20-mcp-rise-e-rumo-do-rise-ai-dec
   Rise AI: `buscarProdutos`, `consultarProduto`, `consultarEstoque`, `consultarPreco`, `compararProdutos`, `buscarProdutosSimilares`,
   `buscarConhecimento`, mais as só do MCP: `buscarNoMercado`, `filtrarProdutos`, `anunciosDoProduto`, `historicoDePreco`,
   `listarFornecedores`, `listarConcorrentes`, `listarTransportadoras`, `listarMarcas`, `listarClientes` e `anotarDuvida` (17 no total).
+  Desde 21/10/2026 há também as cinco da **proposta de produto** (`lerParaProposta`, `baixarCandidatas`, `folhaDeContato`,
+  `gravarSecao`, `lerProposta`; ver "Preencher produto pelo servidor"), que escrevem só na proposta.
   **Fora:** `pesquisarNaInternet` e qualquer escrita de dado. **O `/mcp` nunca chama provedor de IA.**
 - **`buscarNoMercado`** (pedido do dono em 20/10/2026, depois do primeiro teste real: o R13-507 não estava no catálogo e o MCP não
   via os 60 anúncios dele na coleta): pesquisa os produtos COLETADOS de fornecedores e concorrentes pela mesma busca do Scraper
@@ -4897,6 +4899,22 @@ a Bling, Mercado Livre ou Loja Integrada.
     pendentes (o Conferido não pergunta por seção impossível de aplicar). Fotos sempre conta.
   - **O ESLint não acusa variável inexistente** (sem `no-undef`): edição de tela barrada pelo GateGuard no meio de um
     lote deixa função faltando e o lint passa. Conferir na tela, sempre.
+- **Proposta pelo MCP (21/10/2026, o caminho do dia a dia; o SSH virou reserva)** (spec
+  `docs/superpowers/specs/2026-10-21-proposta-pelo-mcp-design.md`, plano `docs/superpowers/plans/2026-10-21-proposta-pelo-mcp.md`):
+  cinco ferramentas em `src/lib/mcp/proposta.js` (`FERRAMENTAS_DA_PROPOSTA`, registradas no `servidor.js` SEM o lembrete do
+  `anotarDuvida`), com a lógica em `src/lib/proposta/`:
+  - `lerParaProposta` (`leitura.js`, o mesmo que o comando `ofertas` imprime): produto, fornecedores com o NCM da lista, concorrentes
+    com as fotos, cada uma com o id `<produtoColetadoId>:<indice>`, descrição da oferta cortada em 3.000, agregado e prompts;
+  - `baixarCandidatas` (`candidatas.js`): até 20 ids por vez, só os de `fotoDaOferta` (nunca endereço da conversa), por `bytesDe`,
+    padronizadas em `proposta/` com o índice `candidatas.json`; **teto de 100 por produto** (o dono trocou 60 por 100);
+  - `folhaDeContato` (`folha.js`): as atuais (borda verde) e as candidatas numa imagem MCP, 24 por página; **o número é desenhado
+    em 7 segmentos porque o contêiner da VPS não tem fonte** (texto em SVG sairia em branco);
+  - `gravarSecao`: o `gravarProposta` de sempre; a seção `fotos` cita o `arquivo` baixado, e as baixadas não citadas saem;
+  - `lerProposta`: as seções e as não aplicadas.
+  Acesso: a ação **`acao.produtos.proporCadastro`** (delegável; o Administrador tem) + `dado.custo` + `dado.concorrentes`; produto
+  Conferido é recusado ("já aprovado: nada a propor"). Na Revisão do dia, as chamadas da proposta aparecem como "proposta" e não
+  contam como "sem anotação". PDFs ficam fora do MCP. Instrução do Projeto do claude.ai:
+  `docs/superpowers/roteiros/instrucao-projeto-claude-ai-proposta.md`.
 - **Conferido em 14/10/2026:** `ler 100103` e `clonar 100103 100103-teste` na VPS (24 campos, 5 fotos, 3 documentos, 2
   fornecedores, 13 concorrentes; original intacto, cópia com todos os arquivos no disco). **A cópia `100103-teste` fica
   na VPS até o dono apagar** (menu do produto).

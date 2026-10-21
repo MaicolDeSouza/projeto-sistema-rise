@@ -14,6 +14,8 @@ import { limitesDoDia } from "@/lib/riseAi/revisao";
 
 const FUSO = "America/Sao_Paulo";
 const ANOTAR = "anotarDuvida";
+// A proposta de cadastro nao e duvida de atendimento: aparece na lista, mas nao espera anotacao (spec 2026-10-21).
+const DA_PROPOSTA = new Set(["lerParaProposta", "lerProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao"]);
 const JANELA_MS = 30 * 60 * 1000;
 const hora = (data) => new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(data);
 
@@ -35,6 +37,11 @@ const RESUMOS = {
   listarTransportadoras: (a) => `transportadoras${a.termos ? `: ${a.termos}` : ""}`,
   listarMarcas: (a) => `marcas${a.termos ? `: ${a.termos}` : ""}`,
   listarClientes: (a) => `clientes${a.termos ? `: ${a.termos}` : ""}`,
+  lerParaProposta: (a) => `proposta de ${a.sku}: leitura`,
+  lerProposta: (a) => `proposta de ${a.sku}: conferência`,
+  baixarCandidatas: (a) => `proposta de ${a.sku}: ${Array.isArray(a.ids) ? a.ids.length : 0} foto(s) baixada(s)`,
+  folhaDeContato: (a) => `proposta de ${a.sku}: folha de fotos${a.pagina ? ` (página ${a.pagina})` : ""}`,
+  gravarSecao: (a) => `proposta de ${a.sku}: gravou ${a.secao}`,
 };
 const ROTULOS_CORTADOS = { buscarProdutos: "buscou", buscarNoMercado: "mercado", buscarConhecimento: "conhecimento" };
 
@@ -76,7 +83,8 @@ export async function consultasDoDia(dia, { administrador = false } = {}) {
       continue;
     }
     const item = { quando: linha.quando, hora: hora(linha.quando), ferramenta: linha.ferramenta, resumo: resumoDaChamada(linha.ferramenta, linha.argumentos), ok: linha.ok, erro: linha.erro ?? null, anotada: false };
-    grupo.pendentes.push(item);
+    if (DA_PROPOSTA.has(linha.ferramenta)) item.proposta = true;
+    else grupo.pendentes.push(item);
     if (linha.quando >= inicio) {
       grupo.chamadas.push(item);
       grupo.ultima = linha.quando.getTime();
@@ -90,7 +98,7 @@ export async function consultasDoDia(dia, { administrador = false } = {}) {
       login: grupo.login,
       cliente: grupo.cliente,
       total: grupo.chamadas.length,
-      semAnotacao: grupo.chamadas.filter((item) => !item.anotada).length,
+      semAnotacao: grupo.chamadas.filter((item) => !item.anotada && !item.proposta).length,
       chamadas: grupo.chamadas.map(({ quando, ...item }) => {
         void quando;
         return item;

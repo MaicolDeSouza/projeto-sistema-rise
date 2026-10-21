@@ -42,7 +42,7 @@ async function codigoDoErro(promessa) {
 
 /** A resposta do /mcp vem em JSON ou em SSE (um evento `data:` com a mensagem JSON-RPC): devolve a mensagem nos dois casos. */
 // As ferramentas da proposta de produto (plano 2026-10-21): nao levam o lembrete de anotar duvida.
-const PROPOSTA = ["baixarCandidatas", "folhaDeContato", "lerParaProposta", "lerProposta"];
+const PROPOSTA = ["baixarCandidatas", "folhaDeContato", "gravarSecao", "lerParaProposta", "lerProposta"];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -748,7 +748,7 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras"],
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "gravarSecao", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras"],
         19,
         true,
       ],
@@ -1206,6 +1206,13 @@ try {
       ["Claude", 5, 3, [["11:20", "conhecimento: garantia", true, false], ["12:00", "buscou: sensor ultrassonico", true, true], ["12:01", "estoque de 100101", true, true], ["12:10", "preço de 100101, 100103", true, false], ["12:11", "ficha de ZZ", false, false]]],
     );
     conferir("a consulta que falhou traz o erro", dia?.chamadas.at(-1)?.erro, "Produto não encontrado: ZZ.");
+    await prisma.chamadaMcp.create({ data: { login: "zz-mcp-consultas-prop", clienteId: null, clienteNome: "Claude", ferramenta: "lerParaProposta", argumentos: { sku: "100103" }, ok: true, duracaoMs: 10, quando: as(12, 30) } });
+    const daProposta = (await consultasDoDia(hojeEmSaoPaulo(), { administrador: true })).find((grupo) => grupo.login === "zz-mcp-consultas-prop");
+    conferir(
+      "consultas: a chamada da proposta aparece com o resumo e nao conta como sem anotacao",
+      [daProposta?.total, daProposta?.semAnotacao, daProposta?.chamadas?.[0]?.resumo, daProposta?.chamadas?.[0]?.proposta],
+      [1, 0, "proposta de 100103: leitura", true],
+    );
     conferir("so o administrador le as consultas", await codigoDoErro(consultasDoDia(hojeEmSaoPaulo(), { administrador: false })), "Só administradores do Rise AI podem ver a revisão.");
     conferir(
       "resumo de cada ferramenta, e argumento cortado ou estranho nao quebra",
@@ -1287,7 +1294,7 @@ try {
         daProposta.map((ferramenta) => [ferramenta.name, Boolean(ferramenta.annotations?.readOnlyHint)]).sort(),
         daProposta.some((ferramenta) => ferramenta.description.includes("anotarDuvida")),
       ],
-      [[["baixarCandidatas", false], ["folhaDeContato", true], ["lerParaProposta", true], ["lerProposta", true]], false],
+      [[["baixarCandidatas", false], ["folhaDeContato", true], ["gravarSecao", false], ["lerParaProposta", true], ["lerProposta", true]], false],
     );
 
     // Tarefa 2: baixarCandidatas pelo MCP (so ids que nao sao das ofertas: nada vai a rede).
@@ -1320,6 +1327,24 @@ try {
     } finally {
       await rm("dados/produtos/ZZ-MCP-PROP", { recursive: true, force: true });
     }
+
+    // Tarefa 4: gravarSecao grava a secao pela mesma validacao do script, sem tocar no produto.
+    const { INSTRUCOES: instrucoesDoServidor } = await import("../src/lib/mcp/servidor.js");
+    const titulos = { opcoes: ["ZZ GRAVADA A", "ZZ GRAVADA B", "ZZ GRAVADA C"], recomendada: 2, concorrentes: [] };
+    const gravada = await chamar("gravarSecao", { sku: "ZZ-MCP-PROP", secao: "titulos", conteudo: titulos });
+    const corpoGravado = JSON.parse(textoDe(gravada) || "{}");
+    conferir("gravarSecao: grava a secao e devolve as secoes, sem o lembrete", [gravada?.isError ?? false, corpoGravado.secoes?.includes("titulos"), gravada?.content?.length], [false, true, 1]);
+    const relida = JSON.parse(textoDe(await chamar("lerProposta", { sku: "ZZ-MCP-PROP" })) || "{}");
+    conferir("gravarSecao: a secao substituida aparece no lerProposta", relida.proposta?.secoes?.titulos?.opcoes?.[0], "ZZ GRAVADA A");
+    const invalida = await chamar("gravarSecao", { sku: "ZZ-MCP-PROP", secao: "titulos", conteudo: { opcoes: ["SO UMA"], recomendada: 0 } });
+    conferir("gravarSecao: secao invalida volta com a mensagem da validacao", [invalida?.isError, textoDe(invalida).length > 0, textoDe(invalida).includes("Não foi possível concluir")], [true, true, false]);
+    const aprovada = await chamar("gravarSecao", { sku: "ZZ-MCP-PROP-OK", secao: "relatorio", conteudo: { texto: "x" } });
+    conferir("gravarSecao em produto Conferido: recusa", [aprovada?.isError, textoDe(aprovada).includes("já aprovado: nada a propor")], [true, true]);
+    const semPoder = await chamar("gravarSecao", { sku: "ZZ-MCP-PROP", secao: "relatorio", conteudo: { texto: "x" } }, quem((recurso) => recurso !== "acao.produtos.proporCadastro"));
+    conferir("gravarSecao sem o recurso: recusa", semPoder?.isError, true);
+    const produtoDepois = await prisma.produto.findUnique({ where: { sku: "ZZ-MCP-PROP" }, select: { tituloBase: true, _count: { select: { arquivos: true } } } });
+    conferir("gravarSecao nao mexe no produto (titulo e arquivos)", [produtoDepois.tituloBase, produtoDepois._count.arquivos], ["ZZMCP PRODUTO DA PROPOSTA", 0]);
+    conferir("as instrucoes do servidor citam o caminho da proposta", ["lerParaProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao"].every((nome) => instrucoesDoServidor.includes(nome)), true);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)

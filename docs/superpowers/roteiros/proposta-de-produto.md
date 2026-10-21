@@ -14,7 +14,26 @@ O que a sessão do Claude faz a cada produto que o dono passa. Spec:
 - **Um produto por vez.** Produto Conferido: não há o que fazer (o script recusa).
 - **Fotos de concorrentes:** o uso é decisão do dono; o relatório lembra.
 
-## Como rodar (VPS)
+## Como rodar: pelo MCP (o caminho do dia a dia, desde 21/10/2026)
+
+Conectado ao MCP do Rise (`https://rise.4hobby.com.br/mcp`, login com a ação "Propor cadastro" e acesso a custo e
+concorrentes), a sessão usa só as ferramentas da proposta, nesta ordem:
+
+1. `lerParaProposta { sku, prompt? }`: produto, fornecedores (custo, NCM da lista), concorrentes (preço normal, estoque,
+   EAN, NCM, ficha, descrição, documentos e as fotos com `id`), agregado por campo, prompts e o texto do prompt pedido.
+2. `baixarCandidatas { sku, ids }`: o Rise baixa até 20 fotos por vez, só pelos `id` da leitura (nunca por endereço),
+   padroniza em 1024x1024 e guarda; devolve `arquivo` de cada uma. Teto de 100 por produto.
+3. `folhaDeContato { sku, pagina?, tamanho? }`: as atuais (borda verde) e as baixadas numa imagem, numeradas, 24 por
+   página, com a legenda número → id, arquivo, loja. É aqui que se OLHA as fotos.
+4. `gravarSecao { sku, secao, conteudo }`: uma seção por chamada, o mesmo `conteudo` dos exemplos abaixo, sem
+   `arquivos` (foto cita o `arquivo` baixado ou `fotoAtual`; documento só com o link). Seção recusada volta com a
+   mensagem da validação: corrigir e gravar de novo.
+5. `lerProposta { sku }`: conferir o que ficou gravado e o que o dono ainda não aplicou.
+
+Produto Conferido é recusado em todas ("já aprovado: nada a propor"). Nenhuma delas mexe no produto, e nenhuma pede
+`anotarDuvida`. **PDFs não passam pelo MCP:** baixar documento continua pedindo o "pode" do dono, um a um, e pela reserva.
+
+## Reserva: por SSH (administração e emergência)
 
 ```bash
 SSH="ssh -i ~/.ssh/rise_vps rise@179.199.150.221"
@@ -36,9 +55,9 @@ Os planos e as fotos baixadas ficam na pasta de trabalho da sessão no PC (scrat
 
 ## Passo 0 — leitura
 
-1. `ler <SKU>`: título com as palavras-chave do dono, código, campos já preenchidos, fotos atuais, Conferido.
-2. `ofertas <SKU>`: concorrentes e fornecedores vinculados com nome, preço normal, estoque, EAN, NCM, marca, modelo,
-   medidas, ficha, descrição, documentos e as URLs das fotos.
+1. `lerParaProposta` (pelo SSH, `ofertas <SKU>` imprime o mesmo): título com as palavras-chave do dono, código, campos
+   já preenchidos, fotos atuais, Conferido, fornecedores e concorrentes vinculados com nome, preço normal, estoque, EAN,
+   NCM, marca, modelo, ficha, descrição, documentos e as fotos.
 3. Sem concorrente nem fornecedor vinculado: parar e avisar o dono (a proposta não tem base).
 
 ## Passo 1 — descrição (primeiro: alimenta os outros)
@@ -78,15 +97,17 @@ Os planos e as fotos baixadas ficam na pasta de trabalho da sessão no PC (scrat
 
 ## Passo 3 — fotos
 
-- Candidatas: todas as fotos dos concorrentes vinculados (URLs do `ofertas`) e as atuais do produto. Baixar as dos
-  concorrentes para o PC; montar folhas de contato e olhar de verdade (zoom quando precisar).
+- Candidatas: todas as fotos dos concorrentes vinculados e as atuais do produto. Pelo MCP: `baixarCandidatas` com os
+  `id` da leitura e `folhaDeContato` para olhar de verdade (página a página). Pelo SSH: baixar para o PC e montar a folha.
 - Escolher **6 a 8** (com menos de 6 candidatas, todas):
   - a **primeira ilustra o título** (título com cabo, primeira com cabo);
   - ângulos variados quando existem (cima, lado, baixo, chips em close);
   - **mesmo tom** de cor da placa entre todas;
   - sem desfoque, sem repetidas ou quase iguais, sem marca d'água ou banner de loja;
   - nada que contradiga a ficha (diagrama de outra variante, conector diferente, pinos soltos se o produto vai soldado).
-- Foto atual do produto entra como `fotoAtual` (nome do arquivo em `imagens/`, do `ler`), sem `arquivos`.
+- Foto atual do produto entra como `fotoAtual` (nome do arquivo em `imagens/`, da leitura), sem `arquivos`.
+- Pelo MCP cada candidata baixada cita o `arquivo` que `baixarCandidatas` devolveu (e não leva `arquivos`); as
+  baixadas que a seção não citar são apagadas ao gravar.
 - Toda candidata, escolhida ou não, leva o motivo.
 
 ```json
@@ -146,7 +167,8 @@ Cada campo `{ "valor": ..., "origem": "..." }`. Campo que a sessão não consegu
 
 ## Passo 7 — documentos (seção `documentos`)
 
-Datasheets e manuais que os concorrentes publicam, com link; baixar os PDFs de fabricante (o script confere que é PDF).
+Datasheets e manuais que os concorrentes publicam, com link. Pelo MCP vai só o link; baixar o PDF de fabricante é pela
+reserva (SSH, com o "pode" do dono; o script confere que é PDF).
 
 ```json
 { "secao": "documentos", "conteudo": { "itens": [{ "id": "d1", "titulo": "Datasheet ATmega328P", "url": "https://...", "loja": "Usinainfo" }] }, "arquivos": { "d1": "<base64>" } }
@@ -163,7 +185,7 @@ branco, NCM dos concorrentes diferente do proposto, lembrete das fotos de concor
 
 ## Ao terminar
 
-`proposta <SKU> --ler` e conferir as 8 seções. Dizer ao dono, em português, o resumo e o que ele precisa olhar.
+`lerProposta` (pelo SSH, `proposta <SKU> --ler`) e conferir as 8 seções. Dizer ao dono, em português, o resumo e o que ele precisa olhar.
 
 ## Aprendido na primeira rodada (20/10/2026, `100103-teste` no banco do PC)
 

@@ -38,7 +38,11 @@ export default function ConsultasDoDia({ consultas }) {
                 <span className="w-12 shrink-0 text-xs text-suave tabular-nums">{chamada.hora}</span>
                 <span className="min-w-0 flex-1 break-words">{chamada.resumo}</span>
                 {!chamada.ok && <span className="text-xs text-red-700">{chamada.erro ?? "falhou"}</span>}
-                <span className={`shrink-0 text-xs ${chamada.anotada ? "text-emerald-700" : "text-amber-700"}`}>{chamada.anotada ? "anotada" : "sem anotação"}</span>
+                {chamada.proposta ? (
+                  <span className="shrink-0 text-xs text-suave">proposta</span>
+                ) : (
+                  <span className={`shrink-0 text-xs ${chamada.anotada ? "text-emerald-700" : "text-amber-700"}`}>{chamada.anotada ? "anotada" : "sem anotação"}</span>
+                )}
               </li>
             ))}
           </ul>

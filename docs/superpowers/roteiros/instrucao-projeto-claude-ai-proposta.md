@@ -4,11 +4,10 @@ Cole o bloco abaixo nas **instruções do Projeto "Rise"** no claude.ai (o conec
 Projeto). Ele segue o mesmo roteiro da sessão do Claude Code (`proposta-de-produto.md`) e a spec
 `docs/superpowers/specs/2026-10-16-proposta-automatica-de-produto-design.md`.
 
-**Limite de hoje (21/10/2026):** o MCP do Rise só LÊ. O Projeto pesquisa e devolve as seções prontas; quem grava é uma
-sessão do Claude Code, com `node scripts/preencher-produto.js proposta <SKU> --plano=<arquivo>`. Fotos e documentos dos
-concorrentes também ficam com a sessão do Claude Code (o MCP não entrega as fotos nem as fichas das lojas). Quando o
-MCP ganhar as ferramentas de proposta (`lerParaProposta`, `baixarCandidatas`, `folhaDeContato`, `gravarSecao`,
-`lerProposta`), troque o parágrafo "Como entregar" por "grave cada seção com `gravarSecao`".
+**Desde 21/10/2026 o Projeto grava a proposta sozinho**, pelas ferramentas da proposta do MCP do Rise
+(`lerParaProposta`, `baixarCandidatas`, `folhaDeContato`, `gravarSecao`, `lerProposta`). O login conectado precisa da
+ação "Propor cadastro" e do acesso a custo e a concorrentes (o Administrador tem). Só vale depois do deploy dessas
+ferramentas. PDFs de concorrentes continuam fora: a seção de documentos leva só os links.
 
 ---
 
@@ -23,9 +22,10 @@ altera o cadastro: só propõe. Eu reviso no Rise, aplico, salvo e marco Conferi
    - qual prompt da descrição: o padrão do Rise (recomendado) ou outro que eu colar ou nomear;
    - se pode pesquisar na internet (recomendado: sim).
 
-2. LEIA O PRODUTO no Rise: consultarProduto(sku) traz o título com as minhas palavras-chave, os fornecedores (custo,
-   código, padrão) e os concorrentes vinculados (loja, nome, preço). Use buscarNoMercado(termos) para preço e estoque
-   atualizados. Sem concorrente nem fornecedor vinculado: pare e me avise.
+2. LEIA O PRODUTO no Rise com lerParaProposta(sku, prompt): título com as minhas palavras-chave, campos já preenchidos,
+   fotos atuais, fornecedores (custo, código, NCM da lista), concorrentes vinculados (preço normal, estoque, EAN, NCM,
+   ficha, descrição, documentos e as fotos com id), o agregado por campo e o texto do prompt escolhido. Produto Conferido
+   já foi aprovado: não há o que propor. Sem concorrente nem fornecedor vinculado: pare e me avise.
 
 3. REGRAS QUE VALEM SEMPRE
    - Nunca invente. Sem fonte: "?" na descrição, campo fora da proposta, e o relatório diz.
@@ -59,6 +59,11 @@ altera o cadastro: só propõe. Eu reviso no Rise, aplico, salvo e marco Conferi
      fornecedor, 0 sem. Campo já preenchido fica como está.
    - estoque mínimo e máximo: não proponha (são meus); se estiverem vazios, diga no relatório.
 
+6b. FOTOS: baixe as candidatas com baixarCandidatas(sku, ids) (até 20 por vez, só os ids da leitura) e OLHE com
+   folhaDeContato(sku, pagina) (as atuais têm borda verde). Escolha 6 a 8 (com menos de 6, todas): a primeira ilustra o
+   título; ângulos variados; mesmo tom; sem desfoque, repetidas, marca d'água ou banner; nada que contradiga a ficha.
+   Toda candidata, escolhida ou não, leva o motivo; foto atual entra como fotoAtual.
+
 7. PREÇO: custo = o do fornecedor padrão. Concorrentes com o preço NORMAL e com estoque (sem estoque e a própria 4hobby
    ficam de fora). Margem do Rise = (preço x 0,94 - custo) / preço. Mostre 3 opções (40%, 50%, 60%) com o preço e a
    posição entre os concorrentes (1º = o mais barato), e a RECOMENDADA = a maior margem, de 1 em 1%, que ainda fica
@@ -71,16 +76,20 @@ altera o cadastro: só propõe. Eu reviso no Rise, aplico, salvo e marco Conferi
 9. RELATÓRIO: o que foi feito, divergências, o que ficou "?" ou vazio, estoque mínimo e máximo em branco, NCM dos
    concorrentes diferente do proposto, o que você não conseguiu (fotos, documentos).
 
-COMO ENTREGAR (hoje o MCP só lê): para cada produto, mostre um resumo curto (título recomendado, preço recomendado com
-a posição, EAN, o que ficou "?") e, depois, UM bloco de código JSON por seção, no formato
-{ "secao": "<descricao|titulos|campos|preco|ean|relatorio>", "conteudo": { ... } }, com estes conteúdos:
+COMO ENTREGAR: grave cada seção com gravarSecao(sku, secao, conteudo), uma por chamada, na ordem descricao, titulos,
+fotos, campos, preco, ean, documentos, relatorio. Se uma seção voltar com erro, corrija pelo que a mensagem diz e grave
+de novo. No fim, confira com lerProposta(sku) e me mostre um resumo curto (título recomendado, preço recomendado com a
+posição, EAN, o que ficou "?", fotos escolhidas). Conteúdo de cada seção:
 - descricao: { "texto", "prompt", "divergencias": [{ "campo", "opcoes": [{ "valor", "lojas": [] }], "escolhida", "motivo" }],
   "pesquisadas": [{ "linha", "fonte" }], "interrogacoes": [] }
 - titulos: { "opcoes": [3 textos], "recomendada": 0|1|2, "motivo", "concorrentes": [] }
+- fotos: { "candidatas": [{ "id", "arquivo" (de baixarCandidatas) ou "fotoAtual", "origem": { "loja" }, "escolhida",
+  "ordem" (só nas escolhidas, 0 = a principal), "motivo" }] }
 - campos: { "<campo>": { "valor", "origem" } }
 - preco: { "custo", "opcoes": [{ "margem", "preco", "posicao": { "posicao", "total" } }], "recomendada": { ...igual }
   ou null, "motivoSemRecomendada": texto ou null }
 - ean: { "escolhido": { "valor", "origem" } ou null, "descartados": [{ "valor", "motivo" }], "buscas": [] }
+- documentos: { "itens": [{ "id", "titulo", "url", "loja" }] }
 - relatorio: { "texto" }
-Eu levo os blocos para o Claude Code gravar. Fotos e documentos ficam com ele.
+Não chame anotarDuvida na proposta.
 ```

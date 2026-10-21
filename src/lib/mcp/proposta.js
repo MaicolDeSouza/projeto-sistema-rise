@@ -1,10 +1,11 @@
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
-import { propostaParaFormulario } from "@/lib/proposta/banco";
+import { gravarProposta, propostaParaFormulario } from "@/lib/proposta/banco";
 import { baixarCandidatas, MAXIMO_POR_CHAMADA } from "@/lib/proposta/candidatas";
 import { folhaDeContato, POR_PAGINA } from "@/lib/proposta/folha";
 import { lerParaProposta } from "@/lib/proposta/leitura";
+import { SECOES } from "@/lib/proposta/plano";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
 /**
@@ -113,4 +114,30 @@ const FOLHA_DE_CONTATO = {
   ],
 };
 
-export const FERRAMENTAS_DA_PROPOSTA = [LER_PARA_PROPOSTA, LER_PROPOSTA, BAIXAR_CANDIDATAS, FOLHA_DE_CONTATO];
+const GRAVAR_SECAO = {
+  nome: "gravarSecao",
+  descricao: [
+    "Grava UMA seção da proposta de cadastro (descricao, titulos, fotos, campos, preco, ean, documentos ou relatorio), no formato do roteiro da proposta. Gravar a mesma seção de novo a substitui.",
+    "Fotos: cada candidata cita o arquivo devolvido por baixarCandidatas, ou fotoAtual; as baixadas que a seção não citar são apagadas. Documentos: só os links.",
+    "A seção é validada no Rise: se voltar erro, corrija o conteúdo e grave de novo. A proposta nunca altera o produto; o dono aplica na tela.",
+  ].join(" "),
+  esquema: z.object({
+    sku: SKU,
+    secao: z.enum(SECOES).describe("A seção da proposta"),
+    conteudo: z.record(z.string(), z.any()).describe("O conteúdo da seção, no formato do roteiro"),
+  }),
+  // Escreve so na proposta; gravar de novo substitui a secao (mesmo resultado).
+  anotacoes: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  async executar({ sku, secao, conteudo }, contexto) {
+    exigirProposta(contexto);
+    const produto = await prisma.produto.findUnique({ where: { sku }, select: { conferido: true } });
+    if (!produto) throw new ErroDeFerramenta(`O produto ${sku} não existe no Rise.`);
+    if (produto.conferido) recusarConferido(sku);
+    const gravado = await gravarProposta(sku, { secao, conteudo });
+    // A mensagem da validacao volta como esta: e com ela que a conversa corrige a secao.
+    if (!gravado.ok) throw new ErroDeFerramenta(`A seção ${secao} não foi gravada: ${gravado.erro}`);
+    return { secoes: gravado.secoes, aviso: gravado.aviso ?? null };
+  },
+};
+
+export const FERRAMENTAS_DA_PROPOSTA = [LER_PARA_PROPOSTA, LER_PROPOSTA, BAIXAR_CANDIDATAS, FOLHA_DE_CONTATO, GRAVAR_SECAO];
