@@ -184,7 +184,7 @@ async function limpar() {
   await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: "ZZ-PROP " } } });
   await prisma.fonteColeta.deleteMany({ where: { dominio: { startsWith: "zz-prop-" } } });
   const { rm } = await import("node:fs/promises");
-  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2", "ZZ-PROP-3", "ZZ-PROP-4", "ZZ-PROP-5", "ZZ-PROP-6", "ZZ-PROP-7"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
+  for (const sku of ["ZZ-PROP-1", "ZZ-PROP-2", "ZZ-PROP-3", "ZZ-PROP-4", "ZZ-PROP-5", "ZZ-PROP-6", "ZZ-PROP-7", "ZZ-PROP-8"]) await rm(`dados/produtos/${sku}`, { recursive: true, force: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -497,6 +497,81 @@ try {
     const rascunho = await prisma.produto.create({ data: { sku: "ZZ-PROP-7", tituloBase: "SO RASCUNHO", fornecedorRascunho: { nome: "Fornecedor do Bling", codigo: "B1", precoCusto: 8.5 } } });
     const doBling = (await lerParaProposta("ZZ-PROP-7")).fornecedores;
     conferir("leitura: sem vinculo confirmado, o fornecedor em rascunho do Bling", rascunho && doBling.length === 1 && doBling[0].nome === "Fornecedor do Bling" && doBling[0].custo === 8.5 && doBling[0].rascunho === true);
+  }
+
+  // Candidatas (MCP, Tarefa 2): o Rise baixa so as fotos das ofertas vinculadas, pelo id, e a gravacao das fotos as usa.
+  {
+    const { existsSync, readdirSync, writeFileSync, mkdirSync } = await import("node:fs");
+    const { default: sharp } = await import("sharp");
+    const { baixarCandidatas, LIMITE_DE_CANDIDATAS } = await import("../src/lib/proposta/candidatas.js");
+    const { gravarProposta, lerProposta } = await import("../src/lib/proposta/banco.js");
+    const loja = await prisma.fonteColeta.create({ data: { nome: "ZZ-PROP Loja Fotos", dominio: "zz-prop-fotos.invalid", tipo: "CONCORRENTE" } });
+    const fotos = ["https://zz-prop-fotos.invalid/a.png", "https://zz-prop-fotos.invalid/b.png", "https://zz-prop-fotos.invalid/pagina.html"];
+    const coletado = await prisma.produtoColetado.create({ data: { fonteId: loja.id, chave: "codigo:P1", origem: "site", codigo: "P1", nome: "Produto com fotos", imagens: fotos } });
+    const outro = await prisma.produtoColetado.create({ data: { fonteId: loja.id, chave: "codigo:P2", origem: "site", codigo: "P2", nome: "Nao vinculado", imagens: ["https://zz-prop-fotos.invalid/z.png"] } });
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-8", tituloBase: "PRODUTO DAS CANDIDATAS" } });
+    await prisma.produtoConcorrente.create({ data: { produtoId: produto.id, produtoColetadoId: coletado.id } });
+    const png = await sharp({ create: { width: 800, height: 500, channels: 3, background: "#36c" } }).png().toBuffer();
+    const pedidos = [];
+    const baixar = async (url) => {
+      pedidos.push(url);
+      return url.endsWith(".html") ? Buffer.from("<html><body>não é foto</body></html>") : png;
+    };
+    const pasta = "dados/produtos/ZZ-PROP-8/proposta";
+    const id = (indice) => `${coletado.id}:${indice}`;
+
+    const r1 = await baixarCandidatas("ZZ-PROP-8", [id(0), id(1)], { baixar });
+    conferir("candidatas: as 2 fotos das ofertas baixadas, com arquivo, loja e 1024x1024", r1.baixadas.length === 2 && r1.falharam.length === 0 && r1.baixadas.every((b) => /^[0-9a-f]{32}\.jpg$/.test(b.arquivo) && b.loja === "ZZ-PROP Loja Fotos" && b.largura === 1024 && b.altura === 1024));
+    const meta = await sharp(`${pasta}/${r1.baixadas[0].arquivo}`).metadata();
+    conferir("candidatas: o arquivo no disco e JPEG 1024x1024", meta.format === "jpeg" && meta.width === 1024 && meta.height === 1024);
+    const antes = pedidos.length;
+    const r2 = await baixarCandidatas("ZZ-PROP-8", [`${outro.id}:0`, "inventado:0", "https://zz-prop-fotos.invalid/a.png"], { baixar });
+    conferir("candidatas: id de outro produto, inventado ou endereco = falharam, sem baixar nada", r2.baixadas.length === 0 && r2.falharam.length === 3 && r2.falharam.every((f) => /não é foto das ofertas deste produto/.test(f.motivo)) && pedidos.length === antes);
+    const r3 = await baixarCandidatas("ZZ-PROP-8", [id(2), id(0)], { baixar });
+    conferir("candidatas: a pagina HTML falha com o motivo e a outra volta", r3.falharam.length === 1 && r3.falharam[0].id === id(2) && r3.falharam[0].motivo.length > 0 && r3.baixadas.length === 1);
+    conferir("candidatas: o mesmo id de novo devolve o mesmo arquivo, sem baixar de novo", r3.baixadas[0].arquivo === r1.baixadas[0].arquivo && pedidos.filter((url) => url === fotos[0]).length === 1);
+    let muitos = "";
+    try {
+      await baixarCandidatas("ZZ-PROP-8", Array.from({ length: 21 }, (_, i) => id(i)), { baixar });
+    } catch (erro) {
+      muitos = erro.message;
+    }
+    conferir("candidatas: 21 ids de uma vez sao recusados", /no máximo 20/.test(muitos));
+
+    // O teto conta todas as fotos guardadas na pasta, citadas ou nao.
+    const enchimento = Array.from({ length: LIMITE_DE_CANDIDATAS - 2 }, (_, i) => `${String(i).padStart(32, "a")}.jpg`);
+    for (const nome of enchimento) writeFileSync(`${pasta}/${nome}`, "x");
+    let cheio = "";
+    try {
+      await baixarCandidatas("ZZ-PROP-8", [id(2)], { baixar });
+    } catch (erro) {
+      cheio = erro.message;
+    }
+    conferir(`candidatas: com ${LIMITE_DE_CANDIDATAS} na pasta, recusa e pede para gravar a secao fotos`, LIMITE_DE_CANDIDATAS === 100 && /100/.test(cheio) && /fotos/.test(cheio));
+    const { rm } = await import("node:fs/promises");
+    for (const nome of enchimento) await rm(`${pasta}/${nome}`);
+
+    const extra = await baixarCandidatas("ZZ-PROP-8", [id(1)], { baixar });
+    const [a, b] = r1.baixadas;
+    const candidata = (baixada, ordem) => ({ id: baixada.id, arquivo: baixada.arquivo, origem: { loja: baixada.loja }, escolhida: true, ordem, motivo: "teste" });
+    const soA = await gravarProposta("ZZ-PROP-8", { secao: "fotos", conteudo: { candidatas: [candidata(a, 0)] } });
+    conferir("gravar fotos: cita o arquivo baixado sem mandar os bytes", soA.ok === true && (await lerProposta("ZZ-PROP-8")).secoes.fotos.candidatas[0].arquivo === a.arquivo);
+    conferir("gravar fotos: a baixada que nao foi citada sai da pasta", existsSync(`${pasta}/${a.arquivo}`) && !existsSync(`${pasta}/${b.arquivo}`) && extra.baixadas[0].arquivo === b.arquivo);
+    const denovo = await baixarCandidatas("ZZ-PROP-8", [id(1)], { baixar });
+    conferir("gravar fotos: a que saiu pode ser baixada de novo (outro arquivo)", denovo.baixadas.length === 1 && denovo.baixadas[0].arquivo !== b.arquivo && existsSync(`${pasta}/${denovo.baixadas[0].arquivo}`));
+    const fantasma = await gravarProposta("ZZ-PROP-8", { secao: "fotos", conteudo: { candidatas: [{ ...candidata(a, 0), arquivo: `${"f".repeat(32)}.jpg` }] } });
+    conferir("gravar fotos: arquivo que nao foi baixado e recusado", fantasma.ok === false);
+    mkdirSync(pasta, { recursive: true });
+    conferir("gravar fotos: depois da recusa a pasta continua com a citada", readdirSync(pasta).includes(a.arquivo));
+
+    await prisma.produto.update({ where: { id: produto.id }, data: { conferido: true } });
+    let aprovado = "";
+    try {
+      await baixarCandidatas("ZZ-PROP-8", [id(0)], { baixar });
+    } catch (erro) {
+      aprovado = erro.message;
+    }
+    conferir("candidatas: produto Conferido recusa", /já aprovado/.test(aprovado));
   }
 } finally {
   await limpar();

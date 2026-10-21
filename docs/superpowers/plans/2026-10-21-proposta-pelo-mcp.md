@@ -21,7 +21,7 @@ mesma leitura.
 - Nenhum endereço vem da conversa: foto só por id das ofertas vinculadas; download por `bytesDe` (filtro de rede pública).
 - Acesso: recurso `acao.produtos.proporCadastro` (executar), só Administrador; ler ofertas exige também `dado.custo` e `dado.concorrentes`.
 - Produto Conferido: toda ferramenta recusa com "já aprovado: nada a propor".
-- Limites: 20 ids por `baixarCandidatas`, 60 candidatas guardadas por produto, 24 por página da folha, descrição de oferta cortada em 3.000 caracteres.
+- Limites: 20 ids por `baixarCandidatas`, 100 candidatas guardadas por produto (o dono trocou 60 por 100), 24 por página da folha, descrição de oferta cortada em 3.000 caracteres.
 - Ferramentas da proposta SEM o lembrete do `anotarDuvida`; registro em `ChamadaMcp` como as outras.
 - PDFs fora do MCP (seção `documentos` só com links).
 - Arquivos da outra sessão (`servidor.js`, `recursos.js`, `teste-mcp.js`, `teste-acessos.js`): só os trechos desta tarefa, commit pelos caminhos ou por índice temporário (ver CLAUDE.md e a memória "Commit só dos meus trechos").
@@ -77,7 +77,7 @@ mesma leitura.
 - Consumes: `fotoDaOferta` (Task 1), `padronizarImagem`, `caminhoDaProposta`, `bytesDe` (`src/lib/imagensImportadas.js`, fonte `{ endereco }`).
 - Produces: `baixarCandidatas(sku, ids, { baixar = bytesDe } = {}) -> { baixadas: [{ id, arquivo, loja, largura, altura }], falharam: [{ id, motivo }] }`
   - recusa (lança) com mais de 20 ids, produto Conferido ou inexistente;
-  - recusa quando já há 60 candidatas na pasta (contando as citadas e as não citadas);
+  - recusa quando já há 100 candidatas na pasta (contando as citadas e as não citadas);
   - o mesmo id baixado de novo devolve o arquivo já guardado (guarda `id → arquivo` em `proposta/candidatas.json`).
 
 - [ ] **Step 1: testes que falham** (`baixar` falso, sem rede)

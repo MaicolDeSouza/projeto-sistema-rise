@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { apagarPastaDaProposta, caminhoDaProposta, urlDaProposta, urlDe } from "@/lib/arquivos";
+import { apagarPastaDaProposta, caminhoDaProposta, PASTA_PROPOSTA, pastaDoProduto, urlDaProposta, urlDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 
@@ -27,6 +27,44 @@ function arquivosDaSecao(secao, conteudo) {
   if (secao === "fotos") return (conteudo?.candidatas ?? []).map((c) => c.arquivo).filter(Boolean);
   if (secao === "documentos") return (conteudo?.itens ?? []).map((i) => i.arquivo).filter(Boolean);
   return [];
+}
+
+/*
+ * As fotos baixadas pelo MCP (`baixarCandidatas`, spec 2026-10-21) ficam na pasta proposta/ antes de qualquer secao as
+ * citar, e o indice `candidatas.json` diz de que foto da oferta cada uma veio (o mesmo id de novo nao baixa de novo).
+ */
+const INDICE_DE_CANDIDATAS = "candidatas.json";
+const ehFotoDaProposta = (nome) => /^[0-9a-f]{32}\.jpg$/.test(nome);
+
+function caminhoDoIndice(sku) {
+  const pasta = pastaDoProduto(sku);
+  return pasta ? path.join(pasta, PASTA_PROPOSTA, INDICE_DE_CANDIDATAS) : null;
+}
+
+/** As fotos guardadas na pasta proposta/ (citadas ou nao), pelo nome. Sem pasta, nenhuma. */
+export async function fotosNaPasta(sku) {
+  const pasta = pastaDoProduto(sku);
+  if (!pasta) return [];
+  return (await readdir(path.join(pasta, PASTA_PROPOSTA)).catch(() => [])).filter(ehFotoDaProposta);
+}
+
+/** `{ "<id da foto da oferta>": { arquivo, loja, largura, altura } }`; sem indice (ou ilegivel), vazio. */
+export async function lerIndiceDeCandidatas(sku) {
+  const caminho = caminhoDoIndice(sku);
+  if (!caminho) return {};
+  try {
+    const lido = JSON.parse(await readFile(caminho, "utf8"));
+    return lido && typeof lido === "object" && !Array.isArray(lido) ? lido : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function gravarIndiceDeCandidatas(sku, indice) {
+  const caminho = caminhoDoIndice(sku);
+  if (!caminho) throw new Error(`SKU inválido: ${sku}`);
+  await mkdir(path.dirname(caminho), { recursive: true });
+  await writeFile(caminho, JSON.stringify(indice));
 }
 
 async function gravarArquivo(sku, nome, bytes, criados) {
@@ -54,9 +92,11 @@ export async function gravarProposta(sku, plano, { bytes = new Map() } = {}) {
   const { secao } = validado;
   const citadosAntes = new Set(arquivosDaSecao(secao, anterior?.secoes?.[secao]));
   const criados = [];
+  let baixadas = null;
 
   try {
     if (secao === "fotos") {
+      baixadas = new Set(await fotosNaPasta(sku));
       const fotosAtuais = new Set(
         (await prisma.produtoArquivo.findMany({ where: { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO" }, select: { arquivo: true } })).map((f) => f.arquivo),
       );
@@ -70,8 +110,8 @@ export async function gravarProposta(sku, plano, { bytes = new Map() } = {}) {
         } else if (candidata.fotoAtual) {
           // Foto que o produto ja tem: fica onde esta (imagens/), a proposta so a cita.
           if (!fotosAtuais.has(candidata.fotoAtual)) throw new Error(`a foto atual ${candidata.fotoAtual} não é foto deste produto.`);
-        } else if (!(candidata.arquivo && citadosAntes.has(candidata.arquivo))) {
-          throw new Error(`a candidata ${candidata.id} veio sem a imagem (nem foto atual, nem arquivo já guardado).`);
+        } else if (!(candidata.arquivo && (citadosAntes.has(candidata.arquivo) || baixadas.has(candidata.arquivo)))) {
+          throw new Error(`a candidata ${candidata.id} veio sem a imagem (nem foto atual, nem arquivo já baixado com baixarCandidatas).`);
         }
       }
     }
@@ -98,6 +138,15 @@ export async function gravarProposta(sku, plano, { bytes = new Map() } = {}) {
     const citadosAgora = new Set(arquivosDaSecao(secao, conteudo));
     for (const nome of citadosAntes) {
       if (!citadosAgora.has(nome)) await unlink(caminhoDaProposta(sku, nome)).catch(() => {});
+    }
+    if (baixadas) {
+      // A secao fotos decidiu: a baixada que ela nao cita sai (do disco e do indice) e pode ser baixada de novo depois.
+      for (const nome of baixadas) {
+        if (!citadosAgora.has(nome)) await unlink(caminhoDaProposta(sku, nome)).catch(() => {});
+      }
+      const indice = await lerIndiceDeCandidatas(sku);
+      const restante = Object.fromEntries(Object.entries(indice).filter(([, item]) => citadosAgora.has(item?.arquivo)));
+      if (Object.keys(restante).length !== Object.keys(indice).length) await gravarIndiceDeCandidatas(sku, restante);
     }
     return { ok: true, secoes: Object.keys(secoes), aviso: validado.aviso ?? null };
   } catch (falha) {

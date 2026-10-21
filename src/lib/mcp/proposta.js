@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/db";
 import { propostaParaFormulario } from "@/lib/proposta/banco";
+import { baixarCandidatas, MAXIMO_POR_CHAMADA } from "@/lib/proposta/candidatas";
 import { lerParaProposta } from "@/lib/proposta/leitura";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
@@ -69,4 +70,23 @@ const LER_PROPOSTA = {
   },
 };
 
-export const FERRAMENTAS_DA_PROPOSTA = [LER_PARA_PROPOSTA, LER_PROPOSTA];
+const BAIXAR_CANDIDATAS = {
+  nome: "baixarCandidatas",
+  descricao: [
+    `O Rise baixa as fotos candidatas da proposta (até ${MAXIMO_POR_CHAMADA} por vez), pelos ids de foto que lerParaProposta deu; nunca por endereço.`,
+    "Cada uma é padronizada em 1024x1024 e guardada até a seção fotos ser gravada (gravarSecao cita o arquivo; as não citadas saem). Pedir o mesmo id de novo devolve o mesmo arquivo.",
+    "Devolve baixadas (id, arquivo, loja) e falharam (id, motivo).",
+  ].join(" "),
+  esquema: z.object({
+    sku: SKU,
+    ids: z.array(z.string().trim().min(1).max(80)).min(1).max(MAXIMO_POR_CHAMADA).describe("Ids das fotos, como vieram em lerParaProposta (concorrentes[].fotos[].id)"),
+  }),
+  // Escreve so na pasta da proposta e baixa da internet; o mesmo id de novo nao muda nada.
+  anotacoes: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  async executar({ sku, ids }, contexto) {
+    exigirProposta(contexto);
+    return baixarCandidatas(sku, ids);
+  },
+};
+
+export const FERRAMENTAS_DA_PROPOSTA = [LER_PARA_PROPOSTA, LER_PROPOSTA, BAIXAR_CANDIDATAS];

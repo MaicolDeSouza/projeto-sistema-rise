@@ -63,7 +63,7 @@ Administrador. Ler as ofertas exige também `dado.custo` e `dado.concorrentes` (
   baixa com `bytesDe` (o filtro de rede pública que já protege a coleta), padroniza em 1024x1024 e grava em
   `proposta/<32hex>.jpg`, como candidata ainda não escolhida.
 - Saída: `{ baixadas: [{ id, arquivo, loja, largura, altura }], falharam: [{ id, motivo }] }`.
-- Teto: 60 candidatas guardadas por produto; acima disso recusa e pede para gravar a seção `fotos` antes.
+- Teto: 100 candidatas guardadas por produto (o dono trocou 60 por 100 em 21/10/2026, o mesmo limite de fotos do cadastro); acima disso recusa e pede para gravar a seção `fotos` antes.
 - Candidata baixada e nunca citada numa seção `fotos` é apagada quando a seção é gravada, e a pasta inteira some no
   Conferido (como hoje).
 
@@ -132,7 +132,7 @@ pedir o contrário.)
 ## Escolhas da sessão (o dono pode mudar)
 
 - Recurso `acao.produtos.proporCadastro`, só Administrador.
-- 20 fotos por chamada, 60 candidatas por produto, 24 por folha.
+- 20 fotos por chamada, 100 candidatas por produto (decidido pelo dono), 24 por folha.
 - Sem o lembrete do `anotarDuvida` nas ferramentas de proposta.
 - PDFs fora do MCP; documentos só como links.
 - `foto(sku, id)` em 1024 fica para depois.

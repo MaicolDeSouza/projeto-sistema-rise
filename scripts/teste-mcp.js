@@ -42,7 +42,7 @@ async function codigoDoErro(promessa) {
 
 /** A resposta do /mcp vem em JSON ou em SSE (um evento `data:` com a mensagem JSON-RPC): devolve a mensagem nos dois casos. */
 // As ferramentas da proposta de produto (plano 2026-10-21): nao levam o lembrete de anotar duvida.
-const PROPOSTA = ["lerParaProposta", "lerProposta"];
+const PROPOSTA = ["baixarCandidatas", "lerParaProposta", "lerProposta"];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -748,7 +748,7 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras"],
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras"],
         18,
         true,
       ],
@@ -1282,10 +1282,22 @@ try {
     const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), dono)))?.result?.tools ?? [];
     const daProposta = lista.filter((ferramenta) => PROPOSTA.includes(ferramenta.name));
     conferir(
-      "as duas de leitura com readOnlyHint e sem o lembrete na descricao",
-      [daProposta.map((ferramenta) => ferramenta.name).sort(), daProposta.every((ferramenta) => ferramenta.annotations?.readOnlyHint && !ferramenta.description.includes("anotarDuvida"))],
-      [["lerParaProposta", "lerProposta"], true],
+      "as da proposta sem o lembrete na descricao; so as de leitura com readOnlyHint",
+      [
+        daProposta.map((ferramenta) => [ferramenta.name, Boolean(ferramenta.annotations?.readOnlyHint)]).sort(),
+        daProposta.some((ferramenta) => ferramenta.description.includes("anotarDuvida")),
+      ],
+      [[["baixarCandidatas", false], ["lerParaProposta", true], ["lerProposta", true]], false],
     );
+
+    // Tarefa 2: baixarCandidatas pelo MCP (so ids que nao sao das ofertas: nada vai a rede).
+    const baixada = await chamar("baixarCandidatas", { sku: "ZZ-MCP-PROP", ids: ["inventado:0", "https://site.qualquer/x.jpg"] });
+    const corpo = JSON.parse(textoDe(baixada) || "{}");
+    conferir("baixarCandidatas: id que nao e das ofertas volta em falharam, sem lembrete", [baixada?.isError ?? false, corpo.baixadas?.length, corpo.falharam?.length, baixada?.content?.length], [false, 0, 2, 1]);
+    const semPermissao = await chamar("baixarCandidatas", { sku: "ZZ-MCP-PROP", ids: ["inventado:0"] }, quem((recurso) => recurso !== "acao.produtos.proporCadastro"));
+    conferir("baixarCandidatas sem o recurso: recusa", semPermissao?.isError, true);
+    const demais = await chamar("baixarCandidatas", { sku: "ZZ-MCP-PROP", ids: Array.from({ length: 21 }, (_, i) => `x:${i}`) });
+    conferir("baixarCandidatas com 21 ids: recusa", demais?.isError, true);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
