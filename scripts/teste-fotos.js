@@ -59,6 +59,7 @@ const AGORA2 = new Date("2025-02-20T15:00:00Z");
 
 async function limpar() {
   await prisma.fotoMensalColeta.deleteMany({ where: { mes: { in: [MES1, MES2] } } });
+  // As linhas do ML na foto apontam para o id do ConcorrenteML; apagar o produto leva o concorrente, nao a foto.
   await prisma.fotoMensalProduto.deleteMany({ where: { mes: { in: [MES1, MES2] } } });
   await prisma.fonteColeta.deleteMany({ where: { nome: { startsWith: PREFIXO } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-FOTO-" } } });
@@ -115,6 +116,15 @@ try {
     data: { sku: "ZZ-FOTO-4", tituloBase: "Produto foto 4", estoque: 1, fornecedorRascunho: { precoCusto: "abc" } },
   });
 
+  // Concorrentes do ML pelo catalogo (spec 2026-10-21): o presente entra; o ausente antigo, fora da janela, nao; o ausente
+  // lido na janela entra marcado como ausente.
+  const concorrenteML = (itemId, dados) =>
+    prisma.concorrenteML.create({ data: { produtoId: p1.id, itemId, catalogoId: "MLBZZ", vendedorId: "1", posicao: 1, totalNoCatalogo: 3, lidoEm: lido, ...dados } });
+  await concorrenteML("MLBZZ1", { vendedorApelido: "ARDU", tipoAnuncio: "gold_special", preco: "39.54" });
+  await concorrenteML("MLBZZ2", { vendedorApelido: "VELHO", tipoAnuncio: "gold_pro", preco: "50.00", lidoEm: new Date("2024-06-01T12:00:00Z"), ausenteDesde: new Date("2024-06-02T12:00:00Z") });
+  await concorrenteML("MLBZZ3", { vendedorApelido: "SAIU", tipoAnuncio: "gold_pro", preco: "45.00", ausenteDesde: lido });
+  const linhaML = (codigo) => prisma.fotoMensalColeta.findFirst({ where: { fonteId: "mercado-livre-catalogo", codigo, mes: MES1 } });
+
   // Antes do dia 14: nada.
   const cedo = await tirarFotoMensal({ agora: new Date("2025-01-10T15:00:00Z") });
   conferir("antes do dia 14 nao tira foto", [cedo.tirou, cedo.motivo], [false, "antes do dia 14"]);
@@ -124,6 +134,15 @@ try {
   const foto1 = await tirarFotoMensal({ agora: AGORA1 });
   conferir("depois do dia 14 tira a foto", [foto1.tirou, foto1.mes], [true, "2025-01-01"]);
   conferir("a foto cobre o banco inteiro (ao menos os produtos de teste)", foto1.coleta >= 6 && foto1.produtos >= 4, true);
+
+  const ml1 = await linhaML("MLBZZ1");
+  conferir(
+    "ML: o concorrente do catalogo entra na foto",
+    ml1 && [ml1.fonteNome, ml1.tipoFonte, ml1.nome, Number(ml1.preco), ml1.tipoPreco, ml1.ausente, ml1.lidoEm.toISOString()],
+    ["Mercado Livre (catálogo)", "CONCORRENTE", "ARDU · Clássico", 39.54, "NORMAL", false, lido.toISOString()],
+  );
+  conferir("ML: ausente antigo fica de fora", await linhaML("MLBZZ2"), null);
+  conferir("ML: ausente lido na janela entra marcado", [(await linhaML("MLBZZ3"))?.ausente, (await linhaML("MLBZZ3"))?.nome], [true, "SAIU · Premium"]);
 
   const linhas = new Map(
     (await prisma.fotoMensalColeta.findMany({ where: { fonteId: { in: ids }, mes: MES1 } })).map((l) => [l.codigo, l]),
@@ -163,7 +182,9 @@ try {
 
   // Idempotente: o worker confere de hora em hora.
   const repetida = await tirarFotoMensal({ agora: new Date("2025-01-25T15:00:00Z") });
-  conferir("no mesmo mes nao tira de novo", [repetida.tirou, repetida.motivo], [false, "a foto deste mes ja existe"]);
+  // O texto da tela ganhou acento em 07/10/2026: a comparacao e sem acento (a regra do CLAUDE.md para mensagens).
+  const semAcento = (texto) => String(texto ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+  conferir("no mesmo mes nao tira de novo", [repetida.tirou, semAcento(repetida.motivo)], [false, "a foto deste mes ja existe"]);
   conferir("e nao duplica linha", await contarColeta(ids, MES1), 7);
 
   // Mes seguinte: concorrente so entra se foi visto DEPOIS da foto anterior.

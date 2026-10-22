@@ -24,6 +24,10 @@ export const DIA_DA_FOTO = 14;
 /// fotografar tudo trataria preco de meses atras como se fosse do mes.
 const JANELA_SEM_FOTO_ANTERIOR_MS = 45 * 24 * 3600 * 1000;
 
+/// A "fonte" das linhas dos concorrentes do ML na foto (nao ha FonteColeta para o ML).
+const FONTE_DO_ML = "mercado-livre-catalogo";
+const NOME_DA_FONTE_DO_ML = "Mercado Livre (catálogo)";
+
 /**
  * Ano, mes e dia em Sao Paulo. Perto da meia-noite o UTC ja e o dia seguinte, e a
  * foto do dia 14 sairia no 13 (ou o mes viraria antes da hora).
@@ -74,7 +78,7 @@ async function fotografarColeta(mes, agora) {
   });
   const desde = anterior._max.tiradaEm ?? new Date(agora.getTime() - JANELA_SEM_FOTO_ANTERIOR_MS);
 
-  return prisma.$executeRaw`
+  const lojas = await prisma.$executeRaw`
     INSERT INTO "FotoMensalColeta" (
       "id", "produtoId", "mes", "fonteId", "fonteNome", "tipoFonte", "codigo", "nome",
       "preco", "tipoPreco", "quantidade", "aChegar", "estoqueStatus", "ausente",
@@ -96,6 +100,25 @@ async function fotografarColeta(mes, agora) {
     WHERE f."tipo" IN ('FORNECEDOR', 'CONCORRENTE')
       AND (f."tipo" = 'FORNECEDOR' OR p."vistoEm" >= ${desde.toISOString()}::timestamp)
     ON CONFLICT ("produtoId", "mes") DO NOTHING`;
+
+  // Os concorrentes do ML pelo catalogo (spec 2026-10-21). Nao ha FonteColeta para o ML, de proposito: a fonte e um id
+  // fixo, e `produtoId` e o id do ConcorrenteML (a foto nao tem chave estrangeira). Entra o presente e o ausente lido na
+  // mesma janela dos concorrentes de loja.
+  const ml = await prisma.$executeRaw`
+    INSERT INTO "FotoMensalColeta" (
+      "id", "produtoId", "mes", "fonteId", "fonteNome", "tipoFonte", "codigo", "nome",
+      "preco", "tipoPreco", "ausente", "lidoEm", "tiradaEm"
+    )
+    SELECT
+      gen_random_uuid()::text, c."id", ${mes}::date, ${FONTE_DO_ML}, ${NOME_DA_FONTE_DO_ML}, 'CONCORRENTE', c."itemId",
+      COALESCE(c."vendedorApelido", 'vendedor ' || c."vendedorId") || ' · ' ||
+        CASE c."tipoAnuncio" WHEN 'gold_pro' THEN 'Premium' WHEN 'gold_special' THEN 'Clássico' ELSE COALESCE(c."tipoAnuncio", '-') END,
+      c."preco", CASE WHEN c."preco" IS NOT NULL THEN 'NORMAL' END::"TipoPrecoFoto",
+      (c."ausenteDesde" IS NOT NULL), c."lidoEm", (NOW() AT TIME ZONE 'UTC')
+    FROM "ConcorrenteML" c
+    WHERE c."ausenteDesde" IS NULL OR c."lidoEm" >= ${desde.toISOString()}::timestamp
+    ON CONFLICT ("produtoId", "mes") DO NOTHING`;
+  return lojas + ml;
 }
 
 /**
