@@ -31,7 +31,6 @@ const { rascunhoDaLI, rascunhoInicialLI } = await import("../src/lib/canaisDeVen
 const { LIMITES_LI, RascunhoLISchema } = await import("../src/lib/canaisDeVenda/li/esquema.js");
 const { ABAS_LI, validarRascunhoLI } = await import("../src/lib/canaisDeVenda/li/validacao.js");
 const { anuncioLIDoProduto, carregarAnuncioLI, contextoDoProduto, documentosDoProduto, listarAnunciosLI, novoRascunhoLI, rascunhoDoAnuncio, salvarRascunhoLI, vincularPeloSku } = await import("../src/lib/canaisDeVenda/li/banco.js");
-const { gravarFrasesDoCanal, lerConfigCanal } = await import("../src/lib/canaisDeVenda/configuracao.js");
 const { config } = await import("../src/lib/integracoes/config.js");
 const { clienteLI } = await import("../src/lib/canaisDeVenda/li/cliente.js");
 const { estadoDoIconeLI, iconeLIDoProduto, produtoIdValido } = await import("../src/lib/canaisDeVenda/li/estado.js");
@@ -286,8 +285,6 @@ try {
       await prisma.produto.update({ where: { id: p.id }, data: { conferido: false } });
       conferir("salvar recusa produto que deixou de ser Conferido", (await salvarRascunhoLI(salvo.id, novo.rascunho)).ok, false);
       conferir("salvar recusa rascunho de outro formato", (await salvarRascunhoLI(null, { produtoId: p.id, categorias: [1] })).ok, false);
-      conferir("frases fixas so no ML: a LI e recusada", [(await gravarFrasesDoCanal("LOJA_INTEGRADA", "Com nota fiscal")).ok, Array.isArray((await lerConfigCanal("MERCADO_LIVRE")).frases)], [false, true]);
-      conferir("canal desconhecido e recusado", (await gravarFrasesDoCanal("OUTRO", "x")).ok, false);
     } finally {
       config.appUrlPublica = urlPublicaAntes;
       if (configAntes) {

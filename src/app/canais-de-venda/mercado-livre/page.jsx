@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Settings } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import TabelaAnunciosML from "@/components/anuncios/ml/TabelaAnunciosML";
 import Paginacao from "@/components/mercados/Paginacao";
@@ -51,12 +51,6 @@ export default async function MercadoLivrePage({ searchParams }) {
         descricao="Anúncios criados a partir dos produtos Conferidos. A publicação no Mercado Livre entra numa próxima etapa."
         acao={
           <div className="flex flex-wrap gap-2">
-            {pode("tela.canaisDeVenda.mercadoLivre.frases", "ver") && (
-            <Link href="/canais-de-venda/mercado-livre/configuracoes" className={`${botao} border border-borda hover:bg-fundo`}>
-              <Settings size={16} />
-              Configurações
-            </Link>
-            )}
             {podeEditar && (
             <Link href="/canais-de-venda/mercado-livre/novo" className={`${botao} bg-acento text-white hover:opacity-90`}>
               <Plus size={16} />

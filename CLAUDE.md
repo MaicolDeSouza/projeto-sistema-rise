@@ -241,7 +241,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 657 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 645 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -2793,7 +2793,7 @@ nas seções seguintes.
   `title` e em texto no rodapé; vale na página e no pop-up). Como a barra de abas também fica `inert`, só a aba Geral
   é visível: se o dono quiser ler as outras abas, deixar a barra livre e travar só os painéis.
 
-**Frases fixas** (`mercado-livre/configuracoes`): uma por linha, **até 10, de até 200 caracteres**; linha vazia sai
+**Frases fixas (REMOVIDAS em 22/10/2026, ver "Taxas, frete, Custos totais e Ficha técnica")** (`mercado-livre/configuracoes`): uma por linha, **até 10, de até 200 caracteres**; linha vazia sai
 e repetida vira uma. As regras moram em `frases.js` (sem imports), lido pela tela e pelo servidor: copiá-las faria o
 aviso e a recusa divergirem. A descrição final é a do rascunho, uma linha em branco e as frases.
 
@@ -3062,6 +3062,22 @@ plano: `docs/superpowers/plans/2026-10-21-concorrentes-ml-catalogo.md` (inline).
 - **Ficha técnica em 2 colunas** (pedido do dono): à esquerda os atributos do ML numa caixa só, um por linha, `*` nos
   obrigatórios, com a sugestão da IA no topo (`CaixaDoML`); à direita, fixa ao rolar, o que o Rise tem do produto
   (marca, modelo, EAN, peso, medidas e as especificações da descrição, `CaracteristicasDoRise`).
+- **Aba "Preço e custos"** (era "Preço e estoque", pedidos do dono no mesmo dia): os Custos totais ficam à DIREITA do
+  Preço de venda, no formato de campo; o campo Estoque saiu. **Estoque e descrição do anúncio são SEMPRE os do Rise**
+  (`estoqueDoRise` e `descricaoDoRise` em `rascunho.js`): o do produto ou, no kit, o que as peças montam e a descrição do
+  principal com o bloco "Itens inclusos" refeito pelo código e pelas quantidades. `carregarAnuncioML` relê os dois ao abrir
+  (e o Publicar abre por ali) e `salvarRascunhoML` ignora o que a tela manda. A aba Descrição é só leitura, com "Editar no
+  produto" (abre o cadastro em outra aba).
+- **Custos relidos sozinhos:** quando preço, categoria, tipo ou logística mudam, a caixa relê as taxas no ML 0,9 s depois
+  (só GET, uma tentativa por combinação; o botão "Atualizar custos" continua). A releitura vale para qualquer preço, não só
+  ao cruzar R$ 79: o frete do vendedor muda com o preço também abaixo dele (6,85 a R$ 38,90; 8,15 a R$ 56,95).
+- **Frete grátis obrigatório a partir de R$ 79** (`freteGratisObrigatorio`): na aba Envio a caixa fica marcada e travada;
+  o payload manda `free_shipping` mesmo que o rascunho guarde outra coisa. Abaixo, é escolha do dono.
+- **Frases fixas REMOVIDAS** (pedido do dono, 22/10/2026): saíram a tela `mercado-livre/configuracoes`, `FrasesFixas.jsx`,
+  `frases.js`, `configuracao.js` e a ação `salvarFrasesFixas`; o texto final é só a descrição. **Ficaram de propósito:** a
+  coluna `ConfigCanal.frasesFixas` (sem uso; tirar é migration) e o recurso de Acessos `tela.canaisDeVenda.mercadoLivre.frases`
+  em `recursos.js`/`semeadura.js` (a sessão de Acessos tinha trabalho aberto nesses arquivos). A seção da fase 1 sobre as
+  frases ficou para trás.
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 

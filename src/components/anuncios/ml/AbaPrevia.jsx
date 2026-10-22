@@ -102,7 +102,7 @@ export default function AbaPrevia({ rascunho, contexto, irPara, todosProblemas, 
   const alertas = todosProblemas.length - bloqueantes;
 
   const json = jsonDoPayload(rascunho, contexto);
-  const descricaoFinal = montarDescricaoML({ descricao: rascunho.descricao, frases: contexto.frases });
+  const descricaoFinal = montarDescricaoML({ descricao: rascunho.descricao });
   const categoria = contexto.categoria && contexto.categoria.id === rascunho.categoriaId ? contexto.categoria : null;
 
   return (

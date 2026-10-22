@@ -85,3 +85,8 @@ export function freteQueConta(custosML, rascunho) {
 
 /// A partir deste preco o frete gratis e obrigatorio no ML (abaixo, o ML cobra do vendedor o frete sem frete gratis).
 export const LIMITE_DO_FRETE_GRATIS = 79;
+
+/** Frete gratis obrigatorio neste preco: a aba Envio o marca e trava (pedido do dono em 22/10/2026) e o payload o manda. */
+export function freteGratisObrigatorio(preco) {
+  return Number(preco) >= LIMITE_DO_FRETE_GRATIS;
+}

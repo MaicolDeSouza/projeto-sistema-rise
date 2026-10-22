@@ -8,7 +8,6 @@ import { revalidatePath } from "next/cache";
 import { LIMITE_TITULO } from "@/lib/anuncios/canais/mercadolivre";
 import { clienteBling } from "@/lib/blingSync/cliente";
 import { prepararPublicacaoML, publicarAnuncioML, validarNoML } from "@/lib/canaisDeVenda/ml/publicar";
-import { gravarFrases } from "@/lib/canaisDeVenda/configuracao";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import {
   buscarCatalogos,
@@ -167,14 +166,6 @@ export async function sugerirCodigoKit() {
     if (codigo === null) return { ok: false, erro: "A faixa 25xxxx acabou." };
     return { ok: true, codigo };
   });
-}
-
-export async function salvarFrasesFixas(texto) {
-  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre.frases", "editar"]);
-  if (negado) return negado;
-  // Vem do navegador: `gravarFrases` converte qualquer coisa em texto (um objeto viraria "[object Object]") e gravaria lixo.
-  if (typeof texto !== "string") return PEDIDO_INVALIDO;
-  return protegendo(async () => revalidando(await gravarFrases(texto)));
 }
 
 // ---------------------------------------------------------------------------

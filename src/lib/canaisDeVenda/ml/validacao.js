@@ -15,7 +15,7 @@ import { problemasDosAtributos } from "./atributos";
 
 export const ABAS_ML = [
   { id: "geral", rotulo: "Geral" },
-  { id: "preco", rotulo: "Preço e estoque" },
+  { id: "preco", rotulo: "Preço e custos" },
   { id: "imagens", rotulo: "Imagens" },
   { id: "descricao", rotulo: "Descrição" },
   { id: "ficha", rotulo: "Ficha técnica" },
@@ -170,9 +170,9 @@ export function validarRascunhoML(rascunho, contexto) {
   // Campo em branco nao e estoque zero: `Number("")` daria 0 e passaria como alerta.
   const estoque = texto(rascunho.estoque) === "" ? NaN : Number(rascunho.estoque);
   if (!Number.isInteger(estoque) || estoque < 0) {
-    acrescentar("estoque", "preco", "O estoque deve ser um número inteiro, zero ou maior.");
+    acrescentar("estoque", "preco", "Não foi possível ler o estoque do produto no Rise. Recarregue a tela.");
   } else if (estoque === 0) {
-    acrescentar("estoque", "preco", "Estoque zerado: o anúncio seria publicado sem disponibilidade.", false);
+    acrescentar("estoque", "preco", "O produto está sem estoque no Rise: o anúncio seria publicado sem disponibilidade.", false);
   }
 
   // Imagens

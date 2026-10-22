@@ -32,10 +32,8 @@ const {
   proximoCodigoDaFaixa,
 } = await import("../src/lib/canaisDeVenda/composicao.js");
 const { custoDoProduto } = await import("../src/lib/canaisDeVenda/custo.js");
-const { lerConfigML, gravarFrases } = await import("../src/lib/canaisDeVenda/configuracao.js");
-const { MAXIMO_DA_FRASE, MAXIMO_DE_FRASES, avisoDasFrases, frasesDoTexto } = await import("../src/lib/canaisDeVenda/frases.js");
 const { montarDescricaoML } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
-const { rascunhoInicial, aplicarComposicao } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
+const { rascunhoInicial, aplicarComposicao, descricaoDoRise } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
 const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
 const { montarPayloadML, nomeDaFoto } = await import("../src/lib/canaisDeVenda/ml/payload.js");
 const { estadoDoIconeML, rotuloDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
@@ -202,14 +200,16 @@ try {
   {
     console.log("\nDescricao e rascunho inicial");
 
-    conferir("descricao junta texto e frases, sem frase em branco", montarDescricaoML({ descricao: "Texto.\n", frases: ["Nota fiscal.", " ", "Envio rapido."] }),
-      "Texto.\n\nNota fiscal.\nEnvio rapido.");
-    conferir("sem frases nao sobra linha", montarDescricaoML({ descricao: "Texto.", frases: [] }), "Texto.");
-    conferir("sem descricao, so as frases", montarDescricaoML({ descricao: "  ", frases: ["Nota fiscal."] }), "Nota fiscal.");
+    // As frases fixas sairam do Rise em 22/10/2026 (pedido do dono): o texto final e so a descricao.
+    conferir("descricao aparada, sem frases fixas", montarDescricaoML({ descricao: "Texto.\n", frases: ["Nota fiscal."] }), "Texto.");
     // Teste real de 08/10/2026: o ML recusou "<b>tag</b>" ("The description must be in plain text", nas
     // posicoes das etiquetas). Sai so o que tem forma de etiqueta; "< 5V" e "<5V" sao texto e ficam.
-    conferir("descricao: etiqueta HTML sai, o resto fica", montarDescricaoML({ descricao: "Linha 1 com <b>tag</b> & e-comercial\nTensão <5V e < 3,3 V; a<b", frases: ["<br>Nota fiscal."] }), "Linha 1 com tag & e-comercial\nTensão <5V e < 3,3 V; a<b\n\nNota fiscal.");
-    conferir("sem descricao nem frases, texto vazio", montarDescricaoML({ descricao: "  ", frases: undefined }), "");
+    conferir("descricao: etiqueta HTML sai, o resto fica", montarDescricaoML({ descricao: "Linha 1 com <b>tag</b> & e-comercial\nTensão <5V e < 3,3 V; a<b" }), "Linha 1 com tag & e-comercial\nTensão <5V e < 3,3 V; a<b");
+    conferir("sem descricao, texto vazio", montarDescricaoML({ descricao: "  " }), "");
+    // A descricao do anuncio e sempre a do produto (pedido do dono em 22/10/2026); no kit, com os Itens inclusos do kit.
+    conferir("descricaoDoRise: simples = a do produto", descricaoDoRise({ ...simples, descricao: "editada" }, { a, b }), a.descricaoBase);
+    conferir("descricaoDoRise: kit = a do principal com os Itens inclusos do kit", descricaoDoRise({ ...misto, descricao: "editada" }, { a, b }), misto.descricao);
+    conferir("descricaoDoRise: sem o produto, null", descricaoDoRise({ ...simples, produtoId: "x" }, { a, b }), null);
     conferir("contexto de teste: descricao longa com Itens inclusos e Garantia",
       [a.descricaoBase.length >= 400, a.descricaoBase.includes("Itens inclusos: (Cod:100101)"), a.descricaoBase.includes("Garantia:")], [true, true, true]);
 
@@ -377,6 +377,9 @@ try {
     const payload = montarPayloadML(base, ctx);
     conferir("payload nasce pausado, com o preco no item", [payload.item.status, payload.item.price], ["paused", 0.5]);
     conferir("payload leva o SKU do produto", payload.item.attributes.find((x) => x.id === "SELLER_SKU").value_name, "100101");
+    const semFreteMarcado = { ...base, preco: 99, envio: { ...base.envio, freteGratis: false } };
+    conferir("payload: frete gratis vai marcado a partir de R$ 79", montarPayloadML(semFreteMarcado, ctx).item.shipping.free_shipping, true);
+    conferir("payload: abaixo de R$ 79 segue a escolha do dono", montarPayloadML({ ...semFreteMarcado, preco: 50 }, ctx).item.shipping.free_shipping, false);
     conferir("payload do kit leva o codigo do kit", montarPayloadML(kitOk, ctx).item.attributes.find((x) => x.id === "SELLER_SKU").value_name, "100101_5");
     conferir("payload do kit nao leva GTIN", montarPayloadML(kitOk, ctx).item.attributes.some((x) => x.id === "GTIN"), false);
     // O cliente tira o GTIN ao virar kit, mas o servidor aceita o que vier: o payload barra tambem.
@@ -385,8 +388,7 @@ try {
     conferir("payload: atributos da ficha e o SKU", payload.item.attributes.filter((x) => !x.id.startsWith("SELLER_PACKAGE_")),
       [{ id: "BRAND", value_name: "GENERICA" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
     conferir("preco vai a parte", payload.preco, { amount: 0.5, currency_id: "BRL" });
-    conferir("descricao final no payload", payload.descricao.plain_text, montarDescricaoML({ ...simples, frases: ctx.frases }));
-    conferir("descricao final no payload: descricao do produto e frases fixas", payload.descricao.plain_text, `${a.descricaoBase}\n\nNota fiscal.`);
+    conferir("descricao final no payload: so a descricao do produto", payload.descricao.plain_text, montarDescricaoML({ descricao: a.descricaoBase }));
     conferir("payload: titulo, familia, categoria, estoque, tipo e condicao",
       ["title" in payload.item, payload.item.family_name, payload.item.category_id, payload.item.available_quantity, payload.item.currency_id, payload.item.listing_type_id, payload.item.condition],
       [false, "Resistor 1K 1/4W", "MLB1234", 100, "BRL", "gold_special", "new"]);
@@ -460,53 +462,6 @@ try {
   }
 
   {
-    console.log("\nConfiguracao (banco)");
-    await limpar();
-
-    // A configuracao e dado REAL do dono (banco compartilhado): a linha do canal e guardada
-    // aqui e devolvida no finally.
-    const configAntes = await prisma.configCanal.findUnique({ where: { canal: "MERCADO_LIVRE" } });
-    try {
-      if (!configAntes) {
-        // So aqui: apagar a linha do dono para testar a ausencia seria arriscar o dado real.
-        conferir("sem linha: lista vazia", await lerConfigML(), { frases: [] });
-        conferir("sem linha: ler nao cria", await prisma.configCanal.count({ where: { canal: "MERCADO_LIVRE" } }), 0);
-      }
-
-      conferir("frases: uma por linha, aparadas e sem repetir", (await gravarFrases("  Nota fiscal em todos.\n\nNota fiscal em todos.\nEnvio no mesmo dia. ")).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
-      conferir("frases: lidas de volta", (await lerConfigML()).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
-      conferir("frases: mais de 10 e recusado", (await gravarFrases(Array.from({ length: 11 }, (_, i) => `F${i}`).join("\n"))).ok, false);
-      conferir("frases: frase acima de 200 caracteres e recusada", (await gravarFrases("x".repeat(201))).ok, false);
-      conferir("frases: o que foi recusado nao mexe no gravado", (await lerConfigML()).frases, ["Nota fiscal em todos.", "Envio no mesmo dia."]);
-      const dezDeDuzentos = Array.from({ length: 10 }, (_, i) => String.fromCharCode(97 + i).repeat(200));
-      conferir("frases: 10 frases de 200 caracteres cabem", (await gravarFrases(dezDeDuzentos.join("\n"))).frases, dezDeDuzentos);
-      conferir("frases: onze linhas iguais sao uma so", (await gravarFrases(Array(11).fill("Igual.").join("\n"))).frases, ["Igual."]);
-      conferir("frases: quebra de linha do Windows", (await gravarFrases("A\r\nB\r\n")).frases, ["A", "B"]);
-      conferir("frases: vazio limpa", (await gravarFrases("  \n ")).frases, []);
-
-      // As regras moram em frases.js, lidas pelo servidor e pela tela: os recados da recusa do
-      // servidor sao os mesmos que a tela mostra antes de enviar.
-      conferir("frases: limites", [MAXIMO_DE_FRASES, MAXIMO_DA_FRASE], [10, 200]);
-      conferir("frasesDoTexto: aparar, tirar vazias e repetidas, CRLF", frasesDoTexto("  A \r\n\r\nB\nA\n  "), ["A", "B"]);
-      conferir("frasesDoTexto: vazio, nulo e indefinido", [frasesDoTexto(""), frasesDoTexto(null), frasesDoTexto(undefined)], [[], [], []]);
-      conferir("avisoDasFrases: lista boa nao tem aviso", avisoDasFrases(dezDeDuzentos), null);
-      conferir("avisoDasFrases: 11 frases", avisoDasFrases(Array.from({ length: 11 }, (_, i) => `F${i}`)), "Use até 10 frases.");
-      conferir("avisoDasFrases: frase de 201 aponta a posicao e o tamanho", avisoDasFrases(["curta", "x".repeat(201)]), "A frase 2 tem 201 caracteres. O limite é 200.");
-      conferir("avisoDasFrases: frase de 200 passa", avisoDasFrases(["x".repeat(200)]), null);
-      conferir("avisoDasFrases: acima de 10 vale antes do tamanho", avisoDasFrases([...Array.from({ length: 10 }, (_, i) => `F${i}`), "x".repeat(201)]), "Use até 10 frases.");
-      conferir("gravarFrases: recado da recusa de 11 e o de avisoDasFrases", (await gravarFrases(Array.from({ length: 11 }, (_, i) => `F${i}`).join("\n"))).erro, "Use até 10 frases.");
-      conferir("gravarFrases: recado da recusa de 201 e o de avisoDasFrases", (await gravarFrases(`curta\n${"x".repeat(201)}`)).erro, "A frase 2 tem 201 caracteres. O limite é 200.");
-    } finally {
-      if (configAntes) {
-        const dados = { frasesFixas: configAntes.frasesFixas };
-        await prisma.configCanal.upsert({ where: { canal: "MERCADO_LIVRE" }, create: { canal: "MERCADO_LIVRE", ...dados }, update: dados });
-      } else {
-        await prisma.configCanal.deleteMany({ where: { canal: "MERCADO_LIVRE" } });
-      }
-    }
-  }
-
-  {
     console.log("\nRascunho (banco)");
     await limpar();
 
@@ -516,7 +471,7 @@ try {
     const varrerExtras = () => prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor ML" } });
     await varrerExtras();
 
-    // O teste fixa as frases do canal, e a configuracao real do dono volta no finally.
+    // A linha do canal (ConfigCanal) e dado real do dono e volta como estava no finally.
     const configAntes = await prisma.configCanal.findUnique({ where: { canal: "MERCADO_LIVRE" } });
     // O rascunho volta do banco com as chaves em outra ordem; a comparacao e pelo conteudo.
     const ordenado = (v) =>
@@ -529,7 +484,6 @@ try {
 
     try {
       try {
-        await gravarFrases("Frase de teste ML.");
         const fornecedor = await prisma.fornecedor.create({ data: { nome: "ZZ Fornecedor ML" } });
         const p1 = await prisma.produto.create({
           data: {
@@ -575,8 +529,8 @@ try {
 
         const novo = await novoRascunhoML(p1.id);
         conferir("novo rascunho nao grava nada", [novo.ok, await prisma.anuncio.count({ where: { produtoId: p1.id } })], [true, 0]);
-        conferir("novo rascunho: contexto com produtos, frases e codigo em uso", [Object.keys(novo.contexto).sort(), Object.keys(novo.contexto.produtos), novo.contexto.frases, novo.contexto.codigoEmUso],
-          [["codigoEmUso", "frases", "produtos"], [p1.id], ["Frase de teste ML."], null]);
+        conferir("novo rascunho: contexto com produtos, frases e codigo em uso", [Object.keys(novo.contexto).sort(), Object.keys(novo.contexto.produtos), novo.contexto.codigoEmUso],
+          [["codigoEmUso", "produtos"], [p1.id], null]);
         conferir("novo rascunho: parte do produto", [novo.rascunho.produtoId, novo.rascunho.titulo, novo.rascunho.preco, novo.rascunho.estoque, novo.rascunho.atributos],
           [p1.id, "ZZ Produto um", 10, 9, { BRAND: "ZZMARCA", MODEL: "ZZ1", GTIN: "7891234567895" }]);
         conferir("novo rascunho: fotos com a principal na frente", novo.rascunho.imagens, [fotoB.id, fotoA.id]);
@@ -599,8 +553,8 @@ try {
         const lido = await carregarAnuncioML(salvo.id);
         conferir("carregar devolve o que foi salvo", [lido.rascunho.titulo, lido.rascunho.tipoAnuncio, lido.rascunho.envio.pesoKg], [novo.rascunho.titulo, "gold_special", 0.05]);
         conferir("carregar devolve o rascunho inteiro", ordenado(lido.rascunho), ordenado({ ...novo.rascunho, tipoAnuncio: "gold_special" }));
-        conferir("carregar: anuncio, status e contexto", [lido.anuncioId, lido.status, Object.keys(lido.contexto.produtos), lido.contexto.frases, lido.contexto.codigoEmUso],
-          [salvo.id, "RASCUNHO", [p1.id], ["Frase de teste ML."], null]);
+        conferir("carregar: anuncio, status e contexto", [lido.anuncioId, lido.status, Object.keys(lido.contexto.produtos), lido.contexto.codigoEmUso],
+          [salvo.id, "RASCUNHO", [p1.id], null]);
         conferir("carregar: anuncio que nao existe", (await carregarAnuncioML("id-que-nao-existe")).erro, "Anúncio não encontrado.");
         conferir("carregar: sem id nao devolve outro anuncio", (await carregarAnuncioML(undefined)).ok, false);
 
@@ -628,7 +582,18 @@ try {
         conferir("cada campo mora na sua coluna", [gravado.titulo, gravado.descricao, gravado.categoriaExternaId, gravado.produtoId, ordenado(gravado.atributos)],
           [novo.rascunho.titulo, novo.rascunho.descricao, "MLB1234", p1.id, ordenado(novo.rascunho.atributos)]);
         conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["categoriaNome", "composicao", "condicao", "envio", "estoque", "familyName", "imagens", "preco", "tipoAnuncio"]);
-        conferir("numero escrito como texto vira numero, e vazio vira null", [gravado.dados.preco, gravado.dados.estoque], [12.5, null]);
+        // O estoque do anuncio e sempre o do produto no Rise (pedido do dono em 22/10/2026): o que a tela manda nao vale.
+        conferir("numero escrito como texto vira numero; o estoque e o do produto, nao o da tela", [gravado.dados.preco, gravado.dados.estoque], [12.5, 9]);
+        await prisma.produto.update({ where: { id: p1.id }, data: { estoque: 4 } });
+        const editada = await salvarRascunhoML(null, { ...novo.rascunho, descricao: "Texto digitado na tela" });
+        conferir("a descricao gravada e a do produto, nao a da tela", (await anuncioDe(editada.id)).descricao, novo.rascunho.descricao);
+        await prisma.produto.update({ where: { id: p1.id }, data: { descricaoBase: "Descricao nova do produto." } });
+        conferir("abrir o anuncio rele a descricao do produto", (await carregarAnuncioML(editada.id)).rascunho.descricao, "Descricao nova do produto.");
+        await prisma.produto.update({ where: { id: p1.id }, data: { descricaoBase: novo.rascunho.descricao } });
+        conferir("abrir o anuncio rele o estoque do produto", (await carregarAnuncioML(completo.id)).rascunho.estoque, 4);
+        await prisma.produto.update({ where: { id: p1.id }, data: { estoque: -2 } });
+        conferir("estoque negativo no Rise vira zero no anuncio", (await carregarAnuncioML(completo.id)).rascunho.estoque, 0);
+        await prisma.produto.update({ where: { id: p1.id }, data: { estoque: 9 } });
 
         // Atualizar: o mesmo anuncio, e o que o editor nao conhece (a etapa da fase 3) fica.
         const antesDeAtualizar = await prisma.anuncio.count({ where: { produtoId: p1.id } });
@@ -1032,10 +997,12 @@ try {
     await limpar();
 
     console.log("\nFase 2: custos e preco por margem");
-    const { custosDoAnuncio, precoPorMargem, custosValem, freteQueConta } = await import("../src/lib/canaisDeVenda/ml/custos.js");
+    const { custosDoAnuncio, precoPorMargem, custosValem, freteQueConta, freteGratisObrigatorio } = await import("../src/lib/canaisDeVenda/ml/custos.js");
     const { lerTaxas, lerFreteDoVendedor, lerTendencias, limparCacheDeTendencias, lerCustosDoAnuncio, precoPorMargemNoML } = await import(
       "../src/lib/canaisDeVenda/ml/leitura.js"
     );
+    // A partir de R$ 79 o frete gratis e obrigatorio (pedido do dono em 22/10/2026: marcado e sem desmarcar).
+    conferir("frete gratis obrigatorio a partir de R$ 79", [freteGratisObrigatorio(78.99), freteGratisObrigatorio(79), freteGratisObrigatorio("120,00".replace(",", "."))], [false, true, true]);
     conferir("custos: 49 com custo 24, 13%, sem tarifa e sem frete", custosDoAnuncio({ preco: 49, custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0 }), {
       comissao: 6.37, tarifaFixa: 0, frete: 0, imposto: 2.94, lucro: 15.69, margem: 32,
     });
@@ -1546,7 +1513,7 @@ try {
       const bf = c.novoBling();
       const idSimples = await c.anuncioSimples(c.s1);
       const pronto = await prepararPublicacaoML(idSimples, { ml, bling: bf });
-      conferir("preparar: anuncio simples pronto", [pronto.ok, pronto.motivos, pronto.resumo?.familyName, pronto.resumo?.preco, pronto.resumo?.estoque, pronto.resumo?.fotos, pronto.resumo?.codigo, pronto.resumo?.kit], [true, [], "PLACA ZZ ML", 49.9, 5, 2, "ZZ-ML-S1", null]);
+      conferir("preparar: anuncio simples pronto", [pronto.ok, pronto.motivos, pronto.resumo?.familyName, pronto.resumo?.preco, pronto.resumo?.estoque, pronto.resumo?.fotos, pronto.resumo?.codigo, pronto.resumo?.kit], [true, [], "PLACA ZZ ML", 49.9, 10, 2, "ZZ-ML-S1", null]);
       conferir("preparar: proxima etapa e incerta", [pronto.proxima, pronto.incerta], ["fotos", false]);
       conferir("preparar: so leitura", [ml.escritas.length, bf.chamadas.filter((chamada) => chamada.metodo !== "GET").length], [0, 0]);
       conferir("preparar: sem blingId recusa", (await prepararPublicacaoML(await c.anuncioSimples(c.semBling), { ml, bling: bf })).motivos.some((m) => /blingId/.test(m)), true);

@@ -8,6 +8,7 @@
  */
 
 import { LIMITE_TITULO } from "../../anuncios/canais/mercadolivre";
+import { freteGratisObrigatorio } from "./custos";
 import { montarDescricaoML } from "./descricao";
 import { medidasFaltando } from "./validacao";
 
@@ -67,7 +68,7 @@ function atributosDaEmbalagem(envio) {
 
 /**
  * @param {object} rascunho rascunho do anuncio (ver `rascunho.js`)
- * @param {{produtos: object, frases: string[]}} contexto produtos por id e frases fixas do canal
+ * @param {{produtos: object}} contexto produtos por id
  */
 export function montarPayloadML(rascunho, contexto) {
   const titulo = texto(rascunho.titulo);
@@ -120,13 +121,14 @@ export function montarPayloadML(rascunho, contexto) {
       shipping: {
         mode: envio.modo ?? "me2",
         logistic_type: envio.logistica ?? "xd_drop_off",
-        free_shipping: Boolean(envio.freteGratis),
+        // De R$ 79 para cima o ML exige frete gratis: vai marcado mesmo que o rascunho guarde outra coisa.
+        free_shipping: Boolean(envio.freteGratis) || freteGratisObrigatorio(rascunho.preco),
         local_pick_up: Boolean(envio.retirada),
         ...(dimensions ? { dimensions } : {}),
       },
     },
     descricao: {
-      plain_text: montarDescricaoML({ descricao: rascunho.descricao, frases: contexto?.frases }),
+      plain_text: montarDescricaoML({ descricao: rascunho.descricao }),
     },
     preco: { amount: Number(rascunho.preco ?? 0), currency_id: "BRL" },
     fotos,

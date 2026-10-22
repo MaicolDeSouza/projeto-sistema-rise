@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import { freteGratisObrigatorio } from "@/lib/canaisDeVenda/ml/custos";
 import { LOGISTICAS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { medidasFaltando } from "@/lib/canaisDeVenda/ml/validacao";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
@@ -74,17 +75,20 @@ function CampoDecimal({ medida, valor, comErro, aoMudar, children }) {
   );
 }
 
-function CaixaDeOpcao({ rotulo, ajuda, marcada, aoMudar }) {
+// `travada`: marcada e sem como desmarcar (o motivo vai no title e na bolha).
+function CaixaDeOpcao({ rotulo, ajuda, marcada, aoMudar, travada = null }) {
   return (
     <div className="flex items-center gap-2">
-      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+      <label className={`flex items-center gap-2 text-sm font-medium ${travada ? "cursor-not-allowed" : "cursor-pointer"}`} title={travada ?? undefined}>
         <input
           type="checkbox"
           checked={marcada}
+          disabled={Boolean(travada)}
           onChange={(evento) => aoMudar(evento.target.checked)}
           className="h-4 w-4 accent-acento"
         />
         {rotulo}
+        {travada && <span className="text-[11px] font-normal text-suave">(obrigatório a partir de R$ 79)</span>}
       </label>
       <BolhaDeAjuda variante="inline" texto={ajuda} />
     </div>
@@ -170,8 +174,9 @@ export default function AbaEnvio({ rascunho, alterar, problemas }) {
       <div className="space-y-2">
         <CaixaDeOpcao
           rotulo="Frete grátis"
-          ajuda="O frete fica por sua conta: o comprador não paga o envio."
-          marcada={Boolean(envio.freteGratis)}
+          ajuda="O frete fica por sua conta: o comprador não paga o envio. A partir de R$ 79 o Mercado Livre o exige, e ele fica marcado."
+          marcada={Boolean(envio.freteGratis) || freteGratisObrigatorio(rascunho.preco)}
+          travada={freteGratisObrigatorio(rascunho.preco) ? "O Mercado Livre exige frete grátis a partir de R$ 79." : null}
           aoMudar={(freteGratis) => mudarEnvio({ freteGratis })}
         />
         <CaixaDeOpcao

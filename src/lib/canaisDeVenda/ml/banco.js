@@ -1,11 +1,10 @@
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { codigoDaComposicao, errosDaComposicao, proximoCodigoDaFaixa } from "../composicao";
-import { lerConfigML } from "../configuracao";
 import { custoDoProduto } from "../custo";
 import { avisosDeVariosProdutos } from "./concorrentes";
 import { RascunhoMLSchema } from "./esquema";
-import { rascunhoInicial } from "./rascunho";
+import { descricaoDoRise, estoqueDoRise, rascunhoInicial } from "./rascunho";
 
 /**
  * O rascunho do anuncio do Mercado Livre no banco: ler o contexto dos produtos, abrir um
@@ -98,11 +97,10 @@ export async function novoRascunhoML(produtoId) {
   if (!principal) return { ok: false, erro: "Produto não encontrado." };
   if (!principal.conferido) return { ok: false, erro: aindaNaoConferido(principal.sku) };
 
-  const { frases } = await lerConfigML();
   return {
     ok: true,
     rascunho: rascunhoInicial({ principal, produtosPorId: produtos, composicao: null }),
-    contexto: { produtos, frases, codigoEmUso: null },
+    contexto: { produtos, codigoEmUso: null },
   };
 }
 
@@ -142,15 +140,18 @@ export async function carregarAnuncioML(id) {
   const rascunho = rascunhoDoAnuncio(anuncio);
   const { composicao } = rascunho;
   const idsDosProdutos = [rascunho.produtoId, ...(composicao?.itens ?? []).map((item) => item.produtoId)];
-  const [produtos, { frases }] = await Promise.all([contextoDosProdutos(idsDosProdutos), lerConfigML()]);
+  const produtos = await contextoDosProdutos(idsDosProdutos);
   const emUso = composicao ? await codigoEmUso(composicao.codigo, { anuncioId: anuncio.id, itens: composicao.itens }) : null;
+  // O estoque gravado e o de quando o rascunho foi salvo: abrir (e publicar, que abre por aqui) usa o de agora.
+  rascunho.estoque = estoqueDoRise(rascunho, produtos) ?? rascunho.estoque;
+  rascunho.descricao = descricaoDoRise(rascunho, produtos) ?? rascunho.descricao;
 
   return {
     ok: true,
     anuncioId: anuncio.id,
     status: anuncio.status,
     rascunho,
-    contexto: { produtos, frases, codigoEmUso: emUso },
+    contexto: { produtos, codigoEmUso: emUso },
     publicacao: anuncio.dados?.publicacao ?? null,
     idExterno: anuncio.idExterno ?? null,
     urlExterna: anuncio.urlExterna ?? null,
@@ -282,7 +283,7 @@ export async function salvarRascunhoML(anuncioId, entrada) {
     }
 
     const ids = [...new Set([rascunho.produtoId, ...itens.map((item) => item.produtoId)].filter(Boolean))];
-    const encontrados = new Map((await prisma.produto.findMany({ where: { id: { in: ids } }, select: { id: true, sku: true, conferido: true } })).map((p) => [p.id, p]));
+    const encontrados = new Map((await prisma.produto.findMany({ where: { id: { in: ids } }, select: { id: true, sku: true, conferido: true, estoque: true, tituloBase: true, descricaoBase: true } })).map((p) => [p.id, p]));
     for (const id of ids) {
       const produto = encontrados.get(id);
       if (!produto) return { ok: false, erro: rascunho.composicao ? "Um dos produtos da composição foi excluído." : "O produto do anúncio foi excluído." };
@@ -308,6 +309,11 @@ export async function salvarRascunhoML(anuncioId, entrada) {
       if (emUso) return { ok: false, erro: `O código ${composicao.codigo} já está em uso: ${emUso}.` };
       rascunho.composicao = composicao;
     }
+
+    // Estoque e descricao que a tela manda nao valem: sao sempre os do Rise (o produto, ou o que as pecas do kit montam).
+    const doRise = Object.fromEntries(encontrados);
+    rascunho.estoque = estoqueDoRise(rascunho, doRise);
+    rascunho.descricao = descricaoDoRise(rascunho, doRise) ?? rascunho.descricao;
 
     const { produtoId, titulo, descricao, categoriaId, atributos, ...dados } = rascunho;
     const colunas = { produtoId, titulo, descricao, categoriaExternaId: categoriaId || null, atributos };

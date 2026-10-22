@@ -121,13 +121,45 @@ function camposDaComposicao({ composicao, principalId, produtosPorId, descricaoA
     estoque: estoqueDaComposicao(itens, campoPorId(itens, produtosPorId, "estoque")),
     pesoKg: pesoDaComposicao(itens, campoPorId(itens, produtosPorId, "pesoKg")),
     imagens: fotosEmOrdem([principalId, ...itens.map((item) => item.produtoId)], produtosPorId),
-    descricao: trocarItensInclusos(descricaoAtual, bloco),
+    // A descricao e a do produto principal (pedido do dono em 22/10/2026: o anuncio nao a edita); so o bloco "Itens
+    // inclusos" muda, com o codigo e as quantidades do kit.
+    descricao: trocarItensInclusos(produtosPorId?.[principalId]?.descricaoBase ?? descricaoAtual, bloco),
     composicao: {
       itens: itens.map(({ produtoId, quantidade }) => ({ produtoId, quantidade })),
       codigo,
       blingProdutoId: composicao.blingProdutoId ?? null,
     },
   };
+}
+
+/**
+ * O estoque do anuncio e SEMPRE o do Rise (pedido do dono em 22/10/2026: o campo saiu da tela): o do produto ou,
+ * no kit, o que as pecas montam. Negativo conta zero. `null` quando o produto nao esta em `produtosPorId`.
+ * Abrir e salvar o anuncio usam esta conta, para o numero nunca ficar o de quando o rascunho foi criado.
+ */
+export function estoqueDoRise(rascunho, produtosPorId) {
+  const itens = itensDaComposicao(rascunho?.composicao);
+  if (itens.length > 0) {
+    if (itens.some((item) => !produtosPorId?.[item.produtoId])) return null;
+    return estoqueDaComposicao(itens, campoPorId(itens, produtosPorId, "estoque"));
+  }
+  const produto = produtosPorId?.[rascunho?.produtoId];
+  if (!produto) return null;
+  return Math.max(0, Math.trunc(Number(produto.estoque) || 0));
+}
+
+/**
+ * A descricao do anuncio e SEMPRE a do produto (pedido do dono em 22/10/2026: o editor nao a altera): a do produto
+ * ou, no kit, a do principal com o bloco "Itens inclusos" refeito pelo codigo e pelas quantidades do kit. `null`
+ * quando falta algum produto em `produtosPorId`. Abrir e salvar usam esta conta, como o estoque.
+ */
+export function descricaoDoRise(rascunho, produtosPorId) {
+  const principal = produtosPorId?.[rascunho?.produtoId];
+  if (!principal) return null;
+  const itens = itensDaComposicao(rascunho.composicao);
+  if (itens.length === 0) return principal.descricaoBase ?? "";
+  if (itens.some((item) => !produtosPorId?.[item.produtoId])) return null;
+  return camposDaComposicao({ composicao: rascunho.composicao, principalId: principal.id ?? rascunho.produtoId, produtosPorId, descricaoAtual: "" }).descricao;
 }
 
 /**

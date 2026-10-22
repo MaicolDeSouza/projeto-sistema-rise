@@ -13,7 +13,7 @@ import CalculadoraDeMargem from "./CalculadoraDeMargem";
 import ConcorrentesDoML from "./ConcorrentesDoML";
 import CustosDoML from "./CustosDoML";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
-import { filtrarDecimal, lerDecimal, mostrarDigitado, recusarSimbolosDeInteiro } from "./numeros";
+import { filtrarDecimal, lerDecimal, mostrarDigitado } from "./numeros";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const PERCENTUAL = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -107,7 +107,6 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
       : null;
 
   const erroDoPreco = problemasDoCampo(problemas, "preco").some((problema) => problema.bloqueante);
-  const erroDoEstoque = problemasDoCampo(problemas, "estoque").some((problema) => problema.bloqueante);
 
   function digitarPreco(bruto) {
     const texto = filtrarDecimal(bruto, 2);
@@ -117,7 +116,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 lg:max-w-2xl">
+      <div className="grid items-start gap-4 md:grid-cols-2">
         <Campo
           nome="ml-preco"
           rotulo={
@@ -163,36 +162,13 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
           )}
         </Campo>
 
-        <Campo
-          nome="ml-estoque"
-          rotulo="Estoque"
-          ajuda={
-            emKit
-              ? "Quantos kits o estoque dos itens monta. Mudar a composição recalcula este número."
-              : "Começa com o estoque do produto no sistema."
-          }
-        >
-          <input
-            id="ml-estoque"
-            type="number"
-            inputMode="numeric"
-            step="1"
-            min="0"
-            value={rascunho.estoque ?? ""}
-            // Vazio e `null`, e nao 0: a validacao acusa estoque em branco, e zero e outra coisa.
-            onChange={(evento) => alterar({ estoque: evento.target.value === "" ? null : Number(evento.target.value) })}
-            onKeyDown={recusarSimbolosDeInteiro}
-            className={`${CLASSE_CAMPO} ${bordaDoCampo(erroDoEstoque)}`}
-          />
-          <MensagensDoCampo problemas={problemas} campo="estoque" />
-        </Campo>
+        {acessos.custos && <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} conta={conta} />}
       </div>
 
       {rascunho.produtoId && acessos.concorrentes && (
         <ConcorrentesDoML produtoId={rascunho.produtoId} titulo={rascunho.titulo} alterar={alterar} aoMudarConcorrentes={setConcorrentesML} />
       )}
 
-      {acessos.custos && <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} conta={conta} />}
     </div>
   );
 }
