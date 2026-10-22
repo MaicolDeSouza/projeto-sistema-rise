@@ -202,7 +202,13 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
 | Pedidos, Estoque, Financeiro | Esqueleto |
 
-**A publicação nunca foi ligada.** `ML_PUBLICACAO`, `BLING_ESCRITA` e `LI_ESCRITA` estão em `false`, e
+**Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
+códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
+de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
+recriando só o `app` (o worker só lê). **O Publicar confere as duas travas antes de enviar** (`publicar.js`:
+`ml.exigirEscrita` e `bling.exigirEscrita`), então abrir só uma não adianta. O `.env` do PC segue com tudo fechado. Os botões
+de sincronização de produto e estoque do Bling usam a mesma trava: com a lista vazia, qualquer produto escreve no ERP real.
+**O texto abaixo é o que valia antes (até 22/10/2026):** a publicação nunca tinha sido ligada na VPS. `ML_PUBLICACAO`, `BLING_ESCRITA` e `LI_ESCRITA` estavam em `false`, e
 `exigirTravaLiberada` em `src/lib/integracoes/config.js` barra todo `POST`/`PUT` antes da
 requisição sair. A conta tem **1007 anúncios e estoque reais** — não ligue sem pedir. Em 05/10/2026 houve um
 teste de escrita real no Bling com UM produto de teste (`ZZ-TESTE-BLING`), com as travas abertas só no ambiente
