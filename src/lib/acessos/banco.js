@@ -259,6 +259,20 @@ export async function ehUltimoAdministradorAtivo(id) {
 }
 
 /**
+ * Alguem administra o Rise? Um login em RISE_AI_ADMINS ou um usuario ativo com a funcao fixa. O Painel vazio usa isto
+ * para dizer "o Rise está sem administrador" (o unico caso em que pedir acesso nao resolve, spec §5.6). Falha ao ler o
+ * banco responde `true`: o Painel ja mostra o erro do banco, e acusar "sem administrador" seria mentir.
+ */
+export async function haAdministrador({ env = process.env } = {}) {
+  if ((env.RISE_AI_ADMINS ?? "").split(",").some((login) => normalizarLogin(login))) return true;
+  try {
+    return (await prisma.usuarioRise.count({ where: { ativo: true, funcoes: { some: { funcao: { fixa: true } } } } })) > 0;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * A sessao de Acessos de um login que NAO veio de uma requisicao com login (o token do /mcp): as mesmas funcoes, excecoes,
  * quebra-vidro e "inativo" da tela, pela mesma `montarSessao`. Mudou na matriz de Usuarios e funcoes, vale aqui na
  * proxima chamada.

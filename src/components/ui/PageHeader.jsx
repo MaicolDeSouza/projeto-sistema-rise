@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+import SeloSomenteLeitura from "@/components/acessos/SeloSomenteLeitura";
+
 /**
  * Cabecalho de pagina. `voltarPara` poe uma SETA ao lado do titulo que leva de volta a tela anterior
  * (pedido do dono em 21/09/2026, no cadastro de produto novo): substitui a linha "Voltar para ..."
  * que ficava acima do titulo e gastava altura a toa. So a seta, sem texto; o `voltarRotulo` e o
  * nome acessivel e a dica ao passar o mouse.
  */
-export default function PageHeader({ titulo, descricao, acao, voltarPara, voltarRotulo = "Voltar", voltar = null }) {
+export default function PageHeader({ titulo, descricao, acao, voltarPara, voltarRotulo = "Voltar", voltar = null, somenteLeitura = null }) {
   // `voltar`: uma seta pronta que decide o destino no navegador (a lista de Produtos lembrada na aba); passa na frente
-  // de `voltarPara`, que e um endereco fixo.
+  // de `voltarPara`, que e um endereco fixo. `somenteLeitura`: o texto do `title` do selo "Somente leitura" (Acessos,
+  // tela em `ver`); sem ele, nao ha selo.
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
@@ -26,6 +29,7 @@ export default function PageHeader({ titulo, descricao, acao, voltarPara, voltar
             </Link>
           )}
           <h1 className="text-2xl font-semibold tracking-tight">{titulo}</h1>
+          {somenteLeitura && <SeloSomenteLeitura titulo={somenteLeitura} />}
         </div>
         {descricao && <p className="mt-1 text-sm text-suave">{descricao}</p>}
       </div>

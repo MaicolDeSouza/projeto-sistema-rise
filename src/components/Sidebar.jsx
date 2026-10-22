@@ -89,7 +89,7 @@ function Usuario({ sessao, recolhida }) {
       <span className={circulo}>{inicialDoNome(sessao.nome)}</span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm text-white">{sessao.nome}</span>
-        <span className="block text-[11px] text-menu-texto/60">conectado</span>
+        <span className="block truncate text-[11px] text-menu-texto/60">{sessao.funcao ?? "sem função"}</span>
       </span>
       {sair}
     </div>

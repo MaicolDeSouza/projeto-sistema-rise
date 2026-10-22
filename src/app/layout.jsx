@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 
 import Sidebar from "@/components/Sidebar";
+import { blocos } from "@/lib/blocos";
 import { blocosOcultos } from "@/lib/acessos/resolucao";
 import { sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { sessaoDoRise } from "@/lib/sessao";
@@ -25,10 +26,13 @@ export const metadata = {
 export default async function RootLayout({ children }) {
   // Quem esta logado (o Remote-User que o login da VPS grava) para o rodape do menu e o botao Sair.
   const acesso = await sessaoDeAcessos();
-  const sessao = { ...sessaoDoRise(await headers(), process.env), simulando: acesso.simulando };
-  // Lancamento 1 de Acessos: so os blocos cujas telas ja conferem acesso somem do menu; os demais entram no
-  // lancamento 2, junto com o resto do Rise.
-  const hrefsOcultos = blocosOcultos(acesso.permissoes, ["/rise-ai", "/configuracoes"]);
+  // A linha pequena do rodape mostra a funcao da pessoa (spec de Acessos, §5.6); o administrador pelo .env pode nao ter
+  // usuario cadastrado.
+  const funcao = acesso.usuario?.funcoes?.[0]?.funcao?.nome ?? (acesso.administrador ? "Administrador" : null);
+  const sessao = { ...sessaoDoRise(await headers(), process.env), simulando: acesso.simulando, funcao };
+  // Todo bloco que a pessoa nao ve some do menu (lancamento 2). O Painel nunca some: e a tela inicial de todos, e
+  // mostra o aviso quando nada esta liberado.
+  const hrefsOcultos = blocosOcultos(acesso.permissoes, blocos.map((bloco) => bloco.href).filter((href) => href !== "/"));
 
   return (
     <html

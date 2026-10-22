@@ -606,6 +606,28 @@ try {
     conferir("o objeto recebido nao e alterado", [dados.fornecedores.length, dados.produto.composicao[0].custo], [1, 5]);
   }
 
+  // --- Lancamento 2: o Painel filtrado pela funcao (spec §5.6) ---
+  {
+    console.log("\nPainel");
+    const { cartoesDoPainel, avisoDoPainel } = await import("../src/lib/acessos/painel.js");
+    conferir("sem nada liberado, nenhum cartao", cartoesDoPainel(() => false), { produtos: false, anunciosPublicados: false, anunciosComErro: false, blocos: false, algum: false });
+    conferir(
+      "so o cartao de produtos",
+      cartoesDoPainel((id) => id === "cartao.painel.produtos"),
+      { produtos: true, anunciosPublicados: false, anunciosComErro: false, blocos: false, algum: true },
+    );
+    const naoCadastrado = { texto: "Seu login ainda não foi cadastrado no Rise. Peça acesso ao administrador.", tom: "neutro" };
+    conferir("login nao cadastrado", avisoDoPainel({ estado: "nao-cadastrado" }), naoCadastrado);
+    conferir("login inativo vale como nao cadastrado", avisoDoPainel({ estado: "inativo" }), naoCadastrado);
+    conferir("cadastrado sem nada liberado", avisoDoPainel({ estado: "ok" }), { texto: "Nada liberado para o seu acesso ainda. Peça ao administrador.", tom: "neutro" });
+    conferir(
+      "sem administrador na VPS e erro real",
+      avisoDoPainel({ estado: "nao-cadastrado", semAdministrador: true }),
+      { texto: "O Rise está sem administrador. Na VPS, rode npm run acessos:admin -- <login>.", tom: "erro" },
+    );
+    conferir("banco fora do ar", avisoDoPainel({ estado: "erro-banco" }), { texto: "Não foi possível ler os acessos no banco.", tom: "erro" });
+  }
+
   // --- guarda estatico do lancamento 1: toda pagina, layout, rota e arquivo de acoes de src/app confere o acesso ---
   {
     const { readFileSync, readdirSync, statSync } = await import("node:fs");
@@ -645,6 +667,8 @@ try {
     // segredo, o registro nao da acesso a nada, e o token exige o codigo + PKCE. Quem autentica o /mcp e src/lib/mcp/portao.js.
     const SEM_RECURSO = [
       "src/app/layout.jsx",
+      // O Painel e de todos (spec §5.6): nao da 404, filtra por cartao (asserção propria abaixo).
+      "src/app/page.jsx",
       "src/app/api/sair/route.js",
       "src/app/.well-known/oauth-protected-resource/[[...resto]]/route.js",
       "src/app/.well-known/oauth-authorization-server/route.js",
@@ -695,7 +719,6 @@ try {
       "src/app/mercados/acoes.js",
       "src/app/mercados/fontes/page.jsx",
       "src/app/mercados/page.jsx",
-      "src/app/page.jsx",
       "src/app/pedidos/page.jsx",
       "src/app/produtos/[id]/canais/[canal]/page.jsx",
       "src/app/produtos/acoes-bling.js",
@@ -706,6 +729,7 @@ try {
       "src/app/produtos/page.jsx",
     ];
     conferir("o guarda olha todas as paginas, layouts, rotas e acoes de src/app", alvos.length >= 60, true);
+    conferir("o Painel le a sessao e filtra pelos cartoes", ["sessaoDeAcessos(", "cartoesDoPainel("].map((trecho) => ler("src/app/page.jsx").includes(trecho)), [true, true]);
     conferir(
       "todo alvo fora das listas confere o acesso",
       alvos.filter((caminho) => !SEM_RECURSO.includes(caminho) && !EXCECOES_DO_LANCAMENTO_1.includes(caminho) && !confere(ler(caminho))),
