@@ -14,6 +14,8 @@
  *   GET /categories/{id}                           GET /categories/{id}/attributes
  *   GET /sites/MLB/listing_prices                  GET /users/{id}/shipping_options/free
  *   GET /trends/MLB/{id}                           GET /items/{id}
+ *   GET /products/search?q=                        GET /products/{id}
+ *   GET /products/{id}/items                       GET /users/{id}  (concorrentes pelo catalogo, 21/10/2026)
  *
  * E as escritas da fase 3 (publicar): POST /items/validate, POST /pictures/items/upload,
  * POST /items, POST /items/{id}/description e PUT /items/{id}. Escrita sem `exigirEscrita(codigo)`
@@ -130,6 +132,46 @@ const PADROES = {
 
 const NOMES_DOS_TIPOS = { gold_special: "Clássico", gold_pro: "Premium" };
 
+// Catalogo do 100101 como medido em 21/10/2026 (spec 2026-10-21-concorrentes-ml-catalogo-design.md, secao 2): 9 anuncios
+// na ordem do ML, com o nosso (seller 212386247) em 4o. O MLB60092501 e um catalogo sem anuncios (404 em /items).
+const anuncio = (item_id, seller_id, price, listing_type_id = "gold_special") => ({
+  item_id, seller_id, price, original_price: null, listing_type_id, condition: "new",
+  shipping: { free_shipping: false, logistic_type: "xd_drop_off" },
+});
+const CATALOGOS_PADRAO = {
+  MLB44072268: {
+    nome: "Cabo USB compatível com placa de desenvolvimento Arduino Uno R3 ATmega328p Ch340",
+    busca: "Placa Uno R3 CH340",
+    dominio: "MLB-MICROCONTROLLER_BOARDS",
+    fotos: ["https://http2.mlstatic.com/D_NQ_NP_822833-MLA95115011429_102025-F.jpg"],
+    atributos: [
+      { id: "MICROCONTROLLER", name: "Microcontrolador", value_name: "ATmega328P" },
+      { id: "BRAND", name: "Marca", value_name: "Deirolab" },
+      { id: "MODEL", name: "Modelo", value_name: "UNO R3 CH340" },
+    ],
+    itens: [
+      anuncio("MLB5229650730", 141686451, 39.54),
+      anuncio("MLB5434866561", 141686451, 39.54),
+      anuncio("MLB4027538033", 632377333, 42.99),
+      anuncio("MLB4191686159", 212386247, 49.9),
+      anuncio("MLB5384989142", 23631289, 49.9),
+      anuncio("MLB4790111510", 440060895, 55.8, "gold_pro"),
+      anuncio("MLB4885507804", 710285816, 55.8, "gold_pro"),
+      anuncio("MLB5202599258", 1005224757, 55.8, "gold_pro"),
+      anuncio("MLB5000000001", 23631289, 58.9),
+    ],
+  },
+  MLB60092501: { nome: "Kit de robótica sem anúncios abertos", dominio: "MLB-MICROCONTROLLER_BOARDS", fotos: [], atributos: [], itens: [] },
+};
+const VENDEDORES_PADRAO = {
+  141686451: { nickname: "ARDU_ROBÓTICA EIRELI", level_id: "5_green", power_seller_status: "gold", total: 10343, city: "Juiz de Fora" },
+  632377333: { nickname: "REIDOS ESPECIFICOS", level_id: "3_yellow", power_seller_status: null, total: 7924, city: "Curitiba" },
+  23631289: { nickname: "LOJA DO MEIO", level_id: "4_light_green", power_seller_status: "silver", total: 2100, city: "Campinas" },
+  440060895: { nickname: "PREMIUM UM", level_id: "5_green", power_seller_status: "platinum", total: 50000, city: "São Paulo" },
+  710285816: { nickname: "PREMIUM DOIS", level_id: "5_green", power_seller_status: null, total: 1200, city: "Recife" },
+  1005224757: { nickname: "PREMIUM TRES", level_id: "2_orange", power_seller_status: null, total: 40, city: "Natal" },
+};
+
 function resposta(status, dados) {
   return { ok: status >= 200 && status < 300, status, duracaoMs: 0, dados };
 }
@@ -169,6 +211,8 @@ export function criarMLFalso(opcoes = {}) {
     frete: { ...PADROES.frete, ...(opcoes.frete ?? {}) },
     tendencias: { ...PADROES.tendencias, ...(opcoes.tendencias ?? {}) },
     usuarioId: String(opcoes.usuarioId ?? PADROES.usuarioId),
+    catalogos: { ...CATALOGOS_PADRAO, ...(opcoes.catalogos ?? {}) },
+    vendedores: { ...VENDEDORES_PADRAO, ...(opcoes.vendedores ?? {}) },
   });
   const chamadas = [];
 
@@ -345,10 +389,69 @@ export function criarMLFalso(opcoes = {}) {
     });
   }
 
+  // Concorrentes pelo catalogo (21/10/2026): a busca de produto de catalogo, o produto, os anuncios que competem nele e
+  // o vendedor. A busca casa o termo sem caixa com o nome ou o `busca` do catalogo.
+  function buscarCatalogos(params) {
+    const termo = String(params.q ?? "").toLowerCase();
+    const achados = Object.entries(estado.catalogos).filter(([, c]) => [c.nome, c.busca].some((texto) => String(texto ?? "").toLowerCase().includes(termo)));
+    const limite = Number(params.limit ?? 10);
+    const deslocamento = Number(params.offset ?? 0);
+    return resposta(200, {
+      keywords: params.q,
+      paging: { total: achados.length, limit: limite, offset: deslocamento },
+      results: achados.slice(deslocamento, deslocamento + limite).map(([id, c]) => ({
+        id, catalog_product_id: id, name: c.nome, domain_id: c.dominio, status: "active",
+        attributes: structuredClone(c.atributos ?? []), pictures: (c.fotos ?? []).map((url) => ({ url })),
+      })),
+    });
+  }
+
+  function itensDoCatalogo(id, params) {
+    const catalogo = estado.catalogos[id];
+    if (!catalogo || (catalogo.itens ?? []).length === 0) return naoAchou(`Product ${id} has no items`);
+    const limite = Number(params.limit ?? 50);
+    const deslocamento = Number(params.offset ?? 0);
+    return resposta(200, {
+      paging: { total: catalogo.itens.length, limit: limite, offset: deslocamento },
+      results: structuredClone(catalogo.itens.slice(deslocamento, deslocamento + limite)),
+    });
+  }
+
+  function vendedor(id) {
+    const v = estado.vendedores[id];
+    if (!v) return naoAchou(`User ${id} not found`);
+    return resposta(200, {
+      id: Number(id), nickname: v.nickname, permalink: `http://perfil.mercadolivre.com.br/${encodeURIComponent(v.nickname)}`,
+      seller_reputation: { level_id: v.level_id ?? null, power_seller_status: v.power_seller_status ?? null, transactions: { total: v.total ?? 0 } },
+      address: { city: v.city ?? null },
+    });
+  }
+
   async function get(caminho, params) {
     const pedido = separar(caminho, params);
     chamadas.push({ caminho: pedido.rota, params: pedido.params });
     const { rota } = pedido;
+
+    // Falha programada tambem em leitura (o 429 da rodada diaria dos concorrentes), uma vez cada.
+    const casaGet = (item) => (item.exato ? rota === item.caminho : rota.startsWith(item.caminho));
+    const falhaGet = falhas.find((item) => !item.usada && item.metodo === "GET" && casaGet(item));
+    if (falhaGet) {
+      falhaGet.usada = true;
+      if (falhaGet.lancar) throw new Error(`ML falso: queda programada em GET ${rota}`);
+      return resposta(falhaGet.status, falhaGet.dados ?? { message: "Too many requests", status: falhaGet.status });
+    }
+
+    if (rota === "/products/search") return buscarCatalogos(pedido.params);
+    let catalogo = rota.match(/^\/products\/([^/]+)\/items$/);
+    if (catalogo) return itensDoCatalogo(decodeURIComponent(catalogo[1]), pedido.params);
+    catalogo = rota.match(/^\/products\/([^/]+)$/);
+    if (catalogo) {
+      const id = decodeURIComponent(catalogo[1]);
+      const c = estado.catalogos[id];
+      return c ? resposta(200, { id, name: c.nome, permalink: `https://www.mercadolivre.com.br/p/${id}`, attributes: structuredClone(c.atributos ?? []) }) : naoAchou(`Product ${id} not found`);
+    }
+    const usuario = rota.match(/^\/users\/(\d+)$/);
+    if (usuario) return vendedor(usuario[1]);
 
     if (rota === "/users/me") return resposta(200, { id: Number(estado.usuarioId), nickname: "LOJA FALSA", site_id: "MLB", tags: [] });
     if (rota === "/sites/MLB/domain_discovery/search") return descobrir(pedido.params);
@@ -385,5 +488,6 @@ export function criarMLFalso(opcoes = {}) {
     escritas,
     itens,
     fotos,
+    estado,
   };
 }

@@ -1737,6 +1737,23 @@ try {
     conferir("ConfigCanal tem mlConcorrentesRelidosEm", "mlConcorrentesRelidosEm" in configML, true);
   }
 
+  {
+    console.log("\nConcorrentes do ML: ML falso");
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const ml = criarMLFalso();
+    const busca = await ml.get("/products/search", { status: "active", site_id: "MLB", q: "placa uno", limit: 5 });
+    conferir("falso: busca de catalogo acha pelo nome", [busca.status, busca.dados.results.map((r) => r.id)], [200, ["MLB44072268"]]);
+    const itens = await ml.get("/products/MLB44072268/items", { limit: 50 });
+    conferir("falso: itens do catalogo na ordem", [itens.status, itens.dados.paging.total, itens.dados.results.slice(0, 3).map((i) => i.price)], [200, 9, [39.54, 39.54, 42.99]]);
+    conferir("falso: catalogo sem itens da 404", (await ml.get("/products/MLB60092501/items")).status, 404);
+    conferir("falso: produto de catalogo com permalink", (await ml.get("/products/MLB44072268")).dados.permalink, "https://www.mercadolivre.com.br/p/MLB44072268");
+    conferir("falso: vendedor", (await ml.get("/users/141686451")).dados.nickname, "ARDU_ROBÓTICA EIRELI");
+    conferir("falso: vendedor que nao existe", (await ml.get("/users/1")).status, 404);
+    const com429 = criarMLFalso({ falhas: [{ metodo: "GET", caminho: "/products/MLB44072268/items", exato: true, status: 429 }] });
+    conferir("falso: falha programada em GET", [(await com429.get("/products/MLB44072268/items")).status, (await com429.get("/products/MLB44072268/items")).status], [429, 200]);
+    conferir("falso: expoe o estado", Object.keys(ml.estado.catalogos).sort(), ["MLB44072268", "MLB60092501"]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();
