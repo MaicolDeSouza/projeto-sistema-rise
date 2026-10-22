@@ -163,6 +163,72 @@ try {
     conferir("mascarar(string) tambem cobre a URL do bot", mascarar(`GET /bot${TOKEN}/sendMessage`), "GET /bot***/sendMessage");
   }
 
+  {
+    console.log("\nVinculo");
+    const v = await import("../src/lib/telegram/vinculo.js");
+    const { criarClienteTelegram } = await import("../src/lib/telegram/cliente.js");
+    const { criarTelegramFalso } = await import("./lib/telegramFalso.js");
+    const TOKEN = "123456789:" + "C".repeat(35);
+    const codigo = v.gerarCodigo();
+    conferir("codigo com 12 caracteres do alfabeto", [codigo.length, [...codigo].every((c) => v.ALFABETO.includes(c))], [12, true]);
+    conferir("dois codigos nao sao iguais", v.gerarCodigo() === codigo, false);
+    conferir("hash ignora caixa e espacos", v.hashDoCodigo(" " + codigo.toLowerCase() + " "), v.hashDoCodigo(codigo));
+    const agora = Date.now();
+    const segundos = (ms) => Math.floor(ms / 1000);
+    const msg = (id, chat, text, date = segundos(agora)) => ({ update_id: id, message: { message_id: id, date, chat: { id: chat, type: "private", first_name: "Maicol", username: "maicol" }, text } });
+    const hash = v.hashDoCodigo(codigo);
+    conferir("acha o chat que mandou o codigo certo", v.avaliarAtualizacoes([msg(1, 55, "oi"), msg(2, 55, `/vincular ${codigo.toLowerCase()}`)], { hash, criadoEm: agora - 1000, agora }), { achado: { chatId: "55", nome: "Maicol", usuario: "maicol", updateId: 2 }, anulado: false, ultimoUpdateId: 2 });
+    conferir("mensagem de antes do codigo nao vale", v.avaliarAtualizacoes([msg(3, 55, `/vincular ${codigo}`, segundos(agora) - 60)], { hash, criadoEm: agora, agora }).achado, null);
+    const lixo = Array.from({ length: 5 }, (_, i) => msg(10 + i, 99, `/vincular ERRADO${i}`));
+    const avaliacao = v.avaliarAtualizacoes([...lixo, msg(20, 99, `/vincular ${codigo}`)], { hash, criadoEm: agora - 1000, agora });
+    conferir("5 erros do mesmo chat silenciam o chat e anulam o codigo", [avaliacao.achado, avaliacao.anulado, avaliacao.ultimoUpdateId], [null, true, 20]);
+    conferir("4 erros ainda nao anulam", v.avaliarAtualizacoes(lixo.slice(0, 4), { hash, criadoEm: agora - 1000, agora }).anulado, false);
+    conferir("grupo nao vale", v.avaliarAtualizacoes([{ update_id: 1, message: { date: segundos(agora), chat: { id: -5, type: "group" }, text: `/vincular ${codigo}` } }], { hash, criadoEm: agora - 1000, agora }).achado, null);
+    conferir("sem nenhuma mensagem", v.avaliarAtualizacoes([], { hash, criadoEm: agora, agora }), { achado: null, anulado: false, ultimoUpdateId: null });
+    conferir("chat sem @ vem com usuario nulo", v.avaliarAtualizacoes([{ update_id: 4, message: { date: segundos(agora), chat: { id: 7, type: "private", first_name: "Ana" }, text: `/vincular ${codigo}` } }], { hash, criadoEm: agora - 1000, agora }).achado, { chatId: "7", nome: "Ana", usuario: null, updateId: 4 });
+
+    const u = await prisma.usuarioRise.create({ data: { login: "zz-tg-vinc", nome: "ZZ TG Vinc" } });
+    const inicio = await v.iniciarVinculo(u.id, { quem: "zz-tg-admin" });
+    const gravado = await prisma.usuarioRise.findUnique({ where: { id: u.id } });
+    conferir("iniciar grava so o hash e a validade de 10 min", [gravado.codigoDeVinculoHash, Math.round((gravado.codigoDeVinculoExpiraEm - Date.now()) / 60000)], [v.hashDoCodigo(inicio.codigo), 10]);
+    const falso = criarTelegramFalso({ updates: [msg(30, 55, `/vincular ${inicio.codigo}`, segundos(Date.now()))] });
+    const cliente = criarClienteTelegram({ token: TOKEN, requisitar: falso.requisitar, urlPublica: "https://rise.4hobby.com.br" });
+    conferir("localizar devolve nome e @ para o administrador conferir", await v.localizarVinculo(u.id, { cliente }), { ok: true, chat: { chatId: "55", nome: "Maicol", usuario: "maicol" }, ultimoUpdateId: 30 });
+    conferir("confirmar com outro chat e recusado", await v.confirmarVinculo(u.id, "56", { cliente, quem: "zz-tg-admin" }), { ok: false, erro: "O chat conferido não é o que enviou o código. Confira de novo." });
+    const ok = await v.confirmarVinculo(u.id, "55", { cliente, quem: "zz-tg-admin" });
+    const depois = await prisma.usuarioRise.findUnique({ where: { id: u.id } });
+    conferir("confirmar grava o chat, zera o codigo e manda a boas-vindas", [ok.ok, depois.telegramChatId, depois.codigoDeVinculoHash, depois.codigoDeVinculoExpiraEm, falso.mensagens.at(-1).text], [true, "55", null, null, "Telegram ligado ao Rise para ZZ TG Vinc.\nOs avisos chegam por aqui."]);
+    conferir("confirmou o update_id lido", falso.chamadas.some((c) => c.metodo === "getUpdates" && c.corpo.offset === 31), true);
+    conferir("auditoria do vinculo sem o codigo", (await prisma.auditoriaDeAcesso.findMany({ where: { quem: "zz-tg-admin", alvo: u.id }, orderBy: { quando: "asc" } })).map((a) => [a.oQue, JSON.stringify(a.depois ?? {}).includes(inicio.codigo)]), [["telegram.vinculo.iniciar", false], ["telegram.vinculo.confirmar", false]]);
+    const u2 = await prisma.usuarioRise.create({ data: { login: "zz-tg-dois", nome: "ZZ TG Dois" } });
+    const i2 = await v.iniciarVinculo(u2.id, { quem: "zz-tg-admin" });
+    const falso2 = criarTelegramFalso({ updates: [msg(40, 55, `/vincular ${i2.codigo}`, segundos(Date.now()))] });
+    conferir("o mesmo chat nao liga a dois usuarios", (await v.confirmarVinculo(u2.id, "55", { cliente: criarClienteTelegram({ token: TOKEN, requisitar: falso2.requisitar }), quem: "zz-tg-admin" })).erro, "Este Telegram já está ligado a outro usuário.");
+    conferir("sem codigo", (await v.localizarVinculo(u.id, { cliente })).motivo, "sem-codigo");
+    await prisma.usuarioRise.update({ where: { id: u2.id }, data: { codigoDeVinculoExpiraEm: new Date(Date.now() - 1000) } });
+    conferir("expirado limpa o hash", [(await v.localizarVinculo(u2.id, { cliente })).motivo, (await prisma.usuarioRise.findUnique({ where: { id: u2.id } })).codigoDeVinculoHash], ["expirado", null]);
+    const i3 = await v.iniciarVinculo(u2.id, { quem: "zz-tg-admin" });
+    const falso3 = criarTelegramFalso({ updates: [] });
+    conferir("ainda nao chegou", (await v.localizarVinculo(u2.id, { cliente: criarClienteTelegram({ token: TOKEN, requisitar: falso3.requisitar }) })).motivo, "nao-chegou");
+    // Datas de AGORA: o codigo i3 nasceu depois do `agora` do comeco do bloco, e mensagem anterior ao codigo nao conta.
+    const falso4 = criarTelegramFalso({ updates: Array.from({ length: 5 }, (_, i) => msg(50 + i, 77, `/vincular NAO${i}`, segundos(Date.now()))) });
+    conferir("anulado pelos 5 erros limpa o hash", [(await v.localizarVinculo(u2.id, { cliente: criarClienteTelegram({ token: TOKEN, requisitar: falso4.requisitar }) })).motivo, (await prisma.usuarioRise.findUnique({ where: { id: u2.id } })).codigoDeVinculoHash, i3.codigo.length], ["anulado", null, 12]);
+    await v.iniciarVinculo(u2.id, { quem: "zz-tg-admin" });
+    const falso5 = criarTelegramFalso({ falhas: { getUpdates: { status: 401, description: "Unauthorized" } } });
+    conferir("telegram fora devolve o erro", await v.localizarVinculo(u2.id, { cliente: criarClienteTelegram({ token: TOKEN, requisitar: falso5.requisitar }) }), { ok: false, motivo: "telegram", erro: "Unauthorized" });
+    await prisma.usuarioRise.update({ where: { id: u2.id }, data: { ativo: false } });
+    let inativo = null;
+    try {
+      await v.iniciarVinculo(u2.id, { quem: "zz-tg-admin" });
+    } catch (erro) {
+      inativo = erro.message;
+    }
+    conferir("usuario inativo nao inicia vinculo", inativo, "Ative o usuário antes de vincular o Telegram.");
+    conferir("vinculos da equipe listam quem tem chat, sem o chatId", (await v.vinculosDaEquipe()).filter((x) => x.login.startsWith("zz-tg-")), [{ usuarioId: u.id, login: "zz-tg-vinc", nome: "ZZ TG Vinc", ativo: true }]);
+    await v.desvincular(u.id, { quem: "zz-tg-admin" });
+    conferir("desvincular zera o chat e audita", [(await prisma.usuarioRise.findUnique({ where: { id: u.id } })).telegramChatId, (await prisma.auditoriaDeAcesso.findFirst({ where: { quem: "zz-tg-admin", oQue: "telegram.vinculo.remover" } }))?.antes?.chatId], [null, "55"]);
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   await limpar();
