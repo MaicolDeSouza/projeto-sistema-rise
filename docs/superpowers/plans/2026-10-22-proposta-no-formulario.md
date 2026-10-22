@@ -72,6 +72,9 @@ que Proposta pronta, aguardando aprovação".
 - [ ] O quadro "Proposta" sai. Ao lado do Cancelar: o selo âmbar "Proposta" (bolha "i": "Este produto ainda é uma
   proposta: confira os campos marcados e salve; marcar Conferido aprova e apaga a proposta") e o botão "Relatório", que
   abre a mesma janela do relatório em tópicos de hoje (extraída para `RelatorioDaProposta`).
+- [ ] Aba Descrição: o OLHO de hoje fica (pedido do dono em 22/10/2026: "é bem útil para entender de onde foram retirados
+  os dados"). Ao lado da marca "PROPOSTA", o mesmo botão de olho abre a mesma janela "Ver" da seção descrição (as
+  divergências com as lojas e a escolhida, as linhas pesquisadas com a fonte, os "?"), extraída do `QuadroDaProposta`.
 - [ ] Aba Documentos técnicos: seção "Da proposta" com cada documento (título, loja, link em outra aba) e o aviso
   vermelho nos que não abrem. Sem baixar nada (baixar pede o "pode" do dono).
 - [ ] Conferir na tela e commit.
