@@ -1150,6 +1150,10 @@ try {
     conferir("sugerirCategoria: duas candidatas, a IA recomenda uma", escolhida.candidatas.map((c) => [c.categoriaId, c.recomendada, c.motivo]), [["MLB99779", true, "é placa"], ["MLB1648", false, null]]);
     const iaCaiu = await sugerirCategoria(duas, { titulo: "placa", produto: produtoIA, ia: { escolher: async () => { throw new Error("IA fora"); }, termos: naoChame } });
     conferir("sugerirCategoria: IA falha, candidatas ficam e o aviso diz", [iaCaiu.candidatas.length, iaCaiu.aviso], [2, "Não foi possível pedir a recomendação da IA: IA fora"]);
+    // 22/10/2026: o domain_discovery passou a devolver [] para tudo (ate "celular samsung"). Reserva: a categoria que os
+    // anuncios dos catalogos achados pelo titulo usam (o `/products/{id}/items` traz o `category_id`).
+    const peloCatalogo = await sugerirCategoria(falso, { titulo: "uno r3 ch340", produto: produtoIA, ia: { escolher: naoChame, termos: naoChame } });
+    conferir("sugerirCategoria: ML sem resposta, a categoria vem dos anuncios do catalogo", [peloCatalogo.origem, peloCatalogo.candidatas.map((c) => [c.categoriaId, c.caminho.length])], ["catalogo", [["MLB99779", 3]]]);
     const pelaInternet = await sugerirCategoria(falso, { titulo: "xyzw nada", produto: produtoIA, ia: { escolher: naoChame, termos: async () => ["placa uno r3 ch340", "placa uno r3 ch340"] } });
     conferir("sugerirCategoria: sem candidata, termos da IA voltam ao ML, sem repetir", [pelaInternet.origem, pelaInternet.candidatas.map((c) => c.categoriaId)], ["internet", ["MLB99779"]]);
     conferir(

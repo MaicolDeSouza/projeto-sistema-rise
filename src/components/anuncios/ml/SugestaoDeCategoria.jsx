@@ -57,6 +57,9 @@ export default function SugestaoDeCategoria({ rascunho, alterar }) {
           {resultado.origem === "internet" && resultado.candidatas.length > 0 && (
             <p className="mb-1.5 text-[11px] text-suave">Encontrada pela pesquisa na internet.</p>
           )}
+          {resultado.origem === "catalogo" && (
+            <p className="mb-1.5 text-[11px] text-suave">A categoria que os anúncios do catálogo do ML usam.</p>
+          )}
           {resultado.aviso && <p className="mb-1.5 text-[11px] text-amber-700">{resultado.aviso}</p>}
           <ul className="space-y-1.5">
             {resultado.candidatas.map((candidata) => (

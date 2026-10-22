@@ -21,6 +21,10 @@ const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 const DATA_HORA = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 const urlDoCatalogo = (id) => `https://www.mercadolivre.com.br/p/${id}`;
 const nomeDoVendedor = (apelido, id) => apelido || `vendedor ${id}`;
+// Links de cada concorrente (pedido do dono em 22/10/2026). O anuncio pelo id ("MLB7862426858" -> ".../MLB-7862426858") e o
+// perfil pelo apelido, no formato do `permalink` do ML (espaco vira "+"; medido: responde 301 para o https).
+const urlDoAnuncio = (itemId) => `https://produto.mercadolivre.com.br/${String(itemId).replace(/^MLB/, "MLB-")}`;
+const urlDoPerfil = (apelido) => `https://perfil.mercadolivre.com.br/${encodeURIComponent(apelido).replace(/%20/g, "+")}`;
 
 /**
  * "Concorrentes no Mercado Livre" na aba Preco e estoque (spec 2026-10-21-concorrentes-ml-catalogo-design.md, 7.3).
@@ -267,10 +271,23 @@ function Seta({ preco, anterior }) {
   );
 }
 
-function Vendedor({ apelido, id, reputacao, vendas }) {
+function Vendedor({ apelido, id, reputacao, vendas, itemId }) {
   return (
     <span className="flex min-w-0 flex-col">
-      <span className="truncate">{nomeDoVendedor(apelido, id)}</span>
+      <span className="flex min-w-0 items-center gap-1">
+        {apelido ? (
+          <a href={urlDoPerfil(apelido)} target="_blank" rel="noreferrer" title="Abrir o perfil do vendedor no Mercado Livre" className="truncate hover:text-acento hover:underline">
+            {nomeDoVendedor(apelido, id)}
+          </a>
+        ) : (
+          <span className="truncate">{nomeDoVendedor(apelido, id)}</span>
+        )}
+        {itemId && (
+          <a href={urlDoAnuncio(itemId)} target="_blank" rel="noreferrer" title={`Abrir o anúncio ${itemId} no Mercado Livre`} aria-label={`Abrir o anúncio ${itemId} no Mercado Livre`} className="shrink-0 rounded p-0.5 text-suave hover:text-acento">
+            <ExternalLink size={12} />
+          </a>
+        )}
+      </span>
       <span className="text-[11px] text-suave">
         {textoDaReputacao(reputacao)}
         {typeof vendas === "number" ? ` · ${vendas.toLocaleString("pt-BR")} vendas` : ""}
@@ -294,7 +311,7 @@ function TabelaDeConcorrentes({ linhas, alterar, apagados = false }) {
         {linhas.map((c) => (
           <tr key={c.id}>
             <td className="py-1.5 tabular-nums">{c.posicao}º</td>
-            <td className="py-1.5"><Vendedor apelido={c.vendedorApelido} id={c.vendedorId} reputacao={c.vendedorReputacao} vendas={c.vendedorVendas} /></td>
+            <td className="py-1.5"><Vendedor apelido={c.vendedorApelido} id={c.vendedorId} reputacao={c.vendedorReputacao} vendas={c.vendedorVendas} itemId={c.itemId} /></td>
             <td className="py-1.5 text-xs">
               {ROTULO_DO_TIPO_ML[c.tipoAnuncio] ?? c.tipoAnuncio ?? "-"}
               {c.freteGratis && <span className="ml-1 text-emerald-700">· frete grátis</span>}
@@ -348,7 +365,7 @@ function Previa({ previa, ocupado, aoAcompanhar, aoVoltar }) {
               <tr key={item.itemId} className={item.meu ? "bg-emerald-50 font-medium" : top.has(item.itemId) ? "" : "text-suave"}>
                 <td className="py-1.5 tabular-nums">{item.posicao}º</td>
                 <td className="py-1.5">
-                  {item.meu ? "Você" : <Vendedor apelido={item.vendedor?.apelido} id={item.vendedorId} reputacao={item.vendedor?.reputacao} vendas={item.vendedor?.vendas} />}
+                  {item.meu ? "Você" : <Vendedor apelido={item.vendedor?.apelido} id={item.vendedorId} reputacao={item.vendedor?.reputacao} vendas={item.vendedor?.vendas} itemId={item.itemId} />}
                 </td>
                 <td className="py-1.5 text-xs">
                   {ROTULO_DO_TIPO_ML[item.tipoAnuncio] ?? item.tipoAnuncio ?? "-"}

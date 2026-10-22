@@ -136,8 +136,9 @@ const NOMES_DOS_TIPOS = { gold_special: "Clássico", gold_pro: "Premium" };
 
 // Catalogo do 100101 como medido em 21/10/2026 (spec 2026-10-21-concorrentes-ml-catalogo-design.md, secao 2): 9 anuncios
 // na ordem do ML, com o nosso (seller 212386247) em 4o. O MLB60092501 e um catalogo sem anuncios (404 em /items).
+// `category_id` vem em cada anuncio do catalogo (medido em 22/10/2026): e a reserva da sugestao de categoria.
 const anuncio = (item_id, seller_id, price, listing_type_id = "gold_special") => ({
-  item_id, seller_id, price, original_price: null, listing_type_id, condition: "new",
+  item_id, seller_id, price, original_price: null, listing_type_id, condition: "new", category_id: "MLB99779",
   shipping: { free_shipping: false, logistic_type: "xd_drop_off" },
 });
 const CATALOGOS_PADRAO = {

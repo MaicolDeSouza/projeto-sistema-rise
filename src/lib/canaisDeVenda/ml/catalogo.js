@@ -48,6 +48,30 @@ export async function buscarCatalogos(cliente, termo, { limite = 10 } = {}) {
 }
 
 /**
+ * Reserva da sugestao de categoria (22/10/2026: o `domain_discovery` passou a devolver [] para tudo, ate "celular
+ * samsung", com e sem token). Os catalogos achados pelo texto e, em cada um, os anuncios que competem nele: o
+ * `/products/{id}/items` traz o `category_id` de cada anuncio. Devolve as categorias da mais usada para a menos usada.
+ * Catalogo sem anuncios (404) e pulado; outro erro lanca.
+ * @returns {Promise<{ categoriaId: string, nome: null }[]>}
+ */
+export async function categoriasPeloCatalogo(cliente, texto, { catalogos = 3, anunciosPorCatalogo = 20, maximo = 3 } = {}) {
+  const contagem = new Map();
+  for (const catalogo of await buscarCatalogos(cliente, texto, { limite: catalogos })) {
+    const resposta = await cliente.get(`/products/${encodeURIComponent(catalogo.id)}/items`, { limit: anunciosPorCatalogo });
+    if (resposta.status === 404) continue;
+    if (!resposta.ok) throw falhou(resposta);
+    for (const item of resposta.dados?.results ?? []) {
+      const id = String(item.category_id ?? "").trim();
+      if (/^MLB\d+$/.test(id)) contagem.set(id, (contagem.get(id) ?? 0) + 1);
+    }
+  }
+  return [...contagem.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, maximo)
+    .map(([categoriaId]) => ({ categoriaId, nome: null }));
+}
+
+/**
  * O catalogo dos anuncios do proprio dono para este SKU, como sugestao (a busca pelo nome nao achava o catalogo do 100101
  * entre os 10 primeiros, medido em 22/10/2026). `/users/{id}/items/search?seller_sku=` acha os anuncios dele (o `sku=`
  * acha menos), e cada `/items/{id}` traz o `catalog_product_id`. Encerrado fica de fora. Um por catalogo.

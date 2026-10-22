@@ -11,6 +11,7 @@ import { escolherCategoriaIA, termosDeBuscaIA } from "../../ia/categoriaML";
 import { preencherFichaIA } from "../../ia/fichaML";
 import { gerarTitulosML } from "../../ia/tituloML";
 import { linhasDeEspecificacao } from "../../medidas";
+import { categoriasPeloCatalogo } from "./catalogo";
 import { descobrirCategoria, lerCategoria, lerCategoriaCompleta, lerTendencias } from "./leitura";
 
 const SEM_CATEGORIA = "O Mercado Livre não achou categoria para este produto. Digite o código.";
@@ -22,8 +23,9 @@ function semRepetir(lista) {
 }
 
 /**
- * Sugere a categoria: (1) o ML pelo titulo; (2) com 2 ou mais, a IA recomenda uma delas; (3) com
- * nenhuma, a IA pesquisa o produto na internet e os termos que ela devolve voltam ao ML. Cada
+ * Sugere a categoria: (1) o ML pelo titulo; (1b) sem resposta dele, a categoria dos anuncios dos catalogos achados
+ * pelo titulo (`categoriasPeloCatalogo`, desde 22/10/2026); (2) com 2 ou mais, a IA recomenda uma delas; (3) com
+ * nenhuma, a IA pesquisa o produto na internet e os termos que ela devolve voltam ao ML (e ao catalogo). Cada
  * candidata vem com o caminho e se e final (so categoria final aceita anuncio). Falha da IA nao
  * derruba a sugestao: as candidatas do ML ficam, e o aviso diz o que faltou.
  */
@@ -31,6 +33,10 @@ export async function sugerirCategoria(cliente, { titulo, produto, ia = { escolh
   let origem = "ml";
   let aviso = null;
   let achadas = semRepetir(await descobrirCategoria(cliente, titulo));
+  if (achadas.length === 0) {
+    achadas = await categoriasPeloCatalogo(cliente, titulo);
+    if (achadas.length > 0) origem = "catalogo";
+  }
 
   if (achadas.length === 0) {
     origem = "internet";
@@ -40,7 +46,10 @@ export async function sugerirCategoria(cliente, { titulo, produto, ia = { escolh
     } catch (erro) {
       return { candidatas: [], origem, aviso: `Não foi possível pesquisar na internet: ${erro.message}. Digite o código da categoria.` };
     }
-    for (const termo of termos) achadas.push(...(await descobrirCategoria(cliente, termo)));
+    for (const termo of termos) {
+      const doMl = await descobrirCategoria(cliente, termo);
+      achadas.push(...(doMl.length > 0 ? doMl : await categoriasPeloCatalogo(cliente, termo)));
+    }
     achadas = semRepetir(achadas);
     if (achadas.length === 0) return { candidatas: [], origem, aviso: SEM_CATEGORIA };
   }
