@@ -2,7 +2,9 @@
 
 import {
   Fragment,
+  createContext,
   useActionState,
+  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -63,7 +65,7 @@ import PainelDeImagens from "./PainelDeImagens";
 import BannerDeRascunho from "./BannerDeRascunho";
 import QuadroDaProposta from "./QuadroDaProposta";
 import { listaComParametros, lerUltimaLista } from "@/lib/ultimaListaDeProdutos";
-import { camposDoFormularioDaProposta } from "@/lib/proposta/aplicar";
+import { camposDoFormularioDaProposta, propostaNoFormulario } from "@/lib/proposta/aplicar";
 import { useRascunhoAutomatico } from "./useRascunhoAutomatico";
 import { chaveDoRascunho } from "@/lib/rascunhoDoCadastro";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
@@ -156,6 +158,26 @@ function propsDeNumero(props) {
 const CLASSE_CAMPO =
   "mt-1 w-full rounded border px-2.5 py-2 text-[15px] font-medium focus:outline-none";
 
+/**
+ * Os campos que a proposta preencheu ao abrir o produto (pedido do dono em 22/10/2026): `valores` (campo -> valor) e
+ * `editados` (campos que o dono ja mexeu). O `Campo` e o `CampoComIcone` leem daqui para pôr a marca "PROPOSTA".
+ */
+const PropostaNosCampos = createContext(null);
+
+/** A marca "PROPOSTA" embaixo do campo que a proposta preencheu; some quando o dono edita o campo. */
+function MarcaDaProposta({ nome }) {
+  const proposta = useContext(PropostaNosCampos);
+  if (!proposta || !Object.hasOwn(proposta.valores, nome) || proposta.editados.has(nome)) return null;
+  return (
+    <p
+      className="mt-1 text-[10px] font-semibold tracking-wide text-amber-700 uppercase"
+      title="Valor preenchido pela proposta: confira e salve."
+    >
+      Proposta
+    </p>
+  );
+}
+
 function Campo({ nome, rotulo, erro, ajuda, children, ...props }) {
   return (
     <div>
@@ -175,6 +197,7 @@ function Campo({ nome, rotulo, erro, ajuda, children, ...props }) {
         />
       )}
       {erro && <p className="mt-1 text-[11px] text-red-700">{erro}</p>}
+      <MarcaDaProposta nome={nome} />
     </div>
   );
 }
@@ -527,6 +550,7 @@ function CampoComIcone({
         </div>
       </div>
       {erro && <p className="mt-1 text-[11px] text-red-700">{erro}</p>}
+      <MarcaDaProposta nome={nome} />
       {children}
     </div>
   );
@@ -1738,8 +1762,16 @@ export default function FormularioProduto({
   // O que o produto Simples tinha e o kit limpa (pedido do dono em 10/10/2026): fornecedores e concorrentes da
   // peca, EAN, estoque minimo e maximo e as fotos validadas. Volta ao escolher Simples; o Salvar so ve o atual.
   const guardadoDoSimples = useRef(null);
-  // O clone ja nasce com o que salvar.
-  const [alterado, setAlterado] = useState(Boolean(clone));
+  // A proposta direto no formulario (pedido do dono em 22/10/2026; `propostaNoFormulario`): campo vazio ja nasce com o
+  // valor da proposta (marca "PROPOSTA") e campo preenchido recebe a sugestao no topo da lista do icone. Calculado uma
+  // vez, ao abrir. So para quem edita.
+  const [daProposta] = useState(() =>
+    acessos.editar && produto?.proposta ? propostaNoFormulario(produto.proposta.secoes ?? {}, produto) : null,
+  );
+  const preencheuPelaProposta = Object.keys(daProposta?.preencher ?? {}).length > 0;
+  const [editadosDaProposta, setEditadosDaProposta] = useState(() => new Set());
+  // O clone ja nasce com o que salvar; o produto que a proposta preencheu tambem (decisao A do dono: conta como alteracao).
+  const [alterado, setAlterado] = useState(Boolean(clone) || preencheuPelaProposta);
   const [erroAcao, setErroAcao] = useState(null);
   const formulario = useRef(null);
   const referencias = useRef(null);
@@ -1751,7 +1783,14 @@ export default function FormularioProduto({
   // controlados (defaultValue), entao preencher e remontar o corpo do
   // formulario com novos valores iniciais: `versao` muda a key e o React recria
   // os campos.
-  const [preenchido, setPreenchido] = useState(() => clone?.campos ?? null);
+  const [preenchido, setPreenchido] = useState(() => {
+    if (clone) return clone.campos;
+    if (!preencheuPelaProposta) return null;
+    const daPropostaNosCampos = Object.fromEntries(
+      Object.entries(daProposta.preencher).map(([campo, valor]) => [campo, CAMPOS_MAIUSCULOS.includes(campo) ? maiusculas(valor) : valor]),
+    );
+    return { ...produto, ...daPropostaNosCampos };
+  });
   const [versao, setVersao] = useState(0);
 
   // Como o formulario NASCEU (Unidade "UN", Situacao ativa, o resto vazio). E a
@@ -1787,7 +1826,8 @@ export default function FormularioProduto({
   const [gastoSalvo, setGastoSalvo] = useState(produto?.gastoIA ?? null);
   const [gastoDaEdicao, setGastoDaEdicao] = useState(null);
   // Secoes da proposta automatica aplicadas nesta edicao (vao no Salvar, que as marca como aplicadas).
-  const [propostaAplicada, setPropostaAplicada] = useState([]);
+  // Comeca com as que a proposta preencheu ao abrir (o Salvar as marca como aplicadas).
+  const [propostaAplicada, setPropostaAplicada] = useState(() => daProposta?.secoes ?? []);
   const somarAoGastoDaEdicao = (gasto) => {
     if (gasto) setGastoDaEdicao((atual) => somarResumos(atual, gasto));
   };
@@ -2897,6 +2937,8 @@ export default function FormularioProduto({
     // ficaria com o padrao do cadastro novo: a Garantia, por exemplo, ficaria com os 3 meses sugeridos).
     const daOrigem = Object.fromEntries(forcarOrigem.map((campo) => [campo, campos[campo] ?? ""]));
     const mesclado = { ...atual, ...trazidos, ...daOrigem };
+    // O que outro caminho trouxe (IA, busca por codigo) ja nao e o valor da proposta: a marca sai.
+    if (daProposta) setEditadosDaProposta((anteriores) => new Set([...anteriores, ...Object.keys(trazidos), ...Object.keys(daOrigem)]));
     setPreenchido(mesclado);
     // O campo Preco venda tambem remonta aqui (key={versao}), sem disparar o
     // onChange de CampoPreco: sem isto, a Diferenca em Concorrentes.jsx ficava
@@ -3000,18 +3042,28 @@ export default function FormularioProduto({
   }
 
 
+  // O campo que o dono mexe deixa de ser "da proposta" (a marca some), mesmo que volte ao mesmo valor.
+  function marcarEditadoDaProposta(evento) {
+    const nome = evento.target?.name;
+    if (!nome || !daProposta || !Object.hasOwn(daProposta.preencher, nome) || editadosDaProposta.has(nome)) return;
+    setEditadosDaProposta((anteriores) => new Set([...anteriores, nome]));
+  }
+
   return (
+    <PropostaNosCampos.Provider value={daProposta ? { valores: daProposta.preencher, editados: editadosDaProposta } : null}>
     <form
       ref={formulario}
       action={acao}
-      onChange={() => {
+      onChange={(evento) => {
         setAlterado(true);
+        marcarEditadoDaProposta(evento);
         if (estado?.erro) setErroDispensado(estado);
       }}
       // A cada tecla (o onChange so dispara ao sair do campo): marca como alterado ja na digitacao, senao quem digita e
       // recarrega sem sair do campo perderia tudo, e o rascunho espera a pausa na digitacao para gravar.
-      onInput={() => {
+      onInput={(evento) => {
         setAlterado(true);
+        marcarEditadoDaProposta(evento);
         rascunho.agendar();
       }}
       className="space-y-4"
@@ -3645,6 +3697,7 @@ export default function FormularioProduto({
                 </div>
               </div>
               )}
+              <MarcaDaProposta nome="descricaoBase" />
               <EditorDescricao
                 nome="descricaoBase"
                 valorInicial={v("descricaoBase")}
@@ -3857,5 +3910,6 @@ export default function FormularioProduto({
       </Fragment>
 
     </form>
+    </PropostaNosCampos.Provider>
   );
 }

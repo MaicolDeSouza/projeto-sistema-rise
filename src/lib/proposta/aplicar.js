@@ -171,7 +171,9 @@ export function propostaNoFormulario(secoes, produto = {}) {
   };
 
   const descricao = secoes?.descricao?.texto;
-  if (temValor(descricao)) {
+  // A descricao troca sempre (decisao D), menos quando ja e a mesma: produto salvo com a proposta nao abre "nao salvo".
+  const semQuebras = (texto) => String(texto ?? "").replace(/\r\n?/g, "\n").trim();
+  if (temValor(descricao) && semQuebras(descricao) !== semQuebras(produto.descricaoBase)) {
     preencher.descricaoBase = descricao;
     preenchidas.add("descricao");
   }

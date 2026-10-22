@@ -151,6 +151,7 @@ function conferir(nome, condicao) {
   conferir("formulario: o mesmo valor escrito de outro jeito nao vira sugestao", !("ean" in cheio.nasListas) && !("garantiaMeses" in cheio.nasListas) && !("pesoKg" in cheio.nasListas) && !("ncm" in cheio.nasListas));
   conferir("formulario: preenchido nao preenche de novo", !("marca" in cheio.preencher) && JSON.stringify(cheio.secoes) === JSON.stringify(["descricao"]));
   conferir("formulario: margem em fracao (proposta antiga) vira porcentagem", propostaNoFormulario({ preco: { recomendada: { margem: 0.46, preco: 39.4 } } }, { precoVenda: "1" }).nasListas.precoVenda.origem === "46% margem");
+  conferir("formulario: descricao igual a salva (outra quebra de linha) nao entra", !("descricaoBase" in propostaNoFormulario(secoes, { descricaoBase: "PLACA" + String.fromCharCode(10, 10) + "Texto." }).preencher));
   conferir("formulario: sem SKU, o codigo entra", propostaNoFormulario(secoes, { sku: "" }).preencher.sku === "250010");
   conferir("formulario: proposta vazia nao faz nada", JSON.stringify(propostaNoFormulario({}, {})) === JSON.stringify({ preencher: {}, nasListas: {}, secoes: [] }));
 
