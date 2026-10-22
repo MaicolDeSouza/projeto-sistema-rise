@@ -1800,6 +1800,113 @@ try {
     conferir("lerConcorrentes: erro do ML lanca com o status", lancou, 429);
   }
 
+  {
+    console.log("\nConcorrentes do ML: acompanhar e reler");
+    await limpar();
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { acompanharCatalogoML, relerCatalogoDoProduto, pararDeAcompanharML, lerConcorrentesML, marcarConcorrentesMLVistos } = await import(
+      "../src/lib/canaisDeVenda/ml/concorrentes.js"
+    );
+    const { avisosDoML } = await import("../src/lib/canaisDeVenda/ml/avisosConcorrentes.js");
+    const { limparCacheDeVendedores } = await import("../src/lib/canaisDeVenda/ml/catalogo.js");
+    limparCacheDeVendedores();
+    const ml = criarMLFalso();
+    const historicoDe = (produtoId) => prisma.concorrenteMLHistorico.count({ where: { concorrente: { produtoId } } });
+    const ultimaPosicao = async (produtoId) => (await prisma.posicaoML.findFirst({ where: { produtoId }, orderBy: { lidoEm: "desc" } }))?.posicao;
+
+    const nao = await prisma.produto.create({ data: { sku: "ZZ-ML-C2", tituloBase: "nao conferido" } });
+    conferir(
+      "acompanhar recusa produto nao Conferido",
+      (await acompanharCatalogoML(ml, nao.id, { catalogoId: "MLB44072268", catalogoNome: "x" })).erro,
+      "Só produto Conferido acompanha concorrentes no ML.",
+    );
+    const p = await prisma.produto.create({ data: { sku: "ZZ-ML-C1", tituloBase: "ZZ catalogo", conferido: true } });
+    const a = await acompanharCatalogoML(ml, p.id, { catalogoId: "MLB44072268", catalogoNome: "Placa Uno" }, { agora: new Date("2026-10-21T10:00:00Z") });
+    const salvos = await prisma.concorrenteML.findMany({ where: { produtoId: p.id }, orderBy: { posicao: "asc" } });
+    conferir(
+      "acompanhar: grava o catalogo e os 8 do top (9 menos o meu)",
+      [a.ok, (await prisma.produto.findUnique({ where: { id: p.id } })).mlCatalogoId, salvos.length, salvos[0].vendedorApelido, salvos[0].posicao, salvos.some((c) => c.itemId === "MLB4191686159")],
+      [true, "MLB44072268", 8, "ARDU_ROBÓTICA EIRELI", 1, false],
+    );
+    conferir("acompanhar: primeira posicao do dono", await ultimaPosicao(p.id), 4);
+    conferir("acompanhar: um historico por concorrente", await historicoDe(p.id), 8);
+
+    const r1 = await relerCatalogoDoProduto(ml, p.id, { agora: new Date("2026-10-21T11:00:00Z") });
+    conferir("reler sem mudanca: nada novo no historico", [r1.ok, r1.mudaram, r1.novos, await historicoDe(p.id), await prisma.posicaoML.count({ where: { produtoId: p.id } })], [true, 0, 0, 8, 1]);
+
+    // Dois vendedores novos na frente e um antigo fora do catalogo: o dono cai do 4o para o 5o (30, 31, 39.54, 42.99, 49.90).
+    const novos = [
+      { item_id: "MLBNOVO", seller_id: 999, price: 30, listing_type_id: "gold_special", shipping: { free_shipping: true } },
+      { item_id: "MLBNOVO2", seller_id: 998, price: 31, listing_type_id: "gold_pro", shipping: { free_shipping: false } },
+    ];
+    const padrao = ml.estado.catalogos.MLB44072268;
+    const mudou = criarMLFalso({
+      catalogos: { MLB44072268: { ...padrao, itens: [...novos, ...padrao.itens.filter((i) => i.item_id !== "MLB5434866561")] } },
+      vendedores: { 999: { nickname: "NOVATO", level_id: "1_red", total: 3 }, 998: { nickname: "NOVATO 2", level_id: "2_orange", total: 9 } },
+    });
+    const r2 = await relerCatalogoDoProduto(mudou, p.id, { agora: new Date("2026-10-22T10:00:00Z") });
+    const depois = await prisma.concorrenteML.findMany({ where: { produtoId: p.id } });
+    conferir(
+      "reler com mudanca: novos entram, ausente marca, posicao do dono cai",
+      [r2.ok, r2.novos, r2.ausentes, depois.find((c) => c.itemId === "MLBNOVO").vendedorApelido, depois.find((c) => c.itemId === "MLB5434866561").ausenteDesde !== null, await ultimaPosicao(p.id)],
+      [true, 2, 1, "NOVATO", true, 5],
+    );
+    const historicoAposMudanca = await historicoDe(p.id);
+    const tela = await lerConcorrentesML(p.id);
+    conferir("lerConcorrentesML: avisos antes de ver", tela.avisos.map((v) => v.tipo).sort(), ["caiu", "novo_mais_barato"]);
+    conferir("lerConcorrentesML: o texto da queda", tela.avisos.find((v) => v.tipo === "caiu").texto, "caiu de 4º para 5º");
+    await marcarConcorrentesMLVistos(p.id, { agora: new Date("2026-10-22T12:00:00Z") });
+    conferir("depois de visto, sem avisos", (await lerConcorrentesML(p.id)).avisos, []);
+
+    const r3 = await relerCatalogoDoProduto(ml, p.id, { agora: new Date("2026-10-23T10:00:00Z") });
+    conferir("reler: quem voltou perde o ausenteDesde", [r3.ok, (await prisma.concorrenteML.findFirst({ where: { produtoId: p.id, itemId: "MLB5434866561" } })).ausenteDesde], [true, null]);
+    const historicoAposVolta = await historicoDe(p.id);
+    const comErro = criarMLFalso({ falhas: [{ metodo: "GET", caminho: "/products/MLB44072268/items", exato: true, status: 429 }] });
+    const r4 = await relerCatalogoDoProduto(comErro, p.id, { agora: new Date("2026-10-24T10:00:00Z") });
+    conferir("reler com 429: erro com status e nada gravado", [r4.ok, r4.status, await historicoDe(p.id)], [false, 429, historicoAposVolta]);
+    conferir("historico cresceu nas duas releituras com mudanca", historicoAposMudanca > 8 && historicoAposVolta > historicoAposMudanca, true);
+
+    // Review Focus 5: trocar de catalogo marca os antigos como ausentes, sem apagar o historico.
+    const troca = await acompanharCatalogoML(ml, p.id, { catalogoId: "MLB60092501", catalogoNome: "Outro" }, { agora: new Date("2026-10-25T10:00:00Z") });
+    conferir(
+      "trocar de catalogo: antigos ausentes, catalogo novo sem itens, historico intacto",
+      [troca.ok, await prisma.concorrenteML.count({ where: { produtoId: p.id, ausenteDesde: null } }), (await prisma.produto.findUnique({ where: { id: p.id } })).mlCatalogoId, await historicoDe(p.id)],
+      [true, 0, "MLB60092501", historicoAposVolta],
+    );
+    await pararDeAcompanharML(p.id);
+    conferir(
+      "parar de acompanhar: zera o catalogo e nao apaga",
+      [(await prisma.produto.findUnique({ where: { id: p.id } })).mlCatalogoId, await prisma.concorrenteML.count({ where: { produtoId: p.id } })],
+      [null, 10],
+    );
+
+    // Review Focus 1: catalogo so com anuncios do dono.
+    const so = await prisma.produto.create({ data: { sku: "ZZ-ML-C3", tituloBase: "so eu", conferido: true } });
+    const soEu = criarMLFalso({ catalogos: { MLBSO: { nome: "So eu", itens: [{ item_id: "MLBMEU", seller_id: 212386247, price: 20, listing_type_id: "gold_special", shipping: {} }] } } });
+    const rSo = await acompanharCatalogoML(soEu, so.id, { catalogoId: "MLBSO", catalogoNome: "So eu" });
+    const posSo = await prisma.posicaoML.findFirst({ where: { produtoId: so.id } });
+    conferir("so eu no catalogo: nenhum concorrente, posicao 1 de 1", [rSo.ok, await prisma.concorrenteML.count({ where: { produtoId: so.id } }), posSo.posicao, posSo.total], [true, 0, 1, 1]);
+
+    conferir(
+      "avisosDoML puro: caiu",
+      avisosDoML({
+        posicoes: [{ posicao: 5, menorPreco: 39.54, lidoEm: new Date("2026-10-21T12:00:00Z") }, { posicao: 2, menorPreco: 39.54, lidoEm: new Date("2026-10-20T12:00:00Z") }],
+        concorrentes: [],
+        vistoEm: new Date("2026-10-20T13:00:00Z"),
+      }),
+      [{ tipo: "caiu", texto: "caiu de 2º para 5º" }],
+    );
+    conferir(
+      "avisosDoML puro: preco baixou",
+      avisosDoML({
+        posicoes: [],
+        concorrentes: [{ vendedorApelido: "ARDU_ROBÓTICA EIRELI", historico: [{ preco: 37.9, lidoEm: new Date("2026-10-21T12:00:00Z") }, { preco: 39.54, lidoEm: new Date("2026-10-20T12:00:00Z") }] }],
+        vistoEm: null,
+      }),
+      [{ tipo: "preco_baixou", texto: "ARDU_ROBÓTICA EIRELI baixou para R$ 37,90" }],
+    );
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();
