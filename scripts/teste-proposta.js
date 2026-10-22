@@ -22,7 +22,9 @@ function conferir(nome, condicao) {
 // Preco por margem (a margem e a do Rise: lucro liquido, com 6% de imposto, dividido pelo preco de venda)
 // ---------------------------------------------------------------------------
 {
-  conferir("precoParaMargem(18,90; 60%) = 55,59 (18,9 / 0,34, arredondado para cima)", precoParaMargem(18.9, 60) === 55.59);
+  conferir("precoParaMargem(18,90; 60%) = 55,60 (18,9 / 0,34 = 55,588..., para cima de 5 em 5 centavos)", precoParaMargem(18.9, 60) === 55.6);
+  conferir("precoParaMargem sempre em multiplo de 5 centavos", [10, 13.33, 18.9, 21.07].every((c) => [40, 50, 60].every((m) => Math.round(precoParaMargem(c, m) * 100) % 5 === 0)));
+  conferir("precoParaMargem ja redondo fica igual (9,40 / 0,54 = 17,407... vira 17,45)", precoParaMargem(9.4, 40) === 17.45);
   conferir("precoParaMargem devolve a margem pedida pela conta do Rise", Math.abs(calcularMargem(precoParaMargem(18.9, 40), 18.9) - 40) < 0.1);
   conferir("precoParaMargem sem custo = null", precoParaMargem(0, 40) === null);
   conferir("precoParaMargem com margem que nao cabe (94%) = null", precoParaMargem(10, 94) === null);

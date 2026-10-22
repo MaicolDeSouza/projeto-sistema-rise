@@ -7,7 +7,7 @@
  *
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
-export const VERSAO_DO_ROTEIRO = "2";
+export const VERSAO_DO_ROTEIRO = "3";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -87,6 +87,7 @@ conteudo: { "<campo>": { "valor", "origem" } }
 - Grave a seção preco com { "observacao": "..." } (ou vazia): o Rise calcula sozinho o custo (fornecedor padrão), os
   concorrentes que entram (preço normal, com estoque, sem a própria 4hobby), as opções de 40%, 50% e 60% com a posição
   e a recomendada (a maior margem que ainda fica entre os 5 primeiros). Números que você mandar são ignorados.
+- O preço da 4hobby anda de 5 em 5 centavos (R$ 35,40, R$ 35,45; nunca R$ 35,41): o Rise já calcula assim.
 - Leia o resultado com lerProposta e use no resumo e no relatório.
 
 6. EAN

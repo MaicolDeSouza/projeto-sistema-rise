@@ -17,7 +17,8 @@ export const POSICAO_MAXIMA = 5;
 
 /**
  * Preco de venda que da a margem pedida. A margem do Rise e lucro liquido (preco - 6% - custo) dividido pelo PRECO,
- * entao preco = custo / (1 - 0,06 - margem). Arredonda o centavo PARA CIMA: arredondar para baixo daria uma margem um
+ * entao preco = custo / (1 - 0,06 - margem). Arredonda PARA CIMA ate o proximo multiplo de 5 centavos (pedido do dono em
+ * 22/10/2026: a loja nao usa preco quebrado como 35,41; 35,41 vira 35,45): arredondar para baixo daria uma margem um
  * pouco menor que a prometida.
  * @returns {number|null} nulo sem custo ou quando a margem nao cabe (>= 94%)
  */
@@ -25,9 +26,13 @@ export function precoParaMargem(custo, margem) {
   const base = Number(custo);
   const divisor = 1 - IMPOSTO_PADRAO - Number(margem) / 100;
   if (!(base > 0) || !(divisor > 0)) return null;
-  // O epsilon tira o ruido do ponto flutuante (55,588235... nao vira 55,59000001 e depois 55,60).
-  return Math.ceil((base / divisor) * 100 - 1e-9) / 100;
+  // O epsilon tira o ruido do ponto flutuante (55,588235... nao vira 55,59000001 e depois 55,65).
+  const centavos = Math.ceil((base / divisor) * 100 - 1e-9);
+  return (Math.ceil(centavos / DEGRAU_DO_PRECO) * DEGRAU_DO_PRECO) / 100;
 }
+
+/** O preco da proposta anda de 5 em 5 centavos (em centavos). */
+export const DEGRAU_DO_PRECO = 5;
 
 /**
  * As tres opcoes (40, 50, 60%) com a posicao de cada uma, e a recomendada: a MAIOR margem, em passos de 1%, que ainda
