@@ -3577,7 +3577,9 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   IA" (3 opções, pede 140-160 e aceita 130-160: `gerarDescriptionsSeo` em `ia/anuncio.js`).
 - **Aba Imagens** (07/10/2026), depois de Características (a antiga Geral): marcar e ordenar as fotos validadas do
   produto (`fotosDoProduto`, só `papel: FOTO`; a capa é a primeira), guardadas em `rascunho.imagens`. Desde 21/10/2026
-  o **Sincronizar e o Cadastrar enviam as fotos** (ver "Fotos na loja", abaixo); elas não entram na assinatura. Anúncio novo nasce
+  o **Sincronizar e o Cadastrar enviam as fotos** (ver "Fotos na loja", abaixo); elas não entram na assinatura. **Mais tarde no mesmo
+  dia o dono tirou a escolha** ("todas as fotos sempre vão para a LI"): a aba só mostra as fotos validadas, na ordem do
+  cadastro, a principal como capa; `rascunho.imagens` ficou sem uso. Anúncio novo nasce
   com todas as fotos, a principal na frente.
 - **Categorias pela IA** (pedido do dono em 07/10/2026): botão "Sugerir com IA" na aba Categorias. A IA recebe o nome,
   a marca, a descrição e a árvore da loja inteira ("id: caminho", uma por linha) e devolve até 3 ids com um motivo
@@ -3660,10 +3662,14 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
   enviada não muda de capa nem de lugar); `DELETE` dá 204 e apagar a capa deixa o produto sem capa. A LI redimensiona e
   renomeia, então não dá para comparar bytes: o Rise guarda o que mandou em `Anuncio.dados.fotosLI` (`arquivo` + `liId`) e
   decide: igual = nada; loja só com as primeiras que o Rise mandou = acrescenta; qualquer outra coisa (foto que o Rise não
-  mandou, outra ordem ou capa) = **apaga as da loja e manda as do anúncio na ordem**. Anúncio sem foto marcada nunca apaga as
+  mandou, outra ordem ou capa) = **apaga as da loja e manda todas as do produto na ordem do cadastro**. Anúncio sem foto marcada nunca apaga as
   da loja; sem `APP_URL_PUBLICA` (PC) nada vai. O registro é gravado a cada foto, então um envio que para no meio só
   acrescenta as que faltaram depois. A aba Divergências mostra a linha "Fotos" e ela conta no número da aba. **No 100101 o
   primeiro Sincronizar troca as 5 fotos da loja pelas marcadas na aba Imagens.**
+- **Linha em branco entre as seções da descrição** (pedido do dono em 21/10/2026, como as descrições antigas da loja,
+  `<div>&nbsp;</div>`): `ESPACO_ENTRE_SECOES` (`<p>&nbsp;</p>`) entre os parágrafos em `montarDescricaoLI`. O texto comparado não
+  muda, então `marcarFormatoAntigo` (`campos.js`) marca a descrição da loja sem esse espaço (ou com link sem `target`) como
+  diferente, para o Sincronizar reenviar. Não medido: se a LI devolve o `&nbsp;` igual (a regra aceita também o caractere).
 - Webhooks, pedidos e importação dos 44 só-LI: fora desta fase.
 - `POST /marca` nunca foi exercitado na API real (só na LI falsa).
 

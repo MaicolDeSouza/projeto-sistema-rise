@@ -101,8 +101,21 @@ const medida = (valor) => {
 };
 
 const LINK_NA_MESMA_ABA = /<a\b(?![^>]*\btarget\s*=\s*["']?_blank)[^>]*\bhref/i;
-const marcarLinkNaMesmaAba = (html, textoDaLI) =>
-  textoDaLI && LINK_NA_MESMA_ABA.test(String(html ?? "")) ? `${textoDaLI}\n(link abre na mesma aba)` : textoDaLI;
+// Linha em branco entre as secoes (`ESPACO_ENTRE_SECOES` de descricao.js): o `&nbsp;` pode voltar da LI como o caractere.
+const ESPACO_ENTRE_SECOES = /<p>\s*(&nbsp;|\u00a0)\s*<\/p>/i;
+/**
+ * A comparacao e pelo texto, e duas mudancas de formato do Rise (21/10/2026) nao mudam o texto: o link do documento
+ * que abre em outra aba e a linha em branco entre as secoes. A descricao da loja no formato antigo ganha uma marca,
+ * conta como diferente e o Sincronizar a reenvia.
+ */
+function marcarFormatoAntigo(html, textoDaLI) {
+  const bruto = String(html ?? "");
+  if (!textoDaLI) return textoDaLI;
+  const marcas = [];
+  if (LINK_NA_MESMA_ABA.test(bruto)) marcas.push("(link abre na mesma aba)");
+  if ((bruto.match(/<p[\s>]/gi) ?? []).length > 1 && !ESPACO_ENTRE_SECOES.test(bruto)) marcas.push("(seções sem espaço entre elas)");
+  return marcas.length ? `${textoDaLI}\n${marcas.join("\n")}` : textoDaLI;
+}
 
 const idsOrdenados = (lista) => [...new Set((lista ?? []).map((id) => texto(id)).filter(Boolean))].sort();
 
@@ -169,9 +182,7 @@ export function normalizarDaLI(produtoLI, seo, { marcaNome = null } = {}) {
           .replace(/^produto\//, "")
           .replace(/\.html?$/, "") || null
       : null,
-    // A comparacao e pelo texto, e o link sem target="_blank" (antes de 21/10/2026) tem o mesmo texto: a marca
-    // faz a descricao contar como diferente e o Sincronizar a reenviar com os links abrindo em outra aba.
-    descricao: marcarLinkNaMesmaAba(l.descricao_completa, htmlParaTexto(l.descricao_completa, { paragrafos: true })),
+    descricao: marcarFormatoAntigo(l.descricao_completa, htmlParaTexto(l.descricao_completa, { paragrafos: true })),
     ncm: soDigitos(l.ncm),
     gtin: texto(l.gtin),
     mpn: texto(l.mpn),

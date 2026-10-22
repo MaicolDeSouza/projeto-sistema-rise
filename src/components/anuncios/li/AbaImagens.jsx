@@ -2,38 +2,18 @@
 
 import { ImageOff } from "lucide-react";
 
-import { LinhaDeFoto } from "@/components/anuncios/ml/AbaImagens";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import FotoComLupa from "@/components/ui/FotoComLupa";
 
 /**
- * Aba Imagens do anúncio da Loja Integrada (pedido do dono em 07/10/2026): escolher e ordenar as fotos do
- * produto que vão para a loja (a primeira é a capa). A escolha fica no anúncio (`rascunho.imagens`, ids de
- * ProdutoArquivo) e, desde 21/10/2026, o Sincronizar troca as fotos da loja por elas (`li/fotos.js`). A LI só
- * aceita imagem por endereço público: sem APP_URL_PUBLICA (o Rise do PC) as fotos não vão.
- *
- * As fotos são as validadas do cadastro (`contexto.fotos`, sem a reserva). A linha é a mesma da aba
- * Imagens do Mercado Livre.
+ * Aba Imagens do anúncio da Loja Integrada. Desde 21/10/2026 (pedido do dono: "todas as fotos sempre vão para a
+ * LI") não há escolha: vão TODAS as fotos validadas do produto, na ordem do cadastro, a principal como capa
+ * (`contexto.fotos`, sem a reserva). O Sincronizar troca as da loja por elas (`li/fotos.js`). A LI só aceita
+ * imagem por endereço público: sem APP_URL_PUBLICA (o Rise do PC) as fotos não vão.
  */
-export default function AbaImagens({ rascunho, contexto, alterar }) {
+export default function AbaImagens({ contexto }) {
   const produto = contexto.produto ?? {};
-  const disponiveis = (contexto.fotos ?? []).map((foto) => ({ ...foto, sku: produto.sku, titulo: produto.tituloBase }));
-  const porId = new Map(disponiveis.map((foto) => [foto.id, foto]));
-  const marcadas = Array.isArray(rascunho.imagens) ? rascunho.imagens : [];
-  const naoUsadas = disponiveis.filter((foto) => !marcadas.includes(foto.id));
-
-  // Marcar põe a foto no fim da fila; desmarcar tira e as de baixo sobem.
-  function alternar(id, marcada) {
-    if (marcada) alterar({ imagens: marcadas.includes(id) ? marcadas : [...marcadas, id] });
-    else alterar({ imagens: marcadas.filter((outra) => outra !== id) });
-  }
-
-  function mover(posicao, passo) {
-    const destino = posicao + passo;
-    if (destino < 0 || destino >= marcadas.length) return;
-    const reordenadas = [...marcadas];
-    [reordenadas[posicao], reordenadas[destino]] = [reordenadas[destino], reordenadas[posicao]];
-    alterar({ imagens: reordenadas });
-  }
+  const fotos = contexto.fotos ?? [];
 
   return (
     <div className="space-y-4">
@@ -45,47 +25,30 @@ export default function AbaImagens({ rascunho, contexto, alterar }) {
 
       <div>
         <div className="flex items-center gap-1 text-sm font-semibold">
-          Fotos do anúncio ({marcadas.length})
+          Fotos que vão para a loja ({fotos.length})
           <BolhaDeAjuda
             variante="inline"
-            texto="O Sincronizar troca as fotos da loja pelas marcadas aqui, nesta ordem: a primeira é a capa. Desmarcar todas deixa as da loja como estão. A Loja Integrada recomenda JPG de até 4 MB e 2500x2500 px, com nome de arquivo sem acento; as fotos do Rise (1024x1024, JPG) já atendem."
+            texto="Vão todas as fotos validadas do produto, na ordem do cadastro: a primeira é a capa. Para mudar, edite as fotos no cadastro do produto. O Sincronizar troca as fotos da loja por estas."
           />
         </div>
-        {marcadas.length > 0 ? (
-          <ul className="mt-2 divide-y divide-borda rounded border border-borda">
-            {marcadas.map((id, posicao) => (
-              <LinhaDeFoto key={id} id={id} foto={porId.get(id)} posicao={posicao} total={marcadas.length} aoAlternar={alternar} aoMover={mover} />
+        {fotos.length > 0 ? (
+          <ul className="mt-2 flex flex-wrap gap-3">
+            {fotos.map((foto, posicao) => (
+              <li key={foto.id} className="flex flex-col items-center gap-1">
+                <FotoComLupa src={foto.url} alt={`${produto.sku ?? ""} foto ${posicao + 1}`} className="h-20 w-20" />
+                <span className={`text-[11px] ${posicao === 0 ? "rounded-full bg-sky-100 px-2 text-sky-800" : "text-suave"}`}>
+                  {posicao === 0 ? "Capa" : posicao + 1}
+                </span>
+              </li>
             ))}
           </ul>
-        ) : disponiveis.length > 0 ? (
-          <p className="mt-2 text-sm text-suave">Nenhuma foto marcada. Marque abaixo as que vão para a loja.</p>
         ) : (
           <p className="mt-2 flex items-center gap-2 rounded border border-borda bg-fundo px-3 py-2 text-sm text-suave">
             <ImageOff size={16} className="shrink-0" />
-            O produto não tem foto validada. Envie e valide as fotos no cadastro do produto.
+            O produto não tem foto validada: as fotos da loja ficam como estão. Envie e valide as fotos no cadastro do produto.
           </p>
         )}
       </div>
-
-      {naoUsadas.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold">Fotos do produto fora do anúncio ({naoUsadas.length})</p>
-            <button
-              type="button"
-              onClick={() => alterar({ imagens: [...marcadas, ...naoUsadas.map((foto) => foto.id)] })}
-              className="text-xs text-acento hover:underline"
-            >
-              Marcar todas
-            </button>
-          </div>
-          <ul className="mt-2 divide-y divide-borda rounded border border-borda">
-            {naoUsadas.map((foto) => (
-              <LinhaDeFoto key={foto.id} id={foto.id} foto={foto} posicao={null} total={marcadas.length} aoAlternar={alternar} aoMover={mover} />
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }

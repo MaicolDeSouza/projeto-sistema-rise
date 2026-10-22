@@ -31,8 +31,9 @@ const ordemDe = (imagem) => {
 };
 
 /**
- * As fotos que o anuncio quer na loja, na ordem marcada na aba Imagens (`rascunho.imagens`, ids de ProdutoArquivo),
- * so as que ainda sao fotos validadas do produto. `fotos` = [{ id, arquivo }].
+ * As fotos que vao para a loja, na ordem dos `ids` (ids de ProdutoArquivo), so as que sao fotos validadas do
+ * produto. Desde 21/10/2026 o envio passa TODAS, na ordem do cadastro (o dono tirou a escolha por anuncio).
+ * `fotos` = [{ id, arquivo }].
  */
 export function fotosDoAnuncio(imagensDoRascunho, fotos) {
   const porId = new Map((fotos ?? []).map((foto) => [foto.id, foto]));
@@ -58,7 +59,7 @@ const comecaCom = (lista, inicio) => inicio.length <= lista.length && inicio.eve
 
 /**
  * O plano do Sincronizar para as fotos:
- * - `nada`: o anuncio nao tem foto (Rise sem foto nunca apaga as da loja) ou a loja ja tem exatamente o que o Rise mandou;
+ * - `nada`: o anuncio nao tem foto (produto sem foto nunca apaga as da loja) ou a loja ja tem exatamente o que o Rise mandou;
  * - `acrescentar`: a loja tem so as primeiras do anuncio, mandadas pelo Rise, na ordem: manda as que faltam;
  * - `trocar`: qualquer outro caso (foto que o Rise nao mandou, outra ordem, outra capa): apaga as da loja e manda todas.
  */
@@ -79,11 +80,11 @@ export function planoDasFotosLI({ desejadas, naLoja, enviadas }) {
 export function resumoDasFotosLI(plano, { naLoja, desejadas }) {
   if (plano.acao === "nada") {
     return plano.motivo === "rise_sem_foto"
-      ? { estado: "rise_sem_foto", texto: `O anúncio não tem foto marcada: as ${naLoja.length} da loja ficam como estão.` }
+      ? { estado: "rise_sem_foto", texto: `O produto não tem foto validada: as ${naLoja.length} da loja ficam como estão.` }
       : { estado: "iguais", texto: `As ${desejadas.length} fotos da loja são as do Rise.` };
   }
   if (plano.acao === "acrescentar") return { estado: "faltam", texto: `Faltam ${plano.enviar.length} de ${desejadas.length} fotos na loja: o Sincronizar as acrescenta.` };
   return naLoja.length
-    ? { estado: "diferentes", texto: `A loja tem ${naLoja.length} foto(s) que não são as do anúncio: o Sincronizar as apaga e envia as ${desejadas.length} do Rise, na ordem (a primeira é a capa).` }
+    ? { estado: "diferentes", texto: `A loja tem ${naLoja.length} foto(s) que não são as do Rise: o Sincronizar as apaga e envia as ${desejadas.length} do Rise, na ordem (a primeira é a capa).` }
     : { estado: "faltam", texto: `A loja não tem foto: o Sincronizar envia as ${desejadas.length} do Rise, na ordem (a primeira é a capa).` };
 }

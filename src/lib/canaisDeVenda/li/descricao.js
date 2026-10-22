@@ -41,6 +41,8 @@ const ehItemDeLista = (linha) => /^\s*-/.test(linha);
 const ehTituloDeSecao = (linha) => !ehItemDeLista(linha) && /:\s*(\([^)]*\))?\s*$/.test(linha) && linha.trim().length <= 80;
 const ehTituloDoProduto = (linha) => /\p{Lu}/u.test(linha) && !/\p{Ll}/u.test(linha);
 
+export const ESPACO_ENTRE_SECOES = "<p>&nbsp;</p>";
+
 /** Cada paragrafo leva a fonte 16; as linhas dele sao separadas por <br>. */
 const paragrafo = (linhas) => `<p><span style="font-size:16px;">${linhas.join("<br>")}</span></p>`;
 
@@ -104,5 +106,7 @@ export function montarDescricaoLI({ descricao, documentos = [] } = {}) {
     );
   });
 
-  return partes.join("");
+  // Uma linha em branco entre as secoes, como as descricoes antigas da loja (`<div>&nbsp;</div>`): a margem do
+  // <p> do tema da loja e curta e as secoes ficavam coladas (pedido do dono em 21/10/2026).
+  return partes.join(ESPACO_ENTRE_SECOES);
 }

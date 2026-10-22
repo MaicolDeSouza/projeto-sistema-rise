@@ -95,22 +95,26 @@ try {
   {
     console.log("\nRegras puras: descricao HTML");
     const P = (miolo) => `<p><span style="font-size:16px;">${miolo}</span></p>`;
+    const E = "<p>&nbsp;</p>"; // a linha em branco entre as secoes (21/10/2026)
     conferir("escapa tag, e-comercial e aspas", montarDescricaoLI({ descricao: `a <b> & c "x" 'y'` }), P("a &lt;b&gt; &amp; c &quot;x&quot; &#39;y&#39;"));
-    conferir("quebra simples vira br, dupla vira paragrafo, CRLF vale um", montarDescricaoLI({ descricao: "l1\r\nl2\r\n\r\nl3" }), P("l1<br>l2") + P("l3"));
+    conferir("quebra simples vira br, dupla vira paragrafo, CRLF vale um", montarDescricaoLI({ descricao: "l1\r\nl2\r\n\r\nl3" }), P("l1<br>l2") + E + P("l3"));
     conferir("vazio nao gera nada", [montarDescricaoLI({ descricao: "  \n " }), montarDescricaoLI({ descricao: null })], ["", ""]);
     const texto = "PLACA UNO R3\n\nA Placa faz X.\n\nEspecificações técnicas:\n- SRAM: 2KB;\n- Peso: 24g;\n\nItens inclusos: (Cód:100101)\n- 01 Placa;\n\nGarantia:\n- Garantia Legal de 90 dias;";
     conferir(
       "titulo do produto e titulos de secao em negrito; itens normais",
       montarDescricaoLI({ descricao: texto }),
-      P("<strong>PLACA UNO R3</strong>") + P("A Placa faz X.") + P("<strong>Especificações técnicas:</strong><br>- SRAM: 2KB;<br>- Peso: 24g;") + P("<strong>Itens inclusos: (Cód:100101)</strong><br>- 01 Placa;") + P("<strong>Garantia:</strong><br>- Garantia Legal de 90 dias;"),
+      P("<strong>PLACA UNO R3</strong>") + E + P("A Placa faz X.") + E + P("<strong>Especificações técnicas:</strong><br>- SRAM: 2KB;<br>- Peso: 24g;") + E + P("<strong>Itens inclusos: (Cód:100101)</strong><br>- 01 Placa;") + E + P("<strong>Garantia:</strong><br>- Garantia Legal de 90 dias;"),
     );
     const docs = [{ url: "https://rise.exemplo/a.pdf?v=2", nome: "Datasheet <v2>.pdf" }, { url: "javascript:alert(1)", nome: "x" }];
     const blocoDocs = P("<strong>Documentos / Arquivos para download:</strong><br>- <a href=\"https://rise.exemplo/a.pdf?v=2\" target=\"_blank\" rel=\"noopener\">Datasheet &lt;v2&gt;.pdf</a>;");
-    conferir("documentos logo abaixo das Especificacoes tecnicas (so http)", montarDescricaoLI({ descricao: texto, documentos: docs }).includes(P("<strong>Especificações técnicas:</strong><br>- SRAM: 2KB;<br>- Peso: 24g;") + blocoDocs + P("<strong>Itens inclusos: (Cód:100101)</strong><br>- 01 Placa;")), true);
-    conferir("sem Especificacoes, documentos acima de Garantia", montarDescricaoLI({ descricao: "Texto.\n\nGarantia:\n- 90 dias;", documentos: docs }), P("Texto.") + blocoDocs + P("<strong>Garantia:</strong><br>- 90 dias;"));
-    conferir("sem as duas secoes, documentos no fim do texto", montarDescricaoLI({ descricao: "Texto.", documentos: docs }), P("Texto.") + blocoDocs);
+    conferir("documentos logo abaixo das Especificacoes tecnicas (so http)", montarDescricaoLI({ descricao: texto, documentos: docs }).includes(P("<strong>Especificações técnicas:</strong><br>- SRAM: 2KB;<br>- Peso: 24g;") + E + blocoDocs + E + P("<strong>Itens inclusos: (Cód:100101)</strong><br>- 01 Placa;")), true);
+    conferir("sem Especificacoes, documentos acima de Garantia", montarDescricaoLI({ descricao: "Texto.\n\nGarantia:\n- 90 dias;", documentos: docs }), P("Texto.") + E + blocoDocs + E + P("<strong>Garantia:</strong><br>- 90 dias;"));
+    conferir("sem as duas secoes, documentos no fim do texto", montarDescricaoLI({ descricao: "Texto.", documentos: docs }), P("Texto.") + E + blocoDocs);
     const lidaComLink = (html) => normalizarDaLI({ descricao_completa: html }, null, {}).descricao;
     conferir("link da loja sem target conta como diferente", lidaComLink('<p>A <a href="x.pdf">doc</a></p>').endsWith("(link abre na mesma aba)"), true);
+    conferir("secoes sem a linha em branco contam como diferente", lidaComLink("<p>A</p><p>B</p>").endsWith("(seções sem espaço entre elas)"), true);
+    conferir("secoes com a linha em branco (ou o nbsp cru da LI) nao", [lidaComLink(montarDescricaoLI({ descricao: "A\n\nB" })), lidaComLink("<p>A</p><p>" + String.fromCharCode(160) + "</p><p>B</p>")], ["A\n\nB", "A\n\nB"]);
+    conferir("um paragrafo so nao precisa de espaco", lidaComLink("<p>A</p>"), "A");
     conferir("link da loja com target igual ao do Rise", lidaComLink('<p>A <a href="x.pdf" target="_blank" rel="noopener">doc</a></p>').includes("mesma aba"), false);
     conferir("sem documento com http, nao ha secao", montarDescricaoLI({ descricao: "Texto.", documentos: [{ url: "javascript:x", nome: "x" }] }), P("Texto."));
     conferir("frases fixas sairam da LI: passadas, nao entram", montarDescricaoLI({ descricao: "Texto & tal", frases: ["Com nota fiscal"] }), P("Texto &amp; tal"));
@@ -717,7 +721,7 @@ try {
   }
 
   {
-    console.log("\nFotos: o Sincronizar troca as da loja pelas do anuncio (21/10/2026)");
+    console.log("\nFotos: o Sincronizar troca as da loja por TODAS as do produto, na ordem do cadastro (21/10/2026)");
     const { fotosDaLoja, fotosDoAnuncio, planoDasFotosLI } = await import("../src/lib/canaisDeVenda/li/fotos.js");
     conferir("loja: na ordem da posicao (texto), sem posicao no fim", fotosDaLoja({ imagens: [{ id: 9, posicao: null }, { id: 2, posicao: "1" }, { id: 1, posicao: "0" }] }).map((f) => f.id), ["1", "2", "9"]);
     conferir("anuncio: na ordem marcada, so fotos que existem", fotosDoAnuncio(["b", "x", "a", "b"], [{ id: "a", arquivo: "a.jpg" }, { id: "b", arquivo: "b.jpg" }]).map((f) => f.arquivo), ["b.jpg", "a.jpg"]);
@@ -739,7 +743,7 @@ try {
       const liF = criarLojaIntegradaFalsa({ produtos: [{ id: 901, sku: "ZZ-LI-30", nome: "Placa", apelido: "/placa", ncm: "8536.49.00", seo: "/api/v1/seo/91", imagens: [{ id: 50, principal: true, posicao: null }] }], seos: { 91: { title: "T", description: "D" } } });
       await lerParaPopupLI(pf.id, liF); // vincula
       const anF = await anuncioLIDoProduto(pf.id);
-      await salvarRascunhoLI(anF.id, { ...rascunhoDoAnuncio(anF), titulo: "Placa", seo: { title: "T", description: "D" }, imagens: [f2.id, f1.id] });
+      await salvarRascunhoLI(anF.id, { ...rascunhoDoAnuncio(anF), titulo: "Placa", seo: { title: "T", description: "D" }, imagens: [] });
 
       const semUrl = await sincronizarProdutoLI(pf.id, liF);
       conferir("sem endereco publico: nada de foto e o motivo", [semUrl.ok, /APP_URL_PUBLICA/.test(semUrl.fotos ?? ""), liF.chamadas.some((c) => c.caminho?.startsWith("/produto_imagem"))], [true, true, false]);
@@ -749,31 +753,32 @@ try {
       conferir("editor: as fotos aparecem como diferentes", popup.fotos?.estado, "diferentes");
       const envio = await sincronizarProdutoLI(pf.id, liF);
       const naLoja = liF.produtos().find((p) => p.id === 901).imagens;
-      conferir("troca: apaga a da loja e manda as do anuncio na ordem, a primeira como capa", [envio.ok, naLoja.map((i) => [i.url, i.principal, i.posicao])], [true, [["https://rise.exemplo.com/api/arquivos/ZZ-LI-30/imagens/f2.jpg", true, "0"], ["https://rise.exemplo.com/api/arquivos/ZZ-LI-30/imagens/f1.jpg", false, "1"]]]);
-      conferir("o resumo conta o que fez", envio.fotos, "Fotos: 1 apagada(s) da loja e 2 enviada(s) do Rise, na ordem do anúncio.");
-      conferir("o Rise guarda o que mandou", (await anuncioLIDoProduto(pf.id)).dados.fotosLI.map((f) => f.arquivo), ["f2.jpg", "f1.jpg"]);
+      conferir("troca: apaga a da loja e manda todas as do produto, a principal como capa (o anuncio sem foto marcada nao importa)", [envio.ok, naLoja.map((i) => [i.url, i.principal, i.posicao])], [true, [["https://rise.exemplo.com/api/arquivos/ZZ-LI-30/imagens/f1.jpg", true, "0"], ["https://rise.exemplo.com/api/arquivos/ZZ-LI-30/imagens/f2.jpg", false, "1"]]]);
+      conferir("o resumo conta o que fez", envio.fotos, "Fotos: 1 apagada(s) da loja e 2 enviada(s) do Rise, na ordem do cadastro.");
+      conferir("o Rise guarda o que mandou", (await anuncioLIDoProduto(pf.id)).dados.fotosLI.map((f) => f.arquivo), ["f1.jpg", "f2.jpg"]);
       const escritas = liF.chamadas.filter((c) => c.caminho?.startsWith("/produto_imagem")).length;
       const deNovo = await sincronizarProdutoLI(pf.id, liF);
       conferir("segundo Sincronizar nao mexe nas fotos", [deNovo.fotos, liF.chamadas.filter((c) => c.caminho?.startsWith("/produto_imagem")).length], [null, escritas]);
       conferir("editor: fotos iguais", (await lerParaPopupLI(pf.id, liF)).fotos?.estado, "iguais");
 
-      // Parar no meio: a segunda foto falha; o proximo Sincronizar so acrescenta a que faltou.
-      await salvarRascunhoLI(anF.id, { ...rascunhoDoAnuncio(await anuncioLIDoProduto(pf.id)), imagens: [f1.id, f2.id] });
+      // A capa mudou no cadastro: troca tudo. A segunda foto falha; o proximo Sincronizar so acrescenta a que faltou.
+      await prisma.produtoArquivo.update({ where: { id: f1.id }, data: { principal: false } });
+      await prisma.produtoArquivo.update({ where: { id: f2.id }, data: { principal: true } });
       let postados = 0;
       const postOriginal = liF.post;
       liF.post = async (caminho, corpo) => (caminho === "/produto_imagem" && ++postados === 2 ? { ok: false, status: 500, duracaoMs: 0, dados: null } : postOriginal(caminho, corpo));
       const parou = await sincronizarProdutoLI(pf.id, liF);
       liF.post = postOriginal;
-      conferir("falha no meio: etapa fotos e o que foi enviado fica guardado", [parou.ok, parou.etapa, (await anuncioLIDoProduto(pf.id)).dados.fotosLI.map((f) => f.arquivo)], [false, "fotos", ["f1.jpg"]]);
+      conferir("falha no meio: etapa fotos e o que foi enviado fica guardado", [parou.ok, parou.etapa, (await anuncioLIDoProduto(pf.id)).dados.fotosLI.map((f) => f.arquivo)], [false, "fotos", ["f2.jpg"]]);
       const retomou = await sincronizarProdutoLI(pf.id, liF);
-      conferir("retomar so acrescenta a que faltou", [retomou.ok, retomou.fotos, liF.produtos().find((p) => p.id === 901).imagens.map((i) => i.url.split("/").pop())], [true, "Fotos: 1 acrescentada(s) na loja.", ["f1.jpg", "f2.jpg"]]);
+      conferir("retomar so acrescenta a que faltou", [retomou.ok, retomou.fotos, liF.produtos().find((p) => p.id === 901).imagens.map((i) => i.url.split("/").pop())], [true, "Fotos: 1 acrescentada(s) na loja.", ["f2.jpg", "f1.jpg"]]);
 
       // Cadastrar: o produto nasce na loja com as fotos do anuncio.
       const pn = await prisma.produto.create({ data: { sku: "ZZ-LI-31", tituloBase: "Novo com foto", descricaoBase: "A placa nova na loja.", ncm: "85364900", conferido: true } });
       await prisma.produtoArquivo.create({ data: { produtoId: pn.id, tipo: "IMAGEM", arquivo: "n1.jpg", principal: true, ordem: 0 } });
       const liN = criarLojaIntegradaFalsa({});
       const cad = await cadastrarNaLI(pn.id, liN);
-      conferir("cadastrar envia as fotos", [cad.ok, liN.produtos().at(-1).imagens.map((i) => [i.url.split("/").pop(), i.principal])], [true, [["n1.jpg", true]]]);
+      conferir("cadastrar envia as fotos do produto", [cad.ok, liN.produtos().at(-1).imagens.map((i) => [i.url.split("/").pop(), i.principal])], [true, [["n1.jpg", true]]]);
     } finally {
       config.appUrlPublica = urlPublicaAntes;
     }

@@ -113,13 +113,15 @@ async function gravarPreco(cliente, produtoId, idExterno, preco, alterados) {
 
 /** A marca pelo nome, sem caixa e sem acento; so cria (POST /marca) quando nao ha nenhuma igual. */
 /**
- * As fotos do anuncio (`fotos.js`): apaga as da loja quando o plano manda trocar e envia as do Rise na ordem
+ * As fotos do produto (`fotos.js`): apaga as da loja quando o plano manda trocar e envia as do Rise na ordem
  * (a primeira e a capa), uma por `POST /produto_imagem`. O que foi enviado vai para `dados.fotosLI`, inclusive
  * se o envio parar no meio: o proximo Sincronizar so acrescenta as que faltaram.
  * Sem APP_URL_PUBLICA (o Rise do PC) a loja nao alcanca as fotos: nada e enviado e o resultado diz por que.
  */
-async function enviarFotosLI(cliente, { produto, anuncioId, imagensDoRascunho, idExterno, produtoLI }) {
-  const desejadas = fotosDoAnuncio(imagensDoRascunho, await fotosDoProduto(produto));
+async function enviarFotosLI(cliente, { produto, anuncioId, idExterno, produtoLI }) {
+  // Todas as fotos validadas, na ordem do cadastro (pedido do dono em 21/10/2026: nao ha escolha por anuncio).
+  const fotos = await fotosDoProduto(produto);
+  const desejadas = fotosDoAnuncio(fotos.map((foto) => foto.id), fotos);
   const naLoja = fotosDaLoja(produtoLI);
   const atual = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true } });
   const plano = planoDasFotosLI({ desejadas, naLoja, enviadas: fotosEnviadas(atual?.dados) });
@@ -151,7 +153,7 @@ async function enviarFotosLI(cliente, { produto, anuncioId, imagensDoRascunho, i
   const texto =
     plano.acao === "acrescentar"
       ? `Fotos: ${plano.enviar.length} acrescentada(s) na loja.`
-      : `Fotos: ${plano.apagar.length ? `${plano.apagar.length} apagada(s) da loja e ` : ""}${plano.enviar.length} enviada(s) do Rise, na ordem do anúncio.`;
+      : `Fotos: ${plano.apagar.length ? `${plano.apagar.length} apagada(s) da loja e ` : ""}${plano.enviar.length} enviada(s) do Rise, na ordem do cadastro.`;
   return { acao: plano.acao, texto, apagadas: plano.apagar.length, enviadas: plano.enviar.length };
 }
 
@@ -292,7 +294,6 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
       estado.fotos = await enviarFotosLI(cliente, {
         produto,
         anuncioId: anuncio.id,
-        imagensDoRascunho: rascunho.imagens,
         idExterno: anuncio.idExterno,
         produtoLI: detalhe.produto,
       });
@@ -333,8 +334,7 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI()) {
     }
     let anuncio = await anuncioLIDoProduto(produtoId);
     if (anuncio?.idExterno) return recusa(`Este produto já está na Loja Integrada (id ${anuncio.idExterno}): use Sincronizar.`);
-    // Sem rascunho, as fotos entram como no editor: todas, a principal na frente.
-    const rascunho = anuncio ? rascunhoDoAnuncio(anuncio) : rascunhoInicialLI(produto, { fotos: await fotosDoProduto(produto) });
+    const rascunho = anuncio ? rascunhoDoAnuncio(anuncio) : rascunhoInicialLI(produto);
     const bloqueio = primeiroBloqueio(rascunho, produto);
     if (bloqueio) return recusa(bloqueio);
     try {
@@ -380,7 +380,7 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI()) {
       }
 
       // O produto acabou de nascer sem foto na loja: o plano so envia.
-      const fotos = await enviarFotosLI(cliente, { produto, anuncioId: anuncio.id, imagensDoRascunho: rascunho.imagens, idExterno, produtoLI: criado });
+      const fotos = await enviarFotosLI(cliente, { produto, anuncioId: anuncio.id, idExterno, produtoLI: criado });
       if (fotos.enviadas) payload.fotos = { apagadas: 0, enviadas: fotos.enviadas };
 
       await gravarSucesso(anuncio.id, produtoId, { assinatura: assinaturaLI(rise), payload, url, ativo: false, idExterno });
