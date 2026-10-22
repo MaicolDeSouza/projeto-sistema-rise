@@ -11,6 +11,8 @@ import { documentosDoProduto } from "@/lib/canaisDeVenda/li/banco";
 import { iconeLIDoProduto } from "@/lib/canaisDeVenda/li/estado";
 import { mudancasDosKits } from "@/lib/composicaoBanco";
 import { localizacaoDoKit } from "@/lib/composicao";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { acessosDaListaDeProdutos, ordemPermitida, projetarProdutoDaLista } from "@/lib/acessos/projecoes";
 import PageHeader from "@/components/ui/PageHeader";
 import { LembrarListaDeProdutos } from "@/components/produtos/ListaDeProdutosNaAba";
 import AvisoBanco from "@/components/ui/AvisoBanco";
@@ -45,10 +47,30 @@ const TEXTO_DO_AVISO = {
   concorrentes: "os concorrentes não foram gravados (adicione de novo na aba Fornecedores / Concorrentes)",
 };
 
+/** O produto para o selo da busca ampla sem o que a pessoa nao ve: o selo "achado na localização" contaria o dado. */
+function semOcultos(produto, ocultos) {
+  return {
+    ...produto,
+    localizacao: ocultos.localizacao ? null : produto.localizacao,
+    fornecedores: ocultos.fornecedor ? [] : produto.fornecedores,
+    fornecedorRascunho: ocultos.fornecedor ? null : produto.fornecedorRascunho,
+    concorrentes: ocultos.concorrente ? [] : produto.concorrentes,
+  };
+}
+
 export default async function ProdutosPage({ searchParams }) {
+  // Acessos (lancamento 2): a lista e de quem ve Produtos; sem os dados sensiveis, custo, localizacao e estoque exato
+  // nao saem do servidor (projetarProdutoDaLista) e a busca e a ordem nao os usam.
+  const sessao = await exigirAcessoNaPagina("tela.produtos", "ver");
+  const acessos = acessosDaListaDeProdutos(sessao.pode);
+  const ocultos = {
+    localizacao: !acessos.verLocalizacao,
+    fornecedor: !sessao.pode("dado.custo", "ver"),
+    concorrente: !sessao.pode("dado.concorrentes", "ver"),
+  };
   const params = await searchParams;
   const busca = (params?.q ?? "").trim();
-  const ordenar = CAMPO_DE_ORDENACAO[params?.ordenar] ? params.ordenar : "";
+  const ordenar = CAMPO_DE_ORDENACAO[params?.ordenar] ? ordemPermitida(params.ordenar, acessos) : "";
   const direcao = params?.direcao === "asc" ? "asc" : "desc";
   const pedida = Number.parseInt(params?.pagina ?? "1", 10);
 
@@ -63,7 +85,7 @@ export default async function ProdutosPage({ searchParams }) {
   const palavras = palavrasDaBusca(busca);
   let where;
   try {
-    const ids = await idsDaBuscaDeProdutos(busca, { ampla });
+    const ids = await idsDaBuscaDeProdutos(busca, { ampla, ocultos });
     where = ids === null ? undefined : { id: { in: ids } };
   } catch {
     // Sem o indice (banco sem a migration), a busca antiga, so por nome e codigo.
@@ -186,7 +208,7 @@ export default async function ProdutosPage({ searchParams }) {
 
   // Decimal do Prisma nao atravessa a fronteira servidor/cliente: converta aqui.
   const linhas = (produtos ?? []).map((produto) => ({
-    produto: {
+    produto: projetarProdutoDaLista({
       id: produto.id,
       sku: produto.sku,
       tituloBase: produto.tituloBase,
@@ -215,9 +237,9 @@ export default async function ProdutosPage({ searchParams }) {
       imagemUrl: produto.arquivos[0]
         ? urlDe(produto.sku, "IMAGEM", produto.arquivos[0].arquivo)
         : null,
-    },
+    }, acessos),
     // Busca ampla: "achado na descrição" quando a palavra nao estava no nome nem no codigo.
-    achado: ampla && palavras.length > 0 ? textoDoSelo(ondeAchouNoProduto(produto, palavras)) : null,
+    achado: ampla && palavras.length > 0 ? textoDoSelo(ondeAchouNoProduto(semOcultos(produto, ocultos), palavras)) : null,
     ...separarCanais(produto.anuncios),
     // O icone do ML mostra o anuncio (publicado e ativo, ou pendente), nao so o idExterno.
     iconeML: estadoDoIconeML(produto.anuncios),
@@ -240,10 +262,12 @@ export default async function ProdutosPage({ searchParams }) {
       <PageHeader
         titulo="Produtos"
         descricao="O cadastro base da loja. Todo anúncio nos canais deriva de um produto daqui."
+        somenteLeitura={acessos.editar ? null : "Seu acesso a Produtos é de leitura"}
         acao={
           <div className="flex items-start gap-3">
-            <BotaoImportarBling />
-            <BotaoSincronizarEstoque />
+            {acessos.clonar && <BotaoImportarBling />}
+            {sessao.pode("acao.produtos.sincronizarBling", "executar") && <BotaoSincronizarEstoque />}
+            {acessos.clonar && (
             <Link
               href="/produtos/novo"
               className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90"
@@ -251,6 +275,7 @@ export default async function ProdutosPage({ searchParams }) {
               <Plus size={16} />
               Novo produto
             </Link>
+            )}
           </div>
         }
       />
@@ -277,6 +302,7 @@ export default async function ProdutosPage({ searchParams }) {
         <>
           <TabelaProdutos
             linhas={linhas}
+            acessos={acessos}
             destacarId={novoProduto?.id ?? null}
             busca={busca}
             ampla={ampla}

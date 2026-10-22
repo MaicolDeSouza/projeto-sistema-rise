@@ -1,5 +1,7 @@
 "use server";
 
+import { negarSemAcessos } from "@/lib/acessos/servidor";
+
 import { revalidatePath } from "next/cache";
 
 import { depositoIdValido, produtoIdValido } from "@/lib/blingSync/estado";
@@ -53,12 +55,16 @@ function revalidando(resultado, gravou) {
  * icone. So le: o Bling nao e escrito e nada e gravado no Rise (o saldo lido nao e guardado aqui).
  */
 export async function abrirJanelaBling(produtoId) {
+  const negado = await negarSemAcessos(["tela.produtos", "ver"], ["dado.custo", "ver"]);
+  if (negado) return negado;
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   return protegendo("Não foi possível ler o Bling. Tente de novo.", () => lerParaPopup(produtoId));
 }
 
 /** Envia ao Bling os campos que mudaram e os fornecedores de um produto que ja existe la. */
 export async function sincronizarComBling(produtoId) {
+  const negado = await negarSemAcessos(["acao.produtos.sincronizarBling", "executar"]);
+  if (negado) return negado;
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(
     "Não foi possível concluir a sincronização. O Bling pode ter recebido parte do envio: confira no Bling antes de tentar de novo.",
@@ -71,6 +77,8 @@ export async function sincronizarComBling(produtoId) {
 
 /** Cadastra no Bling o produto que ainda nao existe la (e envia os fornecedores). */
 export async function cadastrarProdutoNoBling(produtoId) {
+  const negado = await negarSemAcessos(["acao.produtos.sincronizarBling", "executar"]);
+  if (negado) return negado;
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(
     "Não foi possível concluir o cadastro. O produto pode ter sido criado no Bling: confira lá antes de tentar de novo.",
@@ -90,6 +98,8 @@ export async function cadastrarProdutoNoBling(produtoId) {
  * entre os depositos que o Bling devolve agora.
  */
 export async function enviarEstoqueAoBling(produtoId, depositoId) {
+  const negado = await negarSemAcessos(["acao.produtos.sincronizarBling", "executar"]);
+  if (negado) return negado;
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   if (!depositoIdValido(depositoId)) return DEPOSITO_INVALIDO;
   return protegendo(
@@ -115,6 +125,8 @@ export async function enviarEstoqueAoBling(produtoId, depositoId) {
  * produto, com o motivo), e a tela mostra os tres numeros.
  */
 export async function sincronizarEstoqueComBling() {
+  const negado = await negarSemAcessos(["tela.produtos", "editar"], ["acao.produtos.sincronizarBling", "executar"]);
+  if (negado) return negado;
   return protegendo("Não foi possível atualizar o estoque. Tente de novo.", async () => {
     const resultado = await sincronizarEstoqueDoBling();
     return revalidando({ ok: true, ...resultado }, resultado.atualizados > 0);

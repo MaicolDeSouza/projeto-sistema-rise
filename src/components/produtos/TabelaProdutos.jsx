@@ -141,7 +141,13 @@ export default function TabelaProdutos({
   totalConferidos = 0,
   // Produto recem-criado (`?novo=<id>`, pedido do dono em 10/10/2026): a linha dele aparece destacada por alguns segundos.
   destacarId = null,
+  // Acessos (lancamento 2): o que a pessoa pode nesta lista (acessosDaListaDeProdutos). Sem ele, tudo liberado, como
+  // antes, para quem chama a tabela sem passar a sessao.
+  acessos = null,
 }) {
+  const pode = acessos ?? { editar: true, excluir: true, clonar: true, verLocalizacao: true, editarLocalizacao: true, estoqueExato: true, margem: true };
+  // A coluna Localizacao some sem o dado; o Estoque em faixa nao se ordena (a ordem contaria quem tem mais).
+  const colunas = COLUNAS_ORDENAVEIS.filter(({ campo }) => campo !== "localizacao" || pode.verLocalizacao);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -193,12 +199,12 @@ export default function TabelaProdutos({
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <CampoBusca
           valorInicial={busca}
-          rotulo={ampla ? "Buscar também na descrição, NCM e localização" : "Buscar por nome, código, marca ou modelo"}
+          rotulo={ampla ? (pode.verLocalizacao ? "Buscar também na descrição, NCM e localização" : "Buscar também na descrição e no NCM") : "Buscar por nome, código, marca ou modelo"}
           className="max-w-sm flex-1"
         />
         <BotaoBuscaAmpla
           ligada={ampla}
-          ajuda="Procura também na descrição, no NCM, na homologação e na localização de cada produto."
+          ajuda={pode.verLocalizacao ? "Procura também na descrição, no NCM, na homologação e na localização de cada produto." : "Procura também na descrição, no NCM e na homologação de cada produto."}
         />
 
         {/* Contagem da lista (pedido do dono em 22/09/2026): o TOTAL que casa
@@ -252,7 +258,9 @@ export default function TabelaProdutos({
               <tr className="divide-x divide-borda">
                 <th className="px-3 py-2.5 font-medium">Imagem</th>
                 <th className="px-3 py-2.5 font-medium">Nome</th>
-                {COLUNAS_ORDENAVEIS.map(({ campo, rotulo }) => (
+                {colunas.map(({ campo, rotulo }) => campo === "estoque" && !pode.estoqueExato ? (
+                  <th key={campo} className="px-3 py-2.5 font-medium">{rotulo}</th>
+                ) : (
                   <CabecalhoOrdenavel
                     key={campo}
                     campo={campo}
@@ -273,6 +281,7 @@ export default function TabelaProdutos({
                   destacada={produto.id === destacarId}
                   achado={achado}
                   aoExcluir={() => confirmarExclusao(produto)}
+                  acessos={pode}
                   iconeML={iconeML}
                   iconeBling={iconeBling}
                   iconeLI={iconeLI}

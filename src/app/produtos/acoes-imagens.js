@@ -1,5 +1,7 @@
 "use server";
 
+import { negarSemAcessos } from "@/lib/acessos/servidor";
+
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
@@ -65,6 +67,8 @@ function conferir(lote, base) {
 
 /** Uma foto enviada pelo dono. */
 export async function enviarImagemAoLote(lote, formData) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"]);
+  if (negado) return negado;
   const invalido = conferir(lote);
   if (invalido) return { ok: false, erro: invalido };
 
@@ -97,6 +101,8 @@ export async function enviarImagemAoLote(lote, formData) {
  * alguem mandasse.
  */
 export async function importarImagensDaOrigem(lote, origem) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"]);
+  if (negado) return negado;
   const invalido = conferir(lote);
   if (invalido) return { ok: false, erro: invalido };
 
@@ -140,6 +146,8 @@ export async function importarImagensDaOrigem(lote, origem) {
  * nao, para o formulario nao tentar de novo a cada fechar da janela.
  */
 export async function importarFotosDasReferencias(lote, ids, vagas) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"], ["dado.custo", "ver"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
   const invalido = conferir(lote);
   if (invalido) return { ok: false, erro: invalido };
   if (!Array.isArray(ids) || ids.length === 0 || ids.length > 20) {
@@ -238,6 +246,8 @@ export async function importarFotosDasReferencias(lote, ids, vagas) {
  * `reserva` vai para o botao "Reserva (N)", escondida.
  */
 export async function prepararFotosDoProduto(lote, produtoId) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "ver"]);
+  if (negado) return negado;
   const invalido = conferir(lote);
   if (invalido) return { ok: false, erro: invalido };
 
@@ -349,6 +359,8 @@ async function carregarVersoesDaReserva(lote, base, sku, versaoDaFoto, reservasD
  * imagem: o id de uma FOTO nao entra por aqui.
  */
 export async function trazerDaReserva(lote, reservaId) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"]);
+  if (negado) return negado;
   const invalido = conferir(lote);
   if (invalido) return { ok: false, erro: invalido };
 
@@ -387,6 +399,8 @@ export async function trazerDaReserva(lote, reservaId) {
  * ela ja esta no painel, e a tela so a valida. Id que nao existe fica de fora, em `faltaram`.
  */
 export async function trazerFotosDaProposta(lote, produtoId, ids) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"]);
+  if (negado) return negado;
   const invalido = conferir(lote);
   if (invalido) return { ok: false, erro: invalido };
 
@@ -429,6 +443,8 @@ export async function trazerFotosDaProposta(lote, produtoId, ids) {
 
 /** Varias fotos de uma vez (o produto foi desmarcado na lupa). */
 export async function removerImagensDoLote(lote, bases) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"]);
+  if (negado) return negado;
   const invalido = conferir(lote);
   if (invalido) return { ok: false, erro: invalido };
   try {
@@ -442,6 +458,8 @@ export async function removerImagensDoLote(lote, bases) {
 }
 
 export async function removerImagemDoLote(lote, base) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"]);
+  if (negado) return negado;
   const invalido = conferir(lote, base);
   if (invalido) return { ok: false, erro: invalido };
   try {
@@ -458,6 +476,8 @@ export async function removerImagemDoLote(lote, base) {
  * vezes quiser sem pagar de novo.
  */
 export async function escolherVersaoNoLote(lote, base, versao) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"]);
+  if (negado) return negado;
   const invalido = conferir(lote, base);
   if (invalido) return { ok: false, erro: invalido };
   try {
@@ -478,6 +498,8 @@ export async function escolherVersaoNoLote(lote, base, versao) {
 
 /** Cadastro abandonado ou recomecado: apaga o lote inteiro (fotos, originais, previas e documentos). */
 export async function descartarLoteDeArquivos(lote) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "ver"]);
+  if (negado) return negado;
   if (!loteValido(lote)) return { ok: true };
   try {
     await descartarLote(lote);
@@ -493,6 +515,8 @@ export async function descartarLoteDeArquivos(lote) {
 
 /** O que o painel precisa para desenhar os botoes: chaves, trava e quanto ja foi usado. */
 export async function estadoDoPhotoroom() {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "ver"]);
+  if (negado) return negado;
   const configuracao = avaliarConfiguracao();
   let uso = null;
   try {
@@ -518,6 +542,8 @@ export async function estadoDoPhotoroom() {
  * fica ao lado, para o dono decidir se compra.
  */
 export async function gerarPreviaPhotoroom(lote, base, opcoesPedidas) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"], ["acao.fotos.photoroom", "executar"]);
+  if (negado) return negado;
   const invalido = conferir(lote, base);
   if (invalido) return { ok: false, erro: invalido };
 
@@ -569,6 +595,8 @@ export async function gerarPreviaPhotoroom(lote, base, opcoesPedidas) {
  *  - existe uma previa desta foto, gerada COM ESTAS MESMAS opcoes: o dono so compra o que viu.
  */
 export async function comprarPhotoroom(lote, base, opcoesPedidas) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"], ["acao.fotos.photoroom", "executar"]);
+  if (negado) return negado;
   const invalido = conferir(lote, base);
   if (invalido) return { ok: false, erro: invalido };
 

@@ -1,5 +1,7 @@
 "use server";
 
+import { negarSemAcessos } from "@/lib/acessos/servidor";
+
 import { revalidatePath } from "next/cache";
 
 import { gravarAjusteDeEstoque, gravarLocalizacao, gravarPrecoVenda } from "@/lib/ajusteRapido";
@@ -19,13 +21,19 @@ async function revalidando(resultado) {
 }
 
 export async function salvarLocalizacao(id, texto) {
+  const negado = await negarSemAcessos(["tela.produtos", "editar"], ["dado.localizacao", "editar"]);
+  if (negado) return negado;
   return revalidando(await gravarLocalizacao(id, texto));
 }
 
 export async function salvarPrecoVenda(id, valor) {
+  const negado = await negarSemAcessos(["tela.produtos", "editar"]);
+  if (negado) return negado;
   return revalidando(await gravarPrecoVenda(id, valor));
 }
 
 export async function ajustarEstoque(id, dados) {
+  const negado = await negarSemAcessos(["tela.produtos", "editar"], ["dado.estoqueExato", "ver"]);
+  if (negado) return negado;
   return revalidando(await gravarAjusteDeEstoque(id, dados));
 }

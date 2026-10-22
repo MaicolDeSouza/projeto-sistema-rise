@@ -4,12 +4,14 @@ import { ArrowLeft, Hammer } from "lucide-react";
 
 import { canalPorId } from "@/lib/canais";
 import { prisma } from "@/lib/db";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 
 export const dynamic = "force-dynamic";
 
 export default async function CanalDoProdutoPage({ params }) {
+  await exigirAcessoNaPagina("tela.produtos.canais", "ver");
   const { id, canal: apelido } = await params;
   const canal = canalPorId(apelido.toUpperCase());
   if (!canal) notFound();

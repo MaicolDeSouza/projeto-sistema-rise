@@ -49,6 +49,10 @@ export const EXPRESSAO_BUSCA_PRODUTO = semAcento(juntar([`"tituloBase"`, `"sku"`
 export const EXPRESSAO_AMPLA_PRODUTO = semAcento(
   juntar([`"tituloBase"`, `"sku"`, `"marca"`, `"modelo"`, `"ean"`, `"descricaoBase"`, `"ncm"`, `"numeroHomologacao"`, `"localizacao"`]),
 );
+/// A mesma, sem a localizacao: para quem nao tem `dado.localizacao` (Acessos). Fica fora do indice, de proposito.
+const EXPRESSAO_AMPLA_PRODUTO_SEM_LOCALIZACAO = semAcento(
+  juntar([`"tituloBase"`, `"sku"`, `"marca"`, `"modelo"`, `"ean"`, `"descricaoBase"`, `"ncm"`, `"numeroHomologacao"`]),
+);
 
 /** As palavras da busca, normalizadas como o texto indexado. Todas sao exigidas. */
 export function palavrasDaBusca(busca) {
@@ -102,13 +106,16 @@ export function ondeAchou(nome, lugares, palavras) {
  * Os ids dos produtos do RISE que tem TODAS as palavras, pelo indice (normal ou amplo). `null` = busca sem
  * palavras, sem restricao. A lista de Produtos pagina e ordena com o Prisma por cima destes ids.
  */
-export async function idsDaBuscaDeProdutos(busca, { ampla = false } = {}) {
+export async function idsDaBuscaDeProdutos(busca, { ampla = false, ocultos = {} } = {}) {
   const palavras = palavrasDaBusca(busca);
   if (palavras.length === 0) return null;
   // Na ampla, cada palavra vale tambem pelos VINCULOS do produto (pedido do dono em 20/10/2026, opcao 2: "patola" traz
   // os produtos do fornecedor Patola). A expressao do indice nao muda: o OR vem ao lado, como o nome da fonte no Scraper.
+  // `ocultos` (Acessos): o que a pessoa nao ve nao entra na busca, senao achar o produto pela localizacao ou pelo
+  // fornecedor contaria o dado escondido. Sem a localizacao a expressao sai do indice: a tabela de Produtos e pequena.
+  const expressao = ocultos.localizacao ? EXPRESSAO_AMPLA_PRODUTO_SEM_LOCALIZACAO : EXPRESSAO_AMPLA_PRODUTO;
   const condicao = ampla
-    ? todasAsPalavrasOuTambem(EXPRESSAO_AMPLA_PRODUTO, palavras, palavraNosVinculos)
+    ? todasAsPalavrasOuTambem(expressao, palavras, (palavra) => palavraNosVinculos(palavra, ocultos))
     : todasAsPalavras(EXPRESSAO_BUSCA_PRODUTO, palavras);
   const linhas = await prisma.$queryRaw`SELECT "Produto"."id" FROM "Produto" WHERE ${condicao}`;
   return linhas.map((linha) => linha.id);
@@ -124,11 +131,16 @@ const TEXTO_DO_RASCUNHO = semAcento(
 const TEXTO_DO_CONCORRENTE = semAcento(juntar([`fc."nome"`, `v."fonteManual"`]));
 
 /** A palavra nos vinculos do produto: fornecedor (vinculo e rascunho do Bling) e loja do concorrente. */
-function palavraNosVinculos(palavra) {
+function palavraNosVinculos(palavra, ocultos = {}) {
   const parecida = `%${palavra}%`;
-  return Prisma.sql` OR "Produto"."id" IN (SELECT pf."produtoId" FROM "ProdutoFornecedor" pf JOIN "Fornecedor" f ON f."id" = pf."fornecedorId" WHERE ${Prisma.raw(TEXTO_DO_FORNECEDOR)} LIKE ${parecida})
-    OR ${Prisma.raw(TEXTO_DO_RASCUNHO)} LIKE ${parecida}
-    OR "Produto"."id" IN (SELECT v."produtoId" FROM "ProdutoConcorrente" v LEFT JOIN "ProdutoColetado" pc ON pc."id" = v."produtoColetadoId" LEFT JOIN "FonteColeta" fc ON fc."id" = pc."fonteId" WHERE ${Prisma.raw(TEXTO_DO_CONCORRENTE)} LIKE ${parecida})`;
+  const fornecedor = ocultos.fornecedor
+    ? Prisma.empty
+    : Prisma.sql` OR "Produto"."id" IN (SELECT pf."produtoId" FROM "ProdutoFornecedor" pf JOIN "Fornecedor" f ON f."id" = pf."fornecedorId" WHERE ${Prisma.raw(TEXTO_DO_FORNECEDOR)} LIKE ${parecida})
+    OR ${Prisma.raw(TEXTO_DO_RASCUNHO)} LIKE ${parecida}`;
+  const concorrente = ocultos.concorrente
+    ? Prisma.empty
+    : Prisma.sql` OR "Produto"."id" IN (SELECT v."produtoId" FROM "ProdutoConcorrente" v LEFT JOIN "ProdutoColetado" pc ON pc."id" = v."produtoColetadoId" LEFT JOIN "FonteColeta" fc ON fc."id" = pc."fonteId" WHERE ${Prisma.raw(TEXTO_DO_CONCORRENTE)} LIKE ${parecida})`;
+  return Prisma.sql`${fornecedor}${concorrente}`;
 }
 
 /** O texto dos vinculos de um produto lido com `fornecedores`, `concorrentes` e `fornecedorRascunho`, para o selo. */

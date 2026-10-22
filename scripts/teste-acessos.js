@@ -628,6 +628,30 @@ try {
     conferir("banco fora do ar", avisoDoPainel({ estado: "erro-banco" }), { texto: "Não foi possível ler os acessos no banco.", tom: "erro" });
   }
 
+  // --- Lancamento 2: a lista de Produtos e os arquivos (dados sensiveis cortados no servidor) ---
+  {
+    console.log("\nLista de Produtos");
+    const { acessosDaListaDeProdutos, projetarProdutoDaLista, ordemPermitida, pastaPublica } = await import("../src/lib/acessos/projecoes.js");
+    const tudo = () => true;
+    const so = (...ids) => (id, nivel) => ids.some(([i, n]) => i === id && ["nenhum", "ver", "executar", "editar", "excluir"].indexOf(nivel) <= ["nenhum", "ver", "executar", "editar", "excluir"].indexOf(n));
+    const admin = acessosDaListaDeProdutos(tudo);
+    conferir("administrador ve e edita tudo", admin, { editar: true, excluir: true, clonar: true, verLocalizacao: true, editarLocalizacao: true, estoqueExato: true, margem: true });
+    const leitor = acessosDaListaDeProdutos(so(["tela.produtos", "ver"]));
+    conferir("so ver Produtos: nada de edicao nem dado sensivel", leitor, { editar: false, excluir: false, clonar: false, verLocalizacao: false, editarLocalizacao: false, estoqueExato: false, margem: false });
+    const produto = { id: "p1", custo: 10, localizacao: "F9", estoque: 2, precoVenda: 30, pecasDoKit: [{ sku: "A", localizacao: "H2" }] };
+    conferir("com tudo liberado a linha segue igual", projetarProdutoDaLista(produto, admin), produto);
+    conferir(
+      "sem os dados: custo e localizacao saem, estoque vira faixa",
+      projetarProdutoDaLista(produto, leitor),
+      { id: "p1", custo: null, localizacao: null, estoque: "poucas unidades", precoVenda: 30, pecasDoKit: [{ sku: "A", localizacao: null }] },
+    );
+    conferir("estoque 0 e 50 viram as faixas", [0, 50].map((estoque) => projetarProdutoDaLista({ ...produto, estoque }, leitor).estoque), ["em falta", "disponível"]);
+    conferir("o objeto recebido nao e alterado", produto.custo, 10);
+    conferir("ordenar por localizacao sem o dado volta a ordem padrao", [ordemPermitida("localizacao", leitor), ordemPermitida("preco", leitor), ordemPermitida("localizacao", admin)], ["", "preco", "localizacao"]);
+    conferir("ordenar por estoque sem o estoque exato volta a ordem padrao", ordemPermitida("estoque", leitor), "");
+    conferir("pastas publicas dos arquivos", ["imagens", "documentos", "certificados", "reserva", "..", ""].map(pastaPublica), [true, true, true, false, false, false]);
+  }
+
   // --- guarda estatico do lancamento 1: toda pagina, layout, rota e arquivo de acoes de src/app confere o acesso ---
   {
     const { readFileSync, readdirSync, statSync } = await import("node:fs");
@@ -657,7 +681,7 @@ try {
     };
     // `exigirTokenMcp(` (o /mcp): o login vem do token do Rise, e o portao monta a sessao de Acessos dele a cada chamada.
     const confere = (fonte) =>
-      (fonte.includes("negarSemAcesso(") && cadaExportConfere(fonte)) ||
+      (/negarSemAcessos?\(/.test(fonte) && cadaExportConfere(fonte)) ||
       fonte.includes("exigirAcessoNaPagina(") ||
       fonte.includes("executarComAcesso(") ||
       (fonte.includes("sessaoDeAcessos(") && fonte.includes("recusarRota(")) ||
@@ -680,14 +704,11 @@ try {
       "src/app/anuncios/[id]/page.jsx",
       "src/app/anuncios/novo/page.jsx",
       "src/app/anuncios/page.jsx",
-      "src/app/api/arquivos/[...caminho]/route.js",
       "src/app/api/mercados/arquivo-fonte/[id]/[nome]/route.js",
       "src/app/api/mercados/documento/route.js",
       "src/app/api/mercados/miniatura/[id]/route.js",
       "src/app/api/oauth/[servico]/callback/route.js",
       "src/app/api/oauth/[servico]/iniciar/route.js",
-      "src/app/api/produtos/documento-referencia/route.js",
-      "src/app/api/temporarios/[...caminho]/route.js",
       "src/app/cadastros/[tipo]/[id]/page.jsx",
       "src/app/cadastros/[tipo]/novo/page.jsx",
       "src/app/cadastros/[tipo]/page.jsx",
@@ -720,13 +741,6 @@ try {
       "src/app/mercados/fontes/page.jsx",
       "src/app/mercados/page.jsx",
       "src/app/pedidos/page.jsx",
-      "src/app/produtos/[id]/canais/[canal]/page.jsx",
-      "src/app/produtos/acoes-bling.js",
-      "src/app/produtos/acoes-edicao-rapida.js",
-      "src/app/produtos/acoes-imagens.js",
-      "src/app/produtos/acoes-li.js",
-      "src/app/produtos/acoes-nanobanana.js",
-      "src/app/produtos/page.jsx",
     ];
     conferir("o guarda olha todas as paginas, layouts, rotas e acoes de src/app", alvos.length >= 60, true);
     conferir("o Painel le a sessao e filtra pelos cartoes", ["sessaoDeAcessos(", "cartoesDoPainel("].map((trecho) => ler("src/app/page.jsx").includes(trecho)), [true, true]);

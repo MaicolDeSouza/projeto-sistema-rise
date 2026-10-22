@@ -1,5 +1,7 @@
 "use server";
 
+import { negarSemAcessos } from "@/lib/acessos/servidor";
+
 import { revalidatePath } from "next/cache";
 
 import { mudouNaLI } from "@/lib/canaisDeVenda/li/apresentacao";
@@ -43,6 +45,8 @@ function revalidando(resultado, mudou) {
  * de um produto que ja existe la, grava o vinculo no Rise (por isso revalida quando vinculou).
  */
 export async function abrirJanelaLI(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "ver"]);
+  if (negado) return negado;
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   return protegendo("Não foi possível ler a Loja Integrada. Tente de novo.", async () => {
     const resultado = await lerParaPopupLI(produtoId);
@@ -52,6 +56,8 @@ export async function abrirJanelaLI(produtoId) {
 
 /** Envia a LI os campos que mudaram de um produto ja vinculado. */
 export async function sincronizarComLI(produtoId) {
+  const negado = await negarSemAcessos(["acao.lojaIntegrada.sincronizar", "executar"]);
+  if (negado) return negado;
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(
     "Não foi possível concluir a sincronização. A Loja Integrada pode ter recebido parte do envio: confira na loja antes de tentar de novo.",
@@ -64,6 +70,8 @@ export async function sincronizarComLI(produtoId) {
 
 /** Cadastra na LI (inativo) o produto que ainda nao existe la. */
 export async function cadastrarProdutoNaLI(produtoId) {
+  const negado = await negarSemAcessos(["acao.lojaIntegrada.sincronizar", "executar"]);
+  if (negado) return negado;
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(
     "Não foi possível concluir o cadastro. O produto pode ter sido criado na Loja Integrada: confira lá antes de tentar de novo.",

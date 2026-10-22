@@ -87,6 +87,18 @@ export async function negarSemAcesso(id, nivel) {
   return { ok: false, erro: `Sem permissão para ${recursoPorId(id)?.rotulo ?? "isso"}.` };
 }
 
+/**
+ * O mesmo `negarSemAcesso` para uma acao que pede mais de um recurso (a tela e o dado sensivel, ou a tela e a acao):
+ * `negarSemAcessos(["tela.produtos", "editar"], ["dado.localizacao", "editar"])`. Devolve a primeira recusa, ou null.
+ */
+export async function negarSemAcessos(...pares) {
+  for (const [id, nivel] of pares) {
+    const negado = await negarSemAcesso(id, nivel);
+    if (negado) return negado;
+  }
+  return null;
+}
+
 /** A pessoa tem `nivel` em `id` agora? Para acao que devolve lista (sem permissao devolve `valorSeNegado`) e para decidir o que ler. */
 export async function podeAgora(id, nivel) {
   try {

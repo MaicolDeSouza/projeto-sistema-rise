@@ -67,6 +67,8 @@ export default function LinhaProduto({
   achado = null,
   // Produto recem-criado: fundo verde claro que some sozinho (pedido do dono em 10/10/2026). So CSS, sem estado.
   destacada = false,
+  // Acessos (lancamento 2): sem editar, as celulas nao abrem a edicao rapida; sem o dado, a Localizacao nem aparece.
+  acessos = { editar: true, excluir: true, clonar: true, verLocalizacao: true, editarLocalizacao: true, estoqueExato: true, margem: true },
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [janelaML, setJanelaML] = useState(false);
@@ -121,6 +123,7 @@ export default function LinhaProduto({
 
       {/* Localizacao, preco e estoque abrem a edicao rapida (pedido do dono em
           30/09/2026): um popup por campo, gravando so neste sistema. */}
+      {acessos.verLocalizacao && (
       <td className={`px-3 py-2.5 text-suave ${produto.tipo === "COMPOSICAO" ? "max-w-44" : ""}`}>
         {/* KIT (pedido do dono em 10/10/2026): a localizacao e automatica (a das pecas), entao a celula NAO tem o
             lapis. Fica numa linha so, sem expandir a coluna (reticencias se nao couber), e clicar abre o popup com
@@ -135,23 +138,26 @@ export default function LinhaProduto({
           >
             {produto.localizacao || "—"}
           </button>
-        ) : (
+        ) : acessos.editarLocalizacao ? (
           <CelulaEditavel titulo="Editar localização" aoClicar={() => setEditando("localizacao")}>
             {produto.localizacao || "—"}
           </CelulaEditavel>
+        ) : (
+          produto.localizacao || "—"
         )}
       </td>
+      )}
 
       <td className="px-3 py-2.5 tabular-nums">
-        <CelulaEditavel titulo="Editar preço de venda" aoClicar={() => setEditando("preco")}>
-          {produto.precoVenda === null ? (
-            "—"
-          ) : (
-            <span className="font-medium text-emerald-700">
-              {moeda.format(produto.precoVenda)}
-            </span>
-          )}
-        </CelulaEditavel>
+        {acessos.editar ? (
+          <CelulaEditavel titulo="Editar preço de venda" aoClicar={() => setEditando("preco")}>
+            {produto.precoVenda === null ? "—" : <span className="font-medium text-emerald-700">{moeda.format(produto.precoVenda)}</span>}
+          </CelulaEditavel>
+        ) : produto.precoVenda === null ? (
+          "—"
+        ) : (
+          <span className="font-medium text-emerald-700">{moeda.format(produto.precoVenda)}</span>
+        )}
       </td>
 
       <td
@@ -166,10 +172,12 @@ export default function LinhaProduto({
             {produto.estoque}
             <span className="block text-[10px] font-normal leading-tight text-suave">calculado pelas peças</span>
           </span>
-        ) : (
+        ) : acessos.editar && acessos.estoqueExato ? (
           <CelulaEditavel titulo="Ajustar estoque" aoClicar={() => setEditando("estoque")}>
             {produto.estoque}
           </CelulaEditavel>
+        ) : (
+          produto.estoque
         )}
       </td>
 
@@ -226,6 +234,7 @@ export default function LinhaProduto({
             ),
           )}
 
+          {(acessos.clonar || acessos.excluir) && (
           <button
             type="button"
             onClick={() => setMenuAberto((aberto) => !aberto)}
@@ -235,6 +244,7 @@ export default function LinhaProduto({
           >
             <EllipsisVertical size={16} />
           </button>
+          )}
         </div>
 
         {editando === "localizacao" && <PopupLocalizacao produto={produto} aoFechar={fecharEdicao} />}
@@ -256,6 +266,7 @@ export default function LinhaProduto({
               aria-hidden="true"
             />
             <div className="absolute top-full right-3 z-20 mt-1 w-44 rounded-md border border-borda bg-superficie py-1 text-left shadow-lg">
+              {acessos.clonar && (
               <Link
                 href={`/produtos/novo?clonar=${produto.id}`}
                 onClick={() => setMenuAberto(false)}
@@ -264,6 +275,8 @@ export default function LinhaProduto({
                 <Copy size={15} className="shrink-0" />
                 Clonar
               </Link>
+              )}
+              {acessos.excluir && (
               <button
                 type="button"
                 onClick={() => {
@@ -275,6 +288,7 @@ export default function LinhaProduto({
                 <Trash2 size={15} className="shrink-0" />
                 Excluir
               </button>
+              )}
             </div>
           </>
         )}

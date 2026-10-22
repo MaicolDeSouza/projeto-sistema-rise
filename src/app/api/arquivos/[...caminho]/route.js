@@ -1,6 +1,8 @@
 import { stat } from "node:fs/promises";
 
 import { prisma } from "@/lib/db";
+import { pastaPublica } from "@/lib/acessos/projecoes";
+import { recusarRota, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import {
   PASTA_PROPOSTA,
   PASTA_RESERVA,
@@ -52,6 +54,10 @@ export async function GET(requisicao, { params }) {
   }
 
   const [sku, pasta, nome] = caminho;
+
+  // Acessos: fotos, documentos e certificados continuam publicos (o Caddy os deixa sem login: o Bling e a Loja
+  // Integrada baixam dali). A reserva e as candidatas da proposta sao do cadastro, de quem o ve.
+  if (!pastaPublica(pasta) && !(await sessaoDeAcessos()).pode("tela.produtos.cadastro", "ver")) return recusarRota();
 
   // Reserva de imagens (Nano Banana): sempre JPEG com nome gerado por nos, sempre aberta na pagina. Nao
   // consulta o banco: nao ha nome real para mostrar, so a imagem.

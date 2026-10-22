@@ -1,7 +1,11 @@
 import { baixarDocumentoDaReferencia } from "@/lib/documentosReferencias";
 import { ErroDeRecusa } from "@/lib/redePublica";
+import { acessosDoCadastro } from "@/lib/acessos/produto";
+import { recusarRota, sessaoDeAcessos } from "@/lib/acessos/servidor";
 
 export async function GET(request) {
+  // Acessos: os documentos das referencias sao parte da lupa (custo e concorrentes), a mesma regra do cadastro.
+  if (!acessosDoCadastro((await sessaoDeAcessos()).pode).referencias) return recusarRota();
   const parametros = new URL(request.url).searchParams;
   const referenciaId = parametros.get("referenciaId");
   const indice = Number(parametros.get("indice"));

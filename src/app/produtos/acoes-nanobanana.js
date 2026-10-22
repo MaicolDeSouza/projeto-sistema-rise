@@ -1,5 +1,7 @@
 "use server";
 
+import { negarSemAcessos } from "@/lib/acessos/servidor";
+
 import sharp from "sharp";
 
 import { prisma } from "@/lib/db";
@@ -81,6 +83,8 @@ async function lerExtras(lote, base, extras) {
  *           repetida?: boolean }} pedido
  */
 export async function gerarComNanoBanana(lote, base, pedido) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"], ["acao.fotos.nanoBanana", "executar"]);
+  if (negado) return negado;
   if (!loteValido(lote) || !baseValida(base)) return falha("Foto inválida.");
 
   const modelo = String(pedido?.modelo ?? "");
@@ -177,6 +181,8 @@ export async function gerarComNanoBanana(lote, base, pedido) {
  * padrao do codigo) e o uso do dia e do mes. Sem o uso a tela ainda funciona: so nao o mostra.
  */
 export async function estadoDoNanoBanana() {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "ver"]);
+  if (negado) return negado;
   const configuracao = avaliarConfiguracao();
   const cotacao = cotacaoDoDolar();
 
@@ -220,6 +226,8 @@ export async function estadoDoNanoBanana() {
  * chega a quem nunca mexeu nele.
  */
 export async function salvarPromptDoModelo(modelo, texto) {
+  const negado = await negarSemAcessos(["acao.fotos.nanoBanana", "executar"]);
+  if (negado) return negado;
   const chave = typeof modelo === "string" ? modelo : "";
   if (!Object.hasOwn(MODELOS, chave)) return falha("Modelo desconhecido.");
 
@@ -245,6 +253,8 @@ export async function salvarPromptDoModelo(modelo, texto) {
 
 /** Uma imagem extra enviada de fora para a geracao desta foto (campo `arquivo`). */
 export async function adicionarExtraAoLote(lote, base, formData) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"]);
+  if (negado) return negado;
   if (!loteValido(lote) || !baseValida(base)) return falha("Foto inválida.");
 
   const arquivo = formData?.get?.("arquivo");
@@ -263,6 +273,8 @@ export async function adicionarExtraAoLote(lote, base, formData) {
 }
 
 export async function removerExtraDoLote(lote, base, n) {
+  const negado = await negarSemAcessos(["tela.produtos.cadastro", "editar"]);
+  if (negado) return negado;
   if (!loteValido(lote) || !baseValida(base)) return falha("Foto inválida.");
   if (!Number.isInteger(n) || n < 1 || n > MAXIMO_EXTRAS) return falha("Imagem extra inválida.");
   try {

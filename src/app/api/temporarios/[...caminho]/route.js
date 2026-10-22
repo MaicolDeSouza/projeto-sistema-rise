@@ -1,4 +1,5 @@
 import { lerDoLote } from "@/lib/imagens/lote";
+import { recusarRota, sessaoDeAcessos } from "@/lib/acessos/servidor";
 
 const CONTEUDO = {
   jpg: "image/jpeg",
@@ -18,6 +19,8 @@ const CONTEUDO = {
  * ao original", e o navegador mostraria a versao velha.
  */
 export async function GET(_requisicao, { params }) {
+  // Acessos: as fotos do lote sao as do cadastro aberto, de quem ve o cadastro de Produtos.
+  if (!(await sessaoDeAcessos()).pode("tela.produtos.cadastro", "ver")) return recusarRota();
   const { caminho } = await params;
 
   if (!Array.isArray(caminho) || caminho.length !== 3) {
