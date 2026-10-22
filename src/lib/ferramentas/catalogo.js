@@ -12,12 +12,14 @@ import { Shapes, TrendingUp } from "lucide-react";
  * @property {React.ComponentType} icone
  * @property {string} resumo   Uma ou duas frases: o que a ferramenta faz.
  * @property {string} [detalhe] Linha pequena no pe do cartao.
+ * @property {string} recurso O recurso de Acessos da ferramenta (o cartao some sem `ver` nele).
  */
 
 /** @type {Ferramenta[]} */
 export const FERRAMENTAS = [
   {
     href: "/ferramentas/imagem-para-svg",
+    recurso: "tela.ferramentas.imagemParaSvg",
     rotulo: "Imagem para SVG",
     icone: Shapes,
     resumo: "Converte o logo de uma empresa, de um fornecedor ou do seu site em SVG, com fundo transparente e as cores exatas.",
@@ -25,6 +27,7 @@ export const FERRAMENTAS = [
   },
   {
     href: "/ferramentas/cotacao-dolar",
+    recurso: "tela.ferramentas.cotacaoDolar",
     rotulo: "Cotação do dólar",
     icone: TrendingUp,
     resumo: "O dólar de agora e o oficial do Banco Central (PTAX), com gráfico dos últimos dias, meses ou do último ano.",

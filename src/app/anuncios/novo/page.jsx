@@ -3,6 +3,7 @@ import { ArrowLeft, Lock } from "lucide-react";
 
 import { canais } from "@/lib/anuncios/canais";
 import PageHeader from "@/components/ui/PageHeader";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import Card from "@/components/ui/Card";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,9 @@ const CAMPOS = [
   { nome: "garantiaMeses", rotulo: "Garantia (meses)" },
 ];
 
-export default function NovoAnuncioPage() {
+export default async function NovoAnuncioPage() {
+  await exigirAcessoNaPagina("tela.anuncios", "editar");
+
   return (
     <>
       <Link

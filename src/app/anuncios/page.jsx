@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { canais, temAlteracoesNaoPublicadas } from "@/lib/anuncios/canais";
 import { anuncioPorCanal } from "@/lib/canais";
 import PageHeader from "@/components/ui/PageHeader";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import BadgeCanal from "@/components/anuncios/BadgeCanal";
@@ -18,6 +19,8 @@ const moeda = new Intl.NumberFormat("pt-BR", {
 });
 
 export default async function AnunciosPage({ searchParams }) {
+  // Acessos: a lista em ver; Novo anuncio com editar.
+  const { pode } = await exigirAcessoNaPagina("tela.anuncios", "ver");
   const params = await searchParams;
   const canalFiltro = params?.canal ?? "";
   const situacaoFiltro = params?.situacao ?? "";
@@ -77,6 +80,7 @@ export default async function AnunciosPage({ searchParams }) {
         titulo="Anúncios"
         descricao="Um cadastro, vários canais. Cada canal tem suas regras e sua situação própria."
         acao={
+          pode("tela.anuncios", "editar") && (
           <Link
             href="/anuncios/novo"
             className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90"
@@ -84,6 +88,7 @@ export default async function AnunciosPage({ searchParams }) {
             <Plus size={16} />
             Novo anúncio
           </Link>
+          )
         }
       />
 

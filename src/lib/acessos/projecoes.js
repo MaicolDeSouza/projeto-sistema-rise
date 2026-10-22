@@ -131,3 +131,13 @@ export function abasDoScraper(pode) {
 export function abaDoTipoDeFonte(tipo) {
   return tipo === "FORNECEDOR" ? "fornecedores" : "concorrentes";
 }
+
+/**
+ * Os cartoes de Indicadores › Estoque: "Valor do estoque a custo" exige o custo E o financeiro; "Receita potencial", o
+ * financeiro. Sem nenhum, a pagina mostra o vazio (e nem le os produtos).
+ */
+export function cartoesDosIndicadores(pode) {
+  const receita = pode("dado.financeiro", "ver");
+  const custo = receita && pode("dado.custo", "ver");
+  return { custo, receita, algum: custo || receita };
+}

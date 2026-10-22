@@ -1,10 +1,13 @@
 import ImagemParaSvg from "@/components/ferramentas/ImagemParaSvg";
 import LinkDeVolta from "@/components/ui/LinkDeVolta";
 import PageHeader from "@/components/ui/PageHeader";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 
 export const metadata = { title: "Imagem para SVG | Sistema Rise" };
 
-export default function ImagemParaSvgPage() {
+export default async function ImagemParaSvgPage() {
+  await exigirAcessoNaPagina("tela.ferramentas.imagemParaSvg", "ver");
+
   return (
     <>
       {/* A barra lateral nao lista as ferramentas (so "Ferramentas"): o caminho de volta e este. */}

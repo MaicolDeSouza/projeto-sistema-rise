@@ -1,19 +1,26 @@
 import Link from "next/link";
-import { Wallet, TrendingUp } from "lucide-react";
+import { Lock, Wallet, TrendingUp } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { calcularIndicadoresEstoque, custoDoCadastro, formatarReais } from "@/lib/indicadores/estoque";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import AvisoBanco from "@/components/ui/AvisoBanco";
+import EmptyState from "@/components/ui/EmptyState";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { cartoesDosIndicadores } from "@/lib/acessos/projecoes";
 
 export const metadata = { title: "Indicadores de estoque | Sistema Rise" };
 export const dynamic = "force-dynamic";
 
 export default async function IndicadoresEstoquePage() {
+  // Acessos: "Valor do estoque a custo" exige Custo e Financeiro; "Receita potencial", Financeiro. Sem nenhum, o vazio.
+  const { pode } = await exigirAcessoNaPagina("tela.indicadores.estoque", "ver");
+  const liberados = cartoesDosIndicadores(pode);
   let indicadores = null;
   let erro = null;
   try {
-    // Todos os produtos, sem a paginacao ou os filtros da tela de Produtos.
+    // Todos os produtos, sem a paginacao ou os filtros da tela de Produtos. Sem cartao liberado nada e lido.
+    if (liberados.algum) {
     const produtos = await prisma.produto.findMany({
       select: {
         estoque: true,
@@ -31,12 +38,13 @@ export default async function IndicadoresEstoquePage() {
       ...produto,
       custo: custoDoCadastro(produto),
     })));
+    }
   } catch (excecao) {
     erro = excecao;
   }
 
   const cards = indicadores ? [
-    {
+    liberados.custo && {
       titulo: "Valor do estoque a custo",
       valor: indicadores.custo,
       descricao: "Capital aplicado nas mercadorias, com base no custo do fornecedor padrão ou no custo importado do Bling exibido no cadastro.",
@@ -45,7 +53,7 @@ export default async function IndicadoresEstoquePage() {
       campo: "custo",
       icone: Wallet,
     },
-    {
+    liberados.receita && {
       titulo: "Receita potencial do estoque",
       valor: indicadores.receita,
       descricao: "Receita bruta estimada se todo o estoque for vendido pelos preços cadastrados.",
@@ -54,7 +62,7 @@ export default async function IndicadoresEstoquePage() {
       campo: "preço de venda",
       icone: TrendingUp,
     },
-  ] : [];
+  ].filter(Boolean) : [];
 
   return (
     <>
@@ -65,7 +73,13 @@ export default async function IndicadoresEstoquePage() {
         voltarRotulo="Voltar para Indicadores"
         acao={<Link href="/produtos" className="text-sm text-acento hover:underline">Ver produtos</Link>}
       />
-      {erro ? <AvisoBanco erro={erro} /> : (
+      {!liberados.algum ? (
+        <EmptyState
+          icone={Lock}
+          titulo="Nada liberado para o seu acesso"
+          descricao="Os valores do estoque dependem do acesso ao financeiro (e ao custo). Peça ao administrador."
+        />
+      ) : erro ? <AvisoBanco erro={erro} /> : (
         <>
           <div className="grid gap-4 lg:grid-cols-2">
             {cards.map(({ titulo, valor, descricao, formula, faltantes, campo, icone: Icone }) => (

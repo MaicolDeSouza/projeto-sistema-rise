@@ -1,5 +1,7 @@
 "use server";
 
+import { negarSemAcessos } from "@/lib/acessos/servidor";
+
 import { headers } from "next/headers";
 
 import { ehOPcDeDesenvolvimento, decidirCopia } from "@/lib/vps/regras";
@@ -22,6 +24,8 @@ const PASTA = () => process.cwd();
 
 /** Tudo o que o cartao mostra (git, VPS, o que sobe, as decisoes e a ultima operacao). Leva alguns segundos. */
 export async function situacaoDaVps() {
+  const negado = await negarSemAcessos(["tela.integracoes", "ver"]);
+  if (negado) return negado;
   if (!(await permitido())) return SO_NO_PC;
   try {
     return { ok: true, ...(await lerSituacao(PASTA())) };
@@ -32,6 +36,8 @@ export async function situacaoDaVps() {
 
 /** So a operacao em andamento (rapido): o cartao pergunta isto a cada poucos segundos enquanto algo roda. */
 export async function andamentoDaVps() {
+  const negado = await negarSemAcessos(["tela.integracoes", "ver"]);
+  if (negado) return negado;
   if (!(await permitido())) return SO_NO_PC;
   try {
     return { ok: true, operacao: await acompanharOperacao(PASTA()) };
@@ -45,6 +51,8 @@ export async function andamentoDaVps() {
  * cartao e clicar, outro deploy pode ter comecado ou a VPS pode ter ficado igual ao GitHub.
  */
 export async function atualizarAVps() {
+  const negado = await negarSemAcessos(["acao.vps.deploy", "executar"]);
+  if (negado) return negado;
   if (!(await permitido())) return SO_NO_PC;
   try {
     const situacao = await lerSituacao(PASTA());
@@ -57,6 +65,8 @@ export async function atualizarAVps() {
 
 /** "Atualizar banco do PC": liga o ajudante destacado, que para e religa este servidor. */
 export async function atualizarBancoDoPc() {
+  const negado = await negarSemAcessos(["acao.vps.deploy", "executar"]);
+  if (negado) return negado;
   if (!(await permitido())) return SO_NO_PC;
   try {
     const [vps, operacao] = await Promise.all([lerVps(), acompanharOperacao(PASTA())]);

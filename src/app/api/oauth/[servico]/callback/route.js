@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { recusarRota, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { config } from "@/lib/integracoes/config";
 import { obterConector } from "@/lib/integracoes/registro";
 
@@ -11,6 +12,8 @@ const APELIDOS = {
 };
 
 export async function GET(requisicao, { params }) {
+  // Acessos: conectar uma conta e editar Integracoes (o retorno grava os tokens).
+  if (!(await sessaoDeAcessos()).pode("tela.integracoes", "editar")) return recusarRota();
   const { servico } = await params;
   const url = new URL(requisicao.url);
 

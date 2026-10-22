@@ -1,5 +1,7 @@
 "use server";
 
+import { negarSemAcessos } from "@/lib/acessos/servidor";
+
 import { revalidatePath } from "next/cache";
 
 import { desconectar, registrarTeste } from "@/lib/integracoes/conexoes";
@@ -13,6 +15,8 @@ import { obterConector } from "@/lib/integracoes/registro";
  */
 
 export async function testarConexao(servicoId) {
+  const negado = await negarSemAcessos(["tela.integracoes", "editar"]);
+  if (negado) return negado;
   const conector = obterConector(servicoId);
   if (!conector) return { ok: false, erro: "Conector desconhecido." };
 
@@ -34,6 +38,8 @@ export async function testarConexao(servicoId) {
 }
 
 export async function salvarChavesAction(servicoId, formData) {
+  const negado = await negarSemAcessos(["tela.integracoes", "editar"]);
+  if (negado) return negado;
   const conector = obterConector(servicoId);
   const salvar = conector?.salvarCredenciais ?? conector?.salvarChaves;
   if (!salvar) {
@@ -66,6 +72,8 @@ export async function salvarChavesAction(servicoId, formData) {
 }
 
 export async function desconectarAction(servicoId) {
+  const negado = await negarSemAcessos(["tela.integracoes", "editar"]);
+  if (negado) return negado;
   await desconectar(servicoId);
   revalidatePath("/integracoes");
   return { ok: true };

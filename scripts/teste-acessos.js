@@ -755,6 +755,23 @@ try {
     );
   }
 
+  // --- Lancamento 2: Indicadores (os valores do estoque seguem custo e financeiro) ---
+  {
+    console.log("\nIndicadores");
+    const { cartoesDosIndicadores } = await import("../src/lib/acessos/projecoes.js");
+    const so = (...ids) => (id, nivel) => nivel === "ver" && ids.includes(id);
+    conferir(
+      "custo e financeiro nas quatro combinacoes",
+      [so("dado.custo", "dado.financeiro"), so("dado.financeiro"), so("dado.custo"), so()].map(cartoesDosIndicadores),
+      [
+        { custo: true, receita: true, algum: true },
+        { custo: false, receita: true, algum: true },
+        { custo: false, receita: false, algum: false },
+        { custo: false, receita: false, algum: false },
+      ],
+    );
+  }
+
   // --- guarda estatico do lancamento 1: toda pagina, layout, rota e arquivo de acoes de src/app confere o acesso ---
   {
     const { readFileSync, readdirSync, statSync } = await import("node:fs");
@@ -804,23 +821,6 @@ try {
     ];
     // O resto do Rise, que entra no lancamento 2 (spec §8). A lista SO ENCOLHE: esvaziar no lancamento 2.
     const EXCECOES_DO_LANCAMENTO_1 = [
-      "src/app/anuncios/[id]/page.jsx",
-      "src/app/anuncios/novo/page.jsx",
-      "src/app/anuncios/page.jsx",
-      "src/app/api/oauth/[servico]/callback/route.js",
-      "src/app/api/oauth/[servico]/iniciar/route.js",
-      "src/app/estoque/page.jsx",
-      "src/app/ferramentas/acoes.js",
-      "src/app/ferramentas/cotacao-dolar/page.jsx",
-      "src/app/ferramentas/imagem-para-svg/page.jsx",
-      "src/app/ferramentas/page.jsx",
-      "src/app/financeiro/page.jsx",
-      "src/app/indicadores/estoque/page.jsx",
-      "src/app/indicadores/page.jsx",
-      "src/app/integracoes/acoes-vps.js",
-      "src/app/integracoes/acoes.js",
-      "src/app/integracoes/page.jsx",
-      "src/app/pedidos/page.jsx",
     ];
     conferir("o guarda olha todas as paginas, layouts, rotas e acoes de src/app", alvos.length >= 60, true);
     conferir("o Painel le a sessao e filtra pelos cartoes", ["sessaoDeAcessos(", "cartoesDoPainel("].map((trecho) => ler("src/app/page.jsx").includes(trecho)), [true, true]);

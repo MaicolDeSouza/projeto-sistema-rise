@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { CircleAlert, CircleCheck } from "lucide-react";
 
 import PageHeader from "@/components/ui/PageHeader";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import CartaoConector from "@/components/CartaoConector";
 import CartaoServidorVps from "@/components/integracoes/CartaoServidorVps";
 import { ehOPcDeDesenvolvimento } from "@/lib/vps/regras";
@@ -22,6 +23,9 @@ function tokenVencePerto(conector, conexao) {
 }
 
 export default async function IntegracoesPage({ searchParams }) {
+  // Acessos: a tela em ver; conectar, testar, desconectar e salvar chaves com editar. O cartao da VPS continua so no PC.
+  const { pode } = await exigirAcessoNaPagina("tela.integracoes", "ver");
+  const podeEditar = pode("tela.integracoes", "editar");
   const params = await searchParams;
 
   let conexoes = new Map();
@@ -62,6 +66,7 @@ export default async function IntegracoesPage({ searchParams }) {
         titulo="Integrações"
         voltarPara="/configuracoes"
         voltarRotulo="Configurações"
+        somenteLeitura={podeEditar ? null : "Seu acesso a Integrações é de leitura"}
         descricao="Conexões com os sistemas externos. Conecte a conta, acompanhe a situação e teste o acesso quando precisar."
       />
 
@@ -121,6 +126,7 @@ export default async function IntegracoesPage({ searchParams }) {
               key={conector.id}
               conector={conector}
               conexao={conexoes.get(conector.id) ?? null}
+              podeEditar={podeEditar}
               tokenPertoDoVencimento={tokenVencePerto(
                 conector,
                 conexoes.get(conector.id),

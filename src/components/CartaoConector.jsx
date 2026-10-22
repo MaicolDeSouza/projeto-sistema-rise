@@ -46,6 +46,8 @@ export default function CartaoConector({
   conector,
   conexao,
   tokenPertoDoVencimento = false,
+  // Tela em `ver` (Acessos): sem Conectar, Testar, Desconectar nem o formulario das chaves.
+  podeEditar = true,
 }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [resultado, setResultado] = useState(null);
@@ -159,7 +161,7 @@ export default function CartaoConector({
         </div>
       )}
 
-      {["chaves_estaticas", "personal_token"].includes(conector.tipoAuth) && !conectado && !conector.bloqueado && (
+      {podeEditar && ["chaves_estaticas", "personal_token"].includes(conector.tipoAuth) && !conectado && !conector.bloqueado && (
         <form action={aoSalvar} className="mt-4 space-y-3">
           {conector.campos.map((campo) => (
             <div key={campo.nome}>
@@ -190,7 +192,7 @@ export default function CartaoConector({
       )}
 
       <div className="mt-auto flex flex-wrap gap-2 pt-4">
-        {conector.tipoAuth === "oauth2" && !conectado && (
+        {podeEditar && conector.tipoAuth === "oauth2" && !conectado && (
           <a
             href={`${conector.origemOAuth}/api/oauth/${conector.id === "BLING" ? "bling" : "mercadolivre"}/iniciar`}
             className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
@@ -199,7 +201,7 @@ export default function CartaoConector({
           </a>
         )}
 
-        {conectado && (
+        {podeEditar && conectado && (
           <>
             <button
               type="button"

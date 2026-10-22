@@ -1,5 +1,7 @@
 "use server";
 
+import { negarSemAcessos } from "@/lib/acessos/servidor";
+
 import {
   URL_AGORA,
   intervaloDoPeriodo,
@@ -27,6 +29,8 @@ import { TETO_BYTES_SVG, TETO_MB_SVG } from "@/lib/ferramentas/presetsSvg";
  * escolhe.
  */
 export async function converterImagemAcao(dados) {
+  const negado = await negarSemAcessos(["tela.ferramentas.imagemParaSvg", "ver"]);
+  if (negado) return negado;
   const arquivo = dados.get("arquivo");
   if (!arquivo || typeof arquivo === "string") {
     return { ok: false, erro: "Escolha uma imagem para converter." };
@@ -130,6 +134,8 @@ async function buscarAgora() {
  * acrescentar e migration (o dono pediu sem mexer no schema, 21/09/2026).
  */
 export async function buscarCotacaoAcao(valorDoPeriodo, forcar = false) {
+  const negado = await negarSemAcessos(["tela.ferramentas.cotacaoDolar", "ver"]);
+  if (negado) return negado;
   const intervalo = intervaloDoPeriodo(valorDoPeriodo);
   if (!intervalo) return { ok: false, erro: "Período inválido." };
 

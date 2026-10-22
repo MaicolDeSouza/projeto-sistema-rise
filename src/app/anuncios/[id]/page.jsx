@@ -9,11 +9,13 @@ import { anuncioPorCanal } from "@/lib/canais";
 import { validarAnuncio } from "@/lib/anuncios/validar";
 import { camposEditaveis, montarPayload } from "@/lib/anuncios/transformar";
 import PageHeader from "@/components/ui/PageHeader";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import EditorAnuncio from "@/components/anuncios/EditorAnuncio";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnuncioPage({ params }) {
+  await exigirAcessoNaPagina("tela.anuncios", "ver");
   const { id } = await params;
 
   const produto = await prisma.produto.findUnique({

@@ -2,6 +2,7 @@ import { buscarCotacaoAcao } from "@/app/ferramentas/acoes";
 import CotacaoDolar from "@/components/ferramentas/CotacaoDolar";
 import LinkDeVolta from "@/components/ui/LinkDeVolta";
 import PageHeader from "@/components/ui/PageHeader";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { PERIODO_PADRAO } from "@/lib/ferramentas/cotacao";
 
 export const metadata = { title: "Cotação do dólar | Sistema Rise" };
@@ -10,6 +11,7 @@ export const metadata = { title: "Cotação do dólar | Sistema Rise" };
 export const dynamic = "force-dynamic";
 
 export default async function CotacaoDolarPage() {
+  await exigirAcessoNaPagina("tela.ferramentas.cotacaoDolar", "ver");
   // A primeira carga vem pronta daqui, sem tela vazia e sem efeito no cliente.
   const inicial = await buscarCotacaoAcao(PERIODO_PADRAO);
 
