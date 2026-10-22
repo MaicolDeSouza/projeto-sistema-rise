@@ -118,3 +118,72 @@ export function camposDoFormularioDaProposta(secoes, escolhas = {}, produto = {}
   }
   return { campos, secoes: aplicadas };
 }
+
+/** Os campos que o formulario mostra para cada um de `CAMPO_DO_FORMULARIO`, mais preco, EAN e descricao. */
+const ROTULO_DO_CAMPO = {
+  marca: "Marca", modelo: "Modelo", unidade: "Unidade", garantiaMeses: "Garantia", sku: "Código", ncm: "NCM", origem: "Origem",
+  pesoKg: "Peso", alturaCm: "Altura", larguraCm: "Largura", comprimentoCm: "Comprimento", precoVenda: "Preço", ean: "GTIN / EAN",
+  descricaoBase: "Descrição",
+};
+
+// Mesmo valor escrito de outro jeito ("0.007" e 0,007; "8537.10.20" e "85371020"; caixa) nao e sugestao nova.
+function mesmoValor(campo, a, b) {
+  if (campo === "ncm" || campo === "ean") return String(a ?? "").replace(/\D/g, "") === String(b ?? "").replace(/\D/g, "");
+  const numeroA = Number(String(a ?? "").replace(",", "."));
+  const numeroB = Number(String(b ?? "").replace(",", "."));
+  if (temValor(a) && temValor(b) && Number.isFinite(numeroA) && Number.isFinite(numeroB)) return Math.abs(numeroA - numeroB) < 1e-9;
+  return String(a ?? "").trim().toUpperCase() === String(b ?? "").trim().toUpperCase();
+}
+
+/** "46% margem · 5º de 9": a margem vem em porcentagem ou, de propostas antigas, em fracao (0,46). */
+function textoDoPreco(opcao) {
+  const margem = Number(opcao?.margem);
+  const partes = [];
+  if (Number.isFinite(margem)) partes.push(`${Math.round(Math.abs(margem) <= 1 ? margem * 100 : margem)}% margem`);
+  if (opcao?.posicao?.posicao) partes.push(`${opcao.posicao.posicao}º de ${opcao.posicao.total}`);
+  return partes.join(" · ");
+}
+
+/**
+ * A proposta direto no formulario (pedido do dono em 22/10/2026; plano `2026-10-22-proposta-no-formulario.md`). Em vez do
+ * quadro "Aplicar escolhidos", ao abrir o produto:
+ * - campo VAZIO no produto recebe o valor da proposta (`preencher`, com a marca "PROPOSTA" na tela);
+ * - campo JA PREENCHIDO com outro valor leva o da proposta para o topo da lista do icone (`nasListas`);
+ * - a descricao sempre troca (decisao D do dono); o titulo nunca (as 3 opcoes ficam na lista "Escolher o titulo");
+ * - o codigo so vale para produto sem SKU (regra de antes).
+ *
+ * @param {Record<string, any>} secoes `PropostaDeProduto.secoes`
+ * @param {Record<string, unknown>} produto os valores do formulario agora (campo do formulario -> valor)
+ * @returns {{ preencher: Record<string, unknown>, nasListas: Record<string, { valor: unknown, origem: string, rotulo: string }>, secoes: string[] }}
+ */
+export function propostaNoFormulario(secoes, produto = {}) {
+  const preencher = {};
+  const nasListas = {};
+  const preenchidas = new Set();
+  const propor = (secao, campo, valor, origem) => {
+    if (!temValor(valor)) return;
+    if (!temValor(produto[campo])) {
+      preencher[campo] = valor;
+      preenchidas.add(secao);
+    } else if (!mesmoValor(campo, produto[campo], valor)) {
+      nasListas[campo] = { valor, origem: String(origem ?? ""), rotulo: ROTULO_DO_CAMPO[campo] ?? campo };
+    }
+  };
+
+  const descricao = secoes?.descricao?.texto;
+  if (temValor(descricao)) {
+    preencher.descricaoBase = descricao;
+    preenchidas.add("descricao");
+  }
+  const preco = secoes?.preco?.recomendada;
+  if (preco) propor("preco", "precoVenda", preco.preco, textoDoPreco(preco));
+  const ean = secoes?.ean?.escolhido;
+  if (ean) propor("ean", "ean", ean.valor, ean.origem);
+  for (const [campo, item] of Object.entries(secoes?.campos ?? {})) {
+    const destino = CAMPO_DO_FORMULARIO[campo];
+    if (!destino) continue;
+    if (destino === "sku" && temValor(produto.sku)) continue;
+    propor("campos", destino, item?.valor, item?.origem);
+  }
+  return { preencher, nasListas, secoes: [...preenchidas] };
+}

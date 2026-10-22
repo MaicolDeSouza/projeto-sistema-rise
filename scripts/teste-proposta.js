@@ -136,6 +136,24 @@ function conferir(nome, condicao) {
   conferir("aplicar: fotos, documentos e relatorio nao sao aplicaveis aqui", !SECOES_APLICAVEIS.includes("fotos") && !SECOES_APLICAVEIS.includes("documentos"));
   conferir("aplicar: secao ausente na proposta e ignorada", camposDoFormularioDaProposta({}, todas, { sku: "1" }).secoes.length === 0);
 
+  // A proposta direto no formulario (22/10/2026): vazio preenche, preenchido vai para a lista, igual some.
+  const { propostaNoFormulario } = await import("../src/lib/proposta/aplicar.js");
+  const comPreco = { ...secoes, preco: { ...secoes.preco, recomendada: { margem: 46, preco: 39.4, posicao: { posicao: 5, total: 9 } } }, campos: { ...secoes.campos, ncm: { valor: "8537.10.20", origem: "Fortek" } } };
+  const vazio = propostaNoFormulario(comPreco, { sku: "100103", marca: "", precoVenda: "", ean: "", garantiaMeses: "", pesoKg: "", ncm: "" });
+  conferir("formulario: campos vazios sao preenchidos", vazio.preencher.marca === "GENÉRICA" && vazio.preencher.precoVenda === 39.4 && vazio.preencher.ean === "7891234567895" && vazio.preencher.garantiaMeses === 3 && vazio.preencher.ncm === "8537.10.20");
+  conferir("formulario: a descricao sempre entra", vazio.preencher.descricaoBase === secoes.descricao.texto);
+  conferir("formulario: o titulo nunca entra", !("tituloBase" in vazio.preencher) && !("tituloBase" in vazio.nasListas));
+  conferir("formulario: com SKU, o codigo nao entra", !("sku" in vazio.preencher) && !("sku" in vazio.nasListas));
+  conferir("formulario: as secoes que preencheram", JSON.stringify(vazio.secoes.sort()) === JSON.stringify(["campos", "descricao", "ean", "preco"]));
+  const cheio = propostaNoFormulario(comPreco, { sku: "100103", marca: "ARDUINO", precoVenda: "45.90", ean: "7891234567895", garantiaMeses: "3", pesoKg: "0.0070", ncm: "85371020" });
+  conferir("formulario: preenchido com outro valor vai para a lista", cheio.nasListas.marca?.valor === "GENÉRICA" && cheio.nasListas.marca?.rotulo === "Marca");
+  conferir("formulario: o preco na lista leva margem e posicao", cheio.nasListas.precoVenda?.valor === 39.4 && cheio.nasListas.precoVenda?.origem === "46% margem · 5º de 9");
+  conferir("formulario: o mesmo valor escrito de outro jeito nao vira sugestao", !("ean" in cheio.nasListas) && !("garantiaMeses" in cheio.nasListas) && !("pesoKg" in cheio.nasListas) && !("ncm" in cheio.nasListas));
+  conferir("formulario: preenchido nao preenche de novo", !("marca" in cheio.preencher) && JSON.stringify(cheio.secoes) === JSON.stringify(["descricao"]));
+  conferir("formulario: margem em fracao (proposta antiga) vira porcentagem", propostaNoFormulario({ preco: { recomendada: { margem: 0.46, preco: 39.4 } } }, { precoVenda: "1" }).nasListas.precoVenda.origem === "46% margem");
+  conferir("formulario: sem SKU, o codigo entra", propostaNoFormulario(secoes, { sku: "" }).preencher.sku === "250010");
+  conferir("formulario: proposta vazia nao faz nada", JSON.stringify(propostaNoFormulario({}, {})) === JSON.stringify({ preencher: {}, nasListas: {}, secoes: [] }));
+
   // "Aplicar fotos": a lista do painel depois de aplicar.
   const { fotosDoPainelComAProposta } = await import("../src/lib/proposta/aplicar.js");
   const painel = [
