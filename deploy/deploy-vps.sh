@@ -139,12 +139,14 @@ if [ "${RECARREGOU}" != 1 ]; then
   false
 fi
 
-# Confere o proprio site, sem passar pelo login: /produtos le o banco e prova que app e db conversam.
+# Confere o proprio site, sem passar pelo login. Era /produtos, mas desde o Acessos lancamento 2 (22/10/2026) toda tela
+# de bloco da 404 a quem chega sem login (o deploy daquele dia parou aqui com o site no ar); o Painel (/) responde 200.
+# O banco ja foi conferido pelo `migrate status` acima.
 echo "== Conferindo o site"
 PASSO="conferindo o site por dentro"
 PRONTO=0
 for _ in $(seq 1 45); do
-  if docker compose exec -T app node -e "fetch('http://localhost:3000/produtos').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+  if docker compose exec -T app node -e "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
     PRONTO=1
     break
   fi
