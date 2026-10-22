@@ -47,3 +47,39 @@ const PASTAS_PUBLICAS = ["imagens", "documentos", "certificados"];
 export function pastaPublica(pasta) {
   return PASTAS_PUBLICAS.includes(pasta);
 }
+
+/**
+ * Os campos do cliente que sao "dado pessoal" (`dado.pessoalDoCliente`): os da tela do cadastro (`documento`,
+ * `telefones`, `emails`, `enderecos`, `contatos`, `observacoes`) e o `contato` da linha da lista (telefone e e-mail
+ * juntos). Sem o dado, nada disso sai do servidor.
+ */
+const PESSOAIS_NA_TELA = ["documento", "telefones", "emails", "enderecos", "contatos", "observacoes", "contato"];
+
+/** O cliente (da tela ou da lista) sem o dado pessoal quando a pessoa nao o ve. Devolve uma copia. */
+export function projetarCliente(cliente, pode) {
+  if (pode("dado.pessoalDoCliente", "ver")) return cliente;
+  const copia = { ...cliente };
+  for (const campo of PESSOAIS_NA_TELA) delete copia[campo];
+  return copia;
+}
+
+/** As colunas pessoais de `Cliente` que o Salvar grava (enderecos e contatos sao tabelas a parte: quem salva as pula). */
+const PESSOAIS_GRAVADOS = {
+  documento: null,
+  observacoes: null,
+  telefone: null,
+  telefonesAdicionais: [],
+  email: null,
+  emailsAdicionais: [],
+};
+
+/**
+ * Os dados a gravar sem apagar o que a pessoa nao via: sem `dado.pessoalDoCliente` em editar, as colunas pessoais vem do
+ * banco (`atual`), nunca do formulario (`recebido`), que chega sem esses campos. Com o dado, vale o formulario.
+ */
+export function pessoalPreservado(atual, recebido, pode) {
+  if (pode("dado.pessoalDoCliente", "editar")) return recebido;
+  const preservado = { ...recebido };
+  for (const [campo, vazio] of Object.entries(PESSOAIS_GRAVADOS)) preservado[campo] = atual?.[campo] ?? vazio;
+  return preservado;
+}

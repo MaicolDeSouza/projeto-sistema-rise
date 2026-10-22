@@ -23,7 +23,7 @@ import PopupExclusao from "./PopupExclusao";
  * quem quer mexer na varredura precisa saber se a fonte esta ativa ou pausada
  * sem sair daqui.
  */
-export default function TabelaParceiros({ linhas, slug, busca }) {
+export default function TabelaParceiros({ linhas, slug, busca, podeExcluir = true }) {
   const [alvo, setAlvo] = useState(null);
   const [erro, setErro] = useState(null);
   const [pendente, iniciarTransicao] = useTransition();
@@ -147,6 +147,7 @@ export default function TabelaParceiros({ linhas, slug, busca }) {
                       >
                         <Pencil size={15} />
                       </Link>
+                      {podeExcluir && (
                       <button
                         type="button"
                         onClick={() => setAlvo(linha)}
@@ -155,6 +156,7 @@ export default function TabelaParceiros({ linhas, slug, busca }) {
                       >
                         <Trash2 size={15} />
                       </button>
+                      )}
                     </div>
                   </td>
                 </tr>

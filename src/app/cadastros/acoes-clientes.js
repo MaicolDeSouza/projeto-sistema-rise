@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { negarSemAcesso, sessaoDeAcessos } from "@/lib/acessos/servidor";
+import { pessoalPreservado } from "@/lib/acessos/projecoes";
 import { prisma } from "@/lib/db";
 import {
   UFS,
@@ -82,29 +84,53 @@ const ClienteSchema = z
  * inclui as pessoas de contato, que so existem para pessoa juridica.
  */
 export async function salvarCliente(id, _anterior, formData) {
+  const negado = await negarSemAcesso("tela.cadastros.clientes", "editar");
+  if (negado) return negado;
+
+  // Sem o dado pessoal a tela nem desenha documento, telefones, e-mails, enderecos, contatos e observacoes: o que chega
+  // sem eles NAO e "apagar", e as colunas vem do banco (`pessoalPreservado`), antes da validacao (o documento e
+  // obrigatorio). Enderecos e contatos nem sao tocados. Cliente novo exige o documento, entao exige o dado.
+  const { pode } = await sessaoDeAcessos();
+  const comPessoal = pode("dado.pessoalDoCliente", "editar");
+  if (!comPessoal && !id) return { ok: false, erro: "Sem permissão para Dados pessoais do cliente." };
+  let atual = null;
+  if (!comPessoal) {
+    atual = await prisma.cliente.findUnique({
+      where: { id },
+      select: { documento: true, observacoes: true, telefone: true, telefonesAdicionais: true, email: true, emailsAdicionais: true },
+    });
+    if (!atual) return { ok: false, erro: "Este cliente não existe mais. Volte para a lista." };
+  }
+
   const campos = lerCampos(formData);
+  if (!comPessoal) Object.assign(campos, { documento: atual.documento ?? "", observacoes: atual.observacoes ?? "" });
 
   const analise = ClienteSchema.safeParse(campos);
   const erros = analise.success ? {} : errosPorCampo(analise);
+  // O documento gravado nao confere com o tipo escolhido (ou falta): so quem edita o dado pessoal o corrige, e o campo
+  // nem esta na tela desta pessoa.
+  if (!comPessoal && erros.documento) {
+    return { ok: false, erro: "O CPF/CNPJ deste cliente não confere com o tipo escolhido. Só quem edita os dados pessoais pode corrigir." };
+  }
 
-  const geral = lerEndereco(campos, "geral");
-  const entrega = lerEndereco(campos, "entrega");
+  const geral = comPessoal ? lerEndereco(campos, "geral") : { erros: {}, dados: null };
+  const entrega = comPessoal ? lerEndereco(campos, "entrega") : { erros: {}, dados: null };
   const entregaIgualGeral = campos.entregaIgualGeral === "on";
   Object.assign(erros, geral.erros, entregaIgualGeral ? {} : entrega.erros);
 
   // O primeiro valor de cada lista e o principal e fica em `telefone`/`email`; os
   // demais vao para as listas. Assim quem le so o principal continua funcionando.
   // Telefone: grava so os digitos (ver `src/lib/telefone.js`).
-  const { telefones, erro: erroTelefones } = lerTelefones(formData);
+  const { telefones, erro: erroTelefones } = comPessoal ? lerTelefones(formData) : { telefones: [], erro: null };
   if (erroTelefones) erros.telefones = erroTelefones;
-  const { emails, erro: erroEmails } = lerEmails(formData);
+  const { emails, erro: erroEmails } = comPessoal ? lerEmails(formData) : { emails: [], erro: null };
   if (erroEmails) erros.emails = erroEmails;
 
   // So a pessoa juridica tem pessoas de contato: para fisica a lista nem e lida (ela
   // pode chegar com o que ficou montado e oculto na tela), e a que estava gravada e
   // apagada.
   let contatos = [];
-  if (campos.tipoPessoa === "JURIDICA") {
+  if (comPessoal && campos.tipoPessoa === "JURIDICA") {
     const lido = lerContatos(campos.contatos);
     contatos = lido.contatos;
     if (lido.erro) erros.contatos = lido.erro;
@@ -112,13 +138,17 @@ export async function salvarCliente(id, _anterior, formData) {
 
   if (Object.keys(erros).length > 0) return { ok: false, erros };
 
-  const dados = {
-    ...analise.data,
-    telefone: telefones[0] ?? null,
-    telefonesAdicionais: telefones.slice(1),
-    email: emails[0] ?? null,
-    emailsAdicionais: emails.slice(1),
-  };
+  const dados = pessoalPreservado(
+    atual,
+    {
+      ...analise.data,
+      telefone: telefones[0] ?? null,
+      telefonesAdicionais: telefones.slice(1),
+      email: emails[0] ?? null,
+      emailsAdicionais: emails.slice(1),
+    },
+    pode,
+  );
   const fisica = dados.tipoPessoa === "FISICA";
 
   if (dados.documento) {
@@ -167,6 +197,9 @@ export async function salvarCliente(id, _anterior, formData) {
             })
           : tx.clienteEndereco.deleteMany({ where: { clienteId: salvo.id, tipo } });
 
+      // Sem o dado pessoal a tela nao tinha enderecos nem contatos: o que esta gravado fica como esta.
+      if (!comPessoal) return salvo;
+
       await gravar("GERAL", geral.dados);
       await gravar("ENTREGA", entregaIgualGeral ? null : entrega.dados);
 
@@ -203,6 +236,8 @@ export async function salvarCliente(id, _anterior, formData) {
 
 /** Exclui o cliente; enderecos e contatos vao junto (`Cascade`). */
 export async function excluirCliente(id) {
+  const negado = await negarSemAcesso("tela.cadastros.clientes", "excluir");
+  if (negado) return negado;
   try {
     await prisma.cliente.delete({ where: { id } });
   } catch (erro) {
@@ -233,6 +268,8 @@ export async function excluirCliente(id) {
  * Falha nunca trava o cadastro — devolve o recado e o operador digita a mao.
  */
 export async function buscarCep(cep) {
+  const negado = await negarSemAcesso("tela.cadastros.clientes", "editar");
+  if (negado) return negado;
   const digitos = String(cep ?? "").replace(/\D/g, "");
   if (digitos.length !== 8) return { ok: false, erro: "Informe um CEP com 8 dígitos." };
 

@@ -562,14 +562,14 @@ try {
   {
     const { acessosDoCadastro } = await import("../src/lib/acessos/produto.js");
     const com = (...ids) => (id, nivel) => ids.includes(`${id}:${nivel}`) || (nivel === "ver" && ids.includes(`${id}:editar`));
-    const TUDO = ["tela.produtos.cadastro:editar", "dado.custo:ver", "dado.concorrentes:ver", "dado.margem:ver", "acao.produtos.gerarTextoComIA:executar"];
+    const TUDO = ["tela.produtos.cadastro:editar", "dado.custo:ver", "dado.concorrentes:ver", "dado.margem:ver", "acao.produtos.gerarTextoComIA:executar", "tela.cadastros.fornecedores:editar", "tela.cadastros.concorrentes:editar"];
     conferir("quem edita com todos os dados: tudo liberado e margem sempre visivel", acessosDoCadastro(com(...TUDO)), {
-      editar: true, custo: true, concorrentes: true, referencias: true, ia: true, margem: "sempre",
+      editar: true, custo: true, concorrentes: true, referencias: true, ia: true, margem: "sempre", cadastrarFornecedor: true, cadastrarConcorrente: true,
     });
     conferir(
       "so ver: formulario somente leitura, sem ferramentas, margem atras do olho",
       acessosDoCadastro(com("tela.produtos.cadastro:ver", "dado.custo:ver", "dado.concorrentes:ver", "dado.margem:ver")),
-      { editar: false, custo: true, concorrentes: true, referencias: false, ia: false, margem: "olho" },
+      { editar: false, custo: true, concorrentes: true, referencias: false, ia: false, margem: "olho", cadastrarFornecedor: false, cadastrarConcorrente: false },
     );
     conferir(
       "a margem exige Margem E Custo: sem um deles nao ha nem o olho",
@@ -589,6 +589,15 @@ try {
         acessosDoCadastro(com("tela.produtos.cadastro:ver", "acao.produtos.gerarTextoComIA:executar")).ia,
       ],
       [false, false, true, false],
+    );
+    conferir(
+      "o cadastro rapido exige Editar E editar a secao do tipo em Cadastros",
+      [
+        acessosDoCadastro(com("tela.produtos.cadastro:editar")).cadastrarFornecedor,
+        acessosDoCadastro(com("tela.produtos.cadastro:editar", "tela.cadastros.fornecedores:editar")).cadastrarFornecedor,
+        acessosDoCadastro(com("tela.produtos.cadastro:ver", "tela.cadastros.concorrentes:editar")).cadastrarConcorrente,
+      ],
+      [false, true, false],
     );
     const { projetarParaAcessos } = await import("../src/lib/produtoParaFormulario.js");
     const dados = {
@@ -652,6 +661,36 @@ try {
     conferir("pastas publicas dos arquivos", ["imagens", "documentos", "certificados", "reserva", "..", ""].map(pastaPublica), [true, true, true, false, false, false]);
   }
 
+  // --- Lancamento 2: Cadastros (secoes por recurso e o dado pessoal do cliente) ---
+  {
+    console.log("\nCadastros");
+    const { recursoDaSecao } = await import("../src/lib/secoesDeCadastros.js");
+    const { projetarCliente, pessoalPreservado } = await import("../src/lib/acessos/projecoes.js");
+    conferir(
+      "cada secao tem o seu recurso",
+      ["clientes", "fornecedores", "concorrentes", "transportadoras", "produtos", "marcas", "outra", ""].map(recursoDaSecao),
+      ["tela.cadastros.clientes", "tela.cadastros.fornecedores", "tela.cadastros.concorrentes", "tela.cadastros.transportadoras", "tela.produtos", "tela.cadastros.marcas", null, null],
+    );
+    const comPessoal = () => true;
+    const semPessoal = (id) => id !== "dado.pessoalDoCliente";
+    const cliente = {
+      id: "c1", nome: "ZZ", tipoPessoa: "FISICA", documento: "123", telefones: ["54988990008"], emails: ["a@b.c"],
+      enderecos: { geral: { cep: "1" }, entrega: null }, contatos: [{ nome: "X" }], observacoes: "obs", contato: "54 · a@b.c", sexo: "MASCULINO",
+    };
+    conferir("com o dado pessoal o cliente segue igual", projetarCliente(cliente, comPessoal), cliente);
+    conferir(
+      "sem o dado pessoal: documento, telefones, e-mails, enderecos, contatos e observacoes saem",
+      projetarCliente(cliente, semPessoal),
+      { id: "c1", nome: "ZZ", tipoPessoa: "FISICA", sexo: "MASCULINO" },
+    );
+    conferir("o cliente recebido nao e alterado", cliente.documento, "123");
+    const doBanco = { documento: "111.444.777-35", observacoes: "do banco", telefone: "54988990008", telefonesAdicionais: ["5433334444"], email: "b@b.c", emailsAdicionais: [] };
+    const doFormulario = { documento: "", observacoes: null, telefone: null, telefonesAdicionais: [], email: null, emailsAdicionais: [] };
+    conferir("sem o dado: os campos pessoais vem do banco, nunca do formulario", pessoalPreservado(doBanco, { ...doFormulario, nome: "Novo" }, semPessoal), { ...doBanco, nome: "Novo" });
+    conferir("sem o dado e sem cliente no banco: nada pessoal entra", pessoalPreservado(null, { ...doBanco, nome: "N" }, semPessoal), { documento: null, observacoes: null, telefone: null, telefonesAdicionais: [], email: null, emailsAdicionais: [], nome: "N" });
+    conferir("com o dado: valem os do formulario", pessoalPreservado(doBanco, doFormulario, comPessoal), doFormulario);
+  }
+
   // --- guarda estatico do lancamento 1: toda pagina, layout, rota e arquivo de acoes de src/app confere o acesso ---
   {
     const { readFileSync, readdirSync, statSync } = await import("node:fs");
@@ -709,13 +748,6 @@ try {
       "src/app/api/mercados/miniatura/[id]/route.js",
       "src/app/api/oauth/[servico]/callback/route.js",
       "src/app/api/oauth/[servico]/iniciar/route.js",
-      "src/app/cadastros/[tipo]/[id]/page.jsx",
-      "src/app/cadastros/[tipo]/novo/page.jsx",
-      "src/app/cadastros/[tipo]/page.jsx",
-      "src/app/cadastros/acoes-clientes.js",
-      "src/app/cadastros/acoes-transportadoras.js",
-      "src/app/cadastros/acoes.js",
-      "src/app/cadastros/page.jsx",
       "src/app/canais-de-venda/loja-integrada/[id]/page.jsx",
       "src/app/canais-de-venda/loja-integrada/acoes.js",
       "src/app/canais-de-venda/loja-integrada/novo/page.jsx",

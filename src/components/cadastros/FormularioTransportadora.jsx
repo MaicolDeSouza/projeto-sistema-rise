@@ -63,7 +63,7 @@ const ENDERECO_VAZIO = { cep: "", uf: "", cidade: "", bairro: "", logradouro: ""
  * pelo CNPJ (razao social, endereco, telefone), mas a integracao ainda nao existe:
  * so o botao ficou pronto no lugar. Ver "Busca de dados pelo CNPJ" no CLAUDE.md.
  */
-export default function FormularioTransportadora({ transportadora, usos }) {
+export default function FormularioTransportadora({ transportadora, usos, somenteLeitura = false }) {
   const router = useRouter();
   const inicial = transportadora ?? { ativo: true };
   const [ieIsento, setIeIsento] = useState(inicial.ieIsento ?? false);
@@ -98,19 +98,21 @@ export default function FormularioTransportadora({ transportadora, usos }) {
   return (
     <form onSubmit={aoEnviar} onInvalidCapture={aoInvalidar} className="max-w-5xl space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="submit"
-          disabled={enviando}
-          className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-        >
-          {enviando && <Loader size={14} className="animate-spin" />}
-          Salvar
-        </button>
+        {!somenteLeitura && (
+          <button
+            type="submit"
+            disabled={enviando}
+            className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {enviando && <Loader size={14} className="animate-spin" />}
+            Salvar
+          </button>
+          )}
         <Link
           href="/cadastros/transportadoras"
           className="rounded border border-borda px-4 py-2 text-sm hover:bg-fundo"
         >
-          Cancelar
+          {somenteLeitura ? "Voltar" : "Cancelar"}
         </Link>
         {estado?.erro && <span className="text-sm text-red-700">{estado.erro}</span>}
         {estado && !estado.ok && !estado.erro && (
@@ -122,7 +124,7 @@ export default function FormularioTransportadora({ transportadora, usos }) {
         <BarraDeAbas abas={ABAS} aba={aba} aoMudar={setAba} comErro={comErro(erros)} />
 
         <div className="p-5">
-          <Painel id="cadastro" aba={aba}>
+          <Painel id="cadastro" aba={aba} somenteLeitura={somenteLeitura}>
             <div className="grid gap-4 md:grid-cols-2">
               <Campo
                 nome="nome"
@@ -251,11 +253,11 @@ export default function FormularioTransportadora({ transportadora, usos }) {
             </div>
           </Painel>
 
-          <Painel id="endereco" aba={aba}>
+          <Painel id="endereco" aba={aba} somenteLeitura={somenteLeitura}>
             <CamposDeEndereco prefixo="endereco" valores={endereco} aoMudar={setEndereco} erros={erros} />
           </Painel>
 
-          <Painel id="contato" aba={aba}>
+          <Painel id="contato" aba={aba} somenteLeitura={somenteLeitura}>
             <div className="grid gap-4 md:grid-cols-2">
               <ListaDeValores
                 nome="telefones"

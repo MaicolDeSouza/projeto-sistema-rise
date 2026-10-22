@@ -22,7 +22,7 @@ import CampoSite from "./CampoSite";
  * a action a mao, nada e limpo e o que o operador digitou fica. (Antes o que foi
  * enviado virava o valor inicial, o que nao alcancava a lista.)
  */
-export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
+export default function FormularioParceiro({ slug, parceiro, fontes, usos, somenteLeitura = false }) {
   const router = useRouter();
   const config = PARCEIROS[slug];
   // Concorrente nao e alguem com quem se negocia: sem CNPJ, contato nem prazo.
@@ -53,6 +53,8 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
 
   return (
     <form onSubmit={aoEnviar} className="max-w-3xl space-y-4">
+      {/* Tela em `ver` (Acessos): os campos travam todos de uma vez; o Voltar e um link e continua funcionando. */}
+      <fieldset disabled={somenteLeitura} className="m-0 min-w-0 space-y-4 border-0 p-0">
       <div className="grid gap-4 rounded-lg border border-borda bg-superficie p-4 md:grid-cols-2">
         <div className="md:col-span-2">
           <Campo nome="nome" rotulo="Nome" erro={erros.nome} defaultValue={valor("nome")} required autoFocus />
@@ -172,17 +174,20 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos }) {
         </p>
       )}
 
+      </fieldset>
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="submit"
-          disabled={enviando}
-          className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-        >
-          {enviando && <Loader size={14} className="animate-spin" />}
-          Salvar
-        </button>
+        {!somenteLeitura && (
+          <button
+            type="submit"
+            disabled={enviando}
+            className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {enviando && <Loader size={14} className="animate-spin" />}
+            Salvar
+          </button>
+        )}
         <Link href={voltar} className="rounded border border-borda px-4 py-2 text-sm hover:bg-fundo">
-          Cancelar
+          {somenteLeitura ? "Voltar" : "Cancelar"}
         </Link>
         {estado?.erro && <span className="text-sm text-red-700">{estado.erro}</span>}
       </div>

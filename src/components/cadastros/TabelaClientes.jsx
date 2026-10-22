@@ -13,7 +13,8 @@ import PopupExclusao from "./PopupExclusao";
  * Lista de clientes. A busca vive na URL (`?q=`), como nas outras listas de
  * Cadastros, e procura por nome, documento e e-mail no servidor.
  */
-export default function TabelaClientes({ linhas, busca }) {
+// `verPessoal` (Acessos, dado.pessoalDoCliente): sem ele as colunas CPF/CNPJ e Contato nao existem e a busca so olha o nome.
+export default function TabelaClientes({ linhas, busca, podeExcluir = true, verPessoal = true }) {
   const [alvo, setAlvo] = useState(null);
   const [erro, setErro] = useState(null);
   const [pendente, iniciarTransicao] = useTransition();
@@ -33,7 +34,7 @@ export default function TabelaClientes({ linhas, busca }) {
 
   return (
     <>
-      <CampoBusca valorInicial={busca} rotulo="Buscar por nome, CPF/CNPJ ou e-mail" />
+      <CampoBusca valorInicial={busca} rotulo={verPessoal ? "Buscar por nome, CPF/CNPJ ou e-mail" : "Buscar por nome"} />
 
       {linhas.length === 0 ? (
         <p className="rounded-lg border border-dashed border-borda bg-superficie px-4 py-8 text-center text-sm text-suave">
@@ -45,9 +46,9 @@ export default function TabelaClientes({ linhas, busca }) {
             <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
               <tr className="divide-x divide-borda">
                 <th className="px-3 py-2.5 font-medium">Nome</th>
-                <th className="px-3 py-2.5 font-medium">CPF / CNPJ</th>
+                {verPessoal && <th className="px-3 py-2.5 font-medium">CPF / CNPJ</th>}
                 <th className="px-3 py-2.5 font-medium">Tipo</th>
-                <th className="px-3 py-2.5 font-medium">Contato</th>
+                {verPessoal && <th className="px-3 py-2.5 font-medium">Contato</th>}
                 <th className="px-3 py-2.5 font-medium">Cidade</th>
                 <th className="px-3 py-2.5" />
               </tr>
@@ -68,13 +69,13 @@ export default function TabelaClientes({ linhas, busca }) {
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap text-suave">{linha.documento || "—"}</td>
+                  {verPessoal && <td className="px-3 py-2.5 whitespace-nowrap text-suave">{linha.documento || "—"}</td>}
                   <td className="px-3 py-2.5">
                     <Badge tom={linha.tipoPessoa === "JURIDICA" ? "info" : "neutro"}>
                       {linha.tipoPessoa === "JURIDICA" ? "Jurídica" : "Física"}
                     </Badge>
                   </td>
-                  <td className="px-3 py-2.5 text-suave">{linha.contato || "—"}</td>
+                  {verPessoal && <td className="px-3 py-2.5 text-suave">{linha.contato || "—"}</td>}
                   <td className="px-3 py-2.5 text-suave">{linha.cidade || "—"}</td>
                   <td className="px-3 py-2.5">
                     <div className="flex justify-end gap-1">
@@ -85,6 +86,7 @@ export default function TabelaClientes({ linhas, busca }) {
                       >
                         <Pencil size={15} />
                       </Link>
+                      {podeExcluir && (
                       <button
                         type="button"
                         onClick={() => setAlvo(linha)}
@@ -93,6 +95,7 @@ export default function TabelaClientes({ linhas, busca }) {
                       >
                         <Trash2 size={15} />
                       </button>
+                      )}
                     </div>
                   </td>
                 </tr>

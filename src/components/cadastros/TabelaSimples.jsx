@@ -22,7 +22,7 @@ const VAZIO = { nome: "", observacoes: "" };
  * Marca do produto). O servidor converte de novo, mas ver o texto final antes de
  * salvar evita a surpresa de "Elgin" voltar como "ELGIN".
  */
-export default function TabelaSimples({ itens, busca, salvar, excluir, textos, maiusculas = false }) {
+export default function TabelaSimples({ itens, busca, salvar, excluir, textos, maiusculas = false, podeEditar = true, podeExcluir = true }) {
   const [editando, setEditando] = useState(null); // id, "novo" ou null
   const [rascunho, setRascunho] = useState(VAZIO);
   const [erros, setErros] = useState({});
@@ -136,6 +136,7 @@ export default function TabelaSimples({ itens, busca, salvar, excluir, textos, m
     <>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <CampoBusca valorInicial={busca} rotulo={textos.buscar} className="max-w-sm flex-1" />
+        {podeEditar && (
         <button
           type="button"
           onClick={abrirNovo}
@@ -145,6 +146,7 @@ export default function TabelaSimples({ itens, busca, salvar, excluir, textos, m
           <Plus size={16} />
           {textos.nova}
         </button>
+        )}
       </div>
 
       {itens.length === 0 && editando !== "novo" ? (
@@ -172,6 +174,7 @@ export default function TabelaSimples({ itens, busca, salvar, excluir, textos, m
                     <td className="px-3 py-2.5 text-suave">{item.observacoes || "—"}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex justify-end gap-1">
+                        {podeEditar && (
                         <button
                           type="button"
                           onClick={() => abrirEdicao(item)}
@@ -181,6 +184,8 @@ export default function TabelaSimples({ itens, busca, salvar, excluir, textos, m
                         >
                           <Pencil size={15} />
                         </button>
+                        )}
+                        {podeExcluir && (
                         <button
                           type="button"
                           onClick={() => {
@@ -193,6 +198,7 @@ export default function TabelaSimples({ itens, busca, salvar, excluir, textos, m
                         >
                           <Trash2 size={15} />
                         </button>
+                        )}
                       </div>
                     </td>
                   </tr>

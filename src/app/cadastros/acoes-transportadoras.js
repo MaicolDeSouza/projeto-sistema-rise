@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { negarSemAcesso } from "@/lib/acessos/servidor";
 import { prisma } from "@/lib/db";
 import { lerContatos, lerEmails, lerEndereco, lerTelefones } from "@/lib/formularios";
 import { cnpjOpcional, ehUrlSegura, errosPorCampo, lerCampos, opcional } from "@/lib/validacao";
@@ -44,6 +45,8 @@ const TransportadoraSchema = z.object({
  * contradizem, entao a inscricao e apagada.
  */
 export async function salvarTransportadora(id, _anterior, formData) {
+  const negado = await negarSemAcesso("tela.cadastros.transportadoras", "editar");
+  if (negado) return negado;
   const campos = lerCampos(formData);
 
   const analise = TransportadoraSchema.safeParse(campos);

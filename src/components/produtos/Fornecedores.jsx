@@ -199,7 +199,12 @@ export default function Fornecedores({
   modoRascunho = false,
   aoMudarRascunho,
   sugestoes = [],
+  podeCadastrar = true,
 }) {
+  // Acessos: o cadastro rapido grava em Cadastros; sem editar a secao, o popup nao abre e o recado diz a quem pedir.
+  const recadoSemCadastro = podeCadastrar
+    ? "Fornecedor não cadastrado. Complete o cadastro rápido."
+    : "Fornecedor não cadastrado. Peça o cadastro a quem edita Fornecedores em Cadastros.";
   const [pendente, iniciarTransicao] = useTransition();
   const [editando, setEditando] = useState(null); // id do vinculo, ou "novo"
   const [rascunho, setRascunho] = useState(VAZIO);
@@ -284,7 +289,7 @@ export default function Fornecedores({
       return;
     }
     if (!cadastradoAgora && !catalogoAtual.some((item) => item.nome.toLocaleLowerCase("pt-BR") === dadosDoVinculo.nome.trim().toLocaleLowerCase("pt-BR"))) {
-      setErros({ nome: "Fornecedor não cadastrado. Complete o cadastro rápido." });
+      setErros({ nome: recadoSemCadastro });
       setPopupNome(dadosDoVinculo.nome.trim());
       return;
     }
@@ -339,7 +344,7 @@ export default function Fornecedores({
 
     if (!catalogoAtual.some((cadastro) => cadastro.nome.toLocaleLowerCase("pt-BR") === dados.nome.trim().toLocaleLowerCase("pt-BR"))) {
       setRascunho(dados);
-      setErros({ nome: "Fornecedor não cadastrado. Complete o cadastro rápido." });
+      setErros({ nome: recadoSemCadastro });
       setEditando("novo");
       setPopupNome(dados.nome.trim());
       return;
@@ -616,7 +621,7 @@ export default function Fornecedores({
         O custo do produto vem do fornecedor marcado como padrão.
       </p>
 
-      {popupNome !== null && (
+      {popupNome !== null && podeCadastrar && (
         <CadastroRapidoFornecedor
           key={popupNome}
           nomeInicial={popupNome}

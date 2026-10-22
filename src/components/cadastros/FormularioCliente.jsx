@@ -116,7 +116,12 @@ function EscolhaDoTipo({ tipo, aoMudar }) {
  * invalido para o navegador numa aba escondida a abre (`aoInvalidar`): o Salvar
  * fica fora das abas, entao da para clicar nele de qualquer uma.
  */
-export default function FormularioCliente({ cliente, transportadoras, hoje }) {
+/**
+ * `semPessoal` (Acessos, sem `dado.pessoalDoCliente`): documento, telefones, e-mails, endereco, pessoas de contato e
+ * observacoes nao sao desenhados (o servidor nem os mandou), e a aba que ficaria vazia some. O Salvar os mantem como
+ * estao no banco.
+ */
+export default function FormularioCliente({ cliente, transportadoras, hoje, somenteLeitura = false, semPessoal = false }) {
   const router = useRouter();
   const inicial = cliente ?? { ativo: true };
   const [tipo, setTipo] = useState(inicial.tipoPessoa ?? "FISICA");
@@ -142,6 +147,11 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
   const erros = estado?.erros ?? {};
   const valor = (campo) => inicial[campo] ?? "";
   const juridica = tipo === "JURIDICA";
+  // Sem o dado pessoal, Endereco nao tem nada e Contato so tem sexo e naturalidade (pessoa fisica).
+  const abasVisiveis = semPessoal
+    ? ABAS.filter((item) => item.id !== "endereco" && !(item.id === "contato" && juridica))
+    : ABAS;
+  const abaAtiva = abasVisiveis.some((item) => item.id === aba) ? aba : abasVisiveis[0].id;
 
   // So a pessoa do tipo escolhido enxerga os campos do outro tipo — e nunca os
   // dois conjuntos ao mesmo tempo.
@@ -158,19 +168,21 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
   return (
     <form onSubmit={aoEnviar} onInvalidCapture={aoInvalidar} className="max-w-5xl space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="submit"
-          disabled={enviando}
-          className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-        >
-          {enviando && <Loader size={14} className="animate-spin" />}
-          Salvar
-        </button>
+        {!somenteLeitura && (
+          <button
+            type="submit"
+            disabled={enviando}
+            className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {enviando && <Loader size={14} className="animate-spin" />}
+            Salvar
+          </button>
+          )}
         <Link
           href="/cadastros/clientes"
           className="rounded border border-borda px-4 py-2 text-sm hover:bg-fundo"
         >
-          Cancelar
+          {somenteLeitura ? "Voltar" : "Cancelar"}
         </Link>
         {estado?.erro && <span className="text-sm text-red-700">{estado.erro}</span>}
         {estado && !estado.ok && !estado.erro && (
@@ -181,12 +193,14 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
       <Card className="p-0">
         {/* O tipo da pessoa fica na barra das abas: ele decide o que aparece em TODAS
             elas (Fantasia e IE na primeira, Sexo e Pessoas de contato em Contato). */}
-        <BarraDeAbas abas={ABAS} aba={aba} aoMudar={setAba} comErro={comErro(erros)}>
-          <EscolhaDoTipo tipo={tipo} aoMudar={setTipo} />
+        <BarraDeAbas abas={abasVisiveis} aba={abaAtiva} aoMudar={setAba} comErro={comErro(erros)}>
+          <fieldset disabled={somenteLeitura} className="m-0 min-w-0 border-0 p-0">
+            <EscolhaDoTipo tipo={tipo} aoMudar={setTipo} />
+          </fieldset>
         </BarraDeAbas>
 
         <div className="p-5">
-      <Painel id="cadastro" aba={aba}>
+      <Painel id="cadastro" aba={abaAtiva} somenteLeitura={somenteLeitura}>
         <div className="grid gap-4 md:grid-cols-3">
           <Campo nome="nome" rotulo="Nome *" erro={erros.nome} defaultValue={valor("nome")} required autoFocus />
 
@@ -199,6 +213,7 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
             />
           </div>
 
+          {!semPessoal && (
           <Campo
             nome="documento"
             rotulo={juridica ? "CNPJ *" : "CPF *"}
@@ -209,6 +224,7 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
             placeholder={juridica ? "00.000.000/0000-00" : "000.000.000-00"}
             onBlur={formatarDocumento}
           />
+          )}
 
           <div className={soJuridica}>
             <Campo nome="regimeTributario" rotulo="Código de regime tributário" erro={erros.regimeTributario}>
@@ -262,11 +278,14 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
         </div>
       </Painel>
 
-      <Painel id="endereco" aba={aba}>
+      {!semPessoal && (
+      <Painel id="endereco" aba={abaAtiva} somenteLeitura={somenteLeitura}>
         <EnderecoDoCliente inicial={cliente?.enderecos} erros={erros} />
       </Painel>
+      )}
 
-      <Painel id="contato" aba={aba}>
+      <Painel id="contato" aba={abaAtiva} somenteLeitura={somenteLeitura}>
+        {!semPessoal && (
         <div className="grid gap-4 md:grid-cols-2">
           <ListaDeValores
             nome="telefones"
@@ -289,9 +308,10 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
             type="email"
           />
         </div>
+        )}
 
         {/* Sexo e naturalidade: so pessoa fisica. */}
-        <div className={`${soFisica} mt-4 grid gap-4 md:grid-cols-2`}>
+        <div className={`${soFisica} ${semPessoal ? "" : "mt-4"} grid gap-4 md:grid-cols-2`}>
           <Campo nome="sexo" rotulo="Sexo" erro={erros.sexo}>
             <select
               id="sexo"
@@ -315,13 +335,15 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
 
         {/* Pessoas de contato: so pessoa juridica. Ficam montadas e ocultas, como os
             demais campos de um tipo, para trocar de tipo e voltar nao perder a lista. */}
+        {!semPessoal && (
         <div className={`${soJuridica} mt-5`}>
           <p className="mb-2 text-sm font-semibold">Pessoas de contato</p>
           <ContatosDoCliente inicial={cliente?.contatos} erro={erros.contatos} />
         </div>
+        )}
       </Painel>
 
-      <Painel id="adicionais" aba={aba}>
+      <Painel id="adicionais" aba={abaAtiva} somenteLeitura={somenteLeitura}>
         <div className="grid gap-4 md:grid-cols-3">
           <Campo
             nome="clienteDesde"
@@ -361,6 +383,7 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
           </Campo>
         </div>
 
+        {!semPessoal && (
         <div className="mt-4">
           <Campo nome="observacoes" rotulo="Observações" erro={erros.observacoes}>
             <textarea
@@ -372,6 +395,7 @@ export default function FormularioCliente({ cliente, transportadoras, hoje }) {
             />
           </Campo>
         </div>
+        )}
 
         <label className="mt-4 flex items-center gap-2 text-sm font-semibold">
           <input

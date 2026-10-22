@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { projetarCliente } from "@/lib/acessos/projecoes";
 import { prisma } from "@/lib/db";
+import { recursoDaSecao } from "@/lib/secoesDeCadastros";
 import { PARCEIROS } from "@/lib/cadastros";
 import { formatarTelefone } from "@/lib/telefone";
 import PageHeader from "@/components/ui/PageHeader";
@@ -132,6 +135,13 @@ export default async function EditarCadastroPage({ params }) {
   const config = PARCEIROS[tipo];
   if (!config && tipo !== "clientes") notFound();
 
+  // Acessos: abrir pede ver; sem editar o formulario abre so para leitura. Sem o dado pessoal, o cliente chega sem
+  // documento, telefones, e-mails, enderecos, contatos e observacoes (cortados aqui, antes de ir ao navegador).
+  const recurso = recursoDaSecao(tipo);
+  const { pode } = await exigirAcessoNaPagina(recurso, "ver");
+  const somenteLeitura = !pode(recurso, "editar");
+  const semPessoal = !pode("dado.pessoalDoCliente", "ver");
+
   let registro = null;
   let dadosDoCliente = null;
   let dadosDaTransportadora = null;
@@ -187,13 +197,19 @@ export default async function EditarCadastroPage({ params }) {
         Voltar para {plural}
       </Link>
 
-      <PageHeader titulo={titulo} descricao={`Cadastro de ${singular}.`} />
+      <PageHeader
+        titulo={titulo}
+        descricao={`Cadastro de ${singular}.`}
+        somenteLeitura={somenteLeitura ? `Seu acesso a ${plural} é de leitura` : null}
+      />
 
       {erro ? (
         <AvisoBanco erro={erro} />
       ) : tipo === "clientes" ? (
         <FormularioCliente
-          cliente={dadosDoCliente.cliente}
+          cliente={projetarCliente(dadosDoCliente.cliente, pode)}
+          semPessoal={semPessoal}
+          somenteLeitura={somenteLeitura}
           transportadoras={dadosDoCliente.transportadoras}
           hoje={new Date().toLocaleDateString("sv-SE")}
         />
@@ -201,9 +217,10 @@ export default async function EditarCadastroPage({ params }) {
         <FormularioTransportadora
           transportadora={dadosDaTransportadora.transportadora}
           usos={dadosDaTransportadora.usos}
+          somenteLeitura={somenteLeitura}
         />
       ) : (
-        <FormularioParceiro slug={tipo} parceiro={parceiro} fontes={fontes} usos={usos} />
+        <FormularioParceiro slug={tipo} parceiro={parceiro} fontes={fontes} usos={usos} somenteLeitura={somenteLeitura} />
       )}
     </>
   );

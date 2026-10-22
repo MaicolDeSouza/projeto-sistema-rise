@@ -96,7 +96,7 @@ import {
 
 /// O que o formulario faz quando NAO recebe `acessos` (a tela de hoje, sem restricao). O calculo de verdade e
 /// `acessosDoCadastro` (src/lib/acessos/produto.js), feito no servidor pelas paginas.
-const ACESSO_TOTAL = { editar: true, custo: true, concorrentes: true, referencias: true, ia: true, margem: "sempre" };
+const ACESSO_TOTAL = { editar: true, custo: true, concorrentes: true, referencias: true, ia: true, margem: "sempre", cadastrarFornecedor: true, cadastrarConcorrente: true };
 
 const ABAS = [
   { id: "caracteristicas", rotulo: "Características" },
@@ -3967,6 +3967,7 @@ export default function FormularioProduto({
               <div className={ehKit ? "hidden" : ""}>
                 <Fornecedores
                   ref={fornecedoresRef}
+                  podeCadastrar={acessos.cadastrarFornecedor}
                   produtoId={produto?.id ?? null}
                   ativo={aba === "fornecedores" && !ehKit}
                   vinculos={usaFornecedorRascunho ? fornecedoresRascunho : fornecedores}
@@ -3982,6 +3983,7 @@ export default function FormularioProduto({
               {acessos.concorrentes && (
               <Concorrentes
                 ref={concorrentesRef}
+                podeCadastrar={acessos.cadastrarConcorrente}
                 produtoId={produto?.id ?? null}
                 ativo={aba === "fornecedores"}
                 vinculos={concorrentesRascunho}

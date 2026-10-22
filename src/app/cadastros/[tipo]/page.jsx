@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, Package, Plus } from "lucide-react";
 
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { projetarCliente } from "@/lib/acessos/projecoes";
 import { prisma } from "@/lib/db";
+import { recursoDaSecao } from "@/lib/secoesDeCadastros";
 import { PARCEIROS } from "@/lib/cadastros";
 import { formatarTelefone } from "@/lib/telefone";
 import PageHeader from "@/components/ui/PageHeader";
@@ -46,6 +49,15 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
   const secao = SECOES[tipo];
   if (!secao) notFound();
 
+  // Acessos: a secao em ver; editar desenha o Novo e os lapis, excluir as lixeiras. Sem o dado pessoal, a lista de
+  // clientes nao tem CPF nem contato, e a busca nao olha esses campos (acharia o cliente pelo CPF digitado).
+  const recurso = recursoDaSecao(tipo);
+  const { pode } = await exigirAcessoNaPagina(recurso, "ver");
+  const podeEditar = pode(recurso, "editar");
+  const podeExcluir = pode(recurso, "excluir");
+  const verPessoal = pode("dado.pessoalDoCliente", "ver");
+  const criarCliente = podeEditar && pode("dado.pessoalDoCliente", "editar");
+
   const consulta = await searchParams;
   const busca = (consulta?.q ?? "").trim();
   const ehParceiro = tipo in PARCEIROS;
@@ -60,7 +72,11 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
     if (tipo === "clientes") {
       const registros = await prisma.cliente.findMany({
         where: busca
-          ? { OR: [contem("nome", busca), contem("documento", busca), contem("email", busca), contem("nomeFantasia", busca)] }
+          ? {
+              OR: verPessoal
+                ? [contem("nome", busca), contem("documento", busca), contem("email", busca), contem("nomeFantasia", busca)]
+                : [contem("nome", busca), contem("nomeFantasia", busca)],
+            }
           : undefined,
         orderBy: { nome: "asc" },
         include: {
@@ -69,7 +85,7 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
       });
       clientes = registros.map((r) => {
         const geral = r.enderecos[0];
-        return {
+        return projetarCliente({
           id: r.id,
           nome: r.nome,
           nomeFantasia: r.nomeFantasia,
@@ -78,7 +94,7 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
           ativo: r.ativo,
           contato: [r.telefone, r.email].filter(Boolean).join(" · "),
           cidade: geral ? [geral.cidade, geral.uf].filter(Boolean).join("/") : "",
-        };
+        }, pode);
       });
     } else if (tipo === "fornecedores") {
       const registros = await prisma.fornecedor.findMany({
@@ -156,7 +172,9 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
 
   const total =
     tipo === "clientes" ? clientes.length : ehParceiro ? parceiros.length : itens.length;
-  const comBotaoNovo = tipo === "clientes" || ehParceiro;
+  const comBotaoNovo = (tipo === "clientes" || ehParceiro) && podeEditar;
+  // O documento e obrigatorio no cliente novo: sem o dado pessoal nao ha como criar, e o botao diz por que.
+  const novoTravado = tipo === "clientes" && !criarCliente;
 
   return (
     <>
@@ -164,13 +182,23 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
 
       <PageHeader
         titulo={secao.plural}
+        somenteLeitura={tipo !== "produtos" && !podeEditar ? `Seu acesso a ${secao.plural} é de leitura` : null}
         descricao={
           tipo === "produtos"
             ? `${totalProdutos} produto(s) cadastrado(s).`
             : `${total} ${busca ? "encontrado(s)" : "cadastrado(s)"}.`
         }
         acao={
-          comBotaoNovo && (
+          comBotaoNovo &&
+          (novoTravado ? (
+            <span
+              title="Para cadastrar um cliente é preciso editar os dados pessoais (o CPF ou CNPJ é obrigatório)."
+              className="inline-flex cursor-not-allowed items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white opacity-50"
+            >
+              <Plus size={16} />
+              {secao.novo} {secao.singular}
+            </span>
+          ) : (
             <Link
               href={`/cadastros/${tipo}/novo`}
               className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90"
@@ -178,7 +206,7 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
               <Plus size={16} />
               {secao.novo} {secao.singular}
             </Link>
-          )
+          ))
         }
       />
 
@@ -186,9 +214,11 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
 
       {!erro && (
         <>
-          {tipo === "clientes" && <TabelaClientes linhas={clientes} busca={busca} />}
+          {tipo === "clientes" && (
+            <TabelaClientes linhas={clientes} busca={busca} podeExcluir={podeExcluir} verPessoal={verPessoal} />
+          )}
 
-          {ehParceiro && <TabelaParceiros linhas={parceiros} slug={tipo} busca={busca} />}
+          {ehParceiro && <TabelaParceiros linhas={parceiros} slug={tipo} busca={busca} podeExcluir={podeExcluir} />}
 
           {tipo === "marcas" && (
             <TabelaSimples
@@ -198,6 +228,8 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
               excluir={excluirMarca}
               textos={TEXTOS_MARCA}
               maiusculas
+              podeEditar={podeEditar}
+              podeExcluir={podeExcluir}
             />
           )}
 
@@ -216,6 +248,7 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
                 O cadastro de produto é o mesmo do item Produtos do menu.
               </p>
               <div className="mt-5 flex flex-wrap items-center gap-3">
+                {pode("tela.produtos.cadastro", "editar") && (
                 <Link
                   href="/produtos/novo"
                   className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-2 text-sm font-medium text-white hover:opacity-90"
@@ -223,6 +256,7 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
                   <Plus size={16} />
                   Cadastrar novo produto
                 </Link>
+                )}
                 <Link
                   href="/produtos"
                   className="inline-flex items-center gap-1 text-sm text-acento hover:underline"

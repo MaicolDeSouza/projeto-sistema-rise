@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { prisma } from "@/lib/db";
+import { recursoDaSecao } from "@/lib/secoesDeCadastros";
 import { PARCEIROS } from "@/lib/cadastros";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
@@ -16,6 +18,10 @@ export default async function NovoCadastroPage({ params }) {
   const { tipo } = await params;
   const config = PARCEIROS[tipo];
   if (!config && tipo !== "clientes") notFound();
+
+  // Acessos: cadastrar e editar a secao; o cliente novo exige tambem o dado pessoal (o CPF ou CNPJ e obrigatorio).
+  const { pode } = await exigirAcessoNaPagina(recursoDaSecao(tipo), "editar");
+  if (tipo === "clientes" && !pode("dado.pessoalDoCliente", "editar")) notFound();
 
   let fontes = [];
   let transportadoras = [];

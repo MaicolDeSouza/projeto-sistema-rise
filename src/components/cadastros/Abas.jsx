@@ -10,10 +10,13 @@ import { useState } from "react";
  * desmontado nao entra no `FormData`, e salvar de uma aba perderia o que foi
  * digitado nas outras. `data-aba` deixa o formulario descobrir a aba de um campo.
  */
-export function Painel({ id, aba, children }) {
+export function Painel({ id, aba, somenteLeitura = false, children }) {
+  // Tela em `ver` (Acessos): os campos da aba ficam travados, mas a barra de abas (fora do painel) continua navegavel.
   return (
     <div role="tabpanel" data-aba={id} className={aba === id ? "" : "hidden"}>
-      {children}
+      <fieldset disabled={somenteLeitura} className="m-0 min-w-0 border-0 p-0">
+        {children}
+      </fieldset>
     </div>
   );
 }

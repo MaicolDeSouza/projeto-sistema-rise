@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
+import { negarSemAcesso, podeAgora } from "@/lib/acessos/servidor";
 import { PARCEIROS } from "@/lib/cadastros";
+import { recursoDaSecao } from "@/lib/secoesDeCadastros";
 import {
   cnpjOpcional,
   decimal,
@@ -96,6 +98,7 @@ function revalidarCadastros() {
 
 /** Opcoes da mesma lista "Fonte de coleta" do cadastro completo. */
 export async function fontesParaCadastroRapidoFornecedor() {
+  if (!(await podeAgora("tela.cadastros.fornecedores", "editar"))) return [];
   return prisma.fonteColeta.findMany({
     where: { tipo: "FORNECEDOR" },
     orderBy: { nome: "asc" },
@@ -104,6 +107,7 @@ export async function fontesParaCadastroRapidoFornecedor() {
 }
 
 export async function fontesParaCadastroRapidoConcorrente() {
+  if (!(await podeAgora("tela.cadastros.concorrentes", "editar"))) return [];
   return prisma.fonteColeta.findMany({
     where: { tipo: { in: ["CONCORRENTE", "OUTRO"] } },
     orderBy: { nome: "asc" },
@@ -120,6 +124,9 @@ export async function fontesParaCadastroRapidoConcorrente() {
  * `slug` e o trecho da URL.
  */
 export async function salvarParceiro(slug, id, _anterior, formData) {
+  // O recurso sai do tipo da URL; tipo desconhecido cai no bloco inteiro e, logo abaixo, em "Cadastro desconhecido".
+  const negado = await negarSemAcesso(recursoDaSecao(slug) ?? "tela.cadastros", "editar");
+  if (negado) return negado;
   const config = PARCEIROS[slug];
   if (!config || !ESQUEMAS[slug]) return { ok: false, erro: "Cadastro desconhecido." };
 
@@ -197,6 +204,8 @@ async function recadoDeUso(slug, id) {
 
 /** Exclui um fornecedor, concorrente ou transportadora. A fonte ligada nao e tocada. */
 export async function excluirParceiro(slug, id) {
+  const negado = await negarSemAcesso(recursoDaSecao(slug) ?? "tela.cadastros", "excluir");
+  if (negado) return negado;
   const config = PARCEIROS[slug];
   if (!config) return { ok: false, erro: "Cadastro desconhecido." };
 
@@ -255,6 +264,8 @@ async function excluirSimples(modelo, id) {
 
 /** Cria (`id` nulo) ou atualiza uma marca. Chamada pela edicao na linha. */
 export async function salvarMarca(id, dados) {
+  const negado = await negarSemAcesso("tela.cadastros.marcas", "editar");
+  if (negado) return negado;
   return salvarSimples({
     modelo: prisma.marca,
     esquema: MarcaSchema,
@@ -266,5 +277,7 @@ export async function salvarMarca(id, dados) {
 }
 
 export async function excluirMarca(id) {
+  const negado = await negarSemAcesso("tela.cadastros.marcas", "excluir");
+  if (negado) return negado;
   return excluirSimples(prisma.marca, id);
 }

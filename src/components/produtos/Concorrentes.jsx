@@ -155,7 +155,12 @@ export default function Concorrentes({
   precoProduto,
   ativo = false,
   seloDoTitulo = null,
+  podeCadastrar = true,
 }) {
+  // Acessos: o cadastro rapido grava em Cadastros; sem editar a secao, o popup nao abre e o recado diz a quem pedir.
+  const recadoSemCadastro = podeCadastrar
+    ? "Concorrente não cadastrado. Complete o cadastro rápido."
+    : "Concorrente não cadastrado. Peça o cadastro a quem edita Concorrentes em Cadastros.";
   const [pendente, iniciarTransicao] = useTransition();
   const [editando, setEditando] = useState(null); // id do vinculo, "novo", ou null
   const [rascunho, setRascunho] = useState(VAZIO);
@@ -227,7 +232,7 @@ export default function Concorrentes({
       return;
     }
     if (!cadastradoAgora && !catalogo.some((item) => item.nome.toLocaleLowerCase("pt-BR") === dados.fonte.trim().toLocaleLowerCase("pt-BR"))) {
-      setErros({ fonte: "Concorrente não cadastrado. Complete o cadastro rápido." });
+      setErros({ fonte: recadoSemCadastro });
       setPopupNome(dados.fonte.trim());
       return;
     }
@@ -299,7 +304,7 @@ export default function Concorrentes({
       sugestaoAguardando.current = item;
       escolherCodigo({ ...item, preco: item.precoNormal });
       setEditando("novo");
-      setErros({ fonte: "Concorrente não cadastrado. Complete o cadastro rápido." });
+      setErros({ fonte: recadoSemCadastro });
       setPopupNome(item.fonte);
       return;
     }
@@ -538,7 +543,7 @@ export default function Concorrentes({
           Adicionar concorrente
         </button>
       )}
-      {popupNome !== null && (
+      {popupNome !== null && podeCadastrar && (
         <CadastroRapidoConcorrente
           key={popupNome}
           nomeInicial={popupNome}
