@@ -31,6 +31,8 @@ const ENTIDADES = {
   copy: "©", reg: "®", trade: "™", euro: "€", pound: "£", cent: "¢",
   sup2: "²", sup3: "³", frac12: "½", frac14: "¼", plusmn: "±", micro: "µ",
   ordm: "º", ordf: "ª",
+  // Ficha de peca industrial (OBR, 22/10/2026): "3.8 +/- 10% &Omega;", "&Oslash; 6", "&mu;m".
+  Omega: "Ω", omega: "ω", Oslash: "Ø", oslash: "ø", mu: "μ", sup1: "¹",
 };
 
 export function decodificar(texto) {
@@ -44,7 +46,8 @@ export function decodificar(texto) {
     // A caixa do nome importa: &Iacute; e "Í", nao "í". Procurar so pelo nome em
     // minusculas punha "CARACTERíSTICAS" na descricao da Oceantech (09/10/2026).
     // Maiuscula que a tabela nao tem cai na minuscula e volta em caixa alta.
-    .replace(/&([a-z]+);/gi, (inteiro, nome) => {
+    // O nome pode ter numero (&sup3;, &frac12;): so com letras, "kg/m&sup3;" ficava cru na OBR (22/10/2026).
+    .replace(/&([a-z][a-z0-9]*);/gi, (inteiro, nome) => {
       if (ENTIDADES[nome] !== undefined) return ENTIDADES[nome];
       const minuscula = ENTIDADES[nome.toLowerCase()];
       if (minuscula === undefined) return inteiro;
@@ -147,6 +150,20 @@ export function comoUrlAbsoluta(url, urlBase) {
   }
 }
 
+/**
+ * Endereco contra o qual os links relativos da pagina se resolvem.
+ *
+ * E o `<base href>` quando a pagina declara um, como o navegador faz. A
+ * Imobras declara `<base href="https://www.imobras.ind.br/">` e escreve os
+ * links como `./pt-br/produtos/...` e `userfiles/...`: resolvidos contra o
+ * endereco da pagina, o desenho tecnico apontava para um 404 e a navegacao a
+ * partir de uma pagina de produto abria caminhos que nao existem.
+ */
+export function baseDaPagina(html, url) {
+  const declarada = /<base\b[^>]*\bhref\s*=\s*(["'])([^"']+)\1/i.exec(html ?? "")?.[2];
+  return (declarada && comoUrlAbsoluta(declarada, url)) || url;
+}
+
 /** Todas as meta tags da pagina, indexadas por property/name em minusculo. */
 export function metaTags(html) {
   const mapa = {};
@@ -156,7 +173,10 @@ export function metaTags(html) {
   while ((achado = padrao.exec(html)) !== null) {
     const atributos = achado[1];
     const chave = /(?:property|name|itemprop)\s*=\s*["']([^"']+)["']/i.exec(atributos)?.[1];
-    const valor = /content\s*=\s*["']([^"']*)["']/i.exec(atributos)?.[1];
+    // A aspa que FECHA tem de ser a mesma que abriu: a Imobras escreve
+    // content="ELETROVENTILADOR AXIAL 10'' ASPIRANTE", e com qualquer aspa o
+    // titulo terminava em "10".
+    const valor = /content\s*=\s*(["'])([\s\S]*?)\1/i.exec(atributos)?.[2];
 
     if (chave && valor !== undefined && mapa[chave.toLowerCase()] === undefined) {
       mapa[chave.toLowerCase()] = decodificar(valor);

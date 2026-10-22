@@ -2,11 +2,13 @@ import { extrairProduto } from "./extrair";
 import { precosDaForseti } from "./forseti";
 import { dadosDaPaginaVtex } from "./vtex-pagina";
 import { ehListagemDaNuvemshop, galeriaDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
+import { produtosDaObr } from "./obr";
 import { caminhoDeCategoria, caminhoDoJsonLd } from "./categoria";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
 import {
+  baseDaPagina,
   comoNumero,
   comoTexto,
   comoUrlAbsoluta,
@@ -2492,7 +2494,7 @@ export function normalizarPagina({
           ? `calculado: desconto a vista de ${magentoAVista.desconto}% do parcelamento da loja`
           : "menor preco da pagina";
   }
-  const documentos = documentosDaPagina(html, url);
+  const documentos = documentosDaPagina(html, baseDaPagina(html, url));
 
   if (description) origens.description = "texto mais longo entre as fontes";
   if (documentos.length) origens.documentos = `${documentos.length} link(s) de download`;
@@ -2560,6 +2562,43 @@ export function normalizarPagina({
   // chega ao item la, e e por ele que se compara aqui. Campo com mais de um
   // codigo vira mais de um produto, nunca um produto com dois codigos —
   // isso quebraria a busca pelos dois ao mesmo tempo.
+
+  // OBR: o nome, a descricao e a foto genericos acima sao o texto e o logo da EMPRESA (iguais em toda
+  // pagina), e a categoria do JSON-LD e "Produto". Valem os da pagina, e a tabela com varios codigos
+  // vira um produto por codigo. Marca, MPN e EAN o site nao publica. Ver obr.js.
+  // A ficha das tabelas SOMA a escrita no texto ("Capacidade de Carga Dinamica: 410N", nos rolamentos).
+  const daObr = produtosDaObr(html, url)?.map((item) => {
+    const specifications = juntarFichas(item.specifications, especificacoesDeLista(item.description));
+    const soDoTexto = specifications.length && !item.origens.specifications;
+    return {
+      ...item,
+      specifications,
+      origens: soDoTexto ? { ...item.origens, specifications: "lista dentro da descricao" } : item.origens,
+    };
+  });
+  if (daObr?.length) {
+    return {
+      produtos: daObr.map((item) => ({
+        ...base,
+        ...item,
+        code: item.code ?? SEM_CODIGO,
+        mpn: null,
+        ean: null,
+        brand: null,
+        ncm: acharNcm(item.specifications, item.description),
+        images: semRepetir(item.images),
+        origens: {
+          ...item.origens,
+          ...(origens.seo ? { seo: origens.seo } : {}),
+          ...(origens.documentos ? { documentos: origens.documentos } : {}),
+          ...(item.code ? {} : { code: `sem codigo na pagina — marcado ${SEM_CODIGO}` }),
+        },
+      })),
+      motivo: null,
+      formatos: [...formatos, "obr"],
+      fonte,
+    };
+  }
 
   // NUVEMSHOP: cada variante e um produto, com codigo, preco, pix e saldo dela.
   // O JSON-LD da pagina so descreve a primeira variante e traz a soma do saldo de

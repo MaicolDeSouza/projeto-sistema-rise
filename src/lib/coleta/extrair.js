@@ -1,3 +1,4 @@
+import { extracaoDaObr } from "./obr";
 import {
   comoNumero,
   comoTexto,
@@ -247,6 +248,142 @@ function doOpenGraph(html) {
 }
 
 // ---------------------------------------------------------------------------
+// Catalogo institucional (Imobras)
+// ---------------------------------------------------------------------------
+
+/**
+ * Sites de fabricante que publicam o produto SEM preco, SEM codigo e SEM tipo
+ * de produto: so titulo, descricao e foto no OpenGraph (com og:type "website")
+ * e a trilha de navegacao em JSON-LD. Reconhecidos SO pelo dominio (a regra
+ * abaixo, aplicada a um site qualquer, faria artigo de blog virar produto).
+ *
+ * Prova de que a pagina e de produto: a trilha tem 4 degraus ou mais
+ * (Inicio > Produtos > categoria > produto) e o ultimo e a propria pagina. A
+ * categoria tem 3 degraus, e a home e as institucionais nao tem trilha assim.
+ */
+/// Dominio -> caminho onde moram os produtos. A Imobras repete o catalogo em
+/// /en/ e /es/ com o MESMO codigo ("WIPER MOTOR" = 10.04.911.24V): sem o
+/// caminho, a versao em ingles sobrescreveria a em portugues no banco.
+const DOMINIOS_DE_CATALOGO = { "imobras.ind.br": "/pt-br/produtos/" };
+
+function doCatalogoInstitucional(html, urlBase) {
+  let alvo;
+  try {
+    alvo = new URL(urlBase);
+  } catch {
+    return null;
+  }
+  const dominio = alvo.hostname.replace(/^www\./, "");
+  const caminhoDosProdutos = DOMINIOS_DE_CATALOGO[dominio];
+  if (!Object.hasOwn(DOMINIOS_DE_CATALOGO, dominio) || !alvo.pathname.startsWith(caminhoDosProdutos)) return null;
+
+  const caminhoDe = (endereco) => {
+    try {
+      return new URL(endereco, alvo).pathname.replace(/\/+$/, "");
+    } catch {
+      return null;
+    }
+  };
+
+  for (const bloco of blocosJsonLd(html)) {
+    const trilha = achatar(bloco).find((no) => no?.["@type"] === "BreadcrumbList");
+    const itens = Array.isArray(trilha?.itemListElement) ? trilha.itemListElement : [];
+    if (itens.length < 4) continue;
+    const ultimo = itens[itens.length - 1];
+    if (caminhoDe(ultimo?.item?.["@id"] ?? ultimo?.item) !== alvo.pathname.replace(/\/+$/, "")) continue;
+
+    const meta = metaTags(html);
+    // O titulo e o resumo ficam no painel do produto (o mesmo bloco aparece duas
+    // vezes, uma para celular e outra para tela larga; vale o primeiro).
+    const painel = /<div[^>]*class="app-tagline-1"[^>]*>[\s\S]*?<h2[^>]*>([\s\S]*?)<\/h2>\s*<div[^>]*class="text-block[^"]*"[^>]*>([\s\S]*?)<\/div>/i.exec(html);
+    const titulo = comoTexto(painel?.[1]) ?? comoTexto(meta["og:title"]) ?? comoTexto(ultimo?.name);
+    if (!titulo) continue;
+    const imagem = meta["og:image"];
+    const atributos = caracteristicasDaImobras(html);
+
+    return {
+      encontrado: true,
+      fonte: "opengraph",
+      titulo,
+      descricao: comoTexto(painel?.[2]) ?? comoTexto(meta["og:description"] ?? meta.description),
+      marca: null,
+      modelo: null,
+      mpn: null,
+      skuFonte: codigoDaImobras(html),
+      ean: null,
+      preco: null,
+      disponivel: true,
+      // O site escreve a barra invertida no endereco (`userfiles\cache\...`).
+      imagens: imagem ? [imagem.replace(/\\/g, "/")] : [],
+      atributos: Object.keys(atributos).length ? atributos : null,
+      bruto: null,
+    };
+  }
+  return null;
+}
+
+/**
+ * "Cod. 10.13.501.12V ou 24V", no alto da pagina, e o codigo do fabricante.
+ *
+ * A tensao e o fim do codigo (os relacionados da mesma pagina mostram
+ * "10.13.113.24V"), entao "12V ou 24V" sao DOIS codigos: 10.13.501.12V e
+ * 10.13.501.24V. Escrito por extenso, o "ou" vira dois produtos pela regra
+ * geral de disjuncao; sem isso o segundo saia so como "24V".
+ */
+export function codigoDaImobras(html) {
+  const lido = comoTexto(/<div[^>]*class="app-tagline-1"[^>]*>\s*Cod\.?\s*([^<]+?)\s*<\/div>/i.exec(html)?.[1]);
+  if (!lido) return null;
+  // O site escreve "12V ou 24V" e tambem "12v e 24v" (motorredutor 10.05.021).
+  const partes = lido.split(/\s+(?:ou|e)\s+/i);
+  const base = /^(.*\.)\d+(?:[.,]\d+)?\s*V$/i.exec(partes[0])?.[1];
+  if (!base || partes.length < 2) return lido;
+  return partes
+    .map((parte, i) => (i > 0 && /^\d+(?:[.,]\d+)?\s*V$/i.test(parte) ? base + parte : parte))
+    .map((codigo) => codigo.replace(/(\d)\s*v$/i, "$1V"))
+    .join(" ou ");
+}
+
+/**
+ * Bloco "Caracteristicas do produto": `<p><b>Direcao:</b> Aspirante</p>`, um
+ * par por paragrafo. "Aplicacoes:" vem sem valor e com a lista nos paragrafos
+ * seguintes ("• Camara Fria<br/>• ..."), que vira o valor, separado por virgula.
+ */
+export function caracteristicasDaImobras(html) {
+  const bloco = /Caracter[ií]sticas do produto\s*<\/h3>\s*<div[^>]*>([\s\S]*?)<\/div>/i.exec(html)?.[1];
+  const atributos = {};
+  if (!bloco) return atributos;
+
+  let pendente = null;
+  for (const paragrafo of bloco.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)) {
+    const par = /^\s*<(?:b|strong)\b[^>]*>([\s\S]*?)<\/(?:b|strong)>([\s\S]*)$/i.exec(paragrafo[1]);
+    if (par) {
+      const nome = comoTexto(par[1])?.replace(/\s*:\s*$/, "");
+      const valor = comoTexto(par[2]);
+      if (!nome) continue;
+      if (valor) {
+        atributos[nome] = valor;
+        pendente = null;
+      } else {
+        pendente = nome;
+      }
+      continue;
+    }
+    if (!pendente) continue;
+    const itens = paragrafo[1]
+      .split(/<br\s*\/?>/i)
+      .map((item) => comoTexto(item)?.replace(/^[•\-*]\s*/, ""))
+      .filter(Boolean);
+    if (itens.length) atributos[pendente] = [atributos[pendente], ...itens].filter(Boolean).join(", ");
+  }
+  // "Nao ha aplicacoes disponiveis para este produto." e o site dizendo que nao tem o dado.
+  for (const [nome, valor] of Object.entries(atributos)) {
+    // Sem \b depois do "á": sem a flag u ele nao conta como letra e a fronteira some.
+    if (/^n[aã]o h[aá](?:\s|$)/i.test(valor)) delete atributos[nome];
+  }
+  return atributos;
+}
+
+// ---------------------------------------------------------------------------
 
 const VAZIO = {
   encontrado: false,
@@ -279,7 +416,12 @@ const VAZIO = {
 export function extrairProduto(html, urlBase) {
   if (typeof html !== "string" || !html.trim()) return { ...VAZIO };
 
-  const achado = doJsonLd(html) ?? doOpenGraph(html) ?? { ...VAZIO };
+  const achado =
+    doJsonLd(html) ??
+    doOpenGraph(html) ??
+    doCatalogoInstitucional(html, urlBase) ??
+    extracaoDaObr(html, urlBase) ??
+    { ...VAZIO };
 
   // Resolve caminho relativo contra a pagina e so entao exige http(s): sem a
   // resolucao antes do filtro, toda imagem publicada como "/img/foto.jpg" —

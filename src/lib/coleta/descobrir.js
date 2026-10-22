@@ -1,6 +1,8 @@
 import { buscarPagina } from "./buscar";
 import { extrairProduto } from "./extrair";
+import { ehObr, ehProdutoDaObr } from "./obr";
 import { ehRoboCore } from "./robocore";
+import { baseDaPagina } from "./texto-html";
 
 /**
  * Descoberta de paginas de produto por navegacao.
@@ -75,6 +77,9 @@ export function pareceProduto(url) {
     const endereco = new URL(url);
     return /^\/(?!tutoriais\/|modules\/)[^/]+\/[^/]+\/?$/.test(endereco.pathname);
   }
+  // OBR: "/produtos/item/718/obr-sfur-1605-4" nao termina em .html nem em "-<id>", e a navegacao
+  // abria categoria atras de categoria (25 paginas no teste) sem chegar a produto nenhum.
+  if (ehObr(url)) return ehProdutoDaObr(url);
   return (
     /\.html?$/i.test(caminho) ||
     /-\d{3,}(\.|\/|$)/.test(caminho) ||
@@ -267,7 +272,7 @@ export async function rastrear({
     // Quem parece produto fura a fila; o resto vai para o fim. Sem isso, um
     // site com cinquenta categorias gasta cinquenta visitas antes do primeiro
     // produto.
-    for (const link of expandir && !expandir(url, Boolean(dados.encontrado)) ? [] : linksDe(resposta.corpo, url, origem, prefixo)) {
+    for (const link of expandir && !expandir(url, Boolean(dados.encontrado)) ? [] : linksDe(resposta.corpo, baseDaPagina(resposta.corpo, url), origem, prefixo)) {
       if (jaVistas.has(link)) continue;
       jaVistas.add(link);
 

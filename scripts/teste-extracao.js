@@ -2860,6 +2860,25 @@ console.log("\n— catalogo de esteiras em PDF (Tespo) —");
   conferir("tespo: marca Tespo e sem o cabecalho MEDIDA INTERNA nao le (outro catalogo)", [por("03154").marca, esteirasDoPdf("03154 ESTEIRA PORTA CABOS\nT10.10 10,6X10,6 15X13 46 18 20 49 107gr")], ["Tespo", []]);
 }
 
+// Kalatec (13/10/2026): mesmo codigo em produtos diferentes e produto montado pelo catalogo quando a pagina nao traz dado.
+console.log("\n— Kalatec: codigo repetido e produto do catalogo —");
+{
+  const { chaveSemColisao } = await import("../src/lib/coleta/linha.js");
+  const { produtoDoItemDoCatalogo } = await import("../src/lib/coleta/catalogo.js");
+  const a = { url: "https://loja.kalatec.com.br/guia-linear/guia-linear-kalatec-hr-15-300mm", nome: "KR15-300 - GUIA LINEAR" };
+  const b = { url: "https://loja.kalatec.com.br/guia-linear/guia-linear-hr-15-600mm", nome: "KR15-600 - GUIA LINEAR" };
+  conferir("chave: sem dono, a chave fica", chaveSemColisao("codigo:4560", b, undefined), "codigo:4560");
+  conferir("chave: o mesmo produto (mesmo endereco) continua com a chave, com barra no fim e sem caixa", chaveSemColisao("codigo:4560", { ...a, url: a.url.toUpperCase() + "/" }, a), "codigo:4560");
+  conferir("chave: endereco e nome diferentes = outro produto, com o ultimo trecho do endereco", chaveSemColisao("codigo:4560", b, a), "codigo:4560#guia-linear-hr-15-600mm");
+  conferir("chave: mesmo nome por dois enderecos (Usinainfo) continua um produto so", chaveSemColisao("codigo:09109", { url: "https://x.com/a/p-1", nome: "Sensor X" }, { url: "https://x.com/b/p-1", nome: "SENSOR  x" }), "codigo:09109");
+  conferir("chave: sem endereco nao separa; chave que nao e de codigo nao muda", [chaveSemColisao("codigo:1", { url: null, nome: "A" }, a), chaveSemColisao("url:https://x/y", b, a)], ["codigo:1", "url:https://x/y"]);
+  const item = { id: "107", name: "G213V- DRIVE GECKO", price: "690.00", promotional_price: "0", available: "0", brand: "Gecko Drive ", model: "G213V", ean: "", ncm: "85044029", url: { https: "https://loja.kalatec.com.br/driver/gecko-g213v" }, ProductImage: [{ https: "https://images.tcdn.com.br/img/a.jpg" }] };
+  const p = produtoDoItemDoCatalogo(item, "https://loja.kalatec.com.br");
+  conferir("catalogo: nome, preco, marca, NCM, foto e endereco do item", [p.name, p.prices.normal, p.prices.promotional, p.brand, p.ncm, p.images.length, p.url], ["G213V- DRIVE GECKO", 690, null, "Gecko Drive", "85044029", 1, "https://loja.kalatec.com.br/driver/gecko-g213v"]);
+  conferir("catalogo: sem codigo vira N/A com a origem dizendo; indisponivel = zero", [p.code, p.origens.code, p.stock.status, p.stock.quantity], ["N/A", "sem codigo no catalogo nem na pagina — marcado N/A", "OUT_OF_STOCK", 0]);
+  conferir("catalogo: preco zero fica sem preco (e o teste de validade do concorrente o descarta); sem nome ou endereco nao vira produto", [produtoDoItemDoCatalogo({ ...item, price: "0.00" }, "https://loja.kalatec.com.br").prices.normal, produtoDoItemDoCatalogo({ ...item, name: "" }, "https://x.com"), produtoDoItemDoCatalogo({ name: "X" }, "https://x.com")], [null, null, null]);
+}
+
 // Tespo (13/10/2026): documentos de cada esteira no site (desenho da serie em PDF e modelo 3D em STEP).
 console.log("\n— Tespo: documentos das esteiras no site —");
 {
@@ -2891,25 +2910,6 @@ console.log("\n— Tespo: documentos das esteiras no site —");
   conferir("link: o endereco da loja vai codificado no parametro `url` e o titulo junto", linkDoDocumento({ url: "https://x.com/Elo T.stp", titulo: "Modelo 3D" }).href, "/api/mercados/documento?url=https%3A%2F%2Fx.com%2FElo+T.stp&titulo=Modelo+3D");
   const falha = await documentosDasEsteirasDoSite({ paginas: { "/": "", "/downloads/": "" } });
   conferir("tespo: site sem documento de esteira vira aviso, nunca erro", [falha.series.size, falha.avisos.length], [0, 1]);
-}
-
-// Kalatec (13/10/2026): mesmo codigo em produtos diferentes e produto montado pelo catalogo quando a pagina nao traz dado.
-console.log("\n— Kalatec: codigo repetido e produto do catalogo —");
-{
-  const { chaveSemColisao } = await import("../src/lib/coleta/linha.js");
-  const { produtoDoItemDoCatalogo } = await import("../src/lib/coleta/catalogo.js");
-  const a = { url: "https://loja.kalatec.com.br/guia-linear/guia-linear-kalatec-hr-15-300mm", nome: "KR15-300 - GUIA LINEAR" };
-  const b = { url: "https://loja.kalatec.com.br/guia-linear/guia-linear-hr-15-600mm", nome: "KR15-600 - GUIA LINEAR" };
-  conferir("chave: sem dono, a chave fica", chaveSemColisao("codigo:4560", b, undefined), "codigo:4560");
-  conferir("chave: o mesmo produto (mesmo endereco) continua com a chave, com barra no fim e sem caixa", chaveSemColisao("codigo:4560", { ...a, url: a.url.toUpperCase() + "/" }, a), "codigo:4560");
-  conferir("chave: endereco e nome diferentes = outro produto, com o ultimo trecho do endereco", chaveSemColisao("codigo:4560", b, a), "codigo:4560#guia-linear-hr-15-600mm");
-  conferir("chave: mesmo nome por dois enderecos (Usinainfo) continua um produto so", chaveSemColisao("codigo:09109", { url: "https://x.com/a/p-1", nome: "Sensor X" }, { url: "https://x.com/b/p-1", nome: "SENSOR  x" }), "codigo:09109");
-  conferir("chave: sem endereco nao separa; chave que nao e de codigo nao muda", [chaveSemColisao("codigo:1", { url: null, nome: "A" }, a), chaveSemColisao("url:https://x/y", b, a)], ["codigo:1", "url:https://x/y"]);
-  const item = { id: "107", name: "G213V- DRIVE GECKO", price: "690.00", promotional_price: "0", available: "0", brand: "Gecko Drive ", model: "G213V", ean: "", ncm: "85044029", url: { https: "https://loja.kalatec.com.br/driver/gecko-g213v" }, ProductImage: [{ https: "https://images.tcdn.com.br/img/a.jpg" }] };
-  const p = produtoDoItemDoCatalogo(item, "https://loja.kalatec.com.br");
-  conferir("catalogo: nome, preco, marca, NCM, foto e endereco do item", [p.name, p.prices.normal, p.prices.promotional, p.brand, p.ncm, p.images.length, p.url], ["G213V- DRIVE GECKO", 690, null, "Gecko Drive", "85044029", 1, "https://loja.kalatec.com.br/driver/gecko-g213v"]);
-  conferir("catalogo: sem codigo vira N/A com a origem dizendo; indisponivel = zero", [p.code, p.origens.code, p.stock.status, p.stock.quantity], ["N/A", "sem codigo no catalogo nem na pagina — marcado N/A", "OUT_OF_STOCK", 0]);
-  conferir("catalogo: preco zero fica sem preco (e o teste de validade do concorrente o descarta); sem nome ou endereco nao vira produto", [produtoDoItemDoCatalogo({ ...item, price: "0.00" }, "https://loja.kalatec.com.br").prices.normal, produtoDoItemDoCatalogo({ ...item, name: "" }, "https://x.com"), produtoDoItemDoCatalogo({ name: "X" }, "https://x.com")], [null, null, null]);
 }
 
 // Easytronics (14/10/2026): o item "Manuais" do menu (categoria do proprio site) virava documento do Arduino Uno.
@@ -2992,6 +2992,235 @@ console.log("\n— categoria de loja VTEX —");
   conferir("vtex: a Secao vira o caminho da categoria (barras, endereco completo, subcategoria)", [categoriaDaVtex("gabinetes"), categoriaDaVtex(" /gabinetes/ "), categoriaDaVtex("https://www.patolastore.com.br/gabinetes"), categoriaDaVtex("gabinetes/linha-pbo")], ["gabinetes", "gabinetes", "gabinetes", "gabinetes/linha-pbo"]);
   conferir("vtex: vazio, produto /p e texto que nao e caminho nao sao categoria", [categoriaDaVtex(""), categoriaDaVtex(null), categoriaDaVtex("/caixa-patola/p"), categoriaDaVtex("gabinete gamer"), categoriaDaVtex("a?b=1")], [null, null, null, null, null]);
   conferir("vtex: total do cabecalho resources", [totalDoCabecalhoResources("0-49/264"), totalDoCabecalhoResources("0-9/10"), totalDoCabecalhoResources(""), totalDoCabecalhoResources(undefined)], [264, 10, null, null]);
+}
+
+// Imobras (21/10/2026): catalogo de fabricante sem preco, sem Product e com og:type "website".
+console.log("\n— catalogo da Imobras —");
+{
+  const { codigoDaImobras, caracteristicasDaImobras } = await import("../src/lib/coleta/extrair.js");
+  const { baseDaPagina, metaTags } = await import("../src/lib/coleta/texto-html.js");
+  const trilha = (degraus) => `<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[${degraus
+    .map((item, i) => `{"@type":"ListItem","position":"${i + 1}","name":"N${i}","item":"https://www.imobras.ind.br${item}"}`)
+    .join(",")}]}</script>`;
+  const produto = `<html><head><base href="https://www.imobras.ind.br/">
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="ELETROVENTILADOR AXIAL 10'' ASPIRANTE 12V ou 24V"/>
+    <meta property="og:image" content="https://www.imobras.ind.br/userfiles\\cache\\images\\abc-1024x0.webp"/>
+    ${trilha(["/pt-br", "/pt-br/produtos", "/pt-br/produtos/eletroventilador-axial", "/pt-br/produtos/eletroventilador-axial/eletroventilador-axial-108"])}
+    </head><body>
+    <div class="app-tagline-1">Cod. 10.13.501.12V ou 24V</div>
+    <h2 class="app-title-2 mt-5">ELETROVENTILADOR AXIAL 10'' ASPIRANTE 12V ou 24V</h2>
+    <div class="text-block mt-5"><p>ELETROVENTILADOR AXIAL 10" ASPIRANTE IP68 - 12V ou 24V</p></div>
+    <h3 class="app-title-4">Características do produto</h3>
+    <div class="text-block mt-4 font-bold"><p><b>Direção:</b> Aspirante</p><p><b>Grau de proteção:</b> IP68</p>
+    <p><b>Aplicações:</b></p><p>• Câmara Fria<br/>• Ar Condicionado Veicular</p></div>
+    <a href="userfiles/products-files/abc.PDF">Baixar desenho técnico</a>
+    </body></html>`;
+  const url = "https://www.imobras.ind.br/pt-br/produtos/eletroventilador-axial/eletroventilador-axial-108";
+  const lido = extrairProduto(produto, url);
+  conferir("imobras: pagina de produto rende titulo, codigo e foto sem barra invertida", [lido.encontrado, lido.titulo, lido.skuFonte, lido.imagens], [true, "ELETROVENTILADOR AXIAL 10'' ASPIRANTE 12V ou 24V", "10.13.501.12V ou 10.13.501.24V", ["https://www.imobras.ind.br/userfiles/cache/images/abc-1024x0.webp"]]);
+  conferir("imobras: caracteristicas em pares e Aplicacoes juntando a lista", lido.atributos, { "Direção": "Aspirante", "Grau de proteção": "IP68", "Aplicações": "Câmara Fria, Ar Condicionado Veicular" });
+
+  const { produtos } = normalizarPagina({ html: produto, url, fonte: { type: "FORNECEDOR" } });
+  conferir("imobras: 12V ou 24V viram dois produtos com o codigo inteiro", produtos.map((p) => p.code), ["10.13.501.12V", "10.13.501.24V"]);
+  conferir("imobras: o desenho tecnico se resolve pelo <base href>", produtos[0].documentos.map((d) => d.url), ["https://www.imobras.ind.br/userfiles/products-files/abc.PDF"]);
+
+  const categoria = produto.replace(/<script[\s\S]*?<\/script>/, trilha(["/pt-br", "/pt-br/produtos", "/pt-br/produtos/eletroventilador-axial"]));
+  conferir("imobras: categoria (3 degraus) nao e produto", extrairProduto(categoria, "https://www.imobras.ind.br/pt-br/produtos/eletroventilador-axial").encontrado, false);
+  conferir("imobras: a versao em ingles (/en/) nao vira produto", extrairProduto(produto.replace(/\/pt-br/g, "/en"), url.replace("/pt-br", "/en")).encontrado, false);
+  conferir("imobras: a regra vale so para o dominio da Imobras", extrairProduto(produto, "https://www.outraloja.com.br/pt-br/produtos/eletroventilador-axial/eletroventilador-axial-108").encontrado, false);
+
+  conferir("imobras: codigo com 'e' e v minusculo, codigo simples e sem codigo", [
+    codigoDaImobras('<div class="app-tagline-1">Cod. 10.05.021.12v e 24v</div>'),
+    codigoDaImobras('<div class="app-tagline-1">Cod. 10.13.113.24V</div>'),
+    codigoDaImobras("<div>nada</div>"),
+  ], ["10.05.021.12V ou 10.05.021.24V", "10.13.113.24V", null]);
+  conferir("imobras: 'Nao ha aplicacoes disponiveis' nao vira caracteristica", caracteristicasDaImobras('Características do produto</h3><div><p><b>Torque:</b> 50 Nm</p><p><b>Aplicações:</b> Não há aplicações disponíveis para este produto.</p></div>'), { Torque: "50 Nm" });
+
+  conferir("meta tag: a aspa que fecha e a mesma que abriu", [metaTags(`<meta property="og:title" content="MOTOR 10'' 12V"/>`)["og:title"], metaTags(`<meta property='og:title' content='Tela 7" HD'/>`)["og:title"]], ["MOTOR 10'' 12V", 'Tela 7" HD']);
+  conferir("base da pagina: <base href> vence, sem ela fica o endereco", [baseDaPagina('<base href="https://www.imobras.ind.br/">', "https://www.imobras.ind.br/pt-br/x/y"), baseDaPagina("<p>sem base</p>", "https://loja.com.br/a/b"), baseDaPagina('<base href="javascript:alert(1)">', "https://loja.com.br/a")], ["https://www.imobras.ind.br/", "https://loja.com.br/a/b", "https://loja.com.br/a"]);
+}
+
+// OBR (22/10/2026, pedido do dono: "o Rise nao conseguiu ler esse fornecedor"): catalogo de fabricante sem
+// dado estruturado de produto; o og:title e o og:description sao o texto da empresa e o og:image e o logo.
+console.log("\n— catalogo da OBR —");
+{
+  const { lerTabela, pareceCodigo } = await import("../src/lib/coleta/obr.js");
+  const { pareceProduto } = await import("../src/lib/coleta/descobrir.js");
+  const { decodificar } = await import("../src/lib/coleta/texto-html.js");
+  const EMPRESA = "OBR Equipamentos Industriais Ltda. é referência no mercado de automação industrial, graças à sua melhoria processual diária e à constante preocupação em oferecer produtos e serviços de qualidade.";
+  const pagina = ({ titulo, trilha, corpo, foto = "uploads/produtos/image/produtos-1-x-2d2e0425.jpg " }) => `<!DOCTYPE html><html><head>
+    <base href="https://www.obr.com.br/" />
+    <meta property="og:description" content="${EMPRESA}" />
+    <meta property="og:title" content="${EMPRESA}" />
+    <meta property="og:image" content="https://www.obr.com.br/libs/images/logo.png" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.obr.com.br/"},{"@type":"ListItem","position":2,"name":"Produtos","item":"https://www.obr.com.br/produtos"},{"@type":"ListItem","position":3,"name":"Produto","item":"https://www.obr.com.br/produtos/item"},{"@type":"ListItem","position":4,"name":"${titulo}","item":"https://www.obr.com.br/produtos/item/1/x"}]}</script>
+    </head><body><header><a href="produtos/item/114/manta-de-fibra-ceramica">Manta</a><img src="libs/images/logo.png"></header>
+    <div class="categories-individual"><ol class="breadcrumb">${trilha.map((degrau) => `<li class="breadcrumb-item "><a href="categorias/x">${degrau}</a></li>`).join("")}
+    <li class="breadcrumb-item active" aria-current="page">${titulo}</li></ol>
+    <div class="container"><div class="conteudo-category "><div class="row"><div class="col-lg-9">
+    <h2>
+        ${titulo}                    </h2>
+    <div>${corpo}
+    <p><br /><a class="default-btn" href="https://api.whatsapp.com/send?phone=55">Fale com nossos especialistas</a></p>
+    <div class="row"><div class="col-lg-3"><a class="btn-product-category" href="javascript:void(0);" onclick="abrirModalRD('x')"><img src="../../../../uploads/textarea/image/f18264a9095f6d74f6ba8bc84b9df20a.png" width="20" /> Download dos arquivos em 3D: .step</a></div></div>
+    </div></div>
+    <div class="col-lg-3 height-img"><img src="${foto}" alt=""></div>
+    </div></div></div><div id="modal-rd" onclick="fecharModalRD()"></div>
+    <div id="newsletter"><h2>Precisando de atendimento?</h2><h5>Solicite o seu or&ccedil;amento.</h5></div></div></body></html>`;
+  const url = (slug) => `https://www.obr.com.br/produtos/item/661/${slug}`;
+  const ler = (html, endereco) => normalizarPagina({ html, url: endereco, fonte: { type: "FORNECEDOR" } }).produtos;
+
+  // Motor de passo: "Codigo:" escrito e a ficha em dois pares por linha, separados por uma celula vazia.
+  const motor = pagina({
+    titulo: "Motor de Passo NEMA 23 (12kgf.cm)",
+    trilha: ["Automa&ccedil;&atilde;o", "Motor de Passo"],
+    corpo: `<p>C&oacute;digo: MPS23CM12-15A08D</p><table><tbody>
+      <tr><td>Corrente</td><td>1.5 A</td><td>&nbsp;</td><td>Torque est&aacute;tico</td><td>12 kgf.cm / 1.2 Nm</td></tr>
+      <tr><td>Resist&ecirc;ncia por fase</td><td>3.8 +/- 10% &Omega;</td><td>&nbsp;</td><td>Peso</td><td>0.7 Kg</td></tr>
+      </tbody></table><p><img src="uploads/produtos/661-motor-de-passo-nema-23-12kgf.cm-99b108f7" /></p>`,
+  });
+  const [pMotor, ...outrosMotor] = ler(motor, url("motor-de-passo-nema-23-12kgf.cm"));
+  conferir("obr: motor sai um produto, com o nome do h2 (e nao o texto da empresa) e o codigo escrito", [outrosMotor.length, pMotor.name, pMotor.code], [0, "Motor de Passo NEMA 23 (12kgf.cm)", "MPS23CM12-15A08D"]);
+  conferir("obr: dois pares por linha viram quatro caracteristicas, com o Omega decodificado", pMotor.specifications, [
+    { nome: "Corrente", valor: "1.5 A" }, { nome: "Torque estático", valor: "12 kgf.cm / 1.2 Nm" },
+    { nome: "Resistência por fase", valor: "3.8 +/- 10% Ω" }, { nome: "Peso", valor: "0.7 Kg" },
+  ]);
+  conferir("obr: categoria do breadcrumb inteira (o 'Motor de Passo' do nome nao corta o degrau)", pMotor.category, "Automação > Motor de Passo");
+  conferir("obr: fotos do painel pelo <base href>, a principal primeiro, sem o logo e sem icone", pMotor.images, [
+    "https://www.obr.com.br/uploads/produtos/image/produtos-1-x-2d2e0425.jpg",
+    "https://www.obr.com.br/uploads/produtos/661-motor-de-passo-nema-23-12kgf.cm-99b108f7",
+  ]);
+  conferir("obr: descricao sem o texto da empresa, sem os botoes e sem a tabela que virou ficha", pMotor.description, "Código: MPS23CM12-15A08D");
+  conferir("obr: sem preco, sem marca e sem EAN inventados; o teste da fonte ve o produto", [pMotor.prices.normal, pMotor.brand, pMotor.ean, extrairProduto(motor, url("x")).encontrado, extrairProduto(motor, url("x")).skuFonte], [null, null, null, true, "MPS23CM12-15A08D"]);
+
+  // Fuso: o titulo e o modelo, e a tabela de UMA linha vira a ficha (cabecalho -> valor).
+  const fuso = pagina({
+    titulo: "RFSI5010-4.0P",
+    trilha: ["Movimenta&ccedil;&atilde;o Linear", "Fusos de Esferas"],
+    corpo: `<p>Fuso de Esfera RFSI5010-4.0P</p><p>Download dos arquivos em 3D:&nbsp; <img src="https://www.obr.com.br/media/step_icon.gif" />&nbsp;<a href="https://b24-oc6774.bitrix24.site/crm_form385/">.step</a></p>
+      <table border="1"><tbody><tr><td>Modelo da Porca</td><td>Diam. Fuso</td><td>Passo</td><td>Modelo do Fuso</td></tr>
+      <tr><td>RFSI2005-4.0P</td><td>50</td><td>10</td><td>R50-10</td></tr></tbody></table><p>Dimens&otilde;es em mm.</p>`,
+  });
+  const [pFuso] = ler(fuso, url("rfsi5010-4.0p"));
+  conferir("obr: titulo que e o modelo vence a tabela copiada de outra pagina; a linha vira a ficha", [pFuso.code, pFuso.specifications], ["RFSI5010-4.0P", [
+    { nome: "Diam. Fuso", valor: "50" }, { nome: "Passo", valor: "10" }, { nome: "Modelo do Fuso", valor: "R50-10" },
+  ]]);
+  conferir("obr: o 'Download dos arquivos em 3D' (formulario de cadastro) sai da descricao", pFuso.description, "Fuso de Esfera RFSI5010-4.0P\n\nDimensões em mm.");
+
+  // Guia linear: cabecalho em duas linhas (rowspan/colspan) e o titulo com espacos ("OBR A 15 S").
+  const guia = lerTabela(`<table><tbody>
+    <tr><td rowspan="2">MODELO</td><td colspan="2">CAPACIDADE DE CARGA</td><td colspan="2">PESO</td></tr>
+    <tr><td>Din&acirc;mica (kgf)</td><td>Est&aacute;tica (kgf)</td><td>Carro kg</td><td>Guia kg/m</td></tr>
+    <tr><td>OBR-A 15 S</td><td>1.138</td><td>1.697</td><td>0,18</td><td>1,45</td></tr></tbody></table>`);
+  conferir("obr: cabecalho de duas linhas junta o grupo e a coluna", [guia.tipo, guia.itens[0].codigo, guia.itens[0].campos.map((campo) => `${campo.nome}=${campo.valor}`)], ["codigos", "OBR-A 15 S", [
+    "CAPACIDADE DE CARGA - Dinâmica (kgf)=1.138", "CAPACIDADE DE CARGA - Estática (kgf)=1.697", "PESO - Carro kg=0,18", "PESO - Guia kg/m=1,45",
+  ]]);
+
+  // Suporte da mola a gas: tabela com varios modelos = um produto por modelo; "x" e "nao se aplica".
+  const suporte = pagina({
+    titulo: "Suporte MA",
+    trilha: ["Mola a G&aacute;s", "Acess&oacute;rios"],
+    corpo: `<table><tbody><tr><td>Modelo</td><td>A</td><td>B</td><td>C</td></tr>
+      <tr><td>MA5</td><td>&Oslash; 6</td><td>2,5</td><td>18</td></tr>
+      <tr><td>MA8</td><td>&Oslash; 8</td><td>x</td><td>18</td></tr>
+      <tr><td>MA5-VA</td><td>&Oslash; 6</td><td>2,5</td><td>18</td></tr></tbody></table>`,
+  });
+  const suportes = ler(suporte, url("suporte-ma"));
+  conferir("obr: um produto por modelo da tabela, com o nome do titulo e o modelo", suportes.map((p) => [p.code, p.name]), [["MA5", "Suporte MA - MA5"], ["MA8", "Suporte MA - MA8"], ["MA5-VA", "Suporte MA - MA5-VA"]]);
+  conferir("obr: 'x' na tabela de medidas nao vira caracteristica", suportes[1].specifications, [{ nome: "A", valor: "Ø 8" }, { nome: "C", valor: "18" }]);
+
+  // Manta: codigo interno (so numero), secoes no meio da tabela e o mesmo codigo duas vezes.
+  const manta = pagina({
+    titulo: "Manta de Fibra Cer&acirc;mica",
+    trilha: ["Isolamento T&eacute;rmico"],
+    corpo: `<p>A Manta de Fibra Cer&acirc;mica isola.</p><table border="1"><tbody>
+      <tr><td colspan="3"><strong>Manta de Fibra Cer&acirc;mica 1260&ordm;C</strong></td></tr>
+      <tr><td colspan="3">Densidade 80 (kg/m&sup3;)</td></tr>
+      <tr><td>C&oacute;digo</td><td>Dimens&atilde;o</td><td>M&sup2; / RL</td></tr>
+      <tr><td>7891</td><td>25,4 x 610 x 7.620 mm</td><td>4,65</td></tr>
+      <tr><td colspan="3">Densidade 96 (kg/m&sup3;)</td></tr>
+      <tr><td>C&oacute;digo</td><td>Dimens&atilde;o</td><td>M&sup2; / RL</td></tr>
+      <tr><td>8061</td><td>50,8 x 610 x 3.810 mm</td><td>2,32</td></tr>
+      <tr><td colspan="3">Densidade 128 (kg/m&sup3;)</td></tr>
+      <tr><td>C&oacute;digo</td><td>Dimens&atilde;o</td><td>M&sup2; / RL</td></tr>
+      <tr><td>8061</td><td>50,8 x 610 x 3.810 mm</td><td>2,32</td></tr></tbody></table>`,
+  });
+  const mantas = ler(manta, url("manta-de-fibra-ceramica"));
+  conferir("obr: codigo so de numeros leva ao nome a secao e a medida; a secao seguinte troca a anterior; codigo repetido fica uma vez", mantas.map((p) => [p.code, p.name]), [
+    ["7891", "Manta de Fibra Cerâmica 1260ºC - Densidade 80 (kg/m³) - 25,4 x 610 x 7.620 mm"],
+    ["8061", "Manta de Fibra Cerâmica 1260ºC - Densidade 96 (kg/m³) - 50,8 x 610 x 3.810 mm"],
+  ]);
+  conferir("obr: as secoes entram na ficha do codigo, e a tabela sai da descricao", [mantas[0].specifications.slice(0, 3), mantas[0].description], [[
+    { nome: null, valor: "Manta de Fibra Cerâmica 1260ºC" }, { nome: null, valor: "Densidade 80 (kg/m³)" }, { nome: "Dimensão", valor: "25,4 x 610 x 7.620 mm" },
+  ], "A Manta de Fibra Cerâmica isola."]);
+
+  // Gaxeta: o nome da linha vem num rowspan, e "Nome | Densidade 500" fica sobre o cabecalho.
+  const gaxeta = lerTabela(`<table><tbody>
+    <tr><td rowspan="2">Nome</td><td colspan="2">Densidade 500 (kg/m&sup3;)</td></tr>
+    <tr><td>C&oacute;digo</td><td>Dimens&atilde;o</td></tr>
+    <tr><td rowspan="2">CORDA (GAXETA) FG</td><td>8101</td><td>6 mm</td></tr>
+    <tr><td>8109</td><td>8 mm</td></tr></tbody></table>`);
+  conferir("obr: rowspan da coluna Nome vale para as duas linhas; o grupo sobre o cabecalho vira secao", gaxeta.itens.map((item) => [item.codigo, item.contexto, item.campos]), [
+    ["8101", ["Densidade 500 (kg/m³)"], [{ nome: "Nome", valor: "CORDA (GAXETA) FG" }, { nome: "Dimensão", valor: "6 mm" }]],
+    ["8109", ["Densidade 500 (kg/m³)"], [{ nome: "Nome", valor: "CORDA (GAXETA) FG" }, { nome: "Dimensão", valor: "8 mm" }]],
+  ]);
+
+  // Garra: "Modelo | ISO 30" e um par da ficha, nao cabecalho; o titulo "Garra" nao e codigo.
+  const [pGarra] = ler(pagina({ titulo: "Garra", trilha: ["Automa&ccedil;&atilde;o", "Spindle"], corpo: "<table><tr><td>Modelo</td><td>ISO 30</td></tr></table>" }), url("garra"));
+  conferir("obr: 'Modelo | ISO 30' vira caracteristica e modelo; sem codigo na pagina = N/A", [pGarra.code, pGarra.model, pGarra.specifications], ["N/A", "ISO 30", [{ nome: "Modelo", valor: "ISO 30" }]]);
+
+  // CLP: dois pares por linha SEM a celula vazia; cremalheira: tabela de numeros fica no texto.
+  conferir("obr: quatro celulas sem separador viram dois pares", lerTabela("<table><tr><td>Tens&atilde;o de Entrada</td><td>24 VCC</td><td>N&uacute;mero de Entradas</td><td>16</td></tr></table>").pares, [{ nome: "Tensão de Entrada", valor: "24 VCC" }, { nome: "Número de Entradas", valor: "16" }]);
+  const [pCremalheira] = ler(pagina({ titulo: "Cremalheira Helicoidal Q6", trilha: ["Cremalheiras"], corpo: `<p>Dimens&otilde;es em mm.</p><table><tr><td>M&oacute;dulo</td><td>L</td></tr><tr><td>1,0</td><td>1000</td></tr><tr><td>1,5</td><td>1000</td></tr></table>` }), url("precisao-q-6"));
+  conferir("obr: tabela de medidas sem codigo fica na descricao, coluna a coluna; nome sem numero nao e codigo", [pCremalheira.code, pCremalheira.description], ["N/A", "Dimensões em mm.\nMódulo | L\n1,0 | 1000\n1,5 | 1000"]);
+
+  conferir("obr: so a pagina /produtos/item/ e produto, e so no dominio da OBR", [
+    extrairProduto(motor, "https://www.obr.com.br/subcategoria/37/192/motor-de-passo").encontrado,
+    extrairProduto(motor, "https://www.outraloja.com.br/produtos/item/661/motor").encontrado,
+    pareceProduto("https://www.obr.com.br/produtos/item/718/obr-sfur-1605-4"),
+    pareceProduto("https://www.obr.com.br/subcategoria/30/207/modelo-obr-sfur"),
+    pareceProduto("https://www.obr.com.br/produtos/divisao/31/182/322/carro-standard"),
+  ], [false, false, true, false, false]);
+  conferir("obr: cara de codigo", ["MA5-VA", "8101", "OBR-A 15 S", "Densidade 1000 (kg/m³)", "CORDA (GAXETA) FG", "Corrente", "NMS 12 ..."].map(pareceCodigo), [true, true, true, false, false, false, false]);
+
+  // Adaptador "OL-A OBR": a coluna Modelo lista as GUIAS em que ele serve, e a peca aparece ao lado.
+  const adaptador = pagina({
+    titulo: "OL-A OBR",
+    trilha: ["Movimenta&ccedil;&atilde;o Linear", "Guias Lineares"],
+    corpo: `<table class="data-table"><tbody><tr><th colspan="3">Adaptadores</th></tr>
+      <tr><th colspan="2">Modelo</th><th>Opcional</th></tr>
+      <tr><td>OBR-A 20</td><td>OBR-B 20</td><td rowspan="2">OL-A</td></tr>
+      <tr><td>OBR-A 25</td><td>OBR-B 25</td></tr></tbody></table>`,
+  });
+  const adaptadores = ler(adaptador, url("ol-a-obr"));
+  conferir("obr: tabela de compatibilidade e um produto so, o do titulo, com as guias na ficha", adaptadores.map((p) => [p.code, p.name, p.specifications[0]]), [
+    ["OL-A OBR", "OL-A OBR", { nome: "Modelo (serve em)", valor: "OBR-A 20, OBR-B 20, OBR-A 25, OBR-B 25" }],
+  ]);
+
+  // Mancal BK: a subcategoria mostra a tabela de modelos e nao tem pagina de produto.
+  const listagem = (corpo) => `<html><head><base href="https://www.obr.com.br/" /><meta property="og:image" content="https://www.obr.com.br/libs/images/logo.png" /></head><body>
+    <header><a href="produtos/item/114/manta-de-fibra-ceramica">Manta</a></header>
+    <div class="categories-individual"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="categorias/movimentacao-linear">Movimenta&ccedil;&atilde;o Linear</a></li>
+    <li class="breadcrumb-item"><a href="categorias/mancais">Mancais</a></li><li class="breadcrumb-item active">Modelo BK</li></ol></div>
+    <div class="title"><div class="container"><h2>Modelo BK</h2></div></div>
+    <div class="conteudo-category bg-menu"><div class="container">${corpo}</div></div>
+    <div id="newsletter"><h2>Precisando de atendimento?</h2></div></body></html>`;
+  const tabelaBk = `<table><tr><th>Item</th><th>Descri&ccedil;&atilde;o</th><th>Quantidade</th></tr><tr><td>1</td><td>Bloco</td><td>1</td></tr></table>
+    <p><img src="uploads/produtos/090-modelo-bk-89e4088d" /></p>
+    <table><tr><td>MODELO</td><td>&Oslash; EIXO d1</td><td>L</td></tr><tr><td>BK10</td><td>10</td><td>25</td></tr><tr><td>BK12</td><td>12</td><td>25</td></tr></table>`;
+  const urlBk = "https://www.obr.com.br/subcategoria/43/224/modelo-bk";
+  const mancais = ler(listagem(tabelaBk), urlBk);
+  conferir("obr: subcategoria com tabela de modelos e sem pagina de produto vira um produto por modelo", mancais.map((p) => [p.code, p.name, p.category, p.images]), [
+    ["BK10", "Modelo BK - BK10", "Movimentação Linear > Mancais", ["https://www.obr.com.br/uploads/produtos/090-modelo-bk-89e4088d"]],
+    ["BK12", "Modelo BK - BK12", "Movimentação Linear > Mancais", ["https://www.obr.com.br/uploads/produtos/090-modelo-bk-89e4088d"]],
+  ]);
+  conferir("obr: a lista de pecas do mancal (Item | Descricao | Quantidade) fica no texto", mancais[0].description, "Item | Descrição | Quantidade\n1 | Bloco | 1");
+  conferir("obr: subcategoria que lista produtos, ou sem tabela de modelos, nao e produto", [
+    extrairProduto(listagem(`${tabelaBk}<a href="produtos/item/661/motor">Motor</a>`), urlBk).encontrado,
+    extrairProduto(listagem("<p>Os mancais sao fabricados...</p>"), urlBk).encontrado,
+  ], [false, false]);
+  conferir("entidade com numero no nome (&sup3;, &frac12;) e Omega/Oslash", decodificar("kg/m&sup3; 1&frac12; 10 &Omega; &Oslash; 6"), "kg/m³ 1½ 10 Ω Ø 6");
 }
 
 // EAN do produto conferido no catalogo do Mercado Livre (pedido do dono em 21/10/2026, opcao 1).
