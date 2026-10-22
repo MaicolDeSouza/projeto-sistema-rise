@@ -1709,6 +1709,34 @@ try {
     // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.
   }
 
+  {
+    console.log("\nConcorrentes do ML: banco");
+    await limpar();
+    const p = await prisma.produto.create({ data: { sku: "ZZ-ML-C1", tituloBase: "ZZ catalogo", conferido: true, mlCatalogoId: "MLB44072268", mlCatalogoNome: "Placa Uno" } });
+    const c = await prisma.concorrenteML.create({ data: { produtoId: p.id, itemId: "MLB1", catalogoId: "MLB44072268", vendedorId: "141686451", preco: 39.54, posicao: 1, totalNoCatalogo: 9, lidoEm: new Date() } });
+    await prisma.concorrenteMLHistorico.create({ data: { concorrenteId: c.id, preco: 39.54, posicao: 1, lidoEm: new Date() } });
+    await prisma.posicaoML.create({ data: { produtoId: p.id, catalogoId: "MLB44072268", itemId: "MLB4165084257", posicao: 4, total: 9, menorPreco: 39.54, lidoEm: new Date() } });
+    let repetido = false;
+    try {
+      await prisma.concorrenteML.create({ data: { produtoId: p.id, itemId: "MLB1", catalogoId: "MLB44072268", vendedorId: "x", posicao: 2, totalNoCatalogo: 9, lidoEm: new Date() } });
+    } catch (e) {
+      repetido = e.code === "P2002";
+    }
+    conferir("concorrente ML: um por produto e MLB", repetido, true);
+    await prisma.produto.delete({ where: { id: p.id } });
+    conferir(
+      "apagar o produto leva concorrentes, historico e posicao",
+      [
+        await prisma.concorrenteML.count({ where: { produtoId: p.id } }),
+        await prisma.concorrenteMLHistorico.count({ where: { concorrenteId: c.id } }),
+        await prisma.posicaoML.count({ where: { produtoId: p.id } }),
+      ],
+      [0, 0, 0],
+    );
+    const configML = await prisma.configCanal.upsert({ where: { canal: "MERCADO_LIVRE" }, create: { canal: "MERCADO_LIVRE" }, update: {} });
+    conferir("ConfigCanal tem mlConcorrentesRelidosEm", "mlConcorrentesRelidosEm" in configML, true);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();

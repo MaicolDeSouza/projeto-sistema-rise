@@ -241,8 +241,20 @@ model Produto {
   /// `acumularGasto`); gerar e nao salvar nao conta. O clone nasce sem ele.
   gastoIA Json?
 
+  /// O produto de catalogo do Mercado Livre acompanhado (spec 2026-10-21-concorrentes-ml-catalogo-design.md): os 10
+  /// primeiros anuncios dele viram os concorrentes do ML deste produto (ConcorrenteML), relidos todo dia. Um por
+  /// produto; vale para todos os anuncios do ML dele. O nome fica guardado para a tela nao reler o ML.
+  mlCatalogoId   String?
+  mlCatalogoNome String?
+  /// Quando o dono abriu a lista de concorrentes do ML pela ultima vez: os avisos ("caiu de 2o para 5o") sao o que
+  /// mudou depois disso.
+  mlConcorrentesVistoEm DateTime?
+
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
+
+  concorrentesML ConcorrenteML[]
+  posicoesML     PosicaoML[]
 
   arquivos     ProdutoArquivo[]
   fornecedores ProdutoFornecedor[]
@@ -549,7 +561,79 @@ model ConfigCanal {
   /// nossos produtos possuem nota fiscal").
   frasesFixas String[] @default([])
 
+  /// Mercado Livre: quando a ultima rodada diaria dos concorrentes do catalogo terminou (o worker roda uma vez por
+  /// dia de Sao Paulo; uma rodada que parou no 429 nao grava).
+  mlConcorrentesRelidosEm DateTime?
+
   atualizadoEm DateTime @updatedAt
+}
+
+/// Um anuncio que esta (ou esteve) entre os 10 primeiros do catalogo do ML acompanhado pelo produto. Criado e renovado
+/// pela leitura, nao pela escolha do dono: quem sai do top fica com `ausenteDesde` (nunca apagado, como a coleta).
+/// Os anuncios do proprio dono nao viram linha (sao a PosicaoML).
+model ConcorrenteML {
+  id        String  @id @default(cuid())
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  itemId     String
+  catalogoId String
+
+  vendedorId        String
+  vendedorApelido   String?
+  /// `seller_reputation.level_id` do ML ("5_green").
+  vendedorReputacao String?
+  vendedorVendas    Int?
+  vendedorCidade    String?
+
+  tipoAnuncio String?
+  freteGratis Boolean @default(false)
+  logistica   String?
+
+  preco      Decimal? @db.Decimal(12, 2)
+  precoCheio Decimal? @db.Decimal(12, 2)
+  /// 1 = o primeiro da lista do catalogo, na ordem do ML (contando os anuncios do dono).
+  posicao         Int
+  totalNoCatalogo Int
+
+  lidoEm       DateTime
+  ausenteDesde DateTime?
+  criadoEm     DateTime  @default(now())
+
+  historico ConcorrenteMLHistorico[]
+
+  @@unique([produtoId, itemId])
+  @@index([produtoId])
+}
+
+/// A serie de um concorrente do ML: linha nova so quando preco, preco cheio ou posicao mudam.
+model ConcorrenteMLHistorico {
+  id            String        @id @default(cuid())
+  concorrenteId String
+  concorrente   ConcorrenteML @relation(fields: [concorrenteId], references: [id], onDelete: Cascade)
+
+  preco      Decimal? @db.Decimal(12, 2)
+  precoCheio Decimal? @db.Decimal(12, 2)
+  posicao    Int
+  lidoEm     DateTime
+
+  @@index([concorrenteId, lidoEm])
+}
+
+/// A posicao do proprio dono no catalogo do ML acompanhado: linha nova so quando a posicao, o total ou o menor preco
+/// dos outros mudam. Sem anuncio do dono no catalogo, `posicao` e nula e `total` diz quantos competem.
+model PosicaoML {
+  id         String  @id @default(cuid())
+  produtoId  String
+  produto    Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  catalogoId String
+  itemId     String?
+  posicao    Int?
+  total      Int
+  menorPreco Decimal? @db.Decimal(12, 2)
+  lidoEm     DateTime
+
+  @@index([produtoId, lidoEm])
 }
 
 // ---------------------------------------------------------------------------
