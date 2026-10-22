@@ -7,6 +7,7 @@ import AvisoBanco from "@/components/ui/AvisoBanco";
 import CampoBusca from "@/components/ui/CampoBusca";
 import LinkDeVolta from "@/components/ui/LinkDeVolta";
 import PageHeader from "@/components/ui/PageHeader";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { listarAnunciosLI } from "@/lib/canaisDeVenda/li/banco";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,9 @@ const textoDe = (valor) => String((Array.isArray(valor) ? valor[0] : valor) ?? "
  * pelo vinculo automatico do icone. Busca por titulo ou codigo, 100 por pagina.
  */
 export default async function LojaIntegradaPage({ searchParams }) {
+  // Acessos: a lista em ver; Novo anuncio com editar.
+  const { pode } = await exigirAcessoNaPagina("tela.canaisDeVenda.lojaIntegrada", "ver");
+  const podeEditar = pode("tela.canaisDeVenda.lojaIntegrada", "editar");
   const params = await searchParams;
   const busca = textoDe(params?.q);
 
@@ -42,14 +46,17 @@ export default async function LojaIntegradaPage({ searchParams }) {
       <LinkDeVolta href="/canais-de-venda" rotulo="Canais de Venda" />
       <PageHeader
         titulo="Loja Integrada"
+        somenteLeitura={podeEditar ? null : "Seu acesso à Loja Integrada é de leitura"}
         descricao="Conteúdo, preço, SEO e dados fiscais dos produtos da loja própria, a partir dos produtos Conferidos. O estoque continua pelo Bling."
         acao={
+          podeEditar && (
           <div className="flex flex-wrap gap-2">
             <Link href="/canais-de-venda/loja-integrada/novo" className={`${botao} bg-acento text-white hover:opacity-90`}>
               <Plus size={16} />
               Novo anúncio
             </Link>
           </div>
+          )
         }
       />
 

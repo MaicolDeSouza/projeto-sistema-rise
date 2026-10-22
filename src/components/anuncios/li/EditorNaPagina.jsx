@@ -11,7 +11,7 @@ import EditorAnuncioLI from "./EditorAnuncioLI";
  * navegacao nao termina o editor fica `inert` (a remontagem perderia o que fosse digitado). Mesmo
  * desenho do `EditorNaPagina` do Mercado Livre.
  */
-export default function EditorNaPagina({ anuncioId, rascunhoInicial, contextoInicial, status, vinculo }) {
+export default function EditorNaPagina({ anuncioId, rascunhoInicial, contextoInicial, status, vinculo, acessos }) {
   const router = useRouter();
   const [abrindo, iniciarNavegacao] = useTransition();
 
@@ -23,6 +23,7 @@ export default function EditorNaPagina({ anuncioId, rascunhoInicial, contextoIni
         contextoInicial={contextoInicial}
         status={status}
         vinculo={vinculo}
+        acessos={acessos}
         modo="pagina"
         aoSalvar={(id) => {
           if (!anuncioId) iniciarNavegacao(() => router.replace(`/canais-de-venda/loja-integrada/${id}`));

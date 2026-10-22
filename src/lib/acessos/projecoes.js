@@ -83,3 +83,35 @@ export function pessoalPreservado(atual, recebido, pode) {
   for (const [campo, vazio] of Object.entries(PESSOAIS_GRAVADOS)) preservado[campo] = atual?.[campo] ?? vazio;
   return preservado;
 }
+
+/**
+ * O que a pessoa pode no editor de anuncio do Mercado Livre. Sem `editar` o editor abre so para leitura (paineis
+ * travados, abas navegaveis, sem Salvar nem Publicar). Os custos do ML (comissao, frete, margem e a calculadora) exigem
+ * Custo E Margem; os concorrentes do catalogo, o dado Concorrentes.
+ */
+export function acessosDoEditorML(pode) {
+  const editar = pode("tela.canaisDeVenda.mercadoLivre", "editar");
+  return {
+    editar,
+    publicar: editar && pode("acao.mercadoLivre.publicar", "executar"),
+    custos: pode("dado.custo", "ver") && pode("dado.margem", "ver"),
+    concorrentes: pode("dado.concorrentes", "ver"),
+  };
+}
+
+/** O mesmo para o editor da Loja Integrada: Sincronizar e Cadastrar exigem editar E a acao; o SEO dos concorrentes, o dado. */
+export function acessosDoEditorLI(pode) {
+  const editar = pode("tela.canaisDeVenda.lojaIntegrada", "editar");
+  return {
+    editar,
+    sincronizar: editar && pode("acao.lojaIntegrada.sincronizar", "executar"),
+    concorrentes: pode("dado.concorrentes", "ver"),
+  };
+}
+
+/** O contexto do editor do ML sem o custo dos produtos quando a pessoa nao ve o custo. Devolve uma copia. */
+export function projetarContextoML(contexto, pode) {
+  if (pode("dado.custo", "ver") || !contexto?.produtos) return contexto;
+  const produtos = Object.fromEntries(Object.entries(contexto.produtos).map(([id, produto]) => [id, { ...produto, custo: null }]));
+  return { ...contexto, produtos };
+}

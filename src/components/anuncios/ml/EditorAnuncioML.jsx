@@ -60,6 +60,11 @@ const ESPERA_DA_CATEGORIA_MS = 400;
  * `problemas` ja vem filtrado pela aba. So a Previa recebe tambem `todosProblemas`, a lista
  * inteira da validacao (ela mostra as de todas as abas).
  */
+/// Sem `acessos` o editor e o de sempre, sem restricao. O calculo de verdade e `acessosDoEditorML`
+/// (src/lib/acessos/projecoes.js), feito no servidor (paginas e acoes de abrir).
+const ACESSO_TOTAL_ML = { editar: true, publicar: true, custos: true, concorrentes: true };
+const MOTIVO_DA_LEITURA = "Seu acesso a este canal é de leitura.";
+
 export default function EditorAnuncioML({
   anuncioId,
   rascunhoInicial,
@@ -69,6 +74,7 @@ export default function EditorAnuncioML({
   modo = "pagina",
   aoSalvar,
   aoFechar,
+  acessos = ACESSO_TOTAL_ML,
 }) {
   const [rascunho, setRascunho] = useState(rascunhoInicial);
   const [contexto, setContexto] = useState(contextoInicial);
@@ -136,7 +142,9 @@ export default function EditorAnuncioML({
   // banco: o que fosse digitado enquanto a acao do servidor roda se perderia, e o rodape diria
   // "Tudo salvo". Travar so esse caso mantem o resto do editor livre (a janela volta a lista).
   const travado = salvando && idAtual === null && modo === "pagina";
-  const bloqueado = publicado || travado || presoNaPublicacao;
+  // Tela em `ver` (Acessos): os paineis travam, mas as abas continuam navegaveis para ler.
+  const somenteLeitura = !acessos.editar;
+  const bloqueado = publicado || travado || presoNaPublicacao || somenteLeitura;
   const problemas = useMemo(() => validarRascunhoML(rascunho, contexto), [rascunho, contexto]);
 
   // O erro aparece no topo: com o rodape fixo, o dono clica em Salvar com a pagina rolada.
@@ -226,7 +234,7 @@ export default function EditorAnuncioML({
 
   // "Validar no ML" (Previa) valida o anuncio GRAVADO: so com ele salvo e sem alteracao pendente.
   const podeValidar = Boolean(idAtual) && !alterado && !bloqueado;
-  const propsDasAbas = { rascunho, contexto, alterar, setContexto, irPara: setAba, anuncioId: idAtual, carregandoCategoria, podeValidar };
+  const propsDasAbas = { rascunho, contexto, alterar, setContexto, irPara: setAba, anuncioId: idAtual, carregandoCategoria, podeValidar, acessos };
   const rotuloDoStatus =
     statusAtual === "PUBLICANDO" && publicacao?.etapaComErro === "kit_bling"
       ? AGUARDANDO_BLING
@@ -244,7 +252,7 @@ export default function EditorAnuncioML({
 
   // `inert` tira foco, clique e teclado da barra e dos paineis de uma vez (os campos continuam montados).
   const barra = (
-    <div inert={bloqueado}>
+    <div inert={bloqueado && !somenteLeitura}>
       <BarraDeAbas
         abas={ABAS_ML}
         aba={aba}
@@ -255,7 +263,7 @@ export default function EditorAnuncioML({
   );
 
   const paineis = (
-    <div inert={bloqueado} aria-busy={travado} className={bloqueado ? "opacity-70" : undefined}>
+    <div inert={bloqueado} aria-busy={travado} className={bloqueado && !somenteLeitura ? "opacity-70" : undefined}>
       {ABAS_ML.map(({ id }) => {
         const Aba = ABAS_PRONTAS[id];
         return (
@@ -281,6 +289,7 @@ export default function EditorAnuncioML({
           idAtual && <span className="text-suave">Tudo salvo</span>
         )}
         {publicado && <span className="text-suave">{MOTIVO_DO_PUBLICADO}</span>}
+        {somenteLeitura && !publicado && <span className="text-suave">{MOTIVO_DA_LEITURA}</span>}
         {infoDoML.idExterno &&
           (infoDoML.urlExterna ? (
             <a href={infoDoML.urlExterna} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-acento hover:underline">
@@ -291,6 +300,7 @@ export default function EditorAnuncioML({
           ))}
       </div>
       <div className="flex items-center gap-2">
+        {!somenteLeitura && (
         <button
           type="button"
           onClick={salvar}
@@ -301,7 +311,8 @@ export default function EditorAnuncioML({
           {salvando && <Loader size={14} className="animate-spin" />}
           {salvando ? "Salvando..." : "Salvar"}
         </button>
-        {!publicado && (
+        )}
+        {!publicado && acessos.publicar && (
           <button
             type="button"
             onClick={() => setPublicando(true)}

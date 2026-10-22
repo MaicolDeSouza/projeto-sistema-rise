@@ -82,7 +82,11 @@ const divergenciasDe = (leitura) =>
  * Tambem le as marcas e as categorias da loja (sugestoes e a validacao de categoria que sumiu).
  * Falha em qualquer leitura nao impede editar nem salvar.
  */
-export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoInicial, status, vinculo, modo = "pagina", aoSalvar, aoFechar }) {
+/// Sem `acessos` o editor e o de sempre, sem restricao. O calculo de verdade e `acessosDoEditorLI`
+/// (src/lib/acessos/projecoes.js), feito no servidor (paginas e acoes de abrir).
+const ACESSO_TOTAL_LI = { editar: true, sincronizar: true, concorrentes: true };
+
+export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoInicial, status, vinculo, modo = "pagina", aoSalvar, aoFechar, acessos = ACESSO_TOTAL_LI }) {
   const router = useRouter();
   const [rascunho, setRascunho] = useState(rascunhoInicial);
   const [contexto, setContexto] = useState(contextoInicial);
@@ -114,6 +118,8 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   // O primeiro Salvar de um anuncio novo na pagina troca a URL e remonta o editor: o que fosse
   // digitado nesse intervalo se perderia (mesma regra do editor do ML).
   const travado = ocupado && idAtual === null && modo === "pagina";
+  // Tela em `ver` (Acessos): paineis travados, abas navegaveis, sem Salvar nem Sincronizar.
+  const somenteLeitura = !acessos.editar;
   const problemas = useMemo(
     () => validarRascunhoLI(rascunho, { produto: contexto.produto, categoriasDaLI: contexto.categoriasDaLI ?? null, gtinDaLI: leitura?.daLoja?.gtin ?? null }),
     [rascunho, contexto, leitura],
@@ -337,6 +343,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     leitura,
     bling,
     abrirProduto,
+    acessos,
   };
   const rotuloDoStatus = STATUS_LI[statusAtual] ?? (idAtual ? STATUS_LI.RASCUNHO : { rotulo: "Novo", tom: "neutro" });
 
@@ -344,7 +351,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   const estadoDoBling = situacaoDoBling(bling);
   const avisoDoBling = estadoDoBling && estadoDoBling.tipo === "atencao" ? estadoDoBling.texto : null;
   // So o produto que ja esta na LI e no Bling, sem o canal, pode ser ligado daqui.
-  const podeLigarNoBling = bling?.ok && bling.situacao === "sem_vinculo" && Boolean(vinculoAtual?.idExterno);
+  const podeLigarNoBling = acessos.sincronizar && bling?.ok && bling.situacao === "sem_vinculo" && Boolean(vinculoAtual?.idExterno);
 
   /** Cria no Bling o vinculo com a loja Loja_Integrada (sob as travas do Bling) e le de novo. */
   function ligarNoBling() {
@@ -441,7 +448,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   );
 
   const paineis = (
-    <div inert={travado} aria-busy={travado} className={travado ? "opacity-70" : undefined}>
+    <div inert={travado || somenteLeitura} aria-busy={travado} className={travado ? "opacity-70" : undefined}>
       {divergencias > 0 && (
         <Painel id="divergencias" aba={abaVisivel}>
           <AbaDivergencias leitura={leitura} lerLoja={lerLoja} lendo={lendo} />
@@ -468,8 +475,10 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
       <div className="flex items-center gap-2 text-xs">
         <Badge tom={rotuloDoStatus.tom}>{rotuloDoStatus.rotulo}</Badge>
         {alterado ? <span className="text-amber-700">Alterações não salvas</span> : idAtual && <span className="text-suave">Tudo salvo</span>}
+        {somenteLeitura && <span className="text-suave">Seu acesso a este canal é de leitura.</span>}
       </div>
       <div className="flex items-center gap-2">
+        {acessos.sincronizar && (
         <button
           type="button"
           onClick={pedirEnvio}
@@ -480,6 +489,8 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
           {(qual === "enviar" || qual === "lendo" || (lendo && !leitura)) && <Loader size={14} className="animate-spin" />}
           {rotuloDoEnvio}
         </button>
+        )}
+        {!somenteLeitura && (
         <button
           type="button"
           onClick={salvar}
@@ -489,6 +500,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
           {qual === "salvar" && <Loader size={14} className="animate-spin" />}
           {qual === "salvar" ? "Salvando..." : "Salvar"}
         </button>
+        )}
       </div>
     </div>
   );

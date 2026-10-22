@@ -55,6 +55,7 @@ export default function JanelaAnuncioLI({ produtoId, aoFechar, aoSalvar }) {
       rascunho: aberto.rascunho,
       contexto: aberto.contexto,
       vinculo: aberto.vinculo ?? null,
+      acessos: aberto.acessos,
     });
     setFase("editor");
   }, [produtoId]);
@@ -86,6 +87,7 @@ export default function JanelaAnuncioLI({ produtoId, aoFechar, aoSalvar }) {
         contextoInicial={editor.contexto}
         status={editor.status}
         vinculo={editor.vinculo}
+        acessos={editor.acessos}
         modo="janela"
         aoFechar={aoFechar}
         aoSalvar={(id) => aoSalvar?.(id)}

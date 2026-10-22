@@ -88,6 +88,8 @@ const CLASSE_DO_AVISO = {
 export default function JanelaAnuncioML({ produtoId, aoFechar }) {
   const [fase, setFase] = useState("carregando");
   const [produto, setProduto] = useState(null);
+  // Os acessos do editor (Acessos): sem editar nao ha anuncio novo, e o editor abre so para leitura.
+  const [acessos, setAcessos] = useState(null);
   const [anuncios, setAnuncios] = useState([]);
   const [editor, setEditor] = useState(null);
   const [aviso, setAviso] = useState(null);
@@ -110,6 +112,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
         return null;
       }
       setProduto(resultado.produto);
+      setAcessos(resultado.acessos ?? null);
       setAnuncios(resultado.anuncios);
       setAviso(nota ?? null);
       setFase(resultado.produto.conferido ? "lista" : "naoConferido");
@@ -134,6 +137,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
       status: undefined,
       rascunho: resultado.rascunho,
       contexto: resultado.contexto,
+      acessos: resultado.acessos,
     });
     setFase("editor");
   }, [produtoId]);
@@ -154,6 +158,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
       status: resultado.status,
       rascunho: resultado.rascunho,
       contexto: resultado.contexto,
+      acessos: resultado.acessos,
       publicacaoInicial: { publicacao: resultado.publicacao, idExterno: resultado.idExterno, urlExterna: resultado.urlExterna },
     });
     setFase("editor");
@@ -163,7 +168,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
     async (nota) => {
       const lista = await carregarLista(nota);
       // Produto Conferido sem nenhum anuncio: nao ha o que listar, abre direto o editor de um novo.
-      if (lista?.produto.conferido && lista.anuncios.length === 0) await abrirNovo();
+      if (lista?.produto.conferido && lista.anuncios.length === 0 && lista.acessos?.editar !== false) await abrirNovo();
     },
     [carregarLista, abrirNovo],
   );
@@ -208,6 +213,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
         contextoInicial={editor.contexto}
         status={editor.status}
         publicacaoInicial={editor.publicacaoInicial ?? null}
+        acessos={editor.acessos}
         modo="janela"
         aoSalvar={aoSalvar}
         aoFechar={aoFechar}
@@ -286,6 +292,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
             </ul>
           )}
 
+          {acessos?.editar !== false && (
           <button
             type="button"
             onClick={abrirNovo}
@@ -294,6 +301,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
             <Plus size={14} />
             Novo anúncio
           </button>
+          )}
         </div>
       )}
     </Moldura>

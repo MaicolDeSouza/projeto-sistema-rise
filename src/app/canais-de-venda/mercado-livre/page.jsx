@@ -7,6 +7,7 @@ import AvisoBanco from "@/components/ui/AvisoBanco";
 import CampoBusca from "@/components/ui/CampoBusca";
 import LinkDeVolta from "@/components/ui/LinkDeVolta";
 import PageHeader from "@/components/ui/PageHeader";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { listarAnunciosML } from "@/lib/canaisDeVenda/ml/banco";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,10 @@ const textoDe = (valor) => String((Array.isArray(valor) ? valor[0] : valor) ?? "
  * ou codigo do kit, 100 por pagina. Cada linha abre o editor do anuncio.
  */
 export default async function MercadoLivrePage({ searchParams }) {
+  // Acessos: a lista em ver; Novo anuncio com editar, Configuracoes com as frases, a coluna Concorrencia com o dado.
+  const { pode } = await exigirAcessoNaPagina("tela.canaisDeVenda.mercadoLivre", "ver");
+  const podeEditar = pode("tela.canaisDeVenda.mercadoLivre", "editar");
+  const verConcorrencia = pode("dado.concorrentes", "ver");
   const params = await searchParams;
   const busca = textoDe(params?.q);
 
@@ -42,17 +47,22 @@ export default async function MercadoLivrePage({ searchParams }) {
       <LinkDeVolta href="/canais-de-venda" rotulo="Canais de Venda" />
       <PageHeader
         titulo="Mercado Livre"
+        somenteLeitura={podeEditar ? null : "Seu acesso ao Mercado Livre é de leitura"}
         descricao="Anúncios criados a partir dos produtos Conferidos. A publicação no Mercado Livre entra numa próxima etapa."
         acao={
           <div className="flex flex-wrap gap-2">
+            {pode("tela.canaisDeVenda.mercadoLivre.frases", "ver") && (
             <Link href="/canais-de-venda/mercado-livre/configuracoes" className={`${botao} border border-borda hover:bg-fundo`}>
               <Settings size={16} />
               Configurações
             </Link>
+            )}
+            {podeEditar && (
             <Link href="/canais-de-venda/mercado-livre/novo" className={`${botao} bg-acento text-white hover:opacity-90`}>
               <Plus size={16} />
               Novo anúncio
             </Link>
+            )}
           </div>
         }
       />
@@ -73,7 +83,7 @@ export default async function MercadoLivrePage({ searchParams }) {
             />
           </div>
 
-          <TabelaAnunciosML linhas={lista.linhas} busca={busca} />
+          <TabelaAnunciosML linhas={lista.linhas} busca={busca} verConcorrencia={verConcorrencia} />
 
           {lista.linhas.length > 0 && (
             <>

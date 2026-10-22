@@ -1,5 +1,8 @@
 "use server";
 
+import { negarSemAcessos, sessaoDeAcessos } from "@/lib/acessos/servidor";
+import { acessosDoEditorLI } from "@/lib/acessos/projecoes";
+
 import { revalidatePath } from "next/cache";
 
 import { anuncioLIDoProduto, carregarAnuncioLI, contextoDoProduto, novoRascunhoLI, salvarRascunhoLI } from "@/lib/canaisDeVenda/li/banco";
@@ -43,19 +46,32 @@ function revalidando(resultado) {
   return resultado;
 }
 
+/** O que o editor recebe ao abrir: os acessos dele (somente leitura, sincronizar, SEO dos concorrentes). */
+async function comAcessosDoEditor(resultado) {
+  if (!resultado?.ok) return resultado;
+  const { pode } = await sessaoDeAcessos();
+  return { ...resultado, acessos: acessosDoEditorLI(pode) };
+}
+
 /** Rascunho novo para o produto. Nao grava: so o Salvar cria o anuncio. */
 export async function abrirNovoAnuncioLI(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "ver"]);
+  if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
-  return protegendo(() => novoRascunhoLI(produtoId));
+  return protegendo(async () => comAcessosDoEditor(await novoRascunhoLI(produtoId)));
 }
 
 export async function abrirAnuncioLI(id) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "ver"]);
+  if (negado) return negado;
   if (!ehId(id)) return PEDIDO_INVALIDO;
-  return protegendo(() => carregarAnuncioLI(id));
+  return protegendo(async () => comAcessosDoEditor(await carregarAnuncioLI(id)));
 }
 
 /** O produto (para o titulo da janela) e o anuncio da LI dele, se ja houver (um por produto). */
 export async function anuncioDoProdutoLI(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "ver"]);
+  if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(async () => {
     const [produto, anuncio] = await Promise.all([contextoDoProduto(produtoId), anuncioLIDoProduto(produtoId)]);
@@ -67,6 +83,8 @@ export async function anuncioDoProdutoLI(produtoId) {
 
 /** `id` e o anuncio que ja existe, ou `null` (o produto sem anuncio ganha um; com anuncio, atualiza esse). */
 export async function salvarAnuncioLI(id, rascunho) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "editar"]);
+  if (negado) return negado;
   if (!ehIdOuNulo(id)) return PEDIDO_INVALIDO;
   return protegendo(async () => revalidando(await salvarRascunhoLI(id, rascunho)));
 }
@@ -76,6 +94,8 @@ export async function salvarAnuncioLI(id, rascunho) {
  * o produto e os vinculos com as lojas). O editor chama ao abrir.
  */
 export async function vinculoBlingLI(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "ver"]);
+  if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(async () => {
     const [produto, anuncio] = await Promise.all([contextoDoProduto(produtoId), anuncioLIDoProduto(produtoId)]);
@@ -89,6 +109,8 @@ export async function vinculoBlingLI(produtoId) {
  * BLING_ESCRITA e BLING_ESCRITA_CODIGOS). A regra mora em `blingLoja.js`.
  */
 export async function ligarNoBlingDaLI(produtoId) {
+  const negado = await negarSemAcessos(["acao.lojaIntegrada.sincronizar", "executar"]);
+  if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
   try {
     const [produto, anuncio] = await Promise.all([contextoDoProduto(produtoId), anuncioLIDoProduto(produtoId)]);
@@ -102,6 +124,8 @@ export async function ligarNoBlingDaLI(produtoId) {
 
 /** O SEO (title e description) dos concorrentes salvos no produto, para comparar na aba SEO. */
 export async function seoConcorrentesLI(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "ver"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(async () => ({ ok: true, concorrentes: await seoDosConcorrentes(produtoId) }));
 }
@@ -112,6 +136,8 @@ export async function seoConcorrentesLI(produtoId) {
  * tela (pode nao estar salvo ainda), conferido no tamanho.
  */
 export async function gerarSeoIALI(produtoId, titulo) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "editar"], ["acao.produtos.gerarTextoComIA", "executar"]);
+  if (negado) return negado;
   if (!ehId(produtoId) || typeof titulo !== "string" || titulo.length > 255) return PEDIDO_INVALIDO;
   // O gasto volta tambem no erro: a chamada que falhou no meio ja foi cobrada.
   const gasto = novoGasto();
@@ -131,6 +157,8 @@ export async function gerarSeoIALI(produtoId, titulo) {
  * navegador vem so o nome que esta na tela. Devolve as sugestoes; quem marca e a tela, no "Marcar estas".
  */
 export async function sugerirCategoriasLI(produtoId, titulo) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "editar"], ["acao.produtos.gerarTextoComIA", "executar"]);
+  if (negado) return negado;
   if (!ehId(produtoId) || typeof titulo !== "string" || titulo.length > 255) return PEDIDO_INVALIDO;
   const gasto = novoGasto();
   try {
@@ -146,6 +174,8 @@ export async function sugerirCategoriasLI(produtoId, titulo) {
 
 /** As categorias da loja, ao vivo (o dono esta renovando a arvore). So leitura. */
 export async function listarCategoriasLI() {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "ver"]);
+  if (negado) return negado;
   try {
     return { ok: true, categorias: await listarCategoriasDaLI(clienteLI()) };
   } catch (erro) {
@@ -156,6 +186,8 @@ export async function listarCategoriasLI() {
 
 /** As marcas da loja, ao vivo. So leitura. */
 export async function listarMarcasLI() {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "ver"]);
+  if (negado) return negado;
   try {
     return { ok: true, marcas: await listarMarcasDaLI(clienteLI()) };
   } catch (erro) {

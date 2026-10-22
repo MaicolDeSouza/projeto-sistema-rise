@@ -6,6 +6,8 @@ import AvisoBanco from "@/components/ui/AvisoBanco";
 import Card from "@/components/ui/Card";
 import LinkDeVolta from "@/components/ui/LinkDeVolta";
 import PageHeader from "@/components/ui/PageHeader";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { acessosDoEditorML, projetarContextoML } from "@/lib/acessos/projecoes";
 import { buscarProdutoParaAnuncio, novoRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +21,8 @@ const textoDe = (valor) => String((Array.isArray(valor) ? valor[0] : valor) ?? "
  * anuncio: a recusa aparece aqui, no lugar do editor. Nada e gravado ate o primeiro Salvar.
  */
 export default async function NovoAnuncioMLPage({ searchParams }) {
+  // Acessos: criar anuncio pede editar o canal.
+  const { pode } = await exigirAcessoNaPagina("tela.canaisDeVenda.mercadoLivre", "editar");
   const params = await searchParams;
   const codigo = textoDe(params?.produto);
 
@@ -57,7 +61,8 @@ export default async function NovoAnuncioMLPage({ searchParams }) {
           key={aberto.rascunho.produtoId}
           anuncioId={null}
           rascunhoInicial={aberto.rascunho}
-          contextoInicial={aberto.contexto}
+          contextoInicial={projetarContextoML(aberto.contexto, pode)}
+          acessos={acessosDoEditorML(pode)}
           status={null}
         />
       )}

@@ -691,6 +691,53 @@ try {
     conferir("com o dado: valem os do formulario", pessoalPreservado(doBanco, doFormulario, comPessoal), doFormulario);
   }
 
+  // --- Lancamento 2: Canais de Venda (editores do ML e da LI) ---
+  {
+    console.log("\nCanais de Venda");
+    const { acessosDoEditorML, acessosDoEditorLI, projetarContextoML } = await import("../src/lib/acessos/projecoes.js");
+    const tudo = () => true;
+    const so = (...pares) => (id, nivel) => pares.some(([i, n]) => i === id && n === nivel);
+    conferir("administrador: o editor do ML inteiro", acessosDoEditorML(tudo), { editar: true, publicar: true, custos: true, concorrentes: true });
+    conferir(
+      "so ver o ML: sem editar, publicar, custos nem concorrentes",
+      acessosDoEditorML(so(["tela.canaisDeVenda.mercadoLivre", "ver"])),
+      { editar: false, publicar: false, custos: false, concorrentes: false },
+    );
+    conferir(
+      "os custos do ML exigem Custo E Margem",
+      [
+        acessosDoEditorML(so(["dado.custo", "ver"])).custos,
+        acessosDoEditorML(so(["dado.custo", "ver"], ["dado.margem", "ver"])).custos,
+      ],
+      [false, true],
+    );
+    conferir(
+      "publicar no ML exige editar E a acao",
+      [
+        acessosDoEditorML(so(["acao.mercadoLivre.publicar", "executar"])).publicar,
+        acessosDoEditorML(so(["acao.mercadoLivre.publicar", "executar"], ["tela.canaisDeVenda.mercadoLivre", "editar"])).publicar,
+      ],
+      [false, true],
+    );
+    conferir("administrador: o editor da LI inteiro", acessosDoEditorLI(tudo), { editar: true, sincronizar: true, concorrentes: true });
+    conferir(
+      "sincronizar a LI exige editar E a acao",
+      [
+        acessosDoEditorLI(so(["acao.lojaIntegrada.sincronizar", "executar"])).sincronizar,
+        acessosDoEditorLI(so(["acao.lojaIntegrada.sincronizar", "executar"], ["tela.canaisDeVenda.lojaIntegrada", "editar"])).sincronizar,
+      ],
+      [false, true],
+    );
+    const contexto = { produtos: { p1: { id: "p1", sku: "A", custo: { valor: 10, origem: "fornecedor padrão" } }, p2: { id: "p2", sku: "B", custo: null } }, categoria: undefined };
+    conferir("com o custo o contexto do ML segue igual", projetarContextoML(contexto, tudo), contexto);
+    conferir(
+      "sem o custo: o custo de cada produto do contexto vira nulo",
+      projetarContextoML(contexto, so(["dado.margem", "ver"])),
+      { produtos: { p1: { id: "p1", sku: "A", custo: null }, p2: { id: "p2", sku: "B", custo: null } }, categoria: undefined },
+    );
+    conferir("o contexto recebido nao e alterado", contexto.produtos.p1.custo.valor, 10);
+  }
+
   // --- guarda estatico do lancamento 1: toda pagina, layout, rota e arquivo de acoes de src/app confere o acesso ---
   {
     const { readFileSync, readdirSync, statSync } = await import("node:fs");
@@ -748,16 +795,6 @@ try {
       "src/app/api/mercados/miniatura/[id]/route.js",
       "src/app/api/oauth/[servico]/callback/route.js",
       "src/app/api/oauth/[servico]/iniciar/route.js",
-      "src/app/canais-de-venda/loja-integrada/[id]/page.jsx",
-      "src/app/canais-de-venda/loja-integrada/acoes.js",
-      "src/app/canais-de-venda/loja-integrada/novo/page.jsx",
-      "src/app/canais-de-venda/loja-integrada/page.jsx",
-      "src/app/canais-de-venda/mercado-livre/[id]/page.jsx",
-      "src/app/canais-de-venda/mercado-livre/acoes.js",
-      "src/app/canais-de-venda/mercado-livre/configuracoes/page.jsx",
-      "src/app/canais-de-venda/mercado-livre/novo/page.jsx",
-      "src/app/canais-de-venda/mercado-livre/page.jsx",
-      "src/app/canais-de-venda/page.jsx",
       "src/app/estoque/page.jsx",
       "src/app/ferramentas/acoes.js",
       "src/app/ferramentas/cotacao-dolar/page.jsx",

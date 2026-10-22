@@ -7,6 +7,8 @@ import AvisoBanco from "@/components/ui/AvisoBanco";
 import Card from "@/components/ui/Card";
 import LinkDeVolta from "@/components/ui/LinkDeVolta";
 import PageHeader from "@/components/ui/PageHeader";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { acessosDoEditorLI } from "@/lib/acessos/projecoes";
 import { anuncioLIDoProduto, idDoProdutoPeloSku, novoRascunhoLI } from "@/lib/canaisDeVenda/li/banco";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +22,8 @@ const textoDe = (valor) => String((Array.isArray(valor) ? valor[0] : valor) ?? "
  * leva a ele. So produto Conferido vira anuncio. Nada e gravado ate o primeiro Salvar.
  */
 export default async function NovoAnuncioLIPage({ searchParams }) {
+  // Acessos: criar anuncio pede editar o canal.
+  const { pode } = await exigirAcessoNaPagina("tela.canaisDeVenda.lojaIntegrada", "editar");
   const params = await searchParams;
   const codigo = textoDe(params?.produto);
 
@@ -67,6 +71,7 @@ export default async function NovoAnuncioLIPage({ searchParams }) {
           contextoInicial={aberto.contexto}
           status={null}
           vinculo={null}
+          acessos={acessosDoEditorLI(pode)}
         />
       )}
 

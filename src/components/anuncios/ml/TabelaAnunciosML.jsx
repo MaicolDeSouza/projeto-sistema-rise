@@ -24,7 +24,8 @@ const dataEHora = new Intl.DateTimeFormat("pt-BR", {
 
 const enderecoDe = (linha) => `/canais-de-venda/mercado-livre/${linha.id}`;
 
-export default function TabelaAnunciosML({ linhas, busca }) {
+// `verConcorrencia` (Acessos, dado.concorrentes): sem ele a coluna Concorrencia nao existe.
+export default function TabelaAnunciosML({ linhas, busca, verConcorrencia = true }) {
   if (linhas.length === 0) {
     return (
       <EmptyState
@@ -50,7 +51,7 @@ export default function TabelaAnunciosML({ linhas, busca }) {
             <th className="px-3 py-2.5 text-right font-medium">Preço</th>
             <th className="px-3 py-2.5 font-medium">Situação</th>
             <th className="px-3 py-2.5 font-medium">No ML</th>
-            <th className="px-3 py-2.5 font-medium">Concorrência</th>
+            {verConcorrencia && <th className="px-3 py-2.5 font-medium">Concorrência</th>}
             <th className="px-3 py-2.5 font-medium">Atualizado em</th>
           </tr>
         </thead>
@@ -89,6 +90,7 @@ export default function TabelaAnunciosML({ linhas, busca }) {
                     <span className="text-suave">-</span>
                   )}
                 </td>
+                {verConcorrencia && (
                 <td className="px-3 py-2.5">
                   {linha.avisosML?.length > 0 ? (
                     // O primeiro aviso a vista; todos no `title`. Abrir o anuncio (aba Preco e estoque) marca como visto.
@@ -100,6 +102,7 @@ export default function TabelaAnunciosML({ linhas, busca }) {
                     <span className="text-suave">-</span>
                   )}
                 </td>
+                )}
                 <td className="px-3 py-2.5 whitespace-nowrap text-suave tabular-nums">
                   {dataEHora.format(new Date(linha.atualizadoEm))}
                 </td>

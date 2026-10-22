@@ -121,7 +121,7 @@ const SECAO = "px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppe
  * A URL e so leitura. Produto que ja esta na loja mostra a URL de hoje e ela nao muda (o Google ja a
  * indexou); produto novo mostra a que vai nascer do nome no Cadastrar.
  */
-export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo }) {
+export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo, acessos = { concorrentes: true } }) {
   const seo = rascunho.seo ?? { title: "", description: "" };
   const alterarSeo = (parcial) => alterar((atual) => ({ seo: { ...(atual.seo ?? { title: "", description: "" }), ...parcial } }));
   const [concorrentes, setConcorrentes] = useState({ carregando: true, lista: [], erro: null });
@@ -135,14 +135,15 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
   useEffect(() => {
     let vivo = true;
     (async () => {
-      const resultado = produtoId ? await chamar(seoConcorrentesLI, produtoId) : { ok: true, concorrentes: [] };
+      // Sem o dado Concorrentes (Acessos) a lista nem e pedida: a aba fica so com o nome do produto e a IA.
+      const resultado = produtoId && acessos.concorrentes ? await chamar(seoConcorrentesLI, produtoId) : { ok: true, concorrentes: [] };
       if (!vivo) return;
       setConcorrentes(resultado.ok ? { carregando: false, lista: resultado.concorrentes, erro: null } : { carregando: false, lista: [], erro: resultado.erro });
     })();
     return () => {
       vivo = false;
     };
-  }, [produtoId]);
+  }, [produtoId, acessos.concorrentes]);
 
   const dominio = contexto.dominioDaLoja || "https://www.4hobby.com.br";
   // Produto que ja esta na loja fica com a URL de hoje (decisao do dono em 07/10/2026: o Google ja a

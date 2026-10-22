@@ -1,5 +1,8 @@
 "use server";
 
+import { negarSemAcessos, sessaoDeAcessos } from "@/lib/acessos/servidor";
+import { acessosDoEditorML, projetarContextoML } from "@/lib/acessos/projecoes";
+
 import { revalidatePath } from "next/cache";
 
 import { LIMITE_TITULO } from "@/lib/anuncios/canais/mercadolivre";
@@ -85,15 +88,29 @@ function revalidando(resultado) {
   return resultado;
 }
 
+/**
+ * O que o editor recebe ao abrir (pop-up e pagina): os acessos dele (somente leitura, publicar, custos, concorrentes) e o
+ * contexto sem o custo dos produtos quando a pessoa nao ve o custo (Acessos: o dado nao sai do servidor).
+ */
+async function comAcessosDoEditor(resultado) {
+  if (!resultado?.ok) return resultado;
+  const { pode } = await sessaoDeAcessos();
+  return { ...resultado, contexto: projetarContextoML(resultado.contexto, pode), acessos: acessosDoEditorML(pode) };
+}
+
 /** Rascunho novo de anuncio simples para o produto. Nao grava: so o Salvar cria o anuncio. */
 export async function abrirNovoAnuncioML(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
-  return protegendo(() => novoRascunhoML(produtoId));
+  return protegendo(async () => comAcessosDoEditor(await novoRascunhoML(produtoId)));
 }
 
 export async function abrirAnuncioML(id) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  if (negado) return negado;
   if (!ehId(id)) return PEDIDO_INVALIDO;
-  return protegendo(() => carregarAnuncioML(id));
+  return protegendo(async () => comAcessosDoEditor(await carregarAnuncioML(id)));
 }
 
 /**
@@ -101,6 +118,8 @@ export async function abrirAnuncioML(id) {
  * Conferido (so Conferido vira anuncio) e o nome para o titulo da janela.
  */
 export async function listarAnunciosDoProdutoML(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(async () => {
     const [produtos, anuncios] = await Promise.all([contextoDosProdutos([produtoId]), anunciosMLDoProduto(produtoId)]);
@@ -109,28 +128,40 @@ export async function listarAnunciosDoProdutoML(produtoId) {
     if (!Object.hasOwn(produtos, produtoId)) return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
 
     const { id, sku, tituloBase, conferido } = produtos[produtoId];
-    return { ok: true, produto: { id, sku, tituloBase, conferido }, anuncios };
+    // Os avisos de concorrencia so com o dado Concorrentes; sem editar, a janela nao oferece anuncio novo.
+    const { pode } = await sessaoDeAcessos();
+    const acessos = acessosDoEditorML(pode);
+    const linhas = acessos.concorrentes ? anuncios : anuncios.map((anuncio) => ({ ...anuncio, avisosML: [] }));
+    return { ok: true, produto: { id, sku, tituloBase, conferido }, anuncios: linhas, acessos };
   });
 }
 
 /** `id` e o anuncio que ja existe, ou `null` para criar um novo. */
 export async function salvarAnuncioML(id, rascunho) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
   if (!ehIdOuNulo(id)) return PEDIDO_INVALIDO;
   return protegendo(async () => revalidando(await salvarRascunhoML(id, rascunho)));
 }
 
 /** Acha o produto pelo codigo para entrar na composicao do kit. Devolve o resultado da lib como esta. */
 export async function buscarItemDeComposicao(codigo) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  if (negado) return negado;
   return protegendo(() => buscarProdutoParaAnuncio(codigo));
 }
 
 /** Quem ja usa o codigo do kit, ou `null` se esta livre. `anuncioId` e o anuncio aberto (ou `null`). */
 export async function conferirCodigoDeKit(codigo, anuncioId, itens) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  if (negado) return negado;
   if (!ehIdOuNulo(anuncioId)) return PEDIDO_INVALIDO;
   return protegendo(async () => ({ ok: true, codigoEmUso: await codigoEmUso(codigo, { anuncioId, itens }) }));
 }
 
 export async function sugerirCodigoKit() {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  if (negado) return negado;
   return protegendo(async () => {
     const codigo = await sugerirCodigoDeKit();
     if (codigo === null) return { ok: false, erro: "A faixa 25xxxx acabou." };
@@ -139,6 +170,8 @@ export async function sugerirCodigoKit() {
 }
 
 export async function salvarFrasesFixas(texto) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre.frases", "editar"]);
+  if (negado) return negado;
   // Vem do navegador: `gravarFrases` converte qualquer coisa em texto (um objeto viraria "[object Object]") e gravaria lixo.
   if (typeof texto !== "string") return PEDIDO_INVALIDO;
   return protegendo(async () => revalidando(await gravarFrases(texto)));
@@ -181,6 +214,8 @@ async function rascunhoConferido(rascunho) {
 
 /** A categoria com os atributos, para o editor validar e montar a ficha. */
 export async function lerCategoriaML(categoriaId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  if (negado) return negado;
   if (!ehCategoria(categoriaId)) return PEDIDO_INVALIDO;
   try {
     const categoria = await lerCategoriaCompleta(clienteML(), categoriaId);
@@ -192,6 +227,8 @@ export async function lerCategoriaML(categoriaId) {
 
 /** Categorias candidatas pelo titulo (ML), com a recomendacao da IA ou a pesquisa na internet. */
 export async function sugerirCategoriaML(produtoId, titulo) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"], ["acao.produtos.gerarTextoComIA", "executar"]);
+  if (negado) return negado;
   if (!ehId(produtoId) || typeof titulo !== "string" || titulo.length > LIMITES_ML.titulo) return PEDIDO_INVALIDO;
   try {
     const { produto, erro } = await produtoConferido(produtoId);
@@ -216,6 +253,8 @@ function kitValido(kit) {
 
 /** Titulos pela IA, no limite da categoria (ou 60 sem ela) e com as palavras em alta dela. */
 export async function sugerirTitulosML(produtoId, { categoriaId = null, kit = null } = {}) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"], ["acao.produtos.gerarTextoComIA", "executar"]);
+  if (negado) return negado;
   if (!ehId(produtoId) || (categoriaId !== null && !ehCategoria(categoriaId)) || !kitValido(kit)) return PEDIDO_INVALIDO;
   try {
     const { produto, erro } = await produtoConferido(produtoId);
@@ -231,6 +270,8 @@ export async function sugerirTitulosML(produtoId, { categoriaId = null, kit = nu
 
 /** Sugestoes da IA para os atributos em branco da categoria. Nao grava: o dono escolhe na tela. */
 export async function preencherFichaML(produtoId, { categoriaId, atributos, internet } = {}) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"], ["acao.produtos.gerarTextoComIA", "executar"]);
+  if (negado) return negado;
   const valores = RascunhoMLSchema.shape.atributos.safeParse(atributos ?? {});
   if (!ehId(produtoId) || !ehCategoria(categoriaId) || !valores.success || typeof internet !== "boolean") return PEDIDO_INVALIDO;
   try {
@@ -244,6 +285,8 @@ export async function preencherFichaML(produtoId, { categoriaId, atributos, inte
 
 /** Comissao, tarifa fixa e frete do vendedor para o rascunho como esta na tela. */
 export async function lerCustosML(rascunho) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.custo", "ver"], ["dado.margem", "ver"]);
+  if (negado) return negado;
   try {
     const conferido = await rascunhoConferido(rascunho);
     if (conferido.erro) return { ok: false, erro: conferido.erro };
@@ -258,6 +301,8 @@ export async function lerCustosML(rascunho) {
  * mostra, do fornecedor padrao ou a soma do kit): serve so a uma sugestao, que o dono confere.
  */
 export async function precoPorMargemML(rascunho, { custo, margem } = {}) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.custo", "ver"], ["dado.margem", "ver"]);
+  if (negado) return negado;
   const valor = Number(margem?.valor);
   if (
     !(Number(custo) > 0) ||
@@ -286,6 +331,8 @@ const clientes = () => ({ ml: clienteML(), bling: clienteBling() });
 
 /** A pre-checagem e o resumo da janela de confirmacao. So le o ML, o Bling e o banco. */
 export async function prepararPublicacaoMLAcao(anuncioId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
   if (!ehId(anuncioId)) return { ...PEDIDO_INVALIDO, motivos: [PEDIDO_INVALIDO.erro] };
   return protegendo(() => prepararPublicacaoML(anuncioId, clientes()));
 }
@@ -295,6 +342,8 @@ export async function prepararPublicacaoMLAcao(anuncioId) {
  * incerta nao chegou la. Revalida sempre: mesmo a publicacao que falhou mudou o status do anuncio.
  */
 export async function publicarAnuncioMLAcao(anuncioId, { recriar = false } = {}) {
+  const negado = await negarSemAcessos(["acao.mercadoLivre.publicar", "executar"]);
+  if (negado) return negado;
   if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
   return protegendo(async () => {
     const resultado = await publicarAnuncioML(anuncioId, { ...clientes(), recriar: recriar === true });
@@ -306,6 +355,8 @@ export async function publicarAnuncioMLAcao(anuncioId, { recriar = false } = {})
 
 /** "Validar no ML": sobe as fotos que faltam e roda o validador do ML, sem criar o anuncio. */
 export async function validarNoMLAcao(anuncioId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
   if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
   return protegendo(() => validarNoML(anuncioId, clientes()));
 }
@@ -320,6 +371,8 @@ const ehCatalogo = (valor) => typeof valor === "string" && /^MLB\d{1,15}$/.test(
 
 /** Produtos de catalogo parecidos com o termo (o titulo do anuncio, editavel). */
 export async function buscarCatalogosMLAcao(termo) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
   if (typeof termo !== "string" || termo.length > LIMITE_DO_TERMO) return PEDIDO_INVALIDO;
   try {
     // Cada catalogo com "N anuncios · M vendedores": uma leitura a mais por catalogo, so GET.
@@ -332,6 +385,8 @@ export async function buscarCatalogosMLAcao(termo) {
 
 /** Os catalogos dos anuncios do dono para o SKU do produto: sugeridos no topo da busca. So leitura. */
 export async function catalogosDosMeusAnunciosMLAcao(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
   try {
     const produtos = await contextoDosProdutos([produtoId]);
@@ -346,6 +401,8 @@ export async function catalogosDosMeusAnunciosMLAcao(produtoId) {
 
 /** A previa do catalogo: os anuncios na ordem do ML, com o vendedor, e quais seriam acompanhados (o top). Nao grava. */
 export async function preverCatalogoMLAcao(catalogoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
   if (!ehCatalogo(catalogoId)) return PEDIDO_INVALIDO;
   try {
     const ml = clienteML();
@@ -366,6 +423,8 @@ export async function preverCatalogoMLAcao(catalogoId) {
 
 /** Le a tela dos concorrentes e marca como visto (os avisos passam a contar daqui). */
 export async function lerConcorrentesMLAcao(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(async () => {
     const tela = await lerConcorrentesML(produtoId);
@@ -377,6 +436,8 @@ export async function lerConcorrentesMLAcao(produtoId) {
 
 /** Passa a acompanhar o catalogo (ou troca de catalogo) e faz a primeira leitura. So Produto Conferido. */
 export async function acompanharCatalogoMLAcao(produtoId, { catalogoId, catalogoNome } = {}) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
   if (!ehId(produtoId) || !ehCatalogo(catalogoId) || (catalogoNome !== undefined && typeof catalogoNome !== "string")) return PEDIDO_INVALIDO;
   return protegendo(async () => {
     const { erro } = await produtoConferido(produtoId);
@@ -389,6 +450,8 @@ export async function acompanharCatalogoMLAcao(produtoId, { catalogoId, catalogo
 
 /** "Reler agora": a mesma rotina da rodada diaria, so para este produto. */
 export async function relerConcorrentesMLAcao(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(async () => {
     const feito = await relerCatalogoDoProduto(clienteML(), produtoId);
@@ -399,6 +462,8 @@ export async function relerConcorrentesMLAcao(produtoId) {
 
 /** Para de acompanhar: zera o catalogo; os concorrentes ficam como ausentes (nada e apagado). */
 export async function pararDeAcompanharMLAcao(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(async () => {
     await pararDeAcompanharML(produtoId);

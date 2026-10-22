@@ -16,12 +16,14 @@ import { Handshake, ShoppingBag, ShoppingBasket } from "lucide-react";
  * @property {string} resumo   Uma frase: o que se faz no canal.
  * @property {string} [detalhe] Linha pequena no pe do cartao.
  * @property {boolean} [emBreve] Sem tela ainda: cartao sem link.
+ * @property {string} [recurso] O recurso de Acessos que abre o canal (o cartao some sem `ver` nele).
  */
 
 /** @type {CanalDeVenda[]} */
 export const CANAIS_DE_VENDA = [
   {
     href: "/canais-de-venda/mercado-livre",
+    recurso: "tela.canaisDeVenda.mercadoLivre",
     rotulo: "Mercado Livre",
     icone: Handshake,
     resumo: "Crie anúncios simples e kits a partir dos produtos Conferidos, com título, descrição, preço e ficha técnica.",
@@ -29,6 +31,7 @@ export const CANAIS_DE_VENDA = [
   },
   {
     href: "/canais-de-venda/loja-integrada",
+    recurso: "tela.canaisDeVenda.lojaIntegrada",
     rotulo: "Loja Integrada",
     icone: ShoppingBag,
     resumo: "Anúncios da loja própria: conteúdo, SEO e dados fiscais pelo Rise; estoque e preço pelo Bling.",

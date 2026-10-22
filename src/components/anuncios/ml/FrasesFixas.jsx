@@ -22,6 +22,8 @@ export default function FrasesFixas({
   frasesIniciais,
   salvar: salvarNoServidor = salvarFrasesFixas,
   ajuda = "Estas frases entram em todo anúncio, depois da descrição do produto.",
+  // Tela em `ver` (Acessos): a caixa so le e o Salvar nao e desenhado.
+  somenteLeitura = false,
 }) {
   const [texto, setTexto] = useState(() => frasesIniciais.join("\n"));
   const [mensagem, setMensagem] = useState(null);
@@ -79,7 +81,7 @@ export default function FrasesFixas({
         value={texto}
         onChange={(evento) => alterar(evento.target.value)}
         // Durante o Salvar o texto enviado e o que volta para a caixa: o que fosse digitado agora seria sobrescrito.
-        readOnly={salvando}
+        readOnly={salvando || somenteLeitura}
         rows={8}
         aria-invalid={invalido}
         aria-describedby={`ml-frases-nota${mostraAvisoLocal ? " ml-frases-aviso" : ""}${erroDoServidor ? " ml-frases-erro" : ""}`}
@@ -92,6 +94,7 @@ export default function FrasesFixas({
         <p className={`text-xs tabular-nums ${excede ? "font-medium text-red-700" : "text-suave"}`}>
           {frases.length} de {MAXIMO_DE_FRASES} frases
         </p>
+        {!somenteLeitura && (
         <button
           type="button"
           onClick={salvar}
@@ -101,6 +104,7 @@ export default function FrasesFixas({
           {salvando ? <Loader size={14} className="animate-spin" /> : <Save size={14} />}
           Salvar
         </button>
+        )}
       </div>
 
       {mostraAvisoLocal && (

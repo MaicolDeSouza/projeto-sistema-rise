@@ -86,7 +86,7 @@ function MargemDoPreco({ preco, custo, conta, mensagemSemCusto }) {
  * Aba Preco e estoque: o preco de venda (com a calculadora dentro do campo e a margem embaixo) e o
  * estoque do anuncio, os concorrentes do catalogo e os Custos totais (fornecedor, taxas do ML e imposto).
  */
-export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas }) {
+export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true } }) {
   // Texto do preco como foi digitado (ver `numeros.js`); `null` = nada digitado, mostra o numero.
   const [precoDigitado, setPrecoDigitado] = useState(null);
   // Os concorrentes do ML pelo catalogo (o bloco abaixo os le): o selo "Nº de M" ao lado do preco usa eles.
@@ -133,7 +133,8 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
               : "Começa com o preço de venda do produto. Aceita vírgula ou ponto."
           }
         >
-          <CalculadoraDeMargem rascunho={rascunho} alterar={alterar} setContexto={setContexto} custo={custo}>
+          {(() => {
+            const campo = (
             <input
               id="ml-preco"
               inputMode="decimal"
@@ -143,11 +144,20 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
               onChange={(evento) => digitarPreco(evento.target.value)}
               // Ao sair o campo volta ao numero formatado ("29,9" vira "29,90").
               onBlur={() => setPrecoDigitado(null)}
-              className={`${CLASSE_CAMPO} pr-10 ${bordaDoCampo(erroDoPreco)}`}
+              className={`${CLASSE_CAMPO} ${acessos.custos ? "pr-10" : ""} ${bordaDoCampo(erroDoPreco)}`}
             />
-          </CalculadoraDeMargem>
+            );
+            // Sem Custo e Margem (Acessos) a calculadora e a margem nao existem: o campo fica sozinho.
+            return acessos.custos ? (
+              <CalculadoraDeMargem rascunho={rascunho} alterar={alterar} setContexto={setContexto} custo={custo}>
+                {campo}
+              </CalculadoraDeMargem>
+            ) : (
+              campo
+            );
+          })()}
           <MensagensDoCampo problemas={problemas} campo="preco" />
-          <MargemDoPreco preco={preco} custo={custo} conta={conta} mensagemSemCusto={mensagemSemCusto(custo.faltam)} />
+          {acessos.custos && <MargemDoPreco preco={preco} custo={custo} conta={conta} mensagemSemCusto={mensagemSemCusto(custo.faltam)} />}
           {somaAvulsa !== null && (
             <p className="mt-1 text-[11px] text-suave">Soma dos preços avulsos: {MOEDA.format(somaAvulsa)}</p>
           )}
@@ -178,11 +188,11 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
         </Campo>
       </div>
 
-      {rascunho.produtoId && (
+      {rascunho.produtoId && acessos.concorrentes && (
         <ConcorrentesDoML produtoId={rascunho.produtoId} titulo={rascunho.titulo} alterar={alterar} aoMudarConcorrentes={setConcorrentesML} />
       )}
 
-      <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} conta={conta} />
+      {acessos.custos && <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} conta={conta} />}
     </div>
   );
 }
