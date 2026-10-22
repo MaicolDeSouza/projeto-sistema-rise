@@ -1279,7 +1279,7 @@ try {
     conferir("lerProposta sem proposta: proposta null", [vazia?.isError ?? false, JSON.parse(textoDe(vazia) || "{}").proposta], [false, null]);
     await gravarProposta("ZZ-MCP-PROP", { secao: "titulos", conteudo: { opcoes: ["ZZ A", "ZZ B", "ZZ C"], recomendada: 0, concorrentes: [] } });
     const comSecao = JSON.parse(textoDe(await chamar("lerProposta", { sku: "ZZ-MCP-PROP" })) || "{}");
-    conferir("lerProposta: as secoes gravadas e as nao aplicadas", [Object.keys(comSecao.proposta?.secoes ?? {}), comSecao.proposta?.naoAplicadas], [["titulos"], ["titulos"]]);
+    conferir("lerProposta: as secoes gravadas e as nao aplicadas (o titulo nunca fica pendente desde 22/10/2026)", [Object.keys(comSecao.proposta?.secoes ?? {}), comSecao.proposta?.naoAplicadas], [["titulos"], []]);
     conferir("lerParaProposta mostra a proposta aberta", JSON.parse(textoDe(await chamar("lerParaProposta", { sku: "ZZ-MCP-PROP" })) || "{}").proposta?.secoes, ["titulos"]);
     const semAcesso = await chamar("lerProposta", { sku: "ZZ-MCP-PROP" }, quem((recurso) => recurso !== "acao.produtos.proporCadastro"));
     conferir("lerProposta sem o recurso: recusa", semAcesso?.isError, true);

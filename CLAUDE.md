@@ -4944,7 +4944,20 @@ a Bling, Mercado Livre ou Loja Integrada.
   (`regras.js`: preço por margem com a posição, medidas com a Usinainfo primeiro, NCM com a Fortek primeiro, origem fiscal;
   `plano.js`: validação; `aplicadas.js`: o que ainda não foi aplicado; `banco.js`: gravação). Teste `npm run teste:proposta`.
   **Pronta em 20/10/2026 (as 10 tarefas do plano), SEM deploy.** Ensaio no `100103-teste` do banco do PC.
-  - **Tela (cadastro do produto):** quadro **"Proposta"** no topo (`QuadroDaProposta.jsx`, só com proposta), uma linha
+  - **DESDE 22/10/2026 a proposta vai DIRETO NO FORMULÁRIO** (pedido do dono; plano
+    `docs/superpowers/plans/2026-10-22-proposta-no-formulario.md`, decisões A-D = 1). O quadro com "Aplicar escolhidos"
+    descrito abaixo SAIU. Regra pura `propostaNoFormulario` (`aplicar.js`): campo VAZIO no produto abre preenchido com a
+    marca âmbar "PROPOSTA" embaixo (some quando o dono edita; contexto `PropostaNosCampos` no `FormularioProduto`);
+    campo PREENCHIDO com outro valor recebe a sugestão no TOPO da lista do ícone, com a etiqueta "Proposta" (marca,
+    modelo, NCM, peso, medidas, EAN, o "$" do preço; garantia, unidade, origem e código ganham um ícone de lista só com
+    ela, `IconeDaProposta`); a descrição troca sempre que difere da salva; o título nunca (as 3 opções seguem em
+    "Escolher o título"). Preencher conta como alteração ("Sair sem salvar?"), mas NÃO para o rascunho automático
+    (`mexeuDepoisDeAbrir`). Topo: selo "Proposta" + botão Relatório ao lado do Cancelar (`PropostaNoTopo`); olho na aba
+    Descrição (`OlhoDaProposta`, a janela de detalhe de antes); aba Documentos técnicos com a seção "Da proposta"
+    (`DocumentosDaProposta`). Conferido (regra B, `secoesNaoAplicadas`): só pergunta pelo que preencheria campo VAZIO no
+    produto salvo (ou descrição diferente) e pelas fotos; o título nunca. Lista de Produtos: "P" âmbar no canto superior
+    esquerdo do ícone R quando a proposta tem a seção relatorio ("Proposta pronta, aguardando aprovação").
+  - (ATÉ 21/10/2026) **Tela (cadastro do produto):** quadro **"Proposta"** no topo (`QuadroDaProposta.jsx`, só com proposta), uma linha
     por seção com estado (pendente, falta salvar, aplicada), "Ver" (janela com opções, lojas, links, descartados) e a
     ação principal **"Aplicar escolhidos ao formulário"** (`camposDoFormularioDaProposta` em `aplicar.js`), que só
     preenche os campos; o **Salvar** grava e marca as seções aplicadas (campo oculto `propostaAplicada` →
