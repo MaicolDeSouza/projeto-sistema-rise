@@ -1801,6 +1801,25 @@ try {
       lancou = erro.status;
     }
     conferir("lerConcorrentes: erro do ML lanca com o status", lancou, 429);
+
+    // O catalogo dos MEUS anuncios do produto vem sugerido (a busca pelo nome nao o achava entre os 10 primeiros, medido
+    // em 22/10/2026). Encerrado fica de fora; dois anuncios no mesmo catalogo viram uma sugestao so.
+    const { catalogosDosMeusAnuncios } = await import("../src/lib/canaisDeVenda/ml/catalogo.js");
+    const comMeus = criarMLFalso({
+      meusItens: {
+        100101: [
+          { id: "MLBA", status: "active", catalog_product_id: "MLB44072268" },
+          { id: "MLBB", status: "active", catalog_product_id: "MLB44072268" },
+          { id: "MLBC", status: "closed", catalog_product_id: "MLB60092501" },
+          { id: "MLBD", status: "paused", catalog_product_id: null },
+        ],
+      },
+    });
+    const meus = await catalogosDosMeusAnuncios(comMeus, "100101");
+    conferir("meus catalogos: um por catalogo, sem encerrado", meus.map((c) => [c.id, c.meusAnuncios]), [["MLB44072268", ["MLBA", "MLBB"]]]);
+    conferir("meus catalogos: com nome e ficha", [meus[0].nome.startsWith("Cabo USB"), meus[0].atributosResumo[0]], [true, "Marca: Deirolab"]);
+    conferir("meus catalogos: sku sem anuncio", await catalogosDosMeusAnuncios(comMeus, "999999"), []);
+    conferir("meus catalogos: sku vazio nao chama o ML", [await catalogosDosMeusAnuncios(comMeus, " "), comMeus.chamadas.filter((c) => c.caminho.includes("items/search") && !c.params.seller_sku).length], [[], 0]);
   }
 
   {

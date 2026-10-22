@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUp, ExternalLink, Loader, RefreshCw, Search } from "luc
 import {
   acompanharCatalogoMLAcao,
   buscarCatalogosMLAcao,
+  catalogosDosMeusAnunciosMLAcao,
   lerConcorrentesMLAcao,
   pararDeAcompanharMLAcao,
   preverCatalogoMLAcao,
@@ -35,6 +36,8 @@ export default function ConcorrentesDoML({ produtoId, titulo, alterar, aoMudarCo
   const [erro, setErro] = useState(null);
   const [termo, setTermo] = useState(titulo ?? "");
   const [catalogos, setCatalogos] = useState(null);
+  // O catalogo dos anuncios que o dono ja tem deste produto, sugerido no topo (a busca pelo nome pode nao acha-lo).
+  const [meus, setMeus] = useState([]);
   const [previa, setPrevia] = useState(null);
   const [trocando, setTrocando] = useState(false);
   const [confirmandoTroca, setConfirmandoTroca] = useState(false);
@@ -53,6 +56,9 @@ export default function ConcorrentesDoML({ produtoId, titulo, alterar, aoMudarCo
     lerConcorrentesMLAcao(produtoId)
       .then((resposta) => vivo && receber(resposta))
       .catch(() => vivo && setErro("Não foi possível falar com o servidor."));
+    catalogosDosMeusAnunciosMLAcao(produtoId)
+      .then((resposta) => vivo && resposta.ok && setMeus(resposta.catalogos))
+      .catch(() => {});
     return () => {
       vivo = false;
     };
@@ -102,6 +108,8 @@ export default function ConcorrentesDoML({ produtoId, titulo, alterar, aoMudarCo
   }
 
   const acompanhando = Boolean(tela.catalogoId) && !trocando;
+  const idsMeus = new Set(meus.map((c) => c.id));
+  const lista = [...meus, ...(catalogos ?? []).filter((c) => !idsMeus.has(c.id))];
   const presentes = (tela.concorrentes ?? []).filter((c) => !c.ausenteDesde);
   const ausentes = (tela.concorrentes ?? []).filter((c) => c.ausenteDesde);
 
@@ -180,12 +188,12 @@ export default function ConcorrentesDoML({ produtoId, titulo, alterar, aoMudarCo
 
           {previa ? (
             <Previa previa={previa} ocupado={ocupado} aoAcompanhar={acompanhar} aoVoltar={() => setPrevia(null)} />
-          ) : catalogos !== null && (
-            catalogos.length === 0 ? (
+          ) : (catalogos !== null || meus.length > 0) && (
+            lista.length === 0 ? (
               <p className="text-sm text-suave">Nenhum produto de catálogo parecido. Esse item fica sem concorrentes do ML.</p>
             ) : (
               <ul className="divide-y divide-borda rounded border border-borda">
-                {catalogos.map((catalogo) => (
+                {lista.map((catalogo) => (
                   <li key={catalogo.id} className="flex items-center gap-3 px-3 py-2">
                     {catalogo.foto ? (
                       // Foto do CDN do ML: `next/image` lanca com host fora de `remotePatterns` (CLAUDE.md, armadilhas).
@@ -195,7 +203,14 @@ export default function ConcorrentesDoML({ produtoId, titulo, alterar, aoMudarCo
                       <span className="h-10 w-10 shrink-0 rounded bg-fundo" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium" title={catalogo.nome}>{catalogo.nome}</p>
+                      <p className="truncate text-sm font-medium" title={catalogo.nome}>
+                        {catalogo.meusAnuncios?.length > 0 && (
+                          <span title={catalogo.meusAnuncios.join(", ")} className="mr-1.5 rounded border border-emerald-300 bg-emerald-50 px-1 py-px text-[11px] font-semibold text-emerald-700">
+                            seu anúncio
+                          </span>
+                        )}
+                        {catalogo.nome}
+                      </p>
                       <p className="truncate text-xs text-suave">{catalogo.atributosResumo.join(" · ") || catalogo.dominio}</p>
                     </div>
                     <button type="button" onClick={() => prever(catalogo)} disabled={ocupado} className="shrink-0 rounded border border-borda px-2.5 py-1 text-sm hover:bg-fundo disabled:opacity-50">Usar este</button>

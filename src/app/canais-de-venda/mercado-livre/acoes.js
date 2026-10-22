@@ -7,7 +7,7 @@ import { clienteBling } from "@/lib/blingSync/cliente";
 import { prepararPublicacaoML, publicarAnuncioML, validarNoML } from "@/lib/canaisDeVenda/ml/publicar";
 import { gravarFrases } from "@/lib/canaisDeVenda/configuracao";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
-import { buscarCatalogos, lerConcorrentesDoCatalogo, lerVendedores, topDoCatalogo } from "@/lib/canaisDeVenda/ml/catalogo";
+import { buscarCatalogos, catalogosDosMeusAnuncios, lerConcorrentesDoCatalogo, lerVendedores, topDoCatalogo } from "@/lib/canaisDeVenda/ml/catalogo";
 import {
   acompanharCatalogoML,
   lerConcorrentesML,
@@ -317,6 +317,19 @@ export async function buscarCatalogosMLAcao(termo) {
     return { ok: true, catalogos: await buscarCatalogos(clienteML(), termo) };
   } catch (erro) {
     return falhaDeLeitura(erro, "buscar catalogo");
+  }
+}
+
+/** Os catalogos dos anuncios do dono para o SKU do produto: sugeridos no topo da busca. So leitura. */
+export async function catalogosDosMeusAnunciosMLAcao(produtoId) {
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  try {
+    const produtos = await contextoDosProdutos([produtoId]);
+    const sku = produtos[produtoId]?.sku;
+    if (!sku) return { ok: true, catalogos: [] };
+    return { ok: true, catalogos: await catalogosDosMeusAnuncios(clienteML(), sku) };
+  } catch (erro) {
+    return falhaDeLeitura(erro, "catalogos dos meus anuncios");
   }
 }
 

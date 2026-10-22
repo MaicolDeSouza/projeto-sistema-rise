@@ -213,6 +213,8 @@ export function criarMLFalso(opcoes = {}) {
     usuarioId: String(opcoes.usuarioId ?? PADROES.usuarioId),
     catalogos: { ...CATALOGOS_PADRAO, ...(opcoes.catalogos ?? {}) },
     vendedores: { ...VENDEDORES_PADRAO, ...(opcoes.vendedores ?? {}) },
+    // Os anuncios do vendedor por SKU, para `/users/{id}/items/search?seller_sku=` e o `/items/{id}` deles.
+    meusItens: opcoes.meusItens ?? {},
   });
   const chamadas = [];
 
@@ -448,10 +450,21 @@ export function criarMLFalso(opcoes = {}) {
     if (catalogo) {
       const id = decodeURIComponent(catalogo[1]);
       const c = estado.catalogos[id];
-      return c ? resposta(200, { id, name: c.nome, permalink: `https://www.mercadolivre.com.br/p/${id}`, attributes: structuredClone(c.atributos ?? []) }) : naoAchou(`Product ${id} not found`);
+      return c
+        ? resposta(200, { id, name: c.nome, domain_id: c.dominio, permalink: `https://www.mercadolivre.com.br/p/${id}`, attributes: structuredClone(c.atributos ?? []), pictures: (c.fotos ?? []).map((url) => ({ url })) })
+        : naoAchou(`Product ${id} not found`);
     }
     const usuario = rota.match(/^\/users\/(\d+)$/);
     if (usuario) return vendedor(usuario[1]);
+    if (/^\/users\/\d+\/items\/search$/.test(rota)) {
+      const meus = estado.meusItens[String(pedido.params.seller_sku ?? "")] ?? [];
+      return resposta(200, { results: meus.map((item) => item.id), paging: { total: meus.length } });
+    }
+    const meuItem = rota.match(/^\/items\/([^/]+)$/);
+    if (meuItem && !itens.has(decodeURIComponent(meuItem[1]))) {
+      const achado = Object.values(estado.meusItens).flat().find((item) => item.id === decodeURIComponent(meuItem[1]));
+      if (achado) return resposta(200, structuredClone(achado));
+    }
 
     if (rota === "/users/me") return resposta(200, { id: Number(estado.usuarioId), nickname: "LOJA FALSA", site_id: "MLB", tags: [] });
     if (rota === "/sites/MLB/domain_discovery/search") return descobrir(pedido.params);

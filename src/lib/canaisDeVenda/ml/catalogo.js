@@ -48,6 +48,41 @@ export async function buscarCatalogos(cliente, termo, { limite = 10 } = {}) {
 }
 
 /**
+ * O catalogo dos anuncios do proprio dono para este SKU, como sugestao (a busca pelo nome nao achava o catalogo do 100101
+ * entre os 10 primeiros, medido em 22/10/2026). `/users/{id}/items/search?seller_sku=` acha os anuncios dele (o `sku=`
+ * acha menos), e cada `/items/{id}` traz o `catalog_product_id`. Encerrado fica de fora. Um por catalogo.
+ * @returns {Promise<{ id, nome, dominio, foto, atributosResumo, meusAnuncios: string[] }[]>}
+ */
+export async function catalogosDosMeusAnuncios(cliente, sku, { maximoDeAnuncios = 10 } = {}) {
+  const codigo = String(sku ?? "").trim();
+  if (!codigo) return [];
+  const eu = await cliente.usuarioId();
+  const busca = await cliente.get(`/users/${encodeURIComponent(String(eu))}/items/search`, { seller_sku: codigo });
+  if (!busca.ok) throw falhou(busca);
+  const porCatalogo = new Map();
+  for (const itemId of (busca.dados?.results ?? []).slice(0, maximoDeAnuncios)) {
+    const item = await cliente.get(`/items/${encodeURIComponent(itemId)}`, { attributes: "id,status,catalog_product_id" });
+    if (!item.ok || item.dados?.status === "closed" || !item.dados?.catalog_product_id) continue;
+    const id = String(item.dados.catalog_product_id);
+    porCatalogo.set(id, [...(porCatalogo.get(id) ?? []), String(itemId)]);
+  }
+  const resultado = [];
+  for (const [id, meusAnuncios] of porCatalogo) {
+    const produto = await cliente.get(`/products/${encodeURIComponent(id)}`);
+    if (!produto.ok) continue;
+    resultado.push({
+      id,
+      nome: String(produto.dados?.name ?? id),
+      dominio: produto.dados?.domain_id ?? null,
+      foto: produto.dados?.pictures?.[0]?.url ?? null,
+      atributosResumo: resumoDaFicha(produto.dados?.attributes),
+      meusAnuncios,
+    });
+  }
+  return resultado;
+}
+
+/**
  * Os anuncios que competem no catalogo, na ordem do ML. 404 = catalogo sem anuncios abertos (nao e erro).
  * @returns {Promise<{ total: number, itens: { itemId, vendedorId, preco, precoCheio, tipoAnuncio, freteGratis, logistica, condicao, posicao, meu }[] }>}
  */
