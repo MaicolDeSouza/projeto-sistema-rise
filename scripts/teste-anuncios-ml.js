@@ -1754,6 +1754,52 @@ try {
     conferir("falso: expoe o estado", Object.keys(ml.estado.catalogos).sort(), ["MLB44072268", "MLB60092501"]);
   }
 
+  {
+    console.log("\nConcorrentes do ML: leitura");
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { buscarCatalogos, lerConcorrentesDoCatalogo, topDoCatalogo, minhaPosicao, lerVendedores, limparCacheDeVendedores, textoDaReputacao, TOP_DO_CATALOGO } = await import(
+      "../src/lib/canaisDeVenda/ml/catalogo.js"
+    );
+    const ml = criarMLFalso();
+    conferir("buscarCatalogos: termo vazio nao chama o ML", [await buscarCatalogos(ml, "  "), ml.chamadas.length], [[], 0]);
+    const achados = await buscarCatalogos(ml, "placa uno");
+    conferir("buscarCatalogos: id, nome e resumo da ficha", [achados[0].id, achados[0].atributosResumo.slice(0, 2), achados[0].foto !== null], ["MLB44072268", ["Marca: Deirolab", "Modelo: UNO R3 CH340"], true]);
+    const lido = await lerConcorrentesDoCatalogo(ml, "MLB44072268", { meuSellerId: "212386247" });
+    conferir("lerConcorrentes: total, ordem e posicao", [lido.total, lido.itens.map((i) => i.posicao), lido.itens[0].preco], [9, [1, 2, 3, 4, 5, 6, 7, 8, 9], 39.54]);
+    conferir("lerConcorrentes: o meu e marcado", lido.itens.filter((i) => i.meu).map((i) => i.itemId), ["MLB4191686159"]);
+    conferir("lerConcorrentes: 404 e lista vazia", await lerConcorrentesDoCatalogo(ml, "MLB60092501", { meuSellerId: "1" }), { total: 0, itens: [] });
+    conferir("topDoCatalogo: tira os meus e corta em N", [topDoCatalogo(lido.itens).length, topDoCatalogo(lido.itens).some((i) => i.meu), topDoCatalogo(lido.itens, 3).map((i) => i.posicao), TOP_DO_CATALOGO], [8, false, [1, 2, 3], 10]);
+    conferir("minhaPosicao", minhaPosicao(lido.itens), { posicao: 4, itemId: "MLB4191686159", total: 9, menorPreco: 39.54 });
+    conferir("minhaPosicao: sem anuncio meu", minhaPosicao(lido.itens.filter((i) => !i.meu)).posicao, null);
+    // Review Focus 2: dois anuncios meus no catalogo, fica a melhor posicao.
+    const doisMeus = lido.itens.map((i) => (i.itemId === "MLB5202599258" ? { ...i, meu: true } : i));
+    conferir("minhaPosicao: dois meus, vale o melhor", [minhaPosicao(doisMeus).posicao, minhaPosicao(doisMeus).itemId], [4, "MLB4191686159"]);
+    // Review Focus 1: catalogo so meu.
+    conferir("minhaPosicao: so eu no catalogo", minhaPosicao([{ ...lido.itens[3], posicao: 1 }]), { posicao: 1, itemId: "MLB4191686159", total: 1, menorPreco: null });
+    limparCacheDeVendedores();
+    const antes = ml.chamadas.length;
+    const v = await lerVendedores(ml, ["141686451", "1"]);
+    await lerVendedores(ml, ["141686451"]);
+    conferir(
+      "lerVendedores: apelido, reputacao e cache",
+      [v.get("141686451").apelido, v.get("141686451").reputacao, v.get("141686451").vendas, v.get("1").apelido, ml.chamadas.length - antes],
+      ["ARDU_ROBÓTICA EIRELI", "5_green", 10343, null, 2],
+    );
+    conferir("textoDaReputacao", [textoDaReputacao("5_green"), textoDaReputacao("3_yellow"), textoDaReputacao(null)], ["verde 5", "amarelo 3", "sem reputação"]);
+    const grande = criarMLFalso({
+      catalogos: { MLBG: { nome: "Grande", itens: Array.from({ length: 170 }, (_, i) => ({ item_id: `MLBG${i}`, seller_id: 10 + i, price: 10 + i, listing_type_id: "gold_special", shipping: { free_shipping: false } })) } },
+    });
+    conferir("lerConcorrentes: para em 3 paginas (150)", (await lerConcorrentesDoCatalogo(grande, "MLBG", { meuSellerId: "0" })).itens.length, 150);
+    const comErro = criarMLFalso({ falhas: [{ metodo: "GET", caminho: "/products/MLB44072268/items", exato: true, status: 429 }] });
+    let lancou = null;
+    try {
+      await lerConcorrentesDoCatalogo(comErro, "MLB44072268", { meuSellerId: "1" });
+    } catch (erro) {
+      lancou = erro.status;
+    }
+    conferir("lerConcorrentes: erro do ML lanca com o status", lancou, 429);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();

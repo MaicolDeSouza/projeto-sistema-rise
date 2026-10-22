@@ -24,7 +24,8 @@ export function textoDoErroML(erro) {
   return erro?.message ?? "Falha ao consultar o Mercado Livre.";
 }
 
-function falhou({ status, dados }) {
+/** A resposta de erro do ML vira um `Error` com `status` e `dados` (exportada para `catalogo.js`). */
+export function falhou({ status, dados }) {
   return Object.assign(new Error(textoDoErroML({ status, dados })), { status, dados });
 }
 
