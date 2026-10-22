@@ -7,9 +7,9 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 
 /**
  * Aba Imagens do anúncio da Loja Integrada (pedido do dono em 07/10/2026): escolher e ordenar as fotos do
- * produto que vão para a loja (a primeira é a capa). O ENVIO das fotos espera a VPS: a LI só aceita imagem
- * por endereço público, e hoje as fotos moram no PC. A escolha já fica guardada no anúncio
- * (`rascunho.imagens`, ids de ProdutoArquivo) e não entra na assinatura nem no Sincronizar até lá.
+ * produto que vão para a loja (a primeira é a capa). A escolha fica no anúncio (`rascunho.imagens`, ids de
+ * ProdutoArquivo) e, desde 21/10/2026, o Sincronizar troca as fotos da loja por elas (`li/fotos.js`). A LI só
+ * aceita imagem por endereço público: sem APP_URL_PUBLICA (o Rise do PC) as fotos não vão.
  *
  * As fotos são as validadas do cadastro (`contexto.fotos`, sem a reserva). A linha é a mesma da aba
  * Imagens do Mercado Livre.
@@ -37,20 +37,18 @@ export default function AbaImagens({ rascunho, contexto, alterar }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-        <p className="font-medium">O envio das fotos à Loja Integrada fica para quando o Rise estiver na VPS.</p>
-        <p className="mt-0.5 text-xs">
-          A loja só aceita imagem por endereço público, e hoje as fotos estão neste computador. A escolha e a ordem daqui já ficam guardadas no anúncio. As
-          fotos da loja continuam as que estão lá.
+      {!contexto.urlPublica && (
+        <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Este Rise não tem endereço público: as fotos só vão para a loja pelo Sincronizar da VPS.
         </p>
-      </div>
+      )}
 
       <div>
         <div className="flex items-center gap-1 text-sm font-semibold">
           Fotos do anúncio ({marcadas.length})
           <BolhaDeAjuda
             variante="inline"
-            texto="A ordem daqui é a ordem de envio: a primeira é a capa. A Loja Integrada recomenda JPG de até 4 MB e 2500x2500 px, com nome de arquivo sem acento; as fotos do Rise (1024x1024, JPG) já atendem."
+            texto="O Sincronizar troca as fotos da loja pelas marcadas aqui, nesta ordem: a primeira é a capa. Desmarcar todas deixa as da loja como estão. A Loja Integrada recomenda JPG de até 4 MB e 2500x2500 px, com nome de arquivo sem acento; as fotos do Rise (1024x1024, JPG) já atendem."
           />
         </div>
         {marcadas.length > 0 ? (

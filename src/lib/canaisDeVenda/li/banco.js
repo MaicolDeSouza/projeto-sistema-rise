@@ -151,7 +151,19 @@ export async function fotosDoProduto(produto) {
     orderBy: [{ principal: "desc" }, { ordem: "asc" }, { criadoEm: "asc" }],
     select: { id: true, arquivo: true, principal: true },
   });
-  return fotos.map((foto) => ({ id: foto.id, principal: foto.principal, url: urlDe(produto.sku, "IMAGEM", foto.arquivo) }));
+  return fotos.map((foto) => ({ id: foto.id, principal: foto.principal, arquivo: foto.arquivo, url: urlDe(produto.sku, "IMAGEM", foto.arquivo) }));
+}
+
+/** O endereco publico de uma foto do produto, que a LI baixa (`null` sem APP_URL_PUBLICA: o PC nao e alcancavel). */
+export function urlPublicaDaFoto(sku, arquivo) {
+  const base = String(config.appUrlPublica ?? "").trim().replace(/\/+$/, "");
+  return base && sku && arquivo ? `${base}${urlDe(sku, "IMAGEM", arquivo)}` : null;
+}
+
+/** Guarda em `Anuncio.dados.fotosLI` o que o Rise mandou a loja (arquivo do Rise + id da imagem na LI). */
+export async function gravarFotosEnviadasLI(anuncioId, fotosLI) {
+  const anuncio = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true } });
+  await prisma.anuncio.update({ where: { id: anuncioId }, data: { dados: { ...(anuncio?.dados ?? {}), fotosLI } } });
 }
 
 async function contextoDoEditor(produto) {

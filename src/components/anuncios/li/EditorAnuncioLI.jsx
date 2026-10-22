@@ -59,8 +59,11 @@ async function chamarEnvio(acao, produtoId) {
 }
 
 /** Diferenca de verdade (o selo do icone): "so tem na loja" nao e divergencia, vazio nunca apaga. */
+// As fotos contam como uma divergencia quando o Sincronizar mudaria as da loja (`resumoDasFotosLI`).
 const divergenciasDe = (leitura) =>
-  leitura?.ok && leitura.situacao === "existe" ? (leitura.diferencas ?? []).filter((item) => item.tipo === "diferente").length : 0;
+  leitura?.ok && leitura.situacao === "existe"
+    ? (leitura.diferencas ?? []).filter((item) => item.tipo === "diferente").length + (["diferentes", "faltam"].includes(leitura.fotos?.estado) ? 1 : 0)
+    : 0;
 
 /**
  * Editor do anuncio da Loja Integrada, na casca do editor do Mercado Livre: estado controlado sem

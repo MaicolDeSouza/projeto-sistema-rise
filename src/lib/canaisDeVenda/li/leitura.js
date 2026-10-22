@@ -2,7 +2,8 @@ import { exigirCodigoLiberado } from "@/lib/blingSync/cliente";
 import { config } from "@/lib/integracoes/config";
 import { normalizarProdutoLojaIntegrada } from "@/lib/integracoes/lojaIntegrada/normalizadores";
 import { paginarLojaIntegrada } from "@/lib/integracoes/lojaIntegrada/paginacao";
-import { anuncioLIDoProduto, contextoDoProduto, documentosDoProduto, rascunhoDoAnuncio, vincularPeloSku } from "./banco";
+import { anuncioLIDoProduto, contextoDoProduto, documentosDoProduto, fotosDoProduto, rascunhoDoAnuncio, vincularPeloSku } from "./banco";
+import { fotosDaLoja, fotosDoAnuncio, fotosEnviadas, planoDasFotosLI, resumoDasFotosLI } from "./fotos";
 import { CAMPOS_DE_ENVIO_LI, TEXTO_DO_TIPO_PRODUCAO, avisosFiscaisLI, diferencasLI, normalizarDaLI, normalizarDoRiseLI } from "./campos";
 import { clienteLI } from "./cliente";
 
@@ -214,7 +215,15 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
     }
 
     const documentos = await documentosDoProduto(produto);
-    const rise = normalizarDoRiseLI(produto, rascunhoDoAnuncio(anuncio), { documentos });
+    const rascunho = rascunhoDoAnuncio(anuncio);
+    const rise = normalizarDoRiseLI(produto, rascunho, { documentos });
+    // As fotos nao entram em `diferencas` (nao sao campo do PUT): o resumo diz o que o Sincronizar faria com elas.
+    const fotosDesejadas = fotosDoAnuncio(rascunho.imagens, await fotosDoProduto(produto));
+    const fotosNaLoja = fotosDaLoja(detalhe.produto);
+    const fotos = resumoDasFotosLI(planoDasFotosLI({ desejadas: fotosDesejadas, naLoja: fotosNaLoja, enviadas: fotosEnviadas(anuncio.dados) }), {
+      naLoja: fotosNaLoja,
+      desejadas: fotosDesejadas,
+    });
     // Categoria do rascunho que sumiu da loja sai do envio (`envio.js`); aqui ela sai da comparacao
     // tambem, senao o pop-up mostraria "Categorias: diferente" para sempre com o Sincronizar dizendo
     // "nada para enviar". Vira aviso, para o dono tira-la do anuncio.
@@ -252,6 +261,7 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
       iguais: CAMPOS_DE_ENVIO_LI.length - diferencas.length,
       avisos,
       fiscais,
+      fotos,
       daLoja: { gtin: li.gtin, origem: li.origem, tipoProducao: li.tipoProducao },
     });
   } catch (erro) {

@@ -1,5 +1,15 @@
 import { prisma } from "@/lib/db";
-import { anuncioLIDoProduto, contextoDoProduto, documentosDoProduto, rascunhoDoAnuncio, salvarRascunhoLI } from "./banco";
+import {
+  anuncioLIDoProduto,
+  contextoDoProduto,
+  documentosDoProduto,
+  fotosDoProduto,
+  gravarFotosEnviadasLI,
+  rascunhoDoAnuncio,
+  salvarRascunhoLI,
+  urlPublicaDaFoto,
+} from "./banco";
+import { fotosDaLoja, fotosDoAnuncio, fotosEnviadas, planoDasFotosLI } from "./fotos";
 import { assinaturaLI, diferencasLI, normalizarDaLI, normalizarDoRiseLI } from "./campos";
 import { clienteLI } from "./cliente";
 import { mesclarCorpoLI, montarCorpoDeCadastroLI } from "./corpo";
@@ -102,6 +112,49 @@ async function gravarPreco(cliente, produtoId, idExterno, preco, alterados) {
 }
 
 /** A marca pelo nome, sem caixa e sem acento; so cria (POST /marca) quando nao ha nenhuma igual. */
+/**
+ * As fotos do anuncio (`fotos.js`): apaga as da loja quando o plano manda trocar e envia as do Rise na ordem
+ * (a primeira e a capa), uma por `POST /produto_imagem`. O que foi enviado vai para `dados.fotosLI`, inclusive
+ * se o envio parar no meio: o proximo Sincronizar so acrescenta as que faltaram.
+ * Sem APP_URL_PUBLICA (o Rise do PC) a loja nao alcanca as fotos: nada e enviado e o resultado diz por que.
+ */
+async function enviarFotosLI(cliente, { produto, anuncioId, imagensDoRascunho, idExterno, produtoLI }) {
+  const desejadas = fotosDoAnuncio(imagensDoRascunho, await fotosDoProduto(produto));
+  const naLoja = fotosDaLoja(produtoLI);
+  const atual = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true } });
+  const plano = planoDasFotosLI({ desejadas, naLoja, enviadas: fotosEnviadas(atual?.dados) });
+  if (plano.acao === "nada") return { acao: "nada", texto: null };
+  if (!urlPublicaDaFoto(produto.sku, desejadas[0].arquivo)) {
+    return { acao: "nada", texto: "As fotos não foram enviadas: este Rise não tem endereço público (APP_URL_PUBLICA). Sincronize pela VPS." };
+  }
+
+  for (const id of plano.apagar) await escrever("fotos", () => cliente.delete(`/produto_imagem/${id}`));
+  const registro = plano.acao === "acrescentar" ? fotosEnviadas(atual?.dados) : [];
+  if (plano.apagar.length) await gravarFotosEnviadasLI(anuncioId, registro);
+  try {
+    for (const [indice, foto] of plano.enviar.entries()) {
+      const posicao = plano.posicaoInicial + indice;
+      const criada = await escrever("fotos", () =>
+        cliente.post("/produto_imagem", {
+          imagem_url: urlPublicaDaFoto(produto.sku, foto.arquivo),
+          produto: `/api/v1/produto/${idExterno}`,
+          principal: posicao === 0,
+          posicao,
+          mime: "image/jpeg",
+        }),
+      );
+      registro.push({ arquivo: foto.arquivo, liId: String(criada?.id ?? "") });
+    }
+  } finally {
+    await gravarFotosEnviadasLI(anuncioId, registro.filter((item) => item.liId));
+  }
+  const texto =
+    plano.acao === "acrescentar"
+      ? `Fotos: ${plano.enviar.length} acrescentada(s) na loja.`
+      : `Fotos: ${plano.apagar.length ? `${plano.apagar.length} apagada(s) da loja e ` : ""}${plano.enviar.length} enviada(s) do Rise, na ordem do anúncio.`;
+  return { acao: plano.acao, texto, apagadas: plano.apagar.length, enviadas: plano.enviar.length };
+}
+
 async function garantirMarca(cliente, nome) {
   const marcas = await ler("marca", () => listarMarcasDaLI(cliente));
   const achada = marcas.find((marca) => mesmaMarca(marca.nome, nome));
@@ -235,6 +288,16 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
         payload.preco = await gravarPreco(cliente, produtoId, anuncio.idExterno, riseEnvio.preco, estado.alterados.filter((item) => item.campo === "preco"));
       }
 
+      estado.etapa = "fotos";
+      estado.fotos = await enviarFotosLI(cliente, {
+        produto,
+        anuncioId: anuncio.id,
+        imagensDoRascunho: rascunho.imagens,
+        idExterno: anuncio.idExterno,
+        produtoLI: detalhe.produto,
+      });
+      if (estado.fotos.enviadas || estado.fotos.apagadas) payload.fotos = { apagadas: estado.fotos.apagadas, enviadas: estado.fotos.enviadas };
+
       estado.etapa = "gravacao";
       const final = Object.keys(payload).length ? await ler("gravacao", () => lerDetalheDaLI(cliente, anuncio.idExterno)) : detalhe;
       await gravarSucesso(anuncio.id, produtoId, {
@@ -243,12 +306,12 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
         url: urlNaLoja(final.produto.url ?? final.produto.apelido),
         ativo: final.produto.ativo,
       });
-      return { ok: true, etapa: "gravacao", alterados: estado.alterados, marcaCriada: estado.marcaCriada, categoriasIgnoradas: estado.categoriasIgnoradas };
+      return { ok: true, etapa: "gravacao", alterados: estado.alterados, marcaCriada: estado.marcaCriada, categoriasIgnoradas: estado.categoriasIgnoradas, fotos: estado.fotos?.texto ?? null };
     } catch (erro) {
       const texto = erro instanceof FalhaDoEnvio ? erro.message : `Erro inesperado no envio a Loja Integrada: ${erro?.message ?? erro}`;
       const etapa = erro instanceof FalhaDoEnvio ? erro.etapa : estado.etapa;
       await gravarFalha(anuncio.id, etapa, texto);
-      return { ok: false, erro: texto, etapa, alterados: estado.alterados, marcaCriada: estado.marcaCriada, categoriasIgnoradas: estado.categoriasIgnoradas };
+      return { ok: false, erro: texto, etapa, alterados: estado.alterados, marcaCriada: estado.marcaCriada, categoriasIgnoradas: estado.categoriasIgnoradas, fotos: estado.fotos?.texto ?? null };
     }
   });
 }
@@ -270,7 +333,8 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI()) {
     }
     let anuncio = await anuncioLIDoProduto(produtoId);
     if (anuncio?.idExterno) return recusa(`Este produto já está na Loja Integrada (id ${anuncio.idExterno}): use Sincronizar.`);
-    const rascunho = anuncio ? rascunhoDoAnuncio(anuncio) : rascunhoInicialLI(produto);
+    // Sem rascunho, as fotos entram como no editor: todas, a principal na frente.
+    const rascunho = anuncio ? rascunhoDoAnuncio(anuncio) : rascunhoInicialLI(produto, { fotos: await fotosDoProduto(produto) });
     const bloqueio = primeiroBloqueio(rascunho, produto);
     if (bloqueio) return recusa(bloqueio);
     try {
@@ -315,8 +379,12 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI()) {
         payload.preco = await gravarPreco(cliente, produtoId, idExterno, riseEnvio.preco, [{ campo: "preco", de: null, para: riseEnvio.preco }]);
       }
 
+      // O produto acabou de nascer sem foto na loja: o plano so envia.
+      const fotos = await enviarFotosLI(cliente, { produto, anuncioId: anuncio.id, imagensDoRascunho: rascunho.imagens, idExterno, produtoLI: criado });
+      if (fotos.enviadas) payload.fotos = { apagadas: 0, enviadas: fotos.enviadas };
+
       await gravarSucesso(anuncio.id, produtoId, { assinatura: assinaturaLI(rise), payload, url, ativo: false, idExterno });
-      return { ok: true, idExterno, urlExterna: url };
+      return { ok: true, idExterno, urlExterna: url, fotos: fotos.texto };
     } catch (erro) {
       const texto = erro instanceof FalhaDoEnvio ? erro.message : `Erro inesperado no cadastro na Loja Integrada: ${erro?.message ?? erro}`;
       if (anuncio) await gravarFalha(anuncio.id, erro?.etapa ?? "produto", texto);

@@ -11,6 +11,8 @@
  * - o PUT do produto IGNORA `seo_title`, `seo_description`, `icms_origin_code` e `production_type`;
  *   o SEO so muda por `PUT /seo/{id}`;
  * - `PUT /produto/{id}/alias` muda o `url` e mantem o `apelido`.
+ * - (21/10/2026) `POST /produto_imagem` grava na hora com `posicao` (vira texto) e `principal`; `PUT
+ *   /produto_imagem/{id}` da 405; `DELETE /produto_imagem/{id}` da 204 e apagar a capa deixa o produto sem capa.
  *
  * Uma regra e MAIS DURA que a LI real, de proposito: PUT com chave so de leitura (precos,
  * estoque, imagens, url, seo...) da 400. A LI aceita, mas o Rise nunca pode mandar (devolver
@@ -305,6 +307,24 @@ export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias
       }
     }
 
+    if (recurso === "produto_imagem") {
+      if (metodo === "POST" && !id) {
+        const dono = tabelaProdutos.find((p) => `/api/v1/produto/${p.id}` === corpo?.produto);
+        if (!dono) return resposta(400, erroDeCampo("produto", "LI falsa: produto inexistente"));
+        if (!/^https:\/\//.test(String(corpo?.imagem_url ?? ""))) return resposta(400, erroDeCampo("imagem_url", "LI falsa: precisa de URL publica"));
+        const imagem = { id: ++proximoId, principal: Boolean(corpo.principal), posicao: corpo.posicao === undefined ? null : String(corpo.posicao), url: corpo.imagem_url };
+        dono.imagens = [...(dono.imagens ?? []), imagem];
+        return resposta(201, copia(imagem));
+      }
+      if (metodo === "PUT" && id) return resposta(405, null);
+      if (metodo === "DELETE" && id) {
+        const dono = tabelaProdutos.find((p) => (p.imagens ?? []).some((imagem) => String(imagem.id) === String(id)));
+        if (!dono) return naoAchou;
+        dono.imagens = dono.imagens.filter((imagem) => String(imagem.id) !== String(id));
+        return resposta(204, null);
+      }
+    }
+
     if (metodo === "PUT" && recurso === "seo" && id) {
       const seo = tabelaSeo.get(String(id));
       if (!seo) return naoAchou;
@@ -320,6 +340,7 @@ export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias
     get: (caminho, params) => chamar("GET", caminho, { params }),
     post: (caminho, corpo) => chamar("POST", caminho, { corpo }),
     put: (caminho, corpo) => chamar("PUT", caminho, { corpo }),
+    delete: (caminho) => chamar("DELETE", caminho),
     exigirEscrita(sku) {
       chamadas.push({ metodo: "TRAVA", caminho: null, params: { sku }, corpo: null });
       escritaLiberada = true;

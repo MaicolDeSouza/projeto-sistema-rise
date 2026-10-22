@@ -53,8 +53,9 @@ export function resumirEnvioLI(tipo, resultado, rotulos = {}) {
     if (resultado.marcaCriada) linhas.push(`Marca criada na Loja Integrada: ${resultado.marcaCriada}.`);
     const ignoradas = Array.isArray(resultado.categoriasIgnoradas) ? resultado.categoriasIgnoradas : [];
     if (ignoradas.length) linhas.push(`Categorias que não existem mais na loja ficaram de fora: ${ignoradas.join(", ")}.`);
+    if (resultado.fotos) linhas.push(resultado.fotos);
     if (ok) {
-      return alterados.length > 0
+      return alterados.length > 0 || resultado.fotos
         ? { titulo: "Sincronizado com a Loja Integrada.", linhas }
         : { titulo: "Nada para enviar: a Loja Integrada já estava igual ao Rise.", linhas };
     }
@@ -62,7 +63,7 @@ export function resumirEnvioLI(tipo, resultado, rotulos = {}) {
   }
 
   if (tipo === "cadastrar") {
-    if (ok) return { titulo: "Produto cadastrado na Loja Integrada (inativo).", linhas: ["Confira na loja e ative-o lá quando quiser vender."] };
+    if (ok) return { titulo: "Produto cadastrado na Loja Integrada (inativo).", linhas: ["Confira na loja e ative-o lá quando quiser vender.", ...(resultado.fotos ? [resultado.fotos] : [])] };
     return resultado.idExterno ? { titulo: `O produto foi criado na Loja Integrada (id ${resultado.idExterno}), mas o envio não terminou.`, linhas: [] } : null;
   }
 
@@ -73,7 +74,7 @@ export function resumirEnvioLI(tipo, resultado, rotulos = {}) {
 export function mudouNaLI(tipo, resultado) {
   if (!resultado) return false;
   if (tipo === "sincronizar") {
-    return resultado.ok === true || (Array.isArray(resultado.alterados) && resultado.alterados.length > 0) || Boolean(resultado.marcaCriada);
+    return resultado.ok === true || (Array.isArray(resultado.alterados) && resultado.alterados.length > 0) || Boolean(resultado.marcaCriada) || Boolean(resultado.fotos);
   }
   if (tipo === "cadastrar") return resultado.ok === true || Boolean(resultado.idExterno);
   return false;

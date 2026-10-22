@@ -3576,8 +3576,8 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   concorrentes salvos (`seoConcorrentes.js`, de `ProdutoColetado.seo`, cortado na frase) e, na description, "Gerar com
   IA" (3 opções, pede 140-160 e aceita 130-160: `gerarDescriptionsSeo` em `ia/anuncio.js`).
 - **Aba Imagens** (07/10/2026), depois de Características (a antiga Geral): marcar e ordenar as fotos validadas do
-  produto (`fotosDoProduto`, só `papel: FOTO`; a capa é a primeira), guardadas em `rascunho.imagens`. O **envio espera a
-  VPS** (a LI só aceita imagem por URL pública): as fotos não entram na assinatura nem no Sincronizar. Anúncio novo nasce
+  produto (`fotosDoProduto`, só `papel: FOTO`; a capa é a primeira), guardadas em `rascunho.imagens`. Desde 21/10/2026
+  o **Sincronizar e o Cadastrar enviam as fotos** (ver "Fotos na loja", abaixo); elas não entram na assinatura. Anúncio novo nasce
   com todas as fotos, a principal na frente.
 - **Categorias pela IA** (pedido do dono em 07/10/2026): botão "Sugerir com IA" na aba Categorias. A IA recebe o nome,
   a marca, a descrição e a árvore da loja inteira ("id: caminho", uma por linha) e devolve até 3 ids com um motivo
@@ -3653,7 +3653,18 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
 - **O servidor da porta 3000 (de outra sessão, na mesma pasta) ficou com a lib antiga da LI na memória** em 07/10/2026:
   a tela atualizou, mas as ações não (sem `fiscais`, `daLoja` e `dominioDaLoja`). Até reiniciar, a aba Fiscal diz
   "conferem" e o alerta de GTIN ignora a loja. Só um `next dev` roda por pasta.
-- Fotos (`POST /produto_imagem`) e documentos: na VPS. Webhooks, pedidos e importação dos 44 só-LI: fora desta fase.
+- **Fotos na loja (21/10/2026, pedido do dono: "as fotos não foram enviadas"; opção "trocar pelas do Rise"):** regras em
+  `li/fotos.js`, envio em `envio.js` (`enviarFotosLI`, etapa "fotos" depois do preço). **Medido na LI real** no ZZ-TESTE-BLING
+  (404349127, com OK do dono, limpo depois): `POST /produto_imagem` (`imagem_url` pública, `produto`, `principal`, `posicao`,
+  `mime`) grava na hora (~1,2 s), com a posição (volta como texto) e a capa; `PUT /produto_imagem/{id}` dá **405** (foto
+  enviada não muda de capa nem de lugar); `DELETE` dá 204 e apagar a capa deixa o produto sem capa. A LI redimensiona e
+  renomeia, então não dá para comparar bytes: o Rise guarda o que mandou em `Anuncio.dados.fotosLI` (`arquivo` + `liId`) e
+  decide: igual = nada; loja só com as primeiras que o Rise mandou = acrescenta; qualquer outra coisa (foto que o Rise não
+  mandou, outra ordem ou capa) = **apaga as da loja e manda as do anúncio na ordem**. Anúncio sem foto marcada nunca apaga as
+  da loja; sem `APP_URL_PUBLICA` (PC) nada vai. O registro é gravado a cada foto, então um envio que para no meio só
+  acrescenta as que faltaram depois. A aba Divergências mostra a linha "Fotos" e ela conta no número da aba. **No 100101 o
+  primeiro Sincronizar troca as 5 fotos da loja pelas marcadas na aba Imagens.**
+- Webhooks, pedidos e importação dos 44 só-LI: fora desta fase.
 - `POST /marca` nunca foi exercitado na API real (só na LI falsa).
 
 ## Rise AI (Entrega 1)

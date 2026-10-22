@@ -716,6 +716,69 @@ try {
     conferir("cadastrar grava o preço depois do POST", [cadN.ok, Number(novoN.preco_cheio), liN.chamadas.findIndex((c) => c.metodo === "POST") < liN.chamadas.findIndex((c) => c.metodo === "PUT" && String(c.caminho).startsWith("/produto_preco"))], [true, 29.9, true]);
   }
 
+  {
+    console.log("\nFotos: o Sincronizar troca as da loja pelas do anuncio (21/10/2026)");
+    const { fotosDaLoja, fotosDoAnuncio, planoDasFotosLI } = await import("../src/lib/canaisDeVenda/li/fotos.js");
+    conferir("loja: na ordem da posicao (texto), sem posicao no fim", fotosDaLoja({ imagens: [{ id: 9, posicao: null }, { id: 2, posicao: "1" }, { id: 1, posicao: "0" }] }).map((f) => f.id), ["1", "2", "9"]);
+    conferir("anuncio: na ordem marcada, so fotos que existem", fotosDoAnuncio(["b", "x", "a", "b"], [{ id: "a", arquivo: "a.jpg" }, { id: "b", arquivo: "b.jpg" }]).map((f) => f.arquivo), ["b.jpg", "a.jpg"]);
+    const A = { id: "a", arquivo: "a.jpg" };
+    const B = { id: "b", arquivo: "b.jpg" };
+    conferir("Rise sem foto nunca apaga as da loja", planoDasFotosLI({ desejadas: [], naLoja: [{ id: "1" }], enviadas: [] }).acao, "nada");
+    conferir("loja com fotos que o Rise nao mandou: troca", planoDasFotosLI({ desejadas: [A], naLoja: [{ id: "1" }], enviadas: [] }), { acao: "trocar", motivo: "diferentes", apagar: ["1"], enviar: [A], posicaoInicial: 0 });
+    conferir("loja igual ao enviado: nada", planoDasFotosLI({ desejadas: [A, B], naLoja: [{ id: "1" }, { id: "2" }], enviadas: [{ arquivo: "a.jpg", liId: "1" }, { arquivo: "b.jpg", liId: "2" }] }).acao, "nada");
+    conferir("envio parou no meio: so acrescenta", planoDasFotosLI({ desejadas: [A, B], naLoja: [{ id: "1" }], enviadas: [{ arquivo: "a.jpg", liId: "1" }] }), { acao: "acrescentar", motivo: "faltam", apagar: [], enviar: [B], posicaoInicial: 1 });
+    conferir("ordem trocada no anuncio: troca tudo", planoDasFotosLI({ desejadas: [B, A], naLoja: [{ id: "1" }, { id: "2" }], enviadas: [{ arquivo: "a.jpg", liId: "1" }, { arquivo: "b.jpg", liId: "2" }] }).acao, "trocar");
+    conferir("alguem apagou uma foto na loja: troca tudo", planoDasFotosLI({ desejadas: [A, B], naLoja: [{ id: "2" }], enviadas: [{ arquivo: "a.jpg", liId: "1" }, { arquivo: "b.jpg", liId: "2" }] }).acao, "trocar");
+
+    await limpar();
+    const urlPublicaAntes = config.appUrlPublica;
+    try {
+      const pf = await prisma.produto.create({ data: { sku: "ZZ-LI-30", tituloBase: "Placa", ncm: "85364900", conferido: true } });
+      const f1 = await prisma.produtoArquivo.create({ data: { produtoId: pf.id, tipo: "IMAGEM", arquivo: "f1.jpg", principal: true, ordem: 0 } });
+      const f2 = await prisma.produtoArquivo.create({ data: { produtoId: pf.id, tipo: "IMAGEM", arquivo: "f2.jpg", ordem: 1 } });
+      const liF = criarLojaIntegradaFalsa({ produtos: [{ id: 901, sku: "ZZ-LI-30", nome: "Placa", apelido: "/placa", ncm: "8536.49.00", seo: "/api/v1/seo/91", imagens: [{ id: 50, principal: true, posicao: null }] }], seos: { 91: { title: "T", description: "D" } } });
+      await lerParaPopupLI(pf.id, liF); // vincula
+      const anF = await anuncioLIDoProduto(pf.id);
+      await salvarRascunhoLI(anF.id, { ...rascunhoDoAnuncio(anF), titulo: "Placa", seo: { title: "T", description: "D" }, imagens: [f2.id, f1.id] });
+
+      const semUrl = await sincronizarProdutoLI(pf.id, liF);
+      conferir("sem endereco publico: nada de foto e o motivo", [semUrl.ok, /APP_URL_PUBLICA/.test(semUrl.fotos ?? ""), liF.chamadas.some((c) => c.caminho?.startsWith("/produto_imagem"))], [true, true, false]);
+
+      config.appUrlPublica = "https://rise.exemplo.com/";
+      const popup = await lerParaPopupLI(pf.id, liF);
+      conferir("editor: as fotos aparecem como diferentes", popup.fotos?.estado, "diferentes");
+      const envio = await sincronizarProdutoLI(pf.id, liF);
+      const naLoja = liF.produtos().find((p) => p.id === 901).imagens;
+      conferir("troca: apaga a da loja e manda as do anuncio na ordem, a primeira como capa", [envio.ok, naLoja.map((i) => [i.url, i.principal, i.posicao])], [true, [["https://rise.exemplo.com/api/arquivos/ZZ-LI-30/imagens/f2.jpg", true, "0"], ["https://rise.exemplo.com/api/arquivos/ZZ-LI-30/imagens/f1.jpg", false, "1"]]]);
+      conferir("o resumo conta o que fez", envio.fotos, "Fotos: 1 apagada(s) da loja e 2 enviada(s) do Rise, na ordem do anúncio.");
+      conferir("o Rise guarda o que mandou", (await anuncioLIDoProduto(pf.id)).dados.fotosLI.map((f) => f.arquivo), ["f2.jpg", "f1.jpg"]);
+      const escritas = liF.chamadas.filter((c) => c.caminho?.startsWith("/produto_imagem")).length;
+      const deNovo = await sincronizarProdutoLI(pf.id, liF);
+      conferir("segundo Sincronizar nao mexe nas fotos", [deNovo.fotos, liF.chamadas.filter((c) => c.caminho?.startsWith("/produto_imagem")).length], [null, escritas]);
+      conferir("editor: fotos iguais", (await lerParaPopupLI(pf.id, liF)).fotos?.estado, "iguais");
+
+      // Parar no meio: a segunda foto falha; o proximo Sincronizar so acrescenta a que faltou.
+      await salvarRascunhoLI(anF.id, { ...rascunhoDoAnuncio(await anuncioLIDoProduto(pf.id)), imagens: [f1.id, f2.id] });
+      let postados = 0;
+      const postOriginal = liF.post;
+      liF.post = async (caminho, corpo) => (caminho === "/produto_imagem" && ++postados === 2 ? { ok: false, status: 500, duracaoMs: 0, dados: null } : postOriginal(caminho, corpo));
+      const parou = await sincronizarProdutoLI(pf.id, liF);
+      liF.post = postOriginal;
+      conferir("falha no meio: etapa fotos e o que foi enviado fica guardado", [parou.ok, parou.etapa, (await anuncioLIDoProduto(pf.id)).dados.fotosLI.map((f) => f.arquivo)], [false, "fotos", ["f1.jpg"]]);
+      const retomou = await sincronizarProdutoLI(pf.id, liF);
+      conferir("retomar so acrescenta a que faltou", [retomou.ok, retomou.fotos, liF.produtos().find((p) => p.id === 901).imagens.map((i) => i.url.split("/").pop())], [true, "Fotos: 1 acrescentada(s) na loja.", ["f1.jpg", "f2.jpg"]]);
+
+      // Cadastrar: o produto nasce na loja com as fotos do anuncio.
+      const pn = await prisma.produto.create({ data: { sku: "ZZ-LI-31", tituloBase: "Novo com foto", descricaoBase: "A placa nova na loja.", ncm: "85364900", conferido: true } });
+      await prisma.produtoArquivo.create({ data: { produtoId: pn.id, tipo: "IMAGEM", arquivo: "n1.jpg", principal: true, ordem: 0 } });
+      const liN = criarLojaIntegradaFalsa({});
+      const cad = await cadastrarNaLI(pn.id, liN);
+      conferir("cadastrar envia as fotos", [cad.ok, liN.produtos().at(-1).imagens.map((i) => [i.url.split("/").pop(), i.principal])], [true, [["n1.jpg", true]]]);
+    } finally {
+      config.appUrlPublica = urlPublicaAntes;
+    }
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;

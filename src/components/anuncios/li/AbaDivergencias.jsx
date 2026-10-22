@@ -50,7 +50,9 @@ export default function AbaDivergencias({ leitura, lerLoja, lendo }) {
   const diferencas = leitura?.diferencas ?? [];
   const avisos = leitura?.avisos ?? [];
   const iguais = leitura?.iguais ?? 0;
-  const diferentes = diferencas.filter((item) => item.tipo === "diferente").length;
+  const fotos = leitura?.fotos ?? null;
+  const fotosMudam = ["diferentes", "faltam"].includes(fotos?.estado);
+  const diferentes = diferencas.filter((item) => item.tipo === "diferente").length + (fotosMudam ? 1 : 0);
 
   return (
     <div className="space-y-4">
@@ -74,6 +76,14 @@ export default function AbaDivergencias({ leitura, lerLoja, lendo }) {
         {diferencas.map((item) => (
           <LinhaDeDiferenca key={item.campo} item={item} />
         ))}
+        {fotosMudam && (
+          <li className="rounded border border-amber-200 bg-amber-50/50 p-3">
+            <p className="text-sm font-medium text-texto">
+              Fotos<span className="ml-1.5 text-xs font-normal text-suave">diferente</span>
+            </p>
+            <p className="mt-1 text-xs">{fotos.texto}</p>
+          </li>
+        )}
       </ul>
       {iguais > 0 && <p className="text-xs text-suave">{iguais} campo(s) igual(is) no Rise e na loja.</p>}
 
