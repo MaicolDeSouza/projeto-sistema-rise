@@ -35,7 +35,8 @@ function Marcador({ ativo, aoClicar, children, titulo }) {
   );
 }
 
-export default function FiltrosMercados({ tipo = "", ordem = "", fonte = [], fontes = [] }) {
+// `abas` (Acessos): as abas liberadas. Com uma so, os marcadores de tipo nem aparecem (o tipo ja e o dela).
+export default function FiltrosMercados({ tipo = "", ordem = "", fonte = [], fontes = [], abas = ["fornecedores", "concorrentes"] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -95,6 +96,8 @@ export default function FiltrosMercados({ tipo = "", ordem = "", fonte = [], fon
     // A margem de baixo e de quem posiciona: este bloco divide a linha com a
     // navegacao entre paginas, e uma margem propria aqui desalinharia os dois.
     <div className="flex flex-wrap items-center gap-2">
+      {abas.length > 1 && (
+        <>
       <Marcador ativo={!tipo} aoClicar={() => trocar("tipo", "")}>
         Todos
       </Marcador>
@@ -110,6 +113,8 @@ export default function FiltrosMercados({ tipo = "", ordem = "", fonte = [], fon
       >
         Fornecedores
       </Marcador>
+        </>
+      )}
 
       {/*
         A FONTE E UM SELETOR, NAO UM MARCADOR POR LOJA.

@@ -1,3 +1,5 @@
+import { recusarRota, sessaoDeAcessos } from "@/lib/acessos/servidor";
+import { abaDoTipoDeFonte, abasDoScraper } from "@/lib/acessos/projecoes";
 import { prisma } from "@/lib/db";
 
 /// So formatos de imagem que o navegador desenha sem executar nada. SVG fica de
@@ -18,11 +20,15 @@ const TIPOS = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
  */
 export async function GET(requisicao, { params }) {
   const { id } = await params;
+  // Acessos: o Scraper ou a lupa do cadastro de Produto, e so da aba (fornecedor ou concorrente) que a pessoa ve.
+  const { pode } = await sessaoDeAcessos();
+  if (!pode("tela.scraper", "ver") && !pode("tela.produtos.cadastro", "ver")) return recusarRota();
 
   const linha = await prisma.produtoColetado.findUnique({
     where: { id: String(id) },
-    select: { miniatura: true },
+    select: { miniatura: true, fonte: { select: { tipo: true } } },
   });
+  if (linha && !abasDoScraper(pode).includes(abaDoTipoDeFonte(linha.fonte?.tipo))) return recusarRota();
   const miniatura = linha?.miniatura;
   if (!miniatura) return new Response("Sem foto.", { status: 404 });
 

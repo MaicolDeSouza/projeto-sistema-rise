@@ -738,6 +738,23 @@ try {
     conferir("o contexto recebido nao e alterado", contexto.produtos.p1.custo.valor, 10);
   }
 
+  // --- Lancamento 2: Scraper (a aba de cada tipo de fonte segue o dado sensivel) ---
+  {
+    console.log("\nScraper");
+    const { abasDoScraper, abaDoTipoDeFonte } = await import("../src/lib/acessos/projecoes.js");
+    const so = (...ids) => (id, nivel) => nivel === "ver" && ids.includes(id);
+    conferir(
+      "as abas nas quatro combinacoes de custo e concorrentes",
+      [so("dado.custo", "dado.concorrentes"), so("dado.custo"), so("dado.concorrentes"), so()].map(abasDoScraper),
+      [["fornecedores", "concorrentes"], ["fornecedores"], ["concorrentes"], []],
+    );
+    conferir(
+      "a aba de cada tipo de fonte (OUTRO conta como concorrente, como na tela)",
+      ["FORNECEDOR", "CONCORRENTE", "OUTRO", undefined].map(abaDoTipoDeFonte),
+      ["fornecedores", "concorrentes", "concorrentes", "concorrentes"],
+    );
+  }
+
   // --- guarda estatico do lancamento 1: toda pagina, layout, rota e arquivo de acoes de src/app confere o acesso ---
   {
     const { readFileSync, readdirSync, statSync } = await import("node:fs");
@@ -790,9 +807,6 @@ try {
       "src/app/anuncios/[id]/page.jsx",
       "src/app/anuncios/novo/page.jsx",
       "src/app/anuncios/page.jsx",
-      "src/app/api/mercados/arquivo-fonte/[id]/[nome]/route.js",
-      "src/app/api/mercados/documento/route.js",
-      "src/app/api/mercados/miniatura/[id]/route.js",
       "src/app/api/oauth/[servico]/callback/route.js",
       "src/app/api/oauth/[servico]/iniciar/route.js",
       "src/app/estoque/page.jsx",
@@ -806,9 +820,6 @@ try {
       "src/app/integracoes/acoes-vps.js",
       "src/app/integracoes/acoes.js",
       "src/app/integracoes/page.jsx",
-      "src/app/mercados/acoes.js",
-      "src/app/mercados/fontes/page.jsx",
-      "src/app/mercados/page.jsx",
       "src/app/pedidos/page.jsx",
     ];
     conferir("o guarda olha todas as paginas, layouts, rotas e acoes de src/app", alvos.length >= 60, true);

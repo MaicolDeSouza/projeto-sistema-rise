@@ -5,6 +5,8 @@ import { z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { negarSemAcessos, podeAgora, sessaoDeAcessos } from "@/lib/acessos/servidor";
+import { abaDoTipoDeFonte, abasDoScraper } from "@/lib/acessos/projecoes";
 import { apagarArquivosOriginais, guardarArquivosOriginais } from "@/lib/coleta/arquivo";
 import { detalheDoProduto } from "@/lib/coleta/banco";
 import { enfileirar, jobLargado, workerNoAr } from "@/lib/coleta/fila";
@@ -43,7 +45,21 @@ const FonteSchema = z.object({
  * abre paginas de verdade e so aprova se conseguir montar produto com nome,
  * endereco e preco.
  */
+/** A recusa no formato do teste de fonte (a tela mostra o motivo no lugar do resultado). */
+const TESTE_NEGADO = { resultado: "FALHA", motivo: "Sem permissão para Scraper › Fontes.", passos: [], produtos: [] };
+
+/** A aba do tipo de fonte esta liberada para a pessoa (fornecedor com Custo, concorrente com Concorrentes)? */
+async function abaLiberada(tipo) {
+  try {
+    const { pode } = await sessaoDeAcessos();
+    return abasDoScraper(pode).includes(abaDoTipoDeFonte(tipo));
+  } catch {
+    return false;
+  }
+}
+
 export async function testarFonteAcao({ url, nome, tipo, evitar, urls }) {
+  if (!(await podeAgora("tela.scraper.fontes", "ver"))) return TESTE_NEGADO;
   try {
     // `urls`: a lista de enderecos da fonte (loja inteira ou categorias). So texto; quem confere e o teste.
     const lista = Array.isArray(urls) ? urls.slice(0, 40).map((item) => String(item ?? "")) : undefined;
@@ -67,6 +83,7 @@ export async function testarFonteAcao({ url, nome, tipo, evitar, urls }) {
  * nao volta para a tela.
  */
 export async function testarPortalAcao({ url, usuario, senha, nome, tipo }) {
+  if (!(await podeAgora("tela.scraper.fontes", "ver"))) return TESTE_NEGADO;
   try {
     return await testarPortal({ url, usuario, senha, nome, tipo });
   } catch (erro) {
@@ -152,6 +169,7 @@ function amostraRepresentativa(produtos, quantos = 3) {
  * corpo esta em 24 MB no next.config.mjs; acima disso o 413 vem ANTES daqui.
  */
 export async function testarArquivoAcao(dados) {
+  if (!(await podeAgora("tela.scraper.fontes", "ver"))) return TESTE_NEGADO;
   const arquivos = dados.getAll("arquivo").filter((item) => typeof item !== "string");
 
   if (arquivos.length === 0) {
@@ -442,11 +460,15 @@ async function salvarFonteInterna({
 }
 
 export async function salvarFonte(dados) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   return salvarFonteInterna(dados);
 }
 
 /** Cadastro por catalogo: valida e guarda os mesmos arquivos aprovados no teste. */
 export async function salvarFonteComArquivos(dados) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   const arquivos = dados.getAll("arquivo").filter((item) => typeof item !== "string");
   const nome = String(dados.get("nome") ?? "").trim();
   const tipo = String(dados.get("tipo") ?? "");
@@ -527,6 +549,8 @@ export async function salvarFonteComArquivos(dados) {
  * porque a fonte ja existe.
  */
 export async function editarFonte(id, { nome, url }) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   const fonte = await prisma.fonteColeta.findUnique({ where: { id } });
   if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
 
@@ -579,6 +603,8 @@ export async function editarFonte(id, { nome, url }) {
   return { ok: true };
 }
 export async function alternarFonte(id) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   const fonte = await prisma.fonteColeta.findUnique({ where: { id } });
   if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
 
@@ -609,6 +635,8 @@ export async function alternarFonte(id) {
  * ja em andamento: ele termina com quem o pegou, e o PROXIMO vai para o worker certo.
  */
 export async function definirVarridaNoPc(id, valor) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   const fonte = await prisma.fonteColeta.findUnique({ where: { id }, select: { id: true } });
   if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
 
@@ -627,6 +655,8 @@ export async function definirVarridaNoPc(id, valor) {
  * enfileirada, ela viraria uma varredura "falhou: fonte pausada" na fila.
  */
 export async function varrerFonteAgora(fonteId) {
+  const negado = await negarSemAcessos(["acao.scraper.varrer", "executar"]);
+  if (negado) return negado;
   if (coletaPausada()) return { ok: false, erro: "Varredura pausada. Clique em Continuar antes de atualizar." };
   const fonte = await prisma.fonteColeta.findUnique({
     where: { id: fonteId },
@@ -657,6 +687,8 @@ export async function varrerFonteAgora(fonteId) {
  * PC e o banco da VPS (o worker recusa e a tela mostra o motivo); a marca daqui, da copia, so evita o clique errado.
  */
 export async function varrerPeloPcAgora(fonteId) {
+  const negado = await negarSemAcessos(["acao.scraper.varrer", "executar"]);
+  if (negado) return negado;
   if (process.env.RISE_PRODUCAO) {
     return { ok: false, erro: "Esta fonte é varrida pelo PC: abra o Rise no seu PC e clique em Varrer agora nela." };
   }
@@ -688,6 +720,8 @@ export async function varrerPeloPcAgora(fonteId) {
  * PC sozinho. Se o PC estiver desligado, o pedido espera na fila.
  */
 export async function pedirVarreduraPeloPc(fonteId) {
+  const negado = await negarSemAcessos(["acao.scraper.varrer", "executar"]);
+  if (negado) return negado;
   if (!process.env.RISE_PRODUCAO) {
     return { ok: false, erro: "Este pedido é feito na tela da VPS. No PC, o pedido é atendido sozinho pelo Rise do localhost." };
   }
@@ -726,6 +760,8 @@ async function fonteDePortal(fonteId) {
  * se garante que o link e de categoria e do MESMO portal.
  */
 export async function adicionarCategoria(fonteId, url) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   const { fonte, categorias, erro } = await fonteDePortal(fonteId);
   if (erro) return { ok: false, erro };
 
@@ -755,6 +791,8 @@ export async function adicionarCategoria(fonteId, url) {
  * tabela so quando a proxima varredura fechar sem eles.
  */
 export async function removerCategoria(fonteId, url) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   const { fonte, categorias, erro } = await fonteDePortal(fonteId);
   if (erro) return { ok: false, erro };
   if (categorias.length <= 1) {
@@ -792,6 +830,8 @@ async function fonteDeSite(fonteId) {
  * e que nao repete.
  */
 export async function adicionarEndereco(fonteId, url) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   const { fonte, categorias, base, erro } = await fonteDeSite(fonteId);
   if (erro) return { ok: false, erro };
 
@@ -820,6 +860,8 @@ export async function adicionarEndereco(fonteId, url) {
  * fonte. Mesmas recusas do "Varrer agora" (pausada, robots, so pelo PC, ja na fila).
  */
 export async function varrerEndereco(fonteId, url) {
+  const negado = await negarSemAcessos(["acao.scraper.varrer", "executar"]);
+  if (negado) return negado;
   if (coletaPausada()) return { ok: false, erro: "Varredura pausada. Clique em Continuar antes de atualizar." };
   const { fonte, categorias, erro } = await fonteDeSite(fonteId);
   if (erro) return { ok: false, erro };
@@ -837,6 +879,8 @@ export async function varrerEndereco(fonteId, url) {
 
 /** Tira o endereco da varredura. Os produtos ja coletados dele FICAM (saem da tabela so se a loja os tirar do ar). */
 export async function removerEndereco(fonteId, url) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   const { fonte, categorias, erro } = await fonteDeSite(fonteId);
   if (erro) return { ok: false, erro };
   if (categorias.length <= 1) {
@@ -853,6 +897,8 @@ export async function removerEndereco(fonteId, url) {
 
 /** Troca o login guardado. A senha entra aqui e nunca mais sai para a tela. */
 export async function salvarLoginDaFonte(fonteId, { usuario, senha }) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   const { fonte, erro } = await fonteDePortal(fonteId);
   if (erro) return { ok: false, erro };
   if (!String(usuario ?? "").trim() || !senha) return { ok: false, erro: "Informe o e-mail e a senha." };
@@ -870,10 +916,13 @@ export async function salvarLoginDaFonte(fonteId, { usuario, senha }) {
 
 /** Quantos produtos se perdem ao excluir — a tela avisa antes de apagar. */
 export async function contarProdutos(id) {
+  if (!(await podeAgora("tela.scraper.fontes", "ver"))) return 0;
   return prisma.produtoColetado.count({ where: { fonteId: id } });
 }
 
 export async function excluirFonte(id) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "excluir"]);
+  if (negado) return negado;
   await prisma.fonteColeta.delete({ where: { id } });
   revalidatePath("/mercados/fontes");
   revalidatePath("/mercados");
@@ -893,6 +942,8 @@ export async function excluirFonte(id) {
  * por isso a tela confere o tamanho antes de enviar.
  */
 export async function enviarArquivosDaFonte(fonteId, dados) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId } });
   if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
 
@@ -940,6 +991,8 @@ export async function enviarArquivosDaFonte(fonteId, dados) {
  * quando outra pessoa assume a tarefa.
  */
 export async function salvarInstrucoes(fonteId, texto) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
+  if (negado) return negado;
   const limpo = String(texto ?? "").trim().slice(0, 4000);
 
   await prisma.fonteColeta.update({
@@ -955,6 +1008,8 @@ export async function salvarInstrucoes(fonteId, texto) {
 
 /** Descarta a lista guardada, para a fonte voltar a ser varrida pelo site. */
 export async function apagarArquivosAcao(fonteId) {
+  const negado = await negarSemAcessos(["tela.scraper.fontes", "excluir"]);
+  if (negado) return negado;
   const fonte = await prisma.fonteColeta.findUnique({ where: { id: fonteId } });
   if (!fonte) return { ok: false, erro: "Fonte não encontrada." };
 
@@ -984,8 +1039,11 @@ export async function apagarArquivosAcao(fonteId) {
  * quase tudo nunca lido.
  */
 export async function detalhePagina(id) {
+  if (!(await podeAgora("tela.scraper", "ver"))) return null;
   const detalhe = await detalheDoProduto(id);
   if (!detalhe) return null;
+  // O detalhe tem o preco de custo (fornecedor) ou o do concorrente: so na aba que a pessoa ve.
+  if (!(await abaLiberada(detalhe.fonte?.tipo))) return null;
 
   const { produto } = detalhe;
 
@@ -1057,6 +1115,8 @@ export async function detalhePagina(id) {
  * continuam sendo uma varredura so.
  */
 export async function atualizarTabelas(fonteId) {
+  const negado = await negarSemAcessos(["acao.scraper.varrer", "executar"]);
+  if (negado) return negado;
   if (coletaPausada()) {
     return { ok: false, erro: "Varredura pausada. Clique em Continuar antes de atualizar." };
   }
@@ -1090,6 +1150,8 @@ export async function atualizarTabelas(fonteId) {
 }
 
 export async function situacaoVarredura() {
+  // O andamento da fila aparece no Scraper (o botao Atualizar dados); sem a tela, nada esta em andamento.
+  if (!(await podeAgora("tela.scraper", "ver"))) return { pausada: false, emAndamento: false, semWorker: false, worker: null, jobs: [], ultimo: null };
   const agora = Date.now();
   const [jobs, worker, ultimoJob] = await Promise.all([
     prisma.job.findMany({
@@ -1153,6 +1215,8 @@ export async function situacaoVarredura() {
 }
 
 export async function alternarPausaColeta() {
+  const negado = await negarSemAcessos(["acao.scraper.varrer", "executar"]);
+  if (negado) return negado;
   const pausada = !coletaPausada();
   await definirPausaColeta(pausada);
   revalidatePath("/mercados");

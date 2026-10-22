@@ -1,3 +1,4 @@
+import { recusarRota, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { prisma } from "@/lib/db";
 import { lerArquivoOriginal } from "@/lib/coleta/arquivo";
 
@@ -23,6 +24,9 @@ const TIPOS = {
  */
 export async function GET(requisicao, { params }) {
   const { id, nome } = await params;
+  // Acessos: Fontes em ver, e a lista do fornecedor tem o preco de custo (dado.custo).
+  const { pode } = await sessaoDeAcessos();
+  if (!pode("tela.scraper.fontes", "ver") || !pode("dado.custo", "ver")) return recusarRota();
 
   const fonte = await prisma.fonteColeta.findUnique({
     where: { id: String(id) },

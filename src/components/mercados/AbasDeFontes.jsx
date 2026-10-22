@@ -14,11 +14,12 @@ import { FileText, Globe } from "lucide-react";
  * mandada como link. Por isso sao <Link>, e nao botoes: navegacao de verdade,
  * sem JavaScript nenhum no cliente.
  */
-export default function AbasDeFontes({ ativa, quantos }) {
+// `abas` (Acessos): os tipos liberados; o outro nem aparece.
+export default function AbasDeFontes({ ativa, quantos, abas: liberadas = ["FORNECEDOR", "CONCORRENTE"] }) {
   const abas = [
     { id: "FORNECEDOR", titulo: "Fornecedores", icone: FileText },
     { id: "CONCORRENTE", titulo: "Concorrentes", icone: Globe },
-  ];
+  ].filter((item) => liberadas.includes(item.id));
 
   return (
     <div className="mb-4 flex flex-wrap gap-1 border-b border-borda">

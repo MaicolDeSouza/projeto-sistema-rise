@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Radar, Store } from "lucide-react";
 
 import { prisma } from "@/lib/db";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { abasDoScraper } from "@/lib/acessos/projecoes";
 import { listarProdutos, miniaturas } from "@/lib/coleta/banco";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
@@ -29,12 +31,17 @@ export const dynamic = "force-dynamic";
 const POR_PAGINA = 25;
 
 export default async function MercadosPage({ searchParams }) {
+  // Acessos: o Scraper em ver, e so as abas liberadas (fornecedor com Custo, concorrente com Concorrentes).
+  const { pode } = await exigirAcessoNaPagina("tela.scraper", "ver");
+  const abas = abasDoScraper(pode);
   const params = await searchParams;
   const busca = (params?.q ?? "").trim();
 
   // Valor de fora da URL nao entra cru: so o que a tela oferece vale, senao
-  // "?tipo=qualquer-coisa" devolveria lista vazia sem explicacao.
-  const tipo = ["CONCORRENTE", "FORNECEDOR"].includes(params?.tipo) ? params.tipo : "";
+  // "?tipo=qualquer-coisa" devolveria lista vazia sem explicacao. Com uma aba so, o tipo e o dela.
+  const tiposLiberados = abas.map((aba) => (aba === "fornecedores" ? "FORNECEDOR" : "CONCORRENTE"));
+  const tipo =
+    tiposLiberados.length === 1 ? tiposLiberados[0] : tiposLiberados.includes(params?.tipo) ? params.tipo : "";
   const ordem = ["menor", "maior"].includes(params?.ordem) ? params.ordem : "";
   // Busca ampla (09/10/2026): procura tambem na descricao, ficha e SEO. So vale com algo digitado.
   const ampla = params?.ampla === "1";
@@ -64,7 +71,8 @@ export default async function MercadosPage({ searchParams }) {
   let erro = null;
 
   try {
-    [resultado, totalFontes] = await Promise.all([
+    // Sem aba liberada nada e consultado.
+    [resultado, totalFontes] = abas.length === 0 ? [resultado, 0] : await Promise.all([
       listarProdutos({
         tipo,
         fontes: pedidas,
@@ -102,7 +110,7 @@ export default async function MercadosPage({ searchParams }) {
   const totalPaginas = Math.max(1, Math.ceil(resultado.total / POR_PAGINA));
   const pagina = Math.min(Math.max(Number.isFinite(pedida) ? pedida : 1, 1), totalPaginas);
 
-  if (!erro && pagina !== Math.max(Number.isFinite(pedida) ? pedida : 1, 1)) {
+  if (!erro && abas.length > 0 && pagina !== Math.max(Number.isFinite(pedida) ? pedida : 1, 1)) {
     resultado = await listarProdutos({
       tipo,
       fontes: fonte,
@@ -191,6 +199,7 @@ export default async function MercadosPage({ searchParams }) {
         descricao="Produtos, preços e códigos coletados dos sites de concorrentes e fornecedores."
         acao={
           <div className="flex items-start gap-2">
+            {pode("tela.scraper.fontes", "ver") && (
             <Link
               href="/mercados/fontes"
               className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm font-medium hover:bg-fundo"
@@ -198,14 +207,23 @@ export default async function MercadosPage({ searchParams }) {
               <Store size={16} />
               Fontes ({totalFontes})
             </Link>
-            <BotaoAtualizar />
+            )}
+            {pode("acao.scraper.varrer", "executar") && <BotaoAtualizar />}
           </div>
         }
       />
 
       {erro && <AvisoBanco erro={erro} />}
 
-      {!erro && (
+      {abas.length === 0 && (
+        <EmptyState
+          icone={Radar}
+          titulo="Nada liberado para o seu acesso"
+          descricao="Os produtos de fornecedores e de concorrentes dependem do acesso ao custo e aos concorrentes. Peça ao administrador."
+        />
+      )}
+
+      {!erro && abas.length > 0 && (
         <>
           {/*
             A CONTAGEM FICA AO LADO DA BUSCA, e nao so no rodape: com o filtro
@@ -255,7 +273,7 @@ export default async function MercadosPage({ searchParams }) {
             em vez de espremer as duas.
           */}
           <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4">
-            <FiltrosMercados tipo={tipo} ordem={ordem} fonte={fonte} fontes={fontes} />
+            <FiltrosMercados tipo={tipo} ordem={ordem} fonte={fonte} fontes={fontes} abas={abas} />
             <Paginacao
               compacto
               pagina={pagina}

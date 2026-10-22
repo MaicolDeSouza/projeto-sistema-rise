@@ -82,7 +82,9 @@ function comoHora(valor) {
  * `noPc`: este Rise roda no PC (e nao na VPS). `workerPc`: o worker do PC ligado daqui
  * (`situacaoDoWorkerPc`: `rodando`, `fonteId`, `fonteNome`, `inicioEm` e o resultado da ultima vez em `ultima`).
  */
-export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, workerPc = null }) {
+// `acessos` (Acessos): editar desenha o lapis, a lista, Categorias, Enderecos e Pausar; varrer os botoes de varredura;
+// excluir o Excluir.
+export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, workerPc = null, acessos = { editar: true, excluir: true, varrer: true } }) {
   const router = useRouter();
   const [pendente, iniciarTransicao] = useTransition();
   const [confirmando, setConfirmando] = useState(null);
@@ -247,6 +249,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
               )}
             </div>
 
+            {acessos.editar && (
             <button
               type="button"
               onClick={() => {
@@ -259,6 +262,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
             >
               <Pencil size={13} />
             </button>
+            )}
           </div>
         </td>
 
@@ -337,14 +341,14 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
                 {!fonte.temLogin && <span className="block text-red-700">sem login guardado</span>}
               </span>
             ) : (
-              <ArquivosDaFonte fonte={fonte} />
+              acessos.editar && <ArquivosDaFonte fonte={fonte} />
             )}
           </td>
         )}
 
         <td className="px-3 py-2.5">
           <div className="flex flex-wrap justify-end gap-1.5">
-            {fonte.portal && (
+            {fonte.portal && acessos.editar && (
               <button
                 type="button"
                 onClick={() => setVendoCategorias((antes) => !antes)}
@@ -356,7 +360,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
               </button>
             )}
 
-            {ehDeSite && (
+            {ehDeSite && acessos.editar && (
               <button
                 type="button"
                 onClick={() => setVendoEnderecos((antes) => !antes)}
@@ -368,7 +372,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
               </button>
             )}
 
-            {fonte.varridaNoPc && noPc ? (
+            {acessos.varrer && (fonte.varridaNoPc && noPc ? (
               /*
                 FONTE DO PC, NO RISE DO PC: o "Varrer agora" liga o worker do PC so para ela (worker-pc.js --fonte),
                 que abre o tunel, varre com o IP de casa, grava direto no banco da VPS e desliga sozinho. O andamento
@@ -505,9 +509,10 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
                   : "Varrer agora"}
             </button>
               </>
-            )}
+            ))}
 
 
+            {acessos.editar && (
             <button
               type="button"
               onClick={alternar}
@@ -522,7 +527,9 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
               {fonte.ativa ? <Pause size={12} /> : <Play size={12} />}
               {fonte.ativa ? "Pausar" : "Retomar"}
             </button>
+            )}
 
+            {acessos.excluir && (
             <button
               type="button"
               onClick={pedirExclusao}
@@ -532,6 +539,7 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
               {pendente ? <Loader size={12} className="animate-spin" /> : <Trash2 size={12} />}
               Excluir
             </button>
+            )}
           </div>
 
           {/* O worker do PC: desde quando varre esta fonte, ou como terminou da ultima vez. So no Rise do PC. */}

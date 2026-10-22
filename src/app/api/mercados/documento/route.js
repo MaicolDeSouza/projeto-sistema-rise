@@ -1,3 +1,4 @@
+import { recusarRota, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { baixarDocumento } from "@/lib/documentosReferencias";
 import { ErroDeRecusa } from "@/lib/redePublica";
 
@@ -7,6 +8,9 @@ import { ErroDeRecusa } from "@/lib/redePublica";
  * publica de `baixarDocumento` (IP conferido na conexao e em cada redirecionamento, ate 20 MB) e so http e https.
  */
 export async function GET(request) {
+  // Acessos: quem ve o Scraper ou o cadastro de Produto (a janela de referencias baixa os documentos das lojas).
+  const { pode } = await sessaoDeAcessos();
+  if (!pode("tela.scraper", "ver") && !pode("tela.produtos.cadastro", "ver")) return recusarRota();
   const parametros = new URL(request.url).searchParams;
   const url = parametros.get("url") ?? "";
   if (!/^https?:\/\//i.test(url)) return new Response("Endereço inválido.", { status: 400 });

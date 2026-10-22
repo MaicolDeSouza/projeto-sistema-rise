@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ArrowLeft, Store } from "lucide-react";
 
 import { prisma } from "@/lib/db";
+import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { abasDoScraper } from "@/lib/acessos/projecoes";
 import { avisoDoPedidoPeloPc, jobLargado, sinalDoVigiaDoPc } from "@/lib/coleta/fila";
 import { plataformasPorFonte } from "@/lib/coleta/banco";
 import { portalDoEndereco } from "@/lib/coleta/fornecedores";
@@ -33,12 +35,21 @@ function situacaoNaFila(jobs) {
 }
 
 export default async function FontesPage({ searchParams }) {
+  // Acessos: Fontes em ver; cada aba so com o dado dela; cadastrar, editar, pausar, varrer e excluir por permissao.
+  const { pode } = await exigirAcessoNaPagina("tela.scraper.fontes", "ver");
+  const abasLiberadas = abasDoScraper(pode).map((aba) => (aba === "fornecedores" ? "FORNECEDOR" : "CONCORRENTE"));
+  const acessos = {
+    editar: pode("tela.scraper.fontes", "editar"),
+    excluir: pode("tela.scraper.fontes", "excluir"),
+    varrer: pode("acao.scraper.varrer", "executar"),
+  };
   const params = await searchParams;
 
   // Fornecedor e a aba padrao: e a que tem rotina manual — alguem precisa
   // baixar a lista e enviar. Concorrente se varre sozinho, e so se olha quando
   // ha duvida.
-  const aba = params?.tipo === "CONCORRENTE" ? "CONCORRENTE" : "FORNECEDOR";
+  const pedida = params?.tipo === "CONCORRENTE" ? "CONCORRENTE" : "FORNECEDOR";
+  const aba = abasLiberadas.includes(pedida) ? pedida : (abasLiberadas[0] ?? null);
 
   let fontes = null;
   let jobsAbertos = [];
@@ -89,7 +100,8 @@ export default async function FontesPage({ searchParams }) {
   const noPc = !process.env.RISE_PRODUCAO;
   const workerPc = noPc ? situacaoDoWorkerPc(lerEstadoDoWorkerPc(path.join(process.cwd(), "dados"))) : null;
 
-  const linhas = (fontes ?? []).map((fonte) => ({
+  // So as fontes das abas liberadas saem do servidor.
+  const linhas = (fontes ?? []).filter((fonte) => abasLiberadas.includes(fonte.tipo === "FORNECEDOR" ? "FORNECEDOR" : "CONCORRENTE")).map((fonte) => ({
     id: fonte.id,
     nome: fonte.nome,
     dominio: fonte.dominio,
@@ -163,12 +175,13 @@ export default async function FontesPage({ searchParams }) {
 
       {!erro && (
         <>
-          <FormularioFonte tipoInicial={aba} />
+          {acessos.editar && aba && <FormularioFonte tipoInicial={aba} />}
           <RecarregarEnquantoVarre ativo={varreduraPorFonte.size > 0 || Boolean(workerPc?.rodando)} />
 
           {linhas.length > 0 && (
             <AbasDeFontes
               ativa={aba}
+              abas={abasLiberadas}
               quantos={{
                 FORNECEDOR: linhas.filter((f) => f.tipo === "FORNECEDOR").length,
                 CONCORRENTE: linhas.filter((f) => f.tipo !== "FORNECEDOR").length,
@@ -176,7 +189,13 @@ export default async function FontesPage({ searchParams }) {
             />
           )}
 
-          {linhas.length === 0 ? (
+          {!aba ? (
+            <EmptyState
+              icone={Store}
+              titulo="Nada liberado para o seu acesso"
+              descricao="As fontes de fornecedores e de concorrentes dependem do acesso ao custo e aos concorrentes. Peça ao administrador."
+            />
+          ) : linhas.length === 0 ? (
             <EmptyState
               icone={Store}
               titulo="Nenhuma fonte cadastrada"
@@ -226,6 +245,7 @@ export default async function FontesPage({ searchParams }) {
                       mostrarLista={aba === "FORNECEDOR"}
                       noPc={noPc}
                       workerPc={workerPc}
+                      acessos={acessos}
                     />
                   ))}
                 </tbody>

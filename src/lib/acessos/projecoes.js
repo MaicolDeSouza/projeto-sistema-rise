@@ -115,3 +115,19 @@ export function projetarContextoML(contexto, pode) {
   const produtos = Object.fromEntries(Object.entries(contexto.produtos).map(([id, produto]) => [id, { ...produto, custo: null }]));
   return { ...contexto, produtos };
 }
+
+/**
+ * As abas do Scraper (e de Fontes) que a pessoa ve: fornecedores mostram preco de custo (`dado.custo`) e concorrentes o
+ * preco dos outros (`dado.concorrentes`). A pagina so consulta a aba liberada; sem nenhuma, mostra o vazio.
+ */
+export function abasDoScraper(pode) {
+  const abas = [];
+  if (pode("dado.custo", "ver")) abas.push("fornecedores");
+  if (pode("dado.concorrentes", "ver")) abas.push("concorrentes");
+  return abas;
+}
+
+/** A aba de uma fonte pelo tipo dela. OUTRO conta como concorrente, a mesma regra do filtro do Scraper. */
+export function abaDoTipoDeFonte(tipo) {
+  return tipo === "FORNECEDOR" ? "fornecedores" : "concorrentes";
+}
