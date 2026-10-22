@@ -161,6 +161,19 @@ export default async function ProdutosPage({ searchParams }) {
     console.error("[produtos] pecas alteradas dos kits", excecao);
   }
 
+  // O "P" no icone R (pedido do dono em 22/10/2026): proposta PRONTA = com a secao relatorio, a ultima do roteiro.
+  // Falha aqui nao derruba a lista: o icone fica sem o "P".
+  const propostasProntas = new Set();
+  try {
+    const propostas = await prisma.propostaDeProduto.findMany({
+      where: { produtoId: { in: (produtos ?? []).map((produto) => produto.id) } },
+      select: { produtoId: true, secoes: true },
+    });
+    for (const proposta of propostas) if (proposta.secoes?.relatorio) propostasProntas.add(proposta.produtoId);
+  } catch (excecao) {
+    console.error("[produtos] propostas prontas", excecao);
+  }
+
   // Icone da Loja Integrada: os documentos entram na assinatura so quando ha endereco publico (sem
   // ele, documentosDoProduto devolve [] sem consultar). Falha aqui nao derruba a lista: o icone fica
   // sem selo.
@@ -196,6 +209,7 @@ export default async function ProdutosPage({ searchParams }) {
       // Kit: a celula da localizacao nao tem lapis e abre o popup com as pecas (pedido do dono em 10/10/2026).
       pecasDoKit: produto.tipo === "COMPOSICAO" ? (pecasDosKits.get(produto.id) ?? []) : [],
       pecasAlteradas: alteracoesDosKits.get(produto.id)?.length ?? 0,
+      propostaPronta: propostasProntas.has(produto.id),
       ativo: produto.ativo,
       conferido: produto.conferido,
       imagemUrl: produto.arquivos[0]

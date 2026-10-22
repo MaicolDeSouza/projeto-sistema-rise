@@ -71,7 +71,9 @@ export default function ConferidoProduto({ produto }) {
 
   // Cor e selo sozinhos nao dizem o estado: o mesmo texto vai no nome acessivel e na dica.
   const pecasAlteradas = produto.pecasAlteradas ?? 0;
-  const partes = [conferido ? "conferido" : "não conferido (clique para marcar)"];
+  // Proposta pronta esperando o Conferido (pedido do dono em 22/10/2026): o "P" no canto superior ESQUERDO.
+  const propostaPronta = Boolean(produto.propostaPronta) && !conferido;
+  const partes = [propostaPronta ? "Proposta pronta, aguardando aprovação" : conferido ? "conferido" : "não conferido (clique para marcar)"];
   if (pecasAlteradas > 0) {
     partes.push(
       `${pecasAlteradas === 1 ? "uma peça do kit mudou" : `${pecasAlteradas} peças do kit mudaram`} desde o último Salvar (abra o kit para ver)`,
@@ -98,6 +100,14 @@ export default function ConferidoProduto({ produto }) {
         >
           R
         </span>
+        {propostaPronta && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-1.5 -left-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] leading-none font-bold text-amber-950 ring-2 ring-superficie"
+          >
+            P
+          </span>
+        )}
         {pecasAlteradas > 0 && (
           <span
             aria-hidden="true"
