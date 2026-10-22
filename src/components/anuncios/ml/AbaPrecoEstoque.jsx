@@ -3,8 +3,12 @@
 import { useState } from "react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
+import SeloPosicaoDePreco from "@/components/produtos/SeloPosicaoDePreco";
 import { custoDaComposicao } from "@/lib/canaisDeVenda/composicao";
+import { concorrentesParaPosicao } from "@/lib/canaisDeVenda/ml/avisosConcorrentes";
+import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import CalculadoraDeMargem from "./CalculadoraDeMargem";
+import ConcorrentesDoML from "./ConcorrentesDoML";
 import CustosDoML from "./CustosDoML";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { filtrarDecimal, lerDecimal, mostrarDigitado, recusarSimbolosDeInteiro } from "./numeros";
@@ -56,6 +60,9 @@ function mensagemSemCusto(faltam) {
 export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas }) {
   // Texto do preco como foi digitado (ver `numeros.js`); `null` = nada digitado, mostra o numero.
   const [precoDigitado, setPrecoDigitado] = useState(null);
+  // Os concorrentes do ML pelo catalogo (o bloco abaixo os le): o selo "Nº de M" ao lado do preco usa eles.
+  const [concorrentesML, setConcorrentesML] = useState([]);
+  const posicaoNoML = posicaoDePreco(rascunho.preco, concorrentesParaPosicao(concorrentesML));
 
   const emKit = Boolean(rascunho.composicao);
   const itens = Array.isArray(rascunho.composicao?.itens) ? rascunho.composicao.itens : [];
@@ -91,7 +98,13 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
 
         <Campo
           nome="ml-preco"
-          rotulo="Preço de venda"
+          rotulo={
+            <>
+              Preço de venda
+              {posicaoNoML && <SeloPosicaoDePreco posicao={posicaoNoML} />}
+              {posicaoNoML && <span className="ml-1 text-[11px] font-normal text-suave">no ML</span>}
+            </>
+          }
           ajuda={
             emKit
               ? "O preço do kit não sai da soma das peças: decida pela margem."
@@ -140,6 +153,10 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
           <MensagensDoCampo problemas={problemas} campo="estoque" />
         </Campo>
       </div>
+
+      {rascunho.produtoId && (
+        <ConcorrentesDoML produtoId={rascunho.produtoId} titulo={rascunho.titulo} alterar={alterar} aoMudarConcorrentes={setConcorrentesML} />
+      )}
 
       <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} mensagemSemCusto={mensagemSemCusto(custo.faltam)} />
     </div>

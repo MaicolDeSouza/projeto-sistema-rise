@@ -1953,6 +1953,21 @@ try {
     }
   }
 
+  {
+    console.log("\nConcorrentes do ML: posicao de preco");
+    const { concorrentesParaPosicao } = await import("../src/lib/canaisDeVenda/ml/avisosConcorrentes.js");
+    const { posicaoDePreco } = await import("../src/lib/posicaoDePreco.js");
+    // Review Focus 3: o mesmo vendedor com dois anuncios conta uma vez; quem saiu do top fica fora.
+    const lista = concorrentesParaPosicao([
+      { vendedorApelido: "A", preco: 39.54, ausenteDesde: null },
+      { vendedorApelido: "A", preco: 41, ausenteDesde: null },
+      { vendedorApelido: null, vendedorId: "7", preco: 55.8, ausenteDesde: null },
+      { vendedorApelido: "B", preco: 10, ausenteDesde: new Date() },
+    ]);
+    conferir("posicao no ML: mesmo vendedor conta uma vez, ausente fora", (({ posicao, total }) => [posicao, total])(posicaoDePreco(49.9, lista)), [2, 3]);
+    conferir("posicao no ML: vendedor sem apelido", lista[2].loja, "vendedor 7");
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();

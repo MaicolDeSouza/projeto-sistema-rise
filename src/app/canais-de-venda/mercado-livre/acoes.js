@@ -7,6 +7,14 @@ import { clienteBling } from "@/lib/blingSync/cliente";
 import { prepararPublicacaoML, publicarAnuncioML, validarNoML } from "@/lib/canaisDeVenda/ml/publicar";
 import { gravarFrases } from "@/lib/canaisDeVenda/configuracao";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
+import { buscarCatalogos, lerConcorrentesDoCatalogo, lerVendedores, topDoCatalogo } from "@/lib/canaisDeVenda/ml/catalogo";
+import {
+  acompanharCatalogoML,
+  lerConcorrentesML,
+  marcarConcorrentesMLVistos,
+  pararDeAcompanharML,
+  relerCatalogoDoProduto,
+} from "@/lib/canaisDeVenda/ml/concorrentes";
 import { LIMITES_ML, RascunhoMLSchema } from "@/lib/canaisDeVenda/ml/esquema";
 import { preencherFicha, sugerirCategoria, sugerirTitulos } from "@/lib/canaisDeVenda/ml/inteligencia";
 import { lerCategoria, lerCategoriaCompleta, lerCustosDoAnuncio, precoPorMargemNoML, textoDoErroML } from "@/lib/canaisDeVenda/ml/leitura";
@@ -292,4 +300,83 @@ export async function publicarAnuncioMLAcao(anuncioId, { recriar = false } = {})
 export async function validarNoMLAcao(anuncioId) {
   if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
   return protegendo(() => validarNoML(anuncioId, clientes()));
+}
+
+// ---------------------------------------------------------------------------
+// Concorrentes do ML pelo catalogo (spec 2026-10-21-concorrentes-ml-catalogo-design.md). So GET no ML; gravam so as
+// tabelas de concorrentes do banco local. Nao revalidam: o bloco do editor recebe a tela pronta na resposta.
+// ---------------------------------------------------------------------------
+
+const LIMITE_DO_TERMO = 120;
+const ehCatalogo = (valor) => typeof valor === "string" && /^MLB\d{1,15}$/.test(valor.trim());
+
+/** Produtos de catalogo parecidos com o termo (o titulo do anuncio, editavel). */
+export async function buscarCatalogosMLAcao(termo) {
+  if (typeof termo !== "string" || termo.length > LIMITE_DO_TERMO) return PEDIDO_INVALIDO;
+  try {
+    return { ok: true, catalogos: await buscarCatalogos(clienteML(), termo) };
+  } catch (erro) {
+    return falhaDeLeitura(erro, "buscar catalogo");
+  }
+}
+
+/** A previa do catalogo: os anuncios na ordem do ML, com o vendedor, e quais seriam acompanhados (o top). Nao grava. */
+export async function preverCatalogoMLAcao(catalogoId) {
+  if (!ehCatalogo(catalogoId)) return PEDIDO_INVALIDO;
+  try {
+    const ml = clienteML();
+    const lido = await lerConcorrentesDoCatalogo(ml, catalogoId.trim(), { meuSellerId: await ml.usuarioId() });
+    const top = topDoCatalogo(lido.itens);
+    const vendedores = await lerVendedores(ml, lido.itens.filter((item) => !item.meu).map((item) => item.vendedorId));
+    return {
+      ok: true,
+      total: lido.total,
+      topIds: top.map((item) => item.itemId),
+      itens: lido.itens.map((item) => ({ ...item, vendedor: vendedores.get(item.vendedorId) ?? null })),
+    };
+  } catch (erro) {
+    return falhaDeLeitura(erro, "prever catalogo");
+  }
+}
+
+/** Le a tela dos concorrentes e marca como visto (os avisos passam a contar daqui). */
+export async function lerConcorrentesMLAcao(produtoId) {
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const tela = await lerConcorrentesML(produtoId);
+    if (!tela) return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
+    await marcarConcorrentesMLVistos(produtoId);
+    return { ok: true, tela };
+  });
+}
+
+/** Passa a acompanhar o catalogo (ou troca de catalogo) e faz a primeira leitura. So Produto Conferido. */
+export async function acompanharCatalogoMLAcao(produtoId, { catalogoId, catalogoNome } = {}) {
+  if (!ehId(produtoId) || !ehCatalogo(catalogoId) || (catalogoNome !== undefined && typeof catalogoNome !== "string")) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const { erro } = await produtoConferido(produtoId);
+    if (erro) return { ok: false, erro };
+    const feito = await acompanharCatalogoML(clienteML(), produtoId, { catalogoId: catalogoId.trim(), catalogoNome: String(catalogoNome ?? "").slice(0, 200) });
+    await marcarConcorrentesMLVistos(produtoId);
+    return { ok: feito.ok, erro: feito.erro, tela: await lerConcorrentesML(produtoId) };
+  });
+}
+
+/** "Reler agora": a mesma rotina da rodada diaria, so para este produto. */
+export async function relerConcorrentesMLAcao(produtoId) {
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const feito = await relerCatalogoDoProduto(clienteML(), produtoId);
+    await marcarConcorrentesMLVistos(produtoId);
+    return { ok: feito.ok, erro: feito.erro, tela: await lerConcorrentesML(produtoId) };
+  });
+}
+
+/** Para de acompanhar: zera o catalogo; os concorrentes ficam como ausentes (nada e apagado). */
+export async function pararDeAcompanharMLAcao(produtoId) {
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    await pararDeAcompanharML(produtoId);
+    return { ok: true, tela: await lerConcorrentesML(produtoId) };
+  });
 }
