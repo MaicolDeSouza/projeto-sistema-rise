@@ -3035,5 +3035,48 @@ console.log("\n— EAN no Mercado Livre —");
   conferir("ean: EAN invalido nao vai ao ML", await itensDoCatalogoPorEan(mlFalso, "123"), []);
 }
 
+// Benser (22/10/2026): a pagina salva do portal traz estoque antigo; o portal troca pelo ao vivo ao abrir.
+console.log("\n— estoque ao vivo do portal Benser —");
+{
+  const { aoVivoDaBenser, aplicarAoVivo, estoqueAoVivoDaBenser, horaDaLeitura } = await import("../src/lib/coleta/benser-ao-vivo.js");
+  const portal = `<title>Benser · Portal de Pedidos</title><meta property="og:url" content="https://benser.com.br/">`;
+  conferir("benser: endereco e minimo por lista; outro site nao consulta", [
+    aoVivoDaBenser(portal, "PRONTA_ENTREGA")?.endereco,
+    aoVivoDaBenser(portal, "RESERVA")?.endereco,
+    aoVivoDaBenser(portal, "RESERVA")?.minimo,
+    aoVivoDaBenser("<title>Nightech</title>", "PRONTA_ENTREGA"),
+  ], ["https://benser.com.br/api/estoque", "https://benser.com.br/api/estoque-reserva", 200, null]);
+
+  const brutos = [
+    { sku: "64-380", preco: 1.29, estoque: 214, desc: "PRETO" },
+    { sku: "64-382", preco: 1.29, estoque: 284 },
+    { sku: "65-247", preco: 1.29, estoque: 264 },
+    { sku: "01-001", preco: 5, estoque: 7 },
+    { sku: "01-002", preco: 5, estoque: 3 },
+  ];
+  const saldos = { "64-380": 0, "64-382": 284, "65-247": 64, "01-001": 7 };
+  const r = aplicarAoVivo(brutos, { ok: true, ts: 1792682209139, saldos, precos: { "64-380": 1.35, "64-382": 0 } }, 3);
+  conferir("benser: troca estoque e preco pelo ao vivo (preco zero nao conta)", r.itens.map((i) => [i.sku, i.estoque, i.preco]), [["64-380", 0, 1.35], ["64-382", 284, 1.29], ["65-247", 64, 1.29], ["01-001", 7, 5], ["01-002", 0, 5]]);
+  conferir("benser: o resto do item fica e o de entrada nao muda", [r.itens[0].desc, brutos[0].estoque], ["PRETO", 214]);
+  conferir("benser: contagens; o ausente zera quando faltam ate 20%", [r.estoqueMudou, r.precoMudou, r.ausentes, r.zerouAusentes], [3, 1, 1, true]);
+  const muitos = aplicarAoVivo(brutos, { ok: true, saldos: { "64-380": 0, "64-382": 1, "65-247": 2 } }, 3);
+  conferir("benser: faltando mais de 20%, o ausente fica com o numero do arquivo", muitos.itens.map((i) => i.estoque), [0, 1, 2, 7, 3]);
+  conferir("benser: resposta ruim ou pequena e recusada", [
+    aplicarAoVivo(brutos, { ok: false, saldos }, 3).erro,
+    aplicarAoVivo(brutos, null, 3).erro,
+    aplicarAoVivo(brutos, { ok: true, saldos: { a: 1 } }, 3).erro,
+  ], ["resposta sem saldos", "resposta sem saldos", "resposta com 1 itens (mínimo 3)"]);
+  conferir("benser: hora da leitura em Sao Paulo", horaDaLeitura(new Date(1792682209139)), "12:16 de 22/10");
+
+  const falso = (corpo, ok = true) => async () => ({ ok, corpo, erro: ok ? null : "HTTP 503" });
+  const vivo = await estoqueAoVivoDaBenser(brutos, portal, "PRONTA_ENTREGA", { buscar: falso(JSON.stringify({ ok: true, saldos: Object.fromEntries(Array.from({ length: 1000 }, (_, i) => [`x${i}`, 1]).concat([["64-380", 0]])) })) });
+  conferir("benser: busca de verdade com o minimo de 1.000", vivo.itens[0].estoque, 0);
+  conferir("benser: falha da rede e JSON quebrado viram erro, sem itens", [
+    (await estoqueAoVivoDaBenser(brutos, portal, "PRONTA_ENTREGA", { buscar: falso(null, false) })).erro,
+    (await estoqueAoVivoDaBenser(brutos, portal, "PRONTA_ENTREGA", { buscar: falso("<html>") })).erro,
+    await estoqueAoVivoDaBenser(brutos, "<title>outro</title>", "PRONTA_ENTREGA", { buscar: falso("{}") }),
+  ], ["HTTP 503", "resposta não é JSON", null]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

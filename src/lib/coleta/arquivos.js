@@ -3,6 +3,7 @@ import { mesclarNoExistente } from "./mesclar";
 import { comoNumero, comoTexto } from "./texto-html";
 import { normalizarPagina } from "./normalizar";
 import { juntarComAPatolastore } from "./patolastore";
+import { estoqueAoVivoDaBenser, horaDaLeitura } from "./benser-ao-vivo";
 import { PAGINA_INICIAL_DA_TESPO, documentosDasEsteirasDoSite, juntarDocumentosDasEsteiras } from "./tespo";
 
 /**
@@ -951,6 +952,30 @@ export async function lerArquivo({ nome, bytes, fonte }) {
     brutos = arrayEmbutido(html);
     origem = "catalogo embutido na pagina salva";
     imagensPorCodigo = imagensEmbutidas(html);
+
+    // TERCEIRA EXCECAO a "arquivo nao usa rede" (22/10/2026): a pagina salva do portal da Benser traz um estoque
+    // ANTIGO, que o portal troca pelo do Bling ao abrir. O Rise faz o mesmo. Falha e aviso: valem os do arquivo.
+    // Ver benser-ao-vivo.js.
+    if (brutos.length > 0) {
+      try {
+        const aoVivo = await estoqueAoVivoDaBenser(brutos, html, modalidade);
+        if (aoVivo?.erro) {
+          avisos.push(
+            `Estoque ao vivo do portal Benser (${aoVivo.lista}) não lido: ${aoVivo.erro}. Valem os números do arquivo, que podem estar velhos.`,
+          );
+        } else if (aoVivo) {
+          brutos = aoVivo.itens;
+          const hora = horaDaLeitura(aoVivo.lidoEm);
+          origem = `estoque e preço ao vivo do portal Benser (${aoVivo.lista}${hora ? `, ${hora}` : ""})`;
+          avisos.push(
+            `Estoque e preço lidos ao vivo do portal Benser${hora ? ` (${hora})` : ""}: ${aoVivo.estoqueMudou} estoque(s) e ${aoVivo.precoMudou} preço(s) diferentes do arquivo` +
+              (aoVivo.zerouAusentes ? `; ${aoVivo.ausentes} item(ns) fora do portal ficaram com zero.` : "."),
+          );
+        }
+      } catch (erro) {
+        avisos.push(`Estoque ao vivo do portal Benser não lido: ${erro?.message ?? erro}. Valem os números do arquivo.`);
+      }
+    }
 
     if (brutos.length === 0) {
       brutos = linhasDeTabela(html);

@@ -1242,6 +1242,22 @@ muitos leitores, uma forma só, senão a tela passaria a precisar saber de onde 
   `<title>`: *Benser · Lista de Reserva* contra *Benser · Portal de Pedidos*. O título veio
   do fornecedor; o nome do arquivo o operador renomeia. Na dúvida, pronta entrega.
 
+**Benser: o estoque da página salva é ANTIGO; o Rise lê o ao vivo** (22/10/2026, pedido do dono: o 64-380 aparecia
+com 214 no Scraper e estava zerado). O portal guarda na página uma lista de estoque velha e, ao abrir no navegador,
+troca os números pelos do Bling deles (`https://benser.com.br/api/estoque` na Pronta Entrega,
+`/api/estoque-reserva` na Lista de Reserva; JSON `{ok, ts, saldos, precos}`, sem login). O Ctrl+S salva os velhos.
+Medido no dia: 1.202 de 1.968 itens com outro estoque e 187 com estoque no arquivo e zero de verdade; na Reserva, 6 de 16.
+- `lerArquivo` (`arquivos.js`, a terceira exceção a "arquivo não usa rede") chama `estoqueAoVivoDaBenser`
+  (`benser-ao-vivo.js`) quando a página é do portal (og:url `benser.com.br` ou título "Benser ·"). Vale no envio
+  do arquivo e no Atualizar dados, que releem o original.
+- **As regras são as da página do portal** (`startEstoqueSync`): resposta `ok` com no mínimo 1.000 itens (Reserva:
+  200); o item que não veio fica com zero se faltarem no máximo 20%; preço só troca por número maior que zero.
+- **Só os itens do arquivo mudam.** O ao vivo da reserva traz ~460 códigos com quantidade, e a página mostra só 16
+  (o resto não tem nome nem descrição; vários com sufixo de carga, `64-490-2`): ficam de fora.
+- A origem passa a dizer "estoque e preço ao vivo do portal Benser (Pronta Entrega, 12:46 de 22/10)", e o aviso conta
+  o que mudou. Falha (rede, resposta pequena, JSON quebrado) é aviso: valem os números do arquivo. `buscarJson`, então
+  robots.txt (a Benser não tem) e ritmo valem.
+
 **Regras por fornecedor** — `src/lib/coleta/fornecedores.js`, dado e não código:
 
 - **Fortek — `sufixoDeCarga`.** `02-268-A` é o mesmo item que `02-268`; o sufixo é a carga.
