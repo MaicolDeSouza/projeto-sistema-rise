@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { temOQueAplicar } from "./aplicar.js";
+import { propostaNoFormulario } from "./aplicar.js";
 
 /**
  * "Esta secao da proposta ja foi aplicada?" (spec 2026-10-16, Aprovacao e limpeza). Quando o dono aplica uma secao e
@@ -41,15 +41,18 @@ export function assinaturaDaSecao(secao, produto) {
   return createHash("sha1").update(JSON.stringify(retrato)).digest("hex");
 }
 
-/** As secoes da proposta que ainda nao foram aplicadas ao produto (ou que o produto deixou de ter). */
+/**
+ * As secoes da proposta que o Conferido ainda pergunta (decisao B do dono em 22/10/2026, com a proposta direto no
+ * formulario): so as que PREENCHERIAM algum campo ainda vazio no produto SALVO, ou a descricao diferente da salva
+ * (`propostaNoFormulario`, a mesma regra da tela). O que so foi para a lista do icone (o campo ja tinha valor) vale como
+ * decidido. O titulo nunca fica pendente (a proposta nunca o troca). Fotos continuam como antes: pendentes ate o dono
+ * aplica-las e salvar (assinatura).
+ */
 export function secoesNaoAplicadas(proposta, produto) {
-  const secoes = Object.keys(proposta?.secoes ?? {});
+  const secoes = proposta?.secoes ?? {};
   const aplicadas = proposta?.aplicadas ?? {};
-  // Fotos tem o "Aplicar" proprio (aba Imagens) e entra como pendente; as outras, so se tem o que aplicar.
-  return secoes.filter(
-    (secao) =>
-      !SECOES_SEM_PENDENCIA.includes(secao) &&
-      (secao === "fotos" || temOQueAplicar(secao, proposta.secoes[secao])) &&
-      aplicadas[secao] !== assinaturaDaSecao(secao, produto),
-  );
+  const camposDoProduto = Object.fromEntries(Object.entries(produto ?? {}).map(([campo, valor]) => [campo, normal(valor) ?? ""]));
+  const pendentes = propostaNoFormulario(secoes, camposDoProduto).secoes;
+  if (secoes.fotos && aplicadas.fotos !== assinaturaDaSecao("fotos", produto)) pendentes.push("fotos");
+  return pendentes;
 }

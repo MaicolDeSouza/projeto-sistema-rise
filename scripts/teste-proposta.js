@@ -321,14 +321,19 @@ try {
     const proposta = await lerProposta("ZZ-PROP-1");
     const atual = { ...(await prisma.produto.findUnique({ where: { id: produto.id } })), fotos: [] };
     const pendentes = secoesNaoAplicadas(proposta, atual);
-    conferir("aplicadas: titulos e fotos estao pendentes", ["titulos", "fotos"].every((s) => pendentes.includes(s)));
+    conferir("aplicadas: fotos fica pendente; titulo nunca (a proposta nao troca o titulo)", pendentes.includes("fotos") && !pendentes.includes("titulos"));
     conferir("aplicadas: preco sem opcao (sem custo) nao fica pendente", !pendentes.includes("preco"));
     conferir("aplicadas: documentos nunca fica pendente", !pendentes.includes("documentos"));
     const semNadaAAplicar = { secoes: { ean: { escolhido: null, descartados: [] }, campos: {}, preco: { opcoes: [], recomendada: null, motivoSemRecomendada: "x" } }, aplicadas: {} };
     conferir("aplicadas: EAN vazio, campos vazios e preco sem opcao nao ficam pendentes", secoesNaoAplicadas(semNadaAAplicar, atual).length === 0);
-    const marcada = { ...proposta, aplicadas: { titulos: assinaturaDaSecao("titulos", atual) } };
-    conferir("aplicadas: com a assinatura, titulos sai da lista", !secoesNaoAplicadas(marcada, atual).includes("titulos"));
-    conferir("aplicadas: o produto mudou depois, titulos volta", secoesNaoAplicadas(marcada, { ...atual, tituloBase: "OUTRO" }).includes("titulos"));
+    const marcada = { ...proposta, aplicadas: { fotos: assinaturaDaSecao("fotos", atual) } };
+    conferir("aplicadas: com a assinatura, fotos sai da lista", !secoesNaoAplicadas(marcada, atual).includes("fotos"));
+    conferir("aplicadas: as fotos mudaram depois, fotos volta", secoesNaoAplicadas(marcada, { ...atual, fotos: ["outra.jpg"] }).includes("fotos"));
+    // Regra B (22/10/2026): pendente so o que preencheria um campo VAZIO no produto salvo.
+    const comCampos = { secoes: { campos: { marca: { valor: "GENERICA", origem: "x" } }, ean: { escolhido: { valor: "7891234567895", origem: "x" } } }, aplicadas: {} };
+    conferir("aplicadas: campo vazio no produto salvo fica pendente", JSON.stringify(secoesNaoAplicadas(comCampos, { ...atual, marca: null, ean: null }).sort()) === '["campos","ean"]');
+    conferir("aplicadas: campo ja preenchido (outro valor) nao fica pendente", secoesNaoAplicadas(comCampos, { ...atual, marca: "ARDUINO", ean: "7890000000000" }).length === 0);
+    conferir("aplicadas: descricao diferente da salva fica pendente; igual nao", secoesNaoAplicadas({ secoes: { descricao: { texto: "A" } } }, { ...atual, descricaoBase: "B" }).includes("descricao") && secoesNaoAplicadas({ secoes: { descricao: { texto: "A" } } }, { ...atual, descricaoBase: "A" }).length === 0);
 
     await prisma.produto.update({ where: { id: produto.id }, data: { conferido: true } });
     const conferido = await gravarProposta("ZZ-PROP-1", titulos);
@@ -346,16 +351,17 @@ try {
     const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-3", tituloBase: "TITULO ANTIGO" } });
     await gravarProposta("ZZ-PROP-3", { secao: "titulos", conteudo: { opcoes: ["NOVO A", "NOVO B", "NOVO C"], recomendada: 0 } });
     await gravarProposta("ZZ-PROP-3", { secao: "relatorio", conteudo: { texto: "ok" } });
+    await gravarProposta("ZZ-PROP-3", { secao: "ean", conteudo: { escolhido: { valor: "7891234567895", origem: "x" }, descartados: [], buscas: [] } });
     let tela = await propostaParaFormulario(produto.id);
     conferir("formulario: a proposta vem com as secoes", tela?.secoes?.titulos?.opcoes?.length === 3);
-    conferir("formulario: titulos vem como nao aplicada", tela.naoAplicadas.includes("titulos"));
-    await prisma.produto.update({ where: { id: produto.id }, data: { tituloBase: "NOVO A" } });
+    conferir("formulario: o EAN (campo vazio no produto) vem como nao aplicado; o titulo nunca", tela.naoAplicadas.includes("ean") && !tela.naoAplicadas.includes("titulos"));
+    await prisma.produto.update({ where: { id: produto.id }, data: { tituloBase: "NOVO A", ean: "7891234567895" } });
     await marcarSecoesAplicadas(produto.id, ["titulos", "fotos", "inventada"]);
     const marcada = await lerProposta("ZZ-PROP-3");
     conferir("salvar: titulos ficou marcada", typeof marcada.aplicadas.titulos === "string");
     conferir("salvar: secao que nao e aplicavel aqui nao e marcada", !("fotos" in marcada.aplicadas) && !("inventada" in marcada.aplicadas));
     tela = await propostaParaFormulario(produto.id);
-    conferir("formulario: depois do Salvar, titulos sai das nao aplicadas", !tela.naoAplicadas.includes("titulos"));
+    conferir("formulario: depois do Salvar com o EAN, ele sai das nao aplicadas", !tela.naoAplicadas.includes("ean"));
     await marcarSecoesAplicadas("id-que-nao-existe", ["titulos"]);
     conferir("salvar: produto sem proposta nao da erro", true);
     conferir("formulario: produto sem proposta devolve null", (await propostaParaFormulario("id-que-nao-existe")) === null);
@@ -422,11 +428,12 @@ try {
     const { conferirComProposta } = await import("../src/lib/proposta/conferir.js");
     const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-5", tituloBase: "TITULO ANTIGO" } });
     await gravarProposta("ZZ-PROP-5", { secao: "titulos", conteudo: { opcoes: ["NOVO A", "NOVO B", "NOVO C"], recomendada: 0 } });
+    await gravarProposta("ZZ-PROP-5", { secao: "ean", conteudo: { escolhido: { valor: "7891000000014", origem: "x" }, descartados: [], buscas: [] } });
     await gravarProposta("ZZ-PROP-5", { secao: "documentos", conteudo: { itens: [{ id: "d1", titulo: "Datasheet", url: "https://x.test/d.pdf" }] } }, { bytes: new Map([["d1", Buffer.from("%PDF-1.4\n")]]) });
     conferir("conferido: a pasta proposta/ existe antes", existsSync("dados/produtos/ZZ-PROP-5/proposta"));
 
     const pendente = await conferirComProposta(produto.id, true);
-    conferir("conferido: com titulos pendente, avisa", pendente.ok === false && JSON.stringify(pendente.pendentes) === '["titulos"]');
+    conferir("conferido: com o EAN pendente (campo vazio), avisa", pendente.ok === false && JSON.stringify(pendente.pendentes) === '["ean"]');
     conferir("conferido: e o produto continua nao conferido", (await prisma.produto.findUnique({ where: { id: produto.id } })).conferido === false);
     conferir("conferido: e a proposta continua", (await lerProposta("ZZ-PROP-5")) !== null);
 
@@ -439,7 +446,7 @@ try {
     conferir("conferido: marcar de novo sem proposta funciona", (await conferirComProposta(produto.id, true)).ok === true);
 
     // Tudo aplicado: confere direto, sem pergunta, e apaga a proposta.
-    await prisma.produto.update({ where: { id: produto.id }, data: { conferido: false, tituloBase: "NOVO A" } });
+    await prisma.produto.update({ where: { id: produto.id }, data: { conferido: false, tituloBase: "NOVO A", ean: "7891000000014" } });
     await gravarProposta("ZZ-PROP-5", { secao: "titulos", conteudo: { opcoes: ["NOVO A", "NOVO B", "NOVO C"], recomendada: 0 } });
     await marcarSecoesAplicadas(produto.id, ["titulos"]);
     const direto = await conferirComProposta(produto.id, true);
