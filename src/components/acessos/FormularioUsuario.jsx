@@ -13,12 +13,16 @@ import PageHeader from "@/components/ui/PageHeader";
 import { filtrarRecursos } from "@/lib/acessos/matriz";
 import { gruposDaMatriz, recursoPorId } from "@/lib/acessos/recursos";
 import EntradaNoRise from "./EntradaNoRise";
+import HistoricoDoUsuario from "./HistoricoDoUsuario";
+import VerComo from "./JanelaVerComo";
 import SeletorDeNivel from "./SeletorDeNivel";
 
 const ABAS = [
   { id: "dados", rotulo: "Dados" },
   { id: "acesso", rotulo: "Acesso" },
 ];
+// A aba Historico so existe no usuario ja salvo (lancamento 2).
+const ABA_DO_HISTORICO = { id: "historico", rotulo: "Histórico" };
 const ABA_DO_CAMPO = { login: "dados", nome: "dados", assinatura: "dados", ativo: "dados", funcoes: "acesso", excecoes: "acesso" };
 const GRUPOS = gruposDaMatriz();
 
@@ -42,8 +46,8 @@ const ErroDoCampo = ({ erro }) => (erro ? <span className="mt-1 block text-xs te
 /**
  * O usuario (spec de Acessos, §5.5). Linha-guia: o dono ve primeiro quem e a pessoa e o que ela pode; a acao principal
  * e Salvar. Duas abas montadas e escondidas (Dados e Acesso); o erro do servidor leva a primeira aba com erro e poe o
- * ponto no titulo dela (o molde do cadastro de Cliente). Sem Excluir (so Desativar), sem Telegram e sem "Ver como"
- * neste lancamento.
+ * ponto no titulo dela (o molde do cadastro de Cliente). Sem Excluir (so Desativar) e sem Telegram. No usuario salvo, o
+ * "Ver como" no cabecalho e a aba Historico (lancamento 2).
  */
 export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrador = false, entrada = null }) {
   const router = useRouter();
@@ -59,6 +63,17 @@ export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrado
   const [janelaAberta, setJanelaAberta] = useState(false);
   const [busca, setBusca] = useState("");
   const [pendente, iniciar] = useTransition();
+
+  const abas = usuario.id ? [...ABAS, ABA_DO_HISTORICO] : ABAS;
+  // "Ver como" calcula do que esta SALVO: com alteracao na tela, o botao espera o Salvar.
+  const ordenado = (lista) => JSON.stringify([...lista].sort());
+  const alterado =
+    login !== usuario.login ||
+    nome !== usuario.nome ||
+    assinatura !== usuario.assinatura ||
+    ativo !== usuario.ativo ||
+    ordenado(marcadas) !== ordenado(usuario.funcoes) ||
+    JSON.stringify(excecoes) !== JSON.stringify(usuario.excecoes);
 
   const travaDoAtivo = usuario.peloEnv ? "Este login vem de RISE_AI_ADMINS; tire-o lá na VPS." : ultimoAdministrador ? "Último administrador ativo." : null;
 
@@ -107,9 +122,12 @@ export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrado
         voltarPara="/configuracoes/usuarios"
         voltarRotulo="Usuários e funções"
         acao={
-          <button type="button" onClick={salvar} disabled={pendente} className={PRINCIPAL}>
-            {pendente ? "Salvando…" : "Salvar"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {usuario.id && <VerComo tipo="usuario" id={usuario.id} alterado={alterado} />}
+            <button type="button" onClick={salvar} disabled={pendente} className={PRINCIPAL}>
+              {pendente ? "Salvando…" : "Salvar"}
+            </button>
+          </div>
         }
       />
 
@@ -120,7 +138,7 @@ export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrado
       )}
 
       <div className="overflow-hidden rounded-lg border border-borda bg-superficie">
-        <BarraDeAbas abas={ABAS} aba={aba} aoMudar={setAba} comErro={comErro} />
+        <BarraDeAbas abas={abas} aba={aba} aoMudar={setAba} comErro={comErro} />
 
         <Painel id="dados" aba={aba}>
           <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,14rem)_auto]">
@@ -243,6 +261,12 @@ export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrado
             </section>
           </div>
         </Painel>
+
+        {usuario.id && (
+          <Painel id="historico" aba={aba}>
+            <HistoricoDoUsuario usuarioId={usuario.id} ativa={aba === "historico"} />
+          </Painel>
+        )}
       </div>
 
       {janelaAberta && (

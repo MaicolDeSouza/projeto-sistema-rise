@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { carregarUsuario, excluirFuncao, salvarFuncao, salvarUsuario } from "@/lib/acessos/banco";
+import { carregarUsuario, excluirFuncao, historicoDoUsuario, salvarFuncao, salvarUsuario, verComo } from "@/lib/acessos/banco";
 import { definirSenha, removerLogin } from "@/lib/acessos/loginTinyauth";
 import { executarComAcesso } from "@/lib/acessos/servidor";
 import { ErroDeUso } from "@/lib/riseAi/erros";
@@ -109,4 +109,18 @@ export async function excluirFuncaoAcao(id) {
     atualizarTelas();
     return {};
   });
+}
+
+/** "Ver como" do usuario (`tipo` "usuario") ou da funcao ("funcao"): so leitura, do que esta salvo. */
+export async function verComoAcao(tipo, id) {
+  return executarComAcesso("tela.configuracoes.usuarios", "ver", async () => {
+    const visto = await verComo(tipo, id);
+    if (!visto) throw new ErroDeUso("Não encontrado. Recarregue a página.");
+    return visto;
+  });
+}
+
+/** A aba Historico do usuario: 100 linhas por pagina, a mais recente primeiro. */
+export async function historicoDoUsuarioAcao(id, pagina = 1) {
+  return executarComAcesso("tela.configuracoes.usuarios", "ver", async () => historicoDoUsuario(id, { pagina }));
 }

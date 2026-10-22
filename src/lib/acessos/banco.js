@@ -5,6 +5,7 @@ import { ErroDeUso } from "@/lib/riseAi/erros";
 import { contarLiberados, resolverPermissoes } from "./resolucao.js";
 import { LOGINS_RESERVADOS, montarSessao, normalizarLogin, quebraVidro } from "./sessao.js";
 import { podeDesativar, validarFuncao, validarUsuario } from "./validacao.js";
+import { resumoDaMudanca, retratoDoAcesso, rotuloDaAcao } from "./verComo.js";
 
 /**
  * Leitura e gravacao de usuarios e funcoes para as telas de Configuracoes › Usuarios e funcoes (spec de Acessos, §5.3 a
@@ -298,4 +299,71 @@ export async function permissoesDoLogin(bruto, { env = process.env } = {}) {
     console.error("[acessos] banco indisponível ao ler a sessão do token:", erro?.message ?? erro);
     return { ...montarSessao({ ambiente: "vps", login, motivo: "token", usuario: null }), estado: "erro-banco" };
   }
+}
+
+const POR_PAGINA_DO_HISTORICO = 100;
+
+/**
+ * A aba Historico do usuario (spec de Acessos, §5.5): a `AuditoriaDeAcesso` dele, a mais recente primeiro, 100 por pagina.
+ * O alvo e o id do usuario (o Salvar) OU o login (a senha e o login de entrada sao gravados pelo login). As funcoes
+ * gravadas como id viram o nome de hoje (funcao excluida fica com o id).
+ *
+ * @returns {Promise<{ linhas: { id: string, quando: string, quem: string, oQue: string, mudancas: { campo: string, antes: string, depois: string }[] }[], total: number, pagina: number, totalPaginas: number }>}
+ */
+export async function historicoDoUsuario(id, { pagina = 1 } = {}) {
+  const usuario = await prisma.usuarioRise.findUnique({ where: { id: String(id ?? "") }, select: { id: true, login: true } });
+  if (!usuario) return { linhas: [], total: 0, pagina: 1, totalPaginas: 1 };
+  const onde = { alvo: { in: [usuario.id, usuario.login] } };
+  const total = await prisma.auditoriaDeAcesso.count({ where: onde });
+  const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA_DO_HISTORICO));
+  const atual = Math.min(Math.max(Number.parseInt(pagina, 10) || 1, 1), totalPaginas);
+  const [linhas, funcoes] = await Promise.all([
+    prisma.auditoriaDeAcesso.findMany({
+      where: onde,
+      orderBy: [{ quando: "desc" }, { id: "desc" }],
+      skip: (atual - 1) * POR_PAGINA_DO_HISTORICO,
+      take: POR_PAGINA_DO_HISTORICO,
+    }),
+    prisma.funcaoRise.findMany({ select: { id: true, nome: true } }),
+  ]);
+  const nomeDaFuncao = new Map(funcoes.map((funcao) => [funcao.id, funcao.nome]));
+  const comNomes = (retrato) =>
+    retrato && Array.isArray(retrato.funcoes) ? { ...retrato, funcoes: retrato.funcoes.map((funcaoId) => nomeDaFuncao.get(funcaoId) ?? funcaoId) } : retrato;
+  return {
+    linhas: linhas.map((linha) => ({
+      id: linha.id,
+      quando: linha.quando.toISOString(),
+      quem: linha.quem,
+      oQue: rotuloDaAcao(linha.oQue),
+      mudancas: resumoDaMudanca(comNomes(linha.antes), comNomes(linha.depois)),
+    })),
+    total,
+    pagina: atual,
+    totalPaginas,
+  };
+}
+
+/**
+ * "Ver como" (spec §5.5): o que um usuario ou uma funcao ve, calculado do que esta SALVO, pela mesma `montarSessao` /
+ * `resolverPermissoes` do `pode()`. Usuario: as funcoes, as excecoes e o quebra-vidro do .env (inativo nao ve nada).
+ * Funcao: alguem so com ela. Nunca troca a sessao de ninguem.
+ *
+ * @returns {Promise<{ nome: string, estado: string, retrato: ReturnType<typeof retratoDoAcesso> } | null>}
+ */
+export async function verComo(tipo, id, { env = process.env } = {}) {
+  if (tipo === "usuario") {
+    const usuario = await prisma.usuarioRise.findUnique({
+      where: { id: String(id ?? "") },
+      include: { funcoes: { include: { funcao: { include: { permissoes: true } } } }, excecoes: true },
+    });
+    if (!usuario) return null;
+    const sessao = montarSessao({ ambiente: "vps", login: usuario.login, motivo: "verComo", usuario, quebraVidro: quebraVidro(usuario.login, env) });
+    return { nome: usuario.nome, estado: sessao.estado, retrato: retratoDoAcesso(sessao.permissoes) };
+  }
+  if (tipo === "funcao") {
+    const funcao = await prisma.funcaoRise.findUnique({ where: { id: String(id ?? "") }, include: { permissoes: true } });
+    if (!funcao) return null;
+    return { nome: funcao.nome, estado: "ok", retrato: retratoDoAcesso(resolverPermissoes({ funcoes: [funcao], administrador: funcao.fixa })) };
+  }
+  return null;
 }

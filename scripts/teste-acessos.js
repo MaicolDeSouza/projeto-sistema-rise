@@ -755,6 +755,64 @@ try {
     );
   }
 
+  // --- Lancamento 2: "Ver como" e a aba Historico ---
+  {
+    console.log("\nVer como e Historico");
+    const { retratoDoAcesso, resumoDaMudanca } = await import("../src/lib/acessos/verComo.js");
+    const { resolverPermissoes } = await import("../src/lib/acessos/resolucao.js");
+    const { historicoDoUsuario } = await import("../src/lib/acessos/banco.js");
+    const funcao = { permissoes: [{ recurso: "tela.cadastros", nivel: "ver" }, { recurso: "tela.cadastros.clientes", nivel: "editar" }] };
+    const retrato = retratoDoAcesso(resolverPermissoes({ funcoes: [funcao] }));
+    conferir(
+      "Cadastros em ver com Clientes em editar: so esse bloco, com a sub-tela",
+      retrato.blocos,
+      [{ rotulo: "Cadastros", nivel: "ver", subs: [{ rotulo: "Clientes", nivel: "editar" }] }],
+    );
+    conferir("sem cartoes, dados, acoes nem capacidades", [retrato.cartoes, retrato.dados, retrato.acoes, retrato.capacidades], [[], [], [], []]);
+    const doAdministrador = retratoDoAcesso(resolverPermissoes({ administrador: true }));
+    const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
+    conferir(
+      "o Administrador ve todos os blocos, na ordem do catalogo",
+      doAdministrador.blocos.map((bloco) => bloco.rotulo),
+      RECURSOS.filter((recurso) => recurso.tipo === "tela" && !recurso.pai).map((recurso) => recurso.rotulo),
+    );
+    conferir("o Administrador tem todos os dados sensiveis", doAdministrador.dados.length, RECURSOS.filter((recurso) => recurso.tipo === "dado").length);
+    conferir(
+      "resumo da mudanca: so a lista de funcoes que mudou, como texto ordenado",
+      resumoDaMudanca({ nome: "Andrea", funcoes: ["Atendimento"] }, { nome: "Andrea", funcoes: ["Vendas", "Atendimento"] }),
+      [{ campo: "Funções", antes: "Atendimento", depois: "Atendimento, Vendas" }],
+    );
+    conferir("resumo de um registro novo e de uma lista igual em outra ordem", [resumoDaMudanca(null, { ativo: true }), resumoDaMudanca({ funcoes: ["b", "a"] }, { funcoes: ["a", "b"] })], [[{ campo: "Ativo", antes: "—", depois: "Sim" }], []]);
+
+    const { Prisma } = await import("@/generated/prisma/client");
+    const usuario = await prisma.usuarioRise.create({ data: { login: "zz-ac-historico", nome: "ZZ Historico" } });
+    const quando = (minutos) => new Date(Date.UTC(2026, 9, 22, 12, minutos));
+    await prisma.auditoriaDeAcesso.createMany({
+      data: [
+        { quem: "zz-ac-dono", oQue: "usuario.salvar", alvo: usuario.id, quando: quando(1), antes: Prisma.DbNull, depois: { nome: "ZZ Historico", ativo: true } },
+        { quem: "zz-ac-dono", oQue: "acessos.login.senha", alvo: "zz-ac-historico", quando: quando(2), antes: Prisma.DbNull, depois: { nome: "ZZ" } },
+        { quem: "zz-ac-dono", oQue: "usuario.salvar", alvo: usuario.id, quando: quando(3), antes: { ativo: true }, depois: { ativo: false } },
+        { quem: "zz-ac-dono", oQue: "usuario.salvar", alvo: "outro-alvo", quando: quando(4), antes: Prisma.DbNull, depois: { ativo: true } },
+      ],
+    });
+    const historico = await historicoDoUsuario(usuario.id);
+    conferir("historico: as 3 do usuario (uma pelo login), a mais recente primeiro", [historico.total, historico.linhas.map((linha) => linha.oQue)], [3, ["Usuário salvo", "Senha definida", "Usuário salvo"]]);
+    conferir("historico: o que mudou em cada linha", historico.linhas[0].mudancas, [{ campo: "Ativo", antes: "Sim", depois: "Não" }]);
+    conferir("historico de quem nao existe: vazio", (await historicoDoUsuario("nao-existe")).total, 0);
+    const { verComo } = await import("../src/lib/acessos/banco.js");
+    const funcaoDeTeste = await prisma.funcaoRise.create({ data: { nome: "ZZ-AC Ver como", permissoes: { create: funcao.permissoes } } });
+    const daFuncao = await verComo("funcao", funcaoDeTeste.id);
+    conferir("ver como da funcao: o mesmo retrato da resolucao", [daFuncao.nome, daFuncao.retrato.blocos], ["ZZ-AC Ver como", retrato.blocos]);
+    await prisma.usuarioRise.update({ where: { id: usuario.id }, data: { ativo: false, funcoes: { create: [{ funcaoId: funcaoDeTeste.id }] } } });
+    const doInativo = await verComo("usuario", usuario.id, { env: {} });
+    conferir("ver como de quem esta inativo: nao ve nada", [doInativo.estado, doInativo.retrato.blocos], ["inativo", []]);
+    conferir("ver como de tipo desconhecido ou id que nao existe: nada", [await verComo("outro", usuario.id), await verComo("usuario", "nao-existe")], [null, null]);
+    await prisma.funcaoRise.delete({ where: { id: funcaoDeTeste.id } });
+    // Os registros deste bloco saem aqui: o bloco do login de entrada, abaixo, conta as auditorias de senha.
+    await prisma.auditoriaDeAcesso.deleteMany({ where: { alvo: { in: [usuario.id, "zz-ac-historico", "outro-alvo"] } } });
+    await prisma.usuarioRise.delete({ where: { id: usuario.id } });
+  }
+
   // --- Lancamento 2: Indicadores (os valores do estoque seguem custo e financeiro) ---
   {
     console.log("\nIndicadores");

@@ -9,6 +9,7 @@ import Janela from "@/components/riseAi/Janela";
 import Badge from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
 import { contarAlteracoes, permissoesParaEnvio } from "@/lib/acessos/matriz";
+import VerComo from "./JanelaVerComo";
 import MatrizDePermissoes from "./MatrizDePermissoes";
 
 const PRINCIPAL =
@@ -87,13 +88,19 @@ export default function FormularioFuncao({ funcao }) {
     });
   }
 
+  // "Ver como": alguem so com esta funcao, calculado do que esta salvo (com alteracao na tela, espera o Salvar).
+  const verComo = funcao.id && <VerComo tipo="funcao" id={funcao.id} alterado={alteracoes > 0} />;
   const acao = fixa ? (
-    <Badge>
-      <Lock size={11} className="mr-1" aria-hidden="true" />
-      Função fixa · vê e edita tudo
-    </Badge>
+    <div className="flex items-center gap-2">
+      {verComo}
+      <Badge>
+        <Lock size={11} className="mr-1" aria-hidden="true" />
+        Função fixa · vê e edita tudo
+      </Badge>
+    </div>
   ) : (
     <div className="flex items-center gap-2">
+      {verComo}
       {funcao.id && (
         <div className="relative">
           <button
