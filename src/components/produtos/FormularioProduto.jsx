@@ -178,12 +178,68 @@ function MarcaDaProposta({ nome }) {
   );
 }
 
+/**
+ * Campo SEM lista propria (garantia, unidade, origem, codigo; decisao C do dono em 22/10/2026): quando o campo ja estava
+ * preenchido e a proposta sugere outro valor, um icone de lista ao lado do rotulo traz so o item da proposta. Escolher
+ * escreve no campo e avisa o formulario pelo mesmo evento da digitacao.
+ */
+function IconeDaProposta({ nome }) {
+  const sugestao = useContext(PropostaNosCampos)?.listas?.[nome];
+  const [aberto, setAberto] = useState(false);
+  if (!sugestao) return null;
+
+  function usar(evento) {
+    const campo = evento.currentTarget.form?.elements?.[nome];
+    if (campo) {
+      campo.value = String(sugestao.valor);
+      campo.dispatchEvent(new Event(campo.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
+    }
+    setAberto(false);
+  }
+
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        onClick={() => setAberto((atual) => !atual)}
+        title="A proposta sugere outro valor"
+        aria-label={`${sugestao.rotulo}: sugestão da proposta`}
+        className={`relative rounded p-0.5 hover:bg-fundo ${COR_DE_USO.referencia}`}
+      >
+        <ListChecks size={15} />
+        <Contador quantidade={1} usado={false} />
+      </button>
+      {aberto && (
+        <ListaFlutuante largura="w-72" aoFechar={() => setAberto(false)}>
+          <button
+            type="button"
+            onClick={usar}
+            className="flex w-full items-center justify-between gap-3 rounded border border-borda px-3 py-2 text-left font-normal hover:border-acento hover:bg-sky-50"
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">{String(sugestao.valor)}</span>
+              {sugestao.origem && <span className="block truncate text-[11px] text-suave">{sugestao.origem}</span>}
+            </span>
+            <SeloDaProposta />
+          </button>
+        </ListaFlutuante>
+      )}
+    </span>
+  );
+}
+
+/** A etiqueta "Proposta" do item que veio da proposta, nas listas dos campos. */
+function SeloDaProposta() {
+  return <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">Proposta</span>;
+}
+
 function Campo({ nome, rotulo, erro, ajuda, children, ...props }) {
   return (
     <div>
       <label htmlFor={nome} className="flex items-center gap-1 text-sm font-semibold">
         {rotulo}
         {ajuda && <BolhaDeAjuda texto={ajuda} variante="inline" />}
+        <IconeDaProposta nome={nome} />
       </label>
       {children ?? (
         <input
@@ -519,6 +575,8 @@ function CampoComIcone({
   // O espaco reservado a direita quando ha `iconeExtra` (o do olho sozinho cabe em bem menos que o da margem aberta).
   reservaExtra = "pr-56",
   prefixo,
+  // O campo ja mostra a sugestao da proposta na lista dele (CampoDeReferencias, CampoPreco): sem o icone generico.
+  listaPropria = false,
   children,
   ...props
 }) {
@@ -527,6 +585,7 @@ function CampoComIcone({
       <label htmlFor={nome} className="flex items-center gap-1 text-sm font-semibold">
         {rotulo}
         {ajuda && <BolhaDeAjuda texto={ajuda} variante="inline" />}
+        {!listaPropria && <IconeDaProposta nome={nome} />}
       </label>
       <div className="relative">
         {prefixo && (
@@ -797,6 +856,8 @@ function CampoPreco({
   const lucroPercentual = useRef(null);
   const lucroReais = useRef(null);
 
+  // A sugestao de preco da proposta (o campo ja tinha preco): no topo da lista do "$" (pedido do dono em 22/10/2026).
+  const sugestao = useContext(PropostaNosCampos)?.listas?.precoVenda ?? null;
   const comPreco = referencias
     .filter((item) => item.preco !== null && item.preco !== undefined)
     .sort((a, b) =>
@@ -983,13 +1044,14 @@ function CampoPreco({
           </>
         )
       }
+      listaPropria
       icone={
-        !comReferencias ? undefined : (
+        !comReferencias && !sugestao ? undefined : (
         <button
           type="button"
           onClick={() => setAberto((atual) => !atual)}
           title={
-            comPreco.length > 0
+            comPreco.length > 0 || sugestao
               ? "Ver os preços das referências: marcadas na lupa do Nome e fornecedores/concorrentes salvos"
               : "As referências não trazem preço"
           }
@@ -1000,14 +1062,14 @@ function CampoPreco({
         >
           <BadgeDollarSign size={16} />
           <Contador
-            quantidade={comPreco.length}
+            quantidade={comPreco.length + (sugestao ? 1 : 0)}
             usado={usos.tem("precoVenda")}
           />
         </button>
         )
       }
     >
-      {aberto && comReferencias && (
+      {aberto && (comReferencias || sugestao) && (
         <ListaFlutuante largura="w-[30rem]" aoFechar={() => setAberto(false)}>
           <div className="flex items-center justify-between px-2 pt-1 pb-2">
             <span className="text-sm font-semibold">Escolha um preço</span>
@@ -1021,7 +1083,22 @@ function CampoPreco({
             </button>
           </div>
 
-          {comPreco.length === 0 ? (
+          {sugestao && (
+            <button
+              type="button"
+              onClick={() => escolher(sugestao.valor)}
+              className="mb-1 flex w-full items-center gap-3 rounded border border-amber-300 bg-amber-50/60 px-3 py-2 text-left hover:border-acento hover:bg-sky-50"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2 text-xs">
+                  <SeloDaProposta />
+                  <span className="text-suave">{sugestao.origem}</span>
+                </span>
+              </span>
+              <span className="shrink-0 text-sm font-semibold text-emerald-700 tabular-nums">{reais(sugestao.valor)}</span>
+            </button>
+          )}
+          {comPreco.length === 0 && sugestao ? null : comPreco.length === 0 ? (
             <p className="px-2 pb-2 text-sm text-suave">
               {referencias.length === 0
                 ? "Marque produtos de referência na lupa ao lado do Nome, ou vincule fornecedores e concorrentes."
@@ -1206,7 +1283,11 @@ function CampoDeReferencias({
     setAberto(false);
   }
 
-  const lista = Array.isArray(valores) ? valores : [];
+  // A sugestao da proposta (campo ja preenchido com outro valor) vai NO TOPO da lista, com a etiqueta "Proposta" (pedido
+  // do dono em 22/10/2026), e aparece mesmo sem referencia marcada.
+  const sugestao = useContext(PropostaNosCampos)?.listas?.[nome] ?? null;
+  const daReferencia = Array.isArray(valores) ? valores : [];
+  const lista = sugestao ? [{ valor: sugestao.valor, origem: sugestao.origem, fontes: [], daProposta: true }, ...daReferencia] : daReferencia;
   // Icone CINZA quando as referencias marcadas nao trazem este dado — pedido do
   // dono em 16/09/2026: assim se ve sem clicar que nao ha o que escolher.
   const temDado = lista.length > 0;
@@ -1217,12 +1298,13 @@ function CampoDeReferencias({
       rotulo={rotulo}
       ajuda={ajuda}
       entrada={entrada}
+      listaPropria
       {...props}
       defaultValue={emMaiusculas && inicial ? maiusculas(inicial) : inicial}
       onInput={emMaiusculas ? aoDigitarMaiusculo : undefined}
       icone={
         // Sem dado nas referencias marcadas, o icone NAO aparece (pedido do dono).
-        carregando ? (
+        carregando && !sugestao ? (
           <Loader size={16} className="mr-1.5 animate-spin text-suave" />
         ) : temDado ? (
           <button
@@ -1256,17 +1338,17 @@ function CampoDeReferencias({
             </button>
           </div>
 
-          {ids.length === 0 ? (
+          {ids.length === 0 && !sugestao ? (
             <p className="px-2 pb-2 text-sm text-suave">
               Marque produtos de referência na lupa ao lado do Nome, ou vincule fornecedores e concorrentes na
               aba Fornecedores / Concorrentes.
             </p>
-          ) : carregando || !valores ? (
+          ) : (carregando || !valores) && !sugestao ? (
             <p className="flex items-center gap-2 px-2 pb-2 text-sm text-suave">
               <Loader size={14} className="animate-spin" /> Lendo as
               referências...
             </p>
-          ) : valores?.erro ? (
+          ) : valores?.erro && !sugestao ? (
             <p className="px-2 pb-2 text-sm text-red-700">{valores.erro}</p>
           ) : lista.length === 0 ? (
             <p className="px-2 pb-2 text-sm text-suave">{vazio}</p>
@@ -1295,9 +1377,13 @@ function CampoDeReferencias({
                         </span>
                       )}
                     </span>
-                    <span className="shrink-0 text-right text-[11px] text-suave">
-                      {item.fontes.join(", ")}
-                    </span>
+                    {item.daProposta ? (
+                      <SeloDaProposta />
+                    ) : (
+                      <span className="shrink-0 text-right text-[11px] text-suave">
+                        {item.fontes.join(", ")}
+                      </span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -3050,7 +3136,9 @@ export default function FormularioProduto({
   }
 
   return (
-    <PropostaNosCampos.Provider value={daProposta ? { valores: daProposta.preencher, editados: editadosDaProposta } : null}>
+    <PropostaNosCampos.Provider
+      value={daProposta ? { valores: daProposta.preencher, editados: editadosDaProposta, listas: daProposta.nasListas } : null}
+    >
     <form
       ref={formulario}
       action={acao}
