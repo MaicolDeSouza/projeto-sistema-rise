@@ -11,7 +11,7 @@
  */
 
 import { normalizarAtributosDaCategoria } from "./atributos";
-import { freteQueConta, precoPorMargem } from "./custos";
+import { LIMITE_DO_FRETE_GRATIS, freteQueConta, precoPorMargem } from "./custos";
 import { medidasFaltando } from "./validacao";
 
 const dinheiro = (valor) => Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
@@ -124,7 +124,9 @@ export async function lerFreteDoVendedor(cliente, { envio, preco, tipoAnuncio, l
     listing_type_id: tipoAnuncio,
     mode: "me2",
     logistic_type: logistica,
-    free_shipping: true,
+    // Abaixo de R$ 79 o ML cobra do vendedor o valor SEM frete gratis (R$ 6,85 no 100101, igual as vendas reais de
+    // 22/10/2026); de R$ 79 para cima, ou com o frete gratis ligado pelo dono, o valor com frete gratis.
+    free_shipping: Number(preco) >= LIMITE_DO_FRETE_GRATIS || Boolean(envio.freteGratis),
   });
   const cobertura = dados?.coverage?.all_country;
   if (!cobertura) throw new Error("O Mercado Livre não devolveu o custo do frete.");

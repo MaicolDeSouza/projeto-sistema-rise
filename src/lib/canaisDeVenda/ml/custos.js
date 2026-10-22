@@ -74,7 +74,14 @@ export function custosValem(custosML, rascunho) {
 }
 
 /** O frete do vendedor so sai do bolso com frete gratis ligado; sem frete lido, nada conta. */
+// `rascunho` fica na assinatura: quem chama ja passa e pode voltar a precisar dele.
 export function freteQueConta(custosML, rascunho) {
+  // Conta SEMPRE (medido nas vendas reais de 22/10/2026): abaixo de R$ 79 o ML cobra do vendedor um frete reduzido
+  // (R$ 6,85 no 100101) mesmo sem frete gratis anunciado; de R$ 79 para cima o frete gratis e obrigatorio. Ate ali so
+  // contava com o frete gratis ligado, e o lucro saia ~R$ 6,85 maior.
   const frete = custosML?.frete;
-  return rascunho?.envio?.freteGratis && frete !== null && frete !== undefined ? Number(frete) : 0;
+  return frete !== null && frete !== undefined ? Number(frete) : 0;
 }
+
+/// A partir deste preco o frete gratis e obrigatorio no ML (abaixo, o ML cobra do vendedor o frete sem frete gratis).
+export const LIMITE_DO_FRETE_GRATIS = 79;

@@ -125,7 +125,9 @@ const PADROES = {
   descoberta: { "placa uno r3 ch340": ["MLB99779"] },
   // Classico 13% e Premium 18% (A3). Tarifa fixa so em Flex e ME1, abaixo do limite (TH).
   taxas: { percentualPorTipo: { gold_special: 13, gold_pro: 18 }, tarifaFixaPorLogistica: { self_service: 6.65, default: 6.65 }, limiteTH: 79 },
-  frete: { listCost: 8.15, billableWeight: 300 },
+  // `listCostSemGratis`: o que o ML devolve com `free_shipping=false` (abaixo de R$ 79 e o que cobra do vendedor;
+  // medido em 22/10/2026: 6,85 contra 12,95 com frete gratis).
+  frete: { listCost: 8.15, listCostSemGratis: 6.85, billableWeight: 300 },
   tendencias: { MLB99779: TENDENCIAS_DA_PLACA },
   usuarioId: USUARIO_PADRAO,
 };
@@ -275,7 +277,12 @@ export function criarMLFalso(opcoes = {}) {
     }
     return resposta(200, {
       coverage: {
-        all_country: { list_cost: estado.frete.listCost, currency_id: "BRL", billable_weight: estado.frete.billableWeight, free_shipping_by_meli: true },
+        all_country: {
+          list_cost: String(params.free_shipping) === "false" ? estado.frete.listCostSemGratis : estado.frete.listCost,
+          currency_id: "BRL",
+          billable_weight: estado.frete.billableWeight,
+          free_shipping_by_meli: true,
+        },
       },
     });
   }

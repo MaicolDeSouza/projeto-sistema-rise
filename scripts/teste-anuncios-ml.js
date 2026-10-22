@@ -1073,7 +1073,9 @@ try {
       [false, false, false, false],
     );
     conferir("custosValem: sem custos lidos", custosValem(null, r), false);
-    conferir("freteQueConta: so com frete gratis", [freteQueConta(lidos, r), freteQueConta(lidos, { ...r, envio: { ...r.envio, freteGratis: true } })], [0, 8.15]);
+    // Medido nas vendas reais de 22/10/2026: abaixo de R$ 79 o ML cobra o frete do vendedor (R$ 6,85) mesmo sem frete
+    // gratis anunciado; o frete conta SEMPRE, e nao so com o frete gratis ligado.
+    conferir("freteQueConta: conta sempre", [freteQueConta(lidos, r), freteQueConta(lidos, { ...r, envio: { ...r.envio, freteGratis: true } })], [8.15, 8.15]);
     conferir("freteQueConta: frete nao lido conta 0", freteQueConta({ ...lidos, frete: null }, { ...r, envio: { ...r.envio, freteGratis: true } }), 0);
 
     conferir("lerTaxas: xd_drop_off sem tarifa fixa", await lerTaxas(falso, { preco: 20, categoriaId: "MLB99779", tipoAnuncio: "gold_special", logistica: "xd_drop_off" }), { percentual: 0.13, tarifaFixa: 0, comissao: 2.6 });
@@ -1085,9 +1087,25 @@ try {
       ["me2", "xd_drop_off", "gold_pro"],
     );
     conferir(
-      "lerFrete: dimensoes inteiras e custo",
-      await lerFreteDoVendedor(falso, { envio: { alturaCm: 5.5, larguraCm: 8, comprimentoCm: 8, pesoKg: 0.05 }, preco: 49, tipoAnuncio: "gold_special", logistica: "xd_drop_off" }),
-      { custo: 8.15, pesoCobrado: 300 },
+      "lerFrete: abaixo de R$ 79 pede sem frete gratis (o que o ML cobra do vendedor)",
+      [
+        await lerFreteDoVendedor(falso, { envio: { alturaCm: 5.5, larguraCm: 8, comprimentoCm: 8, pesoKg: 0.05 }, preco: 49, tipoAnuncio: "gold_special", logistica: "xd_drop_off" }),
+        String(falso.chamadas.at(-1).params.free_shipping),
+      ],
+      [{ custo: 6.85, pesoCobrado: 300 }, "false"],
+    );
+    conferir(
+      "lerFrete: de R$ 79 para cima, o frete gratis obrigatorio",
+      [
+        await lerFreteDoVendedor(falso, { envio: { alturaCm: 5.5, larguraCm: 8, comprimentoCm: 8, pesoKg: 0.05 }, preco: 79, tipoAnuncio: "gold_special", logistica: "xd_drop_off" }),
+        String(falso.chamadas.at(-1).params.free_shipping),
+      ],
+      [{ custo: 8.15, pesoCobrado: 300 }, "true"],
+    );
+    conferir(
+      "lerFrete: abaixo de R$ 79 com frete gratis ligado pelo dono, pede com frete gratis",
+      (await lerFreteDoVendedor(falso, { envio: { alturaCm: 5.5, larguraCm: 8, comprimentoCm: 8, pesoKg: 0.05, freteGratis: true }, preco: 49, tipoAnuncio: "gold_special", logistica: "xd_drop_off" })).custo,
+      8.15,
     );
     conferir("lerFrete: formato AxLxC,g e o usuario no caminho", [falso.chamadas.at(-1).params.dimensions, falso.chamadas.at(-1).caminho], ["6x8x8,50", "/users/212386247/shipping_options/free"]);
     const antesDoFrete = falso.chamadas.length;
@@ -1102,14 +1120,16 @@ try {
     const t2 = await lerTendencias(falso, "MLB99779");
     conferir("tendencias: so keyword, 40 termos, segunda leitura vem do cache", [t1.length, t1[0], JSON.stringify(t2) === JSON.stringify(t1), falso.chamadas.length - antesDasTendencias], [40, "raspberry pi", true, 1]);
     const custosML = await lerCustosDoAnuncio(falso, r);
-    conferir("lerCustosDoAnuncio: junta taxas e frete e vale para o rascunho", [custosML.percentual, custosML.frete, custosML.pesoCobrado, custosValem(custosML, r)], [0.13, 8.15, 300, true]);
+    // Preco do rascunho abaixo de R$ 79: o frete e o cobrado sem frete gratis (6,85 no falso).
+    conferir("lerCustosDoAnuncio: junta taxas e frete e vale para o rascunho", [custosML.percentual, custosML.frete, custosML.pesoCobrado, custosValem(custosML, r)], [0.13, 6.85, 300, true]);
     conferir("lerCustosDoAnuncio: sem medidas, frete nulo", (await lerCustosDoAnuncio(falso, { ...r, envio: { ...r.envio, pesoKg: null } })).frete, null);
     const porMargem = await precoPorMargemNoML(falso, { ...r, envio: { ...r.envio, logistica: "self_service", freteGratis: true } }, { custo: 24, margem: { tipo: "reais", valor: 20 } });
     conferir("precoPorMargemNoML: converge com tarifa fixa e frete (self_service, frete gratis)", [porMargem.preco, porMargem.custosML.preco, porMargem.custosML.tarifaFixa], [72.6, 72.6, 6.65]);
     conferir("precoPorMargemNoML: inatingivel e null", await precoPorMargemNoML(falso, r, { custo: 24, margem: { tipo: "percentual", valor: 95 } }), null);
     // Acima do limite (79) a tarifa fixa some: o preco que a calcula tem que reler as taxas nele.
     const acimaDoLimite = await precoPorMargemNoML(falso, { ...r, envio: { ...r.envio, logistica: "self_service" } }, { custo: 60, margem: { tipo: "reais", valor: 10 } });
-    conferir("precoPorMargemNoML: rele as taxas no preco novo (tarifa some acima de 79)", [acimaDoLimite.preco, acimaDoLimite.custosML.tarifaFixa], [86.42, 0]);
+    // (60 + 10 + frete 8,15) / (1 - 13% - 6%) = 96,49: o frete agora conta sempre (era 86,42 sem ele).
+    conferir("precoPorMargemNoML: rele as taxas no preco novo (tarifa some acima de 79)", [acimaDoLimite.preco, acimaDoLimite.custosML.tarifaFixa], [96.49, 0]);
 
     // So as partes puras: nenhuma chamada a IA sai do teste.
     console.log("\nFase 2: pedidos e limpeza da IA");
