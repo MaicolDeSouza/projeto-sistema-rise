@@ -36,10 +36,14 @@ alguém **baixar o preço**.
    repositório `ElioBonfim/Aula-Mercado-Livre-Henrique-Niada`) foi **descartada**: contraria a regra do projeto de não
    disfarçar navegador, usa os cookies da conta de vendedor e para no captcha. Do repositório **não se aproveita código**
    (é Python/Playwright sobre o HTML da busca); a medição acima é que define o que se usa.
-2. Na hora de criar o anúncio: **primeira página / melhor posicionados**, escolher e **salvar como concorrentes do ML**.
-3. Depois de salvos, **reler como a coleta faz hoje**: automática, com histórico, na VPS.
-4. Os concorrentes do ML ficam numa **lista separada** dos concorrentes das lojas, com **selo de posição próprio**
-   ("2º de 9 no ML"): o preço do ML embute comissão e frete, e misturar com loja própria engana.
+2. Na hora de criar o anúncio: **primeira página / melhor posicionados**. O dono escolhe o **catálogo**, e o Rise
+   acompanha **os 10 primeiros anúncios daquele catálogo** (`TOP_DO_CATALOGO = 10`), sejam de quem forem, e não
+   vendedores marcados um a um (pedido do dono em 21/10/2026: "esse concorrente pode sair do catálogo, e aí eu terei
+   que refazer a seleção"). Quem sai do top fica no histórico como ausente; quem entra passa a ser acompanhado sozinho.
+3. Depois de salvo o catálogo, **reler como a coleta faz hoje**: automática, com histórico, na VPS.
+4. Os concorrentes do ML ficam **só na aba do ML** (editor do anúncio e lista de anúncios), vinculados ao Produto mas
+   **fora da aba Concorrentes do cadastro de Produto** (pedido do dono em 21/10/2026: "não quero misturar"). Selo de
+   posição próprio ("2º de 9 no ML"): o preço do ML embute comissão e frete, e misturar com loja própria engana.
 5. O que se perde, aceito pelo dono: posição na **página de busca** (não existe pela API), título e vendidos de cada
    anúncio alheio, e vendedores do mesmo item que não estão ligados ao catálogo escolhido.
 
@@ -47,16 +51,16 @@ alguém **baixar o preço**.
 
 **Metas**
 - Na aba Preço e estoque do editor do ML: buscar o produto de catálogo pelo nome, escolher, ver os anúncios que competem
-  (preço, preço cheio, vendedor com reputação e total de vendas, Clássico/Premium, frete grátis, posição), marcar e
-  salvar como concorrentes do Produto.
+  (preço, preço cheio, vendedor com reputação e total de vendas, Clássico/Premium, frete grátis, posição) e **acompanhar
+  o catálogo**: os 10 primeiros viram os concorrentes do ML do Produto, renovados a cada releitura.
 - Selo "Nº de M no ML" ao lado do preço do anúncio, e clicar num preço copia para o campo.
 - Releitura diária pelo worker da VPS: preço e posição de cada concorrente, série de preço, foto mensal.
 - Aviso na lista de anúncios do ML e no editor quando a posição do dono caiu ou um concorrente baixou o preço desde a
   última leitura vista.
-- Aba Concorrentes do cadastro de Produto mostra a lista do ML em separado, só leitura.
 
 **Não metas (agora)**
 - Posição na página de busca do ML; navegador; título e vendidos de anúncio alheio.
+- Qualquer coisa do ML na aba Concorrentes do cadastro de Produto (decisão do dono).
 - Mudar o preço do anúncio sozinho ("repricing"). O Rise só mostra e avisa.
 - Concorrentes do ML entrarem na lupa do Nome, na descrição por IA ou no `ProdutoColetado`/Scraper.
 - Produto sem catálogo: fica sem concorrentes do ML, com a mensagem do motivo.
@@ -92,12 +96,14 @@ O dono escolheu a 1 depois de ver a medição: cobre preço e posição todo dia
 
 - `Produto.mlCatalogoId String?` — o produto de catálogo escolhido (`MLB44072268`). Um por produto; vale para todos os
   anúncios do ML dele (Clássico e Premium). `Produto.mlCatalogoNome String?` para a tela não reler o ML.
-- `ConcorrenteML` — um por anúncio concorrente salvo:
+- `ConcorrenteML` — um por anúncio que já esteve no top do catálogo do produto (**criado e renovado pela leitura, não
+  pela escolha do dono**):
   `id`, `produtoId` (Cascade), `itemId` (`MLB...`), `catalogoId`, `vendedorId`, `vendedorApelido`, `vendedorReputacao`
   (`level_id`), `vendedorVendas` (Int, `transactions.total`), `vendedorCidade`, `tipoAnuncio` (`gold_special`/`gold_pro`),
   `freteGratis Boolean`, `logistica`, `preco Decimal`, `precoCheio Decimal?`, `posicao Int` (1 = primeiro da lista do
-  ML), `totalNoCatalogo Int`, `lidoEm`, `ausenteDesde DateTime?` (sumiu da lista do catálogo: fica, não apaga, como a
-  coleta), `criadoEm`. `@@unique([produtoId, itemId])`.
+  ML), `totalNoCatalogo Int`, `lidoEm`, `ausenteDesde DateTime?` (saiu do top 10 ou do catálogo: fica, não apaga, como a
+  coleta; volta a `null` se reaparecer), `criadoEm`. `@@unique([produtoId, itemId])`. Os anúncios do próprio dono
+  **não** viram linha (são a `PosicaoML`).
 - `ConcorrenteMLHistorico` — a série: `concorrenteId` (Cascade), `preco`, `precoCheio`, `posicao`, `lidoEm`. Linha nova
   **só quando preço, preço cheio ou posição mudam** (a regra do `PrecoHistorico`).
 - `PosicaoML` — a posição do próprio dono por catálogo: `produtoId`, `catalogoId`, `itemId` (o anúncio do dono que está
@@ -130,34 +136,37 @@ Ordem na aba: preço e estoque (como hoje) → **Concorrentes no Mercado Livre**
    Resultado: até 10 produtos de catálogo, cada um com foto, nome, domínio e 3 atributos da ficha (marca, modelo e o
    primeiro que sobrar), e o botão **Usar este**. Nada acha: "Nenhum produto de catálogo parecido. Esse item fica sem
    concorrentes do ML." Se o Produto já tem `mlCatalogoId`, pula para o passo 2 (o botão vira "Trocar catálogo").
-2. **Com catálogo:** a lista dos anúncios que competem, na ordem do ML: posição, preço (cheio riscado quando há),
-   vendedor (apelido, reputação, vendas), Clássico/Premium, frete grátis. Os do dono em destaque ("você"), não
-   marcáveis. Caixa de marcação por linha, **"Marcar todos"** e o botão **Salvar concorrentes**. Já salvos vêm marcados;
-   desmarcar e salvar **remove** da lista do Produto (não há histórico a perder antes da primeira releitura; depois, remover
-   apaga a série, com confirmação na tela).
-3. **Salvar** grava `Produto.mlCatalogoId/Nome`, os `ConcorrenteML` marcados (com a leitura de agora como primeira linha
-   do histórico) e a primeira `PosicaoML`. É uma Server Action própria (`salvarConcorrentesML`), fora do Salvar do
-   anúncio: o dono pode salvar concorrentes sem salvar o rascunho.
-4. **Selo "Nº de M no ML"** ao lado do campo Preço (`posicaoDePreco` com os preços dos concorrentes salvos, cada vendedor
-   contando uma vez pelo menor preço dele, empate "(empatado)"; o próprio anúncio do dono já publicado no catálogo não
-   entra, senão o dono competiria consigo). Clicar num preço da lista copia para o campo Preço e marca o formulário.
+2. **Com catálogo (prévia):** a lista dos anúncios que competem, na ordem do ML: posição, preço (cheio riscado quando
+   há), vendedor (apelido, reputação, vendas), Clássico/Premium, frete grátis. Os do dono em destaque ("você"). Os 10
+   primeiros (sem contar os do dono) marcados como "acompanhado"; os demais em cinza, só informação. Sem caixa de
+   marcação: o botão é **Acompanhar este catálogo** (ou **Trocar catálogo**, que volta ao passo 1). Trocar de catálogo
+   num produto que já tem histórico pede confirmação ("o histórico dos concorrentes do catálogo anterior fica guardado
+   como ausente").
+3. **Acompanhar** grava `Produto.mlCatalogoId/Nome` e faz a primeira leitura de verdade (a mesma rotina da releitura,
+   §7.5): cria os `ConcorrenteML` do top 10, a primeira linha do histórico de cada um e a primeira `PosicaoML`. É uma
+   Server Action própria (`acompanharCatalogoML`), fora do Salvar do anúncio: o dono pode acompanhar sem salvar o
+   rascunho. **Parar de acompanhar** (link discreto) zera `mlCatalogoId` e marca todos como ausentes; nada é apagado.
+4. **Selo "Nº de M no ML"** ao lado do campo Preço (`posicaoDePreco` com os preços dos acompanhados que não estão
+   ausentes, cada vendedor contando uma vez pelo menor preço dele, empate "(empatado)"; os anúncios do dono não entram,
+   senão ele competiria consigo). Clicar num preço da lista copia para o campo Preço e marca o formulário.
 5. **Cabeçalho do bloco:** "Lido em 21/10 08:03 · 9 anúncios no catálogo · você é o 4º" e o botão **Reler agora**
-   (uma leitura, sem gravar histórico se nada mudou; grava `lidoEm`).
+   (a mesma rotina do §7.5 para este produto: grava histórico só do que mudou).
 
-### 7.4 Cadastro de Produto (aba Concorrentes)
+### 7.4 Onde mais aparece
 
-Abaixo da tabela das lojas, a seção **"Concorrentes no Mercado Livre"** (só leitura): catálogo escolhido com link
-(`permalink`), a lista com posição, vendedor, preço (e seta vermelha/verde contra a leitura anterior), tipo, frete e
-"última leitura". Selo próprio "Nº de M no ML" ao lado do título da seção. Sem botões de editar: a escolha é feita no
-editor do anúncio (link "Editar no anúncio do ML").
+Só na aba do ML: o bloco do editor (§7.3, com seta vermelha/verde em cada preço contra a leitura anterior e o link do
+catálogo, `permalink`) e a coluna da lista de anúncios (§7.6). **Nada no cadastro de Produto**: a aba Concorrentes dele
+continua só com as lojas.
 
 ### 7.5 Releitura diária (worker da VPS)
 
 - Rotina `relerConcorrentesML()` em `src/lib/canaisDeVenda/ml/relerCatalogo.js`, chamada de hora em hora no laço do
   worker normal, que roda de verdade **uma vez por dia** (`ConfigCanal.mlConcorrentesRelidosEm`, no dia de São Paulo,
-  como a foto mensal guarda o mês). Para cada `Produto` com `mlCatalogoId`: uma leitura de `/products/{id}/items`, atualiza cada
-  `ConcorrenteML` salvo (preço, posição, ausente), grava histórico quando mudou, grava `PosicaoML` quando mudou. Vendedores
-  pelo cache. Erro num catálogo não derruba os outros; o resultado vai para o log do worker.
+  como a foto mensal guarda o mês). Para cada `Produto` com `mlCatalogoId`: uma leitura de `/products/{id}/items`; os **10 primeiros que não são
+  do dono** são o top de hoje: quem já tem linha é atualizado (preço, posição, `ausenteDesde` volta a `null`), quem não
+  tem ganha uma; quem tinha linha e ficou fora do top ganha `ausenteDesde` (se ainda não tinha). Histórico só quando
+  preço, preço cheio ou posição mudaram; `PosicaoML` quando a posição do dono, o total ou o menor preço mudaram.
+  Vendedores pelo cache (um `/users` por vendedor novo). Erro num catálogo não derruba os outros; o resultado vai para o log do worker.
 - **Ritmo:** a fila do `mlGet` já limita; a rotina ainda espera 300 ms entre catálogos. Com 200 produtos são ~200 GETs
   por dia.
 - Rate limit ou token vencido: a rodada para, loga e tenta de novo na próxima hora (sem contar como rodada do dia).
@@ -185,10 +194,12 @@ editor do anúncio (link "Editar no anúncio do ML").
   `/users/{id}`.
 - `buscarCatalogos`, `lerConcorrentesDoCatalogo` (ordem, `meu`, 404, 3 páginas), cache de vendedores (segunda chamada
   não lê o ML).
-- Salvar: cria concorrentes + histórico + posição; salvar de novo sem mudança não duplica; desmarcar remove; produto não
-  Conferido recusa.
-- Releitura: preço mudou → linha no histórico; igual → só `lidoEm`; sumiu → `ausenteDesde`; posição do dono mudou →
-  `PosicaoML`; erro num catálogo não impede o seguinte; roda uma vez por dia.
+- Acompanhar: grava o catálogo e cria os 10 primeiros (sem os do dono) + histórico + posição; acompanhar de novo sem
+  mudança não duplica; trocar de catálogo marca os antigos como ausentes; parar de acompanhar zera o catálogo sem apagar;
+  produto não Conferido recusa.
+- Releitura: preço mudou → linha no histórico; igual → só `lidoEm`; saiu do top 10 → `ausenteDesde`; voltou → `null`;
+  entrou um novo → linha nova; posição do dono mudou → `PosicaoML`; erro num catálogo não impede o seguinte; roda uma
+  vez por dia.
 - `posicaoDePreco` com concorrentes do ML: um vendedor com dois anúncios conta uma vez; o anúncio do dono não entra.
 - `avisosDoML`: caiu, baixou, novo mais barato, nada a avisar depois de visto.
 - Foto mensal inclui as linhas do ML.
@@ -198,6 +209,7 @@ editor do anúncio (link "Editar no anúncio do ML").
 - Formato exato do `level_id` e `power_seller_status` na tela (texto curto).
 - Onde a releitura grava o log do worker.
 - Paginação do `/products/search` (o dono vê 10; "ver mais" é opcional).
+- Se `TOP_DO_CATALOGO` (10) vira campo por produto um dia; hoje é constante no código.
 - O nome do campo de busca e o texto de ajuda da bolha "i".
 
 ## 11. Fora do escopo, registrado
