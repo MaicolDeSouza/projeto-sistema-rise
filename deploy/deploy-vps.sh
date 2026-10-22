@@ -63,8 +63,11 @@ if ! SAIDA_CADDY="$(docker compose run --rm --no-deps caddy caddy validate --con
   exit 1
 fi
 
-# A versao do pe do menu e a hora do deploy em Sao Paulo, e e a mesma da tag local vps-<versao>.
-VERSAO="$(TZ=America/Sao_Paulo date +%d.%m.%Y.%H.%M)"
+# A versao do pe do menu e a DATA do deploy em Sao Paulo mais o NUMERO do deploy (pedido do dono em 22/10/2026: tirar a
+# hora; contador unico, nunca recomeca): o numero e o total de deploys que deram certo, as linhas de ~/logs/deploy.log
+# (so o deploy que passa em tudo grava ali), mais 1. E a mesma da tag local vps-<versao>.
+NUMERO_DO_DEPLOY="$(( $( [ -f "${HOME}/logs/deploy.log" ] && wc -l < "${HOME}/logs/deploy.log" || echo 0) + 1 ))"
+VERSAO="$(TZ=America/Sao_Paulo date +%d.%m.%Y).$(printf '%02d' "${NUMERO_DO_DEPLOY}")"
 COMMIT="$(git rev-parse --short HEAD)"
 echo "== Deploy ${VERSAO} (commit ${COMMIT})"
 

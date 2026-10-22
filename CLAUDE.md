@@ -218,7 +218,7 @@ npm run diagnostico               # testa as integrações pela linha de comando
 npm run teste:extracao            # 664 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
-npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.HH.MM do deploy, em São Paulo; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
+npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
 npm run teste:migracao            # regras puras da migração para a VPS (nomes de arquivo com caixa diferente; restore da cópia; quais Conexao do PC sobrevivem à cópia; `BACKUP_MANTER` inválido). SEM rede e SEM banco
 npm run teste:rede                # o filtro de rede pública do servidor (`src/lib/redePublica.js` + `lookup`/`validar` do `obter`) e sua LIGAÇÃO em `bytesDe` e `baixarDocumento`: IPs internos, nome que resolve para IP interno, ponto final, redirecionamento para IP escrito, IPv6. Os "sites" são servidores nesta máquina: SEM internet e SEM consulta ao banco
 npm run auditar:arquivos          # confere que todo ProdutoArquivo existe no disco com o nome EXATO (o Linux distingue caixa); só lê; código 1 se houver problema
@@ -4871,7 +4871,7 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   um clique) e devolve o `Set-Cookie` que apaga a sessão, com `303` para `/`, que sem sessão cai no login. No topo do menu:
   o ícone da 4hobby (`public/marcas/4hobby.svg`, vetorizado do logo do dono) abre www.4hobby.com.br em aba nova, e o "R" e
   o nome Rise levam ao Painel.
-- **Versão no pé do menu:** na VPS é a hora do deploy (`DD.MM.AAAA.HH.MM`) e o commit; no PC é `dev` mais a hora do
+- **Versão no pé do menu:** na VPS é a data e o NÚMERO do deploy (`DD.MM.AAAA.NN`, desde 22/10/2026, pedido do dono; contador único que nunca recomeça: as linhas de `~/logs/deploy.log` + 1, em `deploy-vps.sh`; até ali era a hora) e o commit; no PC é `dev` mais a hora do
   último commit (`+` se há alteração não commitada). **Mesmo commit nos dois = mesmo código**; a hora só dá a ordem.
 - **Dois apps de OAuth por plataforma:** o app do PC (redirect em `localhost`/`localtest.me`) e o da VPS (redirect em
   `rise.4hobby.com.br`), cada um com as chaves no `.env` do seu ambiente. O token gravado leva o `clientId` do app, e o

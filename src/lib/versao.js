@@ -2,8 +2,9 @@
  * Versao do Rise mostrada no pe do menu. Sem imports: e lido pelo next.config.mjs (no build), pela barra
  * lateral e pelo teste.
  *
- * A versao e a HORA DO DEPLOY no formato DD.MM.AAAA.HH.MM (pedido do dono em 07/10/2026), carimbada pelo
- * script de deploy da VPS e repetida na tag do git (vps-DD.MM.AAAA.HH.MM). Sem ela o processo e uma copia
+ * Na VPS a versao e a DATA DO DEPLOY mais o NUMERO do deploy, DD.MM.AAAA.NN (desde 22/10/2026, pedido do dono; ate ali
+ * era a hora, DD.MM.AAAA.HH.MM, pedido de 07/10/2026; o numero nunca recomeca), carimbada pelo
+ * script de deploy da VPS e repetida na tag do git (vps-<versao>). Sem ela o processo e uma copia
  * de desenvolvimento, e a tela diz "dev": numero inventado no PC faria a copia parecer a producao.
  */
 
