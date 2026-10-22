@@ -731,7 +731,7 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["atualizadoEm", "codigo", "id", "idExterno", "preco", "status", "tipoAnuncio", "titulo", "urlExterna"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["atualizadoEm", "avisosML", "codigo", "id", "idExterno", "preco", "produtoId", "status", "tipoAnuncio", "titulo", "urlExterna"]);
         conferir("lista: o mais recente primeiro", lista.linhas.every((l, i) => i === 0 || lista.linhas[i - 1].atualizadoEm >= l.atualizadoEm), true);
         conferir("lista: acha pelo codigo do kit", (await listarAnunciosML({ busca: "zz-ml-kit2" })).linhas.map((l) => [l.id, l.codigo]), [[k2.id, "ZZ-ML-KIT2"]]);
         conferir("lista: acha pelo titulo", (await listarAnunciosML({ busca: "ZZ TITULO NOVO" })).linhas.map((l) => [l.id, l.titulo, l.tipoAnuncio]), [[premium.id, "ZZ Titulo novo", "gold_pro"]]);
@@ -1858,8 +1858,11 @@ try {
     const tela = await lerConcorrentesML(p.id);
     conferir("lerConcorrentesML: avisos antes de ver", tela.avisos.map((v) => v.tipo).sort(), ["caiu", "novo_mais_barato"]);
     conferir("lerConcorrentesML: o texto da queda", tela.avisos.find((v) => v.tipo === "caiu").texto, "caiu de 4º para 5º");
+    await prisma.anuncio.create({ data: { produtoId: p.id, canal: "MERCADO_LIVRE", titulo: "ZZ anuncio", dados: { tipoAnuncio: "gold_special" } } });
+    conferir("lista de anuncios: a coluna traz os avisos do produto", (await listarAnunciosML({ busca: "ZZ-ML-C1" })).linhas[0]?.avisosML?.[0], "caiu de 4º para 5º");
     await marcarConcorrentesMLVistos(p.id, { agora: new Date("2026-10-22T12:00:00Z") });
     conferir("depois de visto, sem avisos", (await lerConcorrentesML(p.id)).avisos, []);
+    conferir("lista de anuncios: sem avisos depois de visto", (await listarAnunciosML({ busca: "ZZ-ML-C1" })).linhas[0]?.avisosML, []);
 
     const r3 = await relerCatalogoDoProduto(ml, p.id, { agora: new Date("2026-10-23T10:00:00Z") });
     conferir("reler: quem voltou perde o ausenteDesde", [r3.ok, (await prisma.concorrenteML.findFirst({ where: { produtoId: p.id, itemId: "MLB5434866561" } })).ausenteDesde], [true, null]);

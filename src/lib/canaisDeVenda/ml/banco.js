@@ -3,6 +3,7 @@ import { urlDe } from "@/lib/arquivos";
 import { codigoDaComposicao, errosDaComposicao, proximoCodigoDaFaixa } from "../composicao";
 import { lerConfigML } from "../configuracao";
 import { custoDoProduto } from "../custo";
+import { avisosDeVariosProdutos } from "./concorrentes";
 import { RascunhoMLSchema } from "./esquema";
 import { rascunhoInicial } from "./rascunho";
 
@@ -333,12 +334,19 @@ export async function salvarRascunhoML(anuncioId, entrada) {
   }
 }
 
-const DADOS_DA_LINHA = { id: true, titulo: true, status: true, atualizadoEm: true, dados: true, idExterno: true, urlExterna: true, produto: { select: { sku: true } } };
+const DADOS_DA_LINHA = { id: true, produtoId: true, titulo: true, status: true, atualizadoEm: true, dados: true, idExterno: true, urlExterna: true, produto: { select: { sku: true } } };
+
+// A coluna "Concorrencia" (concorrentes do ML pelo catalogo): os avisos do produto de cada linha, lidos de uma vez.
+async function comAvisos(linhas) {
+  const avisos = await avisosDeVariosProdutos(linhas.map((linha) => linha.produtoId));
+  return linhas.map((linha) => ({ ...linha, avisosML: avisos.get(linha.produtoId) ?? [] }));
+}
 
 // O codigo da linha e o do kit, ou o SKU do produto no anuncio simples.
 function linhaDoAnuncio(anuncio) {
   return {
     id: anuncio.id,
+    produtoId: anuncio.produtoId,
     codigo: anuncio.dados?.composicao?.codigo || anuncio.produto.sku,
     titulo: anuncio.titulo ?? "",
     tipoAnuncio: anuncio.dados?.tipoAnuncio ?? null,
@@ -356,7 +364,7 @@ export async function anunciosMLDoProduto(produtoId) {
   // `where: { produtoId: undefined }` o Prisma le como "sem filtro": listaria todos os anuncios.
   if (typeof produtoId !== "string" || produtoId === "") return [];
   const anuncios = await prisma.anuncio.findMany({ where: { canal: CANAL, produtoId }, orderBy: { atualizadoEm: "desc" }, select: DADOS_DA_LINHA });
-  return anuncios.map(linhaDoAnuncio);
+  return comAvisos(anuncios.map(linhaDoAnuncio));
 }
 
 /**
@@ -377,7 +385,7 @@ export async function listarAnunciosML({ busca, pagina } = {}) {
   const pedida = Number.parseInt(pagina, 10);
   const atual = Math.min(Math.max(Number.isFinite(pedida) ? pedida : 1, 1), totalPaginas);
   return {
-    linhas: achados.slice((atual - 1) * POR_PAGINA, atual * POR_PAGINA).map(linhaDoAnuncio),
+    linhas: await comAvisos(achados.slice((atual - 1) * POR_PAGINA, atual * POR_PAGINA).map(linhaDoAnuncio)),
     total: achados.length,
     pagina: atual,
     totalPaginas,

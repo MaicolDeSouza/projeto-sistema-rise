@@ -154,6 +154,33 @@ const paraTela = (linha) => ({
 });
 
 /**
+ * Os avisos de varios produtos de uma vez, para a coluna "Concorrencia" da lista de anuncios (uma consulta so).
+ * @returns {Promise<Map<string, string[]>>} so os produtos com aviso.
+ */
+export async function avisosDeVariosProdutos(produtoIds) {
+  const ids = [...new Set((produtoIds ?? []).filter((id) => typeof id === "string" && id !== ""))];
+  if (ids.length === 0) return new Map();
+  const produtos = await prisma.produto.findMany({
+    where: { id: { in: ids }, mlCatalogoId: { not: null } },
+    select: {
+      id: true,
+      mlCatalogoId: true,
+      mlConcorrentesVistoEm: true,
+      concorrentesML: { where: { ausenteDesde: null }, select: { vendedorApelido: true, vendedorId: true, historico: { orderBy: { lidoEm: "desc" }, take: 2, select: { preco: true, lidoEm: true } } } },
+      posicoesML: { orderBy: { lidoEm: "desc" }, take: 2, select: { catalogoId: true, posicao: true, menorPreco: true, lidoEm: true } },
+    },
+  });
+  const resultado = new Map();
+  for (const produto of produtos) {
+    const posicoes = produto.posicoesML.filter((p) => p.catalogoId === produto.mlCatalogoId).map((p) => ({ ...p, menorPreco: numero(p.menorPreco) }));
+    const concorrentes = produto.concorrentesML.map((c) => ({ ...c, historico: c.historico.map((h) => ({ preco: numero(h.preco), lidoEm: h.lidoEm })) }));
+    const avisos = avisosDoML({ posicoes, concorrentes, vistoEm: produto.mlConcorrentesVistoEm });
+    if (avisos.length > 0) resultado.set(produto.id, avisos.map((aviso) => aviso.texto));
+  }
+  return resultado;
+}
+
+/**
  * Tudo o que a tela mostra, em numeros simples (Decimal nao atravessa a Server Action): o catalogo, a posicao do dono,
  * os concorrentes (os presentes por posicao, depois os ausentes) com o preco anterior, e os avisos.
  */

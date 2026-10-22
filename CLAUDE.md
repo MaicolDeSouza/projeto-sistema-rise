@@ -241,7 +241,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 591 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA) e a fase 3 (publicar, retomar, kit e vínculo no Bling) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 641 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -2989,6 +2989,43 @@ essa a lista "Anúncios já exportados" da tela de produto do Bling ("Vincular e
 
 **Fora desta fase:** gerenciar anúncio publicado (editar, pausar, sincronizar preço/estoque), `hashConteudo`, aviso de
 exclusão de produto com anúncios, listagem paginada no banco.
+
+## Canais de Venda: Mercado Livre (concorrentes pelo catálogo, 21-22/10/2026)
+
+Pedido do dono: ao criar o anúncio do ML, ver por quanto os outros vendedores vendem o mesmo produto no ML, e acompanhar
+isso todo dia, "igual a coleta faz hoje". Spec: `docs/superpowers/specs/2026-10-21-concorrentes-ml-catalogo-design.md`;
+plano: `docs/superpowers/plans/2026-10-21-concorrentes-ml-catalogo.md` (inline). **Só GET no ML.**
+
+- **O que a API deixa ler (medido em 21/10/2026, conta 4HOBBY_STORE):** `/sites/MLB/search` e `/items/{id}` de OUTRO
+  vendedor dão **403** (também no multiget). Respondem: `GET /products/search?status=active&site_id=MLB&q=` (produtos de
+  catálogo pelo nome, com ficha e fotos), `GET /products/{id}/items?limit=&offset=` (os anúncios que competem no catálogo,
+  na ordem do ML: `item_id`, `seller_id`, `price`, `original_price`, `listing_type_id`, `shipping`; **sem título nem
+  vendidos**; **404 = catálogo sem anúncios**) e `GET /users/{id}` (apelido, `seller_reputation.level_id`, vendas, cidade).
+  O 100101 está no catálogo MLB44072268 (9 anúncios, nós em 4º).
+- **Opção 2 descartada pelo dono:** varrer a página de busca com navegador e a sessão logada (o repositório
+  `ElioBonfim/Aula-Mercado-Livre-Henrique-Niada` faz assim) contraria a regra de não disfarçar navegador e arrisca a conta.
+  Não há posição na página de busca, só a posição no catálogo.
+- **Regra do top 10 (decisão do dono):** o dono escolhe o CATÁLOGO, não vendedores. Os 10 primeiros anúncios dele (sem os
+  do dono, `TOP_DO_CATALOGO`) viram `ConcorrenteML` do Produto; a cada leitura quem entra ganha linha, quem sai fica com
+  `ausenteDesde` (nunca apagado) e quem volta perde a marca. Histórico (`ConcorrenteMLHistorico`) só quando preço, preço
+  cheio ou posição mudam; `PosicaoML` (a posição do dono, o total e o menor preço dos outros) só quando muda. Preço nulo ou
+  zero do ML não grava histórico. Até 3 páginas (150 anúncios) por leitura; vendedores com cache de 24 h em memória.
+- **Banco** (migration `20261021_concorrentes_ml`, aditiva, sem os `DROP INDEX` do diff): `Produto.mlCatalogoId`,
+  `mlCatalogoNome`, `mlConcorrentesVistoEm`; `ConfigCanal.mlConcorrentesRelidosEm`; tabelas `ConcorrenteML`,
+  `ConcorrenteMLHistorico`, `PosicaoML` (Cascade pelo produto).
+- **Onde mora:** `ml/catalogo.js` (leitura, top, posição, vendedores), `ml/concorrentes.js` (acompanhar, reler, parar,
+  tela, avisos em lote; a MESMA rotina serve o "Acompanhar", o "Reler agora" e o worker), `ml/avisosConcorrentes.js`
+  (puro: avisos "caiu de 2º para 5º", "X baixou para R$ 37,90", "novo vendedor abaixo do seu preço" e a conversão para
+  `posicaoDePreco`), `ml/relerCatalogo.js` (rodada diária), ações no fim de `mercado-livre/acoes.js`, tela
+  `ConcorrentesDoML.jsx` na aba Preço e estoque (com o selo "Nº de M no ML" ao lado do preço; clicar num preço copia) e a
+  coluna "Concorrência" da lista de anúncios. **Nada na aba Concorrentes do cadastro de Produto** (o dono não quer
+  misturar com as lojas).
+- **Worker:** de hora em hora (`RELER_CONCORRENTES_ML_MS`), só o normal; roda uma vez por dia de São Paulo. **429 ou 401
+  param a rodada** sem gravar a data (a hora seguinte tenta de novo); outro erro conta como falha e segue.
+- **Foto mensal:** as linhas do ML entram em `FotoMensalColeta` com `fonteId` fixo `"mercado-livre-catalogo"` (não há
+  `FonteColeta` para o ML), `nome` "apelido · Clássico/Premium" e o id do `ConcorrenteML` em `produtoId`.
+- **Avisos:** contam a partir de `mlConcorrentesVistoEm`; abrir a aba Preço e estoque do anúncio marca como visto.
+  "Novo mais barato" = o menor preço do catálogo caiu e nenhum concorrente com "baixou" explica a queda.
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 

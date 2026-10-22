@@ -50,6 +50,7 @@ export default function TabelaAnunciosML({ linhas, busca }) {
             <th className="px-3 py-2.5 text-right font-medium">Preço</th>
             <th className="px-3 py-2.5 font-medium">Situação</th>
             <th className="px-3 py-2.5 font-medium">No ML</th>
+            <th className="px-3 py-2.5 font-medium">Concorrência</th>
             <th className="px-3 py-2.5 font-medium">Atualizado em</th>
           </tr>
         </thead>
@@ -84,6 +85,17 @@ export default function TabelaAnunciosML({ linhas, busca }) {
                     ) : (
                       linha.idExterno
                     )
+                  ) : (
+                    <span className="text-suave">-</span>
+                  )}
+                </td>
+                <td className="px-3 py-2.5">
+                  {linha.avisosML?.length > 0 ? (
+                    // O primeiro aviso a vista; todos no `title`. Abrir o anuncio (aba Preco e estoque) marca como visto.
+                    <span title={linha.avisosML.join("\n")} className="inline-block max-w-56 truncate rounded border border-amber-300 bg-amber-50 px-1.5 py-px text-xs text-amber-800">
+                      {linha.avisosML[0]}
+                      {linha.avisosML.length > 1 && ` (+${linha.avisosML.length - 1})`}
+                    </span>
                   ) : (
                     <span className="text-suave">-</span>
                   )}
