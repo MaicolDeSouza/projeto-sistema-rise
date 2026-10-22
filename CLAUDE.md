@@ -241,7 +241,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 655 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 657 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3040,6 +3040,28 @@ plano: `docs/superpowers/plans/2026-10-21-concorrentes-ml-catalogo.md` (inline).
   (`PosicaoML.vendedores` e `completo`, migration `20261022_vendedores_no_catalogo`); acima de 150 anúncios lidos vira
   "150+ anúncios · ao menos N vendedores". **"Lido em" é a última leitura**, não a última mudança de posição (sem
   mudança a `PosicaoML` não ganha linha, e o "Reler agora" parecia não fazer nada).
+
+### Taxas, frete, Custos totais e Ficha técnica (22/10/2026)
+
+- **Taxas do ML medidas** (pergunta do dono: "lembro do ML cobrar taxa fixa em todas as vendas"): no `listing_prices` a
+  tarifa fixa é **0** em `drop_off`, `xd_drop_off`, `cross_docking` e `fulfillment` (6,65 só em `self_service`); a
+  comissão real das vendas do 100101 foi 12-13%. **O que o ML cobra abaixo de R$ 79 é o FRETE**: nas vendas reais
+  (`/shipments/{id}/costs`, `senders.cost`) o vendedor pagou R$ 6,85 a 8,25 por unidade sem frete grátis anunciado. De
+  R$ 79 para cima o frete grátis é obrigatório (`LIMITE_DO_FRETE_GRATIS`). Por isso `freteQueConta` passou a contar o frete
+  SEMPRE (antes só com frete grátis ligado, e o lucro saía ~R$ 6,85 maior) e `lerFreteDoVendedor` pergunta com
+  `free_shipping=false` abaixo de R$ 79 (6,85 no 100101) e `true` dali para cima (12,95). A `fase 2` acima, que diz "só conta
+  com frete grátis ligado", ficou para trás.
+- **Custos totais** (pedido do dono): o campo Custo e o bloco "Custos do Mercado Livre" viraram UMA caixa
+  (`CustosDoML.jsx`): custo do fornecedor (com a origem), comissão do ML, tarifa fixa (só se > 0), frete do vendedor (com o
+  porquê), imposto de 6% e, no fim, o **Total dos custos**; sem custo ou sem as taxas lidas, o total diz o que falta.
+- **Calculadora dentro do campo de preço** (pedido do dono, como no cadastro de Produto): o ícone mora dentro do
+  `<input>` (`CalculadoraDeMargem` recebe o campo como `children`) e, embaixo do preço, a **margem em % e em R$** em
+  destaque (`MargemDoPreco` em `AbaPrecoEstoque.jsx`): com as taxas lidas é o lucro de verdade; sem elas, só o imposto, e o
+  rótulo diz. A conta com as taxas (`custosDoAnuncio`) é feita uma vez na aba e serve as duas. Conferido no 100101:
+  30% pela calculadora deu R$ 56,95 e a margem embaixo mostrou 30,0% / R$ 17,09.
+- **Ficha técnica em 2 colunas** (pedido do dono): à esquerda os atributos do ML numa caixa só, um por linha, `*` nos
+  obrigatórios, com a sugestão da IA no topo (`CaixaDoML`); à direita, fixa ao rolar, o que o Rise tem do produto
+  (marca, modelo, EAN, peso, medidas e as especificações da descrição, `CaracteristicasDoRise`).
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 

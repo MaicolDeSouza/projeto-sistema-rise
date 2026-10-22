@@ -15,7 +15,7 @@ const CATEGORIA_ML = /^MLB\d+$/;
  * (comissao e tarifa fixa sao relidas no preco calculado). "Usar este preco" poe o preco no campo e
  * deixa os custos lidos valendo. Abre como um painel embaixo do preco.
  */
-export default function CalculadoraDeMargem({ rascunho, alterar, setContexto, custo }) {
+export default function CalculadoraDeMargem({ rascunho, alterar, setContexto, custo, children }) {
   const [aberta, setAberta] = useState(false);
   const [tipo, setTipo] = useState("percentual");
   const [digitado, setDigitado] = useState("");
@@ -60,18 +60,23 @@ export default function CalculadoraDeMargem({ rascunho, alterar, setContexto, cu
     setResultado(null);
   }
 
+  // O icone mora DENTRO do campo de preco (`children`), como no cadastro de Produto (pedido do dono em 22/10/2026).
   return (
-    <div className="mt-1.5">
-      <button
-        type="button"
-        onClick={() => setAberta((atual) => !atual)}
-        disabled={Boolean(motivoDesligado)}
-        title={motivoDesligado ?? "Calcular o preço a partir da margem desejada, com as taxas do ML"}
-        aria-expanded={aberta}
-        className="inline-flex items-center gap-1.5 rounded border border-borda px-2 py-1 text-xs hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <Calculator size={13} /> Calcular pela margem
-      </button>
+    <div>
+      <div className="relative">
+        {children}
+        <button
+          type="button"
+          onClick={() => setAberta((atual) => !atual)}
+          disabled={Boolean(motivoDesligado)}
+          title={motivoDesligado ?? "Calcular o preço a partir da margem desejada, com as taxas do ML"}
+          aria-label="Calcular o preço pela margem"
+          aria-expanded={aberta}
+          className={`absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-1 hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-40 ${aberta ? "text-acento" : "text-suave"}`}
+        >
+          <Calculator size={16} />
+        </button>
+      </div>
 
       {aberta && (
         <div className="mt-2 rounded border border-borda bg-superficie p-3 shadow-sm">
