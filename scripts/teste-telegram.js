@@ -110,6 +110,59 @@ try {
     conferir("tipo desconhecido lanca", lancou, "Tipo de aviso desconhecido: x");
   }
 
+  {
+    console.log("\nCliente");
+    const { criarClienteTelegram, limparToken, tokenValido, mascararToken } = await import("../src/lib/telegram/cliente.js");
+    const { criarTelegramFalso } = await import("./lib/telegramFalso.js");
+    const TOKEN = "123456789:" + "A".repeat(35);
+    conferir("limpa o token colado", limparToken(" bot" + TOKEN + "\n"), TOKEN);
+    conferir("limpa espaco no meio", limparToken("123456789: " + "A".repeat(35)), TOKEN);
+    conferir("token curto e invalido", [tokenValido("123:abc"), tokenValido(TOKEN), tokenValido("")], [false, true, false]);
+    conferir("mascara o token da URL e o literal", mascararToken(`erro em https://api.telegram.org/bot${TOKEN}/getMe e ${TOKEN}`, TOKEN), "erro em https://api.telegram.org/bot***/getMe e ***");
+    const update = { update_id: 7, message: { message_id: 1, date: 1, chat: { id: 55, type: "private", first_name: "Maicol", username: "maicol" }, text: "/vincular ABC" } };
+    const falso = criarTelegramFalso({ updates: [update] });
+    const cliente = criarClienteTelegram({ token: TOKEN, requisitar: falso.requisitar, urlPublica: "https://rise.4hobby.com.br" });
+    conferir("getMe devolve a conta do bot", (await cliente.getMe()).dados.username, "rise_bot");
+    const lidas = await cliente.getUpdates();
+    conferir("getUpdates le as mais recentes sem esperar", [lidas.dados[0].update_id, falso.chamadas[1].metodo, falso.chamadas[1].corpo.offset, falso.chamadas[1].corpo.timeout], [7, "getUpdates", -100, 0]);
+    conferir("o falso recebe o token na URL", falso.chamadas[0].token, TOKEN);
+    const envio = await cliente.enviarMensagem(55, "Produto zerou: 100101\nPlaca Uno", { caminho: "/produtos/p1" });
+    conferir("envia sem parse_mode e com o botao Abrir no Rise", [envio.ok, "parse_mode" in falso.mensagens[0], falso.mensagens[0].disable_web_page_preview, falso.mensagens[0].reply_markup.inline_keyboard[0][0]], [true, false, true, { text: "Abrir no Rise", url: "https://rise.4hobby.com.br/produtos/p1" }]);
+    conferir("chat_id vai como texto", falso.mensagens[0].chat_id, "55");
+    const semBase = criarClienteTelegram({ token: TOKEN, requisitar: falso.requisitar, urlPublica: "" });
+    await semBase.enviarMensagem(55, "x", { caminho: "/p" });
+    conferir("sem APP_URL_PUBLICA nao ha botao", "reply_markup" in falso.mensagens[1], false);
+    const antes = falso.chamadas.length;
+    conferir("recusa 5 linhas sem chamar o Telegram", [(await cliente.enviarMensagem(55, "1\n2\n3\n4\n5", { caminho: "/p" })).erro, falso.chamadas.length === antes], ["Mensagem acima do limite.", true]);
+    await cliente.confirmarAtualizacoes(7);
+    conferir("confirmar manda o offset seguinte", falso.chamadas.at(-1).corpo, { offset: 8, limit: 1, timeout: 0 });
+    const bloqueadoFalso = criarTelegramFalso({ falhas: { sendMessage: { status: 403, description: "Forbidden: bot was blocked by the user" } } });
+    const r = await criarClienteTelegram({ token: TOKEN, requisitar: bloqueadoFalso.requisitar }).enviarMensagem(55, "x", {});
+    conferir("403 bloqueado vem marcado e sem o token", [r.ok, r.bloqueado, r.erro.includes(TOKEN)], [false, true, false]);
+    // Um `requisitar` que lanca (rede fora) com a URL inteira na mensagem, como o fetch faz.
+    const foraDoAr = async ({ url }) => {
+      throw new Error(`rede fora: ${new URL(url).pathname}`);
+    };
+    const f = await criarClienteTelegram({ token: TOKEN, requisitar: foraDoAr }).getMe();
+    conferir("falha de rede nao lanca e mascara o token", [f.ok, f.erro], [false, "rede fora: /bot***/getMe"]);
+    let lancou = null;
+    try {
+      criarClienteTelegram({ token: "ruim", requisitar: falso.requisitar });
+    } catch (erro) {
+      lancou = erro.message;
+    }
+    conferir("token invalido lanca na criacao", lancou, "Token do bot inválido.");
+  }
+  {
+    console.log("\nMascara do token");
+    const { requisitar, mascarar } = await import("../src/lib/integracoes/httpClient.js");
+    const TOKEN = "123456789:" + "B".repeat(35);
+    await requisitar({ servico: "TELEGRAM", url: `https://teste-rise.invalid/bot${TOKEN}/getMe`, timeoutMs: 500, tentativas: 1 }).catch(() => null);
+    const linha = await prisma.logIntegracao.findFirst({ where: { servico: "TELEGRAM", endpoint: { contains: "teste-rise.invalid" } }, orderBy: { criadoEm: "desc" } });
+    conferir("o endpoint gravado nao leva o token", linha?.endpoint, "https://teste-rise.invalid/bot***/getMe");
+    conferir("mascarar(string) tambem cobre a URL do bot", mascarar(`GET /bot${TOKEN}/sendMessage`), "GET /bot***/sendMessage");
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   await limpar();

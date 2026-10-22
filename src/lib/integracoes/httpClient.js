@@ -26,6 +26,8 @@ export function mascarar(valor) {
     // justamente o token visivel depois dela.
     return valor
       .replace(/\b(Basic|Bearer)\s+[A-Za-z0-9._~+/=-]+/gi, "$1 ***")
+      // O bot do Telegram leva o token no CAMINHO da URL (`/bot<token>/getMe`).
+      .replace(/\/bot[^/\s]+\//g, "/bot***/")
       .replace(
         /((?:authorization|client_secret|access_token|refresh_token|personal_?token|webhook_?token|token|chave_api|chave_aplicacao|code|password|secret)\s*[=:]\s*)([^&,;\r\n]+)/gi,
         "$1***",
@@ -175,7 +177,7 @@ export async function requisitar({
       await registrar({
         servico,
         metodo,
-        endpoint: `${alvo.origin}${alvo.pathname}`,
+        endpoint: mascarar(`${alvo.origin}${alvo.pathname}`),
         statusHttp: resposta.status,
         duracaoMs,
         requestResumo: doPedido(),
@@ -206,7 +208,7 @@ export async function requisitar({
       await registrar({
         servico,
         metodo,
-        endpoint: `${alvo.origin}${alvo.pathname}`,
+        endpoint: mascarar(`${alvo.origin}${alvo.pathname}`),
         statusHttp: null,
         duracaoMs: Date.now() - inicio,
         requestResumo: doPedido(),
