@@ -1820,6 +1820,24 @@ try {
     conferir("meus catalogos: com nome e ficha", [meus[0].nome.startsWith("Cabo USB"), meus[0].atributosResumo[0]], [true, "Marca: Deirolab"]);
     conferir("meus catalogos: sku sem anuncio", await catalogosDosMeusAnuncios(comMeus, "999999"), []);
     conferir("meus catalogos: sku vazio nao chama o ML", [await catalogosDosMeusAnuncios(comMeus, " "), comMeus.chamadas.filter((c) => c.caminho.includes("items/search") && !c.params.seller_sku).length], [[], 0]);
+
+    // Numero de vendedores no catalogo (pedido do dono em 22/10/2026): anuncio e vendedor nao sao a mesma conta.
+    const { contarVendedores, resumoDoCatalogo, comResumo, textoDoResumo } = await import("../src/lib/canaisDeVenda/ml/catalogo.js");
+    conferir("contarVendedores: cada vendedor uma vez (9 anuncios de 7 vendedores no falso)", contarVendedores(lido.itens), 7);
+    conferir("resumoDoCatalogo: anuncios, vendedores e completo", await resumoDoCatalogo(ml, "MLB44072268"), { anuncios: 9, vendedores: 7, completo: true });
+    conferir("resumoDoCatalogo: catalogo vazio", await resumoDoCatalogo(ml, "MLB60092501"), { anuncios: 0, vendedores: 0, completo: true });
+    conferir("resumoDoCatalogo: catalogo maior que 150 fica incompleto", await resumoDoCatalogo(grande, "MLBG"), { anuncios: 170, vendedores: 150, completo: false });
+    const comFalhaNoResumo = criarMLFalso({ falhas: [{ metodo: "GET", caminho: "/products/MLB60092501/items", exato: true, status: 500 }] });
+    conferir(
+      "comResumo: cada catalogo ganha o resumo; o que falha fica sem",
+      (await comResumo(comFalhaNoResumo, [{ id: "MLB44072268" }, { id: "MLB60092501" }])).map((c) => c.resumo),
+      [{ anuncios: 9, vendedores: 7, completo: true }, null],
+    );
+    conferir(
+      "textoDoResumo",
+      [textoDoResumo({ anuncios: 9, vendedores: 8, completo: true }), textoDoResumo({ anuncios: 1, vendedores: 1, completo: true }), textoDoResumo({ anuncios: 170, vendedores: 150, completo: false }), textoDoResumo(null)],
+      ["9 anúncios · 8 vendedores", "1 anúncio · 1 vendedor", "150+ anúncios · ao menos 150 vendedores", null],
+    );
   }
 
   {
@@ -1851,10 +1869,15 @@ try {
       [true, "MLB44072268", 8, "ARDU_ROBÓTICA EIRELI", 1, false],
     );
     conferir("acompanhar: primeira posicao do dono", await ultimaPosicao(p.id), 4);
+    const posicaoGravada = await prisma.posicaoML.findFirst({ where: { produtoId: p.id } });
+    conferir("acompanhar: a posicao guarda o numero de vendedores e se leu tudo", [posicaoGravada.vendedores, posicaoGravada.completo], [7, true]);
+    conferir("lerConcorrentesML: a tela traz os vendedores", (await lerConcorrentesML(p.id)).posicao.vendedores, 7);
     conferir("acompanhar: um historico por concorrente", await historicoDe(p.id), 8);
 
     const r1 = await relerCatalogoDoProduto(ml, p.id, { agora: new Date("2026-10-21T11:00:00Z") });
     conferir("reler sem mudanca: nada novo no historico", [r1.ok, r1.mudaram, r1.novos, await historicoDe(p.id), await prisma.posicaoML.count({ where: { produtoId: p.id } })], [true, 0, 0, 8, 1]);
+    // "Lido em" e a ultima LEITURA, nao a ultima mudanca: sem isso o "Reler agora" parecia nao fazer nada (visto em 22/10/2026).
+    conferir("lerConcorrentesML: lido em e a ultima leitura, mesmo sem mudanca", (await lerConcorrentesML(p.id)).lidoEm?.toISOString(), "2026-10-21T11:00:00.000Z");
 
     // Dois vendedores novos na frente e um antigo fora do catalogo: o dono cai do 4o para o 5o (30, 31, 39.54, 42.99, 49.90).
     const novos = [

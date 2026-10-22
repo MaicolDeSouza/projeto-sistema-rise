@@ -14,7 +14,7 @@ import {
 } from "@/app/canais-de-venda/mercado-livre/acoes";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { CLASSE_CAMPO } from "@/components/cadastros/Campo";
-import { textoDaReputacao } from "@/lib/canaisDeVenda/ml/catalogo";
+import { textoDaReputacao, textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
 import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -211,7 +211,10 @@ export default function ConcorrentesDoML({ produtoId, titulo, alterar, aoMudarCo
                         )}
                         {catalogo.nome}
                       </p>
-                      <p className="truncate text-xs text-suave">{catalogo.atributosResumo.join(" · ") || catalogo.dominio}</p>
+                      <p className="truncate text-xs text-suave">
+                        {textoDoResumo(catalogo.resumo) && <span className="font-medium text-texto">{textoDoResumo(catalogo.resumo)} · </span>}
+                        {catalogo.atributosResumo.join(" · ") || catalogo.dominio}
+                      </p>
                     </div>
                     <button type="button" onClick={() => prever(catalogo)} disabled={ocupado} className="shrink-0 rounded border border-borda px-2.5 py-1 text-sm hover:bg-fundo disabled:opacity-50">Usar este</button>
                   </li>
@@ -242,10 +245,15 @@ function Cabecalho({ children }) {
 
 function ResumoDaPosicao({ posicao }) {
   if (!posicao) return <span className="text-suave">sem leitura</span>;
-  if (posicao.posicao === null) return <span>{posicao.total} anúncios · você não está neste catálogo</span>;
+  // Leitura de antes da contagem de vendedores (22/10/2026) nao tem o numero: fica so o de anuncios.
+  const resumo =
+    typeof posicao.vendedores === "number"
+      ? textoDoResumo({ anuncios: posicao.total, vendedores: posicao.vendedores, completo: posicao.completo !== false })
+      : `${posicao.total} anúncios`;
+  if (posicao.posicao === null) return <span>{resumo} · você não está neste catálogo</span>;
   return (
     <span>
-      {posicao.total} anúncios · <strong>você é o {posicao.posicao}º</strong>
+      {resumo} · <strong>você é o {posicao.posicao}º</strong>
     </span>
   );
 }
@@ -314,7 +322,7 @@ function Previa({ previa, ocupado, aoAcompanhar, aoVoltar }) {
       <div className="flex items-center justify-between gap-3">
         <p className="min-w-0 truncate text-sm">
           <a href={urlDoCatalogo(previa.catalogo.id)} target="_blank" rel="noreferrer" className="font-medium text-acento hover:underline">{previa.catalogo.nome}</a>
-          <span className="text-suave"> · {previa.total} anúncios</span>
+          <span className="text-suave"> · {textoDoResumo(previa.resumo) ?? `${previa.total} anúncios`}</span>
         </p>
         <span className="flex shrink-0 items-center gap-2">
           <button type="button" onClick={aoVoltar} disabled={ocupado} className="text-sm text-suave hover:underline">Voltar</button>

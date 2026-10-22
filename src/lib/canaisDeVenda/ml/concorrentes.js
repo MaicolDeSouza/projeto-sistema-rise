@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 
 import { avisosDoML } from "./avisosConcorrentes";
-import { lerConcorrentesDoCatalogo, lerVendedores, minhaPosicao, topDoCatalogo } from "./catalogo";
+import { contarVendedores, lerConcorrentesDoCatalogo, lerVendedores, minhaPosicao, topDoCatalogo } from "./catalogo";
 import { textoDoErroML } from "./leitura";
 
 /**
@@ -35,6 +35,8 @@ export async function relerCatalogoDoProduto(cliente, produtoId, { agora = new D
     return { ok: false, erro: textoDoErroML(erro), status: typeof erro?.status === "number" ? erro.status : null };
   }
   const minha = minhaPosicao(lido.itens);
+  // O total e o do ML (`paging.total`), nao o que foi lido: acima do teto de 150 a lista vem cortada.
+  const resumo = { total: lido.total, vendedores: contarVendedores(lido.itens), completo: lido.itens.length >= lido.total };
 
   const contagem = await prisma.$transaction(async (tx) => {
     const existentes = await tx.concorrenteML.findMany({ where: { produtoId } });
@@ -89,9 +91,16 @@ export async function relerCatalogoDoProduto(cliente, produtoId, { agora = new D
 
     const ultima = await tx.posicaoML.findFirst({ where: { produtoId }, orderBy: { lidoEm: "desc" } });
     const posicaoMudou =
-      !ultima || ultima.catalogoId !== catalogoId || ultima.posicao !== minha.posicao || ultima.total !== minha.total || !mesmoValor(ultima.menorPreco, minha.menorPreco);
+      !ultima ||
+      ultima.catalogoId !== catalogoId ||
+      ultima.posicao !== minha.posicao ||
+      ultima.total !== resumo.total ||
+      ultima.vendedores !== resumo.vendedores ||
+      !mesmoValor(ultima.menorPreco, minha.menorPreco);
     if (posicaoMudou) {
-      await tx.posicaoML.create({ data: { produtoId, catalogoId, itemId: minha.itemId, posicao: minha.posicao, total: minha.total, menorPreco: minha.menorPreco, lidoEm: agora } });
+      await tx.posicaoML.create({
+        data: { produtoId, catalogoId, itemId: minha.itemId, posicao: minha.posicao, total: resumo.total, vendedores: resumo.vendedores, completo: resumo.completo, menorPreco: minha.menorPreco, lidoEm: agora },
+      });
     }
     return { novos, mudaram, ausentes };
   });
@@ -198,13 +207,26 @@ export async function lerConcorrentesML(produtoId) {
   if (!produto) return null;
   const concorrentes = produto.concorrentesML.map(paraTela).map((c) => ({ ...c, precoAnterior: c.historico[1]?.preco ?? null }));
   const ordenados = [...concorrentes.filter((c) => !c.ausenteDesde), ...concorrentes.filter((c) => c.ausenteDesde)];
-  const posicoes = produto.posicoesML.map((p) => ({ catalogoId: p.catalogoId, itemId: p.itemId, posicao: p.posicao, total: p.total, menorPreco: numero(p.menorPreco), lidoEm: p.lidoEm }));
+  const posicoes = produto.posicoesML.map((p) => ({
+    catalogoId: p.catalogoId,
+    itemId: p.itemId,
+    posicao: p.posicao,
+    total: p.total,
+    vendedores: p.vendedores,
+    completo: p.completo,
+    menorPreco: numero(p.menorPreco),
+    lidoEm: p.lidoEm,
+  }));
   // Os avisos so valem para o catalogo de agora: trocar de catalogo nao e "cair".
   const doCatalogo = posicoes.filter((p) => p.catalogoId === produto.mlCatalogoId);
+  // "Lido em" e a ultima LEITURA: a PosicaoML so ganha linha quando muda, mas todo concorrente presente tem o `lidoEm`
+  // da ultima releitura. Sem isso o "Reler agora" sem mudanca parecia nao ter feito nada (visto em 22/10/2026).
+  const leituras = [doCatalogo[0]?.lidoEm, ...ordenados.filter((c) => !c.ausenteDesde).map((c) => c.lidoEm)].filter(Boolean).map((d) => new Date(d));
+  const lidoEm = leituras.length > 0 ? new Date(Math.max(...leituras.map((d) => d.getTime()))) : null;
   return {
     catalogoId: produto.mlCatalogoId,
     catalogoNome: produto.mlCatalogoNome,
-    lidoEm: doCatalogo[0]?.lidoEm ?? null,
+    lidoEm,
     posicao: doCatalogo[0] ?? null,
     concorrentes: ordenados,
     avisos: produto.mlCatalogoId ? avisosDoML({ posicoes: doCatalogo, concorrentes: ordenados.filter((c) => !c.ausenteDesde), vistoEm: produto.mlConcorrentesVistoEm }) : [],

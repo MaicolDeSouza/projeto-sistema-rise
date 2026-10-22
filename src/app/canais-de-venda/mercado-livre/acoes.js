@@ -7,7 +7,15 @@ import { clienteBling } from "@/lib/blingSync/cliente";
 import { prepararPublicacaoML, publicarAnuncioML, validarNoML } from "@/lib/canaisDeVenda/ml/publicar";
 import { gravarFrases } from "@/lib/canaisDeVenda/configuracao";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
-import { buscarCatalogos, catalogosDosMeusAnuncios, lerConcorrentesDoCatalogo, lerVendedores, topDoCatalogo } from "@/lib/canaisDeVenda/ml/catalogo";
+import {
+  buscarCatalogos,
+  catalogosDosMeusAnuncios,
+  comResumo,
+  contarVendedores,
+  lerConcorrentesDoCatalogo,
+  lerVendedores,
+  topDoCatalogo,
+} from "@/lib/canaisDeVenda/ml/catalogo";
 import {
   acompanharCatalogoML,
   lerConcorrentesML,
@@ -314,7 +322,9 @@ const ehCatalogo = (valor) => typeof valor === "string" && /^MLB\d{1,15}$/.test(
 export async function buscarCatalogosMLAcao(termo) {
   if (typeof termo !== "string" || termo.length > LIMITE_DO_TERMO) return PEDIDO_INVALIDO;
   try {
-    return { ok: true, catalogos: await buscarCatalogos(clienteML(), termo) };
+    // Cada catalogo com "N anuncios · M vendedores": uma leitura a mais por catalogo, so GET.
+    const ml = clienteML();
+    return { ok: true, catalogos: await comResumo(ml, await buscarCatalogos(ml, termo)) };
   } catch (erro) {
     return falhaDeLeitura(erro, "buscar catalogo");
   }
@@ -327,7 +337,8 @@ export async function catalogosDosMeusAnunciosMLAcao(produtoId) {
     const produtos = await contextoDosProdutos([produtoId]);
     const sku = produtos[produtoId]?.sku;
     if (!sku) return { ok: true, catalogos: [] };
-    return { ok: true, catalogos: await catalogosDosMeusAnuncios(clienteML(), sku) };
+    const ml = clienteML();
+    return { ok: true, catalogos: await comResumo(ml, await catalogosDosMeusAnuncios(ml, sku)) };
   } catch (erro) {
     return falhaDeLeitura(erro, "catalogos dos meus anuncios");
   }
@@ -344,6 +355,7 @@ export async function preverCatalogoMLAcao(catalogoId) {
     return {
       ok: true,
       total: lido.total,
+      resumo: { anuncios: lido.total, vendedores: contarVendedores(lido.itens), completo: lido.itens.length >= lido.total },
       topIds: top.map((item) => item.itemId),
       itens: lido.itens.map((item) => ({ ...item, vendedor: vendedores.get(item.vendedorId) ?? null })),
     };

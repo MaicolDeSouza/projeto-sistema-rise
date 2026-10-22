@@ -117,6 +117,39 @@ export async function lerConcorrentesDoCatalogo(cliente, catalogoId, { meuSeller
   };
 }
 
+/** Quantos vendedores diferentes ha entre os anuncios (um vendedor pode ter varios anuncios no mesmo catalogo). */
+export function contarVendedores(itens) {
+  return new Set((itens ?? []).map((item) => String(item.vendedorId))).size;
+}
+
+/**
+ * Quantos anuncios e quantos vendedores o catalogo tem (pedido do dono em 22/10/2026). `completo` e falso quando o
+ * catalogo passa do teto de leitura (150): os vendedores contados sao "ao menos".
+ * @returns {Promise<{ anuncios: number, vendedores: number, completo: boolean }>}
+ */
+export async function resumoDoCatalogo(cliente, catalogoId) {
+  const lido = await lerConcorrentesDoCatalogo(cliente, catalogoId);
+  return { anuncios: lido.total, vendedores: contarVendedores(lido.itens), completo: lido.itens.length >= lido.total };
+}
+
+/** Cada catalogo da lista com o `resumo` (o que falhar fica com `null`, sem derrubar a lista). */
+export async function comResumo(cliente, catalogos) {
+  const resultado = [];
+  for (const catalogo of catalogos ?? []) {
+    const resumo = await resumoDoCatalogo(cliente, catalogo.id).catch(() => null);
+    resultado.push({ ...catalogo, resumo });
+  }
+  return resultado;
+}
+
+/** "9 anúncios · 8 vendedores"; acima do teto de leitura, "150+ anúncios · ao menos N vendedores". */
+export function textoDoResumo(resumo) {
+  if (!resumo) return null;
+  const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+  if (!resumo.completo) return `150+ anúncios · ao menos ${plural(resumo.vendedores, "vendedor", "vendedores")}`;
+  return `${plural(resumo.anuncios, "anúncio", "anúncios")} · ${plural(resumo.vendedores, "vendedor", "vendedores")}`;
+}
+
 /** Os `n` primeiros que nao sao do dono, na ordem do ML. */
 export function topDoCatalogo(itens, n = TOP_DO_CATALOGO) {
   return (itens ?? []).filter((item) => !item.meu).slice(0, n);

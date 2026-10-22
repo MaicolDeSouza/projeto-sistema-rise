@@ -241,7 +241,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 646 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 655 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, frases fixas, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3034,6 +3034,12 @@ plano: `docs/superpowers/plans/2026-10-21-concorrentes-ml-catalogo.md` (inline).
   em 4º → Acompanhar (8 concorrentes, selo "1º de 8 no ML" com o rascunho a R$ 38,90) → clicar em R$ 42,99 copiou o preço
   e o selo foi para "2º de 8 (empatado)" → Reler sem histórico novo → Parar. `LogIntegracao`: 30 GET no ML, nenhuma
   escrita. Os dados de teste foram apagados depois.
+- **Número de vendedores** (pedido do dono em 22/10/2026): anúncio e vendedor não são a mesma conta (o catálogo do
+  100101 tem 9 anúncios de 8 vendedores). A lista de catálogos mostra "N anúncios · M vendedores" em cada um
+  (`comResumo`, uma leitura de `/products/{id}/items` por catálogo) e o cabeçalho do acompanhado também
+  (`PosicaoML.vendedores` e `completo`, migration `20261022_vendedores_no_catalogo`); acima de 150 anúncios lidos vira
+  "150+ anúncios · ao menos N vendedores". **"Lido em" é a última leitura**, não a última mudança de posição (sem
+  mudança a `PosicaoML` não ganha linha, e o "Reler agora" parecia não fazer nada).
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 

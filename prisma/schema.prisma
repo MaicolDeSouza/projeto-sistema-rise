@@ -631,6 +631,10 @@ model PosicaoML {
   posicao    Int?
   total      Int
   menorPreco Decimal? @db.Decimal(12, 2)
+  /// Quantos vendedores diferentes ha no catalogo (um vendedor pode ter varios anuncios; pedido do dono em 22/10/2026).
+  /// `completo` falso: o catalogo passou do teto de leitura (150 anuncios), e o numero e "ao menos".
+  vendedores Int?
+  completo   Boolean  @default(true)
   lidoEm     DateTime
 
   @@index([produtoId, lidoEm])
