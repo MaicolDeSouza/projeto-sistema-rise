@@ -53,6 +53,9 @@ enum Servico {
   LM_STUDIO
   OLLAMA
   OPENAI
+  /// Bot do Telegram (Rise AI, Entrega C1): os avisos do worker e o vinculo das pessoas. A URL da API leva o token, e o
+  /// log o mascara (`/bot***/`). Nunca grava o token nem o texto que chega.
+  TELEGRAM
 }
 
 enum TipoPessoa {
@@ -928,6 +931,10 @@ model UsuarioRise {
   assinatura     String?
   /// O chat do Telegram vinculado (Entrega C do agente): um chat so liga a um usuario.
   telegramChatId String?   @unique
+  /// SHA-256 do codigo de vinculo do Telegram (C1); o texto so aparece uma vez, na tela do Administrador. Nulo = sem
+  /// codigo aberto. Vale ate `codigoDeVinculoExpiraEm` (10 minutos).
+  codigoDeVinculoHash     String?
+  codigoDeVinculoExpiraEm DateTime?
   ativo          Boolean   @default(true)
   criadoEm       DateTime  @default(now())
   /// Gravado no maximo a cada 10 minutos, sem segurar a requisicao.
@@ -1849,4 +1856,21 @@ model FotoMensalProduto {
 
   @@unique([produtoId, mes])
   @@index([mes])
+}
+
+/// Um aviso mandado (ou a mandar) ao Telegram pelo worker (Rise AI, Entrega C1). A `chave` e a idempotencia: o mesmo
+/// fato nunca vira dois avisos, nem com reinicio do worker. O `texto` e o que a pessoa recebeu (ja mascarado), a
+/// trilha do aviso; `tentativas` para em 3 e `erro` guarda a ultima falha, sem o token.
+model AvisoTelegram {
+  id         String    @id @default(cuid())
+  chave      String    @unique
+  tipo       String
+  chatId     String
+  texto      String
+  criadoEm   DateTime  @default(now())
+  enviadoEm  DateTime?
+  tentativas Int       @default(0)
+  erro       String?
+
+  @@index([enviadoEm, criadoEm])
 }
