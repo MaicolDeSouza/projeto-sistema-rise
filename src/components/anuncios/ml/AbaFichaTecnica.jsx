@@ -23,7 +23,6 @@ const DO_GTIN = new Set(["GTIN", "EMPTY_GTIN_REASON"]);
 export default function AbaFichaTecnica({ rascunho, contexto, alterar, problemas, irPara }) {
   const atributos = rascunho.atributos ?? {};
   const emKit = Boolean(rascunho.composicao);
-  const especificacoes = linhasDeEspecificacao(rascunho.descricao);
   const categoria = contexto.categoria && contexto.categoria.id === rascunho.categoriaId ? contexto.categoria : null;
   const listaDaCategoria = categoria?.atributos ?? [];
   const motivoDoKit = emKit ? motivoSemGtin(listaDaCategoria, { kit: true }) : null;
@@ -53,96 +52,116 @@ export default function AbaFichaTecnica({ rascunho, contexto, alterar, problemas
     alterar((atual) => (String(atual.atributos?.EMPTY_GTIN_REASON ?? "").trim() ? {} : { atributos: { ...atual.atributos, EMPTY_GTIN_REASON: motivoDoKit } }));
   }, [emKit, categoria, motivoDoKit, motivoJaEscolhido, alterar]);
 
-  const listaDeEspecificacoes = (
-    <div>
-      <div className="flex items-center gap-1 text-sm font-semibold">
-        Especificações da descrição
-        <BolhaDeAjuda variante="inline" texto="Somente leitura. São as linhas no formato '- Nome: valor' da descrição; para mudar, edite a descrição." />
-      </div>
-      {especificacoes.length > 0 ? (
-        <ul className="mt-2 divide-y divide-borda rounded border border-borda text-sm">
-          {especificacoes.map((linha, posicao) => (
-            <li key={posicao} className="px-3 py-2">
-              <span className="font-medium">{linha.nome}:</span> {linha.valor}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-sm text-suave">Nenhuma especificação encontrada na descrição.</p>
-      )}
-    </div>
-  );
+  // Duas colunas (pedido do dono em 22/10/2026): a esquerda, os atributos que o ML pede, numa caixa so e com "*" nos
+  // obrigatorios; a direita, as caracteristicas do produto no Rise, para conferir lado a lado. A direita fica presa no
+  // alto ao rolar, porque a lista do ML e longa.
+  const doRise = <CaracteristicasDoRise produto={contexto.produtos?.[rascunho.produtoId]} />;
 
   if (!categoria) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           <span>Escolha a categoria na aba Geral para ver os atributos dela.</span>
           <button type="button" onClick={() => irPara("geral")} className="rounded border border-borda bg-superficie px-2 py-1 text-xs text-texto hover:bg-fundo">
             Ir para Geral
           </button>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <CampoDeAtributo atributo={{ id: "BRAND", nome: "Marca (BRAND)", tipo: "texto", valores: [], unidades: [] }} valor={atributos.BRAND} problemas={problemas} aoMudar={(valor) => mudar("BRAND", valor)} />
-          <CampoDeAtributo atributo={{ id: "MODEL", nome: "Modelo (MODEL)", tipo: "texto", valores: [], unidades: [] }} valor={atributos.MODEL} problemas={problemas} aoMudar={(valor) => mudar("MODEL", valor)} />
-          <CampoDoGtin atributos={atributos} emKit={emKit} problemas={problemas} mudar={mudar} />
+        <div className="grid items-start gap-6 md:grid-cols-2">
+          <CaixaDoML titulo="Atributos do Mercado Livre">
+            <CampoDeAtributo atributo={{ id: "BRAND", nome: "Marca", tipo: "texto", valores: [], unidades: [] }} valor={atributos.BRAND} problemas={problemas} aoMudar={(valor) => mudar("BRAND", valor)} />
+            <CampoDeAtributo atributo={{ id: "MODEL", nome: "Modelo", tipo: "texto", valores: [], unidades: [] }} valor={atributos.MODEL} problemas={problemas} aoMudar={(valor) => mudar("MODEL", valor)} />
+            <CampoDoGtin atributos={atributos} emKit={emKit} problemas={problemas} mudar={mudar} />
+          </CaixaDoML>
+          {doRise}
         </div>
-        {listaDeEspecificacoes}
       </div>
     );
   }
 
+  // Na ordem: obrigatorios, o codigo de barras (GTIN e o motivo de nao ter) e os demais da categoria.
   const obrigatorios = listaDaCategoria.filter((atributo) => atributo.obrigatorio && !DO_GTIN.has(atributo.id));
   const motivo = listaDaCategoria.find((atributo) => atributo.id === "EMPTY_GTIN_REASON");
   const temGtin = listaDaCategoria.some((atributo) => atributo.id === "GTIN");
   const outros = listaDaCategoria.filter((atributo) => !atributo.obrigatorio && !DO_GTIN.has(atributo.id));
-  const preenchidosDosOutros = outros.filter((atributo) => String(atributos[atributo.id] ?? "").trim()).length;
+  const todos = [...obrigatorios, ...outros];
+  const preenchidos = todos.filter((atributo) => String(atributos[atributo.id] ?? "").trim()).length;
 
   return (
-    <div className="space-y-6">
-      <section>
-        <p className="text-sm font-semibold">Obrigatórios nesta categoria</p>
-        <div className="mt-2 grid gap-4 md:grid-cols-3">
-          {obrigatorios.map((atributo) => (
-            <CampoDeAtributo key={atributo.id} atributo={atributo} valor={atributos[atributo.id]} problemas={problemas} aoMudar={(valor) => mudar(atributo.id, valor)} />
-          ))}
-        </div>
-      </section>
-
-      {(temGtin || motivo) && (
-        <section>
-          <p className="text-sm font-semibold">Código de barras</p>
-          <div className="mt-2 grid gap-4 md:grid-cols-3">
-            {temGtin && <CampoDoGtin atributos={atributos} emKit={emKit} problemas={problemas} mudar={mudar} />}
-            {motivo && (
-              <CampoDeAtributo
-                atributo={{ ...motivo, nome: "Motivo de não ter GTIN" }}
-                valor={atributos.EMPTY_GTIN_REASON}
-                problemas={problemas}
-                aoMudar={(valor) => mudar("EMPTY_GTIN_REASON", valor)}
-              />
-            )}
-          </div>
-        </section>
-      )}
-
-      <SugestaoDeFicha rascunho={rascunho} alterar={alterar} />
-
-      {outros.length > 0 && (
-        <details className="rounded border border-borda">
-          <summary className="cursor-pointer px-3 py-2 text-sm font-semibold">
-            Outros atributos da categoria ({preenchidosDosOutros} de {outros.length} preenchidos)
-          </summary>
-          <div className="grid gap-4 border-t border-borda p-3 md:grid-cols-3">
-            {outros.map((atributo) => (
-              <CampoDeAtributo key={atributo.id} atributo={atributo} valor={atributos[atributo.id]} problemas={problemas} aoMudar={(valor) => mudar(atributo.id, valor)} />
-            ))}
-          </div>
-        </details>
-      )}
-
-      {listaDeEspecificacoes}
+    <div className="grid items-start gap-6 md:grid-cols-2">
+      <CaixaDoML titulo={`Atributos do Mercado Livre (${preenchidos} de ${todos.length} preenchidos)`}>
+        <SugestaoDeFicha rascunho={rascunho} alterar={alterar} />
+        {obrigatorios.map((atributo) => (
+          <CampoDeAtributo key={atributo.id} atributo={atributo} valor={atributos[atributo.id]} problemas={problemas} aoMudar={(valor) => mudar(atributo.id, valor)} />
+        ))}
+        {temGtin && <CampoDoGtin atributos={atributos} emKit={emKit} problemas={problemas} mudar={mudar} />}
+        {motivo && (
+          <CampoDeAtributo
+            atributo={{ ...motivo, nome: "Motivo de não ter GTIN" }}
+            valor={atributos.EMPTY_GTIN_REASON}
+            problemas={problemas}
+            aoMudar={(valor) => mudar("EMPTY_GTIN_REASON", valor)}
+          />
+        )}
+        {outros.map((atributo) => (
+          <CampoDeAtributo key={atributo.id} atributo={atributo} valor={atributos[atributo.id]} problemas={problemas} aoMudar={(valor) => mudar(atributo.id, valor)} />
+        ))}
+      </CaixaDoML>
+      {doRise}
     </div>
+  );
+}
+
+/** A caixa da esquerda: todos os atributos do ML, um por linha. */
+function CaixaDoML({ titulo, children }) {
+  return (
+    <section className="rounded-lg border border-borda">
+      <header className="flex items-center gap-1 border-b border-borda bg-fundo px-3 py-2 text-sm font-semibold">
+        {titulo}
+        <BolhaDeAjuda variante="inline" texto="O que o Mercado Livre pede nesta categoria. * = obrigatório para publicar." />
+      </header>
+      <div className="space-y-3 p-3">{children}</div>
+    </section>
+  );
+}
+
+/**
+ * A coluna da direita: o que o cadastro do produto no Rise ja diz (marca, modelo, EAN, peso, medidas e as linhas
+ * "- Nome: valor" da descricao do produto). So leitura: para mudar, edita-se o produto.
+ */
+function CaracteristicasDoRise({ produto }) {
+  const linhas = [];
+  if (produto) {
+    const decimal = (valor) => String(valor).replace(".", ",");
+    const medidas = [produto.comprimentoCm, produto.larguraCm, produto.alturaCm];
+    const fixas = [
+      ["Marca", produto.marca],
+      ["Modelo", produto.modelo],
+      ["EAN/GTIN", produto.ean],
+      ["Peso", produto.pesoKg === null || produto.pesoKg === undefined ? null : `${decimal(produto.pesoKg)} kg`],
+      ["Medidas (C x L x A)", medidas.every((m) => m !== null && m !== undefined) ? `${medidas.map(decimal).join(" x ")} cm` : null],
+    ];
+    for (const [nome, valor] of fixas) if (valor) linhas.push({ nome, valor });
+    linhas.push(...linhasDeEspecificacao(produto.descricaoBase));
+  }
+  return (
+    <section className="rounded-lg border border-borda md:sticky md:top-2">
+      <header className="flex items-center gap-1 border-b border-borda bg-fundo px-3 py-2 text-sm font-semibold">
+        Características do produto no Rise
+        <BolhaDeAjuda variante="inline" texto="Somente leitura: o cadastro do produto e as linhas '- Nome: valor' da descrição dele. Para mudar, edite o produto." />
+      </header>
+      {linhas.length > 0 ? (
+        <dl className="divide-y divide-borda text-sm">
+          {linhas.map((linha, posicao) => (
+            <div key={posicao} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3 px-3 py-1.5">
+              <dt className="text-suave">{linha.nome}</dt>
+              <dd className="break-words">{linha.valor}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <p className="px-3 py-3 text-sm text-suave">O produto não tem características cadastradas.</p>
+      )}
+    </section>
   );
 }
 
