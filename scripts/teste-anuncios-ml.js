@@ -1950,6 +1950,17 @@ try {
         lancou = true;
       }
       conferir("rodada: nunca lanca", lancou, false);
+      // Um produto que estoura no banco (apelido que nao e texto) nao derruba a rodada dos outros.
+      const { limparCacheDeVendedores } = await import("../src/lib/canaisDeVenda/ml/catalogo.js");
+      limparCacheDeVendedores();
+      await prisma.produto.update({ where: { id: p1.id }, data: { mlCatalogoId: "MLBRUIM" } });
+      const ruim = criarMLFalso({
+        catalogos: { MLBRUIM: { nome: "Ruim", itens: [{ item_id: "MLBR1", seller_id: 777, price: 9, listing_type_id: "gold_special", shipping: {} }] } },
+        vendedores: { 777: { nickname: 12345, level_id: "5_green", total: 1 } },
+      });
+      const r7 = await relerConcorrentesML({ cliente: ruim, agora: new Date("2026-10-25T12:00:00Z"), espera: 0, ...soDoTeste });
+      conferir("rodada: erro de banco num produto conta como falha e os outros seguem", [r7.rodou, r7.motivo, r7.ok, r7.falhas], [true, undefined, 1, 1]);
+      limparCacheDeVendedores();
     } finally {
       if (configAntes) await prisma.configCanal.update({ where: { canal: "MERCADO_LIVRE" }, data: { mlConcorrentesRelidosEm: configAntes.mlConcorrentesRelidosEm } });
       else await prisma.configCanal.deleteMany({ where: { canal: "MERCADO_LIVRE" } });

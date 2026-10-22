@@ -45,7 +45,8 @@ export async function relerConcorrentesML({ cliente, agora = new Date(), forcar 
     let falhas = 0;
     for (const [indice, produto] of acompanhados.entries()) {
       if (indice > 0) await esperar(espera);
-      const resultado = await relerCatalogoDoProduto(ml, produto.id, { agora });
+      // Erro do banco num produto (a transacao estoura) conta como falha dele: nao pode derrubar a rodada dos outros.
+      const resultado = await relerCatalogoDoProduto(ml, produto.id, { agora }).catch((erro) => ({ ok: false, erro: erro?.message ?? String(erro), status: null }));
       if (resultado.ok) {
         ok += 1;
         continue;
