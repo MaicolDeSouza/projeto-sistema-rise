@@ -198,7 +198,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
 | Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. Ver "Servidor MCP (20/10/2026)" e "Rise AI (Entrega 1)" |
-| Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. Ver "Acessos (lançamento 1)" |
+| Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. **Lançamento 2 pronto em 22/10/2026, SEM deploy:** o Rise inteiro confere o acesso (menu e Painel filtrados, telas em `ver` com o selo "Somente leitura", dados sensíveis cortados no servidor), "Ver como" e a aba Histórico. Ver "Acessos (lançamento 1)" e "Acessos (lançamento 2)" |
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
 | Pedidos, Estoque, Financeiro | Esqueleto |
 
@@ -249,7 +249,7 @@ npm run teste:composicao          # 136 asserções do produto com composição 
 npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
 npm run teste:mcp                 # 162 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço e os cadastros): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
-npm run teste:acessos             # 143 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição e o guarda estático de src/app. Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
+npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 137 asserções da proposta automática de produto: regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
@@ -4144,13 +4144,61 @@ segue na lista de exceções). Regra única em `src/lib/acessos/produto.js` (`ac
   Exceção consciente: `excluirProdutos` delega a `excluirProduto`, que confere `tela.produtos` em Excluir. O teste-guarda
   confere **função a função** (`cadaExportConfere`).
 - `sessaoDeAcessos` tolera a falta de requisição (script/teste): no PC vira administrador, na VPS falha fechada.
-- **Ficou de fora (resto do Lançamento 2):** a lista de Produtos (popup de preço com margem), `acoes-bling`, `acoes-edicao-rapida`,
-  `acoes-imagens`, `acoes-li`, `acoes-nanobanana` e `api/produtos/documento-referencia` (continuam na lista de exceções);
-  `dado.localizacao` e `dado.estoqueExato` não foram aplicados ao cadastro; no modo leitura o painel de fotos aparece com os
-  botões desabilitados (as miniaturas não navegam).
+- **O que tinha ficado de fora entrou no lançamento 2 (22/10/2026, seção seguinte)**, menos: `dado.localizacao` e
+  `dado.estoqueExato` não foram aplicados ao CADASTRO (só à lista); no modo leitura o painel de fotos aparece com os botões
+  desabilitados (as miniaturas não navegam).
 - Conferido na tela com login simulado (`RISE_SIMULAR_LOGIN`, usuário e função de teste apagados depois): só leitura (sem
   Salvar, olho funcionando, abas desabilitadas) e "edita sem custo nem concorrentes" (sem lupa, "$", calculadora, Criar
   descrição; aba Fornecedores só com o estoque).
+
+### Acessos (lançamento 2, 22/10/2026)
+
+Pedido do dono: "pode continuar para lancamento 02" (opção 1, inline, sem subagentes). Plano:
+`docs/superpowers/plans/2026-10-21-acessos-lancamento-2.md` (9 tarefas, commits `21864db` a `7bffa5a` e o do fechamento). **Pronto e
+testado no PC, SEM DEPLOY** (deploy só com o "sobe"; nenhuma migration). É o lançamento que dá login à Andrea.
+
+- **O Rise inteiro confere o acesso.** A lista `EXCECOES_DO_LANCAMENTO_1` esvaziou e saiu do `teste:acessos`: toda página, layout, rota
+  e arquivo `"use server"` de `src/app` fora de `SEM_RECURSO` confere (página = 404, rota = 403 sem corpo, ação = `{ ok: false, erro:
+  "Sem permissão para <rótulo>." }` ou o vazio do formato dela). Ação nova sem conferência faz o teste falhar.
+- **Menu, Painel e rodapé** (`src/lib/acessos/painel.js`): o menu esconde os blocos sem `ver`; o Painel conta só os cartões liberados e,
+  sem nenhum, mostra o aviso (login não cadastrado, nada liberado, Rise sem administrador, banco fora do ar); o rodapé do menu mostra a
+  função da pessoa.
+- **Tela em `ver`:** selo "Somente leitura" no título (`SeloSomenteLeitura`, prop `somenteLeitura` do `PageHeader`) e nenhum botão de
+  escrita desenhado: Cadastros (formulários com `fieldset disabled`, Cancelar vira Voltar), editores do ML e da LI (painéis `inert`, abas
+  navegáveis, sem Salvar, Publicar e Sincronizar), Fontes do Scraper e Integrações (cartões sem Conectar, Testar, Desconectar e chaves).
+  O recurso "Mercado Livre › Frases fixas" ficou no catálogo sem tela (as frases saíram do ML em 22/10/2026, commit `70dad2e`, de outra
+  sessão): tirá-lo pede limpar as permissões gravadas com ele.
+- **Dados sensíveis cortados no servidor** por projeções puras (`src/lib/acessos/projecoes.js`, todas testadas): lista de Produtos
+  (custo sem Margem, localização, estoque em faixa; a ordem por um campo escondido volta à padrão), Clientes sem
+  `dado.pessoalDoCliente` (documento, telefones, e-mails, endereços, contatos e observações não saem; a busca não olha CPF nem e-mail; o
+  Salvar mantém o que está no banco: `pessoalPreservado`; cliente novo exige o dado), contexto do editor do ML sem o custo
+  (`projetarContextoML`), custos/calculadora/margem do ML só com Custo e Margem, concorrentes do catálogo e SEO dos concorrentes só com
+  Concorrentes, abas do Scraper e de Fontes (`abasDoScraper`: fornecedores com Custo, concorrentes com Concorrentes; o detalhe e a
+  miniatura só da aba liberada), Indicadores (`cartoesDosIndicadores`: "Valor do estoque a custo" com Custo e Financeiro, "Receita
+  potencial" com Financeiro).
+- **Cadastro rápido de fornecedor e concorrente dentro de Produtos** só abre com editar a seção do tipo em Cadastros
+  (`acessosDoCadastro` ganhou `cadastrarFornecedor` e `cadastrarConcorrente`); sem ele o recado diz a quem pedir.
+- **Rotas públicas de `/api/arquivos`** (imagens, documentos, certificados que o Bling e a LI baixam) continuam sem login; a pasta `reserva`
+  e as outras pedem o cadastro. `/api/mercados/documento` e `miniatura` aceitam o Scraper OU o cadastro de Produto (a lupa usa).
+- **"Ver como"** (`src/lib/acessos/verComo.js`, `JanelaVerComo.jsx`): no cabeçalho do usuário e da função, a janela "O que <nome> vê"
+  (menu com sub-telas e o nível, cartões do Painel, dados sensíveis, ações, capacidades), calculada do que está SALVO pela mesma
+  `montarSessao`/`resolverPermissoes` do `pode()`. Com alteração não salva o botão fica desabilitado ("Salve para calcular"). **Nunca
+  troca a sessão.** O Painel aparece sempre no menu; a janela só o lista quando a função libera `tela.painel`.
+- **Aba Histórico** do usuário salvo (`HistoricoDoUsuario.jsx`, `historicoDoUsuario` em `banco.js`): a `AuditoriaDeAcesso` dele (alvo = o id
+  ou o login, que é como a senha e o login de entrada são gravados), 100 por página: Quando · Quem · O quê · Antes → Depois, as funções
+  pelo nome de hoje e os campos em ordem fixa (o JSONB embaralha as chaves).
+- **Conferido na tela (PC, administrador):** todas as telas tocadas abrem (200), "Ver como" da Andrea e a aba Histórico, e o botão
+  desabilitado com alteração. **Não visto:** a mesma conferência com `RISE_SIMULAR_LOGIN` (o servidor do PC era de outra sessão e não foi
+  reiniciado) e a Revisão 4 do plano (tirar a permissão com a página aberta e clicar Salvar: o esperado é o erro vermelho de hoje).
+  Fazer no roteiro abaixo, na VPS.
+
+**Roteiro do dono (depois do deploy, na VPS):**
+1. Configurações › Usuários e funções › função Atendimento: marcar o que a Andrea vê (sugestão: Produtos e Cadastros em `ver`, sem
+   custo, margem, concorrentes e financeiro) e Salvar.
+2. Abrir o usuário `andrea` › "Ver como": a janela lista só esses blocos. A aba Histórico mostra a mudança de agora.
+3. A Andrea entra: o menu tem só esses blocos; o Painel só os cartões dela; o rodapé diz "Atendimento".
+4. Ela abre um produto: selo "Somente leitura", sem Salvar e sem a margem; a lista de Produtos sem lápis.
+5. Ela digita `rise.4hobby.com.br/mercados` à mão: página não encontrada.
 
 ## Relatório semanal da coleta (20/10/2026)
 

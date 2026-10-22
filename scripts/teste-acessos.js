@@ -830,7 +830,7 @@ try {
     );
   }
 
-  // --- guarda estatico do lancamento 1: toda pagina, layout, rota e arquivo de acoes de src/app confere o acesso ---
+  // --- guarda estatico (lancamentos 1 e 2): toda pagina, layout, rota e arquivo de acoes de src/app confere o acesso ---
   {
     const { readFileSync, readdirSync, statSync } = await import("node:fs");
     const { join } = await import("node:path");
@@ -877,18 +877,14 @@ try {
       "src/app/mcp/oauth/register/route.js",
       "src/app/mcp/oauth/token/route.js",
     ];
-    // O resto do Rise, que entra no lancamento 2 (spec §8). A lista SO ENCOLHE: esvaziar no lancamento 2.
-    const EXCECOES_DO_LANCAMENTO_1 = [
-    ];
     conferir("o guarda olha todas as paginas, layouts, rotas e acoes de src/app", alvos.length >= 60, true);
     conferir("o Painel le a sessao e filtra pelos cartoes", ["sessaoDeAcessos(", "cartoesDoPainel("].map((trecho) => ler("src/app/page.jsx").includes(trecho)), [true, true]);
     conferir(
-      "todo alvo fora das listas confere o acesso",
-      alvos.filter((caminho) => !SEM_RECURSO.includes(caminho) && !EXCECOES_DO_LANCAMENTO_1.includes(caminho) && !confere(ler(caminho))),
+      // Lancamento 2 (22/10/2026): a lista de excecoes do lancamento 1 esvaziou e saiu; todo o Rise confere o acesso.
+      "todo alvo fora de SEM_RECURSO confere o acesso",
+      alvos.filter((caminho) => !SEM_RECURSO.includes(caminho) && !confere(ler(caminho))),
       [],
     );
-    conferir("a lista de excecoes so encolhe: quem ja confere sai dela", EXCECOES_DO_LANCAMENTO_1.filter((caminho) => confere(ler(caminho))), []);
-    conferir("a lista de excecoes so tem arquivo que existe", EXCECOES_DO_LANCAMENTO_1.filter((caminho) => !alvos.includes(caminho)), []);
     // Decisao C1 do dono (20/10/2026): o chat interno saiu da tela; o acesso pelo Claude/ChatGPT e pelo /mcp.
     {
       const { existsSync } = await import("node:fs");

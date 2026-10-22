@@ -23,7 +23,7 @@ const textoDe = (valor) => String((Array.isArray(valor) ? valor[0] : valor) ?? "
  * ou codigo do kit, 100 por pagina. Cada linha abre o editor do anuncio.
  */
 export default async function MercadoLivrePage({ searchParams }) {
-  // Acessos: a lista em ver; Novo anuncio com editar, Configuracoes com as frases, a coluna Concorrencia com o dado.
+  // Acessos: a lista em ver; Novo anuncio com editar, a coluna Concorrencia com o dado.
   const { pode } = await exigirAcessoNaPagina("tela.canaisDeVenda.mercadoLivre", "ver");
   const podeEditar = pode("tela.canaisDeVenda.mercadoLivre", "editar");
   const verConcorrencia = pode("dado.concorrentes", "ver");
