@@ -63,9 +63,9 @@ import Fornecedores from "./Fornecedores";
 import JanelaDescricao from "./JanelaDescricao";
 import PainelDeImagens from "./PainelDeImagens";
 import BannerDeRascunho from "./BannerDeRascunho";
-import QuadroDaProposta from "./QuadroDaProposta";
+import PropostaNoTopo, { DocumentosDaProposta, OlhoDaProposta } from "./QuadroDaProposta";
 import { listaComParametros, lerUltimaLista } from "@/lib/ultimaListaDeProdutos";
-import { camposDoFormularioDaProposta, propostaNoFormulario } from "@/lib/proposta/aplicar";
+import { propostaNoFormulario } from "@/lib/proposta/aplicar";
 import { useRascunhoAutomatico } from "./useRascunhoAutomatico";
 import { chaveDoRascunho } from "@/lib/rascunhoDoCadastro";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
@@ -1858,6 +1858,13 @@ export default function FormularioProduto({
   const [editadosDaProposta, setEditadosDaProposta] = useState(() => new Set());
   // O clone ja nasce com o que salvar; o produto que a proposta preencheu tambem (decisao A do dono: conta como alteracao).
   const [alterado, setAlterado] = useState(Boolean(clone) || preencheuPelaProposta);
+  // O preenchimento da proposta ao abrir nao e o dono mexendo: sem isto o rascunho automatico guardava a proposta e o
+  // aviso "Alteracoes nao salvas" aparecia a cada abertura. So o que ele mexer depois conta para o rascunho.
+  const [mexeuDepoisDeAbrir, setMexeuDepoisDeAbrir] = useState(false);
+  const marcarAlterado = () => {
+    setAlterado(true);
+    setMexeuDepoisDeAbrir(true);
+  };
   const [erroAcao, setErroAcao] = useState(null);
   const formulario = useRef(null);
   const referencias = useRef(null);
@@ -2066,7 +2073,7 @@ export default function FormularioProduto({
 
   function mudarFornecedoresRascunho(atualizador) {
     setFornecedoresRascunho(atualizador);
-    setAlterado(true);
+    marcarAlterado();
   }
 
   /**
@@ -2105,7 +2112,7 @@ export default function FormularioProduto({
 
   function mudarConcorrentesRascunho(atualizador) {
     setConcorrentesRascunho(atualizador);
-    setAlterado(true);
+    marcarAlterado();
   }
 
   async function enviarTemporario(tipo, arquivo) {
@@ -2118,7 +2125,7 @@ export default function FormularioProduto({
     );
     if (resultado.ok) {
       setTemporarios((atual) => [...atual, resultado.arquivo]);
-      setAlterado(true);
+      marcarAlterado();
     }
     return resultado;
   }
@@ -2211,7 +2218,7 @@ export default function FormularioProduto({
         if (resposta.imagens.length > 0) {
           // Entram no fim da fila: so viram a principal se nao havia nenhuma antes.
           setImagensLote((anteriores) => [...anteriores, ...resposta.imagens]);
-          setAlterado(true);
+          marcarAlterado();
           vagas -= resposta.imagens.length;
           trazidas += resposta.imagens.length;
         }
@@ -2252,7 +2259,7 @@ export default function FormularioProduto({
   // Excluir um documento ja gravado so o risca; o Salvar o apaga (pedido do dono em 10/10/2026). Outro clique desfaz.
   function alternarExclusaoDeDocumento(id) {
     setDocumentosExcluidos((atual) => (atual.includes(id) ? atual.filter((outro) => outro !== id) : [...atual, id]));
-    setAlterado(true);
+    marcarAlterado();
   }
 
   // "Anexar a este produto" no kit: o documento da peca e copiado para o lote e entra como "a salvar".
@@ -2261,7 +2268,7 @@ export default function FormularioProduto({
     const resultado = await tentar(() => anexarDocumentoDaPeca(lote, arquivoId));
     if (resultado.ok) {
       setTemporarios((atual) => [...atual, resultado.arquivo]);
-      setAlterado(true);
+      marcarAlterado();
     }
     return resultado;
   }
@@ -2382,16 +2389,6 @@ export default function FormularioProduto({
     permiteIA: acessos.ia,
   };
 
-  /** "Aplicar escolhidos ao formulario" do quadro Proposta: so preenche os campos; o Salvar grava. */
-  function aplicarProposta(escolhas) {
-    const { campos, secoes } = camposDoFormularioDaProposta(produto?.proposta?.secoes ?? {}, escolhas, {
-      sku: lerFormulario(formulario.current).sku,
-    });
-    if (secoes.length === 0) return;
-    aplicar(campos);
-    setPropostaAplicada((atual) => [...new Set([...atual, ...secoes])]);
-  }
-
   // O resultado e tratado dentro da propria acao, e nao num efeito: reagir a
   // mudanca de estado com setState dentro de useEffect provoca renderizacoes em
   // cascata (e a regra do React 19 barra).
@@ -2404,7 +2401,7 @@ export default function FormularioProduto({
     formulario,
     lerCampos: lerFormulario,
     estado: {
-      alterado,
+      alterado: alterado && (mexeuDepoisDeAbrir || !preencheuPelaProposta),
       tipo,
       pecas,
       fornecedores: fornecedoresRascunho,
@@ -2439,7 +2436,7 @@ export default function FormularioProduto({
     }
     setDocumentosExcluidos(guardado.documentosExcluidos);
     setGastoDaEdicao(guardado.gastoDaEdicao);
-    setAlterado(true);
+    marcarAlterado();
     rascunho.aplicado();
   }
 
@@ -2722,7 +2719,7 @@ export default function FormularioProduto({
     setAvisoComposicao(null);
     setTipo("COMPOSICAO");
     setAba("composicao");
-    setAlterado(true);
+    marcarAlterado();
     if (origemId && pecas.length === 0) incluirOrigem(origemId);
   }
 
@@ -2744,7 +2741,7 @@ export default function FormularioProduto({
     setPecas([]);
     setConfirmarSimples(false);
     setAvisoComposicao(null);
-    setAlterado(true);
+    marcarAlterado();
     if (aba === "composicao") setAba("caracteristicas");
     trocarCampo("unidade", "UN");
     const guardado = guardadoDoSimples.current;
@@ -3033,7 +3030,7 @@ export default function FormularioProduto({
     // 18/09/2026).
     setPrecoVendaTexto(mesclado.precoVenda ?? "");
     setVersao((anterior) => anterior + 1);
-    setAlterado(true);
+    marcarAlterado();
   }
 
   function preencher(resultado) {
@@ -3143,14 +3140,14 @@ export default function FormularioProduto({
       ref={formulario}
       action={acao}
       onChange={(evento) => {
-        setAlterado(true);
+        marcarAlterado();
         marcarEditadoDaProposta(evento);
         if (estado?.erro) setErroDispensado(estado);
       }}
       // A cada tecla (o onChange so dispara ao sair do campo): marca como alterado ja na digitacao, senao quem digita e
       // recarrega sem sair do campo perderia tudo, e o rascunho espera a pausa na digitacao para gravar.
       onInput={(evento) => {
-        setAlterado(true);
+        marcarAlterado();
         marcarEditadoDaProposta(evento);
         rascunho.agendar();
       }}
@@ -3241,6 +3238,8 @@ export default function FormularioProduto({
         >
           {somenteLeitura ? "Voltar" : "Cancelar"}
         </button>
+        {/* Produto ainda em proposta (pedido do dono em 22/10/2026): o selo e o Relatorio ao lado do Cancelar. */}
+        {acessos.editar && produto?.proposta && <PropostaNoTopo proposta={produto.proposta} />}
 
         {estado?.ok && (
           <span className="text-sm text-emerald-700">Produto salvo.</span>
@@ -3320,10 +3319,6 @@ export default function FormularioProduto({
         />
       )}
 
-      {/* Proposta automatica da sessao do Claude (spec 2026-10-16): so preenche o formulario; o Salvar grava. */}
-      {acessos.editar && produto?.proposta && (
-        <QuadroDaProposta proposta={produto.proposta} aoAplicar={aplicarProposta} aplicadasNestaEdicao={propostaAplicada} />
-      )}
 
       {erroAcao && (
         <p className="rounded bg-red-50 p-3 text-sm text-red-800">{erroAcao}</p>
@@ -3396,7 +3391,7 @@ export default function FormularioProduto({
                   progressoDaImportacao={
                     carregandoFotosDoProduto ? "Carregando as fotos do produto..." : progressoDaImportacao
                   }
-                  aoAlterar={() => setAlterado(true)}
+                  aoAlterar={() => marcarAlterado()}
                   reserva={reserva}
                   reservaExcluida={reservaExcluida}
                   setReservaExcluida={setReservaExcluida}
@@ -3411,7 +3406,7 @@ export default function FormularioProduto({
               <CampoSku
                 inicial={v("sku")}
                 erro={erros.sku}
-                aoAlterar={() => setAlterado(true)}
+                aoAlterar={() => marcarAlterado()}
                 usos={usos}
                 comVarinha={acessos.editar}
               />
@@ -3438,7 +3433,7 @@ export default function FormularioProduto({
                 custo={custoPadrao}
                 precoAtual={precoVendaAtual}
                 posicao={posicaoDoPreco}
-                aoAlterar={() => setAlterado(true)}
+                aoAlterar={() => marcarAlterado()}
                 aoMudarValor={setPrecoVendaTexto}
                 usos={usos}
                 margemModo={acessos.margem}
@@ -3610,7 +3605,7 @@ export default function FormularioProduto({
                   ids={idsDasIndicacoes}
                   valores={valoresRefs?.marca}
                   carregando={lendoRefs}
-                  aoAlterar={() => setAlterado(true)}
+                  aoAlterar={() => marcarAlterado()}
                   usos={usos}
                   vazio="Nenhuma referência (lupa ou vínculos salvos) publica a marca (a loja que põe o próprio nome como marca fica de fora)."
                 />
@@ -3621,7 +3616,7 @@ export default function FormularioProduto({
                   ids={idsDasIndicacoes}
                   valores={valoresRefs?.modelo}
                   carregando={lendoRefs}
-                  aoAlterar={() => setAlterado(true)}
+                  aoAlterar={() => marcarAlterado()}
                   usos={usos}
                   vazio="Nenhuma referência (lupa ou vínculos salvos) publica o modelo."
                 />
@@ -3654,7 +3649,7 @@ export default function FormularioProduto({
                   ids={idsDasIndicacoes}
                   valores={valoresRefs?.homologacao}
                   carregando={lendoRefs}
-                  aoAlterar={() => setAlterado(true)}
+                  aoAlterar={() => marcarAlterado()}
                   usos={usos}
                   vazio="Nenhuma referência (lupa ou vínculos salvos) publica o número de homologação. Poucas lojas publicam: a maioria escreve só 'certificado pela Anatel'."
                 />
@@ -3669,7 +3664,7 @@ export default function FormularioProduto({
                     valores={valoresRefs?.ean}
                     carregando={lendoRefs}
                     aoAlterar={() => {
-                      setAlterado(true);
+                      marcarAlterado();
                       conferirEan();
                     }}
                     usos={usos}
@@ -3714,7 +3709,7 @@ export default function FormularioProduto({
                 pecas={pecas}
                 setPecas={setPecas}
                 produtoId={produto?.id ?? null}
-                aoAlterar={() => setAlterado(true)}
+                aoAlterar={() => marcarAlterado()}
                 aviso={avisoComposicao}
               />
             </div>
@@ -3755,6 +3750,7 @@ export default function FormularioProduto({
                   desabilitado={carregandoFotosDoProduto}
                 />
               )}
+              {acessos.editar && produto?.proposta && <DocumentosDaProposta proposta={produto.proposta} />}
               {acessos.referencias && (
                 <DocumentosDasReferencias
                   key={aberturaDocumentos}
@@ -3785,7 +3781,12 @@ export default function FormularioProduto({
                 </div>
               </div>
               )}
-              <MarcaDaProposta nome="descricaoBase" />
+              {acessos.editar && produto?.proposta?.secoes?.descricao && (
+                <div className="mb-1 flex items-center gap-1">
+                  <MarcaDaProposta nome="descricaoBase" />
+                  <OlhoDaProposta proposta={produto.proposta} secao="descricao" />
+                </div>
+              )}
               <EditorDescricao
                 nome="descricaoBase"
                 valorInicial={v("descricaoBase")}
@@ -3805,7 +3806,7 @@ export default function FormularioProduto({
                   ids={idsDasIndicacoes}
                   valores={valoresRefs?.peso}
                   carregando={lendoRefs}
-                  aoAlterar={() => setAlterado(true)}
+                  aoAlterar={() => marcarAlterado()}
                   usos={usos}
                   unidade="kg"
                   vazio="Nenhuma referência (lupa ou vínculos salvos) publica o peso na ficha técnica."
@@ -3820,7 +3821,7 @@ export default function FormularioProduto({
                   ids={idsDasIndicacoes}
                   valores={valoresRefs?.comprimento}
                   carregando={lendoRefs}
-                  aoAlterar={() => setAlterado(true)}
+                  aoAlterar={() => marcarAlterado()}
                   usos={usos}
                   unidade="cm"
                   vazio="Nenhuma referência (lupa ou vínculos salvos) publica o comprimento na ficha técnica."
@@ -3835,7 +3836,7 @@ export default function FormularioProduto({
                   ids={idsDasIndicacoes}
                   valores={valoresRefs?.largura}
                   carregando={lendoRefs}
-                  aoAlterar={() => setAlterado(true)}
+                  aoAlterar={() => marcarAlterado()}
                   usos={usos}
                   unidade="cm"
                   vazio="Nenhuma referência (lupa ou vínculos salvos) publica a largura na ficha técnica."
@@ -3850,7 +3851,7 @@ export default function FormularioProduto({
                   ids={idsDasIndicacoes}
                   valores={valoresRefs?.altura}
                   carregando={lendoRefs}
-                  aoAlterar={() => setAlterado(true)}
+                  aoAlterar={() => marcarAlterado()}
                   usos={usos}
                   unidade="cm"
                   vazio="Nenhuma referência (lupa ou vínculos salvos) publica a altura na ficha técnica."
@@ -3903,7 +3904,7 @@ export default function FormularioProduto({
                         : valoresRefs?.ncm
                     }
                     carregando={lendoRefs && ncmDasPecas.length === 0}
-                    aoAlterar={() => setAlterado(true)}
+                    aoAlterar={() => marcarAlterado()}
                     usos={usos}
                     vazio="Nenhuma referência (lupa ou vínculos salvos) publica o NCM. Fortek, Casa da Robótica e Smartkits costumam publicar; Eletrogate, Saravati e Usinainfo não."
                   />

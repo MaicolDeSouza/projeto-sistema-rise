@@ -1,27 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Eye, FileText, X } from "lucide-react";
+import { Eye, FileText, X } from "lucide-react";
 
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
-import { SECOES_APLICAVEIS, temOQueAplicar } from "@/lib/proposta/aplicar";
 
 /**
- * Quadro "Proposta" no topo do cadastro (spec 2026-10-16, Como a tela mostra): o que a sessao do Claude propos para
- * este produto, uma linha por secao, com o estado (aplicada / pendente / falta salvar) e o detalhe em "Ver". A acao
- * principal so PREENCHE o formulario (`aoAplicar`); quem grava e o Salvar, e quem aprova e o Conferido.
- *
- * Desenho: nesta tela o operador precisa ver primeiro o que a proposta tem por secao e se ja foi aplicada; a acao
- * principal e "Aplicar escolhidos ao formulario". Titulo e preco escolhem a opcao na propria linha.
+ * A proposta no cadastro do produto. Ate 21/10/2026 era um quadro com uma linha por secao e "Aplicar escolhidos"; desde
+ * 22/10/2026 (pedido do dono) a proposta preenche o formulario sozinha e aqui ficam so o topo (selo + Relatorio), o olho
+ * de uma secao e os documentos. A janela de detalhe (`JanelaDaSecao`) e a mesma de antes.
  */
 
 const NOMES = {
   titulos: "Título", descricao: "Descrição", campos: "Campos", preco: "Preço", ean: "EAN",
   fotos: "Fotos", documentos: "Documentos", relatorio: "Relatório",
 };
-// A ordem das linhas e a do dono (21/10/2026); o relatorio nao vira linha, e o botao do cabecalho.
-const ORDEM = ["titulos", "preco", "descricao", "campos", "ean", "fotos", "documentos", "relatorio"];
 const ROTULO_DO_CAMPO = {
   marca: "Marca", modelo: "Modelo", unidade: "Unidade", garantiaMeses: "Garantia (meses)", codigo: "Código", ncm: "NCM",
   origem: "Origem", pesoKg: "Peso (kg)", alturaCm: "Altura (cm)", larguraCm: "Largura (cm)", comprimentoCm: "Comprimento (cm)",
@@ -37,210 +31,75 @@ const margemTexto = (margem) => {
   const porcento = numero > 0 && numero <= 1 ? numero * 100 : numero;
   return `${porcento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 };
-const descricaoDaOpcaoDePreco = (opcao) => `${reais(opcao.preco)} (${margemTexto(opcao.margem)} margem) · ${posicaoTexto(opcao.posicao)}`;
 
-/** Uma frase por secao: o que a proposta traz, sem abrir o detalhe. */
-function resumo(secao, conteudo) {
-  if (secao === "descricao") {
-    // So as linhas da secao "Especificacoes tecnicas" (ate a proxima linha em branco), nao os itens inclusos.
-    const todas = String(conteudo.texto ?? "").split(/\r?\n/);
-    const inicio = todas.findIndex((linha) => /^especifica/i.test(linha.trim()));
-    const depois = inicio < 0 ? [] : todas.slice(inicio + 1);
-    const fim = depois.findIndex((linha) => linha.trim() === "");
-    const linhas = (fim < 0 ? depois : depois.slice(0, fim)).filter((linha) => linha.startsWith("- ")).length;
-    const interrogacoes = (conteudo.interrogacoes ?? []).length;
-    return `${linhas} linhas de especificação${interrogacoes ? `, ${interrogacoes} com "?"` : ""}`;
-  }
-  if (secao === "campos") {
-    return Object.entries(conteudo).map(([campo, item]) => `${ROTULO_DO_CAMPO[campo] ?? campo} ${item.valor}`).join(", ") || "nada a propor";
-  }
-  if (secao === "ean") {
-    const descartados = (conteudo.descartados ?? []).length;
-    return conteudo.escolhido ? `${conteudo.escolhido.valor} (${conteudo.escolhido.origem})` : `Nenhum confiável${descartados ? ` (${descartados} descartados)` : ""}`;
-  }
-  if (secao === "fotos") {
-    const candidatas = conteudo.candidatas ?? [];
-    return `${candidatas.filter((c) => c.escolhida).length} escolhidas de ${candidatas.length}; aplicar na aba Imagens (Proposta)`;
-  }
-  if (secao === "documentos") {
-    const itens = conteudo.itens ?? [];
-    const quebrados = itens.filter((item) => item.link && !item.link.ok).length;
-    return `${itens.length} documento(s)${quebrados ? ` · ${quebrados} não ${quebrados === 1 ? "abre" : "abrem"}` : ""}`;
-  }
-  if (secao === "relatorio") {
-    if (Array.isArray(conteudo.topicos)) return conteudo.topicos[0]?.itens?.[0] ?? "";
-    return String(conteudo.texto ?? "").split(/\r?\n/)[0];
-  }
-  return "";
-}
-
-const aplicavel = temOQueAplicar;
-
-function Estado({ estado }) {
-  const estilos = {
-    aplicada: "bg-emerald-50 text-emerald-800",
-    pendente: "bg-amber-50 text-amber-800",
-    "falta salvar": "bg-sky-50 text-sky-800",
-  };
-  if (!estado) return <span className="w-24" aria-hidden />;
-  return <span className={`inline-flex w-24 justify-center rounded px-1.5 py-0.5 text-[11px] font-medium ${estilos[estado]}`}>{estado}</span>;
-}
-
-export default function QuadroDaProposta({ proposta, aoAplicar, aplicadasNestaEdicao = [] }) {
+/**
+ * O topo do cadastro quando ha proposta (pedido do dono em 22/10/2026: o quadro saiu): o selo "Proposta" com a bolha e
+ * o botao "Relatorio", ao lado do Cancelar. Os campos a proposta ja preencheu ao abrir (`propostaNoFormulario`).
+ */
+export default function PropostaNoTopo({ proposta }) {
+  const [vendo, setVendo] = useState(false);
   const secoes = proposta?.secoes ?? {};
-  const presentes = ORDEM.filter((secao) => secoes[secao]);
-  const [aberto, setAberto] = useState(() => (proposta?.naoAplicadas ?? []).length > 0);
-  const [marcadas, setMarcadas] = useState(() => new Set(presentes.filter((s) => aplicavel(s, secoes[s]) && (proposta.naoAplicadas ?? []).includes(s))));
-  const [titulo, setTitulo] = useState(secoes.titulos?.recomendada ?? 0);
-  const recomendadaDePreco = secoes.preco?.recomendada ?? null;
-  const [preco, setPreco] = useState(recomendadaDePreco?.margem ?? secoes.preco?.opcoes?.[0]?.margem ?? null);
-  const [vendo, setVendo] = useState(null);
-
-  if (presentes.length === 0) return null;
-
-  const estadoDe = (secao) => {
-    // Fotos se aplica na aba Imagens, mas tem estado como as outras.
-    if (secao !== "fotos" && !aplicavel(secao, secoes[secao])) return null;
-    if (aplicadasNestaEdicao.includes(secao)) return "falta salvar";
-    return (proposta.naoAplicadas ?? []).includes(secao) ? "pendente" : "aplicada";
-  };
-  const pendentes = presentes.filter((secao) => estadoDe(secao) === "pendente").length;
-  const faltaSalvar = presentes.filter((secao) => estadoDe(secao) === "falta salvar").length;
-  // O cabecalho diz o que falta, na ordem em que o dono resolve: aplicar, depois salvar.
-  const situacao = pendentes
-    ? { texto: `${pendentes} ${pendentes === 1 ? "seção pendente" : "seções pendentes"}`, cor: "text-amber-700" }
-    : faltaSalvar
-      ? { texto: `${faltaSalvar} ${faltaSalvar === 1 ? "aplicada" : "aplicadas"}, falta salvar`, cor: "text-sky-700" }
-      : { texto: "tudo aplicado", cor: "text-suave" };
-
-  function alternar(secao) {
-    setMarcadas((atual) => {
-      const nova = new Set(atual);
-      if (nova.has(secao)) nova.delete(secao);
-      else nova.add(secao);
-      return nova;
-    });
-  }
-
-  function aplicar() {
-    aoAplicar({ secoes: [...marcadas], titulo: Number(titulo), preco: preco === null ? null : Number(preco) });
-  }
-
-  const opcoesDePreco = [
-    ...(recomendadaDePreco ? [{ ...recomendadaDePreco, recomendada: true }] : []),
-    ...(secoes.preco?.opcoes ?? []).filter((opcao) => opcao.preco && opcao.margem !== recomendadaDePreco?.margem),
-  ];
-
   return (
-    <section aria-label="Proposta" className="rounded-lg border border-borda bg-superficie">
-      <header className="flex flex-wrap items-center gap-3 px-4 py-3">
+    <>
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+        Proposta
+        <BolhaDeAjuda
+          variante="inline"
+          texto="Este produto ainda é uma proposta. Os campos vazios já vieram preenchidos (marca PROPOSTA) e os preenchidos têm a sugestão no topo da lista do ícone. Confira e salve; marcar Conferido aprova e apaga a proposta."
+        />
+      </span>
+      {secoes.relatorio && (
         <button
           type="button"
-          onClick={() => setAberto((atual) => !atual)}
-          aria-expanded={aberto}
-          className="flex items-center gap-2 text-sm font-semibold"
+          onClick={() => setVendo(true)}
+          className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-2 text-sm hover:bg-fundo"
         >
-          {aberto ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          Proposta
+          <FileText size={15} /> Relatório
         </button>
-        <span className={`text-xs ${situacao.cor}`}>{situacao.texto}</span>
-        <span className="relative inline-flex">
-          <BolhaDeAjuda
-            variante="inline"
-            texto="O que a pesquisa propõe para este produto. Marque as seções e clique em Aplicar: os campos do formulário são preenchidos, e nada é gravado até o Salvar. O Conferido aprova e apaga a proposta."
-          />
-        </span>
-        {/* O relatorio so se le: em vez de uma linha da lista, um botao no cabecalho (pedido do dono em 21/10/2026). */}
-        {secoes.relatorio && (
-          <button
-            type="button"
-            onClick={() => setVendo("relatorio")}
-            className="ml-auto inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
-          >
-            <FileText size={15} /> Relatório
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={aplicar}
-          disabled={marcadas.size === 0}
-          title={marcadas.size === 0 ? "Marque pelo menos uma seção" : undefined}
-          className={`${secoes.relatorio ? "" : "ml-auto "}rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50`}
-        >
-          Aplicar escolhidos ao formulário
-        </button>
-      </header>
-
-      {aberto && (
-        <ul className="divide-y divide-borda border-t border-borda">
-          {presentes.filter((secao) => secao !== "relatorio").map((secao) => {
-            const conteudo = secoes[secao];
-            const podeAplicar = aplicavel(secao, conteudo);
-            return (
-              <li key={secao} className="flex items-center gap-3 px-4 py-2 text-sm">
-                <span className="flex w-5 justify-center">
-                  {podeAplicar && (
-                    <input
-                      type="checkbox"
-                      checked={marcadas.has(secao)}
-                      onChange={() => alternar(secao)}
-                      aria-label={`Aplicar ${NOMES[secao]}`}
-                      className="accent-emerald-600"
-                    />
-                  )}
-                </span>
-                <span className="w-24 shrink-0 font-medium">{NOMES[secao]}</span>
-                <span className="min-w-0 flex-1">
-                  {secao === "titulos" ? (
-                    <select
-                      value={titulo}
-                      onChange={(evento) => setTitulo(Number(evento.target.value))}
-                      aria-label="Título a aplicar"
-                      className="w-full max-w-xl rounded border border-borda bg-superficie px-2 py-1 text-sm"
-                    >
-                      {conteudo.opcoes.map((opcao, indice) => (
-                        <option key={opcao} value={indice}>
-                          {opcao} ({opcao.length}){indice === conteudo.recomendada ? " · recomendada" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  ) : secao === "preco" && opcoesDePreco.length > 0 ? (
-                    <select
-                      value={preco ?? ""}
-                      onChange={(evento) => setPreco(Number(evento.target.value))}
-                      aria-label="Preço a aplicar"
-                      className="w-full max-w-xl rounded border border-borda bg-superficie px-2 py-1 text-sm tabular-nums"
-                    >
-                      {opcoesDePreco.map((opcao) => (
-                        <option key={opcao.margem} value={opcao.margem}>
-                          {descricaoDaOpcaoDePreco(opcao)}{opcao.recomendada ? " · recomendada" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  ) : secao === "preco" ? (
-                    <span className="text-suave">{conteudo.motivoSemRecomendada}</span>
-                  ) : (
-                    <span className="block truncate text-suave" title={resumo(secao, conteudo)}>{resumo(secao, conteudo)}</span>
-                  )}
-                </span>
-                <Estado estado={estadoDe(secao)} />
-                <button
-                  type="button"
-                  onClick={() => setVendo(secao)}
-                  aria-label={`Ver ${NOMES[secao]}`}
-                  title="Ver o detalhe"
-                  className="rounded p-1.5 text-suave hover:bg-fundo hover:text-texto"
-                >
-                  <Eye size={16} />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
       )}
+      {vendo && <JanelaDaSecao secao="relatorio" conteudo={secoes.relatorio} urls={proposta.urls ?? {}} aoFechar={() => setVendo(false)} />}
+    </>
+  );
+}
 
-      {vendo && <JanelaDaSecao secao={vendo} conteudo={secoes[vendo]} urls={proposta.urls ?? {}} aoFechar={() => setVendo(null)} />}
-    </section>
+/**
+ * O olho de uma secao (pedido do dono em 22/10/2026, na Descricao: "e bem util para entender de onde foram retirados os
+ * dados"): abre a mesma janela de detalhe de antes.
+ */
+export function OlhoDaProposta({ proposta, secao }) {
+  const [vendo, setVendo] = useState(false);
+  const conteudo = proposta?.secoes?.[secao];
+  if (!conteudo) return null;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setVendo(true)}
+        aria-label={`Ver de onde veio: ${NOMES[secao]}`}
+        title="Ver de onde a proposta tirou os dados"
+        className="rounded p-1 text-suave hover:bg-fundo hover:text-texto"
+      >
+        <Eye size={16} />
+      </button>
+      {vendo && <JanelaDaSecao secao={secao} conteudo={conteudo} urls={proposta.urls ?? {}} aoFechar={() => setVendo(false)} />}
+    </>
+  );
+}
+
+/** A secao "Da proposta" da aba Documentos tecnicos: os links que a proposta escolheu, com os que nao abrem marcados. */
+export function DocumentosDaProposta({ proposta }) {
+  const conteudo = proposta?.secoes?.documentos;
+  if (!conteudo?.itens?.length) return null;
+  return (
+    <div className="sm:col-span-2">
+      <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
+        Da proposta
+        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">Proposta</span>
+      </p>
+      <div className="rounded border border-amber-200 bg-amber-50/40 p-3 text-sm">
+        <DetalheDaSecao secao="documentos" conteudo={conteudo} urls={proposta.urls ?? {}} />
+      </div>
+    </div>
   );
 }
 
