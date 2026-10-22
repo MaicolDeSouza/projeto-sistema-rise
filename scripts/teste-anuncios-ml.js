@@ -1733,8 +1733,11 @@ try {
       ],
       [0, 0, 0],
     );
+    const configExistia = (await prisma.configCanal.count({ where: { canal: "MERCADO_LIVRE" } })) > 0;
     const configML = await prisma.configCanal.upsert({ where: { canal: "MERCADO_LIVRE" }, create: { canal: "MERCADO_LIVRE" }, update: {} });
     conferir("ConfigCanal tem mlConcorrentesRelidosEm", "mlConcorrentesRelidosEm" in configML, true);
+    // A linha e a de verdade (frases fixas do dono): so se apaga se foi o teste que a criou.
+    if (!configExistia) await prisma.configCanal.deleteMany({ where: { canal: "MERCADO_LIVRE" } });
   }
 
   {
@@ -1905,6 +1908,49 @@ try {
       }),
       [{ tipo: "preco_baixou", texto: "ARDU_ROBÓTICA EIRELI baixou para R$ 37,90" }],
     );
+  }
+
+  {
+    console.log("\nConcorrentes do ML: rodada diaria");
+    await limpar();
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { relerConcorrentesML } = await import("../src/lib/canaisDeVenda/ml/relerCatalogo.js");
+    const { acompanharCatalogoML } = await import("../src/lib/canaisDeVenda/ml/concorrentes.js");
+    // A linha do ConfigCanal e a de verdade: guarda a data da rodada e devolve no fim.
+    const configAntes = await prisma.configCanal.findUnique({ where: { canal: "MERCADO_LIVRE" } });
+    await prisma.configCanal.upsert({ where: { canal: "MERCADO_LIVRE" }, create: { canal: "MERCADO_LIVRE" }, update: { mlConcorrentesRelidosEm: null } });
+    const relidoEm = async () => (await prisma.configCanal.findUnique({ where: { canal: "MERCADO_LIVRE" } })).mlConcorrentesRelidosEm?.toISOString() ?? null;
+    try {
+      const ml = criarMLFalso();
+      const p1 = await prisma.produto.create({ data: { sku: "ZZ-ML-C1", tituloBase: "um", conferido: true } });
+      const p2 = await prisma.produto.create({ data: { sku: "ZZ-ML-C2", tituloBase: "dois", conferido: true } });
+      await acompanharCatalogoML(ml, p1.id, { catalogoId: "MLB44072268", catalogoNome: "a" });
+      await acompanharCatalogoML(ml, p2.id, { catalogoId: "MLB44072268", catalogoNome: "a" });
+      // So os produtos deste teste: o banco e compartilhado, e produto real acompanhado nao pode entrar na conta.
+      const soDoTeste = { produtos: [p1.id, p2.id] };
+      const agora = new Date("2026-10-21T15:00:00Z");
+      const r1 = await relerConcorrentesML({ cliente: ml, agora, espera: 0, ...soDoTeste });
+      conferir("rodada: le os produtos acompanhados e grava a data", [r1.rodou, r1.produtos, r1.ok, await relidoEm()], [true, 2, 2, agora.toISOString()]);
+      // 23:00 UTC ainda e 21/10 em Sao Paulo (20:00).
+      conferir("rodada: nao repete no mesmo dia de Sao Paulo", (await relerConcorrentesML({ cliente: ml, agora: new Date("2026-10-21T23:00:00Z"), espera: 0, ...soDoTeste })).rodou, false);
+      conferir("rodada: dia seguinte roda", (await relerConcorrentesML({ cliente: ml, agora: new Date("2026-10-22T03:30:00Z"), espera: 0, ...soDoTeste })).rodou, true);
+      const com429 = criarMLFalso({ falhas: [{ metodo: "GET", caminho: "/products/MLB44072268/items", exato: true, status: 429 }] });
+      const r4 = await relerConcorrentesML({ cliente: com429, agora: new Date("2026-10-23T12:00:00Z"), espera: 0, ...soDoTeste });
+      conferir("rodada: 429 para na hora e nao avanca a data", [r4.rodou, r4.parou !== undefined, r4.ok, await relidoEm()], [true, true, 0, "2026-10-22T03:30:00.000Z"]);
+      const outroErro = criarMLFalso({ falhas: [{ metodo: "GET", caminho: "/products/MLB44072268/items", exato: true, status: 500 }] });
+      const r5 = await relerConcorrentesML({ cliente: outroErro, agora: new Date("2026-10-23T13:00:00Z"), espera: 0, ...soDoTeste });
+      conferir("rodada: erro que nao e 429 conta como falha e segue", [r5.rodou, r5.parou, r5.ok, r5.falhas, await relidoEm()], [true, undefined, 1, 1, "2026-10-23T13:00:00.000Z"]);
+      let lancou = false;
+      try {
+        await relerConcorrentesML({ cliente: { usuarioId: async () => { throw new Error("rede"); }, get: async () => { throw new Error("rede"); } }, agora: new Date("2026-10-24T12:00:00Z"), espera: 0, ...soDoTeste });
+      } catch {
+        lancou = true;
+      }
+      conferir("rodada: nunca lanca", lancou, false);
+    } finally {
+      if (configAntes) await prisma.configCanal.update({ where: { canal: "MERCADO_LIVRE" }, data: { mlConcorrentesRelidosEm: configAntes.mlConcorrentesRelidosEm } });
+      else await prisma.configCanal.deleteMany({ where: { canal: "MERCADO_LIVRE" } });
+    }
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

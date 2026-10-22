@@ -53,6 +53,12 @@ const { limparTemporariosAntigos } = await import("../src/lib/arquivos.js");
 const { servidorEhWindows } = await import("../src/lib/copiaLocal.js");
 const { rodarSincronizacaoDeEstoque } = await import("../src/lib/riseAi/estoqueAutomatico.js");
 const { conferirRotinaSemanal } = await import("../src/lib/relatorios/rotina.js");
+const { relerConcorrentesML } = await import("../src/lib/canaisDeVenda/ml/relerCatalogo.js");
+
+/// Os concorrentes do ML pelo catalogo (spec 2026-10-21): conferido de hora em hora, roda de verdade uma vez por dia de
+/// Sao Paulo (`relerConcorrentesML` decide). So LEITURA do ML. So o worker normal.
+const RELER_CONCORRENTES_ML_MS = 60 * 60 * 1000;
+let concorrentesRelidosEm = 0;
 
 /// A rodada semanal (todo sabado 00:00, horario de Sao Paulo) e o relatorio dela: conferida a cada minuto, o que e barato
 /// (uma consulta). `RELATORIO_SEMANAL=false` desliga. So o worker normal, o da VPS.
@@ -476,6 +482,14 @@ async function laco() {
         if (estoque.rodou) log(`estoque do Bling: ${estoque.atualizados} atualizados, ${estoque.semCodigoNoBling} sem codigo, ${estoque.falhas} falhas`);
         else if (estoque.motivo === "erro") logErro(`estoque do Bling nao lido: ${estoque.erro}`);
         else log(`estoque do Bling nao lido: ${estoque.motivo}`);
+      }
+      // Os concorrentes do ML (fora do `coletaPausada`, como a foto): so o worker normal. `relerConcorrentesML` nunca lanca.
+      if (!FONTES && !SO_NO_PC && Date.now() - concorrentesRelidosEm >= RELER_CONCORRENTES_ML_MS) {
+        concorrentesRelidosEm = Date.now();
+        const rodada = await relerConcorrentesML();
+        if (rodada.parou) logErro(`concorrentes do ML: rodada parada (${rodada.parou}); tenta de novo na proxima hora`);
+        else if (rodada.rodou) log(`concorrentes do ML: ${rodada.produtos} produto(s), ${rodada.ok} ok, ${rodada.falhas} falha(s)`);
+        else if (rodada.motivo === "erro") logErro(`concorrentes do ML nao lidos: ${rodada.erro}`);
       }
     } catch (erro) {
       logErro(`erro na volta do worker: ${mensagem(erro)}`);
