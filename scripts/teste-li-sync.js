@@ -781,6 +781,33 @@ try {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Proposta de anuncio (plano 2026-10-23, Tarefa 2): a regra de preenchimento do rascunho (pura)
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nProposta de anúncio: preenchimento");
+    const { aplicarProposta, montarProposta, marcaDaProposta } = await import("../src/lib/propostaDeAnuncio/preencher.js");
+    const r0 = { marca: "", categorias: [], seo: { title: "T", description: "" } };
+    const a = aplicarProposta(r0, { marca: "ARDUINO", categorias: ["10", "11"], "seo.description": "d".repeat(140) });
+    conferir("preenche vazios", [a.rascunho.marca, a.rascunho.categorias, a.rascunho.seo.description.length, a.rascunho.seo.title], ["ARDUINO", ["10", "11"], 140, "T"]);
+    conferir("campos", [...a.campos].sort(), ["categorias", "marca", "seo.description"]);
+    const b = aplicarProposta({ ...r0, marca: "GENÉRICA" }, { marca: "ARDUINO" });
+    conferir("não sobrescreve", [b.rascunho.marca, b.campos, b.sugestoes.marca], ["GENÉRICA", [], "ARDUINO"]);
+    const c = aplicarProposta({ ...r0, marca: "ARDUINO" }, { marca: "ARDUINO" });
+    conferir("igual não marca", [c.campos, c.sugestoes], [[], {}]);
+    conferir("não muda o original", [r0.marca, r0.categorias], ["", []]);
+    const d = aplicarProposta(r0, { categorias: ["11", "10"] }, { vazio: () => true });
+    conferir("vazio próprio decide", d.rascunho.categorias, ["11", "10"]);
+    const e = aplicarProposta(r0, { marca: undefined, categorias: [] });
+    conferir("proposto vazio não entra", [e.campos, e.sugestoes], [[], {}]);
+    const proposta = montarProposta({ versaoDoRoteiro: "1", campos: ["marca"], sugestoes: { "seo.description": "x" }, relatorio: "- a" });
+    conferir("montarProposta", [proposta.versaoDoRoteiro, typeof proposta.criadaEm, proposta.relatorio], ["1", "string", "- a"]);
+    conferir("valores do que entrou", a.valores.marca, "ARDUINO");
+    const { valorProposto } = await import("../src/lib/propostaDeAnuncio/preencher.js");
+    conferir("valorProposto", [valorProposto(montarProposta({ campos: ["marca"], valores: { marca: "ARDUINO" } }), "marca"), valorProposto(proposta, "seo.description")], ["ARDUINO", "x"]);
+    conferir("marcaDaProposta", [marcaDaProposta(proposta, "seo.description"), marcaDaProposta(proposta, "marca"), marcaDaProposta(proposta, "categorias"), marcaDaProposta(null, "marca")], ["sugestao", "preenchido", null, null]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;
