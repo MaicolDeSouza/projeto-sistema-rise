@@ -184,6 +184,8 @@ export async function gravarColeta({
   }
 
   let precosMudaram = 0;
+  // Vinculos produto-fornecedor que ganharam o custo desta varredura (so ao fechar a coleta).
+  let custosAtualizados = 0;
 
   await prisma.$transaction(
     async (tx) => {
@@ -263,6 +265,7 @@ export async function gravarColeta({
             ultimaColetaResumo: resumo,
           },
         });
+        custosAtualizados = await atualizarCustosDosVinculos(tx, fonte.id);
       }
     },
     // A lista da Fortek na primeira carga sao 1.911 insercoes com foto em
@@ -277,7 +280,36 @@ export async function gravarColeta({
     inalterados: inalteradas.length,
     precosMudaram,
     semChave,
+    custosAtualizados,
   };
+}
+
+/**
+ * O CUSTO DO FORNECEDOR SEGUE A VARREDURA (pedido do dono em 23/10/2026, Opcao 1; ate ali o custo do vinculo era um
+ * numero fixo, gravado quando o fornecedor entrava no produto). Ao fechar a coleta de uma fonte, todo vinculo
+ * produto-fornecedor cujo Fornecedor esta ligado a esta fonte e cujo CODIGO existe na lista dela passa a ter o custo da
+ * varredura, COM os impostos (o que se paga: com impostos, senao o normal, senao o promocional; a mesma ordem de
+ * `custoDoFornecedor`). Vinculo sem codigo, de fornecedor sem fonte ou com codigo fora da lista continua como esta.
+ * So escreve o que mudou. Roda dentro da transacao da gravacao.
+ *
+ * @returns {Promise<number>} vinculos atualizados
+ */
+export async function atualizarCustosDosVinculos(tx, fonteId) {
+  return tx.$executeRaw`
+    UPDATE "ProdutoFornecedor" v
+       SET "precoCusto" = alvo.custo, "atualizadoEm" = (NOW() AT TIME ZONE 'UTC')
+      FROM (
+        SELECT DISTINCT ON (v2.id) v2.id,
+               COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") AS custo
+          FROM "ProdutoFornecedor" v2
+          JOIN "Fornecedor" f ON f.id = v2."fornecedorId"
+          JOIN "ProdutoColetado" p ON p."fonteId" = f."fonteId" AND lower(p.codigo) = lower(v2.codigo)
+         WHERE f."fonteId" = ${fonteId}
+           AND v2.codigo IS NOT NULL AND v2.codigo <> ''
+           AND COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") IS NOT NULL
+         ORDER BY v2.id, p."vistoEm" DESC
+      ) alvo
+     WHERE v.id = alvo.id AND v."precoCusto" IS DISTINCT FROM alvo.custo`;
 }
 
 /**

@@ -45,6 +45,7 @@ const DOMINIOS = [
   "teste-primeira.local",
   "teste-ampla.local",
   "teste-pelafonte.local",
+  "teste-custo.local",
 ];
 
 function produto({ code, name, normal, promotional = null, status = "AVAILABLE", quantity = null, url = null }) {
@@ -475,6 +476,43 @@ try {
 } finally {
   await prisma.produto.deleteMany({ where: { sku: { in: SKUS_AMPLA } } });
   await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornpatolinha" } });
+}
+
+// ---------------------------------------------------------------------------
+// O CUSTO DO FORNECEDOR SEGUE A VARREDURA (23/10/2026, Opcao 1): ao fechar a coleta, o vinculo cujo codigo esta na
+// lista ganha o custo com impostos; o de codigo fora da lista fica como estava.
+await prisma.produto.deleteMany({ where: { sku: "ZZ-CUSTO-1" } });
+await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Custo" } });
+try {
+  const fonteCusto = await prisma.fonteColeta.create({
+    data: { nome: "ZZ Fonte Custo", dominio: "teste-custo.local", tipo: "FORNECEDOR", ativa: false },
+  });
+  const fornCusto = await prisma.fornecedor.create({ data: { nome: "ZZ Fornecedor Custo", fonteId: fonteCusto.id } });
+  const prodCusto = await prisma.produto.create({ data: { sku: "ZZ-CUSTO-1", tituloBase: "Produto teste custo" } });
+  const naLista = await prisma.produtoFornecedor.create({
+    data: { produtoId: prodCusto.id, fornecedorId: fornCusto.id, codigo: "zz-c1", precoCusto: 31.9, padrao: true },
+  });
+  const comIpi = { ...produto({ code: "ZZ-C1", name: "Peca custo", normal: 31.9 }), taxes: [{ nome: "IPI", percentual: 2 }] };
+  comIpi.prices.comImpostos = 32.54;
+  const gravacaoCusto = await gravarColeta({ fonte: fonteCusto, produtos: [comIpi], origem: "arquivo" });
+  const depois = await prisma.produtoFornecedor.findUnique({ where: { id: naLista.id } });
+  conferir("custo: o vinculo ganha o custo com IPI da varredura (codigo sem caixa)", Number(depois.precoCusto), 32.54);
+  conferir("custo: a gravacao conta o vinculo atualizado", gravacaoCusto.custosAtualizados, 1);
+
+  // Codigo que nao esta na lista: o custo fica.
+  await prisma.produtoFornecedor.update({ where: { id: naLista.id }, data: { codigo: "OUTRO", precoCusto: 50 } });
+  await gravarColeta({ fonte: fonteCusto, produtos: [comIpi], origem: "arquivo" });
+  const fora = await prisma.produtoFornecedor.findUnique({ where: { id: naLista.id } });
+  conferir("custo: codigo fora da lista nao muda", Number(fora.precoCusto), 50);
+
+  // Lote no meio da varredura nao mexe (so o fechamento).
+  await prisma.produtoFornecedor.update({ where: { id: naLista.id }, data: { codigo: "ZZ-C1", precoCusto: 10 } });
+  await gravarColeta({ fonte: fonteCusto, produtos: [comIpi], origem: "site", fecharColeta: false });
+  const lote = await prisma.produtoFornecedor.findUnique({ where: { id: naLista.id } });
+  conferir("custo: lote sem fechar a coleta nao mexe", Number(lote.precoCusto), 10);
+} finally {
+  await prisma.produto.deleteMany({ where: { sku: "ZZ-CUSTO-1" } });
+  await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Custo" } });
 }
 
 // ---------------------------------------------------------------------------

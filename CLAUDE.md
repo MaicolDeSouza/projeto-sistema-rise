@@ -4486,12 +4486,23 @@ Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com *
   deploy com Docker). O SKU é validado como nome de caminho; a pasta acompanha quando ele
   muda; o endereço é **calculado na leitura**, nunca gravado.
 - **Custo do produto vem do fornecedor padrão.**
+- **O custo do fornecedor é o valor COM impostos e SEGUE A VARREDURA** (pedido do dono em 23/10/2026, Opção 1; até ali o
+  custo do vínculo era fixo, gravado quando o fornecedor entrava, e a lupa copiava o preço SEM o IPI que a Fortek e a
+  Santana cobram por fora: R$ 31,90 em vez de R$ 32,54).
+  - A lupa entrega para fornecedor o `custoDoFornecedor` (`coleta/impostos.js`: com impostos, senão calculado pelas
+    alíquotas, senão o normal, senão o promocional), no custo do vínculo e na lista "$" do preço. Concorrente segue no normal.
+  - Ao FECHAR a coleta de uma fonte (`gravarColeta` com `fecharColeta`, não nos lotes), `atualizarCustosDosVinculos`
+    (`coleta/banco.js`) põe o custo da varredura em todo vínculo cujo Fornecedor está ligado à fonte (`fonteId`) e cujo
+    código existe na lista (sem diferenciar caixa). **Custo digitado à mão em vínculo com código da lista é sobrescrito**
+    na próxima varredura; vínculo sem código ou de fornecedor sem fonte continua manual.
+  - Efeito colateral esperado: o custo entra na sincronização com o Bling, então produtos com custo atualizado acendem o
+    "!" do Bling até o próximo Sincronizar. Teste: `teste:coleta` ("custo: ...") e `teste:extracao` ("custo: ...").
 - **Concorrente vinculado ao produto (`ProdutoConcorrente`, migration `20260918_produto_concorrente`)
   não guarda cópia do preço quando vem da lupa do Nome — só a referência**
   (`produtoColetadoId`). A tela lê o preço de HOJE em `ProdutoColetado` toda vez que abre o
   produto, decidido com o dono em 18/09/2026: ele quer acompanhar a próxima varredura sem
-  precisar remover e adicionar de novo. Diferente do preço de custo do Fornecedor, que é o que
-  o operador negociou e por isso fica fixo. Concorrente digitado à mão (sem produto coletado
+  precisar remover e adicionar de novo. (O custo do Fornecedor era fixo até 23/10/2026; hoje segue a varredura, ver o
+  item anterior.) Concorrente digitado à mão (sem produto coletado
   por trás) usa os campos `*Manual`, fixos — não há varredura para seguir.
   Adicionar pela lupa manda **todas as chaves do schema explícitas, nunca omitidas**
   (`fonteManual: null` em vez de ausente): o schema é `nullable`, não `optional`, e chave
