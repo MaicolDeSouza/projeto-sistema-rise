@@ -23,6 +23,8 @@ function conferir(nome, real, esperado) {
 conferir("endereco: sem protocolo, barra no fim e ancora saem", enderecoDaLista("loja.com.br/gabinetes/#x")?.url, "https://loja.com.br/gabinetes");
 conferir("endereco: so a home = loja inteira", enderecoDaLista("https://www.loja.com.br")?.lojaInteira, true);
 conferir("endereco: categoria nao e a loja inteira; a consulta fica", [enderecoDaLista("loja.com.br/x")?.lojaInteira, enderecoDaLista("loja.com.br/c?cat=12")?.url], [false, "https://loja.com.br/c?cat=12"]);
+conferir("endereco: inicio em idioma (/pt-br) e a loja inteira", [enderecoDaLista("https://www.imobras.ind.br/pt-br")?.lojaInteira, enderecoDaLista("loja.com.br/en/")?.lojaInteira, enderecoDaLista("loja.com.br/pt_BR")?.lojaInteira], [true, true, true]);
+conferir("endereco: categoria de duas letras continua categoria", [enderecoDaLista("loja.com.br/tv")?.lojaInteira, enderecoDaLista("loja.com.br/pt-br/produtos")?.lojaInteira, enderecoDaLista("loja.com.br/pt-br?x=1")?.lojaInteira], [false, false, false]);
 conferir("endereco: texto que nao e site", [enderecoDaLista("abc"), enderecoDaLista(""), enderecoDaLista("ftp://x.com")], [null, null, null]);
 
 conferir("lista: repetido (www, barra, caixa) vira um", conferirEnderecos(["https://loja.com.br/gabinetes", "www.loja.com.br/Gabinetes/"]).enderecos?.length, 1);

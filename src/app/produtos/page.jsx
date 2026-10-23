@@ -17,6 +17,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { LembrarListaDeProdutos } from "@/components/produtos/ListaDeProdutosNaAba";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import Paginacao from "@/components/mercados/Paginacao";
+import { porPaginaDaUrl } from "@/lib/porPagina";
 import TabelaProdutos from "@/components/produtos/TabelaProdutos";
 import BotaoImportarBling from "@/components/produtos/BotaoImportarBling";
 import BotaoSincronizarEstoque from "@/components/produtos/BotaoSincronizarEstoque";
@@ -27,7 +28,7 @@ export const dynamic = "force-dynamic";
 /// Mercados): 1.316 produtos numa tabela so ficaram pesados de renderizar e de
 /// interagir — cada clique (ordenar, marcar Conferido) esperava a lista
 /// inteira redesenhar.
-const POR_PAGINA = 25;
+// Desde 23/10/2026 o tamanho vem da URL: 25 ao abrir, 100 com o botao "100 por página" (lib/porPagina.js).
 
 /// Coluna -> campo do Prisma. So as marcadas pelo dono em 22/09/2026 (Codigo,
 /// Localizacao, Preco, Estoque); as demais (Imagem, Nome, Conferido, Canais)
@@ -73,6 +74,7 @@ export default async function ProdutosPage({ searchParams }) {
   const ordenar = CAMPO_DE_ORDENACAO[params?.ordenar] ? ordemPermitida(params.ordenar, acessos) : "";
   const direcao = params?.direcao === "asc" ? "asc" : "desc";
   const pedida = Number.parseInt(params?.pagina ?? "1", 10);
+  const porPagina = porPaginaDaUrl(params?.por);
 
   // BUSCA COM INDICE (pedido do dono em 09/10/2026: a lista vai crescer muito). Todas as palavras, em qualquer
   // ordem, no nome, codigo, marca, modelo e EAN; com a BUSCA AMPLA ligada, tambem na descricao, NCM, homologacao
@@ -113,7 +115,7 @@ export default async function ProdutosPage({ searchParams }) {
     total = await prisma.produto.count({ where });
     totalConferidos = await prisma.produto.count({ where: { ...where, conferido: true } });
 
-    totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+    totalPaginas = Math.max(1, Math.ceil(total / porPagina));
     // Pagina fora do intervalo (link velho, ou lista que encolheu com a busca)
     // cai na ultima valida, em vez de tabela vazia (mesma regra de Mercados).
     pagina = Math.min(Math.max(Number.isFinite(pedida) ? pedida : 1, 1), totalPaginas);
@@ -121,8 +123,8 @@ export default async function ProdutosPage({ searchParams }) {
     produtos = await prisma.produto.findMany({
       where,
       orderBy,
-      skip: (pagina - 1) * POR_PAGINA,
-      take: POR_PAGINA,
+      skip: (pagina - 1) * porPagina,
+      take: porPagina,
       include: {
         arquivos: {
           where: { tipo: "IMAGEM", papel: "FOTO" },
@@ -311,6 +313,7 @@ export default async function ProdutosPage({ searchParams }) {
             pagina={pagina}
             totalPaginas={totalPaginas}
             total={total}
+            porPagina={porPagina}
             totalConferidos={totalConferidos}
           />
 
@@ -321,8 +324,8 @@ export default async function ProdutosPage({ searchParams }) {
               <Paginacao
                 pagina={pagina}
                 totalPaginas={totalPaginas}
-                primeiro={(pagina - 1) * POR_PAGINA + 1}
-                ultimo={(pagina - 1) * POR_PAGINA + linhas.length}
+                primeiro={(pagina - 1) * porPagina + 1}
+                ultimo={(pagina - 1) * porPagina + linhas.length}
                 total={total}
               />
             </div>

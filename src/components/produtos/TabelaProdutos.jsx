@@ -4,9 +4,6 @@ import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
   CircleCheck,
   Loader,
   Package,
@@ -14,10 +11,11 @@ import {
 } from "lucide-react";
 
 import { excluirProdutos } from "@/app/produtos/acoes";
-import Paginacao from "@/components/mercados/Paginacao";
+import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
 import CampoBusca from "@/components/ui/CampoBusca";
 import BotaoBuscaAmpla from "@/components/ui/BotaoBuscaAmpla";
 import EmptyState from "@/components/ui/EmptyState";
+import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import LinhaProduto from "./LinhaProduto";
 
 /// Rotulo de cada coluna ordenavel, na ordem da tabela.
@@ -27,30 +25,6 @@ const COLUNAS_ORDENAVEIS = [
   { campo: "preco", rotulo: "Preço" },
   { campo: "estoque", rotulo: "Estoque" },
 ];
-
-/**
- * Cabecalho clicavel: liga a ordenacao por esta coluna (URL, como a busca —
- * sobrevive a recarga e pode ser mandado como link, mesmo padrao do filtro de
- * Mercados). Ciclo de 3 estados por coluna: nada -> crescente -> decrescente
- * -> nada de novo, e trocar de coluna sempre comeca em crescente.
- */
-function CabecalhoOrdenavel({ campo, rotulo, ordenar, direcao, aoClicar }) {
-  const ativa = ordenar === campo;
-  const Icone = !ativa ? ArrowUpDown : direcao === "asc" ? ArrowUp : ArrowDown;
-
-  return (
-    <th className="px-3 py-2.5 font-medium" aria-sort={ativa ? (direcao === "asc" ? "ascending" : "descending") : "none"}>
-      <button
-        type="button"
-        onClick={() => aoClicar(campo)}
-        className={`inline-flex items-center gap-1 hover:text-texto ${ativa ? "text-texto" : ""}`}
-      >
-        {rotulo}
-        <Icone size={12} className={ativa ? "text-acento" : "text-suave"} />
-      </button>
-    </th>
-  );
-}
 
 /**
  * Confirma a exclusao num POPUP na tela, listando cada produto (nome + SKU) —
@@ -137,6 +111,7 @@ export default function TabelaProdutos({
   direcao = "desc",
   pagina = 1,
   totalPaginas = 1,
+  porPagina = 25,
   total = linhas.length,
   totalConferidos = 0,
   // Produto recem-criado (`?novo=<id>`, pedido do dono em 10/10/2026): a linha dele aparece destacada por alguns segundos.
@@ -158,19 +133,7 @@ export default function TabelaProdutos({
 
   /** Nada -> crescente -> decrescente -> nada. Preserva busca e demais parametros. */
   function trocarOrdenacao(campo) {
-    const params = new URLSearchParams(searchParams);
-
-    if (ordenar !== campo) {
-      params.set("ordenar", campo);
-      params.set("direcao", "asc");
-    } else if (direcao === "asc") {
-      params.set("direcao", "desc");
-    } else {
-      params.delete("ordenar");
-      params.delete("direcao");
-    }
-
-    const query = params.toString();
+    const query = parametrosDaOrdenacao(searchParams, campo, ordenar, direcao).toString();
     router.push(query ? `${pathname}?${query}` : pathname);
   }
 
@@ -200,7 +163,7 @@ export default function TabelaProdutos({
         <CampoBusca
           valorInicial={busca}
           rotulo={ampla ? (pode.verLocalizacao ? "Buscar também na descrição, NCM e localização" : "Buscar também na descrição e no NCM") : "Buscar por nome, código, marca ou modelo"}
-          className="max-w-sm flex-1"
+          className="max-w-sm min-w-60 flex-1"
         />
         <BotaoBuscaAmpla
           ligada={ampla}
@@ -218,9 +181,8 @@ export default function TabelaProdutos({
           </span>
         </span>
 
-        {/* Navegacao compacta (mesmo padrao de Mercados): so aparece com mais
-            de uma pagina — Paginacao ja se esconde sozinha nesse caso. */}
-        <Paginacao compacto pagina={pagina} totalPaginas={totalPaginas} total={total} />
+        {/* Navegacao no canto DIREITO, com o "100 por página" logo acima (padrao com o Scraper, 23/10/2026). */}
+        <NavegacaoDoTopo pagina={pagina} totalPaginas={totalPaginas} total={total} porPagina={porPagina} />
 
       </div>
 

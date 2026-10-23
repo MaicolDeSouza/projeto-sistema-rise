@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 
 import Sidebar from "@/components/Sidebar";
+import TextoCortadoAoClicar from "@/components/ui/TextoCortadoAoClicar";
 import { blocos } from "@/lib/blocos";
 import { blocosOcultos } from "@/lib/acessos/resolucao";
 import { sessaoDeAcessos } from "@/lib/acessos/servidor";
@@ -46,6 +47,8 @@ export default async function RootLayout({ children }) {
             {children}
           </main>
         </div>
+        {/* Texto cortado com reticencias mostra o resto ao clique, em toda tela (pedido do dono em 23/10/2026). */}
+        <TextoCortadoAoClicar />
       </body>
     </html>
   );

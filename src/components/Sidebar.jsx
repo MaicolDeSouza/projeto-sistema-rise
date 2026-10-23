@@ -9,6 +9,7 @@ import { LogOut, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Search, X } from 
 import { blocos, ehRotaAtiva } from "@/lib/blocos";
 import { normalizar } from "@/lib/texto";
 import { inicialDoNome } from "@/lib/sessao";
+import { rotuloDaVersao } from "@/lib/versao";
 import {
   definirRecolhida,
   lerRecolhida,
@@ -18,7 +19,7 @@ import {
 import SidebarItem from "./SidebarItem";
 
 // Lidos como process.env.NOME literal: o Next troca o texto no build (ver o `env` do next.config.mjs).
-const VERSAO = process.env.NEXT_PUBLIC_RISE_VERSAO || "dev";
+const VERSAO = rotuloDaVersao(process.env.NEXT_PUBLIC_RISE_VERSAO || "dev");
 const COMMIT = process.env.NEXT_PUBLIC_RISE_COMMIT || null;
 
 /**
@@ -290,7 +291,7 @@ export default function Sidebar({ sessao = null, hrefsOcultos = [] }) {
           >
             Versão {VERSAO}
             {/* O commit a mostra, e nao so no title: e ele que diz se o PC e a VPS rodam o mesmo codigo. */}
-            {COMMIT && <span className="ml-1 text-menu-texto/40">· {COMMIT}</span>}
+            {COMMIT && <span className="ml-1 text-menu-texto/40">- {COMMIT}</span>}
           </p>
         )}
 

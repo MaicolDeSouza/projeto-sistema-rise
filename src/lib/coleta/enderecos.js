@@ -12,6 +12,18 @@
 export const MAXIMO_DE_ENDERECOS = 30;
 
 /**
+ * A PAGINA INICIAL EM UM IDIOMA ("/pt-br", "/en", "/es") e a loja inteira, nao uma categoria (23/10/2026). A Imobras foi
+ * cadastrada com "https://www.imobras.ind.br/pt-br": lida como categoria, a varredura abriu so essa pagina e a paginacao
+ * dela (17 links de destaque) e gravou 10 produtos, quando o catalogo tem muito mais. So os codigos de idioma conhecidos,
+ * para uma categoria de duas letras ("/tv") continuar sendo categoria.
+ */
+const IDIOMAS = new Set(["pt", "br", "en", "es", "fr", "de", "it"]);
+export function ehInicioEmIdioma(caminho) {
+  const casou = /^\/([a-z]{2})(?:[-_]([a-z]{2}))?$/i.exec(String(caminho ?? ""));
+  return Boolean(casou && IDIOMAS.has(casou[1].toLowerCase()));
+}
+
+/**
  * "loja.com.br/gabinetes/" -> endereco completo e normalizado, ou null quando nao e um endereco de site. Tira a ancora,
  * o `www.` nao (a loja pode servir so por ele) e a barra do fim do caminho (a raiz fica "/"). A consulta (`?cat=12`)
  * fica: em algumas lojas ela E a categoria.
@@ -39,7 +51,8 @@ export function enderecoDaLista(texto) {
     url: `${alvo.protocol}//${alvo.host}${caminho === "/" && !consulta ? "/" : caminho}${consulta}`,
     host: alvo.hostname,
     caminho,
-    lojaInteira: caminho === "/" && !consulta,
+    // A raiz ou a pagina inicial de um idioma ("/pt-br"): varre a loja inteira, comecando por ali.
+    lojaInteira: (caminho === "/" || ehInicioEmIdioma(caminho)) && !consulta,
   };
 }
 
@@ -95,7 +108,8 @@ export function conferirEnderecos(textos) {
  * so o endereco da loja inteira = nada (varre a loja como sempre varreu); qualquer outro caso guarda a lista.
  */
 export function listaParaGravar(enderecos, agora = new Date()) {
-  if (enderecos.length === 1 && enderecos[0].lojaInteira) return [];
+  // So a RAIZ dispensa a lista: "/pt-br" fica gravado para a varredura comecar nele (e varre a loja inteira).
+  if (enderecos.length === 1 && enderecos[0].caminho === "/" && enderecos[0].lojaInteira) return [];
   return enderecos.map((endereco) => ({ url: endereco.url, total: null, adicionadaEm: agora.toISOString() }));
 }
 

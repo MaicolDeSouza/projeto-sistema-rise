@@ -50,3 +50,14 @@ export function versaoDoDeploy(env, local) {
     commit: texto(env?.RISE_COMMIT) ?? texto(local?.commit),
   };
 }
+
+/**
+ * Como a versao aparece no pe do menu (pedido do dono em 23/10/2026): "22.10.2026 (build 21)". A versao gravada continua
+ * DD.MM.AAAA.NN (e a tag do git vps-<versao>); so a tela troca o ultimo trecho por "(build NN)". O formato antigo da VPS
+ * (DD.MM.AAAA.HH.MM) e a do PC ("dev ...") saem como estao.
+ */
+export function rotuloDaVersao(versao) {
+  const texto = typeof versao === "string" ? versao.trim() : "";
+  const casou = /^(\d{2}\.\d{2}\.\d{4})\.(\d+)$/.exec(texto);
+  return casou ? `${casou[1]} (build ${casou[2]})` : texto;
+}

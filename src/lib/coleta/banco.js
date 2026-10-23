@@ -493,7 +493,9 @@ export async function atualizarTotaisDasCategorias(fonteId, porCategoria) {
  * @param {""|"CONCORRENTE"|"FORNECEDOR"} [opcoes.tipo]
  * @param {string[]} [opcoes.fontes]   nomes marcados no filtro; vazio = todas
  * @param {string} [opcoes.busca]      todas as palavras sao exigidas
- * @param {""|"menor"|"maior"} [opcoes.ordem]
+ * @param {""|"menor"|"maior"} [opcoes.ordem]  forma antiga da ordem pelo valor (o MCP e os testes usam)
+ * @param {""|"nome"|"codigo"|"estoque"|"valor"|"atualizado"} [opcoes.ordenar]  coluna clicada na tela
+ * @param {"asc"|"desc"} [opcoes.direcao]
  * @param {number} [opcoes.pagina]
  * @param {number} [opcoes.porPagina]
  */
@@ -502,6 +504,8 @@ export async function listarProdutos({
   fontes = [],
   busca = "",
   ordem = "",
+  ordenar = "",
+  direcao = "asc",
   pagina = 1,
   porPagina = 100,
   // BUSCA AMPLA (09/10/2026): procura tambem na descricao, ficha, categoria e SEO, e diz onde achou.
@@ -580,8 +584,23 @@ export async function listarProdutos({
   // Ordena pelo preco NORMAL, e o promocional so na falta dele (regra do dono
   // em 19/09/2026): o desconto a vista e temporario, e a ordem por ele mudaria
   // a cada campanha da loja.
-  const ordenacao =
-    ordem === "menor"
+  /*
+    ORDEM PELO CABECALHO DA COLUNA (pedido do dono em 23/10/2026, "como em Produtos"): Nome, Codigo, Estoque, Valor e
+    Atualizado. Vazio, sem codigo ("N/A") e sem quantidade vao sempre para o fim, nos dois sentidos, para a primeira
+    pagina mostrar o que tem o dado. O valor segue a regra do preco NORMAL, como o "menor/maior" de antes.
+  */
+  const sentido = direcao === "desc" ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+  const porColuna = {
+    nome: Prisma.sql`lower(nome) ${sentido} NULLS LAST`,
+    codigo: Prisma.sql`NULLIF(NULLIF(codigo, 'N/A'), '') ${sentido} NULLS LAST`,
+    estoque: Prisma.sql`quantidade ${sentido} NULLS LAST, ("estoqueStatus" IN ('AVAILABLE', 'IN_STOCK')) DESC`,
+    valor: Prisma.sql`COALESCE("precoNormal", "precoPromocional") ${sentido} NULLS LAST`,
+    // A coluna "Atualizado" da tela mostra o coletadoEm (a ultima vez que o conteudo foi lido), entao ordena por ele.
+    atualizado: Prisma.sql`"coletadoEm" ${sentido} NULLS LAST`,
+  }[ordenar];
+  const ordenacao = porColuna
+    ? Prisma.sql`${primeiroPeloNome}${foraDaUltima} ASC, ${porColuna}, id ASC`
+    : ordem === "menor"
       ? Prisma.sql`${primeiroPeloNome}${foraDaUltima} ASC, COALESCE("precoNormal", "precoPromocional") ASC NULLS LAST`
       : ordem === "maior"
         ? Prisma.sql`${primeiroPeloNome}${foraDaUltima} ASC, COALESCE("precoNormal", "precoPromocional") DESC NULLS LAST`

@@ -4,7 +4,7 @@
  *   npm run teste:versao
  */
 
-const { formatarVersao, versaoDoDeploy, versaoLocal } = await import("../src/lib/versao.js");
+const { formatarVersao, rotuloDaVersao, versaoDoDeploy, versaoLocal } = await import("../src/lib/versao.js");
 
 let falhas = 0;
 function conferir(nome, obtido, esperado) {
@@ -55,6 +55,14 @@ conferir(
   { versao: "08.10.2026.11.12", commit: "a006d48" },
 );
 conferir("versaoDoDeploy: git sem commit (imagem Docker)", versaoDoDeploy({}, {}), { versao: "dev", commit: null });
+
+// ---------------------------------------------------------------- rotuloDaVersao (a tela)
+conferir("rotulo: VPS com build", rotuloDaVersao("22.10.2026.21"), "22.10.2026 (build 21)");
+conferir("rotulo: build de um digito", rotuloDaVersao("09.10.2026.1"), "09.10.2026 (build 1)");
+conferir("rotulo: formato antigo com hora fica igual", rotuloDaVersao("07.10.2026.22.17"), "07.10.2026.22.17");
+conferir("rotulo: PC fica igual", rotuloDaVersao("dev 08.10.2026.13.08+"), "dev 08.10.2026.13.08+");
+conferir("rotulo: dev", rotuloDaVersao("dev"), "dev");
+conferir("rotulo: vazio", rotuloDaVersao(undefined), "");
 
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

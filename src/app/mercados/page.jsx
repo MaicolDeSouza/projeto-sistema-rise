@@ -15,6 +15,8 @@ import TabelaMercados from "@/components/mercados/TabelaMercados";
 import FiltrosMercados from "@/components/mercados/FiltrosMercados";
 import BotaoAtualizar from "@/components/mercados/BotaoAtualizar";
 import Paginacao from "@/components/mercados/Paginacao";
+import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
+import { porPaginaDaUrl } from "@/lib/porPagina";
 import VoltarAoTopo from "@/components/ui/VoltarAoTopo";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +30,7 @@ export const dynamic = "force-dynamic";
 ///
 /// Era 100 (o mesmo numero do Bling, de onde veio o pedido original); baixado
 /// para 25 a pedido do dono em 29/09/2026, o mesmo numero da lista de Produtos.
-const POR_PAGINA = 25;
+// Desde 23/10/2026 o tamanho vem da URL: 25 ao abrir, 100 com o botao "100 por página" (lib/porPagina.js).
 
 export default async function MercadosPage({ searchParams }) {
   // Acessos: o Scraper em ver, e so as abas liberadas (fornecedor com Custo, concorrente com Concorrentes).
@@ -42,7 +44,13 @@ export default async function MercadosPage({ searchParams }) {
   const tiposLiberados = abas.map((aba) => (aba === "fornecedores" ? "FORNECEDOR" : "CONCORRENTE"));
   const tipo =
     tiposLiberados.length === 1 ? tiposLiberados[0] : tiposLiberados.includes(params?.tipo) ? params.tipo : "";
-  const ordem = ["menor", "maior"].includes(params?.ordem) ? params.ordem : "";
+  // Ordem pelo cabecalho da coluna (23/10/2026, como em Produtos). O link antigo ?ordem=menor|maior vira a coluna Valor.
+  const COLUNAS = ["nome", "codigo", "estoque", "valor", "atualizado"];
+  const ordemAntiga = ["menor", "maior"].includes(params?.ordem) ? params.ordem : "";
+  const ordenar = COLUNAS.includes(params?.ordenar) ? params.ordenar : ordemAntiga ? "valor" : "";
+  const direcao = ordenar
+    ? params?.direcao === "desc" || (!params?.ordenar && ordemAntiga === "maior") ? "desc" : "asc"
+    : "";
   // Busca ampla (09/10/2026): procura tambem na descricao, ficha e SEO. So vale com algo digitado.
   const ampla = params?.ampla === "1";
 
@@ -57,6 +65,7 @@ export default async function MercadosPage({ searchParams }) {
   */
   const pedidas = params?.fonte === undefined ? [] : [params.fonte].flat();
   const pedida = Number.parseInt(params?.pagina ?? "1", 10);
+  const porPagina = porPaginaDaUrl(params?.por);
 
   /*
     FILTRO, ORDEM, CONTAGEM E PAGINA SAO DO BANCO (17/09/2026).
@@ -64,7 +73,7 @@ export default async function MercadosPage({ searchParams }) {
     A tela lia a lista inteira e fazia tudo em memoria. Com 2 mil produtos
     passava; com 35.226 eram 20 MB montados em 2,3 s A CADA clique — marcar uma
     fonte, trocar de aba, limpar filtro. Hoje o Postgres devolve so as linhas da
-    pagina (POR_PAGINA) e as contagens, e a miniatura vem so para essas.
+    pagina (porPagina) e as contagens, e a miniatura vem so para essas.
   */
   let resultado = { linhas: [], total: 0, totalGeral: 0, contagemPorFonte: [] };
   let totalFontes = 0;
@@ -77,10 +86,11 @@ export default async function MercadosPage({ searchParams }) {
         tipo,
         fontes: pedidas,
         busca,
-        ordem,
+        ordenar,
+        direcao,
         ampla,
         pagina: Math.max(Number.isFinite(pedida) ? pedida : 1, 1),
-        porPagina: POR_PAGINA,
+        porPagina,
       }),
       prisma.fonteColeta.count(),
     ]);
@@ -107,7 +117,7 @@ export default async function MercadosPage({ searchParams }) {
     sempre tem o que mostrar — e so a pagina fora do intervalo custa uma segunda
     consulta.
   */
-  const totalPaginas = Math.max(1, Math.ceil(resultado.total / POR_PAGINA));
+  const totalPaginas = Math.max(1, Math.ceil(resultado.total / porPagina));
   const pagina = Math.min(Math.max(Number.isFinite(pedida) ? pedida : 1, 1), totalPaginas);
 
   if (!erro && abas.length > 0 && pagina !== Math.max(Number.isFinite(pedida) ? pedida : 1, 1)) {
@@ -115,15 +125,16 @@ export default async function MercadosPage({ searchParams }) {
       tipo,
       fontes: fonte,
       busca,
-      ordem,
+      ordenar,
+      direcao,
       ampla,
       pagina,
-      porPagina: POR_PAGINA,
+      porPagina,
     });
   }
 
   const paginaAtual = resultado.linhas;
-  const inicio = (pagina - 1) * POR_PAGINA;
+  const inicio = (pagina - 1) * porPagina;
 
   /*
     A ORDEM AGORA E DO BANCO (`listarProdutos`): "menor valor" ordena por
@@ -273,15 +284,8 @@ export default async function MercadosPage({ searchParams }) {
             em vez de espremer as duas.
           */}
           <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4">
-            <FiltrosMercados tipo={tipo} ordem={ordem} fonte={fonte} fontes={fontes} abas={abas} />
-            <Paginacao
-              compacto
-              pagina={pagina}
-              totalPaginas={totalPaginas}
-              primeiro={inicio + 1}
-              ultimo={inicio + linhas.length}
-              total={resultado.total}
-            />
+            <FiltrosMercados tipo={tipo} ordenar={ordenar} direcao={direcao} fonte={fonte} fontes={fontes} abas={abas} />
+            <NavegacaoDoTopo pagina={pagina} totalPaginas={totalPaginas} total={resultado.total} porPagina={porPagina} />
           </div>
 
           {linhas.length === 0 ? (
@@ -314,7 +318,7 @@ export default async function MercadosPage({ searchParams }) {
               }
             />
           ) : (
-            <TabelaMercados linhas={linhas} />
+            <TabelaMercados linhas={linhas} ordenar={ordenar} direcao={direcao} />
           )}
 
           {linhas.length > 0 && (

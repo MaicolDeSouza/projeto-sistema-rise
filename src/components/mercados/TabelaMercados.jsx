@@ -19,7 +19,10 @@ import {
   ZoomIn,
 } from "lucide-react";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
 import Badge from "@/components/ui/Badge";
+import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import Copiar from "@/components/ui/Copiar";
 import RegrasDeCompra from "@/components/mercados/RegrasDeCompra";
 import { precoComImpostoTexto, precoDaFaixaTexto } from "@/components/mercados/precoTexto";
@@ -1115,7 +1118,16 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
   );
 }
 
-export default function TabelaMercados({ linhas }) {
+export default function TabelaMercados({ linhas, ordenar = "", direcao = "" }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  /** O mesmo filtro de coluna da lista de Produtos (23/10/2026): a ordem mora na URL e e feita no banco. */
+  function trocarOrdenacao(campo) {
+    const query = parametrosDaOrdenacao(searchParams, campo, ordenar, direcao).toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
+
   const [selecionada, setSelecionada] = useState(null);
   const [detalhe, setDetalhe] = useState(null);
   /**
@@ -1181,12 +1193,12 @@ export default function TabelaMercados({ linhas }) {
           <thead className="border-b border-borda bg-fundo text-xs tracking-wide text-suave uppercase">
             <tr className="divide-x divide-borda">
               <th className="w-16 px-3 py-2.5 text-center font-medium">Imagem</th>
-              <th className="px-3 py-2.5 text-left font-medium">Nome</th>
-              <th className="px-3 py-2.5 text-left font-medium">Código</th>
-              <th className="w-32 px-3 py-2.5 text-left font-medium">Estoque</th>
-              <th className="px-3 py-2.5 text-left font-medium">Valor</th>
+              <CabecalhoOrdenavel campo="nome" rotulo="Nome" className="text-left" ordenar={ordenar} direcao={direcao} aoClicar={trocarOrdenacao} />
+              <CabecalhoOrdenavel campo="codigo" rotulo="Código" className="text-left" ordenar={ordenar} direcao={direcao} aoClicar={trocarOrdenacao} />
+              <CabecalhoOrdenavel campo="estoque" rotulo="Estoque" className="w-32 text-left" ordenar={ordenar} direcao={direcao} aoClicar={trocarOrdenacao} />
+              <CabecalhoOrdenavel campo="valor" rotulo="Valor" className="text-left" ordenar={ordenar} direcao={direcao} aoClicar={trocarOrdenacao} />
               <th className="w-12 px-3 py-2.5 text-center font-medium">Site</th>
-              <th className="w-28 px-3 py-2.5 text-center font-medium">Atualizado</th>
+              <CabecalhoOrdenavel campo="atualizado" rotulo="Atualizado" className="w-28 text-center" ordenar={ordenar} direcao={direcao} aoClicar={trocarOrdenacao} />
             </tr>
           </thead>
           <tbody className="divide-y divide-borda">

@@ -315,6 +315,11 @@ conferir(
 conferir("tela: os da ultima varredura nao vem marcados", telaLotes.linhas.slice(0, 3).map((linha) => linha.naoVistoDesde), [null, null, null]);
 const telaPorPreco = await listarProdutos({ fontes: ["Lotes Teste"], ordem: "menor" });
 conferir("tela: ordenado por preco, o nao visto continua por ultimo", telaPorPreco.linhas.at(-1)?.code, "VELHA");
+// Filtro de coluna (23/10/2026): codigo crescente e decrescente, com o nao visto sempre por ultimo.
+const porCodigo = async (direcao) =>
+  (await listarProdutos({ fontes: ["Lotes Teste"], ordenar: "codigo", direcao })).linhas.map((linha) => linha.code);
+conferir("tela: coluna Código crescente", await porCodigo("asc"), ["L1", "L2", "L3", "VELHA"]);
+conferir("tela: coluna Código decrescente, nao visto por ultimo", await porCodigo("desc"), ["L3", "L2", "L1", "VELHA"]);
 
 // Produto achado de novo num lote seguinte nao duplica.
 await gravarColeta({ fonte: lotes, produtos: [peca("L1")], origem: "site", coletadoEm: segundos(64), fecharColeta: false });

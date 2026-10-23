@@ -36,7 +36,7 @@ function Marcador({ ativo, aoClicar, children, titulo }) {
 }
 
 // `abas` (Acessos): as abas liberadas. Com uma so, os marcadores de tipo nem aparecem (o tipo ja e o dela).
-export default function FiltrosMercados({ tipo = "", ordem = "", fonte = [], fontes = [], abas = ["fornecedores", "concorrentes"] }) {
+export default function FiltrosMercados({ tipo = "", ordenar = "", direcao = "", fonte = [], fontes = [], abas = ["fornecedores", "concorrentes"] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -86,11 +86,30 @@ export default function FiltrosMercados({ tipo = "", ordem = "", fonte = [], fon
     router.push(query ? `${pathname}?${query}` : pathname);
   }
 
+  /**
+   * Menor e Maior valor ligam a coluna Valor da tabela (a mesma ordem do cabecalho, 23/10/2026); clicar no ja ligado
+   * desliga.
+   */
+  function ordenarPeloValor(sentido) {
+    const params = new URLSearchParams(searchParams);
+    params.delete("ordem");
+    if (ordenar === "valor" && direcao === sentido) {
+      params.delete("ordenar");
+      params.delete("direcao");
+    } else {
+      params.set("ordenar", "valor");
+      params.set("direcao", sentido);
+    }
+    params.delete("pagina");
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
+
   function limpar() {
     router.push(pathname);
   }
 
-  const temFiltro = Boolean(tipo || ordem || fonte.length > 0 || searchParams.get("q"));
+  const temFiltro = Boolean(tipo || ordenar || fonte.length > 0 || searchParams.get("q"));
 
   return (
     // A margem de baixo e de quem posiciona: este bloco divide a linha com a
@@ -141,16 +160,16 @@ export default function FiltrosMercados({ tipo = "", ordem = "", fonte = [], fon
       <span className="mx-1 h-5 w-px bg-borda" aria-hidden />
 
       <Marcador
-        ativo={ordem === "menor"}
-        aoClicar={() => trocar("ordem", "menor")}
+        ativo={ordenar === "valor" && direcao === "asc"}
+        aoClicar={() => ordenarPeloValor("asc")}
         titulo="Do mais barato para o mais caro"
       >
         <ArrowUpNarrowWide size={13} />
         Menor valor
       </Marcador>
       <Marcador
-        ativo={ordem === "maior"}
-        aoClicar={() => trocar("ordem", "maior")}
+        ativo={ordenar === "valor" && direcao === "desc"}
+        aoClicar={() => ordenarPeloValor("desc")}
         titulo="Do mais caro para o mais barato"
       >
         <ArrowDownWideNarrow size={13} />
