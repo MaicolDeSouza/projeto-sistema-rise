@@ -6,15 +6,17 @@ PARÁGRAFOS
 
 Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes em cada grupo. Cada opção deve ter no máximo 230 caracteres, contando espaços.
 
-Primeiro parágrafo: comece pelo nome do produto como sujeito da frase. Explique o que ele é e destaque o microcontrolador. Termine com a tensão de operação ou de alimentação quando confirmada, identificando corretamente a que ela se refere.
+Primeiro parágrafo: comece pelo nome da placa como sujeito (“A Placa Nano V3 compatível com Arduino...”). Diga o que ela é, o microcontrolador e para que serve na prática (prototipagem, projetos embarcados, automação, robótica), e o formato quando ajuda a escolher (compacta, encaixa em protoboard).
 
-Segundo parágrafo: explique programação, conexões necessárias e compatibilidade prática com shields ou módulos. Cite o chip de interface USB e a instalação de driver somente quando confirmados nas referências. Mencione acessórios inclusos somente quando confirmados.
+Segundo parágrafo: os recursos de uso: quantos pinos digitais (e quantos com PWM), quantas entradas analógicas, as interfaces (UART, SPI, I2C), o conector e a programação pela Arduino IDE (driver do chip USB só quando confirmado), a alimentação e se os pinos vêm soldados. Acessórios só quando confirmados.
 
-Use frases completas, com verbo, linguagem acessível e precisão técnica. Varie o foco e a ordem dos fatos entre as opções, não apenas os sinônimos. Evite elogios comerciais, repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
+Nos parágrafos NÃO cite memória (Flash, RAM, EEPROM), clock, arquitetura, corrente por pino nem resolução do ADC: esses números ficam só nas especificações. Ao voltar a falar da placa, use o nome dela (“A placa Nano V3...”), nunca “ela” sozinho no início da frase. Tom de referência: direto como a descrição da Smartkits da Nano V3, sem copiar.
+
+Use frases completas, com verbo, linguagem acessível. Varie o foco e a ordem dos fatos entre as opções, não apenas os sinônimos. Evite elogios comerciais, repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
 
 PADRONIZAÇÃO DOS NOMES
 
-Use exatamente os nomes dos campos definidos neste prompt; campo a mais segue o mesmo padrão de nome. Não crie nomes alternativos para a mesma propriedade. As lojas usam nomes variados; converta-os assim:
+Use exatamente os nomes dos campos definidos neste prompt. Não crie nomes alternativos para a mesma propriedade. As lojas usam nomes variados; converta-os assim:
 
 Marca: a marca do cadastro do produto; nunca o nome da loja.
 
@@ -54,10 +56,10 @@ CARACTERÍSTICAS
 
 Cada item contém nome, valor e referencias. Use nome sem dois-pontos e valor separado, por exemplo: nome “Memória RAM”, valor “2KB SRAM”. A descrição será apresentada como “Memória RAM: 2KB SRAM”.
 
-Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo. Ausência comprovada pode ser “Não possui”; falta de informação não comprova ausência. Campos a mais, confirmados e úteis ao cliente, são aceitos.
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas abaixo, mesmo que uma loja os publique (ex.: Regulador de Tensão).
 
 Campos obrigatórios:
-Marca; Microcontrolador; Modelo; Arquitetura; Frequência de Clock; Montagem do Microcontrolador; Memória Flash; Memória RAM; Memória EEPROM; Tensão de Alimentação; Conector de Alimentação; Tensão de Operação; Nível Lógico; Pinos Digitais I/O; Saídas PWM; Entradas Analógicas; Resolução do ADC; Pinos Soldados; Corrente Contínua por Pino; Limite Absoluto de Corrente por Pino; Corrente Total nos Pinos I/O; Corrente Disponível na Saída 3,3V; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Método de Gravação; Ambiente de Programação; Compatibilidade com Shields.
+Marca; Microcontrolador; Modelo; Arquitetura; Frequência de Clock; Montagem do Microcontrolador; Memória Flash; Memória RAM; Memória EEPROM; Tensão de Alimentação; Conector de Alimentação; Tensão de Operação; Nível Lógico; Pinos Digitais I/O; Saídas PWM; Entradas Analógicas; Resolução do ADC; Pinos Soldados; Corrente Contínua por Pino; Limite Absoluto de Corrente por Pino; Corrente Total nos Pinos I/O; Corrente Disponível na Saída 3,3V; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Ambiente de Programação; Compatibilidade com Shields.
 
 Campos condicionais (só quando a placa tem o recurso; com o recurso e sem valor confirmado, omita o campo):
 Processador; Coprocessador; Saídas DAC; Resolução do DAC; Consumo de Corrente; Wi-Fi; Bluetooth; Recursos Integrados; Comprimento do Cabo USB.
@@ -87,7 +89,7 @@ Placa com dois chips (UNO R4 WiFi com RA4M1 e ESP32-S3; UNO WiFi com ATmega328 e
 
 Não apresente limite absoluto de corrente como corrente contínua recomendada. Nas placas AVR a Arduino recomenda 20mA por pino e o limite absoluto é 40mA; no UNO R4 é 8mA. Quando confirmados, informe os valores em seus campos próprios.
 
-Diferencie capacidade total da Flash e espaço reservado ao bootloader. Não desconte nem presuma reservas sem confirmação: a Arduino declara 0,5KB no UNO, 2KB no Nano original e 4KB no Leonardo; placas compatíveis podem diferir.
+Não desconte da Memória Flash a área do bootloader sem confirmação.
 
 Não transfira especificações entre UNO R3, UNO R4, Mega, Nano, Pro Mini ou outras variantes.
 
@@ -101,17 +103,17 @@ Em referencias, registre somente os números das referências fornecidas que sus
 
 Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias [].
 
-Resultados Web só valem quando consultados de fato e fornecidos como referências identificadas; pesquise só campos faltantes ou divergências, priorizando a documentação oficial do modelo e da revisão exatos.
+Resultado da web só vale se consultado de fato e informado como referência; prefira a documentação oficial do modelo.
 
 Dados do microcontrolador não comprovam recursos da placa, alimentação externa, conectores, dimensões ou acessórios. Lista de fornecedor sem ficha técnica não comprova especificação.
 
 Não invente consultas, fontes, URLs ou números de referência. Sem evidência, omita o campo. Se uma consulta contradisser outra fonte, preserve a divergência.
 
-Não coloque “Fonte: Web”, “Fonte: Cadastro”, nomes de lojas ou links dentro de nome ou valor; o Rise apresenta a origem separadamente.
+Não coloque fonte, loja ou link dentro de nome ou valor.
 
 ITENS INCLUSOS
 
-O primeiro item deve ser o próprio produto, com quantidade confirmada e nome técnico, sem acessórios no nome. Preserve siglas e códigos; não transforme o nome inteiro em maiúsculas. Para unidade avulsa, use quantidade 1.
+O primeiro item deve ser o próprio produto, com quantidade confirmada e nome técnico, sem acessórios no nome. Preserve siglas e códigos. Para unidade avulsa, use quantidade 1.
 
 Depois, informe acessórios com quantidade e descrição em escrita normal, como “Cabo USB” ou “Barra de pinos”.
 
