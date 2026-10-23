@@ -59,6 +59,14 @@ export function palavrasDaBusca(busca) {
   return normalizar(busca ?? "").split(/\s+/).filter(Boolean);
 }
 
+/**
+ * O padrao `%palavra%` do LIKE com os curingas da propria palavra escapados (revisao de seguranca de 22/10/2026). Sem
+ * isto, "%" ou "_" digitados na busca viravam curinga: "_" casava com qualquer caractere (o SKU "920302_1" achava
+ * "9203021x") e "%" sozinho casava com tudo e forcava a varredura da tabela inteira. O escape padrao do Postgres e a
+ * barra invertida, entao a barra tambem e escapada. O indice de trigramas continua atendendo o padrao.
+ */
+export const padraoLike = (palavra) => `%${String(palavra).replace(/[\\%_]/g, "\\$&")}%`;
+
 /** `expressao LIKE '%palavra%'` para cada palavra, ligadas por AND (o indice atende cada uma). */
 export function todasAsPalavras(expressao, palavras) {
   return Prisma.join(
@@ -75,7 +83,7 @@ export function todasAsPalavras(expressao, palavras) {
 export function todasAsPalavrasOuTambem(expressao, palavras, tambem) {
   return Prisma.join(
     palavras.map(
-      (palavra) => Prisma.sql`(${Prisma.raw(expressao)} LIKE ${`%${palavra}%`}${tambem(palavra)})`,
+      (palavra) => Prisma.sql`(${Prisma.raw(expressao)} LIKE ${padraoLike(palavra)}${tambem(palavra)})`,
     ),
     " AND ",
   );
@@ -132,7 +140,7 @@ const TEXTO_DO_CONCORRENTE = semAcento(juntar([`fc."nome"`, `v."fonteManual"`]))
 
 /** A palavra nos vinculos do produto: fornecedor (vinculo e rascunho do Bling) e loja do concorrente. */
 function palavraNosVinculos(palavra, ocultos = {}) {
-  const parecida = `%${palavra}%`;
+  const parecida = padraoLike(palavra);
   const fornecedor = ocultos.fornecedor
     ? Prisma.empty
     : Prisma.sql` OR "Produto"."id" IN (SELECT pf."produtoId" FROM "ProdutoFornecedor" pf JOIN "Fornecedor" f ON f."id" = pf."fornecedorId" WHERE ${Prisma.raw(TEXTO_DO_FORNECEDOR)} LIKE ${parecida})

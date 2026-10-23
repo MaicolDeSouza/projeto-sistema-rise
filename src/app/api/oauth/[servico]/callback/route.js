@@ -51,7 +51,10 @@ export async function GET(requisicao, { params }) {
   try {
     await conector.concluirAutorizacao(code);
   } catch (erro) {
-    return voltar("erro", erro.message);
+    // O detalhe (texto da API, nome de host) fica so no log do servidor: na URL ele iria para a tela e para o historico
+    // do navegador (revisao de seguranca de 22/10/2026).
+    console.error(`[oauth/${servico}] falha ao concluir a autorização:`, erro?.message ?? erro);
+    return voltar("erro", `${conector.nome} não concluiu a autorização. Tente conectar novamente; o detalhe está no log do servidor.`);
   }
 
   const resposta = voltar("conectado", conector.nome);

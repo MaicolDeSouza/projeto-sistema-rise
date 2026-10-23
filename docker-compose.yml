@@ -31,6 +31,12 @@ x-rise: &rise
     db:
       condition: service_healthy
   mem_limit: 1536m
+  # Endurecimento (revisao de seguranca de 22/10/2026): a imagem roda como `node` (Dockerfile), sem nenhuma capacidade do
+  # kernel (o Node escuta na 3000, acima de 1024, e nao precisa de nenhuma) e sem poder ganhar privilegio por setuid.
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
   logging: *logs
 
 services:

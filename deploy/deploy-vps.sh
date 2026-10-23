@@ -115,8 +115,18 @@ fi
 # (medido em 20/10/2026), e o `up -d` abaixo o recria. Criado pela imagem do app (como o app o grava), e nao pelo host: o
 # host nao escreve onde o conteiner escreve (ver o crontab). Vazio vale: os logins do .env continuam entrando.
 PASSO="preparando o arquivo de logins"
-docker run --rm -v "${PWD}/dados:/app/dados" --entrypoint sh rise:latest -c \
+# `--user 0`: desde 22/10/2026 a imagem roda como `node` (uid 1000), e o `dados/` do host pode ter ficado de root (os
+# deploys de antes). Este passo roda como root de proposito, para criar o arquivo onde quer que esteja.
+docker run --rm --user 0 -v "${PWD}/dados:/app/dados" --entrypoint sh rise:latest -c \
   'mkdir -p /app/dados/tinyauth && { [ -f /app/dados/tinyauth/usuarios ] || : > /app/dados/tinyauth/usuarios; } && chmod 755 /app/dados/tinyauth && chmod 644 /app/dados/tinyauth/usuarios' </dev/null
+
+# O conteiner deixou de rodar como root (revisao de seguranca de 22/10/2026): o `dados/` do host, gravado ate aqui pelo
+# root dos conteineres antigos, passa para o uid 1000 (`node`), senao o app e o worker nao gravam foto, log nem backup.
+# So o que ainda nao e do uid 1000 muda (o primeiro deploy varre tudo; os seguintes, quase nada). Pela imagem, como root:
+# o host nao escreve onde o conteiner escreve.
+PASSO="passando dados/ para o usuario do conteiner"
+docker run --rm --user 0 -v "${PWD}/dados:/app/dados" --entrypoint sh rise:latest -c \
+  'find /app/dados ! -user 1000 -exec chown 1000:1000 {} +' </dev/null
 
 PASSO="trocando os conteineres"
 docker compose up -d

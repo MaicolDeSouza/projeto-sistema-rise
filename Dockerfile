@@ -39,5 +39,13 @@ ENV RISE_VERSAO=$RISE_VERSAO \
 
 RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npm run build
 
+# Sem root (revisao de seguranca de 22/10/2026, pendencia 4 da revisao de 08/10): o processo roda como `node` (uid 1000,
+# que a imagem base ja traz). O que ele PRECISA escrever passa a ser dele: `.next` (o cache da otimizacao de imagens e
+# gravado em `.next/cache` em tempo de execucao) e `dados/` (o volume; o deploy-vps.sh poe o `dados/` do host no mesmo
+# uid antes de subir, porque o `chown` daqui nao alcanca o que esta montado). O resto de /app fica de root, so leitura:
+# quem controlasse o processo nao reescreve o codigo nem o node_modules.
+RUN mkdir -p /app/dados && chown -R node:node /app/.next /app/dados
+USER node
+
 EXPOSE 3000
 CMD ["npm", "start"]

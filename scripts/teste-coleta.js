@@ -350,6 +350,9 @@ conferir(
   [EXPRESSAO_AMPLA_COLETADO, EXPRESSAO_BUSCA_PRODUTO, EXPRESSAO_AMPLA_PRODUTO].map((expressao) => migracaoAmpla.includes(`((${expressao}) gin_trgm_ops)`)),
   [true, true, true],
 );
+// Revisao de seguranca de 22/10/2026: "%" e "_" digitados sao texto, nao curinga do LIKE.
+const { padraoLike } = await import("@/lib/buscaAmpla.js");
+conferir("o LIKE escapa %, _ e a barra da palavra", [padraoLike("920302_1"), padraoLike("50%"), padraoLike("a\\b")], ["%920302\\_1%", "%50\\%%", "%a\\\\b%"]);
 
 const amplaFonte = await prisma.fonteColeta.create({
   data: { nome: "Ampla Teste", dominio: DOMINIOS[4], tipo: "CONCORRENTE", ativa: false },

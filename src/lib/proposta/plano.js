@@ -92,6 +92,11 @@ function validarDocumentos(conteudo) {
     if (!texto(item?.id) || ids.has(item.id)) return erro("documentos: todo item tem id único.");
     ids.add(item.id);
     if (!texto(item.titulo)) return erro(`documentos: o item ${item.id} sem título.`);
+    // O link vem da conversa (LLM) e vai direto para um href na tela: so http(s). Sem isto um "javascript:" passava pelo
+    // teste de links (que so testa http) e chegava ao clique do dono (revisao de seguranca de 22/10/2026).
+    if (item.url !== undefined && item.url !== null && !/^https?:\/\/\S+$/i.test(String(item.url))) {
+      return erro(`documentos: o link do item ${item.id} precisa começar com http:// ou https://.`);
+    }
   }
   return { ok: true };
 }

@@ -2,7 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 
 import { normalizar } from "@/lib/texto";
-import { EXPRESSAO_AMPLA_COLETADO, ondeAchou, palavrasDaBusca, textoDaFicha, todasAsPalavrasOuTambem } from "@/lib/buscaAmpla";
+import { EXPRESSAO_AMPLA_COLETADO, ondeAchou, padraoLike, palavrasDaBusca, textoDaFicha, todasAsPalavrasOuTambem } from "@/lib/buscaAmpla";
 
 import { chaveSemColisao, linhaDePreco, linhaDoProduto, mudouPreco, produtoDaLinha } from "./linha";
 
@@ -553,7 +553,7 @@ export async function listarProdutos({
     palavras.length === 0
       ? null
       : Prisma.join(
-          palavras.map((palavra) => Prisma.sql`("buscaTexto" LIKE ${`%${palavra}%`}${ouNaFonte(palavra)})`),
+          palavras.map((palavra) => Prisma.sql`("buscaTexto" LIKE ${padraoLike(palavra)}${ouNaFonte(palavra)})`),
           " AND ",
         );
   const filtroDaBusca =

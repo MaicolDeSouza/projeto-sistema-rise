@@ -231,6 +231,9 @@ const { validarPlano } = await import("../src/lib/proposta/plano.js");
   const titulos = (opcoes, recomendada = 0) => ({ secao: "titulos", conteudo: { opcoes, recomendada, concorrentes: [] } });
 
   conferir("plano: secao desconhecida e recusada", validarPlano({ secao: "estoque", conteudo: {} }).ok === false);
+  // Revisao de seguranca de 22/10/2026: o link do documento vai para um href na tela.
+  conferir("plano: link de documento javascript: e recusado", validarPlano({ secao: "documentos", conteudo: { itens: [{ id: "d1", titulo: "X", url: "javascript:alert(1)" }] } }).ok === false);
+  conferir("plano: link de documento https passa", validarPlano({ secao: "documentos", conteudo: { itens: [{ id: "d1", titulo: "X", url: "https://x.test/d.pdf" }] } }).ok === true);
   conferir("plano: 3 titulos validos passam", validarPlano(titulos(["A", "B", "C"], 1)).ok === true);
   conferir("plano: titulo de 61 caracteres e recusado", validarPlano(titulos(["A", "B", "X".repeat(61)])).ok === false);
   conferir("plano: 2 titulos sao recusados", validarPlano(titulos(["A", "B"])).ok === false);
