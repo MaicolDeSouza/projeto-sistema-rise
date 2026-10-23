@@ -1178,6 +1178,8 @@ export async function alternarConferido(id, valor, opcoes = {}) {
 const FornecedorSchema = z.object({
   nome: z.string().trim().min(1, "Informe o fornecedor."),
   descricao: opcional(z.string().trim()),
+  // Coluna "Obs" (pedido do dono em 23/10/2026): texto livre, nao vai ao Bling.
+  observacao: opcional(z.string().trim().max(500, "Até 500 caracteres.")),
   codigo: opcional(z.string().trim()),
   precoCusto: decimal(),
   link: opcional(
@@ -1230,7 +1232,8 @@ async function gravarFornecedoresRascunho(produto, formData) {
   const validos = [];
   for (const item of lista) {
     const resultado = FornecedorSchema.safeParse(item);
-    if (resultado.success) validos.push({ dados: resultado.data, padrao: Boolean(item?.padrao) });
+    // O id da linha vem junto: e ele, e nao o fornecedor, que identifica o vinculo (ver abaixo).
+    if (resultado.success) validos.push({ dados: resultado.data, padrao: Boolean(item?.padrao), id: typeof item?.id === "string" ? item.id : null });
   }
 
   // Nenhum marcado como padrao (a linha marcada caiu na validacao)? O
@@ -1238,30 +1241,40 @@ async function gravarFornecedoresRascunho(produto, formData) {
   // produto em salvarFornecedorDoProduto.
   if (validos.length > 0 && !validos.some((item) => item.padrao)) validos[0].padrao = true;
 
-  const fornecedorIdsMantidos = [];
-  for (const { dados, padrao } of validos) {
+  // A IDENTIDADE DE CADA LINHA E O ID DELA (desde 23/10/2026, pedido do dono: o mesmo fornecedor pode entrar mais de uma
+  // vez, por exemplo dois codigos da Fortek). Id que ja e deste produto atualiza a linha; id do navegador (linha nova)
+  // cria. Ate ali a identidade era o fornecedor (upsert no unique produto+fornecedor), e a segunda linha do mesmo
+  // fornecedor sobrescrevia a primeira.
+  const existentes = new Set(
+    (await prisma.produtoFornecedor.findMany({ where: { produtoId: produto.id }, select: { id: true } })).map((linha) => linha.id),
+  );
+  const idsMantidos = [];
+  let padraoJaUsado = false;
+  for (const { dados, padrao, id } of validos) {
     const { nome, ...vinculo } = dados;
     const fornecedor = await prisma.fornecedor.findFirst({
       where: { nome: { equals: nome, mode: "insensitive" } },
     });
     if (!fornecedor) throw new Error(`Cadastre o fornecedor "${nome}" antes de vinculá-lo ao produto.`);
 
-    // Upsert, e nao create: o mesmo fornecedor marcado duas vezes no rascunho
-    // (nome repetido) atualiza o vinculo em vez de esbarrar no
-    // unique(produtoId, fornecedorId).
-    await prisma.produtoFornecedor.upsert({
-      where: { produtoId_fornecedorId: { produtoId: produto.id, fornecedorId: fornecedor.id } },
-      update: { ...vinculo, padrao },
-      create: { ...vinculo, produtoId: produto.id, fornecedorId: fornecedor.id, padrao },
-    });
-    fornecedorIdsMantidos.push(fornecedor.id);
+    // Exatamente um padrao: duas linhas marcadas (nao deveria acontecer pela tela) ficam com a primeira.
+    const ehPadrao = padrao && !padraoJaUsado;
+    if (ehPadrao) padraoJaUsado = true;
+    const dadosDaLinha = { ...vinculo, fornecedorId: fornecedor.id, padrao: ehPadrao };
+    if (id && existentes.has(id) && !idsMantidos.includes(id)) {
+      await prisma.produtoFornecedor.update({ where: { id }, data: dadosDaLinha });
+      idsMantidos.push(id);
+    } else {
+      const criada = await prisma.produtoFornecedor.create({ data: { ...dadosDaLinha, produtoId: produto.id } });
+      idsMantidos.push(criada.id);
+    }
   }
 
   // `notIn: []` (lista vazia — todos os fornecedores foram removidos na
   // tela) apaga TODOS os vinculos do produto: e o comportamento certo, a
   // lista enviada e a verdade inteira.
   await prisma.produtoFornecedor.deleteMany({
-    where: { produtoId: produto.id, fornecedorId: { notIn: fornecedorIdsMantidos } },
+    where: { produtoId: produto.id, id: { notIn: idsMantidos } },
   });
 
   await recalcularCusto(produto.id);

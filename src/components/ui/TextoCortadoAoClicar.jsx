@@ -25,7 +25,9 @@ function cortado(elemento) {
 function elementoCortado(alvo) {
   let atual = alvo;
   for (let i = 0; i <= NIVEIS && atual && atual !== document.body; i++) {
-    if (atual instanceof HTMLElement && !["TD", "TR", "TABLE", "MAIN", "SECTION"].includes(atual.tagName)) {
+    // A CELULA DE TABELA (`td`) conta: e onde mais se corta texto (descricao e Obs dos fornecedores, 23/10/2026; a
+    // primeira versao a ignorava e o clique nao fazia nada). Linha, tabela e blocos inteiros nao.
+    if (atual instanceof HTMLElement && !["TR", "TABLE", "MAIN", "SECTION"].includes(atual.tagName)) {
       const estilo = getComputedStyle(atual);
       const cortaTexto =
         estilo.textOverflow === "ellipsis" || (estilo.webkitLineClamp && estilo.webkitLineClamp !== "none");

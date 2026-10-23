@@ -2837,16 +2837,18 @@ export default function FormularioProduto({
   // (pedido do dono em 18/09/2026): fornecedor vira sugestao de linha ali;
   // concorrente so aparece para consulta, em Concorrentes.jsx — preco de
   // concorrente nao e custo, entao nao entra na mesma tabela.
-  const nomesFornecedoresAtuais = new Set(
-    (usaFornecedorRascunho ? fornecedoresRascunho : fornecedores).map((item) =>
-      item.nome.trim().toLocaleLowerCase("pt-BR"),
-    ),
+  // Repetido = mesmo fornecedor E mesmo codigo (desde 23/10/2026 o mesmo fornecedor pode entrar mais de uma vez no
+  // produto, com codigos diferentes; ate ali bastava o nome para a sugestao sumir).
+  const chaveDoFornecedor = (nome, codigo) =>
+    `${String(nome ?? "").trim().toLocaleLowerCase("pt-BR")}|${String(codigo ?? "").trim().toLocaleLowerCase("pt-BR")}`;
+  const fornecedoresAtuais = new Set(
+    (usaFornecedorRascunho ? fornecedoresRascunho : fornecedores).map((item) => chaveDoFornecedor(item.nome, item.codigo)),
   );
   const sugestoesFornecedor = [...marcados.values()].filter(
     (item) =>
       item.tipo === "FORNECEDOR" &&
       item.fonte &&
-      !nomesFornecedoresAtuais.has(item.fonte.trim().toLocaleLowerCase("pt-BR")),
+      !fornecedoresAtuais.has(chaveDoFornecedor(item.fonte, item.codigo && item.codigo !== "N/A" ? item.codigo : "")),
   );
 
   // Mesmo atalho para Concorrentes, pela referencia (produtoColetadoId), nao

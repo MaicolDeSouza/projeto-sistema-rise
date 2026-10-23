@@ -60,8 +60,8 @@ export function blocosDoPedido(pedido, nota) {
 }
 
 /// Acima disso a marcacao deixa de ser referencia e vira o catalogo inteiro, e
-/// o prompt cresce sem ganho.
-export const MAXIMO_REFERENCIAS = 20;
+/// o prompt cresce sem ganho. Era 20; 30 desde 23/10/2026 (pedido do dono). Anda junto com MAXIMO_MARCADOS da lupa.
+export const MAXIMO_REFERENCIAS = 30;
 
 const TIPO = { FORNECEDOR: "Fornecedor", CONCORRENTE: "Concorrente", OUTRO: "Outro" };
 

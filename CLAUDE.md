@@ -153,7 +153,8 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   alguns segundos com o mouse parado): `TextoCortadoAoClicar` (`src/components/ui/`, montado no `layout.jsx`) ouve os
   cliques do documento e, num texto com reticências (`truncate`/`line-clamp`), abre uma bolha com o `title` ou o texto
   inteiro. Não age dentro de botão, link, campo nem linha de tabela clicável; fecha com Esc, clique fora ou rolagem.
-  **Nenhuma tela precisa mudar**: basta o texto ter `truncate`.
+  **Nenhuma tela precisa mudar**: basta o texto ter `truncate`, inclusive numa **célula de tabela** (`<td className="truncate">`;
+  a primeira versão ignorava `td`, e o dono pediu de novo ao ver a descrição e a Obs dos fornecedores sem abrir).
 - **Texto da tela COM acento** (decidido pelo dono em 07/10/2026; até ali era sem acento): `Pessoa Física`,
   `Última varredura`, `Não foi possível salvar.`. Vale para tudo o que a pessoa lê: rótulos, botões, bolhas,
   mensagens de erro e avisos que as ações devolvem. **Continuam sem acento:** identificadores, ids de aba e chaves,
@@ -4512,6 +4513,16 @@ Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com *
     (`[custos ao Bling]`). Passa pelas travas de escrita: no `worker:pc` (travas do `.env` do PC fechadas) nada vai, e os
     produtos ficam com o "!". Testes: `teste:coleta` ("custo..."), `teste:bling-sync` ("custo ao Bling...") e
     `teste:extracao` ("custo:...").
+- **O mesmo fornecedor pode entrar mais de uma vez no produto** (pedido do dono em 23/10/2026; migration
+  `20261023c_fornecedor_varios_e_obs` tirou o unique(produtoId, fornecedorId)): dois códigos da Fortek, por exemplo. A
+  identidade da linha é o `id` (`gravarFornecedoresRascunho`: id do produto atualiza, id do navegador cria), e a sugestão
+  da lupa só some quando fornecedor E código já estão na aba. **O Bling recebe um vínculo por CNPJ** (é o que ele aceita:
+  `normalizarFornecedoresDoRise` fica com o primeiro, o padrão na frente); a segunda linha do mesmo fornecedor fica só no
+  Rise. Na mesma leva: coluna **Obs** (`ProdutoFornecedor.observacao`, até 500 caracteres, não vai ao Bling) e a lupa
+  marca até **30** (eram 20; `MAXIMO_MARCADOS` e `MAXIMO_REFERENCIAS` andam juntos).
+  **Depois de uma migration que só acrescenta coluna, reiniciar o servidor do PC**: o `db.js` só recria o client quando
+  muda o nome dos modelos, e o client antigo grava sem a coluna nova em silêncio (visto no teste: o Salvar passava e a
+  linha nova não aparecia).
 - **Concorrente vinculado ao produto (`ProdutoConcorrente`, migration `20260918_produto_concorrente`)
   não guarda cópia do preço quando vem da lupa do Nome — só a referência**
   (`produtoColetadoId`). A tela lê o preço de HOJE em `ProdutoColetado` toda vez que abre o

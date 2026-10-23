@@ -110,6 +110,7 @@ export async function carregarProdutoParaFormulario(id) {
     id: vinculo.id,
     nome: vinculo.fornecedor.nome,
     descricao: vinculo.descricao,
+    observacao: vinculo.observacao ?? null,
     codigo: vinculo.codigo,
     precoCusto: vinculo.precoCusto ? Number(vinculo.precoCusto) : null,
     link: vinculo.link,

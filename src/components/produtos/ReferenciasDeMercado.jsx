@@ -84,8 +84,8 @@ function CabecalhoOrdenavel({ coluna, ordenacao, aoClicar, direita, titulo, chil
 }
 
 /// Espelha MAXIMO_REFERENCIAS de src/lib/ia/anuncio.js, que nao pode ser
-/// importado aqui (usa o SDK e o banco). O servidor confere de novo.
-export const MAXIMO_MARCADOS = 20;
+/// importado aqui (usa o SDK e o banco). O servidor confere de novo. Era 20; 30 desde 23/10/2026 (pedido do dono).
+export const MAXIMO_MARCADOS = 30;
 
 const reais = (valor) =>
   valor === null || valor === undefined

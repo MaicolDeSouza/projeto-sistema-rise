@@ -32,6 +32,7 @@ const moeda = new Intl.NumberFormat("pt-BR", {
 const VAZIO = {
   nome: "",
   descricao: "",
+  observacao: "",
   codigo: "",
   precoCusto: "",
   link: "",
@@ -76,6 +77,8 @@ function validarRascunho(dados) {
   if (dados.link && !ehUrlSegura(dados.link)) {
     erros.link = "Informe um endereço http ou https.";
   }
+  // O servidor recusa a linha inteira acima disso (FornecedorSchema): melhor dizer aqui, no campo.
+  if ((dados.observacao ?? "").trim().length > 500) erros.observacao = "Até 500 caracteres.";
   return erros;
 }
 
@@ -253,6 +256,7 @@ export default function Fornecedores({
     setRascunho({
       nome: vinculo.nome,
       descricao: vinculo.descricao ?? "",
+      observacao: vinculo.observacao ?? "",
       codigo: vinculo.codigo ?? "",
       precoCusto: vinculo.precoCusto ?? "",
       link: vinculo.link ?? "",
@@ -266,6 +270,7 @@ export default function Fornecedores({
     return {
       nome: item.fonte ?? "",
       descricao: item.nome ?? "",
+      observacao: "",
       codigo: item.codigo && item.codigo !== "N/A" ? item.codigo : "",
       precoCusto: item.preco != null ? String(item.preco) : "",
       link: item.url ?? "",
@@ -277,6 +282,7 @@ export default function Fornecedores({
     return {
       nome: dados.nome.trim(),
       descricao: dados.descricao.trim() || null,
+      observacao: (dados.observacao ?? "").trim() || null,
       codigo: dados.codigo.trim() || null,
       precoCusto: dados.precoCusto === "" ? null : Number(dados.precoCusto),
       link: dados.link.trim() || null,
@@ -435,6 +441,7 @@ export default function Fornecedores({
             <tr className="divide-x divide-borda">
               <th className="px-3 py-2 font-medium">Fornecedor</th>
               <th className="px-3 py-2 font-medium">Descrição no fornecedor</th>
+              <th className="px-3 py-2 font-medium">Obs</th>
               <th className="px-3 py-2 font-medium">Código no fornecedor</th>
               <th className="px-3 py-2 font-medium">Preço de custo</th>
               <th className="px-3 py-2 font-medium">Estoque fornecedor</th>
@@ -447,7 +454,7 @@ export default function Fornecedores({
           <tbody className="divide-y divide-borda">
             {vinculos.length === 0 && editando !== "novo" && (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-suave">
+                <td colSpan={9} className="px-3 py-6 text-center text-suave">
                   Nenhum fornecedor cadastrado para este produto.
                 </td>
               </tr>
@@ -489,6 +496,10 @@ export default function Fornecedores({
                     ) : (
                       vinculo.descricao || "—"
                     )}
+                  </td>
+                  {/* Obs (pedido do dono em 23/10/2026): cortada na linha; o clique mostra o texto inteiro. */}
+                  <td className="max-w-40 truncate px-3 py-2 text-xs text-suave" title={vinculo.observacao || undefined}>
+                    {vinculo.observacao || "—"}
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">
                     {vinculo.codigo || "—"}
@@ -657,6 +668,10 @@ function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, a
       </td>
       <td className="px-3 py-2">
         <input {...campo("descricao")} />
+      </td>
+      <td className="px-3 py-2">
+        <input placeholder="Obs" {...campo("observacao")} />
+        {erros.observacao && <p className="mt-1 text-[11px] text-red-700">{erros.observacao}</p>}
       </td>
       <td className="px-3 py-2">
         <div className="flex items-center gap-1">
