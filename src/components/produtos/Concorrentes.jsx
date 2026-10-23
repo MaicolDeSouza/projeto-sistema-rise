@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
-import { ordenarConcorrentes, situacaoDeEstoque } from "@/lib/estoqueDoConcorrente";
+import { DA_PROPRIA_LOJA, ordenarConcorrentes, situacaoDeEstoque } from "@/lib/estoqueDoConcorrente";
 import {
   consultarSituacaoConcorrentes,
   listarConcorrentesCadastrados,
@@ -32,9 +32,6 @@ const percentual = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 1,
   minimumFractionDigits: 1,
 });
-
-// A propria loja vinculada como concorrente (a mesma regra da proposta, `proposta/preco.js`).
-const DA_PROPRIA_LOJA = /4hobby/i;
 
 const VAZIO = { fonte: "", nome: "", codigo: "", preco: "", url: "", produtoColetadoId: null };
 

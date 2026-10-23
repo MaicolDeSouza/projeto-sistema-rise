@@ -1735,6 +1735,9 @@ console.log("\n— Estoque do concorrente e a ordem da aba Concorrentes —");
   conferir("com estoque primeiro, sem estoque depois, fora da coleta por ultimo", ordenarConcorrentes(linhas, situacoes).map((l) => l.id), ["e", "b", "d", "c", "a", "f"]);
   conferir("sem situacao lida ainda: so pelo preco", ordenarConcorrentes(linhas, {}).map((l) => l.id), ["f", "c", "a", "e", "b", "d"]);
   conferir("nao muda a lista original", linhas.map((l) => l.id), ["a", "b", "c", "d", "e", "f"]);
+  // A 4hobby sem estoque fica entre os que vendem, pelo preco (pedido do dono em 23/10/2026).
+  const comLoja = [...linhas, { id: "h", preco: 40, produtoColetadoId: "ph", fonte: "4hobby" }];
+  conferir("4hobby sem estoque fica na ordem do preco", ordenarConcorrentes(comLoja, { ...situacoes, ph: { ativo: true, quantidade: 0 } }).map((l) => l.id), ["e", "h", "b", "d", "c", "a", "f"]);
 }
 
 console.log("\n— Posicao de preco entre os concorrentes (\"2º de 10\") —");

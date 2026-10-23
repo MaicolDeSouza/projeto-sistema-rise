@@ -24,19 +24,23 @@ export function indisponivel(situacao) {
   return estado === "sem-estoque" || estado === "fora-da-coleta";
 }
 
+/** A propria loja vinculada como concorrente (fonte com "4hobby" no nome; a mesma regra da proposta). */
+export const DA_PROPRIA_LOJA = /4hobby/i;
+
 /// Ordem dos grupos na tabela: quem vende (ou nao diz) primeiro.
 const GRUPO = { "em-estoque": 0, "nao-informado": 0, "sem-estoque": 1, "fora-da-coleta": 2 };
 
 /**
  * A ordem da aba Concorrentes (pedido do dono em 07/10/2026): os SEM ESTOQUE continuam na lista, mas por ultimo, e
  * os que sairam da coleta depois deles. Dentro de cada grupo, do mais barato ao mais caro, sem preco no fim
- * (pedido de 18/09/2026). Devolve uma lista nova.
+ * (pedido de 18/09/2026). A 4hobby fica SEMPRE entre os que vendem, pelo preco, mesmo sem estoque (pedido do dono em
+ * 23/10/2026: a posicao dela no meio dos concorrentes e o que interessa). Devolve uma lista nova.
  *
- * @param {{preco: number|null, produtoColetadoId: string|null}[]} lista
+ * @param {{preco: number|null, produtoColetadoId: string|null, fonte?: string}[]} lista
  * @param {Record<string, object>} situacoes por produtoColetadoId
  */
 export function ordenarConcorrentes(lista, situacoes = {}) {
-  const grupo = (item) => GRUPO[situacaoDeEstoque(item.produtoColetadoId ? situacoes[item.produtoColetadoId] : null)];
+  const grupo = (item) => DA_PROPRIA_LOJA.test(item.fonte ?? "") ? 0 : GRUPO[situacaoDeEstoque(item.produtoColetadoId ? situacoes[item.produtoColetadoId] : null)];
   return [...lista].sort((a, b) => grupo(a) - grupo(b) || porPrecoAscendente(a, b));
 }
 
