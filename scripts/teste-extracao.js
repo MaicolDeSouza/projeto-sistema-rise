@@ -2908,10 +2908,12 @@ console.log("\n— Kalatec: codigo repetido e produto do catalogo —");
   conferir("chave: endereco e nome diferentes = outro produto, com o ultimo trecho do endereco", chaveSemColisao("codigo:4560", b, a), "codigo:4560#guia-linear-hr-15-600mm");
   conferir("chave: mesmo nome por dois enderecos (Usinainfo) continua um produto so", chaveSemColisao("codigo:09109", { url: "https://x.com/a/p-1", nome: "Sensor X" }, { url: "https://x.com/b/p-1", nome: "SENSOR  x" }), "codigo:09109");
   conferir("chave: sem endereco nao separa; chave que nao e de codigo nao muda", [chaveSemColisao("codigo:1", { url: null, nome: "A" }, a), chaveSemColisao("url:https://x/y", b, a)], ["codigo:1", "url:https://x/y"]);
-  const item = { id: "107", name: "G213V- DRIVE GECKO", price: "690.00", promotional_price: "0", available: "0", brand: "Gecko Drive ", model: "G213V", ean: "", ncm: "85044029", url: { https: "https://loja.kalatec.com.br/driver/gecko-g213v" }, ProductImage: [{ https: "https://images.tcdn.com.br/img/a.jpg" }] };
+  const item = { id: "107", name: "G213V- DRIVE GECKO", price: "690.00", promotional_price: "0", available: "1", brand: "Gecko Drive ", model: "G213V", ean: "", ncm: "85044029", url: { https: "https://loja.kalatec.com.br/driver/gecko-g213v" }, ProductImage: [{ https: "https://images.tcdn.com.br/img/a.jpg" }] };
   const p = produtoDoItemDoCatalogo(item, "https://loja.kalatec.com.br");
   conferir("catalogo: nome, preco, marca, NCM, foto e endereco do item", [p.name, p.prices.normal, p.prices.promotional, p.brand, p.ncm, p.images.length, p.url], ["G213V- DRIVE GECKO", 690, null, "Gecko Drive", "85044029", 1, "https://loja.kalatec.com.br/driver/gecko-g213v"]);
-  conferir("catalogo: sem codigo vira N/A com a origem dizendo; indisponivel = zero", [p.code, p.origens.code, p.stock.status, p.stock.quantity], ["N/A", "sem codigo no catalogo nem na pagina — marcado N/A", "OUT_OF_STOCK", 0]);
+  conferir("catalogo: sem codigo vira N/A com a origem dizendo; disponivel no catalogo", [p.code, p.origens.code, p.stock.status], ["N/A", "sem codigo no catalogo nem na pagina — marcado N/A", "AVAILABLE"]);
+  // Desativado pela loja (23/10/2026, Opcao 1 do dono): a pagina leva a "Produto nao encontrado", entao nao vira produto.
+  conferir("catalogo: produto desativado pela loja (available 0) nao vira produto", produtoDoItemDoCatalogo({ ...item, available: "0" }, "https://loja.kalatec.com.br"), null);
   conferir("catalogo: preco zero fica sem preco (e o teste de validade do concorrente o descarta); sem nome ou endereco nao vira produto", [produtoDoItemDoCatalogo({ ...item, price: "0.00" }, "https://loja.kalatec.com.br").prices.normal, produtoDoItemDoCatalogo({ ...item, name: "" }, "https://x.com"), produtoDoItemDoCatalogo({ name: "X" }, "https://x.com")], [null, null, null]);
 }
 

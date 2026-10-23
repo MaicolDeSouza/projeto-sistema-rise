@@ -156,6 +156,12 @@ export function produtoDoItemDoCatalogo(item, origem, { plataforma = null, colet
   const nome = typeof item?.name === "string" ? item.name.trim() : "";
   const url = urlDoItem(item, origem);
   if (!nome || !url) return null;
+  // PRODUTO DESATIVADO PELA LOJA NAO E GRAVADO (pedido do dono em 23/10/2026, Opcao 1). Na Tray, `available: "0"` e o
+  // produto tirado da loja: o catalogo publico ainda o lista, mas a pagina dele leva a "Produto nao encontrado" (medido na
+  // Casa da Robotica: 680 de 2.305 itens, desativados desde 2023; 8 de 25 links da amostra estavam mortos). Grava-lo dava
+  // um concorrente "sem estoque" com link morto e preco de algo que a loja nem vende. O produto ESGOTADO e ativo vem com
+  // `available: "1"` e a pagina abre: esse continua.
+  if (String(item?.available) === "0") return null;
 
   const texto = (valor) => (typeof valor === "string" && valor.trim() ? valor.trim() : null);
   const numero = (valor) => {
