@@ -34,6 +34,7 @@ import { conferirComProposta } from "@/lib/proposta/conferir";
 import { modeloDaDescricao } from "@/lib/ia/modelosDaDescricao";
 import * as bibliotecaDePrompts from "@/lib/ia/promptsDescricao";
 import { normalizar } from "@/lib/texto";
+import { problemaDoEanInterno } from "@/lib/eanInterno";
 import { descartarLote } from "@/lib/imagens/lote";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { reconciliarImagensDoProduto } from "@/lib/imagens/produto";
@@ -680,6 +681,12 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
   }
 
   const dados = resultado.data;
+
+  // EAN da faixa interna (prefixo 2) com digito verificador errado e recusado: esse codigo e nosso, gerado pelo botao, e
+  // errado so pode ser digitacao. Os codigos de fabricante nao sao conferidos aqui: ha codigos reais gravados que nao vale
+  // arriscar barrar (pedido do dono em 23/10/2026).
+  const problemaInterno = problemaDoEanInterno(dados.ean);
+  if (problemaInterno) return { ok: false, erro: problemaInterno, erros: { ean: problemaInterno } };
 
   // O mesmo GTIN/EAN em dois produtos e recusado (pedido do dono em 09/10/2026, ao criar o "Clonar", que copia o
   // EAN): o codigo de barras identifica UM produto, e a NF-e e os canais o leem como tal. Conferido aqui, e nao
