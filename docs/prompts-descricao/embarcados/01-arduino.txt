@@ -16,6 +16,8 @@ PADRONIZAÇÃO DOS NOMES
 
 Use exatamente os nomes dos campos definidos neste prompt; campo a mais segue o mesmo padrão de nome. Não crie nomes alternativos para a mesma propriedade. As lojas usam nomes variados; converta-os assim:
 
+Marca: a marca do cadastro do produto; nunca o nome da loja.
+
 Modelo: família, revisão e variante, como “UNO R3 SMD”, “Mega 2560 R3”, “Nano V3”, “Pro Mini 5V 16MHz”, “UNO R4 WiFi”. Escreva “Arduino” no modelo somente quando o cadastro indicar produto original; placa compatível é “compatível com Arduino UNO R3”.
 
 Microcontrolador: o componente principal, como ATmega328P, ATmega2560, ATmega32U4 ou RA4M1. Não confunda com o chip da interface USB nem com o módulo sem fio.
@@ -38,7 +40,7 @@ Conector USB: o conector físico, como USB-B, Mini USB, Micro USB ou USB-C. Subs
 
 Chip de Interface USB: substitui Chip USB, Conversor USB-Serial e Controlador USB. Quando o microcontrolador tem USB nativo (ATmega32U4, RA4M1, SAM3X), o valor é “USB nativo do microcontrolador”. Placa sem USB: “Não possui”.
 
-Corrente Contínua por Pino: substitui Corrente pinos I/O, Corrente DC por pino I/O e Corrente por pino. Corrente Disponível na Saída 3,3V: substitui Corrente pinos 3,3V e Corrente DC para pino 3.3V. Corrente Disponível na Saída 5V: substitui Corrente DC para pino 5V e Potência de saída.
+Corrente Contínua por Pino: substitui Corrente pinos I/O, Corrente DC por pino I/O e Corrente por pino. Corrente Disponível na Saída 3,3V: substitui Corrente pinos 3,3V e Corrente DC para pino 3.3V.
 
 Coprocessador: substitui Co-processador, Módulo Wi-Fi e “WiFi e Bluetooth” quando identificarem um segundo chip, como “ESP32-S3 para Wi-Fi e Bluetooth”.
 
@@ -52,22 +54,24 @@ CARACTERÍSTICAS
 
 Cada item contém nome, valor e referencias. Use nome sem dois-pontos e valor separado, por exemplo: nome “Memória RAM”, valor “2KB SRAM”. A descrição será apresentada como “Memória RAM: 2KB SRAM”.
 
-Com referências disponíveis, todos os campos obrigatórios abaixo devem aparecer, nesta ordem. Sem valor confirmado, use valor "?" e referencias []: o operador pesquisa e preenche à mão. Nunca omita um campo obrigatório. Ausência comprovada pode ser “Não possui”; falta de informação não comprova ausência. Campos a mais, confirmados e úteis ao cliente, são aceitos.
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo. Ausência comprovada pode ser “Não possui”; falta de informação não comprova ausência. Campos a mais, confirmados e úteis ao cliente, são aceitos.
 
 Campos obrigatórios:
-Modelo; Microcontrolador; Frequência de Clock; Memória Flash; Memória RAM; Memória EEPROM; Tensão de Operação; Tensão de Alimentação; Pinos Digitais I/O; Saídas PWM; Entradas Analógicas; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Arquitetura; Nível Lógico; Conector de Alimentação; Resolução do ADC; Corrente Contínua por Pino; Limite Absoluto de Corrente por Pino; Corrente Total nos Pinos I/O; Corrente Disponível na Saída 3,3V; Corrente Disponível na Saída 5V; Montagem do Microcontrolador; Estado dos Headers; Compatibilidade com Shields; Método de Gravação; Temperatura de Operação.
+Marca; Microcontrolador; Modelo; Arquitetura; Frequência de Clock; Montagem do Microcontrolador; Memória Flash; Memória RAM; Memória EEPROM; Tensão de Alimentação; Conector de Alimentação; Tensão de Operação; Nível Lógico; Pinos Digitais I/O; Saídas PWM; Entradas Analógicas; Resolução do ADC; Pinos Soldados; Corrente Contínua por Pino; Limite Absoluto de Corrente por Pino; Corrente Total nos Pinos I/O; Corrente Disponível na Saída 3,3V; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Método de Gravação; Ambiente de Programação; Compatibilidade com Shields.
 
-Campos condicionais (só quando a placa tem o recurso; com o recurso e sem valor, use "?"):
-Processador; Coprocessador; Saídas DAC; Resolução do DAC; Consumo de Corrente; Wi-Fi; Bluetooth; Recursos Integrados; Ambiente de Programação.
+Campos condicionais (só quando a placa tem o recurso; com o recurso e sem valor confirmado, omita o campo):
+Processador; Coprocessador; Saídas DAC; Resolução do DAC; Consumo de Corrente; Wi-Fi; Bluetooth; Recursos Integrados; Comprimento do Cabo USB.
 
 Campos finais:
 Dimensões (CxLxA); Peso.
 
-Ambiente de Programação entra só quando for diferente do Arduino IDE ou exigir núcleo, placa adicional ou ferramenta própria. Temperatura de Operação vale só se confirmada para a placa, não para o chip; senão “?”.
+Ambiente de Programação é sempre informado: “Arduino IDE” quando a placa programa direto nele, ou o ambiente com o núcleo ou ferramenta necessária, como “Arduino IDE com núcleo Renesas” ou “STM32CubeIDE”.
+
+Comprimento do Cabo USB entra só quando o cabo USB acompanha o produto e o comprimento está confirmado, como “30cm”.
 
 Dimensões (CxLxA) e Peso são sempre os dois últimos campos de Características, depois dos condicionais. Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas no fim da seção e omite medida desconhecida. Não os repita como itens de caracteristicas.
 
-Não entram em caracteristicas: Cor, Material, Fabricante, Marca, Origem, País, Categoria, Subcategoria, Unidade de venda, Tipo de produto, Garantia, Peso com embalagem, Comprimento do cabo, Acompanha, Inclui, Compatibilidade de acessório com placas, Informação, Obs e textos de propaganda. Acessórios vão em itensInclusos.
+Não entram em caracteristicas: Cor, Material, Fabricante, Origem, País, Categoria, Subcategoria, Unidade de venda, Tipo de produto, Garantia, Peso com embalagem, Acompanha, Inclui, Compatibilidade de acessório com placas, Informação, Obs e textos de propaganda. Acessórios vão em itensInclusos.
 
 No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
 
@@ -89,7 +93,7 @@ Não transfira especificações entre UNO R3, UNO R4, Mega, Nano, Pro Mini ou ou
 
 Compatibilidade com Arduino IDE não comprova compatibilidade física ou elétrica com shields.
 
-Diferencie headers soldados, soltos e não inclusos. Montagem DIP em soquete só quando o soquete estiver confirmado. Não presuma que uma placa compatível seja um produto original Arduino.
+Pinos Soldados: “Sim” quando a barra de pinos vem soldada; “Não (é necessário soldar os pinos)” quando vem solta; “Não (barra de pinos não inclusa)” quando não acompanha. Sem confirmação, omita o campo. Montagem DIP em soquete só quando o soquete estiver confirmado. Não presuma que uma placa compatível seja um produto original Arduino.
 
 FONTES
 
@@ -101,7 +105,7 @@ Resultados Web só valem quando consultados de fato e fornecidos como referênci
 
 Dados do microcontrolador não comprovam recursos da placa, alimentação externa, conectores, dimensões ou acessórios. Lista de fornecedor sem ficha técnica não comprova especificação.
 
-Não invente consultas, fontes, URLs ou números de referência. Sem evidência, mantenha "?". Se uma consulta contradisser outra fonte, preserve a divergência.
+Não invente consultas, fontes, URLs ou números de referência. Sem evidência, omita o campo. Se uma consulta contradisser outra fonte, preserve a divergência.
 
 Não coloque “Fonte: Web”, “Fonte: Cadastro”, nomes de lojas ou links dentro de nome ou valor; o Rise apresenta a origem separadamente.
 
@@ -118,7 +122,7 @@ PESO E DIMENSÕES
 pesoGramas deve conter número em gramas.
 dimensoesMm deve conter comprimento, largura e altura em milímetros.
 
-Use medidas do corpo do mesmo produto e variante. Não use embalagem, cabo ou produto semelhante. Dado desconhecido deve ser null, nunca "?" ou zero.
+Use medidas do corpo do mesmo produto e variante. Não use embalagem, cabo ou produto semelhante. Dado desconhecido deve ser null, nunca zero.
 
 DIVERGÊNCIAS
 
@@ -126,7 +130,7 @@ Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o 
 
 Prefira o mesmo modelo e variante, medidas com eixos declarados e fontes independentes. Não invente opções.
 
-Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. O valor vazio indica escolha entre opções existentes; "?" indica dado não encontrado.
+Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. O valor vazio indica escolha entre opções existentes; dado não encontrado não entra.
 
 Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
 

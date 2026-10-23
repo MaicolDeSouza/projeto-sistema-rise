@@ -5130,6 +5130,16 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   127.0.0.1), `app`, `worker` (mesma imagem), `auth` (Tinyauth, o login) e `caddy` (HTTPS e roteamento). O `.env` da VPS
   é um arquivo à parte, nunca passa pelo git: chave nova ou trava mudada se grava lá por SSH (arquivo temporário lido
   por um script, **nunca no texto de um comando**) e depois `docker compose up -d --force-recreate app worker`.
+- **MUITAS CONEXÕES SSH SEGUIDAS BLOQUEIAM A INTERNET DA CASA DO DONO** (23/10/2026, pedido do dono: "anotar para não
+  acontecer mais"). Numa sessão com dezenas de `ssh` curtos (consultas uma atrás da outra), a VPS passou a recusar o IP da
+  casa (179.189.0.88) em **todas as portas**: SSH, o site e o login (o dono, no celular pela mesma rede, também ficaria
+  fora), enquanto de fora o site respondia. Liberou sozinho em minutos e voltou a bloquear com novas conexões. A causa
+  provável é uma proteção contra força bruta da VPS ou do painel da Hostinger; **não foi confirmada** (sem acesso no
+  momento). Regras: (1) **juntar tudo numa conexão só** (um `ssh` com vários comandos ou um script pela entrada), nunca
+  um `ssh` por consulta; (2) espaçar as conexões; (3) se o SSH der "Connection timed out", **parar** e conferir de fora
+  (uma busca web na página de login) antes de tentar de novo: repetir só estende o bloqueio. **Pendente:** quando a
+  VPS voltar, conferir o que bloqueou (`sudo fail2ban-client status`, `sudo ufw status`, painel da Hostinger) e pôr o IP
+  da casa na lista de liberados.
 - **Login do Tinyauth (criar, trocar a senha, remover):** `deploy/usuario-tinyauth.sh` (20/10/2026, Opção 3 do dono, até o Rise ter
   a tela "Definir senha"). O dono roda pelo SSH com terminal, e a senha é digitada escondida (vai ao `htpasswd -iB` pela entrada,
   nunca num argumento): `ssh -t -i ~/.ssh/rise_vps rise@179.199.150.221 "cd /srv/rise/app && git fetch -q origin && git show
