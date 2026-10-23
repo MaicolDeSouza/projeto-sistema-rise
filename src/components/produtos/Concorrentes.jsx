@@ -33,6 +33,9 @@ const percentual = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 1,
 });
 
+// A propria loja vinculada como concorrente (a mesma regra da proposta, `proposta/preco.js`).
+const DA_PROPRIA_LOJA = /4hobby/i;
+
 const VAZIO = { fonte: "", nome: "", codigo: "", preco: "", url: "", produtoColetadoId: null };
 
 /** Mesma regra de src/app/produtos/acoes.js: so http/https vira link. */
@@ -441,7 +444,7 @@ export default function Concorrentes({
               </tr>
             )}
 
-            {vinculosOrdenados.map((item) =>
+            {vinculosOrdenados.map((item, indice) =>
               editando === item.id ? (
                 <LinhaEdicao
                   key={item.id}
@@ -453,7 +456,12 @@ export default function Concorrentes({
                   aoCancelar={() => setEditando(null)}
                 />
               ) : (
-                <tr key={item.id} className="divide-x divide-borda">
+                // A linha da propria loja (4hobby) fica destacada na posicao que a ordem do Rise deu a ela
+                // (pedido do dono em 23/10/2026): a ordem e a mesma da lista, so a cor muda.
+                <tr
+                  key={item.id}
+                  className={`divide-x divide-borda ${DA_PROPRIA_LOJA.test(item.fonte ?? "") ? "bg-amber-100/70" : ""}`}
+                >
                   {/* Miniatura do produto do concorrente (pedido do dono em 23/10/2026), no padrao FotoComLupa. */}
                   <td className="px-2 py-1.5">
                     {item.produtoColetadoId ? (
@@ -461,6 +469,8 @@ export default function Concorrentes({
                     ) : null}
                   </td>
                   <td className="px-3 py-2 font-medium" title={item.fonte}>
+                    {/* Posicao na ordem da lista (pedido do dono em 23/10/2026), antes do nome. */}
+                    <span className="mr-1.5 inline-block min-w-[2ch] tabular-nums text-suave">{indice + 1}º</span>
                     {item.fonte}
                   </td>
                   {/* Corte so visual (o nome nao tem limite no banco); o texto
