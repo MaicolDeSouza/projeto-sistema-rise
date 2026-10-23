@@ -5151,9 +5151,10 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
 - **MUITAS CONEXÕES SSH SEGUIDAS BLOQUEIAM A INTERNET DA CASA DO DONO** (23/10/2026, pedido do dono: "anotar para não
   acontecer mais"). Numa sessão com dezenas de `ssh` curtos (consultas uma atrás da outra), a VPS passou a recusar o IP da
   casa (179.189.0.88) em **todas as portas**: SSH, o site e o login (o dono, no celular pela mesma rede, também ficaria
-  fora), enquanto de fora o site respondia. Liberou sozinho em minutos e voltou a bloquear com novas conexões. A causa
-  provável é uma proteção contra força bruta da VPS ou do painel da Hostinger; **não foi confirmada** (sem acesso no
-  momento). Regras: (1) **juntar tudo numa conexão só** (um `ssh` com vários comandos ou um script pela entrada), nunca
+  fora). Liberou sozinho em minutos e voltou a falhar com novas conexões, e depois de 30 min **também não respondia de
+  fora** (uma busca web sem cache deu tempo esgotado; uma anterior, que parecia responder, era cópia em cache: **busca
+  web com cache não prova que o site está no ar**, mude a URL com `?x=...`). A causa **não foi confirmada**: proteção
+  contra força bruta, firewall da Hostinger ou a VPS caída. Regras: (1) **juntar tudo numa conexão só** (um `ssh` com vários comandos ou um script pela entrada), nunca
   um `ssh` por consulta; (2) espaçar as conexões; (3) se o SSH der "Connection timed out", **parar** e conferir de fora
   (uma busca web na página de login) antes de tentar de novo: repetir só estende o bloqueio. **Pendente:** quando a
   VPS voltar, conferir o que bloqueou (`sudo fail2ban-client status`, `sudo ufw status`, painel da Hostinger) e pôr o IP
