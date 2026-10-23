@@ -236,7 +236,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 741 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 748 asserções da extração, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -2336,6 +2336,19 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
     usar um deles seria pôr o código de barras de outra empresa na NF-e. A lista de todos os suspeitos sai de
     `scripts/conferir-ean-ml.js` (roda na VPS pela entrada do SSH; o ML responde 429 a rajadas, por isso a pausa de 300 ms
     e a segunda volta).
+  - **Gerador de GTIN/EAN interno** (pedido do dono em 23/10/2026; spec `docs/superpowers/specs/2026-10-23-gerador-ean-interno-design.md`).
+    O dono decidiu **não se associar à GS1** (caro), sabendo que **o Mercado Livre recusa código interno como GTIN e a
+    SEFAZ tende a barrar na NF-e** ("depois os problemas com ML e NF eu resolvo"). O código é o EAN-13 da faixa de uso
+    interno da GS1: `2` + zeros à esquerda + os dígitos do SKU (até 11) + dígito verificador (100101 → `2000001001011`).
+    Derivado do SKU, e não de um contador: único por construção, sem sequência no banco, e a etiqueta mostra o SKU.
+    Botão **"Gerar EAN interno"** na linha abaixo do campo GTIN/EAN (à direita de "Consultar em"), só com o campo vazio e
+    só para quem edita; SKU com letras ou vazio dá a recusa em vermelho, sem escrever. O **Salvar recusa EAN de 13 dígitos
+    começando com 2 cujo dígito verificador não confere** (antes da checagem de EAN repetido); código de fabricante segue
+    sem conferir dígito. Regras puras em `src/lib/eanInterno.js` (`gerarEanDoSku`, `ehEanInternoDoRise`,
+    `problemaDoEanInterno`), com `calcularDigitoVerificador` em `eanNoMercadoLivre.js`; testes no `teste:extracao`.
+    Conferido na tela em `/produtos/novo` (gerar, apagar, SKU com letras); **a recusa do Salvar na tela não foi vista**: o
+    servidor da porta 3000 era de outra sessão e estava com o `acoes.js` antigo em memória (gravou o DV errado uma vez; o
+    EAN de teste foi desfeito no banco). Fora: gerar em lote, etiqueta, mudanças nos canais.
   - Medido em 06/10/2026 no 100103, servidor de desenvolvimento: as indicações aparecem uns 17 s depois de abrir
     a página. As ações do servidor rodam uma de cada vez, e a preparação das fotos vem antes. Testes em
     `teste-cadastros` ("Indicações dos vínculos salvos").
