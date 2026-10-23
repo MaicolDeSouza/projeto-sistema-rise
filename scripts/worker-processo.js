@@ -55,6 +55,16 @@ const { servidorEhWindows } = await import("../src/lib/copiaLocal.js");
 const { rodarSincronizacaoDeEstoque } = await import("../src/lib/riseAi/estoqueAutomatico.js");
 const { conferirRotinaSemanal } = await import("../src/lib/relatorios/rotina.js");
 const { relerConcorrentesML } = await import("../src/lib/canaisDeVenda/ml/relerCatalogo.js");
+const { rodarAvisosDoTelegram, AVISOS_TELEGRAM_MS } = await import("../src/lib/telegram/avisos.js");
+
+/// Os avisos do Telegram (Rise AI, Entrega C1): a cada minuto, so o worker normal. A rotina nao faz nada com o bot
+/// desligado, sem token ou sem ninguem vinculado, e nunca lanca.
+let avisosTelegramEm = 0;
+
+/// A batida do healthchecks.io (HEALTHCHECKS_WORKER_URL, opcional): a pane do proprio worker nao tem como avisar pelo
+/// Telegram, entao quem avisa e o e-mail do healthchecks quando a batida para. So o worker normal.
+const PING_HEALTHCHECKS_MS = 5 * 60 * 1000;
+let healthchecksBatidoEm = 0;
 
 /// Os concorrentes do ML pelo catalogo (spec 2026-10-21): conferido de hora em hora, roda de verdade uma vez por dia de
 /// Sao Paulo (`relerConcorrentesML` decide). So LEITURA do ML. So o worker normal.
@@ -509,6 +519,17 @@ async function laco() {
         if (rodada.parou) logErro(`concorrentes do ML: rodada parada (${rodada.parou}); tenta de novo na proxima hora`);
         else if (rodada.rodou) log(`concorrentes do ML: ${rodada.produtos} produto(s), ${rodada.ok} ok, ${rodada.falhas} falha(s)`);
         else if (rodada.motivo === "erro") logErro(`concorrentes do ML nao lidos: ${rodada.erro}`);
+      }
+      // Os avisos do Telegram (fora do `coletaPausada`: pausar a coleta nao cala os avisos). So o worker normal.
+      if (!FONTES && !SO_NO_PC && Date.now() - avisosTelegramEm >= AVISOS_TELEGRAM_MS) {
+        avisosTelegramEm = Date.now();
+        const avisos = await rodarAvisosDoTelegram();
+        if (avisos.mandados || avisos.falhas) log(`telegram: ${avisos.mandados} aviso(s) mandado(s), ${avisos.falhas} falha(s)`);
+        else if (avisos.motivo === "erro") logErro("telegram: a rotina de avisos falhou (ver o log acima)");
+      }
+      if (!FONTES && !SO_NO_PC && process.env.HEALTHCHECKS_WORKER_URL && Date.now() - healthchecksBatidoEm >= PING_HEALTHCHECKS_MS) {
+        healthchecksBatidoEm = Date.now();
+        fetch(process.env.HEALTHCHECKS_WORKER_URL, { signal: AbortSignal.timeout(10000) }).catch(() => {});
       }
     } catch (erro) {
       logErro(`erro na volta do worker: ${mensagem(erro)}`);

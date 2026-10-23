@@ -44,17 +44,35 @@ async function limpar() {
   if (prisma.avisoTelegram) {
     await prisma.avisoTelegram.deleteMany({ where: { OR: [{ chave: { startsWith: "zz-tg-" } }, { chatId: { startsWith: "zz-tg-" } }] } });
   }
+  const produtosDeTeste = (await prisma.produto.findMany({ where: { sku: { startsWith: "ZZ-TG-" } }, select: { id: true } })).map((p) => p.id);
+  if (prisma.avisoTelegram && produtosDeTeste.length) {
+    await prisma.avisoTelegram.deleteMany({ where: { OR: produtosDeTeste.map((id) => ({ chave: { startsWith: `produto-zerou:${id}:` } })) } });
+  }
+  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-TG-" } } });
+  await prisma.gastoIA.deleteMany({ where: { referencia: { startsWith: "zz-tg-" } } });
+  await prisma.job.deleteMany({ where: { payload: { path: ["zzTg"], equals: true } } });
   await prisma.auditoriaDeAcesso.deleteMany({ where: { quem: { startsWith: "zz-tg-" } } });
   await prisma.usuarioFuncao.deleteMany({ where: { usuario: { login: { startsWith: "zz-tg-" } } } });
   await prisma.usuarioRise.deleteMany({ where: { login: { startsWith: "zz-tg-" } } });
   await prisma.logIntegracao.deleteMany({ where: { servico: "TELEGRAM", endpoint: { contains: "teste-rise.invalid" } } }).catch(() => null);
 }
 
-// O que e do dono e volta no fim, como esta.
+// O que e do dono e volta no fim, como esta. A linha de base dos produtos zerados (avisos.js) tambem: o teste a
+// refaz, e sem devolver o dono perderia a dele (ou ganharia uma que nunca pediu).
+const inicioDoTeste = new Date();
+const baseDoDono = await prisma.avisoTelegram.findUnique({ where: { chave: "produto-zerou-base" } }).catch(() => null);
 const conexaoDoDono = await prisma.conexao.findUnique({ where: { servico: "TELEGRAM" } }).catch(() => null);
 const configuracaoDoDono = await prisma.configuracaoIA.findUnique({ where: { id: "unica" } });
 
 async function devolverODoDono() {
+  if (prisma.avisoTelegram) {
+    await prisma.avisoTelegram.deleteMany({ where: { chave: "produto-zerou-base" } });
+    if (baseDoDono) {
+      await prisma.avisoTelegram.create({ data: baseDoDono });
+    } else {
+      await prisma.avisoTelegram.deleteMany({ where: { chatId: "base", criadoEm: { gte: inicioDoTeste } } });
+    }
+  }
   if (conexaoDoDono) {
     const { id: _id, servico: _servico, ...dados } = conexaoDoDono;
     await prisma.conexao.upsert({ where: { servico: "TELEGRAM" }, update: dados, create: { servico: "TELEGRAM", ...dados } });
@@ -261,6 +279,107 @@ try {
     conferir("campo de outra aba nao entra pela canais", await codigoDoErro(salvarAba("canais", (() => { const d = new FormData(); d.append("orcamentoClientesBrl", "1"); return d; })(), { usuario: "zz-tg-admin", pode })), "Nada para salvar.");
     const estado = await estadoDoTelegram();
     conferir("estado do telegram tem a forma da aba", [typeof estado.token.cadastrada, "em" in estado.token, "usuario" in estado.bot, Array.isArray(estado.vinculados), typeof estado.urlPublica], ["boolean", true, true, true, "boolean"]);
+  }
+
+  {
+    console.log("\nAvisos");
+    const a = await import("../src/lib/telegram/avisos.js");
+    const { criarClienteTelegram } = await import("../src/lib/telegram/cliente.js");
+    const { criarTelegramFalso } = await import("./lib/telegramFalso.js");
+    const { gravarConfiguracao } = await import("../src/lib/riseAi/configuracao.js");
+    const { salvarConexao } = await import("../src/lib/integracoes/conexoes.js");
+    const TOKEN = "123456789:" + "D".repeat(35);
+    // 20:30 em Sao Paulo (UTC-3), num mes de 2025 que o dono nunca usou (o orcamento conta o mes de `agora`).
+    const sp2030 = (dia) => new Date(`${dia}T23:30:00.000Z`).getTime();
+    const semPausa = { pausaMs: 0 };
+    conferir("resumo so depois das 20h de Sao Paulo", [a.deveMandarResumo({ agora: new Date("2025-03-10T22:59:00.000Z").getTime(), jaMandadoHoje: false }), a.deveMandarResumo({ agora: sp2030("2025-03-10"), jaMandadoHoje: false }), a.deveMandarResumo({ agora: sp2030("2025-03-10"), jaMandadoHoje: true })], [false, true, false]);
+
+    const adminFn = await prisma.funcaoRise.findFirst({ where: { fixa: true } });
+    await prisma.usuarioRise.create({ data: { login: "zz-tg-dono", nome: "ZZ Dono", telegramChatId: "zz-tg-chat-dono", funcoes: { create: [{ funcaoId: adminFn.id }] } } });
+    await prisma.usuarioRise.create({ data: { login: "zz-tg-semchat", nome: "Sem chat", funcoes: { create: [{ funcaoId: adminFn.id }] } } });
+    await prisma.usuarioRise.create({ data: { login: "zz-tg-inativo", nome: "Inativo", ativo: false, telegramChatId: "zz-tg-chat-inativo", funcoes: { create: [{ funcaoId: adminFn.id }] } } });
+    await prisma.usuarioRise.create({ data: { login: "zz-tg-semfuncao", nome: "Sem funcao", telegramChatId: "zz-tg-chat-semfuncao" } });
+    const dest = (await a.destinatarios()).filter((d) => d.login.startsWith("zz-tg-"));
+    conferir("so o ativo, com chat e com o recurso recebe", dest.map((d) => [d.login, d.chatId]), [["zz-tg-dono", "zz-tg-chat-dono"]]);
+
+    // So os destinatarios de teste: o dono pode ter um Telegram de verdade vinculado no banco do PC.
+    const soTeste = { filtrarDestinatarios: (lista) => lista.filter((d) => d.login.startsWith("zz-tg-")) };
+    await gravarConfiguracao({ telegram: { ligado: false } }, { usuario: "zz-tg-admin" });
+    conferir("bot desligado nao faz nada", (await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10"), ...soTeste })).motivo, "desligado");
+    await gravarConfiguracao({ telegram: { ligado: true, avisos: { resumoDoDia: true, produtoZerou: true, orcamento: true, varreduraPeloPc: true, varreduraFalhou: true } } }, { usuario: "zz-tg-admin" });
+    await prisma.conexao.deleteMany({ where: { servico: "TELEGRAM" } });
+    conferir("sem token nao faz nada", (await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10"), ...soTeste })).motivo, "sem-token");
+    await salvarConexao("TELEGRAM", { segredo: { token: TOKEN }, status: "CONECTADO", conectadoEm: new Date() });
+    conferir("sem destinatario nao faz nada", (await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10"), filtrarDestinatarios: () => [] })).motivo, "sem-destinatario");
+
+    // Linha de base: o que JA estava zerado ao ligar o aviso nao vira mensagem (senao o catalogo inteiro chegaria de uma vez).
+    await prisma.avisoTelegram.deleteMany({ where: { chave: a.CHAVE_DA_BASE } });
+    const jaZerado = await prisma.produto.create({ data: { sku: "ZZ-TG-JA", tituloBase: "ZZ TG ja zerado", estoque: 0 } });
+    const falso = criarTelegramFalso();
+    const cliente = criarClienteTelegram({ token: TOKEN, requisitar: falso.requisitar, urlPublica: "https://rise.4hobby.com.br" });
+    const textos = () => falso.mensagens.map((m) => m.text);
+    // De manha (09:00 em Sao Paulo): sem resumo nesta volta.
+    await a.rodarAvisosDoTelegram({ agora: new Date("2025-03-09T12:00:00.000Z").getTime(), cliente, ...soTeste, ...semPausa });
+    conferir("a primeira volta grava a linha de base e nao avisa o que ja estava zerado", [textos().some((t) => t.includes("ZZ-TG-JA")), Boolean(await prisma.avisoTelegram.findUnique({ where: { chave: a.CHAVE_DA_BASE } }))], [false, true]);
+
+    const p = await prisma.produto.create({ data: { sku: "ZZ-TG-ZERO", tituloBase: "ZZ TG Zero", estoque: 0 } });
+    const r1 = await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10"), cliente, ...soTeste, ...semPausa });
+    conferir("manda o produto que zerou depois e o resumo do dia", [r1.ok, textos().some((t) => t.startsWith("Produto zerou: ZZ-TG-ZERO")), textos().some((t) => t.startsWith("Resumo de 10/03")), textos().some((t) => t.includes("ZZ-TG-JA"))], [true, true, true, false]);
+    conferir("o aviso vai so ao destinatario de teste, com o botao", [falso.mensagens.every((m) => m.chat_id === "zz-tg-chat-dono"), falso.mensagens.find((m) => m.text.includes("ZZ-TG-ZERO"))?.reply_markup?.inline_keyboard[0][0].url], [true, `https://rise.4hobby.com.br/produtos/${p.id}`]);
+    const antes = falso.mensagens.length;
+    const r2 = await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 60000, cliente, ...soTeste, ...semPausa });
+    conferir("a volta seguinte nao repete nada", [r2.mandados, falso.mensagens.length], [0, antes]);
+    await prisma.produto.update({ where: { id: p.id }, data: { estoque: 3 } });
+    await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 120000, cliente, ...soTeste, ...semPausa });
+    await prisma.produto.update({ where: { id: p.id }, data: { estoque: 0 } });
+    await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 180000, cliente, ...soTeste, ...semPausa });
+    conferir("zerou, voltou e zerou de novo: dois avisos", textos().filter((t) => t.startsWith("Produto zerou: ZZ-TG-ZERO")).length, 2);
+    await prisma.produto.update({ where: { id: jaZerado.id }, data: { estoque: 2 } });
+    await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 240000, cliente, ...soTeste, ...semPausa });
+    await prisma.produto.update({ where: { id: jaZerado.id }, data: { estoque: 0 } });
+    await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 300000, cliente, ...soTeste, ...semPausa });
+    conferir("o da linha de base que volta e zera de novo avisa", textos().filter((t) => t.startsWith("Produto zerou: ZZ-TG-JA")).length, 1);
+    conferir("produto inativo zerado nao avisa", await (async () => { await prisma.produto.create({ data: { sku: "ZZ-TG-INATIVO", tituloBase: "Inativo", estoque: 0, ativo: false } }); await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 360000, cliente, ...soTeste, ...semPausa }); return textos().some((t) => t.includes("ZZ-TG-INATIVO")); })(), false);
+
+    const r3 = await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-11"), cliente, ...soTeste, ...semPausa });
+    conferir("no dia seguinte sai outro resumo, e so um", [r3.mandados >= 1, textos().filter((t) => t.startsWith("Resumo de")).length], [true, 2]);
+    conferir("religado de manha, o resumo de ontem nao sai", (await a.rodarAvisosDoTelegram({ agora: new Date("2025-03-12T12:00:00.000Z").getTime(), cliente, ...soTeste, ...semPausa })).mandados, 0);
+
+    // Orcamento: gasto de mentira em marco de 2025, com referencia zz-tg-* (o limpar apaga).
+    const marco = new Date("2025-03-15T15:00:00.000Z");
+    await prisma.gastoIA.create({ data: { tipo: "BUSCA", escopo: "CLIENTES", provedor: "anthropic", valorUsd: 0, valorBrl: 57, referencia: "zz-tg-gasto-1", criadoEm: marco } });
+    await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-15"), cliente, ...soTeste, ...semPausa });
+    conferir("80% do teto dos clientes avisa uma vez", textos().filter((t) => t.startsWith("IA: orçamento dos clientes")), ["IA: orçamento dos clientes em 81% do teto de R$ 70,00"]);
+    await prisma.gastoIA.create({ data: { tipo: "BUSCA", escopo: "CLIENTES", provedor: "anthropic", valorUsd: 0, valorBrl: 20, referencia: "zz-tg-gasto-2", criadoEm: marco } });
+    await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-15") + 60000, cliente, ...soTeste, ...semPausa });
+    await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-15") + 120000, cliente, ...soTeste, ...semPausa });
+    conferir("100% avisa uma vez, com a segunda linha", textos().filter((t) => t.startsWith("IA: orçamento dos clientes em 110%")), ["IA: orçamento dos clientes em 110% do teto de R$ 70,00\nRespostas pagas param até o teto subir."]);
+
+    // Varredura que falhou nas ultimas 24 h, e a do PC esperando sem o Rise do PC responder.
+    const fonte = await prisma.fonteColeta.findFirst({ select: { id: true, nome: true } });
+    if (fonte) {
+      const falhou = await prisma.job.create({ data: { tipo: "coleta", payload: { fonteId: fonte.id, zzTg: true }, status: "FALHOU", fonteId: fonte.id, erro: "HTTP 403 em https://loja.x/p" } });
+      await a.rodarAvisosDoTelegram({ agora: Date.now(), cliente, ...soTeste, ...semPausa });
+      conferir("a varredura que falhou avisa uma vez, com o erro neutralizado", textos().filter((t) => t.startsWith(`Varredura falhou: ${fonte.nome}`)).at(-1)?.split("\n")[1], "HTTP 403 em https:∕∕loja.x/p");
+      await prisma.job.delete({ where: { id: falhou.id } });
+    } else {
+      conferir("ha uma fonte no banco para o teste da varredura", false, true);
+    }
+
+    // Bloqueado: outro produto zerado e um falso que responde 403 blocked.
+    await prisma.produto.create({ data: { sku: "ZZ-TG-ZERO2", tituloBase: "ZZ TG Zero 2", estoque: 0 } });
+    const bloq = criarTelegramFalso({ falhas: { sendMessage: { status: 403, description: "Forbidden: bot was blocked by the user" } } });
+    const r4 = await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-16"), cliente: criarClienteTelegram({ token: TOKEN, requisitar: bloq.requisitar }), ...soTeste, ...semPausa });
+    const linha = await prisma.avisoTelegram.findFirst({ where: { chatId: "zz-tg-chat-dono", erro: { not: null } }, orderBy: { criadoEm: "desc" } });
+    conferir("bloqueado: falha anotada, 3 tentativas de uma vez, sem insistir", [r4.falhas >= 1, linha?.tentativas, linha?.erro?.includes("blocked")], [true, 3, true]);
+    conferir("nenhum texto gravado leva o token", (await prisma.avisoTelegram.count({ where: { erro: { contains: TOKEN } } })) + (await prisma.logIntegracao.count({ where: { servico: "TELEGRAM", OR: [{ endpoint: { contains: TOKEN } }, { erro: { contains: TOKEN } }] } })), 0);
+    const falha5xx = criarTelegramFalso({ falhas: { sendMessage: { status: 502, description: "Bad Gateway" } } });
+    await prisma.produto.create({ data: { sku: "ZZ-TG-ZERO3", tituloBase: "ZZ TG Zero 3", estoque: 0 } });
+    const c5 = criarClienteTelegram({ token: TOKEN, requisitar: falha5xx.requisitar });
+    for (let volta = 0; volta < 5; volta++) await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-16") + volta * 60000, cliente: c5, ...soTeste, ...semPausa });
+    const zero3 = await prisma.avisoTelegram.findFirst({ where: { chatId: "zz-tg-chat-dono", texto: { contains: "ZZ-TG-ZERO3" } } });
+    conferir("falha passageira tenta 3 vezes e para", [zero3?.tentativas, zero3?.enviadoEm, falha5xx.mensagens.length, falha5xx.chamadas.filter((c) => c.metodo === "sendMessage" && c.corpo.text.includes("ZZ-TG-ZERO3")).length], [3, null, 0, 3]);
+    conferir("teto de mensagens por volta", a.MAXIMO_POR_VOLTA, 10);
   }
 
   // MARCADOR: blocos novos entram acima desta linha.
