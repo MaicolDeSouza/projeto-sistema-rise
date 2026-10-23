@@ -52,6 +52,7 @@ import { ORIGENS, TIPOS_ITEM, TIPOS_PRODUCAO } from "@/lib/fiscal";
 import { LIMITE_TITULO_ML, MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/limites";
 import { medidasDaDescricao } from "@/lib/medidas";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
+import { gerarEanDoSku } from "@/lib/eanInterno";
 import { indisponivel } from "@/lib/estoqueDoConcorrente";
 import { codigoSugeridoDoKit, localizacaoDoKit, ncmsDasPecas, pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
 import { DocumentosDasPecas, FornecedoresDoKit, MedidasDoKit } from "./AbasDoKit";
@@ -718,6 +719,26 @@ function CampoSku({ inicial, erro, aoAlterar, usos, comVarinha = true }) {
         )
       }
     />
+  );
+}
+
+/**
+ * "Gerar EAN interno", na linha abaixo do campo GTIN/EAN (o icone de dentro do campo e da lista de referencias). Mesma cor
+ * da varinha do SKU: azul ate usar, verde depois.
+ */
+function BotaoGerarEan({ aoGerar, usado }) {
+  return (
+    <button
+      type="button"
+      onClick={aoGerar}
+      title="Gera um EAN-13 interno (prefixo 2) a partir do código do produto"
+      className={`mt-1 inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] hover:bg-fundo ${
+        usado ? COR_DE_USO.usado : COR_DE_USO.funcao
+      }`}
+    >
+      <WandSparkles size={13} />
+      Gerar EAN interno
+    </button>
   );
 }
 
@@ -2883,6 +2904,31 @@ export default function FormularioProduto({
       .catch(() => {});
   }
   const eanInicial = String(produto?.ean ?? clone?.campos?.ean ?? "").trim();
+  // "Gerar EAN interno" (pedido do dono em 23/10/2026, sem GS1): EAN-13 da faixa 2 derivado do SKU. O botao so existe com
+  // o campo vazio, e o campo nao e controlado: `eanPreenchido` e mantido pelo input, pelo blur e pela lista de referencias,
+  // senao um EAN escolhido na lista deixaria o botao a vista por cima de um campo cheio.
+  const [eanPreenchido, setEanPreenchido] = useState(Boolean(eanInicial));
+  const [falhaEan, setFalhaEan] = useState(null);
+  function atualizarEanPreenchido() {
+    setEanPreenchido(Boolean(valorDoCampo("ean").trim()));
+  }
+  function gerarEan() {
+    const resultado = gerarEanDoSku(valorDoCampo("sku"));
+    if (!resultado.ok) {
+      setFalhaEan(resultado.erro);
+      return;
+    }
+    const campo = formulario.current?.elements.namedItem("ean");
+    if (!campo) return;
+    campo.value = resultado.ean;
+    setFalhaEan(null);
+    setEanPreenchido(true);
+    marcarAlterado();
+    usos.marcar("ean");
+    // O catalogo do ML nao conhece a faixa 2 e nao avisa nada; se um dia o codigo bater em outro produto, o aviso ambar
+    // aparece como para qualquer EAN.
+    conferirEan();
+  }
   const skuInicial = produto?.sku ?? "";
   const tituloInicial = produto?.tituloBase ?? clone?.campos?.tituloBase ?? "";
   useEffect(() => {
@@ -3653,24 +3699,42 @@ export default function FormularioProduto({
                   usos={usos}
                   vazio="Nenhuma referência (lupa ou vínculos salvos) publica o número de homologação. Poucas lojas publicam: a maioria escreve só 'certificado pela Anatel'."
                 />
-                <div onBlur={conferirEan}>
+                <div
+                  onBlur={() => {
+                    conferirEan();
+                    atualizarEanPreenchido();
+                  }}
+                  onInput={() => {
+                    atualizarEanPreenchido();
+                    setFalhaEan(null);
+                  }}
+                >
                   <CampoDeReferencias
                     nome="ean"
                     rotulo="GTIN / EAN"
                     inicial={v("ean")}
                     erro={erros.ean}
-                    ajuda="Código de barras do produto."
+                    ajuda="Código de barras do produto. Sem código do fabricante, 'Gerar EAN interno' cria um EAN-13 da faixa interna (prefixo 2) a partir do código do produto; o Mercado Livre não o aceita como GTIN."
                     ids={idsDasIndicacoes}
                     valores={valoresRefs?.ean}
                     carregando={lendoRefs}
                     aoAlterar={() => {
                       marcarAlterado();
+                      setEanPreenchido(true);
                       conferirEan();
                     }}
                     usos={usos}
                     vazio="Nenhuma referência publica um código de barras válido."
                   />
-                  <LinksDeConsulta campo="ean" sites={SITES_DO_EAN} lerCampo={valorDoCampo} />
+                  <div className="flex items-start justify-between gap-2">
+                    <LinksDeConsulta campo="ean" sites={SITES_DO_EAN} lerCampo={valorDoCampo} />
+                    {acessos.editar && !eanPreenchido && <BotaoGerarEan aoGerar={gerarEan} usado={usos.tem("ean")} />}
+                  </div>
+                  {falhaEan && (
+                    <p role="alert" className="mt-1 text-[12px] text-red-700">
+                      {falhaEan}
+                    </p>
+                  )}
                   {avisoEan && (
                     <p role="status" className="mt-1.5 flex items-start gap-1.5 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-[12px] text-amber-900">
                       <AlertTriangle size={14} className="mt-0.5 shrink-0" />
