@@ -32,6 +32,7 @@ import {
   anunciosMLDoProduto,
   buscarProdutoParaAnuncio,
   carregarAnuncioML,
+  clonarRascunhoML,
   codigoEmUso,
   contextoDosProdutos,
   novoRascunhoML,
@@ -110,6 +111,14 @@ export async function abrirAnuncioML(id) {
   if (negado) return negado;
   if (!ehId(id)) return PEDIDO_INVALIDO;
   return protegendo(async () => comAcessosDoEditor(await carregarAnuncioML(id)));
+}
+
+/** Rascunho novo copiado de um anuncio (Clonar). Nao grava: so o Salvar cria o anuncio. */
+export async function clonarAnuncioML(id) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
+  if (!ehId(id)) return PEDIDO_INVALIDO;
+  return protegendo(async () => comAcessosDoEditor(await clonarRascunhoML(id)));
 }
 
 /**

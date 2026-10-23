@@ -46,6 +46,7 @@ const {
   codigoEmUso,
   sugerirCodigoDeKit,
   salvarRascunhoML,
+  clonarRascunhoML,
   anunciosMLDoProduto,
   listarAnunciosML,
 } = await import("../src/lib/canaisDeVenda/ml/banco.js");
@@ -558,6 +559,21 @@ try {
         conferir("carregar: anuncio que nao existe", (await carregarAnuncioML("id-que-nao-existe")).erro, "Anúncio não encontrado.");
         conferir("carregar: sem id nao devolve outro anuncio", (await carregarAnuncioML(undefined)).ok, false);
 
+        // Clonar (pedido do dono em 22/10/2026): um rascunho NOVO igual ao anuncio, do mesmo produto, para publicar
+        // como outro tipo ou virar kit. Nada da publicacao vai junto, e nada e gravado ate o Salvar.
+        const dadosDoSalvo = (await anuncioDe(salvo.id)).dados;
+        await prisma.anuncio.update({ where: { id: salvo.id }, data: { status: "PUBLICADO", idExterno: "MLB1", urlExterna: "https://x", dados: { ...dadosDoSalvo, publicacao: { itemId: "MLB1", feitas: ["fotos"] } } } });
+        const clone = await clonarRascunhoML(salvo.id);
+        conferir("clonar: rascunho igual ao do anuncio, sem id nem status", [clone.ok, clone.anuncioId, clone.status, ordenado(clone.rascunho)], [true, undefined, undefined, ordenado((await carregarAnuncioML(salvo.id)).rascunho)]);
+        conferir("clonar: diz de onde veio", clone.origem, { id: salvo.id, codigo: "ZZ-ML-1", titulo: "ZZ Produto um", idExterno: "MLB1" });
+        conferir("clonar: nada e gravado ate o Salvar", (await anunciosMLDoProduto(p1.id)).length, 2);
+        const salvoClone = await salvarRascunhoML(null, { ...clone.rascunho, tipoAnuncio: "gold_pro" });
+        const gravadoClone = await anuncioDe(salvoClone.id);
+        conferir("clonar: o Salvar cria outro anuncio do mesmo produto, como rascunho e sem publicacao", [salvoClone.ok, gravadoClone.status, gravadoClone.produtoId, gravadoClone.idExterno, gravadoClone.dados.publicacao, gravadoClone.dados.tipoAnuncio], [true, "RASCUNHO", p1.id, null, undefined, "gold_pro"]);
+        conferir("clonar: anuncio que nao existe", (await clonarRascunhoML("id-que-nao-existe")).erro, "Anúncio não encontrado.");
+        await prisma.anuncio.delete({ where: { id: salvoClone.id } });
+        await prisma.anuncio.update({ where: { id: salvo.id }, data: { status: "RASCUNHO", idExterno: null, urlExterna: null, dados: dadosDoSalvo } });
+
         await prisma.produto.update({ where: { id: p1.id }, data: { conferido: false } });
         conferir("produto que deixou de ser Conferido: salvar recusa", (await salvarRascunhoML(salvo.id, lido.rascunho)).erro, "O produto ZZ-ML-1 não está mais Conferido. Confira o cadastro antes de salvar o anúncio.");
         conferir("produto que deixou de ser Conferido: o que estava salvo nao muda", [(await salvarRascunhoML(salvo.id, { ...lido.rascunho, titulo: "ZZ nao grava" })).ok, (await anuncioDe(salvo.id)).titulo], [false, novo.rascunho.titulo]);
@@ -667,6 +683,11 @@ try {
         await gravarBlingDoKit(kitB.id, "777");
         await salvarRascunhoML(kitB.id, kitComBling("ZZ-ML-KITB", null));
         conferir("vinculo com o Bling: editor desatualizado (null) nao apaga o guardado", await blingDoKit(kitB.id), "777");
+        // O clone de um kit leva a composicao e o codigo (Classico e Premium dividem o kit do Bling), nunca o vinculo.
+        const cloneDoKit = await clonarRascunhoML(kitB.id);
+        conferir("clonar kit: mesma composicao e codigo, sem o vinculo com o Bling, codigo livre para a mesma composicao",
+          [cloneDoKit.rascunho.composicao.itens, cloneDoKit.rascunho.composicao.codigo, cloneDoKit.rascunho.composicao.blingProdutoId, cloneDoKit.contexto.codigoEmUso],
+          [kitA.composicao.itens.map(({ produtoId, quantidade }) => ({ produtoId, quantidade: Number(quantidade) })), "ZZ-ML-KITB", null, null]);
         await salvarRascunhoML(kitB.id, kitComBling("ZZ-ML-KITB", "999"));
         conferir("vinculo com o Bling: valor forjado nao troca o guardado", await blingDoKit(kitB.id), "777");
         await salvarRascunhoML(kitB.id, kitComBling("ZZ-ML-KITB2", "777"));

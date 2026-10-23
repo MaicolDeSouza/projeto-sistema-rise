@@ -2,7 +2,8 @@
 
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ExternalLink, Loader, X } from "lucide-react";
+import Link from "next/link";
+import { Copy, ExternalLink, Loader, X } from "lucide-react";
 
 import { abrirAnuncioML, lerCategoriaML, salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
@@ -74,6 +75,10 @@ export default function EditorAnuncioML({
   modo = "pagina",
   aoSalvar,
   aoFechar,
+  // Clonar (22/10/2026): na pagina e um link para `/novo?clonar=`; na janela, `aoClonar(id)` abre o clone nela mesma.
+  // `origem` e de onde o rascunho novo foi clonado (so para mostrar).
+  aoClonar,
+  origem = null,
   acessos = ACESSO_TOTAL_ML,
 }) {
   const [rascunho, setRascunho] = useState(rascunhoInicial);
@@ -298,6 +303,29 @@ export default function EditorAnuncioML({
           ) : (
             <span className="font-mono text-suave">{infoDoML.idExterno}</span>
           ))}
+        {!idAtual && origem && (
+          <span className="text-suave">
+            Clonado de <span className="font-mono">{origem.codigo}</span>
+            {origem.idExterno && <span className="font-mono"> ({origem.idExterno})</span>}
+          </span>
+        )}
+        {idAtual && acessos.editar && !travado && (
+          modo === "pagina" ? (
+            <Link href={`/canais-de-venda/mercado-livre/novo?clonar=${idAtual}`} className="inline-flex items-center gap-1 text-acento hover:underline" title="Abre um anúncio novo igual a este, do mesmo produto">
+              <Copy size={12} /> Clonar anúncio
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => aoClonar?.(idAtual)}
+              disabled={alterado || salvando}
+              title={alterado ? "Salve as alterações antes de clonar." : "Abre um anúncio novo igual a este, do mesmo produto"}
+              className="inline-flex items-center gap-1 text-acento hover:underline disabled:cursor-not-allowed disabled:text-suave disabled:no-underline"
+            >
+              <Copy size={12} /> Clonar anúncio
+            </button>
+          )
+        )}
       </div>
       <div className="flex items-center gap-2">
         {!somenteLeitura && (

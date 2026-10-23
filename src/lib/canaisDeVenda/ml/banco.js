@@ -159,6 +159,27 @@ export async function carregarAnuncioML(id) {
 }
 
 /**
+ * Clonar um anuncio (pedido do dono em 22/10/2026): um rascunho NOVO, igual ao anuncio, do mesmo produto, para publicar
+ * como outro tipo, virar kit etc. Nao grava: so o Salvar cria o anuncio. Nada da publicacao vai junto (status, MLB,
+ * etapas), nem o vinculo do kit com o Bling (o Publicar reaproveita o kit do Bling quando as pecas sao as mesmas). O
+ * codigo do kit fica: o Classico e o Premium do mesmo kit dividem o produto do Bling, e `codigoEmUso` aceita isso.
+ */
+export async function clonarRascunhoML(id) {
+  const carregado = await carregarAnuncioML(id);
+  if (!carregado.ok) return carregado;
+  const { rascunho, contexto } = carregado;
+  const composicao = rascunho.composicao ? { ...rascunho.composicao, blingProdutoId: null } : null;
+  const emUso = composicao ? await codigoEmUso(composicao.codigo, { anuncioId: null, itens: composicao.itens }) : null;
+  const principal = contexto.produtos[rascunho.produtoId];
+  return {
+    ok: true,
+    rascunho: { ...rascunho, composicao },
+    contexto: { ...contexto, codigoEmUso: emUso },
+    origem: { id: carregado.anuncioId, codigo: composicao?.codigo || principal?.sku || "", titulo: rascunho.titulo, idExterno: carregado.idExterno },
+  };
+}
+
+/**
  * Quem ja usa o codigo do kit, ou `null` se esta livre. O codigo e o SKU do kit no Bling, entao
  * nao pode ser o de um produto do cadastro. Em outro anuncio so e aceito com a MESMA composicao
  * (o Classico e o Premium do mesmo kit dividem o produto do Bling); `anuncioId` e o anuncio que

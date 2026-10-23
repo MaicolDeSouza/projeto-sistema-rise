@@ -77,7 +77,7 @@ export default async function MercadoLivrePage({ searchParams }) {
             />
           </div>
 
-          <TabelaAnunciosML linhas={lista.linhas} busca={busca} verConcorrencia={verConcorrencia} />
+          <TabelaAnunciosML linhas={lista.linhas} busca={busca} verConcorrencia={verConcorrencia} podeClonar={podeEditar} />
 
           {lista.linhas.length > 0 && (
             <>

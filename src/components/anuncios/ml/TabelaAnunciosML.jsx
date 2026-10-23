@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Handshake } from "lucide-react";
+import { Copy, Handshake } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
@@ -24,8 +24,9 @@ const dataEHora = new Intl.DateTimeFormat("pt-BR", {
 
 const enderecoDe = (linha) => `/canais-de-venda/mercado-livre/${linha.id}`;
 
-// `verConcorrencia` (Acessos, dado.concorrentes): sem ele a coluna Concorrencia nao existe.
-export default function TabelaAnunciosML({ linhas, busca, verConcorrencia = true }) {
+// `verConcorrencia` (Acessos, dado.concorrentes): sem ele a coluna Concorrencia nao existe. `podeClonar` (editar o canal):
+// o icone de copiar de cada linha abre um anuncio novo igual aquele, do mesmo produto (pedido do dono em 22/10/2026).
+export default function TabelaAnunciosML({ linhas, busca, verConcorrencia = true, podeClonar = false }) {
   if (linhas.length === 0) {
     return (
       <EmptyState
@@ -53,6 +54,7 @@ export default function TabelaAnunciosML({ linhas, busca, verConcorrencia = true
             <th className="px-3 py-2.5 font-medium">No ML</th>
             {verConcorrencia && <th className="px-3 py-2.5 font-medium">Concorrência</th>}
             <th className="px-3 py-2.5 font-medium">Atualizado em</th>
+            {podeClonar && <th className="w-10 px-2 py-2.5" aria-label="Ações" />}
           </tr>
         </thead>
         <tbody className="divide-y divide-borda">
@@ -106,6 +108,18 @@ export default function TabelaAnunciosML({ linhas, busca, verConcorrencia = true
                 <td className="px-3 py-2.5 whitespace-nowrap text-suave tabular-nums">
                   {dataEHora.format(new Date(linha.atualizadoEm))}
                 </td>
+                {podeClonar && (
+                  <td className="px-2 py-2.5 text-center">
+                    <Link
+                      href={`/canais-de-venda/mercado-livre/novo?clonar=${linha.id}`}
+                      title="Clonar anúncio: abre um anúncio novo igual a este, do mesmo produto"
+                      aria-label={`Clonar o anúncio ${linha.codigo}`}
+                      className="inline-flex rounded p-1 text-suave hover:bg-fundo hover:text-acento"
+                    >
+                      <Copy size={14} />
+                    </Link>
+                  </td>
+                )}
               </tr>
             );
           })}

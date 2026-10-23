@@ -21,7 +21,7 @@ import EditorAnuncioML from "./EditorAnuncioML";
  * leva segundos) o editor fica `inert`: o que fosse digitado nesse intervalo se perderia na
  * remontagem, e o rodape diria "Tudo salvo" sem ser verdade.
  */
-export default function EditorNaPagina({ anuncioId, rascunhoInicial, contextoInicial, status, publicacaoInicial = null, acessos }) {
+export default function EditorNaPagina({ anuncioId, rascunhoInicial, contextoInicial, status, publicacaoInicial = null, acessos, origem = null }) {
   const router = useRouter();
   const [abrindo, iniciarNavegacao] = useTransition();
 
@@ -34,6 +34,7 @@ export default function EditorNaPagina({ anuncioId, rascunhoInicial, contextoIni
         status={status}
         publicacaoInicial={publicacaoInicial}
         acessos={acessos}
+        origem={origem}
         modo="pagina"
         aoSalvar={(id) => {
           if (!anuncioId) iniciarNavegacao(() => router.replace(`/canais-de-venda/mercado-livre/${id}`));

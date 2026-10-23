@@ -247,7 +247,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 646 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 652 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3157,6 +3157,14 @@ plano: `docs/superpowers/plans/2026-10-21-concorrentes-ml-catalogo.md` (inline).
 - **Links de cada concorrente** (pedido do dono): o apelido abre o perfil (`perfil.mercadolivre.com.br/<apelido>`, espaço
   vira "+", como o `permalink` do ML) e o ícone ao lado abre o anúncio (`produto.mercadolivre.com.br/MLB-<número>`); vale na
   lista acompanhada e na prévia. Sem migration (o `itemId` e o apelido já estavam gravados).
+- **Clonar anúncio** (pedido do dono em 22/10/2026, etapa 1 do plano de gerenciar anúncios publicados; "às vezes clono
+  para transformar em composição", não só para trocar o tipo): `clonarRascunhoML` (`banco.js`) devolve um rascunho NOVO
+  igual ao anúncio, do mesmo produto base, **sem gravar** (só o Salvar cria). Não leva status, MLB nem etapas da
+  publicação, nem o `blingProdutoId` do kit (o Publicar reaproveita o kit do Bling com as mesmas peças); o código do kit
+  fica (Clássico e Premium dividem o kit). Entradas: ícone de copiar em cada linha da lista (`/novo?clonar=<id>`, faixa
+  "Clonado a partir de..."), "Clonar anúncio" no rodapé do editor (página e janela; na janela pede salvar antes) e ícone
+  na lista da janela do produto. Ação `clonarAnuncioML` pede editar o canal. Próximas etapas do plano: gerenciar o
+  publicado (enviar fotos, descrição, ficha e envio; título só sem vendas; preço a medir) e o "!" quando o produto muda.
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 

@@ -8,7 +8,7 @@ import LinkDeVolta from "@/components/ui/LinkDeVolta";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { acessosDoEditorML, projetarContextoML } from "@/lib/acessos/projecoes";
-import { buscarProdutoParaAnuncio, novoRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
+import { buscarProdutoParaAnuncio, clonarRascunhoML, novoRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Novo anúncio | Mercado Livre | Sistema Rise" };
@@ -25,11 +25,22 @@ export default async function NovoAnuncioMLPage({ searchParams }) {
   const { pode } = await exigirAcessoNaPagina("tela.canaisDeVenda.mercadoLivre", "editar");
   const params = await searchParams;
   const codigo = textoDe(params?.produto);
+  // `?clonar=<id>` (pedido do dono em 22/10/2026): o editor abre com uma copia do anuncio, do mesmo produto, como
+  // anuncio novo (para publicar como outro tipo, virar kit...). Nada e gravado ate o Salvar.
+  const clonarDe = textoDe(params?.clonar);
 
   let aberto = null;
   let recusa = null;
   let erro = null;
-  if (codigo) {
+  if (clonarDe) {
+    try {
+      const clone = await clonarRascunhoML(clonarDe);
+      if (clone.ok) aberto = clone;
+      else recusa = clone.erro;
+    } catch (e) {
+      erro = e;
+    }
+  } else if (codigo) {
     try {
       const achado = await buscarProdutoParaAnuncio(codigo);
       if (!achado.ok) recusa = achado.erro;
@@ -55,16 +66,30 @@ export default async function NovoAnuncioMLPage({ searchParams }) {
 
       {erro && <AvisoBanco erro={erro} />}
 
+      {!erro && aberto?.origem && (
+        <p className="mb-3 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+          Clonado a partir de <span className="font-mono">{aberto.origem.codigo}</span> · {aberto.origem.titulo || "sem título"}
+          {aberto.origem.idExterno && <span className="font-mono"> ({aberto.origem.idExterno})</span>}. Mude o que quiser: nada é gravado até o Salvar.
+        </p>
+      )}
+
       {!erro && aberto && (
         <EditorNaPagina
-          // Outro produto na URL monta um editor novo: o estado do editor nasce das props e nao as acompanha.
-          key={aberto.rascunho.produtoId}
+          // Outro produto (ou outro clone) na URL monta um editor novo: o estado do editor nasce das props e nao as acompanha.
+          key={clonarDe ? `clone-${clonarDe}` : aberto.rascunho.produtoId}
           anuncioId={null}
           rascunhoInicial={aberto.rascunho}
           contextoInicial={projetarContextoML(aberto.contexto, pode)}
           acessos={acessosDoEditorML(pode)}
           status={null}
+          origem={aberto.origem ?? null}
         />
+      )}
+
+      {!erro && !aberto && clonarDe && recusa && (
+        <p role="alert" className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          Não foi possível clonar: {recusa}
+        </p>
       )}
 
       {!erro && !aberto && (

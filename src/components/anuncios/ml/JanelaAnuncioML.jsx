@@ -3,11 +3,12 @@
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader, Plus, X } from "lucide-react";
+import { Copy, Loader, Plus, X } from "lucide-react";
 
 import {
   abrirAnuncioML,
   abrirNovoAnuncioML,
+  clonarAnuncioML,
   listarAnunciosDoProdutoML,
 } from "@/app/canais-de-venda/mercado-livre/acoes";
 import Badge from "@/components/ui/Badge";
@@ -142,6 +143,29 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
     setFase("editor");
   }, [produtoId]);
 
+  // Clonar (22/10/2026): um anuncio novo igual ao escolhido, do mesmo produto; nada e gravado ate o Salvar.
+  const abrirClone = useCallback(async (id) => {
+    setFase("carregando");
+    const resultado = await chamar(clonarAnuncioML, id);
+    if (!montada.current) return;
+    if (!resultado.ok) {
+      setAviso({ tipo: "erro", texto: resultado.erro });
+      setFase("lista");
+      return;
+    }
+    abertura.current += 1;
+    setEditor({
+      chave: `clone-${id}-${abertura.current}`,
+      anuncioId: null,
+      status: undefined,
+      rascunho: resultado.rascunho,
+      contexto: resultado.contexto,
+      acessos: resultado.acessos,
+      origem: resultado.origem,
+    });
+    setFase("editor");
+  }, []);
+
   const abrirExistente = useCallback(async (id) => {
     setFase("carregando");
     const resultado = await chamar(abrirAnuncioML, id);
@@ -214,9 +238,11 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
         status={editor.status}
         publicacaoInicial={editor.publicacaoInicial ?? null}
         acessos={editor.acessos}
+        origem={editor.origem ?? null}
         modo="janela"
         aoSalvar={aoSalvar}
         aoFechar={aoFechar}
+        aoClonar={abrirClone}
       />
     );
   }
@@ -271,11 +297,11 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
               {anuncios.map((anuncio) => {
                 const situacao = STATUS_ML[anuncio.status] ?? STATUS_ML.RASCUNHO;
                 return (
-                  <li key={anuncio.id}>
+                  <li key={anuncio.id} className="flex items-stretch">
                     <button
                       type="button"
                       onClick={() => abrirExistente(anuncio.id)}
-                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-fundo"
+                      className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left hover:bg-fundo"
                     >
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">
@@ -286,6 +312,17 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
                       <span className="shrink-0 text-xs text-suave">{ROTULO_DO_TIPO_ML[anuncio.tipoAnuncio] ?? "-"}</span>
                       <Badge tom={situacao.tom}>{situacao.rotulo}</Badge>
                     </button>
+                    {acessos?.editar !== false && (
+                      <button
+                        type="button"
+                        onClick={() => abrirClone(anuncio.id)}
+                        title="Clonar anúncio: abre um anúncio novo igual a este, do mesmo produto"
+                        aria-label={`Clonar o anúncio ${anuncio.codigo}`}
+                        className="shrink-0 px-3 text-suave hover:bg-fundo hover:text-acento"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    )}
                   </li>
                 );
               })}
