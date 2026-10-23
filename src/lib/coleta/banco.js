@@ -86,6 +86,8 @@ export async function gravarColeta({
   fecharColeta = true,
   inicioDaColeta = null,
   totalDaColeta = null,
+  // Manda ao Bling o custo atualizado dos produtos que estavam em dia (23/10/2026); o teste troca por um falso.
+  enviarCustos = null,
 }) {
   // Quem chega primeiro vence, a mesma regra de juntarListas: a pronta entrega
   // antes da reserva, o site antes da planilha.
@@ -186,6 +188,10 @@ export async function gravarColeta({
   let precosMudaram = 0;
   // Vinculos produto-fornecedor que ganharam o custo desta varredura (so ao fechar a coleta).
   let custosAtualizados = 0;
+  let produtosComCustoNovo = [];
+  // Quem estava EM DIA com o Bling ANTES de o custo mudar: so esses recebem o custo no Bling sozinhos (os outros
+  // ficam com o "!" para o dono decidir). Conferido antes da transacao, que e quando o custo muda.
+  const emDiaAntes = fecharColeta ? await produtosEmDiaDaFonte(fonte.id) : new Set();
 
   await prisma.$transaction(
     async (tx) => {
@@ -265,13 +271,26 @@ export async function gravarColeta({
             ultimaColetaResumo: resumo,
           },
         });
-        custosAtualizados = await atualizarCustosDosVinculos(tx, fonte.id);
+        produtosComCustoNovo = await atualizarCustosDosVinculos(tx, fonte.id);
+        custosAtualizados = produtosComCustoNovo.length;
       }
     },
     // A lista da Fortek na primeira carga sao 1.911 insercoes com foto em
     // base64; o padrao de 5 s do Prisma derrubaria a transacao no meio.
     { maxWait: 30 * 1000, timeout: 10 * 60 * 1000 },
   );
+
+  // Fora da transacao: o Bling e rede, e uma falha dele nunca desfaz a coleta.
+  const paraOBling = [...new Set(produtosComCustoNovo)].filter((produtoId) => emDiaAntes.has(produtoId));
+  let custosNoBling = null;
+  if (paraOBling.length > 0) {
+    try {
+      const enviar = enviarCustos ?? (await import("@/lib/blingSync/custosDaVarredura")).enviarCustosAoBling;
+      custosNoBling = await enviar(paraOBling);
+    } catch (erro) {
+      console.error(`[custos ao Bling] envio nao feito: ${erro.message}`);
+    }
+  }
 
   return {
     gravados: porChave.size,
@@ -281,7 +300,19 @@ export async function gravarColeta({
     precosMudaram,
     semChave,
     custosAtualizados,
+    custosNoBling,
   };
+}
+
+/** Os produtos com vinculo a esta fonte (pelo codigo) que estao em dia com o Bling agora. */
+async function produtosEmDiaDaFonte(fonteId) {
+  const vinculos = await prisma.produtoFornecedor.findMany({
+    where: { fornecedor: { fonteId }, codigo: { not: null }, produto: { blingSincronizadoEm: { not: null } } },
+    select: { produtoId: true },
+  });
+  if (vinculos.length === 0) return new Set();
+  const { produtosEmDiaComOBling } = await import("@/lib/blingSync/custosDaVarredura");
+  return produtosEmDiaComOBling(vinculos.map((vinculo) => vinculo.produtoId));
 }
 
 /**
@@ -292,10 +323,10 @@ export async function gravarColeta({
  * `custoDoFornecedor`). Vinculo sem codigo, de fornecedor sem fonte ou com codigo fora da lista continua como esta.
  * So escreve o que mudou. Roda dentro da transacao da gravacao.
  *
- * @returns {Promise<number>} vinculos atualizados
+ * @returns {Promise<string[]>} o produto de cada vinculo atualizado
  */
 export async function atualizarCustosDosVinculos(tx, fonteId) {
-  return tx.$executeRaw`
+  const linhas = await tx.$queryRaw`
     UPDATE "ProdutoFornecedor" v
        SET "precoCusto" = alvo.custo, "atualizadoEm" = (NOW() AT TIME ZONE 'UTC')
       FROM (
@@ -309,7 +340,9 @@ export async function atualizarCustosDosVinculos(tx, fonteId) {
            AND COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") IS NOT NULL
          ORDER BY v2.id, p."vistoEm" DESC
       ) alvo
-     WHERE v.id = alvo.id AND v."precoCusto" IS DISTINCT FROM alvo.custo`;
+     WHERE v.id = alvo.id AND v."precoCusto" IS DISTINCT FROM alvo.custo
+    RETURNING v."produtoId"`;
+  return linhas.map((linha) => linha.produtoId);
 }
 
 /**

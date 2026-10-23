@@ -40,7 +40,8 @@ const { config, separarLista } = await import("../src/lib/integracoes/config.js"
 const { blingGet, blingPatch, blingPost, blingPut, urlDoBling } = await import("../src/lib/integracoes/bling.js");
 const { clienteBling, exigirCodigoLiberado } = await import("../src/lib/blingSync/cliente.js");
 const { buscarNoBling, lerParaPopup, lerProdutoDoRise } = await import("../src/lib/blingSync/leitura.js");
-const { cadastrarNoBling, enviarAjustesDeEstoque, sincronizarProduto } = await import("../src/lib/blingSync/envio.js");
+const { cadastrarNoBling, enviarAjustesDeEstoque, enviarCustoDoFornecedor, sincronizarProduto } = await import("../src/lib/blingSync/envio.js");
+const { produtosEmDiaComOBling, enviarCustosAoBling } = await import("../src/lib/blingSync/custosDaVarredura.js");
 const { sincronizarEstoqueDoBling } = await import("../src/lib/blingSync/saldos.js");
 const { LIMITE_DE_FALHAS_VISIVEIS, mudouNoBling, resumirEnvio, resumirEstoqueDaLista, valorParaTela } = await import("../src/lib/blingSync/apresentacao.js");
 const { consultaDaChamada, criarBlingFalso } = await import("./lib/blingFalso.js");
@@ -1860,6 +1861,38 @@ try {
       const comDados = novoFalso({ produtos: [noBling("ZZ-BS-F3")], contatos: contatosDoBling(), vinculos: [vinculoNoBling({ codigo: "B1", descricao: "d", precoCusto: 5 })] });
       const naoApaga = await sincronizarProduto(vazio.id, comDados);
       conferir("vinculo com campos vazios no Rise: nao conta como diferente, nada e escrito", [naoApaga.ok, escritasDe(comDados).length], [true, 0]);
+    }
+
+    // --- Custo da varredura ao Bling (23/10/2026): so o vinculo, sem PATCH, e o "!" nao acende ---
+    {
+      const produto = await criarNoRise("ZZ-BS-F8", {
+        fornecedores: { create: [{ fornecedorId: fCnpj.id, codigo: "FC-8", descricao: "https://exemplo.com/fc", precoCusto: "10.00", padrao: true }] },
+      });
+      const vinculo = { id: 17100000008, descricao: "https://exemplo.com/fc", codigo: "FC-8", precoCusto: 10, precoCompra: 4, padrao: true, produto: { id: BLING_ID }, fornecedor: { id: ID_CNPJ } };
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-F8")], contatos: contatosDoBling(), vinculos: [vinculo] });
+      conferir("custo ao Bling: sincronizado antes", (await sincronizarProduto(produto.id, falso)).ok, true);
+      conferir("custo ao Bling: em dia depois de sincronizar", [...(await produtosEmDiaComOBling([produto.id]))], [produto.id]);
+
+      // A varredura muda o custo: deixa de estar em dia (e por isso o em-dia e conferido ANTES).
+      await prisma.produtoFornecedor.updateMany({ where: { produtoId: produto.id }, data: { precoCusto: "10.20" } });
+      conferir("custo ao Bling: com o custo novo, o produto deixa de estar em dia", (await produtosEmDiaComOBling([produto.id])).size, 0);
+
+      const escritasAntes = escritasDe(falso).length;
+      const resultado = await enviarCustoDoFornecedor(produto.id, falso);
+      const novas = escritasDe(falso).slice(escritasAntes);
+      conferir("custo ao Bling: ok, um vinculo enviado", [resultado.ok, resultado.enviados], [true, 1]);
+      conferir(
+        "custo ao Bling: UMA escrita, o PUT do vinculo com o custo novo e o precoCompra como estava; nenhum PATCH de produto",
+        [novas.length, novas[0]?.metodo, novas[0]?.caminho, novas[0]?.corpo?.precoCusto, novas[0]?.corpo?.precoCompra],
+        [1, "PUT", "/produtos/fornecedores/17100000008", 10.2, 4],
+      );
+      const depois = await ler(produto.id);
+      conferir("custo ao Bling: a assinatura e a de hoje (sem o '!')", depois.blingAssinatura === (await assinaturaAtual(produto.id)), true);
+      conferir("custo ao Bling: em dia de novo", [...(await produtosEmDiaComOBling([produto.id]))], [produto.id]);
+
+      // Varios de uma vez: falha de um nao para os outros.
+      const lote = await enviarCustosAoBling(["a", "b"], { enviar: async (id) => (id === "a" ? { ok: false, erro: "fora do ar" } : { ok: true }) });
+      conferir("custo ao Bling em lote: conta os enviados e as falhas", [lote.enviados, lote.falhas], [1, [{ produtoId: "a", erro: "fora do ar" }]]);
     }
 
     // --- Falha no vinculo de um fornecedor: os outros seguem, mas a assinatura nao avanca ---

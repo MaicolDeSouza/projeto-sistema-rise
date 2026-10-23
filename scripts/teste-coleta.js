@@ -481,23 +481,49 @@ try {
 // ---------------------------------------------------------------------------
 // O CUSTO DO FORNECEDOR SEGUE A VARREDURA (23/10/2026, Opcao 1): ao fechar a coleta, o vinculo cujo codigo esta na
 // lista ganha o custo com impostos; o de codigo fora da lista fica como estava.
-await prisma.produto.deleteMany({ where: { sku: "ZZ-CUSTO-1" } });
+await prisma.produto.deleteMany({ where: { sku: { in: ["ZZ-CUSTO-1", "ZZ-CUSTO-2"] } } });
 await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Custo" } });
 try {
   const fonteCusto = await prisma.fonteColeta.create({
     data: { nome: "ZZ Fonte Custo", dominio: "teste-custo.local", tipo: "FORNECEDOR", ativa: false },
   });
-  const fornCusto = await prisma.fornecedor.create({ data: { nome: "ZZ Fornecedor Custo", fonteId: fonteCusto.id } });
+  const fornCusto = await prisma.fornecedor.create({
+    data: { nome: "ZZ Fornecedor Custo", fonteId: fonteCusto.id, cnpj: "98.765.432/0001-98" },
+  });
   const prodCusto = await prisma.produto.create({ data: { sku: "ZZ-CUSTO-1", tituloBase: "Produto teste custo" } });
   const naLista = await prisma.produtoFornecedor.create({
     data: { produtoId: prodCusto.id, fornecedorId: fornCusto.id, codigo: "zz-c1", precoCusto: 31.9, padrao: true },
   });
+  // Um segundo produto com o mesmo codigo, NUNCA sincronizado com o Bling: o custo muda, mas nao vai ao Bling.
+  const prodSemBling = await prisma.produto.create({ data: { sku: "ZZ-CUSTO-2", tituloBase: "Produto teste custo 2" } });
+  await prisma.produtoFornecedor.create({
+    data: { produtoId: prodSemBling.id, fornecedorId: fornCusto.id, codigo: "ZZ-C1", precoCusto: 31.9, padrao: true },
+  });
+  // O primeiro esta EM DIA com o Bling: a assinatura gravada e a de hoje.
+  const { lerProdutoDoRise } = await import("@/lib/blingSync/leitura.js");
+  const { assinaturaDoRise, normalizarDoRise, normalizarFornecedoresDoRise } = await import("@/lib/blingSync/campos.js");
+  const lidoCusto = await lerProdutoDoRise(prodCusto.id);
+  await prisma.produto.update({
+    where: { id: prodCusto.id },
+    data: {
+      blingSincronizadoEm: new Date(),
+      blingAssinatura: assinaturaDoRise(normalizarDoRise(lidoCusto), normalizarFornecedoresDoRise(lidoCusto.fornecedores)),
+    },
+  });
+
   const comIpi = { ...produto({ code: "ZZ-C1", name: "Peca custo", normal: 31.9 }), taxes: [{ nome: "IPI", percentual: 2 }] };
   comIpi.prices.comImpostos = 32.54;
-  const gravacaoCusto = await gravarColeta({ fonte: fonteCusto, produtos: [comIpi], origem: "arquivo" });
+  const mandadosAoBling = [];
+  const enviarCustos = async (ids) => {
+    mandadosAoBling.push(...ids);
+    return { enviados: ids.length, falhas: [] };
+  };
+  const gravacaoCusto = await gravarColeta({ fonte: fonteCusto, produtos: [comIpi], origem: "arquivo", enviarCustos });
   const depois = await prisma.produtoFornecedor.findUnique({ where: { id: naLista.id } });
   conferir("custo: o vinculo ganha o custo com IPI da varredura (codigo sem caixa)", Number(depois.precoCusto), 32.54);
-  conferir("custo: a gravacao conta o vinculo atualizado", gravacaoCusto.custosAtualizados, 1);
+  conferir("custo: a gravacao conta os dois vinculos atualizados", gravacaoCusto.custosAtualizados, 2);
+  conferir("custo ao Bling: so o produto que estava em dia vai ao Bling", mandadosAoBling, [prodCusto.id]);
+  await prisma.produto.update({ where: { id: prodCusto.id }, data: { blingSincronizadoEm: null, blingAssinatura: null } });
 
   // Codigo que nao esta na lista: o custo fica.
   await prisma.produtoFornecedor.update({ where: { id: naLista.id }, data: { codigo: "OUTRO", precoCusto: 50 } });
@@ -511,7 +537,7 @@ try {
   const lote = await prisma.produtoFornecedor.findUnique({ where: { id: naLista.id } });
   conferir("custo: lote sem fechar a coleta nao mexe", Number(lote.precoCusto), 10);
 } finally {
-  await prisma.produto.deleteMany({ where: { sku: "ZZ-CUSTO-1" } });
+  await prisma.produto.deleteMany({ where: { sku: { in: ["ZZ-CUSTO-1", "ZZ-CUSTO-2"] } } });
   await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Custo" } });
 }
 

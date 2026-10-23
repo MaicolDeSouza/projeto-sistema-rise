@@ -4495,8 +4495,15 @@ Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com *
     (`coleta/banco.js`) põe o custo da varredura em todo vínculo cujo Fornecedor está ligado à fonte (`fonteId`) e cujo
     código existe na lista (sem diferenciar caixa). **Custo digitado à mão em vínculo com código da lista é sobrescrito**
     na próxima varredura; vínculo sem código ou de fornecedor sem fonte continua manual.
-  - Efeito colateral esperado: o custo entra na sincronização com o Bling, então produtos com custo atualizado acendem o
-    "!" do Bling até o próximo Sincronizar. Teste: `teste:coleta` ("custo: ...") e `teste:extracao` ("custo: ...").
+  - **O custo novo vai ao Bling sozinho** (pedido do dono no mesmo dia, Opção 1: "para não ficar ! no Bling"). Antes de o
+    custo mudar, `gravarColeta` confere quem estava EM DIA com o Bling (`produtosEmDiaComOBling`, `blingSync/custosDaVarredura.js`:
+    ícone verde e sem diferença de campos); depois, fora da transação, manda a esses SÓ os vínculos de fornecedor
+    (`enviarCustoDoFornecedor` em `blingSync/envio.js`: busca pelo código, `enviarFornecedores`, sem PATCH de produto nem
+    fotos) e regrava a assinatura. Produto que já tinha outra diferença pendente NÃO vai: fica com o "!" para o dono
+    decidir no Sincronizar. Falha do Bling nunca desfaz a coleta; o produto fica com o "!" e o motivo vai ao log
+    (`[custos ao Bling]`). Passa pelas travas de escrita: no `worker:pc` (travas do `.env` do PC fechadas) nada vai, e os
+    produtos ficam com o "!". Testes: `teste:coleta` ("custo..."), `teste:bling-sync` ("custo ao Bling...") e
+    `teste:extracao` ("custo:...").
 - **Concorrente vinculado ao produto (`ProdutoConcorrente`, migration `20260918_produto_concorrente`)
   não guarda cópia do preço quando vem da lupa do Nome — só a referência**
   (`produtoColetadoId`). A tela lê o preço de HOJE em `ProdutoColetado` toda vez que abre o

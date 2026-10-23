@@ -705,6 +705,45 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling(), de
 }
 
 // ---------------------------------------------------------------------------
+// So o custo do fornecedor, depois de uma varredura (23/10/2026)
+// ---------------------------------------------------------------------------
+
+/**
+ * Manda ao Bling SO os vinculos de fornecedor do produto (na pratica, o custo que a varredura acabou de atualizar) e
+ * regrava a assinatura, para o produto nao ficar com o "!" do Bling (pedido do dono em 23/10/2026, Opcao 1).
+ *
+ * Quem chama garante que o produto estava EM DIA com o Bling antes de a varredura mudar o custo
+ * (`produtosEmDiaComOBling`): assim o unico conteudo novo e o custo, e regravar a assinatura nao marca como enviado
+ * nenhum campo que o dono ainda nao mandou. Nenhum PATCH de produto, nenhuma foto. Mesmas travas e uma tentativa por
+ * escrita, como o Sincronizar; o alvo sai da busca por codigo (Emenda 11).
+ *
+ * @returns {Promise<{ok: boolean, erro?: string, enviados: number}>}
+ */
+export async function enviarCustoDoFornecedor(produtoId, cliente = clienteBling()) {
+  const falhou = (erro) => ({ ok: false, erro, enviados: 0 });
+
+  return umPorVez(produtoId, falhou, async () => {
+    try {
+      const produto = await lerDoRise(produtoId);
+      exigirEscrita(cliente, produto.sku);
+
+      const achado = await buscar(cliente, produto.sku);
+      if (achado.situacao === "nao_existe") throw new FalhaDoEnvio("O código não foi achado entre os produtos ativos do Bling.");
+      if (achado.situacao === "duplicado") throw recusaPorDuplicado(produto.sku, achado.quantidade);
+
+      const fornecedores = normalizarFornecedoresDoRise(produto.fornecedores);
+      const envio = await enviarFornecedores(cliente, achado.id, fornecedores);
+      if (envio.falhas.length) throw falhaDosFornecedores(envio.falhas);
+
+      await gravarSincronizado(produto, normalizarDoRise(produto), fornecedores);
+      return { ok: true, enviados: envio.enviados };
+    } catch (erro) {
+      return falhou(textoDaFalha(erro));
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Cadastrar no Bling um produto que ainda nao existe la
 // ---------------------------------------------------------------------------
 
