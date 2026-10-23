@@ -1,7 +1,9 @@
 import { validar } from "@/lib/anuncios/canais/bling";
 import {
   assinaturaDoRise,
+  camposDoVinculo,
   diferencas,
+  diferencasDoVinculo,
   fornecedoresSemCnpj,
   normalizarDoBling,
   normalizarDoRise,
@@ -519,30 +521,9 @@ async function contatoDoFornecedor(cliente, fornecedor, memoria) {
   return id;
 }
 
-/// O que o Rise manda no vinculo. Campo vazio no Rise nao vai (nunca apaga o do Bling); `padrao`
-/// sempre tem valor.
-function camposDoVinculo(fornecedor) {
-  const campos = {};
-  if (fornecedor.descricao !== null && fornecedor.descricao !== undefined) campos.descricao = fornecedor.descricao;
-  if (fornecedor.codigo !== null && fornecedor.codigo !== undefined) campos.codigo = fornecedor.codigo;
-  if (fornecedor.precoCusto !== null && fornecedor.precoCusto !== undefined) campos.precoCusto = fornecedor.precoCusto;
-  campos.padrao = Boolean(fornecedor.padrao);
-  return campos;
-}
-
-function centavos(valor) {
-  if (valor === null || valor === undefined || valor === "") return null;
-  const numero = Number(valor);
-  return Number.isFinite(numero) ? Math.round(numero * 100) : null;
-}
-
-/// O vinculo do Bling ja tem o que o Rise manda? So os campos que o Rise manda contam.
+/// O vinculo do Bling ja tem o que o Rise manda? A regra mora em campos.js, a mesma da tela do Bling.
 function vinculoIgual(existente, desejado) {
-  return Object.entries(desejado).every(([chave, valor]) => {
-    if (chave === "precoCusto") return centavos(existente?.precoCusto) === centavos(valor);
-    if (chave === "padrao") return Boolean(existente?.padrao) === valor;
-    return String(existente?.[chave] ?? "").trim() === valor;
-  });
+  return diferencasDoVinculo(existente, desejado).length === 0;
 }
 
 /**

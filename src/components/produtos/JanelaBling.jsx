@@ -196,8 +196,54 @@ function BlocoDeFotos({ fotos }) {
  * numero, nao a lista deles, e os rotulos dos campos vivem numa lib de servidor que o navegador nao
  * importa.
  */
-function Diferencas({ diferencas, fotos, iguais, lerDeNovo, lendo }) {
-  const diferentes = diferencas.filter((item) => item.tipo === "diferente").length + (fotos?.diferente ? 1 : 0);
+/// Rotulo e valor de um campo do vinculo do fornecedor, como o operador le.
+const ROTULO_DO_VINCULO = { precoCusto: "Custo", codigo: "Código", descricao: "Descrição", padrao: "Padrão" };
+function valorDoVinculo(campo, valor) {
+  if (valor === null || valor === undefined || valor === "") return "vazio";
+  if (campo === "precoCusto") return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  if (campo === "padrao") return valor ? "sim" : "não";
+  return String(valor);
+}
+
+/**
+ * Os FORNECEDORES, Rise x Bling (23/10/2026: o dono viu "Nenhuma diferença" com o "!" aceso: era o custo do
+ * fornecedor, que a tela nao mostrava). So aparece quando ha diferenca, falta ou erro de leitura: fornecedor igual fica
+ * so na contagem, como os campos.
+ */
+function BlocoDeFornecedores({ fornecedores }) {
+  if (!fornecedores) return null;
+  const pendentes = (fornecedores.itens ?? []).filter((item) => item.situacao !== "igual");
+  if (pendentes.length === 0 && !fornecedores.erro) return null;
+  return (
+    <section aria-label="Fornecedores" className="rounded border border-amber-200 bg-amber-50/50 p-3">
+      <h3 className="text-sm font-semibold">Fornecedores</h3>
+      {fornecedores.erro && <p className="mt-1 text-xs text-amber-900">{fornecedores.erro}</p>}
+      <ul className="mt-2 space-y-1.5 text-sm">
+        {pendentes.map((item) => (
+          <li key={item.nome}>
+            <span className="font-medium">{item.nome}</span>
+            {item.situacao === "falta" ? (
+              <span className="text-suave">: não está ligado a este produto no Bling (o Sincronizar liga).</span>
+            ) : (
+              item.diferencas.map((diferenca) => (
+                <span key={diferenca.campo} className="block text-xs text-texto">
+                  {ROTULO_DO_VINCULO[diferenca.campo] ?? diferenca.campo}: no Bling{" "}
+                  <span className="tabular-nums">{valorDoVinculo(diferenca.campo, diferenca.bling)}</span>, no Rise{" "}
+                  <span className="font-medium tabular-nums">{valorDoVinculo(diferenca.campo, diferenca.rise)}</span>
+                </span>
+              ))
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-suave">O Sincronizar envia os fornecedores do Rise ao Bling.</p>
+    </section>
+  );
+}
+
+function Diferencas({ diferencas, fotos, fornecedores, iguais, lerDeNovo, lendo }) {
+  const fornecedoresDiferentes = (fornecedores?.itens ?? []).filter((item) => item.situacao !== "igual").length + (fornecedores?.erro ? 1 : 0);
+  const diferentes = diferencas.filter((item) => item.tipo === "diferente").length + (fotos?.diferente ? 1 : 0) + fornecedoresDiferentes;
   const textoDosIguais = `${iguais} ${iguais === 1 ? "campo igual" : "campos iguais"}`;
 
   return (
@@ -229,6 +275,7 @@ function Diferencas({ diferencas, fotos, iguais, lerDeNovo, lendo }) {
         </ul>
       )}
       <BlocoDeFotos fotos={fotos} />
+      <BlocoDeFornecedores fornecedores={fornecedores} />
       {iguais > 0 && diferencas.length > 0 && <p className="text-xs text-suave">{textoDosIguais} no Rise e no Bling.</p>}
     </section>
   );
@@ -456,6 +503,7 @@ export default function JanelaBling({ produto, aoFechar }) {
                 <Diferencas
                   diferencas={leitura.diferencas ?? []}
                   fotos={leitura.fotos ?? null}
+                  fornecedores={leitura.fornecedores ?? null}
                   iguais={leitura.iguais ?? 0}
                   lerDeNovo={lerDeNovo}
                   lendo={pendente}

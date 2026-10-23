@@ -7,6 +7,9 @@ import {
   idsDasPecasDoBling,
   normalizarDoBling,
   normalizarDoRise,
+  normalizarFornecedoresDoRise,
+  camposDoVinculo,
+  diferencasDoVinculo,
 } from "@/lib/blingSync/campos";
 import { clienteBling, exigirCodigoLiberado } from "@/lib/blingSync/cliente";
 import { fotosDoBling, fotosDoRise, md5DasFotosDoBling, md5DasFotosDoRise, planoDasFotos, resumoDasFotos } from "@/lib/blingSync/fotos";
@@ -226,8 +229,67 @@ async function resumirFotos(produto, bling, { bytesDoRise, bytesDoBling } = {}) 
   return resumoDasFotos(doRise, doBling, planoDasFotos(md5Rise, md5Bling));
 }
 
+const soDigitos = (valor) => String(valor ?? "").replace(/\D/g, "");
+const nomeParaComparar = (valor) =>
+  String(valor ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+const idDoBling = (valor) => {
+  const id = Number(valor);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+};
+const listaDaResposta = (resposta) => (Array.isArray(resposta?.dados?.data) ? resposta.dados.data : []);
+
+/**
+ * Os FORNECEDORES do produto, Rise x Bling, para a tela (23/10/2026: o dono viu "Nenhuma diferença" com o "!" aceso,
+ * e a diferença era o custo do fornecedor, que a tela nao lia). So le. O contato do Bling e achado como o envio acha
+ * (pelo CNPJ e, sem ele, pelo nome igual num contato sem documento), e o vinculo e comparado com a MESMA regra do envio
+ * (`diferencasDoVinculo`, em campos.js).
+ *
+ * Cada item: `{ nome, situacao: "igual"|"diferente"|"falta", diferencas: [{ campo, rise, bling }] }`. "falta" = o
+ * Sincronizar vai criar o vinculo (ou o contato). Falha de leitura devolve `{ itens: [], erro }`: a tela diz que nao
+ * conseguiu comparar, em vez de dizer "igual".
+ */
+async function compararFornecedores(cliente, produto, idNoBling) {
+  const fornecedores = normalizarFornecedoresDoRise(produto.fornecedores);
+  if (fornecedores.length === 0) return { itens: [] };
+  try {
+    const vinculos = listaDaResposta(exigirResposta(await cliente.get("/produtos/fornecedores", { idProduto: idNoBling })));
+    const itens = [];
+    for (const fornecedor of fornecedores) {
+      const naoExcluido = (contato) => contato?.situacao !== "E";
+      const porCnpj = listaDaResposta(exigirResposta(await cliente.get("/contatos", { numeroDocumento: fornecedor.cnpj, criterio: 1 })));
+      let ids = porCnpj
+        .filter((contato) => soDigitos(contato?.numeroDocumento) === fornecedor.cnpj && naoExcluido(contato))
+        .map((contato) => idDoBling(contato.id))
+        .filter(Boolean);
+      if (ids.length === 0 && nomeParaComparar(fornecedor.nome)) {
+        const porNome = listaDaResposta(exigirResposta(await cliente.get("/contatos", { pesquisa: fornecedor.nome, criterio: 1 })));
+        ids = porNome
+          .filter(
+            (contato) =>
+              nomeParaComparar(contato?.nome) === nomeParaComparar(fornecedor.nome) && !soDigitos(contato?.numeroDocumento) && naoExcluido(contato),
+          )
+          .map((contato) => idDoBling(contato.id))
+          .filter(Boolean);
+      }
+      const existente = vinculos.find(
+        (vinculo) => ids.includes(idDoBling(vinculo?.fornecedor?.id)) && idDoBling(vinculo?.produto?.id) === idNoBling,
+      );
+      const nome = fornecedor.nome || fornecedor.cnpj;
+      if (!existente) {
+        itens.push({ nome, situacao: "falta", diferencas: [] });
+        continue;
+      }
+      const lista = diferencasDoVinculo(existente, camposDoVinculo(fornecedor));
+      itens.push({ nome, situacao: lista.length ? "diferente" : "igual", diferencas: lista });
+    }
+    return { itens };
+  } catch (erro) {
+    return { itens: [], erro: `Não foi possível comparar os fornecedores: ${textoDoErro(erro)}` };
+  }
+}
+
 /// O resultado na forma que a tela espera. Quando falha, `erro` entra logo depois de `ok`.
-function resultado({ ok, erro, sku = "", situacao = null, diferencasLidas = [], iguais = 0, avisos = [], fotos = null, estoque, escrita }) {
+function resultado({ ok, erro, sku = "", situacao = null, diferencasLidas = [], iguais = 0, avisos = [], fotos = null, fornecedores = null, estoque, escrita }) {
   return {
     ok,
     ...(erro ? { erro } : {}),
@@ -238,6 +300,8 @@ function resultado({ ok, erro, sku = "", situacao = null, diferencasLidas = [], 
     avisos,
     // As fotos dos dois lados (`resumoDasFotos`); null quando nao ha produto no Bling para comparar.
     fotos,
+    // Os vinculos de fornecedor, Rise x Bling (`compararFornecedores`); null sem produto no Bling para comparar.
+    fornecedores,
     estoque: estoque ?? { blingSaldo: null, riseEstoque: 0, pendentes: 0 },
     escrita: escrita ?? { liberada: false, motivo: null },
   };
@@ -328,6 +392,7 @@ export async function lerParaPopup(produtoId, cliente = clienteBling(), dependen
     diferencasLidas: lista,
     iguais: CAMPOS_DE_ENVIO.length - lista.length,
     fotos: await resumirFotos(produto, achado.produto, dependencias),
+    fornecedores: await compararFornecedores(cliente, produto, achado.id),
     estoque: estoqueCom(Number.isFinite(saldoLido) ? saldoLido : null),
   });
 }

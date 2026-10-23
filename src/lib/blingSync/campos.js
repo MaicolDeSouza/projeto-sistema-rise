@@ -291,6 +291,40 @@ export function fornecedoresSemCnpj(vinculos) {
     .map((vinculo) => texto(vinculo?.fornecedor?.nome) ?? "(sem nome)");
 }
 
+/**
+ * O que o Rise manda no vinculo produto-fornecedor do Bling. Campo vazio no Rise nao vai (nunca apaga o do Bling);
+ * `padrao` sempre tem valor. Fonte unica do envio (`envio.js`) e da tela (`leitura.js`, 23/10/2026): as duas usam a
+ * mesma regra, senao a tela diria "igual" e o "!" do icone continuaria aceso (foi o que o dono viu no 100101).
+ */
+export function camposDoVinculo(fornecedor) {
+  const campos = {};
+  if (fornecedor.descricao !== null && fornecedor.descricao !== undefined) campos.descricao = fornecedor.descricao;
+  if (fornecedor.codigo !== null && fornecedor.codigo !== undefined) campos.codigo = fornecedor.codigo;
+  if (fornecedor.precoCusto !== null && fornecedor.precoCusto !== undefined) campos.precoCusto = fornecedor.precoCusto;
+  campos.padrao = Boolean(fornecedor.padrao);
+  return campos;
+}
+
+function centavosDoVinculo(valor) {
+  if (valor === null || valor === undefined || valor === "") return null;
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? Math.round(numero * 100) : null;
+}
+
+/**
+ * Os campos em que o vinculo do Bling difere do que o Rise manda: `[{ campo, rise, bling }]`. Lista vazia = igual. So
+ * os campos que o Rise manda contam (o `precoCompra` do Bling, que o Rise nao tem, fica de fora).
+ */
+export function diferencasDoVinculo(existente, desejado) {
+  return Object.entries(desejado)
+    .filter(([chave, valor]) => {
+      if (chave === "precoCusto") return centavosDoVinculo(existente?.precoCusto) !== centavosDoVinculo(valor);
+      if (chave === "padrao") return Boolean(existente?.padrao) !== valor;
+      return String(existente?.[chave] ?? "").trim() !== valor;
+    })
+    .map(([chave, valor]) => ({ campo: chave, rise: valor, bling: existente?.[chave] ?? null }));
+}
+
 // ---------------------------------------------------------------------------
 // Assinatura e diferencas
 // ---------------------------------------------------------------------------
