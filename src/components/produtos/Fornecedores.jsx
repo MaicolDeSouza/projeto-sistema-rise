@@ -462,7 +462,7 @@ export default function Fornecedores({
               </tr>
             )}
 
-            {[...vinculos].sort(porCustoAscendente).map((vinculo) =>
+            {[...vinculos].sort(porCustoAscendente).map((vinculo, indice) =>
               editando === vinculo.id ? (
                 <LinhaEdicao
                   key={vinculo.id}
@@ -482,7 +482,11 @@ export default function Fornecedores({
                       <FotoComLupa src={`/api/mercados/miniatura/${estoques[vinculo.id].coletadoId}`} alt={vinculo.descricao || vinculo.nome} className="h-10 w-10" />
                     ) : null}
                   </td>
-                  <td className="px-3 py-2 font-medium">{vinculo.nome}</td>
+                  <td className="px-3 py-2 font-medium">
+                    {/* Posicao na ordem do custo, do menor para o maior (pedido do dono em 23/10/2026), antes do nome. */}
+                    <span className="mr-1.5 inline-block min-w-[2ch] tabular-nums text-suave">{indice + 1}º</span>
+                    {vinculo.nome}
+                  </td>
                   {/* O campo nao tem limite de caracteres (Text no banco); o corte
                       aqui e so visual, para a linha nao esticar a tabela. O texto
                       inteiro aparece ao passar o mouse (title), e vira link quando
