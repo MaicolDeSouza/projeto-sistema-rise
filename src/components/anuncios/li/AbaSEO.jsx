@@ -1,5 +1,6 @@
 "use client";
 
+import { MarcaDaPropostaNoCampo, SugestaoDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import { useEffect, useState, useTransition } from "react";
 import { ExternalLink, ListChecks, Loader, Sparkles, X } from "lucide-react";
 
@@ -273,6 +274,8 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
             </ListaDeOpcoes>
           </div>
         </div>
+        <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="seo.description" valorAtual={seo.description} />
+        <SugestaoDaProposta proposta={contexto.proposta} caminho="seo.description" valorAtual={seo.description} aoUsar={(valor) => escolherDescription(String(valor))} />
         <MensagensDoCampo problemas={problemas} campo="seoDescription" />
       </div>
 

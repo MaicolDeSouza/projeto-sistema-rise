@@ -1,5 +1,6 @@
 "use client";
 
+import { FaixaDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -275,7 +276,11 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
       setEnvio(resumo ? { ok: false, titulo: resumo.titulo, linhas: resumo.linhas } : null);
     }
     if (!resultado.ok) setMensagem({ tipo: "erro", texto: resultado.erro ?? "O envio não foi concluído." });
-    if (resultado.ok) setStatusAtual("PUBLICADO");
+    if (resultado.ok) {
+      setStatusAtual("PUBLICADO");
+      // O envio certo apaga a proposta no banco (gravarSucesso): a faixa e as marcas saem junto.
+      setContexto((atual) => ({ ...atual, proposta: null }));
+    }
     if (mudouNaLI(tipo, resultado)) {
       setQual("lendo");
       await lerLoja();
@@ -385,6 +390,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
 
   const avisos = (
     <>
+      <FaixaDaProposta proposta={contexto.proposta} oQueFazer="Revise os campos marcados e sincronize; o P some no envio." />
       {mensagem && (
         <div ref={caixaDaMensagem} role={mensagem.tipo === "erro" ? "alert" : "status"} className={`rounded border px-3 py-2 text-sm ${CLASSE_DA_MENSAGEM[mensagem.tipo]}`}>
           {mensagem.texto}
@@ -434,7 +440,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     </>
   );
   const caixaDeConclusao = conclusao && <ConclusaoDoEnvio {...conclusao} aoFechar={() => setConclusao(null)} />;
-  const temAviso = Boolean(mensagem || envio || situacaoDaLoja || avisoDoBling);
+  const temAviso = Boolean(mensagem || envio || situacaoDaLoja || avisoDoBling || contexto.proposta);
 
   const barra = (
     <div inert={travado}>

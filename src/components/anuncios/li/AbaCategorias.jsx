@@ -1,5 +1,7 @@
 "use client";
 
+import { MarcaDaPropostaNoCampo } from "@/components/anuncios/PropostaDoAnuncio";
+import { marcaDaProposta, valorProposto } from "@/lib/propostaDeAnuncio/preencher";
 import { useState, useTransition } from "react";
 import { Check, Loader, Sparkles } from "lucide-react";
 
@@ -52,6 +54,11 @@ export default function AbaCategorias({ rascunho, contexto, alterar, problemas, 
     alterar((atual) => ({ categorias: [...new Set([...(atual.categorias ?? []), ...novas])] }));
     setSugestoes(null);
   }
+
+  // A proposta de anuncio (spec 2026-10-23): categorias que nao entraram porque ja havia outras marcadas viram este bloco.
+  const daProposta = marcaDaProposta(contexto.proposta, "categorias") === "sugestao" ? (valorProposto(contexto.proposta, "categorias") ?? []) : [];
+  const faltamDaProposta = daProposta.filter((id) => !marcadas.includes(id));
+  const caminhoDe = (id) => (categorias ?? []).find((categoria) => categoria.id === id)?.caminho ?? `id ${id}`;
 
   const todasMarcadas = sugestoes?.length > 0 && sugestoes.every((sugestao) => marcadas.includes(sugestao.id));
 
@@ -108,6 +115,25 @@ export default function AbaCategorias({ rascunho, contexto, alterar, problemas, 
           </div>
         </section>
       )}
+
+      {faltamDaProposta.length > 0 && (
+        <section aria-label="Categorias da proposta" className="rounded border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs font-semibold text-amber-900">Da proposta</p>
+          <ul className="mt-1.5 space-y-1 text-sm">
+            {faltamDaProposta.map((id) => (
+              <li key={id}>{caminhoDe(id)}</li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => alterar((atual) => ({ categorias: [...new Set([...(atual.categorias ?? []), ...daProposta])] }))}
+            className="mt-2 rounded bg-amber-500 px-3 py-1.5 text-xs font-medium text-amber-950 hover:opacity-90"
+          >
+            Marcar estas
+          </button>
+        </section>
+      )}
+      <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="categorias" valorAtual={marcadas} />
 
       <ArvoreDeCategorias
         categorias={categorias}

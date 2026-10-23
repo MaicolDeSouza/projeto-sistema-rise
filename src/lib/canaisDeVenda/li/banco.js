@@ -192,7 +192,8 @@ export async function carregarAnuncioLI(id) {
     anuncioId: anuncio.id,
     status: anuncio.status,
     rascunho: rascunhoDoAnuncio(anuncio),
-    contexto: await contextoDoEditor(produto),
+    // A proposta de anuncio (spec 2026-10-23) vai no contexto: a tela mostra as marcas e o relatorio; o Salvar nao a toca.
+    contexto: { ...(await contextoDoEditor(produto)), proposta: anuncio.dados?.proposta ?? null },
     vinculo: {
       idExterno: anuncio.idExterno,
       urlExterna: anuncio.urlExterna,
