@@ -100,6 +100,25 @@ export function precoComImpostos(precoNormal, impostos) {
   return Math.round(precoNormal * (1 + total / 100) * 100) / 100;
 }
 
+/**
+ * O CUSTO de um produto de FORNECEDOR: o que se paga, com os impostos (pedido do dono em 23/10/2026: "deve mostrar
+ * sempre o valor final com imposto incluso, pois esse e o custo real"; a Fortek cobra IPI por fora e o custo aparecia
+ * sem ele). Na ordem: o preco com impostos gravado, o calculado pelas aliquotas, o normal e, na falta dele, o promocional.
+ * Concorrente NAO usa isto: o preco dele e o normal de vitrine.
+ *
+ * @param {{ normal?: number|null, promotional?: number|null, comImpostos?: number|null }} precos
+ * @param {{ nome: string, percentual: number }[]} [impostos]
+ */
+export function custoDoFornecedor(precos, impostos) {
+  const numero = (valor) => (typeof valor === "number" && Number.isFinite(valor) ? valor : null);
+  return (
+    numero(precos?.comImpostos) ??
+    precoComImpostos(numero(precos?.normal), impostos) ??
+    numero(precos?.normal) ??
+    numero(precos?.promotional)
+  );
+}
+
 /** "IPI 2%" ou "IPI 2% + ICMS 18%", para a tela dizer o que entrou na conta. */
 export function resumoDosImpostos(impostos) {
   if (!(impostos?.length > 0)) return null;

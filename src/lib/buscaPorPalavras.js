@@ -1,4 +1,5 @@
 import { produtosParaLista } from "@/lib/coleta/banco";
+import { custoDoFornecedor } from "@/lib/coleta/impostos";
 import { indiceDePalavras, notasDeRelevancia, palavrasDoTermo } from "@/lib/texto";
 
 /**
@@ -120,7 +121,12 @@ export async function buscarReferencias(termo, { limite = TETO, fornecedoresLiga
       // sistema): promocional e desconto a vista ou de campanha, e temporario —
       // comparar ou copiar por ele engana a referencia de custo/mercado. So
       // cai no promocional quando a loja nao publicou preco normal.
-      preco: produto.prices.normal ?? produto.prices.promotional,
+      // FORNECEDOR: o custo com os impostos (IPI etc.), que e o que se paga (pedido do dono em 23/10/2026; a Fortek
+      // aparecia sem o IPI). E este numero que vai para o custo do vinculo e para a lista "$" do preco.
+      preco:
+        produto.fonte.tipo === "FORNECEDOR"
+          ? custoDoFornecedor(produto.prices, produto.taxes)
+          : produto.prices.normal ?? produto.prices.promotional,
       // Estritamente o de tabela, sem cair no promocional: a lista de
       // Concorrentes da aba Fornecedores (pedido do dono em 18/09/2026) prefere
       // mostrar "—" a mostrar um preco que nao e o de tabela.

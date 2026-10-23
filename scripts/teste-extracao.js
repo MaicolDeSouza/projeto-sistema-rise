@@ -3362,5 +3362,16 @@ console.log("\n— estoque ao vivo do portal Benser —");
   conferir("EAN interno: DV conferido so na faixa 2", [problemaDoEanInterno("2000001001011"), problemaDoEanInterno("2000000000008"), problemaDoEanInterno("7640152110138"), problemaDoEanInterno(""), problemaDoEanInterno("2000001001010")], [null, null, null, null, "O dígito verificador do GTIN/EAN interno (prefixo 2) não confere: gere de novo pelo botão ou corrija o código."]);
 }
 
+// ---------------------------------------------------------------- custo do fornecedor com impostos (23/10/2026)
+{
+  const { custoDoFornecedor } = await import("../src/lib/coleta/impostos.js");
+  const ipi = [{ nome: "IPI", percentual: 2 }];
+  conferir("custo: o com impostos gravado vence", custoDoFornecedor({ normal: 31.9, comImpostos: 32.54 }, ipi), 32.54);
+  conferir("custo: sem o gravado, calcula pelas aliquotas", custoDoFornecedor({ normal: 31.9 }, ipi), 32.54);
+  conferir("custo: sem imposto, o normal", custoDoFornecedor({ normal: 31.9 }, []), 31.9);
+  conferir("custo: sem normal, o promocional", custoDoFornecedor({ promotional: 30 }), 30);
+  conferir("custo: sem preco nenhum, null", custoDoFornecedor({}), null);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);
