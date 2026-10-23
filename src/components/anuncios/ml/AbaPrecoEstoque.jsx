@@ -11,6 +11,7 @@ import { calcularMargem, corDaMargem, lucroLiquido } from "@/lib/margem";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import CalculadoraDeMargem from "./CalculadoraDeMargem";
 import ConcorrentesDoML from "./ConcorrentesDoML";
+import RankingDosCatalogos from "./RankingDosCatalogos";
 import CustosDoML from "./CustosDoML";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { filtrarDecimal, lerDecimal, mostrarDigitado } from "./numeros";
@@ -91,6 +92,8 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
   const [precoDigitado, setPrecoDigitado] = useState(null);
   // Os concorrentes do ML pelo catalogo (o bloco abaixo os le): o selo "Nº de M" ao lado do preco usa eles.
   const [concorrentesML, setConcorrentesML] = useState([]);
+  // A tela inteira dos concorrentes: o ranking dos catalogos tira dela o 1o do catalogo do anuncio.
+  const [telaConcorrentes, setTelaConcorrentes] = useState(null);
   const posicaoNoML = posicaoDePreco(rascunho.preco, concorrentesParaPosicao(concorrentesML));
 
   const custosML = contexto.custosML ?? null;
@@ -166,7 +169,11 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
       </div>
 
       {rascunho.produtoId && acessos.concorrentes && (
-        <ConcorrentesDoML produtoId={rascunho.produtoId} titulo={rascunho.titulo} alterar={alterar} aoMudarConcorrentes={setConcorrentesML} />
+        <ConcorrentesDoML produtoId={rascunho.produtoId} titulo={rascunho.titulo} alterar={alterar} aoMudarConcorrentes={setConcorrentesML} aoMudarTela={setTelaConcorrentes} />
+      )}
+
+      {rascunho.produtoId && acessos.concorrentes && (
+        <RankingDosCatalogos produtoId={rascunho.produtoId} titulo={rascunho.titulo} preco={rascunho.preco} telaConcorrentes={telaConcorrentes} />
       )}
 
     </div>

@@ -19,7 +19,7 @@ import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const DATA_HORA = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
-const urlDoCatalogo = (id) => `https://www.mercadolivre.com.br/p/${id}`;
+export const urlDoCatalogo = (id) => `https://www.mercadolivre.com.br/p/${id}`;
 const nomeDoVendedor = (apelido, id) => apelido || `vendedor ${id}`;
 // Links de cada concorrente (pedido do dono em 22/10/2026). O anuncio pelo id ("MLB7862426858" -> ".../MLB-7862426858") e o
 // perfil pelo apelido, no formato do `permalink` do ML (espaco vira "+"; medido: responde 301 para o https).
@@ -33,9 +33,10 @@ const urlDoPerfil = (apelido) => `https://perfil.mercadolivre.com.br/${encodeURI
  *
  * Sem catalogo: busca pelo titulo -> escolhe -> previa dos anuncios -> Acompanhar. Com catalogo: a lista dos
  * acompanhados (os 10 primeiros, renovados todo dia pelo worker), os avisos e os atalhos de trocar ou parar.
- * `aoMudarConcorrentes` entrega a lista para o selo de posicao ao lado do preco. Clicar num preco copia para o campo.
+ * `aoMudarConcorrentes` entrega a lista para o selo de posicao ao lado do preco, e `aoMudarTela` a tela inteira para o
+ * ranking dos catalogos (o 1o do catalogo do anuncio). Clicar num preco copia para o campo.
  */
-export default function ConcorrentesDoML({ produtoId, titulo, alterar, aoMudarConcorrentes }) {
+export default function ConcorrentesDoML({ produtoId, titulo, alterar, aoMudarConcorrentes, aoMudarTela }) {
   const [tela, setTela] = useState(null);
   const [erro, setErro] = useState(null);
   const [termo, setTermo] = useState(titulo ?? "");
@@ -51,6 +52,7 @@ export default function ConcorrentesDoML({ produtoId, titulo, alterar, aoMudarCo
     if (resposta?.tela !== undefined && resposta.tela !== null) {
       setTela(resposta.tela);
       aoMudarConcorrentes?.(resposta.tela.concorrentes ?? []);
+      aoMudarTela?.(resposta.tela);
     }
     setErro(resposta?.ok ? null : resposta?.erro ?? "Não foi possível falar com o servidor.");
   }
@@ -271,7 +273,7 @@ function Seta({ preco, anterior }) {
   );
 }
 
-function Vendedor({ apelido, id, reputacao, vendas, itemId }) {
+export function Vendedor({ apelido, id, reputacao, vendas, itemId }) {
   return (
     <span className="flex min-w-0 flex-col">
       <span className="flex min-w-0 items-center gap-1">

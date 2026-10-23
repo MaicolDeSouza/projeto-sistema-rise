@@ -39,6 +39,7 @@ import {
   salvarRascunhoML,
   sugerirCodigoDeKit,
 } from "@/lib/canaisDeVenda/ml/banco";
+import { adicionarReferenciaML, lerReferenciasML, relerReferenciasDoProduto, removerReferenciaML } from "@/lib/canaisDeVenda/ml/referencias";
 
 /**
  * Acoes do servidor do canal Mercado Livre (Canais de Venda). Finas, no molde de
@@ -468,5 +469,57 @@ export async function pararDeAcompanharMLAcao(produtoId) {
   return protegendo(async () => {
     await pararDeAcompanharML(produtoId);
     return { ok: true, tela: await lerConcorrentesML(produtoId) };
+  });
+}
+
+// --- Ranking pelos catalogos de referencia (spec 2026-10-23-ranking-catalogos-referencia-ml-design.md) ---
+
+/** As referencias do produto (o 1o de cada catalogo marcado), para o ranking da aba Preco e custos. */
+export async function lerReferenciasMLAcao(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => ({ ok: true, referencias: await lerReferenciasML(produtoId) }));
+}
+
+/** Marca um catalogo como referencia e ja le o 1o. Sem nome (ID colado), o nome vem do proprio ML. So Produto Conferido. */
+export async function adicionarReferenciaMLAcao(produtoId, { catalogoId, nome } = {}) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
+  if (!ehId(produtoId) || !ehCatalogo(catalogoId) || (nome !== undefined && typeof nome !== "string")) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const { erro } = await produtoConferido(produtoId);
+    if (erro) return { ok: false, erro };
+    const ml = clienteML();
+    let nomeDoCatalogo = String(nome ?? "").trim();
+    if (!nomeDoCatalogo) {
+      const lido = await ml.get(`/products/${encodeURIComponent(catalogoId.trim())}`).catch(() => null);
+      nomeDoCatalogo = lido?.ok ? String(lido.dados?.name ?? "") : "";
+    }
+    const feito = await adicionarReferenciaML(ml, produtoId, { catalogoId: catalogoId.trim(), nome: nomeDoCatalogo.slice(0, 200) });
+    return { ok: feito.ok, erro: feito.erro, aviso: feito.aviso, referencias: await lerReferenciasML(produtoId) };
+  });
+}
+
+/** Tira a referencia (e o historico dela). */
+export async function removerReferenciaMLAcao(produtoId, referenciaId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
+  if (!ehId(produtoId) || !ehId(referenciaId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const feito = await removerReferenciaML(produtoId, referenciaId);
+    return { ok: feito.ok, erro: feito.erro, referencias: await lerReferenciasML(produtoId) };
+  });
+}
+
+/** "Reler agora" das referencias: a mesma rotina da rodada diaria, so para este produto. */
+export async function relerReferenciasMLAcao(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const feito = await relerReferenciasDoProduto(clienteML(), produtoId);
+    const erro = feito.ok ? null : feito.erro ?? (feito.falhas > 0 ? `${feito.falhas} catálogo(s) não responderam. Os preços lidos antes ficaram.` : null);
+    return { ok: feito.ok, erro, referencias: await lerReferenciasML(produtoId) };
   });
 }
