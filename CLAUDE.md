@@ -139,6 +139,21 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   coluna vazia depois de Canais saíram em 12/10/2026 (o menu ⋮ mora no fim da célula Canais).
 - **Lista longa:** paginada, 100 por página, filtro por parâmetro repetido (`?fonte=A&fonte=B`), e
   nenhuma marcada quer dizer todas (Mercados).
+- **Lista de produtos (Produtos e Scraper), padrão desde 23/10/2026 (pedido do dono):**
+  - **Navegação de páginas no canto DIREITO**, com o botão liga/desliga **"100 por página"** logo acima
+    (`NavegacaoDoTopo`, `src/components/mercados/`). O tamanho vem de `?por=100` (`porPaginaDaUrl`, `src/lib/porPagina.js`)
+    e **sempre nasce em 25**: abrir ou recarregar a tela com `?por=100` volta a 25 (variável do módulo, o mesmo truque da
+    Pesquisa profunda). Lista nova de produtos usa os dois.
+  - **Filtro de coluna = cabeçalho que ordena** (`CabecalhoOrdenavel` e `parametrosDaOrdenacao`, `src/components/ui/`):
+    nada → crescente → decrescente → nada, na URL (`?ordenar=&direcao=`), feito no banco antes de paginar, e volta à
+    página 1. No Scraper: Nome, Código, Estoque, Valor e Atualizado (`listarProdutos` ganhou `ordenar`/`direcao`; vazio,
+    "N/A" e sem quantidade vão para o fim; "Atualizado" ordena pelo `coletadoEm`, que é a data da coluna). "Menor valor" e
+    "Maior valor" ligam a coluna Valor; o link antigo `?ordem=menor|maior` ainda vale.
+- **Texto cortado mostra o resto AO CLIQUE**, em todo o Rise (pedido do dono em 23/10/2026; o `title` só aparecia depois de
+  alguns segundos com o mouse parado): `TextoCortadoAoClicar` (`src/components/ui/`, montado no `layout.jsx`) ouve os
+  cliques do documento e, num texto com reticências (`truncate`/`line-clamp`), abre uma bolha com o `title` ou o texto
+  inteiro. Não age dentro de botão, link, campo nem linha de tabela clicável; fecha com Esc, clique fora ou rolagem.
+  **Nenhuma tela precisa mudar**: basta o texto ter `truncate`.
 - **Texto da tela COM acento** (decidido pelo dono em 07/10/2026; até ali era sem acento): `Pessoa Física`,
   `Última varredura`, `Não foi possível salvar.`. Vale para tudo o que a pessoa lê: rótulos, botões, bolhas,
   mensagens de erro e avisos que as ações devolvem. **Continuam sem acento:** identificadores, ids de aba e chaves,
@@ -197,7 +212,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
-| Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. Ver "Servidor MCP (20/10/2026)" e "Rise AI (Entrega 1)" |
+| Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. **Entrega C1 (avisos no Telegram) pronta em 23/10/2026, SEM deploy:** aba Canais com o bot, vínculo por código na tela do usuário e cinco avisos pelo worker. Ver "Servidor MCP (20/10/2026)", "Rise AI (Entrega 1)" e "Rise AI (Entrega C1, avisos no Telegram)" |
 | Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. **Lançamento 2 pronto em 22/10/2026, SEM deploy:** o Rise inteiro confere o acesso (menu e Painel filtrados, telas em `ver` com o selo "Somente leitura", dados sensíveis cortados no servidor), "Ver como" e a aba Histórico. Ver "Acessos (lançamento 1)" e "Acessos (lançamento 2)" |
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
 | Pedidos, Estoque, Financeiro | Esqueleto |
@@ -224,7 +239,7 @@ npm run diagnostico               # testa as integrações pela linha de comando
 npm run teste:extracao            # 741 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
-npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
+npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
 npm run teste:migracao            # regras puras da migração para a VPS (nomes de arquivo com caixa diferente; restore da cópia; quais Conexao do PC sobrevivem à cópia; `BACKUP_MANTER` inválido). SEM rede e SEM banco
 npm run teste:rede                # o filtro de rede pública do servidor (`src/lib/redePublica.js` + `lookup`/`validar` do `obter`) e sua LIGAÇÃO em `bytesDe` e `baixarDocumento`: IPs internos, nome que resolve para IP interno, ponto final, redirecionamento para IP escrito, IPv6. Os "sites" são servidores nesta máquina: SEM internet e SEM consulta ao banco
 npm run auditar:arquivos          # confere que todo ProdutoArquivo existe no disco com o nome EXATO (o Linux distingue caixa); só lê; código 1 se houver problema
@@ -255,6 +270,7 @@ npm run teste:composicao          # 136 asserções do produto com composição 
 npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
 npm run teste:mcp                 # 162 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço e os cadastros): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
+npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 137 asserções da proposta automática de produto: regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
@@ -1587,6 +1603,11 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   lista; "Não há aplicações..." sai), foto do og:image com a barra invertida trocada e o desenho técnico (PDF) como
   documento. Sem sitemap (o declarado dá 404): só navegação. Cadastrar como FORNECEDOR com
   `https://www.imobras.ind.br/pt-br`; teste PARCIAL (sem preço é o desenho do site).
+  - **Só 10 produtos na primeira varredura (22/10/2026, achado em 23/10):** o endereço `/pt-br` não é a raiz, e o Rise o
+    tratou como CATEGORIA: leu só aquela página e a paginação dela (17 links de destaque, 18 páginas em 40 s). Agora a
+    página inicial em idioma (`/pt-br`, `/en`, `/es`, `/pt_BR`...; `ehInicioEmIdioma` em `enderecos.js`, só códigos de
+    idioma conhecidos) conta como **loja inteira**: a varredura começa nela e navega o site. O endereço fica gravado em
+    `categorias` (só a raiz `/` dispensa a lista). **Vale depois do deploy e de uma nova varredura da Imobras.**
   - **Duas correções GERAIS que vieram junto (valem para todas as lojas, mudam produtos na próxima varredura):**
     (1) `metaTags` fecha o `content` na MESMA aspa que abriu (`content="MOTOR 10'' 12V"` saía "MOTOR 10"); (2) o
     `<base href>` da página vale para os links da navegação (`linksDe` em `descobrir.js`) e para os documentos
@@ -4091,6 +4112,58 @@ com backup antes); nenhuma variável nova no `.env`. O passo 10 do roteiro preci
     Testar conexão → habilitar `gpt-4.1-mini` → Padrão = OpenAI / `gpt-4.1-mini`, Reserva = Anthropic / `claude-haiku-5-5` → Salvar →
     perguntar de novo e conferir o selo do modelo e o custo.
 
+## Rise AI (Entrega C1, avisos no Telegram, 23/10/2026)
+
+Pedido do dono: "Opção 2: próxima entrega, os avisos no Telegram (C1)", com o plano aprovado ("Aprovar e executar"). Plano:
+`docs/superpowers/plans/2026-10-22-rise-ia-entrega-c1-telegram.md` (8 tarefas, inline, commits `776159d` a o do fechamento); spec:
+`docs/superpowers/specs/2026-10-12-rise-ia-agente-design.md` §7. **Pronta e testada no PC, SEM DEPLOY** (só com o "sobe"; leva as
+migrations `20261022_servico_telegram` e `20261022t_telegram_avisos`). **Antes do deploy, do dono:** o 2º fator do Tinyauth para
+Maicol e Andrea (spec §13).
+
+- **Onde mora:** `src/lib/telegram/` (`texto.js` regras puras do texto; `cliente.js` a API do bot; `vinculo.js` o código de vínculo;
+  `avisos.js` a rotina do worker; `avisosTipos.js` a lista dos cinco avisos; `estado.js` o que a aba mostra). Telas:
+  `src/components/riseAi/AbaCanais.jsx` (Rise AI › Configurações › Canais) e `src/components/acessos/VinculoTelegram.jsx` (Configurações
+  › Usuários › usuário › aba Dados). Banco: `Servico.TELEGRAM`, `UsuarioRise.codigoDeVinculoHash`/`codigoDeVinculoExpiraEm`, tabela
+  `AvisoTelegram`; `ConfiguracaoIA.dados.telegram = { ligado, avisos: { <tipo>: bool } }` (mescla por chave, inclusive os avisos).
+- **Token:** cifrado em `Conexao` (serviço `TELEGRAM`), só de escrita (vai num `FormData`, nunca volta). Ele vai no CAMINHO da URL
+  (`/bot<token>/`), então `mascarar` do `httpClient.js` e o `endpoint` gravado em `LogIntegracao` trocam por `/bot***/` (vale para
+  todo serviço), e todo erro que o cliente devolve passa por `mascararToken`.
+- **Mensagem:** texto puro, sem `parse_mode`, no máximo 4 linhas, trecho de terceiro mascarado (`mascararDadosPessoais`) e cortado em
+  120, com `@`, `://` e `/` no começo da linha neutralizados (U+FF20 e U+2215). Único botão: "Abrir no Rise" (`inline_keyboard` com
+  `url`), só com `APP_URL_PUBLICA` (o PC manda sem botão). Nenhuma ação por texto recebido.
+- **Vínculo sem polling:** o Administrador gera um código (12 caracteres sem `0 O 1 I L`, só o SHA-256 no banco, 10 min), a pessoa manda
+  `/vincular CÓDIGO` ao bot, e "Conferir vínculo" faz UMA leitura do `getUpdates` (as 100 mais recentes, `timeout: 0`); a tela mostra
+  nome e @ e só "Confirmar vínculo" grava (`telegramChatId @unique`), confirma o `update_id` lido e manda a boas-vindas. Cinco códigos
+  errados de um chat anulam o código. Auditoria `telegram.vinculo.iniciar|confirmar|remover`, sem o código. `usuarioParaTela` não manda
+  mais o chat nem o hash ao navegador (só `telegramVinculado`).
+- **Quem recebe:** usuário ativo, com chat vinculado e com `riseAi.configuracoes.canais` (recurso NÃO delegável: o Administrador).
+- **Os cinco avisos** (`rodarAvisosDoTelegram`, worker NORMAL a cada minuto, fora do "pausar a coleta"): produto ativo que zerou o
+  estoque, orçamento da IA em 80% e em 100% (uma vez por mês e escopo), pedido de varredura pelo PC esperando com o Rise do PC sem
+  responder (`pcSemResposta`), varredura que falhou nas últimas 24 h, e o resumo do dia a partir das 20h de São Paulo (4 linhas:
+  consultas pelo MCP e anotadas, produtos que zeraram, varreduras, gasto da IA dos clientes no mês). Cada fato é uma linha de
+  `AvisoTelegram` com `chave` única `<fato>:<chatId>` (nunca dois avisos do mesmo fato); até 3 tentativas, chat que bloqueou o bot
+  para na hora; no máximo 10 mensagens por volta com 1 s entre elas (o resto sai no minuto seguinte).
+- **Linha de base dos zerados:** na primeira volta com o aviso ligado, os produtos que JÁ estão zerados são gravados como "já
+  avisados" (`chatId` "base", marca `produto-zerou-base`), sem mensagem: senão o catálogo inteiro chegaria de uma vez. Quem volta a
+  ter estoque perde as linhas e avisa no próximo zero.
+- **Pane do worker:** `HEALTHCHECKS_WORKER_URL` (opcional, no `.env` da VPS) recebe uma batida a cada 5 min; sem a batida, o e-mail do
+  healthchecks.io avisa (o worker caído não tem como avisar pelo Telegram).
+- **Ficou para a C2, de propósito:** os avisos que dependem do WhatsApp e do serviço `ia` (conversa passada a humano, cliente sem
+  resposta, aguardando retorno, contato suspeito, erro no serviço `ia`/WhatsApp) e o `/status` do bot (é leitura de texto).
+- **Não visto:** um envio real ao Telegram (nenhum token real entrou no PC) e a tela no navegador: o único `next dev` desta pasta era de
+  outra sessão e estava preso num 500 do cache do Turbopack por um import dela. Conferir no roteiro abaixo.
+
+**Roteiro do dono (depois do deploy, na VPS):**
+1. No Telegram, abrir o @BotFather, enviar `/newbot`, escolher o nome e copiar o token.
+2. Rise AI › Configurações › Canais: colar o token, **Guardar**, **Testar conexão**: aparece "Conectou: @seu_bot".
+3. Configurações › Usuários e funções › seu usuário › aba Dados › Telegram: **Gerar código**. No Telegram, abrir o bot, **Iniciar** e
+   enviar `/vincular <código>`. No Rise, **Conferir vínculo**: aparece seu nome e @; **Confirmar vínculo**: chega no celular "Telegram
+   ligado ao Rise para Maicol".
+4. Canais: ligar **Bot ligado** e **Salvar**. Zerar o estoque de um produto de teste pela lista: em até 1 minuto chega "Produto zerou:
+   …" com o botão **Abrir no Rise** (leva ao cadastro). Os produtos que já estavam zerados antes de ligar NÃO chegam.
+5. Às 20h chega o "Resumo de dd/mm" em 4 linhas. Desmarcar "Resumo do dia às 20h" e Salvar: no dia seguinte não chega.
+6. (Opcional) Criar um check de 5 min no healthchecks.io, pôr a URL em `HEALTHCHECKS_WORKER_URL` no `.env` da VPS e recriar o worker.
+
 ## Servidor MCP (20/10/2026)
 
 Mudança de rumo do Rise AI pedida pelo dono: a equipe (a Andrea primeiro) consulta o Rise pelo **claude.ai, no plano grátis**, ou
@@ -5071,7 +5144,7 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   um clique) e devolve o `Set-Cookie` que apaga a sessão, com `303` para `/`, que sem sessão cai no login. No topo do menu:
   o ícone da 4hobby (`public/marcas/4hobby.svg`, vetorizado do logo do dono) abre www.4hobby.com.br em aba nova, e o "R" e
   o nome Rise levam ao Painel.
-- **Versão no pé do menu:** na VPS é a data e o NÚMERO do deploy (`DD.MM.AAAA.NN`, desde 22/10/2026, pedido do dono; contador único que nunca recomeça: as linhas de `~/logs/deploy.log` + 1, em `deploy-vps.sh`; até ali era a hora) e o commit; no PC é `dev` mais a hora do
+- **Versão no pé do menu:** mostrada como `22.10.2026 (build 21) - 5d22216` (pedido do dono em 23/10/2026; `rotuloDaVersao` em `src/lib/versao.js` só troca o texto da tela: o gravado e a tag continuam `DD.MM.AAAA.NN`). Na VPS é a data e o NÚMERO do deploy (`DD.MM.AAAA.NN`, desde 22/10/2026, pedido do dono; contador único que nunca recomeça: as linhas de `~/logs/deploy.log` + 1, em `deploy-vps.sh`; até ali era a hora) e o commit; no PC é `dev` mais a hora do
   último commit (`+` se há alteração não commitada). **Mesmo commit nos dois = mesmo código**; a hora só dá a ordem.
 - **Dois apps de OAuth por plataforma:** o app do PC (redirect em `localhost`/`localtest.me`) e o da VPS (redirect em
   `rise.4hobby.com.br`), cada um com as chaves no `.env` do seu ambiente. O token gravado leva o `clientId` do app, e o
