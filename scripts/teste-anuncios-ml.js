@@ -2100,6 +2100,48 @@ try {
     conferir("remover: apaga com o historico", [(await removerReferenciaML(produto.id, gravada.id)).ok, await prisma.catalogoReferenciaMLHistorico.count({ where: { referenciaId: gravada.id } })], [true, 0]);
   }
 
+  {
+    console.log("\nRanking do ML: a conta (pura)");
+    const { catalogosDoRanking, montarRanking, leituraAntiga } = await import("../src/lib/canaisDeVenda/ml/ranking.js");
+    const lido = new Date("2026-10-23T12:00:00Z");
+    const ref = (catalogoId, preco, extra = {}) => ({ id: `r-${catalogoId}`, catalogoId, nome: `Cat ${catalogoId}`, primeiro: preco === null ? null : { itemId: `I-${catalogoId}`, vendedorApelido: `V-${catalogoId}`, preco, precoCheio: null, meu: false }, semAnuncios: false, lidoEm: lido, erro: null, ...extra });
+    const tela = {
+      catalogoId: "MLBANUNCIO",
+      catalogoNome: "Do anuncio",
+      lidoEm: lido,
+      posicao: { posicao: 4 },
+      concorrentes: [
+        { itemId: "X2", posicao: 2, ausenteDesde: null, preco: 42.99, vendedorApelido: "B" },
+        { itemId: "X1", posicao: 1, ausenteDesde: null, preco: 31.99, vendedorApelido: "A" },
+        { itemId: "X0", posicao: 1, ausenteDesde: lido, preco: 5, vendedorApelido: "saiu" },
+      ],
+    };
+
+    const catalogos = catalogosDoRanking(tela, [ref("MLBR1", 39.54), ref("MLBANUNCIO", 1), ref("MLBR2", 42.99)]);
+    conferir("catalogosDoRanking: o do anuncio primeiro, com o 1o presente; a referencia igual a ele sai", catalogos.map((c) => [c.catalogoId, c.papel, c.primeiro?.preco]), [["MLBANUNCIO", "anuncio", 31.99], ["MLBR1", "referencia", 39.54], ["MLBR2", "referencia", 42.99]]);
+    conferir("catalogosDoRanking: dono em 1o no catalogo do anuncio vira meu", catalogosDoRanking({ ...tela, posicao: { posicao: 1 } }, [])[0].primeiro?.meu, true);
+    conferir("catalogosDoRanking: sem catalogo do anuncio, so as referencias", catalogosDoRanking({ catalogoId: null, concorrentes: [] }, [ref("MLBR1", 39.54)]).map((c) => c.catalogoId), ["MLBR1"]);
+
+    const r = montarRanking({ preco: 38.9, catalogos });
+    conferir("montarRanking: 2o de 4", [r.posicao, r.total], [2, 4]);
+    conferir("montarRanking: ordem por preco", r.linhas.map((l) => [l.tipo, l.preco]), [["catalogo", 31.99], ["voce", 38.9], ["catalogo", 39.54], ["catalogo", 42.99]]);
+    conferir("montarRanking: mais barato, media e diferencas", [r.maisBarato, r.media, r.paraOMaisBarato, r.paraAMedia], [31.99, 38.17, { reais: 6.91, percentual: 21.6 }, { reais: 0.73, percentual: 1.9 }]);
+    conferir("montarRanking: empate deixa o dono na frente", montarRanking({ preco: 39.54, catalogos }).linhas.map((l) => l.tipo), ["catalogo", "voce", "catalogo", "catalogo"]);
+
+    const comMeu = catalogosDoRanking(tela, [ref("MLBR1", 39.54), { ...ref("MLBMEU", 50), primeiro: { itemId: "M", preco: 50, meu: true } }]);
+    const rMeu = montarRanking({ preco: 38.9, catalogos: comMeu });
+    conferir("montarRanking: dono 1o de uma referencia nao conta duas vezes", [rMeu.total, rMeu.foraDaConta.map((c) => c.catalogoId)], [3, ["MLBMEU"]]);
+
+    const comFora = [...catalogos, ref("MLBVAZIO", null, { semAnuncios: true }), ref("MLBNUNCA", null, { lidoEm: null })];
+    conferir("montarRanking: sem anuncios e nunca lido ficam fora da conta", [montarRanking({ preco: 38.9, catalogos: comFora }).total, montarRanking({ preco: 38.9, catalogos: comFora }).foraDaConta.map((c) => c.catalogoId)], [4, ["MLBVAZIO", "MLBNUNCA"]]);
+    const semPreco = montarRanking({ preco: null, catalogos });
+    conferir("montarRanking: sem preco, sem Voce e sem posicao", [semPreco.linhas.some((l) => l.tipo === "voce"), semPreco.posicao, semPreco.total, semPreco.paraOMaisBarato, semPreco.maisBarato], [false, null, 3, null, 31.99]);
+    conferir("montarRanking: preco zero conta como sem preco", montarRanking({ preco: 0, catalogos }).posicao, null);
+    conferir("montarRanking: nenhum catalogo", [montarRanking({ preco: 38.9, catalogos: [] }).total, montarRanking({ preco: 38.9, catalogos: [] }).maisBarato], [1, null]);
+
+    conferir("leituraAntiga: 47 h nao, 49 h sim, nunca lido nao", [leituraAntiga(new Date("2026-10-21T13:00:00Z"), lido), leituraAntiga(new Date("2026-10-21T11:00:00Z"), lido), leituraAntiga(null, lido)], [false, true, false]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();
