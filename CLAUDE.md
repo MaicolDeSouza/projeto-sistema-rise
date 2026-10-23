@@ -155,6 +155,13 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   inteiro. Não age dentro de botão, link, campo nem linha de tabela clicável; fecha com Esc, clique fora ou rolagem.
   **Nenhuma tela precisa mudar**: basta o texto ter `truncate`, inclusive numa **célula de tabela** (`<td className="truncate">`;
   a primeira versão ignorava `td`, e o dono pediu de novo ao ver a descrição e a Obs dos fornecedores sem abrir).
+- **Pop-up aberto: a tela de trás não rola** (pedido do dono em 23/10/2026, padrão do projeto). Duas peças globais:
+  `TravaDaRolagem` (`src/components/ui/`, no `layout.jsx`) põe `overflow: hidden` no `<html>` enquanto houver janela
+  `role="dialog"`/`"alertdialog"`/`aria-modal` dentro de um fundo `fixed inset-0` (agenda com `setTimeout`: o
+  `requestAnimationFrame` para em aba de fundo); e o `globals.css` dá `overscroll-behavior: contain` a toda área
+  `overflow-*-auto`, para a rolagem não vazar ao chegar no fim, com `scrollbar-gutter: stable` no `<html>`. **Janela nova
+  precisa do `role`**; nenhuma outra mudança. Na mesma leva, "Fotos da proposta" mantém a rolagem ao escolher uma foto
+  (grade com `overflow-anchor: none` e a posição devolvida depois da troca).
 - **Texto da tela COM acento** (decidido pelo dono em 07/10/2026; até ali era sem acento): `Pessoa Física`,
   `Última varredura`, `Não foi possível salvar.`. Vale para tudo o que a pessoa lê: rótulos, botões, bolhas,
   mensagens de erro e avisos que as ações devolvem. **Continuam sem acento:** identificadores, ids de aba e chaves,

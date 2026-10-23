@@ -21,6 +21,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/*
+  A ROLAGEM DE UMA AREA NAO VAZA PARA A DE TRAS (pedido do dono em 23/10/2026, padrao do projeto): ao chegar no fim da
+  lista de um pop-up, a pagina atras nao comeca a rolar. Junto com a TravaDaRolagem (components/ui), que trava o <html>
+  enquanto ha janela aberta; o gutter estavel evita o pulo de lado quando a barra de rolagem some.
+*/
+html {
+  scrollbar-gutter: stable;
+}
+.overflow-auto,
+.overflow-y-auto,
+.overflow-x-auto,
+.overflow-scroll,
+.overflow-y-scroll {
+  overscroll-behavior: contain;
+}
+
 body {
   background: var(--color-fundo);
   color: var(--color-texto);

@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 
 import Sidebar from "@/components/Sidebar";
 import TextoCortadoAoClicar from "@/components/ui/TextoCortadoAoClicar";
+import TravaDaRolagem from "@/components/ui/TravaDaRolagem";
 import { blocos } from "@/lib/blocos";
 import { blocosOcultos } from "@/lib/acessos/resolucao";
 import { sessaoDeAcessos } from "@/lib/acessos/servidor";
@@ -49,6 +50,8 @@ export default async function RootLayout({ children }) {
         </div>
         {/* Texto cortado com reticencias mostra o resto ao clique, em toda tela (pedido do dono em 23/10/2026). */}
         <TextoCortadoAoClicar />
+        {/* Janela aberta: a tela de tras nao rola (pedido do dono em 23/10/2026). */}
+        <TravaDaRolagem />
       </body>
     </html>
   );

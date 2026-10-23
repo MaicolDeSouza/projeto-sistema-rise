@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
 
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
@@ -41,7 +41,20 @@ export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocup
     return () => document.removeEventListener("keydown", aoTeclar);
   }, [aoFechar]);
 
+  // ESCOLHER NAO MEXE NA ROLAGEM (pedido do dono em 23/10/2026): a foto escolhida sobe para a fila das escolhidas, mas a
+  // grade fica onde o operador estava. O navegador "acompanhava" a foto clicada ate o topo (scroll anchoring); a grade
+  // tem `overflow-anchor: none` e, por garantia, a posicao e guardada antes e devolvida depois da troca.
+  const grade = useRef(null);
+  const rolagemGuardada = useRef(null);
+  useLayoutEffect(() => {
+    if (rolagemGuardada.current !== null && grade.current) {
+      grade.current.scrollTop = rolagemGuardada.current;
+      rolagemGuardada.current = null;
+    }
+  }, [ordem]);
+
   function alternar(id) {
+    rolagemGuardada.current = grade.current?.scrollTop ?? null;
     setOrdem((atual) => (atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id]));
   }
 
@@ -101,7 +114,7 @@ export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocup
           </button>
         </header>
 
-        <ul className="grid flex-1 grid-cols-2 gap-3 overflow-y-auto p-4 sm:grid-cols-3 lg:grid-cols-4">
+        <ul ref={grade} className="grid flex-1 grid-cols-2 gap-3 overflow-y-auto p-4 [overflow-anchor:none] sm:grid-cols-3 lg:grid-cols-4">
           {visiveis.map((candidata) => {
             const posicao = ordem.indexOf(candidata.id);
             const marcada = posicao >= 0;
