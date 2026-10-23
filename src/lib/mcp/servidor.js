@@ -8,6 +8,7 @@ import { horasDeBrasilia } from "./horario.js";
 import { FERRAMENTA_MERCADO } from "./mercado.js";
 import { autenticacaoParaSdk } from "./portao.js";
 import { FERRAMENTAS_DA_PROPOSTA } from "./proposta.js";
+import { FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO } from "./propostaDeAnuncio.js";
 import { registrarChamadaMcp } from "./registro.js";
 
 /**
@@ -41,9 +42,11 @@ const ANOTACAO = { readOnlyHint: false, destructiveHint: false, idempotentHint: 
  * anotacao da duvida. Conferem o `pode()` do login por conta propria. So a anotacao escreve.
  */
 const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FERRAMENTAS_DE_CADASTRO];
-const SO_DO_MCP = [...SO_LEITURA_DO_MCP, FERRAMENTA_ANOTAR, ...FERRAMENTAS_DA_PROPOSTA];
+// A proposta de anuncio (spec 2026-10-23) entra junto com a de produto: mesmo registro, sem o lembrete.
+const PROPOSTAS = [...FERRAMENTAS_DA_PROPOSTA, ...FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO];
+const SO_DO_MCP = [...SO_LEITURA_DO_MCP, FERRAMENTA_ANOTAR, ...PROPOSTAS];
 // A proposta de produto (spec 2026-10-21) nao e pergunta de atendimento: sem o lembrete de anotar, como a propria anotacao.
-const SEM_LEMBRETE = new Set([FERRAMENTA_ANOTAR.nome, ...FERRAMENTAS_DA_PROPOSTA.map((ferramenta) => ferramenta.nome)]);
+const SEM_LEMBRETE = new Set([FERRAMENTA_ANOTAR.nome, ...PROPOSTAS.map((ferramenta) => ferramenta.nome)]);
 
 // As horas saem no horario de Brasilia, com o fuso escrito: em UTC o claude.ai mostrava 21:51 para uma leitura das 18:51.
 const resposta = (resultado) => ({ content: [{ type: "text", text: JSON.stringify(horasDeBrasilia(resultado)) }] });
@@ -119,7 +122,7 @@ export function montarServidorMcp(autenticacao, { agora, registrar = registrarCh
   servidor.registerTool(FERRAMENTA_ANOTAR.nome, { description: FERRAMENTA_ANOTAR.descricao, inputSchema: FERRAMENTA_ANOTAR.esquema, annotations: ANOTACAO }, (argumentos) =>
     executar(FERRAMENTA_ANOTAR.nome, argumentos),
   );
-  for (const ferramenta of FERRAMENTAS_DA_PROPOSTA) {
+  for (const ferramenta of PROPOSTAS) {
     servidor.registerTool(ferramenta.nome, { description: ferramenta.descricao, inputSchema: ferramenta.esquema, annotations: ferramenta.anotacoes }, (argumentos) =>
       executar(ferramenta.nome, argumentos),
     );

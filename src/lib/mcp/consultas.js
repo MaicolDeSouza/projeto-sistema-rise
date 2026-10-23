@@ -15,7 +15,7 @@ import { limitesDoDia } from "@/lib/riseAi/revisao";
 const FUSO = "America/Sao_Paulo";
 const ANOTAR = "anotarDuvida";
 // A proposta de cadastro nao e duvida de atendimento: aparece na lista, mas nao espera anotacao (spec 2026-10-21).
-const DA_PROPOSTA = new Set(["roteiroDaProposta", "lerParaProposta", "lerProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao"]);
+const DA_PROPOSTA = new Set(["roteiroDaProposta", "lerParaProposta", "lerProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao", "situacaoDoProduto"]);
 const JANELA_MS = 30 * 60 * 1000;
 const hora = (data) => new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(data);
 
@@ -43,6 +43,7 @@ const RESUMOS = {
   baixarCandidatas: (a) => `proposta de ${a.sku}: ${Array.isArray(a.ids) ? a.ids.length : 0} foto(s) baixada(s)`,
   folhaDeContato: (a) => `proposta de ${a.sku}: folha de fotos${a.pagina ? ` (página ${a.pagina})` : ""}`,
   gravarSecao: (a) => `proposta de ${a.sku}: gravou ${a.secao}`,
+  situacaoDoProduto: (a) => `situação de ${a.sku}`,
 };
 const ROTULOS_CORTADOS = { buscarProdutos: "buscou", buscarNoMercado: "mercado", buscarConhecimento: "conhecimento" };
 

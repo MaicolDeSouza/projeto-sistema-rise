@@ -68,6 +68,7 @@ const LISTA = [
   acao("acao.mercadoLivre.publicar", "Publicar no Mercado Livre", "tela.canaisDeVenda.mercadoLivre"),
   sub("tela.canaisDeVenda.lojaIntegrada", "Canais de Venda › Loja Integrada", "tela.canaisDeVenda"),
   acao("acao.lojaIntegrada.sincronizar", "Cadastrar e sincronizar na Loja Integrada", "tela.canaisDeVenda.lojaIntegrada"),
+  acao("acao.canaisDeVenda.proporAnuncio", "Propor anúncio (proposta automática)", "tela.canaisDeVenda", "Montar a proposta de anúncio da Loja Integrada e do Mercado Livre pelo Claude ou ChatGPT (MCP); nunca envia ao canal."),
 
   tela("tela.produtos", "Produtos", "/produtos"),
   sub("tela.produtos.cadastro", "Produtos › cadastro", "tela.produtos"),

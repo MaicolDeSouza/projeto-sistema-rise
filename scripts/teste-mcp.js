@@ -43,6 +43,8 @@ async function codigoDoErro(promessa) {
 /** A resposta do /mcp vem em JSON ou em SSE (um evento `data:` com a mensagem JSON-RPC): devolve a mensagem nos dois casos. */
 // As ferramentas da proposta de produto (plano 2026-10-21): nao levam o lembrete de anotar duvida.
 const PROPOSTA = ["baixarCandidatas", "folhaDeContato", "gravarSecao", "lerParaProposta", "lerProposta", "roteiroDaProposta"];
+// As da proposta de anuncio (plano 2026-10-23): tambem sem o lembrete.
+const PROPOSTA_DE_ANUNCIO = ["situacaoDoProduto"];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -748,8 +750,8 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "gravarSecao", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras", "roteiroDaProposta"],
-        20,
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "gravarSecao", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras", "roteiroDaProposta", "situacaoDoProduto"],
+        21,
         true,
       ],
     );
@@ -1181,7 +1183,7 @@ try {
       [2, true, 1],
     );
     const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem)))?.result?.tools ?? [];
-    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
 
     // --- as consultas do dia ---
     const { inicio } = limitesDoDia(hojeEmSaoPaulo());
@@ -1359,6 +1361,51 @@ try {
     conferir("roteiroDaProposta sem o recurso: recusa", roteiroSemAcesso?.isError, true);
     const versaoGravada = (await prisma.propostaDeProduto.findFirst({ where: { produto: { sku: "ZZ-MCP-PROP" } }, select: { versaoDoRoteiro: true } }))?.versaoDoRoteiro;
     conferir("a proposta gravada leva a versao do roteiro em vigor", versaoGravada, VERSAO_DO_ROTEIRO);
+  }
+
+  // -------------------------------------------------------------------------
+  // Proposta de anuncio (plano 2026-10-23, Tarefa 1): o proximo passo e a situacaoDoProduto
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nProposta de anúncio: próximo passo");
+    const { proximoPasso } = await import("../src/lib/propostaDeAnuncio/situacao.js");
+    const base = {
+      rise: { conferido: true, propostaPendente: false },
+      bling: { verde: true },
+      li: { anuncio: "sincronizado", propostaPendente: false },
+      ml: { anuncios: [{ status: "PUBLICADO" }], propostaPendente: false },
+    };
+    conferir("pronto", proximoPasso(base).passo, "pronto");
+    conferir("sem conferido e sem proposta", proximoPasso({ ...base, rise: { conferido: false, propostaPendente: false } }).passo, "proposta-do-produto");
+    conferir("sem conferido com proposta", proximoPasso({ ...base, rise: { conferido: false, propostaPendente: true } }).passo, "conferir-no-rise");
+    conferir("bling com !", proximoPasso({ ...base, bling: { verde: false } }).passo, "sincronizar-bling");
+    conferir("li pendente", proximoPasso({ ...base, li: { anuncio: "rascunho", propostaPendente: true } }).passo, "revisar-li");
+    conferir("sem li", proximoPasso({ ...base, li: { anuncio: "nenhum", propostaPendente: false } }).passo, "proposta-li");
+    conferir("li em rascunho sem proposta", proximoPasso({ ...base, li: { anuncio: "rascunho", propostaPendente: false } }).passo, "proposta-li");
+    conferir("ml pendente", proximoPasso({ ...base, ml: { anuncios: [{ status: "RASCUNHO" }], propostaPendente: true } }).passo, "revisar-ml");
+    conferir("sem ml publicado", proximoPasso({ ...base, ml: { anuncios: [], propostaPendente: false } }).passo, "proposta-ml");
+    conferir("motivo sempre texto", typeof proximoPasso(base).motivo, "string");
+
+    console.log("\nProposta de anúncio: situacaoDoProduto");
+    const { responderMcp } = await import("../src/lib/mcp/servidor.js");
+    const { resumoDaChamada } = await import("../src/lib/mcp/consultas.js");
+    await prisma.produto.create({ data: { sku: "ZZ-MCP-PA1", tituloBase: "ZZMCP PROPOSTA DE ANUNCIO", conferido: true } });
+    let id = 3000;
+    const quem = (pode) => ({ login: "zz-mcp-pa", clienteId: null, clienteNome: "Claude", escopos: ["consultar"], familia: "zz-mcp-familia", expiraEm: new Date(Date.now() + 3600e3), administrador: false, pode });
+    const chamar = async (nome, argumentos, autenticacao = quem(() => true)) =>
+      (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/call", { name: nome, arguments: argumentos }, { id: id++ }), autenticacao)))?.result ?? null;
+    const situacao = await chamar("situacaoDoProduto", { sku: "ZZ-MCP-PA1" });
+    const corpo = JSON.parse(situacao?.content?.[0]?.text || "{}");
+    conferir("situacaoDoProduto: conferido sem Bling pede sincronizar o Bling, sem o lembrete", [situacao?.isError ?? false, corpo.proximoPasso, corpo.rise?.conferido, situacao?.content?.length], [false, "sincronizar-bling", true, 1]);
+    const inexistente = await chamar("situacaoDoProduto", { sku: "ZZ-MCP-NAO-EXISTE" });
+    conferir("situacaoDoProduto: sku que nao existe", [inexistente?.isError, /não encontrado/.test(inexistente?.content?.[0]?.text ?? "")], [true, true]);
+    const semVer = await chamar("situacaoDoProduto", { sku: "ZZ-MCP-PA1" }, quem((recurso) => recurso !== "tela.produtos"));
+    conferir("situacaoDoProduto sem ver Produtos: recusa", semVer?.isError, true);
+    const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem(() => true))))?.result?.tools ?? [];
+    conferir("tools/list traz situacaoDoProduto", lista.some((ferramenta) => ferramenta.name === "situacaoDoProduto"), true);
+    conferir("resumo na Revisao", resumoDaChamada("situacaoDoProduto", { sku: "ZZ-MCP-PA1" }), "situação de ZZ-MCP-PA1");
+    const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
+    conferir("a acao Propor anuncio existe no catalogo", RECURSOS.some((recurso) => recurso.id === "acao.canaisDeVenda.proporAnuncio"), true);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
