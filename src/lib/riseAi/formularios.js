@@ -1,4 +1,11 @@
 import { PROVEDORES } from "./modelos";
+import { TIPOS_DE_AVISO } from "@/lib/telegram/avisosTipos";
+
+// O interruptor manda "true" ou "false"; qualquer outra coisa segue como veio e a validacao recusa no campo.
+const booleanoDoCampo = (dados, nome) => {
+  const valor = String(dados.get(nome) ?? "").trim();
+  return valor === "true" ? true : valor === "false" ? false : valor;
+};
 import { PROMPT_ATENDIMENTO_PADRAO, PROMPT_INTERNO_PADRAO } from "./prompt";
 
 /**
@@ -73,6 +80,13 @@ export function parcialDaConfiguracao(dados) {
   if (tem(dados, "orcamentoClientesBrl")) orcamentos.clientesBrl = reaisDoCampo(dados, "orcamentoClientesBrl");
   if (tem(dados, "orcamentoInternoBrl")) orcamentos.internoBrl = reaisDoCampo(dados, "orcamentoInternoBrl");
   if (Object.keys(orcamentos).length) parcial.orcamentos = orcamentos;
+  // A aba Canais (Telegram, Entrega C1): o interruptor do bot e um por aviso, cada um "true" ou "false".
+  const telegram = {};
+  if (tem(dados, "telegramLigado")) telegram.ligado = booleanoDoCampo(dados, "telegramLigado");
+  const avisos = {};
+  for (const tipo of TIPOS_DE_AVISO) if (tem(dados, `telegramAviso.${tipo}`)) avisos[tipo] = booleanoDoCampo(dados, `telegramAviso.${tipo}`);
+  if (Object.keys(avisos).length) telegram.avisos = avisos;
+  if (Object.keys(telegram).length) parcial.telegram = telegram;
   if (tem(dados, "internet")) {
     // O interruptor manda "true" ou "false"; qualquer outra coisa segue como veio e a validacao recusa no campo.
     const valor = texto(dados, "internet");

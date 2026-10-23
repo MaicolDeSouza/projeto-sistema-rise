@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { lerSegredo, salvarConexao } from "@/lib/integracoes/conexoes";
 import { ambienteDoRise } from "@/lib/sessao";
 import { PROVEDORES, endpointPadrao } from "./modelos";
+import { TIPOS_DE_AVISO, telegramPadrao } from "@/lib/telegram/avisosTipos";
 
 /**
  * Configuração do Rise AI: padrão de fábrica, o que o administrador salvou e as chaves dos provedores.
@@ -49,6 +50,8 @@ export function configuracaoPadrao(ambiente) {
     orcamentos: { clientesBrl: 70, internoBrl: 30 },
     // "Pesquisar na internet" no chat interno: nasce desligado e o WhatsApp nunca pesquisa (spec §3).
     internet: false,
+    // O bot do Telegram (Entrega C1): nasce desligado, com todos os avisos marcados para quando o dono ligar.
+    telegram: telegramPadrao(),
   };
 }
 
@@ -94,6 +97,10 @@ const EsquemaDaConfiguracao = z.object({
   }),
   orcamentos: z.object({ clientesBrl: reais(5000, "Orçamento dos clientes"), internoBrl: reais(5000, "Orçamento interno") }),
   internet: z.boolean({ message: "Use ligado ou desligado." }),
+  telegram: z.object({
+    ligado: z.boolean({ message: "Use ligado ou desligado." }),
+    avisos: z.object(Object.fromEntries(TIPOS_DE_AVISO.map((tipo) => [tipo, z.boolean({ message: "Use ligado ou desligado." })]))),
+  }),
 });
 
 /** @returns {{ ok: true, dados: object } | { ok: false, erros: Record<string, string> }} */
@@ -109,12 +116,18 @@ export function validarConfiguracao(dados) {
 }
 
 /** Os grupos que se mesclam chave a chave; o resto de 1º nível o salvo substitui inteiro (`reserva: null` inclusive). */
-const GRUPOS = ["endpoints", "modelosHabilitados", "tempoLimite", "prompts", "orcamentos"];
+const GRUPOS = ["endpoints", "modelosHabilitados", "tempoLimite", "prompts", "orcamentos", "telegram"];
 
 function mesclar(base, parcial) {
   const resultado = { ...base };
   for (const [chave, valor] of Object.entries(parcial ?? {})) {
     if (valor === undefined) continue;
+    if (chave === "telegram" && valor && typeof valor === "object") {
+      // `avisos` tambem se mescla por dentro: salvar so um interruptor nao pode apagar os outros.
+      const baseTelegram = base.telegram ?? {};
+      resultado.telegram = { ...baseTelegram, ...valor, ...(valor.avisos ? { avisos: { ...(baseTelegram.avisos ?? {}), ...valor.avisos } } : {}) };
+      continue;
+    }
     resultado[chave] =
       GRUPOS.includes(chave) && valor && typeof valor === "object" ? { ...(base[chave] ?? {}), ...valor } : valor;
   }

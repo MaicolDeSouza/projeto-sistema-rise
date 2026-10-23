@@ -2541,11 +2541,12 @@ try {
     const semPromptCliente = (id) => recursosDasAbas.includes(id);
     const auditorias = (oQue) => prisma.auditoriaDeAcesso.findMany({ where: { quem, oQue }, orderBy: { quando: "asc" } });
 
-    conferir("as abas e os recursos de Acessos de cada uma (a aba Canais saiu com o chat interno, C1)", [ABAS, RECURSO_DA_ABA], [
-      ["modelos", "orcamentos", "atendimento"],
-      { modelos: "riseAi.configuracoes.modelos", orcamentos: "riseAi.configuracoes.orcamentos", atendimento: "riseAi.configuracoes.atendimento" },
+    // A aba Canais da internet saiu com o chat (20/10/2026) e voltou em 22/10/2026 so com o Telegram (Entrega C1).
+    conferir("as abas e os recursos de Acessos de cada uma", [ABAS, RECURSO_DA_ABA], [
+      ["modelos", "orcamentos", "canais", "atendimento"],
+      { modelos: "riseAi.configuracoes.modelos", orcamentos: "riseAi.configuracoes.orcamentos", canais: "riseAi.configuracoes.canais", atendimento: "riseAi.configuracoes.atendimento" },
     ]);
-    conferir("a aba Canais nao existe mais", await salvarAba("canais", formulario({ internet: "true" }), { usuario: quem, pode: () => true }).then(() => "nao lancou", (erro) => erro.message), "Aba desconhecida.");
+    conferir("a internet nao se edita pela aba Canais (so o Telegram)", await salvarAba("canais", formulario({ internet: "true" }), { usuario: quem, pode: () => true }).then(() => "nao lancou", (erro) => erro.message), "Nada para salvar.");
 
     // Estado conhecido: o que o dono tem fica guardado e volta no fim.
     await prisma.configuracaoIA.deleteMany({ where: { id: "unica" } });

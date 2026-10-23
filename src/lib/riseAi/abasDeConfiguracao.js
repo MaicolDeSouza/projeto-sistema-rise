@@ -5,6 +5,7 @@ import { ErroDeUso } from "./erros";
 import { parcialDaConfiguracao } from "./formularios";
 import { PROMPT_ATENDIMENTO_PADRAO, PROMPT_INTERNO_PADRAO } from "./prompt";
 import { registrarVersaoDePrompt } from "./versoesDePrompt";
+import { TIPOS_DE_AVISO } from "@/lib/telegram/avisosTipos";
 
 /**
  * As três abas de Configurações do Rise AI (spec §5a.5). Cada uma grava SÓ os campos dela, com o recurso de Acessos dela
@@ -19,11 +20,13 @@ import { registrarVersaoDePrompt } from "./versoesDePrompt";
  * mais pela tela, e um campo deles que chegue num formulário é ignorado como campo de outra aba.
  */
 
-export const ABAS = ["modelos", "orcamentos", "atendimento"];
+export const ABAS = ["modelos", "orcamentos", "canais", "atendimento"];
 
 export const RECURSO_DA_ABA = {
   modelos: "riseAi.configuracoes.modelos",
   orcamentos: "riseAi.configuracoes.orcamentos",
+  // A aba Canais voltou em 22/10/2026 so com o Telegram (Entrega C1); o recurso nao e delegavel (so o Administrador).
+  canais: "riseAi.configuracoes.canais",
   atendimento: "riseAi.configuracoes.atendimento",
 };
 
@@ -33,6 +36,7 @@ const RECURSO_DO_PROMPT_DO_CLIENTE = "riseAi.configuracoes.promptCliente";
 const CAMPOS_DA_ABA = {
   modelos: ["padraoProvedor", "padraoModelo", "reservaProvedor", "reservaModelo", "primeiroTokenMs", "totalMs", "maxChamadasDeFerramenta", "maxTokensResposta", "contextoMaxTokens", "taxaPorUsuarioPorMinuto"],
   orcamentos: ["orcamentoClientesBrl"],
+  canais: ["telegramLigado", ...TIPOS_DE_AVISO.map((tipo) => `telegramAviso.${tipo}`)],
   atendimento: ["promptCliente"],
 };
 
@@ -64,6 +68,9 @@ async function registrarMudancas(tx, parcial, { antes, depois }, quem) {
     const de = recortar(antes.orcamentos, chaves);
     const para = recortar(depois.orcamentos, chaves);
     if (!iguais(de, para)) await registrarAuditoria(tx, { quem, oQue: "rise-ai.orcamentos", alvo: "ConfiguracaoIA", antes: de, depois: para });
+  }
+  if (parcial.telegram && !iguais(antes.telegram, depois.telegram)) {
+    await registrarAuditoria(tx, { quem, oQue: "rise-ai.telegram", alvo: "ConfiguracaoIA", antes: antes.telegram, depois: depois.telegram });
   }
   if ("internet" in parcial && antes.internet !== depois.internet) {
     await registrarAuditoria(tx, { quem, oQue: "rise-ai.internet", alvo: "ConfiguracaoIA", antes: { internet: antes.internet }, depois: { internet: depois.internet } });

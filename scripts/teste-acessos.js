@@ -129,12 +129,17 @@ try {
       [...hrefs].filter((href) => href !== "/integracoes" && !entradas.has(href)),
       [],
     );
-    conferir("so Usuarios e funcoes e o prompt das respostas ao cliente nao sao delegaveis", NAO_DELEGAVEIS, ["riseAi.configuracoes.promptCliente", "tela.configuracoes.usuarios"]);
+    conferir("so Usuarios e funcoes, a aba Canais (Telegram) e o prompt das respostas ao cliente nao sao delegaveis", NAO_DELEGAVEIS, ["riseAi.configuracoes.canais", "riseAi.configuracoes.promptCliente", "tela.configuracoes.usuarios"]);
     // As abas de Configuracoes do Rise AI (Entrega A, Tarefa 14): cada aba e uma capacidade, delegavel; o prompt do cliente nao.
     // A aba Canais saiu com o chat interno (decisao C1 do dono, 20/10/2026).
     const abasDoRiseAi = ["modelos", "orcamentos", "atendimento"].map((aba) => `riseAi.configuracoes.${aba}`);
     const cincoDasAbas = [...abasDoRiseAi, "riseAi.configuracoes.promptCliente"];
-    conferir("a capacidade da aba Canais saiu do catalogo", recursoPorId("riseAi.configuracoes.canais"), null);
+    // A aba Canais voltou em 22/10/2026 so com o Telegram (Entrega C1): nao delegavel, filha das Configuracoes.
+    conferir(
+      "a aba Canais (Telegram) e do Administrador",
+      [recursoPorId("riseAi.configuracoes.canais")?.delegavel, recursoPorId("riseAi.configuracoes.canais")?.pai],
+      [false, "riseAi.configuracoes"],
+    );
     conferir(
       "as quatro capacidades das abas existem, com o pai certo e depois dele",
       cincoDasAbas.map((id) => [recursoPorId(id)?.tipo, recursoPorId(id)?.pai, ids.indexOf(recursoPorId(id)?.pai) >= 0 && ids.indexOf(recursoPorId(id)?.pai) < ids.indexOf(id)]),

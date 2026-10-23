@@ -229,6 +229,40 @@ try {
     conferir("desvincular zera o chat e audita", [(await prisma.usuarioRise.findUnique({ where: { id: u.id } })).telegramChatId, (await prisma.auditoriaDeAcesso.findFirst({ where: { quem: "zz-tg-admin", oQue: "telegram.vinculo.remover" } }))?.antes?.chatId], [null, "55"]);
   }
 
+  {
+    console.log("\nConfiguracao");
+    const { configuracaoPadrao, validarConfiguracao, lerConfiguracao } = await import("../src/lib/riseAi/configuracao.js");
+    const { parcialDaConfiguracao } = await import("../src/lib/riseAi/formularios.js");
+    const { ABAS, RECURSO_DA_ABA, salvarAba } = await import("../src/lib/riseAi/abasDeConfiguracao.js");
+    const { NAO_DELEGAVEIS, recursoPorId } = await import("../src/lib/acessos/recursos.js");
+    const { TIPOS_DE_AVISO, ROTULO_DO_AVISO } = await import("../src/lib/telegram/avisosTipos.js");
+    const { estadoDoTelegram } = await import("../src/lib/telegram/estado.js");
+    const padrao = configuracaoPadrao("pc");
+    conferir("padrao: bot desligado e todos os avisos marcados", padrao.telegram, { ligado: false, avisos: { resumoDoDia: true, produtoZerou: true, orcamento: true, varreduraPeloPc: true, varreduraFalhou: true } });
+    conferir("os tipos de aviso tem rotulo", TIPOS_DE_AVISO.every((tipo) => typeof ROTULO_DO_AVISO[tipo] === "string" && ROTULO_DO_AVISO[tipo].length > 5), true);
+    conferir("zod recusa aviso que nao e booleano", validarConfiguracao({ ...padrao, telegram: { ligado: true, avisos: { ...padrao.telegram.avisos, orcamento: "sim" } } }).ok, false);
+    conferir("zod aceita o padrao", validarConfiguracao(padrao).ok, true);
+    const dados = new FormData();
+    dados.append("telegramLigado", "true");
+    dados.append("telegramAviso.orcamento", "false");
+    conferir("parcial le os campos da aba", parcialDaConfiguracao(dados).telegram, { ligado: true, avisos: { orcamento: false } });
+    conferir("parcial ignora tipo de aviso desconhecido", parcialDaConfiguracao((() => { const d = new FormData(); d.append("telegramAviso.x", "true"); return d; })()).telegram, undefined);
+    conferir("aba canais existe e e do Administrador", [ABAS, RECURSO_DA_ABA.canais, NAO_DELEGAVEIS.includes("riseAi.configuracoes.canais"), recursoPorId("riseAi.configuracoes.canais")?.pai], [["modelos", "orcamentos", "canais", "atendimento"], "riseAi.configuracoes.canais", true, "riseAi.configuracoes"]);
+    const pode = () => true;
+    const r = await salvarAba("canais", dados, { usuario: "zz-tg-admin", pode });
+    const lida = await lerConfiguracao("pc");
+    conferir("salvar a aba mescla: liga o bot, desliga um aviso e mantem os outros", [r.ok, lida.telegram.ligado, lida.telegram.avisos.orcamento, lida.telegram.avisos.produtoZerou], [true, true, false, true]);
+    conferir("auditoria rise-ai.telegram", (await prisma.auditoriaDeAcesso.findFirst({ where: { quem: "zz-tg-admin", oQue: "rise-ai.telegram" } }))?.depois?.ligado, true);
+    const so = new FormData();
+    so.append("telegramLigado", "false");
+    await salvarAba("canais", so, { usuario: "zz-tg-admin", pode });
+    conferir("salvar so o interruptor nao apaga os avisos", (await lerConfiguracao("pc")).telegram.avisos.orcamento, false);
+    conferir("sem permissao de editar a aba recusa", (await salvarAba("canais", so, { usuario: "zz-tg-x", pode: () => false })).ok, false);
+    conferir("campo de outra aba nao entra pela canais", await codigoDoErro(salvarAba("canais", (() => { const d = new FormData(); d.append("orcamentoClientesBrl", "1"); return d; })(), { usuario: "zz-tg-admin", pode })), "Nada para salvar.");
+    const estado = await estadoDoTelegram();
+    conferir("estado do telegram tem a forma da aba", [typeof estado.token.cadastrada, "em" in estado.token, "usuario" in estado.bot, Array.isArray(estado.vinculados), typeof estado.urlPublica], ["boolean", true, true, true, "boolean"]);
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   await limpar();
