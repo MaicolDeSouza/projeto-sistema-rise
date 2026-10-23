@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { gerarEanDoSku } from "@/lib/eanInterno";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 
-import { SECOES_APLICAVEIS } from "./aplicar";
+import { decisoesDosCampos, SECOES_APLICAVEIS } from "./aplicar";
 import { assinaturaDaSecao, secoesNaoAplicadas } from "./aplicadas";
 import { conferirLinksDosDocumentos } from "./links";
 import { precoCalculadoDaProposta } from "./preco";
@@ -210,8 +210,27 @@ export async function propostaParaFormulario(produtoId) {
   if (!proposta) return null;
   const produto = await produtoParaAssinatura(proposta.produtoId);
   if (!produto) return null;
+  // Candidata que aponta para uma foto atual que ja saiu do produto (foi para a reserva, com outro nome): a baixada
+  // volta a ser so a baixada, e a que so existia como foto sai (o arquivo nao existe mais; sem isto ela aparecia
+  // quebrada na janela e sumia sem aviso ao aplicar).
+  const nomesDasFotos = new Set(produto.fotos);
+  const secoes = proposta.secoes?.fotos?.candidatas
+    ? {
+        ...proposta.secoes,
+        fotos: {
+          ...proposta.secoes.fotos,
+          candidatas: proposta.secoes.fotos.candidatas.flatMap((candidata) => {
+            if (!candidata.fotoAtual || nomesDasFotos.has(candidata.fotoAtual)) return [candidata];
+            if (!candidata.arquivo) return [];
+            const { fotoAtual, ...baixada } = candidata;
+            void fotoAtual;
+            return [baixada];
+          }),
+        },
+      }
+    : proposta.secoes;
   const urls = {};
-  for (const candidata of proposta.secoes?.fotos?.candidatas ?? []) {
+  for (const candidata of secoes?.fotos?.candidatas ?? []) {
     if (candidata.arquivo) urls[`foto:${candidata.id}`] = urlDaProposta(produto.sku, candidata.arquivo);
     else if (candidata.fotoAtual) urls[`foto:${candidata.id}`] = urlDe(produto.sku, "IMAGEM", candidata.fotoAtual);
   }
@@ -224,7 +243,7 @@ export async function propostaParaFormulario(produtoId) {
     select: { id: true, arquivo: true },
   });
   return {
-    secoes: proposta.secoes,
+    secoes,
     naoAplicadas: secoesNaoAplicadas(proposta, produto),
     aplicadas: proposta.aplicadas ?? {},
     urls,
@@ -248,6 +267,91 @@ export async function marcarSecoesAplicadas(produtoId, secoes) {
   const aplicadas = { ...(proposta.aplicadas ?? {}) };
   for (const secao of validas) if (proposta.secoes?.[secao]) aplicadas[secao] = assinaturaDaSecao(secao, produto);
   await prisma.propostaDeProduto.update({ where: { id: proposta.id }, data: { aplicadas } });
+}
+
+/**
+ * Depois do Salvar, campo a campo (pedido do dono em 23/10/2026): o que ficou com o valor da proposta e o que o dono
+ * mudou (`decisoesDosCampos`), guardado em `aplicadas.daProposta` e `aplicadas.editados`. E o que impede a proposta de
+ * recarregar, na abertura seguinte, um campo que o dono editou. Sem proposta, nao faz nada.
+ *
+ * @param {string} produtoId
+ * @param {string[]} preenchidosAgora os campos que a proposta preencheu ao abrir esta edicao
+ */
+export async function registrarDecisoesDoSalvar(produtoId, preenchidosAgora) {
+  const proposta = await prisma.propostaDeProduto.findUnique({ where: { produtoId: String(produtoId ?? "") } });
+  if (!proposta) return;
+  const produto = await prisma.produto.findUnique({ where: { id: proposta.produtoId } });
+  if (!produto) return;
+  const anteriores = proposta.aplicadas ?? {};
+  const decididos = decisoesDosCampos(proposta.secoes, produto, anteriores, preenchidosAgora);
+  await prisma.propostaDeProduto.update({ where: { id: proposta.id }, data: { aplicadas: { ...anteriores, ...decididos } } });
+}
+
+/**
+ * Depois do Salvar, as fotos (pedido do dono em 23/10/2026: a janela "Fotos da proposta" voltava a mostrar a escolha e
+ * a ordem da proposta, e nao as que ele aplicou). Quando o dono ja aplicou as fotos da proposta (nesta edicao ou antes),
+ * a secao passa a refletir o que ficou no produto: cada candidata que virou foto fica escolhida, na posicao dela, e
+ * aponta para o arquivo gravado (`fotoAtual`); as outras ficam sem escolha. Candidata que era foto atual e saiu do
+ * produto (foi para a reserva, com outro nome) sai da lista: o arquivo dela nao existe mais. O Salvar grava as fotos
+ * validadas na ordem do painel, entao a i-esima validada do painel e a foto de ordem i.
+ *
+ * @param {string} produtoId
+ * @param {Array<{ base: string, arquivoId?: string|null, candidataId?: string|null, finalizada?: boolean }>} itens o painel
+ * @param {Map<string, string>} nomesAntes id da linha FOTO -> nome do arquivo ANTES do Salvar
+ * @param {boolean} aplicouAgora o dono clicou em "Aplicar fotos" nesta edicao
+ */
+export async function fotosDaPropostaDepoisDoSalvar(produtoId, itens, nomesAntes, aplicouAgora) {
+  const proposta = await prisma.propostaDeProduto.findUnique({ where: { produtoId: String(produtoId ?? "") } });
+  const candidatas = proposta?.secoes?.fotos?.candidatas;
+  if (!Array.isArray(candidatas) || candidatas.length === 0) return;
+  if (!aplicouAgora && !proposta.aplicadas?.fotos) return;
+
+  const vistas = new Set();
+  const validadas = [];
+  for (const item of Array.isArray(itens) ? itens : []) {
+    if (!item?.base || vistas.has(item.base) || item.finalizada === false) continue;
+    vistas.add(item.base);
+    validadas.push(item);
+  }
+  const fotos = await prisma.produtoArquivo.findMany({
+    where: { produtoId: proposta.produtoId, tipo: "IMAGEM", papel: "FOTO" },
+    orderBy: { ordem: "asc" },
+    select: { arquivo: true },
+  });
+  // Contagem diferente = o Salvar deixou alguma de fora (arquivo sumido do lote): sem como casar, nao mexe.
+  if (fotos.length !== validadas.length) return;
+
+  const escolha = new Map();
+  validadas.forEach((item, posicao) => {
+    const nomeAntes = item.arquivoId ? nomesAntes.get(item.arquivoId) : null;
+    const candidata = item.candidataId
+      ? candidatas.find((c) => c.id === item.candidataId)
+      : nomeAntes
+        ? candidatas.find((c) => c.fotoAtual === nomeAntes)
+        : null;
+    if (candidata && !escolha.has(candidata.id)) escolha.set(candidata.id, { posicao, arquivo: fotos[posicao].arquivo });
+  });
+  const nomesAgora = new Set(fotos.map((foto) => foto.arquivo));
+  const novas = [];
+  for (const candidata of candidatas) {
+    const escolhida = escolha.get(candidata.id);
+    if (escolhida) {
+      novas.push({ ...candidata, escolhida: true, ordem: escolhida.posicao, fotoAtual: escolhida.arquivo });
+      continue;
+    }
+    const { ordem, ...semOrdem } = candidata;
+    void ordem;
+    if (candidata.fotoAtual && !nomesAgora.has(candidata.fotoAtual)) {
+      // Foto atual que saiu do produto: a candidata baixada volta a ser so a baixada; a que so existia como foto sai.
+      if (!candidata.arquivo) continue;
+      delete semOrdem.fotoAtual;
+    }
+    novas.push({ ...semOrdem, escolhida: false });
+  }
+  await prisma.propostaDeProduto.update({
+    where: { id: proposta.id },
+    data: { secoes: { ...proposta.secoes, fotos: { ...proposta.secoes.fotos, candidatas: novas } } },
+  });
 }
 
 /** Apaga a proposta (linha e pasta proposta/). Sem proposta, nao faz nada. */

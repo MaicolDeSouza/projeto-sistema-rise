@@ -29,7 +29,7 @@ import {
   MAXIMO_REFERENCIAS,
 } from "@/lib/ia/anuncio";
 import { gastoDoFormulario, novoGasto, resumoDoGasto, somarResumos } from "@/lib/ia/gasto";
-import { marcarSecoesAplicadas } from "@/lib/proposta/banco";
+import { fotosDaPropostaDepoisDoSalvar, marcarSecoesAplicadas, registrarDecisoesDoSalvar } from "@/lib/proposta/banco";
 import { conferirComProposta } from "@/lib/proposta/conferir";
 import { modeloDaDescricao } from "@/lib/ia/modelosDaDescricao";
 import * as bibliotecaDePrompts from "@/lib/ia/promptsDescricao";
@@ -866,6 +866,15 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     // pasta veio antes, entao `produto.sku` ja e o nome da pasta certa. Diferente do cadastro novo, o
     // produto ja existia, entao uma falha aqui e DEVOLVIDA como erro: o lote fica, e um segundo Salvar
     // tenta de novo (a operacao refaz a comparacao com o que esta gravado, e nao duplica nada).
+    // Os nomes das fotos ANTES do Salvar: e por eles que a proposta conhece as fotos atuais (ver o fim desta acao).
+    const nomesDasFotosAntes = new Map(
+      (
+        await prisma.produtoArquivo.findMany({
+          where: { produtoId: id, tipo: "IMAGEM", papel: "FOTO" },
+          select: { id: true, arquivo: true },
+        })
+      ).map((linha) => [linha.id, linha.arquivo]),
+    );
     try {
       await gravarImagensDoPainel(produto, formData);
     } catch (erro) {
@@ -931,6 +940,21 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       if (Array.isArray(aplicadas) && aplicadas.length > 0) await marcarSecoesAplicadas(id, aplicadas.map(String));
     } catch (erro) {
       console.error("Falha ao marcar as secoes aplicadas da proposta:", erro.message);
+    }
+    // Proposta, campo a campo e fotos (pedido do dono em 23/10/2026): o que o dono editou nao volta ao valor da
+    // proposta na abertura seguinte, e a janela "Fotos da proposta" passa a mostrar a escolha e a ordem que ele salvou.
+    try {
+      const lerLista = (campo) => {
+        const valor = JSON.parse(String(formData.get(campo) || "[]"));
+        return Array.isArray(valor) ? valor : [];
+      };
+      await registrarDecisoesDoSalvar(id, lerLista("propostaPreenchidos").map(String));
+      if (String(formData.get("fotosDoPainelProntas") ?? "") === "1") {
+        const aplicouFotos = lerLista("propostaAplicada").includes("fotos");
+        await fotosDaPropostaDepoisDoSalvar(id, lerLista("imagensDoLote"), nomesDasFotosAntes, aplicouFotos);
+      }
+    } catch (erro) {
+      console.error("Falha ao guardar as decisoes da proposta:", erro.message);
     }
 
     revalidatePath("/produtos");

@@ -15,7 +15,7 @@ import { AmpliacaoDeFoto, ImagemComZoom } from "./ImagemComZoom";
  *
  * Pedido do dono em 21/10/2026 (anotacao docs/superpowers/anotacoes/2026-10-21-fotos-da-proposta.md):
  * - o mouse em cima AMPLIA a foto dentro do cartao (`ImagemComZoom`, o mesmo das fotos do produto);
- * - o clique abre a foto GRANDE com setas (`AmpliacaoDeFoto`), com o Escolher/Retirar embaixo;
+ * - o clique abre a foto GRANDE com setas (`AmpliacaoDeFoto`), com o Escolher/Remover escolha embaixo;
  * - marcar e desmarcar e o botao do cartao (o clique na foto passou a abrir a grande);
  * - segurar e arrastar muda a ordem das escolhidas (`moverNaOrdem`); arrastar uma nao escolhida sobre uma escolhida a
  *   escolhe ali. Arrastar e o nativo do navegador: clicar e soltar sem mover continua sendo clique.
@@ -86,11 +86,11 @@ export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocup
         aria-pressed={marcada}
         className={
           marcada
-            ? `${base} rounded border border-borda text-suave hover:bg-fundo`
+            ? `${base} rounded border border-red-300 font-medium text-red-700 hover:bg-red-50`
             : `${base} inline-flex items-center gap-1 rounded bg-emerald-600 font-medium text-white hover:bg-emerald-700`
         }
       >
-        {marcada ? "Retirar" : (<><Check size={12} /> Escolher essa</>)}
+        {marcada ? "Remover escolha" : (<><Check size={12} /> Escolher essa</>)}
       </button>
     );
   }
@@ -106,7 +106,7 @@ export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocup
           <span className="relative inline-flex">
             <BolhaDeAjuda
               variante="inline"
-              texto="Mouse em cima amplia; clique abre a foto grande, com setas. Escolher essa / Retirar marca a foto; o número é a ordem (a 1ª é a principal). Segure e arraste uma foto sobre uma escolhida para pô-la naquela posição. Aplicar põe as escolhidas no painel, validadas; as fotos atuais que ficarem de fora saem do carrossel ao salvar (ficam guardadas)."
+              texto="Mouse em cima amplia; clique abre a foto grande, com setas. Escolher essa / Remover escolha marca a foto; o número é a ordem (a 1ª é a principal). Segure e arraste uma foto sobre uma escolhida para pô-la naquela posição. Aplicar põe as escolhidas no painel, validadas; as fotos atuais que ficarem de fora saem do carrossel ao salvar (ficam guardadas)."
             />
           </span>
           <button type="button" onClick={aoFechar} aria-label="Fechar" className="ml-auto rounded p-1 text-suave hover:bg-fundo">

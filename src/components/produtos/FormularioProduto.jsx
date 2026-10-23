@@ -66,7 +66,7 @@ import PainelDeImagens from "./PainelDeImagens";
 import BannerDeRascunho from "./BannerDeRascunho";
 import PropostaNoTopo, { DocumentosDaProposta, OlhoDaProposta } from "./QuadroDaProposta";
 import { listaComParametros, lerUltimaLista } from "@/lib/ultimaListaDeProdutos";
-import { propostaNoFormulario, SECOES_APLICAVEIS } from "@/lib/proposta/aplicar";
+import { propostaNoFormulario } from "@/lib/proposta/aplicar";
 import { useRascunhoAutomatico } from "./useRascunhoAutomatico";
 import { chaveDoRascunho } from "@/lib/rascunhoDoCadastro";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
@@ -1940,12 +1940,9 @@ export default function FormularioProduto({
   const [gastoSalvo, setGastoSalvo] = useState(produto?.gastoIA ?? null);
   const [gastoDaEdicao, setGastoDaEdicao] = useState(null);
   // Secoes da proposta automatica aplicadas nesta edicao (vao no Salvar, que as marca como aplicadas).
-  // Comeca com TODAS as secoes de campos que a proposta tem (nao so as que preencheram algo): salvar com a proposta
-  // aberta e decidir o que fica, e o que o dono editou nao volta ao valor da proposta ao reabrir (pedido do dono em
-  // 23/10/2026). Fotos ficam de fora: tem o "Aplicar fotos" proprio.
-  const [propostaAplicada, setPropostaAplicada] = useState(() =>
-    daProposta ? SECOES_APLICAVEIS.filter((secao) => produto?.proposta?.secoes?.[secao]) : [],
-  );
+  // Comeca com as que a proposta preencheu ao abrir (o Salvar as marca como aplicadas). O que cada CAMPO virou (do dono
+  // ou da proposta) o Salvar guarda a parte, pelo `propostaPreenchidos` (`registrarDecisoesDoSalvar`).
+  const [propostaAplicada, setPropostaAplicada] = useState(() => daProposta?.secoes ?? []);
   const somarAoGastoDaEdicao = (gasto) => {
     if (gasto) setGastoDaEdicao((atual) => somarResumos(atual, gasto));
   };
@@ -3232,6 +3229,8 @@ export default function FormularioProduto({
             grupo: imagem.grupo ?? null,
             // Foto atual tirada ao aplicar as fotos da proposta: o Salvar a guarda na reserva em vez de apagar.
             paraReserva: imagem.paraReserva === true,
+            // A candidata da proposta de onde a foto veio: o Salvar devolve a escolha e a ordem a proposta.
+            candidataId: typeof imagem.candidataId === "string" ? imagem.candidataId : null,
           })),
         )}
       />
@@ -3269,6 +3268,8 @@ export default function FormularioProduto({
       {/* Gasto com IA desta edicao (descricao e titulo): o Salvar soma ao total do produto (pedido do dono em 12/10/2026). */}
       <input type="hidden" name="gastoIA" value={gastoDaEdicao ? JSON.stringify(gastoDaEdicao) : ""} />
       <input type="hidden" name="propostaAplicada" value={JSON.stringify(propostaAplicada)} />
+      {/* Os campos que a proposta preencheu ao abrir: o Salvar compara com o gravado e sabe o que o dono mudou. */}
+      <input type="hidden" name="propostaPreenchidos" value={JSON.stringify(Object.keys(daProposta?.preencher ?? {}))} />
 
       {/* ---------- Acoes no topo ---------- */}
       <div className="flex flex-wrap items-center gap-2">

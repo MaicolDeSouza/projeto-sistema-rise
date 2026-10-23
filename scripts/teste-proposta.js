@@ -154,13 +154,27 @@ function conferir(nome, condicao) {
   conferir("formulario: descricao igual a salva (outra quebra de linha) nao entra", !("descricaoBase" in propostaNoFormulario(secoes, { descricaoBase: "PLACA" + String.fromCharCode(10, 10) + "Texto." }).preencher));
   conferir("formulario: sem SKU, o codigo entra", propostaNoFormulario(secoes, { sku: "" }).preencher.sku === "250010");
   {
-    // Secao ja aplicada (o dono salvou com ela): o que ele editou ou esvaziou nao volta ao valor da proposta.
-    const aplicadas = { descricao: "x", campos: "y", preco: "z" };
-    const depois = propostaNoFormulario(comPreco, { sku: "100103", descricaoBase: "Texto do dono.", marca: "", precoVenda: "" }, aplicadas);
-    conferir("formulario: descricao ja aplicada e editada nao troca", !("descricaoBase" in depois.preencher));
-    conferir("formulario: campo de secao aplicada esvaziado nao volta", !("marca" in depois.preencher) && !("precoVenda" in depois.preencher));
-    const diferente = propostaNoFormulario(comPreco, { sku: "100103", marca: "OUTRA" }, aplicadas);
-    conferir("formulario: secao aplicada ainda sugere na lista", !("marca" in diferente.preencher) && (!comPreco.campos?.marca || "marca" in diferente.nasListas));
+    // Campo a campo (pedido do dono em 23/10/2026): o que o dono editou nao volta; o que ele nao mexeu pode voltar.
+    const { decisoesDosCampos } = await import("../src/lib/proposta/aplicar.js");
+    const editados = { editados: ["descricaoBase", "marca", "precoVenda"], daProposta: {} };
+    const comEditados = propostaNoFormulario(comPreco, { sku: "100103", descricaoBase: "Texto do dono.", marca: "OUTRA", precoVenda: "" }, editados);
+    conferir("campo a campo: descricao editada nao troca", !("descricaoBase" in comEditados.preencher));
+    conferir("campo a campo: campo editado e esvaziado nao volta", !("precoVenda" in comEditados.preencher));
+    conferir("campo a campo: campo editado com outro valor so vai para a lista", !("marca" in comEditados.preencher) && comEditados.nasListas.marca?.valor === "GENÉRICA");
+    const intocado = propostaNoFormulario(comPreco, { sku: "100103", marca: "VELHA", descricaoBase: "PLACA ANTIGA" }, { daProposta: { marca: "VELHA", descricaoBase: "PLACA ANTIGA" } });
+    conferir("campo a campo: campo com o valor antigo da proposta recarrega o novo", intocado.preencher.marca === "GENÉRICA");
+    conferir("campo a campo: descricao antiga da proposta, sem mexer, recarrega", intocado.preencher.descricaoBase === "PLACA" + String.fromCharCode(13, 10, 13, 10) + "Texto.");
+    const doDono = propostaNoFormulario(comPreco, { sku: "100103", marca: "DONO", descricaoBase: "Do dono." }, { daProposta: { descricaoBase: "Outra." } });
+    conferir("campo a campo: valor proprio do dono so ganha a lista", !("marca" in doDono.preencher) && doDono.nasListas.marca?.valor === "GENÉRICA");
+    conferir("campo a campo: descricao propria (ja passou por um Salvar) nao troca", !("descricaoBase" in doDono.preencher));
+    const decidido = decisoesDosCampos(comPreco, { sku: "100103", marca: "GENÉRICA", descricaoBase: "Mudei.", pesoKg: "0.0070", precoVenda: "50" }, {}, ["descricaoBase", "marca", "pesoKg"]);
+    conferir("decisoes: salvo igual a proposta vai para daProposta", decidido.daProposta.marca === "GENÉRICA" && decidido.daProposta.pesoKg === 0.007);
+    conferir("decisoes: preenchido e mudado vira editado", decidido.editados.includes("descricaoBase") && !("descricaoBase" in decidido.daProposta));
+    conferir("decisoes: valor proprio que nunca veio da proposta nao entra", !decidido.editados.includes("precoVenda") && !("precoVenda" in decidido.daProposta));
+    const voltou = decisoesDosCampos(comPreco, { descricaoBase: "PLACA" + String.fromCharCode(10, 10) + "Texto." }, decidido, []);
+    conferir("decisoes: editado que volta ao valor da proposta sai dos editados", !voltou.editados.includes("descricaoBase") && "descricaoBase" in voltou.daProposta);
+    const depois = decisoesDosCampos(comPreco, { marca: "MINHA" }, decidido, []);
+    conferir("decisoes: campo que era da proposta e o dono mudou vira editado", depois.editados.includes("marca"));
   }
   conferir("formulario: proposta vazia nao faz nada", JSON.stringify(propostaNoFormulario({}, {})) === JSON.stringify({ preencher: {}, nasListas: {}, secoes: [] }));
 
