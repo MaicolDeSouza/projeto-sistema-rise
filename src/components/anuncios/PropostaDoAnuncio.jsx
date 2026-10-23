@@ -89,6 +89,26 @@ function JanelaDoRelatorio({ proposta, aoFechar }) {
               ))}
             </ul>
           )}
+          {(proposta.links ?? []).length > 0 && (
+            <div className="mt-3">
+              <p className="text-xs font-semibold">Anúncios usados na conta do preço (sem catálogo; preços não conferidos pelo Rise)</p>
+              <ul className="mt-1 space-y-1 text-xs">
+                {proposta.links.map((link) => (
+                  <li key={link.url} className="flex flex-wrap gap-2">
+                    {/* So endereco http(s) vira link: o texto veio da conversa, e javascript: num href executaria codigo. */}
+                    {/^https?:\/\//i.test(String(link.url)) ? (
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-acento hover:underline">
+                        {link.titulo || link.url}
+                      </a>
+                    ) : (
+                      <span className="min-w-0 flex-1 truncate">{link.titulo || link.url}</span>
+                    )}
+                    <span className="tabular-nums">{Number(link.preco).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="mt-3 text-[11px] text-suave">Roteiro versão {proposta.versaoDoRoteiro || "?"}</p>
         </div>
       </section>
