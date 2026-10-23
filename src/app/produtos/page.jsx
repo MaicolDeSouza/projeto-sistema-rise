@@ -244,7 +244,11 @@ export default async function ProdutosPage({ searchParams }) {
     achado: ampla && palavras.length > 0 ? textoDoSelo(ondeAchouNoProduto(semOcultos(produto, ocultos), palavras)) : null,
     ...separarCanais(produto.anuncios),
     // O icone do ML mostra o anuncio (publicado e ativo, ou pendente), nao so o idExterno.
-    iconeML: estadoDoIconeML(produto.anuncios),
+    iconeML: {
+      ...estadoDoIconeML(produto.anuncios),
+      // O "P" da proposta de anuncio do ML (spec 2026-10-23): so o booleano vai a lista.
+      proposta: produto.anuncios.some((anuncio) => anuncio.canal === "MERCADO_LIVRE" && Boolean(anuncio.dados?.proposta)),
+    },
     // Cor e selo do icone do Bling, calculados aqui (a assinatura usa node:crypto, so servidor).
     iconeBling: iconeBlingDoProduto(produto),
     // Cor e selo do icone da Loja Integrada (assinatura com node:crypto, so servidor).

@@ -1,5 +1,6 @@
 "use client";
 
+import { MarcaDaPropostaNoCampo, SugestaoDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import { useState } from "react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
@@ -87,6 +88,8 @@ function MargemDoPreco({ preco, custo, conta, mensagemSemCusto }) {
  * Aba Preco e estoque: o preco de venda (com a calculadora dentro do campo e a margem embaixo) e o
  * estoque do anuncio, os concorrentes do catalogo e os Custos totais (fornecedor, taxas do ML e imposto).
  */
+const MOEDA_DA_PROPOSTA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
 export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true } }) {
   // Texto do preco como foi digitado (ver `numeros.js`); `null` = nada digitado, mostra o numero.
   const [precoDigitado, setPrecoDigitado] = useState(null);
@@ -158,6 +161,13 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
               campo
             );
           })()}
+          <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="preco" valorAtual={rascunho.preco} />
+          <SugestaoDaProposta proposta={contexto.proposta} caminho="preco" valorAtual={rascunho.preco} aoUsar={(valor) => alterar({ preco: Number(valor) })} formatar={(valor) => MOEDA_DA_PROPOSTA.format(Number(valor))} />
+          {contexto.proposta?.preco?.valor != null && (
+            <p className="mt-1 text-[11px] text-amber-800">
+              Proposta: {contexto.proposta.preco.margem}% de margem, {contexto.proposta.preco.posicao}º de {contexto.proposta.preco.total} no ranking da proposta.
+            </p>
+          )}
           <MensagensDoCampo problemas={problemas} campo="preco" />
           {acessos.custos && <MargemDoPreco preco={preco} custo={custo} conta={conta} mensagemSemCusto={mensagemSemCusto(custo.faltam)} />}
           {somaAvulsa !== null && (
@@ -173,7 +183,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
       )}
 
       {rascunho.produtoId && acessos.concorrentes && (
-        <RankingDosCatalogos produtoId={rascunho.produtoId} titulo={rascunho.titulo} preco={rascunho.preco} categoriaId={rascunho.categoriaId} telaConcorrentes={telaConcorrentes} />
+        <RankingDosCatalogos produtoId={rascunho.produtoId} titulo={rascunho.titulo} preco={rascunho.preco} categoriaId={rascunho.categoriaId} telaConcorrentes={telaConcorrentes} daProposta={contexto.proposta?.catalogosSugeridos ?? []} />
       )}
 
     </div>

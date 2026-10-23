@@ -1574,7 +1574,15 @@ try {
       const ml = criarMLFalso();
       const bf = c.novoBling();
       const idSimples = await c.anuncioSimples(c.s1);
+      // A proposta de anuncio (plano 2026-10-23, Tarefa 8) sai no Publicar que deu certo.
+      const comProposta = async (id) => {
+        const atual = await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } });
+        await prisma.anuncio.update({ where: { id }, data: { dados: { ...(atual.dados ?? {}), proposta: { campos: ["preco"], relatorio: "- x" } } } });
+      };
+      const temProposta = async (id) => Boolean((await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados?.proposta);
+      await comProposta(idSimples);
       let r = await publicarAnuncioML(idSimples, { ml, bling: bf, lerFoto });
+      conferir("publicar: a proposta de anuncio sai no Publicar que deu certo", await temProposta(idSimples), false);
       conferir("publicar: tudo certo", [r.ok, r.feitas.at(-1), (await estado(idSimples)).status], [true, "gravar", "PUBLICADO"]);
       conferir("publicar: ordem das escritas no ML", ml.escritas.map(semMLB), ["POST /pictures/items/upload", "POST /pictures/items/upload", "POST /items/validate", "POST /items", "POST /items/MLB/description", "PUT /items/MLB"]);
       conferir("publicar: criou pausado, com preco e fotos por id, sem title", (({ status, price, pictures, title }) => [status, price, pictures.length, pictures.every((foto) => /^999-MLB/.test(foto.id)), title])(ml.escritas[3].corpo), ["paused", 49.9, 2, true, undefined]);
@@ -1590,7 +1598,9 @@ try {
       const mlNovo = criarMLFalso();
       const bfTravado = c.novoBling({ codigosLiberados: ["outro"] });
       const idOutro = await c.anuncioSimples(c.s1);
+      await comProposta(idOutro);
       r = await publicarAnuncioML(idOutro, { ml: mlNovo, bling: bfTravado, lerFoto });
+      conferir("trava: a proposta de anuncio fica (nada foi publicado)", await temProposta(idOutro), true);
       conferir("trava: nada escrito em lugar nenhum", [r.ok, /Escrita bloqueada/.test(r.erro), mlNovo.escritas.length, bfTravado.chamadas.filter((chamada) => !["GET", "exigirEscrita"].includes(chamada.metodo)).length, (await estado(idOutro)).status], [false, true, 0, 0, "RASCUNHO"]);
       const mlTravado = criarMLFalso({ codigosLiberados: ["outro"] });
       r = await publicarAnuncioML(idOutro, { ml: mlTravado, bling: c.novoBling(), lerFoto });

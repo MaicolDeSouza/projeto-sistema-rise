@@ -39,7 +39,9 @@ const idColado = (texto) => {
  * `telaConcorrentes` e a tela do bloco de concorrentes (o 1o do catalogo do anuncio vem dela);
  * `preco` e o do campo, entao a posicao muda enquanto o dono digita.
  */
-export default function RankingDosCatalogos({ produtoId, titulo, preco, categoriaId, telaConcorrentes }) {
+const MOEDA_DA_PROPOSTA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+export default function RankingDosCatalogos({ produtoId, titulo, preco, categoriaId, telaConcorrentes, daProposta = [] }) {
   const [referencias, setReferencias] = useState(null);
   const [erro, setErro] = useState(null);
   const [aviso, setAviso] = useState(null);
@@ -83,6 +85,8 @@ export default function RankingDosCatalogos({ produtoId, titulo, preco, categori
   const ranking = montarRanking({ preco, catalogos });
   const idsUsados = new Set([telaConcorrentes?.catalogoId, ...lista.map((r) => r.catalogoId)].filter(Boolean));
   const semNinguem = ranking.linhas.every((linha) => linha.tipo === "voce");
+  // Os catalogos que a proposta de anuncio sugeriu e o dono ainda nao adicionou (spec 2026-10-23): nada entra sozinho.
+  const sugeridosDaProposta = (daProposta ?? []).filter((catalogo) => !idsUsados.has(catalogo.catalogoId));
 
   return (
     <section className="rounded-lg border border-borda p-4">
@@ -127,6 +131,31 @@ export default function RankingDosCatalogos({ produtoId, titulo, preco, categori
       </div>
 
       {erro && <p role="alert" className="mt-2 text-sm text-red-700">{erro}</p>}
+      {sugeridosDaProposta.length > 0 && (
+        <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs font-semibold text-amber-900">Sugeridos pela proposta</p>
+          <ul className="mt-1.5 space-y-1.5">
+            {sugeridosDaProposta.map((catalogo) => (
+              <li key={catalogo.catalogoId} className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="min-w-0 flex-1 truncate" title={catalogo.nome ?? catalogo.catalogoId}>
+                  {catalogo.nome ?? catalogo.catalogoId} <span className="font-mono text-xs text-suave">{catalogo.catalogoId}</span>
+                </span>
+                <span className="text-xs text-suave">
+                  {catalogo.total} anúncios · 1º a {MOEDA_DA_PROPOSTA.format(Number(catalogo.primeiro?.preco ?? 0))}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => adicionar({ id: catalogo.catalogoId, nome: catalogo.nome ?? "" })}
+                  disabled={ocupado || lista.length >= MAXIMO}
+                  className="inline-flex items-center gap-1 rounded border border-amber-300 bg-white px-2 py-0.5 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  <Plus size={12} /> Adicionar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {aviso && <p className="mt-2 text-sm text-amber-800">Adicionado, mas a primeira leitura falhou: {aviso}</p>}
 
       {referencias === null && !erro ? (

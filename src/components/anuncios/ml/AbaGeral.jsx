@@ -1,5 +1,6 @@
 "use client";
 
+import { MarcaDaPropostaNoCampo, SugestaoDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import { useId } from "react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
@@ -174,6 +175,8 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
               </span>
             </div>
           </Campo>
+          <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="titulo" valorAtual={rascunho.titulo} />
+          <SugestaoDaProposta proposta={contexto.proposta} caminho="titulo" valorAtual={rascunho.titulo} aoUsar={(valor) => alterar({ titulo: String(valor) })} />
           <SugestaoDeTitulo rascunho={rascunho} contexto={contexto} alterar={alterar} limite={LIMITE_TITULO} />
         </div>
 
@@ -207,6 +210,8 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
           ) : (
             categoriaLida && <p className="mt-1 text-[11px] text-suave">{categoriaLida.caminho.join(" > ")}</p>
           )}
+          <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="categoriaId" valorAtual={rascunho.categoriaId} />
+          <SugestaoDaProposta proposta={contexto.proposta} caminho="categoriaId" valorAtual={rascunho.categoriaId} aoUsar={(valor) => alterar({ categoriaId: String(valor), categoriaNome: contexto.proposta?.sugestoes?.categoriaNome ?? null })} />
           <SugestaoDeCategoria rascunho={rascunho} alterar={alterar} />
         </div>
       </div>

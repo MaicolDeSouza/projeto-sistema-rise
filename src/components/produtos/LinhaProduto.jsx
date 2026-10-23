@@ -78,7 +78,7 @@ export default function LinhaProduto({
   const [editando, setEditando] = useState(null);
   const fecharEdicao = () => setEditando(null);
   // Cor e ponto sozinhos nao dizem o estado: o mesmo texto vai no nome acessivel e na dica.
-  const rotuloML = rotuloDoIconeML(iconeML);
+  const rotuloML = iconeML.proposta ? "Mercado Livre: Proposta pronta, aguardando aprovação" : rotuloDoIconeML(iconeML);
 
   const moeda = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -214,6 +214,14 @@ export default function LinhaProduto({
                   height={22}
                   className={`rounded ${iconeML.publicado ? "" : "opacity-70 brightness-50 grayscale"}`}
                 />
+                {iconeML.proposta && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-1.5 -left-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] leading-none font-bold text-amber-950 ring-2 ring-superficie"
+                  >
+                    P
+                  </span>
+                )}
                 {iconeML.rascunho && (
                   <span
                     aria-hidden="true"

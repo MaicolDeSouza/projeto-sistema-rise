@@ -1,5 +1,6 @@
 "use client";
 
+import { FaixaDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
@@ -363,6 +364,10 @@ export default function EditorAnuncioML({
     </div>
   );
 
+  const faixaDaProposta = !publicado && contexto.proposta && (
+    <FaixaDaProposta proposta={contexto.proposta} oQueFazer="Revise os campos marcados, adicione os catálogos sugeridos se quiser, e publique; o P some no Publicar." />
+  );
+
   const janelaDoPublicar = publicando && idAtual && (
     <JanelaPublicarML anuncioId={idAtual} rotuloDoBotao={rotuloPublicar} aoFechar={aoFecharPublicacao} />
   );
@@ -371,6 +376,7 @@ export default function EditorAnuncioML({
     return (
       <div className="space-y-4">
         {aviso}
+        {faixaDaProposta}
         {faixaDaPublicacao}
         <div className="rounded-lg border border-borda bg-superficie">
           {barra}
@@ -411,6 +417,7 @@ export default function EditorAnuncioML({
           </button>
         </header>
         {aviso && <div className="shrink-0 px-5 pt-3">{aviso}</div>}
+        {faixaDaProposta && <div className="shrink-0 px-5 pt-3">{faixaDaProposta}</div>}
         {faixaDaPublicacao && <div className="shrink-0 px-5 pt-3">{faixaDaPublicacao}</div>}
         <div className="shrink-0">{barra}</div>
         <div className="min-h-0 flex-1 overflow-y-auto p-5">{paineis}</div>

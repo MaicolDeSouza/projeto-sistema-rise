@@ -356,6 +356,7 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto })
       await gravar(
         { feitas: [...new Set([...(pub.feitas ?? []), "gravar"])], erro: null, etapaComErro: null },
         { status: "PUBLICADO", situacaoCanal: situacaoDoItem(pub.statusML), publicadoEm: new Date(), erro: null },
+        { apagarProposta: true },
       );
       return { ok: true, etapa, feitas: pub.feitas, itemId: pub.itemId, permalink: pub.permalink, ...(avisos.length ? { avisos } : {}) };
     }

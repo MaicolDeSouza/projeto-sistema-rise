@@ -153,7 +153,8 @@ export async function carregarAnuncioML(id) {
     anuncioId: anuncio.id,
     status: anuncio.status,
     rascunho,
-    contexto: { produtos, codigoEmUso: emUso },
+    // A proposta de anuncio (spec 2026-10-23) vai no contexto: a tela mostra as marcas, o relatorio e os catalogos sugeridos.
+    contexto: { produtos, codigoEmUso: emUso, proposta: anuncio.dados?.proposta ?? null },
     publicacao: anuncio.dados?.publicacao ?? null,
     idExterno: anuncio.idExterno ?? null,
     urlExterna: anuncio.urlExterna ?? null,
@@ -273,6 +274,8 @@ export async function gravarPublicacao(anuncioId, parcial = {}, colunas = {}, op
     };
     const novos = { ...(dados ?? {}), publicacao };
     if (opcoes.blingProdutoId !== undefined && novos.composicao) novos.composicao = { ...novos.composicao, blingProdutoId: opcoes.blingProdutoId };
+    // A proposta de anuncio (spec 2026-10-23) sai no Publicar que deu certo, nesta mesma gravacao: o "P" do icone some.
+    if (opcoes.apagarProposta) delete novos.proposta;
     await tx.anuncio.update({ where: { id: anuncioId }, data: { ...colunas, dados: novos } });
     return publicacao;
   });
