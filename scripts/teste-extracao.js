@@ -3343,5 +3343,24 @@ console.log("\n— estoque ao vivo do portal Benser —");
   ], ["HTTP 503", "resposta não é JSON", null]);
 }
 
+// EAN interno derivado do SKU (spec 2026-10-23-gerador-ean-interno-design.md): sem GS1, a faixa 2 e a de uso interno.
+{
+  const { calcularDigitoVerificador } = await import("../src/lib/eanNoMercadoLivre.js");
+  const { gerarEanDoSku, ehEanInternoDoRise, problemaDoEanInterno } = await import("../src/lib/eanInterno.js");
+  conferir("DV: calculo isolado confere com os EANs reais", [calcularDigitoVerificador("764015211013"), calcularDigitoVerificador("9638507"), calcularDigitoVerificador("200000100101")], ["9", "4", "1"]);
+  conferir("EAN interno: derivado do SKU, com zeros a esquerda e DV", [gerarEanDoSku("100101"), gerarEanDoSku("250012"), gerarEanDoSku(" 100101 ")], [{ ok: true, ean: "2000001001011" }, { ok: true, ean: "2000002500124" }, { ok: true, ean: "2000001001011" }]);
+  conferir("EAN interno: SKU com zeros a esquerda da o mesmo numero que sem eles (o Salvar recusa o repetido)", gerarEanDoSku("000123").ean, gerarEanDoSku("123").ean);
+  conferir("EAN interno: 11 digitos cabem, 12 nao", [gerarEanDoSku("12345678901").ok, gerarEanDoSku("123456789012").ok], [true, false]);
+  conferir("EAN interno: recusas com motivo", [gerarEanDoSku("").erro, gerarEanDoSku("   ").erro, gerarEanDoSku("ZZ-TESTE-KIT").erro, gerarEanDoSku("920302_1.000").erro, gerarEanDoSku("123456789012").erro], [
+    "Preencha o código (SKU) antes de gerar o EAN.",
+    "Preencha o código (SKU) antes de gerar o EAN.",
+    "O EAN interno só é gerado para código só com dígitos (este tem letras ou símbolos).",
+    "O EAN interno só é gerado para código só com dígitos (este tem letras ou símbolos).",
+    "O código tem mais de 11 dígitos e não cabe no EAN-13.",
+  ]);
+  conferir("EAN interno: reconhece a faixa 2 de 13 digitos", [ehEanInternoDoRise("2000001001011"), ehEanInternoDoRise("7640152110139"), ehEanInternoDoRise("20000010"), ehEanInternoDoRise(""), ehEanInternoDoRise(null)], [true, false, false, false, false]);
+  conferir("EAN interno: DV conferido so na faixa 2", [problemaDoEanInterno("2000001001011"), problemaDoEanInterno("2000000000008"), problemaDoEanInterno("7640152110138"), problemaDoEanInterno(""), problemaDoEanInterno("2000001001010")], [null, null, null, null, "O dígito verificador do GTIN/EAN interno (prefixo 2) não confere: gere de novo pelo botão ou corrija o código."]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

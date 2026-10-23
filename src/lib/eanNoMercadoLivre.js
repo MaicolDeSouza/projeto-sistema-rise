@@ -14,17 +14,25 @@ export function digitosDoEan(valor) {
   return /^(\d{8}|\d{12,14})$/.test(digitos) ? digitos : null;
 }
 
-/** O ultimo digito confere com a conta da GS1 (pesos 3 e 1 a partir da direita)? */
-export function digitoVerificadorOk(ean) {
-  const digitos = digitosDoEan(ean);
-  if (!digitos) return false;
-  const corpo = digitos.slice(0, -1);
+/**
+ * O digito verificador da conta da GS1 (pesos 3 e 1 a partir da direita) para um corpo so de digitos, de qualquer
+ * tamanho. Separado de `digitoVerificadorOk` porque o gerador de EAN interno (`eanInterno.js`) precisa CALCULAR o digito,
+ * nao so conferir.
+ */
+export function calcularDigitoVerificador(corpo) {
   let soma = 0;
   for (let i = 0; i < corpo.length; i++) {
     const peso = (corpo.length - i) % 2 === 1 ? 3 : 1;
     soma += Number(corpo[i]) * peso;
   }
-  return (10 - (soma % 10)) % 10 === Number(digitos.at(-1));
+  return String((10 - (soma % 10)) % 10);
+}
+
+/** O ultimo digito confere com a conta da GS1? */
+export function digitoVerificadorOk(ean) {
+  const digitos = digitosDoEan(ean);
+  if (!digitos) return false;
+  return calcularDigitoVerificador(digitos.slice(0, -1)) === digitos.at(-1);
 }
 
 /**
