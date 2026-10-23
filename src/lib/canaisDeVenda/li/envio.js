@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { semProposta } from "@/lib/propostaDeAnuncio/preencher";
 import {
   anuncioLIDoProduto,
   contextoDoProduto,
@@ -205,7 +206,8 @@ async function gravarSucesso(anuncioId, produtoId, { assinatura, payload, url, a
         ...(idExterno ? { idExterno: String(idExterno) } : {}),
         ...(url ? { urlExterna: url } : {}),
         ...(ativo === undefined ? {} : { situacaoCanal: ativo ? "ATIVA" : "PAUSADA" }),
-        dados: { ...(anuncio?.dados ?? {}), etapa: null },
+        // A proposta de anuncio (spec 2026-10-23) some aqui, no envio que deu certo, na mesma gravacao: o "P" do icone sai.
+        dados: { ...semProposta(anuncio?.dados ?? {}), etapa: null },
       },
     }),
     ...(url ? [prisma.produto.update({ where: { id: produtoId }, data: { urlLojaIntegrada: url } })] : []),

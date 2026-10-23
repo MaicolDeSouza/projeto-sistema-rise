@@ -875,6 +875,42 @@ try {
     conferir("rascunho ja preenchido: categorias e description viram sugestao", [Object.keys(sobre.sugestoes).sort(), sobre.campos], [["categorias", "seo.description"], []]);
   }
 
+  // -------------------------------------------------------------------------
+  // Proposta de anuncio (plano 2026-10-23, Tarefa 4): a proposta some so no envio que deu certo
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nProposta da LI: some no envio certo");
+    await limpar();
+    const comProposta = async (produtoId) => {
+      const anuncio = await anuncioLIDoProduto(produtoId);
+      await prisma.anuncio.update({ where: { id: anuncio.id }, data: { dados: { ...(anuncio.dados ?? {}), proposta: { campos: ["marca"], relatorio: "- x" } } } });
+    };
+    const temProposta = async (produtoId) => Boolean((await anuncioLIDoProduto(produtoId))?.dados?.proposta);
+
+    const ps = await prisma.produto.create({ data: { sku: "ZZ-LI-PS1", tituloBase: "Rele PS", descricaoBase: "Módulo relé de teste para a proposta da Loja Integrada.", ncm: "85364900", conferido: true } });
+    const liS = criarLojaIntegradaFalsa({ produtos: [{ id: 801, sku: "ZZ-LI-PS1", nome: "Rele", apelido: "/rele-ps", ativo: true, removido: false, seo: "/api/v1/seo/81" }], seos: { 81: { title: "", description: "" } } });
+    await lerParaPopupLI(ps.id, liS);
+    await comProposta(ps.id);
+    const travadaS = { ...liS, exigirEscrita: () => { throw new Error("Escrita bloqueada: LI_ESCRITA esta false no .env."); } };
+    conferir("sincronizar recusado pela trava: a proposta fica", [(await sincronizarProdutoLI(ps.id, travadaS)).ok, await temProposta(ps.id)], [false, true]);
+    const certoS = await sincronizarProdutoLI(ps.id, liS);
+    conferir("sincronizar que deu certo: a proposta sai", [certoS.ok, await temProposta(ps.id)], [true, false]);
+
+    const pf = await prisma.produto.create({ data: { sku: "ZZ-LI-PS2", tituloBase: "Falha PS", ncm: "85364900", conferido: true } });
+    const liF = criarLojaIntegradaFalsa({ produtos: [{ id: 802, sku: "ZZ-LI-PS2", nome: "Antigo", apelido: "/antigo-ps", seo: "/api/v1/seo/82" }], seos: { 82: { title: "", description: "" } }, falhas: { "PUT /seo/82": 500 } });
+    await lerParaPopupLI(pf.id, liF);
+    const anF = await anuncioLIDoProduto(pf.id);
+    await salvarRascunhoLI(anF.id, { ...rascunhoDoAnuncio(anF), seo: { title: "Titulo", description: "Resumo" } });
+    await comProposta(pf.id);
+    conferir("sincronizar que falhou no meio: a proposta fica", [(await sincronizarProdutoLI(pf.id, liF)).ok, await temProposta(pf.id)], [false, true]);
+
+    const pc = await prisma.produto.create({ data: { sku: "ZZ-LI-PS3", tituloBase: "Novo PS", descricaoBase: "Produto novo de teste para a proposta da Loja Integrada.", ncm: "85364900", conferido: true } });
+    await salvarRascunhoLI(null, rascunhoInicialLI({ id: pc.id, tituloBase: "Novo PS", descricaoBase: "Produto novo de teste para a proposta da Loja Integrada." }));
+    await comProposta(pc.id);
+    const liC = criarLojaIntegradaFalsa({});
+    conferir("cadastrar que deu certo: a proposta sai", [(await cadastrarNaLI(pc.id, liC)).ok, await temProposta(pc.id)], [true, false]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;

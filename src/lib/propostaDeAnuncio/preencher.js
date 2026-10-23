@@ -61,6 +61,13 @@ export function montarProposta({ versaoDoRoteiro, campos = [], sugestoes = {}, v
   };
 }
 
+/** Os `dados` do anuncio sem a proposta: o envio ao canal que deu certo a apaga (e o "P" do icone some). */
+export function semProposta(dados) {
+  if (!dados || typeof dados !== "object") return dados ?? {};
+  const { proposta: _proposta, ...resto } = dados;
+  return resto;
+}
+
 /** O que a tela mostra num campo: "preenchido" (marca PROPOSTA), "sugestao" (topo da lista) ou nada. */
 export function marcaDaProposta(proposta, caminho) {
   if (!proposta) return null;
