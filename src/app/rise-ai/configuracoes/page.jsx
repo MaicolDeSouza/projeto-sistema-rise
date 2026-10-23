@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import AbaAtendimento from "@/components/riseAi/AbaAtendimento";
+import AbaCanais from "@/components/riseAi/AbaCanais";
 import AbaOrcamentos from "@/components/riseAi/AbaOrcamentos";
 import CartaoDeProvedor from "@/components/riseAi/CartaoDeProvedor";
 import ConfiguracoesEmAbas from "@/components/riseAi/ConfiguracoesEmAbas";
@@ -14,12 +15,13 @@ import { MODELOS_SUGERIDOS, PROVEDORES, endpointPadrao } from "@/lib/riseAi/mode
 import { estadoDoOrcamento } from "@/lib/riseAi/orcamento";
 import { PROMPT_ATENDIMENTO_PADRAO } from "@/lib/riseAi/prompt";
 import { versaoAnterior } from "@/lib/riseAi/versoesDePrompt";
+import { estadoDoTelegram } from "@/lib/telegram/estado";
 import { sessaoDoRiseAi } from "../sessao";
 
 export const metadata = { title: "Configurações | Rise AI" };
 export const dynamic = "force-dynamic";
 
-const ROTULOS = { modelos: "Modelos", orcamentos: "Orçamentos", atendimento: "Atendimento" };
+const ROTULOS = { modelos: "Modelos", orcamentos: "Orçamentos", canais: "Canais", atendimento: "Atendimento" };
 const RECURSO_DO_PROMPT_DO_CLIENTE = "riseAi.configuracoes.promptCliente";
 
 const comoTexto = (data) => (data ? data.toISOString() : null);
@@ -49,8 +51,8 @@ async function versaoParaATela(canal) {
 }
 
 /**
- * As configurações do Rise AI, em três abas (Modelos, Orçamentos e Atendimento; a Canais, o orçamento interno e o prompt
- * interno saíram com o chat, decisão C1 de 20/10/2026). A página existe para quem tem o recurso `riseAi.configuracoes`; cada
+ * As configurações do Rise AI, em quatro abas (Modelos, Orçamentos, Canais e Atendimento; o orçamento interno e o prompt
+ * interno saíram com o chat, decisão C1 de 20/10/2026, e a Canais voltou em 22/10/2026 só com o Telegram). A página existe para quem tem o recurso `riseAi.configuracoes`; cada
  * aba aparece só para quem tem o recurso dela (a Atendimento, que hoje é só o prompt do cliente, só para quem pode esse
  * prompt), e sem nenhuma o resultado é 404 (a conferência é do servidor, e cada Salvar confere de novo). A página lê a chave só para saber SE existe e DE ONDE vem:
  * nenhuma chave, nem cifrada, chega ao navegador.
@@ -123,6 +125,21 @@ export default async function ConfiguracoesPage() {
         inicial={{ clientes: emReais(configuracao.orcamentos.clientesBrl) }}
         estados={{ clientes }}
         cotacao={cotacao}
+      />
+    );
+  }
+
+  if (visiveis.includes("canais")) {
+    const telegram = await estadoDoTelegram();
+    paineis.canais = (
+      <AbaCanais
+        podeEditar={podeEditar("canais")}
+        inicial={configuracao.telegram}
+        estado={{
+          ...telegram,
+          token: { cadastrada: telegram.token.cadastrada, em: comoTexto(telegram.token.em) },
+          bot: { ...telegram.bot, testadoEm: comoTexto(telegram.bot.testadoEm) },
+        }}
       />
     );
   }

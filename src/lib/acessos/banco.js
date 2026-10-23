@@ -96,8 +96,11 @@ const textoDaData = (data) => (data ? new Date(data).toISOString() : null);
 
 /** Sem `Date` nem `null` nos campos de texto: o que atravessa para o navegador e para campos nao controlados. */
 export function usuarioParaTela(usuario) {
+  // O chat do Telegram e o hash do codigo de vinculo nao vao ao navegador: a tela so precisa saber se ha vinculo.
+  const { telegramChatId, codigoDeVinculoHash: _hash, codigoDeVinculoExpiraEm: _expira, ...resto } = usuario;
   return {
-    ...usuario,
+    ...resto,
+    telegramVinculado: Boolean(telegramChatId),
     assinatura: usuario.assinatura ?? "",
     criadoEm: textoDaData(usuario.criadoEm),
     ultimoAcessoEm: textoDaData(usuario.ultimoAcessoEm),

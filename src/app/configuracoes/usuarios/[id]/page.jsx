@@ -5,6 +5,7 @@ import { carregarUsuario, ehUltimoAdministradorAtivo, funcaoParaTela, listarFunc
 import { estadoDoLogin } from "@/lib/acessos/loginTinyauth";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { ambienteDoRise } from "@/lib/sessao";
+import { temTokenDoTelegram } from "@/lib/telegram/estado";
 
 export const metadata = { title: "Usuário | Sistema Rise" };
 export const dynamic = "force-dynamic";
@@ -17,5 +18,7 @@ export default async function UsuarioPage({ params }) {
   if (!usuario) notFound();
   // Como a pessoa entra na tela de entrada (o .env da VPS, o arquivo que o Rise grava, ou ainda nao entra).
   const entrada = { ...(await estadoDoLogin(usuario.login)), naVps: ambienteDoRise(process.env) === "vps" };
-  return <FormularioUsuario key={usuario.id} usuario={usuarioParaTela(usuario)} funcoes={funcoes.map(funcaoParaTela)} ultimoAdministrador={ultimoAdministrador} entrada={entrada} />;
+  // So o fato de haver token do bot (Entrega C1): sem ele, "Gerar codigo" fica desabilitado e diz onde cadastrar.
+  const telegram = { temToken: await temTokenDoTelegram() };
+  return <FormularioUsuario key={usuario.id} usuario={usuarioParaTela(usuario)} funcoes={funcoes.map(funcaoParaTela)} ultimoAdministrador={ultimoAdministrador} entrada={entrada} telegram={telegram} />;
 }

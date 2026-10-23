@@ -14,6 +14,7 @@ import { filtrarRecursos } from "@/lib/acessos/matriz";
 import { gruposDaMatriz, recursoPorId } from "@/lib/acessos/recursos";
 import EntradaNoRise from "./EntradaNoRise";
 import HistoricoDoUsuario from "./HistoricoDoUsuario";
+import VinculoTelegram from "./VinculoTelegram";
 import VerComo from "./JanelaVerComo";
 import SeletorDeNivel from "./SeletorDeNivel";
 
@@ -46,10 +47,10 @@ const ErroDoCampo = ({ erro }) => (erro ? <span className="mt-1 block text-xs te
 /**
  * O usuario (spec de Acessos, §5.5). Linha-guia: o dono ve primeiro quem e a pessoa e o que ela pode; a acao principal
  * e Salvar. Duas abas montadas e escondidas (Dados e Acesso); o erro do servidor leva a primeira aba com erro e poe o
- * ponto no titulo dela (o molde do cadastro de Cliente). Sem Excluir (so Desativar) e sem Telegram. No usuario salvo, o
+ * ponto no titulo dela (o molde do cadastro de Cliente). Sem Excluir (so Desativar). O Telegram (Entrega C1) e do usuario salvo. No usuario salvo, o
  * "Ver como" no cabecalho e a aba Historico (lancamento 2).
  */
-export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrador = false, entrada = null }) {
+export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrador = false, entrada = null, telegram = null }) {
   const router = useRouter();
   const [aba, setAba] = useState("dados");
   const [login, setLogin] = useState(usuario.login);
@@ -193,6 +194,9 @@ export default function FormularioUsuario({ usuario, funcoes, ultimoAdministrado
               ativo={usuario.ativo}
               entrada={entrada}
             />
+          )}
+          {usuario.id && telegram && (
+            <VinculoTelegram usuarioId={usuario.id} ativo={usuario.ativo} vinculado={Boolean(usuario.telegramVinculado)} temToken={telegram.temToken} />
           )}
         </Painel>
 

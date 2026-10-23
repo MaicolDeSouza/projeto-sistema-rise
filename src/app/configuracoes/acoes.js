@@ -7,6 +7,10 @@ import { definirSenha, removerLogin } from "@/lib/acessos/loginTinyauth";
 import { executarComAcesso } from "@/lib/acessos/servidor";
 import { ErroDeUso } from "@/lib/riseAi/erros";
 import { ambienteDoRise } from "@/lib/sessao";
+import { lerSegredo } from "@/lib/integracoes/conexoes";
+import { criarClienteTelegram } from "@/lib/telegram/cliente";
+import { SERVICO_TELEGRAM } from "@/lib/telegram/estado";
+import { confirmarVinculo, desvincular, iniciarVinculo, localizarVinculo } from "@/lib/telegram/vinculo";
 
 /**
  * Acoes de Configuracoes › Usuarios e funcoes. TODAS passam por `executarComAcesso` com "Usuarios e funcoes", que nao e
@@ -123,4 +127,55 @@ export async function verComoAcao(tipo, id) {
 /** A aba Historico do usuario: 100 linhas por pagina, a mais recente primeiro. */
 export async function historicoDoUsuarioAcao(id, pagina = 1) {
   return executarComAcesso("tela.configuracoes.usuarios", "ver", async () => historicoDoUsuario(id, { pagina }));
+}
+
+// ------------------------------------------------------------------------------------------- Telegram (Entrega C1)
+// O vinculo de uma pessoa ao chat dela, pela tela do usuario. So o Administrador (Usuarios e funcoes nao e delegavel).
+// O codigo aparece UMA vez na tela; no banco fica so o hash. Nada fica escutando o Telegram: "Conferir vinculo" faz uma
+// leitura curta do getUpdates (spec do agente, §7: C1 sem polling).
+
+/** O cliente do bot com o token cadastrado, ou `null` sem token. */
+async function clienteDoBot() {
+  const segredo = await lerSegredo(SERVICO_TELEGRAM);
+  return segredo?.token ? criarClienteTelegram({ token: segredo.token }) : null;
+}
+
+export async function gerarCodigoDeVinculoAcao(usuarioId) {
+  return executarComAcesso("tela.configuracoes.usuarios", "editar", async (acesso) => {
+    if (!(await clienteDoBot())) throw new ErroDeUso("Cadastre o token do bot em Rise AI › Configurações › Canais.");
+    const { codigo, expiraEm } = await iniciarVinculo(String(usuarioId), { quem: acesso.login ?? "pc" }).catch((erro) => {
+      throw new ErroDeUso(erro.message);
+    });
+    return { codigo, expiraEm: expiraEm.toISOString() };
+  });
+}
+
+/** Le o Telegram uma vez e devolve o chat que mandou o codigo (nome e @, para o Administrador conferir) ou o motivo. */
+export async function conferirVinculoAcao(usuarioId) {
+  return executarComAcesso("tela.configuracoes.usuarios", "editar", async () => {
+    const cliente = await clienteDoBot();
+    if (!cliente) return { ok: false, motivo: "sem-token" };
+    const leitura = await localizarVinculo(String(usuarioId), { cliente });
+    if (!leitura.ok) return leitura;
+    return { ok: true, chat: leitura.chat };
+  });
+}
+
+export async function confirmarVinculoAcao(usuarioId, chatId) {
+  return executarComAcesso("tela.configuracoes.usuarios", "editar", async (acesso) => {
+    const cliente = await clienteDoBot();
+    if (!cliente) throw new ErroDeUso("Cadastre o token do bot em Rise AI › Configurações › Canais.");
+    const resultado = await confirmarVinculo(String(usuarioId), String(chatId ?? ""), { cliente, quem: acesso.login ?? "pc" });
+    if (!resultado.ok) return resultado;
+    atualizarTelas();
+    return { aviso: resultado.aviso ?? null };
+  });
+}
+
+export async function desvincularTelegramAcao(usuarioId) {
+  return executarComAcesso("tela.configuracoes.usuarios", "editar", async (acesso) => {
+    await desvincular(String(usuarioId), { quem: acesso.login ?? "pc" });
+    atualizarTelas();
+    return {};
+  });
 }
