@@ -79,7 +79,10 @@ function validarEan(conteudo) {
   if (!conteudo || !Array.isArray(conteudo.descartados)) return erro("ean: descartados é uma lista.");
   const escolhido = conteudo.escolhido;
   if (escolhido !== null && escolhido !== undefined) {
-    if (!/^(\d{8}|\d{12}|\d{13}|\d{14})$/.test(String(escolhido.valor ?? ""))) return erro("ean: o escolhido tem 8, 12, 13 ou 14 dígitos.");
+    // "interno" e o pedido para o Rise calcular o EAN interno do codigo (roteiro v4): `gravarProposta` troca pelo numero.
+    if (escolhido.valor !== "interno" && !/^(\d{8}|\d{12}|\d{13}|\d{14})$/.test(String(escolhido.valor ?? ""))) {
+      return erro('ean: o escolhido é "interno" ou tem 8, 12, 13 ou 14 dígitos.');
+    }
     if (!texto(escolhido.origem)) return erro("ean: o escolhido sem origem.");
   }
   return { ok: true };

@@ -36,6 +36,8 @@ Os planos e as fotos baixadas ficam na pasta de trabalho da sessão no PC (scrat
 ## Aprendido na primeira rodada (20/10/2026, `100103-teste` no banco do PC)
 
 - **Gravar as 8 seções levou 43 s** (43 candidatas padronizadas); a pesquisa e a análise vêm antes e levam mais.
+- **Desde o roteiro v4 (23/10/2026) o EAN não se pesquisa mais:** é sempre o interno do Rise (`escolhido: { valor:
+  "interno" }`, e o Rise calcula pelo código). O item abaixo ficou como histórico.
 - **Sites de EAN recusam leitura automática** (EAN-Search, Product-Search e Cosmos dão 403 ao `WebFetch`): consultar
   pelo **navegador do app** (EAN-Search e Product-Search abrem; o Cosmos pede a verificação da Cloudflare, que não se
   contorna: registrar "não consultado"). A busca por palavras-chave traz só EANs **de outros vendedores** (cada loja

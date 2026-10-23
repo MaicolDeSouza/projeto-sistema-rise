@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { apagarPastaDaProposta, caminhoDaProposta, PASTA_PROPOSTA, pastaDoProduto, urlDaProposta, urlDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
+import { gerarEanDoSku } from "@/lib/eanInterno";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 
 import { SECOES_APLICAVEIS } from "./aplicar";
@@ -97,6 +98,14 @@ export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink
   const produto = await prisma.produto.findUnique({ where: { sku }, select: { id: true, conferido: true } });
   if (!produto) return { ok: false, erro: `Produto ${sku} não existe.` };
   if (produto.conferido) return { ok: false, erro: `${sku} está Conferido: a proposta não é gravada (o dono já aprovou).` };
+
+  // O EAN da proposta e SEMPRE o interno do Rise (dono, 23/10/2026: "sempre gerar EAN, independente se tem ou nao"): a
+  // conversa manda "interno" e quem calcula e o Rise, pelo codigo, como ja faz com o preco. Codigo com letras nao cabe.
+  if (validado.secao === "ean" && plano.conteudo?.escolhido?.valor === "interno") {
+    const gerado = gerarEanDoSku(sku);
+    if (!gerado.ok) return { ok: false, erro: `ean: ${gerado.erro} Grave escolhido null com o motivo nos descartados.` };
+    plano = { ...plano, conteudo: { ...plano.conteudo, escolhido: { valor: gerado.ean, origem: "EAN interno do Rise (prefixo 2, derivado do código)" } } };
+  }
 
   // EAN de OUTRO produto do Rise nunca e proposto: o Salvar recusaria o mesmo GTIN em dois produtos.
   if (validado.secao === "ean" && plano.conteudo?.escolhido?.valor) {

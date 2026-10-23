@@ -251,6 +251,7 @@ const { validarPlano } = await import("../src/lib/proposta/plano.js");
   conferir("plano: marca com origem passa", validarPlano({ secao: "campos", conteudo: { marca: { valor: "GENÉRICA", origem: "placa compatível" } } }).ok === true);
   conferir("plano: EAN com 11 digitos e recusado", validarPlano({ secao: "ean", conteudo: { escolhido: { valor: "12345678901", origem: "x" }, descartados: [] } }).ok === false);
   conferir("plano: EAN vazio (nada confiavel) passa", validarPlano({ secao: "ean", conteudo: { escolhido: null, descartados: [{ valor: "7671459174876", motivo: "prefixo nao brasileiro" }] } }).ok === true);
+  conferir("plano: EAN 'interno' (roteiro v4) passa; outro texto nao", validarPlano({ secao: "ean", conteudo: { escolhido: { valor: "interno", origem: "EAN interno do Rise" }, descartados: [] } }).ok === true && validarPlano({ secao: "ean", conteudo: { escolhido: { valor: "externo", origem: "x" }, descartados: [] } }).ok === false);
   conferir("plano: descricao vazia e recusada", validarPlano({ secao: "descricao", conteudo: { texto: "  " } }).ok === false);
   conferir("plano: relatorio com texto passa", validarPlano({ secao: "relatorio", conteudo: { texto: "Feito." } }).ok === true);
   const topico = (titulo, itens, extra = {}) => ({ titulo, itens, ...extra });
@@ -368,6 +369,24 @@ try {
     await marcarSecoesAplicadas("id-que-nao-existe", ["titulos"]);
     conferir("salvar: produto sem proposta nao da erro", true);
     conferir("formulario: produto sem proposta devolve null", (await propostaParaFormulario("id-que-nao-existe")) === null);
+  }
+
+  // EAN "interno" (roteiro v4, dono em 23/10/2026): o Rise calcula pelo codigo; codigo com letras recusa a secao.
+  {
+    const { gravarProposta, lerProposta } = await import("../src/lib/proposta/banco.js");
+    await limpar();
+    await prisma.produto.create({ data: { sku: "ZZ-PROP-3", tituloBase: "CODIGO COM LETRAS" } });
+    const comLetras = await gravarProposta("ZZ-PROP-3", { secao: "ean", conteudo: { escolhido: { valor: "interno", origem: "EAN interno do Rise" }, descartados: [], buscas: [] } });
+    conferir("ean interno: codigo com letras recusa a secao com o motivo", comLetras.ok === false && /letras ou símbolos/.test(comLetras.erro));
+    const numerico = await prisma.produto.create({ data: { sku: "99999999901", tituloBase: "ZZ-PROP CODIGO NUMERICO" } });
+    try {
+      const ok = await gravarProposta("99999999901", { secao: "ean", conteudo: { escolhido: { valor: "interno", origem: "EAN interno do Rise" }, descartados: [{ valor: "7891234567895", motivo: "a 4hobby usa EAN interno" }], buscas: [] } });
+      const gravada = await lerProposta("99999999901");
+      conferir("ean interno: o Rise troca 'interno' pelo EAN-13 do codigo, com a origem", ok.ok === true && gravada.secoes.ean.escolhido.valor === "2999999999014" && /interno do Rise/.test(gravada.secoes.ean.escolhido.origem));
+      conferir("ean interno: os descartados ficam como registro", gravada.secoes.ean.descartados[0].valor === "7891234567895");
+    } finally {
+      await prisma.produto.delete({ where: { id: numerico.id } });
+    }
   }
 
   // Fotos (Tarefa 8): a candidata da proposta entra no lote validada, e a foto atual que sai vai para a reserva.

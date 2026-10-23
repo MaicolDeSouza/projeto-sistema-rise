@@ -7,7 +7,7 @@
  *
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
-export const VERSAO_DO_ROTEIRO = "3";
+export const VERSAO_DO_ROTEIRO = "4";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -91,12 +91,12 @@ conteudo: { "<campo>": { "valor", "origem" } }
 - Leia o resultado com lerProposta e use no resumo e no relatório.
 
 6. EAN
-- Junte os EANs que os concorrentes publicam; dígito verificador inválido sai; prefixo não brasileiro = baixa confiança.
-- Pesquise cada um (EAN-Search, Product-Search, Cosmos, o site do Mercado Livre) e na internet; confira se a descrição é
-  deste produto. Se nenhum for, procure pelas palavras-chave do produto, com a mesma conferência.
-- Nada confiável: escolhido null, com os descartados e o motivo. EAN não se gera. O Rise recusa o EAN que já é de outro
-  produto dele: ponha esse nos descartados.
-conteudo: { "escolhido": { "valor", "origem" } ou null, "descartados": [{ "valor", "motivo" }], "buscas": [] }
+- O EAN da 4hobby é SEMPRE o interno do Rise (EAN-13 de uso interno, prefixo 2, derivado do código do produto), com ou
+  sem código de fabricante: decisão do dono em 23/10/2026, sem GS1. Não pesquise EANs na internet.
+- Grave escolhido { "valor": "interno", "origem": "EAN interno do Rise" }: o Rise calcula o número a partir do código.
+- Os EANs que os concorrentes publicam vão em descartados, cada um com o motivo "a 4hobby usa EAN interno" (só registro).
+- Código do produto com letras ou símbolos: o Rise recusa a seção; grave escolhido null e o motivo nos descartados.
+conteudo: { "escolhido": { "valor": "interno", "origem" } ou null, "descartados": [{ "valor", "motivo" }], "buscas": [] }
 
 7. DOCUMENTOS
 - Datasheets e manuais que os concorrentes publicam, só com o link (não baixe arquivos). O Rise testa cada link ao

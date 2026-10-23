@@ -2349,6 +2349,11 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
     Conferido na tela em `/produtos/novo` (gerar, apagar, SKU com letras); **a recusa do Salvar na tela não foi vista**: o
     servidor da porta 3000 era de outra sessão e estava com o `acoes.js` antigo em memória (gravou o DV errado uma vez; o
     EAN de teste foi desfeito no banco). Fora: gerar em lote, etiqueta, mudanças nos canais.
+    - **Na proposta automática o EAN é SEMPRE o interno** (dono, 23/10/2026: "sempre gerar EAN, independente se tem ou
+      não"; roteiro **v4**): a seção 6 manda gravar `escolhido: { valor: "interno" }` sem pesquisar EAN na internet, os
+      EANs dos concorrentes vão em `descartados` só como registro, e `gravarProposta` troca "interno" pelo EAN-13 do
+      código (`gerarEanDoSku`), com a origem "EAN interno do Rise". Código com letras recusa a seção com o motivo
+      (a conversa grava `escolhido: null`). Testes no `teste:proposta` (228).
   - Medido em 06/10/2026 no 100103, servidor de desenvolvimento: as indicações aparecem uns 17 s depois de abrir
     a página. As ações do servidor rodam uma de cada vez, e a preparação das fotos vem antes. Testes em
     `teste-cadastros` ("Indicações dos vínculos salvos").
@@ -5333,7 +5338,7 @@ a Bling, Mercado Livre ou Loja Integrada.
   `docs/superpowers/roteiros/instrucao-projeto-claude-ai-proposta.md`.
 - **Roteiro único da proposta (21/10/2026, pedido do dono: "posso mudar de LLM e deve funcionar igual")** (plano
   `docs/superpowers/plans/2026-10-21-roteiro-unico-da-proposta.md`): as regras moram SÓ em `src/lib/proposta/roteiro.js`
-  (`ROTEIRO` + `VERSAO_DO_ROTEIRO`, hoje "3"), entregues pela ferramenta `roteiroDaProposta` do MCP; cada seção gravada
+  (`ROTEIRO` + `VERSAO_DO_ROTEIRO`, hoje "4"), entregues pela ferramenta `roteiroDaProposta` do MCP; cada seção gravada
   carimba `PropostaDeProduto.versaoDoRoteiro`. A instrução do Projeto (claude.ai, ChatGPT) é um bloco fixo de 3 linhas que
   só manda ler o roteiro; o `docs/superpowers/roteiros/proposta-de-produto.md` ficou só com a reserva por SSH. **Mudar
   regra = editar `roteiro.js`, subir a versão e fazer deploy.** O que é conta ou checagem é do Rise, ao gravar: o PREÇO (de 5 em 5 centavos, arredondado para cima, desde 22/10/2026: `precoParaMargem` em `regras.js`)
