@@ -2237,6 +2237,41 @@ try {
     conferir("sugerir: 429 avisa (lanca)", await sugerirCatalogos(com429, { categoriaId: "MLB99779", titulo: "", excluir: [] }).then(() => "nao lancou", (erro) => erro?.status), 429);
   }
 
+  // -------------------------------------------------------------------------
+  // Proposta de anuncio (plano 2026-10-23, Tarefa 6): o preco da proposta do ML
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nProposta do ML: preço");
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { paraBaixo5, paraCima5, precoDaPropostaML, tetoDoRanking } = await import("../src/lib/propostaDeAnuncio/preco.js");
+    conferir("teto: o 5º menor", tetoDoRanking([50, 40, 30, 20, 10, 60]), 50);
+    conferir("teto: com menos de 5, o maior", tetoDoRanking([30, 10, 20]), 30);
+    conferir("teto: vazio", tetoDoRanking([]), null);
+    conferir("de 5 em 5 centavos", [paraBaixo5(41.99), paraCima5(41.91), paraCima5(41.95), paraBaixo5(41.95)], [41.95, 41.95, 41.95, 41.95]);
+
+    // Comissao 12%, sem tarifa fixa, frete 6,85 abaixo de R$ 79 e 12,95 dali para cima (o medido em 22/10/2026).
+    const ml = criarMLFalso({ taxas: { percentualPorTipo: { gold_special: 12 } }, frete: { listCost: 12.95, listCostSemGratis: 6.85 } });
+    const rascunho = { categoriaId: "MLB99779", tipoAnuncio: "gold_special", envio: { alturaCm: 5, larguraCm: 8, comprimentoCm: 8, pesoKg: 0.05, logistica: "xd_drop_off", freteGratis: false } };
+    const multiplo5 = (valor) => Math.round(valor * 100) % 5 === 0;
+
+    const top5 = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [45, 48, 50, 52, 55, 70] });
+    conferir("no top 5: o teto, com 30% ou mais, em 5º", [top5.valor, top5.margem >= 30, top5.posicao, top5.total, top5.teto, top5.avisos], [55, true, 5, 7, 55, []]);
+
+    const caro = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [30, 31, 32, 33, 34] });
+    conferir("30% fora do top 5: fica no piso e avisa a posição", [caro.valor, caro.valor === caro.piso, caro.margem >= 30, caro.avisos.some((aviso) => /fica em 6º de 6/.test(aviso))], [51.65, true, true, true]);
+
+    const virada = await precoDaPropostaML(ml, rascunho, { custo: 30, precos: [60, 70, 75, 78, 80, 90] });
+    conferir("cruzar R$ 79 perde margem pelo frete: fica abaixo de 79", [virada.valor, virada.margem >= 30], [78.95, true]);
+
+    const semCusto = await precoDaPropostaML(ml, rascunho, { custo: null, precos: [45] });
+    conferir("sem custo: sem preço e avisa", [semCusto.valor, semCusto.avisos.some((aviso) => /custo/.test(aviso))], [null, true]);
+
+    const sozinho = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [] });
+    conferir("sem concorrente: o piso e avisa", [sozinho.valor, sozinho.valor === sozinho.piso, sozinho.avisos.some((aviso) => /sem concorrente/.test(aviso))], [51.65, true, true]);
+
+    conferir("todo preço de 5 em 5 centavos", [top5, caro, virada, sozinho].every((resultado) => multiplo5(resultado.valor)), true);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();
