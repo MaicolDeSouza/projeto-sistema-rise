@@ -187,10 +187,14 @@ export function jobLargado(job, agora = Date.now()) {
  */
 export async function enfileirar(fontes, { teste = false, endereco = null } = {}) {
   if (fontes.length === 0) return 0;
+  // `pegarProximoJob` le a fila por `criadoEm`, e num `createMany` todas as linhas ganhariam o mesmo instante: o
+  // `criadoEm` cresce 1 ms por fonte para a ORDEM da lista valer (a rodada semanal manda as lojas longas primeiro).
+  const agora = Date.now();
   const { count } = await prisma.job.createMany({
-    data: fontes.map((fonte) => ({
+    data: fontes.map((fonte, indice) => ({
       tipo: "coleta",
       fonteId: fonte.id,
+      criadoEm: new Date(agora + indice),
       payload: {
         fonteId: fonte.id,
         fonteNome: fonte.nome,

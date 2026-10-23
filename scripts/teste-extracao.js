@@ -1649,6 +1649,42 @@ console.log("\n— Navegacao: segue a paginacao das categorias, e nao ordenacao 
   conferir("itens por pagina (n=) continua recusado", parametroRuim(`${base}?n=60`), true);
   conferir("busca (q=, search_query=) continua recusada", [parametroRuim(`${base}?q=esp32`), parametroRuim(`${base}?search_query=x`)], [true, true]);
   conferir("nome de parametro em caixa alta conta igual", parametroRuim(`${base}?OrderBy=price`), true);
+  // Curto Circuito (Magento 2, 22/10/2026): os filtros da camada de navegacao e o "&amp;" que ficou sem decodificar.
+  conferir("filtro de categoria do Magento (cat=) e recusado", parametroRuim(`${base}?cat=5`), true);
+  conferir("ordenacao da lista do Magento e recusada", parametroRuim(`${base}?product_list_order=price&product_list_dir=asc`), true);
+  conferir("faixa de preco e fabricante do Magento sao recusados", [parametroRuim(`${base}?price=10-20`), parametroRuim(`${base}?manufacturer=12`)], [true, true]);
+  conferir("'&amp;' sem decodificar (amp;cat=) e recusado", parametroRuim(`${base}?p=2&amp%3Bcat=5`), true);
+}
+
+console.log("\n— Navegacao: o href decodifica entidades, e a listagem do Magento nao e produto —");
+{
+  const { linksDe } = await import("../src/lib/coleta/descobrir.js");
+  const { ehListagemDoMagento } = await import("../src/lib/coleta/magento.js");
+  const origem = "https://www.curtocircuito.com.br";
+  const fonte = { name: "Curto Circuito", type: "CONCORRENTE" };
+  const html = `<a href="/modulos.html?p=2&amp;id_category=7">2</a><a href="/modulos.html?p=3&amp;cat=5">3</a><a href="/sensor-x.html">x</a>`;
+  conferir(
+    "o &amp; do href vira & (e o filtro cat= continua recusado)",
+    linksDe(html, `${origem}/modulos.html`, origem),
+    [`${origem}/modulos.html?p=2&id_category=7`, `${origem}/sensor-x.html`],
+  );
+  const categoria =
+    `<html><head><meta property="og:type" content="product.group" />` +
+    `<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Modulo A","offers":{"@type":"Offer","price":"25.20","priceCurrency":"BRL"}}</script>` +
+    `<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Modulo B","offers":{"@type":"Offer","price":"9.90","priceCurrency":"BRL"}}</script>` +
+    `</head><body class=" no-js page-products catalog-category-view categorypath-modulos category-modulos"><h1>Módulos</h1></body></html>`;
+  conferir("categoria do Magento e listagem", ehListagemDoMagento(categoria), true);
+  const lida = normalizarPagina({ html: categoria, url: `${origem}/modulos.html`, fonte });
+  conferir("a categoria nao rende produto (antes virava 'Modulos' a R$ 25,20)", [lida.produtos.length, lida.motivo], [0, "listagem do Magento (categoria), nao pagina de produto"]);
+  conferir("extrairProduto tambem desiste da categoria", extrairProduto(categoria, `${origem}/modulos.html`).encontrado, false);
+  const produto =
+    `<html><head><meta property="og:type" content="og:product" />` +
+    `<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Sensor X","sku":"SX1","offers":{"@type":"Offer","price":"12.50","priceCurrency":"BRL","availability":"https://schema.org/InStock"}}</script>` +
+    `</head><body class=" no-js catalog-product-view product-sensor-x"><h1>Sensor X</h1></body></html>`;
+  conferir("pagina de produto do Magento NAO e listagem", ehListagemDoMagento(produto), false);
+  const lido = normalizarPagina({ html: produto, url: `${origem}/sensor-x.html`, fonte });
+  conferir("a pagina de produto continua rendendo produto", [lido.produtos.length, lido.produtos[0]?.name, lido.produtos[0]?.prices?.normal], [1, "Sensor X", 12.5]);
+  conferir("pagina sem marcacao do Magento nao e listagem", ehListagemDoMagento(`<html><body class="home"><p>x</p></body></html>`), false);
 }
 
 console.log("\n— Estoque do concorrente e a ordem da aba Concorrentes —");

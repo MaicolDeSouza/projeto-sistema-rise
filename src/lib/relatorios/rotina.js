@@ -21,8 +21,11 @@ export const ESPERA_MAXIMA_MS = 48 * 3600 * 1000;
 export async function fontesDaRodada() {
   return prisma.fonteColeta.findMany({
     where: { ativa: true, robotsPermite: true, varridaNoPc: false, tipo: { in: ["CONCORRENTE", "FORNECEDOR"] } },
-    select: { id: true, nome: true },
-    orderBy: { nome: "asc" },
+    select: { id: true, nome: true, ultimaColetaDuracaoMs: true },
+    // As lojas LONGAS primeiro: a fila sai na ordem em que entrou, com 5 varreduras por vez, e em ordem alfabetica a
+    // Mamute (13 h) so comecou a 01:23 na rodada de 20/10/2026, depois de lojas de minutos: a rodada dura o tempo da
+    // mais longa mais o que veio antes dela. Fonte que nunca fechou varredura vai depois, por nome.
+    orderBy: [{ ultimaColetaDuracaoMs: { sort: "desc", nulls: "last" } }, { nome: "asc" }],
   });
 }
 

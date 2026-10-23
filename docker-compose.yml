@@ -83,6 +83,16 @@ services:
     # devolve a fila sem gastar tentativa. Parar o worker na VPS e `docker compose stop worker`: com
     # `unless-stopped`, o worker que sai pelo `worker:parar` e religado na hora.
     stop_grace_period: 90s
+    # Memoria: na rodada semanal de 20/10/2026 o worker caiu 6 vezes por "JavaScript heap out of memory" (~765 MB de
+    # heap; o Node deduz o teto de ~864 MB dos 1536m do limite comum), e cada queda derrubou as 5 varreduras e gastou
+    # uma tentativa de cada job (A2, Curto Circuito, Eletropecas, Mamute e Smartkits terminaram com "o worker parou
+    # de dar sinal"). A VPS tem 7,9 GB (5,9 livres): o worker ganha 2,5 GB e o teto do heap vai escrito (2 GB), senao
+    # o Node continua deduzindo ~56% do limite. O `environment` do `x-rise` nao e herdado campo a campo pelo `<<`
+    # (a mesclagem e so do primeiro nivel), por isso o TZ e repetido aqui.
+    mem_limit: 2560m
+    environment:
+      TZ: America/Sao_Paulo
+      NODE_OPTIONS: --max-old-space-size=2048
 
   auth:
     image: ghcr.io/tinyauthapp/tinyauth:v5

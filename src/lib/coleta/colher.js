@@ -114,6 +114,11 @@ async function tentarUrl(url, fonte, plataforma, doCatalogo = null, memoriaPagam
  *   encerrar e quando a varredura para de andar. Conferido antes de cada pagina,
  *   e a requisicao em voo tambem e interrompida (buscarPagina). Cancelada, a
  *   colheita LANCA o motivo — nao devolve resultado parcial como se fosse inteiro.
+ * @param {boolean} [entrada.reterProdutos] `false` = `produtos` devolve so `{url, code}` de cada
+ *   um. A varredura de verdade grava em lotes pelo `aoGuardar` e so conta o resultado, mas a
+ *   lista inteira ficava na memoria ate o fim: a Mamute (18 mil produtos, 3 a 5 KB cada) sozinha
+ *   segurava ~52 MB, e com 5 lojas em paralelo o worker da VPS caiu 6 vezes por falta de heap na
+ *   rodada de 20/10/2026. O "Testar fonte" e o fornecedor com lista continuam com tudo (padrao).
  */
 export async function colherProdutos({
   url,
@@ -127,6 +132,7 @@ export async function colherProdutos({
   sinal = null,
   jaColetadas = null,
   categoria = false,
+  reterProdutos = true,
 }) {
   const conferirSinal = () => sinal?.throwIfAborted();
   let retomados = 0;
@@ -428,7 +434,7 @@ export async function colherProdutos({
         const id = identidade(produto.url);
         if (id) identidadesTratadas.add(id);
       }
-      encontrados.push(produto);
+      encontrados.push(reterProdutos ? produto : { url: produto.url ?? null, code: produto.code ?? null });
       aoGuardar?.(produto);
     }
     formatosDaPagina?.forEach((f) => formatos.add(f));
@@ -888,7 +894,7 @@ export async function colherProdutos({
  * @param {object} entrada o mesmo de `colherProdutos`, menos `url`/`categoria`
  * @param {{ url: string, categoria: boolean }[]} entrada.enderecos
  */
-export async function colherVariasUrls({ enderecos, limite = 3, orcamento, aoProgredir, aoGuardar, ...resto }) {
+export async function colherVariasUrls({ enderecos, limite = 3, orcamento, aoProgredir, aoGuardar, reterProdutos = true, ...resto }) {
   const primeira = enderecos[0];
   const rotulo = (endereco) => {
     try {
@@ -923,6 +929,7 @@ export async function colherVariasUrls({ enderecos, limite = 3, orcamento, aoPro
 
     const colheita = await colherProdutos({
       ...resto,
+      reterProdutos,
       url: entrada.url,
       categoria: entrada.categoria,
       limite: limite - todos.length - retomados,
@@ -942,7 +949,9 @@ export async function colherVariasUrls({ enderecos, limite = 3, orcamento, aoPro
         if (entregues.has(chave)) return;
         entregues.add(chave);
         if (!donos.has(base)) donos.set(base, { url: produto.url, nome: produto.name });
-        todos.push(enderecos.length > 1 ? { ...produto, origemDaLeitura: rotuloDaUrl } : produto);
+        // Sem reter, so o que identifica o produto (ver `reterProdutos` em `colherProdutos`): a varredura ja gravou.
+        const guardado = reterProdutos ? produto : { url: produto.url ?? null, code: produto.code ?? null };
+        todos.push(enderecos.length > 1 ? { ...guardado, origemDaLeitura: rotuloDaUrl } : guardado);
         aoGuardar?.(produto);
       },
     });

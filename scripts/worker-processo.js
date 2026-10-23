@@ -1,4 +1,5 @@
 import "dotenv/config";
+import v8 from "node:v8";
 
 /**
  * O processo que VARRE. Quem o sobe e o supervisor (scripts/worker.js), que o
@@ -69,6 +70,11 @@ let rotinaSemanalConferidaEm = 0;
 /// mes, entao a conferencia e barata; a hora so evita consultar o banco a cada volta.
 const CONFERE_FOTO_MS = 60 * 60 * 1000;
 let fotoConferidaEm = 0;
+
+/// Linha de memoria no log, de hora em hora e no fim de cada varredura. O worker da VPS caiu 6 vezes por falta de heap
+/// na rodada de 20/10/2026 e nenhuma linha mostrava a memoria subindo: so o "heap out of memory" do Node.
+const REGISTRA_MEMORIA_MS = 60 * 60 * 1000;
+let memoriaRegistradaEm = 0;
 
 /// De quanto em quanto tempo se apaga o que sobrou em dados/temporarios (pastas de cadastro abandonado, com mais de 24 h;
 /// pedido do dono em 10/10/2026). Antes so se limpava quando alguem enviava foto ou documento, e sem envio o lixo ficava no
@@ -142,6 +148,13 @@ let acordar = () => {};
 
 const hora = () => new Date().toLocaleTimeString("pt-BR");
 const log = (texto) => console.log(`[${hora()}] ${texto}`);
+/// "heap 412 MB de 2048 MB · rss 530 MB". O teto e o que o Node vai respeitar (NODE_OPTIONS ou o deduzido do limite
+/// do conteiner): e contra ele que se le o heap.
+const memoriaEmUso = () => {
+  const { heapUsed, rss } = process.memoryUsage();
+  const mb = (bytes) => Math.round(bytes / 1024 / 1024);
+  return `heap ${mb(heapUsed)} MB de ${mb(v8.getHeapStatistics().heap_size_limit)} MB · rss ${mb(rss)} MB`;
+};
 const logErro = (texto) => console.error(`[${hora()}] ${texto}`);
 const dormir = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 const mensagem = (erro) => String(erro?.message ?? erro);
@@ -215,7 +228,8 @@ async function concluir(job, fonte, resultado) {
       (resultado.gravacao
         ? ` · ${resultado.gravacao.novos} novo(s), ${resultado.gravacao.precosMudaram} mudanca(s) de preco`
         : "") +
-      (resultado.erro ? ` · ${resultado.erro}` : ""),
+      (resultado.erro ? ` · ${resultado.erro}` : "") +
+      ` · ${memoriaEmUso()}`,
   );
 }
 
@@ -449,6 +463,11 @@ async function laco() {
         }
       }
 
+      // A memoria, em todo modo do worker (ver REGISTRA_MEMORIA_MS).
+      if (Date.now() - memoriaRegistradaEm >= REGISTRA_MEMORIA_MS) {
+        memoriaRegistradaEm = Date.now();
+        log(`memoria: ${memoriaEmUso()} · ${emCurso.size} varredura(s) em curso`);
+      }
       // Fora do `coletaPausada`: pausar a coleta nao pode custar a foto do mes. O
       // worker de teste (COLETA_FONTES) nao a tira, para nao gravar no banco de verdade. O do PC tambem nao: a foto
       // e do worker da VPS, que roda sempre.

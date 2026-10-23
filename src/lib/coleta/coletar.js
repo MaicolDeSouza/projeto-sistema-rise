@@ -572,6 +572,9 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
       orcamento: ORCAMENTO_PAGINAS,
       sinal,
       jaColetadas,
+      // Os produtos ja vao para o banco em lotes (`aoGuardar`); daqui para baixo so se conta `colheita.produtos`.
+      // Reter a lista inteira ate o fim (18 mil produtos na Mamute) derrubou o worker da VPS por falta de heap.
+      reterProdutos: false,
       // O andamento e contado em PRODUTOS, nao em paginas abertas: e o numero que
       // o operador pediu ("20 de cada"), e paginas abertas sobem sem parar em
       // loja que exige muita navegacao ate achar produto.

@@ -30,6 +30,14 @@ import { obter } from "./http";
 const TETO_CORPO = 64 * 1024 * 1024;
 /// Lista grande e lenta de servir; a pagina de 100 levou ate 7 s.
 const TEMPO_POR_PEDIDO_MS = 120000;
+/// Instabilidade PASSAGEIRA do portal (rodada semanal de 20/10/2026: HTTP 520 as 04:05 e as 04:35, e um pedido sem
+/// resposta em 2 min): cada uma derrubava a varredura da Santana inteira, gastava uma tentativa do job e a seguinte
+/// recomecava do zero (a paginacao do portal nao permite retomar). O MESMO pedido e repetido ate 3 vezes, esperando
+/// 2 e depois 4 min (o vigia do worker cancela com 10 min sem resposta, e cada tentativa conta como resposta).
+/// ECONNRESET fica de fora: e o sinal do bloqueio, e insistir so piora.
+const TENTATIVAS_POR_PEDIDO = 3;
+const esperaAntesDeRepetir = (tentativa) => tentativa * 2 * 60 * 1000;
+const STATUS_INSTAVEL = new Set([500, 502, 503, 504, 520, 521, 522, 523, 524]);
 /// O que aparece nos campos que a lista nao traz.
 const NA_PAGINA_DO_PRODUTO = "nao vem na lista: veja no link do produto";
 /// As tres ordenacoes que o site aceita. Cada uma empata em lugares diferentes.
@@ -247,38 +255,46 @@ export function criarSessao({ origem, usuario, senha, ritmoMs, sinal = null }) {
   async function pedir(endereco, { metodo = "GET", corpo = null } = {}) {
     let url = endereco;
     for (let saltos = 0; saltos <= 5; saltos++) {
-      const espera = ultimoPedidoEm + ritmoMs - Date.now();
-      if (espera > 0) await esperar(espera, sinal);
-
-      const teto = AbortSignal.timeout(TEMPO_POR_PEDIDO_MS);
       let resposta;
-      try {
-        resposta = await obter(url, {
-          metodo: saltos === 0 ? metodo : "GET",
-          corpo: saltos === 0 ? corpo : null,
-          seguir: false,
-          sinal: sinal ? AbortSignal.any([teto, sinal]) : teto,
-          tetoDoCorpo: (status) => (status >= 200 && status < 300 ? TETO_CORPO : 0),
-          cabecalhos: {
-            "User-Agent": USER_AGENT,
-            Cookie: [...cookies].map(([nome, valor]) => `${nome}=${valor}`).join("; "),
-            ...(corpo !== null && saltos === 0 ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
-          },
-        });
-      } catch (erro) {
-        if (sinal?.aborted) throw erro;
-        if (erro?.code === "ECONNRESET") {
-          throw new Error(
-            "o portal cortou a conexão (ECONNRESET) — costuma ser bloqueio por excesso de acesso; a varredura para aqui",
-          );
+      for (let tentativa = 1; ; tentativa++) {
+        const espera = ultimoPedidoEm + ritmoMs - Date.now();
+        if (espera > 0) await esperar(espera, sinal);
+
+        const teto = AbortSignal.timeout(TEMPO_POR_PEDIDO_MS);
+        // Falha que vale repetir (ver TENTATIVAS_POR_PEDIDO); null = a resposta chegou.
+        let passageira = null;
+        try {
+          resposta = await obter(url, {
+            metodo: saltos === 0 ? metodo : "GET",
+            corpo: saltos === 0 ? corpo : null,
+            seguir: false,
+            sinal: sinal ? AbortSignal.any([teto, sinal]) : teto,
+            tetoDoCorpo: (status) => (status >= 200 && status < 300 ? TETO_CORPO : 0),
+            cabecalhos: {
+              "User-Agent": USER_AGENT,
+              Cookie: [...cookies].map(([nome, valor]) => `${nome}=${valor}`).join("; "),
+              ...(corpo !== null && saltos === 0 ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
+            },
+          });
+        } catch (erro) {
+          if (sinal?.aborted) throw erro;
+          if (erro?.code === "ECONNRESET") {
+            throw new Error(
+              "o portal cortou a conexão (ECONNRESET) — costuma ser bloqueio por excesso de acesso; a varredura para aqui",
+            );
+          }
+          passageira = teto.aborted ? "o portal não respondeu em 2 minutos" : `falha de rede: ${erro?.message ?? erro}`;
+        } finally {
+          ultimoPedidoEm = Date.now();
+          pedidos++;
+          // O vigia do worker olha isto: com 30 s entre pedidos, e o que prova
+          // que a varredura anda.
+          registrarResposta(host);
         }
-        throw new Error(teto.aborted ? "o portal não respondeu em 2 minutos" : `falha de rede: ${erro?.message ?? erro}`);
-      } finally {
-        ultimoPedidoEm = Date.now();
-        pedidos++;
-        // O vigia do worker olha isto: com 30 s entre pedidos, e o que prova
-        // que a varredura anda.
-        registrarResposta(host);
+        if (!passageira && STATUS_INSTAVEL.has(resposta.status)) passageira = `o portal respondeu HTTP ${resposta.status}`;
+        if (!passageira) break;
+        if (tentativa >= TENTATIVAS_POR_PEDIDO) throw new Error(`${passageira} (${tentativa} tentativas seguidas)`);
+        await esperar(esperaAntesDeRepetir(tentativa), sinal);
       }
 
       for (const linha of resposta.setCookie ?? []) {

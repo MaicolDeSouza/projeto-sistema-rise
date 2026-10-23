@@ -2,6 +2,7 @@ import { extrairProduto } from "./extrair";
 import { precosDaForseti } from "./forseti";
 import { dadosDaPaginaVtex } from "./vtex-pagina";
 import { ehListagemDaNuvemshop, galeriaDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
+import { ehListagemDoMagento } from "./magento";
 import { produtosDaObr } from "./obr";
 import { caminhoDeCategoria, caminhoDoJsonLd } from "./categoria";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
@@ -2099,6 +2100,11 @@ export function normalizarPagina({
   // vitrine: o primeiro virava "produto" com o endereco da home. Ver nuvemshop.js.
   if (ehListagemDaNuvemshop(html)) {
     return { produtos: [], motivo: "listagem da Nuvemshop, nao pagina de produto", formatos: [] };
+  }
+  // Categoria do Magento 2 (Curto Circuito, 22/10/2026): og:type "product.group" e um Product por card
+  // no JSON-LD, e a pagina virava o produto "Modulos" com o maior preco da vitrine. Ver magento.js.
+  if (ehListagemDoMagento(html)) {
+    return { produtos: [], motivo: "listagem do Magento (categoria), nao pagina de produto", formatos: [] };
   }
   const aspnet = daVitrineAspNet(html, url);
 

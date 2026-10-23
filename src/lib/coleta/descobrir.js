@@ -2,7 +2,7 @@ import { buscarPagina } from "./buscar";
 import { extrairProduto } from "./extrair";
 import { ehObr, ehProdutoDaObr } from "./obr";
 import { ehRoboCore } from "./robocore";
-import { baseDaPagina } from "./texto-html";
+import { baseDaPagina, decodificar } from "./texto-html";
 
 /**
  * Descoberta de paginas de produto por navegacao.
@@ -29,7 +29,13 @@ const IGNORAR = [
 
 /// Parametros de ordenacao e filtro geram infinitas URLs para a mesma pagina.
 /// Segui-los prenderia o rastreamento numa mesma vitrine para sempre.
-const PARAMETROS_RUINS = new Set(["orderby", "orderway", "tag", "search_query", "id_currency", "back", "n", "q"]);
+const PARAMETROS_RUINS = new Set([
+  "orderby", "orderway", "tag", "search_query", "id_currency", "back", "n", "q",
+  // Filtros e ordenacao do Magento 2 (Curto Circuito, 22/10/2026): a camada de navegacao combina "cat", "price",
+  // "manufacturer" e a ordenacao da lista em milhares de enderecos da mesma vitrine. Cada um era gravado como um
+  // "produto" ("Modulos", N/A) e a fila nao acabava: 6.257 das 7.263 linhas da loja eram essas paginas.
+  "cat", "price", "manufacturer", "brand", "rating", "product_list_order", "product_list_limit", "product_list_mode", "product_list_dir",
+]);
 
 /// Paginacao de categoria ("?p=2", "?page=3"). Ate 07/10/2026 estava junto dos ruins, e a navegacao nunca
 /// abria a pagina 2 de categoria nenhuma: o ESP32-S3-WROOM-1 da Usinainfo so aparecia em "esp32-611?p=2" e
@@ -52,6 +58,10 @@ export function parametroRuim(url) {
   }
   for (const [nome, valor] of parametros) {
     const chave = nome.toLowerCase();
+    // "amp;cat=..." e um "&amp;" que ficou sem decodificar: o endereco nao existe na loja (a pagina responde com a
+    // vitrine inteira ignorando o filtro) e cada visita gera outros iguais. Ate 22/10/2026 a Curto Circuito tinha
+    // milhares de "?amp%3Bcat=" na fila.
+    if (chave.startsWith("amp;")) return true;
     if (PARAMETROS_RUINS.has(chave)) return true;
     if (PARAMETROS_DE_PAGINA.has(chave)) {
       const pagina = /^\d+$/.test(valor) ? Number(valor) : NaN;
@@ -124,14 +134,21 @@ function ehSeguivel(url, origem, prefixo) {
   return true;
 }
 
-/** Links do mesmo dominio, ja absolutos e sem ancora. */
-function linksDe(html, urlBase, origem, prefixo) {
+/**
+ * Links do mesmo dominio, ja absolutos e sem ancora.
+ *
+ * O `href` vem com entidades HTML (`?p=2&amp;cat=5`), como todo atributo: sem decodificar, o "&amp;" virava um
+ * parametro "amp;cat" (`?p=2&amp%3Bcat=5`), a loja respondia a vitrine inteira e cada pagina dessas gerava outras
+ * iguais. Foi isso que explodiu a fila da Curto Circuito (Magento) de 1.722 para 4.051 paginas entre 19 e
+ * 21/09/2026 e seguiu crescendo ate 22/10. Exportada para o teste.
+ */
+export function linksDe(html, urlBase, origem, prefixo) {
   const achados = new Set();
 
   for (const encontro of html.matchAll(/<a[^>]+href=["']([^"'#]+)["']/gi)) {
     let absoluta;
     try {
-      absoluta = new URL(encontro[1], urlBase);
+      absoluta = new URL(decodificar(encontro[1]), urlBase);
     } catch {
       continue;
     }

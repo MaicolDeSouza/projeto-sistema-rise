@@ -221,7 +221,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 730 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 741 asserções da extração, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 20 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -610,6 +610,55 @@ fonte) e guardados em `dados/backup/coleta-json-20260915/`.
   banco.
 - O bloco foi fundido na **`main`** em 18/09/2026 (avanço simples, commit `73d813f`, 16 commits).
   A branch `bloco-mercados` continua existindo, mas **não recebe mais trabalho**.
+
+### Rodada semanal de 20/10/2026: as quedas do worker, as listagens do Magento e a fila (22/10/2026)
+
+O relatório semanal de 20/10/2026 saiu com 5 lojas em erro ("o worker parou de dar sinal": A2, Curto Circuito, Eletropecas,
+Mamute e Smartkits), a Santana com HTTP 520, e a tela Fontes com "produtos no site" diferente do coletado. Pedido do dono:
+analisar, corrigir e acelerar "sempre preferindo qualidade e precisão". O que foi medido no log e no banco da VPS:
+
+- **O worker caiu 6 vezes por `JavaScript heap out of memory`** (~765 MB de heap). O `mem_limit: 1536m` do compose vale
+  para `app`, `worker` e `db`, e o Node deduz dali um teto de heap de ~864 MB. Cada queda derruba as 5 varreduras em
+  paralelo e **gasta uma tentativa de cada job** (`recolherLargados`); a Mamute falhava assim desde 09/10 (por isso o
+  "10.000" dela nunca foi substituído; a última varredura boa foi 04/10, 18.355 em 13h20). Duas causas de memória:
+  - **`colherProdutos` retinha TODOS os produtos** em `encontrados` até o fim (a Mamute, 18 mil × 3-5 KB = ~52 MB;
+    Smartkits 19 MB, Saravati 16 MB, medidos no PC), embora a varredura já gravasse em lotes pelo `aoGuardar` e só
+    usasse `colheita.produtos.length`. Agora `reterProdutos: false` (só em `varrerFonte`) guarda `{url, code}`; o
+    "Testar fonte" e o fornecedor com lista continuam com tudo.
+  - **A fila da Curto Circuito explodia** (abaixo).
+  - **Compose:** o `worker` ganhou `mem_limit: 2560m` e `NODE_OPTIONS=--max-old-space-size=2048` (a VPS tem 7,9 GB,
+    5,9 livres); o `environment` do `x-rise` não é herdado campo a campo pelo `<<`, por isso o `TZ` está repetido no
+    bloco. O log do worker mostra a memória no fim de cada varredura e de hora em hora (`memoriaEmUso`).
+- **Curto Circuito (Magento 2): 6.257 das 7.263 linhas eram páginas de CATEGORIA gravadas como produto** (nome "Módulos",
+  "Componentes Eletrônicos"..., código N/A, o MAIOR preço dos cards; o relatório listava "Módulos · R$ 25,20" como
+  produto novo). Duas causas, as duas gerais:
+  - **`linksDe` não decodificava entidades do `href`**: `?p=2&amp;cat=5` virava o parâmetro `amp;cat` (`?p=2&amp%3Bcat=5`),
+    a loja respondia a vitrine inteira e cada página dessas gerava outras iguais (1.722 páginas em 19/09, 4.051 em
+    21/09, crescendo até 22/10). Agora o `href` passa por `decodificar`, `parametroRuim` recusa parâmetro que começa
+    por `amp;` e os filtros do Magento (`cat`, `price`, `manufacturer`, `brand`, `rating`, `product_list_*`).
+  - **A categoria do Magento tem cara de produto**: og:type `product.group` e um `Product` em JSON-LD por card, e o
+    `doOpenGraph` aceitava (`/product|item/`). `ehListagemDoMagento` (`src/lib/coleta/magento.js`: body
+    `catalog-category-view`/`page-products`/`catalogsearch-result-index` sem `catalog-product-view`, ou og:type
+    `product.group`) desvia em `normalizarPagina` e em `extrairProduto`. Vale para toda loja Magento (Saravati, Mamute).
+  - **As 6.257 linhas continuam no banco da VPS** (com 6.378 `PrecoHistorico` e 11.872 `FotoMensalColeta`; 0 vínculos):
+    `scripts/limpar-listagens-coletadas.js --simular` conta, `--confirmo` apaga. **Só com o OK do dono.**
+- **Santana (portal Add Suite): HTTP 520 duas vezes e um pedido sem resposta em 2 min derrubavam a varredura inteira**,
+  que não retoma (a paginação do portal repete). `pedir()` repete o MESMO pedido até 3 vezes (esperas de 2 e 4 min, dentro
+  dos 10 min do vigia) em timeout, falha de rede ou HTTP 500/502/503/504/520-524; `ECONNRESET` continua fatal (é o
+  sinal de bloqueio).
+- **Ordem da fila:** `fontesDaRodada` ordenava por nome, e a Mamute (13 h) só começou à 01:23, depois de lojas de minutos:
+  a rodada dura o tempo da mais longa mais o que veio antes. Agora as fontes vão por `ultimaColetaDuracaoMs desc` (sem
+  duração por último), e `enfileirar` grava `criadoEm` crescendo 1 ms por fonte (num `createMany` todas teriam o mesmo
+  instante e `pegarProximoJob` lê por `criadoEm`). Com 5 em paralelo, o piso da rodada é a Mamute: ~10-13 h a 2 s/página.
+- **Divergências "no site" × coletado, medidas:** Smartkits 3.790 no catálogo Tray (a tela guardava 3.807 de uma leitura
+  anterior) contra 3.717 linhas: **79 itens `available: 0` cujo endereço redireciona (302) para a página "não encontrado"**
+  (a loja conta e não publica) e 2 produtos novos ainda não varridos; Casa da Robótica 2.305 ids no catálogo contra 2.295:
+  ids que a loja conta e não publica ou código repetido; Mamute "10.000" é o número do cadastro (varredura nunca fechou
+  desde 04/10); Usinainfo "—" é por desenho (sitemap só de rotas de busca). As 1.428 mudanças de preço da Usinainfo são
+  reais (+4,7%). A rodada "2026-10-20" (terça) não veio do relógio de sábado: foi disparada à mão; o próximo sábado abre
+  normal.
+- **Testes:** `teste:extracao` ganhou 11 asserções (`parametroRuim` do Magento e do `amp;`, `linksDe` decodificando,
+  `ehListagemDoMagento` e a categoria/produto em `normalizarPagina` e `extrairProduto`).
 
 ### Fotos mensais de preço e estoque (30/09/2026)
 

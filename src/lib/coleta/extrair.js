@@ -1,3 +1,4 @@
+import { ehListagemDoMagento } from "./magento";
 import { extracaoDaObr } from "./obr";
 import {
   comoNumero,
@@ -415,6 +416,10 @@ const VAZIO = {
  */
 export function extrairProduto(html, urlBase) {
   if (typeof html !== "string" || !html.trim()) return { ...VAZIO };
+
+  // Categoria do Magento com um Product por card no JSON-LD (Curto Circuito): sem isto o
+  // primeiro card virava "o produto" da pagina. Ver magento.js.
+  if (ehListagemDoMagento(html)) return { ...VAZIO };
 
   const achado =
     doJsonLd(html) ??
