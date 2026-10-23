@@ -66,7 +66,7 @@ import PainelDeImagens from "./PainelDeImagens";
 import BannerDeRascunho from "./BannerDeRascunho";
 import PropostaNoTopo, { DocumentosDaProposta, OlhoDaProposta } from "./QuadroDaProposta";
 import { listaComParametros, lerUltimaLista } from "@/lib/ultimaListaDeProdutos";
-import { propostaNoFormulario } from "@/lib/proposta/aplicar";
+import { propostaNoFormulario, SECOES_APLICAVEIS } from "@/lib/proposta/aplicar";
 import { useRascunhoAutomatico } from "./useRascunhoAutomatico";
 import { chaveDoRascunho } from "@/lib/rascunhoDoCadastro";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
@@ -1940,8 +1940,12 @@ export default function FormularioProduto({
   const [gastoSalvo, setGastoSalvo] = useState(produto?.gastoIA ?? null);
   const [gastoDaEdicao, setGastoDaEdicao] = useState(null);
   // Secoes da proposta automatica aplicadas nesta edicao (vao no Salvar, que as marca como aplicadas).
-  // Comeca com as que a proposta preencheu ao abrir (o Salvar as marca como aplicadas).
-  const [propostaAplicada, setPropostaAplicada] = useState(() => daProposta?.secoes ?? []);
+  // Comeca com TODAS as secoes de campos que a proposta tem (nao so as que preencheram algo): salvar com a proposta
+  // aberta e decidir o que fica, e o que o dono editou nao volta ao valor da proposta ao reabrir (pedido do dono em
+  // 23/10/2026). Fotos ficam de fora: tem o "Aplicar fotos" proprio.
+  const [propostaAplicada, setPropostaAplicada] = useState(() =>
+    daProposta ? SECOES_APLICAVEIS.filter((secao) => produto?.proposta?.secoes?.[secao]) : [],
+  );
   const somarAoGastoDaEdicao = (gasto) => {
     if (gasto) setGastoDaEdicao((atual) => somarResumos(atual, gasto));
   };
