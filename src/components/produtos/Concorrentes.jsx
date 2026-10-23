@@ -20,6 +20,7 @@ import {
   salvarConcorrenteDoProduto,
 } from "@/app/produtos/acoes";
 import BuscaColetadoPorCodigo from "./BuscaColetadoPorCodigo";
+import FotoComLupa from "@/components/ui/FotoComLupa";
 import CadastroRapidoConcorrente from "./CadastroRapidoConcorrente";
 
 const moeda = new Intl.NumberFormat("pt-BR", {
@@ -409,6 +410,7 @@ export default function Concorrentes({
         <table className="w-full text-sm">
           <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
             <tr className="divide-x divide-borda">
+              <th className="w-14 px-3 py-2 font-medium">Foto</th>
               <th className="px-3 py-2 font-medium">Concorrente</th>
               <th className="px-3 py-2 font-medium">Produto</th>
               <th className="px-3 py-2 font-medium">Código</th>
@@ -433,7 +435,7 @@ export default function Concorrentes({
           <tbody className="divide-y divide-borda">
             {vinculosOrdenados.length === 0 && editando !== "novo" && (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-suave">
+                <td colSpan={9} className="px-3 py-6 text-center text-suave">
                   Nenhum concorrente marcado ou adicionado.
                 </td>
               </tr>
@@ -452,6 +454,12 @@ export default function Concorrentes({
                 />
               ) : (
                 <tr key={item.id} className="divide-x divide-borda">
+                  {/* Miniatura do produto do concorrente (pedido do dono em 23/10/2026), no padrao FotoComLupa. */}
+                  <td className="px-2 py-1.5">
+                    {item.produtoColetadoId ? (
+                      <FotoComLupa src={`/api/mercados/miniatura/${item.produtoColetadoId}`} alt={item.nome || item.fonte} className="h-10 w-10" />
+                    ) : null}
+                  </td>
                   <td className="px-3 py-2 font-medium" title={item.fonte}>
                     {item.fonte}
                   </td>
@@ -578,6 +586,7 @@ export default function Concorrentes({
 function LinhaEdicao({ campo, erros, pendente, aoSalvar, aoCancelar, aoEscolherCodigo }) {
   return (
     <tr className="divide-x divide-borda bg-fundo/40">
+      <td />
       <td className="px-3 py-2">
         <input placeholder="Nome da loja" {...campo("fonte")} />
         {erros.fonte && <p className="mt-1 text-[11px] text-red-700">{erros.fonte}</p>}

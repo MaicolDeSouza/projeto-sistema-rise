@@ -1323,7 +1323,7 @@ export async function consultarEstoqueFornecedores(vinculos) {
     const produtos = await prisma.produtoColetado.findMany({
       where: { OR: criterios, fonte: { tipo: "FORNECEDOR" } },
       select: {
-        codigo: true, url: true, quantidade: true, aChegar: true, estoqueStatus: true,
+        id: true, codigo: true, url: true, quantidade: true, aChegar: true, estoqueStatus: true,
         precoNormal: true, precoComImpostos: true, precoReserva: true, impostos: true,
         precosPorQuantidade: true,
         fonte: { select: { nome: true, dominio: true } },
@@ -1338,6 +1338,8 @@ export async function consultarEstoqueFornecedores(vinculos) {
         ?? produtos.find((candidato) => codigo && candidato.codigo?.toLocaleLowerCase("pt-BR") === codigo
           && candidato.fonte.nome.toLocaleLowerCase("pt-BR") === nome);
       return [item.id, produto ? {
+        // A miniatura da linha (pedido do dono em 23/10/2026): /api/mercados/miniatura/<id>.
+        coletadoId: produto.id,
         quantidade: produto.quantidade,
         aChegar: produto.aChegar,
         disponivel: ["AVAILABLE", "IN_STOCK"].includes(produto.estoqueStatus),

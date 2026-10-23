@@ -23,6 +23,7 @@ import { precoComImpostoTexto, precoDaFaixaTexto } from "@/components/mercados/p
 import { precoComImpostos as precoComImpostosCalc } from "@/lib/coleta/impostos";
 import CadastroRapidoFornecedor from "./CadastroRapidoFornecedor";
 import BuscaColetadoPorCodigo from "./BuscaColetadoPorCodigo";
+import FotoComLupa from "@/components/ui/FotoComLupa";
 
 const moeda = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -439,6 +440,7 @@ export default function Fornecedores({
         <table className="w-full text-sm">
           <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
             <tr className="divide-x divide-borda">
+              <th className="w-14 px-3 py-2 font-medium">Foto</th>
               <th className="px-3 py-2 font-medium">Fornecedor</th>
               <th className="px-3 py-2 font-medium">Descrição no fornecedor</th>
               <th className="px-3 py-2 font-medium">Obs</th>
@@ -454,7 +456,7 @@ export default function Fornecedores({
           <tbody className="divide-y divide-borda">
             {vinculos.length === 0 && editando !== "novo" && (
               <tr>
-                <td colSpan={9} className="px-3 py-6 text-center text-suave">
+                <td colSpan={10} className="px-3 py-6 text-center text-suave">
                   Nenhum fornecedor cadastrado para este produto.
                 </td>
               </tr>
@@ -474,6 +476,12 @@ export default function Fornecedores({
                 />
               ) : (
                 <tr key={vinculo.id} className="divide-x divide-borda">
+                  {/* Miniatura do produto no fornecedor (pedido do dono em 23/10/2026), no padrao FotoComLupa. */}
+                  <td className="px-2 py-1.5">
+                    {estoques[vinculo.id]?.coletadoId ? (
+                      <FotoComLupa src={`/api/mercados/miniatura/${estoques[vinculo.id].coletadoId}`} alt={vinculo.descricao || vinculo.nome} className="h-10 w-10" />
+                    ) : null}
+                  </td>
                   <td className="px-3 py-2 font-medium">{vinculo.nome}</td>
                   {/* O campo nao tem limite de caracteres (Text no banco); o corte
                       aqui e so visual, para a linha nao esticar a tabela. O texto
@@ -654,6 +662,7 @@ export default function Fornecedores({
 function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, aoEscolherCodigo }) {
   return (
     <tr className="divide-x divide-borda bg-fundo/40">
+      <td />
       <td className="px-3 py-2">
         {/* O nome novo abre o cadastro rapido antes de gravar o vinculo. */}
         <input list="catalogo-fornecedores" {...campo("nome")} />
