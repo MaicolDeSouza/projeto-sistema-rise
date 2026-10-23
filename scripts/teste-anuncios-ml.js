@@ -2142,6 +2142,37 @@ try {
     conferir("leituraAntiga: 47 h nao, 49 h sim, nunca lido nao", [leituraAntiga(new Date("2026-10-21T13:00:00Z"), lido), leituraAntiga(new Date("2026-10-21T11:00:00Z"), lido), leituraAntiga(null, lido)], [false, true, false]);
   }
 
+  {
+    console.log("\nRanking do ML: rodada diaria com as referencias");
+    await limpar();
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { relerConcorrentesML } = await import("../src/lib/canaisDeVenda/ml/relerCatalogo.js");
+    const item = (id, vendedor, preco) => ({ item_id: id, seller_id: vendedor, price: preco, listing_type_id: "gold_special", shipping: {} });
+    const catalogos = { MLBRA: { nome: "A", itens: [item("MLBRA1", 141686451, 31.99)] }, MLBRB: { nome: "B", itens: [item("MLBRB1", 632377333, 45)] } };
+    const ml = criarMLFalso({ catalogos });
+    // Review Focus 1: produto so com referencias (sem catalogo do anuncio) entra na rodada.
+    const soRef = await prisma.produto.create({ data: { sku: "ZZ-ML-RD1", tituloBase: "so ref", conferido: true } });
+    const comAmbos = await prisma.produto.create({ data: { sku: "ZZ-ML-RD2", tituloBase: "ambos", conferido: true, mlCatalogoId: "MLB44072268" } });
+    for (const [produtoId, catalogoId] of [[soRef.id, "MLBRA"], [comAmbos.id, "MLBRB"]]) await prisma.catalogoReferenciaML.create({ data: { produtoId, catalogoId } });
+    const soDoTeste = { produtos: [soRef.id, comAmbos.id], forcar: true, espera: 0 };
+    const agora = new Date("2026-10-23T12:00:00Z");
+
+    const r1 = await relerConcorrentesML({ cliente: ml, agora, ...soDoTeste });
+    const lidas = await prisma.catalogoReferenciaML.findMany({ where: { produtoId: { in: soDoTeste.produtos } }, orderBy: { catalogoId: "asc" } });
+    conferir("rodada: le as referencias, inclusive do produto sem catalogo do anuncio", [r1.produtos, r1.ok, lidas.map((r) => [r.catalogoId, r.itemId, Number(r.preco)])], [2, 2, [["MLBRA", "MLBRA1", 31.99], ["MLBRB", "MLBRB1", 45]]]);
+    conferir("rodada: o catalogo do anuncio continua relido", await prisma.concorrenteML.count({ where: { produtoId: comAmbos.id } }) > 0, true);
+
+    const antes = (await prisma.configCanal.findUnique({ where: { canal: "MERCADO_LIVRE" }, select: { mlConcorrentesRelidosEm: true } }))?.mlConcorrentesRelidosEm?.toISOString() ?? null;
+    const com429 = criarMLFalso({ catalogos, falhas: [{ metodo: "GET", caminho: "/products/MLBRA/items", status: 429 }] });
+    const r2 = await relerConcorrentesML({ cliente: com429, agora: new Date("2026-10-24T12:00:00Z"), ...soDoTeste });
+    const depois = (await prisma.configCanal.findUnique({ where: { canal: "MERCADO_LIVRE" }, select: { mlConcorrentesRelidosEm: true } }))?.mlConcorrentesRelidosEm?.toISOString() ?? null;
+    conferir("rodada: 429 numa referencia para e nao grava a data", [Boolean(r2.parou), depois === antes], [true, true]);
+
+    const com500 = criarMLFalso({ catalogos, falhas: [{ metodo: "GET", caminho: "/products/MLBRA/items", status: 500 }] });
+    const r3 = await relerConcorrentesML({ cliente: com500, agora: new Date("2026-10-25T12:00:00Z"), ...soDoTeste });
+    conferir("rodada: erro numa referencia conta como falha e segue para o proximo", [r3.falhas, r3.ok, Boolean(r3.parou)], [1, 1, false]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();

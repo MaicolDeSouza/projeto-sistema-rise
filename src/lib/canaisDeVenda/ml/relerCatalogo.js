@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 
 import { clienteML } from "./cliente";
 import { relerCatalogoDoProduto } from "./concorrentes";
+import { relerReferenciasDoProduto } from "./referencias";
 
 /**
  * A rodada diaria dos concorrentes do ML pelo catalogo (spec 2026-10-21-concorrentes-ml-catalogo-design.md, 7.5). O
@@ -24,6 +25,21 @@ const mesmoDia = (a, b) => {
 const esperar = (ms) => (ms > 0 ? new Promise((resolver) => setTimeout(resolver, ms)) : Promise.resolve());
 
 /**
+ * O catalogo do anuncio (se houver) e depois as referencias. 401/429 de qualquer um voltam com o `status` (a rodada para);
+ * outra falha das referencias faz o produto contar como falha, mas so depois de reler todas.
+ */
+async function relerProduto(ml, produto, { agora, espera }) {
+  if (produto.mlCatalogoId) {
+    const catalogo = await relerCatalogoDoProduto(ml, produto.id, { agora });
+    if (!catalogo.ok && PARA_A_RODADA.has(catalogo.status)) return catalogo;
+    const referencias = await relerReferenciasDoProduto(ml, produto.id, { agora, espera });
+    if (!referencias.ok && PARA_A_RODADA.has(referencias.status)) return referencias;
+    return catalogo.ok ? referencias : catalogo;
+  }
+  return relerReferenciasDoProduto(ml, produto.id, { agora, espera });
+}
+
+/**
  * @param {{ cliente?, agora?: Date, forcar?: boolean, espera?: number, produtos?: string[] }} [opcoes] `produtos` limita a
  *   rodada a esses ids (o teste, num banco compartilhado).
  * @returns {Promise<{ rodou: boolean, motivo?: string, produtos: number, ok: number, falhas: number, parou?: string }>}
@@ -35,9 +51,11 @@ export async function relerConcorrentesML({ cliente, agora = new Date(), forcar 
       return { rodou: false, motivo: "já rodou hoje", produtos: 0, ok: 0, falhas: 0 };
     }
 
+    // Os catalogos de referencia do ranking (spec 2026-10-23) entram na mesma rodada: produto so com referencias, sem
+    // catalogo do anuncio, tambem e relido.
     const acompanhados = await prisma.produto.findMany({
-      where: { mlCatalogoId: { not: null }, ...(Array.isArray(produtos) ? { id: { in: produtos } } : {}) },
-      select: { id: true },
+      where: { OR: [{ mlCatalogoId: { not: null } }, { referenciasML: { some: {} } }], ...(Array.isArray(produtos) ? { id: { in: produtos } } : {}) },
+      select: { id: true, mlCatalogoId: true },
       orderBy: { id: "asc" },
     });
     const ml = cliente ?? clienteML();
@@ -46,7 +64,7 @@ export async function relerConcorrentesML({ cliente, agora = new Date(), forcar 
     for (const [indice, produto] of acompanhados.entries()) {
       if (indice > 0) await esperar(espera);
       // Erro do banco num produto (a transacao estoura) conta como falha dele: nao pode derrubar a rodada dos outros.
-      const resultado = await relerCatalogoDoProduto(ml, produto.id, { agora }).catch((erro) => ({ ok: false, erro: erro?.message ?? String(erro), status: null }));
+      const resultado = await relerProduto(ml, produto, { agora, espera }).catch((erro) => ({ ok: false, erro: erro?.message ?? String(erro), status: null }));
       if (resultado.ok) {
         ok += 1;
         continue;
