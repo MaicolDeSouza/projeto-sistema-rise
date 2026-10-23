@@ -153,6 +153,15 @@ function conferir(nome, condicao) {
   conferir("formulario: margem em fracao (proposta antiga) vira porcentagem", propostaNoFormulario({ preco: { recomendada: { margem: 0.46, preco: 39.4 } } }, { precoVenda: "1" }).nasListas.precoVenda.origem === "46% margem");
   conferir("formulario: descricao igual a salva (outra quebra de linha) nao entra", !("descricaoBase" in propostaNoFormulario(secoes, { descricaoBase: "PLACA" + String.fromCharCode(10, 10) + "Texto." }).preencher));
   conferir("formulario: sem SKU, o codigo entra", propostaNoFormulario(secoes, { sku: "" }).preencher.sku === "250010");
+  {
+    // Secao ja aplicada (o dono salvou com ela): o que ele editou ou esvaziou nao volta ao valor da proposta.
+    const aplicadas = { descricao: "x", campos: "y", preco: "z" };
+    const depois = propostaNoFormulario(comPreco, { sku: "100103", descricaoBase: "Texto do dono.", marca: "", precoVenda: "" }, aplicadas);
+    conferir("formulario: descricao ja aplicada e editada nao troca", !("descricaoBase" in depois.preencher));
+    conferir("formulario: campo de secao aplicada esvaziado nao volta", !("marca" in depois.preencher) && !("precoVenda" in depois.preencher));
+    const diferente = propostaNoFormulario(comPreco, { sku: "100103", marca: "OUTRA" }, aplicadas);
+    conferir("formulario: secao aplicada ainda sugere na lista", !("marca" in diferente.preencher) && (!comPreco.campos?.marca || "marca" in diferente.nasListas));
+  }
   conferir("formulario: proposta vazia nao faz nada", JSON.stringify(propostaNoFormulario({}, {})) === JSON.stringify({ preencher: {}, nasListas: {}, secoes: [] }));
 
   // "Aplicar fotos": a lista do painel depois de aplicar.

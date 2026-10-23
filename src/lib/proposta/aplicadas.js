@@ -52,7 +52,7 @@ export function secoesNaoAplicadas(proposta, produto) {
   const secoes = proposta?.secoes ?? {};
   const aplicadas = proposta?.aplicadas ?? {};
   const camposDoProduto = Object.fromEntries(Object.entries(produto ?? {}).map(([campo, valor]) => [campo, normal(valor) ?? ""]));
-  const pendentes = propostaNoFormulario(secoes, camposDoProduto).secoes;
+  const pendentes = propostaNoFormulario(secoes, camposDoProduto, aplicadas).secoes;
   if (secoes.fotos && aplicadas.fotos !== assinaturaDaSecao("fotos", produto)) pendentes.push("fotos");
   return pendentes;
 }

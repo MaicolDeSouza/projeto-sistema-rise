@@ -1873,7 +1873,7 @@ export default function FormularioProduto({
   // valor da proposta (marca "PROPOSTA") e campo preenchido recebe a sugestao no topo da lista do icone. Calculado uma
   // vez, ao abrir. So para quem edita.
   const [daProposta] = useState(() =>
-    acessos.editar && produto?.proposta ? propostaNoFormulario(produto.proposta.secoes ?? {}, produto) : null,
+    acessos.editar && produto?.proposta ? propostaNoFormulario(produto.proposta.secoes ?? {}, produto, produto.proposta.aplicadas ?? {}) : null,
   );
   const preencheuPelaProposta = Object.keys(daProposta?.preencher ?? {}).length > 0;
   const [editadosDaProposta, setEditadosDaProposta] = useState(() => new Set());

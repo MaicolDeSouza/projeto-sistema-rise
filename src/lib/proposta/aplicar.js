@@ -151,18 +151,24 @@ function textoDoPreco(opcao) {
  * - campo JA PREENCHIDO com outro valor leva o da proposta para o topo da lista do icone (`nasListas`);
  * - a descricao sempre troca (decisao D do dono); o titulo nunca (as 3 opcoes ficam na lista "Escolher o titulo");
  * - o codigo so vale para produto sem SKU (regra de antes).
+ * - secao JA APLICADA (o dono salvou o produto com ela; `PropostaDeProduto.aplicadas`) nao preenche mais nada: o que o
+ *   dono editou ou esvaziou e salvou fica como ele deixou (pedido do dono em 23/10/2026: a descricao e os campos voltavam
+ *   ao valor da proposta a cada abertura). O campo preenchido diferente ainda ganha a sugestao na lista do icone.
  *
  * @param {Record<string, any>} secoes `PropostaDeProduto.secoes`
  * @param {Record<string, unknown>} produto os valores do formulario agora (campo do formulario -> valor)
+ * @param {Record<string, unknown>} [aplicadas] `PropostaDeProduto.aplicadas` (secao -> assinatura do Salvar)
  * @returns {{ preencher: Record<string, unknown>, nasListas: Record<string, { valor: unknown, origem: string, rotulo: string }>, secoes: string[] }}
  */
-export function propostaNoFormulario(secoes, produto = {}) {
+export function propostaNoFormulario(secoes, produto = {}, aplicadas = {}) {
+  const jaAplicada = (secao) => Boolean(aplicadas?.[secao]);
   const preencher = {};
   const nasListas = {};
   const preenchidas = new Set();
   const propor = (secao, campo, valor, origem) => {
     if (!temValor(valor)) return;
     if (!temValor(produto[campo])) {
+      if (jaAplicada(secao)) return;
       preencher[campo] = valor;
       preenchidas.add(secao);
     } else if (!mesmoValor(campo, produto[campo], valor)) {
@@ -173,7 +179,7 @@ export function propostaNoFormulario(secoes, produto = {}) {
   const descricao = secoes?.descricao?.texto;
   // A descricao troca sempre (decisao D), menos quando ja e a mesma: produto salvo com a proposta nao abre "nao salvo".
   const semQuebras = (texto) => String(texto ?? "").replace(/\r\n?/g, "\n").trim();
-  if (temValor(descricao) && semQuebras(descricao) !== semQuebras(produto.descricaoBase)) {
+  if (temValor(descricao) && !jaAplicada("descricao") && semQuebras(descricao) !== semQuebras(produto.descricaoBase)) {
     preencher.descricaoBase = descricao;
     preenchidas.add("descricao");
   }

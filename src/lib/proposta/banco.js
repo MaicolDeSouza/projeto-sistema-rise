@@ -226,6 +226,7 @@ export async function propostaParaFormulario(produtoId) {
   return {
     secoes: proposta.secoes,
     naoAplicadas: secoesNaoAplicadas(proposta, produto),
+    aplicadas: proposta.aplicadas ?? {},
     urls,
     idsDasFotosAtuais: Object.fromEntries(linhas.map((linha) => [linha.arquivo, linha.id])),
     versaoDoRoteiro: proposta.versaoDoRoteiro,
