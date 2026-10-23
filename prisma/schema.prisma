@@ -664,6 +664,8 @@ model CatalogoReferenciaML {
   logistica         String?
   tipoAnuncio       String?
   totalNoCatalogo   Int?
+  /// O 1o e um anuncio do proprio dono: a linha "Voce" o representa no ranking (nao conta como concorrente).
+  meu               Boolean  @default(false)
   lidoEm            DateTime?
   semAnuncios       Boolean  @default(false)
   erro              String?

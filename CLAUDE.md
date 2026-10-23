@@ -262,7 +262,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 690 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) e o ranking pelos catálogos de referência contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 692 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) e o ranking pelos catálogos de referência contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3258,8 +3258,8 @@ só o 1º) e **Opção B** (o Publicar NÃO coloca o anúncio no catálogo; a ad
 `docs/superpowers/specs/2026-10-23-ranking-catalogos-referencia-ml-design.md`, plano
 `docs/superpowers/plans/2026-10-23-ranking-catalogos-referencia-ml.md`. **Pronto e testado no PC, SEM deploy.**
 
-- **Banco** (migration `20261023_catalogos_referencia_ml`, só tabelas novas): `CatalogoReferenciaML` (o 1º lido: item,
-  vendedor, preço, cheio, frete, `lidoEm`, `semAnuncios`, `erro`/`erroEm`; único por produto + catálogo) e o histórico
+- **Banco** (migrations `20261023_catalogos_referencia_ml` e `20261023b_referencia_meu`, só aditivas): `CatalogoReferenciaML` (o 1º lido: item,
+  vendedor, preço, cheio, frete, `meu` (o 1º é anúncio do dono), `lidoEm`, `semAnuncios`, `erro`/`erroEm`; único por produto + catálogo) e o histórico
   (linha nova só quando o item, o preço ou o cheio mudam). Até 10 por produto; o catálogo do anúncio nunca é referência.
   As referências são do PRODUTO (valem para Clássico e Premium); a posição é do anúncio (depende do preço de cada um).
 - **O 1º = o 1º de `/products/{id}/items`** (`lerPrimeiroDoCatalogo`, uma página de 1): medido em 23/10/2026 no

@@ -2095,6 +2095,14 @@ try {
     conferir("lerReferenciasML: ordem de criacao e numeros simples", tela.map((r) => [r.catalogoId, r.primeiro?.preco ?? null, r.semAnuncios]), [["MLBREF1", 29.9, false], ["MLBVAZIO", null, true]]);
     conferir("lerReferenciasML: erro some depois de uma leitura boa", (await relerReferenciasDoProduto(ml, produto.id, { agora: new Date("2026-10-27T12:00:00Z"), espera: 0 }), (await lerReferenciasML(produto.id))[0].erro), null);
 
+    // Revisao final: o 1o de uma referencia e o proprio dono -> a tela sabe (meu) e o ranking nao o conta como concorrente.
+    const { montarRanking, catalogosDoRanking } = await import("../src/lib/canaisDeVenda/ml/ranking.js");
+    await adicionarReferenciaML(ml, produto.id, { catalogoId: "MLBMEU", nome: "Eu na frente" }, { agora });
+    const doMeu = (await lerReferenciasML(produto.id)).find((r) => r.catalogoId === "MLBMEU");
+    conferir("referencia com o dono em 1o: marcada como meu", doMeu?.primeiro?.meu, true);
+    conferir("referencia com o dono em 1o: fora da conta do ranking", montarRanking({ preco: 40, catalogos: catalogosDoRanking({ catalogoId: null }, [doMeu]) }).foraDaConta.map((c) => c.catalogoId), ["MLBMEU"]);
+    await prisma.catalogoReferenciaML.deleteMany({ where: { produtoId: produto.id, catalogoId: "MLBMEU" } });
+
     const outro = await prisma.produto.create({ data: { sku: "ZZ-ML-R3", tituloBase: "Outro", conferido: true } });
     conferir("remover: so a do produto", (await removerReferenciaML(outro.id, gravada.id)).ok, false);
     conferir("remover: apaga com o historico", [(await removerReferenciaML(produto.id, gravada.id)).ok, await prisma.catalogoReferenciaMLHistorico.count({ where: { referenciaId: gravada.id } })], [true, 0]);

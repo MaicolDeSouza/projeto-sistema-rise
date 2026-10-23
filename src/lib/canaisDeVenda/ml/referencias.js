@@ -84,12 +84,13 @@ export async function relerReferencia(cliente, referencia, { meuSellerId, agora 
             logistica: p.logistica,
             tipoAnuncio: p.tipoAnuncio,
             totalNoCatalogo: lido.total,
+            meu: p.meu,
             lidoEm: agora,
             semAnuncios: false,
             erro: null,
             erroEm: null,
           }
-        : { semAnuncios: true, totalNoCatalogo: 0, lidoEm: agora, erro: null, erroEm: null },
+        : { semAnuncios: true, totalNoCatalogo: 0, meu: false, lidoEm: agora, erro: null, erroEm: null },
     });
     if (mudou && p.preco > 0) {
       await tx.catalogoReferenciaMLHistorico.create({ data: { referenciaId: referencia.id, itemId: p.itemId, vendedorId: p.vendedorId, preco: p.preco, precoCheio: p.precoCheio, lidoEm: agora } });
@@ -141,6 +142,7 @@ const paraTela = (r) => ({
         freteGratis: r.freteGratis,
         logistica: r.logistica,
         tipoAnuncio: r.tipoAnuncio,
+        meu: r.meu,
       }
     : null,
   semAnuncios: r.semAnuncios,
