@@ -173,7 +173,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
       )}
 
       {rascunho.produtoId && acessos.concorrentes && (
-        <RankingDosCatalogos produtoId={rascunho.produtoId} titulo={rascunho.titulo} preco={rascunho.preco} telaConcorrentes={telaConcorrentes} />
+        <RankingDosCatalogos produtoId={rascunho.produtoId} titulo={rascunho.titulo} preco={rascunho.preco} categoriaId={rascunho.categoriaId} telaConcorrentes={telaConcorrentes} />
       )}
 
     </div>

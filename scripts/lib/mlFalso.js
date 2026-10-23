@@ -218,6 +218,8 @@ export function criarMLFalso(opcoes = {}) {
     vendedores: { ...VENDEDORES_PADRAO, ...(opcoes.vendedores ?? {}) },
     // Os anuncios do vendedor por SKU, para `/users/{id}/items/search?seller_sku=` e o `/items/{id}` deles.
     meusItens: opcoes.meusItens ?? {},
+    // Os mais vendidos por categoria (`/highlights`, 23/10/2026): { MLB99779: [{ id, type, position }] }.
+    destaques: opcoes.destaques ?? {},
   });
   const chamadas = [];
 
@@ -491,6 +493,13 @@ export function criarMLFalso(opcoes = {}) {
     if (partes) {
       const item = itens.get(decodeURIComponent(partes[1]));
       return item ? resposta(200, structuredClone(item)) : naoAchou(`Item ${partes[1]} not found`);
+    }
+    partes = rota.match(/^\/highlights\/MLB\/category\/([^/]+)$/);
+    if (partes) {
+      const lista = estado.destaques[decodeURIComponent(partes[1])];
+      return lista
+        ? resposta(200, { query_data: { highlight_type: "BEST_SELLER", criteria: "CATEGORY", id: partes[1] }, content: structuredClone(lista) })
+        : naoAchou(`Dimension CATEGORY with id ${partes[1]} not found`);
     }
     partes = rota.match(/^\/trends\/MLB\/([^/]+)$/);
     if (partes) return tendencias(decodeURIComponent(partes[1]));

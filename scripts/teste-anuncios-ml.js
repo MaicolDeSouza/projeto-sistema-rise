@@ -2201,6 +2201,42 @@ try {
     conferir("coluna: 2o de 3 com o preco do anuncio", [r.posicao, r.total], [2, 3]);
   }
 
+  {
+    console.log("\nRanking do ML: sugerir catalogos (mais vendidos da categoria + busca pelo titulo)");
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { sugerirCatalogos } = await import("../src/lib/canaisDeVenda/ml/catalogo.js");
+    const item = (id, vendedor, preco) => ({ item_id: id, seller_id: vendedor, price: preco, listing_type_id: "gold_special", shipping: {} });
+    const catalogos = {
+      MLBV1: { nome: "Mais vendido 1", busca: "", fotos: ["https://x/v1.jpg"], itens: [item("V1A", 141686451, 24.89)] },
+      MLBV2: { nome: "Mais vendido 2", busca: "", itens: [item("V2A", 212386247, 30)] },
+      MLBPAI: { nome: "Produto pai sem anuncios", busca: "", itens: [] },
+      MLBB1: { nome: "Mega da busca", busca: "mega 2560", itens: [item("B1A", 632377333, 45)] },
+      MLBV3: { nome: "Mais vendido e na busca", busca: "mega 2560", itens: [item("V3A", 632377333, 35)] },
+      MLBJA: { nome: "Ja no ranking", busca: "mega 2560", itens: [item("JAA", 632377333, 10)] },
+    };
+    const destaques = {
+      MLB99779: [
+        { id: "MLBU1", type: "USER_PRODUCT", position: 1 },
+        { id: "MLBV1", type: "PRODUCT", position: 2 },
+        { id: "MLBITEM", type: "ITEM", position: 3 },
+        { id: "MLBV3", type: "PRODUCT", position: 4 },
+        { id: "MLBPAI", type: "PRODUCT", position: 5 },
+        { id: "MLBV2", type: "PRODUCT", position: 6 },
+      ],
+    };
+    const ml = criarMLFalso({ catalogos, destaques });
+    const s = await sugerirCatalogos(ml, { categoriaId: "MLB99779", titulo: "Mega 2560", excluir: ["MLBJA"], meuSellerId: "212386247" });
+    conferir("sugerir: mais vendidos (so catalogos) em ordem, depois a busca; sem repetidos, sem os ja usados, sem catalogo vazio", s.map((c) => [c.id, c.maisVendido, c.daBusca]), [["MLBV1", 2, false], ["MLBV3", 4, true], ["MLBV2", 6, false], ["MLBB1", null, true]]);
+    conferir("sugerir: o 1o com preco, e o dono marcado", s.map((c) => [c.primeiro.preco, c.primeiro.meu]), [[24.89, false], [35, false], [30, true], [45, false]]);
+    conferir("sugerir: nome e foto do mais vendido vem do produto", [s[0].nome, s[0].foto], ["Mais vendido 1", "https://x/v1.jpg"]);
+    conferir("sugerir: sem categoria, so a busca", (await sugerirCatalogos(ml, { categoriaId: null, titulo: "Mega 2560", excluir: [] })).map((c) => c.id), ["MLBB1", "MLBV3", "MLBJA"]);
+    conferir("sugerir: categoria sem mais vendidos (404) nao falha", (await sugerirCatalogos(ml, { categoriaId: "MLB1", titulo: "", excluir: [] })).length, 0);
+    const quebrado = criarMLFalso({ catalogos, destaques, falhas: [{ metodo: "GET", caminho: "/products/MLBV1/items", status: 500 }] });
+    conferir("sugerir: catalogo que falha fica de fora", (await sugerirCatalogos(quebrado, { categoriaId: "MLB99779", titulo: "", excluir: [] })).map((c) => c.id), ["MLBV3", "MLBV2"]);
+    const com429 = criarMLFalso({ catalogos, destaques, falhas: [{ metodo: "GET", caminho: "/products/MLBV1/items", status: 429 }] });
+    conferir("sugerir: 429 avisa (lanca)", await sugerirCatalogos(com429, { categoriaId: "MLB99779", titulo: "", excluir: [] }).then(() => "nao lancou", (erro) => erro?.status), 429);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();

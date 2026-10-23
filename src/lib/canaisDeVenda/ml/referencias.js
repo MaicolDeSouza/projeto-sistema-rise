@@ -192,3 +192,10 @@ export async function catalogosDeVariosProdutos(produtoIds) {
   }
   return resultado;
 }
+
+/** Os catalogos que o produto ja usa no ranking (o do anuncio e as referencias); `null` se o produto nao existe. */
+export async function catalogosUsadosDoProduto(produtoId) {
+  const produto = await prisma.produto.findUnique({ where: { id: produtoId }, select: { mlCatalogoId: true, referenciasML: { select: { catalogoId: true } } } });
+  if (!produto) return null;
+  return [produto.mlCatalogoId, ...produto.referenciasML.map((r) => r.catalogoId)].filter(Boolean);
+}

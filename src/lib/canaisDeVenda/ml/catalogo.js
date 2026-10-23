@@ -155,6 +155,54 @@ export async function lerPrimeiroDoCatalogo(cliente, catalogoId, { meuSellerId }
   return { total: Number(resposta.dados?.paging?.total ?? lista.length), primeiro: lista[0] ? itemDoCatalogo(lista[0], 1, meuSellerId) : null };
 }
 
+const MAIS_VENDIDOS_SUGERIDOS = 10;
+const BUSCA_SUGERIDA = 10;
+const PARA_A_SUGESTAO = new Set([401, 429]);
+
+/**
+ * Catalogos para o ranking, achados sozinhos (pedido do dono em 23/10/2026, opcao 1): os mais vendidos da categoria do
+ * anuncio (`/highlights`, so os do tipo PRODUCT: "produto do vendedor" e "item" dao 403, medido em 23/10/2026) e a busca
+ * pelo titulo, sem repetir e sem os de `excluir`. Cada um com o 1o colocado; catalogo sem anuncios (produto pai) sai.
+ * Catalogo que falha sai; 401/429 lancam (a cota acabou: a tela diz). O dono escolhe quais entram.
+ * @returns {Promise<{ id, nome, foto, maisVendido: number|null, daBusca: boolean, primeiro, total }[]>}
+ */
+export async function sugerirCatalogos(cliente, { categoriaId, titulo, excluir = [], meuSellerId } = {}) {
+  const fora = new Set((excluir ?? []).map(String));
+  const candidatos = new Map();
+  if (categoriaId) {
+    const destaques = await cliente.get(`/highlights/MLB/category/${encodeURIComponent(String(categoriaId).trim())}`);
+    if (!destaques.ok && destaques.status !== 404) throw falhou(destaques);
+    const produtos = (destaques.ok ? destaques.dados?.content ?? [] : []).filter((d) => d?.type === "PRODUCT").sort((a, b) => a.position - b.position);
+    for (const d of produtos.slice(0, MAIS_VENDIDOS_SUGERIDOS)) {
+      if (!fora.has(String(d.id))) candidatos.set(String(d.id), { id: String(d.id), nome: null, foto: null, maisVendido: d.position, daBusca: false });
+    }
+  }
+  for (const achado of await buscarCatalogos(cliente, titulo, { limite: BUSCA_SUGERIDA })) {
+    if (fora.has(achado.id)) continue;
+    const ja = candidatos.get(achado.id);
+    if (ja) Object.assign(ja, { nome: achado.nome, foto: achado.foto, daBusca: true });
+    else candidatos.set(achado.id, { id: achado.id, nome: achado.nome, foto: achado.foto, maisVendido: null, daBusca: true });
+  }
+
+  const resultado = [];
+  for (const candidato of candidatos.values()) {
+    try {
+      const lido = await lerPrimeiroDoCatalogo(cliente, candidato.id, { meuSellerId });
+      if (!lido.primeiro) continue;
+      if (candidato.nome === null) {
+        // O mais vendido vem so com o id: o nome e a foto saem do proprio produto de catalogo.
+        const produto = await cliente.get(`/products/${encodeURIComponent(candidato.id)}`);
+        candidato.nome = produto.ok ? String(produto.dados?.name ?? "") : "";
+        candidato.foto = produto.ok ? produto.dados?.pictures?.[0]?.url ?? null : null;
+      }
+      resultado.push({ ...candidato, primeiro: lido.primeiro, total: lido.total });
+    } catch (erro) {
+      if (PARA_A_SUGESTAO.has(erro?.status)) throw erro;
+    }
+  }
+  return resultado;
+}
+
 /** Quantos vendedores diferentes ha entre os anuncios (um vendedor pode ter varios anuncios no mesmo catalogo). */
 export function contarVendedores(itens) {
   return new Set((itens ?? []).map((item) => String(item.vendedorId))).size;

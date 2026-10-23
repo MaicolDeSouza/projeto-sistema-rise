@@ -12,6 +12,7 @@ import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import {
   buscarCatalogos,
   catalogosDosMeusAnuncios,
+  sugerirCatalogos,
   comResumo,
   contarVendedores,
   lerConcorrentesDoCatalogo,
@@ -39,7 +40,7 @@ import {
   salvarRascunhoML,
   sugerirCodigoDeKit,
 } from "@/lib/canaisDeVenda/ml/banco";
-import { adicionarReferenciaML, lerReferenciasML, relerReferenciasDoProduto, removerReferenciaML } from "@/lib/canaisDeVenda/ml/referencias";
+import { adicionarReferenciaML, catalogosUsadosDoProduto, lerReferenciasML, relerReferenciasDoProduto, removerReferenciaML } from "@/lib/canaisDeVenda/ml/referencias";
 
 /**
  * Acoes do servidor do canal Mercado Livre (Canais de Venda). Finas, no molde de
@@ -522,4 +523,24 @@ export async function relerReferenciasMLAcao(produtoId) {
     const erro = feito.ok ? null : feito.erro ?? (feito.falhas > 0 ? `${feito.falhas} catálogo(s) não responderam. Os preços lidos antes ficaram.` : null);
     return { ok: feito.ok, erro, referencias: await lerReferenciasML(produtoId) };
   });
+}
+
+/**
+ * "Sugerir catalogos": os mais vendidos da categoria do anuncio e a busca pelo titulo, sem o catalogo do anuncio e sem as
+ * referencias que o produto ja tem, cada um com o 1o colocado. Nao grava: o dono escolhe quais entram. So GET.
+ */
+export async function sugerirCatalogosMLAcao(produtoId, { categoriaId, titulo } = {}) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
+  const categoriaValida = categoriaId === undefined || categoriaId === null || categoriaId === "" || (typeof categoriaId === "string" && /^MLB\d{1,15}$/.test(categoriaId.trim()));
+  if (!ehId(produtoId) || !categoriaValida || (titulo !== undefined && (typeof titulo !== "string" || titulo.length > LIMITE_DO_TERMO))) return PEDIDO_INVALIDO;
+  try {
+    const excluir = await catalogosUsadosDoProduto(produtoId);
+    if (!excluir) return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
+    const ml = clienteML();
+    const catalogos = await sugerirCatalogos(ml, { categoriaId: categoriaId ? categoriaId.trim() : null, titulo: titulo ?? "", excluir, meuSellerId: await ml.usuarioId() });
+    return { ok: true, catalogos };
+  } catch (erro) {
+    return falhaDeLeitura(erro, "sugerir catalogos");
+  }
 }

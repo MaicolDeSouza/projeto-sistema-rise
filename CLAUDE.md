@@ -262,7 +262,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 692 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) e o ranking pelos catálogos de referência contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 699 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) e o ranking pelos catálogos de referência contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3278,6 +3278,14 @@ só o 1º) e **Opção B** (o Publicar NÃO coloca o anúncio no catálogo; a ad
   dono na frente; o dono 1º de um catálogo não conta duas vezes (a linha "Você" o representa); sem anúncios e nunca lido
   ficam fora da conta, em cinza. Topo "Você está em Nº de M" com a diferença para o mais barato e para a média; leitura com
   mais de 48 h ganha aviso. Na lista de anúncios, a coluna Concorrência mostra "Nº de M" antes dos avisos.
+- **"Sugerir catálogos"** (pedido do dono no mesmo dia, depois de perguntar por anúncios avulsos; opção 1): `sugerirCatalogos`
+  (`catalogo.js`) junta os **mais vendidos da categoria** do anúncio (`GET /highlights/MLB/category/{id}`, top 20, só os do
+  tipo PRODUCT; 404 = categoria sem lista) e a **busca pelo título**, sem repetir e sem os que o produto já usa, cada um com
+  o 1º colocado (catálogo sem anúncios sai; um que falha sai; 401/429 avisam). Nada entra sozinho: "Adicionar" em cada um.
+- **Anúncio avulso, fora do catálogo, NÃO dá** (medido em 23/10/2026 com o token de produção): `/items/{id}` (com ou sem
+  `attributes`), `/items/bulk`, `/items?ids=`, `/items/{id}/prices` e `/sale_price`, `/sites/MLB/search?seller_id=` e
+  `?nickname=`, `/users/{id}/items/search` ("Searching another user items is restricted.") e `/user-products/MLBU...` dão
+  403. O mesmo anúncio só é lido DENTRO de `/products/{id}/items`. A página do site é scraping (Termos 7.6): fora.
 - **Visto:** a página do editor e a lista respondem 200 com o bloco (curl no servidor do PC, que era de outra sessão).
   **Não visto:** o clique na tela (adicionar, digitar o preço, remover) e a primeira rodada do worker na VPS.
 

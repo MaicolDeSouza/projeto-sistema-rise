@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { ExternalLink, Loader, Plus, RefreshCw, Search, X } from "lucide-react";
+import { ExternalLink, Loader, Plus, RefreshCw, Search, Sparkles, X } from "lucide-react";
 
 import {
   adicionarReferenciaMLAcao,
@@ -10,6 +10,7 @@ import {
   preverCatalogoMLAcao,
   relerReferenciasMLAcao,
   removerReferenciaMLAcao,
+  sugerirCatalogosMLAcao,
 } from "@/app/canais-de-venda/mercado-livre/acoes";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { CLASSE_CAMPO } from "@/components/cadastros/Campo";
@@ -34,14 +35,16 @@ const idColado = (texto) => {
 /**
  * "Ranking dos catalogos" na aba Preco e custos (spec 2026-10-23-ranking-catalogos-referencia-ml-design.md, 4.5). Nesta
  * tela o operador precisa ver primeiro em que posicao o preco dele fica entre os 1os colocados; a acao principal e
- * "Adicionar catalogo". `telaConcorrentes` e a tela do bloco de concorrentes (o 1o do catalogo do anuncio vem dela);
+ * "Sugerir catalogos" (os mais vendidos da categoria e a busca pelo titulo); "Adicionar catalogo" busca um a mao.
+ * `telaConcorrentes` e a tela do bloco de concorrentes (o 1o do catalogo do anuncio vem dela);
  * `preco` e o do campo, entao a posicao muda enquanto o dono digita.
  */
-export default function RankingDosCatalogos({ produtoId, titulo, preco, telaConcorrentes }) {
+export default function RankingDosCatalogos({ produtoId, titulo, preco, categoriaId, telaConcorrentes }) {
   const [referencias, setReferencias] = useState(null);
   const [erro, setErro] = useState(null);
   const [aviso, setAviso] = useState(null);
-  const [adicionando, setAdicionando] = useState(false);
+  // Um painel por vez: as sugestoes do Rise ou a busca a mao.
+  const [painel, setPainel] = useState(null);
   const [removendo, setRemovendo] = useState(null);
   const [ocupado, iniciar] = useTransition();
 
@@ -71,7 +74,8 @@ export default function RankingDosCatalogos({ produtoId, titulo, preco, telaConc
     iniciar(async () => {
       const resposta = await adicionarReferenciaMLAcao(produtoId, { catalogoId: catalogo.id, nome: catalogo.nome ?? "" });
       receber(resposta);
-      if (resposta?.ok) setAdicionando(false);
+      if (resposta?.ok && painel === "adicionar") setPainel(null);
+      return resposta;
     });
 
   const lista = referencias ?? [];
@@ -97,15 +101,26 @@ export default function RankingDosCatalogos({ produtoId, titulo, preco, telaConc
               <RefreshCw size={14} className={ocupado ? "animate-spin" : ""} /> Reler
             </button>
           )}
-          {!adicionando && (
+          {painel !== "adicionar" && (
             <button
               type="button"
-              onClick={() => setAdicionando(true)}
+              onClick={() => setPainel("adicionar")}
               disabled={ocupado || lista.length >= MAXIMO}
-              title={lista.length >= MAXIMO ? `No máximo ${MAXIMO} catálogos de referência.` : "Marcar outro catálogo do ML como referência de preço"}
-              className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              title={lista.length >= MAXIMO ? `No máximo ${MAXIMO} catálogos de referência.` : "Buscar um catálogo do ML pelo nome, link ou ID"}
+              className="inline-flex items-center gap-1.5 rounded border border-borda px-2.5 py-1 text-sm hover:bg-fundo disabled:opacity-50"
             >
               <Plus size={14} /> Adicionar catálogo
+            </button>
+          )}
+          {painel !== "sugerir" && (
+            <button
+              type="button"
+              onClick={() => setPainel("sugerir")}
+              disabled={ocupado || lista.length >= MAXIMO}
+              title={lista.length >= MAXIMO ? `No máximo ${MAXIMO} catálogos de referência.` : "Os mais vendidos da categoria e os catálogos parecidos com o título"}
+              className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              <Sparkles size={14} /> Sugerir catálogos
             </button>
           )}
         </span>
@@ -118,8 +133,11 @@ export default function RankingDosCatalogos({ produtoId, titulo, preco, telaConc
         <p className="mt-2 flex items-center gap-2 text-sm text-suave"><Loader size={14} className="animate-spin" /> Lendo...</p>
       ) : (
         <div className="mt-3 space-y-3">
-          {adicionando && (
-            <Adicionar titulo={titulo} idsUsados={idsUsados} ocupado={ocupado} aoAdicionar={adicionar} aoCancelar={() => setAdicionando(false)} />
+          {painel === "adicionar" && (
+            <Adicionar titulo={titulo} idsUsados={idsUsados} ocupado={ocupado} aoAdicionar={adicionar} aoCancelar={() => setPainel(null)} />
+          )}
+          {painel === "sugerir" && (
+            <Sugestoes produtoId={produtoId} titulo={titulo} categoriaId={categoriaId} idsUsados={idsUsados} cheio={lista.length >= MAXIMO} ocupado={ocupado} aoAdicionar={adicionar} aoFechar={() => setPainel(null)} />
           )}
 
           {semNinguem ? (
@@ -342,6 +360,85 @@ function Adicionar({ titulo, idsUsados, ocupado, aoAdicionar, aoCancelar }) {
             ))}
           </ul>
         ))
+      )}
+    </div>
+  );
+}
+
+// As sugestoes do Rise: lidas uma vez ao abrir (cada catalogo custa duas leituras no ML). Adicionar nao fecha a lista:
+// o dono marca varios seguidos, e o que entrou vira "no ranking" (pelo `idsUsados`, relido do servidor).
+function Sugestoes({ produtoId, titulo, categoriaId, idsUsados, cheio, ocupado, aoAdicionar, aoFechar }) {
+  const [sugeridos, setSugeridos] = useState(null);
+  const [erro, setErro] = useState(null);
+
+  useEffect(() => {
+    let vivo = true;
+    sugerirCatalogosMLAcao(produtoId, { categoriaId: categoriaId || null, titulo: titulo ?? "" })
+      .then((resposta) => {
+        if (!vivo) return;
+        setSugeridos(resposta.ok ? resposta.catalogos : []);
+        setErro(resposta.ok ? null : resposta.erro);
+      })
+      .catch(() => vivo && setErro("Não foi possível falar com o servidor."));
+    return () => {
+      vivo = false;
+    };
+    // So na abertura: trocar o titulo ou a categoria depois pede abrir de novo (cada leitura custa chamadas ao ML).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [produtoId]);
+
+  return (
+    <div className="space-y-2 rounded border border-borda p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium">
+          Sugeridos
+          <span className="font-normal text-suave">{categoriaId ? " · mais vendidos da categoria e busca pelo título" : " · busca pelo título (o anúncio ainda não tem categoria)"}</span>
+        </p>
+        <button type="button" onClick={aoFechar} className="text-sm text-suave hover:underline">Fechar</button>
+      </div>
+      {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
+      {sugeridos === null && !erro ? (
+        <p className="flex items-center gap-2 text-sm text-suave"><Loader size={14} className="animate-spin" /> Procurando no Mercado Livre...</p>
+      ) : sugeridos?.length === 0 ? (
+        <p className="text-sm text-suave">Nenhum catálogo novo para sugerir.</p>
+      ) : (
+        <ul className="divide-y divide-borda rounded border border-borda">
+          {(sugeridos ?? []).map((catalogo) => (
+            <li key={catalogo.id} className="flex items-center gap-3 px-3 py-2">
+              {catalogo.foto ? (
+                // Foto do CDN do ML: `next/image` lanca com host fora de `remotePatterns` (CLAUDE.md, armadilhas).
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={catalogo.foto} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded object-contain" />
+              ) : (
+                <span className="h-9 w-9 shrink-0 rounded bg-fundo" />
+              )}
+              <div className="min-w-0 flex-1">
+                <a href={urlDoCatalogo(catalogo.id)} target="_blank" rel="noreferrer" title={catalogo.nome || catalogo.id} className="block truncate text-sm font-medium hover:text-acento hover:underline">
+                  {catalogo.nome || catalogo.id}
+                </a>
+                <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-suave">
+                  {catalogo.maisVendido && <span className="rounded border border-amber-300 bg-amber-50 px-1 py-px font-medium text-amber-800">{catalogo.maisVendido}º mais vendido da categoria</span>}
+                  <span>
+                    1º: {catalogo.primeiro.meu ? "você" : catalogo.primeiro.preco === null ? "-" : MOEDA.format(catalogo.primeiro.preco)} · {catalogo.total} {catalogo.total === 1 ? "anúncio" : "anúncios"}
+                  </span>
+                </p>
+              </div>
+              {idsUsados.has(catalogo.id) ? (
+                <span className="shrink-0 text-xs font-medium text-emerald-700">no ranking</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => aoAdicionar(catalogo)}
+                  disabled={ocupado || cheio}
+                  title={cheio ? `No máximo ${MAXIMO} catálogos de referência.` : "Adicionar ao ranking"}
+                  className="shrink-0 rounded border border-borda px-2.5 py-1 text-sm hover:bg-fundo disabled:opacity-50"
+                >
+                  Adicionar
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
