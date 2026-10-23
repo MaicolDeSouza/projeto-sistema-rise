@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { INCLUDE_DO_ICONE_BLING } from "@/lib/blingSync/estado";
 import { anuncioLIDoProduto, contextoDoProduto, novoRascunhoLI, rascunhoDoAnuncio } from "@/lib/canaisDeVenda/li/banco";
 import { comAncestrais } from "@/lib/canaisDeVenda/li/categorias";
 import { RascunhoLISchema } from "@/lib/canaisDeVenda/li/esquema";
@@ -9,7 +8,7 @@ import { seoDosConcorrentes } from "@/lib/canaisDeVenda/li/seoConcorrentes";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 import { aplicarProposta, montarProposta } from "./preencher";
 import { VERSAO_ROTEIRO_LI } from "./roteiros";
-import { blingVerde } from "./situacao";
+import { exigirProdutoPronto } from "./situacao";
 
 /**
  * A proposta do anuncio da Loja Integrada (spec 2026-10-23, Entrega 1): categorias (com as pais), marca e a Meta Tag
@@ -49,17 +48,6 @@ export async function lerParaPropostaLI(cliente, sku) {
     rascunho: anuncio ? rascunhoDoAnuncio(anuncio) : null,
     limites: { description: [...LIMITES_DA_DESCRIPTION] },
   };
-}
-
-/** Recusa o que nao pode virar proposta, ANTES de ler a LI ou gravar: Conferido e o Bling verde. */
-async function exigirProdutoPronto(sku) {
-  const produto = await prisma.produto.findUnique({ where: { sku }, include: INCLUDE_DO_ICONE_BLING });
-  if (!produto) throw new ErroDeFerramenta(`Produto ${sku} não encontrado.`);
-  if (!produto.conferido) throw new ErroDeFerramenta(`O produto ${sku} ainda não está Conferido no Rise: a proposta de anúncio vem depois.`);
-  if (!blingVerde(produto).verde) {
-    throw new ErroDeFerramenta(`O produto ${sku} não está igual no Bling (sincronize com o Bling antes; o ícone precisa estar verde e sem "!").`);
-  }
-  return produto;
 }
 
 /**

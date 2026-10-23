@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
+import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import { gravarPropostaLI, lerParaPropostaLI } from "@/lib/propostaDeAnuncio/li";
+import { gravarPropostaML, lerCategoriaML, lerParaPropostaML } from "@/lib/propostaDeAnuncio/ml";
 import { lerSituacaoDoProduto, proximoPasso } from "@/lib/propostaDeAnuncio/situacao";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
@@ -84,4 +86,59 @@ const GRAVAR_PROPOSTA_LI = {
   },
 };
 
-export const FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO = [SITUACAO_DO_PRODUTO, LER_PARA_PROPOSTA_LI, GRAVAR_PROPOSTA_LI];
+// O cliente do ML vem do contexto so no teste (o ML falso); no ar e o de verdade, e aqui so le.
+const clienteDoML = (contexto) => contexto?.mcp?.clienteML ?? clienteML();
+
+const LER_PARA_PROPOSTA_ML = {
+  nome: "lerParaPropostaML",
+  descricao:
+    "Primeiro passo da proposta do anúncio do Mercado Livre: traz o produto (com o custo), as categorias candidatas, os atributos da categoria mais provável, os catálogos candidatos (total de anúncios e o 1º colocado de cada um), os catálogos dos anúncios do dono e as referências do produto. Só lê.",
+  esquema: z.object({ sku: SKU }),
+  anotacoes: { ...SO_LEITURA, openWorldHint: true },
+  async executar({ sku }, contexto) {
+    exigirPropostaDeAnuncio(contexto, "ml");
+    return lerParaPropostaML(clienteDoML(contexto), sku);
+  },
+};
+
+const LER_CATEGORIA_ML = {
+  nome: "lerCategoriaML",
+  descricao: "A ficha de uma categoria do Mercado Livre (se é folha, o limite do título e os atributos com os obrigatórios e as listas), para quando a categoria escolhida não for a mais provável. Só lê.",
+  esquema: z.object({ categoriaId: z.string().trim().min(3).max(20).describe("O código da categoria, ex.: 'MLB99779'") }),
+  anotacoes: { ...SO_LEITURA, openWorldHint: true },
+  async executar({ categoriaId }, contexto) {
+    exigirPropostaDeAnuncio(contexto, "ml");
+    return lerCategoriaML(clienteDoML(contexto), categoriaId);
+  },
+};
+
+const LINK = z.object({
+  url: z.string().trim().url().refine((url) => /^https?:\/\//i.test(url), "Só endereço http(s)."),
+  titulo: z.string().trim().max(200).optional(),
+  preco: z.number().positive(),
+});
+
+const GRAVAR_PROPOSTA_ML = {
+  nome: "gravarPropostaML",
+  descricao: [
+    "Grava a proposta do anúncio do Mercado Livre no rascunho do Rise (sempre um Clássico): categoria folha, título, ficha (atributos), até 10 catálogos do mesmo produto e, sem catálogo, até 5 links com preço.",
+    "O Rise lê o 1º de cada catálogo, descarta os de menos de 5 anúncios e CALCULA O PREÇO (30% de margem e o top 5). Nada é publicado e nada entra no ranking: o dono revisa, adiciona os catálogos e publica. Gravar de novo substitui a proposta.",
+  ].join(" "),
+  esquema: z.object({
+    sku: SKU,
+    categoriaId: z.string().trim().min(3).max(20).describe("A categoria FOLHA, ex.: 'MLB99779'"),
+    titulo: z.string().trim().min(1).max(120).describe("O título, no limite da categoria"),
+    atributos: z.record(z.string(), z.string().max(300)).optional().describe("A ficha: id do atributo -> valor (sem GTIN)"),
+    catalogos: z.array(z.string().trim().min(3).max(30)).max(10).optional().describe("Ids dos catálogos do mesmo produto"),
+    linksSemCatalogo: z.array(LINK).max(5).optional().describe("Só sem catálogo: 5 anúncios do mesmo produto com o preço"),
+    relatorio: z.string().trim().max(8000).optional().describe("O relatório em tópicos"),
+  }),
+  // Escreve so no rascunho do Rise; gravar de novo atualiza o mesmo Classico.
+  anotacoes: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  async executar(argumentos, contexto) {
+    exigirPropostaDeAnuncio(contexto, "ml");
+    return gravarPropostaML(clienteDoML(contexto), argumentos.sku, argumentos);
+  },
+};
+
+export const FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO = [SITUACAO_DO_PRODUTO, LER_PARA_PROPOSTA_LI, GRAVAR_PROPOSTA_LI, LER_PARA_PROPOSTA_ML, LER_CATEGORIA_ML, GRAVAR_PROPOSTA_ML];

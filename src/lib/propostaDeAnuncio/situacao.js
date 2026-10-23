@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { iconeBlingDoProduto, INCLUDE_DO_ICONE_BLING } from "@/lib/blingSync/estado";
+import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
 /**
  * A situacao de um produto para a proposta de anuncio (spec 2026-10-23, secao 6.1): o que falta e qual e o proximo passo.
@@ -44,6 +45,17 @@ export function proximoPasso(situacao) {
 export function blingVerde(produto) {
   const icone = iconeBlingDoProduto(produto);
   return { sincronizado: icone.cor === "verde", diferente: icone.motivos ?? [], verde: icone.cor === "verde" && !icone.divergente };
+}
+
+/** Recusa o que nao pode virar proposta de anuncio, ANTES de ler o canal ou gravar: Conferido e o Bling verde (LI e ML). */
+export async function exigirProdutoPronto(sku) {
+  const produto = await prisma.produto.findUnique({ where: { sku }, include: INCLUDE_DO_ICONE_BLING });
+  if (!produto) throw new ErroDeFerramenta(`Produto ${sku} não encontrado.`);
+  if (!produto.conferido) throw new ErroDeFerramenta(`O produto ${sku} ainda não está Conferido no Rise: a proposta de anúncio vem depois.`);
+  if (!blingVerde(produto).verde) {
+    throw new ErroDeFerramenta(`O produto ${sku} não está igual no Bling (sincronize com o Bling antes; o ícone precisa estar verde e sem "!").`);
+  }
+  return produto;
 }
 
 /** `null` quando o SKU nao existe. Le so o banco do Rise (nenhum canal). */

@@ -36,3 +36,38 @@ CAMINHO (nesta ordem)
 5. Mostre à pessoa o resumo: o que entrou no rascunho, o que virou sugestão (campo que já tinha outro valor) e os
    avisos. Diga que o dono revisa e sincroniza no editor da Loja Integrada (o "P" no ícone some no Sincronizar).
    Depois disso, o próximo passo é a proposta do Mercado Livre.`;
+
+export const VERSAO_ROTEIRO_ML = "1";
+
+export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
+
+O QUE É
+Você monta a PROPOSTA do anúncio do produto no Mercado Livre: sempre UM anúncio, Clássico. Você NÃO publica nada: a
+proposta fica no rascunho do anúncio no Rise, e o dono revisa no editor do Mercado Livre e publica.
+A proposta usa só você (sem custo de IA para o Rise). O PREÇO é calculado pelo Rise, nunca por você.
+
+CAMINHO (nesta ordem)
+1. situacaoDoProduto(sku). Diga à pessoa, no chat, o proximoPasso e o motivo, ANTES de fazer qualquer coisa.
+   Siga se o proximoPasso for "proposta-ml", ou se o dono pedir para pular a Loja Integrada.
+   "sincronizar-bling", "proposta-do-produto" ou "conferir-no-rise": pare e diga o que o dono precisa fazer antes.
+2. lerParaPropostaML(sku): o produto (com o custo), as categorias candidatas, os atributos da categoria mais provável,
+   os catálogos candidatos (cada um com o total de anúncios e o 1º colocado), os catálogos dos anúncios do dono e as
+   referências que o produto já tem.
+3. Monte a proposta:
+   - CATEGORIA: uma categoria FOLHA. Se escolher outra que não a provável, chame lerCategoriaML(categoriaId) para ver
+     a ficha dela.
+   - TÍTULO: dentro do limite da categoria, com o tipo da peça, o modelo ou o chip, a especificação principal e a
+     compatibilidade. Sem preço, sem "promoção", sem emoji.
+   - FICHA: só o que o cadastro do produto ou as referências PROVAM. Nunca invente. Os valores de lista escritos como
+     estão na lista da categoria. Não mande GTIN nem o motivo de não ter (são do dono).
+   - CATÁLOGOS: até 10 do MESMO produto (não de um parecido), cada um com 5 ou mais anúncios. Use os candidatos da
+     leitura; o Rise descarta os de menos de 5. Menos de 5 catálogos, tudo bem.
+   - SEM NENHUM CATÁLOGO do mesmo produto: pesquise no navegador e ache 5 anúncios do MESMO produto no Mercado Livre;
+     mande url, título e preço de cada um em linksSemCatalogo. Esses links não são salvos no Rise: só entram na conta
+     do preço e no relatório.
+4. gravarPropostaML(sku, categoriaId, titulo, atributos, catalogos, linksSemCatalogo, relatorio). O relatório em
+   tópicos curtos: por que a categoria, de onde veio cada valor da ficha, por que cada catálogo é o mesmo produto.
+   Se voltar erro, corrija e grave de novo.
+5. Mostre à pessoa o que o Rise devolveu: o preço, a margem, a posição no ranking, os catálogos aceitos e os avisos.
+   Diga que o dono revisa no editor do Mercado Livre, adiciona os catálogos ao ranking se quiser, e publica (o "P" no
+   ícone some no Publicar).`;

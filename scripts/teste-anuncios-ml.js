@@ -2272,6 +2272,79 @@ try {
     conferir("todo preço de 5 em 5 centavos", [top5, caro, virada, sozinho].every((resultado) => multiplo5(resultado.valor)), true);
   }
 
+  // -------------------------------------------------------------------------
+  // Proposta de anuncio (plano 2026-10-23, Tarefa 7): ler e gravar a proposta do ML
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nProposta do ML: ler e gravar");
+    await limpar();
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { gravarPropostaML, lerParaPropostaML } = await import("../src/lib/propostaDeAnuncio/ml.js");
+    const { INCLUDE_DO_ICONE_BLING } = await import("../src/lib/blingSync/estado.js");
+    const { assinaturaDoRise, normalizarDoRise, normalizarFornecedoresDoRise } = await import("../src/lib/blingSync/campos.js");
+    const criarPronto = async (sku, extra = {}) => {
+      const criado = await prisma.produto.create({
+        data: { sku, tituloBase: "PLACA UNO R3 CH340 ZZ", descricaoBase: "Placa de teste.", marca: "ARDUINO", modelo: "UNO R3", conferido: true, custo: 20, precoVenda: 49, estoque: 5, pesoKg: 0.05, alturaCm: 5, larguraCm: 8, comprimentoCm: 8, ...extra },
+      });
+      const lido = await prisma.produto.findUnique({ where: { id: criado.id }, include: INCLUDE_DO_ICONE_BLING });
+      await prisma.produto.update({ where: { id: criado.id }, data: { blingSincronizadoEm: new Date(), blingAssinatura: assinaturaDoRise(normalizarDoRise(lido), normalizarFornecedoresDoRise(lido.fornecedores)) } });
+      return criado;
+    };
+    const item = (id, vendedor, preco) => ({ item_id: id, seller_id: vendedor, price: preco, listing_type_id: "gold_special", category_id: "MLB99779", shipping: {} });
+    const varios = (prefixo, n, primeiro) => Array.from({ length: n }, (_, i) => item(`${prefixo}${i}`, 141686451, primeiro + i));
+    const catalogos = {
+      MLBP9: { nome: "Placa nove", busca: "placa uno r3 ch340 zz", itens: varios("P9", 9, 55) },
+      MLBP4: { nome: "Placa quatro", busca: "", itens: varios("P4", 4, 40) },
+      MLBP6: { nome: "Placa seis", busca: "", itens: varios("P6", 6, 60) },
+    };
+    const ml = (extra = {}) => criarMLFalso({ catalogos, ...extra });
+    const erroDe = async (promessa) => promessa.then(() => null, (erro) => erro.message);
+    const ATRIBUTOS = { BRAND: "ARDUINO", MODEL: "UNO R3" };
+
+    const produto = await criarPronto("ZZ-ML-PA1");
+    const lida = await lerParaPropostaML(ml(), "ZZ-ML-PA1");
+    conferir("ler: custo, categoria candidata e os atributos dela", [lida.produto.custo, lida.categorias[0]?.categoriaId, lida.atributos.some((a) => a.id === "BRAND")], [20, "MLB99779", true]);
+
+    const gravada = await gravarPropostaML(ml(), "ZZ-ML-PA1", { categoriaId: "MLB99779", titulo: "Placa Uno R3 CH340 compatível", atributos: { ...ATRIBUTOS, GTIN: "7890000000000", EMPTY_GTIN_REASON: "x" }, catalogos: ["MLBP9", "MLBP4", "MLBP6"], relatorio: "- teste" });
+    const anuncio = await prisma.anuncio.findUnique({ where: { id: gravada.anuncioId } });
+    conferir(
+      "gravar: Clássico com categoria, título, ficha e preço",
+      [anuncio.status, anuncio.dados.tipoAnuncio, anuncio.categoriaExternaId, anuncio.titulo, anuncio.atributos.BRAND, anuncio.dados.preco, gravada.preco.valor],
+      ["RASCUNHO", "gold_special", "MLB99779", "Placa Uno R3 CH340 compatível", "ARDUINO", 60, 60],
+    );
+    conferir("GTIN e o motivo mandados pela LLM ficam fora", [anuncio.atributos.GTIN ?? null, anuncio.atributos.EMPTY_GTIN_REASON ?? null], [null, null]);
+    conferir("catálogos: só os de 5 ou mais anúncios, o de 4 avisado", [gravada.catalogosSugeridos.map((c) => c.catalogoId), gravada.avisos.some((a) => /MLBP4/.test(a) && /menos de 5/.test(a))], [["MLBP9", "MLBP6"], true]);
+    conferir("o ranking do produto continua vazio", await prisma.catalogoReferenciaML.count({ where: { produtoId: produto.id } }), 0);
+    conferir("a proposta guardada com o preço e os catálogos", [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro], [60, 2, "1"]);
+
+    const deNovo = await gravarPropostaML(ml(), "ZZ-ML-PA1", { categoriaId: "MLB99779", titulo: "Placa Uno R3 CH340 compatível", atributos: ATRIBUTOS, catalogos: ["MLBP9"], relatorio: "- de novo" });
+    conferir("o Clássico em rascunho é atualizado (o mesmo anúncio)", [deNovo.anuncioId, await prisma.anuncio.count({ where: { produtoId: produto.id, canal: "MERCADO_LIVRE" } })], [gravada.anuncioId, 1]);
+
+    conferir("categoria que não é folha", /folha/.test(await erroDe(gravarPropostaML(ml(), "ZZ-ML-PA1", { categoriaId: "MLB1648", titulo: "x", atributos: {}, catalogos: [] }))), true);
+    await criarPronto("ZZ-ML-PA5", { modelo: null });
+    const faltando = await gravarPropostaML(ml(), "ZZ-ML-PA5", { categoriaId: "MLB99779", titulo: "Placa", atributos: { BRAND: "ARDUINO" }, catalogos: [] });
+    conferir("atributo obrigatório faltando: grava e avisa", faltando.avisos.some((a) => /MODEL/.test(a)), true);
+
+    const p2 = await criarPronto("ZZ-ML-PA2");
+    const links = [1, 2, 3, 4, 5].map((n) => ({ url: `https://loja${n}.invalid/p`, titulo: `Placa ${n}`, preco: 60 + n }));
+    const semCatalogo = await gravarPropostaML(ml(), "ZZ-ML-PA2", { categoriaId: "MLB99779", titulo: "Placa", atributos: ATRIBUTOS, catalogos: [], linksSemCatalogo: links });
+    const an2 = await prisma.anuncio.findUnique({ where: { id: semCatalogo.anuncioId } });
+    conferir("sem catálogo: o preço pelos links, os links só na proposta", [semCatalogo.preco.teto, an2.dados.proposta.links.length, await prisma.catalogoReferenciaML.count({ where: { produtoId: p2.id } })], [65, 5, 0]);
+
+    const p3 = await criarPronto("ZZ-ML-PA3");
+    await prisma.anuncio.create({ data: { produtoId: p3.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", titulo: "Publicado", idExterno: "MLB1", dados: { tipoAnuncio: "gold_special", preco: 99 } } });
+    const aoLado = await gravarPropostaML(ml(), "ZZ-ML-PA3", { categoriaId: "MLB99779", titulo: "Placa", atributos: ATRIBUTOS, catalogos: [] });
+    const publicado = await prisma.anuncio.findFirst({ where: { produtoId: p3.id, status: "PUBLICADO" } });
+    conferir("só publicado: cria um rascunho novo e não toca no publicado", [aoLado.anuncioId !== publicado.id, publicado.dados.preco, publicado.dados.proposta ?? null], [true, 99, null]);
+
+    const com429 = ml({ falhas: [{ metodo: "GET", caminho: "/products/MLBP6/items", status: 429 }] });
+    const parcial = await gravarPropostaML(com429, "ZZ-ML-PA1", { categoriaId: "MLB99779", titulo: "Placa", atributos: ATRIBUTOS, catalogos: ["MLBP9", "MLBP6"] });
+    conferir("429 num catálogo: grava com os outros e avisa", [parcial.catalogosSugeridos.map((c) => c.catalogoId), parcial.avisos.some((a) => /não foi lido/.test(a))], [["MLBP9"], true]);
+
+    await prisma.produto.create({ data: { sku: "ZZ-ML-PA4", tituloBase: "NAO CONFERIDO" } });
+    conferir("não Conferido recusa", /Conferido/.test(await erroDe(gravarPropostaML(ml(), "ZZ-ML-PA4", { categoriaId: "MLB99779", titulo: "x", atributos: {}, catalogos: [] }))), true);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();
