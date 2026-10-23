@@ -195,18 +195,21 @@ export async function buscarItemColetadoPorCodigo(codigoBruto, tipo) {
       },
       select: {
         id: true, nome: true, codigo: true, url: true,
-        precoNormal: true, precoPromocional: true,
+        precoNormal: true, precoPromocional: true, precoComImpostos: true,
         fonte: { select: { nome: true, tipo: true } },
       },
       orderBy: { vistoEm: "desc" },
       take: 30,
     });
+    const numero = (valor) => (valor == null ? null : Number(valor));
     return { ok: true, itens: itens.map((item) => ({
       id: item.id, fonte: item.fonte.nome, tipo: item.fonte.tipo,
       nome: item.nome, codigo: item.codigo, url: item.url,
+      // FORNECEDOR: o custo COM imposto, que e o que se paga (pedido do dono em 23/10/2026: "ja deve vir com o valor
+      // com imposto"). Concorrente: o preco normal de vitrine.
       preco: item.fonte.tipo === "FORNECEDOR"
-        ? (item.precoNormal == null && item.precoPromocional == null ? null : Number(item.precoNormal ?? item.precoPromocional))
-        : (item.precoNormal == null ? null : Number(item.precoNormal)),
+        ? numero(item.precoComImpostos) ?? numero(item.precoNormal) ?? numero(item.precoPromocional)
+        : numero(item.precoNormal),
     })) };
   } catch (erro) {
     return { ok: false, erro: erro.message };
@@ -1277,6 +1280,10 @@ async function gravarFornecedoresRascunho(produto, formData) {
     where: { produtoId: produto.id, id: { notIn: idsMantidos } },
   });
 
+  // O custo do fornecedor com codigo na lista dele volta a ser o da ultima varredura, COM imposto (23/10/2026): a tela
+  // aberta desde antes regravava o valor sem IPI por cima da correcao.
+  const { atualizarCustosDoProduto } = await import("@/lib/coleta/banco");
+  await atualizarCustosDoProduto(produto.id);
   await recalcularCusto(produto.id);
 }
 

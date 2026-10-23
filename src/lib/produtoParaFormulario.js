@@ -15,7 +15,7 @@ export async function carregarProdutoParaFormulario(id) {
       // A RESERVA de imagens nao e foto do produto: ela entra no painel pela lista `reserva`, escondida.
       arquivos: { where: { papel: "FOTO" }, orderBy: { ordem: "asc" } },
       fornecedores: {
-        include: { fornecedor: { select: { nome: true } } },
+        include: { fornecedor: { select: { nome: true, fonteId: true } } },
         orderBy: { criadoEm: "asc" },
       },
       concorrentes: {
@@ -106,13 +106,38 @@ export async function carregarProdutoParaFormulario(id) {
     });
   }
 
+  // O CUSTO JA ABRE COM IMPOSTO (pedido do dono em 23/10/2026: "independente de salvar ou nao"): para o vinculo cujo
+  // codigo esta na lista do fornecedor, a tela mostra o custo da ultima varredura com impostos, e nao o numero gravado
+  // (que podia ser antigo, sem IPI). O Salvar grava o mesmo (atualizarCustosDoProduto). So leitura aqui.
+  const custoDaVarredura = new Map();
+  const comFonte = registro.fornecedores.filter((vinculo) => vinculo.fornecedor.fonteId && vinculo.codigo);
+  if (comFonte.length > 0) {
+    const coletados = await prisma.produtoColetado.findMany({
+      where: {
+        OR: comFonte.map((vinculo) => ({
+          fonteId: vinculo.fornecedor.fonteId,
+          codigo: { equals: vinculo.codigo, mode: "insensitive" },
+        })),
+      },
+      select: { fonteId: true, codigo: true, precoComImpostos: true, precoNormal: true, precoPromocional: true },
+      orderBy: { vistoEm: "desc" },
+    });
+    for (const vinculo of comFonte) {
+      const achado = coletados.find(
+        (item) => item.fonteId === vinculo.fornecedor.fonteId && item.codigo?.toLowerCase() === vinculo.codigo.toLowerCase(),
+      );
+      const custo = achado?.precoComImpostos ?? achado?.precoNormal ?? achado?.precoPromocional ?? null;
+      if (custo !== null) custoDaVarredura.set(vinculo.id, Number(custo));
+    }
+  }
+
   const fornecedores = registro.fornecedores.map((vinculo) => ({
     id: vinculo.id,
     nome: vinculo.fornecedor.nome,
     descricao: vinculo.descricao,
     observacao: vinculo.observacao ?? null,
     codigo: vinculo.codigo,
-    precoCusto: vinculo.precoCusto ? Number(vinculo.precoCusto) : null,
+    precoCusto: custoDaVarredura.get(vinculo.id) ?? (vinculo.precoCusto ? Number(vinculo.precoCusto) : null),
     link: vinculo.link,
     padrao: vinculo.padrao,
   }));

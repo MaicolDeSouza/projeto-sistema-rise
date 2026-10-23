@@ -7,7 +7,7 @@
  *
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
-export const VERSAO_DO_ROTEIRO = "4";
+export const VERSAO_DO_ROTEIRO = "5";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -30,11 +30,12 @@ CAMINHO (as ferramentas do Rise, nesta ordem)
 4. gravarSecao(sku, secao, conteudo): uma seção por chamada, nesta ordem: descricao, titulos, fotos, campos, preco,
    ean, documentos, relatorio. Seção recusada volta com o motivo: corrija e grave de novo.
 5. lerProposta(sku): confira o que ficou gravado. No fim, mostre ao dono um resumo curto (título recomendado, preço
-   recomendado com a posição, EAN, o que ficou "?", fotos escolhidas).
+   recomendado com a posição, EAN, os campos que ficaram de fora por falta de fonte, fotos escolhidas).
 Não chame anotarDuvida na proposta.
 
 REGRAS QUE VALEM SEMPRE
-- Nunca invente. Sem fonte: "?" na descrição, campo fora da proposta, e o relatório diz.
+- Nunca invente. Sem fonte: o campo SAI da descrição (nunca "?" nem "não informado"), fica fora da proposta, e o
+  relatório diz quais ficaram de fora.
 - Toda escolha leva a origem (loja, site, busca), curta.
 - Português do Brasil, texto puro (sem negrito, emoji ou link dentro do texto).
 - Não use nenhuma ferramenta de IA paga do Rise.
@@ -47,7 +48,7 @@ REGRAS QUE VALEM SEMPRE
   com os valores dos campos do produto); "Itens inclusos: (Cod:SKU)" com "- 01 ITEM;"; "Garantia:" com
   "- Garantia Legal de 90 dias (contra defeitos de fabricação);". Quebra de linha \\r\\n.
 - Campo que o prompt pede e nenhuma loja informa: pesquise (datasheet do fabricante primeiro, depois lojas e fóruns).
-  Só preencha com fonte; senão "?".
+  Só preencha com fonte; senão retire o campo da descrição (nada de "?").
 - Divergência entre lojas: decida e registre (campo, opções com as lojas, a escolhida e o porquê).
 - Texto de propaganda não entra nas especificações.
 conteudo: { "texto", "prompt", "divergencias": [{ "campo", "opcoes": [{ "valor", "lojas": [] }], "escolhida", "motivo" }],
@@ -106,7 +107,7 @@ conteudo: { "itens": [{ "id", "titulo", "url", "loja" }] }
 8. RELATÓRIO (por último), profissional, em tópicos com título, nesta ordem:
 "Resumo" (2 a 4 itens: o que foi feito e o principal resultado), "Fontes consultadas" (fornecedores, concorrentes,
 prompt, sites pesquisados), "Decisões tomadas" (cada divergência: campo, opções, a escolhida e o porquê), "Para você
-conferir" (atencao: true; o que ficou "?" ou vazio e o que depende do dono), "Fiscal" (NCM, origem, EAN e o que os
+conferir" (atencao: true; os campos que ficaram de fora por falta de fonte e o que depende do dono), "Fiscal" (NCM, origem, EAN e o que os
 concorrentes publicam diferente), "Preço" (o que o Rise calculou, quem entrou e quem ficou de fora), "Fotos" e
 "Documentos" (o que não abre). Tópico sem nada a dizer fica de fora. Cada item é uma frase curta e completa.
 conteudo: { "topicos": [{ "titulo", "itens": [frases curtas], "atencao": true só em "Para você conferir" }] }

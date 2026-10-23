@@ -346,6 +346,32 @@ export async function atualizarCustosDosVinculos(tx, fonteId) {
 }
 
 /**
+ * O MESMO acerto de custo, para UM produto, chamado em todo Salvar do cadastro (23/10/2026). O dono salvou o 100103 com a
+ * pagina aberta desde antes da correcao, e o formulario regravou os custos SEM imposto (18,90 no lugar de 19,28). Agora,
+ * depois de gravar os fornecedores, o custo de cada vinculo cujo codigo esta na lista do fornecedor volta a ser o da
+ * ultima varredura, com impostos. Vinculo sem codigo ou de fornecedor sem fonte fica com o que foi digitado.
+ *
+ * @returns {Promise<number>} vinculos acertados
+ */
+export async function atualizarCustosDoProduto(produtoId, cliente = prisma) {
+  return cliente.$executeRaw`
+    UPDATE "ProdutoFornecedor" v
+       SET "precoCusto" = alvo.custo, "atualizadoEm" = (NOW() AT TIME ZONE 'UTC')
+      FROM (
+        SELECT DISTINCT ON (v2.id) v2.id,
+               COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") AS custo
+          FROM "ProdutoFornecedor" v2
+          JOIN "Fornecedor" f ON f.id = v2."fornecedorId"
+          JOIN "ProdutoColetado" p ON p."fonteId" = f."fonteId" AND lower(p.codigo) = lower(v2.codigo)
+         WHERE v2."produtoId" = ${produtoId}
+           AND v2.codigo IS NOT NULL AND v2.codigo <> ''
+           AND COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") IS NOT NULL
+         ORDER BY v2.id, p."vistoEm" DESC
+      ) alvo
+     WHERE v.id = alvo.id AND v."precoCusto" IS DISTINCT FROM alvo.custo`;
+}
+
+/**
  * Enderecos dos produtos desta fonte gravados a partir de uma data: o que uma
  * varredura interrompida ja tinha salvo nos lotes. E a base da retomada.
  */
