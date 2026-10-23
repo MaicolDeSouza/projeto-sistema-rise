@@ -3,6 +3,8 @@ import { urlDe } from "@/lib/arquivos";
 import { codigoDaComposicao, errosDaComposicao, proximoCodigoDaFaixa } from "../composicao";
 import { custoDoProduto } from "../custo";
 import { avisosDeVariosProdutos } from "./concorrentes";
+import { montarRanking } from "./ranking";
+import { catalogosDeVariosProdutos } from "./referencias";
 import { RascunhoMLSchema } from "./esquema";
 import { descricaoDoRise, estoqueDoRise, rascunhoInicial } from "./rascunho";
 
@@ -363,10 +365,17 @@ export async function salvarRascunhoML(anuncioId, entrada) {
 
 const DADOS_DA_LINHA = { id: true, produtoId: true, titulo: true, status: true, atualizadoEm: true, dados: true, idExterno: true, urlExterna: true, produto: { select: { sku: true } } };
 
-// A coluna "Concorrencia" (concorrentes do ML pelo catalogo): os avisos do produto de cada linha, lidos de uma vez.
+// A coluna "Concorrencia" (concorrentes do ML pelo catalogo): os avisos do produto de cada linha, lidos de uma vez, e
+// a posicao do preco do anuncio no ranking dos catalogos ("2º de 5"), com o preco DESTE anuncio (Classico e Premium
+// do mesmo produto podem ter precos diferentes).
 async function comAvisos(linhas) {
-  const avisos = await avisosDeVariosProdutos(linhas.map((linha) => linha.produtoId));
-  return linhas.map((linha) => ({ ...linha, avisosML: avisos.get(linha.produtoId) ?? [] }));
+  const ids = linhas.map((linha) => linha.produtoId);
+  const [avisos, catalogos] = await Promise.all([avisosDeVariosProdutos(ids), catalogosDeVariosProdutos(ids)]);
+  return linhas.map((linha) => {
+    const doProduto = catalogos.get(linha.produtoId);
+    const ranking = doProduto ? montarRanking({ preco: linha.preco, catalogos: doProduto }) : null;
+    return { ...linha, avisosML: avisos.get(linha.produtoId) ?? [], rankingML: ranking?.posicao ? { posicao: ranking.posicao, total: ranking.total } : null };
+  });
 }
 
 // O codigo da linha e o do kit, ou o SKU do produto no anuncio simples.

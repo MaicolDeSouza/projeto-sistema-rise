@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 
 import { lerPrimeiroDoCatalogo, lerVendedores } from "./catalogo";
 import { textoDoErroML } from "./leitura";
+import { catalogosDoRanking } from "./ranking";
 
 /**
  * Os catalogos de REFERENCIA do ranking de precos (spec 2026-10-23-ranking-catalogos-referencia-ml-design.md): o dono
@@ -153,4 +154,39 @@ const paraTela = (r) => ({
 export async function lerReferenciasML(produtoId) {
   const linhas = await prisma.catalogoReferenciaML.findMany({ where: { produtoId }, orderBy: { criadoEm: "asc" } });
   return linhas.map(paraTela);
+}
+
+/**
+ * Os catalogos do ranking de varios produtos de uma vez, para a coluna "Concorrencia" da lista de anuncios: o 1o
+ * presente do catalogo do anuncio, a posicao do dono nele e as referencias, no formato de `catalogosDoRanking`. So
+ * entram os produtos com algum catalogo. Uma consulta so.
+ * @returns {Promise<Map<string, object[]>>}
+ */
+export async function catalogosDeVariosProdutos(produtoIds) {
+  const ids = [...new Set((produtoIds ?? []).filter((id) => typeof id === "string" && id !== ""))];
+  if (ids.length === 0) return new Map();
+  const produtos = await prisma.produto.findMany({
+    where: { id: { in: ids }, OR: [{ mlCatalogoId: { not: null } }, { referenciasML: { some: {} } }] },
+    select: {
+      id: true,
+      mlCatalogoId: true,
+      mlCatalogoNome: true,
+      concorrentesML: { where: { ausenteDesde: null }, orderBy: { posicao: "asc" }, take: 1, select: { itemId: true, vendedorId: true, vendedorApelido: true, preco: true, precoCheio: true, posicao: true, lidoEm: true } },
+      posicoesML: { orderBy: { lidoEm: "desc" }, take: 1, select: { catalogoId: true, posicao: true, lidoEm: true } },
+      referenciasML: { orderBy: { criadoEm: "asc" } },
+    },
+  });
+  const resultado = new Map();
+  for (const produto of produtos) {
+    const posicao = produto.posicoesML[0]?.catalogoId === produto.mlCatalogoId ? produto.posicoesML[0] : null;
+    const tela = {
+      catalogoId: produto.mlCatalogoId,
+      catalogoNome: produto.mlCatalogoNome,
+      lidoEm: produto.concorrentesML[0]?.lidoEm ?? posicao?.lidoEm ?? null,
+      posicao,
+      concorrentes: produto.concorrentesML.map((c) => ({ ...c, preco: numero(c.preco), precoCheio: numero(c.precoCheio), ausenteDesde: null })),
+    };
+    resultado.set(produto.id, catalogosDoRanking(tela, produto.referenciasML.map(paraTela)));
+  }
+  return resultado;
 }

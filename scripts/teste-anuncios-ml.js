@@ -717,7 +717,7 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["atualizadoEm", "avisosML", "codigo", "id", "idExterno", "preco", "produtoId", "status", "tipoAnuncio", "titulo", "urlExterna"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["atualizadoEm", "avisosML", "codigo", "id", "idExterno", "preco", "produtoId", "rankingML", "status", "tipoAnuncio", "titulo", "urlExterna"]);
         conferir("lista: o mais recente primeiro", lista.linhas.every((l, i) => i === 0 || lista.linhas[i - 1].atualizadoEm >= l.atualizadoEm), true);
         conferir("lista: acha pelo codigo do kit", (await listarAnunciosML({ busca: "zz-ml-kit2" })).linhas.map((l) => [l.id, l.codigo]), [[k2.id, "ZZ-ML-KIT2"]]);
         conferir("lista: acha pelo titulo", (await listarAnunciosML({ busca: "ZZ TITULO NOVO" })).linhas.map((l) => [l.id, l.titulo, l.tipoAnuncio]), [[premium.id, "ZZ Titulo novo", "gold_pro"]]);
@@ -2171,6 +2171,26 @@ try {
     const com500 = criarMLFalso({ catalogos, falhas: [{ metodo: "GET", caminho: "/products/MLBRA/items", status: 500 }] });
     const r3 = await relerConcorrentesML({ cliente: com500, agora: new Date("2026-10-25T12:00:00Z"), ...soDoTeste });
     conferir("rodada: erro numa referencia conta como falha e segue para o proximo", [r3.falhas, r3.ok, Boolean(r3.parou)], [1, 1, false]);
+  }
+
+  {
+    console.log("\nRanking do ML: coluna da lista de anuncios");
+    await limpar();
+    const { catalogosDeVariosProdutos } = await import("../src/lib/canaisDeVenda/ml/referencias.js");
+    const { montarRanking } = await import("../src/lib/canaisDeVenda/ml/ranking.js");
+    const lido = new Date("2026-10-23T12:00:00Z");
+    const a = await prisma.produto.create({ data: { sku: "ZZ-ML-L1", tituloBase: "a", conferido: true, mlCatalogoId: "MLBCA", mlCatalogoNome: "Cat A" } });
+    const b = await prisma.produto.create({ data: { sku: "ZZ-ML-L2", tituloBase: "b", conferido: true } });
+    const semNada = await prisma.produto.create({ data: { sku: "ZZ-ML-L3", tituloBase: "c", conferido: true } });
+    const concorrente = (posicao, preco, ausenteDesde = null) => ({ produtoId: a.id, itemId: `I${posicao}${preco}`, catalogoId: "MLBCA", vendedorId: "1", preco, posicao, totalNoCatalogo: 3, lidoEm: lido, ausenteDesde });
+    await prisma.concorrenteML.createMany({ data: [concorrente(2, 42.99), concorrente(1, 1, lido), concorrente(3, 50)] });
+    await prisma.posicaoML.create({ data: { produtoId: a.id, catalogoId: "MLBCA", posicao: null, total: 3, lidoEm: lido } });
+    await prisma.catalogoReferenciaML.createMany({ data: [{ produtoId: a.id, catalogoId: "MLBRA", itemId: "R1", preco: 31.99, lidoEm: lido }, { produtoId: b.id, catalogoId: "MLBRB", itemId: "R2", preco: 45, lidoEm: lido }] });
+
+    const mapa = await catalogosDeVariosProdutos([a.id, b.id, semNada.id]);
+    conferir("catalogosDeVariosProdutos: so quem tem catalogo, na forma do ranking", [mapa.has(semNada.id), mapa.get(a.id).map((c) => [c.catalogoId, c.papel, c.primeiro?.preco]), mapa.get(b.id).map((c) => [c.catalogoId, c.primeiro?.preco])], [false, [["MLBCA", "anuncio", 42.99], ["MLBRA", "referencia", 31.99]], [["MLBRB", 45]]]);
+    const r = montarRanking({ preco: 38.9, catalogos: mapa.get(a.id) });
+    conferir("coluna: 2o de 3 com o preco do anuncio", [r.posicao, r.total], [2, 3]);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

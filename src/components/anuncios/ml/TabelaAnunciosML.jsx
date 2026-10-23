@@ -94,6 +94,11 @@ export default function TabelaAnunciosML({ linhas, busca, verConcorrencia = true
                 </td>
                 {verConcorrencia && (
                 <td className="px-3 py-2.5">
+                  {linha.rankingML && linha.rankingML.total > 1 && (
+                    <span title="Posição do preço deste anúncio entre o 1º colocado de cada catálogo (o do anúncio e os de referência)" className="mr-1.5 text-xs font-medium tabular-nums whitespace-nowrap">
+                      {linha.rankingML.posicao}º de {linha.rankingML.total}
+                    </span>
+                  )}
                   {linha.avisosML?.length > 0 ? (
                     // O primeiro aviso a vista; todos no `title`. Abrir o anuncio (aba Preco e estoque) marca como visto.
                     <span title={linha.avisosML.join("\n")} className="inline-block max-w-56 truncate rounded border border-amber-300 bg-amber-50 px-1.5 py-px text-xs text-amber-800">
@@ -101,7 +106,7 @@ export default function TabelaAnunciosML({ linhas, busca, verConcorrencia = true
                       {linha.avisosML.length > 1 && ` (+${linha.avisosML.length - 1})`}
                     </span>
                   ) : (
-                    <span className="text-suave">-</span>
+                    !linha.rankingML && <span className="text-suave">-</span>
                   )}
                 </td>
                 )}

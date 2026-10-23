@@ -262,7 +262,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 652 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 690 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) e o ranking pelos catálogos de referência contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3248,6 +3248,33 @@ plano: `docs/superpowers/plans/2026-10-21-concorrentes-ml-catalogo.md` (inline).
   "Clonado a partir de..."), "Clonar anúncio" no rodapé do editor (página e janela; na janela pede salvar antes) e ícone
   na lista da janela do produto. Ação `clonarAnuncioML` pede editar o canal. Próximas etapas do plano: gerenciar o
   publicado (enviar fotos, descrição, ficha e envio; título só sem vendas; preço a medir) e o "!" quando o produto muda.
+
+### Ranking pelos catálogos de referência (23/10/2026)
+
+Pedido do dono depois do relatório de viabilidade da busca por menor preço (a busca livre `/sites/MLB/search?q=` deu 403
+de novo, com o token de produção): "várias categorias, o worker pega só o 1º anúncio do catálogo, monta um ranking e me
+informa em que posição estou". Escolhas: **Opção 1** (o catálogo do anúncio continua com o top 10; os de referência guardam
+só o 1º) e **Opção B** (o Publicar NÃO coloca o anúncio no catálogo; a adesão segue pelo painel do ML). Spec
+`docs/superpowers/specs/2026-10-23-ranking-catalogos-referencia-ml-design.md`, plano
+`docs/superpowers/plans/2026-10-23-ranking-catalogos-referencia-ml.md`. **Pronto e testado no PC, SEM deploy.**
+
+- **Banco** (migration `20261023_catalogos_referencia_ml`, só tabelas novas): `CatalogoReferenciaML` (o 1º lido: item,
+  vendedor, preço, cheio, frete, `lidoEm`, `semAnuncios`, `erro`/`erroEm`; único por produto + catálogo) e o histórico
+  (linha nova só quando o item, o preço ou o cheio mudam). Até 10 por produto; o catálogo do anúncio nunca é referência.
+  As referências são do PRODUTO (valem para Clássico e Premium); a posição é do anúncio (depende do preço de cada um).
+- **O 1º = o 1º de `/products/{id}/items`** (`lerPrimeiroDoCatalogo`, uma página de 1): medido em 23/10/2026 no
+  MLB44072268, o `buy_box_winner` de `/products/{id}` veio **nulo** (o 1º da lista era o MLB4925211121 a R$ 31,99, riscado
+  76,65). Preço que decide = o `price` (o que o ML cobra), como no resto do ML; o riscado só informa.
+- **Onde mora:** `ml/referencias.js` (adicionar, remover, reler, a tela e `catalogosDeVariosProdutos` para a lista),
+  `ml/ranking.js` (puro: `catalogosDoRanking`, `montarRanking`, `leituraAntiga`), a rodada `relerConcorrentesML` (produto só
+  com referências também entra; 401/429 param; erro numa referência mantém o preço lido antes), as ações no fim de
+  `mercado-livre/acoes.js` e a tela `RankingDosCatalogos.jsx` (aba Preço e custos, abaixo dos concorrentes).
+- **Conta:** o 1º de cada catálogo com preço, mais o preço do anúncio ("Você"), do mais barato ao mais caro; empate deixa o
+  dono na frente; o dono 1º de um catálogo não conta duas vezes (a linha "Você" o representa); sem anúncios e nunca lido
+  ficam fora da conta, em cinza. Topo "Você está em Nº de M" com a diferença para o mais barato e para a média; leitura com
+  mais de 48 h ganha aviso. Na lista de anúncios, a coluna Concorrência mostra "Nº de M" antes dos avisos.
+- **Visto:** a página do editor e a lista respondem 200 com o bloco (curl no servidor do PC, que era de outra sessão).
+  **Não visto:** o clique na tela (adicionar, digitar o preço, remover) e a primeira rodada do worker na VPS.
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 
