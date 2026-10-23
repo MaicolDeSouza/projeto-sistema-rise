@@ -1470,6 +1470,13 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
     a página na varredura: o leitor grava em `origens.brand/ean` o aviso *"nao vem na lista: veja no
     link do produto"*, e a tela o mostra sob o campo vazio. Só este leitor grava o aviso — vale só
     para a Santana.
+  - **Exceção desde 23/10/2026: o item INDISPONÍVEL tem a página aberta para pegar o preço** (pedido do dono, Opção 1).
+    Na lista ele vem sem preço nenhum (só nome, "Ref:" e "Avise-me quando chegar"); a página traz o quadro "Detalhes
+    do preço" (`pPrecoUnitario` sem IPI, `pIPI` e `pST` em reais, `pPrecoUnitarioComImposto`), lido por
+    `precoDaPaginaDoProduto` (`sessao.lerProduto`, mesmo ritmo de 30 s). Medido na VPS: 269 de 7.100 sem preço, ~2h15 a
+    mais por varredura. Conferido no portal real: 010-0461 indisponível = R$ 47,25 + IPI 3,07 (R$ 50,32); 075-3010
+    disponível dá na página o mesmo 6,16 / 6,56 da lista. Página que falha não para a varredura; corte de conexão para.
+    Marca e EAN continuam não sendo lidos.
   - **Status:** o leitor grava `IN_STOCK`; a prévia só conhecia `AVAILABLE` e mostrava
     "Indeterminado". Acrescentado ao mapa da `PreviaProduto`.
   - **BLOQUEIO medido:** a 2 s entre pedidos, ~150 pedidos no dia (listas de 1,5 a 15 MB), a Santana

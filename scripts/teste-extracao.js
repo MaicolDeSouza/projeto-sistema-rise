@@ -1411,7 +1411,23 @@ conferir(
 // ---------------------------------------------------------------------------
 console.log("\n— portal com login (Santana, Add Suite) —");
 {
-  const { ehDoPortal, parametrosDaCategoria, produtosDaVitrine } = await import("../src/lib/coleta/portal-addsuite.js");
+  const { ehDoPortal, parametrosDaCategoria, produtosDaVitrine, precoDaPaginaDoProduto } = await import("../src/lib/coleta/portal-addsuite.js");
+
+  // Indisponivel (23/10/2026): a lista vem sem preco; a PAGINA traz o quadro "Detalhes do preco" (medido no 010-0461).
+  const paginaIndisponivel =
+    '<div class="divPreco"> <h1 id="valor"> R$ 47,25 </h1> <div class="tooltiptext"> <span>PREÇO UNITÁRIO</span> <p id="pPrecoUnitario"> R$ 47,25 </p> ' +
+    '<span>IPI</span> <p id="pIPI"> R$ 3,07 <span> (Por unid.)</span> </p> <span>ST</span> <p id="pST"> R$ 0,00 </p> ' +
+    '<span>PREÇO UNIT. COM IMP.</span> <p id="pPrecoUnitarioComImposto"> R$ 50,32 </p> </div> </div>';
+  conferir("santana pagina: preco unitario sem IPI, IPI e ST em reais e o com impostos do portal", precoDaPaginaDoProduto(paginaIndisponivel), { normal: 47.25, ipi: 3.07, st: 0, comImpostos: 50.32 });
+  conferir(
+    "santana pagina: sem o com-impostos, soma preco + IPI + ST; so o h1 do valor tambem serve; zero e sem preco",
+    [
+      precoDaPaginaDoProduto('<p id="pPrecoUnitario"> R$ 6,16 </p><p id="pIPI"> R$ 0,40 </p>')?.comImpostos,
+      precoDaPaginaDoProduto('<h1 id="valor"> R$ 1.234,50 </h1>')?.normal,
+      precoDaPaginaDoProduto('<h1 id="valor"> R$ 0,00 </h1>'),
+    ],
+    [6.56, 1234.5, null],
+  );
 
   // O cookie de sessao vai em TODO pedido da sessao: so se segue redirecionamento para o proprio portal.
   const portal = "https://santanaimport.com.br";

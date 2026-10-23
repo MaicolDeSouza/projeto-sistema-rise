@@ -229,6 +229,40 @@ export function produtosDaVitrine(html, { categoria = null, fonte = null } = {})
 }
 
 /**
+ * O PRECO NA PAGINA DO PRODUTO, para o item INDISPONIVEL (pedido do dono em 23/10/2026, Opcao 1: "quero que pegue o
+ * valor mesmo assim"). Na lista da categoria o indisponivel vem SEM preco nenhum (so nome, "Ref:" e "Avise-me quando
+ * chegar"); a pagina dele traz, no HTML, o quadro "Detalhes do preco": `pPrecoUnitario` (sem IPI, o mesmo numero que
+ * a lista chama de preco), `pIPI` e `pST` em reais e `pPrecoUnitarioComImposto`. Medido no 010-0461 (R$ 47,25 + IPI
+ * R$ 3,07) e conferido num disponivel (075-3010: 6,16 na pagina = 6,16 na lista; 6,56 com impostos nos dois).
+ *
+ * @returns {{ normal: number, ipi: number, st: number, comImpostos: number } | null} null sem preco maior que zero
+ */
+export function precoDaPaginaDoProduto(html) {
+  const campo = (id) => reais(new RegExp(`<p[^>]*id="${id}"[^>]*>([\\s\\S]*?)</p>`, "i").exec(html ?? "")?.[1]);
+  const normal = campo("pPrecoUnitario") ?? reais(/<h1[^>]*id="valor"[^>]*>([\s\S]*?)<\/h1>/i.exec(html ?? "")?.[1]);
+  if (!(normal > 0)) return null;
+  const ipi = campo("pIPI") ?? 0;
+  const st = campo("pST") ?? 0;
+  const informado = campo("pPrecoUnitarioComImposto");
+  const comImpostos = informado > 0 ? informado : Math.round((normal + ipi + st) * 100) / 100;
+  return { normal, ipi, st, comImpostos };
+}
+
+/** O produto indisponivel da lista com o preco que a pagina dele deu (no mesmo formato do item disponivel). */
+function completarComAPagina(produto, preco) {
+  const percentual = (reaisDoImposto) => Math.round((reaisDoImposto / preco.normal) * 10000) / 100;
+  const impostos = [];
+  if (preco.ipi > 0) impostos.push({ nome: "IPI", percentual: percentual(preco.ipi) });
+  if (preco.st > 0) impostos.push({ nome: "ST", percentual: percentual(preco.st) });
+  return {
+    ...produto,
+    prices: { ...produto.prices, normal: preco.normal, comImpostos: preco.comImpostos > preco.normal ? preco.comImpostos : null },
+    taxes: impostos,
+    origens: { ...produto.origens, price: "pagina do produto no portal (o item indisponivel vem sem preco na lista)" },
+  };
+}
+
+/**
  * O endereco e do MESMO site do portal? Mesmo esquema e porta, e mesmo host, com ou sem "www." (o portal pode
  * redirecionar entre os dois, e o cookie de sessao vale para ambos). Qualquer outro host recebe recusa.
  */
@@ -380,7 +414,19 @@ export function criarSessao({ origem, usuario, senha, ritmoMs, sinal = null }) {
     };
   }
 
-  return { entrar, lerPagina, pedidos: () => pedidos };
+  /**
+   * A pagina de UM produto (o link `?sku=` da lista). Usada para o item INDISPONIVEL, que na lista vem sem preco nenhum
+   * (23/10/2026; ver `precoDaPaginaDoProduto`). Mesmo `pedir`: o ritmo, os cookies e a trava de redirecionamento valem.
+   * So abre endereco do proprio portal.
+   */
+  async function lerProduto(endereco) {
+    if (!ehDoPortal(endereco, origem)) throw new Error("endereço de produto fora do portal");
+    const resposta = await pedir(endereco);
+    if (resposta.status !== 200) throw new Error(`a página do produto respondeu HTTP ${resposta.status}`);
+    return resposta.texto;
+  }
+
+  return { entrar, lerPagina, lerProduto, pedidos: () => pedidos };
 }
 
 /**
@@ -418,6 +464,27 @@ export async function colherPortal({
   const sessao = criarSessao({ origem: lidas[0].origem, ...credencial, ritmoMs, sinal });
   await sessao.entrar();
 
+  /**
+   * Item indisponivel (sem preco na lista): abre a pagina dele e pega o preco (23/10/2026, Opcao 1). Uma visita a mais
+   * por indisponivel, no mesmo ritmo da sessao (30 s). Pagina que falha nao para a varredura (o produto segue sem
+   * preco); o corte de conexao do portal (bloqueio) para, como no resto da sessao. Sessao caida: entra de novo uma vez.
+   */
+  async function comPrecoDaPagina(produto) {
+    if (produto.prices.normal !== null || !produto.url) return produto;
+    try {
+      let html = await sessao.lerProduto(produto.url);
+      if (/Login para visualizar o/i.test(html)) {
+        await sessao.entrar();
+        html = await sessao.lerProduto(produto.url);
+      }
+      const preco = precoDaPaginaDoProduto(html);
+      return preco ? completarComAPagina(produto, preco) : produto;
+    } catch (erro) {
+      if (sinal?.aborted || /ECONNRESET|cortou a conex/i.test(String(erro?.message))) throw erro;
+      return produto;
+    }
+  }
+
   const vistos = new Set();
   const totais = new Map();
   const porCategoria = [];
@@ -452,13 +519,13 @@ export async function colherPortal({
         }
 
         const produtos = produtosDaVitrine(lida.html, { categoria: categoria.caminho, fonte });
-        for (const produto of produtos) {
+        for (const lido of produtos) {
           // Sem codigo, o endereco identifica: dois "N/A" sao produtos diferentes.
-          const chave = produto.code !== "N/A" ? produto.code : produto.url;
+          const chave = lido.code !== "N/A" ? lido.code : lido.url;
           daCategoria.add(chave);
           if (vistos.has(chave) || vistos.size >= limite) continue;
           vistos.add(chave);
-          aoGuardar?.(produto);
+          aoGuardar?.(await comPrecoDaPagina(lido));
         }
         avisar();
 
