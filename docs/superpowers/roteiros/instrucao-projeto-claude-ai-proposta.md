@@ -16,5 +16,8 @@ roteiroDaProposta do Rise e siga o roteiro que ela devolver, exatamente e do com
 as ferramentas a usar e o formato de cada seção). Você só propõe: nunca altera o cadastro do produto.
 ```
 
+Para a proposta de ANÚNCIO (Loja Integrada ou Mercado Livre), chame primeiro situacaoDoProduto e depois
+roteiroDaProposta com canal "li" ou "ml" (desde 23/10/2026).
+
 Histórico: até 21/10/2026 este arquivo trazia as regras inteiras, e elas divergiam do roteiro da sessão. As versões
 antigas estão no git.

@@ -262,14 +262,14 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 699 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) e o ranking pelos catálogos de referência contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 724 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) e o ranking pelos catálogos de referência contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
-npm run teste:li-sync             # sincronização Rise -> Loja Integrada: slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
+npm run teste:li-sync             # 318 asserções da sincronização Rise -> Loja Integrada (e da proposta de anúncio da LI): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
-npm run teste:mcp                 # 162 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço e os cadastros): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
+npm run teste:mcp                 # 232 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço e os cadastros): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 137 asserções da proposta automática de produto: regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
@@ -5358,6 +5358,46 @@ a Bling, Mercado Livre ou Loja Integrada.
 - **Conferido em 14/10/2026:** `ler 100103` e `clonar 100103 100103-teste` na VPS (24 campos, 5 fotos, 3 documentos, 2
   fornecedores, 13 concorrentes; original intacto, cópia com todos os arquivos no disco). **A cópia `100103-teste` fica
   na VPS até o dono apagar** (menu do produto).
+
+## Proposta automática de anúncio: Loja Integrada e Mercado Livre (23/10/2026)
+
+Pedido do dono: criar os anúncios da LI e do ML "igual a proposta do produto", pelo claude.ai/ChatGPT, com a IA da própria
+LLM (nunca a paga do Rise). Spec `docs/superpowers/specs/2026-10-23-proposta-de-anuncio-li-ml-design.md` (abordagem 1: a
+proposta mora no rascunho do `Anuncio`), plano `docs/superpowers/plans/2026-10-23-proposta-de-anuncio-li-ml.md` (inline).
+**Pronto e testado no PC, SEM DEPLOY** (sem migration: `Anuncio.dados.proposta` é JSON).
+
+- **Caminho do dono:** Rise Conferido e Bling verde, proposta da LI, ele revisa e sincroniza, pede de novo, proposta do ML
+  (sempre um Clássico), ele revisa e publica. LI antes do ML é só ordem preferida ("pule a LI" vale: a gravação do ML não
+  exige a LI). A LLM diz no chat o próximo passo antes de agir.
+- **Onde mora:** `src/lib/propostaDeAnuncio/` (`situacao.js`: `proximoPasso`, pura, `lerSituacaoDoProduto`,
+  `exigirProdutoPronto`, que recusa sem Conferido ou com o Bling sem sincronizar ou com "!"; `preencher.js`: a regra de
+  preenchimento, pura, também lida pela tela; `li.js`; `ml.js`; `preco.js`; `roteiros.js`). Ferramentas MCP em
+  `src/lib/mcp/propostaDeAnuncio.js`: `situacaoDoProduto`, `lerParaPropostaLI`, `gravarPropostaLI`, `lerParaPropostaML`,
+  `lerCategoriaML`, `gravarPropostaML`; `roteiroDaProposta` ganhou `canal` (`produto`, `li`, `ml`). Sem o lembrete de
+  `anotarDuvida`; na Revisão do dia contam como "proposta".
+- **Acesso:** a ação nova `acao.canaisDeVenda.proporAnuncio` (delegável), mais editar a tela do canal; no ML também
+  `dado.custo` e `dado.concorrentes`. `situacaoDoProduto` pede só ver Produtos.
+- **Preenchimento** (`aplicarProposta`): campo vazio recebe o valor (marca âmbar "PROPOSTA" no editor, que some quando o
+  dono edita); campo com outro valor fica e o proposto vira a linha "Proposta: ... Usar". Na LI, a description padrão do
+  rascunho novo conta como vazia; marca igual sem caixa não vira sugestão. No ML, o rascunho que a proposta CRIA aceita tudo.
+  `dados.proposta` guarda `campos`, `valores`, `sugestoes`, `relatorio`, `avisos` e a versão do roteiro.
+- **LI:** categorias (ids da árvore; o Rise põe as pais), marca (casada com a da loja), Meta Tag Description de 130 a 160
+  (recusa fora disso). O Tag Title não entra. O botão "Gerar com IA" (IA paga) já existia dentro da lista da description.
+- **ML:** categoria folha, título no limite dela, ficha só com atributos da categoria (GTIN e o motivo ficam fora), até 10
+  catálogos lidos pelo 1º colocado (fica só o de 5 ou mais anúncios; 401/429 param a leitura e avisam). Sem catálogo, até 5
+  links com preço, guardados só em `dados.proposta.links`. **Nada entra em `CatalogoReferenciaML`**: o editor mostra
+  "Sugeridos pela proposta" no ranking com Adicionar. Atualiza o Clássico ainda não publicado; nunca mexe no publicado.
+  `sugerirCategoria` roda com uma IA vazia (nunca a paga).
+- **Preço do ML** (`precoDaPropostaML`): piso = 30% de margem com as taxas relidas no preço (arredondado para cima aos 5
+  centavos e conferido de novo, porque pode cruzar R$ 79); teto = o 5º menor preço do ranking (menos de 5, o maior);
+  valor = o maior de 5 em 5 centavos até o teto com 30%, e, se cruzar R$ 79 perde a margem pelo frete grátis, o de R$ 78,95;
+  piso acima do teto = o piso com o aviso "fica em Nº de M". Sem custo, sem preço.
+- **O "P" some** no envio que deu certo: na LI dentro do `gravarSucesso` (um Sincronizar sem nada a enviar também conta);
+  no ML na etapa "gravar" do Publicar (`gravarPublicacao` com `apagarProposta`). Envio barrado ou que falha mantém a
+  proposta. Na lista, `iconeLI.proposta` e `iconeML.proposta` (só o booleano; o relatório nunca vai à lista).
+- **Visto na tela (servidor do PC):** o "P" nos dois ícones, a faixa com o Relatório (o Esc fecha só o relatório), as
+  marcas e a linha "Usar". **Não visto:** uma proposta de verdade pelo claude.ai, o bloco "Da proposta" das categorias da
+  LI e o Adicionar dos catálogos sugeridos.
 
 ## Trabalho em paralelo: worktrees
 
