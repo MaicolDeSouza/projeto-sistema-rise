@@ -2036,6 +2036,70 @@ try {
     conferir("posicao no ML: vendedor sem apelido", lista[2].loja, "vendedor 7");
   }
 
+  {
+    console.log("\nRanking do ML: catalogos de referencia (leitura e gravacao)");
+    await limpar();
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { lerPrimeiroDoCatalogo, limparCacheDeVendedores } = await import("../src/lib/canaisDeVenda/ml/catalogo.js");
+    const { adicionarReferenciaML, removerReferenciaML, relerReferenciasDoProduto, lerReferenciasML, MAXIMO_DE_REFERENCIAS } = await import(
+      "../src/lib/canaisDeVenda/ml/referencias.js"
+    );
+    limparCacheDeVendedores();
+    const item = (id, vendedor, preco, cheio = null) => ({ item_id: id, seller_id: vendedor, price: preco, original_price: cheio, listing_type_id: "gold_special", shipping: { free_shipping: false, logistic_type: "xd_drop_off" } });
+    const catalogos = {
+      MLBREF1: { nome: "Mega 2560 com cabo", itens: [item("MLBR1A", 141686451, 31.99, 76.65), item("MLBR1B", 632377333, 39.9)] },
+      MLBREF2: { nome: "Mega 2560 CH340", itens: [item("MLBR2A", 632377333, 45)] },
+      MLBVAZIO: { nome: "Sem ninguem", itens: [] },
+      MLBMEU: { nome: "Eu na frente", itens: [item("MLBMEU1", 212386247, 50), item("MLBMEU2", 141686451, 52)] },
+    };
+    const ml = criarMLFalso({ catalogos });
+
+    const primeiro = await lerPrimeiroDoCatalogo(ml, "MLBREF1", { meuSellerId: "212386247" });
+    conferir("lerPrimeiroDoCatalogo: o 1o, com o riscado e o total", [primeiro.total, primeiro.primeiro?.itemId, primeiro.primeiro?.preco, primeiro.primeiro?.precoCheio, primeiro.primeiro?.meu], [2, "MLBR1A", 31.99, 76.65, false]);
+    conferir("lerPrimeiroDoCatalogo: uma pagina de 1", ml.chamadas.filter((c) => c.caminho === "/products/MLBREF1/items").map((c) => c.params.limit), [1]);
+    conferir("lerPrimeiroDoCatalogo: 404 = sem anuncios", await lerPrimeiroDoCatalogo(ml, "MLBVAZIO", {}), { total: 0, primeiro: null });
+    conferir("lerPrimeiroDoCatalogo: o 1o e do dono", (await lerPrimeiroDoCatalogo(ml, "MLBMEU", { meuSellerId: "212386247" })).primeiro?.meu, true);
+
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-R1", tituloBase: "Mega 2560", conferido: true, mlCatalogoId: "MLB44072268" } });
+    const naoConferido = await prisma.produto.create({ data: { sku: "ZZ-ML-R2", tituloBase: "Mega", conferido: false } });
+    const agora = new Date("2026-10-23T12:00:00Z");
+
+    const r1 = await adicionarReferenciaML(ml, produto.id, { catalogoId: "MLBREF1", nome: "Mega 2560 com cabo" }, { agora });
+    const gravada = await prisma.catalogoReferenciaML.findFirst({ where: { produtoId: produto.id, catalogoId: "MLBREF1" } });
+    conferir("adicionar: grava e ja le o 1o", [r1.ok, gravada?.itemId, Number(gravada?.preco), Number(gravada?.precoCheio), gravada?.vendedorApelido, gravada?.totalNoCatalogo], [true, "MLBR1A", 31.99, 76.65, "ARDU_ROBÓTICA EIRELI", 2]);
+    conferir("adicionar: a primeira leitura vira historico", await prisma.catalogoReferenciaMLHistorico.count({ where: { referenciaId: gravada.id } }), 1);
+    conferir("adicionar: recusa o catalogo do anuncio", (await adicionarReferenciaML(ml, produto.id, { catalogoId: "MLB44072268", nome: "x" }, { agora })).ok, false);
+    conferir("adicionar: recusa repetido", (await adicionarReferenciaML(ml, produto.id, { catalogoId: "MLBREF1", nome: "x" }, { agora })).ok, false);
+    conferir("adicionar: recusa nao Conferido", (await adicionarReferenciaML(ml, naoConferido.id, { catalogoId: "MLBREF1", nome: "x" }, { agora })).ok, false);
+    conferir("adicionar: catalogo vazio grava semAnuncios", [(await adicionarReferenciaML(ml, produto.id, { catalogoId: "MLBVAZIO", nome: "Sem ninguem" }, { agora })).ok, (await prisma.catalogoReferenciaML.findFirst({ where: { produtoId: produto.id, catalogoId: "MLBVAZIO" } }))?.semAnuncios], [true, true]);
+    for (let n = 0; n < MAXIMO_DE_REFERENCIAS - 2; n++) {
+      await prisma.catalogoReferenciaML.create({ data: { produtoId: produto.id, catalogoId: `MLBX${n}` } });
+    }
+    conferir("adicionar: recusa a 11a", (await adicionarReferenciaML(ml, produto.id, { catalogoId: "MLBREF2", nome: "x" }, { agora })).ok, false);
+    await prisma.catalogoReferenciaML.deleteMany({ where: { produtoId: produto.id, catalogoId: { startsWith: "MLBX" } } });
+
+    // Mesmo preco: sem historico novo. Preco novo: historico. Erro do ML: guarda o erro e mantem o preco lido antes.
+    await relerReferenciasDoProduto(ml, produto.id, { agora: new Date("2026-10-24T12:00:00Z"), espera: 0 });
+    conferir("reler: mesmo preco nao grava historico", await prisma.catalogoReferenciaMLHistorico.count({ where: { referenciaId: gravada.id } }), 1);
+    const baixou = criarMLFalso({ catalogos: { ...catalogos, MLBREF1: { nome: "x", itens: [item("MLBR1A", 141686451, 29.9, 76.65)] } } });
+    await relerReferenciasDoProduto(baixou, produto.id, { agora: new Date("2026-10-25T12:00:00Z"), espera: 0 });
+    conferir("reler: preco novo grava historico", [await prisma.catalogoReferenciaMLHistorico.count({ where: { referenciaId: gravada.id } }), Number((await prisma.catalogoReferenciaML.findUnique({ where: { id: gravada.id } })).preco)], [2, 29.9]);
+    const quebrado = criarMLFalso({ catalogos, falhas: [{ metodo: "GET", caminho: "/products/MLBREF1/items", status: 500 }] });
+    const rErro = await relerReferenciasDoProduto(quebrado, produto.id, { agora: new Date("2026-10-26T12:00:00Z"), espera: 0 });
+    const depoisDoErro = await prisma.catalogoReferenciaML.findUnique({ where: { id: gravada.id } });
+    conferir("reler: erro mantem o preco e grava o erro", [rErro.falhas, Number(depoisDoErro.preco), Boolean(depoisDoErro.erro), depoisDoErro.erroEm?.toISOString()], [1, 29.9, true, "2026-10-26T12:00:00.000Z"]);
+    const com429 = criarMLFalso({ catalogos, falhas: [{ metodo: "GET", caminho: "/products/", status: 429 }] });
+    conferir("reler: 429 para e diz o status", (await relerReferenciasDoProduto(com429, produto.id, { agora, espera: 0 })).status, 429);
+
+    const tela = await lerReferenciasML(produto.id);
+    conferir("lerReferenciasML: ordem de criacao e numeros simples", tela.map((r) => [r.catalogoId, r.primeiro?.preco ?? null, r.semAnuncios]), [["MLBREF1", 29.9, false], ["MLBVAZIO", null, true]]);
+    conferir("lerReferenciasML: erro some depois de uma leitura boa", (await relerReferenciasDoProduto(ml, produto.id, { agora: new Date("2026-10-27T12:00:00Z"), espera: 0 }), (await lerReferenciasML(produto.id))[0].erro), null);
+
+    const outro = await prisma.produto.create({ data: { sku: "ZZ-ML-R3", tituloBase: "Outro", conferido: true } });
+    conferir("remover: so a do produto", (await removerReferenciaML(outro.id, gravada.id)).ok, false);
+    conferir("remover: apaga com o historico", [(await removerReferenciaML(produto.id, gravada.id)).ok, await prisma.catalogoReferenciaMLHistorico.count({ where: { referenciaId: gravada.id } })], [true, 0]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();

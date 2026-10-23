@@ -258,6 +258,7 @@ model Produto {
 
   concorrentesML ConcorrenteML[]
   posicoesML     PosicaoML[]
+  referenciasML  CatalogoReferenciaML[]
 
   arquivos     ProdutoArquivo[]
   fornecedores ProdutoFornecedor[]
@@ -641,6 +642,52 @@ model PosicaoML {
   lidoEm     DateTime
 
   @@index([produtoId, lidoEm])
+}
+
+/// Um catalogo do ML que o dono marcou como REFERENCIA de preco do produto (spec 2026-10-23-ranking-catalogos-
+/// referencia-ml-design.md), com o ultimo 1o colocado lido. So o 1o: o catalogo do anuncio continua com o top 10.
+/// Erro na releitura grava `erro`/`erroEm` e mantem o que foi lido antes.
+model CatalogoReferenciaML {
+  id         String  @id @default(cuid())
+  produtoId  String
+  produto    Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  catalogoId String
+  nome       String?
+
+  itemId            String?
+  vendedorId        String?
+  vendedorApelido   String?
+  vendedorReputacao String?
+  preco             Decimal? @db.Decimal(12, 2)
+  precoCheio        Decimal? @db.Decimal(12, 2)
+  freteGratis       Boolean  @default(false)
+  logistica         String?
+  tipoAnuncio       String?
+  totalNoCatalogo   Int?
+  lidoEm            DateTime?
+  semAnuncios       Boolean  @default(false)
+  erro              String?
+  erroEm            DateTime?
+  criadoEm          DateTime @default(now())
+
+  historico CatalogoReferenciaMLHistorico[]
+
+  @@unique([produtoId, catalogoId])
+  @@index([produtoId])
+}
+
+/// A serie do 1o de um catalogo de referencia: linha nova so quando o item, o preco ou o preco cheio mudam.
+model CatalogoReferenciaMLHistorico {
+  id           String               @id @default(cuid())
+  referenciaId String
+  referencia   CatalogoReferenciaML @relation(fields: [referenciaId], references: [id], onDelete: Cascade)
+  itemId       String?
+  vendedorId   String?
+  preco        Decimal?             @db.Decimal(12, 2)
+  precoCheio   Decimal?             @db.Decimal(12, 2)
+  lidoEm       DateTime
+
+  @@index([referenciaId, lidoEm])
 }
 
 // ---------------------------------------------------------------------------

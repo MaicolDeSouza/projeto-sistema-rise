@@ -123,22 +123,36 @@ export async function lerConcorrentesDoCatalogo(cliente, catalogoId, { meuSeller
     brutos.push(...lista);
     if (lista.length < POR_PAGINA || brutos.length >= total) break;
   }
+  return { total, itens: brutos.map((item, indice) => itemDoCatalogo(item, indice + 1, meuSellerId)) };
+}
+
+function itemDoCatalogo(item, posicao, meuSellerId) {
   const meu = String(meuSellerId ?? "");
   return {
-    total,
-    itens: brutos.map((item, indice) => ({
-      itemId: String(item.item_id),
-      vendedorId: String(item.seller_id),
-      preco: numero(item.price),
-      precoCheio: numero(item.original_price),
-      tipoAnuncio: item.listing_type_id ?? null,
-      freteGratis: Boolean(item.shipping?.free_shipping),
-      logistica: item.shipping?.logistic_type ?? null,
-      condicao: item.condition ?? null,
-      posicao: indice + 1,
-      meu: meu !== "" && String(item.seller_id) === meu,
-    })),
+    itemId: String(item.item_id),
+    vendedorId: String(item.seller_id),
+    preco: numero(item.price),
+    precoCheio: numero(item.original_price),
+    tipoAnuncio: item.listing_type_id ?? null,
+    freteGratis: Boolean(item.shipping?.free_shipping),
+    logistica: item.shipping?.logistic_type ?? null,
+    condicao: item.condition ?? null,
+    posicao,
+    meu: meu !== "" && String(item.seller_id) === meu,
   };
+}
+
+/**
+ * So o 1o anuncio do catalogo (os catalogos de referencia do ranking guardam so ele): uma pagina de 1. O 1o da lista e o
+ * que o ML mostra primeiro; o `buy_box_winner` de `/products/{id}` veio nulo no MLB44072268 (medido em 23/10/2026).
+ * @returns {Promise<{ total: number, primeiro: object|null }>} 404 = catalogo sem anuncios.
+ */
+export async function lerPrimeiroDoCatalogo(cliente, catalogoId, { meuSellerId } = {}) {
+  const resposta = await cliente.get(`/products/${encodeURIComponent(String(catalogoId ?? "").trim())}/items`, { limit: 1, offset: 0 });
+  if (resposta.status === 404) return { total: 0, primeiro: null };
+  if (!resposta.ok) throw falhou(resposta);
+  const lista = resposta.dados?.results ?? [];
+  return { total: Number(resposta.dados?.paging?.total ?? lista.length), primeiro: lista[0] ? itemDoCatalogo(lista[0], 1, meuSellerId) : null };
 }
 
 /** Quantos vendedores diferentes ha entre os anuncios (um vendedor pode ter varios anuncios no mesmo catalogo). */
