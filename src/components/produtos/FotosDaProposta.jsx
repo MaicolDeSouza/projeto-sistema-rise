@@ -23,10 +23,14 @@ import { AmpliacaoDeFoto, ImagemComZoom } from "./ImagemComZoom";
  * Desenho: nesta janela o operador precisa ver primeiro as fotos e quais estao escolhidas, em que ordem; a acao
  * principal e "Aplicar fotos".
  */
-export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocupado = false }) {
+export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocupado = false, ordemInicial = null }) {
   const candidatas = fotos?.candidatas ?? [];
+  // `ordemInicial`: a ultima escolha que o dono APLICOU nesta edicao (pedido do dono em 23/10/2026: reabrir antes de
+  // salvar voltava a escolha da proposta). Sem ela, a escolha gravada na proposta (que o Salvar atualiza).
   const [ordem, setOrdem] = useState(() =>
-    candidatas.filter((c) => c.escolhida).sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)).map((c) => c.id),
+    Array.isArray(ordemInicial)
+      ? ordemInicial.filter((id) => candidatas.some((c) => c.id === id))
+      : candidatas.filter((c) => c.escolhida).sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)).map((c) => c.id),
   );
   const [zoom, setZoom] = useState(null);
   const [aberta, setAberta] = useState(null);

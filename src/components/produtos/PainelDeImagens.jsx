@@ -140,6 +140,8 @@ export default function PainelDeImagens({
   const [paraConfirmar, setParaConfirmar] = useState(null);
   const [reservaAberta, setReservaAberta] = useState(false);
   const [propostaAberta, setPropostaAberta] = useState(false);
+  // A ultima escolha aplicada das fotos da proposta: a janela reabre com ela, mesmo antes do Salvar.
+  const [ordemAplicada, setOrdemAplicada] = useState(null);
   const entrada = useRef(null);
 
   const janelaAberta = rascunho !== null;
@@ -232,6 +234,7 @@ export default function PainelDeImagens({
       const lista = fotosDoPainelComAProposta(imagens, trazidas, escolhas);
       setImagens(lista);
       setFoco(lista[0]?.base ?? null);
+      setOrdemAplicada([...ids]);
       setPropostaAberta(false);
       setErro(null);
       aoAlterar();
@@ -779,6 +782,7 @@ export default function PainelDeImagens({
           aoAplicar={aplicarFotosDaProposta}
           aoFechar={() => setPropostaAberta(false)}
           ocupado={ocupado}
+          ordemInicial={ordemAplicada}
         />
       )}
 
