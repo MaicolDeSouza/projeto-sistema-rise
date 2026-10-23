@@ -7,6 +7,8 @@ import { folhaDeContato, POR_PAGINA } from "@/lib/proposta/folha";
 import { lerParaProposta } from "@/lib/proposta/leitura";
 import { SECOES } from "@/lib/proposta/plano";
 import { ROTEIRO, VERSAO_DO_ROTEIRO } from "@/lib/proposta/roteiro";
+import { ROTEIRO_LI, VERSAO_ROTEIRO_LI } from "@/lib/propostaDeAnuncio/roteiros";
+import { exigirPropostaDeAnuncio } from "./propostaDeAnuncio.js";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
 /**
@@ -144,10 +146,16 @@ const GRAVAR_SECAO = {
 const ROTEIRO_DA_PROPOSTA = {
   nome: "roteiroDaProposta",
   descricao:
-    "Primeira chamada de toda proposta de cadastro: devolve o roteiro (as regras de cada seção, o formato do conteúdo e a ordem das ferramentas) e a versão dele. Siga exatamente; é o mesmo para qualquer assistente.",
-  esquema: z.object({}),
+    "Primeira chamada de toda proposta: devolve o roteiro (as regras, o formato e a ordem das ferramentas) e a versão dele. Siga exatamente; é o mesmo para qualquer assistente. canal: 'produto' (padrão) para o cadastro do produto, 'li' para o anúncio da Loja Integrada.",
+  esquema: z.object({
+    canal: z.enum(["produto", "li"]).optional().describe("De qual proposta: 'produto' (padrão, o cadastro) ou 'li' (o anúncio da Loja Integrada)"),
+  }),
   anotacoes: SO_LEITURA,
-  async executar(_argumentos, contexto) {
+  async executar({ canal = "produto" }, contexto) {
+    if (canal === "li") {
+      exigirPropostaDeAnuncio(contexto, "li");
+      return { canal, versao: VERSAO_ROTEIRO_LI, roteiro: ROTEIRO_LI };
+    }
     exigirProposta(contexto);
     return { versao: VERSAO_DO_ROTEIRO, roteiro: ROTEIRO };
   },

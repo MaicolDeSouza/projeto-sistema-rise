@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
+import { gravarPropostaLI, lerParaPropostaLI } from "@/lib/propostaDeAnuncio/li";
 import { lerSituacaoDoProduto, proximoPasso } from "@/lib/propostaDeAnuncio/situacao";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
@@ -46,4 +48,40 @@ const SITUACAO_DO_PRODUTO = {
   },
 };
 
-export const FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO = [SITUACAO_DO_PRODUTO];
+// O cliente da LI vem do contexto so no teste (a LI falsa); no ar e o de verdade, e aqui so le.
+const clienteDaLI = (contexto) => contexto?.mcp?.clienteLI ?? clienteLI();
+
+const LER_PARA_PROPOSTA_LI = {
+  nome: "lerParaPropostaLI",
+  descricao:
+    "Primeiro passo da proposta do anúncio da Loja Integrada: traz o produto, a árvore de categorias da loja (id e caminho), as marcas da loja, o SEO dos concorrentes salvos, o rascunho atual do anúncio e os limites (a Meta Tag Description tem de 130 a 160 caracteres). Só lê.",
+  esquema: z.object({ sku: SKU }),
+  anotacoes: { ...SO_LEITURA, openWorldHint: true },
+  async executar({ sku }, contexto) {
+    exigirPropostaDeAnuncio(contexto, "li");
+    return lerParaPropostaLI(clienteDaLI(contexto), sku);
+  },
+};
+
+const GRAVAR_PROPOSTA_LI = {
+  nome: "gravarPropostaLI",
+  descricao: [
+    "Grava a proposta do anúncio da Loja Integrada no rascunho do Rise: categorias (ids da árvore; o Rise marca as pais), marca e a Meta Tag Description (130 a 160 caracteres), com o relatório.",
+    "Campo vazio no rascunho recebe o valor; campo já preenchido vira sugestão para o dono. Nada vai à loja: o dono revisa e sincroniza. Gravar de novo substitui a proposta.",
+  ].join(" "),
+  esquema: z.object({
+    sku: SKU,
+    categorias: z.array(z.string().trim().min(1).max(20)).min(1).max(10).describe("Ids das categorias da loja, como vieram em lerParaPropostaLI"),
+    marca: z.string().trim().max(80).optional().describe("A marca, como está na lista da loja (vazio: sem marca)"),
+    seoDescription: z.string().trim().min(1).max(200).describe("A Meta Tag Description, de 130 a 160 caracteres"),
+    relatorio: z.string().trim().max(8000).optional().describe("O relatório em tópicos: por que cada categoria, de onde veio a marca"),
+  }),
+  // Escreve so no rascunho do Rise; gravar de novo da o mesmo resultado.
+  anotacoes: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  async executar(argumentos, contexto) {
+    exigirPropostaDeAnuncio(contexto, "li");
+    return gravarPropostaLI(clienteDaLI(contexto), argumentos.sku, argumentos);
+  },
+};
+
+export const FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO = [SITUACAO_DO_PRODUTO, LER_PARA_PROPOSTA_LI, GRAVAR_PROPOSTA_LI];

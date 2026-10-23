@@ -15,7 +15,7 @@ import { limitesDoDia } from "@/lib/riseAi/revisao";
 const FUSO = "America/Sao_Paulo";
 const ANOTAR = "anotarDuvida";
 // A proposta de cadastro nao e duvida de atendimento: aparece na lista, mas nao espera anotacao (spec 2026-10-21).
-const DA_PROPOSTA = new Set(["roteiroDaProposta", "lerParaProposta", "lerProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao", "situacaoDoProduto"]);
+const DA_PROPOSTA = new Set(["roteiroDaProposta", "lerParaProposta", "lerProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao", "situacaoDoProduto", "lerParaPropostaLI", "gravarPropostaLI"]);
 const JANELA_MS = 30 * 60 * 1000;
 const hora = (data) => new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(data);
 
@@ -37,13 +37,15 @@ const RESUMOS = {
   listarTransportadoras: (a) => `transportadoras${a.termos ? `: ${a.termos}` : ""}`,
   listarMarcas: (a) => `marcas${a.termos ? `: ${a.termos}` : ""}`,
   listarClientes: (a) => `clientes${a.termos ? `: ${a.termos}` : ""}`,
-  roteiroDaProposta: () => "proposta: leu o roteiro",
+  roteiroDaProposta: (a) => (a?.canal && a.canal !== "produto" ? `proposta ${a.canal.toUpperCase()}: leu o roteiro` : "proposta: leu o roteiro"),
   lerParaProposta: (a) => `proposta de ${a.sku}: leitura`,
   lerProposta: (a) => `proposta de ${a.sku}: conferência`,
   baixarCandidatas: (a) => `proposta de ${a.sku}: ${Array.isArray(a.ids) ? a.ids.length : 0} foto(s) baixada(s)`,
   folhaDeContato: (a) => `proposta de ${a.sku}: folha de fotos${a.pagina ? ` (página ${a.pagina})` : ""}`,
   gravarSecao: (a) => `proposta de ${a.sku}: gravou ${a.secao}`,
   situacaoDoProduto: (a) => `situação de ${a.sku}`,
+  lerParaPropostaLI: (a) => `proposta LI de ${a.sku}: leitura`,
+  gravarPropostaLI: (a) => `proposta LI de ${a.sku}: gravou`,
 };
 const ROTULOS_CORTADOS = { buscarProdutos: "buscou", buscarNoMercado: "mercado", buscarConhecimento: "conhecimento" };
 

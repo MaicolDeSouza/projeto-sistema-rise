@@ -808,6 +808,73 @@ try {
     conferir("marcaDaProposta", [marcaDaProposta(proposta, "seo.description"), marcaDaProposta(proposta, "marca"), marcaDaProposta(proposta, "categorias"), marcaDaProposta(null, "marca")], ["sugestao", "preenchido", null, null]);
   }
 
+  // -------------------------------------------------------------------------
+  // Proposta de anuncio (plano 2026-10-23, Tarefa 3): ler e gravar a proposta da LI
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nProposta da LI: ler e gravar");
+    await limpar();
+    const { gravarPropostaLI, lerParaPropostaLI } = await import("../src/lib/propostaDeAnuncio/li.js");
+    const { INCLUDE_DO_ICONE_BLING } = await import("../src/lib/blingSync/estado.js");
+    const { assinaturaDoRise, normalizarDoRise, normalizarFornecedoresDoRise } = await import("../src/lib/blingSync/campos.js");
+    const DESCRIPTION = "Placa compatível com Arduino Uno R3 com chip CH340, cabo USB incluso, ideal para projetos de eletrônica, robótica e automação em casa.";
+    const criarPronto = async (sku, extra = {}) => {
+      const criado = await prisma.produto.create({ data: { sku, tituloBase: "PLACA UNO R3 ZZ", descricaoBase: "Placa de teste.", marca: "ARDUINO", conferido: true, ...extra } });
+      const lido = await prisma.produto.findUnique({ where: { id: criado.id }, include: INCLUDE_DO_ICONE_BLING });
+      const assinatura = assinaturaDoRise(normalizarDoRise(lido), normalizarFornecedoresDoRise(lido.fornecedores));
+      await prisma.produto.update({ where: { id: criado.id }, data: { blingSincronizadoEm: new Date(), blingAssinatura: assinatura } });
+      return criado;
+    };
+    const falsa = () =>
+      criarLojaIntegradaFalsa({
+        marcas: [{ id: 1, nome: "Arduino" }],
+        categorias: [
+          { id: 1, nome: "Embarcados" },
+          { id: 10, nome: "Arduino", categoria_pai: "/api/v1/categoria/1" },
+          { id: 11, nome: "Placas Arduino", categoria_pai: "/api/v1/categoria/10" },
+        ],
+      });
+    const erroDe = async (promessa) => {
+      try {
+        await promessa;
+        return null;
+      } catch (erro) {
+        return erro.message;
+      }
+    };
+
+    const produto = await criarPronto("ZZ-LI-PA1");
+    const lida = await lerParaPropostaLI(falsa(), "ZZ-LI-PA1");
+    conferir("ler: caminho da arvore, marcas e limites", [lida.categorias.find((c) => c.id === "11")?.caminho, lida.marcas, lida.limites.description, lida.rascunho], ["Embarcados > Arduino > Placas Arduino", ["Arduino"], [130, 160], null]);
+
+    const gravada = await gravarPropostaLI(falsa(), "ZZ-LI-PA1", { categorias: ["11"], marca: "arduino", seoDescription: DESCRIPTION, relatorio: "- Placas Arduino" });
+    const anuncio = await prisma.anuncio.findFirst({ where: { produtoId: produto.id, canal: "LOJA_INTEGRADA" } });
+    conferir(
+      "gravar: rascunho com as pais, a marca da loja e a description; proposta com os tres",
+      [[...anuncio.dados.categorias].sort(), anuncio.dados.marca, anuncio.dados.seo.description, [...gravada.campos].sort(), anuncio.dados.proposta.versaoDoRoteiro, anuncio.status],
+      [["1", "10", "11"], "ARDUINO", DESCRIPTION, ["categorias", "seo.description"], "1", "RASCUNHO"],
+    );
+    conferir("marca do cadastro igual a da loja nao vira sugestao", gravada.sugestoes, {});
+    conferir("o Tag Title nao muda", anuncio.dados.seo.title !== "", true);
+
+    conferir("categoria que nao existe", /não existe na Loja Integrada/.test(await erroDe(gravarPropostaLI(falsa(), "ZZ-LI-PA1", { categorias: ["999"], seoDescription: DESCRIPTION }))), true);
+    conferir("description curta", /130 a 160/.test(await erroDe(gravarPropostaLI(falsa(), "ZZ-LI-PA1", { categorias: ["11"], seoDescription: "x".repeat(129) }))), true);
+    conferir("description longa", /130 a 160/.test(await erroDe(gravarPropostaLI(falsa(), "ZZ-LI-PA1", { categorias: ["11"], seoDescription: "x".repeat(161) }))), true);
+
+    await prisma.produto.create({ data: { sku: "ZZ-LI-PA2", tituloBase: "NAO CONFERIDO" } });
+    conferir("nao Conferido recusa", /Conferido/.test(await erroDe(gravarPropostaLI(falsa(), "ZZ-LI-PA2", { categorias: ["11"], seoDescription: DESCRIPTION }))), true);
+    const comSelo = await criarPronto("ZZ-LI-PA3");
+    await prisma.produto.update({ where: { id: comSelo.id }, data: { precoVenda: 99 } });
+    conferir("Bling com ! recusa, nada gravado", [/Bling/.test(await erroDe(gravarPropostaLI(falsa(), "ZZ-LI-PA3", { categorias: ["11"], seoDescription: DESCRIPTION }))), await prisma.anuncio.count({ where: { produtoId: comSelo.id } })], [true, 0]);
+
+    const nova = await gravarPropostaLI(falsa(), "ZZ-LI-PA1", { categorias: ["11"], marca: "Marca Nova", seoDescription: DESCRIPTION });
+    conferir("marca que nao esta na loja: aviso, e a do rascunho fica (vira sugestao)", [nova.avisos.some((aviso) => /não existe na loja/.test(aviso)), nova.sugestoes.marca], [true, "Marca Nova"]);
+    conferir("gravar de novo: um anuncio so, a proposta substituida", [await prisma.anuncio.count({ where: { produtoId: produto.id } }), (await prisma.anuncio.findFirst({ where: { produtoId: produto.id } })).dados.proposta.sugestoes.marca], [1, "Marca Nova"]);
+    const outraDescription = DESCRIPTION.replace("ideal", "ótima");
+    const sobre = await gravarPropostaLI(falsa(), "ZZ-LI-PA1", { categorias: ["10"], seoDescription: outraDescription });
+    conferir("rascunho ja preenchido: categorias e description viram sugestao", [Object.keys(sobre.sugestoes).sort(), sobre.campos], [["categorias", "seo.description"], []]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;

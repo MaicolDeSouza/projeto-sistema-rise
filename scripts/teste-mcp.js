@@ -44,7 +44,7 @@ async function codigoDoErro(promessa) {
 // As ferramentas da proposta de produto (plano 2026-10-21): nao levam o lembrete de anotar duvida.
 const PROPOSTA = ["baixarCandidatas", "folhaDeContato", "gravarSecao", "lerParaProposta", "lerProposta", "roteiroDaProposta"];
 // As da proposta de anuncio (plano 2026-10-23): tambem sem o lembrete.
-const PROPOSTA_DE_ANUNCIO = ["situacaoDoProduto"];
+const PROPOSTA_DE_ANUNCIO = ["situacaoDoProduto", "lerParaPropostaLI", "gravarPropostaLI"];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -750,8 +750,8 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "gravarSecao", "historicoDePreco", "lerParaProposta", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras", "roteiroDaProposta", "situacaoDoProduto"],
-        21,
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "gravarPropostaLI", "gravarSecao", "historicoDePreco", "lerParaProposta", "lerParaPropostaLI", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras", "roteiroDaProposta", "situacaoDoProduto"],
+        22,
         true,
       ],
     );
@@ -1406,6 +1406,20 @@ try {
     conferir("resumo na Revisao", resumoDaChamada("situacaoDoProduto", { sku: "ZZ-MCP-PA1" }), "situação de ZZ-MCP-PA1");
     const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
     conferir("a acao Propor anuncio existe no catalogo", RECURSOS.some((recurso) => recurso.id === "acao.canaisDeVenda.proporAnuncio"), true);
+
+    console.log("\nProposta da LI pelo MCP: acesso e roteiro");
+    for (const [semEste, rotulo] of [["acao.canaisDeVenda.proporAnuncio", "Propor anúncio"], ["tela.canaisDeVenda.lojaIntegrada", "editar Loja Integrada"]]) {
+      const recusada = await chamar("lerParaPropostaLI", { sku: "ZZ-MCP-PA1" }, quem((recurso) => recurso !== semEste));
+      conferir(`lerParaPropostaLI sem ${rotulo}: recusa e diz o que falta`, [recusada?.isError, (recusada?.content?.[0]?.text ?? "").includes(rotulo)], [true, true]);
+    }
+    const semGravar = await chamar("gravarPropostaLI", { sku: "ZZ-MCP-PA1", categorias: ["1"], seoDescription: "x" }, quem((recurso) => recurso !== "acao.canaisDeVenda.proporAnuncio"));
+    conferir("gravarPropostaLI sem a acao: recusa", semGravar?.isError, true);
+    const roteiroLI = await chamar("roteiroDaProposta", { canal: "li" });
+    const corpoLI = JSON.parse(roteiroLI?.content?.[0]?.text || "{}");
+    conferir("roteiroDaProposta canal li: o roteiro da LI com a versao", [corpoLI.canal, corpoLI.versao, /situacaoDoProduto/.test(corpoLI.roteiro ?? ""), /130 a 160/.test(corpoLI.roteiro ?? "")], ["li", "1", true, true]);
+    const roteiroLISemAcao = await chamar("roteiroDaProposta", { canal: "li" }, quem((recurso) => recurso !== "acao.canaisDeVenda.proporAnuncio"));
+    conferir("roteiro da LI sem a acao: recusa", roteiroLISemAcao?.isError, true);
+    conferir("resumo do roteiro da LI na Revisao", resumoDaChamada("roteiroDaProposta", { canal: "li" }), "proposta LI: leu o roteiro");
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)
