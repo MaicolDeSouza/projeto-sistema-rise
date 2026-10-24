@@ -93,8 +93,9 @@ try {
 
   {
     console.log("\nRegras puras: descricao HTML");
-    const P = (miolo) => `<p><span style="font-size:16px;">${miolo}</span></p>`;
-    const E = "<p>&nbsp;</p>"; // a linha em branco entre as secoes (21/10/2026)
+    // Formato "Normal (DIV)" da LI (24/10/2026): cada linha numa <div>
+    const P = (miolo) => miolo.split("<br>").map((linha) => `<div><span style="font-size:16px;">${linha}</span></div>`).join("");
+    const E = "<div>&nbsp;</div>"; // a linha em branco entre as secoes (21/10/2026)
     conferir("escapa tag, e-comercial e aspas", montarDescricaoLI({ descricao: `a <b> & c "x" 'y'` }), P("a &lt;b&gt; &amp; c &quot;x&quot; &#39;y&#39;"));
     conferir("quebra simples vira br, dupla vira paragrafo, CRLF vale um", montarDescricaoLI({ descricao: "l1\r\nl2\r\n\r\nl3" }), P("l1<br>l2") + E + P("l3"));
     conferir("vazio nao gera nada", [montarDescricaoLI({ descricao: "  \n " }), montarDescricaoLI({ descricao: null })], ["", ""]);
@@ -110,11 +111,11 @@ try {
     conferir("sem Especificacoes, documentos acima de Garantia", montarDescricaoLI({ descricao: "Texto.\n\nGarantia:\n- 90 dias;", documentos: docs }), P("Texto.") + E + blocoDocs + E + P("<strong>Garantia:</strong><br>- 90 dias;"));
     conferir("sem as duas secoes, documentos no fim do texto", montarDescricaoLI({ descricao: "Texto.", documentos: docs }), P("Texto.") + E + blocoDocs);
     const lidaComLink = (html) => normalizarDaLI({ descricao_completa: html }, null, {}).descricao;
-    conferir("link da loja sem target conta como diferente", lidaComLink('<p>A <a href="x.pdf">doc</a></p>').endsWith("(link abre na mesma aba)"), true);
-    conferir("secoes sem a linha em branco contam como diferente", lidaComLink("<p>A</p><p>B</p>").endsWith("(seções sem espaço entre elas)"), true);
-    conferir("secoes com a linha em branco (ou o nbsp cru da LI) nao", [lidaComLink(montarDescricaoLI({ descricao: "A\n\nB" })), lidaComLink("<p>A</p><p>" + String.fromCharCode(160) + "</p><p>B</p>")], ["A\n\nB", "A\n\nB"]);
-    conferir("um paragrafo so nao precisa de espaco", lidaComLink("<p>A</p>"), "A");
-    conferir("link da loja com target igual ao do Rise", lidaComLink('<p>A <a href="x.pdf" target="_blank" rel="noopener">doc</a></p>').includes("mesma aba"), false);
+    conferir("link da loja sem target conta como diferente", lidaComLink('<div>A <a href="x.pdf">doc</a></div>').endsWith("(link abre na mesma aba)"), true);
+    conferir("descricao da loja em paragrafos (formato antigo) conta como diferente", lidaComLink("<p>A</p><p>B</p>").endsWith("(formato antigo: parágrafos em vez de Normal (DIV))"), true);
+    conferir("formato DIV com a linha em branco (ou o nbsp cru da LI) nao", [lidaComLink(montarDescricaoLI({ descricao: "A\n\nB" })), lidaComLink("<div>A</div><div>" + String.fromCharCode(160) + "</div><div>B</div>")], ["A\n\nB", "A\n\nB"]);
+    conferir("um paragrafo so: <p> e antigo, <div> nao", [lidaComLink("<p>A</p>").endsWith("Normal (DIV))"), lidaComLink("<div>A</div>")], [true, "A"]);
+    conferir("link da loja com target igual ao do Rise", lidaComLink('<div>A <a href="x.pdf" target="_blank" rel="noopener">doc</a></div>').includes("mesma aba"), false);
     conferir("sem documento com http, nao ha secao", montarDescricaoLI({ descricao: "Texto.", documentos: [{ url: "javascript:x", nome: "x" }] }), P("Texto."));
     conferir("frases fixas sairam da LI: passadas, nao entram", montarDescricaoLI({ descricao: "Texto & tal", frases: ["Com nota fiscal"] }), P("Texto &amp; tal"));
     conferir("linha de lista que termina em dois-pontos nao vira titulo", montarDescricaoLI({ descricao: "Uso:\n- Tensao:" }), P("<strong>Uso:</strong><br>- Tensao:"));
@@ -140,7 +141,7 @@ try {
     const rise = normalizarDoRiseLI(produtoRise, rasc, { frases: [], documentos: [] });
     conferir("slug do Rise sai SEMPRE do nome, nao do guardado", normalizarDoRiseLI(produtoRise, { ...rasc, titulo: "Relé 5V", slug: "outro" }, {}).slug, "rele-5v");
     conferir("rise normalizado", rise, { nome: "CLP FX3U", slug: "clp-fx3u", descricao: "Texto", ncm: "85371020", gtin: "7894972605270", mpn: null, peso: 0.5, altura: 3, largura: 12, comprimento: 7, preco: null, marca: "MITSUBISHI", categorias: ["23983023", "5946305"], video: null, destaque: false, seoTitulo: "t".repeat(70), seoDescription: null, origem: 0, tipoProducao: "REVENDA" });
-    const produtoLI = { id: 1, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<p>Texto</p>", ncm: "8537.10.20", gtin: "7894972605270", mpn: null, peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: "0", production_type: TEXTO_DO_TIPO_PRODUCAO.REVENDA, seo_title: "", seo_description: "" };
+    const produtoLI = { id: 1, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<div>Texto</div>", ncm: "8537.10.20", gtin: "7894972605270", mpn: null, peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: "0", production_type: TEXTO_DO_TIPO_PRODUCAO.REVENDA, seo_title: "", seo_description: "" };
     const li = normalizarDaLI(produtoLI, { title: "t".repeat(70), description: "" }, { marcaNome: "Mitsubishi" });
     conferir("LI normalizada igual ao Rise", li, rise);
     conferir("MPN nunca sai do Modelo do cadastro (nao se aplica aos produtos da loja)", normalizarDoRiseLI({ ...produtoRise, modelo: "UNO R3" }, rasc, {}).mpn, null);
@@ -171,7 +172,7 @@ try {
       { titulo: "CLP FX3U", slug: "clp-fx3u", marca: "Mitsubishi", categorias: ["5946305"], destaque: false, videoUrl: null, seo: { title: "S", description: "" } },
       {},
     );
-    const produtoLI = { id: 1, resource_uri: "/api/v1/produto/1", url: "/clp-fx3u", seo: "/api/v1/seo/9", imagens: [{ id: 3 }], preco_cheio: "10.00", estoque_quantidade: 5, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<p>Texto</p>", ncm: "8537.10.20", gtin: "7894972605270", mpn: null, peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: null, production_type: null, seo_title: "", seo_description: "", tags: [] };
+    const produtoLI = { id: 1, resource_uri: "/api/v1/produto/1", url: "/clp-fx3u", seo: "/api/v1/seo/9", imagens: [{ id: 3 }], preco_cheio: "10.00", estoque_quantidade: 5, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<div>Texto</div>", ncm: "8537.10.20", gtin: "7894972605270", mpn: null, peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: null, production_type: null, seo_title: "", seo_description: "", tags: [] };
     conferir("NCM no formato da loja", [formatarNcmLI("85371020"), formatarNcmLI("8537"), formatarNcmLI(null)], ["8537.10.20", "8537", null]);
     const corpoPost = montarCorpoDeCadastroLI({ sku: "ZZ-LI-2", rise, descricaoHtml: "<p>Texto</p>", marcaUri: "/api/v1/marca/1", categoriasUris: ["/api/v1/categoria/5946305"] });
     conferir("POST: inativo, normal, slug em apelido, fiscal em texto", [corpoPost.ativo, corpoPost.tipo, corpoPost.usado, corpoPost.apelido, corpoPost.icms_origin_code, corpoPost.production_type, corpoPost.ncm, corpoPost.altura, corpoPost.profundidade, corpoPost.peso], [false, "normal", false, "clp-fx3u", "0", TEXTO_DO_TIPO_PRODUCAO.REVENDA, "8537.10.20", 3, 7, 0.5]);

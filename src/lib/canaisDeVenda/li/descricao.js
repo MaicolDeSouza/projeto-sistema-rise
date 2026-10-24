@@ -41,10 +41,13 @@ const ehItemDeLista = (linha) => /^\s*-/.test(linha);
 const ehTituloDeSecao = (linha) => !ehItemDeLista(linha) && /:\s*(\([^)]*\))?\s*$/.test(linha) && linha.trim().length <= 80;
 const ehTituloDoProduto = (linha) => /\p{Lu}/u.test(linha) && !/\p{Ll}/u.test(linha);
 
-export const ESPACO_ENTRE_SECOES = "<p>&nbsp;</p>";
+// FORMATO "NORMAL (DIV)" do editor da LI (pedido do dono em 24/10/2026): cada linha numa <div>, e a linha em branco
+// entre as secoes e `<div>&nbsp;</div>`. Com <p> o tema da loja dava um espaco a mais em cada paragrafo, e o dono
+// trocava a mao para "Normal (DIV)" no painel.
+export const ESPACO_ENTRE_SECOES = "<div>&nbsp;</div>";
 
-/** Cada paragrafo leva a fonte 16; as linhas dele sao separadas por <br>. */
-const paragrafo = (linhas) => `<p><span style="font-size:16px;">${linhas.join("<br>")}</span></p>`;
+/** Cada linha numa <div>, com a fonte 16. */
+const paragrafo = (linhas) => linhas.map((linha) => `<div><span style="font-size:16px;">${linha}</span></div>`).join("");
 
 /** Os documentos com endereco http(s): `javascript:` num href executaria na loja. */
 function documentosValidos(documentos) {
@@ -106,7 +109,7 @@ export function montarDescricaoLI({ descricao, documentos = [] } = {}) {
     );
   });
 
-  // Uma linha em branco entre as secoes, como as descricoes antigas da loja (`<div>&nbsp;</div>`): a margem do
-  // <p> do tema da loja e curta e as secoes ficavam coladas (pedido do dono em 21/10/2026).
+  // Uma linha em branco entre as secoes, como as descricoes antigas da loja (`<div>&nbsp;</div>`; pedido do dono em
+  // 21/10/2026: as secoes ficavam coladas).
   return partes.join(ESPACO_ENTRE_SECOES);
 }
