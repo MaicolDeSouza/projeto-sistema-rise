@@ -24,6 +24,7 @@ import { precoComImpostos as precoComImpostosCalc } from "@/lib/coleta/impostos"
 import CadastroRapidoFornecedor from "./CadastroRapidoFornecedor";
 import BuscaColetadoPorCodigo from "./BuscaColetadoPorCodigo";
 import FotoComLupa from "@/components/ui/FotoComLupa";
+import { propsDoFundo } from "@/lib/fundoDaJanela";
 
 const moeda = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -663,6 +664,74 @@ export default function Fornecedores({
   );
 }
 
+/**
+ * A Obs da linha em edicao ABRE UMA JANELA (pedido do dono em 24/10/2026: "fica dificil de saber o que esta escrevendo";
+ * a primeira tentativa, a celula larga com duas linhas, estourou a largura da tabela e ele pediu "um pop para o campo
+ * OBS"). Na linha fica um campo do tamanho de antes, com o texto cortado; o clique abre a caixa grande, e "OK" devolve o
+ * texto para a linha (que so grava no Salvar do produto, como o resto). Cancelar, Esc e clique fora descartam.
+ */
+function CampoObs({ propriedades }) {
+  const [aberto, setAberto] = useState(false);
+  const [texto, setTexto] = useState("");
+  const valor = propriedades.value ?? "";
+
+  function abrir() {
+    setTexto(valor);
+    setAberto(true);
+  }
+  function confirmar() {
+    propriedades.onChange({ target: { value: texto } });
+    setAberto(false);
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={abrir}
+        title={valor || "Escrever a observação"}
+        className={`${propriedades.className} block max-w-40 truncate text-left ${valor ? "" : "text-suave"}`}
+      >
+        {valor || "Obs"}
+      </button>
+      {aberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" {...propsDoFundo(() => setAberto(false))}>
+          <div role="dialog" aria-modal="true" aria-label="Obs do fornecedor" className="w-full max-w-lg rounded-lg bg-superficie p-4 shadow-xl">
+            <h3 className="text-sm font-semibold">Obs do fornecedor</h3>
+            <textarea
+              autoFocus
+              rows={6}
+              maxLength={500}
+              value={texto}
+              onChange={(evento) => setTexto(evento.target.value)}
+              onKeyDown={(evento) => {
+                if (evento.key === "Escape") {
+                  evento.stopPropagation();
+                  setAberto(false);
+                }
+                if (evento.key === "Enter" && (evento.ctrlKey || evento.metaKey)) confirmar();
+              }}
+              placeholder="Ex.: vende sem cabo; o cabo entra como adicional no custo."
+              className="mt-2 w-full resize-y rounded border border-borda px-3 py-2 text-sm leading-relaxed focus:border-acento focus:outline-none"
+            />
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-[11px] text-suave tabular-nums">{texto.length}/500</span>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setAberto(false)} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
+                  Cancelar
+                </button>
+                <button type="button" onClick={confirmar} className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90">
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, aoEscolherCodigo }) {
   return (
     <tr className="divide-x divide-borda bg-fundo/40">
@@ -682,16 +751,8 @@ function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, a
       <td className="px-3 py-2">
         <input {...campo("descricao")} />
       </td>
-      {/* Obs LARGA so enquanto a linha esta em edicao (pedido do dono em 24/10/2026: "fica dificil de saber o que esta
-          escrevendo"): a coluna cresce e o campo tem duas linhas; depois de salvar, a linha volta cortada como antes. */}
-      <td className="min-w-64 px-3 py-2">
-        <textarea
-          placeholder="Obs"
-          rows={2}
-          maxLength={500}
-          {...campo("observacao")}
-          className={`${campo("observacao").className} resize-y leading-snug`}
-        />
+      <td className="px-3 py-2">
+        <CampoObs propriedades={campo("observacao")} />
         {erros.observacao && <p className="mt-1 text-[11px] text-red-700">{erros.observacao}</p>}
       </td>
       <td className="px-3 py-2">

@@ -4536,9 +4536,11 @@ Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com *
   da lupa só some quando fornecedor E código já estão na aba. **O Bling recebe um vínculo por CNPJ** (é o que ele aceita:
   `normalizarFornecedoresDoRise` fica com o primeiro, o padrão na frente); a segunda linha do mesmo fornecedor fica só no
   Rise. Na mesma leva: coluna **Obs** (`ProdutoFornecedor.observacao`, até 500 caracteres, não vai ao Bling) e a lupa
-  marca até **30** (eram 20; `MAXIMO_MARCADOS` e `MAXIMO_REFERENCIAS` andam juntos). **Obs larga na edição** (24/10/2026,
-  pedido do dono: "fica difícil de saber o que está escrevendo"): na linha em edição a célula ganha `min-w-64` e um
-  `<textarea>` de duas linhas; a linha salva continua cortada como antes.
+  marca até **30** (eram 20; `MAXIMO_MARCADOS` e `MAXIMO_REFERENCIAS` andam juntos). **Obs em janela na edição** (24/10/2026,
+  pedido do dono: "fica difícil de saber o que está escrevendo"): na linha em edição a Obs é um campo de 10rem com o
+  texto cortado (`CampoObs`, `Fornecedores.jsx`); o clique abre a janela "Obs do fornecedor" (caixa de 6 linhas, contador
+  /500, OK e Cancelar; Ctrl+Enter confirma, Esc e clique fora descartam). A primeira tentativa (célula `min-w-64` com
+  `<textarea>`) estourou a largura da tabela, e o dono pediu "um pop para o campo OBS". Só grava no Salvar do produto.
 - **Ordem dos documentos e do certificado** (pedido do dono em 24/10/2026: setas e "clicando e arrastando", no padrão de
   mover as características): `DocumentosDoProduto` (`FormularioProduto.jsx`) junta gravados e enviados numa lista, com
   alça, setas e arrastar (HTML5). A ordem vai no campo oculto `ordemDosArquivos` (`{ DOCUMENTO: ["id:<id>",
