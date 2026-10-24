@@ -8,7 +8,6 @@ import { Check, Loader, Sparkles } from "lucide-react";
 import { sugerirCategoriasLI } from "@/app/canais-de-venda/loja-integrada/acoes";
 import MensagensDoCampo from "@/components/anuncios/ml/MensagensDoCampo";
 import GastoDaIA from "@/components/ui/GastoDaIA";
-import { comAncestrais } from "@/lib/canaisDeVenda/li/categorias";
 import ArvoreDeCategorias from "./ArvoreDeCategorias";
 
 async function chamar(acao, ...argumentos) {
@@ -25,8 +24,8 @@ async function chamar(acao, ...argumentos) {
  * categoria, categoria que sumiu da loja) moram aqui.
  *
  * "Sugerir com IA" (pedido do dono em 07/10/2026): a IA escolhe na arvore real da loja, pelo nome, marca
- * e descricao do produto. Nada e marcado ate "Marcar estas", que marca as sugeridas com as categorias-pai
- * (como os produtos estao marcados na loja) e mantem o que ja estava marcado.
+ * e descricao do produto. Nada e marcado ate "Marcar estas", que marca so as sugeridas (sem as categorias-pai:
+ * a loja ja mostra o produto no pai) e mantem o que ja estava marcado.
  */
 export default function AbaCategorias({ rascunho, contexto, alterar, problemas, recarregarCategorias }) {
   const [sugestoes, setSugestoes] = useState(null);
@@ -47,10 +46,8 @@ export default function AbaCategorias({ rascunho, contexto, alterar, problemas, 
   }
 
   function marcarSugeridas() {
-    const novas = comAncestrais(
-      sugestoes.map((sugestao) => sugestao.id),
-      categorias ?? [],
-    );
+    // So as sugeridas (as mais especificas): o pai nao e marcado, porque a loja ja mostra o produto nele (24/10/2026).
+    const novas = sugestoes.map((sugestao) => sugestao.id);
     alterar((atual) => ({ categorias: [...new Set([...(atual.categorias ?? []), ...novas])] }));
     setSugestoes(null);
   }
@@ -111,7 +108,7 @@ export default function AbaCategorias({ rascunho, contexto, alterar, problemas, 
             <button type="button" onClick={() => setSugestoes(null)} className="rounded border border-borda bg-white px-3 py-1.5 text-xs hover:bg-fundo">
               Descartar
             </button>
-            <span className="text-[11px] text-suave">Marca também as categorias-pai e mantém as que já estão marcadas.</span>
+            <span className="text-[11px] text-suave">Mantém as que já estão marcadas.</span>
           </div>
         </section>
       )}

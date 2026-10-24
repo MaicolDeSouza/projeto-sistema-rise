@@ -12,6 +12,7 @@ import {
 } from "./banco";
 import { fotosDaLoja, fotosDoAnuncio, fotosEnviadas, planoDasFotosLI } from "./fotos";
 import { assinaturaLI, diferencasLI, normalizarDaLI, normalizarDoRiseLI } from "./campos";
+import { semAncestraisRedundantes } from "./categorias";
 import { clienteLI } from "./cliente";
 import { mesclarCorpoLI, montarCorpoDeCadastroLI } from "./corpo";
 import { montarDescricaoLI } from "./descricao";
@@ -168,17 +169,21 @@ async function garantirMarca(cliente, nome) {
 
 /** Categorias do rascunho que ainda existem na loja; as outras saem do envio (o dono esta renovando). */
 async function categoriasVivas(cliente, ids) {
-  if (!ids.length) return { validas: [], ignoradas: [] };
-  const existentes = new Set((await ler("leitura", () => listarCategoriasDaLI(cliente))).map((categoria) => categoria.id));
-  return { validas: ids.filter((id) => existentes.has(id)), ignoradas: ids.filter((id) => !existentes.has(id)) };
+  if (!ids.length) return { validas: [], ignoradas: [], arvore: [] };
+  const arvore = await ler("leitura", () => listarCategoriasDaLI(cliente));
+  const existentes = new Set(arvore.map((categoria) => categoria.id));
+  return { validas: ids.filter((id) => existentes.has(id)), ignoradas: ids.filter((id) => !existentes.has(id)), arvore };
 }
 
 async function contextoDoEnvio(produto, rascunho, cliente) {
   const documentos = await documentosDoProduto(produto);
   const rise = normalizarDoRiseLI(produto, rascunho, { documentos });
-  const { validas, ignoradas } = await categoriasVivas(cliente, rise.categorias);
+  const { validas, ignoradas, arvore } = await categoriasVivas(cliente, rise.categorias);
+  // So a categoria mais especifica vai (24/10/2026, 100105): o pai marcado junto da filha e redundante, porque a loja
+  // agrega as subcategorias, e o painel tambem marca so a filha. O rascunho e a assinatura do icone seguem como estao.
+  const enviadas = semAncestraisRedundantes(validas, arvore);
   const descricaoHtml = montarDescricaoLI({ descricao: produto.descricaoBase, documentos });
-  return { rise, riseEnvio: { ...rise, categorias: validas }, ignoradas, descricaoHtml, categoriasUris: validas.map((id) => `/api/v1/categoria/${id}`) };
+  return { rise, riseEnvio: { ...rise, categorias: enviadas }, ignoradas, arvore, descricaoHtml, categoriasUris: enviadas.map((id) => `/api/v1/categoria/${id}`) };
 }
 
 async function guardarCopia(produtoId, conteudo, alteracoes) {
@@ -255,9 +260,11 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
       }
       const detalhe = await ler("leitura", () => lerDetalheDaLI(cliente, anuncio.idExterno));
       const li = normalizarDaLI(detalhe.produto, detalhe.seo, { marcaNome: detalhe.marcaNome });
-      const { rise, riseEnvio, ignoradas, descricaoHtml, categoriasUris } = await contextoDoEnvio(produto, rascunho, cliente);
+      const { rise, riseEnvio, ignoradas, arvore, descricaoHtml, categoriasUris } = await contextoDoEnvio(produto, rascunho, cliente);
       estado.categoriasIgnoradas = ignoradas;
-      const diferentes = diferencasLI(riseEnvio, li).filter((item) => item.tipo === "diferente");
+      // A loja com o pai a mais (o 100101 tem pai + filha) e a mesma coisa que so a filha: nada de categoria a enviar.
+      const liComparado = { ...li, categorias: semAncestraisRedundantes(li.categorias, arvore) };
+      const diferentes = diferencasLI(riseEnvio, liComparado).filter((item) => item.tipo === "diferente");
       estado.alterados = diferentes.map(({ campo, li: de, rise: para }) => ({ campo, de, para }));
       const campos = new Set(diferentes.map((item) => item.campo));
       const payload = {};

@@ -68,7 +68,7 @@ const LER_PARA_PROPOSTA_LI = {
 const GRAVAR_PROPOSTA_LI = {
   nome: "gravarPropostaLI",
   descricao: [
-    "Grava a proposta do anúncio da Loja Integrada no rascunho do Rise: categorias (ids da árvore; o Rise marca as pais), marca e a Meta Tag Description (130 a 160 caracteres), com o relatório.",
+    "Grava a proposta do anúncio da Loja Integrada no rascunho do Rise: categorias (ids da árvore, as mais específicas; o pai não é marcado), marca e a Meta Tag Description (130 a 160 caracteres), com o relatório.",
     "Campo vazio no rascunho recebe o valor; campo já preenchido vira sugestão para o dono. Nada vai à loja: o dono revisa e sincroniza. Gravar de novo substitui a proposta.",
   ].join(" "),
   esquema: z.object({

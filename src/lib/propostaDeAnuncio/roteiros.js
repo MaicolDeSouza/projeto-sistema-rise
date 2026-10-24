@@ -2,12 +2,13 @@
  * Os ROTEIROS da proposta de anuncio (spec 2026-10-23, secao 6.2), um por canal, no molde do roteiro unico da proposta de
  * produto (`src/lib/proposta/roteiro.js`): a ferramenta `roteiroDaProposta` (com `canal`) os entrega a qualquer LLM.
  * Mudar uma regra e editar o texto e subir a VERSAO (cada proposta grava a versao que seguiu). O que e conta ou checagem
- * (pais das categorias, tamanho da description, preco do ML) o Rise faz sozinho ao gravar; aqui fica o julgamento.
+ * (o pai redundante das categorias, tamanho da description, preco do ML) o Rise faz sozinho ao gravar; aqui fica o julgamento.
  *
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
 
-export const VERSAO_ROTEIRO_LI = "1";
+// "2" em 24/10/2026: o pai das categorias nao e mais marcado (a loja agrega as subcategorias), pedido do dono a partir do 100105.
+export const VERSAO_ROTEIRO_LI = "2";
 
 export const ROTEIRO_LI = `ROTEIRO DA PROPOSTA DE ANÚNCIO DA LOJA INTEGRADA (Rise / 4hobby), versão ${VERSAO_ROTEIRO_LI}
 
@@ -23,7 +24,8 @@ CAMINHO (nesta ordem)
 2. lerParaPropostaLI(sku): o produto (nome, marca, modelo, descrição), a árvore de categorias da loja (id: caminho),
    as marcas da loja, o SEO dos concorrentes e o rascunho atual, se houver.
 3. Monte a proposta:
-   - CATEGORIAS: de 1 a 3 ids da árvore, as MAIS ESPECÍFICAS (o fim do caminho). Os pais o Rise marca sozinho.
+   - CATEGORIAS: de 1 a 3 ids da árvore, as MAIS ESPECÍFICAS (o fim do caminho). NÃO mande o pai: a loja já mostra o
+     produto na página do pai, e o Rise guarda só a categoria mais específica.
      Mais de uma só quando o produto é de assuntos diferentes de verdade.
    - MARCA: a do cadastro do produto, escrita como está na lista de marcas da loja quando existir lá.
      Sem marca no cadastro, não invente: deixe vazio.

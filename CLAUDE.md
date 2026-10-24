@@ -284,7 +284,7 @@ npm run teste:estoque             # 57 asserções da edição rápida da lista 
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
 npm run teste:anuncios-ml         # 797 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
-npm run teste:li-sync             # 318 asserções da sincronização Rise -> Loja Integrada (e da proposta de anúncio da LI): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
+npm run teste:li-sync             # 334 asserções da sincronização Rise -> Loja Integrada (e da proposta de anúncio da LI): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
@@ -3948,9 +3948,19 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
 - **Categorias pela IA** (pedido do dono em 07/10/2026): botão "Sugerir com IA" na aba Categorias. A IA recebe o nome,
   a marca, a descrição e a árvore da loja inteira ("id: caminho", uma por linha) e devolve até 3 ids com um motivo
   (`sugerirCategoriasIA` em `ia/anuncio.js`, regras puras em `li/categorias.js`). Id que não existe na árvore sai, e o
-  caminho mostrado vem da árvore, nunca do texto da IA. Nada é marcado até "Marcar estas", que marca as sugeridas **com
-  as categorias-pai** (`comAncestrais`, como o 100101 está na loja) e mantém as que já estavam marcadas. Gravar continua
+  caminho mostrado vem da árvore, nunca do texto da IA. Nada é marcado até "Marcar estas", que marca **só as sugeridas**
+  (sem as categorias-pai, ver "O pai da categoria não conta") e mantém as que já estavam marcadas. Gravar continua
   sendo o Salvar. **A chamada real nunca foi vista** (é paga; o primeiro uso é do dono).
+- **O pai da categoria não conta** (pedido do dono em 24/10/2026, a partir do 100105: o pop-up acusava "Categorias:
+  diferente" com o Rise em "Placas Embarcadas" + "01 - Placas Arduino" e a loja só na filha). Marcar a filha no painel da
+  LI **não marca o pai**, e a loja mostra o produto na página do pai sozinha (medido: "Placas Embarcadas" lista os 22
+  produtos de "01 - Placas Arduino"). `semAncestraisRedundantes` (`li/categorias.js`, pura, no lugar de `comAncestrais`)
+  tira da lista a categoria que é pai ou avó de outra da mesma lista (pai sozinho fica; id fora da árvore fica; a ordem
+  se mantém). **Vale na comparação e no envio, nunca no rascunho:** o pop-up (`lerParaPopupLI`) e o Sincronizar
+  (`sincronizarProdutoLI`) comparam os DOIS lados já sem o pai, então produto antigo da loja com pai + filha (o 100101)
+  também não acusa nada e o Sincronizar não mexe; o Cadastrar e o PUT mandam só a mais específica (`contextoDoEnvio`). O
+  rascunho e a **assinatura do ícone seguem com o que foi marcado**, para nenhum produto já sincronizado acender o "!".
+  A sugestão da IA e a proposta de anúncio da LI (`gravarPropostaLI`) param de pôr o pai.
 - **URL (slug):** produto que **já está na loja mantém a URL de hoje** (decisão do dono em 07/10/2026, que desfez a
   de trocar pela do nome: o Google já indexou). O slug saiu dos campos comparados e o Sincronizar **não chama mais o
   `/alias`**. Só o produto novo nasce com `slugDe(nome)`, como `apelido` no Cadastrar. A aba SEO mostra a URL de hoje
@@ -5544,8 +5554,9 @@ proposta mora no rascunho do `Anuncio`), plano `docs/superpowers/plans/2026-10-2
   dono edita); campo com outro valor fica e o proposto vira a linha "Proposta: ... Usar". Na LI, a description padrão do
   rascunho novo conta como vazia; marca igual sem caixa não vira sugestão. No ML, o rascunho que a proposta CRIA aceita tudo.
   `dados.proposta` guarda `campos`, `valores`, `sugestoes`, `relatorio`, `avisos` e a versão do roteiro.
-- **LI:** categorias (ids da árvore; o Rise põe as pais), marca (casada com a da loja), Meta Tag Description de 130 a 160
-  (recusa fora disso). O Tag Title não entra. O botão "Gerar com IA" (IA paga) já existia dentro da lista da description.
+- **LI:** categorias (ids da árvore, as mais específicas; **o pai não é marcado** e, se a LLM mandar pai + filha, o Rise
+  guarda só a filha; roteiro da LI na versão "2" desde 24/10/2026), marca (casada com a da loja), Meta Tag Description de
+  130 a 160 (recusa fora disso). O Tag Title não entra. O botão "Gerar com IA" (IA paga) já existia dentro da lista da description.
 - **ML:** categoria folha, **título = o nome do produto base** (o Rise o põe sozinho; só o produto com composição, `tipo`
   COMPOSICAO, aceita o título que a LLM mandar; nos demais o que ela manda é ignorado e avisado, e um rascunho antigo da proposta
   volta ao nome do produto; nome acima do limite da categoria grava inteiro e avisa para encurtar no cadastro; pedido do dono em

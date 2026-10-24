@@ -1416,7 +1416,7 @@ try {
     conferir("gravarPropostaLI sem a acao: recusa", semGravar?.isError, true);
     const roteiroLI = await chamar("roteiroDaProposta", { canal: "li" });
     const corpoLI = JSON.parse(roteiroLI?.content?.[0]?.text || "{}");
-    conferir("roteiroDaProposta canal li: o roteiro da LI com a versao", [corpoLI.canal, corpoLI.versao, /situacaoDoProduto/.test(corpoLI.roteiro ?? ""), /130 a 160/.test(corpoLI.roteiro ?? "")], ["li", "1", true, true]);
+    conferir("roteiroDaProposta canal li: o roteiro da LI com a versao", [corpoLI.canal, corpoLI.versao, /situacaoDoProduto/.test(corpoLI.roteiro ?? ""), /130 a 160/.test(corpoLI.roteiro ?? "")], ["li", "2", true, true]);
     const roteiroLISemAcao = await chamar("roteiroDaProposta", { canal: "li" }, quem((recurso) => recurso !== "acao.canaisDeVenda.proporAnuncio"));
     conferir("roteiro da LI sem a acao: recusa", roteiroLISemAcao?.isError, true);
     conferir("resumo do roteiro da LI na Revisao", resumoDaChamada("roteiroDaProposta", { canal: "li" }), "proposta LI: leu o roteiro");

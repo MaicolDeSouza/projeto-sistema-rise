@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { anuncioLIDoProduto, contextoDoProduto, novoRascunhoLI, rascunhoDoAnuncio } from "@/lib/canaisDeVenda/li/banco";
-import { comAncestrais } from "@/lib/canaisDeVenda/li/categorias";
+import { semAncestraisRedundantes } from "@/lib/canaisDeVenda/li/categorias";
 import { RascunhoLISchema } from "@/lib/canaisDeVenda/li/esquema";
 import { listarCategoriasDaLI, listarMarcasDaLI, mesmaMarca } from "@/lib/canaisDeVenda/li/leitura";
 import { descriptionPadrao } from "@/lib/canaisDeVenda/li/seo";
@@ -11,7 +11,7 @@ import { VERSAO_ROTEIRO_LI } from "./roteiros";
 import { exigirProdutoPronto } from "./situacao";
 
 /**
- * A proposta do anuncio da Loja Integrada (spec 2026-10-23, Entrega 1): categorias (com as pais), marca e a Meta Tag
+ * A proposta do anuncio da Loja Integrada (spec 2026-10-23, Entrega 1): categorias (so a mais especifica), marca e a Meta Tag
  * Description. Le a LI (so GET) e grava SO no rascunho do `Anuncio` do Rise, com `dados.proposta`; nada vai a loja ate o
  * dono sincronizar. O Tag Title nao entra: e o nome do produto, sem IA (decisao do dono).
  */
@@ -93,7 +93,9 @@ export async function gravarPropostaLI(cliente, sku, { categorias = [], marca = 
     if (valor === null || valor === undefined || valor === "" || (Array.isArray(valor) && valor.length === 0)) return true;
     return caminho === "seo.description" && valor === padrao;
   };
-  const propostos = { categorias: comAncestrais(ids, arvore), "seo.description": description };
+  // So a categoria mais especifica vai para o rascunho (24/10/2026): o pai nao precisa ser marcado, a loja ja mostra o
+  // produto nele, e marcado junto da filha so geraria "Categorias: diferente" contra a loja.
+  const propostos = { categorias: semAncestraisRedundantes(ids, arvore), "seo.description": description };
   // "ARDUINO" no rascunho e "Arduino" na loja sao a mesma marca (o envio as casa assim): nao vira sugestao.
   if (nomeDaMarca && !mesmaMarca(base.marca, nomeDaMarca)) propostos.marca = nomeDaMarca;
   const { rascunho, campos, sugestoes, valores } = aplicarProposta(base, propostos, { vazio });

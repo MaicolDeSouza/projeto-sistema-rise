@@ -522,6 +522,62 @@ try {
   }
 
   {
+    // 100105 (24/10/2026): o Rise tinha o pai ("Placas Embarcadas") e a filha ("01 - Placas Arduino"), a loja so a filha, e o
+    // pop-up mostrava "Categorias: diferente". Pai marcado junto da filha nao conta: a loja agrega as subcategorias sozinha.
+    console.log("\nCategorias: o pai marcado junto da filha nao e diferenca nem vai no envio");
+    await limpar();
+    const arvoreFalsa = [{ id: 5, nome: "Embarcados" }, { id: 6, nome: "Arduino", categoria_pai: "/api/v1/categoria/5" }, { id: 7, nome: "Sensores" }];
+    const comLoja = (categorias, extra = {}) =>
+      criarLojaIntegradaFalsa({
+        produtos: [{ id: 901, sku: "ZZ-LI-15", nome: "Placa", apelido: "/placa", categorias, seo: "/api/v1/seo/91", ...extra }],
+        categorias: arvoreFalsa,
+        seos: { 91: { title: "", description: "" } },
+      });
+    const pp = await prisma.produto.create({ data: { sku: "ZZ-LI-15", tituloBase: "Placa", ncm: "85364900", conferido: true } });
+    const marcarNoRise = async (categorias, nome) => {
+      const an = await anuncioLIDoProduto(pp.id);
+      // O SEO (title e description) e obrigatorio para sincronizar; o resto do rascunho vem do vinculo.
+      await salvarRascunhoLI(an.id, { ...rascunhoDoAnuncio(an), ...(nome ? { titulo: nome } : {}), categorias, seo: { title: "Placa", description: "Descricao da placa" } });
+    };
+    const diferencaDeCategorias = async (cliente) => (await lerParaPopupLI(pp.id, cliente)).diferencas.find((d) => d.campo === "categorias");
+
+    const so6 = comLoja(["/api/v1/categoria/6"]);
+    await lerParaPopupLI(pp.id, so6); // vincula
+    await marcarNoRise(["5", "6"]);
+    conferir("Rise com pai + filha, loja so com a filha: sem diferenca", await diferencaDeCategorias(so6), undefined);
+    const com56 = comLoja(["/api/v1/categoria/5", "/api/v1/categoria/6"]);
+    await marcarNoRise(["6"]);
+    conferir("Rise so com a filha, loja com pai + filha: sem diferenca", await diferencaDeCategorias(com56), undefined);
+    const so7 = comLoja(["/api/v1/categoria/7"]);
+    await marcarNoRise(["5", "6"]);
+    const verdadeira = await diferencaDeCategorias(so7);
+    conferir("categoria de verdade diferente continua sendo diferenca (o pai nao aparece)", [verdadeira?.tipo, verdadeira?.rise, verdadeira?.li], ["diferente", ["6"], ["7"]]);
+
+    // Sincronizar: com o resto mudando, as categorias nao entram no PUT (a loja ja tem a filha) e a loja fica como estava.
+    const lojaIgual = comLoja(["/api/v1/categoria/6"]);
+    await marcarNoRise(["5", "6"], "Placa Nova");
+    const sinc = await sincronizarProdutoLI(pp.id, lojaIgual);
+    conferir("sincronizar: o nome muda e as categorias nao vao", [sinc.ok, sinc.alterados.some((a) => a.campo === "nome"), sinc.alterados.some((a) => a.campo === "categorias")], [true, true, false]);
+    conferir("sincronizar: a loja continua so com a filha", lojaIgual.produtos().find((p) => p.id === 901).categorias, ["/api/v1/categoria/6"]);
+    const lojaComPai = comLoja(["/api/v1/categoria/5", "/api/v1/categoria/6"]);
+    await marcarNoRise(["6"], "Placa Nova");
+    const sinc2 = await sincronizarProdutoLI(pp.id, lojaComPai);
+    conferir("sincronizar: loja com o pai a mais nao e diferenca, e o pai fica (o Rise nao o tira)", [sinc2.alterados.some((a) => a.campo === "categorias"), lojaComPai.produtos().find((p) => p.id === 901).categorias], [false, ["/api/v1/categoria/5", "/api/v1/categoria/6"]]);
+    // Categoria diferente de verdade: vai so a filha, sem o pai.
+    const lojaOutra = comLoja(["/api/v1/categoria/7"]);
+    await marcarNoRise(["5", "6"], "Placa Nova");
+    const sinc3 = await sincronizarProdutoLI(pp.id, lojaOutra);
+    conferir("sincronizar categoria diferente: vai so a filha", [sinc3.alterados.find((a) => a.campo === "categorias")?.para, lojaOutra.produtos().find((p) => p.id === 901).categorias], [["6"], ["/api/v1/categoria/6"]]);
+
+    // Cadastrar: o produto novo nasce so com a filha.
+    const pn = await prisma.produto.create({ data: { sku: "ZZ-LI-16", tituloBase: "Placa Nova na LI", descricaoBase: "Placa nova.", ncm: "85364900", conferido: true } });
+    await salvarRascunhoLI(null, { ...rascunhoInicialLI(pn), categorias: ["5", "6"] });
+    const lojaNova = criarLojaIntegradaFalsa({ categorias: arvoreFalsa });
+    const cadastro = await cadastrarNaLI(pn.id, lojaNova);
+    conferir("cadastrar: nasce so com a filha", [cadastro.ok, lojaNova.produtos().at(-1).categorias], [true, ["/api/v1/categoria/6"]]);
+  }
+
+  {
     console.log("\nRevisao final: description padrao pula o titulo");
     conferir("pula o paragrafo que repete o nome", descriptionPadrao("PLACA UNO R3\n\nA Placa e uma placa de desenvolvimento.", "Placa Uno R3"), "A Placa e uma placa de desenvolvimento.");
     conferir("pula a linha toda em maiusculas (o titulo do padrao da loja)", descriptionPadrao("MODULO RELE 5V\n\nO Modulo aciona cargas.", "Outro nome"), "O Modulo aciona cargas.");
@@ -655,7 +711,7 @@ try {
 
   {
     console.log("\nCategorias: sugestao da IA");
-    const { MAXIMO_DE_SUGESTOES, comAncestrais, limparSugestoesDeCategoria, montarPedidoDeCategorias } = await import("../src/lib/canaisDeVenda/li/categorias.js");
+    const { MAXIMO_DE_SUGESTOES, limparSugestoesDeCategoria, montarPedidoDeCategorias, semAncestraisRedundantes } = await import("../src/lib/canaisDeVenda/li/categorias.js");
     const arvore = [
       { id: "1", nome: "Embarcados", paiId: null, caminho: "Embarcados" },
       { id: "2", nome: "Arduino", paiId: "1", caminho: "Embarcados > Arduino" },
@@ -670,8 +726,17 @@ try {
     );
     conferir("limpar: corta em 3", limparSugestoesDeCategoria([{ id: "1" }, { id: "2" }, { id: "3" }, { id: "4" }], arvore).length, 3);
     conferir("limpar: resposta torta vira lista vazia", limparSugestoesDeCategoria(null, arvore), []);
-    conferir("marcar leva as categorias-pai junto (como o 100101 esta na loja), sem repetir", comAncestrais(["3", "2"], arvore).sort(), ["1", "2", "3"]);
-    conferir("pai que sumiu da arvore nao entra", comAncestrais(["3"], arvore.filter((c) => c.id !== "1")).sort(), ["2", "3"]);
+    // Pai redundante (pedido do dono em 24/10/2026, 100105): marcar a filha NAO marca o pai, e o pai marcado junto da filha
+    // nao conta na comparacao nem no envio (a loja agrega as subcategorias sozinha).
+    conferir("pai e avo marcados junto da filha saem, a filha fica", semAncestraisRedundantes(["1", "2", "3"], arvore), ["3"]);
+    conferir("a ordem de entrada e mantida", semAncestraisRedundantes(["4", "3", "2"], arvore), ["4", "3"]);
+    conferir("pai sozinho (sem filha marcada) fica", semAncestraisRedundantes(["1"], arvore), ["1"]);
+    conferir("ramos diferentes nao se atrapalham", semAncestraisRedundantes(["3", "4"], arvore), ["3", "4"]);
+    conferir("id fora da arvore fica (categoria morta e assunto de outra regra)", semAncestraisRedundantes(["99", "3", "2"], arvore), ["99", "3"]);
+    conferir("avo que sumiu da arvore: o pai continua redundante", semAncestraisRedundantes(["3", "2"], arvore.filter((c) => c.id !== "1")), ["3"]);
+    conferir("ids em numero tambem valem", semAncestraisRedundantes([3, 2], arvore), [3]);
+    conferir("sem arvore ou sem ids nada muda", [semAncestraisRedundantes(["3", "2"], null), semAncestraisRedundantes([], arvore), semAncestraisRedundantes(null, arvore)], [["3", "2"], [], []]);
+    conferir("ciclo na arvore nao esvazia a lista", semAncestraisRedundantes(["1", "2"], [{ id: "1", paiId: "2" }, { id: "2", paiId: "1" }]), ["1", "2"]);
     const pedido = montarPedidoDeCategorias({ titulo: "Placa Uno R3", marca: "GENERICA", descricao: "A placa faz X.", categorias: arvore });
     conferir("o pedido leva o produto e a arvore com os ids", [pedido.includes("Placa Uno R3"), pedido.includes("A placa faz X."), pedido.includes("3: Embarcados > Arduino > Placas Arduino")], [true, true, true]);
   }
@@ -851,10 +916,14 @@ try {
     const gravada = await gravarPropostaLI(falsa(), "ZZ-LI-PA1", { categorias: ["11"], marca: "arduino", seoDescription: DESCRIPTION, relatorio: "- Placas Arduino" });
     const anuncio = await prisma.anuncio.findFirst({ where: { produtoId: produto.id, canal: "LOJA_INTEGRADA" } });
     conferir(
-      "gravar: rascunho com as pais, a marca da loja e a description; proposta com os tres",
+      "gravar: rascunho so com a categoria escolhida (sem os pais), a marca da loja e a description",
       [[...anuncio.dados.categorias].sort(), anuncio.dados.marca, anuncio.dados.seo.description, [...gravada.campos].sort(), anuncio.dados.proposta.versaoDoRoteiro, anuncio.status],
-      [["1", "10", "11"], "ARDUINO", DESCRIPTION, ["categorias", "seo.description"], "1", "RASCUNHO"],
+      [["11"], "ARDUINO", DESCRIPTION, ["categorias", "seo.description"], "2", "RASCUNHO"],
     );
+    // A conversa pode mandar o pai junto da filha: o Rise guarda so a mais especifica.
+    const doisNiveis = await criarPronto("ZZ-LI-PA4");
+    await gravarPropostaLI(falsa(), "ZZ-LI-PA4", { categorias: ["10", "11"], seoDescription: DESCRIPTION });
+    conferir("proposta com pai e filha: so a filha vai para o rascunho", (await prisma.anuncio.findFirst({ where: { produtoId: doisNiveis.id, canal: "LOJA_INTEGRADA" } })).dados.categorias, ["11"]);
     conferir("marca do cadastro igual a da loja nao vira sugestao", gravada.sugestoes, {});
     conferir("o Tag Title nao muda", anuncio.dados.seo.title !== "", true);
 

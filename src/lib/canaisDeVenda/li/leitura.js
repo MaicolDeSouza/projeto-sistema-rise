@@ -5,6 +5,7 @@ import { paginarLojaIntegrada } from "@/lib/integracoes/lojaIntegrada/paginacao"
 import { anuncioLIDoProduto, contextoDoProduto, documentosDoProduto, fotosDoProduto, rascunhoDoAnuncio, vincularPeloSku } from "./banco";
 import { fotosDaLoja, fotosDoAnuncio, fotosEnviadas, planoDasFotosLI, resumoDasFotosLI } from "./fotos";
 import { CAMPOS_DE_ENVIO_LI, TEXTO_DO_TIPO_PRODUCAO, avisosFiscaisLI, diferencasLI, normalizarDaLI, normalizarDoRiseLI } from "./campos";
+import { semAncestraisRedundantes } from "./categorias";
 import { clienteLI } from "./cliente";
 
 /**
@@ -228,16 +229,22 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
     // Categoria do rascunho que sumiu da loja sai do envio (`envio.js`); aqui ela sai da comparacao
     // tambem, senao o pop-up mostraria "Categorias: diferente" para sempre com o Sincronizar dizendo
     // "nada para enviar". Vira aviso, para o dono tira-la do anuncio.
+    // O pai marcado junto da filha tambem sai, dos DOIS lados (24/10/2026, 100105): a loja agrega as subcategorias
+    // sozinha, marcar a filha no painel nao marca o pai, e o envio manda so a filha. Sem isso o pop-up acusava
+    // "Categorias: diferente" para sempre.
     let comparado = rise;
+    let liComparado = li;
     if (rise.categorias.length) {
-      const vivas = new Set((await listarCategoriasDaLI(cliente)).map((categoria) => categoria.id));
+      const arvore = await listarCategoriasDaLI(cliente);
+      const vivas = new Set(arvore.map((categoria) => categoria.id));
       const mortas = rise.categorias.filter((id) => !vivas.has(id));
       if (mortas.length) {
-        comparado = { ...rise, categorias: rise.categorias.filter((id) => vivas.has(id)) };
         avisos.push(`Categoria que não existe mais na loja: ${mortas.join(", ")}. Ela fica fora do envio; tire-a no anúncio.`);
       }
+      comparado = { ...rise, categorias: semAncestraisRedundantes(rise.categorias.filter((id) => vivas.has(id)), arvore) };
+      liComparado = { ...li, categorias: semAncestraisRedundantes(li.categorias, arvore) };
     }
-    const diferencas = diferencasLI(comparado, li);
+    const diferencas = diferencasLI(comparado, liComparado);
     // Os fiscais vao em lista para a aba Fiscal do editor (aviso grande com o link do painel) e em
     // texto para quem so le os avisos.
     const fiscais = avisosFiscaisLI(rise, li);
