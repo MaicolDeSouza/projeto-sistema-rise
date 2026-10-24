@@ -502,19 +502,22 @@ export default function Fornecedores({
           metade — mesma armadilha ja paga em Concorrentes.jsx. A rolagem
           lateral fica so nas telas estreitas. */}
       <div className="overflow-x-auto rounded border border-borda md:overflow-visible">
-        <table className="w-full text-sm">
+        {/* `table-fixed` com largura por coluna (pedido do dono em 24/10/2026): a tabela
+            passava da area em tela de notebook e abria uma barra de rolagem lateral na
+            pagina. A Descricao fica com o que sobra; textos longos cortam com reticencias. */}
+        <table className="w-full table-fixed text-sm">
           <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
             <tr className="divide-x divide-borda">
               <th className="w-14 px-3 py-2 font-medium">Foto</th>
-              <th className="px-3 py-2 font-medium">Fornecedor</th>
+              <th className="w-28 px-3 py-2 font-medium">Fornecedor</th>
               <th className="px-3 py-2 font-medium">Descrição no fornecedor</th>
-              <th className="px-3 py-2 font-medium">Obs</th>
-              <th className="px-3 py-2 font-medium">Código no fornecedor</th>
-              <th className="px-3 py-2 font-medium">Preço de custo</th>
-              <th className="px-3 py-2 font-medium">Estoque fornecedor</th>
-              <th className="px-3 py-2 font-medium">Link</th>
-              <th className="px-3 py-2 font-medium">Padrão</th>
-              <th className="w-20 px-3 py-2" />
+              <th className="w-20 px-3 py-2 font-medium">Obs</th>
+              <th className="w-24 px-3 py-2 font-medium">Código no fornecedor</th>
+              <th className="w-28 px-3 py-2 font-medium">Preço de custo</th>
+              <th className="w-24 px-3 py-2 font-medium">Estoque fornecedor</th>
+              <th className="w-11 px-3 py-2 font-medium">Link</th>
+              <th className="w-24 px-3 py-2 font-medium">Padrão</th>
+              <th className="w-24 px-3 py-2" />
             </tr>
           </thead>
 
@@ -550,7 +553,7 @@ export default function Fornecedores({
                       <FotoComLupa src={`/api/mercados/miniatura/${estoques[vinculo.id].coletadoId}`} alt={vinculo.descricao || vinculo.nome} className="h-10 w-10" />
                     ) : null}
                   </td>
-                  <td className="px-3 py-2 font-medium">
+                  <td className="truncate px-3 py-2 font-medium" title={vinculo.nome}>
                     {/* Posicao na ordem do custo, do menor para o maior (pedido do dono em 23/10/2026), antes do nome. */}
                     <span className="mr-1.5 inline-block min-w-[2ch] tabular-nums text-suave">{indice + 1}º</span>
                     {vinculo.nome}
@@ -561,7 +564,7 @@ export default function Fornecedores({
                       e uma URL — caso do Bling, que guarda ali o endereco do
                       produto no site do fornecedor. */}
                   <td
-                    className="max-w-xs truncate px-3 py-2 text-suave"
+                    className="truncate px-3 py-2 text-suave"
                     title={vinculo.descricao || undefined}
                   >
                     {vinculo.descricao && ehUrlSegura(vinculo.descricao) ? (
@@ -578,10 +581,10 @@ export default function Fornecedores({
                     )}
                   </td>
                   {/* Obs (pedido do dono em 23/10/2026): cortada na linha; o clique mostra o texto inteiro. */}
-                  <td className="max-w-40 truncate px-3 py-2 text-xs text-suave" title={vinculo.observacao || undefined}>
+                  <td className="truncate px-3 py-2 text-xs text-suave" title={vinculo.observacao || undefined}>
                     {vinculo.observacao || "—"}
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs">
+                  <td className="truncate px-3 py-2 font-mono text-xs" title={vinculo.codigo || undefined}>
                     {vinculo.codigo || "—"}
                   </td>
                   <td className="px-3 py-2 tabular-nums">
@@ -624,7 +627,7 @@ export default function Fornecedores({
                       );
                     })()}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 py-2">
                     <button
                       type="button"
                       disabled={pendente || vinculo.padrao}
@@ -990,7 +993,7 @@ function CampoObs({ propriedades }) {
         type="button"
         onClick={abrir}
         title={valor || "Escrever a observação"}
-        className={`${propriedades.className} block max-w-40 truncate text-left ${valor ? "" : "text-suave"}`}
+        className={`${propriedades.className} block truncate text-left ${valor ? "" : "text-suave"}`}
       >
         {valor || "Obs"}
       </button>
@@ -1056,7 +1059,7 @@ function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, a
         {erros.observacao && <p className="mt-1 text-[11px] text-red-700">{erros.observacao}</p>}
       </td>
       <td className="px-3 py-2">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 [&>input]:min-w-0">
           <input {...campo("codigo")} />
           <BuscaColetadoPorCodigo codigo={campo("codigo").value} tipo="FORNECEDOR" aoEscolher={aoEscolherCodigo} />
         </div>
@@ -1080,7 +1083,7 @@ function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, a
           <p className="mt-1 text-[11px] text-red-700">{erros.link}</p>
         )}
       </td>
-      <td className="px-3 py-2">
+      <td className="px-2 py-2">
         <div className="flex items-center gap-1">
           <button
             type="button"
