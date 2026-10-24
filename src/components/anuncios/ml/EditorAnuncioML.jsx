@@ -4,7 +4,7 @@ import { FaixaDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Copy, ExternalLink, Loader, X } from "lucide-react";
+import { Copy, ExternalLink, Loader, Plus, X } from "lucide-react";
 
 import { abrirAnuncioML, lerCategoriaML, salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
@@ -79,6 +79,8 @@ export default function EditorAnuncioML({
   // Clonar (22/10/2026): na pagina e um link para `/novo?clonar=`; na janela, `aoClonar(id)` abre o clone nela mesma.
   // `origem` e de onde o rascunho novo foi clonado (so para mostrar).
   aoClonar,
+  // Na janela do produto (pedido do dono em 24/10/2026): "Novo anuncio" no rodape, ja que a janela abre direto no anuncio.
+  aoNovo,
   origem = null,
   acessos = ACESSO_TOTAL_ML,
 }) {
@@ -328,6 +330,17 @@ export default function EditorAnuncioML({
               <Copy size={12} /> Clonar anúncio
             </button>
           )
+        )}
+        {modo === "janela" && aoNovo && idAtual && acessos.editar && (
+          <button
+            type="button"
+            onClick={aoNovo}
+            disabled={alterado || salvando}
+            title={alterado ? "Salve as alterações antes de abrir um anúncio novo." : "Abre um anúncio novo deste produto, em branco"}
+            className="inline-flex items-center gap-1 text-acento hover:underline disabled:cursor-not-allowed disabled:text-suave disabled:no-underline"
+          >
+            <Plus size={12} /> Novo anúncio
+          </button>
         )}
       </div>
       <div className="flex items-center gap-2">

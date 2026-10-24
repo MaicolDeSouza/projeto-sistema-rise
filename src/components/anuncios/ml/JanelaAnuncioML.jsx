@@ -191,10 +191,12 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
   const iniciar = useCallback(
     async (nota) => {
       const lista = await carregarLista(nota);
-      // Produto Conferido sem nenhum anuncio: nao ha o que listar, abre direto o editor de um novo.
+      // Produto Conferido sem nenhum anuncio: nao ha o que listar, abre direto o editor de um novo. Com UM anuncio, abre
+      // direto o editor dele (pedido do dono em 24/10/2026); a lista so aparece com dois ou mais (Classico e Premium).
       if (lista?.produto.conferido && lista.anuncios.length === 0 && lista.acessos?.editar !== false) await abrirNovo();
+      else if (lista?.produto.conferido && lista.anuncios.length === 1) await abrirExistente(lista.anuncios[0].id);
     },
-    [carregarLista, abrirNovo],
+    [carregarLista, abrirNovo, abrirExistente],
   );
 
   useEffect(() => {
@@ -217,10 +219,10 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
     return () => document.removeEventListener("keydown", aoTeclar);
   }, [fase, aoFechar]);
 
-  // Volta a lista do produto, ja com o anuncio que acabou de ser salvo.
+  // Depois do Salvar: com um anuncio so, reabre o editor dele; com dois ou mais, volta a lista com o recado.
   function aoSalvar() {
     setFase("carregando");
-    carregarLista({ tipo: "ok", texto: "Anúncio salvo." });
+    iniciar({ tipo: "ok", texto: "Anúncio salvo." });
   }
 
   function tentarDeNovo() {
@@ -243,6 +245,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
         aoSalvar={aoSalvar}
         aoFechar={aoFechar}
         aoClonar={abrirClone}
+        aoNovo={abrirNovo}
       />
     );
   }
