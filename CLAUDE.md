@@ -4549,6 +4549,8 @@ Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com *
     o campo é o preço do fornecedor e o link "Custo adicional" abre a janela (código do Rise com quantidade, ou valor fixo;
     Fornecedor + adicionais = total; OK/Cancelar). Só grava no Salvar do produto. Ação `custoParaAdicional` (código exato).
   - Testes no `teste:coleta` ("adicional...": regras, recálculo, cadeia de três produtos e a varredura).
+  - **No ar na VPS desde 24/10/2026** (versão 24.10.2026.27, commit `71606d4`): a migration deu aos 23 vínculos o
+    `precoFornecedor` igual ao custo de antes. A tela com login não foi vista depois do deploy (o login é do dono).
 - **Coluna "Estoque fornecedor" = a regra da coluna Estoque dos concorrentes** (pedido do dono em 24/10/2026):
   `situacaoDeEstoque` (`estoqueDoConcorrente.js`), "Em estoque" com a quantidade, "Sem estoque" (zero vale mesmo com a loja
   dizendo disponível), "Fora da coleta" e "Não informado". O "—" aparece enquanto a leitura não volta (no `next dev` as ações
