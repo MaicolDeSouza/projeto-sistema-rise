@@ -6,6 +6,7 @@ import { idsDaBuscaDeProdutos, ondeAchouNoProduto, palavrasDaBusca, textoDoSelo 
 import { CANAIS, separarCanais } from "@/lib/canais";
 import { urlDe } from "@/lib/arquivos";
 import { estadoDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
+import { mudancasDosAnunciosML } from "@/lib/canaisDeVenda/ml/banco";
 import { INCLUDE_DO_ICONE_BLING, iconeBlingDoProduto } from "@/lib/blingSync/estado";
 import { documentosDoProduto } from "@/lib/canaisDeVenda/li/banco";
 import { iconeLIDoProduto } from "@/lib/canaisDeVenda/li/estado";
@@ -139,6 +140,7 @@ export default async function ProdutosPage({ searchParams }) {
         },
         anuncios: {
           select: {
+            id: true,
             canal: true,
             status: true,
             situacaoCanal: true,
@@ -204,6 +206,15 @@ export default async function ProdutosPage({ searchParams }) {
     console.error("[produtos] propostas prontas", excecao);
   }
 
+  // O "!" do ML quando um anuncio publicado ficou para tras do produto (spec 2026-10-24). So banco. Falha aqui nao
+  // derruba a lista: o icone fica sem esse "!".
+  let mudancasML = new Map();
+  try {
+    mudancasML = await mudancasDosAnunciosML((produtos ?? []).flatMap((produto) => produto.anuncios));
+  } catch (excecao) {
+    console.error("[ml] anuncio publicado x produto", excecao);
+  }
+
   // Icone da Loja Integrada: os documentos entram na assinatura so quando ha endereco publico (sem
   // ele, documentosDoProduto devolve [] sem consultar). Falha aqui nao derruba a lista: o icone fica
   // sem selo.
@@ -251,7 +262,7 @@ export default async function ProdutosPage({ searchParams }) {
     ...separarCanais(produto.anuncios),
     // O icone do ML mostra o anuncio (publicado e ativo, ou pendente), nao so o idExterno.
     iconeML: {
-      ...estadoDoIconeML(produto.anuncios),
+      ...estadoDoIconeML(produto.anuncios.map((anuncio) => ({ ...anuncio, mudancas: mudancasML.get(anuncio.id) }))),
       // O "P" da proposta de anuncio do ML (spec 2026-10-23): so o booleano vai a lista.
       proposta: produto.anuncios.some((anuncio) => anuncio.canal === "MERCADO_LIVRE" && Boolean(anuncio.dados?.proposta)),
     },

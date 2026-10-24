@@ -15,15 +15,35 @@ const ehDoML = (anuncio) => anuncio?.canal === "MERCADO_LIVRE";
 const SITUACOES_PUBLICADAS = new Set(["ATIVA", "PAUSADA"]);
 const estaPublicado = (anuncio) => anuncio.status === "PUBLICADO" && SITUACOES_PUBLICADAS.has(anuncio.situacaoCanal);
 
-/** @param {{canal: string, status: string, situacaoCanal?: string}[]} anuncios os anuncios do produto, de todos os canais */
+// A mesma ordem de `PARTES` (acompanhar.js); copiada porque este arquivo nao tem imports (a lista e cliente).
+const ORDEM_DAS_PARTES = ["descricao", "fotos", "pacote"];
+const NOME_DA_PARTE = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas" };
+
+/**
+ * `anuncio.mudancas` (`{ partes, naoConferido }`) e posto pelo servidor (`mudancasDosAnunciosML`): anuncio publicado que
+ * ficou para tras do produto (spec 2026-10-24) tambem poe o "!", com `desatualizado`.
+ * @param {{canal: string, status: string, situacaoCanal?: string, mudancas?: {partes: string[], naoConferido: boolean}}[]} anuncios
+ *   os anuncios do produto, de todos os canais
+ */
 export function estadoDoIconeML(anuncios) {
   const doML = (Array.isArray(anuncios) ? anuncios : []).filter(ehDoML);
+  const paraTras = doML.filter((anuncio) => estaPublicado(anuncio) && (anuncio.mudancas?.partes?.length ?? 0) > 0);
+  const partes = new Set(paraTras.flatMap((anuncio) => anuncio.mudancas.partes));
   return {
     publicado: doML.some(estaPublicado),
     pausado: doML.some((anuncio) => estaPublicado(anuncio) && anuncio.situacaoCanal === "PAUSADA") && !doML.some((anuncio) => estaPublicado(anuncio) && anuncio.situacaoCanal === "ATIVA"),
     erro: doML.some((anuncio) => anuncio.status === "ERRO" || anuncio.status === "PUBLICANDO"),
     rascunho: doML.some((anuncio) => anuncio.status === "RASCUNHO" || anuncio.status === "VALIDADO"),
+    desatualizado: paraTras.length > 0,
+    naoConferido: paraTras.some((anuncio) => anuncio.mudancas.naoConferido),
+    partesDesatualizadas: ORDEM_DAS_PARTES.filter((parte) => partes.has(parte)),
   };
+}
+
+// "descrição", "descrição e fotos", "descrição, fotos e peso e medidas"
+function listaDePartes(partes) {
+  const nomes = partes.map((parte) => NOME_DA_PARTE[parte] ?? parte);
+  return nomes.length > 1 ? `${nomes.slice(0, -1).join(", ")} e ${nomes.at(-1)}` : (nomes[0] ?? "");
 }
 
 /**
@@ -31,10 +51,17 @@ export function estadoDoIconeML(anuncios) {
  * de tela nem a quem so passa o mouse.
  * @param {{publicado: boolean, pausado?: boolean, erro: boolean, rascunho?: boolean}} estado o retorno de `estadoDoIconeML`
  */
-export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false }) {
+export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [] }) {
   const base = "Anúncio no Mercado Livre";
   const partes = [];
   if (publicado) partes.push(pausado ? "publicado, pausado (sem estoque)" : "publicado");
+  if (desatualizado) {
+    partes.push(
+      naoConferido
+        ? "ainda não conferido com o produto"
+        : `desatualizado: ${listaDePartes(partesDesatualizadas)} ${partesDesatualizadas.length > 1 ? "mudaram" : "mudou"} no produto`,
+    );
+  }
   if (erro) partes.push("com erro na publicação");
   if (!publicado && !erro && rascunho) partes.push("rascunho, ainda não publicado");
   return partes.length ? `${base}: ${partes.join(", ")}` : `${base}: sem anúncio`;

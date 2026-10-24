@@ -2,7 +2,9 @@ import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { codigoDaComposicao, errosDaComposicao, proximoCodigoDaFaixa } from "../composicao";
 import { custoDoProduto } from "../custo";
+import { conteudoAtualDoAnuncio, mudancasDoAnuncio } from "./acompanhar";
 import { avisosDeVariosProdutos } from "./concorrentes";
+import { impressaoDoConteudo } from "./impressao";
 import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
 import { RascunhoMLSchema } from "./esquema";
@@ -127,6 +129,30 @@ function rascunhoDoAnuncio(anuncio) {
     envio: { pesoKg: null, alturaCm: null, larguraCm: null, comprimentoCm: null, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false, ...dados.envio },
     composicao: dados.composicao ?? null,
   };
+}
+
+const SITUACOES_PUBLICADAS = new Set(["ATIVA", "PAUSADA"]);
+
+/**
+ * O que mudou no produto desde o ultimo envio, por anuncio PUBLICADO (ativo ou pausado) do ML: `Map<anuncioId,
+ * { partes, naoConferido }>` (spec 2026-10-24). So banco: uma leitura de contexto para todos os produtos (principal e
+ * pecas do kit), para a lista de Produtos nao chamar o ML. `anuncios` precisa de `id`, `canal`, `status`,
+ * `situacaoCanal`, `produtoId` e `dados`.
+ */
+export async function mudancasDosAnunciosML(anuncios) {
+  const publicados = (Array.isArray(anuncios) ? anuncios : []).filter(
+    (anuncio) => anuncio?.canal === CANAL && anuncio.status === "PUBLICADO" && SITUACOES_PUBLICADAS.has(anuncio.situacaoCanal),
+  );
+  const resultado = new Map();
+  if (publicados.length === 0) return resultado;
+  const rascunhos = publicados.map((anuncio) => [anuncio, rascunhoDoAnuncio(anuncio)]);
+  const ids = rascunhos.flatMap(([, rascunho]) => [rascunho.produtoId, ...(rascunho.composicao?.itens ?? []).map((item) => item.produtoId)]);
+  const produtos = await contextoDosProdutos(ids);
+  for (const [anuncio, rascunho] of rascunhos) {
+    const atual = impressaoDoConteudo(conteudoAtualDoAnuncio(rascunho, produtos));
+    resultado.set(anuncio.id, mudancasDoAnuncio(anuncio.dados?.publicacao?.enviado ?? null, atual));
+  }
+  return resultado;
 }
 
 /**

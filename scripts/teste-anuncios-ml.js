@@ -419,16 +419,16 @@ try {
 
     // Regra do dono em 24/10/2026: verde = publicado (ativo ou pausado sem estoque); "!" = so erro ou publicacao parada.
     const ml = (status, situacaoCanal) => ({ canal: "MERCADO_LIVRE", status, situacaoCanal });
-    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false });
-    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false });
-    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false });
-    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true });
+    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [] });
+    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [] });
+    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [] });
+    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true, desatualizado: false, naoConferido: false, partesDesatualizadas: [] });
     for (const status of ["ERRO", "PUBLICANDO"]) {
       conferir(`icone: ${status} poe o selo`, estadoDoIconeML([ml(status, "PAUSADA")]).erro, true);
     }
     conferir("icone: encerrado nao e verde", estadoDoIconeML([ml("PUBLICADO", "ENCERRADA")]).publicado, false);
     conferir("icone: ativo e pausado juntos nao dizem pausado", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("PUBLICADO", "PAUSADA")]).pausado, false);
-    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false });
+    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [] });
     conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "ERRO" }, { canal: "LOJA_INTEGRADA", status: "PUBLICADO", situacaoCanal: "ATIVA" }]).publicado, false);
     conferir("icone: lista invalida", estadoDoIconeML(undefined).erro, false);
     conferir("rotulo do icone: sem anuncio", rotuloDoIconeML({ publicado: false, erro: false }), "Anúncio no Mercado Livre: sem anúncio");
@@ -2453,6 +2453,51 @@ try {
     conferir("impressao: md5 de 32 hex, estavel, muda com 1 caractere", [/^[0-9a-f]{32}$/.test(impressa.descricao), impressaoDoConteudo(atual).descricao === impressa.descricao, outra.descricao !== impressa.descricao], [true, true, true]);
     conferir("impressao: fotos e pacote como vieram", [impressa.fotos, impressa.pacote], [atual.fotos, atual.pacote]);
     conferir("impressao de descricao null fica null", impressaoDoConteudo({ descricao: null, fotos: null, pacote: null }).descricao, null);
+  }
+
+  {
+    console.log("\nAnuncio publicado acompanha o produto (icone e lista)");
+    await limpar();
+    const { conteudoAtualDoAnuncio } = await import("../src/lib/canaisDeVenda/ml/acompanhar.js");
+    const { impressaoDoConteudo } = await import("../src/lib/canaisDeVenda/ml/impressao.js");
+    const { mudancasDosAnunciosML } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+
+    const publicadoCom = (situacaoCanal, mudancas) => ({ canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal, mudancas });
+    conferir("icone: publicado ATIVA com descricao mudada = desatualizado", estadoDoIconeML([publicadoCom("ATIVA", { partes: ["descricao"], naoConferido: false })]).desatualizado, true);
+    conferir("icone: PAUSADA tambem", estadoDoIconeML([publicadoCom("PAUSADA", { partes: ["fotos"], naoConferido: false })]).desatualizado, true);
+    conferir("icone: ENCERRADA nao acende", estadoDoIconeML([{ ...publicadoCom("ENCERRADA", { partes: ["descricao"], naoConferido: false }) }]).desatualizado, false);
+    conferir("icone: rascunho nao acende", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "RASCUNHO", situacaoCanal: "DESCONHECIDA", mudancas: { partes: ["descricao"], naoConferido: true } }]).desatualizado, false);
+    conferir("icone: sem impressao (nao conferido) acende", estadoDoIconeML([publicadoCom("ATIVA", { partes: ["descricao"], naoConferido: true })]).desatualizado, true);
+    conferir("icone: sem mudancas nao acende", estadoDoIconeML([publicadoCom("ATIVA", { partes: [], naoConferido: false })]).desatualizado, false);
+    conferir(
+      "icone: partes juntadas de dois anuncios",
+      estadoDoIconeML([publicadoCom("ATIVA", { partes: ["descricao"], naoConferido: false }), publicadoCom("ATIVA", { partes: ["fotos", "descricao"], naoConferido: false })]).partesDesatualizadas,
+      ["descricao", "fotos"],
+    );
+    conferir("rotulo: desatualizado com a parte", rotuloDoIconeML({ publicado: true, erro: false, desatualizado: true, partesDesatualizadas: ["descricao"] }), "Anúncio no Mercado Livre: publicado, desatualizado: descrição mudou no produto");
+    conferir("rotulo: varias partes", rotuloDoIconeML({ publicado: true, erro: false, desatualizado: true, partesDesatualizadas: ["descricao", "fotos", "pacote"] }), "Anúncio no Mercado Livre: publicado, desatualizado: descrição, fotos e peso e medidas mudaram no produto");
+    conferir("rotulo: nao conferido", rotuloDoIconeML({ publicado: true, erro: false, desatualizado: true, naoConferido: true, partesDesatualizadas: ["descricao"] }), "Anúncio no Mercado Livre: publicado, ainda não conferido com o produto");
+
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-AC3", tituloBase: "PLACA AC3", descricaoBase: "Texto um.", pesoKg: 0.035, alturaCm: 1.5, larguraCm: 6, comprimentoCm: 10 } });
+    await prisma.produtoArquivo.create({ data: { produtoId: produto.id, tipo: "IMAGEM", arquivo: `${"d".repeat(32)}.jpg`, ordem: 0, principal: true } });
+    const ctx = await contextoDosProdutos([produto.id]);
+    const enviado = { ...impressaoDoConteudo(conteudoAtualDoAnuncio({ produtoId: produto.id, composicao: null }, ctx)), em: new Date().toISOString() };
+    const anuncio = await prisma.anuncio.create({
+      data: { produtoId: produto.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB900001", dados: { publicacao: { itemId: "MLB900001", enviado } } },
+    });
+    const ler = async () => {
+      const anuncios = await prisma.anuncio.findMany({ where: { produtoId: produto.id }, select: { id: true, canal: true, status: true, situacaoCanal: true, produtoId: true, dados: true } });
+      return (await mudancasDosAnunciosML(anuncios)).get(anuncio.id);
+    };
+    conferir("lista: igual ao enviado, sem partes", await ler(), { partes: [], naoConferido: false });
+    await prisma.produto.update({ where: { id: produto.id }, data: { descricaoBase: "Texto dois." } });
+    conferir("lista: descricao mudou no produto", (await ler()).partes, ["descricao"]);
+    await prisma.produto.update({ where: { id: produto.id }, data: { descricaoBase: "Texto um." } });
+    conferir("lista: desfazer apaga", (await ler()).partes, []);
+    await prisma.anuncio.update({ where: { id: anuncio.id }, data: { dados: { publicacao: { itemId: "MLB900001" } } } });
+    conferir("lista: sem impressao = nao conferido", await ler(), { partes: ["descricao", "fotos", "pacote"], naoConferido: true });
+    await prisma.anuncio.update({ where: { id: anuncio.id }, data: { situacaoCanal: "ENCERRADA" } });
+    conferir("lista: encerrado fica de fora", await ler(), undefined);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

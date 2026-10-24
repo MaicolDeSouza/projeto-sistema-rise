@@ -53,7 +53,13 @@ export function conteudoAtualDoAnuncio(rascunho, produtosPorId) {
   };
 }
 
-const iguais = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+// O JSONB do Postgres reordena as chaves de um objeto: o pacote gravado volta {alturaCm, pesoG, ...} em outra ordem, e
+// um JSON.stringify comum o daria por diferente. Chaves em ordem fixa; a ordem dos ITENS (fotos) continua valendo.
+const comChavesEmOrdem = (valor) =>
+  valor && typeof valor === "object" && !Array.isArray(valor)
+    ? Object.fromEntries(Object.keys(valor).sort().map((chave) => [chave, comChavesEmOrdem(valor[chave])]))
+    : valor;
+const iguais = (a, b) => JSON.stringify(comChavesEmOrdem(a ?? null)) === JSON.stringify(comChavesEmOrdem(b ?? null));
 
 // Parte que o produto nao tem como mandar (descricao ou pacote nulos, kit, ou nenhuma foto validada) nunca entra:
 // o envio nunca manda `pictures: []`, e o "!" nao pode acender dizendo que o anuncio "mudou" para nada.
