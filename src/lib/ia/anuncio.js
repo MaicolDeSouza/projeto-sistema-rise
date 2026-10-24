@@ -585,6 +585,9 @@ export const FORMATO_DESCRICAO = {
             campo: { type: ["string", "null"] },
             ids: { type: "array", items: { type: "string" } },
             valor: { type: ["string", "null"] },
+            // O dado nao esta nas listas de campos do prompt (pedido do dono em 24/10/2026: "Espaçamento dos Pinos"
+            // entrou sem o prompt pedir): o Rise tira o quadro da descricao.
+            foraDoPrompt: { type: "boolean" },
             iguais: {
               type: "array",
               items: {
@@ -598,7 +601,7 @@ export const FORMATO_DESCRICAO = {
               },
             },
           },
-          required: ["id", "opcao", "motivo", "campo", "ids", "valor", "iguais"],
+          required: ["id", "opcao", "motivo", "campo", "ids", "valor", "foraDoPrompt", "iguais"],
           additionalProperties: false,
         },
       },
@@ -993,8 +996,9 @@ export const INSTRUCAO_DE_DECISOES =
   "Em decisoes, dê a cada divergência acima o NOME PADRONIZADO do prompt em campo. Divergências que são o mesmo " +
   "campo (rótulos diferentes das lojas para o mesmo dado) recebem o mesmo nome, com todas as suas ids em ids e UMA " +
   "escolha (id e opcao). Em iguais, junte as opções que são o mesmo valor escrito de outro jeito: cada grupo é uma " +
-  "lista de {id, opcao}. Em valor, escreva a opção escolhida no padrão do prompt. Se o prompt não tiver nome " +
-  "padronizado para o dado, use o rótulo da loja e deixe iguais vazio.";
+  "lista de {id, opcao}. Em valor, escreva a opção escolhida no padrão do prompt. Se o prompt NÃO pede esse dado " +
+  "(fora das listas de campos dele), devolva foraDoPrompt true: o quadro sai da descrição. Se pede o dado mas não " +
+  "tem nome padronizado, use o rótulo da loja, foraDoPrompt false e iguais vazio.";
 
 // So os dados do produto: o prompt (padrao ou editado) vai no `system`, com cache (ver `blocosDoSistema`).
 export function montarPedidoDaDescricao({ titulo = "", referencias, listaDeMedidas = [], divergencias = [], semReferencias = false }) {

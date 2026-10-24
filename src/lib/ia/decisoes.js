@@ -29,9 +29,17 @@ export function fundirDivergencias(divergencias, decisoes) {
   const grupoDoId = new Map();
   const grupos = [];
 
+  // Quadros cujo dado o prompt nao pede (`foraDoPrompt`, pedido do dono em 24/10/2026): saem da descricao. Dimensoes e
+  // peso nunca saem (o codigo escreve as duas linhas).
+  const foraDoPrompt = new Set();
+  for (const decisao of lista(decisoes)) {
+    if (decisao?.foraDoPrompt !== true) continue;
+    for (const id of [decisao.id, ...lista(decisao.ids)]) if (porId.has(id) && !IDS_FIXOS.has(id)) foraDoPrompt.add(id);
+  }
+
   for (const decisao of lista(decisoes)) {
     const principal = porId.get(decisao?.id);
-    if (!principal || grupoDoId.has(principal.id)) continue; // desconhecida, ou ja reivindicada pela primeira decisao
+    if (!principal || grupoDoId.has(principal.id) || foraDoPrompt.has(principal.id)) continue; // desconhecida, ja reivindicada ou fora do prompt
     const campo = texto(decisao.campo);
     const podeRenomear = campo && !IDS_FIXOS.has(principal.id);
     const ids = podeRenomear
@@ -47,6 +55,7 @@ export function fundirDivergencias(divergencias, decisoes) {
   const resolvidas = [];
   const emitidos = new Set();
   for (const item of lista(divergencias)) {
+    if (foraDoPrompt.has(item.id)) continue;
     const grupo = grupoDoId.get(item.id);
     if (!grupo) {
       // Sem decisao: o quadro fica como esta, com a recomendacao de hoje.

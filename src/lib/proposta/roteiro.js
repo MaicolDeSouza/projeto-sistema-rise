@@ -7,7 +7,7 @@
  *
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
-export const VERSAO_DO_ROTEIRO = "5";
+export const VERSAO_DO_ROTEIRO = "6";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -49,6 +49,8 @@ REGRAS QUE VALEM SEMPRE
   "- Garantia Legal de 90 dias (contra defeitos de fabricação);". Quebra de linha \\r\\n.
 - Campo que o prompt pede e nenhuma loja informa: pesquise (datasheet do fabricante primeiro, depois lojas e fóruns).
   Só preencha com fonte; senão retire o campo da descrição (nada de "?").
+- Só entram nas especificações os campos que o prompt lista. Campo que uma loja publica e o prompt não pede fica
+  de fora, mesmo com fonte (ex.: Espaçamento dos Pinos, Regulador de Tensão).
 - Divergência entre lojas: decida e registre (campo, opções com as lojas, a escolhida e o porquê).
 - Texto de propaganda não entra nas especificações.
 conteudo: { "texto", "prompt", "divergencias": [{ "campo", "opcoes": [{ "valor", "lojas": [] }], "escolhida", "motivo" }],

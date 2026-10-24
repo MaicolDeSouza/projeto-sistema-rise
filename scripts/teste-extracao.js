@@ -1936,6 +1936,10 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
     conferir("fusao: quadro em que tudo e igual vira linha resolvida, com lojas e numeros", fundido.resolvidas,
       [{ campo: "Entradas Analógicas", valor: "6 (A0-A5)", linha: "- Entradas Analógicas: 6 (A0-A5);",
         fontes: [ref(6, "Easytronics"), ref(7, "Mamute"), ref(10, "4hobby")], referencias: [6, 7, 10] }]);
+    conferir("fusao: dado fora do prompt (foraDoPrompt) sai da descricao",
+      fundirDivergencias(divs, [{ id: "spec:entradasanalogicas", opcao: 0, motivo: "", campo: null, ids: [], valor: null, foraDoPrompt: true, iguais: [] }])
+        .quadros.map((q) => q.id),
+      ["spec:tensaodeentradarecomendada", "spec:tensaodeentrada"]);
     conferir("fusao: decisao no formato antigo deixa o quadro como esta",
       fundirDivergencias(divs.slice(0, 1), [{ id: "spec:tensaodeentradarecomendada", opcao: 0, motivo: "m" }])
         .quadros.map((q) => [q.campo, q.recomendada, q.opcoes[0].linha]),
@@ -2225,9 +2229,9 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   conferir("divergencias no pedido: a instrucao das decisoes vai junto, e so com divergencia",
     [comDiv.includes(INSTRUCAO_DE_DECISOES), montarPedidoDaDescricao({ ...dados, instrucoes: "P" }).includes(INSTRUCAO_DE_DECISOES)], [true, false]);
   const itemDecisao = FORMATO_DESCRICAO.schema.properties.decisoes.items;
-  conferir("esquema das decisoes: campo, ids, valor e iguais, todos obrigatorios",
+  conferir("esquema das decisoes: campo, ids, valor, foraDoPrompt e iguais, todos obrigatorios",
     [Object.keys(itemDecisao.properties).sort(), itemDecisao.required.slice().sort()],
-    [["campo", "id", "ids", "iguais", "motivo", "opcao", "valor"], ["campo", "id", "ids", "iguais", "motivo", "opcao", "valor"]]);
+    [["campo", "foraDoPrompt", "id", "ids", "iguais", "motivo", "opcao", "valor"], ["campo", "foraDoPrompt", "id", "ids", "iguais", "motivo", "opcao", "valor"]]);
   conferir("o prompt padrao do codigo pede o campo padronizado nas decisoes", /campo.*padronizad/i.test(PROMPT_DESCRICAO_PADRAO), true);
 }
 
