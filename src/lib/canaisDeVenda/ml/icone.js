@@ -17,7 +17,7 @@ const estaPublicado = (anuncio) => anuncio.status === "PUBLICADO" && SITUACOES_P
 
 // A mesma ordem de `PARTES` (acompanhar.js); copiada porque este arquivo nao tem imports (a lista e cliente).
 const ORDEM_DAS_PARTES = ["descricao", "fotos", "pacote"];
-const NOME_DA_PARTE = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas" };
+const NOME_DA_PARTE = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica" };
 
 /**
  * `anuncio.mudancas` (`{ partes, naoConferido }`) e posto pelo servidor (`mudancasDosAnunciosML`): anuncio publicado que
@@ -51,6 +51,18 @@ function listaDePartes(partes) {
  * de tela nem a quem so passa o mouse.
  * @param {{publicado: boolean, pausado?: boolean, erro: boolean, rascunho?: boolean}} estado o retorno de `estadoDoIconeML`
  */
+// "descricao mudou no produto; preco e ficha tecnica alterados, falta enviar ao ML": as partes do produto mudam no cadastro,
+// as do anuncio (preco e ficha, 24/10/2026) foram editadas nele e so falta mandar.
+function textoDoDesatualizado(partes) {
+  const doAnuncio = new Set(["preco", "ficha"]);
+  const doProduto = (partes ?? []).filter((parte) => !doAnuncio.has(parte));
+  const noAnuncio = (partes ?? []).filter((parte) => doAnuncio.has(parte));
+  const trechos = [];
+  if (doProduto.length) trechos.push(`${listaDePartes(doProduto)} ${doProduto.length > 1 ? "mudaram" : "mudou"} no produto`);
+  if (noAnuncio.length) trechos.push(`${listaDePartes(noAnuncio)} ${noAnuncio.length > 1 ? "alterados" : "alterado"}, falta enviar ao ML`);
+  return `desatualizado: ${trechos.join("; ")}`;
+}
+
 export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [] }) {
   const base = "Anúncio no Mercado Livre";
   const partes = [];
@@ -59,7 +71,7 @@ export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = f
     partes.push(
       naoConferido
         ? "ainda não conferido com o produto"
-        : `desatualizado: ${listaDePartes(partesDesatualizadas)} ${partesDesatualizadas.length > 1 ? "mudaram" : "mudou"} no produto`,
+        : textoDoDesatualizado(partesDesatualizadas),
     );
   }
   if (erro) partes.push("com erro na publicação");

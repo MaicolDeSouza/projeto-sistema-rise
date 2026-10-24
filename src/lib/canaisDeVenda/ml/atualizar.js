@@ -7,8 +7,9 @@ import { emAndamento, lerFotoDoDisco, tipoDaFoto } from "./publicar";
 import { textoDaRecusaML } from "./respostas";
 
 /**
- * "Enviar mudancas ao ML" (spec 2026-10-24): leva ao anuncio JA PUBLICADO o que mudou no produto desde o ultimo envio,
- * so a descricao, as fotos e o peso e as medidas. No molde do Publicar: recebe o cliente do ML por parametro, uma volta
+ * "Enviar mudancas ao ML" (spec 2026-10-24): leva ao anuncio JA PUBLICADO o que mudou desde o ultimo envio: do produto,
+ * a descricao, as fotos e o peso e as medidas; do proprio anuncio (editados nele depois de publicado, 24/10/2026), o preco
+ * e a ficha tecnica. No molde do Publicar: recebe o cliente do ML por parametro, uma volta
  * so, nenhuma escrita repete sozinha, e cada parte que deu certo e gravada na impressao na hora (uma falha no meio
  * deixa o "!" so no que faltou). Para na primeira parte que falha.
  *
@@ -124,6 +125,26 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto }) {
         return falhar(parte, `Falha ao enviar o peso e as medidas: ${textoDe(erro)}`);
       }
       if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "o peso e as medidas"));
+    } else if (parte === "preco") {
+      // Num PUT so dele. Medido no 100107 em 24/10/2026 (MLB7881142312, conta sem automatizacao de precos): 200 e o
+      // preco mudou. A documentacao diz que, desde 18/03/2026, o PUT so com o preco e recusado (400) para quem usa a
+      // automatizacao, e que o preco junto com outros campos e IGNORADO: por isso ele nunca vai com a ficha.
+      let resposta;
+      try {
+        resposta = await ml.put(`/items/${itemId}`, { price: conteudo.preco });
+      } catch (erro) {
+        return falhar(parte, `Falha ao enviar o preço: ${textoDe(erro)}`);
+      }
+      if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "o preço"));
+    } else if (parte === "ficha") {
+      // So os atributos que tem valor: tirar um atributo no Rise nao o apaga no ML (nao medido como apagar).
+      let resposta;
+      try {
+        resposta = await ml.put(`/items/${itemId}`, { attributes: conteudo.ficha });
+      } catch (erro) {
+        return falhar(parte, `Falha ao enviar a ficha técnica: ${textoDe(erro)}`);
+      }
+      if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "a ficha técnica"));
     }
     await gravarParte(parte);
   }

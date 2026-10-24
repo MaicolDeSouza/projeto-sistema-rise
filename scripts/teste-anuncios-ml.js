@@ -1689,6 +1689,54 @@ try {
     }
 
     {
+      console.log("\nAnuncio publicado: preco e ficha editaveis (Salvar e Enviar mudancas ao ML)");
+      await limpar();
+      const { publicarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+      const { enviarMudancasML } = await import("../src/lib/canaisDeVenda/ml/atualizar.js");
+      const { mudancasDosAnunciosML, salvarPublicadoML } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+      const c = await cenarioDePublicacao();
+      const lerFoto = async () => Buffer.from("jpg");
+      const mudancasDe = async (id) => {
+        const anuncio = await prisma.anuncio.findUnique({ where: { id }, select: { id: true, canal: true, status: true, situacaoCanal: true, produtoId: true, dados: true } });
+        return (await mudancasDosAnunciosML([anuncio])).get(id);
+      };
+      const ml = criarMLFalso();
+      const id = await c.anuncioSimples(c.s1);
+      const { itemId } = await publicarAnuncioML(id, { ml, bling: c.novoBling(), lerFoto });
+      const enviadoNoPublicar = (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados.publicacao.enviado;
+      conferir("publicar: a impressao ja leva preco e ficha", [enviadoNoPublicar.preco, enviadoNoPublicar.ficha.map((a) => a.id)], [49.9, ["BRAND", "EMPTY_GTIN_REASON", "MODEL"]]);
+
+      conferir("salvar publicado: recusa rascunho", (await salvarPublicadoML(await c.anuncioSimples(c.s1), { preco: 50, atributos: {} })).ok, false);
+      conferir("salvar publicado: recusa preco invalido", [(await salvarPublicadoML(id, { preco: 0, atributos: {} })).ok, (await salvarPublicadoML(id, { preco: "abc", atributos: {} })).ok], [false, false]);
+
+      const antes = (await carregarAnuncioML(id)).rascunho;
+      const r1 = await salvarPublicadoML(id, { preco: 45.5, atributos: { ...antes.atributos, BRAND: "OUTRA" }, titulo: "TITULO NOVO IGNORADO" });
+      const depois = (await carregarAnuncioML(id)).rascunho;
+      conferir("salvar publicado: grava so preco e ficha", [r1.ok, depois.preco, depois.atributos.BRAND, depois.titulo], [true, 45.5, "OUTRA", antes.titulo]);
+      conferir("salvar publicado: o '!' acende com preco e ficha", (await mudancasDe(id)).partes, ["preco", "ficha"]);
+
+      const desde = ml.escritas.length;
+      const r2 = await enviarMudancasML(id, { ml, lerFoto });
+      const novas = ml.escritas.slice(desde).map((e) => [`${e.metodo} ${e.caminho.replace(itemId, "MLB")}`, Object.keys(e.corpo ?? {}).join(",")]);
+      conferir("enviar: preco num PUT so dele, ficha em outro", [r2.ok, r2.enviadas, novas], [true, ["preco", "ficha"], [["PUT /items/MLB", "price"], ["PUT /items/MLB", "attributes"]]]);
+      conferir("enviar: o ML ficou com o preco e a marca novos", [ml.itens.get(itemId).price, ml.itens.get(itemId).attributes.find((a) => a.id === "BRAND")?.value_name], [45.5, "OUTRA"]);
+      conferir("enviar: depois, nada mudou", await mudancasDe(id), { partes: [], naoConferido: false });
+
+      // Voltar ao valor de antes tambem e mudanca (o ML esta com 45,50).
+      await salvarPublicadoML(id, { preco: 49.9, atributos: depois.atributos });
+      conferir("salvar publicado: voltar ao preco antigo acende de novo", (await mudancasDe(id)).partes, ["preco"]);
+
+      // Anuncio publicado antes de 24/10/2026 (impressao sem preco e ficha): o primeiro Salvar grava a base de antes.
+      const dados = (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados;
+      const { preco: _preco, ficha: _ficha, ...semPrecoNemFicha } = dados.publicacao.enviado;
+      await prisma.anuncio.update({ where: { id }, data: { dados: { ...dados, preco: 49.9, publicacao: { ...dados.publicacao, enviado: semPrecoNemFicha } } } });
+      conferir("impressao antiga: sem '!' de preco", (await mudancasDe(id)).partes, []);
+      await salvarPublicadoML(id, { preco: 52, atributos: depois.atributos });
+      const base = (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados.publicacao.enviado;
+      conferir("impressao antiga: o Salvar grava o preco de antes como base e o '!' acende", [base.preco, (await mudancasDe(id)).partes], [49.9, ["preco"]]);
+    }
+
+    {
       console.log("\nFase 3: publicar e retomar");
       await limpar();
       const { publicarAnuncioML, validarNoML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
@@ -2570,6 +2618,14 @@ try {
     conferir("pacote null no atual: nao entra", mudancasDoAnuncio(base, { ...base, pacote: null }).partes, []);
     conferir("kit (fotos e pacote null): so a descricao conta", mudancasDoAnuncio(base, { descricao: base.descricao, fotos: null, pacote: null }), nada);
 
+    // Preco e ficha (pedido do dono em 24/10/2026): editados no anuncio publicado, contam quando a impressao os tem.
+    const comAnuncio = { ...base, preco: 38.9, ficha: [{ id: "BRAND", value_name: "GENERICA" }] };
+    conferir("preco diferente", mudancasDoAnuncio(comAnuncio, { ...comAnuncio, preco: 42 }).partes, ["preco"]);
+    conferir("ficha diferente", mudancasDoAnuncio(comAnuncio, { ...comAnuncio, ficha: [{ id: "BRAND", value_name: "OUTRA" }] }).partes, ["ficha"]);
+    conferir("impressao antiga (sem preco nem ficha): nao acende por eles", mudancasDoAnuncio(base, { ...comAnuncio, preco: 99 }), nada);
+    conferir("sem impressao: preco e ficha nao entram no nao conferido", mudancasDoAnuncio(null, { ...comAnuncio, pacote: null }).partes, ["descricao", "fotos"]);
+    conferir("so a base do preco gravada (sem 'em'): conta o preco e o resto fica nao conferido", mudancasDoAnuncio({ preco: 38.9 }, { ...comAnuncio, preco: 40 }), { partes: ["descricao", "fotos", "pacote", "preco"], naoConferido: true });
+
     const produtos = {
       p1: {
         id: "p1", sku: "ZZ-ML-AC1", tituloBase: "PLACA", descricaoBase: "Texto da placa.", estoque: 3,
@@ -2596,6 +2652,11 @@ try {
     conferir("impressao: md5 de 32 hex, estavel, muda com 1 caractere", [/^[0-9a-f]{32}$/.test(impressa.descricao), impressaoDoConteudo(atual).descricao === impressa.descricao, outra.descricao !== impressa.descricao], [true, true, true]);
     conferir("impressao: fotos e pacote como vieram", [impressa.fotos, impressa.pacote], [atual.fotos, atual.pacote]);
     conferir("impressao de descricao null fica null", impressaoDoConteudo({ descricao: null, fotos: null, pacote: null }).descricao, null);
+
+    const comFicha = conteudoAtualDoAnuncio({ ...simples, preco: 38.9, atributos: { MODEL: "uno r3", BRAND: "genérica", SELLER_PACKAGE_WEIGHT: "35 g", SELLER_SKU: "x", COLOR: "" } }, produtos);
+    conferir("conteudo: preco e ficha (sem pacote, SKU e vazios; em ordem de id; marca em maiusculas)", [comFicha.preco, comFicha.ficha], [38.9, [{ id: "BRAND", value_name: "GENÉRICA" }, { id: "MODEL", value_name: "UNO R3" }]]);
+    conferir("conteudo: preco vazio ou zero = null", [conteudoAtualDoAnuncio({ ...simples, preco: null }, produtos).preco, conteudoAtualDoAnuncio({ ...simples, preco: 0 }, produtos).preco], [null, null]);
+    conferir("impressao: preco e ficha como vieram", [impressaoDoConteudo(comFicha).preco, impressaoDoConteudo(comFicha).ficha], [38.9, comFicha.ficha]);
   }
 
   {
@@ -2619,6 +2680,12 @@ try {
     );
     conferir("rotulo: desatualizado com a parte", rotuloDoIconeML({ publicado: true, erro: false, desatualizado: true, partesDesatualizadas: ["descricao"] }), "Anúncio no Mercado Livre: publicado, desatualizado: descrição mudou no produto");
     conferir("rotulo: varias partes", rotuloDoIconeML({ publicado: true, erro: false, desatualizado: true, partesDesatualizadas: ["descricao", "fotos", "pacote"] }), "Anúncio no Mercado Livre: publicado, desatualizado: descrição, fotos e peso e medidas mudaram no produto");
+    conferir("rotulo: so o preco do anuncio", rotuloDoIconeML({ publicado: true, erro: false, desatualizado: true, partesDesatualizadas: ["preco"] }), "Anúncio no Mercado Livre: publicado, desatualizado: preço alterado, falta enviar ao ML");
+    conferir(
+      "rotulo: produto e anuncio juntos",
+      rotuloDoIconeML({ publicado: true, erro: false, desatualizado: true, partesDesatualizadas: ["descricao", "preco", "ficha"] }),
+      "Anúncio no Mercado Livre: publicado, desatualizado: descrição mudou no produto; preço e ficha técnica alterados, falta enviar ao ML",
+    );
     conferir("rotulo: nao conferido", rotuloDoIconeML({ publicado: true, erro: false, desatualizado: true, naoConferido: true, partesDesatualizadas: ["descricao"] }), "Anúncio no Mercado Livre: publicado, ainda não conferido com o produto");
 
     const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-AC3", tituloBase: "PLACA AC3", descricaoBase: "Texto um.", pesoKg: 0.035, alturaCm: 1.5, larguraCm: 6, comprimentoCm: 10 } });

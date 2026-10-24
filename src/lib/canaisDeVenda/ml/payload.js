@@ -71,19 +71,17 @@ function atributosDaEmbalagem(envio) {
  * @param {object} rascunho rascunho do anuncio (ver `rascunho.js`)
  * @param {{produtos: object}} contexto produtos por id
  */
-export function montarPayloadML(rascunho, contexto) {
-  const titulo = texto(rascunho.titulo);
-  const envio = rascunho.envio ?? {};
-  const dimensions = dimensoesDoEnvio(envio);
-
-  // O SKU do anuncio e o codigo do kit, quando ha composicao; senao, o do produto.
-  const sku = rascunho.composicao ? texto(rascunho.composicao.codigo) : texto(contexto?.produtos?.[rascunho.produtoId]?.sku);
-
+/**
+ * A ficha tecnica como vai ao ML (`attributes`), sem o SKU e sem o pacote (`SELLER_PACKAGE_*`, que saem da aba Envio).
+ * O Publicar e o "Enviar mudancas ao ML" do anuncio publicado (ficha editada depois, pedido do dono em 24/10/2026) usam
+ * a mesma lista, e a impressao do anuncio guarda ela.
+ */
+export function atributosDaFicha(rascunho) {
   // GTIN e o codigo de barras da peca avulsa, e kit nao o leva: a tela o tira ao virar kit, mas o
   // servidor grava o que chegar, e a previa e o envio saem daqui.
   // Com GTIN, o motivo de nao ter GTIN nao vai: os dois juntos se contradizem.
   const levaGtin = !rascunho.composicao && Boolean(texto(rascunho.atributos?.GTIN));
-  const atributos = Object.entries(rascunho.atributos ?? {})
+  return Object.entries(rascunho.atributos ?? {})
     .filter(
       ([id, valor]) =>
         id !== "SELLER_SKU" &&
@@ -93,6 +91,17 @@ export function montarPayloadML(rascunho, contexto) {
         texto(valor),
     )
     .map(([id, valor]) => ({ id, value_name: EM_MAIUSCULAS.has(id) ? maiusculas(valor) : separarUnidade(valor) }));
+}
+
+export function montarPayloadML(rascunho, contexto) {
+  const titulo = texto(rascunho.titulo);
+  const envio = rascunho.envio ?? {};
+  const dimensions = dimensoesDoEnvio(envio);
+
+  // O SKU do anuncio e o codigo do kit, quando ha composicao; senao, o do produto.
+  const sku = rascunho.composicao ? texto(rascunho.composicao.codigo) : texto(contexto?.produtos?.[rascunho.produtoId]?.sku);
+
+  const atributos = atributosDaFicha(rascunho);
   if (sku) atributos.push({ id: "SELLER_SKU", value_name: sku });
   atributos.push(...atributosDaEmbalagem(envio));
 

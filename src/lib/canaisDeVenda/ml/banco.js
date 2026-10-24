@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { codigoDaComposicao, errosDaComposicao, proximoCodigoDaFaixa } from "../composicao";
 import { custoDoProduto } from "../custo";
-import { conteudoAtualDoAnuncio, mudancasDoAnuncio } from "./acompanhar";
+import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, precoDoAnuncio } from "./acompanhar";
 import { avisosDeVariosProdutos } from "./concorrentes";
 import { impressaoDoConteudo } from "./impressao";
 import { montarRanking } from "./ranking";
@@ -145,7 +145,12 @@ export async function mudancasDosAnunciosML(anuncios) {
   );
   const resultado = new Map();
   if (publicados.length === 0) return resultado;
-  const rascunhos = publicados.map((anuncio) => [anuncio, rascunhoDoAnuncio(anuncio)]);
+  // A ficha (preco e ficha acompanham o anuncio desde 24/10/2026) mora na coluna `atributos`, que a lista de Produtos
+  // nao seleciona: lida aqui, numa consulta so, em vez de depender do `select` de quem chama.
+  const fichas = new Map(
+    (await prisma.anuncio.findMany({ where: { id: { in: publicados.map((anuncio) => anuncio.id) } }, select: { id: true, atributos: true } })).map((linha) => [linha.id, linha.atributos]),
+  );
+  const rascunhos = publicados.map((anuncio) => [anuncio, rascunhoDoAnuncio({ ...anuncio, atributos: anuncio.atributos ?? fichas.get(anuncio.id) ?? {} })]);
   const ids = rascunhos.flatMap(([, rascunho]) => [rascunho.produtoId, ...(rascunho.composicao?.itens ?? []).map((item) => item.produtoId)]);
   const produtos = await contextoDosProdutos(ids);
   for (const [anuncio, rascunho] of rascunhos) {
@@ -313,6 +318,51 @@ export async function gravarPublicacao(anuncioId, parcial = {}, colunas = {}, op
     await tx.anuncio.update({ where: { id: anuncioId }, data: { ...colunas, dados: novos } });
     return publicacao;
   });
+}
+
+/**
+ * Salvar do anuncio PUBLICADO (pedido do dono em 24/10/2026): so o preco e a ficha tecnica mudam por aqui; o resto do
+ * que a tela mandar e ignorado (titulo, categoria, tipo e envio ficam como foram publicados). Nada vai ao ML: o "!" acende
+ * pela diferenca com a impressao, e o "Enviar mudancas ao ML" leva.
+ *
+ * Impressao de antes de 24/10/2026 (sem preco ou ficha): grava, na mesma transacao, o preco e a ficha DE ANTES como base
+ * (o anuncio publicado estava travado, entao o que estava no rascunho e o que esta no ML). Sem isso a mudanca nunca
+ * acenderia o "!".
+ * @returns {Promise<{ ok: boolean, erro?: string }>}
+ */
+export async function salvarPublicadoML(anuncioId, entrada) {
+  if (typeof anuncioId !== "string" || anuncioId === "") return { ok: false, erro: "Anúncio inválido." };
+  const preco = typeof entrada?.preco === "number" ? entrada.preco : Number.NaN;
+  if (!Number.isFinite(preco) || preco <= 0 || preco > 10_000_000) return { ok: false, erro: "Informe um preço de venda maior que zero." };
+  const atributos = RascunhoMLSchema.shape.atributos.safeParse(entrada?.atributos ?? {});
+  if (!atributos.success) return { ok: false, erro: "A ficha técnica veio em um formato inválido. Recarregue a página." };
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const travado = await tx.$queryRaw`SELECT id FROM "Anuncio" WHERE id = ${anuncioId} FOR UPDATE`;
+      if (travado.length === 0) return { ok: false, erro: "Anúncio não encontrado." };
+      const anuncio = await tx.anuncio.findUnique({ where: { id: anuncioId } });
+      if (!anuncio || anuncio.canal !== CANAL) return { ok: false, erro: "Anúncio não encontrado." };
+      if (anuncio.status !== "PUBLICADO") return { ok: false, erro: "Só o anúncio publicado é salvo por aqui." };
+
+      const dados = anuncio.dados ?? {};
+      const publicacao = dados.publicacao ?? {};
+      const enviado = publicacao.enviado ?? null;
+      const anterior = rascunhoDoAnuncio(anuncio);
+      const base = {};
+      if (!enviado || !Object.hasOwn(enviado, "preco")) base.preco = precoDoAnuncio(anterior);
+      if (!enviado || !Object.hasOwn(enviado, "ficha")) base.ficha = fichaDoAnuncio(anterior);
+      const novaPublicacao = Object.keys(base).length > 0 ? { ...publicacao, enviado: { ...(enviado ?? {}), ...base } } : publicacao;
+
+      await tx.anuncio.update({
+        where: { id: anuncioId },
+        data: { atributos: atributos.data, dados: { ...dados, preco, publicacao: novaPublicacao } },
+      });
+      return { ok: true };
+    });
+  } catch (erro) {
+    console.error("[canais de venda]", erro);
+    return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
+  }
 }
 
 /**

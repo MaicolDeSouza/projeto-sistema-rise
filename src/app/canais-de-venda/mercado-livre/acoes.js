@@ -38,6 +38,7 @@ import {
   codigoEmUso,
   contextoDosProdutos,
   novoRascunhoML,
+  salvarPublicadoML,
   salvarRascunhoML,
   sugerirCodigoDeKit,
 } from "@/lib/canaisDeVenda/ml/banco";
@@ -153,6 +154,17 @@ export async function salvarAnuncioML(id, rascunho) {
   if (negado) return negado;
   if (!ehIdOuNulo(id)) return PEDIDO_INVALIDO;
   return protegendo(async () => revalidando(await salvarRascunhoML(id, rascunho)));
+}
+
+/**
+ * Salvar do anuncio PUBLICADO (pedido do dono em 24/10/2026): so o preco e a ficha tecnica; o servidor ignora o resto.
+ * Nada vai ao ML aqui: o "!" acende e o "Enviar mudancas ao ML" leva.
+ */
+export async function salvarPublicadoMLAcao(id, { preco, atributos } = {}) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
+  if (!ehId(id)) return PEDIDO_INVALIDO;
+  return protegendo(async () => revalidando(await salvarPublicadoML(id, { preco, atributos })));
 }
 
 /** Acha o produto pelo codigo para entrar na composicao do kit. Devolve o resultado da lib como esta. */

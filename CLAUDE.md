@@ -290,7 +290,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 797 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 818 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 334 asserções da sincronização Rise -> Loja Integrada (e da proposta de anúncio da LI): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3361,6 +3361,29 @@ Pedido do dono (Opção 1): mudou a descrição do 100107 e o ícone do ML não 
 - **NÃO MEDIDO no ML real** (conta User Products): as três escritas num item publicado. Antes do primeiro uso, um envio de
   teste com o dono acompanhando (o 100107 é o candidato). Parte recusada sai do envio e vira só aviso.
 - Conferido no navegador do PC com um anúncio de teste (apagado): a faixa, a recusa da trava e o texto do ícone na lista.
+
+**Preço e ficha técnica editáveis no anúncio publicado (24/10/2026, pedido do dono, Opção 1; desfaz a decisão acima de
+"preço e ficha não mudam por aqui"):**
+- **Medido no ML real, com OK do dono, no 100107 (MLB7881142312, ativo, sem vendas, User Products):** `PUT /items/{id}`
+  com **só** `{ price }` → **200** e o preço mudou (169,86 → 169,96, conferido no GET; voltou a 169,86 do mesmo jeito,
+  ativo e sem revisão). A documentação (18/03/2026) diz que o PUT só com o preço dá 400 e que o preço junto com outros
+  campos é IGNORADO: vale para quem usa a automatização de preços, e a conta não usa. `PUT { attributes: [{ BRAND, mesmo
+  valor }] }` → 200 sem mudar o `last_updated`. `/items/{id}/prices` (do próprio item) responde com o `standard`.
+- **Editor:** no anúncio publicado só as abas **Preço e custos** (preço, custos, concorrentes do catálogo e ranking) e
+  **Ficha técnica** se editam (`ABAS_DO_PUBLICADO`, `inert` por aba); o resto continua travado. O Salvar chama
+  `salvarPublicadoMLAcao` → `salvarPublicadoML` (`banco.js`): grava SÓ `dados.preco` e a coluna `atributos` (o resto que a
+  tela mandar é ignorado), nada vai ao ML. "Enviar mudanças ao ML" fica desabilitado com alteração não salva.
+- **"!" e envio:** a impressão ganhou `preco` e `ficha` (a ficha como vai ao ML, `atributosDaFicha` em `payload.js`, em ordem
+  de id). `PARTES_DO_PRODUTO` (descrição, fotos, pacote) e `PARTES_DO_ANUNCIO` (preço, ficha). **Preço e ficha só contam
+  quando a impressão os tem**: impressão antiga não acende o "!" sozinha; o primeiro Salvar do publicado grava, na mesma
+  transação, o preço e a ficha DE ANTES como base. `naoConferido` = nenhuma parte do PRODUTO na impressão. O envio manda o
+  preço num `PUT` só dele (nunca com a ficha, que o faria ser ignorado) e a ficha em outro `PUT { attributes }`. Tirar um
+  atributo no Rise não o apaga no ML (não medido como apagar). Ícone: "desatualizado: descrição mudou no produto; preço e
+  ficha técnica alterados, falta enviar ao ML". `mudancasDosAnunciosML` lê a coluna `atributos` sozinho (a lista de Produtos
+  não a seleciona).
+- **Concorrentes do catálogo e ranking** só existem no Rise: editáveis no publicado, não acendem o "!".
+- **Em aberto:** o preço do anúncio registrado no Bling (`/anuncios`) não é atualizado quando o preço muda no ML; não se
+  sabe se o Bling o empurra de volta ao ML. Conferir num envio real.
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 

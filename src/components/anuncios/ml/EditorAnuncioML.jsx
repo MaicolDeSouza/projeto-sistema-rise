@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Link from "next/link";
 import { Copy, ExternalLink, Loader, Plus, X } from "lucide-react";
 
-import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, salvarAnuncioML, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
@@ -38,7 +38,10 @@ const CLASSE_DA_MENSAGEM = {
   ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
 };
 
-const MOTIVO_DO_PUBLICADO = "Anúncio publicado: não editável aqui.";
+const MOTIVO_DO_PUBLICADO = "Anúncio publicado: só preço e ficha técnica se editam aqui.";
+// Depois de publicado, so estas abas se editam (pedido do dono em 24/10/2026): o preco, os concorrentes e o ranking (na
+// aba Preco e custos) e a ficha tecnica. O resto (titulo, categoria, tipo, envio) fica como foi publicado.
+const ABAS_DO_PUBLICADO = new Set(["preco", "ficha"]);
 
 const CATEGORIA_ML = /^MLB\d+$/;
 // Espera o dono parar de digitar o codigo: cada tecla seria uma leitura no ML.
@@ -159,6 +162,9 @@ export default function EditorAnuncioML({
   // Tela em `ver` (Acessos): os paineis travam, mas as abas continuam navegaveis para ler.
   const somenteLeitura = !acessos.editar;
   const bloqueado = publicado || travado || presoNaPublicacao || somenteLeitura;
+  // O publicado libera so as abas de ABAS_DO_PUBLICADO (preco e ficha); o resto continua travado.
+  const editaPublicado = publicado && !somenteLeitura && !travado;
+  const travaDaAba = (id) => bloqueado && !(editaPublicado && ABAS_DO_PUBLICADO.has(id));
   const problemas = useMemo(() => validarRascunhoML(rascunho, contexto), [rascunho, contexto]);
 
   // O erro aparece no topo: com o rodape fixo, o dono clica em Salvar com a pagina rolada.
@@ -204,7 +210,9 @@ export default function EditorAnuncioML({
     iniciarSalvamento(async () => {
       let resultado;
       try {
-        resultado = await salvarAnuncioML(idAtual, enviado);
+        resultado = publicado
+          ? await salvarPublicadoMLAcao(idAtual, { preco: enviado.preco, atributos: enviado.atributos })
+          : await salvarAnuncioML(idAtual, enviado);
       } catch {
         // Excecao solta numa transicao iria ao error boundary e levaria o que foi digitado.
         resultado = { ok: false, erro: "Não foi possível falar com o servidor. O que está na tela continua aqui: tente salvar de novo." };
@@ -214,8 +222,14 @@ export default function EditorAnuncioML({
         setMensagem({ tipo: "erro", texto: resultado.erro });
         return;
       }
-      setIdAtual(resultado.id);
       setSalvo(enviado);
+      if (publicado) {
+        // O id nao muda; a faixa "Enviar mudancas ao ML" e o "!" saem da releitura.
+        setMensagem({ tipo: "ok", texto: "Salvo. Falta enviar ao Mercado Livre." });
+        await relerDoML();
+        return;
+      }
+      setIdAtual(resultado.id);
       setMensagem({ tipo: "ok", texto: "Rascunho salvo." });
       aoSalvar?.(resultado.id);
     });
@@ -299,16 +313,19 @@ export default function EditorAnuncioML({
   );
 
   const paineis = (
-    <div inert={bloqueado} aria-busy={travado} className={bloqueado && !somenteLeitura ? "opacity-70" : undefined}>
+    <div aria-busy={travado}>
       {ABAS_ML.map(({ id }) => {
         const Aba = ABAS_PRONTAS[id];
+        const trava = travaDaAba(id);
         return (
           <Painel key={id} id={id} aba={aba}>
+            <div inert={trava} className={trava && !somenteLeitura ? "opacity-70" : undefined}>
             <Aba
               {...propsDasAbas}
               problemas={problemas.filter((problema) => problema.aba === id)}
               {...(id === "previa" ? { todosProblemas: problemas } : {})}
             />
+            </div>
           </Painel>
         );
       })}
@@ -374,7 +391,7 @@ export default function EditorAnuncioML({
         <button
           type="button"
           onClick={salvar}
-          disabled={salvando || publicado}
+          disabled={salvando || (publicado && !editaPublicado)}
           title={publicado ? MOTIVO_DO_PUBLICADO : undefined}
           className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -417,12 +434,12 @@ export default function EditorAnuncioML({
   const faixaDasMudancas = temMudancas && (
     <div role="status" className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span>{mudancas.naoConferido ? "Ainda não conferido com o produto." : `O produto mudou depois de publicar: ${textoDasPartes(mudancas.partes)}.`}</span>
+        <span>{mudancas.naoConferido ? "Ainda não conferido com o produto." : `Mudou depois de publicar, falta enviar ao ML: ${textoDasPartes(mudancas.partes)}.`}</span>
         <button
           type="button"
           onClick={enviarMudancas}
-          disabled={enviandoMudancas || !acessos.publicar}
-          title={acessos.publicar ? `Manda ao Mercado Livre: ${textoDasPartes(mudancas.partes)}` : "Seu acesso não permite enviar ao Mercado Livre."}
+          disabled={enviandoMudancas || !acessos.publicar || alterado}
+          title={!acessos.publicar ? "Seu acesso não permite enviar ao Mercado Livre." : alterado ? "Salve antes de enviar: vai o que está salvo." : `Manda ao Mercado Livre: ${textoDasPartes(mudancas.partes)}`}
           className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {enviandoMudancas && <Loader size={14} className="animate-spin" />}
