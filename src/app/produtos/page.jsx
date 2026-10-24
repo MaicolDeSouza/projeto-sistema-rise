@@ -19,6 +19,7 @@ import AvisoBanco from "@/components/ui/AvisoBanco";
 import Paginacao from "@/components/mercados/Paginacao";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 import TabelaProdutos from "@/components/produtos/TabelaProdutos";
+import { condicoesDoFiltroDeCanais, filtroDeCanaisDaUrl } from "@/lib/filtroDeCanais";
 import BotaoImportarBling from "@/components/produtos/BotaoImportarBling";
 import BotaoSincronizarEstoque from "@/components/produtos/BotaoSincronizarEstoque";
 
@@ -95,6 +96,11 @@ export default async function ProdutosPage({ searchParams }) {
       ? { OR: [{ tituloBase: { contains: busca, mode: "insensitive" } }, { sku: { contains: busca, mode: "insensitive" } }] }
       : undefined;
   }
+
+  // FILTRO DA COLUNA CANAIS (pedido do dono em 24/10/2026): vinculados ou nao, por canal, no banco e antes de paginar.
+  const filtroCanais = filtroDeCanaisDaUrl(params);
+  const condicoesDosCanais = condicoesDoFiltroDeCanais(filtroCanais);
+  if (condicoesDosCanais.length > 0) where = { AND: [...(where ? [where] : []), ...condicoesDosCanais] };
 
   // Ordenar no banco ANTES de paginar, e nao so na pagina carregada: senao
   // "ordenar por preco" so organizaria os 25 produtos que ja estavam na tela,
@@ -323,6 +329,7 @@ export default async function ProdutosPage({ searchParams }) {
             total={total}
             porPagina={porPagina}
             totalConferidos={totalConferidos}
+            filtroCanais={filtroCanais}
           />
 
           {/* Repete embaixo (mesmo motivo de Mercados): quem rolou a pagina

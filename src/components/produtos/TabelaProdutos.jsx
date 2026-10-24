@@ -16,6 +16,7 @@ import CampoBusca from "@/components/ui/CampoBusca";
 import BotaoBuscaAmpla from "@/components/ui/BotaoBuscaAmpla";
 import EmptyState from "@/components/ui/EmptyState";
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
+import FiltroDeCanais from "./FiltroDeCanais";
 import LinhaProduto from "./LinhaProduto";
 
 /// Rotulo de cada coluna ordenavel, na ordem da tabela.
@@ -119,6 +120,8 @@ export default function TabelaProdutos({
   // Acessos (lancamento 2): o que a pessoa pode nesta lista (acessosDaListaDeProdutos). Sem ele, tudo liberado, como
   // antes, para quem chama a tabela sem passar a sessao.
   acessos = null,
+  // Filtro da coluna Canais (`?bling=sim&ml=nao`, pedido do dono em 24/10/2026).
+  filtroCanais = {},
 }) {
   const pode = acessos ?? { editar: true, excluir: true, clonar: true, verLocalizacao: true, editarLocalizacao: true, estoqueExato: true, margem: true };
   // A coluna Localizacao some sem o dado; o Estoque em faixa nao se ordena (a ordem contaria quem tem mais).
@@ -136,6 +139,25 @@ export default function TabelaProdutos({
     const query = parametrosDaOrdenacao(searchParams, campo, ordenar, direcao).toString();
     router.push(query ? `${pathname}?${query}` : pathname);
   }
+
+  /** Um canal do filtro (null = Todos); volta a pagina 1, como a busca e a ordenacao. */
+  function mudarFiltroDeCanal(canal, valor) {
+    const query = new URLSearchParams(searchParams?.toString() ?? "");
+    if (valor) query.set(canal, valor);
+    else query.delete(canal);
+    query.delete("pagina");
+    const texto = query.toString();
+    router.push(texto ? `${pathname}?${texto}` : pathname);
+  }
+
+  function limparFiltroDeCanais() {
+    const query = new URLSearchParams(searchParams?.toString() ?? "");
+    for (const canal of Object.keys(filtroCanais)) query.delete(canal);
+    query.delete("pagina");
+    const texto = query.toString();
+    router.push(texto ? `${pathname}?${texto}` : pathname);
+  }
+  const comFiltroDeCanais = Object.keys(filtroCanais).length > 0;
 
   function confirmarExclusao(produto) {
     setMensagem(null);
@@ -200,19 +222,32 @@ export default function TabelaProdutos({
       )}
 
       {linhas.length === 0 ? (
-        <EmptyState
-          icone={Package}
-          titulo={
-            busca
-              ? `Nenhum produto encontrado para "${busca}"`
-              : "Nenhum produto cadastrado"
-          }
-          descricao={
-            busca
-              ? "Tente outro termo, ou limpe a busca para ver o catálogo inteiro."
-              : "Cadastre o primeiro produto para começar."
-          }
-        />
+        <>
+          <EmptyState
+            icone={Package}
+            titulo={
+              busca
+                ? `Nenhum produto encontrado para "${busca}"`
+                : comFiltroDeCanais
+                  ? "Nenhum produto com esse filtro de canais"
+                  : "Nenhum produto cadastrado"
+            }
+            descricao={
+              busca
+                ? "Tente outro termo, ou limpe a busca para ver o catálogo inteiro."
+                : comFiltroDeCanais
+                  ? "Mude ou limpe o filtro para ver os outros produtos."
+                  : "Cadastre o primeiro produto para começar."
+            }
+          />
+          {comFiltroDeCanais && (
+            <p className="text-center">
+              <button type="button" onClick={limparFiltroDeCanais} className="text-sm text-acento hover:underline">
+                Limpar filtro de canais
+              </button>
+            </p>
+          )}
+        </>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-borda bg-superficie">
           <table className="w-full text-sm">
@@ -232,7 +267,9 @@ export default function TabelaProdutos({
                     aoClicar={trocarOrdenacao}
                   />
                 ))}
-                <th className="px-3 py-2.5 font-medium">Canais</th>
+                <th className="px-3 py-2.5 font-medium">
+                  <FiltroDeCanais filtro={filtroCanais} aoMudar={mudarFiltroDeCanal} aoLimpar={limparFiltroDeCanais} />
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
