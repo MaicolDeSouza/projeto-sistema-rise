@@ -1429,7 +1429,7 @@ try {
     const linkRuim = await chamar("gravarPropostaML", { sku: "ZZ-MCP-PA1", categoriaId: "MLB99779", titulo: "x", linksSemCatalogo: [{ url: "javascript:alert(1)", preco: 10 }] });
     conferir("gravarPropostaML: link que nao e http(s) e recusado antes", linkRuim?.isError, true);
     const roteiroML = JSON.parse((await chamar("roteiroDaProposta", { canal: "ml" }))?.content?.[0]?.text || "{}");
-    conferir("roteiroDaProposta canal ml", [roteiroML.canal, roteiroML.versao, /gravarPropostaML/.test(roteiroML.roteiro ?? ""), /linksSemCatalogo/.test(roteiroML.roteiro ?? "")], ["ml", "2", true, true]);
+    conferir("roteiroDaProposta canal ml", [roteiroML.canal, roteiroML.versao, /gravarPropostaML/.test(roteiroML.roteiro ?? ""), /linksSemCatalogo/.test(roteiroML.roteiro ?? "")], ["ml", "3", true, true]);
     conferir("resumo do roteiro do ML na Revisao", resumoDaChamada("roteiroDaProposta", { canal: "ml" }), "proposta ML: leu o roteiro");
   }
 

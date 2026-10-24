@@ -4,8 +4,8 @@ import { montarRanking } from "@/lib/canaisDeVenda/ml/ranking";
 
 /**
  * O preco da proposta do Mercado Livre (spec 2026-10-23, secao 8.2), regra do dono:
- * - piso: 40% de MARKUP (lucro sobre o custo) depois da comissao, da tarifa, do frete do vendedor e do imposto de 6%
- *   (pedido do dono em 24/10/2026: "40% para ML"; ate ali era 30% de margem sobre o preco);
+ * - piso: 40% de MARKUP sobre o CUSTO TOTAL (fornecedor + comissao + tarifa + frete do vendedor + imposto de 6%; pedido
+ *   do dono em 24/10/2026: "40% para ML" e "quero que o custo total entre na conta"; ate ali era 30% de margem);
  * - teto: ficar entre os 5 primeiros do ranking (o 5o menor preco; com menos de 5 precos, o maior);
  * - o maior preco de 5 em 5 centavos que cumpre os dois, R$ 0,10 ABAIXO do teto (pedido do dono em 24/10/2026, a mesma
  *   regra da proposta de produto: "o concorrente em 5 esta a R$ 35,90 e devo colocar uns 10 centavos a menos"; ate ali o

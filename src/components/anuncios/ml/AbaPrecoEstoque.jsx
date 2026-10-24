@@ -80,7 +80,7 @@ function MargemDoPreco({ preco, custo, conta, mensagemSemCusto }) {
       <p className={`text-xl leading-tight font-semibold tabular-nums ${cor}`}>
         {PERCENTUAL.format(markup)}%<span className="ml-2 text-base">{MOEDA.format(lucro)}</span>
       </p>
-      <p className="text-[11px] text-suave">{comTaxas ? "markup (lucro sobre o custo) com as taxas do ML" : "markup sem as taxas do ML: leia os custos"}</p>
+      <p className="text-[11px] text-suave">{comTaxas ? "markup (lucro sobre o total dos custos)" : "markup sem as taxas do ML: leia os custos"}</p>
     </div>
   );
 }

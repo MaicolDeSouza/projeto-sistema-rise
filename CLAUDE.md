@@ -58,8 +58,10 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 - **Marca e Modelo** sempre em MAIÚSCULAS (ver "Produtos: Buscar por código").
 - **% de lucro = MARKUP sobre o custo, nunca margem sobre o preço** (pedido do dono em 24/10/2026: "custo R$ 50 com 100%
   = R$ 100"). Cadastro de Produto e edição rápida: `(preço − custo) ÷ custo`, sem o imposto (`calcularMarkup` em
-  `lib/margem.js`; o R$ continua líquido). Mercado Livre: o lucro com comissão, tarifa, frete e imposto ÷ custo
-  (`custosDoAnuncio().markup`; o modo "percentual" do `precoPorMargem` é % do custo). Proposta de produto: opções de 60,
+  `lib/margem.js`; o R$ continua líquido). Mercado Livre: o lucro ÷ o CUSTO TOTAL (fornecedor + comissão + tarifa +
+  frete + imposto, o "Total dos custos" da tela; dono: "quero que o custo total entre na conta"), em
+  `custosDoAnuncio().markup`; o modo "percentual" do `precoPorMargem` resolve `P = (1+m)·fixos ÷ (1 − (1+m)·(comissão% +
+  imposto%))` (custo R$ 80,48 + frete R$ 19,05 com 13% de comissão e 40% dá R$ 189,85). Proposta de produto: opções de 60,
   80 e 100% e aviso abaixo de 60%; proposta do ML: piso de 40% com as taxas. Propostas gravadas antes guardaram `margem` e
   aparecem como margem. Os nomes antigos (`calcularMargem`, `CalculadoraDeMargem`, `dado.margem`) ficaram; tela nova
   mostra markup. **As seções abaixo que falam de "margem" de 30% ou 60% descrevem o que valia antes.**

@@ -1040,7 +1040,7 @@ try {
     // A partir de R$ 79 o frete gratis e obrigatorio (pedido do dono em 22/10/2026: marcado e sem desmarcar).
     conferir("frete gratis obrigatorio a partir de R$ 79", [freteGratisObrigatorio(78.99), freteGratisObrigatorio(79), freteGratisObrigatorio("120,00".replace(",", "."))], [false, true, true]);
     conferir("custos: 49 com custo 24, 13%, sem tarifa e sem frete", custosDoAnuncio({ preco: 49, custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0 }), {
-      comissao: 6.37, tarifaFixa: 0, frete: 0, imposto: 2.94, lucro: 15.69, margem: 32, markup: 65.4,
+      comissao: 6.37, tarifaFixa: 0, frete: 0, imposto: 2.94, lucro: 15.69, margem: 32, markup: 47.1,
     });
     conferir(
       "custos: sem custo, lucro e margem nulos",
@@ -1049,8 +1049,8 @@ try {
     );
     conferir("custos: sem preco e null", custosDoAnuncio({ preco: 0, custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0 }), null);
     conferir("preco por margem: R$ 20 de lucro", precoPorMargem({ custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "reais", valor: 20 } }), 54.33);
-    // "percentual" = markup, % do custo (24/10/2026): 30% de 24 = 7,20 de lucro; (24 + 7,20) / 0,81 = 38,518...
-    conferir("preco por markup: 30%", precoPorMargem({ custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "percentual", valor: 30 } }), 38.52);
+    // "percentual" = markup sobre o custo total (24/10/2026): P = 1,3 * 24 / (1 - 1,3 * 0,19) = 31,2 / 0,753 = 41,434...
+    conferir("preco por markup: 30%", precoPorMargem({ custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "percentual", valor: 30 } }), 41.44);
     conferir("preco por markup: inatingivel (comissao de 95% + 6%)", precoPorMargem({ custo: 24, percentual: 0.95, tarifaFixa: 0, frete: 0, margem: { tipo: "percentual", valor: 40 } }), null);
     conferir(
       "preco por margem: arredonda para cima ao centavo (24,8 / 0,81 = 30,617...)",
@@ -2426,21 +2426,21 @@ try {
 
     const top5 = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [45, 48, 50, 52, 55, 70] });
     // R$ 0,10 abaixo do teto (pedido do dono em 24/10/2026): o 5º preco e 55, o anuncio vai a 54,90 e fica em 5º sem empatar.
-    // Piso = 40% de markup com as taxas (24/10/2026): custo 20 pede R$ 8 de lucro; (20 + 6,85 + 8) / 0,82 = 42,50.
+    // Piso = 40% de markup sobre o custo total (24/10/2026): 1,4 * (20 + 6,85) / (1 - 1,4 * 0,18) = 50,25..., vai a 50,30.
     conferir("no top 5: R$ 0,10 abaixo do teto, com 40% ou mais de markup, em 5º", [top5.valor, top5.markup >= 40, top5.posicao, top5.total, top5.teto, top5.avisos], [54.9, true, 5, 7, 55, []]);
 
     const caro = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [30, 31, 32, 33, 34] });
-    conferir("40% fora do top 5: fica no piso e avisa a posição", [caro.valor, caro.valor === caro.piso, caro.markup >= 40, caro.avisos.some((aviso) => /fica em 6º de 6/.test(aviso))], [42.5, true, true, true]);
+    conferir("40% fora do top 5: fica no piso e avisa a posição", [caro.valor, caro.valor === caro.piso, caro.markup >= 40, caro.avisos.some((aviso) => /fica em 6º de 6/.test(aviso))], [50.3, true, true, true]);
 
-    // Custo 40: a R$ 79,90 (frete gratis, 12,95) o markup cai a ~31%; a R$ 78,95 (frete 6,85) fica em ~45%.
-    const virada = await precoDaPropostaML(ml, rascunho, { custo: 40, precos: [60, 70, 75, 78, 80, 90] });
+    // Custo 32: a R$ 79,90 (frete gratis, 12,95) o markup cai a ~35%; a R$ 78,95 (frete 6,85) fica em ~49%.
+    const virada = await precoDaPropostaML(ml, rascunho, { custo: 32, precos: [60, 70, 75, 78, 80, 90] });
     conferir("cruzar R$ 79 perde markup pelo frete: fica abaixo de 79", [virada.valor, virada.markup >= 40], [78.95, true]);
 
     const semCusto = await precoDaPropostaML(ml, rascunho, { custo: null, precos: [45] });
     conferir("sem custo: sem preço e avisa", [semCusto.valor, semCusto.avisos.some((aviso) => /custo/.test(aviso))], [null, true]);
 
     const sozinho = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [] });
-    conferir("sem concorrente: o piso e avisa", [sozinho.valor, sozinho.valor === sozinho.piso, sozinho.avisos.some((aviso) => /sem concorrente/.test(aviso))], [42.5, true, true]);
+    conferir("sem concorrente: o piso e avisa", [sozinho.valor, sozinho.valor === sozinho.piso, sozinho.avisos.some((aviso) => /sem concorrente/.test(aviso))], [50.3, true, true]);
 
     conferir("todo preço de 5 em 5 centavos", [top5, caro, virada, sozinho].every((resultado) => multiplo5(resultado.valor)), true);
   }
@@ -2489,7 +2489,7 @@ try {
     conferir("GTIN e o motivo mandados pela LLM ficam fora", [anuncio.atributos.GTIN ?? null, anuncio.atributos.EMPTY_GTIN_REASON ?? null], [null, null]);
     conferir("catálogos: só os de 5 ou mais anúncios, o de 4 avisado", [gravada.catalogosSugeridos.map((c) => c.catalogoId), gravada.avisos.some((a) => /MLBP4/.test(a) && /menos de 5/.test(a))], [["MLBP9", "MLBP6"], true]);
     conferir("o ranking do produto continua vazio", await prisma.catalogoReferenciaML.count({ where: { produtoId: produto.id } }), 0);
-    conferir("a proposta guardada com o preço e os catálogos", [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro], [59.9, 2, "2"]);
+    conferir("a proposta guardada com o preço e os catálogos", [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro], [59.9, 2, "3"]);
 
     const deNovo = await gravarPropostaML(ml(), "ZZ-ML-PA1", { categoriaId: "MLB99779", titulo: "Placa Uno R3 CH340 compatível", atributos: ATRIBUTOS, catalogos: ["MLBP9"], relatorio: "- de novo" });
     conferir("o Clássico em rascunho é atualizado (o mesmo anúncio)", [deNovo.anuncioId, await prisma.anuncio.count({ where: { produtoId: produto.id, canal: "MERCADO_LIVRE" } })], [gravada.anuncioId, 1]);

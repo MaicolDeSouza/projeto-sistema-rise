@@ -122,7 +122,7 @@ const GRAVAR_PROPOSTA_ML = {
   nome: "gravarPropostaML",
   descricao: [
     "Grava a proposta do anúncio do Mercado Livre no rascunho do Rise (sempre um Clássico): categoria folha, título, ficha (atributos), até 10 catálogos do mesmo produto e, sem catálogo, até 5 links com preço.",
-    "O Rise lê o 1º de cada catálogo, descarta os de menos de 5 anúncios e CALCULA O PREÇO (no mínimo 40% de markup, lucro sobre o custo já com as taxas do ML, e o top 5). Nada é publicado e nada entra no ranking: o dono revisa, adiciona os catálogos e publica. Gravar de novo substitui a proposta.",
+    "O Rise lê o 1º de cada catálogo, descarta os de menos de 5 anúncios e CALCULA O PREÇO (no mínimo 40% de markup, lucro sobre o total dos custos com as taxas do ML, e o top 5). Nada é publicado e nada entra no ranking: o dono revisa, adiciona os catálogos e publica. Gravar de novo substitui a proposta.",
   ].join(" "),
   esquema: z.object({
     sku: SKU,

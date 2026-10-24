@@ -11,7 +11,7 @@ const CATEGORIA_ML = /^MLB\d+$/;
 
 /**
  * Calculadora do preco pelo lucro (o mesmo icone da do cadastro de Produto): o dono diz o lucro
- * que quer, em % DO CUSTO (markup com as taxas, desde 24/10/2026; era % do preco) ou em R$, e o Rise devolve o preco necessario com as taxas REAIS do ML
+ * que quer, em % DO CUSTO TOTAL (fornecedor + taxas + frete + imposto, desde 24/10/2026; era % do preco) ou em R$, e o Rise devolve o preco necessario com as taxas REAIS do ML
  * (comissao e tarifa fixa sao relidas no preco calculado). "Usar este preco" poe o preco no campo e
  * deixa os custos lidos valendo. Abre como um painel embaixo do preco.
  */
@@ -83,7 +83,7 @@ export default function CalculadoraDeMargem({ rascunho, alterar, setContexto, cu
           <p className="text-xs font-semibold">Lucro desejado, com as taxas do ML</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
             {[
-              { valor: "percentual", rotulo: "% sobre o custo" },
+              { valor: "percentual", rotulo: "% sobre o custo total" },
               { valor: "reais", rotulo: "R$" },
             ].map((opcao) => (
               <label key={opcao.valor} className="flex cursor-pointer items-center gap-1 text-sm">
