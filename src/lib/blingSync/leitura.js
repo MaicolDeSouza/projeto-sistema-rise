@@ -289,12 +289,14 @@ async function compararFornecedores(cliente, produto, idNoBling) {
 }
 
 /// O resultado na forma que a tela espera. Quando falha, `erro` entra logo depois de `ok`.
-function resultado({ ok, erro, sku = "", situacao = null, diferencasLidas = [], iguais = 0, avisos = [], fotos = null, fornecedores = null, estoque, escrita }) {
+function resultado({ ok, erro, sku = "", situacao = null, diferencasLidas = [], iguais = 0, avisos = [], fotos = null, fornecedores = null, blingId = null, estoque, escrita }) {
   return {
     ok,
     ...(erro ? { erro } : {}),
     sku,
     situacao,
+    // O id do produto no Bling (so quando ele existe la): a janela monta o link "Abrir no Bling".
+    blingId: blingId === null || blingId === undefined ? null : String(blingId),
     diferencas: diferencasLidas,
     iguais,
     avisos,
@@ -393,6 +395,7 @@ export async function lerParaPopup(produtoId, cliente = clienteBling(), dependen
     iguais: CAMPOS_DE_ENVIO.length - lista.length,
     fotos: await resumirFotos(produto, achado.produto, dependencias),
     fornecedores: await compararFornecedores(cliente, produto, achado.id),
+    blingId: achado.id,
     estoque: estoqueCom(Number.isFinite(saldoLido) ? saldoLido : null),
   });
 }

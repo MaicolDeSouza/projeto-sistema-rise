@@ -4,7 +4,7 @@ import { FaixaDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CircleCheck, Loader, X } from "lucide-react";
+import { CircleCheck, ExternalLink, Loader, X } from "lucide-react";
 
 import { abrirAnuncioLI, ligarNoBlingDaLI, listarCategoriasLI, listarMarcasLI, salvarAnuncioLI, vinculoBlingLI } from "@/app/canais-de-venda/loja-integrada/acoes";
 import { abrirJanelaLI, cadastrarProdutoNaLI, sincronizarComLI } from "@/app/produtos/acoes-li";
@@ -21,7 +21,7 @@ import AbaGeral from "./AbaGeral";
 import AbaImagens from "./AbaImagens";
 import AbaPrevia, { situacaoDoBling } from "./AbaPrevia";
 import AbaSEO from "./AbaSEO";
-import { AbaEnvio, AbaFiscal } from "./AbasDeLeitura";
+import { AbaEnvio, AbaFiscal, linkDoPainelLI } from "./AbasDeLeitura";
 
 // Uma aba por id de `ABAS_LI`: aba nova na validacao pede o componente aqui.
 const ABAS_PRONTAS = {
@@ -476,12 +476,26 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   else if (qual === "enviar") rotuloDoEnvio = "Enviando...";
   else if (qual === "lendo") rotuloDoEnvio = "Atualizando...";
 
+  const linkDoPainel = linkDoPainelLI(vinculoAtual?.idExterno);
+
   const rodape = (
     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
       <div className="flex items-center gap-2 text-xs">
         <Badge tom={rotuloDoStatus.tom}>{rotuloDoStatus.rotulo}</Badge>
         {alterado ? <span className="text-amber-700">Alterações não salvas</span> : idAtual && <span className="text-suave">Tudo salvo</span>}
         {somenteLeitura && <span className="text-suave">Seu acesso a este canal é de leitura.</span>}
+        {/* O produto no painel da LI, em outra aba (pedido do dono em 24/10/2026): so com o produto ja na loja. */}
+        {linkDoPainel && (
+          <a
+            href={linkDoPainel}
+            target="_blank"
+            rel="noreferrer"
+            title="Abre o produto no painel de controle da Loja Integrada"
+            className="inline-flex items-center gap-1 rounded border border-borda px-2.5 py-1 font-medium text-acento hover:bg-fundo"
+          >
+            Abrir no painel da LI <ExternalLink size={12} />
+          </a>
+        )}
       </div>
       <div className="flex items-center gap-2">
         {acessos.sincronizar && (

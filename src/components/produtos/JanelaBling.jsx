@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CircleCheck, ImageOff, Loader, RefreshCw, X } from "lucide-react";
+import { CircleCheck, ExternalLink, ImageOff, Loader, RefreshCw, X } from "lucide-react";
 
 import {
   abrirJanelaBling,
@@ -417,6 +417,8 @@ export default function JanelaBling({ produto, aoFechar }) {
   // Sem o sku a leitura falhou antes de achar o produto no Rise: nao ha estoque a mostrar.
   const mostraEstoque = Boolean(estoque && leitura?.sku);
   const escritaBloqueada = leitura?.ok && leitura.escrita?.liberada === false;
+  // Edicao do produto no Bling (`produtos.php#edit/<id>`), so com o id numerico lido do proprio Bling.
+  const linkDoBling = /^\d+$/.test(String(leitura?.blingId ?? "")) ? `https://www.bling.com.br/produtos.php#edit/${leitura.blingId}` : null;
   const temAviso = Boolean(erro || envio);
 
   // Presa no ALTO, como a do editor da Loja Integrada: centralizada, ela subia e descia a cada leitura.
@@ -593,13 +595,27 @@ export default function JanelaBling({ produto, aoFechar }) {
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-borda px-5 py-3">
           {/* A trava fechada nao esconde o botao: o motivo fica aqui, em uma linha, e o clique devolve o mesmo
               motivo em vermelho. */}
-          <p className="min-w-0 flex-1 truncate text-xs text-amber-800" title={escritaBloqueada ? leitura.escrita.motivo : undefined}>
-            {escritaBloqueada && (
-              <>
-                <span className="font-medium">Envio ao Bling bloqueado.</span> {leitura.escrita.motivo}
-              </>
+          <div className="flex min-w-0 flex-1 items-center gap-3 text-xs">
+            {/* O produto no Bling, em outra aba (pedido do dono em 24/10/2026): so com o produto ja la. */}
+            {linkDoBling && (
+              <a
+                href={linkDoBling}
+                target="_blank"
+                rel="noreferrer"
+                title="Abre o produto no Bling, em outra aba"
+                className="inline-flex shrink-0 items-center gap-1 rounded border border-borda px-2.5 py-1.5 font-medium text-acento hover:bg-fundo"
+              >
+                Abrir no Bling <ExternalLink size={12} />
+              </a>
             )}
-          </p>
+            <p className="min-w-0 flex-1 truncate text-amber-800" title={escritaBloqueada ? leitura.escrita.motivo : undefined}>
+              {escritaBloqueada && (
+                <>
+                  <span className="font-medium">Envio ao Bling bloqueado.</span> {leitura.escrita.motivo}
+                </>
+              )}
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <button
               type="button"

@@ -1402,7 +1402,8 @@ try {
         const falso = criarBlingFalso({ produtos: [umNoBling({ codigo: "zz-bs-2" })], saldos: { "zz-bs-2": 12 } });
         const existe = await lerParaPopup(produto.id, falso);
         conferir("popup existe: ok, sku e situacao (o Bling guarda o codigo em outra caixa e ainda assim e o mesmo)", [existe.ok, existe.sku, existe.situacao], [true, "ZZ-BS-2", "existe"]);
-        conferir("popup existe: sem a chave erro, e todas as outras", Object.keys(existe).sort(), ["avisos", "diferencas", "escrita", "estoque", "fornecedores", "fotos", "iguais", "ok", "situacao", "sku"]);
+        conferir("popup existe: sem a chave erro, e todas as outras", Object.keys(existe).sort(), ["avisos", "blingId", "diferencas", "escrita", "estoque", "fornecedores", "fotos", "iguais", "ok", "situacao", "sku"]);
+        conferir("popup existe: traz o id do produto no Bling (para o botao 'Abrir no Bling')", /^\d+$/.test(String(existe.blingId)), true);
         conferir("popup existe: so o preco difere (90 no Rise, 95 no Bling); o resto bate depois de normalizar", existe.diferencas.map(resumo), [{ campo: "preco", tipo: "diferente", rise: 90, bling: 95 }]);
         conferir("popup existe: a diferenca traz o rotulo da tela", existe.diferencas[0].rotulo, "Preço");
         conferir("popup existe: iguais conta os campos iguais (19 menos o preco)", [existe.iguais, existe.iguais + existe.diferencas.length === CAMPOS_DE_ENVIO.length], [18, true]);
@@ -1470,7 +1471,7 @@ try {
         const limite = await lerComFalha({ metodo: "GET", caminho: "/produtos", status: 429, mensagem: "Muitas chamadas" });
         conferir("popup falha 429: ok false, situacao null e erro em portugues que fala do limite de chamadas", [limite.ok, limite.situacao, casaTexto(limite.erro, /limite de chamadas/)], [false, null, true]);
         conferir("popup falha: o resultado mantem todas as chaves e o que o Rise ja sabia (estoque e avisos)", [Object.keys(limite).sort(), limite.estoque, limite.avisos.length], [
-          ["avisos", "diferencas", "erro", "escrita", "estoque", "fornecedores", "fotos", "iguais", "ok", "situacao", "sku"],
+          ["avisos", "blingId", "diferencas", "erro", "escrita", "estoque", "fornecedores", "fotos", "iguais", "ok", "situacao", "sku"],
           { blingSaldo: 20, riseEstoque: 7, pendentes: 2 },
           2,
         ]);
