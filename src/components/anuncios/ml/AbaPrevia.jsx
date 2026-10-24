@@ -169,7 +169,7 @@ export default function AbaPrevia({ rascunho, contexto, irPara, todosProblemas, 
 
       <div>
         <p className="text-sm font-semibold">Descrição final</p>
-        <pre className="mt-2 max-h-[28rem] overflow-y-auto rounded border border-borda bg-fundo px-3 py-2.5 font-sans text-[15px] leading-relaxed break-words whitespace-pre-wrap">
+        <pre className="mt-2 rounded border border-borda bg-fundo px-3 py-2.5 font-sans text-[15px] leading-relaxed break-words whitespace-pre-wrap">
           {descricaoFinal || <span className="text-suave">Sem descrição.</span>}
         </pre>
       </div>

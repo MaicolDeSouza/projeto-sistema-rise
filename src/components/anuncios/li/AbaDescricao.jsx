@@ -37,7 +37,7 @@ export default function AbaDescricao({ contexto, abrirProduto }) {
       <p className="text-sm font-semibold">Descrição que vai para a loja</p>
       {html ? (
         <div
-          className="max-h-[36rem] space-y-2 overflow-y-auto rounded border border-borda bg-superficie px-4 py-3 leading-relaxed [&_a]:text-acento [&_a]:underline"
+          className="space-y-2 rounded border border-borda bg-superficie px-4 py-3 leading-relaxed [&_a]:text-acento [&_a]:underline"
           dangerouslySetInnerHTML={{ __html: html }}
         />
       ) : (

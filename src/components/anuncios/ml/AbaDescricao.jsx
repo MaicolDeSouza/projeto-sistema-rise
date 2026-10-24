@@ -44,7 +44,7 @@ export default function AbaDescricao({ rascunho, problemas }) {
           </Link>
         )}
       </div>
-      <pre className="mt-1 max-h-[40rem] overflow-y-auto rounded border border-borda bg-fundo px-3 py-2.5 font-sans text-[15px] leading-relaxed break-words whitespace-pre-wrap">
+      <pre className="mt-1 rounded border border-borda bg-fundo px-3 py-2.5 font-sans text-[15px] leading-relaxed break-words whitespace-pre-wrap">
         {textoFinal || <span className="text-suave">O produto não tem descrição. Escreva no cadastro do produto.</span>}
       </pre>
       <p className="mt-1 text-[11px] text-suave tabular-nums">{NUMERO.format(textoFinal.length)} caracteres</p>
