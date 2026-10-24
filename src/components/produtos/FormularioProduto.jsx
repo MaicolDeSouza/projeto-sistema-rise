@@ -818,30 +818,23 @@ function comDuasCasas(valor) {
 const IMPOSTO_PADRAO = 0.06;
 
 /**
- * Margem LIQUIDA sobre o PRECO DE VENDA (pedido do dono em 22/09/2026):
- * (preco * (1 - imposto) - custo) / preco — o lucro depois de tirar o custo
- * do fornecedor E o imposto, nao so o custo. Custo vazio ou zero nao tem
- * margem que calcular — o fornecedor padrao ainda nao foi escolhido, ou nao
- * tem preco de custo.
+ * % de lucro = MARKUP sobre o CUSTO (pedido do dono em 24/10/2026: "se eu comprei por R$50 e
+ * digitar 100% de lucro, o preco de venda deve ir para R$100"): (preco - custo) / custo, SEM o
+ * imposto. Ate ali era a margem liquida sobre o preco de venda (o mesmo produto mostrava 50%
+ * onde o dono esperava ~100%). O lucro em reais continua liquido (com o imposto descontado).
+ * Custo vazio ou zero nao tem o que calcular: o fornecedor padrao ainda nao foi escolhido.
+ * O Mercado Livre e a proposta seguem com a margem sobre o preco (lib/margem.js e custos do ML).
  */
-function calcularMargem(preco, custo) {
+function calcularMarkup(preco, custo) {
   if (!(custo > 0) || !(preco > 0)) return null;
-  const liquido = preco * (1 - IMPOSTO_PADRAO) - custo;
-  return (liquido / preco) * 100;
+  return ((preco - custo) / custo) * 100;
 }
 
-/**
- * Preco que da a margem pedida, isolando `preco` de
- * `margem = (preco*(1-imposto) - custo) / preco`:
- * `preco = custo / (1 - imposto - margem/100)`.
- * Travado abaixo de `(1-imposto)*100`: acima disso nem um custo zero
- * cobriria o imposto sozinho, e o preco explodiria (ou ficaria negativo).
- */
-function calcularPrecoDaMargem(margem, custo) {
+/** Preco que da o markup pedido: `preco = custo * (1 + markup/100)`; markup negativo nao. */
+function calcularPrecoDoMarkup(markup, custo) {
   if (!(custo > 0)) return null;
-  const tetoMargem = (1 - IMPOSTO_PADRAO) * 100 - 1;
-  const m = Math.min(Math.max(Number(margem) || 0, 0), tetoMargem);
-  return custo / (1 - IMPOSTO_PADRAO - m / 100);
+  const m = Math.max(Number(markup) || 0, 0);
+  return custo * (1 + m / 100);
 }
 
 /**
@@ -857,12 +850,13 @@ function calcularPrecoDaMargemReais(margemReais, custo) {
 /**
  * Cor do indicador de margem (pedido do dono em 22/09/2026): vermelho quando o
  * preco de venda fica ABAIXO do custo do fornecedor (prejuizo, nao margem
- * baixa); amarelo com lucro abaixo de 60%; verde a partir de 60%.
+ * baixa); amarelo com lucro abaixo de 60%; verde a partir de 60%. Desde 24/10/2026 o
+ * percentual e o markup sobre o custo (ver calcularMarkup).
  */
 function corDaMargem(preco, custo) {
   if (!(custo > 0) || !(preco > 0)) return "text-suave";
   if (preco < custo) return "text-red-600";
-  const margem = calcularMargem(preco, custo);
+  const margem = calcularMarkup(preco, custo);
   if (margem === null) return "text-suave";
   // "amber" (#b45309) e vermelho (#b91c1c) sao os dois tons queimados demais
   // para diferenciar num texto pequeno — o dono viu 52% e leu como vermelho
@@ -926,7 +920,7 @@ function CampoPreco({
     }
 
     const preco = Number(formatado);
-    const margem = calcularMargem(preco, custo);
+    const margem = calcularMarkup(preco, custo);
     if (origem !== "lucroPercentual" && lucroPercentual.current) {
       lucroPercentual.current.value = margem === null ? "" : margem.toFixed(1);
     }
@@ -958,7 +952,7 @@ function CampoPreco({
   function aoMudarPrecoPrincipal(evento) {
     aoMudarValor?.(evento.target.value);
     const preco = Number(evento.target.value);
-    const margem = calcularMargem(preco, custo);
+    const margem = calcularMarkup(preco, custo);
     if (precoNoPainel.current) precoNoPainel.current.value = evento.target.value;
     if (lucroPercentual.current) {
       lucroPercentual.current.value = margem === null ? "" : margem.toFixed(1);
@@ -979,13 +973,13 @@ function CampoPreco({
   }
 
   function aoMudarLucroPercentual(evento) {
-    const novoPreco = calcularPrecoDaMargem(evento.target.value, custo);
+    const novoPreco = calcularPrecoDoMarkup(evento.target.value, custo);
     if (novoPreco !== null) propagarPreco(novoPreco, "lucroPercentual");
   }
 
   function aoSairLucroPercentual() {
     if (!lucroPercentual.current) return;
-    const novoPreco = calcularPrecoDaMargem(lucroPercentual.current.value, custo);
+    const novoPreco = calcularPrecoDoMarkup(lucroPercentual.current.value, custo);
     if (novoPreco !== null) propagarPreco(novoPreco);
   }
 
@@ -1000,7 +994,7 @@ function CampoPreco({
     if (novoPreco !== null) propagarPreco(novoPreco);
   }
 
-  const margemAtual = calcularMargem(precoAtual, custo);
+  const margemAtual = calcularMarkup(precoAtual, custo);
   const lucroAtual =
     custo > 0 && precoAtual !== null ? precoAtual * (1 - IMPOSTO_PADRAO) - custo : null;
   const impostoAtual = precoAtual !== null ? precoAtual * IMPOSTO_PADRAO : null;
@@ -1059,7 +1053,7 @@ function CampoPreco({
               <button
                 type="button"
                 onClick={() => setAbertoMargem((atual) => !atual)}
-                title={`Percentual de lucro / lucro em reais, já com ${(IMPOSTO_PADRAO * 100).toFixed(0)}% de imposto descontado — clique para editar`}
+                title={`% de lucro sobre o custo / lucro em reais, já com ${(IMPOSTO_PADRAO * 100).toFixed(0)}% de imposto descontado — clique para editar`}
                 className={`shrink-0 text-sm font-semibold tabular-nums whitespace-nowrap hover:underline ${corIndicador}`}
               >
                 ({margemAtual.toFixed(1)}% / {reais(lucroAtual)})
@@ -1190,8 +1184,8 @@ function CampoPreco({
       {/* Painel de margem (pedido do dono em 22/09/2026): Fornecedor (o custo
           de compra, so leitura — quem muda e a aba Fornecedores), Preco de
           venda, % de Lucro e Lucro em R$, os tres ultimos editaveis e presos
-          entre si pelo mesmo par de contas de calcularMargem/
-          calcularPrecoDaMargem. Sem custo do fornecedor padrao nao ha o que
+          entre si pelo mesmo par de contas de calcularMarkup/
+          calcularPrecoDoMarkup. Sem custo do fornecedor padrao nao ha o que
           calcular, e o botao que abre fica desabilitado. */}
       {abertoMargem && temCusto && margemModo === "sempre" && (
         <ListaFlutuante largura="w-72" aoFechar={() => setAbertoMargem(false)}>
@@ -1242,14 +1236,13 @@ function CampoPreco({
             </label>
 
             <label className="block">
-              <span className="block text-xs text-suave">% de lucro (líquido, já com imposto)</span>
+              <span className="block text-xs text-suave">% de lucro (sobre o custo)</span>
               <div className="relative mt-0.5">
                 <input
                   ref={lucroPercentual}
                   type="number"
                   step="0.1"
                   min="0"
-                  max="99"
                   defaultValue={margemAtual !== null ? margemAtual.toFixed(1) : ""}
                   onChange={aoMudarLucroPercentual}
                   onBlur={aoSairLucroPercentual}
@@ -1282,8 +1275,8 @@ function CampoPreco({
             {/* Nota pedida pelo dono em 22/09/2026: o imposto entra fixo por
                 enquanto, e a tela avisa disso em vez de parecer definitivo. */}
             <p className="border-t border-borda pt-2 text-[11px] text-suave">
-              Imposto de {(IMPOSTO_PADRAO * 100).toFixed(0)}% já descontado do lucro acima. Fixo
-              por enquanto — no futuro vira configurável.
+              % de lucro: quanto o preço passa do custo (R$ 50 com 100% = R$ 100). Imposto de{" "}
+              {(IMPOSTO_PADRAO * 100).toFixed(0)}% descontado só da margem em reais. Fixo por enquanto.
             </p>
           </div>
         </ListaFlutuante>

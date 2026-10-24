@@ -22,6 +22,24 @@ export function calcularMargem(preco, custo) {
 }
 
 /**
+ * % de lucro do cadastro de Produto e da edicao rapida: MARKUP sobre o custo, sem o imposto
+ * (pedido do dono em 24/10/2026: custo R$ 50 com 100% = R$ 100). Espelha `calcularMarkup` de
+ * FormularioProduto.jsx. O ML e a proposta seguem com `calcularMargem` (sobre o preco).
+ */
+export function calcularMarkup(preco, custo) {
+  if (!(custo > 0) || !(preco > 0)) return null;
+  return ((preco - custo) / custo) * 100;
+}
+
+/** A regra de cor de `corDaMargem`, sobre o markup: vermelho abaixo do custo, verde a partir de 60%. */
+export function corDoMarkup(preco, custo) {
+  const markup = calcularMarkup(preco, custo);
+  if (markup === null) return "text-suave";
+  if (preco < custo) return "text-red-600";
+  return markup >= 60 ? "text-emerald-600" : "text-yellow-600";
+}
+
+/**
  * Vermelho quando o preco fica ABAIXO do custo (prejuizo, nao margem baixa);
  * amarelo com margem abaixo de 60%; verde a partir de 60%.
  */

@@ -6,7 +6,7 @@ import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, Loader, Pencil, X } f
 
 import { ajustarEstoque, salvarLocalizacao, salvarPrecoVenda } from "@/app/produtos/acoes-edicao-rapida";
 import { MAXIMO_ESTOQUE, MOTIVOS, TIPOS_DE_MOVIMENTO, novoSaldo } from "@/lib/estoque";
-import { calcularMargem, corDaMargem, IMPOSTO_PADRAO, lucroLiquido } from "@/lib/margem";
+import { calcularMarkup, corDoMarkup, IMPOSTO_PADRAO, lucroLiquido } from "@/lib/margem";
 
 /**
  * Edicao rapida da lista de Produtos (pedido do dono em 30/09/2026): localizacao,
@@ -190,7 +190,8 @@ export function PopupPreco({ produto, aoFechar }) {
   const preco = Number(valor);
   const custo = produto.custo;
   const lucro = lucroLiquido(preco, custo);
-  const margem = calcularMargem(preco, custo);
+  // % sobre o custo (markup), como no cadastro (pedido do dono em 24/10/2026); o R$ e liquido.
+  const margem = calcularMarkup(preco, custo);
 
   return (
     <Popup
@@ -220,11 +221,11 @@ export function PopupPreco({ produto, aoFechar }) {
         className={`${CLASSE_CAMPO} tabular-nums`}
       />
 
-      <p className={`mt-2 min-h-5 text-sm font-medium tabular-nums ${corDaMargem(preco, custo)}`}>
+      <p className={`mt-2 min-h-5 text-sm font-medium tabular-nums ${corDoMarkup(preco, custo)}`}>
         {lucro !== null &&
           (preco < custo
             ? `Abaixo do custo: ${moeda.format(lucro)} (${margem.toFixed(1)}%)`
-            : `Lucro líquido ${moeda.format(lucro)} (${margem.toFixed(1)}%)`)}
+            : `Lucro líquido ${moeda.format(lucro)} (${margem.toFixed(1)}% sobre o custo)`)}
       </p>
       <p className="text-xs text-suave">
         {custo > 0
