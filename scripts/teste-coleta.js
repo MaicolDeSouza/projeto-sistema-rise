@@ -46,6 +46,7 @@ const DOMINIOS = [
   "teste-ampla.local",
   "teste-pelafonte.local",
   "teste-custo.local",
+  "teste-adicional.local",
 ];
 
 function produto({ code, name, normal, promotional = null, status = "AVAILABLE", quantity = null, url = null }) {
@@ -539,6 +540,85 @@ try {
 } finally {
   await prisma.produto.deleteMany({ where: { sku: { in: ["ZZ-CUSTO-1", "ZZ-CUSTO-2"] } } });
   await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Custo" } });
+}
+
+// ---------------------------------------------------------------------------
+// CUSTO ADICIONAL NA LINHA DO FORNECEDOR (24/10/2026, opcao 1 + vinculo a um codigo do Rise): o custo do vinculo e o
+// preco do fornecedor mais os adicionais (valor fixo ou quantidade x o custo de hoje de outro produto do Rise), e o
+// custo do cabo que muda refaz o do Arduino, em cadeia, inclusive pela varredura.
+const SKUS_ADIC = ["ZZ-ADIC-CABO", "ZZ-ADIC-ARD", "ZZ-ADIC-KIT"];
+await prisma.produto.deleteMany({ where: { sku: { in: SKUS_ADIC } } });
+await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Adicional" } });
+try {
+  const { custoTotal, normalizarAdicionais, somaDosAdicionais } = await import("@/lib/custoAdicionalRegras.js");
+  const { produtosQueDependem, recalcularQuemUsa, recalcularVinculos, vinculosDoProduto } = await import("@/lib/custoAdicional.js");
+
+  conferir("adicional: lixo sai, repetido soma e o proprio produto nao entra", normalizarAdicionais([
+    { descricao: "Cabo", valor: "2,5" }, { descricao: "", valor: 3 }, { descricao: "Zero", valor: 0 },
+    { produtoId: "a", quantidade: 1 }, { produtoId: "a", quantidade: "2" }, { produtoId: "eu", quantidade: 1 },
+    { produtoId: "b", quantidade: 0 }, null, "texto",
+  ], "eu"), [{ descricao: "Cabo", valor: 2.5 }, { produtoId: "a", quantidade: 3 }]);
+  conferir("adicional: produto sem custo conta zero e avisa", somaDosAdicionais(
+    [{ descricao: "X", valor: 1 }, { produtoId: "c", quantidade: 2 }, { produtoId: "d", quantidade: 1 }],
+    (id) => (id === "c" ? 3.2 : null)), { total: 7.4, semCusto: ["d"] });
+  conferir("adicional: sem preco do fornecedor nao ha custo", custoTotal(null, 5), null);
+  conferir("adicional: total em centavos", custoTotal("20.10", 0.2), 20.3);
+
+  const fonteAdic = await prisma.fonteColeta.create({
+    data: { nome: "ZZ Fonte Adicional", dominio: "teste-adicional.local", tipo: "FORNECEDOR", ativa: false },
+  });
+  const fornAdic = await prisma.fornecedor.create({
+    data: { nome: "ZZ Fornecedor Adicional", fonteId: fonteAdic.id, cnpj: "11.222.333/0001-81" },
+  });
+  const cabo = await prisma.produto.create({ data: { sku: "ZZ-ADIC-CABO", tituloBase: "Cabo teste" } });
+  const ard = await prisma.produto.create({ data: { sku: "ZZ-ADIC-ARD", tituloBase: "Arduino teste" } });
+  const kit = await prisma.produto.create({ data: { sku: "ZZ-ADIC-KIT", tituloBase: "Kit teste" } });
+  const vCabo = await prisma.produtoFornecedor.create({
+    data: { produtoId: cabo.id, fornecedorId: fornAdic.id, codigo: "ZZ-CABO", precoCusto: 3.2, precoFornecedor: 3.2, padrao: true },
+  });
+  const vArd = await prisma.produtoFornecedor.create({
+    data: {
+      produtoId: ard.id, fornecedorId: fornAdic.id, codigo: "ZZ-ARD", precoCusto: 20, precoFornecedor: 20, padrao: true,
+      adicionais: [{ descricao: "Embalagem", valor: 0.5 }, { produtoId: cabo.id, quantidade: 2 }],
+    },
+  });
+  const vKit = await prisma.produtoFornecedor.create({
+    data: { produtoId: kit.id, fornecedorId: fornAdic.id, precoCusto: 1, precoFornecedor: 1, padrao: true, adicionais: [{ produtoId: ard.id, quantidade: 1 }] },
+  });
+  const custoDe = async (id) => {
+    const linha = await prisma.produtoFornecedor.findUnique({ where: { id } });
+    return [Number(linha.precoFornecedor), Number(linha.adicionaisValor), Number(linha.precoCusto)];
+  };
+
+  const mudaramArd = await recalcularVinculos(await vinculosDoProduto(ard.id));
+  conferir("adicional: Arduino = 20 + embalagem 0,50 + 2 cabos de 3,20", await custoDe(vArd.id), [20, 6.9, 26.9]);
+  conferir("adicional: o vinculo padrao leva o custo do produto", Number((await prisma.produto.findUnique({ where: { id: ard.id } })).custo), 26.9);
+  conferir("adicional: devolve o produto que mudou de custo", mudaramArd, [ard.id]);
+  conferir("adicional: refazer sem mudanca nao grava nada", await recalcularVinculos(await vinculosDoProduto(ard.id)), []);
+  await recalcularVinculos(await vinculosDoProduto(kit.id));
+  conferir("adicional: o kit soma o Arduino com o cabo dentro", await custoDe(vKit.id), [1, 26.9, 27.9]);
+
+  conferir("adicional: quem depende do cabo, em cadeia", (await produtosQueDependem([cabo.id])).sort(), [ard.id, kit.id].sort());
+
+  // O dono salva o cabo com outro custo: o Arduino e o kit acompanham.
+  await prisma.produtoFornecedor.update({ where: { id: vCabo.id }, data: { precoCusto: 5, precoFornecedor: 5 } });
+  const cadeia = await recalcularQuemUsa([cabo.id]);
+  conferir("adicional: cabo a 5 leva o Arduino a 30,50", await custoDe(vArd.id), [20, 10.5, 30.5]);
+  conferir("adicional: e o kit a 31,50", await custoDe(vKit.id), [1, 30.5, 31.5]);
+  conferir("adicional: a cadeia devolve os dois", cadeia.sort(), [ard.id, kit.id].sort());
+
+  // A varredura: o fornecedor muda o preco do cabo e do Arduino; o total soma o adicional e a cadeia segue.
+  await gravarColeta({
+    fonte: fonteAdic,
+    produtos: [produto({ code: "ZZ-CABO", name: "Cabo", normal: 6 }), produto({ code: "ZZ-ARD", name: "Arduino", normal: 22 })],
+    origem: "arquivo",
+  });
+  conferir("adicional, varredura: o cabo vai a 6", await custoDe(vCabo.id), [6, 0, 6]);
+  conferir("adicional, varredura: o Arduino = 22 + 0,50 + 2 x 6", await custoDe(vArd.id), [22, 12.5, 34.5]);
+  conferir("adicional, varredura: o kit acompanha", await custoDe(vKit.id), [1, 34.5, 35.5]);
+} finally {
+  await prisma.produto.deleteMany({ where: { sku: { in: SKUS_ADIC } } });
+  await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Adicional" } });
 }
 
 // ---------------------------------------------------------------------------

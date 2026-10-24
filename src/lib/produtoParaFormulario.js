@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { lerPecasDoKit, mudancasDosKits, pecaParaTela } from "@/lib/composicaoBanco";
 import { propostaParaFormulario } from "@/lib/proposta/banco";
+import { custosDosProdutos } from "@/lib/custoAdicional";
+import { custoTotal, normalizarAdicionais, somaDosAdicionais } from "@/lib/custoAdicionalRegras";
 
 /**
  * O produto como o FormularioProduto o recebe, lido do banco. Mora aqui (e nao na pagina de edicao) porque
@@ -131,16 +133,32 @@ export async function carregarProdutoParaFormulario(id) {
     }
   }
 
-  const fornecedores = registro.fornecedores.map((vinculo) => ({
-    id: vinculo.id,
-    nome: vinculo.fornecedor.nome,
-    descricao: vinculo.descricao,
-    observacao: vinculo.observacao ?? null,
-    codigo: vinculo.codigo,
-    precoCusto: custoDaVarredura.get(vinculo.id) ?? (vinculo.precoCusto ? Number(vinculo.precoCusto) : null),
-    link: vinculo.link,
-    padrao: vinculo.padrao,
-  }));
+  // CUSTO ADICIONAL (pedido do dono em 24/10/2026): a linha mostra o preco do fornecedor (o da varredura, senao o
+  // gravado) mais os adicionais com o custo DE HOJE dos produtos vinculados, e o total vai em `precoCusto` (o que a
+  // margem e a ordem da tabela leem). Os produtos vinculados vem com codigo e nome para a janela do adicional.
+  const vinculadosIds = registro.fornecedores.flatMap((vinculo) =>
+    normalizarAdicionais(vinculo.adicionais).filter((item) => item.produtoId).map((item) => item.produtoId));
+  const vinculados = await custosDosProdutos(vinculadosIds);
+  const fornecedores = registro.fornecedores.map((vinculo) => {
+    const gravado = vinculo.precoFornecedor ?? vinculo.precoCusto;
+    const precoFornecedor = custoDaVarredura.get(vinculo.id) ?? (gravado !== null && gravado !== undefined ? Number(gravado) : null);
+    const adicionais = normalizarAdicionais(vinculo.adicionais, registro.id).map((item) => (item.produtoId
+      ? { ...item, sku: vinculados.get(item.produtoId)?.sku ?? null, nome: vinculados.get(item.produtoId)?.nome ?? null, custo: vinculados.get(item.produtoId)?.custo ?? null }
+      : item));
+    const soma = somaDosAdicionais(adicionais, (id) => vinculados.get(id)?.custo ?? null).total;
+    return {
+      id: vinculo.id,
+      nome: vinculo.fornecedor.nome,
+      descricao: vinculo.descricao,
+      observacao: vinculo.observacao ?? null,
+      codigo: vinculo.codigo,
+      precoFornecedor,
+      adicionais,
+      precoCusto: custoTotal(precoFornecedor, soma),
+      link: vinculo.link,
+      padrao: vinculo.padrao,
+    };
+  });
 
   // Vindo da lupa (produtoColetado preenchido): sempre o preco de HOJE, lido
   // agora — pedido do dono em 18/09/2026, para acompanhar a proxima

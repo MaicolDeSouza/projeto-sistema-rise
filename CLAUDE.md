@@ -259,7 +259,7 @@ npm run copia:atualizar -- --banco=sistema_rise_ensaio --dump=<arquivo>   # o me
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
-npm run teste:coleta              # 65 asserções da gravação no banco e da busca ampla, inclusive pelo nome da fonte (usa o Postgres, SEM rede)
+npm run teste:coleta              # 99 asserções da gravação no banco, da busca ampla (inclusive pelo nome da fonte), do custo que segue a varredura e do custo adicional do fornecedor (usa o Postgres, SEM rede)
 npm run teste:cadastros           # 88 asserções: CPF/CNPJ/CEP/telefone, CNPJ obrigatório do fornecedor, a ligação fonte -> cadastro e as indicações dos vínculos salvos (Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
@@ -4530,6 +4530,29 @@ Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com *
     (`[custos ao Bling]`). Passa pelas travas de escrita: no `worker:pc` (travas do `.env` do PC fechadas) nada vai, e os
     produtos ficam com o "!". Testes: `teste:coleta` ("custo..."), `teste:bling-sync` ("custo ao Bling...") e
     `teste:extracao` ("custo:...").
+- **Custo adicional na linha do fornecedor** (pedido do dono em 24/10/2026: "às vezes meu fornecedor vende arduino sem
+  cabo, mas eu vendo apenas com cabo"; opção 1, sem coluna nova, mais "vincular um código do Rise... ao alterar o custo do
+  cabo no Rise automaticamente já ajusta o preço de custo do arduino + cabo"). Migration `20261024_custo_adicional_fornecedor`
+  (só aditiva): `ProdutoFornecedor.precoFornecedor` (o que o fornecedor cobra; a varredura escreve nele), `adicionais` (JSON,
+  até 10: `{descricao, valor}` fixo ou `{produtoId, quantidade}` de um produto do Rise) e `adicionaisValor` (a soma da última
+  conta). **`precoCusto` continua sendo o TOTAL** que o Rise inteiro lê (margem, proposta, Bling, indicadores, foto mensal).
+  - Regras puras em `src/lib/custoAdicionalRegras.js` (a tela e o servidor fazem a mesma conta); banco em
+    `src/lib/custoAdicional.js`. O produto vinculado conta pelo custo de HOJE (`custoDoProduto`: fornecedor padrão, rascunho do
+    Bling, cadastro); sem custo conta 0 e a tela avisa "(sem custo)".
+  - **O servidor refaz a conta no Salvar** (`gravarFornecedoresRascunho` → `recalcularVinculos`); o total do navegador é só
+    tela. Tela aberta antes disso (sem `precoFornecedor`) não dobra o adicional; produto que não existe sai; vincular A em B
+    e B em A é recusado ("criaria um ciclo").
+  - **Quem usa o produto como adicional acompanha** (`recalcularQuemUsa`, até 5 níveis, cada rodada com tudo o que mudou):
+    no Salvar do cabo (`ajustarQuemUsa`) e no fechamento da varredura (`gravarColeta`). Quem estava em dia com o Bling recebe
+    o custo novo lá, como na varredura; falha do Bling só deixa o "!".
+  - **Tela:** a célula "Preço de custo" mostra o total e, embaixo, "R$ 20,89 + R$ 2,50" (cada adicional na dica). Na edição,
+    o campo é o preço do fornecedor e o link "Custo adicional" abre a janela (código do Rise com quantidade, ou valor fixo;
+    Fornecedor + adicionais = total; OK/Cancelar). Só grava no Salvar do produto. Ação `custoParaAdicional` (código exato).
+  - Testes no `teste:coleta` ("adicional...": regras, recálculo, cadeia de três produtos e a varredura).
+- **Coluna "Estoque fornecedor" = a regra da coluna Estoque dos concorrentes** (pedido do dono em 24/10/2026):
+  `situacaoDeEstoque` (`estoqueDoConcorrente.js`), "Em estoque" com a quantidade, "Sem estoque" (zero vale mesmo com a loja
+  dizendo disponível), "Fora da coleta" e "Não informado". O "—" aparece enquanto a leitura não volta (no `next dev` as ações
+  rodam uma por vez e levam segundos).
 - **O mesmo fornecedor pode entrar mais de uma vez no produto** (pedido do dono em 23/10/2026; migration
   `20261023c_fornecedor_varios_e_obs` tirou o unique(produtoId, fornecedorId)): dois códigos da Fortek, por exemplo. A
   identidade da linha é o `id` (`gravarFornecedoresRascunho`: id do produto atualiza, id do navegador cria), e a sugestão

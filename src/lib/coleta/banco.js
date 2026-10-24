@@ -280,6 +280,17 @@ export async function gravarColeta({
     { maxWait: 30 * 1000, timeout: 10 * 60 * 1000 },
   );
 
+  // O custo novo destes produtos muda o de quem os usa como adicional (o Arduino que soma o cabo; 24/10/2026). Fora da
+  // transacao, e uma falha aqui nunca desfaz a coleta.
+  if (produtosComCustoNovo.length > 0) {
+    try {
+      const { recalcularQuemUsa } = await import("@/lib/custoAdicional");
+      produtosComCustoNovo = [...produtosComCustoNovo, ...(await recalcularQuemUsa(produtosComCustoNovo))];
+    } catch (erro) {
+      console.error(`[custo adicional] nao recalculado: ${erro.message}`);
+    }
+  }
+
   // Fora da transacao: o Bling e rede, e uma falha dele nunca desfaz a coleta.
   const paraOBling = [...new Set(produtosComCustoNovo)].filter((produtoId) => emDiaAntes.has(produtoId));
   let custosNoBling = null;
@@ -312,7 +323,10 @@ async function produtosEmDiaDaFonte(fonteId) {
   });
   if (vinculos.length === 0) return new Set();
   const { produtosEmDiaComOBling } = await import("@/lib/blingSync/custosDaVarredura");
-  return produtosEmDiaComOBling(vinculos.map((vinculo) => vinculo.produtoId));
+  // Quem usa estes produtos como adicional tambem pode mudar de custo (24/10/2026): entra na mesma conferencia.
+  const { produtosQueDependem } = await import("@/lib/custoAdicional");
+  const ids = vinculos.map((vinculo) => vinculo.produtoId);
+  return produtosEmDiaComOBling([...ids, ...(await produtosQueDependem(ids))]);
 }
 
 /**
@@ -326,9 +340,12 @@ async function produtosEmDiaDaFonte(fonteId) {
  * @returns {Promise<string[]>} o produto de cada vinculo atualizado
  */
 export async function atualizarCustosDosVinculos(tx, fonteId) {
+  // Desde 24/10/2026 o custo da varredura e o PRECO DO FORNECEDOR, e o custo do vinculo e ele mais os adicionais (o
+  // cabo que a Fortek nao manda junto): `adicionaisValor` guarda a soma de agora, entao o total sai aqui mesmo, em SQL.
   const linhas = await tx.$queryRaw`
     UPDATE "ProdutoFornecedor" v
-       SET "precoCusto" = alvo.custo, "atualizadoEm" = (NOW() AT TIME ZONE 'UTC')
+       SET "precoFornecedor" = alvo.custo, "precoCusto" = alvo.custo + COALESCE(v."adicionaisValor", 0),
+           "atualizadoEm" = (NOW() AT TIME ZONE 'UTC')
       FROM (
         SELECT DISTINCT ON (v2.id) v2.id,
                COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") AS custo
@@ -340,7 +357,7 @@ export async function atualizarCustosDosVinculos(tx, fonteId) {
            AND COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") IS NOT NULL
          ORDER BY v2.id, p."vistoEm" DESC
       ) alvo
-     WHERE v.id = alvo.id AND v."precoCusto" IS DISTINCT FROM alvo.custo
+     WHERE v.id = alvo.id AND v."precoCusto" IS DISTINCT FROM alvo.custo + COALESCE(v."adicionaisValor", 0)
     RETURNING v."produtoId"`;
   return linhas.map((linha) => linha.produtoId);
 }
@@ -354,9 +371,11 @@ export async function atualizarCustosDosVinculos(tx, fonteId) {
  * @returns {Promise<number>} vinculos acertados
  */
 export async function atualizarCustosDoProduto(produtoId, cliente = prisma) {
+  // O preco do fornecedor vem da varredura; o total soma os adicionais (24/10/2026, ver `atualizarCustosDosVinculos`).
   return cliente.$executeRaw`
     UPDATE "ProdutoFornecedor" v
-       SET "precoCusto" = alvo.custo, "atualizadoEm" = (NOW() AT TIME ZONE 'UTC')
+       SET "precoFornecedor" = alvo.custo, "precoCusto" = alvo.custo + COALESCE(v."adicionaisValor", 0),
+           "atualizadoEm" = (NOW() AT TIME ZONE 'UTC')
       FROM (
         SELECT DISTINCT ON (v2.id) v2.id,
                COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") AS custo
@@ -368,7 +387,7 @@ export async function atualizarCustosDoProduto(produtoId, cliente = prisma) {
            AND COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") IS NOT NULL
          ORDER BY v2.id, p."vistoEm" DESC
       ) alvo
-     WHERE v.id = alvo.id AND v."precoCusto" IS DISTINCT FROM alvo.custo`;
+     WHERE v.id = alvo.id AND (v."precoFornecedor" IS DISTINCT FROM alvo.custo OR v."precoCusto" IS DISTINCT FROM alvo.custo + COALESCE(v."adicionaisValor", 0))`;
 }
 
 /**

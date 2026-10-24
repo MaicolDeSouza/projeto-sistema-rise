@@ -45,6 +45,8 @@ import { UNIDADES } from "@/lib/unidades";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import { conferirEanNoML } from "@/lib/canaisDeVenda/ml/eanNoCatalogo";
 import { proximoCodigoLivre } from "@/lib/proposta/codigo";
+import { normalizarAdicionais } from "@/lib/custoAdicionalRegras";
+import { custosDosProdutos, produtosQueDependem, recalcularQuemUsa, recalcularVinculos, vinculosDoProduto } from "@/lib/custoAdicional";
 import {
   MAXIMO_IMAGENS,
   apagarArquivo,
@@ -1266,6 +1268,11 @@ const FornecedorSchema = z.object({
   observacao: opcional(z.string().trim().max(500, "Até 500 caracteres.")),
   codigo: opcional(z.string().trim()),
   precoCusto: decimal(),
+  // Custo adicional (pedido do dono em 24/10/2026, opcao 1): `precoFornecedor` e o que o fornecedor cobra e `adicionais`
+  // o que se soma (o cabo que ele nao manda). O `precoCusto` do navegador e so o total para a tela: o servidor refaz a
+  // conta (`recalcularVinculos`). Os dois sao opcionais: a tela aberta antes disso nao os manda e nada se perde.
+  precoFornecedor: decimal().optional(),
+  adicionais: z.array(z.unknown()).max(50).optional(),
   link: opcional(
     z.string().trim().refine(ehUrlSegura, "Informe um endereço http ou https."),
   ),
@@ -1329,13 +1336,29 @@ async function gravarFornecedoresRascunho(produto, formData) {
   // vez, por exemplo dois codigos da Fortek). Id que ja e deste produto atualiza a linha; id do navegador (linha nova)
   // cria. Ate ali a identidade era o fornecedor (upsert no unique produto+fornecedor), e a segunda linha do mesmo
   // fornecedor sobrescrevia a primeira.
-  const existentes = new Set(
-    (await prisma.produtoFornecedor.findMany({ where: { produtoId: produto.id }, select: { id: true } })).map((linha) => linha.id),
+  const linhasAtuais = await prisma.produtoFornecedor.findMany({
+    where: { produtoId: produto.id },
+    select: { id: true, precoFornecedor: true, adicionaisValor: true },
+  });
+  const existentes = new Set(linhasAtuais.map((linha) => linha.id));
+
+  // Os produtos do Rise usados como adicional (o cabo): so os que existem, e nunca um que ja depende deste produto
+  // (A soma B e B soma A cresceria a cada recalculo). A tela so manda o que a busca achou; isto e a defesa do servidor.
+  const pedidos = [...new Set(validos.flatMap(({ dados }) =>
+    normalizarAdicionais(dados.adicionais ?? [], produto.id).filter((item) => item.produtoId).map((item) => item.produtoId)))];
+  const existem = pedidos.length === 0 ? new Map() : new Map(
+    (await prisma.produto.findMany({ where: { id: { in: pedidos } }, select: { id: true, sku: true } })).map((item) => [item.id, item.sku]),
   );
+  const dependentes = pedidos.length === 0 ? [] : await produtosQueDependem([produto.id]);
+  const emCiclo = pedidos.filter((id) => dependentes.includes(id));
+  if (emCiclo.length > 0) {
+    throw new Error(`O produto ${existem.get(emCiclo[0]) ?? emCiclo[0]} já usa este produto como custo adicional: vincular os dois criaria um ciclo.`);
+  }
+
   const idsMantidos = [];
   let padraoJaUsado = false;
   for (const { dados, padrao, id } of validos) {
-    const { nome, ...vinculo } = dados;
+    const { nome, precoFornecedor, adicionais, ...vinculo } = dados;
     const fornecedor = await prisma.fornecedor.findFirst({
       where: { nome: { equals: nome, mode: "insensitive" } },
     });
@@ -1344,7 +1367,19 @@ async function gravarFornecedoresRascunho(produto, formData) {
     // Exatamente um padrao: duas linhas marcadas (nao deveria acontecer pela tela) ficam com a primeira.
     const ehPadrao = padrao && !padraoJaUsado;
     if (ehPadrao) padraoJaUsado = true;
-    const dadosDaLinha = { ...vinculo, fornecedorId: fornecedor.id, padrao: ehPadrao };
+    // O preco do fornecedor: o que a tela mandou; tela antiga (sem o campo) manda so o `precoCusto`, que e o preco do
+    // fornecedor quando a linha nao tem adicional. Linha COM adicional e tela antiga: fica o que esta gravado (o
+    // `precoCusto` dela seria o total, e somar de novo dobraria o adicional).
+    const atual = linhasAtuais.find((linha) => linha.id === id);
+    const base = precoFornecedor !== undefined
+      ? precoFornecedor
+      : (atual?.adicionaisValor != null ? atual.precoFornecedor : vinculo.precoCusto);
+    const dadosDaLinha = { ...vinculo, precoFornecedor: base, fornecedorId: fornecedor.id, padrao: ehPadrao };
+    if (adicionais !== undefined) {
+      const lista = normalizarAdicionais(adicionais, produto.id).filter((item) => !item.produtoId || existem.has(item.produtoId));
+      dadosDaLinha.adicionais = lista.length > 0 ? lista : Prisma.DbNull;
+      if (lista.length === 0) dadosDaLinha.adicionaisValor = null;
+    }
     if (id && existentes.has(id) && !idsMantidos.includes(id)) {
       await prisma.produtoFornecedor.update({ where: { id }, data: dadosDaLinha });
       idsMantidos.push(id);
@@ -1365,7 +1400,31 @@ async function gravarFornecedoresRascunho(produto, formData) {
   // aberta desde antes regravava o valor sem IPI por cima da correcao.
   const { atualizarCustosDoProduto } = await import("@/lib/coleta/banco");
   await atualizarCustosDoProduto(produto.id);
+  // O total de cada linha = preco do fornecedor + adicionais com o custo DE HOJE dos produtos vinculados (24/10/2026).
+  await recalcularVinculos(await vinculosDoProduto(produto.id));
   await recalcularCusto(produto.id);
+  await ajustarQuemUsa(produto.id);
+}
+
+/**
+ * "Ao alterar o custo do cabo no Rise automaticamente ja ajusta o preco de custo do arduino + cabo" (pedido do dono em
+ * 24/10/2026): depois do Salvar deste produto, refaz o custo de quem o usa como adicional, em cadeia. Quem estava em dia
+ * com o Bling recebe o custo novo do fornecedor la, como a varredura faz (para nao acender o "!"); falha do Bling nunca
+ * desfaz o Salvar, so deixa o "!" no produto.
+ */
+async function ajustarQuemUsa(produtoId) {
+  const dependentes = await produtosQueDependem([produtoId]);
+  if (dependentes.length === 0) return;
+  const { produtosEmDiaComOBling, enviarCustosAoBling } = await import("@/lib/blingSync/custosDaVarredura");
+  const emDia = await produtosEmDiaComOBling(dependentes);
+  const mudaram = await recalcularQuemUsa([produtoId]);
+  const paraOBling = mudaram.filter((id) => emDia.has(id));
+  if (paraOBling.length === 0) return;
+  try {
+    await enviarCustosAoBling(paraOBling);
+  } catch (erro) {
+    console.error(`[custo adicional] custo nao enviado ao Bling: ${erro.message}`);
+  }
 }
 
 export async function listarFornecedores() {
@@ -1475,6 +1534,26 @@ export async function consultarSituacaoConcorrentes(ids) {
   }
 }
 
+/**
+ * O produto do Rise para o custo adicional de uma linha de fornecedor (pedido do dono em 24/10/2026: "vincular um codigo
+ * do Rise, soma o valor de custo daquele produto"). Pelo codigo exato (sem diferenciar caixa); devolve o custo de HOJE
+ * (fornecedor padrao, rascunho do Bling, cadastro) so para a conta da tela: o Salvar le de novo.
+ */
+export async function custoParaAdicional(codigo, proprioId = null) {
+  const negado = (await negarSemAcesso("tela.produtos.cadastro", "editar")) ?? (await negarSemAcesso("dado.custo", "ver"));
+  if (negado) return negado;
+  const texto = String(codigo ?? "").trim();
+  if (!texto) return { ok: false, erro: "Informe o código do produto." };
+  const produto = await prisma.produto.findFirst({
+    where: { sku: { equals: texto, mode: "insensitive" } },
+    select: { id: true, sku: true },
+  });
+  if (!produto) return { ok: false, erro: `Não há produto com o código ${texto} no Rise.` };
+  if (produto.id === proprioId) return { ok: false, erro: "Um produto não pode ser custo adicional dele mesmo." };
+  const dado = (await custosDosProdutos([produto.id])).get(produto.id);
+  return { ok: true, produtoId: produto.id, sku: dado?.sku ?? produto.sku, nome: dado?.nome ?? "", custo: dado?.custo ?? null };
+}
+
 export async function salvarFornecedorDoProduto(produtoId, vinculoId, dados) {
   const negado = (await negarSemAcesso("tela.produtos.cadastro", "editar")) ?? (await negarSemAcesso("dado.custo", "ver"));
   if (negado) return negado;
@@ -1483,7 +1562,10 @@ export async function salvarFornecedorDoProduto(produtoId, vinculoId, dados) {
     return { ok: false, erros: errosPorCampo(resultado) };
   }
 
-  const { nome, ...vinculo } = resultado.data;
+  // Este caminho (uma linha por vez, sem o Salvar do produto) nao edita os adicionais: so o preco do fornecedor, e o
+  // total e refeito com os adicionais que a linha ja tem (24/10/2026).
+  const { nome, precoFornecedor, adicionais: _ignorados, ...dadosDaLinha } = resultado.data;
+  const vinculo = { ...dadosDaLinha, precoFornecedor: precoFornecedor ?? dadosDaLinha.precoCusto };
 
   try {
     const fornecedor = await prisma.fornecedor.findFirst({
@@ -1511,7 +1593,9 @@ export async function salvarFornecedorDoProduto(produtoId, vinculoId, dados) {
       });
     }
 
+    await recalcularVinculos(await vinculosDoProduto(produtoId));
     await recalcularCusto(produtoId);
+    await ajustarQuemUsa(produtoId);
     revalidatePath(`/produtos/${produtoId}`);
     return { ok: true };
   } catch (erro) {
@@ -1546,6 +1630,7 @@ export async function definirFornecedorPadrao(vinculoId) {
   ]);
 
   await recalcularCusto(alvo.produtoId);
+  await ajustarQuemUsa(alvo.produtoId);
   revalidatePath(`/produtos/${alvo.produtoId}`);
   return { ok: true };
 }
@@ -1578,6 +1663,7 @@ export async function removerFornecedorDoProduto(vinculoId) {
   }
 
   await recalcularCusto(alvo.produtoId);
+  await ajustarQuemUsa(alvo.produtoId);
   revalidatePath(`/produtos/${alvo.produtoId}`);
   return { ok: true };
 }

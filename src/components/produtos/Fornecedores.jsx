@@ -15,6 +15,7 @@ import {
 import {
   definirFornecedorPadrao,
   consultarEstoqueFornecedores,
+  custoParaAdicional,
   listarFornecedores,
   removerFornecedorDoProduto,
   salvarFornecedorDoProduto,
@@ -22,6 +23,7 @@ import {
 import { precoComImpostoTexto, precoDaFaixaTexto } from "@/components/mercados/precoTexto";
 import { precoComImpostos as precoComImpostosCalc } from "@/lib/coleta/impostos";
 import { situacaoDeEstoque } from "@/lib/estoqueDoConcorrente";
+import { MAXIMO_ADICIONAIS, custoTotal, normalizarAdicionais, somaDosAdicionais } from "@/lib/custoAdicionalRegras";
 import CadastroRapidoFornecedor from "./CadastroRapidoFornecedor";
 import BuscaColetadoPorCodigo from "./BuscaColetadoPorCodigo";
 import FotoComLupa from "@/components/ui/FotoComLupa";
@@ -32,14 +34,38 @@ const moeda = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
+// `precoFornecedor` e o que o fornecedor cobra; `adicionais` o que se soma a ele (pedido do dono em 24/10/2026). O
+// custo da linha (`precoCusto` no vinculo) e o total, calculado em `paraVinculo`.
 const VAZIO = {
   nome: "",
   descricao: "",
   observacao: "",
   codigo: "",
-  precoCusto: "",
+  precoFornecedor: "",
+  adicionais: [],
   link: "",
 };
+
+/** A soma dos adicionais na tela: o produto do Rise conta com o custo lido na busca (o Salvar le de novo). */
+function somaNaTela(adicionais) {
+  return somaDosAdicionais(adicionais ?? [], (id) => (adicionais ?? []).find((item) => item.produtoId === id)?.custo ?? null);
+}
+
+/** Os adicionais limpos para a lista, com o codigo, o nome e o custo do produto vinculado de volta (a linha os mostra). */
+function adicionaisParaLista(adicionais, produtoId) {
+  return normalizarAdicionais(adicionais, produtoId).map((item) => {
+    if (!item.produtoId) return item;
+    const original = (adicionais ?? []).find((outro) => outro?.produtoId === item.produtoId);
+    return { ...item, sku: original?.sku ?? null, nome: original?.nome ?? null, custo: original?.custo ?? null };
+  });
+}
+
+/** O texto de um adicional, para a dica da linha e a janela. */
+function textoDoAdicional(item) {
+  if (!item.produtoId) return `${item.descricao}: ${moeda.format(Number(item.valor) || 0)}`;
+  const custo = typeof item.custo === "number" ? moeda.format(item.custo) : "sem custo";
+  return `${item.sku ?? "produto"}${item.nome ? ` ${item.nome}` : ""}: ${item.quantidade} × ${custo}`;
+}
 
 /**
  * Sem URL propria do produto (Fortek: portal fechado, sem pagina publica
@@ -74,8 +100,9 @@ function ehUrlSegura(valor) {
 function validarRascunho(dados) {
   const erros = {};
   if (!dados.nome.trim()) erros.nome = "Informe o fornecedor.";
-  if (dados.precoCusto !== "" && (Number.isNaN(Number(dados.precoCusto)) || Number(dados.precoCusto) < 0)) {
-    erros.precoCusto = "Informe um número válido.";
+  const preco = dados.precoFornecedor ?? "";
+  if (preco !== "" && (Number.isNaN(Number(preco)) || Number(preco) < 0)) {
+    erros.precoFornecedor = "Informe um número válido.";
   }
   if (dados.link && !ehUrlSegura(dados.link)) {
     erros.link = "Informe um endereço http ou https.";
@@ -282,7 +309,9 @@ export default function Fornecedores({
       descricao: vinculo.descricao ?? "",
       observacao: vinculo.observacao ?? "",
       codigo: vinculo.codigo ?? "",
-      precoCusto: vinculo.precoCusto ?? "",
+      // Linha sem adicional (ou vinda do rascunho do Bling, sem o campo): o custo gravado e o preco do fornecedor.
+      precoFornecedor: vinculo.precoFornecedor ?? vinculo.precoCusto ?? "",
+      adicionais: vinculo.adicionais ?? [],
       link: vinculo.link ?? "",
     });
     setErros({});
@@ -296,21 +325,34 @@ export default function Fornecedores({
       descricao: item.nome ?? "",
       observacao: "",
       codigo: item.codigo && item.codigo !== "N/A" ? item.codigo : "",
-      precoCusto: item.preco != null ? String(item.preco) : "",
+      precoFornecedor: item.preco != null ? String(item.preco) : "",
+      adicionais: [],
       link: item.url ?? "",
     };
   }
 
-  /** Rascunho (strings) -> vinculo pronto para a lista, nulos no lugar de "". */
+  /**
+   * Rascunho (strings) -> vinculo pronto para a lista, nulos no lugar de "". `precoCusto` e o TOTAL (fornecedor +
+   * adicionais), o que a margem e a ordem da tabela leem; o servidor refaz a conta no Salvar.
+   */
   function paraVinculo(dados) {
+    const base = (dados.precoFornecedor ?? "") === "" ? null : Number(dados.precoFornecedor);
+    const adicionais = adicionaisParaLista(dados.adicionais, produtoId);
     return {
       nome: dados.nome.trim(),
       descricao: dados.descricao.trim() || null,
       observacao: (dados.observacao ?? "").trim() || null,
       codigo: dados.codigo.trim() || null,
-      precoCusto: dados.precoCusto === "" ? null : Number(dados.precoCusto),
+      precoFornecedor: base,
+      adicionais,
+      precoCusto: custoTotal(base, somaNaTela(adicionais).total),
       link: dados.link.trim() || null,
     };
+  }
+
+  /** O codigo escolhido na busca troca os dados do fornecedor, mas nao os adicionais ja montados. */
+  function escolherCodigo(item) {
+    setRascunho((atual) => ({ ...dadosDaSugestao(item), adicionais: atual.adicionais ?? [] }));
   }
 
   function salvarDados(dadosDoVinculo, cadastradoAgora = false) {
@@ -491,7 +533,10 @@ export default function Fornecedores({
                   key={vinculo.id}
                   campo={campo}
                   catalogo={catalogoAtual}
-                  aoEscolherCodigo={(item) => setRascunho(dadosDaSugestao(item))}
+                  aoEscolherCodigo={escolherCodigo}
+                  adicionais={rascunho.adicionais ?? []}
+                  aoMudarAdicionais={(lista) => setRascunho((atual) => ({ ...atual, adicionais: lista }))}
+                  produtoId={produtoId}
                   erros={erros}
                   pendente={pendente}
                   aoSalvar={salvar}
@@ -549,6 +594,7 @@ export default function Fornecedores({
                         aoAlternar={setPopoverAberto}
                       />
                     </div>
+                    <ResumoDosAdicionais vinculo={vinculo} />
                   </td>
                   <td className="px-3 py-2 tabular-nums">
                     {!estoques[vinculo.id] ? (
@@ -636,7 +682,10 @@ export default function Fornecedores({
               <LinhaEdicao
                 campo={campo}
                 catalogo={catalogoAtual}
-                aoEscolherCodigo={(item) => setRascunho(dadosDaSugestao(item))}
+                aoEscolherCodigo={escolherCodigo}
+                adicionais={rascunho.adicionais ?? []}
+                aoMudarAdicionais={(lista) => setRascunho((atual) => ({ ...atual, adicionais: lista }))}
+                produtoId={produtoId}
                 erros={erros}
                 pendente={pendente}
                 aoSalvar={salvar}
@@ -677,6 +726,240 @@ export default function Fornecedores({
         />
       )}
 
+    </div>
+  );
+}
+
+/**
+ * Embaixo do custo da linha (opcao 1 do dono, sem coluna nova): "R$ 20,89 + R$ 2,50", com cada adicional na dica.
+ * Produto do Rise sem custo conta 0 e avisa em ambar (zerar o custo da linha tiraria a margem do produto).
+ */
+function ResumoDosAdicionais({ vinculo }) {
+  const adicionais = vinculo.adicionais ?? [];
+  if (adicionais.length === 0) return null;
+  const { total, semCusto } = somaNaTela(adicionais);
+  return (
+    <div className="whitespace-nowrap text-[11px] text-suave" title={adicionais.map(textoDoAdicional).join("\n")}>
+      {vinculo.precoFornecedor === null || vinculo.precoFornecedor === undefined ? "—" : moeda.format(vinculo.precoFornecedor)}
+      {" + "}
+      {moeda.format(total)}
+      {semCusto.length > 0 && <span className="ml-1 text-amber-700">(sem custo)</span>}
+    </div>
+  );
+}
+
+/** Na linha em edicao: o botao que abre a janela do custo adicional, com a soma e o total quando ha adicionais. */
+function BotaoAdicionais({ adicionais, precoFornecedor, aoMudar, produtoId }) {
+  const [aberta, setAberta] = useState(false);
+  const { total } = somaNaTela(adicionais);
+  const custo = custoTotal(precoFornecedor === "" ? null : precoFornecedor, total);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setAberta(true)}
+        title="Somar ao custo um valor fixo ou o custo de um produto do Rise (ex.: o cabo que o fornecedor não manda)"
+        className="mt-1 inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium text-acento hover:underline"
+      >
+        <Plus size={12} />
+        {adicionais.length === 0
+          ? "Custo adicional"
+          : `${moeda.format(total)} adicional · ${custo === null ? "—" : moeda.format(custo)}`}
+      </button>
+      {aberta && (
+        <JanelaAdicionais
+          inicial={adicionais}
+          precoFornecedor={precoFornecedor}
+          produtoId={produtoId}
+          aoConfirmar={(lista) => {
+            aoMudar(lista);
+            setAberta(false);
+          }}
+          aoFechar={() => setAberta(false)}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * A janela do CUSTO ADICIONAL (pedido do dono em 24/10/2026: "as vezes meu fornecedor vende arduino sem cabo, mas eu
+ * vendo apenas com cabo"). Dois tipos de linha: valor fixo (descricao e valor) ou produto do Rise pelo codigo (quantidade
+ * x o custo de hoje dele, que muda sozinho quando o custo do produto muda). OK devolve a lista para a linha do
+ * fornecedor; so grava no Salvar do produto. Cancelar, Esc e clique fora descartam.
+ */
+function JanelaAdicionais({ inicial, precoFornecedor, produtoId, aoConfirmar, aoFechar }) {
+  const [lista, setLista] = useState(() => (inicial ?? []).map((item, posicao) => ({ ...item, chave: `a${posicao}` })));
+  const [codigo, setCodigo] = useState("");
+  const [erro, setErro] = useState(null);
+  const [buscando, iniciarBusca] = useTransition();
+  const proximaChave = useRef(lista.length);
+  const cheia = lista.length >= MAXIMO_ADICIONAIS;
+  const { total, semCusto } = somaNaTela(lista);
+  const base = precoFornecedor === "" || precoFornecedor === null || precoFornecedor === undefined ? null : precoFornecedor;
+  const custo = custoTotal(base, total);
+
+  const novaChave = () => `n${proximaChave.current++}`;
+  const mudar = (chave, campo, valor) => setLista((atual) => atual.map((item) => (item.chave === chave ? { ...item, [campo]: valor } : item)));
+  const remover = (chave) => setLista((atual) => atual.filter((item) => item.chave !== chave));
+
+  function adicionarFixo() {
+    if (cheia) return;
+    setLista((atual) => [...atual, { chave: novaChave(), descricao: "", valor: "" }]);
+  }
+
+  function adicionarProduto() {
+    const texto = codigo.trim();
+    if (!texto || cheia) return;
+    setErro(null);
+    iniciarBusca(async () => {
+      const achado = await custoParaAdicional(texto, produtoId);
+      if (!achado.ok) {
+        setErro(achado.erro);
+        return;
+      }
+      setLista((atual) => {
+        const ja = atual.find((item) => item.produtoId === achado.produtoId);
+        if (ja) return atual.map((item) => (item === ja ? { ...item, quantidade: Math.min(99, Number(item.quantidade || 0) + 1) } : item));
+        return [...atual, { chave: novaChave(), produtoId: achado.produtoId, sku: achado.sku, nome: achado.nome, custo: achado.custo, quantidade: 1 }];
+      });
+      setCodigo("");
+    });
+  }
+
+  function confirmar() {
+    const incompleta = lista.find((item) => !item.produtoId && (String(item.descricao ?? "").trim() === "" || !(Number(String(item.valor).replace(",", ".")) > 0)));
+    if (incompleta) {
+      setErro("Preencha a descrição e um valor maior que zero em cada valor fixo, ou exclua a linha.");
+      return;
+    }
+    aoConfirmar(lista.map(({ chave: _chave, ...item }) => item));
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" {...propsDoFundo(aoFechar)}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Custo adicional"
+        className="w-full max-w-xl rounded-lg bg-superficie p-4 shadow-xl"
+        onKeyDown={(evento) => {
+          if (evento.key === "Escape") {
+            evento.stopPropagation();
+            aoFechar();
+          }
+          // A janela mora dentro do <form> do produto: Enter num campo daqui enviaria o produto inteiro.
+          if (evento.key === "Enter" && evento.target.tagName === "INPUT") evento.preventDefault();
+        }}
+      >
+        <h3 className="text-sm font-semibold">Custo adicional</h3>
+
+        <div className="mt-3 divide-y divide-borda rounded border border-borda">
+          {lista.length === 0 && <p className="px-3 py-4 text-center text-xs text-suave">Nenhum adicional.</p>}
+          {lista.map((item) =>
+            item.produtoId ? (
+              <div key={item.chave} className="flex items-center gap-2 px-3 py-2 text-sm">
+                <span className="min-w-0 flex-1 truncate" title={`${item.sku ?? ""} ${item.nome ?? ""}`.trim()}>
+                  <span className="font-mono text-xs">{item.sku}</span> {item.nome}
+                </span>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  step="1"
+                  aria-label={`Quantidade de ${item.sku}`}
+                  value={item.quantidade}
+                  onChange={(evento) => mudar(item.chave, "quantidade", evento.target.value)}
+                  className="w-14 rounded border border-borda px-2 py-1 text-right text-sm tabular-nums focus:border-acento focus:outline-none"
+                />
+                <span className="w-24 text-right text-xs tabular-nums text-suave">
+                  {typeof item.custo === "number" ? `× ${moeda.format(item.custo)}` : <span className="text-amber-700">sem custo</span>}
+                </span>
+                <button type="button" onClick={() => remover(item.chave)} aria-label={`Excluir ${item.sku}`} className="rounded p-1 text-suave hover:bg-red-50 hover:text-red-700">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ) : (
+              <div key={item.chave} className="flex items-center gap-2 px-3 py-2 text-sm">
+                <input
+                  autoFocus={item.descricao === ""}
+                  maxLength={80}
+                  placeholder="Descrição (ex.: Cabo USB)"
+                  aria-label="Descrição do adicional"
+                  value={item.descricao}
+                  onChange={(evento) => mudar(item.chave, "descricao", evento.target.value)}
+                  className="min-w-0 flex-1 rounded border border-borda px-2 py-1 text-sm focus:border-acento focus:outline-none"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0,00"
+                  aria-label="Valor do adicional"
+                  value={item.valor}
+                  onChange={(evento) => mudar(item.chave, "valor", evento.target.value)}
+                  className="w-24 rounded border border-borda px-2 py-1 text-right text-sm tabular-nums focus:border-acento focus:outline-none"
+                />
+                <button type="button" onClick={() => remover(item.chave)} aria-label="Excluir valor fixo" className="rounded p-1 text-suave hover:bg-red-50 hover:text-red-700">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ),
+          )}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <input
+            placeholder="Código do Rise"
+            aria-label="Código do produto do Rise"
+            value={codigo}
+            disabled={cheia}
+            onChange={(evento) => setCodigo(evento.target.value)}
+            onKeyDown={(evento) => {
+              if (evento.key === "Enter") {
+                evento.preventDefault();
+                adicionarProduto();
+              }
+            }}
+            className="w-40 rounded border border-borda px-2 py-1 font-mono text-sm focus:border-acento focus:outline-none disabled:opacity-50"
+          />
+          <button
+            type="button"
+            onClick={adicionarProduto}
+            disabled={cheia || buscando || !codigo.trim()}
+            className="rounded border border-borda px-2.5 py-1 text-xs font-medium hover:bg-fundo disabled:opacity-50"
+          >
+            {buscando ? "Buscando..." : "Adicionar produto"}
+          </button>
+          <span className="text-xs text-suave">ou</span>
+          <button
+            type="button"
+            onClick={adicionarFixo}
+            disabled={cheia}
+            title={cheia ? `No máximo ${MAXIMO_ADICIONAIS} adicionais` : undefined}
+            className="rounded border border-borda px-2.5 py-1 text-xs font-medium hover:bg-fundo disabled:opacity-50"
+          >
+            Adicionar valor fixo
+          </button>
+        </div>
+        {erro && <p className="mt-2 text-xs text-red-700">{erro}</p>}
+
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-borda pt-3">
+          <p className="text-xs tabular-nums text-suave">
+            Fornecedor {base === null ? "—" : moeda.format(Number(base))} + adicionais {moeda.format(total)} ={" "}
+            <span className="font-semibold text-texto">{custo === null ? "—" : moeda.format(custo)}</span>
+            {semCusto.length > 0 && <span className="ml-1 text-amber-700">(produto sem custo conta zero)</span>}
+          </p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={aoFechar} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
+              Cancelar
+            </button>
+            <button type="button" onClick={confirmar} className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90">
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -749,7 +1032,7 @@ function CampoObs({ propriedades }) {
   );
 }
 
-function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, aoEscolherCodigo }) {
+function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, aoEscolherCodigo, adicionais, aoMudarAdicionais, produtoId }) {
   return (
     <tr className="divide-x divide-borda bg-fundo/40">
       <td />
@@ -779,9 +1062,15 @@ function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, a
         </div>
       </td>
       <td className="px-3 py-2">
-        <input type="number" step="0.01" min="0" {...campo("precoCusto")} />
-        {erros.precoCusto && (
-          <p className="mt-1 text-[11px] text-red-700">{erros.precoCusto}</p>
+        <input type="number" step="0.01" min="0" aria-label="Preço do fornecedor" {...campo("precoFornecedor")} />
+        <BotaoAdicionais
+          adicionais={adicionais}
+          precoFornecedor={campo("precoFornecedor").value}
+          aoMudar={aoMudarAdicionais}
+          produtoId={produtoId}
+        />
+        {(erros.precoFornecedor || erros.precoCusto) && (
+          <p className="mt-1 text-[11px] text-red-700">{erros.precoFornecedor || erros.precoCusto}</p>
         )}
       </td>
       <td className="px-3 py-2 text-xs text-suave">—</td>

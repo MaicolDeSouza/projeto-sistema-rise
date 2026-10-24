@@ -1418,7 +1418,17 @@ model ProdutoFornecedor {
   /// Observacao livre do operador sobre este vinculo (pedido do dono em 23/10/2026: coluna "Obs" na aba). Nao vai ao Bling.
   observacao String?
   codigo     String?
+  /// O custo TOTAL do vinculo, o que o resto do Rise le (margem, proposta, Bling, indicadores, foto mensal): o preco do
+  /// fornecedor mais os adicionais (24/10/2026). Sem adicionais, e o preco do fornecedor.
   precoCusto Decimal? @db.Decimal(12, 2)
+  /// O que o FORNECEDOR cobra (a lista, a varredura com impostos ou o digitado). A varredura escreve aqui e refaz o total.
+  precoFornecedor Decimal? @db.Decimal(12, 2)
+  /// Adicionais somados ao custo (pedido do dono em 24/10/2026: "meu fornecedor vende arduino sem cabo, mas eu vendo
+  /// apenas com cabo"): `[{ descricao, valor }]` (valor fixo) ou `[{ produtoId, quantidade }]` (o custo de hoje de um
+  /// produto do Rise, que acompanha o custo dele). Regras em src/lib/custoAdicionalRegras.js.
+  adicionais Json?
+  /// A soma dos adicionais na ultima conta: deixa a varredura refazer o total em SQL sem ler os produtos vinculados.
+  adicionaisValor Decimal? @db.Decimal(12, 2)
   /// Pagina do produto NO SITE do fornecedor.
   link       String?
   /// De qual fornecedor sai o custo do produto. Exatamente um por produto.
