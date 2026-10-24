@@ -436,6 +436,19 @@ try {
     conferir("rotulo do icone: pausado sem estoque", rotuloDoIconeML({ publicado: true, pausado: true, erro: false }), "Anúncio no Mercado Livre: publicado, pausado (sem estoque)");
     conferir("rotulo do icone: com erro", rotuloDoIconeML({ publicado: false, erro: true }), "Anúncio no Mercado Livre: com erro na publicação");
     conferir("rotulo do icone: rascunho", rotuloDoIconeML({ publicado: false, erro: false, rascunho: true }), "Anúncio no Mercado Livre: rascunho, ainda não publicado");
+    {
+      // O Excluir confere no canal se o anuncio "publicado" ainda existe (Opcao 2 do dono em 24/10/2026).
+      const { situacaoNoCanal } = await import("../src/lib/canaisDeVenda/anuncioNoCanal.js");
+      const responde = (status, dados = {}) => ({ get: async () => ({ ok: status >= 200 && status < 300, status, dados }) });
+      conferir("canal: LI 404 = sumiu", await situacaoNoCanal({ canal: "LOJA_INTEGRADA", idExterno: "1" }, { li: responde(404) }), "sumiu");
+      conferir("canal: LI 200 = existe", await situacaoNoCanal({ canal: "LOJA_INTEGRADA", idExterno: "1" }, { li: responde(200, { id: 1 }) }), "existe");
+      conferir("canal: LI 500 = desconhecido", await situacaoNoCanal({ canal: "LOJA_INTEGRADA", idExterno: "1" }, { li: responde(500) }), "desconhecido");
+      conferir("canal: ML encerrado = sumiu", await situacaoNoCanal({ canal: "MERCADO_LIVRE", idExterno: "MLB1" }, { ml: responde(200, { status: "closed" }) }), "sumiu");
+      conferir("canal: ML pausado = existe", await situacaoNoCanal({ canal: "MERCADO_LIVRE", idExterno: "MLB1" }, { ml: responde(200, { status: "paused" }) }), "existe");
+      conferir("canal: ML 404 = sumiu", await situacaoNoCanal({ canal: "MERCADO_LIVRE", dados: { publicacao: { itemId: "MLB2" } } }, { ml: responde(404) }), "sumiu");
+      conferir("canal: falha de rede = desconhecido", await situacaoNoCanal({ canal: "MERCADO_LIVRE", idExterno: "MLB1" }, { ml: { get: async () => { throw new Error("rede"); } } }), "desconhecido");
+      conferir("canal: outro canal = desconhecido", await situacaoNoCanal({ canal: "BLING", idExterno: "1" }, {}), "desconhecido");
+    }
 
     const { integrados } = separarCanais([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB1" }, { canal: "MERCADO_LIVRE", status: "RASCUNHO", idExterno: null }]);
     conferir("separarCanais nao esconde o publicado atras do rascunho", integrados.map((c) => c.idExterno), ["MLB1"]);

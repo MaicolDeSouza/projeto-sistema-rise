@@ -1,5 +1,7 @@
 "use server";
 
+import { nomeDoCanal, situacaoNoCanal } from "@/lib/canaisDeVenda/anuncioNoCanal";
+import { clienteLojaIntegrada } from "@/lib/integracoes/lojaIntegrada/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { negarSemAcesso, podeAgora } from "@/lib/acessos/servidor";
@@ -1131,11 +1133,23 @@ export async function excluirProduto(id) {
     (anuncio) => anuncio.status === "PUBLICADO",
   );
 
-  if (publicados.length > 0) {
-    const canais = publicados.map((anuncio) => anuncio.canal).join(", ");
+  // Antes de barrar, confere no CANAL se o anuncio ainda existe (Opcao 2 do dono em 24/10/2026): o que a loja ja
+  // apagou (LI 404; ML 404 ou encerrado) nao barra mais. O que existe, ou que nao deu para conferir, continua barrando.
+  const sumidos = [];
+  const barram = [];
+  for (const anuncio of publicados) {
+    const situacao = await situacaoNoCanal(anuncio, { li: clienteLojaIntegrada, ml: clienteML() });
+    if (situacao === "sumiu") sumidos.push(anuncio);
+    else barram.push({ anuncio, situacao });
+  }
+  if (barram.length > 0) {
+    const canais = [...new Set(barram.map(({ anuncio }) => nomeDoCanal(anuncio.canal)))].join(", ");
+    const semConferir = barram.some(({ situacao }) => situacao === "desconhecido");
     return {
       ok: false,
-      erro: `Este produto tem anúncio publicado em: ${canais}. Encerre os anúncios antes de excluir, senão eles ficam órfãos no canal.`,
+      erro:
+        `Este produto tem anúncio publicado em: ${canais}. Encerre os anúncios antes de excluir, senão eles ficam órfãos no canal.` +
+        (semConferir ? " (Não foi possível conferir no canal se o anúncio ainda existe.)" : ""),
     };
   }
 
@@ -1154,7 +1168,10 @@ export async function excluirProduto(id) {
   await apagarPastaProduto(produto.sku);
 
   revalidatePath("/produtos");
-  return { ok: true };
+  const aviso = sumidos.length
+    ? `O anúncio em ${[...new Set(sumidos.map((anuncio) => nomeDoCanal(anuncio.canal)))].join(", ")} já não existia no canal.`
+    : null;
+  return { ok: true, ...(aviso ? { aviso } : {}) };
 }
 
 /**
@@ -1176,6 +1193,8 @@ export async function excluirProdutos(ids) {
     ok: resultados.every((item) => item.ok),
     excluidos: resultados.filter((item) => item.ok).length,
     falhas: resultados.filter((item) => !item.ok).map(({ ok: _ok, ...falha }) => falha),
+    // "O anuncio em Loja Integrada ja nao existia no canal." (o Excluir conferiu e seguiu).
+    avisos: resultados.map((item) => item.aviso).filter(Boolean),
   };
 }
 

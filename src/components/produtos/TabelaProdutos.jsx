@@ -174,7 +174,7 @@ export default function TabelaProdutos({
       setMensagem(
         resultado.falhas.length > 0
           ? { tipo: "erro", texto: resultado.falhas.map((falha) => falha.erro).join(" ") }
-          : { tipo: "sucesso", texto: `Produto ${excluindo.sku} excluído.` },
+          : { tipo: "sucesso", texto: [`Produto ${excluindo.sku} excluído.`, ...(resultado.avisos ?? [])].join(" ") },
       );
     });
   }
