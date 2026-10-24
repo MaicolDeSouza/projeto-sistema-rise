@@ -22,6 +22,25 @@ const FORA_DA_IA = new Set(["GTIN", "EMPTY_GTIN_REASON"]);
 const EM_MAIUSCULAS = new Set(["BRAND", "MODEL"]);
 
 const texto = (valor) => String(valor ?? "").trim();
+
+// Unidades que o Rise escreve COLADAS ao numero ("5V", "16MHz": padrao da loja, pedido do dono em
+// 24/10/2026). Lista fechada, a mais longa primeiro: "3D" ou "R3" nunca viram numero com unidade.
+const UNIDADES = "mAh|VDC|VAC|Vcc|mV|kV|V|mA|A|mW|kW|W|GHz|MHz|kHz|Hz|mm|cm|m|kg|g|KB|MB|GB|TB|Ω|ohms?|°C";
+const NUMERO_E_UNIDADE_SEPARADOS = new RegExp(`(\\d)\\s+(${UNIDADES})(?![\\p{L}\\d])`, "gu");
+const SO_NUMERO_E_UNIDADE = new RegExp(`^(-?\\d+(?:[.,]\\d+)?)\\s*(${UNIDADES})$`, "u");
+
+/** "5 V" vira "5V" e "7 V a 12 V" vira "7V a 12V": o que a tela mostra e o rascunho guarda. */
+export const colarUnidade = (valor) => texto(valor).replace(NUMERO_E_UNIDADE_SEPARADOS, "$1$2");
+
+/**
+ * O contrario, so no envio: o atributo numero-com-unidade do ML e "numero unidade" com espaco
+ * ("5 V"), o formato que o Rise sempre mandou. Valor que nao e so numero e unidade vai como esta.
+ */
+export function separarUnidade(valor) {
+  const casou = texto(valor).match(SO_NUMERO_E_UNIDADE);
+  return casou ? `${casou[1]} ${casou[2]}` : texto(valor);
+}
+
 const semAcento = (valor) => texto(valor).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 const temLista = (atributo) => (atributo.tipo === "lista" || atributo.tipo === "booleano") && atributo.valores.length > 0;
 
@@ -125,6 +144,7 @@ export function limparAtributosDaIA(resposta, atributos, valoresAtuais) {
 
     let valor = texto(item?.valor);
     if (valor && temLista(atributo)) valor = valorDeLista(atributo, valor);
+    else valor = colarUnidade(valor);
     if (!valor) continue;
     if (EM_MAIUSCULAS.has(id)) valor = valor.toLocaleUpperCase("pt-BR");
 
@@ -150,7 +170,7 @@ export function montarPedidoDaFicha({ titulo = "", marca = "", modelo = "", desc
     "Regras:\n" +
     "- preencha só o que as informações do produto sustentam; não invente;\n" +
     "- atributo com valores permitidos: use exatamente um deles;\n" +
-    "- número com unidade: escreva o número e a unidade (ex.: 5 V);\n" +
+    "- número com unidade: escreva o número e a unidade colados, sem espaço (ex.: 5V, 16MHz);\n" +
     "- deixe de fora o atributo que você não souber.\n\n" +
     `Produto: ${titulo}\nMarca: ${marca || "(sem)"}\nModelo: ${modelo || "(sem)"}\n\n` +
     `Especificações:\n${ficha || "(nenhuma)"}\n\n` +

@@ -8,6 +8,7 @@
  */
 
 import { LIMITE_TITULO } from "../../anuncios/canais/mercadolivre";
+import { separarUnidade } from "./atributos";
 import { freteGratisObrigatorio } from "./custos";
 import { montarDescricaoML } from "./descricao";
 import { medidasFaltando } from "./validacao";
@@ -91,7 +92,7 @@ export function montarPayloadML(rascunho, contexto) {
         !(levaGtin && id === "EMPTY_GTIN_REASON") &&
         texto(valor),
     )
-    .map(([id, valor]) => ({ id, value_name: EM_MAIUSCULAS.has(id) ? maiusculas(valor) : texto(valor) }));
+    .map(([id, valor]) => ({ id, value_name: EM_MAIUSCULAS.has(id) ? maiusculas(valor) : separarUnidade(valor) }));
   if (sku) atributos.push({ id: "SELLER_SKU", value_name: sku });
   atributos.push(...atributosDaEmbalagem(envio));
 

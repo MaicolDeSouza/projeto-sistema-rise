@@ -946,6 +946,12 @@ try {
       [["MODEL", "UNO R3"], ["MICROCONTROLLER", "ATmega328P"]],
     );
     conferir("limparAtributosDaIA: resposta quebrada e lista vazia", limparAtributosDaIA({ nada: 1 }, atributos, {}), []);
+    {
+      // Unidade colada na tela, separada no envio (pedido do dono em 24/10/2026: "5V", nao "5 V").
+      const { colarUnidade, separarUnidade } = await import("../src/lib/canaisDeVenda/ml/atributos.js");
+      conferir("colarUnidade: 5 V, faixa e MHz; R3 e 3D intactos", ["5 V", "7 V a 12 V", "16 MHz", "UNO R3", "3D"].map(colarUnidade), ["5V", "7V a 12V", "16MHz", "UNO R3", "3D"]);
+      conferir("separarUnidade: so numero e unidade ganha o espaco do ML", ["5V", "16MHz", "7V a 12V", "3D"].map(separarUnidade), ["5 V", "16 MHz", "7V a 12V", "3D"]);
+    }
     const pedidoDaFicha = montarPedidoDaFicha({ titulo: "PLACA UNO", marca: "ARDUINO", modelo: "", descricao: "", especificacoes: [{ nome: "Tensão", valor: "5V" }], atributos, valoresAtuais: { BRAND: "ARDUINO" } });
     conferir(
       "pedido da ficha: so atributos em branco, com valores da lista",
