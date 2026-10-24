@@ -2483,16 +2483,43 @@ try {
     conferir(
       "gravar: Clássico com categoria, título, ficha e preço",
       [anuncio.status, anuncio.dados.tipoAnuncio, anuncio.categoriaExternaId, anuncio.titulo, anuncio.atributos.BRAND, anuncio.dados.preco, gravada.preco.valor],
-      // R$ 0,10 abaixo do 5º preco do ranking (R$ 60; regra do dono de 24/10/2026).
-      ["RASCUNHO", "gold_special", "MLB99779", "Placa Uno R3 CH340 compatível", "ARDUINO", 59.9, 59.9],
+      // R$ 0,10 abaixo do 5º preco do ranking (R$ 60; regra do dono de 24/10/2026). O titulo e o do produto base, e o que a
+      // LLM mandou ("Placa Uno R3 CH340 compatível") e ignorado e avisado (regra do dono de 24/10/2026).
+      ["RASCUNHO", "gold_special", "MLB99779", "PLACA UNO R3 CH340 ZZ", "ARDUINO", 59.9, 59.9],
     );
+    conferir("titulo: o da LLM é ignorado e avisado, sem marca de proposta no campo", [gravada.titulo, gravada.avisos.some((a) => /título enviado foi ignorado/.test(a)), gravada.campos.includes("titulo")], ["PLACA UNO R3 CH340 ZZ", true, false]);
     conferir("GTIN e o motivo mandados pela LLM ficam fora", [anuncio.atributos.GTIN ?? null, anuncio.atributos.EMPTY_GTIN_REASON ?? null], [null, null]);
     conferir("catálogos: só os de 5 ou mais anúncios, o de 4 avisado", [gravada.catalogosSugeridos.map((c) => c.catalogoId), gravada.avisos.some((a) => /MLBP4/.test(a) && /menos de 5/.test(a))], [["MLBP9", "MLBP6"], true]);
     conferir("o ranking do produto continua vazio", await prisma.catalogoReferenciaML.count({ where: { produtoId: produto.id } }), 0);
-    conferir("a proposta guardada com o preço e os catálogos", [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro], [59.9, 2, "3"]);
+    conferir("a proposta guardada com o preço e os catálogos", [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro], [59.9, 2, "4"]);
 
-    const deNovo = await gravarPropostaML(ml(), "ZZ-ML-PA1", { categoriaId: "MLB99779", titulo: "Placa Uno R3 CH340 compatível", atributos: ATRIBUTOS, catalogos: ["MLBP9"], relatorio: "- de novo" });
+    // Um rascunho antigo da proposta, com outro titulo, volta ao nome do produto (o titulo nao e proposta fora do kit).
+    await prisma.anuncio.update({ where: { id: gravada.anuncioId }, data: { titulo: "Titulo antigo da proposta" } });
+    const deNovo = await gravarPropostaML(ml(), "ZZ-ML-PA1", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: ["MLBP9"], relatorio: "- de novo" });
     conferir("o Clássico em rascunho é atualizado (o mesmo anúncio)", [deNovo.anuncioId, await prisma.anuncio.count({ where: { produtoId: produto.id, canal: "MERCADO_LIVRE" } })], [gravada.anuncioId, 1]);
+    conferir(
+      "sem titulo na chamada: o rascunho volta ao nome do produto, sem aviso de titulo ignorado",
+      [(await prisma.anuncio.findUnique({ where: { id: gravada.anuncioId } })).titulo, deNovo.titulo, deNovo.avisos.some((a) => /título enviado/.test(a))],
+      ["PLACA UNO R3 CH340 ZZ", "PLACA UNO R3 CH340 ZZ", false],
+    );
+
+    // Composicao (kit): a LLM propoe o titulo, e ele entra no rascunho com a marca de proposta.
+    await criarPronto("ZZ-ML-PA6", { tituloBase: "KIT ZZ", tipo: "COMPOSICAO" });
+    const lidaKit = await lerParaPropostaML(ml(), "ZZ-ML-PA6");
+    const kit = await gravarPropostaML(ml(), "ZZ-ML-PA6", { categoriaId: "MLB99779", titulo: "  Kit  Placa Uno R3 com 2 cabos  ", atributos: ATRIBUTOS, catalogos: [] });
+    const anKit = await prisma.anuncio.findUnique({ where: { id: kit.anuncioId } });
+    conferir(
+      "composição (kit): o título da LLM vale (espaços ajustados) e marca o campo",
+      [lidaKit.produto.composicao, lida.produto.composicao, anKit.titulo, kit.titulo, kit.campos.includes("titulo")],
+      [true, false, "Kit Placa Uno R3 com 2 cabos", "Kit Placa Uno R3 com 2 cabos", true],
+    );
+    const kitSemTitulo = await gravarPropostaML(ml(), "ZZ-ML-PA6", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
+    conferir("composição (kit) sem título na chamada: fica o nome do produto", kitSemTitulo.titulo, "KIT ZZ");
+
+    // Nome do produto maior que o limite da categoria: nao se corta, avisa para encurtar no cadastro do produto.
+    await criarPronto("ZZ-ML-PA7", { tituloBase: "PLACA COMPATIVEL ARDUINO UNO R3 ATMEGA328P DIP ATMEGA16U2 COM CABO USB EXTRA LONGO" });
+    const longo = await gravarPropostaML(ml(), "ZZ-ML-PA7", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
+    conferir("nome do produto acima do limite: grava inteiro e avisa", [longo.titulo.length > 60, longo.avisos.some((a) => /encurte o nome no cadastro do produto/.test(a))], [true, true]);
 
     conferir("categoria que não é folha", /folha/.test(await erroDe(gravarPropostaML(ml(), "ZZ-ML-PA1", { categoriaId: "MLB1648", titulo: "x", atributos: {}, catalogos: [] }))), true);
     await criarPronto("ZZ-ML-PA5", { modelo: null });

@@ -30,10 +30,13 @@ const SO_DO_DONO = new Set(["GTIN", "EMPTY_GTIN_REASON", "SELLER_SKU"]);
 const PARA_A_LEITURA = new Set([401, 429]);
 
 async function produtoPeloSku(sku) {
-  const achado = await prisma.produto.findUnique({ where: { sku }, select: { id: true } });
+  const achado = await prisma.produto.findUnique({ where: { sku }, select: { id: true, tipo: true } });
   if (!achado) throw new ErroDeFerramenta(`Produto ${sku} não encontrado.`);
-  return (await contextoDosProdutos([achado.id]))[achado.id];
+  return { ...(await contextoDosProdutos([achado.id]))[achado.id], tipo: achado.tipo };
 }
+
+const ehComposicao = (produto) => produto.tipo === "COMPOSICAO";
+const limparTitulo = (texto) => String(texto ?? "").replace(/\s+/g, " ").trim();
 
 const meuVendedor = async (cliente) => (typeof cliente.usuarioId === "function" ? cliente.usuarioId().catch(() => null) : null);
 const doCatalogo = (catalogo) => ({ id: catalogo.id, nome: catalogo.nome, total: catalogo.total, primeiro: catalogo.primeiro ? { preco: catalogo.primeiro.preco, meu: Boolean(catalogo.primeiro.meu) } : null });
@@ -56,7 +59,8 @@ export async function lerParaPropostaML(cliente, sku) {
   const meusCatalogos = await catalogosDosMeusAnuncios(cliente, sku).catch(() => []);
 
   return {
-    produto: { sku: produto.sku, nome: produto.tituloBase, marca: produto.marca, modelo: produto.modelo, descricao: produto.descricaoBase ?? "", custo: produto.custo?.valor ?? null, origemDoCusto: produto.custo?.origem ?? null, pesoKg: produto.pesoKg },
+    // `composicao` diz se a LLM pode propor outro titulo (so o kit); nos demais o titulo do anuncio e o `nome`.
+    produto: { sku: produto.sku, nome: produto.tituloBase, composicao: ehComposicao(produto), marca: produto.marca, modelo: produto.modelo, descricao: produto.descricaoBase ?? "", custo: produto.custo?.valor ?? null, origemDoCusto: produto.custo?.origem ?? null, pesoKg: produto.pesoKg },
     categorias: sugestao.candidatas.map(({ categoriaId, nome, caminho, folha, limiteTitulo }) => ({ categoriaId, nome, caminho, folha, limiteTitulo })),
     atributos: categoria?.atributos ?? [],
     catalogos,
@@ -115,7 +119,8 @@ async function lerCatalogos(cliente, ids, avisos) {
 /**
  * @param {object} cliente  o cliente do ML (so GET)
  * @param {string} sku
- * @param {{ categoriaId: string, titulo: string, atributos?: object, catalogos?: string[], linksSemCatalogo?: { url, titulo, preco }[], relatorio?: string }} entrada
+ * @param {{ categoriaId: string, titulo?: string, atributos?: object, catalogos?: string[], linksSemCatalogo?: { url, titulo, preco }[], relatorio?: string }} entrada
+ *   `titulo` so vale para produto com composicao (kit); nos demais o titulo do anuncio e o do produto base.
  */
 export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, atributos = {}, catalogos = [], linksSemCatalogo = [], relatorio = "" }) {
   await exigirProdutoPronto(sku);
@@ -124,13 +129,23 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, atri
   const categoria = await lerCategoriaCompleta(cliente, String(categoriaId ?? "").trim());
   if (!categoria) throw new ErroDeFerramenta(`A categoria ${categoriaId} não existe no Mercado Livre.`);
   if (!categoria.folha) throw new ErroDeFerramenta(`A categoria ${categoriaId} não é folha (não aceita anúncio): escolha uma das filhas.`);
-  const tituloLimpo = String(titulo ?? "").replace(/\s+/g, " ").trim();
-  if (!tituloLimpo) throw new ErroDeFerramenta("Informe o título do anúncio.");
-  if (categoria.limiteTitulo && tituloLimpo.length > categoria.limiteTitulo) {
-    throw new ErroDeFerramenta(`O título tem ${tituloLimpo.length} caracteres; esta categoria aceita até ${categoria.limiteTitulo}.`);
-  }
 
   const avisos = [];
+  // Pedido do dono em 24/10/2026: o titulo do anuncio vem do produto base, e so a composicao (kit) pode ter outro.
+  const composicao = ehComposicao(produto);
+  const tituloDoProduto = limparTitulo(produto.tituloBase);
+  const tituloEnviado = limparTitulo(titulo);
+  const tituloLimpo = composicao ? tituloEnviado || tituloDoProduto : tituloDoProduto;
+  if (!tituloLimpo) throw new ErroDeFerramenta("O produto não tem nome: o título do anúncio vem dele.");
+  if (!composicao && tituloEnviado && tituloEnviado !== tituloDoProduto) {
+    avisos.push("O título enviado foi ignorado: o anúncio usa o nome do produto (só produto com composição aceita outro título).");
+  }
+  if (categoria.limiteTitulo && tituloLimpo.length > categoria.limiteTitulo) {
+    if (composicao) throw new ErroDeFerramenta(`O título tem ${tituloLimpo.length} caracteres; esta categoria aceita até ${categoria.limiteTitulo}.`);
+    // O nome e do produto: nao se corta aqui, o dono encurta no cadastro dele.
+    avisos.push(`O nome do produto tem ${tituloLimpo.length} caracteres e esta categoria aceita até ${categoria.limiteTitulo}: encurte o nome no cadastro do produto, que é o título do anúncio.`);
+  }
+
   // So os atributos da categoria e nunca os do dono (GTIN e o motivo); valor em texto, sem espacos sobrando.
   const idsDaCategoria = new Set(categoria.atributos.map((atributo) => atributo.id));
   const ficha = Object.fromEntries(
@@ -158,7 +173,10 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, atri
   // No rascunho que a proposta cria, tudo o que vem do produto e o ponto de partida: a proposta preenche por cima.
   const opcoes = existente ? {} : { vazio: () => true };
 
-  const propostos = { categoriaId: categoria.id ?? String(categoriaId).trim(), categoriaNome: categoria.nome, titulo: tituloLimpo };
+  const propostos = { categoriaId: categoria.id ?? String(categoriaId).trim(), categoriaNome: categoria.nome };
+  // Fora da composicao o titulo nao e proposta: o rascunho fica com o do produto (um rascunho antigo, com outro, volta a ele).
+  if (composicao) propostos.titulo = tituloLimpo;
+  else base.titulo = tituloDoProduto;
   for (const [id, valor] of Object.entries(ficha)) propostos[`atributos.${id}`] = valor;
   const primeira = aplicarProposta(base, propostos, opcoes);
 
@@ -189,7 +207,7 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, atri
     },
   });
   await gravarProposta(salvo.id, proposta);
-  return { anuncioId: salvo.id, campos, sugestoes, preco: proposta.preco, catalogosSugeridos: aceitos, avisos };
+  return { anuncioId: salvo.id, titulo: tituloLimpo, campos, sugestoes, preco: proposta.preco, catalogosSugeridos: aceitos, avisos };
 }
 
 /** So a chave `proposta` de `dados`, com a linha travada (o Salvar do editor nao cai no meio). */

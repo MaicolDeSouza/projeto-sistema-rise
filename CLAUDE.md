@@ -282,7 +282,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 792 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 797 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 318 asserções da sincronização Rise -> Loja Integrada (e da proposta de anúncio da LI): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -5546,7 +5546,10 @@ proposta mora no rascunho do `Anuncio`), plano `docs/superpowers/plans/2026-10-2
   `dados.proposta` guarda `campos`, `valores`, `sugestoes`, `relatorio`, `avisos` e a versão do roteiro.
 - **LI:** categorias (ids da árvore; o Rise põe as pais), marca (casada com a da loja), Meta Tag Description de 130 a 160
   (recusa fora disso). O Tag Title não entra. O botão "Gerar com IA" (IA paga) já existia dentro da lista da description.
-- **ML:** categoria folha, título no limite dela, ficha só com atributos da categoria (GTIN e o motivo ficam fora), até 10
+- **ML:** categoria folha, **título = o nome do produto base** (o Rise o põe sozinho; só o produto com composição, `tipo`
+  COMPOSICAO, aceita o título que a LLM mandar; nos demais o que ela manda é ignorado e avisado, e um rascunho antigo da proposta
+  volta ao nome do produto; nome acima do limite da categoria grava inteiro e avisa para encurtar no cadastro; pedido do dono em
+  24/10/2026, roteiro v4; **o campo Título do editor do ML continua editável**), ficha só com atributos da categoria (GTIN e o motivo ficam fora), até 10
   catálogos lidos pelo 1º colocado (fica só o de 5 ou mais anúncios; 401/429 param a leitura e avisam). Sem catálogo, até 5
   links com preço, guardados só em `dados.proposta.links`. **Nada entra em `CatalogoReferenciaML`**: o editor mostra
   "Sugeridos pela proposta" no ranking com Adicionar. Atualiza o Clássico ainda não publicado; nunca mexe no publicado.

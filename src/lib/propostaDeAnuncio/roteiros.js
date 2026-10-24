@@ -38,8 +38,9 @@ CAMINHO (nesta ordem)
    Depois disso, o próximo passo é a proposta do Mercado Livre.`;
 
 // "2" em 24/10/2026: o preco passa a ser por markup, nao por margem; "3" no mesmo dia: o markup e sobre o CUSTO TOTAL
-// (fornecedor + taxas do ML + frete + imposto), pedido do dono.
-export const VERSAO_ROTEIRO_ML = "3";
+// (fornecedor + taxas do ML + frete + imposto), pedido do dono. "4" em 24/10/2026: o titulo e o do produto base (a LLM
+// nao o escolhe), e so o produto com composicao (kit) aceita outro titulo, pedido do dono.
+export const VERSAO_ROTEIRO_ML = "4";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
@@ -58,8 +59,10 @@ CAMINHO (nesta ordem)
 3. Monte a proposta:
    - CATEGORIA: uma categoria FOLHA. Se escolher outra que não a provável, chame lerCategoriaML(categoriaId) para ver
      a ficha dela.
-   - TÍTULO: dentro do limite da categoria, com o tipo da peça, o modelo ou o chip, a especificação principal e a
-     compatibilidade. Sem preço, sem "promoção", sem emoji.
+   - TÍTULO: NÃO escolha. O título do anúncio é o nome do produto base (produto.nome da leitura), e o Rise o põe sozinho;
+     não mande "titulo" (se mandar, é ignorado e avisado). A ÚNICA exceção é o produto com composição (kit:
+     produto.composicao true na leitura): aí você propõe o título, dentro do limite da categoria, com o tipo da peça, o
+     modelo ou o chip, a especificação principal e a compatibilidade, sem preço, sem "promoção", sem emoji.
    - FICHA: só o que o cadastro do produto ou as referências PROVAM. Nunca invente. Os valores de lista escritos como
      estão na lista da categoria. Não mande GTIN nem o motivo de não ter (são do dono).
    - CATÁLOGOS: até 10 do MESMO produto (não de um parecido), cada um com 5 ou mais anúncios. Use os candidatos da
@@ -67,10 +70,10 @@ CAMINHO (nesta ordem)
    - SEM NENHUM CATÁLOGO do mesmo produto: pesquise no navegador e ache 5 anúncios do MESMO produto no Mercado Livre;
      mande url, título e preço de cada um em linksSemCatalogo. Esses links não são salvos no Rise: só entram na conta
      do preço e no relatório.
-4. gravarPropostaML(sku, categoriaId, titulo, atributos, catalogos, linksSemCatalogo, relatorio). O relatório em
-   tópicos curtos: por que a categoria, de onde veio cada valor da ficha, por que cada catálogo é o mesmo produto.
-   Se voltar erro, corrija e grave de novo.
-5. Mostre à pessoa o que o Rise devolveu: o preço, o markup (lucro sobre o total dos custos: fornecedor, comissão e
+4. gravarPropostaML(sku, categoriaId, atributos, catalogos, linksSemCatalogo, relatorio), com titulo só no kit. O
+   relatório em tópicos curtos: por que a categoria, de onde veio cada valor da ficha, por que cada catálogo é o mesmo
+   produto. Se voltar erro, corrija e grave de novo.
+5. Mostre à pessoa o que o Rise devolveu: o título usado, o preço, o markup (lucro sobre o total dos custos: fornecedor, comissão e
    frete do ML e imposto; o mínimo é 40%), a posição no ranking, os catálogos aceitos e os avisos.
    Diga que o dono revisa no editor do Mercado Livre, adiciona os catálogos ao ranking se quiser, e publica (o "P" no
    ícone some no Publicar).`;

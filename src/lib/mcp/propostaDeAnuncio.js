@@ -121,13 +121,13 @@ const LINK = z.object({
 const GRAVAR_PROPOSTA_ML = {
   nome: "gravarPropostaML",
   descricao: [
-    "Grava a proposta do anúncio do Mercado Livre no rascunho do Rise (sempre um Clássico): categoria folha, título, ficha (atributos), até 10 catálogos do mesmo produto e, sem catálogo, até 5 links com preço.",
+    "Grava a proposta do anúncio do Mercado Livre no rascunho do Rise (sempre um Clássico): categoria folha, ficha (atributos), até 10 catálogos do mesmo produto e, sem catálogo, até 5 links com preço. O título do anúncio é o nome do produto base e o Rise o põe sozinho: só o produto com composição (kit) aceita o título que você mandar.",
     "O Rise lê o 1º de cada catálogo, descarta os de menos de 5 anúncios e CALCULA O PREÇO (no mínimo 40% de markup, lucro sobre o total dos custos com as taxas do ML, e o top 5). Nada é publicado e nada entra no ranking: o dono revisa, adiciona os catálogos e publica. Gravar de novo substitui a proposta.",
   ].join(" "),
   esquema: z.object({
     sku: SKU,
     categoriaId: z.string().trim().min(3).max(20).describe("A categoria FOLHA, ex.: 'MLB99779'"),
-    titulo: z.string().trim().min(1).max(120).describe("O título, no limite da categoria"),
+    titulo: z.string().trim().max(120).optional().describe("Só para produto com composição (kit): o título, no limite da categoria. Nos demais não mande: o título é o nome do produto"),
     atributos: z.record(z.string(), z.string().max(300)).optional().describe("A ficha: id do atributo -> valor (sem GTIN)"),
     catalogos: z.array(z.string().trim().min(3).max(30)).max(10).optional().describe("Ids dos catálogos do mesmo produto"),
     linksSemCatalogo: z.array(LINK).max(5).optional().describe("Só sem catálogo: 5 anúncios do mesmo produto com o preço"),
