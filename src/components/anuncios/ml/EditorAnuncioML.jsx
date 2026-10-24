@@ -6,9 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Link from "next/link";
 import { Copy, ExternalLink, Loader, Plus, X } from "lucide-react";
 
-import { abrirAnuncioML, lerCategoriaML, salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
+import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
+import { NOMES_DAS_PARTES, textoDasPartes } from "@/lib/canaisDeVenda/ml/acompanhar";
 import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import AbaDescricao from "./AbaDescricao";
@@ -99,6 +101,10 @@ export default function EditorAnuncioML({
   const [statusAtual, setStatusAtual] = useState(status);
   const [infoDoML, setInfoDoML] = useState(publicacaoInicial ?? {});
   const [publicando, setPublicando] = useState(false);
+  const [enviandoMudancas, iniciarEnvioDasMudancas] = useTransition();
+  const [erroDasMudancas, setErroDasMudancas] = useState(null);
+  // As partes enviadas, para o popup de sucesso (`null` = popup fechado).
+  const [conclusaoDasMudancas, setConclusaoDasMudancas] = useState(null);
   const [salvando, iniciarSalvamento] = useTransition();
   const [carregandoCategoria, iniciarLeituraDaCategoria] = useTransition();
   const caixaDaMensagem = useRef(null);
@@ -226,18 +232,36 @@ export default function EditorAnuncioML({
     ...(!publicacao?.itemId && bloqueantes > 0 ? [`${bloqueantes} problema(s) bloqueante(s) na Prévia.`] : []),
   ];
 
-  // Fechou a janela do Publicar: se algo foi enviado, le de novo o status e o anuncio no ML.
-  async function aoFecharPublicacao(houveEnvio) {
-    setPublicando(false);
-    if (!houveEnvio || !idAtual) return;
+  // Le de novo o status, o anuncio no ML e o que mudou no produto (depois do Publicar e do "Enviar mudancas ao ML").
+  async function relerDoML() {
     try {
       const relido = await abrirAnuncioML(idAtual);
       if (!relido.ok) return;
       setStatusAtual(relido.status);
-      setInfoDoML({ publicacao: relido.publicacao, idExterno: relido.idExterno, urlExterna: relido.urlExterna });
+      setInfoDoML({ publicacao: relido.publicacao, idExterno: relido.idExterno, urlExterna: relido.urlExterna, mudancas: relido.mudancas });
     } catch {
-      // A releitura falhou: o rodape fica com o status anterior ate o anuncio ser aberto de novo.
+      // A releitura falhou: o rodape e a faixa ficam como estavam ate o anuncio ser aberto de novo.
     }
+  }
+
+  // Fechou a janela do Publicar: se algo foi enviado, le de novo o status e o anuncio no ML.
+  async function aoFecharPublicacao(houveEnvio) {
+    setPublicando(false);
+    if (!houveEnvio || !idAtual) return;
+    await relerDoML();
+  }
+
+  // "Enviar mudancas ao ML" (spec 2026-10-24): so no anuncio publicado que ficou para tras do produto.
+  const mudancas = publicado ? (infoDoML.mudancas ?? null) : null;
+  const temMudancas = (mudancas?.partes?.length ?? 0) > 0;
+  function enviarMudancas() {
+    setErroDasMudancas(null);
+    iniciarEnvioDasMudancas(async () => {
+      const resultado = await enviarMudancasMLAcao(idAtual);
+      if (resultado?.ok) setConclusaoDasMudancas(resultado.enviadas ?? []);
+      else setErroDasMudancas(resultado?.parte ? `${NOMES_DAS_PARTES[resultado.parte]}: ${resultado.erro}` : (resultado?.erro ?? "Não foi possível enviar."));
+      await relerDoML();
+    });
   }
 
   // "Validar no ML" (Previa) valida o anuncio GRAVADO: so com ele salvo e sem alteracao pendente.
@@ -389,12 +413,46 @@ export default function EditorAnuncioML({
     <JanelaPublicarML anuncioId={idAtual} rotuloDoBotao={rotuloPublicar} aoFechar={aoFecharPublicacao} />
   );
 
+  // O produto mudou depois de publicar: uma linha, uma acao (a regra do padrao visual: aviso so do que pede acao).
+  const faixaDasMudancas = temMudancas && (
+    <div role="status" className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span>{mudancas.naoConferido ? "Ainda não conferido com o produto." : `O produto mudou depois de publicar: ${textoDasPartes(mudancas.partes)}.`}</span>
+        <button
+          type="button"
+          onClick={enviarMudancas}
+          disabled={enviandoMudancas || !acessos.publicar}
+          title={acessos.publicar ? `Manda ao Mercado Livre: ${textoDasPartes(mudancas.partes)}` : "Seu acesso não permite enviar ao Mercado Livre."}
+          className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {enviandoMudancas && <Loader size={14} className="animate-spin" />}
+          {enviandoMudancas ? "Enviando..." : "Enviar mudanças ao ML"}
+        </button>
+      </div>
+      {erroDasMudancas && (
+        <p role="alert" className="mt-1 text-red-700">
+          {erroDasMudancas}
+        </p>
+      )}
+    </div>
+  );
+
+  const popupDasMudancas = conclusaoDasMudancas && (
+    <ConclusaoDoEnvio
+      titulo="Anúncio atualizado no Mercado Livre"
+      mensagem={conclusaoDasMudancas.length === 0 ? "Nada a enviar: o anúncio já estava igual ao produto." : null}
+      linhas={conclusaoDasMudancas.map((parte) => `Enviado: ${NOMES_DAS_PARTES[parte] ?? parte}`)}
+      aoFechar={() => setConclusaoDasMudancas(null)}
+    />
+  );
+
   if (!janela) {
     return (
       <div className="space-y-4">
         {aviso}
         {faixaDaProposta}
         {faixaDaPublicacao}
+        {faixaDasMudancas}
         <div className="rounded-lg border border-borda bg-superficie">
           {barra}
           <div className="p-5">{paineis}</div>
@@ -402,6 +460,7 @@ export default function EditorAnuncioML({
         {/* Fixo na base da tela: o Salvar fica ao alcance em qualquer aba, por mais que ela role. */}
         <div className="sticky bottom-0 z-10 rounded-lg border border-borda bg-superficie shadow-lg">{rodape}</div>
         {janelaDoPublicar}
+        {popupDasMudancas}
       </div>
     );
   }
@@ -436,12 +495,14 @@ export default function EditorAnuncioML({
         {aviso && <div className="shrink-0 px-5 pt-3">{aviso}</div>}
         {faixaDaProposta && <div className="shrink-0 px-5 pt-3">{faixaDaProposta}</div>}
         {faixaDaPublicacao && <div className="shrink-0 px-5 pt-3">{faixaDaPublicacao}</div>}
+        {faixaDasMudancas && <div className="shrink-0 px-5 pt-3">{faixaDasMudancas}</div>}
         <div className="shrink-0">{barra}</div>
         <div className="min-h-0 flex-1 overflow-y-auto p-5">{paineis}</div>
         <div className="shrink-0 border-t border-borda">{rodape}</div>
       </section>
 
       {janelaDoPublicar}
+      {popupDasMudancas}
 
       {confirmandoSaida && (
         <div

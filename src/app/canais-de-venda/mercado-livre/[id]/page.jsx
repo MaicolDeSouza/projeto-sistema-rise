@@ -47,7 +47,7 @@ export default async function AnuncioMLPage({ params }) {
           contextoInicial={projetarContextoML(carregado.contexto, pode)}
           acessos={acessos}
           status={carregado.status}
-          publicacaoInicial={{ publicacao: carregado.publicacao, idExterno: carregado.idExterno, urlExterna: carregado.urlExterna }}
+          publicacaoInicial={{ publicacao: carregado.publicacao, idExterno: carregado.idExterno, urlExterna: carregado.urlExterna, mudancas: carregado.mudancas }}
         />
       )}
     </>

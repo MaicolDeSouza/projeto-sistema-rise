@@ -83,3 +83,9 @@ export function mudancasDoAnuncio(enviado, atual) {
 
 /** Nomes das partes para a tela ("descrição, fotos e peso e medidas"). */
 export const NOMES_DAS_PARTES = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas" };
+
+/** "descrição", "descrição e fotos", "descrição, fotos e peso e medidas". */
+export function textoDasPartes(partes) {
+  const nomes = (partes ?? []).map((parte) => NOMES_DAS_PARTES[parte] ?? parte);
+  return nomes.length > 1 ? `${nomes.slice(0, -1).join(", ")} e ${nomes.at(-1)}` : (nomes[0] ?? "");
+}

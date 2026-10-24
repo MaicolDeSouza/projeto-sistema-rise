@@ -183,7 +183,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
       rascunho: resultado.rascunho,
       contexto: resultado.contexto,
       acessos: resultado.acessos,
-      publicacaoInicial: { publicacao: resultado.publicacao, idExterno: resultado.idExterno, urlExterna: resultado.urlExterna },
+      publicacaoInicial: { publicacao: resultado.publicacao, idExterno: resultado.idExterno, urlExterna: resultado.urlExterna, mudancas: resultado.mudancas },
     });
     setFase("editor");
   }, []);
