@@ -86,7 +86,7 @@ const ATRIBUTOS_DA_PLACA = [
   { id: "IS_KIT", name: "É kit", tags: { hidden: true }, value_type: "boolean", values: [{ id: "242085", name: "Sim" }, { id: "242084", name: "Não" }] },
 ];
 
-const CATEGORIAS_PADRAO = {
+export const CATEGORIAS_PADRAO = {
   MLB99779: {
     nome: "Placas de Microcontroladores",
     caminho: ["Eletrônicos, Áudio e Vídeo", "Componentes Eletrônicos", "Placas de Microcontroladores"],

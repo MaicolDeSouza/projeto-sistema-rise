@@ -8,7 +8,7 @@ import { impressaoDoConteudo } from "./impressao";
 import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
 import { RascunhoMLSchema } from "./esquema";
-import { descricaoDoRise, estoqueDoRise, rascunhoInicial } from "./rascunho";
+import { descricaoDoRise, estoqueDoRise, fotosDoRise, rascunhoInicial } from "./rascunho";
 
 /**
  * O rascunho do anuncio do Mercado Livre no banco: ler o contexto dos produtos, abrir um
@@ -174,6 +174,12 @@ export async function carregarAnuncioML(id) {
   // O estoque gravado e o de quando o rascunho foi salvo: abrir (e publicar, que abre por aqui) usa o de agora.
   rascunho.estoque = estoqueDoRise(rascunho, produtos) ?? rascunho.estoque;
   rascunho.descricao = descricaoDoRise(rascunho, produtos) ?? rascunho.descricao;
+  rascunho.imagens = fotosDoRise(rascunho, produtos) ?? rascunho.imagens;
+  // Anuncio publicado: o que mudou no produto desde o ultimo envio (a faixa "Enviar mudancas ao ML" do editor).
+  const mudancas =
+    anuncio.status === "PUBLICADO"
+      ? mudancasDoAnuncio(anuncio.dados?.publicacao?.enviado ?? null, impressaoDoConteudo(conteudoAtualDoAnuncio(rascunho, produtos)))
+      : null;
 
   return {
     ok: true,
@@ -183,6 +189,7 @@ export async function carregarAnuncioML(id) {
     // A proposta de anuncio (spec 2026-10-23) vai no contexto: a tela mostra as marcas, o relatorio e os catalogos sugeridos.
     contexto: { produtos, codigoEmUso: emUso, proposta: anuncio.dados?.proposta ?? null },
     publicacao: anuncio.dados?.publicacao ?? null,
+    mudancas,
     idExterno: anuncio.idExterno ?? null,
     urlExterna: anuncio.urlExterna ?? null,
   };
@@ -367,6 +374,9 @@ export async function salvarRascunhoML(anuncioId, entrada) {
     const doRise = Object.fromEntries(encontrados);
     rascunho.estoque = estoqueDoRise(rascunho, doRise);
     rascunho.descricao = descricaoDoRise(rascunho, doRise) ?? rascunho.descricao;
+    // As fotos do anuncio simples tambem: as validadas do produto, na ordem (spec 2026-10-24, "igual a LI"). O kit
+    // continua com as que o dono escolheu entre as das pecas.
+    if (!rascunho.composicao) rascunho.imagens = fotosDoRise(rascunho, await contextoDosProdutos([rascunho.produtoId])) ?? rascunho.imagens;
 
     const { produtoId, titulo, descricao, categoriaId, atributos, ...dados } = rascunho;
     const colunas = { produtoId, titulo, descricao, categoriaExternaId: categoriaId || null, atributos };

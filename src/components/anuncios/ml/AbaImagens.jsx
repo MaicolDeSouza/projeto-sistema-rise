@@ -92,6 +92,34 @@ export function LinhaDeFoto({ id, foto, posicao, total, aoAlternar, aoMover }) {
   );
 }
 
+function FotosDoProduto({ fotos, problemas }) {
+  return (
+    <div>
+      <div className="flex items-center gap-1 text-sm font-semibold">
+        Fotos do anúncio ({fotos.length})
+        <BolhaDeAjuda
+          variante="inline"
+          texto="As fotos do anúncio são as validadas do produto, na ordem do cadastro (a primeira é a capa). Para mudar, use Editar produto. Acima do que a categoria aceita, vão as primeiras."
+        />
+      </div>
+      {fotos.length > 0 ? (
+        <ul className="mt-2 grid grid-cols-3 gap-3 sm:grid-cols-6">
+          {fotos.map((foto, posicao) => (
+            <li key={foto.id} className="space-y-1">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={foto.url} alt={foto.titulo} loading="lazy" className="aspect-square w-full rounded border border-borda bg-superficie object-contain" />
+              {posicao === 0 ? <Badge tom="info">Capa</Badge> : <span className="text-xs text-suave">Foto {posicao + 1}</span>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-suave">O produto não tem foto validada.</p>
+      )}
+      <MensagensDoCampo problemas={problemas} campo="imagens" />
+    </div>
+  );
+}
+
 /**
  * Aba Imagens: as fotos que o anuncio envia, na ordem de envio (a primeira e a capa), e as demais
  * fotos disponiveis para marcar. O rascunho guarda so os ids, em ordem.
@@ -99,6 +127,9 @@ export function LinhaDeFoto({ id, foto, posicao, total, aoAlternar, aoMover }) {
 export default function AbaImagens({ rascunho, contexto, alterar, problemas }) {
   const emKit = Boolean(rascunho.composicao);
   const disponiveis = fotosDisponiveis(rascunho, contexto);
+  // Anuncio simples: as fotos sao SEMPRE as validadas do produto, na ordem do cadastro (decisao do dono em 24/10/2026,
+  // "igual a LI"). A aba so mostra; mudar e no cadastro do produto.
+  if (!emKit) return <FotosDoProduto fotos={disponiveis} problemas={problemas} />;
   const porId = new Map(disponiveis.map((foto) => [foto.id, foto]));
   const marcadas = Array.isArray(rascunho.imagens) ? rascunho.imagens : [];
   const naoUsadas = disponiveis.filter((foto) => !marcadas.includes(foto.id));

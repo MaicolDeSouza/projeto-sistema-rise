@@ -1575,6 +1575,42 @@ try {
     }
 
     {
+      console.log("\nAnuncio publicado acompanha o produto (Publicar)");
+      await limpar();
+      const { publicarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+      const { mudancasDosAnunciosML } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+      const { CATEGORIAS_PADRAO } = await import("./lib/mlFalso.js");
+      const c = await cenarioDePublicacao();
+      const lerFoto = async () => Buffer.from("jpg");
+      await prisma.produtoArquivo.create({ data: { produtoId: c.s1.id, tipo: "IMAGEM", papel: "FOTO", arquivo: "ZZ-ML-S1-c.jpg", ordem: 2 } });
+      const fotosDoS1 = await prisma.produtoArquivo.findMany({ where: { produtoId: c.s1.id, tipo: "IMAGEM" }, orderBy: { ordem: "asc" } });
+      const mudancasDe = async (id) => {
+        const anuncio = await prisma.anuncio.findUnique({ where: { id }, select: { id: true, canal: true, status: true, situacaoCanal: true, produtoId: true, dados: true } });
+        return (await mudancasDosAnunciosML([anuncio])).get(id);
+      };
+
+      // O dono tinha marcado so uma foto: o anuncio simples passa a ter todas as validadas, na ordem.
+      const id = await c.anuncioSimples(c.s1, { imagens: [fotosDoS1[2].id] });
+      conferir("salvar: o anuncio simples guarda as fotos do produto, nao as da tela", (await carregarAnuncioML(id)).rascunho.imagens, fotosDoS1.map((foto) => foto.id));
+      const ml = criarMLFalso();
+      const r = await publicarAnuncioML(id, { ml, bling: c.novoBling(), lerFoto });
+      const criacao = ml.escritas.find((escrita) => escrita.metodo === "POST" && escrita.caminho === "/items").corpo;
+      const gravado = (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados.publicacao.enviado;
+      conferir("publicar: manda as 3 fotos do produto", [r.ok, criacao.pictures.length], [true, 3]);
+      conferir("publicar: grava a impressao com as fotos na ordem", gravado.fotos, ["ZZ-ML-S1-a.jpg", "ZZ-ML-S1-b.jpg", "ZZ-ML-S1-c.jpg"]);
+      conferir("publicar: logo depois, nada mudou", await mudancasDe(id), { partes: [], naoConferido: false });
+      conferir("carregar: o publicado traz as mudancas", (await carregarAnuncioML(id)).mudancas, { partes: [], naoConferido: false });
+
+      // Categoria que aceita 2 fotos: vao as 2 primeiras, e o "!" nao acende por isso.
+      const id2 = await c.anuncioSimples(c.s1);
+      const mlDuas = criarMLFalso({ categorias: { MLB99779: { ...CATEGORIAS_PADRAO.MLB99779, maxFotos: 2 } } });
+      const r2 = await publicarAnuncioML(id2, { ml: mlDuas, bling: c.novoBling(), lerFoto });
+      const criacao2 = mlDuas.escritas.find((escrita) => escrita.metodo === "POST" && escrita.caminho === "/items").corpo;
+      conferir("publicar: categoria de 2 fotos leva 2", [r2.ok, criacao2.pictures.length], [true, 2]);
+      conferir("publicar: o corte da categoria nao acende o '!'", await mudancasDe(id2), { partes: [], naoConferido: false });
+    }
+
+    {
       console.log("\nFase 3: publicar e retomar");
       await limpar();
       const { publicarAnuncioML, validarNoML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");

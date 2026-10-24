@@ -3,7 +3,9 @@ import { readFile } from "node:fs/promises";
 import { caminhoDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
 import { buscarNoBling } from "@/lib/blingSync/leitura";
+import { conteudoAtualDoAnuncio } from "./acompanhar";
 import { carregarAnuncioML, gravarPublicacao, lerPublicacao } from "./banco";
+import { impressaoDoConteudo } from "./impressao";
 import { conferirKitNoBling, criarKitNoBling, registrarAnuncioNoBlingML, vincularNoBlingML, vinculoNoBlingML } from "./bling";
 import { etapasDoAnuncio, proximaEtapa } from "./etapas";
 import { lerCategoriaCompleta, textoDoErroML } from "./leitura";
@@ -46,6 +48,10 @@ async function prepararInterno(anuncioId, { ml, bling }) {
       motivos.push(`Não foi possível conferir a categoria no Mercado Livre: ${textoDoErroML(erro)}`);
     }
   }
+  // Anuncio simples leva TODAS as fotos validadas do produto (spec 2026-10-24): acima do que a categoria aceita, vao as
+  // primeiras, em vez de recusar o Publicar. O kit continua com as fotos que o dono escolheu (a validacao confere).
+  const maxFotos = Number(contexto.categoria?.maxFotos);
+  if (!rascunho.composicao && maxFotos > 0 && Array.isArray(rascunho.imagens)) rascunho.imagens = rascunho.imagens.slice(0, maxFotos);
   for (const problema of validarRascunhoML(rascunho, contexto)) {
     if (problema.bloqueante) motivos.push(problema.problema);
   }
@@ -370,8 +376,11 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto })
         else await gravar({ statusML: resposta.dados?.status ?? "active", aguardandoEstoque: false });
       }
     } else if (etapa === "gravar") {
+      // A impressao do que foi ao ML (spec 2026-10-24): e com ela que a lista acende o "!" quando o produto mudar. As
+      // fotos sao as do PRODUTO, sem o corte da categoria: senao o anuncio cortado nasceria "para tras" do produto.
+      const enviado = { ...impressaoDoConteudo(conteudoAtualDoAnuncio(rascunho, contexto.produtos)), em: new Date().toISOString() };
       await gravar(
-        { feitas: [...new Set([...(pub.feitas ?? []), "gravar"])], erro: null, etapaComErro: null },
+        { feitas: [...new Set([...(pub.feitas ?? []), "gravar"])], erro: null, etapaComErro: null, enviado },
         { status: "PUBLICADO", situacaoCanal: situacaoDoItem(pub.statusML), publicadoEm: new Date(), erro: null },
         { apagarProposta: true },
       );
