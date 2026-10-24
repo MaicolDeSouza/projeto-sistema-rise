@@ -417,29 +417,25 @@ try {
     conferir("nome da foto: ate 60 caracteres, sem traco na ponta", nomeDaFoto(`${"a".repeat(59)} bbb`, 0), `${"a".repeat(59)}-1.jpg`);
     conferir("nome da foto: titulo sem letra nem numero", nomeDaFoto(" +/ ", 0), "anuncio-1.jpg");
 
-    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, rascunho: false });
-    conferir("icone: publicado e rascunho juntos", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA" }, { canal: "MERCADO_LIVRE", status: "RASCUNHO" }, { canal: "BLING", status: "RASCUNHO" }]), { publicado: true, rascunho: true });
-    conferir("icone: so publicado e ativo, sem ponto", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA" }]), { publicado: true, rascunho: false });
-    conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "PUBLICADO", situacaoCanal: "ATIVA" }, { canal: "LOJA_INTEGRADA", status: "RASCUNHO" }]), { publicado: false, rascunho: false });
-    // Cada status que nao e "publicado e ativo" liga o ponto ambar e nunca deixa o icone verde.
-    for (const status of ["RASCUNHO", "VALIDADO", "PUBLICANDO", "ERRO"]) {
-      conferir(`icone: ${status} so liga o ponto`, estadoDoIconeML([{ canal: "MERCADO_LIVRE", status }]), { publicado: false, rascunho: true });
+    // Regra do dono em 24/10/2026: verde = publicado (ativo ou pausado sem estoque); "!" = so erro ou publicacao parada.
+    const ml = (status, situacaoCanal) => ({ canal: "MERCADO_LIVRE", status, situacaoCanal });
+    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false });
+    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false });
+    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false });
+    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true });
+    for (const status of ["ERRO", "PUBLICANDO"]) {
+      conferir(`icone: ${status} poe o selo`, estadoDoIconeML([ml(status, "PAUSADA")]).erro, true);
     }
-    conferir("icone: composicao aguardando o Bling (PUBLICANDO) tem ponto", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICANDO", situacaoCanal: "PAUSADA" }]), { publicado: false, rascunho: true });
-    // O ML pausa anuncio sozinho (falta de estoque): publicado, mas nao ativo, nao e verde.
-    for (const situacaoCanal of ["PAUSADA", "ENCERRADA", "DESCONHECIDA", undefined]) {
-      conferir(`icone: PUBLICADO com situacao ${situacaoCanal ?? "ausente"} nao e verde, liga o ponto`,
-        estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal }]), { publicado: false, rascunho: true });
-    }
-    conferir("icone: ativo num anuncio e pausado em outro, os dois acendem",
-      estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA" }, { canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "PAUSADA" }]), { publicado: true, rascunho: true });
-    conferir("icone: situacao ATIVA sem status publicado nao e verde", estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "RASCUNHO", situacaoCanal: "ATIVA" }]), { publicado: false, rascunho: true });
-    conferir("icone: lista invalida", estadoDoIconeML(undefined), { publicado: false, rascunho: false });
-    // O texto do icone: cor e ponto sozinhos nao dizem o estado a leitor de tela nem ao mouse parado.
-    conferir("rotulo do icone: sem anuncio", rotuloDoIconeML({ publicado: false, rascunho: false }), "Anúncio no Mercado Livre: sem anúncio");
-    conferir("rotulo do icone: so rascunho", rotuloDoIconeML({ publicado: false, rascunho: true }), "Anúncio no Mercado Livre: anúncio pendente (rascunho, erro ou pausado)");
-    conferir("rotulo do icone: publicado e ativo", rotuloDoIconeML({ publicado: true, rascunho: false }), "Anúncio no Mercado Livre: publicado e ativo");
-    conferir("rotulo do icone: publicado e ativo mais um pendente", rotuloDoIconeML({ publicado: true, rascunho: true }), "Anúncio no Mercado Livre: publicado e ativo, com anúncio pendente");
+    conferir("icone: encerrado nao e verde", estadoDoIconeML([ml("PUBLICADO", "ENCERRADA")]).publicado, false);
+    conferir("icone: ativo e pausado juntos nao dizem pausado", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("PUBLICADO", "PAUSADA")]).pausado, false);
+    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false });
+    conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "ERRO" }, { canal: "LOJA_INTEGRADA", status: "PUBLICADO", situacaoCanal: "ATIVA" }]).publicado, false);
+    conferir("icone: lista invalida", estadoDoIconeML(undefined).erro, false);
+    conferir("rotulo do icone: sem anuncio", rotuloDoIconeML({ publicado: false, erro: false }), "Anúncio no Mercado Livre: sem anúncio");
+    conferir("rotulo do icone: publicado", rotuloDoIconeML({ publicado: true, erro: false }), "Anúncio no Mercado Livre: publicado");
+    conferir("rotulo do icone: pausado sem estoque", rotuloDoIconeML({ publicado: true, pausado: true, erro: false }), "Anúncio no Mercado Livre: publicado, pausado (sem estoque)");
+    conferir("rotulo do icone: com erro", rotuloDoIconeML({ publicado: false, erro: true }), "Anúncio no Mercado Livre: com erro na publicação");
+    conferir("rotulo do icone: rascunho", rotuloDoIconeML({ publicado: false, erro: false, rascunho: true }), "Anúncio no Mercado Livre: rascunho, ainda não publicado");
 
     const { integrados } = separarCanais([{ canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: "MLB1" }, { canal: "MERCADO_LIVRE", status: "RASCUNHO", idExterno: null }]);
     conferir("separarCanais nao esconde o publicado atras do rascunho", integrados.map((c) => c.idExterno), ["MLB1"]);
@@ -717,7 +713,7 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["atualizadoEm", "avisosML", "codigo", "id", "idExterno", "preco", "produtoId", "rankingML", "status", "tipoAnuncio", "titulo", "urlExterna"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "id", "idExterno", "preco", "produtoId", "rankingML", "status", "tipoAnuncio", "titulo", "urlExterna"]);
         conferir("lista: o mais recente primeiro", lista.linhas.every((l, i) => i === 0 || lista.linhas[i - 1].atualizadoEm >= l.atualizadoEm), true);
         conferir("lista: acha pelo codigo do kit", (await listarAnunciosML({ busca: "zz-ml-kit2" })).linhas.map((l) => [l.id, l.codigo]), [[k2.id, "ZZ-ML-KIT2"]]);
         conferir("lista: acha pelo titulo", (await listarAnunciosML({ busca: "ZZ TITULO NOVO" })).linhas.map((l) => [l.id, l.titulo, l.tipoAnuncio]), [[premium.id, "ZZ Titulo novo", "gold_pro"]]);

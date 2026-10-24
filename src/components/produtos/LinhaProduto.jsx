@@ -58,7 +58,7 @@ export default function LinhaProduto({
   produto,
   // Abre a confirmacao de exclusao deste produto (o popup mora na tabela).
   aoExcluir,
-  iconeML = { publicado: false, rascunho: false },
+  iconeML = { publicado: false, erro: false },
   // Cor e selo do icone do Bling, calculados no servidor (`page.jsx`: a assinatura usa node:crypto).
   iconeBling = ICONE_BLING_PADRAO,
   // Cor e selo do icone da Loja Integrada, tambem do servidor (`iconeLIDoProduto`).
@@ -222,8 +222,8 @@ export default function LinhaProduto({
                     P
                   </span>
                 )}
-                {/* O mesmo selo "!" dos outros icones (pedido do dono em 24/10/2026; era um ponto sem texto). */}
-                {iconeML.rascunho && (
+                {/* O mesmo selo "!" dos outros icones, so com erro na publicacao (pedido do dono em 24/10/2026). */}
+                {iconeML.erro && (
                   <span
                     aria-hidden="true"
                     className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[10px] leading-none font-bold text-amber-950 ring-2 ring-superficie"

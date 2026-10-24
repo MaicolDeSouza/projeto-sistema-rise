@@ -12,7 +12,7 @@ import {
   listarAnunciosDoProdutoML,
 } from "@/app/canais-de-venda/mercado-livre/acoes";
 import Badge from "@/components/ui/Badge";
-import { ROTULO_DO_TIPO_ML, STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
+import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotulos";
 import EditorAnuncioML from "./EditorAnuncioML";
 
 /**
@@ -295,7 +295,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
           ) : (
             <ul className="divide-y divide-borda rounded border border-borda">
               {anuncios.map((anuncio) => {
-                const situacao = STATUS_ML[anuncio.status] ?? STATUS_ML.RASCUNHO;
+                const situacao = seloDoAnuncioML(anuncio);
                 return (
                   <li key={anuncio.id} className="flex items-stretch">
                     <button

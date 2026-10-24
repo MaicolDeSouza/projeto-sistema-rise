@@ -3,7 +3,7 @@ import { Copy, Handshake } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
-import { ROTULO_DO_TIPO_ML, STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
+import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotulos";
 
 /**
  * Lista dos anuncios do Mercado Livre (so leitura; a busca e a paginacao moram na pagina).
@@ -59,7 +59,7 @@ export default function TabelaAnunciosML({ linhas, busca, verConcorrencia = true
         </thead>
         <tbody className="divide-y divide-borda">
           {linhas.map((linha) => {
-            const situacao = STATUS_ML[linha.status] ?? STATUS_ML.RASCUNHO;
+            const situacao = seloDoAnuncioML(linha);
             return (
               <tr key={linha.id} className="hover:bg-fundo">
                 <td className="px-3 py-2.5 font-mono whitespace-nowrap">

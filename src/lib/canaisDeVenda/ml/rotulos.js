@@ -18,6 +18,12 @@ export const AGUARDANDO_BLING = { rotulo: "Aguardando o Bling", tom: "alerta" };
 /// Publicado sem estoque: pausado no ML ate o estoque chegar, e o worker o ativa (Opcao 2 do dono em 24/10/2026).
 export const AGUARDANDO_ESTOQUE = { rotulo: "Pausado: aguardando estoque", tom: "alerta" };
 
+/** O selo de estado de uma linha de anuncio (lista e janela do produto): o publicado sem estoque diz que esta pausado. */
+export function seloDoAnuncioML(anuncio) {
+  if (anuncio?.status === "PUBLICADO" && anuncio?.aguardandoEstoque) return AGUARDANDO_ESTOQUE;
+  return STATUS_ML[anuncio?.status] ?? STATUS_ML.RASCUNHO;
+}
+
 export const TIPOS_DE_ANUNCIO_ML = [
   { valor: "gold_special", rotulo: "Clássico" },
   { valor: "gold_pro", rotulo: "Premium" },

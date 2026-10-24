@@ -391,6 +391,8 @@ function linhaDoAnuncio(anuncio) {
     tipoAnuncio: anuncio.dados?.tipoAnuncio ?? null,
     preco: anuncio.dados?.preco ?? null,
     status: anuncio.status,
+    // Publicado sem estoque, pausado ate o worker o ativar (Opcao 2 do dono em 24/10/2026): o selo diz isso.
+    aguardandoEstoque: anuncio.dados?.publicacao?.aguardandoEstoque === true,
     atualizadoEm: anuncio.atualizadoEm,
     // O anuncio no ML (MLB e link), depois que a publicacao o criou.
     idExterno: anuncio.idExterno ?? null,
