@@ -5537,7 +5537,9 @@ a Bling, Mercado Livre ou Loja Integrada.
 Pedido do dono: criar os anúncios da LI e do ML "igual a proposta do produto", pelo claude.ai/ChatGPT, com a IA da própria
 LLM (nunca a paga do Rise). Spec `docs/superpowers/specs/2026-10-23-proposta-de-anuncio-li-ml-design.md` (abordagem 1: a
 proposta mora no rascunho do `Anuncio`), plano `docs/superpowers/plans/2026-10-23-proposta-de-anuncio-li-ml.md` (inline).
-**Pronto e testado no PC, SEM DEPLOY** (sem migration: `Anuncio.dados.proposta` é JSON).
+**NO AR NA VPS** (sem migration: `Anuncio.dados.proposta` é JSON); a regra do título (roteiro do ML v4) subiu em 24/10/2026, versão
+24.10.2026.29 (commit `5ede491`), e o `roteiroDaProposta` do MCP já devolve a versão 4. **Proposta do 100105 gravada em 24/10/2026
+com o roteiro v2** (título inventado no rascunho do ML): refazer a proposta do ML dele leva o rascunho de volta ao nome do produto.
 
 - **Caminho do dono:** Rise Conferido e Bling verde, proposta da LI, ele revisa e sincroniza, pede de novo, proposta do ML
   (sempre um Clássico), ele revisa e publica. LI antes do ML é só ordem preferida ("pule a LI" vale: a gravação do ML não
