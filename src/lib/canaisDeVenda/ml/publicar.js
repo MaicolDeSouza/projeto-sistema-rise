@@ -134,20 +134,21 @@ export async function prepararPublicacaoML(anuncioId, clientes) {
 // Publicar: as etapas, gravadas uma a uma, e a retomada
 // ---------------------------------------------------------------------------
 
-/// Uma publicacao por anuncio de cada vez, neste processo (o mesmo molde da sincronizacao do Bling).
-const emAndamento = new Set();
+/// Uma publicacao por anuncio de cada vez, neste processo (o mesmo molde da sincronizacao do Bling). O "Enviar mudancas
+/// ao ML" (atualizar.js) usa a mesma trava: os dois escrevem no mesmo item.
+export const emAndamento = new Set();
 
 const RECADO_INCERTA =
   "A criação do anúncio pode ter chegado ao Mercado Livre sem resposta. Confira em Anúncios > Pausados; se não estiver lá, use Criar de novo.";
 
 /// A foto do produto no disco (`dados/produtos/<SKU>/imagens/<arquivo>`).
-async function lerFotoDoDisco(sku, arquivo) {
+export async function lerFotoDoDisco(sku, arquivo) {
   const caminho = caminhoDe(sku, "IMAGEM", arquivo);
   if (!caminho) throw new Error(`caminho inválido para a foto ${arquivo}`);
   return readFile(caminho);
 }
 
-const tipoDaFoto = (arquivo) => (/\.png$/i.test(String(arquivo)) ? "image/png" : "image/jpeg");
+export const tipoDaFoto = (arquivo) => (/\.png$/i.test(String(arquivo)) ? "image/png" : "image/jpeg");
 const textoDe = (erro) => erro?.message ?? String(erro);
 
 /// O NCM, o CEST e a origem do produto principal, so os digitos (o formato que o Bling recebe do Rise).

@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { LIMITE_TITULO } from "@/lib/anuncios/canais/mercadolivre";
 import { clienteBling } from "@/lib/blingSync/cliente";
 import { prepararPublicacaoML, publicarAnuncioML, validarNoML } from "@/lib/canaisDeVenda/ml/publicar";
+import { enviarMudancasML } from "@/lib/canaisDeVenda/ml/atualizar";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import {
   buscarCatalogos,
@@ -361,6 +362,22 @@ export async function validarNoMLAcao(anuncioId) {
   if (negado) return negado;
   if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
   return protegendo(() => validarNoML(anuncioId, clientes()));
+}
+
+/**
+ * "Enviar mudancas ao ML" (spec 2026-10-24): leva ao anuncio publicado o que mudou no produto (descricao, fotos, peso e
+ * medidas). A mesma permissao do Publicar: os dois escrevem no item do ML.
+ */
+export async function enviarMudancasMLAcao(anuncioId) {
+  const negado = await negarSemAcessos(["acao.mercadoLivre.publicar", "executar"]);
+  if (negado) return negado;
+  if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const resultado = await enviarMudancasML(anuncioId, { ml: clienteML() });
+    revalidatePath("/canais-de-venda/mercado-livre");
+    revalidatePath("/produtos");
+    return resultado;
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -1611,6 +1611,81 @@ try {
     }
 
     {
+      console.log("\nAnuncio publicado acompanha o produto (Enviar mudancas ao ML)");
+      await limpar();
+      const { publicarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+      const { enviarMudancasML } = await import("../src/lib/canaisDeVenda/ml/atualizar.js");
+      const { mudancasDosAnunciosML } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+      const c = await cenarioDePublicacao();
+      const lerFoto = async () => Buffer.from("jpg");
+      const mudancasDe = async (id) => {
+        const anuncio = await prisma.anuncio.findUnique({ where: { id }, select: { id: true, canal: true, status: true, situacaoCanal: true, produtoId: true, dados: true } });
+        return (await mudancasDosAnunciosML([anuncio])).get(id);
+      };
+      const ml = criarMLFalso();
+      const id = await c.anuncioSimples(c.s1);
+      const { itemId } = await publicarAnuncioML(id, { ml, bling: c.novoBling(), lerFoto });
+      const desde = () => {
+        const inicio = ml.escritas.length;
+        return () => ml.escritas.slice(inicio).map((escrita) => `${escrita.metodo} ${escrita.caminho.replace(itemId, "MLB")}`);
+      };
+
+      conferir("enviar: sem mudancas nao escreve", await enviarMudancasML(id, { ml, lerFoto }), { ok: true, enviadas: [] });
+
+      await prisma.produto.update({ where: { id: c.s1.id }, data: { descricaoBase: "Descricao nova do S1" } });
+      let novas = desde();
+      let r = await enviarMudancasML(id, { ml, lerFoto });
+      conferir("enviar: descricao", [r.ok, r.enviadas, novas()], [true, ["descricao"], ["PUT /items/MLB/description"]]);
+      conferir("enviar: o texto novo chegou ao ML", ml.itens.get(itemId).descricao.startsWith("Descricao nova do S1"), true);
+      conferir("enviar: depois, nada mais mudou", await mudancasDe(id), { partes: [], naoConferido: false });
+
+      await prisma.produtoArquivo.create({ data: { produtoId: c.s1.id, tipo: "IMAGEM", papel: "FOTO", arquivo: "ZZ-ML-S1-n.jpg", ordem: 5 } });
+      novas = desde();
+      r = await enviarMudancasML(id, { ml, lerFoto });
+      conferir("enviar: foto nova sobe so ela e manda a lista inteira", [r.enviadas, novas(), ml.itens.get(itemId).pictures.length], [["fotos"], ["POST /pictures/items/upload", "PUT /items/MLB"], 3]);
+
+      await prisma.produto.update({ where: { id: c.s1.id }, data: { pesoKg: 0.08 } });
+      novas = desde();
+      r = await enviarMudancasML(id, { ml, lerFoto });
+      const pacote = ml.escritas.at(-1).corpo.attributes.map((atributo) => `${atributo.id}=${atributo.value_name}`);
+      conferir("enviar: peso e medidas", [r.enviadas, novas(), pacote], [["pacote"], ["PUT /items/MLB"], ["SELLER_PACKAGE_HEIGHT=2 cm", "SELLER_PACKAGE_WIDTH=6 cm", "SELLER_PACKAGE_LENGTH=7 cm", "SELLER_PACKAGE_WEIGHT=80 g"]]);
+
+      // Anuncio publicado antes de 24/10/2026: sem impressao, manda as tres e passa a ter impressao.
+      const atual = (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados;
+      await prisma.anuncio.update({ where: { id }, data: { dados: { ...atual, publicacao: { ...atual.publicacao, enviado: undefined } } } });
+      r = await enviarMudancasML(id, { ml, lerFoto });
+      conferir("enviar: nao conferido manda as tres", [r.enviadas, await mudancasDe(id)], [["descricao", "fotos", "pacote"], { partes: [], naoConferido: false }]);
+
+      // Falha no meio: a descricao fica gravada, as fotos nao, e o resto nao e tentado.
+      await prisma.produto.update({ where: { id: c.s1.id }, data: { descricaoBase: "Descricao terceira" } });
+      await prisma.produtoArquivo.create({ data: { produtoId: c.s1.id, tipo: "IMAGEM", papel: "FOTO", arquivo: "ZZ-ML-S1-m.jpg", ordem: 6 } });
+      const mlFalha = criarMLFalso({ falhas: [{ metodo: "PUT", caminho: `/items/${itemId}`, exato: true, status: 400, dados: { message: "bad", cause: [{ type: "error", code: "x", message: "Fotos recusadas" }] } }] });
+      mlFalha.itens.set(itemId, structuredClone(ml.itens.get(itemId)));
+      r = await enviarMudancasML(id, { ml: mlFalha, lerFoto });
+      conferir("enviar: falha nas fotos para ali, descricao gravada", [r.ok, r.parte, r.enviadas, /Fotos recusadas/.test(r.erro), (await mudancasDe(id)).partes], [false, "fotos", ["descricao"], true, ["fotos"]]);
+
+      // Encerrado no ML: recusa sem escrever.
+      ml.itens.get(itemId).status = "closed";
+      novas = desde();
+      r = await enviarMudancasML(id, { ml, lerFoto });
+      conferir("enviar: encerrado no ML recusa sem escrever", [r.ok, /encerrado/.test(r.erro), novas()], [false, true, []]);
+      ml.itens.get(itemId).status = "active";
+
+      // Trava fechada: recusa sem escrever.
+      const mlTravado = criarMLFalso({ codigosLiberados: ["outro"] });
+      mlTravado.itens.set(itemId, structuredClone(ml.itens.get(itemId)));
+      r = await enviarMudancasML(id, { ml: mlTravado, lerFoto });
+      conferir("enviar: trava fechada recusa sem escrever", [r.ok, /Escrita bloqueada/.test(r.erro), mlTravado.escritas.length], [false, true, 0]);
+
+      // Dois cliques ao mesmo tempo: o segundo e recusado.
+      const [um, dois] = await Promise.all([enviarMudancasML(id, { ml, lerFoto }), enviarMudancasML(id, { ml, lerFoto })]);
+      conferir("enviar: dois cliques, o segundo espera", [um.ok, dois.erro], [true, "Envio em andamento."]);
+
+      const rascunho = await c.anuncioSimples(c.s1);
+      conferir("enviar: rascunho recusa", (await enviarMudancasML(rascunho, { ml, lerFoto })).erro, "O anúncio não está publicado.");
+    }
+
+    {
       console.log("\nFase 3: publicar e retomar");
       await limpar();
       const { publicarAnuncioML, validarNoML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
