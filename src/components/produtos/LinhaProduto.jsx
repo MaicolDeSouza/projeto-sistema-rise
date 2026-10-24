@@ -222,11 +222,14 @@ export default function LinhaProduto({
                     P
                   </span>
                 )}
+                {/* O mesmo selo "!" dos outros icones (pedido do dono em 24/10/2026; era um ponto sem texto). */}
                 {iconeML.rascunho && (
                   <span
                     aria-hidden="true"
-                    className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-superficie"
-                  />
+                    className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[10px] leading-none font-bold text-amber-950 ring-2 ring-superficie"
+                  >
+                    !
+                  </span>
                 )}
               </button>
             ) : (
