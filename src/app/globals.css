@@ -31,10 +31,14 @@ html {
 }
 .overflow-auto,
 .overflow-y-auto,
-.overflow-x-auto,
 .overflow-scroll,
 .overflow-y-scroll {
   overscroll-behavior: contain;
+}
+/* Area que so rola de LADO (as tabelas): trava so o eixo horizontal. Com "contain" nos dois eixos, a roda do mouse em
+   cima da tabela de Produtos nao rolava a pagina (achado pelo dono em 24/10/2026). */
+.overflow-x-auto {
+  overscroll-behavior-x: contain;
 }
 
 body {
