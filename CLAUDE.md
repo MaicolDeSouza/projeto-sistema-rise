@@ -273,7 +273,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 724 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling) e os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos) e o ranking pelos catálogos de referência contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 792 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 318 asserções da sincronização Rise -> Loja Integrada (e da proposta de anúncio da LI): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio e ícone (LI falsa, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3314,6 +3314,36 @@ só o 1º) e **Opção B** (o Publicar NÃO coloca o anúncio no catálogo; a ad
   403. O mesmo anúncio só é lido DENTRO de `/products/{id}/items`. A página do site é scraping (Termos 7.6): fora.
 - **Visto:** a página do editor e a lista respondem 200 com o bloco (curl no servidor do PC, que era de outra sessão).
   **Não visto:** o clique na tela (adicionar, digitar o preço, remover) e a primeira rodada do worker na VPS.
+
+### Anúncio publicado acompanha o produto: o "!" e o "Enviar mudanças ao ML" (24/10/2026)
+
+Pedido do dono (Opção 1): mudou a descrição do 100107 e o ícone do ML não avisou. Spec
+`docs/superpowers/specs/2026-10-24-ml-anuncio-publicado-acompanha-produto-design.md`, plano
+`docs/superpowers/plans/2026-10-24-ml-anuncio-publicado-acompanha-produto.md` (inline). **Pronto e testado no PC, SEM DEPLOY.**
+
+- **Só o cadastro do produto acompanha** (decisão do dono): descrição, fotos validadas, peso e medidas. Preço, título, ficha,
+  frete e categoria do anúncio publicado não mudam por aqui. O kit montado no editor acompanha só a descrição.
+- **A impressão** (`dados.publicacao.enviado = { descricao: md5, fotos: [nomes de arquivo], pacote: {cm, g}, em }`, sem
+  migration) nasce no fim do Publicar e a cada envio que deu certo, parte por parte. `conteudoAtualDoAnuncio` e
+  `mudancasDoAnuncio` (`ml/acompanhar.js`, puro) comparam com o produto de agora; o md5 mora em `ml/impressao.js` (servidor).
+  A comparação usa as chaves em ordem fixa (o JSONB reordena o pacote). As fotos da impressão são as do PRODUTO, sem o corte
+  da categoria (senão o anúncio cortado nasceria com o "!"). Parte que o produto não tem como mandar (sem foto, sem as quatro
+  medidas, produto excluído) nunca acende.
+- **Ícone:** `mudancasDosAnunciosML` (`ml/banco.js`, só banco, só os anúncios da página) pendura `mudancas` em cada anúncio
+  publicado (ativo ou pausado); `estadoDoIconeML` devolve `desatualizado` e o "!" aparece com o texto "publicado,
+  desatualizado: descrição mudou no produto". **Anúncio publicado antes de 24/10/2026 não tem impressão: aparece com o "!"
+  ("ainda não conferido com o produto") até o primeiro envio**, que manda as três partes.
+- **Fotos iguais às da LI:** o anúncio simples passa a ter SEMPRE as fotos validadas do produto (`fotosDoRise`, a principal
+  primeiro), no abrir, no Salvar e no Publicar (cortadas no `maxFotos` da categoria); a aba Imagens do anúncio simples virou
+  só leitura. O kit continua escolhendo entre as fotos das peças.
+- **Envio** (`ml/atualizar.js`, `enviarMudancasMLAcao` com a permissão do Publicar): trava `ML_PUBLICACAO` antes de escrever,
+  `GET /items/{id}` (encerrado recusa), `PUT /items/{id}/description`, fotos que faltam por upload e `PUT /items/{id}` com a
+  lista inteira de `pictures`, e `PUT /items/{id}` com os `SELLER_PACKAGE_*`. Para na primeira falha; nenhuma escrita repete;
+  a mesma trava `emAndamento` do Publicar. Editor: faixa âmbar "O produto mudou depois de publicar: ..." com o botão e o
+  popup `ConclusaoDoEnvio` no sucesso.
+- **NÃO MEDIDO no ML real** (conta User Products): as três escritas num item publicado. Antes do primeiro uso, um envio de
+  teste com o dono acompanhando (o 100107 é o candidato). Parte recusada sai do envio e vira só aviso.
+- Conferido no navegador do PC com um anúncio de teste (apagado): a faixa, a recusa da trava e o texto do ícone na lista.
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 
