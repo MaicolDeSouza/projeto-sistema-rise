@@ -2403,6 +2403,58 @@ try {
     conferir("não Conferido recusa", /Conferido/.test(await erroDe(gravarPropostaML(ml(), "ZZ-ML-PA4", { categoriaId: "MLB99779", titulo: "x", atributos: {}, catalogos: [] }))), true);
   }
 
+  {
+    console.log("\nAnuncio publicado acompanha o produto (regras)");
+    const { conteudoAtualDoAnuncio, mudancasDoAnuncio } = await import("../src/lib/canaisDeVenda/ml/acompanhar.js");
+    const { impressaoDoConteudo } = await import("../src/lib/canaisDeVenda/ml/impressao.js");
+    const { fotosDoRise } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
+
+    const base = { descricao: "a".repeat(32), fotos: ["f1.jpg", "f2.jpg"], pacote: { alturaCm: 2, larguraCm: 6, comprimentoCm: 10, pesoG: 35 } };
+    const nada = { partes: [], naoConferido: false };
+    conferir("igual: nada mudou", mudancasDoAnuncio(base, { ...base }), nada);
+    conferir("descricao diferente", mudancasDoAnuncio(base, { ...base, descricao: "b".repeat(32) }).partes, ["descricao"]);
+    conferir("fotos em outra ordem", mudancasDoAnuncio(base, { ...base, fotos: ["f2.jpg", "f1.jpg"] }).partes, ["fotos"]);
+    conferir("uma foto a mais", mudancasDoAnuncio(base, { ...base, fotos: ["f1.jpg", "f2.jpg", "f3.jpg"] }).partes, ["fotos"]);
+    conferir("pacote com 1 g a mais", mudancasDoAnuncio(base, { ...base, pacote: { ...base.pacote, pesoG: 36 } }).partes, ["pacote"]);
+    conferir(
+      "tres mudadas, na ordem",
+      mudancasDoAnuncio(base, { descricao: "c".repeat(32), fotos: ["f9.jpg"], pacote: { ...base.pacote, alturaCm: 3 } }).partes,
+      ["descricao", "fotos", "pacote"],
+    );
+    conferir("sem impressao: nao conferido, com as partes do atual", mudancasDoAnuncio(null, { ...base, pacote: null }), { partes: ["descricao", "fotos"], naoConferido: true });
+    conferir("produto sem foto: fotos nao entra", mudancasDoAnuncio(base, { ...base, fotos: [] }).partes, []);
+    conferir("descricao null no atual: nao entra", mudancasDoAnuncio(base, { ...base, descricao: null }).partes, []);
+    conferir("pacote null no atual: nao entra", mudancasDoAnuncio(base, { ...base, pacote: null }).partes, []);
+    conferir("kit (fotos e pacote null): so a descricao conta", mudancasDoAnuncio(base, { descricao: base.descricao, fotos: null, pacote: null }), nada);
+
+    const produtos = {
+      p1: {
+        id: "p1", sku: "ZZ-ML-AC1", tituloBase: "PLACA", descricaoBase: "Texto da placa.", estoque: 3,
+        pesoKg: 0.035, alturaCm: 1.5, larguraCm: 6, comprimentoCm: 10.15,
+        imagens: [{ id: "i1", arquivo: "a1.jpg", principal: false }, { id: "i2", arquivo: "a2.jpg", principal: true }, { id: "i3", arquivo: "a3.jpg", principal: false }],
+      },
+      p2: { id: "p2", sku: "ZZ-ML-AC2", tituloBase: "CABO", descricaoBase: "Cabo.", estoque: 9, pesoKg: null, alturaCm: null, larguraCm: null, comprimentoCm: null, imagens: [{ id: "i9", arquivo: "a9.jpg", principal: true }] },
+    };
+    const simples = { produtoId: "p1", composicao: null };
+    const atual = conteudoAtualDoAnuncio(simples, produtos);
+    conferir("simples: fotos com a principal primeiro, depois a ordem", atual.fotos, ["a2.jpg", "a1.jpg", "a3.jpg"]);
+    conferir("simples: descricao = a do ML", atual.descricao, montarDescricaoML({ descricao: "Texto da placa." }));
+    conferir("simples: pacote como o da embalagem (cm para cima, g)", atual.pacote, { alturaCm: 2, larguraCm: 6, comprimentoCm: 11, pesoG: 35 });
+    conferir("fotosDoRise: ids na mesma ordem", fotosDoRise(simples, produtos), ["i2", "i1", "i3"]);
+    conferir("sem as quatro medidas: pacote null", conteudoAtualDoAnuncio({ produtoId: "p2", composicao: null }, produtos).pacote, null);
+    const kit = { produtoId: "p1", composicao: { itens: [{ produtoId: "p1", quantidade: 1 }, { produtoId: "p2", quantidade: 1 }], codigo: "250999" } };
+    const doKit = conteudoAtualDoAnuncio(kit, produtos);
+    conferir("kit: sem fotos nem pacote, descricao com os itens inclusos", [doKit.fotos, doKit.pacote, doKit.kit, /Itens inclusos/i.test(doKit.descricao ?? "")], [null, null, true, true]);
+    conferir("fotosDoRise do kit: null (sao do anuncio)", fotosDoRise(kit, produtos), null);
+    conferir("produto que falta no contexto: descricao null", conteudoAtualDoAnuncio({ produtoId: "sumiu", composicao: null }, produtos).descricao, null);
+
+    const impressa = impressaoDoConteudo(atual);
+    const outra = impressaoDoConteudo({ ...atual, descricao: `${atual.descricao}.` });
+    conferir("impressao: md5 de 32 hex, estavel, muda com 1 caractere", [/^[0-9a-f]{32}$/.test(impressa.descricao), impressaoDoConteudo(atual).descricao === impressa.descricao, outra.descricao !== impressa.descricao], [true, true, true]);
+    conferir("impressao: fotos e pacote como vieram", [impressa.fotos, impressa.pacote], [atual.fotos, atual.pacote]);
+    conferir("impressao de descricao null fica null", impressaoDoConteudo({ descricao: null, fotos: null, pacote: null }).descricao, null);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();

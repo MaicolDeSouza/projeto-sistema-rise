@@ -133,6 +133,15 @@ function camposDaComposicao({ composicao, principalId, produtosPorId, descricaoA
 }
 
 /**
+ * As fotos do anuncio SIMPLES sao SEMPRE as validadas do produto, a principal primeiro e depois a ordem do cadastro
+ * (decisao do dono em 24/10/2026, "igual a LI"). Kit montado no editor: `null`, as fotos sao do anuncio.
+ */
+export function fotosDoRise(rascunho, produtosPorId) {
+  if (itensDaComposicao(rascunho?.composicao).length > 0) return null;
+  return fotosEmOrdem([rascunho?.produtoId], produtosPorId);
+}
+
+/**
  * O estoque do anuncio e SEMPRE o do Rise (pedido do dono em 22/10/2026: o campo saiu da tela): o do produto ou,
  * no kit, o que as pecas montam. Negativo conta zero. `null` quando o produto nao esta em `produtosPorId`.
  * Abrir e salvar o anuncio usam esta conta, para o numero nunca ficar o de quando o rascunho foi criado.

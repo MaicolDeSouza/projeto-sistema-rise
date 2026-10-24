@@ -71,7 +71,8 @@ export async function contextoDosProdutos(ids) {
         larguraCm: numero(p.larguraCm),
         comprimentoCm: numero(p.comprimentoCm),
         custo: custoDoProduto({ fornecedores: p.fornecedores, fornecedorRascunho: p.fornecedorRascunho, custo: p.custo }),
-        imagens: p.arquivos.map((a) => ({ id: a.id, url: urlDe(p.sku, "IMAGEM", a.arquivo), principal: a.principal })),
+        // `arquivo` e o nome no disco: a impressao do anuncio publicado compara as fotos por ele (acompanhar.js).
+        imagens: p.arquivos.map((a) => ({ id: a.id, arquivo: a.arquivo, url: urlDe(p.sku, "IMAGEM", a.arquivo), principal: a.principal })),
       },
     ]),
   );
