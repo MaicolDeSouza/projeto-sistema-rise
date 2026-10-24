@@ -237,6 +237,14 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
 | Pedidos, Estoque, Financeiro | Esqueleto |
 
+**O que está no ar (24/10/2026):** o deploy 24.10.2026.29 (commit `5ede491`) subiu TUDO o que estava na main até esse commit
+(conferido com `git merge-base --is-ancestor`: concorrentes do ML e o ranking pelos catálogos de referência, o anúncio publicado
+que acompanha o produto, a proposta de produto e a de anúncio LI e ML, o gerador de EAN interno, a rodada semanal corrigida, os
+avisos no Telegram, OBR e Imobras, a revisão de segurança, o custo adicional do fornecedor e o markup). **Toda menção a "SEM
+deploy" nas seções abaixo que seja anterior a essa data está obsoleta.** O que continua pendente é ação do dono, não deploy
+(2º fator, criar o bot do Telegram, cadastrar OBR e Imobras na VPS, a chave da OpenAI na VPS, o 1º envio real do "Enviar
+mudanças ao ML", a revisão das propostas do 100105 e do 100107).
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
@@ -256,7 +264,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 748 asserções da extração, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 758 asserções da extração, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
