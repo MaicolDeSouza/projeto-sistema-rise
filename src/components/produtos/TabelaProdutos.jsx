@@ -16,6 +16,7 @@ import CampoBusca from "@/components/ui/CampoBusca";
 import BotaoBuscaAmpla from "@/components/ui/BotaoBuscaAmpla";
 import EmptyState from "@/components/ui/EmptyState";
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
+import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import FiltroDeCanais from "./FiltroDeCanais";
 import LinhaProduto from "./LinhaProduto";
 
@@ -171,10 +172,12 @@ export default function TabelaProdutos({
       setExcluindo(null);
 
       // Um produto por vez (o "Excluir" da linha): ou saiu, ou o motivo da recusa (anuncio publicado, peca de kit).
+      // Os dois em POP-UP com botao Fechar (pedido do dono em 24/10/2026; era uma faixa no topo da lista).
+      const nome = [excluindo.sku, excluindo.tituloBase].filter(Boolean).join(" · ");
       setMensagem(
         resultado.falhas.length > 0
-          ? { tipo: "erro", texto: resultado.falhas.map((falha) => falha.erro).join(" ") }
-          : { tipo: "sucesso", texto: [`Produto ${excluindo.sku} excluído.`, ...(resultado.avisos ?? [])].join(" ") },
+          ? { tipo: "erro", titulo: "Não foi possível excluir", texto: nome, linhas: resultado.falhas.map((falha) => falha.erro) }
+          : { tipo: "sucesso", titulo: "Produto excluído", texto: `${nome} foi excluído do Rise, com as fotos e os documentos dele.`, aviso: (resultado.avisos ?? []).join(" ") || null },
       );
     });
   }
@@ -209,16 +212,15 @@ export default function TabelaProdutos({
       </div>
 
       {mensagem && (
-        <p
-          className={`mb-4 flex items-center gap-1.5 rounded border p-2 text-xs ${
-            mensagem.tipo === "erro"
-              ? "border-red-200 bg-red-50 text-red-800"
-              : "border-emerald-200 bg-emerald-50 text-emerald-900"
-          }`}
-        >
-          {mensagem.tipo === "sucesso" && <CircleCheck size={14} className="shrink-0" />}
-          {mensagem.texto}
-        </p>
+        <ConclusaoDoEnvio
+          tipo={mensagem.tipo}
+          titulo={mensagem.titulo ?? (mensagem.tipo === "erro" ? "Não foi possível concluir" : "Feito")}
+          mensagem={mensagem.texto}
+          linhas={mensagem.linhas ?? []}
+          aviso={mensagem.aviso ?? null}
+          botao="Fechar"
+          aoFechar={() => setMensagem(null)}
+        />
       )}
 
       {linhas.length === 0 ? (

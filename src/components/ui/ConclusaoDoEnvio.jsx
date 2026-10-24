@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { CircleCheck } from "lucide-react";
+import { CircleAlert, CircleCheck } from "lucide-react";
 
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 
@@ -20,9 +20,12 @@ import { propsDoFundo } from "@/lib/fundoDaJanela";
  * O Esc e ouvido na CAPTURA da janela e para ali: a janela do envio escuta o Esc no `document` para se fechar,
  * e sem isto o mesmo Esc fecharia as duas e o operador nao leria o resultado.
  *
- * @param {{titulo: string, mensagem?: string|null, linhas?: string[], aviso?: string|null, aoFechar: () => void}} props
+ * `tipo="erro"` (pedido do dono em 24/10/2026, ao excluir produto): o mesmo pop-up para uma acao RECUSADA, com o
+ * circulo vermelho e o motivo; `botao` troca o texto do botao ("Fechar").
+ *
+ * @param {{titulo: string, mensagem?: string|null, linhas?: string[], aviso?: string|null, tipo?: "sucesso"|"erro", botao?: string, aoFechar: () => void}} props
  */
-export default function ConclusaoDoEnvio({ titulo, mensagem = null, linhas = [], aviso = null, aoFechar }) {
+export default function ConclusaoDoEnvio({ titulo, mensagem = null, linhas = [], aviso = null, tipo = "sucesso", botao = "OK", aoFechar }) {
   useEffect(() => {
     function aoTeclar(evento) {
       if (evento.key !== "Escape" && evento.key !== "Enter") return;
@@ -46,14 +49,20 @@ export default function ConclusaoDoEnvio({ titulo, mensagem = null, linhas = [],
         className="w-full max-w-md rounded-lg border border-borda bg-superficie p-5 shadow-2xl"
       >
         <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-            <CircleCheck size={20} />
-          </span>
+          {tipo === "erro" ? (
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+              <CircleAlert size={20} />
+            </span>
+          ) : (
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+              <CircleCheck size={20} />
+            </span>
+          )}
           <div className="min-w-0 flex-1">
             <p id="conclusao-do-envio-titulo" className="text-base font-semibold">
               {titulo}
             </p>
-            {mensagem && <p className="mt-0.5 text-sm text-suave">{mensagem}</p>}
+            {mensagem && <p className={`mt-0.5 text-sm ${tipo === "erro" ? "text-texto" : "text-suave"}`}>{mensagem}</p>}
           </div>
         </div>
 
@@ -74,7 +83,7 @@ export default function ConclusaoDoEnvio({ titulo, mensagem = null, linhas = [],
             onClick={aoFechar}
             className="min-w-24 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90"
           >
-            OK
+            {botao}
           </button>
         </div>
       </section>
