@@ -10,8 +10,8 @@ const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 const CATEGORIA_ML = /^MLB\d+$/;
 
 /**
- * Calculadora do preco por margem (o mesmo icone da do cadastro de Produto): o dono diz o lucro
- * que quer, em % do preco ou em R$, e o Rise devolve o preco necessario com as taxas REAIS do ML
+ * Calculadora do preco pelo lucro (o mesmo icone da do cadastro de Produto): o dono diz o lucro
+ * que quer, em % DO CUSTO (markup com as taxas, desde 24/10/2026; era % do preco) ou em R$, e o Rise devolve o preco necessario com as taxas REAIS do ML
  * (comissao e tarifa fixa sao relidas no preco calculado). "Usar este preco" poe o preco no campo e
  * deixa os custos lidos valendo. Abre como um painel embaixo do preco.
  */
@@ -32,7 +32,7 @@ export default function CalculadoraDeMargem({ rascunho, alterar, setContexto, cu
   function calcular() {
     const valor = lerDecimal(digitado);
     if (valor === null || valor < 0) {
-      setErro("Informe a margem desejada.");
+      setErro("Informe o lucro desejado.");
       return;
     }
     setErro(null);
@@ -69,8 +69,8 @@ export default function CalculadoraDeMargem({ rascunho, alterar, setContexto, cu
           type="button"
           onClick={() => setAberta((atual) => !atual)}
           disabled={Boolean(motivoDesligado)}
-          title={motivoDesligado ?? "Calcular o preço a partir da margem desejada, com as taxas do ML"}
-          aria-label="Calcular o preço pela margem"
+          title={motivoDesligado ?? "Calcular o preço a partir do lucro desejado, com as taxas do ML"}
+          aria-label="Calcular o preço pelo lucro"
           aria-expanded={aberta}
           className={`absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-1 hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-40 ${aberta ? "text-acento" : "text-suave"}`}
         >
@@ -80,10 +80,10 @@ export default function CalculadoraDeMargem({ rascunho, alterar, setContexto, cu
 
       {aberta && (
         <div className="mt-2 rounded border border-borda bg-superficie p-3 shadow-sm">
-          <p className="text-xs font-semibold">Margem desejada</p>
+          <p className="text-xs font-semibold">Lucro desejado, com as taxas do ML</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
             {[
-              { valor: "percentual", rotulo: "%" },
+              { valor: "percentual", rotulo: "% sobre o custo" },
               { valor: "reais", rotulo: "R$" },
             ].map((opcao) => (
               <label key={opcao.valor} className="flex cursor-pointer items-center gap-1 text-sm">
@@ -94,8 +94,8 @@ export default function CalculadoraDeMargem({ rascunho, alterar, setContexto, cu
             <input
               inputMode="decimal"
               autoComplete="off"
-              aria-label="Margem desejada"
-              placeholder={tipo === "percentual" ? "30" : "20,00"}
+              aria-label="Lucro desejado"
+              placeholder={tipo === "percentual" ? "40" : "20,00"}
               value={digitado}
               onChange={(evento) => setDigitado(filtrarDecimal(evento.target.value, 2))}
               onKeyDown={(evento) => {

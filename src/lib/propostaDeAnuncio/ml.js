@@ -185,7 +185,7 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, atri
       avisos,
       catalogosSugeridos: aceitos,
       links,
-      preco: { valor: preco.valor, margem: preco.margem, posicao: preco.posicao, total: preco.total, piso: preco.piso, teto: preco.teto },
+      preco: { valor: preco.valor, markup: preco.markup, posicao: preco.posicao, total: preco.total, piso: preco.piso, teto: preco.teto },
     },
   });
   await gravarProposta(salvo.id, proposta);

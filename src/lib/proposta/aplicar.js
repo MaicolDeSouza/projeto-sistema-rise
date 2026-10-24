@@ -87,7 +87,7 @@ export const CAMPOS_QUE_A_PROPOSTA_TROCA = [
 /**
  * @param {Record<string, any>} secoes `PropostaDeProduto.secoes`
  * @param {{ secoes?: string[], titulo?: number, preco?: number }} escolhas secoes marcadas; `titulo` = indice da opcao
- *   (sem ele, a recomendada); `preco` = margem da opcao (sem ela, a recomendada)
+ *   (sem ele, a recomendada); `preco` = markup da opcao (proposta antiga: a margem; sem ele, a recomendada)
  * @param {{ sku?: string }} produto o produto na tela: o codigo da proposta so entra sem SKU
  * @returns {{ campos: Record<string, unknown>, secoes: string[] }} campos para o `aplicar` do formulario e as secoes
  *   que de fato puseram algum campo (vao no Salvar, que as marca como aplicadas)
@@ -113,7 +113,7 @@ export function camposDoFormularioDaProposta(secoes, escolhas = {}, produto = {}
     if (secao === "preco") {
       const opcao = escolhas.preco === undefined || escolhas.preco === null
         ? conteudo.recomendada
-        : [...(conteudo.opcoes ?? []), conteudo.recomendada].find((item) => item?.margem === escolhas.preco);
+        : [...(conteudo.opcoes ?? []), conteudo.recomendada].find((item) => (item?.markup ?? item?.margem) === escolhas.preco);
       por(secao, { precoVenda: opcao?.preco });
     }
     if (secao === "ean") por(secao, { ean: conteudo.escolhido?.valor });
@@ -152,12 +152,19 @@ function mesmoValor(campo, a, b) {
   return String(a ?? "").trim().toUpperCase() === String(b ?? "").trim().toUpperCase();
 }
 
-/** "46% margem · 5º de 9": a margem vem em porcentagem ou, de propostas antigas, em fracao (0,46). */
+/**
+ * "84,7% markup · 5º de 9". Desde 24/10/2026 a proposta grava o `markup` (sobre o custo); as de antes guardaram a `margem`
+ * (sobre o preco), em porcentagem ou em fracao (0,46), e aparecem como "margem".
+ */
 function textoDoPreco(opcao) {
-  const margem = Number(opcao?.margem);
+  const ehMarkup = opcao?.markup !== undefined && opcao?.markup !== null;
+  const valor = Number(ehMarkup ? opcao.markup : opcao?.margem);
   const partes = [];
-  // Uma casa decimal: desde 24/10/2026 a recomendada sai do preco do concorrente, e a margem vem quebrada (45,6%).
-  if (Number.isFinite(margem)) partes.push(`${Number((Math.abs(margem) <= 1 ? margem * 100 : margem).toFixed(1)).toLocaleString("pt-BR")}% margem`);
+  // Uma casa decimal: desde 24/10/2026 a recomendada sai do preco do concorrente, e o percentual vem quebrado (45,6%).
+  if (Number.isFinite(valor)) {
+    const porcento = !ehMarkup && Math.abs(valor) <= 1 ? valor * 100 : valor;
+    partes.push(`${Number(porcento.toFixed(1)).toLocaleString("pt-BR")}% ${ehMarkup ? "markup" : "margem"}`);
+  }
   if (opcao?.posicao?.posicao) partes.push(`${opcao.posicao.posicao}º de ${opcao.posicao.total}`);
   return partes.join(" · ");
 }

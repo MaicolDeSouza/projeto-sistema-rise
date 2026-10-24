@@ -320,7 +320,7 @@ export async function precoPorMargemML(rascunho, { custo, margem } = {}) {
     const conferido = await rascunhoConferido({ ...rascunho, preco: Number(rascunho?.preco) > 0 ? rascunho.preco : 1 });
     if (conferido.erro) return { ok: false, erro: conferido.erro };
     const resultado = await precoPorMargemNoML(clienteML(), conferido.rascunho, { custo: Number(custo), margem: { tipo: margem.tipo, valor } });
-    return resultado ? { ok: true, ...resultado } : { ok: false, erro: "Margem inatingível com estas taxas." };
+    return resultado ? { ok: true, ...resultado } : { ok: false, erro: "Lucro inatingível com estas taxas." };
   } catch (erro) {
     return falhaDeLeitura(erro, "preco por margem");
   }

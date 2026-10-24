@@ -37,7 +37,8 @@ CAMINHO (nesta ordem)
    avisos. Diga que o dono revisa e sincroniza no editor da Loja Integrada (o "P" no ícone some no Sincronizar).
    Depois disso, o próximo passo é a proposta do Mercado Livre.`;
 
-export const VERSAO_ROTEIRO_ML = "1";
+// "2" em 24/10/2026: o preco passa a ser por markup (40% sobre o custo, com as taxas do ML), nao por margem.
+export const VERSAO_ROTEIRO_ML = "2";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
@@ -68,6 +69,7 @@ CAMINHO (nesta ordem)
 4. gravarPropostaML(sku, categoriaId, titulo, atributos, catalogos, linksSemCatalogo, relatorio). O relatório em
    tópicos curtos: por que a categoria, de onde veio cada valor da ficha, por que cada catálogo é o mesmo produto.
    Se voltar erro, corrija e grave de novo.
-5. Mostre à pessoa o que o Rise devolveu: o preço, a margem, a posição no ranking, os catálogos aceitos e os avisos.
+5. Mostre à pessoa o que o Rise devolveu: o preço, o markup (lucro sobre o custo, já com as taxas do ML; o mínimo é
+   40%), a posição no ranking, os catálogos aceitos e os avisos.
    Diga que o dono revisa no editor do Mercado Livre, adiciona os catálogos ao ranking se quiser, e publica (o "P" no
    ícone some no Publicar).`;

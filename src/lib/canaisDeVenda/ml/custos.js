@@ -34,12 +34,16 @@ export function custosDoAnuncio({ preco, custo, percentual, tarifaFixa, frete, i
     imposto: doImposto,
     lucro,
     margem: lucro === null ? null : Math.round((lucro / valor) * 1000) / 10,
+    // MARKUP com as taxas (pedido do dono em 24/10/2026: "markup em todo o Rise", Opcao "com as taxas"): o lucro que
+    // sobra depois de comissao, tarifa, frete e imposto, dividido pelo CUSTO. E o numero que a tela do ML mostra.
+    markup: lucro === null ? null : Math.round((lucro / Number(custo)) * 1000) / 10,
   };
 }
 
 /**
- * O preco que deixa a margem pedida, em R$ (`reais`) ou % do preco (`percentual`), resolvendo
- * `P*(1 - comissao% - imposto%) - tarifa - frete - custo = margem`. Arredonda PARA CIMA ao
+ * O preco que deixa o lucro pedido, em R$ (`reais`) ou em % DO CUSTO (`percentual`, o markup com as
+ * taxas, desde 24/10/2026; ate ali era % do preco), resolvendo
+ * `P*(1 - comissao% - imposto%) - tarifa - frete - custo = lucro`. Arredonda PARA CIMA ao
  * centavo: arredondar para baixo entregaria um lucro um pouco menor que o pedido. `null` sem custo
  * ou quando nenhum preco chega la (as porcentagens somam 100% ou mais).
  */
@@ -50,7 +54,8 @@ export function precoPorMargem({ custo, percentual, tarifaFixa, frete, imposto =
 
   const fixos = Number(custo) + numeroOuZero(tarifaFixa) + numeroOuZero(frete);
   const parteDoPreco = 1 - numeroOuZero(percentual) - imposto;
-  const [numerador, denominador] = margem.tipo === "percentual" ? [fixos, parteDoPreco - valor / 100] : [fixos + valor, parteDoPreco];
+  const lucro = margem.tipo === "percentual" ? (Number(custo) * valor) / 100 : valor;
+  const [numerador, denominador] = [fixos + lucro, parteDoPreco];
   if (!(denominador > 0)) return null;
 
   // 72,59 * 100 pode dar 7259,000000001 em ponto flutuante: arredonda o ruido antes de subir.

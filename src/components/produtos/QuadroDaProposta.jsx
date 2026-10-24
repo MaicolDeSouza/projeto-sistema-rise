@@ -216,12 +216,13 @@ function DetalheDaSecao({ secao, conteudo, urls }) {
         <p className="mb-2 text-suave">Custo {reais(conteudo.custo)}{conteudo.custoOrigem ? ` (${conteudo.custoOrigem})` : ""}</p>
         <table className="w-full tabular-nums">
           <thead className="text-left text-xs text-suave">
-            <tr><th className="pb-1">Margem</th><th className="pb-1">Preço</th><th className="pb-1">Posição</th><th /></tr>
+            {/* Markup (sobre o custo) desde 24/10/2026; a proposta gravada antes traz a margem (sobre o preco). */}
+            <tr><th className="pb-1">{linhas.some((opcao) => opcao.markup != null) ? "Markup" : "Margem"}</th><th className="pb-1">Preço</th><th className="pb-1">Posição</th><th /></tr>
           </thead>
           <tbody className="divide-y divide-borda">
             {linhas.map((opcao) => (
-              <tr key={`${opcao.margem}-${opcao.recomendada ? "r" : ""}`} className={opcao.recomendada ? "font-semibold" : ""}>
-                <td className="py-1.5">{margemTexto(opcao.margem)}</td>
+              <tr key={`${opcao.markup ?? opcao.margem}-${opcao.recomendada ? "r" : ""}`} className={opcao.recomendada ? "font-semibold" : ""}>
+                <td className="py-1.5">{opcao.markup != null ? `${Number(opcao.markup).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : margemTexto(opcao.margem)}</td>
                 <td className="py-1.5">{reais(opcao.preco)}</td>
                 <td className="py-1.5">{posicaoTexto(opcao.posicao)}</td>
                 <td className="py-1.5 text-xs text-emerald-700">{opcao.recomendada ? "recomendada" : ""}</td>

@@ -7,7 +7,7 @@
  *
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
-export const VERSAO_DO_ROTEIRO = "7";
+export const VERSAO_DO_ROTEIRO = "8";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -99,11 +99,12 @@ conteudo: { "<campo>": { "valor", "origem" } }
 
 5. PREÇO: QUEM CALCULA É O RISE
 - Grave a seção preco com { "observacao": "..." } (ou vazia): o Rise calcula sozinho o custo (fornecedor padrão), os
-  concorrentes que entram (preço normal, com estoque, sem a própria 4hobby), as opções de 40%, 50% e 60% com a posição
-  e a recomendada. Números que você mandar são ignorados.
+  concorrentes que entram (preço normal, com estoque, sem a própria 4hobby), as opções de 60%, 80% e 100% de MARKUP
+  (lucro sobre o custo: custo R$ 50 com 100% = R$ 100) com a posição e a recomendada. Números que você mandar são
+  ignorados. Diga sempre "markup", nunca "margem".
 - A recomendada (regra do dono em 24/10/2026) fica R$ 0,10 abaixo do 5º concorrente mais barato (cada loja uma vez);
-  com menos de 5 concorrentes, R$ 0,10 abaixo do mais caro. É a maior margem que ainda fica entre os 5 primeiros. Não há
-  piso: abaixo de 30% de margem a recomendada vem com "aviso", e o relatório diz isso no tópico Preço; abaixo de 1% não há
+  com menos de 5 concorrentes, R$ 0,10 abaixo do mais caro. É o maior markup que ainda fica entre os 5 primeiros. Não há
+  piso: abaixo de 60% de markup a recomendada vem com "aviso", e o relatório diz isso no tópico Preço; abaixo de 1% não há
   recomendada (o motivo vem junto). A recomendada traz "referencia" (a loja e o preço que decidiram).
 - O preço da 4hobby anda de 5 em 5 centavos (R$ 35,40, R$ 35,45; nunca R$ 35,41): o Rise já calcula assim.
 - Leia o resultado com lerProposta e use no resumo e no relatório.
@@ -126,7 +127,7 @@ conteudo: { "itens": [{ "id", "titulo", "url", "loja" }] }
 prompt, sites pesquisados), "Decisões tomadas" (cada divergência: campo, opções, a escolhida e o porquê), "Para você
 conferir" (atencao: true; os campos que ficaram de fora por falta de fonte, os campos preenchidos que a proposta troca e
 o que depende do dono), "Fiscal" (NCM, origem, tipo do item, EAN e o que os concorrentes publicam diferente), "Preço" (o
-que o Rise calculou, o concorrente de referência, o aviso de margem abaixo de 30%, quem entrou e quem ficou de fora), "Fotos" e
+que o Rise calculou, o concorrente de referência, o aviso de markup abaixo de 60%, quem entrou e quem ficou de fora), "Fotos" e
 "Documentos" (o que não abre). Tópico sem nada a dizer fica de fora. Cada item é uma frase curta e completa.
 conteudo: { "topicos": [{ "titulo", "itens": [frases curtas], "atencao": true só em "Para você conferir" }] }
 `;

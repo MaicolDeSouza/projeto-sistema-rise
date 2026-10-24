@@ -8,7 +8,7 @@ import SeloPosicaoDePreco from "@/components/produtos/SeloPosicaoDePreco";
 import { custoDaComposicao } from "@/lib/canaisDeVenda/composicao";
 import { concorrentesParaPosicao } from "@/lib/canaisDeVenda/ml/avisosConcorrentes";
 import { custosDoAnuncio, custosValem, freteQueConta } from "@/lib/canaisDeVenda/ml/custos";
-import { calcularMargem, corDaMargem, lucroLiquido } from "@/lib/margem";
+import { calcularMarkup, corDoMarkup, lucroLiquido } from "@/lib/margem";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import CalculadoraDeMargem from "./CalculadoraDeMargem";
 import ConcorrentesDoML from "./ConcorrentesDoML";
@@ -54,32 +54,33 @@ function somaDosPrecosAvulsos(itens, produtos) {
 
 function mensagemSemCusto(faltam) {
   return faltam.length > 0
-    ? `Sem custo de ${faltam.join(", ")}: a margem fica indisponível.`
-    : "Sem custo informado: a margem fica indisponível.";
+    ? `Sem custo de ${faltam.join(", ")}: o markup fica indisponível.`
+    : "Sem custo informado: o markup fica indisponível.";
 }
 
-/// Mesma regra de cor da margem do Produto (`corDaMargem`), mas sobre o lucro JA com as taxas do
-/// ML: vermelho com prejuizo, amarelo abaixo de 60%, verde a partir de 60%.
-function corDoLucro(lucro, margem) {
+/// Mesma regra de cor do Produto (`corDoMarkup`), mas sobre o markup JA com as taxas do ML:
+/// vermelho com prejuizo, amarelo abaixo de 60%, verde a partir de 60%.
+function corDoLucro(lucro, markup) {
   if (lucro < 0) return "text-red-600";
-  return margem >= 60 ? "text-emerald-600" : "text-yellow-600";
+  return markup >= 60 ? "text-emerald-600" : "text-yellow-600";
 }
 
-// A margem em % e em R$, bem visivel embaixo do preco (pedido do dono em 22/10/2026). Com as taxas do ML lidas, e o lucro
-// de verdade; sem elas, so o imposto, e o rotulo diz isso.
+// O markup em % (lucro sobre o custo, pedido do dono em 24/10/2026; era a margem sobre o preco) e o lucro em R$, bem
+// visiveis embaixo do preco. Com as taxas do ML lidas, e o lucro de verdade; sem elas, o markup do cadastro (sem taxas),
+// e o rotulo diz isso.
 function MargemDoPreco({ preco, custo, conta, mensagemSemCusto }) {
   if (!(preco > 0)) return null;
   if (!(custo.valor > 0)) return <p className="mt-1.5 text-xs text-amber-700">{mensagemSemCusto}</p>;
   const comTaxas = conta && conta.lucro !== null;
-  const margem = comTaxas ? conta.margem : calcularMargem(preco, custo.valor);
+  const markup = comTaxas ? conta.markup : calcularMarkup(preco, custo.valor);
   const lucro = comTaxas ? conta.lucro : lucroLiquido(preco, custo.valor);
-  const cor = comTaxas ? corDoLucro(lucro, margem) : corDaMargem(preco, custo.valor);
+  const cor = comTaxas ? corDoLucro(lucro, markup) : corDoMarkup(preco, custo.valor);
   return (
     <div className="mt-1.5">
       <p className={`text-xl leading-tight font-semibold tabular-nums ${cor}`}>
-        {PERCENTUAL.format(margem)}%<span className="ml-2 text-base">{MOEDA.format(lucro)}</span>
+        {PERCENTUAL.format(markup)}%<span className="ml-2 text-base">{MOEDA.format(lucro)}</span>
       </p>
-      <p className="text-[11px] text-suave">{comTaxas ? "margem com as taxas do ML" : "margem sem as taxas do ML: leia os custos"}</p>
+      <p className="text-[11px] text-suave">{comTaxas ? "markup (lucro sobre o custo) com as taxas do ML" : "markup sem as taxas do ML: leia os custos"}</p>
     </div>
   );
 }
@@ -165,7 +166,9 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
           <SugestaoDaProposta proposta={contexto.proposta} caminho="preco" valorAtual={rascunho.preco} aoUsar={(valor) => alterar({ preco: Number(valor) })} formatar={(valor) => MOEDA_DA_PROPOSTA.format(Number(valor))} />
           {contexto.proposta?.preco?.valor != null && (
             <p className="mt-1 text-[11px] text-amber-800">
-              Proposta: {contexto.proposta.preco.margem}% de margem, {contexto.proposta.preco.posicao}º de {contexto.proposta.preco.total} no ranking da proposta.
+              {/* Proposta gravada antes de 24/10/2026 tem a margem (sobre o preco), a nova tem o markup. */}
+              Proposta: {contexto.proposta.preco.markup ?? contexto.proposta.preco.margem}% de{" "}
+              {contexto.proposta.preco.markup != null ? "markup" : "margem"}, {contexto.proposta.preco.posicao}º de {contexto.proposta.preco.total} no ranking da proposta.
             </p>
           )}
           <MensagensDoCampo problemas={problemas} campo="preco" />

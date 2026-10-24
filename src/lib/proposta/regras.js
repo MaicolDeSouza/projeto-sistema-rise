@@ -1,33 +1,35 @@
-import { IMPOSTO_PADRAO } from "../margem.js";
 import { posicaoDePreco } from "../posicaoDePreco.js";
 
 /**
  * Regras puras da proposta automatica de produto (spec docs/superpowers/specs/2026-10-16-proposta-automatica-de-produto-
- * design.md): preco por margem com a posicao entre os concorrentes, peso e medidas, NCM e origem fiscal. Sem banco e
+ * design.md): preco por markup com a posicao entre os concorrentes, peso e medidas, NCM e origem fiscal. Sem banco e
  * sem rede: o script da sessao e a tela usam as mesmas contas.
  *
  * Imports RELATIVOS de proposito: o teste roda em Node puro, sem o resolvedor do "@/".
  */
 
-/** As tres margens que o dono pediu (19/10/2026), na conta do Rise (`calcularMargem`). */
-export const MARGENS_DA_PROPOSTA = [40, 50, 60];
+/**
+ * As tres opcoes de MARKUP da proposta (pedido do dono em 24/10/2026: "markup em todo o Rise", com o aviso abaixo de 60%
+ * para a loja). Ate ali eram as margens 40, 50 e 60% sobre o preco (19/10/2026); 60/80/100 e decisao da sessao, para as
+ * tres ficarem no aviso ou acima dele.
+ */
+export const MARKUPS_DA_PROPOSTA = [60, 80, 100];
 
 /** O dono quer ficar entre os 5 primeiros (1º = o mais barato). */
 export const POSICAO_MAXIMA = 5;
 
 /**
- * Preco de venda que da a margem pedida. A margem do Rise e lucro liquido (preco - 6% - custo) dividido pelo PRECO,
- * entao preco = custo / (1 - 0,06 - margem). Arredonda PARA CIMA ate o proximo multiplo de 5 centavos (pedido do dono em
- * 22/10/2026: a loja nao usa preco quebrado como 35,41; 35,41 vira 35,45): arredondar para baixo daria uma margem um
- * pouco menor que a prometida.
- * @returns {number|null} nulo sem custo ou quando a margem nao cabe (>= 94%)
+ * Preco de venda que da o markup pedido, na conta do cadastro (`calcularMarkup`): preco = custo * (1 + markup), sem o
+ * imposto (custo R$ 50 com 100% = R$ 100). Arredonda PARA CIMA ate o proximo multiplo de 5 centavos (pedido do dono em
+ * 22/10/2026: a loja nao usa preco quebrado como 35,41; 35,41 vira 35,45): para baixo daria um markup menor que o pedido.
+ * @returns {number|null} nulo sem custo ou com markup que nao e numero
  */
-export function precoParaMargem(custo, margem) {
+export function precoParaMarkup(custo, markup) {
   const base = Number(custo);
-  const divisor = 1 - IMPOSTO_PADRAO - Number(margem) / 100;
-  if (!(base > 0) || !(divisor > 0)) return null;
-  // O epsilon tira o ruido do ponto flutuante (55,588235... nao vira 55,59000001 e depois 55,65).
-  const centavos = Math.ceil((base / divisor) * 100 - 1e-9);
+  const fator = 1 + Number(markup) / 100;
+  if (!(base > 0) || !(fator > 0)) return null;
+  // O epsilon tira o ruido do ponto flutuante (30,24 * 1,6 nao vira 48,38400001 e depois 48,45).
+  const centavos = Math.ceil(base * fator * 100 - 1e-9);
   return (Math.ceil(centavos / DEGRAU_DO_PRECO) * DEGRAU_DO_PRECO) / 100;
 }
 
@@ -37,15 +39,18 @@ export const DEGRAU_DO_PRECO = 5;
 /** O preco recomendado fica R$ 0,10 abaixo do concorrente de referencia (pedido do dono em 24/10/2026), em centavos. */
 export const CENTAVOS_ABAIXO_DO_CONCORRENTE = 10;
 
-/** Abaixo desta margem a recomendada leva um aviso para o relatorio (decisao do dono em 24/10/2026: sem piso, so aviso). */
-export const MARGEM_DE_AVISO = 30;
+/**
+ * Abaixo deste markup a recomendada leva um aviso para o relatorio (sem piso, so aviso: decisao do dono em 24/10/2026;
+ * no mesmo dia o aviso passou de 30% de margem para 60% de markup, "60% para LI").
+ */
+export const MARKUP_DE_AVISO = 60;
 
-/** A margem do Rise para um preco: (preco - 6% - custo) / preco, em %, com uma casa. Sem custo ou sem preco, null. */
-export function margemDoPreco(custo, preco) {
+/** O markup do Rise para um preco: (preco - custo) / custo, em %, com uma casa. Sem custo ou sem preco, null. */
+export function markupDoPreco(custo, preco) {
   const base = Number(custo);
   const valor = Number(preco);
   if (!(base > 0) || !(valor > 0)) return null;
-  return Math.round(((valor * (1 - IMPOSTO_PADRAO) - base) / valor) * 1000) / 10;
+  return Math.round(((valor - base) / base) * 1000) / 10;
 }
 
 const centavosDe = (valor) => {
@@ -80,21 +85,22 @@ export function concorrenteDeReferencia(concorrentes) {
 const reais = (centavos) => `R$ ${(centavos / 100).toFixed(2).replace(".", ",")}`;
 
 /**
- * As tres opcoes (40, 50, 60%) com a posicao de cada uma, e a recomendada (regra de 24/10/2026, pedido do dono): R$ 0,10
- * abaixo do 5º concorrente com estoque (com menos de 5, do mais caro), arredondado PARA BAIXO aos 5 centavos (para ficar
- * abaixo dele de verdade). E a maior margem que ainda deixa o produto entre os 5 primeiros. Ate 23/10/2026 a margem subia
- * de 1 em 1% e parava no ultimo preco que cabia, o que deixava centavos na mesa (39,35 com o 5º a 39,90).
- * Sem piso de margem (decisao 3 do dono): abaixo de 30% vai o aviso; abaixo de 1% (ou prejuizo) nao ha recomendada.
+ * As tres opcoes de markup (60, 80, 100%) com a posicao de cada uma, e a recomendada (regra de 24/10/2026, pedido do
+ * dono): R$ 0,10 abaixo do 5º concorrente com estoque (com menos de 5, do mais caro), arredondado PARA BAIXO aos 5 centavos
+ * (para ficar abaixo dele de verdade). E o maior markup que ainda deixa o produto entre os 5 primeiros. Ate 23/10/2026
+ * subia de 1 em 1% e parava no ultimo preco que cabia, o que deixava centavos na mesa (39,35 com o 5º a 39,90).
+ * Sem piso (decisao 3 do dono): abaixo de 60% de markup vai o aviso; abaixo de 1% (ou prejuizo) nao ha recomendada.
+ * Os campos se chamam `markup` desde 24/10/2026 (as propostas de antes guardaram `margem`, sobre o preco).
  * @param {number|null} custo custo do fornecedor padrao
  * @param {{loja: string, preco: number|string|null, indisponivel?: boolean}[]} concorrentes o formato de `posicaoDePreco`
  */
 export function opcoesDePreco(custo, concorrentes) {
-  const opcoes = MARGENS_DA_PROPOSTA.map((margem) => {
-    const preco = precoParaMargem(custo, margem);
-    return { margem, preco, posicao: preco === null ? null : posicaoDePreco(preco, concorrentes) };
+  const opcoes = MARKUPS_DA_PROPOSTA.map((markup) => {
+    const preco = precoParaMarkup(custo, markup);
+    return { markup, preco, posicao: preco === null ? null : posicaoDePreco(preco, concorrentes) };
   });
   if (!(Number(custo) > 0)) {
-    return { opcoes, recomendada: null, motivoSemRecomendada: "sem custo do fornecedor padrão: não há como calcular a margem" };
+    return { opcoes, recomendada: null, motivoSemRecomendada: "sem custo do fornecedor padrão: não há como calcular o markup" };
   }
   const referencia = concorrenteDeReferencia(concorrentes);
   // Sem concorrente com preco, nao ha posicao: a recomendada vira a maior das tres opcoes do dono.
@@ -103,22 +109,22 @@ export function opcoesDePreco(custo, concorrentes) {
   const qual = referencia.quinto ? "do 5º concorrente" : `do concorrente mais caro (só ${referencia.lojas} com estoque)`;
   const centavos = Math.floor((referencia.centavos - CENTAVOS_ABAIXO_DO_CONCORRENTE) / DEGRAU_DO_PRECO) * DEGRAU_DO_PRECO;
   const preco = centavos / 100;
-  const margem = margemDoPreco(custo, preco);
-  if (!(centavos > 0) || margem === null || margem < 1) {
+  const markup = markupDoPreco(custo, preco);
+  if (!(centavos > 0) || markup === null || markup < 1) {
     return {
       opcoes,
       recomendada: null,
-      motivoSemRecomendada: `R$ 0,10 abaixo ${qual} (${referencia.loja}, ${reais(referencia.centavos)}) a margem fica abaixo de 1%: o produto não cabe entre os ${POSICAO_MAXIMA} primeiros com lucro`,
+      motivoSemRecomendada: `R$ 0,10 abaixo ${qual} (${referencia.loja}, ${reais(referencia.centavos)}) o markup fica abaixo de 1%: o produto não cabe entre os ${POSICAO_MAXIMA} primeiros com lucro`,
     };
   }
   return {
     opcoes,
     recomendada: {
-      margem,
+      markup,
       preco,
       posicao: posicaoDePreco(preco, concorrentes),
       referencia: { loja: referencia.loja, preco: referencia.centavos / 100, regra: referencia.quinto ? "5º concorrente" : "concorrente mais caro (menos de 5)" },
-      aviso: margem < MARGEM_DE_AVISO ? `margem abaixo de ${MARGEM_DE_AVISO}%` : null,
+      aviso: markup < MARKUP_DE_AVISO ? `markup abaixo de ${MARKUP_DE_AVISO}%` : null,
     },
     motivoSemRecomendada: null,
   };

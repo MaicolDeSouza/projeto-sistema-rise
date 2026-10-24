@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
 
-import { escolherMedidas, escolherNcm, opcoesDePreco, origemFiscal, precoParaMargem } from "../src/lib/proposta/regras.js";
-import { calcularMargem } from "../src/lib/margem.js";
+import { escolherMedidas, escolherNcm, opcoesDePreco, origemFiscal, precoParaMarkup } from "../src/lib/proposta/regras.js";
+import { calcularMarkup } from "../src/lib/margem.js";
 
 /**
  * Proposta automatica de produto (spec 2026-10-16): as regras puras de preco, medidas, NCM e origem fiscal. SEM rede e
@@ -22,25 +22,26 @@ function conferir(nome, condicao) {
 // Preco por margem (a margem e a do Rise: lucro liquido, com 6% de imposto, dividido pelo preco de venda)
 // ---------------------------------------------------------------------------
 {
-  conferir("precoParaMargem(18,90; 60%) = 55,60 (18,9 / 0,34 = 55,588..., para cima de 5 em 5 centavos)", precoParaMargem(18.9, 60) === 55.6);
-  conferir("precoParaMargem sempre em multiplo de 5 centavos", [10, 13.33, 18.9, 21.07].every((c) => [40, 50, 60].every((m) => Math.round(precoParaMargem(c, m) * 100) % 5 === 0)));
-  conferir("precoParaMargem ja redondo fica igual (9,40 / 0,54 = 17,407... vira 17,45)", precoParaMargem(9.4, 40) === 17.45);
-  conferir("precoParaMargem devolve a margem pedida pela conta do Rise", Math.abs(calcularMargem(precoParaMargem(18.9, 40), 18.9) - 40) < 0.1);
-  conferir("precoParaMargem sem custo = null", precoParaMargem(0, 40) === null);
-  conferir("precoParaMargem com margem que nao cabe (94%) = null", precoParaMargem(10, 94) === null);
+  // Markup sobre o custo, sem imposto (pedido do dono em 24/10/2026: custo R$ 50 com 100% = R$ 100).
+  conferir("precoParaMarkup(50; 100%) = 100,00", precoParaMarkup(50, 100) === 100);
+  conferir("precoParaMarkup(18,90; 60%) = 30,25 (30,24, para cima de 5 em 5 centavos)", precoParaMarkup(18.9, 60) === 30.25);
+  conferir("precoParaMarkup sempre em multiplo de 5 centavos", [10, 13.33, 18.9, 21.07].every((c) => [60, 80, 100].every((m) => Math.round(precoParaMarkup(c, m) * 100) % 5 === 0)));
+  conferir("precoParaMarkup devolve o markup pedido pela conta do cadastro", Math.abs(calcularMarkup(precoParaMarkup(18.9, 60), 18.9) - 60) < 0.1);
+  conferir("precoParaMarkup sem custo = null", precoParaMarkup(0, 60) === null);
+  conferir("precoParaMarkup de -100% = null", precoParaMarkup(10, -100) === null);
 }
 
 {
   const concorrentes = [30, 40, 50, 60, 70, 80].map((preco, i) => ({ loja: `Loja ${"ABCDEF"[i]}`, preco }));
   const resultado = opcoesDePreco(18.9, concorrentes);
-  conferir("opcoesDePreco traz as margens 40, 50 e 60", JSON.stringify(resultado.opcoes.map((o) => o.margem)) === "[40,50,60]");
+  conferir("opcoesDePreco traz os markups 60, 80 e 100", JSON.stringify(resultado.opcoes.map((o) => o.markup)) === "[60,80,100]");
   conferir("cada opcao traz o preco e a posicao", resultado.opcoes.every((o) => o.preco > 0 && o.posicao?.posicao >= 1));
   // Regra de 24/10/2026 (pedido do dono): R$ 0,10 abaixo do 5º concorrente (Loja E, R$ 70) = R$ 69,90, em 5º.
   conferir("recomendada: R$ 0,10 abaixo do 5º concorrente", resultado.recomendada?.preco === 69.9);
   conferir("recomendada: fica em 5º", resultado.recomendada?.posicao.posicao === 5 && resultado.recomendada.posicao.total === 7);
   conferir("recomendada: diz quem decidiu", resultado.recomendada?.referencia?.loja === "Loja E" && resultado.recomendada.referencia.regra === "5º concorrente");
-  conferir("recomendada: margem com uma casa (67,0%)", resultado.recomendada?.margem === 67);
-  conferir("recomendada: margem alta, sem aviso", resultado.recomendada?.aviso === null);
+  conferir("recomendada: markup com uma casa (69,90 / 18,90 = 269,8%)", resultado.recomendada?.markup === 269.8);
+  conferir("recomendada: markup alto, sem aviso", resultado.recomendada?.aviso === null);
   conferir("com recomendada, sem motivo", resultado.motivoSemRecomendada === null);
 
   const tres = opcoesDePreco(18.9, [30, 40, 50].map((preco, i) => ({ loja: `L${i}`, preco })));
@@ -53,7 +54,7 @@ function conferir(nome, condicao) {
   ]);
   conferir("loja repetida conta uma vez e a sem estoque fica de fora (5º = E, R$ 60)", repetida.recomendada?.preco === 59.9);
   const apertada = opcoesDePreco(30, [30, 32, 34, 36, 39.9].map((preco, i) => ({ loja: `L${i}`, preco })));
-  conferir("margem abaixo de 30%: recomenda com aviso (sem piso)", apertada.recomendada?.preco === 39.8 && /30%/.test(apertada.recomendada.aviso ?? ""));
+  conferir("markup abaixo de 60%: recomenda com aviso (sem piso)", apertada.recomendada?.preco === 39.8 && /60%/.test(apertada.recomendada.aviso ?? ""));
 }
 
 {
@@ -782,12 +783,12 @@ try {
     const lixo = { custo: 999, opcoes: [{ margem: 0.46, preco: 1, posicao: null }], recomendada: null, motivoSemRecomendada: "inventado", observacao: "nota da conversa" };
     const gravado = await gravarProposta("ZZ-PROP-11", { secao: "preco", conteudo: lixo });
     const preco = (await lerProposta("ZZ-PROP-11")).secoes.preco;
-    conferir("preco: o Rise recalcula com o custo do fornecedor padrao (os numeros mandados sao ignorados)", gravado.ok === true && preco.custo === 10 && preco.opcoes.map((o) => o.margem).join() === "40,50,60");
+    conferir("preco: o Rise recalcula com o custo do fornecedor padrao (os numeros mandados sao ignorados)", gravado.ok === true && preco.custo === 10 && preco.opcoes.map((o) => o.markup).join() === "60,80,100");
     conferir("preco: a observacao da conversa fica", preco.observacao === "nota da conversa");
     conferir("preco: so entram os com estoque e sem a propria loja (2 lojas + o produto)", preco.opcoes[0].posicao?.total === 3);
     conferir("preco: a lista diz quem entrou e quem ficou de fora", preco.concorrentesUsados?.length === 2 && preco.foraDaConta?.some((f) => /4hobby/i.test(f.loja)) && preco.foraDaConta?.some((f) => f.loja === "ZZ-PROP Preco C"));
     // So 2 lojas com estoque (A a 30 e B a 40): R$ 0,10 abaixo da mais cara (24/10/2026), margem com uma casa.
-    conferir("preco: recomendada R$ 0,10 abaixo do mais caro com estoque (menos de 5)", preco.recomendada?.preco === 39.9 && preco.recomendada.referencia?.loja === "ZZ-PROP Preco B" && preco.recomendada.margem === 68.9 && preco.motivoSemRecomendada === null);
+    conferir("preco: recomendada R$ 0,10 abaixo do mais caro com estoque (menos de 5)", preco.recomendada?.preco === 39.9 && preco.recomendada.referencia?.loja === "ZZ-PROP Preco B" && preco.recomendada.markup === 299 && preco.motivoSemRecomendada === null);
 
     await prisma.produto.create({ data: { sku: "ZZ-PROP-12", tituloBase: "SEM CUSTO" } });
     const semCusto = await gravarProposta("ZZ-PROP-12", { secao: "preco", conteudo: {} });
