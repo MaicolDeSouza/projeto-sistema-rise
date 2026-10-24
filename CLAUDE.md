@@ -3992,9 +3992,11 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
   acrescenta as que faltaram depois. A aba Divergências mostra a linha "Fotos" e ela conta no número da aba. **No 100101 o
   primeiro Sincronizar troca as 5 fotos da loja pelas marcadas na aba Imagens.**
 - **Linha em branco entre as seções da descrição** (pedido do dono em 21/10/2026, como as descrições antigas da loja,
-  `<div>&nbsp;</div>`): `ESPACO_ENTRE_SECOES` (`<p>&nbsp;</p>`) entre os parágrafos em `montarDescricaoLI`. O texto comparado não
-  muda, então `marcarFormatoAntigo` (`campos.js`) marca a descrição da loja sem esse espaço (ou com link sem `target`) como
-  diferente, para o Sincronizar reenviar. Não medido: se a LI devolve o `&nbsp;` igual (a regra aceita também o caractere).
+  `<div>&nbsp;</div>`): `ESPACO_ENTRE_SECOES` entre as seções em `montarDescricaoLI`. **Desde 24/10/2026 a descrição vai no
+  formato "Normal (DIV)" do editor da LI** (pedido do dono: com `<p>` o tema dava espaço a mais e ele trocava à mão): cada
+  linha numa `<div>` com a fonte 16, e o espaço entre seções é `<div>&nbsp;</div>`. O texto comparado não muda, então
+  `marcarFormatoAntigo` (`campos.js`) marca como diferente a descrição da loja ainda com `<p>` (ou com link sem `target`),
+  para o Sincronizar reenviar: **todo produto já sincronizado ganha o "!" uma vez**. Não medido: se a LI devolve as `<div>` iguais.
 - Webhooks, pedidos e importação dos 44 só-LI: fora desta fase.
 - `POST /marca` nunca foi exercitado na API real (só na LI falsa).
 
