@@ -178,6 +178,11 @@ export async function publicarAnuncioML(anuncioId, { ml, bling, recriar = false,
   }
 }
 
+/** O ML recusou ativar porque o anuncio esta sem estoque (a causa vem em ingles: "...without stock"). */
+export function recusaPorFaltaDeEstoque(resposta) {
+  return /without stock|sem estoque|out of stock/i.test(JSON.stringify(resposta?.dados ?? ""));
+}
+
 /** "Validar no ML": sobe as fotos que faltam e roda o validador, sem criar nada e sem mudar o status. */
 export function validarNoML(anuncioId, clientes) {
   return publicarAnuncioML(anuncioId, { ...clientes, ate: "validar" });
@@ -344,14 +349,26 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto })
       if (!registro.ok) return falhar(etapa, registro.erro ?? "Não foi possível registrar o anúncio no Bling.");
       await gravar({ blingAnuncioId: registro.id });
     } else if (etapa === "ativar") {
-      let resposta;
-      try {
-        resposta = await ml.put(`/items/${pub.itemId}`, { status: "active" });
-      } catch (erro) {
-        return falhar(etapa, `Falha ao ativar o anúncio ${pub.itemId}: ${textoDe(erro)}. Confira no Mercado Livre antes de tentar de novo.`);
+      // SEM ESTOQUE o ML recusa ativar ("Is not possible to activate an item without stock"). Opcao 2 do dono em
+      // 24/10/2026: a publicacao conclui com o anuncio PAUSADO e marcado `aguardandoEstoque`, e o worker o ativa quando
+      // o ML mostrar estoque no anuncio (`ativarAnunciosAguardandoEstoque`). O anuncio ja esta criado e vinculado.
+      const aguardarEstoque = async () => {
+        await gravar({ statusML: "paused", aguardandoEstoque: true });
+        avisos = [...avisos, `Sem estoque: o anúncio ${pub.itemId} ficou pausado e será ativado sozinho quando o estoque chegar ao Mercado Livre.`];
+      };
+      if (!(Number(rascunho.estoque) > 0)) {
+        await aguardarEstoque();
+      } else {
+        let resposta;
+        try {
+          resposta = await ml.put(`/items/${pub.itemId}`, { status: "active" });
+        } catch (erro) {
+          return falhar(etapa, `Falha ao ativar o anúncio ${pub.itemId}: ${textoDe(erro)}. Confira no Mercado Livre antes de tentar de novo.`);
+        }
+        if (!resposta?.ok && recusaPorFaltaDeEstoque(resposta)) await aguardarEstoque();
+        else if (!resposta?.ok) return falhar(etapa, textoDaRecusaML(resposta, `a ativação do anúncio ${pub.itemId}`));
+        else await gravar({ statusML: resposta.dados?.status ?? "active", aguardandoEstoque: false });
       }
-      if (!resposta?.ok) return falhar(etapa, textoDaRecusaML(resposta, `a ativação do anúncio ${pub.itemId}`));
-      await gravar({ statusML: resposta.dados?.status ?? "active" });
     } else if (etapa === "gravar") {
       await gravar(
         { feitas: [...new Set([...(pub.feitas ?? []), "gravar"])], erro: null, etapaComErro: null },

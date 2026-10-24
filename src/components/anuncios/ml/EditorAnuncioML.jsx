@@ -9,7 +9,7 @@ import { Copy, ExternalLink, Loader, X } from "lucide-react";
 import { abrirAnuncioML, lerCategoriaML, salvarAnuncioML } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
-import { AGUARDANDO_BLING, STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
+import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import AbaDescricao from "./AbaDescricao";
 import AbaEnvio from "./AbaEnvio";
@@ -244,7 +244,9 @@ export default function EditorAnuncioML({
   const rotuloDoStatus =
     statusAtual === "PUBLICANDO" && publicacao?.etapaComErro === "kit_bling"
       ? AGUARDANDO_BLING
-      : (STATUS_ML[statusAtual] ?? (idAtual ? STATUS_ML.RASCUNHO : { rotulo: "Novo", tom: "neutro" }));
+      : statusAtual === "PUBLICADO" && publicacao?.aguardandoEstoque
+        ? AGUARDANDO_ESTOQUE
+        : (STATUS_ML[statusAtual] ?? (idAtual ? STATUS_ML.RASCUNHO : { rotulo: "Novo", tom: "neutro" }));
 
   const aviso = mensagem && (
     <div

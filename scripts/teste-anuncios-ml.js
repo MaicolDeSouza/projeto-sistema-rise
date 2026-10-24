@@ -1594,6 +1594,37 @@ try {
       conferir("publicar: payloadEnviado e o corpo da criacao", publicado.payloadEnviado.family_name, "PLACA ZZ ML");
       conferir("publicar: de novo e recusado", (await publicarAnuncioML(idSimples, { ml, bling: bf, lerFoto })).erro, "O anúncio já está publicado.");
 
+      // SEM ESTOQUE (Opcao 2 do dono em 24/10/2026): conclui pausado e marcado; o worker ativa quando o ML tiver estoque.
+      {
+        const { ativarAnunciosAguardandoEstoque } = await import("../src/lib/canaisDeVenda/ml/aguardandoEstoque.js");
+        await prisma.produto.update({ where: { id: c.s1.id }, data: { estoque: 0 } });
+        const mlSem = criarMLFalso();
+        const idSem = await c.anuncioSimples(c.s1);
+        const semEstoque = await publicarAnuncioML(idSem, { ml: mlSem, bling: c.novoBling(), lerFoto });
+        const gravado = await estado(idSem);
+        conferir("sem estoque: conclui pausado, sem pedir para ativar",
+          [semEstoque.ok, gravado.status, gravado.situacaoCanal, gravado.dados.publicacao.aguardandoEstoque, mlSem.escritas.some((e) => e.metodo === "PUT")],
+          [true, "PUBLICADO", "PAUSADA", true, false]);
+        conferir("sem estoque: o aviso diz que ativa sozinho", (semEstoque.avisos ?? []).some((a) => /ativado sozinho/.test(a)), true);
+        const nada = await ativarAnunciosAguardandoEstoque({ ml: mlSem });
+        conferir("sem estoque: sem estoque no ML, o worker nao ativa", [nada.conferidos, nada.ativados, (await estado(idSem)).situacaoCanal], [1, 0, "PAUSADA"]);
+        mlSem.itens.get(semEstoque.itemId).available_quantity = 3;
+        const ativou = await ativarAnunciosAguardandoEstoque({ ml: mlSem });
+        const depois = await estado(idSem);
+        conferir("sem estoque: com estoque no ML, o worker ativa e tira a marca",
+          [ativou.ativados, depois.situacaoCanal, depois.dados.publicacao.aguardandoEstoque, mlSem.escritas.at(-1).corpo],
+          [1, "ATIVA", false, { status: "active" }]);
+        conferir("sem estoque: na volta seguinte nada mais a conferir", (await ativarAnunciosAguardandoEstoque({ ml: mlSem })).conferidos, 0);
+
+        // Estoque no Rise, mas o ML recusa por falta de estoque: tambem conclui pausado.
+        await prisma.produto.update({ where: { id: c.s1.id }, data: { estoque: 10 } });
+        const mlRecusa = criarMLFalso({ falhas: [{ metodo: "PUT", caminho: "/items/MLB", status: 400, dados: { message: "Validation error", cause: [{ type: "error", code: "item.status.invalid", message: "Is not possible to activate an item without stock." }] } }] });
+        const idRecusa = await c.anuncioSimples(c.s1);
+        const recusa = await publicarAnuncioML(idRecusa, { ml: mlRecusa, bling: c.novoBling(), lerFoto });
+        conferir("sem estoque no ML: a recusa por estoque conclui pausado e marcado",
+          [recusa.ok, (await estado(idRecusa)).situacaoCanal, (await estado(idRecusa)).dados.publicacao.aguardandoEstoque], [true, "PAUSADA", true]);
+      }
+
       // Review Focus 3: trava do Bling fechada => nada escrito em lugar nenhum
       const mlNovo = criarMLFalso();
       const bfTravado = c.novoBling({ codigosLiberados: ["outro"] });

@@ -15,6 +15,9 @@ export const STATUS_ML = {
 /// Anuncio de kit pausado no ML a espera do kit no Bling (status PUBLICANDO, etapa `kit_bling` com erro).
 export const AGUARDANDO_BLING = { rotulo: "Aguardando o Bling", tom: "alerta" };
 
+/// Publicado sem estoque: pausado no ML ate o estoque chegar, e o worker o ativa (Opcao 2 do dono em 24/10/2026).
+export const AGUARDANDO_ESTOQUE = { rotulo: "Pausado: aguardando estoque", tom: "alerta" };
+
 export const TIPOS_DE_ANUNCIO_ML = [
   { valor: "gold_special", rotulo: "Clássico" },
   { valor: "gold_pro", rotulo: "Premium" },

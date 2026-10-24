@@ -55,6 +55,7 @@ const { servidorEhWindows } = await import("../src/lib/copiaLocal.js");
 const { rodarSincronizacaoDeEstoque } = await import("../src/lib/riseAi/estoqueAutomatico.js");
 const { conferirRotinaSemanal } = await import("../src/lib/relatorios/rotina.js");
 const { relerConcorrentesML } = await import("../src/lib/canaisDeVenda/ml/relerCatalogo.js");
+const { ativarAnunciosAguardandoEstoque } = await import("../src/lib/canaisDeVenda/ml/aguardandoEstoque.js");
 const { rodarAvisosDoTelegram, AVISOS_TELEGRAM_MS } = await import("../src/lib/telegram/avisos.js");
 
 /// Os avisos do Telegram (Rise AI, Entrega C1): a cada minuto, so o worker normal. A rotina nao faz nada com o bot
@@ -70,6 +71,10 @@ let healthchecksBatidoEm = 0;
 /// Sao Paulo (`relerConcorrentesML` decide). So LEITURA do ML. So o worker normal.
 const RELER_CONCORRENTES_ML_MS = 60 * 60 * 1000;
 let concorrentesRelidosEm = 0;
+/// Anuncios do ML publicados sem estoque (pausados, `aguardandoEstoque`): de hora em hora o worker os ativa quando o ML
+/// ja mostra estoque (Opcao 2 do dono em 24/10/2026). Escreve no ML (passa pelas travas). So o worker normal.
+const ATIVA_AGUARDANDO_ESTOQUE_MS = 60 * 60 * 1000;
+let aguardandoEstoqueEm = 0;
 
 /// A rodada semanal (todo sabado 00:00, horario de Sao Paulo) e o relatorio dela: conferida a cada minuto, o que e barato
 /// (uma consulta). `RELATORIO_SEMANAL=false` desliga. So o worker normal, o da VPS.
@@ -519,6 +524,13 @@ async function laco() {
         if (rodada.parou) logErro(`concorrentes do ML: rodada parada (${rodada.parou}); tenta de novo na proxima hora`);
         else if (rodada.rodou) log(`concorrentes do ML: ${rodada.produtos} produto(s), ${rodada.ok} ok, ${rodada.falhas} falha(s)`);
         else if (rodada.motivo === "erro") logErro(`concorrentes do ML nao lidos: ${rodada.erro}`);
+      }
+      // Anuncios do ML esperando estoque (fora do `coletaPausada`). `ativarAnunciosAguardandoEstoque` nunca lanca.
+      if (!FONTES && !SO_NO_PC && Date.now() - aguardandoEstoqueEm >= ATIVA_AGUARDANDO_ESTOQUE_MS) {
+        aguardandoEstoqueEm = Date.now();
+        const espera = await ativarAnunciosAguardandoEstoque();
+        if (espera.parou) logErro(`anuncios do ML sem estoque: rodada parada (${espera.parou}); tenta de novo na proxima hora`);
+        else if (espera.conferidos) log(`anuncios do ML sem estoque: ${espera.conferidos} conferido(s), ${espera.ativados} ativado(s), ${espera.falhas} falha(s)`);
       }
       // Os avisos do Telegram (fora do `coletaPausada`: pausar a coleta nao cala os avisos). So o worker normal.
       if (!FONTES && !SO_NO_PC && Date.now() - avisosTelegramEm >= AVISOS_TELEGRAM_MS) {

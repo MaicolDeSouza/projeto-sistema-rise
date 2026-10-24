@@ -471,6 +471,8 @@ export function criarMLFalso(opcoes = {}) {
       return resposta(200, { results: meus.map((item) => item.id), paging: { total: meus.length } });
     }
     const meuItem = rota.match(/^\/items\/([^/]+)$/);
+    // Item criado pelo teste (o worker le o status e o available_quantity dos que esperam estoque).
+    if (meuItem && itens.has(decodeURIComponent(meuItem[1]))) return resposta(200, structuredClone(itens.get(decodeURIComponent(meuItem[1]))));
     if (meuItem && !itens.has(decodeURIComponent(meuItem[1]))) {
       const achado = Object.values(estado.meusItens).flat().find((item) => item.id === decodeURIComponent(meuItem[1]));
       if (achado) return resposta(200, structuredClone(achado));
