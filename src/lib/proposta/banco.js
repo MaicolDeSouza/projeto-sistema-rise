@@ -95,9 +95,23 @@ export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink
   }
   const validado = validarPlano(plano);
   if (!validado.ok) return validado;
-  const produto = await prisma.produto.findUnique({ where: { sku }, select: { id: true, conferido: true } });
+  const produto = await prisma.produto.findUnique({
+    where: { sku },
+    select: { id: true, conferido: true, fornecedorRascunho: true, _count: { select: { fornecedores: true } } },
+  });
   if (!produto) return { ok: false, erro: `Produto ${sku} não existe.` };
   if (produto.conferido) return { ok: false, erro: `${sku} está Conferido: a proposta não é gravada (o dono já aprovou).` };
+
+  // Produto com fornecedor (vinculado ou o rascunho do Bling): Origem 2 e Tipo do item 00, sempre (pedido do dono em
+  // 24/10/2026, "caso item tenha fornecedor os campos marcados devem receber aqueles valores"). Quem decide e o Rise,
+  // como no preco e no EAN: o que a conversa mandou nesses dois campos e trocado.
+  if (validado.secao === "campos" && (produto._count.fornecedores > 0 || produto.fornecedorRascunho)) {
+    const doFornecedor = "Rise: produto com fornecedor (mercadoria de revenda adquirida no mercado interno)";
+    plano = {
+      ...plano,
+      conteudo: { ...plano.conteudo, origem: { valor: 2, origem: doFornecedor }, spedTipoItem: { valor: "00", origem: doFornecedor } },
+    };
+  }
 
   // O EAN da proposta e SEMPRE o interno do Rise (dono, 23/10/2026: "sempre gerar EAN, independente se tem ou nao"): a
   // conversa manda "interno" e quem calcula e o Rise, pelo codigo, como ja faz com o preco. Codigo com letras nao cabe.
@@ -276,15 +290,30 @@ export async function marcarSecoesAplicadas(produtoId, secoes) {
  *
  * @param {string} produtoId
  * @param {string[]} preenchidosAgora os campos que a proposta preencheu ao abrir esta edicao
+ * @param {Record<string, unknown>} [antes] o produto como estava ANTES deste Salvar (o valor original dos campos que a
+ *   proposta trocou vai para `aplicadas.originais` e volta na lista do icone com a etiqueta "Original")
  */
-export async function registrarDecisoesDoSalvar(produtoId, preenchidosAgora) {
+export async function registrarDecisoesDoSalvar(produtoId, preenchidosAgora, antes = {}) {
   const proposta = await prisma.propostaDeProduto.findUnique({ where: { produtoId: String(produtoId ?? "") } });
   if (!proposta) return;
   const produto = await prisma.produto.findUnique({ where: { id: proposta.produtoId } });
   if (!produto) return;
   const anteriores = proposta.aplicadas ?? {};
-  const decididos = decisoesDosCampos(proposta.secoes, produto, anteriores, preenchidosAgora);
+  const decididos = decisoesDosCampos(proposta.secoes, valoresSimples(produto), anteriores, preenchidosAgora, valoresSimples(antes));
   await prisma.propostaDeProduto.update({ where: { id: proposta.id }, data: { aplicadas: { ...anteriores, ...decididos } } });
+}
+
+/**
+ * O produto como o banco devolve vira valores simples (numero, texto ou nulo): o Decimal do Prisma (preco, peso,
+ * % tributos) nao cabe no JSON de `aplicadas.originais` e compararia errado com o valor do formulario.
+ */
+export function valoresSimples(produto) {
+  const simples = {};
+  for (const [campo, valor] of Object.entries(produto ?? {})) {
+    if (valor === null || valor === undefined || typeof valor !== "object") simples[campo] = valor ?? null;
+    else if (typeof valor.toFixed === "function" && typeof valor.toString === "function") simples[campo] = Number(valor.toString());
+  }
+  return simples;
 }
 
 /**

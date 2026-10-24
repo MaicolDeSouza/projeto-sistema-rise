@@ -520,6 +520,36 @@ async function gravarTemporarios(produto, formData) {
 }
 
 /**
+ * A ordem dos documentos e do certificado que o dono deu na tela (setas e arrastar, pedido do dono em 24/10/2026). Do
+ * navegador vem `{ DOCUMENTO: [chave...], CERTIFICADO: [...] }`, com "id:<id>" para o gravado e "tmp:<nome>" para o que
+ * acabou de entrar (o arquivo movido do lote guarda o mesmo nome). So mexe nas linhas DESTE produto e do tipo; o que nao
+ * esta na lista fica no fim, na ordem de antes. Roda DEPOIS de `gravarTemporarios`.
+ */
+async function aplicarOrdemDosArquivos(produto, formData) {
+  let ordem = {};
+  try {
+    ordem = JSON.parse(String(formData.get("ordemDosArquivos") || "{}"));
+  } catch {
+    return;
+  }
+  for (const tipo of ["DOCUMENTO", "CERTIFICADO"]) {
+    const chaves = Array.isArray(ordem?.[tipo]) ? ordem[tipo].map(String).slice(0, 200) : [];
+    if (chaves.length === 0) continue;
+    const posicao = new Map(chaves.map((chave, indice) => [chave, indice]));
+    const linhas = await prisma.produtoArquivo.findMany({
+      where: { produtoId: produto.id, tipo },
+      orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }],
+      select: { id: true, arquivo: true, ordem: true },
+    });
+    const peso = (linha, indice) => posicao.get(`id:${linha.id}`) ?? posicao.get(`tmp:${linha.arquivo}`) ?? chaves.length + indice;
+    const ordenadas = linhas.map((linha, indice) => ({ linha, peso: peso(linha, indice) })).sort((a, b) => a.peso - b.peso);
+    for (const [indice, { linha }] of ordenadas.entries()) {
+      if (linha.ordem !== indice) await prisma.produtoArquivo.update({ where: { id: linha.id }, data: { ordem: indice } });
+    }
+  }
+}
+
+/**
  * Os documentos e certificados que o dono excluiu na tela (pedido do dono em 10/10/2026: toda mudanca no produto
  * so vale no Salvar, documentos inclusive). Do navegador vem so a lista de ids: so sai o que e DESTE produto e
  * e documento ou certificado. A linha sai do banco e o arquivo do disco.
@@ -798,6 +828,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       let avisoArquivos = null;
       try {
         await gravarTemporarios(produto, formData);
+        await aplicarOrdemDosArquivos(produto, formData);
       } catch (erro) {
         console.error("Falha ao gravar documentos do cadastro novo:", erro.message);
         avisoArquivos = "O produto foi salvo, mas os documentos enviados antes de salvar não foram gravados. Envie de novo.";
@@ -839,9 +870,15 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       };
     }
 
+    // O produto ANTES de gravar: o SKU (a pasta) e os campos que a proposta pode trocar (o valor de antes vira o
+    // "Original" da lista do icone; pedido do dono em 24/10/2026).
     const anterior = await prisma.produto.findUnique({
       where: { id },
-      select: { sku: true },
+      select: {
+        sku: true, descricaoBase: true, precoVenda: true, ean: true, unidade: true, marca: true, modelo: true,
+        garantiaMeses: true, numeroHomologacao: true, pesoKg: true, comprimentoCm: true, larguraCm: true, alturaCm: true,
+        origem: true, tipoProducao: true, ncm: true, cest: true, percentualTributos: true, spedTipoItem: true,
+      },
     });
 
     // Os arquivos moram numa pasta com o nome do SKU. Se o SKU mudou, a pasta
@@ -893,6 +930,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     try {
       await excluirDocumentosMarcados(produto, formData);
       await gravarTemporarios(produto, formData);
+      await aplicarOrdemDosArquivos(produto, formData);
     } catch (erro) {
       console.error("Falha ao gravar os documentos do produto:", erro.message);
       return {
@@ -950,7 +988,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
         const valor = JSON.parse(String(formData.get(campo) || "[]"));
         return Array.isArray(valor) ? valor : [];
       };
-      await registrarDecisoesDoSalvar(id, lerLista("propostaPreenchidos").map(String));
+      await registrarDecisoesDoSalvar(id, lerLista("propostaPreenchidos").map(String), anterior ?? {});
       if (String(formData.get("fotosDoPainelProntas") ?? "") === "1") {
         const aplicouFotos = lerLista("propostaAplicada").includes("fotos");
         await fotosDaPropostaDepoisDoSalvar(id, lerLista("imagensDoLote"), nomesDasFotosAntes, aplicouFotos);

@@ -12,7 +12,10 @@ import { propostaNoFormulario } from "./aplicar.js";
 const CAMPOS_POR_SECAO = {
   descricao: ["descricaoBase"],
   titulos: ["tituloBase"],
-  campos: ["sku", "marca", "modelo", "unidade", "garantiaMeses", "ncm", "origem", "pesoKg", "alturaCm", "larguraCm", "comprimentoCm"],
+  campos: [
+    "sku", "marca", "modelo", "unidade", "garantiaMeses", "ncm", "origem", "pesoKg", "alturaCm", "larguraCm", "comprimentoCm",
+    "numeroHomologacao", "tipoProducao", "cest", "percentualTributos", "spedTipoItem",
+  ],
   preco: ["precoVenda"],
   ean: ["ean"],
   fotos: ["fotos"],
@@ -43,10 +46,10 @@ export function assinaturaDaSecao(secao, produto) {
 
 /**
  * As secoes da proposta que o Conferido ainda pergunta (decisao B do dono em 22/10/2026, com a proposta direto no
- * formulario): so as que PREENCHERIAM algum campo ainda vazio no produto SALVO, ou a descricao diferente da salva
- * (`propostaNoFormulario`, a mesma regra da tela). O que so foi para a lista do icone (o campo ja tinha valor) vale como
- * decidido. O titulo nunca fica pendente (a proposta nunca o troca). Fotos continuam como antes: pendentes ate o dono
- * aplica-las e salvar (assinatura).
+ * formulario): as que ainda TROCARIAM algum campo do produto SALVO (`propostaNoFormulario`, a mesma regra da tela).
+ * Desde 24/10/2026 a proposta escreve tambem por cima de campo preenchido, entao campo com outro valor fica pendente ate
+ * o Salvar; o campo que o dono editou (a proposta so foi para a lista do icone) vale como decidido. O titulo nunca fica
+ * pendente (a proposta nunca o troca). Fotos continuam como antes: pendentes ate o dono aplica-las e salvar (assinatura).
  */
 export function secoesNaoAplicadas(proposta, produto) {
   const secoes = proposta?.secoes ?? {};

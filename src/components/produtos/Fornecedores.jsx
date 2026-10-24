@@ -682,8 +682,16 @@ function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, a
       <td className="px-3 py-2">
         <input {...campo("descricao")} />
       </td>
-      <td className="px-3 py-2">
-        <input placeholder="Obs" {...campo("observacao")} />
+      {/* Obs LARGA so enquanto a linha esta em edicao (pedido do dono em 24/10/2026: "fica dificil de saber o que esta
+          escrevendo"): a coluna cresce e o campo tem duas linhas; depois de salvar, a linha volta cortada como antes. */}
+      <td className="min-w-64 px-3 py-2">
+        <textarea
+          placeholder="Obs"
+          rows={2}
+          maxLength={500}
+          {...campo("observacao")}
+          className={`${campo("observacao").className} resize-y leading-snug`}
+        />
         {erros.observacao && <p className="mt-1 text-[11px] text-red-700">{erros.observacao}</p>}
       </td>
       <td className="px-3 py-2">

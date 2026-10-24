@@ -8,10 +8,34 @@
 
 export const SECOES = ["descricao", "titulos", "fotos", "campos", "preco", "ean", "documentos", "relatorio"];
 
-/** Campos que a proposta pode sugerir (o resto do cadastro e do dono: estoque, localizacao, CEST...). */
+/**
+ * Campos que a proposta pode sugerir (o resto do cadastro e do dono: estoque, localizacao...). Desde 24/10/2026 (pedido
+ * do dono) entram tambem o numero de homologacao e toda a aba Tributacao (tipo de producao, CEST, % tributos, tipo do
+ * item), e a proposta escreve por cima do que o produto tem.
+ */
 export const CAMPOS_DA_PROPOSTA = [
   "marca", "modelo", "unidade", "garantiaMeses", "codigo", "ncm", "origem", "pesoKg", "alturaCm", "larguraCm", "comprimentoCm",
+  "numeroHomologacao", "tipoProducao", "cest", "percentualTributos", "spedTipoItem",
 ];
+
+/*
+ * Valores das listas fechadas do cadastro (as mesmas de src/lib/fiscal.js e src/lib/unidades.js; copiadas porque este
+ * arquivo nao tem imports). Valor fora delas iria para uma lista de escolha que nao o mostra.
+ */
+const UNIDADES_ACEITAS = ["UN", "MT", "KIT", "HR"];
+const TIPOS_PRODUCAO_ACEITOS = ["REVENDA", "FABRICACAO_PROPRIA"];
+const TIPOS_ITEM_ACEITOS = ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "99"];
+
+/** O motivo de recusa do valor de um campo de lista fechada, ou null. */
+function problemaDoValor(campo, valor) {
+  if (campo === "unidade" && !UNIDADES_ACEITAS.includes(String(valor))) return `unidade é uma de: ${UNIDADES_ACEITAS.join(", ")}.`;
+  if (campo === "tipoProducao" && !TIPOS_PRODUCAO_ACEITOS.includes(String(valor))) return `tipoProducao é ${TIPOS_PRODUCAO_ACEITOS.join(" ou ")}.`;
+  if (campo === "spedTipoItem" && !TIPOS_ITEM_ACEITOS.includes(String(valor))) return "spedTipoItem é um código de dois dígitos da tabela do SPED (00 = mercadoria para revenda).";
+  if (campo === "origem" && !(Number.isInteger(Number(valor)) && Number(valor) >= 0 && Number(valor) <= 8)) return "origem é um número de 0 a 8 (tabela da NF-e).";
+  if (campo === "percentualTributos" && !(Number(valor) >= 0 && Number(valor) <= 100)) return "percentualTributos é um número de 0 a 100.";
+  if (campo === "cest" && !/^\d{2}\.?\d{3}\.?\d{2}$/.test(String(valor))) return "cest tem 7 dígitos (00.000.00).";
+  return null;
+}
 
 export const LIMITE_DO_TITULO = 60;
 export const FOTOS_MINIMAS = 6;
@@ -65,6 +89,8 @@ function validarCampos(conteudo) {
     if (!CAMPOS_DA_PROPOSTA.includes(campo)) return erro(`campos: ${campo} não é um campo da proposta.`);
     if (!item || typeof item !== "object" || !("valor" in item)) return erro(`campos: ${campo} sem valor.`);
     if (!texto(item.origem)) return erro(`campos: ${campo} sem origem.`);
+    const problema = problemaDoValor(campo, item.valor);
+    if (problema) return erro(`campos: ${problema}`);
   }
   return { ok: true };
 }

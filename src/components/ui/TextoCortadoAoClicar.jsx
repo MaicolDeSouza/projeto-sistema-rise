@@ -3,19 +3,25 @@
 import { useEffect, useState } from "react";
 
 /**
- * TEXTO CORTADO MOSTRA O RESTO AO CLIQUE, em todo o Rise (pedido do dono em 23/10/2026: "ao clicar sobre o texto ja
- * deve mostrar o resto do texto, hoje so mostra se eu ficar com mouse encima por alguns segundos").
+ * TEXTO CORTADO MOSTRA O RESTO AO PASSAR O MOUSE, rapido, em todo o Rise. Historia: em 23/10/2026 o dono pediu que o
+ * clique mostrasse o resto ("hoje so mostra se eu ficar com mouse encima por alguns segundos"); em 24/10/2026 pediu de
+ * novo, "ao clicar nao quero que abra esse popup, quero que abra rapidamente o texto como e feito ao deixar o mouse
+ * encima por um tempo". O nome do arquivo ficou (o layout o importa); o gatilho agora e o mouse, em `ATRASO_MS`.
  *
- * Um ouvinte so, no documento: qualquer texto cortado com reticencias (`truncate`, `line-clamp`) abre, no clique, uma
- * bolha com o texto inteiro, logo abaixo dele. Nenhuma tela precisa mudar. O texto vem do `title` quando ha (e o que
- * as telas ja poem com o texto completo), senao do proprio texto do elemento.
+ * Um ouvinte so, no documento: qualquer texto cortado com reticencias (`truncate`, `line-clamp`) abre uma bolha com o
+ * texto inteiro, logo abaixo dele, quando o mouse para em cima. Nenhuma tela precisa mudar. O texto vem do `title`
+ * quando ha (e o que as telas ja poem com o texto completo), senao do proprio texto do elemento. Enquanto a bolha esta
+ * aberta o `title` fica guardado em `data-titulo-cortado`, para a dica lenta do navegador nao aparecer por cima dela.
  *
- * Nao interfere em clique de botao, link, campo ou linha de tabela clicavel: dentro deles o clique segue o caminho de
- * sempre (abrir, navegar) e a bolha nao aparece. Fecha com Esc, clique fora, rolagem ou mudanca de tamanho.
+ * O clique nao abre mais nada: botao, link e linha de tabela seguem o caminho de sempre. Fecha ao sair do texto, com
+ * Esc, rolagem ou mudanca de tamanho.
  */
 
-const INTERATIVO = "a, button, input, select, textarea, label, summary, [role='button'], [role='link'], [contenteditable='true']";
-// Quantos ancestrais subir atras do texto cortado: o clique costuma cair num <span> dentro da caixa que corta.
+// O mesmo "rapido" que o dono pediu: o navegador espera ~1 s para mostrar o title; aqui, um instante.
+const ATRASO_MS = 150;
+// Campo de digitacao corta o proprio valor, e a bolha atrapalharia quem digita.
+const CAMPO = "input, select, textarea, [contenteditable='true']";
+// Quantos ancestrais subir atras do texto cortado: o mouse costuma cair num <span> dentro da caixa que corta.
 const NIVEIS = 3;
 
 function cortado(elemento) {
@@ -25,8 +31,8 @@ function cortado(elemento) {
 function elementoCortado(alvo) {
   let atual = alvo;
   for (let i = 0; i <= NIVEIS && atual && atual !== document.body; i++) {
-    // A CELULA DE TABELA (`td`) conta: e onde mais se corta texto (descricao e Obs dos fornecedores, 23/10/2026; a
-    // primeira versao a ignorava e o clique nao fazia nada). Linha, tabela e blocos inteiros nao.
+    // A CELULA DE TABELA (`td`) conta: e onde mais se corta texto (descricao e Obs dos fornecedores, 23/10/2026).
+    // Linha, tabela e blocos inteiros nao.
     if (atual instanceof HTMLElement && !["TR", "TABLE", "MAIN", "SECTION"].includes(atual.tagName)) {
       const estilo = getComputedStyle(atual);
       const cortaTexto =
@@ -38,26 +44,43 @@ function elementoCortado(alvo) {
   return null;
 }
 
+function guardarTitulo(elemento) {
+  if (!elemento.hasAttribute("title")) return;
+  elemento.dataset.tituloCortado = elemento.getAttribute("title");
+  elemento.removeAttribute("title");
+}
+
+function devolverTitulo(elemento) {
+  if (elemento.dataset.tituloCortado === undefined) return;
+  elemento.setAttribute("title", elemento.dataset.tituloCortado);
+  delete elemento.dataset.tituloCortado;
+}
+
 export default function TextoCortadoAoClicar() {
   const [bolha, setBolha] = useState(null); // { texto, x, y, acima }
 
   useEffect(() => {
-    function aoClicar(evento) {
-      const alvo = evento.target;
-      if (!(alvo instanceof Element)) return;
-      if (alvo.closest("[data-bolha-texto-cortado]")) return;
-      // Texto selecionado com arrasto nao e clique de "mostrar".
-      if (window.getSelection()?.toString()) return;
+    let espera = null;
+    let pendente = null; // o elemento que vai abrir depois do atraso
+    let aberto = null; // o elemento cuja bolha esta na tela
 
-      const elemento = alvo.closest(INTERATIVO) ? null : elementoCortado(alvo);
-      // Linha de tabela que abre detalhe (o Scraper): o clique e dela.
-      if (!elemento || elemento.closest("tr[onclick], tr[aria-selected]")) {
-        setBolha(null);
-        return;
-      }
-      const texto = (elemento.getAttribute("title") || elemento.innerText || "").trim();
-      if (!texto) return setBolha(null);
+    function fechar() {
+      clearTimeout(espera);
+      espera = null;
+      pendente = null;
+      if (aberto) devolverTitulo(aberto);
+      aberto = null;
+      setBolha(null);
+    }
 
+    function abrir(elemento) {
+      espera = null;
+      pendente = null;
+      if (!elemento.isConnected) return;
+      const texto = (elemento.getAttribute("title") || elemento.dataset.tituloCortado || elemento.innerText || "").trim();
+      if (!texto) return;
+      guardarTitulo(elemento);
+      aberto = elemento;
       const caixa = elemento.getBoundingClientRect();
       const acima = caixa.bottom + 160 > window.innerHeight && caixa.top > 160;
       setBolha({
@@ -67,19 +90,36 @@ export default function TextoCortadoAoClicar() {
         acima,
       });
     }
-    function fechar() {
-      setBolha(null);
-    }
-    function aoTeclar(evento) {
-      if (evento.key === "Escape") setBolha(null);
+
+    function aoPassar(evento) {
+      const alvo = evento.target;
+      if (!(alvo instanceof Element)) return;
+      const elemento = alvo.closest(CAMPO) ? null : elementoCortado(alvo);
+      // Ainda no mesmo texto (o mouse andou entre os filhos dele): nada muda.
+      if (elemento && (elemento === aberto || elemento === pendente)) return;
+      fechar();
+      if (!elemento) return;
+      pendente = elemento;
+      espera = setTimeout(() => abrir(elemento), ATRASO_MS);
     }
 
-    document.addEventListener("click", aoClicar);
+    function aoSairDaJanela(evento) {
+      if (!evento.relatedTarget) fechar();
+    }
+
+    function aoTeclar(evento) {
+      if (evento.key === "Escape") fechar();
+    }
+
+    document.addEventListener("mouseover", aoPassar);
+    document.addEventListener("mouseout", aoSairDaJanela);
     document.addEventListener("keydown", aoTeclar);
     window.addEventListener("scroll", fechar, true);
     window.addEventListener("resize", fechar);
     return () => {
-      document.removeEventListener("click", aoClicar);
+      fechar();
+      document.removeEventListener("mouseover", aoPassar);
+      document.removeEventListener("mouseout", aoSairDaJanela);
       document.removeEventListener("keydown", aoTeclar);
       window.removeEventListener("scroll", fechar, true);
       window.removeEventListener("resize", fechar);
@@ -93,7 +133,7 @@ export default function TextoCortadoAoClicar() {
       data-bolha-texto-cortado
       role="tooltip"
       style={{ left: bolha.x, ...(bolha.acima ? { bottom: bolha.y } : { top: bolha.y }) }}
-      className="fixed z-[70] max-h-60 w-max max-w-[min(30rem,calc(100vw-1rem))] overflow-y-auto rounded-md bg-slate-900 px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap text-white shadow-lg select-text"
+      className="pointer-events-none fixed z-[70] max-h-60 w-max max-w-[min(30rem,calc(100vw-1rem))] overflow-hidden rounded-md bg-slate-900 px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap text-white shadow-lg"
     >
       {bolha.texto}
     </div>

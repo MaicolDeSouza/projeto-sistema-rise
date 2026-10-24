@@ -149,10 +149,13 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
     página 1. No Scraper: Nome, Código, Estoque, Valor e Atualizado (`listarProdutos` ganhou `ordenar`/`direcao`; vazio,
     "N/A" e sem quantidade vão para o fim; "Atualizado" ordena pelo `coletadoEm`, que é a data da coluna). "Menor valor" e
     "Maior valor" ligam a coluna Valor; o link antigo `?ordem=menor|maior` ainda vale.
-- **Texto cortado mostra o resto AO CLIQUE**, em todo o Rise (pedido do dono em 23/10/2026; o `title` só aparecia depois de
-  alguns segundos com o mouse parado): `TextoCortadoAoClicar` (`src/components/ui/`, montado no `layout.jsx`) ouve os
-  cliques do documento e, num texto com reticências (`truncate`/`line-clamp`), abre uma bolha com o `title` ou o texto
-  inteiro. Não age dentro de botão, link, campo nem linha de tabela clicável; fecha com Esc, clique fora ou rolagem.
+- **Texto cortado mostra o resto AO PASSAR O MOUSE, rápido**, em todo o Rise (23/10/2026 o dono pediu ao clique; em
+  24/10/2026 mudou: "ao clicar não quero que abra esse popup, quero que abra rapidamente o texto como é feito ao deixar o
+  mouse em cima por um tempo"): `TextoCortadoAoClicar` (`src/components/ui/`, montado no `layout.jsx`; o nome ficou)
+  ouve o `mouseover` do documento e, num texto com reticências (`truncate`/`line-clamp`), abre em 150 ms (`ATRASO_MS`) uma
+  bolha com o `title` ou o texto inteiro. Enquanto ela está aberta o `title` vai para `data-titulo-cortado` (a dica lenta
+  do navegador não aparece por cima). O clique não abre nada; não age em campo de digitação; fecha ao sair do texto, Esc
+  ou rolagem.
   **Nenhuma tela precisa mudar**: basta o texto ter `truncate`, inclusive numa **célula de tabela** (`<td className="truncate">`;
   a primeira versão ignorava `td`, e o dono pediu de novo ao ver a descrição e a Obs dos fornecedores sem abrir).
 - **Pop-up aberto: a tela de trás não rola** (pedido do dono em 23/10/2026, padrão do projeto). Duas peças globais:
@@ -4533,7 +4536,15 @@ Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com *
   da lupa só some quando fornecedor E código já estão na aba. **O Bling recebe um vínculo por CNPJ** (é o que ele aceita:
   `normalizarFornecedoresDoRise` fica com o primeiro, o padrão na frente); a segunda linha do mesmo fornecedor fica só no
   Rise. Na mesma leva: coluna **Obs** (`ProdutoFornecedor.observacao`, até 500 caracteres, não vai ao Bling) e a lupa
-  marca até **30** (eram 20; `MAXIMO_MARCADOS` e `MAXIMO_REFERENCIAS` andam juntos).
+  marca até **30** (eram 20; `MAXIMO_MARCADOS` e `MAXIMO_REFERENCIAS` andam juntos). **Obs larga na edição** (24/10/2026,
+  pedido do dono: "fica difícil de saber o que está escrevendo"): na linha em edição a célula ganha `min-w-64` e um
+  `<textarea>` de duas linhas; a linha salva continua cortada como antes.
+- **Ordem dos documentos e do certificado** (pedido do dono em 24/10/2026: setas e "clicando e arrastando", no padrão de
+  mover as características): `DocumentosDoProduto` (`FormularioProduto.jsx`) junta gravados e enviados numa lista, com
+  alça, setas e arrastar (HTML5). A ordem vai no campo oculto `ordemDosArquivos` (`{ DOCUMENTO: ["id:<id>",
+  "tmp:<nome>"], CERTIFICADO: [...] }`) e só vale no Salvar: `aplicarOrdemDosArquivos` (`produtos/acoes.js`, depois de
+  `gravarTemporarios`) regrava `ProdutoArquivo.ordem` só das linhas do produto e do tipo. A descrição da Loja Integrada já
+  lê os documentos por essa ordem. O rascunho automático não guarda a ordem.
   **Depois de uma migration que só acrescenta coluna, reiniciar o servidor do PC**: o `db.js` só recria o client quando
   muda o nome dos modelos, e o client antigo grava sem a coluna nova em silêncio (visto no teste: o Salvar passava e a
   linha nova não aparecia).
@@ -5360,6 +5371,28 @@ a Bling, Mercado Livre ou Loja Integrada.
   (`regras.js`: preço por margem com a posição, medidas com a Usinainfo primeiro, NCM com a Fortek primeiro, origem fiscal;
   `plano.js`: validação; `aplicadas.js`: o que ainda não foi aplicado; `banco.js`: gravação). Teste `npm run teste:proposta`.
   **Pronta em 20/10/2026 (as 10 tarefas do plano), SEM deploy.** Ensaio no `100103-teste` do banco do PC.
+  - **DESDE 24/10/2026 a proposta ESCREVE POR CIMA, com o original na lista** (pedido do dono: "Proposta escrita direto
+    no campo, com o original na lista"; roteiro **v7**). Nos `CAMPOS_QUE_A_PROPOSTA_TROCA` (`aplicar.js`: descrição, preço,
+    EAN, unidade, marca, modelo, garantia, homologação, peso e medidas e toda a aba Tributação: origem, tipo de produção,
+    NCM, CEST, % tributos, tipo do item) o valor da proposta entra no campo com a marca PROPOSTA mesmo que o produto já
+    tenha outro, e o valor de antes vai para o topo da lista do ícone com a etiqueta cinza **"Original"** (escolher volta
+    a ele). O original fica em `PropostaDeProduto.aplicadas.originais`, gravado no Salvar a partir do produto ANTES da
+    gravação (`registrarDecisoesDoSalvar(id, preenchidos, anterior)`; `valoresSimples` tira o Decimal), e nunca é trocado
+    pelo valor que a própria proposta pôs. **A marca continua depois do Salvar** (`marcados` de `propostaNoFormulario`; o
+    dono reclamou que "ao salvar some a tag"): só sai do campo que ele mexer; Conferido apaga tudo. Campo que o dono
+    editou continua fora (a proposta vai para a lista com a etiqueta "Proposta"). Código só no produto sem SKU; título
+    nunca. Pendência do Conferido (`secoesNaoAplicadas`): o que a proposta ainda trocaria no produto salvo. **Origem 2 e
+    tipo do item 00 com fornecedor** (vinculado ou rascunho do Bling) são do Rise, por cima da conversa, na seção
+    `campos` (`gravarProposta`). `plano.js` aceita os campos novos e confere as listas fechadas (unidade, tipo de
+    produção, tipo do item, origem 0-8, CEST com 7 dígitos, % de 0 a 100). A descrição tem o ícone "Original" ao lado do
+    olho, e o `IconeDaProposta` escreve pelo setter nativo (a descrição é `<textarea>` controlado).
+  - **Preço recomendado R$ 0,10 abaixo do 5º concorrente** (pedido do dono em 24/10/2026: "o concorrente em 5 está a
+    R$ 35,90 e devo colocar uns 10 centavos a menos"; `opcoesDePreco`/`concorrenteDeReferencia` em `regras.js`): cada loja
+    pelo menor preço, sem as indisponíveis; com menos de 5 lojas, R$ 0,10 abaixo da MAIS CARA (decisão 2 = opção 1);
+    arredondado para BAIXO aos 5 centavos; sem piso (decisão 3 = opção 1): margem abaixo de 30% vem com `aviso`, abaixo de
+    1% sem recomendada. A recomendada traz `referencia` (loja, preço, regra) e a margem com uma casa (45,6%). Até 23/10 a
+    margem subia de 1 em 1% e parava no último preço que cabia (39,35 com o 5º a 39,90). A proposta de anúncio do ML
+    (`propostaDeAnuncio/preco.js`, `ABAIXO_DO_TETO`) usa a mesma distância: R$ 0,10 abaixo do teto, nunca empatando.
   - **DESDE 22/10/2026 a proposta vai DIRETO NO FORMULÁRIO** (pedido do dono; plano
     `docs/superpowers/plans/2026-10-22-proposta-no-formulario.md`, decisões A-D = 1). O quadro com "Aplicar escolhidos"
     descrito abaixo SAIU. Regra pura `propostaNoFormulario` (`aplicar.js`): campo VAZIO no produto abre preenchido com a
@@ -5408,7 +5441,7 @@ a Bling, Mercado Livre ou Loja Integrada.
   `docs/superpowers/roteiros/instrucao-projeto-claude-ai-proposta.md`.
 - **Roteiro único da proposta (21/10/2026, pedido do dono: "posso mudar de LLM e deve funcionar igual")** (plano
   `docs/superpowers/plans/2026-10-21-roteiro-unico-da-proposta.md`): as regras moram SÓ em `src/lib/proposta/roteiro.js`
-  (`ROTEIRO` + `VERSAO_DO_ROTEIRO`, hoje "4"), entregues pela ferramenta `roteiroDaProposta` do MCP; cada seção gravada
+  (`ROTEIRO` + `VERSAO_DO_ROTEIRO`, hoje "7"), entregues pela ferramenta `roteiroDaProposta` do MCP; cada seção gravada
   carimba `PropostaDeProduto.versaoDoRoteiro`. A instrução do Projeto (claude.ai, ChatGPT) é um bloco fixo de 3 linhas que
   só manda ler o roteiro; o `docs/superpowers/roteiros/proposta-de-produto.md` ficou só com a reserva por SSH. **Mudar
   regra = editar `roteiro.js`, subir a versão e fazer deploy.** O que é conta ou checagem é do Rise, ao gravar: o PREÇO (de 5 em 5 centavos, arredondado para cima, desde 22/10/2026: `precoParaMargem` em `regras.js`)

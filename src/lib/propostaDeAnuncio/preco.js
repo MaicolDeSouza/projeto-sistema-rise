@@ -6,12 +6,16 @@ import { montarRanking } from "@/lib/canaisDeVenda/ml/ranking";
  * O preco da proposta do Mercado Livre (spec 2026-10-23, secao 8.2), regra do dono:
  * - piso: 30% de margem depois da comissao, da tarifa, do frete do vendedor e do imposto de 6%;
  * - teto: ficar entre os 5 primeiros do ranking (o 5o menor preco; com menos de 5 precos, o maior);
- * - o maior preco de 5 em 5 centavos que cumpre os dois; se 30% fica fora do top 5, fica nos 30% e avisa.
+ * - o maior preco de 5 em 5 centavos que cumpre os dois, R$ 0,10 ABAIXO do teto (pedido do dono em 24/10/2026, a mesma
+ *   regra da proposta de produto: "o concorrente em 5 esta a R$ 35,90 e devo colocar uns 10 centavos a menos"; ate ali o
+ *   candidato era o proprio teto, e o anuncio empatava com ele); se 30% fica fora do top 5, fica nos 30% e avisa.
  * A conta e do Rise, nunca da LLM. Le as taxas do ML no proprio preco (so GET): no maximo 3 leituras depois do piso.
  */
 
 export const MARGEM_MINIMA = 30;
 const LIMITE_DO_FRETE_GRATIS = 79;
+/** O anuncio fica R$ 0,10 abaixo do 5o preco do ranking (o mesmo da proposta de produto, 24/10/2026). */
+export const ABAIXO_DO_TETO = 0.1;
 
 const centavos = (valor) => Math.round(Number(valor) * 100);
 
@@ -67,8 +71,8 @@ export async function precoDaPropostaML(cliente, rascunho, { custo, precos = [],
   let valor = piso;
   if (teto === null) {
     avisos.push(`Ficou no preço de ${margemMinima}% de margem: sem concorrente para comparar.`);
-  } else if (piso <= teto) {
-    const candidato = paraBaixo5(teto);
+  } else if (piso <= teto - ABAIXO_DO_TETO) {
+    const candidato = paraBaixo5(teto - ABAIXO_DO_TETO);
     if ((await margemEm(candidato)) >= margemMinima) valor = candidato;
     else if (candidato >= LIMITE_DO_FRETE_GRATIS && piso < LIMITE_DO_FRETE_GRATIS) {
       // Acima de R$ 79 o frete gratis obrigatorio come a margem: o melhor fica logo abaixo da virada.

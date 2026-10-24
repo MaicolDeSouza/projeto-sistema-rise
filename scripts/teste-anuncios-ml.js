@@ -2305,7 +2305,8 @@ try {
     const multiplo5 = (valor) => Math.round(valor * 100) % 5 === 0;
 
     const top5 = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [45, 48, 50, 52, 55, 70] });
-    conferir("no top 5: o teto, com 30% ou mais, em 5º", [top5.valor, top5.margem >= 30, top5.posicao, top5.total, top5.teto, top5.avisos], [55, true, 5, 7, 55, []]);
+    // R$ 0,10 abaixo do teto (pedido do dono em 24/10/2026): o 5º preco e 55, o anuncio vai a 54,90 e fica em 5º sem empatar.
+    conferir("no top 5: R$ 0,10 abaixo do teto, com 30% ou mais, em 5º", [top5.valor, top5.margem >= 30, top5.posicao, top5.total, top5.teto, top5.avisos], [54.9, true, 5, 7, 55, []]);
 
     const caro = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [30, 31, 32, 33, 34] });
     conferir("30% fora do top 5: fica no piso e avisa a posição", [caro.valor, caro.valor === caro.piso, caro.margem >= 30, caro.avisos.some((aviso) => /fica em 6º de 6/.test(aviso))], [51.65, true, true, true]);
@@ -2360,12 +2361,13 @@ try {
     conferir(
       "gravar: Clássico com categoria, título, ficha e preço",
       [anuncio.status, anuncio.dados.tipoAnuncio, anuncio.categoriaExternaId, anuncio.titulo, anuncio.atributos.BRAND, anuncio.dados.preco, gravada.preco.valor],
-      ["RASCUNHO", "gold_special", "MLB99779", "Placa Uno R3 CH340 compatível", "ARDUINO", 60, 60],
+      // R$ 0,10 abaixo do 5º preco do ranking (R$ 60; regra do dono de 24/10/2026).
+      ["RASCUNHO", "gold_special", "MLB99779", "Placa Uno R3 CH340 compatível", "ARDUINO", 59.9, 59.9],
     );
     conferir("GTIN e o motivo mandados pela LLM ficam fora", [anuncio.atributos.GTIN ?? null, anuncio.atributos.EMPTY_GTIN_REASON ?? null], [null, null]);
     conferir("catálogos: só os de 5 ou mais anúncios, o de 4 avisado", [gravada.catalogosSugeridos.map((c) => c.catalogoId), gravada.avisos.some((a) => /MLBP4/.test(a) && /menos de 5/.test(a))], [["MLBP9", "MLBP6"], true]);
     conferir("o ranking do produto continua vazio", await prisma.catalogoReferenciaML.count({ where: { produtoId: produto.id } }), 0);
-    conferir("a proposta guardada com o preço e os catálogos", [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro], [60, 2, "1"]);
+    conferir("a proposta guardada com o preço e os catálogos", [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro], [59.9, 2, "1"]);
 
     const deNovo = await gravarPropostaML(ml(), "ZZ-ML-PA1", { categoriaId: "MLB99779", titulo: "Placa Uno R3 CH340 compatível", atributos: ATRIBUTOS, catalogos: ["MLBP9"], relatorio: "- de novo" });
     conferir("o Clássico em rascunho é atualizado (o mesmo anúncio)", [deNovo.anuncioId, await prisma.anuncio.count({ where: { produtoId: produto.id, canal: "MERCADO_LIVRE" } })], [gravada.anuncioId, 1]);

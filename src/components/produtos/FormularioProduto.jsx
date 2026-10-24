@@ -16,11 +16,14 @@ import {
   AlertTriangle,
   BadgeDollarSign,
   Calculator,
+  ChevronDown,
+  ChevronUp,
   Download,
   ExternalLink,
   Eye,
   EyeOff,
   FileText,
+  GripVertical,
   Hammer,
   ListChecks,
   Loader,
@@ -180,48 +183,61 @@ function MarcaDaProposta({ nome }) {
 }
 
 /**
- * Campo SEM lista propria (garantia, unidade, origem, codigo; decisao C do dono em 22/10/2026): quando o campo ja estava
- * preenchido e a proposta sugere outro valor, um icone de lista ao lado do rotulo traz so o item da proposta. Escolher
- * escreve no campo e avisa o formulario pelo mesmo evento da digitacao.
+ * Campo SEM lista propria (garantia, unidade, origem, tipo do item, CEST, descricao...; decisao C do dono em 22/10/2026):
+ * um icone de lista ao lado do rotulo traz o unico item que a proposta deixou para o campo. Desde 24/10/2026 (pedido do
+ * dono: "Proposta escrita direto no campo, com o original na lista") ele e quase sempre o ORIGINAL (o valor de antes da
+ * proposta, etiqueta "Original"); no campo que o dono editou, e o da proposta (etiqueta "Proposta"). Escolher escreve no
+ * campo e avisa o formulario pelo mesmo evento da digitacao. Numa lista de escolha mostra o texto da opcao.
  */
 function IconeDaProposta({ nome }) {
   const sugestao = useContext(PropostaNosCampos)?.listas?.[nome];
-  const [aberto, setAberto] = useState(false);
+  const [aberto, setAberto] = useState(null);
   if (!sugestao) return null;
+  const original = sugestao.tipo === "original";
+
+  function abrir(evento) {
+    if (aberto) return setAberto(null);
+    const campo = evento.currentTarget.form?.elements?.[nome];
+    const opcao = campo?.tagName === "SELECT" ? [...campo.options].find((item) => item.value === String(sugestao.valor)) : null;
+    setAberto({ texto: opcao?.textContent || String(sugestao.valor) });
+  }
 
   function usar(evento) {
     const campo = evento.currentTarget.form?.elements?.[nome];
     if (campo) {
-      campo.value = String(sugestao.valor);
+      // Pelo "setter" nativo: a descricao e um <textarea> CONTROLADO, e o React ignora o evento quando o valor e escrito
+      // direto (o rastreador dele ja ve o valor novo e nao chama o onChange). Nos campos nao controlados da no mesmo.
+      const prototipo = Object.getPrototypeOf(campo);
+      Object.getOwnPropertyDescriptor(prototipo, "value")?.set?.call(campo, String(sugestao.valor));
       campo.dispatchEvent(new Event(campo.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
     }
-    setAberto(false);
+    setAberto(null);
   }
 
   return (
     <span className="relative inline-flex">
       <button
         type="button"
-        onClick={() => setAberto((atual) => !atual)}
-        title="A proposta sugere outro valor"
-        aria-label={`${sugestao.rotulo}: sugestão da proposta`}
+        onClick={abrir}
+        title={original ? "Ver o valor que o produto tinha antes da proposta" : "A proposta sugere outro valor"}
+        aria-label={`${sugestao.rotulo}: ${original ? "valor original" : "sugestão da proposta"}`}
         className={`relative rounded p-0.5 hover:bg-fundo ${COR_DE_USO.referencia}`}
       >
         <ListChecks size={15} />
         <Contador quantidade={1} usado={false} />
       </button>
       {aberto && (
-        <ListaFlutuante largura="w-72" aoFechar={() => setAberto(false)}>
+        <ListaFlutuante largura={nome === "descricaoBase" ? "w-[30rem]" : "w-72"} aoFechar={() => setAberto(null)}>
           <button
             type="button"
             onClick={usar}
-            className="flex w-full items-center justify-between gap-3 rounded border border-borda px-3 py-2 text-left font-normal hover:border-acento hover:bg-sky-50"
+            className="flex w-full items-start justify-between gap-3 rounded border border-borda px-3 py-2 text-left font-normal hover:border-acento hover:bg-sky-50"
           >
             <span className="min-w-0">
-              <span className="block text-sm font-medium">{String(sugestao.valor)}</span>
+              <span className={`block text-sm font-medium ${nome === "descricaoBase" ? "line-clamp-4 whitespace-pre-line" : ""}`}>{aberto.texto}</span>
               {sugestao.origem && <span className="block truncate text-[11px] text-suave">{sugestao.origem}</span>}
             </span>
-            <SeloDaProposta />
+            <SeloDaProposta tipo={sugestao.tipo} />
           </button>
         </ListaFlutuante>
       )}
@@ -229,9 +245,16 @@ function IconeDaProposta({ nome }) {
   );
 }
 
-/** A etiqueta "Proposta" do item que veio da proposta, nas listas dos campos. */
-function SeloDaProposta() {
-  return <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">Proposta</span>;
+/**
+ * A etiqueta do item da proposta nas listas dos campos: "Proposta" (o valor que a proposta sugere) ou "Original" (o valor
+ * que o produto tinha antes de a proposta escrever no campo).
+ */
+function SeloDaProposta({ tipo = "proposta" }) {
+  return tipo === "original" ? (
+    <span className="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-[11px] font-semibold text-slate-700">Original</span>
+  ) : (
+    <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">Proposta</span>
+  );
 }
 
 function Campo({ nome, rotulo, erro, ajuda, children, ...props }) {
@@ -877,7 +900,8 @@ function CampoPreco({
   const lucroPercentual = useRef(null);
   const lucroReais = useRef(null);
 
-  // A sugestao de preco da proposta (o campo ja tinha preco): no topo da lista do "$" (pedido do dono em 22/10/2026).
+  // O item da proposta no topo da lista do "$" (pedido do dono em 22/10/2026): o preco ORIGINAL (o de antes, quando a
+  // proposta escreveu o dela no campo; 24/10/2026) ou o da PROPOSTA (o dono ja tinha editado o preco).
   const sugestao = useContext(PropostaNosCampos)?.listas?.precoVenda ?? null;
   const comPreco = referencias
     .filter((item) => item.preco !== null && item.preco !== undefined)
@@ -1108,11 +1132,13 @@ function CampoPreco({
             <button
               type="button"
               onClick={() => escolher(sugestao.valor)}
-              className="mb-1 flex w-full items-center gap-3 rounded border border-amber-300 bg-amber-50/60 px-3 py-2 text-left hover:border-acento hover:bg-sky-50"
+              className={`mb-1 flex w-full items-center gap-3 rounded border px-3 py-2 text-left hover:border-acento hover:bg-sky-50 ${
+                sugestao.tipo === "original" ? "border-slate-300 bg-slate-50" : "border-amber-300 bg-amber-50/60"
+              }`}
             >
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2 text-xs">
-                  <SeloDaProposta />
+                  <SeloDaProposta tipo={sugestao.tipo} />
                   <span className="text-suave">{sugestao.origem}</span>
                 </span>
               </span>
@@ -1304,11 +1330,13 @@ function CampoDeReferencias({
     setAberto(false);
   }
 
-  // A sugestao da proposta (campo ja preenchido com outro valor) vai NO TOPO da lista, com a etiqueta "Proposta" (pedido
-  // do dono em 22/10/2026), e aparece mesmo sem referencia marcada.
+  // O item da proposta vai NO TOPO da lista (pedido do dono em 22/10/2026) e aparece mesmo sem referencia marcada: o
+  // ORIGINAL (o valor de antes, quando a proposta escreveu no campo; 24/10/2026) ou o da PROPOSTA (campo que o dono editou).
   const sugestao = useContext(PropostaNosCampos)?.listas?.[nome] ?? null;
   const daReferencia = Array.isArray(valores) ? valores : [];
-  const lista = sugestao ? [{ valor: sugestao.valor, origem: sugestao.origem, fontes: [], daProposta: true }, ...daReferencia] : daReferencia;
+  const lista = sugestao
+    ? [{ valor: sugestao.valor, origem: sugestao.origem, fontes: [], daProposta: sugestao.tipo ?? "proposta" }, ...daReferencia.filter((item) => String(item.valor) !== String(sugestao.valor))]
+    : daReferencia;
   // Icone CINZA quando as referencias marcadas nao trazem este dado — pedido do
   // dono em 16/09/2026: assim se ve sem clicar que nao ha o que escolher.
   const temDado = lista.length > 0;
@@ -1399,7 +1427,7 @@ function CampoDeReferencias({
                       )}
                     </span>
                     {item.daProposta ? (
-                      <SeloDaProposta />
+                      <SeloDaProposta tipo={item.daProposta} />
                     ) : (
                       <span className="shrink-0 text-right text-[11px] text-suave">
                         {item.fontes.join(", ")}
@@ -1687,10 +1715,34 @@ function DocumentosDoProduto({
   excluidos = [],
   aoAlternarExclusao,
   desabilitado = false,
+  ordem = [],
+  aoReordenar,
 }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [erro, setErro] = useState(null);
   const entrada = useRef(null);
+  // Arrastar (pedido do dono em 24/10/2026: setas e "clicando e arrastando", no padrao de mover as caracteristicas).
+  const [arrastado, setArrastado] = useState(null);
+  const [destino, setDestino] = useState(null);
+
+  // Gravados e enviados numa lista so, na ordem que o dono deu (`ordem`: "id:<id>" do gravado, "tmp:<nome>" do enviado).
+  // O que ainda nao esta na ordem (acabou de chegar) vai para o fim, na ordem de antes. So vale no Salvar.
+  const naturais = [
+    ...salvos.map((arquivo) => ({ chave: `id:${arquivo.id}`, salvo: arquivo })),
+    ...lista.map((arquivo) => ({ chave: `tmp:${arquivo.nome}`, temporario: arquivo })),
+  ];
+  const posicao = new Map(ordem.map((chave, indice) => [chave, indice]));
+  const itens = naturais
+    .map((item, indice) => ({ ...item, peso: posicao.get(item.chave) ?? ordem.length + indice }))
+    .sort((a, b) => a.peso - b.peso);
+
+  function mover(de, para) {
+    if (para < 0 || para >= itens.length || de === para) return;
+    const chaves = itens.map((item) => item.chave);
+    const [movida] = chaves.splice(de, 1);
+    chaves.splice(para, 0, movida);
+    aoReordenar?.(chaves);
+  }
 
   function aoEscolher(evento) {
     const arquivo = evento.target.files?.[0];
@@ -1712,14 +1764,99 @@ function DocumentosDoProduto({
       </span>
 
       <div className="mt-1 space-y-1">
-        {salvos.map((arquivo) => {
+        {itens.map((item, indice) => {
+          const podeMover = Boolean(aoReordenar) && !desabilitado && itens.length > 1;
+          const setas = podeMover && (
+            <span className="flex shrink-0 items-center">
+              <button
+                type="button"
+                onClick={() => mover(indice, indice - 1)}
+                disabled={indice === 0}
+                aria-label={`Subir ${item.salvo?.nomeOriginal ?? item.temporario?.nomeOriginal ?? "documento"}`}
+                title="Subir"
+                className="rounded p-1 text-suave hover:text-acento disabled:opacity-30"
+              >
+                <ChevronUp size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => mover(indice, indice + 1)}
+                disabled={indice === itens.length - 1}
+                aria-label={`Descer ${item.salvo?.nomeOriginal ?? item.temporario?.nomeOriginal ?? "documento"}`}
+                title="Descer"
+                className="rounded p-1 text-suave hover:text-acento disabled:opacity-30"
+              >
+                <ChevronDown size={13} />
+              </button>
+            </span>
+          );
+          const arraste = podeMover
+            ? {
+                draggable: true,
+                onDragStart: (evento) => {
+                  evento.dataTransfer.effectAllowed = "move";
+                  evento.dataTransfer.setData("text/plain", item.chave);
+                  setArrastado(indice);
+                },
+                onDragOver: (evento) => {
+                  if (arrastado === null) return;
+                  evento.preventDefault();
+                  if (destino !== indice) setDestino(indice);
+                },
+                onDrop: (evento) => {
+                  evento.preventDefault();
+                  if (arrastado !== null) mover(arrastado, indice);
+                  setArrastado(null);
+                  setDestino(null);
+                },
+                onDragEnd: () => {
+                  setArrastado(null);
+                  setDestino(null);
+                },
+              }
+            : {};
+          const alca = podeMover && (
+            <span className="shrink-0 cursor-grab text-suave" title="Arraste para mudar a ordem" aria-hidden="true">
+              <GripVertical size={14} />
+            </span>
+          );
+          const realce = destino === indice && arrastado !== null && arrastado !== indice ? "ring-2 ring-acento/40" : "";
+          const arquivo = item.salvo;
+          if (!arquivo) {
+            const temporario = item.temporario;
+            return (
+              <div
+                key={item.chave}
+                {...arraste}
+                className={`flex items-center gap-2 rounded border border-dashed border-borda px-2 py-1.5 ${realce} ${arrastado === indice ? "opacity-50" : ""}`}
+              >
+                {alca}
+                <FileText size={14} className="shrink-0 text-suave" />
+                <span className="min-w-0 flex-1 truncate text-sm" title="Será gravado ao salvar">
+                  {temporario.nomeOriginal ?? temporario.nome}
+                </span>
+                <span className="shrink-0 text-[11px] text-suave">a salvar</span>
+                {setas}
+                <button
+                  type="button"
+                  onClick={() => iniciarTransicao(() => aoRemover(temporario))}
+                  aria-label="Remover"
+                  className="shrink-0 rounded p-1 text-suave hover:bg-red-50 hover:text-red-700"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            );
+          }
           const riscado = excluidos.includes(arquivo.id);
           const nome = arquivo.nomeOriginal ?? arquivo.arquivo;
           return (
             <div
-              key={arquivo.id}
-              className={`flex items-center gap-2 rounded border px-2 py-1.5 ${riscado ? "border-red-200 bg-red-50/60" : "border-borda"}`}
+              key={item.chave}
+              {...arraste}
+              className={`flex items-center gap-2 rounded border px-2 py-1.5 ${riscado ? "border-red-200 bg-red-50/60" : "border-borda"} ${realce} ${arrastado === indice ? "opacity-50" : ""}`}
             >
+              {alca}
               {riscado ? (
                 <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-suave" title="Será excluído ao salvar">
                   <Trash2 size={14} className="shrink-0 text-red-600" />
@@ -1739,6 +1876,7 @@ function DocumentosDoProduto({
                   <span className="truncate">{nome}</span>
                 </a>
               )}
+              {setas}
               <button
                 type="button"
                 onClick={() => aoAlternarExclusao?.(arquivo.id)}
@@ -1751,26 +1889,6 @@ function DocumentosDoProduto({
             </div>
           );
         })}
-        {lista.map((arquivo) => (
-          <div
-            key={arquivo.nome}
-            className="flex items-center gap-2 rounded border border-dashed border-borda px-2 py-1.5"
-          >
-            <FileText size={14} className="shrink-0 text-suave" />
-            <span className="min-w-0 flex-1 truncate text-sm" title="Será gravado ao salvar">
-              {arquivo.nomeOriginal ?? arquivo.nome}
-            </span>
-            <span className="shrink-0 text-[11px] text-suave">a salvar</span>
-            <button
-              type="button"
-              onClick={() => iniciarTransicao(() => aoRemover(arquivo))}
-              aria-label="Remover"
-              className="shrink-0 rounded p-1 text-suave hover:bg-red-50 hover:text-red-700"
-            >
-              <Trash2 size={12} />
-            </button>
-          </div>
-        ))}
       </div>
 
       <button
@@ -1792,7 +1910,7 @@ function DocumentosDoProduto({
         className="hidden"
       />
 
-      {!erro && (lista.length > 0 || riscados > 0) && (
+      {!erro && (lista.length > 0 || riscados > 0 || ordem.length > 0) && (
         <p className="mt-1 text-[11px] text-suave">As mudanças nos documentos são gravadas ao salvar.</p>
       )}
       {erro && <p className="mt-1 rounded bg-red-50 p-2 text-[11px] text-red-800">{erro}</p>}
@@ -1876,6 +1994,9 @@ export default function FormularioProduto({
     acessos.editar && produto?.proposta ? propostaNoFormulario(produto.proposta.secoes ?? {}, produto, produto.proposta.aplicadas ?? {}) : null,
   );
   const preencheuPelaProposta = Object.keys(daProposta?.preencher ?? {}).length > 0;
+  // Os campos com a marca "PROPOSTA": os que a proposta preencheu agora e os que ja tinham o valor dela de um Salvar
+  // anterior (pedido do dono em 24/10/2026: "ao salvar some a tag de proposta"; so sai a dos campos que ele mexer).
+  const camposComAProposta = daProposta ? { ...(daProposta.marcados ?? {}), ...daProposta.preencher } : {};
   const [editadosDaProposta, setEditadosDaProposta] = useState(() => new Set());
   // O clone ja nasce com o que salvar; o produto que a proposta preencheu tambem (decisao A do dono: conta como alteracao).
   const [alterado, setAlterado] = useState(Boolean(clone) || preencheuPelaProposta);
@@ -1989,6 +2110,13 @@ export default function FormularioProduto({
   // servidor e o do navegador seriam diferentes e o React acusaria.
   const [loteTemporario, setLoteTemporario] = useState("");
   const [temporarios, setTemporarios] = useState([]);
+  // A ordem dos documentos e do certificado que o dono deu na tela (setas e arrastar, pedido do dono em 24/10/2026):
+  // `{ DOCUMENTO: ["id:<id>", "tmp:<nome>"...], CERTIFICADO: [...] }`. Vazia = a ordem gravada. So vale no Salvar.
+  const [ordemDosArquivos, setOrdemDosArquivos] = useState({});
+  const reordenarArquivos = (tipo, chaves) => {
+    setOrdemDosArquivos((atual) => ({ ...atual, [tipo]: chaves }));
+    marcarAlterado();
+  };
   // Documentos ja gravados que o dono excluiu na tela: so saem no Salvar (pedido do dono em 10/10/2026).
   const [documentosExcluidos, setDocumentosExcluidos] = useState([]);
 
@@ -3177,13 +3305,13 @@ export default function FormularioProduto({
   // O campo que o dono mexe deixa de ser "da proposta" (a marca some), mesmo que volte ao mesmo valor.
   function marcarEditadoDaProposta(evento) {
     const nome = evento.target?.name;
-    if (!nome || !daProposta || !Object.hasOwn(daProposta.preencher, nome) || editadosDaProposta.has(nome)) return;
+    if (!nome || !daProposta || !Object.hasOwn(camposComAProposta, nome) || editadosDaProposta.has(nome)) return;
     setEditadosDaProposta((anteriores) => new Set([...anteriores, nome]));
   }
 
   return (
     <PropostaNosCampos.Provider
-      value={daProposta ? { valores: daProposta.preencher, editados: editadosDaProposta, listas: daProposta.nasListas } : null}
+      value={daProposta ? { valores: camposComAProposta, editados: editadosDaProposta, listas: daProposta.nasListas } : null}
     >
     <form
       ref={formulario}
@@ -3209,6 +3337,8 @@ export default function FormularioProduto({
         name="arquivosTemporarios"
         value={JSON.stringify(temporarios)}
       />
+      {/* A ordem dos documentos e do certificado (setas e arrastar na aba Documentos técnicos). */}
+      <input type="hidden" name="ordemDosArquivos" value={JSON.stringify(ordemDosArquivos)} />
       {/* Fotos do painel de imagens, na ordem, a principal marcada (ver PainelDeImagens). */}
       <input
         type="hidden"
@@ -3799,6 +3929,8 @@ export default function FormularioProduto({
                 aoEnviar={enviarTemporario}
                 aoRemover={removerTemporario}
                 desabilitado={carregandoFotosDoProduto}
+                ordem={ordemDosArquivos.DOCUMENTO ?? []}
+                aoReordenar={(chaves) => reordenarArquivos("DOCUMENTO", chaves)}
               />
               <DocumentosDoProduto
                 tipo="CERTIFICADO"
@@ -3810,6 +3942,8 @@ export default function FormularioProduto({
                 aoEnviar={enviarTemporario}
                 aoRemover={removerTemporario}
                 desabilitado={carregandoFotosDoProduto}
+                ordem={ordemDosArquivos.CERTIFICADO ?? []}
+                aoReordenar={(chaves) => reordenarArquivos("CERTIFICADO", chaves)}
               />
               {/* Kit: os documentos e certificados das pecas, com "Anexar a este produto" (pedido do dono em 10/10/2026). */}
               {ehKit && (
@@ -3856,6 +3990,8 @@ export default function FormularioProduto({
                 <div className="mb-1 flex items-center gap-1">
                   <MarcaDaProposta nome="descricaoBase" />
                   <OlhoDaProposta proposta={produto.proposta} secao="descricao" />
+                  {/* A descricao de antes da proposta (etiqueta "Original"), para voltar a ela com um clique. */}
+                  <IconeDaProposta nome="descricaoBase" />
                 </div>
               )}
               <EditorDescricao

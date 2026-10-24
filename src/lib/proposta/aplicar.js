@@ -69,7 +69,20 @@ export function fotosDoPainelComAProposta(painel, novas, escolhas) {
 const CAMPO_DO_FORMULARIO = {
   marca: "marca", modelo: "modelo", unidade: "unidade", garantiaMeses: "garantiaMeses", codigo: "sku", ncm: "ncm",
   origem: "origem", pesoKg: "pesoKg", alturaCm: "alturaCm", larguraCm: "larguraCm", comprimentoCm: "comprimentoCm",
+  numeroHomologacao: "numeroHomologacao", tipoProducao: "tipoProducao", cest: "cest", percentualTributos: "percentualTributos",
+  spedTipoItem: "spedTipoItem",
 };
+
+/**
+ * Os campos em que a proposta ESCREVE por cima do que o produto tem (pedido do dono em 24/10/2026: "Proposta escrita
+ * direto no campo, com o original na lista": preco, EAN, descricao, unidade, marca, modelo, garantia, homologacao, peso
+ * e medidas e toda a aba Tributacao). O valor de antes vai para a lista do icone com a etiqueta "Original". O codigo so
+ * entra no produto sem SKU; o titulo nunca (as 3 opcoes ficam em "Escolher o titulo").
+ */
+export const CAMPOS_QUE_A_PROPOSTA_TROCA = [
+  "descricaoBase", "precoVenda", "ean", "unidade", "marca", "modelo", "garantiaMeses", "numeroHomologacao", "pesoKg",
+  "comprimentoCm", "larguraCm", "alturaCm", "origem", "tipoProducao", "ncm", "cest", "percentualTributos", "spedTipoItem",
+];
 
 /**
  * @param {Record<string, any>} secoes `PropostaDeProduto.secoes`
@@ -123,8 +136,12 @@ export function camposDoFormularioDaProposta(secoes, escolhas = {}, produto = {}
 const ROTULO_DO_CAMPO = {
   marca: "Marca", modelo: "Modelo", unidade: "Unidade", garantiaMeses: "Garantia", sku: "Código", ncm: "NCM", origem: "Origem",
   pesoKg: "Peso", alturaCm: "Altura", larguraCm: "Largura", comprimentoCm: "Comprimento", precoVenda: "Preço", ean: "GTIN / EAN",
-  descricaoBase: "Descrição",
+  descricaoBase: "Descrição", numeroHomologacao: "Número de homologação", tipoProducao: "Tipo de produção", cest: "CEST",
+  percentualTributos: "% Tributos", spedTipoItem: "Tipo do item",
 };
+
+/** O texto da etiqueta do valor que o produto tinha antes de a proposta escrever no campo. */
+const ORIGEM_DO_ORIGINAL = "valor antes da proposta";
 
 // Mesmo valor escrito de outro jeito ("0.007" e 0,007; "8537.10.20" e "85371020"; caixa) nao e sugestao nova.
 function mesmoValor(campo, a, b) {
@@ -139,7 +156,8 @@ function mesmoValor(campo, a, b) {
 function textoDoPreco(opcao) {
   const margem = Number(opcao?.margem);
   const partes = [];
-  if (Number.isFinite(margem)) partes.push(`${Math.round(Math.abs(margem) <= 1 ? margem * 100 : margem)}% margem`);
+  // Uma casa decimal: desde 24/10/2026 a recomendada sai do preco do concorrente, e a margem vem quebrada (45,6%).
+  if (Number.isFinite(margem)) partes.push(`${Number((Math.abs(margem) <= 1 ? margem * 100 : margem).toFixed(1)).toLocaleString("pt-BR")}% margem`);
   if (opcao?.posicao?.posicao) partes.push(`${opcao.posicao.posicao}º de ${opcao.posicao.total}`);
   return partes.join(" · ");
 }
@@ -173,65 +191,100 @@ export function valoresDaProposta(secoes) {
   return valores;
 }
 
+const objeto = (valor) => (valor && typeof valor === "object" && !Array.isArray(valor) ? valor : {});
+
 /**
- * A proposta direto no formulario (pedido do dono em 22/10/2026; plano `2026-10-22-proposta-no-formulario.md`), CAMPO A
- * CAMPO (pedido do dono em 23/10/2026: "os campos que eu ajustei deixam de ser recarregados pela proposta; os que eu nao
- * mexi podem ser recarregados"). `aplicadas` guarda, a cada Salvar (`decisoesDosCampos`), o que ficou com o valor da
- * proposta (`daProposta`) e o que o dono mudou (`editados`). Ao abrir:
- * - campo que o dono EDITOU e salvou: nunca e preenchido; se difere, a proposta so vai para a lista do icone;
- * - campo VAZIO: recebe o valor da proposta (marca "PROPOSTA");
- * - campo que ainda tem o valor que a proposta pos antes (o dono nao mexeu) e a proposta mudou: recebe o novo;
- * - a descricao que nunca passou por um Salvar com a proposta troca (decisao D); depois disso, vale a regra acima;
- * - campo com valor do proprio dono (de antes da proposta): a proposta so vai para a lista do icone;
- * - o codigo so vale para produto sem SKU; o titulo nunca (as 3 opcoes ficam em "Escolher o titulo").
+ * A proposta direto no formulario, CAMPO A CAMPO. Regra de 24/10/2026 (pedido do dono: "Proposta escrita direto no
+ * campo, com o original na lista"; antes so o campo vazio era preenchido). `aplicadas` guarda, a cada Salvar
+ * (`decisoesDosCampos`), o que ficou com o valor da proposta (`daProposta`), o que o dono mudou (`editados`) e o valor
+ * que o produto tinha antes da proposta (`originais`). Ao abrir, nos `CAMPOS_QUE_A_PROPOSTA_TROCA`:
+ * - campo que o dono EDITOU e salvou: nunca e trocado; se difere, a proposta so vai para a lista do icone ("Proposta");
+ * - campo com valor diferente do da proposta: recebe o valor da proposta (marca "PROPOSTA"), e o valor de antes vai para
+ *   a lista com a etiqueta "Original" (o primeiro valor do dono, mesmo que a proposta ja tenha trocado o campo antes);
+ * - campo que ja tem o valor que a proposta pos num Salvar anterior: nao muda, mas CONTINUA marcado (`marcados`; pedido
+ *   do dono: "ao salvar some a tag de proposta"), com o original na lista;
+ * - o codigo so entra no produto sem SKU; o titulo nunca.
  *
  * @param {Record<string, any>} secoes `PropostaDeProduto.secoes`
  * @param {Record<string, unknown>} produto os valores do formulario agora (campo do formulario -> valor)
- * @param {{ editados?: string[], daProposta?: Record<string, unknown> }} [aplicadas] `PropostaDeProduto.aplicadas`
- * @returns {{ preencher: Record<string, unknown>, nasListas: Record<string, { valor: unknown, origem: string, rotulo: string }>, secoes: string[] }}
+ * @param {{ editados?: string[], daProposta?: Record<string, unknown>, originais?: Record<string, unknown> }} [aplicadas]
+ * @returns {{ preencher: Record<string, unknown>, marcados: Record<string, unknown>, nasListas: Record<string, { valor: unknown, origem: string, rotulo: string, tipo: "proposta"|"original" }>, secoes: string[] }}
  */
 export function propostaNoFormulario(secoes, produto = {}, aplicadas = {}) {
   const editados = new Set(Array.isArray(aplicadas?.editados) ? aplicadas.editados : []);
-  const anteriores = aplicadas?.daProposta && typeof aplicadas.daProposta === "object" ? aplicadas.daProposta : {};
+  const anteriores = objeto(aplicadas?.daProposta);
+  const originais = objeto(aplicadas?.originais);
+  const trocaveis = new Set(CAMPOS_QUE_A_PROPOSTA_TROCA);
   const preencher = {};
+  const marcados = {};
   const nasListas = {};
   const preenchidas = new Set();
+  const naLista = (campo, valor, origem, tipo) => {
+    nasListas[campo] = { valor, origem, rotulo: ROTULO_DO_CAMPO[campo] ?? campo, tipo };
+  };
   for (const [campo, { secao, valor, origem }] of Object.entries(valoresDaProposta(secoes))) {
     const atual = produto[campo];
-    if (campo === "sku" && temValor(atual)) continue;
-    if (igual(campo, atual, valor)) continue;
-    const intocado =
-      !editados.has(campo) &&
-      (!temValor(atual) ||
-        (Object.hasOwn(anteriores, campo) && igual(campo, atual, anteriores[campo])) ||
-        (campo === "descricaoBase" && !Object.hasOwn(anteriores, campo)));
-    if (intocado) {
+    if (campo === "sku") {
+      if (!temValor(atual)) {
+        preencher.sku = valor;
+        preenchidas.add(secao);
+      }
+      continue;
+    }
+    if (!trocaveis.has(campo)) continue;
+    if (editados.has(campo)) {
+      if (!igual(campo, atual, valor)) naLista(campo, valor, origem, "proposta");
+      continue;
+    }
+    // O campo ainda tem o valor que a proposta pos num Salvar anterior: o "original" e o guardado naquele Salvar.
+    const daPropostaAntes = Object.hasOwn(anteriores, campo) && igual(campo, atual, anteriores[campo]);
+    const original = daPropostaAntes ? originais[campo] : atual;
+    if (igual(campo, atual, valor)) {
+      // Ja tem o valor: so continua marcado quando ele veio da proposta (o produto que ja tinha o mesmo valor, nao).
+      if (!daPropostaAntes) continue;
+      marcados[campo] = valor;
+    } else {
       preencher[campo] = valor;
       preenchidas.add(secao);
-    } else if (campo !== "descricaoBase" && temValor(atual)) {
-      nasListas[campo] = { valor, origem, rotulo: ROTULO_DO_CAMPO[campo] ?? campo };
     }
+    if (temValor(original) && !igual(campo, original, valor)) naLista(campo, original, ORIGEM_DO_ORIGINAL, "original");
   }
-  return { preencher, nasListas, secoes: [...preenchidas] };
+  return { preencher, marcados, nasListas, secoes: [...preenchidas] };
 }
 
 /**
  * Depois do Salvar: o que cada campo da proposta virou (pedido do dono em 23/10/2026). Campo salvo com o valor da
- * proposta vai para `daProposta` (pode ser recarregado se a proposta mudar); campo que veio da proposta (preenchido
- * nesta abertura ou num Salvar anterior) e foi MUDADO pelo dono vai para `editados` (nunca mais recarregado, ate o dono
- * escolher o valor da proposta de novo). Campo com valor proprio do dono que nunca veio da proposta nao entra.
+ * proposta vai para `daProposta` (pode ser recarregado se a proposta mudar, e continua com a marca); campo que veio da
+ * proposta (preenchido nesta abertura ou num Salvar anterior) e foi MUDADO pelo dono vai para `editados` (nunca mais
+ * trocado, ate o dono escolher o valor da proposta de novo). Campo com valor proprio do dono que nunca veio da proposta
+ * nao entra.
+ *
+ * `originais` (24/10/2026): o valor que o campo tinha ANTES de a proposta escrever nele, lido do produto antes deste
+ * Salvar (`antes`). So muda quando o valor de antes nao era o que a proposta tinha posto (senao o original de verdade,
+ * guardado num Salvar anterior, se perderia).
  *
  * @param {Record<string, any>} secoes `PropostaDeProduto.secoes`
  * @param {Record<string, unknown>} salvo o produto gravado (campo do formulario -> valor)
- * @param {{ editados?: string[], daProposta?: Record<string, unknown> }} aplicadas o que estava guardado
+ * @param {{ editados?: string[], daProposta?: Record<string, unknown>, originais?: Record<string, unknown> }} aplicadas o que estava guardado
  * @param {string[]} preenchidosAgora os campos que a proposta preencheu ao abrir esta edicao
- * @returns {{ editados: string[], daProposta: Record<string, unknown> }}
+ * @param {Record<string, unknown>} [antes] o produto como estava antes deste Salvar
+ * @returns {{ editados: string[], daProposta: Record<string, unknown>, originais: Record<string, unknown> }}
  */
-export function decisoesDosCampos(secoes, salvo, aplicadas = {}, preenchidosAgora = []) {
+export function decisoesDosCampos(secoes, salvo, aplicadas = {}, preenchidosAgora = [], antes = {}) {
   const editados = new Set(Array.isArray(aplicadas?.editados) ? aplicadas.editados : []);
-  const daProposta = { ...(aplicadas?.daProposta && typeof aplicadas.daProposta === "object" ? aplicadas.daProposta : {}) };
+  const anteriores = objeto(aplicadas?.daProposta);
+  const daProposta = { ...anteriores };
+  const originais = { ...objeto(aplicadas?.originais) };
   const agora = new Set(preenchidosAgora);
   for (const [campo, { valor }] of Object.entries(valoresDaProposta(secoes))) {
+    if (agora.has(campo) && Object.hasOwn(antes ?? {}, campo)) {
+      const valorAntes = antes[campo];
+      const eraDaProposta = Object.hasOwn(anteriores, campo) && igual(campo, valorAntes, anteriores[campo]);
+      if (!eraDaProposta) {
+        if (temValor(valorAntes)) originais[campo] = valorAntes;
+        else delete originais[campo];
+      }
+    }
     if (igual(campo, salvo?.[campo], valor)) {
       daProposta[campo] = valor;
       editados.delete(campo);
@@ -240,5 +293,5 @@ export function decisoesDosCampos(secoes, salvo, aplicadas = {}, preenchidosAgor
       delete daProposta[campo];
     }
   }
-  return { editados: [...editados], daProposta };
+  return { editados: [...editados], daProposta, originais };
 }
