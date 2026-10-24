@@ -215,28 +215,8 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
           />
           <div className="mt-1">
             <ListaDeOpcoes rotulo="Escolher a descrição" aberta={aberta === "description"} aoAlternar={alternar("description")} carregando={concorrentes.carregando || gerando}>
-              <p className={SECAO}>Dos concorrentes ({comDescription.length})</p>
-              {avisoDaLista}
-              {!concorrentes.carregando && comDescription.length === 0 && (
-                <p className="px-2 pb-2 text-xs text-suave">Nenhum concorrente salvo com descrição coletada. Vincule concorrentes no cadastro do produto.</p>
-              )}
-              <ul className="max-h-60 space-y-1 overflow-y-auto">
-                {comDescription.map((item) => (
-                  <Opcao
-                    key={item.id}
-                    texto={cortarNaFrase(item.description, LIMITE_DA_DESCRIPTION_SEO)}
-                    detalhe={
-                      <>
-                        <DeOnde item={item} />
-                        {item.description.length > LIMITE_DA_DESCRIPTION_SEO && <span>(o original tem {item.description.length}; vai cortado na frase)</span>}
-                      </>
-                    }
-                    aoEscolher={escolherDescription}
-                  />
-                ))}
-              </ul>
-
-              <div className="mt-2 border-t border-borda pt-2">
+              {/* "Com IA" no TOPO (pedido do dono em 24/10/2026): no fim, com muitos concorrentes, ficava abaixo da tela. */}
+              <div className="mb-2 border-b border-borda pb-2">
                 <p className={SECAO}>Com IA</p>
                 {opcoesIA.length > 0 && (
                   <ul className="space-y-1">
@@ -271,6 +251,27 @@ export default function AbaSEO({ rascunho, contexto, alterar, problemas, vinculo
                 {/* Quanto custou a ultima geracao (pedido do dono em 12/10/2026). */}
                 <GastoDaIA gasto={gastoIA} className="px-2 pt-1" />
               </div>
+              <p className={SECAO}>Dos concorrentes ({comDescription.length})</p>
+              {avisoDaLista}
+              {!concorrentes.carregando && comDescription.length === 0 && (
+                <p className="px-2 pb-2 text-xs text-suave">Nenhum concorrente salvo com descrição coletada. Vincule concorrentes no cadastro do produto.</p>
+              )}
+              <ul className="max-h-48 space-y-1 overflow-y-auto">
+                {comDescription.map((item) => (
+                  <Opcao
+                    key={item.id}
+                    texto={cortarNaFrase(item.description, LIMITE_DA_DESCRIPTION_SEO)}
+                    detalhe={
+                      <>
+                        <DeOnde item={item} />
+                        {item.description.length > LIMITE_DA_DESCRIPTION_SEO && <span>(o original tem {item.description.length}; vai cortado na frase)</span>}
+                      </>
+                    }
+                    aoEscolher={escolherDescription}
+                  />
+                ))}
+              </ul>
+
             </ListaDeOpcoes>
           </div>
         </div>
