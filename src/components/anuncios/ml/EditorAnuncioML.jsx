@@ -260,9 +260,11 @@ export default function EditorAnuncioML({
     </div>
   );
 
-  // `inert` tira foco, clique e teclado da barra e dos paineis de uma vez (os campos continuam montados).
+  // `inert` tira foco, clique e teclado dos paineis (os campos continuam montados). A BARRA de abas fica livre no anuncio
+  // publicado ou parado na publicacao (pedido do dono em 24/10/2026: ele quer olhar as outras abas); so trava durante o
+  // primeiro Salvar de um anuncio novo, quando a tela vai trocar de endereco.
   const barra = (
-    <div inert={bloqueado && !somenteLeitura}>
+    <div inert={travado}>
       <BarraDeAbas
         abas={ABAS_ML}
         aba={aba}
