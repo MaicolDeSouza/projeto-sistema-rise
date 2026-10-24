@@ -1404,7 +1404,7 @@ export async function consultarEstoqueFornecedores(vinculos) {
     const produtos = await prisma.produtoColetado.findMany({
       where: { OR: criterios, fonte: { tipo: "FORNECEDOR" } },
       select: {
-        id: true, codigo: true, url: true, quantidade: true, aChegar: true, estoqueStatus: true,
+        id: true, codigo: true, url: true, quantidade: true, aChegar: true, estoqueStatus: true, ausenteDesde: true,
         precoNormal: true, precoComImpostos: true, precoReserva: true, impostos: true,
         precosPorQuantidade: true,
         fonte: { select: { nome: true, dominio: true } },
@@ -1424,6 +1424,10 @@ export async function consultarEstoqueFornecedores(vinculos) {
         quantidade: produto.quantidade,
         aChegar: produto.aChegar,
         disponivel: ["AVAILABLE", "IN_STOCK"].includes(produto.estoqueStatus),
+        // Os tres campos de `situacaoDeEstoque`, a regra da coluna Estoque dos concorrentes (pedido do dono em
+        // 24/10/2026: o mesmo texto nas duas abas). `ativo` falso = saiu da lista do fornecedor.
+        estoqueStatus: produto.estoqueStatus,
+        ativo: produto.ausenteDesde === null,
         precoNormal: produto.precoNormal == null ? null : Number(produto.precoNormal),
         precoComImpostos: produto.precoComImpostos == null ? null : Number(produto.precoComImpostos),
         precoReserva: produto.precoReserva == null ? null : Number(produto.precoReserva),

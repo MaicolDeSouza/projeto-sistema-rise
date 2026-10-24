@@ -21,6 +21,7 @@ import {
 } from "@/app/produtos/acoes";
 import { precoComImpostoTexto, precoDaFaixaTexto } from "@/components/mercados/precoTexto";
 import { precoComImpostos as precoComImpostosCalc } from "@/lib/coleta/impostos";
+import { situacaoDeEstoque } from "@/lib/estoqueDoConcorrente";
 import CadastroRapidoFornecedor from "./CadastroRapidoFornecedor";
 import BuscaColetadoPorCodigo from "./BuscaColetadoPorCodigo";
 import FotoComLupa from "@/components/ui/FotoComLupa";
@@ -172,6 +173,27 @@ function CustoDaVarredura({ id, dado, aberto, aoAlternar }) {
       )}
     </div>
   );
+}
+
+/**
+ * Coluna "Estoque fornecedor": o MESMO texto e a mesma regra da coluna Estoque dos concorrentes (pedido do dono em
+ * 24/10/2026: "padronizar o texto para Em estoque e quantidade ou Sem estoque"). A regra mora em
+ * `situacaoDeEstoque`: quantidade zero e "Sem estoque" mesmo que a loja diga disponivel. "Fora da coleta" e o
+ * produto que saiu da lista do fornecedor; "Não informado", a fonte que nao diz.
+ */
+function EstoqueDoFornecedor({ dado }) {
+  const estado = situacaoDeEstoque(dado);
+  if (estado === "sem-estoque") return <span className="font-medium text-red-700">Sem estoque</span>;
+  if (estado === "fora-da-coleta") return <span className="text-suave">Fora da coleta</span>;
+  if (estado === "em-estoque") {
+    return (
+      <span className="font-medium text-emerald-700">
+        Em estoque
+        {dado.quantidade > 0 && <span className="block font-normal text-suave">{dado.quantidade} un.</span>}
+      </span>
+    );
+  }
+  return <span className="text-suave">Não informado</span>;
 }
 
 /**
@@ -531,13 +553,8 @@ export default function Fornecedores({
                   <td className="px-3 py-2 tabular-nums">
                     {!estoques[vinculo.id] ? (
                       <span className="text-suave">—</span>
-                    ) : estoques[vinculo.id].disponivel ? (
-                      <span className="text-emerald-700">
-                        estoque disponível
-                        {typeof estoques[vinculo.id].quantidade === "number" && `: ${estoques[vinculo.id].quantidade}`}
-                      </span>
                     ) : (
-                      <span className="text-red-600">sem estoque atual</span>
+                      <EstoqueDoFornecedor dado={estoques[vinculo.id]} />
                     )}
                     {estoques[vinculo.id]?.aChegar > 0 && (
                       <div className="text-[11px] text-amber-700">+{estoques[vinculo.id].aChegar} a chegar</div>
