@@ -56,6 +56,13 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   original (`telefone`, `email`); os demais vão para uma lista (`String[]`). Um `<input>` por linha
   com o mesmo `name`, lido com `formData.getAll`. Linha em branco sai e repetido vira um só.
 - **Marca e Modelo** sempre em MAIÚSCULAS (ver "Produtos: Buscar por código").
+- **% de lucro = MARKUP sobre o custo, nunca margem sobre o preço** (pedido do dono em 24/10/2026: "custo R$ 50 com 100%
+  = R$ 100"). Cadastro de Produto e edição rápida: `(preço − custo) ÷ custo`, sem o imposto (`calcularMarkup` em
+  `lib/margem.js`; o R$ continua líquido). Mercado Livre: o lucro com comissão, tarifa, frete e imposto ÷ custo
+  (`custosDoAnuncio().markup`; o modo "percentual" do `precoPorMargem` é % do custo). Proposta de produto: opções de 60,
+  80 e 100% e aviso abaixo de 60%; proposta do ML: piso de 40% com as taxas. Propostas gravadas antes guardaram `margem` e
+  aparecem como margem. Os nomes antigos (`calcularMargem`, `CalculadoraDeMargem`, `dado.margem`) ficaram; tela nova
+  mostra markup. **As seções abaixo que falam de "margem" de 30% ou 60% descrevem o que valia antes.**
 
 **Interface**
 
