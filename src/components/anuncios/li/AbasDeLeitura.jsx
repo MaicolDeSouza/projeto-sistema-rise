@@ -1,9 +1,10 @@
 "use client";
 
-import { ExternalLink, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, ExternalLink } from "lucide-react";
 
 import MensagensDoCampo from "@/components/anuncios/ml/MensagensDoCampo";
-import { ORIGENS, TIPOS_PRODUCAO } from "@/lib/fiscal";
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import { ORIGENS_DA_LI, ROTULO_DO_TIPO_PRODUCAO } from "@/lib/canaisDeVenda/li/rotulos";
 
 /**
  * As abas so de leitura do anuncio da Loja Integrada: Fiscal e Envio. Os valores sao do cadastro do
@@ -14,8 +15,6 @@ import { ORIGENS, TIPOS_PRODUCAO } from "@/lib/fiscal";
 const vazio = (valor) => valor === null || valor === undefined || String(valor).trim() === "";
 const MEDIDA = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
 
-const rotuloDaOrigem = (valor) => ORIGENS.find((item) => item.valor === valor)?.rotulo ?? null;
-const rotuloDoTipo = (valor) => TIPOS_PRODUCAO.find((item) => item.valor === valor)?.rotulo ?? null;
 
 /** O produto no painel de administracao da LI (pedido do dono em 07/10/2026). */
 export function linkDoPainelLI(idExterno) {
@@ -44,102 +43,121 @@ export function EditarNoProduto({ abrirProduto, className = "text-xs" }) {
   );
 }
 
-const ROTULO_DO_CAMPO_FISCAL = { origem: "Origem", tipoProducao: "Tipo de produção" };
-
-function valorFiscal(campo, valor) {
-  if (valor === null || valor === undefined) return null;
-  return campo === "origem" ? rotuloDaOrigem(valor) : rotuloDoTipo(valor);
-}
-
 /**
- * O que o dono precisa mudar NO PAINEL da LI: a API nao grava origem nem tipo de producao (medido em
- * 07/10/2026, no PUT e no POST). Aviso grande, com o link direto ao produto no admin da loja.
+ * Um campo das "Informacoes Fiscais" no molde do painel da Loja Integrada (pedido do dono em 24/10/2026: olhar o Rise e
+ * saber EXATAMENTE o que escolher na LI). A caixa mostra a opcao que a loja deve ter (a do cadastro do produto), com o
+ * texto da LI; embaixo, como a loja esta. So leitura: a API da LI nao grava estes campos (medido em 07/10/2026).
  */
-function AjustesNoPainel({ leitura, idExterno }) {
-  if (!leitura) return <p className="rounded border border-borda bg-fundo p-3 text-xs text-suave">Lendo a Loja Integrada para conferir origem e tipo de produção...</p>;
-  if (!leitura.ok) return null;
-  if (leitura.situacao === "nao_existe") {
-    return (
-      <p className="rounded border border-borda bg-fundo p-3 text-xs text-suave">
-        O produto ainda não está na loja. Depois de &quot;Cadastrar na LI&quot;, confira origem e tipo de produção no painel da Loja Integrada: a API não os grava.
-      </p>
-    );
-  }
-  const link = linkDoPainelLI(idExterno);
-  const fiscais = leitura.fiscais ?? [];
-  if (fiscais.length === 0) {
-    return (
-      <p className="rounded border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
-        Origem e tipo de produção na loja conferem com o Rise.
-        {link && (
-          <>
-            {" "}
-            <a href={link} target="_blank" rel="noreferrer" className="font-medium underline">
-              Abrir no painel da LI
-            </a>
-          </>
-        )}
-      </p>
-    );
-  }
+function CampoFiscalDaLI({ rotulo, deve, naLoja, situacao }) {
+  const igual = situacao === "igual";
+  const borda = situacao === "diferente" || situacao === "vazio" ? "border-amber-400 bg-amber-50" : igual ? "border-emerald-300" : "border-borda";
   return (
-    <section aria-label="Ajustar no painel da Loja Integrada" className="rounded-lg border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
-      <p className="flex items-center gap-2 text-base font-semibold">
-        <TriangleAlert size={20} className="shrink-0" />
-        Ajuste no painel da Loja Integrada
+    <div>
+      <p className="mb-1.5 text-sm font-semibold">{rotulo}</p>
+      <div className={`flex min-h-11 items-center justify-between gap-2 rounded border px-3 py-2 text-sm ${borda}`}>
+        <span className={deve ? "" : "text-suave italic"}>{deve ?? "Não definido no cadastro do produto"}</span>
+        <ChevronDown size={16} className="shrink-0 text-suave" />
+      </div>
+      <p className="mt-1.5 flex items-start gap-1.5 text-xs">
+        {igual && (
+          <span className="flex items-center gap-1 text-emerald-700">
+            <Check size={13} /> Igual na Loja Integrada
+          </span>
+        )}
+        {situacao === "diferente" && (
+          <span className="text-amber-800">
+            Na LI está: <span className="font-semibold">{naLoja}</span>. Escolha a opção acima.
+          </span>
+        )}
+        {situacao === "vazio" && <span className="text-amber-800">Na LI está vazio (a nota usa o padrão do emissor). Escolha a opção acima.</span>}
+        {situacao === "lendo" && <span className="text-suave">Lendo a Loja Integrada...</span>}
+        {situacao === "fora" && <span className="text-suave">O produto ainda não está na loja: escolha esta opção depois de cadastrar.</span>}
       </p>
-      <p className="mt-1 text-sm">A API da Loja Integrada não grava estes campos: o Sincronizar não consegue mudar. Altere-os no produto, no painel da loja:</p>
-      <ul className="mt-3 space-y-2">
-        {fiscais.map((item) => (
-          <li key={item.campo} className="rounded border border-amber-300 bg-white/70 px-3 py-2 text-sm">
-            <span className="font-semibold">{ROTULO_DO_CAMPO_FISCAL[item.campo] ?? item.campo}:</span> colocar{" "}
-            <span className="font-semibold">{valorFiscal(item.campo, item.rise) ?? "o do Rise"}</span>
-            <span className="text-amber-800">
-              {" "}
-              (na loja: {item.li === null ? "vazio, a nota usa o padrão do emissor" : valorFiscal(item.campo, item.li)})
-            </span>
-          </li>
-        ))}
-      </ul>
-      {link ? (
-        <a
-          href={link}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 inline-flex items-center gap-1.5 rounded bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600"
-        >
-          Abrir o produto no painel da LI
-          <ExternalLink size={14} />
-        </a>
-      ) : (
-        <p className="mt-3 text-xs">O link do painel aparece quando o anúncio estiver vinculado ao produto da loja.</p>
-      )}
-      {link && <p className="mt-1 text-[11px] break-all text-amber-800">{link}</p>}
-    </section>
+    </div>
   );
 }
 
+/** Como a loja esta para o campo: igual, diferente, vazio, lendo ou fora (produto que nao esta na loja). */
+function situacaoFiscal(leitura, campo, deRise) {
+  if (!leitura) return "lendo";
+  if (!leitura.ok) return null;
+  if (leitura.situacao === "nao_existe") return "fora";
+  if (deRise === null || deRise === undefined) return null;
+  const daLoja = leitura.daLoja?.[campo] ?? null;
+  if (daLoja === null) return "vazio";
+  // O codigo da origem pode chegar como numero ou texto: compara o texto.
+  return String(daLoja) === String(deRise) ? "igual" : "diferente";
+}
+
+const textoDaOrigem = (valor) => (valor === null || valor === undefined ? null : (ORIGENS_DA_LI[valor] ?? String(valor)));
+const textoDoTipo = (valor) => (valor ? (ROTULO_DO_TIPO_PRODUCAO[valor] ?? valor) : null);
+
 /**
- * Fiscal: o que a NF-e nativa da LI usa. NCM e GTIN vao no Sincronizar; origem e tipo de producao a
- * API da LI NAO grava (medido em 07/10/2026): a leitura da loja (feita pelo editor ao abrir) diz o
- * que a loja tem, e o aviso grande lista o que mudar no painel.
+ * Tributacao: as "Informacoes Fiscais" da Loja Integrada (tipo de producao e origem da mercadoria, so no painel da LI) e,
+ * embaixo, NCM e GTIN (esses vao no Sincronizar). A leitura da loja (feita pelo editor ao abrir) diz como a loja esta.
  */
 export function AbaFiscal({ contexto, problemas, leitura, vinculo, abrirProduto }) {
   const produto = contexto.produto ?? {};
+  const tipo = situacaoFiscal(leitura, "tipoProducao", produto.tipoProducao);
+  const origem = situacaoFiscal(leitura, "origem", produto.origem);
+  const mudar = [tipo, origem].some((situacao) => situacao === "diferente" || situacao === "vazio");
+  const link = linkDoPainelLI(vinculo?.idExterno ?? leitura?.idExterno);
   return (
-    <div className="space-y-4">
-      <AjustesNoPainel leitura={leitura} idExterno={vinculo?.idExterno ?? leitura?.idExterno} />
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">Dados da nota fiscal (do cadastro do produto)</p>
-        <EditarNoProduto abrirProduto={abrirProduto} />
+    <div className="space-y-5">
+      <section aria-label="Informações Fiscais da Loja Integrada" className="rounded-lg border border-borda">
+        <div className="flex items-center justify-between gap-3 border-b border-borda px-4 py-3">
+          <div className="flex items-center gap-1 text-base font-semibold">
+            Informações Fiscais
+            <BolhaDeAjuda
+              variante="inline"
+              texto="Os dois campos como estão no painel da Loja Integrada (produto, Informações Fiscais). A API da LI não grava estes campos: o que estiver diferente se muda no painel. O valor certo vem do cadastro do produto."
+            />
+          </div>
+          <EditarNoProduto abrirProduto={abrirProduto} />
+        </div>
+        <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
+          <CampoFiscalDaLI
+            rotulo="Tipo de produção"
+            deve={textoDoTipo(produto.tipoProducao)}
+            naLoja={textoDoTipo(leitura?.daLoja?.tipoProducao)}
+            situacao={tipo}
+          />
+          <CampoFiscalDaLI
+            rotulo="Origem da mercadoria"
+            deve={textoDaOrigem(produto.origem)}
+            naLoja={textoDaOrigem(leitura?.daLoja?.origem)}
+            situacao={origem}
+          />
+        </div>
+        {link && (
+          <div className="border-t border-borda px-4 py-3">
+            {mudar ? (
+              <a
+                href={link}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+              >
+                Abrir o produto no painel da LI para mudar
+                <ExternalLink size={14} />
+              </a>
+            ) : (
+              <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-acento hover:underline">
+                Abrir no painel da LI <ExternalLink size={12} />
+              </a>
+            )}
+          </div>
+        )}
+      </section>
+
+      <div>
+        <p className="mb-2 text-sm font-semibold">Vão no Sincronizar (do cadastro do produto)</p>
+        <div className="rounded border border-borda px-3">
+          <Linha rotulo="NCM" valor={produto.ncm} />
+          <Linha rotulo="GTIN / EAN" valor={produto.ean} nota={vazio(produto.ean) && leitura?.daLoja?.gtin ? `na loja: ${leitura.daLoja.gtin}` : null} />
+        </div>
+        <MensagensDoCampo problemas={problemas} campo={["ncm", "gtin"]} />
       </div>
-      <div className="rounded border border-borda px-3">
-        <Linha rotulo="NCM" valor={produto.ncm} />
-        <Linha rotulo="GTIN / EAN" valor={produto.ean} nota={vazio(produto.ean) && leitura?.daLoja?.gtin ? `na loja: ${leitura.daLoja.gtin}` : null} />
-        <Linha rotulo="Origem" valor={rotuloDaOrigem(produto.origem)} nota="só leitura na LI: ajuste no painel" />
-        <Linha rotulo="Tipo de produção" valor={rotuloDoTipo(produto.tipoProducao)} nota="só leitura na LI: ajuste no painel" />
-      </div>
-      <MensagensDoCampo problemas={problemas} campo={["ncm", "gtin"]} />
     </div>
   );
 }
