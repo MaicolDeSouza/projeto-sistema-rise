@@ -526,8 +526,8 @@ try {
         conferir("contexto: Decimal vira Number", [ctx[p1.id].precoVenda, ctx[p1.id].pesoKg, ctx[p1.id].alturaCm, ctx[p1.id].larguraCm, ctx[p1.id].comprimentoCm, ctx[p1.id].estoque], [10, 0.05, 2, 3, 4, 9]);
         conferir("contexto: sem preco nem peso e null, nao zero", [ctx[p2.id].precoVenda, ctx[p2.id].pesoKg], [null, null]);
         conferir("contexto: so fotos, na ordem do banco, com o endereco calculado", ctx[p1.id].imagens, [
-          { id: fotoA.id, url: `/api/arquivos/ZZ-ML-1/imagens/${fotoA.arquivo}`, principal: false },
-          { id: fotoB.id, url: `/api/arquivos/ZZ-ML-1/imagens/${fotoB.arquivo}`, principal: true },
+          { id: fotoA.id, arquivo: fotoA.arquivo, url: `/api/arquivos/ZZ-ML-1/imagens/${fotoA.arquivo}`, principal: false },
+          { id: fotoB.id, arquivo: fotoB.arquivo, url: `/api/arquivos/ZZ-ML-1/imagens/${fotoB.arquivo}`, principal: true },
         ]);
 
         conferir("busca por codigo acha o Conferido", (await buscarProdutoParaAnuncio("ZZ-ML-1")).produto.id, p1.id);
