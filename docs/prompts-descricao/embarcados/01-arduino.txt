@@ -22,7 +22,7 @@ Marca: a marca do cadastro do produto; nunca o nome da loja.
 
 Modelo: família, revisão e variante, como “UNO R3 SMD”, “Mega 2560 R3”, “Nano V3”, “Pro Mini 5V 16MHz”, “UNO R4 WiFi”. Escreva “Arduino” no modelo somente quando o cadastro indicar produto original; placa compatível é “compatível com Arduino UNO R3”.
 
-Microcontrolador: o componente principal, como ATmega328P, ATmega2560, ATmega32U4 ou RA4M1. Não confunda com o chip da interface USB nem com o módulo sem fio.
+Microcontrolador: o componente principal, como ATmega328P ou RA4M1. Não confunda com o chip da interface USB nem com o módulo sem fio.
 
 Frequência de Clock: substitui Clock, Velocidade (do) Clock, Clock Speed e Clock Máximo. Quando a fonte informar um máximo, indique “até” no valor.
 
@@ -40,7 +40,7 @@ Interfaces de Comunicação: substitui Interfaces, Comunicação, Protocolos de 
 
 Conector USB: o conector físico, como USB-B, Mini USB, Micro USB ou USB-C. Substitui Conexão, Conector, Porta USB, Interface USB, Padrão USB e USB. Não confunda com o chip de interface ou a versão do protocolo.
 
-Chip de Interface USB: substitui Chip USB, Conversor USB-Serial e Controlador USB. Quando o microcontrolador tem USB nativo (ATmega32U4, RA4M1, SAM3X), o valor é “USB nativo do microcontrolador”. Placa sem USB: “Não possui”.
+Chip de Interface USB: substitui Chip USB, Conversor USB-Serial e Controlador USB. Quando o microcontrolador tem USB nativo (ATmega32U4, RA4M1, SAM3X), o valor é “USB nativo do microcontrolador”. Placa sem USB: “Não possui”. Com CH340, escreva exatamente “CH340 (Necessário instalação do drive no PC)”.
 
 Corrente Contínua por Pino: substitui Corrente pinos I/O, Corrente DC por pino I/O e Corrente por pino. Corrente Disponível na Saída 3,3V: substitui Corrente pinos 3,3V e Corrente DC para pino 3.3V.
 
