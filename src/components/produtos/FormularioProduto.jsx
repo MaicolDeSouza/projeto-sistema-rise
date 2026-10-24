@@ -1723,6 +1723,11 @@ function DocumentosDoProduto({
   const entrada = useRef(null);
   // Arrastar (pedido do dono em 24/10/2026: setas e "clicando e arrastando", no padrao de mover as caracteristicas).
   const [arrastado, setArrastado] = useState(null);
+  // O documento que acabou de mudar de lugar fica verde por alguns segundos (pedido do dono em 24/10/2026: "para eu ver
+  // para onde mudou"). Um relogio so: mover de novo reinicia a contagem.
+  const [destacado, setDestacado] = useState(null);
+  const relogioDoDestaque = useRef(null);
+  useEffect(() => () => clearTimeout(relogioDoDestaque.current), []);
   const [destino, setDestino] = useState(null);
 
   // Gravados e enviados numa lista so, na ordem que o dono deu (`ordem`: "id:<id>" do gravado, "tmp:<nome>" do enviado).
@@ -1742,6 +1747,9 @@ function DocumentosDoProduto({
     const [movida] = chaves.splice(de, 1);
     chaves.splice(para, 0, movida);
     aoReordenar?.(chaves);
+    setDestacado(movida);
+    clearTimeout(relogioDoDestaque.current);
+    relogioDoDestaque.current = setTimeout(() => setDestacado(null), 2500);
   }
 
   function aoEscolher(evento) {
@@ -1820,7 +1828,12 @@ function DocumentosDoProduto({
               <GripVertical size={14} />
             </span>
           );
-          const realce = destino === indice && arrastado !== null && arrastado !== indice ? "ring-2 ring-acento/40" : "";
+          const realce =
+            destino === indice && arrastado !== null && arrastado !== indice
+              ? "ring-2 ring-acento/40"
+              : destacado === item.chave
+                ? "!border-emerald-400 !bg-emerald-50 ring-2 ring-emerald-300 transition-colors duration-500"
+                : "transition-colors duration-500";
           const arquivo = item.salvo;
           if (!arquivo) {
             const temporario = item.temporario;
