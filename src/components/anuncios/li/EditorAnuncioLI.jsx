@@ -6,12 +6,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter } from "next/navigation";
 import { CircleCheck, ExternalLink, Loader, X } from "lucide-react";
 
-import { abrirAnuncioLI, ligarNoBlingDaLI, listarCategoriasLI, listarMarcasLI, salvarAnuncioLI, vinculoBlingLI } from "@/app/canais-de-venda/loja-integrada/acoes";
-import { abrirJanelaLI, cadastrarProdutoNaLI, sincronizarComLI } from "@/app/produtos/acoes-li";
+import { abrirAnuncioLI, listarCategoriasLI, listarMarcasLI, salvarAnuncioLI, vinculoBlingLI } from "@/app/canais-de-venda/loja-integrada/acoes";
+import { abrirJanelaLI, cadastrarProdutoNaLI, completarCadastroNaLI, sincronizarComLI } from "@/app/produtos/acoes-li";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { mudouNaLI, resumirEnvioLI } from "@/lib/canaisDeVenda/li/apresentacao";
+import { ROTULO_DA_ETAPA_LI, faltaNoCadastroLI, ofereceCompletar } from "@/lib/canaisDeVenda/li/etapasCadastro";
 import { STATUS_LI } from "@/lib/canaisDeVenda/li/rotulos";
 import { ABAS_LI, validarRascunhoLI } from "@/lib/canaisDeVenda/li/validacao";
 import AbaCategorias from "./AbaCategorias";
@@ -354,23 +355,37 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
 
   // Produto sem o canal da LI no Bling: aviso no topo (estoque e pedidos nao passam). Ligado, so na Previa.
   const estadoDoBling = situacaoDoBling(bling);
-  const avisoDoBling = estadoDoBling && estadoDoBling.tipo === "atencao" ? estadoDoBling.texto : null;
-  // So o produto que ja esta na LI e no Bling, sem o canal, pode ser ligado daqui.
-  const podeLigarNoBling = acessos.sincronizar && bling?.ok && bling.situacao === "sem_vinculo" && Boolean(vinculoAtual?.idExterno);
+  // O que falta no cadastro automatico (24/10/2026): a falha gravada ou o que a leitura da loja e do Bling mostra.
+  const cadastroFalhou = leitura?.ok ? leitura.cadastroFalhou : null;
+  const faltaNoCadastro = faltaNoCadastroLI({
+    idExterno: vinculoAtual?.idExterno ?? (leitura?.ok ? leitura.idExterno : null),
+    ativo: leitura?.ok ? leitura.ativoNaLI : null,
+    estoqueGerenciado: leitura?.ok ? leitura.estoqueGerenciado : null,
+    situacaoNoBling: bling?.ok ? bling.situacao : null,
+  });
+  const podeCompletar = acessos.sincronizar && ofereceCompletar({ falta: faltaNoCadastro, falhou: Boolean(cadastroFalhou) });
+  // O "Completar o cadastro" liga no Bling: o aviso de "sem vinculo" fica dentro da faixa dele.
+  const avisoDoBling = estadoDoBling && estadoDoBling.tipo === "atencao" && !(podeCompletar && faltaNoCadastro.includes("ligar_bling")) ? estadoDoBling.texto : null;
 
-  /** Cria no Bling o vinculo com a loja Loja_Integrada (sob as travas do Bling) e le de novo. */
-  function ligarNoBling() {
+  /** Liga no Bling, grava o estoque inicial e ativa o que falta (sob as travas da LI e do Bling) e le de novo. */
+  function completarCadastro() {
     setMensagem(null);
-    setQual("bling");
+    setEnvio(null);
+    setConclusao(null);
+    setQual("completar");
     iniciarTrabalho(async () => {
-      const resultado = await chamarEnvio(ligarNoBlingDaLI, produtoId);
+      const resultado = await chamarEnvio(completarCadastroNaLI, produtoId);
       if (!montado.current) return;
-      setMensagem(
-        resultado.ok
-          ? { tipo: "ok", texto: "Produto ligado à Loja Integrada no Bling: o Bling passa a mandar o estoque e a receber os pedidos dele." }
-          : { tipo: "erro", texto: resultado.erro ?? "O vínculo não foi criado." },
-      );
-      setBling(await chamar(vinculoBlingLI, produtoId));
+      const resumo = resumirEnvioLI("completar", resultado);
+      if (resultado.ok === true) setConclusao({ titulo: "Cadastro completo", mensagem: resumo?.titulo ?? null, linhas: resumo?.linhas ?? [] });
+      else {
+        setEnvio(resumo ? { ok: false, titulo: resumo.titulo, linhas: resumo.linhas } : null);
+        setMensagem({ tipo: "erro", texto: resultado.erro ?? "O cadastro não foi completado." });
+      }
+      if (mudouNaLI("completar", resultado)) {
+        setQual("lendo");
+        await lerLoja();
+      }
       setQual(null);
     });
   }
@@ -382,7 +397,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   } else if (leitura?.ok && leitura.situacao === "nao_existe") {
     situacaoDaLoja = {
       tipo: "info",
-      texto: `O código ${leitura.sku} não está na Loja Integrada. "Cadastrar na LI" cria o produto INATIVO com este anúncio e o preço do Rise; o estoque chega pelo Bling.`,
+      texto: `O código ${leitura.sku} não está na Loja Integrada. "Cadastrar na LI" cria o produto pausado com este anúncio e o preço do Rise, liga no Bling, grava o estoque do Bling na loja e ativa.`,
     };
   } else if (leitura?.vinculadoAgora) {
     situacaoDaLoja = { tipo: "ok", texto: `Vinculado agora pelo código (id ${leitura.idExterno}): as categorias e o destaque vieram da loja.` };
@@ -411,20 +426,25 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
           )}
         </div>
       )}
-      {avisoDoBling && (
-        <div className={`flex flex-wrap items-center gap-2 rounded border px-3 py-2 text-xs ${CLASSE_DA_MENSAGEM.atencao}`}>
-          <span className="min-w-0 flex-1">{avisoDoBling}</span>
-          {podeLigarNoBling && (
-            <button
-              type="button"
-              onClick={ligarNoBling}
-              disabled={ocupado}
-              className="inline-flex items-center gap-1.5 rounded border border-current px-2 py-1 font-medium hover:bg-white/50 disabled:opacity-60"
-            >
-              {qual === "bling" && <Loader size={12} className="animate-spin" />}
-              {qual === "bling" ? "Ligando..." : "Ligar à Loja Integrada no Bling"}
-            </button>
-          )}
+      {avisoDoBling && <div className={`rounded border px-3 py-2 text-xs ${CLASSE_DA_MENSAGEM.atencao}`}>{avisoDoBling}</div>}
+      {podeCompletar && (
+        <div role="status" className={`flex flex-wrap items-center gap-2 rounded border px-3 py-2 text-xs ${CLASSE_DA_MENSAGEM.atencao}`}>
+          <span className="min-w-0 flex-1">
+            <span className="font-medium">Cadastro incompleto na Loja Integrada.</span>{" "}
+            {cadastroFalhou
+              ? `Parou em "${ROTULO_DA_ETAPA_LI[cadastroFalhou.etapa] ?? cadastroFalhou.etapa}": ${cadastroFalhou.erro}`
+              : `Falta: ${faltaNoCadastro.map((etapa) => ROTULO_DA_ETAPA_LI[etapa].toLowerCase()).join(", ")}.`}
+          </span>
+          <button
+            type="button"
+            onClick={completarCadastro}
+            disabled={ocupado}
+            title="Liga no Bling, grava o estoque do Bling na loja e ativa o anúncio. O que já está feito não é refeito."
+            className="inline-flex items-center gap-1.5 rounded border border-current px-2 py-1 font-medium hover:bg-white/50 disabled:opacity-60"
+          >
+            {qual === "completar" && <Loader size={12} className="animate-spin" />}
+            {qual === "completar" ? "Completando..." : "Completar o cadastro"}
+          </button>
         </div>
       )}
       {situacaoDaLoja && (
@@ -440,7 +460,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     </>
   );
   const caixaDeConclusao = conclusao && <ConclusaoDoEnvio {...conclusao} aoFechar={() => setConclusao(null)} />;
-  const temAviso = Boolean(mensagem || envio || situacaoDaLoja || avisoDoBling || contexto.proposta);
+  const temAviso = Boolean(mensagem || envio || situacaoDaLoja || avisoDoBling || podeCompletar || contexto.proposta);
 
   const barra = (
     <div inert={travado}>

@@ -1,5 +1,6 @@
 import { assinaturaLI, normalizarDoRiseLI } from "./campos";
 import { rascunhoDoAnuncio } from "./banco";
+import { ROTULO_DA_ETAPA_LI } from "./etapasCadastro";
 
 export { produtoIdValido } from "@/lib/blingSync/estado";
 
@@ -21,16 +22,28 @@ export function estadoDoIconeLI({ conferido, sincronizadoEm, assinaturaGuardada,
   return { cor: semBling ? "cinza" : "verde", divergente, conferido: true, semBling };
 }
 
+/**
+ * O cadastro automatico que parou numa etapa (`dados.cadastroLI`, 24/10/2026) acende o "!" tambem, com a etapa no
+ * texto do icone. A chave `incompleto` so aparece com falha gravada.
+ */
+function cadastroIncompleto(anuncioLI) {
+  const etapa = anuncioLI?.dados?.cadastroLI?.etapa;
+  return etapa ? { incompleto: { etapa, rotulo: ROTULO_DA_ETAPA_LI[etapa] ?? etapa } } : {};
+}
+
 /** A assinatura atual e montada como o envio a grava: produto + rascunho + documentos. */
 export function iconeLIDoProduto(produto, anuncioLI, { documentos = [] } = {}) {
   const vinculadoAoBling = Boolean(produto?.blingId);
   if (!anuncioLI) return estadoDoIconeLI({ conferido: produto?.conferido, sincronizadoEm: null, vinculadoAoBling });
   const atual = assinaturaLI(normalizarDoRiseLI(produto, rascunhoDoAnuncio(anuncioLI), { documentos }));
-  return estadoDoIconeLI({
-    conferido: produto?.conferido,
-    vinculadoAoBling,
-    sincronizadoEm: anuncioLI.sincronizadoEm,
-    assinaturaGuardada: anuncioLI.hashConteudo,
-    assinaturaAtual: atual,
-  });
+  return {
+    ...estadoDoIconeLI({
+      conferido: produto?.conferido,
+      vinculadoAoBling,
+      sincronizadoEm: anuncioLI.sincronizadoEm,
+      assinaturaGuardada: anuncioLI.hashConteudo,
+      assinaturaAtual: atual,
+    }),
+    ...cadastroIncompleto(anuncioLI),
+  };
 }

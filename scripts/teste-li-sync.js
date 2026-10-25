@@ -538,7 +538,14 @@ try {
     conferir("trava fechada: recusa antes de qualquer chamada", [recusado.erro.includes("LI_ESCRITA"), recusado.etapa, li3.chamadas.length - chamadasAntesDaTrava], [true, "trava", 0]);
     conferir("mudouNaLI e resumirEnvioLI", [mudouNaLI("sincronizar", envio), resumirEnvioLI("sincronizar", { ok: true, alterados: [] }).titulo], [true, "Nada para enviar: a Loja Integrada já estava igual ao Rise."]);
     conferir("resumo do sincronizar lista os campos", resumirEnvioLI("sincronizar", { ok: true, alterados: [{ campo: "peso", de: null, para: 0.5 }] }, { peso: "Peso (kg)" }), { titulo: "Sincronizado com a Loja Integrada.", linhas: ["Peso (kg): de vazio para 0,5 kg"] });
-    conferir("resumo do cadastro", resumirEnvioLI("cadastrar", { ok: true, idExterno: "9" }).titulo, "Produto cadastrado na Loja Integrada (inativo).");
+    conferir("resumo do cadastro", resumirEnvioLI("cadastrar", { ok: true, idExterno: "9", etapas: ["criar", "ativar"] }), { titulo: "Produto cadastrado e ativo na Loja Integrada.", linhas: ["Criar o anúncio pausado: feito.", "Ativar o anúncio: feito."] });
+    conferir(
+      "resumo do cadastro que parou no Bling: etapa e o que fazer",
+      resumirEnvioLI("cadastrar", { ok: false, idExterno: "9", etapa: "ligar_bling", etapas: ["criar"] }).titulo,
+      'O cadastro parou em "Ligar à Loja Integrada no Bling". O produto está na Loja Integrada, pausado.',
+    );
+    conferir("resumo do cadastro que parou antes do conteudo terminar: como era", resumirEnvioLI("cadastrar", { ok: false, idExterno: "9", etapa: "seo", etapas: [] }).titulo, "O produto foi criado na Loja Integrada (id 9), mas o envio não terminou.");
+    conferir("completar muda a LI", [mudouNaLI("completar", { ok: true }), mudouNaLI("completar", { ok: false, idExterno: "9" }), mudouNaLI("completar", { ok: false })], [true, true, false]);
     conferir("valorParaTela", [valorParaTela("categorias", ["1", "2"]), valorParaTela("destaque", false), valorParaTela("altura", 3), valorParaTela("tipoProducao", "FABRICACAO_PROPRIA"), valorParaTela("ncm", null)], ["1, 2", "nao", "3 cm", "Fabricação própria", null]);
   }
 
@@ -1079,6 +1086,8 @@ try {
     conferir("Bling recusa o vinculo: para em ligar_bling, produto pausado", [falhou.ok, falhou.etapa, falhou.etapas, li2.produtos().at(-1).ativo], [false, "ligar_bling", ["criar"], false]);
     conferir("falha depois de criar: o '!' fica gravado e o status nao vira ERRO", [an2.dados?.cadastroLI?.etapa, an2.status, an2.situacaoCanal, /HTTP 400/.test(an2.erro ?? "")], ["ligar_bling", "PUBLICADO", "PAUSADA", true]);
     conferir("o editor ve a falha gravada", (await lerParaPopupLI(p2.id, li2)).cadastroFalhou?.etapa, "ligar_bling");
+    const iconeFalhou = iconeLIDoProduto({ ...(await prisma.produto.findUnique({ where: { id: p2.id } })), blingId: "1" }, an2, { documentos: [] });
+    conferir("o icone acende o '!' com a etapa em que parou", iconeFalhou.incompleto, { etapa: "ligar_bling", rotulo: "Ligar à Loja Integrada no Bling" });
     const completou = await completarCadastroLI(p2.id, li2, criarBlingDaLI({ saldo: -2 }));
     const an2b = await anuncioLIDoProduto(p2.id);
     conferir("completar: termina, sem segundo POST do produto, saldo negativo vira 0", [completou.ok, completou.etapas, li2.chamadas.filter((c) => c.metodo === "POST" && c.caminho === "/produto").length, estoqueNaLI(li2)], [true, ["ligar_bling", "estoque", "ativar", "gravar"], 1, [true, 0, -1]]);

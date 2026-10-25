@@ -5,7 +5,7 @@ import { negarSemAcessos } from "@/lib/acessos/servidor";
 import { revalidatePath } from "next/cache";
 
 import { mudouNaLI } from "@/lib/canaisDeVenda/li/apresentacao";
-import { cadastrarNaLI, sincronizarProdutoLI } from "@/lib/canaisDeVenda/li/envio";
+import { cadastrarNaLI, completarCadastroLI, sincronizarProdutoLI } from "@/lib/canaisDeVenda/li/envio";
 import { produtoIdValido } from "@/lib/canaisDeVenda/li/estado";
 import { lerParaPopupLI } from "@/lib/canaisDeVenda/li/leitura";
 
@@ -68,7 +68,24 @@ export async function sincronizarComLI(produtoId) {
   );
 }
 
-/** Cadastra na LI (inativo) o produto que ainda nao existe la. */
+/**
+ * "Completar o cadastro" (24/10/2026): ligar no Bling, estoque inicial e ativar, para o produto que ja esta na LI
+ * (o cadastro que parou numa etapa, ou o cadastrado antes disto). Escreve na LI e no Bling, sob as travas dos dois.
+ */
+export async function completarCadastroNaLI(produtoId) {
+  const negado = await negarSemAcessos(["acao.lojaIntegrada.sincronizar", "executar"]);
+  if (negado) return negado;
+  if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo(
+    "Não foi possível completar o cadastro. Parte pode ter sido gravada na Loja Integrada ou no Bling: confira antes de tentar de novo.",
+    async () => {
+      const resultado = await completarCadastroLI(produtoId);
+      return revalidando(resultado, mudouNaLI("completar", resultado));
+    },
+  );
+}
+
+/** Cadastra na LI o produto que ainda nao existe la: cria pausado, liga no Bling, grava o estoque e ativa. */
 export async function cadastrarProdutoNaLI(produtoId) {
   const negado = await negarSemAcessos(["acao.lojaIntegrada.sincronizar", "executar"]);
   if (negado) return negado;

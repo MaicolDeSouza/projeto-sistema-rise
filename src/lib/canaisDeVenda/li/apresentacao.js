@@ -1,9 +1,11 @@
 /**
  * Textos do editor da Loja Integrada (aba Divergencias e rodape do `EditorAnuncioLI.jsx`): como um valor aparece na tela, o
- * resumo do que um envio fez e quando o pop-up le a LI de novo. Sem imports, sem banco e sem rede:
- * e o unico arquivo de `li/` sobre envio que o NAVEGADOR pode importar (`campos.js`, `envio.js` e
- * `leitura.js` sao de servidor). Nada aqui decide regra de envio: so conta o que a lib decidiu.
+ * resumo do que um envio fez e quando o pop-up le a LI de novo. Sem banco e sem rede (so importa os rotulos de
+ * `etapasCadastro.js`, que tambem nao importa nada): o NAVEGADOR pode importar este arquivo (`campos.js`,
+ * `envio.js` e `leitura.js` sao de servidor). Nada aqui decide regra de envio: so conta o que a lib decidiu.
  */
+
+import { ROTULO_DA_ETAPA_LI } from "./etapasCadastro";
 
 /// Quanto de um valor entra numa frase: a descricao tem milhares de caracteres.
 const LIMITE_DO_VALOR_NA_FRASE = 60;
@@ -62,9 +64,21 @@ export function resumirEnvioLI(tipo, resultado, rotulos = {}) {
     return alterados.length > 0 ? { titulo: `O envio parou na etapa "${resultado.etapa ?? "?"}". Estes campos estavam para ir:`, linhas } : null;
   }
 
-  if (tipo === "cadastrar") {
-    if (ok) return { titulo: "Produto cadastrado na Loja Integrada (inativo).", linhas: ["Confira na loja e ative-o lá quando quiser vender.", ...(resultado.fotos ? [resultado.fotos] : [])] };
-    return resultado.idExterno ? { titulo: `O produto foi criado na Loja Integrada (id ${resultado.idExterno}), mas o envio não terminou.`, linhas: [] } : null;
+  // Cadastro automatico (24/10/2026): o que passou vira lista; a falha diz em que etapa parou e o que fazer.
+  if (tipo === "cadastrar" || tipo === "completar") {
+    const etapas = (Array.isArray(resultado.etapas) ? resultado.etapas : []).map((etapa) => `${ROTULO_DA_ETAPA_LI[etapa] ?? etapa}: feito.`);
+    if (ok) {
+      return {
+        titulo: tipo === "cadastrar" ? "Produto cadastrado e ativo na Loja Integrada." : "Cadastro completo: produto ativo na Loja Integrada.",
+        linhas: [...etapas, ...(resultado.fotos ? [resultado.fotos] : [])],
+      };
+    }
+    if (!resultado.idExterno) return null;
+    const parou = ROTULO_DA_ETAPA_LI[resultado.etapa] ?? resultado.etapa;
+    const conteudoFoi = tipo === "completar" || (resultado.etapas ?? []).includes("criar");
+    return conteudoFoi
+      ? { titulo: `O cadastro parou em "${parou}". O produto está na Loja Integrada, pausado.`, linhas: [...etapas, 'Corrija o motivo e use "Completar o cadastro": o que já foi feito não é refeito.'] }
+      : { titulo: `O produto foi criado na Loja Integrada (id ${resultado.idExterno}), mas o envio não terminou.`, linhas: [] };
   }
 
   return null;
@@ -76,6 +90,6 @@ export function mudouNaLI(tipo, resultado) {
   if (tipo === "sincronizar") {
     return resultado.ok === true || (Array.isArray(resultado.alterados) && resultado.alterados.length > 0) || Boolean(resultado.marcaCriada) || Boolean(resultado.fotos);
   }
-  if (tipo === "cadastrar") return resultado.ok === true || Boolean(resultado.idExterno);
+  if (tipo === "cadastrar" || tipo === "completar") return resultado.ok === true || Boolean(resultado.idExterno);
   return false;
 }
