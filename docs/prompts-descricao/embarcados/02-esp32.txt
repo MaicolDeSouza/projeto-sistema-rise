@@ -4,15 +4,13 @@ Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use info
 
 PARÁGRAFOS
 
-Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada, de no máximo 230 caracteres, contando espaços.
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
 
-Primeiro parágrafo: comece pelo nome do produto como sujeito (“A Placa ESP32 DevKitC V4...”). Diga o que é (placa ou módulo), o módulo ou o chip, o Wi-Fi e o Bluetooth (cada um só quando confirmado) e para que serve na prática (IoT, automação, prototipagem), e o formato quando ajuda a escolher (compacta, encaixa em protoboard).
+Primeiro parágrafo, UMA frase, na fórmula da loja: “A Placa <nome completo> é uma placa de desenvolvimento <compacta / de alta performance> com <Wi-Fi, Bluetooth e o que mais vier integrado>, baseada no <módulo ou chip>, indicada para <3 ou 4 aplicações: IoT, automação residencial, robótica, dispositivos vestíveis> que exigem <a necessidade que ela atende>, oferecendo <o diferencial>.” Só o que estiver confirmado.
 
-Segundo parágrafo: os recursos de uso: quantos pinos digitais a placa expõe, as interfaces (UART, SPI, I2C), o conector USB e o chip de interface, a programação (Arduino IDE, ESP-IDF, MicroPython), a alimentação, a antena e se os pinos vêm soldados. Acessórios só quando confirmados.
+Segundo parágrafo: o porquê de ela ser boa, em 3 ou 4 frases. Comece pelo coração (“Equipada com o processador...”, “A placa é construída em torno do módulo...”) e, a cada recurso citado, diga o que ele permite ou dispensa: pinos e interfaces (o que se liga nela); conversor USB-serial e conector (grava e alimenta pelo computador, sem gravador); antena (alcance sem acessórios); botões EN e BOOT; barras de pinos soldadas ou soltas; memória e PSRAM só quando são o diferencial. Feche com a programação (Arduino IDE, ESP-IDF, MicroPython) ou com “é a escolha ideal para quem...”. Acessórios só quando confirmados.
 
-Nos parágrafos NÃO cite memórias, clock, consumo nem versão do Bluetooth: ficam nas especificações. Ao voltar a falar do produto, use o nome dele, nunca “ela” no início da frase. Tom: a clareza da Usinainfo e da Smartkits, mais amigável, sem copiar.
-
-Use frases completas, com verbo, em linguagem acessível e respeitosa: “possui”, não “tem”. Explique o porquê do que citar: em vez de “sem gravador externo”, diga que o conversor USB-serial da placa dispensa o gravador. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios comerciais, repetir o título ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
+Fale com o comprador: “possui”, não “tem”; “você” quando couber (“você monta conforme o projeto”). Ao voltar a falar do produto, use o nome dele ou “a placa”, nunca “ela” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios, repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
 
 PADRONIZAÇÃO DOS NOMES
 

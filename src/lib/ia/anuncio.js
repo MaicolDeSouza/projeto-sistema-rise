@@ -866,11 +866,16 @@ export async function gerarDescricao(
 }
 
 /**
- * Tamanho maximo de cada paragrafo: "no maximo quatro linhas" (pedido do dono em
- * 16/09/2026). Medido na caixa da janela "Criar descricao", onde cabem cerca de
- * 57 caracteres por linha.
+ * Tamanho maximo de cada paragrafo (o teto que o codigo impoe: a opcao que passa volta para a IA encurtar, e o que ainda
+ * passar e cortado em frases inteiras). Era 230, "no maximo quatro linhas" (pedido do dono em 16/09/2026, ~57 caracteres
+ * por linha na janela). Desde 25/10/2026 e 550: o dono pediu os paragrafos no estilo da Smartkits, medidos no acervo
+ * (3.654 descricoes dela; nas 200 mais recentes o 2o paragrafo tem mediana de 472 e p75 de 553). O 1o paragrafo e UMA
+ * frase de ate `LIMITE_PRIMEIRO_PARAGRAFO`, que so o prompt pede: o codigo aplica um teto so, para os dois.
  */
-export const LIMITE_PARAGRAFO = 230;
+export const LIMITE_PARAGRAFO = 550;
+
+/// O 1o paragrafo da Smartkits: uma frase (mediana 270, p90 367). So o texto do prompt o pede; o codigo nao o impoe.
+export const LIMITE_PRIMEIRO_PARAGRAFO = 330;
 
 /// Quantas opcoes de texto a IA escreve para CADA um dos dois primeiros paragrafos da descricao.
 export const OPCOES_DE_PARAGRAFO = 3;
@@ -888,25 +893,27 @@ export const PROMPT_DESCRICAO_PADRAO =
   "asteriscos, sem '#', sem emoji e sem links.\n" +
   "- paragrafos: exatamente DOIS grupos, na ordem [opções do primeiro parágrafo, opções do " +
   `segundo parágrafo]. Cada grupo traz exatamente ${OPCOES_DE_PARAGRAFO} opções DIFERENTES ` +
-  "de texto para aquele parágrafo, e o dono escolhe UMA de cada grupo. Todas as opções " +
-  `seguem o padrão abaixo, cada uma com NO MÁXIMO ${LIMITE_PARAGRAFO} caracteres contando ` +
-  "espaços (cerca de quatro linhas). As opções de um grupo devem variar de verdade no que " +
-  "ganha espaço e na ordem dos fatos (por exemplo, abrir pelo chip ou pela aplicação; " +
-  "destacar a tensão ou a compatibilidade), e não só trocar uma palavra por sinônimo. " +
-  "Padrão (\"técnico-comparativo\"), definido com o dono em 22/09/2026:\n" +
-  "  Primeiro parágrafo — identidade técnica: comece pelo NOME do produto como sujeito da " +
-  "frase (\"A Placa...\", \"A Célula de carga...\", \"O Sensor...\"), diga o que ele é e a " +
-  "especificação central que decide a compra (chip/CI, processador, clock — o dado técnico " +
-  "mais relevante), terminando com a tensão de operação/alimentação quando as referências " +
-  "trouxerem esse dado.\n" +
-  "  Segundo parágrafo — compatibilidade prática: o que o produto aceita ou exige junto " +
-  "(shields, bibliotecas, IDE, módulo complementar como o HX711) e, quando fizer sentido, o " +
-  "que acompanha.\n" +
-  "  Escreva em frases completas, com verbo ligando os fatos (\"possui\", \"é compatível " +
-  "com\", \"acompanha\"), NUNCA uma lista telegráfica separada só por vírgula. Tom acessível, " +
-  "como se explicasse para alguém leigo no assunto, mas sem perder precisão técnica: nenhum " +
-  "adjetivo de efeito (\"incrível\", \"ideal\", \"de alta qualidade\", \"a solução perfeita\"). " +
-  "Não repita o título nem o que a lista de especificações já diz em detalhe.\n" +
+  "de texto para aquele parágrafo, e o dono escolhe UMA de cada grupo. Tamanho, contando " +
+  `espaços: o primeiro parágrafo com NO MÁXIMO ${LIMITE_PRIMEIRO_PARAGRAFO} caracteres e o ` +
+  `segundo com NO MÁXIMO ${LIMITE_PARAGRAFO}. As opções de um grupo devem variar de verdade ` +
+  "no que ganha espaço e na ordem dos fatos, e não só trocar uma palavra por sinônimo. " +
+  "Padrão da loja (o da Smartkits, definido com o dono em 25/10/2026):\n" +
+  "  Primeiro parágrafo — UMA frase: comece pelo NOME do produto como sujeito (\"O Sensor...\", " +
+  "\"A Placa...\", \"O Módulo...\"), diga o que ele é (com o chip ou a tecnologia), para que é " +
+  "indicado (3 ou 4 aplicações) e o que ele oferece de diferencial. Ex.: \"O Sensor de Gás MQ-5 " +
+  "é um sensor semicondutor de detecção de vazamentos, indicado para segurança residencial e " +
+  "monitoramento de GLP e gás natural, que oferece detecção confiável, resposta rápida e fácil " +
+  "integração em projetos eletrônicos.\"\n" +
+  "  Segundo parágrafo — o porquê de ele ser bom, em 3 ou 4 frases: como funciona ou o que " +
+  "entrega na prática e, a cada recurso citado, o que ele permite ou dispensa; a " +
+  "compatibilidade (Arduino, ESP32, Raspberry Pi) e o que acompanha, quando confirmados; feche " +
+  "com um uso típico ou com \"é a escolha ideal para quem...\". Memória, clock e outros números " +
+  "só quando são o diferencial; o resto fica nas especificações.\n" +
+  "  Fale com o comprador: frases completas, com verbo (\"possui\", \"oferece\", \"permite\", " +
+  "\"dispensa\"; nunca \"tem\"), \"você\" quando couber, tom que explica e ensina sem vender: " +
+  "nada de \"incrível\", \"de alta qualidade\", \"a solução perfeita\". Ao voltar a falar do " +
+  "produto, use o nome dele, nunca \"ele\" ou \"ela\" sozinho no início da frase. Não repita o " +
+  "título nem enumere especificações.\n" +
   "- caracteristicas: as especificações técnicas que as referências confirmam, cada uma com " +
   "nome curto e valor (ex.: nome \"Voltagem de Operação\", valor \"5V\"). Da mais importante para " +
   "a menos importante. Não repita a mesma especificação com nomes diferentes. Para cada campo " +
@@ -944,8 +951,10 @@ export const PROMPT_DESCRICAO_PADRAO =
   "escolherá esses valores na tela.\n" +
   "Não escreva garantia, preço, prazo nem nome de loja: essas partes são da loja.";
 
-/// Teto do prompt editado. O padrao tem cerca de 4.200 caracteres; o teto deixa espaco para acrescentar.
-export const MAXIMO_PROMPT_DESCRICAO = 12000;
+/// Teto do prompt editado. O padrao tem cerca de 4.500 caracteres; o teto deixa espaco para acrescentar. Era 12.000;
+/// subiu para 14.000 em 25/10/2026, quando a secao PARAGRAFOS no estilo da Smartkits nao coube nos prompts do Arduino e
+/// do ESP32 (os dois estavam a menos de 30 caracteres do teto).
+export const MAXIMO_PROMPT_DESCRICAO = 14000;
 
 /**
  * Confere o prompt que veio da tela: texto, nao vazio e dentro do teto.

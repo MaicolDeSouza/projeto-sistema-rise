@@ -2153,7 +2153,7 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
   Frases completas com verbo ligando os fatos ("possui", "é compatível com"), nunca lista
   telegráfica separada só por vírgula; tom acessível, sem perder precisão técnica, sem adjetivo de
   efeito.
-  (`LIMITE_PARAGRAFO` = 230 caracteres, medido nos ~57 por linha da caixa da janela). Parágrafo
+  (`LIMITE_PARAGRAFO`, que foi 230 até 25/10/2026 e hoje é 550; ver "Parágrafos no estilo da Smartkits"). Parágrafo
   mais longo volta uma vez para a IA encurtar, com o texto recusado. Se ainda passar, ficam
   as frases inteiras que cabem (`frasesQueCabem`), nunca corte no meio da frase ·
   `Especificações técnicas:` (era "Características") com `- Nome: valor;` ·
@@ -2692,6 +2692,20 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       o nome "ESP32" (a cópia do PC só tem "Padrão do sistema", "Arduino" e "teste"). O 170113 (DevKitC V4 WROOM-32D) é o primeiro
       candidato: ainda sem concorrente vinculado, mas o acervo tem o mesmo produto em Usinainfo, Mamute, Wj, Saravati, Eletrogate,
       Piscaled e na Fortek (R$ 38,90); as lojas divergem no conector (Micro USB × USB-C) e na alimentação pelo VIN (4,5-12V × 5V).
+    - **Parágrafos no estilo da Smartkits** (25/10/2026, pedido do dono: "gosto muito como eles fazem a introdução dos produtos;
+      analise profundamente e altere o prompt para ficar similar; se a regra de 2 parágrafos e de número de caracteres precisar
+      ser quebrada, não tem problema, apenas me avise"). Medido no acervo (3.654 descrições da Smartkits; nas 200 mais recentes,
+      182 têm exatamente 2 parágrafos; 1º: mediana 270, p90 367; 2º: mediana 472, p75 553). **Os 2 parágrafos ficam; o que
+      mudou foi o limite:** `LIMITE_PARAGRAFO` passou de 230 para **550** (o teto que o código impõe aos dois) e o prompt pede
+      **330 no 1º** (`LIMITE_PRIMEIRO_PARAGRAFO`, só texto). `MAXIMO_PROMPT_DESCRICAO` passou de 12.000 para **14.000**, porque a
+      seção nova não cabia no Arduino nem no ESP32. A fórmula, escrita no padrão do sistema e nas seções PARÁGRAFOS do Arduino e do
+      ESP32: **1º parágrafo = UMA frase** "A Placa <nome> é uma placa de desenvolvimento <adjetivo> com <o que tem integrado>,
+      baseada no <chip/módulo>, indicada para <3 ou 4 aplicações> que exigem <necessidade>, oferecendo <diferencial>"; **2º = o
+      porquê de ser boa, 3 ou 4 frases**, começando pelo coração ("Equipada com...") e, a cada recurso, o que ele permite ou
+      dispensa, fechando com a programação ou "é a escolha ideal para quem..."; "possui", "você" quando couber, tom que explica e
+      ensina sem vender; memória e clock só quando são o diferencial (a proibição antiga saiu). Roteiro da proposta v12. A regra
+      "4 linhas por parágrafo" de 16/09/2026 ficou para trás. **Só vale na VPS depois do deploy, e os dois prompts precisam ser
+      colados de novo na biblioteca.**
     - **Origem da linha que nenhuma loja confirma** (13/10/2026, pedido do dono: "se veio pela IA, deve mostrar de onde
       veio a fonte"): antes a linha ficava sem nada ao lado. `origemSemLoja` (`divergencias.js`) diz **"Cadastro"** quando o
       valor está no título, na marca, no modelo, na descrição atual ou nas peças do kit (número solto, como "6", nunca conta),

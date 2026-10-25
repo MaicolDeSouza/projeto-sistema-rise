@@ -4,15 +4,13 @@ Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use info
 
 PARÁGRAFOS
 
-Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes em cada grupo. Cada opção deve ter no máximo 230 caracteres, contando espaços.
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
 
-Primeiro parágrafo: comece pelo nome da placa como sujeito (“A Placa Nano V3 compatível com Arduino...”). Diga o que ela é, o microcontrolador e para que serve na prática (prototipagem, projetos embarcados, automação, robótica), e o formato quando ajuda a escolher (compacta, encaixa em protoboard).
+Primeiro parágrafo, UMA frase, na fórmula da loja: “A Placa <nome completo> é uma placa de desenvolvimento <compatível com Arduino / compacta> baseada no microcontrolador <chip>, indicada para <3 ou 4 aplicações: prototipagem, robótica, automação, projetos embarcados> que exigem <a necessidade que ela atende>, oferecendo <o diferencial: USB nativo, tamanho reduzido, muitas portas>.” Só o que estiver confirmado.
 
-Segundo parágrafo: os recursos de uso: quantos pinos digitais (e quantos com PWM), quantas entradas analógicas, as interfaces (UART, SPI, I2C), o conector e a programação pela Arduino IDE (driver do chip USB só quando confirmado), a alimentação e se os pinos vêm soldados. Acessórios só quando confirmados.
+Segundo parágrafo: o porquê de ela ser boa, em 3 ou 4 frases. Comece pelo coração (“Baseada no chip...”, “Equipada com o microcontrolador...”) e, a cada recurso citado, diga o que ele permite ou dispensa: pinos digitais, PWM e entradas analógicas (o que se liga nela); chip USB e conector (grava pelo computador, sem gravador; driver só quando confirmado); nível lógico (o que aceita sem conversor); barras de pinos soldadas ou soltas; shields e bibliotecas; memória e clock só quando são o diferencial. Feche com a programação pela Arduino IDE ou com “é a escolha ideal para quem...”. Acessórios só quando confirmados.
 
-Nos parágrafos NÃO cite memória (Flash, RAM, EEPROM), clock, arquitetura, corrente por pino nem resolução do ADC: esses números ficam só nas especificações. Ao voltar a falar da placa, use o nome dela (“A placa Nano V3...”), nunca “ela” sozinho no início da frase. Tom de referência: a clareza da Smartkits da Nano V3, só que mais amigável, sem copiar.
-
-Use frases completas, com verbo, em linguagem acessível e respeitosa: “possui”, não “tem”. Explique o porquê do que citar: em vez de “sem adaptador externo”, diga que o USB nativo dispensa o conversor. Varie o foco e a ordem dos fatos entre as opções, não apenas os sinônimos. Evite elogios comerciais, repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
+Fale com o comprador: “possui”, não “tem”; “você” quando couber (“você monta conforme o projeto”). Ao voltar a falar da placa, use o nome dela ou “a placa”, nunca “ela” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios, repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
 
 PADRONIZAÇÃO DOS NOMES
 

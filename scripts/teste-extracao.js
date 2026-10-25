@@ -1617,8 +1617,9 @@ console.log("\n— Descricao: 3 opcoes para cada um dos 2 primeiros paragrafos �
   conferir("lixo no lugar da lista vira vazio, sem quebrar", opcoesDeParagrafos(null), { opcoes: [], longos: [] });
   conferir("grupo vazio fica vazio", opcoesDeParagrafos([[], ["B."]]).opcoes, [[], ["B."]]);
 
-  // O limite de cada paragrafo vale para CADA opcao.
-  const frase = (letra) => `${letra.repeat(98)}. `;
+  // O limite de cada paragrafo vale para CADA opcao. A frase e dimensionada pela constante (que foi 230 e e 550 desde
+  // 25/10/2026): tres frases passam do limite e duas cabem, em qualquer valor.
+  const frase = (letra) => `${letra.repeat(Math.floor(LIMITE_PARAGRAFO / 2.1) - 2)}. `;
   const longa = (ultima) => `${frase("a")}${frase("b")}${frase(ultima)}`.trim();
   conferir("opcao acima do limite vai para a IA reescrever", opcoesDeParagrafos([["Curta.", longa("c")], ["B."]]).longos, [longa("c")]);
   conferir("opcao exatamente no limite nao e longa", opcoesDeParagrafos([["x".repeat(LIMITE_PARAGRAFO)], ["B."]]).longos, []);
@@ -1807,13 +1808,14 @@ console.log("\n— Posicao de preco entre os concorrentes (\"2º de 10\") —");
 
 console.log("\n— Descricao: o prompt de escrita editavel na janela —");
 {
-  const { limparPromptDaDescricao, MAXIMO_PROMPT_DESCRICAO, montarPedidoDaDescricao, PROMPT_DESCRICAO_PADRAO } =
+  const { limparPromptDaDescricao, LIMITE_PARAGRAFO: LIMITE_2, LIMITE_PRIMEIRO_PARAGRAFO, MAXIMO_PROMPT_DESCRICAO, montarPedidoDaDescricao, PROMPT_DESCRICAO_PADRAO } =
     await import("../src/lib/ia/anuncio.js");
 
   // O padrao e o texto que ia fixo no codigo: as instrucoes, sem os dados do produto.
   conferir("padrao comeca pelas instrucoes", PROMPT_DESCRICAO_PADRAO.startsWith("Escreva o conteúdo da descrição"), true);
-  conferir("padrao ja traz os numeros do limite e das opcoes", [PROMPT_DESCRICAO_PADRAO.includes("NO MÁXIMO 230 caracteres"),
-    PROMPT_DESCRICAO_PADRAO.includes("exatamente 3 opções")], [true, true]);
+  // Os limites do estilo da Smartkits (25/10/2026): 330 no 1o paragrafo (so o prompt pede) e 550 no 2o (o codigo impoe).
+  conferir("padrao ja traz os numeros dos limites e das opcoes", [PROMPT_DESCRICAO_PADRAO.includes(`NO MÁXIMO ${LIMITE_PRIMEIRO_PARAGRAFO} caracteres`),
+    PROMPT_DESCRICAO_PADRAO.includes(`NO MÁXIMO ${LIMITE_2}`), PROMPT_DESCRICAO_PADRAO.includes("exatamente 3 opções"), LIMITE_PRIMEIRO_PARAGRAFO < LIMITE_2], [true, true, true, true]);
   conferir("padrao nao traz dados de produto", PROMPT_DESCRICAO_PADRAO.includes("Referências:\n"), false);
   conferir("padrao cabe no teto", PROMPT_DESCRICAO_PADRAO.length <= MAXIMO_PROMPT_DESCRICAO, true);
 
