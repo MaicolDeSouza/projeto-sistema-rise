@@ -1738,6 +1738,27 @@ console.log("\n— Estoque do concorrente e a ordem da aba Concorrentes —");
   // A 4hobby sem estoque fica entre os que vendem, pelo preco (pedido do dono em 23/10/2026).
   const comLoja = [...linhas, { id: "h", preco: 40, produtoColetadoId: "ph", fonte: "4hobby" }];
   conferir("4hobby sem estoque fica na ordem do preco", ordenarConcorrentes(comLoja, { ...situacoes, ph: { ativo: true, quantidade: 0 } }).map((l) => l.id), ["e", "h", "b", "d", "c", "a", "f"]);
+
+  // A lista do "$" do Preco venda (pedido do dono em 25/10/2026): a mesma ordem da aba Concorrentes, com os concorrentes antes
+  // dos fornecedores (o preco do fornecedor e custo) e o estoque que vem com cada referencia.
+  const { ordenarPrecosDasReferencias } = await import("../src/lib/estoqueDoConcorrente.js");
+  const precos = [
+    { id: "r1", tipo: "CONCORRENTE", fonte: "Robocore", preco: 45.9, estoque: { quantidade: 12, estoqueStatus: "AVAILABLE" } },
+    { id: "r2", tipo: "CONCORRENTE", fonte: "Smartkits", preco: 47.9, estoque: { quantidade: 0, estoqueStatus: "OUT_OF_STOCK" } },
+    { id: "r3", tipo: "CONCORRENTE", fonte: "Piscaled", preco: 48.3, estoque: { quantidade: null, estoqueStatus: "AVAILABLE" } },
+    { id: "r4", tipo: "CONCORRENTE", fonte: "Eletrogate", preco: 39.9, estoque: { quantidade: null, estoqueStatus: null } },
+    { id: "r5", tipo: "CONCORRENTE", fonte: "Saravati", preco: 30, estoque: { quantidade: null, estoqueStatus: "OUT_OF_STOCK" } },
+    { id: "f1", tipo: "FORNECEDOR", fonte: "Usinainfo", preco: 20, estoque: { quantidade: 5, estoqueStatus: "AVAILABLE" } },
+    { id: "f2", tipo: "FORNECEDOR", fonte: "Fortek", preco: 10, estoque: { quantidade: 0, estoqueStatus: null } },
+    { id: "r6", tipo: "CONCORRENTE", fonte: "Sem preco", preco: null, estoque: null },
+  ];
+  conferir("lista do $: concorrentes do mais barato ao mais caro, sem estoque por ultimo, fornecedores depois",
+    ordenarPrecosDasReferencias(precos).map((item) => item.id), ["r4", "r1", "r3", "r6", "r5", "r2", "f1", "f2"]);
+  conferir("lista do $: o sem estoque barato fica depois do caro que vende", ordenarPrecosDasReferencias(precos).map((item) => item.id).indexOf("r5") > ordenarPrecosDasReferencias(precos).map((item) => item.id).indexOf("r3"), true);
+  conferir("lista do $: a 4hobby sem estoque fica entre os que vendem, pelo preco",
+    ordenarPrecosDasReferencias([...precos, { id: "h", tipo: "CONCORRENTE", fonte: "4hobby", preco: 40, estoque: { quantidade: 0, estoqueStatus: "OUT_OF_STOCK" } }]).map((item) => item.id).slice(0, 3), ["r4", "h", "r1"]);
+  conferir("lista do $: sem estoque lido, so pelo preco", ordenarPrecosDasReferencias([{ id: "x", tipo: "CONCORRENTE", preco: 2 }, { id: "y", tipo: "CONCORRENTE", preco: 1 }]).map((item) => item.id), ["y", "x"]);
+  conferir("lista do $: nao muda a lista original", precos.map((item) => item.id), ["r1", "r2", "r3", "r4", "r5", "f1", "f2", "r6"]);
 }
 
 console.log("\n— Posicao de preco entre os concorrentes (\"2º de 10\") —");

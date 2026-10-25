@@ -40,8 +40,30 @@ const GRUPO = { "em-estoque": 0, "nao-informado": 0, "sem-estoque": 1, "fora-da-
  * @param {Record<string, object>} situacoes por produtoColetadoId
  */
 export function ordenarConcorrentes(lista, situacoes = {}) {
-  const grupo = (item) => DA_PROPRIA_LOJA.test(item.fonte ?? "") ? 0 : GRUPO[situacaoDeEstoque(item.produtoColetadoId ? situacoes[item.produtoColetadoId] : null)];
+  const grupo = (item) => grupoDeEstoque(item.fonte, item.produtoColetadoId ? situacoes[item.produtoColetadoId] : null);
   return [...lista].sort((a, b) => grupo(a) - grupo(b) || porPrecoAscendente(a, b));
+}
+
+function grupoDeEstoque(fonte, situacao) {
+  return DA_PROPRIA_LOJA.test(fonte ?? "") ? 0 : GRUPO[situacaoDeEstoque(situacao)];
+}
+
+const TIPO_NA_LISTA = { CONCORRENTE: 0, FORNECEDOR: 1 };
+
+/**
+ * A ordem da lista do "$" do Preco venda (pedido do dono em 25/10/2026: "menor preco e lojas sem estoque devem ir para o fim
+ * da lista, assim como feito na aba Concorrentes"): a mesma regra da tabela. Os concorrentes vem antes dos fornecedores (o
+ * preco de fornecedor e custo, nao preco de venda); dentro de cada tipo, quem vende ou nao diz o estoque primeiro, do mais
+ * barato ao mais caro, e os sem estoque por ultimo. O estoque vem em `item.estoque` (`{quantidade, estoqueStatus}`, o que a
+ * busca de referencias le do produto coletado). Devolve uma lista nova.
+ *
+ * @param {{tipo: string, fonte?: string, preco: number|null, estoque?: object|null}[]} lista
+ */
+export function ordenarPrecosDasReferencias(lista) {
+  const tipo = (item) => TIPO_NA_LISTA[item.tipo] ?? 2;
+  return [...lista].sort(
+    (a, b) => tipo(a) - tipo(b) || grupoDeEstoque(a.fonte, a.estoque) - grupoDeEstoque(b.fonte, b.estoque) || porPrecoAscendente(a, b),
+  );
 }
 
 function porPrecoAscendente(a, b) {

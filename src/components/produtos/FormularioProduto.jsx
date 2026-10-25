@@ -57,7 +57,7 @@ import { LIMITE_TITULO_ML, MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/
 import { medidasDaDescricao } from "@/lib/medidas";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import { gerarEanDoSku } from "@/lib/eanInterno";
-import { indisponivel } from "@/lib/estoqueDoConcorrente";
+import { indisponivel, ordenarPrecosDasReferencias, situacaoDeEstoque } from "@/lib/estoqueDoConcorrente";
 import { codigoSugeridoDoKit, localizacaoDoKit, ncmsDasPecas, pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
 import { DocumentosDasPecas, FornecedoresDoKit, MedidasDoKit } from "./AbasDoKit";
 import BuscarPorCodigo from "./BuscarPorCodigo";
@@ -786,6 +786,21 @@ const ROTULO_PRECO = {
 };
 
 /**
+ * O estoque de uma referencia na lista do "$" (pedido do dono em 25/10/2026): a regra e as palavras da coluna Estoque da
+ * aba Concorrentes. "Em estoque" traz a quantidade quando a loja a informa; sem informacao nao se escreve nada.
+ */
+function EstoqueDaReferencia({ estoque }) {
+  const estado = situacaoDeEstoque(estoque);
+  if (estado === "sem-estoque") return <span className="block text-[11px] font-medium text-red-700">Sem estoque</span>;
+  if (estado !== "em-estoque") return null;
+  return (
+    <span className="block text-[11px] text-suave">
+      Em estoque{estoque.quantidade > 0 && ` · ${estoque.quantidade} un.`}
+    </span>
+  );
+}
+
+/**
  * Preco de venda com a lista de precos das referencias marcadas na lupa do Nome
  * (pedido do dono em 16/09/2026). Escolher um preenche o campo; o operador pode
  * ajustar depois.
@@ -908,11 +923,10 @@ function CampoPreco({
   // O item da proposta no topo da lista do "$" (pedido do dono em 22/10/2026): o preco ORIGINAL (o de antes, quando a
   // proposta escreveu o dela no campo; 24/10/2026) ou o da PROPOSTA (o dono ja tinha editado o preco).
   const sugestao = useContext(PropostaNosCampos)?.listas?.precoVenda ?? null;
-  const comPreco = referencias
-    .filter((item) => item.preco !== null && item.preco !== undefined)
-    .sort((a, b) =>
-      a.tipo === b.tipo ? a.preco - b.preco : a.tipo === "CONCORRENTE" ? -1 : 1,
-    );
+  // A ordem da aba Concorrentes (pedido do dono em 25/10/2026): do mais barato ao mais caro, e quem esta sem estoque por ultimo.
+  const comPreco = ordenarPrecosDasReferencias(
+    referencias.filter((item) => item.preco !== null && item.preco !== undefined),
+  );
 
   /**
    * Le o preco de UM lugar e escreve nos outros (campo principal + os dois do
@@ -1180,8 +1194,9 @@ function CampoPreco({
                           {item.nome}
                         </span>
                       </span>
-                      <span className="shrink-0 text-sm font-semibold text-emerald-700 tabular-nums">
-                        {reais(item.preco)}
+                      <span className="shrink-0 text-right">
+                        <span className="block text-sm font-semibold text-emerald-700 tabular-nums">{reais(item.preco)}</span>
+                        <EstoqueDaReferencia estoque={item.estoque} />
                       </span>
                     </button>
                   </li>

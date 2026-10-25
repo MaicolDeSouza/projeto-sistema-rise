@@ -266,9 +266,16 @@ try {
   };
   const ids = (resposta) => resposta.itens.map((item) => item.id).sort();
 
+  // O estoque de cada referencia vai junto (pedido do dono em 25/10/2026): a lista do "$" do preco ordena por ele e mostra a quantidade.
+  await prisma.produtoColetado.update({ where: { id: pC.id }, data: { quantidade: 7, estoqueStatus: "IN_STOCK" } });
+  await prisma.produtoColetado.update({ where: { id: pF.id }, data: { quantidade: 0, estoqueStatus: "OUT_OF_STOCK" } });
+
   const comTitulo = await buscarReferencias("Placa Zzvinculo Nano", vinculos);
   conferir("vinculos: com titulo, so o produto exato do fornecedor e o concorrente salvo", ids(comTitulo), [pF.id, pC.id].sort());
   conferir("vinculos: todos marcados como vinculados, com nome, loja e tipo", comTitulo.itens.every((item) => item.vinculado && item.nome && item.fonte && item.tipo), true);
+  conferir("vinculos: o estoque de cada referencia vem junto, com a quantidade quando a loja informa",
+    [comTitulo.itens.find((item) => item.id === pC.id).estoque, comTitulo.itens.find((item) => item.id === pF.id).estoque],
+    [{ quantidade: 7, estoqueStatus: "IN_STOCK" }, { quantidade: 0, estoqueStatus: "OUT_OF_STOCK" }]);
   const semTitulo = await buscarReferencias("", vinculos);
   conferir("vinculos: SEM titulo, os vinculos aparecem do mesmo jeito", ids(semTitulo), [pF.id, pC.id].sort());
   conferir("vinculos: sem titulo e sem vinculo, nada", (await buscarReferencias("", { limite: 0 })).itens, []);

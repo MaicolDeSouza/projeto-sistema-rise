@@ -134,6 +134,9 @@ export async function buscarReferencias(termo, { limite = TETO, fornecedoresLiga
       relevancia: Math.round(nota * 100),
       // Quando foi visto pela ultima vez, se a ultima varredura da loja nao o viu (a lupa marca).
       naoVistoDesde: produto.naoVistoDesde ?? null,
+      // O estoque da loja (pedido do dono em 25/10/2026): a lista do "$" do preco poe quem nao tem por ultimo, como a aba
+      // Concorrentes (`situacaoDeEstoque`), e mostra a quantidade quando a loja a informa.
+      estoque: { quantidade: produto.stock?.quantity ?? null, estoqueStatus: produto.stock?.status ?? null },
     })),
   };
 }
