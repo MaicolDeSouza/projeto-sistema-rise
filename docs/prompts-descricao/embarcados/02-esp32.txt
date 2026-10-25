@@ -24,9 +24,9 @@ Modelo: a PLACA, com revisão e variante, como “DevKitC V4”, “NodeMCU-32S�
 
 Módulo: o módulo soldado na placa, como “ESP32-WROOM-32D”, “ESP32-WROOM-32U”, “ESP32-S3-WROOM-1 N16R8”. Substitui Módulo Embarcado e Controlador. Sufixo D ou E: antena PCB; U: conector para antena externa.
 
-Chip Espressif (SoC): o chip dentro do módulo, como “ESP32-D0WD-V3”, “ESP32-S3”, “ESP32-C3”. Substitui SoC, Chip, Chip Base e Microcontrolador. Só com o módulo, não deduza o chip.
+Chip (SoC): o chip dentro do módulo, com o fabricante: “ESP32-D0WD (Espressif)”, “ESP32-S3 (Espressif)”. Substitui SoC, Chip, Chip Base e Microcontrolador. Só com o módulo, não deduza o chip.
 
-Processador: “Xtensa LX6 dual-core de 32 bits”, “RISC-V single-core de 32 bits”. Substitui CPU, Microprocessador e Número de Núcleos.
+Arquitetura: “Xtensa LX6 dual-core de 32 bits”, “RISC-V single-core de 32 bits”. Substitui Processador, CPU, Microprocessador e Número de Núcleos.
 
 Frequência de Clock: substitui Clock, Clock Máximo e Frequência de Operação; escreva “até 240MHz”.
 
@@ -40,9 +40,9 @@ Segurança: substitui Segurança WiFi, Criptografia e Criptografia WiFi: “WPA,
 
 Tensão de Alimentação: o que a placa aceita, por entrada: “5V pela USB / 5V no pino VIN / 3,3V no pino 3V3”. Substitui Alimentação, Tensão de Entrada e a Tensão de Operação quando a loja escreve ali a alimentação. Módulo avulso: a faixa dele.
 
-Tensão de Operação: a do chip e dos pinos: “3,3V”. Substitui Tensão de Trabalho. Nível Lógico: substitui Tensão de Nível Lógico e Tensão Lógica: “3,3V (não tolera 5V)”.
+Nível Lógico: substitui Tensão de Nível Lógico, Tensão Lógica, Tensão de Trabalho e a Tensão de Operação do chip: “3,3V (não tolera 5V)”.
 
-Consumo de Corrente: substitui Corrente de Consumo e Corrente de Operação: “80mA típico / 500mA máximo”.
+Consumo de Corrente da Placa: substitui Corrente de Consumo e Corrente de Operação: “80mA típico / 500mA máximo”.
 
 Corrente por Pino: a que cada GPIO fornece: “até 40mA (20mA no padrão)”. Substitui Corrente Máxima nos Pinos I/O. Corrente na Saída 3,3V: a que o regulador da placa fornece, só com fonte.
 
@@ -85,7 +85,7 @@ Cada item contém nome, valor e referencias: nome “Memória RAM”, valor “5
 Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas abaixo, mesmo que uma loja os publique (ex.: Taxa de Transferência).
 
 Campos obrigatórios:
-Marca; Modelo; Módulo; Chip Espressif (SoC); Processador; Frequência de Clock; Memória Flash; Memória RAM; Memória ROM; Wi-Fi; Bluetooth; Modos Wi-Fi; Segurança; Tensão de Alimentação; Tensão de Operação; Nível Lógico; Consumo de Corrente; Corrente por Pino; Pinos Digitais I/O; Saídas PWM; Entradas Analógicas; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Antena; Botões; Pinos Soldados; Temperatura de Operação; Ambiente de Programação.
+Marca; Modelo; Módulo; Chip (SoC); Arquitetura; Frequência de Clock; Memória Flash; Memória RAM; Memória ROM; Wi-Fi; Bluetooth; Modos Wi-Fi; Segurança; Tensão de Alimentação; Nível Lógico; Consumo de Corrente da Placa; Corrente por Pino; Pinos Digitais I/O; Saídas PWM; Entradas Analógicas; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Antena; Botões; Pinos Soldados; Temperatura de Operação; Ambiente de Programação.
 
 Campos condicionais (só quando o produto tem o recurso; com o recurso e sem valor confirmado, omita o campo):
 Memória PSRAM; Saídas DAC; Pinos Touch; Consumo em Deep Sleep; Corrente na Saída 3,3V; Sensores Integrados; Tela; Resolução da Tela; Sensor da Câmera; Resolução Máxima de Imagem; Slot para Cartão; Flash LED; Gravador USB; Suporte a Bateria; Corrente de Carga; Comprimento do Cabo USB.
