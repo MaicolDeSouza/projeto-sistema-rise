@@ -4302,7 +4302,8 @@ escrita sem editar o `.env`: `LI_ESCRITA=true LI_ESCRITA_CODIGOS=<sku> node <scr
   `marcarFormatoAntigo` (`campos.js`) marca como diferente a descrição da loja ainda com `<p>` (ou com link sem `target`),
   para o Sincronizar reenviar: **todo produto já sincronizado ganha o "!" uma vez**. Não medido: se a LI devolve as `<div>` iguais.
 - Webhooks, pedidos e importação dos 44 só-LI: fora desta fase.
-- `POST /marca` nunca foi exercitado na API real (só na LI falsa).
+- `POST /marca` foi exercitado na API real em 25/10/2026: o Sincronizar do 170113 criou a marca "OEM" na loja (`marcaCriada`)
+  e o produto foi gravado com ela; o 170110 e o 170106 já a acharam. Até ali só tinha rodado na LI falsa.
 
 ## Rise AI (Entrega 1)
 
