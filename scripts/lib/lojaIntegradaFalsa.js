@@ -167,6 +167,8 @@ export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias
       tags: [],
       preco_cheio: null,
       estoque_quantidade: 0,
+      estoque_gerenciado: false,
+      estoque_situacao_sem_estoque: 0,
       ...copia(produto),
     };
     if (!base.seo) base.seo = novoSeo();
@@ -322,6 +324,24 @@ export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias
         if (!dono) return naoAchou;
         dono.imagens = dono.imagens.filter((imagem) => String(imagem.id) !== String(id));
         return resposta(204, null);
+      }
+    }
+
+    // Estoque: recurso proprio (`/produto_estoque/{id}`, medido em 24/10/2026), guardado nas chaves `estoque_*` do
+    // produto. O PUT mantem a `situacao_*` que nao veio, como a LI real.
+    if (recurso === "produto_estoque" && id) {
+      const dono = tabelaProdutos.find((p) => String(p.id) === String(id));
+      if (!dono) return naoAchou;
+      const atual = () => ({ gerenciado: Boolean(dono.estoque_gerenciado), quantidade: dono.estoque_quantidade ?? 0, situacao_em_estoque: 0, situacao_sem_estoque: dono.estoque_situacao_sem_estoque ?? 0, produto: `/api/v1/produto/${dono.id}`, resource_uri: `/api/v1/produto_estoque/${dono.id}` });
+      if (metodo === "GET") return resposta(200, atual());
+      if (metodo === "PUT") {
+        for (const chave of Object.keys(corpo ?? {})) {
+          if (!["gerenciado", "quantidade", "situacao_em_estoque", "situacao_sem_estoque"].includes(chave)) throw new Error(`LI falsa: chave desconhecida no PUT do estoque: ${chave}`);
+        }
+        if ("gerenciado" in corpo) dono.estoque_gerenciado = Boolean(corpo.gerenciado);
+        if ("quantidade" in corpo) dono.estoque_quantidade = corpo.quantidade;
+        if ("situacao_sem_estoque" in corpo) dono.estoque_situacao_sem_estoque = corpo.situacao_sem_estoque;
+        return resposta(200, atual());
       }
     }
 

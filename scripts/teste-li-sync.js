@@ -36,7 +36,7 @@ const { clienteLI } = await import("../src/lib/canaisDeVenda/li/cliente.js");
 const { estadoDoIconeLI, iconeLIDoProduto, produtoIdValido } = await import("../src/lib/canaisDeVenda/li/estado.js");
 const { criarLojaIntegradaFalsa } = await import("./lib/lojaIntegradaFalsa.js");
 const { buscarNaLI, lerDetalheDaLI, lerParaPopupLI, listarCategoriasDaLI, listarMarcasDaLI } = await import("../src/lib/canaisDeVenda/li/leitura.js");
-const { cadastrarNaLI, sincronizarProdutoLI } = await import("../src/lib/canaisDeVenda/li/envio.js");
+const { cadastrarNaLI, completarCadastroLI, sincronizarProdutoLI } = await import("../src/lib/canaisDeVenda/li/envio.js");
 const { mudouNaLI, resumirEnvioLI, valorParaTela } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
 const { ROTULO_DO_TIPO_PRODUCAO, STATUS_LI } = await import("../src/lib/canaisDeVenda/li/rotulos.js");
 
@@ -51,6 +51,51 @@ function conferir(nome, obtido, esperado) {
 
 async function limpar() {
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-LI-" } } });
+}
+
+/**
+ * Bling de mentira para o cadastro automatico (24/10/2026): conhece qualquer codigo, liga o produto a loja da LI
+ * (`/produtos/lojas`) e devolve o saldo (`/estoques/saldos`). Sem rede; a trava e conferida antes de escrever.
+ */
+function criarBlingDaLI({ saldo = 5, saldoAusente = false, travaFechada = false, recusaVinculo = null } = {}) {
+  const vinculos = {};
+  const codigoDoId = {};
+  const idDe = (codigo) => {
+    const id = 7000 + [...String(codigo)].reduce((soma, letra) => soma * 31 + letra.charCodeAt(0), 0) % 900000;
+    codigoDoId[id] = codigo;
+    return id;
+  };
+  let liberada = false;
+  return {
+    chamadas: [],
+    vinculos,
+    exigirEscrita(codigo) {
+      this.chamadas.push(["TRAVA", codigo]);
+      if (travaFechada) throw new Error("Escrita bloqueada: BLING_ESCRITA esta false no .env. Nenhum dado foi enviado.");
+      liberada = true;
+    },
+    async get(caminho, params) {
+      this.chamadas.push(["GET", caminho]);
+      if (caminho === "/produtos") {
+        const codigo = params["codigos[]"][0];
+        return { ok: true, status: 200, dados: { data: [{ id: idDe(codigo), codigo }] } };
+      }
+      if (caminho === "/produtos/lojas") return { ok: true, status: 200, dados: { data: vinculos[params.idProduto] ?? [] } };
+      if (caminho === "/estoques/saldos") {
+        const codigo = params["codigos[]"][0];
+        return { ok: true, status: 200, dados: { data: saldoAusente ? [] : [{ produto: { id: idDe(codigo), codigo }, saldoVirtualTotal: saldo }] } };
+      }
+      const id = Number(caminho.split("/").pop());
+      return { ok: true, status: 200, dados: { data: { id, codigo: codigoDoId[id], preco: 10 } } };
+    },
+    async post(caminho, corpo) {
+      this.chamadas.push(["POST", caminho, corpo]);
+      if (!liberada) throw new Error("Bling falso: escrita sem exigirEscrita");
+      if (recusaVinculo) return { ok: false, status: recusaVinculo, dados: { error: { description: "Recusado" } } };
+      (vinculos[corpo.produto.id] ??= []).push({ id: 1, ...corpo });
+      return { ok: true, status: 201, dados: { data: { id: 1 } } };
+    },
+  };
 }
 
 try {
@@ -477,14 +522,15 @@ try {
     // Cadastro
     const pc = await prisma.produto.create({ data: { sku: "ZZ-LI-10", tituloBase: "Novo na LI", descricaoBase: "O produto novo na loja.", marca: "NOVAMARCA", ncm: "85364900", conferido: true } });
     const semNcm = await prisma.produto.create({ data: { sku: "ZZ-LI-11", tituloBase: "Sem NCM", conferido: true } });
-    conferir("cadastrar sem NCM recusa antes do POST", [/NCM/.test((await cadastrarNaLI(semNcm.id, li3)).erro ?? ""), li3.chamadas.filter((c) => c.metodo === "POST" && c.caminho === "/produto").length], [true, 0]);
-    const cad = await cadastrarNaLI(pc.id, li3);
-    conferir("cadastro: inativo, marca criada, vinculo gravado", [cad.ok, li3.produtos().at(-1).ativo, li3.marcas().some((m) => m.nome === "NOVAMARCA"), (await anuncioLIDoProduto(pc.id)).idExterno === cad.idExterno], [true, false, true, true]);
+    conferir("cadastrar sem NCM recusa antes do POST", [/NCM/.test((await cadastrarNaLI(semNcm.id, li3, criarBlingDaLI())).erro ?? ""), li3.chamadas.filter((c) => c.metodo === "POST" && c.caminho === "/produto").length], [true, 0]);
+    const cad = await cadastrarNaLI(pc.id, li3, criarBlingDaLI());
+    // Desde 24/10/2026 o cadastro liga no Bling, grava o estoque e ATIVA (era inativo e parava).
+    conferir("cadastro: ativo no fim, marca criada, vinculo gravado", [cad.ok, li3.produtos().at(-1).ativo, li3.marcas().some((m) => m.nome === "NOVAMARCA"), (await anuncioLIDoProduto(pc.id)).idExterno === cad.idExterno], [true, true, true, true]);
     const anCad = await anuncioLIDoProduto(pc.id);
-    conferir("cadastro: PAUSADA, PUBLICADO, assinatura e data", [anCad.situacaoCanal, anCad.status, typeof anCad.hashConteudo, anCad.sincronizadoEm !== null], ["PAUSADA", "PUBLICADO", "string", true]);
-    conferir("cadastrar de novo recusa (ja existe)", (await cadastrarNaLI(pc.id, li3)).ok, false);
+    conferir("cadastro: ATIVA, PUBLICADO, assinatura e data", [anCad.situacaoCanal, anCad.status, typeof anCad.hashConteudo, anCad.sincronizadoEm !== null], ["ATIVA", "PUBLICADO", "string", true]);
+    conferir("cadastrar de novo recusa (ja existe)", (await cadastrarNaLI(pc.id, li3, criarBlingDaLI())).ok, false);
     const naoConfCad = await prisma.produto.create({ data: { sku: "ZZ-LI-13", tituloBase: "Nao conferido", ncm: "85364900" } });
-    conferir("cadastrar nao Conferido recusa", (await cadastrarNaLI(naoConfCad.id, li3)).ok, false);
+    conferir("cadastrar nao Conferido recusa", (await cadastrarNaLI(naoConfCad.id, li3, criarBlingDaLI())).ok, false);
     // Trava fechada: um cliente cuja exigirEscrita lanca (a trava real e a da carga do processo)
     const travada = { ...li3, exigirEscrita: () => { throw new Error("Escrita bloqueada: LI_ESCRITA esta false no .env. Nenhum dado foi enviado."); } };
     const chamadasAntesDaTrava = li3.chamadas.length;
@@ -573,7 +619,7 @@ try {
     const pn = await prisma.produto.create({ data: { sku: "ZZ-LI-16", tituloBase: "Placa Nova na LI", descricaoBase: "Placa nova.", ncm: "85364900", conferido: true } });
     await salvarRascunhoLI(null, { ...rascunhoInicialLI(pn), categorias: ["5", "6"] });
     const lojaNova = criarLojaIntegradaFalsa({ categorias: arvoreFalsa });
-    const cadastro = await cadastrarNaLI(pn.id, lojaNova);
+    const cadastro = await cadastrarNaLI(pn.id, lojaNova, criarBlingDaLI());
     conferir("cadastrar: nasce so com a filha", [cadastro.ok, lojaNova.produtos().at(-1).categorias], [true, ["/api/v1/categoria/6"]]);
   }
 
@@ -761,7 +807,7 @@ try {
     const naLIP = liP.produtos().find((p) => p.id === 801);
     conferir("sincronizar manda só o preço que mudou", [envioP.ok, envioP.alterados.map((a) => [a.campo, a.de, a.para])], [true, [["preco", 15, 16]]]);
     conferir("preço gravado; custo e estoque intactos", [Number(naLIP.preco_cheio), naLIP.preco_custo, naLIP.estoque_quantidade], [16, "5.0000", 6]);
-    conferir("preço não passa pelo PUT do produto nem pelo estoque", [liP.chamadas.some((c) => c.metodo === "PUT" && c.caminho === "/produto/801"), liP.chamadas.some((c) => String(c.caminho).startsWith("/produto_estoque"))], [false, false]);
+    conferir("preço não passa pelo PUT do produto nem pelo estoque", [liP.chamadas.some((c) => c.metodo === "PUT" && c.caminho === "/produto/801"), liP.chamadas.some((c) => c.metodo === "PUT" && String(c.caminho).startsWith("/produto_estoque"))], [false, false]);
     conferir("lê o preço antes de gravar e guarda cópia", [liP.chamadas.some((c) => c.metodo === "GET" && c.caminho === "/produto_preco/801"), await prisma.copiaProdutoCanal.count({ where: { produtoId: pp.id } })], [true, 1]);
     const putsP = liP.chamadas.filter((c) => c.metodo === "PUT").length;
     conferir("segunda sincronização não manda o preço de novo", [(await sincronizarProdutoLI(pp.id, liP)).alterados, liP.chamadas.filter((c) => c.metodo === "PUT").length], [[], putsP]);
@@ -777,7 +823,7 @@ try {
     // Cadastro com preço: POST do produto e, em seguida, o preço.
     const pn = await prisma.produto.create({ data: { sku: "ZZ-LI-21", tituloBase: "Novo com preço", descricaoBase: "A placa nova na loja.", ncm: "85364900", conferido: true, precoVenda: 29.9 } });
     const liN = criarLojaIntegradaFalsa({});
-    const cadN = await cadastrarNaLI(pn.id, liN);
+    const cadN = await cadastrarNaLI(pn.id, liN, criarBlingDaLI());
     const novoN = liN.produtos().at(-1);
     conferir("preço na tela em reais", /^R\$\s16,00$/.test(valorParaTela("preco", 16)), true);
     conferir("cadastrar grava o preço depois do POST", [cadN.ok, Number(novoN.preco_cheio), liN.chamadas.findIndex((c) => c.metodo === "POST") < liN.chamadas.findIndex((c) => c.metodo === "PUT" && String(c.caminho).startsWith("/produto_preco"))], [true, 29.9, true]);
@@ -840,7 +886,7 @@ try {
       const pn = await prisma.produto.create({ data: { sku: "ZZ-LI-31", tituloBase: "Novo com foto", descricaoBase: "A placa nova na loja.", ncm: "85364900", conferido: true } });
       await prisma.produtoArquivo.create({ data: { produtoId: pn.id, tipo: "IMAGEM", arquivo: "n1.jpg", principal: true, ordem: 0 } });
       const liN = criarLojaIntegradaFalsa({});
-      const cad = await cadastrarNaLI(pn.id, liN);
+      const cad = await cadastrarNaLI(pn.id, liN, criarBlingDaLI());
       conferir("cadastrar envia as fotos do produto", [cad.ok, liN.produtos().at(-1).imagens.map((i) => [i.url.split("/").pop(), i.principal])], [true, [["n1.jpg", true]]]);
     } finally {
       config.appUrlPublica = urlPublicaAntes;
@@ -978,7 +1024,73 @@ try {
     await salvarRascunhoLI(null, rascunhoInicialLI({ id: pc.id, tituloBase: "Novo PS", descricaoBase: "Produto novo de teste para a proposta da Loja Integrada." }));
     await comProposta(pc.id);
     const liC = criarLojaIntegradaFalsa({});
-    conferir("cadastrar que deu certo: a proposta sai", [(await cadastrarNaLI(pc.id, liC)).ok, await temProposta(pc.id)], [true, false]);
+    conferir("cadastrar que deu certo: a proposta sai", [(await cadastrarNaLI(pc.id, liC, criarBlingDaLI())).ok, await temProposta(pc.id)], [true, false]);
+  }
+
+  {
+    console.log("\nCadastro automatico: regras (24/10/2026)");
+    const { ETAPAS_DO_CADASTRO_LI, corpoDoEstoqueInicialLI, faltaNoCadastroLI, ofereceCompletar } = await import("../src/lib/canaisDeVenda/li/etapasCadastro.js");
+    conferir("ordem das etapas", ETAPAS_DO_CADASTRO_LI, ["criar", "ligar_bling", "estoque", "ativar", "gravar"]);
+    conferir(
+      "estoque inicial: saldo arredondado, negativo e vazio viram 0, sempre indisponivel sem estoque",
+      [5, -3, null, 2.6, "abc"].map((saldo) => corpoDoEstoqueInicialLI(saldo).quantidade),
+      [5, 0, 0, 3, 0],
+    );
+    conferir("estoque inicial: corpo medido", corpoDoEstoqueInicialLI(5), { gerenciado: true, quantidade: 5, situacao_sem_estoque: -1 });
+    const do100108 = faltaNoCadastroLI({ idExterno: "404671257", ativo: true, estoqueGerenciado: false, situacaoNoBling: "ligado" });
+    conferir("100108 (ativo, ligado, sem controle de estoque): falta o estoque", do100108, ["estoque"]);
+    conferir("sem vinculo no Bling, inativo, sem estoque: falta tudo", faltaNoCadastroLI({ idExterno: "1", ativo: false, estoqueGerenciado: false, situacaoNoBling: "sem_vinculo" }), ["ligar_bling", "estoque", "ativar"]);
+    conferir("fora da LI: nada a completar", faltaNoCadastroLI({ idExterno: null, ativo: false, estoqueGerenciado: false, situacaoNoBling: "sem_vinculo" }), []);
+    conferir("ligado a outro produto da LI: o vinculo nao entra (o dono corrige no Bling)", faltaNoCadastroLI({ idExterno: "1", ativo: true, estoqueGerenciado: true, situacaoNoBling: "codigo_diferente" }), []);
+    const soInativo = faltaNoCadastroLI({ idExterno: "1", ativo: false, estoqueGerenciado: true, situacaoNoBling: "ligado" });
+    conferir("so inativo (pausado de proposito?): falta ativar, mas nao oferece", [soInativo, ofereceCompletar({ falta: soInativo })], [["ativar"], false]);
+    conferir("oferece com estoque faltando ou com falha gravada", [ofereceCompletar({ falta: do100108 }), ofereceCompletar({ falta: [], falhou: true })], [true, true]);
+  }
+
+  {
+    console.log("\nCadastro automatico: criar pausado, ligar no Bling, estoque, ativar");
+    await limpar();
+    const novo = (sku) => prisma.produto.create({ data: { sku, tituloBase: `Auto ${sku}`, descricaoBase: "O produto do cadastro automatico.", ncm: "85364900", conferido: true } });
+    const estoqueNaLI = (li) => { const p = li.produtos().at(-1); return [p.estoque_gerenciado, p.estoque_quantidade, p.estoque_situacao_sem_estoque]; };
+    const chamadaDe = (li, metodo, inicio) => li.chamadas.findIndex((c) => c.metodo === metodo && String(c.caminho).startsWith(inicio));
+
+    const p1 = await novo("ZZ-LI-30");
+    const li1 = criarLojaIntegradaFalsa({});
+    const b1 = criarBlingDaLI({ saldo: 5 });
+    const ok1 = await cadastrarNaLI(p1.id, li1, b1);
+    const an1 = await anuncioLIDoProduto(p1.id);
+    conferir("feliz: todas as etapas, ativo, estoque do Bling", [ok1.ok, ok1.etapas, li1.produtos().at(-1).ativo, estoqueNaLI(li1)], [true, ["criar", "ligar_bling", "estoque", "ativar", "gravar"], true, [true, 5, -1]]);
+    conferir("feliz: ligado no Bling com o id da LI", Object.values(b1.vinculos).flat().map((v) => [v.codigo, v.loja.id]), [[ok1.idExterno, 203478870]]);
+    conferir("feliz: anuncio ATIVA, PUBLICADO, sem cadastro pendente", [an1.situacaoCanal, an1.status, an1.dados?.cadastroLI ?? null, an1.erro], ["ATIVA", "PUBLICADO", null, null]);
+    conferir("ordem na LI: POST do produto, PUT do estoque, PUT do produto (ativar)", chamadaDe(li1, "POST", "/produto") < chamadaDe(li1, "PUT", "/produto_estoque") && chamadaDe(li1, "PUT", "/produto_estoque") < chamadaDe(li1, "PUT", `/produto/${ok1.idExterno}`), true);
+    const lido = await lerParaPopupLI(p1.id, li1);
+    conferir("editor le o ativo e o estoque da loja", [lido.ativoNaLI, lido.estoqueGerenciado, lido.cadastroFalhou], [true, true, null]);
+    const putsAntes = li1.chamadas.filter((c) => c.metodo === "PUT").length;
+    const deNovo = await completarCadastroLI(p1.id, li1, b1);
+    conferir("completar o que ja esta completo: ok e nenhum PUT", [deNovo.ok, li1.chamadas.filter((c) => c.metodo === "PUT").length - putsAntes, Object.values(b1.vinculos).flat().length], [true, 0, 1]);
+
+    const p2 = await novo("ZZ-LI-31");
+    const li2 = criarLojaIntegradaFalsa({});
+    const travado = await cadastrarNaLI(p2.id, li2, criarBlingDaLI({ travaFechada: true }));
+    conferir("trava do Bling fechada: recusa ANTES do POST da LI", [travado.ok, /BLING_ESCRITA/.test(travado.erro ?? ""), chamadaDe(li2, "POST", "/produto")], [false, true, -1]);
+
+    const falhou = await cadastrarNaLI(p2.id, li2, criarBlingDaLI({ recusaVinculo: 400 }));
+    const an2 = await anuncioLIDoProduto(p2.id);
+    conferir("Bling recusa o vinculo: para em ligar_bling, produto pausado", [falhou.ok, falhou.etapa, falhou.etapas, li2.produtos().at(-1).ativo], [false, "ligar_bling", ["criar"], false]);
+    conferir("falha depois de criar: o '!' fica gravado e o status nao vira ERRO", [an2.dados?.cadastroLI?.etapa, an2.status, an2.situacaoCanal, /HTTP 400/.test(an2.erro ?? "")], ["ligar_bling", "PUBLICADO", "PAUSADA", true]);
+    conferir("o editor ve a falha gravada", (await lerParaPopupLI(p2.id, li2)).cadastroFalhou?.etapa, "ligar_bling");
+    const completou = await completarCadastroLI(p2.id, li2, criarBlingDaLI({ saldo: -2 }));
+    const an2b = await anuncioLIDoProduto(p2.id);
+    conferir("completar: termina, sem segundo POST do produto, saldo negativo vira 0", [completou.ok, completou.etapas, li2.chamadas.filter((c) => c.metodo === "POST" && c.caminho === "/produto").length, estoqueNaLI(li2)], [true, ["ligar_bling", "estoque", "ativar", "gravar"], 1, [true, 0, -1]]);
+    conferir("completar: '!' apagado e ATIVA", [an2b.dados?.cadastroLI ?? null, an2b.situacaoCanal, an2b.erro, li2.produtos().at(-1).ativo], [null, "ATIVA", null, true]);
+
+    const p3 = await novo("ZZ-LI-32");
+    const li3b = criarLojaIntegradaFalsa({});
+    const semSaldo = await cadastrarNaLI(p3.id, li3b, criarBlingDaLI({ saldoAusente: true }));
+    conferir("Bling sem o saldo do codigo: para no estoque, sem gravar estoque nem ativar", [semSaldo.ok, semSaldo.etapa, li3b.produtos().at(-1).ativo, chamadaDe(li3b, "PUT", "/produto_estoque")], [false, "estoque", false, -1]);
+
+    const p4 = await novo("ZZ-LI-33");
+    conferir("completar sem estar na LI: recusa", (await completarCadastroLI(p4.id, criarLojaIntegradaFalsa({}), criarBlingDaLI())).ok, false);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

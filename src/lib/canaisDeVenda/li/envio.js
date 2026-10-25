@@ -1,5 +1,9 @@
+import { clienteBling } from "@/lib/blingSync/cliente";
+import { lerSaldosDoBling } from "@/lib/blingSync/saldos";
 import { prisma } from "@/lib/db";
 import { semProposta } from "@/lib/propostaDeAnuncio/preencher";
+import { ligarNoBlingLI } from "./blingLoja";
+import { corpoDoEstoqueInicialLI } from "./etapasCadastro";
 import {
   anuncioLIDoProduto,
   contextoDoProduto,
@@ -16,7 +20,7 @@ import { semAncestraisRedundantes } from "./categorias";
 import { clienteLI } from "./cliente";
 import { mesclarCorpoLI, montarCorpoDeCadastroLI } from "./corpo";
 import { montarDescricaoLI } from "./descricao";
-import { buscarNaLI, lerDetalheDaLI, listarCategoriasDaLI, listarMarcasDaLI, mesmaMarca, textoDoErroLI, urlNaLoja } from "./leitura";
+import { buscarNaLI, lerDetalheDaLI, lerEstoqueDaLI, listarCategoriasDaLI, listarMarcasDaLI, mesmaMarca, textoDoErroLI, urlNaLoja } from "./leitura";
 import { rascunhoInicialLI } from "./rascunho";
 import { validarRascunhoLI } from "./validacao";
 
@@ -26,7 +30,8 @@ import { validarRascunhoLI } from "./validacao";
  *
  * Regras que vem da spec e da medicao de 07/10/2026:
  * - so Produto Conferido; as duas travas (`exigirEscrita`) ANTES da primeira escrita;
- * - nunca estoque (o Bling e o dono); nunca origem nem tipo de producao (a API nao grava);
+ * - nunca estoque (o Bling e o dono), salvo UMA vez no cadastro automatico (`etapasDepoisDeCriar`, 24/10/2026: ligar
+ *   no Bling nao manda o saldo, e o produto ativo ficaria sem controle de estoque); nunca origem nem tipo de producao;
  * - o preco de venda vai pelo /produto_preco/{id} (decisao do dono em 07/10/2026: o Sincronizar do Rise ja muda
  *   o preco no Bling, e o Bling nao mandava preco a LI). So o `cheio`: custo e promocional voltam como a LI tem;
  * - o PUT leva o produto inteiro, mesclado sobre o GET, e antes dele o GET vai para CopiaProdutoCanal;
@@ -197,6 +202,56 @@ async function gravarFalha(anuncioId, etapa, erro) {
   await prisma.anuncio.update({ where: { id: anuncioId }, data: { status: "ERRO", erro, dados: { ...(anuncio?.dados ?? {}), etapa } } });
 }
 
+/**
+ * O cadastro parou DEPOIS de o produto existir na loja (ligar no Bling, estoque ou ativar). O `status` nao vira
+ * ERRO: o anuncio esta na LI e o conteudo foi enviado. Fica o motivo em `dados.cadastroLI`, que acende o "!" do
+ * icone e o "Completar o cadastro" do editor.
+ */
+async function gravarCadastroIncompleto(anuncioId, etapa, erro) {
+  const anuncio = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true } });
+  await prisma.anuncio.update({ where: { id: anuncioId }, data: { erro, dados: { ...(anuncio?.dados ?? {}), cadastroLI: { etapa, erro, em: new Date().toISOString() } } } });
+}
+
+async function finalizarCadastro(anuncioId, ativo) {
+  const anuncio = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true } });
+  const { cadastroLI: _, ...dados } = anuncio?.dados ?? {};
+  await prisma.anuncio.update({ where: { id: anuncioId }, data: { erro: null, situacaoCanal: ativo ? "ATIVA" : "PAUSADA", dados } });
+}
+
+/**
+ * Ligar no Bling, gravar o estoque inicial e ativar (pedido do dono em 24/10/2026). Cada etapa LE antes de
+ * escrever: o vinculo que ja existe nao e criado de novo, o estoque que o Bling ja abasteceu nao e regravado e o
+ * produto ativo nao recebe PUT. E isso que deixa o "Completar o cadastro" repetir sem escrever duas vezes.
+ * As travas da LI e do Bling foram conferidas por quem chama. Devolve as etapas que passaram.
+ */
+async function etapasDepoisDeCriar(cliente, bling, { sku, idExterno, feitas }) {
+  const ligado = await ligarNoBlingLI(bling, sku, idExterno);
+  if (!ligado.ok) throw new FalhaDoEnvio("ligar_bling", ligado.erro ?? "O produto não foi ligado à Loja Integrada no Bling.");
+  feitas.push("ligar_bling");
+
+  const estoque = await ler("estoque", () => lerEstoqueDaLI(cliente, idExterno));
+  if (!estoque.gerenciado) {
+    const saldos = await lerSaldosDoBling(bling, [sku]);
+    if (!saldos.ok) throw new FalhaDoEnvio("estoque", saldos.erro);
+    const doCodigo = saldos.itens.filter((item) => item.codigo.trim().toLowerCase() === String(sku).trim().toLowerCase());
+    if (doCodigo.length !== 1) {
+      throw new FalhaDoEnvio("estoque", `O Bling não devolveu um saldo único para o código ${sku}: o estoque não foi gravado na Loja Integrada e o anúncio ficou pausado.`);
+    }
+    await escrever("estoque", () => cliente.put(`/produto_estoque/${idExterno}`, corpoDoEstoqueInicialLI(doCodigo[0].saldo)));
+  }
+  feitas.push("estoque");
+
+  const detalhe = await ler("ativar", () => lerDetalheDaLI(cliente, idExterno));
+  if (detalhe.produto?.ativo !== true) {
+    // O PUT da LI exige o produto inteiro (medido): o GET sem as chaves so de leitura, com `ativo: true`.
+    const corpo = { ...mesclarCorpoLI(detalhe.produto, {}, [], {}), ativo: true };
+    await escrever("ativar", () => cliente.put(`/produto/${idExterno}`, corpo));
+    const relido = await ler("ativar", () => lerDetalheDaLI(cliente, idExterno));
+    if (relido.produto?.ativo !== true) throw new FalhaDoEnvio("ativar", "A Loja Integrada aceitou, mas a releitura mostra o produto inativo. Confira na loja.");
+  }
+  feitas.push("ativar");
+}
+
 async function gravarSucesso(anuncioId, produtoId, { assinatura, payload, url, ativo, idExterno }) {
   const anuncio = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true } });
   await prisma.$transaction([
@@ -326,12 +381,26 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
   });
 }
 
+/// As duas travas (LI e Bling) de um codigo, antes da primeira escrita: o recado da que recusar, ou null.
+function travaRecusada(cliente, bling, sku) {
+  try {
+    cliente.exigirEscrita(sku);
+    bling.exigirEscrita(sku);
+    return null;
+  } catch (erro) {
+    return erro?.message ?? String(erro);
+  }
+}
+
 /**
- * Cadastrar: cria na LI o produto que nao existe la, INATIVO (o dono confere na loja e ativa). Recusa
- * sem NCM (a NF-e da LI exige), produto ja vinculado e SKU que ja existe (ou esta na lixeira). O
- * vinculo e gravado logo depois do POST: se o SEO falhar em seguida, o proximo clique nao duplica.
+ * Cadastrar (pedido do dono em 24/10/2026: "cria anuncio na LI PAUSADO, sincroniza com Bling, apos sincronizar
+ * com Bling ativa o anuncio"): cria na LI o produto que nao existe la, INATIVO, com SEO, preco e fotos; depois
+ * liga no Bling, grava o estoque inicial e ativa (`etapasDepoisDeCriar`). Recusa sem NCM (a NF-e da LI exige),
+ * produto ja vinculado e SKU que ja existe (ou esta na lixeira). As travas da LI E do Bling vem antes do POST.
+ * O vinculo e gravado logo depois do POST: se algo falhar em seguida, o proximo clique nao duplica.
+ * Falha depois de criar deixa `dados.cadastroLI` (o "!") e o produto pausado; "Completar o cadastro" continua.
  */
-export async function cadastrarNaLI(produtoId, cliente = clienteLI()) {
+export async function cadastrarNaLI(produtoId, cliente = clienteLI(), bling = clienteBling()) {
   const recusa = (erro) => ({ ok: false, erro });
 
   return umPorVez(produtoId, recusa, async () => {
@@ -346,13 +415,12 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI()) {
     const rascunho = anuncio ? rascunhoDoAnuncio(anuncio) : rascunhoInicialLI(produto);
     const bloqueio = primeiroBloqueio(rascunho, produto);
     if (bloqueio) return recusa(bloqueio);
-    try {
-      cliente.exigirEscrita(produto.sku);
-    } catch (erro) {
-      return recusa(erro?.message ?? String(erro));
-    }
+    const travada = travaRecusada(cliente, bling, produto.sku);
+    if (travada) return recusa(travada);
 
     let idExterno = null;
+    let conteudoEnviado = false;
+    const feitas = [];
     try {
       const busca = await ler("leitura", () => buscarNaLI(cliente, produto.sku));
       if (busca.situacao === "existe") return recusa(`O código ${produto.sku} já existe na Loja Integrada: abra o pop-up do ícone para vincular.`);
@@ -393,11 +461,53 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI()) {
       if (fotos.enviadas) payload.fotos = { apagadas: 0, enviadas: fotos.enviadas };
 
       await gravarSucesso(anuncio.id, produtoId, { assinatura: assinaturaLI(rise), payload, url, ativo: false, idExterno });
-      return { ok: true, idExterno, urlExterna: url, fotos: fotos.texto };
+      conteudoEnviado = true;
+      feitas.push("criar");
+
+      await etapasDepoisDeCriar(cliente, bling, { sku: produto.sku, idExterno, feitas });
+      await finalizarCadastro(anuncio.id, true);
+      feitas.push("gravar");
+      return { ok: true, idExterno, urlExterna: url, fotos: fotos.texto, etapas: feitas };
     } catch (erro) {
       const texto = erro instanceof FalhaDoEnvio ? erro.message : `Erro inesperado no cadastro na Loja Integrada: ${erro?.message ?? erro}`;
-      if (anuncio) await gravarFalha(anuncio.id, erro?.etapa ?? "produto", texto);
-      return { ok: false, erro: texto, ...(idExterno ? { idExterno } : {}) };
+      const etapa = erro?.etapa ?? (conteudoEnviado ? "gravar" : "produto");
+      // Antes de o conteudo terminar de ir (SEO, preco, fotos) continua como sempre foi: ERRO, e o Sincronizar
+      // manda o resto. Ativar um produto com o conteudo pela metade nao e o que o dono quer.
+      if (anuncio && conteudoEnviado) await gravarCadastroIncompleto(anuncio.id, etapa, texto);
+      else if (anuncio) await gravarFalha(anuncio.id, etapa, texto);
+      return { ok: false, erro: texto, etapa, etapas: feitas, ...(idExterno ? { idExterno } : {}) };
+    }
+  });
+}
+
+/**
+ * "Completar o cadastro": o produto que ja esta na LI recebe as etapas que faltam (ligar no Bling, estoque
+ * inicial, ativar), cada uma conferindo antes. Vale para o cadastro que parou no meio e para o produto
+ * cadastrado antes disto (o 100108 ficou ativo sem controle de estoque). Nada de conteudo vai: e o Sincronizar.
+ */
+export async function completarCadastroLI(produtoId, cliente = clienteLI(), bling = clienteBling()) {
+  const recusa = (erro) => ({ ok: false, erro, etapas: [] });
+
+  return umPorVez(produtoId, recusa, async () => {
+    const produto = await contextoDoProduto(produtoId);
+    if (!produto) return recusa("Produto não encontrado.");
+    if (!produto.conferido) return recusa(`O produto ${produto.sku} não está Conferido. Só produto Conferido vai para a Loja Integrada.`);
+    const anuncio = await anuncioLIDoProduto(produtoId);
+    if (!anuncio?.idExterno) return recusa("Este produto ainda não está na Loja Integrada: use Cadastrar na LI.");
+    const travada = travaRecusada(cliente, bling, produto.sku);
+    if (travada) return recusa(travada);
+
+    const feitas = [];
+    try {
+      await etapasDepoisDeCriar(cliente, bling, { sku: produto.sku, idExterno: anuncio.idExterno, feitas });
+      await finalizarCadastro(anuncio.id, true);
+      feitas.push("gravar");
+      return { ok: true, idExterno: anuncio.idExterno, etapas: feitas };
+    } catch (erro) {
+      const texto = erro instanceof FalhaDoEnvio ? erro.message : `Erro inesperado ao completar o cadastro na Loja Integrada: ${erro?.message ?? erro}`;
+      const etapa = erro?.etapa ?? "gravar";
+      await gravarCadastroIncompleto(anuncio.id, etapa, texto);
+      return { ok: false, erro: texto, etapa, etapas: feitas, idExterno: anuncio.idExterno };
     }
   });
 }

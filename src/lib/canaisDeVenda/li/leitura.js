@@ -76,6 +76,16 @@ export async function buscarNaLI(cliente, sku) {
   return { situacao: "nao_existe" };
 }
 
+/**
+ * O estoque do produto na LI (`GET /produto_estoque/{id}`, medido em 24/10/2026). `gerenciado: false` e o
+ * produto que o Bling ainda nao abasteceu: ligar no Bling nao manda o saldo, e a loja vende sem controle.
+ */
+export async function lerEstoqueDaLI(cliente, id) {
+  const estoque = exigirResposta(await cliente.get(`/produto_estoque/${id}`));
+  const situacao = Number(estoque?.situacao_sem_estoque);
+  return { gerenciado: estoque?.gerenciado === true, quantidade: Number(estoque?.quantidade) || 0, situacaoSemEstoque: Number.isFinite(situacao) ? situacao : null };
+}
+
 /** O detalhe com a descricao completa, o SEO do recurso proprio e o nome da marca. */
 export async function lerDetalheDaLI(cliente, id) {
   const produto = exigirResposta(await cliente.get(`/produto/${id}`, { descricao_completa: 1 }));
@@ -164,6 +174,10 @@ function resultado(campos) {
     escrita: { liberada: false, motivo: null },
     fiscais: [],
     daLoja: { gtin: null, origem: null, tipoProducao: null },
+    // O que o editor usa para oferecer "Completar o cadastro" (etapasCadastro.js): nulo = nao se sabe.
+    ativoNaLI: null,
+    estoqueGerenciado: null,
+    cadastroFalhou: null,
     ...campos,
   };
 }
@@ -271,6 +285,10 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
       fiscais,
       fotos,
       daLoja: { gtin: li.gtin, origem: li.origem, tipoProducao: li.tipoProducao },
+      ativoNaLI: detalhe.produto?.ativo === true,
+      // Falhar so o estoque nao derruba a comparacao: o editor so deixa de oferecer o completar.
+      estoqueGerenciado: await lerEstoqueDaLI(cliente, busca.id).then((estoque) => estoque.gerenciado, () => null),
+      cadastroFalhou: anuncio.dados?.cadastroLI ?? null,
     });
   } catch (erro) {
     return resultado({
