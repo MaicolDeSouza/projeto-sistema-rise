@@ -10,7 +10,9 @@ export function textoDosEstoquesNosCanais(produto) {
   // O saldo do Bling pode ser negativo (reservas); o Rise e os canais mostram 0 nesse caso.
   if (typeof produto?.blingSaldo === "number") partes.push(`Bling ${Math.max(0, produto.blingSaldo)}`);
   const doCanal = (canal, ler) => [
-    ...new Set(anuncios.filter((anuncio) => anuncio.canal === canal && anuncio.status === "PUBLICADO").map(ler).filter((numero) => typeof numero === "number")),
+    // O kit montado no editor do ML e OUTRO produto no Bling (o kit de composicao): o estoque dele nao entra na dica do
+    // produto principal (o "!" do icone compara o kit com o saldo do kit, `relerEstadoML.js`).
+    ...new Set(anuncios.filter((anuncio) => anuncio.canal === canal && anuncio.status === "PUBLICADO" && !anuncio.dados?.composicao).map(ler).filter((numero) => typeof numero === "number")),
   ];
   const ml = doCanal("MERCADO_LIVRE", (anuncio) => anuncio.dados?.publicacao?.estadoML?.estoque);
   const li = doCanal("LOJA_INTEGRADA", (anuncio) => anuncio.dados?.monitorLI?.estoque);

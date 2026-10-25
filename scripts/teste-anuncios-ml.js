@@ -2801,10 +2801,30 @@ try {
     conferir("estoque: igualou, zera e apaga", [(await estadoDe4()).estoqueDiferenteSeguidas, (await iconeDe4()).estoqueDivergenteNoML], [0, false]);
     conferir("estoque: produto sem saldo do Bling nao compara", [(await lido(a1)).estado.estoqueBling, (await lido(a1)).estado.estoqueDiferenteSeguidas], [null, 0]);
 
+    // Kit montado no editor (pedido do dono em 25/10/2026): o Publicar cria o kit de composicao no Bling, e o saldo vem do
+    // KIT no Bling (lido pelo codigo na rodada), nao do produto principal do anuncio.
+    const { criarBlingFalso } = await import("./lib/blingFalso.js");
+    const blingDoKit = criarBlingFalso({ produtos: [{ id: 9001, codigo: "250901", nome: "KIT ZZ", formato: "E" }], saldos: { 250901: 4 } });
+    const principal = await prisma.produto.create({ data: { sku: "ZZ-ML-EST3", tituloBase: "principal do kit", conferido: true, blingSaldo: 99 } });
+    const a5 = await prisma.anuncio.create({
+      data: {
+        produtoId: principal.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB910005",
+        dados: { composicao: { itens: [{ produtoId: principal.id, quantidade: 2 }], codigo: "250901", blingProdutoId: 9001 }, publicacao: { itemId: "MLB910005" } },
+      },
+    });
+    ml.itens.set("MLB910005", { id: "MLB910005", status: "active", sub_status: [], available_quantity: 2, sold_quantity: 0 });
+    const doKit = async () => (await prisma.anuncio.findUnique({ where: { id: a5.id }, select: { dados: true } })).dados.publicacao.estadoML;
+    await relerEstadosML({ ml, bling: blingDoKit, anuncioIds: [a5.id], agora: new Date("2026-10-25T10:00:00Z") });
+    await relerEstadosML({ ml, bling: blingDoKit, anuncioIds: [a5.id], agora: new Date("2026-10-25T11:00:00Z") });
+    const iconeKit = estadoDoIconeML(await prisma.anuncio.findMany({ where: { id: a5.id }, select: { canal: true, status: true, situacaoCanal: true, dados: true } }));
+    conferir("kit do editor: compara com o saldo do KIT no Bling (4), nao o do principal (99)", [(await doKit()).estoqueBling, (await doKit()).estoqueDiferenteSeguidas, /estoque no ML 2, no Bling 4/.test(rotuloDoIconeML(iconeKit))], [4, 2, true]);
+    conferir("kit do editor: o saldo foi lido pelo codigo do kit", blingDoKit.chamadas.some((c) => c.caminho === "/estoques/saldos" && JSON.stringify(c).includes("250901")), true);
+
     const { textoDosEstoquesNosCanais } = await import("../src/lib/canaisDeVenda/estoquesNosCanais.js");
     const anuncioML = (estoque) => ({ canal: "MERCADO_LIVRE", status: "PUBLICADO", dados: { publicacao: { estadoML: { estoque } } } });
     const anuncioLI = (estoque) => ({ canal: "LOJA_INTEGRADA", status: "PUBLICADO", dados: { monitorLI: { estoque } } });
     conferir("resumo do estoque: Bling, Rise, ML e LI", textoDosEstoquesNosCanais({ blingSaldo: 5, estoque: 5, anuncios: [anuncioML(3), anuncioML(3), anuncioLI(5)] }), "Bling 5 · Rise 5 · ML 3 · LI 5");
+    conferir("resumo do estoque: o kit montado no editor fica fora da dica do principal", textoDosEstoquesNosCanais({ blingSaldo: 5, estoque: 5, anuncios: [anuncioML(3), { ...anuncioML(1), dados: { composicao: { codigo: "250901" }, publicacao: { estadoML: { estoque: 1 } } } }] }), "Bling 5 · Rise 5 · ML 3");
     conferir("resumo do estoque: Classico e Premium com numeros diferentes", textoDosEstoquesNosCanais({ blingSaldo: 5, estoque: 5, anuncios: [anuncioML(3), anuncioML(5)] }), "Bling 5 · Rise 5 · ML 3/5");
     conferir("resumo do estoque: so o Rise nao vira dica; saldo negativo do Bling e 0", [textoDosEstoquesNosCanais({ blingSaldo: null, estoque: 2, anuncios: [] }), textoDosEstoquesNosCanais({ blingSaldo: -2, estoque: 0, anuncios: [] })], [null, "Bling 0 · Rise 0"]);
   }

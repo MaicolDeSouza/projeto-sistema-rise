@@ -1,3 +1,5 @@
+import { clienteBling } from "@/lib/blingSync/cliente";
+import { lerSaldosDoBling } from "@/lib/blingSync/saldos";
 import { prisma } from "@/lib/db";
 
 import { gravarPublicacao } from "./banco";
@@ -19,13 +21,47 @@ const ESPERA_ENTRE_LOTES_MS = 300;
 const PARA_A_RODADA = new Set([401, 429]);
 const CAMPOS = "body.id,body.status,body.sub_status,body.available_quantity,body.sold_quantity";
 
+// Codigos por chamada de saldos no Bling (o mesmo lote de `saldos.js`: o limite e o tamanho da URL).
+const KITS_POR_LEITURA = 100;
+
+/**
+ * O saldo, no Bling, dos kits montados no editor (pedido do dono em 25/10/2026): o Publicar cria o kit de composicao no
+ * Bling (`composicao.blingProdutoId`), mas o Rise nao guarda o saldo dele (nao e um Produto). Lido aqui, pelo codigo do
+ * kit, so quando ha kit na rodada. Pelo id do kit no Bling quando veio, senao pelo codigo (sem caixa). Falha do Bling
+ * deixa os kits sem comparar nesta hora (nunca derruba a rodada).
+ * @returns {Promise<Map<string, number>>} anuncioId -> saldo do kit no Bling
+ */
+async function saldosDosKits(kits, bling) {
+  const resultado = new Map();
+  if (kits.length === 0) return resultado;
+  const cliente = bling ?? clienteBling();
+  const codigos = [...new Set(kits.map((anuncio) => String(anuncio.dados.composicao.codigo).trim()).filter(Boolean))];
+  const porId = new Map();
+  const porCodigo = new Map();
+  for (let inicio = 0; inicio < codigos.length; inicio += KITS_POR_LEITURA) {
+    const lido = await lerSaldosDoBling(cliente, codigos.slice(inicio, inicio + KITS_POR_LEITURA)).catch(() => ({ ok: false }));
+    if (!lido.ok) continue;
+    for (const item of lido.itens) {
+      if (typeof item.saldo !== "number") continue;
+      if (item.id !== null) porId.set(String(item.id), item.saldo);
+      porCodigo.set(item.codigo.toLowerCase(), item.saldo);
+    }
+  }
+  for (const anuncio of kits) {
+    const { codigo, blingProdutoId } = anuncio.dados.composicao;
+    const saldo = (blingProdutoId ? porId.get(String(blingProdutoId)) : undefined) ?? porCodigo.get(String(codigo).trim().toLowerCase());
+    if (typeof saldo === "number") resultado.set(anuncio.id, saldo);
+  }
+  return resultado;
+}
+
 const esperar = (ms) => (ms > 0 ? new Promise((resolver) => setTimeout(resolver, ms)) : Promise.resolve());
 
 /**
  * @param {{ ml?, agora?: Date, anuncioIds?: string[], espera?: number }} [opcoes] `anuncioIds` limita a rodada (o teste).
  * @returns {Promise<{ conferidos: number, mudaram: number, falhas: number, parou?: string }>}
  */
-export async function relerEstadosML({ ml, agora = new Date(), anuncioIds, espera = ESPERA_ENTRE_LOTES_MS } = {}) {
+export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds, espera = ESPERA_ENTRE_LOTES_MS } = {}) {
   const resultado = { conferidos: 0, mudaram: 0, falhas: 0 };
   let anuncios;
   try {
@@ -46,6 +82,7 @@ export async function relerEstadosML({ ml, agora = new Date(), anuncioIds, esper
   }
   if (anuncios.length === 0) return resultado;
   const cliente = ml ?? clienteML();
+  const saldosDeKit = await saldosDosKits(anuncios.filter((anuncio) => anuncio.dados?.composicao?.codigo), bling);
 
   for (let inicio = 0; inicio < anuncios.length; inicio += POR_LOTE) {
     if (inicio > 0) await esperar(espera);
@@ -77,9 +114,9 @@ export async function relerEstadosML({ ml, agora = new Date(), anuncioIds, esper
       const novo = estadoDoItem(item);
       const anterior = anuncio.dados?.publicacao?.estadoML ?? null;
       const situacao = situacaoDoEstado(novo.status);
-      // Estoque x Bling (25/10/2026): so o anuncio de um produto do Rise (o kit montado no editor nao tem produto com o
-      // saldo do kit) e com o saldo do Bling lido. Conta as leituras SEGUIDAS com diferenca; o "!" vem com 2.
-      const blingSaldo = anuncio.dados?.composicao ? null : anuncio.produto?.blingSaldo ?? null;
+      // Estoque x Bling (25/10/2026): o saldo do produto do anuncio, ou, no kit montado no editor, o do KIT no Bling (lido
+      // acima). Conta as leituras SEGUIDAS com diferenca; o "!" vem com 2.
+      const blingSaldo = anuncio.dados?.composicao ? (saldosDeKit.get(anuncio.id) ?? null) : (anuncio.produto?.blingSaldo ?? null);
       const estoqueBling = typeof blingSaldo === "number" ? Math.max(0, blingSaldo) : null;
       const seguidas = seguidasComDiferenca(anterior?.estoqueDiferenteSeguidas, novo.estoque, estoqueBling);
       const mudou = estadoMudou(anterior, novo);
