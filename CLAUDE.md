@@ -252,7 +252,12 @@ que acompanha o produto, a proposta de produto e a de anúncio LI e ML, o gerado
 avisos no Telegram, OBR e Imobras, a revisão de segurança, o custo adicional do fornecedor e o markup). **Toda menção a "SEM
 deploy" nas seções abaixo que seja anterior a essa data está obsoleta.** O que continua pendente é ação do dono, não deploy
 (2º fator, criar o bot do Telegram, cadastrar OBR e Imobras na VPS, a chave da OpenAI na VPS, o 1º envio real do "Enviar
-mudanças ao ML", a revisão das propostas do 100105 e do 100107).
+mudanças ao ML", a revisão das propostas do 100105 e do 100107). **Deploy 25.10.2026.32 (commit `b668795`, 25/10/2026):** subiu
+tudo até ali (Nome que a descrição acompanha, a lista do "$" por estoque, a regra de preço Usinainfo/top 5/piso de 30% e a do ML
+30/40%, os roteiros v12 e ML v5, os parágrafos no estilo da Smartkits e o teto de 14.000 do prompt) e o trabalho das outras
+sessões até esse commit, conferido com `git merge-base --is-ancestor`: o cadastro automático da LI, o monitor da LI e o estoque dos
+canais, a Saúde do Rise, categorias e SEO no produto, preço e ficha editáveis no ML publicado, o estado e o catálogo do ML de hora
+em hora, e a migration `20261025c_fonte_cidade_uf`. As seções abaixo que dizem "SEM deploy" para esses itens estão obsoletas.
 
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
@@ -2688,8 +2693,8 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       28 obrigatórios. Regras próprias: placa > módulo > SoC são três coisas; não copiar entre variantes (clássico, S2, S3, C3, C6,
       H2); USB-C não prova USB nativo; sufixo U = U.FL sem antena; CAM não tem USB; GPIO 6-11 da placa de 38 pinos não contam. Ficaram
       de fora de propósito: Taxa de Transferência, RTC, Cor, textos de aplicação. **LoRa continua no `03-esp32-lora.txt`, não revisado**
-      (ainda com "?"), assim como STM32 e Raspberry. 11.996 de 12.000 caracteres. **Só vale depois de colado na biblioteca da VPS** com
-      o nome "ESP32" (a cópia do PC só tem "Padrão do sistema", "Arduino" e "teste"). O 170113 (DevKitC V4 WROOM-32D) é o primeiro
+      (ainda com "?"), assim como STM32 e Raspberry. **Gravado na biblioteca da VPS em 25/10/2026 como "Embarcados-ESP32"** (ver
+      "Parágrafos no estilo da Smartkits"; a cópia do PC só tem "Padrão do sistema", "Arduino" e "teste"). O 170113 (DevKitC V4 WROOM-32D) é o primeiro
       candidato: ainda sem concorrente vinculado, mas o acervo tem o mesmo produto em Usinainfo, Mamute, Wj, Saravati, Eletrogate,
       Piscaled e na Fortek (R$ 38,90); as lojas divergem no conector (Micro USB × USB-C) e na alimentação pelo VIN (4,5-12V × 5V).
     - **Parágrafos no estilo da Smartkits** (25/10/2026, pedido do dono: "gosto muito como eles fazem a introdução dos produtos;
@@ -2704,8 +2709,10 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       porquê de ser boa, 3 ou 4 frases**, começando pelo coração ("Equipada com...") e, a cada recurso, o que ele permite ou
       dispensa, fechando com a programação ou "é a escolha ideal para quem..."; "possui", "você" quando couber, tom que explica e
       ensina sem vender; memória e clock só quando são o diferencial (a proibição antiga saiu). Roteiro da proposta v12. A regra
-      "4 linhas por parágrafo" de 16/09/2026 ficou para trás. **Só vale na VPS depois do deploy, e os dois prompts precisam ser
-      colados de novo na biblioteca.**
+      "4 linhas por parágrafo" de 16/09/2026 ficou para trás. **No ar na VPS desde o deploy 25.10.2026.32, e os dois prompts estão
+      gravados na biblioteca da VPS** (25/10/2026, pela lib do Rise dentro do contêiner): o texto novo do Arduino foi para o
+      "Embarcados-Arduino" que o dono já tinha (12.111 caracteres) e o ESP32 entrou como "Embarcados-ESP32" (12.210), no mesmo
+      padrão de nome. Nenhum dos dois é o padrão da janela; a proposta escolhe pelo nome exato.
     - **Origem da linha que nenhuma loja confirma** (13/10/2026, pedido do dono: "se veio pela IA, deve mostrar de onde
       veio a fonte"): antes a linha ficava sem nada ao lado. `origemSemLoja` (`divergencias.js`) diz **"Cadastro"** quando o
       valor está no título, na marca, no modelo, na descrição atual ou nas peças do kit (número solto, como "6", nunca conta),
