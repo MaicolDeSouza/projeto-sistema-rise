@@ -4888,6 +4888,20 @@ Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com *
   (`fonteManual: null` em vez de ausente): o schema é `nullable`, não `optional`, e chave
   ausente falha a validação **em silêncio** — foi o que aconteceu na primeira versão, sem
   lançar exceção nem aparecer no log, e o concorrente simplesmente não entrava na lista.
+- **Marcar referências pelo MCP (`marcarReferencias`) e o roteiro de escolha** (pedido do dono em 25/10/2026, depois do
+  teste de precisão no 170113): a LLM acha fornecedores e concorrentes no acervo e os deixa VINCULADOS, para o dono
+  conferir na lupa (que marca sozinha quem está vinculado na 1ª busca). Regras em `src/lib/referencias/roteiro.js`,
+  servido pela `roteiroDaProposta` com `canal: "referencias"` (cada correção do dono vira regra lá, com a versão
+  subida; inclui "pergunte e espere" quando a foto não deixa claro, ex.: Tipo C ou Micro USB). A gravação mora em
+  `src/lib/referencias/marcar.js`: item por fonte + código (ou URL), concorrente só de fonte CONCORRENTE com cadastro,
+  fornecedor só de fonte FORNECEDOR com cadastro, custo = `custoDoFornecedor` (com imposto, como a lupa), **fornecedor
+  NUNCA padrão** e o padrão não sai pelo MCP; nada vai ao Bling. Acesso: o da proposta + editar o cadastro de Produtos.
+  - **Regra nova do rascunho do Bling (`src/lib/fornecedorRascunho.js`)**: `fornecedorRascunho` VALE enquanto não há
+    fornecedor PADRÃO de verdade (antes: enquanto não havia NENHUM vínculo; um vínculo não padrão escondia a SAMIORE do
+    170113, que nem cadastro tem). A aba mostra o rascunho na frente, como padrão, e os vínculos atrás
+    (`fornecedoresComRascunho`, também no clone); `custoDoCadastro` dos indicadores segue a mesma regra (o custo.js, a
+    composição e a foto mensal já liam só o padrão). E o Salvar só limpa o rascunho se os fornecedores foram gravados
+    (`!avisoFornecedores`): antes, uma falha (fornecedor sem cadastro) apagava o único registro dele.
 - **Concorrentes e Fornecedores entram sozinhos na aba ao fechar a janela da lupa**
   (`sincronizarSugestoes`, via `ref` em `Fornecedores.jsx`/`Concorrentes.jsx`), pedido do dono
   em 18/09/2026: sem precisar clicar em "Adicionar" para cada um. Fechar é o momento em que o
