@@ -18,7 +18,9 @@
   --color-acento: #2a8fd4;
 
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Uma fonte so no Rise (pedido do dono em 25/10/2026: codigo em fonte diferente dificultava a leitura). O `font-mono`
+     das telas continua existindo, mas aponta para a mesma fonte do resto; sem isso cada uso teria de ser trocado. */
+  --font-mono: var(--font-geist-sans);
 }
 
 /*
@@ -39,6 +41,17 @@ html {
    cima da tabela de Produtos nao rolava a pagina (achado pelo dono em 24/10/2026). */
 .overflow-x-auto {
   overscroll-behavior-x: contain;
+}
+
+/*
+  CODIGO DO PRODUTO MAIOR (pedido do dono em 25/10/2026: o codigo em 12px ficava pequeno ao lado do nome). Os ~70 usos de
+  `font-mono` pequeno (text-xs e text-[11px]) sobem para o tamanho do texto comum da tabela, num lugar so. Fora de camada,
+  para vencer a utilidade do Tailwind sem trocar classe tela a tela.
+*/
+.font-mono.text-xs,
+.font-mono.text-\[11px\] {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
 }
 
 body {
