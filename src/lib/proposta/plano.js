@@ -6,7 +6,14 @@
  * (docs/superpowers/roteiros/proposta-de-produto.md).
  */
 
-export const SECOES = ["descricao", "titulos", "fotos", "campos", "preco", "ean", "documentos", "relatorio"];
+export const SECOES = ["descricao", "titulos", "fotos", "campos", "preco", "ean", "categoriasLI", "seoLI", "documentos", "relatorio"];
+
+/*
+ * Categorias e SEO da Loja Integrada (25/10/2026: passaram a ser dados do produto, e a proposta da LI deixou de existir).
+ * Aqui so a FORMA; o Rise confere os ids na arvore da loja e tira o pai ao gravar (`gravarProposta`).
+ */
+export const LIMITES_DA_DESCRIPTION_SEO = [130, 160];
+export const MAXIMO_DE_CATEGORIAS_PROPOSTAS = 5;
 
 /**
  * Campos que a proposta pode sugerir (o resto do cadastro e do dono: estoque, localizacao...). Desde 24/10/2026 (pedido
@@ -114,6 +121,29 @@ function validarEan(conteudo) {
   return { ok: true };
 }
 
+function validarCategoriasLI(conteudo) {
+  const escolhidas = conteudo?.escolhidas;
+  if (!Array.isArray(escolhidas) || escolhidas.length === 0) return erro("categoriasLI: escolhidas é uma lista com pelo menos uma categoria.");
+  if (escolhidas.length > MAXIMO_DE_CATEGORIAS_PROPOSTAS) return erro(`categoriasLI: no máximo ${MAXIMO_DE_CATEGORIAS_PROPOSTAS} categorias.`);
+  const ids = new Set();
+  for (const item of escolhidas) {
+    if (!texto(item?.id)) return erro("categoriasLI: toda categoria tem id (o de lerParaProposta).");
+    if (ids.has(String(item.id).trim())) return erro(`categoriasLI: id repetido (${item.id}).`);
+    ids.add(String(item.id).trim());
+    if (!texto(item.motivo)) return erro(`categoriasLI: a categoria ${item.id} não diz o motivo.`);
+  }
+  return { ok: true };
+}
+
+function validarSeoLI(conteudo) {
+  const [minimo, maximo] = LIMITES_DA_DESCRIPTION_SEO;
+  const description = String(conteudo?.description ?? "").replace(/\s+/g, " ").trim();
+  if (description.length < minimo || description.length > maximo) {
+    return erro(`seoLI: a Meta Description tem de ${minimo} a ${maximo} caracteres (tem ${description.length}).`);
+  }
+  return { ok: true };
+}
+
 function validarDocumentos(conteudo) {
   if (!Array.isArray(conteudo?.itens)) return erro("documentos: itens é uma lista.");
   const ids = new Set();
@@ -137,6 +167,8 @@ const VALIDADORES = {
   campos: validarCampos,
   preco: validarPreco,
   ean: validarEan,
+  categoriasLI: validarCategoriasLI,
+  seoLI: validarSeoLI,
   documentos: validarDocumentos,
   relatorio: validarRelatorio,
 };

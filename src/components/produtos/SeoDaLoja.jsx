@@ -108,7 +108,7 @@ const SECAO = "px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppe
  *   "Gerar com IA" (3 opcoes de 140 a 160 caracteres).
  * O texto vai no Salvar pelos proprios campos (`name`), como os outros do formulario. A URL do produto fica so na LI.
  */
-export default function SeoDaLoja({ produtoId, inicialTitulo = "", inicialDescricao = "", lerCampo, aoAlterar, ativo, acessos = { concorrentes: true, ia: true } }) {
+export default function SeoDaLoja({ produtoId, inicialTitulo = "", inicialDescricao = "", lerCampo, aoAlterar, ativo, acessos = { concorrentes: true, ia: true }, iconeDaProposta = null, marcaDaProposta = null }) {
   const [titulo, setTitulo] = useState(String(inicialTitulo ?? ""));
   const [descricao, setDescricao] = useState(String(inicialDescricao ?? ""));
   const [mexeuNoTitulo, setMexeuNoTitulo] = useState(false);
@@ -204,7 +204,9 @@ export default function SeoDaLoja({ produtoId, inicialTitulo = "", inicialDescri
             }}
             className={`${CLASSE_CAMPO} resize-y border-borda focus:border-acento`}
           />
-          <div className="mt-1">
+          <div className="mt-1 flex items-center gap-1">
+            {/* O valor de antes da proposta (etiqueta "Original") ou a sugestao dela, vindos do formulario do produto. */}
+            {iconeDaProposta}
             <ListaDeOpcoes rotulo="Escolher a descrição" aberta={aberta === "description"} aoAlternar={alternar("description")} carregando={lendoConcorrentes || gerando}>
               {/* "Com IA" no TOPO (pedido do dono em 24/10/2026): no fim, com muitos concorrentes, ficava abaixo da tela. */}
               {acessos.ia && (
@@ -262,6 +264,7 @@ export default function SeoDaLoja({ produtoId, inicialTitulo = "", inicialDescri
             </ListaDeOpcoes>
           </div>
         </div>
+        {marcaDaProposta}
       </div>
     </div>
   );

@@ -8,9 +8,22 @@
  */
 
 /** As secoes que preenchem campos. Fotos tem o proprio "Aplicar" na aba Imagens; documentos e relatorio so se leem. */
-export const SECOES_APLICAVEIS = ["descricao", "titulos", "campos", "preco", "ean"];
+export const SECOES_APLICAVEIS = ["descricao", "titulos", "campos", "preco", "ean", "categoriasLI", "seoLI"];
 
 const temValor = (valor) => valor !== null && valor !== undefined && String(valor).trim() !== "";
+
+/** As categorias da loja como lista de ids: o produto traz lista, o formulario pode trazer o JSON do campo oculto. */
+function listaDeIds(valor) {
+  let lista = valor;
+  if (typeof valor === "string") {
+    try {
+      lista = JSON.parse(valor);
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(lista) ? [...new Set(lista.map(String).filter(Boolean))] : [];
+}
 
 /**
  * A secao tem o que pôr no formulario? O EAN vazio ("nada confiavel"), o preco sem recomendada nem opcao e campos sem
@@ -22,6 +35,8 @@ export function temOQueAplicar(secao, conteudo) {
   if (secao === "preco") return (conteudo.opcoes ?? []).some((opcao) => temValor(opcao?.preco)) || temValor(conteudo.recomendada?.preco);
   if (secao === "campos") return Object.values(conteudo).some((item) => temValor(item?.valor));
   if (secao === "titulos") return (conteudo.opcoes ?? []).some(temValor);
+  if (secao === "categoriasLI") return (conteudo.escolhidas ?? []).some((item) => temValor(item?.id));
+  if (secao === "seoLI") return temValor(conteudo.description);
   return temValor(conteudo.texto);
 }
 
@@ -82,6 +97,9 @@ const CAMPO_DO_FORMULARIO = {
 export const CAMPOS_QUE_A_PROPOSTA_TROCA = [
   "descricaoBase", "precoVenda", "ean", "unidade", "marca", "modelo", "garantiaMeses", "numeroHomologacao", "pesoKg",
   "comprimentoCm", "larguraCm", "alturaCm", "origem", "tipoProducao", "ncm", "cest", "percentualTributos", "spedTipoItem",
+  // Meta Description da loja (25/10/2026): a da proposta entra por cima, com o original na lista. As categorias da loja
+  // NAO estao aqui: so entram no produto sem categoria; com categorias, a proposta e uma sugestao ("Usar a proposta").
+  "seoDescricaoLI",
 ];
 
 /**
@@ -117,6 +135,8 @@ export function camposDoFormularioDaProposta(secoes, escolhas = {}, produto = {}
       por(secao, { precoVenda: opcao?.preco });
     }
     if (secao === "ean") por(secao, { ean: conteudo.escolhido?.valor });
+    if (secao === "categoriasLI") por(secao, { categoriasLI: (conteudo.escolhidas ?? []).map((item) => String(item.id)) });
+    if (secao === "seoLI") por(secao, { seoDescricaoLI: conteudo.description });
     if (secao === "campos") {
       const novos = {};
       for (const [campo, item] of Object.entries(conteudo)) {
@@ -137,7 +157,7 @@ const ROTULO_DO_CAMPO = {
   marca: "Marca", modelo: "Modelo", unidade: "Unidade", garantiaMeses: "Garantia", sku: "Código", ncm: "NCM", origem: "Origem",
   pesoKg: "Peso", alturaCm: "Altura", larguraCm: "Largura", comprimentoCm: "Comprimento", precoVenda: "Preço", ean: "GTIN / EAN",
   descricaoBase: "Descrição", numeroHomologacao: "Número de homologação", tipoProducao: "Tipo de produção", cest: "CEST",
-  percentualTributos: "% Tributos", spedTipoItem: "Tipo do item",
+  percentualTributos: "% Tributos", spedTipoItem: "Tipo do item", categoriasLI: "Categorias", seoDescricaoLI: "Meta Description",
 };
 
 /** O texto da etiqueta do valor que o produto tinha antes de a proposta escrever no campo. */
@@ -174,7 +194,12 @@ const semQuebras = (texto) => String(texto ?? "").replace(/\r\n?/g, "\n").trim()
 
 /** Mesmo valor para o campo: a descricao compara o texto, o resto pela regra de `mesmoValor`. */
 function igual(campo, a, b) {
-  return campo === "descricaoBase" ? semQuebras(a) === semQuebras(b) : mesmoValor(campo, a, b);
+  if (campo === "categoriasLI") {
+    // Lista de ids: a ordem nao conta.
+    const [listaA, listaB] = [listaDeIds(a).sort(), listaDeIds(b).sort()];
+    return listaA.length === listaB.length && listaA.every((id, i) => id === listaB[i]);
+  }
+  return campo === "descricaoBase" || campo === "seoDescricaoLI" ? semQuebras(a) === semQuebras(b) : mesmoValor(campo, a, b);
 }
 
 /**
@@ -195,6 +220,12 @@ export function valoresDaProposta(secoes) {
     const destino = CAMPO_DO_FORMULARIO[campo];
     if (destino) por("campos", destino, item?.valor, item?.origem);
   }
+  // Categorias e SEO da loja (25/10/2026). O Tag Title nao entra: a aba SEO ja abre com o nome do produto cortado.
+  const escolhidas = secoes?.categoriasLI?.escolhidas;
+  if (Array.isArray(escolhidas) && escolhidas.length > 0) {
+    por("categoriasLI", "categoriasLI", escolhidas.map((item) => String(item.id)), escolhidas.map((item) => item.caminho ?? item.id).join(" · "));
+  }
+  por("seoLI", "seoDescricaoLI", secoes?.seoLI?.description, secoes?.seoLI?.fonte ?? "");
   return valores;
 }
 
@@ -235,6 +266,23 @@ export function propostaNoFormulario(secoes, produto = {}, aplicadas = {}) {
       if (!temValor(atual)) {
         preencher.sku = valor;
         preenchidas.add(secao);
+      }
+      continue;
+    }
+    if (campo === "categoriasLI") {
+      // Categorias (25/10/2026): produto SEM categoria abre com as da proposta (e a marca); com categorias, a proposta
+      // so vira sugestao ("Usar a proposta"), porque o dono escolheu aquelas e a arvore da loja e dele.
+      const marcadas = listaDeIds(atual);
+      const daPropostaAntes = Object.hasOwn(anteriores, campo) && igual(campo, atual, anteriores[campo]);
+      if (editados.has(campo)) {
+        if (!igual(campo, atual, valor)) naLista(campo, valor, origem, "proposta");
+      } else if (marcadas.length === 0) {
+        preencher[campo] = valor;
+        preenchidas.add(secao);
+      } else if (igual(campo, atual, valor)) {
+        if (daPropostaAntes) marcados[campo] = valor;
+      } else {
+        naLista(campo, valor, origem, "proposta");
       }
       continue;
     }

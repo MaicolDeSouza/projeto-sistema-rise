@@ -1340,6 +1340,11 @@ try {
     conferir("gravarSecao: a secao substituida aparece no lerProposta", relida.proposta?.secoes?.titulos?.opcoes?.[0], "ZZ GRAVADA A");
     const invalida = await chamar("gravarSecao", { sku: "ZZ-MCP-PROP", secao: "titulos", conteudo: { opcoes: ["SO UMA"], recomendada: 0 } });
     conferir("gravarSecao: secao invalida volta com a mensagem da validacao", [invalida?.isError, textoDe(invalida).length > 0, textoDe(invalida).includes("Não foi possível concluir")], [true, true, false]);
+    // Categorias e SEO da loja (25/10/2026) pela mesma ferramenta: a Meta Description fora de 130-160 volta com o motivo.
+    const seoCurto = await chamar("gravarSecao", { sku: "ZZ-MCP-PROP", secao: "seoLI", conteudo: { description: "curta" } });
+    conferir("gravarSecao seoLI: description fora de 130 a 160 volta com o motivo", [seoCurto?.isError, textoDe(seoCurto).includes("130 a 160")], [true, true]);
+    const seoBom = await chamar("gravarSecao", { sku: "ZZ-MCP-PROP", secao: "seoLI", conteudo: { description: "Placa de teste com o chip CH340, cabo USB incluso e compatível com Arduino, pronta para projetos de eletrônica e robótica na bancada." } });
+    conferir("gravarSecao seoLI: grava e calcula o Tag Title no Rise", [seoBom?.isError ?? false, JSON.parse(textoDe(seoBom) || "{}").secoes?.includes("seoLI")], [false, true]);
     const aprovada = await chamar("gravarSecao", { sku: "ZZ-MCP-PROP-OK", secao: "relatorio", conteudo: { texto: "x" } });
     conferir("gravarSecao em produto Conferido: recusa", [aprovada?.isError, textoDe(aprovada).includes("já aprovado: nada a propor")], [true, true]);
     const semPoder = await chamar("gravarSecao", { sku: "ZZ-MCP-PROP", secao: "relatorio", conteudo: { texto: "x" } }, quem((recurso) => recurso !== "acao.produtos.proporCadastro"));
@@ -1353,8 +1358,8 @@ try {
     const roteiro = await chamar("roteiroDaProposta", {});
     const corpoDoRoteiro = JSON.parse(textoDe(roteiro) || "{}");
     conferir(
-      "roteiroDaProposta: devolve a versao e o texto com as 8 secoes e o caminho das ferramentas, sem lembrete",
-      [roteiro?.isError ?? false, corpoDoRoteiro.versao, ["descricao", "titulos", "fotos", "campos", "preco", "ean", "documentos", "relatorio", "gravarSecao", "folhaDeContato"].every((termo) => (corpoDoRoteiro.roteiro ?? "").includes(termo)), roteiro?.content?.length],
+      "roteiroDaProposta: devolve a versao e o texto com as 10 secoes (inclusive categorias e SEO da loja) e o caminho das ferramentas, sem lembrete",
+      [roteiro?.isError ?? false, corpoDoRoteiro.versao, ["descricao", "titulos", "fotos", "campos", "preco", "ean", "categoriasLI", "seoLI", "documentos", "relatorio", "gravarSecao", "folhaDeContato"].every((termo) => (corpoDoRoteiro.roteiro ?? "").includes(termo)), roteiro?.content?.length],
       [false, VERSAO_DO_ROTEIRO, true, 1],
     );
     const roteiroSemAcesso = await chamar("roteiroDaProposta", {}, quem((recurso) => recurso !== "acao.produtos.proporCadastro"));

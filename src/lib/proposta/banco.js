@@ -6,6 +6,10 @@ import { apagarPastaDaProposta, caminhoDaProposta, PASTA_PROPOSTA, pastaDoProdut
 import { prisma } from "@/lib/db";
 import { gerarEanDoSku } from "@/lib/eanInterno";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
+import { semAncestraisRedundantes } from "@/lib/canaisDeVenda/li/categorias";
+import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
+import { listarCategoriasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
+import { tituloSeoPadrao } from "@/lib/canaisDeVenda/li/seo";
 
 import { decisoesDosCampos, SECOES_APLICAVEIS } from "./aplicar";
 import { assinaturaDaSecao, secoesNaoAplicadas } from "./aplicadas";
@@ -84,7 +88,7 @@ async function gravarArquivo(sku, nome, bytes, criados) {
  * @param {{ bytes?: Map<string, Buffer> }} [opcoes] bytes das fotos e PDFs novos, pelo id da candidata ou do documento
  * @returns {Promise<{ ok: true, secoes: string[], aviso: string|null } | { ok: false, erro: string }>}
  */
-export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink = null } = {}) {
+export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink = null, arvoreDaLoja = null } = {}) {
   // Preco: quem calcula e o Rise (roteiro unico, 21/10/2026); da conversa so fica a observacao.
   if (plano?.secao === "preco") {
     const alvo = await prisma.produto.findUnique({ where: { sku: String(sku ?? "") }, select: { id: true } });
@@ -119,6 +123,44 @@ export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink
     const gerado = gerarEanDoSku(sku);
     if (!gerado.ok) return { ok: false, erro: `ean: ${gerado.erro} Grave escolhido null com o motivo nos descartados.` };
     plano = { ...plano, conteudo: { ...plano.conteudo, escolhido: { valor: gerado.ean, origem: "EAN interno do Rise (prefixo 2, derivado do código)" } } };
+  }
+
+  // Categorias da loja (25/10/2026): so ids que existem na arvore AO VIVO, e so a mais especifica (o pai nao e marcado: a
+  // loja ja mostra o produto nele). A arvore vem do chamador no teste; sem ela, le da LI (so GET).
+  if (validado.secao === "categoriasLI") {
+    let arvore = arvoreDaLoja;
+    if (!arvore) {
+      try {
+        arvore = await listarCategoriasDaLI(clienteLI());
+      } catch (falha) {
+        return { ok: false, erro: `categoriasLI: não consegui ler as categorias da loja (${textoDoErroLI(falha)}). Tente de novo.` };
+      }
+    }
+    const ids = [...new Set(plano.conteudo.escolhidas.map((item) => String(item.id).trim()))];
+    const desconhecidas = ids.filter((id) => !arvore.some((categoria) => String(categoria.id) === id));
+    if (desconhecidas.length > 0) return { ok: false, erro: `categoriasLI: a categoria ${desconhecidas.join(", ")} não existe na Loja Integrada. Use os ids de lerParaProposta.` };
+    const ficam = semAncestraisRedundantes(ids, arvore);
+    const motivos = new Map(plano.conteudo.escolhidas.map((item) => [String(item.id).trim(), String(item.motivo).trim()]));
+    plano = {
+      ...plano,
+      conteudo: {
+        escolhidas: ficam.map((id) => ({ id, caminho: arvore.find((categoria) => String(categoria.id) === id)?.caminho ?? id, motivo: motivos.get(id) })),
+        ...(ficam.length < ids.length ? { tiradasPorSerPai: ids.filter((id) => !ficam.includes(id)) } : {}),
+      },
+    };
+  }
+
+  // SEO: o Tag Title e o nome do produto cortado em 70 (decisao do dono, sem IA); a conversa so escreve a Meta Description.
+  if (validado.secao === "seoLI") {
+    const alvo = await prisma.produto.findUnique({ where: { sku: String(sku ?? "") }, select: { tituloBase: true } });
+    plano = {
+      ...plano,
+      conteudo: {
+        title: tituloSeoPadrao(alvo?.tituloBase ?? ""),
+        description: String(plano.conteudo.description).replace(/\s+/g, " ").trim(),
+        ...(typeof plano.conteudo.fonte === "string" && plano.conteudo.fonte.trim() ? { fonte: plano.conteudo.fonte.trim() } : {}),
+      },
+    };
   }
 
   // EAN de OUTRO produto do Rise nunca e proposto: o Salvar recusaria o mesmo GTIN em dois produtos.
@@ -311,6 +353,8 @@ export function valoresSimples(produto) {
   const simples = {};
   for (const [campo, valor] of Object.entries(produto ?? {})) {
     if (valor === null || valor === undefined || typeof valor !== "object") simples[campo] = valor ?? null;
+    // Lista de textos (as categorias da loja): comparada como lista pela proposta.
+    else if (Array.isArray(valor)) simples[campo] = valor.map(String);
     else if (typeof valor.toFixed === "function" && typeof valor.toString === "function") simples[campo] = Number(valor.toString());
   }
   return simples;

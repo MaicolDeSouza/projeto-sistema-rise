@@ -7,7 +7,7 @@
  *
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
-export const VERSAO_DO_ROTEIRO = "8";
+export const VERSAO_DO_ROTEIRO = "9";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -30,7 +30,7 @@ CAMINHO (as ferramentas do Rise, nesta ordem)
 2. baixarCandidatas(sku, ids): o Rise baixa as fotos pelos ids da leitura (até 20 por vez; nunca por endereço).
 3. folhaDeContato(sku, pagina): as fotos numa imagem, numeradas (as atuais com borda verde). É aqui que se OLHA.
 4. gravarSecao(sku, secao, conteudo): uma seção por chamada, nesta ordem: descricao, titulos, fotos, campos, preco,
-   ean, documentos, relatorio. Seção recusada volta com o motivo: corrija e grave de novo.
+   ean, categoriasLI, seoLI, documentos, relatorio. Seção recusada volta com o motivo: corrija e grave de novo.
 5. lerProposta(sku): confira o que ficou gravado. No fim, mostre ao dono um resumo curto (título recomendado, preço
    recomendado com a posição, EAN, os campos que ficaram de fora por falta de fonte, fotos escolhidas).
 Não chame anotarDuvida na proposta.
@@ -117,12 +117,28 @@ conteudo: { "<campo>": { "valor", "origem" } }
 - Código do produto com letras ou símbolos: o Rise recusa a seção; grave escolhido null e o motivo nos descartados.
 conteudo: { "escolhido": { "valor": "interno", "origem" } ou null, "descartados": [{ "valor", "motivo" }], "buscas": [] }
 
-7. DOCUMENTOS
+7. CATEGORIAS DA LOJA INTEGRADA (categoriasLI)
+- As categorias da loja são do PRODUTO (a LI só lê). A árvore ao vivo vem em lerParaProposta, em lojaIntegrada.categorias
+  (id e caminho). Se vier lojaIntegrada.erro, não grave a seção e avise o dono.
+- Escolha de 1 a 3 categorias, as mais ESPECÍFICAS que servem ao produto (nome, marca, descrição e o que os concorrentes
+  vendem). Use SÓ ids da lista. O pai não precisa ser marcado: a loja já mostra o produto nele, e o Rise tira o pai se
+  você mandar pai e filha juntos.
+- Produto sem categoria abre com as escolhidas já marcadas; com categorias, a sua escolha vira sugestão ("Usar a proposta").
+conteudo: { "escolhidas": [{ "id", "motivo" }] }
+
+8. SEO DA LOJA INTEGRADA (seoLI)
+- Escreva só a Meta Description, de 130 a 160 caracteres, em português, texto corrido que diga o que é o produto e o que
+  ele tem de decisivo (CI, tensão, compatibilidade), sem emoji, sem preço e sem promessa que a ficha não sustente. Use a
+  descrição que você gravou e lojaIntegrada.seoConcorrentes como referência de tom (não copie).
+- O Tag Title é o nome do produto cortado em 70: o Rise o calcula, não mande.
+conteudo: { "description", "fonte" (de onde tirou os fatos, curto) }
+
+9. DOCUMENTOS
 - Datasheets e manuais que os concorrentes publicam, só com o link (não baixe arquivos). O Rise testa cada link ao
   gravar e marca o que não abre.
 conteudo: { "itens": [{ "id", "titulo", "url", "loja" }] }
 
-8. RELATÓRIO (por último), profissional, em tópicos com título, nesta ordem:
+10. RELATÓRIO (por último), profissional, em tópicos com título, nesta ordem:
 "Resumo" (2 a 4 itens: o que foi feito e o principal resultado), "Fontes consultadas" (fornecedores, concorrentes,
 prompt, sites pesquisados), "Decisões tomadas" (cada divergência: campo, opções, a escolhida e o porquê), "Para você
 conferir" (atencao: true; os campos que ficaram de fora por falta de fonte, os campos preenchidos que a proposta troca e

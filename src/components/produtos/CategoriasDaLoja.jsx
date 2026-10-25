@@ -40,7 +40,7 @@ export function idsDasCategorias(valor) {
   return Array.isArray(lista) ? [...new Set(lista.map(String).filter(Boolean))] : [];
 }
 
-export default function CategoriasDaLoja({ inicial, lerCampo, aoAlterar, ativo, acessos = { ia: true } }) {
+export default function CategoriasDaLoja({ inicial, lerCampo, aoAlterar, ativo, acessos = { ia: true }, propostaSugerida = null, marcaDaProposta = null }) {
   const [marcadas, setMarcadas] = useState(() => idsDasCategorias(inicial));
   const [pediu, setPediu] = useState(false);
   const [arvore, setArvore] = useState({ lista: null, erro: null, lida: false, recarregando: false });
@@ -94,6 +94,17 @@ export default function CategoriasDaLoja({ inicial, lerCampo, aoAlterar, ativo, 
   return (
     <div className="space-y-2">
       <input type="hidden" name="categoriasLI" value={JSON.stringify(marcadas)} />
+      {/* Produto que ja tinha categorias: a da proposta so entra se o dono pedir (o que ele marcou nao e trocado). */}
+      {propostaSugerida && propostaSugerida.ids.some((id) => !marcadas.includes(id)) && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <span className="min-w-0">
+            <span className="font-semibold uppercase">Proposta</span> sugere: {propostaSugerida.texto}
+          </span>
+          <button type="button" onClick={() => mudar(propostaSugerida.ids)} className="rounded border border-amber-300 bg-white px-2.5 py-1 font-medium hover:bg-amber-100">
+            Usar a proposta
+          </button>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold">Categorias na Loja Integrada</p>
         {acessos.ia && (
@@ -145,6 +156,7 @@ export default function CategoriasDaLoja({ inicial, lerCampo, aoAlterar, ativo, 
 
       <ArvoreDeCategorias categorias={arvore.lista} carregando={carregando} erro={arvore.erro} aoRecarregar={recarregar} selecionadas={marcadas} aoMudar={mudar} />
       {marcadas.length === 0 && arvore.lista && <p className="text-xs text-suave">Sem categoria o produto não aparece em nenhum menu da loja.</p>}
+      {marcaDaProposta}
     </div>
   );
 }

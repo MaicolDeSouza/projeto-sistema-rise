@@ -18,6 +18,8 @@ const CAMPOS_POR_SECAO = {
   ],
   preco: ["precoVenda"],
   ean: ["ean"],
+  categoriasLI: ["categoriasLI"],
+  seoLI: ["seoDescricaoLI"],
   fotos: ["fotos"],
 };
 

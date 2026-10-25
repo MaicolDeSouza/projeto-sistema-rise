@@ -1,4 +1,7 @@
 import { lerCamposDasReferencias } from "@/lib/camposDasReferencias";
+import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
+import { listarCategoriasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
+import { seoDosConcorrentes } from "@/lib/canaisDeVenda/li/seoConcorrentes";
 import { prisma } from "@/lib/db";
 import { listarPromptsDaDescricao } from "@/lib/ia/promptsDescricao";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
@@ -94,6 +97,29 @@ function promptPedido(prompts, pedido) {
 }
 
 /**
+ * O que a proposta das categorias e do SEO da Loja Integrada precisa (25/10/2026): a arvore AO VIVO da loja (so GET) e o
+ * SEO que os concorrentes salvos publicam. Loja fora do ar nao derruba a leitura: volta `erro` e a conversa avisa o dono.
+ */
+async function lojaIntegradaParaProposta(produto) {
+  const [seoConcorrentes, arvore] = await Promise.all([
+    seoDosConcorrentes(produto.id).catch(() => []),
+    listarCategoriasDaLI(clienteLI()).then(
+      (categorias) => ({ categorias }),
+      (falha) => ({ erro: textoDoErroLI(falha) }),
+    ),
+  ]);
+  return {
+    categorias: arvore.categorias?.map((categoria) => ({ id: categoria.id, caminho: categoria.caminho })) ?? null,
+    ...(arvore.erro ? { erro: `Não consegui ler as categorias da loja: ${arvore.erro}` } : {}),
+    categoriasDoProduto: produto.categoriasLI ?? [],
+    seoTituloDoProduto: produto.seoTituloLI ?? null,
+    seoDescricaoDoProduto: produto.seoDescricaoLI ?? null,
+    seoConcorrentes,
+    limites: { descriptionMinimo: 130, descriptionMaximo: 160 },
+  };
+}
+
+/**
  * @param {string} sku
  * @param {{ prompt?: string | null }} [opcoes]
  */
@@ -106,7 +132,7 @@ export async function lerParaProposta(sku, { prompt = null } = {}) {
 
   const vinculos = await prisma.produtoConcorrente.findMany({ where: { produtoId: produto.id }, orderBy: { criadoEm: "asc" } });
   const ids = vinculos.map((vinculo) => vinculo.produtoColetadoId).filter(Boolean);
-  const [linhas, agregado, fornecedores, prompts, proposta, proximoCodigo] = await Promise.all([
+  const [linhas, agregado, fornecedores, prompts, proposta, proximoCodigo, lojaIntegrada] = await Promise.all([
     prisma.produtoColetado.findMany({
       where: { id: { in: ids } },
       select: {
@@ -121,6 +147,7 @@ export async function lerParaProposta(sku, { prompt = null } = {}) {
     propostaParaFormulario(produto.id),
     // A LLM nao enxerga o maior codigo usado: o proximo 25xxxx livre vem pronto (so se o produto nao tiver codigo).
     proximoCodigoLivre(),
+    lojaIntegradaParaProposta(produto),
   ]);
   const porId = new Map(linhas.map((linha) => [linha.id, linha]));
   const concorrentes = vinculos.flatMap((vinculo) => {
@@ -151,6 +178,7 @@ export async function lerParaProposta(sku, { prompt = null } = {}) {
       Object.entries(agregado).map(([campo, lista]) => [campo, lista.map((item) => ({ valor: item.valor, lojas: item.fontes, ...(item.origem ? { origem: item.origem } : {}) }))]),
     ),
     proximoCodigo,
+    lojaIntegrada,
     prompts: prompts.map((item) => ({ nome: item.nome, padrao: item.padrao })),
     promptTexto: prompt ? promptPedido(prompts, prompt) : null,
     proposta: proposta ? { secoes: Object.keys(proposta.secoes ?? {}), naoAplicadas: proposta.naoAplicadas } : null,

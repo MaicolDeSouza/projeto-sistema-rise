@@ -326,8 +326,100 @@ const { validarPlano } = await import("../src/lib/proposta/plano.js");
   conferir("plano: relatorio sem texto nem topicos e recusado", validarPlano({ secao: "relatorio", conteudo: { topicos: [] } }).ok === false);
 }
 
+// ---------------------------------------------------------------------------
+// Categorias e SEO da Loja Integrada na proposta do produto (25/10/2026): regras puras
+// ---------------------------------------------------------------------------
+{
+  const { validarPlano } = await import("../src/lib/proposta/plano.js");
+  const { propostaNoFormulario, decisoesDosCampos, temOQueAplicar, SECOES_APLICAVEIS } = await import("../src/lib/proposta/aplicar.js");
+  const descricao = "Placa compatível com Arduino Uno R3, com o chip CH340 para o USB, cabo incluso, 5V e pronta para projetos de eletrônica e robótica.";
+  const secoes = {
+    categoriasLI: { escolhidas: [{ id: "23954793", caminho: "Placas Embarcadas > 01 - Placas Arduino", motivo: "x" }] },
+    seoLI: { title: "PLACA UNO", description: descricao },
+  };
+
+  conferir("plano: categoriasLI sem lista e recusada", validarPlano({ secao: "categoriasLI", conteudo: { escolhidas: [] } }).ok === false);
+  conferir("plano: categoriasLI com id repetido e recusada", validarPlano({ secao: "categoriasLI", conteudo: { escolhidas: [{ id: "1", motivo: "a" }, { id: " 1", motivo: "b" }] } }).ok === false);
+  conferir("plano: categoriasLI sem motivo e recusada", validarPlano({ secao: "categoriasLI", conteudo: { escolhidas: [{ id: "1" }] } }).ok === false);
+  conferir("plano: categoriasLI com mais de 5 e recusada", validarPlano({ secao: "categoriasLI", conteudo: { escolhidas: [1, 2, 3, 4, 5, 6].map((id) => ({ id: String(id), motivo: "x" })) } }).ok === false);
+  conferir("plano: categoriasLI valida passa", validarPlano({ secao: "categoriasLI", conteudo: { escolhidas: [{ id: "1", motivo: "x" }] } }).ok === true);
+  conferir("plano: seoLI com 129 caracteres e recusada", validarPlano({ secao: "seoLI", conteudo: { description: "a".repeat(129) } }).ok === false);
+  conferir("plano: seoLI com 161 caracteres e recusada", validarPlano({ secao: "seoLI", conteudo: { description: "a".repeat(161) } }).ok === false);
+  conferir("plano: seoLI com 130 e 160 passa", validarPlano({ secao: "seoLI", conteudo: { description: "a".repeat(130) } }).ok === true && validarPlano({ secao: "seoLI", conteudo: { description: "a".repeat(160) } }).ok === true);
+  conferir("plano: seoLI conta o texto sem espacos repetidos", validarPlano({ secao: "seoLI", conteudo: { description: `${"a".repeat(100)}      ${"b".repeat(25)}` } }).ok === false);
+  conferir("aplicar: as duas secoes novas sao aplicaveis", SECOES_APLICAVEIS.includes("categoriasLI") && SECOES_APLICAVEIS.includes("seoLI"));
+  conferir("aplicar: temOQueAplicar das duas", temOQueAplicar("categoriasLI", secoes.categoriasLI) && temOQueAplicar("seoLI", secoes.seoLI) && !temOQueAplicar("categoriasLI", { escolhidas: [] }));
+
+  // Produto sem categoria e sem description: abre preenchido, com a marca.
+  const vazio = propostaNoFormulario(secoes, { categoriasLI: [], seoDescricaoLI: "" });
+  conferir("formulario: produto sem categoria abre com as da proposta", JSON.stringify(vazio.preencher.categoriasLI) === '["23954793"]');
+  conferir("formulario: a Meta Description da proposta entra", vazio.preencher.seoDescricaoLI === descricao);
+  conferir("formulario: as secoes que preencheram", JSON.stringify([...vazio.secoes].sort()) === '["categoriasLI","seoLI"]');
+  // Produto com categorias: so sugestao. Description preenchida: a da proposta entra e a de antes vai para a lista (Original).
+  const cheio = propostaNoFormulario(secoes, { categoriasLI: ["5823135"], seoDescricaoLI: "Resumo antigo do dono." });
+  conferir("formulario: com categorias, a proposta so vai para a lista (Proposta)", !("categoriasLI" in cheio.preencher) && JSON.stringify(cheio.nasListas.categoriasLI?.valor) === '["23954793"]' && cheio.nasListas.categoriasLI.tipo === "proposta");
+  conferir("formulario: a origem da sugestao e o caminho da categoria", cheio.nasListas.categoriasLI.origem === "Placas Embarcadas > 01 - Placas Arduino");
+  conferir("formulario: a description escreve por cima, com o Original na lista", cheio.preencher.seoDescricaoLI === descricao && cheio.nasListas.seoDescricaoLI?.valor === "Resumo antigo do dono." && cheio.nasListas.seoDescricaoLI.tipo === "original");
+  conferir("formulario: as mesmas categorias (outra ordem) nao mudam nada", !("categoriasLI" in propostaNoFormulario(secoes, { categoriasLI: ["23954793"], seoDescricaoLI: descricao }).nasListas));
+  conferir("formulario: o JSON do campo oculto tambem vale", !("categoriasLI" in propostaNoFormulario(secoes, { categoriasLI: '["23954793"]', seoDescricaoLI: descricao }).nasListas));
+  const editadas = propostaNoFormulario(secoes, { categoriasLI: [], seoDescricaoLI: "" }, { editados: ["categoriasLI"] });
+  conferir("formulario: categoria que o dono esvaziou nao volta", !("categoriasLI" in editadas.preencher));
+  // Depois do Salvar: o que ficou com o valor da proposta e o que o dono mudou.
+  const salvou = decisoesDosCampos(secoes, { categoriasLI: ["23954793"], seoDescricaoLI: descricao }, {}, ["categoriasLI", "seoDescricaoLI"], {});
+  conferir("salvar: categorias e description com o valor da proposta ficam como da proposta", JSON.stringify(salvou.daProposta.categoriasLI) === '["23954793"]' && salvou.daProposta.seoDescricaoLI === descricao && salvou.editados.length === 0);
+  const mudou = decisoesDosCampos(secoes, { categoriasLI: ["5823135"], seoDescricaoLI: descricao }, {}, ["categoriasLI", "seoDescricaoLI"], {});
+  conferir("salvar: categoria que o dono trocou vira editada", mudou.editados.includes("categoriasLI") && !Object.hasOwn(mudou.daProposta, "categoriasLI"));
+  const depois = propostaNoFormulario(secoes, { categoriasLI: ["23954793"] }, salvou);
+  conferir("depois do Salvar: categorias da proposta continuam marcadas", JSON.stringify(depois.marcados.categoriasLI) === '["23954793"]');
+}
+
 try {
   await limpar();
+  // Gravar as secoes novas: a arvore da loja vem do teste (sem rede); tira o pai, recusa id que nao existe, calcula o Tag Title.
+  {
+    const { gravarProposta } = await import("../src/lib/proposta/banco.js");
+    const { secoesNaoAplicadas } = await import("../src/lib/proposta/aplicadas.js");
+    const { tituloSeoPadrao } = await import("../src/lib/canaisDeVenda/li/seo.js");
+    const arvore = [
+      { id: "10", caminho: "Placas Embarcadas", paiId: null },
+      { id: "11", caminho: "Placas Embarcadas > 01 - Placas Arduino", paiId: "10" },
+      { id: "20", caminho: "Modulos", paiId: null },
+    ];
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-LI", tituloBase: "PLACA COMPATIVEL ARDUINO UNO R3 SMD CH340 COM CABO USB" } });
+    const descricao = "Placa compatível com Arduino Uno R3, com o chip CH340 para o USB, cabo incluso, 5V e pronta para projetos de eletrônica e robótica.";
+
+    const desconhecida = await gravarProposta("ZZ-PROP-LI", { secao: "categoriasLI", conteudo: { escolhidas: [{ id: "999", motivo: "x" }] } }, { arvoreDaLoja: arvore });
+    conferir("gravar categoriasLI: id fora da arvore e recusado, dizendo qual", desconhecida.ok === false && /999/.test(desconhecida.erro));
+    const comPai = await gravarProposta("ZZ-PROP-LI", { secao: "categoriasLI", conteudo: { escolhidas: [{ id: "10", motivo: "pai" }, { id: "11", motivo: "filha" }] } }, { arvoreDaLoja: arvore });
+    conferir("gravar categoriasLI: pai e filha juntos grava", comPai.ok === true);
+    const gravada = await prisma.propostaDeProduto.findUnique({ where: { produtoId: produto.id } });
+    const [unica] = gravada.secoes.categoriasLI.escolhidas;
+    // O JSONB reordena as chaves: compara campo a campo.
+    conferir("gravar categoriasLI: fica so a filha, com o caminho e o motivo", gravada.secoes.categoriasLI.escolhidas.length === 1 && unica.id === "11" && unica.caminho === "Placas Embarcadas > 01 - Placas Arduino" && unica.motivo === "filha");
+    conferir("gravar categoriasLI: anota o pai que saiu", JSON.stringify(gravada.secoes.categoriasLI.tiradasPorSerPai) === '["10"]');
+
+    const curta = await gravarProposta("ZZ-PROP-LI", { secao: "seoLI", conteudo: { description: "curta demais" } });
+    conferir("gravar seoLI: description curta e recusada", curta.ok === false && /130 a 160/.test(curta.erro));
+    const seo = await gravarProposta("ZZ-PROP-LI", { secao: "seoLI", conteudo: { description: `  ${descricao}  `, title: "TITULO QUE A CONVERSA MANDOU", fonte: "datasheet" } });
+    conferir("gravar seoLI: grava", seo.ok === true);
+    const comSeo = await prisma.propostaDeProduto.findUnique({ where: { produtoId: produto.id } });
+    conferir("gravar seoLI: o Tag Title e o do Rise (nome cortado), nao o da conversa", comSeo.secoes.seoLI.title === tituloSeoPadrao("PLACA COMPATIVEL ARDUINO UNO R3 SMD CH340 COM CABO USB"));
+    conferir("gravar seoLI: a description sai sem espacos nas pontas", comSeo.secoes.seoLI.description === descricao && comSeo.secoes.seoLI.fonte === "datasheet");
+
+    // Conferido: o que a proposta ainda poria no produto salvo e pendente.
+    const pendentes = async () => {
+      const atual = await prisma.produto.findUnique({ where: { id: produto.id } });
+      const proposta = await prisma.propostaDeProduto.findUnique({ where: { produtoId: produto.id } });
+      return secoesNaoAplicadas(proposta, atual);
+    };
+    const antes = await pendentes();
+    conferir("conferido: produto sem categoria e sem description deixa as duas pendentes", antes.includes("categoriasLI") && antes.includes("seoLI"));
+    await prisma.produto.update({ where: { id: produto.id }, data: { categoriasLI: ["11"], seoDescricaoLI: descricao } });
+    const depois = await pendentes();
+    conferir("conferido: com as categorias e a description da proposta salvas, nada pendente", !depois.includes("categoriasLI") && !depois.includes("seoLI"));
+    await prisma.produto.update({ where: { id: produto.id }, data: { categoriasLI: ["20"] } });
+    conferir("conferido: produto com outra categoria nao fica pendente (a proposta so sugere)", !(await pendentes()).includes("categoriasLI"));
+  }
   {
     const produto = await prisma.produto.create({ data: { sku: "ZZ-PROP-1", tituloBase: "PRODUTO DE TESTE DA PROPOSTA" } });
     const criada = await prisma.propostaDeProduto.create({ data: { produtoId: produto.id, secoes: { titulos: { opcoes: [] } } } });

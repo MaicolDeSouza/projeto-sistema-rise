@@ -4159,7 +4159,18 @@ export default function FormularioProduto({
             {/* Categorias e SEO da Loja Integrada: do produto (25/10/2026). Montadas e so escondidas como as outras abas, para o
                 Salvar levar os campos; a arvore da loja so e lida na primeira vez que a aba abre. */}
             <div className={aba === "categorias" ? "" : "hidden"}>
-              <CategoriasDaLoja inicial={v("categoriasLI")} lerCampo={valorDoCampo} aoAlterar={() => marcarAlterado()} ativo={aba === "categorias"} acessos={{ ia: acessos.ia }} />
+              <CategoriasDaLoja
+                inicial={v("categoriasLI")}
+                lerCampo={valorDoCampo}
+                aoAlterar={() => {
+                  marcarAlterado();
+                  marcarEditadoDaProposta({ target: { name: "categoriasLI" } });
+                }}
+                ativo={aba === "categorias"}
+                acessos={{ ia: acessos.ia }}
+                propostaSugerida={daProposta?.nasListas?.categoriasLI ? { ids: daProposta.nasListas.categoriasLI.valor, texto: daProposta.nasListas.categoriasLI.origem } : null}
+                marcaDaProposta={<MarcaDaProposta nome="categoriasLI" />}
+              />
             </div>
 
             <div className={aba === "seo" ? "" : "hidden"}>
@@ -4171,6 +4182,8 @@ export default function FormularioProduto({
                 aoAlterar={() => marcarAlterado()}
                 ativo={aba === "seo"}
                 acessos={{ concorrentes: acessos.concorrentes, ia: acessos.ia }}
+                iconeDaProposta={<IconeDaProposta nome="seoDescricaoLI" />}
+                marcaDaProposta={<MarcaDaProposta nome="seoDescricaoLI" />}
               />
             </div>
 
