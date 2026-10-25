@@ -1113,6 +1113,8 @@ try {
     const cadastro = await cadastrarNaLI(p.id, li, criarBlingDaLI({ saldo: 5 }));
     await prisma.produto.update({ where: { id: p.id }, data: { blingId: "77", blingSaldo: 5, estoque: 5 } });
     const mudarNaLoja = (campos) => li.mudarProduto(cadastro.idExterno, campos);
+    // O POST nao grava o tipo de producao (so o painel): a loja fica como o dono a deixaria, igual ao Rise (REVENDA).
+    mudarNaLoja({ production_type: "Revenda" });
     const an = await anuncioLIDoProduto(p.id);
     const monitor = async () => (await prisma.anuncio.findUnique({ where: { id: an.id }, select: { dados: true } })).dados?.monitorLI ?? null;
     const icone = async () => iconeLIDoProduto(await prisma.produto.findUnique({ where: { id: p.id } }), await prisma.anuncio.findUnique({ where: { id: an.id } }), { documentos: [] });
@@ -1149,6 +1151,20 @@ try {
     const rFora = await rodar("2026-10-25T16:00:00Z", liFora);
     const depois = await monitor();
     conferir("limite da LI: para a rodada e guarda o erro sem perder o lido", [Boolean(rFora.parou), depois.estoque, depois.ativo, Boolean(depois.erro), depois.diferentes], [true, 5, true, true, antes.diferentes]);
+
+    // Fiscal (opcao 1 do dono em 25/10/2026): origem e tipo de producao so mudam pelo painel da LI. Vazios ou diferentes na
+    // loja acendem o "!", e a releitura o apaga sozinha depois de o dono corrigir no painel.
+    const fiscal = await prisma.produto.create({ data: { sku: "ZZ-LI-41", tituloBase: "Monitor fiscal", descricaoBase: "Texto fiscal.", ncm: "85364900", conferido: true, origem: 0 } });
+    const cadFiscal = await cadastrarNaLI(fiscal.id, li, criarBlingDaLI({ saldo: 5 }));
+    li.mudarProduto(cadFiscal.idExterno, { icms_origin_code: null, production_type: "Revenda" });
+    const anFiscal = await anuncioLIDoProduto(fiscal.id);
+    const iconeFiscal = async () => iconeLIDoProduto(await prisma.produto.findUnique({ where: { id: fiscal.id } }), await prisma.anuncio.findUnique({ where: { id: anFiscal.id } }), { documentos: [] });
+    await relerMonitorLI({ cliente: li, agora: new Date("2026-10-25T17:00:00Z"), anuncioIds: [anFiscal.id], espera: 0 });
+    const f1 = await iconeFiscal();
+    conferir("fiscal: origem vazia na loja acende o '!' com o texto", [f1.alertaNaLoja, texto(f1)], [true, "fiscal na loja: Origem (NF-e) sem valor (ajuste no painel da LI)"]);
+    li.mudarProduto(cadFiscal.idExterno, { icms_origin_code: "0" });
+    await relerMonitorLI({ cliente: li, agora: new Date("2026-10-25T18:00:00Z"), anuncioIds: [anFiscal.id], espera: 0 });
+    conferir("fiscal: corrigido no painel, a releitura apaga", (await iconeFiscal()).alertaNaLoja, false);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

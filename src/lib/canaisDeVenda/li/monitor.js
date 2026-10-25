@@ -21,7 +21,7 @@ const PARA_A_RODADA = /chamadas por minuto|token/i;
 const esperar = (ms) => (ms > 0 ? new Promise((resolver) => setTimeout(resolver, ms)) : Promise.resolve());
 
 // O que conta para "mudou" (a data nao): sem isso cada hora reescreveria o anuncio e embaralharia a lista de anuncios.
-const CHAVES = ["situacao", "ativo", "diferentes", "estoque", "estoqueBling", "estoqueDiferenteSeguidas", "erro"];
+const CHAVES = ["situacao", "ativo", "diferentes", "fiscais", "estoque", "estoqueBling", "estoqueDiferenteSeguidas", "erro"];
 const mesmoMonitor = (a, b) => Boolean(a) && CHAVES.every((chave) => JSON.stringify(a[chave] ?? null) === JSON.stringify(b[chave] ?? null));
 
 /**
@@ -37,6 +37,9 @@ export function monitorDaLeitura(leitura, { blingSaldo = null, anterior = null, 
     situacao: leitura?.situacao ?? null,
     ativo: typeof leitura?.ativoNaLI === "boolean" ? leitura.ativoNaLI : null,
     diferentes,
+    // Origem e tipo de producao (opcao 1 do dono em 25/10/2026): so o painel da LI os grava; vazios ou diferentes na loja
+    // acendem o "!", e a releitura o apaga depois de o dono corrigir la. Os mesmos avisos da aba Fiscal do editor.
+    fiscais: (leitura?.fiscais ?? []).map((aviso) => ({ rotulo: aviso.rotulo, tipo: aviso.tipo })),
     estoque,
     estoqueBling,
     estoqueDiferenteSeguidas: seguidasComDiferenca(anterior?.estoqueDiferenteSeguidas, estoque, estoqueBling),
