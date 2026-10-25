@@ -7,14 +7,16 @@ import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
  * A inteligencia do "proximo passo" mora AQUI, e nao na LLM: trocar de assistente tem que dar o mesmo resultado (a mesma
  * regra do roteiro unico da proposta de produto). LI antes do ML e so a ordem preferida; o "pule a LI" e pedido do dono
  * na conversa, e a gravacao do ML nao exige a LI.
+ *
+ * A proposta da Loja Integrada NAO existe mais (25/10/2026): categorias e SEO da loja viram a proposta do PRODUTO. O passo
+ * da LI e do dono: o "Cadastrar na LI" (cria pausado, liga no Bling, grava o estoque e ativa).
  */
 
 const MOTIVOS = {
-  "proposta-do-produto": "O produto ainda não foi Conferido no Rise: o próximo passo é a proposta de cadastro do produto.",
+  "proposta-do-produto": "O produto ainda não foi Conferido no Rise: o próximo passo é a proposta de cadastro do produto (com as categorias e o SEO da Loja Integrada).",
   "conferir-no-rise": "A proposta de cadastro do produto está pronta e espera o dono aplicar e marcar Conferido no Rise.",
   "sincronizar-bling": "O produto não está igual no Bling (ícone do Bling sem sincronizar ou com \"!\"): o dono sincroniza com o Bling antes.",
-  "revisar-li": "A proposta da Loja Integrada está pronta e espera o dono revisar e sincronizar no editor da LI.",
-  "proposta-li": "Rise e Bling estão em dia: o próximo passo é a proposta do anúncio da Loja Integrada.",
+  "cadastrar-li": "Rise e Bling estão em dia: o dono cadastra o produto na Loja Integrada pelo ícone da LI (cria pausado, liga no Bling, grava o estoque e ativa). Se ele pedir para pular a LI, siga para o Mercado Livre.",
   "revisar-ml": "A proposta do Mercado Livre está pronta e espera o dono revisar e publicar no editor do ML.",
   "proposta-ml": "A Loja Integrada está sincronizada: o próximo passo é a proposta do anúncio do Mercado Livre (Clássico).",
   pronto: "O produto já tem anúncio na Loja Integrada e no Mercado Livre: nada a propor.",
@@ -24,7 +26,7 @@ const MOTIVOS = {
  * Pura. A ordem e a da spec: Rise, Bling, LI, ML.
  *
  * @param {{ rise: { conferido: boolean, propostaPendente: boolean }, bling: { verde: boolean },
- *   li: { anuncio: "nenhum"|"rascunho"|"sincronizado", propostaPendente: boolean },
+ *   li: { anuncio: "nenhum"|"rascunho"|"sincronizado" },
  *   ml: { anuncios: { status: string }[], propostaPendente: boolean } }} situacao
  * @returns {{ passo: string, motivo: string }}
  */
@@ -32,8 +34,7 @@ export function proximoPasso(situacao) {
   const passo = (() => {
     if (!situacao?.rise?.conferido) return situacao?.rise?.propostaPendente ? "conferir-no-rise" : "proposta-do-produto";
     if (!situacao?.bling?.verde) return "sincronizar-bling";
-    if (situacao?.li?.propostaPendente) return "revisar-li";
-    if (situacao?.li?.anuncio !== "sincronizado") return "proposta-li";
+    if (situacao?.li?.anuncio !== "sincronizado") return "cadastrar-li";
     if (situacao?.ml?.propostaPendente) return "revisar-ml";
     if (!(situacao?.ml?.anuncios ?? []).some((anuncio) => anuncio.status === "PUBLICADO")) return "proposta-ml";
     return "pronto";
@@ -82,7 +83,6 @@ export async function lerSituacaoDoProduto(sku) {
     bling: blingVerde(produto),
     li: {
       anuncio: !li ? "nenhum" : li.idExterno && li.sincronizadoEm ? "sincronizado" : "rascunho",
-      propostaPendente: Boolean(li?.dados?.proposta),
     },
     ml: {
       anuncios: ml.map((anuncio) => ({ id: anuncio.id, tipo: anuncio.dados?.tipoAnuncio ?? null, status: anuncio.status })),

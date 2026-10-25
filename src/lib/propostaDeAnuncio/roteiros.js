@@ -1,43 +1,14 @@
 /**
- * Os ROTEIROS da proposta de anuncio (spec 2026-10-23, secao 6.2), um por canal, no molde do roteiro unico da proposta de
- * produto (`src/lib/proposta/roteiro.js`): a ferramenta `roteiroDaProposta` (com `canal`) os entrega a qualquer LLM.
+ * O ROTEIRO da proposta de anuncio do Mercado Livre (spec 2026-10-23, secao 6.2), no molde do roteiro unico da proposta de
+ * produto (`src/lib/proposta/roteiro.js`): a ferramenta `roteiroDaProposta` (com `canal: "ml"`) o entrega a qualquer LLM.
  * Mudar uma regra e editar o texto e subir a VERSAO (cada proposta grava a versao que seguiu). O que e conta ou checagem
- * (o pai redundante das categorias, tamanho da description, preco do ML) o Rise faz sozinho ao gravar; aqui fica o julgamento.
+ * (preco do ML) o Rise faz sozinho ao gravar; aqui fica o julgamento.
+ *
+ * A proposta de anuncio da Loja Integrada NAO existe mais (25/10/2026): categorias e SEO da loja sao do produto e vem na
+ * proposta de produto.
  *
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
-
-// "2" em 24/10/2026: o pai das categorias nao e mais marcado (a loja agrega as subcategorias), pedido do dono a partir do 100105.
-export const VERSAO_ROTEIRO_LI = "2";
-
-export const ROTEIRO_LI = `ROTEIRO DA PROPOSTA DE ANÚNCIO DA LOJA INTEGRADA (Rise / 4hobby), versão ${VERSAO_ROTEIRO_LI}
-
-O QUE É
-Você monta a PROPOSTA do anúncio do produto na Loja Integrada (a loja 4hobby.com.br). Você NÃO envia nada à loja: a
-proposta fica no rascunho do anúncio no Rise, e o dono revisa no editor da Loja Integrada e sincroniza.
-A proposta usa só você (sem custo de IA para o Rise).
-
-CAMINHO (nesta ordem)
-1. situacaoDoProduto(sku). Diga à pessoa, no chat, o proximoPasso e o motivo, ANTES de fazer qualquer coisa.
-   Só siga se o proximoPasso for "proposta-li" (ou se o dono pedir a proposta da LI mesmo assim).
-   "sincronizar-bling", "proposta-do-produto" ou "conferir-no-rise": pare e diga o que o dono precisa fazer antes.
-2. lerParaPropostaLI(sku): o produto (nome, marca, modelo, descrição), a árvore de categorias da loja (id: caminho),
-   as marcas da loja, o SEO dos concorrentes e o rascunho atual, se houver.
-3. Monte a proposta:
-   - CATEGORIAS: de 1 a 3 ids da árvore, as MAIS ESPECÍFICAS (o fim do caminho). NÃO mande o pai: a loja já mostra o
-     produto na página do pai, e o Rise guarda só a categoria mais específica.
-     Mais de uma só quando o produto é de assuntos diferentes de verdade.
-   - MARCA: a do cadastro do produto, escrita como está na lista de marcas da loja quando existir lá.
-     Sem marca no cadastro, não invente: deixe vazio.
-   - META TAG DESCRIPTION: de 130 a 160 caracteres, uma ou duas frases, com as palavras do nome do produto e o que ele
-     faz, em português, sem preço, sem estoque, sem promessa de prazo, sem inventar especificação. Use o SEO dos
-     concorrentes só como referência de palavras, nunca copie.
-   - O Tag Title NÃO entra: é o nome do produto.
-4. gravarPropostaLI(sku, categorias, marca, seoDescription, relatorio). O relatório em tópicos curtos: por que cada
-   categoria, de onde veio a marca e as palavras da description. Se voltar erro, corrija e grave de novo.
-5. Mostre à pessoa o resumo: o que entrou no rascunho, o que virou sugestão (campo que já tinha outro valor) e os
-   avisos. Diga que o dono revisa e sincroniza no editor da Loja Integrada (o "P" no ícone some no Sincronizar).
-   Depois disso, o próximo passo é a proposta do Mercado Livre.`;
 
 // "2" em 24/10/2026: o preco passa a ser por markup, nao por margem; "3" no mesmo dia: o markup e sobre o CUSTO TOTAL
 // (fornecedor + taxas do ML + frete + imposto), pedido do dono. "4" em 24/10/2026: o titulo e o do produto base (a LLM
@@ -53,7 +24,9 @@ A proposta usa só você (sem custo de IA para o Rise). O PREÇO é calculado pe
 
 CAMINHO (nesta ordem)
 1. situacaoDoProduto(sku). Diga à pessoa, no chat, o proximoPasso e o motivo, ANTES de fazer qualquer coisa.
-   Siga se o proximoPasso for "proposta-ml", ou se o dono pedir para pular a Loja Integrada.
+   Siga se o proximoPasso for "proposta-ml", ou se o dono pedir para pular o cadastro na Loja Integrada.
+   "cadastrar-li": o dono cadastra o produto na Loja Integrada pelo ícone da LI (cria pausado, liga no Bling, grava o
+   estoque e ativa); diga isso e siga para o ML só se ele pedir.
    "sincronizar-bling", "proposta-do-produto" ou "conferir-no-rise": pare e diga o que o dono precisa fazer antes.
 2. lerParaPropostaML(sku): o produto (com o custo), as categorias candidatas, os atributos da categoria mais provável,
    os catálogos candidatos (cada um com o total de anúncios e o 1º colocado), os catálogos dos anúncios do dono e as

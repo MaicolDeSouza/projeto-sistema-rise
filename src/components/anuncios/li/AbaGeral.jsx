@@ -1,6 +1,5 @@
 "use client";
 
-import { MarcaDaPropostaNoCampo, SugestaoDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import MensagensDoCampo, { problemasDoCampo } from "@/components/anuncios/ml/MensagensDoCampo";
 import Badge from "@/components/ui/Badge";
@@ -69,8 +68,6 @@ export default function AbaGeral({ rascunho, contexto, alterar, problemas }) {
               <option key={marca.id} value={marca.nome.toUpperCase()} />
             ))}
           </datalist>
-          <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="marca" valorAtual={rascunho.marca} />
-          <SugestaoDaProposta proposta={contexto.proposta} caminho="marca" valorAtual={rascunho.marca} aoUsar={(valor) => alterar({ marca: String(valor).toUpperCase() })} />
           <MensagensDoCampo problemas={problemas} campo="marca" />
         </div>
         <Campo

@@ -272,13 +272,9 @@ export default async function ProdutosPage({ searchParams }) {
     // Cor e selo do icone do Bling, calculados aqui (a assinatura usa node:crypto, so servidor).
     iconeBling: iconeBlingDoProduto(produto),
     // Cor e selo do icone da Loja Integrada (assinatura com node:crypto, so servidor).
-    iconeLI: {
-      ...iconeLIDoProduto(produto, produto.anuncios.find((anuncio) => anuncio.canal === "LOJA_INTEGRADA") ?? null, {
-        documentos: documentosLI.get(produto.id) ?? [],
-      }),
-      // O "P" da proposta de anuncio (spec 2026-10-23): so o booleano vai a lista, nunca o relatorio.
-      proposta: Boolean(produto.anuncios.find((anuncio) => anuncio.canal === "LOJA_INTEGRADA")?.dados?.proposta),
-    },
+    iconeLI: iconeLIDoProduto(produto, produto.anuncios.find((anuncio) => anuncio.canal === "LOJA_INTEGRADA") ?? null, {
+      documentos: documentosLI.get(produto.id) ?? [],
+    }),
   }));
 
   // A lista como esta (pesquisa, pagina, ordem): o cadastro volta para ela (pedido do dono em 20/10/2026).

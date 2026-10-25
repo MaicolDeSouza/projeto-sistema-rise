@@ -130,8 +130,8 @@ const seoTitulo = (valor) => texto(cortarNaPalavra(valor ?? "", LIMITE_DO_TITULO
 const seoDescription = (valor) => texto(cortarNaPalavra(valor ?? "", LIMITE_DA_DESCRIPTION_SEO));
 
 /**
- * O Rise: o Produto (cadastro) mais o rascunho do anuncio da LI. A descricao e SEMPRE a do cadastro
- * (`descricaoBase`): o anuncio nao a edita (pedido do dono em 07/10/2026).
+ * O Rise: o Produto (cadastro) mais o rascunho do anuncio da LI. A descricao, as categorias e o SEO sao SEMPRE os do
+ * cadastro: o anuncio nao os edita (pedidos do dono em 07/10 e 25/10/2026).
  */
 export function normalizarDoRiseLI(produto, rascunho, { documentos = [] } = {}) {
   const p = produto ?? {};
@@ -156,11 +156,12 @@ export function normalizarDoRiseLI(produto, rascunho, { documentos = [] } = {}) 
     // muda o preco no Bling). O estoque continua so pelo Bling.
     preco: dinheiro(p.precoVenda),
     marca: marcaNormalizada(r.marca),
-    categorias: idsOrdenados(r.categorias),
+    // Categorias e SEO sao do PRODUTO (pedido do dono em 25/10/2026), nao do rascunho do anuncio.
+    categorias: idsOrdenados(p.categoriasLI),
     video: texto(r.videoUrl),
     destaque: Boolean(r.destaque),
-    seoTitulo: seoTitulo(r.seo?.title),
-    seoDescription: seoDescription(r.seo?.description),
+    seoTitulo: seoTitulo(p.seoTituloLI),
+    seoDescription: seoDescription(p.seoDescricaoLI),
     origem: origemInteira(p.origem),
     tipoProducao: p.tipoProducao ?? null,
   };

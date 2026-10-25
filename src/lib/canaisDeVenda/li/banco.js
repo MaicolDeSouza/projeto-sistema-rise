@@ -14,9 +14,8 @@ import { slugDe } from "./slug";
  * Diferente do Mercado Livre, o anuncio da LI vinculado (PUBLICADO) continua editavel: e
  * dele que o Sincronizar le o que vai para a loja.
  *
- * Onde mora cada campo: titulo em coluna (a descricao e a do cadastro, nao do anuncio); a primeira categoria tambem em
- * `categoriaExternaId` (para filtrar sem abrir o JSON); slug, marca, categorias, destaque,
- * videoUrl e seo no JSON `dados`.
+ * Onde mora cada campo: titulo em coluna (a descricao, as categorias e o SEO sao do cadastro do PRODUTO, nao do anuncio);
+ * slug, marca, destaque e videoUrl no JSON `dados`.
  */
 
 const CANAL = "LOJA_INTEGRADA";
@@ -47,6 +46,10 @@ const CAMPOS_DO_CONTEXTO = {
   videoUrl: true,
   conferido: true,
   blingId: true,
+  // Categorias e SEO da loja sao DO PRODUTO (25/10/2026): a LI le daqui, o rascunho do anuncio nao os guarda mais.
+  categoriasLI: true,
+  seoTituloLI: true,
+  seoDescricaoLI: true,
 };
 
 /** O produto como `rascunho.js`, `validacao.js` e `campos.js` o leem, com Decimal em Number. */
@@ -125,10 +128,8 @@ export function rascunhoDoAnuncio(anuncio) {
     // O slug e sempre o do nome (07/10/2026): o guardado em `dados` e de antes da regra e nao vale.
     slug: slugDe(anuncio.titulo ?? ""),
     marca: dados.marca ?? "",
-    categorias: Array.isArray(dados.categorias) ? dados.categorias : [],
     destaque: Boolean(dados.destaque),
     videoUrl: dados.videoUrl ?? null,
-    seo: { title: dados.seo?.title ?? "", description: dados.seo?.description ?? "" },
     imagens: Array.isArray(dados.imagens) ? dados.imagens : [],
   };
 }
@@ -192,8 +193,7 @@ export async function carregarAnuncioLI(id) {
     anuncioId: anuncio.id,
     status: anuncio.status,
     rascunho: rascunhoDoAnuncio(anuncio),
-    // A proposta de anuncio (spec 2026-10-23) vai no contexto: a tela mostra as marcas e o relatorio; o Salvar nao a toca.
-    contexto: { ...(await contextoDoEditor(produto)), proposta: anuncio.dados?.proposta ?? null },
+    contexto: await contextoDoEditor(produto),
     vinculo: {
       idExterno: anuncio.idExterno,
       urlExterna: anuncio.urlExterna,
@@ -207,7 +207,7 @@ export async function carregarAnuncioLI(id) {
 function colunasEDados(rascunho) {
   const { produtoId, titulo, ...dados } = rascunho;
   return {
-    colunas: { produtoId, titulo, categoriaExternaId: rascunho.categorias[0] ?? null },
+    colunas: { produtoId, titulo },
     dados,
   };
 }
@@ -264,8 +264,8 @@ export async function salvarRascunhoLI(anuncioId, entrada) {
 
 /**
  * Liga o produto ao que ja existe na LI com o mesmo SKU. Cria o anuncio (a partir do produto)
- * se nao havia rascunho. Categorias e destaque vem da LI (`rascunhoDaLI`; o slug segue o nome); o
- * vinculo e o link da loja no produto sao gravados juntos.
+ * se nao havia rascunho. O destaque vem da LI (`rascunhoDaLI`; o slug segue o nome) e as categorias vao para o
+ * PRODUTO quando ele nao tem nenhuma; o vinculo e o link da loja no produto sao gravados juntos.
  */
 export async function vincularPeloSku(produtoId, { idItemExterno, url, ativo, slug, categorias, destaque }) {
   const produto = await contextoDoProduto(produtoId);
@@ -291,6 +291,11 @@ export async function vincularPeloSku(produtoId, { idItemExterno, url, ativo, sl
         })
       : await tx.anuncio.create({ data: { ...colunas, ...vinculo, canal: CANAL, dados }, select: { id: true } });
     if (url) await tx.produto.update({ where: { id: produtoId }, data: { urlLojaIntegrada: url } });
+    // As categorias que o dono escolheu na loja viram as do PRODUTO, mas so se o produto ainda nao tem nenhuma: o que ele
+    // marcou no cadastro vale mais do que o que a loja tem (25/10/2026).
+    if (Array.isArray(categorias) && categorias.length > 0 && (produto.categoriasLI ?? []).length === 0) {
+      await tx.produto.update({ where: { id: produtoId }, data: { categoriasLI: categorias.map(String) } });
+    }
     return gravado;
   });
   return { anuncioId: anuncio.id };

@@ -1,7 +1,6 @@
 import { clienteBling } from "@/lib/blingSync/cliente";
 import { lerSaldosDoBling } from "@/lib/blingSync/saldos";
 import { prisma } from "@/lib/db";
-import { semProposta } from "@/lib/propostaDeAnuncio/preencher";
 import { ligarNoBlingLI } from "./blingLoja";
 import { corpoDoEstoqueInicialLI } from "./etapasCadastro";
 import {
@@ -266,8 +265,7 @@ async function gravarSucesso(anuncioId, produtoId, { assinatura, payload, url, a
         ...(idExterno ? { idExterno: String(idExterno) } : {}),
         ...(url ? { urlExterna: url } : {}),
         ...(ativo === undefined ? {} : { situacaoCanal: ativo ? "ATIVA" : "PAUSADA" }),
-        // A proposta de anuncio (spec 2026-10-23) some aqui, no envio que deu certo, na mesma gravacao: o "P" do icone sai.
-        dados: { ...semProposta(anuncio?.dados ?? {}), etapa: null },
+        dados: { ...(anuncio?.dados ?? {}), etapa: null },
       },
     }),
     ...(url ? [prisma.produto.update({ where: { id: produtoId }, data: { urlLojaIntegrada: url } })] : []),

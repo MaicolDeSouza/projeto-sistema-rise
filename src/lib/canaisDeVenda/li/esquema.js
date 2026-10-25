@@ -30,18 +30,12 @@ export const RascunhoLISchema = z.object({
   titulo: textoAte(LIMITES_LI.titulo).default(""),
   slug: textoAte(LIMITES_LI.slug).default(""),
   marca: textoAte(LIMITES_LI.marca).default(""),
-  categorias: z.array(z.string().max(LIMITES_LI.idDeCategoria)).max(LIMITES_LI.categorias).default([]),
   destaque: z.boolean().default(false),
   videoUrl: z.preprocess(
     (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
     z.string().max(LIMITES_LI.videoUrl).nullable().default(null),
   ),
-  seo: z
-    .object({
-      title: textoAte(LIMITES_LI.seoTitulo).default(""),
-      description: textoAte(LIMITES_LI.seoDescription).default(""),
-    })
-    .default({ title: "", description: "" }),
+  // Categorias e SEO nao estao mais aqui (25/10/2026): sao do produto, e o que a tela mandar a mais e descartado.
   // Ids de ProdutoArquivo, na ordem de envio (a primeira e a capa).
   imagens: z.array(z.string().max(LIMITES_LI.idDeImagem)).max(LIMITES_LI.imagens).default([]),
 });

@@ -31,8 +31,7 @@ export function rotuloDoIconeLI({ cor, divergente, conferido, semBling, incomple
 }
 
 export default function IconeLojaIntegrada({ iconeLI, aoClicar }) {
-  // Proposta de anuncio esperando o dono (spec 2026-10-23): o "P" no canto superior ESQUERDO, como no icone R.
-  const rotulo = iconeLI.proposta ? `Loja Integrada: Proposta pronta, aguardando aprovação` : rotuloDoIconeLI(iconeLI);
+  const rotulo = rotuloDoIconeLI(iconeLI);
   return (
     <button
       type="button"
@@ -42,14 +41,6 @@ export default function IconeLojaIntegrada({ iconeLI, aoClicar }) {
       className="relative shrink-0 rounded hover:ring-2 hover:ring-sky-200 focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none"
     >
       <Image src={CANAL_LI.logo} alt="" width={22} height={22} className={`rounded ${iconeLI.cor === "verde" ? "" : "opacity-70 brightness-50 grayscale"}`} />
-      {iconeLI.proposta && (
-        <span
-          aria-hidden="true"
-          className="absolute -top-1.5 -left-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] leading-none font-bold text-amber-950 ring-2 ring-superficie"
-        >
-          P
-        </span>
-      )}
       {(iconeLI.divergente || iconeLI.incompleto || iconeLI.alertaNaLoja) && (
         <span
           aria-hidden="true"

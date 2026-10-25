@@ -47,24 +47,26 @@ export function validarRascunhoLI(rascunho, contexto) {
   }
   // SEO obrigatorio antes de enviar (pedido do dono em 07/10/2026): sem title e description o Google
   // monta o resultado sozinho.
-  if (vazio(r.seo?.title)) acusar("seoTitulo", "seo", "Informe o Tag Title (título para o Google).", true);
-  if (vazio(r.seo?.description)) acusar("seoDescription", "seo", "Informe a Meta Tag Description (resumo para o Google).", true);
+  // Categorias e SEO sao do PRODUTO (25/10/2026): o texto manda ir ao cadastro, nas abas Categorias e SEO.
+  const categoriasDoProduto = Array.isArray(produto.categoriasLI) ? produto.categoriasLI : [];
+  if (vazio(produto.seoTituloLI)) acusar("seoTitulo", "seo", "Informe o Tag Title (título para o Google) na aba SEO do produto.", true);
+  if (vazio(produto.seoDescricaoLI)) acusar("seoDescription", "seo", "Informe a Meta Tag Description (resumo para o Google) na aba SEO do produto.", true);
 
   // Alertas.
   if (vazio(r.marca)) acusar("marca", "geral", "Sem marca: o produto fica sem marca na loja.");
-  if (!r.categorias?.length) {
-    acusar("categorias", "categorias", "Sem categoria: o produto não aparece em nenhum menu da loja.");
+  if (!categoriasDoProduto.length) {
+    acusar("categorias", "categorias", "Sem categoria: o produto não aparece em nenhum menu da loja. Marque na aba Categorias do produto.");
   } else if (categoriasDaLI) {
     const existentes = new Set(categoriasDaLI.map((categoria) => String(categoria.id)));
-    const sumidas = r.categorias.filter((id) => !existentes.has(String(id)));
+    const sumidas = categoriasDoProduto.filter((id) => !existentes.has(String(id)));
     if (sumidas.length) {
-      acusar("categorias", "categorias", `Categoria que não existe mais na loja: ${sumidas.join(", ")}. Ela sai do envio.`);
+      acusar("categorias", "categorias", `Categoria que não existe mais na loja: ${sumidas.join(", ")}. Ela sai do envio; tire-a na aba Categorias do produto.`);
     }
   }
-  if ((r.seo?.title ?? "").trim().length > LIMITE_DO_TITULO_SEO) {
+  if ((produto.seoTituloLI ?? "").trim().length > LIMITE_DO_TITULO_SEO) {
     acusar("seoTitulo", "seo", `Título SEO acima de ${LIMITE_DO_TITULO_SEO} caracteres: será cortado no envio.`);
   }
-  if ((r.seo?.description ?? "").trim().length > LIMITE_DA_DESCRIPTION_SEO) {
+  if ((produto.seoDescricaoLI ?? "").trim().length > LIMITE_DA_DESCRIPTION_SEO) {
     acusar("seoDescription", "seo", `Description acima de ${LIMITE_DA_DESCRIPTION_SEO} caracteres: será cortada no envio.`);
   }
   if (vazio(produto.ncm)) {
