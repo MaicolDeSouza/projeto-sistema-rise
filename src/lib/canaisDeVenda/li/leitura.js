@@ -177,6 +177,8 @@ function resultado(campos) {
     // O que o editor usa para oferecer "Completar o cadastro" (etapasCadastro.js): nulo = nao se sabe.
     ativoNaLI: null,
     estoqueGerenciado: null,
+    // A quantidade na loja (o monitor do worker a compara com o saldo do Bling, 25/10/2026): nulo = nao lido.
+    estoqueNaLI: null,
     cadastroFalhou: null,
     ...campos,
   };
@@ -270,6 +272,8 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
       if (!marcaExisteNaLI) avisos.push(`A marca ${rise.marca} não existe na Loja Integrada: o Sincronizar a cria.`);
     }
 
+    // Falhar so o estoque nao derruba a comparacao: o editor so deixa de oferecer o completar.
+    const estoqueNaLI = await lerEstoqueDaLI(cliente, busca.id).catch(() => null);
     return resultado({
       ...base,
       ok: true,
@@ -286,8 +290,8 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
       fotos,
       daLoja: { gtin: li.gtin, origem: li.origem, tipoProducao: li.tipoProducao },
       ativoNaLI: detalhe.produto?.ativo === true,
-      // Falhar so o estoque nao derruba a comparacao: o editor so deixa de oferecer o completar.
-      estoqueGerenciado: await lerEstoqueDaLI(cliente, busca.id).then((estoque) => estoque.gerenciado, () => null),
+      estoqueGerenciado: estoqueNaLI ? estoqueNaLI.gerenciado : null,
+      estoqueNaLI,
       cadastroFalhou: anuncio.dados?.cadastroLI ?? null,
     });
   } catch (erro) {

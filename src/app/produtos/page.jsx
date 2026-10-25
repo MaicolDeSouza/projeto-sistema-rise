@@ -6,6 +6,7 @@ import { idsDaBuscaDeProdutos, ondeAchouNoProduto, palavrasDaBusca, textoDoSelo 
 import { CANAIS, separarCanais } from "@/lib/canais";
 import { urlDe } from "@/lib/arquivos";
 import { estadoDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
+import { textoDosEstoquesNosCanais } from "@/lib/canaisDeVenda/estoquesNosCanais";
 import { mudancasDosAnunciosML } from "@/lib/canaisDeVenda/ml/banco";
 import { INCLUDE_DO_ICONE_BLING, iconeBlingDoProduto } from "@/lib/blingSync/estado";
 import { documentosDoProduto } from "@/lib/canaisDeVenda/li/banco";
@@ -260,6 +261,8 @@ export default async function ProdutosPage({ searchParams }) {
     // Busca ampla: "achado na descrição" quando a palavra nao estava no nome nem no codigo.
     achado: ampla && palavras.length > 0 ? textoDoSelo(ondeAchouNoProduto(semOcultos(produto, ocultos), palavras)) : null,
     ...separarCanais(produto.anuncios),
+    // "Bling 5 · Rise 5 · ML 3 · LI 5" na dica da coluna Estoque (25/10/2026): so para quem ve o estoque exato.
+    estoquesNosCanais: acessos.estoqueExato ? textoDosEstoquesNosCanais(produto) : null,
     // O icone do ML mostra o anuncio (publicado e ativo, ou pendente), nao so o idExterno.
     iconeML: {
       ...estadoDoIconeML(produto.anuncios.map((anuncio) => ({ ...anuncio, mudancas: mudancasML.get(anuncio.id) }))),

@@ -65,6 +65,17 @@ export function textoDoEstadoML(estado) {
   return `${nome} no ML`;
 }
 
+/**
+ * Quantas leituras SEGUIDAS o estoque do canal ficou diferente do saldo do Bling (25/10/2026). O Bling leva minutos para
+ * repassar uma venda ou um ajuste: uma leitura no meio nao pode acender o "!", que vem com 2 (`LEITURAS_PARA_DIVERGIR`).
+ * Sem um dos dois numeros (Bling nao lido, canal sem controle de estoque) nao ha comparacao: zera.
+ */
+export const LEITURAS_PARA_DIVERGIR = 2;
+export function seguidasComDiferenca(anteriores, doCanal, doBling) {
+  if (typeof doCanal !== "number" || typeof doBling !== "number") return 0;
+  return doCanal === doBling ? 0 : (Number(anteriores) || 0) + 1;
+}
+
 /** O ML barrou o anuncio e o dono precisa agir (o "!" do icone). */
 export function precisaAgirNoML(estado) {
   if (!estado?.status) return false;

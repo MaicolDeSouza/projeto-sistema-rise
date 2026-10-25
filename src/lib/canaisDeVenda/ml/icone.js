@@ -11,7 +11,7 @@
  * Varios anuncios do mesmo produto (Classico e Premium) valem juntos: um publicado deixa verde, um com erro poe o "!".
  */
 
-import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
+import { LEITURAS_PARA_DIVERGIR, precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
 
 const ehDoML = (anuncio) => anuncio?.canal === "MERCADO_LIVRE";
 const SITUACOES_PUBLICADAS = new Set(["ATIVA", "PAUSADA"]);
@@ -34,6 +34,7 @@ export function estadoDoIconeML(anuncios) {
   const paraTras = doML.filter((anuncio) => estaPublicado(anuncio) && (anuncio.mudancas?.partes?.length ?? 0) > 0);
   const partes = new Set(paraTras.flatMap((anuncio) => anuncio.mudancas.partes));
   const barrados = doML.filter(barradoNoML);
+  const comEstoqueDiferente = doML.filter((anuncio) => estaPublicado(anuncio) && (anuncio.dados?.publicacao?.estadoML?.estoqueDiferenteSeguidas ?? 0) >= LEITURAS_PARA_DIVERGIR);
   return {
     publicado: doML.some(estaPublicado),
     pausado: doML.some((anuncio) => estaPublicado(anuncio) && anuncio.situacaoCanal === "PAUSADA") && !doML.some((anuncio) => estaPublicado(anuncio) && anuncio.situacaoCanal === "ATIVA"),
@@ -45,6 +46,9 @@ export function estadoDoIconeML(anuncios) {
     // O ML barrou um anuncio publicado (em revisao, inativo, moderado): o "!" e o texto do estado (releitura de hora em
     // hora, `relerEstadoML.js`). Sem estoque nao conta: o Bling repoe.
     precisaAgirNoML: barrados.length > 0,
+    // O estoque do anuncio diferente do saldo do Bling em leituras seguidas (25/10/2026).
+    estoqueDivergenteNoML: comEstoqueDiferente.length > 0,
+    estoquesNoML: comEstoqueDiferente.map((anuncio) => ({ ml: anuncio.dados.publicacao.estadoML.estoque, bling: anuncio.dados.publicacao.estadoML.estoqueBling })),
     estadosNoML: [...new Set(barrados.map((anuncio) => textoDoEstadoML(anuncio.dados.publicacao.estadoML)))],
   };
 }
@@ -72,7 +76,7 @@ function textoDoDesatualizado(partes) {
   return `desatualizado: ${trechos.join("; ")}`;
 }
 
-export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [] }) {
+export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [] }) {
   const base = "Anúncio no Mercado Livre";
   const partes = [];
   if (publicado) partes.push(pausado ? "publicado, pausado (sem estoque)" : "publicado");
@@ -84,6 +88,7 @@ export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = f
     );
   }
   if (barrado) partes.push(...estadosNoML.map((texto) => texto.charAt(0).toLowerCase() + texto.slice(1)));
+  if (estoqueDivergenteNoML) partes.push(...estoquesNoML.map(({ ml, bling }) => `estoque no ML ${ml}, no Bling ${bling}`));
   if (erro) partes.push("com erro na publicação");
   if (!publicado && !erro && rascunho) partes.push("rascunho, ainda não publicado");
   return partes.length ? `${base}: ${partes.join(", ")}` : `${base}: sem anúncio`;

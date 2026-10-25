@@ -1102,6 +1102,55 @@ try {
     conferir("completar sem estar na LI: recusa", (await completarCadastroLI(p4.id, criarLojaIntegradaFalsa({}), criarBlingDaLI())).ok, false);
   }
 
+  {
+    console.log("\nMonitor da LI: o worker compara a loja com o Rise e o estoque com o Bling");
+    await limpar();
+    const { relerMonitorLI } = await import("../src/lib/canaisDeVenda/li/monitor.js");
+    const { textosDoAlertaNaLoja } = await import("../src/lib/canaisDeVenda/li/alertaNaLoja.js");
+    const texto = (estado) => textosDoAlertaNaLoja(estado).join(" e ");
+    const p = await prisma.produto.create({ data: { sku: "ZZ-LI-40", tituloBase: "Monitor da loja", descricaoBase: "Texto do monitor.", ncm: "85364900", conferido: true } });
+    const li = criarLojaIntegradaFalsa({});
+    const cadastro = await cadastrarNaLI(p.id, li, criarBlingDaLI({ saldo: 5 }));
+    await prisma.produto.update({ where: { id: p.id }, data: { blingId: "77", blingSaldo: 5, estoque: 5 } });
+    const mudarNaLoja = (campos) => li.mudarProduto(cadastro.idExterno, campos);
+    const an = await anuncioLIDoProduto(p.id);
+    const monitor = async () => (await prisma.anuncio.findUnique({ where: { id: an.id }, select: { dados: true } })).dados?.monitorLI ?? null;
+    const icone = async () => iconeLIDoProduto(await prisma.produto.findUnique({ where: { id: p.id } }), await prisma.anuncio.findUnique({ where: { id: an.id } }), { documentos: [] });
+    const rodar = (agora, cliente = li) => relerMonitorLI({ cliente, agora: new Date(agora), anuncioIds: [an.id], espera: 0 });
+
+    const r1 = await rodar("2026-10-25T10:00:00Z");
+    const m1 = await monitor();
+    conferir("monitor: le o anuncio vinculado (ativo, estoque igual ao Bling)", [r1.conferidos, r1.falhas, m1.situacao, m1.ativo, m1.estoque, m1.estoqueBling, m1.estoqueDiferenteSeguidas], [1, 0, "existe", true, 5, 5, 0]);
+    conferir("monitor: logo depois do cadastro, nada diferente na loja", [m1.diferentes, (await icone()).alertaNaLoja], [[], false]);
+
+    mudarNaLoja({ nome: "Nome trocado no painel da loja" });
+    await rodar("2026-10-25T11:00:00Z");
+    const i2 = await icone();
+    conferir("monitor: nome mudado no painel da loja acende o '!' e diz o campo", [(await monitor()).diferentes, i2.alertaNaLoja, texto(i2)], [["Nome"], true, "diferente na loja: Nome"]);
+
+    mudarNaLoja({ nome: "Monitor da loja", ativo: false });
+    await rodar("2026-10-25T12:00:00Z");
+    const i3 = await icone();
+    conferir("monitor: inativo na loja acende o '!' e a situacao vira PAUSADA", [(await monitor()).ativo, i3.alertaNaLoja, (await prisma.anuncio.findUnique({ where: { id: an.id } })).situacaoCanal, texto(i3)], [false, true, "PAUSADA", "inativo na loja"]);
+    mudarNaLoja({ ativo: true });
+
+    mudarNaLoja({ estoque_quantidade: 3 });
+    await rodar("2026-10-25T13:00:00Z");
+    conferir("estoque: 1a leitura diferente conta 1 e nao acende", [(await monitor()).estoqueDiferenteSeguidas, (await icone()).alertaNaLoja], [1, false]);
+    await rodar("2026-10-25T14:00:00Z");
+    const i5 = await icone();
+    conferir("estoque: 2a leitura seguida acende com os numeros", [(await monitor()).estoqueDiferenteSeguidas, i5.alertaNaLoja, texto(i5)], [2, true, "estoque na loja 3, no Bling 5"]);
+    mudarNaLoja({ estoque_quantidade: 5 });
+    await rodar("2026-10-25T15:00:00Z");
+    conferir("estoque: igualou, zera e apaga", [(await monitor()).estoqueDiferenteSeguidas, (await icone()).alertaNaLoja], [0, false]);
+
+    const antes = await monitor();
+    const liFora = criarLojaIntegradaFalsa({ falhas: { "GET /produto": 429 } });
+    const rFora = await rodar("2026-10-25T16:00:00Z", liFora);
+    const depois = await monitor();
+    conferir("limite da LI: para a rodada e guarda o erro sem perder o lido", [Boolean(rFora.parou), depois.estoque, depois.ativo, Boolean(depois.erro), depois.diferentes], [true, 5, true, true, antes.diferentes]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;

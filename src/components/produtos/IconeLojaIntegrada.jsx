@@ -3,6 +3,7 @@
 import Image from "next/image";
 
 import { CANAIS } from "@/lib/canais";
+import { textosDoAlertaNaLoja } from "@/lib/canaisDeVenda/li/alertaNaLoja";
 
 /**
  * O icone da Loja Integrada na coluna Canais da lista de Produtos, no molde do icone do Bling: a logo
@@ -14,7 +15,7 @@ import { CANAIS } from "@/lib/canais";
 const CANAL_LI = CANAIS.find((canal) => canal.id === "LOJA_INTEGRADA");
 
 /** O estado em palavras: vai no nome acessivel e na dica (cor e selo sozinhos nao dizem nada). */
-export function rotuloDoIconeLI({ cor, divergente, conferido, semBling, incompleto }) {
+export function rotuloDoIconeLI({ cor, divergente, conferido, semBling, incompleto, naLoja }) {
   if (!conferido) return "Loja Integrada: só Produto Conferido";
   const partes = [];
   // O cadastro automatico parou numa etapa (24/10/2026): vem primeiro, e o editor tem o "Completar o cadastro".
@@ -23,6 +24,8 @@ export function rotuloDoIconeLI({ cor, divergente, conferido, semBling, incomple
   if (semBling) partes.push("sem vínculo com o Bling (estoque e pedidos não chegam)");
   else if (cor === "cinza") partes.push("nunca sincronizado");
   if (divergente) partes.push("divergência em campos");
+  // O que o worker leu na loja (25/10/2026): campo mudado no painel, inativo, estoque diferente do Bling...
+  partes.push(...textosDoAlertaNaLoja({ naLoja }));
   if (partes.length === 0) partes.push("em dia");
   return `Loja Integrada: ${partes.join(" e ")}`;
 }
@@ -47,7 +50,7 @@ export default function IconeLojaIntegrada({ iconeLI, aoClicar }) {
           P
         </span>
       )}
-      {(iconeLI.divergente || iconeLI.incompleto) && (
+      {(iconeLI.divergente || iconeLI.incompleto || iconeLI.alertaNaLoja) && (
         <span
           aria-hidden="true"
           className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[10px] leading-none font-bold text-amber-950 ring-2 ring-superficie"

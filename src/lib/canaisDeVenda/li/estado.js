@@ -1,5 +1,6 @@
 import { assinaturaLI, normalizarDoRiseLI } from "./campos";
 import { rascunhoDoAnuncio } from "./banco";
+import { alertaDoMonitorLI } from "./alertaNaLoja";
 import { ROTULO_DA_ETAPA_LI } from "./etapasCadastro";
 
 export { produtoIdValido } from "@/lib/blingSync/estado";
@@ -45,5 +46,7 @@ export function iconeLIDoProduto(produto, anuncioLI, { documentos = [] } = {}) {
       assinaturaAtual: atual,
     }),
     ...cadastroIncompleto(anuncioLI),
+    // O que o worker leu na loja e nao bate com o Rise (25/10/2026): so aparece com o monitor gravado.
+    ...alertaDoMonitorLI(anuncioLI.dados?.monitorLI ?? null),
   };
 }

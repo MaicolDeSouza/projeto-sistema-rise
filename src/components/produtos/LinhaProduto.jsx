@@ -63,6 +63,8 @@ export default function LinhaProduto({
   iconeBling = ICONE_BLING_PADRAO,
   // Cor e selo do icone da Loja Integrada, tambem do servidor (`iconeLIDoProduto`).
   iconeLI = { cor: "cinza", divergente: false, conferido: false },
+  // "Bling 5 · Rise 5 · ML 3 · LI 5" (25/10/2026): a dica da coluna Estoque; nulo sem numero dos canais.
+  estoquesNosCanais = null,
   // Busca ampla (09/10/2026): "achado na descrição" quando a palavra nao estava no nome nem no codigo.
   achado = null,
   // Produto recem-criado: fundo verde claro que some sozinho (pedido do dono em 10/10/2026). So CSS, sem estado.
@@ -161,6 +163,7 @@ export default function LinhaProduto({
       </td>
 
       <td
+        title={estoquesNosCanais ?? undefined}
         className={`px-3 py-2.5 tabular-nums ${
           produto.estoque === 0 ? "font-medium text-red-700" : ""
         }`}
@@ -224,7 +227,7 @@ export default function LinhaProduto({
                 )}
                 {/* O mesmo selo "!" dos outros icones: erro na publicacao, ou anuncio publicado que ficou para tras do
                     produto (descricao, fotos, peso e medidas; spec 2026-10-24). */}
-                {(iconeML.erro || iconeML.desatualizado || iconeML.precisaAgirNoML) && (
+                {(iconeML.erro || iconeML.desatualizado || iconeML.precisaAgirNoML || iconeML.estoqueDivergenteNoML) && (
                   <span
                     aria-hidden="true"
                     className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[10px] leading-none font-bold text-amber-950 ring-2 ring-superficie"

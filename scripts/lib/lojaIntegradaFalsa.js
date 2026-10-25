@@ -367,6 +367,12 @@ export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias
     },
     chamadas,
     produtos: () => tabelaProdutos.map((p) => copia(detalhe(p))),
+    // O dono mexendo no painel da loja (o monitor do worker, 25/10/2026): muda o produto guardado, sem passar pela API.
+    mudarProduto(id, campos) {
+      const produto = tabelaProdutos.find((p) => String(p.id) === String(id));
+      if (!produto) throw new Error(`LI falsa: produto ${id} nao existe`);
+      Object.assign(produto, campos);
+    },
     marcas: () => copia(tabelaMarcas),
     seos: () => Object.fromEntries([...tabelaSeo.entries()].map(([id, seo]) => [id, copia(seo)])),
   };

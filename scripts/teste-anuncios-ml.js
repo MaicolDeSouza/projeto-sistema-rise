@@ -419,16 +419,16 @@ try {
 
     // Regra do dono em 24/10/2026: verde = publicado (ativo ou pausado sem estoque); "!" = so erro ou publicacao parada.
     const ml = (status, situacaoCanal) => ({ canal: "MERCADO_LIVRE", status, situacaoCanal });
-    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estadosNoML: [] });
-    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estadosNoML: [] });
-    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estadosNoML: [] });
-    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estadosNoML: [] });
+    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [] });
+    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [] });
+    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [] });
+    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [] });
     for (const status of ["ERRO", "PUBLICANDO"]) {
       conferir(`icone: ${status} poe o selo`, estadoDoIconeML([ml(status, "PAUSADA")]).erro, true);
     }
     conferir("icone: encerrado nao e verde", estadoDoIconeML([ml("PUBLICADO", "ENCERRADA")]).publicado, false);
     conferir("icone: ativo e pausado juntos nao dizem pausado", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("PUBLICADO", "PAUSADA")]).pausado, false);
-    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estadosNoML: [] });
+    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [] });
     conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "ERRO" }, { canal: "LOJA_INTEGRADA", status: "PUBLICADO", situacaoCanal: "ATIVA" }]).publicado, false);
     conferir("icone: lista invalida", estadoDoIconeML(undefined).erro, false);
     conferir("rotulo do icone: sem anuncio", rotuloDoIconeML({ publicado: false, erro: false }), "Anúncio no Mercado Livre: sem anúncio");
@@ -2781,6 +2781,32 @@ try {
     const doBanco = await prisma.anuncio.findMany({ where: { id: { in: ids } }, select: { canal: true, status: true, situacaoCanal: true, dados: true } });
     const icone = estadoDoIconeML(doBanco);
     conferir("icone: anuncio em revisao acende o '!' com o texto", [icone.precisaAgirNoML, /em revisão: precisa corrigir/.test(rotuloDoIconeML(icone))], [true, true]);
+
+    // Estoque do ML x Bling (pedido do dono em 25/10/2026): o "!" so na SEGUNDA leitura seguida com diferenca (o Bling leva
+    // minutos para repassar uma venda; uma leitura no meio nao acende nada). Produto sem saldo do Bling nao compara.
+    const comBling = await prisma.produto.create({ data: { sku: "ZZ-ML-EST2", tituloBase: "estoque", conferido: true, blingSaldo: 5 } });
+    const a4 = await prisma.anuncio.create({ data: { produtoId: comBling.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB910004", dados: { publicacao: { itemId: "MLB910004" } } } });
+    ml.itens.set("MLB910004", { id: "MLB910004", status: "active", sub_status: [], available_quantity: 3, sold_quantity: 0 });
+    const so4 = { ml, anuncioIds: [a4.id] };
+    const estadoDe4 = async () => (await prisma.anuncio.findUnique({ where: { id: a4.id }, select: { dados: true } })).dados.publicacao.estadoML;
+    const iconeDe4 = async () => estadoDoIconeML(await prisma.anuncio.findMany({ where: { id: a4.id }, select: { canal: true, status: true, situacaoCanal: true, dados: true } }));
+    await relerEstadosML({ ...so4, agora: new Date("2026-10-25T10:00:00Z") });
+    conferir("estoque: 1a leitura diferente conta 1 e nao acende", [(await estadoDe4()).estoqueBling, (await estadoDe4()).estoqueDiferenteSeguidas, (await iconeDe4()).estoqueDivergenteNoML], [5, 1, false]);
+    await relerEstadosML({ ...so4, agora: new Date("2026-10-25T11:00:00Z") });
+    const icone4 = await iconeDe4();
+    conferir("estoque: 2a leitura seguida acende o '!' com os numeros", [(await estadoDe4()).estoqueDiferenteSeguidas, icone4.estoqueDivergenteNoML, /estoque no ML 3, no Bling 5/.test(rotuloDoIconeML(icone4))], [2, true, true]);
+    conferir("estoque: o 'desde' e o da mudanca de estado, nao o da contagem", (await estadoDe4()).desde, "2026-10-25T10:00:00.000Z");
+    ml.itens.get("MLB910004").available_quantity = 5;
+    await relerEstadosML({ ...so4, agora: new Date("2026-10-25T12:00:00Z") });
+    conferir("estoque: igualou, zera e apaga", [(await estadoDe4()).estoqueDiferenteSeguidas, (await iconeDe4()).estoqueDivergenteNoML], [0, false]);
+    conferir("estoque: produto sem saldo do Bling nao compara", [(await lido(a1)).estado.estoqueBling, (await lido(a1)).estado.estoqueDiferenteSeguidas], [null, 0]);
+
+    const { textoDosEstoquesNosCanais } = await import("../src/lib/canaisDeVenda/estoquesNosCanais.js");
+    const anuncioML = (estoque) => ({ canal: "MERCADO_LIVRE", status: "PUBLICADO", dados: { publicacao: { estadoML: { estoque } } } });
+    const anuncioLI = (estoque) => ({ canal: "LOJA_INTEGRADA", status: "PUBLICADO", dados: { monitorLI: { estoque } } });
+    conferir("resumo do estoque: Bling, Rise, ML e LI", textoDosEstoquesNosCanais({ blingSaldo: 5, estoque: 5, anuncios: [anuncioML(3), anuncioML(3), anuncioLI(5)] }), "Bling 5 · Rise 5 · ML 3 · LI 5");
+    conferir("resumo do estoque: Classico e Premium com numeros diferentes", textoDosEstoquesNosCanais({ blingSaldo: 5, estoque: 5, anuncios: [anuncioML(3), anuncioML(5)] }), "Bling 5 · Rise 5 · ML 3/5");
+    conferir("resumo do estoque: so o Rise nao vira dica; saldo negativo do Bling e 0", [textoDosEstoquesNosCanais({ blingSaldo: null, estoque: 2, anuncios: [] }), textoDosEstoquesNosCanais({ blingSaldo: -2, estoque: 0, anuncios: [] })], [null, "Bling 0 · Rise 0"]);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

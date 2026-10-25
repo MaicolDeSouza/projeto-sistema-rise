@@ -290,7 +290,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 834 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 842 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 361 asserções da sincronização Rise -> Loja Integrada (e da proposta de anúncio da LI e do cadastro automático): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3401,6 +3401,29 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   hh:mm") e no ícone do ML da lista de Produtos, que ganha o "!" (`precisaAgirNoML` em `estadoDoIconeML`; o anúncio
   barrado continua contando como publicado). Corrigido junto: `ORDEM_DAS_PARTES` do ícone não tinha preço e ficha, e o
   texto do "!" desses dois saía vazio.
+
+**Loja Integrada vigiada pelo worker e estoque comparado com o Bling (25/10/2026, pedido do dono, Opção 1):**
+- **Mesmo worker, rotinas separadas** (decisão do dono): `relerEstadosML` (ML) e `relerMonitorLI` (`li/monitor.js`,
+  `RELER_MONITOR_LI_MS`, de hora em hora), cada uma com o seu relógio e o seu log; uma falha não para a outra. Um worker só
+  evita dois processos renovando o mesmo token (o refresh é de uso único).
+- **Monitor da LI:** todo anúncio LOJA_INTEGRADA PUBLICADO com `idExterno` e produto Conferido é lido pela MESMA leitura da
+  aba Divergências (`lerParaPopupLI`, 6 a 8 GET por produto, 2 s entre produtos; o limite de chamadas ou o token param a
+  rodada). Grava `dados.monitorLI = { situacao, ativo, diferentes: [rótulos "diferente" + "Fotos"], estoque, estoqueBling,
+  estoqueDiferenteSeguidas, desde, erro, erroEm }` e a `situacaoCanal` (ativo/PAUSADA) só quando muda. Abrir o editor da LI
+  (`abrirJanelaLI`) também grava o monitor (`guardarLeituraNoMonitorLI`): resolvido, o "!" apaga na hora. `lerParaPopupLI`
+  passou a devolver `estoqueNaLI` (`{ gerenciado, quantidade }`).
+- **Ícone da LI:** `alertaDoMonitorLI` (`li/alertaNaLoja.js`, puro) soma ao "!" da assinatura: campo diferente na loja
+  (mudado no painel), inativo, na lixeira, não encontrado, duplicado e estoque diferente; o texto vem de
+  `textosDoAlertaNaLoja` ("diferente na loja: Nome", "inativo na loja", "estoque na loja 3, no Bling 5").
+- **Estoque x Bling:** o ML (`estadoML.estoque` da releitura) e a LI (`monitorLI.estoque`, só com estoque gerenciado)
+  comparados com `Produto.blingSaldo` (negativo vira 0; o worker o relê de hora em hora). **O "!" só na 2ª leitura seguida
+  com diferença** (`LEITURAS_PARA_DIVERGIR`, `seguidasComDiferenca` em `ml/estadoNoML.js`): o Bling leva minutos para
+  repassar uma venda. O kit montado no editor do ML não compara (não há produto com o saldo do kit). Rise x Bling já era o
+  "!" do Bling (ajuste pendente).
+- **Coluna Estoque da lista de Produtos:** dica "Bling 5 · Rise 5 · ML 3 · LI 5" (`textoDosEstoquesNosCanais`,
+  `src/lib/canaisDeVenda/estoquesNosCanais.js`), só com `dado.estoqueExato`. A tela "Divergências" (lista de todos os "!")
+  foi oferecida e o dono não respondeu: não foi feita.
+- **Na VPS (25/10/2026):** 6 anúncios publicados na LI e 6 no ML pelo Rise.
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 

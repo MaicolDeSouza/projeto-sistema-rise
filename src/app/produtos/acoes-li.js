@@ -8,6 +8,7 @@ import { mudouNaLI } from "@/lib/canaisDeVenda/li/apresentacao";
 import { cadastrarNaLI, completarCadastroLI, sincronizarProdutoLI } from "@/lib/canaisDeVenda/li/envio";
 import { produtoIdValido } from "@/lib/canaisDeVenda/li/estado";
 import { lerParaPopupLI } from "@/lib/canaisDeVenda/li/leitura";
+import { guardarLeituraNoMonitorLI } from "@/lib/canaisDeVenda/li/monitor";
 
 /**
  * Acoes do editor da Loja Integrada (aberto pelo icone da lista de Produtos): ler a loja, Sincronizar e Cadastrar. Finas, no molde de `acoes-bling.js`: a regra,
@@ -50,7 +51,9 @@ export async function abrirJanelaLI(produtoId) {
   if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
   return protegendo("Não foi possível ler a Loja Integrada. Tente de novo.", async () => {
     const resultado = await lerParaPopupLI(produtoId);
-    return revalidando(resultado, resultado.vinculadoAgora === true);
+    // A leitura do editor atualiza o monitor do worker (25/10/2026): resolvido aqui, o "!" da loja apaga na hora.
+    const monitorMudou = await guardarLeituraNoMonitorLI(produtoId, resultado);
+    return revalidando(resultado, resultado.vinculadoAgora === true || monitorMudou);
   });
 }
 

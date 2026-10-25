@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 
 import { gravarPublicacao } from "./banco";
 import { clienteML } from "./cliente";
-import { estadoDoItem, estadoMudou, situacaoDoEstado } from "./estadoNoML";
+import { estadoDoItem, estadoMudou, seguidasComDiferenca, situacaoDoEstado } from "./estadoNoML";
 
 /**
  * Releitura do estado dos anuncios no ML (pedido do dono em 24/10/2026, opcao 1): o worker, de hora em hora, le o
@@ -37,7 +37,7 @@ export async function relerEstadosML({ ml, agora = new Date(), anuncioIds, esper
         situacaoCanal: { not: "ENCERRADA" },
         ...(Array.isArray(anuncioIds) ? { id: { in: anuncioIds } } : {}),
       },
-      select: { id: true, idExterno: true, situacaoCanal: true, dados: true },
+      select: { id: true, idExterno: true, situacaoCanal: true, dados: true, produto: { select: { blingSaldo: true } } },
       orderBy: { id: "asc" },
     });
   } catch (erro) {
@@ -77,9 +77,16 @@ export async function relerEstadosML({ ml, agora = new Date(), anuncioIds, esper
       const novo = estadoDoItem(item);
       const anterior = anuncio.dados?.publicacao?.estadoML ?? null;
       const situacao = situacaoDoEstado(novo.status);
-      if (!estadoMudou(anterior, novo) && situacao === anuncio.situacaoCanal) continue;
+      // Estoque x Bling (25/10/2026): so o anuncio de um produto do Rise (o kit montado no editor nao tem produto com o
+      // saldo do kit) e com o saldo do Bling lido. Conta as leituras SEGUIDAS com diferenca; o "!" vem com 2.
+      const blingSaldo = anuncio.dados?.composicao ? null : anuncio.produto?.blingSaldo ?? null;
+      const estoqueBling = typeof blingSaldo === "number" ? Math.max(0, blingSaldo) : null;
+      const seguidas = seguidasComDiferenca(anterior?.estoqueDiferenteSeguidas, novo.estoque, estoqueBling);
+      const mudou = estadoMudou(anterior, novo);
+      if (!mudou && situacao === anuncio.situacaoCanal && seguidas === (anterior?.estoqueDiferenteSeguidas ?? 0) && estoqueBling === (anterior?.estoqueBling ?? null)) continue;
       try {
-        await gravarPublicacao(anuncio.id, { estadoML: { ...novo, desde: agora.toISOString() }, statusML: novo.status }, { situacaoCanal: situacao });
+        const desde = mudou || !anterior?.desde ? agora.toISOString() : anterior.desde;
+        await gravarPublicacao(anuncio.id, { estadoML: { ...novo, estoqueBling, estoqueDiferenteSeguidas: seguidas, desde }, statusML: novo.status }, { situacaoCanal: situacao });
         resultado.mudaram += 1;
       } catch (erro) {
         console.error("[ml estado] gravar:", erro?.message ?? erro);
