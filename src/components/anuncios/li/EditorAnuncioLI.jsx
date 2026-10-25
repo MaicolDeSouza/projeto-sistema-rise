@@ -10,7 +10,7 @@ import { abrirJanelaLI, cadastrarProdutoNaLI, completarCadastroNaLI, sincronizar
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
-import { mudouNaLI, resumirEnvioLI } from "@/lib/canaisDeVenda/li/apresentacao";
+import { mudouNaLI, resumirEnvioLI, resumoDasDivergenciasLI } from "@/lib/canaisDeVenda/li/apresentacao";
 import { ROTULO_DA_ETAPA_LI, faltaNoCadastroLI, ofereceCompletar } from "@/lib/canaisDeVenda/li/etapasCadastro";
 import { STATUS_LI } from "@/lib/canaisDeVenda/li/rotulos";
 import { ABAS_LI, validarRascunhoLI } from "@/lib/canaisDeVenda/li/validacao";
@@ -61,10 +61,9 @@ async function chamarEnvio(acao, produtoId) {
 
 /** Diferenca de verdade (o selo do icone): "so tem na loja" nao e divergencia, vazio nunca apaga. */
 // As fotos contam como uma divergencia quando o Sincronizar mudaria as da loja (`resumoDasFotosLI`).
-const divergenciasDe = (leitura) =>
-  leitura?.ok && leitura.situacao === "existe"
-    ? (leitura.diferencas ?? []).filter((item) => item.tipo === "diferente").length + (["diferentes", "faltam"].includes(leitura.fotos?.estado) ? 1 : 0)
-    : 0;
+// Desde 25/10/2026 conta tambem o que so o painel da LI corrige (origem e tipo de producao) e o produto inativo: o "!" do
+// icone acusa esses motivos, e a aba tem de mostra-los (`resumoDasDivergenciasLI`).
+const divergenciasDe = (leitura) => resumoDasDivergenciasLI(leitura).total;
 
 /**
  * Editor do anuncio da Loja Integrada, na casca do editor do Mercado Livre: estado controlado sem
@@ -473,7 +472,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     <div inert={travado || somenteLeitura} aria-busy={travado} className={travado ? "opacity-70" : undefined}>
       {divergencias > 0 && (
         <Painel id="divergencias" aba={abaVisivel}>
-          <AbaDivergencias leitura={leitura} lerLoja={lerLoja} lendo={lendo} />
+          <AbaDivergencias leitura={leitura} lerLoja={lerLoja} lendo={lendo} linkDoPainel={linkDoPainelLI(leitura?.idExterno ?? vinculoAtual?.idExterno)} />
         </Painel>
       )}
       {ABAS_LI.map(({ id }) => {

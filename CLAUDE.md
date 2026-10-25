@@ -4161,6 +4161,12 @@ existirá mais a proposta para a LI, pois tudo será feito na proposta do produt
   `li` (o `roteiroDaProposta` do MCP só tem `produto` e `ml`), o "P" do ícone da LI e a faixa de proposta do editor da LI. O
   passo seguinte do `situacaoDoProduto` é `cadastrar-li`. As ações `sugerirCategoriasLI`, `gerarSeoIALI` e `seoConcorrentesLI`
   foram removidas (as abas do produto têm as próprias, em `acoes-loja.js`).
+- **A aba Divergências abre com todo motivo do "!"** (pedido do dono em 25/10/2026, com o 100110: o ícone da LI acusava o "!" e o
+  editor abria sem a aba): além dos campos "diferente" e das fotos, conta origem e tipo de produção vazios ou diferentes na loja
+  (só o painel da LI os grava) e produto inativo (menos com o cadastro automático falho, que tem a faixa). Regra única em
+  `resumoDasDivergenciasLI` (`li/apresentacao.js`); a aba diz "N ajuste(s) só no painel da LI" e traz o link do painel. O motivo
+  "estoque diferente do Bling" continua só no ícone (precisa de 2 leituras do worker). Não visto na tela com o caso do 100110
+  (o PC é cópia e esse produto está diferente lá): só nas regras puras.
 - **Visto na tela (PC, ZZ-TESTE-BLING):** ordem das abas, árvore ao vivo (113 caixas), marcar e Salvar gravou `categoriasLI`, os
   valores migrados do SEO aparecendo. **Não visto na tela:** a marca PROPOSTA nas duas abas e a faixa "Usar a proposta" (só
   testadas nas regras puras), a IA das duas abas (paga) e o Salvar recusando 21 categorias.

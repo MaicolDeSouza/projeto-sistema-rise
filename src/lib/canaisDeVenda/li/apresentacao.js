@@ -84,6 +84,23 @@ export function resumirEnvioLI(tipo, resultado, rotulos = {}) {
   return null;
 }
 
+/**
+ * O que a aba Divergencias do editor mostra, a partir da leitura da loja (`lerParaPopupLI`). Antes (ate 25/10/2026) so os
+ * campos "diferente" e as fotos abriam a aba, e o "!" do icone podia vir de outro motivo (origem e tipo de producao vazios
+ * na loja, produto inativo) com a aba sumida: o dono abria o editor e nao via o que o "!" acusava.
+ *
+ * - `diferentes`: campos diferentes na loja (o Sincronizar corrige), mais as fotos quando elas mudariam;
+ * - `fiscais`: origem e tipo de producao vazios ou diferentes (so o painel da LI os grava);
+ * - `inativo`: produto na loja mas inativo (nao vale quando o cadastro automatico falhou: a faixa do editor ja explica).
+ */
+export function resumoDasDivergenciasLI(leitura) {
+  if (!leitura?.ok || leitura.situacao !== "existe") return { diferentes: 0, fiscais: 0, inativo: false, total: 0 };
+  const diferentes = (leitura.diferencas ?? []).filter((item) => item.tipo === "diferente").length + (["diferentes", "faltam"].includes(leitura.fotos?.estado) ? 1 : 0);
+  const fiscais = (leitura.fiscais ?? []).length;
+  const inativo = leitura.ativoNaLI === false && !leitura.cadastroFalhou;
+  return { diferentes, fiscais, inativo, total: diferentes + fiscais + (inativo ? 1 : 0) };
+}
+
 /** Se o envio pode ter mudado algo (no Rise ou na LI): o pop-up le de novo e a lista e revalidada. */
 export function mudouNaLI(tipo, resultado) {
   if (!resultado) return false;

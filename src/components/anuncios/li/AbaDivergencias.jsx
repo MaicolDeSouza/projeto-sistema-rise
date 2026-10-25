@@ -1,8 +1,8 @@
 "use client";
 
-import { Loader, RefreshCw } from "lucide-react";
+import { ExternalLink, Loader, RefreshCw } from "lucide-react";
 
-import { valorParaTela } from "@/lib/canaisDeVenda/li/apresentacao";
+import { resumoDasDivergenciasLI, valorParaTela } from "@/lib/canaisDeVenda/li/apresentacao";
 
 /**
  * Aba Divergencias do anuncio da Loja Integrada (pedido do dono em 07/10/2026: o pop-up de
@@ -46,20 +46,33 @@ function LinhaDeDiferenca({ item }) {
   );
 }
 
-export default function AbaDivergencias({ leitura, lerLoja, lendo }) {
+export default function AbaDivergencias({ leitura, lerLoja, lendo, linkDoPainel = null }) {
   const diferencas = leitura?.diferencas ?? [];
   const avisos = leitura?.avisos ?? [];
   const iguais = leitura?.iguais ?? 0;
   const fotos = leitura?.fotos ?? null;
   const fotosMudam = ["diferentes", "faltam"].includes(fotos?.estado);
-  const diferentes = diferencas.filter((item) => item.tipo === "diferente").length + (fotosMudam ? 1 : 0);
+  // Os motivos do "!" do icone: campos que o Sincronizar corrige, e o que so o painel da LI corrige (origem e tipo de
+  // producao, produto inativo). A aba abre com qualquer um deles (`resumoDasDivergenciasLI`).
+  const { diferentes, fiscais, inativo } = resumoDasDivergenciasLI(leitura);
+  const soNoPainel = fiscais + (inativo ? 1 : 0);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm">
-          <span className="font-semibold">{diferentes} campo(s) diferente(s)</span> entre o anúncio salvo no Rise e a Loja Integrada.{" "}
-          <span className="text-suave">O &quot;Sincronizar com a LI&quot;, no rodapé, envia o que está no Rise.</span>
+          {diferentes > 0 && (
+            <>
+              <span className="font-semibold">{diferentes} campo(s) diferente(s)</span> entre o anúncio salvo no Rise e a Loja Integrada.{" "}
+              <span className="text-suave">O &quot;Sincronizar com a LI&quot;, no rodapé, envia o que está no Rise.</span>{" "}
+            </>
+          )}
+          {soNoPainel > 0 && (
+            <>
+              <span className="font-semibold">{soNoPainel} ajuste(s) só no painel da LI</span>
+              <span className="text-suave"> (o Sincronizar não os grava, a API da loja não deixa).</span>
+            </>
+          )}
         </p>
         <button
           type="button"
@@ -85,14 +98,21 @@ export default function AbaDivergencias({ leitura, lerLoja, lendo }) {
           </li>
         )}
       </ul>
-      {iguais > 0 && <p className="text-xs text-suave">{iguais} campo(s) igual(is) no Rise e na loja.</p>}
+      {iguais > 0 && diferentes > 0 && <p className="text-xs text-suave">{iguais} campo(s) igual(is) no Rise e na loja.</p>}
 
-      {avisos.length > 0 && (
+      {(avisos.length > 0 || inativo) && (
         <ul className="space-y-1 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          {inativo && <li>O produto está inativo na Loja Integrada: ele não aparece para o cliente. Ative no painel da LI quando for vender.</li>}
           {avisos.map((aviso, indice) => (
             <li key={`${indice}-${aviso}`}>{aviso}</li>
           ))}
         </ul>
+      )}
+      {soNoPainel > 0 && linkDoPainel && (
+        <a href={linkDoPainel} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-xs text-acento hover:bg-fundo">
+          Abrir no painel da LI
+          <ExternalLink size={13} />
+        </a>
       )}
     </div>
   );

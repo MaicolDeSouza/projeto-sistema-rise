@@ -551,6 +551,17 @@ try {
     );
     conferir("resumo do cadastro que parou antes do conteudo terminar: como era", resumirEnvioLI("cadastrar", { ok: false, idExterno: "9", etapa: "seo", etapas: [] }).titulo, "O produto foi criado na Loja Integrada (id 9), mas o envio não terminou.");
     conferir("completar muda a LI", [mudouNaLI("completar", { ok: true }), mudouNaLI("completar", { ok: false, idExterno: "9" }), mudouNaLI("completar", { ok: false })], [true, true, false]);
+    // A aba Divergencias abre com qualquer motivo do "!" (25/10/2026: origem e tipo de producao vazios na loja, inativo).
+    {
+      const { resumoDasDivergenciasLI } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
+      const lida = { ok: true, situacao: "existe", diferencas: [], fiscais: [], ativoNaLI: true, cadastroFalhou: null };
+      conferir("divergencias: loja igual, nada", resumoDasDivergenciasLI(lida).total, 0);
+      conferir("divergencias: origem e tipo vazios na loja abrem a aba", resumoDasDivergenciasLI({ ...lida, fiscais: [{ campo: "origem" }, { campo: "tipoProducao" }] }), { diferentes: 0, fiscais: 2, inativo: false, total: 2 });
+      conferir("divergencias: produto inativo abre a aba", resumoDasDivergenciasLI({ ...lida, ativoNaLI: false }).total, 1);
+      conferir("divergencias: inativo com o cadastro automatico falho nao conta (a faixa ja explica)", resumoDasDivergenciasLI({ ...lida, ativoNaLI: false, cadastroFalhou: { etapa: "estoque" } }).total, 0);
+      conferir("divergencias: campo diferente e fotos continuam contando", resumoDasDivergenciasLI({ ...lida, diferencas: [{ tipo: "diferente" }, { tipo: "vazioNoRise" }], fotos: { estado: "faltam" } }).diferentes, 2);
+      conferir("divergencias: produto fora da loja ou leitura com erro, nada", [resumoDasDivergenciasLI({ ...lida, situacao: "nao_existe", fiscais: [{}] }).total, resumoDasDivergenciasLI({ ok: false }).total], [0, 0]);
+    }
     conferir("valorParaTela", [valorParaTela("categorias", ["1", "2"]), valorParaTela("destaque", false), valorParaTela("altura", 3), valorParaTela("tipoProducao", "FABRICACAO_PROPRIA"), valorParaTela("ncm", null)], ["1, 2", "nao", "3 cm", "Fabricação própria", null]);
   }
 
