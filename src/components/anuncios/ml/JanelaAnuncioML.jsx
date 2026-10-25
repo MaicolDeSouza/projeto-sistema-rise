@@ -245,7 +245,6 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
         aoSalvar={aoSalvar}
         aoFechar={aoFechar}
         aoClonar={abrirClone}
-        aoNovo={abrirNovo}
       />
     );
   }

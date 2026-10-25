@@ -4,7 +4,7 @@ import { FaixaDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Copy, ExternalLink, Loader, Plus, X } from "lucide-react";
+import { Copy, ExternalLink, Loader, X } from "lucide-react";
 
 import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, salvarAnuncioML, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
@@ -12,7 +12,7 @@ import Badge from "@/components/ui/Badge";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { NOMES_DAS_PARTES, textoDasPartes } from "@/lib/canaisDeVenda/ml/acompanhar";
 import { precisaAgirNoML, textoDoEstadoML } from "@/lib/canaisDeVenda/ml/estadoNoML";
-import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
+import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, STATUS_ML, linkDoAnuncioML, linkDoPainelML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import AbaDescricao from "./AbaDescricao";
 import AbaEnvio from "./AbaEnvio";
@@ -39,6 +39,8 @@ const CLASSE_DA_MENSAGEM = {
   ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
 };
 
+/// Os botoes do rodape (abrir no painel, no ML, clonar): o mesmo desenho dos "Abrir no painel da LI" e "Abrir no site".
+const CLASSE_DO_BOTAO = "inline-flex items-center gap-1 rounded border border-borda px-2.5 py-1 font-medium text-acento hover:bg-fundo";
 const MOTIVO_DO_PUBLICADO = "Anúncio publicado: só preço e ficha técnica se editam aqui.";
 // Depois de publicado, so estas abas se editam (pedido do dono em 24/10/2026): o preco, os concorrentes e o ranking (na
 // aba Preco e custos) e a ficha tecnica. O resto (titulo, categoria, tipo, envio) fica como foi publicado.
@@ -87,7 +89,6 @@ export default function EditorAnuncioML({
   // `origem` e de onde o rascunho novo foi clonado (so para mostrar).
   aoClonar,
   // Na janela do produto (pedido do dono em 24/10/2026): "Novo anuncio" no rodape, ja que a janela abre direto no anuncio.
-  aoNovo,
   origem = null,
   acessos = ACESSO_TOTAL_ML,
 }) {
@@ -334,6 +335,9 @@ export default function EditorAnuncioML({
     </div>
   );
 
+  const linkDoPainel = linkDoPainelML(infoDoML.idExterno);
+  const linkDoAnuncio = linkDoAnuncioML(infoDoML.idExterno, infoDoML.urlExterna);
+
   const rodape = (
     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
       <div className="flex items-center gap-2 text-xs">
@@ -352,14 +356,18 @@ export default function EditorAnuncioML({
         )}
         {publicado && <span className="text-suave">{MOTIVO_DO_PUBLICADO}</span>}
         {somenteLeitura && !publicado && <span className="text-suave">{MOTIVO_DA_LEITURA}</span>}
-        {infoDoML.idExterno &&
-          (infoDoML.urlExterna ? (
-            <a href={infoDoML.urlExterna} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-acento hover:underline">
-              {infoDoML.idExterno} <ExternalLink size={12} />
-            </a>
-          ) : (
-            <span className="font-mono text-suave">{infoDoML.idExterno}</span>
-          ))}
+        {/* O anuncio no painel do vendedor e no site do ML, em outra aba (pedido do dono em 25/10/2026, no molde dos botoes
+            da LI): so depois de o anuncio existir no ML. */}
+        {linkDoPainel && (
+          <a href={linkDoPainel} target="_blank" rel="noreferrer" title={`Abre ${infoDoML.idExterno} na lista de anúncios do painel do Mercado Livre`} className={CLASSE_DO_BOTAO}>
+            Abrir no painel do ML <ExternalLink size={12} />
+          </a>
+        )}
+        {linkDoAnuncio && (
+          <a href={linkDoAnuncio} target="_blank" rel="noreferrer" title={`Abre a página do anúncio ${infoDoML.idExterno} no Mercado Livre`} className={CLASSE_DO_BOTAO}>
+            Abrir no ML <ExternalLink size={12} />
+          </a>
+        )}
         {!idAtual && origem && (
           <span className="text-suave">
             Clonado de <span className="font-mono">{origem.codigo}</span>
@@ -368,7 +376,7 @@ export default function EditorAnuncioML({
         )}
         {idAtual && acessos.editar && !travado && (
           modo === "pagina" ? (
-            <Link href={`/canais-de-venda/mercado-livre/novo?clonar=${idAtual}`} className="inline-flex items-center gap-1 text-acento hover:underline" title="Abre um anúncio novo igual a este, do mesmo produto">
+            <Link href={`/canais-de-venda/mercado-livre/novo?clonar=${idAtual}`} className={CLASSE_DO_BOTAO} title="Abre um anúncio novo igual a este, do mesmo produto">
               <Copy size={12} /> Clonar anúncio
             </Link>
           ) : (
@@ -377,22 +385,11 @@ export default function EditorAnuncioML({
               onClick={() => aoClonar?.(idAtual)}
               disabled={alterado || salvando}
               title={alterado ? "Salve as alterações antes de clonar." : "Abre um anúncio novo igual a este, do mesmo produto"}
-              className="inline-flex items-center gap-1 text-acento hover:underline disabled:cursor-not-allowed disabled:text-suave disabled:no-underline"
+              className={`${CLASSE_DO_BOTAO} disabled:cursor-not-allowed disabled:opacity-50`}
             >
               <Copy size={12} /> Clonar anúncio
             </button>
           )
-        )}
-        {modo === "janela" && aoNovo && idAtual && acessos.editar && (
-          <button
-            type="button"
-            onClick={aoNovo}
-            disabled={alterado || salvando}
-            title={alterado ? "Salve as alterações antes de abrir um anúncio novo." : "Abre um anúncio novo deste produto, em branco"}
-            className="inline-flex items-center gap-1 text-acento hover:underline disabled:cursor-not-allowed disabled:text-suave disabled:no-underline"
-          >
-            <Plus size={12} /> Novo anúncio
-          </button>
         )}
       </div>
       <div className="flex items-center gap-2">

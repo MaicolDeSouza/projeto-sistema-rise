@@ -2829,6 +2829,17 @@ try {
     conferir("resumo do estoque: so o Rise nao vira dica; saldo negativo do Bling e 0", [textoDosEstoquesNosCanais({ blingSaldo: null, estoque: 2, anuncios: [] }), textoDosEstoquesNosCanais({ blingSaldo: -2, estoque: 0, anuncios: [] })], [null, "Bling 0 · Rise 0"]);
   }
 
+  {
+    console.log("\nLinks do rodape do editor: o anuncio no ML e o painel do vendedor");
+    const { linkDoAnuncioML, linkDoPainelML } = await import("../src/lib/canaisDeVenda/ml/rotulos.js");
+    conferir("anuncio: usa o link gravado", linkDoAnuncioML("MLB5458577821", "https://produto.mercadolivre.com.br/MLB-5458577821-placa-_JM"), "https://produto.mercadolivre.com.br/MLB-5458577821-placa-_JM");
+    conferir("anuncio: sem link gravado, monta pelo MLB", linkDoAnuncioML("MLB5458577821", null), "https://produto.mercadolivre.com.br/MLB-5458577821");
+    conferir("anuncio: link gravado que nao e http fica de fora", linkDoAnuncioML("MLB5458577821", "javascript:alert(1)"), "https://produto.mercadolivre.com.br/MLB-5458577821");
+    conferir("anuncio: sem MLB valido, nada", [linkDoAnuncioML(null, null), linkDoAnuncioML("ABC", null)], [null, null]);
+    conferir("painel: a lista de anuncios do vendedor buscando o MLB", linkDoPainelML("MLB5458577821"), "https://www.mercadolivre.com.br/anuncios/lista?search=MLB5458577821");
+    conferir("painel: sem MLB valido, nada", [linkDoPainelML(""), linkDoPainelML("MLB12a")], [null, null]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();

@@ -12,6 +12,23 @@ export const STATUS_ML = {
   ERRO: { rotulo: "Erro", tom: "erro" },
 };
 
+const MLB = /^MLB\d+$/;
+
+/** O anuncio no site do ML: o link gravado na publicacao (`permalink`), ou montado pelo MLB. So http(s). */
+export function linkDoAnuncioML(idExterno, urlExterna) {
+  if (!MLB.test(String(idExterno ?? ""))) return null;
+  if (/^https?:\/\//i.test(String(urlExterna ?? ""))) return urlExterna;
+  return `https://produto.mercadolivre.com.br/MLB-${String(idExterno).slice(3)}`;
+}
+
+/**
+ * O anuncio no painel do vendedor (pedido do dono em 25/10/2026): a lista "Anuncios" da conta ja buscando o MLB. A lista e
+ * a tela que o ML mantem estavel; o caminho da edicao de um anuncio muda com o tipo dele.
+ */
+export function linkDoPainelML(idExterno) {
+  return MLB.test(String(idExterno ?? "")) ? `https://www.mercadolivre.com.br/anuncios/lista?search=${idExterno}` : null;
+}
+
 /// Anuncio de kit pausado no ML a espera do kit no Bling (status PUBLICANDO, etapa `kit_bling` com erro).
 export const AGUARDANDO_BLING = { rotulo: "Aguardando o Bling", tom: "alerta" };
 
