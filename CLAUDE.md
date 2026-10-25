@@ -62,7 +62,8 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   frete + imposto, o "Total dos custos" da tela; dono: "quero que o custo total entre na conta"), em
   `custosDoAnuncio().markup`; o modo "percentual" do `precoPorMargem` resolve `P = (1+m)·fixos ÷ (1 − (1+m)·(comissão% +
   imposto%))` (custo R$ 80,48 + frete R$ 19,05 com 13% de comissão e 40% dá R$ 189,85). Proposta de produto: opções de 60,
-  80 e 100% e aviso abaixo de 60%; proposta do ML: piso de 40% com as taxas. Propostas gravadas antes guardaram `margem` e
+  80 e 100%, piso de 30% e aviso abaixo de 60% (25/10/2026); proposta do ML: piso de 30% com as taxas, desejado 40% (25/10/2026,
+  eram 40% de piso e antes 30% de margem). Propostas gravadas antes guardaram `margem` e
   aparecem como margem. Os nomes antigos (`calcularMargem`, `CalculadoraDeMargem`, `dado.margem`) ficaram; tela nova
   mostra markup. **As seções abaixo que falam de "margem" de 30% ou 60% descrevem o que valia antes.**
 
@@ -298,7 +299,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 845 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 863 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 356 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -309,7 +310,7 @@ npm run teste:mcp                 # 231 asserções do servidor MCP (com o busca
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
-npm run teste:proposta            # 305 asserções da proposta automática de produto (com as seções de categorias e SEO da loja): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
+npm run teste:proposta            # 319 asserções da proposta automática de produto (com as seções de categorias e SEO da loja): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
 npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio
@@ -5714,13 +5715,18 @@ a Bling, Mercado Livre ou Loja Integrada.
     `campos` (`gravarProposta`). `plano.js` aceita os campos novos e confere as listas fechadas (unidade, tipo de
     produção, tipo do item, origem 0-8, CEST com 7 dígitos, % de 0 a 100). A descrição tem o ícone "Original" ao lado do
     olho, e o `IconeDaProposta` escreve pelo setter nativo (a descrição é `<textarea>` controlado).
-  - **Preço recomendado R$ 0,10 abaixo do 5º concorrente** (pedido do dono em 24/10/2026: "o concorrente em 5 está a
-    R$ 35,90 e devo colocar uns 10 centavos a menos"; `opcoesDePreco`/`concorrenteDeReferencia` em `regras.js`): cada loja
-    pelo menor preço, sem as indisponíveis; com menos de 5 lojas, R$ 0,10 abaixo da MAIS CARA (decisão 2 = opção 1);
-    arredondado para BAIXO aos 5 centavos; sem piso (decisão 3 = opção 1): margem abaixo de 30% vem com `aviso`, abaixo de
-    1% sem recomendada. A recomendada traz `referencia` (loja, preço, regra) e a margem com uma casa (45,6%). Até 23/10 a
-    margem subia de 1 em 1% e parava no último preço que cabia (39,35 com o 5º a 39,90). A proposta de anúncio do ML
-    (`propostaDeAnuncio/preco.js`, `ABAIXO_DO_TETO`) usa a mesma distância: R$ 0,10 abaixo do teto, nunca empatando.
+  - **Preço recomendado: abaixo da Usinainfo, entre os 5 primeiros, piso de 30% de markup** (pedido do dono em 25/10/2026: "o valor
+    tem que ficar abaixo da Usinainfo; depois entre os top 5, com mínimo de 30% de markup, se possível manter 60%"; `opcoesDePreco` em
+    `regras.js`). É o MENOR de dois tetos, cada um R$ 0,10 abaixo e arredondado PARA BAIXO aos 5 centavos: o da Usinainfo (só se ela
+    vende e tem preço; com vários produtos dela vale o de menor preço; reconhecida pelo nome com "usinainfo") e o do 5º concorrente
+    mais barato (cada loja uma vez, sem as indisponíveis; com menos de 5 lojas, abaixo da MAIS CARA). **Piso `MARKUP_MINIMO` = 30%**:
+    se o menor teto der menos, a recomendada sobe ao preço de 30% (para cima aos 5 centavos) e o `aviso` diz o piso, o teto que seria,
+    "fica acima da Usinainfo (R$ x)" e/ou "fica em Nº de M (fora dos 5 primeiros)". Entre 30% e 60% o preço fica e o aviso diz
+    "markup abaixo de 60%": **o 60% nunca puxa o preço**. Só sem custo não há recomendada (concorrente barato já não tira). A
+    `referencia` traz a loja, o preço e a regra ("Usinainfo", "5º concorrente", "concorrente mais caro (menos de 5)" ou "piso de 30% de
+    markup"). Roteiro v11; **só vale na VPS depois do deploy**. Histórico: até 23/10 a margem subia de 1 em 1%; em 24/10 era R$ 0,10 abaixo
+    do 5º, sem piso (decisão 3 = opção 1) e sem a Usinainfo. A proposta de anúncio do ML (`propostaDeAnuncio/preco.js`,
+    `ABAIXO_DO_TETO`) usa a mesma distância: R$ 0,10 abaixo do teto, nunca empatando.
   - **DESDE 22/10/2026 a proposta vai DIRETO NO FORMULÁRIO** (pedido do dono; plano
     `docs/superpowers/plans/2026-10-22-proposta-no-formulario.md`, decisões A-D = 1). O quadro com "Aplicar escolhidos"
     descrito abaixo SAIU. Regra pura `propostaNoFormulario` (`aplicar.js`): campo VAZIO no produto abre preenchido com a
@@ -5769,7 +5775,7 @@ a Bling, Mercado Livre ou Loja Integrada.
   `docs/superpowers/roteiros/instrucao-projeto-claude-ai-proposta.md`.
 - **Roteiro único da proposta (21/10/2026, pedido do dono: "posso mudar de LLM e deve funcionar igual")** (plano
   `docs/superpowers/plans/2026-10-21-roteiro-unico-da-proposta.md`): as regras moram SÓ em `src/lib/proposta/roteiro.js`
-  (`ROTEIRO` + `VERSAO_DO_ROTEIRO`, hoje "10"), entregues pela ferramenta `roteiroDaProposta` do MCP; cada seção gravada
+  (`ROTEIRO` + `VERSAO_DO_ROTEIRO`, hoje "11"), entregues pela ferramenta `roteiroDaProposta` do MCP; cada seção gravada
   carimba `PropostaDeProduto.versaoDoRoteiro`. A instrução do Projeto (claude.ai, ChatGPT) é um bloco fixo de 3 linhas que
   só manda ler o roteiro; o `docs/superpowers/roteiros/proposta-de-produto.md` ficou só com a reserva por SSH. **Mudar
   regra = editar `roteiro.js`, subir a versão e fazer deploy.** O que é conta ou checagem é do Rise, ao gravar: o PREÇO (de 5 em 5 centavos, arredondado para cima, desde 22/10/2026: `precoParaMargem` em `regras.js`)
@@ -5822,10 +5828,13 @@ com o roteiro v2** (título inventado no rascunho do ML): refazer a proposta do 
   links com preço, guardados só em `dados.proposta.links`. **Nada entra em `CatalogoReferenciaML`**: o editor mostra
   "Sugeridos pela proposta" no ranking com Adicionar. Atualiza o Clássico ainda não publicado; nunca mexe no publicado.
   `sugerirCategoria` roda com uma IA vazia (nunca a paga).
-- **Preço do ML** (`precoDaPropostaML`): piso = 30% de margem com as taxas relidas no preço (arredondado para cima aos 5
-  centavos e conferido de novo, porque pode cruzar R$ 79); teto = o 5º menor preço do ranking (menos de 5, o maior);
-  valor = o maior de 5 em 5 centavos até o teto com 30%, e, se cruzar R$ 79 perde a margem pelo frete grátis, o de R$ 78,95;
-  piso acima do teto = o piso com o aviso "fica em Nº de M". Sem custo, sem preço.
+- **Preço do ML** (`precoDaPropostaML`): piso = 30% de MARKUP sobre o custo total com as taxas relidas no preço (25/10/2026, pedido do
+  dono: "no ML o mínimo é 30%, se possível manter 40%"; era 40% de piso, e antes 30% de margem; arredondado para cima aos 5 centavos e
+  conferido de novo, porque pode cruzar R$ 79); teto = o 5º menor preço do ranking (menos de 5, o maior); valor = o maior de 5 em 5
+  centavos R$ 0,10 abaixo do teto com pelo menos 30%; se esse candidato fica abaixo de 40% e cruza R$ 79 (o frete grátis come o lucro),
+  vale o de R$ 78,95 quando rende mais; piso acima do teto = o piso com o aviso "fica em Nº de M". Os 40% (`MARKUP_DESEJADO`) são só
+  AVISO ("abaixo dos 40% desejados"); **sem concorrente mira os 40%**. A Usinainfo NÃO entra no ML (preço de site; lá vale o ranking do
+  catálogo). Roteiro do ML v5. Sem custo, sem preço. **Só vale na VPS depois do deploy.**
 - **O "P" some** no envio que deu certo: na LI dentro do `gravarSucesso` (um Sincronizar sem nada a enviar também conta);
   no ML na etapa "gravar" do Publicar (`gravarPublicacao` com `apagarProposta`). Envio barrado ou que falha mantém a
   proposta. Na lista, `iconeLI.proposta` e `iconeML.proposta` (só o booleano; o relatório nunca vai à lista).

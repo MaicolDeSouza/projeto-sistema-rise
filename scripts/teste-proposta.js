@@ -54,7 +54,7 @@ function conferir(nome, condicao) {
   ]);
   conferir("loja repetida conta uma vez e a sem estoque fica de fora (5º = E, R$ 60)", repetida.recomendada?.preco === 59.9);
   const apertada = opcoesDePreco(30, [30, 32, 34, 36, 39.9].map((preco, i) => ({ loja: `L${i}`, preco })));
-  conferir("markup abaixo de 60%: recomenda com aviso (sem piso)", apertada.recomendada?.preco === 39.8 && /60%/.test(apertada.recomendada.aviso ?? ""));
+  conferir("markup entre 30% e 60%: recomenda o mesmo preco, com aviso", apertada.recomendada?.preco === 39.8 && /60%/.test(apertada.recomendada.aviso ?? "") && !/piso/.test(apertada.recomendada.aviso ?? ""));
 }
 
 {
@@ -66,9 +66,54 @@ function conferir(nome, condicao) {
 {
   const baratos = ["A", "B", "C", "D", "E", "F"].map((loja) => ({ loja, preco: 10 }));
   const caro = opcoesDePreco(18.9, baratos);
-  conferir("concorrentes abaixo do custo: sem recomendada", caro.recomendada === null);
-  conferir("concorrentes abaixo do custo: o motivo fala dos 5 primeiros", /5 primeiros/.test(caro.motivoSemRecomendada ?? ""));
+  // 25/10/2026 (pedido do dono): com piso de 30%, nunca fica sem recomendada por causa dos concorrentes. Custo 18,90: o preco de
+  // 30% e 24,57, que vai a 24,60 (para cima, de 5 em 5 centavos), em 7º de 7.
+  conferir("concorrentes abaixo do custo: sobe ao piso de 30%", caro.recomendada?.preco === 24.6 && caro.recomendada.markup === 30.2 && caro.motivoSemRecomendada === null);
+  conferir("concorrentes abaixo do custo: o aviso diz o piso e a posicao fora dos 5 primeiros",
+    /piso de 30%/.test(caro.recomendada?.aviso ?? "") && /7º de 7 \(fora dos 5 primeiros\)/.test(caro.recomendada?.aviso ?? "") && /abaixo de 60%/.test(caro.recomendada?.aviso ?? ""));
+  conferir("concorrentes abaixo do custo: a referencia e o piso", caro.recomendada?.referencia?.regra === "piso de 30% de markup");
   conferir("concorrentes abaixo do custo: as 3 opcoes continuam", caro.opcoes.length === 3);
+}
+
+// ---------------------------------------------------------------------------
+// A Usinainfo e um teto (pedido do dono em 25/10/2026): abaixo dela, entre os 5 primeiros, piso de 30% de markup
+// ---------------------------------------------------------------------------
+{
+  const lojas = (precos) => Object.entries(precos).map(([loja, preco]) => ({ loja, preco }));
+  // Usinainfo a 40 e o 5º a 60: o teto dela (39,90) e o menor. 3ª mais barata.
+  const abaixo = opcoesDePreco(18.9, lojas({ A: 30, B: 35, Usinainfo: 40, C: 50, D: 60, E: 70, F: 80 }));
+  conferir("Usinainfo: fica R$ 0,10 abaixo dela, antes do 5º", abaixo.recomendada?.preco === 39.9 && abaixo.recomendada.referencia.loja === "Usinainfo" && abaixo.recomendada.referencia.regra === "Usinainfo");
+  conferir("Usinainfo: em 3º lugar, markup alto, sem aviso", abaixo.recomendada?.posicao.posicao === 3 && abaixo.recomendada.markup === 111.1 && abaixo.recomendada.aviso === null);
+
+  // Usinainfo mais cara que o 5º (70): o top 5 e o teto, e abaixo dela ja esta.
+  const cara = opcoesDePreco(18.9, lojas({ A: 30, B: 40, C: 50, D: 60, E: 70, Usinainfo: 90 }));
+  conferir("Usinainfo acima do 5º: vale o 5º concorrente", cara.recomendada?.preco === 69.9 && cara.recomendada.referencia.regra === "5º concorrente");
+
+  // Sem estoque (ou sem preco): a Usinainfo nao decide, como se nao estivesse.
+  const semEstoque = opcoesDePreco(18.9, [...lojas({ A: 30, B: 35, C: 50, D: 60, E: 70 }), { loja: "Usinainfo", preco: 40, indisponivel: true }]);
+  conferir("Usinainfo sem estoque: so o top 5", semEstoque.recomendada?.preco === 69.9 && semEstoque.recomendada.referencia.regra === "5º concorrente");
+  const semPreco = opcoesDePreco(18.9, [...lojas({ A: 30, B: 35, C: 50, D: 60, E: 70 }), { loja: "Usinainfo", preco: null }]);
+  conferir("Usinainfo sem preco: so o top 5", semPreco.recomendada?.preco === 69.9);
+  const outroNome = opcoesDePreco(18.9, lojas({ A: 30, B: 35, "USINAINFO Componentes": 40, C: 50, D: 60 }));
+  conferir("Usinainfo reconhecida pelo nome, sem caixa", outroNome.recomendada?.preco === 39.9);
+
+  // Duas linhas da Usinainfo: vale a de menor preco (cada loja conta uma vez).
+  const duas = opcoesDePreco(18.9, [...lojas({ A: 30, B: 35, C: 50, D: 60, E: 70 }), { loja: "Usinainfo", preco: 45 }, { loja: "Usinainfo", preco: 40 }]);
+  conferir("Usinainfo com dois produtos: o de menor preco", duas.recomendada?.preco === 39.9);
+
+  // O piso manda quando o teto da Usinainfo da menos de 30%: custo 32,53 (o Pro Micro); 30% = 42,29 -> 42,30; Usinainfo a 41,00.
+  const piso = opcoesDePreco(32.53, lojas({ Robocore: 45.9, Smartkits: 47.9, Piscaled: 48.3, Usinainfo: 41, Eletrogate: 55.9 }));
+  conferir("piso: sobe a R$ 42,30 (30%), acima da Usinainfo", piso.recomendada?.preco === 42.3 && piso.recomendada.markup === 30);
+  conferir("piso: o aviso diz o piso, o teto e que fica acima da Usinainfo",
+    /piso de 30% de markup \(o teto seria R\$ 40,90, R\$ 0,10 abaixo da Usinainfo\)/.test(piso.recomendada?.aviso ?? "") && /fica acima da Usinainfo \(R\$ 41,00\)/.test(piso.recomendada?.aviso ?? ""));
+  conferir("piso: continua entre os 5 primeiros (2º de 6) e a referencia e o piso", piso.recomendada?.posicao.posicao === 2 && !/fora dos 5/.test(piso.recomendada.aviso) && piso.recomendada.referencia.regra === "piso de 30% de markup" && piso.recomendada.referencia.loja === "Usinainfo");
+
+  // Piso exatamente no teto: o teto (40,90) da markup de 30,3%? custo 31,40 -> 30% = 40,82 -> 40,85; teto 40,90 cumpre, sem piso.
+  const naBorda = opcoesDePreco(31.4, lojas({ A: 30, B: 35, Usinainfo: 41, C: 50, D: 60 }));
+  conferir("teto acima do piso: fica no teto, sem aviso de piso", naBorda.recomendada?.preco === 40.9 && !/piso/.test(naBorda.recomendada.aviso ?? "") && /60%/.test(naBorda.recomendada.aviso ?? ""));
+  conferir("o 60% nunca puxa o preco: o piso (30%) so vale se o teto der menos", naBorda.recomendada?.markup === 30.3);
+  // Sem custo continua sem recomendada; sem concorrente continua na maior opcao.
+  conferir("sem concorrente: a maior das tres opcoes", opcoesDePreco(18.9, []).recomendada?.markup === 100);
 }
 
 // ---------------------------------------------------------------------------

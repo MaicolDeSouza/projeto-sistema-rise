@@ -12,8 +12,9 @@
 
 // "2" em 24/10/2026: o preco passa a ser por markup, nao por margem; "3" no mesmo dia: o markup e sobre o CUSTO TOTAL
 // (fornecedor + taxas do ML + frete + imposto), pedido do dono. "4" em 24/10/2026: o titulo e o do produto base (a LLM
-// nao o escolhe), e so o produto com composicao (kit) aceita outro titulo, pedido do dono.
-export const VERSAO_ROTEIRO_ML = "4";
+// nao o escolhe), e so o produto com composicao (kit) aceita outro titulo, pedido do dono. "5" em 25/10/2026: o markup
+// minimo do preco e 30% e o desejado 40% (pedido do dono).
+export const VERSAO_ROTEIRO_ML = "5";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
@@ -49,6 +50,7 @@ CAMINHO (nesta ordem)
    relatório em tópicos curtos: por que a categoria, de onde veio cada valor da ficha, por que cada catálogo é o mesmo
    produto. Se voltar erro, corrija e grave de novo.
 5. Mostre à pessoa o que o Rise devolveu: o título usado, o preço, o markup (lucro sobre o total dos custos: fornecedor, comissão e
-   frete do ML e imposto; o mínimo é 40%), a posição no ranking, os catálogos aceitos e os avisos.
+   frete do ML e imposto; o mínimo é 30% e o desejado, 40%: abaixo de 40% vem um aviso), a posição no ranking, os
+   catálogos aceitos e os avisos.
    Diga que o dono revisa no editor do Mercado Livre, adiciona os catálogos ao ranking se quiser, e publica (o "P" no
    ícone some no Publicar).`;

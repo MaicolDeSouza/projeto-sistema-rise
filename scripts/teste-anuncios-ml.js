@@ -2477,8 +2477,14 @@ try {
     // Piso = 40% de markup sobre o custo total (24/10/2026): 1,4 * (20 + 6,85) / (1 - 1,4 * 0,18) = 50,25..., vai a 50,30.
     conferir("no top 5: R$ 0,10 abaixo do teto, com 40% ou mais de markup, em 5º", [top5.valor, top5.markup >= 40, top5.posicao, top5.total, top5.teto, top5.avisos], [54.9, true, 5, 7, 55, []]);
 
+    // Piso de 30% (pedido do dono em 25/10/2026: "o minimo e 30%, se possivel manter 40%"): 1,3 * 26,85 / 0,766 = 45,57, vai a 45,60.
     const caro = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [30, 31, 32, 33, 34] });
-    conferir("40% fora do top 5: fica no piso e avisa a posição", [caro.valor, caro.valor === caro.piso, caro.markup >= 40, caro.avisos.some((aviso) => /fica em 6º de 6/.test(aviso))], [50.3, true, true, true]);
+    conferir("30% fora do top 5: fica no piso e avisa a posição e o markup abaixo do desejado",
+      [caro.valor, caro.valor === caro.piso, caro.markup >= 30 && caro.markup < 40, caro.avisos.some((aviso) => /fica em 6º de 6/.test(aviso)), caro.avisos.some((aviso) => /abaixo dos 40% desejados/.test(aviso))], [45.6, true, true, true, true]);
+
+    // Entre o piso e o desejado, dentro do top 5: o 5º preco e 49, o anuncio vai a 48,90 e fica com ~37% (entre 30 e 40): mantem o preco e avisa.
+    const meio = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [40, 42, 45, 47, 49, 60] });
+    conferir("entre 30% e 40% no top 5: mantém o preço do top 5 e avisa o desejado", [meio.valor, meio.markup >= 30 && meio.markup < 40, meio.posicao, meio.avisos.some((aviso) => /abaixo dos 40% desejados/.test(aviso))], [48.9, true, 5, true]);
 
     // Custo 32: a R$ 79,90 (frete gratis, 12,95) o markup cai a ~35%; a R$ 78,95 (frete 6,85) fica em ~49%.
     const virada = await precoDaPropostaML(ml, rascunho, { custo: 32, precos: [60, 70, 75, 78, 80, 90] });
@@ -2488,7 +2494,8 @@ try {
     conferir("sem custo: sem preço e avisa", [semCusto.valor, semCusto.avisos.some((aviso) => /custo/.test(aviso))], [null, true]);
 
     const sozinho = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [] });
-    conferir("sem concorrente: o piso e avisa", [sozinho.valor, sozinho.valor === sozinho.piso, sozinho.avisos.some((aviso) => /sem concorrente/.test(aviso))], [50.3, true, true]);
+    // Sem teto nao ha o que ficar abaixo: mira o desejado (40% = 50,30), com o piso de 30% (45,60) guardado.
+    conferir("sem concorrente: mira os 40% e avisa", [sozinho.valor, sozinho.piso, sozinho.avisos.some((aviso) => /sem concorrente/.test(aviso)), sozinho.markup >= 40], [50.3, 45.6, true, true]);
 
     conferir("todo preço de 5 em 5 centavos", [top5, caro, virada, sozinho].every((resultado) => multiplo5(resultado.valor)), true);
   }
@@ -2539,7 +2546,9 @@ try {
     conferir("GTIN e o motivo mandados pela LLM ficam fora", [anuncio.atributos.GTIN ?? null, anuncio.atributos.EMPTY_GTIN_REASON ?? null], [null, null]);
     conferir("catálogos: só os de 5 ou mais anúncios, o de 4 avisado", [gravada.catalogosSugeridos.map((c) => c.catalogoId), gravada.avisos.some((a) => /MLBP4/.test(a) && /menos de 5/.test(a))], [["MLBP9", "MLBP6"], true]);
     conferir("o ranking do produto continua vazio", await prisma.catalogoReferenciaML.count({ where: { produtoId: produto.id } }), 0);
-    conferir("a proposta guardada com o preço e os catálogos", [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro], [59.9, 2, "4"]);
+    // A versao vem da constante: o numero fixo quebrava a cada mudanca de regra do roteiro (4 -> 5 em 25/10/2026).
+    const { VERSAO_ROTEIRO_ML } = await import("../src/lib/propostaDeAnuncio/roteiros.js");
+    conferir("a proposta guardada com o preço e os catálogos", [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro], [59.9, 2, VERSAO_ROTEIRO_ML]);
 
     // Um rascunho antigo da proposta, com outro titulo, volta ao nome do produto (o titulo nao e proposta fora do kit).
     await prisma.anuncio.update({ where: { id: gravada.anuncioId }, data: { titulo: "Titulo antigo da proposta" } });
