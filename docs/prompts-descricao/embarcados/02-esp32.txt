@@ -24,7 +24,7 @@ Modelo: a PLACA, com revisão e variante, como “DevKitC V4”, “NodeMCU-32S�
 
 Módulo: o módulo soldado na placa, como “ESP32-WROOM-32D”, “ESP32-WROOM-32U”, “ESP32-S3-WROOM-1 N16R8”. Substitui Módulo Embarcado e Controlador. Sufixo D ou E: antena PCB; U: conector para antena externa.
 
-Chip (SoC): o chip dentro do módulo, com o fabricante: “ESP32-D0WD (Espressif)”, “ESP32-S3 (Espressif)”. Substitui SoC, Chip, Chip Base e Microcontrolador. Só com o módulo, não deduza o chip.
+Chip(SoC): o chip dentro do módulo, com o fabricante: “ESP32-D0WD (Espressif)”, “ESP32-S3 (Espressif)”. Substitui SoC, Chip, Chip Base e Microcontrolador. Só com o módulo, não deduza o chip.
 
 Processador/CPU: “Xtensa LX6 dual-core de 32 bits”, “RISC-V single-core de 32 bits”. Substitui Arquitetura, Processador, CPU, Microprocessador e Número de Núcleos.
 
@@ -44,7 +44,7 @@ Nível Lógico: substitui Tensão de Nível Lógico, Tensão Lógica, Tensão de
 
 Consumo de Corrente da Placa: substitui Corrente de Consumo e Corrente de Operação: “80mA típico / 500mA máximo”.
 
-Corrente por Pino: a que cada GPIO fornece: “até 40mA (20mA no padrão)”. Substitui Corrente Máxima nos Pinos I/O. Corrente na Saída 3,3V: a que o regulador da placa fornece, só com fonte.
+Corrente por Pino: a que cada GPIO fornece: “20mA (40mA máximo)”. Substitui Corrente Máxima nos Pinos I/O. Corrente na Saída 3,3V: a que o regulador da placa fornece, só com fonte.
 
 Pinos Digitais I/O: os GPIO que a PLACA expõe, com o total de pinos: “25 GPIO (placa de 30 pinos)”. Substitui Portas GPIO, GPIOs, Pinos, Número de Pinos e Quantidade de Pinos; nunca os 34 do chip.
 
@@ -85,7 +85,7 @@ Cada item contém nome, valor e referencias: nome “Memória RAM”, valor “5
 Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas abaixo, mesmo que uma loja os publique (ex.: Taxa de Transferência).
 
 Campos obrigatórios:
-Marca; Modelo; Módulo; Chip (SoC); Processador/CPU; Frequência de Clock; Memória Flash; Memória RAM; Memória ROM; Wi-Fi; Bluetooth; Modos Wi-Fi; Segurança; Tensão de Alimentação; Nível Lógico; Consumo de Corrente da Placa; Corrente por Pino; Pinos Digitais I/O; Saídas PWM; Entradas Analógicas; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Antena; Botões; Pinos Soldados; Temperatura de Operação; Ambiente de Programação.
+Marca; Modelo; Módulo; Chip(SoC); Processador/CPU; Frequência de Clock; Memória Flash; Memória RAM; Memória ROM; Wi-Fi; Bluetooth; Modos Wi-Fi; Segurança; Tensão de Alimentação; Nível Lógico; Consumo de Corrente da Placa; Corrente por Pino; Pinos Digitais I/O; Saídas PWM; Entradas Analógicas; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Antena; Botões; Pinos Soldados; Temperatura de Operação; Ambiente de Programação.
 
 Campos condicionais (só quando o produto tem o recurso; com o recurso e sem valor confirmado, omita o campo):
 Memória PSRAM; Saídas DAC; Pinos Touch; Consumo em Deep Sleep; Corrente na Saída 3,3V; Sensores Integrados; Tela; Resolução da Tela; Sensor da Câmera; Resolução Máxima de Imagem; Slot para Cartão; Flash LED; Gravador USB; Suporte a Bateria; Corrente de Carga; Comprimento do Cabo USB.

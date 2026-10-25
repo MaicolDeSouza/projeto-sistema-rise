@@ -2684,7 +2684,8 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       I/O" e o PWM saiu de Interfaces para "Saídas PWM", pelo padrão do Arduino; "Passo entre Pinos" saiu (sempre 2,54mm). Depois:
       "Tensão de Operação" saiu (no ESP32 é o mesmo 3,3V do Nível Lógico, que fica só), "Consumo de Corrente" virou "Consumo de
       Corrente da Placa", "Processador" virou "Processador/CPU" (passou por "Arquitetura" no mesmo dia; valor "Xtensa LX6 dual-core de 32 bits") e "Chip Espressif (SoC)" virou
-      "Chip (SoC)" com o fabricante no valor ("ESP32-D0WD (Espressif)"). 28 obrigatórios. Regras próprias: placa > módulo > SoC são três coisas; não copiar entre variantes (clássico, S2, S3, C3, C6,
+      "Chip(SoC)" (sem espaço) com o fabricante no valor ("ESP32-D0WD (Espressif)"); Corrente por Pino no formato "20mA (40mA máximo)".
+      28 obrigatórios. Regras próprias: placa > módulo > SoC são três coisas; não copiar entre variantes (clássico, S2, S3, C3, C6,
       H2); USB-C não prova USB nativo; sufixo U = U.FL sem antena; CAM não tem USB; GPIO 6-11 da placa de 38 pinos não contam. Ficaram
       de fora de propósito: Taxa de Transferência, RTC, Cor, textos de aplicação. **LoRa continua no `03-esp32-lora.txt`, não revisado**
       (ainda com "?"), assim como STM32 e Raspberry. 11.996 de 12.000 caracteres. **Só vale depois de colado na biblioteca da VPS** com
