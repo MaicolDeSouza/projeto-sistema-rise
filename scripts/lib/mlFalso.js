@@ -478,6 +478,12 @@ export function criarMLFalso(opcoes = {}) {
       const meus = estado.meusItens[String(pedido.params.seller_sku ?? "")] ?? [];
       return resposta(200, { results: meus.map((item) => item.id), paging: { total: meus.length } });
     }
+    // A leitura em lote dos anuncios proprios (estado no ML, 24/10/2026). O ML real, com `attributes`, devolve so o `body`
+    // do item que responde; o que nao responde vem com `status_code` e `error`.
+    if (rota === "/items/bulk") {
+      const ids = String(pedido.params.ids ?? "").split(",").filter(Boolean);
+      return resposta(200, ids.map((id) => (itens.has(id) ? { body: structuredClone(itens.get(id)) } : { id, status_code: 404, error: { message: "Item not found" } })));
+    }
     const meuItem = rota.match(/^\/items\/([^/]+)$/);
     // Item criado pelo teste (o worker le o status e o available_quantity dos que esperam estoque).
     if (meuItem && itens.has(decodeURIComponent(meuItem[1]))) return resposta(200, structuredClone(itens.get(decodeURIComponent(meuItem[1]))));

@@ -4,6 +4,7 @@ import { codigoDaComposicao, errosDaComposicao, proximoCodigoDaFaixa } from "../
 import { custoDoProduto } from "../custo";
 import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, precoDoAnuncio } from "./acompanhar";
 import { avisosDeVariosProdutos } from "./concorrentes";
+import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
 import { impressaoDoConteudo } from "./impressao";
 import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
@@ -483,6 +484,9 @@ function linhaDoAnuncio(anuncio) {
     atualizadoEm: anuncio.atualizadoEm,
     // O anuncio no ML (MLB e link), depois que a publicacao o criou.
     idExterno: anuncio.idExterno ?? null,
+    // O estado no ML relido de hora em hora pelo worker (`relerEstadoML.js`), em portugues, e se o dono precisa agir.
+    estadoML: anuncio.status === "PUBLICADO" ? textoDoEstadoML(anuncio.dados?.publicacao?.estadoML) : null,
+    estadoMLPedeAcao: anuncio.status === "PUBLICADO" && precisaAgirNoML(anuncio.dados?.publicacao?.estadoML),
     urlExterna: anuncio.urlExterna ?? null,
   };
 }

@@ -1,6 +1,6 @@
 /**
- * Estado do icone do Mercado Livre na lista de Produtos. Funcao pura, sem imports: a lista (componente de cliente) e o
- * teste leem o mesmo arquivo. Regra do dono em 24/10/2026 (antes, publicado pausado ficava cinza e com o "!"):
+ * Estado do icone do Mercado Livre na lista de Produtos. Funcao pura, so importa `estadoNoML.js` (tambem sem imports):
+ * a lista (componente de cliente) e o teste leem o mesmo arquivo. Regra do dono em 24/10/2026 (antes, publicado pausado ficava cinza e com o "!"):
  *
  * - `publicado` (verde): algum anuncio PUBLICADO no ML, ativo OU pausado. Ficar sem estoque e normal na loja (a coluna
  *   Estoque ja mostra o zero em vermelho), e o anuncio pausado por isso continua sendo um anuncio publicado.
@@ -11,12 +11,16 @@
  * Varios anuncios do mesmo produto (Classico e Premium) valem juntos: um publicado deixa verde, um com erro poe o "!".
  */
 
+import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
+
 const ehDoML = (anuncio) => anuncio?.canal === "MERCADO_LIVRE";
 const SITUACOES_PUBLICADAS = new Set(["ATIVA", "PAUSADA"]);
-const estaPublicado = (anuncio) => anuncio.status === "PUBLICADO" && SITUACOES_PUBLICADAS.has(anuncio.situacaoCanal);
+// Barrado pelo ML (em revisao, inativo): a situacao do Rise vira DESCONHECIDA, mas o anuncio continua publicado.
+const barradoNoML = (anuncio) => anuncio.status === "PUBLICADO" && anuncio.situacaoCanal !== "ENCERRADA" && precisaAgirNoML(anuncio.dados?.publicacao?.estadoML);
+const estaPublicado = (anuncio) => anuncio.status === "PUBLICADO" && (SITUACOES_PUBLICADAS.has(anuncio.situacaoCanal) || barradoNoML(anuncio));
 
 // A mesma ordem de `PARTES` (acompanhar.js); copiada porque este arquivo nao tem imports (a lista e cliente).
-const ORDEM_DAS_PARTES = ["descricao", "fotos", "pacote"];
+const ORDEM_DAS_PARTES = ["descricao", "fotos", "pacote", "preco", "ficha"];
 const NOME_DA_PARTE = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica" };
 
 /**
@@ -29,6 +33,7 @@ export function estadoDoIconeML(anuncios) {
   const doML = (Array.isArray(anuncios) ? anuncios : []).filter(ehDoML);
   const paraTras = doML.filter((anuncio) => estaPublicado(anuncio) && (anuncio.mudancas?.partes?.length ?? 0) > 0);
   const partes = new Set(paraTras.flatMap((anuncio) => anuncio.mudancas.partes));
+  const barrados = doML.filter(barradoNoML);
   return {
     publicado: doML.some(estaPublicado),
     pausado: doML.some((anuncio) => estaPublicado(anuncio) && anuncio.situacaoCanal === "PAUSADA") && !doML.some((anuncio) => estaPublicado(anuncio) && anuncio.situacaoCanal === "ATIVA"),
@@ -37,6 +42,10 @@ export function estadoDoIconeML(anuncios) {
     desatualizado: paraTras.length > 0,
     naoConferido: paraTras.some((anuncio) => anuncio.mudancas.naoConferido),
     partesDesatualizadas: ORDEM_DAS_PARTES.filter((parte) => partes.has(parte)),
+    // O ML barrou um anuncio publicado (em revisao, inativo, moderado): o "!" e o texto do estado (releitura de hora em
+    // hora, `relerEstadoML.js`). Sem estoque nao conta: o Bling repoe.
+    precisaAgirNoML: barrados.length > 0,
+    estadosNoML: [...new Set(barrados.map((anuncio) => textoDoEstadoML(anuncio.dados.publicacao.estadoML)))],
   };
 }
 
@@ -63,7 +72,7 @@ function textoDoDesatualizado(partes) {
   return `desatualizado: ${trechos.join("; ")}`;
 }
 
-export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [] }) {
+export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [] }) {
   const base = "Anúncio no Mercado Livre";
   const partes = [];
   if (publicado) partes.push(pausado ? "publicado, pausado (sem estoque)" : "publicado");
@@ -74,6 +83,7 @@ export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = f
         : textoDoDesatualizado(partesDesatualizadas),
     );
   }
+  if (barrado) partes.push(...estadosNoML.map((texto) => texto.charAt(0).toLowerCase() + texto.slice(1)));
   if (erro) partes.push("com erro na publicação");
   if (!publicado && !erro && rascunho) partes.push("rascunho, ainda não publicado");
   return partes.length ? `${base}: ${partes.join(", ")}` : `${base}: sem anúncio`;

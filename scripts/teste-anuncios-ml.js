@@ -419,16 +419,16 @@ try {
 
     // Regra do dono em 24/10/2026: verde = publicado (ativo ou pausado sem estoque); "!" = so erro ou publicacao parada.
     const ml = (status, situacaoCanal) => ({ canal: "MERCADO_LIVRE", status, situacaoCanal });
-    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [] });
-    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [] });
-    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [] });
-    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true, desatualizado: false, naoConferido: false, partesDesatualizadas: [] });
+    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estadosNoML: [] });
+    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estadosNoML: [] });
+    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estadosNoML: [] });
+    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estadosNoML: [] });
     for (const status of ["ERRO", "PUBLICANDO"]) {
       conferir(`icone: ${status} poe o selo`, estadoDoIconeML([ml(status, "PAUSADA")]).erro, true);
     }
     conferir("icone: encerrado nao e verde", estadoDoIconeML([ml("PUBLICADO", "ENCERRADA")]).publicado, false);
     conferir("icone: ativo e pausado juntos nao dizem pausado", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("PUBLICADO", "PAUSADA")]).pausado, false);
-    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [] });
+    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estadosNoML: [] });
     conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "ERRO" }, { canal: "LOJA_INTEGRADA", status: "PUBLICADO", situacaoCanal: "ATIVA" }]).publicado, false);
     conferir("icone: lista invalida", estadoDoIconeML(undefined).erro, false);
     conferir("rotulo do icone: sem anuncio", rotuloDoIconeML({ publicado: false, erro: false }), "Anúncio no Mercado Livre: sem anúncio");
@@ -726,7 +726,7 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "id", "idExterno", "preco", "produtoId", "rankingML", "status", "tipoAnuncio", "titulo", "urlExterna"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "id", "idExterno", "preco", "produtoId", "rankingML", "status", "tipoAnuncio", "titulo", "urlExterna"]);
         conferir("lista: o mais recente primeiro", lista.linhas.every((l, i) => i === 0 || lista.linhas[i - 1].atualizadoEm >= l.atualizadoEm), true);
         conferir("lista: acha pelo codigo do kit", (await listarAnunciosML({ busca: "zz-ml-kit2" })).linhas.map((l) => [l.id, l.codigo]), [[k2.id, "ZZ-ML-KIT2"]]);
         conferir("lista: acha pelo titulo", (await listarAnunciosML({ busca: "ZZ TITULO NOVO" })).linhas.map((l) => [l.id, l.titulo, l.tipoAnuncio]), [[premium.id, "ZZ Titulo novo", "gold_pro"]]);
@@ -2686,6 +2686,11 @@ try {
       rotuloDoIconeML({ publicado: true, erro: false, desatualizado: true, partesDesatualizadas: ["descricao", "preco", "ficha"] }),
       "Anúncio no Mercado Livre: publicado, desatualizado: descrição mudou no produto; preço e ficha técnica alterados, falta enviar ao ML",
     );
+    conferir(
+      "icone: preco e ficha chegam ao texto (pela lista de partes do icone)",
+      rotuloDoIconeML(estadoDoIconeML([publicadoCom("ATIVA", { partes: ["preco", "ficha"], naoConferido: false })])),
+      "Anúncio no Mercado Livre: publicado, desatualizado: preço e ficha técnica alterados, falta enviar ao ML",
+    );
     conferir("rotulo: nao conferido", rotuloDoIconeML({ publicado: true, erro: false, desatualizado: true, naoConferido: true, partesDesatualizadas: ["descricao"] }), "Anúncio no Mercado Livre: publicado, ainda não conferido com o produto");
 
     const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-AC3", tituloBase: "PLACA AC3", descricaoBase: "Texto um.", pesoKg: 0.035, alturaCm: 1.5, larguraCm: 6, comprimentoCm: 10 } });
@@ -2708,6 +2713,74 @@ try {
     conferir("lista: sem impressao = nao conferido", await ler(), { partes: ["descricao", "fotos", "pacote"], naoConferido: true });
     await prisma.anuncio.update({ where: { id: anuncio.id }, data: { situacaoCanal: "ENCERRADA" } });
     conferir("lista: encerrado fica de fora", await ler(), undefined);
+  }
+
+  {
+    console.log("\nEstado do anuncio no ML (releitura de hora em hora)");
+    await limpar();
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { textoDoEstadoML, precisaAgirNoML } = await import("../src/lib/canaisDeVenda/ml/estadoNoML.js");
+    const { relerEstadosML } = await import("../src/lib/canaisDeVenda/ml/relerEstadoML.js");
+
+    conferir("texto: ativo", textoDoEstadoML({ status: "active", subStatus: [] }), "Ativo no ML");
+    conferir("texto: pausado sem estoque", textoDoEstadoML({ status: "paused", subStatus: ["out_of_stock"] }), "Pausado: sem estoque");
+    conferir("texto: pausado", textoDoEstadoML({ status: "paused", subStatus: [] }), "Pausado no ML");
+    conferir("texto: em revisao, precisa corrigir", textoDoEstadoML({ status: "under_review", subStatus: ["waiting_for_patch"] }), "Em revisão: precisa corrigir");
+    conferir("texto: inativo", textoDoEstadoML({ status: "inactive", subStatus: [] }), "Inativo no ML");
+    conferir("texto: encerrado", textoDoEstadoML({ status: "closed", subStatus: [] }), "Encerrado no ML");
+    conferir("texto: desconhecido mostra o do ML", textoDoEstadoML({ status: "algo_novo", subStatus: [] }), "No ML: algo_novo");
+    conferir(
+      "precisa agir: revisao, inativo e pausado por moderacao sim; sem estoque, ativo e encerrado nao",
+      [
+        precisaAgirNoML({ status: "under_review", subStatus: [] }),
+        precisaAgirNoML({ status: "inactive", subStatus: [] }),
+        precisaAgirNoML({ status: "paused", subStatus: ["forbidden"] }),
+        precisaAgirNoML({ status: "paused", subStatus: ["out_of_stock"] }),
+        precisaAgirNoML({ status: "active", subStatus: [] }),
+        precisaAgirNoML({ status: "closed", subStatus: [] }),
+        precisaAgirNoML(null),
+      ],
+      [true, true, true, false, false, false, false],
+    );
+
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-EST1", tituloBase: "estado", conferido: true } });
+    const publicado = (idExterno, extra = {}) =>
+      prisma.anuncio.create({ data: { produtoId: produto.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno, dados: { publicacao: { itemId: idExterno } }, ...extra } });
+    const a1 = await publicado("MLB910001");
+    const a2 = await publicado("MLB910002");
+    const a3 = await publicado("MLB910003");
+    const rascunho = await prisma.anuncio.create({ data: { produtoId: produto.id, canal: "MERCADO_LIVRE", status: "RASCUNHO", situacaoCanal: "DESCONHECIDA" } });
+    const ml = criarMLFalso();
+    ml.itens.set("MLB910001", { id: "MLB910001", status: "under_review", sub_status: ["waiting_for_patch"], available_quantity: 3, sold_quantity: 2 });
+    ml.itens.set("MLB910002", { id: "MLB910002", status: "paused", sub_status: ["out_of_stock"], available_quantity: 0, sold_quantity: 0 });
+    // MLB910003 nao responde (404 no lote): falha dele, nada gravado.
+    const ids = [a1.id, a2.id, a3.id, rascunho.id];
+    const agora = new Date("2026-10-24T15:00:00Z");
+
+    const r1 = await relerEstadosML({ ml, agora, anuncioIds: ids });
+    const lido = async (anuncio) => {
+      const linha = await prisma.anuncio.findUnique({ where: { id: anuncio.id }, select: { situacaoCanal: true, dados: true, atualizadoEm: true } });
+      return { situacao: linha.situacaoCanal, estado: linha.dados?.publicacao?.estadoML ?? null, atualizadoEm: linha.atualizadoEm.toISOString() };
+    };
+    const e1 = await lido(a1);
+    const e2 = await lido(a2);
+    conferir("releitura: 3 publicados conferidos numa chamada, 2 mudaram, 1 falha", [r1.conferidos, r1.mudaram, r1.falhas, ml.chamadas.filter((c) => c.caminho === "/items/bulk").length], [3, 2, 1, 1]);
+    // O JSONB devolve as chaves em outra ordem: compara campo a campo.
+    conferir("releitura: em revisao grava o estado e a situacao DESCONHECIDA", [e1.situacao, e1.estado.status, e1.estado.subStatus, e1.estado.estoque, e1.estado.vendidos, e1.estado.desde], ["DESCONHECIDA", "under_review", ["waiting_for_patch"], 3, 2, "2026-10-24T15:00:00.000Z"]);
+    conferir("releitura: pausado sem estoque vira PAUSADA", [e2.situacao, e2.estado.status], ["PAUSADA", "paused"]);
+    conferir("releitura: o que nao respondeu fica como estava", (await lido(a3)).estado, null);
+
+    // Sem mudanca no ML: nao reescreve (a lista de anuncios ordena pelo atualizadoEm).
+    const r2 = await relerEstadosML({ ml, agora: new Date("2026-10-24T16:00:00Z"), anuncioIds: ids });
+    conferir("releitura: sem mudanca nao reescreve", [r2.mudaram, (await lido(a1)).atualizadoEm], [0, e1.atualizadoEm]);
+
+    const com429 = criarMLFalso({ falhas: [{ metodo: "GET", caminho: "/items/bulk", status: 429 }] });
+    conferir("releitura: 429 para a rodada", Boolean((await relerEstadosML({ ml: com429, agora, anuncioIds: ids })).parou), true);
+
+    const { estadoDoIconeML, rotuloDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
+    const doBanco = await prisma.anuncio.findMany({ where: { id: { in: ids } }, select: { canal: true, status: true, situacaoCanal: true, dados: true } });
+    const icone = estadoDoIconeML(doBanco);
+    conferir("icone: anuncio em revisao acende o '!' com o texto", [icone.precisaAgirNoML, /em revisão: precisa corrigir/.test(rotuloDoIconeML(icone))], [true, true]);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

@@ -11,6 +11,7 @@ import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { NOMES_DAS_PARTES, textoDasPartes } from "@/lib/canaisDeVenda/ml/acompanhar";
+import { precisaAgirNoML, textoDoEstadoML } from "@/lib/canaisDeVenda/ml/estadoNoML";
 import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, STATUS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import AbaDescricao from "./AbaDescricao";
@@ -42,6 +43,7 @@ const MOTIVO_DO_PUBLICADO = "Anúncio publicado: só preço e ficha técnica se 
 // Depois de publicado, so estas abas se editam (pedido do dono em 24/10/2026): o preco, os concorrentes e o ranking (na
 // aba Preco e custos) e a ficha tecnica. O resto (titulo, categoria, tipo, envio) fica como foi publicado.
 const ABAS_DO_PUBLICADO = new Set(["preco", "ficha"]);
+const DATA_DO_ESTADO = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
 const CATEGORIA_ML = /^MLB\d+$/;
 // Espera o dono parar de digitar o codigo: cada tecla seria uma leitura no ML.
@@ -340,6 +342,13 @@ export default function EditorAnuncioML({
           <span className="text-amber-700">Alterações não salvas</span>
         ) : (
           idAtual && <span className="text-suave">Tudo salvo</span>
+        )}
+        {publicado && publicacao?.estadoML?.status && (
+          // O estado no ML relido de hora em hora pelo worker; "desde" e quando ficou assim.
+          <span className={precisaAgirNoML(publicacao.estadoML) ? "font-medium text-red-700" : "text-suave"} title="Estado no Mercado Livre, relido de hora em hora">
+            {textoDoEstadoML(publicacao.estadoML)}
+            {publicacao.estadoML.desde && ` desde ${DATA_DO_ESTADO.format(new Date(publicacao.estadoML.desde))}`}
+          </span>
         )}
         {publicado && <span className="text-suave">{MOTIVO_DO_PUBLICADO}</span>}
         {somenteLeitura && !publicado && <span className="text-suave">{MOTIVO_DA_LEITURA}</span>}

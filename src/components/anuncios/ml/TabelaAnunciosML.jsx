@@ -78,6 +78,11 @@ export default function TabelaAnunciosML({ linhas, busca, verConcorrencia = true
                 </td>
                 <td className="px-3 py-2.5">
                   <Badge tom={situacao.tom}>{situacao.rotulo}</Badge>
+                  {linha.estadoML && (
+                    <span className={`mt-0.5 block text-xs whitespace-nowrap ${linha.estadoMLPedeAcao ? "font-medium text-red-700" : "text-suave"}`} title="Estado no Mercado Livre, relido de hora em hora">
+                      {linha.estadoML}
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-2.5 font-mono whitespace-nowrap">
                   {linha.idExterno ? (
