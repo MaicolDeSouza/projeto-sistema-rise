@@ -497,6 +497,9 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   else if (qual === "lendo") rotuloDoEnvio = "Atualizando...";
 
   const linkDoPainel = linkDoPainelLI(vinculoAtual?.idExterno);
+  // A pagina do produto no site da loja (pedido do dono em 25/10/2026): so depois de o anuncio existir na LI (com `idExterno`)
+  // e com endereco http(s) completo; sem o dominio da loja (LI_DOMINIO) a URL gravada e so o caminho e o botao nao nasce.
+  const linkDoSite = vinculoAtual?.idExterno && /^https?:\/\//i.test(String(vinculoAtual.urlExterna ?? "")) ? vinculoAtual.urlExterna : null;
 
   const rodape = (
     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
@@ -514,6 +517,17 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
             className="inline-flex items-center gap-1 rounded border border-borda px-2.5 py-1 font-medium text-acento hover:bg-fundo"
           >
             Abrir no painel da LI <ExternalLink size={12} />
+          </a>
+        )}
+        {linkDoSite && (
+          <a
+            href={linkDoSite}
+            target="_blank"
+            rel="noreferrer"
+            title="Abre a página do produto no site da loja (produto pausado ainda não aparece para o cliente)"
+            className="inline-flex items-center gap-1 rounded border border-borda px-2.5 py-1 font-medium text-acento hover:bg-fundo"
+          >
+            Abrir no site <ExternalLink size={12} />
           </a>
         )}
       </div>
