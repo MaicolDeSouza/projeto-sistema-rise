@@ -4031,6 +4031,37 @@ levantamento da API, da NF-e, do SEO e **das medições na loja real** (seção 
   documentos) mudou desde o último envio. **A LI regrava `<br>` como `<br />\r\n`**: `htmlParaTexto(..., { paragrafos:
   true })` trata quebra crua do HTML como espaço, senão a descrição ficava "diferente" para sempre.
 
+### Cadastro automático: criar pausado, ligar no Bling, estoque, ativar (24/10/2026, SEM deploy)
+
+Pedido do dono: "Cria anúncio na LI PAUSADO, sincroniza com Bling, após sincronizar com Bling ativa o anúncio. Caso algum
+passo fique falho mostra '!'". Spec `docs/superpowers/specs/2026-10-24-li-cadastro-automatico-design.md`, plano
+`docs/superpowers/plans/2026-10-24-li-cadastro-automatico.md`. Decisões do dono: ativar só depois de o estoque estar na LI
+(Opção 1), e o Rise grava o estoque UMA vez (Opção 3), uma exceção consciente à regra "o Rise nunca escreve estoque na LI".
+
+- **Por quê:** ligar o produto à loja no Bling NÃO faz o Bling mandar o saldo (medido em 07/10; só um movimento dispara, e
+  chega em menos de 1 min). O 100108 ficou ativo na loja sem controle de estoque (lido em 24/10, 22:20: Bling 5, LI
+  `gerenciado: false`); 20 min depois a LI mostrava controle ligado com quantidade 0 (indisponível) e o Bling seguia com 5.
+- **Medido na LI real em 24/10/2026** (ZZ-TESTE-LI 404334430; o ZZ-TESTE-BLING foi apagado da LI): `PUT
+  /produto_estoque/{id}` com `{gerenciado, quantidade}` → 200 (a `situacao_sem_estoque` ausente fica como estava) e com
+  `situacao_sem_estoque: -1` → 200 (é o valor dos produtos que o Bling abastece); `PUT /produto/{id}` inteiro com
+  `ativo: true` → 200, releitura ativo. O produto de teste voltou ao que era. **Não medido:** o Bling continuar mandando o
+  saldo depois de o Rise ligar o controle (presumido, porque ele manda a cada movimento).
+- **Etapas** (`li/etapasCadastro.js`, puro): criar (o Cadastrar de antes, até as fotos) → `ligar_bling` (`ligarNoBlingLI`)
+  → `estoque` (`lerEstoqueDaLI`; já gerenciado pula; senão `lerSaldosDoBling` do código e `PUT /produto_estoque` com
+  `corpoDoEstoqueInicialLI`: saldo arredondado, negativo vira 0, `situacao_sem_estoque: -1`) → `ativar` (relê; ativo pula;
+  senão o PUT inteiro com `ativo: true` e confere) → gravar (ATIVA). Cada etapa LÊ antes de escrever, por isso repetir não
+  escreve duas vezes. As travas da LI E do Bling vêm antes do POST do produto.
+- **Falha depois de o conteúdo ir** grava `Anuncio.dados.cadastroLI = { etapa, erro, em }` sem virar ERRO (o produto está na
+  loja, pausado): o ícone ganha o "!" ("cadastro incompleto (parou em ...)") e o editor a faixa "Cadastro incompleto" com
+  **"Completar o cadastro"** (`completarCadastroLI`, ação `completarCadastroNaLI`, permissão do Sincronizar). Falha ANTES de o
+  conteúdo terminar (SEO, preço, fotos) continua como antes (ERRO; o Sincronizar manda o resto).
+- **Produto antigo** (cadastrado antes disto): o editor lê `ativoNaLI` e `estoqueGerenciado` (`lerParaPopupLI`) e oferece
+  "Completar" quando falta o vínculo no Bling ou o controle de estoque (`ofereceCompletar`). Faltar SÓ a ativação não oferece
+  (o dono pode ter pausado de propósito). O botão "Ligar à Loja Integrada no Bling" saiu do editor (o Completar o cobre); a
+  ação `ligarNoBlingDaLI` ficou no servidor, sem uso na tela.
+- **Visto na tela do PC** (falha simulada no 100101 da cópia, desfeita): o texto do ícone, a faixa e a recusa do Completar
+  pela trava do PC ("LI_ESCRITA está false"). **Não visto:** um Cadastrar ou Completar de verdade (só depois do deploy, na VPS).
+
 ### Primeiro envio real (07/10/2026, produto 100101, com ok do dono)
 
 Travas abertas só no processo de um script (`LI_ESCRITA=true LI_ESCRITA_CODIGOS=100101`), `.env` intocado.
