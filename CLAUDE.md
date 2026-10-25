@@ -292,16 +292,16 @@ npm run teste:estoque             # 57 asserções da edição rápida da lista 
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
 npm run teste:anuncios-ml         # 845 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
-npm run teste:li-sync             # 361 asserções da sincronização Rise -> Loja Integrada (e da proposta de anúncio da LI e do cadastro automático): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
+npm run teste:li-sync             # 356 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
-npm run teste:mcp                 # 232 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço e os cadastros): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
+npm run teste:mcp                 # 231 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço e os cadastros): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
-npm run teste:proposta            # 137 asserções da proposta automática de produto: regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
+npm run teste:proposta            # 305 asserções da proposta automática de produto (com as seções de categorias e SEO da loja): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
 npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio
@@ -4116,6 +4116,43 @@ passo fique falho mostra '!'". Spec `docs/superpowers/specs/2026-10-24-li-cadast
 - **Visto na tela do PC** (falha simulada no 100101 da cópia, desfeita): o texto do ícone, a faixa e a recusa do Completar
   pela trava do PC ("LI_ESCRITA está false"). **Não visto:** um Cadastrar ou Completar de verdade (só depois do deploy, na VPS).
 
+### Categorias e SEO da loja são do PRODUTO (25/10/2026, SEM deploy)
+
+Pedido do dono: "as abas Categorias e SEO também no produto base, a edição só lá, na aba da LI só visualização, e não
+existirá mais a proposta para a LI, pois tudo será feito na proposta do produto". Spec
+`docs/superpowers/specs/2026-10-25-li-categorias-e-seo-no-produto-design.md`, plano
+`docs/superpowers/plans/2026-10-25-li-categorias-e-seo-no-produto.md` (inline; commits `fa049f6`, `60f252e`, `eb57df9`, `a78047f`).
+
+- **Banco** (migration `20261025_loja_categorias_seo`, aditiva): `Produto.categoriasLI String[]`, `seoTituloLI`, `seoDescricaoLI`. A
+  migration COPIA o que estava no rascunho dos anúncios da LI e apaga `dados.proposta` deles; o rascunho da LI não leva mais
+  `categorias` nem `seo` (o esquema descarta as chaves antigas). A assinatura do ícone não muda (mesmo valor, outro lugar):
+  nenhum produto já sincronizado ganha "!". **A proposta da LI que o dono ainda não revisou (ex.: 100105) se perdeu.**
+- **Cadastro de produto:** as duas ÚLTIMAS abas, depois de Tributação (`CategoriasDaLoja.jsx`, `SeoDaLoja.jsx`, ações em
+  `src/app/produtos/acoes-loja.js`). Categorias: árvore ao vivo da loja (lida só na 1ª vez que a aba abre), busca, "Recarregar"
+  e "Sugerir com IA"; vai no Salvar por um campo oculto `categoriasLI` (JSON), até 20 ids. SEO: Tag Title (70) abre com o nome do
+  produto cortado quando vazio e só vira dado no Salvar; Meta Description (160) com a lista "Escolher a descrição" (concorrentes
+  e "Gerar com IA"). **Salvar sem o campo (formulário antigo, sem permissão) não zera nada.** Clone leva as categorias e NÃO
+  leva o SEO. O rascunho automático do cadastro guarda e devolve os três.
+- **A LI só lê:** as abas Categorias e SEO do editor da LI mostram o valor do produto, com o aviso "Edite no produto base" e o
+  botão que abre o cadastro. `normalizarDoRiseLI`, a validação, o ícone, o Sincronizar e o Cadastrar leem do produto; SEO vazio
+  bloqueia ("preencha no produto"). `vincularPeloSku` copia as categorias da loja para o produto SÓ se ele estiver sem. O pai
+  da categoria continua não contando (`semAncestraisRedundantes`, só na comparação e no envio).
+- **Proposta do produto (roteiro v9):** duas seções, `categoriasLI` (`{ escolhidas: [{ id, motivo }] }`, até 5) e `seoLI`
+  (`{ description, fonte }`, 130 a 160). O Rise confere os ids na árvore AO VIVO (`gravarProposta` lê a LI, só GET; no teste vem
+  por `arvoreDaLoja`), tira o pai (grava `tiradasPorSerPai`), guarda o caminho de cada uma e calcula o Tag Title
+  (`tituloSeoPadrao`); o da conversa é ignorado. `lerParaProposta` ganhou `lojaIntegrada` (árvore, categorias e SEO de hoje,
+  SEO dos concorrentes e os limites; loja fora do ar vira `erro`, sem derrubar a leitura). No formulário (`propostaNoFormulario`):
+  a Meta Description entra POR CIMA, com o original na lista (campo trocável `seoDescricaoLI`); produto SEM categoria abre com
+  as da proposta marcadas e a marca PROPOSTA, e COM categorias só ganha a faixa "Proposta sugere: ... Usar a proposta". O
+  Conferido pergunta pelas duas como pelas outras seções.
+- **Fim da proposta da LI:** saíram `propostaDeAnuncio/li.js`, as ferramentas `lerParaPropostaLI` e `gravarPropostaLI`, o roteiro
+  `li` (o `roteiroDaProposta` do MCP só tem `produto` e `ml`), o "P" do ícone da LI e a faixa de proposta do editor da LI. O
+  passo seguinte do `situacaoDoProduto` é `cadastrar-li`. As ações `sugerirCategoriasLI`, `gerarSeoIALI` e `seoConcorrentesLI`
+  foram removidas (as abas do produto têm as próprias, em `acoes-loja.js`).
+- **Visto na tela (PC, ZZ-TESTE-BLING):** ordem das abas, árvore ao vivo (113 caixas), marcar e Salvar gravou `categoriasLI`, os
+  valores migrados do SEO aparecendo. **Não visto na tela:** a marca PROPOSTA nas duas abas e a faixa "Usar a proposta" (só
+  testadas nas regras puras), a IA das duas abas (paga) e o Salvar recusando 21 categorias.
+
 ### Primeiro envio real (07/10/2026, produto 100101, com ok do dono)
 
 Travas abertas só no processo de um script (`LI_ESCRITA=true LI_ESCRITA_CODIGOS=100101`), `.env` intocado.
@@ -5688,6 +5725,10 @@ a Bling, Mercado Livre ou Loja Integrada.
   na VPS até o dono apagar** (menu do produto).
 
 ## Proposta automática de anúncio: Loja Integrada e Mercado Livre (23/10/2026)
+
+**Atualização de 25/10/2026: a proposta da LI deixou de existir** (categorias e SEO são do produto e vêm na proposta do produto, roteiro
+v9; ver "Categorias e SEO da loja são do PRODUTO"). O que esta seção diz da LI (ferramentas, roteiro v2, "P" do ícone) ficou para
+trás; o do ML continua valendo.
 
 Pedido do dono: criar os anúncios da LI e do ML "igual a proposta do produto", pelo claude.ai/ChatGPT, com a IA da própria
 LLM (nunca a paga do Rise). Spec `docs/superpowers/specs/2026-10-23-proposta-de-anuncio-li-ml-design.md` (abordagem 1: a
