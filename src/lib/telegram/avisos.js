@@ -7,6 +7,7 @@ import { lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { ESCOPOS, estadoDoOrcamento, mesDeSaoPaulo } from "@/lib/riseAi/orcamento";
 import { limitesDoDia } from "@/lib/riseAi/revisao";
 import { coletarSaude, itensEmFalha } from "@/lib/saude/coletar";
+import { avisoDeCatalogoPendente, textoDoAvisoDeCatalogo } from "@/lib/canaisDeVenda/ml/estadoNoML";
 import { TIPOS_DE_AVISO } from "./avisosTipos";
 import { criarClienteTelegram } from "./cliente";
 import { SERVICO_TELEGRAM } from "./estado";
@@ -178,7 +179,22 @@ async function saudeEmVermelho({ agora }) {
     .map((item) => ({ chave: `saude:${item.id}:${dia}`, dados: { rotulo: item.rotulo, detalhe: item.detalhe } }));
 }
 
+/** Anuncio do ML que entrou, saiu ou trocou de catalogo e o dono ainda nao abriu (25/10/2026); um aviso por mudanca. */
+async function catalogosDoML() {
+  const anuncios = await prisma.anuncio.findMany({
+    where: { canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: { not: null } },
+    select: { id: true, dados: true, produto: { select: { sku: true } } },
+  });
+  return anuncios
+    .filter((anuncio) => avisoDeCatalogoPendente(anuncio.dados?.publicacao?.estadoML))
+    .map((anuncio) => {
+      const aviso = anuncio.dados.publicacao.estadoML.catalogoAviso;
+      return { chave: `catalogo-ml:${anuncio.id}:${String(aviso.em ?? "").replace(/\D/g, "")}`, dados: { anuncioId: anuncio.id, sku: anuncio.produto?.sku ?? "", texto: textoDoAvisoDeCatalogo(aviso) } };
+    });
+}
+
 const CALCULO = {
+  catalogoML: () => catalogosDoML(),
   saudeDoRise: saudeEmVermelho,
   resumoDoDia: resumosDevidos,
   produtoZerou: () => produtosZerados(),
@@ -200,6 +216,7 @@ function caminhoDoAviso(chave) {
   if (fato === "pc-esperando" || fato === "varredura-falhou") return "/mercados/fontes";
   if (fato === "resumo") return "/rise-ai/revisao";
   if (fato === "saude") return "/configuracoes/saude";
+  if (fato === "catalogo-ml") return `/canais-de-venda/mercado-livre/${id}`;
   return null;
 }
 

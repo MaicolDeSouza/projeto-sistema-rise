@@ -11,7 +11,7 @@
  * Varios anuncios do mesmo produto (Classico e Premium) valem juntos: um publicado deixa verde, um com erro poe o "!".
  */
 
-import { LEITURAS_PARA_DIVERGIR, precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
+import { LEITURAS_PARA_DIVERGIR, avisoDeCatalogoPendente, precisaAgirNoML, textoDoAvisoDeCatalogo, textoDoEstadoML } from "./estadoNoML";
 
 const ehDoML = (anuncio) => anuncio?.canal === "MERCADO_LIVRE";
 const SITUACOES_PUBLICADAS = new Set(["ATIVA", "PAUSADA"]);
@@ -35,6 +35,7 @@ export function estadoDoIconeML(anuncios) {
   const partes = new Set(paraTras.flatMap((anuncio) => anuncio.mudancas.partes));
   const barrados = doML.filter(barradoNoML);
   const comEstoqueDiferente = doML.filter((anuncio) => estaPublicado(anuncio) && (anuncio.dados?.publicacao?.estadoML?.estoqueDiferenteSeguidas ?? 0) >= LEITURAS_PARA_DIVERGIR);
+  const comCatalogoNovo = doML.filter((anuncio) => estaPublicado(anuncio) && avisoDeCatalogoPendente(anuncio.dados?.publicacao?.estadoML));
   return {
     publicado: doML.some(estaPublicado),
     pausado: doML.some((anuncio) => estaPublicado(anuncio) && anuncio.situacaoCanal === "PAUSADA") && !doML.some((anuncio) => estaPublicado(anuncio) && anuncio.situacaoCanal === "ATIVA"),
@@ -50,6 +51,9 @@ export function estadoDoIconeML(anuncios) {
     estoqueDivergenteNoML: comEstoqueDiferente.length > 0,
     estoquesNoML: comEstoqueDiferente.map((anuncio) => ({ ml: anuncio.dados.publicacao.estadoML.estoque, bling: anuncio.dados.publicacao.estadoML.estoqueBling })),
     estadosNoML: [...new Set(barrados.map((anuncio) => textoDoEstadoML(anuncio.dados.publicacao.estadoML)))],
+    // O anuncio entrou, saiu ou trocou de catalogo no ML (25/10/2026): "!" ate o dono abrir o anuncio.
+    catalogoMudouNoML: comCatalogoNovo.length > 0,
+    catalogosNoML: [...new Set(comCatalogoNovo.map((anuncio) => textoDoAvisoDeCatalogo(anuncio.dados.publicacao.estadoML.catalogoAviso)))],
   };
 }
 
@@ -76,7 +80,7 @@ function textoDoDesatualizado(partes) {
   return `desatualizado: ${trechos.join("; ")}`;
 }
 
-export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [] }) {
+export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [] }) {
   const base = "Anúncio no Mercado Livre";
   const partes = [];
   if (publicado) partes.push(pausado ? "publicado, pausado (sem estoque)" : "publicado");
@@ -89,6 +93,7 @@ export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = f
   }
   if (barrado) partes.push(...estadosNoML.map((texto) => texto.charAt(0).toLowerCase() + texto.slice(1)));
   if (estoqueDivergenteNoML) partes.push(...estoquesNoML.map(({ ml, bling }) => `estoque no ML ${ml}, no Bling ${bling}`));
+  if (catalogoMudouNoML) partes.push(...catalogosNoML);
   if (erro) partes.push("com erro na publicação");
   if (!publicado && !erro && rascunho) partes.push("rascunho, ainda não publicado");
   return partes.length ? `${base}: ${partes.join(", ")}` : `${base}: sem anúncio`;

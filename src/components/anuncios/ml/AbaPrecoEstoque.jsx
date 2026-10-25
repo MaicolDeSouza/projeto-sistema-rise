@@ -91,7 +91,7 @@ function MargemDoPreco({ preco, custo, conta, mensagemSemCusto }) {
  */
 const MOEDA_DA_PROPOSTA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true } }) {
+export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true }, catalogoNoML }) {
   // Texto do preco como foi digitado (ver `numeros.js`); `null` = nada digitado, mostra o numero.
   const [precoDigitado, setPrecoDigitado] = useState(null);
   // Os concorrentes do ML pelo catalogo (o bloco abaixo os le): o selo "Nº de M" ao lado do preco usa eles.
@@ -186,7 +186,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
       )}
 
       {rascunho.produtoId && acessos.concorrentes && (
-        <RankingDosCatalogos produtoId={rascunho.produtoId} titulo={rascunho.titulo} preco={rascunho.preco} categoriaId={rascunho.categoriaId} telaConcorrentes={telaConcorrentes} daProposta={contexto.proposta?.catalogosSugeridos ?? []} />
+        <RankingDosCatalogos produtoId={rascunho.produtoId} titulo={rascunho.titulo} preco={rascunho.preco} categoriaId={rascunho.categoriaId} telaConcorrentes={telaConcorrentes} daProposta={contexto.proposta?.catalogosSugeridos ?? []} catalogoNoML={catalogoNoML} />
       )}
 
     </div>

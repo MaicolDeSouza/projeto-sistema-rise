@@ -41,7 +41,8 @@ const idColado = (texto) => {
  */
 const MOEDA_DA_PROPOSTA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function RankingDosCatalogos({ produtoId, titulo, preco, categoriaId, telaConcorrentes, daProposta = [] }) {
+// `catalogoNoML`: o catalogo em que o anuncio esta no ML ({id, nome}, null fora; ausente = ainda nao lido), 25/10/2026.
+export default function RankingDosCatalogos({ produtoId, titulo, preco, categoriaId, telaConcorrentes, daProposta = [], catalogoNoML }) {
   const [referencias, setReferencias] = useState(null);
   const [erro, setErro] = useState(null);
   const [aviso, setAviso] = useState(null);
@@ -95,7 +96,7 @@ export default function RankingDosCatalogos({ produtoId, titulo, preco, categori
           Ranking dos catálogos
           <BolhaDeAjuda
             variante="inline"
-            texto="O 1º colocado do catálogo do anúncio e de cada catálogo de referência que você marcar, relidos todo dia, com o preço deste anúncio no meio. O 1º é quem o Mercado Livre mostra primeiro (preço, reputação, frete e Full contam), não necessariamente o mais barato."
+            texto="O 1º colocado do catálogo acompanhado e de cada catálogo de referência que você marcar, relidos todo dia, com o preço deste anúncio no meio. O 1º é quem o Mercado Livre mostra primeiro (preço, reputação, frete e Full contam), não necessariamente o mais barato."
           />
           <span className="font-normal text-suave">· 1º colocado de cada catálogo, não o menor preço do ML</span>
         </h3>
@@ -171,7 +172,7 @@ export default function RankingDosCatalogos({ produtoId, titulo, preco, categori
 
           {semNinguem ? (
             <p className="text-sm text-suave">
-              {catalogos.length === 0 ? "Nenhum catálogo ainda: acompanhe o catálogo do anúncio acima ou adicione um catálogo de referência." : "Nenhum 1º colocado com preço lido ainda."}
+              {catalogos.length === 0 ? "Nenhum catálogo ainda: acompanhe um catálogo acima ou adicione um catálogo de referência." : "Nenhum 1º colocado com preço lido ainda."}
             </p>
           ) : (
             <>
@@ -260,7 +261,10 @@ function Tabela({ ranking, aoRemover, ocupado }) {
                     <span className="truncate">{linha.nome || linha.catalogoId}</span> <ExternalLink size={11} className="shrink-0" />
                   </a>
                   <span className="text-[11px] text-suave">
-                    {linha.papel === "anuncio" ? "catálogo do anúncio" : "referência"}
+                    {linha.papel === "anuncio" ? "catálogo acompanhado" : "referência"}
+                    {linha.papel === "anuncio" && catalogoNoML !== undefined && catalogoNoML?.id !== linha.catalogoId && (
+                      <span className="text-amber-700"> · seu anúncio não está neste catálogo</span>
+                    )}
                     {linha.lidoEm && ` · lido em ${DATA_HORA.format(new Date(linha.lidoEm))}`}
                     {linha.erro && <span className="text-amber-700"> · última leitura falhou</span>}
                     {!linha.erro && leituraAntiga(linha.lidoEm, agora) && <span className="text-amber-700"> · sem leitura desde {DATA.format(new Date(linha.lidoEm))}</span>}

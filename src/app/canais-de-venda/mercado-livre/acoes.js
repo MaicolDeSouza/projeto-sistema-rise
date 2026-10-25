@@ -37,6 +37,7 @@ import {
   clonarRascunhoML,
   codigoEmUso,
   contextoDosProdutos,
+  marcarCatalogoVistoML,
   novoRascunhoML,
   salvarPublicadoML,
   salvarRascunhoML,
@@ -160,6 +161,19 @@ export async function salvarAnuncioML(id, rascunho) {
  * Salvar do anuncio PUBLICADO (pedido do dono em 24/10/2026): so o preco e a ficha tecnica; o servidor ignora o resto.
  * Nada vai ao ML aqui: o "!" acende e o "Enviar mudancas ao ML" leva.
  */
+/**
+ * O editor abriu um anuncio com o aviso de catalogo pendente (entrou, saiu ou trocou, 25/10/2026): marca como visto, e o
+ * "!" da lista de Produtos apaga. Ver o canal basta: e o dono olhando o anuncio, nao mudando nada nele.
+ */
+export async function marcarCatalogoVistoMLAcao(id) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  if (negado) return negado;
+  if (!ehId(id)) return PEDIDO_INVALIDO;
+  const marcou = await marcarCatalogoVistoML(id);
+  if (marcou) revalidatePath("/produtos");
+  return { ok: true, marcou };
+}
+
 export async function salvarPublicadoMLAcao(id, { preco, atributos } = {}) {
   const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
   if (negado) return negado;

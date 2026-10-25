@@ -227,7 +227,7 @@ export default function LinhaProduto({
                 )}
                 {/* O mesmo selo "!" dos outros icones: erro na publicacao, ou anuncio publicado que ficou para tras do
                     produto (descricao, fotos, peso e medidas; spec 2026-10-24). */}
-                {(iconeML.erro || iconeML.desatualizado || iconeML.precisaAgirNoML || iconeML.estoqueDivergenteNoML) && (
+                {(iconeML.erro || iconeML.desatualizado || iconeML.precisaAgirNoML || iconeML.estoqueDivergenteNoML || iconeML.catalogoMudouNoML) && (
                   <span
                     aria-hidden="true"
                     className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[10px] leading-none font-bold text-amber-950 ring-2 ring-superficie"

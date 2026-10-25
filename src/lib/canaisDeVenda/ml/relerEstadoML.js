@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 
 import { gravarPublicacao } from "./banco";
 import { clienteML } from "./cliente";
-import { estadoDoItem, estadoMudou, seguidasComDiferenca, situacaoDoEstado } from "./estadoNoML";
+import { catalogoDoItem, estadoDoItem, estadoMudou, seguidasComDiferenca, situacaoDoEstado } from "./estadoNoML";
 
 /**
  * Releitura do estado dos anuncios no ML (pedido do dono em 24/10/2026, opcao 1): o worker, de hora em hora, le o
@@ -19,7 +19,9 @@ import { estadoDoItem, estadoMudou, seguidasComDiferenca, situacaoDoEstado } fro
 const POR_LOTE = 20;
 const ESPERA_ENTRE_LOTES_MS = 300;
 const PARA_A_RODADA = new Set([401, 429]);
-const CAMPOS = "body.id,body.status,body.sub_status,body.available_quantity,body.sold_quantity";
+// O catalogo (25/10/2026): o `catalog_product_id` do item e os anuncios de catalogo ligados a ele (`item_relations`).
+const CAMPOS = "body.id,body.status,body.sub_status,body.available_quantity,body.sold_quantity,body.catalog_product_id,body.catalog_listing,body.item_relations";
+const CAMPOS_DOS_LIGADOS = "body.id,body.status,body.catalog_listing,body.catalog_product_id";
 
 // Codigos por chamada de saldos no Bling (o mesmo lote de `saldos.js`: o limite e o tamanho da URL).
 const KITS_POR_LEITURA = 100;
@@ -55,6 +57,15 @@ async function saldosDosKits(kits, bling) {
   return resultado;
 }
 
+/** O nome do catalogo (`/products/{id}`), lido so quando o catalogo do anuncio muda; falha deixa so o id. */
+async function nomeDoCatalogo(cliente, id, nomes) {
+  if (!nomes.has(id)) {
+    const resposta = await cliente.get(`/products/${encodeURIComponent(id)}`).catch(() => null);
+    nomes.set(id, resposta?.ok && typeof resposta.dados?.name === "string" ? resposta.dados.name : "");
+  }
+  return nomes.get(id);
+}
+
 const esperar = (ms) => (ms > 0 ? new Promise((resolver) => setTimeout(resolver, ms)) : Promise.resolve());
 
 /**
@@ -83,6 +94,7 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
   if (anuncios.length === 0) return resultado;
   const cliente = ml ?? clienteML();
   const saldosDeKit = await saldosDosKits(anuncios.filter((anuncio) => anuncio.dados?.composicao?.codigo), bling);
+  const nomes = new Map();
 
   for (let inicio = 0; inicio < anuncios.length; inicio += POR_LOTE) {
     if (inicio > 0) await esperar(espera);
@@ -104,6 +116,16 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
     }
     // Com `attributes`, o ML devolve so o `body` de quem respondeu; quem nao respondeu vem com `status_code` e sem `body`.
     const porId = new Map((Array.isArray(resposta.dados) ? resposta.dados : []).filter((linha) => linha?.body?.id).map((linha) => [String(linha.body.id), linha.body]));
+    // Os anuncios de catalogo ligados (o jeito antigo do ML), numa chamada so para o lote. Falha deixa o catalogo como estava.
+    const idsLigados = [...new Set([...porId.values()].flatMap((item) => (Array.isArray(item.item_relations) ? item.item_relations : []).map((relacao) => String(relacao?.id ?? ""))).filter(Boolean))];
+    let ligados = [];
+    let ligadosFalharam = false;
+    if (idsLigados.length) {
+      const lidos = await cliente.get("/items/bulk", { ids: idsLigados.slice(0, POR_LOTE).join(","), attributes: CAMPOS_DOS_LIGADOS }).catch((erro) => ({ ok: false, status: erro?.status }));
+      if (PARA_A_RODADA.has(lidos?.status)) return { ...resultado, parou: `HTTP ${lidos.status}` };
+      if (lidos?.ok && Array.isArray(lidos.dados)) ligados = lidos.dados.map((linha) => linha?.body).filter(Boolean);
+      else ligadosFalharam = true;
+    }
     for (const anuncio of lote) {
       resultado.conferidos += 1;
       const item = porId.get(anuncio.idExterno);
@@ -120,10 +142,22 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
       const estoqueBling = typeof blingSaldo === "number" ? Math.max(0, blingSaldo) : null;
       const seguidas = seguidasComDiferenca(anterior?.estoqueDiferenteSeguidas, novo.estoque, estoqueBling);
       const mudou = estadoMudou(anterior, novo);
-      if (!mudou && situacao === anuncio.situacaoCanal && seguidas === (anterior?.estoqueDiferenteSeguidas ?? 0) && estoqueBling === (anterior?.estoqueBling ?? null)) continue;
+      // O catalogo (pedido do dono em 25/10/2026, opcao 1). `anterior.catalogo` ausente = nunca lido: a primeira leitura so
+      // grava, sem aviso (senao todo anuncio que ja esta num catalogo acenderia o "!" no deploy).
+      const catalogoAnterior = anterior?.catalogo;
+      const semLeitura = ligadosFalharam && !item.catalog_product_id && (item.item_relations ?? []).length > 0;
+      const catalogoId = semLeitura ? (catalogoAnterior?.id ?? null) : catalogoDoItem(item, ligados);
+      let catalogo = catalogoAnterior;
+      if (!semLeitura && (catalogoAnterior === undefined || (catalogoAnterior?.id ?? null) !== catalogoId)) {
+        catalogo = catalogoId ? { id: catalogoId, nome: await nomeDoCatalogo(cliente, catalogoId, nomes) } : null;
+      }
+      const catalogoMudou = catalogoAnterior !== undefined && (catalogoAnterior?.id ?? null) !== (catalogo?.id ?? null);
+      const catalogoAviso = catalogoMudou ? { de: catalogoAnterior, para: catalogo, em: agora.toISOString(), visto: false } : (anterior?.catalogoAviso ?? null);
+      const gravarCatalogo = catalogoMudou || (catalogoAnterior === undefined && catalogo !== undefined);
+      if (!mudou && !gravarCatalogo && situacao === anuncio.situacaoCanal && seguidas === (anterior?.estoqueDiferenteSeguidas ?? 0) && estoqueBling === (anterior?.estoqueBling ?? null)) continue;
       try {
         const desde = mudou || !anterior?.desde ? agora.toISOString() : anterior.desde;
-        await gravarPublicacao(anuncio.id, { estadoML: { ...novo, estoqueBling, estoqueDiferenteSeguidas: seguidas, desde }, statusML: novo.status }, { situacaoCanal: situacao });
+        await gravarPublicacao(anuncio.id, { estadoML: { ...novo, estoqueBling, estoqueDiferenteSeguidas: seguidas, desde, ...(catalogo !== undefined ? { catalogo } : {}), catalogoAviso }, statusML: novo.status }, { situacaoCanal: situacao });
         resultado.mudaram += 1;
       } catch (erro) {
         console.error("[ml estado] gravar:", erro?.message ?? erro);

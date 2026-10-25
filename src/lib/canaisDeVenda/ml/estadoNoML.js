@@ -76,6 +76,42 @@ export function seguidasComDiferenca(anteriores, doCanal, doBling) {
   return doCanal === doBling ? 0 : (Number(anteriores) || 0) + 1;
 }
 
+/**
+ * O catalogo em que o anuncio esta no ML (pedido do dono em 25/10/2026, opcao 1), ou null fora de catalogo. Dois jeitos,
+ * os dois do ML: o proprio item com `catalog_product_id` (medido no MLB5458577821: null depois de sair do catalogo), ou um
+ * anuncio de catalogo SEPARADO ligado a ele em `item_relations` (`catalog_listing: true`), que conta enquanto ativo ou
+ * pausado. `relacionados` sao os itens ligados ja lidos (o `body` do lote).
+ */
+export function catalogoDoItem(item, relacionados = []) {
+  if (typeof item?.catalog_product_id === "string" && item.catalog_product_id) return item.catalog_product_id;
+  const ligados = new Set((Array.isArray(item?.item_relations) ? item.item_relations : []).map((relacao) => String(relacao?.id)));
+  const deCatalogo = (relacionados ?? []).find((outro) => ligados.has(String(outro?.id)) && outro?.catalog_listing === true && outro?.catalog_product_id && outro?.status !== "closed");
+  return deCatalogo?.catalog_product_id ?? null;
+}
+
+const nomeDoCatalogo = (catalogo) => catalogo?.nome || catalogo?.id;
+const DIA_E_MES = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
+
+/** `estadoML.catalogo` ({id, nome} ou null; ausente = ainda nao lido) em texto: "No catálogo: Wemos", "Fora do catálogo". */
+export function textoDoCatalogo(catalogo) {
+  if (catalogo === undefined) return null;
+  return catalogo ? `No catálogo: ${nomeDoCatalogo(catalogo)}` : "Fora do catálogo";
+}
+
+/** O aviso de mudanca (`estadoML.catalogoAviso = { de, para, em, visto }`): "saiu do catálogo Wemos em 25/10". */
+export function textoDoAvisoDeCatalogo(aviso) {
+  if (!aviso) return null;
+  const dia = aviso.em ? ` em ${DIA_E_MES.format(new Date(aviso.em))}` : "";
+  if (aviso.de && !aviso.para) return `saiu do catálogo ${nomeDoCatalogo(aviso.de)}${dia}`;
+  if (!aviso.de && aviso.para) return `entrou no catálogo ${nomeDoCatalogo(aviso.para)}${dia}`;
+  return `trocou do catálogo ${nomeDoCatalogo(aviso.de)} para ${nomeDoCatalogo(aviso.para)}${dia}`;
+}
+
+/** O "!" do catalogo: houve mudanca e o dono ainda nao abriu o anuncio. */
+export function avisoDeCatalogoPendente(estado) {
+  return Boolean(estado?.catalogoAviso && !estado.catalogoAviso.visto);
+}
+
 /** O ML barrou o anuncio e o dono precisa agir (o "!" do icone). */
 export function precisaAgirNoML(estado) {
   if (!estado?.status) return false;

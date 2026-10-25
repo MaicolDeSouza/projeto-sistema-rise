@@ -299,6 +299,25 @@ export async function lerPublicacao(anuncioId) {
  * `opcoes.blingProdutoId` grava o id do kit no Bling dentro de `dados.composicao`. Lanca se o anuncio
  * nao existe (a publicacao para ai).
  */
+/**
+ * O dono abriu o anuncio: o aviso de que ele entrou, saiu ou trocou de catalogo (`estadoML.catalogoAviso`, 25/10/2026) foi
+ * visto e o "!" apaga. Le e grava sob a trava da linha, porque o worker regrava o `estadoML` na mesma hora.
+ * @returns {Promise<boolean>} se havia aviso para marcar
+ */
+export async function marcarCatalogoVistoML(anuncioId) {
+  if (typeof anuncioId !== "string" || anuncioId === "") return false;
+  return prisma.$transaction(async (tx) => {
+    const travado = await tx.$queryRaw`SELECT id FROM "Anuncio" WHERE id = ${anuncioId} FOR UPDATE`;
+    if (travado.length === 0) return false;
+    const { dados } = await tx.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true } });
+    const estadoML = dados?.publicacao?.estadoML;
+    if (!estadoML?.catalogoAviso || estadoML.catalogoAviso.visto) return false;
+    const publicacao = { ...dados.publicacao, estadoML: { ...estadoML, catalogoAviso: { ...estadoML.catalogoAviso, visto: true } } };
+    await tx.anuncio.update({ where: { id: anuncioId }, data: { dados: { ...dados, publicacao } } });
+    return true;
+  });
+}
+
 export async function gravarPublicacao(anuncioId, parcial = {}, colunas = {}, opcoes = {}) {
   if (typeof anuncioId !== "string" || anuncioId === "") throw new Error("Anúncio inválido.");
   return prisma.$transaction(async (tx) => {

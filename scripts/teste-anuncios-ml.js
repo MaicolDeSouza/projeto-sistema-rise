@@ -419,16 +419,16 @@ try {
 
     // Regra do dono em 24/10/2026: verde = publicado (ativo ou pausado sem estoque); "!" = so erro ou publicacao parada.
     const ml = (status, situacaoCanal) => ({ canal: "MERCADO_LIVRE", status, situacaoCanal });
-    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [] });
-    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [] });
-    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [] });
-    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [] });
+    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [] });
+    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [] });
+    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [] });
+    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [] });
     for (const status of ["ERRO", "PUBLICANDO"]) {
       conferir(`icone: ${status} poe o selo`, estadoDoIconeML([ml(status, "PAUSADA")]).erro, true);
     }
     conferir("icone: encerrado nao e verde", estadoDoIconeML([ml("PUBLICADO", "ENCERRADA")]).publicado, false);
     conferir("icone: ativo e pausado juntos nao dizem pausado", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("PUBLICADO", "PAUSADA")]).pausado, false);
-    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [] });
+    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [] });
     conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "ERRO" }, { canal: "LOJA_INTEGRADA", status: "PUBLICADO", situacaoCanal: "ATIVA" }]).publicado, false);
     conferir("icone: lista invalida", estadoDoIconeML(undefined).erro, false);
     conferir("rotulo do icone: sem anuncio", rotuloDoIconeML({ publicado: false, erro: false }), "Anúncio no Mercado Livre: sem anúncio");
@@ -2827,6 +2827,70 @@ try {
     conferir("resumo do estoque: o kit montado no editor fica fora da dica do principal", textoDosEstoquesNosCanais({ blingSaldo: 5, estoque: 5, anuncios: [anuncioML(3), { ...anuncioML(1), dados: { composicao: { codigo: "250901" }, publicacao: { estadoML: { estoque: 1 } } } }] }), "Bling 5 · Rise 5 · ML 3");
     conferir("resumo do estoque: Classico e Premium com numeros diferentes", textoDosEstoquesNosCanais({ blingSaldo: 5, estoque: 5, anuncios: [anuncioML(3), anuncioML(5)] }), "Bling 5 · Rise 5 · ML 3/5");
     conferir("resumo do estoque: so o Rise nao vira dica; saldo negativo do Bling e 0", [textoDosEstoquesNosCanais({ blingSaldo: null, estoque: 2, anuncios: [] }), textoDosEstoquesNosCanais({ blingSaldo: -2, estoque: 0, anuncios: [] })], [null, "Bling 0 · Rise 0"]);
+  }
+
+  {
+    console.log("\nCatalogo do anuncio no ML: entrou, saiu ou trocou acende o '!' (pedido do dono em 25/10/2026, opcao 1)");
+    await limpar();
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { catalogoDoItem, textoDoCatalogo, textoDoAvisoDeCatalogo } = await import("../src/lib/canaisDeVenda/ml/estadoNoML.js");
+    const { relerEstadosML } = await import("../src/lib/canaisDeVenda/ml/relerEstadoML.js");
+    const { estadoDoIconeML, rotuloDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
+    const { marcarCatalogoVistoML } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+
+    conferir("catalogo: o proprio catalog_product_id", catalogoDoItem({ catalog_product_id: "MLB1" }, []), "MLB1");
+    conferir(
+      "catalogo: pelo anuncio de catalogo ligado (item_relations), so se ativo ou pausado",
+      [
+        catalogoDoItem({ catalog_product_id: null, item_relations: [{ id: "MLB2" }] }, [{ id: "MLB2", catalog_listing: true, catalog_product_id: "MLB9", status: "active" }]),
+        catalogoDoItem({ catalog_product_id: null, item_relations: [{ id: "MLB2" }] }, [{ id: "MLB2", catalog_listing: true, catalog_product_id: "MLB9", status: "closed" }]),
+        catalogoDoItem({ catalog_product_id: null, item_relations: [] }, []),
+      ],
+      ["MLB9", null, null],
+    );
+    conferir("texto: no catalogo, fora, nunca lido", [textoDoCatalogo({ id: "MLB1", nome: "Wemos" }), textoDoCatalogo(null), textoDoCatalogo(undefined)], ["No catálogo: Wemos", "Fora do catálogo", null]);
+    conferir(
+      "aviso: saiu, entrou, trocou",
+      [
+        textoDoAvisoDeCatalogo({ de: { id: "MLB1", nome: "Wemos" }, para: null, em: "2026-10-25T15:20:00Z" }),
+        textoDoAvisoDeCatalogo({ de: null, para: { id: "MLB2", nome: "Mega" }, em: "2026-10-25T15:20:00Z" }),
+        textoDoAvisoDeCatalogo({ de: { id: "MLB1", nome: "Wemos" }, para: { id: "MLB2", nome: "" }, em: "2026-10-25T15:20:00Z" }),
+      ],
+      ["saiu do catálogo Wemos em 25/10", "entrou no catálogo Mega em 25/10", "trocou do catálogo Wemos para MLB2 em 25/10"],
+    );
+
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-CAT1", tituloBase: "catalogo", conferido: true } });
+    const anuncio = await prisma.anuncio.create({ data: { produtoId: produto.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB920001", dados: { publicacao: { itemId: "MLB920001" } } } });
+    const ml = criarMLFalso();
+    ml.itens.set("MLB920001", { id: "MLB920001", status: "active", sub_status: [], available_quantity: 1, sold_quantity: 0, catalog_product_id: "MLB44072268", catalog_listing: false, item_relations: [] });
+    const so = { ml, anuncioIds: [anuncio.id] };
+    const estado = async () => (await prisma.anuncio.findUnique({ where: { id: anuncio.id }, select: { dados: true } })).dados.publicacao.estadoML;
+    const icone = async () => estadoDoIconeML(await prisma.anuncio.findMany({ where: { id: anuncio.id }, select: { canal: true, status: true, situacaoCanal: true, dados: true } }));
+
+    await relerEstadosML({ ...so, agora: new Date("2026-10-25T10:00:00Z") });
+    conferir("1a leitura: grava o catalogo com o nome, sem '!' (nao havia leitura antes)", [(await estado()).catalogo?.id, Boolean((await estado()).catalogo?.nome), (await estado()).catalogoAviso ?? null, (await icone()).catalogoMudouNoML], ["MLB44072268", true, null, false]);
+
+    ml.itens.get("MLB920001").catalog_product_id = null;
+    const saiu = await relerEstadosML({ ...so, agora: new Date("2026-10-25T15:20:00Z") });
+    const iconeSaiu = await icone();
+    conferir("saiu do catalogo: grava fora, o aviso e o '!' com o texto", [saiu.mudaram, (await estado()).catalogo, (await estado()).catalogoAviso?.visto, iconeSaiu.catalogoMudouNoML, /saiu do catálogo Cabo USB compat.* em 25\/10/.test(rotuloDoIconeML(iconeSaiu))], [1, null, false, true, true]);
+    conferir("saiu do catalogo: o 'desde' do estado nao muda (o estado nao mudou)", (await estado()).desde, "2026-10-25T10:00:00.000Z");
+
+    const igual = await relerEstadosML({ ...so, agora: new Date("2026-10-25T16:00:00Z") });
+    conferir("sem mudanca: nao reescreve e o aviso continua", [igual.mudaram, (await estado()).catalogoAviso?.visto], [0, false]);
+
+    await marcarCatalogoVistoML(anuncio.id);
+    conferir("abrir o anuncio marca como visto e apaga o '!'", [(await estado()).catalogoAviso?.visto, (await icone()).catalogoMudouNoML, (await estado()).catalogo], [true, false, null]);
+
+    // Entrar pelo anuncio de catalogo separado (o jeito antigo do ML): o catalogo vem do item ligado.
+    ml.itens.get("MLB920001").item_relations = [{ id: "MLB920099" }];
+    ml.itens.set("MLB920099", { id: "MLB920099", status: "active", catalog_listing: true, catalog_product_id: "MLB44072268" });
+    await relerEstadosML({ ...so, agora: new Date("2026-10-25T17:00:00Z") });
+    conferir("entrou pelo anuncio de catalogo ligado: '!' de novo", [(await estado()).catalogo?.id, (await estado()).catalogoAviso?.de, (await estado()).catalogoAviso?.visto, (await icone()).catalogoMudouNoML], ["MLB44072268", null, false, true]);
+
+    const { avisosDevidos } = await import("../src/lib/telegram/avisos.js");
+    const devidos = (await avisosDevidos("catalogoML", { agora: Date.parse("2026-10-25T17:05:00Z") })).filter((aviso) => aviso.chave.includes(anuncio.id));
+    conferir("telegram: um aviso do catalogo, com o codigo do produto", [devidos.length, devidos[0]?.dados.sku, /entrou no catálogo/.test(devidos[0]?.dados.texto ?? "")], [1, "ZZ-ML-CAT1", true]);
   }
 
   {

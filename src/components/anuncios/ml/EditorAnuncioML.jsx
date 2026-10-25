@@ -6,12 +6,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Link from "next/link";
 import { Copy, ExternalLink, Loader, X } from "lucide-react";
 
-import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, salvarAnuncioML, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, salvarAnuncioML, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { NOMES_DAS_PARTES, textoDasPartes } from "@/lib/canaisDeVenda/ml/acompanhar";
-import { precisaAgirNoML, textoDoEstadoML } from "@/lib/canaisDeVenda/ml/estadoNoML";
+import { avisoDeCatalogoPendente, precisaAgirNoML, textoDoAvisoDeCatalogo, textoDoCatalogo, textoDoEstadoML } from "@/lib/canaisDeVenda/ml/estadoNoML";
 import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, STATUS_ML, linkDoAnuncioML, linkDoPainelML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import AbaDescricao from "./AbaDescricao";
@@ -170,6 +170,13 @@ export default function EditorAnuncioML({
   const travaDaAba = (id) => bloqueado && !(editaPublicado && ABAS_DO_PUBLICADO.has(id));
   const problemas = useMemo(() => validarRascunhoML(rascunho, contexto), [rascunho, contexto]);
 
+  // O anuncio entrou, saiu ou trocou de catalogo no ML (25/10/2026): abrir o anuncio e ver o aviso; o "!" da lista apaga.
+  // O texto continua no rodape nesta abertura (o estado da tela nao muda).
+  const catalogoPendente = idAtual && avisoDeCatalogoPendente(publicacao?.estadoML) ? idAtual : null;
+  useEffect(() => {
+    if (catalogoPendente) marcarCatalogoVistoMLAcao(catalogoPendente).catch(() => {});
+  }, [catalogoPendente]);
+
   // O erro aparece no topo: com o rodape fixo, o dono clica em Salvar com a pagina rolada.
   useEffect(() => {
     if (mensagem?.tipo === "erro") caixaDaMensagem.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -327,6 +334,7 @@ export default function EditorAnuncioML({
               {...propsDasAbas}
               problemas={problemas.filter((problema) => problema.aba === id)}
               {...(id === "previa" ? { todosProblemas: problemas } : {})}
+              {...(id === "preco" ? { catalogoNoML: publicacao?.estadoML?.catalogo } : {})}
             />
             </div>
           </Painel>
@@ -352,6 +360,16 @@ export default function EditorAnuncioML({
           <span className={precisaAgirNoML(publicacao.estadoML) ? "font-medium text-red-700" : "text-suave"} title="Estado no Mercado Livre, relido de hora em hora">
             {textoDoEstadoML(publicacao.estadoML)}
             {publicacao.estadoML.desde && ` desde ${DATA_DO_ESTADO.format(new Date(publicacao.estadoML.desde))}`}
+          </span>
+        )}
+        {publicado && textoDoCatalogo(publicacao?.estadoML?.catalogo) && (
+          // O catalogo em que o anuncio esta no ML, relido com o estado; a mudanca ainda nao vista vem em ambar.
+          <span
+            className={catalogoPendente ? "font-medium text-amber-700" : "text-suave"}
+            title="Catálogo do anúncio no Mercado Livre, relido com o estado"
+          >
+            {textoDoCatalogo(publicacao.estadoML.catalogo)}
+            {catalogoPendente && ` (${textoDoAvisoDeCatalogo(publicacao.estadoML.catalogoAviso)})`}
           </span>
         )}
         {publicado && <span className="text-suave">{MOTIVO_DO_PUBLICADO}</span>}

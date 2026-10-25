@@ -3402,6 +3402,18 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   hh:mm") e no ícone do ML da lista de Produtos, que ganha o "!" (`precisaAgirNoML` em `estadoDoIconeML`; o anúncio
   barrado continua contando como publicado). Corrigido junto: `ORDEM_DAS_PARTES` do ícone não tinha preço e ficha, e o
   texto do "!" desses dois saía vazio.
+- **Catálogo do anúncio no ML (25/10/2026, pedido do dono, Opção 1):** o dono tirou o 100108 do catálogo e o Rise continuava
+  dizendo "catálogo do anúncio". **O Rise não lia se o anúncio está num catálogo:** "catálogo do anúncio" no ranking era o
+  catálogo ACOMPANHADO (`Produto.mlCatalogoId`), e "Você (este anúncio)" é só o preço dele. Medido no MLB5458577821 depois de
+  sair: `catalog_product_id` null, `catalog_listing` false, `item_relations` [] (o `/items/bulk` com `attributes` devolve os
+  três). Agora a mesma releitura do estado lê os três campos e, se o item tem anúncios ligados, os lê numa chamada a mais
+  (`catalogoDoItem`: o próprio `catalog_product_id`, ou um ligado com `catalog_listing: true` ativo ou pausado; o jeito em
+  que o anúncio aparece DENTRO de um catálogo ainda não foi medido). Grava `estadoML.catalogo = {id, nome}` (nome por
+  `/products/{id}`, só quando muda) ou null; ausente = nunca lido, e a primeira leitura só grava, sem aviso. Entrar, sair ou
+  trocar grava `estadoML.catalogoAviso = {de, para, em, visto}`: "!" no ícone do ML ("saiu do catálogo X em 25/10"),
+  rodapé do editor "No catálogo: X" / "Fora do catálogo" (em âmbar com a mudança), aviso no Telegram (tipo `catalogoML`) e
+  abrir o anúncio marca como visto (`marcarCatalogoVistoMLAcao`, basta ver o canal). O ranking passou a dizer "catálogo
+  acompanhado" e, se o anúncio não está nele, "seu anúncio não está neste catálogo". SEM deploy.
 
 **Loja Integrada vigiada pelo worker e estoque comparado com o Bling (25/10/2026, pedido do dono, Opção 1):**
 - **Mesmo worker, rotinas separadas** (decisão do dono): `relerEstadosML` (ML) e `relerMonitorLI` (`li/monitor.js`),

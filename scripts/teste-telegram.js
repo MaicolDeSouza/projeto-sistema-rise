@@ -256,7 +256,7 @@ try {
     const { TIPOS_DE_AVISO, ROTULO_DO_AVISO } = await import("../src/lib/telegram/avisosTipos.js");
     const { estadoDoTelegram } = await import("../src/lib/telegram/estado.js");
     const padrao = configuracaoPadrao("pc");
-    conferir("padrao: bot desligado e todos os avisos marcados", padrao.telegram, { ligado: false, avisos: { resumoDoDia: true, produtoZerou: true, orcamento: true, varreduraPeloPc: true, varreduraFalhou: true, saudeDoRise: true } });
+    conferir("padrao: bot desligado e todos os avisos marcados", padrao.telegram, { ligado: false, avisos: { resumoDoDia: true, produtoZerou: true, orcamento: true, varreduraPeloPc: true, varreduraFalhou: true, saudeDoRise: true, catalogoML: true } });
     conferir("os tipos de aviso tem rotulo", TIPOS_DE_AVISO.every((tipo) => typeof ROTULO_DO_AVISO[tipo] === "string" && ROTULO_DO_AVISO[tipo].length > 5), true);
     conferir("zod recusa aviso que nao e booleano", validarConfiguracao({ ...padrao, telegram: { ligado: true, avisos: { ...padrao.telegram.avisos, orcamento: "sim" } } }).ok, false);
     conferir("zod aceita o padrao", validarConfiguracao(padrao).ok, true);

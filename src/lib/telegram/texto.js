@@ -59,6 +59,10 @@ const TIPOS = {
     linhas: [`Varredura falhou: ${trechoSeguro(fonteNome, 60)}`, trechoSeguro(erro)],
     caminho: "/mercados/fontes",
   }),
+  catalogoML: ({ anuncioId, sku, texto }) => ({
+    linhas: [`Mercado Livre: anúncio do ${trechoSeguro(sku, 40)} ${trechoSeguro(texto)}`, "Confira se o catálogo é o certo para o produto."],
+    caminho: `/canais-de-venda/mercado-livre/${anuncioId}`,
+  }),
   saudeDoRise: ({ rotulo, detalhe }) => ({
     linhas: [`Saúde do Rise: ${trechoSeguro(rotulo, 60)}`, trechoSeguro(detalhe)],
     caminho: "/configuracoes/saude",
