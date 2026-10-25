@@ -1,6 +1,6 @@
 Escreva a descrição de uma placa Arduino ou compatível em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos.
 
-Os textos devem ser puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
 
 PARÁGRAFOS
 
@@ -10,9 +10,9 @@ Primeiro parágrafo: comece pelo nome da placa como sujeito (“A Placa Nano V3 
 
 Segundo parágrafo: os recursos de uso: quantos pinos digitais (e quantos com PWM), quantas entradas analógicas, as interfaces (UART, SPI, I2C), o conector e a programação pela Arduino IDE (driver do chip USB só quando confirmado), a alimentação e se os pinos vêm soldados. Acessórios só quando confirmados.
 
-Nos parágrafos NÃO cite memória (Flash, RAM, EEPROM), clock, arquitetura, corrente por pino nem resolução do ADC: esses números ficam só nas especificações. Ao voltar a falar da placa, use o nome dela (“A placa Nano V3...”), nunca “ela” sozinho no início da frase. Tom de referência: direto como a descrição da Smartkits da Nano V3, sem copiar.
+Nos parágrafos NÃO cite memória (Flash, RAM, EEPROM), clock, arquitetura, corrente por pino nem resolução do ADC: esses números ficam só nas especificações. Ao voltar a falar da placa, use o nome dela (“A placa Nano V3...”), nunca “ela” sozinho no início da frase. Tom de referência: a clareza da Smartkits da Nano V3, só que mais amigável, sem copiar.
 
-Use frases completas, com verbo, linguagem acessível. Varie o foco e a ordem dos fatos entre as opções, não apenas os sinônimos. Evite elogios comerciais, repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
+Use frases completas, com verbo, em linguagem acessível e respeitosa: “possui”, não “tem”. Explique o porquê do que citar: em vez de “sem adaptador externo”, diga que o USB nativo dispensa o conversor. Varie o foco e a ordem dos fatos entre as opções, não apenas os sinônimos. Evite elogios comerciais, repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
 
 PADRONIZAÇÃO DOS NOMES
 
@@ -30,7 +30,7 @@ Memória Flash: substitui Flash Memory e Quantidade de Flash. Memória RAM: subs
 
 Tensão de Operação: substitui Voltagem de Operação, Tensão de Funcionamento, Tensão de Trabalho e Operating Voltage. É a tensão em que o microcontrolador e os pinos trabalham, como 5V ou 3,3V.
 
-Tensão de Alimentação: substitui Tensão de Entrada (também recomendada ou limites), Alimentação, Alimentação Jack, VIN e Input Voltage. Reúna o recomendado e o limite num só valor, com a entrada: “7V a 12V por VIN ou jack (limite 6V a 20V), 5V pela USB” (a USB só quando confirmada).
+Tensão de Alimentação: substitui Tensão de Entrada (também recomendada ou limites), Alimentação, Alimentação Jack, VIN e Input Voltage. Reúna o recomendado e o limite num só valor, com a entrada: “7V a 12V por VIN ou jack (limite 6V a 20V) / 5V pela USB” (a USB só quando confirmada).
 
 Nível Lógico: substitui Tensão Lógica e Tensão de Nível Lógico. Sem valor próprio na fonte, use o da Tensão de Operação.
 
@@ -54,8 +54,7 @@ Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
 
 CARACTERÍSTICAS
 
-Cada item contém nome, valor e referencias. Use nome sem dois-pontos e valor separado, por exemplo: nome “Memória RAM”, valor “2KB SRAM”. A descrição será apresentada como “Memória RAM: 2KB SRAM”.
-
+Cada item contém nome, valor e referencias. Use nome sem dois-pontos e valor separado, por exemplo: nome “Memória RAM”, valor “2KB SRAM”.
 Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas abaixo, mesmo que uma loja os publique (ex.: Regulador de Tensão).
 
 Campos obrigatórios:
@@ -77,7 +76,7 @@ Não entram em caracteristicas: Cor, Material, Fabricante, Origem, País, Catego
 
 No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
 
-Use números colados às unidades: 5V, 3,3V, 20mA, 2KB, 16MHz. Use vírgula decimal e diferencie bytes de bits. Nas faixas, identifique unidade e contexto. Nunca use ponto e vírgula dentro de um valor; separe com vírgula.
+Use números colados às unidades: 5V, 3,3V, 20mA, 2KB, 16MHz. Use vírgula decimal e diferencie bytes de bits. Nas faixas, identifique unidade e contexto. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
 
 REGRAS ESPECÍFICAS
 
@@ -95,8 +94,7 @@ Não transfira especificações entre UNO R3, UNO R4, Mega, Nano, Pro Mini ou ou
 
 Compatibilidade com Arduino IDE não comprova compatibilidade física ou elétrica com shields.
 
-Pinos Soldados: “Sim” quando a barra de pinos vem soldada; “Não (é necessário soldar os pinos)” quando vem solta; “Não (barra de pinos não inclusa)” quando não acompanha. Sem confirmação, omita o campo. Montagem DIP em soquete só quando o soquete estiver confirmado. Não presuma que uma placa compatível seja um produto original Arduino.
-
+Pinos Soldados: “Sim” quando a barra de pinos vem soldada; “Não (é necessário soldar os pinos)” quando vem solta; “Não (barra de pinos não inclusa)” quando não acompanha. Sem confirmação, omita o campo. Montagem DIP em soquete só quando o soquete estiver confirmado.
 FONTES
 
 Em referencias, registre somente os números das referências fornecidas que sustentam o valor daquele campo. Não atribua uma fonte a características que ela não confirma.
@@ -107,9 +105,7 @@ Resultado da web só vale se consultado de fato e informado como referência; pr
 
 Dados do microcontrolador não comprovam recursos da placa, alimentação externa, conectores, dimensões ou acessórios. Lista de fornecedor sem ficha técnica não comprova especificação.
 
-Não invente consultas, fontes, URLs ou números de referência. Sem evidência, omita o campo. Se uma consulta contradisser outra fonte, preserve a divergência.
-
-Não coloque fonte, loja ou link dentro de nome ou valor.
+Não invente consultas, fontes, URLs ou números de referência. Se uma consulta contradisser outra fonte, preserve a divergência.
 
 ITENS INCLUSOS
 

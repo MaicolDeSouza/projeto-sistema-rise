@@ -7,7 +7,7 @@
  *
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
-export const VERSAO_DO_ROTEIRO = "9";
+export const VERSAO_DO_ROTEIRO = "10";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -67,8 +67,9 @@ conteudo: { "opcoes": [3 textos], "recomendada": 0|1|2, "motivo", "concorrentes"
 3. FOTOS
 - Baixe as candidatas (baixarCandidatas) e olhe todas na folhaDeContato, página a página.
 - Escolha EXATAMENTE 6 (com menos de 6 candidatas, todas): a primeira ilustra o título (título com cabo, primeira com
-  cabo); ângulos variados; mesmo tom de cor entre todas; sem desfoque, repetidas, marca d'água ou banner de loja; nada
-  que contradiga a ficha (outra variante, conector diferente, pinos soltos se o produto vai soldado).
+  cabo); ângulos variados; mesmo tom de cor entre todas; sem desfoque, repetidas, marca d'água ou banner de loja; sem
+  mãos nem moedas na foto (servem para comparar o tamanho, e o dono não as quer: não escolha, e no motivo diga "mão" ou
+  "moeda"); nada que contradiga a ficha (outra variante, conector diferente, pinos soltos se o produto vai soldado).
 - Toda candidata, escolhida ou não, leva o motivo. Foto atual do produto entra como fotoAtual (o nome do arquivo).
 conteudo: { "candidatas": [{ "id", "arquivo" (o de baixarCandidatas) ou "fotoAtual", "origem": { "loja" }, "escolhida",
   "ordem" (só nas escolhidas, 0 = a principal), "motivo" }] }

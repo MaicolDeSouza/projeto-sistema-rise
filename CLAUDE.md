@@ -272,7 +272,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 770 asserções da extração, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 775 asserções da extração, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -285,7 +285,7 @@ npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
 npm run teste:coleta              # 99 asserções da gravação no banco, da busca ampla (inclusive pelo nome da fonte), do custo que segue a varredura e do custo adicional do fornecedor (usa o Postgres, SEM rede)
-npm run teste:cadastros           # 88 asserções: CPF/CNPJ/CEP/telefone, CNPJ obrigatório do fornecedor, a ligação fonte -> cadastro e as indicações dos vínculos salvos (Postgres, SEM rede)
+npm run teste:cadastros           # 89 asserções: CPF/CNPJ/CEP/telefone, CNPJ obrigatório do fornecedor, a ligação fonte -> cadastro e as indicações dos vínculos salvos (Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
@@ -2295,6 +2295,13 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
 - **Preço das referências marcadas na lupa**: a lista separa **"Fornecedor · custo"** de
   concorrente (o preço do fornecedor é custo, e vender por ele é vender sem margem). Clicar
   preenche o campo, que continua editável.
+- **A lista do "$" segue a ordem da aba Concorrentes** (pedido do dono em 25/10/2026: "menor preço e lojas sem estoque devem ir para o
+  fim da lista, assim como feito na aba Concorrentes/Fornecedores; caso o concorrente informe quantidade, também colocar nessa lista").
+  `ordenarPrecosDasReferencias` (`lib/estoqueDoConcorrente.js`, a mesma `situacaoDeEstoque` e a mesma exceção da 4hobby da tabela):
+  concorrentes antes de fornecedores; em cada tipo, quem vende ou não informa o estoque primeiro, do mais barato ao mais caro, e os sem
+  estoque por último. Cada item de `buscarReferencias` leva `estoque` (`{ quantidade, estoqueStatus }`, do produto coletado) e a linha
+  mostra "Em estoque · 12 un." (a quantidade só quando a loja a informa) ou "Sem estoque"; sem informação não escreve nada. Conferido
+  na tela no 100103 (Easytronics e Solda Fria, sem estoque, no fim) e no 100101.
 - Os dois escrevem **direto no `<input>`** (campo não controlado) e marcam o formulário como
   alterado, sem remontar os campos.
 - **Marca, Modelo e Número de homologação** usam o mesmo desenho (`CampoDeReferencias`). Cada
@@ -2653,6 +2660,15 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       são "Pinos Digitais I/O" e "Saídas PWM" (escrita "6 (entre os pinos digitais)", para o cliente não somar). Medido no
       100101 com Opus e Sol: 28 de 28 presentes, 4 a 5 com "?". **Só vale no ar depois do deploy** e com o prompt novo salvo na
       biblioteca da VPS.
+    - **Estilo dos parágrafos e separador de valores no prompt do Arduino** (25/10/2026, pedidos do dono; só o
+      `docs/prompts-descricao/embarcados/01-arduino.txt`, e **só vale depois de colado na biblioteca de prompts da VPS**): "possui", não
+      "tem"; tom um pouco mais amigável (a âncora da Smartkits deixou de ser "direto"); depois da vírgula o comprador tem de entender o
+      porquê ("sem adaptador externo" vira a explicação de que o USB nativo dispensa o conversor); e duas informações distintas no mesmo
+      valor se separam por " / " ("Tensão de Alimentação: 5V a 12V no pino RAW / 5V pela USB"), a vírgula fica só para itens da mesma
+      lista ("UART, SPI, I2C"). O prompt está a 9 caracteres do limite de 12.000 (11.991): para caber saíram frases que repetiam regras
+      (o "A descrição será apresentada como..." do formato Nome: valor, "Sem evidência, omita o campo", "Não coloque fonte, loja ou link
+      dentro de nome ou valor" e "Não presuma que uma placa compatível seja um produto original Arduino"). Os outros quatro prompts
+      (ESP32 e demais) não foram mexidos.
     - **Origem da linha que nenhuma loja confirma** (13/10/2026, pedido do dono: "se veio pela IA, deve mostrar de onde
       veio a fonte"): antes a linha ficava sem nada ao lado. `origemSemLoja` (`divergencias.js`) diz **"Cadastro"** quando o
       valor está no título, na marca, no modelo, na descrição atual ou nas peças do kit (número solto, como "6", nunca conta),
@@ -5753,14 +5769,15 @@ a Bling, Mercado Livre ou Loja Integrada.
   `docs/superpowers/roteiros/instrucao-projeto-claude-ai-proposta.md`.
 - **Roteiro único da proposta (21/10/2026, pedido do dono: "posso mudar de LLM e deve funcionar igual")** (plano
   `docs/superpowers/plans/2026-10-21-roteiro-unico-da-proposta.md`): as regras moram SÓ em `src/lib/proposta/roteiro.js`
-  (`ROTEIRO` + `VERSAO_DO_ROTEIRO`, hoje "7"), entregues pela ferramenta `roteiroDaProposta` do MCP; cada seção gravada
+  (`ROTEIRO` + `VERSAO_DO_ROTEIRO`, hoje "10"), entregues pela ferramenta `roteiroDaProposta` do MCP; cada seção gravada
   carimba `PropostaDeProduto.versaoDoRoteiro`. A instrução do Projeto (claude.ai, ChatGPT) é um bloco fixo de 3 linhas que
   só manda ler o roteiro; o `docs/superpowers/roteiros/proposta-de-produto.md` ficou só com a reserva por SSH. **Mudar
   regra = editar `roteiro.js`, subir a versão e fazer deploy.** O que é conta ou checagem é do Rise, ao gravar: o PREÇO (de 5 em 5 centavos, arredondado para cima, desde 22/10/2026: `precoParaMargem` em `regras.js`)
   (`src/lib/proposta/preco.js`: custo do fornecedor padrão ou rascunho do Bling, concorrentes com preço normal, sem os sem
   estoque e sem a 4hobby; os números da LLM são ignorados, fica a `observacao`), o próximo 25xxxx (`codigo.js`,
   `proximoCodigoLivre`, a mesma regra do `gerarSku`, que vem em `lerParaProposta.proximoCodigo`) e a recusa do EAN de outro
-  produto. A seção `fotos` exige EXATAMENTE 6 escolhidas (o dono mudou de 6 a 8), o relatório é em tópicos e os links
+  produto. A seção `fotos` exige EXATAMENTE 6 escolhidas (o dono mudou de 6 a 8) e o roteiro manda NÃO escolher foto com mão ou moeda (servem
+  para comparar o tamanho; pedido do dono em 25/10/2026, versão 10; o Rise não confere, é o julgamento da LLM na folha de contato), o relatório é em tópicos e os links
   dos documentos são testados ao gravar.
 - **Conferido em 14/10/2026:** `ler 100103` e `clonar 100103 100103-teste` na VPS (24 campos, 5 fotos, 3 documentos, 2
   fornecedores, 13 concorrentes; original intacto, cópia com todos os arquivos no disco). **A cópia `100103-teste` fica
