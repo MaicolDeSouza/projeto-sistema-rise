@@ -290,7 +290,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 834 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 818 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 361 asserções da sincronização Rise -> Loja Integrada (e da proposta de anúncio da LI e do cadastro automático): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3384,23 +3384,6 @@ Pedido do dono (Opção 1): mudou a descrição do 100107 e o ícone do ML não 
 - **Concorrentes do catálogo e ranking** só existem no Rise: editáveis no publicado, não acendem o "!".
 - **Em aberto:** o preço do anúncio registrado no Bling (`/anuncios`) não é atualizado quando o preço muda no ML; não se
   sabe se o Bling o empurra de volta ao ML. Conferir num envio real.
-
-**Estado do anúncio no ML, relido de hora em hora (24/10/2026, pedido do dono, Opção 1; só os anúncios que o Rise
-publicou, os 1.007 antigos da conta ficam de fora):**
-- `relerEstadosML` (`ml/relerEstadoML.js`, no worker normal a cada hora, `RELER_ESTADO_ML_MS`): todos os `Anuncio` do ML
-  PUBLICADO com `idExterno` e não ENCERRADA, 20 por chamada em `GET /items/bulk?ids=&attributes=body.id,body.status,
-  body.sub_status,body.available_quantity,body.sold_quantity` (medido no 100107 em 24/10/2026: com `attributes` o ML devolve
-  só o `body`; quem não responde vem com `status_code` e `error`; o `/items?ids=` sai em 25/10/2026). Só GET. 401/429 param.
-- Grava `dados.publicacao.estadoML = { status, subStatus, estoque, vendidos, desde }` e a `situacaoCanal` **só quando
-  muda** (a lista de anúncios ordena pelo `atualizadoEm`); `desde` = quando ficou assim. Em revisão e inativo viram
-  `DESCONHECIDA` no enum (sem migration); o texto vem do `estadoML`.
-- `ml/estadoNoML.js` (puro, sem imports): `textoDoEstadoML` ("Ativo no ML", "Pausado: sem estoque", "Em revisão: precisa
-  corrigir", "Inativo no ML", "No ML: <status desconhecido>") e `precisaAgirNoML` (em revisão, inativo, aguardando
-  pagamento, ou motivo `waiting_for_patch`/`forbidden`/`suspended`/`held`/`freezed`; sem estoque NÃO, o Bling repõe).
-- Tela: o texto embaixo do selo na lista de anúncios do ML (vermelho quando pede ação), no rodapé do editor ("desde dd/mm
-  hh:mm") e no ícone do ML da lista de Produtos, que ganha o "!" (`precisaAgirNoML` em `estadoDoIconeML`; o anúncio
-  barrado continua contando como publicado). Corrigido junto: `ORDEM_DAS_PARTES` do ícone não tinha preço e ficha, e o
-  texto do "!" desses dois saía vazio.
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 
