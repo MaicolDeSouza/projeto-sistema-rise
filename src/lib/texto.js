@@ -113,7 +113,9 @@ export function notasDeRelevancia(palavras, formasPorItem) {
   const pesos = palavras.map((palavra, indice) => {
     const comEla = casamentos.filter((linha) => linha[indice]).length;
     const raridade = Math.log((formasPorItem.length + 1) / (comEla + 1)) + 1;
-    return /d/.test(palavra) ? raridade * 1.5 : raridade;
+    // `\d` (digito). Ate 25/10/2026 estava `/d/` (a letra "d"): "arduino" e "modulo" ganhavam o bonus de modelo, e
+    // "328p", "5v" e "16mhz" nao.
+    return /\d/.test(palavra) ? raridade * 1.5 : raridade;
   });
   const pesoTotal = pesos.reduce((soma, peso) => soma + peso, 0);
   const notas = casamentos.map((linha) => {

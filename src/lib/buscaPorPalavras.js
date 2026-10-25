@@ -1,6 +1,6 @@
 import { produtosParaLista } from "@/lib/coleta/banco";
 import { custoDoFornecedor } from "@/lib/coleta/impostos";
-import { indiceDePalavras, notasDeRelevancia, palavrasDoTermo } from "@/lib/texto";
+import { casaPalavra, indiceDePalavras, normalizar, notasDeRelevancia, palavrasDoTermo } from "@/lib/texto";
 
 /**
  * Referencias de mercado para o cadastro de produto: fornecedores e
@@ -44,6 +44,16 @@ export async function buscarReferencias(termo, { limite = TETO, fornecedoresLiga
   // metade do acervo.
   const minima = palavras.length <= 2 ? 1 : NOTA_MINIMA;
 
+  // NOME CURTO DENTRO DO TITULO (pedido do dono em 25/10/2026): a Nightech chama a placa so de "PLACA PRO MINI", e
+  // com o titulo "PLACA PRO MINI ATMEGA328P 5V 16MHZ COMPATIVEL COM ARDUINO" ela tirava 31% (as palavras de mais peso,
+  // o modelo e a especificacao, nao estao no nome dela) e sumia da lupa. Produto cujo nome inteiro, com 3 palavras ou
+  // mais, esta no titulo tambem entra, com a nota que tem. Com 3+ palavras o "Placa Arduino" generico continua fora.
+  const formasDoTermo = indiceDePalavras(normalizar(termo));
+  const nomeCabeNoTermo = (produto) => {
+    const doNome = palavrasDoTermo(produto.name);
+    return doNome.length >= 3 && doNome.every((palavra) => casaPalavra(formasDoTermo, palavra));
+  };
+
   const achados = [];
   const notas = new Map();
   todos.forEach((produto, indice) => {
@@ -51,7 +61,8 @@ export async function buscarReferencias(termo, { limite = TETO, fornecedoresLiga
     const nota = notasPorProduto[indice];
     notas.set(produto.id, nota);
     // Margem de arredondamento: com duas palavras, 1 pode vir como 0,9999.
-    if (palavras.length > 0 && nota >= minima - 1e-9) achados.push({ produto, nota });
+    const passa = nota >= minima - 1e-9 || (palavras.length > 2 && nota > 0 && nomeCabeNoTermo(produto));
+    if (palavras.length > 0 && passa) achados.push({ produto, nota });
   });
 
   achados.sort(
