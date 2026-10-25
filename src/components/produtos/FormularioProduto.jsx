@@ -39,6 +39,7 @@ import {
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import GastoDaIA, { GastoDoProduto } from "@/components/ui/GastoDaIA";
 import { somarResumos } from "@/lib/ia/gasto";
+import { acompanharTituloNaDescricao } from "@/lib/ia/revisaoDescricao";
 
 /** O gasto que foi no Salvar (campo oculto `gastoIA`), para a tela passa-lo ao total quando o servidor ja o gravou. */
 function lerGastoEnviado(formData) {
@@ -188,6 +189,17 @@ function MarcaDaProposta({ nome }) {
 }
 
 /**
+ * Escreve um valor num campo do formulario por fora e avisa o formulario como se fosse digitado (marca alterado e agenda o
+ * rascunho). Pelo "setter" nativo: a descricao e um <textarea> CONTROLADO, e o React ignora o evento quando o valor e escrito
+ * direto (o rastreador dele ja ve o valor novo e nao chama o onChange). Nos campos nao controlados da no mesmo.
+ */
+function escreverNoCampo(campo, valor) {
+  const prototipo = Object.getPrototypeOf(campo);
+  Object.getOwnPropertyDescriptor(prototipo, "value")?.set?.call(campo, String(valor));
+  campo.dispatchEvent(new Event(campo.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
+}
+
+/**
  * Campo SEM lista propria (garantia, unidade, origem, tipo do item, CEST, descricao...; decisao C do dono em 22/10/2026):
  * um icone de lista ao lado do rotulo traz o unico item que a proposta deixou para o campo. Desde 24/10/2026 (pedido do
  * dono: "Proposta escrita direto no campo, com o original na lista") ele e quase sempre o ORIGINAL (o valor de antes da
@@ -209,13 +221,7 @@ function IconeDaProposta({ nome }) {
 
   function usar(evento) {
     const campo = evento.currentTarget.form?.elements?.[nome];
-    if (campo) {
-      // Pelo "setter" nativo: a descricao e um <textarea> CONTROLADO, e o React ignora o evento quando o valor e escrito
-      // direto (o rastreador dele ja ve o valor novo e nao chama o onChange). Nos campos nao controlados da no mesmo.
-      const prototipo = Object.getPrototypeOf(campo);
-      Object.getOwnPropertyDescriptor(prototipo, "value")?.set?.call(campo, String(sugestao.valor));
-      campo.dispatchEvent(new Event(campo.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
-    }
+    if (campo) escreverNoCampo(campo, sugestao.valor);
     setAberto(null);
   }
 
@@ -1454,6 +1460,7 @@ function CampoNome({
   ia,
   aoCriarIA,
   aoEscolherTitulo,
+  aoAlterarNome,
   referencias,
   usos,
   comLupa = true,
@@ -1462,6 +1469,9 @@ function CampoNome({
   const [tamanho, setTamanho] = useState((inicial ?? "").length);
   const excedeu = tamanho > LIMITE_TITULO_ML;
   const entrada = useRef(null);
+  // O Nome de antes de cada digitacao: a descricao so acompanha a linha que ainda e ele. Fica o ULTIMO Nome nao vazio, para
+  // quem apaga tudo e digita outro continuar acompanhado. O campo remonta (key) quando o formulario troca o Nome por fora.
+  const nomeDeAntes = useRef(inicial ?? "");
 
   return (
     <div>
@@ -1486,7 +1496,12 @@ function CampoNome({
             id="tituloBase"
             name="tituloBase"
             defaultValue={inicial ?? ""}
-            onChange={(evento) => setTamanho(evento.target.value.length)}
+            onChange={(evento) => {
+              const nome = evento.target.value;
+              setTamanho(nome.length);
+              aoAlterarNome?.(nome, nomeDeAntes.current);
+              if (nome.trim()) nomeDeAntes.current = nome;
+            }}
             className={`${CLASSE_CAMPO} ${
               excedeu ? "border-amber-400" : "border-borda focus:border-acento"
             }`}
@@ -2503,6 +2518,16 @@ export default function FormularioProduto({
     usos.marcar("titulo");
   }
 
+  // O Nome mudou na digitacao (pedido do dono em 25/10/2026): a descricao acompanha, no titulo da primeira linha e no 1o
+  // item de "Itens inclusos", enquanto essas linhas ainda forem o Nome de antes. Quem editou uma delas a mao a mantem.
+  // Escreve pela via da digitacao, entao "alterado" e o rascunho seguem. A descricao fica montada mesmo em outra aba.
+  function acompanharNomeNaDescricao(nome, nomeDeAntes) {
+    const campo = formulario.current?.elements.namedItem("descricaoBase");
+    if (!campo || campo.disabled) return;
+    const texto = acompanharTituloNaDescricao(campo.value, nomeDeAntes, nome);
+    if (texto !== campo.value) escreverNoCampo(campo, texto);
+  }
+
   const idsMarcados = [...marcados.keys()];
 
   const valorDoCampo = (nome) =>
@@ -3208,6 +3233,11 @@ export default function FormularioProduto({
     // ficaria com o padrao do cadastro novo: a Garantia, por exemplo, ficaria com os 3 meses sugeridos).
     const daOrigem = Object.fromEntries(forcarOrigem.map((campo) => [campo, campos[campo] ?? ""]));
     const mesclado = { ...atual, ...trazidos, ...daOrigem };
+    // O Nome trocado por aqui (a lista de titulos) leva a descricao junto, como a digitacao no campo: se a descricao nao veio
+    // nos campos trazidos, o titulo dela e o 1o item incluso acompanham (so se ainda forem o Nome de antes).
+    if (trazidos.tituloBase !== undefined && trazidos.descricaoBase === undefined && typeof mesclado.descricaoBase === "string") {
+      mesclado.descricaoBase = acompanharTituloNaDescricao(mesclado.descricaoBase, atual.tituloBase, mesclado.tituloBase);
+    }
     // O que outro caminho trouxe (IA, busca por codigo) ja nao e o valor da proposta: a marca sai.
     if (daProposta) setEditadosDaProposta((anteriores) => new Set([...anteriores, ...Object.keys(trazidos), ...Object.keys(daOrigem)]));
     setPreenchido(mesclado);
@@ -3559,6 +3589,7 @@ export default function FormularioProduto({
                 ia={ia}
                 aoCriarIA={criarComIA}
                 aoEscolherTitulo={escolherTitulo}
+                aoAlterarNome={acompanharNomeNaDescricao}
                 referencias={referenciasDasIndicacoes}
                 usos={usos}
                 comLupa={acessos.referencias}

@@ -2047,6 +2047,37 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
     [codigoDosItensInclusos("Itens inclusos: (Cód:100101)\r"), substituirCodigoDosItens("A\n\nItens inclusos: (Cód:100101)\r\n- 01 X;", 2, "ZZ-1").split("\n")[2]],
     ["100101", "Itens inclusos: (Cód:ZZ-1)"]);
 
+  // O titulo da descricao e o 1o item incluso acompanham o Nome (pedido do dono em 25/10/2026), so enquanto a linha ainda
+  // for o titulo de antes: quem a editou a mao a mantem.
+  const { acompanharTituloNaDescricao } = await import("../src/lib/ia/revisaoDescricao.js");
+  const daPlaca = "PLACA PRO MICRO 5V\n\nA Placa Pro Micro e compacta.\n\nEspecificações técnicas:\n- Clock: 16MHz;\n\nItens inclusos: (Cod:100113)\n- 01 PLACA PRO MICRO 5V;\n- 01 CABO USB;\n\nGarantia:\n- 90 dias;";
+  const comoLinhas = (texto, ...indices) => texto.split("\n").filter((_, indice) => indices.includes(indice));
+  const novaPlaca = acompanharTituloNaDescricao(daPlaca, "Placa Pro Micro 5V", "Placa Pro Micro 5V 16MHz");
+  conferir("titulo novo: a primeira linha e o 1o item incluso acompanham", comoLinhas(novaPlaca, 0, 8), ["PLACA PRO MICRO 5V 16MHZ", "- 01 PLACA PRO MICRO 5V 16MHZ;"]);
+  conferir("o resto da descricao fica como estava", novaPlaca.split("\n").filter((_, indice) => indice !== 0 && indice !== 8), daPlaca.split("\n").filter((_, indice) => indice !== 0 && indice !== 8));
+  conferir("so o primeiro item incluso acompanha", acompanharTituloNaDescricao("T\n\nItens inclusos: (Cod:1)\n- 01 CABO;\n- 01 T;", "T", "NOVO"), "NOVO\n\nItens inclusos: (Cod:1)\n- 01 CABO;\n- 01 T;");
+  conferir("titulo da descricao editado a mao: so o item acompanha",
+    comoLinhas(acompanharTituloNaDescricao(daPlaca.replace("PLACA PRO MICRO 5V\n", "PLACA PRO MICRO - OFERTA\n"), "Placa Pro Micro 5V", "Placa Nova"), 0, 8),
+    ["PLACA PRO MICRO - OFERTA", "- 01 PLACA NOVA;"]);
+  conferir("item incluso editado a mao: so o titulo acompanha",
+    comoLinhas(acompanharTituloNaDescricao(daPlaca.replace("- 01 PLACA PRO MICRO 5V;", "- 02 PLACA PRO MICRO 5V + CABO;"), "Placa Pro Micro 5V", "Placa Nova"), 0, 8),
+    ["PLACA NOVA", "- 02 PLACA PRO MICRO 5V + CABO;"]);
+  conferir("a quantidade do item incluso fica", acompanharTituloNaDescricao(daPlaca.replace("- 01 PLACA PRO MICRO 5V;", "- 05 PLACA PRO MICRO 5V;"), "Placa Pro Micro 5V", "X").split("\n")[8], "- 05 X;");
+  conferir("nenhuma das duas linhas e o titulo de antes: o texto nao muda", acompanharTituloNaDescricao(daPlaca, "Outro nome", "Placa Nova"), daPlaca);
+  conferir("sem mudanca real, ou com o titulo de antes ou de depois vazio: o texto nao muda",
+    [acompanharTituloNaDescricao(daPlaca, "Placa Pro Micro 5V", "  placa  pro micro 5v "), acompanharTituloNaDescricao(daPlaca, "", "X"), acompanharTituloNaDescricao(daPlaca, "Placa Pro Micro 5V", "   ")],
+    [daPlaca, daPlaca, daPlaca]);
+  conferir("descricao vazia, ou sem itens inclusos", [acompanharTituloNaDescricao("", "A", "B"), acompanharTituloNaDescricao("A\n\nGarantia:\n- 90 dias;", "A", "B")], ["", "B\n\nGarantia:\n- 90 dias;"]);
+  conferir("descricao antiga com fim de linha CRLF: o \\r fica onde estava", acompanharTituloNaDescricao("A\r\n\r\nItens inclusos: (Cód:1)\r\n- 01 A;\r\n", "A", "B"), "B\r\n\r\nItens inclusos: (Cód:1)\r\n- 01 B;\r\n");
+  conferir("linha em branco antes do titulo", acompanharTituloNaDescricao("\nA\n", "A", "B"), "\nB\n");
+  let digitando = daPlaca;
+  let nomeAntes = "Placa Pro Micro 5V";
+  for (const nome of ["Placa Pro Micro 5V ", "Placa Pro Micro 5V A", "Placa Pro Micro 5V AB"]) {
+    digitando = acompanharTituloNaDescricao(digitando, nomeAntes, nome);
+    nomeAntes = nome;
+  }
+  conferir("digitando o Nome letra a letra, a descricao acompanha o tempo todo", comoLinhas(digitando, 0, 8), ["PLACA PRO MICRO 5V AB", "- 01 PLACA PRO MICRO 5V AB;"]);
+
   // Lapis e lixeira em todos os campos (pedido do dono em 10/10/2026).
   const { ehCabecalhoDeSecao, substituirLinha, removerLinha, excluirOpcaoDeParagrafo, editarOpcaoDeParagrafo } = await import("../src/lib/ia/revisaoDescricao.js");
   const modelo = "TITULO\n\nParagrafo um.\nParagrafo dois.\n\nEspecificações técnicas:\n- Clock: 16MHz;\n\nItens inclusos: (Cod:100101)\n- 01 PLACA;\n- 01 CABO;\n\nGarantia:\n- 90 dias;";

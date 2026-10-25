@@ -230,6 +230,51 @@ export function substituirCodigoDosItens(texto, indice, codigo) {
   return linhas.join("\n");
 }
 
+/// O titulo como a descricao o escreve (`montarDescricao`): espacos simples e em maiusculas.
+function tituloComoNaDescricao(titulo) {
+  return String(titulo ?? "").replace(/\s+/g, " ").trim().toLocaleUpperCase("pt-BR");
+}
+
+/// Um item incluso: "- 01 PLACA;" -> o que vem antes do nome (marcador e quantidade), o nome e o que vem depois.
+const ITEM_INCLUSO = /^(\s*-\s*(?:\d+\s+)?)(.*?)(\s*[;.]?\s*)$/;
+
+/**
+ * O Nome do produto mudou (pedido do dono em 25/10/2026): a descricao acompanha, no titulo da primeira linha e no
+ * PRIMEIRO item de "Itens inclusos". So troca a linha que ainda e o titulo de antes: quem editou uma delas a mao (outro
+ * texto, uma quantidade, um acessorio no lugar) a mantem, e a outra continua acompanhando, cada uma por si. Sem titulo de
+ * antes ou de depois (o Nome apagado de uma vez), ou sem mudanca, devolve o texto como veio.
+ */
+export function acompanharTituloNaDescricao(texto, tituloAntes, tituloDepois) {
+  const original = String(texto ?? "");
+  const antes = tituloComoNaDescricao(tituloAntes);
+  const depois = tituloComoNaDescricao(tituloDepois);
+  if (!antes || !depois || antes === depois) return original;
+
+  // O navegador entrega a quebra como "\n", mas a descricao antiga do cadastro pode trazer "\r\n": o "\r" fica onde estava.
+  const linhas = original.split("\n");
+  const fim = (linha) => (linha.endsWith("\r") ? "\r" : "");
+  let mudou = false;
+
+  const primeira = linhas.findIndex((linha) => linha.trim());
+  if (primeira >= 0 && tituloComoNaDescricao(linhas[primeira]) === antes) {
+    linhas[primeira] = depois + fim(linhas[primeira]);
+    mudou = true;
+  }
+
+  const secao = linhas.findIndex((linha) => LINHA_DOS_ITENS.test(linha.trim()));
+  if (secao >= 0) {
+    // So o primeiro item: a linha logo abaixo do titulo da secao, e so se for mesmo um item.
+    const linha = linhas[secao + 1] ?? "";
+    const partes = ITEM_INCLUSO.exec(linha.replace(/\r$/, ""));
+    if (partes && partes[2].trim() && tituloComoNaDescricao(partes[2]) === antes) {
+      linhas[secao + 1] = partes[1] + depois + partes[3] + fim(linha);
+      mudou = true;
+    }
+  }
+
+  return mudou ? linhas.join("\n") : original;
+}
+
 /**
  * Mover um QUADRO de parametro (pedido do dono em 10/10/2026). A `posicao` do quadro e quantas linhas comuns vem
  * antes dele; quadros na mesma posicao seguem a `ordem` (lista de ids). Devolve o novo estado, sem mexer no de entrada.

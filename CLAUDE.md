@@ -264,7 +264,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 758 asserções da extração, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 770 asserções da extração, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -2173,6 +2173,17 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
   formulário **na hora de gerar**, e a garantia é texto fixo (`GARANTIA_PADRAO`). O
   `;`/`.` que vier no fim de um valor é removido antes de pôr o `;`, para não sair dobrado.
   Medido em 16/09 com 3 referências de placa Uno: 14 s, 21 características.
+- **A descrição acompanha o Nome** (pedido do dono em 25/10/2026: "quando eu alterar o título mudar automaticamente o título na
+  descrição e o primeiro campo do itens inclusos, mas a descrição ainda deve ser editável nesses campos"). Ao digitar no Nome do
+  cadastro de produto, a 1ª linha da descrição e o 1º item de "Itens inclusos" (`- 01 NOME;`) trocam pelo Nome novo em maiúsculas,
+  **só se a linha ainda for o Nome de antes**: quem editou uma delas à mão (outro texto, quantidade 02, acessório no lugar) a mantém, e
+  a outra continua acompanhando, cada uma por si. Regra pura `acompanharTituloNaDescricao` (`lib/ia/revisaoDescricao.js`, testada no
+  `teste:extracao`); o `CampoNome` guarda o Nome de antes (o último não vazio, então apagar tudo e digitar outro continua
+  acompanhado) e o `FormularioProduto` escreve na descrição pela via da digitação (`escreverNoCampo`, o setter nativo que o
+  `IconeDaProposta` já usava), então "alterado" e o rascunho seguem. O Nome escolhido na lista de títulos passa pelo `aplicar`, que faz
+  o mesmo. **Não acompanha** a descrição que já não começava pelo Nome (colada de outro lugar) nem o 2º item em diante; o que o dono
+  quiser refazer é só digitar a linha igual ao Nome de novo. Conferido na tela no ZZ-TESTE-BLING (digitando no Nome, e com a 1ª linha
+  editada à mão).
 - **O título vem em 3 opções para escolher** (`gerarTitulos`, `OPCOES_DE_TITULO`). Com um
   título só, o dono tinha que clicar de novo até sair um bom, e cada volta é uma chamada paga.
   Nada vai para o Nome até ele clicar numa opção. Opção acima de 60 caracteres ou repetida é
