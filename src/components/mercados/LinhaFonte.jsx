@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, ExternalLink, FolderTree, Info, Loader, Monitor, Pause, Pencil, Play, RefreshCw, Trash2 } from "lucide-react";
+import { Ban, ExternalLink, FolderTree, Loader, Monitor, Pause, Pencil, Play, RefreshCw, Trash2 } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import ArquivosDaFonte from "@/components/mercados/ArquivosDaFonte";
 import CategoriasDaFonte from "@/components/mercados/CategoriasDaFonte";
 import EnderecosDaFonte from "@/components/mercados/EnderecosDaFonte";
@@ -180,6 +181,8 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
       const resultado = await editarFonte(fonte.id, {
         nome: dados.get("nome"),
         url: dados.get("url"),
+        cidade: dados.get("cidade"),
+        uf: dados.get("uf"),
       });
 
       if (!resultado.ok) {
@@ -211,19 +214,26 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
                 {/*
                   Plataforma da loja (Tray, Loja Integrada...), do produto
                   coletado mais recente que a reconheceu (plataformasPorFonte em
-                  banco.js) — a fonte nao tem campo proprio. So um "i" com title
-                  nativo, como o resto desta tela: uma coluna nova so para isso
-                  gastaria largura por um dado que nao muda a cada linha.
+                  banco.js), e a cidade da empresa. Na bolha "i" padrao do Rise,
+                  que abre na hora ao passar o mouse ou clicar (pedido do dono em
+                  25/10/2026); sem nenhum dos dois, o "i" some.
                 */}
-                <span
-                  title={
-                    fonte.plataforma
-                      ? `Plataforma: ${fonte.plataforma}`
-                      : "Plataforma não identificada (fonte nova, ou plataforma ainda não catalogada)"
-                  }
-                >
-                  <Info size={12} className="shrink-0 text-suave" />
-                </span>
+                {(fonte.plataforma || fonte.cidade) && (
+                  <BolhaDeAjuda
+                    variante="inline"
+                    texto={
+                      <>
+                        {fonte.plataforma && <span className="block">Plataforma: {fonte.plataforma}</span>}
+                        {fonte.cidade && (
+                          <span className="block">
+                            {fonte.cidade}
+                            {fonte.uf ? ` (${fonte.uf})` : ""}
+                          </span>
+                        )}
+                      </>
+                    }
+                  />
+                )}
               </p>
 
               {somenteCatalogo ? (
@@ -592,6 +602,25 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
                   name="url"
                   defaultValue={fonte.dominio}
                   className="w-full rounded border border-borda bg-superficie px-2 py-1 font-mono text-sm"
+                />
+              </label>
+
+              <label className="w-40 text-xs">
+                <span className="mb-1 block text-suave">Cidade</span>
+                <input
+                  name="cidade"
+                  defaultValue={fonte.cidade ?? ""}
+                  className="w-full rounded border border-borda bg-superficie px-2 py-1 text-sm"
+                />
+              </label>
+
+              <label className="w-14 text-xs">
+                <span className="mb-1 block text-suave">UF</span>
+                <input
+                  name="uf"
+                  maxLength={2}
+                  defaultValue={fonte.uf ?? ""}
+                  className="w-full rounded border border-borda bg-superficie px-2 py-1 text-sm uppercase"
                 />
               </label>
 

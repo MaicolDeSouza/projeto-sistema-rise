@@ -167,6 +167,14 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   ou rolagem.
   **Nenhuma tela precisa mudar**: basta o texto ter `truncate`, inclusive numa **célula de tabela** (`<td className="truncate">`;
   a primeira versão ignorava `td`, e o dono pediu de novo ao ver a descrição e a Obs dos fornecedores sem abrir).
+- **Ícone de informação = `BolhaDeAjuda`, sempre** (padrão do projeto pedido pelo dono em 25/10/2026, ao ver o `Info`
+  cinza do lucide com `title` nativo ao lado do nome das fontes): o "i" azul desenhado de `src/components/ui/`, que
+  abre o texto **na hora** ao passar o mouse ou clicar (foco), nunca a dica lenta do `title`. Ao lado de texto ou
+  rótulo, `variante="inline"`; o `texto` aceita JSX (uma informação por linha com `<span className="block">`). Sem
+  nenhum dado para mostrar, o "i" some (regra 4). Botão que só usa o desenho de um "i" para outra ação (o "Instruções
+  desta fonte" de `ArquivosDaFonte`, que abre a anotação) não é dica e fica como está.
+  Primeiro uso: Fontes (`LinhaFonte`), com "Plataforma: Tray" e "Caxias do Sul (RS)" (`FonteColeta.cidade`/`uf`,
+  preenchidos na migration `20261025c_fonte_cidade_uf` pelo CNPJ de cada loja e editáveis no lápis da linha).
 - **Pop-up aberto: a tela de trás não rola** (pedido do dono em 23/10/2026, padrão do projeto). Duas peças globais:
   `TravaDaRolagem` (`src/components/ui/`, no `layout.jsx`) põe `overflow: hidden` no `<html>` enquanto houver janela
   `role="dialog"`/`"alertdialog"`/`aria-modal` dentro de um fundo `fixed inset-0` (agenda com `setTimeout`: o

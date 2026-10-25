@@ -113,6 +113,8 @@ export default async function FontesPage({ searchParams }) {
     // plataformasPorFonte): fonte sem produto ainda, ou cuja plataforma nao foi
     // catalogada, fica sem esta informacao — nunca um palpite.
     plataforma: plataformas.get(fonte.id)?.nome ?? null,
+    cidade: fonte.cidade,
+    uf: fonte.uf,
     ultimaVarreduraEm: fonte.ultimaVarreduraEm,
     proximaVarreduraEm: fonte.proximaVarreduraEm,
     varredura: varreduraPorFonte.get(fonte.id) ?? null,

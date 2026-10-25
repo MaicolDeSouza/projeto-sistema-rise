@@ -548,7 +548,7 @@ export async function salvarFonteComArquivos(dados) {
  * cadastro — robots.txt e duplicidade —, e nao por um caminho mais curto so
  * porque a fonte ja existe.
  */
-export async function editarFonte(id, { nome, url }) {
+export async function editarFonte(id, { nome, url, cidade, uf }) {
   const negado = await negarSemAcessos(["tela.scraper.fontes", "editar"]);
   if (negado) return negado;
   const fonte = await prisma.fonteColeta.findUnique({ where: { id } });
@@ -557,7 +557,11 @@ export async function editarFonte(id, { nome, url }) {
   const nomeLimpo = (nome ?? "").trim();
   if (!nomeLimpo) return { ok: false, erro: "Informe um nome para a fonte." };
 
-  const dados = { nome: nomeLimpo };
+  // Cidade e UF da bolha "i" (25/10/2026): vazio apaga; UF sempre em duas letras maiusculas.
+  const ufLimpa = (uf ?? "").trim().toUpperCase();
+  if (ufLimpa && !/^[A-Z]{2}$/.test(ufLimpa)) return { ok: false, erro: "UF com duas letras (ex.: RS)." };
+
+  const dados = { nome: nomeLimpo, cidade: (cidade ?? "").trim() || null, uf: ufLimpa || null };
 
   const urlLimpa = (url ?? "").trim();
   if (urlLimpa) {
