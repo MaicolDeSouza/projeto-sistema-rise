@@ -57,6 +57,7 @@
     "teste:proposta": "node scripts/teste-proposta.js",
     "teste:mcp": "node scripts/teste-mcp.js",
     "teste:telegram": "node scripts/teste-telegram.js",
+    "teste:saude": "node scripts/teste-saude.js",
     "acessos:admin": "node scripts/acessos-admin.js"
   },
   "dependencies": {

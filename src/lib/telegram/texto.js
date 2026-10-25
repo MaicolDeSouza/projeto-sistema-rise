@@ -59,6 +59,10 @@ const TIPOS = {
     linhas: [`Varredura falhou: ${trechoSeguro(fonteNome, 60)}`, trechoSeguro(erro)],
     caminho: "/mercados/fontes",
   }),
+  saudeDoRise: ({ rotulo, detalhe }) => ({
+    linhas: [`Saúde do Rise: ${trechoSeguro(rotulo, 60)}`, trechoSeguro(detalhe)],
+    caminho: "/configuracoes/saude",
+  }),
   resumoDoDia: ({ dia, consultas, anotadas, zerados, varreduras, ia }) => ({
     linhas: [
       `Resumo de ${dia}`,

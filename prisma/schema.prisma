@@ -1563,6 +1563,24 @@ model WorkerColeta {
   encerradoEm DateTime?
 }
 
+/// O ultimo resultado de cada rotina do worker normal (Saude do Rise, pedido do dono em 25/10/2026): uma linha por
+/// rotina (`id` = o nome dela, em src/lib/saude/regras.js), regravada a cada volta. E daqui que a tela Saude do Rise sabe
+/// se uma rotina parou de rodar ou esta falhando, sem ler o log do worker.
+model RotinaDoWorker {
+  id            String    @id
+  ultimaOkEm    DateTime?
+  ultimaFalhaEm DateTime?
+  ultimoErro    String?
+  /// Rodou, mas com falha parcial ("2 falha(s)"): a rotina segue de pe, e a tela mostra em amarelo.
+  aviso         String?
+  duracaoMs     Int?
+  /// De quanto em quanto tempo o worker a roda: sem `ultimaOkEm` em 3 intervalos, ela parou.
+  intervaloMs   Int?
+  /// Livre por rotina (a memoria do worker mora aqui, na linha "memoria").
+  dados         Json?
+  atualizadoEm  DateTime  @updatedAt
+}
+
 /// Auditoria de toda chamada a API externa. E o que torna possivel depurar
 /// uma rejeicao do Mercado Livre depois que ela aconteceu.
 model LogIntegracao {

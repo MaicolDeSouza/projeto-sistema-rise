@@ -59,6 +59,7 @@ const { ativarAnunciosAguardandoEstoque } = await import("../src/lib/canaisDeVen
 const { relerEstadosML } = await import("../src/lib/canaisDeVenda/ml/relerEstadoML.js");
 const { relerMonitorLI } = await import("../src/lib/canaisDeVenda/li/monitor.js");
 const { rodarAvisosDoTelegram, AVISOS_TELEGRAM_MS } = await import("../src/lib/telegram/avisos.js");
+const { registrarRotina, registrarMemoria } = await import("../src/lib/saude/registro.js");
 
 /// Os avisos do Telegram (Rise AI, Entrega C1): a cada minuto, so o worker normal. A rotina nao faz nada com o bot
 /// desligado, sem token ou sem ninguem vinculado, e nunca lanca.
@@ -193,6 +194,24 @@ const memoriaEmUso = () => {
 const logErro = (texto) => console.error(`[${hora()}] ${texto}`);
 const dormir = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 const mensagem = (erro) => String(erro?.message ?? erro);
+
+/**
+ * Roda uma rotina do worker normal e grava o resultado para a Saude do Rise (`RotinaDoWorker`). Quem lanca continua
+ * lancando (o `try` da volta trata, como antes); so passa por aqui o worker normal, porque o do PC grava no banco da VPS
+ * e nao pode se passar por ele.
+ */
+async function rodarRotina(id, intervaloMs, rotina) {
+  const inicio = Date.now();
+  let retorno;
+  try {
+    retorno = await rotina();
+  } catch (erro) {
+    await registrarRotina(id, { motivo: "erro", erro: mensagem(erro) }, { inicio, intervaloMs, agora: Date.now() });
+    throw erro;
+  }
+  await registrarRotina(id, retorno, { inicio, intervaloMs, agora: Date.now() });
+  return retorno;
+}
 
 // ---------------------------------------------------------------------------
 // Trava: um worker por vez
@@ -502,13 +521,18 @@ async function laco() {
       if (Date.now() - memoriaRegistradaEm >= REGISTRA_MEMORIA_MS) {
         memoriaRegistradaEm = Date.now();
         log(`memoria: ${memoriaEmUso()} · ${emCurso.size} varredura(s) em curso`);
+        if (!FONTES && !SO_NO_PC) {
+          const mb = (bytes) => Math.round(bytes / 1024 / 1024);
+          const { heapUsed, rss } = process.memoryUsage();
+          await registrarMemoria({ heapMb: mb(heapUsed), limiteMb: mb(v8.getHeapStatistics().heap_size_limit), rssMb: mb(rss) });
+        }
       }
       // Fora do `coletaPausada`: pausar a coleta nao pode custar a foto do mes. O
       // worker de teste (COLETA_FONTES) nao a tira, para nao gravar no banco de verdade. O do PC tambem nao: a foto
       // e do worker da VPS, que roda sempre.
       if (!FONTES && !SO_NO_PC && Date.now() - fotoConferidaEm >= CONFERE_FOTO_MS) {
         fotoConferidaEm = Date.now();
-        const foto = await tirarFotoMensal();
+        const foto = await rodarRotina("fotoMensal", CONFERE_FOTO_MS, () => tirarFotoMensal());
         if (foto.tirou) {
           log(`foto mensal ${foto.mes}: ${foto.coleta} produto(s) de fornecedor/concorrente, ${foto.produtos} da loja`);
         }
@@ -517,7 +541,11 @@ async function laco() {
       // gerar o PDF de uma rodada ja aberta nao.
       if (!FONTES && !SO_NO_PC && process.env.RELATORIO_SEMANAL !== "false" && Date.now() - rotinaSemanalConferidaEm >= CONFERE_ROTINA_SEMANAL_MS) {
         rotinaSemanalConferidaEm = Date.now();
-        const rotina = await conferirRotinaSemanal({ pausada: coletaPausada() });
+        const rotina = await rodarRotina("rotinaSemanal", CONFERE_ROTINA_SEMANAL_MS, async () => {
+          const resultado = await conferirRotinaSemanal({ pausada: coletaPausada() });
+          const falhou = (resultado.fechadas ?? []).find((fechada) => !fechada.ok);
+          return falhou ? { ...resultado, ok: false, erro: `relatório ${falhou.semana}: ${falhou.erro}` } : resultado;
+        });
         if (rotina.abertura?.aberta) log(`rodada semanal ${rotina.abertura.semana}: ${rotina.abertura.enfileiradas} de ${rotina.abertura.fontes} fonte(s) na fila`);
         for (const fechada of rotina.fechadas ?? []) log(`relatório semanal ${fechada.semana}: ${fechada.ok ? "gerado" : `falhou (${fechada.erro})`}`);
       }
@@ -525,14 +553,14 @@ async function laco() {
       // nao mexem na pasta de dados do site.
       if (!FONTES && !SO_NO_PC && Date.now() - temporariosLimposEm >= LIMPA_TEMPORARIOS_MS) {
         temporariosLimposEm = Date.now();
-        const apagados = await limparTemporariosAntigos();
+        const apagados = await rodarRotina("temporarios", LIMPA_TEMPORARIOS_MS, () => limparTemporariosAntigos());
         if (apagados > 0) log(`temporarios: ${apagados} pasta(s) de cadastro abandonado apagada(s)`);
       }
       // O estoque do Bling (fora do `coletaPausada`, como a foto): so o worker normal. O de teste e o do PC nao mexem nos
       // produtos do banco da VPS. `rodarSincronizacaoDeEstoque` nunca lanca e nao faz nada com o Bling desconectado.
       if (!FONTES && !SO_NO_PC && Date.now() - estoqueSincronizadoEm >= SINCRONIZA_ESTOQUE_MS) {
         estoqueSincronizadoEm = Date.now();
-        const estoque = await rodarSincronizacaoDeEstoque();
+        const estoque = await rodarRotina("estoqueBling", SINCRONIZA_ESTOQUE_MS, () => rodarSincronizacaoDeEstoque());
         if (estoque.rodou) log(`estoque do Bling: ${estoque.atualizados} atualizados, ${estoque.semCodigoNoBling} sem codigo, ${estoque.falhas} falhas`);
         else if (estoque.motivo === "erro") logErro(`estoque do Bling nao lido: ${estoque.erro}`);
         else log(`estoque do Bling nao lido: ${estoque.motivo}`);
@@ -540,7 +568,7 @@ async function laco() {
       // Os concorrentes do ML (fora do `coletaPausada`, como a foto): so o worker normal. `relerConcorrentesML` nunca lanca.
       if (!FONTES && !SO_NO_PC && Date.now() - concorrentesRelidosEm >= RELER_CONCORRENTES_ML_MS) {
         concorrentesRelidosEm = Date.now();
-        const rodada = await relerConcorrentesML();
+        const rodada = await rodarRotina("concorrentesML", RELER_CONCORRENTES_ML_MS, () => relerConcorrentesML());
         if (rodada.parou) logErro(`concorrentes do ML: rodada parada (${rodada.parou}); tenta de novo na proxima hora`);
         else if (rodada.rodou) log(`concorrentes do ML: ${rodada.produtos} produto(s), ${rodada.ok} ok, ${rodada.falhas} falha(s)`);
         else if (rodada.motivo === "erro") logErro(`concorrentes do ML nao lidos: ${rodada.erro}`);
@@ -548,28 +576,28 @@ async function laco() {
       // Anuncios do ML esperando estoque (fora do `coletaPausada`). `ativarAnunciosAguardandoEstoque` nunca lanca.
       if (!FONTES && !SO_NO_PC && Date.now() - aguardandoEstoqueEm >= ATIVA_AGUARDANDO_ESTOQUE_MS) {
         aguardandoEstoqueEm = Date.now();
-        const espera = await ativarAnunciosAguardandoEstoque();
+        const espera = await rodarRotina("aguardandoEstoque", ATIVA_AGUARDANDO_ESTOQUE_MS, () => ativarAnunciosAguardandoEstoque());
         if (espera.parou) logErro(`anuncios do ML sem estoque: rodada parada (${espera.parou}); tenta de novo na proxima hora`);
         else if (espera.conferidos) log(`anuncios do ML sem estoque: ${espera.conferidos} conferido(s), ${espera.ativados} ativado(s), ${espera.falhas} falha(s)`);
       }
       // O estado dos anuncios do Rise no ML (fora do `coletaPausada`). `relerEstadosML` nunca lanca.
       if (!FONTES && !SO_NO_PC && Date.now() - estadoMLRelidoEm >= RELER_ESTADO_ML_MS) {
         estadoMLRelidoEm = Date.now();
-        const estados = await relerEstadosML();
+        const estados = await rodarRotina("estadoML", RELER_ESTADO_ML_MS, () => relerEstadosML());
         if (estados.parou) logErro(`estado dos anuncios do ML: rodada parada (${estados.parou}); tenta de novo na proxima rodada`);
         else if (estados.conferidos) log(`estado dos anuncios do ML: ${estados.conferidos} conferido(s), ${estados.mudaram} mudaram, ${estados.falhas} falha(s)`);
       }
       // A Loja Integrada x Rise x Bling (fora do `coletaPausada`). `relerMonitorLI` nunca lanca.
       if (!FONTES && !SO_NO_PC && Date.now() - monitorLIRelidoEm >= RELER_MONITOR_LI_MS) {
         monitorLIRelidoEm = Date.now();
-        const loja = await relerMonitorLI();
+        const loja = await rodarRotina("monitorLI", RELER_MONITOR_LI_MS, () => relerMonitorLI());
         if (loja.parou) logErro(`loja integrada: rodada parada (${loja.parou}); tenta de novo na proxima rodada`);
         else if (loja.conferidos) log(`loja integrada: ${loja.conferidos} conferido(s), ${loja.mudaram} mudaram, ${loja.falhas} falha(s)`);
       }
       // Os avisos do Telegram (fora do `coletaPausada`: pausar a coleta nao cala os avisos). So o worker normal.
       if (!FONTES && !SO_NO_PC && Date.now() - avisosTelegramEm >= AVISOS_TELEGRAM_MS) {
         avisosTelegramEm = Date.now();
-        const avisos = await rodarAvisosDoTelegram();
+        const avisos = await rodarRotina("telegram", AVISOS_TELEGRAM_MS, () => rodarAvisosDoTelegram());
         if (avisos.mandados || avisos.falhas) log(`telegram: ${avisos.mandados} aviso(s) mandado(s), ${avisos.falhas} falha(s)`);
         else if (avisos.motivo === "erro") logErro("telegram: a rotina de avisos falhou (ver o log acima)");
       }

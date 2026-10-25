@@ -1,4 +1,4 @@
-import { Cable, Sparkles, UsersRound } from "lucide-react";
+import { Cable, HeartPulse, Sparkles, UsersRound } from "lucide-react";
 
 /**
  * Os cartoes da pagina Configuracoes (spec de Acessos, §5.2), no desenho de Ferramentas: o cartao inteiro e o link.
@@ -30,5 +30,13 @@ export const CARTOES_DE_CONFIGURACOES = [
     rotulo: "Rise AI",
     icone: Sparkles,
     resumo: "Modelos, chaves, limites e o texto do assistente.",
+  },
+  {
+    // So o Administrador: mostra as travas e o estado das conexoes da conta inteira (recurso nao delegavel).
+    href: "/configuracoes/saude",
+    recurso: "tela.configuracoes.usuarios",
+    rotulo: "Saúde do Rise",
+    icone: HeartPulse,
+    resumo: "Workers, banco, integrações e rotinas, com aviso no Telegram.",
   },
 ];

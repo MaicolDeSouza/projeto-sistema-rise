@@ -256,7 +256,7 @@ try {
     const { TIPOS_DE_AVISO, ROTULO_DO_AVISO } = await import("../src/lib/telegram/avisosTipos.js");
     const { estadoDoTelegram } = await import("../src/lib/telegram/estado.js");
     const padrao = configuracaoPadrao("pc");
-    conferir("padrao: bot desligado e todos os avisos marcados", padrao.telegram, { ligado: false, avisos: { resumoDoDia: true, produtoZerou: true, orcamento: true, varreduraPeloPc: true, varreduraFalhou: true } });
+    conferir("padrao: bot desligado e todos os avisos marcados", padrao.telegram, { ligado: false, avisos: { resumoDoDia: true, produtoZerou: true, orcamento: true, varreduraPeloPc: true, varreduraFalhou: true, saudeDoRise: true } });
     conferir("os tipos de aviso tem rotulo", TIPOS_DE_AVISO.every((tipo) => typeof ROTULO_DO_AVISO[tipo] === "string" && ROTULO_DO_AVISO[tipo].length > 5), true);
     conferir("zod recusa aviso que nao e booleano", validarConfiguracao({ ...padrao, telegram: { ligado: true, avisos: { ...padrao.telegram.avisos, orcamento: "sim" } } }).ok, false);
     conferir("zod aceita o padrao", validarConfiguracao(padrao).ok, true);
@@ -306,7 +306,8 @@ try {
     const soTeste = { filtrarDestinatarios: (lista) => lista.filter((d) => d.login.startsWith("zz-tg-")) };
     await gravarConfiguracao({ telegram: { ligado: false } }, { usuario: "zz-tg-admin" });
     conferir("bot desligado nao faz nada", (await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10"), ...soTeste })).motivo, "desligado");
-    await gravarConfiguracao({ telegram: { ligado: true, avisos: { resumoDoDia: true, produtoZerou: true, orcamento: true, varreduraPeloPc: true, varreduraFalhou: true } } }, { usuario: "zz-tg-admin" });
+    // A Saude do Rise fica desligada aqui: ela le o estado real do PC (disco, banco) e e testada em teste:saude.
+    await gravarConfiguracao({ telegram: { ligado: true, avisos: { resumoDoDia: true, produtoZerou: true, orcamento: true, varreduraPeloPc: true, varreduraFalhou: true, saudeDoRise: false } } }, { usuario: "zz-tg-admin" });
     await prisma.conexao.deleteMany({ where: { servico: "TELEGRAM" } });
     conferir("sem token nao faz nada", (await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10"), ...soTeste })).motivo, "sem-token");
     await salvarConexao("TELEGRAM", { segredo: { token: TOKEN }, status: "CONECTADO", conectadoEm: new Date() });

@@ -299,6 +299,7 @@ npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> 
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
 npm run teste:mcp                 # 232 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço e os cadastros): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
+npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 137 asserções da proposta automática de produto: regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
@@ -4408,6 +4409,45 @@ Maicol e Andrea (spec §13).
    …" com o botão **Abrir no Rise** (leva ao cadastro). Os produtos que já estavam zerados antes de ligar NÃO chegam.
 5. Às 20h chega o "Resumo de dd/mm" em 4 linhas. Desmarcar "Resumo do dia às 20h" e Salvar: no dia seguinte não chega.
 6. (Opcional) Criar um check de 5 min no healthchecks.io, pôr a URL em `HEALTHCHECKS_WORKER_URL` no `.env` da VPS e recriar o worker.
+
+## Saúde do Rise (25/10/2026)
+
+Pedido do dono: "um cartão em Configurações chamado Saúde do Rise; ali devem ser monitorados todos os workers, banco de dados,
+integrações e outros itens relevantes", com aviso no Telegram ("telegram agora") e o check "Site do Rise no ar" no
+healthchecks.io. **Pronto e testado no PC, SEM DEPLOY** (leva a migration `20261025b_rotina_do_worker`, só tabela nova).
+
+- **Tela** `/configuracoes/saude` (cartão "Saúde do Rise" em Configurações, com o detalhe vivo "Tudo certo" ou "1 em vermelho · 1
+  em amarelo"). **Só o Administrador** (recurso `tela.configuracoes.usuarios`, não delegável: mostra as travas e as conexões da
+  conta). Quatro grupos: Workers e rotinas, Banco e servidor, Integrações, IA e varreduras. Ponto verde/amarelo/vermelho por item
+  (cinza = sem dado ou não se aplica; azul = só informação), link para a tela do item. Botões **Atualizar** e **Testar integrações
+  agora** (o mesmo `testar()` de Integrações, só leitura, só nos conectores já conectados; grava em `Conexao` pelo `registrarTeste`).
+- **Regras puras** em `src/lib/saude/regras.js` (sem imports); leitura em `coletar.js` (só banco, disco e `.env`; nenhuma API; cada
+  parte que falha vira um item vermelho com o motivo); gravação em `registro.js`.
+- **Rotinas do worker:** cada rotina do worker NORMAL passa por `rodarRotina(id, intervaloMs, fn)` (`worker-processo.js`), que grava
+  em `RotinaDoWorker` a última volta boa, a última falha com o erro, o aviso de falha parcial ("2 falha(s)"), a duração e o
+  intervalo. Ids em `ROTINAS_DO_WORKER`: estoqueBling, estadoML, monitorLI, concorrentesML, aguardandoEstoque, telegram,
+  rotinaSemanal, fotoMensal, temporarios. Falhou na última volta = vermelho; sem volta boa em 2 intervalos = amarelo, em 3 =
+  vermelho. A memória do worker (heap contra o teto do V8) vai na linha "memoria" de hora em hora (amarelo > 80%, vermelho > 92%).
+  **O worker do PC não grava** (ele escreve no banco da VPS e não pode se passar pelo normal). No PC a tela mostra o worker e as
+  rotinas numa linha só ("só rodam na VPS").
+- **Outros itens:** worker vivo (`WorkerColeta.sinalEm`, vermelho sem sinal em 1 min), banco (latência medida depois de aquecer a
+  conexão e tamanho), disco de `dados/` (amarelo < 15% livre, vermelho < 10%), backup mais novo em `dados/backup` (na VPS: amarelo >
+  26 h, vermelho > 50 h; no PC só informação), batidas do healthchecks.io configuradas (só diz SE a URL existe, nunca o valor),
+  travas de escrita e versão (informação), Bling/ML/LI (obrigatórias: vermelho sem conexão, expirada, com erro ou com o último
+  teste falho; amarelo com 401/403 ou 429 nas últimas 24 h em `LogIntegracao`), Telegram e OpenAI (opcionais), orçamentos da IA,
+  varreduras (amarelo com falha em 24 h) e o Rise do PC (vermelho com pedido esperando e o PC sem responder).
+- **Telegram:** tipo novo `saudeDoRise` ("Saúde do Rise: item em vermelho", ligado de fábrica e para quem já salvou a aba Canais,
+  porque a configuração mescla por chave). A rotina dos avisos lê a saúde no máximo a cada 5 min e manda UM aviso por item
+  vermelho por dia de São Paulo (chave `saude:<item>:<dia>`), com o botão "Abrir no Rise" em `/configuracoes/saude`. Ficam de fora
+  o pedido do PC e os orçamentos (já têm aviso próprio).
+- **Site do Rise no ar:** `deploy/site-no-ar.sh`, no cron do host a cada 5 min (`deploy/crontab`, instalado pelo deploy): a mesma
+  conferência do fim do deploy (foto inexistente = 404, o app respondeu; `/produtos` sem login = 401, o login respondeu e continua
+  fechado) e a batida em `HEALTHCHECKS_SITE_URL` (`/fail` quando falha, com uma linha no `cron.log`). É o único aviso que chega com a
+  VPS inteira fora do ar.
+- **Teste:** `npm run teste:saude` (regras, gravação e a coleta nos modos PC e VPS; só escreve `zz-saude-*`). O `teste:telegram`
+  desliga o aviso da saúde no bloco da rotina (ela lê o estado real do PC).
+- **Visto na tela (PC, servidor de outra sessão):** a página, o cartão e o "Testar integrações agora" (Bling, ML e LI ok). **Não
+  visto:** a tela na VPS com as rotinas preenchidas, um aviso real no Telegram e a primeira batida do site.
 
 ## Servidor MCP (20/10/2026)
 

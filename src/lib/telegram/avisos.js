@@ -6,6 +6,7 @@ import { lerSegredo } from "@/lib/integracoes/conexoes";
 import { lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { ESCOPOS, estadoDoOrcamento, mesDeSaoPaulo } from "@/lib/riseAi/orcamento";
 import { limitesDoDia } from "@/lib/riseAi/revisao";
+import { coletarSaude, itensEmFalha } from "@/lib/saude/coletar";
 import { TIPOS_DE_AVISO } from "./avisosTipos";
 import { criarClienteTelegram } from "./cliente";
 import { SERVICO_TELEGRAM } from "./estado";
@@ -161,7 +162,24 @@ async function resumosDevidos({ agora, config }) {
   return [{ chave: `resumo:${dia}`, dados: await resumoDoDia({ agora, config }) }];
 }
 
+/// A Saude do Rise e lida no maximo a cada 5 min (le disco, banco e conexoes; a rotina roda a cada minuto). O que ficou
+/// vermelho vira um aviso por item e por dia de Sao Paulo: nada de repetir a cada volta enquanto o problema continua.
+const LER_SAUDE_MS = 5 * 60 * 1000;
+/// Itens que ja tem aviso proprio (pedido do PC esperando, orcamento da IA): sem eles, o mesmo fato chegaria duas vezes.
+const SAUDE_COM_AVISO_PROPRIO = new Set(["pc", "orcamento-CLIENTES", "orcamento-INTERNO"]);
+let saudeLidaEm = 0;
+
+async function saudeEmVermelho({ agora }) {
+  if (agora - saudeLidaEm < LER_SAUDE_MS) return [];
+  saudeLidaEm = agora;
+  const dia = hojeEmSaoPaulo(new Date(agora));
+  return itensEmFalha(await coletarSaude({ agora }))
+    .filter((item) => !SAUDE_COM_AVISO_PROPRIO.has(item.id))
+    .map((item) => ({ chave: `saude:${item.id}:${dia}`, dados: { rotulo: item.rotulo, detalhe: item.detalhe } }));
+}
+
 const CALCULO = {
+  saudeDoRise: saudeEmVermelho,
   resumoDoDia: resumosDevidos,
   produtoZerou: () => produtosZerados(),
   orcamento: orcamentosNoLimite,
@@ -181,6 +199,7 @@ function caminhoDoAviso(chave) {
   if (fato === "orcamento") return "/rise-ai/configuracoes";
   if (fato === "pc-esperando" || fato === "varredura-falhou") return "/mercados/fontes";
   if (fato === "resumo") return "/rise-ai/revisao";
+  if (fato === "saude") return "/configuracoes/saude";
   return null;
 }
 

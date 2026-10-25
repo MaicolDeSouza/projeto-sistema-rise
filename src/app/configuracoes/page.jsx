@@ -8,6 +8,8 @@ import { listarConexoes } from "@/lib/integracoes/conexoes";
 import { conectores } from "@/lib/integracoes/registro";
 import { lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { PROVEDORES } from "@/lib/riseAi/modelos";
+import { coletarSaude } from "@/lib/saude/coletar";
+import { resumoDaSaude } from "@/lib/saude/regras";
 
 export const metadata = { title: "Configurações | Sistema Rise" };
 // O detalhe de cada cartao e vivo (quantos usuarios, a situacao das conexoes): nada montado no build.
@@ -22,6 +24,7 @@ async function detalhe(href) {
     }
     if (href === "/integracoes") return detalheDeIntegracoes(conectores, await listarConexoes());
     if (href === "/rise-ai/configuracoes") return detalheDoRiseAi((await lerConfiguracao()).padrao, PROVEDORES);
+    if (href === "/configuracoes/saude") return resumoDaSaude((await coletarSaude()).grupos.flatMap((grupo) => grupo.itens));
   } catch (erro) {
     console.error(`[configuracoes] detalhe de ${href} não lido:`, erro?.message ?? erro);
   }
@@ -39,7 +42,7 @@ export default async function ConfiguracoesPage() {
 
   return (
     <>
-      <PageHeader titulo="Configurações" descricao="Usuários, integrações e o Rise AI." />
+      <PageHeader titulo="Configurações" descricao="Usuários, integrações, o Rise AI e a saúde do sistema." />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {cartoes.map((cartao, indice) => (

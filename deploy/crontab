@@ -17,3 +17,6 @@ MAILTO=""
 # Logins do Rise (Configuracoes › Usuarios › Entrada no Rise): reinicia o Tinyauth quando o arquivo deles muda. Quieto
 # quando nada mudou; uma linha no log quando aplica ou quando recusa um arquivo fora do formato.
 * * * * *  cd /srv/rise/app && ./deploy/aplicar-logins.sh >> /home/rise/logs/cron.log 2>&1
+# Saude do Rise: o site responde de fora (app e login), com batida no healthchecks.io (HEALTHCHECKS_SITE_URL). Quieto
+# quando esta tudo certo.
+*/5 * * * * cd /srv/rise/app && ./deploy/site-no-ar.sh >> /home/rise/logs/cron.log 2>&1
