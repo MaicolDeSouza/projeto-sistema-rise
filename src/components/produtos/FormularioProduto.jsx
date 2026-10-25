@@ -71,6 +71,8 @@ import PropostaNoTopo, { DocumentosDaProposta, OlhoDaProposta } from "./QuadroDa
 import { listaComParametros, lerUltimaLista } from "@/lib/ultimaListaDeProdutos";
 import { propostaNoFormulario } from "@/lib/proposta/aplicar";
 import { useRascunhoAutomatico } from "./useRascunhoAutomatico";
+import CategoriasDaLoja from "./CategoriasDaLoja";
+import SeoDaLoja from "./SeoDaLoja";
 import { chaveDoRascunho } from "@/lib/rascunhoDoCadastro";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import ReferenciasDeMercado, { MAXIMO_MARCADOS } from "./ReferenciasDeMercado";
@@ -111,6 +113,9 @@ const ABAS = [
   { id: "documentos", rotulo: "Documentos técnicos" },
   { id: "dimensoes", rotulo: "Peso e dimensões" },
   { id: "tributacao", rotulo: "Tributação" },
+  // Categorias e SEO da Loja Integrada, DO PRODUTO (pedido do dono em 25/10/2026): as duas ultimas abas, ao lado de Tributacao.
+  { id: "categorias", rotulo: "Categorias" },
+  { id: "seo", rotulo: "SEO" },
 ];
 
 /**
@@ -4149,6 +4154,24 @@ export default function FormularioProduto({
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Categorias e SEO da Loja Integrada: do produto (25/10/2026). Montadas e so escondidas como as outras abas, para o
+                Salvar levar os campos; a arvore da loja so e lida na primeira vez que a aba abre. */}
+            <div className={aba === "categorias" ? "" : "hidden"}>
+              <CategoriasDaLoja inicial={v("categoriasLI")} lerCampo={valorDoCampo} aoAlterar={() => marcarAlterado()} ativo={aba === "categorias"} acessos={{ ia: acessos.ia }} />
+            </div>
+
+            <div className={aba === "seo" ? "" : "hidden"}>
+              <SeoDaLoja
+                produtoId={produto?.id ?? null}
+                inicialTitulo={v("seoTituloLI")}
+                inicialDescricao={v("seoDescricaoLI")}
+                lerCampo={valorDoCampo}
+                aoAlterar={() => marcarAlterado()}
+                ativo={aba === "seo"}
+                acessos={{ concorrentes: acessos.concorrentes, ia: acessos.ia }}
+              />
             </div>
 
             <div className={aba === "fornecedores" ? "space-y-5" : "hidden"}>

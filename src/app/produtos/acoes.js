@@ -37,6 +37,7 @@ import { modeloDaDescricao } from "@/lib/ia/modelosDaDescricao";
 import * as bibliotecaDePrompts from "@/lib/ia/promptsDescricao";
 import { normalizar } from "@/lib/texto";
 import { problemaDoEanInterno } from "@/lib/eanInterno";
+import { LIMITES_LI } from "@/lib/canaisDeVenda/li/esquema";
 import { descartarLote } from "@/lib/imagens/lote";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { reconciliarImagensDoProduto } from "@/lib/imagens/produto";
@@ -463,6 +464,23 @@ const ProdutoSchema = z.object({
   cest: opcional(z.string().trim()),
   spedTipoItem: opcional(z.string().trim()),
   percentualTributos: decimal(),
+
+  // Categorias e SEO da Loja Integrada, DO PRODUTO (pedido do dono em 25/10/2026). Campo AUSENTE nao grava nada (o `.optional()`
+  // deixa `undefined`, que o Prisma ignora): formulario antigo ou sem acesso a aba nunca apaga o que esta gravado. As categorias
+  // chegam como JSON (campo oculto da aba); texto que nao e JSON de ids e recusado, nunca vira lista vazia em silencio.
+  categoriasLI: z
+    .preprocess((valor) => {
+      if (valor === undefined) return undefined;
+      if (typeof valor !== "string") return valor;
+      try {
+        return JSON.parse(valor);
+      } catch {
+        return null;
+      }
+    }, z.array(z.string().trim().min(1).max(LIMITES_LI.idDeCategoria), { message: "Revise as categorias da loja: a lista veio num formato inválido." }).max(LIMITES_LI.categorias, `Marque no máximo ${LIMITES_LI.categorias} categorias da loja.`).optional())
+    .transform((lista) => (lista ? [...new Set(lista)] : lista)),
+  seoTituloLI: z.preprocess((valor) => (valor === "" ? null : valor), z.string().trim().max(LIMITES_LI.seoTitulo, "O Tag Title está longo demais.").nullable().optional()),
+  seoDescricaoLI: z.preprocess((valor) => (valor === "" ? null : valor), z.string().trim().max(LIMITES_LI.seoDescription, "A Meta Description está longa demais.").nullable().optional()),
 });
 
 function errosPorCampo(resultado) {
@@ -714,7 +732,10 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
   });
 
   if (!resultado.success) {
-    return { ok: false, erros: errosPorCampo(resultado) };
+    const erros = errosPorCampo(resultado);
+    // Categorias e SEO moram nas ultimas abas: o recado vai tambem ao lado do Salvar, porque o dono pode nao estar nelas.
+    const emAbaEscondida = erros.categoriasLI ?? erros.seoTituloLI ?? erros.seoDescricaoLI;
+    return { ok: false, erros, ...(emAbaEscondida ? { erro: emAbaEscondida } : {}) };
   }
 
   const dados = resultado.data;

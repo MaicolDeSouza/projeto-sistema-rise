@@ -76,6 +76,10 @@ export async function carregarProdutoParaFormulario(id) {
       : "",
     numeroHomologacao: registro.numeroHomologacao,
     videoUrl: registro.videoUrl,
+    // Categorias e SEO da Loja Integrada, DO PRODUTO (pedido do dono em 25/10/2026): as duas ultimas abas do cadastro.
+    categoriasLI: registro.categoriasLI ?? [],
+    seoTituloLI: registro.seoTituloLI ?? "",
+    seoDescricaoLI: registro.seoDescricaoLI ?? "",
     // Fornecedor extraido do Bling na importacao — so RASCUNHO, ate o operador
     // salvar o produto (ver FormularioProduto e salvarProduto).
     fornecedorRascunho: registro.fornecedorRascunho ?? null,
@@ -232,6 +236,8 @@ export function projetarParaAcessos(dados, acessos) {
  * - Ficam de fora a localizacao e o link da Loja Integrada, que sao daquela peca (a mesma regra do
  *   "Clonar a partir de um codigo"). Estoque, Conferido, vinculos com o Bling e anuncios nem estao no
  *   formulario: o clone nasce sem eles.
+ * - As categorias da loja vao com o clone; o SEO (Tag Title e Meta Description) NAO (25/10/2026): texto de SEO repetido
+ *   entre dois produtos atrapalha no Google, e o do clone tem de ser escrito para ele.
  * - **Ids novos** nas linhas de fornecedor e concorrente: o id do vinculo do original nao pode chegar ao
  *   Salvar do clone (o concorrente digitado a mao e reconhecido pelo id).
  */
@@ -271,7 +277,7 @@ export function dadosParaClone({ produto, fornecedores, concorrentes }) {
 
   return {
     origem: { id, sku: produto.sku, titulo: produto.tituloBase },
-    campos: { ...campos, sku: "", localizacao: "", urlLojaIntegrada: "" },
+    campos: { ...campos, sku: "", localizacao: "", urlLojaIntegrada: "", seoTituloLI: "", seoDescricaoLI: "" },
     tipo,
     composicao,
     fornecedores: listaDeFornecedores.map((item, posicao) => ({ ...item, id: `clone-fornecedor-${posicao}` })),

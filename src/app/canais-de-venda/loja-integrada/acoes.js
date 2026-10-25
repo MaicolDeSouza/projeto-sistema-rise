@@ -10,9 +10,6 @@ import { clienteBling } from "@/lib/blingSync/cliente";
 import { ligarNoBlingLI, vinculoBlingNaLI } from "@/lib/canaisDeVenda/li/blingLoja";
 import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
 import { listarCategoriasDaLI, listarMarcasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
-import { seoDosConcorrentes } from "@/lib/canaisDeVenda/li/seoConcorrentes";
-import { gerarDescriptionsSeo, sugerirCategoriasIA } from "@/lib/ia/anuncio";
-import { novoGasto, resumoDoGasto } from "@/lib/ia/gasto";
 
 /**
  * Acoes do servidor do canal Loja Integrada (Canais de Venda): o editor do anuncio e
@@ -119,56 +116,6 @@ export async function ligarNoBlingDaLI(produtoId) {
   } catch (erro) {
     console.error("[loja integrada] ligar no Bling", erro);
     return { ok: false, erro: "A resposta se perdeu. O Bling pode ter gravado o vínculo: confira no Bling antes de tentar de novo." };
-  }
-}
-
-/** O SEO (title e description) dos concorrentes salvos no produto, para comparar na aba SEO. */
-export async function seoConcorrentesLI(produtoId) {
-  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "ver"], ["dado.concorrentes", "ver"]);
-  if (negado) return negado;
-  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
-  return protegendo(async () => ({ ok: true, concorrentes: await seoDosConcorrentes(produtoId) }));
-}
-
-/**
- * Tres opcoes de meta description pela IA (Anthropic, como os titulos do cadastro). O texto do
- * produto e o SEO dos concorrentes sao lidos aqui, do banco; do navegador vem so o nome que esta na
- * tela (pode nao estar salvo ainda), conferido no tamanho.
- */
-export async function gerarSeoIALI(produtoId, titulo) {
-  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "editar"], ["acao.produtos.gerarTextoComIA", "executar"]);
-  if (negado) return negado;
-  if (!ehId(produtoId) || typeof titulo !== "string" || titulo.length > 255) return PEDIDO_INVALIDO;
-  // O gasto volta tambem no erro: a chamada que falhou no meio ja foi cobrada.
-  const gasto = novoGasto();
-  try {
-    const [produto, concorrentes] = await Promise.all([contextoDoProduto(produtoId), seoDosConcorrentes(produtoId)]);
-    if (!produto) return { ok: false, erro: "Produto não encontrado." };
-    const opcoes = await gerarDescriptionsSeo({ titulo: titulo.trim() || produto.tituloBase, descricao: produto.descricaoBase ?? "", concorrentes, gasto });
-    return { ok: true, opcoes, gasto: resumoDoGasto(gasto) };
-  } catch (erro) {
-    console.error("[loja integrada] seo com IA", erro);
-    return { ok: false, erro: erro.message || "Não foi possível gerar com a IA. Tente de novo.", gasto: resumoDoGasto(gasto) };
-  }
-}
-
-/**
- * Categoria pela IA (pedido do dono em 07/10/2026): le a arvore ao vivo da loja e o produto do banco; do
- * navegador vem so o nome que esta na tela. Devolve as sugestoes; quem marca e a tela, no "Marcar estas".
- */
-export async function sugerirCategoriasLI(produtoId, titulo) {
-  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "editar"], ["acao.produtos.gerarTextoComIA", "executar"]);
-  if (negado) return negado;
-  if (!ehId(produtoId) || typeof titulo !== "string" || titulo.length > 255) return PEDIDO_INVALIDO;
-  const gasto = novoGasto();
-  try {
-    const [produto, categorias] = await Promise.all([contextoDoProduto(produtoId), listarCategoriasDaLI(clienteLI())]);
-    if (!produto) return { ok: false, erro: "Produto não encontrado." };
-    const sugestoes = await sugerirCategoriasIA({ titulo: titulo.trim() || produto.tituloBase, marca: produto.marca ?? "", descricao: produto.descricaoBase ?? "", categorias, gasto });
-    return { ok: true, sugestoes, gasto: resumoDoGasto(gasto) };
-  } catch (erro) {
-    console.error("[loja integrada] categoria com IA", erro);
-    return { ok: false, erro: erro.message || "Não foi possível sugerir com a IA. Tente de novo.", gasto: resumoDoGasto(gasto) };
   }
 }
 
