@@ -1070,6 +1070,24 @@ try {
     li.mudarProduto(cadFiscal.idExterno, { icms_origin_code: "0" });
     await relerMonitorLI({ cliente: li, agora: new Date("2026-10-25T18:00:00Z"), anuncioIds: [anFiscal.id], espera: 0 });
     conferir("fiscal: corrigido no painel, a releitura apaga", (await iconeFiscal()).alertaNaLoja, false);
+
+    // "Ja ajustei no painel" (25/10/2026): tira o "!" na hora; a leitura do editor respeita; a do worker traz de volta se a
+    // loja continuar vazia.
+    const { confirmarAjusteFiscalLI, guardarLeituraNoMonitorLI } = await import("../src/lib/canaisDeVenda/li/monitor.js");
+    const rodarFiscal = (hora) => relerMonitorLI({ cliente: li, agora: new Date(hora), anuncioIds: [anFiscal.id], espera: 0 });
+    conferir("confirmar: sem aviso fiscal acesso, nao muda nada", await confirmarAjusteFiscalLI(fiscal.id), { ok: true, mudou: false });
+    li.mudarProduto(cadFiscal.idExterno, { icms_origin_code: null });
+    await rodarFiscal("2026-10-25T19:00:00Z");
+    conferir("confirmar: origem vazia na loja, '!' aceso", (await iconeFiscal()).alertaNaLoja, true);
+    conferir("confirmar: o botao registra", await confirmarAjusteFiscalLI(fiscal.id, { agora: new Date("2026-10-25T19:05:00Z") }), { ok: true, mudou: true });
+    conferir("confirmar: o '!' sai na hora", (await iconeFiscal()).alertaNaLoja, false);
+    await guardarLeituraNoMonitorLI(fiscal.id, await lerParaPopupLI(fiscal.id, li));
+    conferir("confirmar: a leitura do editor respeita a confirmacao", (await iconeFiscal()).alertaNaLoja, false);
+    await rodarFiscal("2026-10-25T20:00:00Z");
+    const volta = await iconeFiscal();
+    conferir("confirmar: o worker le a loja, ainda vazia, e o '!' volta", [volta.alertaNaLoja, texto(volta)], [true, "fiscal na loja: Origem (NF-e) sem valor (ajuste no painel da LI)"]);
+    conferir("confirmar: a confirmacao some quando o worker grava", (await prisma.anuncio.findUnique({ where: { id: anFiscal.id }, select: { dados: true } })).dados.monitorLI.fiscaisConfirmadosEm ?? null, null);
+    conferir("confirmar: produto sem anuncio publicado e recusado", (await confirmarAjusteFiscalLI("inexistente")).ok, false);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { CircleCheck, ExternalLink, Loader, X } from "lucide-react";
 
 import { abrirAnuncioLI, listarCategoriasLI, listarMarcasLI, salvarAnuncioLI, vinculoBlingLI } from "@/app/canais-de-venda/loja-integrada/acoes";
-import { abrirJanelaLI, cadastrarProdutoNaLI, completarCadastroNaLI, sincronizarComLI } from "@/app/produtos/acoes-li";
+import { abrirJanelaLI, cadastrarProdutoNaLI, completarCadastroNaLI, confirmarAjusteFiscalNaLI, sincronizarComLI } from "@/app/produtos/acoes-li";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
@@ -472,7 +472,9 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     <div inert={travado || somenteLeitura} aria-busy={travado} className={travado ? "opacity-70" : undefined}>
       {divergencias > 0 && (
         <Painel id="divergencias" aba={abaVisivel}>
-          <AbaDivergencias leitura={leitura} lerLoja={lerLoja} lendo={lendo} linkDoPainel={linkDoPainelLI(leitura?.idExterno ?? vinculoAtual?.idExterno)} />
+          <AbaDivergencias leitura={leitura} lerLoja={lerLoja} lendo={lendo} linkDoPainel={linkDoPainelLI(leitura?.idExterno ?? vinculoAtual?.idExterno)}
+            aoConfirmarAjuste={acessos.editar ? () => chamar(confirmarAjusteFiscalNaLI, produtoId) : null}
+          />
         </Painel>
       )}
       {ABAS_LI.map(({ id }) => {

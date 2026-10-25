@@ -4167,6 +4167,11 @@ existirá mais a proposta para a LI, pois tudo será feito na proposta do produt
   `resumoDasDivergenciasLI` (`li/apresentacao.js`); a aba diz "N ajuste(s) só no painel da LI" e traz o link do painel. O motivo
   "estoque diferente do Bling" continua só no ícone (precisa de 2 leituras do worker). Não visto na tela com o caso do 100110
   (o PC é cópia e esse produto está diferente lá): só nas regras puras.
+  **Botão "Já ajustei no painel"** (pedido do dono no mesmo dia, para não esperar a rodada): aparece na aba quando há origem ou tipo
+  de produção vazios ou diferentes; tira o "!" na hora SEM ler a loja (`confirmarAjusteFiscalLI`, grava
+  `monitorLI.fiscais = []` e `fiscaisConfirmadosEm`; ação `confirmarAjusteFiscalNaLI`, precisa editar a tela da LI). A leitura do
+  editor respeita a confirmação (`manterConfirmacao`); a rodada do worker a descarta e grava os avisos de verdade, então o "!"
+  volta se a loja ainda estiver vazia ou diferente. Só os avisos fiscais; inativo e campos diferentes não têm o botão.
 - **Visto na tela (PC, ZZ-TESTE-BLING):** ordem das abas, árvore ao vivo (113 caixas), marcar e Salvar gravou `categoriasLI`, os
   valores migrados do SEO aparecendo. **Não visto na tela:** a marca PROPOSTA nas duas abas e a faixa "Usar a proposta" (só
   testadas nas regras puras), a IA das duas abas (paga) e o Salvar recusando 21 categorias.

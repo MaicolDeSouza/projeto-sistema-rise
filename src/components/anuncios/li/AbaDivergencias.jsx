@@ -1,6 +1,7 @@
 "use client";
 
-import { ExternalLink, Loader, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { Check, ExternalLink, Loader, RefreshCw } from "lucide-react";
 
 import { resumoDasDivergenciasLI, valorParaTela } from "@/lib/canaisDeVenda/li/apresentacao";
 
@@ -46,7 +47,14 @@ function LinhaDeDiferenca({ item }) {
   );
 }
 
-export default function AbaDivergencias({ leitura, lerLoja, lendo, linkDoPainel = null }) {
+export default function AbaDivergencias({ leitura, lerLoja, lendo, linkDoPainel = null, aoConfirmarAjuste = null }) {
+  // "Já ajustei no painel": o "!" do ícone sai agora; o worker confere na próxima rodada e o traz de volta se não foi.
+  const [confirmacao, setConfirmacao] = useState({ estado: "parado", erro: null });
+  async function confirmarAjuste() {
+    setConfirmacao({ estado: "enviando", erro: null });
+    const resultado = await aoConfirmarAjuste();
+    setConfirmacao(resultado?.ok ? { estado: "feito", erro: null } : { estado: "parado", erro: resultado?.erro ?? "Não foi possível registrar." });
+  }
   const diferencas = leitura?.diferencas ?? [];
   const avisos = leitura?.avisos ?? [];
   const iguais = leitura?.iguais ?? 0;
@@ -108,11 +116,29 @@ export default function AbaDivergencias({ leitura, lerLoja, lendo, linkDoPainel 
           ))}
         </ul>
       )}
-      {soNoPainel > 0 && linkDoPainel && (
-        <a href={linkDoPainel} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-xs text-acento hover:bg-fundo">
-          Abrir no painel da LI
-          <ExternalLink size={13} />
-        </a>
+      {soNoPainel > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {linkDoPainel && (
+            <a href={linkDoPainel} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-xs text-acento hover:bg-fundo">
+              Abrir no painel da LI
+              <ExternalLink size={13} />
+            </a>
+          )}
+          {fiscais > 0 && aoConfirmarAjuste && (
+            <button
+              type="button"
+              onClick={confirmarAjuste}
+              disabled={confirmacao.estado !== "parado"}
+              title="Tira o ! do ícone agora. O Rise confere a loja na próxima rodada e o ! volta se a origem ou o tipo de produção continuarem vazios ou diferentes."
+              className="inline-flex items-center gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {confirmacao.estado === "enviando" ? <Loader size={13} className="animate-spin" /> : <Check size={13} />}
+              {confirmacao.estado === "feito" ? "Registrado" : "Já ajustei no painel"}
+            </button>
+          )}
+          {confirmacao.estado === "feito" && <span className="text-xs text-suave">O ! saiu do ícone. O Rise confere a loja na próxima rodada.</span>}
+          {confirmacao.erro && <span className="text-xs text-red-700">{confirmacao.erro}</span>}
+        </div>
       )}
     </div>
   );

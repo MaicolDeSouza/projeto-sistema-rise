@@ -8,7 +8,7 @@ import { mudouNaLI } from "@/lib/canaisDeVenda/li/apresentacao";
 import { cadastrarNaLI, completarCadastroLI, sincronizarProdutoLI } from "@/lib/canaisDeVenda/li/envio";
 import { produtoIdValido } from "@/lib/canaisDeVenda/li/estado";
 import { lerParaPopupLI } from "@/lib/canaisDeVenda/li/leitura";
-import { guardarLeituraNoMonitorLI } from "@/lib/canaisDeVenda/li/monitor";
+import { confirmarAjusteFiscalLI, guardarLeituraNoMonitorLI } from "@/lib/canaisDeVenda/li/monitor";
 
 /**
  * Acoes do editor da Loja Integrada (aberto pelo icone da lista de Produtos): ler a loja, Sincronizar e Cadastrar. Finas, no molde de `acoes-bling.js`: a regra,
@@ -54,6 +54,21 @@ export async function abrirJanelaLI(produtoId) {
     // A leitura do editor atualiza o monitor do worker (25/10/2026): resolvido aqui, o "!" da loja apaga na hora.
     const monitorMudou = await guardarLeituraNoMonitorLI(produtoId, resultado);
     return revalidando(resultado, resultado.vinculadoAgora === true || monitorMudou);
+  });
+}
+
+/**
+ * "Já ajustei no painel" (25/10/2026): origem e tipo de producao so se corrigem no painel da LI, e o "!" so sairia na proxima
+ * rodada do worker. O dono confirma e o "!" sai agora; a proxima leitura do worker o traz de volta se a loja continuar assim.
+ * Nao le nem escreve na loja: so o monitor do Rise.
+ */
+export async function confirmarAjusteFiscalNaLI(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.lojaIntegrada", "editar"]);
+  if (negado) return negado;
+  if (!produtoIdValido(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo("Não foi possível registrar. Tente de novo.", async () => {
+    const resultado = await confirmarAjusteFiscalLI(produtoId);
+    return revalidando(resultado, resultado.ok && resultado.mudou);
   });
 }
 
