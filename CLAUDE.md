@@ -3403,9 +3403,14 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   texto do "!" desses dois saía vazio.
 
 **Loja Integrada vigiada pelo worker e estoque comparado com o Bling (25/10/2026, pedido do dono, Opção 1):**
-- **Mesmo worker, rotinas separadas** (decisão do dono): `relerEstadosML` (ML) e `relerMonitorLI` (`li/monitor.js`,
-  `RELER_MONITOR_LI_MS`, de hora em hora), cada uma com o seu relógio e o seu log; uma falha não para a outra. Um worker só
-  evita dois processos renovando o mesmo token (o refresh é de uso único).
+- **Mesmo worker, rotinas separadas** (decisão do dono): `relerEstadosML` (ML) e `relerMonitorLI` (`li/monitor.js`),
+  cada uma com o seu relógio e o seu log; uma falha não para a outra. Um worker só evita dois processos renovando o mesmo
+  token (o refresh é de uso único).
+- **Intervalo: 15 min** (pedido do dono em 25/10/2026, enquanto há poucos produtos; se pesar, volta a 60): o estoque do
+  Bling, o estado no ML e a LI usam o mesmo `INTERVALO_DOS_CANAIS_MS` (`worker-processo.js`), e rodam nessa ordem na volta,
+  para a comparação usar um saldo do Bling de segundos antes (com o Bling de hora em hora, uma venda acenderia o "!" à toa).
+  `MONITOR_CANAIS_MINUTOS` no `.env` (5 a 1440, padrão 15) muda sem deploy; reiniciar o worker. Os comentários de
+  "de hora em hora" acima valem como "a cada rodada".
 - **Monitor da LI:** todo anúncio LOJA_INTEGRADA PUBLICADO com `idExterno` e produto Conferido é lido pela MESMA leitura da
   aba Divergências (`lerParaPopupLI`, 6 a 8 GET por produto, 2 s entre produtos; o limite de chamadas ou o token param a
   rodada). Grava `dados.monitorLI = { situacao, ativo, diferentes: [rótulos "diferente" + "Fotos"], estoque, estoqueBling,

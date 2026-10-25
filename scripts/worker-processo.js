@@ -77,13 +77,23 @@ let concorrentesRelidosEm = 0;
 /// ja mostra estoque (Opcao 2 do dono em 24/10/2026). Escreve no ML (passa pelas travas). So o worker normal.
 const ATIVA_AGUARDANDO_ESTOQUE_MS = 60 * 60 * 1000;
 let aguardandoEstoqueEm = 0;
-/// O estado no ML (pausado, em revisao, inativo...) dos anuncios que o Rise publicou: relido de hora em hora (opcao 1 do
+/// O intervalo dos canais (pedido do dono em 25/10/2026: 15 min enquanto ha poucos produtos; se pesar, volta a 60): o
+/// estoque do Bling, o estado no ML e a Loja Integrada rodam juntos, nesta ordem, para o ML e a LI serem comparados com um
+/// saldo do Bling de segundos antes (com o Bling de hora em hora, uma venda acenderia o "!" de estoque a toa).
+/// `MONITOR_CANAIS_MINUTOS` no .env muda sem deploy (de 5 a 1440; fora disso, 15); reiniciar o worker.
+const MINUTOS_DOS_CANAIS = (() => {
+  const minutos = Number.parseInt(process.env.MONITOR_CANAIS_MINUTOS ?? "", 10);
+  return Number.isFinite(minutos) && minutos >= 5 && minutos <= 1440 ? minutos : 15;
+})();
+const INTERVALO_DOS_CANAIS_MS = MINUTOS_DOS_CANAIS * 60 * 1000;
+
+/// O estado no ML (pausado, em revisao, inativo...) dos anuncios que o Rise publicou: relido a cada INTERVALO_DOS_CANAIS_MS (opcao 1 do
 /// dono em 24/10/2026; os 1.007 antigos da conta ficam de fora). So LEITURA do ML. So o worker normal.
-const RELER_ESTADO_ML_MS = 60 * 60 * 1000;
+const RELER_ESTADO_ML_MS = INTERVALO_DOS_CANAIS_MS;
 let estadoMLRelidoEm = 0;
-/// A Loja Integrada comparada com o Rise e o estoque com o Bling (opcao 1 do dono em 25/10/2026): de hora em hora, uma
+/// A Loja Integrada comparada com o Rise e o estoque com o Bling (opcao 1 do dono em 25/10/2026): a cada INTERVALO_DOS_CANAIS_MS, uma
 /// rotina separada da do ML (se uma falha, a outra segue). So LEITURA da LI. So o worker normal.
-const RELER_MONITOR_LI_MS = 60 * 60 * 1000;
+const RELER_MONITOR_LI_MS = INTERVALO_DOS_CANAIS_MS;
 let monitorLIRelidoEm = 0;
 
 /// A rodada semanal (todo sabado 00:00, horario de Sao Paulo) e o relatorio dela: conferida a cada minuto, o que e barato
@@ -108,9 +118,9 @@ const LIMPA_TEMPORARIOS_MS = 60 * 60 * 1000;
 let temporariosLimposEm = 0;
 
 /// De quanto em quanto tempo o worker le o estoque do Bling e o grava no Rise (pedido do dono em 11/10/2026, para o Rise AI
-/// responder estoque com um numero de no maximo uma hora). So LEITURA do Bling; `ESTOQUE_AUTOMATICO_BLING=false` desliga.
-/// A primeira volta ja le (`0`): um deploy ou um reinicio nao deixa o numero velho por mais uma hora.
-const SINCRONIZA_ESTOQUE_MS = 60 * 60 * 1000;
+/// responder estoque com um numero recente). So LEITURA do Bling; `ESTOQUE_AUTOMATICO_BLING=false` desliga.
+/// A primeira volta ja le (`0`): um deploy ou um reinicio nao deixa o numero velho.
+const SINCRONIZA_ESTOQUE_MS = INTERVALO_DOS_CANAIS_MS;
 let estoqueSincronizadoEm = 0;
 
 /// Codigo de saida quando ja ha outro worker no ar. O supervisor nao religa.
@@ -546,14 +556,14 @@ async function laco() {
       if (!FONTES && !SO_NO_PC && Date.now() - estadoMLRelidoEm >= RELER_ESTADO_ML_MS) {
         estadoMLRelidoEm = Date.now();
         const estados = await relerEstadosML();
-        if (estados.parou) logErro(`estado dos anuncios do ML: rodada parada (${estados.parou}); tenta de novo na proxima hora`);
+        if (estados.parou) logErro(`estado dos anuncios do ML: rodada parada (${estados.parou}); tenta de novo na proxima rodada`);
         else if (estados.conferidos) log(`estado dos anuncios do ML: ${estados.conferidos} conferido(s), ${estados.mudaram} mudaram, ${estados.falhas} falha(s)`);
       }
       // A Loja Integrada x Rise x Bling (fora do `coletaPausada`). `relerMonitorLI` nunca lanca.
       if (!FONTES && !SO_NO_PC && Date.now() - monitorLIRelidoEm >= RELER_MONITOR_LI_MS) {
         monitorLIRelidoEm = Date.now();
         const loja = await relerMonitorLI();
-        if (loja.parou) logErro(`loja integrada: rodada parada (${loja.parou}); tenta de novo na proxima hora`);
+        if (loja.parou) logErro(`loja integrada: rodada parada (${loja.parou}); tenta de novo na proxima rodada`);
         else if (loja.conferidos) log(`loja integrada: ${loja.conferidos} conferido(s), ${loja.mudaram} mudaram, ${loja.falhas} falha(s)`);
       }
       // Os avisos do Telegram (fora do `coletaPausada`: pausar a coleta nao cala os avisos). So o worker normal.
