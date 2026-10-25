@@ -178,6 +178,13 @@ model Produto {
   /// deduzi-las a partir do id que o Bling devolve.
   urlLojaIntegrada String?
 
+  /// Categorias do produto na Loja Integrada (ids da arvore da loja) e o SEO do site (Tag Title e Meta Description).
+  /// Sao DO PRODUTO, e nao do anuncio da LI (pedido do dono em 25/10/2026): editam-se so no cadastro, e a LI le daqui.
+  /// A proposta de produto os preenche. Antes moravam em `Anuncio.dados` (a migration copiou).
+  categoriasLI   String[] @default([])
+  seoTituloLI    String?
+  seoDescricaoLI String?
+
   /// Estoque desejado da loja (nao do fornecedor): o item tem um saldo so.
   estoqueMinimo Int?
   estoqueMaximo Int?
