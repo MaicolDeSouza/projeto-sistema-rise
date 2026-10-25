@@ -6,9 +6,9 @@ PARÁGRAFOS
 
 Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada, de no máximo 230 caracteres, contando espaços.
 
-Primeiro parágrafo: comece pelo nome do produto como sujeito (“A Placa ESP32 DevKitC V4...”). Diga o que é (placa ou módulo), o módulo ou o chip, o Wi-Fi e o Bluetooth (cada um só quando confirmado) e para que serve na prática (IoT, automação, prototipagem), e o formato quando ajuda a escolher (compacta, encaixa em protoboard). “Dois núcleos” pode entrar quando confirmado.
+Primeiro parágrafo: comece pelo nome do produto como sujeito (“A Placa ESP32 DevKitC V4...”). Diga o que é (placa ou módulo), o módulo ou o chip, o Wi-Fi e o Bluetooth (cada um só quando confirmado) e para que serve na prática (IoT, automação, prototipagem), e o formato quando ajuda a escolher (compacta, encaixa em protoboard).
 
-Segundo parágrafo: os recursos de uso: quantos GPIO a placa expõe, as interfaces (UART, SPI, I2C), o conector USB e o chip de interface, a programação (Arduino IDE, ESP-IDF, MicroPython), a alimentação, a antena e se os pinos vêm soldados. Acessórios só quando confirmados.
+Segundo parágrafo: os recursos de uso: quantos pinos digitais a placa expõe, as interfaces (UART, SPI, I2C), o conector USB e o chip de interface, a programação (Arduino IDE, ESP-IDF, MicroPython), a alimentação, a antena e se os pinos vêm soldados. Acessórios só quando confirmados.
 
 Nos parágrafos NÃO cite memórias, clock, consumo nem versão do Bluetooth: ficam nas especificações. Ao voltar a falar do produto, use o nome dele, nunca “ela” no início da frase. Tom: a clareza da Usinainfo e da Smartkits, mais amigável, sem copiar.
 
@@ -26,7 +26,7 @@ Módulo: o módulo soldado na placa, como “ESP32-WROOM-32D”, “ESP32-WROOM-
 
 Chip Espressif (SoC): o chip dentro do módulo, como “ESP32-D0WD-V3”, “ESP32-S3”, “ESP32-C3”. Substitui SoC, Chip, Chip Base e Microcontrolador. Só com o módulo, não deduza o chip.
 
-Processador: núcleo, quantidade e largura: “Xtensa LX6 dual-core de 32 bits”, “RISC-V single-core de 32 bits”. Substitui CPU, Microprocessador e Número de Núcleos.
+Processador: “Xtensa LX6 dual-core de 32 bits”, “RISC-V single-core de 32 bits”. Substitui CPU, Microprocessador e Número de Núcleos.
 
 Frequência de Clock: substitui Clock, Clock Máximo e Frequência de Operação; escreva “até 240MHz”.
 
@@ -46,11 +46,13 @@ Consumo de Corrente: substitui Corrente de Consumo e Corrente de Operação: “
 
 Corrente por Pino: a que cada GPIO fornece: “até 40mA (20mA no padrão)”. Substitui Corrente Máxima nos Pinos I/O. Corrente na Saída 3,3V: a que o regulador da placa fornece, só com fonte.
 
-Pinos GPIO: os GPIO que a PLACA expõe, com o total de pinos: “25 GPIO (placa de 30 pinos)”. Substitui Portas GPIO, GPIOs, Pinos, Número de Pinos e Quantidade de Pinos; nunca os 34 GPIO do chip.
+Pinos Digitais I/O: os GPIO que a PLACA expõe, com o total de pinos: “25 GPIO (placa de 30 pinos)”. Substitui Portas GPIO, GPIOs, Pinos, Número de Pinos e Quantidade de Pinos; nunca os 34 do chip.
+
+Saídas PWM: substitui Pinos PWM, Canais PWM e PWM: “16 canais (em qualquer pino digital)”.
 
 Entradas Analógicas: “16 canais de 12 bits”, substitui ADC. Saídas DAC: “2 canais de 8 bits”. Pinos Touch: “10 canais capacitivos”. Os três substituem Tipos GPIO.
 
-Interfaces de Comunicação: substitui Interfaces, Interfaces Suportadas, Portas e GPIO quando listam funções: “UART, SPI, I2C, I2S, PWM, SDIO e CAN (TWAI)”; quantidade (“3x UART”) só com o número confirmado.
+Interfaces de Comunicação: substitui Interfaces, Interfaces Suportadas, Portas e GPIO quando listam funções: “UART, SPI, I2C, I2S, SDIO e CAN (TWAI)”; quantidade (“3x UART”) só com o número confirmado.
 
 Conector USB: o conector físico, Micro USB ou USB-C. Substitui Conector, Conexão, Interface USB e USB. Não confunda com o chip de interface.
 
@@ -80,10 +82,10 @@ CARACTERÍSTICAS
 
 Cada item contém nome, valor e referencias: nome “Memória RAM”, valor “520KB SRAM”, sem dois-pontos no nome.
 
-Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas abaixo, mesmo que uma loja os publique (ex.: Taxa de Transferência, RTC).
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas abaixo, mesmo que uma loja os publique (ex.: Taxa de Transferência).
 
 Campos obrigatórios:
-Marca; Modelo; Módulo; Chip Espressif (SoC); Processador; Frequência de Clock; Memória Flash; Memória RAM; Memória ROM; Wi-Fi; Bluetooth; Modos Wi-Fi; Segurança; Tensão de Alimentação; Tensão de Operação; Nível Lógico; Consumo de Corrente; Corrente por Pino; Pinos GPIO; Entradas Analógicas; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Antena; Botões; Pinos Soldados; Temperatura de Operação; Ambiente de Programação.
+Marca; Modelo; Módulo; Chip Espressif (SoC); Processador; Frequência de Clock; Memória Flash; Memória RAM; Memória ROM; Wi-Fi; Bluetooth; Modos Wi-Fi; Segurança; Tensão de Alimentação; Tensão de Operação; Nível Lógico; Consumo de Corrente; Corrente por Pino; Pinos Digitais I/O; Saídas PWM; Entradas Analógicas; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Antena; Botões; Pinos Soldados; Temperatura de Operação; Ambiente de Programação.
 
 Campos condicionais (só quando o produto tem o recurso; com o recurso e sem valor confirmado, omita o campo):
 Memória PSRAM; Saídas DAC; Pinos Touch; Consumo em Deep Sleep; Corrente na Saída 3,3V; Sensores Integrados; Tela; Resolução da Tela; Sensor da Câmera; Resolução Máxima de Imagem; Slot para Cartão; Flash LED; Gravador USB; Suporte a Bateria; Corrente de Carga; Comprimento do Cabo USB.

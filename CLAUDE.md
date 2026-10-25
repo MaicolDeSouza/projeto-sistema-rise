@@ -2676,10 +2676,12 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       Feito a partir dos **458 ESP32 coletados** no banco do PC (18 lojas; 145 clássicos, 41 CAM, 33 LoRa, 32 S3, 20 C3, 22 com tela)
       e dos 1.198 nomes de campo que elas publicam: 27 obrigatórios (Marca, Modelo = a PLACA, Módulo = ESP32-WROOM-32D..., SoC,
       Processador, Clock, Flash, RAM, ROM, Wi-Fi, Bluetooth, Modos Wi-Fi, Segurança, Tensão de Alimentação por entrada com " / ",
-      Tensão de Operação, Nível Lógico "3,3V (não tolera 5V)", Consumo "típico / máximo", Pinos GPIO da PLACA com o total de pinos,
-      Entradas Analógicas, Interfaces, Conector USB, Chip de Interface USB, Antena, Botões, Pinos Soldados, Temperatura, Ambiente de
-      Programação) e 16 condicionais (PSRAM, DAC, Touch, Deep Sleep, Sensores, Passo, Tela e Resolução, os 5 da CAM, Bateria e Corrente
-      de Carga, Cabo USB). Regras próprias: placa > módulo > SoC são três coisas; não copiar entre variantes (clássico, S2, S3, C3, C6,
+      Tensão de Operação, Nível Lógico "3,3V (não tolera 5V)", Consumo "típico / máximo", Corrente por Pino, Pinos Digitais I/O = os GPIO
+      da PLACA com o total de pinos, Saídas PWM, Entradas Analógicas, Interfaces, Conector USB, Chip de Interface USB, Antena, Botões,
+      Pinos Soldados, Temperatura, Ambiente de Programação) e 16 condicionais (PSRAM, DAC, Touch, Deep Sleep, Corrente na Saída 3,3V,
+      Sensores, Tela e Resolução, os 5 da CAM, Bateria e Corrente de Carga, Cabo USB). **Ajustes do dono no mesmo dia:** "SoC" virou "Chip
+      Espressif (SoC)"; a corrente por pino voltou (só 1 loja num produto a publica: vem do datasheet); "Pinos GPIO" virou "Pinos Digitais
+      I/O" e o PWM saiu de Interfaces para "Saídas PWM", pelo padrão do Arduino; "Passo entre Pinos" saiu (sempre 2,54mm). Regras próprias: placa > módulo > SoC são três coisas; não copiar entre variantes (clássico, S2, S3, C3, C6,
       H2); USB-C não prova USB nativo; sufixo U = U.FL sem antena; CAM não tem USB; GPIO 6-11 da placa de 38 pinos não contam. Ficaram
       de fora de propósito: Taxa de Transferência, RTC, Cor, textos de aplicação. **LoRa continua no `03-esp32-lora.txt`, não revisado**
       (ainda com "?"), assim como STM32 e Raspberry. 11.996 de 12.000 caracteres. **Só vale depois de colado na biblioteca da VPS** com
