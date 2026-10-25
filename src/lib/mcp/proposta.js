@@ -8,6 +8,7 @@ import { lerParaProposta } from "@/lib/proposta/leitura";
 import { SECOES } from "@/lib/proposta/plano";
 import { ROTEIRO, VERSAO_DO_ROTEIRO } from "@/lib/proposta/roteiro";
 import { ROTEIRO_ML, VERSAO_ROTEIRO_ML } from "@/lib/propostaDeAnuncio/roteiros";
+import { ROTEIRO_REFERENCIAS, VERSAO_ROTEIRO_REFERENCIAS } from "@/lib/referencias/roteiro";
 import { exigirPropostaDeAnuncio } from "./propostaDeAnuncio.js";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
@@ -146,12 +147,18 @@ const GRAVAR_SECAO = {
 const ROTEIRO_DA_PROPOSTA = {
   nome: "roteiroDaProposta",
   descricao:
-    "Primeira chamada de toda proposta: devolve o roteiro (as regras, o formato e a ordem das ferramentas) e a versão dele. Siga exatamente; é o mesmo para qualquer assistente. canal: 'produto' (padrão) para o cadastro do produto (inclui as categorias e o SEO da Loja Integrada), 'ml' para o anúncio do Mercado Livre.",
+    "Primeira chamada de toda proposta: devolve o roteiro (as regras, o formato e a ordem das ferramentas) e a versão dele. Siga exatamente; é o mesmo para qualquer assistente. canal: 'produto' (padrão) para o cadastro do produto (inclui as categorias e o SEO da Loja Integrada), 'ml' para o anúncio do Mercado Livre, 'referencias' para escolher e marcar os fornecedores e concorrentes do produto (antes da proposta).",
   esquema: z.object({
-    canal: z.enum(["produto", "ml"]).optional().describe("De qual proposta: 'produto' (padrão, o cadastro, com categorias e SEO da loja) ou 'ml' (anúncio do Mercado Livre)"),
+    canal: z.enum(["produto", "ml", "referencias"]).optional().describe("De qual roteiro: 'produto' (padrão, o cadastro, com categorias e SEO da loja), 'ml' (anúncio do Mercado Livre) ou 'referencias' (escolher fornecedores e concorrentes)"),
   }),
   anotacoes: SO_LEITURA,
   async executar({ canal = "produto" }, contexto) {
+    if (canal === "referencias") {
+      // Import tardio: referencias.js importa exigirProposta DESTE arquivo.
+      const { exigirReferencias } = await import("./referencias.js");
+      exigirReferencias(contexto);
+      return { canal, versao: VERSAO_ROTEIRO_REFERENCIAS, roteiro: ROTEIRO_REFERENCIAS };
+    }
     if (canal === "ml") {
       exigirPropostaDeAnuncio(contexto, "ml");
       return { canal, versao: VERSAO_ROTEIRO_ML, roteiro: ROTEIRO_ML };

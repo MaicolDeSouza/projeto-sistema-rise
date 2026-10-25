@@ -76,6 +76,7 @@ import CategoriasDaLoja from "./CategoriasDaLoja";
 import SeoDaLoja from "./SeoDaLoja";
 import { chaveDoRascunho } from "@/lib/rascunhoDoCadastro";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
+import { fornecedoresComRascunho } from "@/lib/fornecedorRascunho";
 import ReferenciasDeMercado, { MAXIMO_MARCADOS } from "./ReferenciasDeMercado";
 import SeloPosicaoDePreco from "./SeloPosicaoDePreco";
 import {
@@ -2239,27 +2240,11 @@ export default function FormularioProduto({
   // Aqui ele vira a MESMA lista de rascunho — id fixo (nao aleatorio: entra
   // no hidden field renderizado no servidor, e um id sorteado de novo na
   // hidratacao do cliente desencontraria o HTML). So conta enquanto nao ha
-  // vinculo de verdade: depois de salvo uma vez, `fornecedores` deixa de vir
-  // vazio e o rascunho do Bling some, substituido pelos vinculos reais.
+  // fornecedor PADRAO de verdade (25/10/2026, `rascunhoVale`): os vinculos
+  // que o MCP marca (nunca padrao) entram junto, atras dele; depois de salvo,
+  // o rascunho some, substituido pelos vinculos reais.
   const [fornecedoresRascunho, setFornecedoresRascunho] = useState(() =>
-    clone
-      ? clone.fornecedores
-      : produto?.fornecedorRascunho?.nome && fornecedores.length === 0
-      ? [
-          {
-            id: "bling-rascunho",
-            nome: produto.fornecedorRascunho.nome,
-            descricao: produto.fornecedorRascunho.descricao ?? null,
-            codigo: produto.fornecedorRascunho.codigo ?? null,
-            precoCusto: produto.fornecedorRascunho.precoCusto ?? null,
-            // O Bling nao separa um "link" proprio — o que ele chama de
-            // "Descricao no fornecedor" e, na pratica, esse link (ver
-            // Produto.fornecedorRascunho); mora em `descricao`, nao aqui.
-            link: null,
-            padrao: true,
-          },
-        ]
-      : fornecedores,
+    clone ? clone.fornecedores : fornecedoresComRascunho(fornecedores, produto?.fornecedorRascunho),
   );
 
   function mudarFornecedoresRascunho(atualizador) {

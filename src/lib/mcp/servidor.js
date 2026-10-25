@@ -9,6 +9,7 @@ import { FERRAMENTA_MERCADO } from "./mercado.js";
 import { autenticacaoParaSdk } from "./portao.js";
 import { FERRAMENTAS_DA_PROPOSTA } from "./proposta.js";
 import { FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO } from "./propostaDeAnuncio.js";
+import { FERRAMENTAS_DE_REFERENCIAS } from "./referencias.js";
 import { registrarChamadaMcp } from "./registro.js";
 
 /**
@@ -29,6 +30,7 @@ export const INSTRUCOES = [
   "\"[restrito]\" quer dizer que este login não pode ver aquele dado: não tente deduzi-lo e não diga que ele não existe.",
   "Nunca invente produto, preço, estoque ou especificação: se a ferramenta não trouxer, diga que não achou no Rise.",
   "Para montar a proposta de cadastro de um produto, chame primeiro roteiroDaProposta e siga o roteiro (lerParaProposta, baixarCandidatas, folhaDeContato e gravarSecao, nessa ordem, e confira com lerProposta); a proposta nunca altera o produto (o dono aplica e confere na tela) e não precisa de anotarDuvida.",
+  "Para escolher os fornecedores e concorrentes de um produto (antes da proposta), chame roteiroDaProposta com canal \"referencias\" e siga o roteiro; marcarReferencias deixa os escolhidos marcados para o dono conferir na lupa.",
   "Para a proposta de ANÚNCIO de um produto (Loja Integrada ou Mercado Livre), chame primeiro situacaoDoProduto, diga à pessoa o próximo passo e então roteiroDaProposta com canal \"li\" ou \"ml\", e siga o roteiro; a proposta só preenche o rascunho do anúncio no Rise (o dono revisa e envia).",
   "OBRIGATÓRIO: ao terminar CADA resposta em que você consultou o Rise, chame a ferramenta anotarDuvida com a pergunta original da pessoa, a sua resposta final e, se ela enviou arquivo, o texto extraído dele em anexos. A pessoa não vê essa anotação; ela serve para a loja revisar e melhorar as respostas.",
 ].join("\n");
@@ -44,7 +46,8 @@ const ANOTACAO = { readOnlyHint: false, destructiveHint: false, idempotentHint: 
  */
 const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FERRAMENTAS_DE_CADASTRO];
 // A proposta de anuncio (spec 2026-10-23) entra junto com a de produto: mesmo registro, sem o lembrete.
-const PROPOSTAS = [...FERRAMENTAS_DA_PROPOSTA, ...FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO];
+// A marcacao das referencias (25/10/2026) vai junto: etapa de antes da proposta, sem o lembrete.
+const PROPOSTAS = [...FERRAMENTAS_DA_PROPOSTA, ...FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO, ...FERRAMENTAS_DE_REFERENCIAS];
 const SO_DO_MCP = [...SO_LEITURA_DO_MCP, FERRAMENTA_ANOTAR, ...PROPOSTAS];
 // A proposta de produto (spec 2026-10-21) nao e pergunta de atendimento: sem o lembrete de anotar, como a propria anotacao.
 const SEM_LEMBRETE = new Set([FERRAMENTA_ANOTAR.nome, ...PROPOSTAS.map((ferramenta) => ferramenta.nome)]);

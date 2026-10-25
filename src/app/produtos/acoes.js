@@ -989,8 +989,10 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     // O fornecedor extraido na importacao do Bling ja foi confirmado pela
     // chamada acima (ele entra no MESMO rascunho, ver `fornecedoresRascunho`
     // em FormularioProduto.jsx) — so falta limpar a marca no Produto, senao
-    // ele reaparece na proxima abertura como se ainda estivesse pendente.
-    if (produto.fornecedorRascunho) {
+    // ele reaparece na proxima abertura como se ainda estivesse pendente. Se a gravacao
+    // dos fornecedores falhou (o fornecedor do Bling sem cadastro, por exemplo), o
+    // rascunho FICA: apagar aqui perderia o unico registro dele (25/10/2026).
+    if (produto.fornecedorRascunho && !avisoFornecedores) {
       await prisma.produto
         .update({ where: { id }, data: { fornecedorRascunho: Prisma.DbNull } })
         .catch((erro) => console.error("Falha ao limpar o fornecedor em rascunho:", erro.message));

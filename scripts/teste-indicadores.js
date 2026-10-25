@@ -12,7 +12,9 @@ assert.equal(custoDoCadastro({ ...importado, fornecedores: [
   { padrao: false, precoCusto: "1.00" }, { padrao: true, precoCusto: "15.00" },
 ]}), "15.00");
 assert.equal(custoDoCadastro({ ...importado, fornecedores: [{ padrao: true, precoCusto: null }] }), null);
-assert.equal(custoDoCadastro({ ...importado, fornecedores: [{ padrao: false, precoCusto: "9.00" }] }), null);
+// Vinculo que nao e padrao (o MCP marca assim) deixa o rascunho do Bling valer (25/10/2026).
+assert.equal(custoDoCadastro({ ...importado, fornecedores: [{ padrao: false, precoCusto: "9.00" }] }), "12.50");
+assert.equal(custoDoCadastro({ ...importado, fornecedorRascunho: null, fornecedores: [{ padrao: false, precoCusto: "9.00" }] }), null);
 assert.equal(custoDoCadastro({ ...importado, fornecedores: [{ padrao: true, precoCusto: "0.00" }] }), "0.00");
 assert.equal(custoDoCadastro({ ...importado, fornecedorRascunho: null, custo: "999.00" }), null);
 

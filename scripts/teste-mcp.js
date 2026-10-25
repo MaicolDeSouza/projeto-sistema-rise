@@ -43,6 +43,8 @@ async function codigoDoErro(promessa) {
 /** A resposta do /mcp vem em JSON ou em SSE (um evento `data:` com a mensagem JSON-RPC): devolve a mensagem nos dois casos. */
 // As ferramentas da proposta de produto (plano 2026-10-21): nao levam o lembrete de anotar duvida.
 const PROPOSTA = ["baixarCandidatas", "folhaDeContato", "gravarSecao", "lerParaProposta", "lerProposta", "roteiroDaProposta"];
+// A marcacao das referencias (25/10/2026), etapa de antes da proposta: tambem sem o lembrete.
+const REFERENCIAS = ["marcarReferencias"];
 // As da proposta de anuncio (plano 2026-10-23): tambem sem o lembrete.
 const PROPOSTA_DE_ANUNCIO = ["situacaoDoProduto", "lerParaPropostaML", "lerCategoriaML", "gravarPropostaML"];
 
@@ -750,7 +752,7 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras", "roteiroDaProposta", "situacaoDoProduto"],
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarTransportadoras", "marcarReferencias", "roteiroDaProposta", "situacaoDoProduto"],
         23,
         true,
       ],
@@ -1183,7 +1185,7 @@ try {
       [2, true, 1],
     );
     const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem)))?.result?.tools ?? [];
-    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
 
     // --- as consultas do dia ---
     const { inicio } = limitesDoDia(hojeEmSaoPaulo());
@@ -1432,6 +1434,55 @@ try {
     const { VERSAO_ROTEIRO_ML } = await import("../src/lib/propostaDeAnuncio/roteiros.js");
     conferir("roteiroDaProposta canal ml", [roteiroML.canal, roteiroML.versao, /gravarPropostaML/.test(roteiroML.roteiro ?? ""), /linksSemCatalogo/.test(roteiroML.roteiro ?? ""), /NÃO escolha/.test(roteiroML.roteiro ?? ""), /composição/.test(roteiroML.roteiro ?? "")], ["ml", VERSAO_ROTEIRO_ML, true, true, true, true]);
     conferir("resumo do roteiro do ML na Revisao", resumoDaChamada("roteiroDaProposta", { canal: "ml" }), "proposta ML: leu o roteiro");
+  }
+
+  {
+    // Marcar referencias (25/10/2026): vincula fornecedor e concorrente sem virar padrao e sem esconder o rascunho do Bling
+    console.log("\nMarcar referencias pelo MCP");
+    const { responderMcp } = await import("../src/lib/mcp/servidor.js");
+    const { rascunhoVale, fornecedoresComRascunho } = await import("../src/lib/fornecedorRascunho.js");
+    const rascunho = { nome: "ZZ-MCP Do Bling", precoCusto: 33 };
+    conferir("rascunho vale sem vinculo e com vinculo que nao e padrao", [rascunhoVale([], rascunho), rascunhoVale([{ padrao: false }], rascunho), rascunhoVale([{ padrao: true }], rascunho), rascunhoVale([], null)], [true, true, false, false]);
+    conferir("a aba mostra o rascunho na frente dos vinculos", fornecedoresComRascunho([{ nome: "X", padrao: false }], rascunho).map((item) => [item.nome, item.padrao]), [["ZZ-MCP Do Bling", true], ["X", false]]);
+
+    await prisma.produto.create({ data: { sku: "ZZ-MCP-REF", tituloBase: "ZZMCP PLACA DE REFERENCIA", fornecedorRascunho: rascunho } });
+    const fonteF = await prisma.fonteColeta.create({ data: { nome: "ZZ-MCP Atacado", dominio: "zz-mcp-atacado.invalid", tipo: "FORNECEDOR" } });
+    const fonteC = await prisma.fonteColeta.create({ data: { nome: "ZZ-MCP Vitrine", dominio: "zz-mcp-vitrine.invalid", tipo: "CONCORRENTE" } });
+    const fonteSemCadastro = await prisma.fonteColeta.create({ data: { nome: "ZZ-MCP Sem Cadastro", dominio: "zz-mcp-semcadastro.invalid", tipo: "CONCORRENTE" } });
+    await prisma.produtoColetado.create({ data: { fonteId: fonteF.id, chave: "codigo:A1", origem: "arquivo", codigo: "A1", nome: "Placa A1", precoNormal: 29.9, precoComImpostos: 30.5 } });
+    await prisma.produtoColetado.create({ data: { fonteId: fonteC.id, chave: "codigo:V1", origem: "site", codigo: "V1", nome: "Placa V1", precoNormal: 55, url: "https://zz-mcp-vitrine.invalid/v1" } });
+    await prisma.produtoColetado.create({ data: { fonteId: fonteSemCadastro.id, chave: "codigo:S1", origem: "site", codigo: "S1", nome: "Placa S1" } });
+    await prisma.fornecedor.create({ data: { nome: "ZZ-MCP Atacado", estrangeiro: true, fonteId: fonteF.id } });
+    await prisma.concorrente.create({ data: { nome: "ZZ-MCP Vitrine", fonteId: fonteC.id } });
+
+    let id = 4000;
+    const quem = (pode) => ({ login: "zz-mcp-ref", clienteId: null, clienteNome: "Claude", escopos: ["consultar"], familia: "zz-mcp-familia", expiraEm: new Date(Date.now() + 3600e3), administrador: false, pode });
+    const chamar = async (nome, argumentos, autenticacao = quem(() => true)) =>
+      (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/call", { name: nome, arguments: argumentos }, { id: id++ }), autenticacao)))?.result ?? null;
+    const lerJson = (resultado) => JSON.parse(resultado?.content?.[0]?.text || "{}");
+
+    const roteiro = lerJson(await chamar("roteiroDaProposta", { canal: "referencias" }));
+    const { VERSAO_ROTEIRO_REFERENCIAS } = await import("../src/lib/referencias/roteiro.js");
+    conferir("roteiro das referencias: versao, marcarReferencias, a 4hobby e o perguntar", [roteiro.canal, roteiro.versao, /marcarReferencias/.test(roteiro.roteiro ?? ""), /PRÓPRIA 4HOBBY/.test(roteiro.roteiro ?? ""), /NÃO siga antes da resposta/.test(roteiro.roteiro ?? "")], ["referencias", VERSAO_ROTEIRO_REFERENCIAS, true, true, true]);
+    const semEditar = await chamar("marcarReferencias", { sku: "ZZ-MCP-REF", concorrentes: { adicionar: [{ fonte: "ZZ-MCP Vitrine", codigo: "V1" }] } }, quem((recurso) => recurso !== "tela.produtos.cadastro"));
+    conferir("marcarReferencias sem editar Produtos: recusa", [semEditar?.isError, (semEditar?.content?.[0]?.text ?? "").includes("editar o cadastro")], [true, true]);
+
+    const marcado = lerJson(await chamar("marcarReferencias", {
+      sku: "ZZ-MCP-REF",
+      concorrentes: { adicionar: [{ fonte: "ZZ-MCP Vitrine", codigo: "V1" }, { fonte: "zz-mcp sem cadastro", codigo: "S1" }, { fonte: "ZZ-MCP Atacado", codigo: "A1" }, { fonte: "ZZ-MCP Vitrine", codigo: "NAO-EXISTE" }] },
+      fornecedores: { adicionar: [{ fonte: "ZZ-MCP Atacado", codigo: "A1" }] },
+    }));
+    conferir("marca o concorrente e o fornecedor; recusa sem cadastro, do lado errado e inexistente", [marcado.feitos?.map((item) => item.acao), marcado.recusados?.length, marcado.vinculados, marcado.rascunhoDoBling], [["concorrente marcado", "fornecedor marcado"], 3, { concorrentes: 1, fornecedores: 1 }, "ZZ-MCP Do Bling"]);
+    const linha = await prisma.produtoFornecedor.findFirst({ where: { produto: { sku: "ZZ-MCP-REF" } } });
+    const produtoRef = await prisma.produto.findUnique({ where: { sku: "ZZ-MCP-REF" }, select: { custo: true, fornecedorRascunho: true } });
+    conferir("fornecedor marcado: nao padrao, custo com imposto, produto e rascunho intactos", [linha?.padrao, Number(linha?.precoCusto), linha?.codigo, produtoRef.custo, produtoRef.fornecedorRascunho?.nome], [false, 30.5, "A1", null, "ZZ-MCP Do Bling"]);
+    const deNovo = lerJson(await chamar("marcarReferencias", { sku: "ZZ-MCP-REF", fornecedores: { adicionar: [{ fonte: "ZZ-MCP Atacado", codigo: "A1" }] }, concorrentes: { adicionar: [{ fonte: "ZZ-MCP Vitrine", codigo: "V1" }] } }));
+    conferir("marcar de novo nao duplica", [deNovo.feitos?.map((item) => item.acao), deNovo.vinculados], [["concorrente marcado", "fornecedor já estava marcado"], { concorrentes: 1, fornecedores: 1 }]);
+    const tirado = lerJson(await chamar("marcarReferencias", { sku: "ZZ-MCP-REF", fornecedores: { remover: [{ fonte: "ZZ-MCP Atacado", codigo: "A1" }] }, concorrentes: { remover: [{ fonte: "ZZ-MCP Vitrine", codigo: "V1" }] } }));
+    conferir("desmarca os dois", [tirado.feitos?.map((item) => item.acao), tirado.vinculados], [["concorrente desmarcado", "fornecedor desmarcado"], { concorrentes: 0, fornecedores: 0 }]);
+    await prisma.produtoFornecedor.create({ data: { produto: { connect: { sku: "ZZ-MCP-REF" } }, fornecedor: { connect: { nome: "ZZ-MCP Atacado" } }, codigo: "A1", padrao: true } });
+    const padrao = lerJson(await chamar("marcarReferencias", { sku: "ZZ-MCP-REF", fornecedores: { remover: [{ fonte: "ZZ-MCP Atacado", codigo: "A1" }] } }));
+    conferir("o padrao nao sai pelo MCP", [padrao.feitos?.length, padrao.recusados?.[0]?.motivo?.includes("padrão")], [0, true]);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)

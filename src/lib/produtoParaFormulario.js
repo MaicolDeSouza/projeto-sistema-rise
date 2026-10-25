@@ -3,6 +3,7 @@ import { urlDe } from "@/lib/arquivos";
 import { lerPecasDoKit, mudancasDosKits, pecaParaTela } from "@/lib/composicaoBanco";
 import { propostaParaFormulario } from "@/lib/proposta/banco";
 import { custosDosProdutos } from "@/lib/custoAdicional";
+import { fornecedoresComRascunho } from "@/lib/fornecedorRascunho";
 import { custoTotal, normalizarAdicionais, somaDosAdicionais } from "@/lib/custoAdicionalRegras";
 
 /**
@@ -258,22 +259,8 @@ export function dadosParaClone({ produto, fornecedores, concorrentes }) {
     ...campos
   } = produto;
 
-  // Sem vinculo de verdade, o fornecedor que veio do Bling (rascunho) e o que o original mostra na aba.
-  const listaDeFornecedores =
-    fornecedores.length > 0
-      ? fornecedores
-      : fornecedorRascunho?.nome
-        ? [
-            {
-              nome: fornecedorRascunho.nome,
-              descricao: fornecedorRascunho.descricao ?? null,
-              codigo: fornecedorRascunho.codigo ?? null,
-              precoCusto: fornecedorRascunho.precoCusto ?? null,
-              link: null,
-              padrao: true,
-            },
-          ]
-        : [];
+  // Sem fornecedor padrao de verdade, o que veio do Bling (rascunho) entra na frente, como o original mostra na aba.
+  const listaDeFornecedores = fornecedoresComRascunho(fornecedores, fornecedorRascunho);
 
   return {
     origem: { id, sku: produto.sku, titulo: produto.tituloBase },

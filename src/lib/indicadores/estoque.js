@@ -1,14 +1,15 @@
 import { Decimal } from "@prisma/client/runtime/client";
 
-// Mesma origem do custo mostrado no formulario do produto. Um vinculo real
-// substitui o rascunho do Bling, mesmo quando seu preco ainda nao foi preenchido.
+import { rascunhoVale } from "../fornecedorRascunho.js";
+
+// Mesma origem do custo mostrado no formulario do produto. Um vinculo PADRAO
+// substitui o rascunho do Bling, mesmo quando seu preco ainda nao foi preenchido;
+// vinculo que nao e padrao (marcado pelo MCP) deixa o rascunho valer (`rascunhoVale`).
 export function custoDoCadastro(produto) {
-  if (produto.fornecedores.length > 0) {
-    return produto.fornecedores.find((item) => item.padrao)?.precoCusto ?? null;
+  if (rascunhoVale(produto.fornecedores, produto.fornecedorRascunho)) {
+    return produto.fornecedorRascunho.precoCusto ?? null;
   }
-  return produto.fornecedorRascunho?.nome
-    ? produto.fornecedorRascunho.precoCusto ?? null
-    : null;
+  return produto.fornecedores.find((item) => item.padrao)?.precoCusto ?? null;
 }
 
 // Mantem a precisao decimal dos valores monetarios durante toda a soma.
